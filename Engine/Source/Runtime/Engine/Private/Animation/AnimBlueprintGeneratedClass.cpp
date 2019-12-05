@@ -135,16 +135,40 @@ void FAnimBlueprintDebugData::SetSnapshotIndexByTime(UAnimInstance* Instance, do
 void FAnimBlueprintDebugData::ResetNodeVisitSites()
 {
 	UpdatedNodesThisFrame.Empty(UpdatedNodesThisFrame.Num());
+	StateData.Empty(StateData.Num());
+	NodeValuesThisFrame.Empty(NodeValuesThisFrame.Num());
+	SequencePlayerRecordsThisFrame.Empty(SequencePlayerRecordsThisFrame.Num());
+	BlendSpacePlayerRecordsThisFrame.Empty(BlendSpacePlayerRecordsThisFrame.Num());
 }
 
 void FAnimBlueprintDebugData::RecordNodeVisit(int32 TargetNodeIndex, int32 SourceNodeIndex, float BlendWeight)
 {
-	new (UpdatedNodesThisFrame) FNodeVisit(SourceNodeIndex, TargetNodeIndex, BlendWeight);
+	UpdatedNodesThisFrame.Emplace(SourceNodeIndex, TargetNodeIndex, BlendWeight);
 }
 
 void FAnimBlueprintDebugData::RecordNodeVisitArray(const TArray<FNodeVisit>& Nodes)
 {
 	UpdatedNodesThisFrame.Append(Nodes);
+}
+
+void FAnimBlueprintDebugData::RecordStateData(int32 StateMachineIndex, int32 StateIndex, float Weight, float ElapsedTime)
+{
+	StateData.Emplace(StateMachineIndex, StateIndex, Weight, ElapsedTime);
+}
+
+void FAnimBlueprintDebugData::RecordNodeValue(int32 InNodeID, const FString& InText)
+{
+	NodeValuesThisFrame.Emplace(InText, InNodeID);
+}
+
+void FAnimBlueprintDebugData::RecordSequencePlayer(int32 InNodeID, float InPosition, float InLength, int32 InFrameCount)
+{
+	SequencePlayerRecordsThisFrame.Emplace(InNodeID, InPosition, InLength, InFrameCount);
+}
+
+void FAnimBlueprintDebugData::RecordBlendSpacePlayer(int32 InNodeID, UBlendSpaceBase* InBlendSpace, float InPositionX, float InPositionY, float InPositionZ)
+{
+	BlendSpacePlayerRecordsThisFrame.Emplace(InNodeID, InBlendSpace, InPositionX, InPositionY, InPositionZ);
 }
 
 void FAnimBlueprintDebugData::AddPoseWatch(int32 NodeID, FColor Color)

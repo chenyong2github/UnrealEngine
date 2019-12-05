@@ -11,6 +11,7 @@
 #include "Animation/AnimStateMachineTypes.h"
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimNodeBase.h"
+#include "Animation/BlendSpaceBase.h"
 
 #include "AnimBlueprintGeneratedClass.generated.h"
 
@@ -22,13 +23,52 @@ class UAnimStateTransitionNode;
 class UEdGraph;
 class USkeleton;
 
+// Represents the debugging information for a single state within a state machine
+USTRUCT()
+struct FStateMachineStateDebugData
+{
+	GENERATED_BODY()
+
+public:
+	FStateMachineStateDebugData()
+		: StateMachineIndex(INDEX_NONE)
+		, StateIndex(INDEX_NONE)
+		, Weight(0.0f)
+		, ElapsedTime(0.0f)
+	{
+	}
+
+	FStateMachineStateDebugData(int32 InStateMachineIndex, int32 InStateIndex, float InWeight, float InElapsedTime)
+		: StateMachineIndex(InStateMachineIndex)
+		, StateIndex(InStateIndex)
+		, Weight(InWeight)
+		, ElapsedTime(InElapsedTime)
+	{}
+
+	// The index of the state machine
+	int32 StateMachineIndex;
+
+	// The index of the state
+	int32 StateIndex;
+
+	// The last recorded weight for this state
+	float Weight;
+
+	// The time that this state has been active (only valid if this is the current state)
+	float ElapsedTime;
+};
+
 // This structure represents debugging information for a single state machine
 USTRUCT()
 struct FStateMachineDebugData
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 public:
+	FStateMachineDebugData()
+		: MachineIndex(INDEX_NONE)
+	{}
+
 	// Map from state nodes to their state entry in a state machine
 	TMap<TWeakObjectPtr<UEdGraphNode>, int32> NodeToStateIndex;
 	TMap<TWeakObjectPtr<UEdGraphNode>, int32> NodeToTransitionIndex;
@@ -108,6 +148,9 @@ public:
 	// Map from animation node GUID to property index
 	TMap<FGuid, int32> NodeGuidToIndexMap;
 
+	// The debug data for each state machine state
+	TArray<FStateMachineStateDebugData> StateData;	
+	
 	// History of snapshots of animation data
 	TSimpleRingBuffer<FAnimationFrameSnapshot>* SnapshotBuffer;
 
@@ -128,6 +171,61 @@ public:
 
 	// History of activated nodes
 	TArray<FNodeVisit> UpdatedNodesThisFrame;
+
+	// Values output by nodes
+	struct FNodeValue
+	{
+		FString Text;
+		int32 NodeID;
+
+		FNodeValue(const FString& InText, int32 InNodeID)
+			: Text(InText)
+			, NodeID(InNodeID)
+		{}
+	};
+
+	// Values output by nodes
+	TArray<FNodeValue> NodeValuesThisFrame;
+
+	// Record of a sequence player's state
+	struct FSequencePlayerRecord
+	{
+		FSequencePlayerRecord(int32 InNodeID, float InPosition, float InLength, int32 InFrameCount)
+			: NodeID(InNodeID)
+			, Position(InPosition)
+			, Length(InLength) 
+			, FrameCount(InFrameCount)
+		{}
+
+		int32 NodeID;
+		float Position;
+		float Length;
+		int32 FrameCount;
+	};
+
+	// All sequence player records this frame
+	TArray<FSequencePlayerRecord> SequencePlayerRecordsThisFrame;
+
+	// Record of a blend space player's state
+	struct FBlendSpacePlayerRecord
+	{
+		FBlendSpacePlayerRecord(int32 InNodeID, UBlendSpaceBase* InBlendSpace, float InPositionX, float InPositionY, float InPositionZ)
+			: NodeID(InNodeID)
+			, BlendSpace(InBlendSpace)
+			, PositionX(InPositionX)
+			, PositionY(InPositionY) 
+			, PositionZ(InPositionY)
+		{}
+
+		int32 NodeID;
+		TWeakObjectPtr<const UBlendSpaceBase> BlendSpace;
+		float PositionX;
+		float PositionY;
+		float PositionZ;
+	};
+
+	// All blend space player records this frame
+	TArray<FBlendSpacePlayerRecord> BlendSpacePlayerRecordsThisFrame;
 
 	// Active pose watches to track
 	TArray<FAnimNodePoseWatch> AnimNodePoseWatch;
@@ -158,6 +256,10 @@ public:
 	void ResetNodeVisitSites();
 	void RecordNodeVisit(int32 TargetNodeIndex, int32 SourceNodeIndex, float BlendWeight);
 	void RecordNodeVisitArray(const TArray<FNodeVisit>& Nodes);
+	void RecordStateData(int32 StateMachineIndex, int32 StateIndex, float Weight, float ElapsedTime);
+	void RecordNodeValue(int32 InNodeID, const FString& InText);
+	void RecordSequencePlayer(int32 InNodeID, float InPosition, float InLength, int32 InFrameCount);
+	void RecordBlendSpacePlayer(int32 InNodeID, UBlendSpaceBase* InBlendSpace, float InPositionX, float InPositionY, float InPositionZ);
 
 	void AddPoseWatch(int32 NodeID, FColor Color);
 	void RemovePoseWatch(int32 NodeID);

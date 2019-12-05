@@ -3,6 +3,7 @@
 #include "AnimNodes/AnimNode_CurveSource.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimTrace.h"
 
 FAnimNode_CurveSource::FAnimNode_CurveSource()
 	: SourceBinding(ICurveSourceInterface::DefaultBinding)
@@ -90,7 +91,10 @@ void FAnimNode_CurveSource::Evaluate_AnyThread(FPoseContext& Output)
 			{
 				const float CurrentValue = Output.Curve.Get(NameUID);
 				const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-				Output.Curve.Set(NameUID, FMath::Lerp(CurrentValue, NamedValue.Value, ClampedAlpha));
+				const float LerpedValue = FMath::Lerp(CurrentValue, NamedValue.Value, ClampedAlpha);
+				Output.Curve.Set(NameUID, LerpedValue);
+
+				TRACE_ANIM_NODE_VALUE(Output, *NamedValue.Name.ToString(), LerpedValue);
 			}
 		}
 	}

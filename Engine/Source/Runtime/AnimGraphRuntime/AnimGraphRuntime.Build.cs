@@ -14,21 +14,27 @@ public class AnimGraphRuntime : ModuleRules
 				"Core", 
 				"CoreUObject", 
 				"Engine",
-                "AnimationCore",
+				"AnimationCore",
 			}
 		);
 
-        SetupModulePhysicsSupport(Target);
+		PrivateDependencyModuleNames.AddRange(
+			new string[] {
+				"TraceLog",
+			}
+		);
 
-        if (Target.bCompileChaos || Target.bUseChaos)
-        {
-            PublicDependencyModuleNames.AddRange(
-                new string[] {
+		SetupModulePhysicsSupport(Target);
+
+		if (Target.bCompileChaos || Target.bUseChaos)
+		{
+			PublicDependencyModuleNames.AddRange(
+				new string[] {
 					"ChaosSolvers",
 					"GeometryCollectionEngine",
 					"GeometryCollectionSimulationCore"
-                }
-            );
-        }
-    }
+				}
+			);
+		}
+	}
 }

@@ -10,8 +10,11 @@ namespace Insights { class ITimingViewSession; }
 namespace Insights { enum class ETimeChangedFlags : int32; }
 class FSkeletalMeshPoseTrack;
 class FAnimationTickRecordsTrack;
+class FAnimNodesTrack;
 class FMenuBuilder;
 class UWorld;
+class IAnimationBlueprintEditor;
+struct FCustomDebugObject;
 
 class FAnimationSharedData
 {
@@ -25,6 +28,14 @@ public:
 
 #if WITH_ENGINE
 	void DrawPoses(UWorld* InWorld);
+#endif
+
+#if WITH_EDITOR
+	// Get the debug objects to plug into the anim BP debugger
+	void GetCustomDebugObjects(const IAnimationBlueprintEditor& InAnimationBlueprintEditor, TArray<FCustomDebugObject>& OutDebugList);
+
+	// Helper function to invalidate all viewports so non-realtime viewports update correctly.
+	void InvalidateViewports();
 #endif
 
 	// Check whether animation tracks are enabled
@@ -41,6 +52,15 @@ public:
 
 	// Enumerate skeletal mesh pose tracks
 	void EnumerateSkeletalMeshPoseTracks(TFunctionRef<void(const TSharedRef<FSkeletalMeshPoseTrack>&)> InCallback) const;
+
+	// Find a skeletal mesh track with the specified component ID
+	TSharedPtr<FSkeletalMeshPoseTrack> FindSkeletalMeshPoseTrack(uint64 InComponentId) const;
+
+	// Enumerate anim nodes tracks
+	void EnumerateAnimNodesTracks(TFunctionRef<void(const TSharedRef<FAnimNodesTrack>&)> InCallback) const;
+
+	// Find an anim nodes track with the specified anim instance ID
+	TSharedPtr<FAnimNodesTrack> FindAnimNodesTrack(uint64 InAnimInstanceId) const;
 
 private:
 	// UI handlers
@@ -59,6 +79,7 @@ private:
 	// All the tracks we manage
 	TArray<TSharedRef<FSkeletalMeshPoseTrack>> SkeletalMeshPoseTracks;
 	TArray<TSharedRef<FAnimationTickRecordsTrack>> AnimationTickRecordsTracks;
+	TArray<TSharedRef<FAnimNodesTrack>> AnimNodesTracks;
 
 	// Delegate handles for hooks into the timing view
 	FDelegateHandle TimeMarkerChangedHandle;

@@ -236,6 +236,11 @@ void FAnimNode_Inertialization::Evaluate_AnyThread(FPoseContext& Output)
 	// Reset the time accumulator and teleport state
 	DeltaTime = 0.0f;
 	TeleportType = ETeleportType::None;
+
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("State"), *UEnum::GetValueAsString(InertializationState));
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("Elapsed Time"), InertializationElapsedTime);
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("Duration"), InertializationDuration);
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("Normalized Time"), InertializationDuration > KINDA_SMALL_NUMBER ? (InertializationElapsedTime / InertializationDuration) : 0.0f);
 }
 
 

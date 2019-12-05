@@ -11,7 +11,9 @@
 #endif
 
 #if WITH_ENGINE
+class USkeletalMeshComponent;
 class UInsightsSkeletalMeshComponent;
+class AActor;
 #endif
 
 class FAnimationSharedData;
@@ -40,7 +42,14 @@ public:
 	bool ShouldDrawPose() const { return bDrawPose; }
 	bool ShouldDrawSkeleton() const { return bDrawSkeleton; }
 
+	// Mark this track as potentially being debugged, so we might need to push through its transforms when time changes
+	void MarkPotentiallyDebugged() { bPotentiallyDebugged = true; }
+	bool IsPotentiallyDebugged() const { return bPotentiallyDebugged; }
+
 #if WITH_ENGINE
+	// Get the component for the specified world
+	USkeletalMeshComponent* GetComponent(UWorld* InWorld);
+
 	// Handle worlds being torn down
 	void OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources);
 
@@ -56,6 +65,9 @@ private:
 	// Helper function used to find a skeletal mesh pose
 	void FindSkeletalMeshPoseMessage(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const FSkeletalMeshPoseMessage&)> InFoundPredicate) const;
 
+	// Updates component visibility based on draw pose flag
+	void UpdateComponentVisibility();
+
 private:
 	/** The shared data */
 	const FAnimationSharedData& SharedData;
@@ -69,12 +81,16 @@ private:
 	/** Whether to draw the skeleton */
 	bool bDrawSkeleton;
 
+	/** Whether we might be being debugged */
+	bool bPotentiallyDebugged;
+
 #if WITH_ENGINE
 	/** Cached data per-world */
 	struct FWorldComponentCache
 	{
 		FWorldComponentCache()
 			: World(nullptr)
+			, Actor(nullptr)
 			, Component(nullptr)
 			, Time(0.0)
 		{}
@@ -84,6 +100,9 @@ private:
 
 		/** The world we populate */
 		UWorld* World;
+
+		/** Cached actor used to hang the component off of */
+		AActor* Actor;
 
 		/** Cached component used to visualize in this world */
 		UInsightsSkeletalMeshComponent* Component;

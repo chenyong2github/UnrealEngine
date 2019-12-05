@@ -2,6 +2,7 @@
 
 #include "AnimNodes/AnimNode_PoseSnapshot.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_PoseSnapshot
@@ -51,6 +52,8 @@ void FAnimNode_PoseSnapshot::Update_AnyThread(const FAnimationUpdateContext& Con
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread)
 	// Evaluate any BP logic plugged into this node
 	GetEvaluateGraphExposedInputs().Execute(Context);
+
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Snapshot Name"), Snapshot.SnapshotName);
 }
 
 void FAnimNode_PoseSnapshot::Evaluate_AnyThread(FPoseContext& Output)

@@ -19,6 +19,8 @@
 #define DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Method) \
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
+#define ANIM_NODE_IDS_AVAILABLE	(ANIM_TRACE_ENABLED || WITH_EDITORONLY_DATA)
+
 class IAnimClassInterface;
 class UAnimBlueprint;
 class UAnimInstance;
@@ -154,7 +156,7 @@ public:
 	ENGINE_API UAnimBlueprint* GetAnimBlueprint() const;
 #endif //WITH_EDITORONLY_DATA
 
-#if ANIM_TRACE_ENABLED
+#if ANIM_NODE_IDS_AVAILABLE
 	// Get the current node Id, set when we recurse into graph traversal functions from pose links
 	ENGINE_API int32 GetCurrentNodeId() const { return CurrentNodeId; }
 
@@ -237,6 +239,10 @@ public:
 		, RootMotionWeightModifier(Copy.RootMotionWeightModifier)
 		, DeltaTime(Copy.DeltaTime)
 	{
+#if ANIM_TRACE_ENABLED
+		CurrentNodeId = Copy.CurrentNodeId;
+		PreviousNodeId = Copy.PreviousNodeId;
+#endif
 	}
 
 public:
@@ -288,7 +294,7 @@ public:
 		return Result;
 	}
 
-#if ANIM_TRACE_ENABLED
+#if ANIM_NODE_IDS_AVAILABLE
 	FAnimationUpdateContext WithNodeId(int32 InNodeId) const
 	{ 
 		FAnimationUpdateContext Result(*this);
@@ -369,6 +375,14 @@ public:
 		Initialize(SourceContext.AnimInstanceProxy);
 	}
 
+#if ANIM_NODE_IDS_AVAILABLE
+	void SetNodeId(int32 InNodeId)
+	{ 
+		PreviousNodeId = CurrentNodeId;
+		CurrentNodeId = InNodeId;
+	}
+#endif
+
 	ENGINE_API void Initialize(FAnimInstanceProxy* InAnimInstanceProxy);
 
 	// Log evaluation message
@@ -445,6 +459,14 @@ public:
 	{
 		// No need to initialize, done through FA2CSPose::AllocateLocalPoses
 	}
+
+#if ANIM_NODE_IDS_AVAILABLE
+	void SetNodeId(int32 InNodeId)
+	{ 
+		PreviousNodeId = CurrentNodeId;
+		CurrentNodeId = InNodeId;
+	}
+#endif
 
 	ENGINE_API void ResetToRefPose();
 

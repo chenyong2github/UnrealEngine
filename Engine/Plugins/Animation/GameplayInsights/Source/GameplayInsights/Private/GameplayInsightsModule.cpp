@@ -8,9 +8,15 @@
 #include "Containers/Ticker.h"
 #include "Modules/ModuleManager.h"
 
+#if WITH_EDITOR
+#include "IAnimationBlueprintEditorModule.h"
+#endif
+
 #if WITH_ENGINE
 #include "Engine/Engine.h"
 #endif
+
+#define LOCTEXT_NAMESPACE "GameplayInsightsModule"
 
 class FGameplayInsightsModule : public IModuleInterface
 {
@@ -26,10 +32,26 @@ public:
 			GameplayTimingViewExtender.TickVisualizers(DeltaTime);
 			return true;
 		});
+
+#if WITH_EDITOR
+		IAnimationBlueprintEditorModule& AnimationBlueprintEditorModule = FModuleManager::LoadModuleChecked<IAnimationBlueprintEditorModule>("AnimationBlueprintEditor");
+		CustomDebugObjectHandle = AnimationBlueprintEditorModule.OnGetCustomDebugObjects().AddLambda([this](const IAnimationBlueprintEditor& InAnimationBlueprintEditor, TArray<FCustomDebugObject>& OutDebugList)
+		{
+			GameplayTimingViewExtender.GetCustomDebugObjects(InAnimationBlueprintEditor, OutDebugList);
+		});
+#endif
 	}
 
 	virtual void ShutdownModule() override
 	{
+#if WITH_EDITOR
+		IAnimationBlueprintEditorModule* AnimationBlueprintEditorModule = FModuleManager::GetModulePtr<IAnimationBlueprintEditorModule>("AnimationBlueprintEditor");
+		if(AnimationBlueprintEditorModule)
+		{
+			AnimationBlueprintEditorModule->OnGetCustomDebugObjects().Remove(CustomDebugObjectHandle);
+		}
+#endif
+
 		FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 
 		IModularFeatures::Get().UnregisterModularFeature(Trace::ModuleFeatureName, &GameplayTraceModule);
@@ -40,6 +62,12 @@ public:
 	FGameplayTimingViewExtender GameplayTimingViewExtender;
 
 	FDelegateHandle TickerHandle;
+
+#if WITH_EDITOR
+	FDelegateHandle CustomDebugObjectHandle;
+#endif
 };
 
 IMPLEMENT_MODULE(FGameplayInsightsModule, GameplayInsights);
+
+#undef LOCTEXT_NAMESPACE

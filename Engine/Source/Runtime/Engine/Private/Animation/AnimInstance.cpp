@@ -172,6 +172,8 @@ UWorld* UAnimInstance::GetWorld() const
 
 void UAnimInstance::InitializeAnimation(bool bInDeferRootNodeInitialization)
 {
+	TRACE_OBJECT_EVENT(this, InitializeAnimation);
+
 	FScopeCycleCounterUObject ContextScope(this);
 	SCOPE_CYCLE_COUNTER(STAT_AnimInitTime);
 	LLM_SCOPE(ELLMTag::Animation);
@@ -225,6 +227,8 @@ void UAnimInstance::InitializeAnimation(bool bInDeferRootNodeInitialization)
 
 void UAnimInstance::UninitializeAnimation()
 {
+	TRACE_OBJECT_EVENT(this, UninitializeAnimation);
+
 	NativeUninitializeAnimation();
 
 	GetProxyOnGameThread<FAnimInstanceProxy>().Uninitialize(this);
@@ -329,6 +333,11 @@ void UAnimInstance::UpdateMontageSyncGroup()
 					// the max count should be 2 as you had older one and you have newer one. After TestMontageTickRecordForLeadership, it should set to be 1
 					SyncGroup->TestMontageTickRecordForLeadership();
 				}
+
+#if ANIM_TRACE_ENABLED
+				FAnimationUpdateContext UpdateContext(&GetProxyOnGameThread<FAnimInstanceProxy>());
+				TRACE_ANIM_TICK_RECORD(UpdateContext, TickRecord);
+#endif
 			}
 			MontageInstance->bDidUseMarkerSyncThisTick = false;
 		}
@@ -3182,9 +3191,9 @@ void UAnimInstance::RecordMachineWeight(const int32 InMachineClassIndex, const f
 	GetProxyOnAnyThread<FAnimInstanceProxy>().RecordMachineWeight(InMachineClassIndex, InMachineWeight);
 }
 
-void UAnimInstance::RecordStateWeight(const int32 InMachineClassIndex, const int32 InStateIndex, const float InStateWeight)
+void UAnimInstance::RecordStateWeight(const int32 InMachineClassIndex, const int32 InStateIndex, const float InStateWeight, const float InElapsedTime)
 {
-	GetProxyOnAnyThread<FAnimInstanceProxy>().RecordStateWeight(InMachineClassIndex, InStateIndex, InStateWeight);
+	GetProxyOnAnyThread<FAnimInstanceProxy>().RecordStateWeight(InMachineClassIndex, InStateIndex, InStateWeight, InElapsedTime);
 }
 
 const FGraphTraversalCounter& UAnimInstance::GetUpdateCounter() const

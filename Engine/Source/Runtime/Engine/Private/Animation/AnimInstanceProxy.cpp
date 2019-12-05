@@ -24,7 +24,8 @@
 #include "Animation/AnimMTStats.h"
 #include "Animation/AnimNode_Root.h"
 #include "Animation/AnimNode_LinkedAnimLayer.h"
-#include "Animation/AnimTrace.h"
+#include "Animation/AnimMontage.h"
+
 #undef DO_ANIMSTAT_PROCESSING
 
 #define LOCTEXT_NAMESPACE "AnimInstance"
@@ -36,6 +37,8 @@ const FName NAME_AnimGraph(TEXT("AnimGraph"));
 
 void FAnimInstanceProxy::UpdateAnimationNode(const FAnimationUpdateContext& InContext)
 {
+	TRACE_SCOPED_ANIM_GRAPH(InContext);
+
 	UpdateAnimationNode_WithRoot(InContext, RootNode, NAME_AnimGraph);
 }
 
@@ -285,12 +288,20 @@ void FAnimInstanceProxy::InitializeRootNode_WithRoot(FAnimNode_Base* InRootNode)
 
 	if (InRootNode != nullptr)
 	{
+		FAnimationInitializeContext InitContext(this);
+
 		if(InRootNode == RootNode)
 		{
 			InitializationCounter.Increment();
+
+			TRACE_SCOPED_ANIM_GRAPH(InitContext);
+
+			InRootNode->Initialize_AnyThread(InitContext);
 		}
-		FAnimationInitializeContext InitContext(this);
-		InRootNode->Initialize_AnyThread(InitContext);
+		else
+		{
+			InRootNode->Initialize_AnyThread(InitContext);
+		}
 	}
 }
 
@@ -522,8 +533,6 @@ void FAnimInstanceProxy::PostUpdate(UAnimInstance* InAnimInstance) const
 void FAnimInstanceProxy::PostEvaluate(UAnimInstance* InAnimInstance)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	TRACE_ANIM_TICK_RECORDS(*this, SkeletalMeshComponent);
 
 	ClearObjects();
 
@@ -1186,6 +1195,12 @@ void FAnimInstanceProxy::UpdateAnimation()
 
 	FAnimationUpdateSharedContext SharedContext;
 	FAnimationUpdateContext Context(this, CurrentDeltaSeconds, &SharedContext);
+#if ANIM_NODE_IDS_AVAILABLE
+	if(AnimClassInterface && AnimClassInterface->GetAnimBlueprintFunctions().Num() > 0)
+	{
+		Context = Context.WithNodeId(AnimClassInterface->GetAnimBlueprintFunctions()[0].OutputPoseNodeIndex);
+	}
+#endif
 	UpdateAnimation_WithRoot(Context, RootNode, NAME_AnimGraph);
 }
 
@@ -1276,6 +1291,8 @@ void FAnimInstanceProxy::PreEvaluateAnimation(UAnimInstance* InAnimInstance)
 
 void FAnimInstanceProxy::EvaluateAnimation(FPoseContext& Output)
 {
+	TRACE_SCOPED_ANIM_GRAPH(Output);
+
 	EvaluateAnimation_WithRoot(Output, RootNode);
 }
 
@@ -1313,6 +1330,9 @@ void FAnimInstanceProxy::CacheBones()
 
 		CachedBonesCounter.Increment();
 		FAnimationCacheBonesContext Context(this);
+
+		TRACE_SCOPED_ANIM_GRAPH(Context);
+
 		RootNode->CacheBones_AnyThread(Context);
 
 		CacheBonesRecursionCounter--;
@@ -2351,7 +2371,7 @@ float FAnimInstanceProxy::GetRecordedStateWeight(const int32 InMachineClassIndex
 	return 0.0f;
 }
 
-void FAnimInstanceProxy::RecordStateWeight(const int32 InMachineClassIndex, const int32 InStateIndex, const float InStateWeight)
+void FAnimInstanceProxy::RecordStateWeight(const int32 InMachineClassIndex, const int32 InStateIndex, const float InStateWeight, const float InElapsedTime)
 {
 	const int32* BaseIndexPtr = StateMachineClassIndexToWeightOffset.Find(InMachineClassIndex);
 
@@ -2360,6 +2380,13 @@ void FAnimInstanceProxy::RecordStateWeight(const int32 InMachineClassIndex, cons
 		const int32 StateIndex = *BaseIndexPtr + InStateIndex;
 		StateWeightArrays[GetSyncGroupWriteIndex()][StateIndex] = InStateWeight;
 	}
+
+#if WITH_EDITORONLY_DATA
+	if (FAnimBlueprintDebugData* DebugData = GetAnimBlueprintDebugData())
+	{
+		DebugData->RecordStateData(InMachineClassIndex, InStateIndex, InStateWeight, InElapsedTime);
+	}
+#endif
 }
 
 void FAnimInstanceProxy::ResetDynamics(ETeleportType InTeleportType)
@@ -2375,6 +2402,32 @@ void FAnimInstanceProxy::ResetDynamics()
 {
 	ResetDynamics(ETeleportType::ResetPhysics);
 }
+
+#if ANIM_TRACE_ENABLED
+void FAnimInstanceProxy::TraceMontageEvaluationData(const FAnimationUpdateContext& InContext, const FName& InSlotName)
+{
+	for (const FMontageEvaluationState& MontageEvaluationState : MontageEvaluationData)
+	{
+		if (MontageEvaluationState.Montage != nullptr && MontageEvaluationState.Montage->IsValidSlot(InSlotName))
+		{
+			if (const FAnimTrack* const Track = MontageEvaluationState.Montage->GetAnimationData(InSlotName))
+			{
+				if (const FAnimSegment* const Segment = Track->GetSegmentAtTime(MontageEvaluationState.MontagePosition))
+				{
+					float CurrentAnimPos;
+					if (UAnimSequenceBase* Anim = Segment->GetAnimationData(MontageEvaluationState.MontagePosition, CurrentAnimPos))
+					{
+						TRACE_ANIM_NODE_VALUE(InContext, TEXT("Montage"), MontageEvaluationState.Montage.Get());
+						TRACE_ANIM_NODE_VALUE(InContext, TEXT("Sequence"), Anim);
+						TRACE_ANIM_NODE_VALUE(InContext, TEXT("Sequence Playback Time"), CurrentAnimPos);
+						break;
+					}
+				}
+			}
+		}
+	}
+}
+#endif
 
 TArray<FAnimNode_AssetPlayerBase*> FAnimInstanceProxy::GetInstanceAssetPlayers(const FName& GraphName)
 {

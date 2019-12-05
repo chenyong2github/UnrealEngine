@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimNode_UseCachedPose.h"
+#include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_UseCachedPose
@@ -24,6 +25,8 @@ void FAnimNode_UseCachedPose::CacheBones_AnyThread(const FAnimationCacheBonesCon
 void FAnimNode_UseCachedPose::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
 	LinkToCachingNode.Update(Context);
+
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Cached Pose Name"), CachePoseName);
 }
 
 void FAnimNode_UseCachedPose::Evaluate_AnyThread(FPoseContext& Output)

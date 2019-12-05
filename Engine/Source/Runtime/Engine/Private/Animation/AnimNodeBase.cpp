@@ -77,8 +77,8 @@ FAnimationBaseContext::FAnimationBaseContext(FAnimInstanceProxy* InAnimInstanceP
 FAnimationBaseContext::FAnimationBaseContext(const FAnimationBaseContext& InContext)
 	: AnimInstanceProxy(InContext.AnimInstanceProxy)
 #if ANIM_TRACE_ENABLED
-	, CurrentNodeId(INDEX_NONE)
-	, PreviousNodeId(INDEX_NONE)
+	, CurrentNodeId(InContext.CurrentNodeId)
+	, PreviousNodeId(InContext.PreviousNodeId)
 #endif
 {
 }
@@ -343,9 +343,11 @@ void FPoseLinkBase::Update(const FAnimationUpdateContext& Context)
 	if (LinkedNode != NULL)
 	{
 #if ANIM_TRACE_ENABLED
-		FAnimationUpdateContext LinkContext(Context.WithNodeId(LinkID));
-		TRACE_POSE_LINK(LinkContext);
-		LinkedNode->Update_AnyThread(LinkContext);
+		{
+			FAnimationUpdateContext LinkContext(Context.WithNodeId(LinkID));
+			TRACE_SCOPED_ANIM_NODE(LinkContext);
+			LinkedNode->Update_AnyThread(LinkContext);
+		}
 #else
 		LinkedNode->Update_AnyThread(Context);
 #endif
@@ -391,7 +393,15 @@ void FPoseLink::Evaluate(FPoseContext& Output)
 #if ENABLE_ANIMNODE_POSE_DEBUG
 		CurrentPose.ResetToAdditiveIdentity();
 #endif
-		LinkedNode->Evaluate_AnyThread(Output);
+
+		{
+#if ANIM_TRACE_ENABLED
+			Output.SetNodeId(LinkID);
+			TRACE_SCOPED_ANIM_NODE(Output);
+#endif
+			LinkedNode->Evaluate_AnyThread(Output);
+		}
+
 #if ENABLE_ANIMNODE_POSE_DEBUG
 		CurrentPose.CopyBonesFrom(Output.Pose);
 #endif
@@ -456,6 +466,9 @@ void FComponentSpacePoseLink::EvaluateComponentSpace(FComponentSpacePoseContext&
 
 	if (LinkedNode != NULL)
 	{
+#if ANIM_TRACE_ENABLED
+		Output.SetNodeId(LinkID);
+#endif
 		LinkedNode->EvaluateComponentSpace_AnyThread(Output);
 
 #if WITH_EDITOR

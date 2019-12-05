@@ -10,6 +10,8 @@
 #include "AnimGraphNode_Base.h"
 #include "IDocumentation.h"
 #include "AnimationEditorUtils.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "Animation/AnimInstance.h"
 
 class SPoseViewColourPickerPopup : public SCompoundWidget
 {
@@ -209,5 +211,36 @@ void SAnimationGraphNode::HandleNodeTitleChanged()
 	if(NodeTitle.IsValid())
 	{
 		NodeTitle->MarkDirty();
+	}
+}
+
+void SAnimationGraphNode::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<FGraphInformationPopupInfo>& Popups) const
+{
+	UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(FBlueprintEditorUtils::FindBlueprintForNode(GraphNode));
+	if(AnimBlueprint)
+	{
+		UAnimInstance* ActiveObject = Cast<UAnimInstance>(AnimBlueprint->GetObjectBeingDebugged());
+		UAnimBlueprintGeneratedClass* Class = AnimBlueprint->GetAnimBlueprintGeneratedClass();
+
+		const FLinearColor Color(1.f, 0.5f, 0.25f);
+
+		// Display various types of debug data
+		if ((ActiveObject != NULL) && (Class != NULL))
+		{
+			if (Class->AnimNodeProperties.Num())
+			{
+				if(int32* NodeIndexPtr = Class->GetAnimBlueprintDebugData().NodePropertyToIndexMap.Find(TWeakObjectPtr<UAnimGraphNode_Base>(Cast<UAnimGraphNode_Base>(GraphNode))))
+				{
+					int32 AnimNodeIndex = *NodeIndexPtr;
+					// reverse node index temporarily because of a bug in NodeGuidToIndexMap
+					AnimNodeIndex = Class->AnimNodeProperties.Num() - AnimNodeIndex - 1;
+
+					if (FAnimBlueprintDebugData::FNodeValue* DebugInfo = Class->GetAnimBlueprintDebugData().NodeValuesThisFrame.FindByPredicate([AnimNodeIndex](const FAnimBlueprintDebugData::FNodeValue& InValue){ return InValue.NodeID == AnimNodeIndex; }))
+					{
+						Popups.Emplace(nullptr, Color, DebugInfo->Text);
+					}
+				}
+			}
+		}
 	}
 }

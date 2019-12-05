@@ -6,6 +6,7 @@
 #include "Animation/AnimNode_Inertialization.h"
 #include "Animation/AnimNode_LinkedInputPose.h"
 #include "Animation/AnimNode_Root.h"
+#include "Animation/AnimTrace.h"
 
 static float GetBlendDuration(const IAnimClassInterface* PriorAnimBPClass, const IAnimClassInterface* NewAnimBPClass, FName Layer)
 {
@@ -32,6 +33,7 @@ FAnimNode_LinkedAnimGraph::FAnimNode_LinkedAnimGraph()
 	: InstanceClass(nullptr)
 	, Tag(NAME_None)
 	, LinkedRoot(nullptr)
+	, NodeIndex(INDEX_NONE)
 	, PendingBlendDuration(-1.0f)
 {
 }
@@ -133,6 +135,8 @@ void FAnimNode_LinkedAnimGraph::Update_AnyThread(const FAnimationUpdateContext& 
 
 		PendingBlendDuration = -1.0f;
 	}
+
+	TRACE_ANIM_NODE_VALUE(InContext, TEXT("Target Class"), InstanceClass.Get());
 }
 
 void FAnimNode_LinkedAnimGraph::Evaluate_AnyThread(FPoseContext& Output)
@@ -331,7 +335,7 @@ void FAnimNode_LinkedAnimGraph::DynamicLink(UAnimInstance* InOwningAnimInstance)
 						{
 							FAnimNode_LinkedInputPose* LinkedInputPoseNode = AnimBlueprintFunction.InputPoseNodeProperties[InputPropertyIndex]->ContainerPtrToValuePtr<FAnimNode_LinkedInputPose>(LinkTargetInstance);
 							check(LinkedInputPoseNode->Name == AnimBlueprintFunction.InputPoseNames[InputPoseIndex]);
-							LinkedInputPoseNode->DynamicLink(NonConstProxy, &InputPoses[InputPoseIndex]);
+							LinkedInputPoseNode->DynamicLink(NonConstProxy, &InputPoses[InputPoseIndex], NodeIndex);
 						}
 						else
 						{

@@ -2,6 +2,7 @@
 
 #include "AnimNodes/AnimNode_PoseHandler.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////
 // FAnimPoseByNameNode
@@ -77,6 +78,8 @@ void FAnimNode_PoseHandler::UpdateAssetPlayer(const FAnimationUpdateContext& Con
 	{
 		UpdatePoseAssetProperty(Context.AnimInstanceProxy);
 	}
+
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Pose Asset"), CurrentPoseAsset.IsValid() ? *CurrentPoseAsset.Get()->GetName() : TEXT("None"));
 }
 
 void FAnimNode_PoseHandler::OverrideAsset(UAnimationAsset* NewAsset)

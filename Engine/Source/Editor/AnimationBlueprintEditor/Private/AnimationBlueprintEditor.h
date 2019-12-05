@@ -92,6 +92,7 @@ public:
 	virtual const FEdGraphPinType& GetLastGraphPinTypeUsed() const override { return LastGraphPinType; }
 	virtual void SetLastGraphPinTypeUsed(const FEdGraphPinType& InType) override { LastGraphPinType = InType; }
 	virtual IAnimationSequenceBrowser* GetAssetBrowser() const override;
+	virtual UAnimInstance* GetPreviewInstance() const override;
 
 	/** IHasPersonaToolkit interface */
 	virtual TSharedRef<class IPersonaToolkit> GetPersonaToolkit() const { return PersonaToolkit.ToSharedRef(); }

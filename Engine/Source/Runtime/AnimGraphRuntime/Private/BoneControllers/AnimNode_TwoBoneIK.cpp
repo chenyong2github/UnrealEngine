@@ -9,6 +9,7 @@
 #include "SceneManagement.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "MaterialShared.h"
+#include "Animation/AnimTrace.h"
 
 DECLARE_CYCLE_STAT(TEXT("TwoBoneIK Eval"), STAT_TwoBoneIK_Eval, STATGROUP_Anim);
 
@@ -187,6 +188,8 @@ void FAnimNode_TwoBoneIK::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 
 	// Make sure we have correct number of bones
 	check(OutBoneTransforms.Num() == 3);
+
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("IK Bone"), IKBone.BoneName);
 }
 
 bool FAnimNode_TwoBoneIK::IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) 
