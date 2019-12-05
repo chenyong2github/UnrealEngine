@@ -14,13 +14,19 @@ namespace Chaos
 		{
 			if(const auto* Union = Geometry->template GetObject<TImplicitObjectUnion<T, d>>())
 			{
+				const int32 OldShapeNum = ShapesArray.Num();
+
 				ShapesArray.SetNum(Union->GetObjects().Num());
-				int32 Inner = 0;
-				for(const auto& Geom : Union->GetObjects())
+
+				for (int32 ShapeIndex = 0; ShapeIndex < ShapesArray.Num(); ++ShapeIndex)
 				{
-					ShapesArray[Inner] = TPerShapeData<T, d>::CreatePerShapeData();
-					ShapesArray[Inner]->Geometry = MakeSerializable(Geom);
-					++Inner;
+					if (ShapeIndex >= OldShapeNum)
+					{
+						// If newly allocated shape, initialize it.
+						ShapesArray[ShapeIndex] = TPerShapeData<T, d>::CreatePerShapeData();
+					}
+
+					ShapesArray[ShapeIndex]->Geometry = MakeSerializable(Union->GetObjects()[ShapeIndex]);
 				}
 			}
 			else
@@ -46,7 +52,12 @@ namespace Chaos
 
 	template <typename T, int d>
 	TPerShapeData<T, d>::TPerShapeData()
-		: UserData(nullptr)
+		: QueryData()
+		, SimData()
+		, UserData(nullptr)
+		, Geometry()
+		, WorldSpaceInflatedShapeBounds(TAABB<FReal, 3>(FVec3(0), FVec3(0)))
+		, Materials()
 		, bDisable(false)
 	{
 	}
