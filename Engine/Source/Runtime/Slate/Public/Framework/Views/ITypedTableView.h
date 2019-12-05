@@ -73,12 +73,21 @@ public:
 	virtual bool Private_IsItemSelected( const ItemType& TheItem ) const = 0;
 
 	/**
-	* Test if the current item should be highlighted. This is separate from hover highlights.
-	*
-	* @param TheItem The item to test.
-	*
-	* @return true if the item is marked as highlighted in this list; false otherwise.
-	*/
+	 * Test if the current item can be selected or navigated to.
+	 *
+	 * @param InItem The item to test.
+	 *
+	 * @return true if the item is selectable or navigable; false otherwise.
+	 */
+	virtual bool Private_IsItemSelectableOrNavigable(const ItemType& TheItem) const = 0;
+
+	/**
+	 * Test if the current item should be highlighted. This is separate from hover highlights.
+	 *
+	 * @param TheItem The item to test.
+	 *
+	 * @return true if the item is marked as highlighted in this list; false otherwise.
+	 */
 	virtual bool Private_IsItemHighlighted(const ItemType& TheItem) const = 0;
 	
 	/**
