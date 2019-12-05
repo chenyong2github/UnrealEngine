@@ -20,7 +20,7 @@ FAutoConsoleVariableRef CVarDeferUpdateRenderStates(
 	ECVF_RenderThreadSafe
 );
 
-TMap<FGuid, FMaterialParameterCollectionInstanceResource*> GDefaultMaterialParameterCollectionInstances;
+TMultiMap<FGuid, FMaterialParameterCollectionInstanceResource*> GDefaultMaterialParameterCollectionInstances;
 
 UMaterialParameterCollection::UMaterialParameterCollection(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -63,11 +63,12 @@ void UMaterialParameterCollection::BeginDestroy()
 {
 	if (DefaultResource)
 	{
+		FMaterialParameterCollectionInstanceResource* Resource = DefaultResource;
 		FGuid Id = StateId;
 		ENQUEUE_RENDER_COMMAND(RemoveDefaultResourceCommand)(
-			[Id](FRHICommandListImmediate& RHICmdList)
+			[Resource, Id](FRHICommandListImmediate& RHICmdList)
 			{	
-				GDefaultMaterialParameterCollectionInstances.Remove(Id);			
+				GDefaultMaterialParameterCollectionInstances.RemoveSingle(Id, Resource);
 			}
 		);
 	}
