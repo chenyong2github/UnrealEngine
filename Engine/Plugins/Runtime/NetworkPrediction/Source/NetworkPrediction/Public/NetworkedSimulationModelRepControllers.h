@@ -429,10 +429,15 @@ struct TRepController_Simulated : public TBase
 		SyncState->NetSerialize(Ar);
 		AuxState->NetSerialize(Ar);
 
-		Buffers.CueDispatcher.NetSerializeSavedCues(Ar, GetSimulatedUpdateMode() == ESimulatedUpdateMode::Interpolate);
-
-		if (Ar.IsLoading())
+		if (Ar.IsSaving())
 		{
+			// Server: send SimProxy and Interpolators. Whether this is in interpolation mode is really a client side thing (we want client to make this decision and transition between the two when necessary)
+			Buffers.CueDispatcher.NetSerializeSavedCues(Ar, ENetSimCueReplicationTarget::SimulatedProxy | ENetSimCueReplicationTarget::Interpolators);
+		}
+		else
+		{
+			Buffers.CueDispatcher.NetSerializeSavedCues(Ar, GetSimulatedUpdateMode() == ESimulatedUpdateMode::Interpolate ? ENetSimCueReplicationTarget::Interpolators : ENetSimCueReplicationTarget::SimulatedProxy);
+
 			LastSerializedInputCmd = *InputCmd;
 			LastSerializedSyncState = *SyncState;
 			LastSerializedAuxState = *AuxState;
@@ -653,7 +658,7 @@ struct TRepController_Autonomous: public TBase
 			SerializedAuxState.NetSerialize(Ar);
 		}
 
-		Buffers.CueDispatcher.NetSerializeSavedCues(Ar, false);
+		Buffers.CueDispatcher.NetSerializeSavedCues(Ar, ENetSimCueReplicationTarget::AutoProxy);
 
 		if (Ar.IsLoading())
 		{
