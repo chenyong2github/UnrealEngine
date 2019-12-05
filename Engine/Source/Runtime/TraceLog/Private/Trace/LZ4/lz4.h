@@ -32,6 +32,9 @@
     - LZ4 homepage : http://www.lz4.org
     - LZ4 source repository : https://github.com/lz4/lz4
 */
+
+#pragma once // EPIC MOD: Placate IncludeTool warning
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
