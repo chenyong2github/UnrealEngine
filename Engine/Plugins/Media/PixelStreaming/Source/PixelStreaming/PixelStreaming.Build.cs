@@ -80,8 +80,6 @@ namespace UnrealBuildTool.Rules
 
         public PixelStreaming(ReadOnlyTargetRules Target) : base(Target)
         {
-			PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "../ThirdParty"));
-
             // use private PCH to include lots of WebRTC headers
             PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
             PrivatePCHHeaderFile = "Private/PCH.h";
