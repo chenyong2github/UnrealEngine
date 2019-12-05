@@ -19,12 +19,14 @@ public class WindowsPlatformFeatures : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"AudioMixer",
-				"GameplayMediaEncoder"
+				"AVEncoder",
+				"GameplayMediaEncoder",
 			}
 		);
 
         PublicDelayLoadDLLs.Add("mfplat.dll");
         PublicDelayLoadDLLs.Add("mfuuid.dll");
         PublicDelayLoadDLLs.Add("Mfreadwrite.dll");
+
     }
 }

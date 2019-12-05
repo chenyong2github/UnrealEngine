@@ -80,7 +80,6 @@ inline const FString GetComErrorDescription(HRESULT Res)
 		}\
 	}
 
-// #AMF(Andriy) : Rename these to DX , instead of DX9 ?
 #define CHECK_HR_DX9(DX9_call)\
 	{\
 		HRESULT Res = DX9_call;\
