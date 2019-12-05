@@ -74,6 +74,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 
 		// Add mass transform data to kinematic particle
 		KinematicCentersOfMass,
+
+		// Added ability to remove shapes from collision resolution (will not construct constraints when one or more shapes removed)
+		AddShapeCollisionDisable,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
