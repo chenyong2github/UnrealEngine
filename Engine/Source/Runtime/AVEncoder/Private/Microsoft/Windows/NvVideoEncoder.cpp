@@ -4,7 +4,7 @@
 #include "Microsoft/AVEncoderMicrosoftCommon.h"
 
 THIRD_PARTY_INCLUDES_START
-	#include "NvEncoder/nvEncodeAPI.h"
+	#include "ThirdParty/NvEncoder/nvEncodeAPI.h"
 THIRD_PARTY_INCLUDES_END
 
 // This is mostly to use internally at Epic.
