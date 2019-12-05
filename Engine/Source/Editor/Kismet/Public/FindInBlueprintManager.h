@@ -167,6 +167,11 @@ struct FSearchData
 		, bMarkedForDeletion(false)
 	{
 	}
+
+	bool IsValid() const
+	{
+		return AssetPath != NAME_None;
+	}
 };
 
 /** Filters are used by functions for searching to decide whether items can call certain functions or match the requirements of a function */
@@ -431,6 +436,14 @@ public:
 	//~ End FTickableObject Interface
 
 	/**
+	 * Given an asset path, locate and return a copy of its matching search data in the index cache.
+	 *
+	 * @param InAssetPath				Asset path (search index key).
+	 * @return							Matching search data from the index cache. Will return invalid (empty) search data if a matching entry was not found.
+	 */
+	FSearchData GetSearchDataForAssetPath(FName InAssetPath);
+
+	/**
 	 * Gathers the Blueprint's search metadata and adds or updates it in the cache
 	 *
 	 * @param InBlueprint		Blueprint to cache the searchable data for
@@ -478,12 +491,6 @@ public:
 	 * @return							The search block
 	 */
 	const FSearchData* QuerySingleBlueprint(UBlueprint* InBlueprint, bool bInRebuildSearchData);
-
-	/** Converts a string of hex characters, previously converted by ConvertFTextToHexString, to an FText. */
-	static FText ConvertHexStringToFText(FString InHexString);
-
-	/** Serializes an FText to memory and converts the memory into a string of hex characters */
-	static FString ConvertFTextToHexString(FText InValue);
 
 	/** Returns the number of assets that are waiting to be re-indexed */
 	int32 GetNumberPendingAssets() const;
@@ -550,12 +557,11 @@ public:
 	/** Returns a weak reference to the widget that initiated the current caching operation */
 	TWeakPtr<SFindInBlueprints> GetSourceCachingWidget() const { return SourceCachingWidget; }
 
-	/** Given a fully constructed Find-in-Blueprint FString of searchable data, will parse and construct a JsonObject */
-	static TSharedPtr< class FJsonObject > ConvertJsonStringToObject(FSearchDataVersionInfo InVersionInfo, FString InJsonString, TMap<int32, FText>& OutFTextLookupTable);
-
 	void EnableGatheringData(bool bInEnableGatheringData) { bEnableGatheringData = bInEnableGatheringData; }
 
 	bool IsGatheringDataEnabled() const { return bEnableGatheringData; }
+
+	bool ShouldEnableDeveloperMenuTools() const { return bEnableDeveloperMenuTools; }
 
 	/** Find or create the global find results widget */
 	TSharedPtr<SFindInBlueprints> GetGlobalFindResults();
@@ -567,6 +573,22 @@ public:
 	void CloseOrphanedGlobalFindResultsTabs(TSharedPtr<class FTabManager> TabManager);
 
 	void GlobalFindResultsClosed(const TSharedRef<SFindInBlueprints>& FindResults);
+
+	/** Dumps the full index cache to the given stream (for debugging purposes) */
+	void DumpCache(FArchive& Ar);
+
+public:
+	/** Converts a string of hex characters, previously converted by ConvertFTextToHexString, to an FText. */
+	static FText ConvertHexStringToFText(FString InHexString);
+
+	/** Serializes an FText to memory and converts the memory into a string of hex characters */
+	static FString ConvertFTextToHexString(FText InValue);
+
+	/** Given a fully constructed Find-in-Blueprint FString of searchable data, will parse and construct a JsonObject */
+	static TSharedPtr< class FJsonObject > ConvertJsonStringToObject(FSearchDataVersionInfo InVersionInfo, FString InJsonString, TMap<int32, FText>& OutFTextLookupTable);
+
+	/** Generates a human-readable search index for the given Blueprint (for debugging purposes) */
+	static FString GenerateSearchIndexForDebugging(UBlueprint* InBlueprint);
 
 private:
 	/** Initializes the FiB manager */
@@ -598,9 +620,6 @@ private:
 
 	/** Callback hook from the Hot Reload manager that indicates that a module has been hot-reloaded */
 	void OnHotReload(bool bWasTriggeredAutomatically);
-
-	/** Helper to gathers the Blueprint's search metadata */
-	FString GatherBlueprintSearchMetadata(const UBlueprint* Blueprint);
 
 	/** Cleans the cache of any excess data from Blueprints that have been moved, renamed, or deleted. Occurs during post-garbage collection */
 	void CleanCache();
@@ -694,6 +713,9 @@ protected:
 
 	/** Whether CSV profiling has been enabled (default=false) */
 	bool bEnableCSVStatsProfiling;
+
+	/** Whether to enable Blueprint editor developer menu tools */
+	bool bEnableDeveloperMenuTools;
 
 	/** TRUE when the the FiB manager wants to pause all searches, helps manage the pausing procedure */
 	volatile bool bIsPausing;
