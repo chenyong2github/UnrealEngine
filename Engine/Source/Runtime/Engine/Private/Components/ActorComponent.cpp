@@ -1324,7 +1324,12 @@ void UActorComponent::OnDestroyPhysicsState()
 
 void UActorComponent::CreatePhysicsState()
 {
+#if WITH_CHAOS
+	LLM_SCOPE(ELLMTag::Chaos);
+#else
 	LLM_SCOPE(ELLMTag::PhysX);
+#endif
+
 	SCOPE_CYCLE_COUNTER(STAT_ComponentCreatePhysicsState);
 
 	if (!bPhysicsStateCreated && WorldPrivate->GetPhysicsScene() && ShouldCreatePhysicsState())
