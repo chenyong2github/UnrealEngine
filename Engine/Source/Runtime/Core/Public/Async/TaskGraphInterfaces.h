@@ -422,7 +422,7 @@ public:
 		/** Total size in bytes for a small task that will use the custom allocator **/
 		SMALL_TASK_SIZE = 256
 	};
-	typedef TLockFreeFixedSizeAllocator_TLSCache<SMALL_TASK_SIZE, PLATFORM_CACHE_LINE_SIZE> TSmallTaskAllocator;
+	typedef TLockFreeFixedSizeAllocator_TLSCache<SMALL_TASK_SIZE, PLATFORM_CACHE_LINE_SIZE, FNoopCounter, true> TSmallTaskAllocator;
 protected:
 	/** 
 	 *	Constructor
