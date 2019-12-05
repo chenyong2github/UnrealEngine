@@ -183,6 +183,8 @@ namespace VivoxClientApi {
         /// @param status - the status code associated with the failure. This can be translated to a string by the function VivoxClientApi::GetErrorString(), which is located in util.h
         ///
         virtual void onLogoutFailed(const AccountName &accountName, const VCSStatus &status) = 0;
+		
+		virtual void onSessionGroupCreated(const AccountName &accountName, const char *sessionGroup) = 0;
 
         /// Joining/Leaving Channels
 
@@ -349,7 +351,7 @@ namespace VivoxClientApi {
 		/// 
 		/// @param deviceId - the deviceId that is now being used for audio input.
 		///
-		virtual void onSetApplicationChosenAudioInputDeviceCompleted(const AudioDeviceId &deviceId) = 0;
+		virtual void onSetApplicationChosenAudioInputDeviceCompleted(const AccountName &accountName, const AudioDeviceId &deviceId) = 0;
 		
 
         ///
@@ -362,7 +364,7 @@ namespace VivoxClientApi {
         /// @param deviceId - the device passed to SetApplicationChosenAudioInputDevice().
         /// @status - an error code indicating the failure.
         ///
-		virtual void onSetApplicationChosenAudioInputDeviceFailed(const AudioDeviceId &deviceId, const VCSStatus &status) = 0;
+		virtual void onSetApplicationChosenAudioInputDeviceFailed(const AccountName &accountName, const AudioDeviceId &deviceId, const VCSStatus &status) = 0;
 
 
         /// Audio Output Device Management
@@ -379,7 +381,7 @@ namespace VivoxClientApi {
         /// 
         /// @param deviceId - the deviceId that is now being used for audio input.
         ///
-        virtual void onSetApplicationChosenAudioOutputDeviceCompleted(const AudioDeviceId &deviceId) = 0;
+        virtual void onSetApplicationChosenAudioOutputDeviceCompleted(const AccountName &accountName, const AudioDeviceId &deviceId) = 0;
 
         ///
         /// This function is called when SetApplicationChosenAudioOutputDevice() fails.
@@ -391,7 +393,7 @@ namespace VivoxClientApi {
         /// @param deviceId - the device passed to SetApplicationChosenAudioOutputDevice().
         /// @status - an error code indicating the failure.
         ///
-        virtual void onSetApplicationChosenAudioOutputDeviceFailed(const AudioDeviceId &deviceId, const VCSStatus &status) = 0;
+        virtual void onSetApplicationChosenAudioOutputDeviceFailed(const AccountName &accountName, const AudioDeviceId &deviceId, const VCSStatus &status) = 0;
 
 
         /// Volume Controls
@@ -547,12 +549,12 @@ namespace VivoxClientApi {
 		///
 		/// This function is called when an audio processing unit is started
 		///
-		virtual void onAudioUnitStarted(const Uri &initialTargetUri) = 0;
+		virtual void onAudioUnitStarted(const char *sessionGroupHandle, const Uri &initialTargetUri) = 0;
 
 		///
 		/// This function is called when an audio processing unit is stopped
 		///
-		virtual void onAudioUnitStopped(const Uri &initialTargetUri) = 0;
+		virtual void onAudioUnitStopped(const char *sessionGroupHandle, const Uri &initialTargetUri) = 0;
 
 		///
 		/// This function is called right after audio was read from the capture device
@@ -562,7 +564,7 @@ namespace VivoxClientApi {
 		/// @param audioFrameRate - the sample rate
 		/// @param channelsPerFrame - the number of channels per frame
 		///
-		virtual void onAudioUnitAfterCaptureAudioRead(const Uri &initialTargetUri, short *pcmFrames, int pcmFrameCount, int audioFrameRate, int channelsPerFrame) = 0;
+		virtual void onAudioUnitAfterCaptureAudioRead(const char *sessionGroupHandle, const Uri &initialTargetUri, short *pcmFrames, int pcmFrameCount, int audioFrameRate, int channelsPerFrame) = 0;
 
 		///
 		/// This function is when an audio processing unit is about to send captured audio to the network
@@ -573,7 +575,7 @@ namespace VivoxClientApi {
 		/// @param channelsPerFrame - the number of channels per frame
 		/// @param speaking - an indication whether or not the user is speaking
 		///
-		virtual void onAudioUnitBeforeCaptureAudioSent(const Uri &initialTargetUri, short *pcmFrames, int pcmFrameCount, int audioFrameRate, int channelsPerFrame, bool speaking) = 0;
+		virtual void onAudioUnitBeforeCaptureAudioSent(const char *sessionGroupHandle, const Uri &initialTargetUri, short *pcmFrames, int pcmFrameCount, int audioFrameRate, int channelsPerFrame, bool speaking) = 0;
 
 		///
 		/// This function is called when an audio processing unit is about to write received audio to the render device
@@ -584,6 +586,6 @@ namespace VivoxClientApi {
 		/// @param channelsPerFrame - the number of channels per frame
 		/// @param silence - an indication whether or not any users are speaking
 		///
-		virtual void onAudioUnitBeforeRecvAudioRendered(const Uri &initialTargetUri, short *pcmFrames, int pcmFrameCount, int audioFrameRate, int channelsPerFrame, bool silence) = 0;
+		virtual void onAudioUnitBeforeRecvAudioRendered(const char *sessionGroupHandle, const Uri &initialTargetUri, short *pcmFrames, int pcmFrameCount, int audioFrameRate, int channelsPerFrame, bool silence) = 0;
     };
 }
