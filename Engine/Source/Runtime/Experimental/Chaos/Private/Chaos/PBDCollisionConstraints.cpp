@@ -157,11 +157,11 @@ namespace Chaos
 
 	}
 
-	DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraints::Reset"), STAT_CollisionConstraintsReset, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraints::Reset"), STAT_Collisions_Reset, STATGROUP_Chaos);
 	template<typename T, int d>
 	void TPBDCollisionConstraints<T, d>::Reset()
 	{
-		SCOPE_CYCLE_COUNTER(STAT_CollisionConstraintsReset);
+		SCOPE_CYCLE_COUNTER(STAT_Collisions_Reset);
 
 		TArray<FConstraintContainerHandle*> CopyOfHandles = Handles;
 
@@ -277,11 +277,11 @@ namespace Chaos
 	}
 
 
-	DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraints::Apply"), STAT_Apply, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraints::Apply"), STAT_Collisions_Apply, STATGROUP_Chaos);
 	template<typename T, int d>
 	void TPBDCollisionConstraints<T, d>::Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 Iterations, const int32 NumIterations)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_Apply);
+		SCOPE_CYCLE_COUNTER(STAT_Collisions_Apply);
 		if (MApplyPairIterations > 0)
 		{
 			PhysicsParallelFor(InConstraintHandles.Num(), [&](int32 ConstraintHandleIndex) {
@@ -315,11 +315,11 @@ namespace Chaos
 	}
 
 
-	DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraints::ApplyPushOut"), STAT_ApplyPushOut, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraints::ApplyPushOut"), STAT_Collisions_ApplyPushOut, STATGROUP_Chaos);
 	template<typename T, int d>
 	bool TPBDCollisionConstraints<T, d>::ApplyPushOut(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const TSet< const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_ApplyPushOut);
+		SCOPE_CYCLE_COUNTER(STAT_Collisions_ApplyPushOut);
 
 		bool NeedsAnotherIteration = false;
 		if (MApplyPushOutPairIterations > 0)
