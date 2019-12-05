@@ -586,7 +586,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesGT()
 //				{
 //					check(false); // continue?
 //				}
-				FTransform ParticleTransform = Transform[Idx] * Parameters.WorldTransform;
+				FTransform ParticleTransform = MassToLocal[Idx] * Transform[Idx] * Parameters.WorldTransform;
 				if (GTParticle->ObjectState() == Chaos::EObjectStateType::Dynamic)
 				{
 					GTParticle->SetX(ParticleTransform.GetTranslation());
@@ -672,8 +672,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(
 			if (Chaos::TPBDRigidParticleHandle<float, 3>* Handle = SolverParticleHandles[TransformGroupIndex])
 			{
 				//const int32 RigidBodyIndex = RigidBodyID[TransformGroupIndex];
-				const FTransform WorldTransform = 
-					MassToLocal[TransformGroupIndex] * Transform[TransformGroupIndex] * Parameters.WorldTransform;
+				const FTransform WorldTransform = MassToLocal[TransformGroupIndex] * Transform[TransformGroupIndex] * Parameters.WorldTransform;
 
 				PopulateSimulatedParticle(
 					Handle,
@@ -690,7 +689,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(
 #endif // TODO_REIMPLEMENT_SOLVER_SETTINGS_ACCESSORS
 					//RigidBodyIndex, 
 					WorldTransform, 
-					(uint8)EObjectStateTypeEnum::Chaos_Object_Dynamic, 
+					(uint8)Parameters.ObjectType, 
 					CollisionGroup[TransformGroupIndex]);
 
 #if TODO_REIMPLEMENT_RIGID_CLUSTERING
@@ -715,6 +714,9 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(
 				//GetSolver()->SetPhysicsMaterial(RigidBodyIndex, Parameters.PhysicalMaterial);
 			}
 		});
+
+		// After population, the states of each particle could have changed
+		Particles.UpdateGeometryCollectionViews();
 
 #if TODO_REIMPLEMENT_INIT_COMMANDS
 		for (FFieldSystemCommand& Cmd : Parameters.InitializationCommands)
@@ -3757,7 +3759,8 @@ Chaos::FParticleData* FGeometryCollectionPhysicsProxy::NewData()
 	// proxies get away with that because they're dealing with a low number of 
 	// bodies; which is not the case here. Rather, let's just use a triple buffer.
 
-	if (!ensure(NumParticles != INDEX_NONE)) // Make sure InitBodiesGT() has been called!
+	if (!Parameters.Simulating || 
+		!ensure(NumParticles != INDEX_NONE)) // Make sure InitBodiesGT() has been called!
 	{
 		return nullptr;
 	}
@@ -4081,7 +4084,7 @@ void FGeometryCollectionPhysicsProxy::PullFromPhysicsState()
 		{
 			if(!TR.DisabledStates[TmIndex])
 			{
-				GTDynamicCollection->Transform[TmIndex] = TR.Transforms[TmIndex].GetRelativeTransform(Parameters.WorldTransform);
+				GTDynamicCollection->Transform[TmIndex] = MassToLocal[TmIndex].GetRelativeTransformReverse(TR.Transforms[TmIndex]).GetRelativeTransform(Parameters.WorldTransform);
 				GTDynamicCollection->Transform[TmIndex].NormalizeRotation();
 			}
 		}
