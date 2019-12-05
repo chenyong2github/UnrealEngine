@@ -249,7 +249,6 @@ void FSteamVRHMD::D3D11Bridge::UpdateViewport(const FViewport& Viewport, FRHIVie
 
 	const FTexture2DRHIRef& RT = Viewport.GetRenderTargetTexture();
 	check(IsValidRef(RT));
-	check(RT->GetTexture2D() == SwapChain->GetTexture2D());
 }
 
 FSteamVRHMD::D3D12Bridge::D3D12Bridge(FSteamVRHMD* plugin)
