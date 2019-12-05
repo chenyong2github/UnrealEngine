@@ -1093,7 +1093,7 @@ struct FPostProcessSettings
 	uint32 bOverride_RayTracingTranslucencyRefraction : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
-	uint32 bOverride_RayTracingGIType : 1;
+	uint32 bOverride_RayTracingGI : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint32 bOverride_RayTracingGIMaxBounces : 1;
@@ -1575,8 +1575,13 @@ struct FPostProcessSettings
 	UPROPERTY(interp, BlueprintReadWrite, Category="Rendering Features|Global Illumination", meta=(ClampMin = "0", UIMax = "4.0", editcondition = "bOverride_IndirectLightingIntensity", DisplayName = "Indirect Lighting Intensity"))
 	float IndirectLightingIntensity;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	uint32 RayTracingGI_DEPRECATED : 1;
+#endif
+
 	/** Sets the ray tracing global illumination type. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Global Illumination", meta = (editcondition = "bOverride_RayTracingGIType", DisplayName = "Type"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Global Illumination", meta = (editcondition = "bOverride_RayTracingGI", DisplayName = "Type"))
 	ERayTracingGlobalIlluminationType RayTracingGIType;
 
 	/** Sets the ray tracing global illumination maximum bounces. */
@@ -1852,6 +1857,10 @@ struct FPostProcessSettings
 			BloomConvolutionPreFilterMin = BloomConvolutionPreFilter_DEPRECATED.X;
 			BloomConvolutionPreFilterMax = BloomConvolutionPreFilter_DEPRECATED.Y;
 			BloomConvolutionPreFilterMult = BloomConvolutionPreFilter_DEPRECATED.Z;
+		}
+		if (RayTracingGI_DEPRECATED)
+		{
+			RayTracingGIType = (ERayTracingGlobalIlluminationType)(RayTracingGI_DEPRECATED == 1);
 		}
 	}
 #endif
