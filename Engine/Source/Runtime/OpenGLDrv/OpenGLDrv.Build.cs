@@ -59,5 +59,7 @@ public class OpenGLDrv : ModuleRules
 		{
 			PrecompileForTargets = PrecompileTargetsType.None;
 		}
+
+		PublicDefinitions.Add(Target.Platform == UnrealTargetPlatform.Android ? "USE_ANDROID_OPENGL=1" : "USE_ANDROID_OPENGL=0");
 	}
 }
