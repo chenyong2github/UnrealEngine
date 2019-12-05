@@ -24,7 +24,7 @@ template<typename ValueType>
 class TCounterDataIterator
 {
 public:
-	TCounterDataIterator(const TCounterData<ValueType>& Outer, const TArray<double>& FrameStartTimes)
+	TCounterDataIterator(const TCounterData<ValueType>& Outer, const TArray64<double>& FrameStartTimes)
 		: FrameStartTimesIterator(FrameStartTimes.CreateConstIterator())
 		, TimestampsIterator(Outer.Timestamps.GetIterator())
 		, OpTypesIterator(Outer.OpTypes.GetIterator())
@@ -92,7 +92,7 @@ private:
 		}
 	}
 
-	TArray<double>::TConstIterator FrameStartTimesIterator;
+	TArray64<double>::TConstIterator FrameStartTimesIterator;
 	TPagedArray<double>::TIterator TimestampsIterator;
 	TPagedArray<ECounterOpType>::TIterator OpTypesIterator;
 	typename TPagedArray<ValueType>::TIterator OpArgumentsIterator;
@@ -145,7 +145,7 @@ public:
 		return Timestamps.Num();
 	}
 
-	TIterator GetIterator(TArray<double> FrameStartTimes) const
+	TIterator GetIterator(const TArray64<double>& FrameStartTimes) const
 	{
 		return TIterator(*this, FrameStartTimes);
 	}
@@ -163,7 +163,7 @@ class FCounter
 	: public IEditableCounter
 {
 public:
-	FCounter(ILinearAllocator& Allocator, const TArray<double>& FrameStartTimes);
+	FCounter(ILinearAllocator& Allocator, const TArray64<double>& FrameStartTimes);
 	virtual const TCHAR* GetName() const override { return Name; }
 	virtual void SetName(const TCHAR* InName) override { Name = InName; }
 	virtual const TCHAR* GetDescription() const override { return Description; }
@@ -181,7 +181,7 @@ public:
 	virtual void SetValue(double Time, double Value) override;
 
 private:
-	const TArray<double>& FrameStartTimes;
+	const TArray64<double>& FrameStartTimes;
 	TCounterData<int64> IntCounterData;
 	TCounterData<double> DoubleCounterData;
 	const TCHAR* Name = nullptr;

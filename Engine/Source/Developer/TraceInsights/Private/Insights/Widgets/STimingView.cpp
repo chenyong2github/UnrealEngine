@@ -954,28 +954,64 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 		Helper.BeginDrawTracks();
 
-		for (const TSharedPtr<FBaseTimingTrack>& TrackPtr : ScrollableTracks)
+		const FVector2D Position = AllottedGeometry.GetAbsolutePosition();
+		const float Scale = AllottedGeometry.GetAccumulatedLayoutTransform().GetScale();
+
 		{
-			if (TrackPtr->IsVisible())
+			const float L = Position.X;
+			const float R = Position.X + (Viewport.GetWidth() * Scale);
+			const float T = Position.Y + (Viewport.GetTopOffset() * Scale);
+			const float B = Position.Y + ((Viewport.GetHeight() - Viewport.GetBottomOffset()) * Scale);
+			const FSlateClippingZone ClipZone(FVector2D(L, T), FVector2D(R, T), FVector2D(L, B), FVector2D(R, B));
+			DrawContext.ElementList.PushClip(ClipZone);
+
+			for (const TSharedPtr<FBaseTimingTrack>& TrackPtr : ScrollableTracks)
 			{
-				TrackPtr->Draw(TimingDrawContext);
+				if (TrackPtr->IsVisible())
+				{
+					TrackPtr->Draw(TimingDrawContext);
+				}
 			}
+
+			DrawContext.ElementList.PopClip();
 		}
 
-		for (const TSharedPtr<FBaseTimingTrack>& TrackPtr : TopDockedTracks)
 		{
-			if (TrackPtr->IsVisible())
+			const float L = Position.X;
+			const float R = Position.X + (Viewport.GetWidth() * Scale);
+			const float T = Position.Y;
+			const float B = Position.Y + (Viewport.GetTopOffset() * Scale);
+			const FSlateClippingZone ClipZone(FVector2D(L, T), FVector2D(R, T), FVector2D(L, B), FVector2D(R, B));
+			DrawContext.ElementList.PushClip(ClipZone);
+
+			for (const TSharedPtr<FBaseTimingTrack>& TrackPtr : TopDockedTracks)
 			{
-				TrackPtr->Draw(TimingDrawContext);
+				if (TrackPtr->IsVisible())
+				{
+					TrackPtr->Draw(TimingDrawContext);
+				}
 			}
+
+			DrawContext.ElementList.PopClip();
 		}
 
-		for (const TSharedPtr<FBaseTimingTrack>& TrackPtr : BottomDockedTracks)
 		{
-			if (TrackPtr->IsVisible())
+			const float L = Position.X;
+			const float R = Position.X + (Viewport.GetWidth() * Scale);
+			const float T = Position.Y + ((Viewport.GetHeight() - Viewport.GetBottomOffset()) * Scale);
+			const float B = Position.Y + (Viewport.GetHeight() * Scale);
+			const FSlateClippingZone ClipZone(FVector2D(L, T), FVector2D(R, T), FVector2D(L, B), FVector2D(R, B));
+			DrawContext.ElementList.PushClip(ClipZone);
+
+			for (const TSharedPtr<FBaseTimingTrack>& TrackPtr : BottomDockedTracks)
 			{
-				TrackPtr->Draw(TimingDrawContext);
+				if (TrackPtr->IsVisible())
+				{
+					TrackPtr->Draw(TimingDrawContext);
+				}
 			}
+
+			DrawContext.ElementList.PopClip();
 		}
 
 		for (const TSharedPtr<FBaseTimingTrack>& TrackPtr : ForegroundTracks)

@@ -645,7 +645,7 @@ void FTimingViewDrawHelper::DrawTimingEventHighlight(double StartTime, double En
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FLinearColor FTimingViewDrawHelper::GetTrackNameTextColor(const FTimingEventsTrack& Track) const
+FLinearColor FTimingViewDrawHelper::GetTrackNameTextColor(const FBaseTimingTrack& Track) const
 {
 	return  Track.IsHovered() ?  FLinearColor(1.0f, 1.0f, 0.0f, 1.0f) :
 			Track.IsSelected() ? FLinearColor(1.0f, 1.0f, 0.5f, 1.0f) :

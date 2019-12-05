@@ -164,7 +164,7 @@ public:
 	virtual const FSlateBrush* GetWhiteBrush() const override { return WhiteBrush; }
 	virtual const FSlateFontInfo& GetEventFont() const override { return EventFont; }
 	virtual FLinearColor GetEdgeColor() const override { return EdgeColor; }
-	virtual FLinearColor GetTrackNameTextColor(const FTimingEventsTrack& Track) const override;
+	virtual FLinearColor GetTrackNameTextColor(const FBaseTimingTrack& Track) const override;
 	virtual int32 GetHeaderBackgroundLayerId() const override { return ReservedLayerId + ToInt32(EDrawLayer::HeaderBackground); }
 	virtual int32 GetHeaderTextLayerId() const override { return ReservedLayerId + ToInt32(EDrawLayer::HeaderText); }
 
