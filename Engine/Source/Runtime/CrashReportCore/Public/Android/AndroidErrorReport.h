@@ -26,10 +26,7 @@ public:
 	 * Discover all files in the crash report directory
 	 * @param Directory Full path to directory containing the report
 	 */
-	explicit FAndroidErrorReport(const FString& Directory)
-		: FGenericErrorReport(Directory)
-	{
-	}
+	explicit FAndroidErrorReport(const FString& Directory);
 
 	/**
 	 * Load helper modules
@@ -62,4 +59,10 @@ public:
 		FString AppPath = FPaths::Combine(FPrimaryCrashProperties::Get()->BaseDir, FPrimaryCrashProperties::Get()->ExecutableName);
 		return AppPath;
 	}
+protected:
+
+	/**
+	 * Filename of the renamed threads context file. Empty if no such file exists.
+	 */
+	FString ThreadContextsPathName;
 };

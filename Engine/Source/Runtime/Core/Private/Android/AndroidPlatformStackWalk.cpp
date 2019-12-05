@@ -260,7 +260,7 @@ bool FAndroidPlatformStackWalk::SymbolInfoToHumanReadableString(const FProgramCo
 
 static TAutoConsoleVariable<float> CVarAndroidPlatformThreadCallStackMaxWait(
 	TEXT("AndroidPlatformThreadStackWalk.MaxWait"),
-	60.0f,
+	5.0f,
 	TEXT("The number of seconds allowed to spin before killing the process, with the assumption the signal handler has hung."));
 
 #if ANDROID_HAS_THREADBACKTRACE
