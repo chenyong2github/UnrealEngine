@@ -75,12 +75,13 @@ static FAutoConsoleVariableRef CVarNiagaraGPUDataBufferBufferSlack(
 );
 
 FNiagaraDataSet::FNiagaraDataSet()
-	: CompiledData(&FNiagaraDataSetCompiledData::DummyCompiledData)
+	: CompiledData(FNiagaraDataSetCompiledData::DummyCompiledData)
 	, NumFreeIDs(0)
 	, MaxUsedID(0)
 	, IDAcquireTag(0)
 	, CurrentData(nullptr)
 	, DestinationData(nullptr)
+	, bInitialized(false)
 {
 }
 
@@ -347,7 +348,7 @@ void FNiagaraDataSet::ReleaseGPUInstanceCounts(FNiagaraGPUInstanceCountManager& 
 const FNiagaraVariableLayoutInfo* FNiagaraDataSet::GetVariableLayout(const FNiagaraVariable& Var)const
 {
 	int32 VarLayoutIndex = GetVariables().IndexOfByKey(Var);
-	return VarLayoutIndex != INDEX_NONE ? &CompiledData->VariableLayouts[VarLayoutIndex] : nullptr;
+	return VarLayoutIndex != INDEX_NONE ? &CompiledData.VariableLayouts[VarLayoutIndex] : nullptr;
 }
 
 bool FNiagaraDataSet::GetVariableComponentOffsets(const FNiagaraVariable& Var, int32 &FloatStart, int32 &IntStart) const
@@ -367,7 +368,7 @@ bool FNiagaraDataSet::GetVariableComponentOffsets(const FNiagaraVariable& Var, i
 
 void FNiagaraDataSet::CopyTo(FNiagaraDataSet& Other, int32 StartIdx, int32 NumInstances, bool bResetOther)const
 {
-	check(CompiledData);
+	//check(CompiledData);
 
 	CheckCorrectThread();
 
