@@ -1269,7 +1269,8 @@ ShadingModel);
 			DirectionalLightShadow,
 			OpaqueBasePass.SceneColorWithoutSingleLayerWaterTexture, SingleLayerWaterSceneColorSampler,
 			OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture, SingleLayerWaterSceneDepthSampler,
-			OpaqueBasePass.SceneWithoutSingleLayerWaterMaxUV,
+			OpaqueBasePass.SceneWithoutSingleLayerWaterMinMaxUV.xy,
+			OpaqueBasePass.SceneWithoutSingleLayerWaterMinMaxUV.zw,
 			Specular, OpaqueBasePass.DistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
 			CameraIsUnderWater, WaterVisibility, EyeIndex).Luminance;
