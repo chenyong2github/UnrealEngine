@@ -2591,6 +2591,7 @@ public:
 
 		FDiffuseIndirectOutputs GlobalIlluminationOutputs;
 		GlobalIlluminationOutputs.Color = SignalOutput.Textures[0];
+		GlobalIlluminationOutputs.AmbientOcclusionMask = SignalOutput.Textures[1];
 		return GlobalIlluminationOutputs;
 	}
 }; // class FDefaultScreenSpaceDenoiser
