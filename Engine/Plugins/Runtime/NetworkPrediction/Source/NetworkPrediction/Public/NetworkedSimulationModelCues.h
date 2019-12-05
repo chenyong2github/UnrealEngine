@@ -41,7 +41,7 @@ struct TNetSimCueTraitsBase
 	// Who can Invoke this Cue in their simulation (if this test fails, the Invoke call is supressed locally)
 	static constexpr uint8 InvokeMask { (uint8)ESimulationTickContext::All };
 
-	// Does the cue replicate? (from authority). This will also determine if the cue needs to be saved locally for NetUnique tests (to avoid double playing)
+	// Does the cue replicate? (from authority). This will also determine if the cue needs to be saved locally for NetIdentical tests (to avoid double playing)
 	static constexpr ENetSimCueReplicationTarget ReplicationTarget { ENetSimCueReplicationTarget::All };
 };
 
@@ -101,7 +101,7 @@ struct FNetSimCueWrapperBase
 {
 	virtual ~FNetSimCueWrapperBase() { }
 	virtual void NetSerialize(FArchive& Ar) = 0;
-	virtual bool NetUnique(const void* OtherCueData) const = 0;
+	virtual bool NetIdentical(const void* OtherCueData) const = 0;
 	virtual void* CueData() const = 0;
 	virtual ENetSimCueReplicationTarget GetReplicationTarget() const = 0;
 };
@@ -121,10 +121,10 @@ struct TNetSimCueWrapper : FNetSimCueWrapperBase
 		Instance.NetSerialize(Ar);
 	}
 
-	bool NetUnique(const void* OtherCueData) const override final
+	bool NetIdentical(const void* OtherCueData) const override final
 	{
-		// Cue types must implement bool NetUnique(const TMyCueType& Other) const
-		return Instance.NetUnique(*((const TCue*)OtherCueData));
+		// Cue types must implement bool NetIdentical(const TMyCueType& Other) const
+		return Instance.NetIdentical(*((const TCue*)OtherCueData));
 	}
 
 	void* CueData() const override final
@@ -280,31 +280,22 @@ struct FSavedCue
 	}
 
 	// Test NetUniqueness against another saved cue
-	bool NetUnique(FSavedCue& OtherCue) const
+	bool NetIdentical(FSavedCue& OtherCue) const
 	{
-		if (ID != OtherCue.ID)
-		{
-			return false;
-		}
-
-		return CueInstance->NetUnique(OtherCue.CueInstance->CueData());
+		return (ID == OtherCue.ID) && CueInstance->NetIdentical(OtherCue.CueInstance->CueData());
 	}
 
 	// Test NetUniqueness against an actual cue instance
 	template<typename TCue>
-	bool NetUnique(TCue& OtherCue) const
+	bool NetIdentical(TCue& OtherCue) const
 	{
-		if (ID != TCue::ID)
-		{
-			return false;
-		}
-		return CueInstance->NetUnique(&OtherCue);
+		return (ID == TCue::ID) && CueInstance->NetIdentical(&OtherCue);
 	}
 
 
-	FString GetTypeName() const
+	FString GetDebugName() const
 	{
-		return FGlobalCueTypeTable::Get().GetTypeName(ID);
+		return FString::Printf(TEXT("[%s 0x%X]"), *FGlobalCueTypeTable::Get().GetTypeName(ID), (int64)this);
 	}
 
 	FNetSimCueTypeId ID = 0;
@@ -475,31 +466,34 @@ struct FNetSimCueDispatcher
 
 					for (FSavedCue& ExistingCue : SavedCues)
 					{
-						if (RollbackTime <= ExistingCue.Time && ExistingCue.NetUnique(NewCue) == false)
+						if (RollbackTime <= ExistingCue.Time && ExistingCue.NetIdentical(NewCue))
 						{
 							// We've matched with an already predicted cue, so suppress this invocation and don't undo the predicted cue
 							ExistingCue.bPendingResimulateRollback = false;
-							UE_LOG(LogNetSimCues, Log, TEXT("Resimulated Cue %s matched existing cue. Suppressing Invocation."), *FGlobalCueTypeTable::Get().GetTypeName(T::ID));
+							UE_LOG(LogNetSimCues, Log, TEXT("%s. Resimulated Cue %s matched existing cue. Suppressing Invocation."), *GetDebugName(), *FGlobalCueTypeTable::Get().GetTypeName(T::ID));
 							return;
 						}
 					}
 
-					UE_LOG(LogNetSimCues, Log, TEXT("Invoking Cue %s during resimulate. Context: %d. Transient: %d. bAllowRollback: %d. bNetConfirmed: %d."), *FGlobalCueTypeTable::Get().GetTypeName(T::ID), Context.TickContext, bTransient, bAllowRollback, bNetConfirmed);
-					GetBuffer(bTransient).Emplace(T::ID, Context.CurrentSimTime, bAllowRollback, bNetConfirmed, bSupportsResimulate, new TNetSimCueWrapper<T>(MoveTempIfPossible(NewCue)));
+					
+					auto& SavedCue = GetBuffer(bTransient).Emplace_GetRef(T::ID, Context.CurrentSimTime, bAllowRollback, bNetConfirmed, bSupportsResimulate, new TNetSimCueWrapper<T>(MoveTempIfPossible(NewCue)));
+					UE_LOG(LogNetSimCues, Log, TEXT("%s. Invoking Cue %s during resimulate. Context: %d. Transient: %d. bAllowRollback: %d. bNetConfirmed: %d."), *GetDebugName(), *SavedCue.GetDebugName(), Context.TickContext, bTransient, bAllowRollback, bNetConfirmed);
 				}
 				else
 				{
-					// Not resimulate case is simple: construct the new cue emplace in the appropriate list
-					UE_LOG(LogNetSimCues, Log, TEXT("Invoking Cue %s. Context: %d. Transient: %d. bAllowRollback: %d. bNetConfirmed: %d."), *FGlobalCueTypeTable::Get().GetTypeName(T::ID), Context.TickContext, bTransient, bAllowRollback, bNetConfirmed);
-					GetBuffer(bTransient).Emplace(T::ID, Context.CurrentSimTime, bAllowRollback, bNetConfirmed, bSupportsResimulate, new TNetSimCueWrapper<T>(Forward<ArgsType>(Args)...));	
+					// Not resimulate case is simple: construct the new cue emplace in the appropriate list	
+					auto& SavedCue = GetBuffer(bTransient).Emplace_GetRef(T::ID, Context.CurrentSimTime, bAllowRollback, bNetConfirmed, bSupportsResimulate, new TNetSimCueWrapper<T>(Forward<ArgsType>(Args)...));	
+					UE_LOG(LogNetSimCues, Log, TEXT("%s. Invoking Cue %s. Context: %d. Transient: %d. bAllowRollback: %d. bNetConfirmed: %d."), *GetDebugName(), *SavedCue.GetDebugName(), Context.TickContext, bTransient, bAllowRollback, bNetConfirmed);
 				}				
 			}
 			else
 			{
-				UE_LOG(LogNetSimCues, Log, TEXT("Suppressing Cue Invocation %s. Mask: %d. TickContext: %d"), *FGlobalCueTypeTable::Get().GetTypeName(T::ID), TCueHandlerTraits<T>::InvokeMask, (int32)Context.TickContext);
+				UE_LOG(LogNetSimCues, Log, TEXT("%s .Suppressing Cue Invocation %s. Mask: %d. TickContext: %d"), *GetDebugName(), *FGlobalCueTypeTable::Get().GetTypeName(T::ID), TCueHandlerTraits<T>::InvokeMask, (int32)Context.TickContext);
 			}
 		}
 	}
+
+	TFunction<FString()> GetDebugName = []() { return TEXT("Unset"); };
 
 protected:
 
@@ -560,7 +554,7 @@ struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 				// ReplicationTarget: Cues can be set to only replicate to interpolators
 				if (SerializedCue.CueInstance->GetReplicationTarget() == ENetSimCueReplicationTarget::Interpolators && !bIsInterpolatingSim)
 				{
-					UE_LOG(LogNetSimCues, Log, TEXT("Discarding replicated NetSimCue %s intended for interpolators."), *SerializedCue.GetTypeName());
+					UE_LOG(LogNetSimCues, Log, TEXT("Discarding replicated NetSimCue %s intended for interpolators."), *SerializedCue.GetDebugName());
 					continue;
 				}
 				
@@ -571,10 +565,10 @@ struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 				for (int32 ExistingIdx=0; ExistingIdx < StartingNum; ++ExistingIdx)
 				{
 					FSavedCue& ExistingCue = SavedCues[ExistingIdx];
-					if (SerializedCue.NetUnique(ExistingCue) == false)
+					if (SerializedCue.NetIdentical(ExistingCue))
 					{
 						// These cues are not unique ("close enough") so we are skipping receiving this one
-						UE_LOG(LogNetSimCues, Log, TEXT("Discarding replicated NetSimCue %s because we've already processed it."), *SerializedCue.GetTypeName());
+						UE_LOG(LogNetSimCues, Log, TEXT("Discarding replicated NetSimCue %s because we've already processed it. (Matched %s)"), *SerializedCue.GetDebugName(), *ExistingCue.GetDebugName());
 						bUniqueCue = false;
 						ExistingCue.bNetConfirmed = true;
 						break;
@@ -583,8 +577,9 @@ struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 
 				if (bUniqueCue)
 				{
-					UE_LOG(LogNetSimCues, Log, TEXT("Received NetUnique Cue: %s. (Num replicated cue sent this bunch: %d)"), *SerializedCue.GetTypeName(), NumCues);
-					SavedCues.Emplace(MoveTemp(SerializedCue));
+					
+					auto& SavedCue = SavedCues.Emplace_GetRef(MoveTemp(SerializedCue));
+					UE_LOG(LogNetSimCues, Log, TEXT("%s. Received !NetIdentical Cue: %s. (Num replicated cue sent this bunch: %d)."), *GetDebugName(), *SerializedCue.GetDebugName(), NumCues);
 				}
 			}
 		}
@@ -614,7 +609,7 @@ struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 				FSavedCue& SavedCue = *It;
 				if (!SavedCue.bNetConfirmed && SavedCue.Time <= ConfirmedTime)
 				{
-					UE_LOG(LogNetSimCues, Log, TEXT("Calling OnRollback for SavedCue NetSimCue %s. Cue has not been matched but it <= ConfirmedTime."), *SavedCue.GetTypeName());
+					UE_LOG(LogNetSimCues, Log, TEXT("%s. Calling OnRollback for SavedCue NetSimCue %s. Cue has not been matched but it <= ConfirmedTime."), *GetDebugName(), *SavedCue.GetDebugName());
 					SavedCue.Callbacks.OnRollback.Broadcast();
 					SavedCues.RemoveAt(It.GetIndex(), 1, false);
 				}
@@ -629,7 +624,7 @@ struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 				if (SavedCue.bPendingResimulateRollback)
 				{
 					// Unmatched cue whose time has passed, time to rollback
-					UE_LOG(LogNetSimCues, Log, TEXT("Calling OnRollback for SavedCue NetSimCue %s. Cue was not matched during a resimulate. "), *SavedCue.GetTypeName());
+					UE_LOG(LogNetSimCues, Log, TEXT("%s. Calling OnRollback for SavedCue NetSimCue %s. Cue was not matched during a resimulate."), *GetDebugName(), *SavedCue.GetDebugName());
 					SavedCue.Callbacks.OnRollback.Broadcast();
 					SavedCues.RemoveAt(It.GetIndex(), 1, false);
 				}
@@ -654,20 +649,20 @@ struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 			{
 				if (SavedCue.Time <= DispatchTime)
 				{
-					UE_LOG(LogNetSimCues, Log, TEXT("Dispatching NetSimCue %s."), *SavedCue.GetTypeName());
+					UE_LOG(LogNetSimCues, Log, TEXT("%s Dispatching NetSimCue %s"), *GetDebugName(), *SavedCue.GetDebugName());
 					SavedCue.bDispatched = true;
 					TCueDispatchTable<T>::Get().Dispatch(SavedCue, Handler,DispatchTime);
 				}
 				else
 				{
-					UE_LOG(LogNetSimCues, Log, TEXT("Withholding Cue %s. %s > %s"), *SavedCue.GetTypeName(), *SavedCue.Time.ToString(), *DispatchTime.ToString());
+					UE_LOG(LogNetSimCues, Log, TEXT("Withholding Cue %s. %s > %s."), *SavedCue.GetDebugName(), *SavedCue.Time.ToString(), *DispatchTime.ToString());
 				}
 			}
 		}
 
 		for (FSavedCue& TransientCue : TransientCues)
 		{
-			UE_LOG(LogNetSimCues, Log, TEXT("Dispatching transient NetSimCue %s."), *TransientCue.GetTypeName());
+			UE_LOG(LogNetSimCues, Log, TEXT("Dispatching transient NetSimCue %s."), *TransientCue.GetDebugName());
 			TCueDispatchTable<T>::Get().Dispatch(TransientCue, Handler, DispatchTime);
 		}
 		TransientCues.Reset();
@@ -682,8 +677,8 @@ struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			for (int32 i=0; i <= SavedCuePruneIdx; ++i)
 			{
-				UE_CLOG(!SavedCues[i].bDispatched, LogNetSimCues, Warning, TEXT("Non-Dispatched Cue is about to be pruned! %s. %s"), *SavedCues[i].GetTypeName());
-				UE_LOG(LogNetSimCues, Log, TEXT("Pruning Cue %s. Invoke Time: %s. Current Time: %s"), *SavedCues[i].GetTypeName(), *SavedCues[i].Time.ToString(), *DispatchTime.ToString());
+				UE_CLOG(!SavedCues[i].bDispatched, LogNetSimCues, Warning, TEXT("Non-Dispatched Cue is about to be pruned! %s. %s"), *SavedCues[i].GetDebugName());
+				UE_LOG(LogNetSimCues, Log, TEXT("%s. Pruning Cue %s. Invoke Time: %s. Current Time: %s."), *GetDebugName(), *SavedCues[i].GetDebugName(), *SavedCues[i].Time.ToString(), *DispatchTime.ToString());
 			}
 #endif
 
@@ -711,6 +706,7 @@ struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 			if (SavedCue.bResimulates && SavedCue.Time >= InRollbackTime)
 			{
 				SavedCue.bPendingResimulateRollback = true;
+				UE_LOG(LogNetSimCues, Log, TEXT("%s. Marking %s bPendingResimulateRollback."), *GetDebugName(), *SavedCue.GetDebugName());
 			}
 		}
 	}
