@@ -15,9 +15,7 @@ const FName UNiagaraDataInterfaceCurve::SampleCurveName(TEXT("SampleCurve"));
 UNiagaraDataInterfaceCurve::UNiagaraDataInterfaceCurve(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-#if WITH_EDITORONLY_DATA
-	UpdateLUT();
-#endif
+	SetDefaultLUT();
 }
 
 void UNiagaraDataInterfaceCurve::PostInitProperties()
@@ -52,7 +50,6 @@ void UNiagaraDataInterfaceCurve::Serialize(FArchive& Ar)
 #endif
 	{
 		Super::Serialize(Ar);
-		PushToRenderThread();
 	}
 }
 
