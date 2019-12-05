@@ -63,6 +63,7 @@ namespace VivoxClientApi {
         virtual void onLoginFailed(const AccountName &accountName, const VCSStatus &status);
         virtual void onLogoutCompleted(const AccountName &accountName);
         virtual void onLogoutFailed(const AccountName &accountName, const VCSStatus &status);
+		virtual void onSessionGroupCreated(const AccountName &accountName, const char *sessionGroupHandle);
 
         /// Getting into/out of channel
         virtual void onChannelJoined(const AccountName &accountName, const Uri &channelUri);
@@ -88,12 +89,12 @@ namespace VivoxClientApi {
         virtual void onAvailableAudioDevicesChanged();
 
         virtual void onOperatingSystemChosenAudioInputDeviceChanged(const AudioDeviceId &deviceId);
-        virtual void onSetApplicationChosenAudioInputDeviceCompleted(const AudioDeviceId &deviceId);
-        virtual void onSetApplicationChosenAudioInputDeviceFailed(const AudioDeviceId &deviceId, const VCSStatus &status);
+        virtual void onSetApplicationChosenAudioInputDeviceCompleted(const AccountName &accountName, const AudioDeviceId &deviceId);
+        virtual void onSetApplicationChosenAudioInputDeviceFailed(const AccountName &accountName, const AudioDeviceId &deviceId, const VCSStatus &status);
 
         virtual void onOperatingSystemChosenAudioOutputDeviceChanged(const AudioDeviceId &deviceId);
-        virtual void onSetApplicationChosenAudioOutputDeviceCompleted(const AudioDeviceId &deviceId);
-        virtual void onSetApplicationChosenAudioOutputDeviceFailed(const AudioDeviceId &deviceId, const VCSStatus &status);
+        virtual void onSetApplicationChosenAudioOutputDeviceCompleted(const AccountName &accountName, const AudioDeviceId &deviceId);
+        virtual void onSetApplicationChosenAudioOutputDeviceFailed(const AccountName &accountName, const AudioDeviceId &deviceId, const VCSStatus &status);
         virtual void onAudioInputDeviceTestPlaybackCompleted();
 
         /// Volume Controls
@@ -117,11 +118,11 @@ namespace VivoxClientApi {
         virtual void onSetChannelTransmissionToNoneFailed(const AccountName &accountName, const VCSStatus &status);
 
 		/// Audio capture
-		virtual void onAudioUnitStarted(const Uri &initialTargetUri);
-		virtual void onAudioUnitStopped(const Uri &initialTargetUri);
-		virtual void onAudioUnitAfterCaptureAudioRead(const Uri &initialTargetUri, short *pcmFrames, int pcmFrameCount, int audioFrameRate, int channelsPerFrame);
-		virtual void onAudioUnitBeforeCaptureAudioSent(const Uri &initialTargetUri, short *pcmFrames, int pcmFrameCount, int audioFrameRate, int channelsPerFrame, bool speaking);
-		virtual void onAudioUnitBeforeRecvAudioRendered(const Uri &initialTargetUri, short *pcmFrames, int pcmFrameCount, int audioFrameRate, int channelsPerFrame, bool silence);
+		virtual void onAudioUnitStarted(const char *sessionGroupHandle, const Uri &initialTargetUri);
+		virtual void onAudioUnitStopped(const char *sessionGroupHandle, const Uri &initialTargetUri);
+		virtual void onAudioUnitAfterCaptureAudioRead(const char *sessionGroupHandle, const Uri &initialTargetUri, short *pcmFrames, int pcmFrameCount, int audioFrameRate, int channelsPerFrame);
+		virtual void onAudioUnitBeforeCaptureAudioSent(const char *sessionGroupHandle, const Uri &initialTargetUri, short *pcmFrames, int pcmFrameCount, int audioFrameRate, int channelsPerFrame, bool speaking);
+		virtual void onAudioUnitBeforeRecvAudioRendered(const char *sessionGroupHandle, const Uri &initialTargetUri, short *pcmFrames, int pcmFrameCount, int audioFrameRate, int channelsPerFrame, bool silence);
     private:
         ClientConnection *m_clientConnection;
     };
