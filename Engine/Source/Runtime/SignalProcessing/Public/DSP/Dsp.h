@@ -6,6 +6,7 @@
 #include "Misc/ScopeLock.h"
 #include "Templates/IsFloatingPoint.h"
 #include "Templates/IsIntegral.h"
+#include "Templates/IsSigned.h"
 
 // Macros which can be enabled to cause DSP sample checking
 #if 0
@@ -691,6 +692,10 @@ namespace Audio
 		// This is the number used to convert from float to our fixed precision value.
 		static constexpr float QFactor = TGetPower<2, Q>::Value - 1;
 
+		// for fixed precision types, the max and min values that we can represent are calculated here:
+		static constexpr float MaxValue = TGetPower<2, (sizeof(SampleType) * 8 - Q)>;
+		static constexpr float MinValue = !!TIsSigned<SampleType> ? (-1.0f * MaxValue) : 0.0f;
+
 	public:
 
 		TSample(SampleType& InSample)
@@ -811,7 +816,7 @@ namespace Audio
 				{
 					// fixed * float.
 					OtherSampleType FloatLHS = ((OtherSampleType)LHS.Sample) / QFactor;
-					OtherSampleType Result = FloatLHS * RHS;
+					OtherSampleType Result = FMath::Clamp(FloatLHS * RHS, MinValue, MaxValue);
 					return static_cast<SampleType>(Result * QFactor);
 				}
 				else if (TIsIntegral<OtherSampleType>::Value)
@@ -819,7 +824,7 @@ namespace Audio
 					// Q * Q.
 					float FloatLHS = ((float)LHS.Sample) / QFactor;
 					float FloatRHS = ((float)RHS) / QFactor;
-					float Result = FloatLHS * FloatRHS;
+					float Result = FMath::Clamp(FloatLHS * FloatRHS, MinValue, MaxValue);
 					return static_cast<OtherSampleType>(Result * QFactor);
 				}
 				else
@@ -872,8 +877,12 @@ namespace Audio
 			static_assert(bIsTypeValid, "Invalid value for Q! TSampleRef only supports float or int types. For int types, Q must be smaller than the number of bits in the int type.");
 		}
 
-		// This is the number used to convert from float to our .
+		// This is the number used to convert from float to our fixed precision value.
 		static constexpr float QFactor = TGetPower<2, Q>::Value - 1;
+
+		// for fixed precision types, the max and min values that we can represent are calculated here:
+		static constexpr float MaxValue = TGetPower<2, (sizeof(SampleType) * 8 - Q)>::Value;
+		static constexpr float MinValue = !!TIsSigned<SampleType>::Value ? (-1.0f * MaxValue) : 0.0f;
 
 	public:
 
@@ -996,15 +1005,16 @@ namespace Audio
 				{
 					// fixed * float.
 					OtherSampleType FloatLHS = ((OtherSampleType)LHS.Sample) / QFactor;
-					OtherSampleType Result = FloatLHS * RHS;
+					OtherSampleType Result = FMath::Clamp(FloatLHS * RHS, MinValue, MaxValue);
 					return static_cast<SampleType>(Result * QFactor);
 				}
 				else if (TIsIntegral<OtherSampleType>::Value)
 				{
-					// Q * Q.
+					// fixed * fixed.
 					float FloatLHS = ((float)LHS.Sample) / QFactor;
 					float FloatRHS = ((float)RHS) / QFactor;
-					float Result = FloatLHS * FloatRHS;
+					float Result = FMath::Clamp(FloatLHS * FloatRHS, MinValue, MaxValue);
+					
 					return static_cast<SampleType>(Result * QFactor);
 				}
 				else
