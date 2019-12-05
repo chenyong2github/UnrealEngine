@@ -53,10 +53,14 @@ static constexpr ESimulationTickContext GetSimTickMask(const ENetSimCueInvoker I
 // Who a NetSimCue should replicate/be accepted by
 enum class ENetSimCueReplicationTarget : uint8
 {
-	None,			// Do not replicate cue to anyone
-	Interpolators,	// Only replicate to / accept on clients that are interpolating (not running the simulation themselves)
-	All,			// Replicate to everyone
+	None			= 0,		// Do not replicate cue to anyone
+	AutoProxy		= 1 << 0,	// Replicate to autonomous proxies (controlling clients)
+	SimulatedProxy	= 1 << 1,	// Replicate to simulated proxies that are running the simulation
+	Interpolators	= 1 << 2,	// Replicate to simulated proxies that are *not* running the simulation themselves (E.,g interpolating)
+	
+	All = AutoProxy | SimulatedProxy | Interpolators,
 };
+ENUM_CLASS_FLAGS(ENetSimCueReplicationTarget);
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 //	NetSimCue Traits Presets. These are reasonable settings that may be appropriate in common cases. Presets are provided so that individual settings
@@ -67,6 +71,7 @@ enum class ENetSimCueReplicationTarget : uint8
 //		NetSimCueTraits::Strong - The most robust trait type. Will replicate to everyone and will rollback/resimulate. Must implement NetSerialize/NetIdentical. Most expensive.
 //
 //	The other presets fall somewhere in the middle and require thought/nuance to decide if they are right for your case.
+//	Other configs are possible but its not clear their usefullness. For example, a cue that only plays on simulated clients.
 //
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -84,10 +89,20 @@ namespace NetSimCueTraits
 		static constexpr ENetSimCueReplicationTarget ReplicationTarget { ENetSimCueReplicationTarget::None };
 	};
 
-	// Same as above but will only play on predicting client, not authority
-	struct WeakClientOnly
+	// Same as above but will only play on the owning, autonomous proxy client (not on authority, not on simulated clients)
+	// Useful if the Cue is needed for only the controlling player, maybe like a HUD/UI notification pop
+	struct WeakOwningClientOnly
 	{
 		static constexpr ENetSimCueInvoker InvokeMask { ENetSimCueInvoker::Predict };
+		static constexpr bool Resimulate { false };
+		static constexpr ENetSimCueReplicationTarget ReplicationTarget { ENetSimCueReplicationTarget::None };
+	};
+
+	// Same as above but will play on all clients, just not the authority.
+	// Useful for something that is purely cosmetic. E.g, does not run on the server but all clients should see it if they are running the sim
+	struct WeakClientsOnly
+	{
+		static constexpr ENetSimCueInvoker InvokeMask { ENetSimCueInvoker::Predict | ENetSimCueInvoker::SimExtrapolate };
 		static constexpr bool Resimulate { false };
 		static constexpr ENetSimCueReplicationTarget ReplicationTarget { ENetSimCueReplicationTarget::None };
 	};
