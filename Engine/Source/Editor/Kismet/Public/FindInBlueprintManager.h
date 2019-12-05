@@ -12,6 +12,11 @@
 #include "Input/Reply.h"
 #include "TickableEditorObject.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogFindInBlueprint, Warning, All);
+
+/** CSV stats profiling category */
+CSV_DECLARE_CATEGORY_EXTERN(FindInBlueprint);
+
 struct FAssetData;
 class FFindInBlueprintsResult;
 class FImaginaryBlueprint;
@@ -312,6 +317,22 @@ typedef TSharedPtr<FFindInBlueprintsResult> FSearchResult;
 ////////////////////////////////////
 // FStreamSearch
 
+struct FStreamSearchOptions
+{
+	/** Filter to limit the FilteredImaginaryResults to */
+	enum ESearchQueryFilter ImaginaryDataFilter;
+
+	/** When searching, any Blueprint below this version will be considered out-of-date */
+	EFiBVersion MinimiumVersionRequirement;
+
+	/** Default constructor. */
+	FStreamSearchOptions()
+		:ImaginaryDataFilter(ESearchQueryFilter::AllFilter)
+		,MinimiumVersionRequirement(EFiBVersion::FIB_VER_LATEST)
+	{
+	}
+};
+
 /**
  * Async task for searching Blueprints
  */
@@ -319,8 +340,7 @@ class FStreamSearch : public FRunnable
 {
 public:
 	/** Constructor */
-	FStreamSearch(const FString& InSearchValue);
-	FStreamSearch(const FString& InSearchValue, enum ESearchQueryFilter InImaginaryDataFilter, EFiBVersion InMinimiumVersionRequirement);
+	FStreamSearch(const FString& InSearchValue, const FStreamSearchOptions& InSearchOptions = FStreamSearchOptions());
 
 	/** Begin FRunnable Interface */
 	virtual bool Init() override;
@@ -367,26 +387,27 @@ public:
 	/** The search value to filter results by */
 	FString SearchValue;
 
+	/** Options for setting up the search */
+	FStreamSearchOptions SearchOptions;
+
 	/** Prevents searching while other threads are pulling search results */
 	FCriticalSection SearchCriticalSection;
-
-	// Whether the thread has finished running
-	bool bThreadCompleted;
 
 	/** > 0 if we've been asked to abort work in progress at the next opportunity */
 	FThreadSafeCounter StopTaskCounter;
 
-	/** When searching, any Blueprint below this version will be considered out-of-date */
-	EFiBVersion MinimiumVersionRequirement;
+	/** Filtered (ImaginaryDataFilter) list of imaginary data results that met the search requirements. Must be declared as thread-safe since imaginary data is a shared resource. */
+	TArray<FImaginaryFiBDataSharedPtr> FilteredImaginaryResults;
 
 	/** A going count of all Blueprints below the MinimiumVersionRequirement */
 	int32 BlueprintCountBelowVersion;
 
-	/** Filtered (ImaginaryDataFilter) list of imaginary data results that met the search requirements. Must be declared as thread-safe since imaginary data is a shared resource. */
-	TArray<FImaginaryFiBDataSharedPtr> FilteredImaginaryResults;
+	// Whether the thread has finished running
+	bool bThreadCompleted;
 
-	/** Filter to limit the FilteredImaginaryResults to */
-	enum ESearchQueryFilter ImaginaryDataFilter;
+private:
+	/** Unique identifier for this search (used with benchmarking) */
+	int32 SearchId;
 };
 
 ////////////////////////////////////
@@ -565,6 +586,9 @@ private:
 	/** Callback hook from the Asset Registry, marks the asset for deletion from the cache */
 	void OnAssetRenamed(const struct FAssetData& InAssetData, const FString& InOldName);
 
+	/** Callback hook from the Asset Registry, signals that the initial asset discovery stage has been completed */
+	void OnAssetRegistryFilesLoaded();
+
 	/** Callback hook from the Asset Registry when an asset is loaded */
 	void OnAssetLoaded(class UObject* InAsset);
 
@@ -607,12 +631,6 @@ private:
 	TSharedPtr<SFindInBlueprints> OpenGlobalFindResultsTab();
 
 protected:
-	/** Tells if gathering data is currently allowed */
-	bool bEnableGatheringData;
-
-	/** Tells if deferred indexing is configured as disabled */
-	bool bDisableDeferredIndexing;
-
 	/** Maps the Blueprint paths to their index in the SearchArray */
 	TMap<FName, int32> SearchMap;
 
@@ -633,9 +651,6 @@ protected:
 
 	/** Critical section to safely modify cached data */
 	FCriticalSection SafeModifyCacheCriticalSection;
-
-	/** TRUE when the the FiB manager wants to pause all searches, helps manage the pausing procedure */
-	volatile bool bIsPausing;
 
 	/** Because we are unable to query for the module on another thread, cache it for use later */
 	class FAssetRegistryModule* AssetRegistryModule;
@@ -669,6 +684,18 @@ protected:
 
 	/** Global Find Results workspace menu item */
 	TSharedPtr<class FWorkspaceItem> GlobalFindResultsMenuItem;
+
+	/** Tells if gathering data is currently allowed */
+	bool bEnableGatheringData;
+
+	/** Tells if deferred indexing is configured as disabled */
+	bool bDisableDeferredIndexing;
+
+	/** Whether CSV profiling has been enabled (default=false) */
+	bool bEnableCSVStatsProfiling;
+
+	/** TRUE when the the FiB manager wants to pause all searches, helps manage the pausing procedure */
+	volatile bool bIsPausing;
 };
 
 struct KISMET_API FDisableGatheringDataOnScope
