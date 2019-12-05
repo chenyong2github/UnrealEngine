@@ -486,8 +486,7 @@ bool UWidget::HasUserFocus(APlayerController* PlayerController) const
 
 		if ( ULocalPlayer* LocalPlayer = Context.GetLocalPlayer() )
 		{
-			// HACK: We use the controller Id as the local player index for focusing widgets in Slate.
-			int32 UserIndex = LocalPlayer->GetControllerId();
+			int32 UserIndex = FSlateApplication::Get().GetUserIndexForController(LocalPlayer->GetControllerId());
 
 			TOptional<EFocusCause> FocusCause = SafeWidget->HasUserFocus(UserIndex);
 			return FocusCause.IsSet();
@@ -534,8 +533,7 @@ bool UWidget::HasUserFocusedDescendants(APlayerController* PlayerController) con
 
 		if ( ULocalPlayer* LocalPlayer = Context.GetLocalPlayer() )
 		{
-			// HACK: We use the controller Id as the local player index for focusing widgets in Slate.
-			int32 UserIndex = LocalPlayer->GetControllerId();
+			int32 UserIndex = FSlateApplication::Get().GetUserIndexForController(LocalPlayer->GetControllerId());
 
 			return SafeWidget->HasUserFocusedDescendants(UserIndex);
 		}
@@ -586,10 +584,9 @@ void UWidget::SetUserFocus(APlayerController* PlayerController)
 
 		if ( ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer() )
 		{
-			// HACK: We use the controller Id as the local player index for focusing widgets in Slate.
-			int32 UserIndex = LocalPlayer->GetControllerId();
+			int32 UserIndex = FSlateApplication::Get().GetUserIndexForController(LocalPlayer->GetControllerId());
 
-			if ( !FSlateApplication::Get().SetUserFocus(UserIndex, SafeWidget) )
+			if (UserIndex >= 0 && !FSlateApplication::Get().SetUserFocus(UserIndex, SafeWidget) )
 			{
 				LocalPlayer->GetSlateOperations().SetUserFocus(SafeWidget.ToSharedRef());
 			}
