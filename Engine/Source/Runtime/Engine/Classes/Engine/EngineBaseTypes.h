@@ -970,7 +970,7 @@ enum EViewModeIndex
 
 	VMI_Max UMETA(Hidden),
 
-	VMI_Unknown = 255 UMETA(Hidden),
+	VMI_Unknown = 255 UMETA(DisplayName = "Unknown"),
 };
 
 
