@@ -590,7 +590,7 @@ FString FString::TrimEnd() &&
 	return Result;
 }
 
-FString FString::TrimQuotes( bool* bQuotesRemoved ) const
+void FString::TrimQuotesInline(bool* bQuotesRemoved)
 {
 	bool bQuotesWereRemoved=false;
 	int32 Start = 0, Count = Len();
@@ -614,7 +614,14 @@ FString FString::TrimQuotes( bool* bQuotesRemoved ) const
 	{
 		*bQuotesRemoved = bQuotesWereRemoved;
 	}
-	return Mid(Start, Count);
+	MidInline(Start, Count, false);
+}
+
+FString FString::TrimQuotes(bool* bQuotesRemoved) const
+{
+	FString Result(*this);
+	Result.TrimQuotesInline(bQuotesRemoved);
+	return Result;
 }
 
 int32 FString::CullArray( TArray<FString>* InArray )
