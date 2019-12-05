@@ -244,6 +244,9 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	/** True if this is the signature for a "member" function of a data interface. If this is true, the first input is the owner. */
 	UPROPERTY()
 	bool bMemberFunction;
+	/** Is this function experimental? */
+	UPROPERTY()
+	bool bExperimental;
 	/** Function specifiers verified at bind time. */
 	UPROPERTY()
 	TMap<FName, FName> FunctionSpecifiers;
