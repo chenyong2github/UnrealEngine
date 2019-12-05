@@ -1299,6 +1299,10 @@ namespace Audio
 
 	void FMixerPlatformXAudio2::OnHardwareUpdate()
 	{
+#if WITH_XMA2
+		FXMAAudioInfo::Tick();
+#endif //WITH_XMA2
+
 		if (bIsUsingNullDevice)
 		{
 			float CurrentTime = FPlatformTime::Seconds();
