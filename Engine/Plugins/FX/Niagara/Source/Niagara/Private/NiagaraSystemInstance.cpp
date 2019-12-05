@@ -492,8 +492,8 @@ bool FNiagaraSystemInstance::DeallocateSystemInstance(TUniquePtr< FNiagaraSystem
 		// Make sure we remove the instance
 		if (SystemInstanceAllocation->SystemInstanceIndex != INDEX_NONE)
 		{
-			SystemInstanceAllocation->UnbindParameters();
 			SystemSim->RemoveInstance(SystemInstanceAllocation.Get());
+			SystemInstanceAllocation->UnbindParameters();
 		}
 
 		// Queue deferred deletion from the WorldManager
