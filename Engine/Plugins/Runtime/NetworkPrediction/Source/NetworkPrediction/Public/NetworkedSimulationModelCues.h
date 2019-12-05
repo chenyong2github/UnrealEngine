@@ -362,9 +362,9 @@ struct FNetSimCueDispatcher
 	{
 		if (EnsureValidContext())
 		{
-			if ((TNetSimCueTraits<T>::InvokeMask & (uint8)Context.TickContext) > 0)
+			if (EnumHasAnyFlags(TNetSimCueTraits<T>::SimTickMask, Context.TickContext))
 			{
-				const bool bSupportsResimulate = (TNetSimCueTraits<T>::InvokeMask & (uint8)ESimulationTickContext::Resimulate) > 0;
+				constexpr bool bSupportsResimulate = TNetSimCueTraits<T>::Resimulate;
 
 				bool bAllowRollback = false;	// Whether this cue should be dispatched with rollback callbacks.
 				bool bTransient = false;		// Whether we go in the transient list. Transient cues are dumped after dispatching (not saved over multiple frames for uniqueness comparisons during Invoke or NetSerialize)
@@ -422,7 +422,7 @@ struct FNetSimCueDispatcher
 			}
 			else
 			{
-				UE_LOG(LogNetSimCues, Log, TEXT("%s .Suppressing Cue Invocation %s. Mask: %d. TickContext: %d"), *GetDebugName(), *FGlobalCueTypeTable::Get().GetTypeName(T::ID), TNetSimCueTraits<T>::InvokeMask, (int32)Context.TickContext);
+				UE_LOG(LogNetSimCues, Log, TEXT("%s .Suppressing Cue Invocation %s. Mask: %d. TickContext: %d"), *GetDebugName(), *FGlobalCueTypeTable::Get().GetTypeName(T::ID), TNetSimCueTraits<T>::SimTickMask, (int32)Context.TickContext);
 			}
 		}
 	}
