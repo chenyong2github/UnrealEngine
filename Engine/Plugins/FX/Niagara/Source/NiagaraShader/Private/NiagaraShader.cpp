@@ -1184,7 +1184,7 @@ void FNiagaraShaderMap::FlushShadersByShaderType(FShaderType* ShaderType)
 
 
 
-void FNiagaraShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources)
+void FNiagaraShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial)
 {
 	// Note: This is saved to the DDC, not into packages (except when cooked)
 	// Backwards compatibility therefore will not work based on the version of Ar
@@ -1205,7 +1205,7 @@ void FNiagaraShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources)
 
 	if (Ar.IsSaving() || Ar.IsLoading())
 	{
-		TShaderMap<FNiagaraShaderType>::SerializeInline(Ar, bInlineShaderResources, false, false);
+		TShaderMap<FNiagaraShaderType>::SerializeInline(Ar, bInlineShaderResources, false, bLoadedByCookedMaterial);
 	}
 }
 
