@@ -445,7 +445,12 @@ void SNiagaraSystemViewport::OnFocusViewportToSelection()
 {
 	if( PreviewComponent )
 	{
-		SystemViewportClient->FocusViewportOnBox( PreviewComponent->Bounds.GetBox() );
+		// FocusViewportOnBox disables orbit, so remember our state
+		bool bIsOrbit = SystemViewportClient->ShouldOrbitCamera();
+
+		SystemViewportClient->FocusViewportOnBox(PreviewComponent->Bounds.GetBox());
+
+		SystemViewportClient->ToggleOrbitCamera(bIsOrbit);
 	}
 }
 
