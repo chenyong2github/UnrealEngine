@@ -7,6 +7,7 @@
 #include "UObject/Object.h"
 #include "BehaviorTree/BehaviorTreeTypes.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
+#include "BehaviorTree/BlackboardAssetProvider.h"
 #include "GameplayTaskOwnerInterface.h"
 #include "Tasks/AITask.h"
 #include "BTNode.generated.h"
@@ -33,7 +34,7 @@ struct FBTInstancedNodeMemory
 };
 
 UCLASS(Abstract,config=Game)
-class AIMODULE_API UBTNode : public UObject, public IGameplayTaskOwnerInterface
+class AIMODULE_API UBTNode : public UObject, public IGameplayTaskOwnerInterface, public IBlackboardAssetProvider
 {
 	GENERATED_UCLASS_BODY()
 
@@ -132,8 +133,10 @@ class AIMODULE_API UBTNode : public UObject, public IGameplayTaskOwnerInterface
 	/** @return tree asset */
 	UBehaviorTree* GetTreeAsset() const;
 
+	// BEGIN IBlackboardAssetProvider
 	/** @return blackboard asset */
-	UBlackboardData* GetBlackboardAsset() const;
+	virtual UBlackboardData* GetBlackboardAsset() const override;
+	// END IBlackboardAssetProvider
 
 	/** @return node instance if bCreateNodeInstance was set */
 	UBTNode* GetNodeInstance(const UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const;

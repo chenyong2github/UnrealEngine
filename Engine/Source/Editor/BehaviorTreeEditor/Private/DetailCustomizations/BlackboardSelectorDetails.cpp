@@ -8,7 +8,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SComboButton.h"
-#include "BehaviorTree/BTNode.h"
+#include "BehaviorTree/BlackboardAssetProvider.h"
 #include "BehaviorTreeDebugger.h"
 #include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
@@ -61,10 +61,10 @@ const UBlackboardData* FBlackboardSelectorDetails::FindBlackboardAsset(UObject* 
 {
 	for (UObject* TestOb = InObj; TestOb; TestOb = TestOb->GetOuter())
 	{
-		UBTNode* NodeOb = Cast<UBTNode>(TestOb);
-		if (NodeOb)
+		IBlackboardAssetProvider* Provider = Cast<IBlackboardAssetProvider>(TestOb);
+		if (Provider)
 		{
-			return NodeOb->GetBlackboardAsset();
+			return Provider->GetBlackboardAsset();
 		}
 	}
 
@@ -111,6 +111,7 @@ void FBlackboardSelectorDetails::CacheBlackboardData()
 		UBlackboardData* BlackboardAsset = const_cast<UBlackboardData*>(FindBlackboardAsset(MyObjects[ObjectIdx]));
 		if (BlackboardAsset)
 		{
+			CachedBlackboardAssetOwner = MyObjects[ObjectIdx];
 			CachedBlackboardAsset = BlackboardAsset;
 
 			TArray<FName> ProcessedNames;
@@ -153,7 +154,37 @@ void FBlackboardSelectorDetails::CacheBlackboardData()
 	if (GetDefault<UEditorPerProjectUserSettings>()->bDisplayBlackboardKeysInAlphabeticalOrder)
 	{
 		KeyValues.Sort([](const FName& a, const FName& b) { return a.LexicalLess(b); });
-	}	
+	}
+
+	if (!OnBlackboardDataChangedHandle.IsValid())
+	{
+		UBlackboardData::OnBlackboardDataChanged.AddSP(this, &FBlackboardSelectorDetails::OnBlackboardDataChanged);
+	}
+	if (!OnBlackboardOwnerChangedHandle.IsValid())
+	{
+		IBlackboardAssetProvider::OnBlackboardOwnerChanged.AddSP(this, &FBlackboardSelectorDetails::OnBlackboardOwnerChanged);
+	}
+
+}
+
+void FBlackboardSelectorDetails::OnBlackboardDataChanged(UBlackboardData* Asset)
+{
+	UBlackboardData* CachedAsset = CachedBlackboardAsset.Get();
+	if (CachedAsset == nullptr || CachedAsset == Asset)
+	{
+		CacheBlackboardData();
+		InitKeyFromProperty();
+	}
+}
+
+void FBlackboardSelectorDetails::OnBlackboardOwnerChanged(UObject* Owner, UBlackboardData* Asset)
+{
+	UObject* CachedAssetOwner = CachedBlackboardAssetOwner.Get();
+	if (CachedAssetOwner == nullptr || CachedAssetOwner == Owner)
+	{
+		CacheBlackboardData();
+		InitKeyFromProperty();
+	}
 }
 
 void FBlackboardSelectorDetails::InitKeyFromProperty()
