@@ -526,7 +526,7 @@ void AReplicationGraphDebugActor::ServerSetPeriodFrameForClass_Implementation(UC
 
 	FClassReplicationInfo& ClassInfo = ReplicationGraph->GlobalActorReplicationInfoMap.GetClassInfo(Class);
 	ClassInfo.ReplicationPeriodFrame = PeriodFrame;
-	UE_LOG(LogReplicationGraph, Display, TEXT("Setting ReplicationPeriodFrame for class %s to %d"), *Class->GetName(), PeriodFrame);
+	UE_LOG(LogReplicationGraph, Display, TEXT("Setting ReplicationPeriodFrame for class %s to %u"), *Class->GetName(), ClassInfo.ReplicationPeriodFrame);
 
 	for (TActorIterator<AActor> ActorIt(GetWorld(), Class); ActorIt; ++ActorIt)
 	{
@@ -534,14 +534,14 @@ void AReplicationGraphDebugActor::ServerSetPeriodFrameForClass_Implementation(UC
 		if (FGlobalActorReplicationInfo* ActorInfo = ReplicationGraph->GlobalActorReplicationInfoMap.Find(Actor))
 		{
 			ActorInfo->Settings.ReplicationPeriodFrame = PeriodFrame;
-			UE_LOG(LogReplicationGraph, Display, TEXT("Setting GlobalActorInfo ReplicationPeriodFrame for %s to %d"), *Actor->GetName(), PeriodFrame);
+			UE_LOG(LogReplicationGraph, Display, TEXT("Setting GlobalActorInfo ReplicationPeriodFrame for %s to %u"), *Actor->GetName(), ActorInfo->Settings.ReplicationPeriodFrame);
 		}
 
 
 		if (FConnectionReplicationActorInfo* ConnectionActorInfo = ConnectionManager->ActorInfoMap.Find(Actor))
 		{
 			ConnectionActorInfo->ReplicationPeriodFrame = PeriodFrame;
-			UE_LOG(LogReplicationGraph, Display, TEXT("Setting Connection ReplicationPeriodFrame for %s to %d"), *Actor->GetName(), PeriodFrame);
+			UE_LOG(LogReplicationGraph, Display, TEXT("Setting Connection ReplicationPeriodFrame for %s to %u"), *Actor->GetName(), ConnectionActorInfo->ReplicationPeriodFrame);
 		}
 	}
 }
