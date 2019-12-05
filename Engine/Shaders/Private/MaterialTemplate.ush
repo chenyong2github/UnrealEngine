@@ -2502,7 +2502,7 @@ float ApplyPixelDepthOffsetToMaterialParameters(inout FMaterialPixelParameters M
 	MaterialParameters.SvPosition.w = MaterialParameters.ScreenPosition.w;
 	MaterialParameters.AbsoluteWorldPosition += MaterialParameters.CameraVector * PixelDepthOffset;
 
-	OutDepth = DeviceDepth;
+	OutDepth = INVARIANT(DeviceDepth);
 
 	return PixelDepthOffset;
 }
