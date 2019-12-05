@@ -145,6 +145,7 @@ public:
 
 	//UObject Interface
 	virtual void PostLoad() override;
+	virtual void Serialize(FArchive& Ar) override;
 	//UObject Interface End
 
 	/** Gets information for all of the curves owned by this curve data interface. */
@@ -153,6 +154,7 @@ public:
 	virtual void GetParameterDefinitionHLSL(FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual FNiagaraDataInterfaceParametersCS* ConstructComputeParameters() const override;
 
+	void SetDefaultLUT();
 #if WITH_EDITORONLY_DATA
 	void UpdateLUT();
 	void OptimizeLUT();

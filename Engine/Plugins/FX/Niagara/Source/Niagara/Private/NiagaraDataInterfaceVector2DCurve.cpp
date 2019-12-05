@@ -18,9 +18,7 @@ const FName UNiagaraDataInterfaceVector2DCurve::SampleCurveName("SampleVector2DC
 UNiagaraDataInterfaceVector2DCurve::UNiagaraDataInterfaceVector2DCurve(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-#if WITH_EDITORONLY_DATA
-	UpdateLUT();
-#endif
+	SetDefaultLUT();
 }
 
 void UNiagaraDataInterfaceVector2DCurve::PostInitProperties()
@@ -58,7 +56,6 @@ void UNiagaraDataInterfaceVector2DCurve::Serialize(FArchive& Ar)
 #endif
 	{
 		Super::Serialize(Ar);
-		PushToRenderThread();
 	}
 }
 
