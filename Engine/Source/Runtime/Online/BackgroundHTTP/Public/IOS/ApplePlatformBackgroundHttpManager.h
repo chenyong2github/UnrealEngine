@@ -61,7 +61,8 @@ protected:
 protected:
 	//This dictionary is used to hold tasks that already existed on our Background Session when our BackgroundHttpManager was initialized. See PopulateUnAssociatedTasks and CheckForExistingUnAssociatedTask
 	NSMutableDictionary<NSString*, NSURLSessionDownloadTask*>* UnAssociatedTasks;
-
+	FRWLock UnAssociatedTasksLock;
+	
 	//Map to hold the associated BackgroundHttpRequest for any given URL. Multiple URLs will end up pointing to the same request in this list as it stores
     TMap<const FString, FBackgroundHttpURLMappedRequestPtr> URLToRequestMap;
 	FRWLock URLToRequestMapLock;
