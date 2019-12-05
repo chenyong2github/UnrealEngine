@@ -1039,8 +1039,6 @@ private:
 		StackWalkSignalParams.Info = Info;
 		StackWalkSignalParams.Context = Context;
 
-		ThreadStackData = static_cast<ThreadStackUserData*>(Info->si_value.sival_ptr);
-
 		FSignalSubstituteStack::CallActualHandler< &ThreadStackWalk >();
 
 		FPlatformAtomics::AtomicStore(&handling_signal, 0);
@@ -1048,18 +1046,13 @@ private:
 
 	static void ThreadStackWalk()
 	{
-		if (ThreadStackData)
-		{
-			ThreadStackData->BackTraceCount = FPlatformStackWalk::CaptureStackBackTrace(ThreadStackData->BackTrace, ThreadStackData->CallStackSize, StackWalkSignalParams.Context);
-			ThreadStackData->bDone = true;
-		}
+		FPlatformStackWalk::HandleBackTraceSignal(StackWalkSignalParams.Info, StackWalkSignalParams.Context);
 	}
 	static FAndroidSignalParams StackWalkSignalParams;
 	static volatile sig_atomic_t handling_signal;
 	static ThreadStackUserData* ThreadStackData;
 };
 volatile sig_atomic_t FThreadCallstackSignalSubstituteStack::handling_signal = 0;
-ThreadStackUserData* FThreadCallstackSignalSubstituteStack::ThreadStackData = nullptr;
 FAndroidSignalParams FThreadCallstackSignalSubstituteStack::StackWalkSignalParams;
 #else
 	// per thread backtrace unavailable
