@@ -178,13 +178,23 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 		return;
 	}
 
-	if (FPlatformMisc::MacOSXVersionCompare(10,13,6) < 0)
+	if (FPlatformMisc::MacOSXVersionCompare(10,14,6) < 0)
 	{
 		const FString BaseName = FApp::HasProjectName() ? FApp::GetProjectName() : TEXT("");
-		// this message can be suppressed with r.WarnOfBadDrivers=0
-		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
-									 *NSLOCTEXT("MessageDialog", "UpdateMacOSX_Body", "Please update to the latest version of macOS for best performance and stability.").ToString(),
-									 *NSLOCTEXT("MessageDialog", "UpdateMacOSX_Title", "Update macOS").ToString());
+		if (BaseName == TEXT("FortniteGame"))
+		{
+			// this message can be suppressed with r.WarnOfBadDrivers=0
+			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
+										 *NSLOCTEXT("MessageDialog", "UpdateMacOSX_FNS12_Body", "Starting with Chapter 2 Season 2, macOS versions older than 10.14.6 will no longer be supported. Please update to macOS version 10.14.6 or newer before the Season begins.").ToString(),
+										 *NSLOCTEXT("MessageDialog", "UpdateMacOSX_Title", "Update macOS").ToString());
+		}
+		else
+		{
+			// this message can be suppressed with r.WarnOfBadDrivers=0
+			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
+										 *NSLOCTEXT("MessageDialog", "UpdateMacOSX_Body", "Please update to the latest version of macOS for best performance and stability.").ToString(),
+										 *NSLOCTEXT("MessageDialog", "UpdateMacOSX_Title", "Update macOS").ToString());
+		}
 	}
 }
 #endif // PLATFORM_WINDOWS
