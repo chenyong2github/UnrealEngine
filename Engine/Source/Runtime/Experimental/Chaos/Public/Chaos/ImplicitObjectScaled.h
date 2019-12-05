@@ -462,8 +462,8 @@ public:
 
 	const FVec3 GetCenterOfMass() const
 	{
-		// TODO: Actually compute this!
-		return FVec3(0.f);
+		// TODO: I'm not sure this is correct in all cases
+		return MScale * MObject->GetCenterOfMass();
 	}
 
 	const ObjectType Object() const { return MObject; }
