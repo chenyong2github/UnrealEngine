@@ -79,6 +79,8 @@ FImaginaryFiBData::FImaginaryFiBData(FImaginaryFiBDataWeakPtr InOuter, TSharedPt
 
 FSearchResult FImaginaryFiBData::CreateSearchResult(FSearchResult InParent) const
 {
+	CSV_SCOPED_TIMING_STAT(FindInBlueprint, CreateSearchResult);
+
 	FSearchResult ReturnSearchResult = CreateSearchResult_Internal(InParent);
 
 	FText DisplayName;
@@ -95,6 +97,9 @@ FSearchResult FImaginaryFiBData::CreateSearchResult(FSearchResult InParent) cons
 
 FSearchResult FImaginaryFiBData::CreateSearchTree(FSearchResult InParentSearchResult, FImaginaryFiBDataWeakPtr InCurrentPointer, TArray< const FImaginaryFiBData* >& InValidSearchResults, TMultiMap< const FImaginaryFiBData*, FComponentUniqueDisplay >& InMatchingSearchComponents)
 {
+	CSV_SCOPED_TIMING_STAT(FindInBlueprint, CreateSearchTree);
+	CSV_CUSTOM_STAT(FindInBlueprint, CreateSearchTreeIterations, 1, ECsvCustomStatOp::Accumulate);
+
 	FImaginaryFiBDataSharedPtr CurrentDataPtr = InCurrentPointer.Pin();
 	if (FImaginaryFiBData* CurrentData = CurrentDataPtr.Get())
 	{
@@ -206,6 +211,9 @@ void FImaginaryFiBData::ParseAllChildData_Internal(ESearchableValueStatus InSear
 
 void FImaginaryFiBData::ParseAllChildData(ESearchableValueStatus InSearchabilityOverride/* = ESearchableValueStatus::Searchable*/)
 {
+	CSV_SCOPED_TIMING_STAT(FindInBlueprint, ParseAllChildData);
+	CSV_CUSTOM_STAT(FindInBlueprint, ParseAllChildDataIterations, 1, ECsvCustomStatOp::Accumulate);
+
 	FScopeLock ScopeLock(&FImaginaryFiBData::ParseChildDataCriticalSection);
 	ParseAllChildData_Internal(InSearchabilityOverride);
 }
