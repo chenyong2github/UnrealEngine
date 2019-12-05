@@ -2328,7 +2328,7 @@ FVivoxVoiceChatUser& FVivoxVoiceChat::GetVoiceChatUser()
 {
 	if (!SingleUserVoiceChatUser)
 	{
-		SingleUserVoiceChatUser = MakeUnique<FVivoxVoiceChatUser>(*this);
+		SingleUserVoiceChatUser.Reset(static_cast<FVivoxVoiceChatUser*>(CreateUser()));
 		ensureMsgf(VoiceChatUsers.Num() == 1, TEXT("When using multiple users, all connections should be managed by an IVoiceChatUser"));
 	}
 
