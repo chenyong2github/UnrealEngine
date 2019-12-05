@@ -638,12 +638,26 @@ FBox FPhysInterface_Chaos::GetBounds_AssumesLocked(const FPhysicsActorHandle& In
 
 void FPhysInterface_Chaos::SetLinearDamping_AssumesLocked(const FPhysicsActorHandle& InActorReference, float InDamping)
 {
-
+	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
+	{
+		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
+		if (ensure(Rigid))
+		{
+			Rigid->SetLinearDamping(InDamping);
+		}
+	}
 }
 
 void FPhysInterface_Chaos::SetAngularDamping_AssumesLocked(const FPhysicsActorHandle& InActorReference, float InDamping)
 {
-
+	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
+	{
+		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
+		if (ensure(Rigid))
+		{
+			Rigid->SetAngularDamping(InDamping);
+		}
+	}
 }
 
 void FPhysInterface_Chaos::AddImpulse_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InForce)
