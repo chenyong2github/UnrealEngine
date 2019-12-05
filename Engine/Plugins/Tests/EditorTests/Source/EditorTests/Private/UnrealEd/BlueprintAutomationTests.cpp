@@ -902,7 +902,7 @@ bool FBlueprintCompileOnLoadTest::RunTest(const FString& BlueprintAssetPath)
 	TSet<TWeakObjectPtr<UBlueprint>> BlueprintDependencies;
 	{
 		TArray<UBlueprint*> DependentBlueprints;
-		FBlueprintEditorUtils::GetDependentBlueprints(InitialBlueprint, DependentBlueprints);
+		FBlueprintEditorUtils::FindDependentBlueprints(InitialBlueprint, DependentBlueprints);
 		for (auto BP : DependentBlueprints)
 		{
 			BlueprintDependencies.Add(BP);

@@ -523,8 +523,11 @@ public:
 	/** Gather all bps that Blueprint depends on */
 	static void GatherDependencies(const UBlueprint* Blueprint, TSet<TWeakObjectPtr<UBlueprint>>& OutDependencies, TSet<TWeakObjectPtr<UStruct>>& OutUDSDependencies);
 
-	/** Returns a list of loaded Blueprints that are dependent on the given Blueprint. */
+	/** Returns cached a list of loaded Blueprints that are dependent on the given Blueprint. */
 	static void GetDependentBlueprints(UBlueprint* Blueprint, TArray<UBlueprint*>& DependentBlueprints);
+
+	/** Searches the reference graph to find blueprints that are dependent on this BP */
+	static void FindDependentBlueprints(UBlueprint* Blueprint, TArray<UBlueprint*>& DependentBlueprints);
 
 	/** Ensures, that CachedDependencies in BP are up to date */
 	static void EnsureCachedDependenciesUpToDate(UBlueprint* Blueprint);
