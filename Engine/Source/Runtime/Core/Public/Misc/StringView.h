@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Math/NumericLimits.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/CString.h"
 #include "Templates/AndOrNot.h"
@@ -81,19 +82,19 @@ public:
 
 	TStringViewImpl() = default;
 
-	TStringViewImpl(const CharType* InData)
+	inline TStringViewImpl(const CharType* InData)
 		: DataPtr(InData)
 		, Size(TCString<CharType>::Strlen(InData))
 	{
 	}
 
-	TStringViewImpl(const CharType* InData, SizeType InSize)
+	inline TStringViewImpl(const CharType* InData, SizeType InSize)
 		: DataPtr(InData)
 		, Size(InSize)
 	{
 	}
 
-	inline const CharType& operator[](SizeType Pos) const { return DataPtr[Pos]; }
+	inline const CharType& operator[](SizeType Index) const;
 
 	inline const CharType* GetData() const { return DataPtr; }
 
@@ -113,24 +114,24 @@ public:
 	// Operations
 
 	inline SizeType CopyString(CharType* Dest, SizeType CharCount, SizeType Position = 0) const;
-	inline ViewType SubStr(SizeType Position, SizeType CharCount) const						{ check(Position <= Len()); return ViewType(DataPtr + Position, FMath::Min(Size - Position, CharCount)); }
+	inline ViewType SubStr(SizeType Position, SizeType CharCount) const { return Mid(Position, CharCount); }
 
 	// Maintain compatibility with FString 
-	inline ViewType Left(SizeType CharCount) const											{ return ViewType(GetData(), FMath::Clamp(CharCount, 0, Len())); }
-	inline ViewType LeftChop(SizeType CharCount) const										{ return ViewType(GetData(), FMath::Clamp(Len() - CharCount, 0, Len())); }
-	inline ViewType Right(SizeType CharCount) const											{ return ViewType(GetData() + Len() - FMath::Clamp(CharCount, 0, Len())); }
-	inline ViewType RightChop(SizeType CharCount) const										{ return ViewType(GetData() + Len() - FMath::Clamp(Len() - CharCount, 0, Len())); }
-	inline ViewType Mid(SizeType Position, SizeType CharCount) const						{ return SubStr(Position, CharCount); /*This is just a wrapper around SubStr to keep compatibility with the FString interface*/} 
+	inline ViewType Left(SizeType CharCount) const;
+	inline ViewType LeftChop(SizeType CharCount) const;
+	inline ViewType Right(SizeType CharCount) const;
+	inline ViewType RightChop(SizeType CharCount) const;
+	inline ViewType Mid(SizeType Position, SizeType CharCount = TNumericLimits<SizeType>::Max()) const;
 
 	// Comparison
-	inline bool				Equals(const TStringViewImpl& Other, ESearchCase::Type SearchCase) const { return Len() == Other.Len() && Compare(Other, SearchCase) == 0; }
-	CORE_API int32			Compare(const TStringViewImpl& Other, ESearchCase::Type SearchCase) const;
+	bool Equals(const TStringViewImpl& Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
+	CORE_API int32 Compare(const TStringViewImpl& Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
 
-	inline bool StartsWith(CharType Prefix) const										{ return Size >= 1 && DataPtr[0] == Prefix; }
-	inline bool StartsWith(const TStringViewImpl& Prefix) const							{ return Len() >= Prefix.Len() && TCString<CharType>::Strnicmp(GetData(), Prefix.GetData(), Prefix.Len()) == 0; }
+	inline bool StartsWith(CharType Prefix) const { return Size >= 1 && DataPtr[0] == Prefix; }
+	inline bool StartsWith(const TStringViewImpl& Prefix) const;
 
-	inline bool EndsWith(CharType Suffix) const											{ return Size >= 1 && DataPtr[Size-1] == Suffix; }
-	inline bool EndsWith(const TStringViewImpl& Suffix) const							{ return Len() >= Suffix.Len() && TCString<CharType>::Strnicmp(GetData() + Len() - Suffix.Len(), Suffix.GetData(), Suffix.Len()) == 0; }
+	inline bool EndsWith(CharType Suffix) const { return Size >= 1 && DataPtr[Size-1] == Suffix; }
+	inline bool EndsWith(const TStringViewImpl& Suffix) const;
 
 	// Searching/Finding
 	CORE_API bool FindChar(CharType InChar, SizeType& OutIndex) const;
@@ -180,5 +181,13 @@ class FWideStringView : public TStringViewImpl<WIDECHAR, FWideStringView>
 public:
 	using TStringViewImpl<ElementType, FWideStringView>::TStringViewImpl;
 };
+
+template <> struct TIsContiguousContainer<FStringView> { enum { Value = true }; };
+template <> struct TIsContiguousContainer<FAnsiStringView> { enum { Value = true }; };
+template <> struct TIsContiguousContainer<FWideStringView> { enum { Value = true }; };
+
+inline SIZE_T GetNum(const FStringView& String) { return String.Len(); }
+inline SIZE_T GetNum(const FAnsiStringView& String) { return String.Len(); }
+inline SIZE_T GetNum(const FWideStringView& String) { return String.Len(); }
 
 #include "StringView.inl"

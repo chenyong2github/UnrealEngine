@@ -54,7 +54,9 @@ struct TIsDerivedFrom
 	public:
 	// Test the derived type pointer. If it inherits from BaseType, the Test( BaseType* ) 
 	// will be chosen. If it does not, Test( ... ) will be chosen.
-	static const bool IsDerived = sizeof(Test( DerivedTypePtr() )) == sizeof(Yes);
+	static const bool Value = sizeof(Test( DerivedTypePtr() )) == sizeof(Yes);
+
+	static const bool IsDerived = Value;
 };
 
 /**
