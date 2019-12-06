@@ -105,7 +105,7 @@ FString FNiagaraEditorIntegerTypeUtilities::GetPinDefaultStringFromValue(const F
 bool FNiagaraEditorIntegerTypeUtilities::SetValueFromPinDefaultString(const FString& StringValue, FNiagaraVariable& Variable) const
 {
 	FNiagaraInt32 IntegerValue;
-	if(LexTryParseString(IntegerValue.Value, *StringValue))
+	if(LexTryParseString(IntegerValue.Value, *StringValue) || !Variable.IsDataAllocated())
 	{
 		Variable.SetValue<FNiagaraInt32>(IntegerValue);
 		return true;
