@@ -559,32 +559,43 @@ namespace Chaos
 		}
 
 		template<class T, int d>
-		void UpdateConvexConvexConstraint(const FImplicitObject& Implicit0, const TRigidTransform<T, d>& Transform0, const FImplicitObject& Implicit1, const TRigidTransform<T, d>& Transform1, const T Thickness, TRigidBodyPlaneContactConstraint<T,d>& Constraint)
+		void UpdateConvexConvexConstraint(const FImplicitObject& Implicit0, const TRigidTransform<T, d>& Transform0, const FImplicitObject& Implicit1, const TRigidTransform<T, d>& Transform1, const T Thickness, TRigidBodyIterativeContactConstraint<T,d>& Constraint)
 		{
-			TContactPoint<T> ContactPoint = ConvexConvexContactPoint(Implicit0, Transform0, Implicit1, Transform1, Thickness);	
-			//ContactPoint.Location = Constraint.PlanePosition + Constraint.PlaneNormal * ContactPoint.Phi;
-			//ContactPoint.Normal = Constraint.PlaneNormal;
+			TContactPoint<T> ContactPoint = ConvexConvexContactPoint(Implicit0, Transform0, Implicit1, Transform1, Thickness);
+
+			/*
+			TContactPoint<T> ContactPoint;
+
+			const TRigidTransform<T, d> AToBTM = Transform0.GetRelativeTransform(Transform1);
+			ContactPoint.Location = AToBTM.TransformPosition(Constraint.LocalPosition);
+
+			ContactPoint.Phi = Implicit1.PhiWithNormal(ContactPoint.Location, ContactPoint.Normal);
+			ContactPoint.Normal = Constraint.WorldNormal;
+			ContactPoint.Location = Transform0.TransformPosition(Constraint.LocalPosition);
+			*/
+
 			UpdateContactPoint(Constraint.Manifold, ContactPoint);
 		}
 
 		template<class T, int d>
-		void UpdateConvexConvexManifold(TRigidBodyPlaneContactConstraint<T, d>& Constraint, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T Thickness)
+		void UpdateConvexConvexManifold(TRigidBodyIterativeContactConstraint<T, d>& Constraint, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T Thickness)
 		{
+			/*
 			TContactPoint<T> ContactPoint = ConvexConvexContactPoint(*Constraint.Manifold.Implicit[0], Transform0, *Constraint.Manifold.Implicit[1], Transform1, Thickness);
 
-			FRigidBodyPlaneContactConstraint::FManifold& Manifold = Constraint.Manifold;
-			/*
-			if (!ContactPoint.Normal.Equals(Constraint.PlaneNormal) || !Constraint.PlaneSamples.Num())
+			FRigidBodyIterativeContactConstraint::FManifold& Manifold = Constraint.Manifold;
+
+			if (!ContactPoint.Normal.Equals(Constraint.WorldNormal) || !Constraint.LocalSamples.Num())
 			{
-				Constraint.PlaneSamples.Reset();
-				Constraint.PlaneNormal = ContactPoint.Normal;
+				Constraint.LocalSamples.Reset();
+				Constraint.WorldNormal = ContactPoint.Normal;
 			}
 
-			if (Constraint.PlaneSamples.Num() < 4)
+			if (Constraint.LocalSamples.Num() < 4)
 			{
-				TVector<T, d> SurfaceSample = ContactPoint.Location - ContactPoint.Normal * ContactPoint.Phi;
-				Constraint.PlaneSamples.Add(SurfaceSample);
-				Constraint.PlanePosition = SumArray(Constraint.PlaneSamples) / Constraint.PlaneSamples.Num();
+				TVector<T, d> SurfaceSample = Transform0.InverseTransformPosition(ContactPoint.Location);
+				Constraint.LocalSamples.Add(SurfaceSample);
+				Constraint.LocalPosition = SumArray(Constraint.LocalSamples) / Constraint.LocalSamples.Num();
 			}
 			*/
 		}
@@ -593,7 +604,7 @@ namespace Chaos
 		template<class T, int d>
 		void ConstructConvexConvexConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T Thickness, FCollisionConstraintsArray& NewConstraints)
 		{
-			FRigidBodyPlaneContactConstraint* Constraint = new FRigidBodyPlaneContactConstraint;
+			FRigidBodyIterativeContactConstraint* Constraint = new FRigidBodyIterativeContactConstraint;
 
 			Constraint->Particle[0] = Particle0;
 			Constraint->Particle[1] = Particle1;
@@ -1028,7 +1039,7 @@ namespace Chaos
 			}
 			else if(Implicit0.IsConvex() && Implicit1.IsConvex())
 			{
-				UpdateConvexConvexConstraint(Implicit0, Transform0, Implicit1, Transform1, Thickness, *ConstraintBase.template As<TRigidBodyPlaneContactConstraint<T, d>>());
+				UpdateConvexConvexConstraint(Implicit0, Transform0, Implicit1, Transform1, Thickness, *ConstraintBase.template As<TRigidBodyIterativeContactConstraint<T, d>>());
 			}
 			else if (Implicit1.IsUnderlyingUnion())
 			{
@@ -1067,9 +1078,9 @@ namespace Chaos
 						return;
 					}
 				}
-				else if (NewConstraints[i]->GetType() == TRigidBodyPlaneContactConstraint<T, d>::StaticType())
+				else if (NewConstraints[i]->GetType() == TRigidBodyIterativeContactConstraint<T, d>::StaticType())
 				{
-					if (NewConstraints[i]->As< TRigidBodyPlaneContactConstraint<T, d> >()->ContainsManifold(Implicit0, Implicit1))
+					if (NewConstraints[i]->As< TRigidBodyIterativeContactConstraint<T, d> >()->ContainsManifold(Implicit0, Implicit1))
 					{
 						return;
 					}
@@ -1215,8 +1226,8 @@ namespace Chaos
 		template void UpdateCapsuleBoxConstraint<float, 3>(const TCapsule<float>& A, const TRigidTransform<float, 3>& ATransform, const TBox<float, 3>& B, const TRigidTransform<float, 3>& BTransform, const float Thickness, TRigidBodyPointContactConstraint<float, 3>& Constraint);
 		template void ConstructCapsuleBoxConstraints<float, 3>(TGeometryParticleHandle<float, 3>* Particle0, TGeometryParticleHandle<float, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const TRigidTransform<float, 3>& Transform0, const TRigidTransform<float, 3>& Transform1, const float Thickness, FCollisionConstraintsArray& NewConstraints);
 
-		template void UpdateConvexConvexConstraint<float, 3>(const FImplicitObject& A, const TRigidTransform<float, 3>& ATM, const FImplicitObject& B, const TRigidTransform<float, 3>& BTM, const float Thickness, TRigidBodyPlaneContactConstraint<float, 3>& Constraint);
-		template void UpdateConvexConvexManifold<float, 3>(TRigidBodyPlaneContactConstraint<float, 3>& Constraint, const TRigidTransform<float, 3>& ATM, const TRigidTransform<float, 3>& BTM, const float Thickness);
+		template void UpdateConvexConvexConstraint<float, 3>(const FImplicitObject& A, const TRigidTransform<float, 3>& ATM, const FImplicitObject& B, const TRigidTransform<float, 3>& BTM, const float Thickness, TRigidBodyIterativeContactConstraint<float, 3>& Constraint);
+		template void UpdateConvexConvexManifold<float, 3>(TRigidBodyIterativeContactConstraint<float, 3>& Constraint, const TRigidTransform<float, 3>& ATM, const TRigidTransform<float, 3>& BTM, const float Thickness);
 		template void ConstructConvexConvexConstraints<float, 3>(TGeometryParticleHandle<float, 3>* Particle0, TGeometryParticleHandle<float, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const TRigidTransform<float, 3>& Transform0, const TRigidTransform<float, 3>& Transform1, const float Thickness, FCollisionConstraintsArray& NewConstraints);
 
 		template void UpdateLevelsetLevelsetConstraint<ECollisionUpdateType::Any, float, 3>(const float Thickness, TRigidBodyPointContactConstraint<float, 3>& Constraint);
