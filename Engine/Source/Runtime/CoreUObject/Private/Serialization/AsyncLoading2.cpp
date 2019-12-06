@@ -252,6 +252,12 @@ struct FPackageStoreInitialLoadEntry
 	int32 ScriptArcsCount;
 };
 
+struct FExportBundleMetaEntry
+{
+	uint32 LoadOrder;
+	uint32 PayloadSize;
+};
+
 class FGlobalNameMap
 {
 public:
@@ -332,7 +338,7 @@ public:
 	FPackageStoreEntry* StoreEntries = nullptr;
 	FPackageStoreInitialLoadEntry* InitialLoadStoreEntries = nullptr;
 	int32* ImportedPackages = nullptr;
-	uint32* ExportBundleOrderEntries = nullptr;
+	FExportBundleMetaEntry* ExportBundleMetaEntries = nullptr;
 	int32* ScriptArcs = nullptr;
 	int32 PackageCount = 0;
 	int32 ImportedPackagesCount = 0;
@@ -428,12 +434,12 @@ public:
 		}
 
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStoreBundleOrder);
+			TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStoreBundleMeta);
 			
-			int32 BundleOrderByteCount;
-			GlobalMetaAr << BundleOrderByteCount;
-			ExportBundleOrderEntries = reinterpret_cast<uint32*>(FMemory::Malloc(BundleOrderByteCount));
-			GlobalMetaAr.Serialize(ExportBundleOrderEntries, BundleOrderByteCount);
+			int32 BundleMetaByteCount;
+			GlobalMetaAr << BundleMetaByteCount;
+			ExportBundleMetaEntries = reinterpret_cast<FExportBundleMetaEntry*>(FMemory::Malloc(BundleMetaByteCount));
+			GlobalMetaAr.Serialize(ExportBundleMetaEntries, BundleMetaByteCount);
 		}
 
 
@@ -550,10 +556,10 @@ public:
 		return StoreEntries[PackageId.ToIndex()].ExportCount;
 	}
 
-	inline TTuple<uint32*, uint32> GetPackageExportBundles(FPackageId PackageId) const
+	inline TTuple<FExportBundleMetaEntry*, uint32> GetPackageExportBundleMetaEntries(FPackageId PackageId) const
 	{
 		const FPackageStoreEntry* StoreEntry = StoreEntries + PackageId.ToIndex();
-		return MakeTuple(ExportBundleOrderEntries + StoreEntry->FirstExportBundleIndex, uint32(StoreEntry->ExportBundleCount));
+		return MakeTuple(ExportBundleMetaEntries + StoreEntry->FirstExportBundleIndex, uint32(StoreEntry->ExportBundleCount));
 	}
 };
 
@@ -1283,7 +1289,7 @@ private:
 	TArray<UObject*> Exports;
 	FPackageImportStore ImportStore;
 
-	uint32* ExportBundleOrderEntries = nullptr;
+	FExportBundleMetaEntry* ExportBundleMetaEntries = nullptr;
 	int32 ExportBundleCount = 0;
 	const FExportBundleHeader* ExportBundles = nullptr;
 	const FExportBundleEntry* ExportBundleEntries = nullptr;
@@ -1543,9 +1549,10 @@ private:
 
 		FAsyncPackage2* Package;
 		uint32 BundeOrder;
+		uint32 BundleSize;
 	};
 	TArray<FBundleIoRequest> WaitingIoRequests;
-	uint32 PendingBundleIoRequestsCount = 0;
+	uint64 PendingBundleIoRequestsTotalSize = 0;
 
 public:
 
@@ -1805,8 +1812,8 @@ private:
 	EAsyncPackageState::Type ProcessLoadedPackagesFromGameThread(bool& bDidSomething, int32 FlushRequestID = INDEX_NONE);
 
 	bool CreateAsyncPackagesFromQueue();
-	void AddBundleIoRequest(FAsyncPackage2* Package, uint32 BundleOrder);
-	void BundleIoRequestCompleted();
+	void AddBundleIoRequest(FAsyncPackage2* Package, const FExportBundleMetaEntry& BundleMetaEntry);
+	void BundleIoRequestCompleted(const FExportBundleMetaEntry& BundleMetaEntry);
 	void StartBundleIoRequests();
 
 	FAsyncPackage2* CreateAsyncPackage(const FAsyncPackageDesc2& Desc)
@@ -1973,14 +1980,15 @@ bool FAsyncLoadingThread2Impl::CreateAsyncPackagesFromQueue()
 	return QueueCopy.Num() > 0;
 }
 
-void FAsyncLoadingThread2Impl::AddBundleIoRequest(FAsyncPackage2* Package, uint32 BundleOrder)
+void FAsyncLoadingThread2Impl::AddBundleIoRequest(FAsyncPackage2* Package, const FExportBundleMetaEntry& BundleMetaEntry)
 {
-	WaitingIoRequests.HeapPush({ Package, BundleOrder });
+	WaitingIoRequests.HeapPush({ Package, BundleMetaEntry.LoadOrder, BundleMetaEntry.PayloadSize });
 }
 
-void FAsyncLoadingThread2Impl::BundleIoRequestCompleted()
+void FAsyncLoadingThread2Impl::BundleIoRequestCompleted(const FExportBundleMetaEntry& BundleMetaEntry)
 {
-	--PendingBundleIoRequestsCount;
+	check(PendingBundleIoRequestsTotalSize >= BundleMetaEntry.PayloadSize)
+	PendingBundleIoRequestsTotalSize -= BundleMetaEntry.PayloadSize;
 	if (WaitingIoRequests.Num())
 	{
 		StartBundleIoRequests();
@@ -1990,14 +1998,19 @@ void FAsyncLoadingThread2Impl::BundleIoRequestCompleted()
 void FAsyncLoadingThread2Impl::StartBundleIoRequests()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(StartBundleIoRequests);
-	const uint32 MaxPendingRequestsCount = 1024;
+	constexpr uint64 MaxPendingRequestsSize = 256 << 20;
 	FAsyncPackage2* PreviousPackage = nullptr;
-	while (WaitingIoRequests.Num() && PendingBundleIoRequestsCount < MaxPendingRequestsCount)
+	while (WaitingIoRequests.Num())
 	{
-		FBundleIoRequest BundleIoRequest;
-		WaitingIoRequests.HeapPop(BundleIoRequest, false);
+		FBundleIoRequest& BundleIoRequest = WaitingIoRequests.HeapTop();
 		FAsyncPackage2* Package = BundleIoRequest.Package;
 		check(Package);
+		if (PendingBundleIoRequestsTotalSize > 0 && PendingBundleIoRequestsTotalSize + BundleIoRequest.BundleSize > MaxPendingRequestsSize)
+		{
+			break;
+		}
+		PendingBundleIoRequestsTotalSize += BundleIoRequest.BundleSize;
+		WaitingIoRequests.HeapPop(BundleIoRequest, false);
 
 		if (GIsInitialLoad && PreviousPackage)
 		{
@@ -2013,8 +2026,6 @@ void FAsyncLoadingThread2Impl::StartBundleIoRequests()
 			Package->IoBuffer = Result.ConsumeValueOrDie();
 			Package->GetExportBundleNode(EEventLoadNode2::ExportBundle_Process, 0)->ReleaseBarrier();
 		});
-
-		++PendingBundleIoRequestsCount;
 	}
 }
 
@@ -2490,8 +2501,8 @@ void FAsyncPackage2::StartLoading()
 	LoadStartTime = FPlatformTime::Seconds();
 
 	check(ExportBundleCount > 0);
-	uint32 BundleOrder = ExportBundleOrderEntries[0];
-	AsyncLoadingThread.AddBundleIoRequest(this, BundleOrder);
+	FExportBundleMetaEntry& BundleMetaEntry = ExportBundleMetaEntries[0];
+	AsyncLoadingThread.AddBundleIoRequest(this, BundleMetaEntry);
 }
 
 void FAsyncPackage2::SetupScriptArcs()
@@ -2643,7 +2654,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncPackage
 
 	if (ExportBundleIndex == 0)
 	{
-		Package->AsyncLoadingThread.BundleIoRequestCompleted();
+		Package->AsyncLoadingThread.BundleIoRequestCompleted(Package->ExportBundleMetaEntries[0]);
 	}
 
 	return EAsyncPackageState::Complete;
@@ -2876,16 +2887,18 @@ void FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex, FSimpleE
 		}
 	}
 
+	// cache archetype
+	// prevents GetArchetype from hitting the expensive GetArchetypeFromRequiredInfoImpl
+	check(!Export.TemplateIndex.IsNull());
+	UObject* Template = EventDrivenIndexToObject(Export.TemplateIndex, true);
+	check(Template);
+	CacheArchetypeForObject(Object, Template);
+
 	Object->ClearFlags(RF_NeedLoad);
 
 	FUObjectSerializeContext* LoadContext = GetSerializeContext();
 	UObject* PrevSerializedObject = LoadContext->SerializedObject;
 	LoadContext->SerializedObject = Object;
-
-	// Find the Archetype object for the one we are loading. This is piped to GetArchetypeFromLoader
-	check(!Export.TemplateIndex.IsNull());
-	UObject* Template = EventDrivenIndexToObject(Export.TemplateIndex, true);
-	check(Template);
 
 	Ar.TemplateForGetArchetypeFromLoader = Template;
 
@@ -2926,6 +2939,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ExportsDone(FAsyncPackage2* Packa
 	Package->ImportStore.ImportMapCount = 0;
 	Package->bAllExportsSerialized = true;
 	Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::PostLoad_Etc;
+	Package->IoBuffer = FIoBuffer();
 
 	Package->GetNode(EEventLoadNode2::Package_StartPostLoad)->ReleaseBarrier();
 	return EAsyncPackageState::Complete;
@@ -3917,8 +3931,8 @@ FAsyncPackage2::FAsyncPackage2(
 	TRACE_LOADTIME_NEW_ASYNC_PACKAGE(this, InDesc.Name);
 	AddRequestID(InDesc.RequestID);
 
-	TTuple<uint32*, uint32> PackageExportBundles = AsyncLoadingThread.GlobalPackageStore.GetPackageExportBundles(Desc.PackageId);
-	ExportBundleOrderEntries = PackageExportBundles.Get<0>();
+	TTuple<FExportBundleMetaEntry*, uint32> PackageExportBundles = AsyncLoadingThread.GlobalPackageStore.GetPackageExportBundleMetaEntries(Desc.PackageId);
+	ExportBundleMetaEntries = PackageExportBundles.Get<0>();
 	ExportBundleCount = PackageExportBundles.Get<1>();
 	ExportCount = AsyncLoadingThread.GlobalPackageStore.GetPackageExportCount(Desc.PackageId);
 	Exports.AddZeroed(ExportCount);
@@ -4192,10 +4206,6 @@ EAsyncPackageState::Type FAsyncPackage2::PostLoadObjects()
 			ThreadContext.CurrentlyPostLoadedObjectByALT = Object;
 			{
 				TRACE_LOADTIME_POSTLOAD_EXPORT_SCOPE(Object);
-				// cache archetype before post load
-				// prevents GetArchetype from hitting the expensive GetArchetypeFromRequiredInfoImpl
-				UObject* Template = EventDrivenIndexToObject(Export.TemplateIndex, true);
-				CacheArchetypeForObject(Object, Template);
 				Object->ConditionalPostLoad();
 				Object->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading);
 			}
@@ -4219,22 +4229,6 @@ EAsyncPackageState::Type FAsyncPackage2::PostLoadDeferredObjects()
 	FAsyncLoadingTickScope2 InAsyncLoadingTick(AsyncLoadingThread);
 
 	FUObjectSerializeContext* LoadContext = GetSerializeContext();
-
-	{
-		// cache archetype for all exports before post load
-		// prevents GetArchetype from hitting the expensive GetArchetypeFromRequiredInfoImpl
-		TRACE_CPUPROFILER_EVENT_SCOPE(CacheArchetype);
-		for (int32 LocalExportIndex = 0; LocalExportIndex < ExportCount; ++LocalExportIndex)
-		{
-			UObject* Object = Exports[LocalExportIndex];
-			if (Object->HasAnyFlags(RF_NeedPostLoad))
-			{
-				const FExportMapEntry& Export = ExportMap[LocalExportIndex];
-				UObject* Template = EventDrivenIndexToObject(Export.TemplateIndex, true);
-				CacheArchetypeForObject(Object, Template);
-			}
-		}
-	}
 
 	while (DeferredPostLoadIndex < ExportCount && 
 		!AsyncLoadingThread.IsAsyncLoadingSuspended() &&

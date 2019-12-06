@@ -881,8 +881,7 @@ static bool WriteBulkData(	const FString& Filename, EIoChunkType Type, const FPa
 					const FIoStatus PartialResult = IoStoreWriter->MapPartialRange(BulkDataChunkId, BulkDataDesc.Offset, BulkDataDesc.Size, AccessChunkId);
 					if (!PartialResult.IsOk())
 					{
-						UE_LOG(LogIoStore, Error, TEXT("Failed to map partial range for '%s' due to: %s"), *Package.FileName, *PartialResult.ToString());
-						return false;
+						UE_LOG(LogIoStore, Warning, TEXT("Failed to map partial range for '%s' due to: %s"), *Package.FileName, *PartialResult.ToString());
 					}
 #endif
 				}
@@ -1124,7 +1123,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 		TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileReader(*FileName));
 		check(Ar);
 
-		UE_CLOG(FileIndex % 1000 == 0, LogIoStore, Display, TEXT("Parsing %d: '%s'"), FileIndex, *FileName);
+		UE_CLOG(FileIndex % 1000 == 0, LogIoStore, Display, TEXT("Parsing %d/%d: '%s'"), FileIndex, FileNames.Num(), *FileName);
 
 		FString RelativeFileName = FileName;
 		RelativeFileName.RemoveFromStart(*CookedDir);
@@ -1620,11 +1619,20 @@ int32 CreateTarget(const FContainerTarget& Target)
 	}
 #endif
 
+	struct FExportBundleMeta
+	{
+		uint32 LoadOrder = -1;
+		uint32 PayloadSize = -1;
+	};
+
 	UE_LOG(LogIoStore, Display, TEXT("Serializing..."));
-	TArray<uint32> ExportBundleOrderEntries;
+	TArray<FExportBundleMeta> ExportBundleMetaEntries;
+	int32 LogIndex = 0;
 	for (auto& PackageKV : PackageMap)
 	{
 		FPackage& Package = *PackageKV.Value;
+
+		UE_CLOG(LogIndex++ % 1000 == 0, LogIoStore, Display, TEXT("Serializing %d/%d: '%s'"), LogIndex, PackageMap.Num(), *Package.Name.ToString());
 
 		// ImportedPackages
 		Package.ImportedPackagesCount = Package.ImportedPackages.Num();
@@ -1701,7 +1709,6 @@ int32 CreateTarget(const FContainerTarget& Target)
 		}
 		for (FExportBundle& ExportBundle : Package.ExportBundles)
 		{
-			ExportBundleOrderEntries.Add(ExportBundle.LoadOrder);
 			for (FExportGraphNode* ExportNode : ExportBundle.Nodes)
 			{
 				uint32 CommandType = uint32(ExportNode->BundleEntry.CommandType);
@@ -1715,7 +1722,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 		ensure(Package.GlobalPackageId == PackageIndex++);
 		{
 			int32 ExportBundleCount = Package.ExportBundles.Num();
-			int32 FirstExportBundleIndex = ExportBundleOrderEntries.Num() - ExportBundleCount;
+			int32 FirstExportBundleIndex = ExportBundleMetaEntries.Num();
 
 			NameMapBuilder.MarkNameAsReferenced(Package.Name);
 
@@ -1803,6 +1810,8 @@ int32 CreateTarget(const FContainerTarget& Target)
 				for (int32 I = 0; I < Package.ExportBundles.Num(); ++I)
 				{
 					FExportBundle& ExportBundle = Package.ExportBundles[I];
+					FExportBundleMeta& ExportBundleMeta = ExportBundleMetaEntries.AddDefaulted_GetRef();
+					ExportBundleMeta.LoadOrder = ExportBundle.LoadOrder;
 					for (FExportGraphNode* Node : ExportBundle.Nodes)
 					{
 						if (Node->BundleEntry.CommandType == FExportBundleEntry::ExportCommandType_Serialize)
@@ -1810,6 +1819,10 @@ int32 CreateTarget(const FContainerTarget& Target)
 							FObjectExport& ObjectExport = Exports[Package.ExportIndexOffset + Node->BundleEntry.LocalExportIndex];
 							BundleBufferSize += ObjectExport.SerialSize;
 						}
+					}
+					if (I == 0)
+					{
+						ExportBundleMeta.PayloadSize = BundleBufferSize;
 					}
 				}
 
@@ -1877,7 +1890,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 	int32 StoreTocByteCount = StoreTocArchive->TotalSize();
 	int32 ImportedPackagesByteCount = ImportedPackagesArchive->TotalSize();
 	int32 GlobalImportNamesByteCount = GlobalImportNamesArchive->TotalSize();
-	int32 ExportBundleOrderByteCount = ExportBundleOrderEntries.Num() * sizeof(uint32);
+	int32 ExportBundleMetaByteCount = ExportBundleMetaEntries.Num() * sizeof(FExportBundleMeta);
 	{
 		UE_LOG(LogIoStore, Display, TEXT("Saving global meta data to container file"));
 		FLargeMemoryWriter GlobalMetaArchive(0, true);
@@ -1891,8 +1904,8 @@ int32 CreateTarget(const FContainerTarget& Target)
 		GlobalMetaArchive << GlobalImportNamesByteCount;
 		GlobalMetaArchive.Serialize(GlobalImportNamesArchive->GetData(), GlobalImportNamesByteCount);
 
-		GlobalMetaArchive << ExportBundleOrderByteCount;
-		GlobalMetaArchive.Serialize(ExportBundleOrderEntries.GetData(), ExportBundleOrderByteCount);
+		GlobalMetaArchive << ExportBundleMetaByteCount;
+		GlobalMetaArchive.Serialize(ExportBundleMetaEntries.GetData(), ExportBundleMetaByteCount);
 
 		const FIoStatus Status = AppendToContainer(*IoStoreWriter, GlobalMetaArchive, CreateIoChunkId(0, 0, EIoChunkType::LoaderGlobalMeta));
 		if (!Status.IsOk())
@@ -2024,7 +2037,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalNameHashes"), (double)GlobalNameHashesMB);
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalPackageData"), (double)StoreTocByteCount / 1024.0 / 1024.0);
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalImportedPackages, %d imported packages"), (double)ImportedPackagesByteCount / 1024.0 / 1024.0, ImportedPackagesCount);
-	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalBundleOrders, %d bundles"), (double)ExportBundleOrderByteCount / 1024.0 / 1024.0, ExportBundleOrderEntries.Num());
+	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalBundleMeta, %d bundles"), (double)ExportBundleMetaByteCount / 1024.0 / 1024.0, ExportBundleMetaEntries.Num());
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalImportNames, %d total imports, %d script imports, %d UPackage imports"),
 		(double)GlobalImportNamesByteCount / 1024.0 / 1024.0, GlobalImportsByFullName.Num(), NumScriptImports, UniqueImportPackages);
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB InitialLoadData, %d script arcs, %d script outers, %d packages"), (double)InitialLoadSize / 1024.0 / 1024.0, ScriptArcsCount, NumScriptImports, FileNames.Num());
