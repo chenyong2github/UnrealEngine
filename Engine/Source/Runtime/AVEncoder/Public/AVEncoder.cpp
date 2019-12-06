@@ -172,7 +172,7 @@ void RegisterDefaultFactories()
 	static FAmfVideoEncoderFactory AmfVideoEncoderFactory;
 	FAmfVideoEncoderFactory::RegisterFactory(AmfVideoEncoderFactory);
 
-#else PLATFORM_XBOXONE
+#elif PLATFORM_XBOXONE
 
 	static FXboxOneVideoEncoderFactory XboxOneVideoEncoderFactory;
 	FVideoEncoderFactory::RegisterFactory(XboxOneVideoEncoderFactory);
