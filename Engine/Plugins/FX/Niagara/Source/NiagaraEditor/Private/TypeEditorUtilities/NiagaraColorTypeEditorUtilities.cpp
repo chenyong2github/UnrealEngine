@@ -222,8 +222,8 @@ FString FNiagaraEditorColorTypeUtilities::GetPinDefaultStringFromValue(const FNi
 
 bool FNiagaraEditorColorTypeUtilities::SetValueFromPinDefaultString(const FString& StringValue, FNiagaraVariable& Variable) const
 {
-	FLinearColor ColorValue;
-	if (ColorValue.InitFromString(StringValue))
+	FLinearColor ColorValue = FLinearColor::Black;
+	if (ColorValue.InitFromString(StringValue) || !Variable.IsDataAllocated())
 	{
 		Variable.SetValue<FLinearColor>(ColorValue);
 		return true;
