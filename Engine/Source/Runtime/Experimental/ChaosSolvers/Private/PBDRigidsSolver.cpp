@@ -485,8 +485,9 @@ namespace Chaos
 					delete ProxyData;
 				}
 				Solver->RemoveDirtyProxy(Proxy);
+
+				Proxy->ClearAccumulatedData();
 			}
-			Proxy->ClearAccumulatedData();
 		}
 	}
 
