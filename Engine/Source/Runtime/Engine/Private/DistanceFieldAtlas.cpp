@@ -286,8 +286,8 @@ void FDistanceFieldVolumeTextureAtlas::RemoveAllocation(FDistanceFieldVolumeText
 	{
 		return;
 	}
-
-	FIntVector Size = Texture->VolumeData.Size;
+	
+	FIntVector Size = Texture->SizeInAtlas;
 	int PixelAreaSize = Size.X * Size.Y * Size.Z;
 
 	const FIntVector Min = Texture->GetAllocationMin();
