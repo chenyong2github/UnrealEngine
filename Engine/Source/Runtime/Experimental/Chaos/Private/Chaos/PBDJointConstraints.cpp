@@ -394,17 +394,111 @@ namespace Chaos
 
 	void FPBDJointConstraints::Apply(const FReal Dt, const int32 It, const int32 NumIts)
 	{
-		Apply(Dt, Handles, It, NumIts);
+		SCOPE_CYCLE_COUNTER(STAT_Joints_Apply);
+
+		if (PreApplyCallback != nullptr)
+		{
+			PreApplyCallback(Dt, Handles);
+		}
+
+		// Apply joint drives
+		if (Settings.DrivesPhase == EJointSolverPhase::Apply)
+		{
+			SCOPE_CYCLE_COUNTER(STAT_Joints_Drives);
+			if (It == 0)
+			{
+				for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+				{
+					ApplyDrives(Dt, ConstraintIndex, 1, 0, 1);
+				}
+			}
+		}
+
+		// Solve for joint position or velocity, depending on settings
+		if (Settings.ApplyPairIterations > 0)
+		{
+			SCOPE_CYCLE_COUNTER(STAT_Joints_Solve);
+			for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+			{
+				if (Settings.bEnableVelocitySolve)
+				{
+					SolveVelocity(Dt, ConstraintIndex, Settings.ApplyPairIterations, It, NumIts);
+				}
+				else
+				{
+					SolvePosition(Dt, ConstraintIndex, Settings.ApplyPairIterations, It, NumIts);
+				}
+			}
+		}
+
+		// Correct remaining errors after last call to Solve if enabled in this phase
+		if (Settings.ProjectionPhase == EJointSolverPhase::Apply)
+		{
+			SCOPE_CYCLE_COUNTER(STAT_Joints_Project);
+			int32 ProjectionIt = NumIts - 1;
+			if (It == ProjectionIt)
+			{
+				ApplyProjection(Dt);
+			}
+		}
+
+		if (PostApplyCallback != nullptr)
+		{
+			PostApplyCallback(Dt, Handles);
+		}
 	}
 
 	bool FPBDJointConstraints::ApplyPushOut(const FReal Dt, const int32 It, const int32 NumIts)
 	{
-		return ApplyPushOut(Dt, Handles, It, NumIts);
+		SCOPE_CYCLE_COUNTER(STAT_Joints_ApplyPushOut);
+
+		// @todo(ccaulfield): track whether we are sufficiently solved
+		bool bNeedsAnotherIteration = true;
+
+		// Apply joint drives
+		if (Settings.DrivesPhase == EJointSolverPhase::ApplyPushOut)
+		{
+			SCOPE_CYCLE_COUNTER(STAT_Joints_Drives);
+			if (It == 0)
+			{
+				for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+				{
+					ApplyDrives(Dt, ConstraintIndex, 1, 0, 1);
+				}
+			}
+		}
+
+		// Solve for positions
+		if (Settings.ApplyPushOutPairIterations > 0)
+		{
+			SCOPE_CYCLE_COUNTER(STAT_Joints_Solve);
+
+			for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+			{
+				SolvePosition(Dt, ConstraintIndex, Settings.ApplyPushOutPairIterations, It, NumIts);
+			}
+		}
+
+		// Correct remaining errors after the last call to Solve (which depends on if PositionSolve is enabled in ApplyPushOut)
+		if (Settings.ProjectionPhase == EJointSolverPhase::ApplyPushOut)
+		{
+			SCOPE_CYCLE_COUNTER(STAT_Joints_Project);
+			int32 ProjectionIt = (Settings.ApplyPushOutPairIterations > 0) ? NumIts - 1 : 0;
+			if (It == ProjectionIt)
+			{
+				ApplyProjection(Dt);
+			}
+		}
+
+		return bNeedsAnotherIteration;
 	}
 
 	void FPBDJointConstraints::ApplyProjection(const FReal Dt)
 	{
-		ApplyProjection(Dt, Handles);
+		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+		{
+			ProjectPosition(Dt, ConstraintIndex, 0, 1);
+		}
 	}
 
 
