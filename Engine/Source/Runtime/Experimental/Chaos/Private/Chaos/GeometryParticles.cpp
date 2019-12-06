@@ -46,7 +46,8 @@ namespace Chaos
 
 	template <typename T, int d>
 	TPerShapeData<T, d>::TPerShapeData()
-	: UserData(nullptr)
+		: UserData(nullptr)
+		, bDisable(false)
 	{
 	}
 
@@ -98,6 +99,11 @@ namespace Chaos
 		if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddedMaterialManager)
 		{
 			Ar << Materials;
+		}
+
+		if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddShapeCollisionDisable)
+		{
+			Ar << bDisable;
 		}
 	}
 
