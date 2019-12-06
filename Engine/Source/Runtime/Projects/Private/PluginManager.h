@@ -113,6 +113,7 @@ public:
 	virtual FNewPluginMountedEvent& OnNewPluginCreated() override;
 	virtual FNewPluginMountedEvent& OnNewPluginMounted() override;
 	virtual void MountNewlyCreatedPlugin(const FString& PluginName) override;
+	virtual void MountExplicitlyLoadedPlugin(const FString& PluginName) override;
 	virtual FName PackageNameFromModuleName(FName ModuleName) override;
 	virtual bool RequiresTempTargetForCodePlugin(const FProjectDescriptor* ProjectDescriptor, const FString& Platform, EBuildConfiguration Configuration, EBuildTargetType TargetType, FText& OutReason) override;
 
@@ -169,6 +170,9 @@ private:
 
 	/** Gets the instance of a given plugin */
 	TSharedPtr<FPlugin> FindPluginInstance(const FString& Name);
+
+	/** Mounts a plugin that was requested to be mounted from external code (either by MountNewlyCreatedPlugin or MountExplicitlyLoadedPlugin) */
+	void MountPluginFromExternalSource(const TSharedRef<FPlugin>& Plugin);
 
 private:
 	/** All of the plugins that we know about */
