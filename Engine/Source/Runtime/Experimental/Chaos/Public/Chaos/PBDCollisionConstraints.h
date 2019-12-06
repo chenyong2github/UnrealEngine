@@ -73,12 +73,6 @@ public:
 	void AddConstraint(FConstraintBase* InConstraint);
 
 	/**
-	 * Generate all contact constraints.
-	 */
-	void UpdatePositionBasedState(const T Dt);
-
-
-	/**
 	*  Reset the constraint frame. 
 	*/
 	void Reset();
@@ -109,22 +103,28 @@ public:
 	void UpdateConstraints(T Dt, const TSet<TGeometryParticleHandle<T, d>*>& AddedParticles);
 
 
+	//
+	// General Rule API
+	//
 
 	/**
-	 * Apply corrections for the specified list of constraints. (Runs Wide!)
-	 *
-	 * @todo(ccaulfield): this runs wide. The serial/parallel decision should be in the ConstraintRule
+	 * Generate all contact constraints.
 	 */
+	void UpdatePositionBasedState(const T Dt);
+
+	//
+	// Simple Rule API
+	//
+
+	void Apply(const T Dt, const int32 It, const int32 NumIts);
+	bool ApplyPushOut(const T Dt, const int32 It, const int32 NumIts);
+
+	//
+	// Island Rule API
+	//
+	// @todo(ccaulfield): this runs wide. The serial/parallel decision should be in the ConstraintRule
+
 	void Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
-
-
-	/**
-	 * Apply push out for the specified list of constraints.
-	 *
-	 * /return true if we need another iteration.
-	 *
-	 * @todo(ccaulfield): this runs wide. The serial/parallel decision should be in the ConstraintRule
-	 */
 	bool ApplyPushOut(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, 
 		const TSet<const TGeometryParticleHandle<T,d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations);
 
