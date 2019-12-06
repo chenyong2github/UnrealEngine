@@ -3356,7 +3356,7 @@ void FOpenGLDynamicRHI::RHIInvalidateCachedState()
 
 void FOpenGLDynamicRHI::RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBufferRHI, FRHIStagingBuffer* DestinationStagingBufferRHI, uint32 InOffset, uint32 InNumBytes)
 {
-#if OPENGL_GL3
+#if OPENGL_GL3 || USE_ANDROID_OPENGL
 	VERIFY_GL_SCOPE();
 	FOpenGLVertexBuffer* SourceBuffer = ResourceCast(SourceBufferRHI);
 	FOpenGLStagingBuffer* DestinationBuffer = ResourceCast(DestinationStagingBufferRHI);
