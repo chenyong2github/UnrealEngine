@@ -249,7 +249,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSingleLayerWaterCommonShaderParameters, )
 	SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneNoWaterDepthTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SceneNoWaterDepthSampler)
-	SHADER_PARAMETER(FVector2D, SceneNoWaterMaxUV)
+	SHADER_PARAMETER(FVector4, SceneNoWaterMinMaxUV)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)	// Water scene texture
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
@@ -488,8 +488,10 @@ void FDeferredShadingSceneRenderer::CopySingleLayerWaterTextures(FRHICommandList
     
 		const FIntRect RefractionViewRect = FIntRect(FIntPoint::DivideAndRoundDown(View.ViewRect.Min, RefractionDownsampleFactor), FIntPoint::DivideAndRoundDown(View.ViewRect.Max, RefractionDownsampleFactor));
 
-		PassData.ViewData[ViewIndex].SceneWithoutSingleLayerWaterMaxUV.X = (RefractionViewRect.Max.X - 0.5f) / RefractionResolution.X; 
-		PassData.ViewData[ViewIndex].SceneWithoutSingleLayerWaterMaxUV.Y = (RefractionViewRect.Max.Y - 0.5f) / RefractionResolution.Y;
+		PassData.ViewData[ViewIndex].SceneWithoutSingleLayerWaterMinMaxUV.X = (RefractionViewRect.Min.X + 0.5f) / RefractionResolution.X; 
+		PassData.ViewData[ViewIndex].SceneWithoutSingleLayerWaterMinMaxUV.Y = (RefractionViewRect.Min.Y + 0.5f) / RefractionResolution.Y;
+		PassData.ViewData[ViewIndex].SceneWithoutSingleLayerWaterMinMaxUV.Z = (RefractionViewRect.Max.X - 0.5f) / RefractionResolution.X; 
+		PassData.ViewData[ViewIndex].SceneWithoutSingleLayerWaterMinMaxUV.W = (RefractionViewRect.Max.Y - 0.5f) / RefractionResolution.Y;
 
 	    FPixelShaderUtils::AddFullscreenPass(
 		    GraphBuilder,
@@ -619,7 +621,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(FRHIComman
 			Parameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 			Parameters.SceneNoWaterDepthTexture = GraphBuilder.RegisterExternalTexture(PassData.SceneDepthWithoutSingleLayerWater ? PassData.SceneDepthWithoutSingleLayerWater : GSystemTextures.BlackDummy);
 			Parameters.SceneNoWaterDepthSampler = TStaticSamplerState<SF_Point>::GetRHI();
-			Parameters.SceneNoWaterMaxUV = PassData.ViewData[ViewIndex].SceneWithoutSingleLayerWaterMaxUV;
+			Parameters.SceneNoWaterMinMaxUV = PassData.ViewData[ViewIndex].SceneWithoutSingleLayerWaterMinMaxUV;
 			Parameters.SceneTextures = SceneTextures;
 			SetupSceneTextureSamplers(&Parameters.SceneTextureSamplers);
 			Parameters.ViewUniformBuffer = View.ViewUniformBuffer;
@@ -822,7 +824,7 @@ bool FDeferredShadingSceneRenderer::RenderSingleLayerWaterPass(FRHICommandListIm
 			CreateOpaqueBasePassUniformBuffer(RHICmdList, 
 				View, 
 				WhiteForwardScreenSpaceShadowMask, 
-				&PassData.ViewData[ViewIndex].SceneWithoutSingleLayerWaterMaxUV,
+				&PassData.ViewData[ViewIndex].SceneWithoutSingleLayerWaterMinMaxUV,
 				PassData.SceneColorWithoutSingleLayerWater.IsValid() ? PassData.SceneColorWithoutSingleLayerWater : GSystemTextures.BlackDummy,
 				PassData.SceneDepthWithoutSingleLayerWater,
 				WaterPassUniformBuffer);
