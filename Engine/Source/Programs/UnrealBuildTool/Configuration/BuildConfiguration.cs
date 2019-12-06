@@ -55,6 +55,13 @@ namespace UnrealBuildTool
 		public bool bAllowXGE = true;
 
 		/// <summary>
+		/// Whether FASTBuild may be used.
+		/// </summary>
+		[XmlConfigFile]
+		[CommandLine("-NoFASTBuild", Value = "false")]
+		public bool bAllowFASTBuild = true;
+
+		/// <summary>
 		/// Whether SN-DBS may be used.
 		/// </summary>
 		[XmlConfigFile]
