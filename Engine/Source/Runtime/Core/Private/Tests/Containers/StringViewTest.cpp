@@ -85,7 +85,7 @@ bool FStringViewTestCtor::RunTest(const FString& Parameters)
 	{
 		FStringView View = TEXT("Test"_SV);
 		FAnsiStringView ViewAnsi = "Test"_ASV;
-		FWideStringView ViewWide = L"Test"_WSV;
+		FWideStringView ViewWide = TEXT("Test"_WSV);
 	}
 
 	return true;
