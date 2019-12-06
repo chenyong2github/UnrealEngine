@@ -94,6 +94,8 @@ class ENGINE_API ULevelStreaming : public UObject
 		MakingInvisible
 	};
 
+	static const TCHAR* EnumToString(ECurrentState InCurrentState);
+
 private:
 	enum class ETargetState : uint8
 	{
@@ -102,6 +104,8 @@ private:
 		LoadedNotVisible,
 		LoadedVisible,
 	};
+
+	static const TCHAR* EnumToString(ETargetState InTargetState);
 
 public:
 
