@@ -40,11 +40,7 @@
 #endif
 #include <xmmintrin.h>
 #elif PX_NEON
-#if PX_P64_FAMILY
-#include <arm64_neon.h>
-#else
 #include <arm_neon.h>
-#endif
 #endif
 
 
