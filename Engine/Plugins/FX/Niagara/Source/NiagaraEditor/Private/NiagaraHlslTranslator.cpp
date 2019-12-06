@@ -1839,14 +1839,22 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 		return false;
 	}();
 
+	// A list of constant to reset after Emitter_SpawnGroup gets modified by GetEmitterSpawnInfoForParticle()
+	TArray<FString> EmitterSpawnGroupReinit;
+
 	///////////////////////
 	// InitConstants()
 	HlslOutput += TEXT("void InitConstants(inout FSimulationContext Context)\n{\n");
 	{
 		// Fill in the defaults for parameters.
-		for (int32 i = 0; i < MainPreSimulateChunks.Num(); ++i)
+		for (const FString& InitChunk : MainPreSimulateChunks)
 		{
-			HlslOutput += TEXT("\t") + MainPreSimulateChunks[i] + TEXT("\n");
+			HlslOutput += TEXT("\t") + InitChunk + TEXT("\n");
+
+			if (InitChunk.Contains(TEXT("Emitter_SpawnGroup;")))
+			{
+				EmitterSpawnGroupReinit.Add(InitChunk);
+			}
 		}
 	}
 	HlslOutput += TEXT("}\n\n");
@@ -1855,6 +1863,16 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 	// InitSpawnVariables()
 	HlslOutput += TEXT("void InitSpawnVariables(inout FSimulationContext Context)\n{\n");
 	{
+		// Reset constant that have been modified by GetEmitterSpawnInfoForParticle()
+		if (EmitterSpawnGroupReinit.Num())
+		{
+			for (const FString& ReinitChunk : EmitterSpawnGroupReinit)
+			{
+				HlslOutput += TEXT("\t") + ReinitChunk + TEXT("\n");
+			}
+			HlslOutput += TEXT("\n");
+		}
+
 		FString ContextName = TEXT("\tContext.Map.");
 		if (TranslationStages.Num() > 1) // First context 0 is "MapSpawn"
 		{
