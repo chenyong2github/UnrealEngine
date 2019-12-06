@@ -968,7 +968,7 @@ int32 FAnalysisEngine::OnDataProtocol1(FStreamReader& Reader)
 			break;
 		}
 
-		uint16 Uid = Header->Uid;
+		uint16 Uid = Header->Uid & uint16(Protocol1::EKnownEventUids::UidMask);
 		if (Uid >= Dispatches.Num())
 		{
 			return -1;
