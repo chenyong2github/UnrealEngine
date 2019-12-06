@@ -22,6 +22,7 @@ class UNiagaraNodeCustomHlsl;
 class UNiagaraNodeOutput;
 class UNiagaraScriptSource;
 class UNiagaraNodeEmitter;
+class UNiagaraScriptVariable;
 
 
 // handles finished shader compile jobs, applying of the shaders to their scripts, and some error handling
@@ -525,7 +526,7 @@ public:
 
 private:
 	void InitializeParameterMapDefaults(int32 ParamMapHistoryIdx);
-	void HandleParameterRead(int32 ParamMapHistoryIdx, const FNiagaraVariable& Var, const UEdGraphPin* DefaultPin, UNiagaraNode* ErrorNode, int32& OutputChunkId,  bool bTreatAsUnknownParameterMap = false);
+	void HandleParameterRead(int32 ParamMapHistoryIdx, const FNiagaraVariable& Var, const UEdGraphPin* DefaultPin, UNiagaraNode* ErrorNode, int32& OutputChunkId, UNiagaraScriptVariable* Variable, bool bTreatAsUnknownParameterMap = false);
 	bool ShouldConsiderTargetParameterMap(ENiagaraScriptUsage InUsage) const;
 	FString BuildParameterMapHlslDefinitions(TArray<FNiagaraVariable>& PrimaryDataSetOutputEntries);
 	void BuildMissingDefaults();
