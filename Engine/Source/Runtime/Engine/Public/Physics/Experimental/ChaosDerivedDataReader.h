@@ -27,6 +27,7 @@ public:
 	TArray<TUniquePtr<Chaos::FConvex>> ConvexImplicitObjects;
 	TArray<TUniquePtr<Chaos::TTriangleMeshImplicitObject<T>>> TrimeshImplicitObjects;
 	FBodySetupUVInfo UVInfo;
+	TArray<int32> FaceRemap;
 
 private:
 	FChaosDerivedDataReader() = delete;
