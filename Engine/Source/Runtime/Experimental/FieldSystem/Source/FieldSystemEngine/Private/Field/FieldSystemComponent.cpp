@@ -54,6 +54,14 @@ void UFieldSystemComponent::OnCreatePhysicsState()
 #endif
 
 		bHasPhysicsState = true;
+
+		if(FieldSystem)
+		{
+			for(FFieldSystemCommand& Cmd : FieldSystem->Commands)
+			{
+				DispatchCommand(Cmd);
+			}
+		}
 	}
 }
 
