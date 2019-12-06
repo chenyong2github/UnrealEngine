@@ -1390,7 +1390,7 @@ void UNiagaraSystem::ResolveScalabilityOverrides()
 			FNiagaraScalabilitySettings& NewSettings = ResolvedScalabilitySettings[NewIdx];
 			if (ActualEffectType)
 			{
-				const TArray<FNiagaraScalabilitySettings>& EffectTypeSettings = EffectType->GetScalabilitySettings();
+				const TArray<FNiagaraScalabilitySettings>& EffectTypeSettings = ActualEffectType->GetScalabilitySettings();
 				int32 LastIndex = EffectTypeSettings.Num() - 1;
 				if (LastIndex >= 0)
 				{
