@@ -731,7 +731,7 @@ void FCompositeNavModifier::Reset()
 	bHasPotentialLinks = false;
 	bAdjustHeight = false;
 	bIsPerInstanceModifier = false;
-	bModifierRejectNavmeshUnderneath = false;
+	bModifierFillCollisionUnderneathForNavmesh = false;
 }
 
 void FCompositeNavModifier::Empty()
