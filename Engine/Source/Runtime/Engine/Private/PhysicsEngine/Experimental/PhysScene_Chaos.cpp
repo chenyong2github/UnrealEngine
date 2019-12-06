@@ -585,6 +585,38 @@ void FPhysScene_Chaos::RemoveActorFromAccelerationStructure(FPhysicsActorHandle&
 #endif
 }
 
+void FPhysScene_Chaos::UpdateActorInAccelerationStructure(FPhysicsActorHandle& Actor)
+{
+#if WITH_CHAOS
+	using namespace Chaos;
+
+	if (GetSpacialAcceleration())
+	{
+		ExternalDataLock.WriteLock();
+
+		auto SpatialAcceleration = GetSpacialAcceleration();
+
+		if (SpatialAcceleration)
+		{
+
+			TBox<FReal, 3> WorldBounds;
+			const bool bHasBounds = Actor->Geometry()->HasBoundingBox();
+			if (bHasBounds)
+			{
+				WorldBounds = Actor->Geometry()->BoundingBox().GetAABB().TransformedAABB(TRigidTransform<FReal, 3>(Actor->X(), Actor->R()));
+			}
+
+
+			Chaos::TAccelerationStructureHandle<float, 3> AccelerationHandle(Actor);
+			SpatialAcceleration->UpdateElementIn(AccelerationHandle, WorldBounds, bHasBounds, Actor->SpatialIdx());
+		}
+
+		ExternalDataLock.WriteUnlock();
+	}
+#endif
+}
+
+
 template<typename ObjectType>
 void RemovePhysicsProxy(ObjectType* InObject, Chaos::FPhysicsSolver* InSolver, FChaosSolversModule* InModule)
 {
