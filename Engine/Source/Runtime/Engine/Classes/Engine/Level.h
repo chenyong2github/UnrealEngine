@@ -30,6 +30,7 @@ class UNavigationDataChunk;
 class UTexture2D;
 struct FLevelCollection;
 class ULevelActorContainer;
+class FLevelPartitionOperationScope;
 
 UINTERFACE()
 class ULevelPartitionInterface : public UInterface
