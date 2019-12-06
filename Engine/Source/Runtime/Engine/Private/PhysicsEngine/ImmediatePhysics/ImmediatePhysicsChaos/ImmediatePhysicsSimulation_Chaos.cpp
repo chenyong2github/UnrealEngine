@@ -151,7 +151,11 @@ namespace ImmediatePhysics_Chaos
 	//
 
 	FSimulation::FSimulation()
-		: Particles()
+		: PotentiallyCollidingPairs()
+		, CollidedParticles()
+		, ParticleMaterials()
+		, PerParticleMaterials()
+		, Particles()
 		, Joints()
 		, Collisions(Particles, CollidedParticles, ParticleMaterials, 0, 0)
 		, BroadPhase(PotentiallyCollidingPairs)
