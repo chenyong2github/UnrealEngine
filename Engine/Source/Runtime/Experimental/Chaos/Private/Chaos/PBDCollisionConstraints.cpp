@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDCollisionConstraints.h"
-#include "Chaos/PBDCollisionConstraintsImp.h"
 
 #include "Chaos/Capsule.h"
 #include "Chaos/ChaosPerfTest.h"
@@ -12,7 +11,7 @@
 #include "Chaos/GeometryQueries.h"
 #include "Chaos/ImplicitObjectUnion.h"
 #include "Chaos/ImplicitObjectScaled.h"
-#include "Chaos/ISpatialAccelerationCollection.h"
+#include "Chaos/SpatialAccelerationCollection.h"
 #include "Chaos/Levelset.h"
 #include "Chaos/Pair.h"
 #include "Chaos/PBDCollisionConstraintsPointContactUtil.h"
@@ -44,21 +43,11 @@ namespace Chaos
 	int32 BPTreeOfGrids = 1;
 	FAutoConsoleVariableRef CVarBPTreeOfGrids(TEXT("p.BPTreeOfGrids"), BPTreeOfGrids, TEXT("Whether to use a seperate tree of grids for bp"));
 
-	float CollisionVelocityInflationCVar = 2.0f;
-	FAutoConsoleVariableRef CVarCollisionVelocityInflation(TEXT("p.CollisionVelocityInflation"), CollisionVelocityInflationCVar, TEXT("Collision velocity inflation.[def:2.0]"));
-
 	float CollisionFrictionOverride = -1.0f;
 	FAutoConsoleVariableRef CVarCollisionFrictionOverride(TEXT("p.CollisionFriction"), CollisionFrictionOverride, TEXT("Collision friction for all contacts if >= 0"));
 
 	CHAOS_API int32 EnableCollisions = 1;
 	FAutoConsoleVariableRef CVarEnableCollisions(TEXT("p.EnableCollisions"), EnableCollisions, TEXT("Enable/Disable collisions on the Chaos solver."));
-
-#if !UE_BUILD_SHIPPING
-	int32 CHAOS_API PendingHierarchyDump = 0;
-#endif
-
-	DEFINE_STAT(STAT_ComputeConstraints);
-	DEFINE_STAT(STAT_ComputeConstraintsSU);
 
 	//
 	// Collision Constraint Container
@@ -82,24 +71,9 @@ namespace Chaos
 		, bUseCCD(false)
 		, bEnableCollisions(true)
 		, LifespanCounter(0)
-		, CollisionVelocityInflation(CollisionVelocityInflationCVar)
-		, PostComputeCallback(nullptr)
 		, PostApplyCallback(nullptr)
 		, PostApplyPushOutCallback(nullptr)
-		, SpatialAcceleration(nullptr)
 	{
-	}
-
-	template<typename T, int d>
-	void TPBDCollisionConstraints<T, d>::SetPostComputeCallback(const TRigidBodyContactConstraintsPostComputeCallback<T, d>& Callback)
-	{
-		PostComputeCallback = Callback;
-	}
-
-	template<typename T, int d>
-	void TPBDCollisionConstraints<T, d>::ClearPostComputeCallback()
-	{
-		PostComputeCallback = nullptr;
 	}
 
 	template<typename T, int d>
@@ -126,35 +100,37 @@ namespace Chaos
 		PostApplyPushOutCallback = nullptr;
 	}
 
+	template<typename T, int d>
+	void TPBDCollisionConstraints<T, d>::AddConstraint(FConstraintBase* ConstraintBase)
+	{
+		if (ConstraintBase->GetType() == TRigidBodyPointContactConstraint<T, 3>::StaticType())
+		{
+			TRigidBodyPointContactConstraint<T, d>* PointConstraint = ConstraintBase->template As< TRigidBodyPointContactConstraint<T, d> >();
+
+			int32 Idx = PointConstraints.AddUninitialized(1);
+			PointConstraints[Idx] = *PointConstraint;
+			Handles.Add(HandleAllocator.template AllocHandle< TRigidBodyPointContactConstraint<T, d> >(this, Idx));
+
+			delete PointConstraint;
+		}
+		else if (ConstraintBase->GetType() == TRigidBodyPlaneContactConstraint<T, 3>::StaticType())
+		{
+			TRigidBodyPlaneContactConstraint<T, d>* PlaneConstraint = ConstraintBase->template As< TRigidBodyPlaneContactConstraint<T, d> >();
+
+			int32 Idx = PlaneConstraints.AddUninitialized(1);
+			PlaneConstraints[Idx] = *PlaneConstraint;
+			Handles.Add(HandleAllocator.template AllocHandle< TRigidBodyPlaneContactConstraint<T, d> >(this, Idx));
+
+			delete PlaneConstraint;
+		}
+	}
 
 	template<typename T, int d>
 	void TPBDCollisionConstraints<T, d>::UpdatePositionBasedState(/*const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices,*/ const T Dt)
 	{
 		Reset();
-
-		if (bEnableCollisions)
-		{
-#if !UE_BUILD_SHIPPING
-			if (PendingHierarchyDump)
-			{
-				ComputeConstraints<true>(*SpatialAcceleration, Dt);
-			}
-			else
-#endif
-			{
-				ComputeConstraints(*SpatialAcceleration, Dt);
-			}
-		}
-	}
-
-	template<typename T, int d>
-	void TPBDCollisionConstraints<T, d>::ConstructConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const T Thickness, FCollisionConstraintsArray& NewConstraints)
-	{
-		if (ensure(Particle0 && Particle1))
-		{
-			Collisions::ConstructConstraintsImpl<T, d>(Particle0, Particle1, Particle0->Geometry().Get(), Particle1->Geometry().Get(), Collisions::GetTransform(Particle0), Collisions::GetTransform(Particle1), Thickness, NewConstraints);
-		}
-
+	
+		LifespanCounter++;
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraints::Reset"), STAT_Collisions_Reset, STATGROUP_Chaos);
@@ -227,46 +203,6 @@ namespace Chaos
 
 		ensure(Handles.Num() == PointConstraints.Num());
 		HandleAllocator.FreeHandle(Handle);
-	}
-
-
-
-	template<typename T, int d>
-	template <bool bGatherStats>
-	void TPBDCollisionConstraints<T, d>::ComputeConstraints(const FAccelerationStructure& AccelerationStructure, T Dt)
-	{
-		if (const auto AABBTree = AccelerationStructure.template As<TAABBTree<TAccelerationStructureHandle<T, d>, TAABBTreeLeafArray<TAccelerationStructureHandle<T, d>, T>, T>>())
-		{
-			ComputeConstraintsHelperLowLevel<bGatherStats>(*AABBTree, Dt);
-		}
-		else if (const auto BV = AccelerationStructure.template As<TBoundingVolume<TAccelerationStructureHandle<T, d>, T, d>>())
-		{
-			ComputeConstraintsHelperLowLevel<bGatherStats>(*BV, Dt);
-		}
-		else if (const auto AABBTreeBV = AccelerationStructure.template As<TAABBTree<TAccelerationStructureHandle<T, d>, TBoundingVolume<TAccelerationStructureHandle<T, d>, T, d>, T>>())
-		{
-			ComputeConstraintsHelperLowLevel<bGatherStats>(*AABBTreeBV, Dt);
-		}
-		else if (const auto Collection = AccelerationStructure.template As<ISpatialAccelerationCollection<TAccelerationStructureHandle<T, d>, T, d>>())
-		{
-			if (bGatherStats)
-			{
-				Collection->PBDComputeConstraintsLowLevel_GatherStats(*this, Dt);
-			}
-			else
-			{
-				Collection->PBDComputeConstraintsLowLevel(*this, Dt);
-			}
-		}
-		else
-		{
-			check(false);  //question: do we want to support a dynamic dispatch version?
-		}
-
-		if (PostComputeCallback != nullptr)
-		{
-			PostComputeCallback();
-		}
 	}
 
 
@@ -361,6 +297,4 @@ namespace Chaos
 
 	template class TAccelerationStructureHandle<float, 3>;
 	template class CHAOS_API TPBDCollisionConstraints<float, 3>;
-	template void TPBDCollisionConstraints<float, 3>::ComputeConstraints<false>(const TPBDCollisionConstraints<float, 3>::FAccelerationStructure&, float Dt);
-	template void TPBDCollisionConstraints<float, 3>::ComputeConstraints<true>(const TPBDCollisionConstraints<float, 3>::FAccelerationStructure&, float Dt);
 }
