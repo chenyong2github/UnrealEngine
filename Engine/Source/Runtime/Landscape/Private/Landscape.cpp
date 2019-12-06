@@ -1048,7 +1048,7 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	bCastStaticShadow = true;
 	bCastShadowAsTwoSided = false;
 	bUsedForNavigation = true;
-	bRejectNavmeshUnderLandscapeGeometry = false;
+	bFillCollisionUnderLandscapeForNavmesh = false;
 	CollisionThickness = 16;
 	BodyInstance.SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 	bGenerateOverlapEvents = false;
@@ -2003,14 +2003,6 @@ void ALandscape::PostLoad()
 			Brush.SetOwner(this);
 		}
 	}
-
-	for (ULandscapeComponent* Comp : LandscapeComponents)
-	{
-		if (Comp)
-		{
-			Comp->UpdateRejectNavmeshUnderneath();
-		}
-	}
 #endif
 
 	Super::PostLoad();
@@ -2439,6 +2431,14 @@ void ALandscapeProxy::PostLoad()
 		if (bNeedOldDataMigration && LandscapeInfo->LandscapeActor.IsValid())
 		{
 			LandscapeInfo->LandscapeActor.Get()->CopyOldDataToDefaultLayer(this);
+		}
+	}
+
+	for (ULandscapeComponent* Comp : LandscapeComponents)
+	{
+		if (Comp)
+		{
+			Comp->UpdateRejectNavmeshUnderneath();
 		}
 	}
 
