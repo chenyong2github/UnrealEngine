@@ -84,6 +84,15 @@ enum class ETranslucencyType : uint8
 	RayTracing	UMETA(DisplayName = "Ray Tracing"),
 };
 
+
+UENUM()
+enum class ERayTracingGlobalIlluminationType : uint8
+{
+	Disabled    UMETA(DisplayName = "Disabled"),
+	BruteForce  UMETA(DisplayName = "Brute Force"),
+	FinalGather UMETA(DisplayName = "Final Gather")
+};
+
 UENUM()
 enum class EReflectedAndRefractedRayTracedShadows : uint8
 {
@@ -1084,7 +1093,7 @@ struct FPostProcessSettings
 	uint32 bOverride_RayTracingTranslucencyRefraction : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
-	uint32 bOverride_RayTracingGI : 1;
+	uint32 bOverride_RayTracingGIType : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint32 bOverride_RayTracingGIMaxBounces : 1;
@@ -1566,9 +1575,9 @@ struct FPostProcessSettings
 	UPROPERTY(interp, BlueprintReadWrite, Category="Rendering Features|Global Illumination", meta=(ClampMin = "0", UIMax = "4.0", editcondition = "bOverride_IndirectLightingIntensity", DisplayName = "Indirect Lighting Intensity"))
 	float IndirectLightingIntensity;
 
-	/** Enables ray tracing global illumination. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Global Illumination", meta = (editcondition = "bOverride_RayTracingGI", DisplayName = "Enabled"))
-	uint32 RayTracingGI : 1;
+	/** Sets the ray tracing global illumination type. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Global Illumination", meta = (editcondition = "bOverride_RayTracingGIType", DisplayName = "Type"))
+	ERayTracingGlobalIlluminationType RayTracingGIType;
 
 	/** Sets the ray tracing global illumination maximum bounces. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Global Illumination", meta = (ClampMin = "0", ClampMax = "50", editcondition = "bOverride_RayTracingGIMaxBounces", DisplayName = "Max. Bounces"))
