@@ -104,6 +104,8 @@ public:
 		}
 
 		TickExecuteHandle.Reset();
+
+		// Returning false ensures the ticker removes this delegate
 		return false;
 	}
 
@@ -135,10 +137,14 @@ private:
 		NewQuery->Initialize(Toolkit, SubsystemType, FOnQueryCompleted::CreateRaw(this, &FSocialQueryManager::HandleQueryComplete));
 		Queries.Add(NewQuery);
 
+		float UserInfoQueryAggregationTime = 0.0f;
+		
+		GConfig->GetFloat(TEXT("Social"), TEXT("UserInfoQueryAggregationTime"), UserInfoQueryAggregationTime, GGameIni);
+
 		// If we aren't already registered to execute our queries next tick, do so now
 		if (!TickExecuteHandle.IsValid())
 		{
-			TickExecuteHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FSocialQueryManager::HandleExecuteQueries));
+			TickExecuteHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FSocialQueryManager::HandleExecuteQueries), UserInfoQueryAggregationTime);
 		}
 
 		return NewQuery;
