@@ -45,23 +45,20 @@ namespace Chaos
 	class CHAOS_API TCollisionContact
 	{
 	public:
-		TCollisionContact(int32 InTimestamp = -INT_MAX, const FImplicitObject* InImplicit0 = nullptr, const FImplicitObject* InImplicit1 = nullptr)
-			: bDisabled(true), Timestamp(InTimestamp), Normal(0), Location(0), Phi(FLT_MAX)
+		TCollisionContact(const FImplicitObject* InImplicit0 = nullptr, const FImplicitObject* InImplicit1 = nullptr)
+			: bDisabled(true), Normal(0), Location(0), Phi(FLT_MAX)
 		{
 			Implicit[0] = InImplicit0;
 			Implicit[1] = InImplicit1;
 		}
 
 		bool bDisabled;
-		int32 Timestamp;
 		TVector<T, d> Normal;
 		TVector<T, d> Location;
 		T Phi;
 
 		const FImplicitObject* Implicit[2]; // {Of Particle[0], Of Particle[1]}
 	};
-
-
 
 
 	/*
@@ -81,8 +78,18 @@ namespace Chaos
 			Plane         // TRigidBodyPlaneContactConstraint
 		};
 
-		TCollisionConstraintBase() : AccumulatedImpulse(0), Type(FType::None) { Particle[0] = nullptr; Particle[1] = nullptr; }
-		TCollisionConstraintBase(FType InType) : AccumulatedImpulse(0), Type(InType) { Particle[0] = nullptr; Particle[1] = nullptr; }
+		TCollisionConstraintBase(int32 InTimestamp = -INT_MAX) 
+			: AccumulatedImpulse(0)
+			, Timestamp(InTimestamp)
+			, Type(FType::None)
+		{ Particle[0] = nullptr; Particle[1] = nullptr; }
+		
+		TCollisionConstraintBase(FType InType, int32 InTimestamp = -INT_MAX) 
+			: AccumulatedImpulse(0)
+			, Timestamp(InTimestamp)
+			, Type(InType)
+		{ Particle[0] = nullptr; Particle[1] = nullptr; }
+
 		FType GetType() const { return Type; }
 
 		template<class AS_T> AS_T * As() { return static_cast<AS_T*>(this); }
@@ -119,8 +126,10 @@ namespace Chaos
 		FGeometryParticleHandle* Particle[2]; // { Point, Volume }
 		TVector<T, d> AccumulatedImpulse;
 		FManifold Manifold;
+		int32 Timestamp;
 
 	private:
+
 		FType Type;
 	};
 	typedef TCollisionConstraintBase<float, 3> FCollisionConstraintBase;
@@ -190,6 +199,10 @@ namespace Chaos
 		using FConstraintContainer = TPBDCollisionConstraints<T, d>;
 		using FConstraintBase = TCollisionConstraintBase<T, d>;
 
+		using FImplicitPair = TPair<const FImplicitObject*, const FImplicitObject*>;
+		using FGeometryPair = TPair<const TGeometryParticleHandle<T, d>*, const TGeometryParticleHandle<T, d>*>;
+		using FHandleKey = TPair<FImplicitPair, FGeometryPair>;
+
 
 		TPBDCollisionConstraintHandle()
 			: ConstraintType(FConstraintBase::FType::None)
@@ -201,7 +214,25 @@ namespace Chaos
 		{
 		}
 
-		// Handle API
+		FHandleKey GetKey()
+		{
+			const TCollisionConstraintBase<T, d>& Contact = GetContact();
+			return FHandleKey(
+				FImplicitPair( Contact.Manifold.Implicit[0],Contact.Manifold.Implicit[1]),
+				FGeometryPair( Contact.Particle[0], Contact.Particle[1] ) );
+		}
+
+		static FHandleKey MakeKey(const TGeometryParticleHandle<T, d>* Particle0, const TGeometryParticleHandle<T, d>* Particle1, 
+			const FImplicitObject* Implicit0, const FImplicitObject* Implicit1)
+		{
+			return FHandleKey(FImplicitPair(Implicit0,Implicit1), FGeometryPair(Particle0, Particle1));
+		}
+
+		static FHandleKey MakeKey(const TCollisionConstraintBase<T,d> * Base)
+		{
+			return FHandleKey(FImplicitPair(Base->Manifold.Implicit[0], Base->Manifold.Implicit[1]), FGeometryPair(Base->Particle[0], Base->Particle[1]));
+		}
+
 
 		const TCollisionConstraintBase<T, d>& GetContact() const 
 		{ 
@@ -239,8 +270,6 @@ namespace Chaos
 			ConstraintType = InType;
 		}
 
-		// Contact API
-
 		TVector<T, d> GetContactLocation() const
 		{
 			return GetContact().GetLocation();
@@ -269,5 +298,5 @@ namespace Chaos
 
 
 	};
-
+	typedef TPBDCollisionConstraintHandle<float, 3> FPBDCollisionConstraintHandle;
 }
