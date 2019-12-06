@@ -208,7 +208,7 @@ struct FSavedCue
 	FSavedCue& operator=(FSavedCue&&) = default;
 	
 	FSavedCue(const FNetSimCueTypeId& InId, const FNetworkSimTime& InTime, const bool& bInAllowRollback, const bool& bInNetConfirmed, const bool& bInResimulates, FNetSimCueWrapperBase* Cue)
-		: ID(InId), Time(InTime), CueInstance(Cue), bAllowRollback(bInAllowRollback), bNetConfirmed(bInNetConfirmed), bResimulates(bInResimulates)
+		: ID(InId), Time(InTime), CueInstance(Cue), bAllowRollback(bInAllowRollback), bNetConfirmed(bInNetConfirmed), bResimulates(bInResimulates), ReplicationTarget(Cue->GetReplicationTarget())
 	{
 		
 	}
@@ -230,6 +230,7 @@ struct FSavedCue
 			CueInstance->NetSerialize(Ar);
 
 			Time.NetSerialize(Ar);
+			ReplicationTarget = CueInstance->GetReplicationTarget();
 		}
 	}
 
@@ -263,6 +264,8 @@ struct FSavedCue
 	
 	bool bResimulates = false;				 // Whether this cue supports invocation during resimulation. Needed to set bResimulatePendingRollback
 	bool bPendingResimulateRollback = false; // Rollback is pending due to resimulation (unless CUe is matched with an Invocation during the resimulate)
+
+	ENetSimCueReplicationTarget ReplicationTarget;
 };
 
 
@@ -456,20 +459,36 @@ template<typename Model=void>
 struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 {
 	// Serializes all saved cues
-	void NetSerializeSavedCues(FArchive& Ar, bool bIsInterpolatingSim)
+	void NetSerializeSavedCues(FArchive& Ar, ENetSimCueReplicationTarget ReplicationMask)
 	{
-		FNetSimCueTypeId NumCues = SavedCues.Num();
-		Ar << NumCues;
-		
 		if (Ar.IsSaving())
 		{
+			// FIXME: requires two passes to count how many elements are valid for this replication mask.
+			// We could count this as saved cues are added or possibly modify the bitstream after writing the elements (tricky and would require casting to FNetBitWriter which feels real bad)
+			FNetSimCueTypeId NumCues = 0;
 			for (FSavedCue& SavedCue : SavedCues)
 			{
-				SavedCue.NetSerialize(Ar);
+				if (EnumHasAnyFlags(SavedCue.ReplicationTarget, ReplicationMask))
+				{
+					NumCues++;
+				}
+			}
+
+			Ar << NumCues;
+
+			for (FSavedCue& SavedCue : SavedCues)
+			{
+				if (EnumHasAnyFlags(SavedCue.ReplicationTarget, ReplicationMask))
+				{
+					SavedCue.NetSerialize(Ar);
+				}
 			}
 		}
 		else
 		{
+			FNetSimCueTypeId NumCues;
+			Ar << NumCues;
+
 			// This is quite inefficient right now. 
 			//	-We are replicating cues in the last X seconds (ReplicationWindow) redundantly
 			//	-Client has to deserialize them (+ heap allocation) and check for uniqueness (have they already processed)
@@ -484,11 +503,10 @@ struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 				SerializedCue.NetSerialize(Ar);
 
 				// Decide if we should accept the cue:
-
 				// ReplicationTarget: Cues can be set to only replicate to interpolators
-				if (SerializedCue.CueInstance->GetReplicationTarget() == ENetSimCueReplicationTarget::Interpolators && !bIsInterpolatingSim)
+				if ( EnumHasAnyFlags(SerializedCue.ReplicationTarget, ReplicationMask) == false )
 				{
-					UE_LOG(LogNetSimCues, Log, TEXT("Discarding replicated NetSimCue %s intended for interpolators."), *SerializedCue.GetDebugName());
+					UE_LOG(LogNetSimCues, Log, TEXT("Discarding replicated NetSimCue %s that is not intended for us. CueMask: %d. Our Mask: %d"), *SerializedCue.GetDebugName(), SerializedCue.ReplicationTarget, ReplicationMask);
 					continue;
 				}
 				
