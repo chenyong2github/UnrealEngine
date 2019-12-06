@@ -611,7 +611,10 @@ class ir_gen_glsl_visitor : public ir_visitor
 	bool bUsesES2TextureLODExtension;
 
 	/** Whether the shader being cross compiled needs GL_EXT_texture_buffer. */
-	bool bUsesTexelFetch;
+	bool bUsesTextureBuffer;
+
+	/** Whether the shader being cross compiled needs GL_OES_shader_image_atomic. */
+	bool bUseImageAtomic;
 
 	// Found dFdx or dFdy
 	bool bUsesDXDY;
@@ -1480,7 +1483,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 
 		if (op == ir_txf)
 		{
-			bUsesTexelFetch = true;
+			bUsesTextureBuffer = true;
 		}
 
 		// Emit texture function and sampler.
@@ -1741,6 +1744,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 			}
 			else
 			{
+				bUsesTextureBuffer = true;
 				if (src == NULL)
 				{
 					ralloc_asprintf_append(buffer, "imageLoad( ");
@@ -2289,6 +2293,8 @@ class ir_gen_glsl_visitor : public ir_visitor
 		};
 		check(scope_depth > 0);
 		ir_dereference_image* image = ir->memory_ref->as_dereference_image();
+
+		bUseImageAtomic = image != NULL;
 
 		ir->lhs->accept(this);
 
@@ -3164,6 +3170,10 @@ class ir_gen_glsl_visitor : public ir_visitor
 			ralloc_asprintf_append(buffer, "#extension GL_EXT_gpu_shader5 : enable\n");
 			ralloc_asprintf_append(buffer, "\n#endif\n");
 			
+			ralloc_asprintf_append(buffer, "\n#ifdef GL_OES_shader_image_atomic\n");
+			ralloc_asprintf_append(buffer, "#extension GL_OES_shader_image_atomic : enable\n");
+			ralloc_asprintf_append(buffer, "\n#endif\n");
+
 			ralloc_asprintf_append(buffer, "\n#ifdef GL_EXT_texture_buffer\n");
 			ralloc_asprintf_append(buffer, "#extension GL_EXT_texture_buffer : enable\n");
 			ralloc_asprintf_append(buffer, "\n#endif\n");
@@ -3186,14 +3196,24 @@ class ir_gen_glsl_visitor : public ir_visitor
 				ralloc_asprintf_append(buffer, "#extension GL_EXT_tessellation_shader : enable\n");
 			}
 		}
-		else if ((bIsES || bIsES31) && bUsesTexelFetch)
+		else if ((bIsES || bIsES31))
 		{
-			// Not supported by ES2 and ES3.1 spec, but many phones support this extension
-			// GPU particles require this
-			// App shall not use a shader if this extension is not supported on device
-			ralloc_asprintf_append(buffer, "\n#ifdef GL_EXT_texture_buffer\n");
-			ralloc_asprintf_append(buffer, "#extension GL_EXT_texture_buffer : enable\n");
-			ralloc_asprintf_append(buffer, "\n#endif\n");
+			if (bUseImageAtomic)
+			{
+				ralloc_asprintf_append(buffer, "\n#ifdef GL_OES_shader_image_atomic\n");
+				ralloc_asprintf_append(buffer, "#extension GL_OES_shader_image_atomic : enable\n");
+				ralloc_asprintf_append(buffer, "\n#endif\n");
+			}
+
+			if (bUsesTextureBuffer)
+			{
+				// Not supported by ES2 and ES3.1 spec, but many phones support this extension
+				// GPU particles require this
+				// App shall not use a shader if this extension is not supported on device
+				ralloc_asprintf_append(buffer, "\n#ifdef GL_EXT_texture_buffer\n");
+				ralloc_asprintf_append(buffer, "#extension GL_EXT_texture_buffer : enable\n");
+				ralloc_asprintf_append(buffer, "\n#endif\n");
+			}
 		}
 		ralloc_asprintf_append(buffer, "// end extensions\n");
 	}
@@ -3222,7 +3242,8 @@ public:
 		, should_print_uint_literals_as_ints(false)
 		, loop_count(0)
 		, bUsesES2TextureLODExtension(false)
-		, bUsesTexelFetch(false)
+		, bUsesTextureBuffer(false)
+		, bUseImageAtomic(false)
 		, bUsesDXDY(false)
 		, bUsesInstanceID(false)
 		, bNoGlobalUniforms(bInNoGlobalUniforms)
