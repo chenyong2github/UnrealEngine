@@ -213,6 +213,30 @@ FDelegateHandle IOnlinePartySystem::AddOnPartyMemberDataReceivedDelegate_Handle(
 	return OnPartyMemberDataReceivedDelegates.Add(FOnPartyMemberDataReceivedConstDelegate::CreateLambda(DeprecationHelperLambda));
 }
 
+FDelegateHandle IOnlinePartySystem::AddOnPartyJoinRequestReceivedDelegate_Handle(const FOnPartyJoinRequestReceivedDelegate& Delegate)
+{
+	auto DeprecationHelperLambda = [Delegate](const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const IOnlinePartyPendingJoinRequestInfo& JoiningUsers)
+	{
+		TArray<IOnlinePartyUserPendingJoinRequestInfoConstRef> Users;
+		JoiningUsers.GetUsers(Users);
+		check(Users.Num() > 0);
+		Delegate.ExecuteIfBound(LocalUserId, PartyId, *Users[0]->GetUserId(), Users[0]->GetPlatform(), *Users[0]->GetJoinData());
+	};
+	return OnPartyJoinRequestReceivedDelegates.Add(FOnPartyGroupJoinRequestReceivedDelegate::CreateLambda(DeprecationHelperLambda));
+}
+
+FDelegateHandle IOnlinePartySystem::AddOnQueryPartyJoinabilityReceivedDelegate_Handle(const FOnQueryPartyJoinabilityReceivedDelegate& Delegate)
+{
+	auto DeprecationHelperLambda = [Delegate](const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const IOnlinePartyPendingJoinRequestInfo& JoiningUsers)
+	{
+		TArray<IOnlinePartyUserPendingJoinRequestInfoConstRef> Users;
+		JoiningUsers.GetUsers(Users);
+		check(Users.Num() > 0);
+		Delegate.ExecuteIfBound(LocalUserId, PartyId, *Users[0]->GetUserId(), Users[0]->GetPlatform(), *Users[0]->GetJoinData());
+	};
+	return OnQueryPartyJoinabilityReceivedDelegates.Add(FOnQueryPartyJoinabilityGroupReceivedDelegate::CreateLambda(DeprecationHelperLambda));
+}
+
 bool FPartyConfiguration::operator==(const FPartyConfiguration& Other) const
 {
 	return JoinRequestAction == Other.JoinRequestAction &&
