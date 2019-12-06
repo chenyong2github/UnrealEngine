@@ -27,6 +27,7 @@
 	#define WITH_CASE_PRESERVING_NAME WITH_EDITORONLY_DATA
 #endif
 
+class FAnsiStringBuilderBase;
 class FStringBuilderBase;
 class FText;
 
@@ -233,11 +234,11 @@ public:
 	/** Appends name to string builder. */
 	CORE_API void AppendNameToString(FStringBuilderBase& OutString) const;
 
+	/** Appends name to string builder. Entry must not be wide. */
+	CORE_API void AppendAnsiNameToString(FAnsiStringBuilderBase& OutString) const;
+
 	/** Appends name to string with path separator using FString::PathAppend(). */
 	CORE_API void AppendNameToPathString(FString& OutString) const;
-
-	/** Appends name to string builder with path separator. */
-	CORE_API void AppendNameToPathString(FStringBuilderBase& OutString) const;
 
 
 	/**
@@ -492,6 +493,15 @@ public:
 	 * @param Out StringBuilder to append with the string representation of the name
 	 */
 	void AppendString(FStringBuilderBase& Out) const;
+
+	/**
+	 * Converts an ANSI FName to a readable format appended to the string builder.
+	 *
+	 * @param Out A string builder to write the readable representation of the name into.
+	 *
+	 * @return Whether the string is ANSI. A return of false indicates that the string was wide and was not written.
+	 */
+	bool TryAppendAnsiString(FAnsiStringBuilderBase& Out) const;
 
 	/**
 	 * Check to see if this FName matches the other FName, potentially also checking for any case variations

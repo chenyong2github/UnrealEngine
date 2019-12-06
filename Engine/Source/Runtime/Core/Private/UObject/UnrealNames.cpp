@@ -1366,35 +1366,31 @@ void FNameEntry::AppendNameToString(FString& Out) const
 
 void FNameEntry::AppendNameToString(FStringBuilderBase& Out) const
 {
-	FNameBuffer Temp;
+	const int32 Offset = Out.AddUninitialized(Header.Len);
+	TCHAR* OutChars = Out.GetData() + Offset;
 	if (Header.bIsWide)
 	{
-		Out.Append(GetUnterminatedName(Temp.WideName), Header.Len);
+		CopyUnterminatedName(reinterpret_cast<WIDECHAR*>(OutChars));
+		ConvertInPlace<WIDECHAR, TCHAR>(reinterpret_cast<WIDECHAR*>(OutChars), Header.Len);
 	}
 	else
 	{
-		Out.AppendAnsi(GetUnterminatedName(Temp.AnsiName), Header.Len);
+		CopyUnterminatedName(reinterpret_cast<ANSICHAR*>(OutChars));
+		ConvertInPlace<ANSICHAR, TCHAR>(reinterpret_cast<ANSICHAR*>(OutChars), Header.Len);
 	}
+}
+
+void FNameEntry::AppendAnsiNameToString(FAnsiStringBuilderBase& Out) const
+{
+	check(!IsWide());
+	const int32 Offset = Out.AddUninitialized(Header.Len);
+	CopyUnterminatedName(Out.GetData() + Offset);
 }
 
 void FNameEntry::AppendNameToPathString(FString& Out) const
 {
 	FNameBuffer Temp;
 	Out.PathAppend(EntryToCString(*this, Temp), Header.Len);
-}
-
-void FNameEntry::AppendNameToPathString(FStringBuilderBase& Out) const
-{
-	if (Out.Len() > 0)
-	{
-		const TCHAR LastChar = Out.LastChar();
-		if (LastChar != TEXT('/') && LastChar != TEXT('\\'))
-		{
-			Out.Append(TEXT('/'));
-		}
-	}
-
-	AppendNameToString(Out);
 }
 
 int32 FNameEntry::GetSize(const TCHAR* Name)
@@ -2101,6 +2097,26 @@ void FName::AppendString(FStringBuilderBase& Out) const
 	{
 		Out << TEXT('_') << NAME_INTERNAL_TO_EXTERNAL(InternalNumber);
 	}
+}
+
+bool FName::TryAppendAnsiString(FAnsiStringBuilderBase& Out) const
+{
+	const FNameEntry* const NameEntry = GetDisplayNameEntry();
+
+	if (NameEntry->IsWide())
+	{
+		return false;
+	}
+
+	NameEntry->AppendAnsiNameToString(Out);
+
+	const int32 InternalNumber = GetNumber();
+	if (InternalNumber != NAME_NO_NUMBER_INTERNAL)
+	{
+		Out << '_' << NAME_INTERNAL_TO_EXTERNAL(InternalNumber);
+	}
+
+	return true;
 }
 
 void FName::DisplayHash(FOutputDevice& Ar)
