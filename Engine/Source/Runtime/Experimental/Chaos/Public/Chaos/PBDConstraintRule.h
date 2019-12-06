@@ -36,6 +36,51 @@ namespace Chaos
 	};
 
 	/**
+	 * Constraint rule for evolutions that do not use Constraint Graphs or other acceleration schemes.
+	 */
+	class CHAOS_API FSimpleConstraintRule : public FConstraintRule
+	{
+	public:
+		FSimpleConstraintRule(int32 InPriority) : FConstraintRule(InPriority) {}
+
+		virtual void UpdatePositionBasedState(const FReal Dt) {}
+		virtual void ApplyConstraints(const FReal Dt, const int32 It, const int32 NumIts) {}
+		virtual bool ApplyPushOut(const FReal Dt, const int32 It, const int32 NumIts) { return false; }
+	};
+
+	template<typename T_CONSTRAINTS>
+	class CHAOS_API TSimpleConstraintRule : public FSimpleConstraintRule
+	{
+	public:
+		using FConstraints = T_CONSTRAINTS;
+
+		TSimpleConstraintRule(int32 InPriority, FConstraints& InConstraints)
+			: FSimpleConstraintRule(InPriority)
+			, Constraints(InConstraints)
+		{
+		}
+
+		virtual void UpdatePositionBasedState(const FReal Dt) override
+		{
+			return Constraints.UpdatePositionBasedState(Dt);
+		}
+
+		virtual void ApplyConstraints(const FReal Dt, const int32 It, const int32 NumIts) override
+		{
+			Constraints.Apply(Dt, It, NumIts);
+		}
+
+		virtual bool ApplyPushOut(const FReal Dt, const int32 It, const int32 NumIts) override
+		{ 
+			return Constraints.ApplyPushOut(Dt, It, NumIts);
+		}
+
+	private:
+		FConstraints& Constraints;
+	};
+
+
+	/**
 	 * Base class for Constraint Rules that use the Contact Graph (which will be most optimized ones).
 	 * The graph is shared among many/all constraint rules and is held external to the Graph rule itself.
 	 * Each edge in the graph can be mapped back to a constraint controlled by the rule. To support this,
