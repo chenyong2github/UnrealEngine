@@ -117,6 +117,7 @@ namespace Chaos
 
 			int32 Idx = PointConstraints.Add(*PointConstraint);
 			Handle = HandleAllocator.template AllocHandle< TRigidBodyPointContactConstraint<T, d> >(this, Idx);
+			Handle->GetContact().Timestamp = -INT_MAX; // force point constraints to be deleted.
 
 			delete PointConstraint;
 		}
@@ -126,6 +127,7 @@ namespace Chaos
 
 			int32 Idx = PlaneConstraints.Add(*PlaneConstraint);
 			Handle = HandleAllocator.template AllocHandle< TRigidBodyPlaneContactConstraint<T, d> >(this, Idx);
+			Handle->GetContact().Timestamp = LifespanCounter;
 
 			delete PlaneConstraint;
 		}
@@ -133,7 +135,6 @@ namespace Chaos
 		check(Handle != nullptr);
 		Handles.Add(Handle);
 		Manifolds.Add(Handle->GetKey(), Handle);
-		Handle->GetContact().Timestamp = LifespanCounter;
 	}
 
 	template<typename T, int d>
