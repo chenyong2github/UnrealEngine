@@ -581,7 +581,12 @@ struct FWeightedBlendable
 USTRUCT(BlueprintType)
 struct FWeightedBlendables
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
+
+public:
+
+	FWeightedBlendables() { }
+	FWeightedBlendables(const TArray<FWeightedBlendable>& InArray) : Array(InArray) { }
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PostProcessSettings", meta=( Keywords="PostProcess" ))
 	TArray<FWeightedBlendable> Array;
