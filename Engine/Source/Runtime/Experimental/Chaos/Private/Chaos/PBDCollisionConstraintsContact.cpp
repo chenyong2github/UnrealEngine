@@ -45,6 +45,27 @@ namespace Chaos
 			}
 		}
 
+		template<typename T, int d>
+		void UpdateManifold(const T Thickness, TCollisionConstraintBase<T, d>& Constraint)
+		{
+			if (Constraint.GetType() == TCollisionConstraintBase<T, d>::FType::Plane)
+			{
+				const TRigidTransform<T, d> Transform0 = GetTransform(Constraint.Particle[0]);
+				const TRigidTransform<T, d> Transform1 = GetTransform(Constraint.Particle[1]);
+
+				const FImplicitObject& Implicit0 = *Constraint.Particle[0]->Geometry();
+				const FImplicitObject& Implicit1 = *Constraint.Particle[1]->Geometry();
+
+				EImplicitObjectType Implicit0Type = GetInnerType(Implicit0.GetType());
+				EImplicitObjectType Implicit1Type = GetInnerType(Implicit1.GetType());
+
+				if (Implicit0.IsConvex() && Implicit1.IsConvex())
+				{
+					UpdateConvexConvexManifold( *Constraint.template As<TRigidBodyPlaneContactConstraint<T, d>>(), Transform0, Transform1, Thickness);
+				}
+			}
+		}
+
 
 		template<typename T, int d>
 		void Apply(TCollisionConstraintBase<T, d>& Constraint, T Thickness, TContactIterationParameters<T> & IterationParameters, TContactParticleParameters<T> & ParticleParameters)
@@ -380,6 +401,7 @@ namespace Chaos
 
 		template void Update<ECollisionUpdateType::Any, float, 3>(const float, TCollisionConstraintBase<float, 3>&);
 		template void Update<ECollisionUpdateType::Deepest, float, 3>(const float, TCollisionConstraintBase<float, 3>&);
+		template void UpdateManifold<float, 3>(const float, TCollisionConstraintBase<float, 3>&);
 		template void Apply<float, 3>(TCollisionConstraintBase<float, 3>&, float, TContactIterationParameters<float> &, TContactParticleParameters<float> &);
 		template void ApplyPushOut<float, 3>(TCollisionConstraintBase<float,3>&, float , const TSet<const TGeometryParticleHandle<float,3>*>&,
 			TContactIterationParameters<float> & IterationParameters, TContactParticleParameters<float> & ParticleParameters);
