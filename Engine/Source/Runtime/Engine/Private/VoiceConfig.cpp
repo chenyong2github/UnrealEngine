@@ -21,7 +21,23 @@ static TAutoConsoleVariable<float> CVarVoiceSilenceDetectionThreshold(TEXT("voic
 	TEXT("Threshold to be set for the VOIP microphone's silence detection algorithm.\n"),	
 	ECVF_Default);
 
-static float JitterBufferDelayCvar = 0.3;
+static float MicInputGainCvar = 1.0f;
+FAutoConsoleVariableRef CVarMicInputGain(
+	TEXT("voice.MicInputGain"),
+	MicInputGainCvar,
+	TEXT("The default gain amount in linear amplitude.\n")
+	TEXT("Value: Gain multiplier."),
+	ECVF_Default);
+
+static float MicStereoBiasCvar = 0.0f;
+FAutoConsoleVariableRef CVarMicStereoBias(
+	TEXT("voice.MicStereoBias"),
+	MicStereoBiasCvar,
+	TEXT("This will attenuate the left or right channel.\n")
+	TEXT("0.0: Centered. 1.0: right channel only. -1.0: Left channel only."),
+	ECVF_Default);
+
+static float JitterBufferDelayCvar = 0.3f;
 FAutoConsoleVariableRef CVarJitterBufferDelay(
 	TEXT("voice.JitterBufferDelay"),
 	JitterBufferDelayCvar,
@@ -29,7 +45,7 @@ FAutoConsoleVariableRef CVarJitterBufferDelay(
 	TEXT("Value: Number of seconds of audio we buffer."),
 	ECVF_Default);
 
-static float MicNoiseGateThresholdCvar = 0.08;
+static float MicNoiseGateThresholdCvar = 0.08f;
 FAutoConsoleVariableRef CVarMicNoiseGateThreshold(
 	TEXT("voice.MicNoiseGateThreshold"),
 	JitterBufferDelayCvar,
@@ -37,7 +53,7 @@ FAutoConsoleVariableRef CVarMicNoiseGateThreshold(
 	TEXT("Value: Number of seconds of audio we buffer."),
 	ECVF_Default);
 
-static float MicNoiseGateAttackTimeCvar = 0.05;
+static float MicNoiseGateAttackTimeCvar = 0.05f;
 FAutoConsoleVariableRef CVarMicNoiseGateAttackTime(
 	TEXT("voice.MicNoiseAttackTime"),
 	MicNoiseGateAttackTimeCvar,
@@ -45,7 +61,7 @@ FAutoConsoleVariableRef CVarMicNoiseGateAttackTime(
 	TEXT("Value: Number of seconds we fade in over."),
 	ECVF_Default);
 
-static float MicNoiseGateReleaseTimeCvar = 0.30;
+static float MicNoiseGateReleaseTimeCvar = 0.30f;
 FAutoConsoleVariableRef CVarMicNoiseGateReleaseTime(
 	TEXT("voice.MicNoiseReleaseTime"),
 	MicNoiseGateReleaseTimeCvar,
