@@ -174,9 +174,9 @@ void FGraphTrackBuilder::AddConnectedLine(double Time, double Value, bool bNewBa
 	//ensure(X >= LinesCurrentX); // we are assuming events are already sorted by Time
 
 	// Start a new batch
-	if(bNewBatch)
+	if (bNewBatch)
 	{
-		if(Series.LinePoints.Num() > 0)
+		if (Series.LinePoints.Num() > 0)
 		{
 			Series.LinePoints.AddDefaulted();
 		}

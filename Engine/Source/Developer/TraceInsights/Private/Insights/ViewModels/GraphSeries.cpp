@@ -103,7 +103,7 @@ FString FGraphSeries::FormatValue(double Value) const
 
 void FGraphSeries::UpdateAutoZoom(const float InTopY, const float InBottomY, const double InMinEventValue, const double InMaxEventValue)
 {
-	if(IsAutoZoomEnabled())
+	if (IsAutoZoomEnabled())
 	{
 		const double LowValue = GetValueForY(InBottomY);
 		const double HighValue = GetValueForY(InTopY);

@@ -7,7 +7,7 @@
 #include "Math/Color.h"
 
 // Insights
-#include "Insights/ViewModels/TimingEventsTrack.h"
+#include "Insights/ViewModels/TimingEventsTrack.h" // for ITimingEventsTrackDrawStateBuilder
 #include "Insights/ViewModels/ITimingViewDrawHelper.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -121,7 +121,6 @@ private:
 
 private:
 	FTimingEventsTrackDrawState& DrawState; // cached draw state to build
-
 	const FTimingTrackViewport& Viewport;
 
 	int32 MaxDepth;

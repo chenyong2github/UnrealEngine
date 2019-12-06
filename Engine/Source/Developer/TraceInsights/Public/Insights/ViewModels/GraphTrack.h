@@ -67,8 +67,6 @@ protected:
 
 	void DrawSeries(const FGraphSeries& Series, FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
 
-	void UpdateAutoZoom();
-
 	virtual bool ContextMenu_ShowPoints_CanExecute();
 	virtual bool ContextMenu_ShowPointsWithBorder_CanExecute();
 	virtual bool ContextMenu_ShowLines_CanExecute();
@@ -77,8 +75,7 @@ protected:
 	virtual bool ContextMenu_ShowBars_CanExecute();
 	virtual bool ContextMenu_ShowSeries_CanExecute(FGraphSeries* Series);
 
-	// Get the Y value that is used to provided a clipping border between adjacent 
-	// graph tracks
+	// Get the Y value that is used to provide a clipping border between adjacent graph tracks.
 	virtual float GetBorderY() const { return 0.0f; }
 
 private:

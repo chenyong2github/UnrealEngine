@@ -3,7 +3,6 @@
 #include "TimingViewDrawHelper.h"
 
 #include "Fonts/FontMeasure.h"
-#include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Rendering/DrawElements.h"
 #include "Styling/CoreStyle.h"
@@ -275,7 +274,7 @@ void FTimingEventsTrackDrawStateBuilder::AddEvent(double EventStartTime, double 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimingEventsTrackDrawStateBuilder::FlushBox(const FBoxData& Box, int32 Depth)
+void FTimingEventsTrackDrawStateBuilder::FlushBox(const FBoxData& Box, const int32 Depth)
 {
 	DrawState.Boxes.AddUninitialized();
 	FTimingEventsTrackDrawState::FBoxPrimitive& DrawBox = DrawState.Boxes.Last();
