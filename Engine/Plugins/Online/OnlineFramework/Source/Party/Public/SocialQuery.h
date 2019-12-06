@@ -5,6 +5,7 @@
 #include "Containers/Ticker.h"
 #include "OnlineSubsystem.h"
 #include "SocialToolkit.h"
+#include "Misc/ConfigCacheIni.h"
 
 DECLARE_DELEGATE_TwoParams(FOnQueryCompleted, FName, const TSharedRef<class FSocialQueryBase>&);
 
