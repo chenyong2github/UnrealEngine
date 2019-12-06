@@ -92,7 +92,7 @@ namespace Chaos
 		{
 			for (int32 i = 0; i < NumElements; ++i)
 			{
-				V[i] = static_cast<T>(Other.V[i]);
+				V[i] = static_cast<T>(Other[i]);
 			}
 		}
 
