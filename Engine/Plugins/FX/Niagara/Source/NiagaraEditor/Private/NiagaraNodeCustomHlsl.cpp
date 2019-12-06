@@ -21,6 +21,19 @@ UNiagaraNodeCustomHlsl::UNiagaraNodeCustomHlsl(const FObjectInitializer& ObjectI
 	FunctionDisplayName = Signature.Name.ToString();
 }
 
+const FString& UNiagaraNodeCustomHlsl::GetCustomHlsl() const
+{
+	return CustomHlsl;
+}
+
+void UNiagaraNodeCustomHlsl::SetCustomHlsl(const FString& InCustomHlsl)
+{
+	Modify();
+	CustomHlsl = InCustomHlsl;
+	RefreshFromExternalChanges();
+	MarkNodeRequiresSynchronization(__FUNCTION__, true);
+}
+
 TSharedPtr<SGraphNode> UNiagaraNodeCustomHlsl::CreateVisualWidget()
 {
 	return SNew(SNiagaraGraphNodeCustomHlsl, this);
@@ -43,10 +56,7 @@ void UNiagaraNodeCustomHlsl::OnCustomHlslTextCommitted(const FText& InText, ETex
 	if (!NewValue.Equals(CustomHlsl, ESearchCase::CaseSensitive))
 	{
 		FScopedTransaction Transaction(LOCTEXT("CustomHlslCommit", "Edited Custom Hlsl"));
-		Modify();
-		CustomHlsl = NewValue;
-		RefreshFromExternalChanges();			
-		MarkNodeRequiresSynchronization(__FUNCTION__, true);
+		SetCustomHlsl(NewValue);
 	}
 }
 
