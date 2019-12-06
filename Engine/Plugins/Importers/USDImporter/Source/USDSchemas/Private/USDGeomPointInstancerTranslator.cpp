@@ -3,14 +3,12 @@
 #include "USDGeomPointInstancerTranslator.h"
 
 #include "USDConversionUtils.h"
-#include "USDSchemasModule.h"
 #include "USDTypesConversion.h"
 
 #if USE_USD_SDK
 
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
-#include "Modules/ModuleManager.h"
 
 #include "USDIncludesStart.h"
 	#include "pxr/usd/usd/prim.h"
@@ -85,12 +83,6 @@ namespace UsdGeomPointInstancerTranslatorImpl
 
 		return ( StaticMesh != nullptr );
 	}
-}
-
-void FUsdGeomPointInstancerTranslator::RegisterTranslator()
-{
-	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
-	UsdSchemasModule.GetTranslatorRegistry().Register< FUsdGeomPointInstancerTranslator >( TEXT("UsdGeomPointInstancer") );
 }
 
 USceneComponent* FUsdGeomPointInstancerTranslator::CreateComponents()

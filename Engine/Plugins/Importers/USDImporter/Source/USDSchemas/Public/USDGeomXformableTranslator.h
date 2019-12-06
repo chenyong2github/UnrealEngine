@@ -19,9 +19,6 @@ PXR_NAMESPACE_CLOSE_SCOPE
 class USDSCHEMAS_API FUsdGeomXformableTranslator : public FUsdSchemaTranslator
 {
 public:
-	static void RegisterTranslator();
-
-public:
 	using FUsdSchemaTranslator::FUsdSchemaTranslator;
 
 	explicit FUsdGeomXformableTranslator( TSubclassOf< USceneComponent > InComponentTypeOverride, TSharedRef< FUsdSchemaTranslationContext > InContext, const pxr::UsdTyped& InSchema );

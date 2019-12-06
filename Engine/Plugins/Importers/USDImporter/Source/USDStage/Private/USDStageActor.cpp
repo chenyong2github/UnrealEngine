@@ -633,20 +633,31 @@ bool AUsdStageActor::HasAutorithyOverStage() const
 #if USE_USD_SDK
 void AUsdStageActor::LoadAssets( FUsdSchemaTranslationContext& TranslationContext, const pxr::UsdPrim& StartPrim )
 {
-	TArray< TUsdStore< pxr::UsdPrim > > AllPrimAssets = UsdUtils::GetAllPrimsOfType( StartPrim, pxr::TfType::Find< pxr::UsdGeomMesh >(), { pxr::TfType::Find< pxr::UsdSkelRoot >() } );
-	AllPrimAssets.Append( UsdUtils::GetAllPrimsOfType( StartPrim, pxr::TfType::Find< pxr::UsdSkelRoot >() ) );
-
-	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
-	
-	for ( TUsdStore< pxr::UsdPrim >& UsdPrim : AllPrimAssets )
+	auto CreateAssetsForPrims = [ &TranslationContext ]( const TArray< TUsdStore< pxr::UsdPrim > >& AllPrimAssets )
 	{
-		if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext.AsShared(), pxr::UsdTyped( UsdPrim.Get() ) ) )
-		{
-			SchemaTranslator->CreateAssets();
-		}
-	}
+		IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
 
-	TranslationContext.CompleteTasks(); // Finish the assets tasks before moving on
+		for ( const TUsdStore< pxr::UsdPrim >& UsdPrim : AllPrimAssets )
+		{
+			if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext.AsShared(), pxr::UsdTyped( UsdPrim.Get() ) ) )
+			{
+				SchemaTranslator->CreateAssets();
+			}
+		}
+
+		TranslationContext.CompleteTasks(); // Finish the assets tasks before moving on
+	};
+
+	// Load materials first since meshes are referencing them
+	TArray< TUsdStore< pxr::UsdPrim > > AllPrimAssets = UsdUtils::GetAllPrimsOfType( StartPrim, pxr::TfType::Find< pxr::UsdShadeMaterial >() );
+	
+	CreateAssetsForPrims( AllPrimAssets );
+
+	// Load meshes
+	AllPrimAssets = UsdUtils::GetAllPrimsOfType( StartPrim, pxr::TfType::Find< pxr::UsdGeomMesh >(), { pxr::TfType::Find< pxr::UsdSkelRoot >() } );
+	AllPrimAssets.Append( UsdUtils::GetAllPrimsOfType( StartPrim, pxr::TfType::Find< pxr::UsdSkelRoot >() ) );
+	
+	CreateAssetsForPrims( AllPrimAssets );
 }
 
 void AUsdStageActor::AnimatePrims()

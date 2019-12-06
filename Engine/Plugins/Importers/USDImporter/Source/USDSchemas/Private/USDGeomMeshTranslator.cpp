@@ -6,7 +6,6 @@
 
 #include "USDConversionUtils.h"
 #include "USDGeomMeshConversion.h"
-#include "USDSchemasModule.h"
 #include "USDTypesConversion.h"
 
 #include "Async/Async.h"
@@ -71,7 +70,7 @@ namespace UsdGeomMeshTranslatorImpl
 		return bHasAttributesTimeSamples;
 	}
 
-	void ProcessMaterials( const pxr::UsdPrim& UsdPrim, UStaticMesh& StaticMesh, TMap< FString, UObject* >& MaterialsCache, bool bHasPrimDisplayColor, float Time )
+	void ProcessMaterials( const pxr::UsdPrim& UsdPrim, UStaticMesh& StaticMesh, TMap< FString, UObject* >& PrimPathsToAssets, bool bHasPrimDisplayColor, float Time )
 	{
 		const FMeshDescription* MeshDescription = StaticMesh.GetMeshDescription( 0 );
 
@@ -111,28 +110,7 @@ namespace UsdGeomMeshTranslatorImpl
 
 			if ( MaterialPrim.Get() )
 			{
-				UObject*& CachedMaterial = MaterialsCache.FindOrAdd( UsdToUnreal::ConvertPath( MaterialPrim.Get().GetPrimPath() ) );
-
-				if ( !CachedMaterial )
-				{
-					UMaterial* NewMaterial = NewObject< UMaterial >();
-
-					if ( UsdToUnreal::ConvertMaterial( pxr::UsdShadeMaterial( MaterialPrim.Get() ), *NewMaterial ) )
-					{
-						//UMaterialEditingLibrary::RecompileMaterial( CachedMaterial ); // Too slow
-						NewMaterial->PostEditChange();
-					}
-					else
-					{
-						NewMaterial = nullptr;
-					}
-
-					Material = NewMaterial;
-				}
-				else
-				{
-					Material = Cast< UMaterialInterface >( CachedMaterial );
-				}
+				Material = Cast< UMaterialInterface >( PrimPathsToAssets.FindRef( UsdToUnreal::ConvertPath( MaterialPrim.Get().GetPrimPath() ) ) );
 			}
 
 			if ( Material == nullptr && bHasPrimDisplayColor )
@@ -206,10 +184,10 @@ namespace UsdGeomMeshTranslatorImpl
 		return StaticMesh;
 	}
 
-	void PreBuildStaticMesh( const pxr::UsdGeomMesh& UsdMesh, UStaticMesh& StaticMesh, TMap< FString, UObject* >& MaterialsCache, float Time )
+	void PreBuildStaticMesh( const pxr::UsdGeomMesh& UsdMesh, UStaticMesh& StaticMesh, TMap< FString, UObject* >& PrimPathsToAssets, float Time )
 	{
 		const bool bHasPrimDisplayColor = UsdMesh.GetDisplayColorPrimvar().IsDefined();
-		ProcessMaterials( UsdMesh.GetPrim(), StaticMesh, MaterialsCache, bHasPrimDisplayColor, Time );
+		ProcessMaterials( UsdMesh.GetPrim(), StaticMesh, PrimPathsToAssets, bHasPrimDisplayColor, Time );
 
 		StaticMesh.RenderData = MakeUnique< FStaticMeshRenderData >();
 		//StaticMesh.BodySetup = NewObject< UBodySetup >( &StaticMesh );
@@ -309,7 +287,7 @@ void FGeomMeshCreateAssetsTaskChain::SetupTasks()
 		Then( !bIsAsyncTask,
 			[ this ]()
 			{
-				UsdGeomMeshTranslatorImpl::PreBuildStaticMesh( GeomMesh.Get(), *StaticMesh, Context->AssetsCache, Context->Time );
+				UsdGeomMeshTranslatorImpl::PreBuildStaticMesh( GeomMesh.Get(), *StaticMesh, Context->PrimPathsToAssets, Context->Time );
 
 				return true;
 			} );
@@ -338,12 +316,6 @@ void FGeomMeshCreateAssetsTaskChain::SetupTasks()
 				return true;
 			} );
 	}
-}
-
-void FUsdGeomMeshTranslator::RegisterTranslator()
-{
-	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
-	UsdSchemasModule.GetTranslatorRegistry().Register< FUsdGeomMeshTranslator >( TEXT("UsdGeomMesh") );
 }
 
 void FUsdGeomMeshTranslator::CreateAssets()

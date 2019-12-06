@@ -4,23 +4,15 @@
 
 #include "USDMemory.h"
 #include "USDPrimConversion.h"
-#include "USDSchemasModule.h"
 
 #include "CineCameraActor.h"
 #include "CineCameraComponent.h"
-#include "Modules/ModuleManager.h"
 
 #if USE_USD_SDK
 #include "USDIncludesStart.h"
 	#include "pxr/usd/usdGeom/camera.h"
 #include "USDIncludesEnd.h"
 
-
-void FUsdGeomCameraTranslator::RegisterTranslator()
-{
-	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
-	UsdSchemasModule.GetTranslatorRegistry().Register< FUsdGeomCameraTranslator >( TEXT("UsdGeomCamera") );
-}
 
 USceneComponent* FUsdGeomCameraTranslator::CreateComponents()
 {

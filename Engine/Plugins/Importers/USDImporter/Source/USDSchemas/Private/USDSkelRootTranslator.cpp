@@ -6,7 +6,6 @@
 
 #include "USDGeomMeshConversion.h"
 #include "USDMemory.h"
-#include "USDSchemasModule.h"
 #include "USDSkeletalDataConversion.h"
 #include "USDTypesConversion.h"
 
@@ -15,7 +14,6 @@
 #include "Engine/SkeletalMesh.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
-#include "Modules/ModuleManager.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
 
 #include "USDIncludesStart.h"
@@ -30,7 +28,7 @@
 
 namespace UsdSkelRootTranslatorImpl
 {
-	void ProcessMaterials( const pxr::UsdPrim& UsdPrim, FSkeletalMeshImportData& SkelMeshImportData, TMap< FString, UObject* >& MaterialsCache, bool bHasPrimDisplayColor, float Time )
+	void ProcessMaterials( const pxr::UsdPrim& UsdPrim, FSkeletalMeshImportData& SkelMeshImportData, TMap< FString, UObject* >& PrimPathsToAssets, bool bHasPrimDisplayColor, float Time )
 	{
 		for ( SkeletalMeshImportData::FMaterial& ImportedMaterial : SkelMeshImportData.Materials )
 		{
@@ -41,31 +39,12 @@ namespace UsdSkelRootTranslatorImpl
 
 				if ( MaterialPrim.Get() )
 				{
-					UObject*& CachedMaterial = MaterialsCache.FindOrAdd( UsdToUnreal::ConvertPath( MaterialPrim.Get().GetPrimPath() ) );
+					Material = Cast< UMaterialInterface >( PrimPathsToAssets.FindRef( UsdToUnreal::ConvertPath( MaterialPrim.Get().GetPrimPath() ) ) );
 
-					if ( !CachedMaterial )
+					if ( Material )
 					{
-						UMaterial* NewMaterial = NewObject< UMaterial >();
-
-						if ( UsdToUnreal::ConvertMaterial( pxr::UsdShadeMaterial( MaterialPrim.Get() ), *NewMaterial ) )
-						{
-							NewMaterial->bUsedWithSkeletalMesh = true;
-							bool bNeedsRecompile = false;
-							NewMaterial->GetMaterial()->SetMaterialUsage(bNeedsRecompile, MATUSAGE_SkeletalMesh);
-
-							NewMaterial->PostEditChange();
-						}
-						else
-						{
-							NewMaterial = nullptr;
-						}
-
-						Material = NewMaterial;
-						CachedMaterial = Material;
-					}
-					else
-					{
-						Material = Cast< UMaterialInterface >( CachedMaterial );
+						bool bNeedsRecompile = false;
+						Material->GetMaterial()->SetMaterialUsage( bNeedsRecompile, MATUSAGE_SkeletalMesh );
 					}
 				}
 
@@ -102,12 +81,6 @@ namespace UsdSkelRootTranslatorImpl
 
 		return OutHash;
 	}
-}
-
-void FUsdSkelRootTranslator::RegisterTranslator()
-{
-	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
-	UsdSchemasModule.GetTranslatorRegistry().Register< FUsdSkelRootTranslator >( TEXT("UsdSkelRoot") );
 }
 
 void FUsdSkelRootTranslator::CreateAssets()
@@ -170,7 +143,7 @@ void FUsdSkelRootTranslator::CreateAssets()
 				}
 			}
 
-			UsdSkelRootTranslatorImpl::ProcessMaterials( Prim, SkelMeshImportData, Context->AssetsCache, bHasPrimDisplayColor, Context->Time );
+			UsdSkelRootTranslatorImpl::ProcessMaterials( Prim, SkelMeshImportData, Context->PrimPathsToAssets, bHasPrimDisplayColor, Context->Time );
 
 			break;
 		}

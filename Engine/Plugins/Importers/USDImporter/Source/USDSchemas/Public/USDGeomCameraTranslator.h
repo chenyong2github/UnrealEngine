@@ -17,9 +17,6 @@ PXR_NAMESPACE_CLOSE_SCOPE
 class USDSCHEMAS_API FUsdGeomCameraTranslator : public FUsdGeomXformableTranslator
 {
 public:
-	static void RegisterTranslator();
-
-public:
 	using FUsdGeomXformableTranslator::FUsdGeomXformableTranslator;
 
 	virtual USceneComponent* CreateComponents() override;

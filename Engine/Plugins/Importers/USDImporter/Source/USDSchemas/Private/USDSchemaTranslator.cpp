@@ -4,6 +4,7 @@
 
 #include "USDTypesConversion.h"
 
+#include "Algo/Find.h"
 #include "Async/Async.h"
 
 #if USE_USD_SDK
@@ -13,49 +14,102 @@
 #include "USDIncludesEnd.h"
 
 
+int32 FRegisteredSchemaTranslatorHandle::CurrentSchemaTranslatorId = 0;
+
 TSharedPtr< FUsdSchemaTranslator > FUsdSchemaTranslatorRegistry::CreateTranslatorForSchema( TSharedRef< FUsdSchemaTranslationContext > InTranslationContext, const pxr::UsdTyped& InSchema )
 {
 	TUsdStore< pxr::UsdPrim > Prim = InSchema.GetPrim();
 
-	for ( TPair< FString, TCreateTranslator >& RegisteredSchema : CreationMethods )
+	for ( TPair< FString, FSchemaTranslatorsStack >& RegisteredSchemasStack : RegisteredSchemaTranslators )
 	{
-		pxr::TfToken RegisteredSchemaToken( UnrealToUsd::ConvertString( *RegisteredSchema.Key ).Get() );
+		pxr::TfToken RegisteredSchemaToken( UnrealToUsd::ConvertString( *RegisteredSchemasStack.Key ).Get() );
 		pxr::TfType RegisteredSchemaType = pxr::UsdSchemaRegistry::GetTypeFromName( RegisteredSchemaToken );
 
-		if ( Prim.Get().IsA( RegisteredSchemaType ) )
+		if ( Prim.Get().IsA( RegisteredSchemaType ) && RegisteredSchemasStack.Value.Num() > 0 )
 		{
-			return RegisteredSchema.Value( InTranslationContext, InSchema );
+			return RegisteredSchemasStack.Value.Top().CreateFunction( InTranslationContext, InSchema );
 		}
 	}
 
 	return {};
 }
 
-void FUsdSchemaTranslatorRegistry::Register( const FString& SchemaName, TCreateTranslator CreateFunction )
+FRegisteredSchemaTranslatorHandle FUsdSchemaTranslatorRegistry::Register( const FString& SchemaName, FCreateTranslator CreateFunction )
 {
-	// Insert most specialized first
-	int32 InsertionIndex = 0;
+	FSchemaTranslatorsStack* SchemaTranslatorsStack = FindSchemaTranslatorStack( SchemaName );
 
-	pxr::TfToken SchemaToRegisterToken( UnrealToUsd::ConvertString( *SchemaName ).Get() );
-	pxr::TfType SchemaToRegisterType = pxr::UsdSchemaRegistry::GetTypeFromName( SchemaToRegisterToken );
-
-	for ( TPair< FString, TCreateTranslator >& RegisteredSchema : CreationMethods )
+	if ( !SchemaTranslatorsStack )
 	{
-		pxr::TfToken RegisteredSchemaToken( UnrealToUsd::ConvertString( *RegisteredSchema.Key ).Get() );
-		pxr::TfType RegisteredSchemaType = pxr::UsdSchemaRegistry::GetTypeFromName( RegisteredSchemaToken );
+		// Insert most specialized first
+		int32 SchemaRegistryIndex = 0;
 
-		if ( SchemaToRegisterType.IsA( RegisteredSchemaType ) )
+		pxr::TfToken SchemaToRegisterToken( UnrealToUsd::ConvertString( *SchemaName ).Get() );
+		pxr::TfType SchemaToRegisterType = pxr::UsdSchemaRegistry::GetTypeFromName( SchemaToRegisterToken );
+
+		for ( TPair< FString, FSchemaTranslatorsStack >& RegisteredSchemasStack : RegisteredSchemaTranslators )
 		{
-			// We need to be registered before our ancestor types
+			pxr::TfToken RegisteredSchemaToken( UnrealToUsd::ConvertString( *RegisteredSchemasStack.Key ).Get() );
+			pxr::TfType RegisteredSchemaType = pxr::UsdSchemaRegistry::GetTypeFromName( RegisteredSchemaToken );
+
+			if ( SchemaToRegisterType.IsA( RegisteredSchemaType ) )
+			{
+				// We need to be registered before our ancestor types
+				break;
+			}
+			else
+			{
+				++SchemaRegistryIndex;
+			}
+		}
+
+		SchemaTranslatorsStack = &RegisteredSchemaTranslators.EmplaceAt_GetRef( SchemaRegistryIndex, SchemaName, FSchemaTranslatorsStack() ).Value;
+	}
+
+	FRegisteredSchemaTranslator RegisteredSchemaTranslator;
+	RegisteredSchemaTranslator.Handle = FRegisteredSchemaTranslatorHandle( SchemaName );
+	RegisteredSchemaTranslator.CreateFunction = CreateFunction;
+
+	SchemaTranslatorsStack->Push( RegisteredSchemaTranslator );
+
+	return RegisteredSchemaTranslator.Handle;
+}
+
+void FUsdSchemaTranslatorRegistry::Unregister( const FRegisteredSchemaTranslatorHandle& TranslatorHandle )
+{
+	FSchemaTranslatorsStack* SchemaTranslatorsStack = FindSchemaTranslatorStack( TranslatorHandle.GetSchemaName() );
+
+	if ( !SchemaTranslatorsStack )
+	{
+		return;
+	}
+
+	for ( FSchemaTranslatorsStack::TIterator RegisteredSchemaTranslatorIt = SchemaTranslatorsStack->CreateIterator();
+		RegisteredSchemaTranslatorIt; ++RegisteredSchemaTranslatorIt )
+	{
+		if ( RegisteredSchemaTranslatorIt->Handle.GetId() == TranslatorHandle.GetId() )
+		{
+			RegisteredSchemaTranslatorIt.RemoveCurrent();
 			break;
 		}
-		else
-		{
-			++InsertionIndex;
-		}
 	}
-	
-	CreationMethods.EmplaceAt( InsertionIndex, SchemaName, CreateFunction );
+}
+
+FUsdSchemaTranslatorRegistry::FSchemaTranslatorsStack* FUsdSchemaTranslatorRegistry::FindSchemaTranslatorStack( const FString& SchemaName )
+{
+	TPair< FString, FSchemaTranslatorsStack >* Result = Algo::FindByPredicate( RegisteredSchemaTranslators,
+		[ &SchemaName ]( const TPair< FString, FSchemaTranslatorsStack >& Element ) -> bool
+		{
+			return Element.Key == SchemaName;
+		} );
+
+	if ( Result )
+	{
+		return &Result->Value;
+	}
+	else
+	{
+		return nullptr;
+	}
 }
 
 void FUsdSchemaTranslationContext::CompleteTasks()

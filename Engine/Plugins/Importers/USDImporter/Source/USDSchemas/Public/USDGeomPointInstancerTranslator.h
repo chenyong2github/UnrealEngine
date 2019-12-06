@@ -16,9 +16,6 @@ struct FUsdSchemaTranslationContext;
 class USDSCHEMAS_API FUsdGeomPointInstancerTranslator : public FUsdGeomXformableTranslator
 {
 public:
-	static void RegisterTranslator();
-
-public:
 	using FUsdGeomXformableTranslator::FUsdGeomXformableTranslator;
 	
 	virtual USceneComponent* CreateComponents() override;

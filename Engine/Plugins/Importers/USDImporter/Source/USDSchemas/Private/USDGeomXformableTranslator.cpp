@@ -4,12 +4,10 @@
 
 #include "USDConversionUtils.h"
 #include "USDPrimConversion.h"
-#include "USDSchemasModule.h"
 #include "USDTypesConversion.h"
 
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
-#include "Modules/ModuleManager.h"
 
 #if USE_USD_SDK
 
@@ -18,11 +16,6 @@
 	#include "pxr/usd/usdGeom/xformable.h"
 #include "USDIncludesEnd.h"
 
-void FUsdGeomXformableTranslator::RegisterTranslator()
-{
-	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
-	UsdSchemasModule.GetTranslatorRegistry().Register< FUsdGeomXformableTranslator >( TEXT("UsdGeomXformable") );
-}
 
 FUsdGeomXformableTranslator::FUsdGeomXformableTranslator( TSubclassOf< USceneComponent > InComponentTypeOverride, TSharedRef< FUsdSchemaTranslationContext > InContext, const pxr::UsdTyped& InSchema )
 	: FUsdSchemaTranslator( InContext, InSchema )

@@ -44,9 +44,6 @@ protected:
 class USDSCHEMAS_API FUsdGeomMeshTranslator : public FUsdGeomXformableTranslator
 {
 public:
-	static void RegisterTranslator();
-
-public:
 	using FUsdGeomXformableTranslator::FUsdGeomXformableTranslator;
 
 	FUsdGeomMeshTranslator( const FUsdGeomMeshTranslator& Other ) = delete;

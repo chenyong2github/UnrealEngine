@@ -34,16 +34,53 @@ PXR_NAMESPACE_CLOSE_SCOPE
 
 #endif //#if USE_USD_SDK
 
+class USDSCHEMAS_API FRegisteredSchemaTranslatorHandle
+{
+public:
+	FRegisteredSchemaTranslatorHandle()
+		: Id( CurrentSchemaTranslatorId++ )
+	{
+	}
+
+	explicit FRegisteredSchemaTranslatorHandle( const FString& InSchemaName )
+		: FRegisteredSchemaTranslatorHandle()
+	{
+		SchemaName = InSchemaName;
+	}
+
+	int32 GetId() const { return Id; }
+	void SetId( int32 InId ) { Id = InId; }
+
+	const FString& GetSchemaName() const { return SchemaName; }
+	void SetSchemaName( const FString& InSchemaName ) { SchemaName = InSchemaName; }
+
+private:
+	static int32 CurrentSchemaTranslatorId;
+
+	FString SchemaName;
+	int32 Id;
+};
+
+class FRegisteredSchemaTranslator
+{
+	using FCreateTranslator = TFunction< TSharedRef< FUsdSchemaTranslator >( TSharedRef< FUsdSchemaTranslationContext >, const pxr::UsdTyped& ) >;
+
+public:
+	FRegisteredSchemaTranslatorHandle Handle;
+	FCreateTranslator CreateFunction;
+};
+
 class USDSCHEMAS_API FUsdSchemaTranslatorRegistry
 {
 #if USE_USD_SDK
-	using TCreateTranslator = TFunction< TSharedRef< FUsdSchemaTranslator >( TSharedRef< FUsdSchemaTranslationContext >, const pxr::UsdTyped& ) >;
+	using FCreateTranslator = TFunction< TSharedRef< FUsdSchemaTranslator >( TSharedRef< FUsdSchemaTranslationContext >, const pxr::UsdTyped& ) >;
+	using FSchemaTranslatorsStack = TArray< FRegisteredSchemaTranslator, TInlineAllocator< 1 > >;
 
 public:
 	TSharedPtr< FUsdSchemaTranslator > CreateTranslatorForSchema( TSharedRef< FUsdSchemaTranslationContext > InTranslationContext, const pxr::UsdTyped& InSchema );
 
 	template< typename TSchemaTranslator >
-	void Register( const FString& SchemaName )
+	FRegisteredSchemaTranslatorHandle Register( const FString& SchemaName )
 	{
 		auto CreateSchemaTranslator =
 		[]( TSharedRef< FUsdSchemaTranslationContext > InContext, const pxr::UsdTyped& InSchema ) -> TSharedRef< FUsdSchemaTranslator >
@@ -51,13 +88,17 @@ public:
 			return MakeShared< TSchemaTranslator >( InContext, InSchema );
 		};
 
-		Register( SchemaName, CreateSchemaTranslator );
+		return Register( SchemaName, CreateSchemaTranslator );
 	}
 
-protected:
-	void Register( const FString& SchemaName, TCreateTranslator CreateFunction );
+	void Unregister( const FRegisteredSchemaTranslatorHandle& TranslatorHandle );
 
-	TArray< TPair< FString, TCreateTranslator > > CreationMethods;
+protected:
+	FRegisteredSchemaTranslatorHandle Register( const FString& SchemaName, FCreateTranslator CreateFunction );
+
+	FSchemaTranslatorsStack* FindSchemaTranslatorStack( const FString& SchemaName );
+
+	TArray< TPair< FString, FSchemaTranslatorsStack > > RegisteredSchemaTranslators;
 #endif // #if USE_USD_SDK
 };
 

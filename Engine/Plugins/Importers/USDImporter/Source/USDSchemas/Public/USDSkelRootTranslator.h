@@ -21,11 +21,7 @@ class USDSCHEMAS_API FUsdSkelRootTranslator : public FUsdGeomXformableTranslator
 	using Super = FUsdGeomXformableTranslator;
 
 public:
-	static void RegisterTranslator();
-
-public:
 	using FUsdGeomXformableTranslator::FUsdGeomXformableTranslator;
-	//explicit FUsdSkelRootTranslator( FUsdSchemaTranslationContext& InContext, const pxr::UsdSkelRoot& SkelRoot );
 	
 	virtual void CreateAssets() override;
 	virtual USceneComponent* CreateComponents() override;
