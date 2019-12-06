@@ -48,6 +48,8 @@ namespace Chaos
 				return;
 			}
 
+			CollisionContainer.UpdateConstraints(Dt);
+
 			// Collision detection pipeline: BroadPhase -> NarrowPhase -> Receiver -> Container
 			// Receivers and NarrowPhase are assumed to be stateless atm. If we change that, they need to
 			// be passed into the constructor with the BroadPhase and Container.
