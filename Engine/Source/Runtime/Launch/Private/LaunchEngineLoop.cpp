@@ -1237,6 +1237,10 @@ static void UpdateCoreCsvStats_EndFrame()
 	}
 	FPlatformMemoryStats MemoryStats = FPlatformMemory::GetStats();
 	float PhysicalMBFree = float(MemoryStats.AvailablePhysical / 1024) / 1024.0f;
+#if !UE_BUILD_SHIPPING
+	// Subtract any extra development memory from physical free. This can result in negative values in cases where we would have crashed OOM
+	PhysicalMBFree -= float(FPlatformMemory::GetExtraDevelopmentMemorySize() / 1024ull / 1024ull);
+#endif
 	CSV_CUSTOM_STAT_GLOBAL(MemoryFreeMB, PhysicalMBFree, ECsvCustomStatOp::Set);
 }
 #endif // WITH_ENGINE && CSV_PROFILER
