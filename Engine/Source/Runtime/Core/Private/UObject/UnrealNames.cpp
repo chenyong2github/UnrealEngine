@@ -268,7 +268,7 @@ public:
 	FNameEntryAllocator()
 	{
 		LLM_SCOPE(ELLMTag::FName);
-		Blocks[0] = (uint8*)FMemory::Malloc(BlockSizeBytes, FPlatformMemory::GetConstants().PageSize);
+		Blocks[0] = (uint8*)FMemory::MallocPersistentAuxiliary(BlockSizeBytes, FPlatformMemory::GetConstants().PageSize);
 	}
 
 	~FNameEntryAllocator()
@@ -401,7 +401,7 @@ private:
 
 	static uint8* AllocBlock()
 	{
-		return (uint8*)FMemory::Malloc(BlockSizeBytes, FPlatformMemory::GetConstants().PageSize);
+		return (uint8*)FMemory::MallocPersistentAuxiliary(BlockSizeBytes, FPlatformMemory::GetConstants().PageSize);
 	}
 	
 	void AllocateNewBlock()
