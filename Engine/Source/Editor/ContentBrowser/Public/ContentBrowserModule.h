@@ -53,6 +53,8 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam( FOnSourcesViewChanged, bool /*bExpanded*/ );
 	/** */
 	DECLARE_MULTICAST_DELEGATE_OneParam( FOnAssetPathChanged, const FString& /*NewPath*/ );
+	/** */
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FIsDirectoryPathFiltered, const FString&);
 
 	/**
 	 * Called right after the plugin DLL has been loaded and the plugin object has been created
@@ -97,6 +99,9 @@ public:
 	/** Delegates to be called to extend the drag-and-drop support of the asset view */
 	virtual TArray<FAssetViewDragAndDropExtender>& GetAssetViewDragAndDropExtenders() { return AssetViewDragAndDropExtenders; }
 
+	/** Delegates to call to hide folders displayed in content browser */
+	virtual TArray<FIsDirectoryPathFiltered>& GetDirectoryPathFilteredDelegates() { return DirectoryPathFilteredDelegates; }
+
 	/** Delegate accessors */
 	FOnFilterChanged& GetOnFilterChanged() { return OnFilterChanged; } 
 	FOnSearchBoxChanged& GetOnSearchBoxChanged() { return OnSearchBoxChanged; } 
@@ -127,6 +132,9 @@ private:
 	TArray<FContentBrowserMenuExtender_SelectedAssets> AssetViewContextMenuExtenders;
 	TArray<FContentBrowserMenuExtender> AssetViewViewMenuExtenders;
 	TArray<FContentBrowserCommandExtender> ContentBrowserCommandExtenders;
+
+	/** All delegates that hide folders displayed in content browser */
+	TArray<FIsDirectoryPathFiltered> DirectoryPathFilteredDelegates;
 
 	/** All delegates generating extra state indicators */
 	TArray<FAssetViewExtraStateGenerator> AssetViewExtraStateGenerators;
