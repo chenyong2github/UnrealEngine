@@ -10,14 +10,20 @@ namespace StringViewPrivate
 	// These exported functions are implemented outside of the class to avoid the complexity
 	// of correctly exporting functions using many toolchains from a type that uses the CRTP.
 
-	template<class ViewType>
-	CORE_API int32 Compare(const ViewType& Lhs, const ViewType& Rhs, ESearchCase::Type SearchCase);
+	CORE_API int32 Compare(const FAnsiStringView& Lhs, const FAnsiStringView& Rhs, ESearchCase::Type SearchCase);
+	CORE_API int32 Compare(const FWideStringView& Lhs, const FWideStringView& Rhs, ESearchCase::Type SearchCase);
 
-	template<class ViewType>
-	CORE_API bool FindChar(const ViewType& InView, typename ViewType::ElementType InChar, typename ViewType::SizeType& OutIndex);
+	CORE_API bool FindChar(const FAnsiStringView& InView, ANSICHAR InChar, typename FAnsiStringView::SizeType& OutIndex);
+	CORE_API bool FindChar(const FWideStringView& InView, WIDECHAR InChar, typename FWideStringView::SizeType& OutIndex);
 
-	template<class ViewType>
-	CORE_API bool FindLastChar(const ViewType& InView, typename ViewType::ElementType InChar, typename ViewType::SizeType& OutIndex);
+	CORE_API bool FindLastChar(const FAnsiStringView& InView, ANSICHAR InChar, typename FAnsiStringView::SizeType& OutIndex);
+	CORE_API bool FindLastChar(const FWideStringView& InView, WIDECHAR InChar, typename FWideStringView::SizeType& OutIndex);
+
+	CORE_API FAnsiStringView TrimStart(const FAnsiStringView& InView);
+	CORE_API FWideStringView TrimStart(const FWideStringView& InView);
+
+	CORE_API FAnsiStringView TrimEnd(const FAnsiStringView& InView);
+	CORE_API FWideStringView TrimEnd(const FWideStringView& InView);
 }
 
 template <typename CharType, typename ViewType>
@@ -69,6 +75,24 @@ inline ViewType TStringViewImpl<CharType, ViewType>::Mid(SizeType Position, Size
 	Position = FMath::Clamp<USizeType>(Position, 0, Size);
 	CharCount = FMath::Clamp<USizeType>(CharCount, 0, Size - Position);
 	return ViewType(DataPtr + Position, CharCount);
+}
+
+template <typename CharType, typename ViewType>
+inline ViewType TStringViewImpl<CharType, ViewType>::TrimStartAndEnd() const
+{
+	return TrimStart().TrimEnd();
+}
+
+template <typename CharType, typename ViewType>
+inline ViewType TStringViewImpl<CharType, ViewType>::TrimStart() const
+{
+	return StringViewPrivate::TrimStart(static_cast<const ViewType&>(*this));
+}
+
+template <typename CharType, typename ViewType>
+inline ViewType TStringViewImpl<CharType, ViewType>::TrimEnd() const
+{
+	return StringViewPrivate::TrimEnd(static_cast<const ViewType&>(*this));
 }
 
 template <typename CharType, typename ViewType>

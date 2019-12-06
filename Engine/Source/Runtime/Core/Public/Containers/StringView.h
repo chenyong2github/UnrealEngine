@@ -154,6 +154,12 @@ public:
 	inline ViewType RightChop(SizeType CharCount) const;
 	/** Returns the middle part of the view by taking up to the given number of characters from the given position. */
 	inline ViewType Mid(SizeType Position, SizeType CharCount = TNumericLimits<SizeType>::Max()) const;
+	/** Returns the middle part of the view between any whitespace at the start and end. */
+	inline ViewType TrimStartAndEnd() const;
+	/** Returns the right part of the view after any whitespace at the start. */
+	inline ViewType TrimStart() const;
+	/** Returns the left part of the view before any whitespace at the end. */
+	inline ViewType TrimEnd() const;
 
 	/** Modifies the view to be the given number of characters from the left. */
 	inline void LeftInlineInline(SizeType CharCount) { *this = Left(CharCount); }
@@ -165,6 +171,12 @@ public:
 	inline void RightChopInline(SizeType CharCount) { *this = RightChop(CharCount); }
 	/** Modifies the view to be the middle part by taking up to the given number of characters from the given position. */
 	inline void MidInline(SizeType Position, SizeType CharCount = TNumericLimits<SizeType>::Max()) { *this = Mid(Position, CharCount); }
+	/** Modifies the view to be the middle part between any whitespace at the start and end. */
+	inline void TrimStartAndEndInline() { *this = TrimStartAndEnd(); }
+	/** Modifies the view to be the right part after any whitespace at the start. */
+	inline void TrimStartInline() { *this = TrimStart(); }
+	/** Modifies the view to be the left part before any whitespace at the end. */
+	inline void TrimEndInline() { *this = TrimEnd(); }
 
 	// Comparison
 
@@ -255,22 +267,28 @@ public:
 	using TStringViewImpl<ElementType, FAnsiStringView>::TStringViewImpl;
 };
 
-class FWideStringView : public TStringViewImpl<WIDECHAR, FWideStringView>
-{
-public:
-	using TStringViewImpl<ElementType, FWideStringView>::TStringViewImpl;
-};
+using FWideStringView = FStringView;
 
 template <> struct TIsContiguousContainer<FStringView> { enum { Value = true }; };
 template <> struct TIsContiguousContainer<FAnsiStringView> { enum { Value = true }; };
-template <> struct TIsContiguousContainer<FWideStringView> { enum { Value = true }; };
 
 constexpr inline SIZE_T GetNum(const FStringView& String) { return String.Len(); }
 constexpr inline SIZE_T GetNum(const FAnsiStringView& String) { return String.Len(); }
-constexpr inline SIZE_T GetNum(const FWideStringView& String) { return String.Len(); }
 
 constexpr inline FStringView operator "" _SV(const TCHAR* String, size_t Size) { return FStringView(String, Size); }
 constexpr inline FAnsiStringView operator "" _ASV(const ANSICHAR* String, size_t Size) { return FAnsiStringView(String, Size); }
 constexpr inline FWideStringView operator "" _WSV(const WIDECHAR* String, size_t Size) { return FWideStringView(String, Size); }
+
+//////////////////////////////////////////////////////////////////////////
+
+namespace StringViewPrivate
+{
+	template <typename CharType> struct TStringViewType;
+	template <> struct TStringViewType<ANSICHAR> { using Type = FAnsiStringView; };
+	template <> struct TStringViewType<WIDECHAR> { using Type = FWideStringView; };
+}
+
+template <typename CharType>
+using TStringView = typename StringViewPrivate::TStringViewType<CharType>::Type;
 
 #include "StringView.inl"

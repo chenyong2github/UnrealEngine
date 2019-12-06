@@ -1,17 +1,25 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Misc/StringView.h"
+#include "Containers/StringView.h"
 
 #include "Containers/UnrealString.h"
 #include "Misc/AutomationTest.h"
 
-#if WITH_DEV_AUTOMATION_TESTS 
+#if WITH_DEV_AUTOMATION_TESTS
+
+static_assert(TIsSame<typename FStringView::ElementType, TCHAR>::Value, "FStringView must use TCHAR.");
+static_assert(TIsSame<typename FAnsiStringView::ElementType, ANSICHAR>::Value, "FAnsiStringView must use ANSICHAR.");
+static_assert(TIsSame<typename FWideStringView::ElementType, WIDECHAR>::Value, "FWideStringView must use WIDECHAR.");
+
+static_assert(TIsSame<FStringView, TStringView<TCHAR>>::Value, "FStringView must be the same as TStringView<TCHAR>.");
+static_assert(TIsSame<FAnsiStringView, TStringView<ANSICHAR>>::Value, "FAnsiStringView must be the same as TStringView<ANSICHAR>.");
+static_assert(TIsSame<FWideStringView, TStringView<WIDECHAR>>::Value, "FWideStringView must be the same as TStringView<WIDECHAR>.");
 
 static_assert(TIsContiguousContainer<FStringView>::Value, "FStringView must be a contiguous container.");
 static_assert(TIsContiguousContainer<FAnsiStringView>::Value, "FAnsiStringView must be a contiguous container.");
 static_assert(TIsContiguousContainer<FWideStringView>::Value, "FWideStringView must be a contiguous container.");
 
-#define TEST_NAME_ROOT "System.Core.Misc.StringView"
+#define TEST_NAME_ROOT "System.Core.StringView"
 constexpr const uint32 TestFlags = EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter;
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringViewTestCtor, TEST_NAME_ROOT ".Ctor", TestFlags)
@@ -71,6 +79,13 @@ bool FStringViewTestCtor::RunTest(const FString& Parameters)
 		TestEqual(TEXT("View length"), View.Len(), 4);
 		TestEqual(TEXT("The result of Strncmp"), FCStringAnsi::Strncmp(View.GetData(), "Test", View.Len()), 0);
 		TestFalse(TEXT("View.IsEmpty"), View.IsEmpty());
+	}
+
+	// Create using string view literals
+	{
+		FStringView View = TEXT("Test"_SV);
+		FAnsiStringView ViewAnsi = "Test"_ASV;
+		FWideStringView ViewWide = L"Test"_WSV;
 	}
 
 	return true;
@@ -610,6 +625,51 @@ bool FStringViewTestMid::RunTest(const FString& Parameters)
 		TestTrue(TEXT("FStringView::Mid(6)"), View == OutofBoundsResult);
 		TestTrue(TEXT("FStringView::Mid(7)"), View.Mid(512, 1024).IsEmpty());
 	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringViewTestTrimStartAndEnd, TEST_NAME_ROOT ".TrimStartAndEnd", TestFlags)
+bool FStringViewTestTrimStartAndEnd::RunTest(const FString& Parameters)
+{
+	TestTrue(TEXT("FStringView::TrimStartAndEnd(\"\")"), TEXT(""_SV).TrimStartAndEnd().IsEmpty());
+	TestTrue(TEXT("FStringView::TrimStartAndEnd(\" \")"), TEXT(" "_SV).TrimStartAndEnd().IsEmpty());
+	TestTrue(TEXT("FStringView::TrimStartAndEnd(\"  \")"), TEXT("  "_SV).TrimStartAndEnd().IsEmpty());
+	TestTrue(TEXT("FStringView::TrimStartAndEnd(\" \\t\\r\\n\")"), TEXT(" \t\r\n"_SV).TrimStartAndEnd().IsEmpty());
+
+	TestEqual(TEXT("FStringView::TrimStartAndEnd(\"ABC123\")"), TEXT("ABC123"_SV).TrimStartAndEnd(), TEXT("ABC123"_SV));
+	TestEqual(TEXT("FStringView::TrimStartAndEnd(\"A \\t\\r\\nB\")"), TEXT("A \t\r\nB"_SV).TrimStartAndEnd(), TEXT("A \t\r\nB"_SV));
+	TestEqual(TEXT("FStringView::TrimStartAndEnd(\" \\t\\r\\nABC123\\n\\r\\t \")"), TEXT(" \t\r\nABC123\n\r\t "_SV).TrimStartAndEnd(), TEXT("ABC123"_SV));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringViewTestTrimStart, TEST_NAME_ROOT ".TrimStart", TestFlags)
+bool FStringViewTestTrimStart::RunTest(const FString& Parameters)
+{
+	TestTrue(TEXT("FStringView::TrimStart(\"\")"), TEXT(""_SV).TrimStart().IsEmpty());
+	TestTrue(TEXT("FStringView::TrimStart(\" \")"), TEXT(" "_SV).TrimStart().IsEmpty());
+	TestTrue(TEXT("FStringView::TrimStart(\"  \")"), TEXT("  "_SV).TrimStart().IsEmpty());
+	TestTrue(TEXT("FStringView::TrimStart(\" \\t\\r\\n\")"), TEXT(" \t\r\n"_SV).TrimStart().IsEmpty());
+
+	TestEqual(TEXT("FStringView::TrimStart(\"ABC123\")"), TEXT("ABC123"_SV).TrimStart(), TEXT("ABC123"_SV));
+	TestEqual(TEXT("FStringView::TrimStart(\"A \\t\\r\\nB\")"), TEXT("A \t\r\nB"_SV).TrimStart(), TEXT("A \t\r\nB"_SV));
+	TestEqual(TEXT("FStringView::TrimStart(\" \\t\\r\\nABC123\\n\\r\\t \")"), TEXT(" \t\r\nABC123\n\r\t "_SV).TrimStart(), TEXT("ABC123\n\r\t "_SV));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringViewTestTrimEnd, TEST_NAME_ROOT ".TrimEnd", TestFlags)
+bool FStringViewTestTrimEnd::RunTest(const FString& Parameters)
+{
+	TestTrue(TEXT("FStringView::TrimEnd(\"\")"), TEXT(""_SV).TrimEnd().IsEmpty());
+	TestTrue(TEXT("FStringView::TrimEnd(\" \")"), TEXT(" "_SV).TrimEnd().IsEmpty());
+	TestTrue(TEXT("FStringView::TrimEnd(\"  \")"), TEXT("  "_SV).TrimEnd().IsEmpty());
+	TestTrue(TEXT("FStringView::TrimEnd(\" \\t\\r\\n\")"), TEXT(" \t\r\n"_SV).TrimEnd().IsEmpty());
+
+	TestEqual(TEXT("FStringView::TrimEnd(\"ABC123\")"), TEXT("ABC123"_SV).TrimEnd(), TEXT("ABC123"_SV));
+	TestEqual(TEXT("FStringView::TrimEnd(\"A \\t\\r\\nB\")"), TEXT("A \t\r\nB"_SV).TrimEnd(), TEXT("A \t\r\nB"_SV));
+	TestEqual(TEXT("FStringView::TrimEnd(\" \\t\\r\\nABC123\\n\\r\\t \")"), TEXT(" \t\r\nABC123\n\r\t "_SV).TrimEnd(), TEXT(" \t\r\nABC123"_SV));
 
 	return true;
 }
