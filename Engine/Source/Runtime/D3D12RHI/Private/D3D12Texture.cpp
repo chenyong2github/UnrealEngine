@@ -364,7 +364,7 @@ void FD3D12TextureStats::D3D12TextureDeleted(TD3D12Texture2D<BaseResourceType>& 
 	{
 		const D3D12_RESOURCE_DESC& Desc = D3D12Texture2D->GetDesc();
 		const int64 TextureSize = Texture.GetMemorySize();
-		ensure(TextureSize > 0 || (Texture.Flags & TexCreate_Virtual));
+		ensure(TextureSize > 0 || (Texture.Flags & TexCreate_Virtual) || Texture.GetAliasingSourceTexture() != nullptr);
 
 		UpdateD3D12TextureStats(Desc, -TextureSize, false, Texture.IsCubemap());
 
@@ -2819,9 +2819,31 @@ FTextureCubeRHIRef FD3D12DynamicRHI::RHICreateTextureCubeFromResource(EPixelForm
 }
 
 void FD3D12DynamicRHI::RHIAliasTextureResources(FRHITexture* DestTextureRHI, FRHITexture* SrcTextureRHI)
-{	
+{
 	FD3D12TextureBase* DestTexture = GetD3D12TextureFromRHITexture(DestTextureRHI);
 	FD3D12TextureBase* SrcTexture = GetD3D12TextureFromRHITexture(SrcTextureRHI);
+
+	// This path will potentially cause crashes, if the source texture is destroyed and we're still being used. This
+	// API path will be deprecated post 4.25. To avoid issues, use the version that takes FTextureRHIRef references instead.
+	check(false);
+
+	while (DestTexture && SrcTexture)
+	{
+		DestTexture->AliasResources(SrcTexture);
+
+		DestTexture = DestTexture->GetNextObject();
+		SrcTexture = SrcTexture->GetNextObject();
+	}
+}
+
+void FD3D12DynamicRHI::RHIAliasTextureResources(FTextureRHIRef& DestTextureRHI, FTextureRHIRef& SrcTextureRHI)
+{
+	FD3D12TextureBase* DestTexture = GetD3D12TextureFromRHITexture(DestTextureRHI);
+	FD3D12TextureBase* SrcTexture = GetD3D12TextureFromRHITexture(SrcTextureRHI);
+
+	// Make sure we keep a reference to the source texture we're aliasing, so we don't lose it if all other references
+	// go away but we're kept around.
+	DestTexture->SetAliasingSource(SrcTextureRHI);
 
 	while (DestTexture && SrcTexture)
 	{
@@ -2900,7 +2922,7 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateAliasedD3D12Texture2D
 		}
 	}
 
-	RHIAliasTextureResources(Texture2D, SourceTexture);
+	RHIAliasTextureResources((FTextureRHIRef&)Texture2D, (FTextureRHIRef&)SourceTexture);
 
 	return Texture2D;
 }
@@ -2923,6 +2945,35 @@ FTextureRHIRef FD3D12DynamicRHI::RHICreateAliasedTexture(FRHITexture* SourceText
 
 	UE_LOG(LogD3D12RHI, Error, TEXT("Currently FD3D12DynamicRHI::RHICreateAliasedTexture only supports 2D, 2D Array and Cube textures."));
 	return nullptr;
+}
+
+FTextureRHIRef FD3D12DynamicRHI::RHICreateAliasedTexture(FTextureRHIRef& SourceTextureRHI)
+{
+	FD3D12TextureBase* SourceTexture = GetD3D12TextureFromRHITexture(SourceTextureRHI);
+	FTextureRHIRef ReturnTexture;
+	if (SourceTextureRHI->GetTexture2D() != nullptr)
+	{
+		ReturnTexture = CreateAliasedD3D12Texture2D<FD3D12BaseTexture2D>(static_cast<FD3D12Texture2D*>(SourceTextureRHI->GetTexture2D()));
+	}
+	else if (SourceTextureRHI->GetTexture2DArray() != nullptr)
+	{
+		ReturnTexture = CreateAliasedD3D12Texture2D<FD3D12BaseTexture2DArray>(static_cast<FD3D12Texture2DArray*>(SourceTextureRHI->GetTexture2DArray()));
+	}
+	else if (SourceTextureRHI->GetTextureCube() != nullptr)
+	{
+		ReturnTexture = CreateAliasedD3D12Texture2D<FD3D12BaseTextureCube>(static_cast<FD3D12TextureCube*>(SourceTextureRHI->GetTextureCube()));
+	}
+
+	if (ReturnTexture == nullptr)
+	{
+		UE_LOG(LogD3D12RHI, Error, TEXT("Currently FD3D12DynamicRHI::RHICreateAliasedTexture only supports 2D, 2D Array and Cube textures."));
+		return nullptr;
+	}
+
+	FD3D12TextureBase* DestTexture = GetD3D12TextureFromRHITexture(ReturnTexture);
+	DestTexture->SetAliasingSource(SourceTextureRHI);
+
+	return ReturnTexture;
 }
 
 void FD3D12DynamicRHI::RHICopySubTextureRegion(FRHITexture2D* SourceTextureRHI, FRHITexture2D* DestTextureRHI, FBox2D SourceBox, FBox2D DestinationBox)
