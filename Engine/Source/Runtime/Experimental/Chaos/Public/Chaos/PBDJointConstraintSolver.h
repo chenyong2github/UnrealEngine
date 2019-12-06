@@ -89,6 +89,8 @@ namespace Chaos
 		void AddAngularConstraints_Twist(
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
+			const FRotation3& R01Twist,
+			const FRotation3& R01Swing,
 			FDenseMatrix66& J0,
 			FDenseMatrix66& J1,
 			FDenseMatrix61& C);
@@ -96,6 +98,8 @@ namespace Chaos
 		void AddAngularConstraints_Cone(
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
+			const FRotation3& R01Twist,
+			const FRotation3& R01Swing,
 			FDenseMatrix66& J0,
 			FDenseMatrix66& J1,
 			FDenseMatrix61& C);
@@ -105,6 +109,8 @@ namespace Chaos
 			const FPBDJointSettings& JointSettings,
 			const EJointAngularConstraintIndex SwingConstraintIndex,
 			const EJointAngularAxisIndex SwingAxisIndex,
+			const FRotation3& R01Twist,
+			const FRotation3& R01Swing,
 			FDenseMatrix66& J0,
 			FDenseMatrix66& J1,
 			FDenseMatrix61& C);
@@ -129,6 +135,8 @@ namespace Chaos
 			FDenseMatrix66& J0,
 			FDenseMatrix66& J1,
 			FDenseMatrix61& C);
+
+		static void DecomposeSwingTwistLocal(const FRotation3& R0, const FRotation3& R1, FRotation3& R01Twist, FRotation3& R01Swing);
 
 		static const int32 MaxConstraintedBodies = 2;
 
