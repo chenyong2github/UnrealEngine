@@ -237,33 +237,19 @@ public:
 	bool IsA(const UClass* InClass) const;
 	bool IsA(const FFieldClass* InClass) const;
 	template <typename T>
-	typename TEnableIf<TIsDerivedFrom<T, UObject>::IsDerived, bool>::Type IsA() const
+	bool IsA() const
 	{
 		static_assert(sizeof(T) > 0, "T must not be an incomplete type");
-		if (bIsUObject && Container.Object)
-		{
-			return Container.Object->IsA(T::StaticClass());
-		}
-		return false;
+		return IsA(T::StaticClass());
 	}
 
-	template <typename T>
-	typename TEnableIf<!TIsDerivedFrom<T, UObject>::IsDerived, bool>::Type IsA() const
-	{
-		static_assert(sizeof(T) > 0, "T must not be an incomplete type");
-		if (!bIsUObject && Container.Field)
-		{
-			return Container.Field->IsA(T::StaticClass());
-		}
-		return false;
-	}
 	template <typename T>
 	typename TEnableIf<TIsDerivedFrom<T, UObject>::IsDerived, T*>::Type Get() const
 	{
 		static_assert(sizeof(T) > 0, "T must not be an incomplete type");
-		if (bIsUObject)
+		if (IsA(T::StaticClass()))
 		{
-			return Cast<T>(Container.Object);
+			return static_cast<T*>(Container.Object);
 		}
 		return nullptr;
 	}
@@ -272,9 +258,9 @@ public:
 	typename TEnableIf<!TIsDerivedFrom<T, UObject>::IsDerived, T*>::Type Get() const
 	{
 		static_assert(sizeof(T) > 0, "T must not be an incomplete type");
-		if (!bIsUObject)
+		if (IsA(T::StaticClass()))
 		{
-			return CastField<T>(Container.Field);
+			return static_cast<T*>(Container.Field);
 		}
 		return nullptr;
 	}
@@ -544,37 +530,26 @@ public:
 	FField* GetTypedOwner(FFieldClass* Target) const;
 
 	template <typename T>
-	typename TEnableIf<TIsDerivedFrom<T, UObject>::IsDerived, T*>::Type GetOwner() const
+	T* GetOwner() const
 	{
 		static_assert(sizeof(T) > 0, "T must not be an incomplete type");
-		return Cast<T>(Owner.ToUObject());
+		return Owner.Get<T>();
 	}
 
 	template <typename T>
-	typename TEnableIf<!TIsDerivedFrom<T, UObject>::IsDerived, T*>::Type GetOwner() const
+	T* GetOwnerChecked() const
 	{
 		static_assert(sizeof(T) > 0, "T must not be an incomplete type");
-		return CastField<T>(Owner.ToField());
-	}
-
-	template <typename T>
-	typename TEnableIf<TIsDerivedFrom<T, UObject>::IsDerived, T*>::Type GetOwnerChecked() const
-	{
-		static_assert(sizeof(T) > 0, "T must not be an incomplete type");
-		return CastChecked<T>(Owner.ToUObject());
-	}
-
-	template <typename T>
-	typename TEnableIf<!TIsDerivedFrom<T, UObject>::IsDerived, T*>::Type GetOwnerChecked() const
-	{
-		static_assert(sizeof(T) > 0, "T must not be an incomplete type");
-		return CastFieldChecked<T>(Owner.ToField());
+		T* Result = Owner.Get<T>();
+		check(Result);
+		return Result;
 	}
 
 	template <typename T>
 	T* GetTypedOwner() const
 	{
-		return Cast<T>(GetTypedOwner(T::StaticClass()));
+		static_assert(sizeof(T) > 0, "T must not be an incomplete type");
+		return static_cast<T*>(GetTypedOwner(T::StaticClass()));
 	}
 
 	FORCEINLINE FName GetFName() const

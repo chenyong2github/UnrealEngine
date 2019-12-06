@@ -2156,7 +2156,7 @@ public:
 	TFObjectPropertyBase(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
 		: Super(InOwner, InName, InObjectFlags)
 	{
-		PropertyClass = nullptr;
+		this->PropertyClass = nullptr;
 	}
 
 
@@ -5271,7 +5271,7 @@ public:
 protected:
 	inline void IterateToNext()
 	{
-		T::BaseFieldClass* CurrentField  = Field;
+		typename T::BaseFieldClass* CurrentField  = Field;
 		const UStruct* CurrentStruct = Struct;
 
 		while (CurrentStruct)

@@ -58,6 +58,10 @@ public:
 	{
 	}
 
+#if WITH_EDITORONLY_DATA
+	FFieldPath(UField* InField, const FName& InPropertyTypeName);
+#endif
+
 	/** Generates path from the passed in field pointer */
 	void Generate(FField* InField);
 
@@ -207,14 +211,8 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	TFieldPath(UField* InField)
-		: FFieldPath()
+		: FFieldPath(InField, PropertyType::StaticClass()->GetFName())
 	{
-		if (InField)
-		{
-			// Must be constructed from the equivalent UField class
-			check(InField->GetClass()->GetFName() == PropertyType::StaticClass()->GetFName());
-			GenerateFromUField(InField);
-		}
 	}
 #endif
 

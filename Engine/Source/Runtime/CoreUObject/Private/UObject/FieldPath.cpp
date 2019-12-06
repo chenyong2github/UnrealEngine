@@ -9,6 +9,18 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectArray.h"
 
+#if WITH_EDITORONLY_DATA
+FFieldPath::FFieldPath(UField* InField, const FName& InPropertyTypeName)
+{
+	if (InField)
+	{
+		// Must be constructed from the equivalent UField class
+		check(InField->GetClass()->GetFName() == InPropertyTypeName);
+		GenerateFromUField(InField);
+	}
+}
+#endif
+
 void FFieldPath::Generate(FField* InField)
 {
 	Path.Empty();
