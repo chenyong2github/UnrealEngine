@@ -33,7 +33,7 @@ namespace Chaos
 		};
 
 		template <typename T>
-		void UpdateContactPoint(TPointContactManifold<T, 3>& Manifold, const TContactPoint<T>& NewContactPoint)
+		void UpdateContactPoint(TCollisionContact<T, 3>& Manifold, const TContactPoint<T>& NewContactPoint)
 		{
 			//for now just override
 			if (NewContactPoint.Phi < Manifold.Phi)
@@ -99,7 +99,7 @@ namespace Chaos
 				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint;
 				Constraint->Particle[0] = Particle0;
 				Constraint->Particle[1] = Particle1;
-				Constraint->AddManifold(Implicit0, Implicit1);
+				Constraint->SetManifold(Implicit0, Implicit1);
 
 				UpdateBoxBoxConstraint(*Object0, Transform0, *Object1, Transform1, Thickness, *Constraint);
 
@@ -121,7 +121,7 @@ namespace Chaos
 		template <typename T, int d>
 		bool UpdateBoxPlaneConstraint(const TBox<T, d>& Box, const TRigidTransform<T, d>& BoxTransform, const TPlane<T, d>& Plane, const TRigidTransform<T, d>& PlaneTransform, const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint)
 		{
-			TPointContactManifold<T, d> & Contact = Constraint.Manifold;
+			TCollisionContact<T, d> & Contact = Constraint.Manifold;
 
 #if USING_CODE_ANALYSIS
 			MSVC_PRAGMA(warning(push))
@@ -192,7 +192,7 @@ namespace Chaos
 				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint;
 				Constraint->Particle[0] = Particle0;
 				Constraint->Particle[1] = Particle1;
-				Constraint->AddManifold(Implicit0, Implicit1);
+				Constraint->SetManifold(Implicit0, Implicit1);
 
 				UpdateBoxPlaneConstraint(*Object0, Transform0, *Object1, Transform1, Thickness, *Constraint);
 
@@ -246,7 +246,7 @@ namespace Chaos
 				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint;
 				Constraint->Particle[0] = Particle0;
 				Constraint->Particle[1] = Particle1;
-				Constraint->AddManifold(Implicit0, Implicit1);
+				Constraint->SetManifold(Implicit0, Implicit1);
 
 				UpdateSphereSphereConstraint(*Object0, Transform0, *Object1, Transform1, Thickness, *Constraint);
 
@@ -268,7 +268,7 @@ namespace Chaos
 		template <typename T, int d>
 		void UpdateSpherePlaneConstraint(const TSphere<T, d>& Sphere, const TRigidTransform<T, d>& SphereTransform, const TPlane<T, d>& Plane, const TRigidTransform<T, d>& PlaneTransform, const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint)
 		{
-			TPointContactManifold<T, d> & Contact = Constraint.Manifold;
+			TCollisionContact<T, d> & Contact = Constraint.Manifold;
 
 			const TRigidTransform<T, d> SphereToPlaneTransform(PlaneTransform.Inverse() * SphereTransform);
 			const TVector<T, d> SphereCenter = SphereToPlaneTransform.TransformPosition(Sphere.GetCenter());
@@ -297,7 +297,7 @@ namespace Chaos
 				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint;
 				Constraint->Particle[0] = Particle0;
 				Constraint->Particle[1] = Particle1;
-				Constraint->AddManifold(Implicit0, Implicit1);
+				Constraint->SetManifold(Implicit0, Implicit1);
 
 				UpdateSpherePlaneConstraint(*Object0, Transform0, *Object1, Transform1, Thickness, *Constraint);
 
@@ -351,7 +351,7 @@ namespace Chaos
 				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint;
 				Constraint->Particle[0] = Particle0;
 				Constraint->Particle[1] = Particle1;
-				Constraint->AddManifold(Implicit0, Implicit1);
+				Constraint->SetManifold(Implicit0, Implicit1);
 
 				UpdateSphereBoxConstraint(*Object0, Transform0, *Object1, Transform1, Thickness, *Constraint);
 
@@ -411,7 +411,7 @@ namespace Chaos
 				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint;
 				Constraint->Particle[0] = Particle0;
 				Constraint->Particle[1] = Particle1;
-				Constraint->AddManifold(Implicit0, Implicit1);
+				Constraint->SetManifold(Implicit0, Implicit1);
 
 				UpdateSphereCapsuleConstraint(*Object0, Transform0, *Object1, Transform1, Thickness, *Constraint);
 
@@ -474,7 +474,7 @@ namespace Chaos
 				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint;
 				Constraint->Particle[0] = Particle0;
 				Constraint->Particle[1] = Particle1;
-				Constraint->AddManifold(Implicit0, Implicit1);
+				Constraint->SetManifold(Implicit0, Implicit1);
 
 				UpdateCapsuleCapsuleConstraint(*Object0, Transform0, *Object1, Transform1, Thickness, *Constraint);
 
@@ -516,7 +516,7 @@ namespace Chaos
 				FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint;
 				Constraint->Particle[0] = Particle0;
 				Constraint->Particle[1] = Particle1;
-				Constraint->AddManifold(Implicit0, Implicit1);
+				Constraint->SetManifold(Implicit0, Implicit1);
 
 				UpdateCapsuleBoxConstraint(*Object0, Transform0, *Object1, Transform1, Thickness, *Constraint);
 
@@ -560,7 +560,7 @@ namespace Chaos
 
 			Constraint->Particle[0] = Particle0;
 			Constraint->Particle[1] = Particle1;
-			Constraint->AddManifold(Implicit0, Implicit1);
+			Constraint->SetManifold(Implicit0, Implicit1);
 
 			UpdateConvexConvexConstraint(*Implicit0, Transform0, *Implicit1, Transform1, Thickness, *Constraint);
 
@@ -619,13 +619,13 @@ namespace Chaos
 			{
 				Constraint->Particle[0] = Particle1;
 				Constraint->Particle[1] = Particle0;
-				Constraint->AddManifold(Implicit1, Implicit0);
+				Constraint->SetManifold(Implicit1, Implicit0);
 			}
 			else
 			{
 				Constraint->Particle[0] = Particle0;
 				Constraint->Particle[1] = Particle1;
-				Constraint->AddManifold(Implicit0, Implicit1);
+				Constraint->SetManifold(Implicit0, Implicit1);
 			}
 
 			UpdateLevelsetLevelsetConstraint<ECollisionUpdateType::Any>(Thickness, *Constraint);
@@ -851,7 +851,7 @@ namespace Chaos
 			FRigidBodyPointContactConstraint* Constraint = new FRigidBodyPointContactConstraint;
 			Constraint->Particle[0] = Particle0;
 			Constraint->Particle[1] = Particle1;
-			Constraint->AddManifold(Implicit0, Implicit1);
+			Constraint->SetManifold(Implicit0, Implicit1);
 
 			UpdateSingleUnionConstraint<ECollisionUpdateType::Any>(*Implicit0, Transform0, *Implicit1, Transform1, Thickness, *Constraint);
 
