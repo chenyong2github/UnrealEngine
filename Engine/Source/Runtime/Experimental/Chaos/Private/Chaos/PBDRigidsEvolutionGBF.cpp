@@ -25,6 +25,8 @@ namespace Chaos
 {
 #if !UE_BUILD_SHIPPING
 	CHAOS_API bool bPendingHierarchyDump = false;
+#else
+	const bool bPendingHierarchyDump = false;
 #endif
 
 float HackMaxAngularVelocity = 1000.f;
