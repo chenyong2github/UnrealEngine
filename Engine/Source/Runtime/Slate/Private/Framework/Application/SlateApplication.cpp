@@ -2236,6 +2236,11 @@ int32 FSlateApplication::GetUserIndexForKeyboard() const
 	return InputManager->GetUserIndexForKeyboard();
 }
  
+TOptional<int32> FSlateApplication::GetUserIndexForController(int32 ControllerId, FKey InKey) const
+{
+	return InputManager->GetUserIndexForController(ControllerId, InKey);
+}
+
 int32 FSlateApplication::GetUserIndexForController(int32 ControllerId) const
 {
 	return InputManager->GetUserIndexForController(ControllerId);
@@ -5542,9 +5547,13 @@ bool FSlateApplication::OnControllerAnalog( FGamepadKeyNames::Type KeyName, int3
 	FKey Key(KeyName);
 	check(Key.IsValid());
 
-	int32 UserIndex = GetUserIndexForController(ControllerId);
-	
-	FAnalogInputEvent AnalogInputEvent(Key, PlatformApplication->GetModifierKeys(), UserIndex, false, 0, 0, AnalogValue);
+	TOptional<int32> UserIndex = GetUserIndexForController(ControllerId, Key);
+	if (!UserIndex.IsSet())
+	{
+		return false;
+	}
+
+	FAnalogInputEvent AnalogInputEvent(Key, PlatformApplication->GetModifierKeys(), UserIndex.GetValue(), false, 0, 0, AnalogValue);
 
 	return ProcessAnalogInputEvent(AnalogInputEvent);
 }
@@ -5554,9 +5563,13 @@ bool FSlateApplication::OnControllerButtonPressed(FGamepadKeyNames::Type KeyName
 	FKey Key(KeyName);
 	check(Key.IsValid());
 
-	int32 UserIndex = GetUserIndexForController(ControllerId);
+	TOptional<int32> UserIndex = GetUserIndexForController(ControllerId, Key);
+	if (!UserIndex.IsSet())
+	{
+		return false;
+	}
 
-	FKeyEvent KeyEvent(Key, PlatformApplication->GetModifierKeys(), UserIndex, IsRepeat, 0, 0);
+	FKeyEvent KeyEvent(Key, PlatformApplication->GetModifierKeys(), UserIndex.GetValue(), IsRepeat, 0, 0);
 
 	return ProcessKeyDownEvent(KeyEvent);
 }
@@ -5566,9 +5579,13 @@ bool FSlateApplication::OnControllerButtonReleased(FGamepadKeyNames::Type KeyNam
 	FKey Key(KeyName);
 	check(Key.IsValid());
 
-	int32 UserIndex = GetUserIndexForController(ControllerId);
+	TOptional<int32> UserIndex = GetUserIndexForController(ControllerId, Key);
+	if (!UserIndex.IsSet())
+	{
+		return false;
+	}
 
-	FKeyEvent KeyEvent(Key, PlatformApplication->GetModifierKeys(), UserIndex, IsRepeat, 0, 0);
+	FKeyEvent KeyEvent(Key, PlatformApplication->GetModifierKeys(), UserIndex.GetValue(), IsRepeat, 0, 0);
 
 	return ProcessKeyUpEvent(KeyEvent);
 }
