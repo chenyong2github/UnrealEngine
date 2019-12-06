@@ -26,7 +26,7 @@ FChaosDerivedDataReader<T, d>::FChaosDerivedDataReader(FUntypedBulkData* InBulkD
 	}
 	else
 	{
-		ChaosAr << ConvexImplicitObjects << TrimeshImplicitObjects << UVInfo;
+		ChaosAr << ConvexImplicitObjects << TrimeshImplicitObjects << UVInfo << FaceRemap;
 
 		bReadSuccessful = true;
 	}
