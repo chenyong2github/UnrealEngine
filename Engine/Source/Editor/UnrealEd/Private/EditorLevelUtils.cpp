@@ -139,18 +139,26 @@ int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, 
 				const bool bIsMove = true;
 				GEditor->CopySelectedActorsToClipboard(OwningWorld, bShoudCut, bIsMove, bWarnAboutReferences);
 
-				// Set the new level and force it visible while we do the paste
-				OwningWorld->SetCurrentLevel(DestLevel);
 				const bool bLevelVisible = DestLevel->bIsVisible;
 				if (!bLevelVisible)
 				{
 					UEditorLevelUtils::SetLevelVisibility(DestLevel, true, false);
 				}
 
-				const bool bDuplicate = false;
-				const bool bOffsetLocations = false;
-				const bool bWarnIfHidden = false;
-				GEditor->edactPasteSelected(OwningWorld, bDuplicate, bOffsetLocations, bWarnIfHidden);
+				// Scope this so that Actors that have been pasted will have their final levels set before doing the actor mapping
+				{
+					// Set the new level and force it visible while we do the paste
+					FLevelPartitionOperationScope LevelPartitionScope(DestLevel);
+					OwningWorld->SetCurrentLevel(LevelPartitionScope.GetLevel());
+										
+					const bool bDuplicate = false;
+					const bool bOffsetLocations = false;
+					const bool bWarnIfHidden = false;
+					GEditor->edactPasteSelected(OwningWorld, bDuplicate, bOffsetLocations, bWarnIfHidden);
+
+					// Restore the original current level
+					OwningWorld->SetCurrentLevel(OldCurrentLevel);
+				}
 
 				// Build a remapping of old to new names so we can do a fixup
 				for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
@@ -221,9 +229,6 @@ int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, 
 				{
 					UEditorLevelUtils::SetLevelVisibility(DestLevel, false, false);
 				}
-
-				// Restore the original current level
-				OwningWorld->SetCurrentLevel(OldCurrentLevel);
 			}
 
 			// The moved (pasted) actors will now be selected

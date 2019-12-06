@@ -473,9 +473,13 @@ public:
 		// Cache the current dest level
 		OldLevel = DestLevel->OwningWorld->GetCurrentLevel();
 		// Paste to the dest level.
-		DestLevel->OwningWorld->SetCurrentLevel( DestLevel );
-		GEditor->edactPasteSelected( DestLevel->OwningWorld, true, bOffsetLocations, true, &ScratchData );
-
+		{
+			FLevelPartitionOperationScope LevelPartitionScope(DestLevel);
+			DestLevel->OwningWorld->SetCurrentLevel(LevelPartitionScope.GetLevel());
+			GEditor->edactPasteSelected(DestLevel->OwningWorld, true, bOffsetLocations, true, &ScratchData);
+			// Restore dest level
+			DestLevel->OwningWorld->SetCurrentLevel(OldLevel);
+		}
 		// The selection set will be the newly created actors; copy them over to the output array.
 		for ( FSelectionIterator It( GEditor->GetSelectedActorIterator() ) ; It ; ++It )
 		{
@@ -483,8 +487,6 @@ public:
 			checkSlow( Actor->IsA(AActor::StaticClass()) );
 			OutNewActors.Add( Actor );
 		}
-		// Restore dest level
-		DestLevel->OwningWorld->SetCurrentLevel( OldLevel );
 	}
 };
 }
