@@ -17,8 +17,8 @@ class UNiagaraNodeCustomHlsl : public UNiagaraNodeFunctionCall
 	GENERATED_UCLASS_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Function", meta = (MultiLine = true))
-	FString CustomHlsl;
+	const FString& GetCustomHlsl() const;
+	void SetCustomHlsl(const FString& InCustomHlsl);
 
 	UPROPERTY()
 	ENiagaraScriptUsage ScriptUsage;
@@ -27,8 +27,8 @@ public:
 	virtual void OnRenameNode(const FString& NewName) override;
 	virtual FLinearColor GetNodeTitleColor() const override;
 
-	FText NIAGARAEDITOR_API GetHlslText() const;
-	void NIAGARAEDITOR_API OnCustomHlslTextCommitted(const FText& InText, ETextCommit::Type InType);
+	FText GetHlslText() const;
+	void OnCustomHlslTextCommitted(const FText& InText, ETextCommit::Type InType);
 
 	bool GetTokens(TArray<FString>& OutTokens) const;
 
@@ -76,4 +76,7 @@ protected:
 	void RebuildSignatureFromPins();
 	UEdGraphPin* PinPendingRename;
 
+private:
+	UPROPERTY(EditAnywhere, Category = "Function", meta = (MultiLine = true))
+	FString CustomHlsl;
 };
