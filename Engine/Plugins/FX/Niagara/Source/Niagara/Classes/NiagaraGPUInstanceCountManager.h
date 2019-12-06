@@ -10,6 +10,7 @@ NiagaraGPUInstanceCountManager.h: GPU particle count handling
 #include "RHIUtilities.h"
 #include "NiagaraDrawIndirect.h"
 #include "RHIGPUReadback.h"
+#include "NiagaraRenderer.h"
 
 class FRHIGPUMemoryReadback;
 
