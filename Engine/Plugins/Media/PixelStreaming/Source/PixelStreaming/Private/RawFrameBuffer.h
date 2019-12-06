@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "Codecs/PixelStreamingBaseVideoEncoder.h"
+#include "AVEncoder.h"
 
-// #AMF : Revise this comment. It mentions NvEnc everywhere
 // WebRTC can drop frames in the encoder queue for various reasons, e.g. when more than one frame is waiting
 // for encoding, or when encoder is not ready yet
 // Our pipeline is asynchronous (cos we use NvEnc async encoding) so to keep track of captured frames
@@ -15,7 +14,7 @@
 // and so NvEnc will be notified immediately.
 struct FFrameDropDetector final
 {
-	FFrameDropDetector(FPixelStreamingBaseVideoEncoder& HWEncoder, FBufferId BufferId):
+	FFrameDropDetector(AVEncoder::FVideoEncoder& HWEncoder, AVEncoder::FBufferId BufferId):
 		HWEncoder(&HWEncoder),
 		BufferId(BufferId)
 	{}
@@ -23,11 +22,11 @@ struct FFrameDropDetector final
 	~FFrameDropDetector()
 	{
 		if (HWEncoder)
-			HWEncoder->OnFrameDropped(BufferId);
+			HWEncoder->Drop(BufferId);
 	}
 
-	FPixelStreamingBaseVideoEncoder* HWEncoder = nullptr;
-	FBufferId BufferId;
+	AVEncoder::FVideoEncoder* HWEncoder = nullptr;
+	AVEncoder::FBufferId BufferId;
 };
 
 class FRawFrameBuffer : public webrtc::VideoFrameBuffer
@@ -67,7 +66,7 @@ public:
 	//
 	// Own methods
 	//
-	FBufferId GetBuffer() const
+	AVEncoder::FBufferId GetBuffer() const
 	{
 		return FrameDropDetector->BufferId;
 	}

@@ -8,14 +8,14 @@ DEFINE_LOG_CATEGORY(WmfRingBuffer);
 
 WINDOWSPLATFORMFEATURES_START
 
-void FWmfRingBuffer::Push(FGameplayMediaEncoderSample&& Sample)
+void FWmfRingBuffer::Push(AVEncoder::FAVPacket&& Sample)
 {
 	check(MaxDuration != 0);
 
 	FScopeLock Lock(&Mutex);
 
-	if (Samples.Num() == 0 && Sample.GetType() == EMediaType::Audio)
-		// start always from video sample for simplicity of `Cleanup` impl
+	// start always from video sample for simplicity of `Cleanup` impl
+	if (Samples.Num() == 0 && Sample.Type == AVEncoder::EPacketType::Audio)
 	{
 		// drop
 	}
@@ -27,15 +27,15 @@ void FWmfRingBuffer::Push(FGameplayMediaEncoderSample&& Sample)
 		// video encoding takes longer than audio thus video encoded samples arrive later and need to be placed
 		// inside the container. Video also is not strictly timestamp-ordered (maybe due to B-frames)
 	{
-		FTimespan TimestampToInsert = Sample.GetTime();
+		FTimespan TimestampToInsert = Sample.Timestamp;
 
 		bool bIsSampleVideoKeyFrame = Sample.IsVideoKeyFrame();
 
 		int i = Samples.Num() - 1;
 		while (true)
 		{
-			if (Samples[i].GetType() == Sample.GetType() // don't change order of same stream cos video is not strictly timestamp-ordered (B-Frames)
-				|| TimestampToInsert >= Samples[i].GetTime())
+			if (Samples[i].Type == Sample.Type // don't change order of same stream cos video is not strictly timestamp-ordered (B-Frames)
+				|| TimestampToInsert >= Samples[i].Timestamp)
 			{
 				Samples.Insert(MoveTemp(Sample), i + 1);
 				break;
@@ -43,7 +43,7 @@ void FWmfRingBuffer::Push(FGameplayMediaEncoderSample&& Sample)
 
 			if (i == 0)
 			{
-				if (Sample.GetType() == EMediaType::Video)
+				if (Sample.Type == AVEncoder::EPacketType::Video)
 				{
 					Samples.Insert(MoveTemp(Sample), 0);
 				}
@@ -93,7 +93,12 @@ void FWmfRingBuffer::Cleanup()
 	Samples.RemoveAt(0, i, false);
 	check(Samples[0].IsVideoKeyFrame());
 
-	UE_LOG(WmfRingBuffer, VeryVerbose, TEXT("%d samples, %.3f s, %.3f - %.3f:%.3f"), Samples.Num(), GetDuration().GetTotalSeconds(), Samples[0].GetTime().GetTotalSeconds(), Samples.Last().GetTime().GetTotalSeconds(), Samples.Last().GetDuration().GetTotalSeconds());
+	UE_LOG(WmfRingBuffer, VeryVerbose, TEXT("%d samples, %.3f s, %.3f - %.3f:%.3f"),
+		Samples.Num(),
+		GetDuration().GetTotalSeconds(),
+		Samples[0].Timestamp.GetTotalSeconds(),
+		Samples.Last().Timestamp.GetTotalSeconds(),
+		Samples.Last().Duration.GetTotalSeconds());
 }
 
 void FWmfRingBuffer::PauseCleanup(bool bPause)
@@ -108,23 +113,20 @@ FTimespan FWmfRingBuffer::GetDuration() const
 		return 0;
 	}
 
-	return Samples.Last().GetTime() - Samples[0].GetTime();
+	// A duration of a video is not "LastFrameCaptureTime - FirstFrameCaptureTime" , but 
+	// (LastFrameCaptureTime - FirstFrameCaptureTime) + LastFrameDuration.
+	return Samples.Last().Timestamp + Samples.Last().Duration - Samples[0].Timestamp;
 }
 
-TArray<FGameplayMediaEncoderSample> FWmfRingBuffer::GetCopy()
+TArray<AVEncoder::FAVPacket> FWmfRingBuffer::GetCopy()
 {
 	FScopeLock Lock(&Mutex);
 
-	TArray<FGameplayMediaEncoderSample> Copy;
-	Copy.Reset(Samples.Num());
-
-	for (const auto& Sample : Samples)
-	{
-		// cloning is required because during saving a copy of ring buffer we modify samples timestamps.
-		// using samples references shared between ring buffer and its copy being saved would cause ring
-		// buffer timestamp logic corruption
-		Copy.Add(Sample.Clone());
-	}
+	TArray<AVEncoder::FAVPacket> Copy;
+	// cloning is required because during saving a copy of ring buffer we modify samples timestamps.
+	// using samples references shared between ring buffer and its copy being saved would cause ring
+	// buffer timestamp logic corruption
+	Copy = Samples;
 
 	return Copy;
 }
