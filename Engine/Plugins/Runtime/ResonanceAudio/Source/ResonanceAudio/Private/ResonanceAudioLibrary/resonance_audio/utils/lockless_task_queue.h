@@ -114,6 +114,13 @@ class LocklessTaskQueue {
 
   // Holds preallocated nodes.
   std::vector<Node> nodes_;
+
+  // Temporary vector to hold |Task|s in order to execute them in reverse order
+  // (FIFO, instead of LIFO).
+  std::vector<Task> temp_tasks_;
+
+  // this mutex guarantees that temp_tasks_ is not mutated while being iterated on.
+  std::mutex temp_tasks_mutex_;
   size_t max_tasks_;
 };
 
