@@ -281,6 +281,9 @@ private:
 	/** The local (client) time at which the challenge was last updated */
 	double LastChallengeTimestamp;
 
+	/** The local (client) time at which the last restart handshake request was received */
+	double LastRestartPacketTimestamp;
+
 	/** The SecretId value of the last challenge response sent */
 	uint8 LastSecretId;
 
