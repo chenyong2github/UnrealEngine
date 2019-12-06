@@ -300,19 +300,21 @@ int32 UClothingAssetNv::AddNewLod()
 	return Idx;
 }
 
-void UClothingAssetNv::PostPropertyChangeCb(const FPropertyChangedEvent& Event)
+void UClothingAssetNv::PostEditChangeChainProperty(FPropertyChangedChainEvent& ChainEvent)
 {
+	Super::PostEditChangeChainProperty(ChainEvent);
+
 	bool bReregisterComponents = false;
 
-	if(Event.ChangeType != EPropertyChangeType::Interactive)
+	if(ChainEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
-		if(Event.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UClothConfigNv, SelfCollisionRadius) ||
-		   Event.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UClothConfigNv, SelfCollisionCullScale))
+		if(ChainEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UClothConfigNv, SelfCollisionRadius) ||
+		   ChainEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UClothConfigNv, SelfCollisionCullScale))
 		{
 			BuildSelfCollisionData();
 			bReregisterComponents = true;
 		}
-		else if(Event.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UClothingAssetCommon, PhysicsAsset))
+		else if(ChainEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UClothingAssetCommon, PhysicsAsset))
 		{
 			bReregisterComponents = true;
 		}
