@@ -380,7 +380,7 @@ AActor* FDatasmithActorImporter::ImportCustomActor(FDatasmithImportContext& Impo
 	{
 		TSharedPtr< IDatasmithKeyValueProperty > KeyValueProperty = InCustomActorElement->GetProperty( i );
 
-		UProperty* Property = FindField< UProperty >( Actor->GetClass(), KeyValueProperty->GetName() );
+		FProperty* Property = FindField< FProperty >( Actor->GetClass(), KeyValueProperty->GetName() );
 
 		if ( Property )
 		{

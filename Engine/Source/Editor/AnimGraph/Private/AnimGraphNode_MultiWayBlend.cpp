@@ -75,7 +75,7 @@ void UAnimGraphNode_MultiWayBlend::RemovePinFromBlendNode(UEdGraphPin* Pin)
 	FScopedTransaction Transaction(LOCTEXT("RemoveBlendMultiPin", "RemoveBlendMultiPin"));
 	Modify();
 
-	UProperty* AssociatedProperty;
+	FProperty* AssociatedProperty;
 	int32 ArrayIndex;
 	GetPinAssociatedProperty(GetFNodeType(), Pin, /*out*/ AssociatedProperty, /*out*/ ArrayIndex);
 

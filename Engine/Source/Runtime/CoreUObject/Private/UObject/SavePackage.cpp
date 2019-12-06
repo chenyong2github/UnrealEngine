@@ -1278,7 +1278,7 @@ void FArchiveSaveTagImports::MarkSearchableName(const UObject* TypeObject, const
  * @param	BadObjects	array of objects that are considered "bad" (e.g. non- RF_Public, in different map package, ...)
  * @return	UObject that is considered the most likely culprit causing them to be referenced or NULL
  */
-static void FindMostLikelyCulprit( TArray<UObject*> BadObjects, UObject*& MostLikelyCulprit, const UProperty*& PropertyRef )
+static void FindMostLikelyCulprit( TArray<UObject*> BadObjects, UObject*& MostLikelyCulprit, const FProperty*& PropertyRef )
 {
 	MostLikelyCulprit	= nullptr;
 
@@ -1307,7 +1307,7 @@ static void FindMostLikelyCulprit( TArray<UObject*> BadObjects, UObject*& MostLi
 					UE_LOG(LogSavePackage, Warning, TEXT("\t%s (%i refs)"), *RefObj->GetFullName(), Refs.ExternalReferences[i].TotalReferences);
 					for (int32 j = 0; j < Refs.ExternalReferences[i].ReferencingProperties.Num(); j++)
 					{
-						const UProperty* Prop = Refs.ExternalReferences[i].ReferencingProperties[j];
+						const FProperty* Prop = Refs.ExternalReferences[i].ReferencingProperties[j];
 						UE_LOG(LogSavePackage, Warning, TEXT("\t\t%i) %s"), j, *Prop->GetFullName());
 						PropertyRef = Prop;
 					}
@@ -1923,31 +1923,7 @@ class FExportReferenceSorter : public FArchiveUObject
 				UFunction::StaticClass(),
 				UEnum::StaticClass(),
 				UClass::StaticClass(),
-				UProperty::StaticClass(),
-				UByteProperty::StaticClass(),
-				UIntProperty::StaticClass(),
-				UBoolProperty::StaticClass(),
-				UFloatProperty::StaticClass(),
-				UDoubleProperty::StaticClass(),
-				UObjectProperty::StaticClass(),
-				UClassProperty::StaticClass(),
-				UInterfaceProperty::StaticClass(),
-				UNameProperty::StaticClass(),
-				UStrProperty::StaticClass(),
-				UArrayProperty::StaticClass(),
-				UTextProperty::StaticClass(),
-				UStructProperty::StaticClass(),
-				UDelegateProperty::StaticClass(),
-				UInterface::StaticClass(),
-				UMulticastDelegateProperty::StaticClass(),
-				UWeakObjectProperty::StaticClass(),
-				UObjectPropertyBase::StaticClass(),
-				ULazyObjectProperty::StaticClass(),
-				USoftObjectProperty::StaticClass(),
-				USoftClassProperty::StaticClass(),
-				UMapProperty::StaticClass(),
-				USetProperty::StaticClass(),
-				UEnumProperty::StaticClass()
+				UInterface::StaticClass()
 			};
 
 			for (UClass* CoreClass : CoreClassList)
@@ -2024,31 +2000,31 @@ class FExportReferenceSorter : public FArchiveUObject
 			UFunction::StaticClass(),
 			UEnum::StaticClass(),
 			UClass::StaticClass(),
-			UProperty::StaticClass(),
-			UByteProperty::StaticClass(),
-			UIntProperty::StaticClass(),
-			UBoolProperty::StaticClass(),
-			UFloatProperty::StaticClass(),
-			UDoubleProperty::StaticClass(),
-			UObjectProperty::StaticClass(),
-			UClassProperty::StaticClass(),
-			UInterfaceProperty::StaticClass(),
-			UNameProperty::StaticClass(),
-			UStrProperty::StaticClass(),
-			UArrayProperty::StaticClass(),
-			UTextProperty::StaticClass(),
-			UStructProperty::StaticClass(),
-			UDelegateProperty::StaticClass(),
+			FProperty::StaticClass(),
+			FByteProperty::StaticClass(),
+			FIntProperty::StaticClass(),
+			FBoolProperty::StaticClass(),
+			FFloatProperty::StaticClass(),
+			FDoubleProperty::StaticClass(),
+			FObjectProperty::StaticClass(),
+			FClassProperty::StaticClass(),
+			FInterfaceProperty::StaticClass(),
+			FNameProperty::StaticClass(),
+			FStrProperty::StaticClass(),
+			FArrayProperty::StaticClass(),
+			FTextProperty::StaticClass(),
+			FStructProperty::StaticClass(),
+			FDelegateProperty::StaticClass(),
 			UInterface::StaticClass(),
-			UMulticastDelegateProperty::StaticClass(),
-			UWeakObjectProperty::StaticClass(),
-			UObjectPropertyBase::StaticClass(),
-			ULazyObjectProperty::StaticClass(),
-			USoftObjectProperty::StaticClass(),
-			USoftClassProperty::StaticClass(),
-			UMapProperty::StaticClass(),
-			USetProperty::StaticClass(),
-			UEnumProperty::StaticClass()
+			FMulticastDelegateProperty::StaticClass(),
+			FWeakObjectProperty::StaticClass(),
+			FObjectPropertyBase::StaticClass(),
+			FLazyObjectProperty::StaticClass(),
+			FSoftObjectProperty::StaticClass(),
+			FSoftClassProperty::StaticClass(),
+			FMapProperty::StaticClass(),
+			FSetProperty::StaticClass(),
+			FEnumProperty::StaticClass()
 		};
 
 		for (UClass* CoreClass : CoreClassList)
@@ -2253,7 +2229,8 @@ public:
 				// of exports before the class, so that when CreateExport is called for this object reference we don't have to seek.
 				// Note that in the non-UField case, we don't actually need the object itself to appear before the referencing object/class because it won't
 				// be force-loaded (thus we don't need to add the referenced object to the ReferencedObject list)
-				if (dynamic_cast<UField*>(Object))
+
+				if (Cast<UField>(Object))
 				{
 					// when field processing is enabled, ignore any referenced classes since a class's class and CDO are both intrinsic and
 					// attempting to deal with them here will only cause problems
@@ -2268,27 +2245,10 @@ public:
 							}
 							else
 							{
-								// byte properties that are enum references need their enums loaded first so that config importing works
+								// properties that are enum references need their enums loaded first so that config importing works
+								if (UEnum* Enum = Cast<UEnum>(Object))
 								{
-									UEnum* Enum = nullptr;
-
-									if (UEnumProperty* EnumProp = dynamic_cast<UEnumProperty*>(Object))
-									{
-										Enum = EnumProp->GetEnum();
-									}
-									else
-									{
-								UByteProperty* ByteProp = dynamic_cast<UByteProperty*>(Object);
-										if (ByteProp && ByteProp->Enum)
-										{
-											Enum = ByteProp->Enum;
-										}
-									}
-
-									if (Enum)
-								{
-										HandleDependency(Enum, /*bProcessObject =*/true);
-								}
+									HandleDependency(Enum, /*bProcessObject =*/true);
 								}
 
 								// a normal field - property, enum, const; just insert it into the list and keep going
@@ -2879,14 +2839,14 @@ static bool ValidateConformCompatibility(UPackage* NewPackage, FLinkerLoad* OldL
 				UClass* NewClass = FindObjectFast<UClass>(NewPackage, OldClass->GetFName(), true, false);
 				if (NewClass != nullptr)
 				{
-					for (TFieldIterator<UField> OldFieldIt(OldClass,EFieldIteratorFlags::ExcludeSuper); OldFieldIt; ++OldFieldIt)
+					for (TFieldIterator<FField> OldFieldIt(OldClass, EFieldIteratorFlags::ExcludeSuper); OldFieldIt; ++OldFieldIt)
 					{
-						for (TFieldIterator<UField> NewFieldIt(NewClass,EFieldIteratorFlags::ExcludeSuper); NewFieldIt; ++NewFieldIt)
+						for (TFieldIterator<FField> NewFieldIt(NewClass, EFieldIteratorFlags::ExcludeSuper); NewFieldIt; ++NewFieldIt)
 						{
 							if (OldFieldIt->GetFName() == NewFieldIt->GetFName())
 							{
-								UProperty* OldProp = dynamic_cast<UProperty*>(*OldFieldIt);
-								UProperty* NewProp = dynamic_cast<UProperty*>(*NewFieldIt);
+								FProperty* OldProp = CastField<FProperty>(*OldFieldIt);
+								FProperty* NewProp = CastField<FProperty>(*NewFieldIt);
 								if (OldProp != nullptr && NewProp != nullptr)
 								{
 									if ((OldProp->PropertyFlags & CPF_Net) != (NewProp->PropertyFlags & CPF_Net))
@@ -2895,17 +2855,24 @@ static bool ValidateConformCompatibility(UPackage* NewPackage, FLinkerLoad* OldL
 										bHadCompatibilityErrors = true;
 									}
 								}
-								else
+							}
+						}
+					}
+
+					for (TFieldIterator<UField> OldFieldIt(OldClass,EFieldIteratorFlags::ExcludeSuper); OldFieldIt; ++OldFieldIt)
+					{
+						for (TFieldIterator<UField> NewFieldIt(NewClass,EFieldIteratorFlags::ExcludeSuper); NewFieldIt; ++NewFieldIt)
+						{
+							if (OldFieldIt->GetFName() == NewFieldIt->GetFName())
+							{
+								UFunction* OldFunc = dynamic_cast<UFunction*>(*OldFieldIt);
+								UFunction* NewFunc = dynamic_cast<UFunction*>(*NewFieldIt);
+								if (OldFunc != nullptr && NewFunc != nullptr)
 								{
-									UFunction* OldFunc = dynamic_cast<UFunction*>(*OldFieldIt);
-									UFunction* NewFunc = dynamic_cast<UFunction*>(*NewFieldIt);
-									if (OldFunc != nullptr && NewFunc != nullptr)
+									if ((OldFunc->FunctionFlags & (FUNC_Net | FUNC_NetServer | FUNC_NetClient)) != (NewFunc->FunctionFlags & (FUNC_Net | FUNC_NetServer | FUNC_NetClient)))
 									{
-										if ((OldFunc->FunctionFlags & (FUNC_Net | FUNC_NetServer | FUNC_NetClient)) != (NewFunc->FunctionFlags & (FUNC_Net | FUNC_NetServer | FUNC_NetClient)))
-										{
-											Error->Logf(ELogVerbosity::Error, TEXT("Network flag mismatch for function %s"), *NewFunc->GetPathName());
-											bHadCompatibilityErrors = true;
-										}
+										Error->Logf(ELogVerbosity::Error, TEXT("Network flag mismatch for function %s"), *NewFunc->GetPathName());
+										bHadCompatibilityErrors = true;
 									}
 								}
 							}
@@ -4020,8 +3987,8 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							{
 								auto DumpPropertiesToText = [](UObject* Object)
 								{
-									TArray<TTuple<UProperty*, FString>> Result;
-									for (UProperty* Prop : TFieldRange<UProperty>(Object->GetClass()))
+									TArray<TTuple<FProperty*, FString>> Result;
+									for (FProperty* Prop : TFieldRange<FProperty>(Object->GetClass()))
 									{
 										FString PropState;
 										const void* PropAddr = Prop->ContainerPtrToValuePtr<void>(Object);
@@ -4032,14 +3999,14 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 									return Result;
 								};
 
-								TArray<TTuple<UProperty*, FString>> TemplateOutput = DumpPropertiesToText(Template);
-								TArray<TTuple<UProperty*, FString>> ObjOutput      = DumpPropertiesToText(Obj);
+								TArray<TTuple<FProperty*, FString>> TemplateOutput = DumpPropertiesToText(Template);
+								TArray<TTuple<FProperty*, FString>> ObjOutput      = DumpPropertiesToText(Obj);
 
-								FString TemplateText = FString::JoinBy(TemplateOutput, TEXT("\n"), [](const TTuple<UProperty*, FString>& PropValue)
+								FString TemplateText = FString::JoinBy(TemplateOutput, TEXT("\n"), [](const TTuple<FProperty*, FString>& PropValue)
 								{
 									return FString::Printf(TEXT("  %s: %s"), *PropValue.Get<0>()->GetName(), *PropValue.Get<1>());
 								});
-								FString ObjText = FString::JoinBy(ObjOutput, TEXT("\n"), [](const TTuple<UProperty*, FString>& PropValue)
+								FString ObjText = FString::JoinBy(ObjOutput, TEXT("\n"), [](const TTuple<FProperty*, FString>& PropValue)
 								{
 									return FString::Printf(TEXT("  %s: %s"), *PropValue.Get<0>()->GetName(), *PropValue.Get<1>());
 								});
@@ -4242,7 +4209,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				if (IllegalObjectsInOtherMaps.Num() )
 				{
 					UObject* MostLikelyCulprit = nullptr;
-					const UProperty* PropertyRef = nullptr;
+					const FProperty* PropertyRef = nullptr;
 
 					// construct a string containing up to the first 5 objects problem objects
 					FString ObjectNames;
@@ -4299,7 +4266,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				if (PrivateObjects.Num())
 				{
 					UObject* MostLikelyCulprit = nullptr;
-					const UProperty* PropertyRef = nullptr;
+					const FProperty* PropertyRef = nullptr;
 					
 					// construct a string containing up to the first 5 objects problem objects
 					FString ObjectNames;

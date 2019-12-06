@@ -125,11 +125,11 @@ public:
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Asset Registry", DisplayName = "Metadata Tags For Asset Registry")
 	TSet<FName> MetaDataTagsForAssetRegistry;
 
-	virtual void PostReloadConfig(class UProperty* PropertyThatWasLoaded) override;
+	virtual void PostReloadConfig(class FProperty* PropertyThatWasLoaded) override;
 
 #if WITH_EDITOR
 	virtual void PostInitProperties() override;
-	virtual void PreEditChange(UProperty* PropertyAboutToChange) override;
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 private:

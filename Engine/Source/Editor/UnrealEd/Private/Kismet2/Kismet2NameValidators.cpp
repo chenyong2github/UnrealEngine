@@ -183,7 +183,7 @@ EValidatorResult FKismetNameValidator::IsValid(const FName& Name, bool /* bOrigi
 			}
 			else
 			{
-				if(FindField<const UProperty>(Scope, *Name.ToString()) != NULL)
+				if(FindField<const FProperty>(Scope, *Name.ToString()) != NULL)
 				{
 					ValidatorResult = EValidatorResult::LocallyInUse;
 				}

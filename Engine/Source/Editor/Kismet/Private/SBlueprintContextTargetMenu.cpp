@@ -170,9 +170,9 @@ static UClass* ContextMenuTargetProfileImpl::GetPinClass(UEdGraphPin const* Pin)
 //------------------------------------------------------------------------------
 static bool ContextMenuTargetProfileImpl::HasAnyExposedComponents(UClass* TargetClass)
 {
-	for (TFieldIterator<UObjectProperty> PropertyIt(TargetClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<FObjectProperty> PropertyIt(TargetClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 	{
-		UObjectProperty* ObjectProperty = *PropertyIt;
+		FObjectProperty* ObjectProperty = *PropertyIt;
 		if (!ObjectProperty->HasAnyPropertyFlags(CPF_BlueprintVisible) || !ObjectProperty->PropertyClass->IsChildOf<UActorComponent>())
 		{
 			continue;

@@ -33,9 +33,9 @@ public:
 		return bJSBindingToLoweringEnabled ? Name.ToLower() : Name;
 	}
 
-	FString GetBindingName(const UField* Property) const
+	FString GetBindingName(const FFieldVariant& Property) const
 	{
-		return bJSBindingToLoweringEnabled ? Property->GetName().ToLower() : Property->GetName();
+		return bJSBindingToLoweringEnabled ? Property.GetName().ToLower() : Property.GetName();
 	}
 
 public:

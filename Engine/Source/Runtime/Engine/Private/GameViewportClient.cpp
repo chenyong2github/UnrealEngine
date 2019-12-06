@@ -3452,7 +3452,7 @@ bool UGameViewportClient::HandleDisplayCommand( const TCHAR* Cmd, FOutputDevice&
 		if (Obj != nullptr)
 		{
 			FName PropertyName(PropStr, FNAME_Find);
-			if (PropertyName != NAME_None && FindField<UProperty>(Obj->GetClass(), PropertyName) != nullptr)
+			if (PropertyName != NAME_None && FindField<FProperty>(Obj->GetClass(), PropertyName) != nullptr)
 			{
 				AddDebugDisplayProperty(Obj, nullptr, PropertyName);
 			}
@@ -3504,7 +3504,7 @@ bool UGameViewportClient::HandleDisplayAllCommand( const TCHAR* Cmd, FOutputDevi
 			if (Cls != nullptr)
 			{
 				FName PropertyName(PropStr, FNAME_Find);
-				UProperty* Prop = PropertyName != NAME_None ? FindField<UProperty>(Cls, PropertyName) : nullptr;
+				FProperty* Prop = PropertyName != NAME_None ? FindField<FProperty>(Cls, PropertyName) : nullptr;
 				{
 					// add all un-GCable things immediately as that list is static
 					// so then we only have to iterate over dynamic things each frame

@@ -126,7 +126,7 @@ void UTransformMeshesTool::Render(IToolsContextRenderAPI* RenderAPI)
 	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 }
 
-void UTransformMeshesTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UTransformMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 }
 

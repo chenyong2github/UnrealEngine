@@ -488,7 +488,7 @@ TArray<TWeakObjectPtr<UObject>> FAssetRenameManager::FindCDOReferencedAssets(con
 			continue;
 		}
 
-		for (TFieldIterator<UObjectProperty> PropertyIt(Cls); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<FObjectProperty> PropertyIt(Cls); PropertyIt; ++PropertyIt)
 		{
 			const UObject* Object = PropertyIt->GetPropertyValue(PropertyIt->ContainerPtrToValuePtr<UObject>(CDO));
 			for (const TWeakObjectPtr<UObject> Asset : LocalAssetsToRename)
@@ -548,7 +548,7 @@ void FAssetRenameManager::PopulateAssetReferencers(TArray<FAssetRenameDataWithRe
 		if (!ReferencersMap.Contains(OldPackageName))
 		{
 			TArray<FName>& Referencers = ReferencersMap.Add(OldPackageName);
-			AssetRegistryModule.Get().GetReferencers(OldPackageName, Referencers, AssetToRename.bOnlyFixSoftReferences ? EAssetRegistryDependencyType::Soft : EAssetRegistryDependencyType::Packages);
+		AssetRegistryModule.Get().GetReferencers(OldPackageName, Referencers, AssetToRename.bOnlyFixSoftReferences ? EAssetRegistryDependencyType::Soft : EAssetRegistryDependencyType::Packages);
 		}
 
 		for (const FName& ReferencingPackageName : ReferencersMap.FindChecked(OldPackageName))
@@ -988,30 +988,30 @@ struct FSoftObjectPathRenameSerializer : public FArchiveUObject
 		UPackage::PackageMarkedDirtyEvent.Remove(DirtyDelegateHandle);
 	}
 
-	virtual bool ShouldSkipProperty(const UProperty* InProperty) const override
+	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
 	{
 		if (InProperty->HasAnyPropertyFlags(CPF_Transient | CPF_Deprecated | CPF_IsPlainOldData))
 		{
 			return true;
 		}
 
-		const UClass* PropertyClass = InProperty->GetClass();
-		if (PropertyClass->HasAnyCastFlag(CASTCLASS_UBoolProperty | CASTCLASS_UNameProperty | CASTCLASS_UStrProperty | CASTCLASS_UTextProperty | CASTCLASS_UMulticastDelegateProperty))
+		FFieldClass* PropertyClass = InProperty->GetClass();
+		if (PropertyClass->GetCastFlags() & (CASTCLASS_FBoolProperty | CASTCLASS_FNameProperty | CASTCLASS_FStrProperty | CASTCLASS_FTextProperty | CASTCLASS_FMulticastDelegateProperty))
 		{
 			return true;
 		}
 
-		if (PropertyClass->HasAnyCastFlag(CASTCLASS_UArrayProperty | CASTCLASS_UMapProperty | CASTCLASS_USetProperty))
+		if (PropertyClass->GetCastFlags() & (CASTCLASS_FArrayProperty | CASTCLASS_FMapProperty | CASTCLASS_FSetProperty))
 		{
-			if (const UArrayProperty* ArrayProperty = ExactCast<UArrayProperty>(InProperty))
+			if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InProperty))
 			{
 				return ShouldSkipProperty(ArrayProperty->Inner);
 			}
-			else if (const UMapProperty* MapProperty = ExactCast<UMapProperty>(InProperty))
+			else if (const FMapProperty* MapProperty = CastField<FMapProperty>(InProperty))
 			{
 				return ShouldSkipProperty(MapProperty->KeyProp) && ShouldSkipProperty(MapProperty->ValueProp);
 			}
-			else if (const USetProperty* SetProperty = ExactCast<USetProperty>(InProperty))
+			else if (const FSetProperty* SetProperty = CastField<FSetProperty>(InProperty))
 			{
 				return ShouldSkipProperty(SetProperty->ElementProp);
 			}

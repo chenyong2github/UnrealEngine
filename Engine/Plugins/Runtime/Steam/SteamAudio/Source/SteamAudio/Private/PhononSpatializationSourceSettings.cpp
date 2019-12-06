@@ -10,7 +10,7 @@ UPhononSpatializationSourceSettings::UPhononSpatializationSourceSettings()
 {}
 
 #if WITH_EDITOR
-bool UPhononSpatializationSourceSettings::CanEditChange(const UProperty* InProperty) const
+bool UPhononSpatializationSourceSettings::CanEditChange(const FProperty* InProperty) const
 {
 	const bool ParentVal = Super::CanEditChange(InProperty);
 

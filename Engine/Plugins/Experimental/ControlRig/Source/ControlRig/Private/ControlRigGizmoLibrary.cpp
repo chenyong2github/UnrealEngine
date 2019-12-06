@@ -15,7 +15,7 @@ void UControlRigGizmoLibrary::PostEditChangeChainProperty(struct FPropertyChange
 {
 	if (PropertyChangedEvent.Property->GetName() == TEXT("GizmoName"))
 	{
-		UProperty* MemberProperty = PropertyChangedEvent.PropertyChain.GetHead()->GetValue();
+		FProperty* MemberProperty = PropertyChangedEvent.PropertyChain.GetHead()->GetValue();
 		if (MemberProperty->GetName() == TEXT("DefaultGizmo"))
 		{
 			DefaultGizmo.GizmoName = TEXT("Gizmo");

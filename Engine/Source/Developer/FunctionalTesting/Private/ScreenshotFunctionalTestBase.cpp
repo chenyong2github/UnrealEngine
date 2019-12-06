@@ -202,7 +202,7 @@ void AScreenshotFunctionalTestBase::RestoreViewSettings()
 
 #if WITH_EDITOR
 
-bool AScreenshotFunctionalTestBase::CanEditChange(const UProperty* InProperty) const
+bool AScreenshotFunctionalTestBase::CanEditChange(const FProperty* InProperty) const
 {
 	bool bIsEditable = Super::CanEditChange(InProperty);
 	if (bIsEditable && InProperty)

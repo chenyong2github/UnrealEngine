@@ -872,7 +872,7 @@ UPythonGeneratedEnum* UPythonGeneratedEnum::GenerateEnum(PyTypeObject* InPyType)
 				}
 			}
 
-			if (PyObject_IsInstance(FieldValue, (PyObject*)&PyUPropertyDefType) == 1)
+			if (PyObject_IsInstance(FieldValue, (PyObject*)&PyFPropertyDefType) == 1)
 			{
 				// Properties are not supported on enums
 				PyUtil::SetPythonError(PyExc_Exception, InPyType, TEXT("Enums do not support properties"));

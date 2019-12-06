@@ -9,20 +9,20 @@ UVisibilityBinding::UVisibilityBinding()
 {
 }
 
-bool UVisibilityBinding::IsSupportedSource(UProperty* Property) const
+bool UVisibilityBinding::IsSupportedSource(FProperty* Property) const
 {
 	return IsSupportedDestination(Property);
 }
 
-bool UVisibilityBinding::IsSupportedDestination(UProperty* Property) const
+bool UVisibilityBinding::IsSupportedDestination(FProperty* Property) const
 {
 	static const FName VisibilityEnum(TEXT("ESlateVisibility"));
 
-	if ( UEnumProperty* EnumProperty = Cast<UEnumProperty>(Property) )
+	if ( FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property) )
 	{
 		return EnumProperty->GetEnum()->GetFName() == VisibilityEnum;
 	}
-	else if ( UByteProperty* ByteProperty = Cast<UByteProperty>(Property) )
+	else if ( FByteProperty* ByteProperty = CastField<FByteProperty>(Property) )
 	{
 		if ( ByteProperty->IsEnum() )
 		{

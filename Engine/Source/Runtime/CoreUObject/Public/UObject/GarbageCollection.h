@@ -49,6 +49,8 @@ enum EGCReferenceType
 	GCRT_AddReferencedObjects,
 	GCRT_AddTMapReferencedObjects,
 	GCRT_AddTSetReferencedObjects,
+	GCRT_AddFieldPathReferencedObject,
+	GCRT_ArrayAddFieldPathReferencedObject,
 	GCRT_EndOfPointer,
 	GCRT_EndOfStream,
 	GCRT_NoopPersistentObject,
@@ -72,7 +74,7 @@ struct FGCReferenceInfo
 	,	Offset( InOffset )	
 	{
 		check( InType != GCRT_None );
-		check( (InOffset & ~0xFFFFF) == 0 );
+		check( (InOffset & ~0x7FFFF) == 0 );
 	}
 	/**
 	 * Constructor
@@ -101,9 +103,9 @@ struct FGCReferenceInfo
 			/** Return depth, e.g. 1 for last entry in an array, 2 for last entry in an array of structs of arrays, ... */
 			uint32 ReturnCount	: 8;
 			/** Type of reference */
-			uint32 Type			: 4;
+			uint32 Type			: 5;
 			/** Offset into struct/ object */
-			uint32 Offset		: 20;
+			uint32 Offset		: 19;
 		};
 		/** uint32 value of reference info, used for easy conversion to/ from uint32 for token array */
 		uint32 Value;
@@ -447,9 +449,9 @@ public:
 
 	FGCCollector(FGCReferenceProcessor<bParallel, bWithClusters>& InProcessor, FGCArrayStruct& InObjectArrayStruct);
 
-	virtual void HandleObjectReference(UObject*& InObject, const UObject* InReferencingObject, const UProperty* InReferencingProperty) override;
+	virtual void HandleObjectReference(UObject*& InObject, const UObject* InReferencingObject, const FProperty* InReferencingProperty) override;
 
-	virtual void HandleObjectReferences(UObject** InObjects, const int32 ObjectNum, const UObject* InReferencingObject, const UProperty* InReferencingProperty) override;
+	virtual void HandleObjectReferences(UObject** InObjects, const int32 ObjectNum, const UObject* InReferencingObject, const FProperty* InReferencingProperty) override;
 
 	virtual bool IsIgnoringArchetypeRef() const override
 	{
@@ -471,7 +473,7 @@ public:
 	}
 private:
 
-	FORCEINLINE void InternalHandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const UProperty* ReferencingProperty);
+	FORCEINLINE void InternalHandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const FProperty* ReferencingProperty);
 };
 
 /**

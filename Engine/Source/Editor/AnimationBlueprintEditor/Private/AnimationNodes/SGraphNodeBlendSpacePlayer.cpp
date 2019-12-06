@@ -68,7 +68,7 @@ EVisibility SGraphNodeBlendSpacePlayer::GetBlendSpaceVisibility() const
 {
 	if (UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(GraphNode))
 	{
-		if (UProperty* Property = FKismetDebugUtilities::FindClassPropertyForNode(Blueprint, GraphNode))
+		if (FProperty* Property = FKismetDebugUtilities::FindClassPropertyForNode(Blueprint, GraphNode))
 		{
 			if (UObject* ActiveObject = Blueprint->GetObjectBeingDebugged())
 			{

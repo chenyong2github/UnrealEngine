@@ -95,7 +95,7 @@ struct FObjectDuplicationParameters
 
 	/**
 	 * A bitmask of EInternalObjectFlags to propagate to the duplicate of SourceObject (and its subobjects).
-	 */
+	*/
 	EInternalObjectFlags InternalFlagMask;
 
 	/**
@@ -107,9 +107,9 @@ struct FObjectDuplicationParameters
 
 	/**
 	 * A bitmask of EInternalObjectFlags to set on each duplicate object created.  Different from FlagMask in that only the bits
-	 * from FlagMask which are also set on the source object will be set on the duplicate, while the flags in this value
-	 * will always be set.
-	 */
+	* from FlagMask which are also set on the source object will be set on the duplicate, while the flags in this value
+	* will always be set.
+	*/
 	EInternalObjectFlags	ApplyInternalFlags;
 
 	/**
@@ -203,7 +203,7 @@ COREUOBJECT_API int32 UpdateSuffixForNextNewObject(UObject* Parent, const UClass
  * @param	ExactClass		Whether to require an exact match with the passed in class
  * @param	AnyPackage		Whether to look in any package
  * @param	ExclusiveFlags	Ignores objects that contain any of the specified exclusive flags
- * @param	ExclusiveInternalFlags  Ignores objects that contain any of the specified internal exclusive flags
+ * @param ExclusiveInternalFlags  Ignores objects that contain any of the specified internal exclusive flags
  *
  * @return	Returns a pointer to the found object or null if none could be found
  */
@@ -231,11 +231,11 @@ COREUOBJECT_API UObject* StaticFindObjectSafe( UClass* Class, UObject* InOuter, 
 /**
  * Parse a reference to an object from a text representation
  *
- * @param Stream			String containing text to parse
+ * @param Stream		String containing text to parse
  * @param Match				Tag to search for object representation within string
- * @param Class				The class of the object to be loaded.
+ * @param Class			The class of the object to be loaded.
  * @param DestRes			Returned object pointer
- * @param InParent			Outer to search
+ * @param InParent		Outer to search
  * @param bInvalidObject	[opt] Optional output.  If true, Tag was matched but the specified object wasn't found.
  *
  * @return True if the object parsed successfully, even if object was not found
@@ -603,7 +603,7 @@ COREUOBJECT_API UPackage* FindPackage(UObject* InOuter, const TCHAR* PackageName
 COREUOBJECT_API UPackage* CreatePackage( UObject* InOuter, const TCHAR* PackageName );
 
 /** Internal function used to set a specific property value from debug/console code */
-void GlobalSetProperty( const TCHAR* Value, UClass* Class, UProperty* Property, bool bNotifyObjectOfChange );
+void GlobalSetProperty( const TCHAR* Value, UClass* Class, FProperty* Property, bool bNotifyObjectOfChange );
 
 /**
  * Save a copy of this object into the transaction buffer if we are currently recording into
@@ -628,7 +628,7 @@ COREUOBJECT_API bool SaveToTransactionBuffer(UObject* Object, bool bMarkDirty);
  * @param	Properties	optional list of properties that have potentially changed on the object (to avoid snapshotting the entire object).
  */
 COREUOBJECT_API void SnapshotTransactionBuffer(UObject* Object);
-COREUOBJECT_API void SnapshotTransactionBuffer(UObject* Object, TArrayView<const UProperty*> Properties);
+COREUOBJECT_API void SnapshotTransactionBuffer(UObject* Object, TArrayView<const FProperty*> Properties);
 
 /**
  * Check for StaticAllocateObject error; only for use with the editor, make or other commandlets.
@@ -1012,7 +1012,7 @@ private:
 	 * @param	Data				Default data
 	 * @return	Returns true if that property was a non-native one, otherwise false
 	 */
-	static bool InitNonNativeProperty(UProperty* Property, UObject* Data);
+	static bool InitNonNativeProperty(FProperty* Property, UObject* Data);
 	
 	/**
 	 * Finalizes a constructed UObject by initializing properties, 
@@ -1653,12 +1653,12 @@ class COREUOBJECT_API FVerySlowReferenceCollectorArchiveScope
 {	
 	FReferenceCollectorArchive& Archive;
 	const UObject* OldSerializingObject;
-	UProperty* OldSerializedProperty;
+	FProperty* OldSerializedProperty;
 	const UObject* OldSerializedDataContainer;
 	const void* OldSerializedDataPtr;
 
 public:
-	FVerySlowReferenceCollectorArchiveScope(FReferenceCollectorArchive& InArchive, const UObject* InSerializingObject, UProperty* InSerializedProperty = nullptr, const UObject* InSerializedDataContainer = nullptr, const void* InSerializedDataPtr = nullptr)
+	FVerySlowReferenceCollectorArchiveScope(FReferenceCollectorArchive& InArchive, const UObject* InSerializingObject, FProperty* InSerializedProperty = nullptr, const UObject* InSerializedDataContainer = nullptr, const void* InSerializedDataPtr = nullptr)
 		: Archive(InArchive)
 		, OldSerializingObject(InArchive.GetSerializingObject())
 		, OldSerializedProperty(InArchive.GetSerializedProperty())
@@ -1702,7 +1702,7 @@ public:
 	 * @param ReferencingProperty Referencing property (if available).
 	 */
 	template<class UObjectType>
-	void AddReferencedObject(UObjectType*& Object, const UObject* ReferencingObject = nullptr, const UProperty* ReferencingProperty = nullptr)
+	void AddReferencedObject(UObjectType*& Object, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr)
 	{
 		// @todo: should be uncommented when proper usage is fixed everywhere
 		// static_assert(sizeof(UObjectType) > 0, "AddReferencedObject: Element must be a pointer to a fully-defined type");
@@ -1718,7 +1718,7 @@ public:
 	 * @param ReferencingProperty Referencing property (if available).
 	 */
 	template<class UObjectType>
-	void AddReferencedObject(const UObjectType*& Object, const UObject* ReferencingObject = nullptr, const UProperty* ReferencingProperty = nullptr)
+	void AddReferencedObject(const UObjectType*& Object, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr)
 	{
 		// @todo: should be uncommented when proper usage is fixed everywhere
 		// static_assert(sizeof(UObjectType) > 0, "AddReferencedObject: Element must be a pointer to a fully-defined type");
@@ -1734,7 +1734,7 @@ public:
 	* @param ReferencingProperty Referencing property (if available).
 	*/
 	template<class UObjectType>
-	void AddReferencedObjects(TArray<UObjectType*>& ObjectArray, const UObject* ReferencingObject = nullptr, const UProperty* ReferencingProperty = nullptr)
+	void AddReferencedObjects(TArray<UObjectType*>& ObjectArray, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr)
 	{
 		static_assert(sizeof(UObjectType) > 0, "AddReferencedObjects: Elements must be pointers to a fully-defined type");
 		static_assert(TPointerIsConvertibleFromTo<UObjectType, const UObjectBase>::Value, "AddReferencedObjects: Elements must be pointers to a type derived from UObject");
@@ -1749,7 +1749,7 @@ public:
 	* @param ReferencingProperty Referencing property (if available).
 	*/
 	template<class UObjectType>
-	void AddReferencedObjects(TArray<const UObjectType*>& ObjectArray, const UObject* ReferencingObject = nullptr, const UProperty* ReferencingProperty = nullptr)
+	void AddReferencedObjects(TArray<const UObjectType*>& ObjectArray, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr)
 	{
 		static_assert(sizeof(UObjectType) > 0, "AddReferencedObjects: Elements must be pointers to a fully-defined type");
 		static_assert(TPointerIsConvertibleFromTo<UObjectType, const UObjectBase>::Value, "AddReferencedObjects: Elements must be pointers to a type derived from UObject");
@@ -1764,7 +1764,7 @@ public:
 	* @param ReferencingProperty Referencing property (if available).
 	*/
 	template<class UObjectType>
-	void AddReferencedObjects(TSet<UObjectType*>& ObjectSet, const UObject* ReferencingObject = nullptr, const UProperty* ReferencingProperty = nullptr)
+	void AddReferencedObjects(TSet<UObjectType*>& ObjectSet, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr)
 	{
 		static_assert(sizeof(UObjectType) > 0, "AddReferencedObjects: Elements must be pointers to a fully-defined type");
 		static_assert(TPointerIsConvertibleFromTo<UObjectType, const UObjectBase>::Value, "AddReferencedObjects: Elements must be pointers to a type derived from UObject");
@@ -1782,7 +1782,7 @@ public:
 	 * @param ReferencingProperty Referencing property (if available).
 	 */
 	template <typename KeyType, typename ValueType, typename Allocator, typename KeyFuncs>
-	void AddReferencedObjects(TMapBase<KeyType*, ValueType, Allocator, KeyFuncs>& Map, const UObject* ReferencingObject = nullptr, const UProperty* ReferencingProperty = nullptr)
+	void AddReferencedObjects(TMapBase<KeyType*, ValueType, Allocator, KeyFuncs>& Map, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr)
 	{
 		static_assert(sizeof(KeyType) > 0, "AddReferencedObjects: Keys must be pointers to a fully-defined type");
 		static_assert(TPointerIsConvertibleFromTo<KeyType, const UObjectBase>::Value, "AddReferencedObjects: Keys must be pointers to a type derived from UObject");
@@ -1792,7 +1792,7 @@ public:
 		}
 	}
 	template <typename KeyType, typename ValueType, typename Allocator, typename KeyFuncs>
-	void AddReferencedObjects(TMapBase<KeyType, ValueType*, Allocator, KeyFuncs>& Map, const UObject* ReferencingObject = nullptr, const UProperty* ReferencingProperty = nullptr)
+	void AddReferencedObjects(TMapBase<KeyType, ValueType*, Allocator, KeyFuncs>& Map, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr)
 	{
 		static_assert(sizeof(ValueType) > 0, "AddReferencedObjects: Values must be pointers to a fully-defined type");
 		static_assert(TPointerIsConvertibleFromTo<ValueType, const UObjectBase>::Value, "AddReferencedObjects: Values must be pointers to a type derived from UObject");
@@ -1802,7 +1802,7 @@ public:
 		}
 	}
 	template <typename KeyType, typename ValueType, typename Allocator, typename KeyFuncs>
-	void AddReferencedObjects(TMapBase<KeyType*, ValueType*, Allocator, KeyFuncs>& Map, const UObject* ReferencingObject = nullptr, const UProperty* ReferencingProperty = nullptr)
+	void AddReferencedObjects(TMapBase<KeyType*, ValueType*, Allocator, KeyFuncs>& Map, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr)
 	{
 		static_assert(sizeof(KeyType) > 0, "AddReferencedObjects: Keys must be pointers to a fully-defined type");
 		static_assert(sizeof(ValueType) > 0, "AddReferencedObjects: Values must be pointers to a fully-defined type");
@@ -1830,11 +1830,11 @@ public:
 	/**
 	 * Sets the property that is currently being serialized
 	 */
-	virtual void SetSerializedProperty(class UProperty* Inproperty) {}
+	virtual void SetSerializedProperty(class FProperty* Inproperty) {}
 	/**
 	 * Gets the property that is currently being serialized
 	 */
-	virtual class UProperty* GetSerializedProperty() const { return nullptr; }
+	virtual class FProperty* GetSerializedProperty() const { return nullptr; }
 	/** 
 	 * Marks a specific object reference as a weak reference. This does not affect GC but will be freed at a later point
 	 * The default behavior returns false as weak references must be explicitly supported
@@ -1875,7 +1875,7 @@ protected:
 	 * @param ReferencingObject Referencing object (if available).
 	 * @param ReferencingProperty Referencing property (if available).
 	 */
-	virtual void HandleObjectReference(UObject*& InObject, const UObject* InReferencingObject, const UProperty* InReferencingProperty) = 0;
+	virtual void HandleObjectReference(UObject*& InObject, const UObject* InReferencingObject, const FProperty* InReferencingProperty) = 0;
 
 	/**
 	* Handle multiple object references. Called by AddReferencedObjects.
@@ -1885,7 +1885,7 @@ protected:
 	* @param ReferencingObject Referencing object (if available).
 	* @param ReferencingProperty Referencing property (if available).
 	*/
-	virtual void HandleObjectReferences(UObject** InObjects, const int32 ObjectNum, const UObject* InReferencingObject, const UProperty* InReferencingProperty)
+	virtual void HandleObjectReferences(UObject** InObjects, const int32 ObjectNum, const UObject* InReferencingObject, const FProperty* InReferencingProperty)
 	{
 		for (int32 ObjectIndex = 0; ObjectIndex < ObjectNum; ++ObjectIndex)
 		{
@@ -1936,17 +1936,17 @@ public:
 	 * @param ReferencingObject object that's referencing the current object.
 	 * @param ReferencingProperty property the current object is being referenced through.
 	 */
-	virtual void FindReferences(UObject* Object, UObject* ReferencingObject = nullptr, UProperty* ReferencingProperty = nullptr);
+	virtual void FindReferences(UObject* Object, UObject* ReferencingObject = nullptr, FProperty* ReferencingProperty = nullptr);
 
 	// FReferenceCollector interface.
-	virtual void HandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const UProperty* InReferencingProperty) override;
+	virtual void HandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const FProperty* InReferencingProperty) override;
 	virtual bool IsIgnoringArchetypeRef() const override { return bShouldIgnoreArchetype; }
 	virtual bool IsIgnoringTransient() const override { return bShouldIgnoreTransient; }
-	virtual void SetSerializedProperty(class UProperty* Inproperty) override
+	virtual void SetSerializedProperty(class FProperty* Inproperty) override
 	{
 		SerializedProperty = Inproperty;
 	}
-	virtual class UProperty* GetSerializedProperty() const override
+	virtual class FProperty* GetSerializedProperty() const override
 	{
 		return SerializedProperty;
 	}
@@ -1959,7 +1959,7 @@ protected:
 	/** Only objects within this outer will be considered, nullptr value indicates that outers are disregarded. */
 	UObject*		LimitOuter;
 	/** Property that is referencing the current object */
-	class UProperty* SerializedProperty;
+	class FProperty* SerializedProperty;
 	/** Determines whether nested objects contained within LimitOuter are considered. */
 	bool			bRequireDirectOuter;
 	/** Determines whether archetype references are considered. */
@@ -2223,6 +2223,7 @@ COREUOBJECT_API bool IsEditorOnlyObject(const UObject* InObject, bool bCheckRecu
 
 struct FClassFunctionLinkInfo;
 struct FCppClassTypeInfoStatic;
+class FFieldClass;
 
 /// @cond DOXYGEN_IGNORE
 namespace UE4CodeGen_Private
@@ -2263,6 +2264,7 @@ namespace UE4CodeGen_Private
 		SparseMulticastDelegate = 0x1C,
 		Text              = 0x1D,
 		Enum              = 0x1E,
+		FieldPath         = 0x1F,
 
 		// Property-specific flags
 		NativeBool        = 0x20
@@ -2289,207 +2291,223 @@ namespace UE4CodeGen_Private
 
 	struct FEnumeratorParam
 	{
-		const char* NameUTF8;
-		int64       Value;
+		const char*               NameUTF8;
+		int64                     Value;
 	};
 
 	// This is not a base class but is just a common initial sequence of all of the F*PropertyParams types below.
 	// We don't want to use actual inheritance because we want to construct aggregated compile-time tables of these things.
 	struct FPropertyParamsBase
 	{
-		const char*       NameUTF8;
+		const char*    NameUTF8;
 		const char*       RepNotifyFuncUTF8;
 		EPropertyFlags    PropertyFlags;
 		EPropertyGenFlags Flags;
-		EObjectFlags      ObjectFlags;
-		int32             ArrayDim;
+		EObjectFlags   ObjectFlags;
+		int32          ArrayDim;
 	};
 
 	struct FPropertyParamsBaseWithOffset // : FPropertyParamsBase
 	{
-		const char*       NameUTF8;
+		const char*    NameUTF8;
 		const char*       RepNotifyFuncUTF8;
 		EPropertyFlags    PropertyFlags;
 		EPropertyGenFlags Flags;
-		EObjectFlags      ObjectFlags;
-		int32             ArrayDim;
-		int32             Offset;
+		EObjectFlags   ObjectFlags;
+		int32          ArrayDim;
+		int32          Offset;
 	};
 
 	struct FGenericPropertyParams // : FPropertyParamsBaseWithOffset
 	{
-		const char*       NameUTF8;
+		const char*      NameUTF8;
 		const char*       RepNotifyFuncUTF8;
 		EPropertyFlags    PropertyFlags;
 		EPropertyGenFlags Flags;
-		EObjectFlags      ObjectFlags;
-		int32             ArrayDim;
-		int32             Offset;
+		EObjectFlags     ObjectFlags;
+		int32            ArrayDim;
+		int32            Offset;
 #if WITH_METADATA
-		const FMetaDataPairParam* MetaDataArray;
-		int32                     NumMetaData;
+		const FMetaDataPairParam*           MetaDataArray;
+		int32                               NumMetaData;
 #endif
 	};
 
 	struct FBytePropertyParams // : FPropertyParamsBaseWithOffset
 	{
-		const char*         NameUTF8;
+		const char*      NameUTF8;
 		const char*         RepNotifyFuncUTF8;
 		EPropertyFlags      PropertyFlags;
 		EPropertyGenFlags   Flags;
-		EObjectFlags        ObjectFlags;
-		int32               ArrayDim;
-		int32               Offset;
-		UEnum*            (*EnumFunc)();
+		EObjectFlags     ObjectFlags;
+		int32            ArrayDim;
+		int32            Offset;
+		UEnum*         (*EnumFunc)();
 #if WITH_METADATA
-		const FMetaDataPairParam* MetaDataArray;
-		int32                     NumMetaData;
+		const FMetaDataPairParam*           MetaDataArray;
+		int32                               NumMetaData;
 #endif
 	};
 
 	struct FBoolPropertyParams // : FPropertyParamsBase
 	{
-		const char*         NameUTF8;
+		const char*      NameUTF8;
 		const char*         RepNotifyFuncUTF8;
 		EPropertyFlags      PropertyFlags;
 		EPropertyGenFlags   Flags;
-		EObjectFlags        ObjectFlags;
-		int32               ArrayDim;
-		uint32              ElementSize;
-		SIZE_T              SizeOfOuter;
-		void              (*SetBitFunc)(void* Obj);
+		EObjectFlags     ObjectFlags;
+		int32            ArrayDim;
+		uint32           ElementSize;
+		SIZE_T           SizeOfOuter;
+		void           (*SetBitFunc)(void* Obj);
 #if WITH_METADATA
-		const FMetaDataPairParam* MetaDataArray;
-		int32                     NumMetaData;
+		const FMetaDataPairParam*           MetaDataArray;
+		int32                               NumMetaData;
 #endif
 	};
 
 	struct FObjectPropertyParams // : FPropertyParamsBaseWithOffset
 	{
-		const char*         NameUTF8;
+		const char*      NameUTF8;
 		const char*         RepNotifyFuncUTF8;
 		EPropertyFlags      PropertyFlags;
 		EPropertyGenFlags   Flags;
-		EObjectFlags        ObjectFlags;
-		int32               ArrayDim;
-		int32               Offset;
-		UClass*          (*ClassFunc)();
+		EObjectFlags     ObjectFlags;
+		int32            ArrayDim;
+		int32            Offset;
+		UClass*        (*ClassFunc)();
 #if WITH_METADATA
-		const FMetaDataPairParam* MetaDataArray;
-		int32                     NumMetaData;
+		const FMetaDataPairParam*           MetaDataArray;
+		int32                               NumMetaData;
 #endif
 	};
 
 	struct FClassPropertyParams // : FPropertyParamsBaseWithOffset
 	{
-		const char*         NameUTF8;
+		const char*      NameUTF8;
 		const char*         RepNotifyFuncUTF8;
 		EPropertyFlags      PropertyFlags;
 		EPropertyGenFlags   Flags;
-		EObjectFlags        ObjectFlags;
-		int32               ArrayDim;
-		int32               Offset;
-		UClass*           (*MetaClassFunc)();
-		UClass*           (*ClassFunc)();
+		EObjectFlags     ObjectFlags;
+		int32            ArrayDim;
+		int32            Offset;
+		UClass*        (*MetaClassFunc)();
+		UClass*        (*ClassFunc)();
 #if WITH_METADATA
-		const FMetaDataPairParam* MetaDataArray;
-		int32                     NumMetaData;
+		const FMetaDataPairParam*           MetaDataArray;
+		int32                               NumMetaData;
 #endif
 	};
 
 	struct FSoftClassPropertyParams // : FPropertyParamsBaseWithOffset
 	{
-		const char*         NameUTF8;
+		const char*      NameUTF8;
 		const char*         RepNotifyFuncUTF8;
 		EPropertyFlags      PropertyFlags;
 		EPropertyGenFlags   Flags;
-		EObjectFlags        ObjectFlags;
-		int32               ArrayDim;
-		int32               Offset;
-		UClass*           (*MetaClassFunc)();
+		EObjectFlags     ObjectFlags;
+		int32            ArrayDim;
+		int32            Offset;
+		UClass*        (*MetaClassFunc)();
 #if WITH_METADATA
-		const FMetaDataPairParam* MetaDataArray;
-		int32                     NumMetaData;
+		const FMetaDataPairParam*           MetaDataArray;
+		int32                               NumMetaData;
 #endif
 	};
 
 	struct FInterfacePropertyParams // : FPropertyParamsBaseWithOffset
 	{
-		const char*         NameUTF8;
+		const char*      NameUTF8;
 		const char*         RepNotifyFuncUTF8;
 		EPropertyFlags      PropertyFlags;
 		EPropertyGenFlags   Flags;
-		EObjectFlags        ObjectFlags;
-		int32               ArrayDim;
-		int32               Offset;
-		UClass*           (*InterfaceClassFunc)();
+		EObjectFlags     ObjectFlags;
+		int32            ArrayDim;
+		int32            Offset;
+		UClass*        (*InterfaceClassFunc)();
 #if WITH_METADATA
-		const FMetaDataPairParam* MetaDataArray;
-		int32                     NumMetaData;
+		const FMetaDataPairParam*           MetaDataArray;
+		int32                               NumMetaData;
 #endif
 	};
 
 	struct FStructPropertyParams // : FPropertyParamsBaseWithOffset
 	{
-		const char*         NameUTF8;
+		const char*      NameUTF8;
 		const char*         RepNotifyFuncUTF8;
 		EPropertyFlags      PropertyFlags;
 		EPropertyGenFlags   Flags;
-		EObjectFlags        ObjectFlags;
-		int32               ArrayDim;
-		int32               Offset;
-		UScriptStruct*    (*ScriptStructFunc)();
+		EObjectFlags     ObjectFlags;
+		int32            ArrayDim;
+		int32            Offset;
+		UScriptStruct* (*ScriptStructFunc)();
 #if WITH_METADATA
-		const FMetaDataPairParam* MetaDataArray;
-		int32                     NumMetaData;
+		const FMetaDataPairParam*           MetaDataArray;
+		int32                               NumMetaData;
 #endif
 	};
 
 	struct FDelegatePropertyParams // : FPropertyParamsBaseWithOffset
 	{
-		const char*         NameUTF8;
+		const char*      NameUTF8;
 		const char*         RepNotifyFuncUTF8;
 		EPropertyFlags      PropertyFlags;
 		EPropertyGenFlags   Flags;
-		EObjectFlags        ObjectFlags;
-		int32               ArrayDim;
-		int32               Offset;
-		UFunction*        (*SignatureFunctionFunc)();
+		EObjectFlags     ObjectFlags;
+		int32            ArrayDim;
+		int32            Offset;
+		UFunction*     (*SignatureFunctionFunc)();
 #if WITH_METADATA
-		const FMetaDataPairParam* MetaDataArray;
-		int32                     NumMetaData;
+		const FMetaDataPairParam*           MetaDataArray;
+		int32                               NumMetaData;
 #endif
 	};
 
 	struct FMulticastDelegatePropertyParams // : FPropertyParamsBaseWithOffset
 	{
-		const char*         NameUTF8;
+		const char*      NameUTF8;
 		const char*         RepNotifyFuncUTF8;
 		EPropertyFlags      PropertyFlags;
 		EPropertyGenFlags   Flags;
-		EObjectFlags        ObjectFlags;
-		int32               ArrayDim;
-		int32               Offset;
-		UFunction*        (*SignatureFunctionFunc)();
+		EObjectFlags     ObjectFlags;
+		int32            ArrayDim;
+		int32            Offset;
+		UFunction*     (*SignatureFunctionFunc)();
 #if WITH_METADATA
-		const FMetaDataPairParam* MetaDataArray;
-		int32                     NumMetaData;
+		const FMetaDataPairParam*           MetaDataArray;
+		int32                               NumMetaData;
 #endif
 	};
 
 	struct FEnumPropertyParams // : FPropertyParamsBaseWithOffset
 	{
-		const char*        NameUTF8;
+		const char*      NameUTF8;
 		const char*        RepNotifyFuncUTF8;
 		EPropertyFlags     PropertyFlags;
 		EPropertyGenFlags  Flags;
-		EObjectFlags       ObjectFlags;
-		int32              ArrayDim;
-		int32              Offset;
-		UEnum*           (*EnumFunc)();
+		EObjectFlags     ObjectFlags;
+		int32            ArrayDim;
+		int32            Offset;
+		UEnum*         (*EnumFunc)();
 #if WITH_METADATA
-		const FMetaDataPairParam* MetaDataArray;
-		int32                     NumMetaData;
+		const FMetaDataPairParam*           MetaDataArray;
+		int32                               NumMetaData;
+#endif
+	};
+
+	struct FFieldPathPropertyParams // : FPropertyParamsBaseWithOffset
+	{
+		const char*      NameUTF8;
+		const char*        RepNotifyFuncUTF8;
+		EPropertyFlags     PropertyFlags;
+		EPropertyGenFlags  Flags;
+		EObjectFlags     ObjectFlags;
+		int32            ArrayDim;
+		int32            Offset;
+		FFieldClass*     (*PropertyClassFunc)();
+#if WITH_METADATA
+		const FMetaDataPairParam*           MetaDataArray;
+		int32                               NumMetaData;
 #endif
 	};
 
@@ -2498,11 +2516,11 @@ namespace UE4CodeGen_Private
 	typedef FGenericPropertyParams FInt16PropertyParams;
 	typedef FGenericPropertyParams FIntPropertyParams;
 	typedef FGenericPropertyParams FInt64PropertyParams;
-	typedef FGenericPropertyParams FUInt16PropertyParams;
+	typedef FGenericPropertyParams FFInt16PropertyParams;
 	typedef FGenericPropertyParams FUInt32PropertyParams;
-	typedef FGenericPropertyParams FUInt64PropertyParams;
+	typedef FGenericPropertyParams FFInt64PropertyParams;
 	typedef FGenericPropertyParams FUnsizedIntPropertyParams;
-	typedef FGenericPropertyParams FUnsizedUIntPropertyParams;
+	typedef FGenericPropertyParams FUnsizedFIntPropertyParams;
 	typedef FGenericPropertyParams FFloatPropertyParams;
 	typedef FGenericPropertyParams FDoublePropertyParams;
 	typedef FGenericPropertyParams FNamePropertyParams;

@@ -22,7 +22,7 @@ public:
 	virtual bool CanRecordObject(UObject* InObjectToRecord) const override { return false; }
 	virtual UMovieSceneTrackRecorder* CreateTrackRecorderForObject() const override { return nullptr; }
 
-	virtual bool CanRecordProperty(UObject* InObjectToRecord, class UProperty* InPropertyToRecord) const override;
+	virtual bool CanRecordProperty(UObject* InObjectToRecord, class FProperty* InPropertyToRecord) const override;
 	virtual class UMovieSceneTrackRecorder* CreateTrackRecorderForProperty(UObject* InObjectToRecord, const FName& InPropertyToRecord) const override;
 	
 

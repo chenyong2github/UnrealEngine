@@ -3967,7 +3967,7 @@ FRecalculatedMassProperties& FBodyInstance::OnRecalculatedMassProperties()
 
 void FBodyInstanceEditorHelpers::EnsureConsistentMobilitySimulationSettingsOnPostEditChange(UPrimitiveComponent* Component, FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (UProperty* PropertyThatChanged = PropertyChangedEvent.Property)
+	if (FProperty* PropertyThatChanged = PropertyChangedEvent.Property)
 	{
 		const FName PropertyName = PropertyThatChanged->GetFName();
 

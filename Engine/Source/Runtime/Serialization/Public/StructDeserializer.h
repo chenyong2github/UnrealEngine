@@ -34,7 +34,7 @@ struct FStructDeserializerPolicies
 	/** Predicate for performing advanced filtering of struct properties. 
 		If set, the predicate should return true for all properties it wishes to include in the output.
 	 */
-	TFunction<bool (const UProperty* /*CurrentProp*/, const UProperty* /*ParentProp*/)> PropertyFilter;
+	TFunction<bool (const FProperty* /*CurrentProp*/, const FProperty* /*ParentProp*/)> PropertyFilter;
 
 	/** Default constructor. */
 	FStructDeserializerPolicies()

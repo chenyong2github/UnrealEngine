@@ -16,20 +16,20 @@
 
 namespace BlueprintDelegateNodeSpawnerImpl
 {
-	static FText GetDefaultMenuName(UMulticastDelegateProperty const* Delegate);
-	static FText GetDefaultMenuCategory(UMulticastDelegateProperty const* Delegate);
-	static FSlateIcon GetDefaultMenuIcon(UMulticastDelegateProperty const* Delegate, FLinearColor& ColorOut);
+	static FText GetDefaultMenuName(FMulticastDelegateProperty const* Delegate);
+	static FText GetDefaultMenuCategory(FMulticastDelegateProperty const* Delegate);
+	static FSlateIcon GetDefaultMenuIcon(FMulticastDelegateProperty const* Delegate, FLinearColor& ColorOut);
 }
 
 //------------------------------------------------------------------------------
-static FText BlueprintDelegateNodeSpawnerImpl::GetDefaultMenuName(UMulticastDelegateProperty const* Delegate)
+static FText BlueprintDelegateNodeSpawnerImpl::GetDefaultMenuName(FMulticastDelegateProperty const* Delegate)
 {
 	bool const bShowFriendlyNames = GetDefault<UEditorStyleSettings>()->bShowFriendlyNames;
 	return bShowFriendlyNames ? FText::FromString(UEditorEngine::GetFriendlyName(Delegate)) : FText::FromName(Delegate->GetFName());
 }
 
 //------------------------------------------------------------------------------
-static FText BlueprintDelegateNodeSpawnerImpl::GetDefaultMenuCategory(UMulticastDelegateProperty const* Delegate)
+static FText BlueprintDelegateNodeSpawnerImpl::GetDefaultMenuCategory(FMulticastDelegateProperty const* Delegate)
 {
 	FText DelegateCategory = FText::FromString(FObjectEditorUtils::GetCategory(Delegate));
 	if (DelegateCategory.IsEmpty())
@@ -40,10 +40,10 @@ static FText BlueprintDelegateNodeSpawnerImpl::GetDefaultMenuCategory(UMulticast
 }
 
 //------------------------------------------------------------------------------
-static FSlateIcon BlueprintDelegateNodeSpawnerImpl::GetDefaultMenuIcon(UMulticastDelegateProperty const* Delegate, FLinearColor& ColorOut)
+static FSlateIcon BlueprintDelegateNodeSpawnerImpl::GetDefaultMenuIcon(FMulticastDelegateProperty const* Delegate, FLinearColor& ColorOut)
 {
 	FName    const PropertyName = Delegate->GetFName();
-	UStruct* const PropertyOwner = CastChecked<UStruct>(Delegate->GetOuterUField());
+	UStruct* const PropertyOwner = CastChecked<UStruct>(Delegate->GetOwner<UField>());
 
 	return UK2Node_Variable::GetVariableIconAndColor(PropertyOwner, PropertyName, ColorOut);
 }
@@ -53,7 +53,7 @@ static FSlateIcon BlueprintDelegateNodeSpawnerImpl::GetDefaultMenuIcon(UMulticas
  ******************************************************************************/
 
 //------------------------------------------------------------------------------
-UBlueprintDelegateNodeSpawner* UBlueprintDelegateNodeSpawner::Create(TSubclassOf<UK2Node_BaseMCDelegate> NodeClass, UMulticastDelegateProperty const* const Property, UObject* Outer/* = nullptr*/)
+UBlueprintDelegateNodeSpawner* UBlueprintDelegateNodeSpawner::Create(TSubclassOf<UK2Node_BaseMCDelegate> NodeClass, FMulticastDelegateProperty const* const Property, UObject* Outer/* = nullptr*/)
 {
 	check(Property != nullptr);
 	if (Outer == nullptr)
@@ -66,7 +66,7 @@ UBlueprintDelegateNodeSpawner* UBlueprintDelegateNodeSpawner::Create(TSubclassOf
 	//--------------------------------------
 
 	UBlueprintDelegateNodeSpawner* NodeSpawner = NewObject<UBlueprintDelegateNodeSpawner>(Outer);
-	NodeSpawner->Field     = Property;
+	NodeSpawner->SetField(const_cast<FMulticastDelegateProperty*>(Property));
 	NodeSpawner->NodeClass = NodeClass;
 
 	//--------------------------------------
@@ -84,9 +84,9 @@ UBlueprintDelegateNodeSpawner* UBlueprintDelegateNodeSpawner::Create(TSubclassOf
 	// Post-Spawn Setup
 	//--------------------------------------
 
-	auto SetDelegateLambda = [](UEdGraphNode* NewNode, UField const* InField)
+	auto SetDelegateLambda = [](UEdGraphNode* NewNode, FFieldVariant InField)
 	{
-		UMulticastDelegateProperty const* MCDProperty = Cast<UMulticastDelegateProperty>(InField);
+		FMulticastDelegateProperty const* MCDProperty = CastField<FMulticastDelegateProperty>(InField.ToField());
 
 		UK2Node_BaseMCDelegate* DelegateNode = Cast<UK2Node_BaseMCDelegate>(NewNode);
 		if ((DelegateNode != nullptr) && (MCDProperty != nullptr))
@@ -109,9 +109,9 @@ UBlueprintDelegateNodeSpawner::UBlueprintDelegateNodeSpawner(FObjectInitializer 
 }
 
 //------------------------------------------------------------------------------
-UMulticastDelegateProperty const* UBlueprintDelegateNodeSpawner::GetDelegateProperty() const
+FMulticastDelegateProperty const* UBlueprintDelegateNodeSpawner::GetDelegateProperty() const
 {
-	return Cast<UMulticastDelegateProperty>(GetField());
+	return CastField<FMulticastDelegateProperty>(GetField().ToField());
 }
 
 #undef LOCTEXT_NAMESPACE

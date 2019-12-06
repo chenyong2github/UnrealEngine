@@ -10,6 +10,8 @@
 #include "UObject/UnrealType.h"
 #include "Misc/ScopeLock.h"
 #include "HAL/PlatformProcess.h"
+#include "UObject/FieldPath.h"
+#include "UObject/UObjectArray.h"
 
 struct FStackEntry;
 
@@ -788,7 +790,7 @@ private:
 					case GCRT_AddTMapReferencedObjects:
 					{
 						void*         Map = StackEntryData + ReferenceInfo.Offset;
-						UMapProperty* MapProperty = (UMapProperty*)TokenStream->ReadPointer(TokenStreamIndex);
+						FMapProperty* MapProperty = (FMapProperty*)TokenStream->ReadPointer(TokenStreamIndex);
 						TokenReturnCount = ReferenceInfo.ReturnCount;
 						MapProperty->SerializeItem(FStructuredArchiveFromArchive(ReferenceCollector.GetVerySlowReferenceCollectorArchive()).GetSlot(), Map, nullptr);
 					}
@@ -796,9 +798,53 @@ private:
 					case GCRT_AddTSetReferencedObjects:
 					{
 						void*         Set = StackEntryData + ReferenceInfo.Offset;
-						USetProperty* SetProperty = (USetProperty*)TokenStream->ReadPointer(TokenStreamIndex);
+						FSetProperty* SetProperty = (FSetProperty*)TokenStream->ReadPointer(TokenStreamIndex);
 						TokenReturnCount = ReferenceInfo.ReturnCount;
 						SetProperty->SerializeItem(FStructuredArchiveFromArchive(ReferenceCollector.GetVerySlowReferenceCollectorArchive()).GetSlot(), Set, nullptr);
+					}
+					break;
+					case GCRT_AddFieldPathReferencedObject:
+					{
+						FFieldPath*	FieldPathPtr = (FFieldPath*)(StackEntryData + ReferenceInfo.Offset);
+						FField*& Field = FieldPathPtr->GetResolvedFieldInternal();
+						int32& FieldOwnerIndex = FieldPathPtr->GetResolvedFieldOwnerInternal();
+						TokenReturnCount = ReferenceInfo.ReturnCount;
+						if (FieldOwnerIndex >= 0)
+						{
+							UObject* OwnerObject = static_cast<UObject*>(GUObjectArray.IndexToObjectUnsafeForGC(FieldOwnerIndex)->Object);
+							UObject* PreviousOwner = OwnerObject;
+							ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, OwnerObject, ReferenceTokenStreamIndex, true);
+							// Handle reference elimination (PendingKill owner)
+							if (PreviousOwner && !OwnerObject)
+							{
+								Field = nullptr;
+								FieldOwnerIndex = -1;
+							}
+						}
+					}
+					break;
+					case GCRT_ArrayAddFieldPathReferencedObject:
+					{
+						// We're dealing with an array of object references.
+						TArray<FFieldPath>& FieldArray = *((TArray<FFieldPath>*)(StackEntryData + ReferenceInfo.Offset));
+						TokenReturnCount = ReferenceInfo.ReturnCount;
+						for (int32 FieldIndex = 0, FieldNum = FieldArray.Num(); FieldIndex < FieldNum; ++FieldIndex)
+						{
+							FField*& Field = FieldArray[FieldIndex].GetResolvedFieldInternal();
+							int32& FieldOwnerIndex = FieldArray[FieldIndex].GetResolvedFieldOwnerInternal();
+							if (FieldOwnerIndex >= 0)
+							{
+								UObject* OwnerObject = static_cast<UObject*>(GUObjectArray.IndexToObjectUnsafeForGC(FieldOwnerIndex)->Object);
+								UObject* PreviousOwner = OwnerObject;
+								ReferenceProcessor.HandleTokenStreamObjectReference(NewObjectsToSerialize, CurrentObject, OwnerObject, ReferenceTokenStreamIndex, true);
+								// Handle reference elimination (PendingKill owner)
+								if (PreviousOwner && !OwnerObject)
+								{
+									Field = nullptr;
+									FieldOwnerIndex = -1;
+								}
+							}
+						}
 					}
 					break;
 					case GCRT_EndOfPointer:
@@ -937,11 +983,11 @@ public:
 		, ObjectArrayStruct(InObjectArrayStruct)
 	{
 	}
-	virtual void HandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const UProperty* ReferencingProperty) override
+	virtual void HandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const FProperty* ReferencingProperty) override
 	{
 		Processor.HandleTokenStreamObjectReference(ObjectArrayStruct.ObjectsToSerialize, const_cast<UObject*>(ReferencingObject), Object, INDEX_NONE, false);
 	}
-	virtual void HandleObjectReferences(UObject** InObjects, const int32 ObjectNum, const UObject* ReferencingObject, const UProperty* InReferencingProperty) override
+	virtual void HandleObjectReferences(UObject** InObjects, const int32 ObjectNum, const UObject* ReferencingObject, const FProperty* InReferencingProperty) override
 	{
 		for (int32 ObjectIndex = 0; ObjectIndex < ObjectNum; ++ObjectIndex)
 		{

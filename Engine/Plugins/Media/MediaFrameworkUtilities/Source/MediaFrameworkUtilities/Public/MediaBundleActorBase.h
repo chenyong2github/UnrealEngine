@@ -117,7 +117,7 @@ public:
 
 #if WITH_EDITOR
 public:
-	virtual void PreEditChange(UProperty* PropertyAboutToChange) override;
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	friend class UActorFactoryMediaBundle;
 #endif

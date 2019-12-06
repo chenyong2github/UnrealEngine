@@ -77,7 +77,7 @@ protected:
 	TArray<FName> ObservedKeyNames;
 
 	/** properties with runtime values, stored only in class default object */
-	TArray<UProperty*> PropertyData;
+	TArray<FProperty*> PropertyData;
 
 	/** show detailed information about properties */
 	UPROPERTY(EditInstanceOnly, Category=Description)

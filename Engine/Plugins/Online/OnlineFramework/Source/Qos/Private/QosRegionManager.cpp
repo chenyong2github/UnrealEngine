@@ -82,7 +82,7 @@ UQosRegionManager::UQosRegionManager(const FObjectInitializer& ObjectInitializer
 	}
 }
 
-void UQosRegionManager::PostReloadConfig(UProperty* PropertyThatWasLoaded)
+void UQosRegionManager::PostReloadConfig(FProperty* PropertyThatWasLoaded)
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{

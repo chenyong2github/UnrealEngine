@@ -76,7 +76,7 @@ class COREUOBJECT_API FPropertyLocalizationDataGatherer
 public:
 	struct FGatherableFieldsForType
 	{
-		TArray<const UProperty*> Properties;
+		TArray<const FProperty*> Properties;
 		TArray<const UFunction*> Functions;
 
 		bool HasFields() const
@@ -98,7 +98,7 @@ public:
 	void GatherLocalizationDataFromObject(const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
 	void GatherLocalizationDataFromObjectFields(const FString& PathToParent, const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
 	void GatherLocalizationDataFromStructFields(const FString& PathToParent, const UStruct* Struct, const void* StructData, const void* DefaultStructData, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
-	void GatherLocalizationDataFromChildTextProperties(const FString& PathToParent, const UProperty* const Property, const void* const ValueAddress, const void* const DefaultValueAddress, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
+	void GatherLocalizationDataFromChildTextProperties(const FString& PathToParent, const FProperty* const Property, const void* const ValueAddress, const void* const DefaultValueAddress, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
 
 	void GatherTextInstance(const FText& Text, const FString& Description, const bool bIsEditorOnly);
 	void GatherScriptBytecode(const FString& PathToScript, const TArray<uint8>& ScriptData, const bool bIsEditorOnly);
@@ -127,7 +127,7 @@ public:
 
 private:
 	const FGatherableFieldsForType& CacheGatherableFieldsForType(const UStruct* InType);
-	bool CanGatherFromInnerProperty(const UProperty* InInnerProperty);
+	bool CanGatherFromInnerProperty(const FProperty* InInnerProperty);
 
 	struct FObjectAndGatherFlags
 	{

@@ -37,7 +37,7 @@ void UNiagaraDataInterfaceParticleRead::PostLoad()
 
 #if WITH_EDITOR
 
-void UNiagaraDataInterfaceParticleRead::PreEditChange(UProperty* PropertyAboutToChange)
+void UNiagaraDataInterfaceParticleRead::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	Super::PreEditChange(PropertyAboutToChange);
 }

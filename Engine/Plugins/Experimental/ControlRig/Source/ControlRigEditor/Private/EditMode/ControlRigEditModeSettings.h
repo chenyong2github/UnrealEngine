@@ -25,7 +25,7 @@ class UControlRigEditModeSettings : public UObject
 	{}
 
 	// UObject interface
-	virtual void PreEditChange(UProperty* PropertyAboutToChange) override;
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 
 public:

@@ -50,5 +50,5 @@ class UNREALED_API UFbxTextureImportData : public UFbxAssetImportData
 	UPROPERTY(config, meta = (ImportType = "Mesh"))
 	FString BaseSpecularTextureName;
 
-	bool CanEditChange( const UProperty* InProperty ) const override;
+	bool CanEditChange( const FProperty* InProperty ) const override;
 };

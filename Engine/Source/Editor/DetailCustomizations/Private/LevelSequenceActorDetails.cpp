@@ -30,7 +30,7 @@ void AddAllSubObjectProperties(TArray<UObject*>& SubObjects, IDetailCategoryBuil
 		return;
 	}
 
-	for (const UProperty* TestProperty : TFieldRange<UProperty>(SubObjects[0]->GetClass()))
+	for (const FProperty* TestProperty : TFieldRange<FProperty>(SubObjects[0]->GetClass()))
 	{
 		if (TestProperty->HasAnyPropertyFlags(CPF_Edit))
 		{

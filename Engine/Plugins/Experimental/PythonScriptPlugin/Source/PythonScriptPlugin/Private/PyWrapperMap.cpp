@@ -459,21 +459,21 @@ int FPyWrapperMap::Init(FPyWrapperMap* InSelf, const PyUtil::FPropertyDef& InKey
 		return BaseInit;
 	}
 
-	UProperty* MapKeyProp = PyUtil::CreateProperty(InKeyDef, 1);
+	FProperty* MapKeyProp = PyUtil::CreateProperty(InKeyDef, 1);
 	if (!MapKeyProp)
 	{
 		PyUtil::SetPythonError(PyExc_Exception, InSelf, TEXT("Map key property was null during init"));
 		return -1;
 	}
 
-	UProperty* MapValueProp = PyUtil::CreateProperty(InValueDef, 1);
+	FProperty* MapValueProp = PyUtil::CreateProperty(InValueDef, 1);
 	if (!MapValueProp)
 	{
 		PyUtil::SetPythonError(PyExc_Exception, InSelf, TEXT("Map value property was null during init"));
 		return -1;
 	}
 
-	UMapProperty* MapProp = NewObject<UMapProperty>(GetPythonPropertyContainer());
+	FMapProperty* MapProp = new FMapProperty(GetPythonPropertyContainer(), FField::GenerateFFieldName(GetPythonPropertyContainer(), FMapProperty::StaticClass()), RF_NoFlags);
 	MapProp->KeyProp = MapKeyProp;
 	MapProp->ValueProp = MapValueProp;
 
@@ -493,7 +493,7 @@ int FPyWrapperMap::Init(FPyWrapperMap* InSelf, const PyUtil::FPropertyDef& InKey
 	return 0;
 }
 
-int FPyWrapperMap::Init(FPyWrapperMap* InSelf, const FPyWrapperOwnerContext& InOwnerContext, const UMapProperty* InProp, void* InValue, const EPyConversionMethod InConversionMethod)
+int FPyWrapperMap::Init(FPyWrapperMap* InSelf, const FPyWrapperOwnerContext& InOwnerContext, const FMapProperty* InProp, void* InValue, const EPyConversionMethod InConversionMethod)
 {
 	InOwnerContext.AssertValidConversionMethod(InConversionMethod);
 
@@ -507,28 +507,28 @@ int FPyWrapperMap::Init(FPyWrapperMap* InSelf, const FPyWrapperOwnerContext& InO
 
 	check(InProp && InValue);
 
-	const UMapProperty* PropToUse = nullptr;
+	const FMapProperty* PropToUse = nullptr;
 	void* MapInstanceToUse = nullptr;
 	switch (InConversionMethod)
 	{
 	case EPyConversionMethod::Copy:
 	case EPyConversionMethod::Steal:
 		{
-			UProperty* MapKeyProp = PyUtil::CreateProperty(InProp->KeyProp, 1);
+			FProperty* MapKeyProp = PyUtil::CreateProperty(InProp->KeyProp, 1);
 			if (!MapKeyProp)
 			{
 				PyUtil::SetPythonError(PyExc_TypeError, InSelf, *FString::Printf(TEXT("Failed to create key property from '%s' (%s)"), *InProp->KeyProp->GetName(), *InProp->KeyProp->GetClass()->GetName()));
 				return -1;
 			}
 
-			UProperty* MapValueProp = PyUtil::CreateProperty(InProp->ValueProp, 1);
+			FProperty* MapValueProp = PyUtil::CreateProperty(InProp->ValueProp, 1);
 			if (!MapValueProp)
 			{
 				PyUtil::SetPythonError(PyExc_TypeError, InSelf, *FString::Printf(TEXT("Failed to create value property from '%s' (%s)"), *InProp->ValueProp->GetName(), *InProp->ValueProp->GetClass()->GetName()));
 				return -1;
 			}
 
-			UMapProperty* MapProp = NewObject<UMapProperty>(GetPythonPropertyContainer());
+			FMapProperty* MapProp = new FMapProperty(GetPythonPropertyContainer(), FField::GenerateFFieldName(GetPythonPropertyContainer(), FMapProperty::StaticClass()), RF_NoFlags);
 			MapProp->KeyProp = MapKeyProp;
 			MapProp->ValueProp = MapValueProp;
 			PropToUse = MapProp;

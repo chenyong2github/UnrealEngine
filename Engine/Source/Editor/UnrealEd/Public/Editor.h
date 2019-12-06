@@ -695,7 +695,7 @@ namespace EditorUtilities
 		FCopyOptions(const ECopyOptions::Type InFlags) : Flags(InFlags) {}
 
 		/** Check whether we can copy the specified property */
-		bool CanCopyProperty(UProperty& Property, UObject& Object) const
+		bool CanCopyProperty(FProperty& Property, UObject& Object) const
 		{
 			return !PropertyFilter || PropertyFilter(Property, Object);
 		}
@@ -704,11 +704,11 @@ namespace EditorUtilities
 		ECopyOptions::Type Flags;
 
 		/** User-specified custom property filter predicate */
-		TFunction<bool(UProperty&, UObject&)> PropertyFilter;
+		TFunction<bool(FProperty&, UObject&)> PropertyFilter;
 	};
 
 	/** Helper function for CopyActorProperties(). Copies a single property form a source object to a target object. */
-	UNREALED_API void CopySingleProperty(const UObject* const InSourceObject, UObject* const InTargetObject, UProperty* const InProperty);
+	UNREALED_API void CopySingleProperty(const UObject* const InSourceObject, UObject* const InTargetObject, FProperty* const InProperty);
 
 	/**
 	 * Copies properties from one actor to another.  Designed for propagating changes made to PIE actors back to their EditorWorld

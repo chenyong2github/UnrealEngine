@@ -1567,7 +1567,7 @@ void UNiagaraComponent::SetUserParametersToDefaultValues()
 
 #if WITH_EDITOR
 
-void UNiagaraComponent::PreEditChange(UProperty* PropertyAboutToChange)
+void UNiagaraComponent::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	if (PropertyAboutToChange != nullptr && PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraComponent, Asset) && Asset != nullptr)
 	{

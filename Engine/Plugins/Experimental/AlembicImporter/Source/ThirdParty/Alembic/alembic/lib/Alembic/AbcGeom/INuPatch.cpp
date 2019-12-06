@@ -47,7 +47,7 @@ bool INuPatchSchema::trimCurveTopologyIsConstant() const
         m_trimNumVerticesProperty.isConstant() &&
         m_trimNumCurvesProperty.isConstant() && m_trimOrderProperty.isConstant() &&
         m_trimKnotProperty.isConstant() && m_trimMinProperty.isConstant() &&
-        m_trimMaxProperty.isConstant() && m_trimUProperty.isConstant() &&
+        m_trimMaxProperty.isConstant() && m_trimFProperty.isConstant() &&
         m_trimVProperty.isConstant() && m_trimWProperty.isConstant();
 }
 
@@ -142,7 +142,7 @@ void INuPatchSchema::get( sample_type &oSample,
     ALEMBIC_ABC_SAFE_CALL_BEGIN( "INuPatch::get()" );
 
     m_positionsProperty.get( oSample.m_positions, iSS );
-    m_numUProperty.get( oSample.m_numU, iSS );
+    m_numFProperty.get( oSample.m_numU, iSS );
     m_numVProperty.get( oSample.m_numV, iSS );
     m_uOrderProperty.get( oSample.m_uOrder, iSS );
     m_vOrderProperty.get( oSample.m_vOrder, iSS );
@@ -174,7 +174,7 @@ void INuPatchSchema::get( sample_type &oSample,
         m_trimKnotProperty.get( oSample.m_trimKnot, iSS );
         m_trimMinProperty.get( oSample.m_trimMin, iSS );
         m_trimMaxProperty.get( oSample.m_trimMax, iSS );
-        m_trimUProperty.get( oSample.m_trimU, iSS );
+        m_trimFProperty.get( oSample.m_trimU, iSS );
         m_trimVProperty.get( oSample.m_trimV, iSS );
         m_trimWProperty.get( oSample.m_trimW, iSS );
     }
@@ -202,7 +202,7 @@ void INuPatchSchema::init( const Abc::Argument &iArg0,
     m_positionsProperty = Abc::IP3fArrayProperty( _this, "P", kNoMatching,
         args.getErrorHandlerPolicy() );
 
-    m_numUProperty = Abc::IInt32Property( _this, "nu", iArg0, iArg1 );
+    m_numFProperty = Abc::IInt32Property( _this, "nu", iArg0, iArg1 );
 
     m_numVProperty = Abc::IInt32Property( _this, "nv", iArg0, iArg1 );
 
@@ -255,7 +255,7 @@ void INuPatchSchema::init( const Abc::Argument &iArg0,
                                                       iArg0, iArg1 );
         m_trimMaxProperty = Abc::IFloatArrayProperty( _this, "trim_max",
                                                       iArg0, iArg1 );
-        m_trimUProperty = Abc::IFloatArrayProperty( _this, "trim_u",
+        m_trimFProperty = Abc::IFloatArrayProperty( _this, "trim_u",
                                                     iArg0, iArg1 );
         m_trimVProperty = Abc::IFloatArrayProperty( _this, "trim_v",
                                                     iArg0, iArg1 );

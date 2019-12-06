@@ -500,7 +500,7 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void FinishDestroy() override;
 #if WITH_EDITOR
-	virtual void PreEditChange(UProperty* PropertyAboutToChange) override;
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 
 	virtual bool HasCustomActorFactory() const
 	{

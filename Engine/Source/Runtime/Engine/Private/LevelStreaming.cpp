@@ -63,16 +63,16 @@ static void NetDriverRenameStreamingLevelPackageForPIE(const UWorld* World, FNam
 	for (FNamedNetDriver& Driver : WorldContext->ActiveNetDrivers)
 	{
 		if (Driver.NetDriver && Driver.NetDriver->GuidCache.IsValid())
-		{
+	{
 			for (TPair<FNetworkGUID, FNetGuidCacheObject>& GuidPair : Driver.NetDriver->GuidCache->ObjectLookup)
-			{
-				// Only look for packages, which will have a static GUID and an invalid OuterGUID.
-				const bool bIsPackage = GuidPair.Key.IsStatic() && !GuidPair.Value.OuterGUID.IsValid();
-				if (bIsPackage && GuidPair.Value.PathName == UnPrefixedPackageName)
-				{
-					GuidPair.Value.PathName = *UWorld::ConvertToPIEPackageName(GuidPair.Value.PathName.ToString(), WorldContext->PIEInstance);
-				}
-			}
+	{
+		// Only look for packages, which will have a static GUID and an invalid OuterGUID.
+		const bool bIsPackage = GuidPair.Key.IsStatic() && !GuidPair.Value.OuterGUID.IsValid();
+		if (bIsPackage && GuidPair.Value.PathName == UnPrefixedPackageName)
+		{
+			GuidPair.Value.PathName = *UWorld::ConvertToPIEPackageName(GuidPair.Value.PathName.ToString(), WorldContext->PIEInstance);
+		}
+	}
 		}
 	}
 }
@@ -97,7 +97,7 @@ void FStreamLevelAction::UpdateOperation(FLatentResponse& Response)
 	if (bIsLevelValid)
 	{
 		bool bIsOperationFinished = UpdateLevel(LevelStreamingObject);
-		Response.FinishAndTriggerIf(bIsOperationFinished, LatentInfo.ExecutionFunction, LatentInfo.Linkage, LatentInfo.CallbackTarget);
+	Response.FinishAndTriggerIf(bIsOperationFinished, LatentInfo.ExecutionFunction, LatentInfo.Linkage, LatentInfo.CallbackTarget);
 	}
 	else
 	{
@@ -201,8 +201,8 @@ void FStreamLevelAction::ActivateLevel( ULevelStreaming* LevelStreamingObject )
 		// If we have a valid world
 		if (UWorld* LevelWorld = LevelStreamingObject->GetWorld())
 		{
-			const bool bShouldBeLoaded = LevelStreamingObject->ShouldBeLoaded();
-			const bool bShouldBeVisible = LevelStreamingObject->ShouldBeVisible();
+				const bool bShouldBeLoaded = LevelStreamingObject->ShouldBeLoaded();
+				const bool bShouldBeVisible = LevelStreamingObject->ShouldBeVisible();
 
 			UE_LOG(LogLevel, Log, TEXT("ActivateLevel %s %i %i %i"),
 				*LevelStreamingObject->GetWorldAssetPackageName(),
@@ -218,9 +218,9 @@ void FStreamLevelAction::ActivateLevel( ULevelStreaming* LevelStreamingObject )
 					PlayerController->LevelStreamingStatusChanged(
 						LevelStreamingObject,
 						bShouldBeLoaded,
-						bShouldBeVisible,
+					bShouldBeVisible,
 						bShouldBlock,
-						INDEX_NONE);
+					INDEX_NONE);
 				}
 			}
 		}
@@ -1403,15 +1403,15 @@ void ULevelStreaming::BroadcastLevelVisibleStatus(UWorld* PersistentWorld, FName
 
 	for (ULevelStreaming* StreamingLevel : LevelsToBroadcast)
 	{
-		if (bVisible)
-		{
-			StreamingLevel->OnLevelShown.Broadcast();
+			if (bVisible)
+			{
+				StreamingLevel->OnLevelShown.Broadcast();
+			}
+			else
+			{
+				StreamingLevel->OnLevelHidden.Broadcast();
+			}
 		}
-		else
-		{
-			StreamingLevel->OnLevelHidden.Broadcast();
-		}
-	}
 }
 
 void ULevelStreaming::SetWorldAsset(const TSoftObjectPtr<UWorld>& NewWorldAsset)
@@ -1595,7 +1595,7 @@ FBox ULevelStreaming::GetStreamingVolumeBounds()
 #if WITH_EDITOR
 void ULevelStreaming::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	UProperty* OutermostProperty = PropertyChangedEvent.Property;
+	FProperty* OutermostProperty = PropertyChangedEvent.Property;
 	if ( OutermostProperty != NULL )
 	{
 		const FName PropertyName = OutermostProperty->GetFName();
@@ -1798,7 +1798,7 @@ ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance_Internal(UWorl
 	// Remove PIE prefix if it's there before we actually load the level
 	FString OnDiskPackageName = PackagePath + TEXT("/") + ShortPackageName;
 
-	// Create Unique Name for sub-level package
+    // Create Unique Name for sub-level package
 	FString UniqueLevelPackageName = PackagePath + TEXT("/") + World->StreamingLevelsPrefix + ShortPackageName;
 	UniqueLevelPackageName += TEXT("_LevelInstance_") + FString::FromInt(++UniqueLevelInstanceId);
     

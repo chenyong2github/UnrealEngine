@@ -22,6 +22,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Serialization/ObjectWriter.h"
 #include "Serialization/ObjectReader.h"
+#include "UObject/FieldIterator.h"
 
 #define LOCTEXT_NAMESPACE "StructureCompiler"
 
@@ -77,8 +78,9 @@ struct FUserDefinedStructureCompilerInner
 
 			CastChecked<UUserDefinedStructEditorData>(DuplicatedStruct->EditorData)->RecreateDefaultInstance();
 
-			for (UStructProperty* StructProperty : TObjectRange<UStructProperty>(RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** InternalExcludeFlags */ EInternalObjectFlags::PendingKill))
+			for (TAllFieldsIterator<FStructProperty> FieldIt(RF_NoFlags, EInternalObjectFlags::PendingKill); FieldIt; ++FieldIt)
 			{
+				FStructProperty* StructProperty = *FieldIt;
 				if (StructProperty && (StructureToReinstance == StructProperty->Struct))
 				{
 					if (UBlueprintGeneratedClass* OwnerClass = Cast<UBlueprintGeneratedClass>(StructProperty->GetOwnerClass()))
@@ -152,15 +154,7 @@ struct FUserDefinedStructureCompilerInner
 			SubObjects.Remove(StructToClean->EditorData);
 			for (UObject* CurrSubObj : SubObjects)
 			{
-				CurrSubObj->Rename(nullptr, TransientStruct, REN_DontCreateRedirectors);
-				if (UProperty* Prop = Cast<UProperty>(CurrSubObj))
-				{
-					FKismetCompilerUtilities::InvalidatePropertyExport(Prop);
-				}
-				else
-				{
-					FLinkerLoad::InvalidateExport(CurrSubObj);
-				}
+				FLinkerLoad::InvalidateExport(CurrSubObj);
 			}
 
 			StructToClean->SetSuperStruct(nullptr);
@@ -214,12 +208,12 @@ struct FUserDefinedStructureCompilerInner
 				continue;
 			}
 
-			UProperty* VarProperty = nullptr;
+			FProperty* VarProperty = nullptr;
 
 			bool bIsNewVariable = false;
 			if (FStructureEditorUtils::FStructEditorManager::ActiveChange == FStructureEditorUtils::EStructureEditorChangeInfo::DefaultValueChanged)
 			{
-				VarProperty = FindField<UProperty>(Struct, VarDesc.VarName);
+				VarProperty = FindField<FProperty>(Struct, VarDesc.VarName);
 				if (!ensureMsgf(VarProperty, TEXT("Could not find the expected property (%s); was the struct (%s) unexpectedly sanitized?"), *VarDesc.VarName.ToString(), *Struct->GetName()))
 				{
 					VarProperty = FKismetCompilerUtilities::CreatePropertyOnScope(Struct, VarDesc.VarName, VarType, NULL, CPF_None, Schema, MessageLog);

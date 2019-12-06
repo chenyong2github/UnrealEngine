@@ -72,7 +72,7 @@ class UMaterialExpressionSpeedTree : public UMaterialExpression
 	//~ Begin UObject Interface
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 #if WITH_EDITOR
-	virtual bool CanEditChange(const UProperty* InProperty) const override;
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif // WITH_EDITOR
 	//~ End UObject Interface
 

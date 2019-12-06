@@ -57,7 +57,7 @@ void USpeedTreeImportData::SaveOptions()
 {
 	int32 PortFlags = 0;
 
-	for (UProperty* Property = GetClass()->PropertyLink; Property; Property = Property->PropertyLinkNext)
+	for (FProperty* Property = GetClass()->PropertyLink; Property; Property = Property->PropertyLinkNext)
 	{
 		if (!Property->HasAnyPropertyFlags(CPF_Config))
 		{
@@ -69,7 +69,7 @@ void USpeedTreeImportData::SaveOptions()
 		const bool bIsPropertyInherited = Property->GetOwnerClass() != GetClass();
 		UObject* SuperClassDefaultObject = GetClass()->GetSuperClass()->GetDefaultObject();
 
-		UArrayProperty* Array = dynamic_cast<UArrayProperty*>(Property);
+		FArrayProperty* Array = CastField<FArrayProperty>(Property);
 		if (Array)
 		{
 			FConfigSection* Sec = GConfig->GetSectionPrivate(*Section, 1, 0, *GEditorPerProjectIni);
@@ -108,7 +108,7 @@ void USpeedTreeImportData::LoadOptions()
 {
 	int32 PortFlags = 0;
 
-	for (UProperty* Property = GetClass()->PropertyLink; Property; Property = Property->PropertyLinkNext)
+	for (FProperty* Property = GetClass()->PropertyLink; Property; Property = Property->PropertyLinkNext)
 	{
 		if (!Property->HasAnyPropertyFlags(CPF_Config))
 		{
@@ -122,7 +122,7 @@ void USpeedTreeImportData::LoadOptions()
 
 		const FString& PropFileName = GEditorPerProjectIni;
 
-		UArrayProperty* Array = dynamic_cast<UArrayProperty*>(Property);
+		FArrayProperty* Array = CastField<FArrayProperty>(Property);
 		if (Array)
 		{
 			FConfigSection* Sec = GConfig->GetSectionPrivate(*Section, 0, 1, *GEditorPerProjectIni);

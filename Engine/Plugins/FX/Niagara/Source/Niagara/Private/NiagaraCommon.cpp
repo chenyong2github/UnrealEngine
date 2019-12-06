@@ -36,25 +36,25 @@ FString FNiagaraTypeHelper::ToString(const uint8* ValueData, const UScriptStruct
 	}
 	else
 	{
-		for (TFieldIterator<UProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<FProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
-			const UProperty* Property = *PropertyIt;
+			const FProperty* Property = *PropertyIt;
 			const uint8* PropPtr = ValueData + PropertyIt->GetOffset_ForInternal();
-			if (Property->IsA(UFloatProperty::StaticClass()))
+			if (Property->IsA(FFloatProperty::StaticClass()))
 			{
 				Ret += FString::Printf(TEXT("%s: %g "), *Property->GetNameCPP(), *(float*)PropPtr);
 			}
-			else if (Property->IsA(UIntProperty::StaticClass()))
+			else if (Property->IsA(FIntProperty::StaticClass()))
 			{
 				Ret += FString::Printf(TEXT("%s: %d "), *Property->GetNameCPP(), *(int32*)PropPtr);
 			}
-			else if (Property->IsA(UBoolProperty::StaticClass()))
+			else if (Property->IsA(FBoolProperty::StaticClass()))
 			{
 				int32 Val = *(int32*)ValueData;
 				FString BoolStr = Val == 0xFFFFFFFF ? (TEXT("True")) : (Val == 0x0 ? TEXT("False") : TEXT("Invalid"));
 				Ret += FString::Printf(TEXT("%s: %d "), *Property->GetNameCPP(), *BoolStr);
 			}
-			else if (const UStructProperty* StructProp = CastChecked<UStructProperty>(Property))
+			else if (const FStructProperty* StructProp = CastFieldChecked<const FStructProperty>(Property))
 			{
 				Ret += FString::Printf(TEXT("%s: (%s) "), *Property->GetNameCPP(), *FNiagaraTypeHelper::ToString(PropPtr, StructProp->Struct));
 			}

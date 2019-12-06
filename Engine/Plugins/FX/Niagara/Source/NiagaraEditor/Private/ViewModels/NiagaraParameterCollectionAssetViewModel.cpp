@@ -65,7 +65,7 @@ FNiagaraParameterCollectionAssetViewModel::~FNiagaraParameterCollectionAssetView
 	UnregisterViewModelWithMap(RegisteredHandle);
 }
 
-void FNiagaraParameterCollectionAssetViewModel::NotifyPreChange(UProperty* PropertyAboutToChange)
+void FNiagaraParameterCollectionAssetViewModel::NotifyPreChange(FProperty* PropertyAboutToChange)
 {
 	if (PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraParameterCollectionInstance, Collection))
 	{
@@ -74,7 +74,7 @@ void FNiagaraParameterCollectionAssetViewModel::NotifyPreChange(UProperty* Prope
 	}
 }
 
-void FNiagaraParameterCollectionAssetViewModel::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged)
+void FNiagaraParameterCollectionAssetViewModel::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
 	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraParameterCollectionInstance, Collection))
 	{

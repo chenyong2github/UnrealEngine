@@ -31,13 +31,13 @@ public:
 #endif
 
 	virtual void PostInitProperties() override;
-	virtual void PostReloadConfig(class UProperty* PropertyThatWasLoaded) override;
+	virtual void PostReloadConfig(class FProperty* PropertyThatWasLoaded) override;
 
 private: 
 
 	// Chaos can't read the properties here as it doesn't depend on engine, the
 	// following functions push changes to the chaos module as properties change
-	void UpdateProperty(UProperty* InProperty);
+	void UpdateProperty(FProperty* InProperty);
 	void UpdateAllProperties();
 	void RegisterSolverActorProvider();
 	//////////////////////////////////////////////////////////////////////////

@@ -248,4 +248,3 @@ private:
 	/** Writes a reference chain to a string */
 	static void WriteChain(FReferenceChain* Chain, FString& OutString);
 };
-

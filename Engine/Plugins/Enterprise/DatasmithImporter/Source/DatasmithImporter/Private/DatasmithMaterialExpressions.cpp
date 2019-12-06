@@ -2937,11 +2937,11 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateGenericExpression( IDa
 			continue;
 		}
 
-		UProperty* Property = MaterialExpression->GetClass()->FindPropertyByName( KeyValueProperty->GetName() );
+		FProperty* Property = MaterialExpression->GetClass()->FindPropertyByName( KeyValueProperty->GetName() );
 
 		if ( KeyValueProperty->GetPropertyType() == EDatasmithKeyValuePropertyType::Color )
 		{
-			UStructProperty* StructProperty = Cast< UStructProperty >( Property );
+			FStructProperty* StructProperty = CastField< FStructProperty >( Property );
 
 			if ( StructProperty )
 			{
@@ -2953,7 +2953,7 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateGenericExpression( IDa
 		}
 		else if ( KeyValueProperty->GetPropertyType() == EDatasmithKeyValuePropertyType::Bool )
 		{
-			UBoolProperty* BoolProperty = Cast< UBoolProperty >( Property );
+			FBoolProperty* BoolProperty = CastField< FBoolProperty >( Property );
 
 			if ( BoolProperty )
 			{
@@ -2965,7 +2965,7 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateGenericExpression( IDa
 		}
 		else if ( KeyValueProperty->GetPropertyType() == EDatasmithKeyValuePropertyType::Float )
 		{
-			UFloatProperty* FloatProperty = Cast< UFloatProperty >( Property );
+			FFloatProperty* FloatProperty = CastField< FFloatProperty >( Property );
 
 			if ( FloatProperty )
 			{
@@ -2977,7 +2977,7 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateGenericExpression( IDa
 		}
 		else if ( KeyValueProperty->GetPropertyType() == EDatasmithKeyValuePropertyType::Texture )
 		{
-			UObjectProperty* ObjectProperty = Cast< UObjectProperty >( Property );
+			FObjectProperty* ObjectProperty = CastField< FObjectProperty >( Property );
 
 			if ( ObjectProperty )
 			{

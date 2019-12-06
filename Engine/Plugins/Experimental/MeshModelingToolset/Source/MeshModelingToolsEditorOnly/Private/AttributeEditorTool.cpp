@@ -61,7 +61,7 @@ UInteractiveTool* UAttributeEditorToolBuilder::BuildTool(const FToolBuilderState
  // UObject interface
 #if WITH_EDITOR
 bool
-UAttributeEditorToolProperties::CanEditChange( const UProperty* InProperty) const
+UAttributeEditorToolProperties::CanEditChange( const FProperty* InProperty) const
 {
 	static TArray<FString> UVLayers
 	{
@@ -198,7 +198,7 @@ void UAttributeEditorTool::Tick(float DeltaTime)
 }
 
 
-void UAttributeEditorTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UAttributeEditorTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 }
 

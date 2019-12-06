@@ -197,7 +197,7 @@ public:
 	int32 PIEInstanceID;		// TODO: strip from runtime?
 
 	/** The name of the file that this package was loaded from */
-	FName	FileName;			// TODO: strip from runtime?
+	FName	FileName;
 
 	/** Linker load associated with this package */
 	class FLinkerLoad* LinkerLoad;

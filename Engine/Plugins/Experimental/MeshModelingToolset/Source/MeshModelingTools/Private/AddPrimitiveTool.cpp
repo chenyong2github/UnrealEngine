@@ -98,7 +98,7 @@ namespace
 // UObject interface
 #if WITH_EDITOR
 bool
-UProceduralShapeToolProperties::CanEditChange( const UProperty* InProperty) const
+UProceduralShapeToolProperties::CanEditChange( const FProperty* InProperty) const
 {
 	auto* Elem = Algo::FindByPredicate(EnabledShapesMap, [InProperty](const auto& Elem) { return Elem.Name == InProperty->GetFName(); });
 	if (Elem != nullptr)
@@ -172,7 +172,7 @@ void UAddPrimitiveTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 
 
-void UAddPrimitiveTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UAddPrimitiveTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
 	PreviewMesh->SetMaterial(MaterialProperties->Material);

@@ -44,12 +44,12 @@ void SPropertyEditorCombo::GetDesiredWidth( float& OutMinDesiredWidth, float& Ou
 bool SPropertyEditorCombo::Supports( const TSharedRef< class FPropertyEditor >& InPropertyEditor )
 {
 	const TSharedRef< FPropertyNode > PropertyNode = InPropertyEditor->GetPropertyNode();
-	const UProperty* Property = InPropertyEditor->GetProperty();
+	const FProperty* Property = InPropertyEditor->GetProperty();
 	int32 ArrayIndex = PropertyNode->GetArrayIndex();
 
-	if(	((Property->IsA(UByteProperty::StaticClass()) && Cast<const UByteProperty>(Property)->Enum)
-		||	Property->IsA(UEnumProperty::StaticClass())
-		||	(Property->IsA(UStrProperty::StaticClass()) && Property->HasMetaData(TEXT("Enum")))
+	if(	((Property->IsA(FByteProperty::StaticClass()) && CastField<const FByteProperty>(Property)->Enum)
+		||	Property->IsA(FEnumProperty::StaticClass())
+		||	(Property->IsA(FStrProperty::StaticClass()) && Property->HasMetaData(TEXT("Enum")))
 		)
 		&&	( ( ArrayIndex == -1 && Property->ArrayDim == 1 ) || ( ArrayIndex > -1 && Property->ArrayDim > 0 ) ) )
 	{
@@ -140,15 +140,15 @@ void SPropertyEditorCombo::GenerateComboBoxStrings( TArray< TSharedPtr<FString> 
 	// For enums, look for rich tooltip information
 	if(PropertyHandle.IsValid())
 	{
-		if(const UProperty* Property = PropertyHandle->GetProperty())
+		if(const FProperty* Property = PropertyHandle->GetProperty())
 		{
 			UEnum* Enum = nullptr;
 
-			if(const UByteProperty* ByteProperty = Cast<UByteProperty>(Property))
+			if(const FByteProperty* ByteProperty = CastField<FByteProperty>(Property))
 			{
 				Enum = ByteProperty->Enum;
 			}
-			else if(const UEnumProperty* EnumProperty = Cast<UEnumProperty>(Property))
+			else if(const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
 			{
 				Enum = EnumProperty->GetEnum();
 			}
@@ -217,19 +217,19 @@ void SPropertyEditorCombo::SendToObjects( const FString& NewValue )
 	}
 	else if (PropertyHandle.IsValid())
 	{
-		UProperty* Property = PropertyHandle->GetProperty();
+		FProperty* Property = PropertyHandle->GetProperty();
 
-		if (bUsesAlternateDisplayValues && !Property->IsA(UStrProperty::StaticClass()))
+		if (bUsesAlternateDisplayValues && !Property->IsA(FStrProperty::StaticClass()))
 		{
 			// currently only enum properties can use alternate display values; this 
 			// might change, so assert here so that if support is expanded to other 
 			// property types without updating this block of code, we'll catch it quickly
 			UEnum* Enum = nullptr;
-			if (UByteProperty* ByteProperty = Cast<UByteProperty>(Property))
+			if (FByteProperty* ByteProperty = CastField<FByteProperty>(Property))
 			{
 				Enum = ByteProperty->Enum;
 			}
-			else if (UEnumProperty* EnumProperty = Cast<UEnumProperty>(Property))
+			else if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
 			{
 				Enum = EnumProperty->GetEnum();
 			}

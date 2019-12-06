@@ -1255,7 +1255,7 @@ void SAssetViewItem::CacheDisplayTags()
 			continue;
 		}
 
-		UProperty* TagField = FindField<UProperty>(AssetClass, TagAndValuePair.Key);
+		FProperty* TagField = FindField<FProperty>(AssetClass, TagAndValuePair.Key);
 
 		// Build the display name for this tag
 		FText DisplayName;
@@ -1432,14 +1432,14 @@ void SAssetViewItem::CacheDisplayTags()
 
 				if (TagField)
 				{
-					UProperty* TagProp = nullptr;
+					FProperty* TagProp = nullptr;
 					UEnum* TagEnum = nullptr;
-					if (UByteProperty* ByteProp = Cast<UByteProperty>(TagField))
+					if (FByteProperty* ByteProp = CastField<FByteProperty>(TagField))
 					{
 						TagProp = ByteProp;
 						TagEnum = ByteProp->Enum;
 					}
-					else if (UEnumProperty* EnumProp = Cast<UEnumProperty>(TagField))
+					else if (FEnumProperty* EnumProp = CastField<FEnumProperty>(TagField))
 					{
 						TagProp = EnumProp;
 						TagEnum = EnumProp->GetEnum();

@@ -233,7 +233,7 @@ void UNiagaraSystem::Serialize(FArchive& Ar)
 
 #if WITH_EDITOR
 
-void UNiagaraSystem::PreEditChange(UProperty* PropertyThatWillChange)
+void UNiagaraSystem::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);
 

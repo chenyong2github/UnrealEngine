@@ -98,12 +98,12 @@ bool SControlRigGraphPinCurveFloat::IsValidCurve(FRichCurveEditInfo CurveInfo)
 	{
 		if (UControlRigGraphNode* Node = Cast<UControlRigGraphNode>(Pin->GetOwningNode()))
 		{
-			if (const UStructProperty* StructProperty = Node->GetUnitProperty())
+			if (const FStructProperty* StructProperty = Node->GetUnitProperty())
 			{
 				FString NodeName, PropertyName;
 				Pin->PinName.ToString().Split(TEXT("."), &NodeName, &PropertyName);
 
-				if (UProperty* CurveProperty = StructProperty->Struct->FindPropertyByName(*PropertyName))
+				if (FProperty* CurveProperty = StructProperty->Struct->FindPropertyByName(*PropertyName))
 				{
 					return true;
 				}

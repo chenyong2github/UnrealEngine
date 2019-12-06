@@ -2268,8 +2268,8 @@ void UNavigationSystemV1::DescribeFilterFlags(const TArray<FString>& FlagsDesc) 
 #endif
 
 	// setup properties
-	UStructProperty* StructProp1 = FindField<UStructProperty>(UNavigationQueryFilter::StaticClass(), TEXT("IncludeFlags"));
-	UStructProperty* StructProp2 = FindField<UStructProperty>(UNavigationQueryFilter::StaticClass(), TEXT("ExcludeFlags"));
+	FStructProperty* StructProp1 = FindField<FStructProperty>(UNavigationQueryFilter::StaticClass(), TEXT("IncludeFlags"));
+	FStructProperty* StructProp2 = FindField<FStructProperty>(UNavigationQueryFilter::StaticClass(), TEXT("ExcludeFlags"));
 	check(StructProp1);
 	check(StructProp2);
 
@@ -2281,7 +2281,7 @@ void UNavigationSystemV1::DescribeFilterFlags(const TArray<FString>& FlagsDesc) 
 		for (int32 FlagIndex = 0; FlagIndex < MaxFlags; FlagIndex++)
 		{
 			FString PropName = FString::Printf(TEXT("bNavFlag%d"), FlagIndex);
-			UProperty* Prop = FindField<UProperty>(Structs[StructIndex], *PropName);
+			FProperty* Prop = FindField<FProperty>(Structs[StructIndex], *PropName);
 			check(Prop);
 
 			if (UseDesc[FlagIndex].Len())

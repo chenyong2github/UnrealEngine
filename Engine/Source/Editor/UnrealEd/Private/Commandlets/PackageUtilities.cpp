@@ -2656,7 +2656,7 @@ int32 UReplaceActorCommandlet::Main(const FString& Params)
 						AActor* NewActor = World->SpawnActor<AActor>( ReplaceWithClass, OldLocation, OldRotator, SpawnInfo );
 
 						// copy non-native non-transient properties common to both that were modified in the old actor to the new actor
-						for (UProperty* Property = CommonSuperclass->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext)
+						for (FProperty* Property = CommonSuperclass->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext)
 						{
 							if ( !(Property->PropertyFlags & CPF_Transient) &&
 								!(Property->PropertyFlags & (CPF_InstancedReference | CPF_ContainsInstancedReference)) &&

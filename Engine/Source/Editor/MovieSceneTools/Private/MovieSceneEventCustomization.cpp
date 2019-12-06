@@ -76,7 +76,7 @@ namespace UE4_MovieSceneEventCustomization
 			CallOnMemberFilter.PermittedNodeTypes.Add(UK2Node_CallFunction::StaticClass());
 			CallOnMemberFilter.Context.Blueprints.Add(Blueprint);
 
-			for (UObjectProperty* ObjectProperty : TFieldRange<UObjectProperty>(BoundObjectPinClass))
+			for (FObjectProperty* ObjectProperty : TFieldRange<FObjectProperty>(BoundObjectPinClass))
 			{
 				if (ObjectProperty->HasAnyPropertyFlags(CPF_BlueprintVisible) && (ObjectProperty->HasMetaData(FBlueprintMetadata::MD_ExposeFunctionCategories) || FBlueprintEditorUtils::IsSCSComponentProperty(ObjectProperty)))
 				{
@@ -375,7 +375,7 @@ void FMovieSceneEventCustomization::CustomizeChildren(TSharedRef<IPropertyHandle
 
 			TArray<FName, TInlineAllocator<8>> AllValidNames;
 
-			for (UProperty* Field : TFieldRange<UProperty>(CommonFunction))
+			for (FProperty* Field : TFieldRange<FProperty>(CommonFunction))
 			{
 				if (Field->HasAnyPropertyFlags(CPF_OutParm | CPF_ReturnParm | CPF_ReferenceParm) || Field->GetFName() == EntryPoint->BoundObjectPinName)
 				{
@@ -450,7 +450,7 @@ void FMovieSceneEventCustomization::CustomizeChildren(TSharedRef<IPropertyHandle
 void FMovieSceneEventCustomization::OnPayloadVariableChanged(TSharedRef<FStructOnScope> InStructData, TSharedPtr<IPropertyHandle> LocalVariableProperty)
 {
 	// This function should only ever be bound if all the entry points call the same function
-	UProperty* Property = LocalVariableProperty->GetProperty();
+	FProperty* Property = LocalVariableProperty->GetProperty();
 	if (!Property)
 	{
 		return;

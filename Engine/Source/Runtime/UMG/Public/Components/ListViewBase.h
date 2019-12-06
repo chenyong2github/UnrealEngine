@@ -503,7 +503,7 @@ private:
  * To generate a row for the child list, use GenerateTypedRow with the appropriate SObjectTableRow<T> type for your list
  *
  * Additionally, the entry widget class can be filtered for a particular class and interface with the EntryClass and EntryInterface metadata arguments
- * This can be specified either on the class directly (see below) or on any BindWidget UProperty
+ * This can be specified either on the class directly (see below) or on any BindWidget FProperty
  *
  * Example:
  * class UMyUserWidget : public UUserWidget

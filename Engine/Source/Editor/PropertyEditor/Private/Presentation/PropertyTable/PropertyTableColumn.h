@@ -59,14 +59,14 @@ public:
 
 	virtual void Tick() override;
 
-	virtual TSharedPtr<struct FCompareRowByColumnBase> GetPropertySorter(UProperty* Property, EColumnSortMode::Type SortMode) override;
+	virtual TSharedPtr<struct FCompareRowByColumnBase> GetPropertySorter(FProperty* Property, EColumnSortMode::Type SortMode) override;
 
 	DECLARE_DERIVED_EVENT( FPropertyTableColumn, IPropertyTableColumn::FFrozenStateChanged, FFrozenStateChanged );
 	FFrozenStateChanged* OnFrozenStateChanged() override { return &FrozenStateChanged; }
 
 	//~ End IPropertyTable Interface
 
-	static bool IsSupportedStructProperty(const UProperty* InProperty);
+	static bool IsSupportedStructProperty(const FProperty* InProperty);
 
 private:
 

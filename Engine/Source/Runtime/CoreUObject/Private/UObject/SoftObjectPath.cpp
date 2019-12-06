@@ -235,7 +235,7 @@ bool FSoftObjectPath::ExportTextItem(FString& ValueStr, FSoftObjectPath const& D
 bool FSoftObjectPath::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText, FArchive* InSerializingArchive)
 {
 	FString ImportedPath;
-	const TCHAR* NewBuffer = UPropertyHelpers::ReadToken(Buffer, ImportedPath, 1);
+	const TCHAR* NewBuffer = FPropertyHelpers::ReadToken(Buffer, ImportedPath, 1);
 	if (!NewBuffer)
 	{
 		return false;
@@ -250,10 +250,10 @@ bool FSoftObjectPath::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObj
 		if (*Buffer == TCHAR('\''))
 		{
 			// A ' token likely means we're looking at a path string in the form "Texture2d'/Game/UI/HUD/Actions/Barrel'" and we need to read and append the path part
-			// We have to skip over the first ' as UPropertyHelpers::ReadToken doesn't read single-quoted strings correctly, but does read a path correctly
+			// We have to skip over the first ' as FPropertyHelpers::ReadToken doesn't read single-quoted strings correctly, but does read a path correctly
 			Buffer++; // Skip the leading '
 			ImportedPath.Reset();
-			NewBuffer = UPropertyHelpers::ReadToken(Buffer, ImportedPath, 1);
+			NewBuffer = FPropertyHelpers::ReadToken(Buffer, ImportedPath, 1);
 			if (!NewBuffer)
 			{
 				return false;
@@ -627,7 +627,7 @@ bool FSoftObjectPathThreadContext::GetSerializationOptions(FName& OutPackageName
 	// Check archive for property/editor only info, this works for any serialize if passed in
 	if (Archive)
 	{
-		UProperty* CurrentProperty = Archive->GetSerializedProperty();
+		FProperty* CurrentProperty = Archive->GetSerializedProperty();
 			
 		if (CurrentProperty && CurrentPropertyName == NAME_None)
 		{

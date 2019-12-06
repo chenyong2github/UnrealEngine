@@ -93,14 +93,14 @@ void FBlueprintNodeSignature::SetNodeClass(TSubclassOf<UEdGraphNode> NodeClass)
 }
 
 //------------------------------------------------------------------------------
-void FBlueprintNodeSignature::AddSubObject(UObject const* SignatureObj)
+void FBlueprintNodeSignature::AddSubObject(FFieldVariant SignatureObj)
 {
 	// not ideal for generic "objects", but we have to keep in line with the 
 	// old favorites system (for backwards compatibility)
 	using namespace BlueprintNodeSignatureImpl;
 	FName SubObjectSignatureKey = FindUniqueKeyName(LegacySubObjSignatureKey, SignatureSet);
 
-	AddNamedValue(SubObjectSignatureKey, SignatureObj->GetPathName());
+	AddNamedValue(SubObjectSignatureKey, SignatureObj.GetPathName());
 }
 
 //------------------------------------------------------------------------------

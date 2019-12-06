@@ -172,7 +172,7 @@ public:
 	{
 		return TargetArray.IndexOfByPredicate([&](const FText& Element) -> bool
 		{
-			return UTextProperty::Identical_Implementation(Element, ItemToFind, 0);
+			return FTextProperty::Identical_Implementation(Element, ItemToFind, 0);
 		});
 	}
 
@@ -196,7 +196,7 @@ public:
 	{
 		return TargetArray.ContainsByPredicate([&](const FText& Element) -> bool
 		{
-			return UTextProperty::Identical_Implementation(Element, ItemToFind, 0);
+			return FTextProperty::Identical_Implementation(Element, ItemToFind, 0);
 		});
 	}
 
@@ -251,7 +251,7 @@ public:
 
 		return const_cast<TArray<FText>*>(&TargetArray)->RemoveAll([&](const FText& Element) -> bool
 		{
-			return UTextProperty::Identical_Implementation(Element, Item, 0);
+			return FTextProperty::Identical_Implementation(Element, Item, 0);
 		}) != 0;
 	}
 

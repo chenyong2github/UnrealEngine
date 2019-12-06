@@ -303,7 +303,7 @@ FText UK2Node_DynamicCast::GetMenuCategory() const
 FBlueprintNodeSignature UK2Node_DynamicCast::GetSignature() const
 {
 	FBlueprintNodeSignature NodeSignature = Super::GetSignature();
-	NodeSignature.AddSubObject(TargetType);
+	NodeSignature.AddSubObject(TargetType.Get());
 
 	return NodeSignature;
 }

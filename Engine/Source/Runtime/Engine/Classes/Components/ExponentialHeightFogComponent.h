@@ -251,10 +251,10 @@ protected:
 public:
 	//~ Begin UObject Interface
 #if WITH_EDITOR
-	virtual bool CanEditChange(const UProperty* InProperty) const override;
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
-	virtual void PostInterpChange(UProperty* PropertyThatChanged) override;
+	virtual void PostInterpChange(FProperty* PropertyThatChanged) override;
 	//~ End UObject Interface
 };
 

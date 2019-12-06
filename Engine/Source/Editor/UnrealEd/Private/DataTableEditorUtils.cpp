@@ -760,10 +760,10 @@ void FDataTableEditorUtils::CacheDataTableForEditing(const UDataTable* DataTable
 	TArray<FDataTableEditorRowListViewDataPtr> OldRows = OutAvailableRows;
 
 	// First build array of properties
-	TArray<const UProperty*> StructProps;
-	for (TFieldIterator<const UProperty> It(DataTable->RowStruct); It; ++It)
+	TArray<const FProperty*> StructProps;
+	for (TFieldIterator<const FProperty> It(DataTable->RowStruct); It; ++It)
 	{
-		const UProperty* Prop = *It;
+		const FProperty* Prop = *It;
 		check(Prop);
 		if (!Prop->HasMetaData(FName(TEXT("HideFromDataTableEditorColumn"))))
 		{
@@ -779,8 +779,8 @@ void FDataTableEditorUtils::CacheDataTableForEditing(const UDataTable* DataTable
 	OutAvailableColumns.Reset(StructProps.Num());
 	for (int32 Index = 0; Index < StructProps.Num(); ++Index)
 	{
-		const UProperty* Prop = StructProps[Index];
-		const FText PropertyDisplayName = DataTableUtils::GetPropertyDisplayName(Prop, FName::NameToDisplayString(Prop->GetName(), Prop->IsA<UBoolProperty>()));
+		const FProperty* Prop = StructProps[Index];
+		const FText PropertyDisplayName = DataTableUtils::GetPropertyDisplayName(Prop, FName::NameToDisplayString(Prop->GetName(), Prop->IsA<FBoolProperty>()));
 
 		FDataTableEditorColumnHeaderDataPtr CachedColumnData;
 		
@@ -835,7 +835,7 @@ void FDataTableEditorUtils::CacheDataTableForEditing(const UDataTable* DataTable
 			uint8* RowData = RowIt.Value();
 			for (int32 ColumnIndex = 0; ColumnIndex < StructProps.Num(); ++ColumnIndex)
 			{
-				const UProperty* Prop = StructProps[ColumnIndex];
+				const FProperty* Prop = StructProps[ColumnIndex];
 				FDataTableEditorColumnHeaderDataPtr CachedColumnData = OutAvailableColumns[ColumnIndex];
 
 				const FText CellText = DataTableUtils::GetPropertyValueAsText(Prop, RowData);
@@ -920,14 +920,14 @@ FText FDataTableEditorUtils::GetRowTypeInfoTooltipText(FDataTableEditorColumnHea
 {
 	if (ColumnHeaderDataPtr.IsValid())
 	{
-		const UProperty* Property = ColumnHeaderDataPtr->Property;
+		const FProperty* Property = ColumnHeaderDataPtr->Property;
 		if (Property)
 		{
-			const UClass* PropertyClass = Property->GetClass();
-			const UStructProperty* StructProp = Cast<const UStructProperty>(Property);
+			const FFieldClass* PropertyClass = Property->GetClass();
+			const FStructProperty* StructProp = CastField<const FStructProperty>(Property);
 			if (StructProp)
 			{
-				FString TypeName = FName::NameToDisplayString(Property->GetCPPType(), Property->IsA<UBoolProperty>());
+				FString TypeName = FName::NameToDisplayString(Property->GetCPPType(), Property->IsA<FBoolProperty>());
 				if (TypeName.Len())
 				{
 					// If type name starts with F and another capital letter, assume standard naming and remove F in the string shown to the user
@@ -953,10 +953,10 @@ FString FDataTableEditorUtils::GetRowTypeTooltipDocExcerptName(FDataTableEditorC
 {
 	if (ColumnHeaderDataPtr.IsValid())
 	{
-		const UProperty* Property = ColumnHeaderDataPtr->Property;
+		const FProperty* Property = ColumnHeaderDataPtr->Property;
 		if (Property)
 		{
-			const UStructProperty* StructProp = Cast<const UStructProperty>(Property);
+			const FStructProperty* StructProp = CastField<const FStructProperty>(Property);
 			if (StructProp)
 			{
 				if (StructProp->Struct == TBaseStructure<FSoftObjectPath>::Get())
@@ -967,7 +967,7 @@ FString FDataTableEditorUtils::GetRowTypeTooltipDocExcerptName(FDataTableEditorC
 				{
 					return "SoftClass";
 				}
-				FString TypeName = FName::NameToDisplayString(Property->GetCPPType(), Property->IsA<UBoolProperty>());
+				FString TypeName = FName::NameToDisplayString(Property->GetCPPType(), Property->IsA<FBoolProperty>());
 				if (TypeName.Len())
 				{
 					// If type name starts with F and another capital letter, assume standard naming and remove F to match the doc excerpt name
@@ -978,10 +978,10 @@ FString FDataTableEditorUtils::GetRowTypeTooltipDocExcerptName(FDataTableEditorC
 					return TypeName;
 				}
 			}
-			const UClass* PropertyClass = Property->GetClass();
+			const FFieldClass* PropertyClass = Property->GetClass();
 			if (PropertyClass)
 			{
-				if (PropertyClass == UStrProperty::StaticClass())
+				if (PropertyClass == FStrProperty::StaticClass())
 				{
 					return "String";
 				}

@@ -1084,7 +1084,7 @@ void UProjectPackagingSettings::PostEditChangeProperty( FPropertyChangedEvent& P
 	}
 }
 
-bool UProjectPackagingSettings::CanEditChange( const UProperty* InProperty ) const
+bool UProjectPackagingSettings::CanEditChange( const FProperty* InProperty ) const
 {
 	if (InProperty->GetFName() == FName(TEXT("NativizeBlueprintAssets")))
 	{

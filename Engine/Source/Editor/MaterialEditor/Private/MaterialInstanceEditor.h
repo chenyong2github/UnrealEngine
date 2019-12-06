@@ -67,10 +67,10 @@ public:
 	virtual UMaterialInterface* GetMaterialInterface() const override;
 
 	/** Pre edit change notify for properties. */
-	virtual void NotifyPreChange( UProperty* PropertyAboutToChange ) override;
+	virtual void NotifyPreChange( FProperty* PropertyAboutToChange ) override;
 
 	/** Post edit change notify for properties. */
-	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged ) override;
+	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged ) override;
 
 	void PreSavePackage(UPackage* Obj);
 

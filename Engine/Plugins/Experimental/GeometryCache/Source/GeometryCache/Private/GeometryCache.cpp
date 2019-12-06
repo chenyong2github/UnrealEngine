@@ -128,7 +128,7 @@ bool UGeometryCache::IsReadyForFinishDestroy()
 }
 
 #if WITH_EDITOR
-void UGeometryCache::PreEditChange(UProperty* PropertyAboutToChange)
+void UGeometryCache::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	// Flush the resource release commands to the rendering thread to ensure that the edit change doesn't occur while a resource is still allocated
 	ReleaseResourcesFence.Wait();

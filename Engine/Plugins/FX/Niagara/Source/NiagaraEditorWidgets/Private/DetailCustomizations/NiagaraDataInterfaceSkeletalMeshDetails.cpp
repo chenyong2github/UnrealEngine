@@ -48,7 +48,7 @@ void FNiagaraDataInterfaceSkeletalMeshDetails::CustomizeDetails(IDetailLayoutBui
 		
 		 for (TSharedPtr<IPropertyHandle> Property : MeshProperties)
 		 {
-			 UProperty* PropertyPtr = Property->GetProperty();
+			 FProperty* PropertyPtr = Property->GetProperty();
 			 TArray<TSharedPtr<FName>> PossibleNames;
 			 if (PropertyPtr == RegionsProperty->GetProperty())
 			 {
@@ -73,7 +73,7 @@ void FNiagaraDataInterfaceSkeletalMeshDetails::CustomizeDetails(IDetailLayoutBui
 
 		 for (TSharedPtr<IPropertyHandle> Property : SkelProperties)
 		 {
-			 UProperty* PropertyPtr = Property->GetProperty();
+			 FProperty* PropertyPtr = Property->GetProperty();
 			 TArray<TSharedPtr<FName>> PossibleNames;
 
 			if (PropertyPtr == BonesProperty->GetProperty())

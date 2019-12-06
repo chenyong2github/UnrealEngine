@@ -1514,7 +1514,7 @@ bool FKey::ExportTextItem(FString& ValueStr, FKey const& DefaultValue, UObject* 
 bool FKey::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText)
 {
 	FString Temp;
-	const TCHAR* NewBuffer = UPropertyHelpers::ReadToken(Buffer, Temp);
+	const TCHAR* NewBuffer = FPropertyHelpers::ReadToken(Buffer, Temp);
 	if (!NewBuffer)
 	{
 		return false;

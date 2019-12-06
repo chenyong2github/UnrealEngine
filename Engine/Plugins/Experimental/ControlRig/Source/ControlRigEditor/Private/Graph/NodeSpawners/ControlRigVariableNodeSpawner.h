@@ -41,7 +41,7 @@ public:
 	/**
 	 * Utility function for easily accessing the variable's type (needs to pull
 	 * the information differently if it is a local variable as opposed to a
-	 * member variable with a UProperty).
+	 * member variable with a FProperty).
 	 * 
 	 * @return A struct detailing the wrapped variable's type.
 	 */

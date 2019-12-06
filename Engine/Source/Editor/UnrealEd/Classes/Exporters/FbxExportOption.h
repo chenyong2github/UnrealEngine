@@ -67,12 +67,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Animation)
 	uint32 bExportLocalTime : 1;
 
-	/* Set all the UProperty to the CDO value */
+	/* Set all the FProperty to the CDO value */
 	void ResetToDefault();
 
-	/* Save the UProperty to a local ini to retrieve the value the next time we call function LoadOptions() */
+	/* Save the FProperty to a local ini to retrieve the value the next time we call function LoadOptions() */
 	virtual void SaveOptions();
 	
-	/* Load the UProperty data from a local ini which the value was store by the function SaveOptions() */
+	/* Load the FProperty data from a local ini which the value was store by the function SaveOptions() */
 	virtual void LoadOptions();
 };

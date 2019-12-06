@@ -298,10 +298,10 @@ void FAnimTrace::OutputAnimTickRecord(const FAnimationBaseContext& InContext, co
 		float BlendSpacePositionY = 0.0f;
 		const bool bIsBlendSpace = InTickRecord.SourceAsset->IsA<UBlendSpaceBase>();
 		if(bIsBlendSpace)
-		{
+	{
 			BlendSpacePositionX = InTickRecord.BlendSpace.BlendSpacePositionX;
 			BlendSpacePositionY = InTickRecord.BlendSpace.BlendSpacePositionY;
-		}
+	}
 
 		UE_TRACE_LOG(Animation, TickRecord)
 			<< TickRecord.Cycle(FPlatformTime::Cycles64())
@@ -502,9 +502,9 @@ void FAnimTrace::OutputAnimNodeStart(const FAnimationBaseContext& InContext, uin
 
 	IAnimClassInterface* AnimBlueprintClass = InContext.GetAnimClass();
 	check(AnimBlueprintClass);
-	const TArray<UStructProperty*>& AnimNodeProperties = AnimBlueprintClass->GetAnimNodeProperties();
+	const TArray<FStructPropertyPath>& AnimNodeProperties = AnimBlueprintClass->GetAnimNodeProperties();
 	check(AnimNodeProperties.IsValidIndex(InNodeId));
-	UStructProperty* LinkedProperty = AnimNodeProperties[InNodeId];
+	FStructProperty* LinkedProperty = AnimNodeProperties[InNodeId].Get();
 	check(LinkedProperty->Struct);
 
 #if WITH_EDITOR

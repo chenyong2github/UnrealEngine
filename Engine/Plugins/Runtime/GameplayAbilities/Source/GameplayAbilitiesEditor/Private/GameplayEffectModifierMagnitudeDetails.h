@@ -29,7 +29,7 @@ private:
 	void OnCalculationTypeChanged();
 
 	/** Visibility delegate for the various methods of calculating magnitude */
-	EVisibility GetMagnitudeCalculationPropertyVisibility(UProperty* InProperty) const;
+	EVisibility GetMagnitudeCalculationPropertyVisibility(FProperty* InProperty) const;
 
 	/** Property handle of the enumeration of the magnitude calculation type */
 	TSharedPtr<IPropertyHandle> MagnitudeCalculationTypePropertyHandle;
@@ -38,5 +38,5 @@ private:
 	EGameplayEffectMagnitudeCalculation VisibleCalculationType;
 
 	/** Acceleration map for determining whether to show a magnitude property or not */
-	TMap<UProperty*, EGameplayEffectMagnitudeCalculation> PropertyToCalcEnumMap;
+	TMap<FProperty*, EGameplayEffectMagnitudeCalculation> PropertyToCalcEnumMap;
 };

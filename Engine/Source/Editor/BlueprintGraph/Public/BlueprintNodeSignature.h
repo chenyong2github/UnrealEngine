@@ -29,7 +29,7 @@ public:
 	 * @param  SignatureObj	
 	 * @return 
 	 */
-	void AddSubObject(UObject const* SignatureObj);
+	void AddSubObject(FFieldVariant SignatureObj);
 
 	/**
 	 * 

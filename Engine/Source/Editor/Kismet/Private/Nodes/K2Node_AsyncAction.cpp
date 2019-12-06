@@ -27,7 +27,7 @@ void UK2Node_AsyncAction::GetMenuActions(FBlueprintActionDatabaseRegistrar& Acti
 			if (FunctionPtr.IsValid())
 			{
 				UFunction* Func = FunctionPtr.Get();
-				UObjectProperty* ReturnProp = CastChecked<UObjectProperty>(Func->GetReturnProperty());
+				FObjectProperty* ReturnProp = CastFieldChecked<FObjectProperty>(Func->GetReturnProperty());
 						
 				AsyncTaskNode->ProxyFactoryFunctionName = Func->GetFName();
 				AsyncTaskNode->ProxyFactoryClass        = Func->GetOuterUClass();

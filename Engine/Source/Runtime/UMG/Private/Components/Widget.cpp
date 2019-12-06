@@ -1460,7 +1460,7 @@ FString UWidget::GetDefaultFontName()
 
 //bool UWidget::BindProperty(const FName& DestinationProperty, UObject* SourceObject, const FName& SourceProperty)
 //{
-//	UDelegateProperty* DelegateProperty = FindField<UDelegateProperty>(GetClass(), FName(*( DestinationProperty.ToString() + TEXT("Delegate") )));
+//	FDelegateProperty* DelegateProperty = FindField<FDelegateProperty>(GetClass(), FName(*( DestinationProperty.ToString() + TEXT("Delegate") )));
 //
 //	if ( DelegateProperty )
 //	{
@@ -1471,7 +1471,7 @@ FString UWidget::GetDefaultFontName()
 //	return false;
 //}
 
-TSubclassOf<UPropertyBinding> UWidget::FindBinderClassForDestination(UProperty* Property)
+TSubclassOf<UPropertyBinding> UWidget::FindBinderClassForDestination(FProperty* Property)
 {
 	if ( BinderClasses.Num() == 0 )
 	{
@@ -1495,7 +1495,7 @@ TSubclassOf<UPropertyBinding> UWidget::FindBinderClassForDestination(UProperty* 
 	return nullptr;
 }
 
-static UPropertyBinding* GenerateBinder(UDelegateProperty* DelegateProperty, UObject* Container, UObject* SourceObject, const FDynamicPropertyPath& BindingPath)
+static UPropertyBinding* GenerateBinder(FDelegateProperty* DelegateProperty, UObject* Container, UObject* SourceObject, const FDynamicPropertyPath& BindingPath)
 {
 	FScriptDelegate* ScriptDelegate = DelegateProperty->GetPropertyValuePtr_InContainer(Container);
 	if ( ScriptDelegate )
@@ -1504,7 +1504,7 @@ static UPropertyBinding* GenerateBinder(UDelegateProperty* DelegateProperty, UOb
 		UFunction* SignatureFunction = DelegateProperty->SignatureFunction;
 		if ( SignatureFunction->NumParms == 1 )
 		{
-			if ( UProperty* ReturnProperty = SignatureFunction->GetReturnProperty() )
+			if ( FProperty* ReturnProperty = SignatureFunction->GetReturnProperty() )
 			{
 				TSubclassOf<UPropertyBinding> BinderClass = UWidget::FindBinderClassForDestination(ReturnProperty);
 				if ( BinderClass != nullptr )
@@ -1523,7 +1523,7 @@ static UPropertyBinding* GenerateBinder(UDelegateProperty* DelegateProperty, UOb
 	return nullptr;
 }
 
-bool UWidget::AddBinding(UDelegateProperty* DelegateProperty, UObject* SourceObject, const FDynamicPropertyPath& BindingPath)
+bool UWidget::AddBinding(FDelegateProperty* DelegateProperty, UObject* SourceObject, const FDynamicPropertyPath& BindingPath)
 {
 	if ( UPropertyBinding* Binder = GenerateBinder(DelegateProperty, this, SourceObject, BindingPath) )
 	{

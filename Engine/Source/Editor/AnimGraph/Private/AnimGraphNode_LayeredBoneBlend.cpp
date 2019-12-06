@@ -53,7 +53,7 @@ void UAnimGraphNode_LayeredBoneBlend::RemovePinFromBlendByFilter(UEdGraphPin* Pi
 	FScopedTransaction Transaction( LOCTEXT("RemovePinFromBlend", "RemovePinFromBlendByFilter") );
 	Modify();
 
-	UProperty* AssociatedProperty;
+	FProperty* AssociatedProperty;
 	int32 ArrayIndex;
 	GetPinAssociatedProperty(GetFNodeType(), Pin, /*out*/ AssociatedProperty, /*out*/ ArrayIndex);
 

@@ -81,7 +81,7 @@ SRowEditor::~SRowEditor()
 {
 }
 
-void SRowEditor::NotifyPreChange( UProperty* PropertyAboutToChange )
+void SRowEditor::NotifyPreChange( FProperty* PropertyAboutToChange )
 {
 	check(DataTable.IsValid());
 	DataTable->Modify();
@@ -89,7 +89,7 @@ void SRowEditor::NotifyPreChange( UProperty* PropertyAboutToChange )
 	FDataTableEditorUtils::BroadcastPreChange(DataTable.Get(), FDataTableEditorUtils::EDataTableChangeInfo::RowData);
 }
 
-void SRowEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged )
+void SRowEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged )
 {
 	check(DataTable.IsValid());
 

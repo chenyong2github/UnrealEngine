@@ -50,7 +50,7 @@ void USplineGeneratorBase::Reset()
 		SelectedSplineComponent->UpdateSpline();
 		SelectedSplineComponent->bSplineHasBeenEdited = true;
 
-		UProperty* SplineCurvesProperty = FindField<UProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, SplineCurves));
+		FProperty* SplineCurvesProperty = FindField<FProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, SplineCurves));
 		FComponentVisualizer::NotifyPropertyModified(SelectedSplineComponent.Get(), SplineCurvesProperty);
 
 		GEditor->RedrawLevelEditingViewports(true);
@@ -80,7 +80,7 @@ void USplineGeneratorBase::PreviewCurve()
 		SelectedSplineComponent->UpdateSpline();
 		SelectedSplineComponent->bSplineHasBeenEdited = true;
 
-		UProperty* SplineCurvesProperty = FindField<UProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, SplineCurves));
+		FProperty* SplineCurvesProperty = FindField<FProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, SplineCurves));
 		FComponentVisualizer::NotifyPropertyModified(SelectedSplineComponent.Get(), SplineCurvesProperty);
 
 		GEditor->RedrawLevelEditingViewports(true);

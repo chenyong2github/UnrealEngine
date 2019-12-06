@@ -170,7 +170,7 @@ public:
 
 protected:
 
-	friend class UMulticastSparseDelegateProperty;
+	friend class FMulticastSparseDelegateProperty;
 	bool bIsBound;
 };
 

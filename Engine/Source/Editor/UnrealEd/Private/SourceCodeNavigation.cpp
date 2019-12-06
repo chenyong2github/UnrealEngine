@@ -1594,7 +1594,7 @@ bool FSourceCodeNavigation::NavigateToFunction(const UFunction* InFunction)
 	return false;
 }
 
-bool FSourceCodeNavigation::CanNavigateToProperty(const UProperty* InProperty)
+bool FSourceCodeNavigation::CanNavigateToProperty(const FProperty* InProperty)
 {
 	if (!InProperty)
 	{
@@ -1613,7 +1613,7 @@ bool FSourceCodeNavigation::CanNavigateToProperty(const UProperty* InProperty)
 	return InProperty->IsNative() && IsCompilerAvailable();
 }
 
-bool FSourceCodeNavigation::NavigateToProperty(const UProperty* InProperty)
+bool FSourceCodeNavigation::NavigateToProperty(const FProperty* InProperty)
 {
 	if (!InProperty)
 	{
@@ -1632,7 +1632,7 @@ bool FSourceCodeNavigation::NavigateToProperty(const UProperty* InProperty)
 	if (InProperty && InProperty->IsNative())
 	{
 		FString SourceFilePath;
-		const bool bFileLocated = FindClassHeaderPath(InProperty, SourceFilePath) &&
+		const bool bFileLocated = FindClassHeaderPath(InProperty->GetOwnerUField(), SourceFilePath) &&
 			IFileManager::Get().FileSize(*SourceFilePath) != INDEX_NONE;
 
 		if (bFileLocated)

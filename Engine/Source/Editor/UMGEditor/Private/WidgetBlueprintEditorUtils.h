@@ -33,11 +33,11 @@ public:
 
 	static void DuplicateWidgets(TSharedRef<FWidgetBlueprintEditor> BlueprintEditor, UWidgetBlueprint* BP, TSet<FWidgetReference> Widgets);
 
-	static bool IsBindWidgetProperty(UProperty* InProperty);
-	static bool IsBindWidgetProperty(UProperty* InProperty, bool& bIsOptional);
+	static bool IsBindWidgetProperty(FProperty* InProperty);
+	static bool IsBindWidgetProperty(FProperty* InProperty, bool& bIsOptional);
 
-	static bool IsBindWidgetAnimProperty(UProperty* InProperty);
-	static bool IsBindWidgetAnimProperty(UProperty* InProperty, bool& bIsOptional);
+	static bool IsBindWidgetAnimProperty(FProperty* InProperty);
+	static bool IsBindWidgetAnimProperty(FProperty* InProperty, bool& bIsOptional);
 
 	static bool IsUsableWidgetClass(UClass* WidgetClass);
 

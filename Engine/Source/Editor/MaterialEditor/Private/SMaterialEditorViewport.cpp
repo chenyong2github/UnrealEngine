@@ -758,7 +758,7 @@ void SMaterialEditor3DPreviewViewport::OnPropertyChanged(UObject* ObjectBeingMod
 {
 	if (ObjectBeingModified != nullptr && ObjectBeingModified == PreviewMaterial)
 	{
-		UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+		FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 		static const FString MaterialDomain = TEXT("MaterialDomain");
 		if (PropertyThatChanged != nullptr && PropertyThatChanged->GetName() == MaterialDomain)
 		{

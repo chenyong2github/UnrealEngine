@@ -117,7 +117,7 @@ class ENGINESETTINGS_API UGameMapsSettings
 	static void SetGlobalDefaultGameMode( const FString& NewGameMode );
 
 	virtual void PostInitProperties() override;
-	virtual void PostReloadConfig( class UProperty* PropertyThatWasLoaded ) override;
+	virtual void PostReloadConfig( class FProperty* PropertyThatWasLoaded ) override;
 
 public:
 

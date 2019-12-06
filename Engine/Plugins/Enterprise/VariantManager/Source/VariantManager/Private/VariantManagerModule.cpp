@@ -45,7 +45,7 @@ public:
 			RegisterTabSpawner( LevelEditorModule.GetLevelEditorTabManager() );
 		});
 
-		// Make sure we update the cached UProperty pointers we use for exception properties whenever hot reload happens to a relevant class
+		// Make sure we update the cached FProperty pointers we use for exception properties whenever hot reload happens to a relevant class
 		FVariantManagerUtils::RegisterForHotReload();
 	}
 

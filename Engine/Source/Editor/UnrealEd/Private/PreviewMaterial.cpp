@@ -275,7 +275,7 @@ void UMaterialEditorPreviewParameters::PostEditChangeProperty(FPropertyChangedEv
 {
 	if (PreviewMaterial && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
-		UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+		FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 		if (OriginalFunction == nullptr)
 		{
 			CopyToSourceInstance();
@@ -851,7 +851,7 @@ void UMaterialEditorInstanceConstant::PostEditChangeProperty(FPropertyChangedEve
 {
 	if (SourceInstance)
 	{
-		UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+		FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 		bool bLayersParameterChanged = false;
 
 		FNavigationLockContext NavUpdateLock(ENavigationLockReason::MaterialUpdate);

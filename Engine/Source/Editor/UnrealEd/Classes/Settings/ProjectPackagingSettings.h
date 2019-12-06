@@ -438,7 +438,7 @@ public:
 
 	virtual void PostInitProperties() override;
 	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent ) override;
-	virtual bool CanEditChange( const UProperty* InProperty ) const override;
+	virtual bool CanEditChange( const FProperty* InProperty ) const override;
 
 	/** Adds the given Blueprint asset to the exclusive nativization list. */
 	bool AddBlueprintAssetToNativizationList(const class UBlueprint* InBlueprint);

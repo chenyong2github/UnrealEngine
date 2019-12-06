@@ -113,12 +113,12 @@ class COREUOBJECT_API FArchiveStackTrace : public FLargeMemoryWriter
 		/** Full name of the currently serialized object */
 		FString SerializedObjectName;
 		/** The currently serialized property */
-		UProperty* SerializedProp;
+		FProperty* SerializedProp;
 		/** Name of the currently serialized property */
 		FString SerializedPropertyName;
 
 		FCallstackData();
-		FCallstackData(ANSICHAR* InCallstack, UObject* InSerializedObject, UProperty* InSerializedProperty);
+		FCallstackData(ANSICHAR* InCallstack, UObject* InSerializedObject, FProperty* InSerializedProperty);
 
 		/** Converts the callstack and associated data to human readable string */
 		FString ToString(const TCHAR* CallstackCutoffText) const;
@@ -157,7 +157,7 @@ class COREUOBJECT_API FArchiveStackTrace : public FLargeMemoryWriter
 #endif
 
 	/** Adds a unique callstack to UniqueCallstacks map */
-	ANSICHAR* AddUniqueCallstack(UObject* InSerializedObject, UProperty* InSerializedProperty, uint32& OutCallstackCRC);
+	ANSICHAR* AddUniqueCallstack(UObject* InSerializedObject, FProperty* InSerializedProperty, uint32& OutCallstackCRC);
 
 	/** Finds a callstack associated with data at the specified offset */
 	int32 GetCallstackAtOffset(int64 InOffset, int32 MinOffsetIndex);
@@ -256,7 +256,7 @@ public:
 			, Object(nullptr)
 			, Property(nullptr)
 		{}
-		FSerializeData(int64 InOffset, int64 InSize, UObject* InObject, UProperty* InProperty)
+		FSerializeData(int64 InOffset, int64 InSize, UObject* InObject, FProperty* InProperty)
 			: Offset(InOffset)
 			, Size(InSize)
 			, Count(1)
@@ -267,7 +267,7 @@ public:
 		int64 Size;
 		int64 Count;
 		UObject* Object;
-		UProperty* Property;
+		FProperty* Property;
 		bool IsIdentical(const FSerializeData& Other) const
 		{
 			return Object == Other.Object && Property == Other.Property &&

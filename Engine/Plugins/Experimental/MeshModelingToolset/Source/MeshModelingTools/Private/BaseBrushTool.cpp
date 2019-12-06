@@ -62,7 +62,7 @@ void UBaseBrushTool::Shutdown(EToolShutdownType ShutdownType)
 }
 
 
-void UBaseBrushTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UBaseBrushTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	if (PropertySet == BrushProperties)
 	{

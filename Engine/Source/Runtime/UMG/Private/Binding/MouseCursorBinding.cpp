@@ -8,20 +8,20 @@ UMouseCursorBinding::UMouseCursorBinding()
 {
 }
 
-bool UMouseCursorBinding::IsSupportedSource(UProperty* Property) const
+bool UMouseCursorBinding::IsSupportedSource(FProperty* Property) const
 {
 	return IsSupportedDestination(Property);
 }
 
-bool UMouseCursorBinding::IsSupportedDestination(UProperty* Property) const
+bool UMouseCursorBinding::IsSupportedDestination(FProperty* Property) const
 {
 	static const FName MouseCursorEnum(TEXT("EMouseCursor"));
 	
-	if ( UEnumProperty* EnumProperty = Cast<UEnumProperty>(Property) )
+	if ( FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property) )
 	{
 		return EnumProperty->GetEnum()->GetFName() == MouseCursorEnum;
 	}
-	else if ( UByteProperty* ByteProperty = Cast<UByteProperty>(Property) )
+	else if ( FByteProperty* ByteProperty = CastField<FByteProperty>(Property) )
 	{
 		if ( ByteProperty->IsEnum() )
 		{

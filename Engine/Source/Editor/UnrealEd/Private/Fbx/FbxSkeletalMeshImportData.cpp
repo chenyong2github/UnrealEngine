@@ -49,7 +49,7 @@ UFbxSkeletalMeshImportData* UFbxSkeletalMeshImportData::GetImportDataForSkeletal
 	return ImportData;
 }
 
-bool UFbxSkeletalMeshImportData::CanEditChange(const UProperty* InProperty) const
+bool UFbxSkeletalMeshImportData::CanEditChange(const FProperty* InProperty) const
 {
 	bool bMutable = Super::CanEditChange(InProperty);
 	UObject* Outer = GetOuter();

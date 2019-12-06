@@ -13,6 +13,7 @@
 #include "Logging/TokenizedMessage.h"
 #include "Stats/StatsHierarchical.h"
 #include "Animation/AnimTrace.h"
+#include "UObject/FieldPath.h"
 
 #include "AnimNodeBase.generated.h"
 
@@ -26,6 +27,7 @@ class UAnimBlueprint;
 class UAnimInstance;
 struct FAnimInstanceProxy;
 struct FAnimNode_Base;
+class UProperty;
 
 /**
  * Utility container for tracking a stack of ancestor nodes by node type during graph traversal
@@ -724,7 +726,7 @@ struct FExposedValueCopyRecord
 		, CachedSourceStructSubProperty(nullptr)
 	{}
 
-	void* GetDestAddr(FAnimInstanceProxy* Proxy, const UProperty* NodeProperty) const;
+	void* GetDestAddr(FAnimInstanceProxy* Proxy, const FProperty* NodeProperty) const;
 	const void* GetSourceAddr(FAnimInstanceProxy* Proxy) const;
 
 #if WITH_EDITORONLY_DATA
@@ -754,7 +756,7 @@ struct FExposedValueCopyRecord
 	ECopyType CopyType;
 
 	UPROPERTY()
-	UProperty* DestProperty;
+	TFieldPath<FProperty> DestProperty;
 
 	UPROPERTY()
 	int32 DestArrayIndex;
@@ -764,10 +766,10 @@ struct FExposedValueCopyRecord
 
 	// cached source property
 	UPROPERTY()
-	UProperty* CachedSourceProperty;
+	TFieldPath<FProperty> CachedSourceProperty;
 
 	UPROPERTY()
-	UProperty* CachedSourceStructSubProperty;
+	TFieldPath<FProperty> CachedSourceStructSubProperty;
 };
 
 #if WITH_EDITORONLY_DATA
@@ -811,7 +813,7 @@ struct ENGINE_API FExposedValueHandler
 	// is instantiated from this property the node's ExposedValueHandler will 
 	// point back to this FExposedValueHandler:
 	UPROPERTY()
-	UStructProperty* ValueHandlerNodeProperty;
+	TFieldPath<FStructProperty> ValueHandlerNodeProperty;
 
 	// Prevent multiple initialization
 	bool bInitialized;

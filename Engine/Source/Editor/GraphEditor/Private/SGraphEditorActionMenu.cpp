@@ -14,6 +14,8 @@ SGraphEditorActionMenu::~SGraphEditorActionMenu()
 
 void SGraphEditorActionMenu::Construct( const FArguments& InArgs )
 {
+
+
 	this->GraphObj = InArgs._GraphObj;
 	this->DraggedFromPins = InArgs._DraggedFromPins;
 	this->NewNodePosition = InArgs._NewNodePosition;

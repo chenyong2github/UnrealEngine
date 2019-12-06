@@ -2366,7 +2366,7 @@ static bool UnitTestExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 	 *		- Dynamic/static array elements can not be specified at the moment
 	 *
 	 *	- Misc. type support:
-	 *		- There are a few UProperty's I haven't used with reflection yet (e.g. TMap), which will be supported when it becomes useful
+	 *		- There are a few FProperty's I haven't used with reflection yet (e.g. TMap), which will be supported when it becomes useful
 	 *
 	 *	- Console autocomplete:
 	 *		- Eventually, I may utilize the console autocomplete, to automatically evaluate the reflect command as it is typed,

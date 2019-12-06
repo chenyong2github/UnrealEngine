@@ -155,7 +155,7 @@ bool SControlRigEditModeTools::IsPropertyAnimated(const IPropertyHandle& Propert
 		if (ObjectHandle.IsValid()) 
 		{
 			UMovieScene* MovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
-			UProperty* Property = PropertyHandle.GetProperty();
+			FProperty* Property = PropertyHandle.GetProperty();
 			TSharedRef<FPropertyPath> PropertyPath = FPropertyPath::CreateEmpty();
 			PropertyPath->AddProperty(FPropertyInfo(Property));
 			FName PropertyName(*PropertyPath->ToString(TEXT(".")));
@@ -181,7 +181,7 @@ void SControlRigEditModeTools::OnKeyPropertyClicked(const IPropertyHandle& Keyed
 
 bool SControlRigEditModeTools::ShouldShowPropertyOnDetailCustomization(const FPropertyAndParent& InPropertyAndParent) const
 {
-	auto ShouldPropertyBeVisible = [](const UProperty& InProperty)
+	auto ShouldPropertyBeVisible = [](const FProperty& InProperty)
 	{
 		bool bShow = InProperty.HasAnyPropertyFlags(CPF_Interp) || InProperty.HasMetaData(UControlRig::InputMetaName) || InProperty.HasMetaData(UControlRig::OutputMetaName);
 
@@ -191,16 +191,16 @@ bool SControlRigEditModeTools::ShouldShowPropertyOnDetailCustomization(const FPr
 */
 
 		// Always show settings properties
-		bShow |= Cast<UClass>(InProperty.GetOuter()) == UControlRigEditModeSettings::StaticClass();
+		bShow |= InProperty.GetOwner<UClass>() == UControlRigEditModeSettings::StaticClass();
 
 		return bShow;
 	};
 
 	bool bContainsVisibleProperty = false;
-	if (InPropertyAndParent.Property.IsA<UStructProperty>())
+	if (InPropertyAndParent.Property.IsA<FStructProperty>())
 	{
-		const UStructProperty* StructProperty = Cast<UStructProperty>(&InPropertyAndParent.Property);
-		for (TFieldIterator<UProperty> PropertyIt(StructProperty->Struct); PropertyIt; ++PropertyIt)
+		const FStructProperty* StructProperty = CastField<FStructProperty>(&InPropertyAndParent.Property);
+		for (TFieldIterator<FProperty> PropertyIt(StructProperty->Struct); PropertyIt; ++PropertyIt)
 		{
 			if (ShouldPropertyBeVisible(**PropertyIt))
 			{
@@ -215,21 +215,21 @@ bool SControlRigEditModeTools::ShouldShowPropertyOnDetailCustomization(const FPr
 
 bool SControlRigEditModeTools::IsReadOnlyPropertyOnDetailCustomization(const FPropertyAndParent& InPropertyAndParent) const
 {
-	auto ShouldPropertyBeEnabled = [](const UProperty& InProperty)
+	auto ShouldPropertyBeEnabled = [](const FProperty& InProperty)
 	{
 		bool bShow = InProperty.HasAnyPropertyFlags(CPF_Interp) || InProperty.HasMetaData(UControlRig::InputMetaName);
 
 		// Always show settings properties
-		bShow |= Cast<UClass>(InProperty.GetOuter()) == UControlRigEditModeSettings::StaticClass();
+		bShow |= Cast<UClass>(InProperty.GetOwner<UObject>()) == UControlRigEditModeSettings::StaticClass();
 
 		return bShow;
 	};
 
 	bool bContainsVisibleProperty = false;
-	if (InPropertyAndParent.Property.IsA<UStructProperty>())
+	if (InPropertyAndParent.Property.IsA<FStructProperty>())
 	{
-		const UStructProperty* StructProperty = Cast<UStructProperty>(&InPropertyAndParent.Property);
-		for (TFieldIterator<UProperty> PropertyIt(StructProperty->Struct); PropertyIt; ++PropertyIt)
+		const FStructProperty* StructProperty = CastField<FStructProperty>(&InPropertyAndParent.Property);
+		for (TFieldIterator<FProperty> PropertyIt(StructProperty->Struct); PropertyIt; ++PropertyIt)
 		{
 			if (ShouldPropertyBeEnabled(**PropertyIt))
 			{

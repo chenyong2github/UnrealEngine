@@ -190,7 +190,7 @@ private:
 	TSharedValue<ESplinePointType::Type> PointType;
 
 	FSplineComponentVisualizer* SplineVisualizer;
-	UProperty* SplineCurvesProperty;
+	FProperty* SplineCurvesProperty;
 	TArray<TSharedPtr<FString>> SplinePointTypes;
 	TSharedPtr<ISplineMetadataDetails> SplineMetaDataDetails;
 	FSimpleDelegate OnRegenerateChildren;
@@ -203,7 +203,7 @@ FSplinePointDetails::FSplinePointDetails(USplineComponent* InOwningSplineCompone
 	SplineVisualizer = (FSplineComponentVisualizer*)Visualizer.Get();
 	check(SplineVisualizer);
 
-	SplineCurvesProperty = FindField<UProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, SplineCurves));
+	SplineCurvesProperty = FindField<FProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, SplineCurves));
 
 	UEnum* SplinePointTypeEnum = StaticEnum<ESplinePointType::Type>();
 	check(SplinePointTypeEnum);

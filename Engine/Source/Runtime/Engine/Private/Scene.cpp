@@ -229,12 +229,12 @@ static void VerifyPostProcessingProperties(
 {
 	const UStruct* LegacyStruct = FPostProcessSettings::StaticStruct();
 
-	TMap<FString, const UProperty*> NewPropertySet;
+	TMap<FString, const FProperty*> NewPropertySet;
 
 	// Walk new struct and build list of property name.
 	for (const UStruct* NewStruct : NewStructs)
 	{
-		for (UProperty* Property = NewStruct->PropertyLink; Property; Property = Property->PropertyLinkNext)
+		for (FProperty* Property = NewStruct->PropertyLink; Property; Property = Property->PropertyLinkNext)
 		{
 			// Make sure there is no duplicate.
 			check(!NewPropertySet.Contains(Property->GetNameCPP()));
@@ -243,7 +243,7 @@ static void VerifyPostProcessingProperties(
 	}
 
 	// Walk FPostProcessSettings.
-	for (UProperty* Property = LegacyStruct->PropertyLink; Property; Property = Property->PropertyLinkNext)
+	for (FProperty* Property = LegacyStruct->PropertyLink; Property; Property = Property->PropertyLinkNext)
 	{
 		if (!Property->GetNameCPP().StartsWith(PropertyPrefix))
 		{

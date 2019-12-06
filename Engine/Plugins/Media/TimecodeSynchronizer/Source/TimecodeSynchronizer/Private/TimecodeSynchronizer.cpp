@@ -219,7 +219,7 @@ void UTimecodeSynchronizer::BeginDestroy()
 }
 
 #if WITH_EDITOR
-bool UTimecodeSynchronizer::CanEditChange(const UProperty* InProperty) const
+bool UTimecodeSynchronizer::CanEditChange(const FProperty* InProperty) const
 {
 	if (!Super::CanEditChange(InProperty))
 	{

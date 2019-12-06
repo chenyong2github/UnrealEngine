@@ -63,7 +63,7 @@ TSharedRef<SDockTab> FConfigEditorModule::SpawnConfigEditorTab(const FSpawnTabAr
 }
 
 
-void FConfigEditorModule::CreateHierarchyEditor(UProperty* InEditProperty)
+void FConfigEditorModule::CreateHierarchyEditor(FProperty* InEditProperty)
 {
 	CachedPropertyToView = InEditProperty;
 }

@@ -37,8 +37,8 @@ protected:
 private:
 	void CreatePropertyList(UScriptStruct* InScriptStruct, bool bCheckInterpFlag, const FString& InOwner);
 	void CreatePropertiesChannel(UScriptStruct* InScriptStruct);
-	bool IsPropertyTypeSupported(const UProperty* InProperty) const;
-	int32 CreateChannelProxyInternal(UProperty* InPropertyPtr, FLiveLinkPropertyData& OutPropertyData, int32 InPropertyIndex, int32 GlobalIndex, TArray<bool>& OutChannelMask, FMovieSceneChannelProxyData& OutChannelData, const FText& InPropertyName);
+	bool IsPropertyTypeSupported(const FProperty* InProperty) const;
+	int32 CreateChannelProxyInternal(FProperty* InPropertyPtr, FLiveLinkPropertyData& OutPropertyData, int32 InPropertyIndex, int32 GlobalIndex, TArray<bool>& OutChannelMask, FMovieSceneChannelProxyData& OutChannelData, const FText& InPropertyName);
 
 protected:
 

@@ -35,7 +35,7 @@ private:
 	// we have to override both of it
 	// Rebuild is about rebuilding internal data structre
 	// Getter is about getting only properties, so that it can reconstruct node
-	virtual void GetExposableProperties(TArray<UProperty*>& OutExposableProperties) const override;
+	virtual void GetExposableProperties(TArray<FProperty*>& OutExposableProperties) const override;
 	virtual void RebuildExposedProperties() override;
 	virtual void ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins) override;
 	virtual void ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog) override;

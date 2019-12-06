@@ -12,6 +12,7 @@
 #include "AnimClassData.generated.h"
 
 class USkeleton;
+class UStructProperty;
 
 UCLASS()
 class ENGINE_API UAnimClassData : public UObject, public IAnimClassInterface
@@ -40,31 +41,38 @@ public:
 
 	// The array of anim nodes
 	UPROPERTY()
-	TArray<UStructProperty*> AnimNodeProperties;
+	TArray<UStructProperty*> AnimNodeProperties_DEPRECATED;
+	TArray<FStructPropertyPath> AnimNodeProperties;
 
 	// The array of linked anim graph nodes
 	UPROPERTY()
-	TArray<UStructProperty*> LinkedAnimGraphNodeProperties;
+	TArray<UStructProperty*> LinkedAnimGraphNodeProperties_DEPRECATED;
+	TArray<FStructPropertyPath> LinkedAnimGraphNodeProperties;
 
 	// The array of linked anim layer nodes
 	UPROPERTY()
-	TArray<UStructProperty*> LinkedAnimLayerNodeProperties;
+	TArray<UStructProperty*> LinkedAnimLayerNodeProperties_DEPRECATED;
+	TArray<FStructPropertyPath> LinkedAnimLayerNodeProperties;
 
 	// Array of nodes that need a PreUpdate() call
 	UPROPERTY()
-	TArray<UStructProperty*> PreUpdateNodeProperties;
+	TArray<UStructProperty*> PreUpdateNodeProperties_DEPRECATED;
+	TArray<FStructPropertyPath> PreUpdateNodeProperties;
 
 	// Array of nodes that need a DynamicReset() call
 	UPROPERTY()
-	TArray<UStructProperty*> DynamicResetNodeProperties;
+	TArray<UStructProperty*> DynamicResetNodeProperties_DEPRECATED;
+	TArray<FStructPropertyPath> DynamicResetNodeProperties;
 
 	// Array of state machine nodes
 	UPROPERTY()
-	TArray<UStructProperty*> StateMachineNodeProperties;
+	TArray<UStructProperty*> StateMachineNodeProperties_DEPRECATED;
+	TArray<FStructPropertyPath> StateMachineNodeProperties;
 
 	// Array of nodes that need an OnInitializeAnimInstance call
 	UPROPERTY()
-	TArray<UStructProperty*> InitializationNodeProperties;
+	TArray<UStructProperty*> InitializationNodeProperties_DEPRECATED;
+	TArray<FStructPropertyPath> InitializationNodeProperties;
 
 	// Indices for any Asset Player found within a specific (named) Anim Layer Graph, or implemented Anim Interface Graph
 	UPROPERTY()
@@ -89,18 +97,22 @@ public:
 	virtual const TArray<FAnimNotifyEvent>& GetAnimNotifies() const override { return AnimNotifies; }
 	virtual const TArray<FAnimBlueprintFunction>& GetAnimBlueprintFunctions() const override { return AnimBlueprintFunctions; }
 	virtual const TMap<FName, FCachedPoseIndices>& GetOrderedSavedPoseNodeIndicesMap() const override { return OrderedSavedPoseIndicesMap; }
-	virtual const TArray<UStructProperty*>& GetAnimNodeProperties() const override { return AnimNodeProperties; }
-	virtual const TArray<UStructProperty*>& GetLinkedAnimGraphNodeProperties() const override { return LinkedAnimGraphNodeProperties; }
-	virtual const TArray<UStructProperty*>& GetLinkedAnimLayerNodeProperties() const override { return LinkedAnimLayerNodeProperties; }
-	virtual const TArray<UStructProperty*>& GetPreUpdateNodeProperties() const override { return PreUpdateNodeProperties; }
-	virtual const TArray<UStructProperty*>& GetDynamicResetNodeProperties() const override { return DynamicResetNodeProperties; }
-	virtual const TArray<UStructProperty*>& GetStateMachineNodeProperties() const override { return StateMachineNodeProperties; }
-	virtual const TArray<UStructProperty*>& GetInitializationNodeProperties() const override { return InitializationNodeProperties; }
+	virtual const TArray<FStructPropertyPath>& GetAnimNodeProperties() const override { return AnimNodeProperties; }
+	virtual const TArray<FStructPropertyPath>& GetLinkedAnimGraphNodeProperties() const override { return LinkedAnimGraphNodeProperties; }
+	virtual const TArray<FStructPropertyPath>& GetLinkedAnimLayerNodeProperties() const override { return LinkedAnimLayerNodeProperties; }
+	virtual const TArray<FStructPropertyPath>& GetPreUpdateNodeProperties() const override { return PreUpdateNodeProperties; }
+	virtual const TArray<FStructPropertyPath>& GetDynamicResetNodeProperties() const override { return DynamicResetNodeProperties; }
+	virtual const TArray<FStructPropertyPath>& GetStateMachineNodeProperties() const override { return StateMachineNodeProperties; }
+	virtual const TArray<FStructPropertyPath>& GetInitializationNodeProperties() const override { return InitializationNodeProperties; }
 	virtual const TArray<FName>& GetSyncGroupNames() const override { return SyncGroupNames; }
 	virtual int32 GetSyncGroupIndex(FName SyncGroupName) const override { return SyncGroupNames.IndexOfByKey(SyncGroupName); }
 	virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const { return EvaluateGraphExposedInputs; }
 	virtual const TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation() const { return GraphNameAssetPlayers; }
 	virtual const TMap<FName, FAnimGraphBlendOptions>& GetGraphBlendOptions() const { return GraphBlendOptions; }
+
+	// UObject interface
+	virtual void Serialize(FArchive& Ar) override;
+
 #if WITH_EDITOR
 	void CopyFrom(IAnimClassInterface* AnimClass)
 	{

@@ -35,7 +35,7 @@ void USoundControlBusBase::PostDuplicate(EDuplicateMode::Type DuplicateMode)
 
 void USoundControlBusBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (UProperty* Property = PropertyChangedEvent.Property)
+	if (FProperty* Property = PropertyChangedEvent.Property)
 	{
 		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundControlBusBase, bOverrideAddress) && !bOverrideAddress)
 		{

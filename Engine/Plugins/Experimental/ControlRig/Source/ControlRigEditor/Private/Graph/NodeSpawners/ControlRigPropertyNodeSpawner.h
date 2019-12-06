@@ -24,7 +24,7 @@ class CONTROLRIGEDITOR_API UControlRigPropertyNodeSpawner : public UBlueprintFie
 public:
 	/**
 	 * Creates a new UControlRigPropertyNodeSpawner, charged with spawning 
-	 * a member-variable node (for a variable that has an associated UProperty) 
+	 * a member-variable node (for a variable that has an associated FProperty) 
 	 * 
 	 * @param  NodeClass	The node type that you want the spawner to spawn.
 	 * @param  VarProperty	The property that represents the member-variable you want nodes spawned for.
@@ -32,7 +32,7 @@ public:
 	 * @param  Outer		Optional outer for the new spawner (if left null, the transient package will be used).
 	 * @return A newly allocated instance of this class.
 	 */
-	static UControlRigPropertyNodeSpawner* CreateFromProperty(TSubclassOf<UControlRigGraphNode> NodeClass, UProperty const* VarProperty, UEdGraph* VarContext = nullptr, UObject* Outer = nullptr);
+	static UControlRigPropertyNodeSpawner* CreateFromProperty(TSubclassOf<UControlRigGraphNode> NodeClass, FProperty const* VarProperty, UEdGraph* VarContext = nullptr, UObject* Outer = nullptr);
 
 	// UBlueprintNodeSpawner interface
 	virtual void Prime() override;
@@ -48,12 +48,12 @@ public:
 	 * 
 	 * @return Null if this wraps a local variable (or if the variable property is stale), otherwise the property this was initialized with. 
 	 */
-	UProperty const* GetProperty() const;
+	FProperty const* GetProperty() const;
 
 	/**
 	 * Utility function for easily accessing the variable's type (needs to pull
 	 * the information differently if it is a local variable as opposed to a
-	 * member variable with a UProperty).
+	 * member variable with a FProperty).
 	 * 
 	 * @return A struct detailing the wrapped variable's type.
 	 */
@@ -63,7 +63,7 @@ private:
 	/**
 	 * Utility function for easily accessing the variable's name (needs to pull
 	 * the information differently if it is a local variable as opposed to a
-	 * member variable with a UProperty).
+	 * member variable with a FProperty).
 	 * 
 	 * @return A friendly, user presentable, name for the variable that this wraps. 
 	 */

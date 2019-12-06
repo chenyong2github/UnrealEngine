@@ -9,7 +9,7 @@
 
 class UObject;
 class UStruct;
-class UProperty;
+class FProperty;
 
 /**
  * Result flags from property access.
@@ -82,7 +82,7 @@ namespace PropertyAccessUtil
 	 *
 	 * @return Flags describing whether the get was successful.
 	 */
-	COREUOBJECT_API EPropertyAccessResultFlags GetPropertyValue_Object(const UProperty* InProp, const UObject* InObject, void* InDestValue, const int32 InArrayIndex);
+	COREUOBJECT_API EPropertyAccessResultFlags GetPropertyValue_Object(const FProperty* InProp, const UObject* InObject, void* InDestValue, const int32 InArrayIndex);
 
 	/**
 	 * High-level function for getting the value of a property from a property container (object or struct).
@@ -95,7 +95,7 @@ namespace PropertyAccessUtil
 	 *
 	 * @return Flags describing whether the get was successful.
 	 */
-	COREUOBJECT_API EPropertyAccessResultFlags GetPropertyValue_InContainer(const UProperty* InProp, const void* InContainerData, void* InDestValue, const int32 InArrayIndex);
+	COREUOBJECT_API EPropertyAccessResultFlags GetPropertyValue_InContainer(const FProperty* InProp, const void* InContainerData, void* InDestValue, const int32 InArrayIndex);
 
 	/**
 	 * High-level function for getting the single-element value of a property from memory.
@@ -107,7 +107,7 @@ namespace PropertyAccessUtil
 	 *
 	 * @return Flags describing whether the get was successful.
 	 */
-	COREUOBJECT_API EPropertyAccessResultFlags GetPropertyValue_DirectSingle(const UProperty* InProp, const void* InSrcValue, void* InDestValue);
+	COREUOBJECT_API EPropertyAccessResultFlags GetPropertyValue_DirectSingle(const FProperty* InProp, const void* InSrcValue, void* InDestValue);
 
 	/**
 	 * High-level function for getting the multi-element value of a property from memory.
@@ -119,7 +119,7 @@ namespace PropertyAccessUtil
 	 *
 	 * @return Flags describing whether the get was successful.
 	 */
-	COREUOBJECT_API EPropertyAccessResultFlags GetPropertyValue_DirectComplete(const UProperty* InProp, const void* InSrcValue, void* InDestValue);
+	COREUOBJECT_API EPropertyAccessResultFlags GetPropertyValue_DirectComplete(const FProperty* InProp, const void* InSrcValue, void* InDestValue);
 
 	/**
 	 * Low-level function for getting the value of a property.
@@ -138,7 +138,7 @@ namespace PropertyAccessUtil
 	 *
 	 * @return Flags describing whether it's valid to get the value of the property.
 	 */
-	COREUOBJECT_API EPropertyAccessResultFlags CanGetPropertyValue(const UProperty* InProp);
+	COREUOBJECT_API EPropertyAccessResultFlags CanGetPropertyValue(const FProperty* InProp);
 
 	/**
 	 * High-level function for setting the value of a property on an object.
@@ -152,7 +152,7 @@ namespace PropertyAccessUtil
 	 *
 	 * @return Flags describing whether the set was successful.
 	 */
-	COREUOBJECT_API EPropertyAccessResultFlags SetPropertyValue_Object(const UProperty* InProp, UObject* InObject, const void* InSrcValue, const int32 InArrayIndex, const uint64 InReadOnlyFlags);
+	COREUOBJECT_API EPropertyAccessResultFlags SetPropertyValue_Object(const FProperty* InProp, UObject* InObject, const void* InSrcValue, const int32 InArrayIndex, const uint64 InReadOnlyFlags);
 
 	/**
 	 * High-level function for setting the value of a property on a property container (object or struct).
@@ -168,7 +168,7 @@ namespace PropertyAccessUtil
 	 *
 	 * @return Flags describing whether the set was successful.
 	 */
-	COREUOBJECT_API EPropertyAccessResultFlags SetPropertyValue_InContainer(const UProperty* InProp, void* InContainerData, const void* InSrcValue, const int32 InArrayIndex, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const FPropertyAccessBuildChangeNotifyFunc& InBuildChangeNotifyFunc);
+	COREUOBJECT_API EPropertyAccessResultFlags SetPropertyValue_InContainer(const FProperty* InProp, void* InContainerData, const void* InSrcValue, const int32 InArrayIndex, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const FPropertyAccessBuildChangeNotifyFunc& InBuildChangeNotifyFunc);
 	
 	/**
 	 * High-level function for setting the single-element value of a property in memory.
@@ -183,7 +183,7 @@ namespace PropertyAccessUtil
 	 *
 	 * @return Flags describing whether the set was successful.
 	 */
-	COREUOBJECT_API EPropertyAccessResultFlags SetPropertyValue_DirectSingle(const UProperty* InProp, const void* InSrcValue, void* InDestValue, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const FPropertyAccessBuildChangeNotifyFunc& InBuildChangeNotifyFunc);
+	COREUOBJECT_API EPropertyAccessResultFlags SetPropertyValue_DirectSingle(const FProperty* InProp, const void* InSrcValue, void* InDestValue, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const FPropertyAccessBuildChangeNotifyFunc& InBuildChangeNotifyFunc);
 
 	/**
 	 * High-level function for setting the multi-element value of a property in memory.
@@ -198,7 +198,7 @@ namespace PropertyAccessUtil
 	 *
 	 * @return Flags describing whether the set was successful.
 	 */
-	COREUOBJECT_API EPropertyAccessResultFlags SetPropertyValue_DirectComplete(const UProperty* InProp, const void* InSrcValue, void* InDestValue, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const FPropertyAccessBuildChangeNotifyFunc& InBuildChangeNotifyFunc);
+	COREUOBJECT_API EPropertyAccessResultFlags SetPropertyValue_DirectComplete(const FProperty* InProp, const void* InSrcValue, void* InDestValue, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const FPropertyAccessBuildChangeNotifyFunc& InBuildChangeNotifyFunc);
 
 	/**
 	 * Low-level function for setting the value of a property.
@@ -218,7 +218,7 @@ namespace PropertyAccessUtil
 	 *
 	 * @return Flags describing whether it's valid to set the value of the property.
 	 */
-	COREUOBJECT_API EPropertyAccessResultFlags CanSetPropertyValue(const UProperty* InProp, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate);
+	COREUOBJECT_API EPropertyAccessResultFlags CanSetPropertyValue(const FProperty* InProp, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate);
 
 	/**
 	 * Low-level function called before modifying an object to notify that its value is about to change.
@@ -243,7 +243,7 @@ namespace PropertyAccessUtil
 	 *
 	 * @return The information needed to emit property change notifications.
 	 */
-	COREUOBJECT_API TUniquePtr<FPropertyAccessChangeNotify> BuildBasicChangeNotify(const UProperty* InProp, const UObject* InObject);
+	COREUOBJECT_API TUniquePtr<FPropertyAccessChangeNotify> BuildBasicChangeNotify(const FProperty* InProp, const UObject* InObject);
 
 	/**
 	 * Low-level function for checking whether the given object instance is considered a template for property access.
@@ -262,5 +262,5 @@ namespace PropertyAccessUtil
 	 *
 	 * @return The found property, or null if the property cannot be found.
 	 */
-	COREUOBJECT_API UProperty* FindPropertyByName(const FName InPropName, const UStruct* InStruct);
+	COREUOBJECT_API FProperty* FindPropertyByName(const FName InPropName, const UStruct* InStruct);
 }

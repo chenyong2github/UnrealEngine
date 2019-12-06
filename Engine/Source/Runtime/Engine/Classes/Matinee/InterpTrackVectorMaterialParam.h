@@ -26,7 +26,7 @@ class UInterpTrackVectorMaterialParam : public UInterpTrackVectorBase
 
 	//Begin UObject Interface
 #if WITH_EDITOR
-	virtual void PreEditChange(UProperty* PropertyThatWillChange) override;
+	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	//End UObject Interface

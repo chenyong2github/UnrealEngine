@@ -239,7 +239,7 @@ void USoundSubmix::PostLoad()
 }
 
 #if WITH_EDITOR
-void USoundSubmix::PreEditChange(UProperty* PropertyAboutToChange)
+void USoundSubmix::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	static FName NAME_ChildSubmixes(TEXT("ChildSubmixes"));
 

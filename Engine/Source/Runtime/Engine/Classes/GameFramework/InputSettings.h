@@ -131,7 +131,7 @@ public:
 	// UObject interface
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
-	virtual void PostReloadConfig( class UProperty* PropertyThatWasLoaded ) override;
+	virtual void PostReloadConfig( class FProperty* PropertyThatWasLoaded ) override;
 #endif
 
 	virtual void PostInitProperties() override;

@@ -682,7 +682,7 @@ protected:
 
 	/** Gets an unchecked (can return nullptr) node given a property of the anim instance */
 	template<class NodeType>
-	NodeType* GetNodeFromProperty(UProperty* Property)
+	NodeType* GetNodeFromProperty(FProperty* Property)
 	{
 		return (NodeType*)Property->ContainerPtrToValuePtr<NodeType>(AnimInstanceObject);
 	}

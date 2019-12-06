@@ -100,11 +100,11 @@ void register_itypedscalarproperty()
     register_<Abc::IBoolProperty>   ( "IBoolProperty" );
     register_<Abc::IUcharProperty>  ( "IUcharProperty" );
     register_<Abc::ICharProperty>   ( "ICharProperty" );
-    register_<Abc::IUInt16Property> ( "IUInt16Property" );
+    register_<Abc::IFInt16Property> ( "IFInt16Property" );
     register_<Abc::IInt16Property>  ( "IInt16Property" );
     register_<Abc::IUInt32Property> ( "IUInt32Property" );
     register_<Abc::IInt32Property>  ( "IInt32Property" );
-    register_<Abc::IUInt64Property> ( "IUInt64Property" );
+    register_<Abc::IFInt64Property> ( "IFInt64Property" );
     register_<Abc::IInt64Property>  ( "IInt64Property" );
     register_<Abc::IHalfProperty>   ( "IHalfProperty" );
     register_<Abc::IFloatProperty>  ( "IFloatProperty" );

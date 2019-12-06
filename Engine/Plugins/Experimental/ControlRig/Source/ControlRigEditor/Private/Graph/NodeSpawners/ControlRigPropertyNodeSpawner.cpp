@@ -12,7 +12,7 @@
 
 #define LOCTEXT_NAMESPACE "ControlRigPropertyNodeSpawner"
 
-UControlRigPropertyNodeSpawner* UControlRigPropertyNodeSpawner::CreateFromProperty(TSubclassOf<UControlRigGraphNode> NodeClass, UProperty const* VarProperty, UEdGraph* VarContext, UObject* Outer/*= nullptr*/)
+UControlRigPropertyNodeSpawner* UControlRigPropertyNodeSpawner::CreateFromProperty(TSubclassOf<UControlRigGraphNode> NodeClass, FProperty const* VarProperty, UEdGraph* VarContext, UObject* Outer/*= nullptr*/)
 {
 	check(VarProperty != nullptr);
 	if (Outer == nullptr)
@@ -22,7 +22,7 @@ UControlRigPropertyNodeSpawner* UControlRigPropertyNodeSpawner::CreateFromProper
 
 	UControlRigPropertyNodeSpawner* NodeSpawner = NewObject<UControlRigPropertyNodeSpawner>(Outer);
 	NodeSpawner->NodeClass = NodeClass;
-	NodeSpawner->Field = VarProperty;
+	NodeSpawner->SetField(VarProperty);
 
 	FBlueprintActionUiSpec& MenuSignature = NodeSpawner->DefaultMenuSignature;
 	FString const VarSubCategory = FObjectEditorUtils::GetCategory(VarProperty);
@@ -44,9 +44,9 @@ UControlRigPropertyNodeSpawner* UControlRigPropertyNodeSpawner::CreateFromProper
 	}
 	MenuSignature.Icon = UK2Node_Variable::GetVarIconFromPinType(NodeSpawner->GetVarType(), MenuSignature.IconTint);
 
-	auto MemberVarSetupLambda = [](UEdGraphNode* NewNode, UField const* InField)
+	auto MemberVarSetupLambda = [](UEdGraphNode* NewNode, FFieldVariant InField)
 	{
-		if (UProperty const* Property = Cast<UProperty>(InField))
+		if (FProperty const* Property = CastField<FProperty>(InField.ToField()))
 		{
 			UControlRigGraphNode* ControlRigGraphNode = CastChecked<UControlRigGraphNode>(NewNode);
 			ControlRigGraphNode->SetPropertyName(Property->GetFName());
@@ -77,18 +77,18 @@ FBlueprintActionUiSpec UControlRigPropertyNodeSpawner::GetUiSpec(FBlueprintActio
 	return MenuSignature;
 }
 
-UProperty const* UControlRigPropertyNodeSpawner::GetProperty() const
+FProperty const* UControlRigPropertyNodeSpawner::GetProperty() const
 {
-	return Cast<UProperty>(GetField());
+	return GetField().Get<FProperty>();
 }
 
 FEdGraphPinType UControlRigPropertyNodeSpawner::GetVarType() const
 {
 	FEdGraphPinType VarType;
-	if (UProperty const* Property = GetProperty())
+	if (FProperty const* SpawnerProperty = GetProperty())
 	{
 		UEdGraphSchema_K2 const* K2Schema = GetDefault<UEdGraphSchema_K2>();
-		K2Schema->ConvertPropertyToPinType(Property, VarType);
+		K2Schema->ConvertPropertyToPinType(SpawnerProperty, VarType);
 	}
 	return VarType;
 }
@@ -96,9 +96,9 @@ FEdGraphPinType UControlRigPropertyNodeSpawner::GetVarType() const
 FText UControlRigPropertyNodeSpawner::GetVariableName() const
 {
 	FText VarName;
-	if (UProperty const* Property = GetProperty())
+	if (FProperty const* SpawnerProperty = GetProperty())
 	{
-		VarName = FText::FromName(Property->GetFName());
+		VarName = FText::FromName(SpawnerProperty->GetFName());
 	}
 	return VarName;
 }

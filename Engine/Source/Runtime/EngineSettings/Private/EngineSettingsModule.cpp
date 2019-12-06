@@ -253,7 +253,7 @@ void UGameMapsSettings::PostInitProperties()
 	FixMapAssetRef(TransitionMap);
 }
 
-void UGameMapsSettings::PostReloadConfig( UProperty* PropertyThatWasLoaded )
+void UGameMapsSettings::PostReloadConfig( FProperty* PropertyThatWasLoaded )
 {
 	if (PropertyThatWasLoaded)
 	{

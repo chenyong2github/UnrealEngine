@@ -135,8 +135,8 @@ bool FDeviceProfileConsoleVariableColumn::Supports(const TSharedRef< IPropertyTa
 		if( PropertyPath.IsValid() && PropertyPath->GetNumProperties() > 0 )
 		{
 			const FPropertyInfo& PropertyInfo = PropertyPath->GetRootProperty();
-			UProperty* Property = PropertyInfo.Property.Get();
-			if (Property->GetName() == TEXT("CVars") && Property->IsA(UArrayProperty::StaticClass()))
+			FProperty* Property = PropertyInfo.Property.Get();
+			if (Property->GetName() == TEXT("CVars") && Property->IsA(FArrayProperty::StaticClass()))
 			{
 				return true;
 			}

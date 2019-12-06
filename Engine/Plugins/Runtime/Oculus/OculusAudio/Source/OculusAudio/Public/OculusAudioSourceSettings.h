@@ -15,7 +15,7 @@ public:
 	UOculusAudioSourceSettings();
 
 #if WITH_EDITOR
-	virtual bool CanEditChange(const UProperty* InProperty) const override;
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "SpatializationSettings")

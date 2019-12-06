@@ -36,7 +36,7 @@ public:
 	virtual FPoseLinkMappingRecord GetLinkIDLocation(const UScriptStruct* NodeType, UEdGraphPin* SourcePin) override;
 
 	// UAnimGraphNode_CustomProperty interface
-	virtual bool IsStructuralProperty(UProperty* InProperty) const override;
+	virtual bool IsStructuralProperty(FProperty* InProperty) const override;
 
 	// Node accessor
 	virtual FAnimNode_LinkedAnimGraph* GetLinkedAnimGraphNode() PURE_VIRTUAL(UAnimGraphNode_LinkedAnimGraphBase::GetLinkedAnimGraphNode, return nullptr;);

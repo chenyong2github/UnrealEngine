@@ -5,11 +5,5 @@
 #include "UObject/UnrealType.h"
 
 /*-----------------------------------------------------------------------------
-	UUInt64Property.
+	FUInt64Property.
 -----------------------------------------------------------------------------*/
-
-IMPLEMENT_CORE_INTRINSIC_CLASS(UUInt64Property, UNumericProperty,
-	{
-	}
-);
-

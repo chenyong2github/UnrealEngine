@@ -575,7 +575,7 @@ void UVolumeTexture::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 
 void UVolumeTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
- 	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+ 	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if (PropertyChangedEvent.Property)
 	{
 		static const FName SourceTextureName("Source2DTexture");

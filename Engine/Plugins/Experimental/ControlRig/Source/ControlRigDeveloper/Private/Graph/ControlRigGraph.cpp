@@ -87,7 +87,7 @@ void UControlRigGraph::PostLoad()
 				UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node);
 				if (RigNode != nullptr)
 				{
-					UStructProperty* Property = Cast<UStructProperty>(BlueprintClass->FindPropertyByName(RigNode->GetPropertyName()));
+					FStructProperty* Property = CastField<FStructProperty>(BlueprintClass->FindPropertyByName(RigNode->GetPropertyName()));
 					if (Property != nullptr)
 					{
 						// found the hierarchy ref variable

@@ -117,7 +117,7 @@ namespace BlueprintActionFilterImpl
 	 * @param  Field	The field you want to check.
 	 * @return True if the field is global/static (and public), false if it has a limited extent (or is private/protected).
 	 */
-	static bool IsGloballyAccessible(UField const* Field);
+	static bool IsGloballyAccessible(FFieldVariant Field);
 	
 	/**
 	 * Rejection test that checks to see if the supplied node-spawner would
@@ -588,18 +588,18 @@ static bool BlueprintActionFilterImpl::IsLatent(FBlueprintActionInfo& BlueprintA
 }
 
 //------------------------------------------------------------------------------
-static bool BlueprintActionFilterImpl::IsGloballyAccessible(UField const* Field)
+static bool BlueprintActionFilterImpl::IsGloballyAccessible(FFieldVariant Field)
 {
 	bool bHasPersistentExtents = false; // is global or static
-	bool bIsPublic = Field->HasAnyFlags(RF_Public);
+	bool bIsPublic = Field.IsUObject() ? Field.ToUObject()->HasAnyFlags(RF_Public) : Field.ToField()->HasAnyFlags(RF_Public);
 	
-	UClass* ClassOuter = Cast<UClass>(Field->GetOuter());
+	UClass* ClassOuter = Cast<UClass>(Field.IsUObject() ? Field.ToUObject()->GetOuter() : Field.ToField()->GetOwner<UObject>());
 	// outer is probably a UPackage (for like global enums, structs, etc.)
 	if (ClassOuter == nullptr)
 	{
 		bHasPersistentExtents = true;
 	}
-	else if (UFunction const* Function = Cast<UFunction>(Field))
+	else if (UFunction const* Function = Cast<UFunction>(Field.ToUObject()))
 	{
 		bIsPublic |= !Function->HasMetaData(FBlueprintMetadata::MD_Protected) &&
 			!Function->HasMetaData(FBlueprintMetadata::MD_Private);
@@ -664,20 +664,20 @@ static bool BlueprintActionFilterImpl::IsFieldInaccessible(FBlueprintActionFilte
 	bool bIsFilteredOut = false;
 	FBlueprintActionContext const& FilterContext = Filter.Context;
 	
-	UField const* Field = BlueprintAction.GetAssociatedMemberField();
-	bool const bIsMemberAction = (Field != nullptr) && (Field->GetOwnerClass() != nullptr);
+	FFieldVariant Field = BlueprintAction.GetAssociatedMemberField();
+	bool const bIsMemberAction = Field.IsValid() && Field.GetOwnerClass() != nullptr;
 
 	if (bIsMemberAction)
 	{
-		bool const bIsProtected = Field->HasMetaData(FBlueprintMetadata::MD_Protected);
-		bool const bIsPrivate   = Field->HasMetaData(FBlueprintMetadata::MD_Private);
+		bool const bIsProtected = Field.HasMetaData(FBlueprintMetadata::MD_Protected);
+		bool const bIsPrivate   = Field.HasMetaData(FBlueprintMetadata::MD_Private);
 		bool const bIsPublic    = !bIsPrivate && !bIsProtected;
 
 		// @TODO: Trying to respect the "editable"/DisableEditOnInstance toggle
 		//        was a bad idea that lead to confusion amongst users (also this 
 		//        created a discrepancy between native and blueprint variables),
 		//        until we make this concept more understandable: hold off
-// 		if (UProperty const* Property = Cast<UProperty>(Field))
+// 		if (FProperty const* Property = CastField<FProperty>(Field))
 // 		{
 // 			// default to assuming that this property is a native one (the
 // 			// accessibility there is a little more lax)
@@ -702,7 +702,7 @@ static bool BlueprintActionFilterImpl::IsFieldInaccessible(FBlueprintActionFilte
 // 				// public until the user exposes it (delegates don't have an
 // 				// 'editable' toggle, so they should default to public)
 // 				bIsPublic &= !Property->HasAnyPropertyFlags(CPF_DisableEditOnInstance) ||
-// 					(Cast<UMulticastDelegateProperty>(Property) != nullptr);
+// 					(CastField<FMulticastDelegateProperty>(Property) != nullptr);
 // 
 // 				// @TODO: allow users to choose "read-only" for blueprint 
 // 				//        variables ("private" might have provided this in the 
@@ -821,7 +821,7 @@ static bool BlueprintActionFilterImpl::IsPermissionNotGranted(FBlueprintActionFi
 	bool bIsFilteredOut = false;
 	FBlueprintActionContext const& FilterContext = Filter.Context;
 
-	if (UProperty const* const Property = BlueprintAction.GetAssociatedProperty())
+	if (FProperty const* const Property = BlueprintAction.GetAssociatedProperty())
 	{
 		UClass const* const NodeClass = BlueprintAction.GetNodeClass();
 		for (UBlueprint const* Blueprint : FilterContext.Blueprints)
@@ -860,11 +860,12 @@ static bool BlueprintActionFilterImpl::IsDeprecated(FBlueprintActionFilter const
 static bool BlueprintActionFilterImpl::IsRejectedGlobalField(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction)
 {
 	bool bIsFilteredOut = false;
-	if (UField const* Field = BlueprintAction.GetAssociatedMemberField())
+	FFieldVariant Field = BlueprintAction.GetAssociatedMemberField();
+	if (Field.IsValid())
 	{
 		bIsFilteredOut = IsGloballyAccessible(Field);
 		
-		UClass* FieldClass = Field->GetOwnerClass();
+		UClass* FieldClass = Field.GetOwnerClass();
 		if (bIsFilteredOut && (FieldClass != nullptr))
 		{
 			for (const auto& ClassData : Filter.TargetClasses)
@@ -887,8 +888,8 @@ static bool BlueprintActionFilterImpl::IsNonTargetMember(FBlueprintActionFilter 
 {
 	bool bIsFilteredOut = false;
 
-	UField const* ClassField = BlueprintAction.GetAssociatedMemberField();
-	bool const bIsMemberAction = (ClassField != nullptr) && (ClassField->GetOwnerClass() != nullptr);
+	FFieldVariant ClassField = BlueprintAction.GetAssociatedMemberField();
+	bool const bIsMemberAction = ClassField.IsValid() && ClassField.GetOwnerClass() != nullptr;
 
 	if (bIsMemberAction)
 	{
@@ -951,11 +952,12 @@ static bool BlueprintActionFilterImpl::IsActionHiddenByConfig(FBlueprintActionFi
 {
 	bool bIsFilteredOut = false;
 
-	if (const UField* ActionField = BlueprintAction.GetAssociatedMemberField())
+	FFieldVariant ActionField = BlueprintAction.GetAssociatedMemberField();
+	if (ActionField.IsValid())
 	{
 		const TArray<FString>& HiddenFields = GetHiddenFieldPaths();
 
-		FString const FieldPath = ActionField->GetPathName();
+		FString const FieldPath = ActionField.GetPathName();
 		if (HiddenFields.Contains(FieldPath))
 		{
 			bIsFilteredOut = true;
@@ -1104,7 +1106,7 @@ static bool BlueprintActionFilterImpl::IsOutOfScopeLocalVariable(FBlueprintActio
 		{
 			bIsFilteredOut = (Filter.Context.Graphs.Num() == 0);
 
-			UEdGraph const* VarOuter = Cast<UEdGraph const>(VarSpawner->GetVarOuter());
+			UEdGraph const* VarOuter = Cast<UEdGraph const>(VarSpawner->GetVarOuter().ToUObject());
 			for (UEdGraph* Graph : Filter.Context.Graphs)
 			{
 				if (FBlueprintEditorUtils::GetTopLevelGraph(Graph) != VarOuter)
@@ -1129,9 +1131,9 @@ static bool BlueprintActionFilterImpl::IsLevelScriptActionValid(FBlueprintAction
 	{
 		OuterClass = Cast<UClass>( NodeFunction->GetOuter() );
 	}
-	else if( UProperty const* NodeProperty = BlueprintAction.GetAssociatedProperty() )
+	else if( FProperty const* NodeProperty = BlueprintAction.GetAssociatedProperty() )
 	{
-		OuterClass = Cast<UClass>( NodeProperty->GetOuter() );
+		OuterClass = NodeProperty->GetOwner<UClass>();
 	}
 
 	if( OuterClass )
@@ -1328,8 +1330,7 @@ static bool BlueprintActionFilterImpl::IsPinCompatibleWithTargetSelf(UEdGraphPin
 				// when there is only one binding being applied ...
 				if (Bindings.Num() == 1) 
 				{
-					const UObject* Binding = Bindings.CreateConstIterator()->Get();
-					const UProperty* MemberBinding = Cast<UProperty>(Binding);
+					FProperty* MemberBinding = Bindings.CreateConstIterator()->Get<FProperty>();
 
 					if ((MemberBinding != nullptr) && BlueprintAction.NodeSpawner->IsBindingCompatible(MemberBinding))
 					{
@@ -1411,9 +1412,9 @@ static bool BlueprintActionFilterImpl::ArrayFunctionHasParamOfType(const UFuncti
 	FlaggedParamMetaData.ParseIntoArray(WildcardPinNameStrs, TEXT(","), /*CullEmpty =*/true);
 	Algo::Transform(WildcardPinNameStrs, WildcardPinNames, [](const FString& NameStr) { return FName(*NameStr); });
 
-	for (TFieldIterator<UProperty> PropIt(ArrayFunction); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+	for (TFieldIterator<FProperty> PropIt(ArrayFunction); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
 	{
-		UProperty* FuncParam = *PropIt;
+		FProperty* FuncParam = *PropIt;
 
 		const bool bIsFunctionInput = !FuncParam->HasAnyPropertyFlags(CPF_OutParm) || FuncParam->HasAnyPropertyFlags(CPF_ReferenceParm);
 		if (bWantOutput == bIsFunctionInput)
@@ -1450,12 +1451,12 @@ static bool BlueprintActionFilterImpl::ArrayFunctionHasParamOfType(const UFuncti
 static bool BlueprintActionFilterImpl::IsMissmatchedPropertyType(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction)
 {
 	bool bIsFilteredOut = false;
-	if (UProperty const* Property = BlueprintAction.GetAssociatedProperty())
+	if (FProperty const* Property = BlueprintAction.GetAssociatedProperty())
 	{
 		TArray<UEdGraphPin*> const& ContextPins = Filter.Context.Pins;
 		if (ContextPins.Num() > 0)
 		{
-			bool const bIsDelegate = Property->IsA<UMulticastDelegateProperty>();
+			bool const bIsDelegate = Property->IsA<FMulticastDelegateProperty>();
 			bool const bIsGetter   = BlueprintAction.GetNodeClass()->IsChildOf<UK2Node_VariableGet>();
 			bool const bIsSetter   = BlueprintAction.GetNodeClass()->IsChildOf<UK2Node_VariableSet>();
 
@@ -1773,7 +1774,7 @@ FBlueprintActionInfo::FBlueprintActionInfo(UObject const* ActionOwnerIn, UBluepr
 	, ActionOwner(ActionOwnerIn)
 	, CacheFlags(0)
 	, CachedOwnerClass(nullptr)
-	, CachedActionField(nullptr)
+	, CachedActionField((UObject*)nullptr)
 	, CachedActionProperty(nullptr)
 	, CachedActionFunction(nullptr)
 {
@@ -1823,9 +1824,10 @@ UClass const* FBlueprintActionInfo::GetOwnerClass()
 
 		if (CachedOwnerClass == nullptr)
 		{
-			if (UField const* AssociatedMemberField = GetAssociatedMemberField())
+			FFieldVariant AssociatedMemberField = GetAssociatedMemberField();
+			if (AssociatedMemberField.IsValid())
 			{
-				CachedOwnerClass = AssociatedMemberField->GetOwnerClass();
+				CachedOwnerClass = AssociatedMemberField.GetOwnerClass();
 			}
 		}
 
@@ -1843,31 +1845,38 @@ UClass const* FBlueprintActionInfo::GetNodeClass()
 }
 
 //------------------------------------------------------------------------------
-UField const* FBlueprintActionInfo::GetAssociatedMemberField()
+FFieldVariant FBlueprintActionInfo::GetAssociatedMemberField()
 {
 	if ((CacheFlags & EBlueprintActionInfoFlags::CachedField) == 0)
 	{
-		CachedActionField = FBlueprintNodeSpawnerUtils::GetAssociatedField(NodeSpawner);
+		if (const UFunction* AssociatedFunction = FBlueprintNodeSpawnerUtils::GetAssociatedFunction(NodeSpawner))
+		{
+			CachedActionField = const_cast<UFunction*>(AssociatedFunction);
+		}
+		else if (const FProperty* AssociatedProperty = FBlueprintNodeSpawnerUtils::GetAssociatedProperty(NodeSpawner))
+		{
+			CachedActionField = const_cast<FProperty*>(AssociatedProperty);
+		}
 		CacheFlags |= EBlueprintActionInfoFlags::CachedField;
 	}
 	return CachedActionField;
 }
 
 //------------------------------------------------------------------------------
-UProperty const* FBlueprintActionInfo::GetAssociatedProperty()
+FProperty const* FBlueprintActionInfo::GetAssociatedProperty()
 {
 	if ((CacheFlags & EBlueprintActionInfoFlags::CachedProperty) == 0)
 	{
 		if (CacheFlags & EBlueprintActionInfoFlags::CachedField)
 		{
-			CachedActionProperty = Cast<UProperty>(CachedActionField);
+			CachedActionProperty = CastField<FProperty>(CachedActionField.ToField());
 		}
 		else
 		{
 			CachedActionProperty = FBlueprintNodeSpawnerUtils::GetAssociatedProperty(NodeSpawner);
 			if (CachedActionProperty != nullptr)
 			{
-				CachedActionField = CachedActionProperty;
+				CachedActionField = const_cast<FProperty*>(CachedActionProperty);
 				CacheFlags |= EBlueprintActionInfoFlags::CachedProperty;
 			}
 		}
@@ -1882,14 +1891,14 @@ UFunction const* FBlueprintActionInfo::GetAssociatedFunction()
 	{
 		if (CacheFlags & EBlueprintActionInfoFlags::CachedField)
 		{
-			CachedActionFunction = Cast<UFunction>(CachedActionField);
+			CachedActionFunction = Cast<UFunction>(CachedActionField.ToUObject());
 		}
 		else
 		{
 			CachedActionFunction = FBlueprintNodeSpawnerUtils::GetAssociatedFunction(NodeSpawner);
 			if (CachedActionFunction != nullptr)
 			{
-				CachedActionField = CachedActionFunction;
+				CachedActionField = const_cast<UFunction*>(CachedActionFunction);
 				CacheFlags |= EBlueprintActionInfoFlags::CachedProperty;
 			}
 		}

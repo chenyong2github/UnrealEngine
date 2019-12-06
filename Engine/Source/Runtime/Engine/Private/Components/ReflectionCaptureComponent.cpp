@@ -953,7 +953,7 @@ void UReflectionCaptureComponent::UpdatePreviewShape()
 }
 
 #if WITH_EDITOR
-bool UReflectionCaptureComponent::CanEditChange(const UProperty* Property) const
+bool UReflectionCaptureComponent::CanEditChange(const FProperty* Property) const
 {
 	bool bCanEditChange = Super::CanEditChange(Property);
 

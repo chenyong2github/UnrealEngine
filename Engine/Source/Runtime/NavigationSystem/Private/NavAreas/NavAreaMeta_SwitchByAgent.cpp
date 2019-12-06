@@ -73,7 +73,7 @@ void UNavAreaMeta_SwitchByAgent::UpdateAgentConfig()
 	for (int32 i = 0; i < MaxAllowedAgents; i++)
 	{
 		const FString PropName = FString::Printf(TEXT("Agent%dArea"), i);
-		UProperty* Prop = FindField<UProperty>(UNavAreaMeta_SwitchByAgent::StaticClass(), *PropName);
+		FProperty* Prop = FindField<FProperty>(UNavAreaMeta_SwitchByAgent::StaticClass(), *PropName);
 		check(Prop);
 
 		if (i < NumAgents && NumAgents > 1)

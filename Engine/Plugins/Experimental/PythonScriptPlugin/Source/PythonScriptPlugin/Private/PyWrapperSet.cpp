@@ -181,14 +181,14 @@ int FPyWrapperSet::Init(FPyWrapperSet* InSelf, const PyUtil::FPropertyDef& InEle
 		return BaseInit;
 	}
 
-	UProperty* SetElementProp = PyUtil::CreateProperty(InElementDef, 1);
+	FProperty* SetElementProp = PyUtil::CreateProperty(InElementDef, 1);
 	if (!SetElementProp)
 	{
 		PyUtil::SetPythonError(PyExc_Exception, InSelf, TEXT("Set element property was null during init"));
 		return -1;
 	}
 
-	USetProperty* SetProp = NewObject<USetProperty>(GetPythonPropertyContainer());
+	FSetProperty* SetProp = new FSetProperty(GetPythonPropertyContainer(), FField::GenerateFFieldName(GetPythonPropertyContainer(), FSetProperty::StaticClass()), RF_NoFlags);
 	SetProp->ElementProp = SetElementProp;
 
 	// Need to manually call Link to fix-up some data (such as the C++ property flags and the set layout) that are only set during Link
@@ -213,7 +213,7 @@ int FPyWrapperSet::Init(FPyWrapperSet* InSelf, const PyUtil::FPropertyDef& InEle
 	return 0;
 }
 
-int FPyWrapperSet::Init(FPyWrapperSet* InSelf, const FPyWrapperOwnerContext& InOwnerContext, const USetProperty* InProp, void* InValue, const EPyConversionMethod InConversionMethod)
+int FPyWrapperSet::Init(FPyWrapperSet* InSelf, const FPyWrapperOwnerContext& InOwnerContext, const FSetProperty* InProp, void* InValue, const EPyConversionMethod InConversionMethod)
 {
 	InOwnerContext.AssertValidConversionMethod(InConversionMethod);
 
@@ -227,21 +227,21 @@ int FPyWrapperSet::Init(FPyWrapperSet* InSelf, const FPyWrapperOwnerContext& InO
 
 	check(InProp && InValue);
 
-	const USetProperty* PropToUse = nullptr;
+	const FSetProperty* PropToUse = nullptr;
 	void* SetInstanceToUse = nullptr;
 	switch (InConversionMethod)
 	{
 	case EPyConversionMethod::Copy:
 	case EPyConversionMethod::Steal:
 		{
-			UProperty* SetElementProp = PyUtil::CreateProperty(InProp->ElementProp);
+			FProperty* SetElementProp = PyUtil::CreateProperty(InProp->ElementProp);
 			if (!SetElementProp)
 			{
 				PyUtil::SetPythonError(PyExc_TypeError, InSelf, *FString::Printf(TEXT("Failed to create element property from '%s' (%s)"), *InProp->ElementProp->GetName(), *InProp->ElementProp->GetClass()->GetName()));
 				return -1;
 			}
 
-			USetProperty* SetProp = NewObject<USetProperty>(GetPythonPropertyContainer());
+			FSetProperty* SetProp = new FSetProperty(GetPythonPropertyContainer(), FField::GenerateFFieldName(GetPythonPropertyContainer(), FSetProperty::StaticClass()), RF_NoFlags);
 			SetProp->ElementProp = SetElementProp;
 			PropToUse = SetProp;
 			

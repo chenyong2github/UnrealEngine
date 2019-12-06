@@ -2630,12 +2630,12 @@ void FMatinee::DrawModeHUD(FEditorViewportClient* ViewportClient,FViewport* View
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Properties window NotifyHook stuff
-void FMatinee::NotifyPreChange( UProperty* PropertyAboutToChange )
+void FMatinee::NotifyPreChange( FProperty* PropertyAboutToChange )
 {
 
 }
 
-void FMatinee::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged )
+void FMatinee::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged )
 {
 	CurveEd->CurveChanged();
 

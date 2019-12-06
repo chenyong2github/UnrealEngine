@@ -35,10 +35,10 @@ public:
 			}
 
 			bool bIsSparseProperty;
-			UProperty* BoundProperty = FKismetCompilerUtilities::FindPropertyInScope(Context.NewClass->UberGraphFunction, Pin, CompilerContext.MessageLog, CompilerContext.GetSchema(), Context.NewClass, bIsSparseProperty);
+			FProperty* BoundProperty = FKismetCompilerUtilities::FindPropertyInScope(Context.NewClass->UberGraphFunction, Pin, CompilerContext.MessageLog, CompilerContext.GetSchema(), Context.NewClass, bIsSparseProperty);
 			// no setters on sparse properties for now
 			check(!bIsSparseProperty);
-			if (!BoundProperty || (BoundProperty->GetOuter() != Context.NewClass->UberGraphFunction))
+			if (!BoundProperty || (BoundProperty->GetOwner<UObject>() != Context.NewClass->UberGraphFunction))
 			{
 				CompilerContext.MessageLog.Error(*LOCTEXT("SetVariableOnPersistentFrame_IceErrorNoProperty", "ICE SetVariableOnPersistentFrame - No property found. @@").ToString(), Pin);
 				return;

@@ -259,7 +259,7 @@ UEdGraphNode* FBlueprintActionMenuItem::PerformAction(UEdGraph* ParentGraph, UEd
 		{
 			if (BoundObjIt->IsValid())
 			{
-				BindingsSubset.Add(BoundObjIt->Get());
+				BindingsSubset.Add(*BoundObjIt);
 			}
 		}
 

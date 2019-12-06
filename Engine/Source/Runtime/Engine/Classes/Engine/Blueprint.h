@@ -925,7 +925,7 @@ public:
 	template<class TFieldType>
 	static FName GetFieldNameFromClassByGuid(const UClass* InClass, const FGuid VarGuid)
 	{
-		UProperty* AssertPropertyType = (TFieldType*)0;
+		FProperty* AssertPropertyType = (TFieldType*)0;
 
 		TArray<UBlueprint*> Blueprints;
 		UBlueprint::GetBlueprintHierarchyFromClass(InClass, Blueprints);
@@ -949,7 +949,7 @@ public:
 	template<class TFieldType>
 	static bool GetGuidFromClassByFieldName(const UClass* InClass, const FName VarName, FGuid& VarGuid)
 	{
-		UProperty* AssertPropertyType = (TFieldType*)0;
+		FProperty* AssertPropertyType = (TFieldType*)0;
 
 		TArray<UBlueprint*> Blueprints;
 		UBlueprint::GetBlueprintHierarchyFromClass(InClass, Blueprints);

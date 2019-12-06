@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 
-FReferencerInformation::FReferencerInformation( UObject* inReferencer, int32 InReferences, const TArray<const UProperty*>& InProperties )
+FReferencerInformation::FReferencerInformation( UObject* inReferencer, int32 InReferences, const TArray<const FProperty*>& InProperties )
 : Referencer(inReferencer), TotalReferences(InReferences), ReferencingProperties(InProperties)
 {
 }

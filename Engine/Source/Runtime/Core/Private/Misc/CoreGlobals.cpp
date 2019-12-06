@@ -43,7 +43,7 @@ FOutputDeviceConsole*		GLogConsole					= nullptr;		/* Console log hook */
 CORE_API FMalloc*			GMalloc						= nullptr;		/* Memory allocator */
 CORE_API FMalloc**			GFixedMallocLocationPtr = nullptr;		/* Memory allocator pointer location when PLATFORM_USES_FIXED_GMalloc_CLASS is true */
 
-class UPropertyWindowManager*	GPropertyWindowManager	= nullptr;		/* Manages and tracks property editing windows */
+class FPropertyWindowManager*	GPropertyWindowManager	= nullptr;		/* Manages and tracks property editing windows */
 
 /** For building call stack text dump in guard/unguard mechanism. */
 TCHAR GErrorHist[16384]	= TEXT("");

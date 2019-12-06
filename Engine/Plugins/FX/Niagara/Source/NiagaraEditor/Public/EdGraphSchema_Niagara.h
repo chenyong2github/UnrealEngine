@@ -137,7 +137,7 @@ class NIAGARAEDITOR_API UEdGraphSchema_Niagara : public UEdGraphSchema
 	class UNiagaraParameterCollection* VariableIsFromParameterCollection(const FString& VarName, bool bAllowPartialMatch, FNiagaraVariable& OutVar)const;
 	
 
-	FNiagaraTypeDefinition GetTypeDefForProperty(const UProperty* Property)const;
+	FNiagaraTypeDefinition GetTypeDefForProperty(const FProperty* Property)const;
 
 	static const FLinearColor NodeTitleColor_Attribute;
 	static const FLinearColor NodeTitleColor_Constant;

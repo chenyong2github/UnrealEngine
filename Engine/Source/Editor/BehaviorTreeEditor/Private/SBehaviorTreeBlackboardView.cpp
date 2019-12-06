@@ -276,7 +276,7 @@ private:
 			GetObjectsWithOuter(Asset->GetOutermost(), Objects);
 			for (const auto& SubObject : Objects)
 			{
-				for (TFieldIterator<UStructProperty> It(SubObject->GetClass()); It; ++It)
+				for (TFieldIterator<FStructProperty> It(SubObject->GetClass()); It; ++It)
 				{
 					if (It->GetCPPType(NULL, CPPF_None).Contains(GET_STRUCT_NAME_CHECKED(FBlackboardKeySelector)))
 					{

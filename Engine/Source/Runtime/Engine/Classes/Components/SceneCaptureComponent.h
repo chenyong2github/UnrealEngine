@@ -169,7 +169,7 @@ public:
 	FSceneViewStateInterface* GetViewState(int32 ViewIndex);
 
 #if WITH_EDITOR
-	virtual bool CanEditChange(const UProperty* InProperty) const override;
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif	
 
@@ -185,7 +185,7 @@ public:
 	static void UpdateDeferredCaptures(FSceneInterface* Scene);
 
 protected:
-	/** Update the show flags from our show flags settings (ideally, you'd be able to set this more directly, but currently unable to make FEngineShowFlags a UStruct to use it as a UProperty...) */
+	/** Update the show flags from our show flags settings (ideally, you'd be able to set this more directly, but currently unable to make FEngineShowFlags a UStruct to use it as a FProperty...) */
 	void UpdateShowFlags();
 
 	virtual void UpdateSceneCaptureContents(FSceneInterface* Scene) {};

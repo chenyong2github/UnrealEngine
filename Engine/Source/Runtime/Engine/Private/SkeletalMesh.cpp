@@ -1275,7 +1275,7 @@ void USkeletalMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 
 	bool bFullPrecisionUVsReallyChanged = false;
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	
 	bool bHasToReregisterComponent = false;
 	// Don't invalidate render data when dragging sliders, too slow
@@ -1293,8 +1293,8 @@ void USkeletalMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 	}
 
 	if( GIsEditor &&
-		Cast<UObjectProperty>(PropertyThatChanged) &&
-		Cast<UObjectProperty>(PropertyThatChanged)->PropertyClass == UMorphTarget::StaticClass() )
+		CastField<FObjectProperty>(PropertyThatChanged) &&
+		CastField<FObjectProperty>(PropertyThatChanged)->PropertyClass == UMorphTarget::StaticClass() )
 	{
 		// A morph target has changed, reinitialize morph target maps
 		InitMorphTargets();
@@ -1308,7 +1308,7 @@ void USkeletalMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 		BuildPhysicsData();
 	}
 
-	if(UProperty* MemberProperty = PropertyChangedEvent.MemberProperty)
+	if(FProperty* MemberProperty = PropertyChangedEvent.MemberProperty)
 	{
 		if(MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(USkeletalMesh, PositiveBoundsExtension) ||
 			MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(USkeletalMesh, NegativeBoundsExtension))
@@ -2286,7 +2286,7 @@ void USkeletalMesh::PostLoad()
 		for(UClothingAssetBase* ClothingAsset : MeshClothingAssets)
 		{
 			if(ClothingAsset) 
-				ClothingAsset->InvalidateCachedData();
+			ClothingAsset->InvalidateCachedData();
 		}
 	}
 

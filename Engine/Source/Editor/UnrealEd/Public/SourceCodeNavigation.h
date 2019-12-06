@@ -105,20 +105,20 @@ public:
 	virtual bool NavigateToFunction(const UFunction* InFunction) { return false; }
 
 	/**
-	* Determines whether it is possible to navigate to the UProperty using this handler.
+	* Determines whether it is possible to navigate to the FProperty using this handler.
 	*
 	* @param	InProperty		Property to inspect
 	* @return					True if the property can be handled by this handler.
 	*/
-	virtual bool CanNavigateToProperty(const UProperty* InProperty) { return false; }
+	virtual bool CanNavigateToProperty(const FProperty* InProperty) { return false; }
 
 	/**
-	* Asynchronously navigates to a UProperty in an IDE or text editor.
+	* Asynchronously navigates to a FProperty in an IDE or text editor.
 	*
 	* @param	InProperty		Property to which to navigate.
 	* @return					True if the property can be handled by this handler.
 	*/
-	virtual bool NavigateToProperty(const UProperty* InProperty) { return false; }
+	virtual bool NavigateToProperty(const FProperty* InProperty) { return false; }
 
 	/**
 	* Determines whether it is possible to navigate to the UStruct using this handler.
@@ -274,20 +274,20 @@ public:
 	UNREALED_API static bool NavigateToFunction(const UFunction* InFunction);
 
 	/**
-	* Determines whether it is possible to navigate to the UProperty in the IDE
+	* Determines whether it is possible to navigate to the FProperty in the IDE
 	*
-	* @param	InProperty		UProperty to navigate to in source code
+	* @param	InProperty		FProperty to navigate to in source code
 	* @return					Whether the navigation is likely to be successful or not
 	*/
-	UNREALED_API static bool CanNavigateToProperty(const UProperty* InProperty);
+	UNREALED_API static bool CanNavigateToProperty(const FProperty* InProperty);
 
 	/**
-	 * Navigates asynchronously to the UProperty in the IDE
+	 * Navigates asynchronously to the FProperty in the IDE
 	 *
-	 * @param	InProperty		UProperty to navigate to in source code
+	 * @param	InProperty		FProperty to navigate to in source code
 	 * @return					Whether the navigation was successful or not
 	 */
-	UNREALED_API static bool NavigateToProperty(const UProperty* InProperty);
+	UNREALED_API static bool NavigateToProperty(const FProperty* InProperty);
 
 	/**
 	 * Determines whether it is possible to navigate to the UStruct in the IDE

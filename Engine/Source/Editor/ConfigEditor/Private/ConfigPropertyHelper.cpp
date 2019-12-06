@@ -6,7 +6,7 @@
 #include "ISourceControlState.h"
 #include "ISourceControlModule.h"
 
-void UPropertyConfigFileDisplayRow::InitWithConfigAndProperty(const FString& InConfigFileName, UProperty* InEditProperty)
+void UPropertyConfigFileDisplayRow::InitWithConfigAndProperty(const FString& InConfigFileName, FProperty* InEditProperty)
 {
 	ConfigFileName = FPaths::ConvertRelativePathToFull(InConfigFileName);
 	ExternalProperty = InEditProperty;

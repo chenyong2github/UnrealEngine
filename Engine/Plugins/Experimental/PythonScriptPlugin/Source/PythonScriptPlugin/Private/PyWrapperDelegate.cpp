@@ -572,9 +572,9 @@ PyTypeObject InitializePyWrapperDelegateType()
 			{
 				// Anything else is assumed to be an object and name pair
 				if (!PyDelegateUtil::PythonArgsToDelegate_ObjectAndName(InArgs, DelegateSignature, *InSelf->DelegateInstance, TEXT("call"), *PyUtil::GetErrorContext(InSelf)))
-				{
-					return -1;
-				}
+			{
+				return -1;
+			}
 			}
 
 			return 0;

@@ -13,7 +13,7 @@ UFbxMeshImportData::UFbxMeshImportData(const FObjectInitializer& ObjectInitializ
 	bReorderMaterialToFbxOrder = true;
 }
 
-bool UFbxMeshImportData::CanEditChange(const UProperty* InProperty) const
+bool UFbxMeshImportData::CanEditChange(const FProperty* InProperty) const
 {
 	bool bMutable = Super::CanEditChange(InProperty);
 	UObject* Outer = GetOuter();

@@ -95,7 +95,7 @@ namespace
 	{
 		check(Component);
 
-		UProperty* IntensityUnitsProperty = FindFieldChecked<UProperty>(ULocalLightComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(ULocalLightComponent, IntensityUnits));
+		FProperty* IntensityUnitsProperty = FindFieldChecked<FProperty>(ULocalLightComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(ULocalLightComponent, IntensityUnits));
 		FPropertyChangedEvent PropertyChangedEvent(IntensityUnitsProperty);
 
 		const ELightUnits PreviousUnits = Component->IntensityUnits;

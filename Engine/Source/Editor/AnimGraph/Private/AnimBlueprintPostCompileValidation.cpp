@@ -35,9 +35,9 @@ void UAnimBlueprintPostCompileValidation::PCV_GatherAllReferencedAnimSequences(T
 
 void UAnimBlueprintPostCompileValidation::PCV_GatherAnimSequencesFromStruct(TArray<FPCV_ReferencedAnimSequence>& OutRefAnimSequences, FAnimBPCompileValidationParams& PCV_Params, const UStruct* InStruct, const void* InData, TArray<FPCV_PropertyAndValue> InPropertyCallChain)
 {
-	for (TFieldIterator<UProperty> PropIt(InStruct, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
+	for (TFieldIterator<FProperty> PropIt(InStruct, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
 	{
-		if (const UProperty* Property = *PropIt)
+		if (const FProperty* Property = *PropIt)
 		{
 			const void* PropertyData = Property->ContainerPtrToValuePtr<void>(InData);
 			PCV_GatherAnimSequencesFromProperty(OutRefAnimSequences, PCV_Params, Property, PropertyData, InPropertyCallChain);
@@ -45,12 +45,12 @@ void UAnimBlueprintPostCompileValidation::PCV_GatherAnimSequencesFromStruct(TArr
 	}
 }
 
-void UAnimBlueprintPostCompileValidation::PCV_GatherAnimSequencesFromProperty(TArray<FPCV_ReferencedAnimSequence>& OutRefAnimSequences, FAnimBPCompileValidationParams& PCV_Params, const UProperty* InProperty, const void* InData, TArray<FPCV_PropertyAndValue> InPropertyCallChain)
+void UAnimBlueprintPostCompileValidation::PCV_GatherAnimSequencesFromProperty(TArray<FPCV_ReferencedAnimSequence>& OutRefAnimSequences, FAnimBPCompileValidationParams& PCV_Params, const FProperty* InProperty, const void* InData, TArray<FPCV_PropertyAndValue> InPropertyCallChain)
 {
 	InPropertyCallChain.Add(FPCV_PropertyAndValue(InProperty, InData));
 
 	// Always recurse into arrays and structs
-	if (const UArrayProperty* ArrayProperty = Cast<UArrayProperty>(InProperty))
+	if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InProperty))
 	{
 		FScriptArrayHelper ArrayHelper(ArrayProperty, InData);
 		const int32 NumElements = ArrayHelper.Num();
@@ -60,13 +60,13 @@ void UAnimBlueprintPostCompileValidation::PCV_GatherAnimSequencesFromProperty(TA
 			PCV_GatherAnimSequencesFromProperty(OutRefAnimSequences, PCV_Params, ArrayProperty->Inner, ArrayData, InPropertyCallChain);
 		}
 	}
-	else if (const UStructProperty* StructProperty = Cast<UStructProperty>(InProperty))
+	else if (const FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
 	{
 		PCV_GatherAnimSequencesFromStruct(OutRefAnimSequences, PCV_Params, StructProperty->Struct, InData, InPropertyCallChain);
 	}
 
 	// Leaf Properties
-	else if (const UObjectProperty* ObjectProperty = Cast<UObjectProperty>(InProperty))
+	else if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InProperty))
 	{
 		const UObject* const ObjectPropertyValue = ObjectProperty->GetObjectPropertyValue(InData);
 		if (const UAnimSequence* const AnimSequence = Cast<UAnimSequence>(ObjectPropertyValue))
@@ -85,7 +85,7 @@ void UAnimBlueprintPostCompileValidation::PCV_GatherAnimSequencesFromProperty(TA
 			for (int32 Index = InPropertyCallChain.Num() - 2; Index >= 0; Index--)
 			{
 				const FPCV_PropertyAndValue& Parent = InPropertyCallChain[Index];
-				if (const UStructProperty* ParentStructProperty = Cast<UStructProperty>(Parent.Property))
+				if (const FStructProperty* ParentStructProperty = CastField<FStructProperty>(Parent.Property))
 				{
 					if (const UAnimGraphNode_Base* AnimGraphVisualNode = PCV_Params.AllocatedNodePropertiesToNodes.FindRef(ParentStructProperty))
 					{
@@ -93,7 +93,7 @@ void UAnimBlueprintPostCompileValidation::PCV_GatherAnimSequencesFromProperty(TA
 						break;
 					}
 				}
-				else if (const UObjectProperty* ParentObjectProperty = Cast<UObjectProperty>(Parent.Property))
+				else if (const FObjectProperty* ParentObjectProperty = CastField<FObjectProperty>(Parent.Property))
 				{
 					if (ParentObjectProperty->PropertyClass && ParentObjectProperty->PropertyClass->IsChildOf(UBlendSpaceBase::StaticClass()))
 					{
@@ -139,7 +139,7 @@ void UAnimBlueprintPostCompileValidation::PCV_GatherAnimSequences(TArray<const U
 
 void UAnimBlueprintPostCompileValidation::PCV_GatherAnimSequencesFromGraph(TArray<const UAnimSequence*>& OutAnimSequences, FAnimBPCompileValidationParams& PCV_Params, const FPCV_GatherParams& GatherParams)
 {
-	for (UStructProperty* Property : TFieldRange<UStructProperty>(PCV_Params.NewAnimBlueprintClass, EFieldIteratorFlags::IncludeSuper))
+	for (FStructProperty* Property : TFieldRange<FStructProperty>(PCV_Params.NewAnimBlueprintClass, EFieldIteratorFlags::IncludeSuper))
 	{
 		if (Property->Struct->IsChildOf(FAnimNode_BlendSpacePlayer::StaticStruct()))
 		{
@@ -170,7 +170,7 @@ void UAnimBlueprintPostCompileValidation::PCV_GatherAnimSequencesFromGraph(TArra
 
 void UAnimBlueprintPostCompileValidation::PCV_GatherBlendSpacesFromGraph(TArray<const class UBlendSpaceBase*>& OutBlendSpaces, FAnimBPCompileValidationParams& PCV_Params)
 {
-	for (UStructProperty* Property : TFieldRange<UStructProperty>(PCV_Params.NewAnimBlueprintClass, EFieldIteratorFlags::IncludeSuper))
+	for (FStructProperty* Property : TFieldRange<FStructProperty>(PCV_Params.NewAnimBlueprintClass, EFieldIteratorFlags::IncludeSuper))
 	{
 		if (Property->Struct->IsChildOf(FAnimNode_BlendSpacePlayer::StaticStruct()))
 		{

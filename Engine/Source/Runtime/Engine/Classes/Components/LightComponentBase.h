@@ -221,7 +221,7 @@ class ENGINE_API ULightComponentBase : public USceneComponent
 
 	/** UActorComponent Interface */
 	virtual void OnRegister() override;
-	virtual bool CanEditChange(const UProperty* InProperty) const override;
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 
 	/** We return a small bounds to allow us to non-interpenetrates when placing lights in the level. */

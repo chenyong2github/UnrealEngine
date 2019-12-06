@@ -42,8 +42,8 @@ void FCategoryPropertyNode::InitChildNodes()
 	const bool bShowHiddenProperties = !!HasNodeFlags( EPropertyNodeFlags::ShouldShowHiddenProperties );
 	const bool bShouldShowDisableEditOnInstance = !!HasNodeFlags(EPropertyNodeFlags::ShouldShowDisableEditOnInstance);
 
-	TArray<UProperty*> Properties;
-	TSet<UProperty*> SparseProperties;
+	TArray<FProperty*> Properties;
+	TSet<FProperty*> SparseProperties;
 	// The parent of a category window has to be an object window.
 	FComplexPropertyNode* ComplexNode = FindComplexParent();
 	if (ComplexNode)
@@ -54,7 +54,7 @@ void FCategoryPropertyNode::InitChildNodes()
 		for (const UStruct* Structure : ComplexNode->GetAllStructures())
 		{
 			const bool bIsSparseStruct = (ObjectNode && ObjectNode->IsSparseDataStruct(Cast<const UScriptStruct>(Structure)));
-			for (TFieldIterator<UProperty> It(Structure); It; ++It)
+			for (TFieldIterator<FProperty> It(Structure); It; ++It)
 			{
 				bool bMetaDataAllowVisible = true;
 				if (!bShowHiddenProperties)

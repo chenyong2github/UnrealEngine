@@ -255,7 +255,7 @@ EVisibility SPaintModeWidget::IsTexturePaintModeVisible() const
 	return (MeshPaintSettings->PaintMode == EPaintMode::Textures) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
-void SPaintModeWidget::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged)
+void SPaintModeWidget::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
 	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{

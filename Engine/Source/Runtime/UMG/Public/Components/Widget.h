@@ -221,7 +221,7 @@ class UMG_API UWidget : public UVisual
 
 public:
 
-	// Common Bindings - If you add any new common binding, you must provide a UPropertyBinder for it.
+	// Common Bindings - If you add any new common binding, you must provide a FPropertyBinder for it.
 	//                   all primitive binding in UMG goes through native binding evaluators to prevent
 	//                   thunking through the VM.
 	DECLARE_DYNAMIC_DELEGATE_RetVal(bool, FGetBool);
@@ -869,9 +869,9 @@ public:
 	bool IsChildOf(UWidget* PossibleParent);
 
 	/**  */
-	bool AddBinding(UDelegateProperty* DelegateProperty, UObject* SourceObject, const FDynamicPropertyPath& BindingPath);
+	bool AddBinding(FDelegateProperty* DelegateProperty, UObject* SourceObject, const FDynamicPropertyPath& BindingPath);
 
-	static TSubclassOf<UPropertyBinding> FindBinderClassForDestination(UProperty* Property);
+	static TSubclassOf<UPropertyBinding> FindBinderClassForDestination(FProperty* Property);
 
 	// Begin UObject
 	virtual UWorld* GetWorld() const override;

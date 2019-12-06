@@ -6,6 +6,7 @@
 #include "ScriptBlueprintGeneratedClass.generated.h"
 
 class UScriptBlueprintGeneratedClass;
+class UProperty;
 
 /**
 * Script-defined field (variable or function)
@@ -16,14 +17,24 @@ struct SCRIPTPLUGIN_API FScriptField
 	FName Name;
 	/** Field type */
 	UClass* Class;
+	/** Property type */
+	FFieldClass* PropertyClass;
 
 	FScriptField()
-		: Class(NULL)
+		: Class(nullptr)
+		, PropertyClass(nullptr)
 	{
 	}
 	FScriptField(FName InName, UClass* InClass)
 		: Name(InName)
 		, Class(InClass)
+		, PropertyClass(nullptr)
+	{
+	}
+	FScriptField(FName InName, FFieldClass* InPropertyClass)
+		: Name(InName)
+		, Class(nullptr)
+		, PropertyClass(InPropertyClass)
 	{
 	}
 };
@@ -124,6 +135,8 @@ class SCRIPTPLUGIN_API UScriptBlueprintGeneratedClass : public UBlueprintGenerat
 {
 	GENERATED_UCLASS_BODY()
 
+public:
+
 	/** Generated script bytecode */
 	UPROPERTY()
 	TArray<uint8> ByteCode;
@@ -134,7 +147,8 @@ class SCRIPTPLUGIN_API UScriptBlueprintGeneratedClass : public UBlueprintGenerat
 
 	/** Script-generated properties */
 	UPROPERTY()
-	TArray<UProperty*> ScriptProperties;
+	TArray<UProperty*> ScriptProperties_DEPRECATED;
+	TArray<TFieldPath<FProperty>> ScriptProperties;
 
 	virtual void PurgeClass(bool bRecompilingOnLoad) override;
 
@@ -164,4 +178,6 @@ class SCRIPTPLUGIN_API UScriptBlueprintGeneratedClass : public UBlueprintGenerat
 		}
 		return ScriptClass;
 	}
+
+	virtual void Serialize(FArchive& Ar) override;
 };

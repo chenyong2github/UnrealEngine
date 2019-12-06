@@ -2,19 +2,21 @@
 
 #include "BlueprintFieldNodeSpawner.h"
 #include "UObject/Package.h"
+#include "UObject/UnrealTypePrivate.h" // only for converting to UProps
+#include "UObject/CoreObjectVersion.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintFieldNodeSpawner"
 
 //------------------------------------------------------------------------------
-UBlueprintFieldNodeSpawner* UBlueprintFieldNodeSpawner::Create(TSubclassOf<UK2Node> NodeClass, UField const* const Field, UObject* Outer/* = nullptr*/, UClass const* OwnerClass)
+UBlueprintFieldNodeSpawner* UBlueprintFieldNodeSpawner::Create(TSubclassOf<UK2Node> NodeClass, FFieldVariant Field, UObject* Outer/* = nullptr*/, UClass const* OwnerClass)
 {
 	if (Outer == nullptr)
 	{
 		Outer = GetTransientPackage();
 	}
 	UBlueprintFieldNodeSpawner* NodeSpawner = NewObject<UBlueprintFieldNodeSpawner>(Outer);
-	NodeSpawner->Field      = Field;
-	NodeSpawner->NodeClass  = NodeClass;
+	NodeSpawner->SetField(Field);
+	NodeSpawner->NodeClass = NodeClass;
 	NodeSpawner->OwnerClass = OwnerClass;
 	
 	return NodeSpawner;
@@ -22,9 +24,9 @@ UBlueprintFieldNodeSpawner* UBlueprintFieldNodeSpawner::Create(TSubclassOf<UK2No
 
 //------------------------------------------------------------------------------
 UBlueprintFieldNodeSpawner::UBlueprintFieldNodeSpawner(FObjectInitializer const& ObjectInitializer)
-	: Super(ObjectInitializer)
-	, Field(nullptr)
+	: Super(ObjectInitializer)	
 	, OwnerClass(nullptr)
+	, Field(nullptr)
 {
 }
 
@@ -32,7 +34,15 @@ UBlueprintFieldNodeSpawner::UBlueprintFieldNodeSpawner(FObjectInitializer const&
 FBlueprintNodeSignature UBlueprintFieldNodeSpawner::GetSpawnerSignature() const
 {
 	FBlueprintNodeSignature SpawnerSignature(NodeClass);
-	SpawnerSignature.AddSubObject(Field);
+	if (Field)
+	{
+		SpawnerSignature.AddSubObject(Field);
+	}
+	else
+	{
+		check(Property.Get());
+		SpawnerSignature.AddKeyValue(Property->GetPathName());
+	}
 
 	return SpawnerSignature;
 }
@@ -40,7 +50,7 @@ FBlueprintNodeSignature UBlueprintFieldNodeSpawner::GetSpawnerSignature() const
 //------------------------------------------------------------------------------
 UEdGraphNode* UBlueprintFieldNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindingSet const& Bindings, FVector2D const Location) const
 {
-	auto PostSpawnSetupLambda = [](UEdGraphNode* NewNode, bool bIsTemplateNode, UField const* InField, FSetNodeFieldDelegate SetFieldDelegate, FCustomizeNodeDelegate UserDelegate)
+	auto PostSpawnSetupLambda = [](UEdGraphNode* NewNode, bool bIsTemplateNode, FFieldVariant InField, FSetNodeFieldDelegate SetFieldDelegate, FCustomizeNodeDelegate UserDelegate)
 	{
 		SetFieldDelegate.ExecuteIfBound(NewNode, InField);
 		UserDelegate.ExecuteIfBound(NewNode, bIsTemplateNode);
@@ -51,9 +61,54 @@ UEdGraphNode* UBlueprintFieldNodeSpawner::Invoke(UEdGraph* ParentGraph, FBinding
 }
 
 //------------------------------------------------------------------------------
-UField const* UBlueprintFieldNodeSpawner::GetField() const
+FFieldVariant UBlueprintFieldNodeSpawner::GetField() const
 {
-	return Field;
+	return Field ? FFieldVariant(Field) : FFieldVariant(Property.Get());
 }
+
+void UBlueprintFieldNodeSpawner::SetField(FFieldVariant InField)
+{
+	if (InField.IsUObject())
+	{
+		Field = InField.Get<UField>();
+	}
+	else
+	{
+		Property = InField.Get<FProperty>();
+	}
+}
+
+// @todo FProp: add collector function
+//void UBlueprintFieldNodeSpawner::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+//{
+//	UBlueprintFieldNodeSpawner* This = CastChecked<UBlueprintFieldNodeSpawner>(InThis);
+//
+//	if (This->Field.IsUObject())
+//	{
+//		UObject* Object = This->Field.Get<UObject>();
+//		UObject* OldObjectValue = Object;
+//		Collector.AddReferencedObject(Object, This);
+//		if (!Object && OldObjectValue)
+//		{
+//			This->Field = Object;
+//		}
+//	}
+//	else
+//	{
+//		FField* Field = This->Field.Get<FField>();
+//		UObject* Owner = Field ? Field->GetOwnerUObject() : nullptr;
+//		if (Owner)
+//		{
+//			UObject* OldObjectValue = Owner;
+//			Collector.AddReferencedObject(Owner, This);
+//			if (!Owner && OldObjectValue)
+//			{
+//				This->Field = (FField*)nullptr;
+//			}
+//		}
+//	}
+//
+//	Super::AddReferencedObjects(InThis, Collector);
+//}
 
 #undef LOCTEXT_NAMESPACE

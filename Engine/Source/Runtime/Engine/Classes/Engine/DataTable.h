@@ -263,7 +263,7 @@ public:
 	}
 
 	/** Returns the column property where PropertyName matches the name of the column property. Returns nullptr if no match is found or the match is not a supported table property */
-	ENGINE_API UProperty* FindTableProperty(const FName& PropertyName) const;
+	ENGINE_API FProperty* FindTableProperty(const FName& PropertyName) const;
 
 	uint8* FindRowUnchecked(FName RowName, bool MustExist=false) const
 	{
@@ -346,7 +346,7 @@ public:
 	ENGINE_API TArray<FString> CreateTableFromJSONString(const FString& InString);
 
 	/** Get array of UProperties that corresponds to columns in the table */
-	TArray<UProperty*> GetTablePropertyArray(const TArray<const TCHAR*>& Cells, UStruct* RowStruct, TArray<FString>& OutProblems, int32 KeyColumn = 0);
+	TArray<FProperty*> GetTablePropertyArray(const TArray<const TCHAR*>& Cells, UStruct* RowStruct, TArray<FString>& OutProblems, int32 KeyColumn = 0);
 	
 	/** 
 	 *	Create table from another Data Table
@@ -507,7 +507,7 @@ struct ENGINE_API FDataTableCategoryHandle
 		}
 
 		// Find the property that matches the desired column (ColumnName)
-		UProperty* Property = DataTable->FindTableProperty(ColumnName);
+		FProperty* Property = DataTable->FindTableProperty(ColumnName);
 		if (Property == nullptr)
 		{
 			return;

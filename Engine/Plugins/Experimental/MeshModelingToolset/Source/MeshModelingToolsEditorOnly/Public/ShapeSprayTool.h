@@ -81,7 +81,7 @@ public:
 	virtual bool HasAccept() const override { return true; }
 	virtual bool CanAccept() const override;
 
-	virtual void OnPropertyModified(UObject* PropertySet, UProperty* Property) override;
+	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
 	// UMeshSurfacePointTool API
 	virtual void OnBeginDrag(const FRay& Ray) override;

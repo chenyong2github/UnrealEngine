@@ -43,7 +43,7 @@ public:
 	virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
 
 	/** FNotifyHook interface */
-	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged) override;
+	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 
 protected:
 	virtual void PostUndo(bool bSuccess) override;

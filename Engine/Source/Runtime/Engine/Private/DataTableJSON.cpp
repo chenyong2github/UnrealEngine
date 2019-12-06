@@ -179,9 +179,9 @@ bool TDataTableExporterJSON<CharType>::WriteRow(const UScriptStruct* InRowStruct
 template<typename CharType>
 bool TDataTableExporterJSON<CharType>::WriteStruct(const UScriptStruct* InStruct, const void* InStructData, const FString* FieldToSkip)
 {
-	for (TFieldIterator<const UProperty> It(InStruct); It; ++It)
+	for (TFieldIterator<const FProperty> It(InStruct); It; ++It)
 	{
-		const UProperty* BaseProp = *It;
+		const FProperty* BaseProp = *It;
 		check(BaseProp);
 
 		const FString Identifier = DataTableUtils::GetPropertyExportName(BaseProp, DTExportFlags);
@@ -214,16 +214,16 @@ bool TDataTableExporterJSON<CharType>::WriteStruct(const UScriptStruct* InStruct
 }
 
 template<typename CharType>
-bool TDataTableExporterJSON<CharType>::WriteStructEntry(const void* InRowData, const UProperty* InProperty, const void* InPropertyData)
+bool TDataTableExporterJSON<CharType>::WriteStructEntry(const void* InRowData, const FProperty* InProperty, const void* InPropertyData)
 {
 	const FString Identifier = DataTableUtils::GetPropertyExportName(InProperty, DTExportFlags);
 
-	if (const UEnumProperty* EnumProp = Cast<const UEnumProperty>(InProperty))
+	if (const FEnumProperty* EnumProp = CastField<const FEnumProperty>(InProperty))
 	{
 		const FString PropertyValue = DataTableUtils::GetPropertyValueAsString(EnumProp, (uint8*)InRowData, DTExportFlags);
 		JsonWriter->WriteValue(Identifier, PropertyValue);
 	}
-	else if (const UNumericProperty *NumProp = Cast<const UNumericProperty>(InProperty))
+	else if (const FNumericProperty *NumProp = CastField<const FNumericProperty>(InProperty))
 	{
 		if (NumProp->IsEnum())
 		{
@@ -241,12 +241,12 @@ bool TDataTableExporterJSON<CharType>::WriteStructEntry(const void* InRowData, c
 			JsonWriter->WriteValue(Identifier, PropertyValue);
 		}
 	}
-	else if (const UBoolProperty* BoolProp = Cast<const UBoolProperty>(InProperty))
+	else if (const FBoolProperty* BoolProp = CastField<const FBoolProperty>(InProperty))
 	{
 		const bool PropertyValue = BoolProp->GetPropertyValue(InPropertyData);
 		JsonWriter->WriteValue(Identifier, PropertyValue);
 	}
-	else if (const UArrayProperty* ArrayProp = Cast<const UArrayProperty>(InProperty))
+	else if (const FArrayProperty* ArrayProp = CastField<const FArrayProperty>(InProperty))
 	{
 		JsonWriter->WriteArrayStart(Identifier);
 
@@ -259,7 +259,7 @@ bool TDataTableExporterJSON<CharType>::WriteStructEntry(const void* InRowData, c
 
 		JsonWriter->WriteArrayEnd();
 	}
-	else if (const USetProperty* SetProp = Cast<const USetProperty>(InProperty))
+	else if (const FSetProperty* SetProp = CastField<const FSetProperty>(InProperty))
 	{
 		JsonWriter->WriteArrayStart(Identifier);
 
@@ -275,7 +275,7 @@ bool TDataTableExporterJSON<CharType>::WriteStructEntry(const void* InRowData, c
 
 		JsonWriter->WriteArrayEnd();
 	}
-	else if (const UMapProperty* MapProp = Cast<const UMapProperty>(InProperty))
+	else if (const FMapProperty* MapProp = CastField<const FMapProperty>(InProperty))
 	{
 		JsonWriter->WriteObjectStart(Identifier);
 
@@ -295,7 +295,7 @@ bool TDataTableExporterJSON<CharType>::WriteStructEntry(const void* InRowData, c
 
 		JsonWriter->WriteObjectEnd();
 	}
-	else if (const UStructProperty* StructProp = Cast<const UStructProperty>(InProperty))
+	else if (const FStructProperty* StructProp = CastField<const FStructProperty>(InProperty))
 	{
 		if (!!(DTExportFlags & EDataTableExportFlags::UseJsonObjectsForStructs))
 		{
@@ -319,14 +319,14 @@ bool TDataTableExporterJSON<CharType>::WriteStructEntry(const void* InRowData, c
 }
 
 template<typename CharType>
-bool TDataTableExporterJSON<CharType>::WriteContainerEntry(const UProperty* InProperty, const void* InPropertyData, const FString* InIdentifier)
+bool TDataTableExporterJSON<CharType>::WriteContainerEntry(const FProperty* InProperty, const void* InPropertyData, const FString* InIdentifier)
 {
-	if (const UEnumProperty* EnumProp = Cast<const UEnumProperty>(InProperty))
+	if (const FEnumProperty* EnumProp = CastField<const FEnumProperty>(InProperty))
 	{
 		const FString PropertyValue = DataTableUtils::GetPropertyValueAsStringDirect(InProperty, (uint8*)InPropertyData, DTExportFlags);
 		WriteJSONValueWithOptionalIdentifier<CharType>(*JsonWriter, InIdentifier, PropertyValue);
 	}
-	else if (const UNumericProperty *NumProp = Cast<const UNumericProperty>(InProperty))
+	else if (const FNumericProperty *NumProp = CastField<const FNumericProperty>(InProperty))
 	{
 		if (NumProp->IsEnum())
 		{
@@ -344,12 +344,12 @@ bool TDataTableExporterJSON<CharType>::WriteContainerEntry(const UProperty* InPr
 			WriteJSONValueWithOptionalIdentifier<CharType>(*JsonWriter, InIdentifier, PropertyValue);
 		}
 	}
-	else if (const UBoolProperty* BoolProp = Cast<const UBoolProperty>(InProperty))
+	else if (const FBoolProperty* BoolProp = CastField<const FBoolProperty>(InProperty))
 	{
 		const bool PropertyValue = BoolProp->GetPropertyValue(InPropertyData);
 		WriteJSONValueWithOptionalIdentifier<CharType>(*JsonWriter, InIdentifier, PropertyValue);
 	}
-	else if (const UStructProperty* StructProp = Cast<const UStructProperty>(InProperty))
+	else if (const FStructProperty* StructProp = CastField<const FStructProperty>(InProperty))
 	{
 		if (!!(DTExportFlags & EDataTableExportFlags::UseJsonObjectsForStructs))
 		{
@@ -363,17 +363,17 @@ bool TDataTableExporterJSON<CharType>::WriteContainerEntry(const UProperty* InPr
 			WriteJSONValueWithOptionalIdentifier<CharType>(*JsonWriter, InIdentifier, PropertyValue);
 		}
 	}
-	else if (const UArrayProperty* ArrayProp = Cast<const UArrayProperty>(InProperty))
+	else if (const FArrayProperty* ArrayProp = CastField<const FArrayProperty>(InProperty))
 	{
 		// Cannot nest arrays
 		return false;
 	}
-	else if (const USetProperty* SetProp = Cast<const USetProperty>(InProperty))
+	else if (const FSetProperty* SetProp = CastField<const FSetProperty>(InProperty))
 	{
 		// Cannot nest sets
 		return false;
 	}
-	else if (const UMapProperty* MapProp = Cast<const UMapProperty>(InProperty))
+	else if (const FMapProperty* MapProp = CastField<const FMapProperty>(InProperty))
 	{
 		// Cannot nest maps
 		return false;
@@ -485,9 +485,9 @@ bool FDataTableImporterJSON::ReadRow(const TSharedRef<FJsonObject>& InParsedTabl
 bool FDataTableImporterJSON::ReadStruct(const TSharedRef<FJsonObject>& InParsedObject, UScriptStruct* InStruct, const FName InRowName, void* InStructData)
 {
 	// Now read in each property
-	for (TFieldIterator<UProperty> It(InStruct); It; ++It)
+	for (TFieldIterator<FProperty> It(InStruct); It; ++It)
 	{
-		UProperty* BaseProp = *It;
+		FProperty* BaseProp = *It;
 		check(BaseProp);
 
 		const FString ColumnName = DataTableUtils::GetPropertyExportName(BaseProp);
@@ -558,11 +558,11 @@ bool FDataTableImporterJSON::ReadStruct(const TSharedRef<FJsonObject>& InParsedO
 	return true;
 }
 
-bool FDataTableImporterJSON::ReadStructEntry(const TSharedRef<FJsonValue>& InParsedPropertyValue, const FName InRowName, const FString& InColumnName, const void* InRowData, UProperty* InProperty, void* InPropertyData)
+bool FDataTableImporterJSON::ReadStructEntry(const TSharedRef<FJsonValue>& InParsedPropertyValue, const FName InRowName, const FString& InColumnName, const void* InRowData, FProperty* InProperty, void* InPropertyData)
 {
 	const TCHAR* const ParsedPropertyType = JSONTypeToString(InParsedPropertyValue->Type);
 
-	if (UEnumProperty* EnumProp = Cast<UEnumProperty>(InProperty))
+	if (FEnumProperty* EnumProp = CastField<FEnumProperty>(InProperty))
 	{
 		FString EnumValue;
 		if (InParsedPropertyValue->TryGetString(EnumValue))
@@ -586,7 +586,7 @@ bool FDataTableImporterJSON::ReadStructEntry(const TSharedRef<FJsonValue>& InPar
 			EnumProp->GetUnderlyingProperty()->SetIntPropertyValue(InPropertyData, PropertyValue);
 		}
 	}
-	else if (UNumericProperty *NumProp = Cast<UNumericProperty>(InProperty))
+	else if (FNumericProperty *NumProp = CastField<FNumericProperty>(InProperty))
 	{
 		FString EnumValue;
 		if (NumProp->IsEnum() && InParsedPropertyValue->TryGetString(EnumValue))
@@ -621,7 +621,7 @@ bool FDataTableImporterJSON::ReadStructEntry(const TSharedRef<FJsonValue>& InPar
 			NumProp->SetFloatingPointPropertyValue(InPropertyData, PropertyValue);
 		}
 	}
-	else if (UBoolProperty* BoolProp = Cast<UBoolProperty>(InProperty))
+	else if (FBoolProperty* BoolProp = CastField<FBoolProperty>(InProperty))
 	{
 		bool PropertyValue = false;
 		if (!InParsedPropertyValue->TryGetBool(PropertyValue))
@@ -632,7 +632,7 @@ bool FDataTableImporterJSON::ReadStructEntry(const TSharedRef<FJsonValue>& InPar
 
 		BoolProp->SetPropertyValue(InPropertyData, PropertyValue);
 	}
-	else if (UArrayProperty* ArrayProp = Cast<UArrayProperty>(InProperty))
+	else if (FArrayProperty* ArrayProp = CastField<FArrayProperty>(InProperty))
 	{
 		const TArray< TSharedPtr<FJsonValue> >* PropertyValuesPtr;
 		if (!InParsedPropertyValue->TryGetArray(PropertyValuesPtr))
@@ -650,7 +650,7 @@ bool FDataTableImporterJSON::ReadStructEntry(const TSharedRef<FJsonValue>& InPar
 			ReadContainerEntry(PropertyValueEntry.ToSharedRef(), InRowName, InColumnName, NewEntryIndex, ArrayProp->Inner, ArrayEntryData);
 		}
 	}
-	else if (USetProperty* SetProp = Cast<USetProperty>(InProperty))
+	else if (FSetProperty* SetProp = CastField<FSetProperty>(InProperty))
 	{
 		const TArray< TSharedPtr<FJsonValue> >* PropertyValuesPtr;
 		if (!InParsedPropertyValue->TryGetArray(PropertyValuesPtr))
@@ -669,7 +669,7 @@ bool FDataTableImporterJSON::ReadStructEntry(const TSharedRef<FJsonValue>& InPar
 		}
 		SetHelper.Rehash();
 	}
-	else if (UMapProperty* MapProp = Cast<UMapProperty>(InProperty))
+	else if (FMapProperty* MapProp = CastField<FMapProperty>(InProperty))
 	{
 		const TSharedPtr<FJsonObject>* PropertyValue;
 		if (!InParsedPropertyValue->TryGetObject(PropertyValue))
@@ -703,7 +703,7 @@ bool FDataTableImporterJSON::ReadStructEntry(const TSharedRef<FJsonValue>& InPar
 		}
 		MapHelper.Rehash();
 	}
-	else if (UStructProperty* StructProp = Cast<UStructProperty>(InProperty))
+	else if (FStructProperty* StructProp = CastField<FStructProperty>(InProperty))
 	{
 		const TSharedPtr<FJsonObject>* PropertyValue = nullptr;
 		if (InParsedPropertyValue->TryGetObject(PropertyValue))
@@ -750,11 +750,11 @@ bool FDataTableImporterJSON::ReadStructEntry(const TSharedRef<FJsonValue>& InPar
 	return true;
 }
 
-bool FDataTableImporterJSON::ReadContainerEntry(const TSharedRef<FJsonValue>& InParsedPropertyValue, const FName InRowName, const FString& InColumnName, const int32 InArrayEntryIndex, UProperty* InProperty, void* InPropertyData)
+bool FDataTableImporterJSON::ReadContainerEntry(const TSharedRef<FJsonValue>& InParsedPropertyValue, const FName InRowName, const FString& InColumnName, const int32 InArrayEntryIndex, FProperty* InProperty, void* InPropertyData)
 {
 	const TCHAR* const ParsedPropertyType = JSONTypeToString(InParsedPropertyValue->Type);
 
-	if (UEnumProperty* EnumProp = Cast<UEnumProperty>(InProperty))
+	if (FEnumProperty* EnumProp = CastField<FEnumProperty>(InProperty))
 	{
 		FString EnumValue;
 		if (InParsedPropertyValue->TryGetString(EnumValue))
@@ -778,7 +778,7 @@ bool FDataTableImporterJSON::ReadContainerEntry(const TSharedRef<FJsonValue>& In
 			EnumProp->GetUnderlyingProperty()->SetIntPropertyValue(InPropertyData, PropertyValue);
 		}
 	}
-	else if (UNumericProperty *NumProp = Cast<UNumericProperty>(InProperty))
+	else if (FNumericProperty *NumProp = CastField<FNumericProperty>(InProperty))
 	{
 		FString EnumValue;
 		if (NumProp->IsEnum() && InParsedPropertyValue->TryGetString(EnumValue))
@@ -813,7 +813,7 @@ bool FDataTableImporterJSON::ReadContainerEntry(const TSharedRef<FJsonValue>& In
 			NumProp->SetFloatingPointPropertyValue(InPropertyData, PropertyValue);
 		}
 	}
-	else if (UBoolProperty* BoolProp = Cast<UBoolProperty>(InProperty))
+	else if (FBoolProperty* BoolProp = CastField<FBoolProperty>(InProperty))
 	{
 		bool PropertyValue = false;
 		if (!InParsedPropertyValue->TryGetBool(PropertyValue))
@@ -824,22 +824,22 @@ bool FDataTableImporterJSON::ReadContainerEntry(const TSharedRef<FJsonValue>& In
 
 		BoolProp->SetPropertyValue(InPropertyData, PropertyValue);
 	}
-	else if (UArrayProperty* ArrayProp = Cast<UArrayProperty>(InProperty))
+	else if (FArrayProperty* ArrayProp = CastField<FArrayProperty>(InProperty))
 	{
 		// Cannot nest arrays
 		return false;
 	}
-	else if (USetProperty* SetProp = Cast<USetProperty>(InProperty))
+	else if (FSetProperty* SetProp = CastField<FSetProperty>(InProperty))
 	{
 		// Cannot nest sets
 		return false;
 	}
-	else if (UMapProperty* MapProp = Cast<UMapProperty>(InProperty))
+	else if (FMapProperty* MapProp = CastField<FMapProperty>(InProperty))
 	{
 		// Cannot nest maps
 		return false;
 	}
-	else if (UStructProperty* StructProp = Cast<UStructProperty>(InProperty))
+	else if (FStructProperty* StructProp = CastField<FStructProperty>(InProperty))
 	{
 		const TSharedPtr<FJsonObject>* PropertyValue = nullptr;
 		if (InParsedPropertyValue->TryGetObject(PropertyValue))

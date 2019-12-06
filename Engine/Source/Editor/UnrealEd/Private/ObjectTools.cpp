@@ -760,7 +760,7 @@ namespace ObjectTools
 		ReplacementMap.GenerateKeyArray( OutInfo.ReplaceableObjects );
 
 		// Find all the properties (and their corresponding objects) that refer to any of the objects to be replaced
-		using PropertyArrayType = TArray<UProperty*, TInlineAllocator<1>>;
+		using PropertyArrayType = TArray<FProperty*, TInlineAllocator<1>>;
 		TArray<UObject*> ReferencingPropertiesMapKeys;
 		TArray<PropertyArrayType> ReferencingPropertiesMapValues;
 
@@ -786,7 +786,7 @@ namespace ObjectTools
 				// changed, and store both the object doing the referencing as well as the properties that were changed in a map (so that
 				// we can correctly call PostEditChange later)
 				TMap<UObject*, int32> CurNumReferencesMap;
-				TMultiMap<UObject*, UProperty*> CurReferencingPropertiesMMap;
+				TMultiMap<UObject*, FProperty*> CurReferencingPropertiesMMap;
 				if ( FindRefsArchive.GetReferenceCounts( CurNumReferencesMap, CurReferencingPropertiesMMap ) > 0  )
 				{
 					PropertyArrayType CurReferencedProperties;

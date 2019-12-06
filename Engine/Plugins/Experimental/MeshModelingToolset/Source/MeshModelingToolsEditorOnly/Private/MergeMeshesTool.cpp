@@ -172,7 +172,7 @@ bool UMergeMeshesTool::CanAccept() const
 	return Preview->HaveValidResult();
 }
 
-void UMergeMeshesTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UMergeMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	Preview->InvalidateResult();
 }

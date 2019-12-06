@@ -14,7 +14,7 @@ UOculusAudioSourceSettings::UOculusAudioSourceSettings() :
 }
 
 #if WITH_EDITOR
-bool UOculusAudioSourceSettings::CanEditChange(const UProperty* InProperty) const
+bool UOculusAudioSourceSettings::CanEditChange(const FProperty* InProperty) const
 {
 	const bool ParentVal = Super::CanEditChange(InProperty);
 

@@ -41,7 +41,7 @@ class IStructSerializerBackend;
 struct FStructSerializerState;
 class FWebJSScripting;
 class UObject;
-class UProperty;
+class FProperty;
 class UStruct;
 
 #if WITH_CEF3

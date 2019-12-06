@@ -43,9 +43,9 @@ void FAnimNode_CurveSource::PreUpdate(const UAnimInstance* AnimInstance)
 				return;
 			}
 
-			for (TFieldIterator<UObjectProperty> PropertyIt(Actor->GetClass(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+			for (TFieldIterator<FObjectProperty> PropertyIt(Actor->GetClass(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 			{
-				UObjectProperty* ObjProp = *PropertyIt;
+				FObjectProperty* ObjProp = *PropertyIt;
 				UActorComponent* ActorComponent = Cast<UActorComponent>(ObjProp->GetObjectPropertyValue(ObjProp->ContainerPtrToValuePtr<void>(Actor)));
 				if (IsSpecifiedCurveSource(ActorComponent, SourceBinding, CurveSource))
 				{

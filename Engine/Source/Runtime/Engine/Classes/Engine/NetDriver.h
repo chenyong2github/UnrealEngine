@@ -787,12 +787,10 @@ public:
 	UClass* ReplicationDriverClass;
 
 	/** @todo document */
-	UPROPERTY()
-	UProperty* RoleProperty;
+	FProperty* RoleProperty;
 	
 	/** @todo document */
-	UPROPERTY()
-	UProperty* RemoteRoleProperty;
+	FProperty* RemoteRoleProperty;
 
 	/** Used to specify the net driver to filter actors with (NAME_None || NAME_GameNetDriver is the default net driver) */
 	UPROPERTY(Config)
@@ -1094,7 +1092,7 @@ public:
 
 	//~ Begin UObject Interface.
 	ENGINE_API virtual void PostInitProperties() override;
-	ENGINE_API virtual void PostReloadConfig(UProperty* PropertyToLoad) override;
+	ENGINE_API virtual void PostReloadConfig(FProperty* PropertyToLoad) override;
 	ENGINE_API virtual void FinishDestroy() override;
 	ENGINE_API virtual void Serialize( FArchive& Ar ) override;
 	ENGINE_API static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);

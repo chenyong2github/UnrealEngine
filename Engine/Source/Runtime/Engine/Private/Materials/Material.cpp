@@ -4213,7 +4213,7 @@ void UMaterial::ClearAllCachedCookedPlatformData()
 }
 #endif
 #if WITH_EDITOR
-bool UMaterial::CanEditChange(const UProperty* InProperty) const
+bool UMaterial::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{
@@ -4370,7 +4370,7 @@ bool UMaterial::CanEditChange(const UProperty* InProperty) const
 	return true;
 }
 
-void UMaterial::PreEditChange(UProperty* PropertyThatChanged)
+void UMaterial::PreEditChange(FProperty* PropertyThatChanged)
 {
 	Super::PreEditChange(PropertyThatChanged);
 }
@@ -4388,7 +4388,7 @@ void UMaterial::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEve
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 
 	//Cancel any current compilation jobs that are in flight for this material.
 	CancelOutstandingCompilation();

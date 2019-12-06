@@ -43,7 +43,7 @@ FName UK2Node_FunctionTerminator::CreateUniquePinName(FName InSourcePinName) con
 	FName ResultName = InSourcePinName;
 	int UniqueNum = 0;
 	// Prevent the unique name from being the same as another of the UFunction's properties
-	while(FindPin(ResultName) || FindField<const UProperty>(FoundFunction, ResultName) != nullptr)
+	while(FindPin(ResultName) || FindField<const FProperty>(FoundFunction, ResultName) != nullptr)
 	{
 		ResultName = *FString::Printf(TEXT("%s%d"), *InSourcePinName.ToString(), ++UniqueNum);
 	}

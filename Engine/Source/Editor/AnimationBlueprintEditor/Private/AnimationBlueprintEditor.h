@@ -204,7 +204,7 @@ protected:
 	// End of FEditorUndoClient
 
 	//~ Begin FNotifyHook Interface
-	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged) override;
+	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 	//~ End FNotifyHook Interface
 
 	// Toggle pose watch on selected nodes

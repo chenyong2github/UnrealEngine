@@ -100,7 +100,7 @@ FString PyObjectToUEStringRepr(PyObject* InPyObj)
 	return PyObjectToUEString(InPyObj);
 }
 
-FPropValueOnScope::FPropValueOnScope(const UProperty* InProp)
+FPropValueOnScope::FPropValueOnScope(const FProperty* InProp)
 	: Prop(InProp)
 	, Value(nullptr)
 {
@@ -137,7 +137,7 @@ bool FPropValueOnScope::IsValid() const
 	return Prop && Value;
 }
 
-const UProperty* FPropValueOnScope::GetProp() const
+const FProperty* FPropValueOnScope::GetProp() const
 {
 	return Prop;
 }
@@ -148,88 +148,88 @@ void* FPropValueOnScope::GetValue(const int32 InArrayIndex) const
 	return ((uint8*)Value) + (Prop->ElementSize * InArrayIndex);
 }
 
-FFixedArrayElementOnScope::FFixedArrayElementOnScope(const UProperty* InProp)
+FFixedArrayElementOnScope::FFixedArrayElementOnScope(const FProperty* InProp)
 	: FPropValueOnScope(PyUtil::CreateProperty(InProp)) // We have to create a new temporary property with an ArrayDim of 1
 {
 }
 
-FArrayElementOnScope::FArrayElementOnScope(const UArrayProperty* InProp)
+FArrayElementOnScope::FArrayElementOnScope(const FArrayProperty* InProp)
 	: FPropValueOnScope(InProp->Inner)
 {
 }
 
-FSetElementOnScope::FSetElementOnScope(const USetProperty* InProp)
+FSetElementOnScope::FSetElementOnScope(const FSetProperty* InProp)
 	: FPropValueOnScope(InProp->ElementProp)
 {
 }
 
-FMapKeyOnScope::FMapKeyOnScope(const UMapProperty* InProp)
+FMapKeyOnScope::FMapKeyOnScope(const FMapProperty* InProp)
 	: FPropValueOnScope(InProp->KeyProp)
 {
 }
 
-FMapValueOnScope::FMapValueOnScope(const UMapProperty* InProp)
+FMapValueOnScope::FMapValueOnScope(const FMapProperty* InProp)
 	: FPropValueOnScope(InProp->ValueProp)
 {
 }
 
-FPropertyDef::FPropertyDef(const UProperty* InProperty)
+FPropertyDef::FPropertyDef(const FProperty* InProperty)
 	: PropertyClass(InProperty->GetClass())
 	, PropertySubType(nullptr)
 	, KeyDef()
 	, ValueDef()
 {
-	if (const UObjectPropertyBase* ObjectProp = Cast<UObjectPropertyBase>(InProperty))
+	if (const FObjectPropertyBase* ObjectProp = CastField<FObjectPropertyBase>(InProperty))
 	{
 		PropertySubType = ObjectProp->PropertyClass;
 	}
 
-	if (const UClassProperty* ClassProp = Cast<UClassProperty>(InProperty))
+	if (const FClassProperty* ClassProp = CastField<FClassProperty>(InProperty))
 	{
 		PropertySubType = ClassProp->MetaClass;
 	}
 
-	if (const USoftClassProperty* ClassProp = Cast<USoftClassProperty>(InProperty))
+	if (const FSoftClassProperty* ClassProp = CastField<FSoftClassProperty>(InProperty))
 	{
 		PropertySubType = ClassProp->MetaClass;
 	}
 
-	if (const UStructProperty* StructProp = Cast<UStructProperty>(InProperty))
+	if (const FStructProperty* StructProp = CastField<FStructProperty>(InProperty))
 	{
 		PropertySubType = StructProp->Struct;
 	}
 
-	if (const UEnumProperty* EnumProp = Cast<UEnumProperty>(InProperty))
+	if (const FEnumProperty* EnumProp = CastField<FEnumProperty>(InProperty))
 	{
 		PropertySubType = EnumProp->GetEnum();
 	}
 
-	if (const UDelegateProperty* DelegateProp = Cast<UDelegateProperty>(InProperty))
+	if (const FDelegateProperty* DelegateProp = CastField<FDelegateProperty>(InProperty))
 	{
 		PropertySubType = DelegateProp->SignatureFunction;
 	}
 
-	if (const UMulticastDelegateProperty* DelegateProp = Cast<UMulticastDelegateProperty>(InProperty))
+	if (const FMulticastDelegateProperty* DelegateProp = CastField<FMulticastDelegateProperty>(InProperty))
 	{
 		PropertySubType = DelegateProp->SignatureFunction;
 	}
 
-	if (const UByteProperty* ByteProp = Cast<UByteProperty>(InProperty))
+	if (const FByteProperty* ByteProp = CastField<FByteProperty>(InProperty))
 	{
 		PropertySubType = ByteProp->Enum;
 	}
 
-	if (const UArrayProperty* ArrayProp = Cast<UArrayProperty>(InProperty))
+	if (const FArrayProperty* ArrayProp = CastField<FArrayProperty>(InProperty))
 	{
 		ValueDef = MakeShared<FPropertyDef>(ArrayProp->Inner);
 	}
 
-	if (const USetProperty* SetProp = Cast<USetProperty>(InProperty))
+	if (const FSetProperty* SetProp = CastField<FSetProperty>(InProperty))
 	{
 		ValueDef = MakeShared<FPropertyDef>(SetProp->ElementProp);
 	}
 
-	if (const UMapProperty* MapProp = Cast<UMapProperty>(InProperty))
+	if (const FMapProperty* MapProp = CastField<FMapProperty>(InProperty))
 	{
 		KeyDef = MakeShared<FPropertyDef>(MapProp->KeyProp);
 		ValueDef = MakeShared<FPropertyDef>(MapProp->ValueProp);
@@ -240,14 +240,14 @@ bool CalculatePropertyDef(PyTypeObject* InPyType, FPropertyDef& OutPropertyDef)
 {
 	if (PyObject_IsSubclass((PyObject*)InPyType, (PyObject*)&PyWrapperObjectType) == 1)
 	{
-		OutPropertyDef.PropertyClass = UObjectProperty::StaticClass();
+		OutPropertyDef.PropertyClass = FObjectProperty::StaticClass();
 		OutPropertyDef.PropertySubType = (UObject*)FPyWrapperObjectMetaData::GetClass(InPyType);
 		return true;
 	}
 
 	if (PyObject_IsSubclass((PyObject*)InPyType, (PyObject*)&PyWrapperStructType) == 1)
 	{
-		OutPropertyDef.PropertyClass = UStructProperty::StaticClass();
+		OutPropertyDef.PropertyClass = FStructProperty::StaticClass();
 		OutPropertyDef.PropertySubType = (UObject*)FPyWrapperStructMetaData::GetStruct(InPyType);
 		return true;
 	}
@@ -257,11 +257,11 @@ bool CalculatePropertyDef(PyTypeObject* InPyType, FPropertyDef& OutPropertyDef)
 		UEnum* EnumType = FPyWrapperEnumMetaData::GetEnum(InPyType);
 		if (EnumType && EnumType->GetCppForm() == UEnum::ECppForm::EnumClass)
 		{
-			OutPropertyDef.PropertyClass = UEnumProperty::StaticClass();
+			OutPropertyDef.PropertyClass = FEnumProperty::StaticClass();
 		}
 		else
 		{
-			OutPropertyDef.PropertyClass = UByteProperty::StaticClass();
+			OutPropertyDef.PropertyClass = FByteProperty::StaticClass();
 		}
 		OutPropertyDef.PropertySubType = (UObject*)EnumType;
 		return true;
@@ -269,27 +269,27 @@ bool CalculatePropertyDef(PyTypeObject* InPyType, FPropertyDef& OutPropertyDef)
 
 	if (PyObject_IsSubclass((PyObject*)InPyType, (PyObject*)&PyWrapperDelegateType) == 1)
 	{
-		OutPropertyDef.PropertyClass = UDelegateProperty::StaticClass();
+		OutPropertyDef.PropertyClass = FDelegateProperty::StaticClass();
 		OutPropertyDef.PropertySubType = (UObject*)FPyWrapperDelegateMetaData::GetDelegateSignature(InPyType).Func;
 		return true;
 	}
 
 	if (PyObject_IsSubclass((PyObject*)InPyType, (PyObject*)&PyWrapperMulticastDelegateType) == 1)
 	{
-		OutPropertyDef.PropertyClass = UMulticastDelegateProperty::StaticClass();
+		OutPropertyDef.PropertyClass = FMulticastDelegateProperty::StaticClass();
 		OutPropertyDef.PropertySubType = (UObject*)FPyWrapperMulticastDelegateMetaData::GetDelegateSignature(InPyType).Func;
 		return true;
 	}
 
 	if (PyObject_IsSubclass((PyObject*)InPyType, (PyObject*)&PyWrapperNameType) == 1)
 	{
-		OutPropertyDef.PropertyClass = UNameProperty::StaticClass();
+		OutPropertyDef.PropertyClass = FNameProperty::StaticClass();
 		return true;
 	}
 
 	if (PyObject_IsSubclass((PyObject*)InPyType, (PyObject*)&PyWrapperTextType) == 1)
 	{
-		OutPropertyDef.PropertyClass = UTextProperty::StaticClass();
+		OutPropertyDef.PropertyClass = FTextProperty::StaticClass();
 		return true;
 	}
 
@@ -299,39 +299,34 @@ bool CalculatePropertyDef(PyTypeObject* InPyType, FPropertyDef& OutPropertyDef)
 #endif	// PY_MAJOR_VERSION < 3
 		)
 	{
-		OutPropertyDef.PropertyClass = UStrProperty::StaticClass();
+		OutPropertyDef.PropertyClass = FStrProperty::StaticClass();
 		return true;
 	}
 
 	if (PyObject_IsSubclass((PyObject*)InPyType, (PyObject*)&PyBool_Type) == 1)
 	{
-		OutPropertyDef.PropertyClass = UBoolProperty::StaticClass();
+		OutPropertyDef.PropertyClass = FBoolProperty::StaticClass();
 		return true;
 	}
 
 #if PY_MAJOR_VERSION < 3
 	if (PyObject_IsSubclass((PyObject*)InPyType, (PyObject*)&PyInt_Type) == 1)
 	{
-		OutPropertyDef.PropertyClass = UIntProperty::StaticClass();
+		OutPropertyDef.PropertyClass = FIntProperty::StaticClass();
 		return true;
 	}
 #endif	// PY_MAJOR_VERSION < 3
 
 	if (PyObject_IsSubclass((PyObject*)InPyType, (PyObject*)&PyLong_Type) == 1)
 	{
-		OutPropertyDef.PropertyClass = UInt64Property::StaticClass();
+		OutPropertyDef.PropertyClass = FInt64Property::StaticClass();
 		return true;
 	}
 
 	if (PyObject_IsSubclass((PyObject*)InPyType, (PyObject*)&PyFloat_Type) == 1)
 	{
-		OutPropertyDef.PropertyClass = UFloatProperty::StaticClass();
+		OutPropertyDef.PropertyClass = FFloatProperty::StaticClass();
 		return true;
-	}
-
-	if (PyConversion::NativizeClass((PyObject*)InPyType, OutPropertyDef.PropertyClass, UProperty::StaticClass(), PyConversion::ESetErrorState::No))
-	{
-		return OutPropertyDef.PropertyClass != nullptr;
 	}
 
 	return false;
@@ -367,83 +362,82 @@ bool CalculatePropertyDef(PyObject* InPyObj, FPropertyDef& OutPropertyDef)
 	return CalculatePropertyDef(PyType_Check(InPyObj) ? (PyTypeObject*)InPyObj : Py_TYPE(InPyObj), OutPropertyDef);
 }
 
-UProperty* CreateProperty(const FPropertyDef& InPropertyDef, const int32 InArrayDim, UObject* InOuter, const FName InName)
+FProperty* CreateProperty(const FPropertyDef& InPropertyDef, const int32 InArrayDim, UObject* InOuter, const FName InName)
 {
 	check(InArrayDim > 0);
-
 	UObject* PropOuter = InOuter ? InOuter : GetPythonPropertyContainer();
-	UProperty* Prop = NewObject<UProperty>(PropOuter, InPropertyDef.PropertyClass, InName);
+	FProperty* Prop = CastFieldChecked<FProperty>(InPropertyDef.PropertyClass->Construct(PropOuter, InName, RF_NoFlags));
 	if (Prop)
 	{
 		Prop->ArrayDim = InArrayDim;
 
-		if (UObjectPropertyBase* ObjectProp = Cast<UObjectPropertyBase>(Prop))
+		if (FObjectPropertyBase* ObjectProp = CastField<FObjectPropertyBase>(Prop))
 		{
 			UClass* ClassType = CastChecked<UClass>(InPropertyDef.PropertySubType);
 			ObjectProp->SetPropertyClass(ClassType);
 		}
 
-		if (UClassProperty* ClassProp = Cast<UClassProperty>(Prop))
+		if (FClassProperty* ClassProp = CastField<FClassProperty>(Prop))
 		{
 			UClass* ClassType = CastChecked<UClass>(InPropertyDef.PropertySubType);
 			ClassProp->SetPropertyClass(UClass::StaticClass());
 			ClassProp->SetMetaClass(ClassType);
 		}
 
-		if (USoftClassProperty* ClassProp = Cast<USoftClassProperty>(Prop))
+		if (FSoftClassProperty* ClassProp = CastField<FSoftClassProperty>(Prop))
 		{
 			UClass* ClassType = CastChecked<UClass>(InPropertyDef.PropertySubType);
 			ClassProp->SetPropertyClass(UClass::StaticClass());
 			ClassProp->SetMetaClass(ClassType);
 		}
 
-		if (UStructProperty* StructProp = Cast<UStructProperty>(Prop))
+		if (FStructProperty* StructProp = CastField<FStructProperty>(Prop))
 		{
 			UScriptStruct* StructType = CastChecked<UScriptStruct>(InPropertyDef.PropertySubType);
 			StructProp->Struct = StructType;
 		}
 
-		if (UEnumProperty* EnumProp = Cast<UEnumProperty>(Prop))
+		if (FEnumProperty* EnumProp = CastField<FEnumProperty>(Prop))
 		{
 			UEnum* EnumType = CastChecked<UEnum>(InPropertyDef.PropertySubType);
 			EnumProp->SetEnum(EnumType);
-			EnumProp->AddCppProperty(NewObject<UByteProperty>(EnumProp, TEXT("UnderlyingType")));
+			EnumProp->AddCppProperty(new FByteProperty(EnumProp, TEXT("UnderlyingType"), RF_NoFlags));
 		}
 
-		if (UDelegateProperty* DelegateProp = Cast<UDelegateProperty>(Prop))
+		if (FDelegateProperty* DelegateProp = CastField<FDelegateProperty>(Prop))
 		{
 			UFunction* DelegateSignature = CastChecked<UFunction>(InPropertyDef.PropertySubType);
 			DelegateProp->SignatureFunction = DelegateSignature;
 		}
 
-		if (UMulticastDelegateProperty* DelegateProp = Cast<UMulticastDelegateProperty>(Prop))
+		if (FMulticastDelegateProperty* DelegateProp = CastField<FMulticastDelegateProperty>(Prop))
 		{
 			UFunction* DelegateSignature = CastChecked<UFunction>(InPropertyDef.PropertySubType);
 			DelegateProp->SignatureFunction = DelegateSignature;
 		}
 
-		if (UByteProperty * ByteProp = Cast<UByteProperty>(Prop))
+		if (FByteProperty * ByteProp = CastField<FByteProperty>(Prop))
 		{
 			UEnum* EnumType = Cast<UEnum>(InPropertyDef.PropertySubType); // Not CastChecked as this may be an actual number rather than an enum
 			ByteProp->Enum = EnumType;
 		}
 
-		if (UBoolProperty* BoolProp = Cast<UBoolProperty>(Prop))
+		if (FBoolProperty* BoolProp = CastField<FBoolProperty>(Prop))
 		{
 			BoolProp->SetBoolSize(sizeof(bool), true);
 		}
 
-		if (UArrayProperty* ArrayProp = Cast<UArrayProperty>(Prop))
+		if (FArrayProperty* ArrayProp = CastField<FArrayProperty>(Prop))
 		{
 			ArrayProp->Inner = CreateProperty(*InPropertyDef.ValueDef, 1, InOuter);
 		}
 
-		if (USetProperty* SetProp = Cast<USetProperty>(Prop))
+		if (FSetProperty* SetProp = CastField<FSetProperty>(Prop))
 		{
 			SetProp->ElementProp = CreateProperty(*InPropertyDef.ValueDef, 1, InOuter);
 		}
 
-		if (UMapProperty* MapProp = Cast<UMapProperty>(Prop))
+		if (FMapProperty* MapProp = CastField<FMapProperty>(Prop))
 		{
 			MapProp->KeyProp = CreateProperty(*InPropertyDef.KeyDef, 1, InOuter);
 			MapProp->ValueProp = CreateProperty(*InPropertyDef.ValueDef, 1, InOuter);
@@ -459,19 +453,19 @@ UProperty* CreateProperty(const FPropertyDef& InPropertyDef, const int32 InArray
 	return Prop;
 }
 
-UProperty* CreateProperty(PyTypeObject* InPyType, const int32 InArrayDim, UObject* InOuter, const FName InName)
+FProperty* CreateProperty(PyTypeObject* InPyType, const int32 InArrayDim, UObject* InOuter, const FName InName)
 {
 	FPropertyDef PropertyDef;
 	return CalculatePropertyDef(InPyType, PropertyDef) ? CreateProperty(PropertyDef, InArrayDim, InOuter, InName) : nullptr;
 }
 
-UProperty* CreateProperty(PyObject* InPyObj, const int32 InArrayDim, UObject* InOuter, const FName InName)
+FProperty* CreateProperty(PyObject* InPyObj, const int32 InArrayDim, UObject* InOuter, const FName InName)
 {
 	FPropertyDef PropertyDef;
 	return CalculatePropertyDef(InPyObj, PropertyDef) ? CreateProperty(PropertyDef, InArrayDim, InOuter, InName) : nullptr;
 }
 
-bool IsInputParameter(const UProperty* InParam)
+bool IsInputParameter(const FProperty* InParam)
 {
 	const bool bIsReturnParam = InParam->HasAnyPropertyFlags(CPF_ReturnParm);
 	const bool bIsReferenceParam = InParam->HasAnyPropertyFlags(CPF_ReferenceParm);
@@ -479,19 +473,19 @@ bool IsInputParameter(const UProperty* InParam)
 	return !bIsReturnParam && (!bIsOutParam || bIsReferenceParam);
 }
 
-bool IsOutputParameter(const UProperty* InParam)
+bool IsOutputParameter(const FProperty* InParam)
 {
 	const bool bIsReturnParam = InParam->HasAnyPropertyFlags(CPF_ReturnParm);
 	const bool bIsOutParam = InParam->HasAnyPropertyFlags(CPF_OutParm) && !InParam->HasAnyPropertyFlags(CPF_ConstParm);
 	return !bIsReturnParam && bIsOutParam;
 }
 
-void ImportDefaultValue(const UProperty* InProp, void* InPropValue, const FString& InDefaultValue)
+void ImportDefaultValue(const FProperty* InProp, void* InPropValue, const FString& InDefaultValue)
 {
 	if (!InDefaultValue.IsEmpty())
 	{
 		// Certain struct types export using a non-standard default value, so we have to import them manually rather than use ImportText
-		if (const UStructProperty* StructProp = Cast<UStructProperty>(InProp))
+		if (const FStructProperty* StructProp = CastField<FStructProperty>(InProp))
 		{
 			if (StructProp->Struct == TBaseStructure<FVector>::Get())
 			{
@@ -631,7 +625,7 @@ int ValidateContainerTypeParam(PyObject* InPyObj, FPropertyDef& OutPropDef, cons
 
 	if (!CalculatePropertyDef((PyTypeObject*)InPyObj, OutPropDef))
 	{
-		SetPythonError(PyExc_TypeError, InErrorCtxt, *FString::Printf(TEXT("Failed to convert '%s' (%s) to a 'UProperty' class"), UTF8_TO_TCHAR(InPythonArgName), *GetFriendlyTypename(InPyObj)));
+		SetPythonError(PyExc_TypeError, InErrorCtxt, *FString::Printf(TEXT("Failed to convert '%s' (%s) to a 'FProperty' class"), UTF8_TO_TCHAR(InPythonArgName), *GetFriendlyTypename(InPyObj)));
 		return -1;
 	}
 
@@ -643,7 +637,7 @@ int ValidateContainerTypeParam(PyObject* InPyObj, FPropertyDef& OutPropDef, cons
 
 	if (OutPropDef.PropertyClass->HasAnyClassFlags(CLASS_Abstract))
 	{
-		SetPythonError(PyExc_TypeError, InErrorCtxt, *FString::Printf(TEXT("'%s' (%s) converted to '%s' which is an abstract 'UProperty' class"), UTF8_TO_TCHAR(InPythonArgName), *GetFriendlyTypename(InPyObj), *OutPropDef.PropertyClass->GetName()));
+		SetPythonError(PyExc_TypeError, InErrorCtxt, *FString::Printf(TEXT("'%s' (%s) converted to '%s' which is an abstract 'FProperty' class"), UTF8_TO_TCHAR(InPythonArgName), *GetFriendlyTypename(InPyObj), *OutPropDef.PropertyClass->GetName()));
 		return -1;
 	}
 
@@ -667,7 +661,7 @@ int ValidateContainerLenParam(PyObject* InPyObj, int32 &OutLen, const char* InPy
 	return 0;
 }
 
-int ValidateContainerIndexParam(const Py_ssize_t InIndex, const Py_ssize_t InLen, const UProperty* InProp, const TCHAR* InErrorCtxt)
+int ValidateContainerIndexParam(const Py_ssize_t InIndex, const Py_ssize_t InLen, const FProperty* InProp, const TCHAR* InErrorCtxt)
 {
 	if (InIndex < 0 || InIndex >= InLen)
 	{
@@ -708,9 +702,9 @@ UObject* GetOwnerObject(PyObject* InPyObj)
 	}
 
 	return nullptr;
-}
+			}
 
-PyObject* GetPropertyValue(const UStruct* InStruct, const void* InStructData, const UProperty* InProp, const char *InAttributeName, PyObject* InOwnerPyObject, const TCHAR* InErrorCtxt)
+PyObject* GetPropertyValue(const UStruct* InStruct, const void* InStructData, const FProperty* InProp, const char *InAttributeName, PyObject* InOwnerPyObject, const TCHAR* InErrorCtxt)
 {
 	if (InStruct && InProp && ensureAlways(InStructData))
 	{
@@ -718,10 +712,10 @@ PyObject* GetPropertyValue(const UStruct* InStruct, const void* InStructData, co
 		if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::PermissionDenied))
 		{
 			if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::AccessProtected))
-			{
-				SetPythonError(PyExc_Exception, InErrorCtxt, *FString::Printf(TEXT("Property '%s' for attribute '%s' on '%s' is protected and cannot be read"), *InProp->GetName(), UTF8_TO_TCHAR(InAttributeName), *InStruct->GetName()));
-				return nullptr;
-			}
+		{
+			SetPythonError(PyExc_Exception, InErrorCtxt, *FString::Printf(TEXT("Property '%s' for attribute '%s' on '%s' is protected and cannot be read"), *InProp->GetName(), UTF8_TO_TCHAR(InAttributeName), *InStruct->GetName()));
+			return nullptr;
+		}
 
 			SetPythonError(PyExc_Exception, InErrorCtxt, *FString::Printf(TEXT("Property '%s' for attribute '%s' on '%s' cannot be read"), *InProp->GetName(), UTF8_TO_TCHAR(InAttributeName), *InStruct->GetName()));
 			return nullptr;
@@ -739,7 +733,7 @@ PyObject* GetPropertyValue(const UStruct* InStruct, const void* InStructData, co
 	Py_RETURN_NONE;
 }
 
-int SetPropertyValue(const UStruct* InStruct, void* InStructData, PyObject* InValue, const UProperty* InProp, const char *InAttributeName, const FPropertyAccessChangeNotify* InChangeNotify, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const TCHAR* InErrorCtxt)
+int SetPropertyValue(const UStruct* InStruct, void* InStructData, PyObject* InValue, const FProperty* InProp, const char *InAttributeName, const FPropertyAccessChangeNotify* InChangeNotify, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const TCHAR* InErrorCtxt)
 {
 	if (!InValue)
 	{
@@ -753,10 +747,10 @@ int SetPropertyValue(const UStruct* InStruct, void* InStructData, PyObject* InVa
 		if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::PermissionDenied))
 		{
 			if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::AccessProtected))
-			{
-				SetPythonError(PyExc_Exception, InErrorCtxt, *FString::Printf(TEXT("Property '%s' for attribute '%s' on '%s' is protected and cannot be set"), *InProp->GetName(), UTF8_TO_TCHAR(InAttributeName), *InStruct->GetName()));
-				return -1;
-			}
+		{
+			SetPythonError(PyExc_Exception, InErrorCtxt, *FString::Printf(TEXT("Property '%s' for attribute '%s' on '%s' is protected and cannot be set"), *InProp->GetName(), UTF8_TO_TCHAR(InAttributeName), *InStruct->GetName()));
+			return -1;
+		}
 
 			if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::CannotEditTemplate))
 			{
@@ -771,10 +765,10 @@ int SetPropertyValue(const UStruct* InStruct, void* InStructData, PyObject* InVa
 			}
 
 			if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::ReadOnly))
-			{
-				SetPythonError(PyExc_Exception, InErrorCtxt, *FString::Printf(TEXT("Property '%s' for attribute '%s' on '%s' is read-only and cannot be set"), *InProp->GetName(), UTF8_TO_TCHAR(InAttributeName), *InStruct->GetName()));
-				return -1;
-			}
+		{
+			SetPythonError(PyExc_Exception, InErrorCtxt, *FString::Printf(TEXT("Property '%s' for attribute '%s' on '%s' is read-only and cannot be set"), *InProp->GetName(), UTF8_TO_TCHAR(InAttributeName), *InStruct->GetName()));
+			return -1;
+		}
 
 			SetPythonError(PyExc_Exception, InErrorCtxt, *FString::Printf(TEXT("Property '%s' for attribute '%s' on '%s' cannot be set"), *InProp->GetName(), UTF8_TO_TCHAR(InAttributeName), *InStruct->GetName()));
 			return -1;
@@ -1045,9 +1039,9 @@ FString GetFriendlyStructValue(const UScriptStruct* InStruct, const void* InStru
 	return FriendlyStructValue;
 }
 
-FString GetFriendlyPropertyValue(const UProperty* InProp, const void* InPropValue, const uint32 InPortFlags)
+FString GetFriendlyPropertyValue(const FProperty* InProp, const void* InPropValue, const uint32 InPortFlags)
 {
-	if (auto* CastProp = Cast<UStructProperty>(InProp))
+	if (auto* CastProp = CastField<FStructProperty>(InProp))
 	{
 		return GetFriendlyStructValue(CastProp->Struct, InPropValue, InPortFlags);
 	}
@@ -1213,7 +1207,7 @@ bool EnableDeveloperWarnings()
 }
 
 FString BuildPythonError()
-{
+	{
 	FString PythonErrorString;
 
 	// This doesn't just call PyErr_Print as it also needs to work before stderr redirection has been set-up in Python

@@ -484,7 +484,7 @@ int FPyWrapperStruct::CallMakeFunction_Impl(FPyWrapperStruct* InSelf, PyObject* 
 		{
 			return -1;
 		}
-		if (ensureAlways(InFuncDef.OutputParams.Num() == 1 && Cast<UStructProperty>(InFuncDef.OutputParams[0].ParamProp) && CastChecked<UStructProperty>(InFuncDef.OutputParams[0].ParamProp)->Struct->IsChildOf(InSelf->ScriptStruct)))
+		if (ensureAlways(InFuncDef.OutputParams.Num() == 1 && CastField<FStructProperty>(InFuncDef.OutputParams[0].ParamProp) && CastFieldChecked<const FStructProperty>(InFuncDef.OutputParams[0].ParamProp)->Struct->IsChildOf(InSelf->ScriptStruct)))
 		{
 			// Copy the result back onto ourself
 			const PyGenUtil::FGeneratedWrappedMethodParameter& ReturnParam = InFuncDef.OutputParams[0];
@@ -504,12 +504,12 @@ PyObject* FPyWrapperStruct::CallBreakFunction_Impl(FPyWrapperStruct* InSelf, con
 		UObject* Obj = Class->GetDefaultObject();
 
 		FStructOnScope FuncParams(InFuncDef.Func);
-		if (ensureAlways(InFuncDef.InputParams.Num() == 1 && Cast<UStructProperty>(InFuncDef.InputParams[0].ParamProp) && InSelf->ScriptStruct->IsChildOf(CastChecked<UStructProperty>(InFuncDef.InputParams[0].ParamProp)->Struct)))
+		if (ensureAlways(InFuncDef.InputParams.Num() == 1 && CastField<FStructProperty>(InFuncDef.InputParams[0].ParamProp) && InSelf->ScriptStruct->IsChildOf(CastFieldChecked<const FStructProperty>(InFuncDef.InputParams[0].ParamProp)->Struct)))
 		{
 			// Copy us as the 'self' argument
 			const PyGenUtil::FGeneratedWrappedMethodParameter& SelfParam = InFuncDef.InputParams[0];
 			void* SelfArgInstance = SelfParam.ParamProp->ContainerPtrToValuePtr<void>(FuncParams.GetStructMemory());
-			CastChecked<UStructProperty>(SelfParam.ParamProp)->Struct->CopyScriptStruct(SelfArgInstance, InSelf->StructInstance);
+			CastFieldChecked<const FStructProperty>(SelfParam.ParamProp)->Struct->CopyScriptStruct(SelfArgInstance, InSelf->StructInstance);
 		}
 		if (!PyUtil::InvokeFunctionCall(Obj, InFuncDef.Func, FuncParams.GetStructMemory(), *PyUtil::GetErrorContext(InSelf)))
 		{
@@ -559,10 +559,10 @@ PyObject* FPyWrapperStruct::CallDynamicFunction_Impl(FPyWrapperStruct* InSelf, P
 
 		FStructOnScope FuncParams(InFuncDef.Func);
 		PyGenUtil::ApplyParamDefaults(FuncParams.GetStructMemory(), InFuncDef.InputParams);
-		if (ensureAlways(Cast<UStructProperty>(InSelfParam.ParamProp) && InSelf->ScriptStruct->IsChildOf(CastChecked<UStructProperty>(InSelfParam.ParamProp)->Struct)))
+		if (ensureAlways(CastField<FStructProperty>(InSelfParam.ParamProp) && InSelf->ScriptStruct->IsChildOf(CastFieldChecked<const FStructProperty>(InSelfParam.ParamProp)->Struct)))
 		{
 			void* SelfArgInstance = InSelfParam.ParamProp->ContainerPtrToValuePtr<void>(FuncParams.GetStructMemory());
-			CastChecked<UStructProperty>(InSelfParam.ParamProp)->Struct->CopyScriptStruct(SelfArgInstance, InSelf->StructInstance);
+			CastFieldChecked<const FStructProperty>(InSelfParam.ParamProp)->Struct->CopyScriptStruct(SelfArgInstance, InSelf->StructInstance);
 		}
 		for (int32 ParamIndex = 0; ParamIndex < Params.Num(); ++ParamIndex)
 		{
@@ -583,7 +583,7 @@ PyObject* FPyWrapperStruct::CallDynamicFunction_Impl(FPyWrapperStruct* InSelf, P
 		{
 			return nullptr;
 		}
-		if (InSelfReturn.ParamProp && ensureAlways(Cast<UStructProperty>(InSelfReturn.ParamProp) && CastChecked<UStructProperty>(InSelfReturn.ParamProp)->Struct->IsChildOf(InSelf->ScriptStruct)))
+		if (InSelfReturn.ParamProp && ensureAlways(CastField<FStructProperty>(InSelfReturn.ParamProp) && CastFieldChecked<const FStructProperty>(InSelfReturn.ParamProp)->Struct->IsChildOf(InSelf->ScriptStruct)))
 		{
 			// Copy the 'self' return value back onto ourself
 			const void* SelfReturnInstance = InSelfReturn.ParamProp->ContainerPtrToValuePtr<void>(FuncParams.GetStructMemory());
@@ -644,10 +644,10 @@ PyObject* FPyWrapperStruct::CallOperatorFunction_Impl(FPyWrapperStruct* InSelf, 
 				return nullptr;
 			}
 		}
-		if (ensureAlways(Cast<UStructProperty>(InOpFunc.SelfParam.ParamProp) && InSelf->ScriptStruct->IsChildOf(CastChecked<UStructProperty>(InOpFunc.SelfParam.ParamProp)->Struct)))
+		if (ensureAlways(CastField<FStructProperty>(InOpFunc.SelfParam.ParamProp) && InSelf->ScriptStruct->IsChildOf(CastFieldChecked<const FStructProperty>(InOpFunc.SelfParam.ParamProp)->Struct)))
 		{
 			void* StructArgInstance = InOpFunc.SelfParam.ParamProp->ContainerPtrToValuePtr<void>(FuncParams.GetStructMemory());
-			CastChecked<UStructProperty>(InOpFunc.SelfParam.ParamProp)->Struct->CopyScriptStruct(StructArgInstance, InSelf->StructInstance);
+			CastFieldChecked<const FStructProperty>(InOpFunc.SelfParam.ParamProp)->Struct->CopyScriptStruct(StructArgInstance, InSelf->StructInstance);
 		}
 		if (!PyUtil::InvokeFunctionCall(Obj, InOpFunc.Func, FuncParams.GetStructMemory(), *PyUtil::GetErrorContext(InSelf)))
 		{
@@ -657,7 +657,7 @@ PyObject* FPyWrapperStruct::CallOperatorFunction_Impl(FPyWrapperStruct* InSelf, 
 		PyObject* ReturnPyObj = nullptr;
 		if (InOpFunc.SelfReturn.ParamProp)
 		{
-			if (ensureAlways(Cast<UStructProperty>(InOpFunc.SelfReturn.ParamProp) && CastChecked<UStructProperty>(InOpFunc.SelfReturn.ParamProp)->Struct->IsChildOf(InSelf->ScriptStruct)))
+			if (ensureAlways(CastField<FStructProperty>(InOpFunc.SelfReturn.ParamProp) && CastFieldChecked<const FStructProperty>(InOpFunc.SelfReturn.ParamProp)->Struct->IsChildOf(InSelf->ScriptStruct)))
 			{
 				// Copy the 'self' return value back onto ourself
 				const void* SelfReturnInstance = InOpFunc.SelfReturn.ParamProp->ContainerPtrToValuePtr<void>(FuncParams.GetStructMemory());
@@ -1012,7 +1012,7 @@ PyTypeObject InitializePyWrapperStructType()
 			}
 
 			const FName ResolvedName = FPyWrapperStructMetaData::ResolvePropertyName(InSelf, Name);
-			const UProperty* ResolvedProp = InSelf->ScriptStruct->FindPropertyByName(ResolvedName);
+			const FProperty* ResolvedProp = InSelf->ScriptStruct->FindPropertyByName(ResolvedName);
 			if (!ResolvedProp)
 			{
 				PyUtil::SetPythonError(PyExc_Exception, InSelf, *FString::Printf(TEXT("Failed to find property '%s' for attribute '%s' on '%s'"), *ResolvedName.ToString(), *Name.ToString(), *InSelf->ScriptStruct->GetName()));
@@ -1066,7 +1066,7 @@ PyTypeObject InitializePyWrapperStructType()
 			}
 
 			const FName ResolvedName = FPyWrapperStructMetaData::ResolvePropertyName(InSelf, Name);
-			const UProperty* ResolvedProp = InSelf->ScriptStruct->FindPropertyByName(ResolvedName);
+			const FProperty* ResolvedProp = InSelf->ScriptStruct->FindPropertyByName(ResolvedName);
 			if (!ResolvedProp)
 			{
 				PyUtil::SetPythonError(PyExc_Exception, InSelf, *FString::Printf(TEXT("Failed to find property '%s' for attribute '%s' on '%s'"), *ResolvedName.ToString(), *Name.ToString(), *InSelf->ScriptStruct->GetName()));
@@ -1379,7 +1379,7 @@ public:
 		return FinalizedStruct;
 	}
 
-	bool CreatePropertyFromDefinition(const FString& InFieldName, FPyUPropertyDef* InPyPropDef)
+	bool CreatePropertyFromDefinition(const FString& InFieldName, FPyFPropertyDef* InPyPropDef)
 	{
 		UScriptStruct* SuperStruct = Cast<UScriptStruct>(NewStruct->GetSuperStruct());
 
@@ -1399,14 +1399,14 @@ public:
 		}
 
 		// Create the property from its definition
-		UProperty* Prop = PyUtil::CreateProperty(InPyPropDef->PropType, 1, NewStruct, PropName);
+		FProperty* Prop = PyUtil::CreateProperty(InPyPropDef->PropType, 1, NewStruct, PropName);
 		if (!Prop)
 		{
 			PyUtil::SetPythonError(PyExc_Exception, PyType, *FString::Printf(TEXT("Failed to create property for '%s' (%s)"), *InFieldName, *PyUtil::GetFriendlyTypename(InPyPropDef->PropType)));
 			return false;
 		}
 		Prop->PropertyFlags |= (CPF_Edit | CPF_BlueprintVisible);
-		FPyUPropertyDef::ApplyMetaData(InPyPropDef, Prop);
+		FPyFPropertyDef::ApplyMetaData(InPyPropDef, Prop);
 		NewStruct->AddCppProperty(Prop);
 
 		// Build the definition data for the new property accessor
@@ -1541,9 +1541,9 @@ UPythonGeneratedStruct* UPythonGeneratedStruct::GenerateStruct(PyTypeObject* InP
 				return nullptr;
 			}
 
-			if (PyObject_IsInstance(FieldValue, (PyObject*)&PyUPropertyDefType) == 1)
+			if (PyObject_IsInstance(FieldValue, (PyObject*)&PyFPropertyDefType) == 1)
 			{
-				FPyUPropertyDef* PyPropDef = (FPyUPropertyDef*)FieldValue;
+				FPyFPropertyDef* PyPropDef = (FPyFPropertyDef*)FieldValue;
 				if (!PythonStructBuilder.CreatePropertyFromDefinition(FieldName, PyPropDef))
 				{
 					return nullptr;

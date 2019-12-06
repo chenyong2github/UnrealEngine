@@ -31,7 +31,7 @@ class FWorldTickHook;
 IMPLEMENT_GET_PRIVATE_VAR(FRepLayout, Cmds, TArray<FRepLayoutCmd>);
 
 
-IMPLEMENT_INTRINSIC_CLASS(UNetPropertyHook, NETCODEUNITTEST_API, UProperty, COREUOBJECT_API, "/Script/NetcodeUnitTest", {});
+IMPLEMENT_FIELD(FNetPropertyHook)
 
 
 /** Active unit test worlds */
@@ -415,14 +415,14 @@ FScopedRPCParamReplace::FScopedRPCParamReplace(UMinimalClient* InMinClient, UFun
 
 		for (FRepLayoutCmd& CurCmd : Cmds)
 		{
-			if (UProperty* CurProp = CurCmd.Property)
+			if (FProperty* CurProp = CurCmd.Property)
 			{
 				if (CurProp->GetName() == InParamName)
 				{
 					ParamRepCmd = &CurCmd;
 					OriginalParam = CurProp;
 
-					UNetPropertyHook* HookParam = GetMutableDefault<UNetPropertyHook>();
+					FNetPropertyHook* HookParam = GetMutableDefault<FNetPropertyHook>();
 
 					HookParam->SerializeHook = InSerializeHook;
 
@@ -438,7 +438,7 @@ FScopedRPCParamReplace::FScopedRPCParamReplace(UMinimalClient* InMinClient, UFun
 
 FScopedRPCParamReplace::~FScopedRPCParamReplace()
 {
-	GetMutableDefault<UNetPropertyHook>()->SerializeHook.Unbind();
+	GetMutableDefault<FNetPropertyHook>()->SerializeHook.Unbind();
 
 	if (ParamRepCmd != nullptr)
 	{
@@ -450,10 +450,10 @@ FScopedRPCParamReplace::~FScopedRPCParamReplace()
 }
 
 /**
- * UNetPropertyHook
+ * FNetPropertyHook
  */
 
-bool UNetPropertyHook::NetSerializeItem(FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8>* MetaData) const
+bool FNetPropertyHook::NetSerializeItem(FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8>* MetaData) const
 {
 	bool bReturnVal = false;
 

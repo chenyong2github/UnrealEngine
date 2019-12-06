@@ -412,7 +412,7 @@ void UControlRigBlueprint::HandleModelModified(const UControlRigModel* InModel, 
 
 					if (Node->IsParameter())
 					{
-						UProperty* Property = GeneratedClass->FindPropertyByName(Node->Name);
+						FProperty* Property = GeneratedClass->FindPropertyByName(Node->Name);
 						if (Property != nullptr)
 						{
 							EControlRigModelParameterType WasParameterType = EControlRigModelParameterType::Hidden;

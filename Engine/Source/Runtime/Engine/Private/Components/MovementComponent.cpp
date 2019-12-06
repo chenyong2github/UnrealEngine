@@ -248,7 +248,7 @@ void UMovementComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	const UProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
+	const FProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
 	if (PropertyThatChanged)
 	{
 		if (PropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED(UMovementComponent, PlaneConstraintAxisSetting))

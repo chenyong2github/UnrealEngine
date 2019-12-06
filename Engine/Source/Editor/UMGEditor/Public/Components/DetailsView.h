@@ -75,7 +75,7 @@ public:
 	// End of UWidget interface
 
 	//~ FNotifyHook interface
-	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged) override;
+	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 	//~ End of FNotifyHook interface
 
 	//~ UObject interface

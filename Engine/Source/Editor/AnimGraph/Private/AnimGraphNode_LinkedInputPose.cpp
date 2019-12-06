@@ -500,10 +500,10 @@ void UAnimGraphNode_LinkedInputPose::IterateFunctionParameters(TFunctionRef<void
 
 		// We need to find all parameters AFTER the pose we are representing
 		int32 CurrentPoseIndex = 0;
-		UProperty* PoseParam = nullptr;
-		for (TFieldIterator<UProperty> PropIt(Function); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+		FProperty* PoseParam = nullptr;
+		for (TFieldIterator<FProperty> PropIt(Function); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
 		{
-			UProperty* Param = *PropIt;
+			FProperty* Param = *PropIt;
 
 			const bool bIsFunctionInput = !Param->HasAnyPropertyFlags(CPF_OutParm) || Param->HasAnyPropertyFlags(CPF_ReferenceParm);
 

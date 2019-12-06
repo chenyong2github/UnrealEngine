@@ -68,7 +68,7 @@ void UK2Node_LatentGameplayTaskCall::GetMenuActions(FBlueprintActionDatabaseRegi
 			if (FunctionPtr.IsValid())
 			{
 				UFunction* Func = FunctionPtr.Get();
-				UObjectProperty* ReturnProp = CastChecked<UObjectProperty>(Func->GetReturnProperty());
+				FObjectProperty* ReturnProp = CastFieldChecked<FObjectProperty>(Func->GetReturnProperty());
 						
 				AsyncTaskNode->ProxyFactoryFunctionName = Func->GetFName();
 				AsyncTaskNode->ProxyFactoryClass        = Func->GetOuterUClass();
@@ -192,11 +192,11 @@ void UK2Node_LatentGameplayTaskCall::CreatePinsForClass(UClass* InClass)
 		}
 	}
 
-	for (TFieldIterator<UProperty> PropertyIt(InClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<FProperty> PropertyIt(InClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 	{
-		UProperty* Property = *PropertyIt;
-		UClass* PropertyClass = CastChecked<UClass>(Property->GetOuter());
-		const bool bIsDelegate = Property->IsA(UMulticastDelegateProperty::StaticClass());
+		FProperty* Property = *PropertyIt;
+		UClass* PropertyClass = Property->GetOwnerChecked<UClass>();
+		const bool bIsDelegate = Property->IsA(FMulticastDelegateProperty::StaticClass());
 		const bool bIsExposedToSpawn = UEdGraphSchema_K2::IsPropertyExposedOnSpawn(Property);
 		const bool bIsSettableExternally = !Property->HasAnyPropertyFlags(CPF_DisableEditOnInstance);
 
@@ -420,7 +420,7 @@ bool UK2Node_LatentGameplayTaskCall::ConnectSpawnProperties(UClass* ClassToSpawn
 		{
 			if (SpawnVarPin->LinkedTo.Num() == 0)
 			{
-				UProperty* Property = FindField<UProperty>(ClassToSpawn, SpawnVarPin->PinName);
+				FProperty* Property = FindField<FProperty>(ClassToSpawn, SpawnVarPin->PinName);
 				// NULL property indicates that this pin was part of the original node, not the 
 				// class we're assigning to:
 				if (!Property)
@@ -620,7 +620,7 @@ void UK2Node_LatentGameplayTaskCall::ExpandNode(class FKismetCompilerContext& Co
 	bIsErrorFree &= Schema->TryCreateConnection(LastThenPin, ValidateProxyNode->GetExecPin());
 	LastThenPin = ValidateProxyNode->GetThenPin();
 
-	for (TFieldIterator<UMulticastDelegateProperty> PropertyIt(ProxyClass, EFieldIteratorFlags::ExcludeSuper); PropertyIt && bIsErrorFree; ++PropertyIt)
+	for (TFieldIterator<FMulticastDelegateProperty> PropertyIt(ProxyClass, EFieldIteratorFlags::ExcludeSuper); PropertyIt && bIsErrorFree; ++PropertyIt)
 	{
 		bIsErrorFree &= FBaseAsyncTaskHelper::HandleDelegateImplementation(*PropertyIt, VariableOutputs, ProxyObjectPin, LastThenPin, this, SourceGraph, CompilerContext);
 	}
