@@ -5675,6 +5675,12 @@ bool FHeaderParser::SkipDeclaration(FToken& Token)
 			break;
 		}
 
+		if (!bMacroDeclaration && Token.Matches(TEXT("PURE_VIRTUAL")) && NestedScopes == 0)
+		{
+			OpeningBracket = TEXT("(");
+			ClosingBracket = TEXT(")");
+		}
+
 		if (Token.Matches(OpeningBracket))
 		{
 			// This is a function definition or class declaration.
