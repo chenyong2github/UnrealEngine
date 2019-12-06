@@ -1,6 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Microsoft/AVEncoderIMFSampleWrapper.h"
+
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+
 #include "Microsoft/AVEncoderMicrosoftCommon.h"
 
 namespace AVEncoder
@@ -117,6 +120,5 @@ FIMFSampleWrapper FIMFSampleWrapper::Clone() const
 
 } // namespace AVEncoder
 
-
-
+#endif // PLATFORM_WINDOWS || PLATFORM_XBOXONE
 
