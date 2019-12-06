@@ -516,7 +516,7 @@ protected:
 
 	virtual int32 ParticleMacroUV() override;
 	virtual int32 ParticleSubUV(int32 TextureIndex, EMaterialSamplerType SamplerType, bool bBlend) override;
-
+	virtual int32 ParticleSubUVProperty(int32 PropertyIndex) override;
 	virtual int32 ParticleColor() override;
 	virtual int32 ParticlePosition() override;
 	virtual int32 ParticleRadius() override;
@@ -653,13 +653,10 @@ protected:
 	virtual int32 DynamicParameter(FLinearColor& DefaultValue, uint32 ParameterIndex = 0) override;
 	virtual int32 LightmapUVs() override;
 	virtual int32 PrecomputedAOMask() override;
-	virtual int32 LightmassReplace(int32 Realtime, int32 Lightmass) override;
 	virtual int32 GIReplace(int32 Direct, int32 StaticIndirect, int32 DynamicIndirect) override;
 	virtual int32 ShadowReplace(int32 Default, int32 Shadow) override;
 
 	virtual int32 RayTracingQualitySwitchReplace(int32 Normal, int32 RayTraced);
-
-	virtual int32 MaterialProxyReplace(int32 Realtime, int32 MaterialProxy) override;
 
 	virtual int32 VirtualTextureOutputReplace(int32 Default, int32 VirtualTexture) override;
 
@@ -681,6 +678,14 @@ protected:
 	virtual int32 VectorNoise(int32 Position, int32 Quality, uint8 NoiseFunction, bool bTiling, uint32 TileSize) override;
 
 	virtual int32 BlackBody(int32 Temp) override;
+
+	virtual int32 GetHairUV() override;
+	virtual int32 GetHairDimensions() override;
+	virtual int32 GetHairSeed() override;
+	virtual int32 GetHairTangent() override;
+	virtual int32 GetHairRootUV() override;
+	virtual int32 GetHairBaseColor() override;
+	virtual int32 GetHairRoughness() override;
 	virtual int32 DistanceToNearestSurface(int32 PositionArg) override;
 	virtual int32 DistanceFieldGradient(int32 PositionArg) override;
 	virtual int32 AtmosphericFogColor(int32 WorldPosition) override;
