@@ -355,6 +355,12 @@ uint32 FAndroidPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, u
 		{
 			return WaitForSignalHandlerToFinishOrCrash();
 		}
+		else
+		{
+			// we failed to send the signal, update the current status.
+			FPlatformAtomics::AtomicStore(&ThreadStackBackTraceStatus, ThreadStackBackTraceNextRequest);
+		}
+
 		return 0;
 	};
 
