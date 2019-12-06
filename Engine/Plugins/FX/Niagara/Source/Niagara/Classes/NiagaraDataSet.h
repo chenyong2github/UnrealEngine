@@ -107,7 +107,6 @@ public:
 	void SwapInstances(uint32 OldIndex, uint32 NewIndex);
 	void KillInstance(uint32 InstanceIdx);
 	void CopyTo(FNiagaraDataBuffer& DestBuffer, int32 SrcStartIdx, int32 DestStartIdx, int32 NumInstances)const;
-	void CopyTo(FNiagaraDataBuffer& DestBuffer)const;
 	void GPUCopyFrom(float* GPUReadBackFloat, int* GPUReadBackInt, int32 StartIdx, int32 NumInstances, uint32 InSrcFloatStride, uint32 InSrcIntStride);
 	void Dump(int32 StartIndex, int32 NumInstances, const FString& Label)const;
 
@@ -1499,7 +1498,14 @@ class NIAGARA_API FScopedNiagaraDataSetGPUReadback
 {
 public:
 	FScopedNiagaraDataSetGPUReadback() {}
-	~FScopedNiagaraDataSetGPUReadback();
+	FORCEINLINE ~FScopedNiagaraDataSetGPUReadback()
+	{
+		if (DataBuffer != nullptr)
+		{
+			DataBuffer->FloatData.Empty();
+			DataBuffer->Int32Data.Empty();
+		}
+	}
 
 	void ReadbackData(class NiagaraEmitterInstanceBatcher* Batcher, FNiagaraDataSet* InDataSet);
 	uint32 GetNumInstances() const { check(DataSet != nullptr); return NumInstances; }
