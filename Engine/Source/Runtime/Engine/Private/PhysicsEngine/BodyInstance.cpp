@@ -1171,7 +1171,11 @@ struct FInitBodiesHelper
 
 	void InitBodies()
 	{
+#if WITH_CHAOS
+		LLM_SCOPE(ELLMTag::Chaos);
+#else
 		LLM_SCOPE(ELLMTag::PhysX);
+#endif
 
 		check(IsInGameThread());
 
