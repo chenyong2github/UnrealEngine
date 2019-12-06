@@ -38,6 +38,9 @@ struct FKConvexElem : public FKShapeElem
 	UPROPERTY()
 	TArray<FVector> VertexData;
 
+	UPROPERTY()
+	TArray<int32> IndexData;
+
 	/** Bounding box of this convex hull. */
 	UPROPERTY()
 	FBox ElemBox;
