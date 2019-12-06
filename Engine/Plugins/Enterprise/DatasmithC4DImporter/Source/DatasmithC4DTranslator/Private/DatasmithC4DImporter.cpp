@@ -13,11 +13,11 @@
 #include "DatasmithImportOptions.h"
 #include "DatasmithMesh.h"
 #include "DatasmithMeshExporter.h"
-#include "DatasmithMeshHelper.h"
 #include "DatasmithSceneExporter.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithUtils.h"
 #include "IDatasmithSceneElements.h"
+#include "Utility/DatasmithMeshHelper.h"
 
 #include "AssetRegistryModule.h"
 #include "Curves/RichCurve.h"
@@ -2403,9 +2403,18 @@ TSharedPtr<IDatasmithActorElement> FDatasmithC4DImporter::ImportObjectAndChildre
 
 		if (InstanceObjects)
 		{
-			if (InstanceObjects->Num() > 0 && (*InstanceObjects)[0]->GetType() == ObjectType)
+			if (InstanceObjects->Num() > 0)
 			{
-				DataObject = (*InstanceObjects)[0];
+				melange::BaseObject* RealDataObject = (*InstanceObjects)[0];
+				InstanceObjects->RemoveAt(0);
+				if (RealDataObject->GetType() == ObjectType)
+				{
+					DataObject = RealDataObject;
+				}
+				else
+				{
+					bSuccess = false;
+				}
 			}
 			else
 			{

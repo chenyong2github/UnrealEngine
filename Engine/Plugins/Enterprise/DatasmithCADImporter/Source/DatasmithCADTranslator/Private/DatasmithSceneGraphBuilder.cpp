@@ -124,7 +124,7 @@ void FDatasmithSceneGraphBuilder::LoadSceneGraphDescriptionFiles()
 
 		CADFileToArchiveMockUp.Add(FilePair.Key, &MockUpDescription);
 	
-		CADLibrary::DeserializeMockUpFile(*MockUpDescriptionFile, MockUpDescription);
+		MockUpDescription.DeserializeMockUpFile(*MockUpDescriptionFile);
 
 		for(const auto& ColorPair : MockUpDescription.ColorHIdToColor)
 		{

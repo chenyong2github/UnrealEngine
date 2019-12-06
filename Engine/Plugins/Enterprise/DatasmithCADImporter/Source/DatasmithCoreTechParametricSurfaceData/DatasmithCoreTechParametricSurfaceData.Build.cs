@@ -22,7 +22,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"MeshDescription",
 					"DatasmithContent",
-					"DatasmithImporter",
+					"DatasmithTranslator",
 					"Engine",
 					"StaticMeshDescription",
 					"CADLibrary",

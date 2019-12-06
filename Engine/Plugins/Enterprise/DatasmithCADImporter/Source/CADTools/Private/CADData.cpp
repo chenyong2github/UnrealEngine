@@ -4,9 +4,6 @@
 #include "CADOptions.h"
 
 #include "Misc/FileHelper.h"
-#include "Serialization/Archive.h"
-#include "Serialization/MemoryWriter.h"
-#include "Serialization/MemoryReader.h"
 
 namespace CADLibrary
 {
@@ -102,30 +99,30 @@ FArchive& operator<<(FArchive& Ar, FBodyMesh& BodyMesh)
 
 void SerializeBodyMeshSet(const TCHAR* Filename, TArray<FBodyMesh>& InBodySet)
 {
-	TArray<uint8> OutBuffer;
-	FMemoryWriter ArWriter(OutBuffer);
+	TUniquePtr<FArchive> Archive(IFileManager::Get().CreateFileWriter(Filename));
+
 	uint32 type = 234561;
-	ArWriter << type;
+	*Archive << type;
 
-	ArWriter << InBodySet;
+	*Archive << InBodySet;
 
-	FFileHelper::SaveArrayToFile(OutBuffer, Filename);
+	Archive->Close();
 }
 
 void DeserializeBodyMeshFile(const TCHAR* Filename, TArray<FBodyMesh>& OutBodySet)
 {
-	TArray<uint8> InBuffer;
-	FFileHelper::LoadFileToArray(InBuffer, Filename);
+	TUniquePtr<FArchive> Archive(IFileManager::Get().CreateFileReader(Filename));
 
-	FMemoryReader ArReader(InBuffer);
 	uint32 type = 0;
-	ArReader << type;
+	*Archive << type;
 	if (type != 234561)
 	{
+		Archive->Close();
 		return;
 	}
 
-	ArReader << OutBodySet;
+	*Archive << OutBodySet;
+	Archive->Close();
 }
 
 }

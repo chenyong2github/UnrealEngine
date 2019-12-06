@@ -49,7 +49,7 @@ protected:
 	FOnDataprepRecipeChanged OnChanged;
 };
 
-UCLASS(Experimental, Abstract)
+UCLASS(Experimental, Abstract, BlueprintType)
 class DATAPREPCORE_API UDataprepAssetInterface : public UObject
 {
 	GENERATED_BODY()

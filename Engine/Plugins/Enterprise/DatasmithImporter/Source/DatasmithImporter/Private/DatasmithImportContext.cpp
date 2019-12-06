@@ -5,10 +5,10 @@
 #include "DatasmithActorImporter.h"
 #include "DatasmithImportOptions.h"
 #include "DatasmithSceneFactory.h"
+#include "DatasmithTranslator.h"
 #include "DatasmithUtils.h"
 #include "UI/DatasmithImportOptionsWindow.h"
 #include "Utility/DatasmithImporterUtils.h"
-#include "Translators/DatasmithTranslator.h"
 
 #include "Misc/FeedbackContext.h"
 #include "PackageTools.h"

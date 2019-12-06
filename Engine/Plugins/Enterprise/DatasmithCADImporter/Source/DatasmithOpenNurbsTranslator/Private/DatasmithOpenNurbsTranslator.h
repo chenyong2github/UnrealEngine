@@ -15,7 +15,6 @@ class FDatasmithOpenNurbsTranslator : public FDatasmithCoreTechTranslator
 public:
 	FDatasmithOpenNurbsTranslator();
 
-	// Begin IDatasmithTranslator overrides
 	virtual FName GetFName() const override { return "DatasmithOpenNurbsTranslator"; };
 
 	virtual void Initialize(FDatasmithTranslatorCapabilities& OutCapabilities) override;
@@ -26,9 +25,7 @@ public:
 	virtual void UnloadScene() override;
 
 	virtual bool LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload) override;
-	// End IDatasmithTranslator overrides
 
-	// Begin ADatasmithCoreTechTranslator overrides
 	virtual void SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options) override;
 
 protected:
@@ -36,7 +33,6 @@ protected:
 	{
 		TessellationOptions.StitchingTechnique = EDatasmithCADStitchingTechnique::StitchingNone;
 	}
-	// End ADatasmithCoreTechTranslator overrides
 
 private:
 

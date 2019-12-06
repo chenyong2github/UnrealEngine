@@ -411,17 +411,17 @@ void UDataprepActionAsset::ExecuteAction(const TSharedPtr<FDataprepActionContext
 					ExecuteOneStep( Step );
 				}
 
-				if ( ContextPtr->ProgressReporterPtr->IsWorkCancelled() )
+				if ( ContextPtr->ProgressReporterPtr && ContextPtr->ProgressReporterPtr->IsWorkCancelled() )
 				{
 					break;
 				}
 
-				if(ContextPtr->ContinueCallback && !ContextPtr->ContinueCallback(this, Step->Operation, Step->Filter))
+				if( ContextPtr->ContinueCallback && !ContextPtr->ContinueCallback( this, Step->Operation, Step->Filter ) )
 				{
 					break;
 				}
 
-				if(Step == SpecificStep)
+				if( Step == SpecificStep )
 				{
 					break;
 				}

@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "DatasmithImportOptions.h"
-#include "Translators/DatasmithTranslator.h"
+#include "DatasmithTranslator.h"
 #include "UObject/ObjectMacros.h"
 
 class UDatasmithCommonTessellationOptions;

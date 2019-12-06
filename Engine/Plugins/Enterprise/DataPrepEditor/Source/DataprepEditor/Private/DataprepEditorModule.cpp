@@ -4,9 +4,9 @@
 
 #include "AssetTypeActions_Dataprep.h"
 #include "AssetTypeActions_DataprepAsset.h"
+#include "AssetTypeActions_DataprepAssetInterface.h"
 #include "DataprepAssetProducers.h"
 #include "DataprepEditor.h"
-
 #include "DataprepEditorStyle.h"
 #include "Widgets/DataprepWidgets.h"
 #include "Widgets/SDataprepEditorViewport.h"
@@ -23,6 +23,8 @@
 
 const FName DataprepEditorAppIdentifier = FName(TEXT("DataprepEditorApp"));
 
+EAssetTypeCategories::Type IDataprepEditorModule::DataprepCategoryBit;
+
 #define LOCTEXT_NAMESPACE "DataprepEditorModule"
 
 class FDataprepEditorModule : public IDataprepEditorModule
@@ -38,6 +40,13 @@ public:
 
 		// Register asset type actions for DataPrepRecipe class
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+
+		// Register Dataprep category to group together asset type actions related to Dataprep
+		DataprepCategoryBit = AssetTools.RegisterAdvancedAssetCategory(FName(TEXT("Dataprep")), LOCTEXT("DataprepAssetCategory", "Dataprep"));
+
+		TSharedPtr<FAssetTypeActions_DataprepAssetInterface> DataprepAssetInterfaceTypeAction = MakeShared<FAssetTypeActions_DataprepAssetInterface>();
+		AssetTools.RegisterAssetTypeActions(DataprepAssetInterfaceTypeAction.ToSharedRef());
+		AssetTypeActionsArray.Add(DataprepAssetInterfaceTypeAction);
 
 		TSharedPtr<FAssetTypeActions_Dataprep> DataprepRecipeTypeAction = MakeShareable(new FAssetTypeActions_Dataprep);
 		AssetTools.RegisterAssetTypeActions(DataprepRecipeTypeAction.ToSharedRef());

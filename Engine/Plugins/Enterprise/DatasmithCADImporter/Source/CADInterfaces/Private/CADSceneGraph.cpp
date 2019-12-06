@@ -4,8 +4,7 @@
 
 #include "Misc/FileHelper.h"
 #include "Serialization/Archive.h"
-#include "Serialization/MemoryWriter.h"
-#include "Serialization/MemoryReader.h"
+#include "HAL/FileManager.h"
 
 namespace CADLibrary
 {
@@ -87,22 +86,18 @@ FArchive& operator<<(FArchive& Ar, FArchiveMockUp& MockUp)
 	return Ar;
 }
 
-void SerializeMockUp(FArchiveMockUp& MockUp, const TCHAR* Filename)
+void FArchiveMockUp::SerializeMockUp(const TCHAR* Filename)
 {
-	TArray<uint8> OutBuffer;
-	FMemoryWriter ArWriter(OutBuffer);
-	ArWriter << MockUp;
-
-	FFileHelper::SaveArrayToFile(OutBuffer, Filename);
+	TUniquePtr<FArchive> Archive(IFileManager::Get().CreateFileWriter(Filename));
+	*Archive << *this;
+	Archive->Close();
 }
 
-void DeserializeMockUpFile(const TCHAR* Filename, FArchiveMockUp& MockUp)
+void FArchiveMockUp::DeserializeMockUpFile(const TCHAR* Filename)
 {
-	TArray<uint8> Buffer;
-	FFileHelper::LoadFileToArray(Buffer, Filename);
-
-	FMemoryReader ArReader(Buffer);
-	ArReader << MockUp;
+	TUniquePtr<FArchive> Archive(IFileManager::Get().CreateFileReader(Filename));
+	*Archive << *this;
+	Archive->Close();
 }
 
 }

@@ -26,7 +26,7 @@ namespace UnrealBuildTool.Rules
 					"DatasmithCore",
                     "DatasmithCoreTechParametricSurfaceData",
 					"DatasmithContent",
-					"DatasmithImporter",
+					"DatasmithTranslator",
 					"MeshDescription",
 					"StaticMeshDescription"
 				}

@@ -30,8 +30,8 @@ namespace DatasmithRevitExporter
 		// Active Revit document being exported.
 		private Document RevitDocument = null;
 
-		// Datasmith output file path.
-		private string DatasmithFilePath = null;
+		// Datasmith file paths for each 3D view to be exported.
+		private Dictionary<ElementId, string> DatasmithFilePaths = null;
 
 		// Multi-line debug log.
 		private FDatasmithFacadeLog DebugLog = null;
@@ -54,16 +54,19 @@ namespace DatasmithRevitExporter
 		// List of messages generated during the export process.
 		private List<string> MessageList = new List<string>();
 
+		// The file path for the view that is currently being exported.
+		private string CurrentDatasmithFilePath = null;
+
 		public FDatasmithRevitExportContext(
-			Application                 InApplication,       // running Revit application
-			Document                    InDocument,          // active Revit document
-			string                      InDatasmithFilePath, // Datasmith output file path
-			DatasmithRevitExportOptions InExportOptions      // Unreal Datasmith export options
+			Application						InApplication,        // running Revit application
+			Document						InDocument,           // active Revit document
+			Dictionary<ElementId, string>	InDatasmithFilePaths, // Datasmith output file path
+			DatasmithRevitExportOptions		InExportOptions       // Unreal Datasmith export options
 		)
 		{
-			ProductVersion    = InApplication.VersionNumber;
-			RevitDocument     = InDocument;
-			DatasmithFilePath = InDatasmithFilePath;
+			ProductVersion     = InApplication.VersionNumber;
+			RevitDocument      = InDocument;
+			DatasmithFilePaths = InDatasmithFilePaths;
 
 			// Get the Unreal Datasmith export options.
 			DebugLog            = InExportOptions.GetWriteLogFile() ? new FDatasmithFacadeLog() : null;
@@ -111,7 +114,7 @@ namespace DatasmithRevitExporter
 		{
 			if (DebugLog != null)
 			{
-				DebugLog.WriteFile(DatasmithFilePath.Replace(".udatasmith", ".log"));
+				DebugLog.WriteFile(CurrentDatasmithFilePath.Replace(".udatasmith", ".log"));
 			}
 		}
 
@@ -136,8 +139,14 @@ namespace DatasmithRevitExporter
 			// Create an empty Datasmith scene.
 			DatasmithScene = new FDatasmithFacadeScene(HOST_NAME, VENDOR_NAME, PRODUCT_NAME, ProductVersion);
 
+			View3D ViewToExport = RevitDocument.GetElement(InViewNode.ViewId) as View3D;
+			if (!DatasmithFilePaths.TryGetValue(ViewToExport.Id, out CurrentDatasmithFilePath))
+			{
+				return RenderNodeAction.Skip; // TODO log error?
+			}
+
 			// Add a new camera actor to the Datasmith scene for the 3D view camera.
-			AddCameraActor(RevitDocument.GetElement(InViewNode.ViewId) as View3D, InViewNode.GetCameraInfo());
+			AddCameraActor(ViewToExport, InViewNode.GetCameraInfo());
 
 			// Keep track of the active Revit document being exported.
 			PushDocument(RevitDocument);
@@ -159,7 +168,7 @@ namespace DatasmithRevitExporter
 			DatasmithScene.Optimize();
 
 			// Build and export the Datasmith scene instance and its scene element assets.
-			DatasmithScene.ExportScene(DatasmithFilePath);
+			DatasmithScene.ExportScene(CurrentDatasmithFilePath);
 
 			// Dispose of the Datasmith scene.
 			DatasmithScene = null;
@@ -1045,9 +1054,9 @@ namespace DatasmithRevitExporter
 				FamilyInstance CurrentFamilyInstance = CurrentElement as FamilyInstance;
 				if (CurrentFamilyInstance != null)
 				{
-					IOActor.AddTag($"Revit.DB.FamiliyInstance.Mirrored.{CurrentFamilyInstance.Mirrored}");
-					IOActor.AddTag($"Revit.DB.FamiliyInstance.HandFlipped.{CurrentFamilyInstance.HandFlipped}");
-					IOActor.AddTag($"Revit.DB.FamiliyInstance.FaceFlipped.{CurrentFamilyInstance.FacingFlipped}");
+					IOActor.AddTag($"Revit.DB.FamilyInstance.Mirrored.{CurrentFamilyInstance.Mirrored}");
+					IOActor.AddTag($"Revit.DB.FamilyInstance.HandFlipped.{CurrentFamilyInstance.HandFlipped}");
+					IOActor.AddTag($"Revit.DB.FamilyInstance.FaceFlipped.{CurrentFamilyInstance.FacingFlipped}");
 
 					if (CurrentFamilyInstance.Host != null)
 					{
@@ -1518,6 +1527,10 @@ namespace DatasmithRevitExporter
 			else if (SourceElement as ContinuousRail != null)
 			{
 				return CurrentDocument.GetElement((SourceElement as ContinuousRail).HostRailingId);
+			}
+			else if (SourceElement.GetType().IsSubclassOf(typeof(InsulationLiningBase)))
+			{
+				return CurrentDocument.GetElement((SourceElement as InsulationLiningBase).HostElementId);
 			}
 
 			return null;

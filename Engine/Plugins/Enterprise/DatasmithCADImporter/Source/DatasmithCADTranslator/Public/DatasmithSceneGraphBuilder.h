@@ -15,35 +15,11 @@
 #include "Containers/Queue.h"
 #include "Misc/Paths.h"
 
-static const FString SPACE(" ");
-
-class FCADSceneGraphDescriptionFile;
 class FDatasmithSceneSource;
 class IDatasmithActorElement;
 class IDatasmithMeshElement;
 class IDatasmithScene;
 class IDatasmithUEPbrMaterialElement;
-
-enum NODE_TYPE
-{
-	INSTANCE,
-	COMPONENT,
-	EXTERNALCOMPONENT,
-	BODY,
-	UNDEFINED,
-	UNKNOWN
-};
-
-namespace CADLibrary		
-{
-class FArchiveMockUp;
-class ICADArchiveObject;
-class FArchiveInstance;
-class FArchiveComponent;
-class FArchiveBody;
-class FArchiveMaterial;
-class FArchiveColor;
-}
 
 class ActorData  //#ueent_CAD
 {

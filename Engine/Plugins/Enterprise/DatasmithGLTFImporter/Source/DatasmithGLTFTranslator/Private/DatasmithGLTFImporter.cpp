@@ -15,10 +15,10 @@
 
 #include "DatasmithAssetImportData.h"
 #include "DatasmithSceneFactory.h"
+#include "DatasmithUtils.h"
 #include "IDatasmithSceneElements.h"
 #include "ObjectTemplates/DatasmithStaticMeshTemplate.h"
-#include "Utility/DatasmithImporterUtils.h"
-#include "DatasmithMeshHelper.h"
+#include "Utility/DatasmithMeshHelper.h"
 
 #include "AssetRegistryModule.h"
 #include "Engine/StaticMesh.h"

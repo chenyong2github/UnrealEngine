@@ -10,7 +10,7 @@
 #include "DatasmithImportContext.h"
 #include "DatasmithImportOptions.h"
 #include "DatasmithScene.h"
-#include "Translators/DatasmithTranslatableSource.h"
+#include "DatasmithTranslatableSource.h"
 
 #include "IDetailCustomization.h"
 #include "Input/Reply.h"

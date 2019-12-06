@@ -203,15 +203,12 @@ void FDatasmithDispatcher::CloseHandlers()
 void FDatasmithDispatcher::ProcessLocal()
 {
 #ifdef CAD_INTERFACE
-	FString KernelIOPath = FPaths::Combine(FPaths::EnginePluginsDir(), TEXT(KERNEL_IO_PLUGINSPATH));
-	KernelIOPath = FPaths::ConvertRelativePathToFull(KernelIOPath);
-
 	while (TOptional<FTask> Task = GetNextTask())
 	{
 		FString FullPath = Task->FileName;
 
-		CADLibrary::FCoreTechFileParser FileParser(FullPath, ProcessCacheFolder, ImportParameters, *KernelIOPath);
-		ETaskState ProcessResult = FileParser.ProcessFile();
+		CADLibrary::FCoreTechFileParser FileParser(ImportParameters, *FPaths::EnginePluginsDir(), ProcessCacheFolder);
+		ETaskState ProcessResult = FileParser.ProcessFile(FullPath);
 
 		ETaskState TaskState = ProcessResult;
 		SetTaskState(Task->Index, TaskState);

@@ -11,7 +11,7 @@
 #include "DatasmithAdditionalData.h"
 #include "DatasmithStaticMeshImporter.h" // Call to BuildStaticMesh
 #include "DatasmithUtils.h"
-#include "Translators/DatasmithTranslator.h"
+#include "DatasmithTranslator.h"
 #include "UI/DatasmithDisplayHelper.h"
 
 #include "Algo/AnyOf.h"

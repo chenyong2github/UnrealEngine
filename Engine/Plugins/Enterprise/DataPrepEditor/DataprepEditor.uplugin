@@ -3,8 +3,8 @@
 	"Version": 1,
 	"VersionName": "0.9",
 	"FriendlyName": "Dataprep Editor",
-	"Description": "[WIP] Allows editing of Data preparation pipeline from within the Unreal editor",
-	"Category": "Programming",
+	"Description": "[WIP] A tool to simplify creation and execution of data preparation pipelines from within the Unreal Editor.",
+	"Category": "Dataprep",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
 	"DocsURL": "",
@@ -27,6 +27,11 @@
 		},
 		{
 			"Name": "DataprepLibraries",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "DataprepEditorScriptingUtilities",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
 		}

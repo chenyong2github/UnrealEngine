@@ -3,10 +3,10 @@
 #include "IFCStaticMeshFactory.h"
 
 #include "AssetRegistryModule.h"
-#include "DatasmithMeshHelper.h"
 #include "Engine/StaticMesh.h"
 #include "StaticMeshAttributes.h"
 #include "MeshDescription.h"
+#include "Utility/DatasmithMeshHelper.h"
 
 DEFINE_LOG_CATEGORY(LogDatasmithIFCMeshFactory);
 

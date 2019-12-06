@@ -307,6 +307,9 @@ bool UDatasmithConsumer::BuildContexts( UWorld* ImportWorld )
 		return false;
 	}
 
+	// Set the feedback context
+	ImportContextPtr->FeedbackContext = Context.ProgressReporterPtr ? Context.ProgressReporterPtr->GetFeedbackContext() : nullptr;
+
 	// Update ImportContext's package data
 	ImportContextPtr->AssetsContext.RootFolderPath = TargetContentFolder;
 	ImportContextPtr->AssetsContext.TransientFolderPath = Context.TransientContentFolder;

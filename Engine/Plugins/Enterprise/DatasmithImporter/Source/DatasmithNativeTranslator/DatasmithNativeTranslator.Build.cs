@@ -19,7 +19,7 @@ namespace UnrealBuildTool.Rules
                 {
                     "Engine",
                     "DatasmithCore",
-                    "DatasmithImporter",
+                    "DatasmithTranslator",
                     "MeshDescription",
                     "MeshDescriptionOperations",
                     "RawMesh",

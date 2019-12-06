@@ -45,8 +45,8 @@ namespace UnrealBuildTool.Rules
                 {
                     "Core",
                     "DatasmithContent",
-					"DatasmithImporter"
-				}
+                    "DatasmithTranslator"
+                }
             );
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)

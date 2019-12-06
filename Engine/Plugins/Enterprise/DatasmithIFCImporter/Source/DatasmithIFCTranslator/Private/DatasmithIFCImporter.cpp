@@ -8,11 +8,11 @@
 
 #include "DatasmithAssetImportData.h"
 #include "DatasmithImportOptions.h"
-#include "DatasmithMeshHelper.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithUtils.h"
 #include "IDatasmithSceneElements.h"
 #include "ObjectTemplates/DatasmithStaticMeshTemplate.h"
+#include "Utility/DatasmithMeshHelper.h"
 
 #include "AnalyticsEventAttribute.h"
 #include "AssetRegistryModule.h"
