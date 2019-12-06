@@ -142,6 +142,8 @@ public:
 		{ 
 			Buffers.CueDispatcher.template DispatchCueRecord<TInDriver>(*InDriver, Ticker.GetTotalProcessedSimulationTime()); 
 		};
+
+		this->Buffers.CueDispatcher.GetDebugName = [this]() { return Driver->GetDebugName(); };
 	}
 
 	virtual ~TNetworkedSimulationModel()

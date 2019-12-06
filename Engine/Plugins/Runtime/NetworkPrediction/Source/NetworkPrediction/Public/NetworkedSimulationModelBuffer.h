@@ -136,6 +136,8 @@ struct TNetworkSimContiguousBuffer : public TNetworkSimBufferBase<TNetworkSimCon
 	int32 Max() const { return Data.Max(); }
 	int32 GetDirtyCount() const { return DirtyCount; }
 
+	// Returns the element @ frame for writing. The contents of this element are unknown (could be stale content!). Note the element returned is immediately considered "valid" by Num(), Iterators, etc!
+	// The written frame becomes the Head element. Essentially invalidates any existing frames >= Frame
 	T* WriteFrame(int32 Frame)
 	{
 		check(Frame >= 0);
@@ -254,6 +256,7 @@ struct TNetworkSimSparseBuffer : public TNetworkSimBufferBase<TNetworkSimSparseB
 	int32 GetDirtyCount() const { return DirtyCount; }
 
 	// Returns the element @ frame for writing. The contents of this element are unknown (could be stale content!). Note the element returned is immediately considered "valid" by Num(), Iterators, etc!
+	// The written frame becomes the Head element. Essentially invalidates any existing frames >= Frame
 	T* WriteFrame(int32 Frame)
 	{
 		check(Frame >= 0);
@@ -269,6 +272,7 @@ struct TNetworkSimSparseBuffer : public TNetworkSimBufferBase<TNetworkSimSparseB
 				TInternal& InternalData = Data[Pos % Data.Num()];
 				if (InternalData.Frame == Frame)
 				{
+					HeadPos = Pos;
 					return &InternalData.Element;
 				}
 				if (InternalData.Frame <= Frame)
