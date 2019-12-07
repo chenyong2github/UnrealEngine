@@ -1906,7 +1906,7 @@ void UStruct::PostLoad()
 		FField* ResolvedProperty = MissingProperty.Key.Get(this);
 		if (ResolvedProperty)
 		{			
-			check(Script.Num() >= (MissingProperty.Value + sizeof(FField*)));
+			check((int32)Script.Num() >= (int32)(MissingProperty.Value + sizeof(FField*)));
 			FField** TargetScriptPropertyPtr = (FField**)(Script.GetData() + MissingProperty.Value);
 			*TargetScriptPropertyPtr = ResolvedProperty;
 		}
