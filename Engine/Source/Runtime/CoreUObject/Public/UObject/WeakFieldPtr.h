@@ -206,10 +206,10 @@ public:
 		return GetTypeHash(WeakObjectPtr.Field);
 	}
 
-	friend FArchive& operator<<(FArchive& Ar, TWeakFieldPtr& WeakObjectPtr)
+	friend FArchive& operator<<(FArchive& Ar, TWeakFieldPtr& InWeakFieldPtr)
 	{
-		Ar << Owner;
-		Ar << Field;
+		Ar << InWeakFieldPtr.Owner;
+		Ar << InWeakFieldPtr.Field;
 		return Ar;
 	}
 
