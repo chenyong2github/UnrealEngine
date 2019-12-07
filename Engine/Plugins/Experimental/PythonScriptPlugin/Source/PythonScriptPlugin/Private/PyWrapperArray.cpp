@@ -1535,7 +1535,7 @@ void FPyWrapperArrayMetaData::AddReferencedObjects(FPyWrapperBase* Instance, FRe
 	FPyWrapperArray* Self = static_cast<FPyWrapperArray*>(Instance);
 	if (Self->ArrayProp && Self->ArrayInstance && !Self->OwnerContext.HasOwner())
 	{
-		Collector.AddReferencedObject(Self->ArrayProp);
+		const_cast<FArrayProperty*>(Self->ArrayProp)->AddReferencedObjects(Collector);
 		FPyReferenceCollector::AddReferencedObjectsFromProperty(Collector, Self->ArrayProp, Self->ArrayInstance);
 	}
 }

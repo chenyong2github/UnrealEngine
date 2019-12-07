@@ -238,7 +238,7 @@ PyObject* FPyWrapperObject::CallFunction_Impl(UObject* InObj, const PyGenUtil::F
 			}
 		}
 
-		if (InFuncDef.Func->Children == nullptr)
+		if (InFuncDef.Func->ChildProperties == nullptr)
 		{
 			// No return value
 			if (!PyUtil::InvokeFunctionCall(InObj, InFuncDef.Func, nullptr, InErrorCtxt))
