@@ -331,6 +331,11 @@ TSharedPtr<SWidget> FSlateUser::GetPointerCaptor(uint32 PointerIndex) const
 	return WeakCaptorPath ? WeakCaptorPath->GetLastWidget().Pin() : nullptr;
 }
 
+void FSlateUser::SetCursorVisibility(bool bDrawCursor)
+{
+	bCanDrawCursor = bDrawCursor;
+}
+
 void FSlateUser::SetCursorPosition(int32 PosX, int32 PosY)
 {
 	SetPointerPosition(FSlateApplication::CursorPointerIndex, PosX, PosY);
@@ -552,7 +557,7 @@ void FSlateUser::DrawWindowlessDragDropContent(const TSharedRef<SWindow>& Window
 void FSlateUser::DrawCursor(const TSharedRef<SWindow>& WindowToDraw, FSlateWindowElementList& WindowElementList, int32& MaxLayerId)
 {
 	TSharedPtr<SWindow> CursorWindow = CursorWindowPtr.Pin();
-	if (CursorWindow && WindowToDraw == CursorWindow)
+	if (bCanDrawCursor && CursorWindow && WindowToDraw == CursorWindow)
 	{
 		if (TSharedPtr<SWidget> CursorWidget = CursorWidgetPtr.Pin())
 		{
