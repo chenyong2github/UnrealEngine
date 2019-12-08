@@ -3,7 +3,6 @@
 #include "SequencerKeyStructGenerator.h"
 #include "Channels/MovieSceneChannelData.h"
 #include "UObject/CoreObjectVersion.h"
-#include "Uobject/UnrealTypePrivate.h" // For converting UProperties to FProperties
 
 UMovieSceneKeyStructType::UMovieSceneKeyStructType(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
