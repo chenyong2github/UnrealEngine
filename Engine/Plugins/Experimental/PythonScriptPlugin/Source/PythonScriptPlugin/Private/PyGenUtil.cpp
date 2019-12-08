@@ -1374,28 +1374,27 @@ bool IsScriptExposedFunction(const UFunction* InFunc)
 		&& !InFunc->HasMetaData(NativeMakeFuncMetaDataKey);
 }
 
-bool IsScriptExposedField(const UField* InField)
-{
-	if (const FProperty* Prop = CastField<const FProperty>(InField))
-	{
-		return IsScriptExposedProperty(Prop);
-	}
-
-	if (const UFunction* Func = Cast<const UFunction>(InField))
-	{
-		return IsScriptExposedFunction(Func);
-	}
-
-	return false;
-}
-
 bool HasScriptExposedFields(const UStruct* InStruct)
 {
 	for (TFieldIterator<const UField> FieldIt(InStruct); FieldIt; ++FieldIt)
 	{
-		if (IsScriptExposedField(*FieldIt))
+		if (const UFunction* Func = Cast<const UFunction>(*FieldIt))
 		{
-			return true;
+			if (IsScriptExposedFunction(Func))
+			{
+				return true;
+			}
+		}
+	}
+
+	for (TFieldIterator<const FField> FieldIt(InStruct); FieldIt; ++FieldIt)
+	{
+		if (const FProperty* Prop = CastField<const FProperty>(*FieldIt))
+		{
+			if (IsScriptExposedProperty(Prop))
+			{
+				return true;
+			}
 		}
 	}
 

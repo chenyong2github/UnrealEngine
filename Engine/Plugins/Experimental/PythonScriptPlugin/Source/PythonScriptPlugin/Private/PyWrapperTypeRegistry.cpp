@@ -1151,14 +1151,16 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 	const FString PythonClassName = PyGenUtil::GetClassPythonName(InClass);
 	GeneratedWrappedType->TypeName = PyGenUtil::TCHARToUTF8Buffer(*PythonClassName);
 
-	for (TFieldIterator<const UField> FieldIt(InClass, EFieldIteratorFlags::ExcludeSuper); FieldIt; ++FieldIt)
+	for (TFieldIterator<const FField> FieldIt(InClass, EFieldIteratorFlags::ExcludeSuper); FieldIt; ++FieldIt)
 	{
 		if (const FProperty* Prop = CastField<const FProperty>(*FieldIt))
 		{
 			GenerateWrappedProperty(Prop);
 			continue;
 		}
-
+	}
+	for (TFieldIterator<const UField> FieldIt(InClass, EFieldIteratorFlags::ExcludeSuper); FieldIt; ++FieldIt)
+	{
 		if (const UFunction* Func = Cast<const UFunction>(*FieldIt))
 		{
 			GenerateWrappedMethod(Func);
