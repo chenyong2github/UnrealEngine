@@ -100,6 +100,9 @@ public:
 	*/
 	uint64 GetSampleCounter();
 
+
+	virtual void BeginDestroy() override;
+
 private:
 	/**
 	 * This call will check how much audio we have buffered and drop the oldest audio if necessary.
@@ -112,6 +115,7 @@ private:
 
 	/** This is allocated on OpenPacketStream() */
 	TUniquePtr<FVoicePacketBuffer> PacketBuffer;
+	FCriticalSection PacketBufferCriticalSection;
 
 	float MySampleRate;
 
