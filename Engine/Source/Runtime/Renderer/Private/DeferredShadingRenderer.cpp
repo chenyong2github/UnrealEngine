@@ -1134,6 +1134,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		if (GDoPrepareDistanceFieldSceneAfterRHIFlush && (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass()))
 		{
 			// we will probably stall on occlusion queries, so might as well have the RHI thread and GPU work while we wait.
+			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PostInitViews_FlushDel);
 			SCOPE_CYCLE_COUNTER(STAT_PostInitViews_FlushDel);
 			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 		}
@@ -1169,6 +1170,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		if (!GDoPrepareDistanceFieldSceneAfterRHIFlush && (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass()))
 		{
 			// we will probably stall on occlusion queries, so might as well have the RHI thread and GPU work while we wait.
+			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PostInitViews_FlushDel);
 			SCOPE_CYCLE_COUNTER(STAT_PostInitViews_FlushDel);
 			FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 		}
