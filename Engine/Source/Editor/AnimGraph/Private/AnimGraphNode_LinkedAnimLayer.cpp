@@ -506,7 +506,7 @@ FString UAnimGraphNode_LinkedAnimLayer::GetCurrentInstanceBlueprintPath() const
 	return FString();
 }
 
-void UAnimGraphNode_Layer::GetExposableProperties(TArray<FProperty*>& OutExposableProperties) const
+void UAnimGraphNode_LinkedAnimLayer::GetExposableProperties(TArray<FProperty*>& OutExposableProperties) const
 {
 	UClass* TargetClass = GetTargetSkeletonClass();
 	if(TargetClass)

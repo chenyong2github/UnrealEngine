@@ -2870,7 +2870,7 @@ FArchive& FBlueprintCompilationManagerImpl::FFixupBytecodeReferences::operator<<
 		{
 			UClass* NewClass = OwningClass->GetAuthoritativeClass();
 			ensure(NewClass);
-			if (NewClass != OwningClass)
+			if (NewClass && NewClass != OwningClass)
 			{
 				// drill into new class finding equivalent object:
 				TArray<FFieldVariant> OwnerChain;
