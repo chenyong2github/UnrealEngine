@@ -372,7 +372,7 @@ public:
 	FField(EInternal InInernal, FFieldClass* InClass);
 	FField(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags);
 #if WITH_EDITORONLY_DATA
-	FField(UField* InField);
+	explicit FField(UField* InField);
 #endif // WITH_EDITORONLY_DATA
 	virtual ~FField();
 

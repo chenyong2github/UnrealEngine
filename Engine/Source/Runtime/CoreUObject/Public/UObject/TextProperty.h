@@ -29,7 +29,7 @@ public:
 	}
 
 #if WITH_EDITORONLY_DATA
-	FTextProperty(UField* InField)
+	explicit FTextProperty(UField* InField)
 		: FTextProperty_Super(InField)
 	{
 	}

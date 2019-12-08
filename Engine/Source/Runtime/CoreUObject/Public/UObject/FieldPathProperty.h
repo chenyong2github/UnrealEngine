@@ -32,7 +32,7 @@ public:
 	}
 
 #if WITH_EDITORONLY_DATA
-	FFieldPathProperty(UField* InField);
+	explicit FFieldPathProperty(UField* InField);
 #endif // WITH_EDITORONLY_DATA
 
 	FFieldClass* PropertyClass;

@@ -23,7 +23,7 @@ public:
 	FEnumProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, UEnum* InEnum);
 	FEnumProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UEnum* InEnum);
 #if WITH_EDITORONLY_DATA
-	FEnumProperty(UField* InField);
+	explicit FEnumProperty(UField* InField);
 #endif // WITH_EDITORONLY_DATA
 	virtual ~FEnumProperty();
 
