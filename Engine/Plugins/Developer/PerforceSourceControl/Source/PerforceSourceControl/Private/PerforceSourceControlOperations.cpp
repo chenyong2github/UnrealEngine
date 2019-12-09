@@ -885,7 +885,7 @@ static void ParseUpdateStatusResults(const FP4RecordSet& InRecords, const TArray
 				}
 
 				// If the branch modification change is less recent skip it
-				if (BranchModification.ModTime < State.HeadModTime)
+				if (BranchModification.ModTime <= State.HeadModTime)
 				{
 					Skip = true;
 				}
