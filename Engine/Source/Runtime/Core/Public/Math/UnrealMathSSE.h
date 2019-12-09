@@ -1228,6 +1228,7 @@ FORCEINLINE VectorRegister VectorStep(const VectorRegister& X)
 	return VectorSelect(Mask, (GlobalVectorConstants::FloatOne), (GlobalVectorConstants::FloatZero));
 }
 
+//TODO: Vectorize
 FORCEINLINE VectorRegister VectorExp(const VectorRegister& X)
 {
 	return SseMath_exp_ps(X);
@@ -1239,6 +1240,7 @@ FORCEINLINE VectorRegister VectorExp2(const VectorRegister& X)
 	return MakeVectorRegister(FMath::Exp2(VectorGetComponent(X, 0)), FMath::Exp2(VectorGetComponent(X, 1)), FMath::Exp2(VectorGetComponent(X, 2)), FMath::Exp2(VectorGetComponent(X, 3)));
 }
 
+//TODO: Vectorize
 FORCEINLINE VectorRegister VectorLog(const VectorRegister& X)
 {
 	return SseMath_log_ps(X);
@@ -1488,15 +1490,5 @@ FORCEINLINE VectorRegisterInt VectorIntAbs(const VectorRegisterInt& A)
 * @return		VectorRegisterInt(*Ptr, *Ptr, *Ptr, *Ptr)
 */
 #define VectorIntLoad1( Ptr )	_mm_shuffle_epi32(_mm_loadu_si128((VectorRegisterInt*)(Ptr)),_MM_SHUFFLE(0,0,0,0))
-
-/**
- * Shuffles a VectorInt using a provided shuffle mask
- *
- * @param Vec		Source vector
- * @param Mask		Shuffle vector
- */
-#define VectorIntShuffle( Vec, Mask )	_mm_shuffle_epi8( (Vec), (Mask) )
-
-
 #endif
 
