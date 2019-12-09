@@ -108,13 +108,14 @@ namespace GeometryCollectionExample
 
 		for (int32 Index = 0; Index < 10; Index++)
 		{
+			bool bValueAsBool = ResultsView[Index] != 0;
 			if (Index <= 2)
 			{
-				EXPECT_TRUE(ResultsView[Index]);
+				EXPECT_TRUE(bValueAsBool);
 			}
 			else
 			{
-				EXPECT_FALSE(ResultsView[Index]);
+				EXPECT_FALSE(bValueAsBool);
 			}
 			//UE_LOG(GCTF_Log, Error, TEXT("[%d] %d"), Index, ResultsView[Index]);
 		}

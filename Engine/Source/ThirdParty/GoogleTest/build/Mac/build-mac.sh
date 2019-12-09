@@ -34,7 +34,7 @@ mkdir -p $OUTPUT_LIBS
 # unpack source if needed
 if [ ! -d "$GTEST_SDK" ]; then
 	pushd $(pwd)/../
-	bash uncompress_and_patch.sh
+	bash uncompress_and_patch.sh googletest-release-*.zip
 	popd
 fi
 
@@ -60,9 +60,7 @@ rm -rfv $OUTPUT_LIBS/*
 
 #####################
 # copy new binaries
-cp $OUTPUT_DIR/googlemock/gtest/$CONFIG/* $OUTPUT_LIBS
-cp $OUTPUT_DIR/googlemock/$CONFIG/* $OUTPUT_LIBS
-
+cp $OUTPUT_DIR/lib/$CONFIG/* ${OUTPUT_LIBS}
 
 #####################
 # update embedded shared library location

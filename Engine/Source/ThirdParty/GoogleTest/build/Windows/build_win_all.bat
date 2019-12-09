@@ -9,6 +9,9 @@ rem build VS 2015 64/32 bit
 call build_win 2015 x64 MinSizeRel
 call build_win 2015 x86 MinSizeRel
 
+call build_win 2017 x64 MinSizeRel
+call build_win 2017 x86 MinSizeRel
+
 rem call build_win 2015 x64 MinSizeRel Shared
 rem call build_win 2015 x86 MinSizeRel Shared
 

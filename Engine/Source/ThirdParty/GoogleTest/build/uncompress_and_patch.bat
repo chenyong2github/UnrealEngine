@@ -1,12 +1,12 @@
-REM @echo off
+@echo off
 
-REM * this unzips the tar.gz using 7zip and applies any patches stored in the google-test-source-patches directory
-REM * uncompress_and_patch.bat
+REM * this unzips the archive 7zip and renames extraction dir to a generic name used by the build scripts (google-test-source)
+REM * uncompress_and_patch.bat 
 
-"c:\Program Files\7-Zip\7z.exe" x google-test-source.tar.gz
-"c:\Program Files\7-Zip\7z.exe" x google-test-source.tar -y
-del google-test-source.tar
+"c:\Program Files\7-Zip\7z.exe" x %1
 
-xcopy /s /c /d /y google-test-source-patches\* google-test-source-patches
+rem rename the archive extraction directory to what the build batch file wants
+rename %~n1 google-test-source
+
 
 
