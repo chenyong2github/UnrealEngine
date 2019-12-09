@@ -3589,7 +3589,7 @@ void FGeometryCollectionPhysicsProxy::UpdateTrailingData(const FParticlesType& P
 									!Particles.W(IdxParticle).ContainsNaN() &&
 									FMath::IsFinite(Particles.M(IdxParticle)))
 								{
-									Chaos::TBox<float, 3> BoundingBox = Particles.Geometry(IdxParticle)->BoundingBox();
+									Chaos::TAABB<float, 3> BoundingBox = Particles.Geometry(IdxParticle)->BoundingBox();
 									Chaos::TVector<float, 3> Extents = BoundingBox.Extents();
 									float Volume = Extents[0] * Extents[1] * Extents[2];
 									float SpeedSquared = Particles.V(IdxParticle).SizeSquared();

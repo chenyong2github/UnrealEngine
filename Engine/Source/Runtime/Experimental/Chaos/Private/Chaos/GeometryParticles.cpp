@@ -79,7 +79,7 @@ namespace Chaos
 	{
 		if (Geometry && Geometry->HasBoundingBox())
 		{
-			WorldSpaceInflatedShapeBounds = Geometry->BoundingBox().GetAABB().TransformedAABB(WorldTM);
+			WorldSpaceInflatedShapeBounds = Geometry->BoundingBox().TransformedAABB(WorldTM);
 		}
 	}
 
@@ -100,7 +100,7 @@ namespace Chaos
 
 		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializeShapeWorldSpaceBounds)
 		{
-			Ar << WorldSpaceInflatedShapeBounds;
+			TBox<T, d>::SerializeAsAABB(Ar, WorldSpaceInflatedShapeBounds);
 		}
 		else
 		{

@@ -83,6 +83,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 
 		// Add damping to rigid particles
 		AddDampingToRigids,
+
+		//Replace TBox with TAABB in many places
+		TBoxReplacedWithTAABB,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

@@ -57,7 +57,7 @@ void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PushToPhys
 		{
 			RigidHandle->SetHasBounds(true);
 			RigidHandle->SetLocalBounds(Data->Geometry->BoundingBox());
-			RigidHandle->SetWorldSpaceInflatedBounds(Data->Geometry->BoundingBox().TransformedBox(Chaos::TRigidTransform<float, 3>(Data->X, Data->R)));
+			RigidHandle->SetWorldSpaceInflatedBounds(Data->Geometry->BoundingBox().TransformedAABB(Chaos::TRigidTransform<float, 3>(Data->X, Data->R)));
 		}
 		RigidHandle->SetSpatialIdx(Data->SpatialIdx);	//todo: this needs to only happen once during initialization
 		RigidHandle->SetHashResultLowLevel(Data->HashResult);
@@ -131,7 +131,7 @@ void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::P
 		{
 			RigidHandle->SetHasBounds(true);
 			RigidHandle->SetLocalBounds(Data->Geometry->BoundingBox());
-			Chaos::TBox<float, 3> WorldSpaceBox = Data->Geometry->BoundingBox().TransformedBox(Chaos::TRigidTransform<float, 3>(Data->X, Data->R));
+			Chaos::TAABB<float, 3> WorldSpaceBox = Data->Geometry->BoundingBox().TransformedAABB(Chaos::TRigidTransform<float, 3>(Data->X, Data->R));
 			WorldSpaceBox.ThickenSymmetrically(Data->MV);
 			RigidHandle->SetWorldSpaceInflatedBounds(WorldSpaceBox);
 		}
@@ -253,7 +253,7 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 			{
 				RigidHandle->SetHasBounds(true);
 				RigidHandle->SetLocalBounds(Data->Geometry->BoundingBox());
-				Chaos::TBox<float, 3> WorldSpaceBox = Data->Geometry->BoundingBox().TransformedBox(Chaos::TRigidTransform<float, 3>(Data->X, Data->R));
+				Chaos::TAABB<float, 3> WorldSpaceBox = Data->Geometry->BoundingBox().TransformedAABB(Chaos::TRigidTransform<float, 3>(Data->X, Data->R));
 				WorldSpaceBox.ThickenSymmetrically(Data->MV);
 				RigidHandle->SetWorldSpaceInflatedBounds(WorldSpaceBox);
 			}

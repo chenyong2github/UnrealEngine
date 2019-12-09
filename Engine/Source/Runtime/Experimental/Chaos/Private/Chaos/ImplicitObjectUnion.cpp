@@ -62,7 +62,7 @@ TImplicitObjectUnion<T, d>::~TImplicitObjectUnion()
 }
 
 template<class T, int d>
-void TImplicitObjectUnion<T,d>::FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, TRigidTransform<T, d>>>& Out, const TBox<T, d>& LocalBounds) const
+void TImplicitObjectUnion<T,d>::FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, TRigidTransform<T, d>>>& Out, const TAABB<T, d>& LocalBounds) const
 {
 	if (bHierarchyBuilt)
 	{
@@ -84,7 +84,7 @@ void TImplicitObjectUnion<T,d>::FindAllIntersectingObjects(TArray < Pair<const F
 }
 
 template<class T, int d>
-TArray<int32> TImplicitObjectUnion<T,d>::FindAllIntersectingChildren(const TBox<T, d>& LocalBounds) const
+TArray<int32> TImplicitObjectUnion<T,d>::FindAllIntersectingChildren(const TAABB<T, d>& LocalBounds) const
 {
 	TArray<int32> IntersectingChildren;
 	if (bHierarchyBuilt) //todo: make this work when hierarchy is not built
@@ -179,7 +179,9 @@ void TImplicitObjectUnion<T,d>::Serialize(FChaosArchive& Ar)
 {
 	FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName(), false);
 	FImplicitObject::SerializeImp(Ar);
-	Ar << MObjects << MLocalBoundingBox << GeomParticles << *Hierarchy << bHierarchyBuilt;
+	Ar << MObjects;
+	TBox<T, d>::SerializeAsAABB(Ar, MLocalBoundingBox);
+	Ar << GeomParticles << *Hierarchy << bHierarchyBuilt;
 }
 
 template<class T, int d>
