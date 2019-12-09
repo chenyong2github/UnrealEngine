@@ -80,6 +80,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 
 		//Heightfield cell bounds are implicit
 		HeightfieldImplicitBounds,
+
+		// Add damping to rigid particles
+		AddDampingToRigids,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
