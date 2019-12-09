@@ -69,6 +69,8 @@ namespace Chaos
 		FPBDJointMotionSettings();
 		FPBDJointMotionSettings(const TVector<EJointMotionType, 3>& InLinearMotionTypes, const TVector<EJointMotionType, 3>& InAngularMotionTypes);
 
+		void Sanitize();
+
 		FReal Stiffness;
 		FReal LinearProjection;
 		FReal AngularProjection;
