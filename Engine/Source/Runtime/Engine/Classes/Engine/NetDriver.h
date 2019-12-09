@@ -1581,6 +1581,8 @@ public:
 	 */
 	inline void IncreaseOutTotalNotifiedPackets() { ++OutTotalNotifiedPackets; }
 
+	bool DidHitchLastFrame() const;
+
 protected:
 
 	bool bMaySendProperties;
@@ -1626,4 +1628,5 @@ private:
 	bool bForcedPacketSettings;
 #endif 
 
+	bool bDidHitchLastFrame = false;
 };
