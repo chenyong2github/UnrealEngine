@@ -200,7 +200,7 @@ protected:
 
 private:
 	UGameInstance& GetGameInstance() const;
-	USocialToolkit& CreateSocialToolkit(ULocalPlayer& OwningLocalPlayer);
+	USocialToolkit& CreateSocialToolkit(ULocalPlayer& OwningLocalPlayer, int32 LocalPlayerIndex);
 
 	void QueryPartyJoinabilityInternal(FJoinPartyAttempt& JoinAttempt);
 	void JoinPartyInternal(FJoinPartyAttempt& JoinAttempt);
