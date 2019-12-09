@@ -4,6 +4,7 @@
 #include "IO/IoDispatcherFileBackend.h"
 #include "Async/AsyncFileHandle.h"
 #include "HAL/Event.h"
+#include "Misc/ScopeLock.h"
 
 FGenericIoDispatcherEventQueue::FGenericIoDispatcherEventQueue()
 	: Event(FPlatformProcess::GetSynchEventFromPool())
