@@ -78,14 +78,6 @@ struct FNiagaraRendererVariableInfo
 	bool bUpload;
 };
 
-// The number of GPU renderers registered in the instance count manager.
-// Shared between the manager and the renderers.
-class FNiagaraGPURendererCount : public FRefCountedObject
-{
-public:
-	int32 Value = 0;
-};
-
 /**
 * Base class for Niagara System renderers.
 */
