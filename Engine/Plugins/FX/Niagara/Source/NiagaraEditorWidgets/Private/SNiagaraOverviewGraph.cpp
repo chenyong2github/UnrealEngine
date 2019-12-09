@@ -31,6 +31,7 @@ void SNiagaraOverviewGraph::Construct(const FArguments& InArgs, TSharedRef<FNiag
 {
 	ViewModel = InViewModel;
 	ViewModel->GetNodeSelection()->OnSelectedObjectsChanged().AddSP(this, &SNiagaraOverviewGraph::ViewModelSelectionChanged);
+	ViewModel->GetSystemViewModel()->OnPreClose().AddSP(this, &SNiagaraOverviewGraph::PreClose);
 
 	bUpdatingViewModelSelectionFromGraph = false;
 	bUpdatingGraphSelectionFromViewModel = false;
@@ -128,17 +129,6 @@ void SNiagaraOverviewGraph::Construct(const FArguments& InArgs, TSharedRef<FNiag
 	];
 }
 
-SNiagaraOverviewGraph::~SNiagaraOverviewGraph()
-{
-	if (ViewModel.IsValid() && GraphEditor.IsValid())
-	{
-		FVector2D Location;
-		float Zoom;
-		GraphEditor->GetViewLocation(Location, Zoom);
-		ViewModel->SetViewSettings(FNiagaraGraphViewSettings(Location, Zoom));
-	}
-}
-
 void SNiagaraOverviewGraph::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	if (ZoomToFitFrameDelay > 0)
@@ -184,6 +174,17 @@ void SNiagaraOverviewGraph::GraphSelectionChanged(const TSet<UObject*>& Selected
 		{
 			ViewModel->GetNodeSelection()->SetSelectedObjects(SelectedNodes);
 		}
+	}
+}
+
+void SNiagaraOverviewGraph::PreClose()
+{
+	if (ViewModel.IsValid() && GraphEditor.IsValid())
+	{
+		FVector2D Location;
+		float Zoom;
+		GraphEditor->GetViewLocation(Location, Zoom);
+		ViewModel->SetViewSettings(FNiagaraGraphViewSettings(Location, Zoom));
 	}
 }
 
