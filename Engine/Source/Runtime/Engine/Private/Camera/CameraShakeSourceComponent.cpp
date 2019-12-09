@@ -79,7 +79,7 @@ void UCameraShakeSourceComponent::PlayCameraShake(TSubclassOf<UCameraShake> InCa
 		APlayerController* PlayerController = Iterator->Get();
 		if (PlayerController != nullptr && PlayerController->PlayerCameraManager != nullptr)
 		{
-			PlayerController->ClientPlayCameraShakeFromSource(InCameraShake, this);
+			PlayerController->PlayerCameraManager->PlayCameraShakeFromSource(InCameraShake, this);
 		}
 	}
 }
@@ -91,7 +91,7 @@ void UCameraShakeSourceComponent::StopAllCameraShakes(bool bImmediately)
 		APlayerController* PlayerController = Iterator->Get();
 		if (PlayerController != nullptr && PlayerController->PlayerCameraManager != nullptr)
 		{
-			PlayerController->ClientStopCameraShakesFromSource(this, bImmediately);
+			PlayerController->PlayerCameraManager->StopAllInstancesOfCameraShakeFromSource(this, bImmediately);
 		}
 	}
 }
