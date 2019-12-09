@@ -7,6 +7,7 @@
 #include "Templates/UnrealTypeTraits.h"
 #include "Math/NumericLimits.h"
 #include "Math/UnrealMathUtility.h"
+#include "Containers/UnrealString.h"
 
 /**
  * Type traits for Arithmetic interval.
