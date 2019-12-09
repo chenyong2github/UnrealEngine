@@ -19,6 +19,7 @@
 	#include "pxr/usd/usd/typed.h"
 #include "USDIncludesEnd.h"
 
+class FRegisteredSchemaTranslator;
 struct FUsdSchemaTranslationContext;
 class FUsdSchemaTranslator;
 class FUsdSchemaTranslatorTaskChain;
@@ -61,15 +62,6 @@ private:
 	int32 Id;
 };
 
-class FRegisteredSchemaTranslator
-{
-	using FCreateTranslator = TFunction< TSharedRef< FUsdSchemaTranslator >( TSharedRef< FUsdSchemaTranslationContext >, const pxr::UsdTyped& ) >;
-
-public:
-	FRegisteredSchemaTranslatorHandle Handle;
-	FCreateTranslator CreateFunction;
-};
-
 class USDSCHEMAS_API FUsdSchemaTranslatorRegistry
 {
 #if USE_USD_SDK
@@ -103,6 +95,15 @@ protected:
 };
 
 #if USE_USD_SDK
+
+class FRegisteredSchemaTranslator
+{
+	using FCreateTranslator = TFunction< TSharedRef< FUsdSchemaTranslator >( TSharedRef< FUsdSchemaTranslationContext >, const pxr::UsdTyped& ) >;
+
+public:
+	FRegisteredSchemaTranslatorHandle Handle;
+	FCreateTranslator CreateFunction;
+};
 
 struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUsdSchemaTranslationContext >
 {
