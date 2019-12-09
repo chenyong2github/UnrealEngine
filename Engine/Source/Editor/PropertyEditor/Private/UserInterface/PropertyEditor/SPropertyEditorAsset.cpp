@@ -38,7 +38,7 @@ DECLARE_DELEGATE( FOnPaste );
 // Helper to retrieve the correct property that has the applicable metadata.
 static const FProperty* GetActualMetadataProperty(const FProperty* Property)
 {
-	if (FProperty* OuterProperty = CastField<FProperty>(Property->GetOwner().ToField()))
+	if (FProperty* OuterProperty = Property->GetOwner<FProperty>())
 	{
 		if (OuterProperty->IsA<FArrayProperty>()
 			|| OuterProperty->IsA<FSetProperty>()

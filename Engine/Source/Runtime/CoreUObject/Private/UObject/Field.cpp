@@ -112,7 +112,7 @@ FArchive& operator << (FArchive& Ar, FFieldClass*& InOutFieldClass)
 	return Ar;
 }
 
-FFieldVariant FFieldVariant::GetOwner() const
+FFieldVariant FFieldVariant::GetOwnerVariant() const
 {
 	if (bIsUObject)
 	{
@@ -120,7 +120,7 @@ FFieldVariant FFieldVariant::GetOwner() const
 	}
 	else
 	{
-		return Container.Field->GetOwner();
+		return Container.Field->GetOwnerVariant();
 	}
 }
 
@@ -487,7 +487,7 @@ bool FField::IsIn(UObject* InOwner) const
 
 bool FField::IsIn(FField* InOwner) const
 {
-	for (FField* OwnerField = GetOwner().ToField(); OwnerField; OwnerField = OwnerField->GetOwner().ToField())
+	for (FField* OwnerField = GetOwner<FField>(); OwnerField; OwnerField = OwnerField->GetOwner<FField>())
 	{
 		if (OwnerField == InOwner)
 		{
@@ -512,7 +512,7 @@ void FField::AddCppProperty(FProperty* Property)
 FString FField::GetPathName(const UObject* StopOuter /*= nullptr*/) const
 {
 	FString PathName;
-	for (FFieldVariant TempOwner = Owner; TempOwner.IsValid(); TempOwner = TempOwner.GetOwner())
+	for (FFieldVariant TempOwner = Owner; TempOwner.IsValid(); TempOwner = TempOwner.GetOwnerVariant())
 	{		
 		if (!TempOwner.IsUObject())
 		{

@@ -326,7 +326,7 @@ namespace DataprepParameterization
 
 					// We look if the outer of the property is the right one as a heuristic for the validity of the current property
 					bool bPropertySeamsValid = false;
-					if ( FFieldVariant CurrentPropertyOuter = CurentProperty->GetOwner() )
+					if ( FFieldVariant CurrentPropertyOuter = CurentProperty->GetOwnerVariant() )
 					{
 						if ( CurrentPropertyOuter == CurrentOuter )
 						{
@@ -335,7 +335,7 @@ namespace DataprepParameterization
 						else if ( UStruct* CurrentOuterAsStruct = CurrentOuter.Get<UStruct>() )
 						{
 							// Walk the struct hierarchy in case we have a sub struct of the expected struct
-							FFieldVariant PropertyOuter = CurentProperty->GetOwner();
+							FFieldVariant PropertyOuter = CurentProperty->GetOwnerVariant();
 							CurrentOuterAsStruct = CurrentOuterAsStruct->GetSuperStruct();
 							while ( !bPropertySeamsValid && CurrentOuterAsStruct )
 							{

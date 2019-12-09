@@ -18,8 +18,8 @@ namespace JsonStructSerializerBackend
 	{
 		if ((State.ValueProperty == nullptr) ||
 			(State.ValueProperty->ArrayDim > 1) ||
-			(State.ValueProperty->GetOwner().IsA(FArrayProperty::StaticClass())) ||
-			State.ValueProperty->GetOwner().IsA(FSetProperty::StaticClass()))
+			State.ValueProperty->GetOwner<FArrayProperty>() ||
+			State.ValueProperty->GetOwner<FSetProperty>())
 		{
 			JsonWriter->WriteValue(Value);
 		}
@@ -40,8 +40,8 @@ namespace JsonStructSerializerBackend
 	{
 		if ((State.ValueProperty == nullptr) ||
 			(State.ValueProperty->ArrayDim > 1) ||
-			(State.ValueProperty->GetOwner().IsA(FArrayProperty::StaticClass())) ||
-			(State.ValueProperty->GetOwner().IsA(FSetProperty::StaticClass())))
+			State.ValueProperty->GetOwner<FArrayProperty>() ||
+			State.ValueProperty->GetOwner<FSetProperty>())
 		{
 			JsonWriter->WriteNull();
 		}
@@ -64,9 +64,7 @@ namespace JsonStructSerializerBackend
 
 void FJsonStructSerializerBackend::BeginArray(const FStructSerializerState& State)
 {
-	FFieldVariant Outer = State.ValueProperty->GetOwner();
-
-	if (Outer.ToField() && (Outer.ToField()->GetClass() == FArrayProperty::StaticClass()))
+	if (State.ValueProperty->GetOwner<FArrayProperty>())
 	{
 		JsonWriter->WriteArrayStart();
 	}
@@ -87,9 +85,7 @@ void FJsonStructSerializerBackend::BeginStructure(const FStructSerializerState& 
 {
 	if (State.ValueProperty != nullptr)
 	{
-		FFieldVariant Outer = State.ValueProperty->GetOwner();
-
-		if (CastField<FArrayProperty>(Outer.ToField()) || CastField<FSetProperty>(Outer.ToField()))
+		if (State.ValueProperty->GetOwner<FArrayProperty>() || State.ValueProperty->GetOwner<FSetProperty>())
 		{
 			JsonWriter->WriteObjectStart();
 		}

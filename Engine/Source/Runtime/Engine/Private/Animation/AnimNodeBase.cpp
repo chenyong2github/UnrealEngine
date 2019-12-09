@@ -683,7 +683,7 @@ void FExposedValueHandler::Initialize(UObject* AnimInstanceObject, int32 NodeOff
 			if (CopyRecord.bInstanceIsTarget)
 			{
 				// Re-find our dest property as it (or its class outer) may have changed
-				if (CopyRecord.DestProperty->GetOwner().ToUObject() != AnimInstanceObject->GetClass())
+				if (CopyRecord.DestProperty->GetOwner<UObject>() != AnimInstanceObject->GetClass())
 				{
 					CopyRecord.DestProperty = AnimInstanceObject->GetClass()->FindPropertyByName(CopyRecord.DestProperty->GetFName());
 				}

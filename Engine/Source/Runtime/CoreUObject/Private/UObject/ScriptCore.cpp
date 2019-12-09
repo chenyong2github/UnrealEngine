@@ -1977,7 +1977,7 @@ DEFINE_FUNCTION(UObject::execInstanceVariable)
 	FProperty* VarProperty = (FProperty*)Stack.ReadObject();
 	Stack.MostRecentProperty = VarProperty;
 
-	if (VarProperty == nullptr || !P_THIS->IsA((UClass*)VarProperty->GetOwner().ToUObject()))
+	if (VarProperty == nullptr || !P_THIS->IsA(VarProperty->GetOwner<UClass>()))
 	{
 		FBlueprintExceptionInfo ExceptionInfo(EBlueprintExceptionType::AccessViolation, FText::Format(LOCTEXT("MissingProperty", "Attempted to access missing property '{0}'. If this is a packaged/cooked build, are you attempting to use an editor-only property?"), FText::FromString(GetNameSafe(VarProperty))));
 		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
@@ -2043,7 +2043,7 @@ DEFINE_FUNCTION(UObject::execDefaultVariable)
 		// @todo - allow access to archetype properties through object references?
 	}
 
-	if (VarProperty == nullptr || (DefaultObject && !DefaultObject->IsA((UClass*)VarProperty->GetOwner().ToUObject())))
+	if (VarProperty == nullptr || (DefaultObject && !DefaultObject->IsA(VarProperty->GetOwner<UClass>())))
 	{
 		FBlueprintExceptionInfo ExceptionInfo(EBlueprintExceptionType::AccessViolation, LOCTEXT("MissingPropertyDefaultObject", "Attempted to access a missing property on a CDO. If this is a packaged/cooked build, are you attempting to use an editor-only property?"));
 		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);

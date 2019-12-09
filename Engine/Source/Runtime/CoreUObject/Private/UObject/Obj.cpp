@@ -2951,7 +2951,7 @@ void UObject::ParseParms( const TCHAR* Parms )
 	}
 	for( TFieldIterator<FProperty> It(GetClass()); It; ++It )
 	{
-		if (It->GetOwner().ToUObject() != UObject::StaticClass())
+		if (It->GetOwner<UObject>() != UObject::StaticClass())
 		{
 			FString Value;
 			if( FParse::Value(Parms,*(FString(*It->GetName())+TEXT("=")),Value) )

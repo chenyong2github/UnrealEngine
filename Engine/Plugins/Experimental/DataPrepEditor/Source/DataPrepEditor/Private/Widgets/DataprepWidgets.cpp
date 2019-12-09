@@ -710,7 +710,7 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 
 			if ( Property )
 			{
-				if ( FFieldVariant Outer = Property->GetOwner() )
+				if ( FFieldVariant Outer = Property->GetOwnerVariant() )
 				{
 					// if the outer is a container property (array,set or map) it's editable even without the proper flags.
 					//UClass* OuterClass = Outer->GetClass();

@@ -4095,7 +4095,7 @@ bool FBlueprintDelegateActionDetails::IsBlueprintProperty() const
 	const UBlueprint* Blueprint = GetBlueprintObj();
 	if(Property && Blueprint)
 	{
-		return (Property->GetOwner().ToUObject() == Blueprint->SkeletonGeneratedClass);
+		return (Property->GetOwner<UObject>() == Blueprint->SkeletonGeneratedClass);
 	}
 
 	return false;

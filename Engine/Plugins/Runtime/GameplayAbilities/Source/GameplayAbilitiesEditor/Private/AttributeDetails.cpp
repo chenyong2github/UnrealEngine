@@ -47,7 +47,7 @@ void FAttributePropertyDetails::CustomizeHeader( TSharedRef<IPropertyHandle> Str
 
 	for ( auto* Property : PropertiesToAdd )
 	{
-		PropertyOptions.Add(MakeShareable(new FString(FString::Printf(TEXT("%s.%s"), *Property->GetOwner().GetName(), *Property->GetName()))));
+		PropertyOptions.Add(MakeShareable(new FString(FString::Printf(TEXT("%s.%s"), *Property->GetOwnerVariant().GetName(), *Property->GetName()))));
 	}
 
 	FProperty* PropertyValue = nullptr;
@@ -97,7 +97,7 @@ TSharedPtr<FString> FAttributePropertyDetails::GetPropertyType() const
 		PropertyValue = ObjPtr;
 		if (PropertyValue)
 		{
-			FString FullString = PropertyValue->GetOwner().GetName() + TEXT(".") + PropertyValue->GetName();
+			FString FullString = PropertyValue->GetOwnerVariant().GetName() + TEXT(".") + PropertyValue->GetName();
 			for (int32 i=0; i < PropertyOptions.Num(); ++i)
 			{
 				if (PropertyOptions[i].IsValid() && PropertyOptions[i].Get()->Equals(FullString))

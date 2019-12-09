@@ -584,7 +584,7 @@ inline UFunction* FMemberReference::ResolveUFunction() const
 template<>
 inline UObject* FMemberReference::GetFieldOuter(FField* Field) const
 {
-	return Field->GetOwner().ToUObject();
+	return Field->GetOwner<UObject>();
 }
 
 template <>

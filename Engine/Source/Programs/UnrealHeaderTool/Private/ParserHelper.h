@@ -1597,7 +1597,7 @@ public:
 		FProperty* Prop = PropertyToken.TokenProperty;
 		check(Prop);
 
-		UObject* Outer = Prop->GetOwner().ToUObject();
+		UObject* Outer = Prop->GetOwner<UObject>();
 		check(Outer);
 		UStruct* OuterClass = Cast<UStruct>(Outer);
 		if ( OuterClass != NULL )

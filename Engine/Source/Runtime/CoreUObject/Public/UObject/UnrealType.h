@@ -354,7 +354,7 @@ private:
 		if (0)
 		{
 			// in the future, these checks will be tested if the property is NOT relative to a UClass
-			check(!Cast<UClass>(GetOwner().ToUObject())); // Check we are _not_ calling this on a direct child property of a UClass, you should pass in a UObject* in that case
+			check(!GetOwner<UClass>()); // Check we are _not_ calling this on a direct child property of a UClass, you should pass in a UObject* in that case
 		}
 
 		return (uint8*)ContainerPtr + Offset_Internal + ElementSize * ArrayIndex;
@@ -369,19 +369,19 @@ private:
 		// need something for networking, since those are NOT live uobjects, just memory blocks
 		check(((UObject*)ContainerPtr)->IsValidLowLevel()); // Check its a valid UObject that was passed in
 		check(((UObject*)ContainerPtr)->GetClass() != NULL);
-		check(Cast<UClass>(GetOwner().ToUObject())); // Check that the outer of this property is a UClass (not another property)
+		check(GetOwner<UClass>()); // Check that the outer of this property is a UClass (not another property)
 
 		// Check that the object we are accessing is of the class that contains this property
-		checkf(((UObject*)ContainerPtr)->IsA((UClass*)GetOwner().ToUObject()), TEXT("'%s' is of class '%s' however property '%s' belongs to class '%s'")
+		checkf(((UObject*)ContainerPtr)->IsA(GetOwner<UClass>()), TEXT("'%s' is of class '%s' however property '%s' belongs to class '%s'")
 			, *((UObject*)ContainerPtr)->GetName()
 			, *((UObject*)ContainerPtr)->GetClass()->GetName()
 			, *GetName()
-			, *((UClass*)GetOwner().ToUObject())->GetName());
+			, *GetOwner<UClass>()->GetName());
 
 		if (0)
 		{
 			// in the future, these checks will be tested if the property is NOT relative to a UClass
-			check(!GetOwner().ToUObject()->IsA(UClass::StaticClass())); // Check we are _not_ calling this on a direct child property of a UClass, you should pass in a UObject* in that case
+			check(!GetOwner<UClass>()); // Check we are _not_ calling this on a direct child property of a UClass, you should pass in a UObject* in that case
 		}
 
 		return (uint8*)ContainerPtr + Offset_Internal + ElementSize * ArrayIndex;
@@ -761,7 +761,7 @@ public:
 	FProperty* GetOwnerProperty()
 	{
 		FProperty* Result = this;
-		for (FProperty* PropBase = GetOwner().Get<FProperty>(); PropBase; PropBase = PropBase->GetOwner().Get<FProperty>())
+		for (FProperty* PropBase = GetOwner<FProperty>(); PropBase; PropBase = PropBase->GetOwner<FProperty>())
 		{
 			Result = PropBase;
 		}
@@ -771,7 +771,7 @@ public:
 	const FProperty* GetOwnerProperty() const
 	{
 		const FProperty* Result = this;
-		for (const FProperty* PropBase = GetOwner().Get<FProperty>(); PropBase; PropBase = PropBase->GetOwner().Get<FProperty>())
+		for (const FProperty* PropBase = GetOwner<FProperty>(); PropBase; PropBase = PropBase->GetOwner<FProperty>())
 		{
 			Result = PropBase;
 		}

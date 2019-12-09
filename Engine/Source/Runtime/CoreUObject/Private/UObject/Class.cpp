@@ -752,7 +752,7 @@ void UStruct::Link(FArchive& Ar, bool bRelinkExistingProperties)
 
 			for (FField* Field = ChildProperties; Field; Field = Field->Next)
 			{
-				if (Field->GetOwner().ToUObject() != this)
+				if (Field->GetOwner<UObject>() != this)
 				{
 					break;
 				}
@@ -763,8 +763,8 @@ void UStruct::Link(FArchive& Ar, bool bRelinkExistingProperties)
 					// If we don't have the editor, make sure we aren't trying to link properties that are editor only.
 					check(!Property->IsEditorOnlyProperty());
 #endif // WITH_EDITORONLY_DATA
-					ensureMsgf(Property->GetOwner().ToUObject() == this, TEXT("Linking '%s'. Property '%s' has outer '%s'"),
-						*GetFullName(), *Property->GetName(), *Property->GetOwner().GetFullName());
+					ensureMsgf(Property->GetOwner<UObject>() == this, TEXT("Linking '%s'. Property '%s' has outer '%s'"),
+						*GetFullName(), *Property->GetName(), *Property->GetOwnerVariant().GetFullName());
 
 					// Linking a property can cause a recompilation of the struct. 
 					// When the property was changed, the struct should be relinked again, to be sure, the PropertiesSize is actual.
@@ -821,7 +821,7 @@ void UStruct::Link(FArchive& Ar, bool bRelinkExistingProperties)
 	}
 	else
 	{
-		for (FField* Field = ChildProperties; (Field != NULL) && (Field->GetOwner().ToUObject() == this); Field = Field->Next)
+		for (FField* Field = ChildProperties; (Field != NULL) && (Field->GetOwner<UObject>() == this); Field = Field->Next)
 		{
 			if (FProperty* Property = CastField<FProperty>(Field))
 			{
@@ -3983,7 +3983,7 @@ void UClass::SetUpRuntimeReplicationData()
 				{
 					NetProperties.Add(Prop);
 
-					if (Prop->GetOwner().ToUObject() == this)
+					if (Prop->GetOwner<UObject>() == this)
 					{
 						NetPropsForClassRep.Add(Prop);
 					}
@@ -4686,13 +4686,13 @@ bool UClass::IsFunctionImplementedInScript(FName InFunctionName) const
 
 bool UClass::HasProperty(FProperty* InProperty) const
 {
-	if (InProperty->GetOwner().IsUObject())
+	if (InProperty->GetOwner<UObject>())
 	{
-		UClass* PropertiesClass = Cast<UClass>(InProperty->GetOwner().ToUObject());
+		UClass* PropertiesClass = InProperty->GetOwner<UClass>();
 		if (PropertiesClass)
-	{
-		return IsChildOf(PropertiesClass);
-	}
+		{
+			return IsChildOf(PropertiesClass);
+		}
 	}
 
 	return false;

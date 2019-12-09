@@ -471,15 +471,14 @@ void FProperty::Init()
 	checkSlow(GetOwnerUField()->HasAllFlags(RF_Transient));
 	checkSlow(HasAllFlags(RF_Transient));
 
-	if (GetOwner().IsUObject())
+	if (GetOwner<UObject>())
 	{
-		UField* OwnerField = CastChecked<UField>(GetOwner().ToUObject());
+		UField* OwnerField = GetOwnerChecked<UField>();
 		OwnerField->AddCppProperty(this);
 	}
 	else
 	{
-		FField* OwnerField = GetOwner().ToField();
-		check(OwnerField);
+		FField* OwnerField = GetOwnerChecked<FField>();
 		OwnerField->AddCppProperty(this);
 	}
 }
@@ -661,7 +660,7 @@ void FProperty::ExportCppDeclaration(FOutputDevice& Out, EExportedDeclaration::T
 			TypeText = FString::Printf(TEXT("const %s"), *TypeText);
 		}
 
-		const UClass* const MyPotentialConstClass = (DeclarationType == EExportedDeclaration::Member) ? Cast<UClass>(GetOwner().ToUObject()) : nullptr;
+		const UClass* const MyPotentialConstClass = (DeclarationType == EExportedDeclaration::Member) ? GetOwner<UClass>() : nullptr;
 		const bool bFromConstClass = MyPotentialConstClass && MyPotentialConstClass->HasAnyClassFlags(CLASS_Const);
 		const bool bConstAtTheEnd = bFromConstClass || (bIsConstParam && bShouldHaveRef);
 		if (bConstAtTheEnd)
@@ -915,7 +914,7 @@ EConvertFromTypeResult FProperty::ConvertFromType(const FPropertyTag& Tag, FStru
 
 int32 FProperty::SetupOffset()
 {
-	UObject* OwnerUObject = GetOwner().ToUObject();
+	UObject* OwnerUObject = GetOwner<UObject>();
 	if (OwnerUObject && (OwnerUObject->GetClass()->ClassCastFlags & CASTCLASS_UStruct))
 	{
 		UStruct* OwnerStruct = (UStruct*)OwnerUObject;
@@ -1363,7 +1362,7 @@ const TCHAR* FProperty::ImportSingleProperty( const TCHAR* Str, void* DestData, 
 
 			// disallow importing of an object's name from here
 			// not done above with ShouldPort() check because this is intentionally exported so we don't want it to cause errors on import
-			if (Property->GetFName() != NAME_Name || !Property->GetOwner().IsUObject() || Property->GetOwner().ToUObject()->GetFName() != NAME_Object)
+			if (Property->GetFName() != NAME_Name || !Property->GetOwnerVariant().IsUObject() || Property->GetOwner<UObject>()->GetFName() != NAME_Object)
 			{
 				if (Index > -1 && ArrayProperty != NULL) //set single dynamic array element
 				{

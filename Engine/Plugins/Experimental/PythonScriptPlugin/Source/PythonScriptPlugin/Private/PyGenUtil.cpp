@@ -597,10 +597,10 @@ void FGeneratedWrappedFieldTracker::RegisterPythonFieldName(const FString& InPyt
 		{
 			// Note: We don't use GetOwnerStruct here, as UFunctions are UStructs so it
 			// doesn't work correctly for them as it includes 'this' in the look-up chain
-			FFieldVariant OwnerStruct = InField.GetOwner();
+			FFieldVariant OwnerStruct = InField.GetOwnerVariant();
 			while (OwnerStruct.IsValid() && !OwnerStruct.IsA<UStruct>())
 			{
-				OwnerStruct = OwnerStruct.GetOwner();
+				OwnerStruct = OwnerStruct.GetOwnerVariant();
 			}
 			return OwnerStruct.IsValid() ? FString::Printf(TEXT("%s.%s"), *OwnerStruct.GetName(), *InField.GetName()) : InField.GetName();
 		};

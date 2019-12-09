@@ -23,7 +23,7 @@ FTokenData* FClassMetaData::FindTokenData( FProperty* Prop )
 	check(Prop);
 
 	FTokenData* Result = nullptr;
-	UObject* Outer = Prop->GetOwner().ToUObject();
+	UObject* Outer = Prop->GetOwner<UObject>();
 	check(Outer);
 	UClass* OuterClass = nullptr;
 	if (Outer->IsA<UStruct>())

@@ -86,7 +86,7 @@ void FStructSerializer::Serialize(const void* Struct, UStruct& TypeInfo, IStruct
 				// write object start
 				if (CurrentState.ValueProperty != nullptr)
 				{
-					FFieldVariant Outer = CurrentState.ValueProperty->GetOwner();
+					FFieldVariant Outer = CurrentState.ValueProperty->GetOwnerVariant();
 
 					if ((Outer.ToField() == nullptr) || (Outer.ToField()->GetClass() != FArrayProperty::StaticClass()))
 					{

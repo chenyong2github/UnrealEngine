@@ -416,11 +416,11 @@ protected:
 			}
 
 			TArray<FFieldVariant> PropertyArray;
-			FFieldVariant Outer = Property->GetOwner();
+			FFieldVariant Outer = Property->GetOwnerVariant();
 			while (Outer.IsA(FProperty::StaticClass()) || Outer.IsA(UScriptStruct::StaticClass()))
 			{
 				PropertyArray.Insert(Outer, 0);
-				Outer = Outer.GetOwner();
+				Outer = Outer.GetOwnerVariant();
 			}
 
 			FString PropertyPath;

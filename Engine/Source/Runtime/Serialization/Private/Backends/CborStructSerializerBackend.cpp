@@ -21,7 +21,7 @@ FCborStructSerializerBackend::~FCborStructSerializerBackend() = default;
 void FCborStructSerializerBackend::BeginArray(const FStructSerializerState& State)
 {
 	// Array nested in Array/Set
-	if (State.ValueProperty->GetOwner().IsA(FArrayProperty::StaticClass()) || State.ValueProperty->GetOwner().IsA(FSetProperty::StaticClass()))
+	if (State.ValueProperty->GetOwner<FArrayProperty>() || State.ValueProperty->GetOwner<FSetProperty>())
 	{
 		CborWriter.WriteContainerStart(ECborCode::Array, -1);
 	}
@@ -46,7 +46,7 @@ void FCborStructSerializerBackend::BeginStructure(const FStructSerializerState& 
 	if (State.ValueProperty != nullptr)
 	{
 		// Object nested in Array/Set
-		if (State.ValueProperty->GetOwner().IsA(FArrayProperty::StaticClass()) || State.ValueProperty->GetOwner().IsA(FSetProperty::StaticClass()))
+		if (State.ValueProperty->GetOwner<FArrayProperty>() || State.ValueProperty->GetOwner<FSetProperty>())
 		{
 			CborWriter.WriteContainerStart(ECborCode::Map, -1/*Indefinite*/);
 		}
@@ -96,7 +96,7 @@ namespace CborStructSerializerBackend
 		// Value nested in Array/Set or as root
 		if ((State.ValueProperty == nullptr) ||
 			(State.ValueProperty->ArrayDim > 1) ||
-			(State.ValueProperty->GetOwner().IsA(FArrayProperty::StaticClass()) || State.ValueProperty->GetOwner().IsA(FSetProperty::StaticClass())))
+			(State.ValueProperty->GetOwner<FArrayProperty>() || State.ValueProperty->GetOwner<FSetProperty>()))
 		{
 			CborWriter.WriteValue(Value);
 		}
@@ -121,7 +121,7 @@ namespace CborStructSerializerBackend
 	{
 		if ((State.ValueProperty == nullptr) ||
 			(State.ValueProperty->ArrayDim > 1) ||
-			(State.ValueProperty->GetOwner().IsA(FArrayProperty::StaticClass()) || State.ValueProperty->GetOwner().IsA(FSetProperty::StaticClass())))
+			(State.ValueProperty->GetOwner<FArrayProperty>() || State.ValueProperty->GetOwner<FSetProperty>()))
 		{
 			CborWriter.WriteNull();
 		}

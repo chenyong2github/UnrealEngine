@@ -25,7 +25,7 @@ void FNativeJSStructSerializerBackend::WriteUObject(const FStructSerializerState
 {
 	// Note this function uses WriteRawJSONValue to append non-json data to the output stream.
 	FString RawValue = Scripting->ConvertObject(Value);
-	if ((State.ValueProperty == nullptr) || (State.ValueProperty->ArrayDim > 1) || (State.ValueProperty->GetOwner().IsA(FArrayProperty::StaticClass())))
+	if ((State.ValueProperty == nullptr) || (State.ValueProperty->ArrayDim > 1) || State.ValueProperty->GetOwner< FArrayProperty>())
 	{
 		GetWriter()->WriteRawJSONValue(RawValue);
 	}

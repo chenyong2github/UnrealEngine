@@ -261,7 +261,7 @@ struct FEventTriggerExecutionToken
 
 	void TriggerEventWithParameters(UObject* DirectorInstance, const FMovieSceneEventPtrs& Event, TArrayView<UObject* const> EventContexts, IMovieScenePlayer& Player, FMovieSceneSequenceID SequenceID)
 	{
-		if (!ensureMsgf(!Event.BoundObjectProperty.Get() || (Event.BoundObjectProperty->GetOwner().ToUObject() == Event.Function && Event.BoundObjectProperty->GetOffset_ForUFunction() < Event.Function->ParmsSize), TEXT("Bound object property belongs to the wrong function or has an offset greater than the parameter size! This should never happen and indicates a BP compilation or nativization error.")))
+		if (!ensureMsgf(!Event.BoundObjectProperty.Get() || (Event.BoundObjectProperty->GetOwner<UObject>() == Event.Function && Event.BoundObjectProperty->GetOffset_ForUFunction() < Event.Function->ParmsSize), TEXT("Bound object property belongs to the wrong function or has an offset greater than the parameter size! This should never happen and indicates a BP compilation or nativization error.")))
 		{
 			return;
 		}

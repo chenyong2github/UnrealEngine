@@ -376,7 +376,7 @@ void FBlueprintCompileReinstancer::SaveClassFieldMapping(UClass* InClassToReinst
 {
 	check(InClassToReinstance);
 
-	for (FProperty* Prop = InClassToReinstance->PropertyLink; Prop && (Prop->GetOwner().ToUObject() == InClassToReinstance); Prop = Prop->PropertyLinkNext)
+	for (FProperty* Prop = InClassToReinstance->PropertyLink; Prop && (Prop->GetOwner<UObject>() == InClassToReinstance); Prop = Prop->PropertyLinkNext)
 	{
 		PropertyMap.Add(Prop->GetFName(), Prop);
 	}

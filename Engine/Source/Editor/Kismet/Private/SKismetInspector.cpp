@@ -784,7 +784,7 @@ bool SKismetInspector::IsAnyParentContainerSelected(const FPropertyAndParent& Pr
 {
 	for (const FProperty* CurrentProperty : PropertyAndParent.ParentProperties)
 	{
-		const FProperty* CurrentOuter = CurrentProperty->GetOwner().Get<FProperty>();
+		const FProperty* CurrentOuter = CurrentProperty->GetOwner<FProperty>();
 
 		if (CurrentOuter != nullptr && SelectedObjectProperties.Find(const_cast<FProperty*>(CurrentOuter)))
 		{

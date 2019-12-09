@@ -5078,7 +5078,7 @@ FProperty* FHeaderParser::GetVarNameAndDim
 				HintText,
 				VarProperty.Identifier,
 				*Scope->GetName(),
-				ExistingField ? *ExistingField->GetOuter()->GetName() : *ExistingProperty->GetOwner().GetFullName());
+				ExistingField ? *ExistingField->GetOuter()->GetName() : *ExistingProperty->GetOwnerVariant().GetFullName());
 		}
 	}
 

@@ -169,7 +169,7 @@ void FPropertyValueIterator::GetPropertyChain(TArray<const FProperty*>& Property
 		{
 			// This handles container property nesting
 			PropertyChain.Add(Property);
-			Property = Property->GetOwner().Get<FProperty>();
+			Property = Property->GetOwner<FProperty>();
 		}
 	}
 }

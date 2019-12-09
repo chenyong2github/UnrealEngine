@@ -28,7 +28,7 @@ void FFieldPath::Generate(FField* InField)
 	if (InField)
 	{
 		// Add names from the innermost to the outermost
-		for (FFieldVariant Iter(InField); Iter.IsValid(); Iter = Iter.GetOwner())
+		for (FFieldVariant Iter(InField); Iter.IsValid(); Iter = Iter.GetOwnerVariant())
 		{
 			Path.Add(Iter.GetFName());
 		}

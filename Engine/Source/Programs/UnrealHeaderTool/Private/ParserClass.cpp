@@ -111,7 +111,7 @@ bool FClass::IsOwnedByDynamicType(const UField* Field)
 
 bool FClass::IsOwnedByDynamicType(const FField* Field)
 {
-	for (FFieldVariant Owner = Field->GetOwner(); Owner.IsValid(); Owner = Owner.GetOwner())
+	for (FFieldVariant Owner = Field->GetOwnerVariant(); Owner.IsValid(); Owner = Owner.GetOwnerVariant())
 	{
 		if (Owner.IsUObject())
 		{

@@ -560,7 +560,7 @@ void FFbxImportUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder 
 		for (TSharedPtr<IPropertyHandle> Handle : ExtraProperties)
 		{
 			// We ignore base import data for this window.
-			if (Handle->GetProperty()->GetOwner().ToUObject() == UFbxTextureImportData::StaticClass())
+			if (Handle->GetProperty()->GetOwner<UObject>() == UFbxTextureImportData::StaticClass())
 			{
 				if (Handle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(UFbxTextureImportData, MaterialSearchLocation))
 				{

@@ -108,7 +108,7 @@ void FEditPropertyChain::SetListSize( int32 NewListSize )
 			for ( TIterator It(PropertyNode); It; --It )
 			{
 				// if we've found the member property, we can stop here
-				if ( Cast<UClass>(It->GetOwner().ToUObject()) != NULL )
+				if (It->GetOwner<UClass>() != nullptr)
 				{
 					PropertyNode = It.GetNode();
 					break;

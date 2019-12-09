@@ -525,8 +525,8 @@ bool AWorldSettings::CanEditChange(const FProperty* InProperty) const
 	{
 		FString PropertyName = InProperty->GetName();
 
-		if (InProperty->GetOwner().IsUObject() && InProperty->GetOwner().IsValid() &&
-			  InProperty->GetOwner().ToUObject()->GetName() == TEXT("LightmassWorldInfoSettings"))
+		if (InProperty->GetOwner<UObject>() &&
+			  InProperty->GetOwner<UObject>()->GetName() == TEXT("LightmassWorldInfoSettings"))
 		{
 			if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FLightmassWorldInfoSettings, bGenerateAmbientOcclusionMaterialMask)
 				|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FLightmassWorldInfoSettings, DirectIlluminationOcclusionFraction)

@@ -67,7 +67,7 @@ namespace BlueprintNodeHelpers
 		for (FProperty* TestProperty = Ob->GetClass()->PropertyLink; TestProperty; TestProperty = TestProperty->PropertyLinkNext)
 		{
 			// stop when reaching base class
-			if (TestProperty->GetOwner().ToUObject() == StopAtClass)
+			if (TestProperty->GetOwner<UObject>() == StopAtClass)
 			{
 				break;
 			}
@@ -132,7 +132,7 @@ namespace BlueprintNodeHelpers
 		for (FProperty* TestProperty = Ob->GetClass()->PropertyLink; TestProperty; TestProperty = TestProperty->PropertyLinkNext)
 		{
 			// stop when reaching base class
-			if (TestProperty->GetOwner().ToUObject() == StopAtClass)
+			if (TestProperty->GetOwner<UObject>() == StopAtClass)
 			{
 				break;
 			}
@@ -158,7 +158,7 @@ namespace BlueprintNodeHelpers
 		for (FProperty* TestProperty = Ob.GetClass()->PropertyLink; TestProperty; TestProperty = TestProperty->PropertyLinkNext)
 		{
 			// stop when reaching base class
-			if (TestProperty->GetOwner().ToUObject() == &StopAtClass)
+			if (TestProperty->GetOwner<UObject>() == &StopAtClass)
 			{
 				break;
 			}
@@ -179,7 +179,7 @@ namespace BlueprintNodeHelpers
 		for (FProperty* TestProperty = Ob->GetClass()->PropertyLink; TestProperty; TestProperty = TestProperty->PropertyLinkNext)
 		{
 			// stop when reaching base class
-			if (TestProperty->GetOwner().ToUObject() == StopAtClass)
+			if (TestProperty->GetOwner<UObject>() == StopAtClass)
 			{
 				break;
 			}
@@ -210,7 +210,7 @@ namespace BlueprintNodeHelpers
 		for (FProperty* TestProperty = Ob->GetClass()->PropertyLink; TestProperty; TestProperty = TestProperty->PropertyLinkNext)
 		{
 			// stop when reaching base class
-			if (TestProperty->GetOwner().ToUObject() == StopAtClass)
+			if (TestProperty->GetOwner<UObject>() == StopAtClass)
 			{
 				break;
 			}

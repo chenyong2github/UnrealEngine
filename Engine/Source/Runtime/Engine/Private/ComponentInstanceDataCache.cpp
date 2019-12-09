@@ -56,7 +56,7 @@ public:
 	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
 	{
 		// Immutable structs expect to serialize all properties so don't skip regardless of other conditions
-		UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InProperty->GetOwner().ToUObject());
+		UScriptStruct* ScriptStruct = InProperty->GetOwner<UScriptStruct>();
 		const bool bPropertyInImmutableStruct = ScriptStruct && ((ScriptStruct->StructFlags & STRUCT_Immutable) != 0);
 
 		return (!bPropertyInImmutableStruct

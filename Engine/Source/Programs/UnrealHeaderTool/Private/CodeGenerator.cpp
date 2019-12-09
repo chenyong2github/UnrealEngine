@@ -61,6 +61,7 @@
 #include "UObject/FieldPath.h"
 
 #include "UObject/WeakFieldPtr.h"
+#include "Templates/SubclassOf.h"
 
 /////////////////////////////////////////////////////
 // Globals
@@ -1276,7 +1277,7 @@ void FNativeClassHeaderGenerator::PropertyNew(FOutputDevice& DeclOut, FOutputDev
 	{
 		FString OuterSize;
 		FString Setter;
-		if (!Prop->GetOwner().IsUObject())
+		if (!Prop->GetOwner<UObject>())
 		{
 			OuterSize = TEXT("0");
 			Setter    = TEXT("nullptr");
@@ -1722,7 +1723,7 @@ bool IsEditorOnlyDataProperty(FProperty* Prop)
 			return true;
 		}
 
-		Prop = CastField<FProperty>(Prop->GetOwner().ToField());
+		Prop = Prop->GetOwner<FProperty>();
 	}
 
 	return false;
@@ -1836,7 +1837,7 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 
 	{
 		FString SourceStruct;
-		if (UFunction* Function = Cast<UFunction>(Prop->GetOwner().ToUObject()))
+		if (UFunction* Function = Prop->GetOwner<UFunction>())
 		{
 			while (Function->GetSuperFunction())
 			{
@@ -1852,7 +1853,7 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 		}
 		else
 		{
-			SourceStruct = NameLookupCPP.GetNameCPP(CastChecked<UStruct>(Prop->GetOwner().ToUObject()));
+			SourceStruct = NameLookupCPP.GetNameCPP(CastChecked<UStruct>(Prop->GetOwner<UObject>()));
 		}
 
 		FString PropNameDep = PropName;
@@ -6358,12 +6359,78 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 	return Result;
 }
 
+struct FTestCollector
+{
+	void HandleObjectReference(UObject*& Obj)
+	{
+
+	}
+
+	template <typename T>
+	typename TEnableIf<TIsDerivedFrom<T, FField>::IsDerived, void>::Type AddReferencedObject(T*& Field)
+	{
+		if (Field)
+		{
+			UObject* Owner = Field->GetOwnerUObject();
+			UObject* OldOwnerPtr = nullptr;
+			HandleObjectReference(Owner);
+			if (Owner == nullptr && OldOwnerPtr != nullptr)
+			{
+				Field = nullptr;
+			}
+		}
+	}
+};
+
 ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename)
 {
 	double MainTime = 0.0;
 	FDurationTimer MainTimer(MainTime);
 	MainTimer.Start();
 
+	//FFieldVariant Variant;
+	//TFieldPath<FProperty> PropPath;
+	//FProperty* RawProp = nullptr;
+
+	//Variant.IsA<FProperty>();
+	//Variant.IsA<UObject>();
+	//Variant.Get<FProperty>();
+	//Variant.Get<UObject>();
+	//RawProp->GetOwner<FProperty>();
+	//RawProp->GetOwner<UObject>();
+	//RawProp->GetOwnerChecked<FProperty>();
+	//RawProp->GetOwnerChecked<UObject>();
+	//RawProp->GetTypedOwner<FProperty>();
+	//RawProp->GetTypedOwner<UObject>();
+	//{
+	//	UStruct* Struct = nullptr;
+	//	for (TFieldIterator<FProperty> It(Struct); It; ++It)
+	//	{
+	//		check(It);
+	//	}
+	//	for (TFieldIterator<UFunction> It(Struct); It; ++It)
+	//	{
+	//		check(It);
+	//	}
+	//}
+	//{
+	//	FArchive* Ar = nullptr;
+	//	TWeakFieldPtr<FProperty> WeakPtr;
+	//	(*Ar) << WeakPtr;
+	//}
+	//{
+	//	FProperty* Prop = nullptr;
+	//	UObject* Obj = nullptr;
+	//	FTestCollector Collector;
+	//	Collector.AddReferencedObject(Prop);
+	//	Collector.AddReferencedObject(Obj);
+	//}
+	//{
+	//	TSubclassOf<FProperty> SubProp;
+	//	SubProp.GetDefaultObject();
+	//	TSubclassOf<UFunction> SubFn;
+	//	SubFn.GetDefaultObject();
+	//}
 	check(GIsUCCMakeStandaloneHeaderGenerator);
 	ECompilationResult::Type Result = ECompilationResult::Succeeded;
 

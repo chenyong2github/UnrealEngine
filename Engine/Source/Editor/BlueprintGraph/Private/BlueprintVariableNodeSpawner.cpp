@@ -255,7 +255,7 @@ FFieldVariant UBlueprintVariableNodeSpawner::GetVarOuter() const
 	}
 	else if (FProperty const* MemberVariable = GetVarProperty())
 	{
-		VarOuter = MemberVariable->GetOwner();
+		VarOuter = MemberVariable->GetOwnerVariant();
 	}	
 	return VarOuter;
 }

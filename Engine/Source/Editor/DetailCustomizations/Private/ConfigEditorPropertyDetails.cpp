@@ -33,7 +33,7 @@ void FConfigPropertyHelperDetails::CustomizeDetails(IDetailLayoutBuilder& Detail
 	OriginalProperty = CastFieldChecked<FProperty>(PropValue);
 
 	// Create a unique runtime UClass with the provided property as the only member. We will use this in the details view for the config hierarchy.
-	FName TempClassName = *(FString(TEXT("TempConfigEditorUClass_")) + OriginalProperty->GetOwner().GetName() + OriginalProperty->GetName());
+	FName TempClassName = *(FString(TEXT("TempConfigEditorUClass_")) + OriginalProperty->GetOwnerVariant().GetName() + OriginalProperty->GetName());
 	ConfigEditorPropertyViewClass = NewObject<UClass>(GetTransientPackage(), TempClassName, RF_Standalone);
 
 	// Keep a record of the FProperty we are looking to update

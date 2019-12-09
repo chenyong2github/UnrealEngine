@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Kismet/KismetArrayLibrary.h"
 #include "GameFramework/Actor.h"
@@ -296,7 +296,7 @@ void UKismetArrayLibrary::GenericArray_Get(void* TargetArray, const FArrayProper
 				Index,
 				*ArrayProp->GetName(),
 				ArrayHelper.Num(),
-				ArrayProp->GetOwner().IsUObject() ? *GetPathNameSafe(ArrayProp->GetOwner().ToUObject()) : *GetPathNameSafe(ArrayProp->GetOwner().ToField())),
+				*ArrayProp->GetOwnerVariant().GetPathName()),
 				ELogVerbosity::Warning,
 				GetOutOfBoundsWarning);
 			InnerProp->InitializeValue(Item);

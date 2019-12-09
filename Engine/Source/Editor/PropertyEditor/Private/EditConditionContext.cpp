@@ -91,7 +91,7 @@ T* FindTypedField(const TWeakPtr<FPropertyNode>& PropertyNode, const FString& Pr
 static FPropertyNode* GetEditConditionParentNode(const TSharedPtr<FPropertyNode>& PropertyNode)
 {
 	FPropertyNode* ParentNode = PropertyNode->GetParentNode();
-	FFieldVariant PropertyOuter = PropertyNode->GetProperty()->GetOwner();
+	FFieldVariant PropertyOuter = PropertyNode->GetProperty()->GetOwnerVariant();
 
 	if (PropertyOuter.Get<FArrayProperty>() != nullptr ||
 		PropertyOuter.Get<FSetProperty>() != nullptr ||

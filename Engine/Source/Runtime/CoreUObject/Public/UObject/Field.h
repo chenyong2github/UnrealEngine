@@ -296,7 +296,7 @@ public:
 	{
 		return Container.Field;
 	}
-	FFieldVariant GetOwner() const;
+	FFieldVariant GetOwnerVariant() const;
 	UClass* GetOwnerClass() const;
 	FString GetFullName() const;
 	FString GetPathName() const;
@@ -494,7 +494,7 @@ public:
 	}
 
 	/** Gets the owner container for this field */
-	FFieldVariant GetOwner() const
+	FFieldVariant GetOwnerVariant() const
 	{
 		return Owner;
 	}
@@ -537,7 +537,9 @@ public:
 	}
 
 	template <typename T>
+	FUNCTION_NON_NULL_RETURN_START
 	T* GetOwnerChecked() const
+	FUNCTION_NON_NULL_RETURN_END
 	{
 		static_assert(sizeof(T) > 0, "T must not be an incomplete type");
 		T* Result = Owner.Get<T>();

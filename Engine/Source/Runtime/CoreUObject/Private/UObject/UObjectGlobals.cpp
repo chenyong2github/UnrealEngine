@@ -1245,7 +1245,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameO
 					bIsEditorOnly = true;
 					break;
 				}
-				SerializingProperty = CastField<FProperty>(SerializingProperty->GetOwner().ToField());
+				SerializingProperty = SerializingProperty->GetOwner<FProperty>();
 			}
 
 			if (!bIsEditorOnly)

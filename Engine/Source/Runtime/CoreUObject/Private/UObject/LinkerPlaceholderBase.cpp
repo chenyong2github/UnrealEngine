@@ -316,7 +316,7 @@ FLinkerPlaceholderBase::FPlaceholderValuePropertyPath::FPlaceholderValueProperty
 	check(ReferencingProperty.IsA<FProperty>() || ReferencingProperty.IsA<UProperty>());
 
 	PropertyChain.Add(ReferencingProperty);
-	FFieldVariant PropertyOuter = ReferencingProperty.GetOwner();
+	FFieldVariant PropertyOuter = ReferencingProperty.GetOwnerVariant();
 	
 	const TArray<FFieldVariant>& StructPropertyStack = FPlaceholderContainerTracker::Get().IntermediatePropertyStack;
 	int32 StructStackIndex = StructPropertyStack.Num() - 1; // "top" of the array is the last element
@@ -375,7 +375,7 @@ FLinkerPlaceholderBase::FPlaceholderValuePropertyPath::FPlaceholderValueProperty
 				break;
 			}
 		}
-		PropertyOuter = PropertyOuter.GetOwner();
+		PropertyOuter = PropertyOuter.GetOwnerVariant();
 	}
 
 #if USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS

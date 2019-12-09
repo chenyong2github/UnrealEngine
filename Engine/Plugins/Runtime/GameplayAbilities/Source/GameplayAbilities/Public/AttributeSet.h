@@ -101,7 +101,7 @@ struct GAMEPLAYABILITIES_API FGameplayAttribute
 	UClass* GetAttributeSetClass() const
 	{
 		check(Attribute.Get());
-		return CastChecked<UClass>(Attribute->GetOwner().ToUObject());
+		return CastChecked<UClass>(Attribute->GetOwner<UObject>());
 	}
 
 	/** Returns true if this is one of the special attributes defined on the bBilitySystemComponent itself */

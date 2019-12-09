@@ -1214,7 +1214,7 @@ FKismetDebugUtilities::EWatchTextResult FKismetDebugUtilities::FindDebuggingData
 			}
 
 			// Try at member scope if it wasn't part of a current function scope
-			UClass* PropertyClass = Cast<UClass>(Property->GetOwner().ToUObject());
+			UClass* PropertyClass = Property->GetOwner<UClass>();
 			if (!PropertyBase && PropertyClass)
 			{
 				if (ActiveObject->GetClass()->IsChildOf(PropertyClass))
@@ -1236,7 +1236,7 @@ FKismetDebugUtilities::EWatchTextResult FKismetDebugUtilities::FindDebuggingData
 			}
 #if USE_UBER_GRAPH_PERSISTENT_FRAME
 			// Try find the propertybase in the persistent ubergraph frame
-			UFunction* OuterFunction = Cast<UFunction>(Property->GetOwner().ToUObject());
+			UFunction* OuterFunction = Property->GetOwner<UFunction>();
 			if (!PropertyBase && OuterFunction)
 			{
 				UBlueprintGeneratedClass* BPGC = Cast<UBlueprintGeneratedClass>(Blueprint->GeneratedClass);

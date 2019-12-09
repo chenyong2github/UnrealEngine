@@ -97,7 +97,7 @@ void AActor::ResetPropertiesForConstruction()
 	{
 		FProperty* Prop = *It;
 		FStructProperty* StructProp = CastField<FStructProperty>(Prop);
-		UClass* PropClass = CastChecked<UClass>(Prop->GetOwner().ToUObject()); // get the class that added this property
+		UClass* PropClass = Prop->GetOwnerChecked<UClass>(); // get the class that added this property
 
 		// First see if it is a random stream, if so reset before running construction script
 		if( (StructProp != nullptr) && (StructProp->Struct != nullptr) && (StructProp->Struct->GetFName() == RandomStreamName) )

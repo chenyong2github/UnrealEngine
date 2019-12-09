@@ -1195,7 +1195,7 @@ struct FFakeImportTableHelper
 					// Should we try to fix it at this stage?
 
 					const bool bIsParam = (0 != (OwnerProperty->PropertyFlags & CPF_Parm)) && OwnerProperty->IsIn(InStruct);
-					const bool bIsMemberVariable = (OwnerProperty->GetOwner().ToUObject() == InStruct);
+					const bool bIsMemberVariable = (OwnerProperty->GetOwner<UObject>() == InStruct);
 					if (bIsParam || bIsMemberVariable) // Affects the class signature. It is necessary while ZCOnstructor/linking.
 					{
 						TArray<UObject*> LocalPreloadDependencies;

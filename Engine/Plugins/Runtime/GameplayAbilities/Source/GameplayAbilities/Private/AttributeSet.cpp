@@ -346,7 +346,7 @@ void UAttributeSet::InitFromMetaDataTable(const UDataTable* DataTable)
 		FNumericProperty *NumericProperty = CastField<FNumericProperty>(Property);
 		if (NumericProperty)
 		{
-			FString RowNameStr = FString::Printf(TEXT("%s.%s"), *Property->GetOwner().GetName(), *Property->GetName());
+			FString RowNameStr = FString::Printf(TEXT("%s.%s"), *Property->GetOwnerVariant().GetName(), *Property->GetName());
 		
 			FAttributeMetaData * MetaData = DataTable->FindRow<FAttributeMetaData>(FName(*RowNameStr), Context, false);
 			if (MetaData)
@@ -357,7 +357,7 @@ void UAttributeSet::InitFromMetaDataTable(const UDataTable* DataTable)
 		}
 		else if (FGameplayAttribute::IsGameplayAttributeDataProperty(Property))
 		{
-			FString RowNameStr = FString::Printf(TEXT("%s.%s"), *Property->GetOwner().GetName(), *Property->GetName());
+			FString RowNameStr = FString::Printf(TEXT("%s.%s"), *Property->GetOwnerVariant().GetName(), *Property->GetName());
 
 			FAttributeMetaData * MetaData = DataTable->FindRow<FAttributeMetaData>(FName(*RowNameStr), Context, false);
 			if (MetaData)

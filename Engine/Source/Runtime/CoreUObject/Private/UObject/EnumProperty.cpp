@@ -400,7 +400,7 @@ EConvertFromTypeResult FEnumProperty::ConvertFromType(const FPropertyTag& Tag, F
 		if (Tag.EnumName == NAME_None)
 		{
 			// If we're a nested property the EnumName tag got lost. Handle this case for backward compatibility reasons
-			FProperty* const PropertyOwner = CastField<FProperty>(GetOwner().ToField());
+			FProperty* const PropertyOwner = GetOwner<FProperty>();
 
 			if (PropertyOwner)
 			{

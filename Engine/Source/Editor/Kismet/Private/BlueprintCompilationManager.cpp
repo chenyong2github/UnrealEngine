@@ -2874,7 +2874,7 @@ FArchive& FBlueprintCompilationManagerImpl::FFixupBytecodeReferences::operator<<
 			{
 				// drill into new class finding equivalent object:
 				TArray<FFieldVariant> OwnerChain;
-				for (FFieldVariant Iter = Field; Iter.IsValid() && Iter.Get<UObject>(); Iter = Iter.GetOwner())
+				for (FFieldVariant Iter = Field; Iter.IsValid() && Iter.Get<UObject>(); Iter = Iter.GetOwnerVariant())
 				{
 					OwnerChain.Add(Iter);
 				}
