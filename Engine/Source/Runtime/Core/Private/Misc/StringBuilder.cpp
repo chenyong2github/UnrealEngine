@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/StringBuilder.h"
+
 #include "Misc/AssertionMacros.h"
 #include "HAL/PlatformMath.h"
 #include "HAL/UnrealMemory.h"
@@ -66,8 +67,8 @@ TStringBuilderImpl<C>::FreeBuffer(void* Buffer, int32 ByteCount)
 }
 
 template<typename C>
-void
-TStringBuilderImpl<C>::AppendfImpl(TStringBuilderImpl& Self, const C* Fmt, ...)
+typename TStringBuilderImpl<C>::BuilderType&
+TStringBuilderImpl<C>::AppendfImpl(BuilderType& Self, const C* Fmt, ...)
 {
 	for (;;)
 	{
@@ -80,7 +81,7 @@ TStringBuilderImpl<C>::AppendfImpl(TStringBuilderImpl& Self, const C* Fmt, ...)
 		if (Result >= 0 && Result < RemainingSize)
 		{
 			Self.CurPos += Result;
-			return;
+			return Self;
 		}
 		else
 		{
