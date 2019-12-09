@@ -284,6 +284,7 @@ public:
 			{
 				this->ScrollBar->SetDragFocusCause(InArgs._ScrollbarDragFocusCause);
 			}
+			this->AddMetadata(MakeShared<TTableViewMetadata<ItemType>>(SharedThis(this)));
 		}
 	}
 
