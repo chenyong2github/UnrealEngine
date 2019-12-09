@@ -454,10 +454,6 @@ void UNetDriver::SetRoleSwapOnReplicate(AActor* Actor, bool bSwapRoles)
 	{
 		InfoPtr->bSwapRolesOnReplicate = bSwapRoles;
 	}
-	else
-	{
-		UE_LOG(LogNet, Warning, TEXT("SetRoleSwapOnReplicate could not find network object info for: %s"), *GetFullNameSafe(Actor));
-	}
 
 	if (ReplicationDriver)
 	{
