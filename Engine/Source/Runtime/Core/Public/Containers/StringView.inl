@@ -5,70 +5,49 @@
 #include "Templates/UnrealTypeTraits.h"
 #include "Traits/IntType.h"
 
-namespace StringViewPrivate
-{
-	// These exported functions are implemented outside of the class to avoid the complexity
-	// of correctly exporting functions using many toolchains from a type that uses the CRTP.
-
-	CORE_API int32 Compare(const FAnsiStringView& Lhs, const FAnsiStringView& Rhs, ESearchCase::Type SearchCase);
-	CORE_API int32 Compare(const FWideStringView& Lhs, const FWideStringView& Rhs, ESearchCase::Type SearchCase);
-
-	CORE_API bool FindChar(const FAnsiStringView& InView, ANSICHAR InChar, typename FAnsiStringView::SizeType& OutIndex);
-	CORE_API bool FindChar(const FWideStringView& InView, WIDECHAR InChar, typename FWideStringView::SizeType& OutIndex);
-
-	CORE_API bool FindLastChar(const FAnsiStringView& InView, ANSICHAR InChar, typename FAnsiStringView::SizeType& OutIndex);
-	CORE_API bool FindLastChar(const FWideStringView& InView, WIDECHAR InChar, typename FWideStringView::SizeType& OutIndex);
-
-	CORE_API FAnsiStringView TrimStart(const FAnsiStringView& InView);
-	CORE_API FWideStringView TrimStart(const FWideStringView& InView);
-
-	CORE_API FAnsiStringView TrimEnd(const FAnsiStringView& InView);
-	CORE_API FWideStringView TrimEnd(const FWideStringView& InView);
-}
-
-template <typename CharType, typename ViewType>
-inline const CharType& TStringViewImpl<CharType, ViewType>::operator[](SizeType Index) const
+template <typename CharType>
+inline const CharType& TStringViewImpl<CharType>::operator[](SizeType Index) const
 {
 	checkf(Index >= 0 && Index < Size, TEXT("Index out of bounds on StringView: index %i on a view with a length of %i"), Index, Size);
 	return DataPtr[Index];
 }
 
-template <typename CharType, typename ViewType>
-inline typename TStringViewImpl<CharType, ViewType>::SizeType TStringViewImpl<CharType, ViewType>::CopyString(CharType* Dest, SizeType CharCount, SizeType Position) const
+template <typename CharType>
+inline typename TStringViewImpl<CharType>::SizeType TStringViewImpl<CharType>::CopyString(CharType* Dest, SizeType CharCount, SizeType Position) const
 {
 	const  SizeType CopyCount = FMath::Min(Size - Position, CharCount);
 	FMemory::Memcpy(Dest, DataPtr + Position, CopyCount);
 	return CopyCount;
 }
 
-template <typename CharType, typename ViewType>
-inline ViewType TStringViewImpl<CharType, ViewType>::Left(SizeType CharCount) const
+template <typename CharType>
+inline TStringView<CharType> TStringViewImpl<CharType>::Left(SizeType CharCount) const
 {
 	return ViewType(DataPtr, FMath::Clamp(CharCount, 0, Size));
 }
 
-template <typename CharType, typename ViewType>
-inline ViewType TStringViewImpl<CharType, ViewType>::LeftChop(SizeType CharCount) const
+template <typename CharType>
+inline TStringView<CharType> TStringViewImpl<CharType>::LeftChop(SizeType CharCount) const
 {
 	return ViewType(DataPtr, FMath::Clamp(Size - CharCount, 0, Size));
 }
 
-template <typename CharType, typename ViewType>
-inline ViewType TStringViewImpl<CharType, ViewType>::Right(SizeType CharCount) const
+template <typename CharType>
+inline TStringView<CharType> TStringViewImpl<CharType>::Right(SizeType CharCount) const
 {
 	const SizeType OutLen = FMath::Clamp(CharCount, 0, Size);
 	return ViewType(DataPtr + Size - OutLen, OutLen);
 }
 
-template <typename CharType, typename ViewType>
-inline ViewType TStringViewImpl<CharType, ViewType>::RightChop(SizeType CharCount) const
+template <typename CharType>
+inline TStringView<CharType> TStringViewImpl<CharType>::RightChop(SizeType CharCount) const
 {
 	const SizeType OutLen = FMath::Clamp(Size - CharCount, 0, Size);
 	return ViewType(DataPtr + Size - OutLen, OutLen);
 }
 
-template <typename CharType, typename ViewType>
-inline ViewType TStringViewImpl<CharType, ViewType>::Mid(SizeType Position, SizeType CharCount) const
+template <typename CharType>
+inline TStringView<CharType> TStringViewImpl<CharType>::Mid(SizeType Position, SizeType CharCount) const
 {
 	check(CharCount >= 0);
 	using USizeType = TUnsignedIntType_T<sizeof(SizeType)>;
@@ -77,111 +56,81 @@ inline ViewType TStringViewImpl<CharType, ViewType>::Mid(SizeType Position, Size
 	return ViewType(DataPtr + Position, CharCount);
 }
 
-template <typename CharType, typename ViewType>
-inline ViewType TStringViewImpl<CharType, ViewType>::TrimStartAndEnd() const
+template <typename CharType>
+inline TStringView<CharType> TStringViewImpl<CharType>::TrimStartAndEnd() const
 {
 	return TrimStart().TrimEnd();
 }
 
-template <typename CharType, typename ViewType>
-inline ViewType TStringViewImpl<CharType, ViewType>::TrimStart() const
-{
-	return StringViewPrivate::TrimStart(static_cast<const ViewType&>(*this));
-}
-
-template <typename CharType, typename ViewType>
-inline ViewType TStringViewImpl<CharType, ViewType>::TrimEnd() const
-{
-	return StringViewPrivate::TrimEnd(static_cast<const ViewType&>(*this));
-}
-
-template <typename CharType, typename ViewType>
-inline bool TStringViewImpl<CharType, ViewType>::Equals(const ViewType& Other, ESearchCase::Type SearchCase) const
+template <typename CharType>
+inline bool TStringViewImpl<CharType>::Equals(const ViewType& Other, ESearchCase::Type SearchCase) const
 {
 	return Size == Other.Size && Compare(Other, SearchCase) == 0;
 }
 
-template <typename CharType, typename ViewType>
-inline int32 TStringViewImpl<CharType, ViewType>::Compare(const ViewType& Other, ESearchCase::Type SearchCase) const
-{
-	return StringViewPrivate::Compare(static_cast<const ViewType&>(*this), Other, SearchCase);
-}
-
-template <typename CharType, typename ViewType>
-inline bool TStringViewImpl<CharType, ViewType>::StartsWith(const ViewType& Prefix, ESearchCase::Type SearchCase) const
+template <typename CharType>
+inline bool TStringViewImpl<CharType>::StartsWith(const ViewType& Prefix, ESearchCase::Type SearchCase) const
 {
 	return Prefix.Equals(Left(Prefix.Len()), SearchCase);
 }
 
-template <typename CharType, typename ViewType>
-inline bool TStringViewImpl<CharType, ViewType>::EndsWith(const ViewType& Suffix, ESearchCase::Type SearchCase) const
+template <typename CharType>
+inline bool TStringViewImpl<CharType>::EndsWith(const ViewType& Suffix, ESearchCase::Type SearchCase) const
 {
 	return Suffix.Equals(Right(Suffix.Len()), SearchCase);
 }
 
-template <typename CharType, typename ViewType>
-inline bool TStringViewImpl<CharType, ViewType>::FindChar(CharType InChar, SizeType& OutIndex) const
-{
-	return StringViewPrivate::FindChar(static_cast<const ViewType&>(*this), InChar, OutIndex);
-}
-
-template <typename CharType, typename ViewType>
-inline bool TStringViewImpl<CharType, ViewType>::FindLastChar(CharType InChar, SizeType& OutIndex) const
-{
-	return StringViewPrivate::FindLastChar(static_cast<const ViewType&>(*this), InChar, OutIndex);
-}
-
 // Case-insensitive comparison operators
 
-template <typename CharType, typename ViewType, typename RangeType,
-	typename = typename TStringViewImpl<CharType, ViewType>::template TEnableIfCompatibleRangeType<RangeType>>
-inline bool operator==(const TStringViewImpl<CharType, ViewType>& Lhs, RangeType&& Rhs)
+template <typename CharType, typename RangeType,
+	typename = typename TStringViewImpl<CharType>::template TEnableIfCompatibleRangeType<RangeType>>
+inline bool operator==(const TStringViewImpl<CharType>& Lhs, RangeType&& Rhs)
 {
-	return Lhs.Equals(ViewType(Forward<RangeType>(Rhs)), ESearchCase::IgnoreCase);
+	return Lhs.Equals(TStringView<CharType>(Forward<RangeType>(Rhs)), ESearchCase::IgnoreCase);
 }
 
-template <typename CharType, typename ViewType, typename RangeType,
-	typename = typename TEnableIf<TNot<TIsDerivedFrom<typename TDecay<RangeType>::Type, TStringViewImpl<CharType, ViewType>>>::Value>::Type>
-inline auto operator==(RangeType&& Lhs, const TStringViewImpl<CharType, ViewType>& Rhs) -> decltype(Rhs == Forward<RangeType>(Lhs))
+template <typename CharType, typename RangeType,
+	typename = typename TEnableIf<TNot<TIsDerivedFrom<typename TDecay<RangeType>::Type, TStringViewImpl<CharType>>>::Value>::Type>
+inline auto operator==(RangeType&& Lhs, const TStringViewImpl<CharType>& Rhs) -> decltype(Rhs == Forward<RangeType>(Lhs))
 {
 	return Rhs == Forward<RangeType>(Lhs);
 }
 
-template <typename CharType, typename ViewType, typename RangeType>
-inline auto operator!=(const TStringViewImpl<CharType, ViewType>& Lhs, RangeType&& Rhs) -> decltype(!(Lhs == Forward<RangeType>(Rhs)))
+template <typename CharType, typename RangeType>
+inline auto operator!=(const TStringViewImpl<CharType>& Lhs, RangeType&& Rhs) -> decltype(!(Lhs == Forward<RangeType>(Rhs)))
 {
 	return !(Lhs == Forward<RangeType>(Rhs));
 }
 
-template <typename CharType, typename ViewType, typename RangeType,
-	typename = typename TEnableIf<TNot<TIsDerivedFrom<typename TDecay<RangeType>::Type, TStringViewImpl<CharType, ViewType>>>::Value>::Type>
-inline auto operator!=(RangeType&& Lhs, const TStringViewImpl<CharType, ViewType>& Rhs) -> decltype(!(Rhs == Forward<RangeType>(Lhs)))
+template <typename CharType, typename RangeType,
+	typename = typename TEnableIf<TNot<TIsDerivedFrom<typename TDecay<RangeType>::Type, TStringViewImpl<CharType>>>::Value>::Type>
+inline auto operator!=(RangeType&& Lhs, const TStringViewImpl<CharType>& Rhs) -> decltype(!(Rhs == Forward<RangeType>(Lhs)))
 {
 	return !(Rhs == Forward<RangeType>(Lhs));
 }
 
 // Case-insensitive C-string comparison operators
 
-template <typename CharType, typename ViewType>
-inline bool operator==(const TStringViewImpl<CharType, ViewType>& Lhs, const CharType* Rhs)
+template <typename CharType>
+inline bool operator==(const TStringViewImpl<CharType>& Lhs, const CharType* Rhs)
 {
 	return TCString<CharType>::Strnicmp(Lhs.GetData(), Rhs, Lhs.Len()) == 0 && !Rhs[Lhs.Len()];
 }
 
-template <typename CharType, typename ViewType>
-inline bool operator==(const CharType* Lhs, const TStringViewImpl<CharType, ViewType>& Rhs)
+template <typename CharType>
+inline bool operator==(const CharType* Lhs, const TStringViewImpl<CharType>& Rhs)
 {
 	return Rhs == Lhs;
 }
 
-template <typename CharType, typename ViewType>
-inline bool operator!=(const TStringViewImpl<CharType, ViewType>& Lhs, const CharType* Rhs)
+template <typename CharType>
+inline bool operator!=(const TStringViewImpl<CharType>& Lhs, const CharType* Rhs)
 {
 	return !(Lhs == Rhs);
 }
 
-template <typename CharType, typename ViewType>
-inline bool operator!=(const CharType* Lhs, const TStringViewImpl<CharType, ViewType>& Rhs)
+template <typename CharType>
+inline bool operator!=(const CharType* Lhs, const TStringViewImpl<CharType>& Rhs)
 {
 	return !(Lhs == Rhs);
 }

@@ -12,6 +12,9 @@
 #include "Templates/UnrealTemplate.h"
 #include "Traits/IsContiguousContainer.h"
 
+class FAnsiStringView;
+class FStringView;
+
 namespace StringViewPrivate
 {
 	/**
@@ -21,7 +24,15 @@ namespace StringViewPrivate
 	struct TIsCompatibleRangeType : TIsSame<ElementType, typename TRemoveCV<typename TRemovePointer<decltype(GetData(DeclVal<RangeType&>()))>::Type>::Type>
 	{
 	};
+
+	template <typename CharType> struct TStringViewType;
+	template <> struct TStringViewType<ANSICHAR> { using Type = FAnsiStringView; };
+	template <> struct TStringViewType<TCHAR> { using Type = FStringView; };
 }
+
+/** The string view type for a given character type. */
+template <typename CharType>
+using TStringView = typename StringViewPrivate::TStringViewType<CharType>::Type;
 
 /** String View
 
@@ -64,13 +75,13 @@ namespace StringViewPrivate
 
   */
 
-template <typename CharType, typename DerivedViewType>
+template <typename CharType>
 class TStringViewImpl
 {
 public:
 	using ElementType = CharType;
 	using SizeType = int32;
-	using ViewType = DerivedViewType;
+	using ViewType = TStringView<ElementType>;
 
 	template <typename RangeType>
 	using TIsCompatibleRangeType = TAnd<TIsContiguousContainer<RangeType>, StringViewPrivate::TIsCompatibleRangeType<RangeType, ElementType>>;
@@ -157,9 +168,9 @@ public:
 	/** Returns the middle part of the view between any whitespace at the start and end. */
 	inline ViewType TrimStartAndEnd() const;
 	/** Returns the right part of the view after any whitespace at the start. */
-	inline ViewType TrimStart() const;
+	CORE_API ViewType TrimStart() const;
 	/** Returns the left part of the view before any whitespace at the end. */
-	inline ViewType TrimEnd() const;
+	CORE_API ViewType TrimEnd() const;
 
 	/** Modifies the view to be the given number of characters from the left. */
 	inline void LeftInlineInline(SizeType CharCount) { *this = Left(CharCount); }
@@ -194,7 +205,7 @@ public:
 	 *
 	 * @return 0 is equal, negative if this view is less, positive if this view is greater.
 	 */
-	inline int32 Compare(const ViewType& Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
+	CORE_API int32 Compare(const ViewType& Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
 
 	/** Returns whether this view starts with the prefix character compared case-sensitively. */
 	inline bool StartsWith(CharType Prefix) const { return Size >= 1 && DataPtr[0] == Prefix; }
@@ -216,7 +227,7 @@ public:
 	 *
 	 * @return Whether the character was found in the view.
 	 */
-	inline bool FindChar(CharType InChar, SizeType& OutIndex) const;
+	CORE_API bool FindChar(CharType InChar, SizeType& OutIndex) const;
 
 	/**
 	 * Search the view for the last occurrence of a character.
@@ -226,7 +237,7 @@ public:
 	 *
 	 * @return Whether the character was found in the view.
 	 */
-	inline bool FindLastChar(CharType InChar, SizeType& OutIndex) const;
+	CORE_API bool FindLastChar(CharType InChar, SizeType& OutIndex) const;
 
 public:
 	/**
@@ -241,54 +252,48 @@ protected:
 	SizeType Size = 0;
 };
 
-template <typename CharType, typename ViewType>
-struct TIsContiguousContainer<TStringViewImpl<CharType, ViewType>>
+template <typename CharType>
+struct TIsContiguousContainer<TStringViewImpl<CharType>>
 {
 	enum { Value = true };
 };
 
-template <typename CharType, typename ViewType>
-constexpr inline SIZE_T GetNum(const TStringViewImpl<CharType, ViewType>& String)
+template <typename CharType>
+constexpr inline SIZE_T GetNum(const TStringViewImpl<CharType>& String)
 {
 	return String.Len();
 }
 
 //////////////////////////////////////////////////////////////////////////
 
-class FStringView : public TStringViewImpl<TCHAR, FStringView>
+class FStringView : public TStringViewImpl<TCHAR>
 {
 public:
-	using TStringViewImpl<ElementType, FStringView>::TStringViewImpl;
+	using TStringViewImpl<ElementType>::TStringViewImpl;
 };
-
-class FAnsiStringView : public TStringViewImpl<ANSICHAR, FAnsiStringView>
-{
-public:
-	using TStringViewImpl<ElementType, FAnsiStringView>::TStringViewImpl;
-};
-
-using FWideStringView = FStringView;
 
 template <> struct TIsContiguousContainer<FStringView> { enum { Value = true }; };
-template <> struct TIsContiguousContainer<FAnsiStringView> { enum { Value = true }; };
-
-constexpr inline SIZE_T GetNum(const FStringView& String) { return String.Len(); }
-constexpr inline SIZE_T GetNum(const FAnsiStringView& String) { return String.Len(); }
 
 constexpr inline FStringView operator "" _SV(const TCHAR* String, size_t Size) { return FStringView(String, Size); }
-constexpr inline FAnsiStringView operator "" _ASV(const ANSICHAR* String, size_t Size) { return FAnsiStringView(String, Size); }
-constexpr inline FWideStringView operator "" _WSV(const WIDECHAR* String, size_t Size) { return FWideStringView(String, Size); }
 
 //////////////////////////////////////////////////////////////////////////
 
-namespace StringViewPrivate
+class FAnsiStringView : public TStringViewImpl<ANSICHAR>
 {
-	template <typename CharType> struct TStringViewType;
-	template <> struct TStringViewType<ANSICHAR> { using Type = FAnsiStringView; };
-	template <> struct TStringViewType<WIDECHAR> { using Type = FWideStringView; };
-}
+public:
+	using TStringViewImpl<ElementType>::TStringViewImpl;
+};
 
-template <typename CharType>
-using TStringView = typename StringViewPrivate::TStringViewType<CharType>::Type;
+template <> struct TIsContiguousContainer<FAnsiStringView> { enum { Value = true }; };
+
+constexpr inline FAnsiStringView operator "" _ASV(const ANSICHAR* String, size_t Size) { return FAnsiStringView(String, Size); }
+
+//////////////////////////////////////////////////////////////////////////
+
+using FWideStringView = FStringView;
+
+constexpr inline FWideStringView operator "" _WSV(const WIDECHAR* String, size_t Size) { return FWideStringView(String, Size); }
+
+//////////////////////////////////////////////////////////////////////////
 
 #include "StringView.inl"
