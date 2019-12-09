@@ -63,7 +63,7 @@ struct FTextureUpdateContext
 	FTextureUpdateContext(UTexture* InTexture, EThreadType InCurrentThread);
 	FTextureUpdateContext(UStreamableRenderAsset* InTexture, EThreadType InCurrentThread);
 
-	UStreamableRenderAsset* GetRenderAsset() const { return Texture; }
+	UStreamableRenderAsset* GetRenderAsset() const;
 	EThreadType GetCurrentThread() const { return CurrentThread; }
 
 	// The texture to update, this must be the same one as the one used when creating the FTextureUpdate object.
