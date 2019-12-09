@@ -563,14 +563,22 @@ namespace Chaos
 			TContactPoint<T> ContactPoint = ConvexConvexContactPoint(Implicit0, Transform0, Implicit1, Transform1, Thickness);
 			/*
 			TContactPoint<T> ContactPoint;
+			ContactPoint.Phi = FLT_MAX;
 
 			const TRigidTransform<T, d> AToBTM = Transform0.GetRelativeTransform(Transform1);
 
 			for (int32 Idx = 0; Idx < Constraint.LocalSamples.Num(); Idx++)
 			{
-				Constraint.LocalSamples[Idx].Manifold.Phi = Implicit1.PhiWithNormal(Constraint.LocalSamples[Idx].X, Constraint.LocalSamples[Idx].Manifold.Normal);
+				Constraint.LocalSamples[Idx].Manifold.Phi = Implicit1.PhiWithNormal(AToBTM.TransformPosition(Constraint.LocalSamples[Idx].X), Constraint.LocalSamples[Idx].Manifold.Normal);
 				Constraint.LocalSamples[Idx].Manifold.Normal = Transform1.TransformVector(Constraint.PlaneNormal);
 				Constraint.LocalSamples[Idx].Manifold.Location = Transform0.TransformPosition(Constraint.LocalSamples[Idx].X);
+
+				if (ContactPoint.Phi > Constraint.LocalSamples[Idx].Manifold.Phi)
+				{
+					ContactPoint.Phi = Constraint.LocalSamples[Idx].Manifold.Phi;
+					ContactPoint.Normal = Constraint.LocalSamples[Idx].Manifold.Normal;
+					ContactPoint.Location = Constraint.LocalSamples[Idx].Manifold.Location;
+				}
 			}
 			*/
 			UpdateContactPoint(Constraint.Manifold, ContactPoint);
