@@ -58,6 +58,19 @@ enum ENiagaraBaseTypes
 	NBT_Max,
 };
 
+// TODO: Custom will eventually mean that the default value or binding will be overridden by a subgraph default, i.e. expose it to a "Initialize variable" node. 
+// TODO: Should we add an "Uninitialized" entry, or is that too much friction? 
+UENUM()
+enum class ENiagaraDefaultMode : uint8
+{
+	// Default initialize using a value widget in the Selected Details panel. 
+	Value = 0, 
+	// Default initialize using a dropdown widget in the Selected Details panel. 
+	Binding,   
+	// Default initialization is done using a sub-graph.
+	Custom,    
+};
+
 UENUM()
 enum class ENiagaraSimTarget : uint8
 {
@@ -605,6 +618,31 @@ struct FNiagaraVariableDataInterfaceBinding
 	FNiagaraVariable BoundVariable;
 };
 
+/** Primarily a wrapper around an FName to be used for customizations in the Selected Details panel 
+    to select a default binding to initialize module inputs. The customization implementation
+    is FNiagaraScriptVariableBindingCustomization. */
+USTRUCT()
+struct FNiagaraScriptVariableBinding
+{
+	GENERATED_USTRUCT_BODY();
+
+	FNiagaraScriptVariableBinding() {}
+	FNiagaraScriptVariableBinding(const FNiagaraVariable& InVar) : Name(InVar.GetName())
+	{
+		
+	}
+	FNiagaraScriptVariableBinding(const FName& InName) : Name(InName)
+	{
+		
+	}
+
+	UPROPERTY(EditAnywhere, Category = "Variable")
+	FName Name;
+
+	FName GetName() const { return Name; }
+	void SetName(FName InName) { Name = InName; }
+	bool IsValid() const { return Name != NAME_None; }
+};
 
 namespace FNiagaraUtilities
 {
