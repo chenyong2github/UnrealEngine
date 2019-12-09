@@ -121,17 +121,6 @@ private:
 	
 };
 
-struct FEditorViewportViewModifierParams
-{
-	/** Delta time for updating view modifications. */
-	float DeltaTime = 0.f;
-	/** The viewport client calling for view modification. */
-	FEditorViewportClient* ViewportClient = nullptr;
-};
-
-/** Delegate for modifying view parameters of an editor viewport. */
-DECLARE_MULTICAST_DELEGATE_TwoParams(FEditorViewportViewModifierDelegate, const FEditorViewportViewModifierParams&, FMinimalViewInfo&);
-
 /** */
 class UNREALED_API FLevelEditorViewportClient : public FEditorViewportClient
 {
@@ -580,9 +569,6 @@ protected:
 	/** Delegate handler for ActorMoved events */
 	void OnActorMoved(AActor* InActor);
 
-	/** Call registered view modifiers and apply the modify result */
-	void ApplyViewModifiers(float DeltaTime);
-
 	/** FEditorViewportClient Interface*/
 
 public:
@@ -762,12 +748,6 @@ public:
 
 	/** When enabled, the Unreal transform widget will become visible after an actor is selected, even if it was turned off via a show flag */
 	bool bAlwaysShowModeWidgetAfterSelectionChanges;
-
-	/** List of view modifiers to apply on view parameters. */
-	FEditorViewportViewModifierDelegate ViewModifiers;
-
-	/** Whether view modifiers should be called and applied. */
-	bool bShouldApplyViewModifiers;
 
 private:
 	/** The actors that are currently being placed in the viewport via dragging */
