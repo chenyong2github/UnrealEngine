@@ -7097,6 +7097,7 @@ void FParticleSystemSceneProxy::UpdateData(FParticleDynamicData* NewDynamicData)
 	ENQUEUE_RENDER_COMMAND(ParticleUpdateDataCommand)(
 		[Proxy, NewDynamicData](FRHICommandListImmediate& RHICmdList)
 		{
+			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(ParticleUpdate);
 			SCOPE_CYCLE_COUNTER(STAT_ParticleUpdateRTTime);
 			STAT(FScopeCycleCounter Context(Proxy->GetStatId());)
 			if (NewDynamicData)
