@@ -730,15 +730,27 @@ bool FBulkDataBase::IsLocked() const
 	return LockStatus != LOCKSTATUS_Unlocked;
 }
 
-void* FBulkDataBase::Realloc(int64 InElementCount)
+void* FBulkDataBase::Realloc(int64 SizeInBytes)
 {
-	BULKDATA_NOT_IMPLEMENTED_FOR_RUNTIME;
-	return nullptr;
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FBulkDataBase::Realloc"), STAT_UBD_Realloc, STATGROUP_Memory);
+
+	check(LockStatus == LOCKSTATUS_ReadWriteLock);
+	checkf(!CanLoadFromDisk(), TEXT("Cannot re-allocate a FBulkDataBase object that represents a file on disk!"));
+
+	AllocateData(SizeInBytes);
+
+	check(!IsUsingIODispatcher());	// This case should get caught above but if someone tries to change that in the
+									// future then this check is a reminder that we need to handle the IoDispatcher 
+									// vs fallback case.
+
+	Fallback.BulkDataSize = SizeInBytes;
+
+	return DataBuffer;
 }
 
 void FBulkDataBase::GetCopy(void** DstBuffer, bool bDiscardInternalCopy)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FUntypedBulkData::GetCopy"), STAT_UBD_GetCopy, STATGROUP_Memory);
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FBulkDataBase::GetCopy"), STAT_UBD_GetCopy, STATGROUP_Memory);
 
 	check(LockStatus == LOCKSTATUS_Unlocked);
 	check(DstBuffer);
@@ -1045,7 +1057,11 @@ FString FBulkDataBase::GetFilename() const
 void FBulkDataBase::LoadDataDirectly(void** DstBuffer)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FBulkDataBase::LoadDataDirectly"), STAT_UBD_LoadDataDirectly, STATGROUP_Memory);
-	check(CanLoadFromDisk());
+	
+	if (!CanLoadFromDisk())
+	{
+		return; // Early out if there is nothing to load anyway
+	}
 
 	if (!IsUsingIODispatcher())
 	{

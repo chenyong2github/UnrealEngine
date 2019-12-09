@@ -77,7 +77,7 @@ public:
 	void Unlock();
 	bool IsLocked() const;
 
-	void* Realloc(int64 InElementCount);
+	void* Realloc(int64 SizeInBytes);
 
 	/**
 	 * Retrieves a copy of the bulk data.
@@ -233,7 +233,7 @@ public:
 
 	ElementType* Realloc(int64 InElementCount)
 	{
-		return (ElementType*)FBulkDataBase::Realloc(InElementCount);
+		return (ElementType*)FBulkDataBase::Realloc(InElementCount * sizeof(ElementType));
 	}
 
 	/**
