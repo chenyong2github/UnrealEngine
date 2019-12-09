@@ -75,6 +75,8 @@ struct FPropertyNamePointerPair
 	FProperty* Prop;
 };
 
+FString CreateUTF8LiteralString(const FString& Str);
+
 struct FNativeClassHeaderGenerator
 {
 private:
