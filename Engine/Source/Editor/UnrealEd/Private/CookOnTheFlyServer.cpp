@@ -67,6 +67,7 @@
 #include "PlatformInfo.h"
 #include "Serialization/ArchiveStackTrace.h"
 #include "DistanceFieldAtlas.h"
+#include "Cooker/AsyncIODelete.h"
 
 #include "AssetRegistryModule.h"
 #include "AssetRegistryState.h"
@@ -104,7 +105,7 @@
 #define LOCTEXT_NAMESPACE "Cooker"
 #define REMAPPED_PLUGGINS TEXT("RemappedPlugins")
 
-DEFINE_LOG_CATEGORY_STATIC(LogCook, Log, All);
+DEFINE_LOG_CATEGORY(LogCook);
 
 #define DEBUG_COOKONTHEFLY 0
 #define OUTPUT_TIMING 1
@@ -1445,6 +1446,8 @@ UCookOnTheFlyServer::UCookOnTheFlyServer(const FObjectInitializer& ObjectInitial
 	AssetRegistry(nullptr)
 {
 }
+
+UCookOnTheFlyServer::UCookOnTheFlyServer(FVTableHelper& Helper) :Super(Helper) {}
 
 UCookOnTheFlyServer::~UCookOnTheFlyServer()
 {
@@ -5124,6 +5127,56 @@ void UCookOnTheFlyServer::GetAllCookedFiles(TMap<FName, FName>& UncookedPathToCo
 	}
 }
 
+void UCookOnTheFlyServer::DeleteSandboxDirectory(const FString& PlatformName)
+{
+	FString SandboxDirectory = GetSandboxDirectory(PlatformName);
+	FPaths::NormalizeDirectoryName(SandboxDirectory);
+	FString AsyncDeleteDirectory = GetAsyncDeleteDirectory(PlatformName, &SandboxDirectory);
+
+	FAsyncIODelete& LocalAsyncIODelete = GetAsyncIODelete(PlatformName, &AsyncDeleteDirectory);
+	LocalAsyncIODelete.DeleteDirectory(SandboxDirectory);
+
+	// Part of Deleting the sandbox includes deleting the old AsyncDelete directory for the sandbox, in case a previous cooker crashed before cleaning it up.
+	// The AsyncDelete directory is associated with a sandbox but is necessarily outside of it since it is used to delete the sandbox.
+	// Note that for the Platform we used to create the AsyncIODelete, this Delete will fail because AsyncIODelete refuses to delete its own temproot; this is okay because it will delete the temproot on exit.
+	LocalAsyncIODelete.DeleteDirectory(AsyncDeleteDirectory);
+}
+
+FAsyncIODelete& UCookOnTheFlyServer::GetAsyncIODelete(const FString& PlatformName, const FString* AsyncDeleteDirectory)
+{
+	FAsyncIODelete* AsyncIODeletePtr = AsyncIODelete.Get();
+	if (!AsyncIODeletePtr)
+	{
+		FString Buffer;
+		if (!AsyncDeleteDirectory)
+		{
+			Buffer = GetAsyncDeleteDirectory(PlatformName);
+			AsyncDeleteDirectory = &Buffer;
+		}
+		AsyncIODelete = MakeUnique<FAsyncIODelete>(*AsyncDeleteDirectory);
+		AsyncIODeletePtr = AsyncIODelete.Get();
+	}
+	// If we have already created the AsyncIODelete, we ignore the input PlatformName and use the existing AsyncIODelete initialized from whatever platform we used before
+	// The PlatformName is used only to construct a directory that we can be sure no other process is using (because a sandbox can only be cooked by one process at a time)
+	return *AsyncIODeletePtr;
+}
+
+FString UCookOnTheFlyServer::GetAsyncDeleteDirectory(const FString& PlatformName, const FString* SandboxDirectory) const
+{
+	// The TempRoot we will delete into is a sibling of the the Platform-specific sandbox directory, with name [PlatformDir]AsyncDelete
+	// Note that two UnrealEd-Cmd processes cooking to the same sandbox at the same time will therefore cause an error since FAsyncIODelete doesn't handle multiple processes sharing TempRoots.
+	// That simultaneous-cook behavior is also not supported in other assumptions throughout the cooker.
+	FString Buffer;
+	if (!SandboxDirectory)
+	{
+		// Avoid recalculating SandboxDirectory if caller supplied it, but if they didn't, calculate it here
+		Buffer = GetSandboxDirectory(PlatformName);
+		FPaths::NormalizeDirectoryName(Buffer);
+		SandboxDirectory = &Buffer;
+	}
+	return (*SandboxDirectory) + TEXT("AsyncDelete");
+}
+
 void UCookOnTheFlyServer::PopulateCookedPackagesFromDisk(const TArray<ITargetPlatform*>& Platforms)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::PopulateCookedPackagesFromDisk);
@@ -5176,15 +5229,14 @@ void UCookOnTheFlyServer::PopulateCookedPackagesFromDisk(const TArray<ITargetPla
 			if ( (CurrentIterativeCookedBuild >= CurrentLocalCookedBuild) && 
 				(CurrentIterativeCookedBuild != FDateTime::MinValue()) )
 			{
-				// clean the sandbox 
-				ClearPlatformCookedData(FName(*Target->PlatformName()));
-				FString SandboxDirectory = GetSandboxDirectory(Target->PlatformName());
-				IFileManager::Get().DeleteDirectory(*SandboxDirectory, false, true);
+				// clean the sandbox
+				const FString PlatformName = Target->PlatformName();
+				ClearPlatformCookedData(PlatformName);
 
 				// SaveCurrentIniSettings(Target); // use this if we don't care about ini safty.
 				// copy the ini settings from the shared cooked build. 
-				const FString SharedCookedIniFile = FPaths::Combine(*FPaths::ProjectSavedDir(), TEXT("SharedIterativeBuild"), *Target->PlatformName(), TEXT("Metadata"), TEXT("CookedIniVersion.txt"));
-				const FString SandboxCookedIniFile = ConvertToFullSandboxPath(*(FPaths::ProjectDir() / TEXT("Metadata") / TEXT("CookedIniVersion.txt")), true).Replace(TEXT("[Platform]"), *Target->PlatformName());
+				const FString SharedCookedIniFile = FPaths::Combine(*FPaths::ProjectSavedDir(), TEXT("SharedIterativeBuild"), *PlatformName, TEXT("Metadata"), TEXT("CookedIniVersion.txt"));
+				const FString SandboxCookedIniFile = ConvertToFullSandboxPath(*(FPaths::ProjectDir() / TEXT("Metadata") / TEXT("CookedIniVersion.txt")), true).Replace(TEXT("[Platform]"), *PlatformName);
 
 				IFileManager::Get().Copy(*SandboxCookedIniFile, *SharedCookedIniFile);
 
@@ -5405,41 +5457,25 @@ void UCookOnTheFlyServer::CleanSandbox(const bool bIterative)
 		SCOPE_SECONDS_COUNTER(SandboxCleanTime);
 		SCOPE_TIMER(CleanSandboxTime);
 #endif
-		if (bIterative == false)
+
+		for (const ITargetPlatform* Target : Platforms)
 		{
-			// for now we are going to wipe the cooked directory
-			for (int32 Index = 0; Index < Platforms.Num(); Index++)
+			bool bShouldClearCookedContent = false;
+			const bool bIsIniSettingsOutOfDate = IniSettingsOutOfDate(Target); // needs to be executed for side effects even if non-iterative
+			if (!bIterative)
 			{
-				ITargetPlatform* Target = Platforms[Index];
-				UE_LOG(LogCook, Display, TEXT("Cooked content cleared for platform %s"), *Target->PlatformName());
-
-				FString SandboxDirectory = GetSandboxDirectory(Target->PlatformName()); // GetOutputDirectory(Target->PlatformName());
-				IFileManager::Get().DeleteDirectory(*SandboxDirectory, false, true);
-
-				ClearPlatformCookedData(FName(*Target->PlatformName()));
-
-				IniSettingsOutOfDate(Target);
-				SaveCurrentIniSettings(Target);
+				// for now we always wipe the cooked directory on full cooks
+				UE_LOG(LogCook, Display, TEXT("Clearing all cooked content for platform %s"), *Target->PlatformName());
+				bShouldClearCookedContent = true;
 			}
-
-		}
-		else
-		{
-			for (const ITargetPlatform* Target : Platforms)
+			else
 			{
-				bool bIniSettingsOutOfDate = IniSettingsOutOfDate(Target);
-				if (bIniSettingsOutOfDate)
+				if (bIsIniSettingsOutOfDate)
 				{
 					if (!IsCookFlagSet(ECookInitializationFlags::IgnoreIniSettingsOutOfDate))
 					{
 						UE_LOG(LogCook, Display, TEXT("Cook invalidated for platform %s ini settings don't match from last cook, clearing all cooked content"), *Target->PlatformName());
-
-						ClearPlatformCookedData(FName(*Target->PlatformName()));
-
-						FString SandboxDirectory = GetSandboxDirectory(Target->PlatformName());
-						IFileManager::Get().DeleteDirectory(*SandboxDirectory, false, true);
-
-						SaveCurrentIniSettings(Target);
+						bShouldClearCookedContent = true;
 					}
 					else
 					{
@@ -5448,6 +5484,15 @@ void UCookOnTheFlyServer::CleanSandbox(const bool bIterative)
 				}
 			}
 
+			if (bShouldClearCookedContent)
+			{
+				ClearPlatformCookedData(Target->PlatformName());
+				SaveCurrentIniSettings(Target);
+			}
+		}
+
+		if (bIterative)
+		{
 			// This is fast in asset registry iterate, so just reconstruct
 			PackageTracker->CookedPackages.Empty();
 			PopulateCookedPackagesFromDisk(Platforms);
@@ -6669,16 +6714,19 @@ void UCookOnTheFlyServer::ClearAllCookedData()
 	PackageTracker->CookedPackages.Empty(); // set of files which have been cooked when needing to recook a file the entry will need to be removed from here
 }
 
-void UCookOnTheFlyServer::ClearPlatformCookedData(const FName& PlatformName)
+void UCookOnTheFlyServer::ClearPlatformCookedData(const FString& PlatformNameString)
 {
 	// if we are going to clear the cooked packages it is conceivable that we will recook the packages which we just cooked 
 	// that means it's also conceivable that we will recook the same package which currently has an outstanding async write request
 	UPackage::WaitForAsyncFileWrites();
 
+	FName PlatformName(*PlatformNameString);
 	PackageTracker->CookedPackages.RemoveAllFilesForPlatform(PlatformName);
 
 	TArray<FName> PackageNames;
 	PackageTracker->UnsolicitedCookedPackages.GetPackagesForPlatformAndRemove(PlatformName, PackageNames);
+
+	DeleteSandboxDirectory(PlatformNameString);
 }
 
 void UCookOnTheFlyServer::ClearCachedCookedPlatformDataForPlatform( const FName& PlatformName )
