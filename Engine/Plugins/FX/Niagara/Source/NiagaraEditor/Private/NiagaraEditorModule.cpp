@@ -73,6 +73,7 @@
 #include "NiagaraSystemFactoryNew.h"
 #include "NiagaraSystemEditorData.h"
 #include "NiagaraEditorCommands.h"
+#include "NiagaraClipboard.h"
 
 #include "MovieScene/Parameters/MovieSceneNiagaraBoolParameterTrack.h"
 #include "MovieScene/Parameters/MovieSceneNiagaraFloatParameterTrack.h"
@@ -230,6 +231,7 @@ FNiagaraEditorModule::FNiagaraEditorModule()
 	: SequencerSettings(nullptr)
 	, TestCompileScriptCommand(nullptr)
 	, DumpCompileIdDataForAssetCommand(nullptr)
+	, Clipboard(MakeShared<FNiagaraClipboard>())
 {
 }
 
@@ -659,6 +661,10 @@ void FNiagaraEditorModule::StartupModule()
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraVariableAttributeBindingCustomization::MakeInstance)
 	);
 	
+	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraScriptVariableBinding",
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraScriptVariableBindingCustomization::MakeInstance)
+	);
+		
 	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraUserParameterBinding",
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraUserParameterBindingCustomization::MakeInstance)
 	);
@@ -1143,6 +1149,11 @@ void FNiagaraEditorModule::GetScriptAssetsMatchingHighlight(const FNiagaraScript
 			}
 		}
 	}
+}
+
+FNiagaraClipboard& FNiagaraEditorModule::GetClipboard() const
+{
+	return Clipboard.Get();
 }
 
 void FNiagaraEditorModule::RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)

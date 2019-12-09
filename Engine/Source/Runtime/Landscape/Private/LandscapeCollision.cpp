@@ -129,7 +129,7 @@ ULandscapeMeshCollisionComponent::FPhysXMeshRef::~FPhysXMeshRef()
 }
 
 // Generate a new guid to force a recache of landscape collison derived data
-#define LANDSCAPE_COLLISION_DERIVEDDATA_VER	TEXT("1ECE4BBBBC7146DA8C6ADAD75BA52C77")
+#define LANDSCAPE_COLLISION_DERIVEDDATA_VER	TEXT("6DEB0A7F1BC546FAADB3D367E9C38467")
 
 static FString GetHFDDCKeyString(const FName& Format, bool bDefMaterial, const FGuid& StateId, const TArray<UPhysicalMaterial*>& PhysicalMaterials)
 {
@@ -553,6 +553,9 @@ void ULandscapeHeightfieldCollisionComponent::ApplyWorldOffset(const FVector& In
 
 void ULandscapeHeightfieldCollisionComponent::CreateCollisionObject()
 {
+#if WITH_CHAOS
+	LLM_SCOPE(ELLMTag::ChaosGeometry);
+#endif
 	// If we have not created a heightfield yet - do it now.
 	if (!IsValidRef(HeightfieldRef))
 	{
@@ -656,6 +659,13 @@ void ULandscapeHeightfieldCollisionComponent::CreateCollisionObject()
 					HeightfieldRef->UsedPhysicalMaterialArray.Add(GPhysXSDK->createMaterial(1, 1, 1));
 
 					HeightfieldRef->UsedChaosMaterials.Add(PhysicalMaterial->GetPhysicsMaterial());
+				}
+
+				// Release cooked collison data
+				// In cooked builds created collision object will never be deleted while component is alive, so we don't need this data anymore
+				if(FPlatformProperties::RequiresCookedData() || World->IsGameWorld())
+				{
+					CookedCollisionData.Empty();
 				}
 
 #if WITH_EDITOR

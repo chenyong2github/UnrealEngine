@@ -69,6 +69,8 @@ namespace Chaos
 		FPBDJointMotionSettings();
 		FPBDJointMotionSettings(const TVector<EJointMotionType, 3>& InLinearMotionTypes, const TVector<EJointMotionType, 3>& InAngularMotionTypes);
 
+		void Sanitize();
+
 		FReal Stiffness;
 		FReal LinearProjection;
 		FReal AngularProjection;
@@ -128,7 +130,6 @@ namespace Chaos
 		FReal MaxInertiaRatio;
 
 		// @todo(ccaulfield): remove these TEMP overrides for testing
-		bool bEnableVelocitySolve;
 		bool bEnableTwistLimits;
 		bool bEnableSwingLimits;
 		bool bEnableDrives;

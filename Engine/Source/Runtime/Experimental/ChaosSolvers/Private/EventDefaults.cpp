@@ -365,18 +365,18 @@ namespace Chaos
 
 			Chaos::FPBDRigidsSolver* NonConstSolver = (Chaos::FPBDRigidsSolver*)(Solver);
 			auto& SolverSleepingData = NonConstSolver->Particles.GetDynamicParticles().GetSleepData();
-			TGeometryParticleHandle<float, 3>* ParticleHandle = nullptr;
-			while(SolverSleepingData.Dequeue(ParticleHandle))
+			TSleepData<float, 3> SleepData;
+			while(SolverSleepingData.Dequeue(SleepData))
 			{
-				if(ParticleHandle)
+				if(SleepData.Particle)
 				{
-					TGeometryParticle<float, 3>* Particle = ParticleHandle->GTGeometryParticle();
+					TGeometryParticle<float, 3>* Particle = SleepData.Particle->GTGeometryParticle();
 					if(Particle->Proxy != nullptr)
 					{
 						int32 NewIdx = EventSleepDataArray.Add(TSleepingData<float, 3>());
 						TSleepingData<float, 3>& SleepingDataArrayItem = EventSleepDataArray[NewIdx];
 						SleepingDataArrayItem.Particle = Particle;
-						SleepingDataArrayItem.Sleeping = Particle->ObjectState() == EObjectStateType::Sleeping;
+						SleepingDataArrayItem.Sleeping = SleepData.Sleeping;
 
 						IPhysicsProxyBase* PhysicsProxy = Particle->Proxy;
 						AllSleepIndicesByPhysicsProxy.FindOrAdd(PhysicsProxy).Add(NewIdx);

@@ -68,6 +68,7 @@ public:
 	FNiagaraDataSet& GetData()const { return *ParticleDataSet; }
 
 	FORCEINLINE bool IsDisabled()const { return ExecutionState == ENiagaraExecutionState::Disabled; }
+	FORCEINLINE bool IsInactive()const { return ExecutionState == ENiagaraExecutionState::Inactive; }
 	FORCEINLINE bool IsComplete()const { return ExecutionState == ENiagaraExecutionState::Complete || ExecutionState == ENiagaraExecutionState::Disabled; }
 
 	/** Create a new NiagaraRenderer. The old renderer is not immediately deleted, but instead put in the ToBeRemoved list.*/
@@ -236,9 +237,9 @@ private:
 	TArray<FNiagaraEventHandlingInfo> EventHandlingInfo;
 	int32 EventSpawnTotal;
 
-	int32 MaxAllocationCount;
-	int32 MinOverallocation;
-	int32 ReallocationCount;
+	int32 MaxAllocationCount = 0;
+	int32 MinOverallocation = -1;
+	int32 ReallocationCount = 0;
 
 	/** Optional list of bounds calculators. */
 	TArray<TUniquePtr<FNiagaraBoundsCalculator>, TInlineAllocator<1>> BoundsCalculators;

@@ -49,6 +49,7 @@ Level.cpp: Level-related functions
 #if WITH_EDITOR
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Algo/AnyOf.h"
 #endif
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
@@ -69,6 +70,75 @@ static FAutoConsoleVariableRef CVarActorClusteringEnabled(
 	TEXT("Whether to allow levels to create actor clusters for GC."),
 	ECVF_Default
 );
+
+#if WITH_EDITOR
+FLevelPartitionOperationScope::FLevelPartitionOperationScope(ULevel* InLevel)
+{
+	InterfacePtr = InLevel->GetLevelPartition();
+	Level = InLevel;
+	if (InterfacePtr)
+	{
+		InterfacePtr->BeginOperation(this);
+		Level = CreateTransientLevel(InLevel->GetWorld());
+	}
+}
+
+FLevelPartitionOperationScope::~FLevelPartitionOperationScope()
+{
+	if (InterfacePtr)
+	{
+		InterfacePtr->EndOperation();
+		DestroyTransientLevel(Level);
+	}
+	Level = nullptr;
+}
+
+TArray<AActor*> FLevelPartitionOperationScope::GetActors() const
+{
+	if (InterfacePtr)
+	{
+		return Level->Actors;
+	}
+
+	return {};
+}
+
+ULevel* FLevelPartitionOperationScope::GetLevel() const
+{
+	check(Level);
+	return Level;
+}
+
+ULevel* FLevelPartitionOperationScope::CreateTransientLevel(UWorld* InWorld)
+{
+	ULevel* Level = NewObject<ULevel>(GetTransientPackage(), TEXT("TempLevelPartitionOperationScopeLevel"));
+	check(Level);
+	Level->Initialize(FURL(nullptr));
+	Level->AddToRoot();
+	Level->OwningWorld = InWorld;
+	Level->Model = NewObject<UModel>(Level);
+	Level->Model->Initialize(nullptr, true);
+	Level->bIsVisible = true;
+
+	Level->SetFlags(RF_Transactional);
+	Level->Model->SetFlags(RF_Transactional);
+
+	return Level;
+}
+
+void FLevelPartitionOperationScope::DestroyTransientLevel(ULevel* Level)
+{
+	check(Level->GetOutermost() == GetTransientPackage());
+	// Make sure Level doesn't contain any Actors before destroying. That would mean the operation failed.
+	check(!Algo::AnyOf(Level->Actors, [](AActor* Actor) { return Actor != nullptr; }));
+	// Delete the temporary level
+	Level->ClearLevelComponents();
+	Level->GetWorld()->RemoveLevel(Level);
+	Level->OwningWorld = nullptr;
+	Level->RemoveFromRoot();
+	Level = nullptr;
+}
+#endif
 
 /*-----------------------------------------------------------------------------
 ULevel implementation.
@@ -818,6 +888,8 @@ static void SortActorsHierarchy(TArray<AActor*>& Actors, UObject* Level)
 		}
 	}
 
+	const double CalcAttachDepthTime = FPlatformTime::Seconds() - StartTime;
+
 	auto DepthSorter = [&DepthMap](AActor* A, AActor* B)
 	{
 		const int32 DepthA = A ? DepthMap.FindRef(A) : MAX_int32;
@@ -825,12 +897,14 @@ static void SortActorsHierarchy(TArray<AActor*>& Actors, UObject* Level)
 		return DepthA < DepthB;
 	};
 
+	const double StableSortStartTime = FPlatformTime::Seconds();
 	StableSortInternal(Actors.GetData(), Actors.Num(), DepthSorter);
+	const double StableSortTime = FPlatformTime::Seconds() - StableSortStartTime;
 
-	const float ElapsedTime = (float)(FPlatformTime::Seconds() - StartTime);
-	if (ElapsedTime > 1.0f)
+	const double ElapsedTime = FPlatformTime::Seconds() - StartTime;
+	if (ElapsedTime > 1.0)
 	{
-		UE_LOG(LogLevel, Warning, TEXT("SortActorsHierarchy(%s) took %f seconds"), Level ? *GetNameSafe(Level->GetOutermost()) : TEXT("??"), ElapsedTime);
+		UE_LOG(LogLevel, Warning, TEXT("SortActorsHierarchy(%s) took %f seconds (CalcAttachDepth: %f StableSort: %f)"), Level ? *GetNameSafe(Level->GetOutermost()) : TEXT("??"), ElapsedTime, CalcAttachDepthTime, StableSortTime);
 	}
 
 	// Since all the null entries got sorted to the end, lop them off right now

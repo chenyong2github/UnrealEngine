@@ -172,6 +172,7 @@ struct ENGINE_API FUpdateLevelVisibilityLevelInfo
 		: PackageName(NAME_None)
 		, FileName(NAME_None)
 		, bIsVisible(false)
+		, bSkipCloseOnError(false)
 	{
 	}
 
@@ -192,6 +193,9 @@ struct ENGINE_API FUpdateLevelVisibilityLevelInfo
 	/** The new visibility state for this level. */
 	UPROPERTY()
 	uint32 bIsVisible : 1;
+
+	/** Skip connection close if level can't be found (not net serialized) */
+	uint32 bSkipCloseOnError : 1;
 
 	bool NetSerialize(FArchive& Ar, UPackageMap* PackageMap, bool& bOutSuccess);
 };
@@ -937,7 +941,7 @@ public:
 	 * @param Shake - Camera shake animation to play
 	 * @param SourceComponent - The source from which the camera shakes originates
 	 */
-	UFUNCTION(unreliable, client, BlueprintCallable, Category="Game|Feedback")
+	UFUNCTION(BlueprintCallable, Category="Game|Feedback")
 	void ClientPlayCameraShakeFromSource(TSubclassOf<class UCameraShake> Shake, class UCameraShakeSourceComponent* SourceComponent);
 
 	/**
@@ -1078,7 +1082,7 @@ public:
 	void ClientStopCameraShake(TSubclassOf<class UCameraShake> Shake, bool bImmediately = true);
 
 	/** Stop camera shake on client.  */
-	UFUNCTION(reliable, client, BlueprintCallable, Category="Game|Feedback")
+	UFUNCTION(BlueprintCallable, Category="Game|Feedback")
 	void ClientStopCameraShakesFromSource(class UCameraShakeSourceComponent* SourceComponent, bool bImmediately = true);
 
 	/** 

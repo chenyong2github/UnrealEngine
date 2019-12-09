@@ -552,7 +552,7 @@ void FNiagaraSystemViewModel::Tick(float DeltaTime)
 	}
 }
 
-void FNiagaraSystemViewModel::OnPreSave()
+void FNiagaraSystemViewModel::NotifyPreSave()
 {
 	if (GetSystem().HasOutstandingCompilationRequests())
 	{
@@ -561,13 +561,19 @@ void FNiagaraSystemViewModel::OnPreSave()
 	}
 }
 
-void FNiagaraSystemViewModel::OnPreClose()
+void FNiagaraSystemViewModel::NotifyPreClose()
 {
 	if (GetSystem().HasOutstandingCompilationRequests())
 	{
 		UE_LOG(LogNiagaraEditor, Log, TEXT("System %s has pending compile jobs. Waiting for that code to complete before Closing.."), *GetSystem().GetName());
 		GetSystem().WaitForCompilationComplete();
 	}
+	OnPreCloseDelegate.Broadcast();
+}
+
+FNiagaraSystemViewModel::FOnPreClose& FNiagaraSystemViewModel::OnPreClose()
+{
+	return OnPreCloseDelegate;
 }
 
 TSharedPtr<FUICommandList> FNiagaraSystemViewModel::GetToolkitCommands()
@@ -857,6 +863,16 @@ void FNiagaraSystemViewModel::RefreshEmitterHandleViewModels()
 		ViewModel->GetEmitterStackViewModel()->OnStructureChanged().RemoveAll(this);
 		ViewModel->Reset();
 	}
+
+	bool bAnyEmitterIsolated = false;
+	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandle : EmitterHandleViewModels)
+	{
+		if (EmitterHandle->GetIsIsolated())
+		{
+			bAnyEmitterIsolated = true;
+		}
+	}
+	GetSystem().SetIsolateEnabled(bAnyEmitterIsolated);
 
 	if (SelectionViewModel != nullptr)
 	{

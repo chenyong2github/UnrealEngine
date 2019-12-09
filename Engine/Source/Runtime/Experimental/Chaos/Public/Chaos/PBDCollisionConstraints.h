@@ -57,10 +57,9 @@ public:
 	using FConstraintContainerHandle = TPBDCollisionConstraintHandle<T, d>;
 	using FConstraintBase = TCollisionConstraintBase<T, d>;
  	using FPointContactConstraint = TRigidBodyPointContactConstraint<T, d>;
-	using FPlaneContactConstraint = TRigidBodyPlaneContactConstraint<T, d>;
+	using FIterativeContactConstraint = TRigidBodyIterativeContactConstraint<T, d>;
 	using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDCollisionConstraints<T, d>>;
-	using FConstraintHandleID = TPair<const TGeometryParticleHandle<T, d>*, const TGeometryParticleHandle<T, d>*>;
-
+	using FConstraintContainerHandleKey = typename TPBDCollisionConstraintHandle<T, d>::FHandleKey;
 
 	TPBDCollisionConstraints(const TPBDRigidsSOAs<T,d>& InParticles, 
 		TArrayCollectionArray<bool>& Collided, 
@@ -69,14 +68,15 @@ public:
 
 	virtual ~TPBDCollisionConstraints() {}
 
-
-	void AddConstraint(FConstraintBase* InConstraint);
-
 	/**
-	 * Generate all contact constraints.
-	 */
-	void UpdatePositionBasedState(const T Dt);
-
+	*  Add the constraint to the container. 
+	*
+	*  @todo(chaos) : Update to use a custom allocator. 
+	*  The InConstraint should be a point to unmanaged, raw memory. 
+	*  This function will make a deep copy of the constraint and 
+	*  then delete the InConstraint. 
+	*/
+	void AddConstraint(FConstraintBase* InConstraint);
 
 	/**
 	*  Reset the constraint frame. 
@@ -104,27 +104,46 @@ public:
 
 
 	/**
-	 * Update all constraint values
+	 * Update all constraint values within the set
 	 */
 	void UpdateConstraints(T Dt, const TSet<TGeometryParticleHandle<T, d>*>& AddedParticles);
 
+	/**
+	 * Update all constraint values
+	 */
 
+	 /**
+	 * Update all constraint values
+	 */
+	void UpdateConstraints(T Dt);
 
 	/**
-	 * Apply corrections for the specified list of constraints. (Runs Wide!)
-	 *
-	 * @todo(ccaulfield): this runs wide. The serial/parallel decision should be in the ConstraintRule
+	* Update all contact manifolds
+	*/
+	void UpdateManifolds(T Dt);
+
+	//
+	// General Rule API
+	//
+
+	/**
+	 * Generate all contact constraints.
 	 */
+	void UpdatePositionBasedState(const T Dt);
+
+	//
+	// Simple Rule API
+	//
+
+	void Apply(const T Dt, const int32 It, const int32 NumIts);
+	bool ApplyPushOut(const T Dt, const int32 It, const int32 NumIts);
+
+	//
+	// Island Rule API
+	//
+	// @todo(ccaulfield): this runs wide. The serial/parallel decision should be in the ConstraintRule
+
 	void Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
-
-
-	/**
-	 * Apply push out for the specified list of constraints.
-	 *
-	 * /return true if we need another iteration.
-	 *
-	 * @todo(ccaulfield): this runs wide. The serial/parallel decision should be in the ConstraintRule
-	 */
 	bool ApplyPushOut(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, 
 		const TSet<const TGeometryParticleHandle<T,d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations);
 
@@ -146,6 +165,11 @@ public:
 	const TArray<FConstraintContainerHandle*>& GetAllConstraintHandles() const 
 	{ 
 		return Handles; 
+	}
+
+	bool Contains(const FConstraintBase* Base) const 
+	{
+		return Manifolds.Contains(FConstraintContainerHandle::MakeKey(Base));
 	}
 
 	void SetThickness(T InThickness)
@@ -178,11 +202,6 @@ public:
 		return Handles.Num();
 	}
 
-	FConstraintHandleID GetConstraintHandleID(const FPointContactConstraint & Constraint) const
-	{
-		return  FConstraintHandleID(Constraint.Particle[0], Constraint.Particle[1]);
-	}
-
 	FHandles& GetConstraintHandles()
 	{
 		return Handles;
@@ -202,9 +221,9 @@ private:
 	const TPBDRigidsSOAs<T,d>& Particles;
 
 	TArray<FPointContactConstraint> PointConstraints;
-	TArray<FPlaneContactConstraint> PlaneConstraints;
+	TArray<FIterativeContactConstraint> IterativeConstraints;
 
-	TMap< FConstraintHandleID, FConstraintContainerHandle* > Manifolds;
+	TMap< FConstraintContainerHandleKey, FConstraintContainerHandle* > Manifolds;
 	TArray<FConstraintContainerHandle*> Handles;
 	FConstraintHandleAllocator HandleAllocator;
 

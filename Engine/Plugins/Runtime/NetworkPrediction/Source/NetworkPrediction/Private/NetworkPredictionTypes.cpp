@@ -67,7 +67,7 @@ void FVisualLoggingHelpers::VisualLogActor(AActor* Owner, FTransform& Transform,
 		if (NetSimVLogCVars::UseVLogger)
 		{
 			static float CrumbRadius = 3.f;
-			UE_VLOG_LOCATION(Owner, LogNetworkSim, Log, Transform.GetLocation(), CrumbRadius, DrawColor, TEXT("%s"), *Params.DebugString);
+			UE_VLOG_LOCATION(Owner, LogNetworkSim, Log, Transform.GetLocation(), CrumbRadius, DrawColor, TEXT("%d"), Params.Frame);
 		}
 	}
 	else

@@ -263,6 +263,21 @@ public:
 
 	void GetUnfilteredChildren(TArray<UNiagaraStackEntry*>& OutUnfilteredChildren) const;
 
+	template<typename T>
+	void GetUnfilteredChildrenOfType(TArray<T*>& OutUnfilteredChldrenOfType) const
+	{
+		TArray<UNiagaraStackEntry*> UnfilteredChildren;
+		GetUnfilteredChildren(UnfilteredChildren);
+		for (UNiagaraStackEntry* UnfilteredChild : UnfilteredChildren)
+		{
+			T* UnfilteredChildOfType = Cast<T>(UnfilteredChild);
+			if (UnfilteredChildOfType != nullptr)
+			{
+				OutUnfilteredChldrenOfType.Add(UnfilteredChildOfType);
+			}
+		}
+	}
+
 	FOnStructureChanged& OnStructureChanged();
 
 	FOnDataObjectModified& OnDataObjectModified();
@@ -328,6 +343,24 @@ public:
 	const TArray<FStackIssue>& GetIssues() const;
 
 	const TArray<UNiagaraStackEntry*>& GetAllChildrenWithIssues() const;
+
+	virtual bool SupportsCut() const { return false; }
+
+	virtual bool TestCanCutWithMessage(FText& OutMessage) const { return false; }
+
+	virtual void Cut() { }
+
+	virtual bool SupportsCopy() const { return false; }
+
+	virtual bool TestCanCopyWithMessage(FText& OutMessage) const { return false; }
+
+	virtual void Copy() const { }
+
+	virtual bool SupportsPaste() const { return false; }
+
+	virtual bool TestCanPasteWithMessage(FText& OutMessage) const { return false; }
+
+	virtual void Paste() { }
 
 protected:
 	virtual void BeginDestroy() override;

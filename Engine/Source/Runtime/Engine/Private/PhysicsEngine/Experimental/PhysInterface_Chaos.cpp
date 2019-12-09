@@ -29,7 +29,7 @@
 #include "Chaos/GeometryQueries.h"
 #include "Chaos/Plane.h"
 #include "ChaosCheck.h"
-
+#include "Chaos/Particle/ParticleUtilities.h"
 #include "Async/ParallelFor.h"
 #include "Components/PrimitiveComponent.h"
 #include "Physics/PhysicsFiltering.h"
@@ -147,7 +147,14 @@ void FPhysInterface_Chaos::CreateActor(const FActorCreationParams& InParams, FPh
 		RigidHandle->SetGravityEnabled(InParams.bEnableGravity);
 		if (InParams.BodyInstance && InParams.BodyInstance->ShouldInstanceSimulatingPhysics())
 		{
-			RigidHandle->SetObjectState(Chaos::EObjectStateType::Dynamic);
+			if (InParams.BodyInstance->bStartAwake)
+			{
+				RigidHandle->SetObjectState(Chaos::EObjectStateType::Dynamic);
+			}
+			else
+			{
+				RigidHandle->SetObjectState(Chaos::EObjectStateType::Sleeping);
+			}
 		}
 		else
 		{
@@ -352,6 +359,14 @@ FPhysScene* FPhysInterface_Chaos::GetCurrentScene(const FPhysicsActorHandle& InH
 	return nullptr;
 }
 
+void FPhysInterface_Chaos::FlushScene(FPhysScene* InScene)
+{
+	FPhysicsCommand::ExecuteWrite(InScene, [&]()
+	{
+		InScene->Flush_AssumesLocked();
+	});
+}
+
 bool FPhysInterface_Chaos::CanSimulate_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
 	// #todo : Implement
@@ -396,12 +411,40 @@ void FPhysInterface_Chaos::SetIsKinematic_AssumesLocked(const FPhysicsActorHandl
 {
 	if (Chaos::TPBDRigidParticle<float, 3>* Particle = InActorReference->CastToRigidParticle())
 	{
-		//#todo: what if object state has been previously set to sleeping?
 		const Chaos::EObjectStateType NewState
 			= bIsKinematic
 			? Chaos::EObjectStateType::Kinematic
 			: Chaos::EObjectStateType::Dynamic;
-		Particle->SetObjectState(NewState);
+
+		bool AllowedToChangeToNewState = false;
+
+		switch (Particle->ObjectState())
+		{
+		case Chaos::EObjectStateType::Kinematic:
+			// from kinematic we can only go dynamic
+			if (NewState == Chaos::EObjectStateType::Dynamic)
+			{
+				AllowedToChangeToNewState = true;
+			}
+			break;
+
+		case Chaos::EObjectStateType::Dynamic:
+			// from dynamic we can go to sleeping or to kinematic
+			if (NewState == Chaos::EObjectStateType::Kinematic)
+			{
+				AllowedToChangeToNewState = true;
+			}
+			break;
+
+		case Chaos::EObjectStateType::Sleeping:
+			// from sleeping we can't change state without waking first
+			break;
+		}
+		
+		if (AllowedToChangeToNewState)
+		{
+			Particle->SetObjectState(NewState);
+		}
 	}
 	else
 	{
@@ -424,6 +467,9 @@ void FPhysInterface_Chaos::SetGlobalPose_AssumesLocked(const FPhysicsActorHandle
 {
 	InActorReference->SetX(InNewPose.GetLocation());
 	InActorReference->SetR(InNewPose.GetRotation());
+
+	FPhysScene* Scene = GetCurrentScene(InActorReference);
+	Scene->GetScene().UpdateActorInAccelerationStructure(InActorReference);
 }
 
 FTransform FPhysInterface_Chaos::GetTransform_AssumesLocked(const FPhysicsActorHandle& InRef, bool bForceGlobalPose /*= false*/)
@@ -552,9 +598,9 @@ FVector FPhysInterface_Chaos::GetWorldVelocityAtPoint_AssumesLocked(const FPhysi
 		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle();
 		if (ensure(Kinematic))
 		{
-			const Chaos::FVec3 COM = Kinematic->X(); // TODO: Fix once we have separate COM
+			const Chaos::FVec3 COM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(Kinematic);
 			const Chaos::FVec3 Diff = InPoint - COM;
-			return Kinematic->V() + Chaos::FVec3::CrossProduct(Diff, Kinematic->W());
+			return Kinematic->V() - Chaos::FVec3::CrossProduct(Diff, Kinematic->W());
 		}
 	}
 	return FVector(0);
@@ -562,14 +608,11 @@ FVector FPhysInterface_Chaos::GetWorldVelocityAtPoint_AssumesLocked(const FPhysi
 
 FTransform FPhysInterface_Chaos::GetComTransform_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	// NOTE: This might need to change after we add separate COM transforms.
 	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
 	{
-		if (Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle())
+		if (const Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle())
 		{
-			const FTransform WorldTransform(Kinematic->R(), Kinematic->X());
-			const FTransform COMTransform = FTransform(Kinematic->RotationOfMass(), Kinematic->CenterOfMass());
-			return WorldTransform * COMTransform;
+			return Chaos::FParticleUtilitiesGT::GetCoMWorldTransform(Kinematic);
 		}
 	}
 	return FTransform();
@@ -577,7 +620,6 @@ FTransform FPhysInterface_Chaos::GetComTransform_AssumesLocked(const FPhysicsAct
 
 FTransform FPhysInterface_Chaos::GetComTransformLocal_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	// #todo : Implement
 	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
 	{
 		if (Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle())
@@ -607,12 +649,26 @@ FBox FPhysInterface_Chaos::GetBounds_AssumesLocked(const FPhysicsActorHandle& In
 
 void FPhysInterface_Chaos::SetLinearDamping_AssumesLocked(const FPhysicsActorHandle& InActorReference, float InDamping)
 {
-
+	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
+	{
+		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
+		if (ensure(Rigid))
+		{
+			Rigid->SetLinearDamping(InDamping);
+		}
+	}
 }
 
 void FPhysInterface_Chaos::SetAngularDamping_AssumesLocked(const FPhysicsActorHandle& InActorReference, float InDamping)
 {
-
+	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
+	{
+		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
+		if (ensure(Rigid))
+		{
+			Rigid->SetAngularDamping(InDamping);
+		}
+	}
 }
 
 void FPhysInterface_Chaos::AddImpulse_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InForce)
@@ -1268,6 +1324,7 @@ const FBodyInstance* FPhysInterface_Chaos::ShapeToOriginalBodyInstance(const FBo
 
 void FPhysInterface_Chaos::AddGeometry(FPhysicsActorHandle& InActor, const FGeometryAddParams& InParams, TArray<FPhysicsShapeHandle>* OutOptShapes)
 {
+	LLM_SCOPE(ELLMTag::ChaosGeometry);
 	TArray<TUniquePtr<Chaos::FImplicitObject>> Geoms;
 	Chaos::TShapesArray<float, 3> Shapes;
 	ChaosInterface::CreateGeometry(InParams, Geoms, Shapes);
@@ -1874,7 +1931,7 @@ int32 GetAllShapesInternal_AssumedLocked(const FPhysicsActorHandle& InActorHandl
 	//todo: can we avoid this construction?
 	for (const TUniquePtr<Chaos::TPerShapeData<float, 3>>& Shape : ShapesArray)
 	{
-		OutShapes.Add(FPhysicsShapeReference_Chaos(Shape.Get(), true, true, InActorHandle));
+		OutShapes.Add(FPhysicsShapeReference_Chaos(Shape.Get(), Shape->bSimulate, true, InActorHandle));
 	}
 	return OutShapes.Num();
 }

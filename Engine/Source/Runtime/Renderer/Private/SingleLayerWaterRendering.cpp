@@ -436,7 +436,6 @@ public:
 //////////////////////////////////////////////////////////////////////////
 
 
-PRAGMA_DISABLE_OPTIMIZATION
 
 void FDeferredShadingSceneRenderer::CopySingleLayerWaterTextures(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& PassData)
 {
@@ -488,6 +487,7 @@ void FDeferredShadingSceneRenderer::CopySingleLayerWaterTextures(FRHICommandList
     
 		const FIntRect RefractionViewRect = FIntRect(FIntPoint::DivideAndRoundDown(View.ViewRect.Min, RefractionDownsampleFactor), FIntPoint::DivideAndRoundDown(View.ViewRect.Max, RefractionDownsampleFactor));
 
+		PassData.ViewData[ViewIndex].SceneWithoutSingleLayerWaterViewRect   = RefractionViewRect;
 		PassData.ViewData[ViewIndex].SceneWithoutSingleLayerWaterMinMaxUV.X = (RefractionViewRect.Min.X + 0.5f) / RefractionResolution.X; 
 		PassData.ViewData[ViewIndex].SceneWithoutSingleLayerWaterMinMaxUV.Y = (RefractionViewRect.Min.Y + 0.5f) / RefractionResolution.Y;
 		PassData.ViewData[ViewIndex].SceneWithoutSingleLayerWaterMinMaxUV.Z = (RefractionViewRect.Max.X - 0.5f) / RefractionResolution.X; 
@@ -511,7 +511,7 @@ void FDeferredShadingSceneRenderer::CopySingleLayerWaterTextures(FRHICommandList
 
 	GraphBuilder.Execute();
 }
-PRAGMA_ENABLE_OPTIMIZATION
+
 void FDeferredShadingSceneRenderer::BeginRenderingWaterGBuffer(FRHICommandList& RHICmdList, FExclusiveDepthStencil::Type DepthStencilAccess, bool bBindQuadOverdrawBuffers, EShaderPlatform InShaderPlatform)
 {
 	SCOPED_DRAW_EVENT(RHICmdList, BeginRenderingWaterGBuffer);

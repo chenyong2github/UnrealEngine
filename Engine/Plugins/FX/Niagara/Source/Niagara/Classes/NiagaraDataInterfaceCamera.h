@@ -11,6 +11,7 @@
 struct CameraDataInterface_InstanceData
 {
 	FVector CameraLocation;
+	FRotator CameraRotation;
 	float CameraFOV;
 };
 
@@ -37,12 +38,14 @@ public:
 	virtual bool GetFunctionHLSL(const FName&  DefinitionFunctionName, FString InstanceFunctionName, FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return true; }
 	virtual FNiagaraDataInterfaceParametersCS* ConstructComputeParameters() const override;
+	virtual bool HasTickGroupPrereqs() const override { return true; }
+	virtual ETickingGroup CalculateTickGroup(void* PerInstanceData) const override;
 	//UNiagaraDataInterface Interface
 
 	void QueryOcclusionFactorGPU(FVectorVMContext& Context);
 	void QueryOcclusionFactorCircleGPU(FVectorVMContext& Context);
 	void GetCameraFOV(FVectorVMContext& Context);
-	void GetCameraPosition(FVectorVMContext& Context);
+	void GetCameraProperties(FVectorVMContext& Context);
 	void GetViewPropertiesGPU(FVectorVMContext& Context);
 	void GetClipSpaceTransformsGPU(FVectorVMContext& Context);
 	void GetViewSpaceTransformsGPU(FVectorVMContext& Context);
@@ -53,7 +56,7 @@ private:
 	static const FName GetViewPropertiesName;
 	static const FName GetClipSpaceTransformsName;
 	static const FName GetViewSpaceTransformsName;
-	static const FName GetCameraPositionsName;
+	static const FName GetCameraPropertiesName;
 	static const FName GetFieldOfViewName;
 };
 

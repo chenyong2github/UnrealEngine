@@ -50,6 +50,7 @@ namespace Chaos
 
 		void DoWork()
 		{
+			LLM_SCOPE(ELLMTag::Chaos);
 			UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("AdvanceOneTimeStepTask::DoWork()"));
 
 			{
@@ -485,8 +486,9 @@ namespace Chaos
 					delete ProxyData;
 				}
 				Solver->RemoveDirtyProxy(Proxy);
+
+				Proxy->ClearAccumulatedData();
 			}
-			Proxy->ClearAccumulatedData();
 		}
 	}
 

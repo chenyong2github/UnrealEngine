@@ -32,6 +32,12 @@ namespace Chaos
 		FBroadPhase& GetBroadPhase() { return BroadPhase; }
 		FContainer& GetCollisionContainer() { return CollisionContainer; }
 
+		void DetectCollisions(const FReal Dt)
+		{
+			CollisionStats::FStatData StatData(false);
+			DetectCollisions(Dt, StatData);
+		}
+
 		void DetectCollisions(const FReal Dt, CollisionStats::FStatData& StatData)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_DetectCollisions);
@@ -41,6 +47,9 @@ namespace Chaos
 			{
 				return;
 			}
+
+			CollisionContainer.UpdateManifolds(Dt);
+			CollisionContainer.UpdateConstraints(Dt);
 
 			// Collision detection pipeline: BroadPhase -> NarrowPhase -> Receiver -> Container
 			// Receivers and NarrowPhase are assumed to be stateless atm. If we change that, they need to

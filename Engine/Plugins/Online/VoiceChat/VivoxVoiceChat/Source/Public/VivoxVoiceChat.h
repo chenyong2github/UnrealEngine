@@ -209,6 +209,7 @@ protected:
 	{
 		bool bMuted = false;
 		float Volume = 1.0f;
+		VivoxClientApi::AudioDevicePolicy DevicePolicy;
 	};
 	AudioOptions AudioInputOptions;
 	AudioOptions AudioOutputOptions;
@@ -254,7 +255,9 @@ protected:
 	void ClearChannelSessions();
 	void ClearLoginSession();
 	void ApplyAudioInputOptions();
+	void ApplyAudioInputDevicePolicy();
 	void ApplyAudioOutputOptions();
+	void ApplyAudioOutputDevicePolicy();
 
 	static FString ToString(FLoginSession::EState State);
 	static FString ToString(FChannelSession::EState State);

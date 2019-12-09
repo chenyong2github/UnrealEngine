@@ -104,6 +104,7 @@ const float ForceRetryClientRestartTime = -100.0f;
 
 FUpdateLevelVisibilityLevelInfo::FUpdateLevelVisibilityLevelInfo(const ULevel* const Level, const bool bInIsVisible)
 	: bIsVisible(bInIsVisible)
+	, bSkipCloseOnError(false)
 {
 	const UPackage* const LevelPackage = Level->GetOutermost();
 	PackageName = LevelPackage->GetFName();
@@ -4337,7 +4338,7 @@ void APlayerController::ClientStopCameraShake_Implementation( TSubclassOf<class 
 	}
 }
 
-void APlayerController::ClientPlayCameraShakeFromSource_Implementation(TSubclassOf<class UCameraShake> Shake, class UCameraShakeSourceComponent* SourceComponent)
+void APlayerController::ClientPlayCameraShakeFromSource(TSubclassOf<class UCameraShake> Shake, class UCameraShakeSourceComponent* SourceComponent)
 {
 	if (PlayerCameraManager != NULL)
 	{
@@ -4345,7 +4346,7 @@ void APlayerController::ClientPlayCameraShakeFromSource_Implementation(TSubclass
 	}
 }
 
-void APlayerController::ClientStopCameraShakesFromSource_Implementation(class UCameraShakeSourceComponent* SourceComponent, bool bImmediately)
+void APlayerController::ClientStopCameraShakesFromSource(class UCameraShakeSourceComponent* SourceComponent, bool bImmediately)
 {
 	if (PlayerCameraManager != NULL)
 	{

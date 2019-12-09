@@ -49,6 +49,7 @@
 #if WITH_CHAOS
 	#include "Experimental/ChaosDerivedData.h"
 	#include "Physics/Experimental/ChaosDerivedDataReader.h"
+	#include "Chaos/CollisionConvexMesh.h"
 #endif
 
 /** Helper for enum output... */
@@ -97,6 +98,7 @@ FCookBodySetupInfo::FCookBodySetupInfo() :
 	bConvexDeformableMesh(false),
 	bCookTriMesh(false),
 	bSupportUVFromHitResults(false),
+	bSupportFaceRemap(false),
 	bTriMeshError(false)
 {
 }
@@ -350,6 +352,14 @@ void UBodySetup::GetCookInfo(FCookBodySetupInfo& OutCookInfo, EPhysXMeshCookFlag
 			}
 
 			OutCookInfo.TriMeshCookFlags = CookFlags;
+
+			// If outer is a static mesh with physical material mask enabled, set retain UV and face remap table to true
+			/*
+			if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(CDPObj))
+			{
+				OutCookInfo.bSupportFaceRemap = StaticMesh->GetEnablePhysicalMaterialMask();
+			}
+			*/
 		}
 		else
 		{
@@ -357,7 +367,7 @@ void UBodySetup::GetCookInfo(FCookBodySetupInfo& OutCookInfo, EPhysXMeshCookFlag
 		}
 	}
 
-	OutCookInfo.bSupportUVFromHitResults = UPhysicsSettings::Get()->bSupportUVFromHitResults;
+	OutCookInfo.bSupportUVFromHitResults = UPhysicsSettings::Get()->bSupportUVFromHitResults || OutCookInfo.bSupportFaceRemap;
 
 #endif // WITH_PHYSX
 }
@@ -723,6 +733,8 @@ void UBodySetup::FinishCreatingPhysicsMeshes_Chaos(FChaosDerivedDataReader<float
 	}
 
 	ChaosTriMeshes = MoveTemp(InReader.TrimeshImplicitObjects);
+	UVInfo = MoveTemp(InReader.UVInfo);
+	FaceRemap = MoveTemp(InReader.FaceRemap);
 
 	// Clear the cooked data
 	if (!GIsEditor && !bSharedCookedData)
@@ -1079,6 +1091,39 @@ void UBodySetup::PostLoad()
 			}
 		}
 	}
+
+#if WITH_CHAOS
+	// For drawing of convex elements we require an index buffer, previously we could
+	// get this from a PxConvexMesh but Chaos doesn't maintain that data. Instead now
+	// it is a part of the element rather than the physics geometry, if we load in an
+	// element without that data present, generate a convex hull from the convex vert
+	// data and extract the index data from there.
+	for(FKConvexElem& Convex : AggGeom.ConvexElems)
+	{
+		const int32 NumVerts = Convex.VertexData.Num();
+		if(NumVerts > 0 && Convex.IndexData.Num() == 0)
+		{
+			Chaos::TParticles<Chaos::FReal, 3> ConvexParticles;
+			ConvexParticles.AddParticles(NumVerts);
+
+			for(int32 VertIndex = 0; VertIndex < NumVerts; ++VertIndex)
+			{
+				ConvexParticles.X(VertIndex) = Convex.VertexData[VertIndex];
+			}
+
+			TArray<Chaos::TVector<int32, 3>> Triangles;
+			Chaos::FConvexBuilder::BuildConvexHull(ConvexParticles, Triangles);
+
+			Convex.IndexData.Reset(Triangles.Num() * 3);
+			for(Chaos::TVector<int32, 3> Tri : Triangles)
+			{
+				Convex.IndexData.Add(Tri[0]);
+				Convex.IndexData.Add(Tri[1]);
+				Convex.IndexData.Add(Tri[2]);
+			}
+		}
+	}
+#endif
 }
 
 void UBodySetup::UpdateTriMeshVertices(const TArray<FVector> & NewPositions)
@@ -1592,10 +1637,9 @@ void FKConvexElem::CloneElem(const FKConvexElem& Other)
 {
 	Super::CloneElem(Other);
 	VertexData = Other.VertexData;
+	IndexData = Other.IndexData;
 	ElemBox = Other.ElemBox;
 	Transform = Other.Transform;
-
-	// TODO: Should this also copy the ChaosConvexMesh?
 }
 
 void FKConvexElem::ScaleElem(FVector DeltaSize, float MinSize)

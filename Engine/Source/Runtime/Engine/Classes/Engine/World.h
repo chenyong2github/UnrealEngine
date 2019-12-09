@@ -2207,6 +2207,9 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnWorldInitializedActors, const FActorsInitializedParams&);
 	FOnWorldInitializedActors OnActorsInitialized;
 
+	DECLARE_MULTICAST_DELEGATE(FOnWorldBeginPlay);
+	FOnWorldBeginPlay OnWorldBeginPlay;
+
 	/** Returns true if gameplay has already started, false otherwise. */
 	bool HasBegunPlay() const;
 

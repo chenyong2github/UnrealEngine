@@ -124,16 +124,27 @@ namespace Chaos
 		void SetParticleLevels(int32 ConstraintIndex, const TVector<int32, 2>& ParticleLevels);
 
 		//
-		// Island Rule API
+		// General Rule API
 		//
 
 		void UpdatePositionBasedState(const FReal Dt);
 
+		//
+		// Simple Rule API
+		//
+
+		void Apply(const FReal Dt, const int32 It, const int32 NumIts);
+		bool ApplyPushOut(const FReal Dt, const int32 It, const int32 NumIts);
+		void ApplyProjection(const FReal Dt);
+
+		//
+		// Island Rule API
+		//
+
 		void Apply(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
-
 		bool ApplyPushOut(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
-
 		void ApplyProjection(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles);
+
 
 	protected:
 		using Base::GetConstraintIndex;
@@ -145,12 +156,15 @@ namespace Chaos
 		void CalculateConstraintSpace(int32 ConstraintIndex, FVec3& OutX0, FMatrix33& OutR0, FVec3& OutX1, FMatrix33& OutR1, FVec3& OutAngles) const;
 		void UpdateParticleState(TPBDRigidParticleHandle<FReal, 3>* Rigid, const FReal Dt, const FVec3& P, const FRotation3& Q, const bool bUpdateVelocity = true);
 
-		void ApplyDrives(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
-		void SolveVelocity(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
+		void ApplyDrives(const FReal Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts);
 		void SolvePosition(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
 		void SolvePosition_GaussSiedel(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
 		void SolvePosition_Cholesky(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
 		void ProjectPosition(const FReal Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts);
+
+		// All-constraints API
+		void ApplyDrives(const FReal Dt, const int32 It, const int32 NumIts);
+		void SolvePosition(const FReal Dt, const int32 NumPairIts, const int32 It, const int32 NumIts);
 
 		FPBDJointSolverSettings Settings;
 
