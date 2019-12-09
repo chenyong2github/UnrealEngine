@@ -52,6 +52,9 @@ namespace Chaos
 		return Constraints.NumConstraints(); 
 	}
 
+	template class TSimpleConstraintRule<TPBDCollisionConstraints<float, 3>>;
+	template class TSimpleConstraintRule<FPBDJointConstraints>;
+
 	template class TPBDConstraintGraphRuleImpl<TPBDCollisionConstraints<float, 3>>;
 	template class TPBDConstraintGraphRuleImpl<FPBDJointConstraints>;
 	template class TPBDConstraintGraphRuleImpl<TPBDPositionConstraints<float, 3>>;

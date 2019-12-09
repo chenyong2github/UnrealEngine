@@ -35,7 +35,10 @@ namespace Chaos
 		TSerializablePtr<FImplicitObject> Geometry;
 		TAABB<FReal, 3> WorldSpaceInflatedShapeBounds;
 		TArray<FMaterialHandle> Materials;
+
+		// TODO: Bitfields?
 		bool bDisable;
+		bool bSimulate;
 
 		void UpdateShapeBounds(const TRigidTransform<T, d>& WorldTM);
 
@@ -204,7 +207,7 @@ namespace Chaos
 
 		const TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>& SharedGeometry(const int32 Index) const { return MSharedGeometry[Index]; }
 
-		const TShapesArray<T, d>& ShapesArray(const int32 Index) const { return MShapesArray[Index]; }
+		CHAOS_API const TShapesArray<T, d>& ShapesArray(const int32 Index) const { return MShapesArray[Index]; }
 
 #if CHAOS_DETERMINISTIC
 		CHAOS_API FParticleID ParticleID(const int32 Idx) const { return MParticleIDs[Idx]; }

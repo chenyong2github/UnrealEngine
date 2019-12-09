@@ -11,7 +11,11 @@ namespace Chaos
 	class TPerParticleGravity : public TPerParticleRule<T, d>
 	{
 	public:
-		TPerParticleGravity(const TVector<T, d>& Direction = TVector<T, d>(0, 0, -1), const T Magnitude = (T)980.665)
+		TPerParticleGravity()
+			: MAcceleration(TVector<T, d>(0, 0, (T)-980.665)) {}
+		TPerParticleGravity(const TVector<T, d>& G)
+			: MAcceleration(G) {}
+		TPerParticleGravity(const TVector<T, d>& Direction, const T Magnitude)
 			: MAcceleration(Direction * Magnitude) {}
 		virtual ~TPerParticleGravity() {}
 

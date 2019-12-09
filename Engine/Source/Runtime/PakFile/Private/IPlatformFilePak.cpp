@@ -4161,7 +4161,7 @@ IAsyncReadFileHandle* FPakPlatformFile::OpenAsyncRead(const TCHAR* Filename)
 		}
 	}
 #endif
-	return LowerLevel->OpenAsyncRead(Filename);
+	return IPlatformFile::OpenAsyncRead(Filename);
 }
 
 void FPakPlatformFile::SetAsyncMinimumPriority(EAsyncIOPriorityAndFlags Priority)

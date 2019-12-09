@@ -492,8 +492,8 @@ bool FNiagaraSystemInstance::DeallocateSystemInstance(TUniquePtr< FNiagaraSystem
 		// Make sure we remove the instance
 		if (SystemInstanceAllocation->SystemInstanceIndex != INDEX_NONE)
 		{
-			SystemInstanceAllocation->UnbindParameters();
 			SystemSim->RemoveInstance(SystemInstanceAllocation.Get());
+			SystemInstanceAllocation->UnbindParameters();
 		}
 
 		// Queue deferred deletion from the WorldManager
@@ -1507,7 +1507,8 @@ void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
 	OwnerInverseDeltaSecondsParam.SetValue(1.0f / GatheredInstanceParameters.DeltaSeconds);
 
 	OwnerLODDistanceParam.SetValue(GatheredInstanceParameters.LODDistance);
-	OwnerLODDistanceFractionParam.SetValue(GatheredInstanceParameters.LODDistance / GatheredInstanceParameters.MaxLODDistance);
+	float SystemDistanceFraction = FMath::Clamp(GatheredInstanceParameters.LODDistance / GatheredInstanceParameters.MaxLODDistance, 0.0f, 1.0f);
+	OwnerLODDistanceFractionParam.SetValue(SystemDistanceFraction);
 	OwnerEngineTimeParam.SetValue(GatheredInstanceParameters.TimeSeconds);
 	OwnerEngineRealtimeParam.SetValue(GatheredInstanceParameters.RealTimeSeconds);
 

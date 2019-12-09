@@ -177,7 +177,7 @@ EConvertFromTypeResult UByteProperty::ConvertFromType(const FPropertyTag& Tag, F
 	{
 		// a byte property gained or lost an enum
 		// attempt to convert it
-		uint8 PreviousValue;
+		uint8 PreviousValue = 0;
 		if (Tag.EnumName == NAME_None)
 		{
 			// If we're a nested property the EnumName tag got lost. Fail to read in this case

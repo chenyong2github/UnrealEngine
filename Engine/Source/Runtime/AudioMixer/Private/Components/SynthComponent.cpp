@@ -44,8 +44,10 @@ void USynthSound::StartOnAudioDevice(FAudioDevice* InAudioDevice)
 
 void USynthSound::OnBeginGenerate()
 {
-	check(OwningSynthComponent);
-	OwningSynthComponent->OnBeginGenerate();
+	if (ensure(OwningSynthComponent))
+	{
+		OwningSynthComponent->OnBeginGenerate();
+	}
 }
 
 int32 USynthSound::OnGeneratePCMAudio(TArray<uint8>& OutAudio, int32 NumSamples)
@@ -146,6 +148,12 @@ void USynthComponent::OnAudioComponentEnvelopeValue(const UAudioComponent* InAud
 	{
 		OnAudioEnvelopeValueNative.Broadcast(InAudioComponent, EnvelopeValue);
 	}
+}
+
+void USynthComponent::BeginDestroy()
+{
+	Super::BeginDestroy();
+	Stop();
 }
 
 void USynthComponent::Activate(bool bReset)
@@ -476,11 +484,6 @@ void USynthComponent::Start()
 		AudioComponent->SetSound(Synth);
 		AudioComponent->Play(0);
 
-		// Copy sound base data to the sound
-		Synth->SourceEffectChain = SourceEffectChain;
-		Synth->SoundSubmixObject = SoundSubmix;
-		Synth->SoundSubmixSends = SoundSubmixSends;
-
 		SetActiveFlag(AudioComponent->IsActive());
 
 		if (IsActive())
@@ -499,6 +502,12 @@ void USynthComponent::Stop()
 		if (AudioComponent)
 		{
 			AudioComponent->Stop();
+
+			FAudioDevice* AudioDevice = AudioComponent->GetAudioDevice();
+			if (AudioDevice)
+			{
+				AudioDevice->StopSoundsUsingResource(Synth);
+			}
 		}
 
 		SetActiveFlag(false);

@@ -3,6 +3,7 @@
 #include "ViewModels/Stack/NiagaraStackInputCategory.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
 #include "NiagaraNodeFunctionCall.h"
+#include "NiagaraClipboard.h"
 
 void UNiagaraStackInputCategory::Initialize(
 	FRequiredEntryData InRequiredEntryData,
@@ -88,6 +89,32 @@ bool UNiagaraStackInputCategory::GetIsEnabled() const
 void UNiagaraStackInputCategory::SetShouldShowInStack(bool bInShouldShowInStack)
 {
 	bShouldShowInStack = bInShouldShowInStack;
+}
+
+void UNiagaraStackInputCategory::ToClipboardFunctionInputs(UObject* InOuter, TArray<const UNiagaraClipboardFunctionInput*>& OutClipboardFunctionInputs) const
+{
+	TArray<UNiagaraStackFunctionInput*> ChildInputs;
+	GetUnfilteredChildrenOfType(ChildInputs);
+	for (UNiagaraStackFunctionInput* ChildInput : ChildInputs)
+	{
+		OutClipboardFunctionInputs.Add(ChildInput->ToClipboardFunctionInput(InOuter));
+	}
+}
+
+void  UNiagaraStackInputCategory::SetValuesFromClipboardFunctionInputs(const TArray<const UNiagaraClipboardFunctionInput*>& ClipboardFunctionInputs)
+{
+	TArray<UNiagaraStackFunctionInput*> ChildInputs;
+	GetUnfilteredChildrenOfType(ChildInputs);
+	for (UNiagaraStackFunctionInput* ChildInput : ChildInputs)
+	{
+		for (const UNiagaraClipboardFunctionInput* ClipboardFunctionInput : ClipboardFunctionInputs)
+		{
+			if (ChildInput->GetInputParameterHandle().GetName() == ClipboardFunctionInput->InputName && ChildInput->GetInputType() == ClipboardFunctionInput->InputType)
+			{
+				ChildInput->SetValueFromClipboardFunctionInput(*ClipboardFunctionInput);
+			}
+		}
+	}
 }
 
 bool UNiagaraStackInputCategory::FilterForVisibleCondition(const UNiagaraStackEntry& Child) const

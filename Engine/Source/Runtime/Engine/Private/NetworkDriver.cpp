@@ -454,10 +454,6 @@ void UNetDriver::SetRoleSwapOnReplicate(AActor* Actor, bool bSwapRoles)
 	{
 		InfoPtr->bSwapRolesOnReplicate = bSwapRoles;
 	}
-	else
-	{
-		UE_LOG(LogNet, Warning, TEXT("SetRoleSwapOnReplicate could not find network object info for: %s"), *GetFullNameSafe(Actor));
-	}
 
 	if (ReplicationDriver)
 	{
@@ -1711,7 +1707,9 @@ void UNetDriver::TickDispatch( float DeltaTime )
 	// Setting this to somewhat large value for now, but small enough to catch blocking calls that are causing timeouts
 	const float TickLogThreshold = 5.0f;
 
-	if ( DeltaTime > TickLogThreshold || DeltaRealtime > TickLogThreshold )
+	bDidHitchLastFrame = (DeltaTime > TickLogThreshold || DeltaRealtime > TickLogThreshold);
+
+	if (bDidHitchLastFrame)
 	{
 		UE_LOG( LogNet, Log, TEXT( "UNetDriver::TickDispatch: Very long time between ticks. DeltaTime: %2.2f, Realtime: %2.2f. %s" ), DeltaTime, DeltaRealtime, *GetName() );
 	}
@@ -5637,6 +5635,11 @@ void UNetDriver::ResetAsyncLoadDelinquencyAnalytics()
 	{
 		LocalGuidCache->ResetAsyncLoadDelinquencyAnalytics();
 	}
+}
+
+bool UNetDriver::DidHitchLastFrame() const
+{
+	return bDidHitchLastFrame;
 }
 
 ECreateReplicationChangelistMgrFlags UNetDriver::GetCreateReplicationChangelistMgrFlags() const

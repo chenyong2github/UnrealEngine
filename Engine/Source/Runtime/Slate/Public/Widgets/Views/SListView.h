@@ -12,6 +12,7 @@
 #include "Framework/SlateDelegates.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/Views/ITypedTableView.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Framework/Views/TableViewTypeTraits.h"
 #include "Widgets/Views/STableRow.h"
@@ -241,7 +242,7 @@ public:
 				ScrollBar->SetDragFocusCause(InArgs._ScrollbarDragFocusCause);
 				ScrollBar->SetUserVisibility(InArgs._ScrollbarVisibility);
 			}
-
+			this->AddMetadata(MakeShared<TTableViewMetadata<ItemType>>(this->SharedThis(this)));
 		}
 	}
 
@@ -840,6 +841,11 @@ public:
 		return false;	
 	}
 
+	virtual bool Private_IsItemSelectableOrNavigable(const ItemType& TheItem) const override
+	{
+		return OnIsSelectableOrNavigable.IsBound() ? OnIsSelectableOrNavigable.Execute(TheItem) : true;
+	}
+
 	virtual void Private_SetItemExpansion( ItemType TheItem, bool bShouldBeExpanded ) override
 	{
 		// Do nothing; you cannot expand an item in a list!
@@ -1344,7 +1350,7 @@ public:
 	 *
 	 * @return	List of selected item indices (in no particular order)
 	 */
-	TArray< ItemType > GetSelectedItems() const
+	virtual TArray< ItemType > GetSelectedItems() const override
 	{
 		TArray< ItemType > SelectedItemArray;
 		SelectedItemArray.Empty( SelectedItems.Num() );
@@ -1355,7 +1361,7 @@ public:
 		return SelectedItemArray;
 	}
 
-	int32 GetSelectedItems(TArray< ItemType >&SelectedItemArray) const
+	int32 GetSelectedItems(TArray< ItemType >& SelectedItemArray) const
 	{
 		SelectedItemArray.Empty(SelectedItems.Num());
 		for (typename TItemSet::TConstIterator SelectedItemIt(SelectedItems); SelectedItemIt; ++SelectedItemIt)
@@ -1493,7 +1499,7 @@ public:
 	 *
 	 * @return A pointer to the corresponding widget if it exists; otherwise nullptr.
 	*/
-	TSharedPtr<ITableRow> WidgetFromItem( const ItemType& InItem )
+	virtual TSharedPtr<ITableRow> WidgetFromItem( const ItemType& InItem ) const override
 	{
 		return WidgetGenerator.GetWidgetForItem(InItem);
 	}

@@ -120,12 +120,7 @@ FRemoteTalkerDataImpl::~FRemoteTalkerDataImpl()
 {
 	VoiceDecoder = nullptr;
 
-	CurrentUncompressedDataQueueSize = 0;
-
-	{
-		FScopeLock ScopeLock(&QueueLock);
-		UncompressedDataQueue.Empty();
-	}
+	Reset();
 }
 
 void FRemoteTalkerDataImpl::Reset()
@@ -139,7 +134,7 @@ void FRemoteTalkerDataImpl::Reset()
 		VoipSynthComponent->Stop();
 
 		UAudioComponent* AudioComponent = VoipSynthComponent->GetAudioComponent();
-		if (AudioComponent->IsRegistered())
+		if (AudioComponent && AudioComponent->IsRegistered())
 		{
 			AudioComponent->UnregisterComponent();
 		}
@@ -435,6 +430,7 @@ uint32 FVoiceEngineImpl::UnregisterRemoteTalker(const FUniqueNetId& UniqueId)
 		// Dump the whole talker
 		RemoteData->Cleanup();
 		RemoteTalkerBuffers.Remove(FUniqueNetIdWrapper(UniqueId.AsShared()));
+		VoiceAmplitudes.Remove(FUniqueNetIdWrapper(UniqueId.AsShared()));
 	}
 
 	return ONLINE_SUCCESS;
@@ -886,11 +882,18 @@ float FVoiceEngineImpl::GetMicrophoneAmplitude(int32 LocalUserNum)
 
 float FVoiceEngineImpl::GetIncomingAudioAmplitude(const FUniqueNetIdWrapper& RemoteUserId)
 {
-	FRemoteTalkerDataImpl* RemoteTalker = RemoteTalkerBuffers.Find(RemoteUserId);
+	FVoiceAmplitudeData* VoiceAmplitude = VoiceAmplitudes.Find(RemoteUserId);
 
-	if (RemoteTalker != nullptr)
+	if (VoiceAmplitude != nullptr)
 	{
-		return RemoteTalker->MicrophoneAmplitude;
+		// Timeout and default to 0 if we haven't received data recently
+		double CurrentTime = FPlatformTime::Seconds();
+		if (CurrentTime - VoiceAmplitude->LastSeen > UVOIPStatics::GetRemoteTalkerTimeoutDuration())
+		{
+			return 0.0f;
+		}
+
+		return VoiceAmplitude->Amplitude;
 	}
 	else
 	{
@@ -900,17 +903,12 @@ float FVoiceEngineImpl::GetIncomingAudioAmplitude(const FUniqueNetIdWrapper& Rem
 
 uint32 FVoiceEngineImpl::SetRemoteVoiceAmplitude(const FUniqueNetIdWrapper& RemoteTalkerId, float InAmplitude)
 {
-	FRemoteTalkerDataImpl* RemoteTalker = RemoteTalkerBuffers.Find(RemoteTalkerId);
+	FVoiceAmplitudeData& VoiceAmplitude = VoiceAmplitudes.FindOrAdd(RemoteTalkerId);
 
-	if (RemoteTalker != nullptr)
-	{
-		RemoteTalker->MicrophoneAmplitude = InAmplitude;
-		return 0;
-	}
-	else
-	{
-		return INDEX_NONE;
-	}
+	VoiceAmplitude.Amplitude = InAmplitude;
+	VoiceAmplitude.LastSeen = FPlatformTime::Seconds();
+
+	return 0;
 }
 
 bool FVoiceEngineImpl::PatchRemoteTalkerOutputToEndpoint(const FString& InDeviceName, bool bMuteInGameOutput /*= true*/)

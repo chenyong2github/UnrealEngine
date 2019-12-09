@@ -671,6 +671,14 @@ public:
 	T& InvM() { return PBDRigidParticles->InvM(ParticleIdx); }
 	void SetInvM(const T& InInvM) { PBDRigidParticles->InvM(ParticleIdx) = InInvM; }
 
+	T LinearDamping() const { return PBDRigidParticles->LinearDamping(ParticleIdx); }
+	T& LinearDamping() { return PBDRigidParticles->LinearDamping(ParticleIdx); }
+	void SetLinearDamping(const T& InLinearDamping) { PBDRigidParticles->LinearDamping(ParticleIdx) = InLinearDamping; }
+
+	T AngularDamping() const { return PBDRigidParticles->AngularDamping(ParticleIdx); }
+	T& AngularDamping() { return PBDRigidParticles->AngularDamping(ParticleIdx); }
+	void SetAngularDamping(const T& InAngularDamping) { PBDRigidParticles->AngularDamping(ParticleIdx) = InAngularDamping; }
+
 	int32 Island() const { return PBDRigidParticles->Island(ParticleIdx); }
 	int32& Island() { return PBDRigidParticles->Island(ParticleIdx); }
 	void SetIsland(const int32 InIsland) { PBDRigidParticles->Island(ParticleIdx) = InIsland; }
@@ -888,6 +896,8 @@ public:
 	TKinematicGeometryParticleHandle<T, d>* CastToKinematicParticle() { return Handle->CastToKinematicParticle(); }
 	const TPBDRigidParticleHandle<T, d>* CastToRigidParticle() const { return Handle->CastToRigidParticle(); }
 	TPBDRigidParticleHandle<T, d>* CastToRigidParticle() { return Handle->CastToRigidParticle(); }
+	const TGeometryParticleHandle<T, d>* GeometryParticleHandle() const { return Handle; }
+	TGeometryParticleHandle<T, d>* GeometryParticleHandle() { return Handle; }
 
 	// Static Particles
 	TVector<T, d>& X() { return Handle->X(); }
@@ -1734,6 +1744,14 @@ public:
 		Ar << MCollisionParticles;
 		Ar << MM;
 		Ar << MInvM;
+
+		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddDampingToRigids)
+		{
+			Ar << MLinearDamping;
+			Ar << MAngularDamping;
+		}
+
 		Ar << MIsland;
 		Ar << MCollisionGroup;
 		Ar << MObjectState;
@@ -1853,6 +1871,20 @@ public:
 		this->MInvM = InInvM;
 	}
 
+	T LinearDamping() const { return MLinearDamping; }
+	void SetLinearDamping(const T& InLinearDamping)
+	{
+		this->MarkDirty(EParticleFlags::LinearDamping);
+		this->MLinearDamping = InLinearDamping;
+	}
+
+	T AngularDamping() const { return MAngularDamping; }
+	void SetAngularDamping(const T& InAngularDamping)
+	{
+		this->MarkDirty(EParticleFlags::AngularDamping);
+		this->MAngularDamping = InAngularDamping;
+	}
+
 	int32 Island() const { return MIsland; }
 	// TODO(stett): Make the setter private. It is public right now to provide access to proxies.
 	void SetIsland(const int32 InIsland)
@@ -1895,6 +1927,8 @@ private:
 	TUniquePtr<TBVHParticles<T, d>> MCollisionParticles;
 	T MM;
 	T MInvM;
+	T MLinearDamping;
+	T MAngularDamping;
 	int32 MIsland;
 	int32 MCollisionGroup;
 	EObjectStateType MObjectState;
@@ -1945,6 +1979,8 @@ public:
 		, MCollisionParticles(nullptr)
 		, MM(T(0))
 		, MInvM(T(0))
+		, MLinearDamping(T(0))
+		, MAngularDamping(T(0))
 		, MIsland(INDEX_NONE)
 		, MCollisionGroup(0)
 		, MObjectState(EObjectStateType::Uninitialized)
@@ -1966,6 +2002,8 @@ public:
 		, MCollisionParticles(nullptr)
 		, MM(InParticle.M())
 		, MInvM(InParticle.InvM())
+		, MLinearDamping(InParticle.LinearDamping())
+		, MAngularDamping(InParticle.AngularDamping())
 		, MIsland(InParticle.Island())
 		, MCollisionGroup(InParticle.CollisionGroup())
 		, MObjectState(InParticle.ObjectState())
@@ -1995,6 +2033,8 @@ public:
 	const TBVHParticles<T, d> * MCollisionParticles;
 	T MM;
 	T MInvM;
+	T MLinearDamping;
+	T MAngularDamping;
 	int32 MIsland;
 	int32 MCollisionGroup;
 	EObjectStateType MObjectState;
@@ -2017,6 +2057,8 @@ public:
 		MCollisionParticles = nullptr;
 		MM = T(0);
 		MInvM = T(0);
+		MLinearDamping = T(0);
+		MAngularDamping = T(0);
 		MIsland = INDEX_NONE;
 		MCollisionGroup = 0;
 		MObjectState = EObjectStateType::Uninitialized;
@@ -2195,5 +2237,14 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TAccelerationStructureHandle<T, d>&
 	return Ar;
 }
 
+#if PLATFORM_MAC || PLATFORM_LINUX
+extern template class CHAOS_API TGeometryParticle<float, 3>;
+extern template class CHAOS_API TKinematicGeometryParticle<float, 3>;
+extern template class CHAOS_API TPBDRigidParticle<float, 3>;
+#else
+extern template class TGeometryParticle<float, 3>;
+extern template class TKinematicGeometryParticle<float, 3>;
+extern template class TPBDRigidParticle<float, 3>;
+#endif
 } // namespace Chaos
 

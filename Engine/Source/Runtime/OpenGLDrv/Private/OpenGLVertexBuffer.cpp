@@ -253,7 +253,7 @@ void FOpenGLDynamicRHI::RHICopyVertexBuffer(FRHIVertexBuffer* SourceBufferRHI, F
 
 FStagingBufferRHIRef FOpenGLDynamicRHI::RHICreateStagingBuffer()
 {
-#if OPENGL_GL3
+#if OPENGL_GL3 || USE_ANDROID_OPENGL
 	return new FOpenGLStagingBuffer();
 #else
 	UE_LOG(LogRHI, Fatal, TEXT("Staging Buffers are only available in OpenGL3 or later"));
@@ -285,14 +285,14 @@ FOpenGLStagingBuffer::~FOpenGLStagingBuffer()
 // I don't see a way to do this without stalling the RHI thread.
 void* FOpenGLStagingBuffer::Lock(uint32 Offset, uint32 NumBytes)
 {
-#if OPENGL_GL3
+#if OPENGL_GL3 || USE_ANDROID_OPENGL
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	RHITHREAD_GLCOMMAND_PROLOGUE();
 	VERIFY_GL_SCOPE();
 
 	check(ShadowBuffer != 0);
 	glBindBuffer(GL_COPY_WRITE_BUFFER, ShadowBuffer);
-	void* Mapping = glMapBuffer(GL_COPY_WRITE_BUFFER, GL_READ_ONLY);
+	void* Mapping = FOpenGL::MapBufferRange(GL_COPY_WRITE_BUFFER, 0, NumBytes, FOpenGL::EResourceLockMode::RLM_ReadOnly);
 	check(Mapping);
 	return reinterpret_cast<uint8*>(Mapping) + Offset;
 
@@ -307,10 +307,10 @@ void* FOpenGLStagingBuffer::Lock(uint32 Offset, uint32 NumBytes)
 // Since this will probably be close to a call to lock we've probably paid most of the cost already.
 void FOpenGLStagingBuffer::Unlock()
 {
-#if OPENGL_GL3
+#if OPENGL_GL3 || USE_ANDROID_OPENGL
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	RHITHREAD_GLCOMMAND_PROLOGUE();
-	glUnmapBuffer(GL_COPY_WRITE_BUFFER);
+	FOpenGL::UnmapBuffer(GL_COPY_WRITE_BUFFER);
 	glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
 	RHITHREAD_GLCOMMAND_EPILOGUE();
 #else

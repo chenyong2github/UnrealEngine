@@ -198,6 +198,10 @@ namespace IncludeTool
 			{
 				return true;
 			}
+			if(NormalizedPath.Contains("/thirdparty/rapidjson/"))
+			{
+				return true;
+			}
 			return false;
 		}
 

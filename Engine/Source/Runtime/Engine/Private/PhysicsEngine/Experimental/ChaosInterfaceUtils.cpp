@@ -136,6 +136,7 @@ namespace ChaosInterface
 
 	void CreateGeometry(const FGeometryAddParams& InParams, TArray<TUniquePtr<Chaos::FImplicitObject>>& OutGeoms, Chaos::TShapesArray<float, 3>& OutShapes)
 	{
+		LLM_SCOPE(ELLMTag::ChaosGeometry);
 		const FVector& Scale = InParams.Scale;
 		TArray<TUniquePtr<Chaos::FImplicitObject>>& Geoms = OutGeoms;
 		Chaos::TShapesArray<float, 3>& Shapes = OutShapes;
@@ -148,6 +149,7 @@ namespace ChaosInterface
 			NewShape->SimData = InParams.CollisionData.CollisionFilterData.SimFilter;
 			NewShape->UpdateShapeBounds(InParams.WorldTransform);
 			NewShape->UserData = UserData;
+			NewShape->bSimulate = bComplexShape ? InParams.CollisionData.CollisionFlags.bEnableSimCollisionComplex : InParams.CollisionData.CollisionFlags.bEnableSimCollisionSimple;
 			return NewShape;
 		};
 

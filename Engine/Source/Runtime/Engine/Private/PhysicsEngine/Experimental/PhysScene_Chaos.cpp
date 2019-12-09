@@ -364,6 +364,8 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 );
 	check(SceneSolver);
 
+	SceneSolver->SetEnabled(true);
+
 	// If we're running the physics thread, hand over the solver to it - we are no longer
 	// able to access the solver on the game thread and should only use commands
 	if(ChaosModule->GetDispatcher() && ChaosModule->GetDispatcher()->GetMode() == Chaos::EThreadingMode::DedicatedThread)
@@ -584,6 +586,38 @@ void FPhysScene_Chaos::RemoveActorFromAccelerationStructure(FPhysicsActorHandle&
 	}
 #endif
 }
+
+void FPhysScene_Chaos::UpdateActorInAccelerationStructure(const FPhysicsActorHandle& Actor)
+{
+#if WITH_CHAOS
+	using namespace Chaos;
+
+	if (GetSpacialAcceleration())
+	{
+		ExternalDataLock.WriteLock();
+
+		auto SpatialAcceleration = GetSpacialAcceleration();
+
+		if (SpatialAcceleration)
+		{
+
+			TBox<FReal, 3> WorldBounds;
+			const bool bHasBounds = Actor->Geometry()->HasBoundingBox();
+			if (bHasBounds)
+			{
+				WorldBounds = Actor->Geometry()->BoundingBox().GetAABB().TransformedAABB(TRigidTransform<FReal, 3>(Actor->X(), Actor->R()));
+			}
+
+
+			Chaos::TAccelerationStructureHandle<float, 3> AccelerationHandle(Actor);
+			SpatialAcceleration->UpdateElementIn(AccelerationHandle, WorldBounds, bHasBounds, Actor->SpatialIdx());
+		}
+
+		ExternalDataLock.WriteUnlock();
+	}
+#endif
+}
+
 
 template<typename ObjectType>
 void RemovePhysicsProxy(ObjectType* InObject, Chaos::FPhysicsSolver* InSolver, FChaosSolversModule* InModule)
@@ -1046,6 +1080,8 @@ void FPhysScene_ChaosInterface::AddForce_AssumesLocked(FBodyInstance* BodyInstan
 			EObjectStateType ObjectState = Rigid->ObjectState();
 			if (CHAOS_ENSURE(ObjectState == EObjectStateType::Dynamic || ObjectState == EObjectStateType::Sleeping))
 			{
+				Rigid->SetObjectState(EObjectStateType::Dynamic);
+
 				const Chaos::TVector<float, 3> CurrentForce = Rigid->ExternalForce();
 				if (bAccelChange)
 				{
@@ -1057,6 +1093,7 @@ void FPhysScene_ChaosInterface::AddForce_AssumesLocked(FBodyInstance* BodyInstan
 				{
 					Rigid->SetExternalForce(CurrentForce + Force);
 				}
+
 			}
 		}
 	}
@@ -1078,11 +1115,13 @@ void FPhysScene_ChaosInterface::AddForceAtPosition_AssumesLocked(FBodyInstance* 
 			{
 				const Chaos::FVec3& CurrentForce = Rigid->ExternalForce();
 				const Chaos::FVec3& CurrentTorque = Rigid->ExternalTorque();
-				const Chaos::FVec3& CurrentPosition = Rigid->X();
-				const Chaos::FVec3 WorldCOM = Rigid->X(); // TODO: Remember to fix this once we add COM to particles!
+				const Chaos::FVec3 WorldCOM = FParticleUtilitiesGT::GetCoMWorldPosition(Rigid);
+
+				Rigid->SetObjectState(EObjectStateType::Dynamic);
+
 				if (bIsLocalForce)
 				{
-					const Chaos::FRigidTransform3 CurrentTransform(Rigid->X(), Rigid->R());
+					const Chaos::FRigidTransform3 CurrentTransform = FParticleUtilitiesGT::GetActorWorldTransform(Rigid);
 					const Chaos::FVec3 WorldPosition = CurrentTransform.TransformPosition(Position);
 					const Chaos::FVec3 WorldForce = CurrentTransform.TransformVector(Force);
 					const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(WorldPosition - WorldCOM, WorldForce);
@@ -1095,6 +1134,7 @@ void FPhysScene_ChaosInterface::AddForceAtPosition_AssumesLocked(FBodyInstance* 
 					Rigid->SetExternalForce(CurrentForce + Force);
 					Rigid->SetExternalTorque(CurrentTorque + WorldTorque);
 				}
+
 			}
 		}
 	}
@@ -1241,6 +1281,14 @@ void FPhysScene_ChaosInterface::StartFrame()
 	FChaosSolversModule* SolverModule = FChaosSolversModule::GetModule();
 	checkSlow(SolverModule);
 
+	float Dt = MDeltaTime;
+#if WITH_EDITOR
+	if (GIsPlayInEditorWorld == false)
+	{
+		Dt = 0.0f;
+	}
+#endif
+
 	if (Chaos::IDispatcher* Dispatcher = SolverModule->GetDispatcher())
 	{
 		for (auto * Solver : SolverModule->GetSolvers())
@@ -1252,27 +1300,27 @@ void FPhysScene_ChaosInterface::StartFrame()
 		{
 		case EChaosThreadingMode::SingleThread:
 		{
-			OnPhysScenePreTick.Broadcast(this, MDeltaTime);
-			OnPhysSceneStep.Broadcast(this, MDeltaTime);
+			OnPhysScenePreTick.Broadcast(this, Dt);
+			OnPhysSceneStep.Broadcast(this, Dt);
 
 			// Here we can directly tick the scene. Single threaded mode doesn't buffer any commands
 			// that would require pumping here - everything is done on demand.
-			Scene.Tick(MDeltaTime);
+			Scene.Tick(Dt);
 		}
 		break;
 		case EChaosThreadingMode::TaskGraph:
 		{
 			check(!CompletionEvent.GetReference())
 
-				OnPhysScenePreTick.Broadcast(this, MDeltaTime);
-			OnPhysSceneStep.Broadcast(this, MDeltaTime);
+			OnPhysScenePreTick.Broadcast(this, Dt);
+			OnPhysSceneStep.Broadcast(this, Dt);
 
 			FGraphEventRef SimulationCompleteEvent = FGraphEvent::CreateGraphEvent();
 
 			// Need to fire off a parallel task to handle running physics commands and
 			// ticking the scene while the engine continues on until TG_EndPhysics
 			// (this should happen in TG_StartPhysics)
-			PhysicsTickTask = TGraphTask<FPhysicsTickTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(SimulationCompleteEvent, MDeltaTime);
+			PhysicsTickTask = TGraphTask<FPhysicsTickTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(SimulationCompleteEvent, Dt);
 
 			// Setup post simulate tasks
 			if (PhysicsTickTask.GetReference())

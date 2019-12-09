@@ -96,7 +96,7 @@ public:
 	FNiagaraWorldManager(UWorld* InWorld);
 	~FNiagaraWorldManager();
 
-	static NIAGARA_API FNiagaraWorldManager* Get(UWorld* World);
+	static NIAGARA_API FNiagaraWorldManager* Get(const UWorld* World);
 	static void OnStartup();
 	static void OnShutdown();
 

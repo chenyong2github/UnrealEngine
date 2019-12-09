@@ -31,11 +31,6 @@ namespace UnrealBuildTool
 		public bool bCreateStubIPA = false;
 
 		/// <summary>
-		/// Whether to build the iOS project as a framework.
-		/// </summary>
-		public bool bBuildAsFramework = false;
-
-		/// <summary>
 		/// Whether to generate a native Xcode project as a wrapper for the framework.
 		/// </summary>
 		public bool bGenerateFrameworkWrapperProject = false;
@@ -113,11 +108,6 @@ namespace UnrealBuildTool
 			get { return Inner.bStripSymbols; }
 		}
 			
-		public bool bBuildAsFramework
-		{
-			get { return Inner.bBuildAsFramework; }
-		}
-
 		public bool bGenerateFrameworkWrapperProject
 		{
 			get { return Inner.bGenerateFrameworkWrapperProject; }
@@ -772,7 +762,8 @@ namespace UnrealBuildTool
 				Target.IOSPlatform.bGeneratedSYM = true;
 			}
 
-			Target.IOSPlatform.bBuildAsFramework = Target.IOSPlatform.ProjectSettings.bBuildAsFramework;
+			// Set bShouldCompileAsDLL when building as a framework
+			Target.bShouldCompileAsDLL = Target.IOSPlatform.ProjectSettings.bBuildAsFramework;
 		}
 
 		public override void ValidateTarget(TargetRules Target)
@@ -788,12 +779,8 @@ namespace UnrealBuildTool
 				Target.GlobalDefinitions.Add("HAS_METAL=0");
 			}
 
-
-			bool bBuildAsFramework = IOSToolChain.GetBuildAsFramework(Target.ProjectFile);
-
-			if (bBuildAsFramework)
+			if (Target.bShouldCompileAsDLL)
 			{
-				Target.bShouldCompileAsDLL = true;
 				int PreviousDefinition = Target.GlobalDefinitions.FindIndex(s => s.Contains("BUILD_EMBEDDED_APP"));
 				if (PreviousDefinition >= 0)
 				{
@@ -1019,6 +1006,12 @@ namespace UnrealBuildTool
 		/// <param name="Target">The target being build</param>
 		public override void ModifyModuleRulesForOtherPlatform(string ModuleName, ModuleRules Rules, ReadOnlyTargetRules Target)
 		{
+			// don't do any target platform stuff if SDK is not available
+			if (!UEBuildPlatform.IsPlatformAvailable(Platform))
+			{
+				return;
+			}
+
 			if ((Target.Platform == UnrealTargetPlatform.Win32) || (Target.Platform == UnrealTargetPlatform.Win64) || (Target.Platform == UnrealTargetPlatform.Mac))
 			{
 				bool bBuildShaderFormats = Target.bForceBuildShaderFormats;
@@ -1272,7 +1265,6 @@ namespace UnrealBuildTool
 			SDK.ManageAndValidateSDK();
 
 			// Register this build platform for IOS
-			Log.TraceVerbose("        Registering for {0}", UnrealTargetPlatform.IOS.ToString());
 			UEBuildPlatform.RegisterBuildPlatform(new IOSPlatform(SDK));
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.IOS, UnrealPlatformGroup.Apple);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.IOS, UnrealPlatformGroup.IOS);

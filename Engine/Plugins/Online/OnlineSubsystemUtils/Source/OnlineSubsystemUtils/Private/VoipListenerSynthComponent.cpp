@@ -69,6 +69,7 @@ int32 UVoipListenerSynthComponent::OnGenerateAudio(float* OutAudio, int32 NumSam
 	}
 	else if (PacketBuffer.IsValid())
 	{
+		FScopeLock ScopeLock(&PacketBufferCriticalSection);
 		// Handle resync, if neccessary.
 		if (ShouldResyncCVar)
 		{
@@ -115,6 +116,7 @@ void UVoipListenerSynthComponent::OpenPacketStream(uint64 BeginningSampleCount, 
 
 void UVoipListenerSynthComponent::ClosePacketStream()
 {
+	FScopeLock ScopeLock(&PacketBufferCriticalSection);
 	PacketBuffer.Reset();
 }
 
@@ -176,6 +178,13 @@ uint64 UVoipListenerSynthComponent::GetSampleCounter()
 	}
 }
 
+
+void UVoipListenerSynthComponent::BeginDestroy()
+{
+	Super::BeginDestroy();
+	
+	ClosePacketStream();
+}
 
 void UVoipListenerSynthComponent::ForceResync()
 {
