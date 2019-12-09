@@ -1044,8 +1044,6 @@ void SNiagaraStack::StackStructureChanged()
 	SynchronizeTreeExpansion();
 	StackTree->RequestTreeRefresh();
 	HeaderList->RequestListRefresh();
-	// Keep the stack search focused by default
-	FSlateApplication::Get().SetKeyboardFocus(SearchBox, EFocusCause::OtherWidgetLostFocus);
 }
 
 EVisibility SNiagaraStack::GetIssueIconVisibility() const
