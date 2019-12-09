@@ -5,6 +5,7 @@
 #include "NiagaraOverviewNode.generated.h"
 
 class UNiagaraSystem;
+class FNiagaraEmitterHandleViewModel;
 
 UCLASS()
 class NIAGARAEDITOR_API UNiagaraOverviewNode : public UEdGraphNode
@@ -43,4 +44,6 @@ private:
 	static bool bColorsAreInitialized;
 	static FLinearColor SystemColor;
 	static FLinearColor EmitterColor;
+	static FLinearColor IsolatedColor;
+	static FLinearColor NotIsolatedColor;
 };

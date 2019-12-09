@@ -220,6 +220,25 @@ bool FNiagaraEmitterHandleViewModel::GetIsIsolated() const
 	return EmitterHandle != nullptr && EmitterHandle->IsIsolated();
 }
 
+void FNiagaraEmitterHandleViewModel::SetIsIsolated(bool bInIsIsolated)
+{
+	bool bWasIsolated = GetIsIsolated();
+
+	if (bWasIsolated == false && bInIsIsolated == true)
+	{
+		GetOwningSystemViewModel()->IsolateEmitters(TArray<FGuid> { EmitterHandle->GetId() });
+	}
+	else if (bWasIsolated == true && bInIsIsolated == false)
+	{
+		GetOwningSystemViewModel()->IsolateEmitters(TArray<FGuid> {});
+	}
+}
+
+ENiagaraSystemViewModelEditMode FNiagaraEmitterHandleViewModel::GetOwningSystemEditMode() const
+{
+	return GetOwningSystemViewModel()->GetEditMode();
+}
+
 ECheckBoxState FNiagaraEmitterHandleViewModel::GetIsEnabledCheckState() const
 {
 	if (EmitterHandle)
