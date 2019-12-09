@@ -116,7 +116,7 @@ UEnvQueryManager::UEnvQueryManager(const FObjectInitializer& ObjectInitializer) 
 
 	QueryCountWarningThreshold = 0;
 	QueryCountWarningInterval = 30.0;
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if !(UE_BUILD_SHIPPING)
 	LastQueryCountWarningThresholdTime = -FLT_MAX;
 #endif
 
@@ -341,7 +341,7 @@ void UEnvQueryManager::Tick(float DeltaTime)
 
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(EnvQueryManager);
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if !(UE_BUILD_SHIPPING)
 	CheckQueryCount();
 #endif
 
@@ -503,7 +503,7 @@ void UEnvQueryManager::Tick(float DeltaTime)
 	}
 }
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if !(UE_BUILD_SHIPPING)
 void UEnvQueryManager::CheckQueryCount() const
 {
 	if ((QueryCountWarningThreshold > 0) && (RunningQueries.Num() >= QueryCountWarningThreshold))
