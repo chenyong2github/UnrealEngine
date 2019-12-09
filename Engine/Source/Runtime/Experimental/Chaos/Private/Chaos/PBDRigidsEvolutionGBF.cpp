@@ -141,7 +141,7 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFr
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_Integrate);
-		Integrate(Particles.GetNonDisabledDynamicView(), Dt);	//Question: should we use an awake view?
+		Integrate(Particles.GetActiveParticlesView(), Dt);
 	}
 
 	{
@@ -336,3 +336,4 @@ void TPBDRigidsEvolutionGBF<T,d>::Serialize(FChaosArchive& Ar)
 }
 
 template class Chaos::TPBDRigidsEvolutionGBF<float, 3>;
+
