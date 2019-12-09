@@ -2,13 +2,54 @@
 #include "Chaos/PBDJointConstraintUtilities.h"
 #include "Chaos/DenseMatrix.h"
 #include "Chaos/ParticleHandle.h"
-#include "Chaos/PBDJointConstraintSolver.h"
 #include "Chaos/Utilities.h"
 
 //#pragma optimize("", off)
 
 namespace Chaos
 {
+
+	void FPBDJointUtilities::DecomposeSwingTwistLocal(const FRotation3& R0, const FRotation3& R1, FRotation3& R01Swing, FRotation3& R01Twist)
+	{
+		const FRotation3 R01 = R0.Inverse() * R1;
+		R01.ToSwingTwistX(R01Swing, R01Twist);
+	}
+
+	FReal FPBDJointUtilities::GetLinearStiffness(
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings)
+	{
+		const FReal SolverStiffness = (SolverSettings.Stiffness > (FReal)0) ? SolverSettings.Stiffness : JointSettings.Motion.Stiffness;
+		const FReal SoftSolverStiffness = (SolverSettings.SoftLinearStiffness > (FReal)0) ? SolverSettings.SoftLinearStiffness : JointSettings.Motion.SoftLinearStiffness;
+		const bool bIsSoft = JointSettings.Motion.bSoftLinearLimitsEnabled && ((JointSettings.Motion.LinearMotionTypes[0] == EJointMotionType::Limited) || (JointSettings.Motion.LinearMotionTypes[1] == EJointMotionType::Limited) || (JointSettings.Motion.LinearMotionTypes[2] == EJointMotionType::Limited));
+		const FReal Stiffness = bIsSoft ? SolverStiffness * SoftSolverStiffness : SolverStiffness;
+		return Stiffness;
+	}
+
+
+	FReal FPBDJointUtilities::GetTwistStiffness(
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings)
+	{
+		const FReal SolverStiffness = (SolverSettings.Stiffness > (FReal)0) ? SolverSettings.Stiffness : JointSettings.Motion.Stiffness;
+		const FReal SoftSolverStiffness = (SolverSettings.SoftAngularStiffness > (FReal)0) ? SolverSettings.SoftAngularStiffness : JointSettings.Motion.SoftTwistStiffness;
+		const bool bIsSoft = JointSettings.Motion.bSoftTwistLimitsEnabled && (JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Limited);
+		const FReal Stiffness = bIsSoft ? SolverStiffness * SoftSolverStiffness : SolverStiffness;
+		return Stiffness;
+	}
+
+
+	FReal FPBDJointUtilities::GetSwingStiffness(
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings)
+	{
+		const FReal SolverStiffness = (SolverSettings.Stiffness > (FReal)0) ? SolverSettings.Stiffness : JointSettings.Motion.Stiffness;
+		const FReal SoftSolverStiffness = (SolverSettings.SoftAngularStiffness > (FReal)0) ? SolverSettings.SoftAngularStiffness : JointSettings.Motion.SoftSwingStiffness;
+		const bool bIsSoft = JointSettings.Motion.bSoftSwingLimitsEnabled && ((JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1] == EJointMotionType::Limited) || (JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2] == EJointMotionType::Limited));
+		const FReal Stiffness = bIsSoft ? SolverStiffness * SoftSolverStiffness : SolverStiffness;
+		return Stiffness;
+	}
+
 
 	FVec3 FPBDJointUtilities::ConditionInertia(const FVec3& InI, const FReal MaxRatio)
 	{
@@ -122,7 +163,7 @@ namespace Chaos
 
 
 	
-	FVec3 GetSphereLimitedPositionError(const FVec3& CX, const FReal Radius)
+	FVec3 FPBDJointUtilities::GetSphereLimitedPositionError(const FVec3& CX, const FReal Radius)
 	{
 		FReal CXLen = CX.Size();
 		if (CXLen < Radius)
@@ -138,7 +179,7 @@ namespace Chaos
 	}
 
 	
-	FVec3 GetSphereLimitedVelocityError(const FVec3& CX, const FReal Radius, const FVec3& CV)
+	FVec3 FPBDJointUtilities::GetSphereLimitedVelocityError(const FVec3& CX, const FReal Radius, const FVec3& CV)
 	{
 		FReal CXLen = CX.Size();
 		if (CXLen < Radius)
@@ -155,7 +196,7 @@ namespace Chaos
 	}
 
 	
-	FVec3 GetCylinderLimitedPositionError(const FVec3& InCX, const FVec3& Axis, const FReal Limit, const EJointMotionType AxisMotion)
+	FVec3 FPBDJointUtilities::GetCylinderLimitedPositionError(const FVec3& InCX, const FVec3& Axis, const FReal Limit, const EJointMotionType AxisMotion)
 	{
 		FVec3 CXAxis = FVec3::DotProduct(InCX, Axis) * Axis;
 		FVec3 CXPlane = InCX - CXAxis;
@@ -177,7 +218,7 @@ namespace Chaos
 	}
 
 	
-	FVec3 GetCylinderLimitedVelocityError(const FVec3& InCX, const FVec3& Axis, const FReal Limit, const EJointMotionType AxisMotion, const FVec3& CV)
+	FVec3 FPBDJointUtilities::GetCylinderLimitedVelocityError(const FVec3& InCX, const FVec3& Axis, const FReal Limit, const EJointMotionType AxisMotion, const FVec3& CV)
 	{
 		FVec3 CXAxis = FVec3::DotProduct(InCX, Axis) * Axis;
 		FVec3 CXPlane = InCX - CXAxis;
@@ -204,7 +245,7 @@ namespace Chaos
 	}
 
 	
-	FVec3 GetLineLimitedPositionError(const FVec3& CX, const FVec3& Axis, const FReal Limit, const EJointMotionType AxisMotion)
+	FVec3 FPBDJointUtilities::GetLineLimitedPositionError(const FVec3& CX, const FVec3& Axis, const FReal Limit, const EJointMotionType AxisMotion)
 	{
 		FReal CXDist = FVec3::DotProduct(CX, Axis);
 		if ((AxisMotion == EJointMotionType::Free) || (FMath::Abs(CXDist) < Limit))
@@ -222,7 +263,7 @@ namespace Chaos
 	}
 
 	
-	FVec3 GetLineLimitedVelocityError(const FVec3& CX, const FVec3& Axis, const FReal Limit, const EJointMotionType AxisMotion, const FVec3& CV)
+	FVec3 FPBDJointUtilities::GetLineLimitedVelocityError(const FVec3& CX, const FVec3& Axis, const FReal Limit, const EJointMotionType AxisMotion, const FVec3& CV)
 	{
 		FReal CXDist = FVec3::DotProduct(CX, Axis);
 		FReal CVAxis = FVec3::DotProduct(CV, Axis);
@@ -242,7 +283,7 @@ namespace Chaos
 
 
 	
-	FVec3 GetLimitedPositionError(const FPBDJointSettings& JointSettings, const FRotation3& R0, const FVec3& InCX)
+	FVec3 FPBDJointUtilities::GetLimitedPositionError(const FPBDJointSettings& JointSettings, const FRotation3& R0, const FVec3& InCX)
 	{
 		const TVector<EJointMotionType, 3>& Motion = JointSettings.Motion.LinearMotionTypes;
 		if ((Motion[0] == EJointMotionType::Locked) && (Motion[1] == EJointMotionType::Locked) && (Motion[2] == EJointMotionType::Locked))
@@ -296,7 +337,7 @@ namespace Chaos
 	}
 
 	
-	FVec3 GetLimitedVelocityError(const FPBDJointSettings& JointSettings, const FRotation3& R0, const FVec3& InCX, const FVec3& InCV)
+	FVec3 FPBDJointUtilities::GetLimitedVelocityError(const FPBDJointSettings& JointSettings, const FRotation3& R0, const FVec3& InCX, const FVec3& InCV)
 	{
 		const TVector<EJointMotionType, 3>& Motion = JointSettings.Motion.LinearMotionTypes;
 		if ((Motion[0] == EJointMotionType::Locked) && (Motion[1] == EJointMotionType::Locked) && (Motion[2] == EJointMotionType::Locked))
