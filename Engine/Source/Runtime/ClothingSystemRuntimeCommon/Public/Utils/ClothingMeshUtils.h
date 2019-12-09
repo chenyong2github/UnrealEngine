@@ -29,15 +29,19 @@ namespace ClothingMeshUtils
 	};
 
 	// Static method for calculating a skinned mesh result from source data
+	// The bInPlaceOutput allows us to directly populate arrays that are already allocated
+	// bRemoveScaleAndInvertPostTransform will determine if the PostTransform should be inverted and the scale removed (NvCloth uses this). It is templated to remove branches at compile time
+	template<bool bInPlaceOutput = false, bool bRemoveScaleAndInvertPostTransform = true>
 	void CLOTHINGSYSTEMRUNTIMECOMMON_API
 	SkinPhysicsMesh(
 		const TArray<int32>& BoneMap, // UClothingAssetCommon::UsedBoneIndices
 		const UClothPhysicalMeshDataBase& InMesh, 
-		const FTransform& RootBoneTransform, 
+		const FTransform& PostTransform, // Final transform to apply to component space positions and normals
 		const FMatrix* InBoneMatrices, 
 		const int32 InNumBoneMatrices, 
 		TArray<FVector>& OutPositions, 
-		TArray<FVector>& OutNormals);
+		TArray<FVector>& OutNormals,
+		uint32 ArrayOffset = 0); // Used for Chaos Cloth
 
 	/**
 	* Given mesh information for two meshes, generate a list of skinning data to embed mesh0 in mesh1
