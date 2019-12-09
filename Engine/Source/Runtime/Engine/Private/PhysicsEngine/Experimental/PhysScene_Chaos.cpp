@@ -364,6 +364,8 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 );
 	check(SceneSolver);
 
+	SceneSolver->SetEnabled(true);
+
 	// If we're running the physics thread, hand over the solver to it - we are no longer
 	// able to access the solver on the game thread and should only use commands
 	if(ChaosModule->GetDispatcher() && ChaosModule->GetDispatcher()->GetMode() == Chaos::EThreadingMode::DedicatedThread)
@@ -1273,6 +1275,14 @@ void FPhysScene_ChaosInterface::StartFrame()
 	FChaosSolversModule* SolverModule = FChaosSolversModule::GetModule();
 	checkSlow(SolverModule);
 
+	float Dt = MDeltaTime;
+#if WITH_EDITOR
+	if (GIsPlayInEditorWorld == false)
+	{
+		Dt = 0.0f;
+	}
+#endif
+
 	if (Chaos::IDispatcher* Dispatcher = SolverModule->GetDispatcher())
 	{
 		for (auto * Solver : SolverModule->GetSolvers())
@@ -1284,27 +1294,27 @@ void FPhysScene_ChaosInterface::StartFrame()
 		{
 		case EChaosThreadingMode::SingleThread:
 		{
-			OnPhysScenePreTick.Broadcast(this, MDeltaTime);
-			OnPhysSceneStep.Broadcast(this, MDeltaTime);
+			OnPhysScenePreTick.Broadcast(this, Dt);
+			OnPhysSceneStep.Broadcast(this, Dt);
 
 			// Here we can directly tick the scene. Single threaded mode doesn't buffer any commands
 			// that would require pumping here - everything is done on demand.
-			Scene.Tick(MDeltaTime);
+			Scene.Tick(Dt);
 		}
 		break;
 		case EChaosThreadingMode::TaskGraph:
 		{
 			check(!CompletionEvent.GetReference())
 
-				OnPhysScenePreTick.Broadcast(this, MDeltaTime);
-			OnPhysSceneStep.Broadcast(this, MDeltaTime);
+			OnPhysScenePreTick.Broadcast(this, Dt);
+			OnPhysSceneStep.Broadcast(this, Dt);
 
 			FGraphEventRef SimulationCompleteEvent = FGraphEvent::CreateGraphEvent();
 
 			// Need to fire off a parallel task to handle running physics commands and
 			// ticking the scene while the engine continues on until TG_EndPhysics
 			// (this should happen in TG_StartPhysics)
-			PhysicsTickTask = TGraphTask<FPhysicsTickTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(SimulationCompleteEvent, MDeltaTime);
+			PhysicsTickTask = TGraphTask<FPhysicsTickTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(SimulationCompleteEvent, Dt);
 
 			// Setup post simulate tasks
 			if (PhysicsTickTask.GetReference())
