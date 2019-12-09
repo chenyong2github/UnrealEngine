@@ -331,6 +331,7 @@ namespace Chaos
 
 		CHAOS_API virtual void Serialize(FChaosArchive& Ar)
 		{
+			LLM_SCOPE(ELLMTag::ChaosParticles);
 			TParticles<T, d>::Serialize(Ar);
 			Ar << MGeometry << MDynamicGeometry << MR;
 			Ar.UsingCustomVersion(FPhysicsObjectVersion::GUID);

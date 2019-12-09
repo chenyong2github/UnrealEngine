@@ -65,12 +65,14 @@ namespace Chaos
 
 		void AddParticles(const int32 Num)
 		{
+			LLM_SCOPE(ELLMTag::ChaosParticles);
 			AddElementsHelper(Num);
 			IncrementDirtyValidation();
 		}
 
 		void DestroyParticle(const int32 Idx)
 		{
+			LLM_SCOPE(ELLMTag::ChaosParticles);
 			if (MRemoveParticleBehavior == ERemoveParticleBehavior::RemoveAtSwap)
 			{
 				RemoveAtSwapHelper(Idx);
@@ -117,6 +119,7 @@ namespace Chaos
 		
 		void Serialize(FArchive& Ar)
 		{
+			LLM_SCOPE(ELLMTag::ChaosParticles);
 			bool bSerialize = true;	//leftover from when we had view support
 			Ar << bSerialize;
 			if (ensureMsgf(bSerialize, TEXT("Cannot serialize shared views. Refactor needed to reduce memory")))
