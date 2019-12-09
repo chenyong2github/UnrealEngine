@@ -32,6 +32,14 @@
 #include "Streaming/Texture2DStreamIn_IO_AsyncCreate.h"
 #include "Streaming/Texture2DStreamIn_IO_AsyncReallocate.h"
 #include "Streaming/Texture2DStreamIn_IO_Virtual.h"
+// Generic path
+#include "Streaming/TextureStreamIn.h"
+#include "Streaming/Texture2DMipAllocator_AsyncCreate.h"
+#include "Streaming/Texture2DMipAllocator_AsyncReallocate.h"
+#include "Streaming/Texture2DMipDataProvider_DDC.h"
+#include "Streaming/Texture2DMipDataProvider_IO.h"
+#include "Engine/TextureMipDataProviderFactory.h"
+
 #include "Async/AsyncFileHandle.h"
 #include "EngineModule.h"
 #include "Engine/Texture2DArray.h"
@@ -89,6 +97,19 @@ static TAutoConsoleVariable<int32> CVarMobileMaxLoadedMips(
 	MAX_TEXTURE_MIP_COUNT,
 	TEXT("Maximum number of loaded mips for nonstreaming mobile platforms.\n"),
 	ECVF_RenderThreadSafe);
+
+
+int32 GUseGenericStreamingPath = 0;
+static FAutoConsoleVariableRef CVarUseGenericStreamingPath(
+	TEXT("r.Streaming.UseGenericStreamingPath"),
+	GUseGenericStreamingPath,
+	TEXT("Control when to use the mip data provider implementation: (default=0)\n")
+	TEXT("0 to use it when there is a custom asset override.\n")
+	TEXT("1 to always use it.\n")
+	TEXT("2 to never use it."),
+	ECVF_Default
+);
+
 
 static int32 MobileReduceLoadedMips(int32 NumTotalMips)
 {
@@ -2193,36 +2214,84 @@ bool UTexture2D::StreamIn(int32 NewMipCount, bool bHighPrio)
 	FTexture2DResource* Texture2DResource = (FTexture2DResource*)Resource;
 	if (bIsStreamable && !PendingUpdate && Texture2DResource && Texture2DResource->bReadyForStreaming && NewMipCount > GetNumResidentMips())
 	{
-#if WITH_EDITORONLY_DATA
-		if (FPlatformProperties::HasEditorOnlyData() && !GetOutermost()->bIsCookedForEditor)
+		FTextureMipDataProvider* CustomMipDataProvider = nullptr;
+		if (GUseGenericStreamingPath != 2)
 		{
-			if (GRHISupportsAsyncTextureCreation)
+			for (UAssetUserData* UserData : AssetUserData)
 			{
-				PendingUpdate = new FTexture2DStreamIn_DDC_AsyncCreate(this, NewMipCount);
-			}
-			else
-			{
-				PendingUpdate = new FTexture2DStreamIn_DDC_AsyncReallocate(this, NewMipCount);
+				UTextureMipDataProviderFactory* CustomMipDataProviderFactory = Cast<UTextureMipDataProviderFactory>(UserData);
+				if (CustomMipDataProviderFactory)
+				{
+					CustomMipDataProvider = CustomMipDataProviderFactory->AllocateMipDataProvider(this, NewMipCount);
+					if (CustomMipDataProvider)
+					{
+						break;
+					}
+				}
 			}
 		}
-		else
-#endif
+
+		if (!CustomMipDataProvider && GUseGenericStreamingPath != 1)
 		{
-			// If the future texture is to be a virtual texture, use the virtual stream in path.
-			if (Texture2DResource->bUseVirtualUpdatePath)
+	#if WITH_EDITORONLY_DATA
+			if (FPlatformProperties::HasEditorOnlyData() && !GetOutermost()->bIsCookedForEditor)
 			{
-				PendingUpdate = new FTexture2DStreamIn_IO_Virtual(this, NewMipCount, bHighPrio);
+				if (GRHISupportsAsyncTextureCreation)
+				{
+					PendingUpdate = new FTexture2DStreamIn_DDC_AsyncCreate(this, NewMipCount);
+				}
+				else
+				{
+					PendingUpdate = new FTexture2DStreamIn_DDC_AsyncReallocate(this, NewMipCount);
+				}
 			}
-			// If the platform supports creating the new texture on an async thread, use that path.
-			else if (GRHISupportsAsyncTextureCreation)
+			else
+	#endif
 			{
-				PendingUpdate = new FTexture2DStreamIn_IO_AsyncCreate(this, NewMipCount,bHighPrio);
+				// If the future texture is to be a virtual texture, use the virtual stream in path.
+				if (Texture2DResource->bUseVirtualUpdatePath)
+				{
+					PendingUpdate = new FTexture2DStreamIn_IO_Virtual(this, NewMipCount, bHighPrio);
+				}
+				// If the platform supports creating the new texture on an async thread, use that path.
+				else if (GRHISupportsAsyncTextureCreation)
+				{
+					PendingUpdate = new FTexture2DStreamIn_IO_AsyncCreate(this, NewMipCount,bHighPrio);
+				}
+				// Otherwise use the default path.
+				else
+				{
+					PendingUpdate = new FTexture2DStreamIn_IO_AsyncReallocate(this, NewMipCount, bHighPrio);
+				}
 			}
-			// Otherwise use the default path.
+		}
+		else // Generic path
+		{
+			FTextureMipAllocator* MipAllocator = nullptr;
+			FTextureMipDataProvider* DefaultMipDataProvider = nullptr;
+
+	#if WITH_EDITORONLY_DATA
+			if (FPlatformProperties::HasEditorOnlyData() && !GetOutermost()->bIsCookedForEditor)
+			{
+				DefaultMipDataProvider = new FTexture2DMipDataProvider_DDC();
+			}
+			else 
+#endif
+			{
+				DefaultMipDataProvider = new FTexture2DMipDataProvider_IO(bHighPrio);
+			}
+
+			// FTexture2DMipAllocator_Virtual?
+			if (GRHISupportsAsyncTextureCreation)
+			{
+				MipAllocator = new FTexture2DMipAllocator_AsyncCreate();
+			}
 			else
 			{
-				PendingUpdate = new FTexture2DStreamIn_IO_AsyncReallocate(this, NewMipCount, bHighPrio);
+				MipAllocator = new FTexture2DMipAllocator_AsyncReallocate();
 			}
+
+			PendingUpdate = new FTextureStreamIn(this, NewMipCount, MipAllocator, CustomMipDataProvider, DefaultMipDataProvider);
 		}
 		return !PendingUpdate->IsCancelled();
 	}
