@@ -3865,7 +3865,7 @@ void FGeometryCollectionPhysicsProxy::PushToPhysicsState(const Chaos::FParticleD
 			{
 				Handle->SetHasBounds(true);
 				Handle->SetLocalBounds(Handle->Geometry()->BoundingBox());
-				Handle->SetWorldSpaceInflatedBounds(Handle->Geometry()->BoundingBox().TransformedBox(Chaos::TRigidTransform<float, 3>(ParticleTransform)));
+				Handle->SetWorldSpaceInflatedBounds(Handle->Geometry()->BoundingBox().TransformedAABB(Chaos::TRigidTransform<float, 3>(ParticleTransform)));
 			}
 		}
 	}
