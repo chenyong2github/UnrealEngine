@@ -5,6 +5,7 @@
 
 #include "Async/Async.h"
 #include "Containers/UnrealString.h"
+#include "CookOnTheSide/CookOnTheFlyServer.h" // needed for DECLARE_LOG_CATEGORY_EXTERN(LogCook,...)
 #include "HAL/Event.h"
 #include "HAL/FileManager.h"
 #include "Math/NumericLimits.h"
@@ -15,8 +16,6 @@
 #if WITH_ASYNCIODELETE_DEBUG
 TArray<FString> FAsyncIODelete::AllTempRoots;
 #endif
-
-DECLARE_LOG_CATEGORY_EXTERN(LogCook, Log, All);
 
 FAsyncIODelete::FAsyncIODelete(const FStringView& InOwnedTempRoot)
 {
