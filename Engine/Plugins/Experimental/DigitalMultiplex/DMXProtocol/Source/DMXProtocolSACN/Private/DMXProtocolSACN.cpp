@@ -33,6 +33,7 @@ bool FDMXProtocolSACN::Init()
 	if (SenderSocket == nullptr)
 	{
 		UE_LOG_DMXPROTOCOL(Error, TEXT("ERROR create SenderSocket"));
+		return false;
 	}
 
 	SACNSender = MakeShared<FDMXProtocolSenderSACN>(*SenderSocket, this);

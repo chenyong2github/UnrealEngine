@@ -69,7 +69,7 @@ struct FDMXProtocolLauncher
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(DMXPrtotocolSACNBasicFlowTest, "VirtualProduction.DMX.SACN.BasicFlow", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
 
-static void SensDMXFragment(DMXPrtotocolSACNBasicFlowTest& Test, FDMXProtocolSACN* DMXProtocol, TSharedPtr<FDMXProtocolDeviceSACN> InProtocolDevice, uint8 InPortID)
+static void SensDMXFragment(FAutomationTestBase& Test, FDMXProtocolSACN* DMXProtocol, TSharedPtr<FDMXProtocolDeviceSACN> InProtocolDevice, uint8 InPortID)
 {
 	IDMXProtocolPort* SACNPort = DMXProtocol->GetPortManager()->GetPortByDeviceAndID(InProtocolDevice, InPortID, EDMXPortDirection::DMX_PORT_OUTPUT);
 	Test.TestNotNull(TEXT("SACNPort is valid"), SACNPort);

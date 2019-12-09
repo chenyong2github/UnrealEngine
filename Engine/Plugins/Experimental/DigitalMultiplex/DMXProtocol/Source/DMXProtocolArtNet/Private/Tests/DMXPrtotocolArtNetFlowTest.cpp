@@ -67,7 +67,7 @@ struct FDMXProtocolLauncher
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDMXPrtotocolArtNetBasicFlowTest, "VirtualProduction.DMX.ArtNet.BasicFlow", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
 
-static void SensDMXFragment(FDMXPrtotocolArtNetBasicFlowTest& Test, const FDMXProtocolLauncher& DMXProtocolLauncher)
+static void SensDMXFragment(FAutomationTestBase& Test, const FDMXProtocolLauncher& DMXProtocolLauncher)
 {
 	FDMXProtocolPortArtNet* ArtNetPort = static_cast<FDMXProtocolPortArtNet*>(DMXProtocolLauncher.DMXProtocol->GetPortManager()->GetPortByDeviceAndID(DMXProtocolLauncher.ProtocolDevice, DMXProtocolLauncher.PortID, EDMXPortDirection::DMX_PORT_OUTPUT));
 

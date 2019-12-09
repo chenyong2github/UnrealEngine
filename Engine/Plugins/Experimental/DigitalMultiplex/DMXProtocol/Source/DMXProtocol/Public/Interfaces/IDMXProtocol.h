@@ -11,10 +11,10 @@
 #include "Interfaces/IDMXProtocolRDM.h"
 #include "Interfaces/IDMXProtocolTransport.h"
 
-#include "Managers/DMXProtocolDeviceManager.h"
-#include "Managers/DMXProtocolInterfaceManager.h"
-#include "Managers/DMXProtocolPortManager.h"
-#include "Managers/DMXProtocolUniverseManager.h"
+class FDMXProtocolDeviceManager;
+class FDMXProtocolInterfaceManager;
+class FDMXProtocolPortManager;
+class FDMXProtocolUniverseManager;
 
 DMXPROTOCOL_API DECLARE_LOG_CATEGORY_EXTERN(LogDMXProtocol, Log, All);
 

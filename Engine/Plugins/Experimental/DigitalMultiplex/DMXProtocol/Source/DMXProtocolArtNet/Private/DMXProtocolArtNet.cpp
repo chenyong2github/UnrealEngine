@@ -8,6 +8,8 @@
 #include "DMXProtocolArtNetUtils.h"
 #include "DMXProtocolPortArtNet.h"
 #include "DMXProtocolPackager.h"
+#include "Managers/DMXProtocolDeviceManager.h"
+#include "Managers/DMXProtocolPortManager.h"
 
 using namespace ArtNet;
 
@@ -47,6 +49,7 @@ bool FDMXProtocolArtNet::Init()
 	if (BroadcastSocket == nullptr)
 	{
 		UE_LOG_DMXPROTOCOL(Error, TEXT("ERROR create BroadcastSocket"));
+		return false;
 	}
 
 	// Create sender

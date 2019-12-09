@@ -42,8 +42,11 @@ FDMXProtocolUniverseSACN::FDMXProtocolUniverseSACN(IDMXProtocol* InDMXProtocol, 
 	{
 		UE_LOG_DMXPROTOCOL(Error, TEXT("ERROR create BroadcastSocket"));
 	}
-	SACNReceiver = MakeShared<FDMXProtocolReceiverSACN>(*ListenerSocket, FTimespan::FromMilliseconds(100));
-	SACNReceiver->OnDataReceived().BindRaw(this, &FDMXProtocolUniverseSACN::OnDataReceived);
+	else
+	{
+		SACNReceiver = MakeShared<FDMXProtocolReceiverSACN>(*ListenerSocket, FTimespan::FromMilliseconds(100));
+		SACNReceiver->OnDataReceived().BindRaw(this, &FDMXProtocolUniverseSACN::OnDataReceived);
+	}
 }
 
 FDMXProtocolUniverseSACN::~FDMXProtocolUniverseSACN()
