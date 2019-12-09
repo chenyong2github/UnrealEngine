@@ -149,12 +149,6 @@ private:
 	/** Callback when async load finishes, it's here so we can use a shared pointer for callback safety */
 	void AsyncLoadCallbackWrapper(const FName& PackageName, UPackage* LevelPackage, EAsyncLoadingResult::Type Result, FSoftObjectPath TargetName);
 
-	/** Notify all parents that a child completed loading */
-	void NotifyParentsOfCompletion();
-
-	/** Notify all parents that a child was canceled */
-	void NotifyParentsOfCancellation();
-
 	/** Called on meta handle when a child handle has completed/canceled */
 	void UpdateCombinedHandle();
 
@@ -199,12 +193,6 @@ private:
 
 	/** How many FStreamables is this waiting on to finish loading */
 	int32 StreamablesLoading;
-
-	/** How many of our children that have been completed */
-	int32 CompletedChildCount = 0;
-
-	/** How many of our children that have been canceled */
-	int32 CanceledChildCount = 0;
 
 	/** List of assets that were referenced by this handle */
 	TArray<FSoftObjectPath> RequestedAssets;
