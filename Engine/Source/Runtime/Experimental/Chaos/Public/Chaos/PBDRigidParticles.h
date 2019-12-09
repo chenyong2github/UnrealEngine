@@ -79,10 +79,11 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 			PreW(Index) = this->W(Index);
 		}
 
-		if (Sleeping(Index) != bSleeping)
+		bool CurrentlySleeping = this->ObjectState(Index) == EObjectStateType::Sleeping;
+		if (CurrentlySleeping != bSleeping)
 		{
 			TGeometryParticleHandle<T, d>* Particle = reinterpret_cast<TGeometryParticleHandle<T, d>*>(this->Handle(Index));
-			this->AddSleepData(Particle);
+			this->AddSleepData(Particle, bSleeping);
 		}
 
 		// Dynamic -> Sleeping or Sleeping -> Dynamic
@@ -147,7 +148,7 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		if(bCurrentSleeping != bNewSleeping)
 		{
 			TGeometryParticleHandle<T, d>* Particle = reinterpret_cast<TGeometryParticleHandle<T, d>*>(this->Handle(Index));
-			this->AddSleepData(Particle);
+ 			this->AddSleepData(Particle, bNewSleeping);
 		}
 
 		this->ObjectState(Index) = InObjectState;
