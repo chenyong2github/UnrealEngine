@@ -39,12 +39,6 @@ namespace UE4EnumProperty_Private
 
 		UnderlyingProp->SetIntPropertyValue(Obj, NewValue);
 	}
-
-	struct FEnumPropertyFriend
-	{
-		static const int32 EnumOffset = STRUCT_OFFSET(FEnumProperty, Enum);
-		static const int32 UnderlyingPropOffset = STRUCT_OFFSET(FEnumProperty, UnderlyingProp);
-	};
 }
 
 IMPLEMENT_FIELD(FEnumProperty)

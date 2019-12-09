@@ -161,7 +161,7 @@ void UEnumProperty::AddReferencedObjects(UObject* InThis, FReferenceCollector& C
 	Super::AddReferencedObjects(InThis, Collector);
 }
 
-namespace UE4EnumProperty_Private
+namespace UE4UEnumProperty_Private
 {
 	struct FEnumPropertyFriend
 	{
@@ -172,8 +172,8 @@ namespace UE4EnumProperty_Private
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UEnumProperty, UProperty,
 	{
-		Class->EmitObjectReference(UE4EnumProperty_Private::FEnumPropertyFriend::EnumOffset, TEXT("Enum"));
-		Class->EmitObjectReference(UE4EnumProperty_Private::FEnumPropertyFriend::UnderlyingPropOffset, TEXT("UnderlyingProp"));
+		Class->EmitObjectReference(UE4UEnumProperty_Private::FEnumPropertyFriend::EnumOffset, TEXT("Enum"));
+		Class->EmitObjectReference(UE4UEnumProperty_Private::FEnumPropertyFriend::UnderlyingPropOffset, TEXT("UnderlyingProp"));
 	}
 );
 

@@ -788,7 +788,9 @@ FORCEINLINE FieldType* ExactCastField(FField* Src)
 }
 
 template<typename FieldType>
+FUNCTION_NON_NULL_RETURN_START
 FORCEINLINE FieldType* CastFieldChecked(FField* Src)
+FUNCTION_NON_NULL_RETURN_END
 {
 #if !DO_CHECK
 	return static_cast<FieldType*>(Src);
@@ -800,7 +802,9 @@ FORCEINLINE FieldType* CastFieldChecked(FField* Src)
 }
 
 template<typename FieldType>
+FUNCTION_NON_NULL_RETURN_START
 FORCEINLINE const FieldType* CastFieldChecked(const FField* Src)
+FUNCTION_NON_NULL_RETURN_END
 {
 #if !DO_CHECK
 	return static_cast<const FieldType*>(Src);

@@ -9,11 +9,6 @@
 class UEnum;
 class FNumericProperty;
 
-namespace UE4EnumProperty_Private
-{
-	struct FEnumPropertyFriend;
-}
-
 class COREUOBJECT_API FEnumProperty : public FProperty
 {
 	DECLARE_FIELD(FEnumProperty, FProperty, CASTCLASS_FEnumProperty)
@@ -84,8 +79,6 @@ public:
 private:
 	virtual uint32 GetValueTypeHashInternal(const void* Src) const override;
 
-	friend struct UE4EnumProperty_Private::FEnumPropertyFriend;
-	
 #if HACK_HEADER_GENERATOR
 public:
 #endif
