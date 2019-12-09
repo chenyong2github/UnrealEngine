@@ -331,6 +331,7 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, bSetListenerPosition(false)
 	, LandscapeLODOverride(-1)
 	, bDrawVertices(false)
+	, bShouldApplyViewModifiers(true)
 	, bOwnsModeTools(false)
 	, ModeTools(InModeTools)
 	, Widget(new FWidget)
@@ -742,9 +743,23 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	FViewportCameraTransform& ViewTransform = GetViewTransform();
 	const ELevelViewportType EffectiveViewportType = GetViewportType();
 
-	ViewInitOptions.ViewOrigin = ViewTransform.GetLocation();
-	FRotator ViewRotation = ViewTransform.GetRotation();
+	// Apply view modifiers.
+	FMinimalViewInfo ModifiedViewInfo;
+	{
+		ModifiedViewInfo.Location = ViewTransform.GetLocation();
+		ModifiedViewInfo.Rotation = ViewTransform.GetRotation();
+		ModifiedViewInfo.FOV = ViewFOV;
 
+		if (bShouldApplyViewModifiers)
+		{
+			ViewModifiers.Broadcast(ModifiedViewInfo);
+		}
+	}
+	const FVector ModifiedViewLocation = ModifiedViewInfo.Location;
+	FRotator ModifiedViewRotation = ModifiedViewInfo.Rotation;
+	const float ModifiedViewFOV = ModifiedViewInfo.FOV;
+
+	ViewInitOptions.ViewOrigin = ModifiedViewLocation;
 
 	// Apply head tracking!  Note that this won't affect what the editor *thinks* the view location and rotation is, it will
 	// only affect the rendering of the scene.
@@ -754,12 +769,10 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 		FVector CurrentHmdPosition;
 		GEngine->XRSystem->GetCurrentPose(IXRTrackingSystem::HMDDeviceId, CurrentHmdOrientation, CurrentHmdPosition );
 
-		const FQuat VisualRotation = ViewRotation.Quaternion() * CurrentHmdOrientation;
-		ViewRotation = VisualRotation.Rotator();
-		ViewRotation.Normalize();
+		const FQuat VisualRotation = ModifiedViewRotation.Quaternion() * CurrentHmdOrientation;
+		ModifiedViewRotation = VisualRotation.Rotator();
+		ModifiedViewRotation.Normalize();
 	}
-
-
 
 	FIntPoint ViewportSize = Viewport->GetSizeXY();
 	FIntPoint ViewportOffset(0, 0);
@@ -809,7 +822,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	if (bUseControllingActorViewInfo)
 	{
 		// @todo vreditor: Not stereo friendly yet
-		ViewInitOptions.ViewRotationMatrix = FInverseRotationMatrix(ViewRotation) * FMatrix(
+		ViewInitOptions.ViewRotationMatrix = FInverseRotationMatrix(ModifiedViewRotation) * FMatrix(
 			FPlane(0, 0, 1, 0),
 			FPlane(1, 0, 0, 0),
 			FPlane(0, 1, 0, 0),
@@ -834,11 +847,11 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 		        const FIntRect StereoViewRect = FIntRect( X, Y, X + SizeX, Y + SizeY );
 		        ViewInitOptions.SetViewRectangle( StereoViewRect );
 
-				GEngine->StereoRenderingDevice->CalculateStereoViewOffset( StereoPass, ViewRotation, ViewInitOptions.WorldToMetersScale, ViewInitOptions.ViewOrigin );
+				GEngine->StereoRenderingDevice->CalculateStereoViewOffset( StereoPass, ModifiedViewRotation, ViewInitOptions.WorldToMetersScale, ViewInitOptions.ViewOrigin );
 			}
 
 			// Calc view rotation matrix
-			ViewInitOptions.ViewRotationMatrix = CalcViewRotationMatrix(ViewRotation);
+			ViewInitOptions.ViewRotationMatrix = CalcViewRotationMatrix(ModifiedViewRotation);
 
 		    // Rotate view 90 degrees
 			ViewInitOptions.ViewRotationMatrix = ViewInitOptions.ViewRotationMatrix * FMatrix(
@@ -858,7 +871,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 			    const float MinZ = GetNearClipPlane();
 			    const float MaxZ = MinZ;
 			    // Avoid zero ViewFOV's which cause divide by zero's in projection matrix
-			    const float MatrixFOV = FMath::Max(0.001f, ViewFOV) * (float)PI / 360.0f;
+			    const float MatrixFOV = FMath::Max(0.001f, ModifiedViewFOV) * (float)PI / 360.0f;
 
 			    if (bConstrainAspectRatio)
 			    {
@@ -1045,7 +1058,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	ViewInitOptions.OverrideLODViewOrigin = FVector::ZeroVector;
 	ViewInitOptions.bUseFauxOrthoViewPos = true;
 
-	ViewInitOptions.FOV = ViewFOV;
+	ViewInitOptions.FOV = ModifiedViewFOV;
 	if (bUseControllingActorViewInfo)
 	{
 		ViewInitOptions.bUseFieldOfViewForLOD = ControllingActorViewInfo.bUseFieldOfViewForLOD;
@@ -1057,8 +1070,8 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 
 	FSceneView* View = new FSceneView(ViewInitOptions);
 
-	View->ViewLocation = ViewTransform.GetLocation();
-	View->ViewRotation = ViewRotation;
+	View->ViewLocation = ModifiedViewLocation;
+	View->ViewRotation = ModifiedViewRotation;
 
 	View->SubduedSelectionOutlineColor = GEngine->GetSubduedSelectionOutlineColor();
 
