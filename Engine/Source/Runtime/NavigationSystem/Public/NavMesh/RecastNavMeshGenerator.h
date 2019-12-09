@@ -13,6 +13,7 @@
 #include "AI/NavDataGenerator.h"
 #include "NavMesh/RecastHelpers.h"
 #include "NavDebugTypes.h"
+#include "Math/MovingWindowAverageFast.h"
 
 #if WITH_RECAST
 
@@ -209,7 +210,8 @@ public:
 	}
 
 	void SetTimeSliceDuration(double SliceDuration);
-	void ResetStartTime();
+	void StartTimeSlice();
+	double GetStartTime() const;
 	bool TestTimeSliceFinished() const;
 	bool IsTimeSliceFinishedCached() const;
 
@@ -592,8 +594,7 @@ public:
 
 private:
 	/** Prevent copying. */
-	FRecastNavMeshGenerator(FRecastNavMeshGenerator const& NoCopy) 
-		: bTimeSliceRegenActive(false) { check(0); };
+	FRecastNavMeshGenerator(FRecastNavMeshGenerator const& NoCopy) { check(0); };
 	FRecastNavMeshGenerator& operator=(FRecastNavMeshGenerator const& NoCopy) { check(0); return *this; }
 
 public:
@@ -665,9 +666,9 @@ public:
 	static void GetDebugGeometry(const FNavigationRelevantData& EncodedData, FNavDebugMeshData& DebugMeshData);
 #endif  // !UE_BUILD_SHIPPING
 
-	FTimeSlicer& GetTimeSlicer() { return TimeSlicer; }
+	FTimeSlicer& GetTimeSlicer() { return SyncTimeSlicedData.TimeSlicer; }
 	
-	void SetNextTimeSliceRegenActive(bool bRegenState) { bNextTimeSliceRegenActive = bRegenState; }
+	void SetNextTimeSliceRegenActive(bool bRegenState) { SyncTimeSlicedData.bNextTimeSliceRegenActive = bRegenState; }
 
 protected:
 	// Performs initial setup of member variables so that generator is ready to
@@ -707,7 +708,7 @@ protected:
 #else
 	TSharedRef<FRecastTileGenerator> CreateTileGeneratorFromPendingElement(FIntPoint &OutTileLocation);
 	/** Processes pending tile generation tasks Sync with option for time slicing currently an experimental feature. */
-	TArray<uint32> ProcessTileTasksSyncTimeSliced(const int32 NumTasksToProcess);
+	TArray<uint32> ProcessTileTasksSyncTimeSliced();
 	TArray<uint32> ProcessTileTasksSync(const int32 NumTasksToProcess);
 #endif
 	/** Processes pending tile generation tasks */
@@ -766,8 +767,12 @@ protected:
 	FVector BBoxGrowth;
 	
 	int32 NumActiveTiles;
-	/** the limit to number of asynchronous tile generators running at one time */
+	/** the limit to number of asynchronous tile generators running at one time,
+	 *  this is also used by the sync non time sliced regeneration ProcessTileTasksSync,
+	 *  but not by ProcessTileTasksSyncTimeSliced.
+	 */
 	int32 MaxTileGeneratorTasks;
+
 	float AvgLayersPerTile;
 
 	/** Total bounding box that includes all volumes, in unreal units. */
@@ -808,24 +813,55 @@ protected:
 	 *	like when navmesh size changes */
 	uint32 Version;
 
-	/** Start time sliced variables */
-	/** Do not null or Reset this directly instead call ResetTimeSlicedTileGeneratorSync(). The only exception currently is in ProcessTileTasksSyncTimeSliced */
-	TSharedPtr<FRecastTileGenerator> TimeSlicedTileGeneratorSync;
-	FTimeSlicer TimeSlicer;
-	TArray<uint32> ProcessTileTasksSyncTimeSlicedUpdatedTilesCache;
-	/** if we are currently using time sliced regen or not - currently an experimental feature.
-	 *  do not manipulate this value directly instead call SetNextTimeSliceRegenState() 
-	 */
-	bool bTimeSliceRegenActive;
-	bool bNextTimeSliceRegenActive;
+	/** Grouping all the member variables used by the time slicing code together for neatness */
+	struct FSyncTimeSlicedData
+	{
+		FSyncTimeSlicedData();
 
-	EProcessTileTasksSyncTimeSlicedState ProcessTileTasksSyncTimeSlicedState;
+		double CurrentTileRegenDuration;
+		double MinTimeSliceDuration;
+		double MaxTimeSliceDuration;
+		float RealTimeSecsLastCall; //no need to reset this
+		/** The max real world desired time to Regen all the tiles in PendingDirtyTiles,
+		 *  Note it could take longer than this, as the time slice is clamped per frame between
+		 *	MinTimeSliceDuration and MaxTimeSliceDuration.
+		 */
+		float MaxDesiredTileRegenDuration;
 
-	TMap<int32, dtPolyRef> AddGenTilesTimeSlicedOldLayerTileIdMap;
-	TArray<uint32> AddGenTilesTimeSlicedResultTileIndices;
-	EAddGeneratedTilesTimeSlicedState AddGeneratedTilesTimeSlicedState;
-	int32 AddGenTilesTimeSlicedLayerIndex;
-	/** End time sliced variables */
+		/** if we are currently using time sliced regen or not - currently an experimental feature.
+		 *  do not manipulate this value directly instead call SetNextTimeSliceRegenState()
+		 */
+		bool bTimeSliceRegenActive;
+		bool bNextTimeSliceRegenActive;
+		
+		/** Used by ProcessTileTasksSyncTimeSliced */
+		EProcessTileTasksSyncTimeSlicedState ProcessTileTasksSyncState;
+
+		/** Used by ProcessTileTasksSyncTimeSliced */
+		TArray<uint32> UpdatedTilesCache;
+
+		/** Used by AddGeneratedTilesTimeSliced */
+		TArray<uint32> ResultTileIndicesCached;
+
+		/** Used by AddGeneratedTilesTimeSliced */
+		TMap<int32, dtPolyRef> OldLayerTileIdMapCached;
+
+		/** Used by AddGeneratedTilesTimeSliced */
+		EAddGeneratedTilesTimeSlicedState AddGeneratedTilesState;
+
+		/** Used by AddGeneratedTilesTimeSliced */
+		int32 AddGenTilesLayerIndex;
+
+		/** Used to calculate the moving window average of the actual time spent inside functions used to regenerate a a tile, this is processing time not actual time over multiple frames */
+		FMovingWindowAverageFast<double, 128> MovingWindowTileRegenTime;
+		/** Used to calculate the actual moving window delta time */
+		FMovingWindowAverageFast<float, 128> MovingWindowDeltaTime;
+		/** Do not null or Reset this directly instead call ResetTimeSlicedTileGeneratorSync(). The only exception currently is in ProcessTileTasksSyncTimeSliced */
+		TSharedPtr<FRecastTileGenerator> TileGeneratorSync;
+		FTimeSlicer TimeSlicer;
+	};
+
+	FSyncTimeSlicedData SyncTimeSlicedData;
 };
 
 #endif // WITH_RECAST
