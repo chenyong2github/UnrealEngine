@@ -11,6 +11,7 @@ namespace Chaos
 	{
 		template<class T = float>
 		struct TContactParticleParameters {
+			T Thickness;
 			TArrayCollectionArray<bool>* Collided;
 			const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>* PhysicsMaterials;
 			T FrictionOverride;
@@ -33,10 +34,10 @@ namespace Chaos
 		void UpdateManifold(const T Thickness, TCollisionConstraintBase<T, d>& Constraint);
 
 		template<typename T, int d>
-		void Apply(TCollisionConstraintBase<T, d>& Constraint, T Thickness, TContactIterationParameters<T> & IterationParameters, TContactParticleParameters<T> & ParticleParameters);
+		void Apply(TCollisionConstraintBase<T, d>& Constraint, TContactIterationParameters<T> & IterationParameters, TContactParticleParameters<T> & ParticleParameters);
 
 		template<typename T, int d>
-		void ApplyPushOut(TCollisionConstraintBase<T, d>& Constraint, T Thickness, const TSet<const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic,
+		void ApplyPushOut(TCollisionConstraintBase<T, d>& Constraint, const TSet<const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic,
 			TContactIterationParameters<T> & IterationParameters, TContactParticleParameters<T> & ParticleParameters);
 
 
