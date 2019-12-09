@@ -3,7 +3,8 @@
 #include "IO/IoDispatcherFileBackend.h"
 #include "Misc/ScopeRWLock.h"
 #include "ProfilingDebugging/CountersTrace.h"
-#include "HAL/PlatformFile.h"
+#include "HAL/PlatformFileManager.h"
+#include "GenericPlatform/GenericPlatformFile.h"
 
 TRACE_DECLARE_INT_COUNTER(IoDispatcherCacheHitsCold, TEXT("IoDispatcher/CacheHitsCold"));
 TRACE_DECLARE_INT_COUNTER(IoDispatcherCacheHitsHot, TEXT("IoDispatcher/CacheHitsHot"));
@@ -16,7 +17,7 @@ FFileIoStoreReader::FFileIoStoreReader(FFileIoStoreImpl& InPlatformImpl)
 
 FIoStatus FFileIoStoreReader::Initialize(const TCHAR* RootPath)
 {
-	IPlatformFile& Ipf = IPlatformFile::GetPlatformPhysical();
+	IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
 
 	TStringBuilder<256> ContainerFilePath;
 	ContainerFilePath.Append(RootPath);

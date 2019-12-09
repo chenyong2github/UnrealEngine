@@ -4,6 +4,7 @@
 #include "IO/IoDispatcherFileBackend.h"
 #include "Async/AsyncFileHandle.h"
 #include "HAL/Event.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/ScopeLock.h"
 
 FGenericIoDispatcherEventQueue::FGenericIoDispatcherEventQueue()
@@ -35,12 +36,13 @@ FGenericFileIoStoreImpl::FGenericFileIoStoreImpl(FGenericIoDispatcherEventQueue&
 
 bool FGenericFileIoStoreImpl::OpenContainer(const TCHAR* ContainerFilePath, uint64& ContainerFileHandle, uint64& ContainerFileSize)
 {
-	IPlatformFile& Ipf = IPlatformFile::GetPlatformPhysical();
+	IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
 	IAsyncReadFileHandle* FileHandle = Ipf.OpenAsyncRead(ContainerFilePath);
 	if (!FileHandle)
 	{
 		return false;
 	}
+
 	int64 SizeResult = -1;
 	FEvent* Event = FPlatformProcess::GetSynchEventFromPool();
 	FAsyncFileCallBack SizeCallback = [Event, &SizeResult](bool bWasCancelled, IAsyncReadRequest* Request)
@@ -60,6 +62,7 @@ bool FGenericFileIoStoreImpl::OpenContainer(const TCHAR* ContainerFilePath, uint
 	}
 	else
 	{
+		delete FileHandle;
 		return false;
 	}
 }
