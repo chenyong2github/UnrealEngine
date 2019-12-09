@@ -3,8 +3,6 @@
 	HLSLMaterialTranslator.cpp: Translates material expressions into HLSL code.
 =============================================================================*/
 
-#pragma once
-
 #include "HLSLMaterialTranslator.h"
 
 class Error;
