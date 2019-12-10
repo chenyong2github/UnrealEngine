@@ -223,6 +223,7 @@ public:
     static bool HasAsyncSceneData(const FPhysicsActorHandle& InHandle) { return false; }
 	static bool IsInScene(const FPhysicsActorHandle& InActorReference);
 	static FPhysScene* GetCurrentScene(const FPhysicsActorHandle& InHandle);
+	static void FlushScene(FPhysScene* InScene);
 	static bool CanSimulate_AssumesLocked(const FPhysicsActorHandle& InActorReference);
 	static float GetMass_AssumesLocked(const FPhysicsActorHandle& InActorReference);
 
