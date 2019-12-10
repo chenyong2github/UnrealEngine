@@ -17,6 +17,7 @@
 
 namespace Chaos
 {
+	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::Sort"), STAT_Joints_Sort, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::Apply"), STAT_Joints_Apply, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::ApplyPushOut"), STAT_Joints_ApplyPushOut, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::Drives"), STAT_Joints_Drives, STATGROUP_Chaos);
@@ -194,6 +195,7 @@ namespace Chaos
 		: Settings(InSettings)
 		, PreApplyCallback(nullptr)
 		, PostApplyCallback(nullptr)
+		, bRequiresSort(false)
 	{
 	}
 
@@ -300,16 +302,28 @@ namespace Chaos
 		PreApplyCallback = nullptr;
 	}
 
-	
+
 	void FPBDJointConstraints::SetPostApplyCallback(const FJointPostApplyCallback& Callback)
 	{
 		PostApplyCallback = Callback;
 	}
 
-	
+
 	void FPBDJointConstraints::ClearPostApplyCallback()
 	{
 		PostApplyCallback = nullptr;
+	}
+
+
+	void FPBDJointConstraints::SetPostProjectCallback(const FJointPostApplyCallback& Callback)
+	{
+		PostProjectCallback = Callback;
+	}
+
+
+	void FPBDJointConstraints::ClearPostProjectCallback()
+	{
+		PostProjectCallback = nullptr;
 	}
 
 	
@@ -345,13 +359,54 @@ namespace Chaos
 	
 	void FPBDJointConstraints::SetParticleLevels(int32 ConstraintIndex, const TVector<int32, 2>& ParticleLevels)
 	{
-		ConstraintStates[ConstraintIndex].Level = FMath::Min(ParticleLevels[0], ParticleLevels[1]);
+		int32 NewLevel = FMath::Min(ParticleLevels[0], ParticleLevels[1]);
+		int32 PreviousLevel = ConstraintStates[ConstraintIndex].Level;
+		ConstraintStates[ConstraintIndex].Level = NewLevel;
 		ConstraintStates[ConstraintIndex].ParticleLevels = ParticleLevels;
+		bRequiresSort = bRequiresSort || (NewLevel != PreviousLevel);
+	}
+
+
+	void FPBDJointConstraints::SortConstraints()
+	{
+		// Sort constraints so that constraints with lower level (closer to a kinematic joint) are first
+		// @todo(ccaulfield): should probably also take islands/particle order into account
+		// @todo(ccaulfield): optimize (though isn't called very often)
+		SCOPE_CYCLE_COUNTER(STAT_Joints_Sort);
+
+		FHandles SortedHandles = Handles;
+		SortedHandles.StableSort([](const FConstraintContainerHandle& L, const FConstraintContainerHandle& R)
+			{
+				return L.GetConstraintLevel() < R.GetConstraintLevel();
+			});
+
+		TArray<FPBDJointSettings> SortedConstraintSettings;
+		TArray<FParticlePair> SortedConstraintParticles;
+		TArray<FPBDJointState> SortedConstraintStates;
+		int32 SortedConstraintIndex = 0;
+		for (FConstraintContainerHandle* Handle : SortedHandles)
+		{
+			int32 UnsortedIndex = Handle->GetConstraintIndex();
+			SortedConstraintSettings.Add(ConstraintSettings[UnsortedIndex]);
+			SortedConstraintParticles.Add(ConstraintParticles[UnsortedIndex]);
+			SortedConstraintStates.Add(ConstraintStates[UnsortedIndex]);
+			SetConstraintIndex(Handle, SortedConstraintIndex++);
+		}
+
+		Swap(ConstraintSettings, SortedConstraintSettings);
+		Swap(ConstraintParticles, SortedConstraintParticles);
+		Swap(ConstraintStates, SortedConstraintStates);
+		Swap(Handles, SortedHandles);
 	}
 
 	
 	void FPBDJointConstraints::UpdatePositionBasedState(const FReal Dt)
 	{
+		if (bRequiresSort)
+		{
+			SortConstraints();
+			bRequiresSort = false;
+		}
 	}
 
 	
@@ -408,6 +463,11 @@ namespace Chaos
 			SolvePosition(Dt, Settings.ApplyPairIterations, It, NumIts);
 		}
 
+		if (PostApplyCallback != nullptr)
+		{
+			PostApplyCallback(Dt, Handles);
+		}
+
 		// Correct remaining errors after last call to Solve if enabled in this phase
 		if (Settings.ProjectionPhase == EJointSolverPhase::Apply)
 		{
@@ -416,11 +476,6 @@ namespace Chaos
 			{
 				ApplyProjection(Dt);
 			}
-		}
-
-		if (PostApplyCallback != nullptr)
-		{
-			PostApplyCallback(Dt, Handles);
 		}
 	}
 
@@ -495,6 +550,11 @@ namespace Chaos
 		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 		{
 			ProjectPosition(Dt, ConstraintIndex, 0, 1);
+		}
+
+		if (PostProjectCallback != nullptr)
+		{
+			PostProjectCallback(Dt, Handles);
 		}
 	}
 
