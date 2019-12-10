@@ -92,20 +92,15 @@ public:
 
 	/** Constructor */
 	FAssetData(FName InPackageName, FName InPackagePath, FName InAssetName, FName InAssetClass, FAssetDataTagMap InTags = FAssetDataTagMap(), TArray<int32> InChunkIDs = TArray<int32>(), uint32 InPackageFlags = 0)
-		: PackageName(InPackageName)
+		: ObjectPath(*FString::Format(TEXT("{0}.{1}"), { InPackageName.ToString(), InAssetName.ToString() }))
+		, PackageName(InPackageName)
 		, PackagePath(InPackagePath)
 		, AssetName(InAssetName)
 		, AssetClass(InAssetClass)
 		, TagsAndValues(MoveTemp(InTags))
 		, ChunkIDs(MoveTemp(InChunkIDs))
 		, PackageFlags(InPackageFlags)
-	{
-		FString ObjectPathStr = PackageName.ToString() + TEXT(".");
-
-		ObjectPathStr += AssetName.ToString();
-
-		ObjectPath = FName(*ObjectPathStr);
-	}
+	{}
 
 	/** Constructor taking a UObject. By default trying to create one for a blueprint class will create one for the UBlueprint instead, but this can be overridden */
 	FAssetData(const UObject* InAsset, bool bAllowBlueprintClass = false)
@@ -120,7 +115,6 @@ public:
 			}
 
 			const UPackage* Outermost = InAsset->GetOutermost();
-			const UObject* Outer = InAsset->GetOuter();
 
 			PackageName = Outermost->GetFName();
 			PackagePath = FName(*FPackageName::GetLongPackagePath(Outermost->GetName()));
