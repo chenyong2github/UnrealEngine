@@ -1653,18 +1653,6 @@ FORCEINLINE VectorRegisterInt VectorIntSelect(const VectorRegisterInt& Mask, con
 */
 #define VectorIntLoad1( Ptr )	vld1q_dup_s32((int32*)(Ptr))
 
-/**
- * Shuffles a VectorInt using a provided shuffle mask
- *
- * @param Vec		Source vector
- * @param Mask		Shuffle vector
- */
-FORCEINLINE VectorRegisterInt VectorIntShuffle(const VectorRegisterInt& Vec, const VectorRegisterInt& Mask)
-{
-	uint8x8x2_t VecSplit = (uint8x8x2_t) { vget_low_u8(Vec), vget_high_u8(Vec) };
-	return vcombine_u8(vtbl2_u8(VecSplit, vget_low_u8(Mask)), vtbl2_u8(VecSplit, vget_high_u8(Mask)));
-}
-
 // To be continued...
 
 PRAGMA_ENABLE_SHADOW_VARIABLE_WARNINGS
