@@ -850,6 +850,9 @@ void UClothingAssetCommon::PostLoad()
 		SetClothConfig(ClothSharedSimConfig_DEPRECATED);
 		ClothSharedSimConfig_DEPRECATED = nullptr;
 	}
+
+	// Add any missing configs for the available cloth factories, and try to migrate them from any existing one
+	AddClothConfigs();
 }
 
 void UClothingAssetCommon::Serialize(FArchive& Ar)
@@ -857,6 +860,50 @@ void UClothingAssetCommon::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 	Ar.UsingCustomVersion(FAnimPhysObjectVersion::GUID);
 	Ar.UsingCustomVersion(FClothingAssetCustomVersion::GUID);
+}
+
+void UClothingAssetCommon::AddClothConfigs()
+{
+	const TArray<IClothingSimulationFactoryClassProvider*> ClassProviders =
+		IModularFeatures::Get().GetModularFeatureImplementations<IClothingSimulationFactoryClassProvider>(IClothingSimulationFactoryClassProvider::FeatureName);
+
+	for (IClothingSimulationFactoryClassProvider* Provider : ClassProviders)
+	{
+		check(Provider);
+		if (UClass* const ClothingSimulationFactory = *TSubclassOf<class UClothingSimulationFactory>(Provider->GetClothingSimulationFactoryClass()))
+		{
+			const TSubclassOf<UClothConfigBase> ClothConfigClass = ClothingSimulationFactory->GetDefaultObject<UClothingSimulationFactory>()->GetClothConfigClass();
+			const FName ClothConfigName = ClothConfigClass->GetFName();
+			if (!ClothConfigs.Find(ClothConfigName))
+			{
+				// Create new config object
+				UClothConfigBase* const ClothConfig = NewObject<UClothConfigBase>(this, ClothConfigClass, ClothConfigClass->GetFName(), RF_Transactional);
+				check(ClothConfig);
+
+				// Use the legacy config struct to try find a common config as an acceptable migration source
+				// This code can be removed once the legacy code is removed, although this will then prevent
+				// migration from compatible config sources
+				if (UClothConfigCommon* const ClothConfigCommon = Cast<UClothConfigCommon>(ClothConfig))
+				{
+					for (TPair<FName, UClothConfigBase*> ClothConfigPair : ClothConfigs)
+					{
+						if (const UClothConfigCommon* SourceConfig = Cast<UClothConfigCommon>(ClothConfigPair.Value))
+						{
+							FClothConfig_Legacy LegacyConfig;
+							if (SourceConfig->MigrateTo(LegacyConfig))
+							{
+								ClothConfigCommon->MigrateFrom(LegacyConfig);
+								break;
+							}
+						}
+					}
+				}
+
+				// Add the new config
+				ClothConfigs.Add(ClothConfigName, ClothConfig);
+			}
+		}
+	}
 }
 
 #if WITH_EDITOR

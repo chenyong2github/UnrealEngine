@@ -257,6 +257,10 @@ public:
 	TArray<FClothLODData_Legacy> LodData_DEPRECATED;
 
 private:
+
+	// Add any missing cloth configs, for example after reloading clothing assets
+	void AddClothConfigs();
+
 #if WITH_EDITOR
 	// Helper functions used in PostPropertyChangeCb
 	void ReregisterComponentsUsingClothing();

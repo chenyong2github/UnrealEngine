@@ -14,7 +14,11 @@ struct FClothConstraintSetupNv
 
 	FClothConstraintSetupNv();
 
+	// Migrate from the legacy FClothConstraintSetup structure.
 	void MigrateFrom(const FClothConstraintSetup_Legacy& Setup);
+
+	// Migrate to the legacy FClothConstraintSetup structure.
+	void MigrateTo(FClothConstraintSetup_Legacy& Setup) const;
 
 	// How stiff this constraint is, this affects how closely it will follow the desired position
 	UPROPERTY(EditAnywhere, Category=Constraint)
@@ -64,6 +68,9 @@ public:
 
 	// Migrate from the legacy FClothConfig structure.
 	virtual void MigrateFrom(const FClothConfig_Legacy& ClothConfig) override;
+
+	// Migrate to the legacy FClothConfig structure.
+	virtual bool MigrateTo(FClothConfig_Legacy& ClothConfig) const override;
 
 	// Return whether self collision is enabled for this config.
 	UE_DEPRECATED(4.25, "This function is deprecated. Please use NeedsSelfCollisionIndices or UseSelfCollisions instead.")
