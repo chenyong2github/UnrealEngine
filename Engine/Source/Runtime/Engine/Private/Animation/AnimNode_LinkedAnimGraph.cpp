@@ -241,6 +241,14 @@ void FAnimNode_LinkedAnimGraph::ReinitializeLinkedAnimInstance(const UAnimInstan
 
 		// Need an instance to run, so create it now
 		InstanceToRun = InNewAnimInstance ? InNewAnimInstance : NewObject<UAnimInstance>(MeshComp, InstanceClass);
+		if (InNewAnimInstance == nullptr)
+		{
+			// if incoming AnimInstance was null, it was created by this function
+			// we mark them as created by linked anim graph
+			// this is to know who owns memory instance
+			InstanceToRun->bCreatedByLinkedAnimGraph = true;
+		}
+
 		SetTargetInstance(InstanceToRun);
 
 		// Link before we call InitializeAnimation() so we propgate the call to linked input poses
