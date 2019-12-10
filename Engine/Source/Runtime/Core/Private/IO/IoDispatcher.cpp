@@ -324,6 +324,7 @@ private:
 		for (; CurrentRequestsToSubmitIndex < RequestsToSubmitCount; ++CurrentRequestsToSubmitIndex)
 		{
 			FIoRequestImpl* Request = RequestsToSubmit[CurrentRequestsToSubmitIndex];
+			check(Request);
 
 			EIoStoreResolveResult Result = FileIoStore.Resolve(Request);
 			if (Result == IoStoreResolveResult_Stalled)
