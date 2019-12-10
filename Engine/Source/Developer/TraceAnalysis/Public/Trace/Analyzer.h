@@ -156,6 +156,7 @@ public:
 	{
 		const FSessionContext&	SessionContext;
 		const FEventData&		EventData;
+		uint32					ThreadId;
 	};
 
 	virtual ~IAnalyzer() = default;

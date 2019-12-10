@@ -106,4 +106,16 @@ FStreamReader* FTidPacketTransport::GetNextThread(ThreadIter& Iter)
 	return nullptr;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+int32 FTidPacketTransport::GetThreadId(ThreadIter Iter) const
+{
+	uint32 Index = Iter - 1;
+	if (Index >= uint32(Threads.Num()))
+	{
+		return -1;
+	}
+
+	return Threads[Index].ThreadId;
+}
+
 } // namespace Trace

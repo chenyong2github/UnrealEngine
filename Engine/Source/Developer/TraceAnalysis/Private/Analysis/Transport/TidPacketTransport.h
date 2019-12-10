@@ -21,6 +21,7 @@ public:
 	void					Update();
 	ThreadIter				ReadThreads();
 	FStreamReader*			GetNextThread(ThreadIter& Iter);
+	int32					GetThreadId(ThreadIter Iter) const;
 
 private:
 	struct FThreadStream

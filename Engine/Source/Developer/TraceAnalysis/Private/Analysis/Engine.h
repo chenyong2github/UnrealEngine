@@ -46,7 +46,7 @@ private:
 	bool				EstablishTransport(FStreamReader& Reader);
 	bool				OnDataProtocol0();
 	bool				OnDataProtocol1();
-	int32				OnDataProtocol1(FStreamReader& Reader);
+	int32				OnDataProtocol1(uint32 ThreadId, FStreamReader& Reader);
 	int32				OnDataProtocol1Aux(FStreamReader& Reader, FAuxDataCollector& Collector);
 	bool				AddDispatch(FDispatch* Dispatch);
 	template <typename ImplType>

@@ -903,7 +903,7 @@ bool FAnalysisEngine::OnDataProtocol0()
 
 		ForEachRoute(Dispatch, [&] (IAnalyzer* Analyzer, uint16 RouteId)
 		{
-			if (!Analyzer->OnEvent(RouteId, { SessionContext, EventData }))
+			if (!Analyzer->OnEvent(RouteId, { SessionContext, EventData, ~0u }))
 			{
 				RetireAnalyzer(Analyzer);
 			}
@@ -928,7 +928,8 @@ bool FAnalysisEngine::OnDataProtocol1()
 		FTidPacketTransport::ThreadIter Iter = InnerTransport->ReadThreads();
 		while (FStreamReader* Reader = InnerTransport->GetNextThread(Iter))
 		{
-			int32 ThreadEventCount = OnDataProtocol1(*Reader);
+			uint32 ThreadId = InnerTransport->GetThreadId(Iter);
+			int32 ThreadEventCount = OnDataProtocol1(ThreadId, *Reader);
 			if (ThreadEventCount < 0)
 			{
 				return false;
@@ -943,7 +944,7 @@ bool FAnalysisEngine::OnDataProtocol1()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-int32 FAnalysisEngine::OnDataProtocol1(FStreamReader& Reader)
+int32 FAnalysisEngine::OnDataProtocol1(uint32 ThreadId, FStreamReader& Reader)
 {
 	int32 EventCount = 0;
 	while (!Reader.IsEmpty())
@@ -1009,7 +1010,7 @@ int32 FAnalysisEngine::OnDataProtocol1(FStreamReader& Reader)
 
 		ForEachRoute(Dispatch, [&] (IAnalyzer* Analyzer, uint16 RouteId)
 		{
-			if (!Analyzer->OnEvent(RouteId, { SessionContext, EventData }))
+			if (!Analyzer->OnEvent(RouteId, { SessionContext, EventData, ThreadId }))
 			{
 				RetireAnalyzer(Analyzer);
 			}
