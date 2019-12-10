@@ -1,5 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#if USE_USD_SDK
+
 #include "UnrealUSDWrapper.h"
 
 #include "USDIncludesStart.h"
@@ -16,3 +18,5 @@ BOOST_PYTHON_MODULE(UnrealUSDBinding)
 	// See https://www.boost.org/doc/libs/1_40_0/libs/python/doc/v2/reference_existing_object.html
 	def("GetStageCache", UnrealUSDWrapper::GetUsdStageCache, return_value_policy<reference_existing_object>());
 }
+
+#endif // #if USE_USD_SDK
