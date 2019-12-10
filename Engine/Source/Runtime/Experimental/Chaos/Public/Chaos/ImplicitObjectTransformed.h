@@ -51,7 +51,7 @@ public:
 	    : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::Transformed)
 	    , MObject(Object)
 	    , MTransform(InTransform)
-	    , MLocalBoundingBox(Object->BoundingBox().TransformedBox(InTransform))
+	    , MLocalBoundingBox(Object->BoundingBox().TransformedAABB(InTransform))
 	{
 		this->bIsConvex = Object->IsConvex();
 	}
@@ -66,7 +66,7 @@ public:
 	{
 		static_assert(bSerializable, "Non-serializable TImplicitObjectTransformed created with a UniquePtr");
 		this->MObject = FStorage::Convert(MObjectOwner);
-		this->MLocalBoundingBox = MObject->BoundingBox().TransformedBox(InTransform);
+		this->MLocalBoundingBox = MObject->BoundingBox().TransformedAABB(InTransform);
 		this->bIsConvex = MObject->IsConvex();
 	}
 
@@ -173,9 +173,9 @@ public:
 		TImplicitObjectTransformAccumulateSerializableHelper(Out, MObject, NewTM);
 	}
 
-	virtual void FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, TRigidTransform<T, d>>>& Out, const TBox<T, d>& LocalBounds) const
+	virtual void FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, TRigidTransform<T, d>>>& Out, const TAABB<T, d>& LocalBounds) const
 	{
-		const TBox<T, d> SubobjectBounds = LocalBounds.TransformedBox(MTransform.Inverse());
+		const TAABB<T, d> SubobjectBounds = LocalBounds.TransformedAABB(MTransform.Inverse());
 		int32 NumOut = Out.Num();
 		MObject->FindAllIntersectingObjects(Out, SubobjectBounds);
 		if (Out.Num() > NumOut)
@@ -184,7 +184,7 @@ public:
 		}
 	}
 
-	virtual const TBox<T, d>& BoundingBox() const override { return MLocalBoundingBox; }
+	virtual const TAABB<T, d>& BoundingBox() const override { return MLocalBoundingBox; }
 
 	const FReal GetVolume() const
 	{
@@ -214,7 +214,7 @@ public:
 		FImplicitObject::SerializeImp(Ar);
 		TImplicitObjectTransformSerializeHelper(Ar, MObject);
 		Ar << MTransform;
-		Ar << MLocalBoundingBox;
+		TBox<T, d>::SerializeAsAABB(Ar, MLocalBoundingBox);
 	}
 
 	virtual uint32 GetTypeHash() const override
@@ -232,7 +232,7 @@ private:
 	ObjectType MObject;
 	TUniquePtr<Chaos::FImplicitObject> MObjectOwner;
 	TRigidTransform<T, d> MTransform;
-	TBox<T, d> MLocalBoundingBox;
+	TAABB<T, d> MLocalBoundingBox;
 
 	//needed for serialization
 	TImplicitObjectTransformed() : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::Transformed) {}

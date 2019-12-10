@@ -26,7 +26,7 @@ template <typename T, int d>
 class TBVHParticles;
 
 template <typename T, int d>
-class TBox;
+class TAABB;
 
 template<class T>
 class TChaosPhysicsMaterial;

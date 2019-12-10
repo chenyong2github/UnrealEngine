@@ -571,7 +571,7 @@ bool TLevelSet<T, d>::ComputeDistancesNearZeroIsocontour(FErrorReporter& ErrorRe
 	const TArray<TVector<int32, 3>>& Elements = Mesh.GetSurfaceElements();
 	if (Elements.Num() > 0)
 	{
-		MOriginalLocalBoundingBox = TBox<T, d>(InParticles.X(Elements[0][0]), InParticles.X(Elements[0][0]));
+		MOriginalLocalBoundingBox = TAABB<T, d>(InParticles.X(Elements[0][0]), InParticles.X(Elements[0][0]));
 	}
 	else
 	{
@@ -583,7 +583,7 @@ bool TLevelSet<T, d>::ComputeDistancesNearZeroIsocontour(FErrorReporter& ErrorRe
 	{
 		const auto& Element = Elements[Index];
 		TPlane<T, d> TrianglePlane(InParticles.X(Element[0]), Normals[Index]);
-		TBox<T, d> TriangleBounds(InParticles.X(Element[0]), InParticles.X(Element[0]));
+		TAABB<T, d> TriangleBounds(InParticles.X(Element[0]), InParticles.X(Element[0]));
 		TriangleBounds.GrowToInclude(InParticles.X(Element[1]));
 		TriangleBounds.GrowToInclude(InParticles.X(Element[2]));
 		MOriginalLocalBoundingBox.GrowToInclude(TriangleBounds); //also save the original bounding box
@@ -1208,7 +1208,7 @@ void TLevelSet<T, d>::ComputeNormals(const TParticles<T, d>& InParticles, const 
 	const TArray<TVector<int32, 3>>& Elements = Mesh.GetSurfaceElements();
 	if (Elements.Num() > 0)
 	{
-		MOriginalLocalBoundingBox = TBox<T, d>(InParticles.X(Elements[0][0]), InParticles.X(Elements[0][0]));
+		MOriginalLocalBoundingBox = TAABB<T, d>(InParticles.X(Elements[0][0]), InParticles.X(Elements[0][0]));
 	}
 	else
 	{
@@ -1218,7 +1218,7 @@ void TLevelSet<T, d>::ComputeNormals(const TParticles<T, d>& InParticles, const 
 	{
 		const auto& Element = Elements[Index];
 		TPlane<T, d> TrianglePlane(InParticles.X(Element[0]), Normals[Index]);
-		TBox<T, d> TriangleBounds(InParticles.X(Element[0]), InParticles.X(Element[0]));
+		TAABB<T, d> TriangleBounds(InParticles.X(Element[0]), InParticles.X(Element[0]));
 		TriangleBounds.GrowToInclude(InParticles.X(Element[1]));
 		TriangleBounds.GrowToInclude(InParticles.X(Element[2]));
 		MOriginalLocalBoundingBox.GrowToInclude(TriangleBounds); //also save the original bounding box
@@ -1329,7 +1329,7 @@ T TLevelSet<T, d>::PhiWithNormal(const TVector<T, d>& x, TVector<T, d>& Normal) 
 	T SizeSquared = (Location - x).SizeSquared();
 	if (SizeSquared)
 	{
-		Normal = MLocalBoundingBox.Normal(x);
+		MLocalBoundingBox.PhiWithNormal(x, Normal);
 	}
 	else
 	{

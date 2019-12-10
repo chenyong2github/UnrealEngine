@@ -316,7 +316,7 @@ void FPhysTestSerializer::CreateChaosData()
 					auto& ShapeArray = GTParticle->ShapesArray();
 					for (auto& Shape : ShapeArray)
 					{
-						Shape->WorldSpaceInflatedShapeBounds = Geom->BoundingBox().GetAABB().TransformedAABB(TRigidTransform<FReal, 3>(Particle->X(), Particle->R()));
+						Shape->WorldSpaceInflatedShapeBounds = Geom->BoundingBox().TransformedAABB(TRigidTransform<FReal, 3>(Particle->X(), Particle->R()));
 					}
 				}
 			}
