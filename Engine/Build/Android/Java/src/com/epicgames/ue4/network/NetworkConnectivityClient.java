@@ -33,4 +33,9 @@ public interface NetworkConnectivityClient {
 	 * @return Whether the change listener was removed. Will be false if not currently registered.
 	 */
 	boolean removeListener(Listener listener);
+	
+	/**
+	 * Check for network connectivity
+	 */
+	void checkConnectivity();
 }
