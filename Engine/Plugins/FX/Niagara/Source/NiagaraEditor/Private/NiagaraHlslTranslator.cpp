@@ -1328,7 +1328,14 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 
 		//And finally, define the actual main function that handles the reading and writing of data and calls the shared per instance simulate function.
 		//TODO: Different wrappers for GPU and CPU sims. 
-		DefineMain(HlslOutput, DataSetVariables, DataSetReads, DataSetWrites);
+		if (TranslationOptions.SimTarget == ENiagaraSimTarget::GPUComputeSim)
+		{
+			DefineMainGPUFunctions(DataSetVariables, DataSetReads, DataSetWrites);
+		}
+		else
+		{
+			DefineMain(HlslOutput, DataSetVariables, DataSetReads, DataSetWrites);
+		}
 
 		//Get full list of instance data accessed by the script as the VM binding assumes same for input and output.
 		for (FNiagaraVariable& Var : DataSetVariables[InstanceReadVarsIndex])
@@ -1793,28 +1800,245 @@ void FHlslNiagaraTranslator::DefineExternalFunctionsHLSL(FString &InHlslOutput)
 	}
 }
 
+void FHlslNiagaraTranslator::DefineMainGPUFunctions(
+	const TArray<TArray<FNiagaraVariable>>& DataSetVariables,
+	const TMap<FNiagaraDataSetID, int32>& DataSetReads,
+	const TMap<FNiagaraDataSetID, int32>& DataSetWrites)
+{
+	static const auto UseShaderStagesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.UseShaderStages"));
+	const bool bUseShaderStages = UseShaderStagesCVar->GetInt() == 1;
+ 
+	TArray<FNiagaraDataSetID> ReadDataSetIDs;
+	TArray<FNiagaraDataSetID> WriteDataSetIDs;
+	
+	DataSetReads.GetKeys(ReadDataSetIDs);
+	DataSetWrites.GetKeys(WriteDataSetIDs);
+
+	// Whether Alive is used and must be set at each run
+	const bool bUsesAlive = [&]
+	{
+		TArray<FName> DataSetNames;
+		for (const FNiagaraDataSetID& ReadId : ReadDataSetIDs)
+		{
+			DataSetNames.AddUnique(ReadId.Name);
+		}
+		for (const FNiagaraDataSetID& WriteId : WriteDataSetIDs)
+		{
+			DataSetNames.AddUnique(WriteId.Name);
+		}
+		for (int32 i = 0; i < ParamMapHistories.Num(); i++)
+		{
+			for (FName DataSetName : DataSetNames)
+			{
+				if (ParamMapHistories[i].FindVariable(*(DataSetName.ToString() + TEXT(".Alive")), FNiagaraTypeDefinition::GetBoolDef()) != INDEX_NONE)
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}();
+
+	///////////////////////
+	// InitConstants()
+	HlslOutput += TEXT("void InitConstants(inout FSimulationContext Context)\n{\n");
+	{
+		// Fill in the defaults for parameters.
+		for (int32 i = 0; i < MainPreSimulateChunks.Num(); ++i)
+		{
+			HlslOutput += TEXT("\t") + MainPreSimulateChunks[i] + TEXT("\n");
+		}
+	}
+	HlslOutput += TEXT("}\n\n");
+
+	///////////////////////
+	// InitSpawnVariables()
+	HlslOutput += TEXT("void InitSpawnVariables(inout FSimulationContext Context)\n{\n");
+	{
+		FString ContextName = TEXT("\tContext.Map.");
+		if (TranslationStages.Num() > 1) // First context 0 is "MapSpawn"
+		{
+			ContextName = FString::Printf(TEXT("\tContext.%s."), *TranslationStages[0].PassNamespace);
+		}
+
+		//The VM register binding assumes the same inputs as outputs which is obviously not always the case.
+		for (int32 DataSetIndex = 0, IntCounter = 0, FloatCounter = 0; DataSetIndex < DataSetReads.Num(); ++DataSetIndex)
+		{
+			const FNiagaraDataSetID DataSetID = ReadDataSetIDs[DataSetIndex];
+			const TArray<FNiagaraVariable>& NiagaraVariables = DataSetVariables[DataSetReads[DataSetID]];
+			for (const FNiagaraVariable& Var : NiagaraVariables)
+			{
+				FString VarFmt = ContextName + GetSanitizedSymbolName(Var.GetName().ToString()) + TEXT("{0} = {4};\n");
+				GatherVariableForDataSetAccess(Var, VarFmt, IntCounter, FloatCounter, DataSetIndex, TEXT(""), HlslOutput);
+			}
+		}
+
+		if (bUsesAlive)
+		{
+			HlslOutput += TEXT("\n") + ContextName + TEXT("DataInstance.Alive=true;\n");
+		}
+	}
+	HlslOutput += TEXT("}\n\n");
+
+	////////////////////////
+	// LoadUpdateVariables()
+	HlslOutput += TEXT("void LoadUpdateVariables(inout FSimulationContext Context, int InstanceIdx)\n{\n");
+	{
+		FString ContextName = TEXT("\tContext.Map.");
+		if (TranslationStages.Num() > 1) // Last context is "MapUpdate"
+		{
+			ContextName = FString::Printf(TEXT("\tContext.%s."), *TranslationStages.Last().PassNamespace);
+		}
+
+		for (int32 DataSetIndex = 0, IntCounter = 0, FloatCounter = 0; DataSetIndex < DataSetReads.Num(); ++DataSetIndex)
+		{
+			const FNiagaraDataSetID DataSetID = ReadDataSetIDs[DataSetIndex];
+			const TArray<FNiagaraVariable>& NiagaraVariables = DataSetVariables[DataSetReads[DataSetID]];
+			for (const FNiagaraVariable& Var : NiagaraVariables)
+			{
+				const FString VarName = ContextName + GetSanitizedSymbolName(Var.GetName().ToString());
+				FString VarFmt;
+
+				// If the NiagaraClearEachFrame value is set on the data set, we don't bother reading it in each frame as we know that it is is invalid. However,
+				// this is only used for the base data set. Other reads are potentially from events and are therefore perfectly valid.
+				if (DataSetIndex == 0 && Var.GetType().GetScriptStruct() != nullptr && Var.GetType().GetScriptStruct()->GetMetaData(TEXT("NiagaraClearEachFrame")).Equals(TEXT("true"), ESearchCase::IgnoreCase))
+				{
+					VarFmt = VarName + TEXT("{0} = {4};\n");
+				}
+				else
+				{
+					VarFmt = VarName + TEXT("{0} = InputData{1}({2}, {3}, InstanceIdx);\n");
+
+					if (bUseShaderStages)
+					{
+						if (FNiagaraParameterMapHistory::IsAttribute(Var))
+						{
+							FString RegisterName = VarName;
+							RegisterName.ReplaceInline(PARAM_MAP_ATTRIBUTE_STR, PARAM_MAP_INDICES_STR);
+							const int32 RegisterValue = Var.GetType().IsFloatPrimitive() ? FloatCounter : IntCounter;
+							HlslOutput += RegisterName + FString::Printf(TEXT(" = %d;\n"), RegisterValue);
+						}
+					}
+				}
+				GatherVariableForDataSetAccess(Var, VarFmt, IntCounter, FloatCounter, DataSetIndex, TEXT(""), HlslOutput);
+			}
+		}
+		if (bUsesAlive)
+		{
+			HlslOutput += TEXT("\n") + ContextName + TEXT("DataInstance.Alive=true;\n");
+		}
+	}
+	HlslOutput += TEXT("}\n\n");
+
+	/////////////////////////////////////
+	// ConditionalInterpolateParameters()
+	HlslOutput += TEXT("void ConditionalInterpolateParameters(inout FSimulationContext Context)\n{\n");
+	{
+		if (RequiresInterpolation())
+		{
+			HlslOutput += TEXT("\tInterpolateParameters(Context);\n"); // Requires ExecIndex, which needs to be in a stage.
+		}
+	}
+	HlslOutput += TEXT("}\n\n");
+
+	//////////////////////
+	// TransferAttibutes()
+	HlslOutput += TEXT("void TransferAttributes(inout FSimulationContext Context)\n{\n");
+	{
+		if (TranslationStages.Last().bCopyPreviousParams)
+		{
+			if (ParamMapDefinedAttributesToNamespaceVars.Num() != 0)
+			{
+				HlslOutput += TEXT("\tContext.") + TranslationStages.Last().PassNamespace + TEXT(".Particles = Context.") + TranslationStages[0].PassNamespace + TEXT(".Particles;\n");
+				if (bUsesAlive)
+				{
+					HlslOutput += TEXT("\tContext.") + TranslationStages.Last().PassNamespace + TEXT(".DataInstance = Context.") + TranslationStages[0].PassNamespace + TEXT(".DataInstance;\n");
+				}
+			}
+		}
+	}
+	HlslOutput += TEXT("}\n\n");
+
+	/////////////////////////
+	// StoreUpdateVariables()
+	HlslOutput += TEXT("void StoreUpdateVariables(in FSimulationContext Context)\n{\n");
+	{
+		if (bUsesAlive)
+		{
+			HlslOutput += TEXT("\tconst bool bValid = Context.") + TranslationStages.Last().PassNamespace + TEXT(".DataInstance.Alive;\n");
+			HlslOutput += TEXT("\tconst int WriteIndex = OutputIndex(0, false, bValid);\n");
+		}
+		else
+		{
+			HlslOutput += TEXT("\tconst bool bValid = GCurrentPhase != -1;\n");
+			HlslOutput += TEXT("\tconst int WriteIndex = OutputIndex(0, true, bValid);\n");
+		}
+
+		HlslOutput += TEXT("\tif (bValid)\n\t{\n");
+		FString ContextName = TEXT("Context.Map.");
+		if (TranslationStages.Num() > 1) // Last context is "MapUpdate"
+		{
+			ContextName = FString::Printf(TEXT("Context.%s."), *TranslationStages.Last().PassNamespace);
+		}
+
+		for (int32 DataSetIndex = 0, IntCounter = 0, FloatCounter = 0; DataSetIndex < DataSetWrites.Num(); ++DataSetIndex)
+		{
+			const FNiagaraDataSetID DataSetID = ReadDataSetIDs[DataSetIndex];
+			const TArray<FNiagaraVariable>& NiagaraVariables = DataSetVariables[DataSetWrites[DataSetID]];
+			for (const FNiagaraVariable& Var : NiagaraVariables)
+			{
+				// If coming from a parameter map, use the one on the context, otherwise use the output.
+				FString VarFmt = TEXT("\t\tOutputData{1}(0, {2}, {3}, ") + ContextName + GetSanitizedSymbolName(Var.GetName().ToString()) + TEXT("{0});\n");
+				GatherVariableForDataSetAccess(Var, VarFmt, IntCounter, FloatCounter, -1, TEXT("WriteIndex"), HlslOutput);
+			}
+		}
+	}
+	HlslOutput += TEXT("\t}\n}\n\n");
+
+	/////////////////////////
+	// CopyInstance()
+	HlslOutput += TEXT("void CopyInstance(in int InstanceIdx)\n{\n");
+	{
+#if 0
+		HlslOutput += TEXT("\tFSimulationContext Context = (FSimulationContext)0;\n");
+		if (UNiagaraScript::IsParticleEventScript(CompileOptions.TargetUsage))
+		{
+			for (int32 VarArrayIdx = 0; VarArrayIdx < DataSetReads.Num(); VarArrayIdx++)
+			{
+				const FNiagaraDataSetID DataSetID = ReadDataSetIDs[VarArrayIdx];
+				const TArray<FNiagaraVariable>& ArrayRef = DataSetVariables[DataSetReads[DataSetID]];
+				DefineDataSetVariableReads(HlslOutput, DataSetID, VarArrayIdx, ArrayRef);
+			}
+
+			if (bGpuUsesAlive)
+			{
+				HlslOutput += TEXT("\tContext.Map.DataInstance.Alive = true;\n");
+			}
+
+			for (int32 VarArrayIdx = 0; VarArrayIdx < DataSetWrites.Num(); VarArrayIdx++)
+			{
+				const FNiagaraDataSetID DataSetID = WriteDataSetIDs[VarArrayIdx];
+				const TArray<FNiagaraVariable>& ArrayRef = DataSetVariables[DataSetWrites[DataSetID]];
+				DefineDataSetVariableWrites(HlslOutput, DataSetID, VarArrayIdx, ArrayRef);
+			}
+		}
+#else
+		HlslOutput += TEXT("\t// TODO!\n");
+#endif
+	}
+	HlslOutput += TEXT("}\n");
+}
+
 void FHlslNiagaraTranslator::DefineMain(FString &OutHlslOutput,
 	const TArray<TArray<FNiagaraVariable>>& DataSetVariables,
 	const TMap<FNiagaraDataSetID, int32>& DataSetReads,
 	const TMap<FNiagaraDataSetID, int32>& DataSetWrites)
 {
-	if (CompilationTarget == ENiagaraSimTarget::GPUComputeSim)
-	{
-		OutHlslOutput += TEXT("void SimulateMain(in int InstanceIdx, in int InEventIndex, in int Phase)\n{\n");
+	check(CompilationTarget != ENiagaraSimTarget::GPUComputeSim);
 
-		// MASSIVE HACK
-		HlslOutput += TEXT(R"(
-			float RandomSeedInitialisation = NiagaraInternalNoise(InstanceIdx*16384, InEventIndex*8196, Phase*4096 + EmitterTickCounter);	// initialise the random state seed
-		)");
-		
-	}
-	else
-	{
-		OutHlslOutput += TEXT("void SimulateMain()\n{\n");
-	}
-
+	OutHlslOutput += TEXT("void SimulateMain()\n{\n");
+	
 	EnterStatsScope(FNiagaraStatScope(*(CompileOptions.GetName() + TEXT("_Main")), TEXT("Main")), OutHlslOutput);
-
 
 	OutHlslOutput += TEXT("\n\tFSimulationContext Context = (FSimulationContext)0;\n");
 	TMap<FName, int32> InputRegisterAllocations;
@@ -1825,15 +2049,6 @@ void FHlslNiagaraTranslator::DefineMain(FString &OutHlslOutput,
 
 	//TODO: Grab indices for reading data sets and do the read.
 	//read input.
-
-	// If we are GPU we need to set the spawn info global variables
-	if (CompilationTarget == ENiagaraSimTarget::GPUComputeSim)
-	{
-		OutHlslOutput += TEXT("\tif (Phase == 0)\n");
-		OutHlslOutput += TEXT("\t{\n");
-		OutHlslOutput += TEXT("\t\tGetEmitterSpawnInfoForParticle(ExecIndex());\n");
-		OutHlslOutput += TEXT("\t}\n");
-	}
 
 	TArray<FNiagaraDataSetID> ReadDataSetIDs;
 	TArray<FNiagaraDataSetID> WriteDataSetIDs;
@@ -1886,118 +2101,30 @@ void FHlslNiagaraTranslator::DefineMain(FString &OutHlslOutput,
 		OutHlslOutput += TEXT("\t") + MainPreSimulateChunks[i] + TEXT("\n");
 	}
 
-	bool bGpuUsesAlive = false;
+	// call the read data set function
+	OutHlslOutput += TEXT("\tReadDataSets(Context);\n");
+	for (int32 StageIdx = 0; StageIdx < TranslationStages.Num(); StageIdx++)
 	{
-		// call the read data set function
-		OutHlslOutput += TEXT("\tReadDataSets(Context);\n");
-
-		// branch between spawn and update
-		if (CompilationTarget == ENiagaraSimTarget::GPUComputeSim)
+		if (StageIdx == 0)
 		{
-			// Determine 
-			TArray<FName> DataSetNames;
-			for (const FNiagaraDataSetID& ReadId : ReadDataSetIDs)
+			// Either go on to the next phase, or write to the final output context.
+			if (RequiresInterpolation())
 			{
-				DataSetNames.AddUnique(ReadId.Name);
-			}
-			for (const FNiagaraDataSetID& WriteId : WriteDataSetIDs)
-			{
-				DataSetNames.AddUnique(WriteId.Name);
-			}
-
-			for (int32 i = 0; i < ParamMapHistories.Num(); i++)
-			{
-				for (FName DataSetName : DataSetNames)
-				{
-					if (ParamMapHistories[i].FindVariable(*(DataSetName.ToString() + TEXT(".Alive")), FNiagaraTypeDefinition::GetBoolDef()) != INDEX_NONE)
-					{
-						bGpuUsesAlive = true;
-						break;
-					}
-				}
-				if (bGpuUsesAlive)
-				{
-					break;
-				}
-			}
-
-			OutHlslOutput += TEXT("\tint StartingPhase = Phase;\n");
-			OutHlslOutput += TEXT("\tGCurrentPhase = Phase;\n");
-
-			for (int32 StageIdx = 0; StageIdx < TranslationStages.Num(); StageIdx++)
-			{
-				OutHlslOutput += FString::Printf(TEXT("\tif(Phase==%d)\n\t{\n"), StageIdx);
-				if (bGpuUsesAlive)
-				{
-					OutHlslOutput += FString::Printf(TEXT("\t\tif (StartingPhase == %d)\n\t\t{\n\t\t\tContext.%s.DataInstance.Alive=true;\n\t\t}\n"), StageIdx, *TranslationStages[StageIdx].PassNamespace);
-				}
-
-				if (StageIdx == 0)
-				{
-					// Either go on to the next phase, or write to the final output context.
-					if (RequiresInterpolation())
-					{
-						OutHlslOutput += TEXT("\t\tInterpolateParameters(Context);\n"); // Requires ExecIndex, which needs to be in a stage.
-					}
-				}
-
-				OutHlslOutput += FString::Printf(TEXT("\t\tSimulate%s(Context);\n"), TranslationStages.Num() > 1 ? *TranslationStages[StageIdx].PassNamespace : TEXT(""));
-
-				if (StageIdx + 1 < TranslationStages.Num() && TranslationStages[StageIdx + 1].bCopyPreviousParams)
-				{
-					OutHlslOutput += TEXT("\t\t//Begin Transfer of Attributes!\n");
-					if (ParamMapDefinedAttributesToNamespaceVars.Num() != 0)
-					{
-						FString CopyParticlesStr =
-							TEXT("\t\tContext.") + TranslationStages[StageIdx + 1].PassNamespace + TEXT(".Particles = Context.") + TranslationStages[StageIdx].PassNamespace + TEXT(".Particles;\n");
-						OutHlslOutput += CopyParticlesStr;
-
-						if (bGpuUsesAlive)
-						{
-							FString CopyDataInstanceStr = TEXT("\t\tContext.") + TranslationStages[StageIdx + 1].PassNamespace + TEXT(".DataInstance = Context.") + TranslationStages[StageIdx].PassNamespace + TEXT(".DataInstance;\n");
-							OutHlslOutput += CopyDataInstanceStr;
-						}
-					}
-					OutHlslOutput += TEXT("\t\t//End Transfer of Attributes!\n\n");
-				}
-
-
-				// Either go on to the next phase, or write to the final output context.
-				if (StageIdx + 1 < TranslationStages.Num() && TranslationStages[StageIdx + 1].bInterpolatePreviousParams)
-				{
-					OutHlslOutput += FString::Printf(TEXT("\t\tPhase = %d;\n"), StageIdx + 1);
-					OutHlslOutput += FString::Printf(TEXT("\t\tGCurrentPhase = %d;\n"), StageIdx + 1);
-				}
-
-				OutHlslOutput += TEXT("\t}\n");
+				OutHlslOutput += TEXT("\tInterpolateParameters(Context);\n"); // Requires ExecIndex, which needs to be in a stage.
 			}
 		}
-		else
+
+		OutHlslOutput += FString::Printf(TEXT("\tSimulate%s(Context);\n"), TranslationStages.Num() > 1 ? *TranslationStages[StageIdx].PassNamespace : TEXT(""));
+
+		if (StageIdx + 1 < TranslationStages.Num() && TranslationStages[StageIdx + 1].bCopyPreviousParams)
 		{
-			for (int32 StageIdx = 0; StageIdx < TranslationStages.Num(); StageIdx++)
+			OutHlslOutput += TEXT("\t//Begin Transfer of Attributes!\n");
+			if (ParamMapDefinedAttributesToNamespaceVars.Num() != 0)
 			{
-				if (StageIdx == 0)
-				{
-					// Either go on to the next phase, or write to the final output context.
-					if (RequiresInterpolation())
-					{
-						OutHlslOutput += TEXT("\tInterpolateParameters(Context);\n"); // Requires ExecIndex, which needs to be in a stage.
-					}
-				}
-
-				OutHlslOutput += FString::Printf(TEXT("\tSimulate%s(Context);\n"), TranslationStages.Num() > 1 ? *TranslationStages[StageIdx].PassNamespace : TEXT(""));
-
-				if (StageIdx + 1 < TranslationStages.Num() && TranslationStages[StageIdx + 1].bCopyPreviousParams)
-				{
-					OutHlslOutput += TEXT("\t//Begin Transfer of Attributes!\n");
-					if (ParamMapDefinedAttributesToNamespaceVars.Num() != 0)
-					{
-						FString CopyStr = TEXT("\tContext.") + TranslationStages[StageIdx + 1].PassNamespace + TEXT(".Particles = Context.") + TranslationStages[StageIdx].PassNamespace + TEXT(".Particles;\n");
-						OutHlslOutput += CopyStr;
-					}
-					OutHlslOutput += TEXT("\t//End Transfer of Attributes!\n\n");
-				}
+				FString CopyStr = TEXT("\tContext.") + TranslationStages[StageIdx + 1].PassNamespace + TEXT(".Particles = Context.") + TranslationStages[StageIdx].PassNamespace + TEXT(".Particles;\n");
+				OutHlslOutput += CopyStr;
 			}
+			OutHlslOutput += TEXT("\t//End Transfer of Attributes!\n\n");
 		}
 	}
 
@@ -2015,44 +2142,12 @@ void FHlslNiagaraTranslator::DefineMain(FString &OutHlslOutput,
 
 	ExitStatsScope(OutHlslOutput);
 	OutHlslOutput += TEXT("}\n");
-
-
-	// define a simple copy function to run on a section of the buffer for GPU event scripts; 
-	//	SimulateMainComputeCS in the usf will decide which one to call for which instances
-	// TODO: we'll want to combine spawn and update here soon so we'll need multiple main functions to be called from NiagaraEmitterInstanceShader.usf
-	//	this will need SpawnMain and UpdateMain for the regular particle scripts; all spawn events should be a single dispatch as well, each with its own function
-	//
-	if (CompilationTarget == ENiagaraSimTarget::GPUComputeSim)
-	{
-		OutHlslOutput += TEXT("void CopyInstance(in int InstanceIdx)\n{\n\tFSimulationContext Context = (FSimulationContext)0;\n");
-		if (UNiagaraScript::IsParticleEventScript(CompileOptions.TargetUsage))
-		{
-			for (int32 VarArrayIdx = 0; VarArrayIdx < DataSetReads.Num(); VarArrayIdx++)
-			{
-				const FNiagaraDataSetID DataSetID = ReadDataSetIDs[VarArrayIdx];
-				const TArray<FNiagaraVariable>& ArrayRef = DataSetVariables[DataSetReads[DataSetID]];
-				DefineDataSetVariableReads(HlslOutput, DataSetID, VarArrayIdx, ArrayRef);
-			}
-
-			if (bGpuUsesAlive)
-			{
-				OutHlslOutput += TEXT("\tContext.Map.DataInstance.Alive = true;\n");
-			}
-
-			for (int32 VarArrayIdx = 0; VarArrayIdx < DataSetWrites.Num(); VarArrayIdx++)
-			{
-				const FNiagaraDataSetID DataSetID = WriteDataSetIDs[VarArrayIdx];
-				const TArray<FNiagaraVariable>& ArrayRef = DataSetVariables[DataSetWrites[DataSetID]];
-				DefineDataSetVariableWrites(HlslOutput, DataSetID, VarArrayIdx, ArrayRef);
-			}
-		}
-		OutHlslOutput += TEXT("}\n");
-	}
-
 }
 
 void FHlslNiagaraTranslator::DefineDataSetVariableWrites(FString &OutHlslOutput, const FNiagaraDataSetID& Id, int32 DataSetIndex, const TArray<FNiagaraVariable>& WriteVars)
 {
+	check(CompilationTarget != ENiagaraSimTarget::GPUComputeSim);
+
 	//TODO Grab indices for data set writes (inc output) and do the write. Need to rewrite this for events interleaved..
 	OutHlslOutput += "\t{\n";
 	bool bUsesAlive = false;
@@ -2129,7 +2224,7 @@ void FHlslNiagaraTranslator::DefineDataSetVariableWrites(FString &OutHlslOutput,
 	int32 WriteOffsetInt = 0;
 	int32 WriteOffsetFloat = 0;
 	int32 &FloatCounter = WriteOffsetFloat;
-	int32 &IntCounter = CompilationTarget == ENiagaraSimTarget::GPUComputeSim ? WriteOffsetInt : WriteOffsetFloat;
+	int32 &IntCounter = WriteOffsetFloat;
 	for (const FNiagaraVariable &Var : WriteVars)
 	{
 		// If coming from a parameter map, use the one on the context, otherwise use the output.
@@ -2149,20 +2244,15 @@ void FHlslNiagaraTranslator::DefineDataSetVariableWrites(FString &OutHlslOutput,
 
 void FHlslNiagaraTranslator::DefineDataSetVariableReads(FString &OutHlslOutput, const FNiagaraDataSetID& Id, int32 DataSetIndex, const TArray<FNiagaraVariable>& ReadVars)
 {
+	check(CompilationTarget != ENiagaraSimTarget::GPUComputeSim);
+
 	int32 ReadOffsetInt = 0;
 	int32 ReadOffsetFloat = 0;
 	int32 &FloatCounter = ReadOffsetFloat;
-	int32 &IntCounter = CompilationTarget == ENiagaraSimTarget::GPUComputeSim ? ReadOffsetInt : ReadOffsetFloat;
+	int32 &IntCounter = ReadOffsetFloat;
 
 	FString DataSetName = Id.Name.ToString();
 	FString Fmt;
-	FString SpawnCondition = "\t{\n", UpdateCondition = "\t{\n";
-
-	if (TranslationOptions.SimTarget == ENiagaraSimTarget::GPUComputeSim)
-	{
-		SpawnCondition = "\tif(Phase==0)\n\t{\n";
-		UpdateCondition = "\tif(Phase==1)\n\t{\n";
-	}
 
 	bool bIsGPUScript = UNiagaraScript::IsGPUScript(CompileOptions.TargetUsage);
 	bool bIsSpawnScript =
@@ -2196,8 +2286,7 @@ void FHlslNiagaraTranslator::DefineDataSetVariableReads(FString &OutHlslOutput, 
 			GatherVariableForDataSetAccess(Var, Fmt, IntCounter, FloatCounter, DataSetIndex, TEXT(""), VarReads);
 		}
 
-		OutHlslOutput += SpawnCondition;
-		OutHlslOutput += VarReads + "\t}\n";
+		OutHlslOutput += VarReads;
 	}
 
 	// This will initialize parameters to their correct initial values from constants or data sets for update, and will also initialize parameters
@@ -2230,14 +2319,8 @@ void FHlslNiagaraTranslator::DefineDataSetVariableReads(FString &OutHlslOutput, 
 			}
 			else
 			{
-				if (CompilationTarget == ENiagaraSimTarget::GPUComputeSim)
-				{
-					Fmt = VariableName + TEXT("{0} = InputData{1}({2}, {3}, InstanceIdx);\n");
-				}
-				else
-				{
-					Fmt = VariableName + TEXT("{0} = InputData{1}({2}, {3});\n");
-				}
+				Fmt = VariableName + TEXT("{0} = InputData{1}({2}, {3});\n");
+
 				static const auto UseShaderStagesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.UseShaderStages"));
 				if (UseShaderStagesCVar->GetInt() == 1)
 				{
@@ -2253,8 +2336,7 @@ void FHlslNiagaraTranslator::DefineDataSetVariableReads(FString &OutHlslOutput, 
 			GatherVariableForDataSetAccess(Var, Fmt, IntCounter, FloatCounter, DataSetIndex, TEXT(""), VarReads);
 		}
 
-		OutHlslOutput += UpdateCondition;
-		OutHlslOutput += VarReads + "\n\t}\n";
+		OutHlslOutput += VarReads;
 	}
 }
 
