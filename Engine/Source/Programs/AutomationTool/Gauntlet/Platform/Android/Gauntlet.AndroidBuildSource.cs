@@ -102,10 +102,14 @@ namespace Gauntlet
 				string BatContents = File.ReadAllText(Fi.FullName).Replace(Environment.NewLine, "\n");
 
 				// Replace .bat with .apk and strip up to and including the first _, that is then our APK name
-				string SourceApkPath = Regex.Replace(Fi.Name, ".bat", ".apk", RegexOptions.IgnoreCase);
-				SourceApkPath = SourceApkPath.Substring(SourceApkPath.IndexOf("_") + 1);
-				SourceApkPath = Path.Combine(AbsPath, SourceApkPath);
-
+				var SourceApkMatch = Regex.Match(BatContents, @" install\s+(.+\.apk)");
+				if ( SourceApkMatch.Groups.Count <= 0)
+				{
+					Log.Warning("Could not parse install command from {0}", Fi.FullName);
+					continue;
+				}
+				string SourceApkPath = Path.Combine(AbsPath,SourceApkMatch.Groups[1].ToString());
+				
 				// save com.companyname.product
 				string AndroidPackageName = Regex.Match(BatContents, @"uninstall\s+(com\..+)").Groups[1].ToString();
 
@@ -118,6 +122,12 @@ namespace Gauntlet
 				if (string.IsNullOrEmpty(SourceApkPath))
 				{
 					Log.Warning("No APK found for build at {0}", Fi.FullName);
+					continue;
+				}
+
+				if (!File.Exists(SourceApkPath))
+				{
+					Log.Warning("Resolved APK name but it doesn't exist {0}", SourceApkPath);
 					continue;
 				}
 
