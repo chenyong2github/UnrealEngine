@@ -1267,6 +1267,7 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	PersistentState.DesktopGeometry = DesktopSpaceGeometry;
 	PersistentState.WidgetStyle = InWidgetStyle;
 	PersistentState.CullingBounds = MyCullingRect;
+	PersistentState.IncomingUserIndex = Args.GetHittestGrid().GetUserIndex();
 	PersistentState.IncomingFlowDirection = GSlateFlowDirection;
 
 	FPaintArgs UpdatedArgs = Args.WithNewParent(this);
