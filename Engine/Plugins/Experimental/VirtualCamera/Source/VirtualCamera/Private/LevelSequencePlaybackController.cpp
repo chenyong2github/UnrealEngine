@@ -28,14 +28,6 @@ ULevelSequencePlaybackController::ULevelSequencePlaybackController(const FObject
 
 }
 
-void ULevelSequencePlaybackController::ResumeLevelSequencePlay()
-{
-	if (ActiveLevelSequence)
-	{
-		PlayLevelSequence();
-	}
-}
-
 void ULevelSequencePlaybackController::GetLevelSequences(TArray<FLevelSequenceData>& OutLevelSequenceNames)
 {
 	OutLevelSequenceNames.Empty();
@@ -343,15 +335,6 @@ void ULevelSequencePlaybackController::ClearActiveLevelSequence()
 #if WITH_EDITOR
 		WeakSequencer = nullptr;
 #endif
-	}
-}
-
-void ULevelSequencePlaybackController::PlayFromBeginning()
-{
-	if (ActiveLevelSequence)
-	{
-		JumpToPlaybackPosition(GetCurrentSequencePlaybackStart());
-		PlayLevelSequence();
 	}
 }
 
