@@ -49,6 +49,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Niagara)
 	FSoftObjectPath DefaultModuleScript;
 
+	/** Niagara script which is required in the system update script to control system state. */
+	UPROPERTY(config, EditAnywhere, Category = Niagara)
+	FSoftObjectPath RequiredSystemUpdateScript;
+
 	/** Shortcut key bindings that if held down while doing a mouse click, will spawn the specified type of Niagara node.*/
 	UPROPERTY(config, EditAnywhere, Category = Niagara)
 	TArray<FNiagaraSpawnShortcut> GraphCreationShortcuts;
