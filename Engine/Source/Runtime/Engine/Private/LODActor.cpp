@@ -1335,10 +1335,12 @@ void ALODActor::PreSave(const class ITargetPlatform* TargetPlatform)
 {
 	Super::PreSave(TargetPlatform);	
 
+	// Always rebuild key on save here.
+	// We don't do this while cooking as keys rely on platform derived data which is context-dependent during cook
 	if(!GIsCookerLoadingPackage)
 	{
-		// Always rebuild key on save here. We dont do this while cooking as keys rely on platform derived data which is context-dependent during cook
-		Key = UHLODProxy::GenerateKeyForActor(this);
+		const bool bMustUndoLevelTransform = false; // In the save process, the level transform is already removed
+		Key = UHLODProxy::GenerateKeyForActor(this, bMustUndoLevelTransform);
 	}
 
 	// check & warn if we need building
