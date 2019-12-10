@@ -359,6 +359,14 @@ FPhysScene* FPhysInterface_Chaos::GetCurrentScene(const FPhysicsActorHandle& InH
 	return nullptr;
 }
 
+void FPhysInterface_Chaos::FlushScene(FPhysScene* InScene)
+{
+	FPhysicsCommand::ExecuteWrite(InScene, [&]()
+	{
+		InScene->Flush_AssumesLocked();
+	});
+}
+
 bool FPhysInterface_Chaos::CanSimulate_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
 	// #todo : Implement

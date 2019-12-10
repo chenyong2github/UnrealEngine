@@ -104,30 +104,37 @@ void UWorld::SetupPhysicsTickFunctions(float DeltaSeconds)
 	
 	EndPhysicsTickFunction.bCanEverTick = true;
 	EndPhysicsTickFunction.Target = this;
+
+// Chaos ticks solver for trace collisions
+#if WITH_CHAOS
+	bool bEnablePhysics = (bShouldSimulatePhysics || bEnableTraceCollision);
+#else
+	bool bEnablePhysics = bShouldSimulatePhysics;
+#endif
 	
-	// see if we need to update tick registration
-	bool bNeedToUpdateTickRegistration = (bShouldSimulatePhysics != StartPhysicsTickFunction.IsTickFunctionRegistered())
-		|| (bShouldSimulatePhysics != EndPhysicsTickFunction.IsTickFunctionRegistered());
+	// see if we need to update tick registration;
+	bool bNeedToUpdateTickRegistration = (bEnablePhysics != StartPhysicsTickFunction.IsTickFunctionRegistered())
+		|| (bEnablePhysics != EndPhysicsTickFunction.IsTickFunctionRegistered());
 
 	if (bNeedToUpdateTickRegistration && PersistentLevel)
 	{
-		if (bShouldSimulatePhysics && !StartPhysicsTickFunction.IsTickFunctionRegistered())
+		if (bEnablePhysics && !StartPhysicsTickFunction.IsTickFunctionRegistered())
 		{
 			StartPhysicsTickFunction.TickGroup = TG_StartPhysics;
 			StartPhysicsTickFunction.RegisterTickFunction(PersistentLevel);
 		}
-		else if (!bShouldSimulatePhysics && StartPhysicsTickFunction.IsTickFunctionRegistered())
+		else if (!bEnablePhysics && StartPhysicsTickFunction.IsTickFunctionRegistered())
 		{
 			StartPhysicsTickFunction.UnRegisterTickFunction();
 		}
 
-		if (bShouldSimulatePhysics && !EndPhysicsTickFunction.IsTickFunctionRegistered())
+		if (bEnablePhysics && !EndPhysicsTickFunction.IsTickFunctionRegistered())
 		{
 			EndPhysicsTickFunction.TickGroup = TG_EndPhysics;
 			EndPhysicsTickFunction.RegisterTickFunction(PersistentLevel);
 			EndPhysicsTickFunction.AddPrerequisite(this, StartPhysicsTickFunction);
 		}
-		else if (!bShouldSimulatePhysics && EndPhysicsTickFunction.IsTickFunctionRegistered())
+		else if (!bEnablePhysics && EndPhysicsTickFunction.IsTickFunctionRegistered())
 		{
 			EndPhysicsTickFunction.RemovePrerequisite(this, StartPhysicsTickFunction);
 			EndPhysicsTickFunction.UnRegisterTickFunction();
