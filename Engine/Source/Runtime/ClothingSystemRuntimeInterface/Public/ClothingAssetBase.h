@@ -69,10 +69,6 @@ public:
 	virtual int32 AddNewLod()
 	PURE_VIRTUAL(UClothingAssetBase::AddNewLod(), return INDEX_NONE;);
 
-	/** Called from \c FPersonaMeshDetails::OnFinishedChangingClothingProperties(). */
-	virtual void PostPropertyChangeCb(const FPropertyChangedEvent& Event)
-	PURE_VIRTUAL(UClothingAssetBase::PostPropertyChangeCb, );
-
 	/** Builds self collision data */
 	virtual void BuildSelfCollisionData()
 	PURE_VIRTUAL(UClothingAssetBase::BuildSelfCollisionData(), );
