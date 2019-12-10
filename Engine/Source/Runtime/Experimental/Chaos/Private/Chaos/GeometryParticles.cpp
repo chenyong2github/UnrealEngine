@@ -117,6 +117,11 @@ namespace Chaos
 		{
 			Ar << bDisable;
 		}
+
+		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializePerShapeDataSimulateFlag)
+		{
+			Ar << bSimulate;
+		}
 	}
 
 
