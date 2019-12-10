@@ -384,8 +384,8 @@ public:
 	bool IsRooted() const;
 	bool IsNative() const;
 	bool IsValidLowLevel() const;
-	bool IsIn(UObject* InOwner) const;
-	bool IsIn(FField* InOwner) const;
+	bool IsIn(const UObject* InOwner) const;
+	bool IsIn(const FField* InOwner) const;
 	FLinkerLoad* GetLinker() const;	
 	// End UObject interface
 
@@ -811,18 +811,6 @@ FUNCTION_NON_NULL_RETURN_END
 	checkf(CastResult, TEXT("CastFieldChecked failed with 0x%016llx"), (int64)(PTRINT)Src);
 	return CastResult;
 #endif // !DO_CHECK
-}
-
-template<typename FieldType>
-FORCEINLINE FieldType* CastField(FFieldVariant& Src)
-{
-	return CastField<FieldType>(Src.ToField());
-}
-
-template<typename FieldType>
-FORCEINLINE const FieldType* CastField(const FFieldVariant& Src)
-{
-	return CastField<FieldType>(Src.ToField());
 }
 
 /**

@@ -5000,7 +5000,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 		UScriptStruct* SparseClassDataStruct = FindObjectSafe<UScriptStruct>(ANY_PACKAGE, *SparseClassDataString);
 		while (SparseClassDataStruct != nullptr)
 		{
-			const FProperty* Child = CastField<FProperty>(SparseClassDataStruct->Children);
+			const FProperty* Child = CastField<FProperty>(SparseClassDataStruct->ChildProperties);
 			while (Child)
 			{
 				FString ReturnExtendedType;

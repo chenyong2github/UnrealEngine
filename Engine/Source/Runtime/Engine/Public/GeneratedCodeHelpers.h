@@ -7,6 +7,7 @@
 
 // Common includes
 #include "UObject/Stack.h"
+#include "UObject/WeakFieldPtr.h"
 #include "Blueprint/BlueprintSupport.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/UserDefinedStruct.h"

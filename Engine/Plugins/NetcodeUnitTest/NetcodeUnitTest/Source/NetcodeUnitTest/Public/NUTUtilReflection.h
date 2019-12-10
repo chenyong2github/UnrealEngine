@@ -619,7 +619,7 @@ private:
 	 */
 	FORCEINLINE bool IsPropertyArray() const
 	{
-		const FProperty* CurProp = CastField<FProperty>(FieldInstance);
+		const FProperty* CurProp = FieldInstance.Get<FProperty>();
 
 		return CurProp != nullptr && (CurProp->ArrayDim > 1 || CastField<FArrayProperty>(CurProp) != nullptr);
 	}

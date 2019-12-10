@@ -516,7 +516,7 @@ bool FField::IsValidLowLevel() const
 	return this != nullptr;
 }
 
-bool FField::IsIn(UObject* InOwner) const
+bool FField::IsIn(const UObject* InOwner) const
 {
 	check(InOwner);
 	UObject* OwnerObject = GetOwnerUObject();
@@ -534,7 +534,7 @@ bool FField::IsIn(UObject* InOwner) const
 	return false;
 }
 
-bool FField::IsIn(FField* InOwner) const
+bool FField::IsIn(const FField* InOwner) const
 {
 	for (FField* OwnerField = GetOwner<FField>(); OwnerField; OwnerField = OwnerField->GetOwner<FField>())
 	{

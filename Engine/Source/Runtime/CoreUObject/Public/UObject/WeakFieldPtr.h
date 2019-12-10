@@ -75,10 +75,10 @@ public:
 	* @param Object object to create a weak pointer to
 	**/
 	template<class U>
-	FORCEINLINE typename TEnableIf<!TLosesQualifiersFromTo<U, T>::Value>::Type operator=(U* InField)
+	FORCEINLINE typename TEnableIf<!TLosesQualifiersFromTo<U, T>::Value>::Type operator=(const U* InField)
 	{
 		Owner = InField ? InField->GetOwnerUObject() : (UObject*)nullptr;
-		Field = InField;
+		Field = (U*)InField;
 	}
 
 	/**

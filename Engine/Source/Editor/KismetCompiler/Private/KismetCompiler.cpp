@@ -4497,19 +4497,35 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 		class FSignatureArchiveCrc32 : public FArchiveObjectCrc32
 		{
 		public:
-			static bool IsInnerProperty(const UObject* Object)
+
+			static bool IsInnerProperty(const FField* Field)
 			{
-				const FProperty* Property = CastField<const FProperty>(Object);
+				const FProperty* Property = CastField<const FProperty>(Field);
 				return Property // check arrays
 					&& Cast<const UFunction>(Property->GetOwnerStruct())
 					&& !Property->HasAnyPropertyFlags(CPF_Parm);
+			}
+
+			virtual FArchive& operator<<(FField*& Field) override
+			{
+				FArchive& Ar = *this;
+				if (Field && !IsInnerProperty(Field))
+				{					
+					FString UniqueName = GetPathNameSafe(Field);
+					Ar << UniqueName;
+					if (Field->IsIn(RootObject))
+					{
+						Field->Serialize(Ar);
+					}
+				}
+				return Ar;
 			}
 
 			virtual FArchive& operator<<(UObject*& Object) override
 			{
 				FArchive& Ar = *this;
 
-				if (Object && !IsInnerProperty(Object))
+				if (Object)
 				{
 					// Names of functions and properties are significant.
 					FString UniqueName = GetPathNameSafe(Object);
@@ -4545,6 +4561,13 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 					{
 						Ar << ChildrenIter;
 						ChildrenIter = ChildrenIter->Next;
+					}
+
+					FField* ChildPropIter = Struct->ChildProperties;
+					while (ChildPropIter)
+					{
+						Ar << ChildPropIter;
+						ChildPropIter = ChildPropIter->Next;
 					}
 
 					if (UFunction* Function = Cast<UFunction>(Struct))

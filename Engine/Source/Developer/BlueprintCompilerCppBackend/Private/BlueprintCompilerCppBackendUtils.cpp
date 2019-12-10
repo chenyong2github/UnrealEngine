@@ -1839,7 +1839,7 @@ FString FEmitHelper::GenerateGetPropertyByName(FEmitterLocalContext& EmitterCont
 	if (bUseStaticVariables)
 	{
 		const FString PropertyWeakPtrName = EmitterContext.GenerateUniqueLocalName();
-		EmitterContext.AddLine(FString::Printf(TEXT("static TWeakObjectPtr<FProperty> %s{};"), *PropertyWeakPtrName));
+		EmitterContext.AddLine(FString::Printf(TEXT("static TWeakFieldPtr<FProperty> %s{};"), *PropertyWeakPtrName));
 
 		EmitterContext.AddLine(FString::Printf(TEXT("const FProperty* %s = %s.Get();"), *PropertyPtrName, *PropertyWeakPtrName));
 		EmitterContext.AddLine(FString::Printf(TEXT("if (nullptr == %s)"), *PropertyPtrName));

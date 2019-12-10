@@ -622,7 +622,7 @@ void FVMReflection::ProcessStructProperty()
 {
 	if (!IsPropertyArray() || (bVerifiedFieldType && bSetArrayElement))
 	{
-		FStructProperty* StructProp = CastField<FStructProperty>(FieldInstance);
+		FStructProperty* StructProp = FieldInstance.Get<FStructProperty>();
 
 		if (StructProp != nullptr && FieldAddress != nullptr)
 		{
@@ -659,7 +659,7 @@ InType* FVMReflection::GetWritableCast(const TCHAR* InTypeStr, bool bDoingUpCast
 			ReturnVal = (InType*)FieldAddress;
 		}
 #if UENUM_REFL
-		else if (FieldInstance.IsA<FEnumProperty>() && CastField<FEnumProperty>(FieldInstance)->GetUnderlyingProperty()->IsA(InTypeClass::StaticClass()))
+		else if (FieldInstance.IsA<FEnumProperty>() && FieldInstance.Get<FEnumProperty>()->GetUnderlyingProperty()->IsA(InTypeClass::StaticClass()))
 		{
 			ReturnVal = (InType*)FieldAddress;
 		}
@@ -737,7 +737,7 @@ InType FVMReflection::GetNumericTypeCast(const TCHAR* InTypeStr, const TArray<FF
 #if UENUM_REFL
 			else if (FieldInstance.IsA(FEnumProperty::StaticClass()))
 			{
-				FEnumProperty* EnumFieldInstance = CastField<FEnumProperty>(FieldInstance);
+				FEnumProperty* EnumFieldInstance = FieldInstance.Get<FEnumProperty>();
 				FNumericProperty* UnderlyingProp = EnumFieldInstance->GetUnderlyingProperty();
 				const FFieldClass* UnderlyingPropClass = UnderlyingProp->GetClass();
 
@@ -945,7 +945,7 @@ IMPLEMENT_GENERIC_POINTER_CAST(FText, FTextProperty);
 FVMReflection::operator bool()
 {
 	bool bReturnVal = false;
-	FBoolProperty* BoolProp = CastField<FBoolProperty>(FieldInstance);
+	FBoolProperty* BoolProp = FieldInstance.Get<FBoolProperty>();
 
 	AddCastHistory(TEXT("(bool)"));
 
@@ -994,7 +994,7 @@ FVMReflection::operator FString()
 {
 	FString ReturnVal = TEXT("");
 
-	if (const FEnumProperty* EnumProp = CastField<FEnumProperty>(FieldInstance))
+	if (const FEnumProperty* EnumProp = FieldInstance.Get<FEnumProperty>())
 	{
 		UEnum* TargetEnum = EnumProp->GetEnum();
 		uint8 EnumValue = (uint8)(*this);
@@ -1003,7 +1003,7 @@ FVMReflection::operator FString()
 
 		ReturnVal = TargetEnum->GetNameStringByValue(EnumValue);
 	}
-	else if (const FByteProperty* ByteProp = CastField<FByteProperty>(FieldInstance))
+	else if (const FByteProperty* ByteProp = FieldInstance.Get<FByteProperty>())
 	{
 		UEnum* TargetEnum = ByteProp->Enum;
 		uint8 EnumValue = (uint8)(*this);
@@ -1153,7 +1153,7 @@ FVMReflection::operator TSharedPtr<FScriptArrayHelper>()
 
 	if (ScriptArray != NULL)
 	{
-		ReturnVal = MakeShareable(new FScriptArrayHelper(CastField<FArrayProperty>(FieldInstance), ScriptArray));
+		ReturnVal = MakeShareable(new FScriptArrayHelper(FieldInstance.Get<FArrayProperty>(), ScriptArray));
 	}
 	else
 	{
@@ -1192,7 +1192,7 @@ FVMReflection::operator void*()
 
 FVMReflection& FVMReflection::operator = (bool Value)
 {
-	FBoolProperty* BoolProp = CastField<FBoolProperty>(FieldInstance);
+	FBoolProperty* BoolProp = FieldInstance.Get<FBoolProperty>();
 
 	AddHistory(Value ? TEXT(" = true") : TEXT(" = false"));
 
@@ -1232,7 +1232,7 @@ FVMReflection& FVMReflection::operator = (UObject* Value)
 
 FVMReflection& FVMReflection::operator = (TCHAR* Value)
 {
-	if (FEnumProperty* EnumProp = CastField<FEnumProperty>(FieldInstance))
+	if (FEnumProperty* EnumProp = FieldInstance.Get<FEnumProperty>())
 	{
 		UEnum* TargetEnum = EnumProp->GetEnum();
 		int64 EnumIdx = (int64)TargetEnum->GetIndexByName(Value);
@@ -1246,7 +1246,7 @@ FVMReflection& FVMReflection::operator = (TCHAR* Value)
 			SetError(FString::Printf(TEXT("Name '%s' is not a valid name within enum '%s'."), Value, *TargetEnum->GetName()));
 		}
 	}
-	else if (FByteProperty* ByteProp = CastField<FByteProperty>(FieldInstance))
+	else if (FByteProperty* ByteProp = FieldInstance.Get<FByteProperty>())
 	{
 		UEnum* TargetEnum = ByteProp->Enum;
 		int8 EnumIdx = (int8)TargetEnum->GetIndexByName(Value);
@@ -1260,7 +1260,7 @@ FVMReflection& FVMReflection::operator = (TCHAR* Value)
 			SetError(FString::Printf(TEXT("Name '%s' is not a valid name within enum '%s'."), Value, *TargetEnum->GetName()));
 		}
 	}
-	else if (FSoftObjectProperty* SoftObjProp = CastField<FSoftObjectProperty>(FieldInstance))
+	else if (FSoftObjectProperty* SoftObjProp = FieldInstance.Get<FSoftObjectProperty>())
 	{
 		FSoftObjectPtr* SoftObjPtr = (FSoftObjectPtr*)(*this);
 
@@ -1269,7 +1269,7 @@ FVMReflection& FVMReflection::operator = (TCHAR* Value)
 			*SoftObjPtr = FSoftObjectPath(Value);
 		}
 	}
-	else if (FNameProperty* NameProp = CastField<FNameProperty>(FieldInstance))
+	else if (FNameProperty* NameProp = FieldInstance.Get<FNameProperty>())
 	{
 		FName* TargetName = (FName*)(*this);
 
@@ -1330,7 +1330,7 @@ TValueOrError<FString, FString> FVMReflection::GetValueAsString()
 	{
 		// @todo #JohnB: Static arrays
 
-		FProperty* Prop = CastField<FProperty>(FieldInstance);
+		FProperty* Prop = FieldInstance.Get<FProperty>();
 		UObject* Obj = (UObject*)BaseAddress;
 
 		if (Prop != nullptr && Obj != nullptr)

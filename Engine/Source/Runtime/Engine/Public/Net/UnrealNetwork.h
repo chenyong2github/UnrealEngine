@@ -186,7 +186,7 @@ static FProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass
 /** This macro is used by nativized code (DynamicClasses), so the Property may be recreated. */
 #define DOREPLIFETIME_DIFFNAMES(c,v, n) \
 { \
-	static TWeakObjectPtr<FProperty> __swp##v{};							\
+	static TWeakFieldPtr<FProperty> __swp##v{};							\
 	const FProperty* sp##v = __swp##v.Get();								\
 	if (nullptr == sp##v)													\
 	{																		\

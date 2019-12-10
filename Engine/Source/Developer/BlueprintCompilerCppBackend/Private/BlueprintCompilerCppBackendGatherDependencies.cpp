@@ -522,13 +522,80 @@ bool FGatherConvertedClassDependencies::WillClassBeConverted(const UBlueprintGen
 	return false;
 }
 
+
+class FFieldCollectorArchive : public FArchive
+{
+	TSet<FField*> VisitedFields;
+	TArray<FFieldVariant>& Fields;
+
+public:
+
+	FFieldCollectorArchive(TArray<FFieldVariant>& OutFields)
+		: Fields(OutFields)
+	{
+		this->SetIsSaving(true);
+		this->SetIsPersistent(false);
+	}
+
+	virtual FArchive& operator << (FField*& InField) override
+	{
+		if (InField && !VisitedFields.Contains(InField))
+		{
+			VisitedFields.Add(InField);
+			Fields.Add(InField);
+			InField->Serialize(*this);
+		}
+		return *this;
+	}
+};
+
+class FSimpleArrayReferenceCollector : public FReferenceCollector
+{
+	TArray<UObject*>& Objects;
+public:
+	FSimpleArrayReferenceCollector(TArray<UObject*>& OutObjects)
+		: Objects(OutObjects)
+	{
+	}
+	virtual bool IsIgnoringArchetypeRef() const override { return false; }
+	virtual bool IsIgnoringTransient() const override { return false; }
+	virtual void HandleObjectReference(UObject*& InObject, const UObject* InReferencingObject, const FProperty* InReferencingProperty)
+	{
+		if (InObject)
+		{
+			Objects.Add(InObject);
+		}
+	}
+};
+
+void GetStructProperties(UStruct* InStruct, TArray<FFieldVariant>& OutFields)
+{
+	FFieldCollectorArchive Ar(OutFields);
+
+	for (FField* Prop = InStruct->ChildProperties; Prop; Prop = Prop->Next)
+	{
+		Ar << Prop;
+	}
+}
 void FGatherConvertedClassDependencies::DependenciesForHeader()
 {
-	TArray<UObject*> ObjectsToCheck;
-	GetObjectsWithOuter(OriginalStruct, ObjectsToCheck, true);
+	TArray<FFieldVariant> ObjectsToCheck;
+	{
+		TArray<UObject*> StructSubobjects;
+		GetObjectsWithOuter(OriginalStruct, StructSubobjects, true);
+		GetStructProperties(OriginalStruct, ObjectsToCheck);
+		for (UObject* SubObj : StructSubobjects)
+		{
+			ObjectsToCheck.Add(SubObj);
+			if (UStruct* SubStruct = Cast<UStruct>(SubObj))
+			{
+				GetStructProperties(SubStruct, ObjectsToCheck);
+			}
+		}
+	}
 
 	TArray<UObject*> NeededObjects;
-	FReferenceFinder HeaderReferenceFinder(NeededObjects, nullptr, false, false, true, false);
+	FSimpleArrayReferenceCollector HeaderReferenceFinder(NeededObjects);
 
 	auto ShouldIncludeHeaderFor = [this](UObject* InObj)->bool
 	{
@@ -547,9 +614,9 @@ void FGatherConvertedClassDependencies::DependenciesForHeader()
 		return false;
 	};
 
-	for (UObject* Obj : ObjectsToCheck)
+	for (FFieldVariant& Obj : ObjectsToCheck)
 	{
-		const FProperty* Property = CastField<const FProperty>(Obj);
+		const FProperty* Property = Obj.Get<FProperty>();
 		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 		{
 			Property = ArrayProperty->Inner;
@@ -601,7 +668,9 @@ void FGatherConvertedClassDependencies::DependenciesForHeader()
 			}
 			else
 			{
-				HeaderReferenceFinder.FindReferences(Obj);
+				FField* Field = Obj.Get<FField>();	
+				check(Field);
+				Field->AddReferencedObjects(HeaderReferenceFinder);
 			}
 		}
 	}
