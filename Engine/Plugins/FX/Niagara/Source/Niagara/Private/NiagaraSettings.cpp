@@ -21,9 +21,9 @@ FText UNiagaraSettings::GetSectionText() const
 }
 #endif
 
-void UNiagaraSettings::PostLoad()
+void UNiagaraSettings::PostInitProperties()
 {
-	Super::PostLoad();
+	Super::PostInitProperties();
 
 	DefaultEffectTypePtr = Cast<UNiagaraEffectType>(DefaultEffectType.TryLoad());
 }
@@ -49,9 +49,5 @@ UNiagaraSettings::FOnNiagaraSettingsChanged UNiagaraSettings::SettingsChangedDel
 
 UNiagaraEffectType* UNiagaraSettings::GetDefaultEffectType()const
 {
-	if (DefaultEffectTypePtr == nullptr && DefaultEffectType.IsValid())
-	{
-		DefaultEffectTypePtr = Cast<UNiagaraEffectType>(DefaultEffectType.TryLoad());
-	}
 	return DefaultEffectTypePtr;
 }
