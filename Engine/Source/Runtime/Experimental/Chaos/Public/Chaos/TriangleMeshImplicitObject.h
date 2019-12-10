@@ -33,12 +33,8 @@ namespace Chaos
 		TTriangleMeshImplicitObject(TTriangleMeshImplicitObject&& Other) = default;
 		virtual ~TTriangleMeshImplicitObject() {}
 
-		virtual T PhiWithNormal(const TVector<T, 3>& x, TVector<T, 3>& Normal) const
-		{
-			ensure(false);	//not supported yet - might support it in the future or we may change the interface
-			return TNumericLimits<T>::Max();
-		}
-
+		virtual T PhiWithNormal(const TVector<T, 3>& x, TVector<T, 3>& Normal) const;
+		
 		virtual bool Raycast(const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T,3>& OutPosition, TVector<T,3>& OutNormal, int32& OutFaceIndex) const override;
 		virtual bool Overlap(const TVector<T, 3>& Point, const T Thickness) const override;
 
