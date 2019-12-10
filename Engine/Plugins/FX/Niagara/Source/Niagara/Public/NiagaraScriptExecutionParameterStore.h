@@ -16,13 +16,13 @@ public:
 	FNiagaraScriptExecutionPaddingInfo(uint32 InSrcOffset, uint32 InDestOffset, uint32 InSrcSize, uint32 InDestSize) : SrcOffset(InSrcOffset), DestOffset(InDestOffset), SrcSize(InSrcSize), DestSize(InDestSize) {}
 
 	UPROPERTY()
-	uint32 SrcOffset;
+	uint16 SrcOffset;
 	UPROPERTY()
-	uint32 DestOffset;
+	uint16 DestOffset;
 	UPROPERTY()
-	uint32 SrcSize;
+	uint16 SrcSize;
 	UPROPERTY()
-	uint32 DestSize;
+	uint16 DestSize;
 };
 
 /**

@@ -252,21 +252,23 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	UPROPERTY()
 	FName OwnerName;
 	UPROPERTY()
-	bool bRequiresContext;
+	uint32 bRequiresContext : 1;
 	/** True if this is the signature for a "member" function of a data interface. If this is true, the first input is the owner. */
 	UPROPERTY()
-	bool bMemberFunction;
+	uint32 bMemberFunction : 1;
 	/** Is this function experimental? */
 	UPROPERTY()
-	bool bExperimental;
+	uint32 bExperimental : 1;
+	/** Support running on the CPU. */
+	UPROPERTY()
+	uint32 bSupportsCPU : 1;
+	/** Support running on the GPU. */
+	UPROPERTY()
+	uint32 bSupportsGPU : 1;
+
 	/** Function specifiers verified at bind time. */
 	UPROPERTY()
 	TMap<FName, FName> FunctionSpecifiers;
-
-	UPROPERTY()
-	bool bSupportsCPU = true;
-	UPROPERTY()
-	bool bSupportsGPU = true;
 
 	/** Localized description of this node. Note that this is *not* used during the operator == below since it may vary from culture to culture.*/
 #if WITH_EDITORONLY_DATA
@@ -278,6 +280,8 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		: bRequiresContext(false)
 		, bMemberFunction(false)
 		, bExperimental(false)
+		, bSupportsCPU(true)
+		, bSupportsGPU(true)
 	{
 	}
 
@@ -288,7 +292,8 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bRequiresContext(bInRequiresContext)
 		, bMemberFunction(bInMemberFunction)
 		, bExperimental(false)
-		, FunctionSpecifiers()
+		, bSupportsCPU(true)
+		, bSupportsGPU(true)
 	{
 
 	}
@@ -300,6 +305,8 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bRequiresContext(bInRequiresContext)
 		, bMemberFunction(bInMemberFunction)
 		, bExperimental(false)
+		, bSupportsCPU(true)
+		, bSupportsGPU(true)
 		, FunctionSpecifiers(InFunctionSpecifiers)
 	{
 
@@ -416,8 +423,11 @@ public:
 	UPROPERTY()
 	FNiagaraTypeDefinition Type;
 
+	// Removed from cooked builds, if we need to add this back the TMap<FName, FName> FunctionSpecifiers should be replaced with an array
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TArray<FNiagaraFunctionSignature> RegisteredFunctions;
+#endif
 
 	UPROPERTY()
 	FName RegisteredParameterMapRead;
@@ -453,6 +463,21 @@ struct FNiagaraStatScope
 };
 
 USTRUCT()
+struct FVMFunctionSpecifier
+{
+	GENERATED_USTRUCT_BODY();
+
+	FVMFunctionSpecifier() {}
+	explicit FVMFunctionSpecifier(FName InKey, FName InValue) : Key(InKey), Value(InValue) {}
+
+	UPROPERTY()
+	FName Key;
+
+	UPROPERTY()
+	FName Value;
+};
+
+USTRUCT()
 struct FVMExternalFunctionBindingInfo
 {
 	GENERATED_USTRUCT_BODY();
@@ -470,10 +495,32 @@ struct FVMExternalFunctionBindingInfo
 	int32 NumOutputs;
 
 	UPROPERTY()
-	TMap<FName, FName> Specifiers;
+	TArray<FVMFunctionSpecifier> FunctionSpecifiers;
 
-	FORCEINLINE int32 GetNumInputs()const { return InputParamLocations.Num(); }
-	FORCEINLINE int32 GetNumOutputs()const { return NumOutputs; }
+	FORCEINLINE int32 GetNumInputs() const { return InputParamLocations.Num(); }
+	FORCEINLINE int32 GetNumOutputs() const { return NumOutputs; }
+
+	const FVMFunctionSpecifier* FindSpecifier(const FName& Key) const
+	{
+		return FunctionSpecifiers.FindByPredicate([&](const FVMFunctionSpecifier& v) -> bool { return v.Key == Key; });
+	}
+
+	bool Serialize(FArchive& Ar);
+
+#if WITH_EDITORONLY_DATA
+private:
+	UPROPERTY()
+	TMap<FName, FName> Specifiers_DEPRECATED;
+#endif
+};
+
+template<>
+struct TStructOpsTypeTraits<FVMExternalFunctionBindingInfo> : public TStructOpsTypeTraitsBase2<FVMExternalFunctionBindingInfo>
+{
+	enum
+	{
+		WithSerializer = true,
+	};
 };
 
 struct NIAGARA_API FNiagaraSystemUpdateContext
