@@ -596,10 +596,11 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQueryAsyncCPU(FVectorVMContext 
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 		FVector Pos(StartPosParamX.GetAndAdvance(), StartPosParamY.GetAndAdvance(), StartPosParamZ.GetAndAdvance());
-		FVector Dir(EndPosParamX.GetAndAdvance(), EndPosParamY.GetAndAdvance(), EndPosParamZ.GetAndAdvance());
+		FVector End(EndPosParamX.GetAndAdvance(), EndPosParamY.GetAndAdvance(), EndPosParamZ.GetAndAdvance());
 		ECollisionChannel TraceChannel = TraceChannelParam.GetAndAdvance();
 		ensure(!Pos.ContainsNaN());
-		*OutQueryID.GetDestAndAdvance() = InstanceData->CollisionBatch.SubmitQuery(Pos, Dir, TraceChannel);
+
+		*OutQueryID.GetDestAndAdvance() = InstanceData->CollisionBatch.SubmitQuery(Pos, End, TraceChannel);
 
 		// try to retrieve a query with the supplied query ID
 		FNiagaraDICollsionQueryResult Res;
@@ -829,13 +830,16 @@ void UNiagaraDataInterfaceCollisionQuery::ReadQuery(FVectorVMContext& Context)
 
 bool UNiagaraDataInterfaceCollisionQuery::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* InSystemInstance, float DeltaSeconds)
 {
+	CQDIPerInstanceData* PIData = static_cast<CQDIPerInstanceData*>(PerInstanceData);
+	PIData->CollisionBatch.CollectResults();
+
 	return false;
 }
 
 bool UNiagaraDataInterfaceCollisionQuery::PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* InSystemInstance, float DeltaSeconds)
 {
-	CQDIPerInstanceData *PIData = static_cast<CQDIPerInstanceData*>(PerInstanceData);
-	PIData->CollisionBatch.Tick(ENiagaraSimTarget::CPUSim);
+	CQDIPerInstanceData* PIData = static_cast<CQDIPerInstanceData*>(PerInstanceData);
+	PIData->CollisionBatch.DispatchQueries();
 	PIData->CollisionBatch.ClearWrite();
 	return false;
 }
