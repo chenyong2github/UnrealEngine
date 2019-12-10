@@ -824,7 +824,6 @@ namespace Chaos
 		const FVec3 X1 = P1 + Q1 * XL1.GetTranslation();
 		const FRotation3 R0 = Q0 * XL0.GetRotation();
 		const FRotation3 R1 = Q1 * XL1.GetRotation();
-		const FVec3 CX = GetLimitedPositionError(JointSettings, R0, X1 - X0);
 
 		// Calculate the Twist Axis and Angle for each body
 		const FRotation3 R01 = R0.Inverse() * R1;
@@ -900,7 +899,6 @@ namespace Chaos
 		const FVec3 X1 = P1 + Q1 * XL1.GetTranslation();
 		const FRotation3 R0 = Q0 * XL0.GetRotation();
 		const FRotation3 R1 = Q1 * XL1.GetRotation();
-		const FVec3 CX = GetLimitedPositionError(JointSettings, R0, X1 - X0);
 
 		// Calculate the Twist Axis and Angle for each body
 		const FRotation3 R01 = R0.Inverse() * R1;
@@ -976,7 +974,6 @@ namespace Chaos
 		const FVec3 X1 = P1 + Q1 * XL1.GetTranslation();
 		const FRotation3 R0 = Q0 * XL0.GetRotation();
 		const FRotation3 R1 = Q1 * XL1.GetRotation();
-		const FVec3 CX = GetLimitedPositionError(JointSettings, R0, X1 - X0);
 
 		// Calculate Swing axis for each body
 		const FRotation3 R01 = R0.Inverse() * R1;
@@ -1135,7 +1132,6 @@ namespace Chaos
 		const FVec3 X1 = P1 + Q1 * XL1.GetTranslation();
 		const FRotation3 R0 = Q0 * XL0.GetRotation();
 		const FRotation3 R1 = Q1 * XL1.GetRotation();
-		const FVec3 CX = GetLimitedPositionError(JointSettings, R0, X1 - X0);
 
 		// Calculate the swing axis for each body
 		const FRotation3 R01 = R0.Inverse() * R1;
@@ -1326,7 +1322,6 @@ namespace Chaos
 		const FVec3 X1 = P1 + Q1 * XL1.GetTranslation();
 		const FRotation3 R0 = Q0 * XL0.GetRotation();
 		const FRotation3 R1 = Q1 * XL1.GetRotation();
-		const FVec3 CX = GetLimitedPositionError(JointSettings, R0, X1 - X0);
 
 		const FRotation3 R01 = R0.Inverse() * R1;
 		FRotation3 R01Twist, R01Swing;
@@ -1383,7 +1378,6 @@ namespace Chaos
 		const FVec3 X1 = P1 + Q1 * XL1.GetTranslation();
 		const FRotation3 R0 = Q0 * XL0.GetRotation();
 		const FRotation3 R1 = Q1 * XL1.GetRotation();
-		const FVec3 CX = GetLimitedPositionError(JointSettings, R0, X1 - X0);
 
 		// Calculate Swing axis for each body
 		const FRotation3 R01 = R0.Inverse() * R1;
@@ -1438,11 +1432,12 @@ namespace Chaos
 		FReal InvM1,
 		const FMatrix33& InvIL1)
 	{
-		const FVec3 X0 = P0 + Q0 * XL0.GetTranslation();
-		const FVec3 X1 = P1 + Q1 * XL1.GetTranslation();
+		const FVec3 DX0 = Q0 * XL0.GetTranslation();
+		const FVec3 DX1 = Q1 * XL1.GetTranslation();
+		const FVec3 X0 = P0 + DX0;
+		const FVec3 X1 = P1 + DX1;
 		const FRotation3 R0 = Q0 * XL0.GetRotation();
 		const FRotation3 R1 = Q1 * XL1.GetRotation();
-		const FVec3 CX = GetLimitedPositionError(JointSettings, R0, X1 - X0);
 
 		// Calculate the rotation we need to apply to resolve the rotation delta
 		const FRotation3 TargetR1 = R0 * JointSettings.Motion.AngularDriveTarget;
@@ -1464,10 +1459,17 @@ namespace Chaos
 			const FReal F0 = DriveStiffness * I0 / (I0 + I1);
 			const FReal F1 = DriveStiffness * I1 / (I0 + I1);
 
-			// Apply the rotation delta
+			// Apply the rotation delta about the connector
 			Q0 = FRotation3::Slerp(Q0, TargetQ0, F0);
 			Q1 = FRotation3::Slerp(Q1, TargetQ1, F1);
 			Q1.EnforceShortestArcWith(Q0);
+
+			// @todo(ccaulfield): this does not take into account the fact that some linear dofs may be inactive
+			const FVec3 X0_2 = P0 + Q0 * XL0.GetTranslation();
+			const FVec3 X1_2 = P1 + Q1 * XL1.GetTranslation();
+			const FVec3 Delta = (X1_2 - X0_2) - (X1 - X0);
+			P0 += (InvM0 / (InvM0 + InvM1)) * Delta;
+			P1 -= (InvM1 / (InvM0 + InvM1)) * Delta;
 		}
 	}
 
