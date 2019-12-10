@@ -4,7 +4,7 @@
 
 #include "USDConversionUtils.h"
 #include "USDGeomMeshTranslator.h"
-#include "USDGeomXFormableTranslator.h"
+#include "USDGeomXformableTranslator.h"
 #include "USDListener.h"
 #include "USDPrimConversion.h"
 #include "USDSchemasModule.h"

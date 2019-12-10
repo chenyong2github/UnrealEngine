@@ -7,6 +7,8 @@
 
 #include "Materials/Material.h"
 
+#if USE_USD_SDK
+
 #include "USDIncludesStart.h"
 	#include "pxr/usd/usdShade/material.h"
 #include "USDIncludesEnd.h"
@@ -45,3 +47,5 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 		Context->PrimPathsToAssets.Add( UsdToUnreal::ConvertPath( Schema.Get().GetPath() ), CachedMaterial );
 	}
 }
+
+#endif // #if USE_USD_SDK

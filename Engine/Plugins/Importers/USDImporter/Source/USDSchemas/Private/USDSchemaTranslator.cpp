@@ -7,14 +7,13 @@
 #include "Algo/Find.h"
 #include "Async/Async.h"
 
+int32 FRegisteredSchemaTranslatorHandle::CurrentSchemaTranslatorId = 0;
+
 #if USE_USD_SDK
 
 #include "USDIncludesStart.h"
 	#include "pxr/base/tf/token.h"
 #include "USDIncludesEnd.h"
-
-
-int32 FRegisteredSchemaTranslatorHandle::CurrentSchemaTranslatorId = 0;
 
 TSharedPtr< FUsdSchemaTranslator > FUsdSchemaTranslatorRegistry::CreateTranslatorForSchema( TSharedRef< FUsdSchemaTranslationContext > InTranslationContext, const pxr::UsdTyped& InSchema )
 {

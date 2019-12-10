@@ -2,13 +2,14 @@
 
 #include "USDSchemasModule.h"
 
+#include "USDSchemaTranslator.h"
+
 #if USE_USD_SDK
 #include "USDGeomCameraTranslator.h"
 #include "USDGeomMeshTranslator.h"
 #include "USDGeomPointInstancerTranslator.h"
-#include "USDGeomXFormableTranslator.h"
+#include "USDGeomXformableTranslator.h"
 #include "USDMemory.h"
-#include "USDSchemaTranslator.h"
 #include "USDShadeMaterialTranslator.h"
 #include "USDSkelRootTranslator.h"
 #endif // #if USE_USD_SDK
