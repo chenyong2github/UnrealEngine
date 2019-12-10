@@ -102,7 +102,7 @@ void FEnumProperty::AddCppProperty(FProperty* Inner)
 	check(!UnderlyingProp);
 	UnderlyingProp = CastFieldChecked<FNumericProperty>(Inner);
 	check(UnderlyingProp->GetOwner<FEnumProperty>() == this);
-	if (UnderlyingProp && UnderlyingProp->HasAnyPropertyFlags(CPF_HasGetValueTypeHash))
+	if (UnderlyingProp->HasAnyPropertyFlags(CPF_HasGetValueTypeHash))
 	{
 		PropertyFlags |= CPF_HasGetValueTypeHash;
 	}
