@@ -35,7 +35,10 @@ namespace Chaos
 		TSerializablePtr<FImplicitObject> Geometry;
 		TAABB<FReal, 3> WorldSpaceInflatedShapeBounds;
 		TArray<FMaterialHandle> Materials;
+
+		// TODO: Bitfields?
 		bool bDisable;
+		bool bSimulate;
 
 		void UpdateShapeBounds(const TRigidTransform<T, d>& WorldTM);
 
