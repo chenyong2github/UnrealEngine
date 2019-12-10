@@ -349,7 +349,7 @@ void SweepHelper(const QueryGeomType& QueryGeom, const Chaos::ISpatialAccelerati
 	using namespace Chaos;
 	using namespace ChaosInterface;
 
-	const TBox<float, 3> Bounds = QueryGeom.BoundingBox().TransformedBox(StartTM);
+	const TAABB<float, 3> Bounds = QueryGeom.BoundingBox().TransformedAABB(StartTM);
 	const FVector HalfExtents = Bounds.Extents() * 0.5f;
 
 	TSQVisitor<QueryGeomType, TAccelerationStructureHandle<float, 3>, FSweepHit> SweepVisitor(StartTM, Dir, HitBuffer, OutputFlags, QueryFilterData, QueryCallback, QueryGeom, DebugParams);
@@ -369,7 +369,7 @@ void OverlapHelper(const QueryGeomType& QueryGeom, const Chaos::ISpatialAccelera
 	using namespace Chaos;
 	using namespace ChaosInterface;
 
-	const TBox<float, 3> Bounds = QueryGeom.BoundingBox().TransformedBox(GeomPose);
+	const TAABB<float, 3> Bounds = QueryGeom.BoundingBox().TransformedAABB(GeomPose);
 	TSQVisitor<QueryGeomType, TAccelerationStructureHandle<float, 3>, FOverlapHit> OverlapVisitor(GeomPose, HitBuffer, QueryFilterData, QueryCallback, QueryGeom, DebugParams);
 	HitBuffer.IncFlushCount();
 	SpatialAcceleration.Overlap(Bounds, OverlapVisitor);

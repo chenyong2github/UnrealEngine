@@ -594,7 +594,7 @@ void FChaosSolversModule::DumpHierarchyStats(int32* OutOptMaxCellElements)
 #endif
 #if 0
 
-		const TArray<Chaos::TBox<float, 3>>& Boxes = Hierarchy->GetWorldSpaceBoxes();
+		const TArray<Chaos::TAABB<float, 3>>& Boxes = Hierarchy->GetWorldSpaceBoxes();
 
 		if(Boxes.Num() > 0)
 		{

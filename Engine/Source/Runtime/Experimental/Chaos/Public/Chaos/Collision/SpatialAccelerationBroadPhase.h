@@ -144,9 +144,9 @@ namespace Chaos
 				{
 					// @todo(ccaulfield): COLLISION - see the NOTE below - fix it
 #if CHAOS_PARTICLEHANDLE_TODO
-					const TBox<FReal, 3> Box1 = InSpatialAcceleration.GetWorldSpaceBoundingBox(Particle1);
+					const TAABB<FReal, 3> Box1 = InSpatialAcceleration.GetWorldSpaceBoundingBox(Particle1);
 #else
-					const TBox<FReal, 3> Box1 = ComputeWorldSpaceBoundingBox(Particle1); // NOTE: this ignores the velocity expansion which is wrong
+					const TAABB<FReal, 3> Box1 = ComputeWorldSpaceBoundingBox(Particle1); // NOTE: this ignores the velocity expansion which is wrong
 #endif
 
 					CHAOS_COLLISION_STAT(StatData.RecordBoundsData(Box1));
