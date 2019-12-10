@@ -105,7 +105,7 @@ public:
 	{
 		if (Owner.Get(bEvenIfPendingKill))
 		{
-			return CastField<T>(Field.TryToResolvePath());
+			return Field.Get();
 		}
 		else
 		{
@@ -122,7 +122,7 @@ public:
 	{
 		if (Owner.Get())
 		{
-			return CastField<T>(Field.TryToResolvePath());
+			return Field.Get();
 		}
 		else
 		{
@@ -137,7 +137,7 @@ public:
 	{
 		if (Owner.GetEvenIfUnreachable())
 		{
-			return CastField<T>(Field.TryToResolvePath());
+			return Field.Get();
 		}
 		else
 		{
