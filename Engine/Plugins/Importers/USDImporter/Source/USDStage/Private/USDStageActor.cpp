@@ -367,23 +367,6 @@ void AUsdStageActor::OpenUsdStage()
 		pxr::UsdStageCacheContext UsdStageCacheContext( UnrealUSDWrapper::GetUsdStageCache() );
 		UsdStageStore = pxr::UsdStage::Open( UnrealToUsd::ConvertString( *RootLayer.FilePath ).Get(), pxr::UsdStage::InitialLoadSet( InitialLoadSet ) );
 	}
-	else
-	{
-		FScopedUsdAllocs UsdAllocs;
-
-		pxr::UsdStageCacheContext UsdStageCacheContext( UnrealUSDWrapper::GetUsdStageCache() );
-		UsdStageStore = pxr::UsdStage::CreateNew( UnrealToUsd::ConvertString( *RootLayer.FilePath ).Get() );
-
-		// Create default prim
-		pxr::UsdGeomXform RootPrim = pxr::UsdGeomXform::Define( UsdStageStore.Get(), UnrealToUsd::ConvertPath( TEXT("/Root") ).Get() );
-		pxr::UsdModelAPI( RootPrim ).SetKind( pxr::TfToken("component") );
-		
-		// Set default prim
-		UsdStageStore.Get()->SetDefaultPrim( RootPrim.GetPrim() );
-
-		// Set up axis
-		UsdUtils::SetUsdStageAxis( UsdStageStore.Get(), pxr::UsdGeomTokens->z );
-	}
 
 	if ( UsdStageStore.Get() )
 	{
