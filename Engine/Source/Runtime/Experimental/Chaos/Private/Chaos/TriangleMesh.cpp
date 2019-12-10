@@ -882,7 +882,7 @@ TArray<int32> TTriangleMesh<T>::GetVertexImportanceOrdering(
 
 	// Move the points to the origin to avoid floating point aliasing far away
 	// from the origin.
-	TBox<T, 3> Bbox(Points[0], Points[0]);
+	TAABB<T, 3> Bbox(Points[0], Points[0]);
 	for (int i = 1; i < NumPoints; i++)
 	{
 		Bbox.GrowToInclude(Points[i]);
@@ -892,7 +892,7 @@ TArray<int32> TTriangleMesh<T>::GetVertexImportanceOrdering(
 	TArray<TVector<T, 3>> LocalPoints;
 	LocalPoints.AddUninitialized(NumPoints);
 	LocalPoints[0] = Points[Offset] - Center;
-	TBox<T, 3> LocalBBox(LocalPoints[0], LocalPoints[0]);
+	TAABB<T, 3> LocalBBox(LocalPoints[0], LocalPoints[0]);
 	for (int i = 1; i < NumPoints; i++)
 	{
 		LocalPoints[i] = Points[Offset + i] - Center;

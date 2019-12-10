@@ -20,11 +20,11 @@ namespace Chaos
 			return Cross.Size() > 1e-4;
 		}
 
-		static void Build(const TParticles<FReal, 3>& InParticles, TArray <TPlane<FReal, 3>>& OutPlanes, TArray<TArray<int32>>& OutFaceIndices, TParticles<FReal, 3>& OutSurfaceParticles, TBox<FReal, 3>& OutLocalBounds)
+		static void Build(const TParticles<FReal, 3>& InParticles, TArray <TPlane<FReal, 3>>& OutPlanes, TArray<TArray<int32>>& OutFaceIndices, TParticles<FReal, 3>& OutSurfaceParticles, TAABB<FReal, 3>& OutLocalBounds)
 		{
 			OutPlanes.Reset();
 			OutSurfaceParticles.Resize(0);
-			OutLocalBounds = TBox<FReal, 3>::EmptyBox();
+			OutLocalBounds = TAABB<FReal, 3>::EmptyAABB();
 
 			const uint32 NumParticles = InParticles.Size();
 			if(NumParticles == 0)
@@ -32,7 +32,7 @@ namespace Chaos
 				return;
 			}
 
-			OutLocalBounds = TBox<FReal, 3>(InParticles.X(0), InParticles.X(0));
+			OutLocalBounds = TAABB<FReal, 3>(InParticles.X(0), InParticles.X(0));
 			for(uint32 ParticleIndex = 0; ParticleIndex < NumParticles; ++ParticleIndex)
 			{
 				OutLocalBounds.GrowToInclude(InParticles.X(ParticleIndex));
@@ -161,7 +161,7 @@ namespace Chaos
 			return FString::Printf(TEXT("Planes %d, SurfaceParticles %d"), NumPlanes, NumParticles);
 		}
 
-		static CHAOS_API void Simplify(TArray <TPlane<FReal, 3>>& InOutPlanes, TArray<TArray<int32>>& InOutFaces, TParticles<FReal, 3>& InOutParticles, TBox<FReal, 3>& InOutLocalBounds)
+		static CHAOS_API void Simplify(TArray <TPlane<FReal, 3>>& InOutPlanes, TArray<TArray<int32>>& InOutFaces, TParticles<FReal, 3>& InOutParticles, TAABB<FReal, 3>& InOutLocalBounds)
 		{
 			struct TPair
 			{

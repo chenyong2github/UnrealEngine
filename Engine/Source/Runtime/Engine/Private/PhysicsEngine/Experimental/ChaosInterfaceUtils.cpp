@@ -93,7 +93,7 @@ namespace ChaosInterface
 			const auto& Vertex = PhysXMesh->getVertices()[j];
 			CollisionMeshParticles.X(j) = Scale * Chaos::TVector<float, 3>(Vertex.x, Vertex.y, Vertex.z);
 		}
-		Chaos::TBox<float, 3> BoundingBox(CollisionMeshParticles.X(0), CollisionMeshParticles.X(0));
+		Chaos::TAABB<float, 3> BoundingBox(CollisionMeshParticles.X(0), CollisionMeshParticles.X(0));
 		for (uint32 j = 1; j < CollisionMeshParticles.Size(); ++j)
 		{
 			BoundingBox.GrowToInclude(CollisionMeshParticles.X(j));
@@ -175,7 +175,7 @@ namespace ChaosInterface
 			HalfExtents.Y = FMath::Max(HalfExtents.Y, KINDA_SMALL_NUMBER);
 			HalfExtents.Z = FMath::Max(HalfExtents.Z, KINDA_SMALL_NUMBER);
 
-			// TBox can handle translations internally but if we have a rotation we need to wrap it in a transform
+			// TAABB can handle translations internally but if we have a rotation we need to wrap it in a transform
 			TUniquePtr<Chaos::FImplicitObject> Implicit;
 			if (!BoxTransform.GetRotation().IsIdentity())
 			{

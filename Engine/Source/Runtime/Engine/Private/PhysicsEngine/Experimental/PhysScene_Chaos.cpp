@@ -85,7 +85,7 @@ public:
 
 	}
 
-	virtual void Box(const Chaos::TBox<float, 3>& InBox, const Chaos::TVector<float, 3>& InLinearColor, float InThickness) override
+	virtual void Box(const Chaos::TAABB<float, 3>& InBox, const Chaos::TVector<float, 3>& InLinearColor, float InThickness) override
 	{
 		DrawDebugBox(World, InBox.Center(), InBox.Extents(), FQuat::Identity, FLinearColor(InLinearColor).ToFColor(true), false, -1.0f, SDPG_Foreground, InThickness);
 	}
@@ -222,8 +222,8 @@ private:
 
 					if (bDrawObjectBounds)
 					{
-						const TArray<TBox<float, 3>>& Boxes = BV->GetWorldSpaceBoxes();
-						for (const TBox<float, 3>& Box : Boxes)
+						const TArray<TAABB<float, 3>>& Boxes = BV->GetWorldSpaceBoxes();
+						for (const TAABB<float, 3>& Box : Boxes)
 						{
 							DrawDebugBox(WorldPtr, Box.Center(), Box.Extents() / 2.0f, FQuat::Identity, FColor::Cyan, false, -1.0f, SDPG_Foreground, 1.0f);
 						}
@@ -601,11 +601,11 @@ void FPhysScene_Chaos::UpdateActorInAccelerationStructure(const FPhysicsActorHan
 		if (SpatialAcceleration)
 		{
 
-			TBox<FReal, 3> WorldBounds;
+			TAABB<FReal, 3> WorldBounds;
 			const bool bHasBounds = Actor->Geometry()->HasBoundingBox();
 			if (bHasBounds)
 			{
-				WorldBounds = Actor->Geometry()->BoundingBox().GetAABB().TransformedAABB(TRigidTransform<FReal, 3>(Actor->X(), Actor->R()));
+				WorldBounds = Actor->Geometry()->BoundingBox().TransformedAABB(TRigidTransform<FReal, 3>(Actor->X(), Actor->R()));
 			}
 
 
@@ -973,11 +973,11 @@ void FPhysScene_ChaosInterface::AddActorsToScene_AssumesLocked(TArray<FPhysicsAc
 		{
 			// Get the bounding box for the particle if it has one
 			bool bHasBounds = Handle->Geometry()->HasBoundingBox();
-			Chaos::TBox<float, 3> WorldBounds;
+			Chaos::TAABB<float, 3> WorldBounds;
 			if (bHasBounds)
 			{
-				const Chaos::TBox<float, 3> LocalBounds = Handle->Geometry()->BoundingBox();
-				WorldBounds = LocalBounds.TransformedBox(Chaos::TRigidTransform<float, 3>(Handle->X(), Handle->R()));
+				const Chaos::TAABB<float, 3> LocalBounds = Handle->Geometry()->BoundingBox();
+				WorldBounds = LocalBounds.TransformedAABB(Chaos::TRigidTransform<float, 3>(Handle->X(), Handle->R()));
 			}
 
 			// Insert the particle
