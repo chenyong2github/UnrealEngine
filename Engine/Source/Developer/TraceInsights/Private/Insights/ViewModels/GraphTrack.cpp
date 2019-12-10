@@ -2,11 +2,11 @@
 
 #include "Insights/ViewModels/GraphTrack.h"
 
-#include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Rendering/DrawElements.h"
 #include "Styling/CoreStyle.h"
+#include "Widgets/Layout/SBox.h"
 
 // Insights
 #include "Insights/Common/PaintUtils.h"
@@ -19,6 +19,7 @@
 #include "Insights/ViewModels/TimingEvent.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
+#include "Insights/Widgets/SGraphSeriesList.h"
 
 #define LOCTEXT_NAMESPACE "GraphTrack"
 
@@ -736,42 +737,13 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 
 	MenuBuilder.BeginSection("Series", LOCTEXT("ContextMenu_Header_Series", "Series"));
 	{
-		for (const TSharedPtr<FGraphSeries>& Series : AllSeries)
-		{
-			FUIAction Action_ShowSeries
-			(
-				FExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ShowSeries_Execute, Series.Get()),
-				FCanExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ShowSeries_CanExecute, Series.Get()),
-				FIsActionChecked::CreateSP(this, &FGraphTrack::ContextMenu_ShowSeries_IsChecked, Series.Get())
-			);
-			MenuBuilder.AddMenuEntry
-			(
-				Action_ShowSeries,
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.Padding(2.0f, 0.0f)
-				[
-					SNew(STextBlock)
-					.Text(Series->GetName())
-				]
-				+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Center)
-				.Padding(4.0f, 0.0f)
-				[
-					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
-					.ColorAndOpacity_Lambda([SeriesPtr = Series.Get()](){ return FSlateColor(SeriesPtr->GetColor()); })
-					.Text(FEditorFontGlyphs::Circle)
-				],
-				NAME_None,
-				Series->GetDescription(),
-				EUserInterfaceActionType::ToggleButton
-			);
-		}
+		MenuBuilder.AddWidget(
+			SNew(SBox)
+			.MaxDesiredHeight(150.0f)
+			[
+				SNew(SGraphSeriesList, SharedThis(this))
+			], 
+			FText::GetEmpty(), true);
 	}
 	MenuBuilder.EndSection();
 }
