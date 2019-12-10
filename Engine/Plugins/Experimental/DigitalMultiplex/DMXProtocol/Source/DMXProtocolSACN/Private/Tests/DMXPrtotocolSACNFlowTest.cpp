@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/Engine.h"
+#include "Misc/AutomationTest.h"
 #include "DMXProtocolSACNModule.h"
 
 #include "DMXProtocolSACN.h"
