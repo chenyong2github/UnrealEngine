@@ -6,6 +6,7 @@
 
 #if UE_TRACE_ENABLED
 
+#include "Atomic.h"
 #include "Protocol.h"
 #include "Templates/UnrealTemplate.h"
 #include "Writer.inl"
@@ -171,7 +172,7 @@ private:
 
 			if (bCommit)
 			{
-				AtomicStoreRelease<uint8* __restrict>(&(Buffer->Committed), Buffer->Cursor);
+				AtomicStoreRelease(&(uint8* volatile&)(Buffer->Committed), Buffer->Cursor);
 			}
 
 			Size -= SegmentSize;
