@@ -85,11 +85,18 @@ public:
 		MemorySize = InMemorySize;
 	}
 
+	void SetAliasingSource(FTextureRHIRef& SourceTextureRHI)
+	{
+		AliasingSourceTexture = SourceTextureRHI;
+	}
+
 	// Accessors.
 	FD3D12Resource* GetResource() const { return ResourceLocation.GetResource(); }
 	uint64 GetOffset() const { return ResourceLocation.GetOffsetFromBaseOfResource(); }
 	FD3D12ShaderResourceView* GetShaderResourceView() const { return ShaderResourceView; }
 	FD3D12BaseShaderResource* GetBaseShaderResource() const { return BaseShaderResource; }
+	inline const FTextureRHIRef& GetAliasingSourceTexture() const { return AliasingSourceTexture; }
+
 	void SetShaderResourceView(FD3D12ShaderResourceView* InShaderResourceView) { ShaderResourceView = InShaderResourceView; }
 
 	static inline bool ShouldDeferCmdListOperation(FRHICommandList* RHICmdList)
@@ -199,6 +206,8 @@ protected:
 	uint32	NumDepthStencilViews;
 
 	TMap<uint32, FD3D12LockedResource*> LockedMap;
+
+	FTextureRHIRef AliasingSourceTexture;
 };
 
 #if !PLATFORM_SUPPORTS_VIRTUAL_TEXTURES

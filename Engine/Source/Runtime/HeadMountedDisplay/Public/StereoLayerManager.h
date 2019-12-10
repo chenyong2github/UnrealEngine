@@ -296,6 +296,37 @@ public:
 		bStereoLayersDirty = true;
 	}
 
+	virtual void GetAllocatedTexture(uint32 LayerId, FTextureRHIRef &Texture, FTextureRHIRef &LeftTexture) override
+	{
+		Texture = LeftTexture = nullptr;
+		if (LayerId == FLayerDesc::INVALID_LAYER_ID)
+		{
+			return;
+		}
+		FScopeLock LockLayers(&LayerCritSect);
+
+		int32 FoundLevel;
+		LayerType* Found = FindLayerById(LayerId, FoundLevel);
+		if (Found)
+		{
+			FLayerDesc LayerDesc;
+			GetLayerDescMember(*Found, LayerDesc);
+			if (LayerDesc.Texture)
+			{
+				if (LayerDesc.HasShape<FCubemapLayer>())
+				{
+					Texture = LayerDesc.Texture->GetTextureCube();
+					LeftTexture = LayerDesc.LeftTexture ? LayerDesc.LeftTexture->GetTextureCube() : nullptr;
+				}
+				else
+				{
+					Texture = LayerDesc.Texture->GetTexture2D();
+					LeftTexture = LayerDesc.LeftTexture ? LayerDesc.LeftTexture->GetTexture2D() : nullptr;
+				}
+			}
+		}
+	}
+
 	virtual bool SupportsLayerState() override { return true; }
 
 	virtual void HideBackgroundLayer() { LayerState().bShowBackground = false; }

@@ -8,10 +8,50 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "StereoLayerShapes.h"
 #include "RHI.h"
 
 class IStereoLayers
 {
+
+	// The pointer to the shape of a stereo layer is wrapped in this simple class that clones and destroys the shape.
+	// This is to avoid having to implement non-default copy and assignment operations for the entire FLayerDesc struct.
+	struct FShapeWrapper
+	{
+		TUniquePtr<IStereoLayerShape> Wrapped;
+		FShapeWrapper(IStereoLayerShape* InWrapped)
+			: Wrapped(InWrapped)
+		{}
+
+		FShapeWrapper(const FShapeWrapper& In) :
+			Wrapped(In.IsValid()?In.Wrapped->Clone():nullptr)
+		{}
+
+		FShapeWrapper(FShapeWrapper&& In)
+		{
+			Wrapped = MoveTemp(In.Wrapped);
+		}
+
+		FShapeWrapper& operator= (IStereoLayerShape* InWrapped)
+		{
+			Wrapped = TUniquePtr<IStereoLayerShape>(InWrapped);
+			return *this;
+		}
+
+		FShapeWrapper& operator= (const FShapeWrapper& In)
+		{
+			return operator=(In.IsValid() ? In.Wrapped->Clone() : nullptr);
+		}
+
+		FShapeWrapper& operator= (FShapeWrapper&& In)
+		{
+			Wrapped = MoveTemp(In.Wrapped);
+			return *this;
+		}
+
+		bool IsValid() const { return Wrapped.IsValid(); }
+	};
+
 public:
 
 	enum ELayerType
@@ -19,14 +59,6 @@ public:
 		WorldLocked,
 		TrackerLocked,
 		FaceLocked
-	};
-
-	enum ELayerShape
-	{
-		QuadLayer,
-		CylinderLayer,
-		CubemapLayer,
-		EquirectLayer
 	};
 
 	enum ELayerFlags
@@ -45,33 +77,23 @@ public:
 		LAYER_FLAG_HIDDEN = 0x00000020,
 	};
 
-	/** Structure describing additional settings for equirect layers */
-	struct FEquirectProps
-	{
-		/** Left source texture UVRect, specifying portion of input texture corresponding to left eye. */
-		FBox2D LeftUVRect;
-
-		/** Right source texture UVRect, specifying portion of input texture corresponding to right eye. */
-		FBox2D RightUVRect;
-
-		/** Left eye's texture coordinate scale after mapping to 2D. */
-		FVector2D LeftScale;
-
-		/** Right eye's texture coordinate scale after mapping to 2D. */
-		FVector2D RightScale;
-
-		/** Left eye's texture coordinate bias after mapping to 2D. */
-		FVector2D LeftBias;
-
-		/** Right eye's texture coordinate bias after mapping to 2D. */
-		FVector2D RightBias;
-	};
 
 	/**
 	 * Structure describing the visual appearance of a single stereo layer
 	 */
 	struct FLayerDesc
 	{
+
+		FLayerDesc()
+			: Shape(new FQuadLayer())
+		{
+		}
+
+		FLayerDesc(const IStereoLayerShape& InShape)
+			: Shape(InShape.Clone())
+		{
+		}
+
 		void SetLayerId(uint32 InId) { Id = InId; }
 		uint32 GetLayerId() const { return Id; }
 		bool IsVisible() const { return Texture != nullptr && !(Flags & LAYER_FLAG_HIDDEN); }
@@ -93,15 +115,14 @@ public:
 		int32				Priority	 = 0;
 		// Which space the layer is locked within
 		ELayerType			PositionType = ELayerType::FaceLocked;
-		// which shape of layer it is. ELayerShape::QuadLayer is the only shape supported by all VR platforms.
-		ELayerShape			ShapeType	 = ELayerShape::QuadLayer;
+		// which shape of layer it is. FQuadLayer is the only shape supported by all VR platforms.
+		// queries the shape of the layer at run time
+		template <typename T> bool HasShape() const { check(Shape.IsValid()); return Shape.Wrapped->GetShapeName() == T::ShapeName; }
+		// returns Shape cast to the supplied type. It's up to the caller to have ensured the cast is valid before calling this method.
+		template <typename T> T& GetShape() { check(HasShape<T>()); return *static_cast<T*>(Shape.Wrapped.Get()); }
+		template <typename T> const T& GetShape() const { check(HasShape<T>()); return *static_cast<const T*>(Shape.Wrapped.Get()); }
+		template <typename T, typename... InArgTypes> void SetShape(InArgTypes&&... Args) { Shape = FShapeWrapper(new T(Forward<InArgTypes>(Args)...)); }
 
-		// UVs and Scale/Bias of Equirect Layers.
-		FEquirectProps		EquirectProps;
-		// Cylinder layer settings.
-		float				CylinderRadius;
-		float				CylinderOverlayArc;
-		float				CylinderHeight;
 
 		// Texture mapped for right eye (if one texture provided, mono assumed)
 		FTextureRHIRef		Texture		 = nullptr;	
@@ -109,6 +130,8 @@ public:
 		FTextureRHIRef		LeftTexture  = nullptr;
 		// Uses LAYER_FLAG_... -- See: ELayerFlags
 		uint32				Flags		 = 0;
+	private: 
+		FShapeWrapper		Shape;
 	};
 
 	virtual ~IStereoLayers() { }
@@ -281,7 +304,6 @@ public:
 		StereoLayerDesc.Transform = FTransform(FVector(100.f, 0, 0));
 		StereoLayerDesc.QuadSize = FVector2D(120.f, 120.f);
 		StereoLayerDesc.PositionType = IStereoLayers::ELayerType::FaceLocked;
-		StereoLayerDesc.ShapeType = IStereoLayers::ELayerShape::QuadLayer;
 		StereoLayerDesc.Texture = Texture;
 		StereoLayerDesc.Flags = IStereoLayers::ELayerFlags::LAYER_FLAG_TEX_CONTINUOUS_UPDATE;
 		StereoLayerDesc.Flags |= IStereoLayers::ELayerFlags::LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO;
