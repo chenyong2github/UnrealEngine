@@ -208,6 +208,7 @@ public:
 
 	virtual void RemoveElement(const TPayloadType& Payload) override
 	{
+		LLM_SCOPE(ELLMTag::ChaosAcceleration);
 		SCOPE_CYCLE_COUNTER(STAT_BoundingVolumeRemoveElement);
 		if (const FPayloadInfo* PayloadInfo = MPayloadInfo.Find(Payload))
 		{
@@ -232,6 +233,7 @@ public:
 
 	virtual void UpdateElement(const TPayloadType& Payload, const TAABB<T,d>& NewBounds, bool bHasBounds) override
 	{
+		LLM_SCOPE(ELLMTag::ChaosAcceleration);
 		SCOPE_CYCLE_COUNTER(STAT_BoundingVolumeUpdateElement);
 		if (FPayloadInfo* PayloadInfo = MPayloadInfo.Find(Payload))
 		{
@@ -315,6 +317,7 @@ public:
 
 	virtual void Serialize(FChaosArchive& Ar) override
 	{
+		LLM_SCOPE(ELLMTag::ChaosAcceleration);
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::GlobalElementsHaveBounds)
 		{
@@ -814,6 +817,7 @@ private:
 	template <typename ParticleView>
 	void GenerateTree(const ParticleView& Particles, const bool bUseVelocity, const T Dt, const int32 MaxCells)
 	{
+		LLM_SCOPE(ELLMTag::ChaosAcceleration);
 		MGlobalPayloads.Reset();
 		MPayloadInfo.Reset();
 		bIsEmpty = true;
