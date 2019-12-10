@@ -2590,8 +2590,16 @@ public:
 
 	void MarkEmitterVertexFactoryDirty(uint32 EmitterIndex) const
 	{
-		check(EmitterVertexFactoryArray[EmitterIndex]);
-		EmitterVertexFactoryArray[EmitterIndex]->SetDirty();
+		for (TArray<FParticleVertexFactoryBase*>& PerViewEmitterVFs : EmitterVertexFactoryArray)
+		{
+			if ( PerViewEmitterVFs.IsValidIndex(EmitterIndex) )
+			{
+				if ( FParticleVertexFactoryBase *VertexFactory = PerViewEmitterVFs[EmitterIndex] )
+				{
+					VertexFactory->SetDirty();
+				}
+			}
+		}
 	}
 
 	void ClearVertexFactoriesIfDirty() const
@@ -2604,23 +2612,29 @@ public:
 		else
 		{
 			// selectively clear
-			for (int32 Index = 0; Index < EmitterVertexFactoryArray.Num(); Index++)
+			for (TArray<FParticleVertexFactoryBase*>& PerViewEmitterVFs : EmitterVertexFactoryArray)
 			{
-				ClearEmitterVertexFactoryIfDirty(Index);
+				for (int32 Index = 0; Index < PerViewEmitterVFs.Num(); Index++)
+				{
+					ClearEmitterVertexFactoryIfDirty(Index);
+				}
 			}
 		}
 	}
 
 	void ClearVertexFactories() const
 	{
-		for (int32 Index = 0; Index < EmitterVertexFactoryArray.Num(); Index++)
+		for (TArray<FParticleVertexFactoryBase*>& PerViewEmitterVFs : EmitterVertexFactoryArray)
 		{
-			FParticleVertexFactoryBase *VertexFactory = EmitterVertexFactoryArray[Index];
-			if (VertexFactory)
+			for (int32 Index = 0; Index < PerViewEmitterVFs.Num(); Index++)
 			{
-				VertexFactory->ReleaseResource();
-				delete VertexFactory;
-				EmitterVertexFactoryArray[Index] = nullptr;
+				FParticleVertexFactoryBase *VertexFactory = PerViewEmitterVFs[Index];
+				if (VertexFactory)
+				{
+					VertexFactory->ReleaseResource();
+					delete VertexFactory;
+					PerViewEmitterVFs[Index] = nullptr;
+				}
 			}
 		}
 		bVertexFactoriesDirty = false;
@@ -2628,25 +2642,38 @@ public:
 
 	void ClearEmitterVertexFactoryIfDirty(uint32 EmitterIndex) const
 	{
-		FParticleVertexFactoryBase *VertexFactory = EmitterVertexFactoryArray[EmitterIndex];
-		if (VertexFactory && VertexFactory->IsDirty())
+		for (TArray<FParticleVertexFactoryBase*>& PerViewEmitterVFs : EmitterVertexFactoryArray)
 		{
-			VertexFactory->ReleaseResource();
-			delete VertexFactory;
-			EmitterVertexFactoryArray[EmitterIndex] = nullptr;
+			FParticleVertexFactoryBase *VertexFactory = PerViewEmitterVFs[EmitterIndex];
+			if (VertexFactory && VertexFactory->IsDirty())
+			{
+				VertexFactory->ReleaseResource();
+				delete VertexFactory;
+				PerViewEmitterVFs[EmitterIndex] = nullptr;
+			}
 		}
 	}
 
-	void AddEmitterVertexFactory(FDynamicEmitterDataBase *InDynamicData) const
+	void AddEmitterVertexFactory(FDynamicEmitterDataBase *InDynamicData, int32 ViewIndex) const
 	{
-		while(InDynamicData->EmitterIndex >= EmitterVertexFactoryArray.Num())
+		check(ViewIndex >= 0);
+
+		// Ensure view is allocated
+		while (ViewIndex >= EmitterVertexFactoryArray.Num())
 		{
-			EmitterVertexFactoryArray.Add(nullptr);
+			EmitterVertexFactoryArray.AddDefaulted();
 		}
 
-		if (EmitterVertexFactoryArray[InDynamicData->EmitterIndex] == nullptr)
+		// Allocate space for emitters
+		TArray<FParticleVertexFactoryBase*>& PerViewEmitterVFs = EmitterVertexFactoryArray[ViewIndex];
+		while (InDynamicData->EmitterIndex >= PerViewEmitterVFs.Num())
 		{
-			EmitterVertexFactoryArray[InDynamicData->EmitterIndex] = InDynamicData->CreateVertexFactory(FeatureLevel, this);
+			PerViewEmitterVFs.Add(nullptr);
+		}
+
+		if (PerViewEmitterVFs[InDynamicData->EmitterIndex] == nullptr)
+		{
+			PerViewEmitterVFs[InDynamicData->EmitterIndex] = InDynamicData->CreateVertexFactory(FeatureLevel, this);
 		}
 	}
 
@@ -2659,7 +2686,7 @@ public:
 	{
 		for (int32 Index = 0; Index < DynamicDataForThisFrame.Num(); Index++)
 		{
-			AddEmitterVertexFactory(DynamicDataForThisFrame[Index]);
+			AddEmitterVertexFactory(DynamicDataForThisFrame[Index], 0);
 		}
 		DynamicDataForThisFrame.Empty();
 	}
@@ -2725,8 +2752,8 @@ private:
 
 protected:
 	/** vertex factories for all emitters */
-	mutable TArray<FParticleVertexFactoryBase*> EmitterVertexFactoryArray;
-	mutable TArray<FDynamicEmitterDataBase*> DynamicDataForThisFrame; 
+	mutable TArray<TArray<FParticleVertexFactoryBase*>, TInlineAllocator<1>> EmitterVertexFactoryArray;
+	mutable TArray<FDynamicEmitterDataBase*> DynamicDataForThisFrame;
 
 	friend struct FDynamicSpriteEmitterDataBase;
 };
