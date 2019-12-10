@@ -246,7 +246,7 @@ bool FFieldVariant::IsValidLowLevel() const
 	}
 }
 
-#if WITH_EDITOR || HACK_HEADER_GENERATOR
+#if WITH_EDITORONLY_DATA
 bool FFieldVariant::HasMetaData(const FName& Key) const
 {
 	check(Container.Object);
@@ -259,7 +259,7 @@ bool FFieldVariant::HasMetaData(const FName& Key) const
 		return Container.Field->HasMetaData(Key);
 	}
 }
-#endif
+#endif // WITH_EDITORONLY_DATA
 
 FArchive& operator << (FArchive& Ar, FFieldVariant& InOutField)
 {
@@ -300,6 +300,9 @@ FField::FField(EInternal InInernal, FFieldClass* InClass)
 	, Owner((FField*)nullptr)
 	, Next(nullptr)
 	, FlagsPrivate(RF_NoFlags)
+#if WITH_EDITORONLY_DATA
+	, MetaDataMap(nullptr)
+#endif // WITH_EDITORONLY_DATA
 {
 }
 
@@ -308,12 +311,22 @@ FField::FField(FFieldVariant InOwner, const FName& InName, EObjectFlags InObject
 	, Next(nullptr)
 	, NamePrivate(InName)
 	, FlagsPrivate(InObjectFlags)
+#if WITH_EDITORONLY_DATA
+	, MetaDataMap(nullptr)
+#endif // WITH_EDITORONLY_DATA
 {
 
 }
 
 FField::~FField()
 {
+#if WITH_EDITORONLY_DATA
+	if (MetaDataMap)
+	{
+		delete MetaDataMap;
+		MetaDataMap = nullptr;
+	}
+#endif // WITH_EDITORONLY_DATA
 }
 
 #if WITH_EDITORONLY_DATA
@@ -321,6 +334,7 @@ FField::FField(UField* InField)
 	: Next(nullptr)
 	, NamePrivate(InField->GetFName())
 	, FlagsPrivate(InField->GetFlags())
+	, MetaDataMap(nullptr)
 {
 	check(InField);
 	if (InField->HasAnyFlags(RF_NeedLoad))
@@ -346,6 +360,12 @@ FField::FField(UField* InField)
 	else
 	{
 		Owner = OriginalOuter;
+	}
+
+	TMap<FName, FString>* FeldMetaDataMap = UMetaData::GetMapForObject(InField);
+	if (FeldMetaDataMap && FeldMetaDataMap->Num())
+	{
+		MetaDataMap = new TMap<FName, FString>(*FeldMetaDataMap);
 	}
 }
 #endif // WITH_EDITORONLY_DATA
@@ -412,6 +432,35 @@ void FField::Serialize(FArchive& Ar)
 {
 	Ar << NamePrivate;
 	Ar << (uint32&)FlagsPrivate;
+
+#if WITH_EDITORONLY_DATA	
+	if (!Ar.IsCooking())
+	{
+		UPackage* Package = GetOutermost();
+		if (!Package || !Package->bIsCookedForEditor)
+		{
+			bool bHasMetaData = false;
+			if (Ar.IsLoading())
+			{
+				Ar << bHasMetaData;
+
+			}
+			else
+			{
+				bHasMetaData = MetaDataMap && MetaDataMap->Num();
+				Ar << bHasMetaData;
+			}
+			if (bHasMetaData)
+			{
+				if (!MetaDataMap)
+				{
+					MetaDataMap = new TMap<FName, FString>();
+				}
+				Ar << *MetaDataMap;
+			}			
+		}		
+	}
+#endif
 }
 
 void FField::GetPreloadDependencies(TArray<UObject*>& OutDeps)
@@ -581,7 +630,7 @@ FField* FField::GetTypedOwner(FFieldClass* Target) const
 	return Result;
 }
 
-#if WITH_EDITOR || HACK_HEADER_GENERATOR
+#if WITH_EDITORONLY_DATA
 FString FField::GetFullGroupName(bool bStartWithOuter) const
 {
 	if (bStartWithOuter)
@@ -709,11 +758,6 @@ FText FField::GetToolTipText(bool bShortTooltip) const
 	return LocalizedToolTip;
 }
 
-FString FField::GenerateFieldMetadataKey(const TCHAR* InKey) const
-{
-	return GetFieldMetadataPrefix() + InKey;
-}
-
 /**
 * Determines if the property has any metadata associated with the key
 *
@@ -722,23 +766,12 @@ FString FField::GenerateFieldMetadataKey(const TCHAR* InKey) const
 */
 bool FField::HasMetaData(const TCHAR* Key) const
 {
-	UPackage* Package = GetOutermost();
-	check(Package);
-
-	UMetaData* MetaData = Package->GetMetaData();
-	check(MetaData);
-
-	UObject* OwnerUObject = GetOwnerUObject();
-	check(OwnerUObject);
-
-	bool bHasMetaData = MetaData->HasValue(OwnerUObject, *GenerateFieldMetadataKey(Key));
-
-	return bHasMetaData;
+	return HasMetaData(FName(Key, FNAME_Find));
 }
 
 bool FField::HasMetaData(const FName& Key) const
 {
-	return HasMetaData(*Key.ToString());
+	return MetaDataMap && MetaDataMap->Contains(Key);
 }
 
 /**
@@ -749,23 +782,31 @@ bool FField::HasMetaData(const FName& Key) const
 */
 const FString& FField::GetMetaData(const TCHAR* Key) const
 {
-	UPackage* Package = GetOutermost();
-	check(Package);
-
-	UMetaData* MetaData = Package->GetMetaData();
-	check(MetaData);
-
-	UObject* OwnerUObject = GetOwnerUObject();
-	check(OwnerUObject);
-
-	const FString& MetaDataString = MetaData->GetValue(OwnerUObject, *GenerateFieldMetadataKey(Key));
-
-	return MetaDataString;
+	return GetMetaData(FName(Key, FNAME_Find));
 }
 
 const FString& FField::GetMetaData(const FName& Key) const
 {
-	return GetMetaData(*Key.ToString());
+	// if not found, return a static empty string
+	static FString EmptyString;
+
+	// every key needs to be valid and meta data needs to exist
+	if (Key == NAME_None || !MetaDataMap)
+	{
+		return EmptyString;
+	}
+
+	// look for the property
+	const FString* ValuePtr = MetaDataMap->Find(Key);
+
+	// if we didn't find it, return NULL
+	if (!ValuePtr)
+	{
+		return EmptyString;
+	}
+
+	// if we found it, return the pointer to the character data
+	return *ValuePtr;
 }
 
 const FText FField::GetMetaDataText(const TCHAR* MetaDataKey, const FString LocalizationNamespace, const FString LocalizationKey) const
@@ -832,21 +873,17 @@ const FText FField::GetMetaDataText(const FName& MetaDataKey, const FString Loca
 */
 void FField::SetMetaData(const TCHAR* Key, const TCHAR* InValue)
 {
-	UPackage* Package = GetOutermost();
-	check(Package);
-
-	UMetaData* MetaData = Package->GetMetaData();
-	check(MetaData);
-
-	UObject* OwnerUObject = GetOwnerUObject();
-	check(OwnerUObject);
-
-	return MetaData->SetValue(OwnerUObject, *GenerateFieldMetadataKey(Key), InValue);
+	SetMetaData(FName(Key), InValue);
 }
 
 void FField::SetMetaData(const FName& Key, const TCHAR* InValue)
 {
-	SetMetaData(*Key.ToString(), InValue);
+	check(Key != NAME_None);
+	if (!MetaDataMap)
+	{
+		MetaDataMap = new TMap<FName, FString>();
+	}
+	MetaDataMap->Add(Key, InValue);
 }
 
 UClass* FField::GetClassMetaData(const TCHAR* Key) const
@@ -865,73 +902,43 @@ UClass* FField::GetClassMetaData(const FName& Key) const
 
 void FField::RemoveMetaData(const TCHAR* Key)
 {
-	UPackage* Package = GetOutermost();
-	check(Package);
-
-	UMetaData* MetaData = Package->GetMetaData();
-	check(MetaData);
-
-	UObject* OwnerUObject = GetOwnerUObject();
-	check(OwnerUObject);
-
-	MetaData->RemoveValue(OwnerUObject, *GenerateFieldMetadataKey(Key));
+	RemoveMetaData(FName(Key));
 }
 
 void FField::RemoveMetaData(const FName& Key)
 {
-	RemoveMetaData(*Key.ToString());
+	check(Key != NAME_None);
+	if (MetaDataMap)
+	{
+		MetaDataMap->Remove(Key);
+	}
 }
 
-TMap<FName, FString> FField::GetMetaDataMap(bool bStripFieldPrefix) const
+const TMap<FName, FString>* FField::GetMetaDataMap() const
 {
-	UObject* OwnerUObject = GetOwnerUObject();
-	check(OwnerUObject);
-
-	TMap<FName, FString> PropertyMetaMap;
-	TMap<FName, FString>* InOwnerMap = UMetaData::GetMapForObject(OwnerUObject);
-	if (InOwnerMap)
-	{		
-		FString FieldPrefix = GetFieldMetadataPrefix();
-		for (TPair<FName, FString>& MetaPair : *InOwnerMap)
-		{
-			FString Key(MetaPair.Key.ToString());
-			if (Key.StartsWith(FieldPrefix))
-			{
-				if (bStripFieldPrefix)
-				{
-					FName KeyName(*Key.Mid(FieldPrefix.Len()));
-					PropertyMetaMap.Add(KeyName, MetaPair.Value);
-				}
-				else
-				{
-					PropertyMetaMap.Add(MetaPair);
-				}
-			}
-		}
-	}
-	return PropertyMetaMap;
+	return MetaDataMap;
 }
 
 void FField::CopyMetaData(const FField* InSourceField, FField* InDestField)
 {
 	check(InSourceField);
 	check(InDestField);
-
-	// First get the source map
-	TMap<FName, FString> SourceMap = InSourceField->GetMetaDataMap(true);
-	if (!SourceMap.Num())
+	if (InSourceField->MetaDataMap)
 	{
-		return;
+		if (!InDestField->MetaDataMap)
+		{
+			InDestField->MetaDataMap = new TMap<FName, FString>();
+		}
+		*InDestField->MetaDataMap = *InSourceField->MetaDataMap;
 	}
-
-	// Iterate through source map, setting each key/value pair in the destination
-	for (const TPair<FName, FString>& It : SourceMap)
+	else if (InDestField->MetaDataMap)
 	{
-		InDestField->SetMetaData(It.Key, *It.Value);
+		delete InDestField->MetaDataMap;
+		InDestField->MetaDataMap = nullptr;
 	}
 }
 
-#endif
+#endif // WITH_EDITORONLY_DATA
 
 void FField::PostDuplicate(const FField& InField)
 {
@@ -1089,7 +1096,7 @@ FField* FField::CreateFromUField(UField* InField)
 
 	return NewField;
 }
-#endif
+#endif // WITH_EDITORONLY_DATA
 
 FString GetFullNameSafe(const FField* InField)
 {

@@ -222,7 +222,7 @@ void UField::AddCppProperty(FProperty* Property)
 	UE_LOG(LogClass, Fatal,TEXT("UField::AddCppProperty"));
 }
 
-#if WITH_EDITOR || HACK_HEADER_GENERATOR
+#if WITH_EDITORONLY_DATA
 
 struct FDisplayNameHelper
 {
@@ -553,7 +553,7 @@ void UField::RemoveMetaData(const FName& Key)
 	return Package->GetMetaData()->RemoveValue(this, Key);
 }
 
-#endif
+#endif // WITH_EDITORONLY_DATA
 
 bool UField::HasAnyCastFlags(const uint64 InCastFlags) const
 {
@@ -1972,7 +1972,7 @@ FString UStruct::GetAuthoredNameForField(const FField* Field) const
 	return FString();
 }
 
-#if WITH_EDITOR || HACK_HEADER_GENERATOR
+#if WITH_EDITORONLY_DATA
 bool UStruct::GetBoolMetaDataHierarchical(const FName& Key) const
 {
 	bool bResult = false;
@@ -2021,7 +2021,7 @@ const UStruct* UStruct::HasMetaDataHierarchical(const FName& Key) const
 	return nullptr;
 }
 
-#endif
+#endif // WITH_EDITORONLY_DATA
 
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 	/**
@@ -3259,13 +3259,13 @@ int32 FStructUtils::AttemptToFindUninitializedScriptStructMembers()
 			
 			for (const FProperty* Property : TFieldRange<FProperty>(ScriptStruct, EFieldIteratorFlags::ExcludeSuper))
 			{
-#if	WITH_EDITOR || HACK_HEADER_GENERATOR
+#if	WITH_EDITORONLY_DATA
 				static const FName NAME_IgnoreForMemberInitializationTest(TEXT("IgnoreForMemberInitializationTest"));
 				if (Property->HasMetaData(NAME_IgnoreForMemberInitializationTest))
 				{
 					continue;
 				}
-#endif
+#endif // WITH_EDITORONLY_DATA
 
 				if (const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(Property))
 				{

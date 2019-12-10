@@ -96,7 +96,7 @@ class COREUOBJECT_API UField : public UObject
 	 */
 	FString GetAuthoredName() const;
 
-#if WITH_EDITOR || HACK_HEADER_GENERATOR
+#if WITH_EDITORONLY_DATA
 	/**
 	 * Finds the localized display name or native display name as a fallback.
 	 *
@@ -228,7 +228,7 @@ class COREUOBJECT_API UField : public UObject
 	/** Clear any metadata associated with the key */
 	void RemoveMetaData(const TCHAR* Key);
 	void RemoveMetaData(const FName& Key);
-#endif
+#endif // WITH_EDITORONLY_DATA
 
 	bool HasAnyCastFlags(const uint64 InCastFlags) const;
 	bool HasAllCastFlags(const uint64 InCastFlags) const;
@@ -497,7 +497,7 @@ public:
 	/** Returns a human readable string for a given field, overridden for user defined structs */
 	virtual FString GetAuthoredNameForField(const FField* Field) const;
 
-#if WITH_EDITOR || HACK_HEADER_GENERATOR
+#if WITH_EDITORONLY_DATA
 	/** Try and find boolean metadata with the given key. If not found on this class, work up hierarchy looking for it. */
 	bool GetBoolMetaDataHierarchical(const FName& Key) const;
 
@@ -511,7 +511,7 @@ public:
 	 * @return pointer to the UStruct that has associated metadata, nullptr if Key is not associated with any UStruct in the hierarchy
 	 */
 	const UStruct* HasMetaDataHierarchical(const FName& Key) const;
-#endif
+#endif // WITH_EDITORONLY_DATA
 
 #if HACK_HEADER_GENERATOR
 	// Required by UHT makefiles for internal data serialization.
@@ -2104,7 +2104,7 @@ public:
 	FText GetToolTipText(int32 NameIndex) const { return GetToolTipTextByIndex(NameIndex); }
 #endif
 
-#if WITH_EDITOR || HACK_HEADER_GENERATOR
+#if WITH_EDITORONLY_DATA
 	/**
 	 * Wrapper method for easily determining whether this enum has metadata associated with it.
 	 * 
@@ -2144,7 +2144,7 @@ public:
 	 *
 	 */
 	void RemoveMetaData( const TCHAR* Key, int32 NameIndex=INDEX_NONE ) const;
-#endif
+#endif // WITH_EDITORONLY_DATA
 	
 	/**
 	 * @param EnumPath         Full enum path.

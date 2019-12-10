@@ -84,9 +84,9 @@ TSharedRef<SWidget> FPerPlatformPropertyCustomization<PerPlatformType>::GetWidge
 	// Push down struct metadata to per-platform properties
 	{
 		// First get the source map
-		TMap<FName, FString> SourceMap = StructPropertyHandle->GetMetaDataProperty()->GetMetaDataMap();
+		const TMap<FName, FString>* SourceMap = StructPropertyHandle->GetMetaDataProperty()->GetMetaDataMap();
 		// Iterate through source map, setting each key/value pair in the destination
-		for (const auto& It : SourceMap)
+		for (const auto& It : *SourceMap)
 		{
 				EditProperty->SetInstanceMetaData(*It.Key.ToString(), *It.Value);
 		}

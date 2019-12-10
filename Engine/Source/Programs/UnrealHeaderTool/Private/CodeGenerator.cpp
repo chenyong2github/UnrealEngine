@@ -644,7 +644,7 @@ TMap<FName, FString> GenerateMetadataMapForObject(const UObject* Obj)
 			FString Key = MetaKeyValue.Key.ToString();
 			if (!Key.StartsWith(TEXT("/Script")))
 			{
-				Map.Add(*Key, MetaKeyValue.Value);
+				Map.Add(MetaKeyValue.Key, MetaKeyValue.Value);
 			}
 		}
 	}
@@ -653,30 +653,13 @@ TMap<FName, FString> GenerateMetadataMapForObject(const UObject* Obj)
 
 TMap<FName, FString> GenerateMetadataMapForField(const FField* Field)
 {
-	check(Field);
-	UPackage* Package = Field->GetOutermost();
-	check(Package);
-	UMetaData* Metadata = Package->GetMetaData();
-	check(Metadata);
-	UObject* OwnerUObject = Field->GetOwnerUObject();
-	check(OwnerUObject);
-
-	TMap<FName, FString>* PackageMap = Metadata->ObjectMetaDataMap.Find(OwnerUObject);
-	TMap<FName, FString> Map;
-	if (PackageMap)
+	TMap<FName, FString> MetaDataMap;
+	const TMap<FName, FString>* FieldMetaDataMap = Field->GetMetaDataMap();
+	if (FieldMetaDataMap)
 	{
-		FString FieldMetadataPrefix = Field->GetFieldMetadataPrefix();
-		for (const TPair<FName, FString>& MetaKeyValue : *PackageMap)
-		{
-			FString Key = MetaKeyValue.Key.ToString();
-			if (Key.StartsWith(FieldMetadataPrefix))
-			{
-				Key = Key.Mid(FieldMetadataPrefix.Len());
-				Map.Add(*Key, MetaKeyValue.Value);
-			}
-		}
+		MetaDataMap = *FieldMetaDataMap;
 	}
-	return Map;
+	return MetaDataMap;
 }
 
 // Returns the METADATA_PARAMS for this output
@@ -6388,49 +6371,6 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 	FDurationTimer MainTimer(MainTime);
 	MainTimer.Start();
 
-	//FFieldVariant Variant;
-	//TFieldPath<FProperty> PropPath;
-	//FProperty* RawProp = nullptr;
-
-	//Variant.IsA<FProperty>();
-	//Variant.IsA<UObject>();
-	//Variant.Get<FProperty>();
-	//Variant.Get<UObject>();
-	//RawProp->GetOwner<FProperty>();
-	//RawProp->GetOwner<UObject>();
-	//RawProp->GetOwnerChecked<FProperty>();
-	//RawProp->GetOwnerChecked<UObject>();
-	//RawProp->GetTypedOwner<FProperty>();
-	//RawProp->GetTypedOwner<UObject>();
-	//{
-	//	UStruct* Struct = nullptr;
-	//	for (TFieldIterator<FProperty> It(Struct); It; ++It)
-	//	{
-	//		check(It);
-	//	}
-	//	for (TFieldIterator<UFunction> It(Struct); It; ++It)
-	//	{
-	//		check(It);
-	//	}
-	//}
-	//{
-	//	FArchive* Ar = nullptr;
-	//	TWeakFieldPtr<FProperty> WeakPtr;
-	//	(*Ar) << WeakPtr;
-	//}
-	//{
-	//	FProperty* Prop = nullptr;
-	//	UObject* Obj = nullptr;
-	//	FTestCollector Collector;
-	//	Collector.AddReferencedObject(Prop);
-	//	Collector.AddReferencedObject(Obj);
-	//}
-	//{
-	//	TSubclassOf<FProperty> SubProp;
-	//	SubProp.GetDefaultObject();
-	//	TSubclassOf<UFunction> SubFn;
-	//	SubFn.GetDefaultObject();
-	//}
 	check(GIsUCCMakeStandaloneHeaderGenerator);
 	ECompilationResult::Type Result = ECompilationResult::Succeeded;
 

@@ -129,10 +129,6 @@ public:
 private: \
 	TClass& operator=(TClass&&);   \
 	TClass& operator=(const TClass&);   \
-	inline static uint64 StaticClassCastFlagsPrivate() \
-	{ \
-		return uint64(TStaticFlags); \
-	} \
 public: \
 	typedef TSuperClass Super;\
 	typedef TClass ThisClass;\
@@ -142,6 +138,10 @@ public: \
 	} \
 	static FFieldClass* StaticClass(); \
 	static FField* Construct(const FFieldVariant& InOwner, const FName& InName, EObjectFlags InObjectFlags); \
+	inline static uint64 StaticClassCastFlagsPrivate() \
+	{ \
+		return uint64(TStaticFlags); \
+	} \
 	inline static uint64 StaticClassCastFlags() \
 	{ \
 		return uint64(TStaticFlags) | Super::StaticClassCastFlags(); \
@@ -315,7 +315,7 @@ public:
 		return Container.Field != Other.Container.Field;
 	}
 
-#if WITH_EDITOR || HACK_HEADER_GENERATOR
+#if WITH_EDITORONLY_DATA
 	bool HasMetaData(const FName& Key) const;
 #endif
 
@@ -335,11 +335,6 @@ class COREUOBJECT_API FField
 {
 	UE_NONCOPYABLE(FField);
 
-	inline static uint64 StaticClassCastFlagsPrivate()
-	{
-		return uint64(CASTCLASS_UField);
-	}
-
 	/** Pointer to the class object representing the type of this FField */
 	FFieldClass* ClassPrivate;
 
@@ -351,6 +346,10 @@ public:
 
 	static FFieldClass* StaticClass();
 
+	inline static uint64 StaticClassCastFlagsPrivate()
+	{
+		return uint64(CASTCLASS_UField);
+	}
 	inline static uint64 StaticClassCastFlags()
 	{
 		return uint64(CASTCLASS_UField);
@@ -475,7 +474,7 @@ public:
 	template<typename T>
 	bool IsA() const
 	{
-		return !!(GetCastFlags() & T::StaticClass()->GetId());
+		return !!(GetCastFlags() & T::StaticClassCastFlagsPrivate());
 	}
 
 	bool HasAnyCastFlags(const uint64 InCastFlags) const
@@ -607,7 +606,14 @@ public:
 		return nullptr;
 	}
 
-#if WITH_EDITOR || HACK_HEADER_GENERATOR
+#if WITH_EDITORONLY_DATA
+
+private:
+	/** Editor-only meta data map */
+	TMap<FName, FString>* MetaDataMap;
+
+public:
+
 	/**
 	* Walks up the chain of packages until it reaches the top level, which it ignores.
 	*
@@ -743,30 +749,20 @@ public:
 	void RemoveMetaData(const FName& Key);
 
 	/** Gets all metadata associated with this field */
-	TMap<FName, FString> GetMetaDataMap(bool bStripFieldPrefix = true) const;
-
-	FString GetFieldMetadataPrefix() const
-	{
-		return FString::Printf(TEXT("%s::"), *GetPathName());
-	}
-
-	FString GenerateFieldMetadataKey(const TCHAR* InKey) const;
+	const TMap<FName, FString>* GetMetaDataMap() const;
 
 	/** Copies all metadata from Source Field to Dest Field */
 	static void CopyMetaData(const FField* InSourceField, FField* InDestField);
 
-#endif
+	/** Creates a new FField from existing UField */
+	static FField* CreateFromUField(UField* InField);
+#endif // WITH_EDITORONLY_DATA
 
 	/** Duplicates an FField */
 	static FField* Duplicate(const FField* InField, FFieldVariant DestOwner, const FName DestName = NAME_None, EObjectFlags FlagMask = RF_AllFlags, EInternalObjectFlags InternalFlagsMask = EInternalObjectFlags::AllFlags);
 
 	/** Generates a name for a Field of a given type. Each generated name is unique in the current runtime */
 	static FName GenerateFFieldName(FFieldVariant InOwner, FFieldClass* InClass);
-
-#if WITH_EDITORONLY_DATA
-	/** Creates a new FField from existing UField */
-	static FField* CreateFromUField(UField* InField);
-#endif
 };
 
 // Support for casting between different FFIeld types
@@ -774,13 +770,13 @@ public:
 template<typename FieldType>
 FORCEINLINE FieldType* CastField(FField* Src)
 {
-	return Src && Src->HasAnyCastFlags(FieldType::StaticClass()->GetId()) ? static_cast<FieldType*>(Src) : nullptr;
+	return Src && Src->HasAnyCastFlags(FieldType::StaticClassCastFlagsPrivate()) ? static_cast<FieldType*>(Src) : nullptr;
 }
 
 template<typename FieldType>
 FORCEINLINE const FieldType* CastField(const FField* Src)
 {
-	return Src && Src->HasAnyCastFlags(FieldType::StaticClass()->GetId()) ? static_cast<const FieldType*>(Src) : nullptr;
+	return Src && Src->HasAnyCastFlags(FieldType::StaticClassCastFlagsPrivate()) ? static_cast<const FieldType*>(Src) : nullptr;
 }
 
 template<typename FieldType>
@@ -797,7 +793,7 @@ FUNCTION_NON_NULL_RETURN_END
 #if !DO_CHECK
 	return static_cast<FieldType*>(Src);
 #else
-	FieldType* CastResult = Src && Src->HasAnyCastFlags(FieldType::StaticClass()->GetId()) ? static_cast<FieldType*>(Src) : nullptr;
+	FieldType* CastResult = Src && Src->HasAnyCastFlags(FieldType::StaticClassCastFlagsPrivate()) ? static_cast<FieldType*>(Src) : nullptr;
 	checkf(CastResult, TEXT("CastFieldChecked failed with 0x%016llx"), (int64)(PTRINT)Src);
 	return CastResult;
 #endif // !DO_CHECK
@@ -811,7 +807,7 @@ FUNCTION_NON_NULL_RETURN_END
 #if !DO_CHECK
 	return static_cast<const FieldType*>(Src);
 #else
-	const FieldType* CastResult = Src && Src->HasAnyCastFlags(FieldType::StaticClass()->GetId()) ? static_cast<const FieldType*>(Src) : nullptr;
+	const FieldType* CastResult = Src && Src->HasAnyCastFlags(FieldType::StaticClassCastFlagsPrivate()) ? static_cast<const FieldType*>(Src) : nullptr;
 	checkf(CastResult, TEXT("CastFieldChecked failed with 0x%016llx"), (int64)(PTRINT)Src);
 	return CastResult;
 #endif // !DO_CHECK

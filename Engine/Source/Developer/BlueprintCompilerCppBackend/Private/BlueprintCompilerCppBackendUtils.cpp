@@ -638,9 +638,9 @@ FString FEmitHelper::HandleMetaData(FFieldVariant Field, bool AddCategory, const
 				ValuesMap = *ValuesMapPtr;
 			}
 		}
-		else
+		else if (const TMap<FName, FString>* FieldMetaMap = Field.ToField()->GetMetaDataMap())
 		{
-			ValuesMap = Field.ToField()->GetMetaDataMap();
+			ValuesMap = *FieldMetaMap;
 		}
 	}
 	
