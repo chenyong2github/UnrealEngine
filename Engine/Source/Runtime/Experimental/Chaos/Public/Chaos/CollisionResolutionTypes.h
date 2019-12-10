@@ -172,14 +172,22 @@ namespace Chaos
 		using Base::Particle;
 		struct FSampleData { TVector<T,d> X; float Delta; FManifold Manifold; };
 
-		TRigidBodyIterativeContactConstraint() : Base(Base::FType::MultiPoint), PlaneNormal(0), PlanePosition(0), LocalPosition(0) {}
+		TRigidBodyIterativeContactConstraint() : Base(Base::FType::MultiPoint), PlaneNormal(0), PlanePosition(0), NumberSamples(0) {}
 		static typename Base::FType StaticType() { return Base::FType::MultiPoint; };
 
 		TVector<T, d> PlaneNormal; // local space contact normal on Particle1
 		TVector<T, d> PlanePosition; // local space surface position on Particle1
 
-		TVector<T, d> LocalPosition; // averaged position
-		TArray< FSampleData > LocalSamples; // iterative samples
+		// Samples
+		int32               NumSamples()                   { return NumberSamples; }
+		void                AddSample(FSampleData && Data) {Samples[NumberSamples] = Data; NumberSamples++; };
+		void                ResetSamples()                 { NumberSamples=0; }
+		FSampleData &       operator[](int32 Index)        { return Samples[Index]; }
+		const FSampleData & operator[](int32 Index) const  { return Samples[Index]; }
+
+	private:
+		int NumberSamples;
+		FSampleData Samples[4]; // iterative samples
 	};
 	typedef TRigidBodyIterativeContactConstraint<float, 3> FRigidBodyIterativeContactConstraint;
 
