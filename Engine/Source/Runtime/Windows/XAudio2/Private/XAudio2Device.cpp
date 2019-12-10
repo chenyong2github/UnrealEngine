@@ -269,7 +269,7 @@ bool FXAudio2Device::InitializeHardware()
 	bIsAudioDeviceHardwareInitialized = true;
 
 #if WITH_XMA2
-	FXMAAudioInfo::Initialize();
+	XMA2_INFO_CALL(FXMAAudioInfo::Initialize());
 #endif
 
 	return true;
@@ -284,7 +284,7 @@ void FXAudio2Device::TeardownHardware()
 	}
 
 #if WITH_XMA2
-	FXMAAudioInfo::Shutdown();
+	XMA2_INFO_CALL(FXMAAudioInfo::Shutdown());
 #endif
 
 #if PLATFORM_WINDOWS
@@ -299,7 +299,7 @@ void FXAudio2Device::TeardownHardware()
 void FXAudio2Device::UpdateHardware()
 {
 #if WITH_XMA2
-	FXMAAudioInfo::Tick();
+		XMA2_INFO_CALL(FXMAAudioInfo::Tick());
 #endif //WITH_XMA2
 
 	// If the audio device changed, we need to tear down and restart the audio engine state
@@ -370,7 +370,8 @@ class ICompressedAudioInfo* FXAudio2Device::CreateCompressedAudioInfo(USoundWave
 #if WITH_XMA2 && USE_XMA2_FOR_STREAMING
 		if (SoundWave->NumChannels <= 2 )
 		{
-			ICompressedAudioInfo* CompressedInfo = new FXMAAudioInfo();
+			ICompressedAudioInfo* CompressedInfo = XMA2_INFO_NEW();
+		
 			if (!CompressedInfo)
 			{
 				UE_LOG(LogAudio, Error, TEXT("Failed to create new FXMAAudioInfo for streaming SoundWave %s: out of memory."), *SoundWave->GetName());
@@ -405,7 +406,7 @@ class ICompressedAudioInfo* FXAudio2Device::CreateCompressedAudioInfo(USoundWave
 	static const FName NAME_XMA(TEXT("XMA"));
 	if (FPlatformProperties::RequiresCookedData() ? SoundWave->HasCompressedData(NAME_XMA) : (SoundWave->GetCompressedData(NAME_XMA) != nullptr))
 	{
-		ICompressedAudioInfo* CompressedInfo = new FXMAAudioInfo();
+		ICompressedAudioInfo* CompressedInfo = XMA2_INFO_NEW();			
 		if (!CompressedInfo)
 		{
 			UE_LOG(LogAudio, Error, TEXT("Failed to create new FXMAAudioInfo for SoundWave %s: out of memory."), *SoundWave->GetName());
