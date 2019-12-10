@@ -677,6 +677,13 @@ TVector<T, 3> TTriangleMeshImplicitObject<T>::FindGeometryOpposingNormal(const T
 	return GetFaceNormal(FaceIndex);
 }
 
+template<typename T>
+void TTriangleMeshImplicitObject<T>::Serialize(FChaosArchive& Ar)
+{
+	FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName());
+	SerializeImp(Ar);
+}
+
 template <typename T>
 TVector<T, 3> TTriangleMeshImplicitObject<T>::GetFaceNormal(const int32 FaceIdx) const
 {
