@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "PhysicsEngine/ShapeElem.h"
+#include "Chaos/Convex.h"
 
 #if WITH_CHAOS
 #include "Chaos/Serializable.h"
