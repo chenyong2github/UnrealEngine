@@ -251,7 +251,7 @@ bool FAsyncIODelete::SynchronousDelete(const TCHAR* InDeletePath, EPathType Path
 	else
 	{
 		const bool bEvenIfReadOnly = true;
-		return IFileManager::Get().Delete(InDeletePath, bRequireExists, bEvenIfReadOnly);
+		Result = IFileManager::Get().Delete(InDeletePath, bRequireExists, bEvenIfReadOnly);
 	}
 
 	if (!Result)
