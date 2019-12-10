@@ -1,3 +1,5 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
 #include "DMXProtocolArtNet.h"
 #include "DMXProtocolTransportArtNet.h"
 #include "Common/UdpSocketBuilder.h"
