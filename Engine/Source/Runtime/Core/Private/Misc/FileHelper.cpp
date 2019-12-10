@@ -430,10 +430,11 @@ void FFileHelper::GenerateDateTimeBasedBitmapFilename(const FString& Pattern, co
  * @param SubRectangle optional, specifies a sub-rectangle of the source image to save out. If NULL, the whole bitmap is saved
  * @param FileManager must not be 0
  * @param OutFilename optional, if specified filename will be output
+ * @param ChannelMask optional, specifies a specific channel to write out (will be written out to all channels gray scale).
  *
  * @return true if success
  */
-bool FFileHelper::CreateBitmap( const TCHAR* Pattern, int32 SourceWidth, int32 SourceHeight, const FColor* Data, struct FIntRect* SubRectangle, IFileManager* FileManager /*= &IFileManager::Get()*/, FString* OutFilename /*= NULL*/, bool bInWriteAlpha /*= false*/ )
+bool FFileHelper::CreateBitmap( const TCHAR* Pattern, int32 SourceWidth, int32 SourceHeight, const FColor* Data, struct FIntRect* SubRectangle, IFileManager* FileManager /*= &IFileManager::Get()*/, FString* OutFilename /*= NULL*/, bool bInWriteAlpha /*= false*/, EChannelMask ChannelMask /*= All */ )
 {
 #if ALLOW_DEBUG_FILES
 	FIntRect Src(0, 0, SourceWidth, SourceHeight);
@@ -565,14 +566,54 @@ bool FFileHelper::CreateBitmap( const TCHAR* Pattern, int32 SourceWidth, int32 S
 		{
 			for( int32 j = SubRectangle->Min.X; j < SubRectangle->Max.X; j++ )
 			{
-				Ar->Serialize( (void *)&Data[i*SourceWidth+j].B, 1 );
-				Ar->Serialize( (void *)&Data[i*SourceWidth+j].G, 1 );
-				Ar->Serialize( (void *)&Data[i*SourceWidth+j].R, 1 );
-
-				if (bInWriteAlpha)
+				if (ChannelMask == EChannelMask::All)
 				{
-					Ar->Serialize( (void *)&Data[i * SourceWidth + j].A, 1 );
+					Ar->Serialize((void*)&Data[i * SourceWidth + j].B, 1);
+					Ar->Serialize((void*)&Data[i * SourceWidth + j].G, 1);
+					Ar->Serialize((void*)&Data[i * SourceWidth + j].R, 1);
+
+					if (bInWriteAlpha)
+					{
+						Ar->Serialize((void*)&Data[i * SourceWidth + j].A, 1);
+					}
 				}
+				else
+				{
+					const uint8 Max = 255;
+					uint8 ChannelValue = 0;
+					// When using Channel mask write the masked channel to blue channel.
+					switch (ChannelMask)
+					{
+					case EChannelMask::B:
+						ChannelValue = Data[i * SourceWidth + j].B;
+						break;
+					case EChannelMask::G:
+						ChannelValue = Data[i * SourceWidth + j].G;
+						break;
+					case EChannelMask::R:
+						ChannelValue = Data[i * SourceWidth + j].R;
+						break;
+					case EChannelMask::A:
+						ChannelValue = Data[i * SourceWidth + j].A;
+						break;
+					default:
+						check(0);
+						break;
+					}
+										
+					// replicate Channel in B, G, R
+					Ar->Serialize((void*)&ChannelValue, 1);
+					Ar->Serialize((void*)&ChannelValue, 1);
+					Ar->Serialize((void*)&ChannelValue, 1);
+
+					// if write alpha write max value in there (we don't want transparency)
+					if (bInWriteAlpha)
+					{
+						Ar->Serialize((void*)&Max, 1);
+					}
+				}
+
+				
 			}
 
 			// Pad each row's length to be a multiple of 4 bytes.
