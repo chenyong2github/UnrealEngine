@@ -187,18 +187,18 @@ private:
 	FNiagaraParameterDirectBinding<float> UpdateEmitterAgeBinding;
 	TArray<FNiagaraParameterDirectBinding<float>> EventEmitterAgeBindings;
 
-	FNiagaraParameterDirectBinding<int32> SpawnExecCountBinding;
-	FNiagaraParameterDirectBinding<int32> UpdateExecCountBinding;
-	TArray<FNiagaraParameterDirectBinding<int32>> EventExecCountBindings;
+	FNiagaraParameterDirectBinding<int32> SpawnRandomSeedBinding;
+	FNiagaraParameterDirectBinding<int32> UpdateRandomSeedBinding;
+	FNiagaraParameterDirectBinding<int32> GPURandomSeedBinding;
+	TArray<FNiagaraParameterDirectBinding<int>> EventRandomSeedBindings;
 
 	FNiagaraParameterDirectBinding<int32> SpawnTotalSpawnedParticlesBinding;
 	FNiagaraParameterDirectBinding<int32> UpdateTotalSpawnedParticlesBinding;
 	TArray<FNiagaraParameterDirectBinding<int32>> EventTotalSpawnedParticlesBindings;
 
-	FNiagaraParameterDirectBinding<int32> SpawnRandomSeedBinding;
-	FNiagaraParameterDirectBinding<int32> UpdateRandomSeedBinding;
-	FNiagaraParameterDirectBinding<int32> GPURandomSeedBinding;
-	TArray<FNiagaraParameterDirectBinding<int>> EventRandomSeedBindings;
+	FNiagaraParameterDirectBinding<int32> SpawnExecCountBinding;
+	FNiagaraParameterDirectBinding<int32> UpdateExecCountBinding;
+	TArray<FNiagaraParameterDirectBinding<int32>> EventExecCountBindings;
 
 	/*
 	FNiagaraParameterDirectBinding<int32> SpawnDeterminismBinding;
