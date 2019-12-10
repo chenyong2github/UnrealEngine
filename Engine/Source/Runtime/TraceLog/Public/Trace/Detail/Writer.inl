@@ -92,8 +92,9 @@ inline FLogInstance Writer_BeginLog(uint16 EventUid, uint16 Size, bool bMaybeHas
 
 	uint8* Cursor = Buffer->Cursor - Size - int(bMaybeHasAux);
 
-	auto* Header = (uint16*)(Cursor); // FEventHeader
-	Header[-1] = uint16(AtomicIncrementRelaxed(&GLogSerial));
+	// Event header
+	auto* Header = (uint16*)(Cursor - sizeof(FEventHeader::SerialHigh)); // FEventHeader1
+	*(uint32*)(Header - 1) = uint32(AtomicIncrementRelaxed(&GLogSerial));
 	Header[-2] = Size;
 	Header[-3] = EventUid;
 

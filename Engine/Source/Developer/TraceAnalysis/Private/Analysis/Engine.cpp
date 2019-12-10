@@ -652,8 +652,14 @@ void FAnalysisEngine::OnNewEventInternal(const FOnEventContext& Context)
 	FDispatchBuilder Builder;
 	switch (ProtocolVersion)
 	{
-	case Protocol0::EProtocol::Id: OnNewEventProtocol0(Builder, EventData.Ptr); break;
-	case Protocol1::EProtocol::Id: OnNewEventProtocol1(Builder, EventData.Ptr); break;
+	case Protocol0::EProtocol::Id:
+		OnNewEventProtocol0(Builder, EventData.Ptr);
+		break;
+
+	case Protocol1::EProtocol::Id:
+	case Protocol2::EProtocol::Id:
+		OnNewEventProtocol1(Builder, EventData.Ptr);
+		break;
 	}
 
 	// Get the dispatch and add it into the dispatch table. Fail gently if there
@@ -814,7 +820,8 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader& Reader)
 		break;
 
 	case Protocol1::EProtocol::Id:
-		ProtocolHandler = &FAnalysisEngine::OnDataProtocol1;
+	case Protocol2::EProtocol::Id:
+		ProtocolHandler = &FAnalysisEngine::OnDataProtocol2;
 		{
 			FDispatchBuilder Builder;
 			Builder.SetUid(uint16(Protocol0::EKnownEventUids::NewEvent));
@@ -916,7 +923,7 @@ bool FAnalysisEngine::OnDataProtocol0()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FAnalysisEngine::OnDataProtocol1()
+bool FAnalysisEngine::OnDataProtocol2()
 {
 	auto* InnerTransport = (FTidPacketTransport*)Transport;
 	InnerTransport->Update();
@@ -929,7 +936,7 @@ bool FAnalysisEngine::OnDataProtocol1()
 		while (FStreamReader* Reader = InnerTransport->GetNextThread(Iter))
 		{
 			uint32 ThreadId = InnerTransport->GetThreadId(Iter);
-			int32 ThreadEventCount = OnDataProtocol1(ThreadId, *Reader);
+			int32 ThreadEventCount = OnDataProtocol2(ThreadId, *Reader);
 			if (ThreadEventCount < 0)
 			{
 				return false;
@@ -944,26 +951,46 @@ bool FAnalysisEngine::OnDataProtocol1()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-int32 FAnalysisEngine::OnDataProtocol1(uint32 ThreadId, FStreamReader& Reader)
+int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 {
 	int32 EventCount = 0;
 	while (!Reader.IsEmpty())
 	{
 		auto Mark = Reader.SaveMark();
 
-		const auto* Header = Reader.GetPointer<Protocol1::FEventHeader>();
+		const auto* Header = Reader.GetPointer<Protocol2::FEventHeader>();
 		if (Header == nullptr)
 		{
-			break;
+			return -1;
 		}
 
-		// Make sure we consume events in the correct order
-		if (Header->Serial != uint16(NextLogSerial))
+		uint32 BlockSize = Header->Size;
+		
+		switch (ProtocolVersion)
 		{
-			break;
+			case Protocol1::EProtocol::Id:
+				{
+					const auto* HeaderV1 = (Protocol1::FEventHeader*)Header;
+					if (HeaderV1->Serial != uint16(NextLogSerial))
+					{
+						return EventCount;
+					}
+					BlockSize += sizeof(*HeaderV1);
+				}
+				break;
+
+			case Protocol2::EProtocol::Id:
+				{
+					uint32 EventSerial = Header->SerialLow|(uint32(Header->SerialHigh) << 16);
+					if (EventSerial != (NextLogSerial & 0x00ffffff))
+					{
+						return EventCount;
+					}
+					BlockSize += sizeof(*Header);
+				}
+				break;
 		}
 
-		uint32 BlockSize = Header->Size + sizeof(Protocol1::FEventHeader);
 		if (Reader.GetPointer(BlockSize) == nullptr)
 		{
 			break;
@@ -986,7 +1013,7 @@ int32 FAnalysisEngine::OnDataProtocol1(uint32 ThreadId, FStreamReader& Reader)
 		FAuxDataCollector AuxCollector;
 		if (Dispatch->Flags & FDispatch::Flag_MaybeHasAux)
 		{
-			int AuxStatus = OnDataProtocol1Aux(Reader, AuxCollector);
+			int AuxStatus = OnDataProtocol2Aux(Reader, AuxCollector);
 			if (AuxStatus == 0)
 			{
 				Reader.RestoreMark(Mark);
@@ -1003,8 +1030,8 @@ int32 FAnalysisEngine::OnDataProtocol1(uint32 ThreadId, FStreamReader& Reader)
 		FEventDataInfo EventDataInfo = {
 			*Dispatch,
 			&AuxCollector,
-			Header->EventData,
-			Header->Size
+			(const uint8*)Header + BlockSize - Header->Size,
+			Header->Size,
 		};
 		const FEventData& EventData = (FEventData&)EventDataInfo;
 
@@ -1023,7 +1050,7 @@ int32 FAnalysisEngine::OnDataProtocol1(uint32 ThreadId, FStreamReader& Reader)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-int32 FAnalysisEngine::OnDataProtocol1Aux(FStreamReader& Reader, FAuxDataCollector& Collector)
+int32 FAnalysisEngine::OnDataProtocol2Aux(FStreamReader& Reader, FAuxDataCollector& Collector)
 {
 	while (true)
 	{
