@@ -89,17 +89,6 @@ namespace
 	{
 		if (GNiagaraAllowQuickSortedParameterOffetsCopy)
 		{
-		#if DO_GUARD_SLOW
-			// Safeguard while we don't have yet the FNiagaraVariable type without data.
-			for (const FNiagaraVariableWithOffset& ParamWithOffset : Dest)
-			{
-				checkSlow(!ParamWithOffset.IsDataAllocated());
-			}
-			for (const FNiagaraVariableWithOffset& ParamWithOffset : Src)
-			{
-				checkSlow(!ParamWithOffset.IsDataAllocated());
-			}
-		#endif
 			Dest.SetNumUninitialized(Src.Num());
 			FMemory::Memcpy(Dest.GetData(), Src.GetData(), Dest.GetTypeSize() * Dest.Num());
 		}
