@@ -87,12 +87,14 @@ void FBundlePrereqCombinedStatusHelper::SetupDelegates()
 	CleanUpDelegates();
 	
 	IInstallBundleManager::InstallBundleCompleteDelegate.AddRaw(this, &FBundlePrereqCombinedStatusHelper::OnBundleInstallComplete);
+	IInstallBundleManager::PausedBundleDelegate.AddRaw(this, &FBundlePrereqCombinedStatusHelper::OnBundleInstallPauseChanged);
 	TickHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FBundlePrereqCombinedStatusHelper::Tick));
 }
 
 void FBundlePrereqCombinedStatusHelper::CleanUpDelegates()
 {
 	IInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
+	IInstallBundleManager::PausedBundleDelegate.RemoveAll(this);
 	if (TickHandle.IsValid())
 	{
 		FTicker::GetCoreTicker().RemoveTicker(TickHandle);
@@ -164,8 +166,7 @@ void FBundlePrereqCombinedStatusHelper::UpdateBundleCache()
 			//Copy progress to the cache as long as we have progress to copy.
 			if (BundleProgress.IsSet())
 			{
-				FInstallBundleStatus& CachedStatus = BundleStatusCache.FindOrAdd(BundleName);
-				CachedStatus = BundleProgress.GetValue();
+				BundleStatusCache.Add(BundleName, BundleProgress.GetValue());
 			}
 		}
 	}
@@ -362,6 +363,18 @@ void FBundlePrereqCombinedStatusHelper::OnBundleInstallComplete(FInstallBundleRe
 		{
 			BundleCacheInfo = BundleProgress.GetValue();
 		}
+	}
+}
+
+// It's not really necessary to have this, but it allows for a fallback if GetBundleProgress() returns null.
+// Normally that shouldn't happen, but right now its handy while I refactor bundle progress.
+void FBundlePrereqCombinedStatusHelper::OnBundleInstallPauseChanged(FInstallBundlePauseInfo PauseInfo)
+{
+	const bool bWasRequiredBundle = RequiredBundleNames.Contains(PauseInfo.BundleName);
+	if (bWasRequiredBundle)
+	{
+		FInstallBundleStatus& BundleCacheInfo = BundleStatusCache.FindOrAdd(PauseInfo.BundleName);
+		BundleCacheInfo.PauseFlags = PauseInfo.PauseFlags;
 	}
 }
 

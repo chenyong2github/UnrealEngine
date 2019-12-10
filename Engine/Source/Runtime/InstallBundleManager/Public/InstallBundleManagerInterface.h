@@ -133,32 +133,35 @@ public:
 	virtual EInstallBundleManagerInitState GetInitState() const = 0;
 
 	virtual FInstallBundleRequestInfo RequestUpdateContent(FName BundleName, EInstallBundleRequestFlags Flags) = 0;
-	virtual FInstallBundleRequestInfo RequestUpdateContent(TArrayView<FName> BundleNames, EInstallBundleRequestFlags Flags) = 0;
+	virtual FInstallBundleRequestInfo RequestUpdateContent(TArrayView<const FName> BundleNames, EInstallBundleRequestFlags Flags) = 0;
 
 	virtual void GetContentState(FName BundleName, EInstallBundleGetContentStateFlags Flags, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag = TEXT("None")) = 0;
-	virtual void GetContentState(TArrayView<FName> BundleNames, EInstallBundleGetContentStateFlags Flags, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag = TEXT("None")) = 0;
+	virtual void GetContentState(TArrayView<const FName> BundleNames, EInstallBundleGetContentStateFlags Flags, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag = TEXT("None")) = 0;
 
     virtual void CancelAllGetContentStateRequestsForTag(FName RequestTag) = 0;
     
-	virtual void RequestRemoveContentOnNextInit(FName RemoveName, TArrayView<FName> KeepNames = TArrayView<FName>()) = 0;
-	virtual void RequestRemoveContentOnNextInit(TArrayView<FName> RemoveNames, TArrayView<FName> KeepNames = TArrayView<FName>()) = 0;
+	virtual void RequestRemoveContentOnNextInit(FName RemoveName, TArrayView<const FName> KeepNames = TArrayView<const FName>()) = 0;
+	virtual void RequestRemoveContentOnNextInit(TArrayView<const FName> RemoveNames, TArrayView<const FName> KeepNames = TArrayView<const FName>()) = 0;
 
 	virtual void CancelRequestRemoveContentOnNextInit(FName BundleName) = 0;
-	virtual void CancelRequestRemoveContentOnNextInit(TArrayView<FName> BundleName) = 0;
+	virtual void CancelRequestRemoveContentOnNextInit(TArrayView<const FName> BundleNames) = 0;
 
-	virtual void CancelBundle(FName BundleName, EInstallBundleCancelFlags Flags) = 0;
+	virtual void CancelUpdateContent(FName BundleName, EInstallBundleCancelFlags Flags) = 0;
+	virtual void CancelUpdateContent(TArrayView<const FName> BundleNames, EInstallBundleCancelFlags Flags) = 0;
 
-	virtual void CancelAllBundles(EInstallBundleCancelFlags Flags) = 0;
+	virtual void PauseUpdateContent(FName BundleName) = 0;
+	virtual void PauseUpdateContent(TArrayView<const FName> BundleNames) = 0;
 
-	virtual bool PauseBundle(FName BundleName) = 0;
+	virtual void ResumeUpdateContent(FName BundleName) = 0;
+	virtual void ResumeUpdateContent(TArrayView<const FName> BundleNames) = 0;
 
-	virtual void ResumeBundle(FName BundleName) = 0;
-
-	virtual void RequestPausedBundleCallback() const = 0;
+	virtual void RequestPausedBundleCallback() = 0;
 
 	virtual TOptional<FInstallBundleStatus> GetBundleProgress(FName BundleName) const = 0;
 
+	virtual EInstallBundleRequestFlags GetModifyableContentRequestFlags() const = 0;
 	virtual void UpdateContentRequestFlags(FName BundleName, EInstallBundleRequestFlags AddFlags, EInstallBundleRequestFlags RemoveFlags) = 0;
+	virtual void UpdateContentRequestFlags(TArrayView<const FName> BundleNames, EInstallBundleRequestFlags AddFlags, EInstallBundleRequestFlags RemoveFlags) = 0;
 
 	virtual bool IsNullInterface() const = 0;
 
