@@ -2440,7 +2440,7 @@ void ARecastNavMesh::ConditionalConstructGenerator()
 		FRecastNavMeshGenerator* Generator = CreateGeneratorInstance();
 		if (Generator)
 		{
-			NavDataGenerator = MakeShareable(Generator);
+			NavDataGenerator = MakeShareable((FNavDataGenerator*)Generator);
 			Generator->Init();
 		}
 
