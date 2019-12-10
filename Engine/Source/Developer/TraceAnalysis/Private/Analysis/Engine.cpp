@@ -964,6 +964,18 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 			break;
 		}
 
+		uint16 Uid = Header->Uid & uint16(Protocol2::EKnownEventUids::UidMask);
+		if (Uid >= Dispatches.Num())
+		{
+			return -1;
+		}
+
+		const FDispatch* Dispatch = Dispatches[Uid];
+		if (Dispatch == nullptr)
+		{
+			return -1;
+		}
+
 		uint32 BlockSize = Header->Size;
 		
 		switch (ProtocolVersion)
@@ -994,18 +1006,6 @@ int32 FAnalysisEngine::OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader)
 		if (Reader.GetPointer(BlockSize) == nullptr)
 		{
 			break;
-		}
-
-		uint16 Uid = Header->Uid & uint16(Protocol1::EKnownEventUids::UidMask);
-		if (Uid >= Dispatches.Num())
-		{
-			return -1;
-		}
-
-		const FDispatch* Dispatch = Dispatches[Uid];
-		if (Dispatch == nullptr)
-		{
-			return -1;
 		}
 
 		Reader.Advance(BlockSize);
