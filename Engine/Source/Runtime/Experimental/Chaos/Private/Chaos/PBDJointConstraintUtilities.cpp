@@ -50,6 +50,14 @@ namespace Chaos
 		return Stiffness;
 	}
 
+	FReal FPBDJointUtilities::GetAngularDriveStiffness(
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings)
+	{
+		FReal DriveStiffness = (SolverSettings.DriveStiffness > 0.0f) ? SolverSettings.DriveStiffness : JointSettings.Motion.AngularDriveStiffness;
+		return DriveStiffness;
+	}
+
 
 	FVec3 FPBDJointUtilities::ConditionInertia(const FVec3& InI, const FReal MaxRatio)
 	{
