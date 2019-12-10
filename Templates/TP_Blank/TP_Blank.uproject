@@ -3,5 +3,11 @@
 	"EngineAssociation": "",
 	"Category": "",
 	"Description": "",
-	"Modules": []
+	"Modules": [
+		{
+			"Name": "TP_Blank",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
 }

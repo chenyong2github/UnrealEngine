@@ -214,10 +214,10 @@ void ATP_VehiclePawn::Tick(float Delta)
 	{
 		if ( (InputComponent) && (bInCarCameraActive == true ))
 		{
-			FRotator HeadRotation = InternalCamera->RelativeRotation;
+			FRotator HeadRotation = InternalCamera->GetRelativeRotation();
 			HeadRotation.Pitch += InputComponent->GetAxisValue(LookUpBinding);
 			HeadRotation.Yaw += InputComponent->GetAxisValue(LookRightBinding);
-			InternalCamera->RelativeRotation = HeadRotation;
+			InternalCamera->SetRelativeRotation(HeadRotation);
 		}
 	}
 }

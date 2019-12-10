@@ -18,19 +18,30 @@
 			"Enabled": true
 		},
 		{
+			"Name": "DatasmithCADImporter",
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64"
+			]
+		},
+		{
 			"Name": "VariantManager",
-			"Enabled": True
+			"Enabled": true
 		},
 		{
 			"Name": "PythonScriptPlugin",
 			"Enabled": true
 		},
-				{
+		{
 			"Name": "HDRIBackdrop",
 			"Enabled": true
 		},
 		{
 			"Name": "SequencerScripting",
+			"Enabled": true
+		},
+		{
+			"Name": "StaticMeshEditorExtension",
 			"Enabled": true
 		}
 	]

@@ -31,9 +31,9 @@ ATP_2DSideScrollerCharacter::ATP_2DSideScrollerCharacter()
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->TargetArmLength = 500.0f;
 	CameraBoom->SocketOffset = FVector(0.0f, 0.0f, 75.0f);
-	CameraBoom->bAbsoluteRotation = true;
+	CameraBoom->SetUsingAbsoluteRotation(true);
 	CameraBoom->bDoCollisionTest = false;
-	CameraBoom->RelativeRotation = FRotator(0.0f, -90.0f, 0.0f);
+	CameraBoom->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f));
 	
 
 	// Create an orthographic camera (no perspective) and attach it to the boom
@@ -43,7 +43,7 @@ ATP_2DSideScrollerCharacter::ATP_2DSideScrollerCharacter()
 	SideViewCameraComponent->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 
 	// Prevent all automatic rotation behavior on the camera, character, and camera component
-	CameraBoom->bAbsoluteRotation = true;
+	CameraBoom->SetUsingAbsoluteRotation(true);
 	SideViewCameraComponent->bUsePawnControlRotation = false;
 	SideViewCameraComponent->bAutoActivate = true;
 	GetCharacterMovement()->bOrientRotationToMovement = false;

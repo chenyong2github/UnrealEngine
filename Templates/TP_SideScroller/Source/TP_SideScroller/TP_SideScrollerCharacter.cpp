@@ -20,11 +20,11 @@ ATP_SideScrollerCharacter::ATP_SideScrollerCharacter()
 	// Create a camera boom attached to the root (capsule)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->bAbsoluteRotation = true; // Rotation of the character should not affect rotation of boom
+	CameraBoom->SetUsingAbsoluteRotation(true); // Rotation of the character should not affect rotation of boom
 	CameraBoom->bDoCollisionTest = false;
 	CameraBoom->TargetArmLength = 500.f;
 	CameraBoom->SocketOffset = FVector(0.f,0.f,75.f);
-	CameraBoom->RelativeRotation = FRotator(0.f,180.f,0.f);
+	CameraBoom->SetRelativeRotation(FRotator(0.f,180.f,0.f));
 
 	// Create a camera and attach to boom
 	SideViewCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("SideViewCamera"));
