@@ -4792,6 +4792,13 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 				ensure(LODSections.Num() > 0);
 				const FLODSectionElements& LODSection = LODSections[LODIndex];
 				check(LODSection.SectionElements.Num() == LODData.RenderSections.Num());
+				
+				//#dxr_todo: verify why this condition is not fulfilled sometimes
+				verify(LODSection.SectionElements.Num() == MeshObject->GetRayTracingGeometry()->Initializer.Segments.Num());
+				if(LODSection.SectionElements.Num() != MeshObject->GetRayTracingGeometry()->Initializer.Segments.Num())
+				{
+					return;
+				}
 
 			#if WITH_EDITORONLY_DATA
 				int32 SectionIndexPreview = MeshObject->SectionIndexPreview;
