@@ -111,11 +111,14 @@ struct FTranscodeTask
 			case EVirtualTextureCodec::RawGPU:
 				if (StagingBufferForLayer.Stride == PackedStride)
 				{
+					check(TileLayerSize <= StagingBufferForLayer.MemorySize);
 					Params.Data->CopyTo(StagingBufferForLayer.Memory, DataOffset, TileLayerSize);
 				}
 				else
 				{
 					check(PackedStride <= StagingBufferForLayer.Stride);
+					check(TileLayerSize <= PackedOutputSize);
+					check(TileHeightInBlocks * StagingBufferForLayer.Stride <= StagingBufferForLayer.MemorySize);
 					TempBuffer.SetNumUninitialized(PackedOutputSize, false);
 					Params.Data->CopyTo(TempBuffer.GetData(), DataOffset, TileLayerSize);
 					for (uint32 y = 0; y < TileHeightInBlocks; ++y)
@@ -141,6 +144,7 @@ struct FTranscodeTask
 
 				check(Params.Codec);
 				const uint32 StagingBufferSize = StagingBufferForLayer.Stride * TileHeightInBlocks;
+				check(StagingBufferSize <= StagingBufferForLayer.MemorySize);
 				bResult = CrunchCompression::Decode(Params.Codec->Contexts[LayerIndex],
 					CompressedTile, TileLayerSize,
 					StagingBufferForLayer.Memory, StagingBufferSize, StagingBufferForLayer.Stride);
@@ -152,6 +156,7 @@ struct FTranscodeTask
 				if (StagingBufferForLayer.Stride == PackedStride)
 				{
 					// output buffer is tightly packed, can decompress directly
+					check(PackedOutputSize <= StagingBufferForLayer.MemorySize);
 					FCompression::UncompressMemoryStream(NAME_Zlib, StagingBufferForLayer.Memory, PackedOutputSize, Params.Data, DataOffset, TileLayerSize);
 				}
 				else
@@ -160,6 +165,7 @@ struct FTranscodeTask
 					check(PackedStride <= StagingBufferForLayer.Stride);
 					TempBuffer.SetNumUninitialized(PackedOutputSize, false);
 					FCompression::UncompressMemoryStream(NAME_Zlib, TempBuffer.GetData(), PackedOutputSize, Params.Data, DataOffset, TileLayerSize);
+					check(TileHeightInBlocks*StagingBufferForLayer.Stride <= StagingBufferForLayer.MemorySize);
 					for (uint32 y = 0; y < TileHeightInBlocks; ++y)
 					{
 						FMemory::Memcpy((uint8*)StagingBufferForLayer.Memory + y * StagingBufferForLayer.Stride, TempBuffer.GetData() + y * PackedStride, PackedStride);
