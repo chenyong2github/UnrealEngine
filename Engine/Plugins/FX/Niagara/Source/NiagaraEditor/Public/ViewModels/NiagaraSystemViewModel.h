@@ -250,7 +250,7 @@ public:
 	void UpdateEmitterFixedBounds();
 
 	/** Isolates the supplied emitters.  This will remove all other emitters from isolation. */
-	void IsolateEmitters(TArray<FGuid> EmitterHandlesIdsToIsolate);
+	NIAGARAEDITOR_API void IsolateEmitters(TArray<FGuid> EmitterHandlesIdsToIsolate);
 
 	/** Toggles the isolation state of a single emitter. */
 	void ToggleEmitterIsolation(TSharedRef<FNiagaraEmitterHandleViewModel> InEmitterHandle);

@@ -206,6 +206,12 @@ FActionMenuContent SNiagaraOverviewGraph::OnCreateGraphActionMenu(UEdGraph* InGr
 				LOCTEXT("CommentsToolTip", "Add a comment box"),
 				FSlateIcon(),
 				FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::OnCreateComment));
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("ClearIsolatedLabel", "Clear Isolated"),
+				LOCTEXT("ClearIsolatedToolTip", "Clear the current set of isolated emitters."),
+				FSlateIcon(),
+				FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::OnClearIsolated));
 		}
 		MenuBuilder.EndSection();
 
@@ -227,6 +233,11 @@ void SNiagaraOverviewGraph::OnCreateComment()
 {
 	FNiagaraSchemaAction_NewComment CommentAction = FNiagaraSchemaAction_NewComment(GraphEditor);
 	CommentAction.PerformAction(ViewModel->GetGraph(), nullptr, GraphEditor->GetPasteLocation(), false);
+}
+
+void SNiagaraOverviewGraph::OnClearIsolated()
+{
+	ViewModel->GetSystemViewModel()->IsolateEmitters(TArray<FGuid>());
 }
 
 void SNiagaraOverviewGraph::OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged)
