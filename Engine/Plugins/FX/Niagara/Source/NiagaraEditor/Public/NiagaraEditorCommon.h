@@ -12,7 +12,11 @@ class FNiagaraOpInfo
 {
 public:
 	FNiagaraOpInfo()
-		: Keywords(FText()), NumericOuputTypeSelectionMode(ENiagaraNumericOutputTypeSelectionMode::Largest), bSupportsAddedInputs(false)
+		: Keywords(FText())
+		, NumericOuputTypeSelectionMode(ENiagaraNumericOutputTypeSelectionMode::Largest)
+		, bSupportsAddedInputs(false)
+		, bNumericsCanBeIntegers(true)
+		, bNumericsCanBeFloats(true)
 	{}
 
 	FName Name;
@@ -26,6 +30,12 @@ public:
 
 	/** If true then this operation supports a variable number of inputs */
 	bool bSupportsAddedInputs;
+
+	/** If integer pins are allowed on this op's numeric pins. */
+	bool bNumericsCanBeIntegers;
+
+	/** If float pins are allowed on this op's numeric pins. */
+	bool bNumericsCanBeFloats;
 
 	/** 
 	* The format that can generate the hlsl for the given number of inputs.
