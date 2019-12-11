@@ -618,6 +618,15 @@ FString FICUCultureImplementation::GetVariant() const
 	return ICULocale.getVariant();
 }
 
+bool FICUCultureImplementation::IsRightToLeft() const
+{
+#if WITH_ICU_V64
+	return ICULocale.isRightToLeft();
+#else
+	return false;
+#endif
+}
+
 TSharedRef<const icu::BreakIterator> FICUCultureImplementation::GetBreakIterator(const EBreakIteratorType Type)
 {
 	TSharedPtr<const icu::BreakIterator> Result;

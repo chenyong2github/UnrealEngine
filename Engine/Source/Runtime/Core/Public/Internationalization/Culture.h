@@ -68,6 +68,8 @@ public:
 
 	const FString& GetVariant() const;
 
+	bool IsRightToLeft() const;
+
 	const FDecimalNumberFormattingRules& GetDecimalNumberFormattingRules() const;
 
 	const FDecimalNumberFormattingRules& GetPercentFormattingRules() const;
@@ -115,4 +117,5 @@ private:
 	FString CachedNativeRegion;
 	FString CachedScript;
 	FString CachedVariant;
+	bool CachedIsRightToLeft;
 };
