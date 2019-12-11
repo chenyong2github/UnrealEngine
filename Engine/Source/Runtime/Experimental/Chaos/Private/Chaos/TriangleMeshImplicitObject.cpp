@@ -684,6 +684,21 @@ void TTriangleMeshImplicitObject<T>::Serialize(FChaosArchive& Ar)
 	SerializeImp(Ar);
 }
 
+template<typename T>
+uint32 TTriangleMeshImplicitObject<T>::GetTypeHash() const
+{
+	uint32 Result = MParticles.GetTypeHash();
+	Result = HashCombine(Result, MLocalBoundingBox.GetTypeHash());
+
+	for(TVector<int32, 3> Tri : MElements)
+	{
+		uint32 TriHash = HashCombine(::GetTypeHash(Tri[0]), HashCombine(::GetTypeHash(Tri[1]), ::GetTypeHash(Tri[2])));
+		Result = HashCombine(Result, TriHash);
+	}
+
+	return Result;
+}
+
 template <typename T>
 TVector<T, 3> TTriangleMeshImplicitObject<T>::GetFaceNormal(const int32 FaceIdx) const
 {
