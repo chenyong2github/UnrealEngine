@@ -237,13 +237,15 @@ namespace UnrealBuildTool
 						{
 							// Create a dummy force-included file which references PCH files, so that SN-DBS knows they are dependencies.
 							string AdditionalStubIncludes = "";
-							if (Action.CommandPath.GetFileName().Equals("cl.exe", StringComparison.OrdinalIgnoreCase))
+							if (Action.CommandPath.GetFileName().Equals("cl.exe", StringComparison.OrdinalIgnoreCase) || Action.CommandPath.GetFileName().Equals("cl-filter.exe", StringComparison.OrdinalIgnoreCase))
 							{
-								string ResponseFile = Action.CommandArguments.Replace("\"", "").Replace("@", "").Trim();
+								string DummyPCHIncludeFile = Action.DependencyListFile.AbsolutePath.Replace("\"", "").Replace("@", "").Trim();
+								DummyPCHIncludeFile = Path.ChangeExtension(DummyPCHIncludeFile, null);
+
 								StringBuilder WrapperContents = new StringBuilder();
 								using (StringWriter Writer = new StringWriter(WrapperContents))
 								{
-									Writer.WriteLine("// PCH dependencies for {0}", ResponseFile);
+									Writer.WriteLine("// PCH dependencies for {0}", DummyPCHIncludeFile);
 									Writer.WriteLine("#if 0");
 									foreach (FileItem Preqrequisite in Action.PrerequisiteItems)
 									{
@@ -255,8 +257,8 @@ namespace UnrealBuildTool
 									Writer.WriteLine("#endif");
 								}
 
-								FileItem DummyResponseFileDependency = FileItem.CreateIntermediateTextFile(new FileReference(ResponseFile + ".dummy.h"), WrapperContents.ToString());
-								AdditionalStubIncludes = string.Format("/FI\"{0}\"", DummyResponseFileDependency);
+								FileItem DummyPCHIncludeFileDependency = FileItem.CreateIntermediateTextFile(new FileReference(DummyPCHIncludeFile + ".dummy.h"), WrapperContents.ToString());
+								AdditionalStubIncludes = string.Format("/FI\"{0}\"", DummyPCHIncludeFileDependency);
 							}
 
 							// Add to script for execution by SN-DBS
@@ -535,6 +537,11 @@ namespace UnrealBuildTool
 				IncludeRewriteRulesText.Add(@"pattern2=^COMPILED_PLATFORM_HEADER_WITH_PREFIX\(\s*([^ ,]+)\s*,\s*([^ ,]+)\)");
 				IEnumerable<string> PlatformExpansions = PlatformNames.Select(p => String.Format("$1/{0}/{0}$2|$1/{0}$2", p));
 				IncludeRewriteRulesText.Add(String.Format("expansions2={0}", String.Join("|", PlatformExpansions)));
+			}
+			{
+				IncludeRewriteRulesText.Add(@"pattern3=ULANG_STRINGIFY\(\s*(\S*)ULANG_PLATFORM/ULANG_PLATFORM(\S*)\s*\)");
+				IEnumerable<string> PlatformExpansions = PlatformNames.Select(p => String.Format("$1{0}/{0}$2", p));
+				IncludeRewriteRulesText.Add(String.Format("expansions3={0}", String.Join("|", PlatformExpansions)));
 			}
 			File.WriteAllText(IncludeRewriteRulesFile.FullName, String.Join(Environment.NewLine, IncludeRewriteRulesText));
 		}

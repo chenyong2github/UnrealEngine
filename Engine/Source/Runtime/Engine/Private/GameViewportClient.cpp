@@ -3817,6 +3817,11 @@ bool UGameViewportClient::GetUseMouseForTouch() const
 
 void* UGameViewportClient::LoadCursorFromPngs(ICursor& PlatformCursor, const FString& InPathToCursorWithoutExtension, FVector2D InHotSpot)
 {
+	if (!PlatformCursor.IsCreateCursorFromRGBABufferSupported())
+	{
+		return nullptr;
+	}
+
 	TArray<TSharedPtr<FPngFileData>> CursorPngFiles;
 	if (!LoadAvailableCursorPngs(CursorPngFiles, InPathToCursorWithoutExtension))
 	{

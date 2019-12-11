@@ -172,11 +172,6 @@ FLinuxCursor::~FLinuxCursor()
 	}
 }
 
-void* FLinuxCursor::CreateCursorFromFile(const FString& InPathToCursorWithoutExtension, FVector2D HotSpot)
-{
-	return nullptr;
-}
-
 void* FLinuxCursor::CreateCursorFromRGBABuffer(const FColor* Pixels, int32 Width, int32 Height, FVector2D InHotSpot)
 {
 	uint32 Rmask = 0x000000ff;

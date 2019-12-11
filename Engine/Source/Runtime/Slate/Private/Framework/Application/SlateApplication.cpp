@@ -64,8 +64,6 @@ class FFauxSlateCursor : public ICursor
 public:
 	FFauxSlateCursor() {}
 	virtual ~FFauxSlateCursor() {}
-	virtual void* CreateCursorFromFile(const FString& InPathToCursorWithoutExtension, FVector2D HotSpot) { return nullptr; }
-	virtual void* CreateCursorFromRGBABuffer(const FColor* Pixels, int32 Width, int32 Height, FVector2D InHotSpot) { return nullptr; }
 	virtual void SetTypeShape(EMouseCursor::Type InCursorType, void* CursorHandle) override {}
 	
 	virtual FVector2D GetPosition() const override { return CurrentPosition; }
@@ -2706,6 +2704,17 @@ void FSlateApplication::SetAllUserFocus(const FWidgetPath& InFocusPath, const EF
 	ForEachUser([&] (FSlateUser& User) {
 		SetUserFocus(User, InFocusPath, InCause);
 	});
+
+	// cache the focus path so it can be applied to any new users
+	if (InFocusPath.IsValid())
+	{
+		LastAllUsersFocusWidget = InFocusPath.GetLastWidget();
+	}
+	else
+	{
+		LastAllUsersFocusWidget.Reset();
+	}
+	LastAllUsersFocusCause = InCause;
 }
 
 void FSlateApplication::SetAllUserFocusAllowingDescendantFocus(const FWidgetPath& InFocusPath, const EFocusCause InCause)
@@ -2718,6 +2727,10 @@ void FSlateApplication::SetAllUserFocusAllowingDescendantFocus(const FWidgetPath
 			SetUserFocus(User, InFocusPath, InCause);
 		}
 	});
+
+	// cache the focus path so it can be applied to any new users
+	LastAllUsersFocusWidget = FocusWidget;
+	LastAllUsersFocusCause = InCause;
 }
 
 FModifierKeysState FSlateApplication::GetModifierKeys() const
@@ -3782,6 +3795,12 @@ TSharedRef<FSlateUser> FSlateApplication::RegisterNewUser(int32 UserIndex, bool 
 	}
 
 	Users[UserIndex] = NewUser;
+
+	// Apply the last known "all users" focus widget path to this new user if they do not have a specific one
+	if (!NewUser->HasValidFocusPath() && LastAllUsersFocusWidget.IsValid())
+	{
+		SetUserFocus(NewUser->GetUserIndex(), LastAllUsersFocusWidget.Pin(), LastAllUsersFocusCause);
+	}
 
 	UE_LOG(LogSlate, Log, TEXT("Slate User Registered.  User Index %d, Is Virtual User: %d"), UserIndex, bIsVirtual);
 	UserRegisteredEvent.Broadcast(UserIndex);

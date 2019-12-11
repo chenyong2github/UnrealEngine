@@ -23,3 +23,4 @@ IMPLEMENT_SHADER_TYPE2_WITH_TEMPLATE_PREFIX(template<>, FClearReplacementCS_Text
 IMPLEMENT_SHADER_TYPE2_WITH_TEMPLATE_PREFIX(template<>, FClearReplacementCS_Texture3D_Uint4         , SF_Compute);
 IMPLEMENT_SHADER_TYPE2_WITH_TEMPLATE_PREFIX(template<>, FClearReplacementCS_Texture2D_Uint4         , SF_Compute);
 IMPLEMENT_SHADER_TYPE2_WITH_TEMPLATE_PREFIX(template<>, FClearReplacementCS_Texture2DArray_Uint4    , SF_Compute);
+IMPLEMENT_SHADER_TYPE2_WITH_TEMPLATE_PREFIX(template<>, FClearReplacementCS_Buffer_Uint4            , SF_Compute);

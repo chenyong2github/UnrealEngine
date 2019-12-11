@@ -538,6 +538,8 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::AddToSceneData(FPrecomputedV
 				// Steal the indirection texture. When the sublevels are unloaded the values will be restored.
 				IndirectionTexture = SceneData->IndirectionTexture;
 			}
+
+			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, IndirectionTexture.Texture);
 		}
 		else
 		{
@@ -1057,6 +1059,20 @@ void FVolumetricLightmapBrickAtlas::Insert(int32 Index, FPrecomputedVolumetricLi
 	// Replace with new allcations
 	Allocations = NewAllocations;
 	TextureSet = NewTextureSet; // <-- Old texture references are released here
+
+	FRHITexture* Textures[3 + UE_ARRAY_COUNT(TextureSet.SHCoefficients)] = 
+	{
+		TextureSet.AmbientVector.Texture,
+		TextureSet.SkyBentNormal.Texture,
+		TextureSet.DirectionalLightShadowing.Texture
+	};
+
+	for (int32 TextureIndex = 0; TextureIndex < UE_ARRAY_COUNT(TextureSet.SHCoefficients); ++TextureIndex)
+	{
+		Textures[TextureIndex + 3] = TextureSet.SHCoefficients[TextureIndex].Texture;
+	}
+
+	RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, Textures, UE_ARRAY_COUNT(Textures));
 }
 
 void FVolumetricLightmapBrickAtlas::Remove(FPrecomputedVolumetricLightmapData* Data)
