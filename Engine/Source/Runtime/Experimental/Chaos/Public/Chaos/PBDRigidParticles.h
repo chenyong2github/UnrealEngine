@@ -4,7 +4,6 @@
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/RigidParticles.h"
 #include "Chaos/Rotation.h"
-#include "HAL/LowLevelMemTracker.h"
 
 #if !PLATFORM_PS4
 #pragma warning(push)
