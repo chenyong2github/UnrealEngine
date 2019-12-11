@@ -1448,10 +1448,6 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 			bUseAtomicSerialization = DefaultsScriptStruct->ShouldSerializeAtomically(UnderlyingArchive);
 		}
 
-		checkf(!(Defaults && UnderlyingArchive.DoDelta() && !UnderlyingArchive.IsTransacting() && bUseAtomicSerialization), 
-				TEXT("Dense/'atomic' structs shouldn't be sparsely delta-serialized. Struct '%s', archive: '%s'."),
-				*DefaultsScriptStruct->GetFName().ToString(), *UnderlyingArchive.GetArchiveName());
-
 		// Save tagged properties.
 
 		// Iterate over properties in the order they were linked and serialize them.
