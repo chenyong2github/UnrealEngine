@@ -4691,8 +4691,8 @@ void RecompileShadersForRemote(
 
 	UE_LOG(LogShaders, Display, TEXT("  Done!"))
 
-		// figure out which shaders are out of date
-		TArray<FShaderType*> OutdatedShaderTypes;
+	// figure out which shaders are out of date
+	TArray<FShaderType*> OutdatedShaderTypes;
 	TArray<const FVertexFactoryType*> OutdatedFactoryTypes;
 	TArray<const FShaderPipelineType*> OutdatedShaderPipelineTypes;
 
@@ -4715,11 +4715,8 @@ void RecompileShadersForRemote(
 			// Only compile for the desired platform if requested
 			if (ShaderPlatform == ShaderPlatformToCompile || ShaderPlatformToCompile == SP_NumPlatforms)
 			{
-				// These platforms are deprecated and we should warn about their use
-				if (ShaderPlatform == SP_OPENGL_SM5 || ShaderPlatform == SP_PCD3D_SM4_DEPRECATED || ShaderPlatform == SP_OPENGL_ES2_IOS_DEPRECATED ||
-					ShaderPlatform == SP_PCD3D_ES2 || ShaderPlatform == SP_METAL_MACES2 || ShaderPlatform == SP_OPENGL_PCES2 ||
-					ShaderPlatform == SP_OPENGL_ES2_ANDROID || ShaderPlatform == SP_OPENGL_ES2_WEBGL ||
-					ShaderPlatform == SP_VULKAN_SM4_DEPRECATED)
+				// Warn about outdated shader platforms.
+				if (IsDeprecatedShaderPlatform(ShaderPlatform))
 				{
 					UE_LOG(LogShaderCompilers, Warning, TEXT("You are compiling shaders for a deprecated platform '%s'"), *LegacyShaderPlatformToShaderFormat(ShaderPlatform).ToString());
 				}
