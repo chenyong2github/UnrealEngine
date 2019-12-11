@@ -1239,7 +1239,7 @@ void ULandscapeMeshCollisionComponent::CreateCollisionObject()
 				for (UPhysicalMaterial* PhysicalMaterial : CookedPhysicalMaterials)
 				{
 #if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-					UE_LOG(LogLandscape, Warning, TEXT("CHAOS - Landscape material setup not implemented"));
+					CHAOS_LOG(LogLandscape, Warning, TEXT("CHAOS - Landscape material setup not implemented"));
 #else
 					MeshRef->UsedPhysicalMaterialArray.Add(PhysicalMaterial->GetPhysicsMaterial().Material);
 #endif
@@ -1342,7 +1342,7 @@ void ULandscapeMeshCollisionComponent::OnCreatePhysicsState()
 					if (PTriMeshGeomEd.isValid())
 					{
 #if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-						UE_LOG(LogLandscape, Warning, TEXT("CHAOS - Landscape shape creation not implemented"));
+						CHAOS_LOG(LogLandscape, Warning, TEXT("CHAOS - Landscape shape creation not implemented"));
 #else
 						PxMaterial* PDefaultMat = GEngine->DefaultPhysMaterial->GetPhysicsMaterial().Material;
 						PxShape* MeshShapeEdSync = GPhysXSDK->createShape(PTriMeshGeomEd, &PDefaultMat, 1, true);
@@ -1370,7 +1370,7 @@ void ULandscapeMeshCollisionComponent::OnCreatePhysicsState()
 				BodyInstance.OwnerComponent = this;
 
 #if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-				UE_LOG(LogLandscape, Warning, TEXT("CHAOS - Landscape sim scene addition not implemented"));
+				CHAOS_LOG(LogLandscape, Warning, TEXT("CHAOS - Landscape sim scene addition not implemented"));
 #else
 				BodyInstance.ActorHandle.SyncActor = MeshActorSync;
 				MeshActorSync->userData = &BodyInstance.PhysicsUserData;
