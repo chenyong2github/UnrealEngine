@@ -353,6 +353,6 @@ public final class NetworkChangedManager implements NetworkConnectivityClient {
 	
 	@Override
 	public void checkConnectivity() {
-		checkNetworkConnectivity()
+		checkNetworkConnectivity();
 	}
 }
