@@ -134,6 +134,12 @@ public:
 	UPROPERTY(config, EditAnywhere, Category="Session Settings")
 	FString DefaultSessionName;
 
+	/** 
+	 * A set of keys identifying the clients that can discover and access the server. If empty, the server can be discovered and used by any clients.
+	 */
+	UPROPERTY(config)
+	TSet<FString> AuthorizedClientKeys;
+
 	/**
 	 * Name of the default session to restore on the server.
 	 * Set the name of the desired save to restore its content in your session.
@@ -221,6 +227,10 @@ struct FConcertClientSettings
 	/** Array of tags that can be used for grouping and categorizing. */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Client Settings")
 	TArray<FName> Tags;
+
+	/** A key used to identify the clients during server discovery. If the server was configured to restrict access, the client key must be know of the server. Can be left empty. */
+	UPROPERTY(config)
+	FString ClientAuthenticationKey;
 };
 
 UCLASS(config=Engine)

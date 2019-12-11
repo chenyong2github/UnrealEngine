@@ -160,7 +160,7 @@ void SUsdStage::SetupStageActorDelegates()
 					this->UsdStageTreeView->RefreshPrim( PrimPath, bResync );
 				}
 
-				if ( this->UsdPrimInfoWidget )
+				if ( this->UsdPrimInfoWidget && UsdStageActor.IsValid() && SelectedPrimPath.Equals( PrimPath, ESearchCase::IgnoreCase ) )
 				{
 					this->UsdPrimInfoWidget->SetPrimPath( UsdStageActor->GetUsdStage(), *PrimPath );
 				}
@@ -202,7 +202,7 @@ void SUsdStage::SetupStageActorDelegates()
 		OnStageEditTargetChangedHandle = UsdStageActor->GetUsdListener().OnStageEditTargetChanged.AddLambda(
 			[ this ]()
 			{
-				if ( this->UsdLayersTreeView )
+				if ( this->UsdLayersTreeView && UsdStageActor.IsValid() )
 				{
 					this->UsdLayersTreeView->Refresh( UsdStageActor.Get(), false );
 				}
@@ -480,6 +480,7 @@ void SUsdStage::OnPrimSelected( FString PrimPath )
 			UsdStage = UsdStageActor->GetUsdStage();
 		}
 
+		SelectedPrimPath = PrimPath;
 		UsdPrimInfoWidget->SetPrimPath( UsdStage, *PrimPath );
 	}
 }

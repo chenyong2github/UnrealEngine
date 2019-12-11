@@ -22,10 +22,25 @@ void FCborStructSerializerBackend::BeginArray(const FStructSerializerState& Stat
 {
 	UObject* Outer = State.ValueProperty->GetOuter();
 
+	// If TArray<uint8>/TArray<int8> content needs to be written as ByteString (to prevent paying a 1 byte header for each byte greater than 23 required by CBOR array).
+	if (EnumHasAnyFlags(Flags, EStructSerializerBackendFlags::WriteByteArrayAsByteStream))
+	{
+		if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(State.ValueProperty))
+		{
+			if (Cast<UByteProperty>(ArrayProperty->Inner) || Cast<UInt8Property>(ArrayProperty->Inner)) // A CBOR draft to support homogeneous array exists, but is not yet approved: https://datatracker.ietf.org/doc/draft-ietf-cbor-array-tags/.
+			{
+				check(!bSerializingByteArray);
+				FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayProperty->ContainerPtrToValuePtr<void>(State.ValueData));
+				AccumulatedBytes.Reset(ArrayHelper.Num());
+				bSerializingByteArray = true;
+			}
+		}
+	}
+
 	// Array nested in Array/Set
 	if ((Outer != nullptr) && (Outer->GetClass() == UArrayProperty::StaticClass() || Outer->GetClass() == USetProperty::StaticClass()))
 	{
-		CborWriter.WriteContainerStart(ECborCode::Array, -1);
+		// fall through.
 	}
 	// Array nested in Map
 	else if (State.KeyProperty != nullptr)
@@ -33,12 +48,15 @@ void FCborStructSerializerBackend::BeginArray(const FStructSerializerState& Stat
 		FString KeyString;
 		State.KeyProperty->ExportTextItem(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
 		CborWriter.WriteValue(KeyString);
-		CborWriter.WriteContainerStart(ECborCode::Array, -1/*Indefinite*/);
 	}
 	// Array nested in Object
 	else
 	{
 		CborWriter.WriteValue(State.ValueProperty->GetName());
+	}
+
+	if (!bSerializingByteArray) // TArray<uint8>/TArray<int8> are written as ByteString rather than CBOR array because it is more size efficient.
+	{
 		CborWriter.WriteContainerStart(ECborCode::Array, -1/*Indefinite*/);
 	}
 }
@@ -78,7 +96,16 @@ void FCborStructSerializerBackend::BeginStructure(const FStructSerializerState& 
 
 void FCborStructSerializerBackend::EndArray(const FStructSerializerState& State)
 {
-	CborWriter.WriteContainerEnd();
+	if (bSerializingByteArray) // Does end a TArray<uint8>/TArray<int8>?
+	{
+		// Flush the accumulated bytes as a ByteString().
+		CborWriter.WriteValue(AccumulatedBytes.GetData(), AccumulatedBytes.Num());
+		bSerializingByteArray = false;
+	}
+	else
+	{
+		CborWriter.WriteContainerEnd();
+	}
 }
 
 void FCborStructSerializerBackend::EndStructure(const FStructSerializerState& State)
@@ -169,6 +196,10 @@ void FCborStructSerializerBackend::WriteProperty(const FStructSerializerState& S
 		{
 			WritePropertyValue(CborWriter, State, ByteProperty->Enum->GetNameStringByValue(ByteProperty->GetPropertyValue_InContainer(State.ValueData, ArrayIndex)));
 		}
+		else if (bSerializingByteArray) // Writing a byte from a TArray<uint8>/TArray<int8>?
+		{
+			AccumulatedBytes.Add(ByteProperty->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		}
 		else
 		{
 			WritePropertyValue(CborWriter, State, (int64)ByteProperty->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
@@ -192,7 +223,15 @@ void FCborStructSerializerBackend::WriteProperty(const FStructSerializerState& S
 	}
 	else if (State.ValueType == UInt8Property::StaticClass())
 	{
-		WritePropertyValue(CborWriter, State, (int64)CastChecked<UInt8Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		int8 Value = CastChecked<UInt8Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
+		if (bSerializingByteArray) // Writing a int8 from a TArray<uint8>/TArray<int8>?
+		{
+			AccumulatedBytes.Add(Value);
+		}
+		else
+		{
+			WritePropertyValue(CborWriter, State, (int64)Value);
+		}
 	}
 	else if (State.ValueType == UInt16Property::StaticClass())
 	{

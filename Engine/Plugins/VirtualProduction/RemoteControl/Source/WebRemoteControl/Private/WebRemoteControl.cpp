@@ -599,9 +599,9 @@ public:
 		}
 		HttpRouter.Reset();
 
-		if (FHttpServerModule* HttpServerModule = FModuleManager::Get().GetModulePtr<FHttpServerModule>(TEXT("ContentBrowser")))
+		if (FHttpServerModule::IsAvailable())
 		{
-			HttpServerModule->StopAllListeners();
+			FHttpServerModule::Get().StopAllListeners();
 		}
 	}
 

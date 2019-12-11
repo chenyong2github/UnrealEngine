@@ -1323,13 +1323,15 @@ public:
 	FFloatRange SmoothedFrameRateRange;
 
 private:
-	/** Control how the Engine process the Framerate/Timestep */
+	/** Controls how the Engine process the Framerate/Timestep */
 	UPROPERTY(transient)
-	UEngineCustomTimeStep* DefaultCustomTimeStep;
+	UEngineCustomTimeStep* CustomTimeStep;
 
-	/** Control how the Engine process the Framerate/Timestep */
-	UPROPERTY(transient)
-	UEngineCustomTimeStep* CurrentCustomTimeStep;
+	/** Broadcasts whenever the custom time step changed. */
+	FSimpleMulticastDelegate CustomTimeStepChangedEvent;
+
+	/** Is the current custom time step was initialized properly and if we should shut it down. */
+	bool bIsCurrentCustomTimeStepInitialized;
 
 public:
 	/**
@@ -1341,40 +1343,22 @@ public:
 	FSoftClassPath CustomTimeStepClassName;
 
 private:
-	/**
-	 * Default timecode provider that will be used when no custom provider is set.
-	 * This is expected to be valid throughout the entire life of the application.
-	 */
+	/** Controls the Engine's timecode. */
 	UPROPERTY(transient)
-	UTimecodeProvider* DefaultTimecodeProvider;
+	UTimecodeProvider* TimecodeProvider;
 
-	UPROPERTY(transient)
-	UTimecodeProvider* CustomTimecodeProvider;
+	/** Broadcasts whenever the timecode provider changed. */
+	FSimpleMulticastDelegate TimecodeProviderChangedEvent;
+
+	/** Is the current timecode provider was initialized properly and if we should shut it down. */
+	bool bIsCurrentTimecodeProviderInitialized;
 
 public:
-
 	/**
-	 * Allows UEngine subclasses a chance to override the DefaultTimecodeProvider class.
-	 * This must be set before InitializeObjectReferences is called.
-	 * This is intentionally protected and not exposed to config.
-	 */
-	UPROPERTY(config, EditAnywhere, Category=Timecode, meta=(MetaClass="TimecodeProvider", DisplayName="DefaultTimecodeProvider", ConfigRestartRequired=true))
-	FSoftClassPath DefaultTimecodeProviderClassName;
-
-	/**
-	 * Override the CustomTimecodeProvider when the engine is started.
-	 * When set, this does not change the DefaultTImecodeProvider class.
-	 * Instead, it will create an instance and set it as the CustomTimecodeProvider.
+	 * Set TimecodeProvider when the engine is started.
 	 */
 	UPROPERTY(config, EditAnywhere, Category=Timecode, meta=(MetaClass="TimecodeProvider", DisplayName="TimecodeProvider", ConfigRestartRequired=true))
 	FSoftClassPath TimecodeProviderClassName;
-	
-	/**
-	 * Frame rate used to generated the engine Timecode's frame number when no TimecodeProvider are specified.
-	 * It doesn't control the Engine frame rate. The Engine can run faster or slower that the specified TimecodeFrameRate.
-	 */
-	UPROPERTY(config, EditAnywhere, Category=Timecode, Meta=(ConfigRestartRequired=true))
-	FFrameRate DefaultTimecodeFrameRate;
 
 public:
 	/** 
@@ -2099,24 +2083,23 @@ public:
 	 */
 	virtual double CorrectNegativeTimeDelta(double DeltaRealTime);
 
-	/** Causes the current CustomTimeStep to be shut down and then reinitialized. */
+	/** Causes the current custom time step to be shut down and then reinitialized. */
 	void ReinitializeCustomTimeStep();
 
 	/**
-	 * Set the CustomTimeStep that will control the Engine Framerate/Timestep
+	 * Set the custom time step that will control the Engine Framerate/Timestep.
+	 * It will shutdown the previous custom time step.
+	 * The new custom time step will be initialized.
 	 *
-	 * @return	true if the CustomTimeStep was properly initialized
+	 * @return	the result of the custom time step initialization.
 	 */
 	bool SetCustomTimeStep(UEngineCustomTimeStep* InCustomTimeStep);
 
-	/** Get the CustomTimeStep that control the Engine Framerate/Timestep */
-	UEngineCustomTimeStep* GetCustomTimeStep() const { return CurrentCustomTimeStep; };
+	/** Get the custom time step that control the Engine Framerate/Timestep */
+	UEngineCustomTimeStep* GetCustomTimeStep() const { return CustomTimeStep; };
 
-	/**
-	 * Get the DefaultCustomTimeStep created at the engine initialization.
-	 * This may be null if no CustomTimeStep was defined in the project settings and may not be currently active.
-	 */
-	UEngineCustomTimeStep* GetDefaultCustomTimeStep() const { return DefaultCustomTimeStep; }
+	/** Return custom time step changed event. */
+	FSimpleMulticastDelegate& OnCustomTimeStepChanged() { return CustomTimeStepChangedEvent; }
 
 	/** Executes the deferred commands */
 	void TickDeferredCommands();
@@ -2139,34 +2122,23 @@ public:
 	/** Update FApp::Timecode. */
 	void UpdateTimecode();
 
-	/** Causes the current TimecodeProvider to be shut down and then reinitialized. */
+	/** Causes the current timecode provider to be shut down and then reinitialized. */
 	void ReinitializeTimecodeProvider();
 
 	/**
-	 * Sets the CustomTimecodeProvider for the engine, shutting down the the default provider if necessary.
-	 * Passing nullptr will clear the current CustomTimecodeProvider, and re-initialize the default.
+	 * Set the timecode provider that will control the Engine's timecode.
+	 * It will shutdown the previous timecode provider.
+	 * The new timecode provider will be initialized.
 	 *
-	 * @return True if the provider was set (and initialized successfully when non-null).
+	 * @return	the result value of the new timecode provider initialization.
 	 */
 	bool SetTimecodeProvider(UTimecodeProvider* InTimecodeProvider);
 
-	/**
-	 * Get the TimecodeProvider that control the Engine's Timecode
-	 * The return value should always be non-null.
-	 */
-	const UTimecodeProvider* GetTimecodeProvider() const { return CustomTimecodeProvider ? CustomTimecodeProvider : GetDefaultTimecodeProvider(); }
+	/** Get the TimecodeProvider that control the Engine's Timecode. */
+	UTimecodeProvider* GetTimecodeProvider() const { return TimecodeProvider; };
 
-	/**
-	 * Get the DefaultTimecodeProvider.
-	 * This should be valid throughout the lifetime of the Engine (although, it may not always be active).
-	 */
-	const UTimecodeProvider* GetDefaultTimecodeProvider() const { check(DefaultTimecodeProvider != nullptr); return DefaultTimecodeProvider; }
-
-protected:
-
-	/** Provide mutable access to the current TimecodeProvider to Engine. This is needed to Initialize / Shutdown providers. */
-	UTimecodeProvider* GetTimecodeProviderProtected() { return const_cast<UTimecodeProvider*>(const_cast<const UEngine*>(this)->GetTimecodeProvider()); }
-	UTimecodeProvider* GetDefaultTimecodeProviderProtected() { return const_cast<UTimecodeProvider*>(const_cast<const UEngine*>(this)->GetDefaultTimecodeProvider()); }
+	/** Return timecode provider changed event. */
+	FSimpleMulticastDelegate& OnTimecodeProviderChanged() { return TimecodeProviderChangedEvent; }
 
 public:
 

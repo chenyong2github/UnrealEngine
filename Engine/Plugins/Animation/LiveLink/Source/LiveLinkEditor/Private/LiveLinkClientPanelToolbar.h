@@ -17,6 +17,7 @@ class FLiveLinkClient;
 class ILiveLinkSource;
 class IMenu;
 class SComboButton;
+class SEditableTextBox;
 class STextEntryPopup;
 class ULiveLinkSourceFactory;
 struct FAssetData;
@@ -40,12 +41,18 @@ private:
 	void OnSourceCreated(TSharedPtr<ILiveLinkSource> NewSource, FString ConnectionString, TSubclassOf<ULiveLinkSourceFactory> Factory);
 
 	TSharedRef<SWidget> OnPresetGeneratePresetsMenu();
+	TSharedRef<SWidget> HandleSourceSelectionComboButton();
+	void HandleVirtualSourceSelection(const FGuid& InSourceGuid);
+	bool IsVirtualSourceSelected(const FGuid& InSourceGuid);
 	void OnSaveAsPreset();
 	void OnImportPreset(const FAssetData& InPreset);
 	FReply OnRevertChanges();
 	bool HasLoadedLiveLinkPreset() const;
 
+	void PopulateVirtualSubjectSourceCreationMenu(FMenuBuilder& InMenuBuilder);
+	FReply OnAddVirtualSubjectSource();
 	void AddVirtualSubject();
+
 
 private:
 	FLiveLinkClient* Client;
@@ -53,6 +60,7 @@ private:
 	TWeakPtr<IMenu> AddSubjectMenu;
 	TWeakPtr<IMenu> VirtualSubjectMenu;
 	TWeakPtr<STextEntryPopup> VirtualSubjectPopup;
+	TWeakPtr<SEditableTextBox> VirtualSubjectSourceName;
 	TSharedPtr<SComboButton> AddSourceButton;
 
 	TWeakObjectPtr<ULiveLinkPreset> LiveLinkPreset;

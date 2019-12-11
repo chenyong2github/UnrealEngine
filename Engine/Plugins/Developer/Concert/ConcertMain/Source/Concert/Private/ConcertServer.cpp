@@ -781,11 +781,14 @@ void FConcertServer::HandleDiscoverServersEvent(const FConcertMessageContext& Co
 
 	if (ServerAdminEndpoint.IsValid() && Message->RequiredRole == Role && Message->RequiredVersion == VERSION_STRINGIFY(ENGINE_MAJOR_VERSION) TEXT(".") VERSION_STRINGIFY(ENGINE_MINOR_VERSION))
 	{
-		FConcertAdmin_ServerDiscoveredEvent DiscoveryInfo;
-		DiscoveryInfo.ServerName = ServerInfo.ServerName;
-		DiscoveryInfo.InstanceInfo = ServerInfo.InstanceInfo;
-		DiscoveryInfo.ServerFlags = ServerInfo.ServerFlags;
-		ServerAdminEndpoint->SendEvent(DiscoveryInfo, Context.SenderConcertEndpointId);
+		if (Settings->AuthorizedClientKeys.Num() == 0 || Settings->AuthorizedClientKeys.Contains(Message->ClientAuthenticationKey)) // Can the client discover this server?
+		{
+			FConcertAdmin_ServerDiscoveredEvent DiscoveryInfo;
+			DiscoveryInfo.ServerName = ServerInfo.ServerName;
+			DiscoveryInfo.InstanceInfo = ServerInfo.InstanceInfo;
+			DiscoveryInfo.ServerFlags = ServerInfo.ServerFlags;
+			ServerAdminEndpoint->SendEvent(DiscoveryInfo, Context.SenderConcertEndpointId);
+		}
 	}
 }
 

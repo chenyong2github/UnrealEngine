@@ -1131,5 +1131,7 @@ FProgramCounterSymbolInfoEx::FProgramCounterSymbolInfoEx( FString InModuleName, 
 
 FString RecoveryService::GetRecoveryServerName()
 {
-	return FString::Printf(TEXT("RecoverySvr_%d"), FPlatformProcess::GetCurrentProcessId());
+	// Requirement: The name must be unique on the local machine (multiple instances) and across the local network (multiple users).
+	static FGuid RecoverySessionGuid = FGuid::NewGuid();
+	return FString::Printf(TEXT("RecoverySvr_%s"), *RecoverySessionGuid.ToString());
 }

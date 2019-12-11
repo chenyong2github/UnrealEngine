@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "HAL/PlatformTLS.h"
 #include "HAL/TlsAutoCleanup.h"
+#include "Misc/ScopeLock.h"
 
 class UNREALUSDWRAPPER_API FTlsSlot final
 {
@@ -91,6 +92,7 @@ private:
 
 TOptional< FTlsSlot > FUsdMemoryManager::ActiveAllocatorsStackTLS {};
 TSet< void* > FUsdMemoryManager::SystemAllocedPtrs {};
+FCriticalSection FUsdMemoryManager::CriticalSection{};
 
 void FUsdMemoryManager::Initialize()
 {
@@ -139,7 +141,11 @@ void* FUsdMemoryManager::Malloc( SIZE_T Count )
 	if ( FUsdMemoryManager::IsUsingSystemMalloc() )
 	{
 		Result = FMemory::SystemMalloc( Count );
-		SystemAllocedPtrs.Add( Result );
+
+		{
+			FScopeLock Lock( &CriticalSection );
+			SystemAllocedPtrs.Add( Result );
+		}
 	}
 	else
 	{
@@ -155,7 +161,11 @@ void FUsdMemoryManager::Free( void* Original )
 	// This can happen for inlined USD functions that call delete.
 	if ( FUsdMemoryManager::IsUsingSystemMalloc() || SystemAllocedPtrs.Contains( Original ) )
 	{
-		SystemAllocedPtrs.Remove( Original );
+		{
+			FScopeLock Lock( &CriticalSection );
+			SystemAllocedPtrs.Remove( Original );
+		}
+
 		FMemory::SystemFree( Original );
 	}
 	else

@@ -11,6 +11,8 @@
 #include "LiveLinkLogInstance.h"
 #include "LiveLinkDebugCommand.h"
 #include "LiveLinkHeartbeatEmitter.h"
+#include "LiveLinkPreset.h"
+#include "LiveLinkSettings.h"
 
 /**
  * Implements the Messaging module.
@@ -41,6 +43,11 @@ public:
 		FLiveLinkLogInstance::CreateInstance();
 		IModularFeatures::Get().RegisterModularFeature(FLiveLinkClient::ModularFeatureName, &LiveLinkClient);
 		LiveLinkMotionController.RegisterController();
+
+		if (ULiveLinkPreset* Preset = GetDefault<ULiveLinkSettings>()->DefaultLiveLinkPreset.LoadSynchronous())
+		{
+			Preset->ApplyToClient();
+		}
 	}
 
 	virtual void ShutdownModule() override

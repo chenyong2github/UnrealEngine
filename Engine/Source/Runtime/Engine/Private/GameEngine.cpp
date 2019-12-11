@@ -738,8 +738,6 @@ UEngine::UEngine(const FObjectInitializer& ObjectInitializer)
 		}
 	}
 	#endif
-
-	DefaultTimecodeFrameRate = FFrameRate(30, 1);
 }
 
 

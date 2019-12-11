@@ -1,0 +1,32 @@
+{
+  "FileVersion": 1,
+  "Version": 1,
+  "VersionName": "1.0",
+  "FriendlyName": "DMX Protocol",
+  "Description": "DMX Protocols implementation",
+  "Category": "Media",
+  "CreatedBy": "Epic Games, Inc.",
+  "CreatedByURL": "http://epicgames.com",
+  "DocsURL": "",
+  "MarketplaceURL": "",
+  "SupportURL": "",
+  "CanContainContent": true,
+  "IsBetaVersion": true,
+  "Modules": [
+    {
+      "Name": "DMXProtocol",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    },
+    {
+      "Name": "DMXProtocolArtNet",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    },
+    {
+      "Name": "DMXProtocolSACN",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ]
+}

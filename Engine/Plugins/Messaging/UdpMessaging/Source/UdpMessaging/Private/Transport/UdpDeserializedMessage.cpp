@@ -42,7 +42,7 @@ class FUdpDeserializedMessageDetails
 {
 public:
 	static bool DeserializeV10(FUdpDeserializedMessage& DeserializedMessage, FMemoryReader& MessageReader);
-	static bool DeserializeV11_12(FUdpDeserializedMessage& DeserializedMessage, FMemoryReader& MessageReader);
+	static bool DeserializeV11_13(FUdpDeserializedMessage& DeserializedMessage, FMemoryReader& MessageReader);
 	static bool Deserialize(FUdpDeserializedMessage& DeserializedMessage, const FUdpReassembledMessage& ReassembledMessage);
 };
 
@@ -231,7 +231,7 @@ bool FUdpDeserializedMessageDetails::DeserializeV10(FUdpDeserializedMessage& Des
 	return FStructDeserializer::Deserialize(DeserializedMessage.MessageData, *DeserializedMessage.TypeInfo, Backend);
 }
 
-bool FUdpDeserializedMessageDetails::DeserializeV11_12(FUdpDeserializedMessage& DeserializedMessage, FMemoryReader& MessageReader)
+bool FUdpDeserializedMessageDetails::DeserializeV11_13(FUdpDeserializedMessage& DeserializedMessage, FMemoryReader& MessageReader)
 {
 	// message type info
 	{
@@ -369,7 +369,9 @@ bool FUdpDeserializedMessageDetails::Deserialize(FUdpDeserializedMessage& Deseri
 	case 11:
 		// fallthrough
 	case 12:
-		return DeserializeV11_12(DeserializedMessage, MessageReader);
+		// fallthrough
+	case 13:
+		return DeserializeV11_13(DeserializedMessage, MessageReader);
 		break;
 
 	default:

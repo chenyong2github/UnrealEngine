@@ -31,6 +31,7 @@ struct ENGINE_API FAnimationRecordingSettings
 		, InterpMode(ERichCurveInterpMode::RCIM_Linear)
 		, TangentMode(ERichCurveTangentMode::RCTM_Auto)
 		, bCheckDeltaTimeAtBeginning(true)
+
 	{}
 
 	/** Whether to record animation in world space, defaults to true */

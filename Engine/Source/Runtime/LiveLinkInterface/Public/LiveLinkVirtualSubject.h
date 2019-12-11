@@ -40,7 +40,11 @@ protected:
 public:
 	ILiveLinkClient* GetClient() const { return LiveLinkClient; }
 	const TArray<FLiveLinkSubjectName>& GetSubjects() const { return Subjects; }
+	const TArray<ULiveLinkFrameTranslator*>& GetTranslators() const { return FrameTranslators; }
 	virtual bool DependsOnSubject(FName SubjectName) const;
+
+protected:
+	void UpdateTranslatorsForThisFrame();
 
 protected:
 	/** The role the subject was build with. */

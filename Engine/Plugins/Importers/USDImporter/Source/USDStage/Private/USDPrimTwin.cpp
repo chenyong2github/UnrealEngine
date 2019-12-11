@@ -48,9 +48,19 @@ void FUsdPrimTwin::Clear()
 		OnDestroyed.Broadcast( *this );
 	}
 
-	if ( SpawnedActor.IsValid() && !SpawnedActor->IsA<AUsdStageActor>() && !SpawnedActor->IsActorBeingDestroyed() )
+	AActor* ActorToDestroy = SpawnedActor.Get();
+
+	if ( !ActorToDestroy )
 	{
-		SpawnedActor->GetWorld()->DestroyActor( SpawnedActor.Get() );
+		if ( SceneComponent.IsValid() && SceneComponent->GetOwner()->GetRootComponent() == SceneComponent.Get() )
+		{
+			ActorToDestroy = SceneComponent->GetOwner();
+		}
+	}
+
+	if ( ActorToDestroy && !ActorToDestroy->IsA< AUsdStageActor >() && !ActorToDestroy->IsActorBeingDestroyed() && ActorToDestroy->GetWorld() )
+	{
+		ActorToDestroy->GetWorld()->DestroyActor( ActorToDestroy );
 		SpawnedActor = nullptr;
 	}
 	else if ( SceneComponent.IsValid() && !SceneComponent->IsBeingDestroyed() )

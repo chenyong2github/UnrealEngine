@@ -345,6 +345,8 @@ public:
 			{
 				UsdGeomImageable.MakeVisible();
 			}
+
+			TreeItem->RefreshData( false );
 		}
 
 		return FReply::Handled();
@@ -407,12 +409,14 @@ void SUsdStageTreeView::Construct( const FArguments& InArgs, AUsdStageActor* InU
 
 	OnSelectionChanged = FOnSelectionChanged::CreateLambda( [ this ]( FUsdStageTreeItemPtr UsdStageTreeItem, ESelectInfo::Type SelectionType )
 	{
-		if ( !UsdStageTreeItem )
+		FString SelectedPrimPath;
+
+		if ( UsdStageTreeItem )
 		{
-			return;
+			SelectedPrimPath = UsdToUnreal::ConvertPath( UsdStageTreeItem->UsdPrim.Get().GetPrimPath() );
 		}
 
-		this->OnPrimSelected.ExecuteIfBound( UsdToUnreal::ConvertPath( UsdStageTreeItem->UsdPrim.Get().GetPrimPath() ) );
+		this->OnPrimSelected.ExecuteIfBound( SelectedPrimPath );
 	} );
 
 	OnPrimSelected = InArgs._OnPrimSelected;
