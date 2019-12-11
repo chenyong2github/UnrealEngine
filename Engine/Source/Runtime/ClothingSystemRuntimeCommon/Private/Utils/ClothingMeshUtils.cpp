@@ -2,7 +2,7 @@
 
 #include "Utils/ClothingMeshUtils.h"
 
-#include "ClothPhysicalMeshDataBase.h"
+#include "ClothPhysicalMeshData.h"
 
 #include "Math/UnrealMathUtility.h"
 #include "Logging/LogMacros.h"
@@ -21,16 +21,16 @@ namespace ClothingMeshUtils
 {
 	// Explicit template instantiations of SkinPhysicsMesh
 	template
-	void CLOTHINGSYSTEMRUNTIMECOMMON_API SkinPhysicsMesh<true, false>(const TArray<int32>& BoneMap, const UClothPhysicalMeshDataBase& InMesh, const FTransform& RootBoneTransform,
+	void CLOTHINGSYSTEMRUNTIMECOMMON_API SkinPhysicsMesh<true, false>(const TArray<int32>& BoneMap, const FClothPhysicalMeshData& InMesh, const FTransform& RootBoneTransform,
 		const FMatrix* InBoneMatrices, const int32 InNumBoneMatrices, TArray<FVector>& OutPositions, TArray<FVector>& OutNormals, uint32 ArrayOffset);
 	template
-	void CLOTHINGSYSTEMRUNTIMECOMMON_API SkinPhysicsMesh<false, true>(const TArray<int32>& BoneMap, const UClothPhysicalMeshDataBase& InMesh, const FTransform& RootBoneTransform,
+	void CLOTHINGSYSTEMRUNTIMECOMMON_API SkinPhysicsMesh<false, true>(const TArray<int32>& BoneMap, const FClothPhysicalMeshData& InMesh, const FTransform& RootBoneTransform,
 		const FMatrix* InBoneMatrices, const int32 InNumBoneMatrices, TArray<FVector>& OutPositions, TArray<FVector>& OutNormals, uint32 ArrayOffset);
 
 	template<bool bInPlaceOutput, bool bRemoveScaleAndInvertPostTransform>
 	void SkinPhysicsMesh(
 		const TArray<int32>& BoneMap,
-		const UClothPhysicalMeshDataBase& InMesh,
+		const FClothPhysicalMeshData& InMesh,
 		const FTransform& PostTransform,
 		const FMatrix* InBoneMatrices,
 		const int32 InNumBoneMatrices,
