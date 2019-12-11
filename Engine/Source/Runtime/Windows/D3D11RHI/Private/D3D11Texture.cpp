@@ -2483,6 +2483,18 @@ FTextureRHIRef FD3D11DynamicRHI::RHICreateAliasedTexture(FRHITexture* SourceText
 	return nullptr;
 }
 
+void FD3D11DynamicRHI::RHIAliasTextureResources(FTextureRHIRef& DestTextureRHI, FTextureRHIRef& SrcTextureRHI)
+{
+	// @todo: Move the raw-pointer implementation down here when it's deprecation is completed.
+	RHIAliasTextureResources((FRHITexture*)DestTextureRHI, (FRHITexture*)SrcTextureRHI);
+}
+
+FTextureRHIRef FD3D11DynamicRHI::RHICreateAliasedTexture(FTextureRHIRef& SourceTexture)
+{
+	// @todo: Move the raw-pointer implementation down here when it's deprecation is completed.
+	return RHICreateAliasedTexture((FRHITexture*)SourceTexture);
+}
+
 void FD3D11DynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI, const FRHICopyTextureInfo& CopyInfo)
 {
 	if (!SourceTextureRHI || !DestTextureRHI || SourceTextureRHI == DestTextureRHI)

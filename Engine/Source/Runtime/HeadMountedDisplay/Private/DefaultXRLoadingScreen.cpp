@@ -86,7 +86,22 @@ void FDefaultXRLoadingScreen::DoShowSplash(FSplashData& Splash)
 	// Sort layers by distance from the viewer
 	LayerDesc.Priority = INT32_MAX - static_cast<int32>(Splash.Desc.Transform.GetTranslation().X * 1000.f);
 	LayerDesc.PositionType = IStereoLayers::TrackerLocked;
-	LayerDesc.ShapeType = Splash.Desc.Texture->GetTextureCube() != nullptr ? IStereoLayers::CubemapLayer : IStereoLayers::QuadLayer;
+	
+	if (Splash.Desc.Texture->GetTextureCube() != nullptr)
+	{
+		if (!LayerDesc.HasShape<FCubemapLayer>())
+		{
+			LayerDesc.SetShape<FCubemapLayer>();
+		}
+	}
+	else
+	{
+		if (!LayerDesc.HasShape<FQuadLayer>())
+		{
+			LayerDesc.SetShape<FQuadLayer>();
+		}
+	}
+
 	LayerDesc.Texture = Splash.Desc.Texture;
 	LayerDesc.LeftTexture = Splash.Desc.LeftTexture;
 	LayerDesc.Flags = IStereoLayers::LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO

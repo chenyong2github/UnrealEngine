@@ -1004,17 +1004,31 @@ public:
 		return nullptr;
 	}
 
+	UE_DEPRECATED(4.25, "RHIAliasTextureResources now takes references to FTextureRHIRef objects as parameters")
 	virtual void RHIAliasTextureResources(FRHITexture* DestTexture, FRHITexture* SrcTexture)
 	{
 		checkNoEntry();
 	}
 
-	virtual void RHIAdvanceFrameFence(){};
+	UE_DEPRECATED(4.25, "RHICreateAliasedTexture now takes a reference to an FTextureRHIRef object")
 	virtual FTextureRHIRef RHICreateAliasedTexture(FRHITexture* SourceTexture)
 	{
 		checkNoEntry();
 		return nullptr;
 	}
+
+	virtual void RHIAliasTextureResources(FTextureRHIRef& DestTexture, FTextureRHIRef& SrcTexture)
+	{
+		checkNoEntry();
+	}
+
+	virtual FTextureRHIRef RHICreateAliasedTexture(FTextureRHIRef& SourceTexture)
+	{
+		checkNoEntry();
+		return nullptr;
+	}
+
+	virtual void RHIAdvanceFrameFence() {};
 
 	// Only relevant with an RHI thread, this advances the backbuffer for the purpose of GetViewportBackBuffer
 	// FlushType: Thread safe

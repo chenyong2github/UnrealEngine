@@ -1,12 +1,17 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Components/StereoLayerComponent.h"
+#include "UObject/VRObjectVersion.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "TextureResource.h"
 #include "Engine/Texture.h"
 #include "IStereoLayers.h"
+#include "StereoLayerShapes.h"
 #include "StereoRendering.h"
+#if WITH_EDITOR
+#include "SceneManagement.h"
+#endif
 
 UStereoLayerComponent::UStereoLayerComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -18,21 +23,19 @@ UStereoLayerComponent::UStereoLayerComponent(const FObjectInitializer& ObjectIni
 	, bQuadPreserveTextureRatio(false)
 	, QuadSize(FVector2D(100.0f, 100.0f))
 	, UVRect(FBox2D(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f)))
-	, CylinderRadius(100)
-	, CylinderOverlayArc(100)
-	, CylinderHeight(50)
-	, EquirectProps()
 	, StereoLayerType(SLT_FaceLocked)
-	, StereoLayerShape(SLSH_QuadLayer)
 	, Priority(0)
 	, bIsDirty(true)
 	, bTextureNeedsUpdate(false)
 	, LayerId(0)
 	, LastTransform(FTransform::Identity)
 	, bLastVisible(false)
+	, bNeedsPostLoadFixup(false)
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.TickGroup = TG_PrePhysics;
+	// The following somehow overrides subobjects read through serialization.
+	//Shape = ObjectInitializer.CreateDefaultSubobject<UStereoLayerShapeQuad>(this, TEXT("Shape"));
 }
 
 void UStereoLayerComponent::BeginDestroy()
@@ -44,6 +47,61 @@ void UStereoLayerComponent::BeginDestroy()
 	{
 		StereoLayers->DestroyLayer(LayerId);
 		LayerId = 0;
+	}
+}
+
+void UStereoLayerComponent::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FVRObjectVersion::GUID);
+	Super::Serialize(Ar);
+	if (Ar.IsLoading() && Ar.CustomVer(FVRObjectVersion::GUID) < FVRObjectVersion::UseSubobjectForStereoLayerShapeProperties)
+	{
+		bNeedsPostLoadFixup = true; // Postponing fixups until after load, as we need to modify subobjects.
+	}
+}
+
+void UStereoLayerComponent::PostLoad()
+{
+	Super::PostLoad();
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (bNeedsPostLoadFixup)
+	{
+		switch (StereoLayerShape_DEPRECATED)
+		{
+			case SLSH_QuadLayer:
+			{
+				Shape = NewObject<UStereoLayerShapeQuad>(this);
+				break;
+			}
+			case SLSH_CubemapLayer:
+			{
+				Shape = NewObject<UStereoLayerShapeCubemap>(this);
+				break;
+			}
+			case SLSH_CylinderLayer:
+			{
+				auto Cylinder = NewObject<UStereoLayerShapeCylinder>(this);
+				Shape = Cylinder;
+				Cylinder->Height = CylinderHeight_DEPRECATED;
+				Cylinder->OverlayArc = CylinderOverlayArc_DEPRECATED;
+				Cylinder->Radius = CylinderRadius_DEPRECATED;
+				break;
+			}
+			case SLSH_EquirectLayer:
+			{
+				auto Equirect = NewObject<UStereoLayerShapeEquirect>(this);
+				Shape = Equirect;
+				Equirect->SetEquirectProps(EquirectProps_DEPRECATED);
+				break;
+			}
+		}
+		bNeedsPostLoadFixup = false;
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	if (Shape == nullptr)
+	{
+		Shape = NewObject<UStereoLayerShapeQuad>(this);
 	}
 }
 
@@ -81,75 +139,55 @@ void UStereoLayerComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 
 	if (bIsDirty)
 	{
-		IStereoLayers::FLayerDesc LayerDsec;
-		LayerDsec.Priority = Priority;
-		LayerDsec.QuadSize = QuadSize;
-		LayerDsec.UVRect = UVRect;
-		LayerDsec.Transform = Transform;
+		IStereoLayers::FLayerDesc LayerDesc;
+		LayerDesc.Priority = Priority;
+		LayerDesc.QuadSize = QuadSize;
+		LayerDesc.UVRect = UVRect;
+		LayerDesc.Transform = Transform;
 
 		if (Texture)
 		{
-			LayerDsec.Texture = Texture->Resource->TextureRHI;
-			LayerDsec.Flags |= (Texture->GetMaterialType() == MCT_TextureExternal) ? IStereoLayers::LAYER_FLAG_TEX_EXTERNAL : 0;
+			LayerDesc.Texture = Texture->Resource->TextureRHI;
+			LayerDesc.Flags |= (Texture->GetMaterialType() == MCT_TextureExternal) ? IStereoLayers::LAYER_FLAG_TEX_EXTERNAL : 0;
 		}
 		if (LeftTexture)
 		{
-			LayerDsec.LeftTexture = LeftTexture->Resource->TextureRHI;
+			LayerDesc.LeftTexture = LeftTexture->Resource->TextureRHI;
 		}
 				
-		LayerDsec.Flags |= (bLiveTexture) ? IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE : 0;
-		LayerDsec.Flags |= (bNoAlphaChannel) ? IStereoLayers::LAYER_FLAG_TEX_NO_ALPHA_CHANNEL : 0;
-		LayerDsec.Flags |= (bQuadPreserveTextureRatio) ? IStereoLayers::LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO : 0;
-		LayerDsec.Flags |= (bSupportsDepth) ? IStereoLayers::LAYER_FLAG_SUPPORT_DEPTH : 0;
-		LayerDsec.Flags |= (!bCurrVisible) ? IStereoLayers::LAYER_FLAG_HIDDEN : 0;
+		LayerDesc.Flags |= (bLiveTexture) ? IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE : 0;
+		LayerDesc.Flags |= (bNoAlphaChannel) ? IStereoLayers::LAYER_FLAG_TEX_NO_ALPHA_CHANNEL : 0;
+		LayerDesc.Flags |= (bQuadPreserveTextureRatio) ? IStereoLayers::LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO : 0;
+		LayerDesc.Flags |= (bSupportsDepth) ? IStereoLayers::LAYER_FLAG_SUPPORT_DEPTH : 0;
+		LayerDesc.Flags |= (!bCurrVisible) ? IStereoLayers::LAYER_FLAG_HIDDEN : 0;
 
 		switch (StereoLayerType)
 		{
 		case SLT_WorldLocked:
-			LayerDsec.PositionType = IStereoLayers::WorldLocked;
+			LayerDesc.PositionType = IStereoLayers::WorldLocked;
 			break;
 		case SLT_TrackerLocked:
-			LayerDsec.PositionType = IStereoLayers::TrackerLocked;
+			LayerDesc.PositionType = IStereoLayers::TrackerLocked;
 			break;
 		case SLT_FaceLocked:
-			LayerDsec.PositionType = IStereoLayers::FaceLocked;
+			LayerDesc.PositionType = IStereoLayers::FaceLocked;
 			break;
 		}
 
-		switch (StereoLayerShape)
+		// Set the correct layer shape and apply any shape-specific properties
+		if (Shape == nullptr)
 		{
-		case SLSH_QuadLayer:
-			LayerDsec.ShapeType = IStereoLayers::QuadLayer;
-			break;
-
-		case SLSH_CylinderLayer:
-			LayerDsec.ShapeType = IStereoLayers::CylinderLayer;
-			LayerDsec.CylinderRadius = CylinderRadius;
-			LayerDsec.CylinderOverlayArc = CylinderOverlayArc;
-			LayerDsec.CylinderHeight = CylinderHeight;
-			break;
-
-		case SLSH_CubemapLayer:
-			LayerDsec.ShapeType = IStereoLayers::CubemapLayer;
-			break;
-
-		case SLSH_EquirectLayer:
-			LayerDsec.ShapeType = IStereoLayers::EquirectLayer;
-			LayerDsec.EquirectProps = { EquirectProps.LeftUVRect, EquirectProps.RightUVRect, EquirectProps.LeftScale, EquirectProps.RightScale, EquirectProps.LeftBias, EquirectProps.RightBias };
-			break;
-
-		default:
-			break;
+			Shape = NewObject<UStereoLayerShapeQuad>(this);
 		}
-
+		Shape->ApplyShape(LayerDesc);
 
 		if (LayerId)
 		{
-			StereoLayers->SetLayerDesc(LayerId, LayerDsec);
+			StereoLayers->SetLayerDesc(LayerId, LayerDesc);
 		}
 		else
 		{
-			LayerId = StereoLayers->CreateLayer(LayerDsec);
+			LayerId = StereoLayers->CreateLayer(LayerDesc);
 		}
 		
 		LastTransform = Transform;
@@ -172,7 +210,7 @@ void UStereoLayerComponent::SetTexture(UTexture* InTexture)
 	}
 
 	Texture = InTexture;
-	bIsDirty = true;
+	MarkStereoLayerDirty();
 }
 
 void UStereoLayerComponent::SetLeftTexture(UTexture* InTexture)
@@ -183,7 +221,7 @@ void UStereoLayerComponent::SetLeftTexture(UTexture* InTexture)
 	}
 
 	LeftTexture = InTexture;
-	bIsDirty = true;
+	MarkStereoLayerDirty();
 }
 
 void UStereoLayerComponent::SetQuadSize(FVector2D InQuadSize)
@@ -194,7 +232,7 @@ void UStereoLayerComponent::SetQuadSize(FVector2D InQuadSize)
 	}
 
 	QuadSize = InQuadSize;
-	bIsDirty = true;
+	MarkStereoLayerDirty();
 }
 
 void UStereoLayerComponent::SetUVRect(FBox2D InUVRect)
@@ -205,17 +243,31 @@ void UStereoLayerComponent::SetUVRect(FBox2D InUVRect)
 	}
 
 	UVRect = InUVRect;
-	bIsDirty = true;
+	MarkStereoLayerDirty();
 }
 
 void UStereoLayerComponent::SetEquirectProps(FEquirectProps InEquirectProps)
 {
-	if (EquirectProps == InEquirectProps)
+	if (Shape->IsA<UStereoLayerShapeEquirect>())
+	{
+		Cast<UStereoLayerShapeEquirect>(Shape)->SetEquirectProps(InEquirectProps);
+	}
+}
+
+void UStereoLayerShapeEquirect::SetEquirectProps(FEquirectProps InEquirectProps)
+{
+	if (InEquirectProps == *this)
 	{
 		return;
 	}
-	EquirectProps = InEquirectProps;
-	bIsDirty = true;
+	LeftUVRect = InEquirectProps.LeftUVRect;
+	RightUVRect = InEquirectProps.RightUVRect;
+	LeftScale = InEquirectProps.LeftScale;
+	RightScale = InEquirectProps.RightScale;
+	LeftBias = InEquirectProps.LeftBias;
+	RightBias = InEquirectProps.RightBias;
+
+	MarkStereoLayerDirty();
 }
 
 void UStereoLayerComponent::SetPriority(int32 InPriority)
@@ -226,7 +278,40 @@ void UStereoLayerComponent::SetPriority(int32 InPriority)
 	}
 
 	Priority = InPriority;
-	bIsDirty = true;
+	MarkStereoLayerDirty();
+}
+
+void UStereoLayerShapeCylinder::SetRadius(float InRadius)
+{
+	if (Radius == InRadius)
+	{
+		return;
+	}
+
+	Radius = InRadius;
+	MarkStereoLayerDirty();
+}
+
+void UStereoLayerShapeCylinder::SetOverlayArc(float InOverlayArc)
+{
+	if (OverlayArc == InOverlayArc)
+	{
+		return;
+	}
+
+	OverlayArc = InOverlayArc;
+	MarkStereoLayerDirty();
+}
+
+void UStereoLayerShapeCylinder::SetHeight(int InHeight)
+{
+	if (Height == InHeight)
+	{
+		return;
+	}
+
+	Height = InHeight;
+	MarkStereoLayerDirty();
 }
 
 void UStereoLayerComponent::MarkTextureForUpdate()
@@ -234,3 +319,91 @@ void UStereoLayerComponent::MarkTextureForUpdate()
 	bTextureNeedsUpdate = true;
 }
 
+void UStereoLayerComponent::MarkStereoLayerDirty()
+{
+	bIsDirty = true;
+}
+
+void UStereoLayerShape::MarkStereoLayerDirty()
+{
+	check(GetOuter()->IsA<UStereoLayerComponent>());
+	Cast<UStereoLayerComponent>(GetOuter())->MarkStereoLayerDirty();
+}
+
+void UStereoLayerShapeCylinder::ApplyShape(IStereoLayers::FLayerDesc& LayerDesc)
+{
+	LayerDesc.SetShape<FCylinderLayer>(Radius, OverlayArc, Height);
+}
+
+void UStereoLayerShapeCubemap::ApplyShape(IStereoLayers::FLayerDesc& LayerDesc)
+{
+	LayerDesc.SetShape<FCubemapLayer>();
+}
+
+void UStereoLayerShapeEquirect::ApplyShape(IStereoLayers::FLayerDesc& LayerDesc)
+{
+	LayerDesc.SetShape<FEquirectLayer>(LeftUVRect, RightUVRect, LeftScale, RightScale, LeftBias, RightBias);
+}
+
+void UStereoLayerShapeQuad::ApplyShape(IStereoLayers::FLayerDesc& LayerDesc)
+{
+	LayerDesc.SetShape<FQuadLayer>();
+}
+
+void UStereoLayerShape::ApplyShape(IStereoLayers::FLayerDesc& LayerDesc)
+{
+}
+
+#if WITH_EDITOR
+void UStereoLayerShape::DrawShapeVisualization(const class FSceneView* View, class FPrimitiveDrawInterface* PDI)
+{
+}
+
+void UStereoLayerShapeQuad::DrawShapeVisualization(const class FSceneView* View, class FPrimitiveDrawInterface* PDI)
+{
+	FLinearColor YellowColor = FColor(231, 239, 0, 255);
+	check(GetOuter()->IsA<UStereoLayerComponent>());
+
+	auto StereoLayerComp = Cast<UStereoLayerComponent>(GetOuter());
+	const FVector2D QuadSize = StereoLayerComp->GetQuadSize() / 2.0f;
+	const FBox QuadBox(FVector(0.0f, -QuadSize.X, -QuadSize.Y), FVector(0.0f, QuadSize.X, QuadSize.Y));
+
+	DrawWireBox(PDI, StereoLayerComp->GetComponentTransform().ToMatrixWithScale(), QuadBox, YellowColor, 0);
+}
+
+void UStereoLayerShapeCylinder::DrawShapeVisualization(const class FSceneView* View, class FPrimitiveDrawInterface* PDI)
+{
+	FLinearColor YellowColor = FColor(231, 239, 0, 255);
+	check(GetOuter()->IsA<UStereoLayerComponent>());
+
+	auto StereoLayerComp = Cast<UStereoLayerComponent>(GetOuter());
+	float ArcAngle = OverlayArc * 180 / (Radius * PI);
+
+	FVector X = StereoLayerComp->GetComponentTransform().GetUnitAxis(EAxis::Type::X);
+	FVector Y = StereoLayerComp->GetComponentTransform().GetUnitAxis(EAxis::Type::Y);
+	FVector Base = StereoLayerComp->GetComponentTransform().GetLocation();
+	FVector HalfHeight = FVector(0, 0, Height / 2);
+
+	FVector LeftVertex = Base + Radius * (FMath::Cos(ArcAngle / 2 * (PI / 180.0f)) * X + FMath::Sin(ArcAngle / 2 * (PI / 180.0f)) * Y);
+	FVector RightVertex = Base + Radius * (FMath::Cos(-ArcAngle / 2 * (PI / 180.0f)) * X + FMath::Sin(-ArcAngle / 2 * (PI / 180.0f)) * Y);
+
+	DrawArc(PDI, Base + HalfHeight, X, Y, -ArcAngle / 2, ArcAngle / 2, Radius, 10, YellowColor, 0);
+
+	DrawArc(PDI, Base - HalfHeight, X, Y, -ArcAngle / 2, ArcAngle / 2, Radius, 10, YellowColor, 0);
+
+	PDI->DrawLine(LeftVertex - HalfHeight, LeftVertex + HalfHeight, YellowColor, 0);
+
+	PDI->DrawLine(RightVertex - HalfHeight, RightVertex + HalfHeight, YellowColor, 0);
+}
+#endif
+
+
+bool FEquirectProps::operator==(const class UStereoLayerShapeEquirect& Other) const
+{
+	return (LeftUVRect == Other.LeftUVRect) && (RightUVRect == Other.RightUVRect) && (LeftScale == Other.LeftScale) && (RightScale == Other.RightScale) && (LeftBias == Other.LeftBias) && (RightBias == Other.RightBias);
+}
+
+bool FEquirectProps::operator==(const FEquirectProps& Other) const
+{
+	return (LeftUVRect == Other.LeftUVRect) && (RightUVRect == Other.RightUVRect) && (LeftScale == Other.LeftScale) && (RightScale == Other.RightScale) && (LeftBias == Other.LeftBias) && (RightBias == Other.RightBias);
+}

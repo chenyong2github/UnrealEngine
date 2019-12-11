@@ -26,7 +26,6 @@ IStereoLayers::FLayerDesc FWindowsMixedRealityStereoLayers::GetDebugCanvasLayerD
 	StereoLayerDesc.QuadSize = FVector2D(120.f, 120.f);
 #endif
 	StereoLayerDesc.PositionType = IStereoLayers::ELayerType::FaceLocked;
-	StereoLayerDesc.ShapeType = IStereoLayers::ELayerShape::QuadLayer;
 	StereoLayerDesc.Texture = Texture;
 	StereoLayerDesc.Flags = IStereoLayers::ELayerFlags::LAYER_FLAG_TEX_CONTINUOUS_UPDATE;
 	StereoLayerDesc.Flags |= IStereoLayers::ELayerFlags::LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO;

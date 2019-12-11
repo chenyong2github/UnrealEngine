@@ -39,7 +39,6 @@ FSplash::FSplash(FOculusHMD* InOculusHMD) :
 		LayerDesc.QuadSize = FVector2D(0.01f, 0.01f);
 		LayerDesc.Priority = 0;
 		LayerDesc.PositionType = IStereoLayers::TrackerLocked;
-		LayerDesc.ShapeType = IStereoLayers::QuadLayer;
 		LayerDesc.Texture = GBlackTexture->TextureRHI;
 		BlackLayer = MakeShareable(new FLayer(NextLayerId++, LayerDesc));
 	}
@@ -50,7 +49,6 @@ FSplash::FSplash(FOculusHMD* InOculusHMD) :
 		LayerDesc.QuadSize = FVector2D(0.01f, 0.01f);
 		LayerDesc.Priority = 0;
 		LayerDesc.PositionType = IStereoLayers::TrackerLocked;
-		LayerDesc.ShapeType = IStereoLayers::QuadLayer;
 		LayerDesc.Texture = nullptr;
 		UELayer = MakeShareable(new FLayer(NextLayerId++, LayerDesc));
 	}
@@ -422,15 +420,18 @@ bool FSplash::GetSplash(unsigned InSplashLayerIndex, FOculusSplashDesc& OutDesc)
 
 IStereoLayers::FLayerDesc FSplash::StereoLayerDescFromOculusSplashDesc(FOculusSplashDesc OculusDesc)
 {
-	bool bIsCubemap = OculusDesc.LoadedTexture->GetTextureCube() != nullptr;
-
 	IStereoLayers::FLayerDesc LayerDesc;
+	if (OculusDesc.LoadedTexture->GetTextureCube() != nullptr)
+	{
+		LayerDesc.SetShape<FCubemapLayer>();
+	}
+	// else LayerDesc.Shape defaults to FQuadLayer
+
 	LayerDesc.Transform = OculusDesc.TransformInMeters * FTransform(OculusHMD->GetSplashRotation().Quaternion());
 	LayerDesc.QuadSize = OculusDesc.QuadSizeInMeters;
 	LayerDesc.UVRect = FBox2D(OculusDesc.TextureOffset, OculusDesc.TextureOffset + OculusDesc.TextureScale);
 	LayerDesc.Priority = INT32_MAX - (int32)(OculusDesc.TransformInMeters.GetTranslation().X * 1000.f);
 	LayerDesc.PositionType = IStereoLayers::TrackerLocked;
-	LayerDesc.ShapeType = bIsCubemap ? IStereoLayers::CubemapLayer : IStereoLayers::QuadLayer;
 	LayerDesc.Texture = OculusDesc.LoadedTexture;
 	LayerDesc.Flags = IStereoLayers::LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO | (OculusDesc.bNoAlphaChannel ? IStereoLayers::LAYER_FLAG_TEX_NO_ALPHA_CHANNEL : 0) | (OculusDesc.bIsDynamic ? IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE : 0);
 
