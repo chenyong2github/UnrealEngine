@@ -43,6 +43,9 @@ protected:
 	virtual void ChlildStructureChangedInternal() override;
 
 private:
+	bool FilterChildrenWithIssues(const UNiagaraStackEntry& Child) const;
+
+private:
 	UPROPERTY()
 	UNiagaraStackItemGroupFooter* GroupFooter;
 
