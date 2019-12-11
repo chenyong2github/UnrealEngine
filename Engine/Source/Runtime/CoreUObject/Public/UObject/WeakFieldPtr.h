@@ -1,3 +1,9 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	WeakFieldPtr.h: Weak pointer to FField
+=============================================================================*/
+
 #pragma once
 
 #include "UObject/WeakObjectPtrTemplates.h"
