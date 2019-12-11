@@ -125,6 +125,12 @@ public:
 	{
 	}
 
+	~FSavePackageContext()
+	{
+		delete PackageStoreWriter;
+		delete BulkDataManifest;
+	}
+
 	FPackageStoreWriter* PackageStoreWriter;
 	FPackageStoreBulkDataManifest* BulkDataManifest;
 };

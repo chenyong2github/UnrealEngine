@@ -1451,6 +1451,8 @@ UCookOnTheFlyServer::UCookOnTheFlyServer(FVTableHelper& Helper) :Super(Helper) {
 
 UCookOnTheFlyServer::~UCookOnTheFlyServer()
 {
+	ClearPackageStoreContexts();
+
 	FCoreDelegates::OnFConfigCreated.RemoveAll(this);
 	FCoreDelegates::OnFConfigDeleted.RemoveAll(this);
 
@@ -6831,6 +6833,18 @@ void UCookOnTheFlyServer::FinalizePackageStore()
 		}
 	}
 	UE_LOG(LogCook, Display, TEXT("Done saving BulkData manifest(s)"));
+
+	ClearPackageStoreContexts();
+}
+
+void UCookOnTheFlyServer::ClearPackageStoreContexts()
+{
+	for (FSavePackageContext* Context : SavePackageContexts)
+	{
+		delete Context;
+	}
+
+	SavePackageContexts.Empty();
 }
 
 void UCookOnTheFlyServer::InitializeTargetPlatforms()

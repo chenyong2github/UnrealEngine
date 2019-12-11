@@ -709,6 +709,11 @@ private:
 	void FinalizePackageStore();
 
 	/**
+	* Empties SavePackageContexts and deletes the contents
+	*/
+	void ClearPackageStoreContexts();
+
+	/**
 	* Initialize all target platforms
 	*/
 	void InitializeTargetPlatforms();
