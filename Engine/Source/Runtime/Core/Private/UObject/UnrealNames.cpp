@@ -1912,6 +1912,14 @@ FName::FName(int32 Len, const ANSICHAR* Name, EFindName FindType)
 	: FName(FNameHelper::MakeDetectNumber(MakeUnconvertedView(Name, Len), FindType))
 {}
 
+FName::FName(const FStringView& Name, EFindName FindType)
+	: FName(FNameHelper::MakeDetectNumber(MakeUnconvertedView(Name.GetData(), Name.Len()), FindType))
+{}
+
+FName::FName(const FAnsiStringView& Name, EFindName FindType)
+	: FName(FNameHelper::MakeDetectNumber(MakeUnconvertedView(Name.GetData(), Name.Len()), FindType))
+{}
+
 FName::FName(const WIDECHAR* Name, int32 InNumber, EFindName FindType)
 	: FName(FNameHelper::MakeWithNumber(MakeUnconvertedView(Name), FindType, InNumber))
 {}
@@ -1928,6 +1936,14 @@ FName::FName(int32 Len, const WIDECHAR* Name, int32 InNumber, EFindName FindType
 FName::FName(int32 Len, const ANSICHAR* Name, int32 InNumber, EFindName FindType)
 	: FName(InNumber != NAME_NO_NUMBER_INTERNAL ? FNameHelper::MakeWithNumber(MakeUnconvertedView(Name, Len), FindType, InNumber)
 												: FNameHelper::MakeDetectNumber(MakeUnconvertedView(Name, Len), FindType))
+{}
+
+FName::FName(const FStringView& Name, int32 InNumber, EFindName FindType)
+	: FName(Name.Len(), Name.GetData(), InNumber, FindType)
+{}
+
+FName::FName(const FAnsiStringView& Name, int32 InNumber, EFindName FindType)
+	: FName(Name.Len(), Name.GetData(), InNumber, FindType)
 {}
 
 FName::FName(const TCHAR* Name, int32 InNumber, EFindName FindType, bool bSplitName)

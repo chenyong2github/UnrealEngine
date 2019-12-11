@@ -28,7 +28,9 @@
 #endif
 
 class FAnsiStringBuilderBase;
+class FAnsiStringView;
 class FStringBuilderBase;
+class FStringView;
 class FText;
 
 /** Maximum size of name. */
@@ -767,6 +769,8 @@ public:
 	/** Create FName from non-null string with known length  */
 	FName(int32 Len, const WIDECHAR* Name, EFindName FindType=FNAME_Add);
 	FName(int32 Len, const ANSICHAR* Name, EFindName FindType=FNAME_Add);
+	FName(const FStringView& Name, EFindName FindType=FNAME_Add);
+	FName(const FAnsiStringView& Name, EFindName FindType=FNAME_Add);
 
 	/**
 	 * Create an FName. If FindType is FNAME_Find, and the string part of the name 
@@ -781,6 +785,8 @@ public:
 	FName(const ANSICHAR* Name, int32 InNumber, EFindName FindType = FNAME_Add);
 	FName(int32 Len, const WIDECHAR* Name, int32 Number, EFindName FindType = FNAME_Add);
 	FName(int32 Len, const ANSICHAR* Name, int32 InNumber, EFindName FindType = FNAME_Add);
+	FName(const FStringView& Name, int32 InNumber, EFindName FindType=FNAME_Add);
+	FName(const FAnsiStringView& Name, int32 InNumber, EFindName FindType=FNAME_Add);
 
 	/**
 	 * Create an FName. If FindType is FNAME_Find, and the string part of the name 
@@ -954,6 +960,11 @@ FORCEINLINE FName ScriptNameToName(const FScriptName& InName)
 	return FName(InName.ComparisonIndex, InName.DisplayIndex, InName.Number);
 }
 
+inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FName& Name)
+{
+	Name.AppendString(Builder);
+	return Builder;
+}
 
 /**
  * Equality operator with CharType* on left hand side and FName on right hand side
