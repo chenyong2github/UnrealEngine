@@ -241,12 +241,8 @@ void UNiagaraSystem::PreEditChange(UProperty* PropertyThatWillChange)
 
 	if (PropertyThatWillChange && PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraSystem, EffectType))
 	{
-		FNiagaraSystemUpdateContext UpdateContext;
 		UpdateContext.SetDestroyOnAdd(true);
 		UpdateContext.Add(this, false);
-		
-		//We have to clear this here and reset so that we unregister properly from the scalability manager.
-		EffectType = nullptr;
 	}
 }
 
@@ -279,6 +275,8 @@ void UNiagaraSystem::PostEditChangeProperty(struct FPropertyChangedEvent& Proper
 	}
 
 	ResolveScalabilityOverrides();
+
+	UpdateContext.CommitUpdate();
 }
 #endif 
 
@@ -1376,7 +1374,7 @@ void UNiagaraSystem::ResolveScalabilityOverrides()
 	int32 NumEffectTypeSettings = 0;
 	if (ActualEffectType)
 	{
-		ActualEffectType->GetScalabilitySettings().Num();
+		NumEffectTypeSettings = ActualEffectType->GetScalabilitySettings().Num();
 	}
 	int32 NumOverrides = ScalabilityOverrides.Num();
 
