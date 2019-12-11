@@ -479,7 +479,7 @@ public:
 
 	UStruct* GetStruct() const
 	{
-		return UnderlyingType == UT_Enum ? IntStruct : CastChecked<UStruct>(ClassStructOrEnum);
+		return UnderlyingType == UT_Enum ? IntStruct : Cast<UStruct>(ClassStructOrEnum);
 	}
 
 	UScriptStruct* GetScriptStruct()const
