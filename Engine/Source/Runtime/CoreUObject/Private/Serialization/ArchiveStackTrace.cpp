@@ -1360,6 +1360,15 @@ void FArchiveStackTrace::DumpPackageHeaderDiffs(const FPackageData& SourcePackag
 #endif // !NO_LOGGING
 }
 
+FArchiveStackTraceReader::FSerializeData::FSerializeData(int64 InOffset, int64 InSize, UObject* InObject, FProperty* InProperty)
+: Offset(InOffset)
+, Size(InSize)
+, Count(1)
+, Object(InObject)
+, PropertyName(InProperty->GetFName())
+, FullPropertyName(GetFullNameSafe(InProperty))
+{}
+
 FArchiveStackTraceReader::FArchiveStackTraceReader(const TCHAR* InFilename, const uint8* InData, const int64 Num)
 	: FLargeMemoryReader(InData, Num, ELargeMemoryReaderFlags::TakeOwnership, InFilename)
 	, ThreadContext(FUObjectThreadContext::Get())
@@ -1374,7 +1383,7 @@ void FArchiveStackTraceReader::Serialize(void* OutData, int64 Num)
 	if (SerializeTrace.Num())
 	{
 		FSerializeData& Last = SerializeTrace.Last();
-		if (Last != NewData)
+		if (NewData.IsContiguousSerialization(Last))
 		{
 			SerializeTrace.Add(NewData);
 		}

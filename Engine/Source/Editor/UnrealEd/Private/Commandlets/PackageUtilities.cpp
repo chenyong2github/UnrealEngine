@@ -1640,7 +1640,7 @@ int32 UPkgInfoCommandlet::Main( const FString& Params )
 						*IndexString,
 						SerializeData.Offset,
 						Indent, *GetFullNameSafe(SerializeData.Object),
-						Indent, *GetFullNameSafe(SerializeData.Property),
+						Indent, *SerializeData.FullPropertyName,
 						Indent, SerializeData.Size,
 						Indent, SerializeData.Count);
 					Out.Logf(ELogVerbosity::Display, TEXT("%s"), *DisplayText);
