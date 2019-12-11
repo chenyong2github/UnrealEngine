@@ -83,6 +83,7 @@ void SCollectionView::Construct( const FArguments& InArgs )
 	bAllowCollectionButtons = InArgs._AllowCollectionButtons;
 	bAllowRightClickMenu = InArgs._AllowRightClickMenu;
 	bAllowCollectionDrag = InArgs._AllowCollectionDrag;
+	bAllowExternalSearch = false;
 	bDraggedOver = false;
 
 	bQueueCollectionItemsUpdate = false;
@@ -121,46 +122,9 @@ void SCollectionView::Construct( const FArguments& InArgs )
 		CollectionListContextMenuOpening = FOnContextMenuOpening::CreateSP( this, &SCollectionView::MakeCollectionTreeContextMenu );
 	}
 
-	SearchPtr = InArgs._ExternalSearch;
-	if (!SearchPtr)
-	{
-		SearchPtr = MakeShared<FSourcesSearch>();
-		SearchPtr->Initialize();
-		SearchPtr->SetHintText(LOCTEXT("CollectionsViewSearchBoxHint", "Search Collections"));
-	}
-	SearchPtr->OnSearchChanged().AddSP(this, &SCollectionView::SetCollectionsSearchFilterText);
-
-	TSharedRef<SHorizontalBox> TitleContent = SNew(SHorizontalBox);
-	if (InArgs._ExternalSearch)
-	{
-		// If using an external search then just show the title and don't hide it when collapsing
-		TitleContent->AddSlot()
-		[
-			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("ContentBrowser.SourceTitleFont"))
-			.Text(LOCTEXT("CollectionsListTitle", "Collections"))
-		];
-	}
-	else
-	{
-		// If using an internal search then show the title or search box depending on whether we're collapsed or not
-		TitleContent->AddSlot()
-		[
-			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("ContentBrowser.SourceTitleFont"))
-			.Text(LOCTEXT("CollectionsListTitle", "Collections"))
-			.Visibility(this, &SCollectionView::GetCollectionsTitleTextVisibility)
-		];
-
-		TitleContent->AddSlot()
-		[
-			SNew(SBox)
-			.Visibility(this, &SCollectionView::GetCollectionsSearchBoxVisibility)
-			[
-				SearchPtr->GetWidget()
-			]
-		];
-	}
+	ExternalSearchPtr = InArgs._ExternalSearch;
+	TitleContent = SNew(SHorizontalBox);
+	SetAllowExternalSearch(true);
 
 	PreventSelectionChangedDelegateCount = 0;
 
@@ -169,7 +133,7 @@ void SCollectionView::Construct( const FArguments& InArgs )
 			.FillWidth(1.0f)
 			.Padding(0.0f)
 			[
-				TitleContent
+				TitleContent.ToSharedRef()
 			]
 
 			+SHorizontalBox::Slot()
@@ -295,6 +259,62 @@ void SCollectionView::Construct( const FArguments& InArgs )
 	];
 
 	UpdateCollectionItems();
+}
+
+void SCollectionView::SetAllowExternalSearch(const bool InAllowExternalSearch)
+{
+	if (bAllowExternalSearch == InAllowExternalSearch)
+	{
+		return;
+	}
+	bAllowExternalSearch = InAllowExternalSearch;
+
+	if (SearchPtr)
+	{
+		SearchPtr->OnSearchChanged().RemoveAll(this);
+	}
+	TitleContent->ClearChildren();
+
+	SearchPtr = bAllowExternalSearch ? ExternalSearchPtr : nullptr;
+	if (!SearchPtr)
+	{
+		SearchPtr = MakeShared<FSourcesSearch>();
+		SearchPtr->Initialize();
+		SearchPtr->SetHintText(LOCTEXT("CollectionsViewSearchBoxHint", "Search Collections"));
+	}
+	SearchPtr->OnSearchChanged().AddSP(this, &SCollectionView::SetCollectionsSearchFilterText);
+
+	if (SearchPtr == ExternalSearchPtr)
+	{
+		// If using an external search then just show the title and don't hide it when collapsing
+		TitleContent->AddSlot()
+		[
+			SNew(STextBlock)
+			.Font(FEditorStyle::GetFontStyle("ContentBrowser.SourceTitleFont"))
+			.Text(LOCTEXT("CollectionsListTitle", "Collections"))
+		];
+	}
+	else
+	{
+		// If using an internal search then show the title or search box depending on whether we're collapsed or not
+		TitleContent->AddSlot()
+		[
+			SNew(STextBlock)
+			.Font(FEditorStyle::GetFontStyle("ContentBrowser.SourceTitleFont"))
+			.Text(LOCTEXT("CollectionsListTitle", "Collections"))
+			.Visibility(this, &SCollectionView::GetCollectionsTitleTextVisibility)
+		];
+
+		TitleContent->AddSlot()
+		[
+			SNew(SBox)
+			.VAlign(VAlign_Center)
+			.Visibility(this, &SCollectionView::GetCollectionsSearchBoxVisibility)
+			[
+				SearchPtr->GetWidget()
+			]
+		];
+	}
 }
 
 void SCollectionView::HandleCollectionCreated( const FCollectionNameType& Collection )
