@@ -387,7 +387,7 @@ EPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, co
 	//TEPAEntry<T> BestEntry;
 	//BestEntry.Distance = 0;
 
-	TEPAEntry<T> LastEntry = Entries[0];
+	TEPAEntry<T> LastEntry = Queue.size() > 0 ? Entries[Queue.top().Idx] : Entries[0];
 
 	TArray<FEPAFloodEntry> VisibilityBorder;
 	int32 Iteration = 0;
