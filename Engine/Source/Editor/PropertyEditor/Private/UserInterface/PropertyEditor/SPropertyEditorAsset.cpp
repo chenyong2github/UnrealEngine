@@ -205,6 +205,51 @@ void SPropertyEditorAsset::InitializeClassFilters(const UProperty* Property)
 	}
 }
 
+void SPropertyEditorAsset::InitializeAssetDataTags(const UProperty* Property)
+{
+	if (Property == nullptr)
+	{
+		return;
+	}
+
+	const UProperty* MetadataProperty = GetActualMetadataProperty(Property);
+	const FString DisallowedAssetDataTagsFilterString = MetadataProperty->GetMetaData(TEXT("DisallowedAssetDataTags"));
+	if (!DisallowedAssetDataTagsFilterString.IsEmpty())
+	{
+		TArray<FString> DisallowedAssetDataTagsAndValues;
+		DisallowedAssetDataTagsFilterString.ParseIntoArray(DisallowedAssetDataTagsAndValues, TEXT(","), true);
+
+		for (const FString& TagAndOptionalValueString : DisallowedAssetDataTagsAndValues)
+		{
+			TArray<FString> TagAndOptionalValue;
+			TagAndOptionalValueString.ParseIntoArray(TagAndOptionalValue, TEXT("="), true);
+			size_t NumStrings = TagAndOptionalValue.Num();
+			check((NumStrings == 1) || (NumStrings == 2)); // there should be a single '=' within a tag/value pair
+
+			if (!DisallowedAssetDataTags.IsValid())
+			{
+				DisallowedAssetDataTags = MakeShared<FAssetDataTagMap>();
+			}
+			DisallowedAssetDataTags->Add(FName(*TagAndOptionalValue[0]), (NumStrings > 1) ? TagAndOptionalValue[1] : FString());
+		}
+	}
+}
+
+bool SPropertyEditorAsset::IsAssetAllowed(const FAssetData& InAssetData)
+{
+	if (DisallowedAssetDataTags.IsValid())
+	{
+		for (const auto& DisallowedTagAndValue : *DisallowedAssetDataTags.Get())
+		{
+			if (InAssetData.TagsAndValues.ContainsKeyValue(DisallowedTagAndValue.Key, DisallowedTagAndValue.Value))
+			{
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 // Awful hack to deal with UClass::FindCommonBase taking an array of non-const classes...
 static TArray<UClass*> ConstCastClassArray(TArray<const UClass*>& Classes)
 {
@@ -238,6 +283,20 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 
 	ObjectClass = InArgs._Class != nullptr ? InArgs._Class : GetObjectPropertyClass(Property);
 	bAllowClear = InArgs._AllowClear.IsSet() ? InArgs._AllowClear.GetValue() : (Property ? !(Property->PropertyFlags & CPF_NoClear) : true);
+
+	InitializeAssetDataTags(Property);
+	if (DisallowedAssetDataTags.IsValid())
+	{
+		// re-route the filter delegate to our own if we have our own asset data tags filter :
+		OnShouldFilterAsset.BindLambda([this, AssetFilter = InArgs._OnShouldFilterAsset](const FAssetData& InAssetData)
+		{
+			if (IsAssetAllowed(InAssetData))
+			{
+				return AssetFilter.IsBound() ? AssetFilter.Execute(InAssetData) : false;
+			}
+			return true;
+		});
+	}
 
 	InitializeClassFilters(Property);
 
