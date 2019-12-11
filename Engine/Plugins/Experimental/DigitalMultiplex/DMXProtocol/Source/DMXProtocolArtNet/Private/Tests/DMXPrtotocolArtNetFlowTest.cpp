@@ -139,7 +139,7 @@ static void SensDMXFragment(FAutomationTestBase& Test, const FDMXProtocolLaunche
 
 	FRDMUID RDMUID3;
 	uint8 RDMBuffer3[RDM_UID_WIDTH] = { 0x12, 0x13, 0x14, 0x15, 0x16, 0x17 };
-	FMemory::Memcmp(RDMUID3.Buffer, RDMBuffer3, RDM_UID_WIDTH);
+	FMemory::Memcpy(RDMUID3.Buffer, RDMBuffer3, RDM_UID_WIDTH);
 	ArtNetPort->AddTODUID(RDMUID3);
 
 	// Test wrong size of RDM Buffer C array
@@ -161,7 +161,6 @@ static void SensDMXFragment(FAutomationTestBase& Test, const FDMXProtocolLaunche
 	RDMData[47] = 0x00;
 	RDMData[48] = 0xcc;
 	DMXProtocolLauncher.DMXProtocol->TransmitRDM(DMXProtocolLauncher.ProtocolDevice, DMXProtocolLauncher.PortID, RDMData);
-
 }
 
 bool FDMXPrtotocolArtNetBasicFlowTest::RunTest(const FString& Parameters)
