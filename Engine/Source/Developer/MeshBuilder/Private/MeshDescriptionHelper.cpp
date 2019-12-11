@@ -30,32 +30,26 @@ FMeshDescriptionHelper::FMeshDescriptionHelper(FMeshBuildSettings* InBuildSettin
 {
 }
 
-void FMeshDescriptionHelper::GetRenderMeshDescription(UObject* Owner, const FMeshDescription& InOriginalMeshDescription, FMeshDescription& OutRenderMeshDescription)
+void FMeshDescriptionHelper::SetupRenderMeshDescription(UObject* Owner, FMeshDescription& RenderMeshDescription)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshDescriptionHelper::GetRenderMeshDescription);
 
 	UStaticMesh* StaticMesh = Cast<UStaticMesh>(Owner);
 	check(StaticMesh);
 
-	//Copy the Original Mesh Description in the render mesh description
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(CloneMeshDescription);
-		OutRenderMeshDescription = InOriginalMeshDescription;
-	}
-
 	float ComparisonThreshold = BuildSettings->bRemoveDegenerates ? THRESH_POINTS_ARE_SAME : 0.0f;
 	
 	//This function make sure the Polygon NTB are compute and also remove degenerated triangle from the render mesh description.
-	FMeshDescriptionOperations::CreatePolygonNTB(OutRenderMeshDescription, ComparisonThreshold);
+	FMeshDescriptionOperations::CreatePolygonNTB(RenderMeshDescription, ComparisonThreshold);
 	//OutRenderMeshDescription->ComputePolygonTangentsAndNormals(BuildSettings->bRemoveDegenerates ? SMALL_NUMBER : 0.0f);
 
-	FVertexInstanceArray& VertexInstanceArray = OutRenderMeshDescription.VertexInstances();
-	TVertexInstanceAttributesRef<FVector> Normals = OutRenderMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>( MeshAttribute::VertexInstance::Normal );
-	TVertexInstanceAttributesRef<FVector> Tangents = OutRenderMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>( MeshAttribute::VertexInstance::Tangent );
-	TVertexInstanceAttributesRef<float> BinormalSigns = OutRenderMeshDescription.VertexInstanceAttributes().GetAttributesRef<float>( MeshAttribute::VertexInstance::BinormalSign );
+	FVertexInstanceArray& VertexInstanceArray = RenderMeshDescription.VertexInstances();
+	TVertexInstanceAttributesRef<FVector> Normals = RenderMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>( MeshAttribute::VertexInstance::Normal );
+	TVertexInstanceAttributesRef<FVector> Tangents = RenderMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>( MeshAttribute::VertexInstance::Tangent );
+	TVertexInstanceAttributesRef<float> BinormalSigns = RenderMeshDescription.VertexInstanceAttributes().GetAttributesRef<float>( MeshAttribute::VertexInstance::BinormalSign );
 
 	// Find overlapping corners to accelerate adjacency.
-	FMeshDescriptionOperations::FindOverlappingCorners(OverlappingCorners, OutRenderMeshDescription, ComparisonThreshold);
+	FMeshDescriptionOperations::FindOverlappingCorners(OverlappingCorners, RenderMeshDescription, ComparisonThreshold);
 
 	// Compute any missing normals or tangents.
 	{
@@ -101,16 +95,16 @@ void FMeshDescriptionHelper::GetRenderMeshDescription(UObject* Owner, const FMes
 		{
 			if (!bHasAllNormals)
 			{
-				FMeshDescriptionOperations::CreateNormals(OutRenderMeshDescription, (FMeshDescriptionOperations::ETangentOptions)TangentOptions, false);
+				FMeshDescriptionOperations::CreateNormals(RenderMeshDescription, (FMeshDescriptionOperations::ETangentOptions)TangentOptions, false);
 
 				//EComputeNTBsOptions ComputeNTBsOptions = EComputeNTBsOptions::Normals;
 				//OutRenderMeshDescription.ComputeTangentsAndNormals(ComputeNTBsOptions);
 			}
-			FMeshDescriptionOperations::CreateMikktTangents(OutRenderMeshDescription, (FMeshDescriptionOperations::ETangentOptions)TangentOptions);
+			FMeshDescriptionOperations::CreateMikktTangents(RenderMeshDescription, (FMeshDescriptionOperations::ETangentOptions)TangentOptions);
 		}
 		else
 		{
-			FMeshDescriptionOperations::CreateNormals(OutRenderMeshDescription, (FMeshDescriptionOperations::ETangentOptions)TangentOptions, true);
+			FMeshDescriptionOperations::CreateNormals(RenderMeshDescription, (FMeshDescriptionOperations::ETangentOptions)TangentOptions, true);
 			//EComputeNTBsOptions ComputeNTBsOptions = (bHasAllNormals ? EComputeNTBsOptions::None : EComputeNTBsOptions::Normals) | (bHasAllTangents ? EComputeNTBsOptions::None : EComputeNTBsOptions::Tangents);
 			//OutRenderMeshDescription.ComputeTangentsAndNormals(ComputeNTBsOptions);
 		}
@@ -118,7 +112,7 @@ void FMeshDescriptionHelper::GetRenderMeshDescription(UObject* Owner, const FMes
 
 	if (BuildSettings->bGenerateLightmapUVs && VertexInstanceArray.Num() > 0)
 	{
-		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = OutRenderMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = RenderMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 		int32 NumIndices = VertexInstanceUVs.GetNumIndices();
 		//Verify the src light map channel
 		if (BuildSettings->SrcLightmapIndex >= NumIndices)
@@ -138,7 +132,7 @@ void FMeshDescriptionHelper::GetRenderMeshDescription(UObject* Owner, const FMes
 			VertexInstanceUVs.SetNumIndices(BuildSettings->DstLightmapIndex + 1);
 			BuildSettings->DstLightmapIndex = NumIndices;
 		}
-		FMeshDescriptionOperations::CreateLightMapUVLayout(OutRenderMeshDescription,
+		FMeshDescriptionOperations::CreateLightMapUVLayout(RenderMeshDescription,
 			BuildSettings->SrcLightmapIndex,
 			BuildSettings->DstLightmapIndex,
 			BuildSettings->MinLightmapResolution,

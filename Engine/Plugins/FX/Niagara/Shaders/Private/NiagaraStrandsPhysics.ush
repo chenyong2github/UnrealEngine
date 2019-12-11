@@ -179,10 +179,10 @@ void SolveHookeSpringMaterial(const float InMaterialCompliance, const float InMa
 
  void ComputeStretchShearWeight(const float InMaterialCompliance, const float InRestLength, out float OutMaterialWeight)
 {
-	const float SchurDiagonal = ( SharedInverseMass[GGroupThreadId.x] + SharedInverseMass[GGroupThreadId.x-1] ) / (InRestLength*InRestLength) + 
-					SharedInverseInertia[GGroupThreadId.x-1]*4.0 + InMaterialCompliance;
 	//const float SchurDiagonal = ( SharedInverseMass[GGroupThreadId.x] + SharedInverseMass[GGroupThreadId.x-1] ) / (InRestLength*InRestLength) + 
-	//				 + InMaterialCompliance;
+	//				SharedInverseInertia[GGroupThreadId.x-1]*4.0 + InMaterialCompliance;
+	const float SchurDiagonal = ( SharedInverseMass[GGroupThreadId.x] + SharedInverseMass[GGroupThreadId.x-1] ) / (InRestLength*InRestLength) + 
+					 + InMaterialCompliance;
 	OutMaterialWeight = ( SchurDiagonal != 0.0 ) ? 1.0 / SchurDiagonal : 0.0;
 }
 
@@ -221,12 +221,12 @@ void UpdateStretchShearMultiplier(const float InMaterialCompliance, const float 
 	SharedNodePosition[GGroupThreadId.x] += PositionDelta * SharedInverseMass[GGroupThreadId.x];
 	SharedNodePosition[GGroupThreadId.x-1] -= PositionDelta * SharedInverseMass[GGroupThreadId.x-1];
 
-	const float4 qebar = float4(-q0.y, q0.x, -q0.w, q0.z);	
-	const float4 QuaternionDelta = -2.0 * float4( DeltaLambda.xyz * qebar.w + cross(DeltaLambda.xyz, qebar.xyz),
-					- dot(DeltaLambda.xyz, qebar.xyz) );
+	//const float4 qebar = float4(-q0.y, q0.x, -q0.w, q0.z);	
+	//const float4 QuaternionDelta = -2.0 * float4( DeltaLambda.xyz * qebar.w + cross(DeltaLambda.xyz, qebar.xyz),
+	//				- dot(DeltaLambda.xyz, qebar.xyz) );
 
-	q0 += QuaternionDelta * SharedInverseInertia[GGroupThreadId.x-1];
-	SharedNodeOrientation[GGroupThreadId.x-1] = normalize(q0);
+	//q0 += QuaternionDelta * SharedInverseInertia[GGroupThreadId.x-1];
+	//SharedNodeOrientation[GGroupThreadId.x-1] = normalize(q0);
 }
 
 void SolveStretchShearMaterial(const float InMaterialCompliance, const float InMaterialWeight, const float InRestLength, const bool InIsRed, inout float3 OutMaterialMultiplier)
@@ -244,8 +244,6 @@ void SolveStretchShearMaterial(const float InMaterialCompliance, const float InM
 	}
 	GroupMemoryBarrier(); 
 } 
-
-
 
 /* -----------------------------------------------------------------
  * Angular Spring material
@@ -280,7 +278,7 @@ void UpdateAngularSpringMultiplier(const float InMaterialCompliance, const float
 	EdgeDirection[2] = q0.w * q0.w - q0.x * q0.x - q0.y * q0.y + q0.z * q0.z;
 
 	// XPBD lagrange multiplier update : dL = -(C+compliance*L) / (dC * invM * dCt + alpha)
-	const float3 DeltaLambda = -((SharedNodePosition[GGroupThreadId.x] - SharedNodePosition[GGroupThreadId.x-1]) / InRestLength - EdgeDirection + 
+	const float3 DeltaLambda = -(normalize(SharedNodePosition[GGroupThreadId.x] - SharedNodePosition[GGroupThreadId.x-1]) - EdgeDirection + 
 					OutMaterialMultiplier * InMaterialCompliance) * InMaterialWeight;
 
 	// L += dL

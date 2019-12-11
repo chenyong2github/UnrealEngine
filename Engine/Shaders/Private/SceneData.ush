@@ -45,7 +45,7 @@ struct FPrimitiveSceneData
 #define PRIMITIVE_SCENE_DATA_STRIDE 35
 
 // Fetch from scene primitive buffer
-FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId) 
+FPrimitiveSceneData GetPrimitiveData_Buffer(uint PrimitiveId)
 {
 	// Note: layout must match FPrimitiveSceneShaderData in C++
 	// Relying on optimizer to remove unused loads
@@ -108,6 +108,93 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	}
 
 	return PrimitiveData;
+}
+
+// Fetch from scene primitive texture2D
+FPrimitiveSceneData GetPrimitiveData_Texture2D(uint PrimitiveId)
+{
+	// Note: layout must match FPrimitiveSceneShaderData in C++
+	// Relying on optimizer to remove unused loads
+	FPrimitiveSceneData PrimitiveData;
+
+	uint LinePrimitive = (PrimitiveId & 0xFFFF0000) >> 16;
+	uint OffsetPrimitive = PrimitiveId & 0xFFFF;
+	OffsetPrimitive = OffsetPrimitive * PRIMITIVE_SCENE_DATA_STRIDE;
+
+	PrimitiveData.LocalToWorld[0] = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 0, LinePrimitive, 0));
+	PrimitiveData.LocalToWorld[1] = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 1, LinePrimitive, 0));
+	PrimitiveData.LocalToWorld[2] = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 2, LinePrimitive, 0));
+	PrimitiveData.LocalToWorld[3] = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 3, LinePrimitive, 0));
+
+
+	PrimitiveData.InvNonUniformScaleAndDeterminantSign = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 4, LinePrimitive, 0));
+	PrimitiveData.ObjectWorldPositionAndRadius = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 5, LinePrimitive, 0));
+
+	PrimitiveData.WorldToLocal[0] = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 6, LinePrimitive, 0));
+	PrimitiveData.WorldToLocal[1] = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 7, LinePrimitive, 0));
+	PrimitiveData.WorldToLocal[2] = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 8, LinePrimitive, 0));
+	PrimitiveData.WorldToLocal[3] = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 9, LinePrimitive, 0));
+
+	PrimitiveData.PreviousLocalToWorld[0] = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 10, LinePrimitive, 0));
+	PrimitiveData.PreviousLocalToWorld[1] = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 11, LinePrimitive, 0));
+	PrimitiveData.PreviousLocalToWorld[2] = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 12, LinePrimitive, 0));
+	PrimitiveData.PreviousLocalToWorld[3] = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 13, LinePrimitive, 0));
+
+	PrimitiveData.PreviousWorldToLocal[0] = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 14, LinePrimitive, 0));
+	PrimitiveData.PreviousWorldToLocal[1] = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 15, LinePrimitive, 0));
+	PrimitiveData.PreviousWorldToLocal[2] = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 16, LinePrimitive, 0));
+	PrimitiveData.PreviousWorldToLocal[3] = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 17, LinePrimitive, 0));
+
+
+	PrimitiveData.ActorWorldPosition = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 18, LinePrimitive, 0)).xyz;
+	PrimitiveData.UseSingleSampleShadowFromStationaryLights = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 18, LinePrimitive, 0)).w;
+
+	PrimitiveData.ObjectBounds = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 19, LinePrimitive, 0)).xyz;
+	PrimitiveData.LpvBiasMultiplier = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 19, LinePrimitive, 0)).w;
+
+	PrimitiveData.DecalReceiverMask = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 20, LinePrimitive, 0)).x;
+	PrimitiveData.PerObjectGBufferData = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 20, LinePrimitive, 0)).y;
+	PrimitiveData.UseVolumetricLightmapShadowFromStationaryLights = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 20, LinePrimitive, 0)).z;
+	PrimitiveData.DrawsVelocity = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 20, LinePrimitive, 0)).w;
+
+	PrimitiveData.ObjectOrientation = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 21, LinePrimitive, 0));
+	PrimitiveData.NonUniformScale = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 22, LinePrimitive, 0));
+
+	PrimitiveData.LocalObjectBoundsMin = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 23, LinePrimitive, 0)).xyz;
+	PrimitiveData.LightingChannelMask = asuint(View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 23, LinePrimitive, 0)).w);
+
+	PrimitiveData.LocalObjectBoundsMax = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 24, LinePrimitive, 0)).xyz;
+	PrimitiveData.LightmapDataIndex = asuint(View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 24, LinePrimitive, 0)).w);
+
+	PrimitiveData.PreSkinnedLocalBoundsMin = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 25, LinePrimitive, 0)).xyz;
+	PrimitiveData.SingleCaptureIndex = asuint(View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 25, LinePrimitive, 0)).w);
+
+	PrimitiveData.PreSkinnedLocalBoundsMax = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 26, LinePrimitive, 0)).xyz;
+	PrimitiveData.OutputVelocity = asuint(View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 26, LinePrimitive, 0)).w);
+
+	UNROLL
+	for (int i = 0; i < NUM_CUSTOM_PRIMITIVE_DATA; i++)
+	{
+		PrimitiveData.CustomPrimitiveData[i] = View.PrimitiveSceneDataTexture.Load(float3(OffsetPrimitive + 27 + i, LinePrimitive, 0));
+	}
+
+	return PrimitiveData;
+}
+
+FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId) 
+{
+	// Note: layout must match FPrimitiveSceneShaderData in C++
+	// Relying on optimizer to remove unused loads
+
+	#if VF_GPU_SCENE_BUFFER
+
+	return GetPrimitiveData_Buffer(PrimitiveId);
+	
+	#else
+	
+	return GetPrimitiveData_Texture2D(PrimitiveId);
+	
+	#endif
 }
 
 #else

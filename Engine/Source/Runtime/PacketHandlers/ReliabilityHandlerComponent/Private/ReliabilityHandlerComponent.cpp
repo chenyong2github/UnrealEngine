@@ -2,7 +2,7 @@
 
 #include "ReliabilityHandlerComponent.h"
 #include "Modules/ModuleManager.h"
-#include "PacketAudit.h"
+#include "Net/Core/Misc/PacketAudit.h"
 #include "HAL/PlatformTime.h"
 
 IMPLEMENT_MODULE(FReliabilityHandlerComponentModuleInterface, ReliabilityHandlerComponent);

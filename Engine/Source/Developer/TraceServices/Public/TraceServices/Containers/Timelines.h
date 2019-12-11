@@ -12,29 +12,19 @@ class ITimeline
 {
 public:
 	typedef InEventType EventType;
+	typedef TFunctionRef<void(bool /*bStart*/, double /*Time*/, const EventType& /*Event*/)> EventCallback;
+	typedef TFunctionRef<void(double /*StartTime*/, double /*EndTime*/, uint32 /*Depth*/, const EventType&/*Event*/)> EventRangeCallback;
 
 	virtual ~ITimeline() = default;
 	virtual uint64 GetModCount() const = 0;
 	virtual uint64 GetEventCount() const = 0;
-	virtual void EnumerateEventsDownSampled(double IntervalStart, double IntervalEnd, double Resolution, TFunctionRef<void(bool, double, const EventType&)> Callback) const = 0;
-	virtual void EnumerateEventsDownSampled(double IntervalStart, double IntervalEnd, double Resolution, TFunctionRef<void(double, double, uint32, const EventType&)> Callback) const = 0;
-	virtual void EnumerateEvents(double IntervalStart, double IntervalEnd, TFunctionRef<void(bool, double, const EventType&)> Callback) const = 0;
-	virtual void EnumerateEvents(double IntervalStart, double IntervalEnd, TFunctionRef<void(double, double, uint32, const EventType&)> Callback) const = 0;
-};
-
-struct FAggregatedTimingStats
-{
-	uint64 InstanceCount = 0;
-	double TotalInclusiveTime = 0.0;
-	double MinInclusiveTime = DBL_MAX;
-	double MaxInclusiveTime = -DBL_MAX;
-	double AverageInclusiveTime = 0.0;
-	double MedianInclusiveTime = 0.0;
-	double TotalExclusiveTime = 0.0;
-	double MinExclusiveTime = DBL_MAX;
-	double MaxExclusiveTime = -DBL_MAX;
-	double AverageExclusiveTime = 0.0;
-	double MedianExclusiveTime = 0.0;
+	virtual const InEventType& GetEvent(uint64 InIndex) const = 0;
+	virtual double GetStartTime() const = 0;
+	virtual double GetEndTime() const = 0;
+	virtual void EnumerateEventsDownSampled(double IntervalStart, double IntervalEnd, double Resolution, EventCallback Callback) const = 0;
+	virtual void EnumerateEventsDownSampled(double IntervalStart, double IntervalEnd, double Resolution, EventRangeCallback Callback) const = 0;
+	virtual void EnumerateEvents(double IntervalStart, double IntervalEnd, EventCallback Callback) const = 0;
+	virtual void EnumerateEvents(double IntervalStart, double IntervalEnd, EventRangeCallback Callback) const = 0;
 };
 
 }

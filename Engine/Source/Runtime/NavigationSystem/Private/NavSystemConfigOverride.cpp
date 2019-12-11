@@ -65,17 +65,11 @@ void ANavSystemConfigOverride::PostLoad()
 	Super::PostLoad();
 	
 #if WITH_EDITOR
+	// ApplyConfig in PostLoad only for Editor worlds; applied in BeginPlay for Game worlds.
 	UWorld* World = GetWorld();
 	if ((World != nullptr) && (World->IsGameWorld() == false))
 	{
-		if (World->bInTick)
-		{
-			World->GetTimerManager().SetTimerForNextTick(this, &ANavSystemConfigOverride::ApplyConfig);
-		}
-		else
-		{
-			ApplyConfig();
-		}
+		ApplyConfig();
 	}
 #endif // WITH_EDITOR
 }

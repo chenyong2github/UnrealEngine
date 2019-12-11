@@ -72,27 +72,27 @@ FString FScriptCodeGeneratorBase::GetClassNameCPP(UClass* Class)
 
 FString FScriptCodeGeneratorBase::GetPropertyTypeCPP(UProperty* Property, uint32 PortFlags /*= 0*/)
 {
-	static FString EnumDecl(TEXT("enum "));
-	static FString StructDecl(TEXT("struct "));
-	static FString ClassDecl(TEXT("class "));
-	static FString TEnumAsByteDecl(TEXT("TEnumAsByte<enum "));
-	static FString TSubclassOfDecl(TEXT("TSubclassOf<class "));
+	static const FString EnumDecl(TEXT("enum "));
+	static const FString StructDecl(TEXT("struct "));
+	static const FString ClassDecl(TEXT("class "));
+	static const FString TEnumAsByteDecl(TEXT("TEnumAsByte<enum "));
+	static const FString TSubclassOfDecl(TEXT("TSubclassOf<class "));
 
 	FString PropertyType = Property->GetCPPType(NULL, PortFlags);
 	// Strip any forward declaration keywords
-	if (PropertyType.StartsWith(EnumDecl) || PropertyType.StartsWith(StructDecl) || PropertyType.StartsWith(ClassDecl))
+	if (PropertyType.StartsWith(EnumDecl, ESearchCase::CaseSensitive) || PropertyType.StartsWith(StructDecl, ESearchCase::CaseSensitive) || PropertyType.StartsWith(ClassDecl, ESearchCase::CaseSensitive))
 	{
-		int FirstSpaceIndex = PropertyType.Find(TEXT(" "));
-		PropertyType = PropertyType.Mid(FirstSpaceIndex + 1);
+		int32 FirstSpaceIndex = PropertyType.Find(TEXT(" "), ESearchCase::CaseSensitive);
+		PropertyType.MidInline(FirstSpaceIndex + 1, MAX_int32, false);
 	}
-	else if (PropertyType.StartsWith(TEnumAsByteDecl))
+	else if (PropertyType.StartsWith(TEnumAsByteDecl, ESearchCase::CaseSensitive))
 	{
-		int FirstSpaceIndex = PropertyType.Find(TEXT(" "));
+		int32 FirstSpaceIndex = PropertyType.Find(TEXT(" "), ESearchCase::CaseSensitive);
 		PropertyType = TEXT("TEnumAsByte<") + PropertyType.Mid(FirstSpaceIndex + 1);
 	}
-	else if (PropertyType.StartsWith(TSubclassOfDecl))
+	else if (PropertyType.StartsWith(TSubclassOfDecl), ESearchCase::CaseSensitive)
 	{
-		int FirstSpaceIndex = PropertyType.Find(TEXT(" "));
+		int32 FirstSpaceIndex = PropertyType.Find(TEXT(" "), ESearchCase::CaseSensitive);
 		PropertyType = TEXT("TSubclassOf<") + PropertyType.Mid(FirstSpaceIndex + 1);
 	}
 	return PropertyType;

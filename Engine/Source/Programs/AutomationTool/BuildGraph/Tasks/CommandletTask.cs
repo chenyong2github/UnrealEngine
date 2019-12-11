@@ -18,19 +18,19 @@ namespace AutomationTool.Tasks
 	public class CommandletTaskParameters
 	{
 		/// <summary>
-		/// The commandlet name to execute
+		/// The commandlet name to execute.
 		/// </summary>
 		[TaskParameter]
 		public string Name;
 
 		/// <summary>
-		/// The project to run the editor with
+		/// The project to run the editor with.
 		/// </summary>
 		[TaskParameter(Optional = true, ValidationType = TaskParameterValidationType.FileSpec)]
 		public string Project;
 
 		/// <summary>
-		/// Arguments to be passed to the commandlet
+		/// Arguments to be passed to the commandlet.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string Arguments;

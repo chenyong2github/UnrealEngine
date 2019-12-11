@@ -153,7 +153,7 @@ inline bool RHISupportsMSAA(EShaderPlatform Platform)
 
 inline bool RHISupportsBufferLoadTypeConversion(EShaderPlatform Platform)
 {
-	return true;
+	return !IsMetalPlatform(Platform);
 }
 
 /** Whether the platform supports reading from volume textures (does not cover rendering to volume textures). */
@@ -478,6 +478,8 @@ extern RHI_API volatile int32 GCurrentTextureMemorySize;
 extern RHI_API volatile int32 GCurrentRendertargetMemorySize;
 /** Current texture streaming pool size, in bytes. 0 means unlimited. */
 extern RHI_API int64 GTexturePoolSize;
+/** Maximum texture buffer size. Relevant for OpenGL. 0 means we do not take it into account*/
+extern RHI_API int64 GMaxTextureBufferSize;
 /** In percent. If non-zero, the texture pool size is a percentage of GTotalGraphicsMemory. */
 extern RHI_API int32 GPoolSizeVRAMPercentage;
 
@@ -533,6 +535,9 @@ extern RHI_API bool GRHISupportsParallelRHIExecute;
 
 /** Whether or not the RHI can perform MSAA sample load. */
 extern RHI_API bool GRHISupportsMSAADepthSampleAccess;
+
+/** Whether or not the RHI can render to the backbuffer with a custom depth/stencil surface bound. */
+extern RHI_API bool GRHISupportsBackBufferWithCustomDepthStencil;
 
 /** Whether or not HDR is currently enabled */
 extern RHI_API bool GRHIIsHDREnabled;

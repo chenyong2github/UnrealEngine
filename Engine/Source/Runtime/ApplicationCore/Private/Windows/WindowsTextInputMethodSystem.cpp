@@ -254,6 +254,12 @@ bool FWindowsTextInputMethodSystem::InitializeIMM()
 	IMMContextId = ::ImmCreateContext();
 	UpdateIMMProperty(::GetKeyboardLayout(0));
 
+	if (!IMMContextId)
+	{
+		UE_CLOG(!GIsBuildMachine, LogWindowsTextInputMethodSystem, Warning, TEXT("Initialization failed while creating the IMM context."));
+		return false;
+	}
+
 	UE_LOG(LogWindowsTextInputMethodSystem, Verbose, TEXT("Initialized IMM!"));
 
 	return true;
@@ -404,10 +410,10 @@ bool FWindowsTextInputMethodSystem::InitializeTSF()
 		Result = ::CoCreateInstance(CLSID_TF_ThreadMgr, NULL, CLSCTX_INPROC_SERVER, IID_ITfThreadMgr, reinterpret_cast<void**>(&(RawPointerTSFThreadManager)));
 		if(FAILED(Result))
 		{
-			TCHAR ErrorMsg[1024];
-			FPlatformMisc::GetSystemErrorMessage(ErrorMsg, 1024, Result);
 			if (!GIsBuildMachine)
 			{
+				TCHAR ErrorMsg[1024];
+				FPlatformMisc::GetSystemErrorMessage(ErrorMsg, 1024, Result);
 				UE_LOG(LogWindowsTextInputMethodSystem, Warning, TEXT("Initialization failed while creating the TSF thread manager. %s (0x%08x)"), ErrorMsg, Result);
 			}
 			TSFInputProcessorProfiles.Reset();
@@ -506,10 +512,7 @@ bool FWindowsTextInputMethodSystem::InitializeTSF()
 	{
 		TCHAR ErrorMsg[1024];
 		FPlatformMisc::GetSystemErrorMessage(ErrorMsg, 1024, Result);
-		if (!GIsBuildMachine)
-		{
-			UE_LOG(LogWindowsTextInputMethodSystem, Warning, TEXT("Initialization failed while creating the TSF thread manager. %s (0x%08x)"), ErrorMsg, Result);
-		}
+		UE_LOG(LogWindowsTextInputMethodSystem, Warning, TEXT("Initialization failed while creating the TSF document manager. %s (0x%08x)"), ErrorMsg, Result);
 		TSFInputProcessorProfiles.Reset();
 		TSFInputProcessorProfileManager.Reset();
 		TSFThreadManager.Reset();
@@ -523,12 +526,11 @@ bool FWindowsTextInputMethodSystem::InitializeTSF()
 	{
 		TCHAR ErrorMsg[1024];
 		FPlatformMisc::GetSystemErrorMessage(ErrorMsg, 1024, Result);
-		UE_LOG(LogWindowsTextInputMethodSystem, Error, TEXT("Initialization failed while activating the TSF thread manager. %s (0x%08x)"), ErrorMsg, Result);
+		UE_LOG(LogWindowsTextInputMethodSystem, Error, TEXT("Initialization failed while activating the TSF document manager. %s (0x%08x)"), ErrorMsg, Result);
 		TSFInputProcessorProfiles.Reset();
 		TSFInputProcessorProfileManager.Reset();
 		TSFThreadManager.Reset();
 		TSFActivationProxy.Reset();
-		TSFThreadManager.Reset();
 		return false;
 	}
 

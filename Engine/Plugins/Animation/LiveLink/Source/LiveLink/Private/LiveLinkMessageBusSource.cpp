@@ -61,6 +61,7 @@ void FLiveLinkMessageBusSource::Update()
 			{
 				ConnectionAddress = Result->Address;
 				SourceMachineName = FText::FromString(Result->MachineName);
+				MachineTimeOffset = Result->MachineTimeOffset;
 				DiscoveryManager.RemoveDiscoveryMessageRequest();
 				SendConnectMessage();
 				UpdateConnectionLastActive();
@@ -187,7 +188,9 @@ void FLiveLinkMessageBusSource::InternalHandleMessage(const TSharedRef<IMessageC
 		check(MessageTypeInfo->IsChildOf(FLiveLinkBaseFrameData::StaticStruct()));
 
 		FLiveLinkFrameDataStruct DataStruct(MessageTypeInfo);
-		DataStruct.InitializeWith(MessageTypeInfo, reinterpret_cast<const FLiveLinkBaseFrameData*>(Context->GetMessage()));
+		const FLiveLinkBaseFrameData* Message = reinterpret_cast<const FLiveLinkBaseFrameData*>(Context->GetMessage());
+		DataStruct.InitializeWith(MessageTypeInfo, Message);
+		DataStruct.GetBaseData()->WorldTime = FLiveLinkWorldTime(Message->WorldTime.GetOffsettedTime(), MachineTimeOffset);
 		Client->PushSubjectFrameData_AnyThread(SubjectKey, MoveTemp(DataStruct));
 	}
 }

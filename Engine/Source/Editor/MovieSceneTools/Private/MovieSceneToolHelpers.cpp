@@ -58,6 +58,8 @@
 #include "Sections/MovieSceneCameraCutSection.h"
 #include "Engine/LevelStreaming.h"
 #include "FbxExporter.h"
+#include "Serialization/ObjectWriter.h"
+#include "Serialization/ObjectReader.h"
 
 
 /* MovieSceneToolHelpers
@@ -435,7 +437,7 @@ bool MovieSceneToolHelpers::GetTakeNumber(const UMovieSceneSection* Section, FAs
 	FString ShotPackagePath = ShotData.PackagePath.ToString();
 	int32 ShotLastSlashPos = INDEX_NONE;
 	ShotPackagePath.FindLastChar(TCHAR('/'), ShotLastSlashPos);
-	ShotPackagePath = ShotPackagePath.Left(ShotLastSlashPos);
+	ShotPackagePath.LeftInline(ShotLastSlashPos, false);
 
 	FString ShotPrefix;
 	uint32 ShotNumber = INDEX_NONE;
@@ -462,7 +464,7 @@ bool MovieSceneToolHelpers::GetTakeNumber(const UMovieSceneSection* Section, FAs
 				FString AssetPackagePath = AssetObject.PackagePath.ToString();
 				int32 AssetLastSlashPos = INDEX_NONE;
 				AssetPackagePath.FindLastChar(TCHAR('/'), AssetLastSlashPos);
-				AssetPackagePath = AssetPackagePath.Left(AssetLastSlashPos);
+				AssetPackagePath.LeftInline(AssetLastSlashPos, false);
 
 				if (AssetPackagePath == ShotPackagePath)
 				{
@@ -1294,8 +1296,8 @@ void MovieSceneToolHelpers::CopyCameraProperties(FbxCamera* CameraNode, AActor* 
 		CameraComponent = CineCameraActor->GetCineCameraComponent();
 
 		UCineCameraComponent* CineCameraComponent = CineCameraActor->GetCineCameraComponent();
-		CineCameraComponent->FilmbackSettings.SensorWidth = FUnitConversion::Convert(ApertureWidth, EUnit::Inches, EUnit::Millimeters);
-		CineCameraComponent->FilmbackSettings.SensorHeight = FUnitConversion::Convert(ApertureHeight, EUnit::Inches, EUnit::Millimeters);
+		CineCameraComponent->Filmback.SensorWidth = FUnitConversion::Convert(ApertureWidth, EUnit::Inches, EUnit::Millimeters);
+		CineCameraComponent->Filmback.SensorHeight = FUnitConversion::Convert(ApertureHeight, EUnit::Inches, EUnit::Millimeters);
 		CineCameraComponent->FocusSettings.ManualFocusDistance = CameraNode->FocusDistance;
 		if (FocalLength < CineCameraComponent->LensSettings.MinFocalLength)
 		{
@@ -1573,7 +1575,7 @@ UMovieSceneCameraCutTrack* GetCameraCutTrack(UMovieScene* InMovieScene)
 	return CastChecked<UMovieSceneCameraCutTrack>(CameraCutTrack);
 }
 
-void ImportCameraCut(UnFbx::FFbxImporter* FbxImporter, UMovieScene* InMovieScene, ISequencer& InSequencer, TMap<FGuid, FString>& InObjectBindingMap)
+void ImportCameraCut(UnFbx::FFbxImporter* FbxImporter, UMovieScene* InMovieScene, TMap<FGuid, FString>& InObjectBindingMap)
 {
 	// Find a camera switcher
 	FbxCameraSwitcher* CameraSwitcher = FbxImporter->Scene->GlobalCameraSettings().GetCameraSwitcher();
@@ -1616,7 +1618,6 @@ void ImportCameraCut(UnFbx::FFbxImporter* FbxImporter, UMovieScene* InMovieScene
 				}
 			}
 		}
-		InSequencer.NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 	}
 }
 
@@ -1763,17 +1764,29 @@ bool MovieSceneToolHelpers::ReadyFBXForImport(const FString&  ImportFilename, UM
 	return true;
 }
 
+
 bool MovieSceneToolHelpers::ImportFBXIfReady(UWorld* World, UMovieScene* MovieScene, IMovieScenePlayer* Player, TMap<FGuid, FString>& ObjectBindingMap, UMovieSceneUserImportFBXSettings* ImportFBXSettings,
 	const FFBXInOutParameters& InParams)
 {
-	UnFbx::FFbxImporter* FbxImporter = UnFbx::FFbxImporter::GetInstance();
+	UMovieSceneUserImportFBXSettings* CurrentImportFBXSettings = GetMutableDefault<UMovieSceneUserImportFBXSettings>();
+	TArray<uint8> OriginalSettings;
+	FObjectWriter(CurrentImportFBXSettings, OriginalSettings);
 
-	const bool bMatchByNameOnly = ImportFBXSettings->bMatchByNameOnly;
+	CurrentImportFBXSettings->bMatchByNameOnly = ImportFBXSettings->bMatchByNameOnly;
+	CurrentImportFBXSettings->bForceFrontXAxis = ImportFBXSettings->bForceFrontXAxis;
+	CurrentImportFBXSettings->bCreateCameras = ImportFBXSettings->bCreateCameras;
+	CurrentImportFBXSettings->bReduceKeys = ImportFBXSettings->bReduceKeys;
+	CurrentImportFBXSettings->ReduceKeysTolerance = ImportFBXSettings->ReduceKeysTolerance;
+
+	UnFbx::FFbxImporter* FbxImporter = UnFbx::FFbxImporter::GetInstance();
 
 	UnFbx::FFbxCurvesAPI CurveAPI;
 	FbxImporter->PopulateAnimatedCurveData(CurveAPI);
 	TArray<FString> AllNodeNames;
 	CurveAPI.GetAllNodeNameArray(AllNodeNames);
+
+	// Import a camera cut track if cams were created, do it after populating curve data ensure only one animation layer, if any
+	ImportCameraCut(FbxImporter, MovieScene, ObjectBindingMap);
 
 	FString RootNodeName = FbxImporter->Scene->GetRootNode()->GetName();
 
@@ -1811,7 +1824,7 @@ bool MovieSceneToolHelpers::ImportFBXIfReady(UWorld* World, UMovieScene* MovieSc
 	}
 
 	// Otherwise, get the first available node that hasn't been imported onto yet
-	if (!bMatchByNameOnly)
+	if (!ImportFBXSettings->bMatchByNameOnly)
 	{
 		for (int32 NodeIndex = 0; NodeIndex < AllNodeNames.Num(); )
 		{
@@ -1841,6 +1854,9 @@ bool MovieSceneToolHelpers::ImportFBXIfReady(UWorld* World, UMovieScene* MovieSc
 	{
 		UE_LOG(LogMovieScene, Warning, TEXT("Fbx Import: Failed to find any matching node for (%s)."), *NodeName);
 	}
+
+	// restore
+	FObjectReader(GetMutableDefault<UMovieSceneUserImportFBXSettings>(), OriginalSettings);
 
 	FbxImporter->ReleaseScene();
 	UnFbx::FBXImportOptions* ImportOptions = FbxImporter->GetImportOptions();

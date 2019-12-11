@@ -31,38 +31,36 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_Field_KinematicActivation()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
 
 		//
 		//  Rigid Body Setup
 		//
-		auto RestInitFunc = [](TSharedPtr<FGeometryCollection>& RestCollection)
+		const FVector Translation0(0, 0, 1);
+		auto RestInitFunc = [Translation0](TSharedPtr<FGeometryCollection>& RestCollection)
 		{
-			RestCollection->Transform[0].SetTranslation(FVector(0, 0, 1));
+			RestCollection->Transform[0].SetTranslation(Translation0);
 		};
 
 		InitCollectionsParameters InitParams = { FTransform::Identity, FVector(1.0), RestInitFunc, (int32)EObjectStateTypeEnum::Chaos_Object_Kinematic };
 		InitCollections(PhysicalMaterial, RestCollection, DynamicCollection, InitParams);
 
-		FRadialIntMask * RadialMask = new FRadialIntMask();
-		RadialMask->Position = FVector(0.0, 0.0, 0.0);
-		RadialMask->Radius = 100.0;
-		RadialMask->InteriorValue = (int32)EObjectStateTypeEnum::Chaos_Object_Dynamic;
-		RadialMask->ExteriorValue = (int32)EObjectStateTypeEnum::Chaos_Object_Kinematic;
-		RadialMask->SetMaskCondition = ESetMaskConditionType::Field_Set_IFF_NOT_Interior;
 
 		FGeometryCollectionPhysicsProxy* PhysObject = RigidBodySetup(PhysicalMaterial, RestCollection, DynamicCollection);
 
-		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
-#if CHAOS_PARTICLEHANDLE_TODO
+		Chaos::FPBDRigidsSolver* Solver = Module->CreateSolver(true);
 		Solver->RegisterObject(PhysObject);
-#endif
 		Solver->SetHasFloor(false);
 		Solver->SetIsFloorAnalytic(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
+
+		Solver->AddDirtyProxy(PhysObject);
+		Solver->PushPhysicsState(Module->GetDispatcher());
 
 		for (int i = 0; i < 100; i++)
 		{
@@ -72,9 +70,19 @@ namespace GeometryCollectionExample
 		FinalizeSolver(*Solver);
 
 		// simulated
-		TManagedArray<FTransform>& Transform = DynamicCollection->Transform;
+		const TManagedArray<FTransform>& Transform = DynamicCollection->Transform;
 		EXPECT_EQ(Transform.Num(), 1);
+		const FVector Translation1 = Transform[0].GetTranslation();
+		EXPECT_EQ(Translation0, Translation1);
 		EXPECT_EQ(Transform[0].GetTranslation().Z, 1.f);
+
+
+		FRadialIntMask * RadialMask = new FRadialIntMask();
+		RadialMask->Position = FVector(0.0, 0.0, 0.0);
+		RadialMask->Radius = 100.0;
+		RadialMask->InteriorValue = (int32)EObjectStateTypeEnum::Chaos_Object_Dynamic;
+		RadialMask->ExteriorValue = (int32)EObjectStateTypeEnum::Chaos_Object_Kinematic;
+		RadialMask->SetMaskCondition = ESetMaskConditionType::Field_Set_IFF_NOT_Interior;
 		FName TargetName = GetFieldPhysicsName(EFieldPhysicsType::Field_DynamicState);
 		PhysObject->BufferCommand(Solver, { TargetName, RadialMask });
 
@@ -85,9 +93,11 @@ namespace GeometryCollectionExample
 
 		FinalizeSolver(*Solver);
 
+		const FVector Translation2 = Transform[0].GetTranslation();
+		EXPECT_NE(Translation1, Translation2);
 		EXPECT_LE(Transform[0].GetTranslation().Z, 0.f);
 
-		FChaosSolversModule::GetModule()->DestroySolver(Solver);
+		Module->DestroySolver(Solver);
 		delete PhysObject;
 
 	}
@@ -96,7 +106,9 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_Field_InitialLinearVelocity()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
 
@@ -129,14 +141,16 @@ namespace GeometryCollectionExample
 		FGeometryCollectionPhysicsProxy* PhysObject = RigidBodySetup(PhysicalMaterial, RestCollection, DynamicCollection, CustomFunc);
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
-#if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(FieldObject);
-#endif
 		Solver->SetHasFloor(false);
 		Solver->SetIsFloorAnalytic(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
+
+		Solver->AddDirtyProxy(PhysObject);
+		Solver->AddDirtyProxy(FieldObject);
+		Solver->PushPhysicsState(Module->GetDispatcher());
 
 		TManagedArray<FTransform>& Transform = DynamicCollection->Transform;
 
@@ -172,14 +186,15 @@ namespace GeometryCollectionExample
 		FChaosSolversModule::GetModule()->DestroySolver(Solver);
 		delete FieldObject;
 		delete PhysObject;
-
 	}
 	template void RigidBodies_Field_InitialLinearVelocity<float>();
 
 	template<class T>
 	void RigidBodies_Field_StayDynamic()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
 
@@ -212,13 +227,15 @@ namespace GeometryCollectionExample
 		FFieldSystemPhysicsProxy* FieldObject = new FFieldSystemPhysicsProxy(nullptr);
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
-#if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(FieldObject);
-#endif
 		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
+
+		Solver->AddDirtyProxy(PhysObject);
+		Solver->AddDirtyProxy(FieldObject);
+		Solver->PushPhysicsState(Module->GetDispatcher());
 
 		TManagedArray<FTransform>& Transform = DynamicCollection->Transform;
 		float PreviousHeight = 5.f;
@@ -265,7 +282,9 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_Field_LinearForce()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
 
@@ -295,13 +314,15 @@ namespace GeometryCollectionExample
 		FFieldSystemPhysicsProxy* FieldObject = new FFieldSystemPhysicsProxy(nullptr);
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
-#if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(FieldObject);
-#endif
 		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
+
+		Solver->AddDirtyProxy(PhysObject);
+		Solver->AddDirtyProxy(FieldObject);
+		Solver->PushPhysicsState(Module->GetDispatcher());
 
 		TManagedArray<FTransform>& Transform = DynamicCollection->Transform;
 		float PreviousY = 0.f;
@@ -342,7 +363,9 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_Field_Torque()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
 
@@ -372,13 +395,15 @@ namespace GeometryCollectionExample
 		FFieldSystemPhysicsProxy* FieldObject = new FFieldSystemPhysicsProxy(nullptr);
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
-#if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(FieldObject);
-#endif
 		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
+
+		Solver->AddDirtyProxy(PhysObject);
+		Solver->AddDirtyProxy(FieldObject);
+		Solver->PushPhysicsState(Module->GetDispatcher());
 
 		TManagedArray<FTransform>& Transform = DynamicCollection->Transform;
 		//TManagedArray<FVector>& AngularVelocity = DynamicCollection->;
@@ -427,7 +452,9 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_Field_Kill()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
 
@@ -459,13 +486,15 @@ namespace GeometryCollectionExample
 		FFieldSystemPhysicsProxy* FieldObject = new FFieldSystemPhysicsProxy(nullptr);
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
-#if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(FieldObject);
-#endif
 		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
+
+		Solver->AddDirtyProxy(PhysObject);
+		Solver->AddDirtyProxy(FieldObject);
+		Solver->PushPhysicsState(Module->GetDispatcher());
 
 		TManagedArray<FTransform>& Transform = DynamicCollection->Transform;
 		for (int Frame = 0; Frame < 10; Frame++)
@@ -495,7 +524,9 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_Field_LinearVelocity()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
 
@@ -525,13 +556,15 @@ namespace GeometryCollectionExample
 		FFieldSystemPhysicsProxy* FieldObject = new FFieldSystemPhysicsProxy(nullptr);
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
-#if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(FieldObject);
-#endif
 		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
+
+		Solver->AddDirtyProxy(PhysObject);
+		Solver->AddDirtyProxy(FieldObject);
+		Solver->PushPhysicsState(Module->GetDispatcher());
 
 		FName TargetName = GetFieldPhysicsName(EFieldPhysicsType::Field_LinearVelocity);
 		FieldObject->BufferCommand(Solver, { TargetName, VectorField->NewCopy() });
@@ -568,7 +601,9 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_Field_CollisionGroup()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
 
@@ -603,13 +638,13 @@ namespace GeometryCollectionExample
 		FGeometryCollectionPhysicsProxy* PhysObject = RigidBodySetup(PhysicalMaterial, RestCollection, DynamicCollection);
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
-#if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
-#endif
 		Solver->SetHasFloor(true);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
 
+		Solver->AddDirtyProxy(PhysObject);
+		Solver->PushPhysicsState(Module->GetDispatcher());
 
 #if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
 		for (int Frame = 0; Frame < 60; Frame++)
@@ -652,7 +687,9 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_Field_ClusterBreak_StrainModel_Test1()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody_TwoByTwo_ThreeTransform(FVector(0));
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
 
@@ -688,13 +725,15 @@ namespace GeometryCollectionExample
 #if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
 		const Chaos::TPBDRigidParticles<float, 3>& Particles = Solver->GetRigidParticles();
 
-#if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(FieldObject);
-#endif
 		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
+
+		Solver->AddDirtyProxy(PhysObject);
+		Solver->AddDirtyProxy(FieldObject);
+		Solver->PushPhysicsState(Module->GetDispatcher());
 
 		Solver->AdvanceSolverBy(1 / 24.);
 		FinalizeSolver(*Solver);
@@ -745,7 +784,9 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_Field_ClusterBreak_StrainModel_Test2()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody_ThreeByTwo_ThreeTransform(FVector(0));
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
 
@@ -781,13 +822,15 @@ namespace GeometryCollectionExample
 		const Chaos::TPBDRigidParticles<float, 3>& Particles = Solver->GetRigidParticles();
 #endif
 
-#if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(FieldObject);
-#endif
 		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
+
+		Solver->AddDirtyProxy(PhysObject);
+		Solver->AddDirtyProxy(FieldObject);
+		Solver->PushPhysicsState(Module->GetDispatcher());
 
 		Solver->AdvanceSolverBy(1 / 24.);
 		FinalizeSolver(*Solver);
@@ -848,7 +891,9 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_Field_ClusterBreak_StrainModel_Test3()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody_ThreeByTwo_ThreeTransform(FVector(0));
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
 
@@ -883,13 +928,15 @@ namespace GeometryCollectionExample
 #if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
 		const Chaos::TPBDRigidParticles<float, 3>& Particles = Solver->GetRigidParticles();
 #endif
-#if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(FieldObject);
-#endif
 		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
+
+		Solver->AddDirtyProxy(PhysObject);
+		Solver->AddDirtyProxy(FieldObject);
+		Solver->PushPhysicsState(Module->GetDispatcher());
 
 		Solver->AdvanceSolverBy(1 / 24.);
 		FinalizeSolver(*Solver);
@@ -953,7 +1000,9 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_Field_ClusterBreak_StrainModel_Test4()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = nullptr;
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody_TwoByTwo_ThreeTransform(FVector(0));
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = nullptr;
 
@@ -988,13 +1037,15 @@ namespace GeometryCollectionExample
 #if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
 		const Chaos::TPBDRigidParticles<float, 3>& Particles = Solver->GetRigidParticles();
 #endif
-#if CHAOS_PARTICLEHANDLE_TODO
 		Solver->RegisterObject(PhysObject);
 		Solver->RegisterObject(FieldObject);
-#endif
 		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
 		PhysObject->ActivateBodies();
+
+		Solver->AddDirtyProxy(PhysObject);
+		Solver->AddDirtyProxy(FieldObject);
+		Solver->PushPhysicsState(Module->GetDispatcher());
 
 		Solver->AdvanceSolverBy(1 / 24.);
 		FinalizeSolver(*Solver);

@@ -111,7 +111,11 @@ void FAnimNode_BlendListBase::Update_AnyThread(const FAnimationUpdateContext& Co
 				FAnimNode_Inertialization* InertializationNode = Context.GetAncestor<FAnimNode_Inertialization>();
 				if (InertializationNode)
 				{
-					InertializationNode->Request(BlendTime[ChildIndex]);
+					InertializationNode->RequestInertialization(BlendTime[ChildIndex]);
+				}
+				else
+				{
+					FAnimNode_Inertialization::LogRequestError(Context, BlendPose[ChildIndex]);
 				}
 				
 				RemainingBlendTime = 0.0f;

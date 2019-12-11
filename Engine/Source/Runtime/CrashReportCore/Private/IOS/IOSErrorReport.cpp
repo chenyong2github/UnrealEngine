@@ -50,11 +50,11 @@ FString FIOSErrorReport::FindCrashedAppPath() const
 			int32 LineEnd = -1;
 			if(PathData.FindChar( TCHAR('\r'), LineEnd ))
 			{
-				PathData = PathData.Left(LineEnd);
+				PathData.LeftInline(LineEnd, false);
 			}
 			if(PathData.FindChar( TCHAR('\n'), LineEnd ))
 			{
-				PathData = PathData.Left(LineEnd);
+				PathData.LeftInline(LineEnd, false);
 			}
 			return PathData;
 		}

@@ -120,7 +120,7 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 		extern FForwardLightingViewResources* GetMinimalDummyForwardLightingResources();
 		View.ForwardLightingResources = GetMinimalDummyForwardLightingResources();
 
-		FSinglePrimitiveStructuredBuffer& SinglePrimitiveStructuredBuffer = GTilePrimitiveBuffer;
+		FSinglePrimitiveStructured& SinglePrimitiveStructured = GTilePrimitiveBuffer;
 
 		if (Mesh.VertexFactory->GetPrimitiveIdStreamIndex(EVertexInputStreamType::PositionOnly) >= 0)
 		{
@@ -140,16 +140,25 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 				PrimitiveParams.LightmapDataIndex = 0;
 
 				// Now we just need to fill out the first entry of primitive data in a buffer and bind it
-				SinglePrimitiveStructuredBuffer.PrimitiveSceneData = FPrimitiveSceneShaderData(PrimitiveParams);
+				SinglePrimitiveStructured.PrimitiveSceneData = FPrimitiveSceneShaderData(PrimitiveParams);
+				SinglePrimitiveStructured.ShaderPlatform = View.GetShaderPlatform();
 
 				// Set up the parameters for the LightmapSceneData from the given LCI data 
 				FPrecomputedLightingUniformParameters LightmapParams;
 				GetPrecomputedLightingParameters(FeatureLevel, LightmapParams, Mesh.LCI);
-				SinglePrimitiveStructuredBuffer.LightmapSceneData = FLightmapSceneShaderData(LightmapParams);
+				SinglePrimitiveStructured.LightmapSceneData = FLightmapSceneShaderData(LightmapParams);
 
-				SinglePrimitiveStructuredBuffer.UploadToGPU();
-				View.PrimitiveSceneDataOverrideSRV = SinglePrimitiveStructuredBuffer.PrimitiveSceneDataBufferSRV;
-				View.LightmapSceneDataOverrideSRV = SinglePrimitiveStructuredBuffer.LightmapSceneDataBufferSRV;
+				SinglePrimitiveStructured.UploadToGPU();
+
+				if (!GPUSceneUseTexture2D(View.GetShaderPlatform()))
+				{
+					View.PrimitiveSceneDataOverrideSRV = SinglePrimitiveStructured.PrimitiveSceneDataBufferSRV;
+				}
+				else
+				{
+					View.PrimitiveSceneDataTextureOverrideRHI = SinglePrimitiveStructured.PrimitiveSceneDataTextureRHI;
+				}
+				View.LightmapSceneDataOverrideSRV = SinglePrimitiveStructured.LightmapSceneDataBufferSRV;
 			}
 		}
 
@@ -540,13 +549,13 @@ static void VisualizeTextureExec( const TCHAR* Cmd, FOutputDevice &Ar )
 		// e.g. mip2 or mip0
 		else if(Parameter.Left(3) == TEXT("mip"))
 		{
-			Parameter = Parameter.Right(Parameter.Len() - 3);
+			Parameter.RightInline(Parameter.Len() - 3, false);
 			GVisualizeTexture.CustomMip = FCString::Atoi(*Parameter);
 		}
 		// e.g. [0] or [2]
 		else if(Parameter.Left(5) == TEXT("index"))
 		{
-			Parameter = Parameter.Right(Parameter.Len() - 5);
+			Parameter.RightInline(Parameter.Len() - 5, false);
 			GVisualizeTexture.ArrayIndex = FCString::Atoi(*Parameter);
 		}
 		// e.g. RGB*6, A, *22, /2.7, A*7
@@ -562,7 +571,7 @@ static void VisualizeTextureExec( const TCHAR* Cmd, FOutputDevice &Ar )
 
 			if(Parameter.Left(3) == TEXT("rgb"))
 			{
-				Parameter = Parameter.Right(Parameter.Len() - 3);
+				Parameter.RightInline(Parameter.Len() - 3, false);
 			}
 			else if(Parameter.Left(1) == TEXT("r")) SingleChannel = 0;
 			else if(Parameter.Left(1) == TEXT("g")) SingleChannel = 1;
@@ -570,7 +579,7 @@ static void VisualizeTextureExec( const TCHAR* Cmd, FOutputDevice &Ar )
 			else if(Parameter.Left(1) == TEXT("a")) SingleChannel = 3;
 			if ( SingleChannel >= 0 )
 			{
-				Parameter = Parameter.Right(Parameter.Len() - 1);
+				Parameter.RightInline(Parameter.Len() - 1, false);
 				GVisualizeTexture.SingleChannel = SingleChannel;
 				GVisualizeTexture.SingleChannelMul = 1;
 				GVisualizeTexture.RGBMul = 0;
@@ -581,12 +590,12 @@ static void VisualizeTextureExec( const TCHAR* Cmd, FOutputDevice &Ar )
 			// * or /
 			if(Parameter.Left(1) == TEXT("*"))
 			{
-				Parameter = Parameter.Right(Parameter.Len() - 1);
+				Parameter.RightInline(Parameter.Len() - 1, false);
 				Mul = FCString::Atof(*Parameter);
 			}
 			else if(Parameter.Left(1) == TEXT("/"))
 			{
-				Parameter = Parameter.Right(Parameter.Len() - 1);
+				Parameter.RightInline(Parameter.Len() - 1, false);
 				Mul = 1.0f / FCString::Atof(*Parameter);
 			}
 			GVisualizeTexture.RGBMul *= Mul;

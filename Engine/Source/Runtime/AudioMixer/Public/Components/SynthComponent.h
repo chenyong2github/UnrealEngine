@@ -184,6 +184,9 @@ public:
 	UPROPERTY()
 	uint8 bIsPreviewSound : 1;
 
+	/** Whether to artificially prioritize the component to play */
+	uint8 bAlwaysPlay : 1;
+
 	/** Call if creating this synth component not via an actor component in BP, but in code or some other location. Optionally override the sample rate of the sound wave, otherwise it uses the audio device's sample rate. */
 	void Initialize(int32 SampleRateOverride = INDEX_NONE);
 
@@ -212,6 +215,9 @@ public:
 	// Adds and removes audio buffer listener
 	void AddAudioBufferListener(IAudioBufferListener* InAudioBufferListener);
 	void RemoveAudioBufferListener(IAudioBufferListener* InAudioBufferListener);
+
+
+	virtual void BeginDestroy() override;
 
 protected:
 

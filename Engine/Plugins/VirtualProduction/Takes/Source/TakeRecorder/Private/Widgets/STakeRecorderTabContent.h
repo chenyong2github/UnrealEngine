@@ -43,6 +43,8 @@ public:
 
 	UTakeMetaData* GetTakeMetaData() const;
 
+	FFrameRate GetFrameRate() const;
+
 	UTakeRecorderSources* GetSources() const;
 
 	void StartRecording() const;

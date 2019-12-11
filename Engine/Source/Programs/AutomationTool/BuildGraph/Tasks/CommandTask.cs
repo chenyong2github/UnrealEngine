@@ -22,18 +22,18 @@ namespace BuildGraph.Tasks
 	}
 
 	/// <summary>
-	/// Parameters for a task which calls another UAT command
+	/// Parameters for a task that calls another UAT command
 	/// </summary>
 	public class CommandTaskParameters
 	{
 		/// <summary>
-		/// The command name to execute
+		/// The command name to execute.
 		/// </summary>
 		[TaskParameter]
 		public string Name;
 
 		/// <summary>
-		/// Arguments to be passed to the command
+		/// Arguments to be passed to the command.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string Arguments;

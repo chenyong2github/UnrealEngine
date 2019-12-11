@@ -20,7 +20,7 @@ class AGeometryCollectionDebugDrawActor;
 class AChaosSolverActor;
 
 #if GEOMETRYCOLLECTION_DEBUG_DRAW
-namespace Chaos { template<class T, int d> class TImplicitObject; }
+namespace Chaos { class FImplicitObject; }
 namespace Chaos { template<class T, int d> class TPBDRigidParticles; }
 #endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
 
@@ -98,11 +98,13 @@ private:
 private:
 	static UGeometryCollectionDebugDrawComponent* RenderLevelSetOwner;
 	static int32 LastRenderedId;
+	//static FGuid LastRenderedId;
 
 #if GEOMETRYCOLLECTION_DEBUG_DRAW
 	FGeometryCollectionParticlesData ParticlesData;
 	int32 ParentCheckSum;
 	int32 SelectedRigidBodyId;
+	//FGuid SelectedRigidBodyId;
 	int32 SelectedTransformIndex;
 	int32 HiddenTransformIndex;
 	bool bWasVisible;

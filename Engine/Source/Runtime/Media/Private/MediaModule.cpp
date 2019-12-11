@@ -7,6 +7,7 @@
 #include "Misc/ScopeLock.h"
 #include "Modules/ModuleManager.h"
 #include "Stats/Stats.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 #include "IMediaCaptureSupport.h"
 #include "IMediaPlayerFactory.h"
@@ -14,6 +15,7 @@
 #include "MediaClock.h"
 #include "MediaTicker.h"
 
+CSV_DEFINE_CATEGORY_MODULE(MEDIA_API, MediaStreaming, false);
 
 /**
  * Implements the Media module.

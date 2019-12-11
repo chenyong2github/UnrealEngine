@@ -58,55 +58,52 @@ namespace SteamAudio
 
 		IPLerror Error = IPL_STATUS_SUCCESS;
 
-		SimulationSettings.numBounces = GetDefault<USteamAudioSettings>()->RealtimeBounces;
-		SimulationSettings.numDiffuseSamples = GetDefault<USteamAudioSettings>()->RealtimeSecondaryRays;
-		SimulationSettings.numRays = GetDefault<USteamAudioSettings>()->RealtimeRays;
-		SimulationSettings.maxConvolutionSources = GetDefault<USteamAudioSettings>()->MaxSources;
-		SimulationSettings.ambisonicsOrder = GetDefault<USteamAudioSettings>()->IndirectImpulseResponseOrder;
-		SimulationSettings.irDuration = GetDefault<USteamAudioSettings>()->IndirectImpulseResponseDuration;
-		SimulationSettings.sceneType = IPL_SCENETYPE_PHONON;
-
 		RenderingSettings.frameSize = InAudioDevice->GetBufferLength();
 		RenderingSettings.samplingRate = InAudioDevice->GetSampleRate();
-		RenderingSettings.convolutionType = IPL_CONVOLUTIONTYPE_PHONON;
+		RenderingSettings.convolutionType = static_cast<IPLConvolutionType>(GetDefault<USteamAudioSettings>()->ConvolutionType);
 
 		IPLComputeDeviceFilter DeviceFilter;
-		DeviceFilter.minReservableCUs = GetDefault<USteamAudioSettings>()->MinComputeUnits;
+		DeviceFilter.fractionCUsForIRUpdate = GetDefault<USteamAudioSettings>()->FractionComputeUnitsForIRUpdate;
 		DeviceFilter.maxCUsToReserve = GetDefault<USteamAudioSettings>()->MaxComputeUnits;
+		DeviceFilter.type = IPL_COMPUTEDEVICE_GPU;
+		
+		SimulationSettings = GetDefault<USteamAudioSettings>()->GetRealtimeSimulationSettings();
 
-		switch (GetDefault<USteamAudioSettings>()->ConvolutionType)
+		// If we are using TAN or RadeonRays, attempt to create a compute device.
+		if (GetDefault<USteamAudioSettings>()->ConvolutionType == EIplConvolutionType::TRUEAUDIONEXT || 
+			GetDefault<USteamAudioSettings>()->RayTracer == EIplRayTracerType::RADEONRAYS)
 		{
-		case EIplConvolutionType::TRUEAUDIONEXT:
-			DeviceFilter.type = IPL_COMPUTEDEVICE_GPU;
-			DeviceFilter.requiresTrueAudioNext = IPL_TRUE;
-			
-			SimulationSettings.maxConvolutionSources = GetDefault<USteamAudioSettings>()->TANMaxSources;
-			SimulationSettings.ambisonicsOrder = GetDefault<USteamAudioSettings>()->TANIndirectImpulseResponseOrder;
-			SimulationSettings.irDuration = GetDefault<USteamAudioSettings>()->TANIndirectImpulseResponseDuration;
-
-			RenderingSettings.convolutionType = IPL_CONVOLUTIONTYPE_TRUEAUDIONEXT;
+			UE_LOG(LogSteamAudio, Log, TEXT("Using TAN or Radeon Rays - creating GPU compute device..."));
 
 			Error = iplCreateComputeDevice(GlobalContext, DeviceFilter, &ComputeDevice);
-			
-			if (Error == IPL_STATUS_SUCCESS)
-			{
-				// If we successfully created a compute device for TAN, we're done.
-				UE_LOG(LogSteamAudio, Log, TEXT("Successfully created TAN compute device."));
-				break;
-			}
-			else
-			{
-				// Otherwise, fall through to using a null compute device.
-				UE_LOG(LogSteamAudio, Warning, TEXT("Unable to create TAN compute device. Falling back to default."));
-			}
 
-		case EIplConvolutionType::PHONON:
-			SimulationSettings.maxConvolutionSources = GetDefault<USteamAudioSettings>()->MaxSources;
-			SimulationSettings.ambisonicsOrder = GetDefault<USteamAudioSettings>()->IndirectImpulseResponseOrder;
-			SimulationSettings.irDuration = GetDefault<USteamAudioSettings>()->IndirectImpulseResponseDuration;
-			RenderingSettings.convolutionType = IPL_CONVOLUTIONTYPE_PHONON;
-			break;
+			// If we failed to create a compute device, fall back to Phonon scene and convolution.
+			if (Error != IPL_STATUS_SUCCESS)
+			{
+				UE_LOG(LogSteamAudio, Warning, TEXT("Failed to create GPU compute device, falling back to Phonon."));
+
+				if (SimulationSettings.sceneType == IPL_SCENETYPE_RADEONRAYS)
+				{
+					SimulationSettings.sceneType = IPL_SCENETYPE_PHONON;
+				}
+
+				if (RenderingSettings.convolutionType == IPL_CONVOLUTIONTYPE_TRUEAUDIONEXT)
+				{
+					RenderingSettings.convolutionType = IPL_CONVOLUTIONTYPE_PHONON;
+					SimulationSettings.ambisonicsOrder = GetDefault<USteamAudioSettings>()->IndirectImpulseResponseOrder;
+					SimulationSettings.irDuration = GetDefault<USteamAudioSettings>()->IndirectImpulseResponseDuration;
+					SimulationSettings.maxConvolutionSources = GetDefault<USteamAudioSettings>()->MaxSources;
+				}
+			}
 		}
+
+#if (PLATFORM_32BITS || PLATFORM_ANDROID)
+		if (SimulationSettings.sceneType != IPL_SCENETYPE_PHONON)
+		{
+			UE_LOG(LogSteamAudio, Warning, TEXT("Falling back to Phonon scene type."));
+			SimulationSettings.sceneType = IPL_SCENETYPE_PHONON;
+		}
+#endif
 
 		IPLAudioFormat EnvironmentalOutputAudioFormat;
 		EnvironmentalOutputAudioFormat.channelLayout = IPL_CHANNELLAYOUT_STEREO;

@@ -230,9 +230,11 @@ void SLevelSequenceContextPicker::Construct(const FArguments& InArgs)
 	check(OnSetValueEvent.IsBound());
 
 	ChildSlot
+	.Padding(0.0f)
 	[
 		SNew(SBorder)
 		.BorderImage(this, &SLevelSequenceContextPicker::GetBorderBrush)
+		.Padding(0.0f)
 		[
 			SNew(SComboButton)
 			.ContentPadding(0)

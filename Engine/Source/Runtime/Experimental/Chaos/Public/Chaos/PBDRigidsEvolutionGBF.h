@@ -2,10 +2,15 @@
 #pragma once
 
 #include "Chaos/PBDRigidsEvolution.h"
-#include "Chaos/PBDCollisionConstraint.h"
+#include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/ChaosPerfTest.h"
+#include "Chaos/Collision/CollisionDetector.h"
+#include "Chaos/Collision/CollisionReceiver.h"
+#include "Chaos/Collision/NarrowPhase.h"
+#include "Chaos/Collision/SpatialAccelerationBroadPhase.h"
 #include "Chaos/PerParticleInitForce.h"
 #include "Chaos/PerParticleEulerStepVelocity.h"
+#include "Chaos/PerParticleVelocityDamping.h"
 #include "Chaos/PerParticleEtherDrag.h"
 #include "Chaos/PerParticleGravity.h"
 #include "Chaos/PerParticlePBDEulerStep.h"
@@ -32,13 +37,14 @@ using TPBDRigidsEvolutionIslandCallback = TFunction<void(int32 Island)>;
 
 
 template<typename T, int d>
-class TPBDRigidsEvolutionGBF : public TPBDRigidsEvolutionBase<TPBDRigidsEvolutionGBF<T, d>, TPBDCollisionConstraint<T,d>, T, d>
+class TPBDRigidsEvolutionGBF : public TPBDRigidsEvolutionBase<TPBDRigidsEvolutionGBF<T, d>, TPBDCollisionConstraints<T,d>, T, d>
 {
 public:
-	using Base = TPBDRigidsEvolutionBase<TPBDRigidsEvolutionGBF<T, d>, TPBDCollisionConstraint<T, d>, T, d>;
+	using Base = TPBDRigidsEvolutionBase<TPBDRigidsEvolutionGBF<T, d>, TPBDCollisionConstraints<T, d>, T, d>;
 	using Base::Particles;
 	using Base::ForceRules;
 	using Base::ParticleUpdatePosition;
+	using Base::ApplyKinematicTargets;
 	using Base::SetParticleUpdateVelocityFunction;
 	using Base::SetParticleUpdatePositionFunction;
 	using Base::AddConstraintRule;
@@ -46,20 +52,27 @@ public:
 	using Base::Clustering;
 	using typename Base::FForceRule;
 	using FGravityForces = TPerParticleGravity<T, d>;
-	using FCollisionConstraints = TPBDCollisionConstraint<T, d>;
+	using FCollisionConstraints = TPBDCollisionConstraints<T, d>;
+	using FCollisionConstraintRule = TPBDConstraintColorRule<FCollisionConstraints>;
+	using FCollisionDetector = TCollisionDetector<FSpatialAccelerationBroadPhase, FNarrowPhase, FAsyncCollisionReceiver, FCollisionConstraints>;
 	using FExternalForces = TPerParticleExternalForces<T, d>;
-	using FCollisionConstraintRule = TPBDConstraintColorRule<FCollisionConstraints, T, d>;
 
 	static constexpr int32 DefaultNumIterations = 1;
+	static constexpr int32 DefaultNumPairIterations = 1;
 	static constexpr int32 DefaultNumPushOutIterations = 5;
 	static constexpr int32 DefaultNumPushOutPairIterations = 2;
 
-	CHAOS_API TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations = DefaultNumIterations);
+	CHAOS_API TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations = DefaultNumIterations, bool InIsSingleThreaded = false);
 	CHAOS_API ~TPBDRigidsEvolutionGBF() {}
 
 	void SetPostIntegrateCallback(const TPBDRigidsEvolutionCallback<T, d>& Cb)
 	{
 		PostIntegrateCallback = Cb;
+	}
+
+	void SetPostDetectCollisionsCallback(const TPBDRigidsEvolutionCallback<T, d>& Cb)
+	{
+		PostDetectCollisionsCallback = Cb;
 	}
 
 	void SetPreApplyCallback(const TPBDRigidsEvolutionCallback<T, d>& Cb)
@@ -77,7 +90,8 @@ public:
 		PostApplyPushOutCallback = Cb;
 	}
 
-	CHAOS_API void AdvanceOneTimeStep(const T dt);
+	CHAOS_API void Advance(const T Dt, const T MaxStepDt, const int32 MaxSteps);
+	CHAOS_API void AdvanceOneTimeStep(const T dt, const T StepFraction = (T)1.0);
 
 	using Base::ApplyConstraints;
 	using Base::ApplyPushOut;
@@ -87,6 +101,9 @@ public:
 
 	FCollisionConstraintRule& GetCollisionConstraintsRule() { return CollisionRule; }
 	const FCollisionConstraintRule& GetCollisionConstraintsRule() const { return CollisionRule; }
+
+	FCollisionDetector& GetCollisionDetector() { return CollisionDetector; }
+	const FCollisionDetector& GetCollisionDetector() const { return CollisionDetector; }
 
 	FExternalForces& GetExternalForces() { return ExternalForces; }
 	const FExternalForces& GetExternalForces() const { return ExternalForces; }
@@ -111,6 +128,7 @@ public:
 		CHAOS_SCOPED_TIMER(Integrate);
 		TPerParticleInitForce<T, d> InitForceRule;
 		TPerParticleEulerStepVelocity<T, d> EulerStepVelocityRule;
+		TPerParticleVelocityDamping<T, d> VelocityDampingRule;
 		TPerParticleEtherDrag<T, d> EtherDragRule(HackLinearDrag, HackAngularDrag);
 		TPerParticlePBDEulerStep<T, d> EulerStepRule;
 
@@ -119,7 +137,8 @@ public:
 		InParticles.ParallelFor([&](auto& GeomParticle, int32 Index)
 		{
 			//question: can we enforce this at the API layer? Right now islands contain non dynamic which makes this hard
-			if (auto PBDParticle = GeomParticle.AsDynamic())
+			auto PBDParticle = GeomParticle.CastToRigidParticle();
+			if(PBDParticle && PBDParticle->ObjectState() == EObjectStateType::Dynamic)
 			{
 				auto& Particle = *PBDParticle;
 
@@ -133,6 +152,7 @@ public:
 					ForceRule(Particle, Dt);
 				}
 				EulerStepVelocityRule.Apply(Particle, Dt);
+				VelocityDampingRule.Apply(Particle, Dt);
 				EtherDragRule.Apply(Particle, Dt);
 
 				if (HackMaxAngularVelocity >= 0.f)
@@ -177,7 +197,8 @@ protected:
 	using Base::UpdateConstraintPositionBasedState;
 	using Base::CreateConstraintGraph;
 	using Base::CreateIslands;
-	using Base::ConstraintGraph;
+	using Base::ConstraintRules;
+	using Base::GetConstraintGraph;
 	using Base::UpdateVelocities;
 	using Base::PhysicsMaterials;
 	using Base::ParticleDisableCount;
@@ -188,8 +209,11 @@ protected:
 	FExternalForces ExternalForces;
 	FCollisionConstraints CollisionConstraints;
 	FCollisionConstraintRule CollisionRule;
+	FSpatialAccelerationBroadPhase BroadPhase;
+	FCollisionDetector CollisionDetector;
 
 	TPBDRigidsEvolutionCallback<T, d> PostIntegrateCallback;
+	TPBDRigidsEvolutionCallback<T, d> PostDetectCollisionsCallback;
 	TPBDRigidsEvolutionCallback<T, d> PreApplyCallback;
 	TPBDRigidsEvolutionIslandCallback<T, d> PostApplyCallback;
 	TPBDRigidsEvolutionIslandCallback<T, d> PostApplyPushOutCallback;

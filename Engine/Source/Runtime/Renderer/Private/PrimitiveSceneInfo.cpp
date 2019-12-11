@@ -11,6 +11,7 @@
 #include "SceneCore.h"
 #include "VelocityRendering.h"
 #include "ScenePrivate.h"
+#include "RendererModule.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 #include "VT/RuntimeVirtualTextureSceneProxy.h"
@@ -651,7 +652,7 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, bool 
 	{
 		int8 MinLod, MaxLod;
 		GetRuntimeVirtualTextureLODRange(StaticMeshRelevances, MinLod, MaxLod);
-		
+
 		FPrimitiveVirtualTextureLodInfo& LodInfo = Scene->PrimitiveVirtualTextureLod[PackedIndex];
 		LodInfo.MinLod = FMath::Clamp((int32)MinLod, 0, 15);
 		LodInfo.MaxLod = FMath::Clamp((int32)MaxLod, 0, 15);
@@ -748,23 +749,30 @@ void FPrimitiveSceneInfo::RemoveFromScene(bool bUpdateStaticDrawLists)
 
 void FPrimitiveSceneInfo::UpdateRuntimeVirtualTextureFlags()
 {
-	const bool bRenderToVirtualTexture = Proxy->WritesVirtualTexture();
-
-	RuntimeVirtualTextureFlags.bRenderToVirtualTexture = bRenderToVirtualTexture;
+	RuntimeVirtualTextureFlags.bRenderToVirtualTexture = false;
 	RuntimeVirtualTextureFlags.RuntimeVirtualTextureMask = 0;
 
-	if (bRenderToVirtualTexture)
+	if (Proxy->WritesVirtualTexture())
 	{
-		// Performance assumption: The arrays of runtime virtual textures are small (less that 5?) so that O(n^2) scan isn't expensive
-		for (TSparseArray<FRuntimeVirtualTextureSceneProxy*>::TConstIterator It(Scene->RuntimeVirtualTextures); It; ++It)
+		if (StaticMeshes.Num() == 0)
 		{
-			int32 SceneIndex = It.GetIndex();
-			if (SceneIndex < FPrimitiveVirtualTextureFlags::RuntimeVirtualTexture_BitCount)
+			UE_LOG(LogRenderer, Warning, TEXT("Rendering a primitive in a runtime virtual texture implies that there is a mesh to render. Please disable this option on primitive component : %s"), *Proxy->GetOwnerName().ToString());
+		}
+		else
+		{
+			RuntimeVirtualTextureFlags.bRenderToVirtualTexture = true;
+
+			// Performance assumption: The arrays of runtime virtual textures are small (less that 5?) so that O(n^2) scan isn't expensive
+			for (TSparseArray<FRuntimeVirtualTextureSceneProxy*>::TConstIterator It(Scene->RuntimeVirtualTextures); It; ++It)
 			{
-				URuntimeVirtualTexture* SceneVirtualTexture = (*It)->VirtualTexture;
-				if (Proxy->WritesVirtualTexture(SceneVirtualTexture))
+				int32 SceneIndex = It.GetIndex();
+				if (SceneIndex < FPrimitiveVirtualTextureFlags::RuntimeVirtualTexture_BitCount)
 				{
-					RuntimeVirtualTextureFlags.RuntimeVirtualTextureMask |= 1 << SceneIndex;
+					URuntimeVirtualTexture* SceneVirtualTexture = (*It)->VirtualTexture;
+					if (Proxy->WritesVirtualTexture(SceneVirtualTexture))
+					{
+						RuntimeVirtualTextureFlags.RuntimeVirtualTextureMask |= 1 << SceneIndex;
+					}
 				}
 			}
 		}
@@ -895,9 +903,9 @@ void FPrimitiveSceneInfo::UnlinkAttachmentGroup()
 		FAttachmentGroupSceneInfo& AttachmentGroup = Scene->AttachmentGroups.FindChecked(LightingAttachmentRoot);
 		AttachmentGroup.Primitives.RemoveSwap(this);
 
-		if (AttachmentGroup.Primitives.Num() == 0)
+		if (AttachmentGroup.Primitives.Num() == 0 && AttachmentGroup.ParentSceneInfo == nullptr)
 		{
-			// If this was the last primitive attached that uses this attachment root, free the group.
+			// If this was the last primitive attached that uses this attachment group and the root has left the building, free the group.
 			Scene->AttachmentGroups.Remove(LightingAttachmentRoot);
 		}
 	}
@@ -908,6 +916,11 @@ void FPrimitiveSceneInfo::UnlinkAttachmentGroup()
 		if (AttachmentGroup)
 		{
 			AttachmentGroup->ParentSceneInfo = NULL;
+			if (AttachmentGroup->Primitives.Num() == 0)
+			{
+				// If this was the owner and the group is empty, remove it (otherwise the above will remove when the last attached goes).
+				Scene->AttachmentGroups.Remove(LightingAttachmentRoot);
+			}
 		}
 	}
 }

@@ -22,7 +22,7 @@ enum class ELiveLinkAxis : uint8
  * @note For example the Z-Axis of an incoming transform can be set to the (optionally negated) Y-Axis of the transform in UE.
  * @note This implies that translation, rotation and scale will be affected by switching an axis.
  */
-UCLASS(meta = (DisplayName = "Axis Switch"))
+UCLASS(meta = (DisplayName = "Transform Axis Switch"))
 class LIVELINK_API ULiveLinkTransformAxisSwitchPreProcessor : public ULiveLinkFramePreProcessor
 {
 	GENERATED_BODY()
@@ -67,7 +67,7 @@ protected:
  * @note For example the Z-Axis of an incoming transform can be set to the (optionally negated) Y-Axis of the transform in UE.
  * @note This implies that translation, rotation and scale will be affected by switching an axis.
  */
-UCLASS(meta = (DisplayName = "Axis Switch"))
+UCLASS(meta = (DisplayName = "Animation Axis Switch"))
 class LIVELINK_API ULiveLinkAnimationAxisSwitchPreProcessor : public ULiveLinkTransformAxisSwitchPreProcessor
 {
 	GENERATED_BODY()

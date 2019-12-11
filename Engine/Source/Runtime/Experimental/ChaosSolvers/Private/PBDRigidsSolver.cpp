@@ -4,7 +4,7 @@
 
 #include "Async/AsyncWork.h"
 #include "Chaos/ChaosArchive.h"
-#include "Chaos/PBDCollisionConstraintUtil.h"
+#include "Chaos/PBDCollisionConstraintsUtil.h"
 #include "Chaos/Utilities.h"
 #include "Chaos/ChaosDebugDraw.h"
 #include "ChaosStats.h"
@@ -28,6 +28,10 @@ FAutoConsoleVariableRef CVarChaosSolverDrawCollisions(TEXT("p.Chaos.Solver.Debug
 FAutoConsoleVariableRef CVarChaosSolverDrawBPBounds(TEXT("p.Chaos.Solver.DrawBPBounds"), ChaosSolverDrawBPBounds, TEXT("Draw bounding volumes inside the broadphase (0 = never; 1 = end of frame)."));
 #endif
 
+float ChaosSolverCollisionDefaultIterationsCVar = 1;
+FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultIterations(TEXT("p.ChaosSolverCollisionDefaultIterations"), ChaosSolverCollisionDefaultIterationsCVar, TEXT("Default collision iterations for the solver.[def:1]"));
+
+
 namespace Chaos
 {
 
@@ -46,11 +50,21 @@ namespace Chaos
 
 		void DoWork()
 		{
+			LLM_SCOPE(ELLMTag::Chaos);
 			UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("AdvanceOneTimeStepTask::DoWork()"));
 
 			{
-				//SCOPE_CYCLE_COUNTER(STAT_UpdateParams);
-				//MSolver->ParameterUpdateCallback(MSolver->GetSolverTime());
+				SCOPE_CYCLE_COUNTER(STAT_UpdateParams);
+				Chaos::TPBDPositionConstraints<float, 3> PositionTarget; // Dummy for now
+				TMap<int32, int32> PositionTargetedParticles;
+				//TArray<FKinematicProxy> AnimatedPositions;
+				Chaos::TArrayCollectionArray<float> Strains;
+				for (FFieldSystemPhysicsProxy* Obj : MSolver->GetFieldSystemPhysicsProxies())
+				{
+					auto& GeomCollectionParticles = MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles();
+					Obj->FieldParameterUpdateCallback(MSolver, GeomCollectionParticles, Strains, 
+						PositionTarget, PositionTargetedParticles, /*AnimatedPositions,*/ MSolver->GetSolverTime());
+				}
 			}
 
 			{
@@ -62,13 +76,25 @@ namespace Chaos
 				SCOPE_CYCLE_COUNTER(STAT_EvolutionAndKinematicUpdate);
 				while (MDeltaTime > MSolver->GetMaxDeltaTime())
 				{
+					Chaos::TArrayCollectionArray<FVector> Forces, Torques;
 					//MSolver->ForceUpdateCallback(MSolver->GetSolverTime());
+					for (FFieldSystemPhysicsProxy* Obj : MSolver->GetFieldSystemPhysicsProxies())
+					{
+						auto& GeomCollectionParticles = MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles();
+						Obj->FieldForcesUpdateCallback(MSolver, GeomCollectionParticles, Forces, Torques, MSolver->GetSolverTime());
+					}
 					//MSolver->GetEvolution()->ReconcileIslands();
 					//MSolver->KinematicUpdateCallback(MSolver->GetMaxDeltaTime(), MSolver->GetSolverTime());
 					MSolver->GetEvolution()->AdvanceOneTimeStep(MSolver->GetMaxDeltaTime());
 					MDeltaTime -= MSolver->GetMaxDeltaTime();
 				}
 				//MSolver->ForceUpdateCallback(MSolver->GetSolverTime());
+				Chaos::TArrayCollectionArray<FVector> Forces, Torques;
+				for (FFieldSystemPhysicsProxy* Obj : MSolver->GetFieldSystemPhysicsProxies())
+				{
+					auto& GeomCollectionParticles = MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles();
+					Obj->FieldForcesUpdateCallback(MSolver, GeomCollectionParticles, Forces, Torques, MSolver->GetSolverTime());
+				}
 				//MSolver->GetEvolution()->ReconcileIslands();
 				//MSolver->KinematicUpdateCallback(MDeltaTime, MSolver->GetSolverTime());
 				MSolver->GetEvolution()->AdvanceOneTimeStep(MDeltaTime);
@@ -123,7 +149,7 @@ namespace Chaos
 		, bHasFloor(true)
 		, bIsFloorAnalytic(false)
 		, FloorHeight(0.f)
-		, MEvolution(new FPBDRigidsEvolution(Particles))
+		, MEvolution(new FPBDRigidsEvolution(Particles, ChaosSolverCollisionDefaultIterationsCVar, BufferingModeIn == Chaos::EMultiBufferMode::Single))
 		, MEventManager(new FEventManager(BufferingModeIn))
 		, MSolverEventFilters(new FSolverEventFilters())
 		, MActiveParticlesBuffer(new FActiveParticlesBuffer(BufferingModeIn))
@@ -133,6 +159,14 @@ namespace Chaos
 		Reset();
 	}
 
+	float MaxBoundsForTree = 10000;
+	FAutoConsoleVariableRef CVarMaxBoundsForTree(
+		TEXT("p.MaxBoundsForTree"),
+		MaxBoundsForTree,
+		TEXT("The max bounds before moving object into a large objects structure. Only applies on object registration")
+		TEXT(""),
+		ECVF_Default);
+
 	void FPBDRigidsSolver::RegisterObject(TGeometryParticle<float, 3>* GTParticle)
 	{
 		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("FPBDRigidsSolver::RegisterObject()"));
@@ -140,31 +174,33 @@ namespace Chaos
 		// Make sure this particle doesn't already have a proxy
 		checkSlow(GTParticle->Proxy == nullptr);
 
-		// Grab the particle's type
-		const EParticleType InParticleType = GTParticle->ObjectType();
-
-		IPhysicsProxyBase* ProxyBase = nullptr;
-		// NOTE: Do we really need this list of proxies if we can just
-		// access them through the GTParticles list?
-		
-		Chaos::FParticleData* ProxyData;
-
+		if (GTParticle->Geometry() && GTParticle->Geometry()->HasBoundingBox() && GTParticle->Geometry()->BoundingBox().Extents().Max() >= MaxBoundsForTree)
+		{
+			GTParticle->SetSpatialIdx(FSpatialAccelerationIdx{ 1,0 });
+		}
 		if (!ensure(GTParticle->IsParticleValid()))
 		{
 			return;
 		}
 
+		// NOTE: Do we really need these lists of proxies if we can just
+		// access them through the GTParticles list?
+		
+		Chaos::FParticleData* ProxyData;
+		IPhysicsProxyBase* ProxyBase;
+
 		// Make a physics proxy, giving it our particle and particle handle
-		if (InParticleType == EParticleType::Dynamic)
+		const EParticleType InParticleType = GTParticle->ObjectType();
+		if (InParticleType == EParticleType::Rigid)
 		{
-			auto Proxy = new FRigidParticlePhysicsProxy(GTParticle->AsDynamic(), nullptr);
+			auto Proxy = new FRigidParticlePhysicsProxy(GTParticle->CastToRigidParticle(), nullptr);
 			RigidParticlePhysicsProxies.Add((FRigidParticlePhysicsProxy*)Proxy);
 			ProxyData = Proxy->NewData();
 			ProxyBase = Proxy;
 		}
 		else if (InParticleType == EParticleType::Kinematic)
 		{
-			auto Proxy = new FKinematicGeometryParticlePhysicsProxy(GTParticle->AsKinematic(), nullptr);
+			auto Proxy = new FKinematicGeometryParticlePhysicsProxy(GTParticle->CastToKinematicParticle(), nullptr);
 			KinematicGeometryParticlePhysicsProxies.Add((FKinematicGeometryParticlePhysicsProxy*)Proxy);
 			ProxyData = Proxy->NewData();
 			ProxyBase = Proxy;
@@ -196,18 +232,18 @@ namespace Chaos
 			//       Proxy should be able to map back to Particle.
 			//
 
-			if (InParticleType == EParticleType::Dynamic)
+			if (InParticleType == EParticleType::Rigid)
 			{
 				Handle = Solver->Particles.CreateDynamicParticles(1)[0];
 				auto Proxy = static_cast<FRigidParticlePhysicsProxy*>(ProxyBase);
-				Proxy->SetHandle(Handle->AsDynamic());
+				Proxy->SetHandle(Handle->CastToRigidParticle());
 				Proxy->PushToPhysicsState(ProxyData);
 			}
 			else if (InParticleType == EParticleType::Kinematic)
 			{
 				Handle = Solver->Particles.CreateKinematicParticles(1)[0];
 				auto Proxy = static_cast<FKinematicGeometryParticlePhysicsProxy*>(ProxyBase);
-				Proxy->SetHandle(Handle->AsKinematic());
+				Proxy->SetHandle(Handle->CastToKinematicParticle());
 				Proxy->PushToPhysicsState(ProxyData);
 			}
 			else // Assume it's a static (geometry) if it's not dynamic or kinematic
@@ -220,7 +256,6 @@ namespace Chaos
 			}
 
 			Handle->GTGeometryParticle() = GTParticle;
-
 			Solver->GetEvolution()->CreateParticle(Handle);
 
 			delete ProxyData;
@@ -245,13 +280,17 @@ namespace Chaos
 		GTParticle->Proxy = nullptr;
 
 		// Remove the proxy from the GT proxy map
-		if (InParticleType == EParticleType::Dynamic)
+		if (InParticleType == EParticleType::Rigid)
 		{
 			RigidParticlePhysicsProxies.Remove((FRigidParticlePhysicsProxy*)InProxy);
 		}
 		else if (InParticleType == EParticleType::Kinematic)
 		{
 			KinematicGeometryParticlePhysicsProxies.Remove((FKinematicGeometryParticlePhysicsProxy*)InProxy);
+		}
+		else if (InParticleType == EParticleType::GeometryCollection)
+		{
+			check(false); // This shouldn't happen.
 		}
 		else
 		{
@@ -270,7 +309,7 @@ namespace Chaos
 			// maybe that extra safety is not needed if we continue to contain all
 			// references to proxy instances entirely in Chaos?
 			TGeometryParticleHandle<float, 3>* Handle;
-			if (InParticleType == Chaos::EParticleType::Dynamic)
+			if (InParticleType == Chaos::EParticleType::Rigid)
 			{
 				auto Proxy = (FRigidParticlePhysicsProxy*)InProxy;
 				Handle = Proxy->GetHandle();
@@ -292,6 +331,57 @@ namespace Chaos
 			// Use the handle to destroy the particle data
 			Solver->GetEvolution()->DestroyParticle(Handle);
 		});
+	}
+
+	void FPBDRigidsSolver::RegisterObject(FGeometryCollectionPhysicsProxy* InProxy)
+	{
+		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("FPBDRigidsSolver::RegisterObject(FGeometryCollectionPhysicsProxy*)"));
+		GeometryCollectionPhysicsProxies.AddUnique(InProxy);
+		InProxy->SetSolver(this);
+		InProxy->Initialize();
+		InProxy->InitializeBodiesGT();
+		InProxy->NewData(); // Buffers data on the proxy.
+
+		// Finish registration on the physics thread...
+		FChaosSolversModule::GetModule()->GetDispatcher()->EnqueueCommandImmediate(this,
+			[this, InProxy](FPBDRigidsSolver* Solver)
+		{
+			UE_LOG(LogPBDRigidsSolverSolver, Verbose, 
+				TEXT("FPBDRigidsSolver::RegisterObject(FGeometryCollectionPhysicsProxy*)"));
+			InProxy->InitializeBodiesPT(Solver, Particles);
+			InProxy->PushToPhysicsState(nullptr); // Uses buffer on proxy for transport, not ProxyData.
+		});
+	}
+
+	bool FPBDRigidsSolver::UnregisterObject(FGeometryCollectionPhysicsProxy* InProxy)
+	{
+		InProxy->SetSolver(static_cast<FPBDRigidsSolver*>(nullptr));
+		return GeometryCollectionPhysicsProxies.Remove(InProxy) != 0;
+	}
+
+	void FPBDRigidsSolver::RegisterObject(FFieldSystemPhysicsProxy* InProxy)
+	{
+		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("FPBDRigidsSolver::RegisterObject(FFieldSystemPhysicsProxy*)"));
+		FieldSystemPhysicsProxies.AddUnique(InProxy);
+		InProxy->SetSolver(this);
+		InProxy->Initialize();
+		Chaos::FParticleData* ProxyData = InProxy->NewData();
+
+		FChaosSolversModule::GetModule()->GetDispatcher()->EnqueueCommandImmediate(
+			this,
+			[this, InProxy, ProxyData](FPBDRigidsSolver* Solver)
+			{
+				UE_LOG(LogPBDRigidsSolverSolver, Verbose,
+					TEXT("FPBDRigidsSolver::RegisterObject(FFieldSystemPhysicsProxy*)"));
+				//InProxy->ActivateBodies();
+				InProxy->PushToPhysicsState(ProxyData);
+			});
+	}
+
+	bool FPBDRigidsSolver::UnregisterObject(FFieldSystemPhysicsProxy* InProxy)
+	{
+		InProxy->SetSolver(static_cast<FPBDRigidsSolver*>(nullptr));
+		return FieldSystemPhysicsProxies.Remove(InProxy) != 0;
 	}
 
 	bool FPBDRigidsSolver::IsSimulating() const
@@ -320,11 +410,8 @@ namespace Chaos
 		return false;
 	}
 
-
-
 	void FPBDRigidsSolver::Reset()
 	{
-
 		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("PBDRigidsSolver::Reset()"));
 
 		MTime = 0;
@@ -333,7 +420,7 @@ namespace Chaos
 		CurrentFrame = 0;
 		MMaxDeltaTime = 1;
 		TimeStepMultiplier = 1;
-		MEvolution = TUniquePtr<FPBDRigidsEvolution>(new FPBDRigidsEvolution(Particles));
+		MEvolution = TUniquePtr<FPBDRigidsEvolution>(new FPBDRigidsEvolution(Particles, ChaosSolverCollisionDefaultIterationsCVar, BufferMode == EMultiBufferMode::Single)); 
 
 		FEventDefaults::RegisterSystemEvents(*GetEventManager());
 	}
@@ -366,6 +453,12 @@ namespace Chaos
 		GetEventManager()->DispatchEvents();
 	}
 
+	/**
+	 * ProxyType is FSingleParticlePhysicsProxy<T>, where T is:
+	 *    Chaos::TPBDRigidParticle<float,3>
+	 *    Chaos::TKinematicGeometryParticle<float,3>
+	 *    Chaos::TGeometryParticle<float,3>
+	 */
 	template<typename ProxyType>
 	void PushPhysicsStateExec(FPBDRigidsSolver * Solver, ProxyType* Proxy, Chaos::IDispatcher* Dispatcher)
 	{
@@ -393,27 +486,76 @@ namespace Chaos
 					delete ProxyData;
 				}
 				Solver->RemoveDirtyProxy(Proxy);
-			}
 
-			Proxy->ClearAccumulatedData();
+				Proxy->ClearAccumulatedData();
+			}
 		}
 	}
 
+	void PushPhysicsStateExec(FPBDRigidsSolver* Solver, FGeometryCollectionPhysicsProxy* Proxy, Chaos::IDispatcher* Dispatcher)
+	{
+		Proxy->NewData();
+		auto Cmd = [Proxy, Solver](Chaos::FPersistentPhysicsTask* PhysThread)
+		{
+			auto* Evolution = Solver->GetEvolution();
+			TManagedArray<Chaos::TPBDGeometryCollectionParticleHandle<float,3>*>& Handles = Proxy->GetSolverParticleHandles();
+			for (auto* Handle : Handles)
+			{
+				if (Handle)
+					Evolution->DirtyParticle(*Handle);
+			}
+			Proxy->PushToPhysicsState(nullptr);
+		};
+
+		if (Dispatcher)
+			Dispatcher->EnqueueCommandImmediate(Cmd);
+		else
+			Cmd(nullptr);
+		Solver->RemoveDirtyProxy(Proxy);
+		Proxy->ClearAccumulatedData();
+	}
+
+	void PushPhysicsStateExec(FPBDRigidsSolver* Solver, FFieldSystemPhysicsProxy* Proxy, Chaos::IDispatcher* Dispatcher)
+	{
+		Chaos::FParticleData* ProxyData = Proxy->NewData();
+		auto Cmd = [Proxy, Solver, ProxyData](Chaos::FPersistentPhysicsTask* PhysThread)
+		{
+			Proxy->PushToPhysicsState(nullptr);
+		};
+
+		if (Dispatcher)
+			Dispatcher->EnqueueCommandImmediate(Cmd);
+		else
+			Cmd(nullptr);
+		Solver->RemoveDirtyProxy(Proxy);
+		Proxy->ClearAccumulatedData();
+	}
 
 	void FPBDRigidsSolver::PushPhysicsState(IDispatcher* Dispatcher)
 	{
-		TArray< IPhysicsProxyBase *> DirtyProxiesArray = DirtyProxiesSet.Array();
+		if (DirtyProxiesSet.Num() == 0)
+			return;
+		TArray<IPhysicsProxyBase*> DirtyProxiesArray = DirtyProxiesSet.Array();
 		for (auto & Proxy : DirtyProxiesArray)
 		{
 			switch (Proxy->GetType())
 			{
-			case EPhysicsProxyType::SingleRigidParticleType:
+			//case EPhysicsProxyType::NoneType: // 0
+			//case EPhysicsProxyType::StaticMeshType: // 1
+			case EPhysicsProxyType::GeometryCollectionType: // 2
+				PushPhysicsStateExec(this, static_cast<FGeometryCollectionPhysicsProxy*>(Proxy), Dispatcher);
+				break;
+			case EPhysicsProxyType::FieldType: // 3
+				PushPhysicsStateExec(this, static_cast<FFieldSystemPhysicsProxy*>(Proxy), Dispatcher);
+				break;
+			//case EPhysicsProxyType::SkeletalMeshType: // 4
+			case EPhysicsProxyType::SingleRigidParticleType: // 7
 				PushPhysicsStateExec(this, static_cast<FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >*>(Proxy), Dispatcher);
 				break;
-			case EPhysicsProxyType::SingleKinematicParticleType:
+			case EPhysicsProxyType::SingleKinematicParticleType: // 6
 				PushPhysicsStateExec(this, static_cast<FSingleParticlePhysicsProxy< Chaos::TKinematicGeometryParticle<float, 3> >*>(Proxy), Dispatcher);
 				break;
-			case EPhysicsProxyType::SingleGeometryParticleType:
+			case EPhysicsProxyType::SingleGeometryParticleType: // 5
 				PushPhysicsStateExec(this, static_cast<FSingleParticlePhysicsProxy< Chaos::TGeometryParticle<float, 3> >*>(Proxy), Dispatcher);
 				break;
 			default:
@@ -422,16 +564,17 @@ namespace Chaos
 		}
 	}
 
-
 	void FPBDRigidsSolver::BufferPhysicsResults()
 	{
 		//ensure(IsInPhysicsThread());
+		TArray<FGeometryCollectionPhysicsProxy*> ActiveGC;
+		ActiveGC.Reserve(GeometryCollectionPhysicsProxies.Num());
 
-		for (Chaos::TGeometryParticleHandleImp < float, 3, false>& ActiveObject : GetParticles().GetActiveParticlesView())
+		for (Chaos::TGeometryParticleHandleImp<float, 3, false>& ActiveObject : GetParticles().GetActiveParticlesView())
 		{
 			switch (ActiveObject.Type)
 			{
-			case Chaos::EParticleType::Dynamic:
+			case Chaos::EParticleType::Rigid:
 				((FRigidParticlePhysicsProxy*)(ActiveObject.GTGeometryParticle()->Proxy))->BufferPhysicsResults();
 				break;
 			case Chaos::EParticleType::Kinematic:
@@ -440,21 +583,31 @@ namespace Chaos
 			case Chaos::EParticleType::Static:
 				((FGeometryParticlePhysicsProxy*)(ActiveObject.GTGeometryParticle()->Proxy))->BufferPhysicsResults();
 				break;
+			case Chaos::EParticleType::GeometryCollection:
+				ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(ActiveObject.GTGeometryParticle()->Proxy));
+				break;
 			default:
 				check(false);
 			}
+		}
+
+		for (auto* GCProxy : ActiveGC)
+		{
+			GCProxy->BufferPhysicsResults();
 		}
 	}
 
 	void FPBDRigidsSolver::FlipBuffers()
 	{
 		//ensure(IsInPhysicsThread());
+		TArray<FGeometryCollectionPhysicsProxy*> ActiveGC;
+		ActiveGC.Reserve(GeometryCollectionPhysicsProxies.Num());
 
 		for (Chaos::TGeometryParticleHandleImp < float, 3, false>& ActiveObject : GetParticles().GetActiveParticlesView())
 		{
 			switch (ActiveObject.Type)
 			{
-			case Chaos::EParticleType::Dynamic:
+			case Chaos::EParticleType::Rigid:
 				((FRigidParticlePhysicsProxy*)(ActiveObject.GTGeometryParticle()->Proxy))->FlipBuffer();
 				break;
 			case Chaos::EParticleType::Kinematic:
@@ -463,21 +616,31 @@ namespace Chaos
 			case Chaos::EParticleType::Static:
 				((FGeometryParticlePhysicsProxy*)(ActiveObject.GTGeometryParticle()->Proxy))->FlipBuffer();
 				break;
+			case Chaos::EParticleType::GeometryCollection:
+				ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(ActiveObject.GTGeometryParticle()->Proxy));
+				break;
 			default:
 				check(false);
 			}
+		}
+
+		for (auto* GCProxy : ActiveGC)
+		{
+			GCProxy->FlipBuffer();
 		}
 	}
 
 	void FPBDRigidsSolver::UpdateGameThreadStructures()
 	{
 		//ensure(IsInGameThread());
+		TArray<FGeometryCollectionPhysicsProxy*> ActiveGC;
+		ActiveGC.Reserve(GeometryCollectionPhysicsProxies.Num());
 
 		for (Chaos::TGeometryParticleHandleImp < float, 3, false>& ActiveObject : GetParticles().GetActiveParticlesView())
 		{
 			switch (ActiveObject.Type)
 			{
-			case Chaos::EParticleType::Dynamic:
+			case Chaos::EParticleType::Rigid:
 				((FRigidParticlePhysicsProxy*)(ActiveObject.GTGeometryParticle()->Proxy))->PullFromPhysicsState();
 				break;
 			case Chaos::EParticleType::Kinematic:
@@ -486,9 +649,17 @@ namespace Chaos
 			case Chaos::EParticleType::Static:
 				((FGeometryParticlePhysicsProxy*)(ActiveObject.GTGeometryParticle()->Proxy))->PullFromPhysicsState();
 				break;
+			case Chaos::EParticleType::GeometryCollection:
+				ActiveGC.AddUnique((FGeometryCollectionPhysicsProxy*)(ActiveObject.GTGeometryParticle()->Proxy));
+				break;
 			default:
 				check(false);
 			}
+		}
+
+		for (auto* GCProxy : ActiveGC)
+		{
+			GCProxy->PullFromPhysicsState();
 		}
 	}
 
@@ -502,5 +673,26 @@ namespace Chaos
 #endif
 	}
 
+
+	void FPBDRigidsSolver::UpdateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData)
+	{
+		*SimMaterials.Get(InHandle.InnerHandle) = InNewData;
+	}
+
+	void FPBDRigidsSolver::CreateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData)
+	{
+		ensure(SimMaterials.Create(InNewData) == InHandle.InnerHandle);
+	}
+
+	void FPBDRigidsSolver::DestroyMaterial(Chaos::FMaterialHandle InHandle)
+	{
+		SimMaterials.Destroy(InHandle.InnerHandle);
+	}
+
+	void FPBDRigidsSolver::SyncQueryMaterials()
+	{
+		TSolverQueryMaterialScope<ELockType::Write> Scope(this);
+		QueryMaterials = SimMaterials;
+	}
 
 }; // namespace Chaos

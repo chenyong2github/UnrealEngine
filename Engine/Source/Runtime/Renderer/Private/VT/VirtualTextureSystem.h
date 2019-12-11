@@ -91,8 +91,11 @@ private:
 	void GatherRequestsTask(const FGatherRequestsParameters& Parameters);
 	void FeedbackAnalysisTask(const FFeedbackAnalysisParameters& Parameters);
 
+	void UpdateCSVStats() const;
+
 	uint32	Frame;
 
+	static const uint32 MaxNumTasks = 16;
 	static const uint32 MaxSpaces = 16;
 	TUniquePtr<FVirtualTextureSpace> Spaces[MaxSpaces];
 	TArray<FVirtualTexturePhysicalSpace*> PhysicalSpaces;

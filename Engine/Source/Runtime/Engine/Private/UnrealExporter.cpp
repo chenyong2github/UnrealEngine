@@ -353,12 +353,13 @@ bool UExporter::RunAssetExportTask(class UAssetExportTask* Task)
 	}
 	else
 	{
-		for( int32 i = 0; i < Exporter->GetFileCount(); i++ )
+		const int32 FileCount = Exporter->GetFileCount(Task->Object);
+		for( int32 i = 0; i < FileCount; i++ )
 		{
 			FBufferArchive Buffer;
 			if(ExportToArchive(Task->Object, Exporter, Buffer, *Extension, i))
 			{
-				FString UniqueFilename = Exporter->GetUniqueFilename(*Task->Filename, i);
+				FString UniqueFilename = Exporter->GetUniqueFilename(*Task->Filename, i, FileCount);
 
 				if(!Task->bReplaceIdentical)
 				{

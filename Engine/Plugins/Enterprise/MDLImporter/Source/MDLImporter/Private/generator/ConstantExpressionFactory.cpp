@@ -145,16 +145,24 @@ namespace Generator
 				auto Handle = mi::base::make_handle(MDLConstant.get_interface<const mi::neuraylib::IValue_texture>());
 				const mi::base::Handle<const mi::neuraylib::ITexture> MDLTexture(Transaction.access<mi::neuraylib::ITexture>(Handle->get_value()));
 
-				Common::FTextureProperty Property;
-				Property.Path       = Mdl::Util::GetTextureFileName(MDLTexture.get());
-				float Gamma         = MDLTexture->get_effective_gamma();
-				Property.bIsSRGB    = Gamma != 1.0;
-				if (ProcessingNormapMap)
+				if (MDLTexture)
 				{
-					Property.CompressionSettings = TC_Normalmap;
+					Common::FTextureProperty Property;
+					Property.Path = Mdl::Util::GetTextureFileName(MDLTexture.get());
+					float Gamma = MDLTexture->get_effective_gamma();
+					Property.bIsSRGB = Gamma != 1.0;
+					if (ProcessingNormapMap)
+					{
+						Property.CompressionSettings = TC_Normalmap;
+					}
+					UTexture2D* Texture = TextureFactory->CreateTexture(CurrentMaterial->GetOuter(), Property, CurrentMaterial->GetFlags());
+					return { NewMaterialExpressionTextureObject(CurrentMaterial, Texture) };
 				}
-				UTexture2D* Texture = TextureFactory->CreateTexture(CurrentMaterial->GetOuter(), Property, CurrentMaterial->GetFlags());
-				return {NewMaterialExpressionTextureObject(CurrentMaterial, Texture)};
+				else
+				{
+					LogMessages.Emplace(MDLImporterLogging::EMessageSeverity::Error, TEXT("Couldn't create texture."));
+					return {};
+				}
 			}
 			case mi::neuraylib::IValue::VK_BSDF_MEASUREMENT:
 			{
@@ -165,7 +173,7 @@ namespace Generator
 				return {NewMaterialExpressionConstant(CurrentMaterial, 0.0f, 0.0f, 0.0f)};
 			}
 		}
-		check(false);
+		ensure(false);
 		return {};
 	}
 

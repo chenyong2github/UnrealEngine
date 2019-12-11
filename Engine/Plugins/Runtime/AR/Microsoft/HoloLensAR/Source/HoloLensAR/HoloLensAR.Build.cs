@@ -31,6 +31,11 @@ public class HoloLensAR : ModuleRules
 				// ... add private dependencies that you statically link with here ...
 			}
             );
+			
+		if (Target.bBuildEditor == true)
+		{
+			PrivateDependencyModuleNames.Add("UnrealEd");
+		}
 
         if (Target.Platform == UnrealTargetPlatform.Win64 || (Target.Platform == UnrealTargetPlatform.HoloLens && Target.WindowsPlatform.Architecture == WindowsArchitecture.x64))
         {

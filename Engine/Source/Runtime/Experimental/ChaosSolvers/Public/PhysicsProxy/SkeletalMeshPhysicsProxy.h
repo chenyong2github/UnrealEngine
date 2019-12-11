@@ -64,7 +64,7 @@ struct CHAOSSOLVERS_API FSkeletalMeshPhysicsProxyParams
 	FVector InitialLinearVelocity;
 	FVector InitialAngularVelocity;
 
-	Chaos::TSerializablePtr<Chaos::TChaosPhysicsMaterial<float>> PhysicalMaterial;	// @todo(ccaulfield): should be per-shape
+	Chaos::TSerializablePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial;	// @todo(ccaulfield): should be per-shape
 	EObjectStateTypeEnum ObjectType;												// @todo(ccaulfield): should be per-body
 
 	ECollisionTypeEnum CollisionType;
@@ -168,8 +168,8 @@ public:
 	const FBoneHierarchy& GetBoneHierarchy() const { return Parameters.BoneHierarchy; }
 
 private:
-	typedef Chaos::TPBDJointConstraints<float, 3> FJointConstraints;
-	typedef Chaos::TPBDConstraintIslandRule<FJointConstraints, float, 3> FJointConstraintsRule;
+	using FJointConstraints = Chaos::FPBDJointConstraints;
+	using FJointConstraintsRule = Chaos::TPBDConstraintIslandRule<FJointConstraints>;
 
 	FSkeletalMeshPhysicsProxyParams Parameters;
 	TArray<int32> RigidBodyIds;

@@ -37,10 +37,10 @@ public:
 	 * @param  NodeClass	The node type that you want the spawner to spawn.
 	 * @param  VarProperty	The property that represents the member-variable you want nodes spawned for.
 	 * @param  VarContext	The graph that the local variable belongs to.
-	 * @param  Outer		Optional outer for the new spawner (if left null, the transient package will be used).
+	 * @param  OwnerClass	The class that the variable is a member of or the class it is associated with if it is in a sidecar data structure.
 	 * @return A newly allocated instance of this class.
 	 */
-	static UBlueprintVariableNodeSpawner* CreateFromMemberOrParam(TSubclassOf<UK2Node_Variable> NodeClass, UProperty const* VarProperty, UEdGraph* VarContext = nullptr, UObject* Outer = nullptr);
+	static UBlueprintVariableNodeSpawner* CreateFromMemberOrParam(TSubclassOf<UK2Node_Variable> NodeClass, UProperty const* VarProperty, UEdGraph* VarContext = nullptr, UClass* OwnerClass = nullptr);
 
 	/**
 	 * Creates a new UBlueprintVariableNodeSpawner, charged with spawning

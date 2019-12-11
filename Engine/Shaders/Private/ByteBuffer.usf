@@ -6,9 +6,13 @@ float4 Value;
 uint Size;
 uint SrcOffset;
 uint DstOffset;
+uint FloatsPerLine;
+
 
 StructuredBuffer<float4> SrcBuffer;
 RWStructuredBuffer<float4> DstBuffer;
+Texture2D<float4>	SrcTexture;
+RWTexture2D<float4>	DstTexture;
 
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void MemsetBufferCS( uint3 DispatchThreadId : SV_DispatchThreadID ) 
@@ -33,6 +37,20 @@ void MemcpyBufferCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	}
 }
 
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void MemcpyTextureToTextureCS(uint3 DispatchThreadId : SV_DispatchThreadID) 
+{
+	uint2 IndexTexture;
+	IndexTexture.y = DispatchThreadId.x / (FloatsPerLine);
+	IndexTexture.x = DispatchThreadId.x % (FloatsPerLine);
+
+	if (IndexTexture.x * IndexTexture.y  < Size)
+	{
+		float4 SrcValue = SrcTexture.Load(float3(IndexTexture.x, IndexTexture.y, 0)); 
+		DstTexture[IndexTexture.xy] = SrcValue;
+	}
+}
+
 uint NumScatters;
 Buffer<float4> UploadBuffer;
 Buffer<uint> ScatterBuffer;
@@ -47,5 +65,25 @@ void ScatterCopyCS( uint3 DispatchThreadId : SV_DispatchThreadID )
 		uint DestIndex = ScatterBuffer.Load(ScatterIndex);
 		uint SrcIndex = ScatterIndex;
 		DstBuffer[DestIndex] = UploadBuffer.Load(SrcIndex);
+	}
+}
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void ScatterCopyTextureCS( uint3 DispatchThreadId : SV_DispatchThreadID ) 
+{
+	uint ScatterIndex = DispatchThreadId.x;
+	
+	if (ScatterIndex < NumScatters)
+	{
+		uint DestIndex = ScatterBuffer.Load(ScatterIndex);
+		uint2 IndexTexture;
+		IndexTexture.y = DestIndex / (FloatsPerLine);
+		IndexTexture.x = DestIndex % (FloatsPerLine);
+		uint SrcIndex = ScatterIndex;
+
+		if (IndexTexture.x * IndexTexture.y  < Size)
+		{
+			DstTexture[IndexTexture.xy] = UploadBuffer.Load(SrcIndex);
+		}
 	}
 }

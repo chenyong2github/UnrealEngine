@@ -117,7 +117,8 @@ class SLATE_API ISlateInputManager
 public:
 	virtual int32 GetUserIndexForMouse() const = 0;
 	virtual int32 GetUserIndexForKeyboard() const = 0;
-	virtual int32 GetUserIndexForController(int32 ControllerId) const = 0;
+	virtual int32 GetUserIndexForController(int32 ControllerId) const { return ControllerId; }
+	virtual TOptional<int32> GetUserIndexForController(int32 ControllerId, FKey InKey) const = 0;
 };
 
 class SLATE_API FSlateDefaultInputMapping : public ISlateInputManager
@@ -126,6 +127,7 @@ public:
 	virtual int32 GetUserIndexForMouse() const override { return 0; }
 	virtual int32 GetUserIndexForKeyboard() const override { return 0; }
 	virtual int32 GetUserIndexForController(int32 ControllerId) const override { return ControllerId; }
+	virtual TOptional<int32> GetUserIndexForController(int32 ControllerId, FKey InKey) const override { return GetUserIndexForController(ControllerId); }
 };
 
 enum class ESlateTickType : uint8
@@ -876,6 +878,20 @@ public:
 	FORCEINLINE TSharedPtr<const FSlateUser> GetUser(const FInputEvent& InputEvent) const { return GetUser(InputEvent.GetUserIndex()); }
 	FORCEINLINE TSharedPtr<FSlateUser> GetUser(const FInputEvent& InputEvent) { return GetUser(InputEvent.GetUserIndex()); }
 
+	/** Get the standard 'default' user (there's always guaranteed to be at least one). */
+	FORCEINLINE TSharedPtr<const FSlateUser> GetCursorUser() const
+	{
+		TSharedPtr<const FSlateUser> SlateUser = GetUser(CursorUserIndex);
+		check(SlateUser.IsValid());
+		return SlateUser;
+	}
+	FORCEINLINE TSharedPtr<FSlateUser> GetCursorUser()
+	{
+		TSharedPtr<FSlateUser> SlateUser = GetUser(CursorUserIndex);
+		check(SlateUser.IsValid());
+		return SlateUser;
+	}
+
 	/**
 	 * @return a handle for the existing or newly created virtual slate user.  This is handy when you need to create
 	 * virtual hardware users for slate components in the virtual world that may need to be interacted with with virtual hardware.
@@ -952,7 +968,7 @@ protected:
 	/** Engages or disengages application throttling based on user behavior */
 	void ThrottleApplicationBasedOnMouseMovement();
 
-	virtual FWidgetPath LocateWidgetInWindow(FVector2D ScreenspaceMouseCoordinate, const TSharedRef<SWindow>& Window, bool bIgnoreEnabledStatus) const override;
+	virtual FWidgetPath LocateWidgetInWindow(FVector2D ScreenspaceMouseCoordinate, const TSharedRef<SWindow>& Window, bool bIgnoreEnabledStatus, int32 UserIndex) const override;
 
 	/**
 	 * Sets up any values that need to be based on the physical dimensions of the device.  
@@ -1204,6 +1220,7 @@ public:
 
 	/** @return true if the difference between the ScreenSpaceOrigin and the ScreenSpacePosition is larger than the trigger distance for dragging in Slate. */
 	bool HasTraveledFarEnoughToTriggerDrag(const FPointerEvent& PointerEvent, const FVector2D ScreenSpaceOrigin) const;
+	bool HasTraveledFarEnoughToTriggerDrag(const FPointerEvent& PointerEvent, const FVector2D ScreenSpaceOrigin, EOrientation Orientation) const;
 
 	/** Set the size of the deadzone for dragging in screen pixels */
 	void SetDragTriggerDistance( float ScreenPixels );
@@ -1303,7 +1320,7 @@ public:
 	virtual bool HasFocusedDescendants( const TSharedRef<const SWidget>& Widget ) const override;
 	virtual bool HasUserFocusedDescendants(const TSharedRef< const SWidget >& Widget, int32 UserIndex) const override;
 	virtual bool IsExternalUIOpened() override;
-	virtual FWidgetPath LocateWindowUnderMouse( FVector2D ScreenspaceMouseCoordinate, const TArray<TSharedRef<SWindow>>& Windows, bool bIgnoreEnabledStatus = false ) override;
+	virtual FWidgetPath LocateWindowUnderMouse( FVector2D ScreenspaceMouseCoordinate, const TArray<TSharedRef<SWindow>>& Windows, bool bIgnoreEnabledStatus = false, int32 UserIndex = INDEX_NONE) override;
 	virtual bool IsWindowHousingInteractiveTooltip(const TSharedRef<const SWindow>& WindowToTest) const override;
 	virtual TSharedRef<SImage> MakeImage( const TAttribute<const FSlateBrush*>& Image, const TAttribute<FSlateColor>& Color, const TAttribute<EVisibility>& Visibility ) const override;
 	virtual TSharedRef<SWidget> MakeWindowTitleBar( const TSharedRef<SWindow>& Window, const TSharedPtr<SWidget>& CenterContent, EHorizontalAlignment CenterContentAlignment, TSharedPtr<IWindowTitleBar>& OutTitleBar ) const override;
@@ -1435,6 +1452,7 @@ public:
 
 	/** @return int user index that this controller is mapped to. */
 	int32 GetUserIndexForController(int32 ControllerId) const;
+	TOptional<int32> GetUserIndexForController(int32 ControllerId, FKey InKey) const;
 
 	/** Establishes the input mapping object used to map input sources to SlateUser indices */
 	void SetInputManager(TSharedRef<ISlateInputManager> InputManager);
@@ -1816,10 +1834,10 @@ private:
 		 */
 		int32 Find(TSharedPtr<IInputProcessor> InputProcessor) const;
 
-
 	private:
+		bool PreProcessInput(TFunctionRef<bool(IInputProcessor&)> InputProcessFunc);
 
-		bool PreProcessInput(TFunctionRef<bool(TSharedPtr<IInputProcessor>)> ToRun);
+		void AddInternal(TSharedPtr<IInputProcessor> InputProcessor, const int32 Index);
 
 		/** The list of input pre-processors. */
 		TArray<TSharedPtr<IInputProcessor>> InputPreProcessorList;
@@ -1829,6 +1847,9 @@ private:
 
 		/** A list of pre-processors to remove if we are iterating them while removal is requested. */
 		TArray<TSharedPtr<IInputProcessor>> ProcessorsPendingRemoval;
+
+		/** A list of pre-processors to add if we are iterating them while addition is requested. */
+		TMap<TSharedPtr<IInputProcessor>, int32> ProcessorsPendingAddition;
 	};
 
 	/** A list of input pre-processors, gets an opportunity to parse input before anything else. */

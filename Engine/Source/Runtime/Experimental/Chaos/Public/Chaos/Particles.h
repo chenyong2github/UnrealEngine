@@ -100,7 +100,7 @@ namespace Chaos
 		TParticles& operator=(TParticles<T, d>&& Other)
 		{
 			MX = MoveTemp(Other.MX);
-			AddParticles(Other.Size());
+			ResizeHelper(Other.Size());
 			Other.MSize = 0;
 
 #if PARTICLE_ITERATOR_RANGED_FOR_CHECK

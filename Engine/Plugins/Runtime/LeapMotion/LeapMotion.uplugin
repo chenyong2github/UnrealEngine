@@ -42,8 +42,7 @@
 				"Win32",
 				"Android",
 				"Mac",
-				"IOS",
-				"HTML5"
+				"IOS"
 			]
 		}
 	]

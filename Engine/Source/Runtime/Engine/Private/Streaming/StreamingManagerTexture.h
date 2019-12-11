@@ -19,8 +19,6 @@ class UPrimitiveComponent;
 
 template<typename TTask> class FAsyncTask;
 
-#define STATS_FAST 0
-
 /*-----------------------------------------------------------------------------
 	Texture or mesh streaming.
 -----------------------------------------------------------------------------*/
@@ -113,10 +111,8 @@ struct FRenderAssetStreamingManager final : public IRenderAssetStreamingManager
 	/**
 	 * Exec command handlers
 	 */
-#if STATS_FAST
-	bool HandleDumpTextureStreamingStatsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-#endif // STATS_FAST
 #if !UE_BUILD_SHIPPING
+	bool HandleDumpTextureStreamingStatsCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleListStreamingRenderAssetsCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleResetMaxEverRequiredRenderAssetMemoryCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleLightmapStreamingFactorCommand( const TCHAR* Cmd, FOutputDevice& Ar );
@@ -414,14 +410,6 @@ private:
 	TMap<FString, bool> CachedFileExistsChecks;
 	void OnPakFileMounted(const TCHAR* PakFilename);
 
-#if STATS_FAST
-	uint64 MaxStreamingTexturesSize;
-	uint64 MaxOptimalTextureSize;
-	int64 MaxStreamingOverBudget;
-	uint64 MaxTexturePoolAllocatedSize;
-	uint32 MaxNumWantingTextures;
-#endif
-	
 	// A critical section use around code that could be called in parallel with NotifyPrimitiveUpdated() or NotifyPrimitiveUpdated_Concurrent().
 	FCriticalSection CriticalSection;
 

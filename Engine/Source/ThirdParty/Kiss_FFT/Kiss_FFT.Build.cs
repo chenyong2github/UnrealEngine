@@ -50,6 +50,11 @@ public class Kiss_FFT : ModuleRules
 			{
 				PublicAdditionalLibraries.Add(Kiss_FFTPath + "/Lib/Linux/Release/" + Target.Architecture + "/libKissFFT_fPIC.a");
 			}
+
+			if (Target.Platform == UnrealTargetPlatform.LinuxAArch64)
+			{
+				PrecompileForTargets = PrecompileTargetsType.None;
+			}
 		}
 	}
 }

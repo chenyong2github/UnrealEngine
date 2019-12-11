@@ -2,7 +2,7 @@
 
 #include "RSAKeyAESEncryptionHandlerComponent.h"
 
-#include "PacketAudit.h"
+#include "Net/Core/Misc/PacketAudit.h"
 #include "PacketHandler.h"
 
 #include "Modules/ModuleManager.h"

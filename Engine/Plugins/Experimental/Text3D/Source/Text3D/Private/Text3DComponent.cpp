@@ -4,6 +4,7 @@
 #include "Text3DComponent.h"
 
 #include "Bevel.h"
+#include "Data.h"
 #include "Engine/Font.h"
 #include "Engine/Engine.h"
 #include "Materials/Material.h"
@@ -37,28 +38,6 @@ THIRD_PARTY_INCLUDES_END
 using TTextMeshDynamicData = TArray<TUniquePtr<FText3DDynamicData>, TFixedAllocator<static_cast<int32>(EText3DMeshType::TypeCount)>>;
 
 
-FVector GetVector(const FTPoint* const Point, const float ExtrudeIn, const float HorizontalOffset, const float VerticalOffset, const FVector Scale)
-{
-	return FVector(
-		(Point->Zf() * FontInverseScale + ExtrudeIn) * Scale.X,
-		(Point->Xf() * FontInverseScale + HorizontalOffset) * Scale.Y,
-		(Point->Yf() * FontInverseScale + VerticalOffset) * Scale.Z
-	);
-}
-
-FVector2D GetTextureCoord(const FBox2D BBox, const FTPoint * const Point)
-{
-	const FVector2D Size = BBox.GetSize();
-	if (Size.X <= 0.01f || Size.Y <= 0.01f)
-	{
-		return FVector2D();
-	}
-
-	const float X = (Point->Xf() - BBox.Min.X) / Size.X;
-	const float Y = 1.0f - (Point->Yf() - BBox.Min.Y) / Size.Y;
-	return FVector2D(X, Y);
-}
-
 class FTextIndexBuffer : public FIndexBuffer
 {
 public:
@@ -83,9 +62,10 @@ public:
 	FText3DSceneProxy(UText3DComponent* const Component)
 		: FPrimitiveSceneProxy(Component)
 	{
+		const TText3DMeshList * ComponentMeshes = Component->Meshes.Get();
 		for (int32 Index = 0; Index < static_cast<int32>(EText3DMeshType::TypeCount); Index++)
 		{
-			Meshes.Add(MakeUnique<FProxyMesh>(this, Index, Component->Meshes[Index], Component->GetMaterial(Index)));
+			Meshes.Add(MakeUnique<FProxyMesh>(this, Index, (*ComponentMeshes)[Index], Component->GetMaterial(Index)));
 		}
 	}
 
@@ -363,9 +343,10 @@ private:
 
 UText3DComponent::UText3DComponent()
 {
-	Meshes.SetNum(static_cast<int32>(EText3DMeshType::TypeCount));
+	Meshes = MakeShared<TText3DMeshList>();
+	Meshes->SetNum(static_cast<int32>(EText3DMeshType::TypeCount));
 
-	if (!IsRunningCommandlet() && !IsRunningDedicatedServer())
+	if (!IsRunningDedicatedServer())
 	{
 		struct FConstructorStatics
 		{
@@ -405,7 +386,7 @@ UText3DComponent::UText3DComponent()
 	HalfCircleSegments = 4;
 
 	bHasMaxHeight = false;
-	MaxHeight = 500.0;
+	MaxHeight = 500.0f;
 	bScaleProportionally = true;
 
 	bAutoActivate = true;
@@ -423,14 +404,9 @@ FPrimitiveSceneProxy* UText3DComponent::CreateSceneProxy()
 	return new FText3DSceneProxy(this);
 }
 
-int32 UText3DComponent::GetNumMaterials() const
-{
-	return static_cast<int32>(EText3DMeshType::TypeCount);
-}
-
 void UText3DComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const
 {
-	int32 NumMaterials = GetNumMaterials();
+	int32 NumMaterials = static_cast<int32>(EText3DMeshType::TypeCount);
 	for (int32 Index = 0; Index < NumMaterials; Index++)
 	{
 		UMaterialInterface* Material = GetMaterial(Index);
@@ -446,7 +422,7 @@ void UText3DComponent::SetMaterial(int32 ElementIndex, UMaterialInterface* InMat
 	bool bChanged = false;
 	switch (ElementIndex)
 	{
-	case (int32)EText3DMeshType::Front:
+	case static_cast<int32>(EText3DMeshType::Front):
 	{
 		if (FrontMaterial != InMaterial)
 		{
@@ -456,7 +432,7 @@ void UText3DComponent::SetMaterial(int32 ElementIndex, UMaterialInterface* InMat
 		break;
 	}
 
-	case (int32)EText3DMeshType::Bevel:
+	case static_cast<int32>(EText3DMeshType::Bevel):
 	{
 		if (BevelMaterial != InMaterial)
 		{
@@ -466,7 +442,7 @@ void UText3DComponent::SetMaterial(int32 ElementIndex, UMaterialInterface* InMat
 		break;
 	}
 
-	case (int32)EText3DMeshType::Extrude:
+	case static_cast<int32>(EText3DMeshType::Extrude):
 	{
 		if (ExtrudeMaterial != InMaterial)
 		{
@@ -476,7 +452,7 @@ void UText3DComponent::SetMaterial(int32 ElementIndex, UMaterialInterface* InMat
 		break;
 	}
 
-	case (int32)EText3DMeshType::Back:
+	case static_cast<int32>(EText3DMeshType::Back):
 	{
 		if (BackMaterial != InMaterial)
 		{
@@ -497,22 +473,22 @@ UMaterialInterface* UText3DComponent::GetMaterial(int32 ElementIndex) const
 {
 	switch (ElementIndex)
 	{
-	case (int32)EText3DMeshType::Front:
+	case static_cast<int32>(EText3DMeshType::Front):
 	{
 		return FrontMaterial;
 	}
 
-	case (int32)EText3DMeshType::Bevel:
+	case static_cast<int32>(EText3DMeshType::Bevel):
 	{
 		return BevelMaterial;
 	}
 
-	case (int32)EText3DMeshType::Extrude:
+	case static_cast<int32>(EText3DMeshType::Extrude):
 	{
 		return ExtrudeMaterial;
 	}
 
-	case (int32)EText3DMeshType::Back:
+	case static_cast<int32>(EText3DMeshType::Back):
 	{
 		return BackMaterial;
 	}
@@ -665,9 +641,16 @@ void UText3DComponent::SetBevelType(const EText3DBevelType Value)
 
 void UText3DComponent::SetHalfCircleSegments(const int32 Value)
 {
-	if (BevelType == EText3DBevelType::HalfCircle && HalfCircleSegments != Value)
+	if (BevelType != EText3DBevelType::HalfCircle)
 	{
-		HalfCircleSegments = Value;
+		return;
+	}
+
+	const int NewValue = FMath::Clamp(Value, 1, 10);
+
+	if (HalfCircleSegments != NewValue)
+	{
+		HalfCircleSegments = NewValue;
 		Rebuild();
 	}
 }
@@ -744,7 +727,7 @@ void UText3DComponent::Rebuild()
 
 void UText3DComponent::BuildTextMesh()
 {
-	for (FText3DMesh& Mesh : Meshes)
+	for (FText3DMesh& Mesh : *Meshes)
 	{
 		Mesh.Vertices.Reset();
 		Mesh.Indices.Reset();
@@ -790,12 +773,6 @@ void UText3DComponent::BuildTextMesh()
 	}
 
 
-	FBox2D FaceBBox;
-	FaceBBox.Min.X = Face->bbox.xMin;
-	FaceBBox.Min.Y = Face->bbox.yMin;
-	FaceBBox.Max.X = Face->bbox.xMax;
-	FaceBBox.Max.Y = Face->bbox.yMax;
-	
 	FT_Set_Char_Size(Face, FontSize, FontSize, 96, 96);
 	FT_Set_Pixel_Sizes(Face, FontSize, FontSize);
 
@@ -850,6 +827,14 @@ void UText3DComponent::BuildTextMesh()
 		}
 	}
 
+	for (FText3DMesh& Mesh : *Meshes)
+	{
+		Mesh.GlyphStartVertices.Empty();
+	}
+
+	const TSharedPtr<FData> MeshesData = MakeShared<FData>(Meshes, Bevel, FontInverseScale, Scale);
+	MeshesData->SetVerticalOffset(VerticalOffset);
+
 	for (const FShapedGlyphLine& ShapedLine : ShapedLines)
 	{
 		float HorizontalOffset = 0.0f;
@@ -862,10 +847,15 @@ void UText3DComponent::BuildTextMesh()
 			HorizontalOffset = -ShapedLine.Width;
 		}
 
+		MeshesData->SetHorizontalOffset(HorizontalOffset);
+
 		for (const FShapedGlyphEntry& ShapedGlyph : ShapedLine.GlyphsToRender)
 		{
 			if (ShapedGlyph.bIsVisible)
 			{
+				MeshesData->SetCurrentMesh(EText3DMeshType::Front);
+				MeshesData->ResetDoneExtrude();
+
 				if (FT_Load_Glyph(Face, ShapedGlyph.GlyphIndex, FT_LOAD_DEFAULT))
 				{
 					continue;
@@ -880,69 +870,59 @@ void UText3DComponent::BuildTextMesh()
 				{
 					const FTTesselation* const Tessselate = Mesh->Tesselation(i);
 					const int32 PointCount = Tessselate->PointCount();
-					FText3DMesh& FrontMesh = Meshes[static_cast<int32>(EText3DMeshType::Front)];
 
-					const int32 StartVertex = FrontMesh.Vertices.Num();
-					FrontMesh.Vertices.AddUninitialized(PointCount);
-					for (int32 PointIndex = 0; PointIndex < PointCount; PointIndex++)
+					if (PointCount < 3)
 					{
-						const float X = HorizontalOffset + ShapedGlyph.XOffset;
-						const float Y = VerticalOffset + ShapedGlyph.YOffset;
-						const FTPoint* const Point = &Tessselate->Point(PointIndex);
-						FrontMesh.Vertices[StartVertex + PointIndex] = FDynamicMeshVertex(
-							GetVector(Point, 0.0f, X, Y, Scale),							// Position
-							FVector(0.0f, 0.0f, 1.0f), FVector(-1.0f, 0.0f, 0.0f),			// Tangents
-							GetTextureCoord(FaceBBox, Point),								// Texture Coordinates
-							FColor(255, 255, 255)											// Color
-						);
+						continue;
 					}
 
-					int32 CurrentIndicesIndex = FrontMesh.Indices.Num();
+					MeshesData->SetMinBevelTarget();
+					const int32 StartVertex = MeshesData->AddVertices(PointCount);
+
+					for (int32 PointIndex = 0; PointIndex < PointCount; PointIndex++)
+					{
+						const FTPoint* const Point = &Tessselate->Point(PointIndex);
+						MeshesData->AddVertex({Point->Xf(), Point->Yf()}, {1, 0}, {0, 0, -1});
+					}
+
 					switch (Tessselate->PolygonType())
 					{
 					case GL_TRIANGLES:
 					{
-						FrontMesh.Indices.AddUninitialized(PointCount);
-						for (int32 Index = 0; Index < PointCount; Index += 3)
+						const int32 TrianglesCount = PointCount / 3;
+						MeshesData->AddTriangles(TrianglesCount);
+
+						for (int32 Index = 0; Index < TrianglesCount; Index++)
 						{
-							const int32 TriangleStart = StartVertex + Index;
-							FrontMesh.Indices[CurrentIndicesIndex++] = TriangleStart + 0;
-							FrontMesh.Indices[CurrentIndicesIndex++] = TriangleStart + 2;
-							FrontMesh.Indices[CurrentIndicesIndex++] = TriangleStart + 1;
+							const int32 TriangleStart = StartVertex + Index * 3;
+							MeshesData->AddTriangle(TriangleStart + 0, TriangleStart + 2, TriangleStart + 1);
 						}
+
 						break;
 					}
 					case GL_TRIANGLE_STRIP:
 					{
-						FrontMesh.Indices.AddUninitialized(3 * (PointCount - 2));
+						MeshesData->AddTriangles(PointCount - 2);
+
 						for (int32 Index = 0; Index < PointCount - 2; Index++)
 						{
 							const int32 TriangleStart = StartVertex + Index;
-							if (Index % 2 == 1)
-							{
-								FrontMesh.Indices[CurrentIndicesIndex++] = TriangleStart + 0;
-								FrontMesh.Indices[CurrentIndicesIndex++] = TriangleStart + 1;
-								FrontMesh.Indices[CurrentIndicesIndex++] = TriangleStart + 2;
-							}
-							else
-							{
-								FrontMesh.Indices[CurrentIndicesIndex++] = TriangleStart + 1;
-								FrontMesh.Indices[CurrentIndicesIndex++] = TriangleStart + 0;
-								FrontMesh.Indices[CurrentIndicesIndex++] = TriangleStart + 2;
-							}
+							const bool bIsOdd = (Index % 2) != 0;
+							MeshesData->AddTriangle(TriangleStart + (bIsOdd ? 0 : 1), TriangleStart + (bIsOdd ? 1 : 0), TriangleStart + 2);
 						}
+
 						break;
 					}
 					case GL_TRIANGLE_FAN:
 					{
-						FrontMesh.Indices.AddUninitialized(3 * (PointCount - 2));
+						MeshesData->AddTriangles(PointCount - 2);
+
 						for (int32 Index = 1; Index < PointCount - 1; Index++)
 						{
 							const int32 TriangleStart = StartVertex + Index;
-							FrontMesh.Indices[CurrentIndicesIndex++] = StartVertex;
-							FrontMesh.Indices[CurrentIndicesIndex++] = TriangleStart + 1;
-							FrontMesh.Indices[CurrentIndicesIndex++] = TriangleStart + 0;
+							MeshesData->AddTriangle(StartVertex, TriangleStart + 1, TriangleStart + 0);
 						}
+
 						break;
 					}
 
@@ -961,19 +941,111 @@ void UText3DComponent::BuildTextMesh()
 					Debugger = DebugVariables;
 #endif
 
-					BevelContours(Vectoriser, &Meshes, Extrude, Bevel, HorizontalOffset, VerticalOffset, FontInverseScale, Scale, BevelType, HalfCircleSegments, 
+					BevelContours(MeshesData, Vectoriser, Extrude, Bevel, BevelType, HalfCircleSegments,
 						Debugger.Iterations, Debugger.bHidePrevious, Debugger.MarkedVertex, Debugger.Segments, Debugger.VisibleFace);
 				}
 			}
 
 			HorizontalOffset += ShapedGlyph.XAdvance;
+			MeshesData->SetHorizontalOffset(HorizontalOffset);
 		}
 
 		VerticalOffset -= LineHeight + LineSpacing;
+		MeshesData->SetVerticalOffset(VerticalOffset);
 	}
 
 	FT_Done_Face(Face);
 	Face = nullptr;
+
+
+	for (int32 Type = 0; Type < static_cast<int32>(EText3DMeshType::TypeCount); Type++)
+	{
+		MeshesData->SetCurrentMesh(static_cast<EText3DMeshType>(Type));
+	}
+
+	struct FBoundingBox
+	{
+		FBox2D Box;
+		FVector2D Size;
+	};
+
+	TArray<FBoundingBox> BoundingBoxes;
+	FVector2D MaxSize(0, 0);
+	{
+		EText3DMeshType MeshType = FMath::IsNearlyZero(Bevel) ? EText3DMeshType::Front : EText3DMeshType::Bevel;
+		const FText3DMesh& Mesh = (*Meshes.Get())[static_cast<int32>(MeshType)];
+		const TArray<int32>& GlyphStartVertices = Mesh.GlyphStartVertices;
+		BoundingBoxes.AddUninitialized(GlyphStartVertices.Num() - 1);
+
+		for (int32 GlyphIndex = 0; GlyphIndex < BoundingBoxes.Num(); GlyphIndex++)
+		{
+			FBoundingBox& BoundingBox = BoundingBoxes[GlyphIndex];
+			FBox2D& Box = BoundingBox.Box;
+
+			const int32 FirstIndex = GlyphStartVertices[GlyphIndex];
+			const int32 LastIndex = GlyphStartVertices[GlyphIndex + 1];
+
+			if (FirstIndex < LastIndex)
+			{
+				const FVector& Position = Mesh.Vertices[FirstIndex].Position;
+				const FVector2D PositionFlat = {Position.Y, Position.Z};
+
+				Box.Min = PositionFlat;
+				Box.Max = PositionFlat;
+			}
+
+			for (int32 VertexIndex = FirstIndex + 1; VertexIndex < LastIndex; VertexIndex++)
+			{
+				const FDynamicMeshVertex& Vertex = Mesh.Vertices[VertexIndex];
+				const FVector& Position = Vertex.Position;
+
+				Box.Min.X = FMath::Min(Box.Min.X, Position.Y);
+				Box.Min.Y = FMath::Min(Box.Min.Y, Position.Z);
+				Box.Max.X = FMath::Max(Box.Max.X, Position.Y);
+				Box.Max.Y = FMath::Max(Box.Max.Y, Position.Z);
+			}
+
+			FVector2D& Size = BoundingBox.Size;
+			Size = Box.GetSize();
+
+			MaxSize.X = FMath::Max(MaxSize.X, Size.X);
+			MaxSize.Y = FMath::Max(MaxSize.Y, Size.Y);
+		}
+	}
+
+	for (int32 GlyphIndex = 0; GlyphIndex < BoundingBoxes.Num(); GlyphIndex++)
+	{
+		const int32 NextGlyphIndex = GlyphIndex + 1;
+		FBoundingBox& BoundingBox = BoundingBoxes[GlyphIndex];
+
+		TSharedPtr<TText3DMeshList> MeshesLocal = Meshes;
+		auto SetTextureCoordinates = [MeshesLocal, NextGlyphIndex, GlyphIndex, &BoundingBox, MaxSize](const EText3DMeshType Mesh)
+		{
+			FText3DMesh& CurrentMesh = (*MeshesLocal.Get())[static_cast<int32>(Mesh)];
+			const TArray<int32>& GlyphStartVertices = CurrentMesh.GlyphStartVertices;
+
+			if (NextGlyphIndex >= GlyphStartVertices.Num())
+			{
+				return;
+			}
+
+			for (int32 VertexIndex = GlyphStartVertices[GlyphIndex]; VertexIndex < GlyphStartVertices[NextGlyphIndex]; VertexIndex++)
+			{
+				FDynamicMeshVertex& Vertex = CurrentMesh.Vertices[VertexIndex];
+				const FVector2D TextureCoordinate = (FVector2D(Vertex.Position.Y, Vertex.Position.Z) - BoundingBox.Box.Min) / MaxSize;
+
+				for (int32 Index = 0; Index < MAX_STATIC_TEXCOORDS; Index++)
+				{
+					Vertex.TextureCoordinate[Index] = {TextureCoordinate.X, 1 - TextureCoordinate.Y};
+				}
+			}
+		};
+
+		SetTextureCoordinates(EText3DMeshType::Front);
+		SetTextureCoordinates(EText3DMeshType::Bevel);
+		SetTextureCoordinates(EText3DMeshType::Back);
+	}
+
 
 	// When TEXT3D_WITH_INTERSECTION=1 the following functions will not do anything
 	MirrorMesh(EText3DMeshType::Bevel, EText3DMeshType::Bevel, Scale.X);
@@ -1000,8 +1072,8 @@ float UText3DComponent::MaxBevel() const
 void UText3DComponent::MirrorMesh(const EText3DMeshType TypeIn, const EText3DMeshType TypeOut, const float ScaleX)
 {
 #if !TEXT3D_WITH_INTERSECTION
-	const FText3DMesh& MeshIn = Meshes[static_cast<int32>(TypeIn)];
-	FText3DMesh& MeshOut = Meshes[static_cast<int32>(TypeOut)];
+	const FText3DMesh& MeshIn = (*Meshes.Get())[static_cast<int32>(TypeIn)];
+	FText3DMesh& MeshOut = (*Meshes.Get())[static_cast<int32>(TypeOut)];
 
 
 	const TArray<FDynamicMeshVertex>& VerticesIn = MeshIn.Vertices;
@@ -1047,8 +1119,13 @@ void UText3DComponent::MirrorMesh(const EText3DMeshType TypeIn, const EText3DMes
 void UText3DComponent::OnRegister()
 {
 	CheckBevel();
+	BuildTextMesh();
 	Super::OnRegister();
-	Rebuild();
+
+	if (!FreezeBuild)
+	{
+		MarkRenderStateDirty();
+	}
 }
 
 void UText3DComponent::CreateRenderState_Concurrent()
@@ -1077,7 +1154,7 @@ void UText3DComponent::SendRenderDynamicData_Concurrent()
 
 	bool bAllEmpty = true;
 
-	for (const FText3DMesh& Mesh : Meshes)
+	for (const FText3DMesh& Mesh : *Meshes)
 	{
 		bAllEmpty = bAllEmpty && Mesh.IsEmpty();
 	}
@@ -1089,7 +1166,7 @@ void UText3DComponent::SendRenderDynamicData_Concurrent()
 
 	TTextMeshDynamicData DynamicData;
 
-	for (FText3DMesh& Mesh : Meshes)
+	for (FText3DMesh& Mesh : *Meshes)
 	{
 		DynamicData.Emplace(MakeUnique<FText3DDynamicData>(Mesh.Indices, Mesh.Vertices));
 	}
@@ -1106,7 +1183,7 @@ FBoxSphereBounds UText3DComponent::CalcBounds(const FTransform& LocalToWorld) co
 {
 	FBox BBox(ForceInit);
 
-	for (const FText3DMesh& Mesh : Meshes)
+	for (const FText3DMesh& Mesh : *Meshes)
 	{
 		for (const FDynamicMeshVertex& Vertex : Mesh.Vertices)
 		{

@@ -145,7 +145,7 @@ void FNiagaraShaderScript::RegisterShaderMap()
 {
 	if (GameThreadShaderMap)
 	{
-		GameThreadShaderMap->RegisterSerializedShaders(false);
+		GameThreadShaderMap->RegisterSerializedShaders(bLoadedFromCookedMaterial);
 	}
 }
 
@@ -176,6 +176,11 @@ void FNiagaraShaderScript::SerializeShaderMap(FArchive& Ar)
 {
 	bool bCooked = Ar.IsCooking();
 	Ar << bCooked;
+
+	if (Ar.IsLoading())
+	{
+		bLoadedFromCookedMaterial = bCooked;
+	}
 
 	if (FPlatformProperties::RequiresCookedData() && !bCooked && Ar.IsLoading())
 	{
@@ -211,7 +216,7 @@ void FNiagaraShaderScript::SerializeShaderMap(FArchive& Ar)
 			if (bValid)
 			{
 				TRefCountPtr<FNiagaraShaderMap> LoadedShaderMap = new FNiagaraShaderMap();
-				LoadedShaderMap->Serialize(Ar);
+				LoadedShaderMap->Serialize(Ar, true, true);
 
 				// Toss the loaded shader data if this is a server only instance
 				//@todo - don't cook it in the first place
@@ -294,7 +299,7 @@ bool FNiagaraShaderScript::CacheShaders(const FNiagaraShaderMapId& ShaderMapId, 
 			FNiagaraShaderMap::LoadFromDerivedDataCache(this, ShaderMapId, Platform, GameThreadShaderMap);
 			if (GameThreadShaderMap && GameThreadShaderMap->IsValid())
 			{
-				UE_LOG(LogTemp, Display, TEXT("Loaded shader %s for Niagara script %s from DDC"), *GameThreadShaderMap->GetFriendlyName(), *GetFriendlyName());
+				UE_LOG(LogTemp, Verbose, TEXT("Loaded shader %s for Niagara script %s from DDC"), *GameThreadShaderMap->GetFriendlyName(), *GetFriendlyName());
 			}
 			else
 			{

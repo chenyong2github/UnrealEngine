@@ -255,7 +255,7 @@ void ULocalPlayer::PostInitProperties()
 void ULocalPlayer::PlayerAdded(UGameViewportClient* InViewportClient, int32 InControllerID)
 {
 	ViewportClient = InViewportClient;
-	ControllerId = InControllerID;
+	SetControllerId(InControllerID);
 
 	SubsystemCollection.Initialize(this);
 }
@@ -762,7 +762,7 @@ bool ULocalPlayer::CalcSceneViewInitOptions(
 	check(PlayerController && PlayerController->GetWorld());
 
 	int ViewIndex = 0;
-	if (StereoPass != eSSP_FULL)
+	if (IStereoRendering::IsStereoEyePass(StereoPass))
 	{
 		ViewIndex = StereoPass - 1;
 	}
@@ -1021,7 +1021,7 @@ bool ULocalPlayer::GetPixelPoint(const FSceneViewProjectionData& ProjectionData,
 bool ULocalPlayer::GetProjectionData(FViewport* Viewport, EStereoscopicPass StereoPass, FSceneViewProjectionData& ProjectionData) const
 {
 	// If the actor
-	if ((Viewport == NULL) || (PlayerController == NULL) || (Viewport->GetSizeXY().X == 0) || (Viewport->GetSizeXY().Y == 0))
+	if ((Viewport == NULL) || (PlayerController == NULL) || (Viewport->GetSizeXY().X == 0) || (Viewport->GetSizeXY().Y == 0) || (Size.X == 0) || (Size.Y == 0))
 	{
 		return false;
 	}
@@ -1071,7 +1071,7 @@ bool ULocalPlayer::GetProjectionData(FViewport* Viewport, EStereoscopicPass Ster
 	GetViewPoint(/*out*/ ViewInfo, StereoPass);
 
 	// If stereo rendering is enabled, update the size and offset appropriately for this pass
-	const bool bNeedStereo = (StereoPass != eSSP_FULL) && GEngine->IsStereoscopic3D();
+	const bool bNeedStereo = IStereoRendering::IsStereoEyePass(StereoPass) && GEngine->IsStereoscopic3D();
 	const bool bIsHeadTrackingAllowed = GEngine->XRSystem.IsValid() && GEngine->XRSystem->IsHeadTrackingAllowed();
 	if (bNeedStereo)
 	{
@@ -1650,8 +1650,12 @@ void ULocalPlayer::AddReferencedObjects(UObject* InThis, FReferenceCollector& Co
 
 bool ULocalPlayer::IsPrimaryPlayer() const
 {
-	ULocalPlayer* const PrimaryPlayer = GetOuterUEngine()->GetFirstGamePlayer(GetWorld());
-	return (this == PrimaryPlayer);
+	if (UWorld* World = GetWorld())
+	{
+		ULocalPlayer* const PrimaryPlayer = GetOuterUEngine()->GetFirstGamePlayer(World);
+		return (this == PrimaryPlayer);
+	}
+	return false;
 }
 
 void ULocalPlayer::CleanupViewState()

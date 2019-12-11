@@ -282,24 +282,24 @@ class FGenerateMetalVisitor : public ir_visitor
 				{
 					case 1:
 					{
-						return R32Uint;
+						return EMetalBufferFormat::R32Uint;
 					}
 					case 2:
 					{
-						return RG32Uint;
+						return EMetalBufferFormat::RG32Uint;
 					}
 					case 3:
 					{
-						return RGB32Uint;
+						return EMetalBufferFormat::RGB32Uint;
 					}
 					case 4:
 					{
-						return RGBA32Uint;
+						return EMetalBufferFormat::RGBA32Uint;
 					}
 					default:
 					{
 						check(0);
-						return Unknown;
+						return EMetalBufferFormat::Unknown;
 					}
 				}
 			}
@@ -309,24 +309,24 @@ class FGenerateMetalVisitor : public ir_visitor
 				{
 					case 1:
 					{
-						return R32Sint;
+						return EMetalBufferFormat::R32Sint;
 					}
 					case 2:
 					{
-						return RG32Sint;
+						return EMetalBufferFormat::RG32Sint;
 					}
 					case 3:
 					{
-						return RGB32Sint;
+						return EMetalBufferFormat::RGB32Sint;
 					}
 					case 4:
 					{
-						return RGBA32Sint;
+						return EMetalBufferFormat::RGBA32Sint;
 					}
 					default:
 					{
 						check(0);
-						return Unknown;
+						return EMetalBufferFormat::Unknown;
 					}
 				}
 			}
@@ -336,24 +336,24 @@ class FGenerateMetalVisitor : public ir_visitor
 				{
 					case 1:
 					{
-						return R16Half;
+						return EMetalBufferFormat::R16Half;
 					}
 					case 2:
 					{
-						return RG16Half;
+						return EMetalBufferFormat::RG16Half;
 					}
 					case 3:
 					{
-						return RGB16Half;
+						return EMetalBufferFormat::RGB16Half;
 					}
 					case 4:
 					{
-						return RGBA16Half;
+						return EMetalBufferFormat::RGBA16Half;
 					}
 					default:
 					{
 						check(0);
-						return Unknown;
+						return EMetalBufferFormat::Unknown;
 					}
 				}
 			}
@@ -363,31 +363,31 @@ class FGenerateMetalVisitor : public ir_visitor
 				{
 					case 1:
 					{
-						return R32Float;
+						return EMetalBufferFormat::R32Float;
 					}
 					case 2:
 					{
-						return RG32Float;
+						return EMetalBufferFormat::RG32Float;
 					}
 					case 3:
 					{
-						return RGB32Float;
+						return EMetalBufferFormat::RGB32Float;
 					}
 					case 4:
 					{
-						return RGBA32Float;
+						return EMetalBufferFormat::RGBA32Float;
 					}
 					default:
 					{
 						check(0);
-						return Unknown;
+						return EMetalBufferFormat::Unknown;
 					}
 				}
 			}
 			default:
 			{
 				check(0);
-				return Unknown;
+				return EMetalBufferFormat::Unknown;
 			}
 		}
 	}
@@ -975,7 +975,7 @@ protected:
 							if (!bIsStructuredBuffer && !bIsByteAddressBuffer && !bIsAtomic)
 							{
 								Backend.InvariantBuffers |= (1 << BufferIndex);
-								Backend.TypedBufferFormats[BufferIndex] = GetBufferFormat(PtrType->inner_type);
+								Backend.TypedBufferFormats[BufferIndex] = (uint8)GetBufferFormat(PtrType->inner_type);
 							}
 						}
 						ralloc_asprintf_append(buffer, " *%s", unique_name(var));
@@ -992,7 +992,7 @@ protected:
                         ralloc_asprintf_append(buffer, "typedBuffer%d_rw(", PtrType->inner_type->components());
                         print_type_pre(PtrType->inner_type);
                         ralloc_asprintf_append(buffer, ", %s, %d)", unique_name(var), BufferIndex);
-                        Backend.TypedBufferFormats[BufferIndex] = GetBufferFormat(PtrType->inner_type);
+                        Backend.TypedBufferFormats[BufferIndex] = (uint8)GetBufferFormat(PtrType->inner_type);
                         Backend.TypedBuffers |= (1 << BufferIndex);
                         Backend.TypedUAVs |= (1 << BufferIndex);
 					}
@@ -1074,7 +1074,7 @@ protected:
 								if (!bIsStructuredBuffer && !bIsByteAddressBuffer && !bIsAtomic)
 								{
 									Backend.InvariantBuffers |= (1 << BufferIndex);
-									Backend.TypedBufferFormats[BufferIndex] = GetBufferFormat(PtrType->inner_type);
+									Backend.TypedBufferFormats[BufferIndex] = (uint8)GetBufferFormat(PtrType->inner_type);
 								}
 							}
 							else
@@ -1082,7 +1082,7 @@ protected:
                                 ralloc_asprintf_append(buffer, "typedBuffer%d_read(", PtrType->inner_type->components());
                                 print_type_pre(PtrType->inner_type);
                                 ralloc_asprintf_append(buffer, ", %s, %d)", unique_name(var), BufferIndex);
-                                Backend.TypedBufferFormats[BufferIndex] = GetBufferFormat(PtrType->inner_type);
+                                Backend.TypedBufferFormats[BufferIndex] = (uint8)GetBufferFormat(PtrType->inner_type);
                                 Backend.TypedBuffers |= (1 << BufferIndex);
 							}
 						}
@@ -1736,6 +1736,18 @@ protected:
 			ralloc_asprintf_append(buffer, ",");
 			print_type_full(expr->operands[0]->type);
 			ralloc_asprintf_append(buffer, "(0))");
+		}
+		else if(numOps == 2 && op == ir_binop_add && expr->operands[0]->type == expr->operands[1]->type && expr->operands[0]->type->is_float() && !expr->operands[0]->type->is_matrix())
+		{
+			// FORT-214186
+			// Mathematically speaking, this is strictly unnecessary; however, it appears to impact precision enough to matter.
+			ralloc_asprintf_append(buffer, "fma(");
+			print_type_full(expr->operands[0]->type);
+			ralloc_asprintf_append(buffer, "(1),");
+			expr->operands[0]->accept(this);
+			ralloc_asprintf_append(buffer, ",");
+			expr->operands[1]->accept(this);
+			ralloc_asprintf_append(buffer, ")");
 		}
 		else if (numOps == 2 && (op == ir_binop_add || op == ir_binop_sub || op == ir_binop_mul || op == ir_binop_div))
 		{

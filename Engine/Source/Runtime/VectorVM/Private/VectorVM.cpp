@@ -41,6 +41,82 @@ DEFINE_LOG_CATEGORY_STATIC(LogVectorVM, All, All);
 #define SRCOP_CCR (OP2_CONST | OP1_CONST | OP_REGISTER)
 #define SRCOP_CCC (OP2_CONST | OP1_CONST | OP0_CONST)
 
+namespace VectorVMConstants
+{
+	static const VectorRegisterInt VectorStride = MakeVectorRegisterInt(VECTOR_WIDTH_FLOATS, VECTOR_WIDTH_FLOATS, VECTOR_WIDTH_FLOATS, VECTOR_WIDTH_FLOATS);
+
+	// for generating shuffle masks given input {A, B, C, D}
+	constexpr uint32 ShufMaskIgnore = 0xFFFFFFFF;
+	constexpr uint32 ShufMaskA = 0x03020100;
+	constexpr uint32 ShufMaskB = 0x07060504;
+	constexpr uint32 ShufMaskC = 0x0B0A0908;
+	constexpr uint32 ShufMaskD = 0x0F0E0D0C;
+
+	static const VectorRegisterInt RegisterShuffleMask[] =
+	{
+		MakeVectorRegisterInt(ShufMaskIgnore, ShufMaskIgnore, ShufMaskIgnore, ShufMaskIgnore), // 0000
+		MakeVectorRegisterInt(ShufMaskD, ShufMaskIgnore, ShufMaskIgnore, ShufMaskIgnore), // 0001
+		MakeVectorRegisterInt(ShufMaskC, ShufMaskIgnore, ShufMaskIgnore, ShufMaskIgnore), // 0010
+		MakeVectorRegisterInt(ShufMaskC, ShufMaskD, ShufMaskIgnore, ShufMaskIgnore), // 0011
+		MakeVectorRegisterInt(ShufMaskB, ShufMaskIgnore, ShufMaskIgnore, ShufMaskIgnore), // 0100
+		MakeVectorRegisterInt(ShufMaskB, ShufMaskD, ShufMaskIgnore, ShufMaskIgnore), // 0101
+		MakeVectorRegisterInt(ShufMaskB, ShufMaskC, ShufMaskIgnore, ShufMaskIgnore), // 0110
+		MakeVectorRegisterInt(ShufMaskB, ShufMaskC, ShufMaskD, ShufMaskIgnore), // 0111
+		MakeVectorRegisterInt(ShufMaskA, ShufMaskIgnore, ShufMaskIgnore, ShufMaskIgnore), // 1000
+		MakeVectorRegisterInt(ShufMaskA, ShufMaskD, ShufMaskIgnore, ShufMaskIgnore), // 1001
+		MakeVectorRegisterInt(ShufMaskA, ShufMaskC, ShufMaskIgnore, ShufMaskIgnore), // 1010
+		MakeVectorRegisterInt(ShufMaskA, ShufMaskC, ShufMaskD, ShufMaskIgnore), // 1011
+		MakeVectorRegisterInt(ShufMaskA, ShufMaskB, ShufMaskIgnore, ShufMaskIgnore), // 1100
+		MakeVectorRegisterInt(ShufMaskA, ShufMaskB, ShufMaskD, ShufMaskIgnore), // 1101
+		MakeVectorRegisterInt(ShufMaskA, ShufMaskB, ShufMaskC, ShufMaskIgnore), // 1110
+		MakeVectorRegisterInt(ShufMaskA, ShufMaskB, ShufMaskC, ShufMaskD), // 1111
+	};
+
+	constexpr uint32 cOne = 0xFFFFFFFFU;
+	constexpr uint32 cZero = 0x00000000U;
+	static const VectorRegister RemainderMask[] =
+	{
+		MakeVectorRegister(cZero, cZero, cZero, cZero), // 0 remaining
+		MakeVectorRegister(cOne, cZero, cZero, cZero), // 1 remaining
+		MakeVectorRegister(cOne, cOne, cZero, cZero), // 2 remaining
+		MakeVectorRegister(cOne, cOne, cOne, cZero), // 3 remaining
+		MakeVectorRegister(cOne, cOne, cOne, cOne), // 4 remaining
+	};
+};
+
+// helper function wrapping the SSE3 shuffle operation.  Currently implemented for PS4/XB1/Neon, the
+// rest will just use the FPU version so as to not push the requirements up to SSE3 (currently SSE2)
+#if PLATFORM_ENABLE_VECTORINTRINSICS && (PLATFORM_PS4 || PLATFORM_XBOXONE)
+#define VectorIntShuffle( Vec, Mask )	_mm_shuffle_epi8( (Vec), (Mask) )
+#elif PLATFORM_ENABLE_VECTORINTRINSICS_NEON
+/**
+ * Shuffles a VectorInt using a provided shuffle mask
+ *
+ * @param Vec		Source vector
+ * @param Mask		Shuffle vector
+ */
+FORCEINLINE VectorRegisterInt VectorIntShuffle(const VectorRegisterInt& Vec, const VectorRegisterInt& Mask)
+{
+	uint8x8x2_t VecSplit = { { vget_low_u8(Vec), vget_high_u8(Vec) } };
+	return vcombine_u8(vtbl2_u8(VecSplit, vget_low_u8(Mask)), vtbl2_u8(VecSplit, vget_high_u8(Mask)));
+	}
+#else
+FORCEINLINE VectorRegisterInt VectorIntShuffle(const VectorRegisterInt& Vec, const VectorRegisterInt& Mask)
+{
+	VectorRegisterInt Result;
+	const int8* VecBytes = reinterpret_cast<const int8*>(&Vec);
+	const int8* MaskBytes = reinterpret_cast<const int8*>(&Mask);
+	int8* ResultBytes = reinterpret_cast<int8*>(&Result);
+
+	for (int32 i = 0; i < sizeof(VectorRegisterInt); ++i)
+	{
+		ResultBytes[i] = (MaskBytes[i] < 0) ? 0 : VecBytes[MaskBytes[i] % 16];
+	}
+
+	return Result;
+}
+#endif
+
 //Temporarily locking the free table until we can implement a lock free algorithm. UE-65856
 FORCEINLINE void FDataSetMeta::LockFreeTable()
 {
@@ -98,50 +174,140 @@ static FAutoConsoleVariableRef CVarParallelVVMInstancesPerChunk(
 	ECVF_ReadOnly
 );
 
+static int32 GbOptimizeVMByteCode = 0;
+static FAutoConsoleVariableRef CVarbOptimizeVMByteCode(
+	TEXT("vm.OptimizeVMByteCode"),
+	GbOptimizeVMByteCode,
+	TEXT("If > 0 vector VM code optimization will be enabled at runtime.\n"),
+	ECVF_Default
+);
+
+static int32 GbUseOptimizedVMByteCode = 0;
+static FAutoConsoleVariableRef CVarbUseOptimizedVMByteCode(
+	TEXT("vm.UseOptimizedVMByteCode"),
+	GbUseOptimizedVMByteCode,
+	TEXT("If > 0 optimized vector VM code will be excuted at runtime.\n"),
+	ECVF_Default
+);
+
+static int32 GbSafeOptimizedKernels = 1;
+static FAutoConsoleVariableRef CVarbSafeOptimizedKernels(
+	TEXT("vm.SafeOptimizedKernels"),
+	GbSafeOptimizedKernels,
+	TEXT("If > 0 optimized vector VM byte code will use safe versions of the kernels.\n"),
+	ECVF_Default
+);
+
+static int32 GbBatchPackVMOutput = 1;
+static FAutoConsoleVariableRef CVarbBatchPackVMOutput(
+	TEXT("vm.BatchPackedVMOutput"),
+	GbBatchPackVMOutput,
+	TEXT("If > 0 output elements will be packed and batched branch free.\n"),
+	ECVF_Default
+);
+
+//////////////////////////////////////////////////////////////////////////
+//  VM Code Optimizer Context
+
+typedef void(*FVectorVMExecFunction)(FVectorVMContext&);
+
+struct FVectorVMCodeOptimizerContext
+{
+	typedef EVectorVMOp(*OptimizeVMFunction)(EVectorVMOp, FVectorVMCodeOptimizerContext&);
+
+	explicit FVectorVMCodeOptimizerContext(FVectorVMContext& InBaseContext, const uint8* ByteCode, TArray<uint8>& InOptimizedCode, TArrayView<uint8> InExternalFunctionRegisterCounts)
+		: BaseContext(InBaseContext)
+		, OptimizedCode(InOptimizedCode)
+		, ExternalFunctionRegisterCounts(InExternalFunctionRegisterCounts)
+	{
+		BaseContext.PrepareForExec(0, nullptr, nullptr, nullptr, TArrayView<FDataSetMeta>(), 0, false);
+		BaseContext.PrepareForChunk(ByteCode, 0, 0);
+	}
+	FVectorVMCodeOptimizerContext(const FVectorVMCodeOptimizerContext&) = delete;
+	FVectorVMCodeOptimizerContext(const FVectorVMCodeOptimizerContext&&) = delete;
+
+	template<uint32 InstancesPerOp>
+	int32 GetNumLoops() const { return 0; }
+
+	FORCEINLINE uint8 DecodeU8() { return BaseContext.DecodeU8(); }
+	FORCEINLINE uint16 DecodeU16() { return BaseContext.DecodeU16(); }
+	FORCEINLINE uint32 DecodeU32() { return BaseContext.DecodeU32(); }
+	FORCEINLINE uint64 DecodeU64() { return BaseContext.DecodeU64(); }
+
+	//-TODO: Support unaligned writes
+	template<typename T>
+	void Write(const T& v)
+	{
+		reinterpret_cast<T&>(OptimizedCode[OptimizedCode.AddUninitialized(sizeof(T))]) = v;
+	}
+
+	struct FOptimizerCodeState
+	{
+		uint8 const* BaseContextCode;
+		int32 OptimizedCodeLength;
+	};
+
+	FOptimizerCodeState CreateCodeState()
+	{
+		FOptimizerCodeState State;
+		State.BaseContextCode = BaseContext.Code;
+		State.OptimizedCodeLength = OptimizedCode.Num();
+
+		return State;
+	}
+
+	void RollbackCodeState(const FOptimizerCodeState& State)
+	{
+		BaseContext.Code = State.BaseContextCode;
+		OptimizedCode.SetNum(State.OptimizedCodeLength, false /* allowShrink */);
+	}
+
+	FVectorVMContext&		BaseContext;
+	TArray<uint8>&			OptimizedCode;
+	const TArrayView<uint8>	ExternalFunctionRegisterCounts;
+	const int32				StartInstance = 0;
+};
+
 //////////////////////////////////////////////////////////////////////////
 //  Constant Handlers
 
 struct FConstantHandlerBase
 {
-	uint16 ConstantIndex;
+	const uint16 ConstantIndex;
 	FConstantHandlerBase(FVectorVMContext& Context)
-		: ConstantIndex(VectorVM::DecodeU16(Context))
+		: ConstantIndex(Context.DecodeU16())
 	{}
 
 	FORCEINLINE void Advance() { }
+
+	static void Optimize(FVectorVMCodeOptimizerContext& Context)
+	{
+		Context.Write(Context.DecodeU16());
+	}
 };
 
 template<typename T>
 struct FConstantHandler : public FConstantHandlerBase
 {
-	T Constant;
+	const T Constant;
 	FConstantHandler(FVectorVMContext& Context)
 		: FConstantHandlerBase(Context)
 		, Constant(*((T*)(Context.ConstantTable + ConstantIndex)))
 	{}
+
 	FORCEINLINE const T& Get() { return Constant; }
 	FORCEINLINE const T& GetAndAdvance() { return Constant; }
-};
-
-struct FDataSetOffsetHandler : FConstantHandlerBase
-{
-	uint32 Offset;
-	FDataSetOffsetHandler(FVectorVMContext& Context)
-		: FConstantHandlerBase(Context)
-		, Offset(Context.DataSetOffsetTable[ConstantIndex])
-	{}
-	FORCEINLINE const uint32 Get() { return Offset; }
-	FORCEINLINE const uint32 GetAndAdvance() { return Offset; }
 };
 
 template<>
 struct FConstantHandler<VectorRegister> : public FConstantHandlerBase
 {
-	VectorRegister Constant;
+	const VectorRegister Constant;
 	FConstantHandler(FVectorVMContext& Context)
 		: FConstantHandlerBase(Context)
 		, Constant(VectorLoadFloat1(&Context.ConstantTable[ConstantIndex]))
 	{}
+
 	FORCEINLINE const VectorRegister Get() { return Constant; }
 	FORCEINLINE const VectorRegister GetAndAdvance() { return Constant; }
 };
@@ -149,11 +315,12 @@ struct FConstantHandler<VectorRegister> : public FConstantHandlerBase
 template<>
 struct FConstantHandler<VectorRegisterInt> : public FConstantHandlerBase
 {
-	VectorRegisterInt Constant;
+	const VectorRegisterInt Constant;
 	FConstantHandler(FVectorVMContext& Context)
 		: FConstantHandlerBase(Context)
 		, Constant(VectorIntLoad1(&Context.ConstantTable[ConstantIndex]))
 	{}
+
 	FORCEINLINE const VectorRegisterInt Get() { return Constant; }
 	FORCEINLINE const VectorRegisterInt GetAndAdvance() { return Constant; }
 };
@@ -165,11 +332,15 @@ struct FConstantHandler<VectorRegisterInt> : public FConstantHandlerBase
 
 struct FRegisterHandlerBase
 {
-	int32 RegisterIndex;
+	const int32 RegisterIndex;
 	FORCEINLINE FRegisterHandlerBase(FVectorVMContext& Context)
-		: RegisterIndex(VectorVM::DecodeU16(Context))
+		: RegisterIndex(Context.DecodeU16())
 	{}
 
+	static void Optimize(FVectorVMCodeOptimizerContext& Context)
+	{
+		Context.Write(Context.DecodeU16());
+	}
 };
 
 template<typename T>
@@ -180,8 +351,9 @@ private:
 public:
 	FORCEINLINE FRegisterHandler(FVectorVMContext& Context)
 		: FRegisterHandlerBase(Context)
-		, Register((T*)Context.RegisterTable[RegisterIndex])
+		, Register((T*)Context.GetTempRegister(RegisterIndex))
 	{}
+
 	FORCEINLINE const T Get() { return *Register; }
 	FORCEINLINE T* GetDest() { return Register; }
 	FORCEINLINE void Advance() { ++Register; }
@@ -200,9 +372,6 @@ public:
 FVectorVMContext::FVectorVMContext()
 	: Code(nullptr)
 	, ConstantTable(nullptr)
-	, DataSetIndexTable(nullptr)
-	, DataSetOffsetTable(nullptr)
-	, NumSecondaryDataSets(0)
 	, ExternalFunctionTable(nullptr)
 	, UserPtrTable(nullptr)
 	, NumInstances(0)
@@ -210,111 +379,99 @@ FVectorVMContext::FVectorVMContext()
 #if STATS
 	, StatScopes(nullptr)
 #endif
+	, TempRegisterSize(0)
+	, TempBufferSize(0)
 {
 	RandStream.GenerateNewSeed();
 }
 
 void FVectorVMContext::PrepareForExec(
-	uint8*RESTRICT*RESTRICT InputRegisters,
-	uint8*RESTRICT*RESTRICT OutputRegisters,
 	int32 InNumTempRegisters,
-	int32 InNumInputRegisters,
-	int32 InNumOutputRegisters,
 	const uint8* InConstantTable,
-	int32 *InDataSetIndexTable,
-	int32 *InDataSetOffsetTable,
-	int32 InNumSecondaryDatasets,
 	FVMExternalFunction* InExternalFunctionTable,
 	void** InUserPtrTable,
-	TArray<FDataSetMeta>& RESTRICT InDataSetMetaTable,
-	int32 MaxNumInstances
-#if STATS
-	, const TArray<TStatId>* InStatScopes
-#endif
+	TArrayView<FDataSetMeta> InDataSetMetaTable,
+	int32 MaxNumInstances,
+	bool bInParallelExecution
 )
 {
 	NumTempRegisters = InNumTempRegisters;
-	NumInputRegisters = InNumInputRegisters;
-	NumOutputRegisters = InNumOutputRegisters;
 	ConstantTable = InConstantTable;
-	DataSetIndexTable = InDataSetIndexTable;
-	DataSetOffsetTable = InDataSetOffsetTable;
-	NumSecondaryDataSets = InNumSecondaryDatasets;
 	ExternalFunctionTable = InExternalFunctionTable;
 	UserPtrTable = InUserPtrTable;
+
+	TempRegisterSize = Align(MaxNumInstances * VectorVM::MaxInstanceSizeBytes, PLATFORM_CACHE_LINE_SIZE);
+	TempBufferSize = TempRegisterSize * NumTempRegisters;
+	TempRegTable.SetNumUninitialized(TempBufferSize, false);
+
+	DataSetMetaTable = InDataSetMetaTable;
+
+	for (auto& TLSTempData : ThreadLocalTempData)
+	{
+		TLSTempData.Reset();
+	}
+	ThreadLocalTempData.SetNum(DataSetMetaTable.Num());
+
+	bIsParallelExecution = bInParallelExecution;
+}
+
 #if STATS
+void FVectorVMContext::SetStatScopes(const TArray<TStatId>* InStatScopes)
+{
 	check(InStatScopes);
 	StatScopes = InStatScopes;
 	StatCounterStack.Reserve(StatScopes->Num());
-#endif
-
-	int32 TempRegisterSize = Align(MaxNumInstances * VectorVM::MaxInstanceSizeBytes, PLATFORM_CACHE_LINE_SIZE);
-	int32 TempBufferSize = TempRegisterSize * NumTempRegisters;
-	TempRegTable.SetNumUninitialized(TempBufferSize, false);
-	// Attempt to map temp registers more tightly packed for low instance counts to reduce cache misses.
-	for (int32 i = 0; i < NumTempRegisters; ++i)
-	{
-		RegisterTable[i] = TempRegTable.GetData() + TempRegisterSize * i;
-	}
-
-	//Map IO Registers
-	for (int32 i = 0; i < NumInputRegisters; ++i)
-	{
-		RegisterTable[VectorVM::NumTempRegisters + i] = InputRegisters[i];
-	}
-	for (int32 i = 0; i < NumOutputRegisters; ++i)
-	{
-		RegisterTable[VectorVM::NumTempRegisters + VectorVM::MaxInputRegisters + i] = OutputRegisters[i];
-	}
-
-	DataSetMetaTable = &InDataSetMetaTable;
-
-	ThreadLocalTempData.Reset(DataSetMetaTable->Num());
-	ThreadLocalTempData.SetNum(DataSetMetaTable->Num());
 }
+#endif
 
 void FVectorVMContext::FinishExec()
 {
 	//At the end of executing each chunk we can push any thread local temporary data out to the main storage with locks or atomics.
 
-	TArray<FDataSetMeta>& MetaTable = *DataSetMetaTable;
-	check(ThreadLocalTempData.Num() == MetaTable.Num());
-	for(int32 DataSetIndex=0; DataSetIndex < MetaTable.Num(); ++DataSetIndex)
+	check(ThreadLocalTempData.Num() == DataSetMetaTable.Num());
+	for(int32 DataSetIndex=0; DataSetIndex < DataSetMetaTable.Num(); ++DataSetIndex)
 	{
 		FDataSetThreadLocalTempData&RESTRICT Data = ThreadLocalTempData[DataSetIndex];
 
 		if (Data.IDsToFree.Num() > 0)
 		{
-			TArray<int32>&RESTRICT FreeIDTable = *MetaTable[DataSetIndex].FreeIDTable;
-			int32&RESTRICT NumFreeIDs = *MetaTable[DataSetIndex].NumFreeIDs;
+			TArray<int32>&RESTRICT FreeIDTable = *DataSetMetaTable[DataSetIndex].FreeIDTable;
+			int32&RESTRICT NumFreeIDs = *DataSetMetaTable[DataSetIndex].NumFreeIDs;
 			check(FreeIDTable.Num() >= NumFreeIDs + Data.IDsToFree.Num());
 
 			//Temporarily locking the free table until we can implement something lock-free
-			MetaTable[DataSetIndex].LockFreeTable();
+			DataSetMetaTable[DataSetIndex].LockFreeTable();
 			for (int32 IDToFree : Data.IDsToFree)
 			{
 				//UE_LOG(LogVectorVM, Warning, TEXT("AddFreeID: ID:%d | FreeTableIdx:%d."), IDToFree, NumFreeIDs);
 				FreeIDTable[NumFreeIDs++] = IDToFree;
 			}
 			//Unlock the free table.
-			MetaTable[DataSetIndex].UnlockFreeTable();
+			DataSetMetaTable[DataSetIndex].UnlockFreeTable();
 			Data.IDsToFree.Reset();
 		}
 
 		//Also update the max ID seen. This should be the ONLY place in the VM we update this max value.
-		volatile int32* MaxUsedID = MetaTable[DataSetIndex].MaxUsedID;
-		int32 LocalMaxUsedID;
-		do
+		if ( bIsParallelExecution )
 		{
-			LocalMaxUsedID = *MaxUsedID;
-			if (LocalMaxUsedID >= Data.MaxID)
+			volatile int32* MaxUsedID = DataSetMetaTable[DataSetIndex].MaxUsedID;
+			int32 LocalMaxUsedID;
+			do
 			{
-				break;
-			}
-		} while (FPlatformAtomics::InterlockedCompareExchange(MaxUsedID, Data.MaxID, LocalMaxUsedID) != LocalMaxUsedID);
+				LocalMaxUsedID = *MaxUsedID;
+				if (LocalMaxUsedID >= Data.MaxID)
+				{
+					break;
+				}
+			} while (FPlatformAtomics::InterlockedCompareExchange(MaxUsedID, Data.MaxID, LocalMaxUsedID) != LocalMaxUsedID);
 
-		*MaxUsedID = FMath::Max(*MaxUsedID, Data.MaxID);
-
+			*MaxUsedID = FMath::Max(*MaxUsedID, Data.MaxID);
+		}
+		else
+		{
+			int32* MaxUsedID = DataSetMetaTable[DataSetIndex].MaxUsedID;
+			*MaxUsedID = FMath::Max(*MaxUsedID, Data.MaxID);
+		}
 	}
 }
 
@@ -332,13 +489,20 @@ uint8 VectorVM::CreateSrcOperandMask(EVectorVMOperandLocation Type0, EVectorVMOp
 template<typename Kernel, typename DstHandler, typename Arg0Handler, uint32 NumInstancesPerOp>
 struct TUnaryKernelHandler
 {
+	static void Optimize(FVectorVMCodeOptimizerContext& Context)
+	{
+		Context.Write<FVectorVMExecFunction>(Exec);
+		Arg0Handler::Optimize(Context);
+		DstHandler::Optimize(Context);
+	}
+
 	static VM_FORCEINLINE void Exec(FVectorVMContext& Context)
 	{
 		Arg0Handler Arg0(Context);
 		DstHandler Dst(Context);
 
-		int32 LoopInstances = Align(Context.NumInstances, NumInstancesPerOp) / NumInstancesPerOp;
-		for (int32 i = 0; i < LoopInstances; ++i)
+		const int32 Loops = Context.GetNumLoops<NumInstancesPerOp>();
+		for (int32 i = 0; i < Loops; ++i)
 		{
 			Kernel::DoKernel(Context, Dst.GetDestAndAdvance(), Arg0.GetAndAdvance());
 		}
@@ -348,6 +512,14 @@ struct TUnaryKernelHandler
 template<typename Kernel, typename DstHandler, typename Arg0Handler, typename Arg1Handler, int32 NumInstancesPerOp>
 struct TBinaryKernelHandler
 {
+	static void Optimize(FVectorVMCodeOptimizerContext& Context)
+	{
+		Context.Write<FVectorVMExecFunction>(Exec);
+		Arg0Handler::Optimize(Context);
+		Arg1Handler::Optimize(Context);
+		DstHandler::Optimize(Context);
+	}
+
 	static void Exec(FVectorVMContext& Context)
 	{
 		Arg0Handler Arg0(Context); 
@@ -355,8 +527,8 @@ struct TBinaryKernelHandler
 
 		DstHandler Dst(Context);
 
-		int32 LoopInstances = Align(Context.NumInstances, NumInstancesPerOp) / NumInstancesPerOp;
-		for (int32 i = 0; i < LoopInstances; ++i)
+		const int32 Loops = Context.GetNumLoops<NumInstancesPerOp>();
+		for (int32 i = 0; i < Loops; ++i)
 		{
 			Kernel::DoKernel(Context, Dst.GetDestAndAdvance(), Arg0.GetAndAdvance(), Arg1.GetAndAdvance());
 		}
@@ -366,6 +538,15 @@ struct TBinaryKernelHandler
 template<typename Kernel, typename DstHandler, typename Arg0Handler, typename Arg1Handler, typename Arg2Handler, int32 NumInstancesPerOp>
 struct TTrinaryKernelHandler
 {
+	static void Optimize(FVectorVMCodeOptimizerContext& Context)
+	{
+		Context.Write<FVectorVMExecFunction>(Exec);
+		Arg0Handler::Optimize(Context);
+		Arg1Handler::Optimize(Context);
+		Arg2Handler::Optimize(Context);
+		DstHandler::Optimize(Context);
+	}
+
 	static void Exec(FVectorVMContext& Context)
 	{
 		Arg0Handler Arg0(Context);
@@ -374,28 +555,8 @@ struct TTrinaryKernelHandler
 
 		DstHandler Dst(Context);
 
-		int32 LoopInstances = Align(Context.NumInstances, NumInstancesPerOp) / NumInstancesPerOp;
-		for (int32 i = 0; i < LoopInstances; ++i)
-		{
-			Kernel::DoKernel(Context, Dst.GetDestAndAdvance(), Arg0.GetAndAdvance(), Arg1.GetAndAdvance(), Arg2.GetAndAdvance());
-		}
-	}
-};
-
-
-template<typename Kernel, typename DstHandler, typename Arg0Handler, typename Arg1Handler, typename Arg2Handler, int32 NumInstancesPerOp>
-struct TTrinaryOutputKernelHandler
-{
-	static void Exec(FVectorVMContext& Context)
-	{
-		Arg0Handler Arg0(Context);
-		Arg1Handler Arg1(Context);
-		Arg2Handler Arg2(Context);
-
-		DstHandler Dst(Context, Arg0.Get());
-
-		int32 LoopInstances = Align(Context.NumInstances, NumInstancesPerOp) / NumInstancesPerOp;
-		for (int32 i = 0; i < LoopInstances; ++i)
+		const int32 Loops = Context.GetNumLoops<NumInstancesPerOp>();
+		for (int32 i = 0; i < Loops; ++i)
 		{
 			Kernel::DoKernel(Context, Dst.GetDestAndAdvance(), Arg0.GetAndAdvance(), Arg1.GetAndAdvance(), Arg2.GetAndAdvance());
 		}
@@ -407,9 +568,20 @@ struct TTrinaryOutputKernelHandler
 template <typename Kernel, typename DstHandler, typename ConstHandler, typename RegisterHandler, int32 NumInstancesPerOp>
 struct TUnaryKernel
 {
+	static void Optimize(FVectorVMCodeOptimizerContext& Context)
+	{
+		const uint32 SrcOpTypes = Context.BaseContext.DecodeSrcOperandTypes();
+		switch (SrcOpTypes)
+		{
+		case SRCOP_RRR: TUnaryKernelHandler<Kernel, DstHandler, RegisterHandler, NumInstancesPerOp>::Optimize(Context); break;
+		case SRCOP_RRC:	TUnaryKernelHandler<Kernel, DstHandler, ConstHandler, NumInstancesPerOp>::Optimize(Context); break;
+		default: check(0); break;
+		};
+	}
+
 	static void Exec(FVectorVMContext& Context)
 	{
-		uint32 SrcOpTypes = VectorVM::DecodeSrcOperandTypes(Context);
+		const uint32 SrcOpTypes = Context.DecodeSrcOperandTypes();
 		switch (SrcOpTypes)
 		{
 		case SRCOP_RRR: TUnaryKernelHandler<Kernel, DstHandler, RegisterHandler, NumInstancesPerOp>::Exec(Context); break;
@@ -431,9 +603,22 @@ struct TUnaryVectorIntKernel : public TUnaryKernel<Kernel, FRegisterHandler<Vect
 template <typename Kernel, typename DstHandler, typename ConstHandler, typename RegisterHandler, uint32 NumInstancesPerOp>
 struct TBinaryKernel
 {
+	static void Optimize(FVectorVMCodeOptimizerContext& Context)
+	{
+		const uint32 SrcOpTypes = Context.BaseContext.DecodeSrcOperandTypes();
+		switch (SrcOpTypes)
+		{
+		case SRCOP_RRR: TBinaryKernelHandler<Kernel, DstHandler, RegisterHandler, RegisterHandler, NumInstancesPerOp>::Optimize(Context); break;
+		case SRCOP_RRC:	TBinaryKernelHandler<Kernel, DstHandler, ConstHandler, RegisterHandler, NumInstancesPerOp>::Optimize(Context); break;
+		case SRCOP_RCR: TBinaryKernelHandler<Kernel, DstHandler, RegisterHandler, ConstHandler, NumInstancesPerOp>::Optimize(Context); break;
+		case SRCOP_RCC:	TBinaryKernelHandler<Kernel, DstHandler, ConstHandler, ConstHandler, NumInstancesPerOp>::Optimize(Context); break;
+		default: check(0); break;
+		};
+	}
+
 	static void Exec(FVectorVMContext& Context)
 	{
-		uint32 SrcOpTypes = VectorVM::DecodeSrcOperandTypes(Context);
+		const uint32 SrcOpTypes = Context.DecodeSrcOperandTypes();
 		switch (SrcOpTypes)
 		{
 		case SRCOP_RRR: TBinaryKernelHandler<Kernel, DstHandler, RegisterHandler, RegisterHandler, NumInstancesPerOp>::Exec(Context); break;
@@ -455,9 +640,26 @@ struct TBinaryVectorIntKernel : public TBinaryKernel<Kernel, FRegisterHandler<Ve
 template <typename Kernel, typename DstHandler, typename ConstHandler, typename RegisterHandler, uint32 NumInstancesPerOp>
 struct TTrinaryKernel
 {
+	static void Optimize(FVectorVMCodeOptimizerContext& Context)
+	{
+		const uint32 SrcOpTypes = Context.BaseContext.DecodeSrcOperandTypes();
+		switch (SrcOpTypes)
+		{
+		case SRCOP_RRR: TTrinaryKernelHandler<Kernel, DstHandler, RegisterHandler, RegisterHandler, RegisterHandler, NumInstancesPerOp>::Optimize(Context); break;
+		case SRCOP_RRC:	TTrinaryKernelHandler<Kernel, DstHandler, ConstHandler, RegisterHandler, RegisterHandler, NumInstancesPerOp>::Optimize(Context); break;
+		case SRCOP_RCR: TTrinaryKernelHandler<Kernel, DstHandler, RegisterHandler, ConstHandler, RegisterHandler, NumInstancesPerOp>::Optimize(Context); break;
+		case SRCOP_RCC:	TTrinaryKernelHandler<Kernel, DstHandler, ConstHandler, ConstHandler, RegisterHandler, NumInstancesPerOp>::Optimize(Context); break;
+		case SRCOP_CRR: TTrinaryKernelHandler<Kernel, DstHandler, RegisterHandler, RegisterHandler, ConstHandler, NumInstancesPerOp>::Optimize(Context); break;
+		case SRCOP_CRC:	TTrinaryKernelHandler<Kernel, DstHandler, ConstHandler, RegisterHandler, ConstHandler, NumInstancesPerOp>::Optimize(Context); break;
+		case SRCOP_CCR: TTrinaryKernelHandler<Kernel, DstHandler, RegisterHandler, ConstHandler, ConstHandler, NumInstancesPerOp>::Optimize(Context); break;
+		case SRCOP_CCC:	TTrinaryKernelHandler<Kernel, DstHandler, ConstHandler, ConstHandler, ConstHandler, NumInstancesPerOp>::Optimize(Context); break;
+		default: check(0); break;
+		};
+	}
+
 	static void Exec(FVectorVMContext& Context)
 	{
-		uint32 SrcOpTypes = VectorVM::DecodeSrcOperandTypes(Context);
+		const uint32 SrcOpTypes = Context.DecodeSrcOperandTypes();
 		switch (SrcOpTypes)
 		{
 		case SRCOP_RRR: TTrinaryKernelHandler<Kernel, DstHandler, RegisterHandler, RegisterHandler, RegisterHandler, NumInstancesPerOp>::Exec(Context); break;
@@ -517,6 +719,14 @@ struct FVectorKernelDiv : public TBinaryVectorKernel<FVectorKernelDiv>
 	}
 };
 
+struct FVectorKernelDivSafe : public TBinaryVectorKernel<FVectorKernelDivSafe>
+{
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
+	{
+		VectorRegister ValidMask = VectorCompareGT(VectorAbs(Src1), GlobalVectorConstants::SmallNumber);
+		*Dst = VectorSelect(ValidMask, VectorDivide(Src0, Src1), GlobalVectorConstants::FloatZero);
+	}
+};
 
 struct FVectorKernelMad : public TTrinaryVectorKernel<FVectorKernelMad>
 {
@@ -544,11 +754,31 @@ struct FVectorKernelRcp : public TUnaryVectorKernel<FVectorKernelRcp>
 	}
 };
 
+// if the magnitude of the value is too small, then the result will be 0 (not NaN/Inf)
+struct FVectorKernelRcpSafe : public TUnaryVectorKernel<FVectorKernelRcpSafe>
+{
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	{
+		VectorRegister ValidMask = VectorCompareGT(VectorAbs(Src0), GlobalVectorConstants::SmallNumber);
+		*Dst = VectorSelect(ValidMask, VectorReciprocal(Src0), GlobalVectorConstants::FloatZero);
+	}
+};
+
 struct FVectorKernelRsq : public TUnaryVectorKernel<FVectorKernelRsq>
 {
 	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst,VectorRegister Src0)
 	{
 		*Dst = VectorReciprocalSqrt(Src0);
+	}
+};
+
+// if the value is very small or negative, then the result will be 0 (not NaN/Inf/imaginary)
+struct FVectorKernelRsqSafe : public TUnaryVectorKernel<FVectorKernelRsqSafe>
+{
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	{
+		VectorRegister ValidMask = VectorCompareGT(Src0, GlobalVectorConstants::SmallNumber);
+		*Dst = VectorSelect(ValidMask, VectorReciprocalSqrt(Src0), GlobalVectorConstants::FloatZero);
 	}
 };
 
@@ -558,6 +788,15 @@ struct FVectorKernelSqrt : public TUnaryVectorKernel<FVectorKernelSqrt>
 	{
 		// TODO: Need a SIMD sqrt!
 		*Dst = VectorReciprocal(VectorReciprocalSqrt(Src0));
+	}
+};
+
+struct FVectorKernelSqrtSafe : public TUnaryVectorKernel<FVectorKernelSqrtSafe>
+{
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	{
+		VectorRegister ValidMask = VectorCompareGT(Src0, GlobalVectorConstants::SmallNumber);
+		*Dst = VectorSelect(ValidMask, VectorReciprocal(VectorReciprocalSqrt(Src0)), GlobalVectorConstants::FloatZero);
 	}
 };
 
@@ -598,6 +837,16 @@ struct FVectorKernelLog : public TUnaryVectorKernel<FVectorKernelLog>
 	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
 	{
 		*Dst = VectorLog(Src0);
+	}
+};
+
+struct FVectorKernelLogSafe : public TUnaryVectorKernel<FVectorKernelLogSafe>
+{
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	{
+		VectorRegister ValidMask = VectorCompareGT(Src0, GlobalVectorConstants::FloatZero);
+
+		*Dst = VectorSelect(ValidMask, VectorLog(Src0), GlobalVectorConstants::FloatZero);
 	}
 };
 
@@ -782,6 +1031,12 @@ struct FVectorKernelSelect : public TTrinaryVectorKernel<FVectorKernelSelect>
 
 struct FVectorKernelExecutionIndex
 {
+	static void Optimize(FVectorVMCodeOptimizerContext& Context)
+	{
+		Context.Write<FVectorVMExecFunction>(Exec);
+		FRegisterHandler<VectorRegisterInt>::Optimize(Context);
+	}
+
 	static void VM_FORCEINLINE Exec(FVectorVMContext& Context)
 	{
 		static_assert(VECTOR_WIDTH_FLOATS == 4, "Need to update this when upgrading the VM to support >SSE2");
@@ -789,7 +1044,7 @@ struct FVectorKernelExecutionIndex
 		VectorRegisterInt Index = MakeVectorRegisterInt(Context.StartInstance, Context.StartInstance + 1, Context.StartInstance + 2, Context.StartInstance + 3);
 		
 		FRegisterHandler<VectorRegisterInt> Dest(Context);
-		int32 Loops = Align(Context.NumInstances, VECTOR_WIDTH_FLOATS) / VECTOR_WIDTH_FLOATS;
+		const int32 Loops = Context.GetNumLoops<VECTOR_WIDTH_FLOATS>();
 		for (int32 i = 0; i < Loops; ++i)
 		{
 			*Dest.GetDestAndAdvance() = Index;
@@ -800,11 +1055,22 @@ struct FVectorKernelExecutionIndex
 
 struct FVectorKernelEnterStatScope
 {
+	static void Optimize(FVectorVMCodeOptimizerContext& Context)
+	{
+#if STATS
+		Context.Write<FVectorVMExecFunction>(Exec);
+		FConstantHandler<int32>::Optimize(Context);
+#else
+		// just skip the op if we don't have stats enabled
+		FConstantHandler<int32>(Context.BaseContext);
+#endif
+	}
+
 	static VM_FORCEINLINE void Exec(FVectorVMContext& Context)
 	{
 		FConstantHandler<int32> ScopeIdx(Context);
 #if STATS
-		if (GbDetailedVMScriptStats)
+		if (GbDetailedVMScriptStats && Context.StatScopes)
 		{
 			int32 CounterIdx = Context.StatCounterStack.AddDefaulted(1);
 			Context.StatCounterStack[CounterIdx].Start((*Context.StatScopes)[ScopeIdx.Get()]);
@@ -815,9 +1081,15 @@ struct FVectorKernelEnterStatScope
 
 struct FVectorKernelExitStatScope
 {
+	static void Optimize(FVectorVMCodeOptimizerContext& Context)
+	{
+#if STATS
+		Context.Write<FVectorVMExecFunction>(Exec);
+#endif
+	}
+		
 	static VM_FORCEINLINE void Exec(FVectorVMContext& Context)
 	{
-
 #if STATS
 		if (GbDetailedVMScriptStats)
 		{
@@ -853,13 +1125,13 @@ struct FVectorKernelRandomGauss : public TBinaryVectorKernel<FVectorKernelRandom
 			Context.RandStream.GetFraction(),
 			Context.RandStream.GetFraction());
 
-		Result = VectorSubtract(Result, MakeVectorRegister(0.5f, 0.5f, 0.5f, 0.5f));
+		Result = VectorSubtract(Result, GlobalVectorConstants::FloatOneHalf);
 		Result = VectorMultiply(MakeVectorRegister(3.0f, 3.0f, 3.0f, 3.0f), Result);
 
 		// taylor series gaussian approximation
 		const VectorRegister SPi2 = VectorReciprocal(VectorReciprocalSqrt(MakeVectorRegister(2 * PI, 2 * PI, 2 * PI, 2 * PI)));
 		VectorRegister Gauss = VectorReciprocal(SPi2);
-		VectorRegister Div = VectorMultiply(MakeVectorRegister(2.0f, 2.0f, 2.0f, 2.0f), SPi2);
+		VectorRegister Div = VectorMultiply(GlobalVectorConstants::FloatTwo, SPi2);
 		Gauss = VectorSubtract(Gauss, VectorDivide(VectorMultiply(Result, Result), Div));
 		Div = VectorMultiply(MakeVectorRegister(8.0f, 8.0f, 8.0f, 8.0f), SPi2);
 		Gauss = VectorAdd(Gauss, VectorDivide(VectorPow(MakeVectorRegister(4.0f, 4.0f, 4.0f, 4.0f), Result), Div));
@@ -893,6 +1165,16 @@ struct FVectorKernelPow : public TBinaryVectorKernel<FVectorKernelPow>
 	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst,VectorRegister Src0,VectorRegister Src1)
 	{
 		*Dst = VectorPow(Src0, Src1);
+	}
+};
+
+// if the base is small, then the result will be 0
+struct FVectorKernelPowSafe : public TBinaryVectorKernel<FVectorKernelPowSafe>
+{
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
+	{
+		VectorRegister ValidMask = VectorCompareGT(Src0, GlobalVectorConstants::SmallNumber);
+		*Dst = VectorSelect(ValidMask, VectorPow(Src0, Src1), GlobalVectorConstants::FloatZero);
 	}
 };
 
@@ -1032,6 +1314,10 @@ namespace VectorVMNoise
 		//http://mrl.nyu.edu/~perlin/noise/
 		FScalarKernelNoise3D_iNoise::Exec(Context);
 	}
+
+	static void Optimize_Noise1D(FVectorVMCodeOptimizerContext& Context) { FScalarKernelNoise1D_iNoise::Optimize(Context); }
+	static void Optimize_Noise2D(FVectorVMCodeOptimizerContext& Context) { FScalarKernelNoise2D_iNoise::Optimize(Context); }
+	static void Optimize_Noise3D(FVectorVMCodeOptimizerContext& Context) { FScalarKernelNoise3D_iNoise::Optimize(Context); }
 };
 
 //Olaf's orginal curl noise. Needs updating for the new scalar VM and possibly calling Curl Noise to avoid confusion with regular noise?
@@ -1042,10 +1328,9 @@ struct FVectorKernelNoise : public TUnaryVectorKernel<FVectorKernelNoise>
 
 	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
 	{
-		const VectorRegister One = MakeVectorRegister(1.0f, 1.0f, 1.0f, 1.0f);
 		const VectorRegister VecSize = MakeVectorRegister(16.0f, 16.0f, 16.0f, 16.0f);
 
-		*Dst = MakeVectorRegister(0.0f, 0.0f, 0.0f, 0.0f);
+		*Dst = GlobalVectorConstants::FloatZero;
 		
 		for (uint32 i = 1; i < 2; i++)
 		{
@@ -1059,7 +1344,7 @@ struct FVectorKernelNoise : public TUnaryVectorKernel<FVectorKernelNoise>
 
 			VectorRegister Frac = VectorFractional(Coords);
 			VectorRegister Alpha = VectorReplicate(Frac, 0);
-			VectorRegister OneMinusAlpha = VectorSubtract(One, Alpha);
+			VectorRegister OneMinusAlpha = VectorSubtract(GlobalVectorConstants::FloatOne, Alpha);
 			
 			VectorRegister XV1 = VectorMultiplyAdd(RandomTable[Cx][Cy][Cz], Alpha, VectorMultiply(RandomTable[Cx+1][Cy][Cz], OneMinusAlpha));
 			VectorRegister XV2 = VectorMultiplyAdd(RandomTable[Cx][Cy+1][Cz], Alpha, VectorMultiply(RandomTable[Cx+1][Cy+1][Cz], OneMinusAlpha));
@@ -1067,12 +1352,12 @@ struct FVectorKernelNoise : public TUnaryVectorKernel<FVectorKernelNoise>
 			VectorRegister XV4 = VectorMultiplyAdd(RandomTable[Cx][Cy+1][Cz+1], Alpha, VectorMultiply(RandomTable[Cx+1][Cy+1][Cz+1], OneMinusAlpha));
 
 			Alpha = VectorReplicate(Frac, 1);
-			OneMinusAlpha = VectorSubtract(One, Alpha);
+			OneMinusAlpha = VectorSubtract(GlobalVectorConstants::FloatOne, Alpha);
 			VectorRegister YV1 = VectorMultiplyAdd(XV1, Alpha, VectorMultiply(XV2, OneMinusAlpha));
 			VectorRegister YV2 = VectorMultiplyAdd(XV3, Alpha, VectorMultiply(XV4, OneMinusAlpha));
 
 			Alpha = VectorReplicate(Frac, 2);
-			OneMinusAlpha = VectorSubtract(One, Alpha);
+			OneMinusAlpha = VectorSubtract(GlobalVectorConstants::FloatOne, Alpha);
 			VectorRegister ZV = VectorMultiplyAdd(YV1, Alpha, VectorMultiply(YV2, OneMinusAlpha));
 
 			*Dst = VectorAdd(*Dst, ZV);
@@ -1088,19 +1373,27 @@ VectorRegister FVectorKernelNoise::RandomTable[17][17][17];
 /** Special kernel for acquiring a new ID. TODO. Can be written as general RWBuffer ops when we support that. */
 struct FScalarKernelAcquireID
 {
+	static void Optimize(FVectorVMCodeOptimizerContext& Context)
+	{
+		Context.Write<FVectorVMExecFunction>(Exec);
+		Context.Write(Context.DecodeU16());		// DataSetIndex
+		Context.Write(Context.DecodeU16());		// IDIndexReg
+		Context.Write(Context.DecodeU16());		// IDTagReg
+	}
+
 	static VM_FORCEINLINE void Exec(FVectorVMContext& Context)
 	{
-		int32 DataSetIndex = VectorVM::DecodeU16(Context);
-		TArray<FDataSetMeta>& MetaTable = *Context.DataSetMetaTable;
+		const int32 DataSetIndex = Context.DecodeU16();
+		const TArrayView<FDataSetMeta> MetaTable = Context.DataSetMetaTable;
 		TArray<int32>&RESTRICT FreeIDTable = *MetaTable[DataSetIndex].FreeIDTable;
 
-		int32 Tag = MetaTable[DataSetIndex].IDAcquireTag;
+		const int32 Tag = MetaTable[DataSetIndex].IDAcquireTag;
 
-		int32 IDIndexReg = VectorVM::DecodeU16(Context);
-		int32*RESTRICT IDIndex = (int32*)(Context.RegisterTable[IDIndexReg]);
+		const int32 IDIndexReg = Context.DecodeU16();
+		int32*RESTRICT IDIndex = (int32*)(Context.GetTempRegister(IDIndexReg));
 
-		int32 IDTagReg = VectorVM::DecodeU16(Context);
-		int32*RESTRICT IDTag = (int32*)(Context.RegisterTable[IDTagReg]);
+		const int32 IDTagReg = Context.DecodeU16();
+		int32*RESTRICT IDTag = (int32*)(Context.GetTempRegister(IDTagReg));
 
 		int32& NumFreeIDs = *MetaTable[DataSetIndex].NumFreeIDs;
 
@@ -1134,19 +1427,27 @@ struct FScalarKernelAcquireID
 /** Special kernel for updating a new ID. TODO. Can be written as general RWBuffer ops when we support that. */
 struct FScalarKernelUpdateID
 {
+	static void Optimize(FVectorVMCodeOptimizerContext& Context)
+	{
+		Context.Write<FVectorVMExecFunction>(Exec);
+		Context.Write(Context.DecodeU16());		// DataSetIndex
+		Context.Write(Context.DecodeU16());		// InstanceIDRegisterIndex
+		Context.Write(Context.DecodeU16());		// InstanceIndexRegisterIndex
+	}
+
 	static VM_FORCEINLINE void Exec(FVectorVMContext& Context)
 	{
-		int32 DataSetIndex = VectorVM::DecodeU16(Context);
-		int32 InstanceIDRegisterIndex = VectorVM::DecodeU16(Context);
-		int32 InstanceIndexRegisterIndex = VectorVM::DecodeU16(Context);
+		const int32 DataSetIndex = Context.DecodeU16();
+		const int32 InstanceIDRegisterIndex = Context.DecodeU16();
+		const int32 InstanceIndexRegisterIndex = Context.DecodeU16();
 
-		TArray<FDataSetMeta>& MetaTable = *Context.DataSetMetaTable;
+		const TArrayView<FDataSetMeta> MetaTable = Context.DataSetMetaTable;
 
 		TArray<int32>&RESTRICT IDTable = *MetaTable[DataSetIndex].IDTable;
-		int32 InstanceOffset = MetaTable[DataSetIndex].InstanceOffset + Context.StartInstance;
+		const int32 InstanceOffset = MetaTable[DataSetIndex].InstanceOffset + Context.StartInstance;
 
-		int32*RESTRICT IDRegister = (int32*)(Context.RegisterTable[InstanceIDRegisterIndex]);
-		int32*RESTRICT IndexRegister = (int32*)(Context.RegisterTable[InstanceIndexRegisterIndex]);
+		const int32*RESTRICT IDRegister = (int32*)(Context.GetTempRegister(InstanceIDRegisterIndex));
+		const int32*RESTRICT IndexRegister = (int32*)(Context.GetTempRegister(InstanceIndexRegisterIndex));
 		
 		FDataSetThreadLocalTempData& DataSetTempData = Context.ThreadLocalTempData[DataSetIndex];
 
@@ -1182,18 +1483,25 @@ struct FScalarKernelUpdateID
 template<typename T>
 struct FVectorKernelReadInput
 {
+	static void Optimize(FVectorVMCodeOptimizerContext& Context)
+	{
+		Context.Write<FVectorVMExecFunction>(Exec);
+		Context.Write(Context.DecodeU16());	// DataSetIndex
+		Context.Write(Context.DecodeU16());	// InputRegisterIdx
+		Context.Write(Context.DecodeU16());	// DestRegisterIdx
+	}
+
 	static VM_FORCEINLINE void Exec(FVectorVMContext& Context)
 	{
 		static const int32 InstancesPerVector = sizeof(VectorRegister) / sizeof(T);
 
-		int32 DataSetIndex = VectorVM::DecodeU16(Context);
-		int32 InputRegisterIdx = VectorVM::DecodeU16(Context);
-		int32 DestRegisterIdx = VectorVM::DecodeU16(Context);
-		int32 Loops = Align(Context.NumInstances, InstancesPerVector) / InstancesPerVector;
+		const int32 DataSetIndex = Context.DecodeU16();
+		const int32 InputRegisterIdx = Context.DecodeU16();
+		const int32 DestRegisterIdx = Context.DecodeU16();
+		const int32 Loops = Context.GetNumLoops<InstancesPerVector>();
 
-		VectorRegister* DestReg = (VectorRegister*)(Context.RegisterTable[DestRegisterIdx]);
-		int32 DataSetOffset = Context.DataSetOffsetTable[DataSetIndex];  //TODO: we'll need a different way of doing this for a proper kernel; might need a specific offset handler
-		VectorRegister* InputReg = (VectorRegister*)((T*)(Context.RegisterTable[InputRegisterIdx + DataSetOffset]) + Context.StartInstance);
+		VectorRegister* DestReg = (VectorRegister*)(Context.GetTempRegister(DestRegisterIdx));
+		VectorRegister* InputReg = (VectorRegister*)(Context.GetInputRegister<T>(DataSetIndex, InputRegisterIdx) + Context.GetStartInstance());
 
 		//TODO: We can actually do some scalar loads into the first and final vectors to get around alignment issues and then use the aligned load for all others.
 		for (int32 i = 0; i < Loops; ++i)
@@ -1214,18 +1522,25 @@ struct FVectorKernelReadInput
 template<typename T>
 struct FVectorKernelReadInputNoAdvance
 {
+	static void Optimize(FVectorVMCodeOptimizerContext& Context)
+	{
+		Context.Write<FVectorVMExecFunction>(Exec);
+		Context.Write(Context.DecodeU16());	// DataSetIndex
+		Context.Write(Context.DecodeU16());	// InputRegisterIdx
+		Context.Write(Context.DecodeU16());	// DestRegisterIdx
+	}
+
 	static VM_FORCEINLINE void Exec(FVectorVMContext& Context)
 	{
 		static const int32 InstancesPerVector = sizeof(VectorRegister) / sizeof(T);
 
-		int32 DataSetIndex = VectorVM::DecodeU16(Context);
-		int32 InputRegisterIdx = VectorVM::DecodeU16(Context);
-		int32 DestRegisterIdx = VectorVM::DecodeU16(Context);
-		int32 Loops = Align(Context.NumInstances, InstancesPerVector) / InstancesPerVector;
+		const int32 DataSetIndex = Context.DecodeU16();
+		const int32 InputRegisterIdx = Context.DecodeU16();
+		const int32 DestRegisterIdx = Context.DecodeU16();
+		const int32 Loops = Context.GetNumLoops<InstancesPerVector>();
 
-		VectorRegister* DestReg = (VectorRegister*)(Context.RegisterTable[DestRegisterIdx]);
-		int32 DataSetOffset = Context.DataSetOffsetTable[DataSetIndex];  //TODO: we'll need a different way of doing this for a proper kernel; might need a specific offset handler
-		VectorRegister* InputReg = (VectorRegister*)((T*)(Context.RegisterTable[InputRegisterIdx + DataSetOffset]) );
+		VectorRegister* DestReg = (VectorRegister*)(Context.GetTempRegister(DestRegisterIdx));
+		VectorRegister* InputReg = (VectorRegister*)(Context.GetInputRegister<T>(DataSetIndex, InputRegisterIdx));
 
 		//TODO: We can actually do some scalar loads into the first and final vectors to get around alignment issues and then use the aligned load for all others.
 		for (int32 i = 0; i < Loops; ++i)
@@ -1262,43 +1577,61 @@ struct FVectorKernelReadInputNoAdvance
 // 	}
 // };
 
-//Needs it's own handler as the output registers are indexed absolutely rather than incrementing in advance().
-template<typename T>
-struct FOutputRegisterHandler : public FRegisterHandlerBase
-{
-	T* Register;
-	FOutputRegisterHandler(FVectorVMContext& Context, uint32 DataSetOffset)
-		: FRegisterHandlerBase(Context)
-		, Register((T*)Context.RegisterTable[RegisterIndex+DataSetOffset])
-	{}
-
-	VM_FORCEINLINE void Advance() { }
-	VM_FORCEINLINE T Get() { return *Register; }
-	VM_FORCEINLINE T*RESTRICT GetDest() { return Register; }
-	VM_FORCEINLINE T*RESTRICT GetDestAndAdvance() { return Register; }
-	VM_FORCEINLINE T GetAndAdvance() { return *Register; }
-};
-
 /** Special kernel for writing to a specific output register. */
 template<typename T>
 struct FScalarKernelWriteOutputIndexed
 {
-	static VM_FORCEINLINE void Exec(FVectorVMContext& Context)
+	static VM_FORCEINLINE void Optimize(FVectorVMCodeOptimizerContext& Context)
 	{
-		uint32 SrcOpTypes = VectorVM::DecodeSrcOperandTypes(Context);
+		const uint32 SrcOpTypes = Context.BaseContext.DecodeSrcOperandTypes();
 		switch (SrcOpTypes)
 		{
-		case SRCOP_RRR: TTrinaryOutputKernelHandler<FScalarKernelWriteOutputIndexed, FOutputRegisterHandler<T>, FDataSetOffsetHandler, FRegisterHandler<int32>, FRegisterHandler<T>, 1>::Exec(Context); break;
-		case SRCOP_RRC:	TTrinaryOutputKernelHandler<FScalarKernelWriteOutputIndexed, FOutputRegisterHandler<T>, FDataSetOffsetHandler, FRegisterHandler<int32>, FConstantHandler<T>, 1>::Exec(Context); break;
+			case SRCOP_RRR: Context.Write<FVectorVMExecFunction>(DoKernel<FRegisterHandler<T>>); break;
+			case SRCOP_RRC:	Context.Write<FVectorVMExecFunction>(DoKernel<FConstantHandler<T>>); break;
+			default: check(0); break;
+		};
+
+		Context.Write(Context.DecodeU16());		// DataSetIndex
+		Context.Write(Context.DecodeU16());		// DestIndexRegisterIdx
+		Context.Write(Context.DecodeU16());		// DataHandlerType
+		Context.Write(Context.DecodeU16());		// DestRegisterIdx
+	}
+
+	static VM_FORCEINLINE void Exec(FVectorVMContext& Context)
+	{
+		const uint32 SrcOpTypes = Context.DecodeSrcOperandTypes();
+		switch (SrcOpTypes)
+		{
+		case SRCOP_RRR: DoKernel<FRegisterHandler<T>>(Context); break;
+		case SRCOP_RRC:	DoKernel<FConstantHandler<T>>(Context); break;
 		default: check(0); break;
 		};
 	}
 
-	static VM_FORCEINLINE void DoKernel(FVectorVMContext& Context, T* RESTRICT Dst, int32 SetOffset, int32 Index, T Data)
+	template<typename DataHandlerType>
+	static VM_FORCEINLINE void DoKernel(FVectorVMContext& Context)
 	{
-		if (Index != INDEX_NONE)
+		const int32 DataSetIndex = Context.DecodeU16();
+
+		const int32 DestIndexRegisterIdx = Context.DecodeU16();
+		T* DestIndexReg = (T*)(Context.GetTempRegister(DestIndexRegisterIdx));
+
+		DataHandlerType DataHandler(Context);
+
+		const int32 DestRegisterIdx = Context.DecodeU16();
+		T* DestReg = Context.GetOutputRegister<T>(DataSetIndex, DestRegisterIdx);
+
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
-			Dst[Index] = Data;//TODO: On sse4 we can use _mm_stream_ss here.
+			int32 DestIndex = *DestIndexReg;
+			if (DestIndex != INDEX_NONE)
+			{
+				DestReg[DestIndex] = DataHandler.Get();
+			}
+
+			++DestIndexReg;
+			DataHandler.Advance();
+			//We don't increment the dest as we index into it directly.
 		}
 	}
 };
@@ -1307,47 +1640,100 @@ struct FDataSetCounterHandler
 {
 	int32* Counter;
 	FDataSetCounterHandler(FVectorVMContext& Context)
-		: Counter(Context.DataSetIndexTable + VectorVM::DecodeU16(Context))
+		: Counter(&Context.GetDataSetMeta(Context.DecodeU16()).DataSetAccessIndex)
 	{}
 
 	VM_FORCEINLINE void Advance() { }
 	VM_FORCEINLINE int32* Get() { return Counter; }
 	VM_FORCEINLINE int32* GetAndAdvance() { return Counter; }
 	//VM_FORCEINLINE const int32* GetDest() { return Counter; }Should never use as a dest. All kernels with read and write to this.
+
+	static void Optimize(FVectorVMCodeOptimizerContext& Context)
+	{
+		Context.Write(Context.DecodeU16());
+	}
 };
 
-template<bool bThreadsafe>
 struct FScalarKernelAcquireCounterIndex
 {
-	static VM_FORCEINLINE void Exec(FVectorVMContext& Context)
+	template<bool bThreadsafe>
+	struct InternalKernel
 	{
-		uint32 SrcOpTypes = VectorVM::DecodeSrcOperandTypes(Context);
-		switch (SrcOpTypes)
+		static VM_FORCEINLINE void DoKernel(FVectorVMContext& Context, int32* RESTRICT Dst, int32* Index, int32 Valid)
 		{
-		case SRCOP_RRR: TBinaryKernelHandler<FScalarKernelAcquireCounterIndex, FRegisterHandler<int32>, FDataSetCounterHandler, FRegisterHandler<int32>, 1>::Exec(Context); break;
-		case SRCOP_RRC:	TBinaryKernelHandler<FScalarKernelAcquireCounterIndex, FRegisterHandler<int32>, FDataSetCounterHandler, FConstantHandler<int32>, 1>::Exec(Context); break;
-		default: check(0); break;
-		};
-	}
-
-	static VM_FORCEINLINE void DoKernel(FVectorVMContext& Context, int32* RESTRICT Dst, int32* Index, int32 Valid)
-	{
-		if (Valid != 0)
-		{
-			if (bThreadsafe)
+			if (Valid != 0)
 			{
-				*Dst = FPlatformAtomics::InterlockedIncrement(Index);
+				*Dst = bThreadsafe ? FPlatformAtomics::InterlockedIncrement(Index) : ++(*Index);
 			}
 			else
 			{
-				*Dst = ++(*Index);
+				*Dst = INDEX_NONE;	// Subsequent DoKernal calls above will skip over INDEX_NONE register entries...
+			}
+		}
+
+		static VM_FORCEINLINE void Exec(FVectorVMContext& Context)
+		{
+			const uint32 SrcOpType = Context.DecodeSrcOperandTypes();
+			switch (SrcOpType)
+			{
+				case SRCOP_RRR: TBinaryKernelHandler<InternalKernel<true>, FRegisterHandler<int32>, FDataSetCounterHandler, FRegisterHandler<int32>, 1>::Exec(Context); break;
+				case SRCOP_RRC:	TBinaryKernelHandler<InternalKernel<true>, FRegisterHandler<int32>, FDataSetCounterHandler, FConstantHandler<int32>, 1>::Exec(Context); break;
+				default: check(0); break;
+			};
+		}
+	};
+
+	template<uint32 SrcOpType>
+	static void ExecOptimized(FVectorVMContext& Context)
+	{
+		if (Context.IsParallelExecution())
+		{
+			switch (SrcOpType)
+			{
+				case SRCOP_RRR: TBinaryKernelHandler<InternalKernel<true>, FRegisterHandler<int32>, FDataSetCounterHandler, FRegisterHandler<int32>, 1>::Exec(Context); break;
+				case SRCOP_RRC:	TBinaryKernelHandler<InternalKernel<true>, FRegisterHandler<int32>, FDataSetCounterHandler, FConstantHandler<int32>, 1>::Exec(Context); break;
+				default: check(0); break;
 			}
 		}
 		else
-		{	
-			*Dst = INDEX_NONE;	// Subsequent DoKernal calls above will skip over INDEX_NONE register entries...
+		{
+			switch (SrcOpType)
+			{
+				case SRCOP_RRR: TBinaryKernelHandler<InternalKernel<false>, FRegisterHandler<int32>, FDataSetCounterHandler, FRegisterHandler<int32>, 1>::Exec(Context); break;
+				case SRCOP_RRC:	TBinaryKernelHandler<InternalKernel<false>, FRegisterHandler<int32>, FDataSetCounterHandler, FConstantHandler<int32>, 1>::Exec(Context); break;
+				default: check(0); break;
+			}
 		}
 	}
+
+	static void Optimize(FVectorVMCodeOptimizerContext& Context)
+	{
+		const uint32 SrcOpType = Context.BaseContext.DecodeSrcOperandTypes();
+		switch (SrcOpType)
+		{
+			case SRCOP_RRR: Context.Write<FVectorVMExecFunction>(FScalarKernelAcquireCounterIndex::ExecOptimized<SRCOP_RRR>); break;
+			case SRCOP_RRC: Context.Write<FVectorVMExecFunction>(FScalarKernelAcquireCounterIndex::ExecOptimized<SRCOP_RRC>); break;
+			default: check(0); break;
+		}
+
+		// Three registers, note we don't call Optimize on the Kernel since that will write the Exec and we are selecting based upon thread safe or not
+		Context.Write(Context.DecodeU16());
+		Context.Write(Context.DecodeU16());
+		Context.Write(Context.DecodeU16());
+	}
+
+	static VM_FORCEINLINE void Exec(FVectorVMContext& Context)
+	{
+		if ( Context.IsParallelExecution() )
+		{
+			InternalKernel<true>::Exec(Context);
+		}
+		else
+		{
+			InternalKernel<false>::Exec(Context);
+		}
+	}
+
 };
 
 //TODO: REWORK TO FUNCITON LIKE THE ABOVE.
@@ -1374,9 +1760,23 @@ struct FScalarKernelAcquireCounterIndex
 
 struct FKernelExternalFunctionCall
 {
+	static void Optimize(FVectorVMCodeOptimizerContext& Context)
+	{
+		const uint32 ExternalFuncIdx = Context.DecodeU8();
+
+		Context.Write<FVectorVMExecFunction>(Exec);
+		Context.Write<uint8>(ExternalFuncIdx);
+
+		const int32 NumRegisters = Context.ExternalFunctionRegisterCounts[ExternalFuncIdx];
+		for ( int32 i=0; i < NumRegisters; ++i )
+		{
+			Context.Write(Context.DecodeU16());
+		}
+	}
+
 	static void Exec(FVectorVMContext& Context)
 	{
-		uint32 ExternalFuncIdx = VectorVM::DecodeU8(Context);
+		const uint32 ExternalFuncIdx = Context.DecodeU8();
 		Context.ExternalFunctionTable[ExternalFuncIdx].Execute(Context);
 	}
 };
@@ -1726,8 +2126,10 @@ struct FVectorKernelBoolToInt : TUnaryKernel<FVectorKernelBoolToInt, FRegisterHa
 	}
 };
 
+#if WITH_EDITOR
 UEnum* g_VectorVMEnumStateObj = nullptr;
 UEnum* g_VectorVMEnumOperandObj = nullptr;
+#endif
 
 
 void VectorVM::Init()
@@ -1735,8 +2137,10 @@ void VectorVM::Init()
 	static bool Inited = false;
 	if (Inited == false)
 	{
+#if WITH_EDITOR
 		g_VectorVMEnumStateObj = StaticEnum<EVectorVMOp>();
 		g_VectorVMEnumOperandObj = StaticEnum<EVectorVMOperandLocation>();
+#endif
 
 		// random noise
 		float TempTable[17][17][17];
@@ -1818,14 +2222,11 @@ void VectorVM::Init()
 }
 
 void VectorVM::Exec(
-	uint8 const* Code,
+	uint8 const* ByteCode,
+	uint8 const* OptimizedByteCode,
 	int32 NumTempRegisters,
-	uint8** InputRegisters,
-	int32 NumInputRegisters,
-	uint8** OutputRegisters,
-	int32 NumOutputRegisters,
 	uint8 const* ConstantTable,
-	TArray<FDataSetMeta> &DataSetMetaTable,
+	TArrayView<FDataSetMeta> DataSetMetaTable,
 	FVMExternalFunction* ExternalFunctionTable,
 	void** UserPtrTable,
 	int32 NumInstances
@@ -1837,190 +2238,183 @@ void VectorVM::Exec(
 	//TRACE_CPUPROFILER_EVENT_SCOPE("VMExec");
 	SCOPE_CYCLE_COUNTER(STAT_VVMExec);
 
-	// table of index counters, one for each data set
-	TArray<int32, TInlineAllocator<16>> DataSetIndexTable;
-	TArray<int32, TInlineAllocator<16>> DataSetOffsetTable;
-
-	// map secondary data sets and fill in the offset table into the register table
-	//
-	for (int32 Idx = 0; Idx < DataSetMetaTable.Num(); Idx++)
-	{
-		uint32 DataSetOffset = DataSetMetaTable[Idx].RegisterOffset;
-		DataSetOffsetTable.Add(DataSetOffset);
-		DataSetIndexTable.Add(DataSetMetaTable[Idx].DataSetAccessIndex);	// prime counter index table with the data set offset; will be incremented with every write for each instance
-	}
-
-	int32 MaxInstances = FMath::Min(GParallelVVMInstancesPerChunk, NumInstances);
-	int32 NumChunks = (NumInstances / GParallelVVMInstancesPerChunk) + 1;
-	int32 ChunksPerBatch = (GbParallelVVM != 0 && FApp::ShouldUseThreadingForPerformance()) ? GParallelVVMChunksPerBatch : NumChunks;
-	int32 NumBatches = FMath::DivideAndRoundUp(NumChunks, ChunksPerBatch);
-	bool bParallel = NumBatches > 1;
+	const int32 MaxInstances = FMath::Min(GParallelVVMInstancesPerChunk, NumInstances);
+	const int32 NumChunks = (NumInstances / GParallelVVMInstancesPerChunk) + 1;
+	const int32 ChunksPerBatch = (GbParallelVVM != 0 && FApp::ShouldUseThreadingForPerformance()) ? GParallelVVMChunksPerBatch : NumChunks;
+	const int32 NumBatches = FMath::DivideAndRoundUp(NumChunks, ChunksPerBatch);
+	const bool bParallel = NumBatches > 1;
+	const bool bUseOptimizedByteCode = (OptimizedByteCode != nullptr) && GbUseOptimizedVMByteCode;
 
 	auto ExecChunkBatch = [&](int32 BatchIdx)
 	{
 		//SCOPE_CYCLE_COUNTER(STAT_VVMExecChunk);
 
 		FVectorVMContext& Context = FVectorVMContext::Get();
-		Context.PrepareForExec(InputRegisters, OutputRegisters, NumTempRegisters, NumInputRegisters, NumOutputRegisters, ConstantTable, DataSetIndexTable.GetData(), DataSetOffsetTable.GetData(), DataSetOffsetTable.Num(),
-			ExternalFunctionTable, UserPtrTable, DataSetMetaTable, MaxInstances
+		Context.PrepareForExec(NumTempRegisters, ConstantTable, ExternalFunctionTable, UserPtrTable, DataSetMetaTable, MaxInstances, bParallel);
 #if STATS
-			, &StatScopes
+		Context.SetStatScopes(&StatScopes);
 #endif
-		);
 
 		// Process one chunk at a time.
 		int32 ChunkIdx = BatchIdx * ChunksPerBatch;
-		int32 FirstInstance = ChunkIdx * GParallelVVMInstancesPerChunk;
-		int32 FinalInstance = FMath::Min(NumInstances, FirstInstance + (ChunksPerBatch * GParallelVVMInstancesPerChunk));
+		const int32 FirstInstance = ChunkIdx * GParallelVVMInstancesPerChunk;
+		const int32 FinalInstance = FMath::Min(NumInstances, FirstInstance + (ChunksPerBatch * GParallelVVMInstancesPerChunk));
 		int32 InstancesLeft = FinalInstance - FirstInstance;
 		while (InstancesLeft > 0)
 		{
 			int32 NumInstancesThisChunk = FMath::Min(InstancesLeft, (int32)GParallelVVMInstancesPerChunk);
 			int32 StartInstance = GParallelVVMInstancesPerChunk * ChunkIdx;
-			// Setup execution context.
-			Context.PrepareForChunk(Code, NumInstancesThisChunk, StartInstance);
 
-			EVectorVMOp Op = EVectorVMOp::done;
-
-			// Execute VM on all vectors in this chunk.
-			do
+			// Execute optimized byte code version
+			if ( bUseOptimizedByteCode )
 			{
-				Op = DecodeOp(Context);
-				switch (Op)
+				// Setup execution context.
+				Context.PrepareForChunk(OptimizedByteCode, NumInstancesThisChunk, StartInstance);
+
+				while (true)
 				{
-					// Dispatch kernel ops.
-				case EVectorVMOp::add: FVectorKernelAdd::Exec(Context); break;
-				case EVectorVMOp::sub: FVectorKernelSub::Exec(Context); break;
-				case EVectorVMOp::mul: FVectorKernelMul::Exec(Context); break;
-				case EVectorVMOp::div: FVectorKernelDiv::Exec(Context); break;
-				case EVectorVMOp::mad: FVectorKernelMad::Exec(Context); break;
-				case EVectorVMOp::lerp: FVectorKernelLerp::Exec(Context); break;
-				case EVectorVMOp::rcp: FVectorKernelRcp::Exec(Context); break;
-				case EVectorVMOp::rsq: FVectorKernelRsq::Exec(Context); break;
-				case EVectorVMOp::sqrt: FVectorKernelSqrt::Exec(Context); break;
-				case EVectorVMOp::neg: FVectorKernelNeg::Exec(Context); break;
-				case EVectorVMOp::abs: FVectorKernelAbs::Exec(Context); break;
-				case EVectorVMOp::exp: FVectorKernelExp::Exec(Context); break;
-				case EVectorVMOp::exp2: FVectorKernelExp2::Exec(Context); break;
-				case EVectorVMOp::log: FVectorKernelLog::Exec(Context); break;
-				case EVectorVMOp::log2: FVectorKernelLog2::Exec(Context); break;
-				case EVectorVMOp::sin: FVectorKernelSin::Exec(Context); break;
-				case EVectorVMOp::cos: FVectorKernelCos::Exec(Context); break;
-				case EVectorVMOp::tan: FVectorKernelTan::Exec(Context); break;
-				case EVectorVMOp::asin: FVectorKernelASin::Exec(Context); break;
-				case EVectorVMOp::acos: FVectorKernelACos::Exec(Context); break;
-				case EVectorVMOp::atan: FVectorKernelATan::Exec(Context); break;
-				case EVectorVMOp::atan2: FVectorKernelATan2::Exec(Context); break;
-				case EVectorVMOp::ceil: FVectorKernelCeil::Exec(Context); break;
-				case EVectorVMOp::floor: FVectorKernelFloor::Exec(Context); break;
-				case EVectorVMOp::round: FVectorKernelRound::Exec(Context); break;
-				case EVectorVMOp::fmod: FVectorKernelMod::Exec(Context); break;
-				case EVectorVMOp::frac: FVectorKernelFrac::Exec(Context); break;
-				case EVectorVMOp::trunc: FVectorKernelTrunc::Exec(Context); break;
-				case EVectorVMOp::clamp: FVectorKernelClamp::Exec(Context); break;
-				case EVectorVMOp::min: FVectorKernelMin::Exec(Context); break;
-				case EVectorVMOp::max: FVectorKernelMax::Exec(Context); break;
-				case EVectorVMOp::pow: FVectorKernelPow::Exec(Context); break;
-				case EVectorVMOp::sign: FVectorKernelSign::Exec(Context); break;
-				case EVectorVMOp::step: FVectorKernelStep::Exec(Context); break;
-				case EVectorVMOp::random: FVectorKernelRandom::Exec(Context); break;
-				case EVectorVMOp::noise: VectorVMNoise::Noise1D(Context); break;
-				case EVectorVMOp::noise2D: VectorVMNoise::Noise2D(Context); break;
-				case EVectorVMOp::noise3D: VectorVMNoise::Noise3D(Context); break;
-
-				case EVectorVMOp::cmplt: FVectorKernelCompareLT::Exec(Context); break;
-				case EVectorVMOp::cmple: FVectorKernelCompareLE::Exec(Context); break;
-				case EVectorVMOp::cmpgt: FVectorKernelCompareGT::Exec(Context); break;
-				case EVectorVMOp::cmpge: FVectorKernelCompareGE::Exec(Context); break;
-				case EVectorVMOp::cmpeq: FVectorKernelCompareEQ::Exec(Context); break;
-				case EVectorVMOp::cmpneq: FVectorKernelCompareNEQ::Exec(Context); break;
-				case EVectorVMOp::select: FVectorKernelSelect::Exec(Context); break;
-
-				case EVectorVMOp::addi: FVectorIntKernelAdd::Exec(Context); break;
-				case EVectorVMOp::subi: FVectorIntKernelSubtract::Exec(Context); break;
-				case EVectorVMOp::muli: FVectorIntKernelMultiply::Exec(Context); break;
-				case EVectorVMOp::divi: FVectorIntKernelDivide::Exec(Context); break;
-				case EVectorVMOp::clampi: FVectorIntKernelClamp::Exec(Context); break;
-				case EVectorVMOp::mini: FVectorIntKernelMin::Exec(Context); break;
-				case EVectorVMOp::maxi: FVectorIntKernelMax::Exec(Context); break;
-				case EVectorVMOp::absi: FVectorIntKernelAbs::Exec(Context); break;
-				case EVectorVMOp::negi: FVectorIntKernelNegate::Exec(Context); break;
-				case EVectorVMOp::signi: FVectorIntKernelSign::Exec(Context); break;
-				case EVectorVMOp::randomi: FScalarIntKernelRandom::Exec(Context); break;
-				case EVectorVMOp::cmplti: FVectorIntKernelCompareLT::Exec(Context); break;
-				case EVectorVMOp::cmplei: FVectorIntKernelCompareLE::Exec(Context); break;
-				case EVectorVMOp::cmpgti: FVectorIntKernelCompareGT::Exec(Context); break;
-				case EVectorVMOp::cmpgei: FVectorIntKernelCompareGE::Exec(Context); break;
-				case EVectorVMOp::cmpeqi: FVectorIntKernelCompareEQ::Exec(Context); break;
-				case EVectorVMOp::cmpneqi: FVectorIntKernelCompareNEQ::Exec(Context); break;
-				case EVectorVMOp::bit_and: FVectorIntKernelBitAnd::Exec(Context); break;
-				case EVectorVMOp::bit_or: FVectorIntKernelBitOr::Exec(Context); break;
-				case EVectorVMOp::bit_xor: FVectorIntKernelBitXor::Exec(Context); break;
-				case EVectorVMOp::bit_not: FVectorIntKernelBitNot::Exec(Context); break;
-				case EVectorVMOp::bit_lshift: FVectorIntKernelBitLShift::Exec(Context); break;
-				case EVectorVMOp::bit_rshift: FVectorIntKernelBitRShift::Exec(Context); break;
-				case EVectorVMOp::logic_and: FVectorIntKernelLogicAnd::Exec(Context); break;
-				case EVectorVMOp::logic_or: FVectorIntKernelLogicOr::Exec(Context); break;
-				case EVectorVMOp::logic_xor: FVectorIntKernelLogicXor::Exec(Context); break;
-				case EVectorVMOp::logic_not: FVectorIntKernelLogicNot::Exec(Context); break;
-				case EVectorVMOp::f2i: FVectorKernelFloatToInt::Exec(Context); break;
-				case EVectorVMOp::i2f: FVectorKernelIntToFloat::Exec(Context); break;
-				case EVectorVMOp::f2b: FVectorKernelFloatToBool::Exec(Context); break;
-				case EVectorVMOp::b2f: FVectorKernelBoolToFloat::Exec(Context); break;
-				case EVectorVMOp::i2b: FVectorKernelIntToBool::Exec(Context); break;
-				case EVectorVMOp::b2i: FVectorKernelBoolToInt::Exec(Context); break;
-
-				case EVectorVMOp::outputdata_32bit:	FScalarKernelWriteOutputIndexed<int32>::Exec(Context);	break;
-				case EVectorVMOp::inputdata_32bit: FVectorKernelReadInput<int32>::Exec(Context); break;
-					//case EVectorVMOp::inputdata_32bit: FVectorKernelReadInput32::Exec(Context); break;
-				case EVectorVMOp::inputdata_noadvance_32bit: FVectorKernelReadInputNoAdvance<int32>::Exec(Context); break;
-				case EVectorVMOp::acquireindex:	
-				{
-					if (bParallel)
+					FVectorVMExecFunction ExecFunction = reinterpret_cast<FVectorVMExecFunction>(Context.DecodePtr());
+					if (ExecFunction == nullptr)
 					{
-						FScalarKernelAcquireCounterIndex<true>::Exec(Context);
+						break;
 					}
-					else
-					{
-						FScalarKernelAcquireCounterIndex<false>::Exec(Context);
-					}
-
-				}break;
-				case EVectorVMOp::external_func_call: FKernelExternalFunctionCall::Exec(Context); break;
-
-				case EVectorVMOp::exec_index: FVectorKernelExecutionIndex::Exec(Context); break;
-
-				case EVectorVMOp::enter_stat_scope: FVectorKernelEnterStatScope::Exec(Context); break;
-				case EVectorVMOp::exit_stat_scope: FVectorKernelExitStatScope::Exec(Context); break;
-
-			//Special case ops to handle unique IDs but this can be written as generalized buffer operations. TODO!
-			case EVectorVMOp::update_id:	FScalarKernelUpdateID::Exec(Context); break;
-			case EVectorVMOp::acquire_id:	FScalarKernelAcquireID::Exec(Context); break;
-
-					// Execution always terminates with a "done" opcode.
-				case EVectorVMOp::done:
-					break;
-
-					// Opcode not recognized / implemented.
-				default:
-					UE_LOG(LogVectorVM, Fatal, TEXT("Unknown op code 0x%02x"), (uint32)Op);
-					return;//BAIL
+					ExecFunction(Context);
 				}
-			} while (Op != EVectorVMOp::done);
+			}
+			else
+			{
+				// Setup execution context.
+				Context.PrepareForChunk(ByteCode, NumInstancesThisChunk, StartInstance);
+
+				// Execute VM on all vectors in this chunk.
+				EVectorVMOp Op = EVectorVMOp::done;
+				do
+				{
+					Op = Context.DecodeOp();
+					switch (Op)
+					{
+						// Dispatch kernel ops.
+						case EVectorVMOp::add: FVectorKernelAdd::Exec(Context); break;
+						case EVectorVMOp::sub: FVectorKernelSub::Exec(Context); break;
+						case EVectorVMOp::mul: FVectorKernelMul::Exec(Context); break;
+						case EVectorVMOp::div: FVectorKernelDivSafe::Exec(Context); break;
+						case EVectorVMOp::mad: FVectorKernelMad::Exec(Context); break;
+						case EVectorVMOp::lerp: FVectorKernelLerp::Exec(Context); break;
+						case EVectorVMOp::rcp: FVectorKernelRcpSafe::Exec(Context); break;
+						case EVectorVMOp::rsq: FVectorKernelRsqSafe::Exec(Context); break;
+						case EVectorVMOp::sqrt: FVectorKernelSqrtSafe::Exec(Context); break;
+						case EVectorVMOp::neg: FVectorKernelNeg::Exec(Context); break;
+						case EVectorVMOp::abs: FVectorKernelAbs::Exec(Context); break;
+						case EVectorVMOp::exp: FVectorKernelExp::Exec(Context); break;
+						case EVectorVMOp::exp2: FVectorKernelExp2::Exec(Context); break;
+						case EVectorVMOp::log: FVectorKernelLogSafe::Exec(Context); break;
+						case EVectorVMOp::log2: FVectorKernelLog2::Exec(Context); break;
+						case EVectorVMOp::sin: FVectorKernelSin::Exec(Context); break;
+						case EVectorVMOp::cos: FVectorKernelCos::Exec(Context); break;
+						case EVectorVMOp::tan: FVectorKernelTan::Exec(Context); break;
+						case EVectorVMOp::asin: FVectorKernelASin::Exec(Context); break;
+						case EVectorVMOp::acos: FVectorKernelACos::Exec(Context); break;
+						case EVectorVMOp::atan: FVectorKernelATan::Exec(Context); break;
+						case EVectorVMOp::atan2: FVectorKernelATan2::Exec(Context); break;
+						case EVectorVMOp::ceil: FVectorKernelCeil::Exec(Context); break;
+						case EVectorVMOp::floor: FVectorKernelFloor::Exec(Context); break;
+						case EVectorVMOp::round: FVectorKernelRound::Exec(Context); break;
+						case EVectorVMOp::fmod: FVectorKernelMod::Exec(Context); break;
+						case EVectorVMOp::frac: FVectorKernelFrac::Exec(Context); break;
+						case EVectorVMOp::trunc: FVectorKernelTrunc::Exec(Context); break;
+						case EVectorVMOp::clamp: FVectorKernelClamp::Exec(Context); break;
+						case EVectorVMOp::min: FVectorKernelMin::Exec(Context); break;
+						case EVectorVMOp::max: FVectorKernelMax::Exec(Context); break;
+						case EVectorVMOp::pow: FVectorKernelPowSafe::Exec(Context); break;
+						case EVectorVMOp::sign: FVectorKernelSign::Exec(Context); break;
+						case EVectorVMOp::step: FVectorKernelStep::Exec(Context); break;
+						case EVectorVMOp::random: FVectorKernelRandom::Exec(Context); break;
+						case EVectorVMOp::noise: VectorVMNoise::Noise1D(Context); break;
+						case EVectorVMOp::noise2D: VectorVMNoise::Noise2D(Context); break;
+						case EVectorVMOp::noise3D: VectorVMNoise::Noise3D(Context); break;
+
+						case EVectorVMOp::cmplt: FVectorKernelCompareLT::Exec(Context); break;
+						case EVectorVMOp::cmple: FVectorKernelCompareLE::Exec(Context); break;
+						case EVectorVMOp::cmpgt: FVectorKernelCompareGT::Exec(Context); break;
+						case EVectorVMOp::cmpge: FVectorKernelCompareGE::Exec(Context); break;
+						case EVectorVMOp::cmpeq: FVectorKernelCompareEQ::Exec(Context); break;
+						case EVectorVMOp::cmpneq: FVectorKernelCompareNEQ::Exec(Context); break;
+						case EVectorVMOp::select: FVectorKernelSelect::Exec(Context); break;
+
+						case EVectorVMOp::addi: FVectorIntKernelAdd::Exec(Context); break;
+						case EVectorVMOp::subi: FVectorIntKernelSubtract::Exec(Context); break;
+						case EVectorVMOp::muli: FVectorIntKernelMultiply::Exec(Context); break;
+						case EVectorVMOp::divi: FVectorIntKernelDivide::Exec(Context); break;
+						case EVectorVMOp::clampi: FVectorIntKernelClamp::Exec(Context); break;
+						case EVectorVMOp::mini: FVectorIntKernelMin::Exec(Context); break;
+						case EVectorVMOp::maxi: FVectorIntKernelMax::Exec(Context); break;
+						case EVectorVMOp::absi: FVectorIntKernelAbs::Exec(Context); break;
+						case EVectorVMOp::negi: FVectorIntKernelNegate::Exec(Context); break;
+						case EVectorVMOp::signi: FVectorIntKernelSign::Exec(Context); break;
+						case EVectorVMOp::randomi: FScalarIntKernelRandom::Exec(Context); break;
+						case EVectorVMOp::cmplti: FVectorIntKernelCompareLT::Exec(Context); break;
+						case EVectorVMOp::cmplei: FVectorIntKernelCompareLE::Exec(Context); break;
+						case EVectorVMOp::cmpgti: FVectorIntKernelCompareGT::Exec(Context); break;
+						case EVectorVMOp::cmpgei: FVectorIntKernelCompareGE::Exec(Context); break;
+						case EVectorVMOp::cmpeqi: FVectorIntKernelCompareEQ::Exec(Context); break;
+						case EVectorVMOp::cmpneqi: FVectorIntKernelCompareNEQ::Exec(Context); break;
+						case EVectorVMOp::bit_and: FVectorIntKernelBitAnd::Exec(Context); break;
+						case EVectorVMOp::bit_or: FVectorIntKernelBitOr::Exec(Context); break;
+						case EVectorVMOp::bit_xor: FVectorIntKernelBitXor::Exec(Context); break;
+						case EVectorVMOp::bit_not: FVectorIntKernelBitNot::Exec(Context); break;
+						case EVectorVMOp::bit_lshift: FVectorIntKernelBitLShift::Exec(Context); break;
+						case EVectorVMOp::bit_rshift: FVectorIntKernelBitRShift::Exec(Context); break;
+						case EVectorVMOp::logic_and: FVectorIntKernelLogicAnd::Exec(Context); break;
+						case EVectorVMOp::logic_or: FVectorIntKernelLogicOr::Exec(Context); break;
+						case EVectorVMOp::logic_xor: FVectorIntKernelLogicXor::Exec(Context); break;
+						case EVectorVMOp::logic_not: FVectorIntKernelLogicNot::Exec(Context); break;
+						case EVectorVMOp::f2i: FVectorKernelFloatToInt::Exec(Context); break;
+						case EVectorVMOp::i2f: FVectorKernelIntToFloat::Exec(Context); break;
+						case EVectorVMOp::f2b: FVectorKernelFloatToBool::Exec(Context); break;
+						case EVectorVMOp::b2f: FVectorKernelBoolToFloat::Exec(Context); break;
+						case EVectorVMOp::i2b: FVectorKernelIntToBool::Exec(Context); break;
+						case EVectorVMOp::b2i: FVectorKernelBoolToInt::Exec(Context); break;
+
+						case EVectorVMOp::outputdata_32bit:	FScalarKernelWriteOutputIndexed<int32>::Exec(Context);	break;
+						case EVectorVMOp::inputdata_32bit: FVectorKernelReadInput<int32>::Exec(Context); break;
+						case EVectorVMOp::inputdata_noadvance_32bit: FVectorKernelReadInputNoAdvance<int32>::Exec(Context); break;
+						case EVectorVMOp::acquireindex:	FScalarKernelAcquireCounterIndex::Exec(Context); break;
+						case EVectorVMOp::external_func_call: FKernelExternalFunctionCall::Exec(Context); break;
+
+						case EVectorVMOp::exec_index: FVectorKernelExecutionIndex::Exec(Context); break;
+
+						case EVectorVMOp::enter_stat_scope: FVectorKernelEnterStatScope::Exec(Context); break;
+						case EVectorVMOp::exit_stat_scope: FVectorKernelExitStatScope::Exec(Context); break;
+
+						//Special case ops to handle unique IDs but this can be written as generalized buffer operations. TODO!
+						case EVectorVMOp::update_id:	FScalarKernelUpdateID::Exec(Context); break;
+						case EVectorVMOp::acquire_id:	FScalarKernelAcquireID::Exec(Context); break;
+
+						// Execution always terminates with a "done" opcode.
+						case EVectorVMOp::done:
+							break;
+
+						// Opcode not recognized / implemented.
+						default:
+							UE_LOG(LogVectorVM, Fatal, TEXT("Unknown op code 0x%02x"), (uint32)Op);
+							return;//BAIL
+					}
+				} while (Op != EVectorVMOp::done);
+			}
 
 			InstancesLeft -= GParallelVVMInstancesPerChunk;
 			++ChunkIdx;
 		}
-
 		Context.FinishExec();
 	};
 
-	ParallelFor(NumBatches, ExecChunkBatch, GbParallelVVM == 0 || !bParallel);
-
-	// write back data set access indices, so we know how much was written to each data set
-	for (int32 Idx = 0; Idx < DataSetMetaTable.Num(); Idx++)
+	if ( NumBatches > 1 )
 	{
-		DataSetMetaTable[Idx].DataSetAccessIndex = DataSetIndexTable[Idx];	
+		ParallelFor(NumBatches, ExecChunkBatch, GbParallelVVM == 0 || !bParallel);
+	}
+	else
+	{
+		ExecChunkBatch(0);
 	}
 }
 
@@ -2050,5 +2444,611 @@ FString VectorVM::GetOperandLocationName(EVectorVMOperandLocation Location)
 	return LocStr.RightChop(LastIdx);
 }
 #endif
+
+// local implementation of VectorIntShuffle for neon/directx/
+
+
+// Optimization managed by GbBatchPackVMOutput via PackedOutputOptimization()
+// Looks for the common pattern of an acquireindex op followed by a number of associated outputdata_32bit ops.  The
+// stock operation is to write an index into a temporary register, and then have the different outputs streams
+// write into the indexed location.  This optimization does a number of things:
+// -first we check if 'validity' is uniform or not, if it is we can have a fast path of both figuring out how many
+// indices we need, as well as how to write the output (if we find that they are all invalid, then we don't need to do anything!)
+// -if we need to evaluate the validity of each element we quickly count up the number (with vector intrinsics) and
+// grab a block of the indices (rather than one at a time)
+// -rather than storing the indices to use, we store a int8 mask which indicates a valid flag for each of the next 4 samples
+// -outputs are then written to depending on their source and their frequency:
+//		-uniform sources will be splatted to all valid entries
+//		-variable sources will be packed into the available slots
+struct FBatchedWriteIndexedOutput
+{
+	// functor for copying a source register to an output register
+	struct FCopyOp
+	{
+		void VM_FORCEINLINE operator()(FVectorVMContext& Context, uint16 DataSetIndex)
+		{
+			FRegisterHandler<int32> SourceRegister(Context);
+			const uint16 DestRegisterIdx = Context.DecodeU16();
+
+			int32* DestReg = Context.GetOutputRegister<int32>(DataSetIndex, DestRegisterIdx) + Context.ValidInstanceIndexStart;
+
+			FMemory::StreamingMemcpy(DestReg, SourceRegister.GetDest(), sizeof(int32) * Context.ValidInstanceCount);
+		}
+	};
+
+	// functor for splatting a constant value to an output register
+	template<typename InputHandler>
+	struct FSplatOp
+	{
+		void VM_FORCEINLINE operator()(FVectorVMContext& Context, uint16 DataSetIndex)
+		{
+			InputHandler SourceRegister(Context);
+			const uint16 DestRegisterIdx = Context.DecodeU16();
+
+			int32* DestReg = Context.GetOutputRegister<int32>(DataSetIndex, DestRegisterIdx) + Context.ValidInstanceIndexStart;
+
+			const int32 SourceValue = SourceRegister.Get();
+			const int32 InstanceVectorCount = FMath::DivideAndRoundDown(Context.ValidInstanceCount, VECTOR_WIDTH_FLOATS);
+
+			if (InstanceVectorCount)
+			{
+				const VectorRegisterInt SplatValue = MakeVectorRegisterInt(SourceValue, SourceValue, SourceValue, SourceValue);
+
+				for (int32 VectorIt = 0; VectorIt < InstanceVectorCount; ++VectorIt)
+				{
+					VectorIntStore(SplatValue, DestReg + VectorIt * VECTOR_WIDTH_FLOATS);
+				}
+			}
+
+			for (int32 InstanceIt = InstanceVectorCount * VECTOR_WIDTH_FLOATS; InstanceIt < Context.ValidInstanceCount; ++InstanceIt)
+			{
+				DestReg[InstanceIt] = SourceValue;
+			}
+		}
+	};
+
+	// performs the operation of copying data from a temporary register to an output register under the assumption
+	// that the validity of each instance is uniform (valid or not).
+	template<typename PopulateOp>
+	static VM_FORCEINLINE void DoRegisterKernelFixedValid(FVectorVMContext& Context)
+	{
+		const uint16 DataSetIndex = Context.DecodeU16();
+		Context.DecodeU16(); // DestIndexRegisterIdx
+		const uint16 AccumulatedOpCount = Context.DecodeU16();
+
+		// if none of the instances are valid, then don't bother writing anything
+		if (!Context.ValidInstanceCount)
+		{
+			// todo we should early out of this case rather than keep parsing the code
+			for (uint16 OpIt = 0; OpIt < AccumulatedOpCount; ++OpIt)
+			{
+				FRegisterHandler<int32> Dummy(Context);
+				Context.DecodeU16(); // DestRegisterIdx
+			}
+
+			return;
+		}
+
+		// for each of our ops, copy the data from the working register to the output
+		const int32 DataSize = sizeof(int32) * Context.ValidInstanceCount;
+
+		for (uint16 OpIt = 0; OpIt < AccumulatedOpCount; ++OpIt)
+		{
+			PopulateOp()(Context, DataSetIndex);
+		}
+	}
+
+	// performs the operation of copying data from a temporary register to an output register without foreknowledge
+	// of the validity of individual instances
+	static VM_FORCEINLINE void DoRegisterKernelVariableValid(FVectorVMContext& Context)
+	{
+		// if we found that all of the instances are valid, then just run the fixed version
+		if (Context.ValidInstanceUniform)
+		{
+			DoRegisterKernelFixedValid<FCopyOp>(Context);
+			return;
+		}
+
+		const uint16 DataSetIndex = Context.DecodeU16();
+		const uint16 DestIndexRegisterIdx = Context.DecodeU16();
+		const uint16 AccumulatedOpCount = Context.DecodeU16();
+
+		FDataSetMeta& DataSetMeta = Context.GetDataSetMeta(DataSetIndex);
+		
+		const int8* DestIndexReg = reinterpret_cast<const int8*>(Context.GetTempRegister(DestIndexRegisterIdx));
+		const int32 LoopCount = FMath::DivideAndRoundUp(Context.NumInstances, VECTOR_WIDTH_FLOATS);
+
+		uint16 OpIt = 0;
+
+		//
+		// VectorIntStore(		- unaligned writes of 16 bytes to our Destination; note that this maneuver requires us to have
+		//						our output buffers padded out to 16 bytes!
+		//	VectorIntShuffle(	- swizzle our source register to pack the valid entries at the beginning, with 0s at the end
+		//    Source,			- source data
+		//    ShuffleMask),		- result of the VectorMaskBits done in the acquireindex, int8/VectorRegister of input
+		//  Destination);
+
+		constexpr int32 OpsPerLoop = 4;
+		for (OpIt = 0; (OpIt + OpsPerLoop) < AccumulatedOpCount; OpIt += OpsPerLoop)
+		{
+			const RegisterType* Source0 = FRegisterHandler<RegisterType>(Context).GetDest();
+			int32* DestReg0 = Context.GetOutputRegister<int32>(DataSetIndex, Context.DecodeU16()) + Context.ValidInstanceIndexStart;
+
+			const RegisterType* Source1 = FRegisterHandler<RegisterType>(Context).GetDest();
+			int32* DestReg1 = Context.GetOutputRegister<int32>(DataSetIndex, Context.DecodeU16()) + Context.ValidInstanceIndexStart;
+
+			const RegisterType* Source2 = FRegisterHandler<RegisterType>(Context).GetDest();
+			int32* DestReg2 = Context.GetOutputRegister<int32>(DataSetIndex, Context.DecodeU16()) + Context.ValidInstanceIndexStart;
+
+			const RegisterType* Source3 = FRegisterHandler<RegisterType>(Context).GetDest();
+			int32* DestReg3 = Context.GetOutputRegister<int32>(DataSetIndex, Context.DecodeU16()) + Context.ValidInstanceIndexStart;
+
+			for (int32 LoopIt = 0; LoopIt < LoopCount; ++LoopIt)
+			{
+				const int8 ShuffleMask = DestIndexReg[LoopIt];
+				const int8 AdvanceCount = FMath::CountBits(ShuffleMask);
+
+				VectorIntStore(VectorIntShuffle(Source0[LoopIt], VectorVMConstants::RegisterShuffleMask[ShuffleMask]), DestReg0);
+				VectorIntStore(VectorIntShuffle(Source1[LoopIt], VectorVMConstants::RegisterShuffleMask[ShuffleMask]), DestReg1);
+				VectorIntStore(VectorIntShuffle(Source2[LoopIt], VectorVMConstants::RegisterShuffleMask[ShuffleMask]), DestReg2);
+				VectorIntStore(VectorIntShuffle(Source3[LoopIt], VectorVMConstants::RegisterShuffleMask[ShuffleMask]), DestReg3);
+
+				DestReg0 += AdvanceCount;
+				DestReg1 += AdvanceCount;
+				DestReg2 += AdvanceCount;
+				DestReg3 += AdvanceCount;
+			}
+		}
+
+		for (; OpIt < AccumulatedOpCount; ++OpIt)
+		{
+			const RegisterType* Source = FRegisterHandler<RegisterType>(Context).GetDest();
+			int32* DestReg0 = Context.GetOutputRegister<int32>(DataSetIndex, Context.DecodeU16()) + Context.ValidInstanceIndexStart;
+
+			for (int32 LoopIt = 0; LoopIt < LoopCount; ++LoopIt)
+			{
+				const int8 ShuffleMask = DestIndexReg[LoopIt];
+				const int8 AdvanceCount = FMath::CountBits(ShuffleMask);
+
+				VectorIntStore(VectorIntShuffle(Source[LoopIt], VectorVMConstants::RegisterShuffleMask[ShuffleMask]), DestReg0);
+
+				DestReg0 += AdvanceCount;
+			}
+		}
+	}
+
+	// acquires a batch of indices from the provided CounterHandler.  If we're running in parallel, then we'll need to use
+	// atomics to guarantee our place in the list of indices.
+	template<bool bParallel>
+	static VM_FORCEINLINE void AcquireCounterIndex(FVectorVMContext& Context, FDataSetCounterHandler& CounterHandler, int32 AcquireCount)
+	{
+		if (AcquireCount)
+		{
+			int32* CounterHandlerIndex = CounterHandler.Get();
+			int32 StartIndex = INDEX_NONE;
+
+			if (bParallel)
+			{
+				StartIndex = FPlatformAtomics::InterlockedAdd(CounterHandlerIndex, AcquireCount);
+			}
+			else
+			{
+				StartIndex = *CounterHandlerIndex;
+				*CounterHandlerIndex = StartIndex + AcquireCount;
+			}
+
+			// increment StartIndex, since CounterHandlerIndex starts at INDEX_NONE
+			Context.ValidInstanceIndexStart = StartIndex + 1;
+		}
+
+		Context.ValidInstanceCount = AcquireCount;
+		Context.ValidInstanceUniform = !AcquireCount || (Context.NumInstances == AcquireCount);
+	}
+
+	// evaluates a register to evaluate which instances are valid or not; will read 4 entries at a time and generate a
+	// a mask for which entries are valid as well as an overall count
+	template<bool bParallel>
+	static void HandleRegisterValidIndices(FVectorVMContext& Context)
+	{
+		FDataSetCounterHandler CounterHandler(Context);
+		FRegisterHandler<VectorRegister> ValidReader(Context);
+		FRegisterHandler<int8> Dst(Context);
+
+		int8* DestAddr = Dst.GetDest();
+
+		// we can process VECTOR_WIDTH_FLOATS entries at a time, generating a int8 mask for each set of 4 indicating
+		// which are valid
+		const int32 LoopCount = FMath::DivideAndRoundUp(Context.NumInstances, VECTOR_WIDTH_FLOATS);
+
+		int32 Remainder = Context.NumInstances;
+		int32 ValidCount = 0;
+		for (int32 LoopIt = 0; LoopIt < LoopCount; ++LoopIt)
+		{
+			// input register needs to be padded to allow for 16 byte reads; but mask out the ones beyond NumInstances
+			const VectorRegister Mask = VectorVMConstants::RemainderMask[FMath::Min(VECTOR_WIDTH_FLOATS, Remainder)];
+
+			const int8 ValidMask = static_cast<int8>(VectorMaskBits(VectorSelect(Mask, ValidReader.GetAndAdvance(), GlobalVectorConstants::FloatZero)));
+			ValidCount += FMath::CountBits(ValidMask);
+
+			DestAddr[LoopIt] = ValidMask;
+
+			Remainder -= VECTOR_WIDTH_FLOATS;
+		}
+
+		// grab our batch of indices
+		AcquireCounterIndex<bParallel>(Context, CounterHandler, ValidCount);
+	}
+
+	// evaluates the uniform check and grab the appropriate number of indices
+	template<typename ValidReaderType, bool bParallel>
+	static VM_FORCEINLINE void HandleUniformValidIndices(FVectorVMContext& Context)
+	{
+		FDataSetCounterHandler CounterHandler(Context);
+		ValidReaderType ValidReader(Context);
+
+		if (ValidReader.Get())
+		{
+			AcquireCounterIndex<bParallel>(Context, CounterHandler, Context.NumInstances);
+		}
+	}
+
+	template<uint8 SrcOpType>
+	static VM_FORCEINLINE void IndexExecOptimized(FVectorVMContext& Context)
+	{
+		if (Context.IsParallelExecution())
+		{
+			switch (SrcOpType)
+			{
+			case SRCOP_RRR: HandleRegisterValidIndices<true>(Context); break;
+			case SRCOP_RRC:	HandleUniformValidIndices<FConstantHandler<int32>, true>(Context); break;
+			default: check(0); break;
+			}
+		}
+		else
+		{
+			switch (SrcOpType)
+			{
+			case SRCOP_RRR: HandleRegisterValidIndices<false>(Context); break;
+			case SRCOP_RRC:	HandleUniformValidIndices<FConstantHandler<int32>, false>(Context); break;
+			default: check(0); break;
+			}
+		}
+	}
+
+	void OptimizeAcquireIndex(FVectorVMCodeOptimizerContext& Context)
+	{
+		const uint32 SrcOpType = Context.BaseContext.DecodeSrcOperandTypes();
+
+		AcquireIndexConstant = !!(SrcOpType & OP0_CONST);
+
+		switch (SrcOpType)
+		{
+		case SRCOP_RRR: Context.Write<FVectorVMExecFunction>(IndexExecOptimized<SRCOP_RRR>); break;
+		case SRCOP_RRC: Context.Write<FVectorVMExecFunction>(IndexExecOptimized<SRCOP_RRC>); break;
+		default: check(0); break;
+		}
+
+		DataSetCounterIndex = Context.DecodeU16();
+		ValidTestRegisterIndex = Context.DecodeU16();
+		WorkingRegisterIndex = Context.DecodeU16();
+
+		Context.Write(DataSetCounterIndex);
+		Context.Write(ValidTestRegisterIndex);
+
+		// we only need the working register if we've got non-uniform data
+		if (SrcOpType == SRCOP_RRR)
+		{
+			Context.Write(WorkingRegisterIndex);
+		}
+	}
+
+	bool OptimizeBatch(FVectorVMCodeOptimizerContext& Context)
+	{
+		const int32 BatchedOpCount = BatchedOps.Num();
+
+		if (!BatchedOpCount)
+			return false;
+
+		for (const auto& BatchEntry : BatchedOps)
+		{
+			const uint16 AccumulatedOpCount = BatchEntry.Value.Num();
+
+			if (!AccumulatedOpCount)
+				continue;
+
+			switch (BatchEntry.Key.SrcOpType)
+			{
+			case SRCOP_RRR:
+				if (AcquireIndexConstant)
+				{
+					Context.Write<FVectorVMExecFunction>(DoRegisterKernelFixedValid<FCopyOp>);
+				}
+				else
+				{
+					Context.Write<FVectorVMExecFunction>(DoRegisterKernelVariableValid);
+				}
+				break;
+			case SRCOP_RRC:	Context.Write<FVectorVMExecFunction>(DoRegisterKernelFixedValid<FSplatOp<FConstantHandler<int32>>>); break;
+			default: check(0); break;
+			}
+
+			Context.Write(BatchEntry.Key.DataSetIndex);
+			Context.Write(BatchEntry.Key.DestIndexRegisterIdx);
+			Context.Write(AccumulatedOpCount);
+			for (const FOpValue& OpValue : BatchEntry.Value)
+			{
+				Context.Write(OpValue.SourceRegisterIndex);
+				Context.Write(OpValue.DestRegisterIdx);
+			}
+		}
+
+		return true;
+	}
+
+	bool ExtractOp(FVectorVMCodeOptimizerContext& Context)
+	{
+		FOpKey Key;
+		Key.SrcOpType = Context.BaseContext.DecodeSrcOperandTypes();
+		Key.DataSetIndex = Context.DecodeU16();
+		Key.DestIndexRegisterIdx = Context.DecodeU16();
+
+		if (Key.DestIndexRegisterIdx != WorkingRegisterIndex)
+		{
+			// if we've found an output node that is not related to the acquire index op, then just exit
+			return false;
+		}
+
+		FOpValue Value;
+		Value.SourceRegisterIndex = Context.DecodeU16();
+		Value.DestRegisterIdx = Context.DecodeU16();
+
+		TArray<FOpValue>& ExistingOps = BatchedOps.FindOrAdd(Key);
+		ExistingOps.Add(Value);
+
+		return true;
+	}
+
+private:
+	using RegisterType = VectorRegisterInt;
+	using ScalarType = int32;
+
+	uint16 DataSetCounterIndex = 0;
+	uint16 ValidTestRegisterIndex = 0;
+	uint16 WorkingRegisterIndex = 0;
+	bool AcquireIndexConstant = false;
+
+	struct FOpKey
+	{
+		uint16 DestIndexRegisterIdx;
+		uint16 DataSetIndex;
+		uint8 SrcOpType;
+	};
+
+	struct FOpValue
+	{
+		uint16 SourceRegisterIndex;
+		uint16 DestRegisterIdx;
+	};
+
+	struct FOpKeyFuncs : public TDefaultMapKeyFuncs<FOpKey, TArray<FOpValue>, false>
+	{
+		static VM_FORCEINLINE bool Matches(const FOpKey& A, const FOpKey& B)
+		{
+			return A.DestIndexRegisterIdx == B.DestIndexRegisterIdx
+				&& A.DataSetIndex == B.DataSetIndex
+				&& A.SrcOpType == B.SrcOpType;
+		}
+
+		static VM_FORCEINLINE uint32 GetKeyHash(const FOpKey& Key)
+		{
+			return HashCombine(
+				HashCombine(GetTypeHash(Key.DestIndexRegisterIdx), GetTypeHash(Key.DataSetIndex)),
+				GetTypeHash(Key.SrcOpType));
+		}
+	};
+
+	TMap<FOpKey, TArray<FOpValue>, FDefaultSetAllocator, FOpKeyFuncs> BatchedOps;
+};
+
+// look for the pattern of acquireindex followed by a bunch of outputs.
+EVectorVMOp PackedOutputOptimization(EVectorVMOp Op, FVectorVMCodeOptimizerContext& Context)
+{
+	if (!GbBatchPackVMOutput)
+	{
+		return Op;
+	}
+
+	if (Op == EVectorVMOp::acquireindex)
+	{
+		const auto RollbackState = Context.CreateCodeState();
+
+		FBatchedWriteIndexedOutput BatchedOutputOp;
+
+		BatchedOutputOp.OptimizeAcquireIndex(Context);
+
+		bool BatchValid = true;
+
+		Op = Context.BaseContext.DecodeOp();
+
+		while (BatchValid && Op == EVectorVMOp::outputdata_32bit)
+		{
+			BatchValid = BatchedOutputOp.ExtractOp(Context);
+			Op = Context.BaseContext.DecodeOp();
+		}
+
+		// if there's nothing worth optimizing here, then just revert what we've parsed
+		if (!BatchValid || !BatchedOutputOp.OptimizeBatch(Context))
+		{
+			Context.RollbackCodeState(RollbackState);
+			return EVectorVMOp::acquireindex;
+		}
+	}
+
+	return Op;
+}
+
+EVectorVMOp SafeMathOptimization(EVectorVMOp Op, FVectorVMCodeOptimizerContext& Context)
+{
+	if (!GbSafeOptimizedKernels)
+	{
+		return Op;
+	}
+
+	switch (Op)
+	{
+		case EVectorVMOp::div: FVectorKernelDivSafe::Optimize(Context); break;
+		case EVectorVMOp::rcp: FVectorKernelRcpSafe::Optimize(Context); break;
+		case EVectorVMOp::rsq: FVectorKernelRsqSafe::Optimize(Context); break;
+		case EVectorVMOp::sqrt: FVectorKernelSqrtSafe::Optimize(Context); break;
+		case EVectorVMOp::log: FVectorKernelLogSafe::Optimize(Context); break;
+		case EVectorVMOp::pow: FVectorKernelPowSafe::Optimize(Context); break;
+		default:
+			return Op;
+	}
+
+	return Context.BaseContext.DecodeOp();
+}
+
+void VectorVM::OptimizeByteCode(const uint8* ByteCode, TArray<uint8>& OptimizedCode, TArrayView<uint8> ExternalFunctionRegisterCounts)
+{
+	OptimizedCode.Empty();
+
+//-TODO: Support unaligned writes & little endian
+#if PLATFORM_SUPPORTS_UNALIGNED_LOADS && PLATFORM_LITTLE_ENDIAN
+
+	if ( !GbOptimizeVMByteCode || (ByteCode == nullptr) )
+	{
+		return;
+	}
+
+	FVectorVMCodeOptimizerContext Context(FVectorVMContext::Get(), ByteCode, OptimizedCode, ExternalFunctionRegisterCounts);
+
+	// add any optimization filters in here, useful so what we can isolate optimizations with CVars
+	FVectorVMCodeOptimizerContext::OptimizeVMFunction VMFilters[] =
+	{
+		PackedOutputOptimization,
+		SafeMathOptimization,
+	};
+
+	EVectorVMOp Op = EVectorVMOp::done;
+	do
+	{
+		Op = Context.BaseContext.DecodeOp();
+
+		for (auto Filter : VMFilters)
+			Op = Filter(Op, Context);
+
+		switch (Op)
+		{
+			case EVectorVMOp::add: FVectorKernelAdd::Optimize(Context); break;
+			case EVectorVMOp::sub: FVectorKernelSub::Optimize(Context); break;
+			case EVectorVMOp::mul: FVectorKernelMul::Optimize(Context); break;
+			case EVectorVMOp::div: FVectorKernelDiv::Optimize(Context); break;
+			case EVectorVMOp::mad: FVectorKernelMad::Optimize(Context); break;
+			case EVectorVMOp::lerp: FVectorKernelLerp::Optimize(Context); break;
+			case EVectorVMOp::rcp: FVectorKernelRcp::Optimize(Context); break;
+			case EVectorVMOp::rsq: FVectorKernelRsq::Optimize(Context); break;
+			case EVectorVMOp::sqrt: FVectorKernelSqrt::Optimize(Context); break;
+			case EVectorVMOp::neg: FVectorKernelNeg::Optimize(Context); break;
+			case EVectorVMOp::abs: FVectorKernelAbs::Optimize(Context); break;
+			case EVectorVMOp::exp: FVectorKernelExp::Optimize(Context); break;
+			case EVectorVMOp::exp2: FVectorKernelExp2::Optimize(Context); break;
+			case EVectorVMOp::log: FVectorKernelLog::Optimize(Context); break;
+			case EVectorVMOp::log2: FVectorKernelLog2::Optimize(Context); break;
+			case EVectorVMOp::sin: FVectorKernelSin::Optimize(Context); break;
+			case EVectorVMOp::cos: FVectorKernelCos::Optimize(Context); break;
+			case EVectorVMOp::tan: FVectorKernelTan::Optimize(Context); break;
+			case EVectorVMOp::asin: FVectorKernelASin::Optimize(Context); break;
+			case EVectorVMOp::acos: FVectorKernelACos::Optimize(Context); break;
+			case EVectorVMOp::atan: FVectorKernelATan::Optimize(Context); break;
+			case EVectorVMOp::atan2: FVectorKernelATan2::Optimize(Context); break;
+			case EVectorVMOp::ceil: FVectorKernelCeil::Optimize(Context); break;
+			case EVectorVMOp::floor: FVectorKernelFloor::Optimize(Context); break;
+			case EVectorVMOp::round: FVectorKernelRound::Optimize(Context); break;
+			case EVectorVMOp::fmod: FVectorKernelMod::Optimize(Context); break;
+			case EVectorVMOp::frac: FVectorKernelFrac::Optimize(Context); break;
+			case EVectorVMOp::trunc: FVectorKernelTrunc::Optimize(Context); break;
+			case EVectorVMOp::clamp: FVectorKernelClamp::Optimize(Context); break;
+			case EVectorVMOp::min: FVectorKernelMin::Optimize(Context); break;
+			case EVectorVMOp::max: FVectorKernelMax::Optimize(Context); break;
+			case EVectorVMOp::pow: FVectorKernelPow::Optimize(Context); break;
+			case EVectorVMOp::sign: FVectorKernelSign::Optimize(Context); break;
+			case EVectorVMOp::step: FVectorKernelStep::Optimize(Context); break;
+			case EVectorVMOp::random: FVectorKernelRandom::Optimize(Context); break;
+			case EVectorVMOp::noise: VectorVMNoise::Optimize_Noise1D(Context); break;
+			case EVectorVMOp::noise2D: VectorVMNoise::Optimize_Noise2D(Context); break;
+			case EVectorVMOp::noise3D: VectorVMNoise::Optimize_Noise3D(Context); break;
+
+			case EVectorVMOp::cmplt: FVectorKernelCompareLT::Optimize(Context); break;
+			case EVectorVMOp::cmple: FVectorKernelCompareLE::Optimize(Context); break;
+			case EVectorVMOp::cmpgt: FVectorKernelCompareGT::Optimize(Context); break;
+			case EVectorVMOp::cmpge: FVectorKernelCompareGE::Optimize(Context); break;
+			case EVectorVMOp::cmpeq: FVectorKernelCompareEQ::Optimize(Context); break;
+			case EVectorVMOp::cmpneq: FVectorKernelCompareNEQ::Optimize(Context); break;
+			case EVectorVMOp::select: FVectorKernelSelect::Optimize(Context); break;
+
+			case EVectorVMOp::addi: FVectorIntKernelAdd::Optimize(Context); break;
+			case EVectorVMOp::subi: FVectorIntKernelSubtract::Optimize(Context); break;
+			case EVectorVMOp::muli: FVectorIntKernelMultiply::Optimize(Context); break;
+			case EVectorVMOp::divi: FVectorIntKernelDivide::Optimize(Context); break;
+			case EVectorVMOp::clampi: FVectorIntKernelClamp::Optimize(Context); break;
+			case EVectorVMOp::mini: FVectorIntKernelMin::Optimize(Context); break;
+			case EVectorVMOp::maxi: FVectorIntKernelMax::Optimize(Context); break;
+			case EVectorVMOp::absi: FVectorIntKernelAbs::Optimize(Context); break;
+			case EVectorVMOp::negi: FVectorIntKernelNegate::Optimize(Context); break;
+			case EVectorVMOp::signi: FVectorIntKernelSign::Optimize(Context); break;
+			case EVectorVMOp::randomi: FScalarIntKernelRandom::Optimize(Context); break;
+			case EVectorVMOp::cmplti: FVectorIntKernelCompareLT::Optimize(Context); break;
+			case EVectorVMOp::cmplei: FVectorIntKernelCompareLE::Optimize(Context); break;
+			case EVectorVMOp::cmpgti: FVectorIntKernelCompareGT::Optimize(Context); break;
+			case EVectorVMOp::cmpgei: FVectorIntKernelCompareGE::Optimize(Context); break;
+			case EVectorVMOp::cmpeqi: FVectorIntKernelCompareEQ::Optimize(Context); break;
+			case EVectorVMOp::cmpneqi: FVectorIntKernelCompareNEQ::Optimize(Context); break;
+			case EVectorVMOp::bit_and: FVectorIntKernelBitAnd::Optimize(Context); break;
+			case EVectorVMOp::bit_or: FVectorIntKernelBitOr::Optimize(Context); break;
+			case EVectorVMOp::bit_xor: FVectorIntKernelBitXor::Optimize(Context); break;
+			case EVectorVMOp::bit_not: FVectorIntKernelBitNot::Optimize(Context); break;
+			case EVectorVMOp::bit_lshift: FVectorIntKernelBitLShift::Optimize(Context); break;
+			case EVectorVMOp::bit_rshift: FVectorIntKernelBitRShift::Optimize(Context); break;
+			case EVectorVMOp::logic_and: FVectorIntKernelLogicAnd::Optimize(Context); break;
+			case EVectorVMOp::logic_or: FVectorIntKernelLogicOr::Optimize(Context); break;
+			case EVectorVMOp::logic_xor: FVectorIntKernelLogicXor::Optimize(Context); break;
+			case EVectorVMOp::logic_not: FVectorIntKernelLogicNot::Optimize(Context); break;
+			case EVectorVMOp::f2i: FVectorKernelFloatToInt::Optimize(Context); break;
+			case EVectorVMOp::i2f: FVectorKernelIntToFloat::Optimize(Context); break;
+			case EVectorVMOp::f2b: FVectorKernelFloatToBool::Optimize(Context); break;
+			case EVectorVMOp::b2f: FVectorKernelBoolToFloat::Optimize(Context); break;
+			case EVectorVMOp::i2b: FVectorKernelIntToBool::Optimize(Context); break;
+			case EVectorVMOp::b2i: FVectorKernelBoolToInt::Optimize(Context); break;
+
+			case EVectorVMOp::outputdata_32bit:	FScalarKernelWriteOutputIndexed<int32>::Optimize(Context);	break;
+			case EVectorVMOp::inputdata_32bit: FVectorKernelReadInput<int32>::Optimize(Context); break;
+			case EVectorVMOp::inputdata_noadvance_32bit: FVectorKernelReadInputNoAdvance<int32>::Optimize(Context); break;
+			case EVectorVMOp::acquireindex: FScalarKernelAcquireCounterIndex::Optimize(Context); break;
+			case EVectorVMOp::external_func_call: FKernelExternalFunctionCall::Optimize(Context); break;
+
+			case EVectorVMOp::exec_index: FVectorKernelExecutionIndex::Optimize(Context); break;
+
+			case EVectorVMOp::enter_stat_scope: FVectorKernelEnterStatScope::Optimize(Context); break;
+			case EVectorVMOp::exit_stat_scope: FVectorKernelExitStatScope::Optimize(Context); break;
+
+			//Special case ops to handle unique IDs but this can be written as generalized buffer operations. TODO!
+			case EVectorVMOp::update_id:	FScalarKernelUpdateID::Optimize(Context); break;
+			case EVectorVMOp::acquire_id:	FScalarKernelAcquireID::Optimize(Context); break;
+
+			// Execution always terminates with a "done" opcode.
+			case EVectorVMOp::done:
+				break;
+
+				// Opcode not recognized / implemented.
+			default:
+				UE_LOG(LogVectorVM, Fatal, TEXT("Unknown op code 0x%02x"), (uint32)Op);
+				OptimizedCode.Empty();
+				return;//BAIL
+		}
+	} while (Op != EVectorVMOp::done);
+	Context.Write<FVectorVMExecFunction>(nullptr);
+#endif //PLATFORM_SUPPORTS_UNALIGNED_LOADS && PLATFORM_LITTLE_ENDIAN
+}
 
 #undef VM_FORCEINLINE

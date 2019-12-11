@@ -18,6 +18,8 @@ public:
 	
 	/** Flags used for filtering */
 	bool bShowBodies;
+	bool bShowKinematicBodies;
+	bool bShowSimulatedBodies;
 	bool bShowConstraints;
 	bool bShowPrimitives;
 

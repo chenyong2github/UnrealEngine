@@ -96,9 +96,9 @@ FGuid UMovieSceneSequence::FindPossessableObjectId(UObject& Object, UObject* Con
 	return FGuid();
 }
 
-FMovieSceneObjectBindingID UMovieSceneSequence::FindNamedBinding(FName InBindingName) const
+FMovieSceneObjectBindingID UMovieSceneSequence::FindBindingByTag(FName InBindingName) const
 {
-	for (FMovieSceneObjectBindingID ID : FindNamedBindings(InBindingName))
+	for (FMovieSceneObjectBindingID ID : FindBindingsByTag(InBindingName))
 	{
 		return ID;
 	}
@@ -110,9 +110,9 @@ FMovieSceneObjectBindingID UMovieSceneSequence::FindNamedBinding(FName InBinding
 	return FMovieSceneObjectBindingID();
 }
 
-const TArray<FMovieSceneObjectBindingID>& UMovieSceneSequence::FindNamedBindings(FName InBindingName) const
+const TArray<FMovieSceneObjectBindingID>& UMovieSceneSequence::FindBindingsByTag(FName InBindingName) const
 {
-	const FMovieSceneObjectBindingIDs* BindingIDs = GetMovieScene()->AllBindingGroups().Find(InBindingName);
+	const FMovieSceneObjectBindingIDs* BindingIDs = GetMovieScene()->AllTaggedBindings().Find(InBindingName);
 	if (BindingIDs)
 	{
 		return BindingIDs->IDs;

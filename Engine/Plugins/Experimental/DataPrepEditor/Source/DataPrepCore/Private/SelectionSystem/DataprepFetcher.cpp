@@ -7,6 +7,11 @@ FText UDataprepFetcher::GetDisplayFetcherName_Implementation() const
 	return GetClass()->GetDisplayNameText();
 }
 
+FText UDataprepFetcher::GetNodeDisplayFetcherName_Implementation() const
+{
+	return GetClass()->GetDisplayNameText();
+}
+
 FText UDataprepFetcher::GetTooltipText_Implementation() const
 {
 	return GetClass()->GetToolTipText();

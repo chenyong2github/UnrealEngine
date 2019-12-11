@@ -102,6 +102,9 @@ public:
 	// Map from animation node to their property index
 	TMap<TWeakObjectPtr<const UAnimGraphNode_Base>, int32> NodePropertyToIndexMap;
 
+	// Map from node property index to source editor node
+	TMap<int32, TWeakObjectPtr<const UEdGraphNode> > NodePropertyIndexToNodeMap;
+
 	// Map from animation node GUID to property index
 	TMap<FGuid, int32> NodeGuidToIndexMap;
 
@@ -218,6 +221,10 @@ class ENGINE_API UAnimBlueprintGeneratedClass : public UBlueprintGeneratedClass,
 	UPROPERTY()
 	TMap<FName, FGraphAssetPlayerInformation> GraphAssetPlayerInformation;
 
+	// Per layer graph blending options
+	UPROPERTY()
+	TMap<FName, FAnimGraphBlendOptions> GraphBlendOptions;
+
 public:
 
 	virtual const TArray<FBakedAnimationStateMachine>& GetBakedStateMachines() const override { return BakedStateMachines; }
@@ -236,6 +243,7 @@ public:
 	virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const { return EvaluateGraphExposedInputs; }
 	virtual const TArray<FAnimBlueprintFunction>& GetAnimBlueprintFunctions() const override { return AnimBlueprintFunctions; }
 	virtual const TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation() const override { return GraphAssetPlayerInformation; }
+	virtual const TMap<FName, FAnimGraphBlendOptions>& GetGraphBlendOptions() const override { return GraphBlendOptions; }
 	
 public:
 #if WITH_EDITORONLY_DATA
@@ -343,6 +351,8 @@ public:
 	}
 
 	const int32* GetNodePropertyIndexFromGuid(FGuid Guid, EPropertySearchMode::Type SearchMode = EPropertySearchMode::OnlyThis);
+
+	const UEdGraphNode* GetVisualNodeFromNodePropertyIndex(int32 PropertyIndex) const;
 #endif
 
 	// Called after Link to patch up references to the nodes in the CDO

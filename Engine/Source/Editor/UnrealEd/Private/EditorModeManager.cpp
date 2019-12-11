@@ -30,6 +30,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Toolkits/BaseToolkit.h"
+#include "Subsystems/BrushEditingSubsystem.h"
 #include "Tools/UEdMode.h"
 #include "Widgets/Images/SImage.h"
 
@@ -734,7 +735,7 @@ void FEditorModeTools::RebuildModeToolBar()
 					{
 						PaletteTabBox->AddSlot()
 						.AutoWidth()
-						.Padding(FMargin(3.f, 1.0f, 3.0f, 0.0f))
+						.Padding(FMargin(0.f, 1.0f, 1.0f, 0.0f))
 						[
 							SNew(SCheckBox)
 							.Style( FEditorStyle::Get(),  "ToolPalette.DockingTab" )
@@ -1403,8 +1404,13 @@ bool FEditorModeTools::ShouldDrawBrushWireframe( AActor* InActor ) const
 /** true if brush vertices should be drawn */
 bool FEditorModeTools::ShouldDrawBrushVertices() const
 {
-	// Currently only geometry mode being active prevents vertices from being drawn.
-	return !IsModeActive( FBuiltinEditorModes::EM_Geometry );
+	if(UBrushEditingSubsystem* BrushSubsystem = GEditor->GetEditorSubsystem<UBrushEditingSubsystem>())
+	{
+		// Currently only geometry mode being active prevents vertices from being drawn.
+		return !BrushSubsystem->IsGeometryEditorModeActive();
+	}
+
+	return true;
 }
 
 /** Ticks all active modes */
@@ -2047,4 +2053,26 @@ bool FEditorModeTools::CanCycleWidgetMode() const
 		}
 	}
 	return false;
+}
+
+
+bool FEditorModeTools::CanAutoSave() const
+{
+	for (auto& Mode : ActiveModes)
+	{
+		if (Mode->CanAutoSave() == false)
+		{
+			return false;
+		}
+	}
+
+	for (UEdMode* Mode : ActiveScriptableModes)
+	{
+		if (Mode->CanAutoSave() == false)
+		{
+			return false;
+		}
+	}
+
+	return true;
 }

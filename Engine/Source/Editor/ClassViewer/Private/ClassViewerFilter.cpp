@@ -448,10 +448,12 @@ bool FClassViewerFilter::IsClassAllowed(const FClassViewerInitializationOptions&
 	// Determine if we allow any developer folder classes, if so determine if this class is in one of the allowed developer folders.
 	static const FString DeveloperPathWithSlash = FPackageName::FilenameToLongPackageName(FPaths::GameDevelopersDir());
 	static const FString UserDeveloperPathWithSlash = FPackageName::FilenameToLongPackageName(FPaths::GameUserDeveloperDir());
-	FString GeneratedClassPathString = InClass->GetPathName();
+	const FString GeneratedClassPathString = InClass->GetPathName();
+
+	const UClassViewerSettings* ClassViewerSettings = GetDefault<UClassViewerSettings>();
 
 	bool bPassesDeveloperFilter = true;
-	EClassViewerDeveloperType AllowedDeveloperType = GetDefault<UClassViewerSettings>()->DeveloperFolderType;
+	EClassViewerDeveloperType AllowedDeveloperType = ClassViewerSettings->DeveloperFolderType;
 	if (AllowedDeveloperType == EClassViewerDeveloperType::CVDT_None)
 	{
 		bPassesDeveloperFilter = !GeneratedClassPathString.StartsWith(DeveloperPathWithSlash);
@@ -463,15 +465,15 @@ bool FClassViewerFilter::IsClassAllowed(const FClassViewerInitializationOptions&
 			bPassesDeveloperFilter = GeneratedClassPathString.StartsWith(UserDeveloperPathWithSlash);
 		}
 	}
-
+	
 	// The INI files declare classes and folders that are considered internal only. Does this class match any of those patterns?
 	// INI path: /Script/ClassViewer.ClassViewerProjectSettings
 	bool bPassesInternalFilter = true;
-	if (!GetDefault<UClassViewerSettings>()->DisplayInternalClasses)
+	if (!ClassViewerSettings->DisplayInternalClasses)
 	{
-		for (int i = 0; i < InternalPaths.Num(); ++i)
+		for (const FDirectoryPath& DirPath : InternalPaths)
 		{
-			if (GeneratedClassPathString.StartsWith(InternalPaths[i].Path))
+			if (GeneratedClassPathString.StartsWith(DirPath.Path))
 			{
 				bPassesInternalFilter = false;
 				break;
@@ -480,14 +482,24 @@ bool FClassViewerFilter::IsClassAllowed(const FClassViewerInitializationOptions&
 
 		if (bPassesInternalFilter)
 		{
-			for (int i = 0; i < InternalClasses.Num(); ++i)
+			for (const UClass* Class : InternalClasses)
 			{
-				if (InClass->IsChildOf(InternalClasses[i]))
+				if (InClass->IsChildOf(Class))
 				{
 					bPassesInternalFilter = false;
 					break;
 				}
 			}
+		}
+	}
+
+	// The INI files can contain a list of globally allowed classes - if it does, then only classes whose names match will be shown.
+	bool bPassesAllowedClasses = true;
+	if (ClassViewerSettings->AllowedClasses.Num() > 0)
+	{
+		if (!ClassViewerSettings->AllowedClasses.Contains(GeneratedClassPathString))
+		{
+			bPassesAllowedClasses = false;
 		}
 	}
 
@@ -512,7 +524,7 @@ bool FClassViewerFilter::IsClassAllowed(const FClassViewerInitializationOptions&
 		bPassesAssetReferenceFilter = AssetReferenceFilter->PassesFilter(FAssetData(InClass));
 	}
 
-	bool bPassesFilter = bPassesPlaceableFilter && bPassesBlueprintBaseFilter 
+	bool bPassesFilter = bPassesAllowedClasses && bPassesPlaceableFilter && bPassesBlueprintBaseFilter
 		&& bPassesDeveloperFilter && bPassesInternalFilter && bPassesEditorClassFilter 
 		&& bPassesCustomFilter && (!bCheckTextFilter || bPassesTextFilter) && bPassesAssetReferenceFilter;
 
@@ -545,7 +557,8 @@ bool FClassViewerFilter::IsUnloadedClassAllowed(const FClassViewerInitialization
 
 	bool bPassesDeveloperFilter = true;
 
-	EClassViewerDeveloperType AllowedDeveloperType = GetDefault<UClassViewerSettings>()->DeveloperFolderType;
+	const UClassViewerSettings* ClassViewerSettings = GetDefault<UClassViewerSettings>();
+	EClassViewerDeveloperType AllowedDeveloperType = ClassViewerSettings->DeveloperFolderType;
 	if (AllowedDeveloperType == EClassViewerDeveloperType::CVDT_None)
 	{
 		bPassesDeveloperFilter = !GeneratedClassPathString.StartsWith(DeveloperPathWithSlash);
@@ -561,15 +574,25 @@ bool FClassViewerFilter::IsUnloadedClassAllowed(const FClassViewerInitialization
 	// The INI files declare classes and folders that are considered internal only. Does this class match any of those patterns?
 	// INI path: /Script/ClassViewer.ClassViewerProjectSettings
 	bool bPassesInternalFilter = true;
-	if (!GetDefault<UClassViewerSettings>()->DisplayInternalClasses)
+	if (!ClassViewerSettings->DisplayInternalClasses)
 	{
-		for (int i = 0; i < InternalPaths.Num(); ++i)
+		for (const FDirectoryPath& DirPath : InternalPaths)
 		{
-			if (GeneratedClassPathString.StartsWith(InternalPaths[i].Path))
+			if (GeneratedClassPathString.StartsWith(DirPath.Path))
 			{
 				bPassesInternalFilter = false;
 				break;
 			}
+		}
+	}
+
+	// The INI files can contain a list of globally allowed classes - if it does, then only classes whose names match will be shown.
+	bool bPassesAllowedClasses = true;
+	if (ClassViewerSettings->AllowedClasses.Num() > 0)
+	{
+		if (!ClassViewerSettings->AllowedClasses.Contains(GeneratedClassPathString))
+		{
+			bPassesAllowedClasses = false;
 		}
 	}
 

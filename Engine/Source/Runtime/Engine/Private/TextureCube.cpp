@@ -103,7 +103,7 @@ uint32 UTextureCube::CalcTextureMemorySize( int32 MipCount ) const
 		FIntPoint MipExtents = CalcMipMapExtent(SizeX, SizeY, Format, FirstMip);
 		
 		uint32 TextureAlign = 0;
-		uint64 TextureSize = RHICalcTextureCubePlatformSize(MipExtents.X, Format, MipCount, 0, FRHIResourceCreateInfo(PlatformData->ExtData), TextureAlign);
+		uint64 TextureSize = RHICalcTextureCubePlatformSize(MipExtents.X, Format, MipCount, 0, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign);
 		Size = (uint32)TextureSize;
 	}
 	return Size;
@@ -148,7 +148,7 @@ public:
 		check(Owner->GetNumMips() > 0);
 
 		TIndirectArray<FTexture2DMipMap>& Mips = InOwner->PlatformData->Mips;
-		const int32 FirstMipTailIndex = Mips.Num() - InOwner->PlatformData->NumMipsInTail;
+		const int32 FirstMipTailIndex = Mips.Num() - InOwner->PlatformData->GetNumMipsInTail();
 		for (int32 MipIndex = 0; MipIndex < FirstMipTailIndex; MipIndex++)
 		{
 			FTexture2DMipMap& Mip = Mips[MipIndex];
@@ -207,7 +207,7 @@ public:
 		// Create the RHI texture.
 		uint32 TexCreateFlags = (Owner->SRGB ? TexCreate_SRGB : 0)  | TexCreate_OfflineProcessed;
 		FRHIResourceCreateInfo CreateInfo;
-		CreateInfo.ExtData = Owner->PlatformData ? Owner->PlatformData->ExtData : 0;
+		CreateInfo.ExtData = Owner->PlatformData ? Owner->PlatformData->GetExtData() : 0;
 		TextureCubeRHI = RHICreateTextureCube( Owner->GetSizeX(), Owner->GetPixelFormat(), Owner->GetNumMips(), TexCreateFlags, CreateInfo );
 		TextureRHI = TextureCubeRHI;
 		TextureRHI->SetName(Owner->GetFName());
@@ -216,6 +216,7 @@ public:
 
 		// Read the mip-levels into the RHI texture.
 		int32 NumMips = Owner->GetNumMips();
+		check(NumMips < MAX_TEXTURE_MIP_COUNT);
 		for( int32 FaceIndex=0; FaceIndex<6; FaceIndex++ )
 		{
 			for(int32 MipIndex=0; MipIndex < NumMips; MipIndex++)
@@ -289,6 +290,7 @@ private:
 	 */
 	void GetData( int32 FaceIndex, int32 MipIndex, void* Dest, uint32 DestPitch )
 	{
+		check(MipIndex < MAX_TEXTURE_MIP_COUNT);
 		check( MipData[FaceIndex][MipIndex] );
 
 		// for platforms that returned 0 pitch from Lock, we need to just use the bulk data directly, never do 

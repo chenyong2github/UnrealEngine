@@ -40,6 +40,9 @@ namespace UnrealBuildTool
 		private string FrameworkExecutableExtension;
 		private string FrameworkLibraryExtension = ".dll";
 
+		/// <summary>
+		/// Includes all files in the generated workspace.
+		/// </summary>
 		[XmlConfigFile(Name = "IncludeAllFiles")]
 		private bool IncludeAllFiles = false;
 

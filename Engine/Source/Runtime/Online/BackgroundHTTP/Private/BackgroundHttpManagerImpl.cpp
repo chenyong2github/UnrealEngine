@@ -228,56 +228,55 @@ bool FBackgroundHttpManagerImpl::Tick(float DeltaTime)
 
 void FBackgroundHttpManagerImpl::ActivatePendingRequests()
 {
-	TArray<FBackgroundHttpRequestPtr> RequestsStartingThisTick;
+	FBackgroundHttpRequestPtr HighestPriorityRequestToStart = nullptr;
+	EBackgroundHTTPPriority HighestRequestPriority = EBackgroundHTTPPriority::Num;
 
-	//Handle Populating RequestsStartingThisTick from PendingStartRequests
+	//Go through and find the highest priority request
 	{
-		FRWScopeLock ScopeLock(PendingRequestLock, SLT_Write);
-
-		if (PendingStartRequests.Num() > 0)
+		FRWScopeLock ActiveScopeLock(ActiveRequestLock, SLT_ReadOnly);
+		FRWScopeLock PendingScopeLock(PendingRequestLock, SLT_ReadOnly);
+		const int NumRequestsWeCanProcess = (MaxActiveDownloads - NumCurrentlyActiveRequests);
+		if (NumRequestsWeCanProcess > 0)
 		{
-			UE_LOG(LogBackgroundHttpManager, Verbose, TEXT("Populating Requests to Start from PendingStartRequests - MaxActiveDownloads:%d | NumCurrentlyActiveRequests:%d | NumPendingStartRequests:%d"), MaxActiveDownloads.Load(), NumCurrentlyActiveRequests, PendingStartRequests.Num());
-
-			//See how many more requests we can process and only do anything if we can still process more
-			const int NumRequestsWeCanProcess = (MaxActiveDownloads - NumCurrentlyActiveRequests);
-			if (NumRequestsWeCanProcess > 0)
+			if (PendingStartRequests.Num() > 0)
 			{
-				TArray<FBackgroundHttpRequestPtr> RemainingRequests;
-				if (PendingStartRequests.Num() > NumRequestsWeCanProcess)
-				{
-					RemainingRequests.Reserve(PendingStartRequests.Num() - NumRequestsWeCanProcess);
-				}
+				UE_LOG(LogBackgroundHttpManager, Verbose, TEXT("Populating Requests to Start from PendingStartRequests - MaxActiveDownloads:%d | NumCurrentlyActiveRequests:%d | NumPendingStartRequests:%d"), MaxActiveDownloads.Load(), NumCurrentlyActiveRequests, PendingStartRequests.Num());
 
-				for (int RequestIndex = 0; RequestIndex < PendingStartRequests.Num(); ++RequestIndex)
+				HighestPriorityRequestToStart = PendingStartRequests[0];
+				HighestRequestPriority = HighestPriorityRequestToStart.IsValid() ? HighestPriorityRequestToStart->GetRequestPriority() : EBackgroundHTTPPriority::Num;
+
+				//See how many more requests we can process and only do anything if we can still process more
 				{
-					FBackgroundHttpRequestPtr& PendingRequest = PendingStartRequests[RequestIndex];
-					if (RequestIndex <= NumRequestsWeCanProcess)
+					for (int RequestIndex = 1; RequestIndex < PendingStartRequests.Num(); ++RequestIndex)
 					{
-						RequestsStartingThisTick.Add(PendingRequest);
-					}
-					else
-					{
-						RemainingRequests.Add(PendingRequest);
+						FBackgroundHttpRequestPtr PendingRequestToCheck = PendingStartRequests[RequestIndex];
+						EBackgroundHTTPPriority PendingRequestPriority = PendingRequestToCheck.IsValid() ? PendingRequestToCheck->GetRequestPriority() : EBackgroundHTTPPriority::Num;
+
+						//Found a higher priority request, so track that one
+						if (PendingRequestPriority < HighestRequestPriority)
+						{
+							HighestPriorityRequestToStart = PendingRequestToCheck;
+							HighestRequestPriority = PendingRequestPriority;
+						}
 					}
 				}
-
-				PendingStartRequests = MoveTemp(RemainingRequests);
 			}
 		}
 	}
 
-	UE_LOG(LogBackgroundHttpManager, Verbose, TEXT("Starting %d Requests From PendingStartRequests Queue"), RequestsStartingThisTick.Num());
-
-	//Now actually add request to Active List and call Handle 
-	for (FBackgroundHttpRequestPtr& RequestToStart : RequestsStartingThisTick)
+	if (HighestPriorityRequestToStart.IsValid())
 	{
+		UE_LOG(LogBackgroundHttpManager, Verbose, TEXT("Starting Request: %s Priority:%s"), *HighestPriorityRequestToStart->GetRequestID(), LexToString(HighestRequestPriority));
+
 		//Actually move request to Active list now
-		FRWScopeLock ScopeLock(ActiveRequestLock, SLT_Write);
-		ActiveRequests.Add(RequestToStart);
+		FRWScopeLock ActiveScopeLock(ActiveRequestLock, SLT_Write);
+		FRWScopeLock PendingScopeLock(PendingRequestLock, SLT_Write);
+		ActiveRequests.Add(HighestPriorityRequestToStart);
+		PendingStartRequests.RemoveSingle(HighestPriorityRequestToStart);
 
 		++NumCurrentlyActiveRequests;
 
 		//Call Handle for that task to now kick itself off
-		RequestToStart->HandleDelayedProcess();
+		HighestPriorityRequestToStart->HandleDelayedProcess();
 	}
 }

@@ -7,6 +7,11 @@
 #include "DataprepAssetProducers.h"
 #include "DataPrepEditor.h"
 
+#include "DataprepEditorStyle.h"
+#include "Widgets/DataprepWidgets.h"
+#include "Widgets/SDataprepEditorViewport.h"
+#include "Widgets/SDataprepProducersWidget.h"
+
 #include "Developer/AssetTools/Public/IAssetTools.h"
 #include "Developer/AssetTools/Public/AssetToolsModule.h"
 #include "Misc/PackageName.h"
@@ -14,9 +19,6 @@
 #include "PropertyEditorModule.h"
 #include "UObject/StrongObjectPtr.h"
 
-#include "DataprepEditorStyle.h"
-#include "Widgets/DataprepWidgets.h"
-#include "Widgets/SDataprepProducersWidget.h"
 #include "Widgets/SNullWidget.h"
 
 const FName DataprepEditorAppIdentifier = FName(TEXT("DataprepEditorApp"));
@@ -55,6 +57,8 @@ public:
 		// Register the details customizer
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked< FPropertyEditorModule >( TEXT("PropertyEditor") );
 		PropertyModule.RegisterCustomClassLayout( UDataprepAssetProducers::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic( &FDataprepAssetProducersDetails::MakeDetails ) );
+
+		SDataprepEditorViewport::LoadDefaultSettings();
 	}
 
 	virtual void ShutdownModule() override

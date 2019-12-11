@@ -60,7 +60,7 @@ namespace IncludeTool
 
 			return true;
 		}
-
+		
 		/// <summary>
 		/// List of include tokens which are external files, and do not need to be resolved
 		/// </summary>
@@ -117,7 +117,7 @@ namespace IncludeTool
 			"unistd.h",
 			"stdio.h",
 			"unicode/",
-
+			
 			// Android
 			"SLES/OpenSLES_Android.h",
 
@@ -141,7 +141,7 @@ namespace IncludeTool
 			"iphlpapi.h",
 			"Iphlpapi.h",
 			"IcmpAPI.h",
-
+			
 			// Mac
 			"AUEffectBase.h",
 			"Security/Security.h",
@@ -195,6 +195,10 @@ namespace IncludeTool
 				return true;
 			}
 			if(NormalizedPath.EndsWith("/recastmesh.cpp") || NormalizedPath.EndsWith("/recastfilter.cpp") || NormalizedPath.EndsWith("/recastcontour.cpp") || NormalizedPath.EndsWith("/framepro.h") || NormalizedPath.EndsWith("/framepro.cpp") || NormalizedPath.EndsWith("/sqlite3.h") || NormalizedPath.EndsWith("/sqlite3.inl") || NormalizedPath.EndsWith("/vorbis_stream_encoder.h") || NormalizedPath.EndsWith("/integral_types.h"))
+			{
+				return true;
+			}
+			if(NormalizedPath.Contains("/thirdparty/rapidjson/"))
 			{
 				return true;
 			}
@@ -389,8 +393,6 @@ namespace IncludeTool
 		/// </summary>
 		static readonly HashSet<string> AllowMultipleFragmentFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
-			"/Engine/Source/Runtime/CoreUObject/Public/UObject/UObjectBaseUtility.h",
-			"/Engine/Source/Runtime/CoreUObject/Public/UObject/Class.h",
 			"/Engine/Source/Runtime/Sockets/Private/BSDSockets/SocketSubsystemBSD.h",
 			"/Engine/Source/Runtime/Sockets/Private/BSDSockets/SocketsBSD.h",
 			"/Engine/Plugins/Runtime/PacketHandlers/CompressionComponents/Oodle/Source/OodleHandlerComponent/Public/OodleHandlerComponent.h",
@@ -414,7 +416,7 @@ namespace IncludeTool
 			"/Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/ParticleHandleFwd.h", // invalid forward declaration - 'namespace Chaos'
 			"/Engine/Source/Runtime/Experimental/Chaos/Public/Chaos/GeometryParticlesfwd.h", // invalid forward declaration - 'namespace Chaos'
 			"/Engine/Source/Runtime/Experimental/ChaosSolvers/Public/PhysicsProxy/SingleParticlePhysicsProxyFwd.h", // invalid forward declaration - 'namespace Chaos'
-        };
+		};
 
 		/// <summary>
 		/// Gets the flags for a new source file
@@ -528,8 +530,7 @@ namespace IncludeTool
 			if(Markup.Type == PreprocessorMarkupType.Define && Markup.Tokens[0].Text == "ONLINE_LOG_PREFIX")
 			{
 				return true;
-			}
-			if(Markup.Type == PreprocessorMarkupType.Define && Markup.Tokens[0].Text == "DEPRECATED_FORGAME")
+			}			if(Markup.Type == PreprocessorMarkupType.Define && (Markup.Tokens[0].Text == "UE_DEPRECATED_FORGAME" || Markup.Tokens[0].Text == "DEPRECATED_FORGAME"))
 			{
 				return true;
 			}
@@ -571,18 +572,18 @@ namespace IncludeTool
 			return false;
 		}
 
-		/// <summary>
-		/// Allow overriding whether a symbol should be forward-declared
-		/// </summary>
-		/// <param name="Symbol"></param>
-		/// <returns></returns>
-		public static bool AllowSymbol(string Name)
-		{
-			if(Name == "FNode" || Name == "FFunctionExpression" || Name == "ITextData" || Name == "Rect")
-			{
-				return false;
-			}
-			return true;
-		}
+        /// <summary>
+        /// Allow overriding whether a symbol should be forward-declared
+        /// </summary>
+        /// <param name="Symbol"></param>
+        /// <returns></returns>
+        public static bool AllowSymbol(string Name)
+        {
+            if(Name == "FNode" || Name == "FFunctionExpression" || Name == "ITextData" || Name == "Rect")
+            {
+                return false;
+            }
+            return true;
+        }
 	}
 }

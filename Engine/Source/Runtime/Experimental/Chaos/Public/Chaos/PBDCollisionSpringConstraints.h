@@ -12,7 +12,7 @@
 namespace Chaos
 {
 template<class T, int d>
-class TPBDCollisionSpringConstraints : public PBDCollisionSpringConstraintsBase<T, d>, public TPBDConstraintContainer<T, d>
+class TPBDCollisionSpringConstraints : public PBDCollisionSpringConstraintsBase<T, d>, public FPBDConstraintContainer
 {
 	typedef PBDCollisionSpringConstraintsBase<T, d> Base;
 	using Base::MBarys;

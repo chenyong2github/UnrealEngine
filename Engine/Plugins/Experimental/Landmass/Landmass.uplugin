@@ -17,7 +17,13 @@
 		{
 			"Name": "Landmass",
 			"Type": "Runtime",
-			"LoadingPhase": "PreDefault"
+			"LoadingPhase": "Default"
+
+		},
+		{
+			"Name": "LandmassEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
 	]
 }

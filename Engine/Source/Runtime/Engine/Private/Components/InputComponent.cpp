@@ -317,6 +317,19 @@ void UInputComponent::RemoveActionBinding(const FInputActionBinding &BindingToRe
 	}
 }
 
+void UInputComponent::RemoveActionBinding(FName InActionName, EInputEvent InKeyEvent)
+{
+	for (int32 ActionIdx = 0; ActionIdx < ActionBindings.Num(); ++ActionIdx)
+	{
+		const TSharedPtr<FInputActionBinding>& Binding = ActionBindings[ActionIdx];
+		if (Binding->GetActionName() == InActionName && Binding->KeyEvent == InKeyEvent)
+		{
+			RemoveActionBinding(ActionIdx);
+			break;
+		}
+	}
+}
+
 void UInputComponent::ClearBindingValues()
 {
 	for (FInputAxisBinding& AxisBinding : AxisBindings)

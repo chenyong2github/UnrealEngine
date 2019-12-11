@@ -399,6 +399,62 @@ FString USocialUser::GetDisplayName(ESocialSubsystem SubsystemType) const
 	return FString();
 }
 
+FString USocialUser::GetNickname() const
+{
+	if (IsFriend())
+	{
+#if WITH_EDITOR
+		bool bRandomNickname = FParse::Param(FCommandLine::Get(), TEXT("RandomNickname"));
+		if (bRandomNickname && !IsLocalUser())
+		{
+			if (GetTypeHash(GetUserId(ESocialSubsystem::Primary)) % 2)
+			{
+				FString RandomNickname = GetDisplayName(ESocialSubsystem::Primary);
+				for (int i = 1; i < RandomNickname.Len(); i += 2)
+				{
+					RandomNickname.RemoveAt(i);
+				}
+				return RandomNickname;
+			}
+		}
+#endif
+
+		if (const FSubsystemUserInfo* SubsystemInfo = SubsystemInfoByType.Find(ESocialSubsystem::Primary))
+		{
+			if (SubsystemInfo->FriendInfo.IsValid())
+			{
+				TSharedPtr<FOnlineFriend> OnlineFriend = SubsystemInfo->FriendInfo.Pin();
+				FString Nickname;
+				OnlineFriend->GetUserAttribute(USER_ATTR_ALIAS, Nickname);
+				return Nickname;
+			}
+		}
+	}
+	return TEXT("");
+}
+
+bool USocialUser::SetNickname(const FString& InNickname)
+{
+	if (IsFriend())
+	{
+		IOnlineFriendsPtr FriendsInterface = GetOwningToolkit().GetSocialOss(ESocialSubsystem::Primary)->GetFriendsInterface();
+		check(FriendsInterface.IsValid());
+
+		if (!InNickname.IsEmpty())
+		{
+			FriendsInterface->SetFriendAlias(GetOwningToolkit().GetLocalUserNum(), *GetUserId(ESocialSubsystem::Primary), EFriendsLists::ToString(EFriendsLists::Default), InNickname, FOnSetFriendAliasComplete::CreateUObject(const_cast<USocialUser*>(this), &USocialUser::HandleSetNicknameComplete));
+			return true;
+		}
+		else if (!GetNickname().IsEmpty())
+		{
+			FriendsInterface->DeleteFriendAlias(GetOwningToolkit().GetLocalUserNum(), *GetUserId(ESocialSubsystem::Primary), EFriendsLists::ToString(EFriendsLists::Default), FOnDeleteFriendAliasComplete::CreateUObject(const_cast<USocialUser*>(this), &USocialUser::HandleSetNicknameComplete));
+			return true;
+		}
+	}
+	OnSetNicknameCompleted().Broadcast(FText::GetEmpty());
+	return false;
+}
+
 EInviteStatus::Type USocialUser::GetFriendInviteStatus(ESocialSubsystem SubsystemType) const
 {
 	if (const FSubsystemUserInfo* SubsystemInfo = SubsystemInfoByType.Find(SubsystemType))
@@ -483,6 +539,20 @@ FDateTime USocialUser::GetFriendshipCreationDate() const
 					}
 				}
 			}
+		}
+	}
+
+	return FDateTime::MaxValue();
+}
+
+FDateTime USocialUser::GetLastOnlineDate() const
+{
+	if (IsFriend(ESocialSubsystem::Primary))
+	{
+		const FOnlineUserPresence* PrimaryPresence = GetFriendPresenceInfo(ESocialSubsystem::Primary);
+		if (PrimaryPresence)
+		{
+			return PrimaryPresence->LastOnline;
 		}
 	}
 
@@ -897,14 +967,7 @@ bool USocialUser::SendFriendInvite(ESocialSubsystem SubsystemType)
 
 bool USocialUser::AcceptFriendInvite(ESocialSubsystem SocialSubsystem) const
 {
-	if (GetFriendInviteStatus(SocialSubsystem) == EInviteStatus::PendingInbound)
-	{
-		IOnlineFriendsPtr FriendsInterface = GetOwningToolkit().GetSocialOss(SocialSubsystem)->GetFriendsInterface();
-		check(FriendsInterface.IsValid());
-
-		return FriendsInterface->AcceptInvite(GetOwningToolkit().GetLocalUserNum(), *GetUserId(SocialSubsystem), EFriendsLists::ToString(EFriendsLists::Default));
-	}
-	return false;
+	return GetOwningToolkit().AcceptFriendInvite(*this, SocialSubsystem);
 }
 
 bool USocialUser::RejectFriendInvite(ESocialSubsystem SocialSubsystem) const
@@ -1237,6 +1300,15 @@ void USocialUser::HandleQueryUserInfoComplete(ESocialSubsystem SubsystemType, bo
 
 	UE_LOG(LogParty, VeryVerbose, TEXT("User [%s] finished querying user info on subsystem [%s] with result [%d]. [%d] queries still pending."), *ToDebugString(), ToString(SubsystemType), UserInfo.IsValid(), NumPendingQueries);
 	TryBroadcastInitializationComplete();
+}
+
+void USocialUser::HandleSetNicknameComplete(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName, const FOnlineError& Error)
+{
+	if (!Error.WasSuccessful())
+	{
+		UE_LOG(LogOnline, Log, TEXT("Set nickname request failed for user: %s with error message: %s"), *FriendId.ToDebugString(), *Error.GetErrorMessage().ToString());
+	}
+	OnSetNicknameCompleted().Broadcast(Error.GetErrorMessage());
 }
 
 FString USocialUser::SanitizePresenceString(FString InString) const

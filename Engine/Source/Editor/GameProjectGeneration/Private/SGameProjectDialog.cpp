@@ -2,10 +2,12 @@
 
 #include "SGameProjectDialog.h"
 #include "Misc/MessageDialog.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/SOverlay.h"
+
 #include "Styling/CoreStyle.h"
 #include "SlateOptMacros.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/SToolTip.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Images/SImage.h"
@@ -14,11 +16,11 @@
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
+#include "Widgets/Text/SRichTextBlock.h"
 #include "EditorStyleSet.h"
 #include "GameProjectUtils.h"
 #include "SProjectBrowser.h"
 #include "SNewProjectWizard.h"
-#include "Widgets/SToolTip.h"
 #include "IDocumentation.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Internationalization/BreakIterator.h"
@@ -49,9 +51,9 @@ namespace GameProjectDialogDefs
 	constexpr int32 TemplateListPageIndex = 2;
 	constexpr int32 ProjectSettingsPageIndex = 3;
 	
-	static const FText LandingPageTitle = LOCTEXT("ProjectDialog_SelectProject", "Select Project");
-	static const FText SelectCategoryTitle = LOCTEXT("ProjectDialog_SelectCategory", "Select Category");
-	static const FText ProjectBrowserTitle = LOCTEXT("ProjectDialog_ProjectBrowser", "Project Browser");
+	static const FText LandingPageTitle = LOCTEXT("ProjectDialog_SelectOrCreateProject", "Select or Create New Project");
+	static const FText SelectCategoryTitle = LOCTEXT("ProjectDialog_SelectTemplateCategory", "Select Template Category");
+	static const FText ProjectBrowserTitle = LOCTEXT("ProjectDialog_ProjectBrowserTitle", "Open Existing Project");
 	static const FText TemplateListTitle = LOCTEXT("ProjectDialog_SelectTemplate", "Select Template");
 	static const FText ProjectSettingsTitle = LOCTEXT("ProjectDialog_ProjectSettings", "Project Settings");
 }
@@ -63,7 +65,8 @@ void SGameProjectDialog::Construct(const FArguments& InArgs, EMode InMode)
 
 	NewProjectWizard = SNew(SNewProjectWizard)
 		.OnTemplateDoubleClick(this, &SGameProjectDialog::OnTemplateDoubleClick);
-	ProjectBrowserPage = SNew(SProjectBrowser);
+	ProjectBrowserPage = SNew(SProjectBrowser)
+		.HideOpenButton(true);
 
 	const float UniformPadding = 16.0f;
 
@@ -122,7 +125,7 @@ void SGameProjectDialog::Construct(const FArguments& InArgs, EMode InMode)
 	];
 }
 
-TSharedRef<SWidget> SGameProjectDialog::CreateLandingPage()
+void SGameProjectDialog::GetAllTemplateCategories(TArray<TSharedPtr<FTemplateCategory>>& OutCategories)
 {
 	TArray<TSharedPtr<FTemplateCategory>> AllTemplateCategories;
 	FGameProjectGenerationModule::Get().GetAllTemplateCategories(AllTemplateCategories);
@@ -140,6 +143,14 @@ TSharedRef<SWidget> SGameProjectDialog::CreateLandingPage()
 		AllTemplateCategories.Add(DefaultCategory);
 	}
 
+	OutCategories = AllTemplateCategories;
+}
+
+TSharedRef<SWidget> SGameProjectDialog::CreateLandingPage()
+{
+	TArray<TSharedPtr<FTemplateCategory>> AllTemplateCategories;
+	SGameProjectDialog::GetAllTemplateCategories(AllTemplateCategories);
+
 	for (const TSharedPtr<FTemplateCategory>& Category : AllTemplateCategories)
 	{
 		if (Category->IsMajor)
@@ -152,31 +163,7 @@ TSharedRef<SWidget> SGameProjectDialog::CreateLandingPage()
 		}
 	}
 
-	FText Description;
-
-	if (DialogMode == EMode::New)
-	{
-		Description = LOCTEXT("LandingPageDesc_New", "Choose a template <RichTextBlock.BoldHighlight>category</> for your new project.");
-	}
-	else if (DialogMode == EMode::Open)
-	{
-		Description = LOCTEXT("LandingPageDesc_Open", "Choose a recent <RichTextBlock.BoldHighlight>project</> to load, or press <RichTextBlock.BoldHighlight>More</> to see all projects on your computer.");
-	}
-	else if (DialogMode == EMode::Both)
-	{
-		Description = LOCTEXT("LandingPageDesc_Open", "Choose a recent <RichTextBlock.BoldHighlight>project</> to load, press <RichTextBlock.BoldHighlight>More</> to see all projects on your computer, or choose a template <RichTextBlock.BoldHighlight>category</> to create a new project.");
-	}
-
 	TSharedRef<SWidget> Widget = SNew(SVerticalBox)
-	+ SVerticalBox::Slot()
-	.AutoHeight()
-	.Padding(0, 9, 0, 8)
-	[
-		SNew(SRichTextBlock)
-		.Text(Description)
-		.AutoWrapText(true)
-		.DecoratorStyleSet(&FEditorStyle::Get())
-	]
 	+ SVerticalBox::Slot()
 	.FillHeight(1)
 	[
@@ -187,6 +174,7 @@ TSharedRef<SWidget> SGameProjectDialog::CreateLandingPage()
 			+ SScrollBox::Slot()
 			[
 				SNew(SVerticalBox)
+				
 				+ SVerticalBox::Slot()
 				.AutoHeight()
 				[
@@ -196,10 +184,40 @@ TSharedRef<SWidget> SGameProjectDialog::CreateLandingPage()
 					[
 						SAssignNew(RecentProjectBrowser, SRecentProjectBrowser)
 						.OnSelectionChanged(this, &SGameProjectDialog::OnRecentProjectSelectionChanged)
+						.Visibility(this, &SGameProjectDialog::GetRecentProjectBrowserVisibility)
+					]
+					+ SOverlay::Slot()
+					.Padding(8, 0)
+					[
+						SNew(SVerticalBox)
+						.Visibility(this, &SGameProjectDialog::GetNoRecentProjectsLabelVisibility)
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						.Padding(0, 4, 0, 0)
+						[
+							SNew(STextBlock)
+							.TextStyle(FEditorStyle::Get(), "GameProjectDialog.ProjectNamePathLabels")
+							.Text(LOCTEXT("ProjectDialog_Recent", "Recent Projects"))
+						]
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						.Padding(0, 2, 0, 4)
+						[
+							SNew(SSeparator)
+						]
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						.Padding(0, 8, 0, 4)
+						[
+							SNew(SRichTextBlock)
+							.DecoratorStyleSet(&FEditorStyle::Get())
+							.Text(LOCTEXT("ProjectDialog_NoRecentProjects", "No recent projects found. Press <RichTextBlock.BoldHighlight>More</> to browse for projects."))
+						]
 					]
 					+ SOverlay::Slot()
 					.HAlign(HAlign_Right)
 					.VAlign(VAlign_Bottom)
+					.Padding(8, 12, 8, 0)
 					[
 						SNew(SButton)
 						.Text(LOCTEXT("ProjectDialog_More", "More"))
@@ -214,7 +232,7 @@ TSharedRef<SWidget> SGameProjectDialog::CreateLandingPage()
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding(0, 4, 0, 2)
+				.Padding(8, 4, 8, 4)
 				[
 					SNew(SSeparator)
 					.Visibility(DialogMode == EMode::Both ? EVisibility::Visible : EVisibility::Collapsed)
@@ -225,9 +243,9 @@ TSharedRef<SWidget> SGameProjectDialog::CreateLandingPage()
 				[
 					SNew(STextBlock)
 					.TextStyle(FEditorStyle::Get(), "GameProjectDialog.ProjectNamePathLabels")
-					.Text(LOCTEXT("ProjectDialog_Categories", "Categories"))
+					.Text(LOCTEXT("ProjectDialog_NewProjectCategories", "New Project Categories"))
+					.Visibility(DialogMode == EMode::Both ? EVisibility::Visible : EVisibility::Collapsed)
 				]
-
 				+ SVerticalBox::Slot()
 				.AutoHeight()
 				.Padding(8, 8, 8, 0)
@@ -533,6 +551,26 @@ FText SGameProjectDialog::GetPageTitle(int32 PageIndex) const
 	}
 
 	return FText::GetEmpty();
+}
+
+EVisibility SGameProjectDialog::GetRecentProjectBrowserVisibility() const
+{
+	if (!RecentProjectBrowser.IsValid())
+	{
+		return EVisibility::Collapsed;
+	}
+
+	return RecentProjectBrowser->HasProjects() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility SGameProjectDialog::GetNoRecentProjectsLabelVisibility() const
+{
+	if (!RecentProjectBrowser.IsValid())
+	{
+		return EVisibility::Collapsed;
+	}
+
+	return RecentProjectBrowser->HasProjects() ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 #undef LOCTEXT_NAMESPACE

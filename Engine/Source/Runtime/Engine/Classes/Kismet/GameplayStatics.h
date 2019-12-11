@@ -36,10 +36,10 @@ class FMemoryReader;
 struct FDialogueContext;
 
 
-/** Delegate called from AsyncLoadGameFromSlot. First two parameters are passed in SlotName and UserIndex, third parameter is the returned SaveGame, or null if it failed to load */
+/** Delegate called from AsyncLoadGameFromSlot. First two parameters are passed in SlotName and UserIndex, third parameter is a bool indicating success (true) or failure (false). */
 DECLARE_DELEGATE_ThreeParams(FAsyncSaveGameToSlotDelegate, const FString&, const int32, bool);
 
-/** Delegate called from AsyncLoadGameFromSlot. First two parameters are passed in SlotName and UserIndex, third parameter is the returned SaveGame, or null if it failed to load */
+/** Delegate called from AsyncLoadGameFromSlot. First two parameters are passed in SlotName and UserIndex, third parameter is the returned SaveGame, or null if it failed to load. */
 DECLARE_DELEGATE_ThreeParams(FAsyncLoadGameFromSlotDelegate, const FString&, const int32, USaveGame*);
 
 /** Static class with useful gameplay utility functions that can be called from both Blueprint and C++ */
@@ -436,8 +436,20 @@ public:
 	 * @note This will always return false if there is no audio device, or the audio device is disabled.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
-	static bool AreAnyListenersWithinRange(const UObject* WorldContextObject, FVector Location, float MaximumRange);
+	static bool AreAnyListenersWithinRange(const UObject* WorldContextObject, const FVector& Location, float MaximumRange);
 	
+
+	/**
+	 * Finds and returns the position of the closest listener to the specified location
+	 * @param Location						The location from which we'd like to find the closest listener, in world space.
+	 * @param MaximumRange					The maximum distance away from Location that a listener can be.
+	 * @param bAllowAttenuationOverride		True for the adjusted listener position (if attenuation override is set), false for the raw listener position (for panning)
+	 * @param ListenerPosition				[Out] The position of the closest listener in world space, if found.
+	 * @return true if we've successfully found a listener within MaximumRange of Location, otherwise false.
+ 	 * @note This will always return false if there is no audio device, or the audio device is disabled.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
+	static bool GetClosestListenerLocation(const UObject* WorldContextObject, const FVector& Location, float MaximumRange, const bool bAllowAttenuationOverride, FVector& ListenerPosition);
 
 	/**
 	* Sets a global pitch modulation scalar that will apply to all non-UI sounds
@@ -449,6 +461,20 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
 	static void SetGlobalPitchModulation(const UObject* WorldContextObject, float PitchModulation, float TimeSec);
+
+	/** 
+	* Sets attenuation distance scale value on the sound class over the given amount of time from it's current attenuation distance override value (1.0f it not overridden). 
+	* Attenuation scale allows scaling the attenuation distance used for computing distance attenuation. 
+	*
+	* * Fire and Forget.
+	* * Not Replicated.
+	* @param SoundClass - Sound class to to use to set the attenuation distance scale on.
+	* @param DistanceAttenuationScale - A distance attenuation scale value.
+	* @param TimeSec - A time value to linearly interpolate from the current distance attenuation scale value to the new value.
+	*/
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
+	static void SetSoundClassDistanceScale(const UObject* WorldContextObject, USoundClass* SoundClass, float DistanceAttenuationScale, float TimeSec = 0.0f);
+
 
 	/**
 	* Sets the global listener focus parameters which will scale focus behavior of sounds based on their focus azimuth settings in their attenuation settings. 
@@ -1013,7 +1039,7 @@ public:
 
 	/**
 	 * Returns the string name of the current platform, to perform different behavior based on platform. 
-	 * (Platform names include Windows, Mac, IOS, Android, PS4, XboxOne, HTML5, Linux) */
+	 * (Platform names include Windows, Mac, IOS, Android, PS4, XboxOne, Linux) */
 	UFUNCTION(BlueprintPure, Category="Game")
 	static FString GetPlatformName();
 

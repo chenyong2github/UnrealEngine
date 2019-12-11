@@ -18,7 +18,6 @@ public class Kismet : ModuleRules
                 "DerivedDataCache",
                 "LevelEditor",
 				"GameProjectGeneration",
-				"Sequencer",
 				"SourceCodeAccess",
 			}
 			);

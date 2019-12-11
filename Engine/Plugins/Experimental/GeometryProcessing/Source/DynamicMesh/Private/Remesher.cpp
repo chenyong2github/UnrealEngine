@@ -81,7 +81,7 @@ void FRemesher::BasicRemeshPass()
 	}
 
 	ProfileBeginSmooth();
-	if (bEnableSmoothing && SmoothSpeedT > 0)
+	if (bEnableSmoothing && (SmoothSpeedT > 0 || CustomSmoothSpeedF) )
 	{
 		if (bEnableSmoothInPlace) 
 		{
@@ -562,8 +562,19 @@ FVector3d FRemesher::ComputeSmoothedVertexPos(int vID,
 		return Mesh->GetVertex(vID);
 	}
 
+	double UseSmoothSpeed = (CustomSmoothSpeedF) ? CustomSmoothSpeedF(*Mesh, vID) : SmoothSpeedT;
+	if (UseSmoothSpeed <= 0)
+	{
+		return Mesh->GetVertex(vID);
+	}
+
 	FVector3d vSmoothed = smoothFunc(*Mesh, vID, SmoothSpeedT);
-	check(VectorUtil::IsFinite(vSmoothed));     // this will really catch a lot of bugs...
+	// @todo we should probably make sure that vertex does not move too far here...
+	checkSlow(VectorUtil::IsFinite(vSmoothed));
+	if (VectorUtil::IsFinite(vSmoothed) == false)
+	{
+		return Mesh->GetVertex(vID);
+	}
 
 	// project onto either vtx constraint target, or surface target
 	if (vConstraint.Target != nullptr) 

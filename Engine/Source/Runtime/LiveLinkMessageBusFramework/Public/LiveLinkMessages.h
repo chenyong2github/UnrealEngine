@@ -46,10 +46,13 @@ struct FLiveLinkPongMessage
 	UPROPERTY()
 	int32 LiveLinkVersion = 1;
 
+	UPROPERTY()
+	double CreationPlatformTime = -1.0;
+
 	// default constructor for the receiver
 	FLiveLinkPongMessage() = default;
 
-	FLiveLinkPongMessage(const FString& InProviderName, const FString& InMachineName, const FGuid& InPollRequest) : ProviderName(InProviderName), MachineName(InMachineName), PollRequest(InPollRequest) {}
+	FLiveLinkPongMessage(const FString& InProviderName, const FString& InMachineName, const FGuid& InPollRequest) : ProviderName(InProviderName), MachineName(InMachineName), PollRequest(InPollRequest), CreationPlatformTime(FPlatformTime::Seconds()) {}
 };
 
 USTRUCT()

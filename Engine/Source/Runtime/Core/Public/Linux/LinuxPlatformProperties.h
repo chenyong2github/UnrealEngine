@@ -27,12 +27,7 @@ struct FLinuxPlatformProperties
 
 	static FORCEINLINE const char* IniPlatformName( )
 	{
-		if (IS_AARCH64)
-		{
-			return "LinuxAArch64";
-		}
-
-		return "Linux";
+		return IS_AARCH64 ? "LinuxAArch64" : "Linux";
 	}
 
 	static FORCEINLINE const TCHAR* GetRuntimeSettingsClassName()
@@ -55,11 +50,16 @@ struct FLinuxPlatformProperties
 		return IS_CLIENT_ONLY;
 	}
 
+	static FORCEINLINE bool IsAArch64()
+	{
+		return IS_AARCH64;
+	}
+
 	static FORCEINLINE const char* PlatformName( )
 	{
 		if (IS_DEDICATED_SERVER)
 		{
-			return "LinuxServer";
+			return IS_AARCH64 ? "LinuxAArch64Server" : "LinuxServer";
 		}
 
 		if (HAS_EDITOR_DATA)
@@ -69,15 +69,10 @@ struct FLinuxPlatformProperties
 
 		if (IS_CLIENT_ONLY)
 		{
-			return "LinuxClient";
+			return IS_AARCH64 ? "LinuxAArch64Client" : "LinuxClient";
 		}
 
-		if (IS_AARCH64)
-		{
-			return "LinuxAArch64NoEditor";
-		}
-
-		return "LinuxNoEditor";
+		return IS_AARCH64 ? "LinuxAArch64NoEditor" : "LinuxNoEditor";
 	}
 
 	static FORCEINLINE bool RequiresCookedData( )

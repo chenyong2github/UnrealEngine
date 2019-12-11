@@ -116,32 +116,18 @@ FPointerPoseInfo UWindowsMixedRealityFunctionLibrary::GetPointerPoseInfo(EContro
 	return info;
 }
 
-	
-// Commented out stabilization plane blueprint implementation.  
-// This change violates the rules for binary compatibility in engine hotfixes.
-//
-// Uncomment this block and move it to the bottom of WindowsMixedRealityFunctionLibrary.h
-//	/**
-//	 *  Set the focus point for the current frame to stabilize your holograms.
-//	 *  When run on device, the depth buffer with be used.  Use this for remoting.
-//	 */
-//	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealityHMD")
-//	static void SetFocusPointForFrame(FVector position);
+void UWindowsMixedRealityFunctionLibrary::SetFocusPointForFrame(FVector position)
+{
+#if WITH_WINDOWS_MIXED_REALITY
+	WindowsMixedReality::FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
+	if (hmd == nullptr)
+	{
+		return;
+	}
 
-
-// Uncomment this block and leave it here.
-//void UWindowsMixedRealityFunctionLibrary::SetFocusPointForFrame(FVector position)
-//{
-//#if WITH_WINDOWS_MIXED_REALITY
-//	WindowsMixedReality::FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
-//	if (hmd == nullptr)
-//	{
-//		return;
-//	}
-//
-//	hmd->SetFocusPointForFrame(position);
-//#endif
-//}
+	hmd->SetFocusPointForFrame(position);
+#endif
+}
 
 // Temporary CVAR api for FocusPoint
 // The blueprint function to run a ConsoleCommand can be used to issue this each frame.
@@ -149,6 +135,8 @@ FPointerPoseInfo UWindowsMixedRealityFunctionLibrary::GetPointerPoseInfo(EContro
 // vr.SetFocusPointForFrame 102.4 -850.3 21.7
 static void SetFocusPointForFrame(const TArray<FString>& Args, UWorld*, FOutputDevice& Ar)
 {
+	Ar.Logf(ELogVerbosity::Error, TEXT("SetFocusPointForFrame DEPRECATED: please switch to using the SetFocusPointForFrame blueprint function in this library instead.  This command will be removed in 4.25."));
+
 	const int ArgsNum = Args.Num();
 	if (ArgsNum != 3)
 	{
@@ -185,6 +173,6 @@ static void SetFocusPointForFrame(const TArray<FString>& Args, UWorld*, FOutputD
 static FAutoConsoleCommand CSetFocusPointForFrameCmd(
 	TEXT("vr.SetFocusPointForFrame"),
 	*LOCTEXT("CVarText_SetFocusPointForFrame",
-		"Set the reference point for the stabilization plane on hololens 2. You must set it each frame to activate the feature for that frame.").ToString(),
+		"Set the reference point for the stabilization plane on hololens 2. You must set it each frame to activate the feature for that frame.  DEPRECATED: please switch to using the SetFocusPointForFrame blueprint function in this library instead.").ToString(),
 	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(SetFocusPointForFrame));
 #undef LOCTEXT_NAMESPACE

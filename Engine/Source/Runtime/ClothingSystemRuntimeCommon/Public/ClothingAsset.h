@@ -2,7 +2,7 @@
 #pragma once
 
 #include "ClothingAssetBase.h"
-#include "ClothConfig.h"
+#include "ClothConfigBase.h"
 #include "ClothLODData.h"
 #include "ClothingSimulationInteractor.h"
 
@@ -98,7 +98,7 @@ public:
 	 * Create weights for skinning the render mesh to our simulation mesh, and 
 	 * weights to drive our sim mesh from the skeleton.
 	 */
-	virtual bool BindToSkeletalMesh(USkeletalMesh* InSkelMesh, const int32 InMeshLodIndex, const int32 InSectionIndex, const int32 InAssetLodIndex, const bool bCallPostEditChange=true) override;
+	virtual bool BindToSkeletalMesh(USkeletalMesh* InSkelMesh, const int32 InMeshLodIndex, const int32 InSectionIndex, const int32 InAssetLodIndex) override;
 
 	/**
 	 * Helper that invokes \c UnbindFromSkeletalMesh() for each avilable entry in 
@@ -158,13 +158,27 @@ public:
 	UPROPERTY(EditAnywhere, Category = Config)
 	UPhysicsAsset* PhysicsAsset;
 
-	// Parameters for how the cloth behaves.
+	// Shared by all cloth instances in a skeletal mesh
+	// Only supported with Chaos Cloth for now
+	// This may not be editable on unused cloth assets
+	UPROPERTY(EditAnywhere, Category = Config, NoClear, meta = (NoResetToDefault))
+	UClothSharedSimConfigBase* ClothSharedSimConfig;
+
+	// Parameters for how the NVcloth behaves.
+	// These will have no effect on Chaos cloth
 	UPROPERTY(EditAnywhere, Category = Config, NoClear, meta = (NoResetToDefault))
 	UClothConfigBase* ClothSimConfig;
 
+	// Parameters for how Chaos cloth behaves 
+	// These will not affect NVcloth
+	// For now, we have two configuration parameters so that we can switch between chaos and
+	// non chaos at will without losing the original NVcloth data
+	UPROPERTY(EditAnywhere, Category = Config, NoClear, meta = (NoResetToDefault))
+	UClothConfigBase* ChaosClothSimConfig;
+
 	// The actual asset data, listed by LOD.
 	UPROPERTY()
-	TArray<UClothLODDataBase*> ClothLodData;
+	TArray<UClothLODDataCommon*> ClothLodData;
 
 	// Tracks which clothing LOD each skel mesh LOD corresponds to (LodMap[SkelLod]=ClothingLod).
 	UPROPERTY()

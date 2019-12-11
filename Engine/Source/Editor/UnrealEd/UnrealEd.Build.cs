@@ -76,7 +76,6 @@ public class UnrealEd : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"BspMode",
 				"Core",
 				"CoreUObject",
 				"ApplicationCore",
@@ -185,6 +184,7 @@ public class UnrealEd : ModuleRules
 				"ScriptDisassembler",
 				"ToolMenus",
 				"FreeImage",
+				"IoStoreUtilities",
             }
 		);
 
@@ -218,10 +218,7 @@ public class UnrealEd : ModuleRules
 				"DeviceManager",
 				"SettingsEditor",
 				"SessionFrontend",
-				"Sequencer",
 				"StringTableEditor",
-				"GeometryMode",
-				"TextureAlignMode",
 				"FoliageEdit",
 				"ImageWrapper",
 				"Blutility",
@@ -249,7 +246,8 @@ public class UnrealEd : ModuleRules
 				"Media",
 				"TimeManagementEditor",
 				"VirtualTexturingEditor",
-				"EditorInteractiveToolsFramework"
+				"EditorInteractiveToolsFramework",
+				"TraceInsights",
 			}
 		);
 

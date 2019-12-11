@@ -11,6 +11,8 @@
 
 #include "DataPrepContentProducer.generated.h"
 
+class FFeedbackContext;
+
 /** Structure to pass execution context to producer */
 struct FDataprepProducerContext
 {
@@ -112,6 +114,9 @@ public:
 	 */
 	virtual bool Supersede(const UDataprepContentProducer* OtherProducer) const { unimplemented(); return true; }
 
+	/** Returns true if the producer was cancelled during execution */
+	bool IsCancelled() { return Context.ProgressReporterPtr.IsValid() ? Context.ProgressReporterPtr->IsWorkCancelled() : false; }
+
 protected:
 
 	/**
@@ -167,6 +172,9 @@ protected:
 
 	/** Delegate to broadcast changes to the producer */
 	FDataprepProducerChanged OnChanged;
+
+	/** The feedback context in use to check for user cancellation */
+	TSharedPtr<FFeedbackContext> FeedbackContext;
 
 private:
 	void Terminate()

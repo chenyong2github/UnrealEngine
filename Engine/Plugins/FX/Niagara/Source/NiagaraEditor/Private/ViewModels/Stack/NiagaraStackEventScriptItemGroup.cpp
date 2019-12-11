@@ -4,7 +4,6 @@
 #include "NiagaraEmitter.h"
 #include "ViewModels/Stack/NiagaraStackObject.h"
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
-#include "ViewModels/Stack/NiagaraStackSpacer.h"
 #include "NiagaraScriptViewModel.h"
 #include "NiagaraScriptGraphViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
@@ -201,17 +200,6 @@ void UNiagaraStackEventScriptItemGroup::Initialize(
 void UNiagaraStackEventScriptItemGroup::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
 	bHasBaseEventHandlerCache.Reset();
-
-	FName EventSpacerKey = *FString::Printf(TEXT("EventSpacer"));
-	UNiagaraStackSpacer* SeparatorSpacer = FindCurrentChildOfTypeByPredicate<UNiagaraStackSpacer>(CurrentChildren,
-		[=](UNiagaraStackSpacer* CurrentSpacer) { return CurrentSpacer->GetSpacerKey() == EventSpacerKey; });
-	if (SeparatorSpacer == nullptr)
-	{
-		SeparatorSpacer = NewObject<UNiagaraStackSpacer>(this);
-		FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(), GetExecutionCategoryName(), NAME_None, GetStackEditorData());
-		SeparatorSpacer->Initialize(RequiredEntryData, EventSpacerKey);
-	}
-	NewChildren.Add(SeparatorSpacer);
 
 	UNiagaraEmitter* Emitter = GetEmitterViewModel()->GetEmitter();
 

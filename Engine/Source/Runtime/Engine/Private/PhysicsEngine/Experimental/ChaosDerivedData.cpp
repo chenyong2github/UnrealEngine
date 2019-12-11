@@ -21,7 +21,7 @@ const TCHAR* FChaosDerivedDataCooker::GetPluginName() const
 
 const TCHAR* FChaosDerivedDataCooker::GetVersionString() const
 {
-	return TEXT("UN4SF7NU5G9O0X2LHNHLBG0R0CIS3TON");
+	return TEXT("8AEC8C7BFB0A4906A6EB99E602E9594B");
 }
 
 FString FChaosDerivedDataCooker::GetPluginSpecificCacheKeySuffix() const
@@ -85,7 +85,7 @@ FChaosDerivedDataCooker::FChaosDerivedDataCooker(UBodySetup* InSetup, FName InFo
 }
 
 template<typename Precision>
-void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TTriangleMeshImplicitObject<Precision>>>& OutTriangleMeshes, const FCookBodySetupInfo& InParams)
+void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TTriangleMeshImplicitObject<Precision>>>& OutTriangleMeshes, TArray<int32>& OutFaceRemap, const FCookBodySetupInfo& InParams)
 {
 	if(!InParams.bCookTriMesh)
 	{
@@ -105,7 +105,7 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TTria
 		FinalIndices.Add(Tri.v2);
 	}
 
-	Chaos::CleanTrimesh(FinalVerts, FinalIndices, nullptr);
+	Chaos::CleanTrimesh(FinalVerts, FinalIndices, &OutFaceRemap);
 
 	// Build particle list #BG Maybe allow TParticles to copy vectors?
 	Chaos::TParticles<Precision, 3> TriMeshParticles;
@@ -119,14 +119,21 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TTria
 
 	// Build chaos triangle list. #BGTODO Just make the clean function take these types instead of double copying
 	const int32 NumTriangles = FinalIndices.Num() / 3;
+	bool bHasMaterials = InParams.TriangleMeshDesc.MaterialIndices.Num() > 0;
 	TArray<Chaos::TVector<int32, 3>> Triangles;
+	TArray<uint16> MaterialIndices;
 	Triangles.Reserve(NumTriangles);
+
+	if(bHasMaterials)
+	{
+		MaterialIndices.Reserve(NumTriangles);
+	}
 
 	for(int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
 	{
 		// Only add this triangle if it is valid
 		const int32 BaseIndex = TriangleIndex * 3;
-		const bool bIsValidTriangle = Chaos::TConvexBuilder<Precision>::IsValidTriangle(
+		const bool bIsValidTriangle = Chaos::FConvexBuilder::IsValidTriangle(
 			FinalVerts[FinalIndices[BaseIndex]],
 			FinalVerts[FinalIndices[BaseIndex + 1]],
 			FinalVerts[FinalIndices[BaseIndex + 2]]);
@@ -136,24 +143,46 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TTria
 		if (bIsValidTriangle)
 		{
 			Triangles.Add(Chaos::TVector<int32, 3>(FinalIndices[BaseIndex], FinalIndices[BaseIndex + 1], FinalIndices[BaseIndex + 2]));
+
+			if(bHasMaterials)
+			{
+				if(!ensure(OutFaceRemap.IsValidIndex(TriangleIndex)))
+				{
+					MaterialIndices.Empty();
+					bHasMaterials = false;
+				}
+				else
+				{
+					const int32 OriginalIndex = OutFaceRemap[TriangleIndex];
+
+					if(ensure(InParams.TriangleMeshDesc.MaterialIndices.IsValidIndex(OriginalIndex)))
+					{
+						MaterialIndices.Add(InParams.TriangleMeshDesc.MaterialIndices[OriginalIndex]);
+					}
+					else
+					{
+						MaterialIndices.Empty();
+						bHasMaterials = false;
+					}
+				}
+			}
 		}
 	}
 
-	OutTriangleMeshes.Emplace(new Chaos::TTriangleMeshImplicitObject<Precision>(MoveTemp(TriMeshParticles), MoveTemp(Triangles)));
+	OutTriangleMeshes.Emplace(new Chaos::TTriangleMeshImplicitObject<Precision>(MoveTemp(TriMeshParticles), MoveTemp(Triangles), MoveTemp(MaterialIndices)));
 }
 
-template void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TTriangleMeshImplicitObject<float>>>& OutTriangleMeshes, const FCookBodySetupInfo& InParams);
+template void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TTriangleMeshImplicitObject<float>>>& OutTriangleMeshes, TArray<int32>& OutFaceRemap, const FCookBodySetupInfo& InParams);
 //#BGTODO When it's possible to build with doubles, re-enable this. (Currently at least TRigidTransform cannot build with double precision because we don't have a base transform implementation using them)
-//template void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TImplicitObject<float, 3>>>& OutTriangleMeshes, const FCookBodySetupInfo& InParams);
+//template void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::FImplicitObject>>& OutTriangleMeshes, const FCookBodySetupInfo& InParams);
 
-template<typename Precision>
-void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<TUniquePtr<Chaos::TImplicitObject<Precision, 3>>>& OutConvexMeshes, const FCookBodySetupInfo& InParams)
+void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<TUniquePtr<Chaos::FImplicitObject>>& OutConvexMeshes, const FCookBodySetupInfo& InParams)
 {
-	auto BuildConvexFromVerts = [](TArray<TUniquePtr<Chaos::TImplicitObject<Precision, 3>>>& OutConvexes, const TArray<TArray<FVector>>& InMeshVerts, const bool bMirrored)
+	auto BuildConvexFromVerts = [](TArray<TUniquePtr<Chaos::FImplicitObject>>& OutConvexes, const TArray<TArray<FVector>>& InMeshVerts, const bool bMirrored)
 	{
 		for(const TArray<FVector>& HullVerts : InMeshVerts)
 		{
-			Chaos::TParticles<Precision, 3> ConvexParticles;
+			Chaos::TParticles<Chaos::FReal, 3> ConvexParticles;
 
 			const int32 NumHullVerts = HullVerts.Num();
 
@@ -165,7 +194,7 @@ void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<TUniquePtr<Chaos::TImplic
 				ConvexParticles.X(VertIndex) = FVector(bMirrored ? -HullVert.X : HullVert.X, HullVert.Y, HullVert.Z);
 			}
 
-			OutConvexes.Emplace(new Chaos::TConvex<Precision, 3>(ConvexParticles));
+			OutConvexes.Emplace(new Chaos::FConvex(ConvexParticles));
 		}
 	};
 
@@ -181,12 +210,8 @@ void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<TUniquePtr<Chaos::TImplic
 
 }
 
-template void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<TUniquePtr<Chaos::TImplicitObject<float, 3>>>& OutConvexMeshes, const FCookBodySetupInfo& InParams);
-//#BGTODO When it's possible to build with doubles, re-enable this. (Currently at least TRigidTransform cannot build with double precision because we don't have a base transform implementation using them)
-//template void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<Chaos::TCollisionConvexMesh<double>>& OutTriangleMeshes, const FCookBodySetupInfo& InParams);
-
 template<typename Precision>
-void BuildSimpleShapes(TArray<TUniquePtr<Chaos::TImplicitObject<Precision, 3>>>& OutImplicits, UBodySetup* InSetup)
+void BuildSimpleShapes(TArray<TUniquePtr<Chaos::FImplicitObject>>& OutImplicits, UBodySetup* InSetup)
 {
 	check(InSetup);
 
@@ -222,12 +247,13 @@ void BuildSimpleShapes(TArray<TUniquePtr<Chaos::TImplicitObject<Precision, 3>>>&
 template<typename Precision>
 void FChaosDerivedDataCooker::BuildInternal(Chaos::FChaosArchive& Ar, FCookBodySetupInfo& InInfo)
 {
-	TArray<TUniquePtr<Chaos::TImplicitObject<Precision, 3>>> SimpleImplicits;
+	TArray<TUniquePtr<Chaos::FImplicitObject>> SimpleImplicits;
 	TArray<TUniquePtr<Chaos::TTriangleMeshImplicitObject<Precision>>> ComplexImplicits;
 
+	TArray<int32> FaceRemap;
 	//BuildSimpleShapes(SimpleImplicits, Setup);
 	BuildConvexMeshes(SimpleImplicits, InInfo);
-	BuildTriangleMeshes(ComplexImplicits, InInfo);
+	BuildTriangleMeshes(ComplexImplicits, FaceRemap, InInfo);
 
 	//TUniquePtr<Chaos::TImplicitObjectUnion<Precision, 3>> SimpleUnion = MakeUnique<Chaos::TImplicitObjectUnion<Precision, 3>>(MoveTemp(SimpleImplicits));
 	//TUniquePtr<Chaos::TImplicitObjectUnion<Precision, 3>> ComplexUnion = MakeUnique<Chaos::TImplicitObjectUnion<Precision, 3>>(MoveTemp(ComplexImplicits));
@@ -237,8 +263,12 @@ void FChaosDerivedDataCooker::BuildInternal(Chaos::FChaosArchive& Ar, FCookBodyS
 	{
 		UVInfo.FillFromTriMesh(InInfo.TriangleMeshDesc);
 	}
+	if (!InInfo.bSupportFaceRemap)
+	{
+		FaceRemap.Empty();
+	}
 
-	Ar << SimpleImplicits << ComplexImplicits << UVInfo;
+	Ar << SimpleImplicits << ComplexImplicits << UVInfo << FaceRemap;
 }
 
 template void FChaosDerivedDataCooker::BuildInternal<float>(Chaos::FChaosArchive& Ar, FCookBodySetupInfo& InInfo);

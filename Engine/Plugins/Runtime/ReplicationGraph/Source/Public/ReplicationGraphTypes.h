@@ -364,9 +364,9 @@ struct FClassReplicationInfo
 	float StarvationPriorityScale = 1.f;
 	float AccumulatedNetPriorityBias = 0.f;
 	
-	uint8 ReplicationPeriodFrame = 1;
-	uint8 FastPath_ReplicationPeriodFrame = 1;
-	uint8 ActorChannelFrameTimeout = 4;
+	uint16 ReplicationPeriodFrame = 1;
+	uint16 FastPath_ReplicationPeriodFrame = 1;
+	uint16 ActorChannelFrameTimeout = 4;
 
 	TFunction<bool(AActor*)> FastSharedReplicationFunc = nullptr;
 	FName FastSharedReplicationFuncName = NAME_None;
@@ -470,6 +470,9 @@ struct FGlobalActorReplicationInfo
 
 	/** Mirrors AActor::NetDormancy > DORM_Awake */
 	bool bWantsToBeDormant = false;
+
+	/** True if we should swap the actor role and remote role before calling ReplicateActor() */
+	bool bSwapRolesOnReplicate = false;
 
 	/** Class default mirrors: state that is initialized directly from class defaults (and can be later changed on a per-actor basis) */
 	FClassReplicationInfo Settings;
@@ -862,12 +865,15 @@ public:
 	/** Default replication */
 	uint32	NextReplicationFrameNum = 0;	/** The next frame we are allowed to replicate on */
 	uint32	LastRepFrameNum = 0;			/** The last frame that this actor replicated on to this connection */
-	uint8	ReplicationPeriodFrame = 1;		/** Min frames that have to pass between subsequent calls to ReplicateActor */
 
 	/** FastPath versions of the above */
 	uint32	FastPath_NextReplicationFrameNum = 0;
 	uint32	FastPath_LastRepFrameNum = 0;
-	uint8	FastPath_ReplicationPeriodFrame = 1;
+
+	/** Min frames that have to pass between subsequent calls to ReplicateActor */
+	uint16	ReplicationPeriodFrame = 1;		
+	uint16	FastPath_ReplicationPeriodFrame = 1;
+	
 
 	/** The frame num that we will close the actor channel. This will get updated/pushed anytime the actor replicates based on FGlobalActorReplicationInfo::ActorChannelFrameTimeout  */
 	uint32 ActorChannelCloseFrameNum = 0;
@@ -1279,7 +1285,7 @@ struct FReplicationGraphDebugInfo
 	void Log(const FString& Str) { Ar.Logf(TEXT("%s%s"), *CurrentIndentString, *Str); }
 
 	void PushIndent() { CurrentIndentString += IndentString; }
-	void PopIndent() { CurrentIndentString = CurrentIndentString.LeftChop(IndentString.Len()); }
+	void PopIndent() { CurrentIndentString.LeftChopInline(IndentString.Len(), false); }
 };
 
 REPLICATIONGRAPH_API void LogActorRepList(FReplicationGraphDebugInfo& DebugInfo, FString Prefix, const FActorRepListRefView& List);

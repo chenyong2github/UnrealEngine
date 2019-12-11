@@ -1558,6 +1558,12 @@ bool FUnixPlatformProcess::Daemonize()
 
 bool FUnixPlatformProcess::IsApplicationRunning( uint32 ProcessId )
 {
+	// PID 0 is not a valid user application so lets ignore it as valid
+	if (ProcessId == 0)
+	{
+		return false;
+	}
+
 	errno = 0;
 	getpriority(PRIO_PROCESS, ProcessId);
 	return errno == 0;
@@ -1820,9 +1826,9 @@ bool FUnixPlatformProcess::IsFirstInstance()
 		{
 			FString LockFileName(TEXT("/tmp/"));
 			FString ExecPath(FPlatformProcess::ExecutableName());
-			ExecPath.ReplaceInline(TEXT("/"), TEXT("-"));
+			ExecPath.ReplaceInline(TEXT("/"), TEXT("-"), ESearchCase::CaseSensitive);
 			// [RCL] 2015-09-20: can run out of filename limits (256 bytes) due to a long path, be conservative and assume 4-char UTF-8 name like e.g. Japanese
-			ExecPath = ExecPath.Right(80);
+			ExecPath.RightInline(80, false);
 
 			LockFileName += ExecPath;
 

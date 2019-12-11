@@ -11,6 +11,7 @@
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/TimingProfilerManager.h"
+#include "Insights/ViewModels/GraphTrackBuilder.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 
 #define LOCTEXT_NAMESPACE "GraphTrack"
@@ -54,8 +55,8 @@ FString FTimingGraphSeries::FormatValue(double Value) const
 // FTimingGraphTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTimingGraphTrack::FTimingGraphTrack(uint64 InTrackId)
-	: FGraphTrack(InTrackId)
+FTimingGraphTrack::FTimingGraphTrack()
+	: FGraphTrack(FName(TEXT("Random")))
 {
 	bDrawPoints = true;
 	bDrawPointsWithBorder = true;
@@ -72,7 +73,7 @@ void FTimingGraphTrack::AddDefaultFrameSeries()
 	const float BaselineY = GetHeight() - 1.0f;
 	const double ScaleY = GetHeight() / 0.1; // 100ms
 
-	TSharedPtr<FTimingGraphSeries> GameFramesSeries = MakeShareable(new FTimingGraphSeries());
+	TSharedRef<FTimingGraphSeries> GameFramesSeries = MakeShared<FTimingGraphSeries>();
 	GameFramesSeries->SetName(TEXT("Game Frames"));
 	GameFramesSeries->SetDescription(TEXT("Duration of Game frames"));
 	GameFramesSeries->SetColor(FLinearColor(0.3f, 0.3f, 1.0f, 1.0f), FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
@@ -82,7 +83,7 @@ void FTimingGraphTrack::AddDefaultFrameSeries()
 	GameFramesSeries->SetScaleY(ScaleY);
 	AllSeries.Add(GameFramesSeries);
 
-	TSharedPtr<FTimingGraphSeries> RenderingFramesSeries = MakeShareable(new FTimingGraphSeries());
+	TSharedRef<FTimingGraphSeries> RenderingFramesSeries = MakeShared<FTimingGraphSeries>();
 	RenderingFramesSeries->SetName(TEXT("Rendering Frames"));
 	RenderingFramesSeries->SetDescription(TEXT("Duration of Rendering frames"));
 	RenderingFramesSeries->SetColor(FLinearColor(1.0f, 0.3f, 0.3f, 1.0f), FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
@@ -109,7 +110,7 @@ TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::GetStatsCounterSeries(uint32 C
 
 TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::AddStatsCounterSeries(uint32 CounterId, FLinearColor Color)
 {
-	TSharedPtr<FTimingGraphSeries> Series = MakeShareable(new FTimingGraphSeries());
+	TSharedRef<FTimingGraphSeries> Series = MakeShared<FTimingGraphSeries>();
 
 	const TCHAR* CounterName = nullptr;
 	bool bIsFloatingPoint = false;
@@ -172,11 +173,11 @@ FTimingGraphTrack::~FTimingGraphTrack()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimingGraphTrack::Update(const FTimingTrackViewport& Viewport)
+void FTimingGraphTrack::Update(const ITimingTrackUpdateContext& Context)
 {
-	FGraphTrack::Update(Viewport);
+	FGraphTrack::Update(Context);
 
-	const bool bIsEntireGraphTrackDirty = IsDirty();
+	const bool bIsEntireGraphTrackDirty = IsDirty() || Context.GetViewport().IsHorizontalViewportDirty();
 	bool bNeedsUpdate = bIsEntireGraphTrackDirty;
 
 	if (!bNeedsUpdate)
@@ -197,6 +198,8 @@ void FTimingGraphTrack::Update(const FTimingTrackViewport& Viewport)
 		ClearDirtyFlag();
 
 		NumAddedEvents = 0;
+
+		const FTimingTrackViewport& Viewport = Context.GetViewport();
 
 		for (TSharedPtr<FGraphSeries>& Series : AllSeries)
 		{
@@ -274,7 +277,7 @@ void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, con
 
 				if (Counter.IsFloatingPoint())
 				{
-					Counter.EnumerateFloatValues(Viewport.GetStartTime(), Viewport.GetEndTime(), [&Builder, &MinValue, &MaxValue](double Time, double Value)
+					Counter.EnumerateFloatValues(Viewport.GetStartTime(), Viewport.GetEndTime(), true, [&Builder, &MinValue, &MaxValue](double Time, double Value)
 					{
 						if (Value < MinValue)
 						{
@@ -288,7 +291,7 @@ void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, con
 				}
 				else
 				{
-					Counter.EnumerateValues(Viewport.GetStartTime(), Viewport.GetEndTime(), [&Builder, &MinValue, &MaxValue](double Time, int64 IntValue)
+					Counter.EnumerateValues(Viewport.GetStartTime(), Viewport.GetEndTime(), true, [&Builder, &MinValue, &MaxValue](double Time, int64 IntValue)
 					{
 						const double Value = static_cast<double>(IntValue);
 						if (Value < MinValue)
@@ -352,7 +355,7 @@ void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, con
 
 			if (Counter.IsFloatingPoint())
 			{
-				Counter.EnumerateFloatValues(Viewport.GetStartTime(), Viewport.GetEndTime(), [&Builder](double Time, double Value)
+				Counter.EnumerateFloatValues(Viewport.GetStartTime(), Viewport.GetEndTime(), true, [&Builder](double Time, double Value)
 				{
 					//TODO: add a "value unit converter"
 					Builder.AddEvent(Time, 0.0, Value);
@@ -360,7 +363,7 @@ void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, con
 			}
 			else
 			{
-				Counter.EnumerateValues(Viewport.GetStartTime(), Viewport.GetEndTime(), [&Builder](double Time, int64 IntValue)
+				Counter.EnumerateValues(Viewport.GetStartTime(), Viewport.GetEndTime(), true, [&Builder](double Time, int64 IntValue)
 				{
 					//TODO: add a "value unit converter"
 					Builder.AddEvent(Time, 0.0, static_cast<double>(IntValue));

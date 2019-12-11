@@ -2,7 +2,7 @@
 
 #include "BlueprintEditorModes.h"
 #include "Settings/EditorExperimentalSettings.h"
-
+#include "ToolMenus.h"
 
 // Core kismet tabs
 #include "SSCSEditor.h"
@@ -114,14 +114,6 @@ FBlueprintEditorApplicationMode::FBlueprintEditorApplicationMode(TSharedPtr<clas
 	CoreTabFactories.RegisterFactory(MakeShareable(new FSelectionDetailsSummoner(InBlueprintEditor)));
 
 	TabLayout = GetDefaltEditorLayout(InBlueprintEditor);
-	
-	// setup toolbar
-	//@TODO: Keep this in sync with AnimBlueprintMode.cpp
-	InBlueprintEditor->GetToolbarBuilder()->AddBlueprintEditorModesToolbar(ToolbarExtender);
-	InBlueprintEditor->GetToolbarBuilder()->AddCompileToolbar(ToolbarExtender);
-	InBlueprintEditor->GetToolbarBuilder()->AddScriptingToolbar(ToolbarExtender);
-	InBlueprintEditor->GetToolbarBuilder()->AddBlueprintGlobalOptionsToolbar(ToolbarExtender);
-	InBlueprintEditor->GetToolbarBuilder()->AddDebuggingToolbar(ToolbarExtender);
 
 	FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>("Kismet");
 	BlueprintEditorModule.OnRegisterTabsForEditor().Broadcast(BlueprintEditorTabFactories, InModeName, InBlueprintEditor);
@@ -194,8 +186,10 @@ FBlueprintDefaultsApplicationMode::FBlueprintDefaultsApplicationMode(TSharedPtr<
 		);
 
 	// setup toolbar
-	InBlueprintEditor->GetToolbarBuilder()->AddCompileToolbar(ToolbarExtender);
-	InBlueprintEditor->GetToolbarBuilder()->AddBlueprintEditorModesToolbar(ToolbarExtender);
+	if (UToolMenu* Toolbar = InBlueprintEditor->RegisterModeToolbarIfUnregistered(GetModeName()))
+	{
+		InBlueprintEditor->GetToolbarBuilder()->AddCompileToolbar(Toolbar);
+	}
 }
 
 void FBlueprintDefaultsApplicationMode::RegisterTabFactories(TSharedPtr<FTabManager> InTabManager)
@@ -276,10 +270,12 @@ FBlueprintComponentsApplicationMode::FBlueprintComponentsApplicationMode(TShared
 		);
 
 	// setup toolbar
-	InBlueprintEditor->GetToolbarBuilder()->AddBlueprintEditorModesToolbar(ToolbarExtender);
-	InBlueprintEditor->GetToolbarBuilder()->AddBlueprintGlobalOptionsToolbar(ToolbarExtender);
-	InBlueprintEditor->GetToolbarBuilder()->AddCompileToolbar(ToolbarExtender);
-	InBlueprintEditor->GetToolbarBuilder()->AddComponentsToolbar(ToolbarExtender);
+	if (UToolMenu* Toolbar = InBlueprintEditor->RegisterModeToolbarIfUnregistered(GetModeName()))
+	{
+		InBlueprintEditor->GetToolbarBuilder()->AddBlueprintGlobalOptionsToolbar(Toolbar);
+		InBlueprintEditor->GetToolbarBuilder()->AddCompileToolbar(Toolbar);
+		InBlueprintEditor->GetToolbarBuilder()->AddComponentsToolbar(Toolbar);
+	}
 }
 
 void FBlueprintComponentsApplicationMode::RegisterTabFactories(TSharedPtr<FTabManager> InTabManager)
@@ -416,8 +412,11 @@ FBlueprintInterfaceApplicationMode::FBlueprintInterfaceApplicationMode(TSharedPt
 		);
 
 	// setup toolbar
-	InBlueprintEditor->GetToolbarBuilder()->AddCompileToolbar(ToolbarExtender);
-	InBlueprintEditor->GetToolbarBuilder()->AddBlueprintGlobalOptionsToolbar(ToolbarExtender);
+	if (UToolMenu* Toolbar = InBlueprintEditor->RegisterModeToolbarIfUnregistered(GetModeName()))
+	{
+		InBlueprintEditor->GetToolbarBuilder()->AddCompileToolbar(Toolbar);
+		InBlueprintEditor->GetToolbarBuilder()->AddBlueprintGlobalOptionsToolbar(Toolbar);
+	}
 }
 
 void FBlueprintInterfaceApplicationMode::RegisterTabFactories(TSharedPtr<FTabManager> InTabManager)
@@ -521,12 +520,14 @@ FBlueprintMacroApplicationMode::FBlueprintMacroApplicationMode(TSharedPtr<class 
 		);
 
 	// setup toolbar
-	InBlueprintEditor->GetToolbarBuilder()->AddCompileToolbar(ToolbarExtender);
-	InBlueprintEditor->GetToolbarBuilder()->AddScriptingToolbar(ToolbarExtender);
-	InBlueprintEditor->GetToolbarBuilder()->AddBlueprintGlobalOptionsToolbar(ToolbarExtender);
-	InBlueprintEditor->GetToolbarBuilder()->AddDebuggingToolbar(ToolbarExtender);
+	if (UToolMenu* Toolbar = InBlueprintEditor->RegisterModeToolbarIfUnregistered(GetModeName()))
+	{
+		InBlueprintEditor->GetToolbarBuilder()->AddCompileToolbar(Toolbar);
+		InBlueprintEditor->GetToolbarBuilder()->AddScriptingToolbar(Toolbar);
+		InBlueprintEditor->GetToolbarBuilder()->AddBlueprintGlobalOptionsToolbar(Toolbar);
+		InBlueprintEditor->GetToolbarBuilder()->AddDebuggingToolbar(Toolbar);
+	}
 }
-
 void FBlueprintMacroApplicationMode::RegisterTabFactories(TSharedPtr<FTabManager> InTabManager)
 {
 	TSharedPtr<FBlueprintEditor> BP = MyBlueprintEditor.Pin();
@@ -716,17 +717,19 @@ FBlueprintEditorUnifiedMode::FBlueprintEditorUnifiedMode(TSharedPtr<class FBluep
 	
 	// setup toolbar
 	//@TODO: Keep this in sync with AnimBlueprintMode.cpp
-	//InBlueprintEditor->GetToolbarBuilder()->AddBlueprintEditorModesToolbar(ToolbarExtender);
-	InBlueprintEditor->GetToolbarBuilder()->AddCompileToolbar(ToolbarExtender);
-	InBlueprintEditor->GetToolbarBuilder()->AddScriptingToolbar(ToolbarExtender);
-	InBlueprintEditor->GetToolbarBuilder()->AddBlueprintGlobalOptionsToolbar(ToolbarExtender);
-	
-	if ( bRegisterViewport )
+	if (UToolMenu* Toolbar = InBlueprintEditor->RegisterModeToolbarIfUnregistered(GetModeName()))
 	{
-		InBlueprintEditor->GetToolbarBuilder()->AddComponentsToolbar(ToolbarExtender);
+		InBlueprintEditor->GetToolbarBuilder()->AddCompileToolbar(Toolbar);
+		InBlueprintEditor->GetToolbarBuilder()->AddScriptingToolbar(Toolbar);
+		InBlueprintEditor->GetToolbarBuilder()->AddBlueprintGlobalOptionsToolbar(Toolbar);
+
+		if ( bRegisterViewport )
+		{
+			InBlueprintEditor->GetToolbarBuilder()->AddComponentsToolbar(Toolbar);
+		}
+
+		InBlueprintEditor->GetToolbarBuilder()->AddDebuggingToolbar(Toolbar);
 	}
-	
-	InBlueprintEditor->GetToolbarBuilder()->AddDebuggingToolbar(ToolbarExtender);
 
 	FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>("Kismet");
 	BlueprintEditorModule.OnRegisterTabsForEditor().Broadcast(BlueprintEditorTabFactories, InModeName, InBlueprintEditor);

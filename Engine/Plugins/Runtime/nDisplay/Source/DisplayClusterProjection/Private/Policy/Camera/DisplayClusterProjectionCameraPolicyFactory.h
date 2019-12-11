@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
-#include "DisplayClusterProjectionStrings.h"
+
 
 /**
  * Implements projection policy factory for the 'camera' policy

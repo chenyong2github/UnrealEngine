@@ -92,11 +92,9 @@ FReply SVariantManagerActorListView::OnDragOver( const FGeometry& MyGeometry, co
 
 		if (NumActors > 0)
 		{
-			FText NewHoverText = FText::Format( LOCTEXT("CanDropActors", "Bind {0} actor{1} to {2} selected variant{3}"),
-				FText::FromString(FString::FromInt(NumActors)),
-				NumActors != 1 ? FText::FromString(TEXT("s")) : FText(),
-				FText::FromString(FString::FromInt(VariantsThatCanAccept)),
-				VariantsThatCanAccept != 1 ? FText::FromString(TEXT("s")) : FText());
+			FText NewHoverText = FText::Format( LOCTEXT("CanDropActors", "Bind {0} {0}|plural(one=actor,other=actors) to {1} selected {1}|plural(one=variant,other=variants)"),
+				NumActors,
+				VariantsThatCanAccept);
 
 			const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 
@@ -163,9 +161,9 @@ FReply SVariantManagerActorListView::OnDrop( const FGeometry& MyGeometry, const 
 			}
 
 			FScopedTransaction Transaction(FText::Format(
-				LOCTEXT("ActorListViewDropVariants", "Drop {0} scene actors on {1} variants"),
-				FText::FromString(FString::FromInt(DraggedRawActors.Num())),
-				FText::FromString(FString::FromInt(SelectedVariants.Num()))));
+				LOCTEXT("ActorListViewDropVariants", "Drop {0} scene {0}|plural(one=actor,other=actors) on {1} {1}|plural(one=variant,other=variants)"),
+				DraggedRawActors.Num(),
+				SelectedVariants.Num()));
 
 			VarMan->CreateObjectBindingsAndCaptures(DraggedRawActors, SelectedVariants);
 

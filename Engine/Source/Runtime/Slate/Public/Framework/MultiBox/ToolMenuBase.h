@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/NamedBlacklist.h"
 
 #include "ToolMenuBase.generated.h"
 
@@ -72,6 +73,8 @@ struct SLATE_API FCustomizedToolMenu
 
 	UPROPERTY()
 	TArray<FName> SectionOrder;
+
+	FNamedBlacklist BlacklistFilter;
 
 	FCustomizedToolMenuEntry* FindEntry(const FName InEntryName);
 	const FCustomizedToolMenuEntry* FindEntry(const FName InEntryName) const;

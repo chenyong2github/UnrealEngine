@@ -19,7 +19,8 @@ public class OnlineSubsystemSteam : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core", 
-				"CoreUObject", 
+				"CoreUObject",
+				"NetCore",
 				"Engine", 
 				"Sockets", 
 				"Voice",

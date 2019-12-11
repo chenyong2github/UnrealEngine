@@ -209,7 +209,7 @@ void FDefaultStereoLayers::PreRenderViewFamily_RenderThread(FRHICommandListImmed
 
 void FDefaultStereoLayers::PostRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView)
 {
-	if (!HMDDevice->IsStereoEyePass(InView.StereoPass))
+	if (!HMDDevice->DeviceIsStereoEyeView(InView))
 	{
 		return;
 	}

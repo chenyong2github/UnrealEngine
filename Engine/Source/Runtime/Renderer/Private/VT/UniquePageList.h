@@ -28,21 +28,27 @@ private:
 		MaxUniquePages	= 4*1024,
 	};
 
+	bool bInitialized;
+	uint32 NumPages;
+	uint32 MaxNumCollisions;
 	uint16 HashIndices[HashSize];
 	uint32 Pages[ MaxUniquePages ];
 	uint16 Counts[ MaxUniquePages ];
-	uint32 NumPages;
-	uint32 MaxNumCollisions;
 };
 
 FUniquePageList::FUniquePageList()
-	: NumPages( 0 )
-	, MaxNumCollisions(0u)
+	: bInitialized( false )
+	, NumPages( 0 )
+	, MaxNumCollisions( 0 )
 {}
 
 void FUniquePageList::Initialize()
 {
-	FMemory::Memset(HashIndices, 0xff);
+	if (!bInitialized)
+	{
+		FMemory::Memset(HashIndices, 0xff);
+		bInitialized = true;
+	}
 }
 
 void FUniquePageList::Add( uint32 Page, uint32 Count )

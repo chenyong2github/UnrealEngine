@@ -60,6 +60,7 @@ extern bool GShowSplashScreen;
 
 FIOSCoreDelegates::FOnOpenURL FIOSCoreDelegates::OnOpenURL;
 FIOSCoreDelegates::FOnWillResignActive FIOSCoreDelegates::OnWillResignActive;
+FIOSCoreDelegates::FOnDidBecomeActive FIOSCoreDelegates::OnDidBecomeActive;
 TArray<FIOSCoreDelegates::FFilterDelegateAndHandle> FIOSCoreDelegates::PushNotificationFilters;
 
 static uint GEnabledAudioFeatures[(uint8)EAudioFeature::NumFeatures];
@@ -327,7 +328,9 @@ static IOSAppDelegate* CachedDelegate = nil;
 	}
 	[self ToggleAudioSession:true];
 
+#if !BUILD_EMBEDDED_APP
 	[self InitIdleTimerSettings];
+#endif
 
 	bEngineInit = true;
     
@@ -603,17 +606,6 @@ static IOSAppDelegate* CachedDelegate = nil;
 		return;
 	}
 	
-	// set the AVAudioSession active if necessary
-	NSError* ActiveError = nil;
-	if (bActive)
-	{
-		[[AVAudioSession sharedInstance] setActive:bActive error:&ActiveError];
-		if (ActiveError)
-		{
-			UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session to active = %d [Error = %s]"), bActive, *FString([ActiveError description]));
-		}
-	}
-
 	self.bAudioActive = bActive;
 	
 	// get the category and settings to use
@@ -689,6 +681,7 @@ static IOSAppDelegate* CachedDelegate = nil;
 		TestOptions |= AVAudioSessionCategoryOptionMixWithOthers;
 	}
 	// set the category if anything has changed
+	NSError* ActiveError = nil;
 	if ([[[AVAudioSession sharedInstance] category] compare:Category] != NSOrderedSame ||
 		[[[AVAudioSession sharedInstance] mode] compare:Mode] != NSOrderedSame ||
 		[[AVAudioSession sharedInstance] categoryOptions] != TestOptions)
@@ -699,6 +692,16 @@ static IOSAppDelegate* CachedDelegate = nil;
 		if (ActiveError)
 		{
 			UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set AVAudioSession category to Category:%s Mode:%s Options:%x! [Error = %s]"), *FString(Category), *FString(Mode), Options, *FString([ActiveError description]));
+		}
+	}
+	
+	// set the AVAudioSession active if necessary
+	if (bActive)
+	{
+		[[AVAudioSession sharedInstance] setActive:bActive error:&ActiveError];
+		if (ActiveError)
+		{
+			UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session to active = %d [Error = %s]"), bActive, *FString([ActiveError description]));
 		}
 	}
 }
@@ -1337,6 +1340,8 @@ extern EDeviceScreenOrientation ConvertFromUIInterfaceOrientation(UIInterfaceOri
     {
 		FFunctionGraphTask::CreateAndDispatchWhenReady([Orientation]()
 		{
+			FIOSApplication* Application = [IOSAppDelegate GetDelegate].IOSApplication;
+			Application->OrientationChanged(Orientation);
 			FCoreDelegates::ApplicationReceivedScreenOrientationChangedNotificationDelegate.Broadcast((int32)ConvertFromUIInterfaceOrientation(Orientation));
 
 			//we also want to fire off the safe frame event
@@ -1360,10 +1365,10 @@ extern EDeviceScreenOrientation ConvertFromUIInterfaceOrientation(UIInterfaceOri
 	// "MyGame://arg1 arg2 arg3 ..."
 	// So, we're going to make it look like:
 	// "arg1 arg2 arg3 ..."
-	int32 URLTerminator = CommandLineParameters.Find( TEXT("://"));
+	int32 URLTerminator = CommandLineParameters.Find( TEXT("://"), ESearchCase::CaseSensitive);
 	if ( URLTerminator > -1 )
 	{
-		CommandLineParameters = CommandLineParameters.RightChop(URLTerminator + 3);
+		CommandLineParameters.RightChopInline(URLTerminator + 3, false);
 	}
 
 	FIOSCommandLineHelper::InitCommandArgs(CommandLineParameters);
@@ -1398,8 +1403,6 @@ extern EDeviceScreenOrientation ConvertFromUIInterfaceOrientation(UIInterfaceOri
 FCriticalSection RenderSuspend;
 - (void)applicationWillResignActive:(UIApplication *)application
 {
-	FIOSCoreDelegates::OnWillResignActive.Broadcast();
-	
     FIOSPlatformMisc::ResetBrightness();
     
     /*
@@ -1458,6 +1461,8 @@ FCriticalSection RenderSuspend;
             }, TStatId(), NULL, ENamedThreads::ActualRenderingThread);
         }
     }
+	
+	FIOSCoreDelegates::OnWillResignActive.Broadcast();
 }
 
 - (void)applicationDidEnterBackground:(UIApplication *)application
@@ -1506,7 +1511,9 @@ FCriticalSection RenderSuspend;
 extern double GCStartTime;
 - (void)applicationDidBecomeActive:(UIApplication *)application
 {
-    // make sure a GC will not timeout because it was started before entering background
+	FIOSCoreDelegates::OnDidBecomeActive.Broadcast();
+
+	// make sure a GC will not timeout because it was started before entering background
     GCStartTime = FPlatformTime::Seconds();
 	/*
 	 Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
@@ -1873,7 +1880,11 @@ CORE_API bool IOSShowAchievementsUI()
     
     // Battery level is from 0.0 to 1.0, get it in terms of 0-100
     self.BatteryLevel = ((int)([Device batteryLevel] * 100));
-    UE_LOG(LogIOS, Display, TEXT("Battery Level Changed: %d"), self.BatteryLevel);
+	[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
+	{
+		UE_LOG(LogIOS, Display, TEXT("Battery Level Changed: %d"), self.BatteryLevel);
+		return true;
+	}];
 #endif
 }
 
@@ -1883,7 +1894,11 @@ CORE_API bool IOSShowAchievementsUI()
     UIDevice* Device = [UIDevice currentDevice];
     UIDeviceBatteryState State = Device.batteryState;
     self.bBatteryState = State == UIDeviceBatteryStateUnplugged || State == UIDeviceBatteryStateUnknown;
-    UE_LOG(LogIOS, Display, TEXT("Battery State Changed: %d"), self.bBatteryState);
+	[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
+	{
+		UE_LOG(LogIOS, Display, TEXT("Battery State Changed: %d"), self.bBatteryState);
+		return true;
+	}];
 #endif
 }
 
@@ -1904,8 +1919,12 @@ CORE_API bool IOSShowAchievementsUI()
 			case NSProcessInfoThermalStateCritical:	Severity = FCoreDelegates::ETemperatureSeverity::Critical; Level = TEXT("Critical"); break;
 		}
 
-        UE_LOG(LogIOS, Display, TEXT("Temperaure Changed: %s"), *Level);
-		FCoreDelegates::OnTemperatureChange.Broadcast(Severity);
+		[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
+		{
+			UE_LOG(LogIOS, Display, TEXT("Temperature Changed: %s"), *Level);
+			FCoreDelegates::OnTemperatureChange.Broadcast(Severity);
+			return true;
+		}];
 	}
 #endif
 }

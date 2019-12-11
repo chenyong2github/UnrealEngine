@@ -169,7 +169,7 @@ DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_TwoParams( FComponentEndTouchOverSigna
  * There are several subclasses for the various types of geometry, but the most common by far are the ShapeComponents (Capsule, Sphere, Box), StaticMeshComponent, and SkeletalMeshComponent.
  * ShapeComponents generate geometry that is used for collision detection but are not rendered, while StaticMeshComponents and SkeletalMeshComponents contain pre-built geometry that is rendered, but can also be used for collision detection.
  */
-UCLASS(abstract, HideCategories=(Mobility), ShowCategories=(PhysicsVolume))
+UCLASS(abstract, HideCategories=(Mobility, VirtualTexture), ShowCategories=(PhysicsVolume))
 class ENGINE_API UPrimitiveComponent : public USceneComponent, public INavRelevantInterface
 {
 	GENERATED_BODY()
@@ -487,6 +487,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Physics)
 	uint8 bReplicatePhysicsToAutonomousProxy : 1;
 
+	// Navigation
+
+	/** If set, navmesh will not be generated under the surface of the geometry */
+	UPROPERTY(EditAnywhere, Category = Navigation)
+	uint8 bFillCollisionUnderneathForNavmesh:1;
+
 	// General flags.
 	
 	/** If this is True, this component must always be loaded on clients, even if Hidden and CollisionEnabled is NoCollision. */
@@ -679,6 +685,16 @@ private:
 	friend class FPrimitiveSceneInfo;
 
 public:
+
+	/**
+	 * Returns true if this component has been rendered "recently", with a tolerance in seconds to define what "recent" means.
+	 * e.g.: If a tolerance of 0.1 is used, this function will return true only if the actor was rendered in the last 0.1 seconds of game time.
+	 *
+	 * @param Tolerance  How many seconds ago the actor last render time can be and still count as having been "recently" rendered.
+	 * @return Whether this actor was recently rendered.
+	 */
+	UFUNCTION(Category = "Rendering", BlueprintCallable, meta=(DisplayName="WasComponentRecentlyRendered", Keywords="scene visible"))
+	bool WasRecentlyRendered(float Tolerance = 0.2) const;
 
 	void SetLastRenderTime(float InLastRenderTime);
 	float GetLastRenderTime() const { return LastRenderTime; }
@@ -1473,7 +1489,7 @@ public:
 	 * @param InCollisionProfileName : New Profile Name
 	 */
 	UFUNCTION(BlueprintCallable, Category="Collision")	
-	virtual void SetCollisionProfileName(FName InCollisionProfileName);
+	virtual void SetCollisionProfileName(FName InCollisionProfileName, bool bUpdateOverlaps=true);
 
 	/** Get the collision profile name */
 	UFUNCTION(BlueprintPure, Category="Collision")
@@ -1558,7 +1574,7 @@ public:
 
 private:
 	/** LOD parent primitive to draw instead of this one (multiple UPrim's will point to the same LODParent ) */
-	UPROPERTY(duplicatetransient)
+	UPROPERTY(NonPIEDuplicateTransient)
 	class UPrimitiveComponent* LODParentPrimitive;
 
 public:
@@ -1897,6 +1913,9 @@ protected:
 
 	/** Ensure physics state created **/
 	void EnsurePhysicsStateCreated();
+
+	/**  Go through attached primitive components and call MarkRenderStateDirty */
+	void MarkChildPrimitiveComponentRenderStateDirty();
 public:
 
 	//~ Begin UObject Interface.
@@ -2178,7 +2197,7 @@ public:
 	
 protected:
 	/** Called when the BodyInstance ResponseToChannels, CollisionEnabled or bNotifyRigidBodyCollision changes, in case subclasses want to use that information. */
-	virtual void OnComponentCollisionSettingsChanged(bool bDeferUpdateOverlaps = false);
+	virtual void OnComponentCollisionSettingsChanged(bool bUpdateOverlaps=true);
 
 	/** Ends all current component overlaps. Generally used when destroying this component or when it can no longer generate overlaps. */
 	void ClearComponentOverlaps(bool bDoNotifies, bool bSkipNotifySelf);
@@ -2314,6 +2333,7 @@ public:
 	virtual bool CanCharacterStepUp(class APawn* Pawn) const;
 
 	//~ Begin INavRelevantInterface Interface
+	virtual void GetNavigationData(FNavigationRelevantData& OutData) const override;
 	virtual FBox GetNavigationBounds() const override;
 	virtual bool IsNavigationRelevant() const override;
 	//~ End INavRelevantInterface Interface

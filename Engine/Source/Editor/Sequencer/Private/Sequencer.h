@@ -53,6 +53,7 @@ class IMenu;
 class FCurveEditor;
 class ISequencerEditTool;
 class FSequencerKeyCollection;
+class FObjectBindingTagCache;
 class ISequencerTrackEditor;
 class ISequencerEditorObjectBinding;
 class SSequencer;
@@ -187,6 +188,11 @@ public:
 	TSharedRef<FSequencerNodeTree> GetNodeTree()
 	{
 		return NodeTree;
+	}
+
+	FObjectBindingTagCache* GetObjectBindingTagCache()
+	{
+		return ObjectBindingTagCache.Get();
 	}
 
 	bool IsPerspectiveViewportPossessionEnabled() const override
@@ -1010,7 +1016,7 @@ protected:
 	void RerunConstructionScripts();
 
 	/** Get actors that want to rerun construction scripts */
-	void GetConstructionScriptActors(UMovieScene*, FMovieSceneSequenceIDRef SequenceID, TSet<TWeakObjectPtr<AActor> >& BoundActors);
+	void GetConstructionScriptActors(UMovieScene*, FMovieSceneSequenceIDRef SequenceID, TSet<TWeakObjectPtr<AActor> >& BoundActors, TArray < TPair<FMovieSceneSequenceID, FGuid> >& BoundGuids);
 
 	/** Check whether we're viewing the master sequence or not */
 	bool IsViewingMasterSequence() const { return ActiveTemplateIDs.Num() == 1; }
@@ -1260,4 +1266,6 @@ private:
 
 	/** A signature that will suppress auto evaluation when it is the only change dirtying the template. */
 	TOptional<TTuple<TWeakObjectPtr<UMovieSceneSequence>, FGuid>> SuppressAutoEvalSignature;
+
+	TUniquePtr<FObjectBindingTagCache> ObjectBindingTagCache;
 };

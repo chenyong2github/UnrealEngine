@@ -123,6 +123,11 @@ namespace SteamAudio
 		static void* PhononDllHandle;
 		static void* TANDllHandle;
 		static void* TANUtilsDllHandle;
+		static void* EmbreeDllHandle;
+		static void* RadeonRaysDllHandle;
+		static void* TbbDllHandle;
+		static void* TbbMallocDllHandle;
+
 
 		TArray<FAudioDevice*> RegisteredAudioDevices;
 

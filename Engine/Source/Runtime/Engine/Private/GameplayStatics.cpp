@@ -105,7 +105,7 @@ FSaveGameHeader::FSaveGameHeader(TSubclassOf<USaveGame> ObjectType)
 	, PackageFileUE4Version(GPackageFileUE4Version)
 	, SavedEngineVersion(FEngineVersion::Current())
 	, CustomVersionFormat(static_cast<int32>(ECustomVersionSerializationFormat::Latest))
-	, CustomVersions(FCustomVersionContainer::GetRegistered())
+	, CustomVersions(FCurrentCustomVersions::GetAll())
 	, SaveGameClassName(ObjectType->GetPathName())
 {}
 
@@ -1208,7 +1208,7 @@ bool UGameplayStatics::FindCollisionUV(const struct FHitResult& Hit, int32 UVCha
 	return bSuccess;
 }
 
-bool UGameplayStatics::AreAnyListenersWithinRange(const UObject* WorldContextObject, FVector Location, float MaximumRange)
+bool UGameplayStatics::AreAnyListenersWithinRange(const UObject* WorldContextObject, const FVector& Location, float MaximumRange)
 {
 	if (!GEngine || !GEngine->UseSound())
 	{
@@ -1230,6 +1230,36 @@ bool UGameplayStatics::AreAnyListenersWithinRange(const UObject* WorldContextObj
 	return false;
 }
 
+bool UGameplayStatics::GetClosestListenerLocation(const UObject* WorldContextObject, const FVector& Location, float MaximumRange, const bool bAllowAttenuationOverride, FVector& ListenerPosition)
+{
+	if (!GEngine || !GEngine->UseSound())
+	{
+		return false;
+	}
+
+	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (!ThisWorld)
+	{
+		return false;
+	}
+
+	// If there is no valid world from the world context object then there certainly are no listeners
+	FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice();
+	if (!AudioDevice)
+	{
+		return false;
+	}
+
+	float OutDistSq;
+	const int32 ClosestListenerIndex = AudioDevice->FindClosestListenerIndex(Location, OutDistSq, bAllowAttenuationOverride);
+	if (ClosestListenerIndex == INDEX_NONE || ((MaximumRange * MaximumRange) < OutDistSq))
+	{
+		return false;
+	}
+
+	return AudioDevice->GetListenerPosition(ClosestListenerIndex, ListenerPosition, bAllowAttenuationOverride);
+}
+
 void UGameplayStatics::SetGlobalPitchModulation(const UObject* WorldContextObject, float PitchModulation, float TimeSec)
 {
 	if (!GEngine || !GEngine->UseSound())
@@ -1246,6 +1276,25 @@ void UGameplayStatics::SetGlobalPitchModulation(const UObject* WorldContextObjec
 	if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice())
 	{
 		AudioDevice->SetGlobalPitchModulation(PitchModulation, TimeSec);
+	}
+}
+
+void UGameplayStatics::SetSoundClassDistanceScale(const UObject* WorldContextObject, USoundClass* SoundClass, float DistanceAttenuationScale, float TimeSec)
+{
+	if (!GEngine || !GEngine->UseSound())
+	{
+		return;
+	}
+
+	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (!ThisWorld || !ThisWorld->bAllowAudioPlayback || ThisWorld->IsNetMode(NM_DedicatedServer))
+	{
+		return;
+	}
+
+	if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice())
+	{
+		AudioDevice->SetSoundClassDistanceScale(SoundClass, DistanceAttenuationScale, TimeSec);
 	}
 }
 
@@ -1938,16 +1987,21 @@ USaveGame* UGameplayStatics::CreateSaveGameObject(TSubclassOf<USaveGame> SaveGam
 
 bool UGameplayStatics::SaveGameToMemory(USaveGame* SaveGameObject, TArray<uint8>& OutSaveData )
 {
-	FMemoryWriter MemoryWriter(OutSaveData, true);
+	if (SaveGameObject)
+	{
+		FMemoryWriter MemoryWriter(OutSaveData, true);
 
-	FSaveGameHeader SaveHeader(SaveGameObject->GetClass());
-	SaveHeader.Write(MemoryWriter);
+		FSaveGameHeader SaveHeader(SaveGameObject->GetClass());
+		SaveHeader.Write(MemoryWriter);
 
-	// Then save the object state, replacing object refs and names with strings
-	FObjectAndNameAsStringProxyArchive Ar(MemoryWriter, false);
-	SaveGameObject->Serialize(Ar);
+		// Then save the object state, replacing object refs and names with strings
+		FObjectAndNameAsStringProxyArchive Ar(MemoryWriter, false);
+		SaveGameObject->Serialize(Ar);
 
-	return true; // Not sure if there's a failure case here.
+		return true; // Not sure if there's a failure case here.
+	}
+
+	return false;
 }
 
 bool UGameplayStatics::SaveDataToSlot(const TArray<uint8>& InSaveData, const FString& SlotName, const int32 UserIndex)
@@ -1964,23 +2018,28 @@ bool UGameplayStatics::SaveDataToSlot(const TArray<uint8>& InSaveData, const FSt
 }
 
 void UGameplayStatics::AsyncSaveGameToSlot(USaveGame* SaveGameObject, const FString& SlotName, const int32 UserIndex, FAsyncSaveGameToSlotDelegate SavedDelegate)
+{
+	TArray<uint8> ObjectBytes;
+	if (SaveGameToMemory(SaveGameObject, ObjectBytes))
 	{
-		TArray<uint8> ObjectBytes;
-	SaveGameToMemory(SaveGameObject, ObjectBytes);
-
-	AsyncTask(ENamedThreads::AnyHiPriThreadNormalTask, [SlotName, UserIndex, SavedDelegate, ObjectBytes]()
-	{
-		bool bSuccess = SaveDataToSlot(ObjectBytes, SlotName, UserIndex);
-
-		// Now schedule the callback on the game thread, but only if it was bound to anything
-		if (SavedDelegate.IsBound())
+		AsyncTask(ENamedThreads::AnyHiPriThreadNormalTask, [SlotName, UserIndex, SavedDelegate, ObjectBytes]()
 		{
-			AsyncTask(ENamedThreads::GameThread, [SlotName, UserIndex, SavedDelegate, bSuccess]()
+			bool bSuccess = SaveDataToSlot(ObjectBytes, SlotName, UserIndex);
+
+			// Now schedule the callback on the game thread, but only if it was bound to anything
+			if (SavedDelegate.IsBound())
 			{
-				SavedDelegate.ExecuteIfBound(SlotName, UserIndex, bSuccess);
-			});
-		}
-	});
+				AsyncTask(ENamedThreads::GameThread, [SlotName, UserIndex, SavedDelegate, bSuccess]()
+				{
+					SavedDelegate.ExecuteIfBound(SlotName, UserIndex, bSuccess);
+				});
+			}
+		});
+	}
+	else if (SavedDelegate.IsBound())
+	{
+		SavedDelegate.ExecuteIfBound(SlotName, UserIndex, false);
+	}
 }
 
 bool UGameplayStatics::SaveGameToSlot(USaveGame* SaveGameObject, const FString& SlotName, const int32 UserIndex)
@@ -2791,16 +2850,17 @@ bool UGameplayStatics::GrabOption( FString& Options, FString& Result )
 	{
 		// Get result.
 		Result = Options.Mid(1, MAX_int32);
-		if (Result.Contains(QuestionMark, ESearchCase::CaseSensitive))
+		const int32 QMIdx = Result.Find(QuestionMark, ESearchCase::CaseSensitive);
+		if (QMIdx != INDEX_NONE)
 		{
-			Result = Result.Left(Result.Find(QuestionMark, ESearchCase::CaseSensitive));
+			Result.LeftInline(QMIdx, false);
 		}
 
 		// Update options.
-		Options = Options.Mid(1, MAX_int32);
+		Options.MidInline(1, MAX_int32, false);
 		if (Options.Contains(QuestionMark, ESearchCase::CaseSensitive))
 		{
-			Options = Options.Mid(Options.Find(QuestionMark, ESearchCase::CaseSensitive), MAX_int32);
+			Options.MidInline(Options.Find(QuestionMark, ESearchCase::CaseSensitive), MAX_int32, false);
 		}
 		else
 		{

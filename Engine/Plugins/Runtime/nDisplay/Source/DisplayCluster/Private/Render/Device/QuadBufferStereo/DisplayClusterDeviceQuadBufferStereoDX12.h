@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Render/Device/QuadBufferStereo/DisplayClusterDeviceQuadBufferStereoBase.h"
-#include "Render/Presentation/DisplayClusterDevicePresentationDX12.h"
 
 
 /**
@@ -12,15 +11,11 @@
  */
 class FDisplayClusterDeviceQuadBufferStereoDX12
 	: public FDisplayClusterDeviceQuadBufferStereoBase
-	, public FDisplayClusterDevicePresentationDX12
 {
 public:
 	FDisplayClusterDeviceQuadBufferStereoDX12();
 	virtual ~FDisplayClusterDeviceQuadBufferStereoDX12();
 
 protected:
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	// FRHICustomPresent
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual bool Present(int32& InOutSyncInterval) override;
+	virtual FDisplayClusterPresentationBase* CreatePresentationObject(FViewport* const Viewport, TSharedPtr<IDisplayClusterRenderSyncPolicy>& SyncPolicy) override;
 };

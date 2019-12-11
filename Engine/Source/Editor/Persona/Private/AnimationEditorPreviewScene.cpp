@@ -51,6 +51,7 @@ FAnimationEditorPreviewScene::FAnimationEditorPreviewScene(const ConstructionVal
 	, LastTickTime(0.0)
 	, bSelecting(false)
 	, bAllowAdditionalMeshes(true)
+	, bAdditionalMeshesSelectable(true)
 {
 	if (GEditor)
 	{
@@ -317,6 +318,11 @@ void FAnimationEditorPreviewScene::SetAdditionalMeshes(class UDataAsset* InAddit
 	RefreshAdditionalMeshes(true);
 }
 
+void FAnimationEditorPreviewScene::SetAdditionalMeshesSelectable(bool bSelectable)
+{
+	bAdditionalMeshesSelectable = bSelectable;
+}
+
 void FAnimationEditorPreviewScene::RefreshAdditionalMeshes(bool bAllowOverrideBaseMesh)
 {
 	// remove all components
@@ -369,11 +375,11 @@ void FAnimationEditorPreviewScene::RefreshAdditionalMeshes(bool bAllowOverrideBa
 					if (SkeletalMesh)
 					{
 						USkeletalMeshComponent* NewComp = NewObject<USkeletalMeshComponent>(Actor);
+						NewComp->bSelectable = bAdditionalMeshesSelectable;
 						NewComp->RegisterComponent();
 						NewComp->SetSkeletalMesh(SkeletalMesh);
 						NewComp->bUseAttachParentBound = true;
 						AddComponent(NewComp, FTransform::Identity, true);
-
 						if (bUseCustomAnimBP && AnimInstances.IsValidIndex(MeshIndex) && AnimInstances[MeshIndex] != nullptr)
 						{
 							NewComp->SetAnimInstanceClass(AnimInstances[MeshIndex]);
@@ -383,7 +389,6 @@ void FAnimationEditorPreviewScene::RefreshAdditionalMeshes(bool bAllowOverrideBa
 							bool bWasCreated = false;
 							UAnimCustomInstance::BindToSkeletalMeshComponent<UAnimPreviewAttacheInstance>(NewComp,bWasCreated);
 						}
-
 						AdditionalMeshes.Add(NewComp);
 					}
 				}

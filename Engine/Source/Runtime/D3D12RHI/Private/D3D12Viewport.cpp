@@ -216,6 +216,9 @@ FD3D12Texture2D* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelFor
 		Parent->GetDevice()->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &TextureDesc, D3D12_RESOURCE_STATE_PRESENT, nullptr, IID_PPV_ARGS(BackBufferResource.GetInitReference()));
 	}
 
+	FString Name = FString::Printf(TEXT("BackBuffer%d"), BackBufferIndex);
+	SetName(BackBufferResource, *Name);
+
 	D3D12_RESOURCE_DESC BackBufferDesc = BackBufferResource->GetDesc();
 
 	FD3D12Texture2D* SwapChainTexture = Adapter->CreateLinkedObject<FD3D12Texture2D>(FRHIGPUMask::All(), [&](FD3D12Device* Device)
@@ -513,6 +516,28 @@ static bool IsCompositionEnabled()
 /** Presents the swap chain checking the return result. */
 bool FD3D12Viewport::PresentChecked(int32 SyncInterval)
 {
+#if PLATFORM_WINDOWS
+	// We can't call Present if !bIsValid, as it waits a window message to be processed, but the main thread may not be pumping the message handler.
+	if (bIsValid && SwapChain1.IsValid())
+	{
+		// Check if the viewport's swap chain has been invalidated by DXGI.
+		BOOL bSwapChainFullscreenState;
+		TRefCountPtr<IDXGIOutput> SwapChainOutput;
+		SwapChain1->GetFullscreenState(&bSwapChainFullscreenState, SwapChainOutput.GetInitReference());
+		// Can't compare BOOL with bool...
+		if ( (!!bSwapChainFullscreenState)  != bIsFullscreen )
+		{
+			bFullscreenLost = true;
+			bIsValid = false;
+		}
+	}
+
+	if (!bIsValid)
+	{
+		return false;
+	}
+#endif
+
 	HRESULT Result = S_OK;
 	bool bNeedNativePresent = true;
 
@@ -938,15 +963,17 @@ void FD3D12DynamicRHI::RHIAdvanceFrameFence()
 	FD3D12ManualFence* FrameFence = &GetAdapter().GetFrameFence();
 	const uint64 PreviousFence = FrameFence->IncrementCurrentFence();
 
-	// Queue a command to signal on RHI thread that the current frame is a complete on the GPU.
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	if (RHICmdList.Bypass() || !IsRunningRHIInSeparateThread())
+	if (RHICmdList.Bypass())
 	{
+		// In bypass mode, we should execute this directly
 		FRHICommandSignalFrameFence Cmd(ED3D12CommandQueueType::Default, FrameFence, PreviousFence);
 		Cmd.Execute(RHICmdList);
 	}
 	else
 	{
+		// Queue a command to signal on RHI thread that the current frame is a complete on the GPU.
+		// This must be done in a deferred way even if RHI thread is disabled, just for correct ordering of operations.
 		ALLOC_COMMAND_CL(RHICmdList, FRHICommandSignalFrameFence)(ED3D12CommandQueueType::Default, FrameFence, PreviousFence);
 	}
 }

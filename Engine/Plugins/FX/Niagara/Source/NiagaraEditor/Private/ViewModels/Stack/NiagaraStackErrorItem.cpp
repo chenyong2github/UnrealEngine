@@ -76,8 +76,13 @@ void UNiagaraStackErrorItem::RefreshChildrenInternal(const TArray<UNiagaraStackE
 		{
 			ErrorEntryFix->SetFixDelegate(CurrentFix.GetFixDelegate());
 		}
-		ErrorEntryFix->OnIssueFixed().AddUObject(this, &UNiagaraStackErrorItem::IssueFixed);
-		NewChildren.Add(ErrorEntryFix);
+		if (ensureMsgf(NewChildren.Contains(ErrorEntryFix) == false,
+			TEXT("Duplicate stack issue fix rows detected, This is caused by two different issue fixes with the same description which is used to generate their unique id. Issue Fix description: %s.  This issue fix will not be shown in the UI."),
+			*CurrentFix.GetDescription().ToString()))
+		{
+			ErrorEntryFix->OnIssueFixed().AddUObject(this, &UNiagaraStackErrorItem::IssueFixed);
+			NewChildren.Add(ErrorEntryFix);
+		}
 	}
 	// dismiss button
 	if (StackIssue.GetCanBeDismissed())
@@ -127,16 +132,16 @@ void UNiagaraStackErrorItemFix::Initialize(FRequiredEntryData InRequiredEntryDat
 	IssueFix = InIssueFix;
 }
 
-FText UNiagaraStackErrorItemFix::FixDescription() const
-{
-	return IssueFix.GetDescription();
-}
-
 FReply UNiagaraStackErrorItemFix::OnTryFixError()
 {
 	IssueFix.GetFixDelegate().ExecuteIfBound();
 	OnIssueFixed().Broadcast();
 	return FReply::Handled();
+}
+
+FText UNiagaraStackErrorItemFix::GetDisplayName() const
+{
+	return IssueFix.GetDescription();
 }
 
 UNiagaraStackEntry::EStackRowStyle UNiagaraStackErrorItemFix::GetStackRowStyle() const

@@ -10,7 +10,7 @@ namespace Chaos
 
 	typedef FPBDRigidsSolver FPhysicsSolver;
 
-	template <typename T, int d> class TImplicitObject;
+	class FImplicitObject;
 	template <typename T, int d> class TPerShapeData;
 	template <typename TSOA> class TParticleView;
 	template<class T, int d> class TPBDRigidParticles;

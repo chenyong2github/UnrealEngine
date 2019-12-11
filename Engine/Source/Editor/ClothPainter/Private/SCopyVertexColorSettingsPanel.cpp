@@ -112,7 +112,7 @@ FReply SCopyVertexColorSettingsPanel::OnCopyClicked()
 	UClothingAssetCommon* Asset = SelectedAssetPtr.Get();
 	if (Asset && SelectedMask)
 	{
-		UClothLODDataBase* ClothLODData = Asset->ClothLodData[SelectedLOD];
+		UClothLODDataCommon* ClothLODData = Asset->ClothLodData[SelectedLOD];
 
 		check(ClothLODData->PhysicalMeshData->Vertices.Num() == ClothLODData->PhysicalMeshData->VertexColors.Num());
 		int32 NumVerts = ClothLODData->PhysicalMeshData->Vertices.Num();

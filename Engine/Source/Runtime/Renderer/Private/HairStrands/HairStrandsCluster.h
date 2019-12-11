@@ -14,7 +14,12 @@
 /// Hair cluster infos (i.e. group of mesh having hair material on them)
 struct FHairStrandsClusterData
 {
-	typedef TArray<FMeshBatchAndRelevance, SceneRenderingAllocator> TPrimitiveInfos;
+	struct PrimitiveInfo
+	{
+		FMeshBatchAndRelevance MeshBatchAndRelevance;
+		uint32 MaterialId;
+	};
+	typedef TArray<PrimitiveInfo, SceneRenderingAllocator> TPrimitiveInfos;
 
 	FVector GetMinBound() const { return VoxelResources.MinAABB; }
 	FVector GetMaxBound() const { return VoxelResources.MaxAABB; }

@@ -406,10 +406,13 @@ void FFileManagerGeneric::FindFiles( TArray<FString>& Result, const TCHAR* InFil
 		}
 		virtual bool Visit( const TCHAR* FilenameOrDirectory, bool bIsDirectory )
 		{
-			if (((bIsDirectory && bDirectories) || (!bIsDirectory && bFiles))
-				&& FPaths::GetCleanFilename(FilenameOrDirectory).MatchesWildcard(WildCard))
+			if ((bIsDirectory && bDirectories) || (!bIsDirectory && bFiles))
 			{
-				new( Result ) FString( FPaths::GetCleanFilename(FilenameOrDirectory) );
+				const FString Filename = FPaths::GetCleanFilename(FilenameOrDirectory);
+				if (Filename.MatchesWildcard(WildCard))
+				{
+					new( Result ) FString(Filename);
+				}
 			}
 			return true;
 		}
@@ -577,7 +580,7 @@ FString FFileManagerGeneric::DefaultConvertToRelativePath( const TCHAR* Filename
 			//move up a directory and on an extra .. TEXT("/")
 			// the +1 from "InStr" moves to include the "\" at the end of the directory name
 			NumberOfDirectoriesToGoUp++;
-			RootDirectory = RootDirectory.Left( PositionOfNextSlash + 1 );
+			RootDirectory.LeftInline( PositionOfNextSlash + 1, false );
 		}
 		else
 		{
@@ -638,12 +641,9 @@ FArchiveFileReaderGeneric::FArchiveFileReaderGeneric( IFileHandle* InHandle, con
 	, Size( InSize )
 	, Pos( 0 )
 	, BufferBase( 0 )
-	, BufferCount( 0 )
 	, Handle( InHandle )
-	, Buffer(nullptr)
-	, BufferSize(InBufferSize)
 {
-	Buffer = new uint8[BufferSize];
+	BufferArray.Reserve(InBufferSize);
 	this->SetIsLoading(true);
 	this->SetIsPersistent(true);
 }
@@ -654,32 +654,21 @@ void FArchiveFileReaderGeneric::Seek( int64 InPos )
 	checkf(InPos >= 0, TEXT("Attempted to seek to a negative location (%lld/%lld), file: %s. The file is most likely corrupt."), InPos, Size, *Filename);
 	checkf(InPos <= Size, TEXT("Attempted to seek past the end of file (%lld/%lld), file: %s. The file is most likely corrupt."), InPos, Size, *Filename);
 
-	if (InPos < BufferBase || InPos >= BufferBase + BufferCount)
+	if (!SeekLowLevel(InPos))
 	{
-		// The seek is outside of the cached buffer so we actually need to seek
-		if (!SeekLowLevel(InPos))
-		{
-			TCHAR ErrorBuffer[1024];
-			ArIsError = true;
-			UE_LOG(LogFileManager, Error, TEXT("SetFilePointer on %s Failed %lld/%lld: %lld %s"), *Filename, InPos, Size, Pos, FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, 0));
-		}
+		TCHAR ErrorBuffer[1024];
+		ArIsError = true;
+		UE_LOG(LogFileManager, Error, TEXT("SetFilePointer on %s Failed %lld/%lld: %lld %s"), *Filename, InPos, Size, Pos, FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, 0));
+	}
 
-		Pos = InPos;
-		BufferBase = Pos;
-		BufferCount = 0;
-	}
-	else
-	{
-		// We already have the seek position cached so we can just move the current reading position
-		Pos = InPos;
-	}
+	Pos = InPos;
+	BufferBase = Pos;
+	BufferArray.Reset();
 }
 
 FArchiveFileReaderGeneric::~FArchiveFileReaderGeneric()
 {
 	Close();
-	check(Buffer != nullptr);
-	delete[] Buffer;
 }
 
 void FArchiveFileReaderGeneric::ReadLowLevel( uint8* Dest, int64 CountToRead, int64& OutBytesRead )
@@ -713,15 +702,19 @@ bool FArchiveFileReaderGeneric::Close()
 bool FArchiveFileReaderGeneric::InternalPrecache( int64 PrecacheOffset, int64 PrecacheSize )
 {
 	// Only precache at current position and avoid work if precaching same offset twice.
-	if( Pos == PrecacheOffset &&( !BufferBase || !BufferCount || BufferBase != Pos ) )
+	if( Pos == PrecacheOffset &&( !BufferBase || !BufferArray.Num() || BufferBase != Pos ) )
 	{
 		BufferBase = Pos;
-		BufferCount = FMath::Min( FMath::Min( PrecacheSize,( int64 )( BufferSize -( Pos&( BufferSize -1 ) ) ) ), Size-Pos );
-		BufferCount = FMath::Max( BufferCount, 0LL ); // clamp to 0
+		int64 BufferCount = FMath::Min( FMath::Min( PrecacheSize,( int64 )(BufferArray.Max() -( Pos&( BufferArray.Max() -1 ) ) ) ), Size-Pos );
+		BufferCount = FMath::Max(BufferCount, 0LL ); // clamp to 0
+		
+		const bool AllowShrink = false;
+		BufferArray.SetNumUninitialized(BufferCount, AllowShrink);
+
 		int64 Count = 0;
 
 		{
-			if (BufferCount > BufferSize || BufferCount <= 0)
+			if (BufferCount > BufferArray.Max() || BufferCount <= 0)
 			{
 				UE_LOG( LogFileManager, Error, TEXT("Invalid BufferCount=%lld while reading %s. File is most likely corrupted. Please verify your installation. Pos=%lld, Size=%lld, PrecacheSize=%lld, PrecacheOffset=%lld"),
 					BufferCount, *Filename, Pos, Size, PrecacheSize, PrecacheOffset );
@@ -729,7 +722,7 @@ bool FArchiveFileReaderGeneric::InternalPrecache( int64 PrecacheOffset, int64 Pr
 				return false;
 			}
 
-			ReadLowLevel( Buffer, BufferCount, Count );
+			ReadLowLevel( BufferArray.GetData(), BufferArray.Num(), Count );
 		}
 
 		if( Count!=BufferCount )
@@ -753,10 +746,10 @@ void FArchiveFileReaderGeneric::Serialize( void* V, int64 Length )
 
 	while( Length>0 )
 	{
-		int64 Copy = FMath::Min( Length, BufferBase+BufferCount-Pos );
+		int64 Copy = FMath::Min( Length, BufferBase+BufferArray.Num()-Pos );
 		if( Copy<=0 )
 		{
-			if( Length >= BufferSize )
+			if( Length >= BufferArray.Max() )
 			{
 				int64 Count=0;
 				{
@@ -778,7 +771,7 @@ void FArchiveFileReaderGeneric::Serialize( void* V, int64 Length )
 				UE_LOG( LogFileManager, Warning, TEXT( "ReadFile failed during precaching for file %s" ),*Filename );
 				return;
 			}
-			Copy = FMath::Min( Length, BufferBase+BufferCount-Pos );
+			Copy = FMath::Min( Length, BufferBase+BufferArray.Num()-Pos );
 			if( Copy<=0 )
 			{
 				ArIsError = true;
@@ -790,7 +783,7 @@ void FArchiveFileReaderGeneric::Serialize( void* V, int64 Length )
 				return;
 			}
 		}
-		FMemory::Memcpy( V, Buffer+Pos-BufferBase, Copy );
+		FMemory::Memcpy( V, BufferArray.GetData()+Pos-BufferBase, Copy );
 		Pos       += Copy;
 		Length    -= Copy;
 		V          =( uint8* )V + Copy;
@@ -801,13 +794,10 @@ FArchiveFileWriterGeneric::FArchiveFileWriterGeneric( IFileHandle* InHandle, con
 	: Filename( InFilename )
 	, Flags( InFlags )
 	, Pos( InPos )
-	, BufferCount( 0 )
 	, Handle( InHandle )
-	, Buffer(nullptr)
-	, BufferSize(InBufferSize)
 	, bLoggingError( false )
 {
-	Buffer = new uint8[BufferSize];
+	BufferArray.Reserve(InBufferSize);
 	this->SetIsSaving(true);
 	this->SetIsPersistent(true);
 }
@@ -815,8 +805,6 @@ FArchiveFileWriterGeneric::FArchiveFileWriterGeneric( IFileHandle* InHandle, con
 FArchiveFileWriterGeneric::~FArchiveFileWriterGeneric()
 {
 	Close();
-	check(Buffer != nullptr);
-	delete[] Buffer;
 }
 
 bool FArchiveFileWriterGeneric::CloseLowLevel()
@@ -867,7 +855,7 @@ bool FArchiveFileWriterGeneric::Close()
 void FArchiveFileWriterGeneric::Serialize( void* V, int64 Length )
 {
 	Pos += Length;
-	if ( Length >= BufferSize )
+	if ( Length >= BufferArray.Max() )
 	{
 		FlushBuffer();
 		if( !WriteLowLevel( (uint8*)V, Length ) )
@@ -879,20 +867,16 @@ void FArchiveFileWriterGeneric::Serialize( void* V, int64 Length )
 	else
 	{
 		int64 Copy;
-		while( Length >( Copy=BufferSize-BufferCount ) )
+		while( Length >( Copy=BufferArray.Max()-BufferArray.Num() ) )
 		{
-			FMemory::Memcpy( Buffer+BufferCount, V, Copy );
-			BufferCount += Copy;
-			check( BufferCount <= BufferSize && BufferCount >= 0 );
+			BufferArray.Append((uint8*)V, Copy);
 			Length      -= Copy;
 			V            =( uint8* )V + Copy;
 			FlushBuffer();
 		}
 		if( Length )
 		{
-			FMemory::Memcpy( Buffer+BufferCount, V, Length );
-			BufferCount += Length;
-			check( BufferCount <= BufferSize && BufferCount >= 0 );
+			BufferArray.Append((uint8*)V, Length);
 		}
 	}
 }
@@ -908,16 +892,15 @@ void FArchiveFileWriterGeneric::Flush()
 bool FArchiveFileWriterGeneric::FlushBuffer()
 {
 	bool bDidWriteData = false;
-	if (BufferCount)
+	if (int64 BufferNum = BufferArray.Num())
 	{
-		check(BufferCount <= BufferSize && BufferCount > 0);
-		bDidWriteData = WriteLowLevel(Buffer, BufferCount);
+		bDidWriteData = WriteLowLevel(BufferArray.GetData(), BufferNum);
 		if (!bDidWriteData)
 		{
 			ArIsError = true;
 			LogWriteError(TEXT("Error flushing file"));
 		}
-		BufferCount = 0;
+		BufferArray.Reset();
 	}
 	return bDidWriteData;
 }

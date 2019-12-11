@@ -88,23 +88,9 @@ static void D3D11FilterShaderCompileWarnings(const FString& CompileWarnings, TAr
 	}
 }
 
-static void DXCFilterShaderCompileWarnings(const FString& CompileWarnings, TArray<FString>& FilteredWarnings)
+FORCENOINLINE static void DXCFilterShaderCompileWarnings(const FString& CompileWarnings, TArray<FString>& FilteredWarnings)
 {
-	TArray<FString> WarningArray;
-	FString OutWarningString = TEXT("");
-	CompileWarnings.ParseIntoArray(WarningArray, TEXT("\n"), true);
-
-	//go through each warning line
-	for (int32 WarningIndex = 0; WarningIndex < WarningArray.Num(); WarningIndex++)
-	{
-		// DXC includes few lines of extra context in its diagnostic messages, which is different from FXC.
-		// We only include actual error and warning lines in the filtered output.
-		if (WarningArray[WarningIndex].Contains(TEXT("error:"))
-			|| WarningArray[WarningIndex].Contains(TEXT("warning:")))
-		{
-			FilteredWarnings.AddUnique(WarningArray[WarningIndex]);
-		}
-	}
+	CompileWarnings.ParseIntoArray(FilteredWarnings, TEXT("\n"), true);
 }
 
 static bool IsRayTracingShader(const FShaderTarget& Target)
@@ -961,6 +947,40 @@ static void ParseRayTracingEntryPoint(const FString& Input, FString& OutMain, FS
 	}
 }
 
+static bool DumpDebugShaderUSF(FString& PreprocessedShaderSource, const FShaderCompilerInput& Input)
+{
+	bool bDumpDebugInfo = false;
+
+	// Write out the preprocessed file and a batch file to compile it if requested (DumpDebugInfoPath is valid)
+	if (Input.DumpDebugInfoPath.Len() > 0 && IFileManager::Get().DirectoryExists(*Input.DumpDebugInfoPath))
+	{
+		bDumpDebugInfo = true;
+		FString Filename = Input.GetSourceFilename();
+		FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*(Input.DumpDebugInfoPath / Filename));
+		if (FileWriter)
+		{
+			auto AnsiSourceFile = StringCast<ANSICHAR>(*PreprocessedShaderSource);
+			FileWriter->Serialize((ANSICHAR*)AnsiSourceFile.Get(), AnsiSourceFile.Length());
+			{
+				FString Line = CrossCompiler::CreateResourceTableFromEnvironment(Input.Environment);
+
+				Line += TEXT("#if 0 /*DIRECT COMPILE*/\n");
+				Line += CreateShaderCompilerWorkerDirectCommandLine(Input);
+				Line += TEXT("\n#endif /*DIRECT COMPILE*/\n");
+				Line += TEXT("//");
+				Line += Input.DebugDescription;
+				Line += TEXT("\n");
+				FileWriter->Serialize(TCHAR_TO_ANSI(*Line), Line.Len());
+			}
+			FileWriter->Close();
+			delete FileWriter;
+		}
+	}
+
+	return bDumpDebugInfo;
+}
+
+
 // Generate the dumped usf file; call the D3D compiler, gather reflection information and generate the output data
 static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const FString& CompilerPath,
 	uint32 CompileFlags, const FShaderCompilerInput& Input, FString& EntryPointName,
@@ -1000,33 +1020,12 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 		}
 	}
 
-	bool bDumpDebugInfo = false;
 	// Write out the preprocessed file and a batch file to compile it if requested (DumpDebugInfoPath is valid)
-	if (Input.DumpDebugInfoPath.Len() > 0 && IFileManager::Get().DirectoryExists(*Input.DumpDebugInfoPath))
+	bool bDumpDebugInfo = DumpDebugShaderUSF(PreprocessedShaderSource, Input);
+	if (bDumpDebugInfo)
 	{
-		bDumpDebugInfo = true;
-		FString Filename = Input.GetSourceFilename();
-		FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*(Input.DumpDebugInfoPath / Filename));
-		if (FileWriter)
-		{
-			FileWriter->Serialize((ANSICHAR*)AnsiSourceFile.Get(), AnsiSourceFile.Length());
-			{
-				FString Line = CrossCompiler::CreateResourceTableFromEnvironment(Input.Environment);
-
-				Line += TEXT("#if 0 /*DIRECT COMPILE*/\n");
-				Line += CreateShaderCompilerWorkerDirectCommandLine(Input);
-				Line += TEXT("\n#endif /*DIRECT COMPILE*/\n");
-				Line += TEXT("//");
-				Line += Input.DebugDescription;
-				Line += TEXT("\n");
-				FileWriter->Serialize(TCHAR_TO_ANSI(*Line), Line.Len());
-			}
-			FileWriter->Close();
-			delete FileWriter;
-		}
-
 		FString BatchFileContents;
-
+		FString Filename = Input.GetSourceFilename();
 		if (bUseDXC)
 		{
 			BatchFileContents = D3DCreateDXCCompileBatchFile(Filename, *EntryPointName, *RayTracingExports, ShaderProfile, CompileFlags, Output, AutoBindingSpace);
@@ -1047,6 +1046,7 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 		if (Input.bGenerateDirectCompileFile)
 		{
 			FFileHelper::SaveStringToFile(CreateShaderCompilerWorkerDirectCommandLine(Input), *(Input.DumpDebugInfoPath / TEXT("DirectCompile.txt")));
+			FFileHelper::SaveStringToFile(Input.DebugDescription, *(Input.DumpDebugInfoPath / TEXT("permutation_info.txt")));
 		}
 	}
 
@@ -1637,13 +1637,15 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 	return SUCCEEDED(Result);
 }
 
-void CompileD3DShader(const FShaderCompilerInput& Input,FShaderCompilerOutput& Output, FShaderCompilerDefinitions& AdditionalDefines, const FString& WorkingDirectory)
+void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& Output, FShaderCompilerDefinitions& AdditionalDefines, const FString& WorkingDirectory)
 {
 	FString PreprocessedShaderSource;
 	FString CompilerPath;
-	const bool bUseWaveOperations = Input.Environment.CompilerFlags.Contains(CFLAG_WaveOperations); // Forces shader model 6.0 for this shader
-	const bool bForceDXC = Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC);
-	const TCHAR* ShaderProfile = GetShaderProfileName(Input.Target, bUseWaveOperations || bForceDXC);
+	const bool bIsRayTracingShader = IsRayTracingShader(Input.Target);
+	const bool bUseDXC = bIsRayTracingShader
+		|| Input.Environment.CompilerFlags.Contains(CFLAG_WaveOperations)
+		|| Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC);
+	const TCHAR* ShaderProfile = GetShaderProfileName(Input.Target, bUseDXC);
 
 	if(!ShaderProfile)
 	{
@@ -1654,7 +1656,7 @@ void CompileD3DShader(const FShaderCompilerInput& Input,FShaderCompilerOutput& O
 	// Set additional defines.
 	AdditionalDefines.SetDefine(TEXT("COMPILER_HLSL"), 1);
 
-	if (bUseWaveOperations || bForceDXC)
+	if (bUseDXC)
 	{
 		AdditionalDefines.SetDefine(TEXT("PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS"), 1);
 	}
@@ -1715,6 +1717,7 @@ void CompileD3DShader(const FShaderCompilerInput& Input,FShaderCompilerOutput& O
 		TArray<FString> Errors;
 		if (!RemoveUnusedOutputs(PreprocessedShaderSource, UsedOutputs, Exceptions, EntryPointName, Errors))
 		{
+			DumpDebugShaderUSF(PreprocessedShaderSource, Input);
 			UE_LOG(LogD3D11ShaderCompiler, Warning, TEXT("Failed to Remove unused outputs [%s]!"), *Input.DumpDebugInfoPath);
 			for (int32 Index = 0; Index < Errors.Num(); ++Index)
 			{
@@ -1783,23 +1786,73 @@ void CompileD3DShader(const FShaderCompilerInput& Input,FShaderCompilerOutput& O
 	{
 		const FString& CurrentError = FilteredErrors[ErrorIndex];
 		FShaderCompilerError NewError;
-		// Extract the filename and line number from the shader compiler error message for PC whose format is:
-		// "d:\UE4\Binaries\BasePassPixelShader(30,7): error X3000: invalid target or usage string"
-		int32 FirstParenIndex = CurrentError.Find(TEXT("("));
-		int32 LastParenIndex = CurrentError.Find(TEXT("):"));
-		if (FirstParenIndex != INDEX_NONE 
-			&& LastParenIndex != INDEX_NONE
-			&& LastParenIndex > FirstParenIndex)
+
+		if (bUseDXC)
 		{
-			NewError.ErrorVirtualFilePath = CurrentError.Left(FirstParenIndex);
-			NewError.ErrorLineString = CurrentError.Mid(FirstParenIndex + 1, LastParenIndex - FirstParenIndex - FCString::Strlen(TEXT("(")));
-			NewError.StrippedErrorMessage = CurrentError.Right(CurrentError.Len() - LastParenIndex - FCString::Strlen(TEXT("):")));
+			// Extract filename and line number from DXC output with format:
+			// "d:\UE4\Binaries\BasePassPixelShader:30:7: error: invalid target or usage string"
+			int32 ReportIndex = CurrentError.Find(TEXT(": error: "));
+			if (ReportIndex == INDEX_NONE)
+			{
+				ReportIndex = CurrentError.Find(TEXT(": warning: "));
+			}
+
+			int32 SecondColonIndex = CurrentError.Find(TEXT(":"), ESearchCase::IgnoreCase, ESearchDir::FromEnd, ReportIndex - 1);
+			int32 FirstColonIndex = CurrentError.Find(TEXT(":"), ESearchCase::IgnoreCase, ESearchDir::FromEnd, SecondColonIndex - 1);
+
+			if (ReportIndex != INDEX_NONE &&
+				FirstColonIndex != INDEX_NONE &&
+				SecondColonIndex != INDEX_NONE &&
+				FirstColonIndex < SecondColonIndex &&
+				SecondColonIndex < ReportIndex)
+			{
+				// Extract and store error message with source filename
+				NewError.ErrorVirtualFilePath = CurrentError.Left(FirstColonIndex);
+				NewError.ErrorLineString = CurrentError.Mid(FirstColonIndex + 1, ReportIndex - FirstColonIndex - FCString::Strlen(TEXT(":")));
+				NewError.StrippedErrorMessage = CurrentError.Right(CurrentError.Len() - ReportIndex - FCString::Strlen(TEXT(": ")));
+				Output.Errors.Add(NewError);
+			}
+			else if (Output.Errors.Num() > 0)
+			{
+				// Append highlighted line or marker to the previous error message
+				FShaderCompilerError& PrevError = Output.Errors.Last();
+				if (PrevError.HighlightedLine.IsEmpty())
+				{
+					PrevError.HighlightedLine = CurrentError;
+				}
+				else if (PrevError.HighlightedLineMarker.IsEmpty())
+				{
+					PrevError.HighlightedLineMarker = CurrentError;
+				}
+				else
+				{
+					// Register as new error message
+					NewError.StrippedErrorMessage = CurrentError;
+					Output.Errors.Add(NewError);
+				}
+			}
 		}
 		else
 		{
-			NewError.StrippedErrorMessage = CurrentError;
+			// Extract filename and line number from FXC output with format:
+			// "d:\UE4\Binaries\BasePassPixelShader(30,7): error X3000: invalid target or usage string"
+			int32 FirstParenIndex = CurrentError.Find(TEXT("("));
+			int32 LastParenIndex = CurrentError.Find(TEXT("):"));
+			if (FirstParenIndex != INDEX_NONE &&
+				LastParenIndex != INDEX_NONE &&
+				LastParenIndex > FirstParenIndex)
+			{
+				// Extract and store error message with source filename
+				NewError.ErrorVirtualFilePath = CurrentError.Left(FirstParenIndex);
+				NewError.ErrorLineString = CurrentError.Mid(FirstParenIndex + 1, LastParenIndex - FirstParenIndex - FCString::Strlen(TEXT("(")));
+				NewError.StrippedErrorMessage = CurrentError.Right(CurrentError.Len() - LastParenIndex - FCString::Strlen(TEXT("):")));
+			}
+			else
+			{
+				NewError.StrippedErrorMessage = CurrentError;
+			}
+			Output.Errors.Add(NewError);
 		}
-		Output.Errors.Add(NewError);
 	}
 
 	if (Input.ExtraSettings.bExtractShaderSource)

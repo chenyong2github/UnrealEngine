@@ -73,6 +73,7 @@ public:
 
 	const FViewInfo* View;
 	EShadingPath ShadingPath;
+	EShaderPlatform ShaderPlatform;
 	EMeshPass::Type PassType;
 	bool bUseGPUScene;
 	bool bDynamicInstancing;

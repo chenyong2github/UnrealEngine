@@ -844,7 +844,7 @@ void UMeshSelectionTool::ExpandToConnected()
 		for (int j = 0; j < 3; ++j)
 		{
 			int32 tid = NbrTris[j];
-			if (SelectedTriangles[tid] == false && AddFaces.Contains(tid) == false)
+			if (tid != FDynamicMesh3::InvalidID && SelectedTriangles[tid] == false && AddFaces.Contains(tid) == false)
 			{
 				AddFaces.Add(tid);
 				Queue.Add(tid);
@@ -898,7 +898,7 @@ void UMeshSelectionTool::DeleteSelectedTriangles()
 	ChangeSeq->AppendChange(PreviewMesh, MoveTemp(MeshChange));
 
 	// emit combined change sequence
-	GetToolManager()->EmitObjectChange(this, MoveTemp(ChangeSeq), LOCTEXT("MeshSelectionToolDelete", "Delete Faces"));
+	GetToolManager()->EmitObjectChange(this, MoveTemp(ChangeSeq), LOCTEXT("MeshSelectionToolDeleteFaces", "Delete Faces"));
 
 	OnExternalSelectionChange();
 	bHaveModifiedMesh = true;

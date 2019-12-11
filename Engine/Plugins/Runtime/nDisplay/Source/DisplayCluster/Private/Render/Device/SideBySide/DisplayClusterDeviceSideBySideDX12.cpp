@@ -1,6 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Render/Device/SidebySide/DisplayClusterDeviceSideBySideDX12.h"
+#include "Render/Presentation/DisplayClusterPresentationDX12.h"
+
 #include "DisplayClusterLog.h"
 
 
@@ -14,17 +16,7 @@ FDisplayClusterDeviceSideBySideDX12::~FDisplayClusterDeviceSideBySideDX12()
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 }
 
-
-bool FDisplayClusterDeviceSideBySideDX12::Present(int32& InOutSyncInterval)
+FDisplayClusterPresentationBase* FDisplayClusterDeviceSideBySideDX12::CreatePresentationObject(FViewport* const Viewport, TSharedPtr<IDisplayClusterRenderSyncPolicy>& SyncPolicy)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
-	// Perform abstract synchronization on a higher level
-	if (!FDisplayClusterDeviceBase::Present(InOutSyncInterval))
-	{
-		return false;
-	}
-
-	// A sync policy hasn't presented current frame so we do it ourselves
-	return PresentImpl(MainViewport->GetViewportRHI(), InOutSyncInterval);
+	return new FDisplayClusterPresentationDX12(Viewport, SyncPolicy);
 }

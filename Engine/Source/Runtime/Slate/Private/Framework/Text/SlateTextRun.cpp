@@ -285,3 +285,11 @@ FSlateTextRun::FSlateTextRun( const FSlateTextRun& Run )
 {
 
 }
+
+void FSlateTextRun::ApplyFontSizeMultiplierOnTextStyle(float FontSizeMultiplier)
+{
+	if (FontSizeMultiplier != 0.0f)
+	{
+		Style.SetFontSize(Style.Font.Size * FontSizeMultiplier);
+	}
+}

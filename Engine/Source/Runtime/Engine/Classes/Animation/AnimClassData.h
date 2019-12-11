@@ -78,6 +78,10 @@ public:
 	UPROPERTY()
 	TArray<FExposedValueHandler> EvaluateGraphExposedInputs;
 
+	// Per layer graph blending options
+	UPROPERTY()
+	TMap<FName, FAnimGraphBlendOptions> GraphBlendOptions;
+
 public:
 	// IAnimClassInterface interface
 	virtual const TArray<FBakedAnimationStateMachine>& GetBakedStateMachines() const override { return BakedStateMachines; }
@@ -96,7 +100,7 @@ public:
 	virtual int32 GetSyncGroupIndex(FName SyncGroupName) const override { return SyncGroupNames.IndexOfByKey(SyncGroupName); }
 	virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const { return EvaluateGraphExposedInputs; }
 	virtual const TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation() const { return GraphNameAssetPlayers; }
-
+	virtual const TMap<FName, FAnimGraphBlendOptions>& GetGraphBlendOptions() const { return GraphBlendOptions; }
 #if WITH_EDITOR
 	void CopyFrom(IAnimClassInterface* AnimClass)
 	{
@@ -116,6 +120,7 @@ public:
 		SyncGroupNames = AnimClass->GetSyncGroupNames();
 		EvaluateGraphExposedInputs = AnimClass->GetExposedValueHandlers();
 		GraphNameAssetPlayers = AnimClass->GetGraphAssetPlayerInformation();
+		GraphBlendOptions = AnimClass->GetGraphBlendOptions();
 	}
 #endif // WITH_EDITOR
 };

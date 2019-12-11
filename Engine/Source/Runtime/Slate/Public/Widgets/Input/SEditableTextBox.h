@@ -3,16 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Styling/SlateColor.h"
 #include "Fonts/SlateFontInfo.h"
+#include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Input/Reply.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Layout/Margin.h"
-#include "Styling/SlateTypes.h"
+#include "Misc/Attribute.h"
 #include "Styling/CoreStyle.h"
-#include "Widgets/Layout/SBorder.h"
+#include "Styling/SlateColor.h"
+#include "Styling/SlateTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SEditableText.h"
+#include "Widgets/Layout/SBorder.h"
 
 class IErrorReportingWidget;
 class SBox;
@@ -102,6 +103,9 @@ public:
 
 		/** Delegate to call before a context menu is opened. User returns the menu content or null to the disable context menu */
 		SLATE_EVENT(FOnContextMenuOpening, OnContextMenuOpening)
+
+		/** Menu extender for the right-click context menu */
+		SLATE_EVENT(FMenuExtensionDelegate, ContextMenuExtender)
 
 		/** Called whenever the text is changed programmatically or interactively by the user */
 		SLATE_EVENT( FOnTextChanged, OnTextChanged )

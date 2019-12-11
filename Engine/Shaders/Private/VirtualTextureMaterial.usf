@@ -74,14 +74,16 @@ void FPixelShaderInOut_MainPS(
 	half3 Normal = GetVirtualTextureOutput3(MaterialParameters);
 	half WorldHeight = GetVirtualTextureOutput4(MaterialParameters);
 	float Opacity = GetVirtualTextureOutput5(MaterialParameters);
+	float Mask = GetVirtualTextureOutput6(MaterialParameters);
 #else
 	// Output is from standard material output attribute node
 	half3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
 	half Specular = GetMaterialSpecular(PixelMaterialInputs);
 	half Roughness = GetMaterialRoughness(PixelMaterialInputs);
-	half3 Normal = mul(MaterialParameters.WorldNormal, (float3x3)ResolvedView.WorldToVirtualTexture);
+	half3 Normal = MaterialParameters.WorldNormal;
 	float WorldHeight = MaterialParameters.AbsoluteWorldPosition.z;
 	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
+	float Mask = 0.f;
 #endif
 
 	// Apply debug shading
@@ -89,26 +91,21 @@ void FPixelShaderInOut_MainPS(
 
 #if defined(OUT_BASECOLOR)
 	Out.MRT[0] = float4(BaseColor, 1.f) * Opacity;
-#elif defined(OUT_BASECOLOR_NORMAL)
-	Out.MRT[0] = float4(BaseColor, 1.f) * Opacity;
-	Out.MRT[1] = float4(PackNormal(Normal).xy, 0.f, 1.f) * Opacity;
 #elif defined(OUT_BASECOLOR_NORMAL_SPECULAR)
 	float3 PackedNormal = PackNormal(Normal);
 	Out.MRT[0] = float4(BaseColor, 1.f) * Opacity;
-	Out.MRT[1] = float4(PackedNormal.xy, 0.f, 1.f) * Opacity;
+	Out.MRT[1] = float4(PackedNormal.xy, Mask, 1.f) * Opacity;
 	Out.MRT[2] = float4(Specular, Roughness, PackedNormal.z, 1.f) * Opacity;
 #elif defined(OUT_WORLDHEIGHT)
 	Out.MRT[0] = float4(PackWorldHeight(WorldHeight), 0, 0, 1);
 #endif
 }
 
+
 #define PIXELSHADEROUTPUT_INTERPOLANTS 1
 
 #if defined(OUT_BASECOLOR)
 #define PIXELSHADEROUTPUT_MRT0 1
-#elif defined(OUT_BASECOLOR_NORMAL)
-#define PIXELSHADEROUTPUT_MRT0 1
-#define PIXELSHADEROUTPUT_MRT1 1
 #elif defined(OUT_BASECOLOR_NORMAL_SPECULAR)
 #define PIXELSHADEROUTPUT_MRT0 1
 #define PIXELSHADEROUTPUT_MRT1 1

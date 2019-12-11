@@ -40,7 +40,7 @@ namespace UnrealBuildTool
 		HashSet<ProjectFileFormat> ProjectFileFormats = new HashSet<ProjectFileFormat>();
 
 		/// <summary>
-		/// Platforms to disable native project file generators for. Platforms with native project file generators typically require IDE extensions to be installed.
+		/// Disable native project file generators for platforms. Platforms with native project file generators typically require IDE extensions to be installed.
 		/// </summary>
 		[XmlConfigFile(Category = "ProjectFileGenerator")]
 		string[] DisablePlatformProjectGenerators = null;

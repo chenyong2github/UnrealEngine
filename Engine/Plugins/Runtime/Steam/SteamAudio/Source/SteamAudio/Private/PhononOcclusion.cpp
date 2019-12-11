@@ -75,6 +75,7 @@ namespace SteamAudio
 		DirectSoundSources[SourceId].DirectOcclusionMethod = OcclusionSettings->DirectOcclusionMethod;
 		DirectSoundSources[SourceId].DirectOcclusionMode = OcclusionSettings->DirectOcclusionMode;
 		DirectSoundSources[SourceId].Radius = OcclusionSettings->DirectOcclusionSourceRadius;
+		DirectSoundSources[SourceId].SourceData.directivity = IPLDirectivity{ 0.0f, 0.0f, nullptr, nullptr };
 
 		InputAudioFormat.numSpeakers = OutputAudioFormat.numSpeakers = NumChannels;
 		switch (NumChannels)
@@ -114,7 +115,10 @@ namespace SteamAudio
 
 		{
 			FScopeLock Lock(&DirectSoundSources[InputData.SourceId].CriticalSection);
-			DirectSoundSource.Position = SteamAudio::UnrealToPhononIPLVector3(InputData.SpatializationParams->EmitterWorldPosition);
+			DirectSoundSource.SourceData.position = SteamAudio::UnrealToPhononIPLVector3(InputData.SpatializationParams->EmitterWorldPosition);
+			DirectSoundSource.SourceData.ahead = SteamAudio::UnrealToPhononIPLVector3(InputData.SpatializationParams->EmitterWorldRotation * FVector::ForwardVector);
+			DirectSoundSource.SourceData.right = SteamAudio::UnrealToPhononIPLVector3(InputData.SpatializationParams->EmitterWorldRotation * FVector::RightVector);
+			DirectSoundSource.SourceData.up = SteamAudio::UnrealToPhononIPLVector3(InputData.SpatializationParams->EmitterWorldRotation * FVector::UpVector);
 			DirectSoundSource.bNeedsUpdate = true;
 		}
 
@@ -126,7 +130,7 @@ namespace SteamAudio
 		iplApplyDirectSoundEffect(DirectSoundSource.DirectSoundEffect, DirectSoundSource.InBuffer, DirectSoundSource.DirectSoundPath, DirectSoundEffectOptions, DirectSoundSource.OutBuffer);
 	}
 
-	void FPhononOcclusion::UpdateDirectSoundSources(const FVector& ListenerPosition, const FVector& ListenerForward, const FVector& ListenerUp)
+	void FPhononOcclusion::UpdateDirectSoundSources(const FVector& ListenerPosition, const FVector& ListenerForward, const FVector& ListenerUp, const FVector& ListenerRight)
 	{
 		if (!Environment || !Environment->GetEnvironmentalRenderer() || !Environment->GetEnvironmentCriticalSectionHandle())
 		{
@@ -143,7 +147,7 @@ namespace SteamAudio
 			{
 				IPLDirectSoundPath DirectSoundPath = iplGetDirectSoundPath(Environment->GetEnvironment(), SteamAudio::UnrealToPhononIPLVector3(ListenerPosition),
 					SteamAudio::UnrealToPhononIPLVector3(ListenerForward, false), SteamAudio::UnrealToPhononIPLVector3(ListenerUp, false),
-					DirectSoundSource.Position, DirectSoundSource.Radius * SteamAudio::SCALEFACTOR,
+					DirectSoundSource.SourceData, DirectSoundSource.Radius * SteamAudio::SCALEFACTOR,
 					static_cast<IPLDirectOcclusionMode>(DirectSoundSource.DirectOcclusionMode),
 					static_cast<IPLDirectOcclusionMethod>(DirectSoundSource.DirectOcclusionMethod));
 
@@ -175,6 +179,6 @@ namespace SteamAudio
 		, bNeedsUpdate(false)
 	{
 		memset(&DirectSoundPath, 0, sizeof(DirectSoundPath));
-		Position.x = Position.y = Position.z = 0.0f;
+		memset(&SourceData, 0, sizeof(SourceData));
 	}
 }

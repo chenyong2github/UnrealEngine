@@ -8,6 +8,6 @@
 #define CHAOS_CHECK(Condition) check(Condition)
 #define CHAOS_ENSURE(Condition) ensure(Condition)
 #else
-#define CHAOS_CHECK(Condition)
-#define CHAOS_ENSURE(Condition)
+#define CHAOS_CHECK(Condition) (!!(Condition))
+#define CHAOS_ENSURE(Condition) (!!(Condition))
 #endif

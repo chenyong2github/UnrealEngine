@@ -18,7 +18,9 @@ public:
 	void Construct(const FArguments& InArgs, UNiagaraStackRendererItem& InRendererItem, UNiagaraStackViewModel* InStackViewModel);
 	
 private:
-	EVisibility GetDeleteButtonVisibility() const;
+	FText GetDeleteButtonToolTipText() const;
+
+	bool GetDeleteButtonEnabled() const;
 
 	FReply DeleteClicked();
 
@@ -29,10 +31,6 @@ private:
 	void OnCheckStateChanged(ECheckBoxState InCheckState);
 
 	ECheckBoxState CheckEnabledStatus() const;
-
-	EVisibility GetStackIssuesWarningVisibility() const;
-
-	FText GetErrorButtonTooltipText() const;
 
 private:
 	UNiagaraStackRendererItem* RendererItem;

@@ -182,6 +182,9 @@ public:
 	// Returns the managed object for the passed-in object, if any. Otherwise returns nullptr
 	USignificanceManager::FManagedObjectInfo* GetManagedObject(UObject* Object) const;
 
+	// Returns the managed object for the passed-in object, if any. Otherwise returns nullptr
+	const USignificanceManager::FManagedObjectInfo* GetManagedObject(const UObject* Object) const;
+
 	// Returns the significance value for a given object, returns 0 if object is not managed
 	float GetSignificance(const UObject* Object) const;
 
@@ -217,12 +220,12 @@ protected:
 	// Whether the significance sort should sort high values to the end of the list
 	uint32 bSortSignificanceAscending:1;
 
+	// The cached viewpoints for significance for calculating when a new object is registered
+	TArray<FTransform> Viewpoints;
+
 private:
 
 	uint32 ManagedObjectsWithSequentialPostWork;
-
-	// The cached viewpoints for significance for calculating when a new object is registered
-	TArray<FTransform> Viewpoints;
 
 	// All objects being managed organized by Tag
 	TMap<FName, TArray<FManagedObjectInfo*>> ManagedObjectsByTag;

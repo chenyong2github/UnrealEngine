@@ -126,7 +126,7 @@ void MaterialExpressionClasses::InitMaterialExpressionClasses()
 
 							if (ClassName.StartsWith(ExpressionPrefix, ESearchCase::CaseSensitive))
 							{
-								ClassName = ClassName.Mid(ExpressionPrefix.Len());
+								ClassName.MidInline(ExpressionPrefix.Len(), MAX_int32, false);
 							}
 							MaterialExpression.Name = ClassName;
 							MaterialExpression.MaterialClass = Class;

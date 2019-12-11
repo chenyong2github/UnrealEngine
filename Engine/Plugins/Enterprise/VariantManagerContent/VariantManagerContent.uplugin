@@ -17,9 +17,14 @@
 	"Modules" :
 	[
 		{
-			"Name" : "VariantManagerContent",
-			"Type" : "Runtime",
-			"LoadingPhase" : "Default"
+			"Name": "VariantManagerContent",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit"
+		},
+		{
+			"Name": "VariantManagerContentEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
 	]
 }

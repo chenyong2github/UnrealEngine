@@ -42,6 +42,8 @@ struct FCrashOverrideParameters
 	/** Default this to true for backward compatibility before these bools were added. */
 	bool bSetCrashReportClientMessageText = true;
 	bool bSetGameNameSuffix = false;
+	TOptional<bool> SendUnattendedBugReports;
+	TOptional<bool> SendUsageData;
 
 	CORE_API ~FCrashOverrideParameters();
 };

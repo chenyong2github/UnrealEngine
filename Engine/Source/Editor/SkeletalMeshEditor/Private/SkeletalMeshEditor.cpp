@@ -31,6 +31,8 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Framework/Application/SlateApplication.h"
+#include "ToolMenus.h"
+#include "SkeletalMeshToolMenuContext.h"
 #include "EditorViewportClient.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "Algo/Transform.h"
@@ -38,7 +40,6 @@
 #include "FbxMeshUtils.h"
 #include "LODUtilities.h"
 
-#include "LODUtilities.h"
 #include "ScopedTransaction.h"
 #include "ComponentReregisterContext.h"
 #include "EditorFramework/AssetImportData.h"
@@ -220,12 +221,13 @@ void FSkeletalMeshEditor::InitSkeletalMeshEditor(const EToolkitMode::Type Mode, 
 	ISkeletonEditorModule& SkeletonEditorModule = FModuleManager::GetModuleChecked<ISkeletonEditorModule>("SkeletonEditor");
 	SkeletonTree = SkeletonEditorModule.CreateSkeletonTree(PersonaToolkit->GetSkeleton(), SkeletonTreeArgs);
 
+	BindCommands();
+	RegisterToolbar();
+
 	const bool bCreateDefaultStandaloneMenu = true;
 	const bool bCreateDefaultToolbar = true;
 	const TSharedRef<FTabManager::FLayout> DummyLayout = FTabManager::NewLayout("NullLayout")->AddArea(FTabManager::NewPrimaryArea());
 	FAssetEditorToolkit::InitAssetEditor(Mode, InitToolkitHost, SkeletalMeshEditorAppIdentifier, DummyLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, InSkeletalMesh);
-
-	BindCommands();
 
 	AddApplicationMode(
 		SkeletalMeshEditorModes::SkeletalMeshEditorMode,
@@ -286,6 +288,223 @@ void FSkeletalMeshEditor::BindCommands()
 		FExecuteAction::CreateRaw(&GetPersonaToolkit()->GetPreviewScene().Get(), &IPersonaPreviewScene::TogglePlayback));
 }
 
+TSharedPtr<FSkeletalMeshEditor> FSkeletalMeshEditor::GetSkeletalMeshEditor(const FToolMenuContext& InMenuContext)
+{
+	if (USkeletalMeshToolMenuContext* Context = InMenuContext.FindContext<USkeletalMeshToolMenuContext>())
+	{
+		if (Context->SkeletalMeshEditor.IsValid())
+		{
+			return StaticCastSharedPtr<FSkeletalMeshEditor>(Context->SkeletalMeshEditor.Pin());
+		}
+	}
+
+	return TSharedPtr<FSkeletalMeshEditor>();
+}
+
+void FSkeletalMeshEditor::RegisterReimportContextMenu(const FName InBaseMenuName)
+{
+	static auto ReimportMeshWithNewFileAction = [](const FToolMenuContext& InMenuContext, int32 SourceFileIndex)
+	{
+		TSharedPtr<FSkeletalMeshEditor> SkeletalMeshEditor = GetSkeletalMeshEditor(InMenuContext);
+		if (SkeletalMeshEditor.IsValid())
+		{
+			if (USkeletalMesh* FoundSkeletalMesh = SkeletalMeshEditor->SkeletalMesh)
+			{
+				UFbxSkeletalMeshImportData* SkeletalMeshImportData = Cast<UFbxSkeletalMeshImportData>(FoundSkeletalMesh->AssetImportData);
+				if (SkeletalMeshImportData)
+				{
+					SkeletalMeshImportData->ImportContentType = SourceFileIndex == 0 ? EFBXImportContentType::FBXICT_All : SourceFileIndex == 1 ? EFBXImportContentType::FBXICT_Geometry : EFBXImportContentType::FBXICT_SkinningWeights;
+					SkeletalMeshEditor->HandleReimportMeshWithNewFile(SourceFileIndex);
+				}
+			}
+		}
+	};
+
+	static auto CreateMultiContentSubMenu = [](UToolMenu* InMenu)
+	{
+		FToolMenuSection& Section = InMenu->AddSection("Reimport");
+
+		TSharedPtr<FSkeletalMeshEditor> SkeletalMeshEditor = GetSkeletalMeshEditor(InMenu->Context);
+		if (SkeletalMeshEditor.IsValid())
+		{
+			Section.AddMenuEntry(
+				"ReimportGeometryContentLabel",
+				LOCTEXT("ReimportGeometryContentLabel", "Geometry"),
+				LOCTEXT("ReimportGeometryContentLabelTooltipTooltip", "Reimport Geometry Only"),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
+				FToolMenuExecuteAction::CreateLambda(ReimportMeshWithNewFileAction, 1)
+			);
+
+			Section.AddMenuEntry(
+				"ReimportSkinningAndWeightsContentLabel",
+				LOCTEXT("ReimportSkinningAndWeightsContentLabel", "Skinning And Weights"),
+				LOCTEXT("ReimportSkinningAndWeightsContentLabelTooltipTooltip", "Reimport Skinning And Weights Only"),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
+				FToolMenuExecuteAction::CreateLambda(ReimportMeshWithNewFileAction, 2)
+			);
+		}
+	};
+
+	static auto ReimportAction = [](const FToolMenuContext& InMenuContext, const int32 SourceFileIndex, const bool bReimportAll, const bool bWithNewFile)
+	{
+		TSharedPtr<FSkeletalMeshEditor> SkeletalMeshEditor = GetSkeletalMeshEditor(InMenuContext);
+		if (SkeletalMeshEditor.IsValid())
+		{
+			if (USkeletalMesh* FoundSkeletalMesh = SkeletalMeshEditor->SkeletalMesh)
+			{
+				UFbxSkeletalMeshImportData* SkeletalMeshImportData = FoundSkeletalMesh ? Cast<UFbxSkeletalMeshImportData>(FoundSkeletalMesh->AssetImportData) : nullptr;
+				if (SkeletalMeshImportData)
+				{
+					SkeletalMeshImportData->ImportContentType = SourceFileIndex == 0 ? EFBXImportContentType::FBXICT_All : SourceFileIndex == 1 ? EFBXImportContentType::FBXICT_Geometry : EFBXImportContentType::FBXICT_SkinningWeights;
+					if (bReimportAll)
+					{
+						if (bWithNewFile)
+						{
+							SkeletalMeshEditor->HandleReimportAllMeshWithNewFile(SourceFileIndex);
+						}
+						else
+						{
+							SkeletalMeshEditor->HandleReimportAllMesh(SourceFileIndex);
+						}
+					}
+					else
+					{
+						if (bWithNewFile)
+						{
+							SkeletalMeshEditor->HandleReimportMeshWithNewFile(SourceFileIndex);
+						}
+						else
+						{
+							SkeletalMeshEditor->HandleReimportMesh(SourceFileIndex);
+						}
+					}
+				}
+			}
+		}
+	};
+
+	static auto CreateReimportSubMenu = [](UToolMenu* InMenu, bool bReimportAll, bool bWithNewFile)
+	{
+		TSharedPtr<FSkeletalMeshEditor> SkeletalMeshEditor = GetSkeletalMeshEditor(InMenu->Context);
+		if (SkeletalMeshEditor.IsValid())
+		{
+			USkeletalMesh* InSkeletalMesh = SkeletalMeshEditor->SkeletalMesh;
+			if (InSkeletalMesh && InSkeletalMesh->AssetImportData)
+			{
+				//Get the data
+				TArray<FString> SourceFilePaths;
+				InSkeletalMesh->AssetImportData->ExtractFilenames(SourceFilePaths);
+				TArray<FString> SourceFileLabels;
+				InSkeletalMesh->AssetImportData->ExtractDisplayLabels(SourceFileLabels);
+
+				if (SourceFileLabels.Num() > 0 && SourceFileLabels.Num() == SourceFilePaths.Num())
+				{
+					FToolMenuSection& Section = InMenu->AddSection("Reimport");
+					for (int32 SourceFileIndex = 0; SourceFileIndex < SourceFileLabels.Num(); ++SourceFileIndex)
+					{
+						FText ReimportLabel = FText::Format(LOCTEXT("ReimportNoLabel", "SourceFile {0}"), SourceFileIndex);
+						FText ReimportLabelTooltip = FText::Format(LOCTEXT("ReimportNoLabelTooltip", "Reimport File: {0}"), FText::FromString(SourceFilePaths[SourceFileIndex]));
+						if (SourceFileLabels[SourceFileIndex].Len() > 0)
+						{
+							ReimportLabel = FText::Format(LOCTEXT("ReimportLabel", "{0}"), FText::FromString(SourceFileLabels[SourceFileIndex]));
+							ReimportLabelTooltip = FText::Format(LOCTEXT("ReimportLabelTooltip", "Reimport {0} File: {1}"), FText::FromString(SourceFileLabels[SourceFileIndex]), FText::FromString(SourceFilePaths[SourceFileIndex]));
+						}
+
+						Section.AddMenuEntry(
+							NAME_None,
+							ReimportLabel,
+							ReimportLabelTooltip,
+							FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
+							FToolMenuExecuteAction::CreateLambda(ReimportAction, SourceFileIndex, bReimportAll, bWithNewFile)
+						);
+					}
+				}
+			}
+		}
+	};
+
+	if (!UToolMenus::Get()->IsMenuRegistered(UToolMenus::JoinMenuPaths(InBaseMenuName, "ReimportContextMenu")))
+	{
+		UToolMenu* ToolMenu = UToolMenus::Get()->RegisterMenu(UToolMenus::JoinMenuPaths(InBaseMenuName, "ReimportContextMenu"));
+		ToolMenu->AddDynamicSection("Section", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+		{
+			TSharedPtr<FSkeletalMeshEditor> SkeletalMeshEditor = GetSkeletalMeshEditor(InMenu->Context);
+			if (SkeletalMeshEditor.IsValid())
+			{
+				USkeletalMesh* InSkeletalMesh = SkeletalMeshEditor->SkeletalMesh;
+				bool bShowSubMenu = InSkeletalMesh != nullptr && InSkeletalMesh->AssetImportData != nullptr && InSkeletalMesh->AssetImportData->GetSourceFileCount() > 1;
+
+				FToolMenuSection& Section = InMenu->AddSection("Section");
+				if (!bShowSubMenu)
+				{
+					//Reimport
+					Section.AddMenuEntry(
+						FSkeletalMeshEditorCommands::Get().ReimportMesh->GetCommandName(),
+						FSkeletalMeshEditorCommands::Get().ReimportMesh->GetLabel(),
+						FSkeletalMeshEditorCommands::Get().ReimportMesh->GetDescription(),
+						FSlateIcon(),
+						FUIAction(FExecuteAction::CreateSP(SkeletalMeshEditor.ToSharedRef(), &FSkeletalMeshEditor::HandleReimportMesh, 0)));
+
+					Section.AddMenuEntry(
+						FSkeletalMeshEditorCommands::Get().ReimportMeshWithNewFile->GetCommandName(),
+						FSkeletalMeshEditorCommands::Get().ReimportMeshWithNewFile->GetLabel(),
+						FSkeletalMeshEditorCommands::Get().ReimportMeshWithNewFile->GetDescription(),
+						FSlateIcon(),
+						FUIAction(FExecuteAction::CreateSP(SkeletalMeshEditor.ToSharedRef(), &FSkeletalMeshEditor::HandleReimportMeshWithNewFile, 0)));
+
+					//Reimport ALL
+					Section.AddMenuEntry(
+						FSkeletalMeshEditorCommands::Get().ReimportAllMesh->GetCommandName(),
+						FSkeletalMeshEditorCommands::Get().ReimportAllMesh->GetLabel(),
+						FSkeletalMeshEditorCommands::Get().ReimportAllMesh->GetDescription(),
+						FSlateIcon(),
+						FUIAction(FExecuteAction::CreateSP(SkeletalMeshEditor.ToSharedRef(), &FSkeletalMeshEditor::HandleReimportAllMesh, 0)));
+
+					Section.AddMenuEntry(
+						FSkeletalMeshEditorCommands::Get().ReimportAllMeshWithNewFile->GetCommandName(),
+						FSkeletalMeshEditorCommands::Get().ReimportAllMeshWithNewFile->GetLabel(),
+						FSkeletalMeshEditorCommands::Get().ReimportAllMeshWithNewFile->GetDescription(),
+						FSlateIcon(),
+						FUIAction(FExecuteAction::CreateSP(SkeletalMeshEditor.ToSharedRef(), &FSkeletalMeshEditor::HandleReimportAllMeshWithNewFile, 0)));
+
+					Section.AddSubMenu(
+						"ReimportMultiSources",
+						LOCTEXT("ReimportMultiSources", "Reimport Content"),
+						LOCTEXT("ReimportMultiSourcesTooltip", "Reimport Geometry or Skinning Weights content, this will create multi import source file."),
+						FNewToolMenuDelegate::CreateLambda(CreateMultiContentSubMenu));
+				}
+				else
+				{
+					//Create 4 submenu: Reimport, ReimportWithNewFile, ReimportAll and ReimportAllWithNewFile
+					Section.AddSubMenu(
+						FSkeletalMeshEditorCommands::Get().ReimportMesh->GetCommandName(),
+						FSkeletalMeshEditorCommands::Get().ReimportMesh->GetLabel(),
+						FSkeletalMeshEditorCommands::Get().ReimportMesh->GetDescription(),
+						FNewToolMenuDelegate::CreateLambda(CreateReimportSubMenu, false, false));
+			
+					Section.AddSubMenu(
+						FSkeletalMeshEditorCommands::Get().ReimportMeshWithNewFile->GetCommandName(),
+						FSkeletalMeshEditorCommands::Get().ReimportMeshWithNewFile->GetLabel(),
+						FSkeletalMeshEditorCommands::Get().ReimportMeshWithNewFile->GetDescription(),
+						FNewToolMenuDelegate::CreateLambda(CreateReimportSubMenu, false, true));
+
+					Section.AddSubMenu(
+						FSkeletalMeshEditorCommands::Get().ReimportAllMesh->GetCommandName(),
+						FSkeletalMeshEditorCommands::Get().ReimportAllMesh->GetLabel(),
+						FSkeletalMeshEditorCommands::Get().ReimportAllMesh->GetDescription(),
+						FNewToolMenuDelegate::CreateLambda(CreateReimportSubMenu, true, false));
+
+					Section.AddSubMenu(
+						FSkeletalMeshEditorCommands::Get().ReimportAllMeshWithNewFile->GetCommandName(),
+						FSkeletalMeshEditorCommands::Get().ReimportAllMeshWithNewFile->GetLabel(),
+						FSkeletalMeshEditorCommands::Get().ReimportAllMeshWithNewFile->GetDescription(),
+						FNewToolMenuDelegate::CreateLambda(CreateReimportSubMenu, true, true));
+				}
+			}
+		}));
+	}
+}
+
 void FSkeletalMeshEditor::ExtendToolbar()
 {
 	// If the ToolbarExtender is valid, remove it before rebuilding it
@@ -296,203 +515,6 @@ void FSkeletalMeshEditor::ExtendToolbar()
 	}
 
 	ToolbarExtender = MakeShareable(new FExtender);
-
-	auto ConstructReimportContextMenu = [this]()
-	{
-		bool bShowSubMenu = SkeletalMesh != nullptr && SkeletalMesh->AssetImportData != nullptr && SkeletalMesh->AssetImportData->GetSourceFileCount() > 1;
-		FMenuBuilder MenuBuilder(true, nullptr);
-		
-		if (!bShowSubMenu)
-		{
-			//Reimport
-			MenuBuilder.AddMenuEntry(FSkeletalMeshEditorCommands::Get().ReimportMesh->GetLabel(),
-				FSkeletalMeshEditorCommands::Get().ReimportMesh->GetDescription(),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(this, &FSkeletalMeshEditor::HandleReimportMesh, 0)));
-			
-			MenuBuilder.AddMenuEntry(FSkeletalMeshEditorCommands::Get().ReimportMeshWithNewFile->GetLabel(),
-				FSkeletalMeshEditorCommands::Get().ReimportMeshWithNewFile->GetDescription(),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(this, &FSkeletalMeshEditor::HandleReimportMeshWithNewFile, 0)));
-
-			//Reimport ALL
-			MenuBuilder.AddMenuEntry(FSkeletalMeshEditorCommands::Get().ReimportAllMesh->GetLabel(),
-				FSkeletalMeshEditorCommands::Get().ReimportAllMesh->GetDescription(),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(this, &FSkeletalMeshEditor::HandleReimportAllMesh, 0)));
-
-			MenuBuilder.AddMenuEntry(FSkeletalMeshEditorCommands::Get().ReimportAllMeshWithNewFile->GetLabel(),
-				FSkeletalMeshEditorCommands::Get().ReimportAllMeshWithNewFile->GetDescription(),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(this, &FSkeletalMeshEditor::HandleReimportAllMeshWithNewFile, 0)));
-
-			FText ReimportMultiSources = LOCTEXT("ReimportMultiSources", "Reimport Content");
-			FText ReimportMultiSourcesTooltip = LOCTEXT("ReimportMultiSourcesTooltip", "Reimport Geometry or Skinning Weights content, this will create multi import source file.");
-
-			auto CreateMultiContentSubMenu = [this](FMenuBuilder& SubMenuBuilder)
-			{
-				auto UpdateImportDataContentType = [this](int32 SourceFileIndex)
-				{
-					UFbxSkeletalMeshImportData* SkeletalMeshImportData = Cast<UFbxSkeletalMeshImportData>(SkeletalMesh->AssetImportData);
-					if (SkeletalMeshImportData)
-					{
-						SkeletalMeshImportData->ImportContentType = SourceFileIndex == 0 ? EFBXImportContentType::FBXICT_All : SourceFileIndex == 1 ? EFBXImportContentType::FBXICT_Geometry : EFBXImportContentType::FBXICT_SkinningWeights;
-						HandleReimportMeshWithNewFile(SourceFileIndex);
-					}
-				};
-
-				FText ReimportGeometryContentLabel = LOCTEXT("ReimportGeometryContentLabel", "Geometry");
-				FText ReimportGeometryContentLabelTooltip = LOCTEXT("ReimportGeometryContentLabelTooltipTooltip", "Reimport Geometry Only");
-				SubMenuBuilder.AddMenuEntry(
-					ReimportGeometryContentLabel,
-					ReimportGeometryContentLabelTooltip,
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
-					FUIAction(
-						FExecuteAction::CreateLambda(UpdateImportDataContentType, 1),
-						FCanExecuteAction()
-					)
-				);
-				FText ReimportSkinningAndWeightsContentLabel = LOCTEXT("ReimportSkinningAndWeightsContentLabel", "Skinning And Weights");
-				FText ReimportSkinningAndWeightsContentLabelTooltip = LOCTEXT("ReimportSkinningAndWeightsContentLabelTooltipTooltip", "Reimport Skinning And Weights Only");
-				SubMenuBuilder.AddMenuEntry(
-					ReimportSkinningAndWeightsContentLabel,
-					ReimportSkinningAndWeightsContentLabelTooltip,
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
-					FUIAction(
-						FExecuteAction::CreateLambda(UpdateImportDataContentType, 2),
-						FCanExecuteAction()
-					)
-				);
-			};
-
-			MenuBuilder.AddSubMenu(
-				ReimportMultiSources,
-				ReimportMultiSourcesTooltip,
-				FNewMenuDelegate::CreateLambda(CreateMultiContentSubMenu));
-		}
-		else
-		{
-			auto CreateSubMenu = [this](FMenuBuilder& SubMenuBuilder, bool bReimportAll, bool bWithNewFile)
-			{
-				//Get the data, we cannot use the closure since the lambda will be call when the function scope will be gone
-				TArray<FString> SourceFilePaths;
-				SkeletalMesh->AssetImportData->ExtractFilenames(SourceFilePaths);
-				TArray<FString> SourceFileLabels;
-				SkeletalMesh->AssetImportData->ExtractDisplayLabels(SourceFileLabels);
-
-				if (SourceFileLabels.Num() > 0 && SourceFileLabels.Num() == SourceFilePaths.Num())
-				{
-					auto UpdateImportDataContentType = [this](int32 SourceFileIndex, bool bReimportAll, bool bWithNewFile)
-					{
-						UFbxSkeletalMeshImportData* SkeletalMeshImportData = Cast<UFbxSkeletalMeshImportData>(SkeletalMesh->AssetImportData);
-						if (SkeletalMeshImportData)
-						{
-							SkeletalMeshImportData->ImportContentType = SourceFileIndex == 0 ? EFBXImportContentType::FBXICT_All : SourceFileIndex == 1 ? EFBXImportContentType::FBXICT_Geometry : EFBXImportContentType::FBXICT_SkinningWeights;
-							if (bReimportAll)
-							{
-								if (bWithNewFile)
-								{
-									HandleReimportAllMeshWithNewFile(SourceFileIndex);
-								}
-								else
-								{
-									HandleReimportAllMesh(SourceFileIndex);
-								}
-							}
-							else
-							{
-								if (bWithNewFile)
-								{
-									HandleReimportMeshWithNewFile(SourceFileIndex);
-								}
-								else
-								{
-									HandleReimportMesh(SourceFileIndex);
-								}
-							}
-						}
-					};
-
-					for (int32 SourceFileIndex = 0; SourceFileIndex < SourceFileLabels.Num(); ++SourceFileIndex)
-					{
-						FText ReimportLabel = FText::Format(LOCTEXT("ReimportNoLabel", "SourceFile {0}"), SourceFileIndex);
-						FText ReimportLabelTooltip = FText::Format(LOCTEXT("ReimportNoLabelTooltip", "Reimport File: {0}"), FText::FromString(SourceFilePaths[SourceFileIndex]));
-						if (SourceFileLabels[SourceFileIndex].Len() > 0)
-						{
-							ReimportLabel = FText::Format(LOCTEXT("ReimportLabel", "{0}"), FText::FromString(SourceFileLabels[SourceFileIndex]));
-							ReimportLabelTooltip = FText::Format(LOCTEXT("ReimportLabelTooltip", "Reimport {0} File: {1}"), FText::FromString(SourceFileLabels[SourceFileIndex]), FText::FromString(SourceFilePaths[SourceFileIndex]));
-						}
-						SubMenuBuilder.AddMenuEntry(
-							ReimportLabel,
-							ReimportLabelTooltip,
-							FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
-							FUIAction(
-								FExecuteAction::CreateLambda(UpdateImportDataContentType, SourceFileIndex, bReimportAll, bWithNewFile),
-								FCanExecuteAction()
-							)
-						);
-					}
-				}
-			};
-
-			//Create 4 submenu: Reimport, ReimportWithNewFile, ReimportAll and ReimportAllWithNewFile
-			MenuBuilder.AddSubMenu(
-				FSkeletalMeshEditorCommands::Get().ReimportMesh->GetLabel(),
-				FSkeletalMeshEditorCommands::Get().ReimportMesh->GetDescription(),
-				FNewMenuDelegate::CreateLambda(CreateSubMenu, false, false));
-			
-			MenuBuilder.AddSubMenu(
-				FSkeletalMeshEditorCommands::Get().ReimportMeshWithNewFile->GetLabel(),
-				FSkeletalMeshEditorCommands::Get().ReimportMeshWithNewFile->GetDescription(),
-				FNewMenuDelegate::CreateLambda(CreateSubMenu, false, true));
-
-			MenuBuilder.AddSubMenu(
-				FSkeletalMeshEditorCommands::Get().ReimportAllMesh->GetLabel(),
-				FSkeletalMeshEditorCommands::Get().ReimportAllMesh->GetDescription(),
-				FNewMenuDelegate::CreateLambda(CreateSubMenu, true, false));
-
-			MenuBuilder.AddSubMenu(
-				FSkeletalMeshEditorCommands::Get().ReimportAllMeshWithNewFile->GetLabel(),
-				FSkeletalMeshEditorCommands::Get().ReimportAllMeshWithNewFile->GetDescription(),
-				FNewMenuDelegate::CreateLambda(CreateSubMenu, true, true));
-		}
-
-		return MenuBuilder.MakeWidget();
-	};
-
-	// extend extra menu/toolbars
-	auto FillToolbar = [this, ConstructReimportContextMenu](FToolBarBuilder& ToolbarBuilder)
-	{
-		FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
-		FPersonaModule::FCommonToolbarExtensionArgs Args;
-		Args.bPreviewMesh = false;
-		PersonaModule.AddCommonToolbarExtensions(ToolbarBuilder, PersonaToolkit.ToSharedRef(), Args);
-
-		ToolbarBuilder.BeginSection("Mesh");
-		{
-			ToolbarBuilder.AddToolBarButton(FSkeletalMeshEditorCommands::Get().ReimportMesh);
-			ToolbarBuilder.AddComboButton(
-				FUIAction(),
-				FOnGetContent::CreateLambda(ConstructReimportContextMenu),
-				TAttribute<FText>(),
-				TAttribute<FText>()
-			);
-		}
-		ToolbarBuilder.EndSection();
-
-		ToolbarBuilder.BeginSection("Selection");
-		{
-			ToolbarBuilder.AddToolBarButton(FSkeletalMeshEditorCommands::Get().MeshSectionSelection);
-		}
-		ToolbarBuilder.EndSection();
-	};
-
-	ToolbarExtender->AddToolBarExtension(
-		"Asset",
-		EExtensionHook::After,
-		GetToolkitCommands(),
-		FToolBarExtensionDelegate::CreateLambda(FillToolbar)
-		);
 
 	AddToolbarExtender(ToolbarExtender);
 
@@ -515,11 +537,59 @@ void FSkeletalMeshEditor::ExtendToolbar()
 		GetToolkitCommands(),
 		FToolBarExtensionDelegate::CreateLambda([this](FToolBarBuilder& ParentToolbarBuilder)
 	{
+		// Second toolbar on right side
 		FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
 		TSharedRef<class IAssetFamily> AssetFamily = PersonaModule.CreatePersonaAssetFamily(SkeletalMesh);
 		AddToolbarWidget(PersonaModule.CreateAssetFamilyShortcutWidget(SharedThis(this), AssetFamily));
 	}
 	));
+}
+
+void FSkeletalMeshEditor::RegisterToolbar()
+{
+	static const FName MenuName = "AssetEditor.SkeletalMeshEditor.ToolBar";
+	RegisterReimportContextMenu(MenuName);
+
+	if (!UToolMenus::Get()->IsMenuRegistered(MenuName))
+	{
+		UToolMenu* ToolMenu = UToolMenus::Get()->RegisterMenu(MenuName, "AssetEditor.DefaultToolBar", EMultiBoxType::ToolBar);
+
+		const FToolMenuInsert SectionInsertLocation("Asset", EToolMenuInsertType::After);
+
+		{
+			ToolMenu->AddDynamicSection("Persona", FNewToolBarDelegateLegacy::CreateLambda([](FToolBarBuilder& ToolbarBuilder, UToolMenu* InMenu)
+			{
+				TSharedPtr<FSkeletalMeshEditor> SkeletalMeshEditor = GetSkeletalMeshEditor(InMenu->Context);
+				if (SkeletalMeshEditor.IsValid() && SkeletalMeshEditor->PersonaToolkit.IsValid())
+				{
+					FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
+					FPersonaModule::FCommonToolbarExtensionArgs Args;
+					Args.bPreviewMesh = false;
+					PersonaModule.AddCommonToolbarExtensions(ToolbarBuilder, SkeletalMeshEditor->PersonaToolkit.ToSharedRef(), Args);
+				}
+			}), SectionInsertLocation);
+		}
+
+		{
+			FToolMenuSection& Section = ToolMenu->AddSection("Mesh", FText(), SectionInsertLocation);
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FSkeletalMeshEditorCommands::Get().ReimportMesh));
+			Section.AddEntry(FToolMenuEntry::InitComboButton("ReimportContextMenu", FUIAction(), FNewToolMenuDelegate()));
+		}
+
+		{
+			FToolMenuSection& Section = ToolMenu->AddSection("SkeletalMesh", FText(), FToolMenuInsert("Mesh", EToolMenuInsertType::After));
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FSkeletalMeshEditorCommands::Get().MeshSectionSelection));
+		}
+	}
+}
+
+void FSkeletalMeshEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
+{
+	FAssetEditorToolkit::InitToolMenuContext(MenuContext);
+
+	USkeletalMeshToolMenuContext* Context = NewObject<USkeletalMeshToolMenuContext>();
+	Context->SkeletalMeshEditor = SharedThis(this);
+	MenuContext.AddObject(Context);
 }
 
 void FSkeletalMeshEditor::FillMeshClickMenu(FMenuBuilder& MenuBuilder, HActor* HitProxy, const FViewportClick& Click)

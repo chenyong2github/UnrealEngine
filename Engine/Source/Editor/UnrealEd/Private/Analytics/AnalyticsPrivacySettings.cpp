@@ -4,6 +4,7 @@
 #include "UObject/UnrealType.h"
 #include "Interfaces/IAnalyticsProvider.h"
 #include "EngineAnalytics.h"
+#include "Misc/CoreDelegates.h"
 
 #define LOCTEXT_NAMESPACE "AnalyticsPrivacySettings"
 
@@ -13,7 +14,7 @@ UAnalyticsPrivacySettings::UAnalyticsPrivacySettings(const FObjectInitializer& O
 {
 }
 
-void UAnalyticsPrivacySettings::GetToogleCategoryAndPropertyNames(FName& OutCategory, FName& OutProperty) const
+void UAnalyticsPrivacySettings::GetToggleCategoryAndPropertyNames(FName& OutCategory, FName& OutProperty) const
 {
 	OutCategory = FName("Options");
 	OutProperty = FName("bSendUsageData");
@@ -64,10 +65,17 @@ void UAnalyticsPrivacySettings::PostEditChangeProperty(struct FPropertyChangedEv
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	const FName PropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+	const FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UAnalyticsPrivacySettings, bSendUsageData))
 	{
 		OnSendFullUsageDataChanged();
+
+		FCrashOverrideParameters Params;
+		Params.bSetCrashReportClientMessageText = false;
+		Params.bSetGameNameSuffix = false;
+		Params.SendUsageData = bSendUsageData;
+
+		FCoreDelegates::CrashOverrideParamsChanged.Broadcast(Params);
 	}
 }
 

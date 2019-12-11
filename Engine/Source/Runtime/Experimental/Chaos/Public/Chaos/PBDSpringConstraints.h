@@ -5,13 +5,16 @@
 #include "Chaos/PBDParticles.h"
 #include "Chaos/PBDSpringConstraintsBase.h"
 #include "Chaos/PBDConstraintContainer.h"
+#include "ChaosStats.h"
 
 #include "Templates/EnableIf.h"
+
+DECLARE_CYCLE_STAT(TEXT("Chaos PBD Spring Constraint"), STAT_PBD_Spring, STATGROUP_Chaos);
 
 namespace Chaos
 {
 template<class T, int32 d>
-class TPBDSpringConstraints : public TPBDSpringConstraintsBase<T, d>, public TPBDConstraintContainer<T, d>
+class TPBDSpringConstraints : public TPBDSpringConstraintsBase<T, d>, public FPBDConstraintContainer
 {
 	typedef TPBDSpringConstraintsBase<T, d> Base;
 	using Base::MConstraints;
@@ -63,6 +66,7 @@ class TPBDSpringConstraints : public TPBDSpringConstraintsBase<T, d>, public TPB
 
 	void Apply(TPBDParticles<T, d>& InParticles, const T Dt) const
 	{
+		SCOPE_CYCLE_COUNTER(STAT_PBD_Spring);
 		for (int32 i = 0; i < MConstraints.Num(); ++i)
 		{
 			Apply(InParticles, Dt, i);
@@ -71,6 +75,7 @@ class TPBDSpringConstraints : public TPBDSpringConstraintsBase<T, d>, public TPB
 
 	void Apply(TPBDRigidParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices) const
 	{
+		SCOPE_CYCLE_COUNTER(STAT_PBD_Spring);
 		for (int32 i : InConstraintIndices)
 		{
 			const auto& Constraint = MConstraints[i];

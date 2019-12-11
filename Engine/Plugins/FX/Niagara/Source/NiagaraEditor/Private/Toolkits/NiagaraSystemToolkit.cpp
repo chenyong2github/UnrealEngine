@@ -169,8 +169,13 @@ FNiagaraSystemToolkit::~FNiagaraSystemToolkit()
 {
 	if (SystemViewModel.IsValid())
 	{
-		SystemViewModel->Cleanup();
+		if (SystemViewModel->GetSelectionViewModel() != nullptr)
+		{
+			SystemViewModel->GetSelectionViewModel()->OnSystemIsSelectedChanged().RemoveAll(this);
+			SystemViewModel->GetSelectionViewModel()->OnEmitterHandleIdSelectionChanged().RemoveAll(this);
+		}
 		SystemViewModel->GetOnPinnedCurvesChanged().RemoveAll(this);
+		SystemViewModel->Cleanup();
 	}
 	SystemViewModel.Reset();
 }
@@ -289,9 +294,11 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, const FGuid& MessageLogGuid)
 {
 	NiagaraMessageLogViewModel = MakeShared<FNiagaraMessageLogViewModel>(GetNiagaraSystemMessageLogName(System), MessageLogGuid, NiagaraMessageLog);
+	ObjectSelectionForParameterMapView = MakeShared<FNiagaraObjectSelection>();
 
 	SystemViewModel->OnEmitterHandleViewModelsChanged().AddSP(this, &FNiagaraSystemToolkit::RefreshParameters);
-	SystemViewModel->GetSelectionViewModel()->OnSelectionChanged().AddSP(this, &FNiagaraSystemToolkit::OnSystemSelectionChanged);
+	SystemViewModel->GetSelectionViewModel()->OnSystemIsSelectedChanged().AddSP(this, &FNiagaraSystemToolkit::OnSystemSelectionChanged);
+	SystemViewModel->GetSelectionViewModel()->OnEmitterHandleIdSelectionChanged().AddSP(this, &FNiagaraSystemToolkit::OnSystemSelectionChanged);
 	SystemViewModel->GetOnPinnedEmittersChanged().AddSP(this, &FNiagaraSystemToolkit::RefreshParameters);
 	SystemViewModel->GetOnPinnedCurvesChanged().AddSP(this, &FNiagaraSystemToolkit::OnPinnedCurvesChanged);
 
@@ -491,26 +498,16 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_SystemParameters(const FSpa
 {
 	check(Args.GetTabId().TabType == SystemParametersTabID);
 
-	TSharedRef<FNiagaraObjectSelection> ObjectSelection = MakeShareable(new FNiagaraObjectSelection());
-	if (SystemToolkitMode == ESystemToolkitMode::Emitter)
-	{
-		TSharedPtr<FNiagaraEmitterViewModel> EditableEmitterViewModel = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterViewModel();
-		UNiagaraEmitter* EditableEmitter = EditableEmitterViewModel->GetEmitter();
-		ObjectSelection->SetSelectedObject(EditableEmitter);
-	}
-	else if (SystemToolkitMode == ESystemToolkitMode::System)
-	{
-		ObjectSelection->SetSelectedObject(System);
-	}
 
-	TArray<TSharedRef<FNiagaraObjectSelection>> Array;
-	Array.Push(ObjectSelection);
+	TArray<TSharedRef<FNiagaraObjectSelection>> ObjectSelections;
+	ObjectSelections.Add(ObjectSelectionForParameterMapView.ToSharedRef());
 
 	TSharedRef<SDockTab> SpawnedTab =
 		SNew(SDockTab)
 		[
-			SAssignNew(ParameterMapView, SNiagaraParameterMapView, Array, SNiagaraParameterMapView::EToolkitType::SYSTEM, GetToolkitCommands())
+			SAssignNew(ParameterMapView, SNiagaraParameterMapView, ObjectSelections, SNiagaraParameterMapView::EToolkitType::SYSTEM, GetToolkitCommands())
 		];
+	RefreshParameters();
 
 	return SpawnedTab;
 }
@@ -539,7 +536,7 @@ public:
 	void Construct(const FArguments& InArgs, TSharedRef<FNiagaraSystemViewModel> InSystemViewModel)
 	{
 		SystemViewModel = InSystemViewModel;
-		SystemViewModel->GetSelectionViewModel()->OnSelectionChanged().AddSP(this, &SNiagaraSelectedEmitterGraph::SystemSelectionChanged);
+		SystemViewModel->GetSelectionViewModel()->OnEmitterHandleIdSelectionChanged().AddSP(this, &SNiagaraSelectedEmitterGraph::SystemSelectionChanged);
 		ChildSlot
 		[
 			SAssignNew(GraphWidgetContainer, SBox)
@@ -551,12 +548,12 @@ public:
 	{
 		if (SystemViewModel.IsValid() && SystemViewModel->GetSelectionViewModel())
 		{
-			SystemViewModel->GetSelectionViewModel()->OnSelectionChanged().RemoveAll(this);
+			SystemViewModel->GetSelectionViewModel()->OnEmitterHandleIdSelectionChanged().RemoveAll(this);
 		}
 	}
 
 private:
-	void SystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource)
+	void SystemSelectionChanged()
 	{
 		UpdateGraphWidget();
 	}
@@ -744,7 +741,7 @@ void FNiagaraSystemToolkit::OnThumbnailCaptured(UTexture2D* Thumbnail)
 
 void FNiagaraSystemToolkit::ResetSimulation()
 {
-	SystemViewModel->ResetSystem(FNiagaraSystemViewModel::ETimeResetMode::AllowResetTime, FNiagaraSystemViewModel::EMultiResetMode::AllowResetAllInstances, FNiagaraSystemViewModel::EReinitMode::ResetSystem);
+	SystemViewModel->ResetSystem(FNiagaraSystemViewModel::ETimeResetMode::AllowResetTime, FNiagaraSystemViewModel::EMultiResetMode::AllowResetAllInstances, FNiagaraSystemViewModel::EReinitMode::ReinitializeSystem);
 }
 
 void FNiagaraSystemToolkit::ExtendToolbar()
@@ -1019,9 +1016,8 @@ void FNiagaraSystemToolkit::UpdateOriginalEmitter()
 		EditableEmitter->GetScripts(AllScripts, true);
 		for (UNiagaraScript* Script : AllScripts)
 		{
-			checkSlow(Script->AreScriptAndSourceSynchronized());
+			checkfSlow(Script->AreScriptAndSourceSynchronized(), TEXT("Editable Emitter Script change ID is out of date when applying to Original Emitter!"));
 		}
-		checkSlow(EditableEmitter->AreAllScriptAndSourcesSynchronized());
 
 		// overwrite the original script in place by constructing a new one with the same name
 		Emitter = (UNiagaraEmitter*)StaticDuplicateObject(EditableEmitter, Emitter->GetOuter(),
@@ -1170,7 +1166,7 @@ void FNiagaraSystemToolkit::SaveAsset_Execute()
 		UE_LOG(LogNiagaraEditor, Log, TEXT("Saving and Compiling NiagaraEmitter %s"), *GetEditingObjects()[0]->GetName());
 		UpdateOriginalEmitter();
 	}
-	SystemViewModel->OnPreSave();
+	SystemViewModel->NotifyPreSave();
 	FAssetEditorToolkit::SaveAsset_Execute();
 }
 
@@ -1181,7 +1177,7 @@ void FNiagaraSystemToolkit::SaveAssetAs_Execute()
 		UE_LOG(LogNiagaraEditor, Log, TEXT("Saving and Compiling NiagaraEmitter %s"), *GetEditingObjects()[0]->GetName());
 		UpdateOriginalEmitter();
 	}
-	SystemViewModel->OnPreSave();
+	SystemViewModel->NotifyPreSave();
 	FAssetEditorToolkit::SaveAssetAs_Execute();
 }
 
@@ -1208,7 +1204,7 @@ bool FNiagaraSystemToolkit::OnRequestClose()
 		FNiagaraEditorUtilities::WriteTextFileToDisk(FPaths::ProjectLogDir(), FilenamePart + TEXT(".onClose.txt"), ExportText, true);
 	}
 
-	SystemViewModel->OnPreClose();
+	SystemViewModel->NotifyPreClose();
 
 	if (SystemToolkitMode == ESystemToolkitMode::Emitter)
 	{
@@ -1285,25 +1281,35 @@ void FNiagaraSystemToolkit::OnPinnedCurvesChanged()
 
 void FNiagaraSystemToolkit::RefreshParameters()
 {
-	if (ParameterMapView.IsValid())
-	{
-		TArray<TSharedPtr<FNiagaraEmitterHandleViewModel>> EmitterHandlesToDisplay;
-		EmitterHandlesToDisplay.Append(SystemViewModel->GetPinnedEmitterHandles());
-		
-		TArray<FGuid> SelectedEmitterHandleIds = SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds();
-		for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : SystemViewModel->GetEmitterHandleViewModels())
-		{
-			if (SelectedEmitterHandleIds.Contains(EmitterHandleViewModel->GetId()))
-			{
-				EmitterHandlesToDisplay.AddUnique(EmitterHandleViewModel);
-			}
-		}
+	TArray<UObject*> NewParameterViewSelection;
 
-		ParameterMapView->RefreshEmitterHandles(EmitterHandlesToDisplay);
+	// Always display the system parameters
+	NewParameterViewSelection.Add(&SystemViewModel->GetSystem());
+
+	TArray<TSharedRef<FNiagaraEmitterHandleViewModel>> EmitterHandlesToDisplay;
+	EmitterHandlesToDisplay.Append(SystemViewModel->GetPinnedEmitterHandles());
+		
+	TArray<FGuid> SelectedEmitterHandleIds = SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds();
+	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : SystemViewModel->GetEmitterHandleViewModels())
+	{
+		if (SelectedEmitterHandleIds.Contains(EmitterHandleViewModel->GetId()))
+		{
+			EmitterHandlesToDisplay.AddUnique(EmitterHandleViewModel);
+		}
 	}
+
+	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleToDisplay : EmitterHandlesToDisplay)
+	{
+		if (EmitterHandleToDisplay->IsValid() && EmitterHandleToDisplay->GetEmitterViewModel()->GetEmitter() != nullptr)
+		{
+			NewParameterViewSelection.Add(EmitterHandleToDisplay->GetEmitterViewModel()->GetEmitter());
+		}
+	}
+
+	ObjectSelectionForParameterMapView->SetSelectedObjects(NewParameterViewSelection);
 }
 
-void FNiagaraSystemToolkit::OnSystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource)
+void FNiagaraSystemToolkit::OnSystemSelectionChanged()
 {
 	RefreshParameters();
 }

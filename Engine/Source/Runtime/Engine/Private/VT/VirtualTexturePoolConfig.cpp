@@ -2,32 +2,25 @@
 
 #include "VT/VirtualTexturePoolConfig.h"
 
+#include "VT/VirtualTextureScalability.h"
+
 UVirtualTexturePoolConfig::UVirtualTexturePoolConfig(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }
 
-UVirtualTexturePoolConfig::~UVirtualTexturePoolConfig()
-{
-}
-
-void UVirtualTexturePoolConfig::PostLoad()
-{
-	DefaultConfig.SizeInMegabyte = DefaultSizeInMegabyte;
-}
-
-const FVirtualTextureSpacePoolConfig *UVirtualTexturePoolConfig::FindPoolConfig(TEnumAsByte<EPixelFormat> const* Formats, int32 NumLayers, int32 TileSize)
+void UVirtualTexturePoolConfig::FindPoolConfig(TEnumAsByte<EPixelFormat> const* InFormats, int32 InNumLayers, int32 InTileSize, FVirtualTextureSpacePoolConfig& OutConfig) const
 {
 	// Reverse iterate so that project config can override base config
 	for (int32 Id = Pools.Num() - 1; Id >= 0 ; Id--)
 	{
 		const FVirtualTextureSpacePoolConfig& Config = Pools[Id];
-		if (Config.MinTileSize <= TileSize && Config.MaxTileSize >= TileSize && NumLayers == Config.Formats.Num())
+		if (Config.MinTileSize <= InTileSize && Config.MaxTileSize >= InTileSize && InNumLayers == Config.Formats.Num())
 		{
 			bool bAllFormatsMatch = true;
-			for (int Layer = 0; Layer < NumLayers && bAllFormatsMatch; ++Layer)
+			for (int Layer = 0; Layer < InNumLayers && bAllFormatsMatch; ++Layer)
 			{
-				if (Formats[Layer] != Config.Formats[Layer])
+				if (InFormats[Layer] != Config.Formats[Layer])
 				{
 					bAllFormatsMatch = false;
 				}
@@ -35,11 +28,14 @@ const FVirtualTextureSpacePoolConfig *UVirtualTexturePoolConfig::FindPoolConfig(
 
 			if (bAllFormatsMatch)
 			{
-				return &Config;
+				OutConfig = Config;
+				const float Scale = Config.bAllowSizeScale ? VirtualTextureScalability::GetPoolSizeScale() : 1.f;
+				OutConfig.SizeInMegabyte = (int32)(Scale * (float)OutConfig.SizeInMegabyte);
+				return;
 			}
 		}
 	}
 
-	DefaultConfig.SizeInMegabyte = DefaultSizeInMegabyte;
-	return &DefaultConfig;
+	OutConfig = FVirtualTextureSpacePoolConfig();
+	OutConfig.SizeInMegabyte = DefaultSizeInMegabyte;
 }

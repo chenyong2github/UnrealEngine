@@ -23,6 +23,7 @@ namespace vraudio {
 
 using Eigen::Vector3f;
 
+#if INCLUDE_UNUSED_CODE
 AcousticRay ReflectionKernel::Reflect(const AcousticRay& incident_ray) const {
   // This function currently uses |random_number_generator| (which returns
   // uniformly distributed numbers) to naively sample 1D and 2D points.
@@ -95,5 +96,6 @@ void ReflectionKernel::ReflectDiffuseRain(
   diffuse_rain_ray->set_prior_distance(
       reference_reflected_ray.prior_distance());
 }
+#endif
 
 }  // namespace vraudio

@@ -6,6 +6,7 @@
 
 class FText;
 class UObject;
+class FFeedbackContext;
 
 /**
  * This is the interface that a progress reporter must implement to work with FDataprepWorkReporter
@@ -21,7 +22,7 @@ public:
 	 * @param InDescription		Text describing the work about to begin
 	 * @param InAmountOfWork	Expected total amount of work
 	 */
-	virtual void BeginWork( const FText& InDescription, float InAmountOfWork ) = 0;
+	virtual void BeginWork( const FText& InDescription, float InAmountOfWork, bool bInterruptible = true ) = 0;
 
 	/** Indicates the end of the work */
 	virtual void EndWork() = 0;
@@ -32,6 +33,12 @@ public:
 	 * @param InMessage			Message to be displayed along side the reported progress
 	 */
 	virtual void ReportProgress( float IncrementOfWork, const FText& InMessage ) = 0;
+
+	/** Returns true if the work has been cancelled */
+	virtual bool IsWorkCancelled() = 0;
+
+	/** Returns the feedback context used by this progress reporter */
+	virtual FFeedbackContext* GetFeedbackContext() const = 0;
 
 	friend class FDataprepWorkReporter;
 };
@@ -49,7 +56,7 @@ public:
 	 * @param InAmountOfWork		Total amount of work for the task
 	 * @param InIncrementOfWork		Amount of incremental work at each step within the task
 	 */
-	FDataprepWorkReporter( const TSharedPtr<IDataprepProgressReporter>& InReporter, const FText& InDescription, float InAmountOfWork, float InIncrementOfWork = 1.0f );
+	FDataprepWorkReporter( const TSharedPtr<IDataprepProgressReporter>& InReporter, const FText& InDescription, float InAmountOfWork, float InIncrementOfWork = 1.0f, bool bInterruptible = true );
 
 	~FDataprepWorkReporter();
 
@@ -68,6 +75,8 @@ public:
 	{
 		ReportNextStep( InMessage, DefaultIncrementOfWork );
 	}
+
+	bool IsWorkCancelled() const;
 
 private:
 	/** Dataprep progress reporter associated with the task */

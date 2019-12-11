@@ -7,12 +7,12 @@
 #include "/Engine/Private/VertexFactoryCommon.ush"
 #include "NiagaraVFParticleAccess.usf"
 
-#define USE_PARTICLE_POSITION (FEATURE_LEVEL >= FEATURE_LEVEL_SM5 && NEEDS_PARTICLE_POSITION)
-#define USE_PARTICLE_VELOCITY (FEATURE_LEVEL >= FEATURE_LEVEL_SM5 && NEEDS_PARTICLE_VELOCITY)
+#define USE_PARTICLE_POSITION ((FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1) && NEEDS_PARTICLE_POSITION)
+#define USE_PARTICLE_VELOCITY ((FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1) && NEEDS_PARTICLE_VELOCITY)
 #define USE_PARTICLE_TIME ((FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1) && NEEDS_PARTICLE_TIME)
-#define USE_PARTICLE_SIZE (FEATURE_LEVEL >= FEATURE_LEVEL_SM5 && NEEDS_PARTICLE_SIZE)
-#define USE_PARTICLE_RANDOM (FEATURE_LEVEL >= FEATURE_LEVEL_SM5 && NEEDS_PARTICLE_RANDOM)
-#define USE_PARTICLE_INTERPOLATION (FEATURE_LEVEL >= FEATURE_LEVEL_SM5)
+#define USE_PARTICLE_SIZE ((FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1) && NEEDS_PARTICLE_SIZE)
+#define USE_PARTICLE_RANDOM ((FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1) && NEEDS_PARTICLE_RANDOM)
+#define USE_PARTICLE_INTERPOLATION (FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1)
 
 float3 TransformPosition(float3 InPosition)
 {
@@ -808,8 +808,8 @@ FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexI
 {
 	FVertexFactoryInput Input;
 
-	FTriangleBaseAttributes Triangle = LoadTriangleBaseAttributes(TriangleIndex);
-	uint VertexId = Triangle.Indices[VertexIndex];
+	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(TriangleIndex);
+	uint VertexId = Tri.Indices[VertexIndex];
 	Input.InterpVtxId = VertexId;
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && ONEPASS_POINTLIGHT_SHADOW && USING_VERTEX_SHADER_LAYER
 	Input.InstanceInd = 0;
@@ -902,7 +902,7 @@ FVertexFactoryInterpolantsVSToDS VertexFactoryInterpolate(FVertexFactoryInterpol
 #endif
 
 #if INSTANCED_STEREO
-	Interpolants.EyeIndex = 0;
+	O.InterpolantsVSToPS.EyeIndex = 0;
 #endif
 
 	return O;

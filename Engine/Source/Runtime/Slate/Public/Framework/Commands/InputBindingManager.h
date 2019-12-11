@@ -142,12 +142,41 @@ public:
 	*/
 	bool GetUserDefinedChord(const FName InBindingContext, const FName InCommandName, const EMultipleKeyBindingIndex InChordIndex, FInputChord& OutUserDefinedChord);
 
+	// Type of filter
+	enum class ECommandFilterType
+	{
+		None,
+		Blacklist,
+		Whitelist
+	};
+
+	/**
+	* Filters a command by name
+	*
+	* @param InOwnerName		The name of the owner adding filter so it can be unregistered later
+	* @param InBindingContext	The context in which the command is active
+	* @param InCommandName		The name of the command
+	* @param FilterType			Type of filter to apply
+	*/
+	void AddCommandFilter(const FName InOwnerName, const FName InBindingContext, const FName InCommandName, const ECommandFilterType FilterType);
+
+	/** Removes all filters associated with an owner */
+	void UnregisterCommandFilterOwner(const FName InOwnerName);
+
+	/**
+	* Command passes blacklist and whitelist filters
+	*
+	* @param InBindingContext	The context in which the command is active
+	* @param InCommandName		The name of the command
+	*/
+	bool CommandPassesFilter(const FName InBindingContext, const FName InCommandName) const;
+
 private:
 
 	/**
 	 * Hidden default constructor.
 	 */
-	FInputBindingManager() { }
+	FInputBindingManager();
 
 	/**
 	 *	Checks a binding context for duplicate chords 
@@ -161,6 +190,11 @@ private:
 	 * @param AllChildren		All the children of InBindingContext. InBindingContext is the first element in AllChildren
 	 */
 	void GetAllChildContexts( const FName InBindingContext, TArray<FName>& AllChildren ) const;
+
+	/**
+	 * Displays list of commands.
+	 */
+	void PrintAllInputCommands(bool bBoundOnly);
 
 private:
 
@@ -179,6 +213,20 @@ private:
 		/** The binding context for this entry*/
 		TSharedPtr< FBindingContext > BindingContext;
 	};
+
+	struct FCommandFilterOwners
+	{
+		TArray<FName> OwnerNames;
+	};
+
+	struct FCommandFilterForContext
+	{
+		TMap<FName, FCommandFilterOwners> BlacklistedCommands;
+		TMap<FName, FCommandFilterOwners> WhitelistedCommands;
+	};
+
+	/** Mapping of command filters by context */
+	TMap<FName, FCommandFilterForContext> CommandFiltersByContext;
 
 	/** A mapping of context name to the associated entry map */
 	TMap< FName, FContextEntry > ContextMap;

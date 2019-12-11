@@ -30,6 +30,60 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 		//SpatialIdx serialized
 		SpatialIdxSerialized,
 
+		//Save out heightfield data
+		HeightfieldData,
+
+		//Save out multiple acceleration structures
+		SerializeMultiStructures,
+
+		// Add kinematic targets to TKinematicGeometryParticles
+		KinematicTargets,
+		
+		// Allow trimeshes to serialize their acceleration structure
+		TrimeshSerializesBV,
+
+		// Serialize broadphase type
+		SerializeBroadphaseType,
+
+		// Allow scaled geometry to be a concrete type
+		ScaledGeometryIsConcrete,
+
+		// Trimeshes serialize AABBTree
+		TrimeshSerializesAABBTree,
+		
+		// Adds Serialization of HashResult, and separates delete/update TAccelerationStructureHandle in FPendingSpatialData
+		SerializeHashResult,
+
+		// Only serialize internal acceleration structure queue and acceleration structure. No external/Async queues.
+		FlushEvolutionInternalAccelerationQueue,
+
+		// Serialize world space bounds of TPerShapeData
+		SerializeShapeWorldSpaceBounds,
+
+		// Add an SOA which contains particles with full dynamic data but which are in the kinematic object state.
+		AddDynamicKinematicSOA,
+
+		// Added material manager to Chaos
+		AddedMaterialManager,
+
+		// Added material indices to trimesh collision data
+		AddTrimeshMaterialIndices,
+
+		// Add center of mass and volume cached calculations to TConvex
+		AddConvexCenterOfMassAndVolume,
+
+		// Add mass transform data to kinematic particle
+		KinematicCentersOfMass,
+
+		// Added ability to remove shapes from collision resolution (will not construct constraints when one or more shapes removed)
+		AddShapeCollisionDisable,
+
+		//Heightfield cell bounds are implicit
+		HeightfieldImplicitBounds,
+
+		// Add damping to rigid particles
+		AddDampingToRigids,
+		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

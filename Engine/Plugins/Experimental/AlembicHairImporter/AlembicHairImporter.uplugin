@@ -2,7 +2,7 @@
 	"FileVersion": 1,
 	"Version": 1,
 	"VersionName": "0.1",
-	"FriendlyName": "Alembic Hair Strands Importer",
+	"FriendlyName": "Alembic Groom Importer",
 	"Description": "Import Hair Strands from Alembic file",
 	"Category": "Geometry",
 	"CreatedBy": "Epic Games, Inc.",

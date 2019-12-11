@@ -1423,7 +1423,7 @@ dtStatus dtNavMeshQuery::queryPolygons(const float* center, const float* extents
 ///
 dtStatus dtNavMeshQuery::findPath(dtPolyRef startRef, dtPolyRef endRef,
 								  const float* startPos, const float* endPos,
-								  const dtQueryFilter* filter,
+								  const float costLimit, const dtQueryFilter* filter, //@UE4
 								  dtQueryResult& result, float* totalCost) const
 {
 	dtAssert(m_nav);
@@ -1583,14 +1583,19 @@ dtStatus dtNavMeshQuery::findPath(dtPolyRef startRef, dtPolyRef endRef,
 			const float total = cost + heuristic;
 
 			// The node is already in open list and the new result is worse, skip.
-			// The node is already visited and process, and the new result is worse, skip.
-			// Cost of current link is DT_UNWALKABLE_POLY_COST, skip.
-			if (((neighbourNode->flags & DT_NODE_OPEN) && total >= neighbourNode->total) ||
-				((neighbourNode->flags & DT_NODE_CLOSED) && total >= neighbourNode->total) ||
-				(curCost == DT_UNWALKABLE_POLY_COST))
-			{
+			if ((neighbourNode->flags & DT_NODE_OPEN) && total >= neighbourNode->total)
 				continue;
-			}
+
+			// The node is already visited and process, and the new result is worse, skip.
+			if ((neighbourNode->flags & DT_NODE_CLOSED) && total >= neighbourNode->total)
+				continue;
+
+			// Cost of current link is DT_UNWALKABLE_POLY_COST, skip.
+			if (curCost == DT_UNWALKABLE_POLY_COST)
+				continue;
+
+			if (total > costLimit) //@UE4
+				continue;
 
 			// Add or update the node.
 			neighbourNode->pidx = m_nodePool->getNodeIdx(bestNode);
@@ -1828,7 +1833,7 @@ dtStatus dtNavMeshQuery::testClusterPath(dtPolyRef startRef, dtPolyRef endRef) c
 /// path query.
 ///
 dtStatus dtNavMeshQuery::initSlicedFindPath(dtPolyRef startRef, dtPolyRef endRef,
-											const float* startPos, const float* endPos,
+											const float* startPos, const float* endPos, const float costLimit, //@UE4
 											const dtQueryFilter* filter)
 {
 	dtAssert(m_nav);
@@ -1842,6 +1847,7 @@ dtStatus dtNavMeshQuery::initSlicedFindPath(dtPolyRef startRef, dtPolyRef endRef
 	m_query.endRef = endRef;
 	dtVcopy(m_query.startPos, startPos);
 	dtVcopy(m_query.endPos, endPos);
+	m_query.costLimit = costLimit; //@UE4
 	m_query.filter = filter;
 	
 	if (!startRef || !endRef)
@@ -1998,12 +2004,13 @@ dtStatus dtNavMeshQuery::updateSlicedFindPath(const int maxIter, int* doneIters)
 			// Calculate cost and heuristic.
 			float cost = 0;
 			float heuristic = 0;
+			float curCost = 0; //@UE4
 			
 			// Special case for last node.
 			if (neighbourRef != m_query.endRef)
 			{
 				// Cost
-				const float curCost = m_query.filter->getCost(bestNode->pos, neiPos,
+				curCost = m_query.filter->getCost(bestNode->pos, neiPos,
 					parentRef, parentTile, parentPoly,
 					bestRef, bestTile, bestPoly,
 					neighbourRef, neighbourTile, neighbourPoly);
@@ -2013,26 +2020,34 @@ dtStatus dtNavMeshQuery::updateSlicedFindPath(const int maxIter, int* doneIters)
 			else
 			{
 				// Cost
-				const float curCost = m_query.filter->getCost(bestNode->pos, neiPos,
-															  parentRef, parentTile, parentPoly,
-															  bestRef, bestTile, bestPoly,
-															  neighbourRef, neighbourTile, neighbourPoly);
+				curCost = m_query.filter->getCost(bestNode->pos, neiPos,
+												  parentRef, parentTile, parentPoly,
+												  bestRef, bestTile, bestPoly,
+												  neighbourRef, neighbourTile, neighbourPoly);
 				const float endCost = m_query.filter->getCost(neiPos, m_query.endPos,
-															  bestRef, bestTile, bestPoly,
-															  neighbourRef, neighbourTile, neighbourPoly,
-															  0, 0, 0);
+												  bestRef, bestTile, bestPoly,
+												  neighbourRef, neighbourTile, neighbourPoly,
+												  0, 0, 0);
 				
 				cost = bestNode->cost + curCost + endCost;
 				heuristic = 0;
 			}
 			
 			const float total = cost + heuristic;
-			
+
 			// The node is already in open list and the new result is worse, skip.
 			if ((neighbourNode->flags & DT_NODE_OPEN) && total >= neighbourNode->total)
 				continue;
+
 			// The node is already visited and process, and the new result is worse, skip.
 			if ((neighbourNode->flags & DT_NODE_CLOSED) && total >= neighbourNode->total)
+				continue;
+
+			// Cost of current link is DT_UNWALKABLE_POLY_COST, skip.
+			if (curCost == DT_UNWALKABLE_POLY_COST) //@UE4
+				continue;
+
+			if (total > m_query.costLimit) //@UE4
 				continue;
 			
 			// Add or update the node.

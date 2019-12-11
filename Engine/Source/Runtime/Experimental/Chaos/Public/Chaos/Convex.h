@@ -3,30 +3,57 @@
 
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/Box.h"
+#include "Chaos/MassProperties.h"
 #include "CollisionConvexMesh.h"
 #include "ChaosArchive.h"
 #include "GJK.h"
+#include "ChaosCheck.h"
 
 namespace Chaos
 {
-	template<class T, int d>
-	class TConvex final : public TImplicitObject<T, d>
+	class CHAOS_API FConvex final : public FImplicitObject
 	{
 	public:
-		using TImplicitObject<T, d>::GetTypeName;
+		using FImplicitObject::GetTypeName;
+		using TType = float;
+		static constexpr unsigned D = 3;
 
-		TConvex()
-		    : TImplicitObject<T,3>(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
+		FConvex()
+		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
+			, Volume(0.f)
+			, CenterOfMass(FVec3(0.f))
 		{}
-		TConvex(const TConvex&) = delete;
-		TConvex(TConvex&& Other)
-		    : TImplicitObject<T,3>(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
+		FConvex(const FConvex&) = delete;
+		FConvex(FConvex&& Other)
+		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 			, Planes(MoveTemp(Other.Planes))
 		    , SurfaceParticles(MoveTemp(Other.SurfaceParticles))
 		    , LocalBoundingBox(MoveTemp(Other.LocalBoundingBox))
+			, Volume(MoveTemp(Other.Volume))
+			, CenterOfMass(MoveTemp(Other.CenterOfMass))
 		{}
-		TConvex(const TParticles<T, 3>& InParticles)
-		    : TImplicitObject<T, d>(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
+
+		// NOTE: This constructor will result in approximate COM and volume calculations, since it does
+		// not have face indices for surface particles.
+		// TODO: Keep track of invalid state and ensure on volume or COM access?
+		FConvex(TArray<TPlane<FReal, 3>>&& InPlanes, TParticles<FReal, 3>&& InSurfaceParticles)
+		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
+			, Planes(MoveTemp(InPlanes))
+		    , SurfaceParticles(MoveTemp(InSurfaceParticles))
+		    , LocalBoundingBox(TBox<FReal, 3>::EmptyBox())
+		{
+			for (uint32 ParticleIndex = 0; ParticleIndex < SurfaceParticles.Size(); ++ParticleIndex)
+			{
+				LocalBoundingBox.GrowToInclude(SurfaceParticles.X(ParticleIndex));
+			}
+
+			// For now we approximate COM and volume with the bounding box
+			CenterOfMass = LocalBoundingBox.GetCenterOfMass();
+			Volume = LocalBoundingBox.GetVolume();
+		}
+
+		FConvex(const TParticles<FReal, 3>& InParticles)
+		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 		{
 			const uint32 NumParticles = InParticles.Size();
 			if (NumParticles == 0)
@@ -34,20 +61,23 @@ namespace Chaos
 				return;
 			}
 
-			TConvexBuilder<T>::Build(InParticles, Planes, SurfaceParticles, LocalBoundingBox);
+			TArray<TArray<int32>> FaceIndices;
+			FConvexBuilder::Build(InParticles, Planes, FaceIndices, SurfaceParticles, LocalBoundingBox);
+			CHAOS_ENSURE(Planes.Num() == FaceIndices.Num());
+			CalculateVolumeAndCenterOfMass(SurfaceParticles, FaceIndices, Volume, CenterOfMass);
 		}
 
-		static ImplicitObjectType GetType()
+		static constexpr EImplicitObjectType StaticType()
 		{
 			return ImplicitObjectType::Convex;
 		}
 
-		virtual const TBox<T, d>& BoundingBox() const override
+		virtual const TBox<FReal, 3>& BoundingBox() const override
 		{
 			return LocalBoundingBox;
 		}
 
-		virtual T PhiWithNormal(const TVector<T, d>& x, TVector<T, d>& Normal) const override
+		virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const override
 		{
 			const int32 NumPlanes = Planes.Num();
 			if (NumPlanes == 0)
@@ -56,12 +86,12 @@ namespace Chaos
 			}
 			check(NumPlanes > 0);
 
-			T MaxPhi = TNumericLimits<T>::Lowest();
+			FReal MaxPhi = TNumericLimits<FReal>::Lowest();
 			int32 MaxPlane = 0;
 
 			for (int32 Idx = 0; Idx < NumPlanes; ++Idx)
 			{
-				const T Phi = Planes[Idx].SignedDistance(x);
+				const FReal Phi = Planes[Idx].SignedDistance(x);
 				if (Phi > MaxPhi)
 				{
 					MaxPhi = Phi;
@@ -77,18 +107,18 @@ namespace Chaos
 		 * and \c OutNormal should be.  The burden for detecting this case is deferred to the
 		 * caller. 
 		 */
-		virtual bool Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const override
+		virtual bool Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const override
 		{
 			OutFaceIndex = INDEX_NONE;	//finding face is expensive, should be called directly by user
-			const TRigidTransform<T, d> StartTM(StartPoint, TRotation<T,d>::FromIdentity());
-			const TSphere<T, d> Sphere(TVector<T, d>(0), Thickness);
+			const FRigidTransform3 StartTM(StartPoint, FRotation3::FromIdentity());
+			const TSphere<FReal, 3> Sphere(FVec3(0), Thickness);
 			return GJKRaycast(*this, Sphere, StartTM, Dir, Length, OutTime, OutPosition, OutNormal);
 		}
 
-		virtual Pair<TVector<T, d>, bool> FindClosestIntersectionImp(const TVector<T, d>& StartPoint, const TVector<T, d>& EndPoint, const T Thickness) const override
+		virtual Pair<FVec3, bool> FindClosestIntersectionImp(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness) const override
 		{
 			const int32 NumPlanes = Planes.Num();
-			TArray<Pair<T, TVector<T, 3>>> Intersections;
+			TArray<Pair<FReal, FVec3>> Intersections;
 			Intersections.Reserve(FMath::Min(static_cast<int32>(NumPlanes*.1), 16)); // Was NumPlanes, which seems excessive.
 			for (int32 Idx = 0; Idx < NumPlanes; ++Idx)
 			{
@@ -98,7 +128,7 @@ namespace Chaos
 					Intersections.Add(MakePair((PlaneIntersection.First - StartPoint).SizeSquared(), PlaneIntersection.First));
 				}
 			}
-			Intersections.Sort([](const Pair<T, TVector<T, 3>>& Elem1, const Pair<T, TVector<T, 3>>& Elem2) { return Elem1.First < Elem2.First; });
+			Intersections.Sort([](const Pair<FReal, FVec3>& Elem1, const Pair<FReal, FVec3>& Elem2) { return Elem1.First < Elem2.First; });
 			for (const auto& Elem : Intersections)
 			{
 				if (this->SignedDistance(Elem.Second) < (Thickness + 1e-4))
@@ -106,53 +136,39 @@ namespace Chaos
 					return MakePair(Elem.Second, true);
 				}
 			}
-			return MakePair(TVector<T, 3>(0), false);
+			return MakePair(FVec3(0), false);
 		}
 
-		virtual int32 FindMostOpposingFace(const TVector<T, 3>& Position, const TVector<T, 3>& UnitDir, int32 HintFaceIndex, T SearchDist) const override
-		{
-			//todo: use hill climbing
-			int32 MostOpposingIdx = INDEX_NONE;
-			T MostOpposingDot = TNumericLimits<T>::Max();
-			for(int32 Idx = 0; Idx < Planes.Num(); ++Idx)
-			{
-				const TPlane<T, d>& Plane = Planes[Idx];
-				const T Distance = Plane.SignedDistance(Position);
-				if (FMath::Abs(Distance) < SearchDist)
-				{
-					// TPlane has an override for Normal() that doesn't call PhiWithNormal().
-					const T Dot = TVector<T, d>::DotProduct(Plane.Normal(), UnitDir);
-					if (Dot < MostOpposingDot)
-					{
-						MostOpposingDot = Dot;
-						MostOpposingIdx = Idx;
-					}
-				}
-			}
-			ensure(MostOpposingIdx != INDEX_NONE);
-			return MostOpposingIdx;
-		}
+		virtual int32 FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const override;
+		
 
-		TVector<T, d> FindGeometryOpposingNormal(const TVector<T, d>& DenormDir, int32 FaceIndex, const TVector<T, d>& OriginalNormal) const
+		FVec3 FindGeometryOpposingNormal(const FVec3& DenormDir, int32 FaceIndex, const FVec3& OriginalNormal) const
 		{
+			// For convexes, this function must be called with a face index.
+			// If this ensure is getting hit, fix the caller so that it
+			// passes in a valid face index.
 			if (ensure(FaceIndex != INDEX_NONE))
 			{
-				const TPlane<float, 3>& OpposingFace = GetFaces()[FaceIndex];
+				const TPlane<FReal, 3>& OpposingFace = GetFaces()[FaceIndex];
 				return OpposingFace.Normal();
 			}
-			return FVector(0, 0, 1);
+			return FVec3(0.f, 0.f, 1.f);
 		}
 
-		virtual TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const override
+		FORCEINLINE FReal GetMargin() const { return 0; }
+
+		FORCEINLINE FVec3 Support2(const FVec3& Direction) const { return Support(Direction, 0); }
+
+		FVec3 Support(const FVec3& Direction, const FReal Thickness) const
 		{
-			T MaxDot = TNumericLimits<T>::Lowest();
+			FReal MaxDot = TNumericLimits<FReal>::Lowest();
 			int32 MaxVIdx = 0;
 			const int32 NumVertices = SurfaceParticles.Size();
 
 			check(NumVertices > 0);
 			for (int32 Idx = 0; Idx < NumVertices; ++Idx)
 			{
-				const T Dot = TVector<T, d>::DotProduct(SurfaceParticles.X(Idx), Direction);
+				const FReal Dot = FVec3::DotProduct(SurfaceParticles.X(Idx), Direction);
 				if (Dot > MaxDot)
 				{
 					MaxDot = Dot;
@@ -162,7 +178,7 @@ namespace Chaos
 
 			if (Thickness)
 			{
-				return SurfaceParticles.X(MaxVIdx) + SurfaceParticles.X(MaxVIdx).GetSafeNormal()*Thickness;
+				return SurfaceParticles.X(MaxVIdx) + Direction.GetUnsafeNormal() * Thickness;
 			}
 			return SurfaceParticles.X(MaxVIdx);
 		}
@@ -172,14 +188,30 @@ namespace Chaos
 			return FString::Printf(TEXT("Convex"));
 		}
 
-		const TParticles<T, d>& GetSurfaceParticles() const
+		const TParticles<FReal, 3>& GetSurfaceParticles() const
 		{
 			return SurfaceParticles;
 		}
 
-		const TArray<TPlane<T, d>>& GetFaces() const
+		const TArray<TPlane<FReal, 3>>& GetFaces() const
 		{
 			return Planes;
+		}
+
+		const FReal GetVolume() const
+		{
+			return Volume;
+		}
+
+		const FMatrix33 GetInertiaTensor(const FReal Mass) const
+		{
+			// TODO: More precise inertia!
+			return LocalBoundingBox.GetInertiaTensor(Mass);
+		}
+
+		const FVec3 GetCenterOfMass() const
+		{
+			return CenterOfMass;
 		}
 
 		virtual uint32 GetTypeHash() const override
@@ -188,7 +220,7 @@ namespace Chaos
 
 			Result = HashCombine(Result, SurfaceParticles.GetTypeHash());
 
-			for(const TPlane<T, d>& Plane : Planes)
+			for(const TPlane<FReal, 3>& Plane : Planes)
 			{
 				Result = HashCombine(Result, Plane.GetTypeHash());
 			}
@@ -198,8 +230,24 @@ namespace Chaos
 
 		FORCEINLINE void SerializeImp(FArchive& Ar)
 		{
-			TImplicitObject<T, 3>::SerializeImp(Ar);
+			FImplicitObject::SerializeImp(Ar);
 			Ar << Planes << SurfaceParticles << LocalBoundingBox;
+
+			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddConvexCenterOfMassAndVolume)
+			{
+				Ar << Volume;
+				Ar << CenterOfMass;
+			}
+			else if (Ar.IsLoading())
+			{
+				// Rebuild convex in order to extract face indices.
+				// TODO: Make it so it can take SurfaceParticles as both input and output without breaking...
+				TArray<TArray<int32>> FaceIndices;
+				TParticles<FReal, 3> TempSurfaceParticles;
+				FConvexBuilder::Build(SurfaceParticles, Planes, FaceIndices, TempSurfaceParticles, LocalBoundingBox);
+				CalculateVolumeAndCenterOfMass(SurfaceParticles, FaceIndices, Volume, CenterOfMass);
+			}
 		}
 
 		virtual void Serialize(FChaosArchive& Ar) override
@@ -213,9 +261,45 @@ namespace Chaos
 			SerializeImp(Ar);
 		}
 
+		virtual bool IsValidGeometry() const override
+		{
+			return (SurfaceParticles.Size() > 0 && Planes.Num() > 0);
+		}
+
+		virtual bool IsPerformanceWarning() const override
+		{
+			return FConvexBuilder::IsPerformanceWarning(Planes.Num(), SurfaceParticles.Size());
+		}
+
+		virtual FString PerformanceWarningAndSimplifaction() override
+		{
+
+			FString PerformanceWarningString = FConvexBuilder::PerformanceWarningString(Planes.Num(), SurfaceParticles.Size());
+			if (FConvexBuilder::IsGeometryReductionEnabled())
+			{
+				PerformanceWarningString += ", [Simplifying]";
+				SimplifyGeometry();
+			}
+
+			return PerformanceWarningString;
+		}
+
+		void SimplifyGeometry()
+		{
+			TArray<TArray<int32>> FaceIndices;
+			FConvexBuilder::Simplify(Planes, FaceIndices, SurfaceParticles, LocalBoundingBox);
+		}
+
+		FVec3 GetCenter() const
+		{
+			return FVec3(0);
+		}
+
 	private:
-		TArray<TPlane<T, d>> Planes;
-		TParticles<T, d> SurfaceParticles;	//copy of the vertices that are just on the convex hull boundary
-		TBox<T, d> LocalBoundingBox;
+		TArray<TPlane<FReal, 3>> Planes;
+		TParticles<FReal, 3> SurfaceParticles;	//copy of the vertices that are just on the convex hull boundary
+		TBox<FReal, 3> LocalBoundingBox;
+		float Volume;
+		FVec3 CenterOfMass;
 	};
 }

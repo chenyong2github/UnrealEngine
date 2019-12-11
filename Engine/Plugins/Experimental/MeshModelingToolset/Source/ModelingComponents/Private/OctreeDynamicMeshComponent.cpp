@@ -19,6 +19,7 @@
 
 #include "DynamicMeshAttributeSet.h"
 #include "MeshNormals.h"
+#include "MeshTransforms.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
 
@@ -92,9 +93,40 @@ void UOctreeDynamicMeshComponent::InitializeNewMesh()
 }
 
 
+
+void UOctreeDynamicMeshComponent::ApplyTransform(const FTransform3d& Transform, bool bInvert)
+{
+	if (bInvert)
+	{
+		MeshTransforms::ApplyTransformInverse(*GetMesh(), Transform);
+	}
+	else
+	{
+		MeshTransforms::ApplyTransform(*GetMesh(), Transform);
+	}
+
+	if (CurrentProxy != nullptr)
+	{
+		Octree->ModifiedBounds = FAxisAlignedBox3d(
+			-TNumericLimits<float>::Max()*FVector3d::One(),
+			TNumericLimits<float>::Max()*FVector3d::One());
+		NotifyMeshUpdated();
+	}
+	else
+	{
+		FAxisAlignedBox3d MeshBounds = Mesh->GetCachedBounds();
+		Octree = MakeUnique<FDynamicMeshOctree3>();
+		Octree->RootDimension = MeshBounds.MaxDim() * 0.5;
+		Octree->Initialize(GetMesh());
+		OctreeCut = MakeUnique<FDynamicMeshOctree3::FTreeCutSet>();
+	}
+
+}
+
+
 void UOctreeDynamicMeshComponent::Bake(FMeshDescription* MeshDescription, bool bHaveModifiedTopology, const FConversionToMeshDescriptionOptions& ConversionOptions)
 {
-	if (bHaveModifiedTopology == false)
+	if (bHaveModifiedTopology == false && Mesh.Get()->VertexCount() == MeshDescription->Vertices().Num())
 	{
 		FDynamicMeshToMeshDescription Converter(ConversionOptions);
 		Converter.Update(Mesh.Get(), *MeshDescription);

@@ -32,14 +32,9 @@ static void JumpOverWhiteSpace(const uint8*& BufferPos)
 			BufferPos += 2;
 			continue;
 		}
-		else if(*BufferPos == 10)
-		{
-			// no valid MSDOS return file
-			check(0);
-		}
 		else if(*BufferPos <= ' ')
 		{
-			// tab, space, invisible characters
+			// Skip tab, space and invisible characters
 			++BufferPos;
 			continue;
 		}
@@ -69,7 +64,7 @@ static void GetLineContent(const uint8*& BufferPos, char Line[256], bool bStopOn
 		}
 		else if(*BufferPos == '\n')
 		{
-			BufferPos += 1;
+			++BufferPos;
 			break;
 		}
 		else if(bStopOnWhitespace && (*BufferPos <= ' '))

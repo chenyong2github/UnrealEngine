@@ -1564,7 +1564,7 @@ void FViewport::Draw( bool bShouldPresent /*= true */)
 				Canvas.SetRenderTargetRect(FIntRect(0, 0, SizeX, SizeY));
 				{
 					// Make sure the Canvas is not rendered upside down
-					Canvas.SetAllowSwitchVerticalAxis(false);
+					Canvas.SetAllowSwitchVerticalAxis(true);
 					ViewportClient->Draw(this, &Canvas);
 				}
 				Canvas.Flush_GameThread();
@@ -2168,7 +2168,7 @@ ENGINE_API bool GetHighResScreenShotInput(const TCHAR* Cmd, FOutputDevice& Ar, u
 	while (CmdString.FindChar(TCHAR(' '), SeperatorPos))
 	{
 		Arguments.Add(CmdString.Mid(LastSeperatorPos, SeperatorPos));
-		CmdString = CmdString.Mid(SeperatorPos + 1);
+		CmdString.MidInline(SeperatorPos + 1, MAX_int32, false);
 	}
 
 	if (CmdString.Len() > 0)

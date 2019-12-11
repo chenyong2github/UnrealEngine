@@ -322,4 +322,5 @@ private:
 	TAtomic<bool> bResolvedTargetInitialized;
 	TAtomic<bool> bShouldCaptureRHITexture;
 	TAtomic<int32> WaitingForResolveCommandExecutionCounter;
+	TAtomic<int32> NumberOfTexturesToResolve;
 };

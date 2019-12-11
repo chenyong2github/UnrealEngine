@@ -26,7 +26,12 @@ FText FAssetTypeActions_AudioSynesthesiaNRTSettings::GetName() const
 
 FColor FAssetTypeActions_AudioSynesthesiaNRTSettings::GetTypeColor() const 
 {
-	return SynesthesiaSettings->GetTypeColor(); 
+	return SynesthesiaSettings->GetTypeColor();
+}
+
+const TArray<FText>& FAssetTypeActions_AudioSynesthesiaNRTSettings::GetSubMenus() const
+{
+	return SynesthesiaSettings->GetAssetActionSubmenus();
 }
 
 UClass* FAssetTypeActions_AudioSynesthesiaNRTSettings::GetSupportedClass() const

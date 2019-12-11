@@ -105,6 +105,32 @@ struct FGraphAssetPlayerInformation
 	TArray<int32> PlayerNodeIndices;
 };
 
+/** Blending options for animation graphs in Linked Animation Blueprints. */
+USTRUCT()
+struct FAnimGraphBlendOptions
+{
+	GENERATED_USTRUCT_BODY()
+
+	/**
+	* Time to blend this graph in using Inertialization. Specify -1.0 to defer to the BlendOutTime of the previous graph.
+	* To blend this graph in you must place an Inertialization node after the Linked Anim Graph node or Linked Anim Layer node that uses this graph.
+	*/
+	UPROPERTY(EditAnywhere, Category = GraphBlending)
+	float BlendInTime;       
+
+	/**
+	* Time to blend this graph out using Inertialization. Specify -1.0 to defer to the BlendInTime of the next graph.
+	* To blend this graph out you must place an Inertialization node after the Linked Anim Graph node or Linked Anim Layer node that uses this graph.
+	*/
+	UPROPERTY(EditAnywhere, Category = GraphBlending)
+	float BlendOutTime;
+
+	FAnimGraphBlendOptions()
+		: BlendInTime(-1.0f)
+		, BlendOutTime(-1.0f)
+	{}
+};
+
 
 UINTERFACE()
 class ENGINE_API UAnimClassInterface : public UInterface
@@ -134,6 +160,7 @@ public:
 	virtual const TMap<FName, FCachedPoseIndices>& GetOrderedSavedPoseNodeIndicesMap() const = 0;
 	virtual const TArray<FAnimBlueprintFunction>& GetAnimBlueprintFunctions() const = 0;
 	virtual const TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation() const = 0;
+	virtual const TMap<FName, FAnimGraphBlendOptions>& GetGraphBlendOptions() const = 0;
 	virtual USkeleton* GetTargetSkeleton() const = 0;
 
 	virtual int32 GetSyncGroupIndex(FName SyncGroupName) const = 0;

@@ -27,15 +27,6 @@
 
 //------------------------------------------------------- SHARED CONSTANTS DEPENDING ON CONFIG OF SHADER
 
-// Maximum number of signal that can be denoised at same time.
-#ifndef MAX_SIGNAL_BATCH_SIZE
-	#define MAX_SIGNAL_BATCH_SIZE 1
-#endif
-
-// Maximum number of signal that can be multiplexed into single output.
-#define MAX_SIGNAL_MULTIPLEXING (MAX_SIGNAL_BATCH_SIZE * 2)
-
-
 #if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
 	#define TARGETED_SAMPLE_COUNT 128
 
@@ -82,10 +73,12 @@
 uint2 ViewportMin;
 uint2 ViewportMax;
 float4 ThreadIdToBufferUV;
+float4 BufferSizeAndInvSize;
 float4 BufferBilinearUVMinMax;
 float2 BufferUVToOutputPixelPosition;
 float4 BufferUVToScreenPosition;
 float4x4 ScreenToView;
+float2 BufferUVBilinearCorrection;
 
 float WorldDepthToPixelWorldRadius;
 

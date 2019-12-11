@@ -59,7 +59,7 @@ public:
 	inline uint32 GetProducerPhysicalGroupIndexForPageTableLayer(uint32 InLayerIndex) const { return UniquePageTableLayers[InLayerIndex].ProducerPhysicalGroupIndex; }
 
 private:
-	uint32 AddUniqueProducer(FVirtualTextureProducerHandle const& InHandle, FVTProducerDescription const& InProducerDesc);
+	uint32 AddUniqueProducer(FVirtualTextureProducerHandle const& InHandle, const FVirtualTextureProducer* InProducer);
 	uint32 AddUniquePhysicalSpace(FVirtualTexturePhysicalSpace* InPhysicalSpace, uint32 InUniqueProducerIndex, uint32 InProducerPhysicalSpaceIndex);
 
 	FThreadSafeCounter RefCount;

@@ -6,7 +6,6 @@
 #include "IOpenXRInputPlugin.h"
 #include "IInputDevice.h"
 #include "IHapticDevice.h"
-#include "XRInputSettings.h"
 
 #include <openxr/openxr.h>
 
@@ -22,13 +21,11 @@ public:
 		XrActionSet		Set;
 		XrActionType	Type;
 		FName			Name;
-		TArray<FKey>	Keys;
 		XrAction		Handle;
 
-		FOpenXRAction(XrActionSet InActionSet, XrActionType InActionType, const FName& InName);
+		TMap<TPair<XrPath, XrPath>, FName> KeyMap;
 
-		FOpenXRAction(XrActionSet InSet, const TArray<FInputActionKeyMapping>& InActionKeys);
-		FOpenXRAction(XrActionSet InSet, const TArray<FInputAxisKeyMapping>& InAxisKeys);
+		FOpenXRAction(XrActionSet InActionSet, XrActionType InActionType, const FName& InName, const TArray<XrPath>& SubactionPaths);
 	};
 
 	struct FOpenXRController
@@ -41,11 +38,16 @@ public:
 		FOpenXRController(FOpenXRHMD* HMD, XrActionSet InActionSet, const char* InName);
 	};
 
-	class FOpenXRInput :
-		public IInputDevice,
-		public FXRMotionControllerBase,
-		public IHapticDevice,
-		public TSharedFromThis<FOpenXRInput>
+	struct FInteractionProfile
+	{
+	public:
+		XrPath Path;
+		TArray<XrActionSuggestedBinding> Bindings;
+
+		FInteractionProfile(XrPath InProfile);
+	};
+
+	class FOpenXRInput : public IInputDevice, public FXRMotionControllerBase, public IHapticDevice, public TSharedFromThis<FOpenXRInput>
 	{
 	public:
 		FOpenXRInput(FOpenXRHMD* HMD);
@@ -77,14 +79,16 @@ public:
 		FOpenXRHMD* OpenXRHMD;
 
 		TArray<XrActiveActionSet> ActionSets;
+		TArray<XrPath> SubactionPaths;
 		TArray<FOpenXRAction> Actions;
 		TMap<EControllerHand, FOpenXRController> Controllers;
 
 		bool bActionsBound;
-
-		void InitActions();
+		void BuildActions();
 		void DestroyActions();
-		void SuggestedBindings(XrInstance Instance, const char* Profile, const FXRInteractionProfileSettings& Settings, const TArray<FXRSuggestedBinding>& SuggestedBindings);
+
+		template<typename T>
+		int32 SuggestBindings(XrInstance Instance, FOpenXRAction& Action, const TArray<T>& Mappings, TMap<FString, FInteractionProfile>& Profiles);
 
 		/** handler to send all messages to */
 		TSharedRef<FGenericApplicationMessageHandler> MessageHandler;
@@ -96,7 +100,6 @@ public:
 	FOpenXRHMD* GetOpenXRHMD() const;
 
 	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
 	virtual TSharedPtr< class IInputDevice > CreateInputDevice(const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler) override;
 
 private:

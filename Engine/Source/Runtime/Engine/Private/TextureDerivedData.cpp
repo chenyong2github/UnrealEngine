@@ -47,11 +47,11 @@
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID and set this new
 // guid as version
 
-#define TEXTURE_DERIVEDDATA_VER		TEXT("E2FA6204B41A4C70A1E43E459EEAA510")
+#define TEXTURE_DERIVEDDATA_VER		TEXT("564290F8998644E39A2118D5C683187B")
 
 // This GUID is mixed into DDC version for virtual textures only, this allows updating DDC version for VT without invalidating DDC for all textures
 // This is useful during development, but once large numbers of VT are present in shipped content, it will have the same problem as TEXTURE_DERIVEDDATA_VER
-#define TEXTURE_VT_DERIVEDDATA_VER	TEXT("3CD28A010A9447808ECC76DF7759FBBE")
+#define TEXTURE_VT_DERIVEDDATA_VER	TEXT("1F1EB5C2A6054EAEB31E38E85AAD1A33")
 
 #if ENABLE_COOK_STATS
 namespace TextureCookStats
@@ -571,9 +571,9 @@ uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& D
 
 	// Write out individual mips to the derived data cache.
 	const int32 MipCount = DerivedData->Mips.Num();
-	const bool bIsCubemap = DerivedData->bCubemap;
-	const int32 FirstInlineMip = bIsCubemap ? 0 : FMath::Max(0, MipCount - FMath::Max((int32)NUM_INLINE_DERIVED_MIPS, (int32)DerivedData->NumMipsInTail));
-	const int32 WritableMipCount = MipCount - ((DerivedData->NumMipsInTail > 0) ? (DerivedData->NumMipsInTail - 1) : 0);
+	const bool bIsCubemap = DerivedData->IsCubemap();
+	const int32 FirstInlineMip = bIsCubemap ? 0 : FMath::Max(0, MipCount - FMath::Max((int32)NUM_INLINE_DERIVED_MIPS, (int32)DerivedData->GetNumMipsInTail()));
+	const int32 WritableMipCount = MipCount - ((DerivedData->GetNumMipsInTail() > 0) ? (DerivedData->GetNumMipsInTail() - 1) : 0);
 	for (int32 MipIndex = 0; MipIndex < WritableMipCount; ++MipIndex)
 	{
 		FString MipDerivedDataKey;
@@ -1010,11 +1010,8 @@ bool FTexturePlatformData::TryInlineMipData(int32 FirstMipToLoad)
 FTexturePlatformData::FTexturePlatformData()
 	: SizeX(0)
 	, SizeY(0)
-	, NumSlices(0)
+	, PackedData(0)
 	, PixelFormat(PF_Unknown)
-	, ExtData(0)
-	, NumMipsInTail(0)
-	, bCubemap(false)
 	, VTData(nullptr)
 #if WITH_EDITORONLY_DATA
 	, AsyncTask(NULL)
@@ -1051,7 +1048,7 @@ bool FTexturePlatformData::IsReadyForAsyncPostLoad() const
 bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData)
 {
 	int32 NumMipsCached = 0;
-	const int32 LoadableMips = Mips.Num() - ((NumMipsInTail > 0) ? (NumMipsInTail - 1) : 0);
+	const int32 LoadableMips = Mips.Num() - ((GetNumMipsInTail() > 0) ? (GetNumMipsInTail() - 1) : 0);
 
 #if WITH_EDITOR
 	TArray<uint8> TempData;
@@ -1076,19 +1073,18 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData)
 	for (int32 MipIndex = FirstMipToLoad; MipIndex < LoadableMips; ++MipIndex)
 	{
 		FTexture2DMipMap& Mip = Mips[MipIndex];
-		if (Mip.BulkData.GetBulkDataSize() > 0)
+		const int64 BulkDataSize = Mip.BulkData.GetBulkDataSize();
+		if (BulkDataSize > 0)
 		{
-			if (OutMipData)
+			if (OutMipData != nullptr)
 			{
-				OutMipData[MipIndex - FirstMipToLoad] = FMemory::Malloc(Mip.BulkData.GetBulkDataSize());
-
 #if PLATFORM_SUPPORTS_TEXTURE_STREAMING && !TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
 				// We want to make sure that any non-streamed mips are coming from the texture asset file, and not from an external bulk file.
 				// But because "r.TextureStreaming" is driven by the project setting as well as the command line option "-NoTextureStreaming", 
 				// is it possible for streaming mips to be loaded in non streaming ways.
 				if (CVarSetTextureStreaming.GetValueOnAnyThread() != 0)
 				{
-					UE_CLOG(Mip.BulkData.GetFilename().EndsWith(TEXT(".ubulk")), LogTexture, Error, TEXT("Loading non-streamed mips from an external bulk file.  This is not desireable.  File %s"), *(Mip.BulkData.GetFilename() ) );
+					UE_CLOG(Mip.BulkData.InSeperateFile(), LogTexture, Error, TEXT("Loading non-streamed mips from an external bulk file.  This is not desireable.  File %s"), *(Mip.BulkData.GetFilename() ) );
 				}
 #endif
 				Mip.BulkData.GetCopy(&OutMipData[MipIndex - FirstMipToLoad], true);
@@ -1169,7 +1165,7 @@ int32 FTexturePlatformData::GetNumNonStreamingMips() const
 		int32 NumNonStreamingMips = 1;
 
 		// Take in to account the min resident limit.
-		NumNonStreamingMips = FMath::Max(NumNonStreamingMips, (int32)NumMipsInTail);
+		NumNonStreamingMips = FMath::Max(NumNonStreamingMips, (int32)GetNumMipsInTail());
 		NumNonStreamingMips = FMath::Max(NumNonStreamingMips, UTexture2D::GetStaticMinTextureResidentMipCount());
 		NumNonStreamingMips = FMath::Min(NumNonStreamingMips, MipCount);
 		int32 BlockSizeX = GPixelFormats[PixelFormat].BlockSizeX;
@@ -1243,15 +1239,15 @@ static void SerializePlatformData(
 	UTexture* Texture,
 	bool bCooked,
 	bool bStreamable
-	)
+)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER( TEXT("SerializePlatformData"), STAT_Texture_SerializePlatformData, STATGROUP_LoadTime );
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("SerializePlatformData"), STAT_Texture_SerializePlatformData, STATGROUP_LoadTime);
 
 	UEnum* PixelFormatEnum = UTexture::GetPixelFormatEnum();
 
 	Ar << PlatformData->SizeX;
 	Ar << PlatformData->SizeY;
-	Ar << PlatformData->NumSlices;
+	Ar << PlatformData->PackedData;
 	if (Ar.IsLoading())
 	{
 		FString PixelFormatString;
@@ -1263,8 +1259,11 @@ static void SerializePlatformData(
 		FString PixelFormatString = PixelFormatEnum->GetNameByValue(PlatformData->PixelFormat).GetPlainNameString();
 		Ar << PixelFormatString;
 	}
- 	Ar << PlatformData->ExtData;
- 	Ar << PlatformData->NumMipsInTail;
+
+	if (PlatformData->GetHasOptData())
+	{
+		Ar << PlatformData->OptData;
+	}
 
 	int32 NumMips = PlatformData->Mips.Num();
 	int32 FirstMipToSerialize = 0;
@@ -1295,14 +1294,14 @@ static void SerializePlatformData(
 			const int32 NumCinematicMipLevels = Texture->NumCinematicMipLevels;
 			const TextureMipGenSettings MipGenSetting = Texture->MipGenSettings;
 			const int32 LastMip = FMath::Max(NumMips - 1, 0);
-			check(NumMips >= (int32)PlatformData->NumMipsInTail);
-			const int32 FirstMipTailMip = NumMips - (int32)PlatformData->NumMipsInTail;
+			check(NumMips >= (int32)PlatformData->GetNumMipsInTail());
+			const int32 FirstMipTailMip = NumMips - (int32)PlatformData->GetNumMipsInTail();
 
 			FirstMipToSerialize = Ar.CookingTarget()->GetTextureLODSettings().CalculateLODBias(Width, Height, Texture->MaxTextureSize, LODGroup, LODBias, 0, MipGenSetting, bIsVirtual);
 			if (!bIsVirtual)
 			{
-				FirstMipToSerialize = FMath::Clamp(FirstMipToSerialize, 0, PlatformData->NumMipsInTail > 0 ? FirstMipTailMip : LastMip);
-				NumMips = FMath::Max(1, NumMips - FirstMipToSerialize);
+				FirstMipToSerialize = FMath::Clamp(FirstMipToSerialize, 0, PlatformData->GetNumMipsInTail() > 0 ? FirstMipTailMip : LastMip);
+				NumMips = FMath::Max(0, NumMips - FirstMipToSerialize);
 			}
 			else
 			{
@@ -1385,7 +1384,7 @@ static void SerializePlatformData(
 		}
 	}
 	Ar << NumMips;
-	check(NumMips >= (int32)PlatformData->NumMipsInTail);
+	check(NumMips >= (int32)PlatformData->GetNumMipsInTail());
 	if (Ar.IsLoading())
 	{
 		check(FirstMipToSerialize == 0);
@@ -1454,7 +1453,7 @@ void FTexturePlatformData::SerializeCooked(FArchive& Ar, UTexture* Owner, bool b
 			// SizeZ is not the same as NumSlices for texture arrays and cubemaps.
 			if (Owner && Owner->IsA(UVolumeTexture::StaticClass()))
 			{
-				 NumSlices = Mips[0].SizeZ;
+				SetNumSlices(Mips[0].SizeZ);
 			}
 		}
 		else if ( VTData )
@@ -1596,6 +1595,7 @@ void UTexture::BeginCacheForCookedPlatformData( const ITargetPlatform *TargetPla
 		FTextureBuildSettings BuildSettings;
 		const bool bPlatformSupportsTextureStreaming = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::TextureStreaming);
 		const bool bPlatformSupportsVirtualTextureStreaming = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
+
 		GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), bPlatformSupportsTextureStreaming, bPlatformSupportsVirtualTextureStreaming, BuildSettings);
 		
 		TArray< TArray<FTextureBuildSettings> > BuildSettingsToCache;
@@ -1679,6 +1679,7 @@ void UTexture::ClearCachedCookedPlatformData( const ITargetPlatform* TargetPlatf
 		FTextureBuildSettings BuildSettings;
 		const bool bPlatformSupportsTextureStreaming = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::TextureStreaming);
 		const bool bPlatformSupportsVirtualTextureStreaming = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
+
 		GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), bPlatformSupportsTextureStreaming, bPlatformSupportsVirtualTextureStreaming, BuildSettings);
 
 		TArray< TArray<FTextureBuildSettings> > BuildSettingsToCache;
@@ -1740,6 +1741,7 @@ bool UTexture::IsCachedCookedPlatformDataLoaded( const ITargetPlatform* TargetPl
 
 	const bool bPlatformSupportsTextureStreaming = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::TextureStreaming);
 	const bool bPlatformSupportsVirtualTextureStreaming = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
+
 	GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), bPlatformSupportsTextureStreaming, bPlatformSupportsVirtualTextureStreaming, BuildSettings);
 
 	TArray< TArray<FTextureBuildSettings> > BuildSettingsToCache;
@@ -1944,6 +1946,7 @@ void UTexture::SerializeCookedPlatformData(FArchive& Ar)
 			FTextureBuildSettings BuildSettings;
 			const bool bPlatformSupportsTextureStreaming = Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::TextureStreaming);
 			const bool bPlatformSupportsVirtualTextureStreaming = Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
+
 			GetTextureBuildSettings(*this, Ar.CookingTarget()->GetTextureLODSettings(), bPlatformSupportsTextureStreaming, bPlatformSupportsVirtualTextureStreaming, BuildSettings);
 
 			TArray<FTexturePlatformData*> PlatformDataToSerialize;

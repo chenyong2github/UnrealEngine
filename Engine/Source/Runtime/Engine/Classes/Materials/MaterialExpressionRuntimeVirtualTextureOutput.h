@@ -37,6 +37,10 @@ class UMaterialExpressionRuntimeVirtualTextureOutput : public UMaterialExpressio
 	UPROPERTY()
 	FExpressionInput Opacity;
 
+	/** Input for Mask to output to virtual texture. */
+	UPROPERTY()
+	FExpressionInput Mask;
+
 public:
 #if WITH_EDITOR
 	//~ Begin UMaterialExpression Interface

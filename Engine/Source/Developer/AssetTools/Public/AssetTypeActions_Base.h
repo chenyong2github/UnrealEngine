@@ -167,6 +167,16 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return FText::GetEmpty();
 	}
 
+	virtual void SetSupported(bool bInSupported) final
+	{
+		bIsSupported = bInSupported;
+	}
+
+	virtual bool IsSupported() const final
+	{
+		return bIsSupported;
+	}
+
 protected:
 
 	// Here are some convenience functions for common asset type actions logic
@@ -219,4 +229,7 @@ protected:
 
 		return TypedObjects;
 	}
+
+private:
+	bool bIsSupported = true;
 };

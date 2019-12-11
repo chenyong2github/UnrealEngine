@@ -54,13 +54,34 @@ class FOcclusionRGS : public FGlobalShader
 	class FLightTypeDim : SHADER_PERMUTATION_INT("LIGHT_TYPE", LightType_MAX);
 	class FDenoiserOutputDim : SHADER_PERMUTATION_INT("DIM_DENOISER_OUTPUT", 3);
 	class FEnableTwoSidedGeometryDim : SHADER_PERMUTATION_BOOL("ENABLE_TWO_SIDED_GEOMETRY");
+	class FEnableMultipleSamplesPerPixel : SHADER_PERMUTATION_BOOL("ENABLE_MULTIPLE_SAMPLES_PER_PIXEL");
 	class FHairLighting : SHADER_PERMUTATION_INT("USE_HAIR_LIGHTING", 2);
 
-	using FPermutationDomain = TShaderPermutationDomain<FLightTypeDim, FDenoiserOutputDim, FEnableTwoSidedGeometryDim, FHairLighting>;
+	using FPermutationDomain = TShaderPermutationDomain<FLightTypeDim, FDenoiserOutputDim, FEnableTwoSidedGeometryDim, FHairLighting, FEnableMultipleSamplesPerPixel>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_DYNAMIC_CLOSEST_HIT_SHADER"), 0);
+		OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_DYNAMIC_ANY_HIT_SHADER"),     1);
+		OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_DYNAMIC_MISS_SHADER"),        0);
+
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		if (PermutationVector.Get<FLightTypeDim>() == LightType_Directional &&
+			PermutationVector.Get<FHairLighting>() == 0)
+		{
+			OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_COHERENT_RAYS"), 1);
+		}
+		else
+		{
+			OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_COHERENT_RAYS"), 0);
+		}
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -100,19 +121,25 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingShadows(const FViewInfo& Vi
 		IScreenSpaceDenoiser::EShadowRequirements::PenumbraAndClosestOccluder,
 	};
 
-	for (int32 HairLighting = 0; HairLighting < 2; ++HairLighting)
-	for (int32 LightType = 0; LightType < LightType_MAX; ++LightType)
+	for (int32 MultiSPP = 0; MultiSPP < 2; ++MultiSPP)
 	{
-		for (IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirement : DenoiserRequirements)
+		for (int32 HairLighting = 0; HairLighting < 2; ++HairLighting)
 		{
-			FOcclusionRGS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FOcclusionRGS::FLightTypeDim>(LightType);
-			PermutationVector.Set<FOcclusionRGS::FDenoiserOutputDim>((int32)DenoiserRequirement);
-			PermutationVector.Set<FOcclusionRGS::FEnableTwoSidedGeometryDim>(CVarRayTracingShadowsEnableTwoSidedGeometry.GetValueOnRenderThread() != 0);
-			PermutationVector.Set<FOcclusionRGS::FHairLighting>(HairLighting);
+			for (int32 LightType = 0; LightType < LightType_MAX; ++LightType)
+			{
+				for (IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirement : DenoiserRequirements)
+				{
+					FOcclusionRGS::FPermutationDomain PermutationVector;
+					PermutationVector.Set<FOcclusionRGS::FLightTypeDim>(LightType);
+					PermutationVector.Set<FOcclusionRGS::FDenoiserOutputDim>((int32)DenoiserRequirement);
+					PermutationVector.Set<FOcclusionRGS::FEnableTwoSidedGeometryDim>(CVarRayTracingShadowsEnableTwoSidedGeometry.GetValueOnRenderThread() != 0);
+					PermutationVector.Set<FOcclusionRGS::FHairLighting>(HairLighting);
+					PermutationVector.Set<FOcclusionRGS::FEnableMultipleSamplesPerPixel>(MultiSPP != 0);
 
-			TShaderMapRef<FOcclusionRGS> RayGenerationShader(View.ShaderMap, PermutationVector);
-			OutRayGenShaders.Add(RayGenerationShader->GetRayTracingShader());
+					TShaderMapRef<FOcclusionRGS> RayGenerationShader(View.ShaderMap, PermutationVector);
+					OutRayGenShaders.Add(RayGenerationShader->GetRayTracingShader());
+				}
+			}
 		}
 	}
 }
@@ -128,8 +155,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 	const IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements,
 	const bool bSubPixelShadowMask,
 	FRDGTextureRef HairCategorizationTexture,
-	FRDGTextureRef* OutShadowMask,
-	FRDGTextureRef* OutRayHitDistance)
+	FRDGTextureUAV* OutShadowMaskUAV,
+	FRDGTextureUAV* OutRayHitDistanceUAV)
 #if RHI_RAYTRACING
 {
 	FLightSceneProxy* LightSceneProxy = LightSceneInfo.Proxy;
@@ -164,7 +191,10 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 	FIntPoint PixelOffset = { 0, 0 };
 
 	// whether to clip the dispatch to a subrect, requires that denoising doesn't need the whole buffer
-	const bool bClipDispatch = DenoiserRequirements == IScreenSpaceDenoiser::EShadowRequirements::Bailout;
+	
+	//#dxr_todo: reenable Clip Dispatch with multiview support
+	//const bool bClipDispatch = DenoiserRequirements == IScreenSpaceDenoiser::EShadowRequirements::Bailout;
+	const bool bClipDispatch = false;//  DenoiserRequirements == IScreenSpaceDenoiser::EShadowRequirements::Bailout;
 
 	if (LightSceneProxy->GetScissorRect(ScissorRect, View, View.ViewRect))
 	{
@@ -186,8 +216,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 	{
 		const bool bUseHairLighting = HairCategorizationTexture != nullptr;
 		FOcclusionRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FOcclusionRGS::FParameters>();
-		PassParameters->RWOcclusionMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenShadowMaskTexture));
-		PassParameters->RWRayDistanceUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RayDistanceTexture));
+		PassParameters->RWOcclusionMaskUAV = OutShadowMaskUAV;
+		PassParameters->RWRayDistanceUAV = OutRayHitDistanceUAV;
 		PassParameters->SamplesPerPixel = RayTracingConfig.RayCountPerPixel;
 		PassParameters->NormalBias = GetRaytracingMaxNormalBias();
 		PassParameters->LightingChannelMask = LightSceneProxy->GetLightingChannelMask();
@@ -220,6 +250,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 		}
 		PermutationVector.Set<FOcclusionRGS::FEnableTwoSidedGeometryDim>(CVarRayTracingShadowsEnableTwoSidedGeometry.GetValueOnRenderThread() != 0);
 		PermutationVector.Set<FOcclusionRGS::FHairLighting>(bUseHairLighting? 1 : 0);
+
+		PermutationVector.Set<FOcclusionRGS::FEnableMultipleSamplesPerPixel>(RayTracingConfig.RayCountPerPixel > 1);
 
 		TShaderMapRef<FOcclusionRGS> RayGenerationShader(GetGlobalShaderMap(FeatureLevel), PermutationVector);
 
@@ -266,9 +298,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 			}
 		});
 	}
-
-	*OutShadowMask = ScreenShadowMaskTexture;
-	*OutRayHitDistance = RayDistanceTexture;
 }
 #else // !RHI_RAYTRACING
 {

@@ -1113,11 +1113,11 @@ void BuildMetalShaderOutput(
 		{
 			if ((TypedBuffers & (1 << i)) != 0)
 			{
-				check(TypedBufferFormats[i] > Unknown);
-                check(TypedBufferFormats[i] < Max);
+				check(TypedBufferFormats[i] > (uint8)EMetalBufferFormat::Unknown);
+                check(TypedBufferFormats[i] < (uint8)EMetalBufferFormat::Max);
                 if ((TypeMode > EMetalTypeBufferModeRaw)
                 && (TypeMode <= EMetalTypeBufferModeTB)
-                && (TypedBufferFormats[i] < RGB8Sint || TypedBufferFormats[i] > RGB32Float)
+                && (TypedBufferFormats[i] < (uint8)EMetalBufferFormat::RGB8Sint || TypedBufferFormats[i] > (uint8)EMetalBufferFormat::RGB32Float)
                 && (TypeMode == EMetalTypeBufferMode2D || TypeMode == EMetalTypeBufferModeTB || !(TypedUAVs & (1 << i))))
                 {
                 	Header.Bindings.LinearBuffer |= (1 << i);
@@ -2836,7 +2836,7 @@ bool FinalizeLibrary_Metal(FName const& Format, FString const& WorkingDir, FStri
 					RemoteLibPath = OriginalRemoteLibPath + FString::Printf(TEXT(".%x%x%x%x"), Guid.A, Guid.B, Guid.C, Guid.D);
 				}
 			
-				Params = FString::Printf(TEXT("-o=\"%s\" \"%s\""), *RemoteLibPath, *ArchivePath);
+				Params = FString::Printf(TEXT("-o \"%s\" \"%s\""), *RemoteLibPath, *ArchivePath);
 				ReturnCode = 0;
 				Results = TEXT("");
 				Errors = TEXT("");

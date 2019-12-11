@@ -64,15 +64,15 @@ class USkyAtmosphereComponent : public USceneComponent
 
 
 	/** Rayleigh scattering coefficient scale.*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere - Raleigh", meta = (UIMin = 0.0, UIMax = 2.0, ClampMin = 0.0, SliderExponent = 4.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere - Rayleigh", meta = (UIMin = 0.0, UIMax = 2.0, ClampMin = 0.0, SliderExponent = 4.0))
 	float RayleighScatteringScale;
 
 	/** The Rayleigh scattering coefficients resulting from molecules in the air at an altitude of 0 kilometer. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere - Raleigh", meta=(HideAlphaChannel))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere - Rayleigh", meta=(HideAlphaChannel))
 	FLinearColor RayleighScattering;
 
 	/** The altitude in kilometer at which Rayleigh scattering effect is reduced to 40%.*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere - Raleigh", meta = (UIMin = 0.01, UIMax = 20.0, ClampMin = 0.1, SliderExponent = 5.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere - Rayleigh", meta = (UIMin = 0.01, UIMax = 20.0, ClampMin = 0.1, SliderExponent = 5.0))
 	float RayleighExponentialDistribution;
 
 
@@ -128,6 +128,10 @@ class USkyAtmosphereComponent : public USceneComponent
 	/** Scale the sky and atmosphere lights contribution to the height fog when SupportSkyAtmosphereAffectsHeightFog project setting is true.*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Art direction", meta = (UIMin = 0.0, UIMax = 1.0, ClampMin = 0.0, SliderExponent = 2.0))
 	float HeightFogContribution;
+
+	/** The minimum elevation angle in degree that should be used to evaluate the sun transmittance to the ground. Useful to maintain a visible sun light and shadow on meshes even when the sun has started going below the horizon. This does not affect the aerial perspective.*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Art direction", meta = (UIMin = -90.0, UIMax = 90.0, ClampMin = -90.0f, ClampMax = 90.0f))
+	float TransmittanceMinLightElevationAngle = -90.0f;
 
 
 

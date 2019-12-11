@@ -489,17 +489,8 @@ private:
 	 */
 	bool CanDeleteMaterialElement(int32 LODIndex, int32 SectionIndex) const;
 
-	/**
-	 * Handler for deleting material elements
-	 * 
-	 * @Param SectionIndex - material section to remove
-	 */
-	FReply OnDeleteButtonClicked(int32 LODIndex, int32 SectionIndex);
-
 	/** Creates the UI for Current LOD panel */
 	void AddLODLevelCategories(IDetailLayoutBuilder& DetailLayout);
-
-	bool IsDuplicatedMaterialIndex(int32 LODIndex, int32 MaterialIndex);
 
 	/** Get a material index from LOD index and section index */
 	int32 GetMaterialIndex(int32 LODIndex, int32 SectionIndex) const;
@@ -690,9 +681,6 @@ private:
 
 	// If the clothing details widget is editable
 	bool IsClothingPanelEnabled() const;
-
-	// Callback after the clothing details are changed
-	void OnFinishedChangingClothingProperties(const FPropertyChangedEvent& Event, int32 InAssetIndex);
 
 	/* Generate slate UI for Clothing category */
 	void CustomizeClothingProperties(class IDetailLayoutBuilder& DetailLayout, class IDetailCategoryBuilder& ClothingFilesCategory);

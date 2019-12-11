@@ -2,11 +2,10 @@
 
 #pragma once
 
+#include "DatasmithDefinitions.h"
 #include "IDatasmithSceneElements.h"
 
 #include "Templates/SharedPointer.h"
-
-enum class EPropertyValueCategory : uint8;
 
 class DATASMITHCORE_API IDatasmithBasePropertyCaptureElement : public IDatasmithElement
 {
@@ -14,8 +13,8 @@ public:
 	virtual void SetPropertyPath(const FString& Path) = 0;
 	virtual const FString& GetPropertyPath() const = 0;
 
-	virtual void SetCategory(EPropertyValueCategory Category) = 0;
-	virtual EPropertyValueCategory GetCategory() const = 0;
+	virtual void SetCategory(EDatasmithPropertyCategory Category) = 0;
+	virtual EDatasmithPropertyCategory GetCategory() const = 0;
 };
 
 class DATASMITHCORE_API IDatasmithPropertyCaptureElement : public IDatasmithBasePropertyCaptureElement

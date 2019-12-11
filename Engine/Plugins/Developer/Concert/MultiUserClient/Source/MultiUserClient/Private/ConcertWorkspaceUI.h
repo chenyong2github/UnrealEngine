@@ -58,6 +58,9 @@ private:
 	FText GetUserDescriptionText(const FGuid& ClientId) const;
 	FText GetUserDescriptionText(const FConcertClientInfo& ClientInfo) const;
 
+	/** Returns the avatar color corresponding to the specified client Id (including this client). */
+	FLinearColor GetUserAvatarColor(const FGuid& ClientId) const;
+
 	/** Get the local workspace's lock id. */
 	FGuid GetWorkspaceLockId() const;
 

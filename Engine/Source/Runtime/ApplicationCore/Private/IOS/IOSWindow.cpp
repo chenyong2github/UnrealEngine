@@ -84,6 +84,22 @@ FPlatformRect FIOSWindow::GetScreenRect()
 	return ScreenRect;
 }
 
+FPlatformRect FIOSWindow::GetUIWindowRect()
+{
+	// get the main window's bounds
+	IOSAppDelegate* AppDelegate = [IOSAppDelegate GetDelegate];
+	UIWindow* Window = AppDelegate.Window;
+	CGRect Bounds = [Window bounds];
+
+	FPlatformRect WindowRect;
+	WindowRect.Top = Bounds.origin.y;
+	WindowRect.Bottom = Bounds.origin.y + Bounds.size.height;
+	WindowRect.Left = Bounds.origin.x;
+	WindowRect.Right = Bounds.origin.x + Bounds.size.width;
+
+	return WindowRect;
+}
+
 
 bool FIOSWindow::GetFullScreenInfo( int32& X, int32& Y, int32& Width, int32& Height ) const
 {

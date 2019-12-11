@@ -31,6 +31,11 @@ void FSkeletalMeshComponentAdapter::RetrieveMeshSections(int32 LODIndex, TArray<
 
 int32 FSkeletalMeshComponentAdapter::GetMaterialIndex(int32 LODIndex, int32 SectionIndex) const
 {
+	const FSkeletalMeshLODInfo* LODInfoPtr = SkeletalMesh->GetLODInfo(LODIndex);
+	if (LODInfoPtr && LODInfoPtr->LODMaterialMap.IsValidIndex(SectionIndex) && LODInfoPtr->LODMaterialMap[SectionIndex] != INDEX_NONE)
+	{
+		return LODInfoPtr->LODMaterialMap[SectionIndex];
+	}
 	return SkeletalMesh->GetImportedModel()->LODModels[LODIndex].Sections[SectionIndex].MaterialIndex;
 }
 
@@ -46,12 +51,28 @@ FString FSkeletalMeshComponentAdapter::GetBaseName() const
 
 void FSkeletalMeshComponentAdapter::SetMaterial(int32 MaterialIndex, UMaterialInterface* Material)
 {
-	SkeletalMesh->Materials[MaterialIndex] = Material;
+	//Use the material name has the slot name and imported slot name
+	//TODO: find a way to pass the original Material names MaterialSlotName and ImportedMaterialSlotName
+	SkeletalMesh->Materials[MaterialIndex] = FSkeletalMaterial(Material, true, false, Material->GetFName(), Material->GetFName());
 }
 
 void FSkeletalMeshComponentAdapter::RemapMaterialIndex(int32 LODIndex, int32 SectionIndex, int32 NewMaterialIndex)
 {
-	SkeletalMesh->GetImportedModel()->LODModels[LODIndex].Sections[SectionIndex].MaterialIndex = NewMaterialIndex;
+	FSkeletalMeshLODInfo* LODInfoPtr = SkeletalMesh->GetLODInfo(LODIndex);
+	check(LODInfoPtr);
+	if (SkeletalMesh->GetImportedModel()->LODModels[LODIndex].Sections[SectionIndex].MaterialIndex == NewMaterialIndex)
+	{
+		if (LODInfoPtr->LODMaterialMap.IsValidIndex(SectionIndex))
+		{
+			LODInfoPtr->LODMaterialMap[SectionIndex] = INDEX_NONE;
+		}
+	}
+	
+	while (!LODInfoPtr->LODMaterialMap.IsValidIndex(SectionIndex))
+	{
+		LODInfoPtr->LODMaterialMap.Add(INDEX_NONE);
+	}
+	LODInfoPtr->LODMaterialMap[SectionIndex] = NewMaterialIndex;
 }
 
 int32 FSkeletalMeshComponentAdapter::AddMaterial(UMaterialInterface* Material)

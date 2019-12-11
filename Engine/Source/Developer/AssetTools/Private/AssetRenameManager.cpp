@@ -277,8 +277,33 @@ void FAssetRenameManager::FindSoftReferencesToObject(FSoftObjectPath TargetObjec
 	PopulateAssetReferencers(AssetsToRename);
 
 	// Load all referencing objects and find for referencing objects
-	TArray<UPackage*> ReferencingPackagesToSave;
-	LoadReferencingPackages(AssetsToRename, true, false, ReferencingPackagesToSave, ReferencingObjects);
+	TMap<FSoftObjectPath, TArray<UObject*>> ReferencingObjectsMap;
+
+	GatherReferencingObjects(AssetsToRename, ReferencingObjectsMap);
+
+	// Build an array out of the map results.
+	for (const auto& It : ReferencingObjectsMap)
+	{
+		for (UObject* Obj : It.Value)
+		{
+			ReferencingObjects.AddUnique(Obj);
+		}
+	}
+}
+
+void FAssetRenameManager::FindSoftReferencesToObjects(const TArray<FSoftObjectPath>& TargetObjects, TMap<FSoftObjectPath, TArray<UObject*>>& ReferencingObjects) const
+{
+	TArray<FAssetRenameDataWithReferencers> AssetsToRename;
+	for (const FSoftObjectPath& TargetObject : TargetObjects)
+	{
+		AssetsToRename.Emplace(FAssetRenameDataWithReferencers(FAssetRenameData(TargetObject, TargetObject, true)));
+	}
+
+	// Fill out referencers from asset registry
+	PopulateAssetReferencers(AssetsToRename);
+
+	// Load all referencing objects and find for referencing objects
+	GatherReferencingObjects(AssetsToRename, ReferencingObjects);
 }
 
 void FAssetRenameManager::FixReferencesAndRenameCallback(TArray<FAssetRenameData> AssetsAndNames, bool bAutoCheckout, bool bWithDialog) const
@@ -505,6 +530,13 @@ void FAssetRenameManager::PopulateAssetReferencers(TArray<FAssetRenameDataWithRe
 		}
 	}
 
+	TMap<FName, TArray<FName>> SoftReferencers;
+	TMap<FName, TArray<FName>> PackageReferencers;
+
+	TArray<UPackage*> ExtraPackagesToCheckForSoftReferences;
+	FEditorFileUtils::GetDirtyWorldPackages(ExtraPackagesToCheckForSoftReferences);
+	FEditorFileUtils::GetDirtyContentPackages(ExtraPackagesToCheckForSoftReferences);
+
 	// Gather all referencing packages for all assets that are being renamed
 	for (FAssetRenameDataWithReferencers& AssetToRename : AssetsToPopulate)
 	{
@@ -512,10 +544,14 @@ void FAssetRenameManager::PopulateAssetReferencers(TArray<FAssetRenameDataWithRe
 
 		FName OldPackageName = FName(*AssetToRename.OldObjectPath.GetLongPackageName());
 
-		TArray<FName> Referencers;
-		AssetRegistryModule.Get().GetReferencers(OldPackageName, Referencers, AssetToRename.bOnlyFixSoftReferences ? EAssetRegistryDependencyType::Soft : EAssetRegistryDependencyType::Packages);
+		TMap<FName, TArray<FName>>& ReferencersMap = AssetToRename.bOnlyFixSoftReferences ? SoftReferencers : PackageReferencers;
+		if (!ReferencersMap.Contains(OldPackageName))
+		{
+			TArray<FName>& Referencers = ReferencersMap.Add(OldPackageName);
+			AssetRegistryModule.Get().GetReferencers(OldPackageName, Referencers, AssetToRename.bOnlyFixSoftReferences ? EAssetRegistryDependencyType::Soft : EAssetRegistryDependencyType::Packages);
+		}
 
-		for (const FName& ReferencingPackageName : Referencers)
+		for (const FName& ReferencingPackageName : ReferencersMap.FindChecked(OldPackageName))
 		{
 			if (!RenamingAssetPackageNames.Contains(ReferencingPackageName))
 			{
@@ -529,11 +565,6 @@ void FAssetRenameManager::PopulateAssetReferencers(TArray<FAssetRenameDataWithRe
 			AssetToRename.ReferencingPackageNames.AddUnique(FName(*AssetToRename.NewObjectPath.GetLongPackageName()));
 
 			// Add dirty packages and the package that owns the reference. They will get filtered out in LoadReferencingPackages if they aren't valid
-			TArray<UPackage*> ExtraPackagesToCheckForSoftReferences;
-
-			FEditorFileUtils::GetDirtyWorldPackages(ExtraPackagesToCheckForSoftReferences);
-			FEditorFileUtils::GetDirtyContentPackages(ExtraPackagesToCheckForSoftReferences);
-
 			for (UPackage* Package : ExtraPackagesToCheckForSoftReferences)
 			{
 				AssetToRename.ReferencingPackageNames.AddUnique(Package->GetFName());
@@ -705,6 +736,49 @@ void FAssetRenameManager::LoadReferencingPackages(TArray<FAssetRenameDataWithRef
 	if (bStartedSlowTask)
 	{
 		GWarn->EndSlowTask();
+	}
+}
+
+void FAssetRenameManager::GatherReferencingObjects(TArray<FAssetRenameDataWithReferencers>& AssetsToRename, TMap<FSoftObjectPath, TArray<UObject*>>& OutSoftReferencingObjects) const
+{
+	const UBlueprintEditorProjectSettings* EditorProjectSettings = GetDefault<UBlueprintEditorProjectSettings>();
+	bool bLoadPackagesForSoftReferences = EditorProjectSettings->bValidateUnloadedSoftActorReferences;
+
+	TMap<UPackage*, TMap<FSoftObjectPath, FSoftObjectPath>> ReferencingPackages;
+
+	for (int32 AssetIdx = 0; AssetIdx < AssetsToRename.Num(); ++AssetIdx)
+	{
+		FAssetRenameDataWithReferencers& RenameData = AssetsToRename[AssetIdx];
+
+		UObject* Asset = RenameData.Asset.Get();
+		if (!Asset)
+		{
+			// The asset for this rename must have been GCed or is otherwise invalid. Skip it unless this is a soft reference only fix
+			continue;
+		}
+
+		for (FName PackageName : RenameData.ReferencingPackageNames)
+		{
+			UPackage* Package = FindPackage(nullptr, *PackageName.ToString());
+
+			// Don't load package if this is a soft reference fix and the project settings say not to
+			if (!Package && (!RenameData.bOnlyFixSoftReferences || bLoadPackagesForSoftReferences))
+			{
+				Package = LoadPackage(nullptr, *PackageName.ToString(), LOAD_None);
+			}
+
+			if (Package)
+			{
+				ReferencingPackages.FindOrAdd(Package).Add(RenameData.OldObjectPath, RenameData.NewObjectPath);
+			}
+		}
+	}
+
+	TArray<UPackage*> PackagesToSaveForThisAsset;
+	bool bAllPackagesLoadedForThisAsset = true;
+	for (const auto& ReferencingPackage : ReferencingPackages)
+	{
+		CheckPackageForSoftObjectReferences(ReferencingPackage.Key, ReferencingPackage.Value, OutSoftReferencingObjects);
 	}
 }
 
@@ -892,15 +966,26 @@ struct FSoftObjectPathRenameSerializer : public FArchiveUObject
 		return bFoundReference; 
 	}
 
-	FSoftObjectPathRenameSerializer(const TMap<FSoftObjectPath, FSoftObjectPath>& InRedirectorMap, bool bInCheckOnly, TMap<FSoftObjectPath, TSet<FWeakObjectPtr>>* InCachedObjectPaths)
+	FSoftObjectPathRenameSerializer(const TMap<FSoftObjectPath, FSoftObjectPath>& InRedirectorMap, bool bInCheckOnly, TMap<FSoftObjectPath, TSet<FWeakObjectPtr>>* InCachedObjectPaths, const FName InPackageName = NAME_None)
 		: RedirectorMap(InRedirectorMap)
 		, CachedObjectPaths(InCachedObjectPaths)
 		, CurrentObject(nullptr)
+		, PackageName(InPackageName)
 		, bSearchOnly(bInCheckOnly)
 		, bFoundReference(false)
 	{
+		if (InCachedObjectPaths)
+		{
+			DirtyDelegateHandle = UPackage::PackageMarkedDirtyEvent.AddRaw(this, &FSoftObjectPathRenameSerializer::OnMarkPackageDirty);
+		}
+
 		// Mark it as saving to correctly process all references
 		this->SetIsSaving(true);
+	}
+
+	virtual ~FSoftObjectPathRenameSerializer()
+	{
+		UPackage::PackageMarkedDirtyEvent.Remove(DirtyDelegateHandle);
 	}
 
 	virtual bool ShouldSkipProperty(const UProperty* InProperty) const override
@@ -997,10 +1082,22 @@ struct FSoftObjectPathRenameSerializer : public FArchiveUObject
 		return *this;
 	}
 
+	void OnMarkPackageDirty(UPackage* Pkg, bool bWasDirty)
+	{
+		UPackage::PackageMarkedDirtyEvent.Remove(DirtyDelegateHandle);
+
+		if (CachedObjectPaths && Pkg && Pkg->GetFName() == PackageName)
+		{
+			UE_LOG(LogAssetTools, VeryVerbose, TEXT("Performance: Package unexpectedly modified during serialization by FSoftObjectPathRenameSerializer: %s"), *Pkg->GetFullName());
+		}
+	}
+
 private:
 	const TMap<FSoftObjectPath, FSoftObjectPath>& RedirectorMap;
 	TMap<FSoftObjectPath, TSet<FWeakObjectPtr>>* CachedObjectPaths;
+	FDelegateHandle DirtyDelegateHandle;
 	UObject* CurrentObject;
+	FName PackageName;
 	bool bSearchOnly;
 	bool bFoundReference;
 
@@ -1054,6 +1151,23 @@ void FAssetRenameManager::OnMarkPackageDirty(UPackage* Pkg, bool bWasDirty)
 
 bool FAssetRenameManager::CheckPackageForSoftObjectReferences(UPackage* Package, const TMap<FSoftObjectPath, FSoftObjectPath>& AssetRedirectorMap, TArray<UObject*>& OutReferencingObjects) const
 {	
+	TMap<FSoftObjectPath, TArray<UObject*>> ReferencingObjectsMap;
+	
+	CheckPackageForSoftObjectReferences(Package, AssetRedirectorMap, ReferencingObjectsMap);
+
+	// Build an array out of the map results.
+	for (const auto& It : ReferencingObjectsMap)
+	{
+		for (UObject* Obj : It.Value)
+		{
+			OutReferencingObjects.AddUnique(Obj);
+		}
+	}
+	return OutReferencingObjects.Num() != 0;
+}
+
+bool FAssetRenameManager::CheckPackageForSoftObjectReferences(UPackage* Package, const TMap<FSoftObjectPath, FSoftObjectPath>& AssetRedirectorMap, TMap<FSoftObjectPath, TArray<UObject*>>& OutReferencingObjects) const
+{
 	using namespace AssetRenameManagerImpl;
 
 	struct FSoftObjectPathLess
@@ -1066,14 +1180,12 @@ bool FAssetRenameManager::CheckPackageForSoftObjectReferences(UPackage* Package,
 	};
 
 	bool bFoundReference = false;
-	
+
 	// First check cache
 	FCachedSoftReference* CachedReferences = CachedSoftReferences.Find(Package->GetFName());
 
 	if (CachedReferences == nullptr)
 	{
-		CachedReferences = &CachedSoftReferences.Add(Package->GetFName());
-
 		// Bind to dirty callback if we aren't already
 		if (!DirtyDelegateHandle.IsValid())
 		{
@@ -1082,7 +1194,8 @@ bool FAssetRenameManager::CheckPackageForSoftObjectReferences(UPackage* Package,
 
 		//Extract all objects soft references along with their referencer and cache them to avoid having to serialize again
 		TMap<FSoftObjectPath, FSoftObjectPath> EmptyMap;
-		FSoftObjectPathRenameSerializer CheckSerializer(EmptyMap, true, &CachedReferences->Map);
+		TMap<FSoftObjectPath, TSet<FWeakObjectPtr>> MapForCache;
+		FSoftObjectPathRenameSerializer CheckSerializer(EmptyMap, true, &MapForCache, Package->GetFName());
 
 		TArray<UObject*> ObjectsInPackage;
 		GetObjectsWithOuter(Package, ObjectsInPackage);
@@ -1097,6 +1210,9 @@ bool FAssetRenameManager::CheckPackageForSoftObjectReferences(UPackage* Package,
 			CheckSerializer.StartSerializingObject(Object);
 			Object->Serialize(CheckSerializer);
 		}
+
+		CachedReferences = &CachedSoftReferences.Add(Package->GetFName());
+		CachedReferences->Map = MoveTemp(MapForCache);
 
 		CachedReferences->Map.GenerateKeyArray(CachedReferences->Keys);
 		
@@ -1135,7 +1251,7 @@ bool FAssetRenameManager::CheckPackageForSoftObjectReferences(UPackage* Package,
 					UObject* ObjectPtr = WeakPtr.Get();
 					if (ObjectPtr)
 					{
-						OutReferencingObjects.AddUnique(ObjectPtr);
+						OutReferencingObjects.FindOrAdd(CachedKey).AddUnique(ObjectPtr);
 					}
 				}
 			}

@@ -15,11 +15,20 @@
 #include "SocketTypes.h"
 #include "IpNetDriver.generated.h"
 
+
+// Forward declarations
 class Error;
 class FInternetAddr;
 class FNetworkNotify;
 class FSocket;
 struct FRecvMulti;
+
+
+// CVars
+#if !UE_BUILD_SHIPPING
+extern TSharedPtr<FInternetAddr> GCurrentDuplicateIP;
+#endif
+
 
 UCLASS(transient, config=Engine)
 class ONLINESUBSYSTEMUTILS_API UIpNetDriver : public UNetDriver

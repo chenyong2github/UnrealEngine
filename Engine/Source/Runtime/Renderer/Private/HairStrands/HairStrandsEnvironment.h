@@ -9,7 +9,13 @@
 #include "CoreMinimal.h"
 #include "RendererInterface.h"
 #include "RenderGraphResources.h"
-#
+
+void RenderHairStrandsAmbientOcclusion(
+	FRHICommandListImmediate& RHICmdList,
+	const TArray<FViewInfo>& Views,
+	const struct FHairStrandsDatas* HairDatas,
+	const TRefCountPtr<IPooledRenderTarget>& InAOTexture);
+
 void RenderHairStrandsEnvironmentLighting(
 	FRDGBuilder& GraphBuilder,
 	const uint32 ViewIndex,

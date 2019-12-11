@@ -69,13 +69,36 @@ namespace GLTF
 
 		// GLTF specifies that the following formula is used:
 		// scaledNormal = normalize((<sampled normal texture value> * 2.0 - 1.0) * vec3(<normal scale>, <normal scale>, 1.0)).
+		FMaterialExpressionGeneric* NormalXY = CurrentMaterialElement->AddMaterialExpression<FMaterialExpressionGeneric>();
+		NormalXY->SetExpressionName(TEXT("ComponentMask"));
+		NormalXY->SetBoolProperty(TEXT("R"), true);
+		NormalXY->SetBoolProperty(TEXT("G"), true);
+		NormalXY->SetBoolProperty(TEXT("B"), false);
+		TexExpression->ConnectExpression(*NormalXY->GetInput(0), 0);
 
-		FMaterialExpressionFunctionCall* NormalExpression = CurrentMaterialElement->AddMaterialExpression<FMaterialExpressionFunctionCall>();
-		NormalExpression->SetFunctionPathName(TEXT("/DatasmithContent/Materials/MDL/AdjustNormal.AdjustNormal"));
-		TexExpression->ConnectExpression(*NormalExpression->GetInput(0), 0);
-		ScalarExpression->ConnectExpression(*NormalExpression->GetInput(1), 0);
+		FMaterialExpressionGeneric* NormalZ = CurrentMaterialElement->AddMaterialExpression<FMaterialExpressionGeneric>();
+		NormalZ->SetExpressionName(TEXT("ComponentMask"));
+		NormalZ->SetBoolProperty(TEXT("R"), false);
+		NormalZ->SetBoolProperty(TEXT("G"), false);
+		NormalZ->SetBoolProperty(TEXT("B"), true);
+		TexExpression->ConnectExpression(*NormalZ->GetInput(0), 0);
 
-		NormalExpression->ConnectExpression(CurrentMaterialElement->GetNormal(), 0);
+		FMaterialExpressionGeneric* MultiplyXYExpression = CurrentMaterialElement->AddMaterialExpression<FMaterialExpressionGeneric>();
+		MultiplyXYExpression->SetExpressionName(TEXT("Multiply"));
+		NormalXY->ConnectExpression(*MultiplyXYExpression->GetInput(0), 0);
+		ScalarExpression->ConnectExpression(*MultiplyXYExpression->GetInput(1), 0);
+
+		FMaterialExpressionGeneric* ReconstructNormalVector = CurrentMaterialElement->AddMaterialExpression<FMaterialExpressionGeneric>();
+		ReconstructNormalVector->SetExpressionName(TEXT("AppendVector"));
+		MultiplyXYExpression->ConnectExpression(*ReconstructNormalVector->GetInput(0), 0);
+		NormalZ->ConnectExpression(*ReconstructNormalVector->GetInput(1), 0);
+
+		FMaterialExpressionGeneric* Normalize = CurrentMaterialElement->AddMaterialExpression<FMaterialExpressionGeneric>();
+		Normalize->SetExpressionName(TEXT("Normalize"));
+
+		ReconstructNormalVector->ConnectExpression(*Normalize->GetInput(0), 0);
+
+		Normalize->ConnectExpression(CurrentMaterialElement->GetNormal(), 0);
 	}
 
 	FMaterialExpression* FPBRMapFactory::CreateColorMap(const GLTF::FTexture& Map, int CoordinateIndex, const FVector& Color, const TCHAR* MapName,

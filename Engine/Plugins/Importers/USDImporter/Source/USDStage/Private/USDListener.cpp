@@ -48,28 +48,30 @@ void FUsdListener::HandleUsdNotice( const pxr::UsdNotice::ObjectsChanged& Notice
 		return;
 	}
 
+	auto BroadcastPrimUpdate = [ this ]( const pxr::SdfPath& PrimPath, bool bResync )
+	{
+		FScopedUnrealAllocs UnrealAllocs;
+
+		//FPlatformMisc::LowLevelOutputDebugStringf( TEXT("Prim %s changed (%s)\n"), *UsdToUnreal::ConvertPath( *It ), bResync ? TEXT("resync") : TEXT("update") );
+		OnPrimChanged.Broadcast( UsdToUnreal::ConvertPath( PrimPath ), bResync );
+	};
+
+	FScopedUsdAllocs UsdAllocs;
+
 	PathRange PathsToUpdate = Notice.GetResyncedPaths();
 
 	for ( PathRange::const_iterator It = PathsToUpdate.begin(); It != PathsToUpdate.end(); ++It )
 	{
-		//FPlatformMisc::LowLevelOutputDebugStringf( TEXT("Prim %s changed (resync)\n"), *UsdToUnreal::ConvertPath( *It ) );
-
-		FScopedUnrealAllocs UnrealAllocs;
-
 		constexpr bool bResync = true;
-		OnPrimChanged.Broadcast( UsdToUnreal::ConvertPath( *It ), bResync );
+		BroadcastPrimUpdate( It->GetAbsoluteRootOrPrimPath(), bResync );
 	}
 
 	PathsToUpdate = Notice.GetChangedInfoOnlyPaths();
 
 	for ( PathRange::const_iterator It = PathsToUpdate.begin(); It != PathsToUpdate.end(); ++It )
 	{
-		//FPlatformMisc::LowLevelOutputDebugStringf( TEXT("Prim %s changed (update)\n"), *UsdToUnreal::ConvertPath( *It ) );
-
-		FScopedUnrealAllocs UnrealAllocs;
-
 		constexpr bool bResync = false;
-		OnPrimChanged.Broadcast( UsdToUnreal::ConvertPath( *It ), bResync );
+		BroadcastPrimUpdate( It->GetAbsoluteRootOrPrimPath(), bResync );
 	}
 }
 

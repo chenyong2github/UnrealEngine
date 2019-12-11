@@ -63,6 +63,7 @@ public:
 
 	//UObject Interface
 	virtual void PostInitProperties() override;
+	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITORONLY_DATA
 	virtual void BeginDestroy() override;
 	virtual void PreEditChange(class UProperty* PropertyThatWillChange) override;
@@ -168,4 +169,7 @@ public:
 protected:
 	bool FindBinding(const FNiagaraUserParameterBinding& InBinding, const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials);
 	void InitBindings();
+
+private:
+	static TArray<TWeakObjectPtr<UNiagaraMeshRendererProperties>> MeshRendererPropertiesToDeferredInit;
 };

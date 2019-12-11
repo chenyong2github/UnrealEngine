@@ -828,6 +828,7 @@ public:
 	virtual void NotifyActorTearOff(AActor* Actor) override;
 	virtual void NotifyActorFullyDormantForConnection(AActor* Actor, UNetConnection* Connection) override;
 	virtual void NotifyActorDormancyChange(AActor* Actor, ENetDormancy OldDormancyState) override;
+	virtual void SetRoleSwapOnReplicate(AActor* Actor, bool bSwapRoles) override;
 	virtual bool ProcessRemoteFunction(class AActor* Actor, UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack, class UObject* SubObject) override;
 	virtual int32 ServerReplicateActors(float DeltaSeconds) override;
 	virtual void PostTickDispatch() override;
@@ -909,6 +910,18 @@ public:
 	void UpdateActorChannelCloseFrameNum(AActor* Actor, FConnectionReplicationActorInfo& ConnectionData, const FGlobalActorReplicationInfo& GlobalData, const uint32 FrameNum, UNetConnection* NetConnection) const;
 
 	void NotifyConnectionSaturated(class UNetReplicationGraphConnection& Connection);
+
+	uint16 GetReplicationPeriodFrameForFrequency(float NetUpdateFrequency) const
+	{
+		check(NetDriver);
+		check(NetUpdateFrequency != 0.0f);
+
+		// Replication Graph is frame based. Convert NetUpdateFrequency to ReplicationPeriodFrame based on Server MaxTickRate.
+		uint32 FramesBetweenUpdates = (uint32)FMath::RoundToInt(NetDriver->NetServerMaxTickRate / NetUpdateFrequency);
+		FramesBetweenUpdates = FMath::Clamp<uint32>(FramesBetweenUpdates, 1, MAX_uint16);
+
+		return (uint16)FramesBetweenUpdates;
+	}
 
 protected:
 

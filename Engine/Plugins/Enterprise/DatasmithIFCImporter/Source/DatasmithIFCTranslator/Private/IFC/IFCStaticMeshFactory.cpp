@@ -3,6 +3,7 @@
 #include "IFCStaticMeshFactory.h"
 
 #include "AssetRegistryModule.h"
+#include "DatasmithMeshHelper.h"
 #include "Engine/StaticMesh.h"
 #include "StaticMeshAttributes.h"
 #include "MeshDescription.h"
@@ -39,7 +40,7 @@ namespace IFC
 		return Hash;
 	}
 
-	void FStaticMeshFactory::FillMeshDescription(const IFC::FObject* InObject, FMeshDescription* MeshDescription)
+	void FStaticMeshFactory::FillMeshDescription(const IFC::FObject* InObject, FMeshDescription* MeshDescription) const
 	{
 		const int32 NumUVs = 1;
 
@@ -62,7 +63,7 @@ namespace IFC
 		{
 			const FVertexID& VertexID = MeshDescription->CreateVertex();
 			VertexPositions[VertexID].X = InObject->facesVertices[(I * (InObject->vertexElementSize / sizeof(float))) + 0];
-			// mirror around Y axis 
+			// Flip Y to keep mesh looking the same as the coordinate system changes from RH -> LH
 			VertexPositions[VertexID].Y = - InObject->facesVertices[(I * (InObject->vertexElementSize / sizeof(float))) + 1];
 			VertexPositions[VertexID].Z = InObject->facesVertices[(I * (InObject->vertexElementSize / sizeof(float))) + 2];
 			VertexPositions[VertexID] *= ImportUniformScale;
@@ -70,7 +71,8 @@ namespace IFC
 		}
 
 		// Add the PolygonGroups.
-		MaterialIndexToPolygonGroupID.Empty(10);
+		TMap<int32, FPolygonGroupID> MaterialIndexToPolygonGroupID;
+		MaterialIndexToPolygonGroupID.Reserve(10);
 		for (int32 MaterialIndex = 0; MaterialIndex < InObject->Materials.Num() || MaterialIndex < 1; MaterialIndex++)
 		{
 			const FPolygonGroupID& PolygonGroupID = MeshDescription->CreatePolygonGroup();
@@ -81,6 +83,9 @@ namespace IFC
 
 		bool bMeshUsesEmptyMaterial = false;
 		bool bDidGenerateTexCoords = false;
+
+		FTransform WorldToObject = InObject->Transform.Inverse();
+
 		for (int32 Index = 0; Index < InObject->TrianglesArray.Num(); ++Index)
 		{
 			const IFC::FPolygon* IFCPolygon = &InObject->TrianglesArray[Index];
@@ -102,6 +107,12 @@ namespace IFC
 
 				VertexInstanceIDs.Add(VertexInstanceID);
 				VertexIDs.Add(VertexID);
+
+				const float* Vertex = &(InObject->facesVertices[(VertexIndex * (InObject->vertexElementSize / sizeof(float)))]);
+
+				// Flip Y to go from RH -> LH
+				FVector Normal = WorldToObject.TransformVector(FVector(Vertex[3], -Vertex[4], Vertex[5]));
+				VertexInstanceNormals.Set(VertexInstanceID, Normal.GetSafeNormal());
 			}
 
 			bool bIsWrong = false;
@@ -119,6 +130,8 @@ namespace IFC
 
 			MeshDescription->CreatePolygon(MaterialIndexToPolygonGroupID[IFCPolygon->MaterialIndex], VertexInstanceIDs);
 		}
+
+		DatasmithMeshHelper::RemoveEmptyPolygonGroups(*MeshDescription);
 	}
 
 	float FStaticMeshFactory::GetUniformScale() const
@@ -129,11 +142,6 @@ namespace IFC
 	void FStaticMeshFactory::SetUniformScale(const float Scale)
 	{
 		ImportUniformScale = Scale;
-	}
-
-	void FStaticMeshFactory::CleanUp()
-	{
-		MaterialIndexToPolygonGroupID.Empty();
 	}
 
 }  //  namespace IFC

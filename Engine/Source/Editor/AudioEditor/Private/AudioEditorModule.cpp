@@ -39,6 +39,7 @@
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "SoundFileIO/SoundFileIO.h"
+#include "SoundSubmixGraph/SoundSubmixGraphSchema.h"
 
 const FName AudioEditorAppIdentifier = FName(TEXT("AudioEditorApp"));
 
@@ -79,10 +80,14 @@ public:
 		SoundSubmixExtensibility.Init();
 
 		// Register the sound cue graph connection policy with the graph editor
-		SoundCueGraphConnectionFactory = MakeShareable(new FSoundCueGraphConnectionDrawingPolicyFactory);
+		SoundCueGraphConnectionFactory = MakeShared<FSoundCueGraphConnectionDrawingPolicyFactory>();
 		FEdGraphUtilities::RegisterVisualPinConnectionFactory(SoundCueGraphConnectionFactory);
 
-		TSharedPtr<FSoundCueGraphNodeFactory> SoundCueGraphNodeFactory = MakeShareable(new FSoundCueGraphNodeFactory());
+		// Register the sound cue graph connection policy with the graph editor
+		SoundSubmixGraphConnectionFactory = MakeShared<FSoundSubmixGraphConnectionDrawingPolicyFactory>();
+		FEdGraphUtilities::RegisterVisualPinConnectionFactory(SoundSubmixGraphConnectionFactory);
+
+		TSharedPtr<FSoundCueGraphNodeFactory> SoundCueGraphNodeFactory = MakeShared<FSoundCueGraphNodeFactory>();
 		FEdGraphUtilities::RegisterVisualNodeFactory(SoundCueGraphNodeFactory);
 
 		// Create reimport handler for sound node waves
@@ -113,6 +118,11 @@ public:
 		if (SoundCueGraphConnectionFactory.IsValid())
 		{
 			FEdGraphUtilities::UnregisterVisualPinConnectionFactory(SoundCueGraphConnectionFactory);
+		}
+
+		if (SoundSubmixGraphConnectionFactory.IsValid())
+		{
+			FEdGraphUtilities::UnregisterVisualPinConnectionFactory(SoundSubmixGraphConnectionFactory);
 		}
 	}
 
@@ -189,9 +199,9 @@ public:
 
 	virtual TSharedRef<FAssetEditorToolkit> CreateSoundSubmixEditor(const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, USoundSubmix* InSoundSubmix) override
 	{
-		TSharedRef<FSoundSubmixEditor> NewSoundSubmixEditor(new FSoundSubmixEditor());
-		NewSoundSubmixEditor->InitSoundSubmixEditor(Mode, InitToolkitHost, InSoundSubmix);
-		return NewSoundSubmixEditor;
+		TSharedPtr<FSoundSubmixEditor> NewSubmixEditor = MakeShared<FSoundSubmixEditor>();
+		NewSubmixEditor->Init(Mode, InitToolkitHost, InSoundSubmix);
+		return StaticCastSharedPtr<FAssetEditorToolkit>(NewSubmixEditor).ToSharedRef();
 	}
 
 	virtual TSharedPtr<FExtensibilityManager> GetSoundClassMenuExtensibilityManager() override
@@ -326,8 +336,8 @@ private:
 	FExtensibilityManagers SoundSubmixExtensibility;
 	TSet<USoundEffectPreset*> RegisteredActions;
 	TSharedPtr<FGraphPanelPinConnectionFactory> SoundCueGraphConnectionFactory;
+	TSharedPtr<FGraphPanelPinConnectionFactory> SoundSubmixGraphConnectionFactory;
 	TSharedPtr<FSlateStyleSet> AudioStyleSet;
-
 };
 
 IMPLEMENT_MODULE( FAudioEditorModule, AudioEditor );

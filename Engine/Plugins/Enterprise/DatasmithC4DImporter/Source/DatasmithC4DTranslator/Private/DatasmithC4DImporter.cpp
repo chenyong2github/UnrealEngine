@@ -499,8 +499,8 @@ void RemoveEmptyActorsRecursive(TSharedPtr<IDatasmithActorElement>& Actor, const
 			{
 				TSharedPtr<IDatasmithActorElement> GrandChild = Child->GetChild(GrandChildIndex);
 
-				Actor->AddChild(GrandChild);
 				Child->RemoveChild(GrandChild);
+				Actor->AddChild(GrandChild);
 			}
 
 			Actor->RemoveChild(Child);
@@ -2710,14 +2710,12 @@ TSharedPtr<IDatasmithMeshElement> FDatasmithC4DImporter::ImportMesh(melange::Pol
 	return MeshElement;
 }
 
-TArray<FMeshDescription> FDatasmithC4DImporter::GetGeometriesForMeshElement(const TSharedRef<IDatasmithMeshElement> MeshElement)
+void FDatasmithC4DImporter::GetGeometriesForMeshElementAndRelease(const TSharedRef<IDatasmithMeshElement> MeshElement, TArray<FMeshDescription>& OutMeshDescriptions)
 {
 	if (FMeshDescription* MeshDesc = MeshElementToMeshDescription.Find(&MeshElement.Get()))
 	{
-		return {*MeshDesc};
+		OutMeshDescriptions.Add(MoveTemp(*MeshDesc));
 	}
-
-	return {};
 }
 
 bool FDatasmithC4DImporter::OpenFile(const FString& InFilename)
@@ -2746,9 +2744,20 @@ bool FDatasmithC4DImporter::OpenFile(const FString& InFilename)
 
 	if (C4Dfile->Open(DOC_IDENT, TCHAR_TO_ANSI(*InFilename), FILEOPEN_READ))
 	{
-		if (!C4dDocument->ReadObject(C4Dfile, true))
+		bool bSuccess = C4dDocument->ReadObject(C4Dfile, true);
+
+		int64 LastPos = static_cast<int64>(C4Dfile->GetPosition());
+		int64 Length = static_cast<int64>(C4Dfile->GetLength());
+		int64 Version = static_cast<int64>(C4Dfile->GetFileVersion());
+		FILEERROR Error = C4Dfile->GetError();
+
+		if (bSuccess)
 		{
-			UE_LOG(LogDatasmithC4DImport, Warning, TEXT("Melange did not successfully read the entire file '%s'. Imported scene may contain errors or missing data."), *InFilename);
+			UE_LOG(LogDatasmithC4DImport, Log, TEXT("Melange SDK successfully read the file '%s' (read %ld out of %ld bytes, version %ld)"), *InFilename, LastPos, Length, Version);
+		}
+		else
+		{
+			UE_LOG(LogDatasmithC4DImport, Warning, TEXT("Melange SDK did not read the entire file '%s' (read %ld out of %ld bytes, version %ld, error code: %d). Imported scene may contain errors or missing data."), *InFilename, LastPos, Length, Version, Error);
 		}
 	}
 	else

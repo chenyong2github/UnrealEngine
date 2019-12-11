@@ -4,7 +4,7 @@
 
 // Include
 #include "CoreMinimal.h"
-#include "NetAnalytics.h"
+#include "Net/Core/Analytics/NetAnalytics.h"
 
 
 /**

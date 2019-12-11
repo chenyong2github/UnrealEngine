@@ -9,7 +9,6 @@ class FNiagaraSystemInstance;
 // Global HLSL variable base names, used by HLSL.
 static const FString NumVoxelsName(TEXT("NumVoxels_"));
 static const FString VoxelSizeName(TEXT("VoxelSize_"));
-static const FString WorldBBoxMinName(TEXT("WorldBBoxMin_"));
 static const FString WorldBBoxSizeName(TEXT("WorldBBoxSize_"));
 
 static const FString NumCellsName(TEXT("NumCells_"));
@@ -22,8 +21,10 @@ static const FName VoxelSizeFunctionName("GetVoxelSize");
 static const FName NumCellsFunctionName("GetNumCells");
 static const FName CellSizeFunctionName("GetCellSize");
 
-static const FName WorldToUnitFunctionName("WorldToUnit");
-static const FName UnitToWorldFunctionName("UnitToWorld");
+static const FName WorldBBoxSizeFunctionName("GetWorldBBoxSize");
+
+static const FName SimulationToUnitFunctionName("SimulationToUnit");
+static const FName UnitToSimulationFunctionName("UnitToSimulation");
 static const FName UnitToIndexFunctionName("UnitToIndex");
 static const FName IndexToUnitFunctionName("IndexToUnit");
 static const FName IndexToUnitStaggeredXFunctionName("IndexToUnitStaggeredX");
@@ -134,10 +135,7 @@ public:
 	float VoxelSize;
 
 	UPROPERTY(EditAnywhere, Category = "Grid")
-	bool SetGridFromVoxelSize;	
-
-	UPROPERTY(EditAnywhere, Category = "Grid")
-	FVector WorldBBoxMin;
+	bool SetGridFromVoxelSize;		
 
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	FVector WorldBBoxSize;
@@ -147,7 +145,8 @@ public:
 	//~ UNiagaraDataInterface interface
 	// VM functionality
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
-	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
+	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;	
+
 
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 
@@ -173,23 +172,20 @@ class NIAGARA_API UNiagaraDataInterfaceGrid2D : public UNiagaraDataInterfaceRWBa
 	GENERATED_UCLASS_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "!SetGridFromCellSize"))
+	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "!SetGridFromMaxAxis"))
 	int32 NumCellsX;
 
-	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "!SetGridFromCellSize"))
+	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "!SetGridFromMaxAxis"))
 	int32 NumCellsY;
 	
-	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "SetGridFromCellSize"))
-	float CellSize;
+	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "SetGridFromMaxAxis"))
+	int32 NumCellsMaxAxis;
 
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	int32 NumAttributes;
 
 	UPROPERTY(EditAnywhere, Category = "Grid")
-	bool SetGridFromCellSize;
-
-	UPROPERTY(EditAnywhere, Category = "Grid")
-	FVector WorldBBoxMin;
+	bool SetGridFromMaxAxis;	
 
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	FVector2D WorldBBoxSize;

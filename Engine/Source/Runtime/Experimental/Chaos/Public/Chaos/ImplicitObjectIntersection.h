@@ -9,13 +9,13 @@
 namespace Chaos
 {
 template<class T, int d>
-class TImplicitObjectIntersection : public TImplicitObject<T, d>
+class TImplicitObjectIntersection : public FImplicitObject
 {
   public:
-	using TImplicitObject<T, d>::SignedDistance;
+	using FImplicitObject::SignedDistance;
 
-	TImplicitObjectIntersection(TArray<TUniquePtr<TImplicitObject<T, d>>>&& Objects)
-	    : TImplicitObject<T, d>(EImplicitObject::HasBoundingBox)
+	TImplicitObjectIntersection(TArray<TUniquePtr<FImplicitObject>>&& Objects)
+	    : FImplicitObject(EImplicitObject::HasBoundingBox)
 	    , MObjects(MoveTemp(Objects))
 	    , MLocalBoundingBox(MObjects[0]->BoundingBox())
 	{
@@ -26,7 +26,7 @@ class TImplicitObjectIntersection : public TImplicitObject<T, d>
 	}
 	TImplicitObjectIntersection(const TImplicitObjectIntersection<T, d>& Other) = delete;
 	TImplicitObjectIntersection(TImplicitObjectIntersection<T, d>&& Other)
-	    : TImplicitObject<T, d>(EImplicitObject::HasBoundingBox)
+	    : FImplicitObject(EImplicitObject::HasBoundingBox)
 	    , MObjects(MoveTemp(Other.MObjects))
 	    , MLocalBoundingBox(MoveTemp(Other.MLocalBoundingBox))
 	{
@@ -62,7 +62,7 @@ class TImplicitObjectIntersection : public TImplicitObject<T, d>
 	{
 		uint32 OutHash = MObjects.Num() > 0 ? MObjects[0]->GetTypeHash() : 0;
 
-		for(const TUniquePtr<TImplicitObject<T, d>>& Ptr : MObjects)
+		for(const TUniquePtr<FImplicitObject>& Ptr : MObjects)
 		{
 			OutHash = HashCombine(Ptr->GetTypeHash(), OutHash);
 		}
@@ -93,7 +93,7 @@ private:
 	}
 
   private:
-	TArray<TUniquePtr<TImplicitObject<T, d>>> MObjects;
+	TArray<TUniquePtr<FImplicitObject>> MObjects;
 	TBox<T, d> MLocalBoundingBox;
 };
 }

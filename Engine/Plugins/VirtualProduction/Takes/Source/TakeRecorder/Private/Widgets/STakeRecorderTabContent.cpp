@@ -197,6 +197,14 @@ UTakeMetaData* STakeRecorderTabContent::GetTakeMetaData() const
 	}
 }
 
+FFrameRate STakeRecorderTabContent::GetFrameRate() const
+{
+	TSharedPtr<STakeRecorderPanel>   Panel = WeakPanel.Pin();
+	TSharedPtr<STakeRecorderCockpit> Cockpit = Panel.IsValid() ? Panel->GetCockpitWidget() : nullptr;
+
+	return Cockpit.IsValid() ? Cockpit->GetFrameRate() : FFrameRate();
+}
+
 UTakeRecorderSources* STakeRecorderTabContent::GetSources() const
 {
 	ULevelSequence* LevelSequence = nullptr;

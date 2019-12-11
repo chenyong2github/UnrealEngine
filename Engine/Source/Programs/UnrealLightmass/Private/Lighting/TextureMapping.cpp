@@ -486,6 +486,7 @@ void FStaticLightingSystem::AdjustRepresentativeSurfelForTexelsTextureMapping(
 					MinDistanceSquared = SceneConstants.SmallestTexelRadius;
 				}
 				TexelToVertex.TexelRadius = FMath::Max(FMath::Sqrt(MinDistanceSquared), SceneConstants.SmallestTexelRadius);
+				TexelToVertex.SampleRadius = TexelToVertex.TexelRadius;
 				MappingContext.Stats.NumMappedTexels++;
 
 				{
@@ -554,7 +555,7 @@ void FStaticLightingSystem::AdjustRepresentativeSurfelForTexelsTextureMapping(
 					{
 						checkSlow(Intersections[ClosestIntersectionIndex].bIntersects);
 
-						TexelToVertex.TexelRadius = FMath::Min(TexelToVertex.TexelRadius, FMath::Sqrt(ClosestIntersectionDistanceSq / 2.0f));
+						TexelToVertex.SampleRadius = FMath::Min(TexelToVertex.TexelRadius, FMath::Sqrt(ClosestIntersectionDistanceSq / 2.0f));
 					}
 
 					// Give preference to moving the shading position outside of backfaces
@@ -579,10 +580,10 @@ void FStaticLightingSystem::AdjustRepresentativeSurfelForTexelsTextureMapping(
 						// Project back onto plane of texel to avoid incorrect self occlusion
 						TexelToVertex.WorldPosition = OffsetShadingPosition + TexelToVertex.TriangleNormal * Dot3(TexelToVertex.TriangleNormal, TexelToVertex.WorldPosition - OffsetShadingPosition);
 
-						TexelToVertex.TexelRadius = (OffsetShadingPosition - Intersections[IntersectionIndexForShadingPositionMovement].IntersectionVertex.WorldPosition).Size3() / FMath::Sqrt(2.0f);
+						TexelToVertex.SampleRadius = (OffsetShadingPosition - Intersections[IntersectionIndexForShadingPositionMovement].IntersectionVertex.WorldPosition).Size3() / FMath::Sqrt(2.0f);
 					}
 
-					TexelToVertex.TexelRadius = FMath::Max(TexelToVertex.TexelRadius, SceneConstants.SmallestTexelRadius);
+					TexelToVertex.SampleRadius = FMath::Max(TexelToVertex.SampleRadius, SceneConstants.SmallestTexelRadius);
 				}
 			}
 			else
@@ -2907,6 +2908,7 @@ void FStaticLightingSystem::ProcessCacheIndirectLightingTask(FCacheIndirectTaskD
 					TexelVertex, 
 					TexelToVertex.ElementIndex,
 					TexelToVertex.TexelRadius, 
+					TexelToVertex.SampleRadius, 
 					TexelToVertex.bIntersectingSurface,
 					Task->MappingContext, 
 					SampleGenerator, 
@@ -2924,6 +2926,7 @@ void FStaticLightingSystem::ProcessCacheIndirectLightingTask(FCacheIndirectTaskD
 						TexelVertex, 
 						TexelToVertex.ElementIndex,
 						TexelToVertex.TexelRadius, 
+						TexelToVertex.SampleRadius, 
 						TexelToVertex.bIntersectingSurface,
 						Task->MappingContext, 
 						SampleGenerator, 
@@ -2984,14 +2987,16 @@ void FStaticLightingSystem::ProcessInterpolateTask(FInterpolateIndirectTaskDescr
 				FFullStaticLightingVertex TexelVertex = TexelToVertex.GetFullVertex();
 				FFinalGatherSample IndirectLighting;
 				FFinalGatherSample SecondInterpolatedIndirectLighting;
+				float BackfacingHitsFraction = 0.0f;
+				float BackFaceBackfacingHitsFraction = 1.0f;
 				// Interpolate the indirect lighting from the irradiance cache
 				// Interpolation must succeed since this is the second pass
-				verify(Task->FirstBounceCache->InterpolateLighting(TexelVertex, false, bDebugThisTexel && GeneralSettings.ViewSingleBounceNumber == 1, IrradianceCachingSettings.SkyOcclusionSmoothnessReduction, IndirectLighting, SecondInterpolatedIndirectLighting, Task->MappingContext.DebugCacheRecords));
+				verify(Task->FirstBounceCache->InterpolateLighting(TexelVertex, false, bDebugThisTexel && GeneralSettings.ViewSingleBounceNumber == 1, IrradianceCachingSettings.SkyOcclusionSmoothnessReduction, IndirectLighting, SecondInterpolatedIndirectLighting, BackfacingHitsFraction, Task->MappingContext.DebugCacheRecords));
 
 				// Replace sky occlusion in the lighting sample that will be written into the lightmap with the interpolated sky occlusion using IrradianceCachingSettings.SkyOcclusionSmoothnessReduction
 				IndirectLighting.SkyOcclusion = SecondInterpolatedIndirectLighting.SkyOcclusion;
 				IndirectLighting.StationarySkyLighting = SecondInterpolatedIndirectLighting.StationarySkyLighting;
-
+				
 				if (Task->TextureMapping->Mesh->UsesTwoSidedLighting(TexelToVertex.ElementIndex))
 				{
 					TexelVertex.WorldTangentX = -TexelVertex.WorldTangentX;
@@ -3001,10 +3006,15 @@ void FStaticLightingSystem::ProcessInterpolateTask(FInterpolateIndirectTaskDescr
 					FFinalGatherSample BackFaceIndirectLighting;
 					FFinalGatherSample BackFaceSecondInterpolatedIndirectLighting;
 					// Interpolate indirect lighting for the back face
-					verify(Task->FirstBounceCache->InterpolateLighting(TexelVertex, false, bDebugThisTexel && GeneralSettings.ViewSingleBounceNumber == 1, IrradianceCachingSettings.SkyOcclusionSmoothnessReduction, BackFaceIndirectLighting, BackFaceSecondInterpolatedIndirectLighting, Task->MappingContext.DebugCacheRecords));
+					verify(Task->FirstBounceCache->InterpolateLighting(TexelVertex, false, bDebugThisTexel && GeneralSettings.ViewSingleBounceNumber == 1, IrradianceCachingSettings.SkyOcclusionSmoothnessReduction, BackFaceIndirectLighting, BackFaceSecondInterpolatedIndirectLighting, BackFaceBackfacingHitsFraction, Task->MappingContext.DebugCacheRecords));
 					BackFaceIndirectLighting.SkyOcclusion = BackFaceSecondInterpolatedIndirectLighting.SkyOcclusion;
 					// Average front and back face incident lighting
 					IndirectLighting = (BackFaceIndirectLighting + IndirectLighting) * 0.5f;
+				}
+
+				if (BackfacingHitsFraction > 0.5f && BackFaceBackfacingHitsFraction > 0.5f)
+				{
+					CurrentLightSample.bIsMapped = false;
 				}
 
 				float IndirectOcclusion = 1.0f;

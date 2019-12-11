@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "EditorFilterLibrary.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
 #include "DataprepCoreLibrary.generated.h"
@@ -12,7 +11,7 @@ class IDataprepLogger;
 class IDataprepProgressReporter;
 
 UCLASS(Blueprintable, BlueprintType, meta = (DisplayName = "Dataprep Core Blueprint Library"))
-class UDataprepCoreLibrary : public UBlueprintFunctionLibrary
+class DATAPREPCORE_API UDataprepCoreLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 

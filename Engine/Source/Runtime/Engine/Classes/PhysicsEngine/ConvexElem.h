@@ -22,8 +22,10 @@ namespace physx
 
 namespace Chaos
 {
+	class FImplicitObject;
+
 	template <typename T, int d>
-	class TImplicitObject;
+	class TConvex;
 }
 
 /** One convex hull, used for simplified collision. */
@@ -35,6 +37,9 @@ struct FKConvexElem : public FKShapeElem
 	/** Array of indices that make up the convex hull. */
 	UPROPERTY()
 	TArray<FVector> VertexData;
+
+	UPROPERTY()
+	TArray<int32> IndexData;
 
 	/** Bounding box of this convex hull. */
 	UPROPERTY()
@@ -52,7 +57,7 @@ private:
 	physx::PxConvexMesh*   ConvexMeshNegX;
 
 #if WITH_CHAOS
-	TUniquePtr<Chaos::TImplicitObject<float, 3>> ChaosConvex;
+	TUniquePtr<Chaos::FConvex> ChaosConvex;
 #endif
 
 public:
@@ -104,9 +109,9 @@ public:
 	ENGINE_API void SetMirroredConvexMesh(physx::PxConvexMesh* InMesh);
 
 #if WITH_CHAOS
-	ENGINE_API const TUniquePtr<Chaos::TImplicitObject<float, 3>>& GetChaosConvexMesh() const;
+	ENGINE_API const TUniquePtr<Chaos::FConvex>& GetChaosConvexMesh() const;
 
-	ENGINE_API void SetChaosConvexMesh(TUniquePtr<Chaos::TImplicitObject<float, 3>>&& InChaosConvex);
+	ENGINE_API void SetChaosConvexMesh(TUniquePtr<Chaos::FConvex>&& InChaosConvex);
 
 	ENGINE_API void ResetChaosConvexMesh();
 #endif

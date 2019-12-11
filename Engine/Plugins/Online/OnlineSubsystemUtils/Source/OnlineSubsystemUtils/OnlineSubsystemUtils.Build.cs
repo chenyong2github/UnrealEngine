@@ -33,7 +33,8 @@ public class OnlineSubsystemUtils : ModuleRules
 				"PacketHandler",
 				"Json",
 				"AudioMixer",
-				"SignalProcessing"
+				"SignalProcessing",
+				"AudioMixerCore"
 			}
 		);
 
@@ -42,6 +43,7 @@ public class OnlineSubsystemUtils : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
+				"NetCore",
 				"Engine"
 			}
 		);

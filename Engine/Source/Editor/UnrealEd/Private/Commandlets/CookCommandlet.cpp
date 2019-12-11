@@ -580,7 +580,12 @@ int32 UCookCommandlet::Main(const FString& CmdLineParams)
 
 		TArray<FString> FilesInPath;
 				
-		CookByTheBook(Platforms, FilesInPath);
+		CookByTheBook(Platforms, FilesInPath);	
+		
+		if(GShaderCompilerStats)
+		{
+			GShaderCompilerStats->WriteStats();
+		}
 
 		// Use -LogCookStats to log the results to the command line after the cook (happens automatically on a build machine)
 		COOK_STAT(
@@ -682,7 +687,7 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, 
 					const FString ValueElement = ValuesList.Left(PlusIdx);
 					ValueElements.Add(ValueElement);
 
-					ValuesList = ValuesList.Right(ValuesList.Len() - (PlusIdx + 1));
+					ValuesList.RightInline(ValuesList.Len() - (PlusIdx + 1), false);
 				}
 				ValueElements.Add(ValuesList);
 			}

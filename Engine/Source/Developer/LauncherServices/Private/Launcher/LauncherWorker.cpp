@@ -316,6 +316,10 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 			{
 				ServerPlatforms += TEXT("+Linux");
 			}
+			else if (PlatformInfo->TargetPlatformName == FName("LinuxAArch64Server"))
+			{
+				ServerPlatforms += TEXT("+LinuxAArch64");
+			}
 			else if (PlatformInfo->TargetPlatformName == FName("WindowsServer"))
 			{
 				ServerPlatforms += TEXT("+Win64");
@@ -328,7 +332,7 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 			{
 				Platforms += TEXT("+Linux");
 			}
-			else if (PlatformInfo->TargetPlatformName == FName("LinuxAArch64NoEditor"))
+			else if (PlatformInfo->TargetPlatformName == FName("LinuxAArch64NoEditor") || PlatformInfo->TargetPlatformName == FName("LinuxAArch64Client"))
 			{
 				Platforms += TEXT("+LinuxAArch64");
 			}
@@ -343,6 +347,10 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 			else if (PlatformInfo->TargetPlatformName == FName("IOSClient"))
 			{
 				Platforms += TEXT("+IOS");
+			}
+			else if (PlatformInfo->TargetPlatformName == FName("TVOSClient"))
+			{
+				Platforms += TEXT("+TVOS");
 			}
 			else if (PlatformInfo->TargetPlatformName == FName("HoloLens"))
 			{
@@ -1083,10 +1091,10 @@ bool FLauncherWorker::TerminateLaunchedProcess()
 				FString TargetDeviceId = DeviceId;
 				
 				// remove the variant prefix (eg. Android_ETC@deviceId)
-				int32 InPos = TargetDeviceId.Find("@");
+				int32 InPos = TargetDeviceId.Find("@", ESearchCase::CaseSensitive);
 				if (InPos > 0) 
 				{ 
-					TargetDeviceId = TargetDeviceId.Right(TargetDeviceId.Len() -  InPos - 1);
+					TargetDeviceId.RightInline(TargetDeviceId.Len() -  InPos - 1, false);
 
 				}
 

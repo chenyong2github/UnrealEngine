@@ -1360,6 +1360,21 @@ void CheckAllIndices(){}
 
 #endif
 
+	void DumpCircularTrailsSpam();
+#if !UE_BUILD_SHIPPING
+	bool CheckForCircularTrail(FBaseParticle* StartParticle, FBaseParticle* CheckParticle)
+	{
+		if (StartParticle == CheckParticle)
+		{
+			DumpCircularTrailsSpam();
+			return true;
+		}
+		return false;
+	}
+#else
+	bool CheckForCircularTrail(FBaseParticle* StartParticle, FBaseParticle* CheckParticle) { return StartParticle == CheckParticle; }
+#endif
+
 	/** Constructor	*/
 	FParticleTrailsEmitterInstance_Base() :
 		  FParticleEmitterInstance()

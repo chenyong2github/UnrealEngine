@@ -20,6 +20,10 @@
 #include "PaintModeCommands.h"
 #include "DetailLayoutBuilder.h"
 
+#include "EditorModeManager.h"
+#include "EditorModes.h"
+#include "MeshPaintEdMode.h"
+
 #define LOCTEXT_NAMESPACE "PaintModePainter"
 
 void SPaintModeWidget::Construct(const FArguments& InArgs, FPaintModePainter* InPainter)
@@ -35,10 +39,16 @@ void SPaintModeWidget::Construct(const FArguments& InArgs, FPaintModePainter* In
 	[
 		SNew(SScrollBox)
 		+ SScrollBox::Slot()
+		.Padding(0, 0, 0, 5)
+		[
+			SAssignNew(ErrorTextWidget, SErrorText)
+		]
+		+ SScrollBox::Slot()
 		.Padding(0.0f)
 		[
 			SNew(SVerticalBox)
 			/** Toolbar containing buttons to switch between different paint modes */
+			.IsEnabled(this, &SPaintModeWidget::GetMeshPaintEditorIsEnabled)
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			[
@@ -254,6 +264,19 @@ void SPaintModeWidget::NotifyPostChange(const FPropertyChangedEvent& PropertyCha
 			Settings->SaveConfig();
 		}
 	}
+}
+
+bool SPaintModeWidget::GetMeshPaintEditorIsEnabled() const
+{
+	FEdModeMeshPaint* MeshPaintMode = (FEdModeMeshPaint*)GLevelEditorModeTools().GetActiveMode(FBuiltinEditorModes::EM_MeshPaint);
+	if (MeshPaintMode)
+	{
+		bool bEnabled = MeshPaintMode->IsEditingEnabled();
+		FText ErrorText = bEnabled ? FText::GetEmpty() : LOCTEXT("MeshPaintSM5Only", "Mesh Paint mode can only be used in SM5.");
+		ErrorTextWidget->SetError(ErrorText);
+		return bEnabled;
+	}
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE // "PaintModePainter"

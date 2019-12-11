@@ -390,7 +390,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetReverseCulling(bool ReverseCulling);
 
-	virtual void SetCollisionProfileName(FName InCollisionProfileName) override;
+	virtual void SetCollisionProfileName(FName InCollisionProfileName, bool bUpdateOverlaps=true) override;
 
 public:
 

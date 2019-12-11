@@ -23,7 +23,7 @@ FAnimCurveBufferAccess::FAnimCurveBufferAccess(const UAnimSequenceBase* InSequen
 				}
 				else
 				{
-					UE_LOG(LogTemp, Warning, TEXT("Trying to use FAnimCurveBufferAccess on an animation that is not compressed with UniformIndexable, this is not supported and will not work in cooked builds. Animation: %s"), *InSequence->GetFullName());
+					UE_LOG(LogAnimation, Warning, TEXT("Trying to use FAnimCurveBufferAccess on an animation that is not compressed with UniformIndexable, this is not supported and will not work in cooked builds. Animation: %s"), *InSequence->GetFullName());
 				}
 			}
 		}

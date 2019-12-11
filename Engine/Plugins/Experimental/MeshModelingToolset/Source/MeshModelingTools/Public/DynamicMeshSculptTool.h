@@ -14,6 +14,7 @@
 #include "Changes/ValueWatcher.h"
 #include "Gizmos/BrushStampIndicator.h"
 #include "Properties/MeshMaterialProperties.h"
+#include "TransformTypes.h"
 #include "DynamicMeshSculptTool.generated.h"
 
 
@@ -47,6 +48,9 @@ enum class EDynamicMeshSculptBrushType : uint8
 {
 	/** Move Brush moves vertices parallel to the view plane  */
 	Move UMETA(DisplayName = "Move"),
+
+	/** Smooth brush smooths mesh vertices  */
+	Smooth UMETA(DisplayName = "Smooth"),
 
 	/** Sculpt Brush displaces vertices from the surface */
 	Offset UMETA(DisplayName = "Sculpt"),
@@ -158,6 +162,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
 	float Smoothing;
 
+	/** If enabled, Full Remeshing is applied during smoothing, which will wipe out fine details */
+	UPROPERTY(EditAnywhere, Category = Remeshing)
+	bool bRemeshSmooth = false;
+
 
 	/** Enable edge flips */
 	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay)
@@ -265,6 +273,9 @@ protected:
 	UPROPERTY()
 	UOctreeDynamicMeshComponent* DynamicMeshComponent;
 
+	FTransform3d InitialTargetTransform;
+	FTransform3d CurTargetTransform;
+
 	// realtime visualization
 	void OnDynamicMeshComponentChanged();
 	FDelegateHandle OnDynamicMeshComponentChangedHandle;
@@ -283,13 +294,14 @@ protected:
 
 	bool bInDrag;
 
-	FPlane ActiveDragPlane;
-	FVector LastHitPosWorld;
-	FVector BrushStartCenterWorld;
-	FVector BrushStartNormalWorld;
-	FVector LastBrushPosLocal;
-	FVector LastBrushPosWorld;
-	FVector LastBrushPosNormalWorld;
+	FFrame3d ActiveDragPlane;
+	FVector3d LastHitPosWorld;
+	FVector3d BrushStartCenterWorld;
+	FVector3d BrushStartNormalWorld;
+	FVector3d LastBrushPosLocal;
+	FVector3d LastBrushPosWorld;
+	FVector3d LastBrushPosNormalWorld;
+	FVector3d LastSmoothBrushPosLocal;
 	
 
 	TArray<int> VertexROI;
@@ -334,9 +346,10 @@ protected:
 	void ApplyFlattenBrush(const FRay& WorldRay);
 
 	double CalculateBrushFalloff(double Distance);
+	TArray<FVector3d> ROIPositionBuffer;
 
 	FFrame3d ActiveFixedBrushPlane;
-	FFrame3d ComputeROIBrushPlane(const FVector3d& BrushCenter);
+	FFrame3d ComputeROIBrushPlane(const FVector3d& BrushCenter, bool bIgnoreDepth);
 
 	TArray<int> TrianglesBuffer;
 	TArray<int> NormalsBuffer;

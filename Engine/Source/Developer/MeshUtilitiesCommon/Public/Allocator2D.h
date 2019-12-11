@@ -7,10 +7,23 @@
 
 struct FRect;
 struct Rect;
+struct FMD5Hash;
+
+#define DEBUG_LAYOUT_STATS 0
 
 class MESHUTILITIESCOMMON_API FAllocator2D
 {
 public:
+	enum class EMode
+	{
+		// In this mode, segments represents free space
+		// Used for the layout merging usedsegments
+		FreeSegments,
+		// In this mode, segments represents used space
+		// Used for the rasterization of charts.
+		UsedSegments
+	};
+
 	struct FRect
 	{
 		uint32 X;
@@ -27,56 +40,131 @@ public:
 		bool operator<( const FSegment& Other ) const { return StartPos < Other.StartPos; }
 	};
 
-	struct FRow
+	struct FRun
 	{
-		uint32 Index;
-		uint32 LongestSegment; // Represents either the longest free segment or the longest used segment, depending on how we're using this row
+		uint32 LongestSegment;
+		TArray< FSegment > Segments;
 
-		TArray< FSegment, TInlineAllocator<2> > FreeSegments;
-		TArray< FSegment, TInlineAllocator<2> > UsedSegments;
+		// Contains mapping from pixel position to first segment index in search range.
+		// Only computed when we're in FreeSegments mode to help TestOneRun find
+		// the proper segment in O(c) at the expense of a likely cache miss.
+		// We'll use a threshold to use this method when the number of iterations
+		// saved is worth the cache miss.
+		// Obviously, using a uint16 here will reduce cache misses but impose
+		// an hopefully enough limitation of texture size 65536x65536 (4GB).
+		TArray< uint16 > FreeSegmentsLookup;
 	};
 
 public:
-	FAllocator2D( uint32 Width, uint32 Height );
+	FAllocator2D( EMode Mode, uint32 Width, uint32 Height, ELightmapUVVersion LayoutVersion );
 
 	// Must clear before using
-	void		Clear();
+	void       Clear();
 
-	bool		Find( FRect& Rect );
-	bool		Test( FRect Rect );
-	void		Alloc( FRect Rect );
+	bool       Find( FRect& Rect );
+	bool       Test( FRect Rect );
+	void       Alloc( FRect Rect );
 
-	bool		FindBitByBit( FRect& Rect, const FAllocator2D& Other );
-	bool		FindWithSegments( FRect& Rect, FRect BestRect, const FAllocator2D& Other );
-	bool		Test( FRect Rect, const FAllocator2D& Other );
-	void		Alloc( FRect Rect, const FAllocator2D& Other );
-	
-	uint64		GetBit( uint32 x, uint32 y ) const;
-	void		SetBit( uint32 x, uint32 y );
-	void		ClearBit( uint32 x, uint32 y );
-	
-	void		CreateUsedSegments();
-	void		MergeSegments( FRect Rect, const FAllocator2D& Other );
+	bool       FindBitByBit( FRect& Rect, const FAllocator2D& Other );
+	bool       FindWithSegments( FRect& Rect, const FRect& BestRect, const FAllocator2D& Other ) const;
+	bool       Test( FRect Rect, const FAllocator2D& Other );
+	void       Alloc( FRect Rect, const FAllocator2D& Other );
 
-	void		FlipX( FRect Rect, ELightmapUVVersion LayoutVersion = ELightmapUVVersion::Latest );
-	void		FlipY( FRect Rect );
+	uint64     GetBit( uint32 x, uint32 y ) const;
+	void       SetBit( uint32 x, uint32 y );
+	void       ClearBit( uint32 x, uint32 y );
+
+	void       CreateUsedSegments();
+	void       MergeRun( FRun& Run, const FRun& OtherRun, uint32 RectOffset, uint32 RectLength, uint32 PrimaryResolution /* Resolution along the axis the run belongs to */, uint32 PerpendicularResolution );
+	void       MergeSegments( const FRect& Rect, const FAllocator2D& Other );
+
+	void       FlipX( const FRect& Rect );
+	void       FlipY( const FRect& Rect );
+
+	uint32     GetUsedTexels() const;
+
+	void       CopyRuns( TArray<FRun>& Runs, const TArray<FRun>& OtherRuns, int32 MaxSize );
+
+	// Take control of the copy to reduce the amount of data movement to the strict minimum
+	FAllocator2D& operator = (const FAllocator2D& Other);
+
+	// Allow to visualize the content in ascii for debugging purpose. (i.e Watch or Immediate window).
+	FString    ToString() const;
+
+	// Get the MD5 hash of the rasterized content
+	FMD5Hash   GetRasterMD5() const;
+
+	uint32     GetRasterWidth()  const { return RasterWidth; }
+	uint32     GetRasterHeight() const { return RasterHeight; }
+
+	void       ResetStats();
+	void       PublishStats( int32 ChartIndex, int32 Orientation, bool bFound, const FRect& Rect, const FRect& BestRect, const FMD5Hash& ChartMD5 );
 
 protected:
-	bool		TestAllRows( FRect Rect, const FAllocator2D& Other, uint32& FailedLength );
-	bool		TestRow( const FRow& ThisRow, const FRow& OtherRow, FRect Rect, uint32& FailedLength );
+	bool       TestOneRun( const FRun& Run, const FRun& OtherRun, uint32 RectOffset, uint32 RectLength, uint32 PrimaryResolution, uint32& OutFailedLength ) const;
+	bool       TestAllRows( const FRect& Rect, const FAllocator2D& Other, uint32& FailedLength ) const;
+	bool       TestAllColumns( const FRect& Rect, const FAllocator2D& Other, uint32& FailedLength ) const;
+	void       InitRuns( TArray<FRun>& Runs, uint32 PrimaryResolution, uint32 PerpendicularRasterSize);
+	void       InitSegments();
+	void       AddUsedSegment( FRun& Run, uint32 StartPos, uint32 Length );
 
-	void		InitSegments();
-	void		AddUsedSegment( FRow& Row, uint32 StartPos, uint32 Length );
+	// Enforce that those cannot be changed in flight
+	const EMode              Mode;
+	const uint32             Width;
+	const uint32             Height;
+	const uint32             Pitch;
+	const ELightmapUVVersion LayoutVersion;
+
+	uint32                   RasterWidth;
+	uint32                   RasterHeight;
+	TArray< FRun >           Rows;        // Represent rows in the grid
+	TArray< FRun >           Columns;     // Represent columns in the grid (used when version >= Segments2D).
+	TArray< uint64 >         Bits;
+
+	// Index inside rows that will be sorted by rows with longest used segment first
+	TArray< uint16 >         SortedRowsIndex;
+	// Index inside columns that will be sorted by columns with longest used segment first
+	TArray< uint16 >         SortedColumnsIndex;
 
 private:
-	TArray< uint64 > Bits;
+	// Store iteration stats of the principal algorithms.
+	struct FStats
+	{
+		struct FStat
+		{
+#if DEBUG_LAYOUT_STATS
+			FORCEINLINE void operator++(int) { Value++; }
+			FORCEINLINE void operator+=(uint64 InValue) { Value += InValue; }
+			FORCEINLINE uint64 GetValue() const { return Value; }
+		private:
+			uint64 Value = 0;
+#else
+			// These will be optimized away when stats are not activated
+			FORCEINLINE void operator++(int) { }
+			FORCEINLINE void operator+=(uint64 InValue) { }
+			FORCEINLINE uint64 GetValue() const { return 0; }
+#endif
+		};
 
-	uint32		Width;
-	uint32		Height;
-	uint32		Pitch;
+		FStat FindWithSegmentsIterationsY;
+		FStat FindWithSegmentsIterationsX;
+		FStat FindWithSegmentsMovedPastPreviousBest;
+		FStat TestAllRowsIterationsY;
+		FStat FreeSegmentLookupCount;
+		FStat FreeSegmentRangeIterations;
+		FStat FreeSegmentFutureIterations;
+		FStat FreeSegmentFutureHit;
+		FStat FreeSegmentFutureHitStep;
+		FStat FreeSegmentFutureMiss;
+		FStat FreeSegmentFutureMissStep;
 
-	TArray< FRow > Rows;
-	int32		LastRowFail;
+		void Reset()
+		{
+			FPlatformMemory::Memzero(this, sizeof(FStats));
+		}
+	};
+
+	mutable FStats Stats;
 };
 
 // Returns non-zero if set
@@ -88,6 +176,17 @@ FORCEINLINE uint64 FAllocator2D::GetBit( uint32 x, uint32 y ) const
 FORCEINLINE void FAllocator2D::SetBit( uint32 x, uint32 y )
 {
 	Bits[ (x >> 6) + y * Pitch ] |= ( 1ull << ( x & 63 ) );
+
+	// Keep track of the rasterized dimension to optimize operations on that area only
+	if (y >= RasterHeight)
+	{
+		RasterHeight = y + 1;
+	}
+
+	if (x >= RasterWidth)
+	{
+		RasterWidth = x + 1;
+	}
 }
 
 FORCEINLINE void FAllocator2D::ClearBit( uint32 x, uint32 y )

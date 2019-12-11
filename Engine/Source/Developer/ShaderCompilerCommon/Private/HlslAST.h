@@ -518,6 +518,8 @@ namespace CrossCompiler
 				uint32 Raw;
 			};
 
+			const TCHAR* PrimitiveType = nullptr;
+
 			FTypeQualifier();
 
 			void Write(FASTWriter& Writer) const;
@@ -562,7 +564,7 @@ namespace CrossCompiler
 			int32 TextureMSNumSamples;
 
 			int32 PatchSize;
-
+			bool bPrecise = false;
 			bool bIsArray;
 			//bool bIsUnsizedArray;
 			FExpression* ArraySize;
@@ -589,6 +591,8 @@ namespace CrossCompiler
 
 			FFullySpecifiedType* Type;
 			TLinearArray<FNode*> Declarations;
+
+			bool bTypedef = false;
 		};
 
 		struct FParameterDeclarator : public FNode
@@ -623,7 +627,7 @@ namespace CrossCompiler
 
 			TLinearArray<FNode*> Parameters;
 
-			bool bIsDefinition;
+			bool bIsDefinition = false;
 
 			//Signature
 		};

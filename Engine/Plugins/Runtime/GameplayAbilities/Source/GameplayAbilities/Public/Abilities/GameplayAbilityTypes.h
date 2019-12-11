@@ -53,7 +53,7 @@ namespace EGameplayAbilityInstancingPolicy
 UENUM(BlueprintType)
 namespace EGameplayAbilityNetExecutionPolicy
 {
-	/** How does an ability execute on the network. Does a client "ask and predict", "ask and wait", "don't ask (just do it)" */
+	/** Where does an ability execute on the network. Does a client "ask and predict", "ask and wait", "don't ask (just do it)" */
 	enum Type
 	{
 		// Part of this ability runs predictively on the local client if there is one
@@ -67,6 +67,26 @@ namespace EGameplayAbilityNetExecutionPolicy
 
 		// This ability will only run on the server
 		ServerOnly			UMETA(DisplayName = "Server Only"),
+	};
+}
+
+UENUM(BlueprintType)
+namespace EGameplayAbilityNetSecurityPolicy
+{
+	/** What protections does this ability have? Should the client be allowed to request changes to the execution of the ability? */
+	enum Type
+	{
+		// No security requirements. Client or server can trigger execution and termination of this ability freely.
+		ClientOrServer			UMETA(DisplayName = "Client Or Server"),
+
+		// A client requesting execution of this ability will be ignored by the server. Clients can still request that the server cancel or end this ability.
+		ServerOnlyExecution		UMETA(DisplayName = "Server Only Execution"),
+
+		// A client requesting cancellation or ending of this ability will be ignored by the server. Clients can still request execution of the ability.
+		ServerOnlyTermination	UMETA(DisplayName = "Server Only Termination"),
+
+		// Server controls both execution and termination of this ability. A client making any requests will be ignored.
+		ServerOnly				UMETA(DisplayName = "Server Only"),
 	};
 }
 

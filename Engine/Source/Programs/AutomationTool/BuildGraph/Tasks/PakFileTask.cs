@@ -19,19 +19,19 @@ namespace BuildGraph.Tasks
 	public class PakFileTaskParameters
 	{
 		/// <summary>
-		/// List of files, wildcards and tag sets to add to the pak file, separated by ';' characters.
+		/// List of files, wildcards, and tag sets to add to the pak file, separated by ';' characters.
 		/// </summary>
 		[TaskParameter(ValidationType = TaskParameterValidationType.FileSpec)]
 		public string Files;
 
 		/// <summary>
-		/// PAK file to output
+		/// PAK file to output.
 		/// </summary>
 		[TaskParameter]
 		public FileReference Output;
 
 		/// <summary>
-		/// Path to a Response File that contains a list of files to add to the pak file, instead of specifying them individually
+		/// Path to a Response File that contains a list of files to add to the pak file -- instead of specifying them individually.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public FileReference ResponseFile;
@@ -43,31 +43,31 @@ namespace BuildGraph.Tasks
 		public HashSet<DirectoryReference> RebaseDir;
 
 		/// <summary>
-		/// Script which gives the order of files
+		/// Script that gives the order of files.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public FileReference Order;
 
 		/// <summary>
-		/// Encryption keys for this pak file
+		/// Encryption keys for this pak file.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public FileReference Sign;
 
 		/// <summary>
-		/// Whether to compress files
+		/// Whether to compress files.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public bool Compress = true;
 
 		/// <summary>
-		/// Additional arguments to be passed to UnrealPak
+		/// Additional arguments to pass to UnrealPak.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string Arguments = "";
 
 		/// <summary>
-		/// Tag to be applied to build products of this task
+		/// Tag to be applied to build products of this task.
 		/// </summary>
 		[TaskParameter(Optional = true, ValidationType = TaskParameterValidationType.TagList)]
 		public string Tag;

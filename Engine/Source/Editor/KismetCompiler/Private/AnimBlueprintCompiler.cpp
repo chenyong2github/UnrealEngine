@@ -48,6 +48,7 @@
 #include "AnimGraphNode_LinkedAnimGraph.h"
 #include "AnimGraphNode_Slot.h"
 #include "AnimationEditorUtils.h"
+#include "AnimationGraph.h"
 
 #include "AnimBlueprintPostCompileValidation.h" 
 #include "AnimGraphNode_LinkedInputPose.h"
@@ -511,8 +512,10 @@ void FAnimBlueprintCompilerContext::ProcessAnimationNode(UAnimGraphNode_Base* Vi
 	SourceNodeToProcessedNodeMap.Add(TrueSourceObject, VisualAnimNode);
 
 	// Register the slightly more permanent debug information
-	NewAnimBlueprintClass->GetAnimBlueprintDebugData().NodePropertyToIndexMap.Add(TrueSourceObject, AllocatedIndex);
-	NewAnimBlueprintClass->GetAnimBlueprintDebugData().NodeGuidToIndexMap.Add(TrueSourceObject->NodeGuid, AllocatedIndex);
+	FAnimBlueprintDebugData& NewAnimBlueprintDebugData = NewAnimBlueprintClass->GetAnimBlueprintDebugData();
+	NewAnimBlueprintDebugData.NodePropertyToIndexMap.Add(TrueSourceObject, AllocatedIndex);
+	NewAnimBlueprintDebugData.NodeGuidToIndexMap.Add(TrueSourceObject->NodeGuid, AllocatedIndex);
+	NewAnimBlueprintDebugData.NodePropertyIndexToNodeMap.Add(AllocatedIndex, TrueSourceObject);
 	NewAnimBlueprintClass->GetDebugData().RegisterClassPropertyAssociation(TrueSourceObject, NewProperty);
 
 	// Node-specific compilation that requires compiler state info
@@ -777,6 +780,16 @@ void FAnimBlueprintCompilerContext::ProcessCustomPropertyNode(UAnimGraphNode_Cus
 	{
 		if (!Pin->bOrphanedPin && !AnimGraphSchema->IsPosePin(Pin->PinType))
 		{
+			// avoid to add properties which already exist on the custom node.
+			// for example the ControlRig_CustomNode has a pin called "alpha" which is not custom.
+			if (UStructProperty* NodeProperty = Cast<UStructProperty>(CustomPropNode->GetClass()->FindPropertyByName(TEXT("Node"))))
+			{
+				if(NodeProperty->Struct->FindPropertyByName(Pin->GetFName()))
+				{
+					continue;
+				}
+			}
+
 			// Add prefix to avoid collisions
 			FString PrefixedName = CustomPropNode->GetPinTargetVariableName(Pin);
 
@@ -1555,6 +1568,8 @@ void FAnimBlueprintCompilerContext::ProcessStateMachine(UAnimGraphNode_StateMach
 				// Process the inner graph of this state
 				if (UAnimGraphNode_StateResult* AnimGraphResultNode = CastChecked<UAnimationStateGraph>(StateNode->BoundGraph)->GetResultNode())
 				{
+					ValidateGraphIsWellFormed(StateNode->BoundGraph);
+
 					BakedState.StateRootNodeIndex = ExpandGraphAndProcessNodes(StateNode->BoundGraph, AnimGraphResultNode);
 
 					// See if the state consists of a single sequence player node, and remember the index if so
@@ -1836,7 +1851,7 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 		
 			// @TODO this is quick solution for crash - if there were previous errors and some nodes were not added, they could still end here -
 			// this check avoids that and since there are already errors, compilation won't be successful.
-			// but I'd prefer stoping compilation earlier to avoid getting here in first place
+			// but I'd prefer stopping compilation earlier to avoid getting here in first place
 			if (LinkIndexMap.Contains(LinkingNode) && LinkIndexMap.Contains(LinkedNode))
 			{
 				const int32 SourceNodeIndex = LinkIndexMap.FindChecked(LinkingNode);
@@ -2146,7 +2161,7 @@ void FAnimBlueprintCompilerContext::ProcessLinkedInputPose(UAnimGraphNode_Linked
 					{
 						// Create new node for property access
 						UK2Node_VariableGet* VariableGetNode = SpawnIntermediateNode<UK2Node_VariableGet>(InLinkedInputPose, InLinkedInputPose->GetGraph());
-						VariableGetNode->SetFromProperty(NewLinkedInputPoseProperty, true);
+						VariableGetNode->SetFromProperty(NewLinkedInputPoseProperty, true, NewLinkedInputPoseProperty->GetOwnerClass());
 						VariableGetNode->AllocateDefaultPins();
 
 						// Add pin to generated variable association, used for pin watching
@@ -2238,6 +2253,7 @@ void FAnimBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedCla
 	NewAnimBlueprintClass->LinkedAnimLayerNodeProperties.Empty();
 	NewAnimBlueprintClass->EvaluateGraphExposedInputs.Empty();
 	NewAnimBlueprintClass->GraphAssetPlayerInformation.Empty();
+	NewAnimBlueprintClass->GraphBlendOptions.Empty();
 
 	// Copy over runtime data from the blueprint to the class
 	NewAnimBlueprintClass->TargetSkeleton = AnimBlueprint->TargetSkeleton;
@@ -2268,6 +2284,34 @@ void FAnimBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 	{
 		AnimBlueprintGeneratedClass->SyncGroupNames.Add(GroupInfo.Name);
 	}
+
+	// Add graph blend options to class if blend values were actually customized
+	auto AddBlendOptions = [AnimBlueprintGeneratedClass](UEdGraph* Graph)
+	{
+		UAnimationGraph* AnimGraph = Cast<UAnimationGraph>(Graph);
+		if (AnimGraph && (AnimGraph->BlendOptions.BlendInTime >= 0.0f || AnimGraph->BlendOptions.BlendOutTime >= 0.0f))
+		{
+			AnimBlueprintGeneratedClass->GraphBlendOptions.Add(AnimGraph->GetFName(), AnimGraph->BlendOptions);
+		}
+	};
+
+
+	for (UEdGraph* Graph : Blueprint->FunctionGraphs)
+	{
+		AddBlendOptions(Graph);
+	}
+
+	for (FBPInterfaceDescription& InterfaceDesc : Blueprint->ImplementedInterfaces)
+	{
+		if (InterfaceDesc.Interface->IsChildOf<UAnimLayerInterface>())
+		{
+			for (UEdGraph* Graph : InterfaceDesc.Graphs)
+			{
+				AddBlendOptions(Graph);
+			}
+		}
+	}
+
 	Super::FinishCompilingClass(Class);
 }
 

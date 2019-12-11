@@ -98,6 +98,9 @@ protected:
 	/** Only save packages that been saved by a licensee **/
 	bool bOnlyLicenseed;
 
+	/** Should we build navigation data for the packages we are saving? **/
+	bool bShouldBuildNavigationData;
+
 	/** Ignore package version changelist **/
 	bool bIgnoreChangelist;
 

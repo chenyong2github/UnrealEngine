@@ -175,6 +175,7 @@ FReply FNiagaraParameterGraphDragOperation::DroppedOnPanel(const TSharedRef<SWid
 void FNiagaraParameterGraphDragOperation::MakeGetMap(FNiagaraParameterNodeConstructionParams InParams)
 {
 	check(InParams.Graph);
+	InParams.Graph->Modify();
 	FGraphNodeCreator<UNiagaraNodeParameterMapGet> GetNodeCreator(*InParams.Graph);
 	UNiagaraNodeParameterMapGet* GetNode = GetNodeCreator.CreateNode();
 	GetNode->NodePosX = InParams.GraphPosition.X;
@@ -186,6 +187,7 @@ void FNiagaraParameterGraphDragOperation::MakeGetMap(FNiagaraParameterNodeConstr
 void FNiagaraParameterGraphDragOperation::MakeSetMap(FNiagaraParameterNodeConstructionParams InParams)
 {
 	check(InParams.Graph);
+	InParams.Graph->Modify();
 	FGraphNodeCreator<UNiagaraNodeParameterMapSet> SetNodeCreator(*InParams.Graph);
 	UNiagaraNodeParameterMapSet* SetNode = SetNodeCreator.CreateNode();
 	SetNode->NodePosX = InParams.GraphPosition.X;
@@ -202,89 +204,6 @@ EVisibility FNiagaraParameterGraphDragOperation::GetIconVisible() const
 EVisibility FNiagaraParameterGraphDragOperation::GetErrorIconVisible() const
 {
 	return EVisibility::Collapsed;
-}
-
-/************************************************************************/
-/* FNiagaraStackDragOperation											*/
-/************************************************************************/
-TSharedRef<FNiagaraStackDragOperation> FNiagaraStackDragOperation::New(TSharedPtr<FEdGraphSchemaAction> InActionNode)
-{
-	TSharedRef<FNiagaraStackDragOperation> Operation = MakeShareable(new FNiagaraStackDragOperation);
-	Operation->SourceAction = InActionNode;
-	Operation->Construct();
-	return Operation;
-}
-
-void FNiagaraStackDragOperation::OnDrop(bool bDropWasHandled, const FPointerEvent& MouseEvent)
-{
-	FDragDropOperation::OnDrop(bDropWasHandled, MouseEvent);
-}
-
-void FNiagaraStackDragOperation::OnDragged(const class FDragDropEvent& DragDropEvent)
-{
-	if (SourceAction.IsValid())
-	{
-		SetSimpleFeedbackMessage(SourceAction->GetMenuDescription());
-	}
-
-	FDragDropOperation::OnDragged(DragDropEvent);
-}
-
-void FNiagaraStackDragOperation::Construct()
-{
-	// Create the drag-drop decorator window
-	CursorDecoratorWindow = SWindow::MakeCursorDecorator();
-	const bool bShowImmediately = false;
-	FSlateApplication::Get().AddWindow(CursorDecoratorWindow.ToSharedRef(), bShowImmediately);
-}
-
-FNiagaraStackDragOperation::FNiagaraStackDragOperation()
-	: bControlDrag(false)
-	, bAltDrag(false)
-{
-
-}
-
-bool FNiagaraStackDragOperation::HasFeedbackMessage()
-{
-	return CursorDecoratorWindow->GetContent() != SNullWidget::NullWidget;
-}
-
-void FNiagaraStackDragOperation::SetFeedbackMessage(const TSharedPtr<SWidget>& Message)
-{
-	if (Message.IsValid())
-	{
-		CursorDecoratorWindow->ShowWindow();
-		CursorDecoratorWindow->SetContent
-		(
-			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Graph.ConnectorFeedback.Border"))
-			[
-				Message.ToSharedRef()
-			]
-		);
-	}
-	else
-	{
-		CursorDecoratorWindow->HideWindow();
-		CursorDecoratorWindow->SetContent(SNullWidget::NullWidget);
-	}
-}
-
-void FNiagaraStackDragOperation::SetSimpleFeedbackMessage(const FText& Message)
-{
-	SetFeedbackMessage(
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.MaxWidth(500)
-		.Padding(3.0f)
-		.VAlign(VAlign_Center)
-		[
-			SNew(STextBlock)
-			.Text(Message)
-		]
-	);
 }
 
 #undef LOCTEXT_NAMESPACE

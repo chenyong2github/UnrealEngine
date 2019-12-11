@@ -32,9 +32,10 @@ IMPLEMENT_MODULE(FIOSAudioDeviceModule, IOSAudio);
 	FIOSAudioDevice
  ------------------------------------------------------------------------------------*/
 
+static int32 SuspendCounter = 0;
+
 void FIOSAudioDevice::ResumeContext()
 {
-	int32& SuspendCounter = GetSuspendCounter();
 	if (SuspendCounter > 0)
 	{
 		FPlatformAtomics::InterlockedDecrement(&SuspendCounter);
@@ -55,7 +56,6 @@ void FIOSAudioDevice::ResumeContext()
 
 void FIOSAudioDevice::SuspendContext()
 {
-	int32& SuspendCounter = GetSuspendCounter();
 	if (SuspendCounter == 0)
 	{
 		FPlatformAtomics::InterlockedIncrement(&SuspendCounter);
@@ -74,10 +74,20 @@ void FIOSAudioDevice::SuspendContext()
 	}
 }
 
-int32& FIOSAudioDevice::GetSuspendCounter()
+void FIOSAudioDevice::IncrementSuspendCounter()
 {
-	static int32 SuspendCounter = 0;
-	return SuspendCounter;
+    if(SuspendCounter == 0)
+    {
+        FPlatformAtomics::InterlockedIncrement(&SuspendCounter);
+    }
+}
+
+void FIOSAudioDevice::DecrementSuspendCounter()
+{
+    if (SuspendCounter > 0)
+    {
+        FPlatformAtomics::InterlockedDecrement(&SuspendCounter);
+    }
 }
 
 void FIOSAudioDevice::UpdateDeviceDeltaTime()
@@ -239,7 +249,7 @@ bool FIOSAudioDevice::InitializeHardware()
 
 	// Initialize and start the audio unit graph
 	Status = AUGraphInitialize(AudioUnitGraph);
-	if (Status == noErr && GetSuspendCounter() == 0)
+	if (Status == noErr && SuspendCounter == 0)
 	{
 		Status = AUGraphStart(AudioUnitGraph);
 	}

@@ -467,6 +467,11 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ToolTip = "Whether to do primary screen percentage with temporal AA or not."))
 	uint32 bTemporalUpsampling : 1;
 
+	UPROPERTY(config, EditAnywhere, Category = Lighting, meta = (
+		ConsoleVariable = "r.SSGI.Enable", DisplayName = "Screen Space Global Illumination (Beta)",
+		ToolTip = "Whether enable screen space global illumination."))
+	uint32 bSSGI : 1;
+
 	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
 		ConsoleVariable = "r.DefaultFeature.AntiAliasing", DisplayName = "Anti-Aliasing Method",
 		ToolTip = "Which anti-aliasing mode is used by default"))
@@ -622,6 +627,12 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired = true))
 		uint32 bEnableRayTracing : 1;
 
+	UPROPERTY(config, EditAnywhere, Category = RayTracing, meta = (
+		ConsoleVariable = "r.RayTracing.UseTextureLod", DisplayName = "Texture LOD",
+		ToolTip = "Enable automatic texture mip level selection in ray tracing material shaders. Unchecked: highest resolution mip level is used for all texture (default). Checked: texture LOD is approximated based on total ray length, output resolution and texel density at hit point (ray cone method).",
+		ConfigRestartRequired = true))
+		uint32 bEnableRayTracingTextureLOD : 1;
+
 	/**
 	"Stationary skylight requires permutations of the basepass shaders.  Disabling will reduce the number of shader permutations required per material. Changing this setting requires restarting the editor."
 	*/
@@ -750,10 +761,16 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired = true))
 		uint32 bSupportReversedIndexBuffers : 1;
 
-	UPROPERTY(config, EditAnywhere, Category = Experimental, meta = (
-		ConsoleVariable = "r.SupportMaterialLayers", Tooltip = "Support new material layering system. Disabling it reduces some overhead in place to support the experimental feature",
+	UPROPERTY(config, EditAnywhere, Category = Materials, meta = (
+		ConsoleVariable = "r.SupportMaterialLayers", Tooltip = "Support new material layering system.",
 		ConfigRestartRequired = true))
 		uint32 bSupportMaterialLayers : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = Lighting, meta = (
+		ConsoleVariable = "r.LightPropagationVolume", DisplayName = "Light Propagation Volumes",
+		ToolTip = "Whether to allow the usage and compilation of Light Propagation Volumes.",
+		ConfigRestartRequired = true))
+		uint32 bLPV : 1;
 
 public:
 

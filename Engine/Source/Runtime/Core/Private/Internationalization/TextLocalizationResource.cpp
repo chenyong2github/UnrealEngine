@@ -4,9 +4,11 @@
 #include "Internationalization/TextLocalizationResourceVersion.h"
 #include "Internationalization/Culture.h"
 #include "HAL/FileManager.h"
+#include "Misc/App.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Misc/Optional.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Templates/UniquePtr.h"
 #include "Internationalization/Internationalization.h"
 #include "Misc/FileHelper.h"
@@ -633,6 +635,40 @@ TArray<FString> TextLocalizationResourceUtil::GetLocalizedCultureNames(const TAr
 	});
 
 	return CultureNames;
+}
+
+const TArray<FString>& TextLocalizationResourceUtil::GetDisabledLocalizationTargets()
+{
+	static TArray<FString> DisabledLocalizationTargets;
+	static bool bHasInitializedDisabledLocalizationTargets = false;
+
+	if (!bHasInitializedDisabledLocalizationTargets)
+	{
+		check(GConfig && GConfig->IsReadyForUse());
+
+		const bool bShouldLoadEditor = GIsEditor;
+		const bool bShouldLoadGame = FApp::IsGame();
+
+		GConfig->GetArray(TEXT("Internationalization"), TEXT("DisabledLocalizationTargets"), DisabledLocalizationTargets, GEngineIni);
+
+		if (bShouldLoadEditor)
+		{
+			TArray<FString> EditorArray;
+			GConfig->GetArray(TEXT("Internationalization"), TEXT("DisabledLocalizationTargets"), EditorArray, GEditorIni);
+			DisabledLocalizationTargets.Append(MoveTemp(EditorArray));
+		}
+
+		if (bShouldLoadGame)
+		{
+			TArray<FString> GameArray;
+			GConfig->GetArray(TEXT("Internationalization"), TEXT("DisabledLocalizationTargets"), GameArray, GGameIni);
+			DisabledLocalizationTargets.Append(MoveTemp(GameArray));
+		}
+
+		bHasInitializedDisabledLocalizationTargets = true;
+	}
+
+	return DisabledLocalizationTargets;
 }
 
 #undef PRELOAD_LOCMETA_FILES

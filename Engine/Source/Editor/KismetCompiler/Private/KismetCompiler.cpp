@@ -21,6 +21,7 @@
 #include "Components/TimelineComponent.h"
 #include "Engine/TimelineTemplate.h"
 #include "Engine/UserDefinedStruct.h"
+#include "Blueprint/BlueprintExtension.h"
 #include "EdGraphUtilities.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_Composite.h"
@@ -272,9 +273,19 @@ void FKismetCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedClass* Cla
 		ClassSubObjects.RemoveAllSwap(SubObjectsToSave);
 	}
 
-	for( auto SubObjIt = ClassSubObjects.CreateIterator(); SubObjIt; ++SubObjIt )
+	UClass* InheritableComponentHandlerClass = UInheritableComponentHandler::StaticClass();
+
+	for( UObject* CurrSubObj : ClassSubObjects )
 	{
-		UObject* CurrSubObj = *SubObjIt;
+		// ICH and ICH templates do not need to be destroyed in this way.. doing so will invalidate
+		// transaction buffer references to these UObjects. The UBlueprint may not have a reference to
+		// the ICH at the moment, and therefore might not have added it to SubObjectsToSave (and
+		// removed the ICH from ClassSubObjects):
+		if(Cast<UInheritableComponentHandler>(CurrSubObj) || CurrSubObj->IsInA(InheritableComponentHandlerClass))
+		{
+			continue;
+		}
+
 		FName NewSubobjectName = MakeUniqueObjectName(TransientClass, CurrSubObj->GetClass(), CurrSubObj->GetFName());
 		CurrSubObj->Rename(*NewSubobjectName.ToString(), TransientClass, RenFlags);
 		if( UProperty* Prop = Cast<UProperty>(CurrSubObj) )
@@ -3831,10 +3842,11 @@ void FKismetCompilerContext::CreateFunctionList()
 	{
 		BP_SCOPED_COMPILER_EVENT_STAT(EKismetCompilerStats_GenerateFunctionGraphs);
 
-		// Broadcast the blueprint's function generation event to ensure that any function generators are run right before we create the function list for the class layout
-		FGenerateBlueprintFunctionParams Params;
-		Params.CompilerContext = this;
-		Blueprint->GenerateFunctionGraphsEvent.Broadcast(Params);
+		// Allow blueprint extensions for the blueprint to generate function graphs
+		for (UBlueprintExtension* Extension : Blueprint->Extensions)
+		{
+			Extension->GenerateFunctionGraphs(this);
+		}
 	}
 
 	BP_SCOPED_COMPILER_EVENT_STAT(EKismetCompilerStats_CreateFunctionList);
@@ -4094,13 +4106,26 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 	// This is phase two, so we want to generated locals if PostponeLocalsGenerationUntilPhaseTwo is set:
 	const bool bGenerateLocals = !!(InternalFlags & EInternalCompilerFlags::PostponeLocalsGenerationUntilPhaseTwo);
 	// Don't propagate values to CDO if we're going to do that in reinstancing:
-	const bool bPropagateValuesToCDO = !(InternalFlags & EInternalCompilerFlags::PostponeDefaultObjectAssignmentUntilReinstancing);
+	bool bPropagateValuesToCDO = !(InternalFlags & EInternalCompilerFlags::PostponeDefaultObjectAssignmentUntilReinstancing);
 	// Don't RefreshExternalBlueprintDependencyNodes if the calling code has done so already:
 	const bool bSkipRefreshExternalBlueprintDependencyNodes = !!(InternalFlags & EInternalCompilerFlags::SkipRefreshExternalBlueprintDependencyNodes);
 	FKismetCompilerVMBackend Backend_VM(Blueprint, Schema, *this);
 
-	// Determine whether or not to skip generated class validation. This requires CDO value propagation to occur first.
-	bool bSkipGeneratedClassValidation = !bPropagateValuesToCDO || CompileOptions.CompileType == EKismetCompileType::Cpp;
+	// Determine whether or not to skip generated class validation.
+	bool bSkipGeneratedClassValidation;
+	if (CompileOptions.DoesRequireCppCodeGeneration())
+	{
+		// CPP codegen requires default value assignment to occur as part of the compilation phase, so we override it here.
+		bPropagateValuesToCDO = true;
+
+		// Also skip generated class validation since it may result in errors and we don't really need to keep the generated class.
+		bSkipGeneratedClassValidation = true;
+	}
+	else
+	{
+		// In all other cases, validation requires CDO value propagation to occur first.
+		bSkipGeneratedClassValidation = !bPropagateValuesToCDO;
+	}
 
 	if( bGenerateLocals )
 	{

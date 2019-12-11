@@ -25,17 +25,21 @@ public:
 		, _ItemBackgroundColor(FLinearColor::Transparent)
 		, _IsCategoryIconHighlighted(false)
 		, _ShowExecutionCategoryIcon(false)
+		, _RowPadding(FMargin(0, 0, 0, 0))
 	{}
-	SLATE_ARGUMENT(FMargin, ContentPadding)
+		SLATE_ARGUMENT(FMargin, ContentPadding)
 		SLATE_ARGUMENT(FLinearColor, ItemBackgroundColor)
 		SLATE_ARGUMENT(FLinearColor, ItemForegroundColor)
 		SLATE_ARGUMENT(bool, IsCategoryIconHighlighted)
 		SLATE_ARGUMENT(bool, ShowExecutionCategoryIcon)
 		SLATE_ATTRIBUTE(float, NameColumnWidth)
 		SLATE_ATTRIBUTE(float, ValueColumnWidth)
+		SLATE_ATTRIBUTE(EVisibility, IssueIconVisibility)
+		SLATE_ATTRIBUTE(FMargin, RowPadding)
 		SLATE_EVENT(FOnColumnWidthChanged, OnNameColumnWidthChanged)
 		SLATE_EVENT(FOnColumnWidthChanged, OnValueColumnWidthChanged)
 		SLATE_EVENT(FOnDragDetected, OnDragDetected)
+		SLATE_EVENT(FOnTableRowDragLeave, OnDragLeave)
 		SLATE_EVENT(FOnCanAcceptDrop, OnCanAcceptDrop)
 		SLATE_EVENT(FOnAcceptDrop, OnAcceptDrop)
 	SLATE_END_ARGS();
@@ -91,10 +95,6 @@ private:
 
 	void NavigateTo(UNiagaraStackEntry* Item);
 
-	void OpenSourceAsset();
-
-	void ShowAssetInContentBrowser();
-
 private:
 	UNiagaraStackViewModel* StackViewModel;
 	UNiagaraStackEntry* StackEntry;
@@ -105,11 +105,15 @@ private:
 	FOnColumnWidthChanged NameColumnWidthChanged;
 	FOnColumnWidthChanged ValueColumnWidthChanged;
 
+	TAttribute<EVisibility> IssueIconVisibility;
+	TAttribute<FMargin> RowPadding;
+
 	const FSlateBrush* ExpandedImage;
 	const FSlateBrush* CollapsedImage;
 
 	FLinearColor InactiveItemBackgroundColor;
 	FLinearColor ActiveItemBackgroundColor;
+	FLinearColor DisabledItemBackgroundColor;
 	FLinearColor ForegroundColor;
 
 	FText ExecutionCategoryToolTipText;

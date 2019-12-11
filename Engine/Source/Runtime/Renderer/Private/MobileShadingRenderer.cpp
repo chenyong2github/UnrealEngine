@@ -72,6 +72,8 @@ static TAutoConsoleVariable<int32> CVarMobileAdrenoOcclusionMode(
 	TEXT("1: Render occlusion queries after translucency and a flush, which can help Adreno devices in GL mode."),
 	ECVF_RenderThreadSafe);
 
+DECLARE_GPU_STAT_NAMED(MobileSceneRender, TEXT("Mobile Scene Render"));
+
 DECLARE_CYCLE_STAT(TEXT("SceneStart"), STAT_CLMM_SceneStart, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("SceneEnd"), STAT_CLMM_SceneEnd, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("InitViews"), STAT_CLMM_InitViews, STATGROUP_CommandListMarkers);
@@ -88,9 +90,12 @@ TGlobalResource<FGlobalDynamicReadBuffer> FMobileSceneRenderer::DynamicReadBuffe
 
 static bool UsesCustomDepthStencilLookup(const FViewInfo& View)
 {
+	if (View.bUsesCustomDepthStencil)
+	{
+		return true;
+	}
+
 	// Find out whether post-process materials use CustomDepth/Stencil lookups
-	bool bPPUsesCustomDepth = false;
-	bool bPPUsesCustomStencil = false;
 	const FBlendableManager& BlendableManager = View.FinalPostProcessSettings.BlendableManager;
 	FBlendableEntry* BlendableIt = nullptr;
 
@@ -103,15 +108,21 @@ static bool UsesCustomDepthStencilLookup(const FViewInfo& View)
 
 			const FMaterial* Material = Proxy->GetMaterial(View.GetFeatureLevel());
 			check(Material);
-			const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
+			if (Material->IsStencilTestEnabled())
+			{
+				return true;
+			}
 
-			bPPUsesCustomDepth|= MaterialShaderMap->UsesSceneTexture(PPI_CustomDepth);
-			bPPUsesCustomStencil|= MaterialShaderMap->UsesSceneTexture(PPI_CustomStencil);
+			const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
+			if (MaterialShaderMap->UsesSceneTexture(PPI_CustomDepth) || MaterialShaderMap->UsesSceneTexture(PPI_CustomStencil))
+			{
+				return true;
+			}
 		}
 	}
 
 	//TODO: check if translucency uses CustomDepth
-	return bPPUsesCustomDepth || bPPUsesCustomStencil || View.bUsesCustomDepthStencil;
+	return false;
 }
 
 
@@ -278,14 +289,27 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	{
 		UploadDynamicPrimitiveShaderDataForView(RHICmdList, *Scene, Views[ViewIndex]);
 	}
-	
+
+	extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+
+	for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+	{
+		Extension->BeginFrame();
+
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			// Must happen before RHI thread flush so any tasks we dispatch here can land in the idle gap during the flush
+			Extension->PrepareView(&Views[ViewIndex]);
+		}
+	}
 
 	// update buffers used in cached mesh path
 	// in case there are multiple views, these buffers will be updated before rendering each view
 	if (Views.Num() > 0)
 	{
 		const FViewInfo& View = Views[0];
-		Scene->UniformBuffers.UpdateViewUniformBuffer(View);
+		// We want to wait for the extension jobs only when the view is being actually rendered for the first time
+		Scene->UniformBuffers.UpdateViewUniformBuffer(View, false);
 		UpdateOpaqueBasePassUniformBuffer(RHICmdList, View);
 		UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
 		UpdateDirectionalLightUniformBuffers(RHICmdList, View);
@@ -300,16 +324,6 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	UpdatePrimitiveIndirectLightingCacheBuffers();
 	
 	OnStartRender(RHICmdList);
-
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-	{
-		extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
-
-		for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
-		{
-			Extension->PrepareView(&Views[ViewIndex]);
-		}
-	}
 }
 
 /** 
@@ -318,6 +332,9 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 {
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_SceneStart));
+
+	SCOPED_DRAW_EVENT(RHICmdList, MobileSceneRender);
+	SCOPED_GPU_STAT(RHICmdList, MobileSceneRender);
 
 	Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
 
@@ -375,8 +392,10 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// See CVarMobileForceDepthResolve use in ConditionalResolveSceneDepth.
 	const bool bForceDepthResolve = CVarMobileForceDepthResolve.GetValueOnRenderThread() == 1;
 	const bool bSeparateTranslucencyActive = IsMobileSeparateTranslucencyActive(View);
-	bool bKeepDepthContent = bRenderToSceneColor &&
-		(bForceDepthResolve || bSeparateTranslucencyActive || (View.bIsSceneCapture && (ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorHDR || ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorSceneDepth)));
+	bool bKeepDepthContent = bForceDepthResolve || (bRenderToSceneColor &&
+		(bSeparateTranslucencyActive ||
+		 View.bIsReflectionCapture ||
+		 (View.bIsSceneCapture && (ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorHDR || ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorSceneDepth))));
 
 	// Whether to submit cmdbuffer with offscreen rendering before doing post-processing
 	bool bSubmitOffscreenRendering = !bGammaSpace || bRenderToSceneColor;
@@ -450,7 +469,11 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		bool bUsesCustomDepthStencil = false;
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++) 
 		{
-			bUsesCustomDepthStencil = UsesCustomDepthStencilLookup(Views[ViewIndex]);
+			if (UsesCustomDepthStencilLookup(Views[ViewIndex]))
+			{
+				bUsesCustomDepthStencil = true;
+				break;
+			}
 		}
 
 		if (bUsesCustomDepthStencil)
@@ -508,7 +531,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	FRHITexture* FoveationTexture = nullptr;
 	
-	if (SceneContext.IsFoveationTextureAllocated())
+	if (SceneContext.IsFoveationTextureAllocated()	&& !View.bIsSceneCapture && !View.bIsReflectionCapture)
 	{
 		FoveationTexture = SceneContext.GetFoveationTexture();
 	}
@@ -664,6 +687,20 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// End of scene color rendering
 	RHICmdList.EndRenderPass();
 
+	if (Scene->FXSystem && Views.IsValidIndex(0))
+	{
+		check(RHICmdList.IsOutsideRenderPass());
+
+		Scene->FXSystem->PostRenderOpaque(
+			RHICmdList,
+			Views[0].ViewUniformBuffer,
+			nullptr,
+			nullptr,
+			Views[0].AllowGPUParticleUpdate()
+		);
+		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	}
+
 	// Flush / submit cmdbuffer
 	if (bSubmitOffscreenRendering)
 	{
@@ -757,6 +794,7 @@ void FMobileSceneRenderer::BasicPostProcess(FRHICommandListImmediate& RHICmdList
 	// todo: this should come from View.Family->RenderTarget
 	Desc.Format = PF_B8G8R8A8;
 	Desc.NumMips = 1;
+	Desc.TargetableFlags |= TexCreate_RenderTargetable;
 
 	GRenderTargetPool.CreateUntrackedElement(Desc, Temp, Item);
 

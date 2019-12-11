@@ -18,5 +18,5 @@ void DrawGeomOverlaps(const UWorld* InWorld, const PxGeometry& PGeom, const PxTr
 void DrawGeomSweeps(const UWorld* InWorld, const FVector& Start, const FVector& End, const PxGeometry& PGeom, const PxQuat& Rotation, const TArray<FHitResult>& Hits, float Lifetime);
 #endif
 
-void DrawGeomOverlaps(const UWorld* InWorld, const Chaos::TImplicitObject<float, 3>& Geom, const FTransform& GeomPose, TArray<struct FOverlapResult>& Overlaps, float Lifetime);
-void DrawGeomSweeps(const UWorld* InWorld, const FVector& Start, const FVector& End, const Chaos::TImplicitObject<float,3>& Geom, const FQuat& Rotation, const TArray<FHitResult>& Hits, float Lifetime);
+void DrawGeomOverlaps(const UWorld* InWorld, const Chaos::FImplicitObject& Geom, const FTransform& GeomPose, TArray<struct FOverlapResult>& Overlaps, float Lifetime);
+void DrawGeomSweeps(const UWorld* InWorld, const FVector& Start, const FVector& End, const Chaos::FImplicitObject& Geom, const FQuat& Rotation, const TArray<FHitResult>& Hits, float Lifetime);

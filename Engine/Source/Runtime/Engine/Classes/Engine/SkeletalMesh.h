@@ -163,7 +163,10 @@ struct FSkeletalMeshLODInfo
 	UPROPERTY(EditAnywhere, Category=SkeletalMeshLODInfo, meta=(DisplayName="LOD Hysteresis"))
 	float LODHysteresis;
 
-	/** Mapping table from this LOD's materials to the USkeletalMesh materials array. */
+	/** Mapping table from this LOD's materials to the USkeletalMesh materials array.
+	 * section index is the key
+	 * remapped material index is the value, can be INDEX_NONE for no remapping
+	 */
 	UPROPERTY()
 	TArray<int32> LODMaterialMap;
 
@@ -1335,7 +1338,16 @@ public:
 	/* 
 	 * Returns total number of LOD
 	 */
-	int32 GetLODNum() const { check(LODInfo.Num() <= MAX_MESH_LOD_COUNT); return LODInfo.Num();  }
+	int32 GetLODNum() const 
+	{ 
+#if WITH_EDITOR
+		if (bSupportLODStreaming.Default || bSupportLODStreaming.PerPlatform.FindKey(true))
+		{
+			check(LODInfo.Num() <= MAX_MESH_LOD_COUNT); 
+		}
+#endif
+		return LODInfo.Num();  
+	}
 
 public:
 	const TArray<FSkinWeightProfileInfo>& GetSkinWeightProfiles() const { return SkinWeightProfiles; }

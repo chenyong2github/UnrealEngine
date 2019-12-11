@@ -45,7 +45,10 @@ namespace Audio
 
 		void HandleOnBufferEnd(uint8* InOutputBuffer, int32 InOutputBufferLength);
 
-		virtual FString GetCurrentDeviceName() const;
+		SDL_AudioFormat GetPlatformAudioFormat() { return AUDIO_F32; }
+		Uint8 GetPlatformChannels() { return 6; }
+		EAudioMixerStreamDataFormat::Type GetAudioStreamFormat() { return EAudioMixerStreamDataFormat::Float; }
+		int32 GetAudioStreamChannelSize() { return sizeof(float); }
 
 	protected:
 		FCriticalSection OutputBufferMutex;

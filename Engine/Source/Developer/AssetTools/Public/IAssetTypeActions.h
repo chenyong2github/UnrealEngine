@@ -45,7 +45,7 @@ public:
 	/** Returns the name of this type */
 	virtual FText GetName() const = 0;
 
-	/** Checks to see if the specified object is handled by this type. */
+	/** Get the supported class of this type. */
 	virtual UClass* GetSupportedClass() const = 0;
 
 	/** Returns the color associated with this type */
@@ -119,4 +119,10 @@ public:
 
 	/** Builds the filter for this class*/
 	virtual void BuildBackendFilter(struct FARFilter& InFilter) = 0;
+
+	/** Sets whether or not this asset type is a supported type for this editor session. */
+	virtual void SetSupported(bool bInSupported) = 0;
+
+	/** Is this asset type supported in the current session? */
+	virtual bool IsSupported() const = 0;
 };

@@ -8,6 +8,7 @@
 
 class UNiagaraNodeFunctionCall;
 class UNiagaraStackFunctionInput;
+class UNiagaraClipboardFunctionInput;
 class UEdGraphPin;
 
 UCLASS()
@@ -34,6 +35,10 @@ public:
 	virtual bool GetIsEnabled() const;
 
 	void SetShouldShowInStack(bool bInShouldShowInStack);
+
+	void ToClipboardFunctionInputs(UObject* InOuter, TArray<const UNiagaraClipboardFunctionInput*>& OutClipboardFunctionInputs) const;
+
+	void SetValuesFromClipboardFunctionInputs(const TArray<const UNiagaraClipboardFunctionInput*>& ClipboardFunctionInputs);
 
 protected:
 	virtual void FinalizeInternal() override;

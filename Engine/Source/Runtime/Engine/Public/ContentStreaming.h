@@ -107,6 +107,11 @@ public:
 	// Checks whether this points to a valid compressed chunk.
 	bool IsValid() const;
 
+#if WITH_EDITOR
+	// If the soundwave has been recompressed, the compressed audio retained by this handle will not be up to date, and this will return true. 
+	bool IsStale() const;
+#endif
+
 private:
 	// This constructor should only be called by an implementation of IAudioStreamingManager.
 	FAudioChunkHandle(const uint8* InData, uint32 NumBytes, const USoundWave* InSoundWave, const FName& SoundWaveName, uint32 InChunkIndex);
@@ -117,6 +122,10 @@ private:
 	const USoundWave* CorrespondingWave;
 	FName CorrespondingWaveName;
 	int32 ChunkIndex;
+
+#if WITH_EDITOR
+	uint32 ChunkGeneration;
+#endif
 
 	friend struct IAudioStreamingManager;
 	friend struct FCachedAudioStreamingManager;
@@ -497,8 +506,14 @@ struct IAudioStreamingManager : public IStreamingManager
 	/** Returns true if this is a streaming Sound Source that is managed by the streaming manager. */
 	virtual bool IsManagedStreamingSoundSource(const FSoundSource* SoundSource) const = 0;
 
-	/** Manually prepare a chunk to start playing back. This should only be used when the Load On Demand feature is enabled, and returns false on failure. */
-	virtual bool RequestChunk(USoundWave* SoundWave, uint32 ChunkIndex, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted) = 0;
+	/** 
+	 * Manually prepare a chunk to start playing back. This should only be used when the Load On Demand feature is enabled, and returns false on failure. 
+	 * @param SoundWave SoundWave we would like to request a chunk of.
+	 * @param ChunkIndex the index of that soundwave we'd like to request a chunk of.
+	 * @param OnLoadCompleted optional callback when the load completes.
+	 * @param ThreadToCallOnLoadCompleteOn. Optional specifier for which thread OnLoadCompleted should be called on.
+	 */
+	virtual bool RequestChunk(USoundWave* SoundWave, uint32 ChunkIndex, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted = [](EAudioChunkLoadResult) {}, ENamedThreads::Type ThreadToCallOnLoadCompletedOn = ENamedThreads::AnyThread) = 0;
 
 	/**
 	 * Gets a pointer to a chunk of audio data

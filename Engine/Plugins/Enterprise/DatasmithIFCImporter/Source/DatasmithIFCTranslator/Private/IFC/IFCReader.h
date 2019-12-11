@@ -211,10 +211,11 @@ namespace IFC
 		 * Loading time buffered entities to compare.
 		 */
 		int64 IfcMappedItemEntity = 0;
-		int64 IfcConversianBasedUnitEntity = 0;
+		int64 IfcConversionBasedUnitEntity = 0;
 		int64 IfcSIUnitEntity = 0;
 		int64 IfcSurfaceStyleEntity = 0;
 		int64 IfcSurfaceStyleRenderingEntity = 0;
+		int64 IfcSurfaceStyleShadingEntity = 0;
 		int64 IfcRelAssociatesMaterialEntity = 0;
 		int64 IfcMaterialEntity = 0;
 		int64 IfcMaterialLayerSetUsageEntity = 0;

@@ -710,13 +710,20 @@ UObject* GetOwnerObject(PyObject* InPyObj)
 	return nullptr;
 }
 
-PyObject* GetPropertyValue(const UStruct* InStruct, void* InStructData, const UProperty* InProp, const char *InAttributeName, PyObject* InOwnerPyObject, const TCHAR* InErrorCtxt)
+PyObject* GetPropertyValue(const UStruct* InStruct, const void* InStructData, const UProperty* InProp, const char *InAttributeName, PyObject* InOwnerPyObject, const TCHAR* InErrorCtxt)
 {
 	if (InStruct && InProp && ensureAlways(InStructData))
 	{
-		if (!InProp->HasAnyPropertyFlags(CPF_Edit | CPF_BlueprintVisible | CPF_BlueprintAssignable))
+		const EPropertyAccessResultFlags AccessResult = PropertyAccessUtil::CanGetPropertyValue(InProp);
+		if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::PermissionDenied))
 		{
-			SetPythonError(PyExc_Exception, InErrorCtxt, *FString::Printf(TEXT("Property '%s' for attribute '%s' on '%s' is protected and cannot be read"), *InProp->GetName(), UTF8_TO_TCHAR(InAttributeName), *InStruct->GetName()));
+			if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::AccessProtected))
+			{
+				SetPythonError(PyExc_Exception, InErrorCtxt, *FString::Printf(TEXT("Property '%s' for attribute '%s' on '%s' is protected and cannot be read"), *InProp->GetName(), UTF8_TO_TCHAR(InAttributeName), *InStruct->GetName()));
+				return nullptr;
+			}
+
+			SetPythonError(PyExc_Exception, InErrorCtxt, *FString::Printf(TEXT("Property '%s' for attribute '%s' on '%s' cannot be read"), *InProp->GetName(), UTF8_TO_TCHAR(InAttributeName), *InStruct->GetName()));
 			return nullptr;
 		}
 
@@ -732,7 +739,7 @@ PyObject* GetPropertyValue(const UStruct* InStruct, void* InStructData, const UP
 	Py_RETURN_NONE;
 }
 
-int SetPropertyValue(const UStruct* InStruct, void* InStructData, PyObject* InValue, const UProperty* InProp, const char *InAttributeName, const FPyWrapperOwnerContext& InChangeOwner, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const TCHAR* InErrorCtxt)
+int SetPropertyValue(const UStruct* InStruct, void* InStructData, PyObject* InValue, const UProperty* InProp, const char *InAttributeName, const FPropertyAccessChangeNotify* InChangeNotify, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const TCHAR* InErrorCtxt)
 {
 	if (!InValue)
 	{
@@ -742,36 +749,38 @@ int SetPropertyValue(const UStruct* InStruct, void* InStructData, PyObject* InVa
 
 	if (InStruct && InProp && ensureAlways(InStructData))
 	{
-		if (!InProp->HasAnyPropertyFlags(CPF_Edit | CPF_BlueprintVisible | CPF_BlueprintAssignable))
+		const EPropertyAccessResultFlags AccessResult = PropertyAccessUtil::CanSetPropertyValue(InProp, InReadOnlyFlags, InOwnerIsTemplate);
+		if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::PermissionDenied))
 		{
-			SetPythonError(PyExc_Exception, InErrorCtxt, *FString::Printf(TEXT("Property '%s' for attribute '%s' on '%s' is protected and cannot be set"), *InProp->GetName(), UTF8_TO_TCHAR(InAttributeName), *InStruct->GetName()));
-			return -1;
-		}
+			if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::AccessProtected))
+			{
+				SetPythonError(PyExc_Exception, InErrorCtxt, *FString::Printf(TEXT("Property '%s' for attribute '%s' on '%s' is protected and cannot be set"), *InProp->GetName(), UTF8_TO_TCHAR(InAttributeName), *InStruct->GetName()));
+				return -1;
+			}
 
-		if (InOwnerIsTemplate)
-		{
-			if (InProp->HasAnyPropertyFlags(CPF_DisableEditOnTemplate))
+			if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::CannotEditTemplate))
 			{
 				SetPythonError(PyExc_Exception, InErrorCtxt, *FString::Printf(TEXT("Property '%s' for attribute '%s' on '%s' cannot be edited on templates"), *InProp->GetName(), UTF8_TO_TCHAR(InAttributeName), *InStruct->GetName()));
 				return -1;
 			}
-		}
-		else
-		{
-			if (InProp->HasAnyPropertyFlags(CPF_DisableEditOnInstance))
+
+			if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::CannotEditInstance))
 			{
 				SetPythonError(PyExc_Exception, InErrorCtxt, *FString::Printf(TEXT("Property '%s' for attribute '%s' on '%s' cannot be edited on instances"), *InProp->GetName(), UTF8_TO_TCHAR(InAttributeName), *InStruct->GetName()));
 				return -1;
 			}
-		}
 
-		if (InProp->HasAnyPropertyFlags(InReadOnlyFlags))
-		{
-			SetPythonError(PyExc_Exception, InErrorCtxt, *FString::Printf(TEXT("Property '%s' for attribute '%s' on '%s' is read-only and cannot be set"), *InProp->GetName(), UTF8_TO_TCHAR(InAttributeName), *InStruct->GetName()));
+			if (EnumHasAnyFlags(AccessResult, EPropertyAccessResultFlags::ReadOnly))
+			{
+				SetPythonError(PyExc_Exception, InErrorCtxt, *FString::Printf(TEXT("Property '%s' for attribute '%s' on '%s' is read-only and cannot be set"), *InProp->GetName(), UTF8_TO_TCHAR(InAttributeName), *InStruct->GetName()));
+				return -1;
+			}
+
+			SetPythonError(PyExc_Exception, InErrorCtxt, *FString::Printf(TEXT("Property '%s' for attribute '%s' on '%s' cannot be set"), *InProp->GetName(), UTF8_TO_TCHAR(InAttributeName), *InStruct->GetName()));
 			return -1;
 		}
 
-		if (!PyConversion::NativizeProperty_InContainer(InValue, InProp, InStructData, 0, InChangeOwner))
+		if (!PyConversion::NativizeProperty_InContainer(InValue, InProp, InStructData, 0, InChangeNotify))
 		{
 			SetPythonError(PyExc_TypeError, InErrorCtxt, *FString::Printf(TEXT("Failed to convert type '%s' to property '%s' (%s) for attribute '%s' on '%s'"), *GetFriendlyTypename(InValue), *InProp->GetName(), *InProp->GetClass()->GetName(), UTF8_TO_TCHAR(InAttributeName), *InStruct->GetName()));
 			return -1;

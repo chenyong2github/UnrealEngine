@@ -184,8 +184,8 @@ namespace GLTF
 		for (uint32 Index = 0; Index < Count; ++Index)
 		{
 			FVector4& Value = Buffer[Index];
-			FQuat     Quat(Value[0], Value[1], Value[2], Value[3]);
-			//	Quat    = GLTF::ConvertQuat(Quat);
+			FQuat Quat(Value[0], Value[1], Value[2], Value[3]);
+			Quat = GLTF::ConvertQuat(Quat);
 			Value.X = Quat.X;
 			Value.Y = Quat.Y;
 			Value.Z = Quat.Z;

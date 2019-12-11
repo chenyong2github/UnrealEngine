@@ -343,10 +343,7 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 		bInvertY = (CustomPresent->GetLayerFlags() & ovrpLayerFlag_TextureOriginAtBottomLeft) != 0;
 
 		uint32 SizeX = 0, SizeY = 0;
-		if (Desc.Flags & IStereoLayers::LAYER_FLAG_HIDDEN)
-		{
-			return;
-		}
+		check((Desc.Flags & IStereoLayers::LAYER_FLAG_HIDDEN) == 0);
 
 		if (Desc.Texture.IsValid())
 		{
@@ -603,6 +600,7 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 void FLayer::UpdateTexture_RenderThread(FCustomPresent* CustomPresent, FRHICommandListImmediate& RHICmdList)
 {
 	CheckInRenderThread();
+	check((Desc.Flags & IStereoLayers::LAYER_FLAG_HIDDEN) == 0);
 
 	if (bUpdateTexture && SwapChain.IsValid())
 	{
@@ -652,6 +650,7 @@ void FLayer::UpdateTexture_RenderThread(FCustomPresent* CustomPresent, FRHIComma
 
 const ovrpLayerSubmit* FLayer::UpdateLayer_RHIThread(const FSettings* Settings, const FGameFrame* Frame, const int LayerIndex)
 {
+	check((Desc.Flags & IStereoLayers::LAYER_FLAG_HIDDEN) == 0);
 	OvrpLayerSubmit.LayerId = OvrpLayerId;
 	OvrpLayerSubmit.TextureStage = SwapChain.IsValid() ? SwapChain->GetSwapChainIndex_RHIThread() : 0;
 
@@ -785,6 +784,7 @@ const ovrpLayerSubmit* FLayer::UpdateLayer_RHIThread(const FSettings* Settings, 
 
 void FLayer::IncrementSwapChainIndex_RHIThread(FCustomPresent* CustomPresent)
 {
+	check((Desc.Flags & IStereoLayers::LAYER_FLAG_HIDDEN) == 0);
 	CheckInRHIThread();
 
 	if (SwapChain.IsValid())

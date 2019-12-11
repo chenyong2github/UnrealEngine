@@ -65,6 +65,9 @@ namespace Audio
 			UE_LOG(LogAudioMixer, Warning,
 				TEXT("Procedural USoundWave is reinitializing even though it is actively "
 				"generating audio. Sound must be stopped before playing again."));
+
+			// Need to set the procedural sound wave as not looping to allow it to get stopped during sound wave parsing
+			InWave.bLooping = false;
 			return nullptr;
 		}
 
@@ -90,7 +93,7 @@ namespace Audio
 		, bProcedural(InWave.bProcedural)
 		, bIsBus(InWave.bIsBus)
 	{
-		InWave.AddPlayingSource();
+		InWave.AddPlayingSource(this);
 
 		const uint32 TotalSamples = MONO_PCM_BUFFER_SAMPLES * NumChannels;
 		for (int32 BufferIndex = 0; BufferIndex < Audio::MAX_BUFFERS_QUEUED; ++BufferIndex)
@@ -130,7 +133,7 @@ namespace Audio
 
 		if (SoundWave)
 		{
-			SoundWave->RemovePlayingSource();
+			SoundWave->RemovePlayingSource(this);
 		}
 	}
 
@@ -447,6 +450,21 @@ namespace Audio
 		BufferQueue.Enqueue(InSourceVoiceBuffer);
 	}
 
+	void FMixerSourceBuffer::OnBeginDestroy(USoundWave * /*Wave*/)
+	{
+		SoundWave = nullptr;
+	}
+
+	bool FMixerSourceBuffer::OnIsReadyForFinishDestroy(USoundWave * /*Wave*/) const
+	{
+		return false;
+	}
+
+	void FMixerSourceBuffer::OnFinishDestroy(USoundWave * /*Wave*/)
+	{
+		SoundWave = nullptr;
+	}
+
 	bool FMixerSourceBuffer::IsAsyncTaskInProgress() const
 	{ 
 		return AsyncRealtimeAudioTask != nullptr; 
@@ -474,7 +492,7 @@ namespace Audio
 
 	void FMixerSourceBuffer::OnBeginGenerate()
 	{
-		if (bProcedural)
+		if (SoundWave && bProcedural)
 		{
 			check(SoundWave && SoundWave->bProcedural);
 			SoundWave->OnBeginGenerate();
@@ -482,12 +500,12 @@ namespace Audio
 	}
 
 	void FMixerSourceBuffer::OnEndGenerate()
-	{
+	{		
 		// Make sure the async task finishes!
 		EnsureAsyncTaskFinishes();
-
+						
 		// Only need to call OnEndGenerate and access SoundWave here if we successfully initialized
-		if (bInitialized && bProcedural)
+		if (SoundWave && bInitialized && bProcedural)
 		{
 			check(SoundWave && SoundWave->bProcedural);
 			SoundWave->OnEndGenerate();

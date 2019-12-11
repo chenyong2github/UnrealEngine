@@ -848,8 +848,20 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 				
 				UK2Node_FunctionEntry* FuncEntry = EntryNodes[0];
 
-				// This uses the cached struct data inside the node, which is updated on change
-				TSharedPtr<FStructOnScope> StructData = FuncEntry->GetFunctionVariableCache();
+				TSharedPtr<FStructOnScope> StructData = MakeShareable(new FStructOnScope((UFunction*)StructScope));
+
+				for (const FBPVariableDescription& LocalVar : FuncEntry->LocalVariables)
+				{
+					if (LocalVar.VarName == VariableProperty->GetFName())
+					{
+						// Only set the default value if there is one
+						if (!LocalVar.DefaultValue.IsEmpty())
+						{
+							FBlueprintEditorUtils::PropertyValueFromString(VariableProperty, LocalVar.DefaultValue, StructData->GetStructMemory());
+						}
+						break;
+					}
+				}
 
 				if(BlueprintEditor.IsValid())
 				{
@@ -5782,7 +5794,8 @@ void FBlueprintComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLa
 			]
 		];
 
-		UActorComponent* ComponentTemplate = (CachedNodePtr->IsNative() ? CachedNodePtr->GetComponentTemplate() : nullptr);
+		// Remove UI to specify overriden component class until undo/redo can be made to work with crashing
+		/*UActorComponent* ComponentTemplate = (CachedNodePtr->IsNative() ? CachedNodePtr->GetComponentTemplate() : nullptr);
 		if (ComponentTemplate)
 		{
 			UClass* BaseClass = ComponentTemplate->GetClass();
@@ -5814,7 +5827,7 @@ void FBlueprintComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLa
 				.AllowNone(false)
 				.SelectedClass(this, &FBlueprintComponentDetails::GetSelectedEntryClass)
 				.OnSetClass(this, &FBlueprintComponentDetails::HandleNewEntryClassSelected)];
-		}
+		}*/
 
 		IDetailCategoryBuilder& SocketsCategory = DetailLayout.EditCategory("Sockets", LOCTEXT("BlueprintComponentDetailsCategory", "Sockets"), ECategoryPriority::Important);
 
@@ -6112,10 +6125,14 @@ void FBlueprintComponentDetails::HandleNewEntryClassSelected(const UClass* NewEn
 
 		if (UActorComponent* ComponentTemplate = CachedNodePtr->GetComponentTemplate())
 		{
+			const FScopedTransaction Transaction(LOCTEXT("SetComponentClassOverride", "Set Component Class Override"));
+
 			const FName ComponentTemplateName = ComponentTemplate->GetFName();
 
 			UBlueprint* BlueprintObj = GetBlueprintObj();
 			check(BlueprintObj);
+
+			BlueprintObj->Modify();
 
 			if (FBPComponentClassOverride* Override = BlueprintObj->ComponentClassOverrides.FindByKey(ComponentTemplateName))
 			{

@@ -1,12 +1,10 @@
-﻿INTSourceChangelist:3108692
+﻿INTSourceChangelist:6426975
 Availability:NoPublish
 Title:缺失Android组件
 Crumbs:
 Description:虚幻引擎4所有指导教程的内容
 
 [EXCERPT:Stage1]
-(#androiddevelopmentsetup)
-
 ##Android开发设置
 
 您缺失了一些创建Android游戏的必要组件。即使已安装Android SDK，也可能缺失一些组件或环境变量。

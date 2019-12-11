@@ -55,6 +55,62 @@
 
 #define LOCTEXT_NAMESPACE "ConcertClientWorkspace"
 
+/** Provides a workaround for scoped slow tasks that are push/pop out of order by Concert. Concert doesn't use FScopedSlowTask as designed when syncing
+    workspaces. The tasks are likely to run over many engine loops. DisasterRecovery and MultiUser, based on Concert, may both try to run the same
+    slow tasks to sync their workspaces. Syncing uses network messages and the duration depends of how much needs to be synced, so those slow tasks ends
+    in an arbitrary order rather than the strict order expected by the FSlowTask design, sometimes triggering an ensure(). */
+class FConcertSlowTaskStackWorkaround
+{
+public:
+	static FConcertSlowTaskStackWorkaround& Get()
+	{
+		static FConcertSlowTaskStackWorkaround Instance; // Static instance shared by DisasterRecovery and MultiUser clients.
+		return Instance;
+	}
+
+	void PushTask(TUniquePtr<FScopedSlowTask>& Task)
+	{
+		TaskStack.Push(Task.Get()); // Track the expected order as FScopedSlowTask does.
+	}
+
+	void PopTask(TUniquePtr<FScopedSlowTask> Discarded)
+	{
+		if (!Discarded)
+		{
+			return;
+		}
+
+		if (Discarded.Get() == TaskStack.Top()) // If the slow task completed in the FScopedSlowTask expected order?
+		{
+			TaskStack.Pop();
+			Discarded.Reset();
+			while (TaskStack.Num() && ExtendedTaskLife.Num()) // Check if a task for which the life was extended is now on top (and can be discarded).
+			{
+				FScopedSlowTask* Top = TaskStack.Top();
+				if (ExtendedTaskLife.RemoveAll([Top](const TUniquePtr<FScopedSlowTask>& Task) { return Task.Get() == Top; }) != 0)
+				{
+					TaskStack.Pop();
+				}
+				else
+				{
+					return;
+				}
+			}
+		}
+		else // Out of order deletion, need to extend the life of this task until it gets to the top of the stack.
+		{
+			ExtendedTaskLife.Add(MoveTemp(Discarded));
+		}
+	}
+
+private:
+	FConcertSlowTaskStackWorkaround() = default;
+
+	TArray<FScopedSlowTask*> TaskStack;
+	TArray<TUniquePtr<FScopedSlowTask>> ExtendedTaskLife;
+};
+
+
 FConcertClientWorkspace::FConcertClientWorkspace(TSharedRef<FConcertSyncClientLiveSession> InLiveSession, IConcertClientPackageBridge* InPackageBridge, IConcertClientTransactionBridge* InTransactionBridge)
 {
 	BindSession(InLiveSession, InPackageBridge, InTransactionBridge);
@@ -114,31 +170,52 @@ bool FConcertClientWorkspace::HasSessionChanges() const
 	return (TransactionManager && TransactionManager->HasSessionChanges()) || (PackageManager && PackageManager->HasSessionChanges());
 }
 
-TArray<FString> FConcertClientWorkspace::GatherSessionChanges()
+TArray<FName> FConcertClientWorkspace::GatherSessionChanges(bool IgnorePersisted)
 {
-	TArray<FString> SessionChanges;
-#if WITH_EDITOR
-	// Save live transactions to packages so we can properly report those changes.
-	SaveLiveTransactionsToPackages();
-#endif
-	// Persist the sandbox state over the real content directory
-	// This will also check things out from source control and make them ready to be submitted
-	if (PackageManager)
+	TSet<FName> SessionChangedPackageNames;
+
+	// Gather the packages with live transactions
+	LiveSession->GetSessionDatabase().EnumeratePackageNamesWithLiveTransactions([&SessionChangedPackageNames](FName PackageName)
 	{
-		SessionChanges = PackageManager->GatherSessionChanges();
-	}
-	return SessionChanges;
+		SessionChangedPackageNames.Add(PackageName);
+		return true;
+	});
+
+	// Gather the packages with a non persisted head revision events
+	LiveSession->GetSessionDatabase().EnumeratePackageNamesWithHeadRevision([&SessionChangedPackageNames](FName PackageName)
+	{
+		SessionChangedPackageNames.Add(PackageName);
+		return true;
+	}, IgnorePersisted);
+
+	return SessionChangedPackageNames.Array();
 }
 
-bool FConcertClientWorkspace::PersistSessionChanges(TArrayView<const FString> InFilesToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasons)
+bool FConcertClientWorkspace::PersistSessionChanges(TArrayView<const FName> InPackagesToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasons)
 {
+	bool bSuccess = false;
 #if WITH_EDITOR
 	if (PackageManager)
 	{
-		return PackageManager->PersistSessionChanges(InFilesToPersist, SourceControlProvider, OutFailureReasons);
+		for (const FName& PackageName : InPackagesToPersist)
+		{
+			SaveLiveTransactionsToPackage(PackageName);
+		}
+
+		bSuccess = PackageManager->PersistSessionChanges(InPackagesToPersist, SourceControlProvider, OutFailureReasons);
+
+		// if we successfully persisted the files, record persist events for them in the db
+		if (bSuccess)
+		{
+			int64 PersistEventId = 0;
+			for (const FName& PackageName : InPackagesToPersist)
+			{
+				LiveSession->GetSessionDatabase().AddPersistEventForHeadRevision(PackageName, PersistEventId);
+			}
+		}
 	}
 #endif
-	return false;
+	return bSuccess;
 }
 
 bool FConcertClientWorkspace::HasLiveTransactionSupport(UPackage* InPackage) const
@@ -472,6 +549,7 @@ void FConcertClientWorkspace::HandleConnectionChanged(IConcertClientSession& InS
 		bFinalizeWorkspaceSyncRequested = false;
 		InitialSyncSlowTask = MakeUnique<FScopedSlowTask>(1.0f, LOCTEXT("SynchronizingSession", "Synchronizing Session..."));
 		InitialSyncSlowTask->MakeDialog();
+		FConcertSlowTaskStackWorkaround::Get().PushTask(InitialSyncSlowTask);
 
 		// Request our initial workspace sync for any new activity since we last joined
 		{
@@ -505,7 +583,7 @@ void FConcertClientWorkspace::HandleConnectionChanged(IConcertClientSession& InS
 	{
 		bHasSyncedWorkspace = false;
 		bFinalizeWorkspaceSyncRequested = false;
-		InitialSyncSlowTask.Reset();
+		FConcertSlowTaskStackWorkaround::Get().PopTask(MoveTemp(InitialSyncSlowTask));
 	}
 }
 
@@ -516,14 +594,32 @@ void FConcertClientWorkspace::SaveLiveTransactionsToPackages()
 	// Save any packages that have live transactions
 	if (GEditor && TransactionManager)
 	{
-		// Ignore these package saves as the other clients should already be in-sync
-		IConcertClientPackageBridge::FScopedIgnoreLocalSave IgnorePackageSaveScope(*PackageBridge);
 		LiveSession->GetSessionDatabase().EnumeratePackageNamesWithLiveTransactions([this](const FName PackageName)
 		{
+			SaveLiveTransactionsToPackage(PackageName);
+			return true;
+		});
+	}
+}
+
+void FConcertClientWorkspace::SaveLiveTransactionsToPackage(const FName PackageName)
+{
+	if (GEditor && TransactionManager)
+	{
+		bool bHasLiveTransactions = false;
+		if (LiveSession->GetSessionDatabase().PackageHasLiveTransactions(PackageName, bHasLiveTransactions)
+			&& bHasLiveTransactions)
+		{
+			// Ignore these package saves as the other clients should already be in-sync
+			IConcertClientPackageBridge::FScopedIgnoreLocalSave IgnorePackageSaveScope(*PackageBridge);
+
 			const FString PackageNameStr = PackageName.ToString();
 			UPackage* Package = LoadPackage(nullptr, *PackageNameStr, LOAD_None);
 			if (Package)
 			{
+				// Load package will queue live transaction, process them before saving the file
+				TransactionManager->ProcessPending();
+
 				UWorld* World = UWorld::FindWorldInPackage(Package);
 				FString PackageFilename;
 				if (!FPackageName::DoesPackageExist(PackageNameStr, nullptr, &PackageFilename))
@@ -546,8 +642,7 @@ void FConcertClientWorkspace::SaveLiveTransactionsToPackages()
 					UE_LOG(LogConcert, Warning, TEXT("Failed to save package '%s' when persiting sandbox state!"), *PackageNameStr);
 				}
 			}
-			return true;
-		});
+		}
 	}
 }
 
@@ -674,7 +769,7 @@ void FConcertClientWorkspace::OnEndFrame()
 
 		// Finalize the sync
 		bHasSyncedWorkspace = true;
-		InitialSyncSlowTask.Reset();
+		FConcertSlowTaskStackWorkaround::Get().PopTask(MoveTemp(InitialSyncSlowTask));
 	}
 
 	if (bHasSyncedWorkspace)

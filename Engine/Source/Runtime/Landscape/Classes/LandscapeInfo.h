@@ -17,6 +17,11 @@ class ULandscapeLayerInfoObject;
 class ULevel;
 class UMaterialInstanceConstant;
 struct FLandscapeEditorLayerSettings;
+class ULandscapeSplinesComponent;
+class ULandscapeSplineControlPoint;
+class ULandscapeSplineSegment;
+class ULandscapeHeightfieldCollisionComponent;
+class FModulateAlpha;
 
 /** Structure storing Collision for LandscapeComponent Add */
 #if WITH_EDITORONLY_DATA
@@ -120,6 +125,8 @@ class ULandscapeInfo : public UObject
 public:
 	/** Map of the offsets (in component space) to the component. Valid in editor only. */
 	TMap<FIntPoint, ULandscapeComponent*> XYtoComponentMap;
+    /** Map of the offsets (in component space) to the collision components. Should always be valid. */
+	TMap<FIntPoint, ULandscapeHeightfieldCollisionComponent*> XYtoCollisionComponentMap;
 
 #if WITH_EDITORONLY_DATA
 	/** Lookup map used by the "add component" tool. Only available near valid LandscapeComponents.
@@ -152,7 +159,6 @@ public:
 	LANDSCAPE_API void ExportHeightmap(const FString& Filename);
 	LANDSCAPE_API void ExportLayer(ULandscapeLayerInfoObject* LayerInfo, const FString& Filename);
 	LANDSCAPE_API bool ApplySplines(bool bOnlySelected, TSet<ULandscapeComponent*>* OutModifiedComponents = nullptr, bool bMarkPackageDirty = true);
-	bool ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* Proxy, TSet<ULandscapeComponent*>* OutModifiedComponents, bool bMarkPackageDirty);
 
 	LANDSCAPE_API bool GetSelectedExtent(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY) const;
 	FVector GetLandscapeCenterPos(float& LengthZ, int32 MinX = MAX_int32, int32 MinY = MAX_int32, int32 MaxX = MIN_int32, int32 MaxY = MIN_int32);
@@ -166,7 +172,6 @@ public:
 	LANDSCAPE_API TSet<ULandscapeComponent*> GetSelectedComponents() const;
 	LANDSCAPE_API TSet<ULandscapeComponent*> GetSelectedRegionComponents() const;
 	LANDSCAPE_API void UpdateSelectedComponents(TSet<ULandscapeComponent*>& NewComponents, bool bIsComponentwise = true);
-	LANDSCAPE_API void SortSelectedComponents();
 	LANDSCAPE_API void ClearSelectedRegion(bool bIsComponentwise = true);
 
 	// only for use by the "add component" tool. Todo - move into the tool?
@@ -242,6 +247,18 @@ public:
 
 	/** Will clear all component dirty data */
 	LANDSCAPE_API void ClearDirtyData();
+
+	/** Moves Components to target level. Creates ALandscapeProxy if needed. */
+	LANDSCAPE_API ALandscapeProxy* MoveComponentsToLevel(const TArray<ULandscapeComponent*>& InComponents, ULevel* TargetLevel, FName NewProxyName = NAME_None);
+
+	/** Moves Splines connected to this control point to target level. Creates ULandscapeSplineComponent if needed. */
+	LANDSCAPE_API void MoveSplineToLevel(ULandscapeSplineControlPoint* InControlPoint, ULevel* TargetLevel);
+
+	/** Moves all Splines to target level. Creates ULandscapeSplineComponent if needed. */
+	LANDSCAPE_API void MoveSplinesToLevel(ULandscapeSplinesComponent* InSplineComponent, ULevel* TargetLevel);
+
+	/** Will call UpdateAllComponentMaterialInstances on all LandscapeProxies */
+	LANDSCAPE_API void UpdateAllComponentMaterialInstances();
 #endif
 	/** Associates passed actor with this info object
  *  @param	Proxy		Landscape actor to register
@@ -260,4 +277,15 @@ public:
 
 	/** Deassociates passed landscape component with this info object*/
 	LANDSCAPE_API void UnregisterActorComponent(ULandscapeComponent* Component);
+
+	/** Server doesn't have ULandscapeComponent use CollisionComponents instead to get height on landscape */
+	LANDSCAPE_API void RegisterCollisionComponent(ULandscapeHeightfieldCollisionComponent* Component);
+	LANDSCAPE_API void UnregisterCollisionComponent(ULandscapeHeightfieldCollisionComponent* Component);
+
+#if WITH_EDITOR
+private:
+	bool ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* Proxy, TSet<ULandscapeComponent*>* OutModifiedComponents, bool bMarkPackageDirty, int32 LandscapeMinX, int32 LandscapeMinY, int32 LandscapeMaxX, int32 LandscapeMaxY, TFunctionRef<TSharedPtr<FModulateAlpha>(ULandscapeLayerInfoObject*)> GetOrCreateModulate);
+	void MoveSegmentToLandscape(ULandscapeSplineSegment* InSegment, ALandscapeProxy* FromProxy, ALandscapeProxy* ToProxy);
+	void MoveControlPointToLandscape(ULandscapeSplineControlPoint* InControlPoint, ALandscapeProxy* FromProxy, ALandscapeProxy* ToProxy);
+#endif
 };

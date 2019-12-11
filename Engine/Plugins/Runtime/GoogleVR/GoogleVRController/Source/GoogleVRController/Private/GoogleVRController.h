@@ -61,6 +61,7 @@ public:
 	{
 		enum Type
 		{
+			// Deprecated buttons
 			ApplicationMenu,
 			TouchPadLeft,
 			TouchPadUp,
@@ -71,6 +72,11 @@ public:
 			Grip,
 			TouchPadPress,
 			TouchPadTouch,
+
+			// New buttons
+			SelectClick,
+			TrackpadClick,
+			TrackpadTouch,
 
 			/** Max number of controller buttons.  Must be < 256 */
 			TotalButtonCount

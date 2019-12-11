@@ -337,6 +337,11 @@ void FAudioThumbnail::GenerateWaveformPreview(TArray<uint8>& OutData, TRange<flo
 	const int32 TrueDrawOffsetPx = FMath::Max(FMath::RoundToInt((DrawRange.GetLowerBoundValue() - SectionStartTime) / DisplayScale), 0);
 	const int32 LastTrueSample = -2.f*SmoothingAmount + FMath::TruncToInt(TrueRangeSize / DisplayScale);
 
+	if (LastTrueSample <= 0)
+	{
+		return;
+	}
+
 	DrawRange = AudioTrueRange;
 
 	float DrawRangeSize = DrawRange.Size<float>();
@@ -699,6 +704,54 @@ int32 FAudioSection::OnPaintSection( FSequencerSectionPainter& Painter ) const
 			(Painter.bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect) | ESlateDrawEffect::NoGamma,
 			FLinearColor::White
 		);
+	}
+
+	const ESlateDrawEffect DrawEffects = Painter.bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
+
+	const FTimeToPixel& TimeToPixelConverter = Painter.GetTimeConverter();
+
+	static const FSlateBrush* GenericDivider = FEditorStyle::GetBrush("Sequencer.GenericDivider");
+
+	if (!Section.HasStartFrame() || !Section.HasEndFrame())
+	{
+		return LayerId;
+	}
+
+	UMovieSceneAudioSection* AudioSection = Cast<UMovieSceneAudioSection>(&Section);
+	if (!AudioSection || !AudioSection->GetSound())
+	{
+		return LayerId;
+	}
+
+	FFrameRate TickResolution = TimeToPixelConverter.GetTickResolution();
+	float AudioDuration = DeriveUnloopedDuration(AudioSection);
+
+	// Add lines where the animation starts and ends/loops
+	const float SeqLength = AudioDuration - TickResolution.AsSeconds(AudioSection->GetStartOffset());
+
+	if (!FMath::IsNearlyZero(SeqLength, KINDA_SMALL_NUMBER) && SeqLength > 0)
+	{
+		float MaxOffset = Section.GetRange().Size<FFrameTime>() / TickResolution;
+		float OffsetTime = SeqLength;
+		float StartTime = Section.GetInclusiveStartFrame() / TickResolution;
+
+		while (OffsetTime < MaxOffset)
+		{
+			float OffsetPixel = TimeToPixelConverter.SecondsToPixel(StartTime + OffsetTime) - TimeToPixelConverter.SecondsToPixel(StartTime);
+
+			FSlateDrawElement::MakeBox(
+				Painter.DrawElements,
+				LayerId,
+				Painter.SectionGeometry.MakeChild(
+					FVector2D(2.f, Painter.SectionGeometry.Size.Y - 2.f),
+					FSlateLayoutTransform(FVector2D(OffsetPixel, 1.f))
+				).ToPaintGeometry(),
+				GenericDivider,
+				DrawEffects
+			);
+
+			OffsetTime += SeqLength;
+		}
 	}
 
 	return LayerId;

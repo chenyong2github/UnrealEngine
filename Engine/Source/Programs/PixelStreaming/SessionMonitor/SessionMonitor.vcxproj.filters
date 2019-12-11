@@ -1,0 +1,107 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="src\SessionMonitor.cpp" />
+    <ClCompile Include="src\SessionMonitorCommon.cpp" />
+    <ClCompile Include="src\SessionMonitorPCH.cpp" />
+    <ClCompile Include="src\CmdLine.cpp">
+      <Filter>Util</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Logging.cpp">
+      <Filter>Logging</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Console.cpp">
+      <Filter>Logging</Filter>
+    </ClCompile>
+    <ClCompile Include="src\StringUtils.cpp">
+      <Filter>Util</Filter>
+    </ClCompile>
+    <ClCompile Include="src\TimeUtils.cpp">
+      <Filter>Util</Filter>
+    </ClCompile>
+    <ClCompile Include="src\FileLogOutput.cpp">
+      <Filter>Logging</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OwnCrashDetection.cpp" />
+    <ClCompile Include="src\Spawner.cpp" />
+    <ClCompile Include="src\Monitor.cpp" />
+    <ClCompile Include="src\AppSession.cpp" />
+    <ClCompile Include="src\Config.cpp" />
+    <ClCompile Include="src\Utils.cpp" />
+    <ClCompile Include="src\MonitorController.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\SessionMonitorCommon.h" />
+    <ClInclude Include="src\SessionMonitorPCH.h" />
+    <ClInclude Include="src\targetver.h" />
+    <ClInclude Include="src\CmdLine.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Logging.h">
+      <Filter>Logging</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Console.h">
+      <Filter>Logging</Filter>
+    </ClInclude>
+    <ClInclude Include="src\StringUtils.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="src\TimeUtils.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="src\FileLogOutput.h">
+      <Filter>Logging</Filter>
+    </ClInclude>
+    <ClInclude Include="src\SharedQueue.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ScopeGuard.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="src\OwnCrashDetection.h" />
+    <ClInclude Include="src\Spawner.h" />
+    <ClInclude Include="src\Monitor.h" />
+    <ClInclude Include="src\Algorithm.h" />
+    <ClInclude Include="src\AppSession.h" />
+    <ClInclude Include="src\Config.h" />
+    <ClInclude Include="src\Utils.h" />
+    <ClInclude Include="src\MonitorController.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Util">
+      <UniqueIdentifier>{331cd192-6044-445a-8f13-1a30978c4341}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Logging">
+      <UniqueIdentifier>{c0e39e74-2146-4c88-b931-8c2a4909d5fb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ConfigSamples">
+      <UniqueIdentifier>{55a0ea0f-34b8-4d08-9f61-019b5b5a3f4e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DummyFrontend">
+      <UniqueIdentifier>{40b9a385-90e5-437c-b3b3-a8e250c59a2d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DummyFrontend\scripts">
+      <UniqueIdentifier>{272e1c40-1ded-4e50-8f20-ef9fe6c4b31e}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="DummyFrontend\frontend.html">
+      <Filter>DummyFrontend</Filter>
+    </None>
+    <None Include="DummyFrontend\scripts\frontend.js">
+      <Filter>DummyFrontend\scripts</Filter>
+    </None>
+    <None Include="bin\SessionMonitorConfig.json">
+      <Filter>ConfigSamples</Filter>
+    </None>
+    <None Include="bin\SessionMonitorConfigDebug.json">
+      <Filter>ConfigSamples</Filter>
+    </None>
+    <None Include="bin\SessionMonitorConfigDevelopment.json">
+      <Filter>ConfigSamples</Filter>
+    </None>
+    <None Include="bin\TestConfig.json">
+      <Filter>ConfigSamples</Filter>
+    </None>
+  </ItemGroup>
+</Project>

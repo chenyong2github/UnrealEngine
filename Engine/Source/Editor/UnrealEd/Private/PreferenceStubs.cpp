@@ -52,6 +52,8 @@ UPhysicsAssetEditorOptions::UPhysicsAssetEditorOptions(const FObjectInitializer&
 
 	CollisionOpacity = 0.3f;
 	bSolidRenderingForSelectedOnly = false;
+	bHideSimulatedBodies = false;
+	bHideKinematicBodies = false;
 	bResetClothWhenSimulating = false;
 }
 

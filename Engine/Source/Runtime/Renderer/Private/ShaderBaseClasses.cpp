@@ -287,7 +287,7 @@ void FMaterialShader::SetParametersInner(
 				// In a cooked project these numbers are persistent so we can track back to the original
 				// parameter collection that was being referenced and no longer exists
 				FString InstancesString;
-				TMap<FGuid, FMaterialParameterCollectionInstanceResource*>::TIterator Iter = GDefaultMaterialParameterCollectionInstances.CreateIterator();
+				TMultiMap<FGuid, FMaterialParameterCollectionInstanceResource*>::TIterator Iter = GDefaultMaterialParameterCollectionInstances.CreateIterator();
 				while (Iter)
 				{
 					FMaterialParameterCollectionInstanceResource* Instance = Iter.Value();
@@ -423,7 +423,9 @@ void FMaterialShader::GetShaderBindings(
 	check(Material.GetRenderingThreadShaderMap() && Material.GetRenderingThreadShaderMap()->IsValidForRendering() && Material.GetFeatureLevel() == FeatureLevel);
 
 	const FUniformExpressionCache& UniformExpressionCache = MaterialRenderProxy.UniformExpressionCache[FeatureLevel];
-	check(UniformExpressionCache.bUpToDate && UniformExpressionCache.UniformBuffer);
+
+	checkf(UniformExpressionCache.bUpToDate, TEXT("UniformExpressionCache should be up to date, RenderProxy=%s Material=%s FeatureLevel=%d"), *MaterialRenderProxy.GetFriendlyName(), *Material.GetFriendlyName(), FeatureLevel);
+	checkf(UniformExpressionCache.UniformBuffer, TEXT("NULL UniformBuffer, RenderProxy=%s Material=%s FeatureLevel=%d"), *MaterialRenderProxy.GetFriendlyName(), *Material.GetFriendlyName(), FeatureLevel);
 
 #if !(UE_BUILD_TEST || UE_BUILD_SHIPPING || !WITH_EDITOR)
 	VerifyExpressionAndShaderMaps(&MaterialRenderProxy, Material, &UniformExpressionCache);
@@ -463,7 +465,7 @@ void FMaterialShader::GetShaderBindings(
 				// In a cooked project these numbers are persistent so we can track back to the original
 				// parameter collection that was being referenced and no longer exists
 				FString InstancesString;
-				TMap<FGuid, FMaterialParameterCollectionInstanceResource*>::TIterator Iter = GDefaultMaterialParameterCollectionInstances.CreateIterator();
+				TMultiMap<FGuid, FMaterialParameterCollectionInstanceResource*>::TIterator Iter = GDefaultMaterialParameterCollectionInstances.CreateIterator();
 				while (Iter)
 				{
 					FMaterialParameterCollectionInstanceResource* Instance = Iter.Value();

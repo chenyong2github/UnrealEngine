@@ -14,8 +14,6 @@
 #include "HAL/FileManager.h"
 #include "Internationalization/Regex.h"
 
-int32 FCurlHttpRequest::NumberOfInfoMessagesToCache = 50;
-
 #if WITH_SSL
 #include "Ssl.h"
 
@@ -76,6 +74,7 @@ FCurlHttpRequest::FCurlHttpRequest()
 	,	TimeSinceLastResponse(0.0f)
 	,	bAnyHttpActivity(false)
 	,   BytesSent(0)
+	,	TotalBytesSent(0)
 	,	LastReportedBytesRead(0)
 	,	LastReportedBytesSent(0)
 	,   LeastRecentlyCachedInfoMessageIndex(0)
@@ -298,6 +297,7 @@ void FCurlHttpRequest::SetURL(const FString& InURL)
 void FCurlHttpRequest::SetContent(const TArray<uint8>& ContentPayload)
 {
 	RequestPayload = MakeUnique<FRequestPayloadInMemory>(ContentPayload);
+	bIsRequestPayloadSeekable = true;
 }
 
 void FCurlHttpRequest::SetContentAsString(const FString& ContentString)
@@ -306,7 +306,8 @@ void FCurlHttpRequest::SetContentAsString(const FString& ContentString)
 	TArray<uint8> Buffer;
 	Buffer.SetNum(Converter.Length());
 	FMemory::Memcpy(Buffer.GetData(), Converter.Get(), Buffer.Num());
-	RequestPayload = MakeUnique<FRequestPayloadInMemory>(Buffer);
+	bIsRequestPayloadSeekable = true;
+	RequestPayload = MakeUnique<FRequestPayloadInMemory>(MoveTemp(Buffer));
 }
 
 bool FCurlHttpRequest::SetContentAsStreamedFile(const FString& Filename)
@@ -323,14 +324,14 @@ bool FCurlHttpRequest::SetContentAsStreamedFile(const FString& Filename)
 	if (File)
 	{
 		RequestPayload = MakeUnique<FRequestPayloadInFileStream>(MakeShareable(File));
-		return true;
 	}
 	else
 	{
 		UE_LOG(LogHttp, Warning, TEXT("FCurlHttpRequest::SetContentAsStreamedFile Failed to open %s for reading"), *Filename);
 		RequestPayload.Reset();
-		return false;
 	}
+	bIsRequestPayloadSeekable = false;
+	return RequestPayload.IsValid();
 }
 
 bool FCurlHttpRequest::SetContentFromStream(TSharedRef<FArchive, ESPMode::ThreadSafe> Stream)
@@ -344,6 +345,7 @@ bool FCurlHttpRequest::SetContentFromStream(TSharedRef<FArchive, ESPMode::Thread
 	}
 
 	RequestPayload = MakeUnique<FRequestPayloadInFileStream>(Stream);
+	bIsRequestPayloadSeekable = false;
 	return true;
 }
 
@@ -382,6 +384,16 @@ size_t FCurlHttpRequest::StaticUploadCallback(void* Ptr, size_t SizeInBlocks, si
 	// dispatch
 	FCurlHttpRequest* Request = reinterpret_cast<FCurlHttpRequest*>(UserData);
 	return Request->UploadCallback(Ptr, SizeInBlocks, BlockSizeInBytes);
+}
+
+int FCurlHttpRequest::StaticSeekCallback(void* UserData, curl_off_t Offset, int Origin)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FCurlHttpRequest_StaticSeekCallback);
+	check(UserData);
+
+	// dispatch
+	FCurlHttpRequest* Request = reinterpret_cast<FCurlHttpRequest*>(UserData);
+	return Request->SeekCallback(Offset, Origin);
 }
 
 size_t FCurlHttpRequest::StaticReceiveResponseHeaderCallback(void* Ptr, size_t SizeInBlocks, size_t BlockSizeInBytes, void* UserData)
@@ -522,17 +534,39 @@ size_t FCurlHttpRequest::UploadCallback(void* Ptr, size_t SizeInBlocks, size_t B
 	size_t SizeAlreadySent = static_cast<size_t>(BytesSent.GetValue());
 	size_t SizeSentThisTime = RequestPayload->FillOutputBuffer(Ptr, MaxBufferSize, SizeAlreadySent);
 	BytesSent.Add(SizeSentThisTime);
+	TotalBytesSent.Add(SizeSentThisTime);
 
-	UE_LOG(LogHttp, Verbose, TEXT("%p: UploadCallback: %d bytes out of %d sent. (SizeInBlocks=%d, BlockSizeInBytes=%d, SizeToSendThisTime=%d (<-this will get returned from the callback))"),
+	UE_LOG(LogHttp, Verbose, TEXT("%p: UploadCallback: %d bytes out of %d sent (%d bytes total sent). (SizeInBlocks=%d, BlockSizeInBytes=%d, SizeToSendThisTime=%d (<-this will get returned from the callback))"),
 		this,
 		static_cast< int32 >(BytesSent.GetValue()),
 		RequestPayload->GetContentLength(),
+		static_cast< int32 >(TotalBytesSent.GetValue()),
 		static_cast< int32 >(SizeInBlocks),
 		static_cast< int32 >(BlockSizeInBytes),
 		static_cast< int32 >(SizeSentThisTime)
 		);
 
 	return SizeSentThisTime;
+}
+
+int FCurlHttpRequest::SeekCallback(curl_off_t Offset, int Origin)
+{
+	// Only support seeking to the very beginning
+	if (bIsRequestPayloadSeekable && Origin == SEEK_SET && Offset == 0)
+	{
+		UE_LOG(LogHttp, Log, TEXT("%p: SeekCallback: Resetting to the beginning. We had uploaded %d bytes"),
+			this,
+			static_cast<int32>(BytesSent.GetValue()));
+		BytesSent.Reset();
+		bIsRequestPayloadSeekable = false; // Do not attempt to re-seek
+		return CURL_SEEKFUNC_OK;
+	}
+	UE_LOG(LogHttp, Warning, TEXT("%p: SeekCallback: Failed to seek to Offset=%lld, Origin=%d %s"), 
+		this,
+		(int64)(Offset),
+		Origin, 
+		bIsRequestPayloadSeekable ? TEXT("not implemented") : TEXT("seek disabled"));
+	return CURL_SEEKFUNC_CANTSEEK;
 }
 
 size_t FCurlHttpRequest::DebugCallback(CURL * Handle, curl_infotype DebugInfoType, char * DebugInfo, size_t DebugInfoSize)
@@ -667,6 +701,7 @@ bool FCurlHttpRequest::SetupRequest()
 	if (!RequestPayload.IsValid())
 	{
 		RequestPayload = MakeUnique<FRequestPayloadInMemory>(TArray<uint8>());
+		bIsRequestPayloadSeekable = true;
 	}
 
 	bCurlRequestCompleted = false;
@@ -722,7 +757,7 @@ bool FCurlHttpRequest::SetupRequest()
 	{
 		// If we don't pass any other Content-Type, RequestPayload is assumed to be URL-encoded by this time
 		// In the case of using a streamed file, you must explicitly set the Content-Type, because RequestPayload->IsURLEncoded returns false.
-		check(!GetHeader("Content-Type").IsEmpty() || RequestPayload->IsURLEncoded());
+		check(!GetHeader(TEXT("Content-Type")).IsEmpty() || RequestPayload->IsURLEncoded());
 		curl_easy_setopt(EasyHandle, CURLOPT_POST, 1L);
 		curl_easy_setopt(EasyHandle, CURLOPT_POSTFIELDS, NULL);
 		curl_easy_setopt(EasyHandle, CURLOPT_POSTFIELDSIZE, RequestPayload->GetContentLength());
@@ -752,7 +787,7 @@ bool FCurlHttpRequest::SetupRequest()
 	{
 		// If we don't pass any other Content-Type, RequestPayload is assumed to be URL-encoded by this time
 		// (if we pass, don't check here and trust the request)
-		check(!GetHeader("Content-Type").IsEmpty() || RequestPayload->IsURLEncoded());
+		check(!GetHeader(TEXT("Content-Type")).IsEmpty() || RequestPayload->IsURLEncoded());
 
 		curl_easy_setopt(EasyHandle, CURLOPT_POST, 1L);
 		curl_easy_setopt(EasyHandle, CURLOPT_CUSTOMREQUEST, "DELETE");
@@ -768,6 +803,7 @@ bool FCurlHttpRequest::SetupRequest()
 	if (bUseReadFunction)
 	{
 		BytesSent.Reset();
+		TotalBytesSent.Reset();
 		curl_easy_setopt(EasyHandle, CURLOPT_READDATA, this);
 		curl_easy_setopt(EasyHandle, CURLOPT_READFUNCTION, StaticUploadCallback);
 	}
@@ -788,20 +824,20 @@ bool FCurlHttpRequest::SetupRequest()
 		curl_easy_setopt(EasyHandle, CURLOPT_ACCEPT_ENCODING, "");
 	}
 
-	if (GetHeader("User-Agent").IsEmpty())
+	if (GetHeader(TEXT("User-Agent")).IsEmpty())
 	{
 		SetHeader(TEXT("User-Agent"), FPlatformHttp::GetDefaultUserAgent());
 	}
 
 	// content-length should be present http://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.4
-	if (GetHeader("Content-Length").IsEmpty())
+	if (GetHeader(TEXT("Content-Length")).IsEmpty())
 	{
 		SetHeader(TEXT("Content-Length"), FString::Printf(TEXT("%d"), RequestPayload->GetContentLength()));
 	}
 
 	// Remove "Expect: 100-continue" since this is supposed to cause problematic behavior on Amazon ELB (and WinInet doesn't send that either)
 	// (also see http://www.iandennismiller.com/posts/curl-http1-1-100-continue-and-multipartform-data-post.html , http://the-stickman.com/web-development/php-and-curl-disabling-100-continue-header/ )
-	if (GetHeader("Expect").IsEmpty())
+	if (GetHeader(TEXT("Expect")).IsEmpty())
 	{
 		SetHeader(TEXT("Expect"), TEXT(""));
 	}
@@ -844,6 +880,12 @@ bool FCurlHttpRequest::SetupRequest()
 	if (HttpConnectionTimeout >= 0)
 	{
 		curl_easy_setopt(EasyHandle, CURLOPT_CONNECTTIMEOUT, HttpConnectionTimeout);
+	}
+
+	if (FCurlHttpManager::CurlRequestOptions.bAllowSeekFunction && bIsRequestPayloadSeekable)
+	{
+		curl_easy_setopt(EasyHandle, CURLOPT_SEEKDATA, this);
+		curl_easy_setopt(EasyHandle, CURLOPT_SEEKFUNCTION, StaticSeekCallback);
 	}
 
 	UE_LOG(LogHttp, Log, TEXT("%p: Starting %s request to URL='%s'"), this, *Verb, *URL);

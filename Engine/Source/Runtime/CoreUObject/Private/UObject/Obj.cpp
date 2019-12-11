@@ -346,7 +346,8 @@ void UObject::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent
 	// This allows listeners to be notified of intermediate changes of state
 	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive)
 	{
-		SnapshotTransactionBuffer(this);
+		const UProperty* ChangedProperty = PropertyChangedEvent.MemberProperty;
+		SnapshotTransactionBuffer(this, TArrayView<const UProperty*>(&ChangedProperty, 1));
 	}
 }
 
@@ -704,42 +705,34 @@ bool UObject::CanCreateInCurrentContext(UObject* Template)
 
 void UObject::GetArchetypeInstances( TArray<UObject*>& Instances )
 {
-	Instances.Empty();
+	Instances.Reset();
 
 	if ( HasAnyFlags(RF_ArchetypeObject|RF_ClassDefaultObject) )
 	{
-		// we need to evaluate CDOs as well, but nothing pending kill
-		TArray<UObject*> IterObjects;
-		{
-			const bool bIncludeNestedObjects = true;
-			GetObjectsOfClass(GetClass(), IterObjects, bIncludeNestedObjects, RF_NoFlags, EInternalObjectFlags::PendingKill);
-		}
 
 		// if this object is the class default object, any object of the same class (or derived classes) could potentially be affected
 		if ( !HasAnyFlags(RF_ArchetypeObject) )
 		{
-			Instances.Reserve(IterObjects.Num()-1);
-			for (UObject* It : IterObjects)
+			const bool bIncludeNestedObjects = true;
+			ForEachObjectOfClass(GetClass(), [this, &Instances](UObject* Obj)
 			{
-				UObject* Obj = It;
-				if ( Obj != this )
+				if (Obj != this)
 				{
 					Instances.Add(Obj);
 				}
-			}
+			}, bIncludeNestedObjects, RF_NoFlags, EInternalObjectFlags::PendingKill); // we need to evaluate CDOs as well, but nothing pending kill
 		}
 		else
 		{
-			for (UObject* It : IterObjects)
+			const bool bIncludeNestedObjects = true;
+			ForEachObjectOfClass(GetClass(), [this, &Instances](UObject* Obj)
 			{
-				UObject* Obj = It;
-				
-				// if this object is the correct type and its archetype is this object, add it to the list
-				if ( Obj && Obj != this && Obj->IsBasedOnArchetype(this) )
+				if (Obj != this && Obj->IsBasedOnArchetype(this))
 				{
 					Instances.Add(Obj);
 				}
-			}
+			}, bIncludeNestedObjects, RF_NoFlags, EInternalObjectFlags::PendingKill); // we need to evaluate CDOs as well, but nothing pending kill
+
 		}
 	}
 }
@@ -1152,11 +1145,6 @@ void UObject::PostLoadSubobjects( FObjectInstancingGraph* OuterInstanceGraph/*=N
 	}
 }
 
-void* UObject::CreateSparseClassData()
-{
-	return nullptr;
-}
-
 UScriptStruct* UObject::GetSparseClassDataStruct() const
 {
 	UClass* Class = GetClass();
@@ -1318,6 +1306,28 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 					bool bDifferentOuter = LoadOuter != GetOuter();
 					if ( bDifferentName == true || bDifferentOuter == true )
 					{
+						// Clear the name for use by this:
+						UObject* Collision = StaticFindObjectFast(UObject::StaticClass(), LoadOuter, LoadName);
+						if(Collision && Collision != this)
+						{
+							FName NewNameForCollision = MakeUniqueObjectName(LoadOuter, Collision->GetClass(), LoadName);
+							checkf( StaticFindObjectFast(UObject::StaticClass(), LoadOuter, NewNameForCollision) == nullptr,
+								TEXT("Failed to MakeUniqueObjectName for object colliding with transaction buffer state: %s %s"),
+								*LoadName.ToString(),
+								*NewNameForCollision.ToString()
+							);
+							Collision->LowLevelRename(NewNameForCollision,LoadOuter);
+#if DO_CHECK
+							UObject* SubsequentCollision = StaticFindObjectFast(UObject::StaticClass(), LoadOuter, LoadName);
+							checkf( SubsequentCollision == nullptr,
+								TEXT("Multiple name collisions detected in the transaction buffer: %x %x with name %s"),
+								Collision,
+								SubsequentCollision,
+								*LoadName.ToString()
+							);
+#endif
+						}
+						
 						LowLevelRename(LoadName,LoadOuter);
 					}
 				}
@@ -2456,6 +2466,7 @@ void UObject::SaveConfig( uint64 Flags, const TCHAR* InFilename, FConfigCacheIni
 
 			// Properties that are the same as the parent class' defaults should not be saved to ini
 			// Before modifying any key in the section, first check to see if it is different from the parent.
+			const bool bPropDeprecated = Property->HasAnyPropertyFlags(CPF_Deprecated);
 			const bool bIsPropertyInherited = Property->GetOwnerClass() != GetClass();
 			const bool bShouldCheckIfIdenticalBeforeAdding = !GetClass()->HasAnyClassFlags(CLASS_ConfigDoNotCheckDefaults) && !bPerObject && bIsPropertyInherited;
 			UObject* SuperClassDefaultObject = GetClass()->GetSuperClass()->GetDefaultObject();
@@ -2463,7 +2474,7 @@ void UObject::SaveConfig( uint64 Flags, const TCHAR* InFilename, FConfigCacheIni
 			UArrayProperty* Array   = dynamic_cast<UArrayProperty*>( Property );
 			if( Array )
 			{
-				if ( !bShouldCheckIfIdenticalBeforeAdding || !Property->Identical_InContainer(this, SuperClassDefaultObject) )
+				if (!bPropDeprecated && (!bShouldCheckIfIdenticalBeforeAdding || !Property->Identical_InContainer(this, SuperClassDefaultObject)))
 				{
 					FConfigSection* Sec = Config->GetSectionPrivate( *Section, 1, 0, *PropFileName );
 					check(Sec);
@@ -2480,7 +2491,7 @@ void UObject::SaveConfig( uint64 Flags, const TCHAR* InFilename, FConfigCacheIni
 						Sec->Add(*CompleteKey, *Buffer);
 					}
 				}
-				else if( Property->Identical_InContainer(this, SuperClassDefaultObject) )
+				else
 				{
 					// If we are not writing it to config above, we should make sure that this property isn't stagnant in the cache.
 					FConfigSection* Sec = Config->GetSectionPrivate( *Section, 1, 0, *PropFileName );
@@ -2502,13 +2513,13 @@ void UObject::SaveConfig( uint64 Flags, const TCHAR* InFilename, FConfigCacheIni
 						Key = TempKey;
 					}
 
-					if ( !bShouldCheckIfIdenticalBeforeAdding || !Property->Identical_InContainer(this, SuperClassDefaultObject, Index) )
+					if (!bPropDeprecated && (!bShouldCheckIfIdenticalBeforeAdding || !Property->Identical_InContainer(this, SuperClassDefaultObject, Index)))
 					{
 						FString	Value;
 						Property->ExportText_InContainer( Index, Value, this, this, this, PortFlags );
 						Config->SetString( *Section, *Key, *Value, *PropFileName );
 					}
-					else if( Property->Identical_InContainer(this, SuperClassDefaultObject, Index) )
+					else
 					{
 						// If we are not writing it to config above, we should make sure that this property isn't stagnant in the cache.
 						FConfigSection* Sec = Config->GetSectionPrivate( *Section, 1, 0, *PropFileName );
@@ -3307,13 +3318,13 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 					if (AsteriskPos != INDEX_NONE && (QuestionPos == INDEX_NONE || QuestionPos > AsteriskPos))
 					{
 						new(WildcardPieces) FListPropsWildcardPiece(PropWildcard.Left(AsteriskPos), true);
-						PropWildcard = PropWildcard.Right(PropWildcard.Len() - AsteriskPos - 1);
+						PropWildcard.RightInline(PropWildcard.Len() - AsteriskPos - 1, false);
 						bFound = true;
 					}
 					else if (QuestionPos != INDEX_NONE)
 					{
 						new(WildcardPieces) FListPropsWildcardPiece(PropWildcard.Left(QuestionPos), false);
-						PropWildcard = PropWildcard.Right(PropWildcard.Len() - QuestionPos - 1);
+						PropWildcard.RightInline(PropWildcard.Len() - QuestionPos - 1, false);
 						bFound = true;
 					}
 				}
@@ -3357,7 +3368,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 							break;
 						}
 
-						Match = Match.Right(Match.Len() - Pos - WildcardPieces[i].Str.Len());
+						Match.RightInline(Match.Len() - Pos - WildcardPieces[i].Str.Len(), false);
 					}
 				}
 				if (bResult)

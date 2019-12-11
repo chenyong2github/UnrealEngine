@@ -22,7 +22,7 @@ struct FNiagaraEmitterHandle;
 class UNiagaraParameterCollection;
 class UNiagaraParameterCollectionInstance;
 class NiagaraEmitterInstanceBatcher;
-
+struct FNiagaraEmitterCompiledData;
 
 /**
 * A Niagara particle simulation.
@@ -68,6 +68,7 @@ public:
 	FNiagaraDataSet& GetData()const { return *ParticleDataSet; }
 
 	FORCEINLINE bool IsDisabled()const { return ExecutionState == ENiagaraExecutionState::Disabled; }
+	FORCEINLINE bool IsInactive()const { return ExecutionState == ENiagaraExecutionState::Inactive; }
 	FORCEINLINE bool IsComplete()const { return ExecutionState == ENiagaraExecutionState::Complete || ExecutionState == ENiagaraExecutionState::Disabled; }
 
 	/** Create a new NiagaraRenderer. The old renderer is not immediately deleted, but instead put in the ToBeRemoved list.*/
@@ -151,8 +152,6 @@ private:
 
 	/* The age of the emitter*/
 	float Age;
-	/* how many loops this emitter has gone through */
-	uint32 Loops;
 
 	int32 TickCount;
 
@@ -167,6 +166,8 @@ private:
 	ENiagaraExecutionState ExecutionState;
 	/* Emitter bounds */
 	FBox CachedBounds;
+
+	uint32 MaxRuntimeAllocation;
 
 	/** Array of all spawn info driven by our owning emitter script. */
 	TArray<FNiagaraSpawnInfo> SpawnInfos;
@@ -190,15 +191,14 @@ private:
 	FNiagaraParameterDirectBinding<int32> UpdateExecCountBinding;
 	TArray<FNiagaraParameterDirectBinding<int32>> EventExecCountBindings;
 
-	/*
 	FNiagaraParameterDirectBinding<int32> SpawnTotalSpawnedParticlesBinding;
 	FNiagaraParameterDirectBinding<int32> UpdateTotalSpawnedParticlesBinding;
-	FNiagaraParameterDirectBinding<int32> GPUTotalSpawnedParticlesBinding;
-	*/
+	TArray<FNiagaraParameterDirectBinding<int32>> EventTotalSpawnedParticlesBindings;
 
 	FNiagaraParameterDirectBinding<int32> SpawnRandomSeedBinding;
 	FNiagaraParameterDirectBinding<int32> UpdateRandomSeedBinding;
 	FNiagaraParameterDirectBinding<int32> GPURandomSeedBinding;
+	TArray<FNiagaraParameterDirectBinding<int>> EventRandomSeedBindings;
 
 	/*
 	FNiagaraParameterDirectBinding<int32> SpawnDeterminismBinding;
@@ -237,6 +237,10 @@ private:
 	TArray<FNiagaraEventHandlingInfo> EventHandlingInfo;
 	int32 EventSpawnTotal;
 
+	int32 MaxAllocationCount = 0;
+	int32 MinOverallocation = -1;
+	int32 ReallocationCount = 0;
+
 	/** Optional list of bounds calculators. */
 	TArray<TUniquePtr<FNiagaraBoundsCalculator>, TInlineAllocator<1>> BoundsCalculators;
 
@@ -244,4 +248,6 @@ private:
 
 	TArray<TNiagaraFastPathAttributeBinding<int32>> FastPathIntAttributeBindings;
 	TArray<TNiagaraFastPathAttributeBinding<float>> FastPathFloatAttributeBindings;
+
+	TSharedPtr<const FNiagaraEmitterCompiledData> CachedEmitterCompiledData;
 };

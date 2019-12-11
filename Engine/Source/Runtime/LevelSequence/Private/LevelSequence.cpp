@@ -220,6 +220,8 @@ void ULevelSequence::PostLoad()
 
 	if (DirectorBlueprint)
 	{
+		DirectorBlueprint->ClearFlags(RF_Standalone);
+
 		// Remove the binding for the director blueprint recompilation and re-add it to be sure there is only one entry in the list
 		DirectorBlueprint->OnCompiled().RemoveAll(this);
 		DirectorBlueprint->OnCompiled().AddUObject(this, &ULevelSequence::OnDirectorRecompiled);
@@ -428,12 +430,18 @@ void ULevelSequence::SetDirectorBlueprint(UBlueprint* NewDirectorBlueprint)
 	{
 		DirectorClass = nullptr;
 	}
+
+	MarkAsChanged();
+	PrecompiledEvaluationTemplate = FMovieSceneEvaluationTemplate();
 }
 
 void ULevelSequence::OnDirectorRecompiled(UBlueprint* InCompiledBlueprint)
 {
 	ensure(InCompiledBlueprint == DirectorBlueprint);
 	DirectorClass = DirectorBlueprint->GeneratedClass.Get();
+
+	MarkAsChanged();
+	PrecompiledEvaluationTemplate = FMovieSceneEvaluationTemplate();
 }
 
 FGuid ULevelSequence::FindOrAddBinding(UObject* InObject)

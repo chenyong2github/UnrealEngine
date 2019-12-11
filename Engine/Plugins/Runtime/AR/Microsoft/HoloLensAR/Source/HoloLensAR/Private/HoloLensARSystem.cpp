@@ -15,6 +15,11 @@
 
 #include "MRMeshComponent.h"
 #include "AROriginActor.h"
+#if WITH_EDITOR
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "Slate/SceneViewport.h"
+#endif
 
 DECLARE_CYCLE_STAT(TEXT("OnCameraImageReceived"), STAT_FHoloLensARSystem_OnCameraImageReceived, STATGROUP_HOLOLENS);
 DECLARE_CYCLE_STAT(TEXT("Process Mesh Updates"), STAT_FHoloLensARSystem_ProcessMeshUpdates, STATGROUP_HOLOLENS);
@@ -104,10 +109,29 @@ void FHoloLensARSystem::SetTrackingSystem(TSharedPtr<FXRTrackingSystemBase, ESPM
 void FHoloLensARSystem::SetInterop(WindowsMixedReality::MixedRealityInterop* InWMRInterop)
 {
 	WMRInterop = InWMRInterop;
+
+	HandlerId = WMRInterop->SubscribeConnectionEvent([this](WindowsMixedReality::MixedRealityInterop::ConnectionEvent evt) 
+	{
+		if (evt == WindowsMixedReality::MixedRealityInterop::ConnectionEvent::DisconnectedFromPeer)
+		{
+			OnStopARSession();
+
+#if WITH_EDITOR
+			if (GEditor && GEditor->bUseVRPreviewForPlayWorld)
+			{
+				GEditor->RequestEndPlayMap();
+			}
+#endif
+
+			UE_LOG(LogHoloLensAR, Warning, TEXT("HoloLens AR session disconnected from peer"));
+		}
+	});
 }
 
 void FHoloLensARSystem::Shutdown()
 {
+	WMRInterop->UnsubscribeConnectionEvent(HandlerId);
+	HandlerId = 0;
 	FWorldDelegates::OnWorldTickStart.RemoveAll(this);
 	WMRInterop = nullptr;
 	TrackingSystem.Reset();
@@ -151,7 +175,12 @@ EARTrackingQualityReason FHoloLensARSystem::OnGetTrackingQualityReason() const
 
 void OnTrackingChanged_Raw(WindowsMixedReality::HMDSpatialLocatability InTrackingState)
 {
+	UE_LOG(LogHoloLensAR, Log, TEXT("OnTrackingChanged(%d)"), (int32)InTrackingState);
 	FHoloLensARSystem* HoloLensARThis = FHoloLensModuleAR::GetHoloLensARSystem().Get();
+	if (!HoloLensARThis)
+	{
+		return;
+	}
 	EARTrackingQuality TrackingQuality = EARTrackingQuality::NotTracking;
 	switch (InTrackingState)
 	{
@@ -224,6 +253,16 @@ void FHoloLensARSystem::OnStartARSession(UARSessionConfig* InSessionConfig)
 
 	SessionStatus.Status = EARSessionStatus::Running;
 
+#if WITH_EDITOR
+	UEditorEngine* EditorEngine = CastChecked<UEditorEngine>(GEngine);
+	FSceneViewport* PIEViewport = (FSceneViewport*)EditorEngine->GetPIEViewport();
+	if (!PIEViewport->IsStereoRenderingAllowed())
+	{
+		// Running the AR session on a non-stereo window will break spatial anchors.
+		SessionStatus.Status = EARSessionStatus::NotSupported;
+	}
+#endif
+
 	FWorldDelegates::OnWorldTickStart.AddRaw(this, &FHoloLensARSystem::OnWorldTickStart);
 
 	UE_LOG(LogHoloLensAR, Log, TEXT("HoloLens AR session started"));
@@ -282,7 +321,7 @@ void FHoloLensARSystem::OnStopARSession()
 
 	check(WMRInterop != nullptr);
 
-	if (SessionConfig->bGenerateMeshDataFromTrackedGeometry)
+	if (SessionConfig && SessionConfig->bGenerateMeshDataFromTrackedGeometry)
 	{
 		WMRInterop->StopSpatialMapping();
 	}
@@ -449,6 +488,8 @@ void FHoloLensARSystem::OnRemovePin(UARPin* PinToRemove)
 
 void FHoloLensARSystem::UpdateWMRAnchors()
 {
+	if (SessionStatus.Status != EARSessionStatus::Running) { return; }
+	
 	for (UWMRARPin* Pin : Pins)
 	{
 		const FString& AnchorId = Pin->GetAnchorId();
@@ -458,6 +499,11 @@ void FHoloLensARSystem::UpdateWMRAnchors()
 			if (WMRGetAnchorTransform(*AnchorId, Transform))
 			{
 				Pin->OnTransformUpdated(Transform);
+				Pin->OnTrackingStateChanged(EARTrackingState::Tracking);
+			}
+			else
+			{
+				Pin->OnTrackingStateChanged(EARTrackingState::NotTracking);
 			}
 		}
 	}
@@ -720,8 +766,7 @@ void FHoloLensARSystem::AddOrUpdateMesh(FMeshUpdate* CurrentMesh)
 			GFrameCounter,
 			FPlatformTime::Seconds(),
 			FTransform(CurrentMesh->Rotation, CurrentMesh->Location, CurrentMesh->Scale),
-			// @todo JoeG - add support for an alignment transform
-			FTransform::Identity);
+			TrackingSystem->GetARCompositionComponent()->GetAlignmentTransform());
 		// Mark this as a world mesh that isn't recognized as a particular scene type, since it is loose triangles
 		NewUpdatedGeometry->SetObjectClassification(EARObjectClassification::World);
 		if (NewUpdatedGeometry->GetUnderlyingMesh() == nullptr)
@@ -852,8 +897,7 @@ void FHoloLensARSystem::QRCodeAdded_GameThread(FQRCodeData* InCode)
 			GFrameCounter,
 			FPlatformTime::Seconds(),
 			InCode->Transform,
-			// @todo JoeG - add support for an alignment transform
-			FTransform::Identity,
+			TrackingSystem->GetARCompositionComponent()->GetAlignmentTransform(),
 			InCode->Size,
 			InCode->QRCode,
 			InCode->Version);
@@ -880,8 +924,7 @@ void FHoloLensARSystem::QRCodeUpdated_GameThread(FQRCodeData* InCode)
 				GFrameCounter,
 				FPlatformTime::Seconds(),
 				InCode->Transform,
-				// @todo JoeG - add support for an alignment transform
-				FTransform::Identity,
+				TrackingSystem->GetARCompositionComponent()->GetAlignmentTransform(),
 				InCode->Size,
 				InCode->QRCode,
 				InCode->Version);

@@ -10,12 +10,56 @@ const FName FMagicLeapControllerKeyNames::MotionController_Left_Thumbstick_Z_Nam
 
 const FKey FMagicLeapKeys::Left_HomeButton("MagicLeap_Left_HomeButton");
 const FName FMagicLeapControllerKeyNames::Left_HomeButton_Name("MagicLeap_Left_HomeButton");
+const FKey FMagicLeapKeys::Left_Bumper("MagicLeap_Left_Bumper");
+const FName FMagicLeapControllerKeyNames::Left_Bumper_Name("MagicLeap_Left_Bumper");
+const FKey FMagicLeapKeys::Left_Trigger("MagicLeap_Left_Trigger");
+const FName FMagicLeapControllerKeyNames::Left_Trigger_Name("MagicLeap_Left_Trigger");
+const FKey FMagicLeapKeys::Left_Trigger_Axis("MagicLeap_Left_Trigger_Axis");
+const FName FMagicLeapControllerKeyNames::Left_Trigger_Axis_Name("MagicLeap_Left_Trigger_Axis");
+const FKey FMagicLeapKeys::Left_Trackpad_X("MagicLeap_Left_Trackpad_X");
+const FName FMagicLeapControllerKeyNames::Left_Trackpad_X_Name("MagicLeap_Left_Trackpad_X");
+const FKey FMagicLeapKeys::Left_Trackpad_Y("MagicLeap_Left_Trackpad_Y");
+const FName FMagicLeapControllerKeyNames::Left_Trackpad_Y_Name("MagicLeap_Left_Trackpad_Y");
+const FKey FMagicLeapKeys::Left_Trackpad_Force("MagicLeap_Left_Trackpad_Force");
+const FName FMagicLeapControllerKeyNames::Left_Trackpad_Force_Name("MagicLeap_Left_Trackpad_Force");
+const FKey FMagicLeapKeys::Left_Trackpad_Touch("MagicLeap_Left_Trackpad_Touch");
+const FName FMagicLeapControllerKeyNames::Left_Trackpad_Touch_Name("MagicLeap_Left_Trackpad_Touch");
+const FKey FMagicLeapKeys::Left_Touch1_X("MagicLeap_Left_Touch1_X");
+const FName FMagicLeapControllerKeyNames::Left_Touch1_X_Name("MagicLeap_Left_Touch1_X");
+const FKey FMagicLeapKeys::Left_Touch1_Y("MagicLeap_Left_Touch1_Y");
+const FName FMagicLeapControllerKeyNames::Left_Touch1_Y_Name("MagicLeap_Left_Touch1_Y");
+const FKey FMagicLeapKeys::Left_Touch1_Force("MagicLeap_Left_Touch1_Force");
+const FName FMagicLeapControllerKeyNames::Left_Touch1_Force_Name("MagicLeap_Left_Touch1_Force");
+const FKey FMagicLeapKeys::Left_Touch1_Touch("MagicLeap_Left_Touch1_Touch");
+const FName FMagicLeapControllerKeyNames::Left_Touch1_Touch_Name("MagicLeap_Left_Touch1_Touch");
 
 const FKey FMagicLeapKeys::MotionController_Right_Thumbstick_Z("MotionController_Right_Thumbstick_Z");
 const FName FMagicLeapControllerKeyNames::MotionController_Right_Thumbstick_Z_Name("MotionController_Right_Thumbstick_Z");
 
 const FKey FMagicLeapKeys::Right_HomeButton("MagicLeap_Right_HomeButton");
 const FName FMagicLeapControllerKeyNames::Right_HomeButton_Name("MagicLeap_Right_HomeButton");
+const FKey FMagicLeapKeys::Right_Bumper("MagicLeap_Right_Bumper");
+const FName FMagicLeapControllerKeyNames::Right_Bumper_Name("MagicLeap_Right_Bumper");
+const FKey FMagicLeapKeys::Right_Trigger("MagicLeap_Right_Trigger");
+const FName FMagicLeapControllerKeyNames::Right_Trigger_Name("MagicLeap_Right_Trigger");
+const FKey FMagicLeapKeys::Right_Trigger_Axis("MagicLeap_Right_Trigger_Axis");
+const FName FMagicLeapControllerKeyNames::Right_Trigger_Axis_Name("MagicLeap_Right_Trigger_Axis");
+const FKey FMagicLeapKeys::Right_Trackpad_X("MagicLeap_Right_Trackpad_X");
+const FName FMagicLeapControllerKeyNames::Right_Trackpad_X_Name("MagicLeap_Right_Trackpad_X");
+const FKey FMagicLeapKeys::Right_Trackpad_Y("MagicLeap_Right_Trackpad_Y");
+const FName FMagicLeapControllerKeyNames::Right_Trackpad_Y_Name("MagicLeap_Right_Trackpad_Y");
+const FKey FMagicLeapKeys::Right_Trackpad_Force("MagicLeap_Right_Trackpad_Force");
+const FName FMagicLeapControllerKeyNames::Right_Trackpad_Force_Name("MagicLeap_Right_Trackpad_Force");
+const FKey FMagicLeapKeys::Right_Trackpad_Touch("MagicLeap_Right_Trackpad_Touch");
+const FName FMagicLeapControllerKeyNames::Right_Trackpad_Touch_Name("MagicLeap_Right_Trackpad_Touch");
+const FKey FMagicLeapKeys::Right_Touch1_X("MagicLeap_Right_Touch1_X");
+const FName FMagicLeapControllerKeyNames::Right_Touch1_X_Name("MagicLeap_Right_Touch1_X");
+const FKey FMagicLeapKeys::Right_Touch1_Y("MagicLeap_Right_Touch1_Y");
+const FName FMagicLeapControllerKeyNames::Right_Touch1_Y_Name("MagicLeap_Right_Touch1_Y");
+const FKey FMagicLeapKeys::Right_Touch1_Force("MagicLeap_Right_Touch1_Force");
+const FName FMagicLeapControllerKeyNames::Right_Touch1_Force_Name("MagicLeap_Right_Touch1_Force");
+const FKey FMagicLeapKeys::Right_Touch1_Touch("MagicLeap_Right_Touch1_Touch");
+const FName FMagicLeapControllerKeyNames::Right_Touch1_Touch_Name("MagicLeap_Right_Touch1_Touch");
 
 const FKey FMagicLeapKeys::TouchpadGesture_Swipe_Up("TouchpadGesture_Swipe_Up");
 const FName FMagicLeapControllerKeyNames::TouchpadGesture_Swipe_Up_Name("TouchpadGesture_Swipe_Up");

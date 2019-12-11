@@ -6,15 +6,16 @@
 #define LOCTEXT_NAMESPACE "BlueprintFieldNodeSpawner"
 
 //------------------------------------------------------------------------------
-UBlueprintFieldNodeSpawner* UBlueprintFieldNodeSpawner::Create(TSubclassOf<UK2Node> NodeClass, UField const* const Field, UObject* Outer/* = nullptr*/)
+UBlueprintFieldNodeSpawner* UBlueprintFieldNodeSpawner::Create(TSubclassOf<UK2Node> NodeClass, UField const* const Field, UObject* Outer/* = nullptr*/, UClass const* OwnerClass)
 {
 	if (Outer == nullptr)
 	{
 		Outer = GetTransientPackage();
 	}
 	UBlueprintFieldNodeSpawner* NodeSpawner = NewObject<UBlueprintFieldNodeSpawner>(Outer);
-	NodeSpawner->Field     = Field;
-	NodeSpawner->NodeClass = NodeClass;
+	NodeSpawner->Field      = Field;
+	NodeSpawner->NodeClass  = NodeClass;
+	NodeSpawner->OwnerClass = OwnerClass;
 	
 	return NodeSpawner;
 }
@@ -23,6 +24,7 @@ UBlueprintFieldNodeSpawner* UBlueprintFieldNodeSpawner::Create(TSubclassOf<UK2No
 UBlueprintFieldNodeSpawner::UBlueprintFieldNodeSpawner(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Field(nullptr)
+	, OwnerClass(nullptr)
 {
 }
 

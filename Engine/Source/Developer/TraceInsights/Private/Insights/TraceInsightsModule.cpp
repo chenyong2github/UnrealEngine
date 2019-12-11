@@ -7,7 +7,10 @@
 #include "TraceServices/SessionService.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Framework/Docking/LayoutService.h"
 #include "Widgets/SWidget.h"
+#include "WorkspaceMenuStructure.h"
+#include "WorkspaceMenuStructureModule.h"
 
 // Insights
 #include "Insights/InsightsManager.h"
@@ -64,10 +67,19 @@ protected:
 	/** Networking Profiler */
 	TSharedRef<SDockTab> SpawnNetworkingProfilerTab(const FSpawnTabArgs& Args);
 
+#if WITH_EDITOR
+	/** Handle exit */
+	void HandleExit();
+#endif
+
 protected:
 	TSharedPtr<Trace::IAnalysisService> TraceAnalysisService;
 	TSharedPtr<Trace::ISessionService> TraceSessionService;
 	TSharedPtr<Trace::IModuleService> TraceModuleService;
+
+#if WITH_EDITOR
+	TSharedPtr<FTabManager::FLayout> PersistentLayout;
+#endif
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -109,11 +121,11 @@ void FTraceInsightsModule::StartupModule()
 		.SetTooltipText(NSLOCTEXT("FTraceInsightsModule", "StartPageTooltipText", "Open the start page for Unreal Insights."))
 		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "StartPage.Icon.Small"));
 
-//#if WITH_EDITOR
-//	StartPageTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory());
-//#else
-//	StartPageTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory());
-//#endif
+#if WITH_EDITOR
+	StartPageTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsProfilingCategory());
+#else
+	StartPageTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory());
+#endif
 
 	// Register tab spawner for the Timing Insights.
 	auto& TimingProfilerTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::TimingProfilerTabId,
@@ -122,11 +134,11 @@ void FTraceInsightsModule::StartupModule()
 		.SetTooltipText(NSLOCTEXT("FTraceInsightsModule", "TimingProfilerTooltipText", "Open the Timing Insights tab."))
 		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimingProfiler.Icon.Small"));
 
-//#if WITH_EDITOR
-//	TimingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory());
-//#else
-//	TimingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory());
-//#endif
+#if WITH_EDITOR
+	TimingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsProfilingCategory());
+#else
+	TimingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory());
+#endif
 
 	// Register tab spawner for the Asset Loading Insights.
 	auto& LoadingProfilerTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::LoadingProfilerTabId,
@@ -135,11 +147,11 @@ void FTraceInsightsModule::StartupModule()
 		.SetTooltipText(NSLOCTEXT("FTraceInsightsModule", "LoadingProfilerTooltipText", "Open the Asset Loading Insights tab."))
 		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "LoadingProfiler.Icon.Small"));
 
-//#if WITH_EDITOR
-//	LoadingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory());
-//#else
-//	LoadingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory());
-//#endif
+#if WITH_EDITOR
+	LoadingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsProfilingCategory());
+#else
+	LoadingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory());
+#endif
 
 	// Register tab spawner for the Networking Insights.
 	auto& NetworkingProfilerTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::NetworkingProfilerTabId,
@@ -149,18 +161,36 @@ void FTraceInsightsModule::StartupModule()
 		.SetTooltipText(NSLOCTEXT("FTraceInsightsModule", "NetworkingProfilerTooltipText", "Open the Networking Insights tab."))
 		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "NetworkingProfiler.Icon.Small"));
 
-//#if WITH_EDITOR
-//	NetworkingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory());
-//#else
-//	NetworkingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory());
-//#endif
+#if WITH_EDITOR
+	NetworkingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsProfilingCategory());
+#else
+	NetworkingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory());
+#endif
+
+#if WITH_EDITOR
+	// In editor, load the layout and display it here. In the standalone tool this is done in UserInterfaceCommand.
+	TSharedRef<FTabManager::FLayout> DefaultLayout = FTabManager::NewLayout("UnrealInsightsLayout_v1.0");
+	OnNewLayout(DefaultLayout);
+	PersistentLayout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni, DefaultLayout);
+	FGlobalTabmanager::Get()->RestoreFrom(PersistentLayout.ToSharedRef(), TSharedPtr<SWindow>());
+
+	FCoreDelegates::OnExit.AddRaw(this, &FTraceInsightsModule::HandleExit);
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FTraceInsightsModule::ShutdownModule()
 {
+#if WITH_EDITOR
+	// Save application layout.
+	FLayoutSaveRestore::SaveToConfig(GEditorLayoutIni, PersistentLayout.ToSharedRef());
+	GConfig->Flush(false, GEditorLayoutIni);
+#endif
+
+#if !WITH_EDITOR
 	TraceSessionService->StopRecorderServer();
+#endif
 
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::NetworkingProfilerTabId);
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::LoadingProfilerTabId);
@@ -194,6 +224,20 @@ void FTraceInsightsModule::ShutdownModule()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#if WITH_EDITOR
+void FTraceInsightsModule::HandleExit()
+{
+	// In editor, as module lifetimes are different, we need to shut down the recorder service before
+	// threads get killed in the shutdown process otherwise we will hang forever waiting on the recorder server
+	if (TraceSessionService.IsValid())
+	{
+		TraceSessionService->StopRecorderServer();
+	}
+}
+#endif
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FTraceInsightsModule::OnNewLayout(TSharedRef<FTabManager::FLayout> NewLayout)
 {
 	const float DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(10.0f, 10.0f);
@@ -203,7 +247,12 @@ void FTraceInsightsModule::OnNewLayout(TSharedRef<FTabManager::FLayout> NewLayou
 		->Split
 		(
 			FTabManager::NewStack()
+#if WITH_EDITOR
+			// In editor, we default to all tabs closed.
+			->AddTab(FInsightsManagerTabs::StartPageTabId, ETabState::ClosedTab)
+#else
 			->AddTab(FInsightsManagerTabs::StartPageTabId, ETabState::OpenedTab)
+#endif
 			->AddTab(FInsightsManagerTabs::TimingProfilerTabId, ETabState::ClosedTab)
 			->AddTab(FInsightsManagerTabs::LoadingProfilerTabId, ETabState::ClosedTab)
 			->AddTab(FInsightsManagerTabs::NetworkingProfilerTabId, ETabState::ClosedTab)

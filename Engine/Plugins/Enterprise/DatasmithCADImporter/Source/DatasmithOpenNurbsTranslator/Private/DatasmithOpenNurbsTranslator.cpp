@@ -4,9 +4,9 @@
 #include "DatasmithOpenNurbsTranslatorModule.h"
 
 #ifdef CAD_LIBRARY
-#include "CADLibraryOptions.h"
 #include "CoreTechParametricSurfaceExtension.h"
 #endif
+#include "DatasmithImportOptions.h"
 #include "DatasmithMaterialElements.h"
 #include "DatasmithMaterialsUtils.h"
 #include "DatasmithMesh.h"
@@ -612,7 +612,7 @@ public:
 		}
 
 #ifdef CAD_LIBRARY
-		LocalSession = CADLibrary::FRhinoCoretechWrapper::GetSharedSession(MetricUnit, ScalingFactor);
+		LocalSession = FRhinoCoretechWrapper::GetSharedSession(MetricUnit, ScalingFactor);
 #endif
 	}
 
@@ -632,9 +632,11 @@ public:
 
 	TOptional<FMeshDescription> GetMeshDescription(TSharedRef<IDatasmithMeshElement> MeshElement);
 
+	void SetBaseOptions(const FDatasmithImportBaseOptions& InBaseOptions);
 	void SetTessellationOptions(const FDatasmithTessellationOptions& Options);
 	void SetOutputPath(const FString& Path) { OutputPath = Path; }
 	double GetScalingFactor () const { return ScalingFactor; }
+	double GetMetricUnit() const { return MetricUnit; }
 
 private:
 	void TranslateTextureMappingTable(const ON_ObjectArray<ON_TextureMapping>& TextureMappingTable);
@@ -664,7 +666,6 @@ private:
 	void SetLayers(const TSharedPtr<IDatasmithActorElement>& ActorElement, const FOpenNurbsObjectWrapper& Object);
 
 	bool TranslateBRep(ON_Brep* brep, const ON_3dmObjectAttributes& Attributes, FMeshDescription& OutMesh, const TSharedRef< IDatasmithMeshElement >& MeshElement, const FString& Name, bool& bHasNormal);
-	void ApplyTextureMapping(FMeshDescription& Mesh, const ON_3dmObjectAttributes& Attributes);
 
 private:
 	TArray<FOpenNurbsTranslatorImpl*> ChildTranslators;
@@ -675,9 +676,10 @@ private:
 	FString OutputPath;
 	FDatasmithTessellationOptions TessellationOptions;
 	uint32 TessellationOptionsHash;
+	FDatasmithImportBaseOptions BaseOptions;
 
 #ifdef CAD_LIBRARY
-	TSharedPtr<CADLibrary::FRhinoCoretechWrapper> LocalSession;
+	TSharedPtr<FRhinoCoretechWrapper> LocalSession;
 #endif
 
 private:
@@ -1792,7 +1794,7 @@ TSharedPtr<IDatasmithMeshElement> FOpenNurbsTranslatorImpl::GetMeshElement(const
 	MeshElement->SetLightmapSourceUV(-1);
 
 	TSharedPtr<IDatasmithBaseMaterialElement> Material = FindMaterial(Object);
-	if (Material.IsValid())
+	if (Material.IsValid() && BaseOptions.bIncludeMaterial)
 	{
 		MeshElement->SetMaterial(Material->GetName(), 0);
 	}
@@ -1804,14 +1806,17 @@ TSharedPtr<IDatasmithMeshElement> FOpenNurbsTranslatorImpl::GetMeshElement(const
 	MeshElementToObjectMap.Add(MeshElement.Get(), &Object);
 	MeshElementToTranslatorMap.Add(MeshElement.Get(), this);
 
+	uint8 IncludeMaterial = static_cast<uint8>(BaseOptions.bIncludeMaterial);
+
+	FMD5 MD5;
+	MD5.Update(&IncludeMaterial, sizeof(IncludeMaterial));
+
 	// Use the object's CRC as the mesh element hash
 	uint32 CRC = Object.ObjectPtr->DataCRC(0);
 	if (ON_Brep::Cast(Object.ObjectPtr))
 	{
 		CRC ^= TessellationOptionsHash;
 	}
-
-	FMD5 MD5;
 	MD5.Update(reinterpret_cast<const uint8*>(&CRC), sizeof CRC);
 
 	FMD5Hash Hash;
@@ -1978,7 +1983,9 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 
 	// 	ScalingFactor is defined according to input Rhino file unit. CT don't modify CAD input according to the set file unit.
 	ScalingFactor = 100 / Settings.m_ModelUnitsAndTolerances.Scale(ON::LengthUnitSystem::Meters);
+#ifdef CAD_LIBRARY
 	LocalSession->SetScaleFactor(ScalingFactor);
+#endif
 
 	// Step 4: REQUIRED - Read bitmap table (it can be empty)
 	int Count = 0;
@@ -2826,7 +2833,7 @@ bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAt
 	// No tessellation if CAD library is not present...
 #ifdef CAD_LIBRARY
 	// Ref. visitBRep
-	LocalSession->SetImportParameters(TessellationOptions.ChordTolerance, TessellationOptions.MaxEdgeLength, TessellationOptions.NormalTolerance, (CADLibrary::EStitchingTechnique) TessellationOptions.StitchingTechnique);
+	LocalSession->SetImportParameters(TessellationOptions.ChordTolerance, TessellationOptions.MaxEdgeLength, TessellationOptions.NormalTolerance, (CADLibrary::EStitchingTechnique) TessellationOptions.StitchingTechnique, false);
 
 	CADLibrary::CheckedCTError Result;
 
@@ -2846,8 +2853,6 @@ bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAt
 
 	CADLibrary::FMeshParameters MeshParameters;
 	Result = LocalSession->Tessellate(OutMesh, MeshParameters);
-
-	ApplyTextureMapping(OutMesh, Attributes);
 
 	return bool(Result);
 #else
@@ -2881,90 +2886,6 @@ bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAt
 
 	return true;
 #endif
-}
-
-void FOpenNurbsTranslatorImpl::ApplyTextureMapping(FMeshDescription& Mesh, const ON_3dmObjectAttributes& Attributes)
-{
-	// Apply the OpenNurbs UV mapping, if present
-	if (Attributes.m_rendering_attributes.m_mappings.Count() == 0)
-	{
-		return;
-	}
-
-	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Mesh.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-
-	// Using the first one assuming its from Rhino, ignoring the other mappings
-	int NumChannels = Attributes.m_rendering_attributes.m_mappings.At(0)->m_mapping_channels.Count();
-	if (NumChannels > 1)
-	{
-		VertexInstanceUVs.SetNumIndices(NumChannels);
-	}
-
-	const FVertexInstanceArray& VertexInstances = Mesh.VertexInstances();
-	for (int ChannelIndex = 0; ChannelIndex < NumChannels; ++ChannelIndex)
-	{
-		// Retrieve the mapping from the texture mapping table
-		ON_UUID MappingId = Attributes.m_rendering_attributes.m_mappings.At(0)->m_mapping_channels.At(ChannelIndex)->m_mapping_id;
-
-		const ON_TextureMapping** TextureMappingPtr = UUIDToTextureMapping.Find(MappingId);
-		if (TextureMappingPtr == nullptr)
-		{
-			continue;
-		}
-
-		const ON_TextureMapping& TextureMapping = **TextureMappingPtr;
-
-		// No support for custom mapping as that is dependent on the render plug-in
-		// Nor surface mapping since there's no way to evaluate it
-		if (TextureMapping.m_type == ON_TextureMapping::TYPE::mesh_mapping_primitive ||
-			TextureMapping.m_type == ON_TextureMapping::TYPE::srf_mapping_primitive ||
-			TextureMapping.m_type == ON_TextureMapping::TYPE::brep_mapping_primitive ||
-			TextureMapping.m_type == ON_TextureMapping::TYPE::srfp_mapping)
-		{
-			continue;
-		}
-
-		TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = Mesh.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
-		TVertexAttributesRef<FVector> VertexPositions = Mesh.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-
-		float MinV = FLT_MAX;
-		float MaxV = -FLT_MAX;
-		for (FVertexInstanceID VertexInstanceID : VertexInstances.GetElementIDs())
-		{
-			// Positions must be converted to right-handed Z-up in the file unit
-			const FVertexID VertexID = Mesh.GetVertexInstanceVertex(VertexInstanceID);
-			const FVector& VertexPosition = VertexPositions[VertexID] / ScalingFactor;
-			const FVector& Normal = VertexInstanceNormals[VertexInstanceID];
-			FVector2D UV = VertexInstanceUVs.Get(VertexInstanceID, ChannelIndex);
-
-			ON_3dPoint ON_VertexPosition(-VertexPosition.X, VertexPosition.Y, VertexPosition.Z);
-			ON_3dVector ON_Normal(-Normal.X, Normal.Y, Normal.Z);
-			ON_3dPoint ON_UV(UV.X, UV.Y, 0);
-
-			int Result = TextureMapping.Evaluate(ON_VertexPosition, ON_Normal, &ON_UV);
-			if (Result != 0)
-			{
-				VertexInstanceUVs.Set(VertexInstanceID, ChannelIndex, FVector2D(ON_UV.x, ON_UV.y));
-			}
-
-			if (ON_UV.y < MinV)
-			{
-				MinV = ON_UV.y;
-			}
-			if (ON_UV.y > MaxV)
-			{
-				MaxV = ON_UV.y;
-			}
-		}
-
-		// Reorient UV along V axis
-		for (FVertexInstanceID VertexInstanceID : VertexInstances.GetElementIDs())
-		{
-			FVector2D UV = VertexInstanceUVs.Get(VertexInstanceID, ChannelIndex);
-			UV.Y = MinV + MaxV - UV.Y;
-			VertexInstanceUVs.Set(VertexInstanceID, ChannelIndex, UV);
-		}
-	}
 }
 
 TOptional< FMeshDescription > FOpenNurbsTranslatorImpl::GetMeshDescription(TSharedRef< IDatasmithMeshElement > MeshElement)
@@ -3047,6 +2968,11 @@ TOptional< FMeshDescription > FOpenNurbsTranslatorImpl::GetMeshDescription(TShar
 	return bIsValid ? MoveTemp(MeshDescription) : TOptional< FMeshDescription >();
 }
 
+void FOpenNurbsTranslatorImpl::SetBaseOptions(const FDatasmithImportBaseOptions& InBaseOptions)
+{
+	BaseOptions = InBaseOptions;
+}
+
 void FOpenNurbsTranslatorImpl::SetTessellationOptions(const FDatasmithTessellationOptions& Options)
 {
 	TessellationOptions = Options;
@@ -3065,7 +2991,6 @@ void FOpenNurbsTranslatorImpl::SetTessellationOptions(const FDatasmithTessellati
 FDatasmithOpenNurbsTranslator::FDatasmithOpenNurbsTranslator()
 	: Translator(nullptr)
 {
-	TessellationOptions.StitchingTechnique = EDatasmithCADStitchingTechnique::StitchingNone;
 }
 
 void FDatasmithOpenNurbsTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
@@ -3106,7 +3031,8 @@ bool FDatasmithOpenNurbsTranslator::LoadScene(TSharedRef<IDatasmithScene> OutSce
 	IFileManager::Get().MakeDirectory(*OutputPath, true);
 	Translator->SetOutputPath(OutputPath);
 
-	Translator->SetTessellationOptions(TessellationOptions);
+	Translator->SetTessellationOptions(GetCommonTessellationOptions());
+	Translator->SetBaseOptions(BaseOptions);
 
 	ON_BinaryFile Archive(ON::archive_mode::read3dm, FileHandle);
 
@@ -3146,8 +3072,9 @@ bool FDatasmithOpenNurbsTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMe
 				CoreTechData->SourceFile = CoretechFile;
 				CoreTechData->RawData = MoveTemp(ByteArray);
 				CoreTechData->SceneParameters.ModelCoordSys = uint8(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded);
-				CoreTechData->SceneParameters.ScaleFactor = Translator->GetScalingFactor(); // Scale is set according to the Rhino file unit
-				CoreTechData->LastTessellationOptions = TessellationOptions;
+				CoreTechData->SceneParameters.ScaleFactor = Translator->GetScalingFactor();
+				CoreTechData->SceneParameters.MetricUnit = Translator->GetMetricUnit(); 
+				CoreTechData->LastTessellationOptions = GetCommonTessellationOptions();
 				OutMeshPayload.AdditionalData.Add(CoreTechData);
 			}
 		}
@@ -3160,29 +3087,23 @@ bool FDatasmithOpenNurbsTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMe
 #endif
 }
 
-void FDatasmithOpenNurbsTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
-{
-#ifdef CAD_LIBRARY
-	TStrongObjectPtr<UDatasmithCommonTessellationOptions> TessellationOptionsPtr = Datasmith::MakeOptions<UDatasmithCommonTessellationOptions>();
-	TessellationOptionsPtr->Options.StitchingTechnique = EDatasmithCADStitchingTechnique::StitchingNone; // #ueent_todo: workaround for UE-74572
-	Options.Add(TessellationOptionsPtr);
-#endif
-}
-
 void FDatasmithOpenNurbsTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
 {
 #ifdef USE_OPENNURBS
-	for (const TStrongObjectPtr<UObject>& OptionPtr : Options)
+	FDatasmithCoreTechTranslator::SetSceneImportOptions(Options);
+
+	for (TStrongObjectPtr<UObject>& Option : Options)
 	{
-		UObject* Option = OptionPtr.Get();
-		if (UDatasmithCommonTessellationOptions* TessellationOptionsObject = Cast<UDatasmithCommonTessellationOptions>(Option))
+		if (UDatasmithImportOptions* DatasmithOptions = Cast<UDatasmithImportOptions>(Option.Get()))
 		{
-			TessellationOptions = TessellationOptionsObject->Options;
-			if (Translator)
-			{
-				Translator->SetTessellationOptions(TessellationOptions);
-			}
+			BaseOptions = DatasmithOptions->BaseOptions;
 		}
+	}
+
+	if (Translator)
+	{
+		Translator->SetTessellationOptions( GetCommonTessellationOptions() );
+		Translator->SetBaseOptions(BaseOptions);
 	}
 #endif
 }

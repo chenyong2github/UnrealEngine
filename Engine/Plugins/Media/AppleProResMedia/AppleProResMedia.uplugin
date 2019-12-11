@@ -1,18 +1,18 @@
 {
-	"FileVersion" : 3,
-	"Version" : 1,
-	"VersionName" : "1.0",
-	"FriendlyName" : "Apple ProRes Media",
-	"Description" : "Implements video playback and the export of the Apple ProRes Codec.  Apple ProRes is a high quality, lossy video compression format.",
-	"CreatedBy" : "Epic Games Inc",
-	"CreatedByURL" : "http://epicgames.com",
-	"Category" : "Media Players",
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Apple ProRes Media",
+	"Description": "Implements video playback and the export of the Apple ProRes Codec.  Apple ProRes is a high quality, lossy video compression format.",
+	"CreatedBy": "Epic Games Inc",
+	"CreatedByURL": "http://epicgames.com",
+	"Category": "Media Players",
 	"EnabledByDefault": false,
-	"CanContainContent" : false,
+	"CanContainContent": false,
 	"IsBetaVersion": false,
 	"Installed": false,
-	"Modules" :
-	[
+	"SupportedTargetPlatforms": [ "Win64" ],
+	"Modules": [
 		{
 			"Name": "AppleProResMedia",
 			"Type": "Runtime",

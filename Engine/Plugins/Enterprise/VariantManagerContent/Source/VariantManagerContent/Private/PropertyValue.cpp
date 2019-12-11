@@ -478,7 +478,7 @@ bool UPropertyValue::Resolve(UObject* Object)
 
 bool UPropertyValue::HasValidResolve() const
 {
-	if (ParentContainerAddress == nullptr)
+	if (ParentContainerAddress == nullptr || ParentContainerClass == nullptr)
 	{
 		return false;
 	}
@@ -487,7 +487,7 @@ bool UPropertyValue::HasValidResolve() const
 	// Whenever an actor's property changes, all of its components that were generated
 	// by construction scripts will be destroyed and regenerated, so we will need to re-resolve
 	// We can't check the resolve state this way for USTRUCTs however (like FPostProcessSettings)
-	if (!ParentContainerClass->IsChildOf(UScriptStruct::StaticClass()))
+	if (!ParentContainerClass->IsA(UScriptStruct::StaticClass()))
 	{
 		if (UObject* Container = (UObject*)ParentContainerAddress)
 		{
@@ -551,12 +551,9 @@ TArray<uint8> UPropertyValue::GetDataFromResolvedObject() const
 
 void UPropertyValue::RecordDataFromResolvedObject()
 {
-	if (!HasValidResolve())
+	if (!Resolve())
 	{
-		if (!Resolve())
-		{
-			return;
-		}
+		return;
 	}
 
 	TArray<uint8> NewData = GetDataFromResolvedObject();
@@ -1178,12 +1175,9 @@ void UPropertyValue::ClearDefaultValue()
 
 bool UPropertyValue::IsRecordedDataCurrent()
 {
-	if (!HasValidResolve())
+	if (!Resolve())
 	{
-		if (!Resolve())
-		{
-			return false;
-		}
+		return false;
 	}
 
 	if (!HasRecordedData())
@@ -1228,6 +1222,13 @@ bool UPropertyValue::IsRecordedDataCurrent()
 		const FRotator* CurrentRotator = (const FRotator*)CurrentData.GetData();
 
 		return RecordedRotator->Equals(*CurrentRotator, SCENECOMPONENT_ROTATOR_TOLERANCE);
+	}
+	else if (PropCategory == EPropertyValueCategory::RelativeLocation ||  PropCategory == EPropertyValueCategory::RelativeScale3D)
+	{
+		const FVector* RecordedVec = (const FVector*)RecordedData.GetData();
+		const FVector* CurrentVec = (const FVector*)CurrentData.GetData();
+
+		return RecordedVec->Equals(*CurrentVec);
 	}
 
 	return RecordedData == CurrentData;

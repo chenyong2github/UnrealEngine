@@ -68,14 +68,14 @@ bool FFeedbackContextMarkup::PipeProcessOutput(const FText& Description, const F
 			while(BufferedText.FindChar('\n', EndOfLineIdx))
 			{
 				FString Line = BufferedText.Left(EndOfLineIdx);
-				Line.RemoveFromEnd(TEXT("\r"));
+				Line.RemoveFromEnd(TEXT("\r"), ESearchCase::CaseSensitive);
 
 				if(!ParseCommand(Line, Warn))
 				{
 					Warn->Log(*Line);
 				}
 
-				BufferedText = BufferedText.Mid(EndOfLineIdx + 1);
+				BufferedText.MidInline(EndOfLineIdx + 1, MAX_int32, false);
 			}
 
 			FPlatformProcess::Sleep(0.1f);

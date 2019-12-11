@@ -1,0 +1,46 @@
+{
+	"FileVersion": 3,
+	"Version": 0.2,
+	"VersionName": "0.2",
+	"FriendlyName": "Pixel Streaming",
+	"Description": "Streaming of UE4 render target to WebRTC-compatible media player and playback of such streaming",
+	"Category": "Graphics",
+	"CreatedBy": "Epic Games, Inc.",
+	"CreatedByURL": "http://epicgames.com",
+	"DocsURL": "https://docs.unrealengine.com/en-US/Platforms/PixelStreaming/index.html",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"EnabledByDefault": false,
+	"CanContainContent": true,
+	"IsBetaVersion": true,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "PixelStreaming",
+			"Type": "RuntimeNoCommandlet",
+			"LoadingPhase": "PostEngineInit",
+			"WhitelistPlatforms": [ "Win64" ],
+			"BlacklistTargets": [ "Server" ]
+		},
+		{
+			"Name": "PixelStreamingPlayerFactory",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit",
+			"WhitelistPlatforms": [ "Win64" ],
+			"BlacklistTargets": [ "Server" ]
+		},
+		{
+			"Name": "PixelStreamingPlayerFactory",
+			"Type": "RuntimeNoCommandlet",
+			"LoadingPhase": "PostEngineInit",
+			"WhitelistPlatforms": [ "Win64" ],
+			"BlacklistTargets": [ "Server" ]
+		},
+	],
+	"Plugins": [
+		{
+			"Name": "WmfMedia",
+			"Enabled": true
+		}
+	]
+}

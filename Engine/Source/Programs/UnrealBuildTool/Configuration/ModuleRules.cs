@@ -11,6 +11,27 @@ using Tools.DotNETCommon;
 namespace UnrealBuildTool
 {
 	/// <summary>
+	/// Controls how a particular warning is treated
+	/// </summary>
+	public enum WarningLevel
+	{
+		/// <summary>
+		/// Do not display diagnostics
+		/// </summary>
+		Off,
+
+		/// <summary>
+		/// Output warnings normally
+		/// </summary>
+		Warning,
+
+		/// <summary>
+		/// Output warnings as errors
+		/// </summary>
+		Error,
+	}
+
+	/// <summary>
 	/// ModuleRules is a data structure that contains the rules for defining a module
 	/// </summary>
 	public class ModuleRules
@@ -139,7 +160,6 @@ namespace UnrealBuildTool
 			/// </summary>
 			VisibileForDll,
 		}
-
 
 		/// <summary>
 		/// Information about a file which is required by the target at runtime, and must be moved around with it.
@@ -567,9 +587,24 @@ namespace UnrealBuildTool
 		public bool bEnableObjCExceptions = false;
 
 		/// <summary>
+		/// How to treat shadow variable warnings
+		/// </summary>
+		public WarningLevel ShadowVariableWarningLevel
+		{
+			get { return ShadowVariableWarningLevelPrivate ?? ((DefaultBuildSettings >= BuildSettingsVersion.V2) ? WarningLevel.Error : Target.ShadowVariableWarningLevel); }
+			set { ShadowVariableWarningLevelPrivate = value; }
+		}
+		private WarningLevel? ShadowVariableWarningLevelPrivate;
+
+		/// <summary>
 		/// Enable warnings for shadowed variables
 		/// </summary>
-		public bool bEnableShadowVariableWarnings = true;
+		[Obsolete("The bEnableShadowVariableWarnings setting is deprecated in UE 4.24. Please use ShadowVariableWarningLevel = WarningLevel.Warning/Off; instead.")]
+		public bool bEnableShadowVariableWarnings
+		{
+			get { return ShadowVariableWarningLevel >= WarningLevel.Warning; }
+			set { ShadowVariableWarningLevel = (value ? WarningLevel.Warning : WarningLevel.Off); }
+		}
 
 		/// <summary>
 		/// Enable warnings for using undefined identifiers in #if expressions
@@ -1124,7 +1159,6 @@ namespace UnrealBuildTool
 				{
 					PublicDefinitions.Add("WITH_CHAOS=1");
 					PublicDefinitions.Add("WITH_CHAOS_NEEDS_TO_BE_FIXED=1");
-					PublicDefinitions.Add("COMPILE_ID_TYPES_AS_INTS=0");
 					PublicDefinitions.Add("WITH_CHAOS_CLOTHING=1");
 					PublicDefinitions.Add("WITH_CLOTH_COLLISION_DETECTION=1");
 					

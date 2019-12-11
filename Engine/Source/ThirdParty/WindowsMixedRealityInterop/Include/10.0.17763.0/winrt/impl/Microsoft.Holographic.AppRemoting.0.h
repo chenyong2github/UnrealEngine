@@ -27,6 +27,7 @@ enum class BlitResult : int32_t
     Success_Color = 0,
     Failed_NoRemoteFrameAvailable = 1,
     Failed_NoCamera = 2,
+    Failed_RemoteFrameTooOld = 3,
 };
 
 enum class ConnectionFailureReason : int32_t
@@ -86,6 +87,7 @@ struct ICertificateValidationCallback;
 struct ICertificateValidator;
 struct IDataChannel;
 struct IPlayerContext;
+struct IPlayerContext2;
 struct IPlayerContextStatics;
 struct IRemoteContext;
 struct IRemoteContextStatics;
@@ -120,6 +122,7 @@ template <> struct category<Microsoft::Holographic::AppRemoting::ICertificateVal
 template <> struct category<Microsoft::Holographic::AppRemoting::ICertificateValidator>{ using type = interface_category; };
 template <> struct category<Microsoft::Holographic::AppRemoting::IDataChannel>{ using type = interface_category; };
 template <> struct category<Microsoft::Holographic::AppRemoting::IPlayerContext>{ using type = interface_category; };
+template <> struct category<Microsoft::Holographic::AppRemoting::IPlayerContext2>{ using type = interface_category; };
 template <> struct category<Microsoft::Holographic::AppRemoting::IPlayerContextStatics>{ using type = interface_category; };
 template <> struct category<Microsoft::Holographic::AppRemoting::IRemoteContext>{ using type = interface_category; };
 template <> struct category<Microsoft::Holographic::AppRemoting::IRemoteContextStatics>{ using type = interface_category; };
@@ -154,6 +157,7 @@ template <> struct name<Microsoft::Holographic::AppRemoting::ICertificateValidat
 template <> struct name<Microsoft::Holographic::AppRemoting::ICertificateValidator>{ static constexpr auto & value{ L"Microsoft.Holographic.AppRemoting.ICertificateValidator" }; };
 template <> struct name<Microsoft::Holographic::AppRemoting::IDataChannel>{ static constexpr auto & value{ L"Microsoft.Holographic.AppRemoting.IDataChannel" }; };
 template <> struct name<Microsoft::Holographic::AppRemoting::IPlayerContext>{ static constexpr auto & value{ L"Microsoft.Holographic.AppRemoting.IPlayerContext" }; };
+template <> struct name<Microsoft::Holographic::AppRemoting::IPlayerContext2>{ static constexpr auto & value{ L"Microsoft.Holographic.AppRemoting.IPlayerContext2" }; };
 template <> struct name<Microsoft::Holographic::AppRemoting::IPlayerContextStatics>{ static constexpr auto & value{ L"Microsoft.Holographic.AppRemoting.IPlayerContextStatics" }; };
 template <> struct name<Microsoft::Holographic::AppRemoting::IRemoteContext>{ static constexpr auto & value{ L"Microsoft.Holographic.AppRemoting.IRemoteContext" }; };
 template <> struct name<Microsoft::Holographic::AppRemoting::IRemoteContextStatics>{ static constexpr auto & value{ L"Microsoft.Holographic.AppRemoting.IRemoteContextStatics" }; };
@@ -188,6 +192,7 @@ template <> struct guid_storage<Microsoft::Holographic::AppRemoting::ICertificat
 template <> struct guid_storage<Microsoft::Holographic::AppRemoting::ICertificateValidator>{ static constexpr guid value{ 0xAC9BD062,0xC81E,0x479F,{ 0xB3,0x3C,0xAC,0x97,0x9C,0x67,0x12,0xE5 } }; };
 template <> struct guid_storage<Microsoft::Holographic::AppRemoting::IDataChannel>{ static constexpr guid value{ 0x66B1E9F7,0x5ECE,0x47F5,{ 0xB7,0x83,0x91,0xDA,0xCA,0xF0,0x61,0x88 } }; };
 template <> struct guid_storage<Microsoft::Holographic::AppRemoting::IPlayerContext>{ static constexpr guid value{ 0xF1A6F630,0x4427,0x429B,{ 0x82,0xBA,0x9C,0x87,0xF6,0x5D,0xAF,0xE8 } }; };
+template <> struct guid_storage<Microsoft::Holographic::AppRemoting::IPlayerContext2>{ static constexpr guid value{ 0x529862BD,0x39AF,0x4B55,{ 0x98,0x0F,0x46,0xBB,0xDB,0x98,0x54,0xB2 } }; };
 template <> struct guid_storage<Microsoft::Holographic::AppRemoting::IPlayerContextStatics>{ static constexpr guid value{ 0xDFAE5C25,0x4F8A,0x4980,{ 0xB6,0x70,0xA6,0x81,0x14,0x88,0xCD,0x37 } }; };
 template <> struct guid_storage<Microsoft::Holographic::AppRemoting::IRemoteContext>{ static constexpr guid value{ 0xEED1E1FE,0xFFE2,0x439A,{ 0xA9,0x5C,0x70,0xA5,0x8E,0x6D,0x7A,0xA2 } }; };
 template <> struct guid_storage<Microsoft::Holographic::AppRemoting::IRemoteContextStatics>{ static constexpr guid value{ 0xAB97C9AB,0x4F28,0x4A07,{ 0xBB,0xC9,0xEF,0xF7,0xDA,0x9E,0xC6,0x40 } }; };
@@ -291,6 +296,12 @@ template <> struct abi<Microsoft::Holographic::AppRemoting::IPlayerContext>{ str
     virtual int32_t WINRT_CALL add_OnDataChannelCreated(void* handler, winrt::event_token* token) noexcept = 0;
     virtual int32_t WINRT_CALL remove_OnDataChannelCreated(winrt::event_token token) noexcept = 0;
     virtual int32_t WINRT_CALL get_LastFrameStatistics(struct struct_Microsoft_Holographic_AppRemoting_PlayerFrameStatistics* value) noexcept = 0;
+};};
+
+template <> struct abi<Microsoft::Holographic::AppRemoting::IPlayerContext2>{ struct type : IInspectable
+{
+    virtual int32_t WINRT_CALL get_BlitRemoteFrameTimeout(Windows::Foundation::TimeSpan* value) noexcept = 0;
+    virtual int32_t WINRT_CALL put_BlitRemoteFrameTimeout(Windows::Foundation::TimeSpan value) noexcept = 0;
 };};
 
 template <> struct abi<Microsoft::Holographic::AppRemoting::IPlayerContextStatics>{ struct type : IInspectable
@@ -500,6 +511,14 @@ struct consume_Microsoft_Holographic_AppRemoting_IPlayerContext
     Microsoft::Holographic::AppRemoting::PlayerFrameStatistics LastFrameStatistics() const;
 };
 template <> struct consume<Microsoft::Holographic::AppRemoting::IPlayerContext> { template <typename D> using type = consume_Microsoft_Holographic_AppRemoting_IPlayerContext<D>; };
+
+template <typename D>
+struct consume_Microsoft_Holographic_AppRemoting_IPlayerContext2
+{
+    Windows::Foundation::TimeSpan BlitRemoteFrameTimeout() const;
+    void BlitRemoteFrameTimeout(Windows::Foundation::TimeSpan const& value) const;
+};
+template <> struct consume<Microsoft::Holographic::AppRemoting::IPlayerContext2> { template <typename D> using type = consume_Microsoft_Holographic_AppRemoting_IPlayerContext2<D>; };
 
 template <typename D>
 struct consume_Microsoft_Holographic_AppRemoting_IPlayerContextStatics

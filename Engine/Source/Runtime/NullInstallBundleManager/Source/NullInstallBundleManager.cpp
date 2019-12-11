@@ -11,35 +11,26 @@ class FNullInstallBundleManager : public IInstallBundleManager
 		return false;
 	}
 
-	virtual void PushInitErrorCallback(FInstallBundleManagerInitErrorHandler Callback) override
+	virtual FDelegateHandle PushInitErrorCallback(FInstallBundleManagerInitErrorHandler Callback) override
 	{
+		return FDelegateHandle();
 	}
 
 	virtual void PopInitErrorCallback() override
 	{
 	}
 
-	virtual bool IsInitializing() const override
+	void PopInitErrorCallback(FDelegateHandle Handle) override
 	{
-		return false;
-	}
-	virtual bool IsInitialized() const override
-	{
-		return true;
 	}
 
-	virtual bool IsActive() const override
+	virtual void PopInitErrorCallback(const void* InUserObject) override
 	{
-		return false;
 	}
 
-	virtual FInstallBundleTestInfo TestUpdateContent(FName BundleName) override
+	virtual EInstallBundleManagerInitState GetInitState() const override
 	{
-		return FInstallBundleTestInfo();
-	}
-	virtual FInstallBundleTestInfo TestUpdateContent(TArrayView<FName> BundleNames) override
-	{
-		return FInstallBundleTestInfo();
+		return EInstallBundleManagerInitState::Succeeded;
 	}
 
 	virtual FInstallBundleRequestInfo RequestUpdateContent(FName BundleName, EInstallBundleRequestFlags Flags) override
@@ -53,22 +44,16 @@ class FNullInstallBundleManager : public IInstallBundleManager
 		return RetInfo;
 	}
 
-	virtual FInstallBundleRequestInfo RequestRemoveContent(FName BundleName) override
-	{
-		FInstallBundleRequestInfo RetInfo;
-		return RetInfo;
-	}
-
 	virtual void GetContentState(FName BundleName, EInstallBundleGetContentStateFlags Flags, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag) override
 	{
-		FInstallBundleContentState State;
+		FInstallBundleCombinedContentState State;
 		State.State = EInstallBundleContentState::UpToDate;
 		Callback.ExecuteIfBound(State);
 	}
 
 	virtual void GetContentState(TArrayView<FName> BundleNames, EInstallBundleGetContentStateFlags Flags, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag) override
 	{
-		FInstallBundleContentState State;
+		FInstallBundleCombinedContentState State;
 		State.State = EInstallBundleContentState::UpToDate;
 		Callback.ExecuteIfBound(State);
 	}

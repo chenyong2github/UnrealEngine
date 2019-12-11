@@ -155,6 +155,35 @@ UEditorExperimentalSettings::UEditorExperimentalSettings( const FObjectInitializ
 {
 }
 
+bool UEditorExperimentalSettings::IsClassAllowedToRecompileDuringPIE(UClass* TestClass) const
+{
+	if (TestClass != nullptr)
+	{
+		// Rebuild the list if necessary (if the list was edited, either number of entires or value, ResolvedBaseClassesToAllowRecompilingDuringPlayInEditor will get reset below)
+		if (ResolvedBaseClassesToAllowRecompilingDuringPlayInEditor.Num() != BaseClassesToAllowRecompilingDuringPlayInEditor.Num())
+		{
+			ResolvedBaseClassesToAllowRecompilingDuringPlayInEditor.Reset();
+			for (TSoftClassPtr<UObject> BaseClassPtr : BaseClassesToAllowRecompilingDuringPlayInEditor)
+			{
+				if (UClass* BaseClass = BaseClassPtr.Get())
+				{
+					ResolvedBaseClassesToAllowRecompilingDuringPlayInEditor.Add(BaseClass);
+				}
+			}
+		}
+
+		// See if the test class matches any of the enabled base classes
+		for (UClass* BaseClass : ResolvedBaseClassesToAllowRecompilingDuringPlayInEditor)
+		{
+			if ((BaseClass != nullptr) && TestClass->IsChildOf(BaseClass))
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 void UEditorExperimentalSettings::PostInitProperties()
 {
 	CVarEditorHDRSupport->Set(bHDREditor ? 1 : 0, ECVF_SetByProjectSetting);
@@ -193,6 +222,8 @@ void UEditorExperimentalSettings::PostEditChangeProperty( struct FPropertyChange
 	{
 		SaveConfig();
 	}
+
+	ResolvedBaseClassesToAllowRecompilingDuringPlayInEditor.Reset();
 
 	SettingChangedEvent.Broadcast(Name);
 }

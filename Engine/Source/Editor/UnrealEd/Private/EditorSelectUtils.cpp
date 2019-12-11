@@ -26,6 +26,7 @@
 #include "SnappingUtils.h"
 #include "Logging/MessageLog.h"
 #include "ActorGroupingUtils.h"
+#include "Subsystems/BrushEditingSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "EditorSelectUtils"
 
@@ -353,10 +354,12 @@ void UUnrealEdEngine::UpdatePivotLocationForSelection( bool bOnChange )
 		SetPivot(SingleComponent->GetComponentLocation(), false, true);
 	}
 	else if( SingleActor != NULL ) 
-	{		
+	{
+		UBrushEditingSubsystem* BrushSubsystem = GEditor->GetEditorSubsystem<UBrushEditingSubsystem>();
+		const bool bGeometryMode = BrushSubsystem ? BrushSubsystem->IsGeometryEditorModeActive() : false;
+
 		// For geometry mode use current pivot location as it's set to selected face, not actor
-		FEditorModeTools& Tools = GLevelEditorModeTools();
-		if( Tools.IsModeActive(FBuiltinEditorModes::EM_Geometry) == false || bOnChange == true )
+		if (!bGeometryMode || bOnChange == true)
 		{
 			// Set pivot point to the actor's location, accounting for any set pivot offset
 			FVector PivotPoint = SingleActor->GetTransform().TransformPosition(SingleActor->GetPivotOffset());

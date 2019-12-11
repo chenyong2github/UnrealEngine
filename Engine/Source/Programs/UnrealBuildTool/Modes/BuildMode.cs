@@ -41,13 +41,13 @@ namespace UnrealBuildTool
 	class BuildMode : ToolMode
 	{
 		/// <summary>
-		/// Specifies the file to use for logging
+		/// Specifies the file to use for logging.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public string BaseLogFileName = "../Programs/UnrealBuildTool/Log.txt";
 
 		/// <summary>
-		/// Whether to skip checking for files identified by the junk manifest
+		/// Whether to skip checking for files identified by the junk manifest.
 		/// </summary>
 		[XmlConfigFile]
 		[CommandLine("-IgnoreJunk")]

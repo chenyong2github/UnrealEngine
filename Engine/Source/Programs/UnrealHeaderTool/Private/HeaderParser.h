@@ -698,6 +698,9 @@ public:
 	*/
 	static UField* FindField( UStruct* InScope, const TCHAR* InIdentifier, bool bIncludeParents=true, UClass* FieldClass=UField::StaticClass(), const TCHAR* Thing=nullptr );
 
+	// Checks ToValidate to make sure that its associated sparse class data struct, if one exists, is a valid structure to use for storing sparse class data.
+	static void CheckSparseClassData(const UStruct* ToValidate);
+
 protected:
 
 	/**

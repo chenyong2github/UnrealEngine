@@ -23,7 +23,7 @@ public:
 	* @param InSubmeshIdx Submesh in this asset to replace section with
 	* @param InAssetLodIndex Internal clothing LOD to use
 	*/
-	virtual bool BindToSkeletalMesh(USkeletalMesh* InSkelMesh, const int32 InMeshLodIndex, const int32 InSectionIndex, const int32 InAssetLodIndex, const bool bCallPostEditChange = true)
+	virtual bool BindToSkeletalMesh(USkeletalMesh* InSkelMesh, const int32 InMeshLodIndex, const int32 InSectionIndex, const int32 InAssetLodIndex)
 	PURE_VIRTUAL(UClothingAssetBase::BindToSkeletalMesh, return false;);
 
 	/**
@@ -68,10 +68,6 @@ public:
 	/** Add a new LOD class instance. */
 	virtual int32 AddNewLod()
 	PURE_VIRTUAL(UClothingAssetBase::AddNewLod(), return INDEX_NONE;);
-
-	/** Called from \c FPersonaMeshDetails::OnFinishedChangingClothingProperties(). */
-	virtual void PostPropertyChangeCb(const FPropertyChangedEvent& Event)
-	PURE_VIRTUAL(UClothingAssetBase::PostPropertyChangeCb, );
 
 	/** Builds self collision data */
 	virtual void BuildSelfCollisionData()

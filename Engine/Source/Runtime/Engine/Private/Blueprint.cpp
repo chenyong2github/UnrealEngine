@@ -21,6 +21,7 @@
 #if WITH_EDITOR
 #include "BlueprintCompilationManager.h"
 #include "Editor/UnrealEd/Classes/Settings/ProjectPackagingSettings.h"
+#include "Editor/UnrealEd/Classes/Settings/EditorExperimentalSettings.h"
 #include "Engine/SimpleConstructionScript.h"
 #include "Engine/SCS_Node.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -39,6 +40,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "UObject/MetaData.h"
 #include "BlueprintAssetHandler.h"
+#include "Blueprint/BlueprintExtension.h"
 #endif
 #include "Engine/InheritableComponentHandler.h"
 
@@ -509,12 +511,28 @@ bool UBlueprint::RenameGeneratedClasses( const TCHAR* InName, UObject* NewOuter,
 
 	if(bRenameGeneratedClasses)
 	{
+		const auto TryFreeCDOName = [](UClass* ForClass, UObject* ToOuter, ERenameFlags InFlags)
+		{
+			if(ForClass->ClassDefaultObject)
+			{
+				FName CDOName = ForClass->GetDefaultObjectName();
+				
+				if(UObject* Obj = StaticFindObjectFast(UObject::StaticClass(), ToOuter, CDOName))
+				{
+					FName NewName = MakeUniqueObjectName(ToOuter, Obj->GetClass(), CDOName);
+					Obj->Rename(*(NewName.ToString()), ToOuter, InFlags|REN_ForceNoResetLoaders|REN_DontCreateRedirectors);
+				}
+			}
+		};
+
 		FName SkelClassName, GenClassName;
 		GetBlueprintClassNames(GenClassName, SkelClassName, FName(InName));
 
 		UPackage* NewTopLevelObjectOuter = NewOuter ? NewOuter->GetOutermost() : NULL;
 		if (GeneratedClass != NULL)
 		{
+			// check for collision of CDO name, move aside if necessary:
+			TryFreeCDOName(GeneratedClass, NewTopLevelObjectOuter, Flags);
 			bool bMovedOK = GeneratedClass->Rename(*GenClassName.ToString(), NewTopLevelObjectOuter, Flags);
 			if (!bMovedOK)
 			{
@@ -525,6 +543,7 @@ bool UBlueprint::RenameGeneratedClasses( const TCHAR* InName, UObject* NewOuter,
 		// Also move skeleton class, if different from generated class, to new package (again, to create redirector)
 		if (SkeletonGeneratedClass != NULL && SkeletonGeneratedClass != GeneratedClass)
 		{
+			TryFreeCDOName(SkeletonGeneratedClass, NewTopLevelObjectOuter, Flags);
 			bool bMovedOK = SkeletonGeneratedClass->Rename(*SkelClassName.ToString(), NewTopLevelObjectOuter, Flags);
 			if (!bMovedOK)
 			{
@@ -605,7 +624,13 @@ UClass* UBlueprint::RegenerateClass(UClass* ClassToRegenerate, UObject* Previous
 		UBlueprint::ForceLoadMembers(GeneratedClassResolved->ClassDefaultObject);
 	}
 	UBlueprint::ForceLoadMembers(this);
-		
+
+	for (UBlueprintExtension* Extension : Extensions)
+	{
+		ForceLoad(Extension);
+		Extension->PreloadObjectsForCompilation(this);
+	}
+
 	FBlueprintEditorUtils::PreloadConstructionScript( this );
 
 	FBlueprintEditorUtils::LinkExternalDependencies( this );
@@ -887,6 +912,11 @@ void UBlueprint::SetWorldBeingDebugged(UWorld *NewWorld)
 void UBlueprint::GetReparentingRules(TSet< const UClass* >& AllowedChildrenOfClasses, TSet< const UClass* >& DisallowedChildrenOfClasses) const
 {
 
+}
+
+bool UBlueprint::CanRecompileWhilePlayingInEditor() const
+{
+	return GetDefault<UEditorExperimentalSettings>()->IsClassAllowedToRecompileDuringPIE(ParentClass);
 }
 
 void UBlueprint::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
@@ -2008,4 +2038,5 @@ void UBlueprint::LoadModulesRequiredForCompilation()
 	FModuleManager::Get().LoadModule(MovieSceneToolsModuleName);
 }
 #endif //WITH_EDITORONLY_DATA
+
 

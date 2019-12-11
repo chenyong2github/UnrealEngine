@@ -223,12 +223,20 @@ public:
 		// Compile for special engine materials.
 		if (bRenderReflectiveShadowMap)
 		{
-			// Reflective shadow map shaders must be compiled for every material because they access the material normal
-			return !bUsePositionOnlyStream
-				// Don't render ShadowDepth for translucent unlit materials, unless we're injecting emissive
-				&& (Material->ShouldCastDynamicShadows() || Material->ShouldInjectEmissiveIntoLPV()
-					|| Material->ShouldBlockGI())
-				&& IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
+			static const auto SupportLPV = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.LightPropagationVolume"));
+			if (SupportLPV && SupportLPV->GetValueOnAnyThread() == 0)
+			{
+				return false;
+			}
+			else
+			{
+				// Reflective shadow map shaders must be compiled for every material because they access the material normal
+				return !bUsePositionOnlyStream
+					// Don't render ShadowDepth for translucent unlit materials, unless we're injecting emissive
+					&& (Material->ShouldCastDynamicShadows() || Material->ShouldInjectEmissiveIntoLPV()
+						|| Material->ShouldBlockGI())
+					&& IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
+			}
 		}
 		else
 		{
@@ -488,12 +496,20 @@ public:
 
 		if (bRenderReflectiveShadowMap)
 		{
-			//Note: This logic needs to stay in sync with OverrideWithDefaultMaterialForShadowDepth!
-			// Reflective shadow map shaders must be compiled for every material because they access the material normal
-			return
-				// Only compile one pass point light shaders for feature levels >= SM4
-				(Material->ShouldCastDynamicShadows() || Material->ShouldInjectEmissiveIntoLPV() || Material->ShouldBlockGI())
-				&& IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
+			static const auto SupportLPV = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.LightPropagationVolume"));
+			if (SupportLPV && SupportLPV->GetValueOnAnyThread() == 0)
+			{
+				return false;
+			}
+			else
+			{
+				//Note: This logic needs to stay in sync with OverrideWithDefaultMaterialForShadowDepth!
+				// Reflective shadow map shaders must be compiled for every material because they access the material normal
+				return
+					// Only compile one pass point light shaders for feature levels >= SM4
+					(Material->ShouldCastDynamicShadows() || Material->ShouldInjectEmissiveIntoLPV() || Material->ShouldBlockGI())
+					&& IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
+			}
 		}
 		else
 		{
@@ -1091,8 +1107,6 @@ void FProjectedShadowInfo::SetupShadowUniformBuffers(FRHICommandListImmediate& R
 
 		ShadowDepthPassUniformBuffer.UpdateUniformBufferImmediate(ShadowDepthPassParameters);
 
-		UploadDynamicPrimitiveShaderDataForView(RHICmdList, *Scene, *ShadowDepthView);
-
 		if (DependentView)
 		{
 			extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
@@ -1103,6 +1117,9 @@ void FProjectedShadowInfo::SetupShadowUniformBuffers(FRHICommandListImmediate& R
 			}
 		}
 	}
+	
+	// This needs to be done for both mobile and deferred
+	UploadDynamicPrimitiveShaderDataForView(RHICmdList, *Scene, *ShadowDepthView);
 }
 
 void FProjectedShadowInfo::TransitionCachedShadowmap(FRHICommandListImmediate& RHICmdList, FScene* Scene)

@@ -3,13 +3,15 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Trace/Trace.h"
+#include "Trace/Config.h"
 #include "ProfilingDebugging/FormatArgsTrace.h"
 
+#if !defined(MISCTRACE_ENABLED)
 #if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING
 #define MISCTRACE_ENABLED 1
 #else
 #define MISCTRACE_ENABLED 0
+#endif
 #endif
 
 enum ETraceFrameType

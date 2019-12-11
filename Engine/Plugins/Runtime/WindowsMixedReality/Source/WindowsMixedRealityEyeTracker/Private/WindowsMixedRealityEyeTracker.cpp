@@ -5,12 +5,12 @@
 #include "GameFramework/WorldSettings.h"
 #include "Engine/World.h"
 
-#if WITH_WINDOWS_MIXED_REALITY && PLATFORM_HOLOLENS
+#if WITH_WINDOWS_MIXED_REALITY
 	#include "MixedRealityInterop.h"
 #endif
+#include "IWindowsMixedRealityHMDPlugin.h"
 
-#if WITH_WINDOWS_MIXED_REALITY && PLATFORM_HOLOLENS
-static WindowsMixedReality::MixedRealityInterop hmd;
+#if WITH_WINDOWS_MIXED_REALITY
 
 class FWindowsMixedRealityEyeTracker :
 	public IEyeTracker
@@ -19,7 +19,14 @@ public:
 	FWindowsMixedRealityEyeTracker()
 	{
 		// If this was created, then we want to use it, so request user perms
-		hmd.RequestUserPermissionForEyeTracking();
+#if PLATFORM_HOLOLENS
+		// If remoting, delay requesting permissions until after the remoting session is created.
+		WindowsMixedReality::MixedRealityInterop* HMD = IWindowsMixedRealityHMDPlugin::Get().GetMixedRealityInterop();
+		if (HMD != nullptr)
+		{
+			HMD->RequestUserPermissionForEyeTracking();
+		}
+#endif
 	}
 	
 	virtual ~FWindowsMixedRealityEyeTracker()
@@ -32,7 +39,8 @@ private:
 	virtual bool GetEyeTrackerGazeData(FEyeTrackerGazeData& OutGazeData) const override
 	{
 		WindowsMixedReality::EyeGazeRay ray;
-		if (!hmd.GetEyeGaze(ray))
+		WindowsMixedReality::MixedRealityInterop* HMD = IWindowsMixedRealityHMDPlugin::Get().GetMixedRealityInterop();
+		if (HMD == nullptr || !HMD->GetEyeGaze(ray))
 		{
 			return false;
 		}
@@ -48,7 +56,8 @@ private:
 	}
 	virtual EEyeTrackerStatus GetEyeTrackerStatus() const override
 	{
-		if (!hmd.SupportsEyeTracking() || !hmd.IsEyeTrackingAllowed())
+		WindowsMixedReality::MixedRealityInterop* HMD = IWindowsMixedRealityHMDPlugin::Get().GetMixedRealityInterop();
+		if (HMD == nullptr || !HMD->SupportsEyeTracking() || !HMD->IsEyeTrackingAllowed())
 		{
 			return EEyeTrackerStatus::NotConnected;
 		}
@@ -93,16 +102,19 @@ public:
 
 	virtual bool IsEyeTrackerConnected() const override
 	{
-#if WITH_WINDOWS_MIXED_REALITY && PLATFORM_HOLOLENS
-		return hmd.SupportsEyeTracking();
-#else
-		return false;
+#if WITH_WINDOWS_MIXED_REALITY
+		WindowsMixedReality::MixedRealityInterop* HMD = IWindowsMixedRealityHMDPlugin::Get().GetMixedRealityInterop();
+		if (HMD != nullptr)
+		{
+			return HMD->SupportsEyeTracking();
+		}
 #endif
+		return false;
 	}
 	
 	virtual TSharedPtr< class IEyeTracker, ESPMode::ThreadSafe > CreateEyeTracker() override
 	{
-#if WITH_WINDOWS_MIXED_REALITY && PLATFORM_HOLOLENS
+#if WITH_WINDOWS_MIXED_REALITY
 		return TSharedPtr< class IEyeTracker, ESPMode::ThreadSafe >(new FWindowsMixedRealityEyeTracker);
 #else
 		return TSharedPtr< class IEyeTracker, ESPMode::ThreadSafe >();

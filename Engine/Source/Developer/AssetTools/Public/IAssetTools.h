@@ -163,10 +163,10 @@ public:
 	virtual void GetAssetTypeActionsList(TArray<TWeakPtr<IAssetTypeActions>>& OutAssetTypeActionsList) const = 0;
 
 	/** Gets the appropriate AssetTypeActions for the supplied class */
-	virtual TWeakPtr<IAssetTypeActions> GetAssetTypeActionsForClass(UClass* Class) const = 0;
+	virtual TWeakPtr<IAssetTypeActions> GetAssetTypeActionsForClass(const UClass* Class) const = 0;
 
 	/** Gets the list of appropriate AssetTypeActions for the supplied class */
-	virtual TArray<TWeakPtr<IAssetTypeActions>> GetAssetTypeActionsListForClass(UClass* Class) const = 0;
+	virtual TArray<TWeakPtr<IAssetTypeActions>> GetAssetTypeActionsListForClass(const UClass* Class) const = 0;
 
 	/**
 	* Allocates a Category bit for a user-defined Category, or EAssetTypeCategories::Misc if all available bits are allocated.
@@ -235,6 +235,9 @@ public:
 	/** Returns list of objects that soft reference the given soft object path. This will load assets into memory to verify */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
 	virtual void FindSoftReferencesToObject(FSoftObjectPath TargetObject, TArray<UObject*>& ReferencingObjects) = 0;
+
+	/** Returns list of objects that soft reference the given soft object paths. This will load assets into memory to verify */
+	virtual void FindSoftReferencesToObjects(const TArray<FSoftObjectPath>& TargetObjects, TMap<FSoftObjectPath, TArray<UObject*>>& ReferencingObjects) = 0;
 
 	/**
 	 * Function that renames all FSoftObjectPath object with the old asset path to the new one.
@@ -364,6 +367,9 @@ public:
 	/** Fix up references to the specified redirectors */
 	virtual void FixupReferencers(const TArray<UObjectRedirector*>& Objects) const = 0;
 
+	/** Returns whether redirectors are being fixed up. */
+	virtual bool IsFixupReferencersInProgress() const = 0;
+
 	/** Expands any folders found in the files list, and returns a flattened list of destination paths and files.  Mirrors directory structure. */
 	virtual void ExpandDirectories(const TArray<FString>& Files, const FString& DestinationPath, TArray<TPair<FString, FString>>& FilesAndDestinations) const = 0;
 
@@ -398,6 +404,12 @@ public:
 	 * @param RelatedMaterials			An optional array of materials to update after the conversion, this is useful during import when not all dependencies and caches are up to date.
 	 */
 	virtual void ConvertVirtualTextures(const TArray<UTexture2D*>& Textures, bool bConvertBackToNonVirtual, const TArray<UMaterial*>* RelatedMaterials = nullptr) const = 0;
+
+	/** Is the given asset class supported? */
+	virtual bool IsAssetClassSupported(const UClass* AssetClass) const = 0;
+
+	/** Find all supported asset factories. */
+	virtual TArray<UFactory*> GetNewAssetFactories() const = 0;
 };
 
 UCLASS(transient)

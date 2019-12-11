@@ -107,8 +107,6 @@ private:
 
 private:
 
-	TSharedPtr<ITextInputMethodContext> ActiveContext;
-
 	enum class EAPI
 	{
 		Unknown,
@@ -120,39 +118,32 @@ private:
 	TComPtr<ITfInputProcessorProfiles> TSFInputProcessorProfiles;
 	TComPtr<ITfInputProcessorProfileMgr> TSFInputProcessorProfileManager;
 	TComPtr<ITfThreadMgr> TSFThreadManager;
-	TfClientId TSFClientId;
+	TfClientId TSFClientId = 0;
 	TComPtr<ITfDocumentMgr> TSFDisabledDocumentManager;
 	TComPtr<FTSFActivationProxy> TSFActivationProxy;
 
+	// IMM Implementation
+	HIMC IMMContextId = nullptr;
+	DWORD IMMProperties = 0;
+
 	struct FInternalContext
 	{
-		FInternalContext()
-			: WindowHandle(nullptr)
-		{
-			IMMContext.IsComposing = false;
-			IMMContext.IsDeactivating = false;
-			IMMContext.CompositionBeginIndex = 0;
-			IMMContext.CompositionLength = 0;
-		}
-
-		HWND WindowHandle;
+		HWND WindowHandle = nullptr;
 
 		TComPtr<FTextStoreACP> TSFContext;
 
 		struct
 		{
-			bool IsComposing;
-			bool IsDeactivating;
-			int32 CompositionBeginIndex;
-			uint32 CompositionLength;
+			bool IsComposing = false;
+			bool IsDeactivating = false;
+			int32 CompositionBeginIndex = 0;
+			uint32 CompositionLength = 0;
 		} IMMContext;
 	};
 
-	TMap< TWeakPtr<ITextInputMethodContext>, FInternalContext > ContextToInternalContextMap;
+	TSharedPtr<ITextInputMethodContext> ActiveContext;
 
-	// IMM Implementation
-	HIMC IMMContextId;
-	DWORD IMMProperties;
+	TMap< TWeakPtr<ITextInputMethodContext>, FInternalContext > ContextToInternalContextMap;
 
 	TSet<TWeakPtr<FGenericWindow>> KnownWindows;
 };

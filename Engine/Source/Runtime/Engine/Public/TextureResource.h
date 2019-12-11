@@ -30,11 +30,16 @@ class IVirtualTexture;
 #define MAX_TEXTURE_SOURCE_SLICES 6
 
 #ifndef FORCE_ENABLE_TEXTURE_STREAMING
-#define FORCE_ENABLE_TEXTURE_STREAMING 0
+	#define FORCE_ENABLE_TEXTURE_STREAMING 0
 #endif
 
 #define TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA (!(WITH_EDITORONLY_DATA) && !(UE_SERVER) && FORCE_ENABLE_TEXTURE_STREAMING && PLATFORM_SUPPORTS_TEXTURE_STREAMING && !USE_NEW_BULKDATA)
 
+#if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
+	#define TEXTURE2DMIPMAP_PARAM(param) param,
+#else
+	#define TEXTURE2DMIPMAP_PARAM(param) 
+#endif
 
 /**
  * A 2D texture mip-map.
@@ -79,7 +84,7 @@ struct FTexture2DMipMap
 		void* Realloc(int32 NumBytes);
 		void GetCopy(void** Dest, bool bDiscardInternalCopy = true);
 
-		FBulkDataIORequest* CreateStreamingRequest(const FString& Filename, int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
+		IBulkDataIORequest* CreateStreamingRequest(FString Filename, int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
 
 		/**
 		 * FCompactByteBulkData doesn't support GetFilename. Use FTexturePlatformData::CachedPackageFileName
@@ -238,7 +243,7 @@ private:
 	int32 CurrentFirstMip;
 	
 	/** Local copy/ cache of mip data between creation and first call to InitRHI.							*/
-	void*				MipData[MAX_TEXTURE_MIP_COUNT];
+	TArray<void*, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > MipData;
 
 	/** 2D texture version of TextureRHI which is used to lock the 2D texture during mip transitions.		*/
 	FTexture2DRHIRef	Texture2DRHI;

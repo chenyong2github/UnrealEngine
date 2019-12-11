@@ -89,3 +89,5 @@ public:
 #endif //_MELANGE_SDK_
 
 IMPLEMENT_MODULE(FC4DTranslatorModule, DatasmithC4DTranslator);
+
+#undef LOCTEXT_NAMESPACE

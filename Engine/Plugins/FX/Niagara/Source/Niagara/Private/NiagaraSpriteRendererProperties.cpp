@@ -6,10 +6,13 @@
 #include "NiagaraConstants.h"
 #include "NiagaraRendererSprites.h"
 #include "NiagaraBoundsCalculatorHelper.h"
+#include "Modules/ModuleManager.h"
 #if WITH_EDITOR
 #include "DerivedDataCacheInterface.h"
 #endif
 #define LOCTEXT_NAMESPACE "UNiagaraSpriteRendererProperties"
+
+TArray<TWeakObjectPtr<UNiagaraSpriteRendererProperties>> UNiagaraSpriteRendererProperties::SpriteRendererPropertiesToDeferredInit;
 
 #if ENABLE_COOK_STATS
 class NiagaraCutoutCookStats
@@ -26,13 +29,12 @@ FCookStatsManager::FAutoRegisterCallback NiagaraCutoutCookStats::RegisterCookSta
 });
 #endif // ENABLE_COOK_STATS
 
-
 UNiagaraSpriteRendererProperties::UNiagaraSpriteRendererProperties()
 	: Alignment(ENiagaraSpriteAlignment::Unaligned)
 	, FacingMode(ENiagaraSpriteFacingMode::FaceCamera)
 	, CustomFacingVectorMask(ForceInitToZero)
 	, PivotInUVSpace(0.5f, 0.5f)
-	, SortMode(ENiagaraSortMode::ViewDistance)
+	, SortMode(ENiagaraSortMode::None)
 	, SubImageSize(1.0f, 1.0f)
 	, bSubImageBlend(false)
 	, bRemoveHMDRollInVR(false)
@@ -44,6 +46,8 @@ UNiagaraSpriteRendererProperties::UNiagaraSpriteRendererProperties()
 	, AlphaThreshold(0.1f)
 #endif // WITH_EDITORONLY_DATA
 {
+	FNiagaraTypeDefinition MaterialDef(UMaterialInterface::StaticClass());
+	MaterialUserParamBinding.Parameter.SetType(MaterialDef);
 }
 
 FNiagaraRenderer* UNiagaraSpriteRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter)
@@ -60,7 +64,16 @@ FNiagaraBoundsCalculator* UNiagaraSpriteRendererProperties::CreateBoundsCalculat
 
 void UNiagaraSpriteRendererProperties::GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const
 {
-	OutMaterials.Add(Material);
+	bool bSet = false;
+	if (MaterialUserParamBinding.Parameter.IsValid() && InEmitter->FindBinding(MaterialUserParamBinding, OutMaterials))
+	{
+		bSet = true;
+	}
+
+	if (!bSet)
+	{
+		OutMaterials.Add(Material);
+	}
 }
 
 void UNiagaraSpriteRendererProperties::PostLoad()
@@ -68,6 +81,13 @@ void UNiagaraSpriteRendererProperties::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITORONLY_DATA
+
+	if (MaterialUserParamBinding.Parameter.GetType().GetClass() != UMaterialInterface::StaticClass())
+	{
+		FNiagaraTypeDefinition MaterialDef(UMaterialInterface::StaticClass());
+		MaterialUserParamBinding.Parameter.SetType(MaterialDef);
+	}
+
 	if (!FPlatformProperties::RequiresCookedData())
 	{
 		if (CutoutTexture)
@@ -82,14 +102,30 @@ void UNiagaraSpriteRendererProperties::PostLoad()
 void UNiagaraSpriteRendererProperties::PostInitProperties()
 {
 	Super::PostInitProperties();
+
 	if (HasAnyFlags(RF_ClassDefaultObject) == false)
 	{
+		// We can end up hitting PostInitProperties before the Niagara Module has initialized bindings this needs, mark this object for deferred init and early out.
+		if (FModuleManager::Get().IsModuleLoaded("Niagara") == false)
+		{
+			SpriteRendererPropertiesToDeferredInit.Add(this);
+			return;
+		}
 		InitBindings();
 	}
 }
 
 void UNiagaraSpriteRendererProperties::Serialize(FStructuredArchive::FRecord Record)
 {
+	FArchive& Ar = Record.GetUnderlyingArchive();
+	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
+	const int32 NiagaraVersion = Ar.CustomVer(FNiagaraCustomVersion::GUID);
+
+	if (Ar.IsLoading() && (NiagaraVersion < FNiagaraCustomVersion::DisableSortingByDefault))
+	{
+		SortMode = ENiagaraSortMode::ViewDistance;
+	}
+
 	Super::Serialize(Record);
 
 	bool bIsCookedForEditor = false;
@@ -109,6 +145,14 @@ void UNiagaraSpriteRendererProperties::InitCDOPropertiesAfterModuleStartup()
 {
 	UNiagaraSpriteRendererProperties* CDO = CastChecked<UNiagaraSpriteRendererProperties>(UNiagaraSpriteRendererProperties::StaticClass()->GetDefaultObject());
 	CDO->InitBindings();
+
+	for (TWeakObjectPtr<UNiagaraSpriteRendererProperties>& WeakSpriteRendererProperties : SpriteRendererPropertiesToDeferredInit)
+	{
+		if (WeakSpriteRendererProperties.Get())
+		{
+			WeakSpriteRendererProperties->InitBindings();
+		}
+	}
 }
 
 void UNiagaraSpriteRendererProperties::InitBindings()

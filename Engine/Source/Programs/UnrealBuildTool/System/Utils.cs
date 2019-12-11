@@ -482,7 +482,7 @@ namespace UnrealBuildTool
 				case UnrealPlatformClass.Editor:
 					return new UnrealTargetPlatform[] { UnrealTargetPlatform.Win64, UnrealTargetPlatform.Linux, UnrealTargetPlatform.Mac };
 				case UnrealPlatformClass.Server:
-					return new UnrealTargetPlatform[] { UnrealTargetPlatform.Win32, UnrealTargetPlatform.Win64, UnrealTargetPlatform.Linux, UnrealTargetPlatform.Mac };
+					return new UnrealTargetPlatform[] { UnrealTargetPlatform.Win32, UnrealTargetPlatform.Win64, UnrealTargetPlatform.Linux, UnrealTargetPlatform.LinuxAArch64, UnrealTargetPlatform.Mac };
 			}
 			throw new ArgumentException(String.Format("'{0}' is not a valid value for UnrealPlatformClass", (int)Class));
 		}
@@ -491,8 +491,10 @@ namespace UnrealBuildTool
 		/// Given a list of supported platforms, returns a list of names of platforms that should not be supported
 		/// </summary>
 		/// <param name="SupportedPlatforms">List of supported platforms</param>
+		/// <param name="bIncludeUnbuildablePlatforms">If true, add platforms that are present but not available for compiling</param>
+		/// 
 		/// <returns>List of unsupported platforms in string format</returns>
-		public static List<string> MakeListOfUnsupportedPlatforms(List<UnrealTargetPlatform> SupportedPlatforms)
+		public static List<string> MakeListOfUnsupportedPlatforms(List<UnrealTargetPlatform> SupportedPlatforms, bool bIncludeUnbuildablePlatforms)
 		{
 			// Make a list of all platform name strings that we're *not* currently compiling, to speed
 			// up file path comparisons later on
@@ -548,6 +550,11 @@ namespace UnrealBuildTool
 					// Don't add our current platform to the list of platform sub-directory names that
 					// we'll skip source files for
 					if (ShouldConsider && !SupportedPlatforms.Contains(CurPlatform))
+					{
+						OtherPlatformNameStrings.Add(CurPlatform.ToString());
+					}
+					// if a platform isn't available to build, then return it 
+					else if (bIncludeUnbuildablePlatforms && !UEBuildPlatform.IsPlatformAvailable(CurPlatform))
 					{
 						OtherPlatformNameStrings.Add(CurPlatform.ToString());
 					}

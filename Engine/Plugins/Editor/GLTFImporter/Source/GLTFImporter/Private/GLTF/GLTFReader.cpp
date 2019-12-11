@@ -377,8 +377,20 @@ namespace GLTF
 				if (ensure((Input != INDEX_NONE) && (Output != INDEX_NONE)))
 				{
 					FAnimation::FSampler Sampler(Asset->Accessors[Input], Asset->Accessors[Output]);
-					Sampler.Interpolation =
-						(FAnimation::EInterpolation)GetUnsignedInt(SamplerObject, TEXT("interpolation"), (uint32)Sampler.Interpolation);
+					FString InterpolationStr = GetString(SamplerObject, TEXT("interpolation"), TEXT("LINEAR"));
+					if (InterpolationStr == TEXT("LINEAR"))
+					{
+						Sampler.Interpolation = FAnimation::EInterpolation::Linear;
+					}
+					else if (InterpolationStr == TEXT("STEP"))
+					{
+						Sampler.Interpolation = FAnimation::EInterpolation::Step;
+					}
+					else if (InterpolationStr == TEXT("CUBICSPLINE"))
+					{
+						Sampler.Interpolation = FAnimation::EInterpolation::CubicSpline;
+					}
+
 					Animation.Samplers.Add(Sampler);
 				}
 			}

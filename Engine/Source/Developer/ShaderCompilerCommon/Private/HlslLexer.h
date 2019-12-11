@@ -83,6 +83,7 @@ namespace CrossCompiler
 		// Types
 		Void,
 		Const,
+		Precise,
 
 		Bool,
 		Bool1,
@@ -248,6 +249,8 @@ namespace CrossCompiler
 		GroupShared,
 		RowMajor,
 		Register,
+		Inline,
+		Typedef,
 
 		Identifier,
 		UnsignedIntegerConstant,

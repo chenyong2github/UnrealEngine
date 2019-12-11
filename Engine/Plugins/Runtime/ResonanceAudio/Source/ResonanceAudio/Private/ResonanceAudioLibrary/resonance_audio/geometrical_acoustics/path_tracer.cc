@@ -24,6 +24,7 @@ limitations under the License.
 
 namespace vraudio {
 
+#if INCLUDE_UNUSED_CODE
 std::vector<Path> PathTracer::TracePaths(const AcousticSource& source,
                                          size_t min_num_rays, size_t max_depth,
                                          float energy_threshold) {
@@ -92,5 +93,6 @@ std::vector<Path> PathTracer::TracePaths(const AcousticSource& source,
       });
   return paths;
 }
+#endif
 
 }  // namespace vraudio

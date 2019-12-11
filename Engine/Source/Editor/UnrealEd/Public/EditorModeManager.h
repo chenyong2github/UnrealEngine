@@ -542,6 +542,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	void UpdateInternalData();
 	bool IsOnlyVisibleActiveMode(FEditorModeID InMode) const;
 
+	/** returns true if all active EdModes are OK with an AutoSave happening now  */
+	bool CanAutoSave() const;
+
 protected:
 	/** 
 	 * Delegate handlers

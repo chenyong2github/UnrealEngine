@@ -1303,6 +1303,7 @@ bool ULayersSubsystem::RenameLayer( const FName& OriginalLayerName, const FName&
 	}
 
 	Layer->Modify();
+	const FName OriginalLayerNameCopy = OriginalLayerName; // Otherwise, bug if RenameLayer(Layer->LayerName, NewLayerName) after the next LayerName rename
 	Layer->LayerName = NewLayerName;
 	Layer->ActorStats.Empty();
 	// Iterate over all actors, swapping layers.
@@ -1314,7 +1315,7 @@ bool ULayersSubsystem::RenameLayer( const FName& OriginalLayerName, const FName&
 			continue;
 		}
 
-		if ( ULayersSubsystem::RemoveActorFromLayer( Actor, OriginalLayerName ) )
+		if (ULayersSubsystem::RemoveActorFromLayer(Actor, OriginalLayerNameCopy))
 		{
 			// No need to mark the actor as modified these functions take care of that
 			AddActorToLayer( Actor, NewLayerName );
@@ -1324,7 +1325,7 @@ bool ULayersSubsystem::RenameLayer( const FName& OriginalLayerName, const FName&
 	// update all views's hidden layers if they had this one
 	for (FLevelEditorViewportClient* ViewportClient : GEditor->GetLevelViewportClients())
 	{
-		if ( ViewportClient->ViewHiddenLayers.Remove( OriginalLayerName ) > 0 )
+		if (ViewportClient->ViewHiddenLayers.Remove(OriginalLayerNameCopy) > 0)
 		{
 			ViewportClient->ViewHiddenLayers.AddUnique( NewLayerName );
 			ViewportClient->Invalidate();

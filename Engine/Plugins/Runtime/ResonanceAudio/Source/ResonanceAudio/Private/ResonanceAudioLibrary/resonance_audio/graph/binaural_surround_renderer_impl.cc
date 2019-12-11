@@ -117,8 +117,11 @@ BinauralSurroundRendererImpl::BinauralSurroundRendererImpl()
       resonance_audio_api_(nullptr),
       frames_per_buffer_(0),
       sample_rate_hz_(0),
+	  surround_format_(SurroundFormat::kInvalid),
+	  num_input_channels_(0),
       total_frames_buffered_(0),
-      num_zero_padded_frames_(0) {
+      num_zero_padded_frames_(0),
+      output_gain_(0.0f) {
 }
 
 AudioBuffer* BinauralSurroundRendererImpl::BufferPartitionerCallback(
@@ -159,9 +162,9 @@ size_t BinauralSurroundRendererImpl::GetExpectedNumChannelsFromSurroundFormat(
       return kNumThirdOrderAmbisonicChannels + kNumStereoChannels;
     default:
       LOG(FATAL) << "Undefined surround format mode";
-      return false;
       break;
   }
+
   return 0;
 }
 

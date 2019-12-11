@@ -18,9 +18,10 @@ class FVirtualTextureFeedback
 {
 public:
 	FVirtualTextureFeedback();
-	~FVirtualTextureFeedback() {}
+	~FVirtualTextureFeedback();
 
 	static const uint32 TargetCapacity = 4u;
+	static const uint32 MaxRectPerTarget = 4u;
 
 	TRefCountPtr< IPooledRenderTarget >	FeedbackTextureGPU;
 
@@ -28,30 +29,35 @@ public:
 	{
 		int32 MapHandle;
 		uint32* RESTRICT Buffer;
-		FIntRect Rect;
 		int32 Pitch;
+		int32 NumRects;
+		FIntRect Rects[MaxRectPerTarget];
 	};
 
-	void			CreateResourceGPU( FRHICommandListImmediate& RHICmdList, FIntPoint InSize );
+	void			CreateResourceGPU(FRHICommandListImmediate& RHICmdList, FIntPoint InSize);
 	void			ReleaseResources();
 	void			MakeSnapshot(const FVirtualTextureFeedback& SnapshotSource);
 
-	void			TransferGPUToCPU( FRHICommandListImmediate& RHICmdList, FIntRect const& Rect);
+	void			TransferGPUToCPU(FRHICommandListImmediate& RHICmdList, TArrayView<FIntRect> const& ViewRects);
 
-	bool			CanMap();
+	uint32			GetPendingTargetCount() const { return PendingTargetCount; }
+
+	bool			CanMap(FRHICommandListImmediate& RHICmdList);
 	bool			Map(FRHICommandListImmediate& RHICmdList, MapResult& OutResult);
 	void			Unmap(FRHICommandListImmediate& RHICmdList, int32 MapHandle);
 
 private:
-	struct FeedBackItem
+	struct FFeedBackItem
 	{
-		FIntRect Rect;
+		int32 NumRects;
+		FIntRect Rects[MaxRectPerTarget];
 		TRefCountPtr< IPooledRenderTarget > TextureCPU;
-		FGPUFenceRHIRef GPUFenceRHI;
 		FRHIGPUMask GPUMask;
 	};
 
-	FeedBackItem FeedbackTextureCPU[TargetCapacity];
+	FFeedBackItem FeedbackTextureCPU[TargetCapacity];
+
+	class FFeedbackFences* FeedBackFences;
 
 	FIntPoint Size;
 	uint32 GPUWriteIndex;

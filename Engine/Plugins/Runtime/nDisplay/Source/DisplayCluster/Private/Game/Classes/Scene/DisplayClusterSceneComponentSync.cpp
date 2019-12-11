@@ -2,6 +2,8 @@
 
 #include "DisplayClusterSceneComponentSync.h"
 
+#include "GameFramework/Actor.h"
+
 #include "Cluster/IPDisplayClusterClusterManager.h"
 #include "Game/IPDisplayClusterGameManager.h"
 
@@ -25,7 +27,7 @@ void UDisplayClusterSceneComponentSync::BeginPlay()
 	}
 
 	// Generate unique sync id
-	SyncId = GetSyncId();
+	SyncId = GenerateSyncId();
 
 	GameMgr = GDisplayCluster->GetPrivateGameMgr();
 	if (GameMgr && GameMgr->IsDisplayClusterActive())
@@ -35,7 +37,7 @@ void UDisplayClusterSceneComponentSync::BeginPlay()
 		if (ClusterMgr)
 		{
 			UE_LOG(LogDisplayClusterGame, Log, TEXT("Registering sync object %s..."), *SyncId);
-			ClusterMgr->RegisterSyncObject(this);
+			ClusterMgr->RegisterSyncObject(this, EDisplayClusterSyncGroup::Tick);
 		}
 		else
 		{
@@ -52,7 +54,7 @@ void UDisplayClusterSceneComponentSync::TickComponent( float DeltaTime, ELevelTi
 	// ...
 }
 
-void UDisplayClusterSceneComponentSync::DestroyComponent(bool bPromoteChildren)
+void UDisplayClusterSceneComponentSync::OnComponentDestroyed(bool bDestroyingHierarchy)
 {
 	if (GDisplayCluster->IsModuleInitialized())
 	{
@@ -66,22 +68,27 @@ void UDisplayClusterSceneComponentSync::DestroyComponent(bool bPromoteChildren)
 		}
 	}
 
-	Super::DestroyComponent(bPromoteChildren);
+	Super::OnComponentDestroyed(bDestroyingHierarchy);
 }
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterClusterSyncObject
 //////////////////////////////////////////////////////////////////////////////////////////////
-FString UDisplayClusterSceneComponentSync::GetSyncId() const
+bool UDisplayClusterSceneComponentSync::IsActive() const
 {
-	return FString::Printf(TEXT("S_%s"), *GetOwner()->GetName());
+	return !this->IsPendingKill();
 }
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterStringSerializable
 //////////////////////////////////////////////////////////////////////////////////////////////
+FString UDisplayClusterSceneComponentSync::GenerateSyncId()
+{
+	return FString::Printf(TEXT("S_%s"), *GetOwner()->GetName());
+}
+
 FString UDisplayClusterSceneComponentSync::SerializeToString() const
 {
 	return GetSyncTransform().ToString();

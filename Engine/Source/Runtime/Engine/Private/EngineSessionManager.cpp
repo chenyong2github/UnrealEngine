@@ -243,6 +243,8 @@ void FEngineSessionManager::Shutdown()
 	FCoreDelegates::ApplicationWillTerminateDelegate.RemoveAll(this);
 	FCoreDelegates::IsVanillaProductChanged.RemoveAll(this);
 
+	FUserActivityTracking::OnActivityChanged.RemoveAll(this);
+
 	if (!CurrentSession.bIsTerminating) // Skip Slate if terminating, since we can't guarantee which thread called us.
 	{
 		FSlateApplication::Get().GetOnModalLoopTickEvent().RemoveAll(this);

@@ -1,12 +1,16 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Trace/Trace.h"
+#include "Trace/Config.h"
 
 #if UE_TRACE_ENABLED
 
 #include <arpa/inet.h>
+#include <fcntl.h>
+#include <pthread.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 namespace Trace {
 namespace Private {

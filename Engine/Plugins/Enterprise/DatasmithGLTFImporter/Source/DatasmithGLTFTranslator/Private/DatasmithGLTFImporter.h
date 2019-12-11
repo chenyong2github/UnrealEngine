@@ -68,7 +68,7 @@ public:
 	/** Finalize import of the scene into the engine. */
 	bool SendSceneToDatasmith();
 
-	TArray<FMeshDescription> GetGeometriesForMeshElement(const TSharedRef<IDatasmithMeshElement> MeshElement);
+	void GetGeometriesForMeshElementAndRelease(const TSharedRef<IDatasmithMeshElement> MeshElement, TArray<FMeshDescription>& OutMeshDescriptions);
 
 	const TArray<TSharedRef<IDatasmithLevelSequenceElement>>& GetImportedSequences();
 

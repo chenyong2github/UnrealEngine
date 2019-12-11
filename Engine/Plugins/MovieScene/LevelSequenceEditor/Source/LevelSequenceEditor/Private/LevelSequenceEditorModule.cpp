@@ -384,6 +384,11 @@ protected:
 		}
 	}
 
+	virtual FString GetReferencerName() const override
+	{
+		return "FLevelSequenceEditorModule";
+	}
+
 private:
 
 	/** The type actions for interacting with level sequences. */

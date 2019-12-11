@@ -343,7 +343,8 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 				}
 				else if (bUseStreamCaching)
 				{
-					checkf(MinimumChunkSize != 0, TEXT("To use Load On Demand, please override GetMinimumSizeForInitialChunk"));
+					// Ensure that the minimum chunk size is nonzero if our compressed buffer is not empty.
+					checkf(CompressedBuffer.Num() == 0 || MinimumChunkSize != 0, TEXT("To use Load On Demand, please override GetMinimumSizeForInitialChunk"));
 
 					// Otherwise if we're using Load On Demand, the first chunk should be as small as possible:
 					FirstChunkSize = MinimumChunkSize;
@@ -537,10 +538,9 @@ public:
 		}
 	}
 
-	/** Finalize work. Must be called ONLY by the game thread! */
+	/** Finalize work. Must be called ONLY by the thread that started this task! */
 	bool Finalize()
 	{
-		check(IsInGameThread());
 		// if we couldn't get from the DDC or didn't build synchronously, then we have to build now.
 		// This is a super edge case that should rarely happen.
 		if (!bSucceeded)
@@ -1015,6 +1015,8 @@ static void CookSimpleWave(USoundWave* SoundWave, FName FormatName, const IAudio
 	FScopeLock ScopeLock(&SoundWave->RawDataCriticalSection);
 #endif
 
+	SoundWave->RawData.ForceBulkDataResident();
+
 	// check if there is any raw sound data
 	if( SoundWave->RawData.GetBulkDataSize() > 0 )
 	{
@@ -1038,7 +1040,7 @@ static void CookSimpleWave(USoundWave* SoundWave, FName FormatName, const IAudio
 
 	if(!Input.Num())
 	{
-		UE_LOG(LogAudioDerivedData, Warning, TEXT( "Can't cook %s because there is no source compressed or uncompressed PC sound data" ), *SoundWave->GetFullName() );
+		UE_LOG(LogAudioDerivedData, Warning, TEXT( "Can't cook %s because there is no source LPCM data" ), *SoundWave->GetFullName() );
 	}
 	else
 	{
@@ -1138,7 +1140,7 @@ static void CookSurroundWave( USoundWave* SoundWave, FName FormatName, const IAu
 	{
 		SoundWave->RawData.Unlock();
 
-		UE_LOG(LogAudioDerivedData, Warning, TEXT("No raw wave data for: %s"), *SoundWave->GetFullName());
+		UE_LOG(LogAudioDerivedData, Display, TEXT("No raw wave data for: %s"), *SoundWave->GetFullName());
 		return;
 	}
 
@@ -1240,7 +1242,23 @@ static void CookSurroundWave( USoundWave* SoundWave, FName FormatName, const IAu
 					ResampleWaveData(SourceBuffers[ChannelIndex], DataSize, 1, WaveSampleRate, SampleRateOverride);
 				}
 
+				// Since each channel is resampled independently, we may have slightly different sample counts in each channel.
+				// To counter this, we truncate or zero-pad every non-zero channel's buffer to the zeroth channel's length.
+				int32 SizeOfZerothChannel = SourceBuffers[0].Num();
+
+				for (int32 ChannelIndex = 1; ChannelIndex < ChannelCount; ChannelIndex++)
+				{
+					TArray<uint8>& SourceBuffer = SourceBuffers[ChannelIndex];
+
+					if (SourceBuffer.Num() != SizeOfZerothChannel)
+					{	
+						UE_LOG(LogAudioDerivedData, Display, TEXT("Fixing up channel %d from %d to %d samples."), ChannelIndex, SizeOfZerothChannel, SourceBuffer.Num());
+						SourceBuffer.SetNumZeroed(SizeOfZerothChannel);
+					}
+				}
+
 				WaveSampleRate = SampleRateOverride;
+				SampleDataSize = SizeOfZerothChannel;
 			}
 
 			UE_LOG(LogAudioDerivedData, Display, TEXT("Cooking %d channels for: %s"), ChannelCount, *SoundWave->GetFullName());
@@ -1635,7 +1653,7 @@ void USoundWave::ForceRebuildPlatformData()
 {
 	if (RunningPlatformData)
 	{
-		const FPlatformAudioCookOverrides* CompressionOverrides = GetPlatformCompressionOverridesForCurrentPlatform();
+		const FPlatformAudioCookOverrides* CompressionOverrides = GetCookOverridesForRunningPlatform();
 		RunningPlatformData->Cache(
 			*this,
 			CompressionOverrides,

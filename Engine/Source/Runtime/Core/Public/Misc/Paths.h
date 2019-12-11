@@ -193,7 +193,7 @@ public:
 	 *
 	 * @return saved directory
 	 */
-	static FString ProjectSavedDir();
+	static const FString& ProjectSavedDir();
 
 	UE_DEPRECATED(4.18, "FPaths::GameSavedDir() has been superseded by FPaths::ProjectSavedDir().")
 	static FORCEINLINE FString GameSavedDir() { return ProjectSavedDir(); }
@@ -464,6 +464,9 @@ public:
 	 * @returns True if both paths are the same. False otherwise.
 	 */
 	static bool IsSamePath(const FString& PathA, const FString& PathB);
+
+	/** Determines if a path is under a given directory */
+	static bool IsUnderDirectory(const FString& InPath, const FString& InDirectory);
 
 	/** Normalize all / and \ to TEXT("/") and remove any trailing TEXT("/") if the character before that is not a TEXT("/") or a colon */
 	static void NormalizeDirectoryName(FString& InPath);

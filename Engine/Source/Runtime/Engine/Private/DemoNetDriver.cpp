@@ -39,8 +39,11 @@
 #include "Stats/Stats2.h"
 #include "Engine/ChildConnection.h"
 #include "Net/ReplayPlaylistTracker.h"
+#include "Net/NetworkGranularMemoryLogging.h"
 
 DEFINE_LOG_CATEGORY( LogDemo );
+
+#define DEMO_CSV_PROFILING_HELPERS_ENABLED (CSV_PROFILER && (!UE_BUILD_SHIPPING))
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
@@ -79,6 +82,7 @@ static FAutoConsoleVariableRef CVarDemoSaveRollbackActorState( TEXT( "demo.SaveR
 static TAutoConsoleVariable<int32> CVarWithLevelStreamingFixes(TEXT("demo.WithLevelStreamingFixes"), 0, TEXT("If 1, provides fixes for level streaming (but breaks backwards compatibility)."));
 static TAutoConsoleVariable<int32> CVarWithDemoTimeBurnIn(TEXT("demo.WithTimeBurnIn"), 0, TEXT("If true, adds an on screen message with the current DemoTime and Changelist."));
 static TAutoConsoleVariable<int32> CVarWithDeltaCheckpoints(TEXT("demo.WithDeltaCheckpoints"), 0, TEXT("If true, record checkpoints as a delta from the previous checkpoint."));
+static TAutoConsoleVariable<int32> CVarWithGameSpecificFrameData(TEXT("demo.WithGameSpecificFrameData"), 0, TEXT("If true, allow game specific data to be recorded with each demo frame."));
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 static TAutoConsoleVariable<int32> CVarDemoForceFailure( TEXT( "demo.ForceFailure" ), 0, TEXT( "" ) );
@@ -827,6 +831,8 @@ void UDemoNetDriver::ResetDemoState()
 
 	ExternalDataToObjectMap.Empty();
 	PlaybackPackets.Empty();
+	PlaybackFrames.Empty();
+
 	ClearLevelStreamingState();
 }
 
@@ -955,6 +961,8 @@ bool UDemoNetDriver::ReadPlaybackDemoHeader(FString& Error)
 		return false;
 	}
 
+	bHasGameSpecificFrameData = EnumHasAnyFlags(PlaybackDemoHeader.HeaderFlags, EReplayHeaderFlags::GameSpecificFrameData);
+
 	// Set network version on connection
 	ServerConnection->EngineNetworkProtocolVersion = PlaybackDemoHeader.EngineNetworkProtocolVersion;
 	ServerConnection->GameNetworkProtocolVersion = PlaybackDemoHeader.GameNetworkProtocolVersion;
@@ -1067,6 +1075,7 @@ bool UDemoNetDriver::InitListen(FNetworkNotify* InNotify, FURL& ListenURL, bool 
 	// During playback the CVars won't be used. Instead, we'll rely on the DemoPacketHeader value.
 	bHasLevelStreamingFixes = !!CVarWithLevelStreamingFixes.GetValueOnAnyThread();
 	bHasDeltaCheckpoints = !!CVarWithDeltaCheckpoints.GetValueOnAnyThread() && ReplayStreamer->IsCheckpointTypeSupported(EReplayCheckpointType::Delta);
+	bHasGameSpecificFrameData = !!CVarWithGameSpecificFrameData.GetValueOnAnyThread();
 
 	// Recording, local machine is server, demo stream acts "as if" it's a client.
 	UDemoNetConnection* Connection = NewObject<UDemoNetConnection>();
@@ -1294,6 +1303,11 @@ bool UDemoNetDriver::WriteNetworkDemoHeader(FString& Error)
 	if (HasDeltaCheckpoints())
 	{
 		DemoHeader.HeaderFlags |= EReplayHeaderFlags::DeltaCheckpoints;
+	}
+
+	if (HasGameSpecificFrameData())
+	{
+		DemoHeader.HeaderFlags |= EReplayHeaderFlags::GameSpecificFrameData;
 	}
 
 	DemoHeader.Guid = FGuid::NewGuid();
@@ -2163,7 +2177,7 @@ void UDemoNetDriver::TickCheckpoint()
 						TGuardValue<uint32> NumLevelsAddedThisFrameGuard(NumLevelsAddedThisFrame, AllLevelStatuses.Num());
 
 						// Write out all of the queued up packets generated while saving the checkpoint
-						WriteDemoFrameFromQueuedDemoPackets( *CheckpointArchive, ClientConnection->QueuedCheckpointPackets, static_cast<float>(LastCheckpointTime) );
+						WriteDemoFrameFromQueuedDemoPackets( *CheckpointArchive, ClientConnection->QueuedCheckpointPackets, static_cast<float>(LastCheckpointTime), EWriteDemoFrameFlags::SkipGameSpecific );
 
 						CheckpointSaveContext.CheckpointSaveState = ECheckpointSaveState_Finalize;
 					}
@@ -2193,6 +2207,9 @@ void UDemoNetDriver::TickCheckpoint()
 			ReplayStreamer->FlushCheckpoint(GetLastCheckpointTimeInMS());
 		}
 
+		// writing checkpoint means we have 100% fidelity this frame
+		LastReplayFrameFidelity = 1;
+
 		const float TotalCheckpointTimeInMS = CheckpointSaveContext.TotalCheckpointReplicationTimeSeconds * 1000.0f;
 		const float TotalCheckpointTimeWithOverheadInMS = CheckpointSaveContext.TotalCheckpointSaveTimeSeconds * 1000.0f;
 
@@ -2200,6 +2217,11 @@ void UDemoNetDriver::TickCheckpoint()
 
 		// we are done, out
 		CheckpointSaveContext.CheckpointSaveState = ECheckpointSaveState_Idle;
+	}
+	else
+	{
+		// nothing was recorded this frame
+		LastReplayFrameFidelity = 0;
 	}
 }
 
@@ -2821,14 +2843,15 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 		ReplicatePrioritizedActors(PrioritizedActors.GetData(), PrioritizedActors.Num(), Params);
 	}
 
-	
 	CSV_CUSTOM_STAT(Basic, DemoNumReplicatedActors, Params.NumActorsReplicated, ECsvCustomStatOp::Set);
 
 	FlushNetChecked(*ClientConnection);
 
-	WriteDemoFrameFromQueuedDemoPackets(*FileAr, ClientConnection->QueuedDemoPackets, DemoCurrentTime);
-	
-	AdjustConsiderTime((float)Params.NumActorsReplicated / (float)NumPrioritizedActors);
+	WriteDemoFrameFromQueuedDemoPackets(*FileAr, ClientConnection->QueuedDemoPackets, DemoCurrentTime, EWriteDemoFrameFlags::None);
+
+	float ReplicatedPercent = NumPrioritizedActors != 0 ? (float)Params.NumActorsReplicated / (float)NumPrioritizedActors : 1.0f;
+	AdjustConsiderTime(ReplicatedPercent);
+	LastReplayFrameFidelity = ReplicatedPercent;
 }
 
 bool UDemoNetDriver::ReplicatePrioritizedActor(const FActorPriority& ActorPriority, const class FRepActorsParams& Params)
@@ -3204,6 +3227,27 @@ bool UDemoNetDriver::ReadDemoFrameIntoPlaybackPackets(FArchive& Ar, TArray<FPlay
 		Ar.Seek(Ar.Tell() + SkipExternalOffset);
 	}
 
+	FArchivePos SkipGameSpecificOffset = 0;
+	if (HasGameSpecificFrameData())
+	{
+		Ar << SkipGameSpecificOffset;
+
+		if ((SkipGameSpecificOffset > 0) && !bForLevelFastForward)
+		{
+			FDemoFrameDataMap Data;
+			Ar << Data;
+
+			if (Data.Num() > 0)
+			{
+				PlaybackFrames.Emplace(TimeSeconds, MoveTemp(Data));
+			}
+		}
+		else
+		{
+			Ar.Seek(Ar.Tell() + SkipGameSpecificOffset);
+		}
+	}
+
 	{
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Demo_ReadPackets"), Demo_ReadPackets, STATGROUP_Net);
 
@@ -3480,6 +3524,8 @@ void UDemoNetDriver::ProcessAllPlaybackPackets()
 {
 	ProcessPlaybackPackets(PlaybackPackets);
 	PlaybackPackets.Empty();
+	// this call is used for checkpoint loading, so not dealing with per frame data
+	PlaybackFrames.Empty();
 }
 
 void UDemoNetDriver::ProcessPlaybackPackets(TArrayView<FPlaybackPacket> Packets)
@@ -3517,7 +3563,7 @@ bool UDemoNetDriver::ProcessPacket(const uint8* Data, int32 Count)
 	return true;
 }
 
-void UDemoNetDriver::WriteDemoFrameFromQueuedDemoPackets(FArchive& Ar, TArray<FQueuedDemoPacket>& QueuedPackets, float FrameTime)
+void UDemoNetDriver::WriteDemoFrameFromQueuedDemoPackets(FArchive& Ar, TArray<FQueuedDemoPacket>& QueuedPackets, float FrameTime, EWriteDemoFrameFlags Flags)
 {
 	Ar << CurrentLevelIndex;
 	
@@ -3567,6 +3613,19 @@ void UDemoNetDriver::WriteDemoFrameFromQueuedDemoPackets(FArchive& Ar, TArray<FQ
 
 		// Save external data
 		SaveExternalData( Ar );
+	}
+
+	if (HasGameSpecificFrameData())
+	{
+		FScopedStoreArchiveOffset ScopedOffset(Ar);
+
+		if (!EnumHasAnyFlags(Flags, EWriteDemoFrameFlags::SkipGameSpecific))
+		{
+			FDemoFrameDataMap Data;
+			FNetworkReplayDelegates::OnWriteGameSpecificFrameData.Broadcast(GetWorld(), FrameTime, Data);
+
+			Ar << Data;
+		}
 	}
 
 	for (FQueuedDemoPacket& DemoPacket : QueuedPackets)
@@ -3668,13 +3727,21 @@ void UDemoNetDriver::AddUserToReplay(const FString& UserString)
 	}
 }
 
-#if (CSV_PROFILER && (!UE_BUILD_SHIPPING))
+#if DEMO_CSV_PROFILING_HELPERS_ENABLED
 struct FCsvDemoSettings
 {
+	FCsvDemoSettings() 
+		: bCaptureCsv(false)
+		, StartTime(-1)
+		, EndTime(-1)
+		, FrameCount(0)
+		, bStopAfterProfile(false)
+	{}
 	bool bCaptureCsv;
 	int32 StartTime;
 	int32 EndTime;
 	int32 FrameCount;
+	bool bStopAfterProfile;
 };
 
 static FCsvDemoSettings GetCsvDemoSettings()
@@ -3687,16 +3754,15 @@ static FCsvDemoSettings GetCsvDemoSettings()
 		{
 			Settings.EndTime = -1.0;
 		}
-
 		if (!FParse::Value(FCommandLine::Get(), TEXT("-csvdemoframecount="), Settings.FrameCount))
 		{
 			Settings.FrameCount = -1;
 		}
 	}
-
+	Settings.bStopAfterProfile = FParse::Param(FCommandLine::Get(), TEXT("csvDemoStopAfterProfile"));
 	return Settings;
 }
-#endif // (CSV_PROFILER && (!UE_BUILD_SHIPPING))
+#endif // DEMO_CSV_PROFILING_HELPERS_ENABLED
 
 class FDemoNetDriverReplayPlaylistHelper
 {
@@ -3719,9 +3785,9 @@ void UDemoNetDriver::TickDemoPlayback(float DeltaSeconds)
 		return;
 	}
 
-#if (CSV_PROFILER && (!UE_BUILD_SHIPPING))
+#if DEMO_CSV_PROFILING_HELPERS_ENABLED
+	static FCsvDemoSettings CsvDemoSettings = GetCsvDemoSettings();
 	{
-		static FCsvDemoSettings CsvDemoSettings = GetCsvDemoSettings();
 		if (CsvDemoSettings.bCaptureCsv)
 		{
 			bool bDoCapture = IsPlaying()
@@ -3741,7 +3807,7 @@ void UDemoNetDriver::TickDemoPlayback(float DeltaSeconds)
 			}
 		}
 	}
-#endif // (CSV_PROFILER && (!UE_BUILD_SHIPPING))
+#endif // DEMO_CSV_PROFILING_HELPERS_ENABLED
 
 	if (!IsPlaying())
 	{
@@ -3797,7 +3863,16 @@ void UDemoNetDriver::TickDemoPlayback(float DeltaSeconds)
 	// Use AtEnd() of the archive instead of checking DemoCurrentTime/DemoTotalTime, because the DemoCurrentTime may never catch up to DemoTotalTime.
 	if (FArchive* const StreamingArchive = ReplayStreamer->GetStreamingArchive())
 	{
-		const bool bIsAtEnd = StreamingArchive->AtEnd() && (PlaybackPackets.Num() == 0 || (DemoCurrentTime + DeltaSeconds >= DemoTotalTime));
+		bool bIsAtEnd = StreamingArchive->AtEnd() && (PlaybackPackets.Num() == 0 || (DemoCurrentTime + DeltaSeconds >= DemoTotalTime));
+#if DEMO_CSV_PROFILING_HELPERS_ENABLED
+		bool bCsvIsCapturing = FCsvProfiler::Get()->IsCapturing();
+		static bool bCsvProfilingEnabledPreviousTick = bCsvIsCapturing;
+	    if (CsvDemoSettings.bStopAfterProfile && !bCsvIsCapturing && bCsvProfilingEnabledPreviousTick)
+	    {
+			bIsAtEnd = true;
+	    }
+		bCsvProfilingEnabledPreviousTick = bCsvIsCapturing;
+#endif
 		if (!ReplayStreamer->IsLive() && bIsAtEnd)
 		{
 			OnDemoFinishPlaybackDelegate.Broadcast();
@@ -3908,6 +3983,20 @@ void UDemoNetDriver::TickDemoPlayback(float DeltaSeconds)
 
 			PlaybackPackets.RemoveAt(0, PlaybackPacketIndex);
 			PlaybackPacketIndex = 0;
+		}
+
+		// Process playback frames
+		for (auto It = PlaybackFrames.CreateIterator(); It; ++It)
+		{
+			if (It.Key() <= DemoCurrentTime)
+			{
+				if (!bIsFastForwarding)
+				{
+					FNetworkReplayDelegates::OnProcessGameSpecificFrameData.Broadcast(World, It.Key(), It.Value());
+				}
+	
+				It.RemoveCurrent();
+			}
 		}
 	}
 
@@ -5117,6 +5206,7 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 
 	ExternalDataToObjectMap.Empty();
 	PlaybackPackets.Empty();
+	PlaybackFrames.Empty();
 
 	// Destroy startup actors that need to rollback via being destroyed and re-created
 	for (FActorIterator It(GetWorld()); It; ++It)
@@ -5419,6 +5509,7 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 			}
 
 			PlaybackPackets.Empty();
+			PlaybackFrames.Empty();
 
 			if (DemoConnection)
 			{
@@ -6548,7 +6639,9 @@ void UDemoPendingNetGame::LoadMapCompleted(UEngine* Engine, FWorldContext& Conte
 
 void UDemoNetDriver::Serialize(FArchive& Ar)
 {
-	Super::Serialize(Ar);
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UDemoNetDriver::Serialize");
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Super", Super::Serialize(Ar));
 
 	if (Ar.IsCountingMemory())
 	{
@@ -6558,98 +6651,126 @@ void UDemoNetDriver::Serialize(FArchive& Ar)
 		//		QueuedReplayTasks.
 		//		DemoURL
 
-		DeletedNetStartupActors.CountBytes(Ar);
 
-		for (FString& ActorString : DeletedNetStartupActors)
-		{
-			Ar << ActorString;
-		}
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DeletedNetStartupActors",
+			DeletedNetStartupActors.CountBytes(Ar);
+			for (FString& ActorString : DeletedNetStartupActors)
+			{
+				Ar << ActorString;
+			}
+		);
 
-		DeletedNetStartupActorGUIDs.CountBytes(Ar);
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DeletedNetStartupActorGUIDs", DeletedNetStartupActorGUIDs.CountBytes(Ar));
 
-		// The map for RollbackNetStartupActors may have already been serialized,
-		// However, that won't capture non-property members or properly count them.
-		for (const auto& RollbackNetStartupActorPair : RollbackNetStartupActors)
-		{
-			RollbackNetStartupActorPair.Value.CountBytes(Ar);
-		}
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RollbackNetStartupActorsValues",
+			// The map for RollbackNetStartupActors may have already been serialized,
+			// However, that won't capture non-property members or properly count them.
+			for (const auto& RollbackNetStartupActorPair : RollbackNetStartupActors)
+			{
+				RollbackNetStartupActorPair.Value.CountBytes(Ar);
+			}
+		);
 
 
-		ExternalDataToObjectMap.CountBytes(Ar);
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ExternalDataToObjectMap",
+			ExternalDataToObjectMap.CountBytes(Ar);
+			for (const auto& ExternalDataToObjectPair : ExternalDataToObjectMap)
+			{
+				ExternalDataToObjectPair.Value.CountBytes(Ar);
+			}
+		);
 
-		for (const auto& ExternalDataToObjectPair : ExternalDataToObjectMap)
-		{
-			ExternalDataToObjectPair.Value.CountBytes(Ar);
-		}
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PlaybackPackets",
+			PlaybackPackets.CountBytes(Ar);
+			for (const FPlaybackPacket& Packet : PlaybackPackets)
+			{
+				Packet.CountBytes(Ar);
+			}
+		);
 
-		PlaybackPackets.CountBytes(Ar);
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PlaybackFrames",
+			PlaybackFrames.CountBytes(Ar);
+			for (auto& Frame : PlaybackFrames)
+			{
+				Frame.Value.CountBytes(Ar);
+			}
+		);
 
-		for (const FPlaybackPacket& Packet : PlaybackPackets)
-		{
-			Packet.CountBytes(Ar);
-		}
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("UniqueStreamingLevels", UniqueStreamingLevels.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("NewStreamingLevelsThisFrame", NewStreamingLevelsThisFrame.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("NonQueuedGUIDsForScrubbing", NonQueuedGUIDsForScrubbing.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("QueuedReplayTasks", QueuedReplayTasks.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DemoSessionID", DemoSessionID.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PlaybackDemoHeader", PlaybackDemoHeader.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PrioritizedActors", PrioritizedActors.CountBytes(Ar));
 
-		UniqueStreamingLevels.CountBytes(Ar);
-		NewStreamingLevelsThisFrame.CountBytes(Ar);
-		NonQueuedGUIDsForScrubbing.CountBytes(Ar);
-		QueuedReplayTasks.CountBytes(Ar);
-		
-		Ar << DemoSessionID;
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LevelNamesAndTimes",
+			LevelNamesAndTimes.CountBytes(Ar);
+			for (const FLevelNameAndTime& LevelNameAndTime : LevelNamesAndTimes)
+			{
+				LevelNameAndTime.CountBytes(Ar);
+			}
+		);
 
-		PlaybackDemoHeader.CountBytes(Ar);
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LevelInternals", LevelIntervals.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("TrackedRewindActorsByGUID", TrackedRewindActorsByGUID.CountBytes(Ar));
 
-		PrioritizedActors.CountBytes(Ar);
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("AllLevelStatuses",
+			AllLevelStatuses.CountBytes(Ar);
+			for (const FLevelStatus& LevelStatus : AllLevelStatuses)
+			{
+				LevelStatus.CountBytes(Ar);
+			}
+		);
 
-		LevelNamesAndTimes.CountBytes(Ar);
-		for (const FLevelNameAndTime& LevelNameAndTime : LevelNamesAndTimes)
-		{
-			LevelNameAndTime.CountBytes(Ar);
-		}
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LevelStatusesByName",
+			LevelStatusesByName.CountBytes(Ar);
+			for (const auto& LevelStatusNamePair : LevelStatusesByName)
+			{
+				LevelStatusNamePair.Key.CountBytes(Ar);
+			}
+		);
 
-		LevelIntervals.CountBytes(Ar);
-		TrackedRewindActorsByGUID.CountBytes(Ar);
-		AllLevelStatuses.CountBytes(Ar);
-		for (const FLevelStatus& LevelStatus : AllLevelStatuses)
-		{
-			LevelStatus.CountBytes(Ar);
-		}
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LevelStatusIndexByLevel", LevelStatusIndexByLevel.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("SeenLevelStatuses", SeenLevelStatuses.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LevelsPendingFastForward", LevelsPendingFastForward.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ObjectsWithExternalData", ObjectsWithExternalData.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("CheckpointSaveContext", CheckpointSaveContext.CountBytes(Ar));
 
-		LevelStatusesByName.CountBytes(Ar);
-		for (const auto& LevelStatusNamePair : LevelStatusesByName)
-		{
-			LevelStatusNamePair.Key.CountBytes(Ar);
-		}
 
-		LevelStatusIndexByLevel.CountBytes(Ar);
-		SeenLevelStatuses.CountBytes(Ar);
-		LevelsPendingFastForward.CountBytes(Ar);
-		ObjectsWithExternalData.CountBytes(Ar);
-		CheckpointSaveContext.CountBytes(Ar);
-		QueuedPacketsBeforeTravel.CountBytes(Ar);
-		for (const FQueuedDemoPacket& QueuedPacket : QueuedPacketsBeforeTravel)
-		{
-			QueuedPacket.CountBytes(Ar);
-		}
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("QueuedPacketsBeforeTravel",
+			QueuedPacketsBeforeTravel.CountBytes(Ar);
+			for (const FQueuedDemoPacket& QueuedPacket : QueuedPacketsBeforeTravel)
+			{
+				QueuedPacket.CountBytes(Ar);
+			}
+		);
 	}
 }
 
 void UDemoNetConnection::Serialize(FArchive& Ar)
 {
-	Super::Serialize(Ar);
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UDemoNetConnection::Serialize");
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Super", Super::Serialize(Ar));
 
 	if (Ar.IsCountingMemory())
 	{
-		QueuedDemoPackets.CountBytes(Ar);
-		for (const FQueuedDemoPacket& QueuedPacket : QueuedDemoPackets)
-		{
-			QueuedPacket.CountBytes(Ar);
-		}
-
-		QueuedCheckpointPackets.CountBytes(Ar);
-		for (const FQueuedDemoPacket& QueuedPacket : QueuedCheckpointPackets)
-		{
-			QueuedPacket.CountBytes(Ar);
-		}
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("QueuedDemoPackets",
+			QueuedDemoPackets.CountBytes(Ar);
+			for (const FQueuedDemoPacket& QueuedPacket : QueuedDemoPackets)
+			{
+				QueuedPacket.CountBytes(Ar);
+			}
+		);
+		
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("QueuedCheckpointPackets",
+			QueuedCheckpointPackets.CountBytes(Ar);
+			for (const FQueuedDemoPacket& QueuedPacket : QueuedCheckpointPackets)
+			{
+				QueuedPacket.CountBytes(Ar);
+			}
+		);
 	}
 }
 

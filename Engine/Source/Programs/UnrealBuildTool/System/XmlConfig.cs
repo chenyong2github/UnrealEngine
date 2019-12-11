@@ -614,11 +614,11 @@ namespace UnrealBuildTool
 			}
 			else if(FieldType == typeof(float))
 			{
-				return Single.Parse(TrimmedText);
+				return Single.Parse(TrimmedText, System.Globalization.CultureInfo.InvariantCulture);
 			}
 			else if(FieldType == typeof(double))
 			{
-				return Double.Parse(TrimmedText);
+				return Double.Parse(TrimmedText, System.Globalization.CultureInfo.InvariantCulture);
 			}
 			else if(FieldType.IsEnum)
 			{

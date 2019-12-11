@@ -511,8 +511,9 @@ void FStaticMeshThumbnailScene::SetStaticMesh(UStaticMesh* StaticMesh)
 		// Center the mesh at the world origin then offset to put it on top of the plane
 		const float BoundsZOffset = GetBoundsZOffset(PreviewActor->GetStaticMeshComponent()->Bounds);
 		PreviewActor->SetActorLocation( -PreviewActor->GetStaticMeshComponent()->Bounds.Origin + FVector(0, 0, BoundsZOffset), false );
-		PreviewActor->GetStaticMeshComponent()->RecreateRenderState_Concurrent();
 	}
+
+	PreviewActor->GetStaticMeshComponent()->RecreateRenderState_Concurrent();
 }
 
 void FStaticMeshThumbnailScene::SetOverrideMaterials(const TArray<class UMaterialInterface*>& OverrideMaterials)

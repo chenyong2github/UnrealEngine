@@ -35,16 +35,18 @@ namespace UnrealBuildTool.Rules
 					"MessageLog",
 					"MovieScene",
 					"MovieSceneTracks",
-                    "RawMesh",
 					"RHI",
+					"RawMesh",
 					"Slate",
 					"SlateCore",
 					"SourceControl",
 					"StaticMeshDescription",
+					"StaticMeshEditorExtension",
+					"ToolMenus",
 					"UnrealEd",
 					"VariantManager",
 					"VariantManagerContent",
-				}
+                }
 			);
 
 			PublicDependencyModuleNames.AddRange(

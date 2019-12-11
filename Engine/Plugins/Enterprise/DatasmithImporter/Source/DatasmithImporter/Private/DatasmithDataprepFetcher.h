@@ -18,6 +18,7 @@ public:
 	//~ End of UDataprepStringFetcher interface
 
 	//~ UDataprepFetcher interface
+	virtual FText GetNodeDisplayFetcherName_Implementation() const;
 	virtual bool IsThreadSafe() const final;
 	//~ End of UDataprepFetcher interface
 

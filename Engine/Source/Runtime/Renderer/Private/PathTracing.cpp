@@ -28,13 +28,22 @@ TAutoConsoleVariable<int32> CVarPathTracingSamplesPerPixel(
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<int32> CVarPathTracingFrameIndependentTemporalSeed(
+	TEXT("r.PathTracing.FrameIndependentTemporalSeed"),
+	1,
+	TEXT("Indicates to use different temporal seed for each sample across frames rather than resetting the sequence at the start of each frame\n")
+	TEXT("0: off\n")
+	TEXT("1: on (default)\n"),
+	ECVF_RenderThreadSafe
+);
+
 TAutoConsoleVariable<int32> CVarPathTracingRandomSequence(
 	TEXT("r.PathTracing.RandomSequence"),
 	2,
 	TEXT("Changes the underlying random sequence\n")
-	TEXT("0: LCG (default\n")
+	TEXT("0: LCG\n")
 	TEXT("1: Halton\n")
-	TEXT("2: Scrambled Halton\n"),
+	TEXT("2: Scrambled Halton (default)\n"),
 	ECVF_RenderThreadSafe
 );
 
@@ -66,6 +75,14 @@ TAutoConsoleVariable<int32> CVarPathTracingRayCountFrequency(
 	128,
 	TEXT("Sets the ray count computation frequency (default = every 128 iterations)"),
 	ECVF_RenderThreadSafe
+);
+
+// r.PathTracing.GPUCount is ready only because ComputeViewGPUMasks results cannot change after UE has been launched
+TAutoConsoleVariable<int32> CVarPathTracingGPUCount(
+	TEXT("r.PathTracing.GPUCount"),
+	1,
+	TEXT("Sets the amount of GPUs used for computing the path tracing pass (default = 1 GPU)"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly
 );
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPathTracingData, "PathTracingData");
@@ -119,8 +136,10 @@ public:
 		const TSparseArray<FLightSceneInfoCompact>& Lights,
 		// Adaptive sampling
 		uint32 Iteration,
+		uint32 FrameIndependentTemporalSeed,
 		FIntVector VarianceDimensions,
 		const FRWBuffer& VarianceMipTree,
+		const FIntVector& TileOffset,
 		// Output
 		FRHIUnorderedAccessView* RadianceUAV,
 		FRHIUnorderedAccessView* SampleCountUAV,
@@ -143,6 +162,8 @@ public:
 				Scene->bPathTracingNeedsInvalidation = true;
 				PrevMaxBounces = PathTracingData.MaxBounces;
 			}
+
+			PathTracingData.TileOffset = TileOffset;
 
 			FUniformBufferRHIRef PathTracingDataUniformBuffer = RHICreateUniformBuffer(&PathTracingData, FPathTracingData::StaticStructMetadata.GetLayout(), EUniformBufferUsage::UniformBuffer_SingleDraw);
 			GlobalResources.Set(PathTracingParameters, PathTracingDataUniformBuffer);
@@ -237,6 +258,16 @@ public:
 
 		// Adaptive sampling
 		{
+			uint32 TemporalSeed;
+			if (CVarPathTracingFrameIndependentTemporalSeed.GetValueOnRenderThread() == 0)
+			{
+				TemporalSeed = Iteration;
+			}
+			else
+			{
+				TemporalSeed = FrameIndependentTemporalSeed;
+			}
+
 			FPathTracingAdaptiveSamplingData AdaptiveSamplingData;
 			AdaptiveSamplingData.MaxNormalBias = GetRaytracingMaxNormalBias();
 			AdaptiveSamplingData.UseAdaptiveSampling = CVarPathTracingAdaptiveSampling.GetValueOnRenderThread();
@@ -244,6 +275,7 @@ public:
 			if (VarianceMipTree.NumBytes > 0)
 			{
 				AdaptiveSamplingData.Iteration = Iteration;
+				AdaptiveSamplingData.TemporalSeed = TemporalSeed;
 				AdaptiveSamplingData.VarianceDimensions = VarianceDimensions;
 				AdaptiveSamplingData.VarianceMipTree = VarianceMipTree.SRV;
 				AdaptiveSamplingData.MinimumSamplesPerPixel = CVarPathTracingAdaptiveSamplingMinimumSamplesPerPixel.GetValueOnRenderThread();
@@ -252,6 +284,7 @@ public:
 			{
 				AdaptiveSamplingData.UseAdaptiveSampling = 0;
 				AdaptiveSamplingData.Iteration = Iteration;
+				AdaptiveSamplingData.TemporalSeed = TemporalSeed;
 				AdaptiveSamplingData.VarianceDimensions = FIntVector(1, 1, 1);
 				AdaptiveSamplingData.VarianceMipTree = RHICreateShaderResourceView(GBlackTexture->TextureRHI->GetTexture2D(), 0);
 				AdaptiveSamplingData.MinimumSamplesPerPixel = CVarPathTracingAdaptiveSamplingMinimumSamplesPerPixel.GetValueOnRenderThread();
@@ -407,6 +440,8 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 
 	// The local iteration counter.
 	static int32 SPPCount = 0;
+	// The frame independent temporal seed, not reset at the beginning of each frame unlike SPPCount to allow for less temporal aliasing.
+	static uint32 FrameIndependentTemporalSeed = 0;
 
 	// Conditionally rebuild sky light CDFs
 	if (Scene->SkyLight && Scene->SkyLight->ShouldRebuildCdf())
@@ -449,23 +484,133 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 	SetupSceneTextureUniformParameters(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, SceneTextures);
 	FRHIUniformBuffer* SceneTexturesUniformBuffer = RHICreateUniformBuffer(&SceneTextures, FSceneTexturesUniformParameters::StaticStructMetadata.GetLayout(), EUniformBufferUsage::UniformBuffer_SingleDraw);
 
-	RayGenShader->SetParameters(
-		Scene,
-		View,
-		GlobalResources,
-		View.RayTracingScene,
-		View.ViewUniformBuffer,
-		SceneTexturesUniformBuffer,
-		Scene->Lights,
-		SPPCount, ViewState->VarianceMipTreeDimensions, *ViewState->VarianceMipTree,
-		RadianceRT->GetRenderTargetItem().UAV,
-		SampleCountRT->GetRenderTargetItem().UAV,
-		PixelPositionRT->GetRenderTargetItem().UAV,
-		RayCountPerPixelRT->GetRenderTargetItem().UAV
-	);
-
 	FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
-	RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, View.ViewRect.Size().X, View.ViewRect.Size().Y);
+	
+	int32 GPUCount = CVarPathTracingGPUCount.GetValueOnRenderThread();
+	uint32 MainGPUIndex = 0; // Default GPU for rendering
+	bool bDoMGPUPathTracing = GNumExplicitGPUsForRendering > 1 && GPUCount > 1;
+
+	if (bDoMGPUPathTracing)
+	{
+		//#dxr-todo: Set minimum tile size for mGPU
+		int32 TileSizeX = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), GPUCount).X;
+
+		FRHIUnorderedAccessView* UAVs[] = {
+				RadianceRT->GetRenderTargetItem().UAV,
+				SampleCountRT->GetRenderTargetItem().UAV,
+				PixelPositionRT->GetRenderTargetItem().UAV,
+				RayCountPerPixelRT->GetRenderTargetItem().UAV
+		};
+
+		{
+			// Begin mGPU fence
+			FRHIGPUMask GPUMask = FRHIGPUMask::All();
+			FComputeFenceRHIRef Fence = RHICmdList.CreateComputeFence(TEXT("PathTracingRayGen_Fence_Begin"));
+
+			RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToGfx, UAVs, UE_ARRAY_COUNT(UAVs), Fence);
+
+			for (uint32 GPUIndex : GPUMask)
+			{
+				if (GPUIndex == MainGPUIndex) 
+					continue;
+
+				SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::FromIndex(GPUIndex));
+
+				RHICmdList.WaitComputeFence(Fence);
+			}
+		}
+
+		for (int32 GPUIndex = 0; GPUIndex < GPUCount; ++GPUIndex)
+		{
+			SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::FromIndex(GPUIndex));
+
+			FIntVector TileOffset;
+			TileOffset.X = GPUIndex * TileSizeX;
+			TileOffset.Y = 0; //vertical tiles only 
+
+			RayGenShader->SetParameters(
+				Scene,
+				View,
+				GlobalResources,
+				View.RayTracingScene,
+				View.ViewUniformBuffer,
+				SceneTexturesUniformBuffer,
+				Scene->Lights,
+				SPPCount, FrameIndependentTemporalSeed, ViewState->VarianceMipTreeDimensions, *ViewState->VarianceMipTree, TileOffset,
+				RadianceRT->GetRenderTargetItem().UAV,
+				SampleCountRT->GetRenderTargetItem().UAV,
+				PixelPositionRT->GetRenderTargetItem().UAV,
+				RayCountPerPixelRT->GetRenderTargetItem().UAV
+			);
+
+			int32 DispatchSizeX = FMath::Min<int32>(TileSizeX, View.ViewRect.Size().X - TileOffset.X);
+			int32 DispatchSizeY = View.ViewRect.Size().Y;
+
+			RHICmdList.RayTraceDispatch(
+				View.RayTracingMaterialPipeline, 
+				RayGenShader->GetRayTracingShader(), 
+				RayTracingSceneRHI, GlobalResources, 
+				DispatchSizeX, DispatchSizeY
+			);
+
+			FIntRect GPURect;
+			GPURect.Min.X = TileOffset.X;
+			GPURect.Min.Y = TileOffset.Y;
+			GPURect.Max.X = TileOffset.X + DispatchSizeX;
+			GPURect.Max.Y = TileOffset.Y + DispatchSizeY;
+
+			if (GPUIndex > 0)
+			{
+				RHICmdList.TransferTexture(RadianceRT->GetRenderTargetItem().TargetableTexture->GetTexture2D(), GPURect, 1, 0, true);
+				RHICmdList.TransferTexture(SampleCountRT->GetRenderTargetItem().TargetableTexture->GetTexture2D(), GPURect, 1, 0, true);
+				RHICmdList.TransferTexture(PixelPositionRT->GetRenderTargetItem().TargetableTexture->GetTexture2D(), GPURect, 1, 0, true);
+				RHICmdList.TransferTexture(RayCountPerPixelRT->GetRenderTargetItem().TargetableTexture->GetTexture2D(), GPURect, 1, 0, true);
+			}
+		}
+
+		{
+			// End mGPU fence
+			FRHIGPUMask GPUMask = FRHIGPUMask::All();
+			FComputeFenceRHIRef Fence = RHICmdList.CreateComputeFence(TEXT("PathTracingRayGen_Fence_End"));
+
+			RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToGfx, UAVs, UE_ARRAY_COUNT(UAVs), Fence);
+
+			for (uint32 GPUIndex : GPUMask)
+			{
+				if (GPUIndex == MainGPUIndex) 
+					continue;
+
+				SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::FromIndex(MainGPUIndex));
+
+				RHICmdList.WaitComputeFence(Fence); 
+			}
+		}
+	}
+	else
+	{
+		FIntVector TileOffset;
+		TileOffset.X = 0;
+		TileOffset.Y = 0; 
+
+		RayGenShader->SetParameters(
+			Scene,
+			View,
+			GlobalResources,
+			View.RayTracingScene,
+			View.ViewUniformBuffer,
+			SceneTexturesUniformBuffer,
+			Scene->Lights,
+			SPPCount, FrameIndependentTemporalSeed, ViewState->VarianceMipTreeDimensions, *ViewState->VarianceMipTree, TileOffset,
+			RadianceRT->GetRenderTargetItem().UAV,
+			SampleCountRT->GetRenderTargetItem().UAV,
+			PixelPositionRT->GetRenderTargetItem().UAV,
+			RayCountPerPixelRT->GetRenderTargetItem().UAV
+		);
+	
+		RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, View.ViewRect.Size().X, View.ViewRect.Size().Y);
+	}
+	
+
 
 	// Save RayTracingIndirect for compositing
 	RHICmdList.CopyToResolveTarget(RadianceRT->GetRenderTargetItem().TargetableTexture, RadianceRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
@@ -473,8 +618,10 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 	RHICmdList.CopyToResolveTarget(PixelPositionRT->GetRenderTargetItem().TargetableTexture, PixelPositionRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
 	RHICmdList.CopyToResolveTarget(RayCountPerPixelRT->GetRenderTargetItem().TargetableTexture, RayCountPerPixelRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
 
-	// Run ray counter shader
-	if (SPPCount % CVarPathTracingRayCountFrequency.GetValueOnRenderThread() == 0)
+	// Single GPU for launching compute shaders
+	SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::FromIndex(MainGPUIndex));
+
+	if ((SPPCount % CVarPathTracingRayCountFrequency.GetValueOnRenderThread() == 0))
 	{
 		ComputeRayCount(RHICmdList, View, RayCountPerPixelRT->GetRenderTargetItem().ShaderResourceTexture);
 	}
@@ -498,7 +645,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 	ClearUAV(RHICmdList, RadianceSortedGreenRT->GetRenderTargetItem(), FLinearColor::Black);
 	ClearUAV(RHICmdList, RadianceSortedBlueRT->GetRenderTargetItem(), FLinearColor::Black);
 	ClearUAV(RHICmdList, RadianceSortedAlphaRT->GetRenderTargetItem(), FLinearColor::Black);
-	ClearUAV(RHICmdList, SampleCountSortedRT->GetRenderTargetItem(), FLinearColor::Black);
+	ClearUAV(RHICmdList, SampleCountSortedRT->GetRenderTargetItem(), FLinearColor::Black);	
 
 	ComputePathCompaction(
 		RHICmdList,
@@ -518,6 +665,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 	RHICmdList.CopyToResolveTarget(RadianceSortedBlueRT->GetRenderTargetItem().TargetableTexture, RadianceSortedBlueRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
 	RHICmdList.CopyToResolveTarget(RadianceSortedAlphaRT->GetRenderTargetItem().TargetableTexture, RadianceSortedAlphaRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
 	RHICmdList.CopyToResolveTarget(SampleCountSortedRT->GetRenderTargetItem().TargetableTexture, SampleCountSortedRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
+
 
 	// Construct render targets for compositing
 	TRefCountPtr<IPooledRenderTarget> OutputRadianceRT;
@@ -583,6 +731,8 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 			SPPCount = 0;
 		}
 
+		++FrameIndependentTemporalSeed;
+
 		PixelShader->SetParameters(RHICmdList, View, RadianceRedTexture, RadianceGreenTexture, RadianceBlueTexture, RadianceAlphaTexture, SampleCountTexture, CumulativeRadianceTexture, CumulativeSampleCount);
 		DrawRectangle(
 			RHICmdList,
@@ -616,6 +766,5 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 	VisualizeVarianceMipTree(RHICmdList, View, *ViewState->VarianceMipTree, ViewState->VarianceMipTreeDimensions);
 
 	ResolveSceneColor(RHICmdList);
-
 }
 #endif

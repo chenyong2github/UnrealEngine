@@ -39,6 +39,7 @@ public class AnimationBlueprintEditor : ModuleRules
                 "BlueprintGraph",
                 "RHI",
                 "KismetCompiler",
+				"ToolMenus",
             }
 		);
 

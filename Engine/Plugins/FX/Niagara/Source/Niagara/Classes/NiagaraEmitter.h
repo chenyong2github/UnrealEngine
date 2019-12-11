@@ -100,6 +100,15 @@ enum class EScriptExecutionMode : uint8
 	SingleParticle UMETA(Hidden)
 };
 
+UENUM()
+enum class EParticleAllocationMode : uint8
+{
+	/** This mode tries to estimate the max particle count at runtime by using previous simulations as reference.*/
+	AutomaticEstimate = 0,
+	/** This mode is useful if the particle count can vary wildly at runtime (e.g. due to user parameters) and a lot of reallocations happen.*/
+	ManualEstimate
+};
+
 USTRUCT()
 struct FNiagaraEmitterScriptProperties
 {
@@ -195,6 +204,13 @@ struct FNiagaraDetailsLevelScaleOverrides
 	float Cine;
 };
 
+struct MemoryRuntimeEstimation
+{
+	TMap<uint64, int32> RuntimeAllocations;
+	bool IsEstimationDirty = false;
+	int32 AllocationEstimate = 0;
+};
+
 /** 
  *	UNiagaraEmitter stores the attributes of an FNiagaraEmitterInstance
  *	that need to be serialized and are used for its initialization 
@@ -209,6 +225,7 @@ class UNiagaraEmitter : public UObject
 public:
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE(FOnPropertiesChanged);
+	DECLARE_MULTICAST_DELEGATE(FOnRenderersChanged);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnEmitterCompiled, UNiagaraEmitter*);
 
 	struct NIAGARA_API PrivateMemberNames
@@ -228,6 +245,7 @@ public:
 	//Begin UObject Interface
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	NIAGARA_API FOnPropertiesChanged& OnPropertiesChanged();
+	NIAGARA_API FOnRenderersChanged& OnRenderersChanged();
 #endif
 	void Serialize(FArchive& Ar)override;
 	virtual void PostInitProperties() override;
@@ -245,12 +263,20 @@ public:
 	/** An emitter-based seed for the deterministic random number generator. */
 	UPROPERTY(EditAnywhere, Category = "Emitter", meta = (EditCondition = "bDeterminism"))
 	int32 RandomSeed;
+
+	/**
+	The emitter needs to allocate memory for the particles each tick.
+	To prevent reallocations, the emitter should allocate as much memory as is needed for the max particle count.
+	This setting controls if the allocation size should be automatically determined or manually entered.
+	*/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
+	EParticleAllocationMode AllocationMode;
 	
 	/** 
 	The emitter will allocate at least this many particles on it's first tick.
 	This can aid performance by avoiding many allocations as an emitter ramps up to it's max size.
 	*/
-	UPROPERTY(EditAnywhere, Category = "Emitter")
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter", meta = (EditCondition = "AllocationMode == EParticleAllocationMode::ManualEstimate"))
 	int32 PreAllocationCount;
 
 	UPROPERTY()
@@ -312,6 +338,10 @@ public:
 	/** Limits the delta time per tick to prevent simulation spikes due to frame lags. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter", meta = (EditCondition = "bLimitDeltaTime"))
 	float MaxDeltaTimePerTick;
+
+	/** Get the max number of iteration that the CS is going to be launched. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
+	uint32 DefaultShaderStageIndex;
 
 	/** Get the max number of iteration that the CS is going to be launched. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
@@ -421,7 +451,13 @@ public:
 	/* Gets whether or not the supplied event generator id matches an event generator which is shared between the particle spawn and update scrips. */
 	bool IsEventGeneratorShared(FName EventGeneratorId) const;
 
-	TStatId GetStatID(bool bGameThread, bool bConcurrent)const;
+	TStatId GetStatID(bool bGameThread, bool bConcurrent) const;
+
+	/* This is used by the emitter instances to report runtime allocations to reduce reallocation in future simulation runs. */
+	int32 AddRuntimeAllocation(uint64 ReporterHandle, int32 AllocationCount);
+
+	/* Returns the number of max expected particles for memory allocations. */
+	NIAGARA_API int32 GetMaxParticleCountEstimate();
 
 #if WITH_EDITORONLY_DATA
 	NIAGARA_API UNiagaraEmitter* GetParent() const;
@@ -503,6 +539,7 @@ private:
 
 #if WITH_EDITOR
 	FOnPropertiesChanged OnPropertiesChangedDelegate;
+	FOnRenderersChanged OnRenderersChangedDelegate;
 #endif
 
 	void GenerateStatID()const;
@@ -512,6 +549,9 @@ private:
 	mutable TStatId StatID_RT;
 	mutable TStatId StatID_RT_CNC;
 #endif
+
+	MemoryRuntimeEstimation RuntimeEstimation;
+	FCriticalSection EstimationCriticalSection;
 };
 
 

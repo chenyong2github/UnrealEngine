@@ -652,8 +652,8 @@ uint8 GetMetalPixelFormatKey(mtlpp::PixelFormat Format)
 		if (Key == NULL)
 		{
 			Key = &GetMetalPixelFormatKeyMap().Add((uint64)Format, NextKey++);
-			// only giving 5 bits to the key
-			checkf(NextKey < 32, TEXT("Too many unique pixel formats to fit into the PipelineStateHash"));
+			// only giving 6 bits to the key
+			checkf(NextKey < 64, TEXT("Too many unique pixel formats to fit into the PipelineStateHash"));
 		}
 	}
 	return *Key;
@@ -680,7 +680,7 @@ FMetalSurface::FMetalSurface(ERHIResourceType ResourceType, EPixelFormat Format,
 	TMap<uint64, uint8>& PixelFormatKeyMap = GetMetalPixelFormatKeyMap();
 	if (PixelFormatKeyMap.Num() == 0)
 	{
-		// Add depth stencil formats fist, so we don't have to use 5 bits for them in the pipeline hash
+		// Add depth stencil formats first, so we don't have to use 6 bits for them in the pipeline hash
 		GetMetalPixelFormatKey(mtlpp::PixelFormat::Depth32Float);
 		GetMetalPixelFormatKey(mtlpp::PixelFormat::Stencil8);
 		GetMetalPixelFormatKey(mtlpp::PixelFormat::Depth32Float_Stencil8);
@@ -1181,21 +1181,17 @@ FMetalSurface::~FMetalSurface()
 id <MTLBuffer> FMetalSurface::AllocSurface(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride, bool SingleLayer /*= false*/)
 {
 	check(IsInRenderingThread());
-	
-	
+
 	// get size and stride
 	uint32 MipBytes = GetMipSize(MipIndex, &DestStride, SingleLayer);
 	
 	// allocate some temporary memory
-//	mtlpp::ResourceOptions ResMode = FMetalCommandQueue::GetCompatibleResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::StorageModeShared | (!(PLATFORM_MAC && PixelFormat == PF_G8 && (Flags & TexCreate_SRGB)) ? mtlpp::ResourceOptions::CpuCacheModeWriteCombined : 0)));
-	
-//	FMetalBuffer Buffer = GetMetalDeviceContext().GetResourceHeap().CreateBuffer(MipBytes, BufferOffsetAlignment, BUF_Dynamic, ResMode);
-	
+	// This should really be pooled and texture transfers should be their own pool
 	id <MTLDevice> Device = GetMetalDeviceContext().GetDevice();
 	id <MTLBuffer> Buffer = [Device newBufferWithLength:MipBytes options:MTLResourceStorageModeShared];
+	Buffer.label = @"Temporary Surface Backing";
 	
-	// UE objects don't auto-retain objc objects. So we'll need to hold a reference.
-	[Buffer retain];
+	// Note: while the lock is active, this map owns the backing store.
 	GRHILockTracker.Lock(this, Buffer, MipIndex, 0, LockMode, false);
 	
 #if PLATFORM_MAC

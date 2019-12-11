@@ -1,9 +1,0 @@
-﻿INTSourceChangelist:6650353
-Availability:Docs
-Title: 默认模式
-Crumbs:%ROOT%, Engine/Blueprints, Engine/Blueprints/Editor
-Description:默认模式让您能够编辑蓝图内所有数值的默认值。
-tags:Blueprints
-topic-image:Engine\Blueprints\UserGuide\defaults_mode_topic.png
-
-[INCLUDE:Globals#bpmodesremoved]

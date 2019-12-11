@@ -103,16 +103,16 @@ void SGraphPinCollisionProfile::GetPropertyAsName(FName& OutName) const
 
 	FString PinString = GraphPinObj->GetDefaultAsString();
 
-	if (PinString.StartsWith(TEXT("(")) && PinString.EndsWith(TEXT(")")))
+	if (PinString.StartsWith(TEXT("("), ESearchCase::CaseSensitive) && PinString.EndsWith(TEXT(")"), ESearchCase::CaseSensitive))
 	{
-		PinString = PinString.LeftChop(1);
-		PinString = PinString.RightChop(1);
-		PinString.Split("=", NULL, &PinString);
+		PinString.LeftChopInline(1, false);
+		PinString.RightChopInline(1, false);
+		PinString.Split(TEXT("="), nullptr, &PinString, ESearchCase::CaseSensitive);
 
-		if (PinString.StartsWith(TEXT("\"")) && PinString.EndsWith(TEXT("\"")))
+		if (PinString.StartsWith(TEXT("\""), ESearchCase::CaseSensitive) && PinString.EndsWith(TEXT("\""), ESearchCase::CaseSensitive))
 		{
-			PinString = PinString.LeftChop(1);
-			PinString = PinString.RightChop(1);
+			PinString.LeftChopInline(1, false);
+			PinString.RightChopInline(1, false);
 		}
 	}
 

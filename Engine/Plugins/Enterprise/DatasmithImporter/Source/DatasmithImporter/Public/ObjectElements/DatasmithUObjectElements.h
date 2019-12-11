@@ -5,12 +5,11 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 
+#include "DatasmithDefinitions.h"
 #include "DatasmithVariantElements.h"
 #include "IDatasmithSceneElements.h"
 
 #include "DatasmithUObjectElements.generated.h"
-
-enum class EPropertyValueCategory: uint8;
 
 /*
  * UDatasmithObjectElement
@@ -24,6 +23,14 @@ public:
 	/** Gets the element name */
 	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
 	FString GetElementName() const;
+
+	/** Gets the element label used in the UI */
+	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
+	FString GetLabel() const;
+
+	/** Sets the element label used in the UI */
+	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
+	void SetLabel(const FString& InLabel);
 
 	/** Is the Element still valid for the Datasmith Scene */
 	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
@@ -117,14 +124,6 @@ public:
 	/** Set the the the layer that contains this entity, layer will be auto-created from its name */
 	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
 	void SetLayer(const FString& InLayer);
-
-	/** Gets the element label used in the UI */
-	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
-	FString GetLabel() const;
-
-	/** Sets the element label used in the UI */
-	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
-	void SetLabel(const FString& InLabel);
 
 	/** Get the tags of an Actor element */
 	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
@@ -795,11 +794,11 @@ public:
 
 	/** Sets the category of this property capture */
 	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
-	void SetCategory(EPropertyValueCategory Category);
+	void SetCategory(EDatasmithPropertyCategory Category);
 
 	/** Gets the category of this property capture */
 	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
-	EPropertyValueCategory GetCategory() const;
+	EDatasmithPropertyCategory GetCategory() const;
 
 public:
 	TWeakPtr<IDatasmithBasePropertyCaptureElement> GetBasePropertyCaptureElement() const { return DatasmithElement; }

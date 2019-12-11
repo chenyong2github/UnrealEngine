@@ -204,7 +204,10 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 			{
 				auto& Initializer = DynamicRayTracingGeometries[LODIndex].Initializer;
 				Initializer = RenderData->LODResources[LODIndex].RayTracingGeometry.Initializer;
-				Initializer.PositionVertexBuffer = nullptr;
+				for (FRayTracingGeometrySegment& Segment : Initializer.Segments)
+				{
+					Segment.VertexBuffer = nullptr;
+				}
 				Initializer.bAllowUpdate = true;
 				Initializer.bFastBuild = true;
 			}
@@ -314,8 +317,6 @@ FStaticMeshSceneProxy::~FStaticMeshSceneProxy()
 		Geometry.ReleaseResource();
 	}
 #endif
-
-	RemoveSpeedTreeWind();
 }
 
 void FStaticMeshSceneProxy::AddSpeedTreeWind()
@@ -569,6 +570,14 @@ void FStaticMeshSceneProxy::CreateRenderThreadResources()
 		}
 	}
 #endif
+}
+
+void FStaticMeshSceneProxy::DestroyRenderThreadResources()
+{
+	FPrimitiveSceneProxy::DestroyRenderThreadResources();
+
+	// Call here because it uses RenderData from the StaticMesh which is not guaranteed to still be valid after this DestroyRenderThreadResources call
+	RemoveSpeedTreeWind();
 }
 
 /** Sets up a wireframe FMeshBatch for a specific LOD. */
@@ -1721,7 +1730,7 @@ void FStaticMeshSceneProxy::GetDistancefieldAtlasData(FBox& LocalVolumeBounds, F
 		LocalVolumeBounds = DistanceFieldData->LocalBoundingBox;
 		OutDistanceMinMax = DistanceFieldData->DistanceMinMax;
 		OutBlockMin = DistanceFieldData->VolumeTexture.GetAllocationMin();
-		OutBlockSize = DistanceFieldData->VolumeTexture.GetAllocationSize();
+		OutBlockSize = DistanceFieldData->VolumeTexture.GetAllocationSizeInAtlas();
 		bOutBuiltAsIfTwoSided = DistanceFieldData->bBuiltAsIfTwoSided;
 		bMeshWasPlane = DistanceFieldData->bMeshWasPlane;
 		ObjectLocalToWorldTransforms.Add(GetLocalToWorld());

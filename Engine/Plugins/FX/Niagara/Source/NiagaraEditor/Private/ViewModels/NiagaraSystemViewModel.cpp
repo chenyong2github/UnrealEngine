@@ -12,6 +12,7 @@
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
+#include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "NiagaraSystemScriptViewModel.h"
 #include "NiagaraScriptGraphViewModel.h"
 #include "NiagaraSequence.h"
@@ -88,13 +89,17 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 	
 	SelectionViewModel = NewObject<UNiagaraSystemSelectionViewModel>(GetTransientPackage());
 	SelectionViewModel->Initialize(this->AsShared());
-	SelectionViewModel->OnSelectionChanged().AddSP(this, &FNiagaraSystemViewModel::SystemSelectionChanged);
+	SelectionViewModel->OnEmitterHandleIdSelectionChanged().AddSP(this, &FNiagaraSystemViewModel::SystemSelectionChanged);
 
 	SystemScriptViewModel = MakeShared<FNiagaraSystemScriptViewModel>();
 	SystemScriptViewModel->Initialize(GetSystem());
 
 	OverviewGraphViewModel = MakeShared<FNiagaraOverviewGraphViewModel>();
 	OverviewGraphViewModel->Initialize(this->AsShared());
+
+	SystemStackViewModel = NewObject<UNiagaraStackViewModel>(GetTransientPackage());
+	SystemStackViewModel->InitializeWithViewModels(this->AsShared(), TSharedPtr<FNiagaraEmitterHandleViewModel>(), FNiagaraStackViewModelOptions(true, false));
+	SystemStackViewModel->OnStructureChanged().AddSP(this, &FNiagaraSystemViewModel::StackViewModelStructureChanged);
 
 	SetupPreviewComponentAndInstance();
 	SetupSequencer();
@@ -138,8 +143,12 @@ void FNiagaraSystemViewModel::Cleanup()
 	for (TSharedRef<FNiagaraEmitterHandleViewModel>& HandleRef : EmitterHandleViewModels)
 	{
 		HandleRef->OnPropertyChanged().RemoveAll(this);
+		HandleRef->OnNameChanged().RemoveAll(this);
 		HandleRef->GetEmitterViewModel()->OnPropertyChanged().RemoveAll(this);
 		HandleRef->GetEmitterViewModel()->OnScriptCompiled().RemoveAll(this);
+		HandleRef->GetEmitterViewModel()->OnScriptGraphChanged().RemoveAll(this);
+		HandleRef->GetEmitterViewModel()->OnScriptParameterStoreChanged().RemoveAll(this);
+		HandleRef->GetEmitterStackViewModel()->OnStructureChanged().RemoveAll(this);
 		HandleRef->Cleanup();
 	}
 	EmitterHandleViewModels.Empty();
@@ -158,12 +167,14 @@ void FNiagaraSystemViewModel::Cleanup()
 
 	if (SystemStackViewModel != nullptr)
 	{
+		SystemStackViewModel->OnStructureChanged().RemoveAll(this);
 		SystemStackViewModel->Finalize();
 		SystemStackViewModel = nullptr;
 	}
 
 	if (SelectionViewModel != nullptr)
 	{
+		SelectionViewModel->OnEmitterHandleIdSelectionChanged().RemoveAll(this);
 		SelectionViewModel->Finalize();
 		SelectionViewModel = nullptr;
 	}
@@ -318,9 +329,10 @@ void FNiagaraSystemViewModel::AddEmitter(UNiagaraEmitter& Emitter)
 
 	NiagaraSequence->GetMovieScene()->SetPlaybackRange(NewStartFrame.RoundToFrame(), NewDuration);
 
-	TArray<FGuid> SelectedEmitterHandles;
-	SelectedEmitterHandles.Add(NewEmitterHandleId);
-	SelectionViewModel->UpdateSelectionFromTopLevelObjects(false, SelectedEmitterHandles, true);
+	TSharedPtr<FNiagaraEmitterHandleViewModel> NewEmitterHandleViewModel = GetEmitterHandleViewModelById(NewEmitterHandleId);
+	TArray<UNiagaraStackEntry*> SelectedStackEntries;
+	SelectedStackEntries.Add(NewEmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry());
+	SelectionViewModel->UpdateSelectedEntries(SelectedStackEntries, TArray<UNiagaraStackEntry*>(), true);
 
 	bForceAutoCompileOnce = true;
 }
@@ -513,7 +525,7 @@ void FNiagaraSystemViewModel::Tick(float DeltaTime)
 
 			if (bResetRequestPending)
 			{
-				ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::ResetThisInstance, EReinitMode::ReinitializeSystem);
+				ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::AllowResetAllInstances, EReinitMode::ReinitializeSystem);
 			}
 		}
 	}
@@ -523,9 +535,24 @@ void FNiagaraSystemViewModel::Tick(float DeltaTime)
 		UpdateSequencerTracksForEmitters(EmitterIdsRequiringSequencerTrackUpdate);
 		EmitterIdsRequiringSequencerTrackUpdate.Empty();
 	}
+
+	if (SystemStackViewModel != nullptr)
+	{
+		SystemStackViewModel->Tick();
+	}
+
+	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : EmitterHandleViewModels)
+	{
+		EmitterHandleViewModel->GetEmitterStackViewModel()->Tick();
+	}
+
+	if (SelectionViewModel != nullptr)
+	{
+		SelectionViewModel->Tick();
+	}
 }
 
-void FNiagaraSystemViewModel::OnPreSave()
+void FNiagaraSystemViewModel::NotifyPreSave()
 {
 	if (GetSystem().HasOutstandingCompilationRequests())
 	{
@@ -534,13 +561,19 @@ void FNiagaraSystemViewModel::OnPreSave()
 	}
 }
 
-void FNiagaraSystemViewModel::OnPreClose()
+void FNiagaraSystemViewModel::NotifyPreClose()
 {
 	if (GetSystem().HasOutstandingCompilationRequests())
 	{
 		UE_LOG(LogNiagaraEditor, Log, TEXT("System %s has pending compile jobs. Waiting for that code to complete before Closing.."), *GetSystem().GetName());
 		GetSystem().WaitForCompilationComplete();
 	}
+	OnPreCloseDelegate.Broadcast();
+}
+
+FNiagaraSystemViewModel::FOnPreClose& FNiagaraSystemViewModel::OnPreClose()
+{
+	return OnPreCloseDelegate;
 }
 
 TSharedPtr<FUICommandList> FNiagaraSystemViewModel::GetToolkitCommands()
@@ -558,39 +591,45 @@ void FNiagaraSystemViewModel::SetToolkitCommands(const TSharedRef<FUICommandList
 	ToolkitCommands = InToolkitCommands;
 }
 
-const TArray<FNiagaraStackModuleData>& FNiagaraSystemViewModel::GetStackModuleDataForEmitter(TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel)
+const TArray<FNiagaraStackModuleData>& FNiagaraSystemViewModel::GetStackModuleData(UNiagaraStackEntry* ModuleEntry)
 {
-	FGuid EmitterHandleId;
-	TSharedRef<FNiagaraEmitterHandleViewModel>* FoundModel = EmitterHandleViewModels.FindByPredicate([EmitterViewModel](TSharedRef<FNiagaraEmitterHandleViewModel> CurrentViewModel)
-	{ return CurrentViewModel->GetEmitterViewModel() == EmitterViewModel; });
-	checkf(FoundModel != nullptr, TEXT("Couldn't get stack module data for emitter"));
-	if (FoundModel)
+	FGuid StackDataId;
+	UNiagaraEmitter* Emitter = nullptr;
+	if (ModuleEntry->GetEmitterViewModel().IsValid())
 	{
-		EmitterHandleId = (*FoundModel)->GetEmitterHandle()->GetId();
-		if (!EmitterToCachedStackModuleData.Contains(EmitterHandleId))
+		TSharedRef<FNiagaraEmitterHandleViewModel>* FoundModel = EmitterHandleViewModels.FindByPredicate([ModuleEntry](TSharedRef<FNiagaraEmitterHandleViewModel> CurrentViewModel)
 		{
-			// If not cached, rebuild
-			UNiagaraEmitter* Emitter = (*FoundModel)->GetEmitterViewModel()->GetEmitter();
-			TArray<FNiagaraStackModuleData> StackModuleData;
-			BuildStackModuleData(GetSystem().GetSystemSpawnScript(), EmitterHandleId, StackModuleData);
-			BuildStackModuleData(GetSystem().GetSystemUpdateScript(), EmitterHandleId, StackModuleData);
-			BuildStackModuleData(Emitter->EmitterSpawnScriptProps.Script, EmitterHandleId, StackModuleData);
-			BuildStackModuleData(Emitter->EmitterUpdateScriptProps.Script, EmitterHandleId, StackModuleData);
-			BuildStackModuleData(Emitter->SpawnScriptProps.Script, EmitterHandleId, StackModuleData);
-			BuildStackModuleData(Emitter->UpdateScriptProps.Script, EmitterHandleId, StackModuleData);
-			EmitterToCachedStackModuleData.Add(EmitterHandleId) = StackModuleData;
+			return CurrentViewModel->GetEmitterViewModel() == ModuleEntry->GetEmitterViewModel(); 
+		});
+		checkf(FoundModel != nullptr, TEXT("Couldn't get stack module data for emitter"));
+		StackDataId = (*FoundModel)->GetEmitterHandle()->GetId();
+		Emitter = ModuleEntry->GetEmitterViewModel()->GetEmitter();
+	}
+	else
+	{
+		StackDataId = FGuid();
+	}
+
+	TArray<FNiagaraStackModuleData>* StackModuleData = GuidToCachedStackModuleData.Find(StackDataId);
+	if (StackModuleData == nullptr)
+	{
+		// If not cached, rebuild
+		StackModuleData = &GuidToCachedStackModuleData.Add(StackDataId);
+		BuildStackModuleData(GetSystem().GetSystemSpawnScript(), StackDataId, *StackModuleData);
+		BuildStackModuleData(GetSystem().GetSystemUpdateScript(), StackDataId, *StackModuleData);
+		if (StackDataId.IsValid() && Emitter != nullptr)
+		{
+			BuildStackModuleData(Emitter->EmitterSpawnScriptProps.Script, StackDataId, *StackModuleData);
+			BuildStackModuleData(Emitter->EmitterUpdateScriptProps.Script, StackDataId, *StackModuleData);
+			BuildStackModuleData(Emitter->SpawnScriptProps.Script, StackDataId, *StackModuleData);
+			BuildStackModuleData(Emitter->UpdateScriptProps.Script, StackDataId, *StackModuleData);
 		}
 	}
-	return EmitterToCachedStackModuleData[EmitterHandleId];
+	return *StackModuleData;
 }
 
 UNiagaraStackViewModel* FNiagaraSystemViewModel::GetSystemStackViewModel()
 {
-	if (SystemStackViewModel == nullptr)
-	{
-		SystemStackViewModel = NewObject<UNiagaraStackViewModel>(GetTransientPackage());
-		SystemStackViewModel->InitializeWithViewModels(this->AsShared(), TSharedPtr<FNiagaraEmitterHandleViewModel>(), FNiagaraStackViewModelOptions(true, false));
-	}
 	return SystemStackViewModel;
 }
 
@@ -715,7 +754,7 @@ void FNiagaraSystemViewModel::NotifyDataObjectChanged(UObject* ChangedObject)
 		}
 	}
 
-	ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::ResetThisInstance, EReinitMode::ReinitializeSystem);
+	ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::AllowResetAllInstances, EReinitMode::ReinitializeSystem);
 }
 
 void FNiagaraSystemViewModel::IsolateEmitters(TArray<FGuid> EmitterHandlesIdsToIsolate)
@@ -776,7 +815,7 @@ void FNiagaraSystemViewModel::RefreshEmitterHandleViewModels()
 {
 	TArray<TSharedRef<FNiagaraEmitterHandleViewModel>> OldViewModels = EmitterHandleViewModels;
 	EmitterHandleViewModels.Empty();
-	EmitterToCachedStackModuleData.Empty();
+	GuidToCachedStackModuleData.Empty();
 
 	// Map existing view models to the real instances that now exist. Reuse if we can. Create a new one if we cannot.
 	TArray<FGuid> ValidEmitterHandleIds;
@@ -798,6 +837,7 @@ void FNiagaraSystemViewModel::RefreshEmitterHandleViewModels()
 			ViewModel->GetEmitterViewModel()->OnScriptCompiled().AddRaw(this, &FNiagaraSystemViewModel::ScriptCompiled);
 			ViewModel->GetEmitterViewModel()->OnScriptGraphChanged().AddRaw(this, &FNiagaraSystemViewModel::EmitterScriptGraphChanged, EmitterHandle->GetId());
 			ViewModel->GetEmitterViewModel()->OnScriptParameterStoreChanged().AddRaw(this, &FNiagaraSystemViewModel::EmitterParameterStoreChanged);
+			ViewModel->GetEmitterStackViewModel()->OnStructureChanged().AddRaw(this, &FNiagaraSystemViewModel::StackViewModelStructureChanged);
 		}
 		else
 		{
@@ -815,12 +855,24 @@ void FNiagaraSystemViewModel::RefreshEmitterHandleViewModels()
 	{
 		TSharedRef<FNiagaraEmitterHandleViewModel> ViewModel = OldViewModels[i];
 		ViewModel->OnPropertyChanged().RemoveAll(this);
+		ViewModel->OnNameChanged().RemoveAll(this);
 		ViewModel->GetEmitterViewModel()->OnPropertyChanged().RemoveAll(this);
 		ViewModel->GetEmitterViewModel()->OnScriptCompiled().RemoveAll(this);
 		ViewModel->GetEmitterViewModel()->OnScriptGraphChanged().RemoveAll(this);
 		ViewModel->GetEmitterViewModel()->OnScriptParameterStoreChanged().RemoveAll(this);
+		ViewModel->GetEmitterStackViewModel()->OnStructureChanged().RemoveAll(this);
 		ViewModel->Reset();
 	}
+
+	bool bAnyEmitterIsolated = false;
+	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandle : EmitterHandleViewModels)
+	{
+		if (EmitterHandle->GetIsIsolated())
+		{
+			bAnyEmitterIsolated = true;
+		}
+	}
+	GetSystem().SetIsolateEnabled(bAnyEmitterIsolated);
 
 	if (SelectionViewModel != nullptr)
 	{
@@ -999,7 +1051,19 @@ void FNiagaraSystemViewModel::ResetSystem(ETimeResetMode TimeResetMode, EMultiRe
 		}
 	}
 
-	TArray<UNiagaraComponent*> ReferencingComponents = FNiagaraEditorUtilities::GetComponentsThatReferenceSystem(GetSystem());
+	TArray<UNiagaraComponent*> ReferencingComponents;
+	if (MultiResetMode == EMultiResetMode::ResetThisInstance)
+	{
+		if (PreviewComponent != nullptr)
+		{
+			ReferencingComponents.Add(PreviewComponent);
+		}
+	}
+	else
+	{
+		ReferencingComponents = FNiagaraEditorUtilities::GetComponentsThatReferenceSystem(GetSystem());
+	}
+
 	for (auto Component : ReferencingComponents)
 	{
 		if (ReinitMode == EReinitMode::ResetSystem)
@@ -1215,6 +1279,15 @@ void FNiagaraSystemViewModel::EmitterHandlePropertyChanged(FGuid OwningEmitterHa
 		}
 		Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 	}
+
+	// Refresh the overview nodes and the emitter stacks just in case the emitter enabled state changed.
+	GetEditorData().SynchronizeOverviewGraphWithSystem(GetSystem());
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = GetEmitterHandleViewModelById(OwningEmitterHandleId);
+	if (EmitterHandleViewModel.IsValid())
+	{
+		EmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry()->RefreshChildren();
+	}
+
 	ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::ResetThisInstance, EReinitMode::ReinitializeSystem);
 }
 
@@ -1247,12 +1320,12 @@ void FNiagaraSystemViewModel::EmitterScriptGraphChanged(const FEdGraphEditAction
 		EmitterIdsRequiringSequencerTrackUpdate.AddUnique(OwningEmitterHandleId);
 	}
 	// Remove from cache on graph change 
-	EmitterToCachedStackModuleData.Remove(OwningEmitterHandleId);
+	GuidToCachedStackModuleData.Remove(OwningEmitterHandleId);
 }
 
 void FNiagaraSystemViewModel::SystemScriptGraphChanged(const FEdGraphEditAction& InAction)
 {
-	EmitterToCachedStackModuleData.Empty();
+	GuidToCachedStackModuleData.Empty();
 }
 
 void FNiagaraSystemViewModel::EmitterParameterStoreChanged(const FNiagaraParameterStore& ChangedParameterStore, const UNiagaraScript& OwningScript)
@@ -1375,11 +1448,19 @@ void FNiagaraSystemViewModel::SequencerDataChanged(EMovieSceneDataChangeType Dat
 		TArray<FEmitterHandleToDuplicate> EmittersToDuplicate;
 		TArray<TTuple<TSharedPtr<FNiagaraEmitterHandleViewModel>, FName>> EmitterHandlesToRename;
 
+		bool bRefreshAllTracks = false;
 		for (UMovieSceneTrack* Track : NiagaraSequence->GetMovieScene()->GetMasterTracks())
 		{
 			UMovieSceneNiagaraEmitterTrack* EmitterTrack = CastChecked<UMovieSceneNiagaraEmitterTrack>(Track);
 			if (EmitterTrack->GetEmitterHandleViewModel().IsValid())
 			{
+				if (EmitterTrack->GetAllSections().Num() == 0 && EmitterTrack->GetSectionsWereModified())
+				{
+					// If there are no sections and the section collection was modified, the section was deleted so skip adding
+					// it's handle to the valid collection so that it's emitter is deleted.
+					continue;
+				}
+
 				VaildTrackEmitterHandleIds.Add(EmitterTrack->GetEmitterHandleViewModel()->GetId());
 				EmitterTrack->UpdateEmitterHandleFromTrackChange(NiagaraSequence->GetMovieScene()->GetTickResolution());
 				EmitterTrack->GetEmitterHandleViewModel()->GetEmitterViewModel()->GetOrCreateEditorData().Modify();
@@ -1387,6 +1468,13 @@ void FNiagaraSystemViewModel::SequencerDataChanged(EMovieSceneDataChangeType Dat
 				if (EmitterTrack->GetDisplayName().ToString() != EmitterTrack->GetEmitterHandleViewModel()->GetNameText().ToString())
 				{
 					EmitterHandlesToRename.Add(TTuple<TSharedPtr<FNiagaraEmitterHandleViewModel>, FName>(EmitterTrack->GetEmitterHandleViewModel(), *EmitterTrack->GetDisplayName().ToString()));
+				}
+
+				if (EmitterTrack->GetAllSections().Num() > 1)
+				{
+					// If a section was duplicated, force a refresh to remove the duplicated section since that's not currently supported.
+					// TODO: Detect duplicated sections and create a duplicate emitter with the correct values.
+					bRefreshAllTracks = true;
 				}
 			}
 			else
@@ -1402,7 +1490,7 @@ void FNiagaraSystemViewModel::SequencerDataChanged(EMovieSceneDataChangeType Dat
 			}
 		}
 
-		bool bRefreshAllTracks = EmitterHandlesToRename.Num() > 0;
+		bRefreshAllTracks |= EmitterHandlesToRename.Num() > 0;
 
 		for (TTuple<TSharedPtr<FNiagaraEmitterHandleViewModel>, FName>& EmitterHandletoRename : EmitterHandlesToRename)
 		{
@@ -1508,7 +1596,7 @@ void FNiagaraSystemViewModel::SequencerTimeChanged()
 	OnPostSequencerTimeChangeDelegate.Broadcast();
 }
 
-void FNiagaraSystemViewModel::SystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource)
+void FNiagaraSystemViewModel::SystemSelectionChanged()
 {
 	if (bUpdatingSystemSelectionFromSequencer == false)
 	{
@@ -1561,9 +1649,31 @@ void FNiagaraSystemViewModel::UpdateEmitterHandleSelectionFromSequencer()
 	TGuardValue<bool> UpdateGuard(bUpdatingSystemSelectionFromSequencer, true);
 	if (SelectionViewModel != nullptr)
 	{
+		TArray<UNiagaraStackEntry*> EntriesToSelect;
+		TArray<UNiagaraStackEntry*> EntriesToDeselect;
+		UNiagaraStackEntry* SystemRootEntry = SystemStackViewModel->GetRootEntry();
+		if (NewSelectedEmitterHandleIds.Num() > 0 && GetEditorData().GetOwningSystemIsPlaceholder() == false)
+		{
+			EntriesToSelect.Add(SystemRootEntry);
+		}
+		else
+		{
+			EntriesToDeselect.Add(SystemRootEntry);
+		}
+		for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : EmitterHandleViewModels)
+		{
+			UNiagaraStackEntry* EmitterRootEntry = EmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry();
+			if (NewSelectedEmitterHandleIds.Contains(EmitterHandleViewModel->GetId()))
+			{
+				EntriesToSelect.Add(EmitterRootEntry);
+			}
+			else
+			{
+				EntriesToDeselect.Add(EmitterRootEntry);
+			}
+		}
 		bool bClearCurrentSelection = FSlateApplication::Get().GetModifierKeys().IsControlDown() == false;
-		bool bSelectSystem = NewSelectedEmitterHandleIds.Num() > 0 && GetEditorData().GetOwningSystemIsPlaceholder() == false;
-		SelectionViewModel->UpdateSelectionFromTopLevelObjects(bSelectSystem, NewSelectedEmitterHandleIds, bClearCurrentSelection);
+		SelectionViewModel->UpdateSelectedEntries(EntriesToSelect, EntriesToDeselect, bClearCurrentSelection);
 	}
 }
 
@@ -1730,6 +1840,14 @@ void FNiagaraSystemViewModel::BuildStackModuleData(UNiagaraScript* Script, FGuid
 		}
 	}
 
+}
+
+void FNiagaraSystemViewModel::StackViewModelStructureChanged()
+{
+	if (SelectionViewModel != nullptr)
+	{
+		SelectionViewModel->RefreshDeferred();
+	}
 }
 
 TSharedPtr<FNiagaraOverviewGraphViewModel> FNiagaraSystemViewModel::GetOverviewGraphViewModel() const

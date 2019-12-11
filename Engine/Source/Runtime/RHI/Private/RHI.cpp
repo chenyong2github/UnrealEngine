@@ -7,6 +7,7 @@
 #include "RHI.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/MessageDialog.h"
 #include "RHIShaderFormatDefinitions.inl"
 #include "ProfilingDebugging/CsvProfiler.h"
 
@@ -529,6 +530,8 @@ bool GRHISupportsUAVFormatAliasing = false;
 bool GRHISupportsMSAADepthSampleAccess = false;
 bool GRHISupportsResolveCubemapFaces = false;
 
+bool GRHISupportsBackBufferWithCustomDepthStencil = true;
+
 bool GRHIIsHDREnabled = false;
 bool GRHISupportsHDROutput = false;
 EPixelFormat GRHIHDRDisplayOutputFormat = PF_FloatRGBA;
@@ -543,6 +546,7 @@ FVertexElementTypeSupportInfo GVertexElementTypeSupport;
 RHI_API int32 volatile GCurrentTextureMemorySize = 0;
 RHI_API int32 volatile GCurrentRendertargetMemorySize = 0;
 RHI_API int64 GTexturePoolSize = 0 * 1024 * 1024;
+RHI_API int64 GMaxTextureBufferSize = 0;
 RHI_API int32 GPoolSizeVRAMPercentage = 0;
 
 RHI_API EShaderPlatform GShaderPlatformForFeatureLevel[ERHIFeatureLevel::Num] = {SP_NumPlatforms,SP_NumPlatforms,SP_NumPlatforms,SP_NumPlatforms};
@@ -689,7 +693,6 @@ static FName NAME_PLATFORM_IOS(TEXT("IOS"));
 static FName NAME_PLATFORM_MAC(TEXT("Mac"));
 static FName NAME_PLATFORM_SWITCH(TEXT("Switch"));
 static FName NAME_PLATFORM_TVOS(TEXT("TVOS"));
-static FName NAME_PLATFORM_HTML5(TEXT("HTML5"));
 static FName NAME_PLATFORM_LUMIN(TEXT("Lumin"));
 
 // @todo platplug: This is still here, only being used now by UMaterialShaderQualitySettings::GetOrCreatePlatformSettings
@@ -719,7 +722,7 @@ FName ShaderPlatformToPlatformName(EShaderPlatform Platform)
 	case SP_OPENGL_ES3_1_ANDROID:
 		return NAME_PLATFORM_ANDROID;
 	case SP_OPENGL_ES2_WEBGL:
-		return NAME_PLATFORM_HTML5;
+		return FName(TEXT(PREPROCESSOR_TO_STRING(PLATFORM_HEADER_NAME))); // WIP: platform extension magic
 	case SP_METAL:
 	case SP_METAL_MRT:
 		return NAME_PLATFORM_IOS;
@@ -858,7 +861,7 @@ RHI_API bool RHISupportsTessellation(const EShaderPlatform Platform)
 {
 	if (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
 	{
-		return (Platform == SP_PCD3D_SM5) || (Platform == SP_XBOXONE_D3D12) || (Platform == SP_OPENGL_SM5) || (Platform == SP_OPENGL_ES31_EXT) || (Platform == SP_METAL_SM5) || (IsVulkanSM5Platform(Platform));
+		return (Platform == SP_PCD3D_SM5) || (Platform == SP_XBOXONE_D3D12) || (Platform == SP_OPENGL_SM5) || (Platform == SP_OPENGL_ES31_EXT) /*|| (Platform == SP_METAL_SM5)*/ || (IsVulkanSM5Platform(Platform));
 	}
 	return false;
 }
@@ -894,6 +897,11 @@ bool RHIGetPreviewFeatureLevel(ERHIFeatureLevel::Type& PreviewFeatureLevelOUT)
 
 	if (bForceFeatureLevelES2)
 	{
+		if (!UE_BUILD_SHIPPING)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("RHI", "ES2Deprecated", "Warning: FeatureLevel ES2 is deprecated, please use FeatureLevel ES3.1."));
+		}
+
 		PreviewFeatureLevelOUT = ERHIFeatureLevel::ES2;
 	}
 	else if (bForceFeatureLevelES3_1)

@@ -914,9 +914,9 @@ public:
 
 	/** Watch out for OutData to be 0 (can happen on DXGI_ERROR_DEVICE_REMOVED), don't call RHIUnmapStagingSurface in that case. */
 	// FlushType: Flush Immediate (seems wrong)
-	virtual void RHIMapStagingSurface(FRHITexture* Texture, void*& OutData, int32& OutWidth, int32& OutHeight, uint32 GPUIndex = 0) override final
+	virtual void RHIMapStagingSurface(FRHITexture* Texture, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight, uint32 GPUIndex = 0) final override
 	{
-		RHI->RHIMapStagingSurface(Texture, OutData, OutWidth, OutHeight, GPUIndex);
+		RHI->RHIMapStagingSurface(Texture, Fence, OutData, OutWidth, OutHeight, GPUIndex);
 	}
 
 	/** call after a succesful RHIMapStagingSurface() call */
@@ -977,6 +977,11 @@ public:
 	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessViewHTile(FRHITexture2D* RenderTarget) override final
 	{
 		return RHI->RHICreateUnorderedAccessViewHTile(RenderTarget);
+	}
+
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessViewStencil(FRHITexture2D* DepthTarget, int32 MipLevel) override final
+	{
+		return RHI->RHICreateUnorderedAccessViewStencil(DepthTarget, MipLevel);
 	}
 
 	virtual void RHIAliasTextureResources(FRHITexture* DestTexture, FRHITexture* SourceTexture) override final
@@ -1179,6 +1184,15 @@ public:
 	{
 		return RHI->RHIGetNativeDevice();
 	}
+	/**
+	* Provides access to the native instance. Generally this should be avoided but is useful for third party plugins.
+	*/
+	// FlushType: Flush RHI Thread
+	virtual void* RHIGetNativeInstance() override final
+	{
+		return RHI->RHIGetNativeInstance();
+	}
+
 
 	// FlushType: Thread safe
 	virtual IRHICommandContext* RHIGetDefaultContext() override final;

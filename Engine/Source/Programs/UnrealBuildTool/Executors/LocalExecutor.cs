@@ -197,7 +197,7 @@ namespace UnrealBuildTool
 	{
 		/// <summary>
 		/// Processor count multiplier for local execution. Can be below 1 to reserve CPU for other tasks.
-		/// When using the local executor (not XGE), run a single action on each CPU core.  Note that you can set this to a larger value
+		/// When using the local executor (not XGE), run a single action on each CPU core. Note that you can set this to a larger value
 		/// to get slightly faster build times in many cases, but your computer's responsiveness during compiling may be much worse.
 		/// </summary>
 		[XmlConfigFile]

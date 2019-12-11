@@ -121,6 +121,32 @@ void AddCopyTexturePass(
 	});
 }
 
+BEGIN_SHADER_PARAMETER_STRUCT(FCopyToResolveTargetParameters, )
+	SHADER_PARAMETER_RDG_TEXTURE(, Input)
+	RDG_TEXTURE_COPY_DEST(Output)
+END_SHADER_PARAMETER_STRUCT()
+
+void AddCopyToResolveTargetPass(
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureRef InputTexture,
+	FRDGTextureRef OutputTexture,
+	const FResolveParams& ResolveParams)
+{
+	FCopyToResolveTargetParameters* Parameters = GraphBuilder.AllocParameters<FCopyToResolveTargetParameters>();
+	Parameters->Input = InputTexture;
+	Parameters->Output = OutputTexture;
+
+	GraphBuilder.AddPass(RDG_EVENT_NAME("CopyTexture"), Parameters, ERDGPassFlags::Copy,
+		[InputTexture, OutputTexture, ResolveParams](FRHICommandList& RHICmdList)
+	{
+		// Manually mark as used since we aren't invoking any shaders.
+		InputTexture->MarkResourceAsUsed();
+		OutputTexture->MarkResourceAsUsed();
+
+		RHICmdList.CopyToResolveTarget(InputTexture->GetRHI(), OutputTexture->GetRHI(), ResolveParams);
+	});
+}
+
 BEGIN_SHADER_PARAMETER_STRUCT(FClearBufferUAVParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, BufferUAV)
 END_SHADER_PARAMETER_STRUCT()

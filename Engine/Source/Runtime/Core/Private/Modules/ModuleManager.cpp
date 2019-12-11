@@ -73,22 +73,6 @@ FModuleManager::FModuleManager()
 	: bCanProcessNewlyLoadedObjects(false)
 {
 	check(IsInGameThread());
-
-#if PLATFORM_DESKTOP && !IS_MONOLITHIC
-	// Ensure that dependency dlls can be found in restricted sub directories
-	TArray<FString> RestrictedFolderNames = { TEXT("NoRedist"), TEXT("NotForLicensees"), TEXT("CarefullyRedist") };
-	RestrictedFolderNames.Append(FDataDrivenPlatformInfoRegistry::GetConfidentialPlatforms());
-
-	FString ModuleDir = FPlatformProcess::GetModulesDirectory();
-	for (const FString& RestrictedFolderName : RestrictedFolderNames)
-	{
-		FString RestrictedFolder = ModuleDir / RestrictedFolderName;
-		if (FPaths::DirectoryExists(RestrictedFolder))
-		{
-			AddBinariesDirectory(*RestrictedFolder, false);
-		}
-	}
-#endif
 }
 
 FModuleManager::~FModuleManager()
@@ -1098,6 +1082,28 @@ bool FModuleManager::LoadModuleWithCallback( const FName InModuleName, FOutputDe
 	return true;
 }
 
+void FModuleManager::AddExtraBinarySearchPaths()
+{
+	static bool bAdded = false;
+	if (!bAdded)
+	{
+		// Ensure that dependency dlls can be found in restricted sub directories
+		TArray<FString> RestrictedFolderNames = { TEXT("NoRedist"), TEXT("NotForLicensees"), TEXT("CarefullyRedist") };
+		RestrictedFolderNames.Append(FDataDrivenPlatformInfoRegistry::GetConfidentialPlatforms());
+
+		FString ModuleDir = FPlatformProcess::GetModulesDirectory();
+		for (const FString& RestrictedFolderName : RestrictedFolderNames)
+		{
+			FString RestrictedFolder = ModuleDir / RestrictedFolderName;
+			if (FPaths::DirectoryExists(RestrictedFolder))
+			{
+				AddBinariesDirectory(*RestrictedFolder, false);
+			}
+		}
+
+		bAdded = true;
+	}
+}
 
 void FModuleManager::MakeUniqueModuleFilename( const FName InModuleName, FString& UniqueSuffix, FString& UniqueModuleFileName ) const
 {

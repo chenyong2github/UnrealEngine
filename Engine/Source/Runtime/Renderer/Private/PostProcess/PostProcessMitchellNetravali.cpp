@@ -46,7 +46,7 @@ FRDGTextureRef ComputeMitchellNetravaliDownsample(
 		PF_FloatRGBA,
 		FClearValueBinding::Black,
 		TexCreate_None,
-		TexCreate_UAV,
+		TexCreate_ShaderResource | TexCreate_UAV,
 		false);
 
 	FRDGTextureRef OutputTexture = GraphBuilder.CreateTexture(OutputTextureDesc, TEXT("MitchelNetravaliDownsampleOutput"));

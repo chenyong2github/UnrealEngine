@@ -6,30 +6,59 @@
 #include "TraceServices/AnalysisService.h"
 
 // Insights
+#include "Insights/ITimingViewExtender.h"
 #include "Insights/ViewModels/TimingEventsTrack.h"
+
+class FTimingEventSearchParameters;
+class STimingView;
+class FLoadingTimingTrack;
 
 /** Defines FLoadingTrackGetEventNameDelegate delegate interface. Returns the name for a timing event in a Loading track. */
 DECLARE_DELEGATE_RetVal_TwoParams(const TCHAR*, FLoadingTrackGetEventNameDelegate, uint32 /*Depth*/, const Trace::FLoadTimeProfilerCpuEvent& /*Event*/);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FLoadingSharedState
+class FLoadingSharedState : public Insights::ITimingViewExtender, public TSharedFromThis<FLoadingSharedState>
 {
 public:
-	void Reset();
+	explicit FLoadingSharedState(STimingView* InTimingView) : TimingView(InTimingView) {}
+	virtual ~FLoadingSharedState() = default;
 
-	const TCHAR* GetEventNameByPackageEventType(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
-	const TCHAR* GetEventNameByExportEventType(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
-	const TCHAR* GetEventNameByPackageName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
-	const TCHAR* GetEventNameByExportClassName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
+	// ITimingViewExtender
+	virtual void OnBeginSession(Insights::ITimingViewSession& InSession) override;
+	virtual void OnEndSession(Insights::ITimingViewSession& InSession) override;
+	virtual void Tick(Insights::ITimingViewSession& InSession, const Trace::IAnalysisSession& InAnalysisSession) override;
+	virtual void ExtendFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) override;
+
 	const TCHAR* GetEventName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
-
-	const TCHAR* GetEventNameEx(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
-
 	void SetColorSchema(int32 Schema);
 
+	TSharedPtr<FLoadingTimingTrack> GetLoadingTrack(uint32 InThreadId)
+	{
+		TSharedPtr<FLoadingTimingTrack>* TrackPtrPtr = LoadingTracks.Find(InThreadId);
+		return TrackPtrPtr ? *TrackPtrPtr : nullptr;
+	}
+
+	void ShowHideAllLoadingTracks() { ShowHideAllLoadingTracks_Execute(); }
+
 private:
-	FLoadingTrackGetEventNameDelegate LoadingGetEventNameFn;
+	const TCHAR* GetEventNameByEventType(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
+	const TCHAR* GetEventNameByPackageName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
+	const TCHAR* GetEventNameByExportClassName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
+	const TCHAR* GetEventNameByPackageAndExportClassName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
+
+	bool ShowHideAllLoadingTracks_IsChecked() const;
+	void ShowHideAllLoadingTracks_Execute();
+
+private:
+	STimingView* TimingView;
+
+	bool bShowHideAllLoadingTracks;
+
+	/** Maps thread id to track pointer. */
+	TMap<uint32, TSharedPtr<FLoadingTimingTrack>> LoadingTracks;
+
+	FLoadingTrackGetEventNameDelegate GetEventNameDelegate;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -37,45 +66,27 @@ private:
 class FLoadingTimingTrack : public FTimingEventsTrack
 {
 public:
-	explicit FLoadingTimingTrack(uint64 InTrackId, const FName& InSubType, const FString& InName, TSharedPtr<FLoadingSharedState> InState)
-		: FTimingEventsTrack(InTrackId, FName(TEXT("Loading")), InSubType, InName)
-		, State(InState)
+	explicit FLoadingTimingTrack(FLoadingSharedState& InSharedState, uint32 InTimelineIndex, const FName& InSubType, const FString& InName)
+		: FTimingEventsTrack(FName(TEXT("Loading")), InSubType, InName)
+		, SharedState(InSharedState)
+		, TimelineIndex(InTimelineIndex)
 	{
 	}
 	virtual ~FLoadingTimingTrack() {}
 
-	virtual void InitTooltip(FTooltipDrawState& Tooltip, const FTimingEvent& HoveredTimingEvent) const override;
+	virtual void BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
+
+	virtual void InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEvent& InTooltipEvent) const override;
+
+	virtual const TSharedPtr<const ITimingEvent> SearchEvent(const FTimingEventSearchParameters& InSearchParameters) const override;
 
 protected:
-	TSharedPtr<FLoadingSharedState> State;
-};
+	// Helper function to find an event given search parameters
+	bool FindLoadTimeProfilerCpuEvent(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const Trace::FLoadTimeProfilerCpuEvent&)> InFoundPredicate) const;
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class FLoadingMainThreadTimingTrack : public FLoadingTimingTrack
-{
-public:
-	explicit FLoadingMainThreadTimingTrack(uint64 InTrackId, TSharedPtr<FLoadingSharedState> InState)
-		: FLoadingTimingTrack(InTrackId, FName(TEXT("MainThread")), TEXT("Loading - Main Thread"), InState)
-	{
-	}
-
-	virtual void Draw(FTimingViewDrawHelper& Helper) const override;
-	virtual bool SearchTimingEvent(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent) const override;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class FLoadingAsyncThreadTimingTrack : public FLoadingTimingTrack
-{
-public:
-	explicit FLoadingAsyncThreadTimingTrack(uint64 InTrackId, TSharedPtr<FLoadingSharedState> InState)
-		: FLoadingTimingTrack(InTrackId, FName(TEXT("AsyncThread")), TEXT("Loading - Async Thread"), InState)
-	{
-	}
-
-	virtual void Draw(FTimingViewDrawHelper& Helper) const override;
-	virtual bool SearchTimingEvent(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent) const override;
+protected:
+	FLoadingSharedState& SharedState;
+	uint32 TimelineIndex;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

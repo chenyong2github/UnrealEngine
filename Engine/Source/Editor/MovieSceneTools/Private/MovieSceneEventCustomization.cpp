@@ -78,14 +78,19 @@ namespace UE4_MovieSceneEventCustomization
 
 			for (UObjectProperty* ObjectProperty : TFieldRange<UObjectProperty>(BoundObjectPinClass))
 			{
-				if (ObjectProperty->HasAnyPropertyFlags(CPF_BlueprintVisible) && ObjectProperty->HasMetaData(FBlueprintMetadata::MD_ExposeFunctionCategories))
+				if (ObjectProperty->HasAnyPropertyFlags(CPF_BlueprintVisible) && (ObjectProperty->HasMetaData(FBlueprintMetadata::MD_ExposeFunctionCategories) || FBlueprintEditorUtils::IsSCSComponentProperty(ObjectProperty)))
 				{
 					CallOnMemberFilter.Context.SelectedObjects.Add(ObjectProperty);
 					FBlueprintActionFilter::AddUnique(CallOnMemberFilter.TargetClasses, ObjectProperty->PropertyClass);
 				}
 			}
 
-			CallOnMemberFilter.AddRejectionTest(FBlueprintActionFilter::FRejectionTestDelegate::CreateStatic(RejectAnyUnboundActions));
+			FBlueprintActionFilter::AddUnique(CallOnMemberFilter.TargetClasses, BoundObjectPinClass);
+	
+			// This removes duplicate entries (ie. Set Static Mesh and Set Static Mesh (StaticMeshComponent)), 
+			// but also prevents displaying functions on BP components. Comment out for now.
+			//CallOnMemberFilter.AddRejectionTest(FBlueprintActionFilter::FRejectionTestDelegate::CreateStatic(RejectAnyUnboundActions));
+			
 			CallOnMemberFilter.AddRejectionTest(FBlueprintActionFilter::FRejectionTestDelegate::CreateStatic(RejectAnyNonFunctions));
 
 			ContextMenuBuilder.AddMenuSection(CallOnMemberFilter, FText::FromName(BoundObjectPinClass->GetFName()), 0);
@@ -1233,7 +1238,7 @@ void FMovieSceneEventCustomization::SetEventEndpoint(UK2Node* NewEndpoint, UEdGr
 			BaseEventSection->Modify();
 			if (Blueprint)
 			{
-				Blueprint->GenerateFunctionGraphsEvent.AddUniqueDynamic(BaseEventSection, &UMovieSceneEventSectionBase::HandleGenerateEntryPoints);
+				FMovieSceneEventUtils::BindEventSectionToBlueprint(BaseEventSection, Blueprint);
 			}
 		}
 	}
@@ -1290,13 +1295,16 @@ void FMovieSceneEventCustomization::SetEventEndpoint(UK2Node* NewEndpoint, UEdGr
 		}
 	}
 
+	// Ensure that anything listening for property changed notifications are notified of the new binding
+	PropertyHandle->NotifyFinishedChangingProperties();
+
+	// Compile the blueprint now that clients have had a chance to update underlying data (we do this after to ensure we are compiling the correct data
 	if (Blueprint)
 	{
 		FKismetEditorUtilities::CompileBlueprint(Blueprint);
 	}
 
-	// Ensure that anything listening for property changed notifications are notified of the new binding
-	PropertyHandle->NotifyFinishedChangingProperties();
+	// Forcibly update the panel now that our endpoint has changed
 	PropertyUtilities->ForceRefresh();
 }
 
@@ -1392,7 +1400,7 @@ void FMovieSceneEventCustomization::CreateEventEndpoint()
 			for (const TPair<UMovieSceneEventSectionBase*, FSectionData>& SectionPair : TrackPair.Value.Sections)
 			{
 				SectionPair.Key->Modify();
-				SequenceDirectorBP->GenerateFunctionGraphsEvent.AddUniqueDynamic(SectionPair.Key, &UMovieSceneEventSectionBase::HandleGenerateEntryPoints);
+				FMovieSceneEventUtils::BindEventSectionToBlueprint(SectionPair.Key, SequenceDirectorBP);
 
 				for (FMovieSceneEvent* EntryPoint : SectionPair.Value.EntryPoints)
 				{

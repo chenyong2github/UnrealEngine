@@ -39,7 +39,6 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual TArray<FDisplayClusterConfigClusterNode> GetClusterNodes() const override;
 	virtual int32 GetClusterNodesAmount() const override;
-	virtual bool GetClusterNode(int32 idx, FDisplayClusterConfigClusterNode& node) const override;
 	virtual bool GetClusterNode(const FString& id, FDisplayClusterConfigClusterNode& node) const override;
 	virtual bool GetMasterClusterNode(FDisplayClusterConfigClusterNode& node) const override;
 
@@ -50,32 +49,26 @@ public:
 
 	virtual TArray<FDisplayClusterConfigScreen> GetScreens() const override;
 	virtual int32 GetScreensAmount() const override;
-	virtual bool GetScreen(int32 idx, FDisplayClusterConfigScreen& screen) const override;
 	virtual bool GetScreen(const FString& id, FDisplayClusterConfigScreen& screen) const override;
 
 	virtual TArray<FDisplayClusterConfigCamera> GetCameras() const override;
 	virtual int32 GetCamerasAmount() const override;
-	virtual bool GetCamera(int32 idx, FDisplayClusterConfigCamera& camera) const override;
 	virtual bool GetCamera(const FString& id, FDisplayClusterConfigCamera& camera) const override;
 
 	virtual TArray<FDisplayClusterConfigViewport> GetViewports() const override;
 	virtual int32 GetViewportsAmount() const override;
-	virtual bool GetViewport(int32 idx, FDisplayClusterConfigViewport& viewport) const override;
 	virtual bool GetViewport(const FString& id, FDisplayClusterConfigViewport& viewport) const override;
 
 	virtual TArray<FDisplayClusterConfigPostprocess> GetPostprocess() const override;
 	virtual int32 GetPostprocessAmount() const override;
-	virtual bool GetPostprocess(int32 idx, FDisplayClusterConfigPostprocess& postprocess) const override;
 	virtual bool GetPostprocess(const FString& id, FDisplayClusterConfigPostprocess& postprocess) const override;
 
 	virtual TArray<FDisplayClusterConfigSceneNode> GetSceneNodes() const override;
 	virtual int32 GetSceneNodesAmount() const override;
-	virtual bool GetSceneNode(int32 idx, FDisplayClusterConfigSceneNode& actor) const override;
 	virtual bool GetSceneNode(const FString& id, FDisplayClusterConfigSceneNode& actor) const override;
 
 	virtual TArray<FDisplayClusterConfigInput> GetInputDevices() const override;
 	virtual int32 GetInputDevicesAmount() const override;
-	virtual bool GetInputDevice(int32 idx, FDisplayClusterConfigInput& input) const override;
 	virtual bool GetInputDevice(const FString& id, FDisplayClusterConfigInput& input) const override;
 
 	virtual TArray<FDisplayClusterConfigInputSetup> GetInputSetupRecords() const override;
@@ -145,9 +138,6 @@ private:
 		Text,
 		Xml
 	};
-
-	template <typename DataType>
-	bool GetItem(const TArray<DataType>& container, uint32 idx, DataType& item, const FString& logHeader) const;
 
 	template <typename DataType>
 	bool GetItem(const TArray<DataType>& container, const FString& id, DataType& item, const FString& logHeader) const;

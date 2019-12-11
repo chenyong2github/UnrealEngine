@@ -1733,6 +1733,22 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category = "Utilities")
 	static bool IsUnattended();
 
+	// --- Property Access ---------------------------
+
+#if WITH_EDITOR
+	/** Read the value of a named property on the given object to the given value pointer */
+    UFUNCTION(BlueprintCallable, CustomThunk, Category = "Properties", meta=(CustomStructureParam="ValuePtr", BlueprintInternalUseOnly="true"))
+    static bool GetEditorProperty(UObject* Object, const FName PropertyName, int32& ValuePtr);
+	static bool Generic_GetEditorProperty(const UObject* Object, const UProperty* Property, void* ValuePtr);
+	DECLARE_FUNCTION(execGetEditorProperty);
+
+	/** Write the value of the given value pointer to a named property on the given object */
+    UFUNCTION(BlueprintCallable, CustomThunk, Category = "Properties", meta=(CustomStructureParam="ValuePtr", BlueprintInternalUseOnly="true"))
+    static bool SetEditorProperty(UObject* Object, const FName PropertyName, const int32& ValuePtr);
+	static bool Generic_SetEditorProperty(UObject* Object, const UProperty* Property, const void* ValuePtr);
+	DECLARE_FUNCTION(execSetEditorProperty);
+#endif
+
 	// --- Transactions ------------------------------
 
 	/**
@@ -1777,6 +1793,16 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Transactions")
 	static void TransactObject(UObject* Object);
+
+	/**
+	 * Notify the current transaction (if any) that this object is about to be modified and should be snapshot for intermediate update.
+	 * @note Internally this calls SnapshotTransactionBuffer on the given object.
+	 * @note Only available in the editor.
+	 *
+	 * @param	Object		The object that is about to be modified.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Transactions")
+	static void SnapshotObject(UObject* Object);
 
 	// --- Asset Manager ------------------------------
 

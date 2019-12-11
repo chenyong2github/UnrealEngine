@@ -308,7 +308,33 @@ public:
 	 */
 	virtual TSharedPtr<IConcertClientSession> GetCurrentSession() const = 0;
 
-	/** 
+	/**
+	 * Create or load a repository (directory structure) containing sessions. The server internally maps the ID to its directories.
+	 * If the server finds the repository, it will scan the corresponding directories, discover the sessions, process them and
+	 * make them visible to the other clients. If the repository is not found, but bCreateIfNotExist is true, a new repository will
+	 * be created. Repositories are persistent and visible to all server instances until dropped by the clients. Any server instance
+	 * can mount a repository unless it is already mounted by another instance.
+	 * @note Usually, a client would create a new empty repository and set it as default to populate it, then keep the ID to reload/drop it later.
+	 * @param ServerAdminEndpointId The server for which the workspace must be mounted.
+	 * @param RepositoryRootDir The base directory containing the repository to create or load. Can hold several repositories. Leave it empty to use the server one if the client/server are not running on the same machine.
+	 * @param RepositoryId A unique Id for the repository. Must be valid.
+	 * @param bCreateIfNotExist Create a new repository if the specified one doesn't exist.
+	 * @param bAsDefault Whether this repository should be set as the default one to store newly created sessions.
+	 */
+	virtual TFuture<FConcertAdmin_MountSessionRepositoryResponse> MountSessionRepository(const FGuid& ServerAdminEndpointId, const FString& RepositoryRootDir, const FGuid& RepositoryId, bool bCreateIfNotExist, bool bAsDefault = false) const = 0;
+
+	/**
+	 * Request the list of existing session repositories from the server.
+	 */
+	virtual TFuture<FConcertAdmin_GetSessionRepositoriesResponse> GetSessionRepositories(const FGuid& ServerAdminEndpointId) const = 0;
+
+	/**
+	 * Drop a set of repositories (and delete the files) from the server. All sessions stored in the unmounted repository will be unloaded and unreachable.
+	 * The server can only drop the repository if it is not mounted or has mounted it itself.
+	 */
+	virtual TFuture<FConcertAdmin_DropSessionRepositoriesResponse> DropSessionRepositories(const FGuid& ServerAdminEndpointId, const TArray<FGuid>& RepositoryIds) const = 0;
+
+	/**
 	 * Get the list of sessions available on a server
 	 * @param ServerAdminEndpointId The Id of the Concert server admin endpoint
 	 * @return A future for FConcertAdmin_GetAllSessionsResponse which contains a list of sessions

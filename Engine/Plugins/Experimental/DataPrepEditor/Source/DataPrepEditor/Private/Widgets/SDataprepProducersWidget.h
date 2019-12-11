@@ -35,24 +35,9 @@ public:
 
 	bool WillBeRun() { return bIsEnabled && !bIsSuperseded; }
 
-	void ToggleProducer()
-	{
-		if( UDataprepAssetProducers* AssetProducers = AssetProducersPtr.Get() )
-		{
-			AssetProducers->EnableProducer(ProducerIndex, !bIsEnabled);
+	void ToggleProducer();
 
-			// #ueent_todo: Cache previous value to report failed enabling/disabling
-			bIsEnabled = AssetProducers->IsProducerEnabled(ProducerIndex);
-		}
-	}
-
-	void RemoveProducer()
-	{
-		if( UDataprepAssetProducers* AssetProducers = AssetProducersPtr.Get() )
-		{
-			AssetProducers->RemoveProducer( ProducerIndex );
-		}
-	}
+	void RemoveProducer();
 
 	FString Label;
 	int32 ProducerIndex;
@@ -132,6 +117,7 @@ public:
 
 	void Refresh() { TreeView->Refresh(); }
 
+	TSharedPtr<SWidget> GetAddNewMenu() { return AddNewMenu; }
 
 protected:
 	void OnAddProducer( UClass* ProducerClass );
@@ -140,6 +126,7 @@ private:
 	void OnDataprepProducersChanged(FDataprepAssetChangeType ChangeType, int32 Index);
 
 private:
+	TSharedPtr<SWidget> AddNewMenu;
 	TSharedPtr<FUICommandList> CommandList;
 	TWeakObjectPtr<UDataprepAssetProducers> AssetProducersPtr;
 	TSharedPtr<SDataprepProducersTreeView> TreeView;

@@ -1126,7 +1126,7 @@ public:
 		EMeshPassFeatures MeshPassFeatures,
 		const ShaderElementDataType& ShaderElementData);
 
-private:
+protected:
 	RENDERER_API void GetDrawCommandPrimitiveId(
 		const FPrimitiveSceneInfo* RESTRICT PrimitiveSceneInfo,
 		const FMeshBatchElement& BatchElement,

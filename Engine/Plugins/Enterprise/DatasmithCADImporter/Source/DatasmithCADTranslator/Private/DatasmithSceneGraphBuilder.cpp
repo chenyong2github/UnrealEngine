@@ -1,483 +1,212 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "DatasmithSceneGraphBuilder.h"
 
-#ifdef USE_CORETECH_MT_PARSER
+#ifdef CAD_INTERFACE
 
+#include "CADData.h"
+#include "CADSceneGraph.h"
+#include "CoreTechFileParser.h"
 #include "CoreTechHelper.h"
-#include "CoreTechParserMt.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithSceneSource.h"
 #include "IDatasmithSceneElements.h"
-#include "Misc/FileHelper.h"
 #include "Utility/DatasmithMathUtils.h"
 
-using namespace CADLibrary;
+#include "Misc/FileHelper.h"
 
-FCTRawDataFile::FCTRawDataFile(const FString& InFileName) 
-	: FileName(InFileName)
+
+namespace
 {
-	ReadFile();
-}
-
-void FCTRawDataFile::ReadFile()
-{
-	FFileHelper::LoadFileToStringArray(RawData, *FileName);
-	if (RawData.Num() < 10)
-		return;
-
-	FileName = FPaths::GetBaseFilename(FileName);
-
-	FString Left, Right;
-	FString HeaderCTId = RawData[MAPCTIDLINE];
-	HeaderCTId.Split(SPACE, &Left, &Right);
-	int32 Line = FCString::Atoi(*Right);
-
-	TArray<FString> HeaderCTIdSplit;
-	RawData[Line].ParseIntoArray(HeaderCTIdSplit, TEXT(" "));
-
-	for (int32 index = 0; index < HeaderCTIdSplit.Num(); index += 2)
+	void GetMainMaterial(const TMap<FString, FString>& InNodeMetaDataMap, ActorData& OutNodeData, bool bMaterialPropagationIsTopDown)
 	{
-		CTIdToRawEntryMap.Emplace(FCString::Atoi(*HeaderCTIdSplit[index]), FCTNode(*this, FCString::Atoi(*HeaderCTIdSplit[index + 1])));
-	}
-
-
-	// Parse color
-	HeaderCTId = RawData[COLORSETLINE];
-	HeaderCTId.Split(SPACE, &Left, &Right);
-	if (Right != TEXT("0"))
-	{
-		Line = FCString::Atoi(*Right);
-		FString ColorString = RawData[Line];
-		while (!ColorString.IsEmpty())
+		if (const FString* MaterialNameStr = InNodeMetaDataMap.Find(TEXT("MaterialName")))
 		{
-			ColorString.Split(SPACE, &Left, &Right);
-			ColorIdToLineMap.Add(FCString::Atoi(*Left), Line);
-			Line++;
-			ColorString = RawData[Line];
+			if (!bMaterialPropagationIsTopDown || !OutNodeData.MaterialUuid)
+			{
+				OutNodeData.MaterialUuid = FCString::Atoi64(**MaterialNameStr);
+			}
 		}
-	}
-	
-	// Parse material
-	HeaderCTId = RawData[MATERIALSETLINE];
-	HeaderCTId.Split(SPACE, &Left, &Right);
-	if (Right != TEXT("0"))
-	{
-		Line = FCString::Atoi(*Right);
-		FString MaterialString = RawData[Line];
-		while (!MaterialString.IsEmpty())
+
+		if (const FString* ColorHashStr = InNodeMetaDataMap.Find(TEXT("ColorName")))
 		{
-			MaterialString.Split(SPACE, &Left, &Right);
-			MaterialIdToLineMap.Add(FCString::Atoi(*Left), Line);
-			Line += 2;
-			MaterialString = RawData[Line];
+			if (bMaterialPropagationIsTopDown || !OutNodeData.ColorUuid)
+			{
+				OutNodeData.ColorUuid = FCString::Atoi64(**ColorHashStr);
+			}
 		}
 	}
 
-}
-
-void FCTNode::GetMetaDatas(TMap<FString, FString>& MetaDataMap)
-{
-	const FString& RawDataString = RawData.GetString(Line+1);
-	if (RawDataString.GetCharArray()[0] != L'M')
+	void AddTransformToActor(CADLibrary::FArchiveInstance& Instance, TSharedPtr< IDatasmithActorElement > Actor, const CADLibrary::FImportParameters& ImportParameters)
 	{
-		return;
-	}
-
-	FString Left, Right;
-	RawDataString.Split(SPACE, &Left, &Right);
-	StartMeta = Line + 2;
-	EndMeta = FCString::Atoi(*Right);
-	MetaDataMap.Reserve(EndMeta / 2);
-	EndMeta += StartMeta;
-	for (int32 LineIndex = StartMeta; LineIndex < EndMeta; LineIndex += 2)
-	{
-		MetaDataMap.Add(RawData.GetString(LineIndex), RawData.GetString(LineIndex + 1));
-	}
-}
-
-void FCTNode::GetMaterialSet(FCTMaterialPartition& MaterialPartition)
-{
-	const FString& MaterialString = RawData.GetString(EndMeta);
-	TArray<FString> MaterialIDToHashSet;
-	MaterialString.ParseIntoArray(MaterialIDToHashSet, TEXT(" "));
-	if (MaterialIDToHashSet[0] != TEXT("materialMap"))
-	{
-		return;
-	}
-
-	for (int32 index = 1; index < MaterialIDToHashSet.Num(); index++)
-	{
-		uint32 MaterialId = FCString::Atoi64(*MaterialIDToHashSet[index]); 
-		index++;
-		uint32 MaterialHash = FCString::Atoi64(*MaterialIDToHashSet[index]);
-		MaterialPartition.LinkMaterialId2MaterialHash(MaterialId, MaterialHash);
-	}
-}
-
-void FCTNode::GetChildren(TArray<int32>& Children)
-{
-	if(EndMeta == -1)
-	{
-		TMap<FString, FString> TempMap;
-		GetMetaDatas(TempMap);
-	}
-
-	const FString& RawDataString = RawData.GetString(EndMeta);
-	if (RawDataString.GetCharArray()[0] != L'c')
-	{
-		return;
-	}
-
-	FString Left, Right;
-	RawDataString.Split(SPACE, &Left, &Right);
-	int32 nbChildren = FCString::Atoi(*Right);
-	Children.Reserve(nbChildren);
-
-	int32 StartChildren = EndMeta + 1;
-	int32 EndChildren = StartChildren + nbChildren;
-	for (int32 LineIndex = StartChildren; LineIndex < EndChildren; LineIndex += 1)
-	{
-		Children.Add(FCString::Atoi(*RawData.GetString(LineIndex)));
-	}
-}
-
-void FCTNode::GetNodeReference(int32& RefId, FString& ExternalFile, NODE_TYPE& NodeType)
-{
-	RefId = 0;
-	ExternalFile = "";
-
-	if (EndMeta == -1)
-	{
-		TMap<FString, FString> TempMap;
-		GetMetaDatas(TempMap);
-	}
-
-	const FString& RawDataString = RawData.GetString(EndMeta + 1);
-
-	FString TypeStr, Right;
-	RawDataString.Split(SPACE, &TypeStr, &Right);
-
-	if (TypeStr == TEXT("ref"))
-	{
-		RefId = FCString::Atoi(*Right);
-		NodeType = COMPONENT;
-	}
-	else if (TypeStr == TEXT("ext"))
-	{
-		FString RefIdString;
-		Right.Split(SPACE, &RefIdString, &ExternalFile);
-		RefId = FCString::Atoi(*RefIdString);
-		NodeType = EXTERNALCOMPONENT;
-	}
-	else
-	{
-		NodeType = UNDEFINED;
-		return;
-	}
-}
-
-void FCTNode::AddTransformToActor(TSharedPtr< IDatasmithActorElement > Actor, CADLibrary::FImportParameters& ImportParameters)
-{
-	if (!Actor.IsValid())
-	{
-		return;
-	}
-
-	const FString& RawDataString = RawData.GetString(EndMeta);
-	TArray<FString> TransformString;
-	RawDataString.ParseIntoArray(TransformString, TEXT(" "));
-
-	if (TransformString[0] != TEXT("matrix"))
-	{
-		return;
-	}
-
-	if (TransformString.Num() != 17)
-	{
-		return;
-	}
-
-	FMatrix Matrix;
-	float* MatrixFloats = (float*)Matrix.M;
-	for(int32 index = 0; index < 16; index++)
-	{
-		MatrixFloats[index] = FCString::Atof(*TransformString[index + 1]);
-	}
-
-	FTransform LocalTransform(Matrix);
-	FTransform LocalUETransform = FDatasmithUtils::ConvertTransform(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded, LocalTransform);
-	FQuat Quat;
-	FDatasmithTransformUtils::GetRotation(LocalUETransform, Quat);
-	
-	Actor->SetTranslation(LocalUETransform.GetTranslation() * ImportParameters.ScaleFactor);
-	Actor->SetScale(LocalUETransform.GetScale3D());
-	Actor->SetRotation(Quat);
-}
-
-void FCTNode::SetNodeType()
-{
-	if (Line == 0)
-	{
-		Type = UNDEFINED;
-	} 
-	else
-	{
-		const FString& RawDataString = RawData.GetString(Line);
-		switch (RawDataString.GetCharArray()[0])
+		if (!Actor.IsValid())
 		{
-		case L'C':
-			Type = COMPONENT;
-			break;
-		case L'I':
-			Type = INSTANCE;
-			break;
-		case L'B':
-			Type = BODY;
-			break;
-		case L'E':
-			Type = EXTERNALCOMPONENT;
-			break;
-		default:
-			Type = UNDEFINED;
-			break;
+			return;
 		}
-	}
-}
 
-uint32 FCTNode::GetStaticMeshUuid()
-{
-	if (!BodyUUID)
+		FTransform LocalTransform(Instance.TransformMatrix);
+		FTransform LocalUETransform = FDatasmithUtils::ConvertTransform((FDatasmithUtils::EModelCoordSystem) ImportParameters.ModelCoordSys, LocalTransform);
+
+		Actor->SetTranslation(LocalUETransform.GetTranslation() * ImportParameters.ScaleFactor);
+		Actor->SetScale(LocalUETransform.GetScale3D());
+		Actor->SetRotation(LocalUETransform.GetRotation());
+	}
+
+	// Method to reduce the size of huge label. The length of the package path, based on label, cannot be bigger than ~256
+	void CleanName(FString& Label)
 	{
-		BodyUUID = GetTypeHash(RawData.GetFileName());
-		BodyUUID = HashCombine(BodyUUID, GetTypeHash(*RawData.GetString(Line)));  // "B "+TEXT(CT_OBJECT_ID)
+		const int32 MaxLabelSize = 50; // If the label is smaller than this value, the label is not modified. This size of package name is "acceptable"
+		const int32 ReasonableLabelSize = 20; // If the label has to be cut, a label that is not too long is preferred. 
+		const int32 MinLabelSize = 5; // If the label is smaller than this value, the label is too much reduce. Therefore a ReasonableLabelSize is preferred 
+
+		if (Label.Len() < MaxLabelSize)
+		{
+			return;
+		}
+
+		FString NewLabel;
+		NewLabel = FPaths::GetCleanFilename(Label);
+		if ((NewLabel.Len() < MaxLabelSize) && (NewLabel.Len() > MinLabelSize))
+		{
+			Label = NewLabel;
+			return;
+		}
+
+		Label = Label.Right(ReasonableLabelSize);
 	}
-	return BodyUUID;
 }
 
-void FCTNode::GetColorDescription(int32 ColorId, uint8 CtColor[3])
-{
-	RawData.GetColorDescription(ColorId, CtColor);
-}
-
-void FCTNode::GetMaterialDescription(int32 MaterialId, int32& OutMaterialHash, FString& OutMaterialName, uint8 OutDiffuse[3], uint8 OutAmbient[3], uint8 OutSpecular[3], uint8& OutShininess, uint8& OutTransparency, uint8& OutReflexion, FString& OutTextureName)
-{
-	RawData.GetMaterialDescription(MaterialId, OutMaterialHash, OutMaterialName, OutDiffuse, OutAmbient, OutSpecular, OutShininess, OutTransparency, OutReflexion, OutTextureName);
-}
-
-FCTNode* FCTNode::GetCTNode(int32 NodeId)
-{
-	return RawData.GetCTNode(NodeId);
-}
-
-FCTNode::FCTNode(FCTRawDataFile& InRawData, int32 InLine)
-	: RawData(InRawData)
-	, Line(InLine)
-	, StartMeta(-1)
-	, EndMeta(-1)
-	, Type(UNKNOWN)
-	, BodyUUID(0)
-{
-	SetNodeType();
-}
-
-FDatasmithSceneGraphBuilder::FDatasmithSceneGraphBuilder(const FString& InCachePath, TSharedRef<IDatasmithScene> InScene, const FDatasmithSceneSource& InSource, TMap<FString, FString>& InCADFileToUE4FileMap, TMap< TSharedPtr< IDatasmithMeshElement >, uint32 >& InMeshElementToCTBodyUuidMap)
-	: DatasmithScene(InScene)
-	, Source(InSource)
+FDatasmithSceneGraphBuilder::FDatasmithSceneGraphBuilder(TMap<FString, FString>& InCADFileToUE4FileMap, const FString& InCachePath, TSharedRef<IDatasmithScene> InScene, const FDatasmithSceneSource& InSource, const CADLibrary::FImportParameters& InImportParameters)
+	: CADFileToSceneGraphDescriptionFile(InCADFileToUE4FileMap)
 	, CachePath(InCachePath)
-	, CADFileToRawDataFile(InCADFileToUE4FileMap)
-	, MeshElementToCTBodyUuidMap(InMeshElementToCTBodyUuidMap)
+	, DatasmithScene(InScene)
+	, Source(InSource)
+	, ImportParameters(InImportParameters)
+	, ImportParametersHash(ImportParameters.GetHash())
 {
-
 }
 
 bool FDatasmithSceneGraphBuilder::Build()
 {
-	LoadRawDataFile();
+	LoadSceneGraphDescriptionFiles();
 
 	const FString& RootFile = FPaths::GetCleanFilename(Source.GetSourceFile());
 
-	FCTRawDataFile** RawData = CADFileToRawData.Find(RootFile);
-	if (RawData == nullptr || *RawData == nullptr)
+	CurrentMockUp = CADFileToArchiveMockUp.FindRef(RootFile);
+	if (!CurrentMockUp)
 	{
 		return false;
 	}
 
-	FCTNode* RootNode = (*RawData)->GetCTNode(1);
-	if (RootNode == nullptr)
+	CadId RootId = 1;
+	int32* Index = CurrentMockUp->CADIdToComponentIndex.Find(RootId);
+	if (!Index)
 	{
 		return false;
 	}
 
-	TSharedPtr< IDatasmithActorElement > RootActor = BuildNode(*RootNode, TEXT(""));
+	ActorData Data(TEXT(""));
+	TSharedPtr< IDatasmithActorElement > RootActor = BuildComponent(CurrentMockUp->ComponentSet[*Index], Data);
 	DatasmithScene->AddActor(RootActor);
 
 	return true;
 }
 
-void FDatasmithSceneGraphBuilder::LoadRawDataFile()
+void FDatasmithSceneGraphBuilder::LoadSceneGraphDescriptionFiles()
 {
-	RawDataArray.Reserve(CADFileToRawDataFile.Num());
-	CADFileToRawData.Reserve(CADFileToRawDataFile.Num());
-	for (auto FilePair : CADFileToRawDataFile)
+	ArchiveMockUps.Reserve(CADFileToSceneGraphDescriptionFile.Num());
+	CADFileToArchiveMockUp.Reserve(CADFileToSceneGraphDescriptionFile.Num());
+
+	for (const auto& FilePair : CADFileToSceneGraphDescriptionFile)
 	{
-		//OutSgFile = FilePair.Value;
-		FString RawDataFile = FPaths::Combine(CachePath, TEXT("scene"), FilePair.Value + TEXT(".sg"));
-		uint32 index = RawDataArray.Emplace(RawDataFile);
-		CADFileToRawData.Emplace(FilePair.Key, &RawDataArray[index]);
+		FString MockUpDescriptionFile = FPaths::Combine(CachePath, TEXT("scene"), FilePair.Value + TEXT(".sg"));
+
+		CADLibrary::FArchiveMockUp& MockUpDescription = ArchiveMockUps.Emplace_GetRef();
+
+		CADFileToArchiveMockUp.Add(FilePair.Key, &MockUpDescription);
+	
+		CADLibrary::DeserializeMockUpFile(*MockUpDescriptionFile, MockUpDescription);
+
+		for(const auto& ColorPair : MockUpDescription.ColorHIdToColor)
+		{
+			ColorNameToColorArchive.Emplace(ColorPair.Value.UEMaterialName, ColorPair.Value);
+		}
+
+		for (const auto& MaterialPair : MockUpDescription.MaterialHIdToMaterial)
+		{
+			MaterialNameToMaterialArchive.Emplace(MaterialPair.Value.UEMaterialName, MaterialPair.Value);
+		}
+
 	}
 }
 
-TSharedPtr< IDatasmithActorElement >  FDatasmithSceneGraphBuilder::BuildNode(FCTNode& Node, const TCHAR* ParentUuid)
+TSharedPtr< IDatasmithActorElement >  FDatasmithSceneGraphBuilder::BuildInstance(CADLibrary::FArchiveInstance& Instance, ActorData& ParentData)
 {
-	NODE_TYPE Type = Node.GetNodeType();
+	CADLibrary::FArchiveComponent* Reference = nullptr;
+	CADLibrary::FArchiveComponent EmptyReference;
 
-	switch (Type)
+	CADLibrary::FArchiveMockUp* InstanceMockUp = CurrentMockUp;
+	if (Instance.bIsExternalRef)
 	{
-	case INSTANCE:
-		return BuildInstance(Node, ParentUuid);
-
-	case COMPONENT:
-		return BuildComponent(Node, ParentUuid);
-
-	//case EXTERNALCOMPONENT:
-		//return BuildExternalComponent(Node);
-
-	case BODY:
-		return BuildBody(Node, ParentUuid);
-	default:
-		return TSharedPtr< IDatasmithActorElement >();
-	}
-
-	return TSharedPtr< IDatasmithActorElement >();
-}
-
-TSharedPtr< IDatasmithActorElement >  FDatasmithSceneGraphBuilder::BuildInstance(FCTNode& Node, const TCHAR* ParentUuid)
-{
-	TMap<FString, FString> InstanceNodeMetaDataMap;
-	TMap<FString, FString> ReferenceNodeMetaDataMap;
-	Node.GetMetaDatas(InstanceNodeMetaDataMap);
-
-	FString ActorUUID = TEXT("");
-	FString ActorLabel = TEXT("");
-
-	GetNodeUUIDAndName(InstanceNodeMetaDataMap, ReferenceNodeMetaDataMap, ParentUuid, ActorUUID, ActorLabel);
-
-	int32 RefId; 
-	NODE_TYPE NodeType;
-	FString ReferenceFile;
-	Node.GetNodeReference(RefId, ReferenceFile, NodeType);
-
-	FCTNode* ComponentNode = nullptr;
-	switch(NodeType)
-	{
-		case COMPONENT:
+		if (!Instance.ExternalRef.IsEmpty())
 		{
-			ComponentNode = Node.GetCTNode(RefId);
-			break;
-		}
-
-		case EXTERNALCOMPONENT:
-		{
-			FCTRawDataFile** RawData = CADFileToRawData.Find(ReferenceFile);
-			if (RawData != nullptr && *RawData != nullptr)
+			CurrentMockUp = CADFileToArchiveMockUp.FindRef(Instance.ExternalRef);
+			if (CurrentMockUp)
 			{
-				ComponentNode = (*RawData)->GetCTNode(1);
+				CadId RootId = 1;
+				int32* Index = CurrentMockUp->CADIdToComponentIndex.Find(RootId);
+				if (Index)
+				{
+					Reference = &(CurrentMockUp->ComponentSet[*Index]);
+				}
 			}
-			else
-			{
-				ComponentNode = Node.GetCTNode(RefId);
-			}
-			break;
 		}
 
-		default:
+		if(!Reference)
 		{
-			return TSharedPtr< IDatasmithActorElement >();
+			CurrentMockUp = InstanceMockUp;
+			int32* Index = CurrentMockUp->CADIdToUnloadedComponentIndex.Find(Instance.ReferenceNodeId);
+			if (Index)
+			{
+				Reference = &(CurrentMockUp->UnloadedComponentSet[*Index]);
+			}
+		}
+	}
+	else {
+		int32* Index = CurrentMockUp->CADIdToComponentIndex.Find(Instance.ReferenceNodeId);
+		if (Index)
+		{
+			Reference = &(CurrentMockUp->ComponentSet[*Index]);
 		}
 	}
 
-	if (ComponentNode)
+	if (!Reference) // Should never append
 	{
-		ComponentNode->GetMetaDatas(ReferenceNodeMetaDataMap);
+		Reference = &EmptyReference;
 	}
+
+	FString ActorUUID;
+	FString ActorLabel;
+	GetNodeUUIDAndName(Instance.MetaData, Reference->MetaData, ParentData.Uuid, ActorUUID, ActorLabel);
 
 	TSharedPtr< IDatasmithActorElement > Actor = CreateActor(*ActorUUID, *ActorLabel);
 	if (!Actor.IsValid())
 	{
 		return TSharedPtr< IDatasmithActorElement >();
 	}
-	AddMetaData(Actor, InstanceNodeMetaDataMap, ReferenceNodeMetaDataMap);
+	AddMetaData(Actor, Instance.MetaData, Reference->MetaData);
 
-	if (ComponentNode)
-	{
-		AddChildren(Actor, *ComponentNode, *ActorUUID);
-	}
+	ActorData InstanceData(*ActorUUID, ParentData);
 
-	Node.AddTransformToActor(Actor, ImportParameters);
+	GetMainMaterial(Instance.MetaData, InstanceData, bMaterialPropagationIsTopDown);
+	GetMainMaterial(Reference->MetaData, InstanceData, bMaterialPropagationIsTopDown);
+
+	AddChildren(Actor, *Reference, InstanceData);
+
+	AddTransformToActor(Instance, Actor, ImportParameters);
+
+	CurrentMockUp = InstanceMockUp;
 	return Actor;
 }
-
-//void FDatasmithSceneGraphBuilder::SetNodeParameterFromAttribute(bool bIsBody)
-//{
-//	FString* IName = InstanceNodeAttributeSet.Find(TEXT("CTName"));
-//	FString* IOriginalName = InstanceNodeAttributeSet.Find(TEXT("Name"));
-//	FString* IUUID = InstanceNodeAttributeSet.Find(TEXT("UUID"));
-//
-//	FString* RName = ReferenceNodeAttributeSet.Find(TEXT("CTName"));
-//	FString* ROriginalName = ReferenceNodeAttributeSet.Find(TEXT("Name"));
-//	FString* RUUID = ReferenceNodeAttributeSet.Find(TEXT("UUID"));
-//
-//	// Reference Name
-//	if (ROriginalName)
-//	{
-//		ReferenceName = *ROriginalName;
-//	}
-//	else if (RName)
-//	{
-//		ReferenceName = *RName;
-//	}
-//	else
-//	{
-//		ReferenceName = "NoName";
-//	}
-//
-//	//ReferenceInstanceName = ReferenceName + TEXT("(") + (IOriginalName ? *IOriginalName : ReferenceName) + TEXT(")");
-//	ReferenceInstanceName = IOriginalName ? *IOriginalName : IName ? *IName : ReferenceName;
-//
-//	//// UUID
-//	if (bIsBody)
-//	{
-//		BuildMeshActorUUID();
-//	}
-//	else
-//	{
-//		UEUUID = 0;
-//		if (Parent.IsValid())
-//		{
-//			UEUUID = Parent->GetUUID();
-//		}
-//
-//		if (IUUID)
-//		{
-//			UEUUID = HashCombine(UEUUID, GetTypeHash(*IUUID));
-//		}
-//		else if (IOriginalName)
-//		{
-//			UEUUID = HashCombine(UEUUID, GetTypeHash(*IOriginalName));
-//		}
-//
-//		if (RUUID)
-//		{
-//			UEUUID = HashCombine(UEUUID, GetTypeHash(*RUUID));
-//		}
-//		else if (RName)
-//		{
-//			UEUUID = HashCombine(UEUUID, GetTypeHash(*RName));
-//		}
-//
-//		UEUUIDStr = FString::Printf(TEXT("0x%08x"), UEUUID);
-//	}
-//}
 
 TSharedPtr< IDatasmithActorElement >  FDatasmithSceneGraphBuilder::CreateActor(const TCHAR* InEUUID, const TCHAR* InLabel)
 {
@@ -524,6 +253,7 @@ void FDatasmithSceneGraphBuilder::GetNodeUUIDAndName(
 
 	//ReferenceInstanceName = ReferenceName + TEXT("(") + (IOriginalName ? *IOriginalName : ReferenceName) + TEXT(")");
 	OutName = IOriginalName ? *IOriginalName : IName ? *IName : ReferenceName;
+	CleanName(OutName);
 
 	uint32 UEUUID = 0;
 	UEUUID = GetTypeHash(InParentUEUUID);
@@ -532,16 +262,24 @@ void FDatasmithSceneGraphBuilder::GetNodeUUIDAndName(
 	{
 		UEUUID = HashCombine(UEUUID, GetTypeHash(*IUUID));
 	}
-	else if (IOriginalName)
+	if (IOriginalName)
 	{
 		UEUUID = HashCombine(UEUUID, GetTypeHash(*IOriginalName));
+	}
+	if (IName)
+	{
+		UEUUID = HashCombine(UEUUID, GetTypeHash(*IName));
 	}
 
 	if (RUUID)
 	{
 		UEUUID = HashCombine(UEUUID, GetTypeHash(*RUUID));
 	}
-	else if (RName)
+	if (ROriginalName)
+	{
+		UEUUID = HashCombine(UEUUID, GetTypeHash(*ROriginalName));
+	}
+	if (RName)
 	{
 		UEUUID = HashCombine(UEUUID, GetTypeHash(*RName));
 	}
@@ -549,17 +287,14 @@ void FDatasmithSceneGraphBuilder::GetNodeUUIDAndName(
 	OutUEUUID = FString::Printf(TEXT("0x%08x"), UEUUID);
 }
 
-
-TSharedPtr< IDatasmithActorElement > FDatasmithSceneGraphBuilder::BuildComponent(FCTNode& Node, const TCHAR* ParentUuid)
+TSharedPtr< IDatasmithActorElement > FDatasmithSceneGraphBuilder::BuildComponent(CADLibrary::FArchiveComponent& Component, ActorData& ParentData)
 {
 	TMap<FString, FString> InstanceNodeMetaDataMap;
-	TMap<FString, FString> ReferenceNodeMetaDataMap;
-	Node.GetMetaDatas(ReferenceNodeMetaDataMap);
 
 	FString ActorUUID = TEXT("");
 	FString ActorLabel = TEXT("");
 	
-	GetNodeUUIDAndName(InstanceNodeMetaDataMap, ReferenceNodeMetaDataMap, ParentUuid, ActorUUID, ActorLabel);
+	GetNodeUUIDAndName(InstanceNodeMetaDataMap, Component.MetaData, ParentData.Uuid, ActorUUID, ActorLabel);
 
 	TSharedPtr< IDatasmithActorElement > Actor = CreateActor(*ActorUUID, *ActorLabel);
 	if (!Actor.IsValid())
@@ -567,24 +302,34 @@ TSharedPtr< IDatasmithActorElement > FDatasmithSceneGraphBuilder::BuildComponent
 		return TSharedPtr< IDatasmithActorElement >();
 	}
 
-	AddMetaData(Actor, InstanceNodeMetaDataMap, ReferenceNodeMetaDataMap);
+	AddMetaData(Actor, InstanceNodeMetaDataMap, Component.MetaData);
 
-	AddChildren(Actor, Node, *ActorUUID);
+	ActorData ComponentData(*ActorUUID, ParentData);
+	GetMainMaterial(Component.MetaData, ComponentData, bMaterialPropagationIsTopDown);
+
+	AddChildren(Actor, Component, ComponentData);
 
 	return Actor;
 }
 
-TSharedPtr< IDatasmithActorElement > FDatasmithSceneGraphBuilder::BuildBody(FCTNode& Node, const TCHAR* ParentUuid)
+TSharedPtr< IDatasmithActorElement > FDatasmithSceneGraphBuilder::BuildBody(CADLibrary::FArchiveBody& Body, ActorData& ParentData)
 {
 	TMap<FString, FString> InstanceNodeMetaDataMap;
-	TMap<FString, FString> BodyNodeMetaDataMap;
-	Node.GetMetaDatas(BodyNodeMetaDataMap);
 	
-	FString BodyUUID = TEXT("");
-	FString BodyLabel = TEXT("");
-	GetNodeUUIDAndName(InstanceNodeMetaDataMap, BodyNodeMetaDataMap, ParentUuid, BodyUUID, BodyLabel);
+	FString BodyUUID;
+	FString BodyLabel;
+	GetNodeUUIDAndName(InstanceNodeMetaDataMap, Body.MetaData, ParentData.Uuid, BodyUUID, BodyLabel);
 
-	TSharedPtr< IDatasmithMeshElement > MeshElement = FindOrAddMeshElement(Node, BodyLabel);
+	// Apply materials on the current part
+	uint32 MaterialUuid = 0;
+	MaterialUuid = ParentData.MaterialUuid ? ParentData.MaterialUuid : ParentData.ColorUuid;
+
+	if (!Body.ColorFaceSet.Num())
+	{
+		Body.ColorFaceSet.Add(MaterialUuid);
+	}
+
+	TSharedPtr< IDatasmithMeshElement > MeshElement = FindOrAddMeshElement(Body, BodyLabel);
 	if (!MeshElement.IsValid())
 	{
 		return TSharedPtr< IDatasmithActorElement >();
@@ -600,16 +345,27 @@ TSharedPtr< IDatasmithActorElement > FDatasmithSceneGraphBuilder::BuildBody(FCTN
 	ActorElement->SetLabel(*BodyLabel);
 	ActorElement->SetStaticMeshPathName(MeshElement->GetName());
 
+	if (MaterialUuid && ImportParameters.Propagation != CADLibrary::EDisplayDataPropagationMode::BodyOnly)
+	{
+		TSharedPtr< IDatasmithMaterialIDElement > PartMaterialIDElement = FindOrAddMaterial(MaterialUuid);
+		const TCHAR* MaterialIDElementName = PartMaterialIDElement->GetName();
+
+		for (int32 Index = 0; Index < MeshElement->GetMaterialSlotCount(); ++Index)
+		{
+			TSharedPtr< IDatasmithMaterialIDElement > MaterialIDElement = FDatasmithSceneFactory::CreateMaterialId(MaterialIDElementName);
+			MaterialIDElement->SetId(MeshElement->GetMaterialSlotAt(Index)->GetId());
+			ActorElement->AddMaterialOverride(MaterialIDElement);
+		}
+	}
 	return ActorElement;
 }
 
-TSharedPtr< IDatasmithMeshElement > FDatasmithSceneGraphBuilder::FindOrAddMeshElement(FCTNode& Node, FString& BodyName)
+TSharedPtr< IDatasmithMeshElement > FDatasmithSceneGraphBuilder::FindOrAddMeshElement(CADLibrary::FArchiveBody& Body, FString& BodyName)
 {
-	uint32 ShellUuid = Node.GetStaticMeshUuid();
-	FString ShellUuidName = FString::Printf(TEXT("0x%08x"), ShellUuid);
+	FString ShellUuidName = FString::Printf(TEXT("0x%012u"), Body.MeshActorName);
 
 	// Look if geometry has not been already processed, return it if found
-	TSharedPtr< IDatasmithMeshElement >* MeshElementPtr = BodyUuidToMeshElementMap.Find(ShellUuid);
+	TSharedPtr< IDatasmithMeshElement >* MeshElementPtr = BodyUuidToMeshElement.Find(Body.MeshActorName);
 	if (MeshElementPtr != nullptr)
 	{
 		return *MeshElementPtr;
@@ -619,6 +375,21 @@ TSharedPtr< IDatasmithMeshElement > FDatasmithSceneGraphBuilder::FindOrAddMeshEl
 	MeshElement->SetLabel(*BodyName);
 	MeshElement->SetLightmapSourceUV(-1);
 
+	// Set MeshElement FileHash used for re-import task 
+	FMD5 MD5; // unique Value that define the mesh
+	MD5.Update(reinterpret_cast<const uint8*>(&ImportParametersHash), sizeof ImportParametersHash);
+	// the scene graph archive name that is define by the name and the stat of the file (creation date, size)
+	MD5.Update(reinterpret_cast<const uint8*>(CurrentMockUp->SceneGraphArchive.GetCharArray().GetData()), CurrentMockUp->SceneGraphArchive.GetCharArray().Num());
+	// MeshActorName
+	MD5.Update(reinterpret_cast<const uint8*>(&Body.MeshActorName), sizeof Body.MeshActorName);
+
+	FMD5Hash Hash;
+	Hash.Set(MD5);
+	MeshElement->SetFileHash(Hash);
+
+	FString BodyFile = FString::Printf(TEXT("UEx%08x"), Body.MeshActorName);
+	MeshElement->SetFile(*FPaths::Combine(CachePath, TEXT("body"), BodyFile + TEXT(".ct")));
+
 	// TODO: Set bounding box 
 	//float BoundingBox[6];
 	//FString Buffer = GetStringAttribute(GeomID, TEXT("UE_MESH_BBOX"));
@@ -627,25 +398,23 @@ TSharedPtr< IDatasmithMeshElement > FDatasmithSceneGraphBuilder::FindOrAddMeshEl
 	//	MeshElement->SetDimensions(BoundingBox[3] - BoundingBox[0], BoundingBox[4] - BoundingBox[1], BoundingBox[5] - BoundingBox[2], 0.0f);
 	//}
 
-	FCTMaterialPartition MaterialPartition;
-	Node.GetMaterialSet(MaterialPartition);
-
-	for (auto MaterialId2Hash : MaterialPartition.GetMaterialIdToHashSet())
+	// Currently we assume that face has only colors
+	TSet<uint32>& MaterialSet = Body.ColorFaceSet;
+	for (uint32 MaterialName : MaterialSet)
 	{
 		TSharedPtr< IDatasmithMaterialIDElement > PartMaterialIDElement;
-		PartMaterialIDElement = FindOrAddMaterial(Node, MaterialId2Hash.Key);
+		PartMaterialIDElement = FindOrAddMaterial(MaterialName);
 
 		const TCHAR* MaterialIDElementName = PartMaterialIDElement->GetName();
 
 		TSharedPtr< IDatasmithMaterialIDElement > MaterialIDElement = FDatasmithSceneFactory::CreateMaterialId(MaterialIDElementName);
 
-		MeshElement->SetMaterial(MaterialIDElementName, MaterialId2Hash.Value);
+		MeshElement->SetMaterial(MaterialIDElementName, MaterialName);
 	}
 
 	DatasmithScene->AddMesh(MeshElement);
 
-	BodyUuidToMeshElementMap.Add(ShellUuid, MeshElement);
-	MeshElementToCTBodyUuidMap.Add(MeshElement, ShellUuid);
+	BodyUuidToMeshElement.Add(Body.MeshActorName, MeshElement);
 
 	return MeshElement;
 }
@@ -654,164 +423,49 @@ TSharedPtr< IDatasmithUEPbrMaterialElement > FDatasmithSceneGraphBuilder::GetDef
 {
 	if (!DefaultMaterial.IsValid())
 	{
-		DefaultMaterial = CreateDefaultUEPbrMaterial();
+		DefaultMaterial = CADLibrary::CreateDefaultUEPbrMaterial();
 		DatasmithScene->AddMaterial(DefaultMaterial);
 	}
 
 	return DefaultMaterial;
 }
 
-TSharedPtr<IDatasmithMaterialIDElement> FDatasmithSceneGraphBuilder::FindOrAddMaterial(FCTNode& Node, uint32 MaterialID)
+TSharedPtr<IDatasmithMaterialIDElement> FDatasmithSceneGraphBuilder::FindOrAddMaterial(uint32 MaterialUuid)
 {
 	TSharedPtr< IDatasmithUEPbrMaterialElement > MaterialElement;
 
-	TSharedPtr< IDatasmithUEPbrMaterialElement >* MaterialPtr = MaterialMap.Find(MaterialID);
+	TSharedPtr< IDatasmithUEPbrMaterialElement >* MaterialPtr = MaterialUuidMap.Find(MaterialUuid);
 	if (MaterialPtr != nullptr)
 	{
 		MaterialElement = *MaterialPtr;
 	}
-	else if (MaterialID > 0)
+	else if (MaterialUuid > 0)
 	{
-		if (MaterialID > LAST_CT_MATERIAL_ID)
+		if (CADLibrary::FArchiveColor* Color = ColorNameToColorArchive.Find(MaterialUuid))
 		{
-			MaterialElement = CreateUEPbrMaterialFromColorId(Node, MaterialID);
+			MaterialElement = CADLibrary::CreateUEPbrMaterialFromColor(Color->Color);
 		}
-		else
+		else if (CADLibrary::FArchiveMaterial* Material = MaterialNameToMaterialArchive.Find(MaterialUuid))
 		{
-			MaterialElement = CreateUEPbrMaterialFromMaterialId(Node, MaterialID, DatasmithScene);
+			MaterialElement = CADLibrary::CreateUEPbrMaterialFromMaterial(Material->Material, DatasmithScene);
 		}
 
 		if (MaterialElement.IsValid())
 		{
 			DatasmithScene->AddMaterial(MaterialElement);
-			MaterialMap.Add(MaterialID, MaterialElement);
+			MaterialUuidMap.Add(MaterialUuid, MaterialElement);
 		}
-		DatasmithScene->AddMaterial(MaterialElement);
 	}
 
 	if (!MaterialElement.IsValid())
 	{
 		MaterialElement = GetDefaultMaterial();
+		MaterialUuidMap.Add(MaterialUuid, MaterialElement);
 	}
 
 	TSharedPtr< IDatasmithMaterialIDElement > MaterialIDElement = FDatasmithSceneFactory::CreateMaterialId(MaterialElement->GetName());
 
 	return MaterialIDElement;
-}
-
-TSharedPtr<IDatasmithUEPbrMaterialElement> FDatasmithSceneGraphBuilder::CreateUEPbrMaterialFromColorId(FCTNode& Node, uint32 InColorHashId)
-{
-	uint32 ColorId;
-	uint8 Alpha;
-	UnhashFastColorHash(InColorHashId, ColorId, Alpha);
-
-	uint8 Color[3];
-	Node.GetColorDescription(ColorId, Color);
-
-	FString Name = FString::FromInt(BuildColorHash(ColorId, Alpha));
-	FString Label = FString::Printf(TEXT("%02x%02x%02x%02x"), Color[0], Color[1], Color[2], Alpha);
-
-	// Take the Material diffuse color and connect it to the BaseColor of a UEPbrMaterial
-	TSharedRef<IDatasmithUEPbrMaterialElement> MaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial(*Name);
-	MaterialElement->SetLabel(*Label);
-
-	FLinearColor LinearColor = FLinearColor::FromPow22Color(FColor(Color[0], Color[1], Color[2], Alpha));
-
-	IDatasmithMaterialExpressionColor* ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
-	ColorExpression->SetName(TEXT("Diffuse Color"));
-	ColorExpression->GetColor() = LinearColor;
-
-	MaterialElement->GetBaseColor().SetExpression(ColorExpression);
-
-	if (LinearColor.A < 1.0f)
-	{
-		MaterialElement->SetBlendMode(/*EBlendMode::BLEND_Translucent*/2);
-
-		IDatasmithMaterialExpressionScalar* Scalar = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
-		Scalar->GetScalar() = LinearColor.A;
-
-		MaterialElement->GetOpacity().SetExpression(Scalar);
-	}
-	return MaterialElement;
-}
-
-TSharedPtr<IDatasmithUEPbrMaterialElement> FDatasmithSceneGraphBuilder::CreateUEPbrMaterialFromMaterialId(FCTNode& Node, uint32 InMaterialID, TSharedRef<IDatasmithScene> Scene)
-{
-	FString MaterialLabel, TextureName;
-	uint8   Diffuse[3];
-	uint8   Ambient[3];
-	uint8   Specular[3];
-	uint8   Shininess, Transparency, Reflexion;
-	int32  Hash;
-
-	FString MaterialName, MaterialStr;
-	Node.GetMaterialDescription(InMaterialID, Hash, MaterialLabel, Diffuse, Ambient, Specular, Shininess, Transparency, Reflexion, TextureName);
-
-	FString Name = FString::FromInt(Hash);
-	// Take the Material diffuse color and connect it to the BaseColor of a UEPbrMaterial
-	TSharedRef<IDatasmithUEPbrMaterialElement> MaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial(*Name);
-	if (MaterialLabel.IsEmpty())
-	{
-		MaterialLabel = TEXT("Material");
-	}
-	MaterialElement->SetLabel(*MaterialLabel);
-
-	// Set a diffuse color if there's nothing in the BaseColor
-	if (MaterialElement->GetBaseColor().GetExpression() == nullptr)
-	{
-		FColor Color((uint8)Diffuse[0], (uint8)Diffuse[1], (uint8)Diffuse[2], Transparency);
-		FLinearColor LinearColor = FLinearColor::FromPow22Color(Color);
-
-		IDatasmithMaterialExpressionColor* ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
-		ColorExpression->SetName(TEXT("Diffuse Color"));
-		ColorExpression->GetColor() = LinearColor;
-
-		MaterialElement->GetBaseColor().SetExpression(ColorExpression);
-	}
-
-	if (Transparency < 255)
-	{
-		MaterialElement->SetBlendMode(/*EBlendMode::BLEND_Translucent*/2);
-		IDatasmithMaterialExpressionScalar* Scalar = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
-		Scalar->GetScalar() = (float) Transparency / 255.f;
-		MaterialElement->GetOpacity().SetExpression(Scalar);
-	}
-
-	// Set a Emissive color 
-	if (MaterialElement->GetEmissiveColor().GetExpression() == nullptr)
-	{
-		// Doc CT => TODO
-		//GLfloat Specular[4] = { specular.rgb[0] / 255., specular.rgb[1] / 255., specular.rgb[2] / 255., 1. - transparency };
-		//GLfloat Shininess[1] = { (float)(128 * shininess) };
-		//glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, Specular);
-		//glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, Shininess);
-
-		FColor Color((uint8)Specular[0], (uint8)Specular[1], (uint8)Specular[2], Transparency);
-		FLinearColor LinearColor = FLinearColor::FromPow22Color(Color);
-
-		IDatasmithMaterialExpressionColor* ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
-		ColorExpression->SetName(TEXT("Specular Color"));
-		ColorExpression->GetColor() = LinearColor;
-
-		MaterialElement->GetEmissiveColor().SetExpression(ColorExpression);
-	}
-
-	// Simple conversion of shininess and reflectivity to PBR roughness and metallic values; model could be improved to properly blend the values
-	if (Shininess != 0)
-	{
-		IDatasmithMaterialExpressionScalar* Scalar = static_cast<IDatasmithMaterialExpressionScalar*>(MaterialElement->AddMaterialExpression(EDatasmithMaterialExpressionType::ConstantScalar));
-		Scalar->GetScalar() = 1.f - Shininess/255.;
-		MaterialElement->GetRoughness().SetExpression(Scalar);
-	}
-
-	if (Reflexion != 0)
-	{
-		IDatasmithMaterialExpressionScalar* Scalar = static_cast<IDatasmithMaterialExpressionScalar*>(MaterialElement->AddMaterialExpression(EDatasmithMaterialExpressionType::ConstantScalar));
-		Scalar->GetScalar() = Reflexion;
-		MaterialElement->GetMetallic().SetExpression(Scalar);
-	}
-
-	return MaterialElement;
 }
 
 void FDatasmithSceneGraphBuilder::AddMetaData(TSharedPtr< IDatasmithActorElement > ActorElement, TMap<FString, FString>& InstanceNodeAttributeSetMap, TMap<FString, FString>& ReferenceNodeAttributeSetMap)
@@ -833,7 +487,9 @@ void FDatasmithSceneGraphBuilder::AddMetaData(TSharedPtr< IDatasmithActorElement
 		UnwantedAttributes.Add(TEXT("OriginalIdStr"));
 		UnwantedAttributes.Add(TEXT("ShowAttribute"));
 		UnwantedAttributes.Add(TEXT("Identification"));
-
+		UnwantedAttributes.Add(TEXT("MaterialId"));
+		UnwantedAttributes.Add(TEXT("ColorUEId"));
+		UnwantedAttributes.Add(TEXT("ColorId"));
 		return UnwantedAttributes;
 	};
 
@@ -844,7 +500,7 @@ void FDatasmithSceneGraphBuilder::AddMetaData(TSharedPtr< IDatasmithActorElement
 
 	for (auto& Attribute : ReferenceNodeAttributeSetMap)
 	{
-		if (UnwantedAttributes.Contains(*Attribute.Key))
+		if (UnwantedAttributes.Contains(Attribute.Key))
 		{
 			continue;
 		}
@@ -887,7 +543,7 @@ void FDatasmithSceneGraphBuilder::AddMetaData(TSharedPtr< IDatasmithActorElement
 		MetaDataRefElement->AddProperty(KeyValueProperty);
 	}
 
-	for (auto& Attribute : InstanceNodeAttributeSetMap)
+	for (const auto& Attribute : InstanceNodeAttributeSetMap)
 	{
 		if (UnwantedAttributes.Contains(*Attribute.Key))
 		{
@@ -908,39 +564,45 @@ void FDatasmithSceneGraphBuilder::AddMetaData(TSharedPtr< IDatasmithActorElement
 
 }
 
-void FDatasmithSceneGraphBuilder::LinkActor(TSharedPtr< IDatasmithActorElement > ParentActor, TSharedPtr< IDatasmithActorElement > Actor)
+bool FDatasmithSceneGraphBuilder::DoesActorHaveChildrenOrIsAStaticMesh(const TSharedPtr< IDatasmithActorElement >& ActorElement)
 {
-	if (Actor.IsValid())
+	if (ActorElement != nullptr)
 	{
-		if (ParentActor.IsValid())
+		if (ActorElement->GetChildrenCount() > 0)
 		{
-			ParentActor->AddChild(Actor);
+			return true;
 		}
-		else
+		else if (ActorElement->IsA(EDatasmithElementType::StaticMeshActor))
 		{
-			DatasmithScene->AddActor(Actor);
+			const TSharedPtr< IDatasmithMeshActorElement >& MeshActorElement = StaticCastSharedPtr< IDatasmithMeshActorElement >(ActorElement);
+			return FCString::Strlen(MeshActorElement->GetStaticMeshPathName()) > 0;
+		}
+	}
+	return false;
+}
+
+
+void FDatasmithSceneGraphBuilder::AddChildren(TSharedPtr< IDatasmithActorElement > Actor, CADLibrary::FArchiveComponent& Component, ActorData& ParentData)
+{
+	for (const int32 ChildId : Component.Children)
+	{
+		if (int32* ChildNodeIndex = CurrentMockUp->CADIdToInstanceIndex.Find(ChildId))
+		{
+			TSharedPtr< IDatasmithActorElement > ChildActor = BuildInstance(CurrentMockUp->Instances[*ChildNodeIndex], ParentData);
+			if (ChildActor.IsValid() && DoesActorHaveChildrenOrIsAStaticMesh(ChildActor))
+			{
+				Actor->AddChild(ChildActor);
+			}
+		}
+		if (int32* ChildNodeIndex = CurrentMockUp->CADIdToBodyIndex.Find(ChildId))
+		{
+			TSharedPtr< IDatasmithActorElement > ChildActor = BuildBody(CurrentMockUp->BodySet[*ChildNodeIndex], ParentData);
+			if (ChildActor.IsValid() && DoesActorHaveChildrenOrIsAStaticMesh(ChildActor))
+			{
+				Actor->AddChild(ChildActor);
+			}
 		}
 	}
 }
 
-void FDatasmithSceneGraphBuilder::AddChildren(TSharedPtr< IDatasmithActorElement > Actor, FCTNode& ComponentNode, const TCHAR* ParentUuid)
-{
-	TArray<int32> ChildrenIds;
-	ComponentNode.GetChildren(ChildrenIds);
-	for (const auto& ChildId : ChildrenIds)
-	{
-		FCTNode* ChildNode = ComponentNode.GetCTNode(ChildId);
-		if (ChildNode == nullptr)
-		{
-			continue;
-		}
-		TSharedPtr< IDatasmithActorElement > ChildActor = BuildNode(*ChildNode, ParentUuid);
-		if (ChildActor.IsValid())
-		{
-			Actor->AddChild(ChildActor);
-		}
-	}
-}
-
-
-#endif  // USE_CORETECH_MT_PARSER
+#endif // CAD_INTERFACE

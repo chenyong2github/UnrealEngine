@@ -12,7 +12,7 @@ ABandwidthTestActor::ABandwidthTestActor()
 {
 	bReplicates = true;
 	bAlwaysRelevant = true;
-	bReplicateMovement = false;
+	SetReplicatingMovement(false);
 
 	NetDormancy = DORM_Never;
 }

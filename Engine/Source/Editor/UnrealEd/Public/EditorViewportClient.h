@@ -95,6 +95,7 @@ public:
 	bool IsCtrlButtonEvent() const { return (Key == EKeys::LeftControl || Key == EKeys::RightControl); }
 	bool IsShiftButtonEvent() const { return (Key == EKeys::LeftShift || Key == EKeys::RightShift); }
 	bool IsAltButtonEvent() const { return (Key == EKeys::LeftAlt || Key == EKeys::RightAlt); }
+	bool IsCommandButtonEvent() const { return (Key == EKeys::LeftCommand || Key == EKeys::RightCommand); }
 
 	bool IsLeftMouseButtonPressed() const { return IsButtonPressed( EKeys::LeftMouseButton ); }
 	bool IsMiddleMouseButtonPressed() const { return IsButtonPressed( EKeys::MiddleMouseButton ); }
@@ -108,7 +109,9 @@ public:
 	bool IsAltButtonPressed() const { return !( IsAltButtonEvent() && InputEvent == IE_Released ) && ( IsButtonPressed( EKeys::LeftAlt ) || IsButtonPressed( EKeys::RightAlt ) ); }
 	bool IsShiftButtonPressed() const { return !( IsShiftButtonEvent() && InputEvent == IE_Released ) && ( IsButtonPressed( EKeys::LeftShift ) || IsButtonPressed( EKeys::RightShift ) ); }
 	bool IsCtrlButtonPressed() const { return !( IsCtrlButtonEvent() && InputEvent == IE_Released ) && ( IsButtonPressed( EKeys::LeftControl ) || IsButtonPressed( EKeys::RightControl ) ); }
+	bool IsCommandButtonPressed() const { return !(IsCommandButtonEvent() && InputEvent == IE_Released) &&  (IsButtonPressed( EKeys::LeftCommand ) || IsButtonPressed( EKeys::RightCommand ) ); }
 	bool IsSpaceBarPressed() const { return IsButtonPressed( EKeys::SpaceBar ); }
+
 private:
 	/** Viewport the event was sent to */
 	FViewport* Viewport;
@@ -263,6 +266,9 @@ private:
 	/** Ortho zoom amount */
 	float OrthoZoom;
 };
+
+/** Delegate for modifying view parameters of an editor viewport. */
+DECLARE_MULTICAST_DELEGATE_OneParam(FEditorViewportViewModifierDelegate, FMinimalViewInfo&);
 
 /** Viewport client for editor viewports. Contains common functionality for camera movement, rendering debug information, etc. */
 class UNREALED_API FEditorViewportClient : public FCommonViewportClient, public FViewElementDrawer, public FGCObject
@@ -1489,6 +1495,12 @@ public:
 	/** If true, draw vertices for selected BSP brushes and static meshes if the large vertices show flag is set. */
 	bool bDrawVertices;
 
+	/** List of view modifiers to apply on view parameters. */
+	FEditorViewportViewModifierDelegate ViewModifiers;
+
+	/** Whether view modifiers should be called and applied. */
+	bool bShouldApplyViewModifiers;
+
 protected:
 	/** Does this viewport client own the mode tools instance pointed at by ModeTools control the lifetime of it? */
 	bool bOwnsModeTools;
@@ -1545,10 +1557,10 @@ protected:
 	int32 CachedLastMouseY = 0;
 
 	/** True is the use is controling the light via a shorcut*/
-	bool bUserIsControllingSunLight0 = false;
-	bool bUserIsControllingSunLight1 = false;
-	float UserIsControllingSunLightTimer = 0.0f;
-	FTransform UserControlledSunLightMatrix;
+	bool bUserIsControllingAtmosphericLight0 = false;
+	bool bUserIsControllingAtmosphericLight1 = false;
+	float UserIsControllingAtmosphericLightTimer = 0.0f;
+	FTransform UserControlledAtmosphericLightMatrix;
 
 
 	// -1, -1 if not set

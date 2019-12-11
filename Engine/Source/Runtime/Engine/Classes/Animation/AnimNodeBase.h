@@ -12,6 +12,8 @@
 #include "BonePose.h"
 #include "Logging/TokenizedMessage.h"
 #include "Stats/StatsHierarchical.h"
+#include "Animation/AnimTrace.h"
+
 #include "AnimNodeBase.generated.h"
 
 #define DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Method) \
@@ -77,7 +79,7 @@ struct FAnimNodeTracker
 		Map.Reserve(Source.Map.Num());
 		for (const auto& Iter : Source.Map)
 		{
-			if (Iter.Value.Top())
+			if (Iter.Value.Num() != 0)
 			{
 				FNodeStack& Stack = Map.Add(Iter.Key);
 				Stack.Push(Iter.Value.Top());
@@ -152,10 +154,25 @@ public:
 	ENGINE_API UAnimBlueprint* GetAnimBlueprint() const;
 #endif //WITH_EDITORONLY_DATA
 
+#if ANIM_TRACE_ENABLED
+	// Get the current node Id, set when we recurse into graph traversal functions from pose links
+	ENGINE_API int32 GetCurrentNodeId() const { return CurrentNodeId; }
+
+	// Get the previous node Id, set when we recurse into graph traversal functions from pose links
+	ENGINE_API int32 GetPreviousNodeId() const { return PreviousNodeId; }
+
+protected:
+	// The current node ID, set when we recurse into graph traversal functions from pose links
+	int32 CurrentNodeId;
+
+	// The previous node ID, set when we recurse into graph traversal functions from pose links
+	int32 PreviousNodeId;
+#endif
+
 protected:
 
 	/** Interface for node contexts to register log messages with the proxy */
-	ENGINE_API void LogMessageInternal(FName InLogType, EMessageSeverity::Type InSeverity, FText InMessage);
+	ENGINE_API void LogMessageInternal(FName InLogType, EMessageSeverity::Type InSeverity, FText InMessage) const;
 };
 
 
@@ -271,6 +288,16 @@ public:
 		return Result;
 	}
 
+#if ANIM_TRACE_ENABLED
+	FAnimationUpdateContext WithNodeId(int32 InNodeId) const
+	{ 
+		FAnimationUpdateContext Result(*this);
+		Result.PreviousNodeId = CurrentNodeId;
+		Result.CurrentNodeId = InNodeId;
+		return Result; 
+	}
+#endif
+
 	// Add a node to the list of tracked ancestors
 	template<typename NodeType>
 	FScopedAnimNodeTracker TrackAncestor(NodeType* Node) const
@@ -313,7 +340,7 @@ public:
 	float GetDeltaTime() const { return DeltaTime; }
 
 	// Log update message
-	void LogMessage(EMessageSeverity::Type InSeverity, FText InMessage) { LogMessageInternal("Update", InSeverity, InMessage); }
+	void LogMessage(EMessageSeverity::Type InSeverity, FText InMessage) const { LogMessageInternal("Update", InSeverity, InMessage); }
 };
 
 
@@ -345,7 +372,7 @@ public:
 	ENGINE_API void Initialize(FAnimInstanceProxy* InAnimInstanceProxy);
 
 	// Log evaluation message
-	void LogMessage(EMessageSeverity::Type InSeverity, FText InMessage) { LogMessageInternal("Evaluate", InSeverity, InMessage); }
+	void LogMessage(EMessageSeverity::Type InSeverity, FText InMessage) const { LogMessageInternal("Evaluate", InSeverity, InMessage); }
 
 	void ResetToRefPose()
 	{

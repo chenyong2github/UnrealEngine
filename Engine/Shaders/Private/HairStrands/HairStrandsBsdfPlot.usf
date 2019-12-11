@@ -1,0 +1,121 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#define HAIR_CUSTOM_BSDF 1
+
+#include "../Common.ush"
+#include "../SceneTexturesCommon.ush"
+#include "../ShadingModels.ush"
+#include "../DeferredShadingCommon.ush"
+#include "../HairBsdf.ush"
+#include "HairStrandsVisibilityCommon.ush"
+#include "HairStrandsEnvironmentLightingCommon.ush"
+
+int2 InputCoord;
+int2 OutputOffset;
+int2 OutputResolution;
+int2 MaxResolution;
+uint HairComponents;
+float Roughness;
+float BaseColor;
+float Exposure;
+
+RWTexture2D<float4> OutputTexture;
+
+#define COMPARE_ROUGHNESS 0
+
+#if COMPARE_ROUGHNESS
+float DefaultLit(float3 N, float3 V, float3 L, float InRoughnesss)
+{
+	FGBufferData GBuffer;
+	GBuffer.Roughness = InRoughnesss;
+	GBuffer.SpecularColor = 1;
+	GBuffer.DiffuseColor = 0;
+
+	FAreaLight AreaLight;
+	AreaLight.bIsRect = false;
+	AreaLight.FalloffColor = 1;
+	AreaLight.SphereSinAlpha = 0;
+	AreaLight.SphereSinAlphaSoft = 0;
+	AreaLight.LineCosSubtended = 1;
+	FShadowTerms Shadow;
+
+	if (dot(V,N) < 0)
+		V.z = -V.z;
+
+	const float NoL = saturate(dot(N, L));
+	const float3 Fs = DefaultLitBxDF(GBuffer, N, V, L, 1, NoL, AreaLight, Shadow).Specular;
+	return Fs.x;
+}
+#endif
+
+void MainPS(
+	in FScreenVertexOutput Input,
+	out float4 OutColor : SV_Target0)
+{
+	const int2 PixelCoord = Input.Position.xy;
+	if (PixelCoord.x < OutputOffset.x || PixelCoord.x >= OutputOffset.x+OutputResolution.x ||
+		PixelCoord.y < OutputOffset.y || PixelCoord.y >= OutputOffset.x+OutputResolution.y )
+		discard;
+
+	const float2 UV = ((PixelCoord-OutputOffset) + float2(0.5f,0.5f)) / float2(OutputResolution);
+	const float2 InputUV = saturate(float2(InputCoord - OutputOffset) / float2(OutputResolution));
+
+	float V_Phi   = (UV.x*2-1) * PI; //[-Pi..Pi]
+	float V_Theta = (UV.y*2-1) * PI * 0.5f;
+	float L_Phi   = (InputUV.x*2-1) * PI; //[-Pi..Pi]
+	float L_Theta = (InputUV.y*2-1) * PI * 0.5f;
+
+	const float3 Axis_U = float3(0,0,1); // Tangent
+	const float3 Axis_V = float3(1,0,0); // Perp. to the view direction
+	const float3 Axis_W = float3(0,1,0); // Ortho.
+
+	const float3 L_Local = float3(sin(L_Theta), cos(L_Theta)*cos(L_Phi), cos(L_Theta)*sin(L_Phi));
+	const float3 V_Local = float3(sin(V_Theta), cos(V_Theta)*cos(V_Phi), cos(V_Theta)*sin(V_Phi));
+	const float3 T 		 = float3(1,0,0);
+
+	const float3 V_World = 
+		V_Local.x * Axis_U + 
+		V_Local.y * Axis_V + 
+		V_Local.z * Axis_W;
+
+	FHairTransmittanceData TransmittanceData = (FHairTransmittanceData)0;
+	TransmittanceData.LocalScattering = 0;
+	TransmittanceData.GlobalScattering = 1;
+	TransmittanceData.ScatteringComponent = HairComponents;
+	TransmittanceData.OpaqueVisibility = 1;
+
+	FGBufferData HairGBuffer = (FGBufferData)0;
+	HairGBuffer.WorldNormal = T;
+	HairGBuffer.BaseColor = BaseColor.xxx;
+	HairGBuffer.Roughness = Roughness;
+	HairGBuffer.ShadingModelID = SHADINGMODELID_HAIR;
+	HairGBuffer.DiffuseColor = 0;
+	HairGBuffer.SpecularColor = 0;
+	HairGBuffer.Specular = 0.5f;
+	HairGBuffer.Metallic = 0;
+	HairGBuffer.Depth = 0.5f;
+	HairGBuffer.GBufferAO = 1;
+	HairGBuffer.CustomData = 0;
+	HairGBuffer.IndirectIrradiance = 1000000;
+
+	OutColor = float4(0,0,0,1);
+
+#if COMPARE_ROUGHNESS
+	const float3 Fs_Lit_R   = DefaultLit(float3(0, 0,-1), V_Local, L_Local, HairToGGXRoughness_R  (HairGBuffer.Roughness));
+	const float3 Fs_Lit_TT  = DefaultLit(float3(0, 0,-1), V_Local, L_Local, HairToGGXRoughness_TT (HairGBuffer.Roughness));
+	const float3 Fs_Lit_TRT = DefaultLit(float3(0, 0,-1), V_Local, L_Local, HairToGGXRoughness_TRT(HairGBuffer.Roughness));
+#endif
+	const float3 Fs_Hair    = HairShading(HairGBuffer, L_Local, V_Local, T, 1, TransmittanceData, 1, 0, uint2(0,0) );
+
+#if COMPARE_ROUGHNESS
+	OutColor.xyz += Fs_Lit_R   * float3(1, 0, 0);
+	OutColor.xyz += Fs_Lit_TRT * float3(0, 1, 1);
+	OutColor.xyz += Fs_Lit_TT  * float3(0, 0, 1);
+#endif
+	OutColor.xyz += Fs_Hair    * float3(0, 1, 0);
+	OutColor.xyz *= Exposure;
+
+	//const float3 ColorV = (V_World+1)* 0.5f;
+	//OutColor = float4(ColorV, 1);
+	//OutColor = float4(UV, 0, 1);
+}

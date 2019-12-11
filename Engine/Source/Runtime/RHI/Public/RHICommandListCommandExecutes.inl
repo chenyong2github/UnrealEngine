@@ -568,14 +568,7 @@ template<ECmdList CmdListType>
 void FRHICommandBuildAccelerationStructure<CmdListType>::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(BuildAccelerationStructure);
-	if (Geometry)
-	{
-		INTERNAL_DECORATOR_CONTEXT(RHIBuildAccelerationStructure)(Geometry);
-	}
-	else
-	{
-		INTERNAL_DECORATOR_CONTEXT(RHIBuildAccelerationStructure)(Scene);
-	}
+	INTERNAL_DECORATOR_CONTEXT(RHIBuildAccelerationStructure)(Scene);
 }
 
 template struct FRHICommandBuildAccelerationStructure<ECmdList::EGfx>;
@@ -588,20 +581,10 @@ void FRHICommandClearRayTracingBindings::Execute(FRHICommandListBase& CmdList)
 }
 
 template<ECmdList CmdListType>
-void FRHICommandUpdateAccelerationStructures<CmdListType>::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(UpdateAccelerationStructure);
-	INTERNAL_DECORATOR_CONTEXT(RHIUpdateAccelerationStructures)(UpdateParams);
-}
-
-template struct FRHICommandUpdateAccelerationStructures<ECmdList::EGfx>;
-template struct FRHICommandUpdateAccelerationStructures<ECmdList::ECompute>;
-
-template<ECmdList CmdListType>
 void FRHICommandBuildAccelerationStructures<CmdListType>::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(BuildAccelerationStructure);
-	INTERNAL_DECORATOR_CONTEXT(RHIBuildAccelerationStructures)(UpdateParams);
+	INTERNAL_DECORATOR_CONTEXT(RHIBuildAccelerationStructures)(Params);
 }
 
 template struct FRHICommandBuildAccelerationStructures<ECmdList::EGfx>;

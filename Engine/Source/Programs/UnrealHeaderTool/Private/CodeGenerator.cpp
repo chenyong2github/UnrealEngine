@@ -75,6 +75,8 @@ FCompilerMetadataManager GScriptHelper;
 /** C++ name lookup helper */
 FNameLookupCPP NameLookupCPP;
 
+bool HasIdentifierExactMatch(const TCHAR* StringBegin, const TCHAR* StringEnd, const FString& Find);
+
 namespace
 {
 	static FString AsTEXT(FString InStr)
@@ -138,6 +140,127 @@ namespace
 
 	/** Guard that should be put at the end of editor only generated code */
 	const TCHAR EndEditorOnlyGuard[] = TEXT("#endif //WITH_EDITOR") LINE_TERMINATOR;
+
+	/** Whether or not the given class has any replicated properties. */
+	static bool ClassHasReplicatedProperties(UClass* Class)
+	{
+		for (TFieldIterator<UProperty> It(Class, EFieldIteratorFlags::ExcludeSuper); It; ++It)
+		{
+			if ((It->PropertyFlags & CPF_Net) != 0)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	static void ExportNetData(FOutputDevice& Out, UClass* Class, UClass* ParentRepClass)
+	{
+		const TArray<FRepRecord>& ClassReps = Class->ClassReps;
+		
+		const FString ClassName = FString::Printf(TEXT("%s%s"), Class->GetPrefixCPP(), *Class->GetName());
+		const FString ParentClassName = ParentRepClass ? FString::Printf(TEXT("%s%s"), ParentRepClass->GetPrefixCPP(), *ParentRepClass->GetName()) : FString();
+		const FString NetfieldStart = ParentRepClass ? FString::Printf(TEXT("(uint16)%s::ENetFields_Private::NETFIELD_REP_END + (uint16)1"), *ParentClassName, *ParentClassName) : FString(TEXT("0"));
+
+		FUHTStringBuilder NetFieldBuilder;
+		NetFieldBuilder.Logf(TEXT(""
+		"\tenum class ENetFields_Private : uint16\r\n"
+		"\t{\r\n"
+		"\t\tNETFIELD_REP_START=%s,\r\n"), *NetfieldStart);
+
+		FUHTStringBuilder ArrayDimBuilder;
+
+		bool bAnyStaticArrays = false;
+		bool bIsFirst = true;
+		for (int32 ClassRepIndex = ClassReps.Num() - Class->NetFields.Num(); ClassRepIndex < ClassReps.Num(); ++ClassRepIndex)
+		{
+			const FRepRecord& ClassRep = ClassReps[ClassRepIndex];
+			const FString& PropertyName = ClassRep.Property->GetName();
+
+			if (ClassRep.Property->ArrayDim == 1)
+			{
+				if (UNLIKELY(bIsFirst))
+				{
+					NetFieldBuilder.Logf(TEXT("\t\t%s=NETFIELD_REP_START,\r\n"), *PropertyName);
+					bIsFirst = false;
+				}
+				else
+				{
+					NetFieldBuilder.Logf(TEXT("\t\t%s,\r\n"), *PropertyName);
+				}
+			}
+			else
+			{
+				bAnyStaticArrays = true;
+				ArrayDimBuilder.Logf(TEXT("\t\t%s=%s,\r\n"), *PropertyName, *GArrayDimensions.FindChecked(ClassReps[ClassRepIndex].Property));
+
+				if (UNLIKELY(bIsFirst))
+				{
+					NetFieldBuilder.Logf(TEXT("\t\t%s_STATIC_ARRAY=NETFIELD_REP_START,\r\n"), *PropertyName);
+					bIsFirst = false;
+				}
+				else
+				{
+					NetFieldBuilder.Logf(TEXT("\t\t%s_STATIC_ARRAY,\r\n"), *PropertyName);
+				}
+
+				NetFieldBuilder.Logf(TEXT("\t\t%s_STATIC_ARRAY_END=((uint16)%s_STATIC_ARRAY + (uint16)EArrayDims_Private::%s - (uint16)1),\r\n"), *PropertyName, *PropertyName, *PropertyName);
+			}
+		}
+
+		const UProperty* LastProperty = ClassReps.Last().Property;
+		const FString NetfieldEnd = LastProperty->ArrayDim > 1 ?
+			FString::Printf(TEXT("\t\tNETFIELD_REP_END=%s_STATIC_ARRAY_END,\r\n"), *LastProperty->GetName()) :
+			FString::Printf(TEXT("\t\tNETFIELD_REP_END=%s,\r\n"), *LastProperty->GetName());
+
+		NetFieldBuilder.Log(*NetfieldEnd);
+
+		NetFieldBuilder.Log(TEXT("\t};"));
+
+		if (bAnyStaticArrays)
+		{
+			Out.Logf(TEXT(""
+				"\tenum class EArrayDims_Private : uint16\r\n"
+				"\t{\r\n"
+				"%s"
+				"\t};\r\n"), *ArrayDimBuilder);
+		}
+
+		Out.Logf(TEXT(""
+			"%s\r\n" // NetFields
+			"\tvirtual void ValidateGeneratedRepEnums(const TArray<struct FRepRecord>& ClassReps) const override;\r\n"),
+			*NetFieldBuilder);
+	}
+
+	static void WriteReplicatedMacroData(
+		const ClassDefinitionRange& ClassRange,
+		const TCHAR* ClassCPPName,
+		FClass* Class,
+		FClass* SuperClass,
+		FOutputDevice& Writer,
+		const FUnrealSourceFile& SourceFile)
+	{
+		const bool bHasGetLifetimeReplicatedProps = HasIdentifierExactMatch(ClassRange.Start, ClassRange.End, TEXT("GetLifetimeReplicatedProps"));
+
+		if (!bHasGetLifetimeReplicatedProps)
+		{
+			// Default version autogenerates declarations.
+			if (SourceFile.GetGeneratedCodeVersionForStruct(Class) == EGeneratedCodeVersion::V1)
+			{
+				Writer.Logf(TEXT("\tvoid GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;\r\n"));
+			}
+			else
+			{
+				FError::Throwf(TEXT("Class %s has Net flagged properties and should declare member function: void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override"), ClassCPPName);
+			}
+		}
+
+		UClass* ParentRepClass = nullptr;
+		Class->SetUpUhtReplicationData(&ParentRepClass);
+
+		ExportNetData(Writer, Class, ParentRepClass);
+	}
 }
 
 #define BEGIN_WRAP_EDITOR_ONLY(DoWrap) DoWrap ? BeginEditorOnlyGuard : TEXT("")
@@ -766,14 +889,16 @@ private:
 	{
 		check(Item);
 
-		FString Suffix;
+		bool bNoRegister = false;
 		if (UClass* ItemClass = Cast<UClass>(Item))
 		{
 			if (!bRequiresValidObject && !ItemClass->HasAllClassFlags(CLASS_Intrinsic))
 			{
-				Suffix = TEXT("_NoRegister");
+				bNoRegister = true;
 			}
 		}
+
+		const TCHAR* Suffix = (bNoRegister ? TEXT("_NoRegister") : TEXT(""));
 
 		FString Result;
 		for (UObject* Outer = Item; Outer; Outer = Outer->GetOuter())
@@ -785,8 +910,8 @@ private:
 
 			if (Cast<UClass>(Outer) || Cast<UScriptStruct>(Outer))
 			{
-				FString OuterName = NameLookupCPP.GetNameCPP(Cast<UStruct>(Outer));
-				Result = OuterName + Result;
+				const TCHAR* OuterName = NameLookupCPP.GetNameCPP(Cast<UStruct>(Outer));
+				Result = FString::Printf(TEXT("%s%s"), OuterName, *Result);
 
 				// Structs can also have UPackage outer.
 				if (Cast<UClass>(Outer) || Cast<UPackage>(Outer->GetOuter()))
@@ -806,8 +931,8 @@ private:
 			Result = FPackageName::GetShortName(Result);
 		}
 
-		FString ClassString = NameLookupCPP.GetNameCPP(Item->GetClass());
-		return FString(TEXT("Z_Construct_")) + ClassString + TEXT("_") + Result + Suffix + TEXT("()");
+		const TCHAR* ClassString = NameLookupCPP.GetNameCPP(Item->GetClass());
+		return FString::Printf(TEXT("Z_Construct_%s_%s%s()"), ClassString, *Result, Suffix);
 	}
 };
 
@@ -817,7 +942,8 @@ FString FNativeClassHeaderGenerator::GetSingletonName(UField* Item, bool bRequir
 
 	FString Result = Cache.GetName();
 
-	if (UniqueCrossModuleReferences)
+	// We don't need to export UFunction externs, though we may need the externs for UDelegateFunctions
+	if (UniqueCrossModuleReferences && (!Item->IsA<UFunction>() || Item->IsA<UDelegateFunction>()))
 	{
 		const FString& Extern = Cache.GetExternDecl();
 		UniqueCrossModuleReferences->Add(*Extern);
@@ -1826,9 +1952,9 @@ static TArray<UScriptStruct*> FindNoExportStructs(UStruct* Start)
 
 FString FNativeClassHeaderGenerator::GetPackageSingletonName(const UPackage* InPackage)
 {
-	static FString ClassString = NameLookupCPP.GetNameCPP(UPackage::StaticClass());
+	const TCHAR* ClassString = NameLookupCPP.GetNameCPP(UPackage::StaticClass());
 
-	FString Result = TEXT("Z_Construct_") + ClassString + TEXT("_") + InPackage->GetName().Replace(TEXT("/"), TEXT("_")) + TEXT("()");
+	FString Result = FString::Printf(TEXT("Z_Construct_%s_%s()"), ClassString, *InPackage->GetName().Replace(TEXT("/"), TEXT("_")));
 
 	if (UniqueCrossModuleReferences)
 	{
@@ -1849,8 +1975,8 @@ void FNativeClassHeaderGenerator::ExportGeneratedPackageInitCode(FOutputDevice& 
 		for (UField* ScriptType : *SingletonsToOutput)
 		{
 			Out.Log(FTypeSingletonCache::Get(ScriptType, true).GetExternDecl());
-			}
 		}
+	}
 
 	FOutputDeviceNull OutputDeviceNull;
 	FString MetaDataParams = OutputMetaDataCodeForObject(OutputDeviceNull, Out, InPackage, TEXT("Package_MetaDataParams"), TEXT(""), TEXT("\t\t\t"));
@@ -2016,12 +2142,6 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 
 				if (!Function->IsA<UDelegateFunction>())
 				{
-					OutDeclarations.Logf(
-						TEXT("%s%s%s"),
-						BEGIN_WRAP_EDITOR_ONLY(bIsEditorOnlyFunction),
-						*FTypeSingletonCache::Get(Function).GetExternDecl(),
-						END_WRAP_EDITOR_ONLY(bIsEditorOnlyFunction)
-					);
 					ExportFunction(Out, SourceFile, Function, bIsNoExport);
 				}
 
@@ -2163,7 +2283,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 
 		TArray<FString> SparseClassDataTypes;
 		((FClass*)Class)->GetSparseClassDataTypes(SparseClassDataTypes);
-		ensureMsgf(SparseClassDataTypes.Num() <= 1, TEXT("We don't currently support multiple sparse class data structures on a single object."));
+		
 		for (const FString& SparseClassDataString : SparseClassDataTypes)
 		{
 			GeneratedClassRegisterFunctionText.Logf(TEXT("\t\t\tOuterClass->SetSparseClassDataStruct(F%s::StaticStruct());\r\n"), *SparseClassDataString);
@@ -2212,6 +2332,24 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 	}
 	GeneratedClassRegisterFunctionText.Logf(TEXT("\r\n// %u\r\n"), BaseClassHash);
 
+	// Append info for the sparse class data struct onto the text to be hashed
+	TArray<FString> SparseClassDataTypes;
+	((FClass*)Class)->GetSparseClassDataTypes(SparseClassDataTypes);
+
+	for (const FString& SparseClassDataString : SparseClassDataTypes)
+	{
+		UScriptStruct* SparseClassDataStruct = FindObjectSafe<UScriptStruct>(ANY_PACKAGE, *SparseClassDataString);
+		if (!SparseClassDataStruct)
+		{
+			continue;
+		}
+		GeneratedClassRegisterFunctionText.Logf(TEXT("%s\r\n"), *SparseClassDataStruct->GetName());
+		for (UProperty* Child : TFieldRange<UProperty>(SparseClassDataStruct))
+		{
+			GeneratedClassRegisterFunctionText.Logf(TEXT("%s %s\r\n"), *Child->GetCPPType(), *Child->GetNameCPP());
+		}
+	}
+
 	// Calculate generated class initialization code hash so that we know when it changes after hot-reload
 	uint32 ClassHash = GenerateTextHash(*GeneratedClassRegisterFunctionText);
 	GGeneratedCodeHashes.Add(Class, ClassHash);
@@ -2240,6 +2378,49 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 		bIsDynamic ? *AsTEXT(FClass::GetTypePackageName(Class)) : TEXT("nullptr"),
 		bIsDynamic ? *AsTEXT(FNativeClassHeaderGenerator::GetOverriddenPathName(Class)) : TEXT("nullptr"),
 		*InitSearchableValuesFunctionParam);
+
+
+	if (ClassHasReplicatedProperties(Class))
+	{
+		Class->SetUpUhtReplicationData(nullptr);
+
+		Out.Logf(TEXT(
+			"\r\n"
+			"\tvoid %s::ValidateGeneratedRepEnums(const TArray<struct FRepRecord>& ClassReps) const\r\n"
+			"\t{\r\n"
+		), ClassNameCPP, ClassNameCPP);
+
+		FUHTStringBuilder NameBuilder;
+
+		FUHTStringBuilder ValidationBuilder;
+		ValidationBuilder.Log(TEXT("\t\tconst bool bIsValid = true"));
+
+		for (int32 i = Class->ClassReps.Num() - Class->NetFields.Num(); i < Class->ClassReps.Num(); ++i)
+		{
+			const UProperty* const Property = Class->ClassReps[i].Property;
+			const FString& PropertyName = Property->GetName();
+
+			NameBuilder.Logf(TEXT("\t\tstatic const FName Name_%s(TEXT(\"%s\"));\r\n"), *PropertyName, *PropertyName);
+
+			if (Property->ArrayDim == 1)
+			{
+				ValidationBuilder.Logf(TEXT("\r\n\t\t\t&& Name_%s == ClassReps[(int32)ENetFields_Private::%s].Property->GetFName()"), *PropertyName, *PropertyName);
+			}
+			else
+			{
+				ValidationBuilder.Logf(TEXT("\r\n\t\t\t&& Name_%s == ClassReps[(int32)ENetFields_Private::%s_STATIC_ARRAY].Property->GetFName()"), *PropertyName, *PropertyName);
+			}
+		}
+
+		ValidationBuilder.Log(TEXT(";\r\n"));
+
+		Out.Logf(TEXT(
+			"%s\r\n" // NameBuilder
+			"%s\r\n" // ValidationBuilder
+			"\t\tcheckf(bIsValid, TEXT(\"UHT Generated Rep Indices do not match runtime populated Rep Indices for properties in %s\"));\r\n"
+			"\t}\r\n"
+		), *NameBuilder, *ValidationBuilder, ClassNameCPP);
+	}
 }
 
 void FNativeClassHeaderGenerator::ExportFunction(FOutputDevice& Out, const FUnrealSourceFile& SourceFile, UFunction* Function, bool bIsNoExport)
@@ -2649,7 +2830,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 	// C++ -> VM stubs (native function execs)
 	FUHTStringBuilder ClassMacroCalls;
 	FUHTStringBuilder ClassNoPureDeclsMacroCalls;
-	ExportNativeFunctions(OutGeneratedHeaderText, ClassMacroCalls, ClassNoPureDeclsMacroCalls, SourceFile, Class, ClassData);
+	ExportNativeFunctions(OutGeneratedHeaderText, OutCpp, ClassMacroCalls, ClassNoPureDeclsMacroCalls, SourceFile, Class, ClassData);
 
 	// Get Callback functions
 	TArray<UFunction*> CallbackFunctions;
@@ -2720,15 +2901,6 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 	FString PPOMacroName;
 
 	// Replication, add in the declaration for GetLifetimeReplicatedProps() automatically if there are any net flagged properties
-	bool bNeedsRep = false;
-	for (TFieldIterator<UProperty> It(Class, EFieldIteratorFlags::ExcludeSuper); It; ++It)
-	{
-		if ((It->PropertyFlags & CPF_Net) != 0)
-		{
-			bNeedsRep = true;
-			break;
-		}
-	}
 
 	ClassDefinitionRange ClassRange;
 	if (ClassDefinitionRange* FoundRange = ClassDefinitionRanges.Find(Class))
@@ -2780,8 +2952,6 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 
 		GeneratedSerializeFunctionCPP = BoilerPlateCPP;
 	}
-
-	bool bHasGetLifetimeReplicatedProps = HasIdentifierExactMatch(ClassRange.Start, ClassRange.End, TEXT("GetLifetimeReplicatedProps"));
 
 	{
 		FUHTStringBuilder Boilerplate;
@@ -2890,16 +3060,9 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 				InterfaceBoilerplate.Logf(TEXT("\tvirtual UObject* _getUObject() const { check(0 && \"Missing required implementation.\"); return nullptr; }\r\n"));
 			}
 
-			if (bNeedsRep && !bHasGetLifetimeReplicatedProps)
+			if (ClassHasReplicatedProperties(Class))
 			{
-				if (SourceFile.GetGeneratedCodeVersionForStruct(Class) == EGeneratedCodeVersion::V1)
-				{
-					InterfaceBoilerplate.Logf(TEXT("\tvoid GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;\r\n"));
-				}
-				else
-				{
-					FError::Throwf(TEXT("Class %s has Net flagged properties and should declare member function: void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override"), ClassCPPName);
-				}
+				WriteReplicatedMacroData(ClassRange, ClassCPPName, Class, SuperClass, InterfaceBoilerplate, SourceFile);
 			}
 
 			FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(ClassData, TEXT("_INCLASS_IINTERFACE_NO_PURE_DECLS"));
@@ -2924,18 +3087,11 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 				Boilerplate.Logf(TEXT("\tvirtual UObject* _getUObject() const override { return const_cast<%s*>(this); }\r\n"), ClassCPPName);
 			}
 
-			if (bNeedsRep && !bHasGetLifetimeReplicatedProps)
+			if (ClassHasReplicatedProperties(Class))
 			{
-				// Default version autogenerates declarations.
-				if (SourceFile.GetGeneratedCodeVersionForStruct(Class) == EGeneratedCodeVersion::V1)
-				{
-					Boilerplate.Logf(TEXT("\tvoid GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;\r\n"));
-				}
-				else
-				{
-					FError::Throwf(TEXT("Class %s has Net flagged properties and should declare member function: void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override"), ClassCPPName);
-				}
+				WriteReplicatedMacroData(ClassRange, ClassCPPName, Class, SuperClass, Boilerplate, SourceFile);
 			}
+
 			{
 				FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(ClassData, TEXT("_INCLASS_NO_PURE_DECLS"));
 				WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, Boilerplate);
@@ -4425,7 +4581,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctionHeader(
 	FString FunctionName;
 	if (FunctionHeaderStyle == EExportFunctionHeaderStyle::Definition)
 	{
-		FunctionName = FString(NameLookupCPP.GetNameCPP(CastChecked<UClass>(Function->GetOuter()), bIsInterface || FunctionType == EExportFunctionType::Interface)) + TEXT("::");
+		FunctionName = FString::Printf(TEXT("%s::"), NameLookupCPP.GetNameCPP(CastChecked<UClass>(Function->GetOuter()), bIsInterface || FunctionType == EExportFunctionType::Interface));
 	}
 
 	if (FunctionType == EExportFunctionType::Interface)
@@ -4770,18 +4926,19 @@ FString FNativeClassHeaderGenerator::GetFunctionParameterString(UFunction* Funct
 struct FNativeFunctionStringBuilder
 {
 	FUHTStringBuilder RPCWrappers;
+	FUHTStringBuilder RPCImplementations;
 	FUHTStringBuilder AutogeneratedBlueprintFunctionDeclarations;
 	FUHTStringBuilder AutogeneratedBlueprintFunctionDeclarationsOnlyNotDeclared;
 	FUHTStringBuilder AutogeneratedStaticData;
 	FUHTStringBuilder AutogeneratedStaticDataFuncs;
 };
 
-void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& OutMacroCalls, FOutputDevice& OutNoPureDeclsMacroCalls, const FUnrealSourceFile& SourceFile, UClass* Class, FClassMetaData* ClassData)
+void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& OutGeneratedCPPText, FOutputDevice& OutMacroCalls, FOutputDevice& OutNoPureDeclsMacroCalls, const FUnrealSourceFile& SourceFile, UClass* Class, FClassMetaData* ClassData)
 {
 	FNativeFunctionStringBuilder RuntimeStringBuilders;
 	FNativeFunctionStringBuilder EditorStringBuilders;
 
-	FString ClassName = Class->GetName();
+	const TCHAR* ClassCPPName = NameLookupCPP.GetNameCPP(Class, Class->HasAnyClassFlags(CLASS_Interface));
 
 	ClassDefinitionRange ClassRange;
 	if (ClassDefinitionRanges.Contains(Class))
@@ -4796,12 +4953,6 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 	FString FullClassName = ((FClass*)Class)->GetNameWithPrefix();
 	for (const FString& SparseClassDataString : SparseClassDataTypes)
 	{
-		RuntimeStringBuilders.AutogeneratedStaticData += TEXT("virtual void* CreateSparseClassData() override\r\n");
-		RuntimeStringBuilders.AutogeneratedStaticData += TEXT("{\r\n");
-		RuntimeStringBuilders.AutogeneratedStaticData.Logf(TEXT("\tvoid* SparseClassDataObj = new F%s;\r\n"), *SparseClassDataString);
-		RuntimeStringBuilders.AutogeneratedStaticData.Logf(TEXT("\treturn SparseClassDataObj;\r\n"), *SparseClassDataString);
-		RuntimeStringBuilders.AutogeneratedStaticData += TEXT("}\r\n");
-
 		RuntimeStringBuilders.AutogeneratedStaticData.Logf(TEXT("F%s* Get%s()\r\n"), *SparseClassDataString, *SparseClassDataString);
 		RuntimeStringBuilders.AutogeneratedStaticData += TEXT("{\r\n");
 		RuntimeStringBuilders.AutogeneratedStaticData.Logf(TEXT("\treturn (F%s*)(GetClass()->GetOrCreateSparseClassData());\r\n"), *SparseClassDataString);
@@ -4942,8 +5093,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 			// Versions that skip function autodeclaration throw an error when a function is missing.
 			if (ClassRange.bHasGeneratedBody && (SourceFile.GetGeneratedCodeVersionForStruct(Class) > EGeneratedCodeVersion::V1))
 			{
-				FString Name = Class->HasAnyClassFlags(CLASS_Interface) ? TEXT("I") + ClassName : FString(NameLookupCPP.GetNameCPP(Class));
-				CheckRPCFunctions(FunctionData, *Name, ImplementationPosition, ValidatePosition, SourceFile);
+				CheckRPCFunctions(FunctionData, ClassCPPName, ImplementationPosition, ValidatePosition, SourceFile);
 			}
 		}
 
@@ -4957,13 +5107,14 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 		}
 
 		// export the script wrappers
-		FuncStringBuilders.RPCWrappers.Logf(TEXT("\tDECLARE_FUNCTION(%s)"), *FunctionData.UnMarshallAndCallName);
-		FuncStringBuilders.RPCWrappers += LINE_TERMINATOR TEXT("\t{") LINE_TERMINATOR;
+		FuncStringBuilders.RPCWrappers.Logf(TEXT("\tDECLARE_FUNCTION(%s);"), *FunctionData.UnMarshallAndCallName);
+		FuncStringBuilders.RPCImplementations.Logf(TEXT("\tDEFINE_FUNCTION(%s::%s)"), ClassCPPName, *FunctionData.UnMarshallAndCallName);
+		FuncStringBuilders.RPCImplementations += LINE_TERMINATOR TEXT("\t{") LINE_TERMINATOR;
 
 		FParmsAndReturnProperties Parameters = GetFunctionParmsAndReturn(FunctionData.FunctionReference);
-		ExportFunctionThunk(FuncStringBuilders.RPCWrappers, Function, FunctionData, Parameters.Parms, Parameters.Return);
+		ExportFunctionThunk(FuncStringBuilders.RPCImplementations, Function, FunctionData, Parameters.Parms, Parameters.Return);
 
-		FuncStringBuilders.RPCWrappers += TEXT("\t}") LINE_TERMINATOR;
+		FuncStringBuilders.RPCImplementations += TEXT("\t}") LINE_TERMINATOR;
 	}
 
 	// static class data
@@ -4978,6 +5129,13 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 	// Write runtime wrappers
 	{
 		FString MacroName = SourceFile.GetGeneratedMacroName(ClassData, TEXT("_RPC_WRAPPERS"));
+
+		// WriteMacro has an assumption about what will be at the end of this block that is no longer true due to splitting the
+		// definition and implementation, so add on a line terminator to satisfy it
+		if (RuntimeStringBuilders.RPCWrappers.Len() > 0)
+		{
+			RuntimeStringBuilders.RPCWrappers += LINE_TERMINATOR;
+		}
 
 		WriteMacro(OutGeneratedHeaderText, MacroName, RuntimeStringBuilders.AutogeneratedBlueprintFunctionDeclarations + RuntimeStringBuilders.RPCWrappers);
 		OutMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
@@ -4994,6 +5152,8 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 		}
 
 		OutNoPureDeclsMacroCalls.Logf(TEXT("\t%s\r\n"), *NoPureDeclsMacroName);
+
+		OutGeneratedCPPText.Log(RuntimeStringBuilders.RPCImplementations);
 	}
 
 	// Write editor only RPC wrappers if they exist
@@ -5003,6 +5163,12 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 
 		FString MacroName = SourceFile.GetGeneratedMacroName(ClassData, TEXT("_EDITOR_ONLY_RPC_WRAPPERS"));
 
+		// WriteMacro has an assumption about what will be at the end of this block that is no longer true due to splitting the
+		// definition and implementation, so add on a line terminator to satisfy it
+		if (EditorStringBuilders.RPCWrappers.Len() > 0)
+		{
+			EditorStringBuilders.RPCWrappers += LINE_TERMINATOR;
+		}
 
 		WriteMacro(OutGeneratedHeaderText, MacroName, EditorStringBuilders.AutogeneratedBlueprintFunctionDeclarations + EditorStringBuilders.RPCWrappers);
 		OutMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
@@ -5029,6 +5195,10 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 		}
 
 		OutNoPureDeclsMacroCalls.Logf(TEXT("\t%s\r\n"), *NoPureDeclsMacroName);
+
+		OutGeneratedCPPText.Log(BeginEditorOnlyGuard);
+		OutGeneratedCPPText.Log(EditorStringBuilders.RPCImplementations);
+		OutGeneratedCPPText.Log(EndEditorOnlyGuard);
 	}
 }
 

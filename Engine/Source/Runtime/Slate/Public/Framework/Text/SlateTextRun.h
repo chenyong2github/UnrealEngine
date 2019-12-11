@@ -59,6 +59,8 @@ public:
 
 	virtual ERunAttributes GetRunAttributes() const override;
 
+	void ApplyFontSizeMultiplierOnTextStyle(float FontSizeMultiplier);
+
 protected:
 
 	FSlateTextRun( const FRunInfo& InRunInfo, const TSharedRef< const FString >& InText, const FTextBlockStyle& InStyle );

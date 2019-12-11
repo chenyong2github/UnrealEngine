@@ -13,8 +13,10 @@ LightSampling.usf: Light sampling for next-event estimation
 #include "PathTracingSkyLight.ush"
 #include "PathTracingSpotLight.ush"
 
-void GenerateLightRay(RayDesc Ray, int LightId, float3 LightUV, out RayDesc OutLightRay)
+void GenerateLightRay(RayDesc Ray, int LightId, float3 LightUV, inout RayDesc OutLightRay)
 {
+	OutLightRay = (RayDesc)0; // #dxr_todo: Return false in the case of no matching light type and handle case from caller rather than blindly using a degenerate ray
+
 	if (IsPointLight(LightId))
 	{
 		PointLight_GenerateLightRay(Ray, LightId, LightUV, OutLightRay);
@@ -42,10 +44,11 @@ void EstimateLight(
 	int LightId,
 	RayDesc Ray,
 	FMaterialClosestHitPayload Payload,
-	out float OutIrradiance
+	inout float OutIrradiance
 )
 {
-	OutIrradiance = 0.0;
+	OutIrradiance = 0.0f;
+
 	if (IsPointLight(LightId))
 	{
 		PointLight_EstimateLight(LightId, Ray, Payload, OutIrradiance);
@@ -72,10 +75,12 @@ bool SampleLightSelection(
 	RayDesc Ray,
 	FMaterialClosestHitPayload Payload,
 	float RandSample,
-	out int OutLightId,
-	out float OutLightSelectionPdf
+	inout int OutLightId,
+	inout float OutLightSelectionPdf
 )
 {
+	OutLightSelectionPdf = 0.0;
+
 //#define UNIFORM_LIGHT_SELECTION
 #ifdef UNIFORM_LIGHT_SELECTION
 	OutLightId = RandSample * SceneLightsData.Count;
@@ -126,14 +131,15 @@ void PdfLightSelection(
 	RayDesc Ray,
 	FMaterialClosestHitPayload Payload,
 	uint LightId,
-	out float OutLightSelectionPdf
+	inout float OutLightSelectionPdf
 )
 {
+	OutLightSelectionPdf = 0.0;
+
 #ifdef UNIFORM_LIGHT_SELECTION
 	OutLightSelectionPdf = 1.0 / SceneLightsData.Count;
 	return;
 #else
-	OutLightSelectionPdf = 0.0;
 	if (SceneLightsData.Count == 0) return;
 
 	// Build irradiance estimate prefix sum
@@ -170,7 +176,7 @@ void PdfLight(
 	FMaterialClosestHitPayload Payload,
 	int LightId,
 	float3 LightUV,
-	out float OutPdf)
+	inout float OutPdf)
 {
 	// Light selection
 	// TODO: Use radiance estimate instead of uniform random selection
@@ -207,9 +213,11 @@ void EvalLight(
 	int LightId,
 	float3 LightUV,
 	RayDesc Ray,
-	out float3 OutRadiance
+	inout float3 OutRadiance
 )
 {
+	OutRadiance = float3(0.0f, 0.0f, 0.0f);
+
 	if (IsPointLight(LightId))
 	{
 		PointLight_EvalLight(LightId, LightUV, Ray, OutRadiance);
@@ -236,11 +244,11 @@ void SampleLight(
 	RayDesc Ray,
 	FMaterialClosestHitPayload Payload,
 	float4 RandSample,
-	out int OutLightId,
-	out float3 OutLightUV,
-	out float OutPdf)
+	inout int OutLightId,
+	inout float3 OutLightUV,
+	inout float OutPdf)
 {
-	OutPdf = 0.0;
+	OutPdf = 0.0f;
 
 	// Light selection
 	float LightSelectionPdf = 0.0;
@@ -250,7 +258,6 @@ void SampleLight(
 	}
 
 	// Light sampling
-	OutLightUV = 0.0;
 	float LightPdf = 0.0;
 	if (IsPointLight(OutLightId))
 	{

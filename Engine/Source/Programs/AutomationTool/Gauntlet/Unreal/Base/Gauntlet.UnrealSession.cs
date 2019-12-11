@@ -157,7 +157,7 @@ namespace Gauntlet
 				}
 			}
 
-			if (Globals.Params.ParseParam("packaged") && (InPlatform == UnrealTargetPlatform.Switch || InPlatform == UnrealTargetPlatform.XboxOne))
+			if (Globals.Params.ParseParam("packaged") && (InPlatform == UnrealTargetPlatform.Switch || InPlatform == UnrealTargetPlatform.XboxOne || InPlatform == UnrealTargetPlatform.PS4))
 			{
 				RequiredBuildFlags |= BuildFlags.Packaged;
 			}
@@ -1192,27 +1192,41 @@ namespace Gauntlet
 		/// <returns></returns>
 		public IEnumerable<UnrealRoleArtifacts> SaveRoleArtifacts(UnrealTestContext Context, UnrealSessionInstance TestInstance, string OutputPath)
 		{
-			int ClientCount = 1;
-			int DummyClientCount = 1;
+			Dictionary<UnrealTargetRole, int> RoleCounts = new Dictionary<UnrealTargetRole, int>();
+			int DummyClientCount = 0;
 
 			List<UnrealRoleArtifacts> AllArtifacts = new List<UnrealRoleArtifacts>();
 
 			foreach (UnrealSessionInstance.RoleInstance App in TestInstance.RunningRoles)
 			{
-				bool IsServer = App.Role.RoleType.IsServer();
 				string RoleName = (App.Role.IsDummy() ? "Dummy" : "") + App.Role.RoleType.ToString();
 				string FolderName = RoleName;
 
-				if (IsServer == false)
+				int RoleCount = 1;
+
+				if (App.Role.IsDummy())
 				{
-					if ((!App.Role.IsDummy() && ClientCount++ > 1))
+					DummyClientCount++;
+					RoleCount = DummyClientCount;
+				}
+				else
+				{
+					if (!RoleCounts.ContainsKey(App.Role.RoleType))
 					{
-						FolderName += string.Format("_{0:00}", ClientCount);
+						RoleCounts.Add(App.Role.RoleType, 1);
 					}
-					else if (App.Role.IsDummy() && DummyClientCount++ > 1)
+					else
 					{
-						FolderName += string.Format("_{0:00}", DummyClientCount);
+						RoleCounts[App.Role.RoleType]++;
 					}
+
+					RoleCount = RoleCounts[App.Role.RoleType];
+				}
+
+				
+				if (RoleCount > 1)
+				{
+					FolderName += string.Format("_{0:00}", RoleCount);
 				}
 
 				string DestPath = Path.Combine(OutputPath, FolderName);

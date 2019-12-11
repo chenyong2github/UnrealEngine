@@ -216,6 +216,10 @@ public:
 	 */
 	void Refresh();
 
+	/** set the multiplier affected at the font in the text */
+	void SetFontSizeMultiplier(const float NewFontSizeMultiplier);
+
+
 protected:
 	//~ SWidget interface
 	virtual FVector2D ComputeDesiredSize(float) const override;

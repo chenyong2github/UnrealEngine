@@ -27,6 +27,16 @@ uint32 FAssetTypeActions_ResonanceAudioSpatializationSourceSettings::GetCategori
 	return EAssetTypeCategories::Sounds;
 }
 
+const TArray<FText>& FAssetTypeActions_ResonanceAudioSpatializationSourceSettings::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		NSLOCTEXT("AssetTypeActions", "AssetTypeActions_AssetSoundResonanceSubMenu", "Resonance")
+	};
+
+	return SubMenus;
+}
+
 UResonanceAudioSpatializationSourceSettingsFactory::UResonanceAudioSpatializationSourceSettingsFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

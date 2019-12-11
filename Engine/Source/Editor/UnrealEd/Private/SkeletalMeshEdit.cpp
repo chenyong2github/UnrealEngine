@@ -1393,7 +1393,7 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 							// Also avoid to endup with a empty name, we prefer having the Blendshapename instead of nothing
 							if(ChannelName.StartsWith(BlendShapeName) && ChannelName.Len() > BlendShapeName.Len())
 							{
-								ChannelName = ChannelName.Right(ChannelName.Len() - (BlendShapeName.Len()+1));
+								ChannelName.RightInline(ChannelName.Len() - (BlendShapeName.Len()+1), false);
 							}
 							
 							if (bMightBeBadMAXFile)
@@ -1550,8 +1550,7 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 		TimeIncrement.SetSecondDouble(1.0 / ((double)(ResampleRate)));
 
 		//Add a threshold when we compare if we have reach the end of the animation
-		const FbxTime TimeComparisonThreshold = (KINDA_SMALL_NUMBER*FBXSDK_TC_SECOND);
-		
+		const FbxTime TimeComparisonThreshold = (KINDA_SMALL_NUMBER * static_cast<float>(FBXSDK_TC_SECOND));
 		
 		for(int32 SourceTrackIdx = 0; SourceTrackIdx < FbxRawBoneNames.Num(); ++SourceTrackIdx)
 		{

@@ -328,6 +328,9 @@ public:
 	 */
 	void Construct( const FArguments& InArgs );
 
+	// SWidget interface
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+
 	/**
 	 * Creates FOutputLogMessage objects from FOutputDevice log callback
 	 *
@@ -469,7 +472,8 @@ public:
 	virtual void SetText(const FString& SourceString, FTextLayout& TargetTextLayout) override;
 	virtual void GetText(FString& TargetString, const FTextLayout& SourceTextLayout) override;
 
-	bool AppendMessage(const TCHAR* InText, const ELogVerbosity::Type InVerbosity, const FName& InCategory);
+	bool AppendPendingMessage(const TCHAR* InText, const ELogVerbosity::Type InVerbosity, const FName& InCategory);
+	bool SubmitPendingMessages();
 	void ClearMessages();
 
 	void CountMessages();
@@ -483,11 +487,13 @@ protected:
 
 	FOutputLogTextLayoutMarshaller(TArray< TSharedPtr<FOutputLogMessage> > InMessages, FOutputLogFilter* InFilter);
 
-	void AppendMessageToTextLayout(const TSharedPtr<FOutputLogMessage>& InMessage);
-	void AppendMessagesToTextLayout(const TArray<TSharedPtr<FOutputLogMessage>>& InMessages);
+	void AppendPendingMessagesToTextLayout();
 
 	/** All log messages to show in the text box */
 	TArray< TSharedPtr<FOutputLogMessage> > Messages;
+
+	/** Index of the next entry in the Messages array that is pending submission to the text layout */
+	int32 NextPendingMessageIndex;
 
 	/** Holds cached numbers of messages to avoid unnecessary re-filtering */
 	int32 CachedNumMessages;

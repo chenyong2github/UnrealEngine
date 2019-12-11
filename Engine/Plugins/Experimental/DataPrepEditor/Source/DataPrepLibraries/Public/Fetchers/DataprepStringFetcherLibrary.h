@@ -8,7 +8,6 @@
 
 #include "DataprepStringFetcherLibrary.generated.h"
 
-
 UCLASS(BlueprintType, NotBlueprintable, Meta = (DisplayName="Object Name", ToolTip="Get the name of an object."))
 class UDataprepStringObjectNameFetcher final : public UDataprepStringFetcher
 {
@@ -20,6 +19,7 @@ public:
 
 	//~ UDataprepFetcher interface
 	virtual bool IsThreadSafe() const final;
+	virtual FText GetNodeDisplayFetcherName_Implementation() const;
 	//~ End of UDataprepFetcher interface
 };
 
@@ -35,5 +35,6 @@ public:
 
 	//~ UDataprepFetcher interface
 	virtual bool IsThreadSafe() const final;
+	virtual FText GetNodeDisplayFetcherName_Implementation() const;
 	//~ End of UDataprepFetcher interface
 };

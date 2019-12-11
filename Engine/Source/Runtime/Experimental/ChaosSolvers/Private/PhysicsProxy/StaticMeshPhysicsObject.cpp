@@ -140,7 +140,7 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 			Chaos::FErrorReporter ErrorReporter(Parameters.Name + " | RigidBodyId: " + FString::FromInt(RigidBodyId));;
 			Particles.SetDynamicGeometry(
 				RigidBodyId,
-				TUniquePtr<Chaos::TImplicitObject<float, 3>>(
+				TUniquePtr<Chaos::FImplicitObject>(
 					FCollisionStructureManager::NewImplicit(
 						ErrorReporter,
 						MeshParticles, *TriangleMesh,
@@ -165,7 +165,7 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 			const Chaos::TBox<float, 3> BBox = Sphere->BoundingBox();
 			Bounds.Min = BBox.Min();
 			Bounds.Max = BBox.Max();
-			Particles.SetDynamicGeometry(RigidBodyId, TUniquePtr<Chaos::TImplicitObject<float, 3>>(Sphere));
+			Particles.SetDynamicGeometry(RigidBodyId, TUniquePtr<Chaos::FImplicitObject>(Sphere));
 			if (!Parameters.MeshVertexPositions.Size())
 			{
 				float Radius = Parameters.ShapeParams.SphereRadius;
@@ -185,7 +185,7 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 			Chaos::TBox<float,3>* Box = new Chaos::TBox<float, 3>(-HalfExtents, HalfExtents);
 			Bounds.Min = Box->Min();
 			Bounds.Max = Box->Max();
-			Particles.SetDynamicGeometry(RigidBodyId, TUniquePtr<Chaos::TImplicitObject<float, 3>>(Box));
+			Particles.SetDynamicGeometry(RigidBodyId, TUniquePtr<Chaos::FImplicitObject>(Box));
 			if (!Parameters.MeshVertexPositions.Size())
 			{
 				Chaos::TVector<float, 3> x1(-HalfExtents);
@@ -210,7 +210,7 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 			const Chaos::TBox<float, 3> BBox = Capsule->BoundingBox();
 			Bounds.Min = BBox.Min();
 			Bounds.Max = BBox.Max();
-			Particles.SetDynamicGeometry(RigidBodyId, TUniquePtr<Chaos::TImplicitObject<float, 3>>(Capsule));
+			Particles.SetDynamicGeometry(RigidBodyId, TUniquePtr<Chaos::FImplicitObject>(Capsule));
 			if (!Parameters.MeshVertexPositions.Size())
 			{
 				float HalfHeight = Parameters.ShapeParams.CapsuleHalfHeightAndRadius.X;
@@ -237,7 +237,7 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 		{
 			Bounds.Min = Chaos::TVector<float, 3>(-KINDA_SMALL_NUMBER);
 			Bounds.Max = Chaos::TVector<float, 3>(KINDA_SMALL_NUMBER);
-			Particles.SetSharedGeometry(RigidBodyId, TSharedPtr<Chaos::TImplicitObject<float, 3>, ESPMode::ThreadSafe>());
+			Particles.SetSharedGeometry(RigidBodyId, TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>());
 		}
 
 		FTransform WorldTransform = Parameters.InitialTransform;

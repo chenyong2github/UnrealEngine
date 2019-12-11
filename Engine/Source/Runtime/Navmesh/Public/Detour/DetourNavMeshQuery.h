@@ -65,7 +65,7 @@ struct NAVMESH_API dtQueryFilterData
 	float lowestAreaCost;
 
 	unsigned short m_includeFlags;		///< Flags for polygons that can be visited. (Used by default implementation.)
-	unsigned short m_excludeFlags;		///< Flags for polygons that should not be visted. (Used by default implementation.)
+	unsigned short m_excludeFlags;		///< Flags for polygons that should not be visited. (Used by default implementation.)
 
 	bool m_isBacktracking;
 	//@UE4 BEGIN
@@ -219,8 +219,7 @@ public:
 	///  @returns heuristic scale
 	inline float getHeuristicScale() const { return data.heuristicScale; }
 
-	/// Retrieves euclidean distance heuristic scale
-	///  @returns heuristic scale
+	/// Set euclidean distance heuristic scale
 	inline void setHeuristicScale(const float newScale) { data.heuristicScale = newScale; }
 
 	/// Filters link in regards to its side. Used for backtracking.
@@ -345,11 +344,12 @@ public:
 	///  @param[in]		endRef		The reference id of the end polygon.
 	///  @param[in]		startPos	A position within the start polygon. [(x, y, z)]
 	///  @param[in]		endPos		A position within the end polygon. [(x, y, z)]
+	///  @param[in]		costLimit	Cost limit of nodes allowed to be added to the open list	//@UE4
 	///  @param[in]		filter		The polygon filter to apply to the query.
 	///  @param[out]	result		Results for path corridor, fills in refs and costs for each poly from start to end
 	///	 @param[out]	totalCost			If provided will get filled will total cost of path
 	dtStatus findPath(dtPolyRef startRef, dtPolyRef endRef,
-					  const float* startPos, const float* endPos,
+					  const float* startPos, const float* endPos, const float costLimit, //@UE4
 					  const dtQueryFilter* filter,
 					  dtQueryResult& result, float* totalCost) const;
 	
@@ -384,10 +384,11 @@ public:
 	///  @param[in]		endRef		The reference id of the end polygon.
 	///  @param[in]		startPos	A position within the start polygon. [(x, y, z)]
 	///  @param[in]		endPos		A position within the end polygon. [(x, y, z)]
+	///  @param[in]		costLimit	Cost limit of nodes allowed to be added to the open list	//@UE4
 	///  @param[in]		filter		The polygon filter to apply to the query.
 	/// @returns The status flags for the query.
 	dtStatus initSlicedFindPath(dtPolyRef startRef, dtPolyRef endRef,
-								const float* startPos, const float* endPos,
+								const float* startPos, const float* endPos, const float costLimit, //@UE4
 								const dtQueryFilter* filter);
 
 	/// Updates an in-progress sliced path query.
@@ -780,6 +781,7 @@ private:
 		float lastBestNodeCost;
 		dtPolyRef startRef, endRef;
 		float startPos[3], endPos[3];
+		float costLimit; 					//@UE4 ///< Cost limit of nodes allowed to be added to the open list
 		const dtQueryFilter* filter;
 	};
 	dtQueryData m_query;				///< Sliced query state.

@@ -8,6 +8,7 @@ Notes:
 =============================================================================*/
 
 #include "IpConnection.h"
+#include "IpNetDriver.h"
 #include "SocketSubsystem.h"
 #include "Engine/Engine.h"
 
@@ -16,7 +17,8 @@ Notes:
 #include "Net/NetworkProfiler.h"
 #include "Net/DataChannel.h"
 
-#include "PacketAudit.h"
+#include "Net/Core/Misc/PacketAudit.h"
+#include "Misc/ScopeExit.h"
 
 /*-----------------------------------------------------------------------------
 	Declarations.
@@ -72,7 +74,7 @@ void UIpConnection::InitLocalConnection(UNetDriver* InDriver, class FSocket* InS
 	RemoteAddr->SetIp(*InURL.Host, bIsValid);
 
 	// If the protocols do not match, attempt to synthesize the address so they do.
-	if (bIsValid && InSocket->GetProtocol() != RemoteAddr->GetProtocolType())
+	if ((bIsValid && InSocket->GetProtocol() != RemoteAddr->GetProtocolType()) || !bIsValid)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_IpConnection_AddressSynthesis);
 
@@ -84,6 +86,7 @@ void UIpConnection::InitLocalConnection(UNetDriver* InDriver, class FSocket* InS
 		if (MapRequest.ReturnCode == SE_NO_ERROR && MapRequest.Results.Num() > 0)
 		{
 			RemoteAddr = MapRequest.Results[0].Address->Clone();
+			bIsValid = true;
 		}
 		else
 		{
@@ -169,6 +172,30 @@ void UIpConnection::WaitForSendTasks()
 void UIpConnection::LowLevelSend(void* Data, int32 CountBits, FOutPacketTraits& Traits)
 {
 	const uint8* DataToSend = reinterpret_cast<uint8*>(Data);
+
+#if !UE_BUILD_SHIPPING
+	TSharedPtr<FInternetAddr> OrigAddr;
+
+	if (GCurrentDuplicateIP.IsValid() && RemoteAddr->CompareEndpoints(*GCurrentDuplicateIP))
+	{
+		OrigAddr = RemoteAddr;
+
+		TSharedRef<FInternetAddr> NewAddr = OrigAddr->Clone();
+		int32 NewPort = NewAddr->GetPort() - 9876;
+
+		NewAddr->SetPort(NewPort >= 0 ? NewPort : (65536 + NewPort));
+
+		RemoteAddr = NewAddr;
+	}
+
+	ON_SCOPE_EXIT
+	{
+		if (OrigAddr.IsValid())
+		{
+			RemoteAddr = OrigAddr;
+		}
+	};
+#endif
 
 	if( ResolveInfo )
 	{
@@ -356,16 +383,20 @@ void UIpConnection::HandleSocketSendResult(const FSocketSendResult& Result, ISoc
 			}
 		}
 
-		FString ErrorString = FString::Printf(TEXT("UIpNetConnection::HandleSocketSendResult: Socket->SendTo failed with error %i (%s). %s Connection will be closed during next Tick()!"),
-			static_cast<int32>(Result.Error),
-			SocketSubsystem->GetSocketError(Result.Error),
-			*Describe());
+		// Broadcast the error only on the first occurrence
+		if( GetPendingCloseDueToSocketSendFailure() == false )
+		{
+			// Request the connection to be disconnected during next tick() since we got a critical socket failure, the actual disconnect is postponed 		
+			// to avoid issues with the call Close() causing issues with reentrant code paths in DataChannel::SendBunch() and FlushNet()
+			SetPendingCloseDueToSocketSendFailure();
 
-		GEngine->BroadcastNetworkFailure(Driver->GetWorld(), Driver, ENetworkFailure::ConnectionLost, ErrorString);
+			FString ErrorString = FString::Printf(TEXT("UIpNetConnection::HandleSocketSendResult: Socket->SendTo failed with error %i (%s). %s Connection will be closed during next Tick()!"),
+												  static_cast<int32>(Result.Error),
+												  SocketSubsystem->GetSocketError(Result.Error),
+												  *Describe());
 
-		// Request the connection to be disconnected during next tick() since we got a critical socket failure, the actual disconnect is postponed 		
-		// to avoid issues with the call Close() causing issues with reentrant code paths in DataChannel::SendBunch() and FlushNet()
-		SetPendingCloseDueToSocketSendFailure();
+			GEngine->BroadcastNetworkFailure(Driver->GetWorld(), Driver, ENetworkFailure::ConnectionLost, ErrorString);
+		}
 	}
 }
 

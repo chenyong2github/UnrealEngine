@@ -25,7 +25,7 @@ public:
 #if WITH_EDITOR
 	virtual void InvalidateCachedData() override;
 	virtual int32 AddNewLod() override;
-	virtual void PostPropertyChangeCb(const FPropertyChangedEvent& Event) override;
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& ChainEvent) override;
 #endif // WITH_EDITOR
 
 	/** 
@@ -36,7 +36,7 @@ public:
 	FClothConfig ClothConfig_DEPRECATED;
 
 	/** 
-	 * Deprecasted property for transitioning \c FClothLODData struct to the 
+	 * Deprecated property for transitioning \c FClothLODData struct to the 
 	 * \c UClothLODDataNv class, in a new property called \c ClothLodData.
 	 */
 	UPROPERTY()

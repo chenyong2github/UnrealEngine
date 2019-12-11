@@ -37,14 +37,13 @@
 
 #define OS_E_SUCCESS 0
 #define OS_E_TIMEOUT 0x40000
+#define OS_E_UNKNOWN 0x80000
 
 #if !defined(_WIN32)
 # define E_FAIL ((os_error_t) -1)
 #endif
 
 namespace vxplatform {
-std::string string_format(const char *fmt, ...);
-
 typedef unsigned long os_error_t;
 typedef unsigned long os_thread_id;
 
@@ -58,7 +57,7 @@ VXPLATFORM_DLLEXPORT os_error_t delete_thread(os_thread_handle handle);
 VXPLATFORM_DLLEXPORT os_error_t join_thread(os_thread_handle handle, int timeout = -1);
 VXPLATFORM_DLLEXPORT os_error_t close_thread_handle(os_thread_handle handle);
 VXPLATFORM_DLLEXPORT os_thread_id get_current_thread_id();
-VXPLATFORM_DLLEXPORT void thread_sleep(unsigned long long ms);
+VXPLATFORM_DLLEXPORT void thread_sleep(unsigned long ms);
 VXPLATFORM_DLLEXPORT void set_thread_name(const std::string &threadName);
 
 VXPLATFORM_DLLEXPORT os_error_t create_event(os_event_handle *pHandle);

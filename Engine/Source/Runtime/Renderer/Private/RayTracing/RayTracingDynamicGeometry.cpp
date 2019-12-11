@@ -182,18 +182,34 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 	}
 
 	check(Geometry.IsInitialized());
-	Geometry.Initializer.PositionVertexBuffer = Buffer.Buffer;
-	Geometry.Initializer.TotalPrimitiveCount = UpdateParams.NumTriangles;
+
+	if (Geometry.Initializer.TotalPrimitiveCount != UpdateParams.NumTriangles)
+	{
+		check(Geometry.Initializer.Segments.Num() <= 1);
+		Geometry.Initializer.TotalPrimitiveCount = UpdateParams.NumTriangles;
+		Geometry.Initializer.Segments.Empty();
+		FRayTracingGeometrySegment Segment;
+		Segment.NumPrimitives = UpdateParams.NumTriangles;
+		Geometry.Initializer.Segments.Add(Segment);
+		bRefit = false;
+	}
+
+	for (FRayTracingGeometrySegment& Segment : Geometry.Initializer.Segments)
+	{
+		Segment.VertexBuffer = Buffer.Buffer;
+	}
 
 	if (!bRefit)
 	{
 		Geometry.RayTracingGeometryRHI = RHICreateRayTracingGeometry(Geometry.Initializer);
-		BuildParams.Add(FAccelerationStructureUpdateParams{ Geometry.RayTracingGeometryRHI, Buffer.Buffer });
 	}
-	else
-	{
-		RefitParams.Add(FAccelerationStructureUpdateParams{ Geometry.RayTracingGeometryRHI, Buffer.Buffer });
-	}
+
+	FAccelerationStructureBuildParams Params;
+	Params.Geometry = Geometry.RayTracingGeometryRHI;
+	Params.BuildMode = bRefit
+		? EAccelerationStructureBuildMode::Update
+		: EAccelerationStructureBuildMode::Build;
+	BuildParams.Add(Params);
 }
 
 
@@ -234,7 +250,18 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(CmdListType& RHICmdLi
 
 		{
 			SCOPED_DRAW_OR_COMPUTE_EVENT(RHICmdList, VSinCSComputeDispatch)
-			for (auto& Cmd : *DispatchCommands)
+
+			TArray<FRHIUnorderedAccessView*> BuffersToTransition;
+			BuffersToTransition.Reserve(DispatchCommands->Num());
+
+			for (FMeshComputeDispatchCommand& Cmd : *DispatchCommands)
+			{
+				BuffersToTransition.Add(Cmd.TargetBuffer->UAV.GetReference());
+			}
+
+			RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, BuffersToTransition.GetData(), BuffersToTransition.Num());
+
+			for (FMeshComputeDispatchCommand& Cmd : *DispatchCommands)
 			{
 				{
 					FRayTracingDynamicGeometryConverterCS* Shader = Cmd.MaterialShader;
@@ -252,17 +279,12 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(CmdListType& RHICmdLi
 					Shader->RWVertexPositions.UnsetUAV(RHICmdList, Shader->GetComputeShader());
 				}
 			}
+
+			RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, BuffersToTransition.GetData(), BuffersToTransition.Num());
 		}
 
-		{
-			SCOPED_DRAW_OR_COMPUTE_EVENT(RHICmdList, Build)
-			RHICmdList.BuildAccelerationStructures(BuildParams);
-		}
-
-		{
-			SCOPED_DRAW_OR_COMPUTE_EVENT(RHICmdList, Refit)
-			RHICmdList.UpdateAccelerationStructures(RefitParams);
-		}
+		SCOPED_DRAW_OR_COMPUTE_EVENT(RHICmdList, Build);
+		RHICmdList.BuildAccelerationStructures(BuildParams);
 
 		Clear();
 	}
@@ -276,7 +298,6 @@ void FRayTracingDynamicGeometryCollection::Clear()
 {
 	DispatchCommands->Empty();
 	BuildParams.Empty();
-	RefitParams.Empty();
 }
 
 #endif // RHI_RAYTRACING

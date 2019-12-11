@@ -1,9 +1,13 @@
-﻿INTSourceChangelist:4300533
+﻿INTSourceChangelist:7633900
 Availability:Public
 Title:地图检查错误
 Crumbs:%ROOT%, Engine, Engine/UI/LevelEditor
 Description:在地图编译或在虚幻编辑器中运行地图检查时生成错误的说明。
-Version:4.9
+Version: 4.22
+Type:reference
+Parent:Shared/Editor
+Tags:map
+Tags:error
 
 [TOC(start:2 end:3)]
 
@@ -466,7 +470,6 @@ LevelGridVolume 被放置到流送关卡后将出现此警告。这类体积域�
 
 
  
-
 
 
 

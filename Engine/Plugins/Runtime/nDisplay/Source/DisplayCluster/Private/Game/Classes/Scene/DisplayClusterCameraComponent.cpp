@@ -3,6 +3,8 @@
 #include "DisplayClusterCameraComponent.h"
 #include "Config/DisplayClusterConfigTypes.h"
 
+#include "Camera/CameraComponent.h"
+
 #include "CoreGlobals.h"
 
 
@@ -11,26 +13,14 @@ UDisplayClusterCameraComponent::UDisplayClusterCameraComponent(const FObjectInit
 	, EyeDist(0.064f)
 	, bEyeSwap(false)
 	, ForceEyeOffset(0)
-	, NearClipPlane(GNearClippingPlane)
-	, FarClipPlane(2000000.f)
 {
-	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bCanEverTick = false;
 }
 
 
 void UDisplayClusterCameraComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	
-	// ...
-	
-}
-
-void UDisplayClusterCameraComponent::TickComponent( float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction )
-{
-	Super::TickComponent( DeltaTime, TickType, ThisTickFunction );
-
-	// ...
 }
 
 void UDisplayClusterCameraComponent::SetSettings(const FDisplayClusterConfigSceneNode* ConfigData)
@@ -51,7 +41,5 @@ void UDisplayClusterCameraComponent::SetSettings(const FDisplayClusterConfigScen
 
 bool UDisplayClusterCameraComponent::ApplySettings()
 {
-
-
 	return Super::ApplySettings();
 }

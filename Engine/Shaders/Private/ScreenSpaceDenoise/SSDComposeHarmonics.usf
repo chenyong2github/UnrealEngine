@@ -11,8 +11,16 @@
 #define CONFIG_SIGNAL_PROCESSING SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC
 
 #if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC
-	#define COMPILE_SIGNAL_COLOR 1
+	// Denoise diffuse and specular harmonics at the same time.
+	#define MAX_SIGNAL_BATCH_SIZE 2
+	#define SIGNAL_ARRAY_SIZE 2
+	#define CONFIG_SIGNAL_BATCH_SIZE 2
+
+	// Each harmonic requires input and output RGB.
 	#define COMPILE_SIGNAL_COLOR_ARRAY 2
+
+	// Outputing a single composed color for each diffuse and specular.
+	#define COMPILE_SIGNAL_COLOR 1
 
 	//#define CONFIG_VIEW_POSITION_BASED_BILATERAL 2
 	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 1
@@ -25,11 +33,6 @@
 	#define CONFIG_OUTPUT_TEXTURE_COUNT 2
 
 	#define CONFIG_HARMONIC_COUNT DENOISER_HARMONICS_COUNT
-
-	// Denoise diffuse and specular harmonics at the same time.
-	#define MAX_SIGNAL_BATCH_SIZE 2
-
-	#define CONFIG_SIGNAL_BATCH_SIZE 2
 
 #else
 	#error Unknown signal processing.

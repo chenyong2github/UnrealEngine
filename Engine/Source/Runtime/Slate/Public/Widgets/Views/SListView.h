@@ -12,6 +12,7 @@
 #include "Framework/SlateDelegates.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/Views/ITypedTableView.h"
+#include "Framework/Views/TableViewMetadata.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Framework/Views/TableViewTypeTraits.h"
 #include "Widgets/Views/STableRow.h"
@@ -97,6 +98,7 @@ public:
 		, _OnItemToString_Debug()
 		, _OnEnteredBadState()
 		{
+			this->_Clipping = EWidgetClipping::ClipToBounds;
 		}
 
 		SLATE_EVENT( FOnGenerateRow, OnGenerateRow )
@@ -240,7 +242,7 @@ public:
 				ScrollBar->SetDragFocusCause(InArgs._ScrollbarDragFocusCause);
 				ScrollBar->SetUserVisibility(InArgs._ScrollbarVisibility);
 			}
-
+			this->AddMetadata(MakeShared<TTableViewMetadata<ItemType>>(this->SharedThis(this)));
 		}
 	}
 
@@ -740,8 +742,8 @@ public:
 			SelectedItems.Remove( TheItem );
 		}
 
-		// Only move the selector item and range selection start if the user directed this change in selection.
-		if( bWasUserDirected )
+		// Move the selector item and range selection start if the user directed this change in selection or if the list view is single selection
+		if( bWasUserDirected || SelectionMode.Get() == ESelectionMode::Single || SelectionMode.Get() == ESelectionMode::SingleToggle )
 		{
 			SelectorItem = TheItem;
 			RangeSelectionStart = TheItem;
@@ -839,6 +841,11 @@ public:
 		return false;	
 	}
 
+	virtual bool Private_IsItemSelectableOrNavigable(const ItemType& TheItem) const override
+	{
+		return OnIsSelectableOrNavigable.IsBound() ? OnIsSelectableOrNavigable.Execute(TheItem) : true;
+	}
+
 	virtual void Private_SetItemExpansion( ItemType TheItem, bool bShouldBeExpanded ) override
 	{
 		// Do nothing; you cannot expand an item in a list!
@@ -896,6 +903,11 @@ public:
 	virtual ESelectionMode::Type Private_GetSelectionMode() const override
 	{
 		return SelectionMode.Get();
+	}
+
+	virtual bool Private_IsPendingRefresh() const override
+	{
+		return IsPendingRefresh();
 	}
 
 	virtual void Private_OnItemRightClicked( ItemType TheItem, const FPointerEvent& MouseEvent ) override
@@ -1338,7 +1350,7 @@ public:
 	 *
 	 * @return	List of selected item indices (in no particular order)
 	 */
-	TArray< ItemType > GetSelectedItems() const
+	virtual TArray< ItemType > GetSelectedItems() const override
 	{
 		TArray< ItemType > SelectedItemArray;
 		SelectedItemArray.Empty( SelectedItems.Num() );
@@ -1349,7 +1361,7 @@ public:
 		return SelectedItemArray;
 	}
 
-	int32 GetSelectedItems(TArray< ItemType >&SelectedItemArray) const
+	int32 GetSelectedItems(TArray< ItemType >& SelectedItemArray) const
 	{
 		SelectedItemArray.Empty(SelectedItems.Num());
 		for (typename TItemSet::TConstIterator SelectedItemIt(SelectedItems); SelectedItemIt; ++SelectedItemIt)
@@ -1487,7 +1499,7 @@ public:
 	 *
 	 * @return A pointer to the corresponding widget if it exists; otherwise nullptr.
 	*/
-	TSharedPtr<ITableRow> WidgetFromItem( const ItemType& InItem )
+	virtual TSharedPtr<ITableRow> WidgetFromItem( const ItemType& InItem ) const override
 	{
 		return WidgetGenerator.GetWidgetForItem(InItem);
 	}

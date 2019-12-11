@@ -11,17 +11,14 @@
 
 
 class FTVectoriser;
+class FData;
 
 /**
  * Bevel contours and add back cap.
+ * @param Data - Meshes data.
  * @param Vectoriser - FTGL object that contains contours.
- * @param MeshesIn - Vertices and indices to which bevel should be added (contains front cap).
  * @param Extrude - Orthogonal (to front cap) offset value.
  * @param Bevel - Bevel value (bevel happens before extrude).
- * @param HorizontalOffset
- * @param VerticalOffset
- * @param FontInverseScale
- * @param Scale
  * @param Type - Defines shape of beveled part.
  * @param HalfCircleSegments - Segments count for Type == EText3DBevelType::HalfCircle.
  * @param IterationsIn - Debug variable, amount of intersections to bevel till.
@@ -30,4 +27,4 @@ class FTVectoriser;
  * @param Segments - Debug variable, needed for debugging IntersectionNear (case when normals of more then 2 points intersect). Amount of segments that will bevel to one point.
  * @param VisibleFaceIn - Debug variable.
  */
-void BevelContours(const FTVectoriser& Vectoriser, TText3DMeshList* MeshesIn, const float Extrude, const float Bevel, const float HorizontalOffset, const float VerticalOffset, const float FontInverseScale, const FVector& Scale, EText3DBevelType Type, const int32 HalfCircleSegments, const int32 IterationsIn, const bool bHidePreviousIn, const int32 MarkedVertex, const int32 Segments, const int32 VisibleFaceIn);
+void BevelContours(const TSharedPtr<FData> Data, const FTVectoriser& Vectoriser, const float Extrude, const float Bevel, EText3DBevelType Type, const int32 HalfCircleSegments, const int32 IterationsIn, const bool bHidePreviousIn, const int32 MarkedVertex, const int32 Segments, const int32 VisibleFaceIn);

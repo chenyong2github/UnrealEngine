@@ -6,6 +6,7 @@
 #include "NiagaraStackRenderItemGroup.generated.h"
 
 class UNiagaraRendererProperties;
+class UNiagaraEmitter;
 
 UCLASS()
 class NIAGARAEDITOR_API UNiagaraStackRenderItemGroup : public UNiagaraStackItemGroup
@@ -19,9 +20,12 @@ protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
 private:
-	void ItemAdded(UNiagaraRendererProperties* AddedRenderer);
-	void ChildModifiedGroupItems();
+	void EmitterRenderersChanged();
+
+	virtual void FinalizeInternal() override;
 
 private:
 	TSharedPtr<INiagaraStackItemGroupAddUtilities> AddUtilities;
+
+	TWeakObjectPtr<UNiagaraEmitter> EmitterWeak;
 };

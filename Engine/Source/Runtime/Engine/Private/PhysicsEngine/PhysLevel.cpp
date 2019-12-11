@@ -104,30 +104,37 @@ void UWorld::SetupPhysicsTickFunctions(float DeltaSeconds)
 	
 	EndPhysicsTickFunction.bCanEverTick = true;
 	EndPhysicsTickFunction.Target = this;
+
+// Chaos ticks solver for trace collisions
+#if (WITH_CHAOS && WITH_EDITOR)
+	bool bEnablePhysics = (bShouldSimulatePhysics || bEnableTraceCollision);
+#else
+	bool bEnablePhysics = bShouldSimulatePhysics;
+#endif
 	
-	// see if we need to update tick registration
-	bool bNeedToUpdateTickRegistration = (bShouldSimulatePhysics != StartPhysicsTickFunction.IsTickFunctionRegistered())
-		|| (bShouldSimulatePhysics != EndPhysicsTickFunction.IsTickFunctionRegistered());
+	// see if we need to update tick registration;
+	bool bNeedToUpdateTickRegistration = (bEnablePhysics != StartPhysicsTickFunction.IsTickFunctionRegistered())
+		|| (bEnablePhysics != EndPhysicsTickFunction.IsTickFunctionRegistered());
 
 	if (bNeedToUpdateTickRegistration && PersistentLevel)
 	{
-		if (bShouldSimulatePhysics && !StartPhysicsTickFunction.IsTickFunctionRegistered())
+		if (bEnablePhysics && !StartPhysicsTickFunction.IsTickFunctionRegistered())
 		{
 			StartPhysicsTickFunction.TickGroup = TG_StartPhysics;
 			StartPhysicsTickFunction.RegisterTickFunction(PersistentLevel);
 		}
-		else if (!bShouldSimulatePhysics && StartPhysicsTickFunction.IsTickFunctionRegistered())
+		else if (!bEnablePhysics && StartPhysicsTickFunction.IsTickFunctionRegistered())
 		{
 			StartPhysicsTickFunction.UnRegisterTickFunction();
 		}
 
-		if (bShouldSimulatePhysics && !EndPhysicsTickFunction.IsTickFunctionRegistered())
+		if (bEnablePhysics && !EndPhysicsTickFunction.IsTickFunctionRegistered())
 		{
 			EndPhysicsTickFunction.TickGroup = TG_EndPhysics;
 			EndPhysicsTickFunction.RegisterTickFunction(PersistentLevel);
 			EndPhysicsTickFunction.AddPrerequisite(this, StartPhysicsTickFunction);
 		}
-		else if (!bShouldSimulatePhysics && EndPhysicsTickFunction.IsTickFunctionRegistered())
+		else if (!bEnablePhysics && EndPhysicsTickFunction.IsTickFunctionRegistered())
 		{
 			EndPhysicsTickFunction.RemovePrerequisite(this, StartPhysicsTickFunction);
 			EndPhysicsTickFunction.UnRegisterTickFunction();
@@ -263,6 +270,8 @@ void PostEngineInitialize()
 	}
 }
 
+FDelegateHandle GPostInitHandle;
+
 bool InitGamePhys()
 {
 	if (!InitGamePhysCore())
@@ -272,11 +281,9 @@ bool InitGamePhys()
 
 	// We need to defer initializing the module as it will attempt to read from the settings provider. If the settings
 	// provider is backed by a UObject in any way access to it will fail because we're too early in the init process.
-	FDelegateHandle PostInitHandle;
-	PostInitHandle = FCoreDelegates::OnPostEngineInit.AddLambda([&PostInitHandle]
+	GPostInitHandle = FCoreDelegates::OnPostEngineInit.AddLambda([]()
 	{
 		PostEngineInitialize();
-		FCoreDelegates::OnPostEngineInit.Remove(PostInitHandle);
 	});
 
 #if WITH_PHYSX
@@ -292,11 +299,20 @@ bool InitGamePhys()
 	
 #endif // WITH_PHYSX
 
+	// Message to the log that physics is initialised and which interface we are using.
+	UE_LOG(LogInit, Log, TEXT("Physics initialised using underlying interface: %s"), *FPhysicsInterface::GetInterfaceDescription());
+
 	return true;
 }
 
 void TermGamePhys()
 {
+	if (GPostInitHandle.IsValid())
+	{
+		FCoreDelegates::OnPostEngineInit.Remove(GPostInitHandle);
+		GPostInitHandle.Reset();
+	}
+
 #if WITH_PHYSX
 
 	// Do nothing if they were never initialized

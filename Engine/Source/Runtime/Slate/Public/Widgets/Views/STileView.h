@@ -67,6 +67,7 @@ public:
 		, _OnEnteredBadState()
 		, _WrapHorizontalNavigation(true)
 		{
+			this->_Clipping = EWidgetClipping::ClipToBounds;
 		}
 
 		SLATE_EVENT( FOnGenerateRow, OnGenerateTile )
@@ -206,6 +207,7 @@ public:
 				this->ScrollBar->SetDragFocusCause(InArgs._ScrollbarDragFocusCause);
 				this->ScrollBar->SetUserVisibility(InArgs._ScrollbarVisibility);
 			}
+			this->AddMetadata(MakeShared<TTableViewMetadata<ItemType>>(this->SharedThis(this)));
 		}
 	}
 

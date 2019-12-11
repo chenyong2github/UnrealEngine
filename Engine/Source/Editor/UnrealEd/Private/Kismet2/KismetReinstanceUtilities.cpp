@@ -23,7 +23,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Layers/LayersSubsystem.h"
 #include "Editor.h"
-#include "Serialization/ArchiveHasReferences.h"
+#include "UObject/ReferencerFinder.h"
 
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
@@ -32,6 +32,8 @@
 #include "BlueprintEditor.h"
 #include "Engine/Selection.h"
 #include "BlueprintEditorSettings.h"
+#include "Engine/NetDriver.h"
+#include "Engine/ActorChannel.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
 DECLARE_CYCLE_STAT(TEXT("Replace Instances"), EKismetReinstancerStats_ReplaceInstancesOfClass, STATGROUP_KismetReinstancer );
@@ -82,12 +84,23 @@ struct FReplaceReferenceHelper
 			return;
 		}
 
+		// Remember what values were in UActorChannel::Actor so we can restore them later (this should only affect reinstancing during PIE)
+		// We need the old actor channel to tear down cleanly without affecting the new actor
+		TMap<UActorChannel*, AActor*> ActorChannelActorRestorationMap;
+		for (UActorChannel* ActorChannel : TObjectRange<UActorChannel>())
+		{
+			if (OldToNewInstanceMap.Contains(ActorChannel->Actor))
+			{
+				ActorChannelActorRestorationMap.Add(ActorChannel, ActorChannel->Actor);
+			}
+		}
+
 		// Find everything that references these objects
 		TArray<UObject *> Targets;
 		{
 			BP_SCOPED_COMPILER_EVENT_STAT(EKismetReinstancerStats_FindReferencers);
 
-			Targets = FArchiveHasReferences::GetAllReferencers(SourceObjects, ObjectsThatShouldUseOldStuff);
+			Targets = FReferencerFinder::GetAllReferencers(SourceObjects, ObjectsThatShouldUseOldStuff);
 		}
 
 		{
@@ -141,6 +154,12 @@ struct FReplaceReferenceHelper
 					ReferenceReplace ReplaceAr(Obj, OldToNewInstanceMap, ReinstancedObjectsWeakReferenceMap);
 				}
 			}
+		}
+	
+		// Restore the old UActorChannel::Actor values (undoing what the replace references archiver did above to them)
+		for (const auto& KVP : ActorChannelActorRestorationMap)
+		{
+			KVP.Key->Actor = KVP.Value;
 		}
 	}
 };
@@ -503,6 +522,13 @@ public:
 					Actor->ReregisterAllComponents();
 					Actor->RerunConstructionScripts();
 
+					// The reinstancing case doesn't ever explicitly call Actor->FinishSpawning, we've handled the construction script
+					// portion above but still need the PostActorConstruction() case so BeginPlay gets routed correctly while in a BegunPlay world
+					if (World->HasBegunPlay())
+					{
+						Actor->PostActorConstruction();
+					}
+
 					if (SelectedObjecs.Contains(Obj) && GEditor)
 					{
 						GEditor->SelectActor(Actor, /*bInSelected =*/true, /*bNotify =*/true, false, true);
@@ -832,6 +858,24 @@ void FBlueprintCompileReinstancer::UpdateBytecodeReferences()
 				bBPWasChanged |= (0 != ReplaceAr.GetCount());
 			}
 
+			// Update any refs in called functions array, as the bytecode was just similarly updated:
+			if(UBlueprintGeneratedClass* AsBPGC = Cast<UBlueprintGeneratedClass>(BPClass))
+			{
+				for(int32 Idx = 0; Idx < AsBPGC->CalledFunctions.Num(); ++Idx)
+				{
+					UObject** Val = FieldMappings.Find(AsBPGC->CalledFunctions[Idx]);
+					if(Val && *Val)
+					{
+						// This ::Cast should always succeed, but I'm uncomfortable making 
+						// rigid assumptions about the FieldMappings array:
+						if(UFunction* NewFn = Cast<UFunction>(*Val))
+						{
+							AsBPGC->CalledFunctions[Idx] = NewFn;
+						}
+					}
+				}
+			}
+
 			FArchiveReplaceObjectRef<UObject> ReplaceInBPAr(*DependentBP, FieldMappings, false, true, true);
 			if (ReplaceInBPAr.GetCount())
 			{
@@ -1043,6 +1087,16 @@ void FActorReplacementHelper::Finalize(const TMap<UObject*, UObject*>& OldToNewI
 		FComponentInstanceDataCache DummyComponentData;
 		NewActor->ExecuteConstruction(TargetWorldTransform, nullptr, &DummyComponentData);
 	}	
+
+	// The reinstancing case doesn't ever explicitly call Actor->FinishSpawning, we've handled the construction script
+	// portion above but still need the PostActorConstruction() case so BeginPlay gets routed correctly while in a BegunPlay world
+	if (UWorld* World = NewActor->GetWorld())
+	{
+		if (World->HasBegunPlay())
+		{
+			NewActor->PostActorConstruction();
+		}
+	}
 
 	// make sure that the actor is properly hidden if it's in a hidden sublevel:
 	bool bIsInHiddenLevel = false;
@@ -1921,7 +1975,10 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 		{
 			if (AActor* OldActor = Cast<AActor>(ReinstancedPair.Key))
 			{
-				OldActor->GetWorld()->EditorDestroyActor(OldActor, /*bShouldModifyLevel =*/true);
+				if (UWorld* World = OldActor->GetWorld())
+				{
+					World->EditorDestroyActor(OldActor, /*bShouldModifyLevel =*/true);
+				}
 			}
 		}
 	}

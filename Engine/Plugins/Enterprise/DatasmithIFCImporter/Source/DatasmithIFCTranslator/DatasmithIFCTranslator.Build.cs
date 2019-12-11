@@ -52,6 +52,11 @@ namespace UnrealBuildTool.Rules
                     "DatasmithImporter"
                 }
             );
-        }
-    }
+
+			if (Target.Platform == UnrealTargetPlatform.Win64)
+			{
+				RuntimeDependencies.Add("$(EngineDir)/Plugins/Enterprise/DatasmithIFCImporter/Binaries/Win64/ifcengine.dll");
+			}
+		}
+	}
 }

@@ -689,10 +689,51 @@ void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRede
 		break;
 
 	default:
-		ensure(false);
+		ensureMsgf(false, TEXT("Unexpected state in ULevelStreaming::UpdateStreamingState for '%s'. CurrentState='%s' TargetState='%s'"), *GetPathName(), EnumToString(CurrentState), EnumToString(TargetState));
 	}
 }
 
+const TCHAR* ULevelStreaming::EnumToString(ECurrentState InCurrentState)
+{
+	switch (InCurrentState)
+	{
+	case ECurrentState::Removed:
+		return TEXT("Removed");
+	case ECurrentState::Unloaded:
+		return TEXT("Unloaded");
+	case ECurrentState::FailedToLoad:
+		return TEXT("FailedToLoad");
+	case ECurrentState::Loading:
+		return TEXT("Loading");
+	case ECurrentState::LoadedNotVisible:
+		return TEXT("LoadedNotVisible");
+	case ECurrentState::MakingVisible:
+		return TEXT("MakingVisible");
+	case ECurrentState::LoadedVisible:
+		return TEXT("LoadedVisible");
+	case ECurrentState::MakingInvisible:
+		return TEXT("MakingInvisible");
+	}
+	ensure(false);
+	return TEXT("Unknown");
+}
+
+const TCHAR* ULevelStreaming::EnumToString(ETargetState InTargetState)
+{
+	switch (InTargetState)
+	{
+	case ETargetState::Unloaded:
+		return TEXT("Unloaded");
+	case ETargetState::UnloadedAndRemoved:
+		return TEXT("UnloadedAndRemoved");
+	case ETargetState::LoadedNotVisible:
+		return TEXT("LoadedNotVisible");
+	case ETargetState::LoadedVisible:
+		return TEXT("LoadedVisible");
+	}
+	ensure(false);
+	return TEXT("Unknown");
+}
 
 FName ULevelStreaming::GetLODPackageName() const
 {
@@ -898,9 +939,12 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 	EPackageFlags PackageFlags = PKG_ContainsMap;
 	int32 PIEInstanceID = INDEX_NONE;
 
+	// Try to find the [to be] loaded package.
+	UPackage* LevelPackage = (UPackage*)StaticFindObjectFast(UPackage::StaticClass(), nullptr, DesiredPackageName, 0, 0, RF_NoFlags, EInternalObjectFlags::PendingKill);
+
 	// copy streaming level on demand if we are in PIE
 	// (the world is already loaded for the editor, just find it and copy it)
-	if ( PersistentWorld->IsPlayInEditor() )
+	if ( LevelPackage == nullptr && PersistentWorld->IsPlayInEditor() )
 	{
 		if (PersistentWorld->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor))
 		{
@@ -942,9 +986,6 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 			}
 		}
 	}
-
-	// Try to find the [to be] loaded package.
-	UPackage* LevelPackage = (UPackage*)StaticFindObjectFast(UPackage::StaticClass(), nullptr, DesiredPackageName, 0, 0, RF_NoFlags, EInternalObjectFlags::PendingKill);
 
 	// Package is already or still loaded.
 	if (LevelPackage)
@@ -1023,7 +1064,7 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 			// Kick off async load request.
 			STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, *(FString( TEXT( "RequestLevel - " ) + DesiredPackageName.ToString() )) );
 			TRACE_BOOKMARK(TEXT("RequestLevel - %s"), *DesiredPackageName.ToString());
-			LoadPackageAsync(DesiredPackageName.ToString(), nullptr, *PackageNameToLoadFrom, FLoadPackageAsyncDelegate::CreateUObject(this, &ULevelStreaming::AsyncLevelLoadComplete), PackageFlags, PIEInstanceID);
+			LoadPackageAsync(DesiredPackageName.ToString(), nullptr, *PackageNameToLoadFrom, FLoadPackageAsyncDelegate::CreateUObject(this, &ULevelStreaming::AsyncLevelLoadComplete), PackageFlags, PIEInstanceID, GetPriority());
 
 			// streamingServer: server loads everything?
 			// Editor immediately blocks on load and we also block if background level streaming is disabled.
@@ -1751,7 +1792,7 @@ ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance_Internal(UWorl
 
 	if (ShortPackageName.StartsWith(World->StreamingLevelsPrefix))
 	{
-		ShortPackageName = ShortPackageName.RightChop(World->StreamingLevelsPrefix.Len());
+		ShortPackageName.RightChopInline(World->StreamingLevelsPrefix.Len(), false);
 	}
 
 	// Remove PIE prefix if it's there before we actually load the level

@@ -13,12 +13,9 @@
 
 #include "dxgi1_6.h"
 
-#ifndef DXGI_PRESENT_ALLOW_TEARING
-#define DXGI_PRESENT_ALLOW_TEARING          0x00000200UL
+#ifndef DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
 #define DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING  2048
 #endif
-
-
 
 static bool GSwapFlagsInitialized = false;
 static DXGI_SWAP_EFFECT GSwapEffect = DXGI_SWAP_EFFECT_DISCARD;
@@ -51,6 +48,7 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 	SizeX(InSizeX),
 	SizeY(InSizeY),
 	bIsFullscreen(bInIsFullscreen),
+	bFullscreenLost(false),
 	PixelFormat(InPreferredPixelFormat),
 	PixelColorSpace(EColorSpaceAndEOTF::ERec709_sRGB),
 	bIsValid(true),
@@ -180,13 +178,14 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 			IDXGISwapChain1* SwapChain1 = nullptr;
 			IDXGIFactory2* Factory2 = (IDXGIFactory2*)D3DRHI->GetFactory();
 
-			VERIFYD3D11RESULT_EX((Factory2->CreateSwapChainForHwnd(D3DRHI->GetDevice(), WindowHandle, &SwapChainDesc, &FSSwapChainDesc, nullptr, &SwapChain1)), D3DRHI->GetDevice());
-			SwapChain1->QueryInterface(__uuidof(IDXGISwapChain1), (void**)SwapChain.GetInitReference());
+			if(!FAILED(Factory2->CreateSwapChainForHwnd(D3DRHI->GetDevice(), WindowHandle, &SwapChainDesc, &FSSwapChainDesc, nullptr, &SwapChain1)))
+			{
+				SwapChain1->QueryInterface(__uuidof(IDXGISwapChain1), (void**)SwapChain.GetInitReference());
 
-			// See if we are running on a HDR monitor 
-			CheckHDRMonitorStatus();
+				// See if we are running on a HDR monitor 
+				CheckHDRMonitorStatus();
+			}
 		}
-
 
 		if (SwapChain == nullptr)
 		{
@@ -284,6 +283,23 @@ void FD3D11Viewport::CheckHDRMonitorStatus()
 }
 
 void FD3D11Viewport::ConditionalResetSwapChain(bool bIgnoreFocus)
+{
+	if (!bIsValid)
+	{
+		if (bFullscreenLost)
+		{
+			FlushRenderingCommands();
+			bFullscreenLost = false;
+			Resize(SizeX, SizeY, false, PixelFormat);
+		}
+		else
+		{
+			ResetSwapChainInternal(bIgnoreFocus);
+		}
+	}
+}
+
+void FD3D11Viewport::ResetSwapChainInternal(bool bIgnoreFocus)
 {
 	if (!bIsValid)
 	{

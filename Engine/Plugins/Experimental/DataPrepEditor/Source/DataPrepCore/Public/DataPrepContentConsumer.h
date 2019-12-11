@@ -76,6 +76,10 @@ public:
 
 	UDataprepContentConsumer();
 
+	// UObject interface
+	virtual void PostEditUndo() override;
+	// End of UObject interface
+
 	/**
 	 * Successively calls Initialize, Run and Reset.
 	 * @param InContext : The world the consumer must process on. This world must be assumed to be transient.
@@ -104,6 +108,8 @@ public:
 	 */
 	virtual bool SetLevelName(const FString& InLevelName, FText& OutReason );
 
+	const FString& GetLevelName() { return LevelName; }
+
 	/**
 	 * Sets the path of the package the consumer should move assets to if applicable.
 	 * Generally, this package path is substituted to the temporary path the assets are in
@@ -111,11 +117,15 @@ public:
 	 * @return true if the assignment has been successful, false otherwise
 	 * @remark if InPackagePath is empty the package path of the consumer is used
 	 */
-	virtual bool SetTargetContentFolder(const FString& InTargetContentFolder );
-
-	const FString& GetLevelName() { return LevelName; }
+	virtual bool SetTargetContentFolder(const FString& InTargetContentFolder, FText& OutReason );
 
 	const FString& GetTargetContentFolder() { return TargetContentFolder; }
+
+	/**
+	 * Returns a well-formed path to use when calling CreatePackage to create the target package.
+	 * @remark 
+	 */
+	FString GetTargetPackagePath() const;
 
 	/**
 	 * Allow an observer to be notified when one of the properties of the consumer changes

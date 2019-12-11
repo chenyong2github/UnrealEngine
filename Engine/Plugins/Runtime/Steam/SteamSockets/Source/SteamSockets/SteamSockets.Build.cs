@@ -13,6 +13,7 @@ public class SteamSockets : ModuleRules
 			new string[] {
 				"Core", 
 				"CoreUObject",
+				"NetCore",
 				"Engine", 
 				"Sockets",
 				"OnlineSubsystem",

@@ -18,8 +18,8 @@ struct FNiagaraFloat
 {
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY(EditAnywhere, Category=Parameters)//Parameters? These are used for attrs too.
-	float Value;
+	UPROPERTY(EditAnywhere, Category=Parameters)
+	float Value = 0;
 };
 
 USTRUCT(meta = (DisplayName = "int32"))
@@ -27,8 +27,8 @@ struct FNiagaraInt32
 {
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY(EditAnywhere, Category = Parameters)//Parameters? These are used for attrs too.
-	int32 Value;
+	UPROPERTY(EditAnywhere, Category = Parameters)
+	int32 Value = 0;
 };
 
 USTRUCT(meta=(DisplayName="bool"))
@@ -36,13 +36,11 @@ struct FNiagaraBool
 {
 	GENERATED_USTRUCT_BODY()
 
-		// The Niagara VM expects this bitmask for its compare and select operators for false.
+	// The Niagara VM expects this bitmask for its compare and select operators for false.
 	enum BoolValues { 
 		True = INDEX_NONE,
 		False = 0
 	}; 
-
-	
 
 	void SetValue(bool bValue) { Value = bValue ? True : False; }
 	bool GetValue() const { return Value != False; }
@@ -55,12 +53,12 @@ struct FNiagaraBool
 
 	bool IsValid() const { return Value == True || Value == False; }
 	
-	FNiagaraBool():Value(False) {}
+	FNiagaraBool() : Value(False) {}
 	FNiagaraBool(bool bInValue) : Value(bInValue ? True : False) {}
 	FORCEINLINE operator bool() { return GetValue(); }
 
 private:
-	UPROPERTY(EditAnywhere, Category = Parameters)//Parameters? These are used for attrs too. Must be either FNiagaraBool::True or FNiagaraBool::False.
+	UPROPERTY(EditAnywhere, Category = Parameters)// Must be either FNiagaraBool::True or FNiagaraBool::False.
 	int32 Value;
 };
 
@@ -357,22 +355,23 @@ public:
 	bool bInlineEditConditionToggle;
 
 	/** Declares the associated input should be conditionally editable based on the value of another input. */
-	UPROPERTY(EditAnywhere, Category = "Input Conditions", meta = (EditCondition = "!bIsStaticSwitch"))
+	UPROPERTY(EditAnywhere, Category = "Variable")
 	FNiagaraInputConditionMetadata EditCondition;
 
 	/** Declares the associated input should be conditionally visible based on the value of another input. */
-	UPROPERTY(EditAnywhere, Category = "Input Conditions", meta = (EditCondition = "!bIsStaticSwitch"))
+	UPROPERTY(EditAnywhere, Category = "Variable")
 	FNiagaraInputConditionMetadata VisibleCondition;
 
 	UPROPERTY(EditAnywhere, Category = "Variable", DisplayName = "Property Metadata", meta = (ToolTip = "Property Metadata"))
 	TMap<FName, FString> PropertyMetaData;
 
-	UPROPERTY(AdvancedDisplay, VisibleAnywhere, Category = "Variable", meta = (ToolTip = "This is a read-only variable that designates if the metadata is tied to a static switch or not."))
-	bool bIsStaticSwitch;
+	/** This is a read-only variable that designates if the metadata is tied to a static switch or not. */
+	UPROPERTY()
+	bool bIsStaticSwitch; // TODO: This should be moved to the UNiagaraScriptVariable in the future
 
 	/** The default value to use when creating new pins or stack entries for a static switch parameter */
 	UPROPERTY()
-	int32 StaticSwitchDefaultValue;
+	int32 StaticSwitchDefaultValue;  // TODO: This should be moved to the UNiagaraScriptVariable in the future
 };
 
 USTRUCT()

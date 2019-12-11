@@ -36,7 +36,6 @@ void UAudioSettings::AddDefaultSettings()
 	DefaultReverbSendLevel_DEPRECATED = 0.0f;
 	bEnableLegacyReverb = false;
 	VoiPSampleRate = EVoiceSampleRate::Low16000Hz;
-	VoipBufferingDelay = 0.2f;
 	NumStoppingSources = 8;
 }
 
@@ -148,6 +147,13 @@ int32 UAudioSettings::GetHighestMaxChannels() const
 	}
 
 	return HighestMaxChannels;
+}
+
+FString UAudioSettings::FindQualityNameByIndex(int32 Index) const
+{
+	return QualityLevels.IsValidIndex(Index) ?
+		   QualityLevels[Index].DisplayName.ToString() :
+		   TEXT("");
 }
 
 #undef LOCTEXT_NAMESPACE

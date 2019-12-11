@@ -11,7 +11,7 @@
 #include "WindowsMixedRealityHandTrackingFunctionLibrary.generated.h"
 
 UCLASS(ClassGroup = WindowsMixedReality)
-class UWindowsMixedRealityHandTrackingFunctionLibrary :
+class WINDOWSMIXEDREALITYHANDTRACKING_API UWindowsMixedRealityHandTrackingFunctionLibrary :
 	public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()

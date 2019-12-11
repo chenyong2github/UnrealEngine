@@ -185,7 +185,7 @@ namespace
 			CurrentPath.FindLastChar(TEXT('*'), WildcardStarIndex);
 			if (WildcardStarIndex != INDEX_NONE)
 			{
-				CurrentPath = CurrentPath.Left(WildcardStarIndex);
+				CurrentPath.LeftInline(WildcardStarIndex, false);
 			}
 		}
 

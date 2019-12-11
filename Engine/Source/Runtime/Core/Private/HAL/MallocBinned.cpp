@@ -9,8 +9,6 @@
 #include "Misc/BufferedOutputDevice.h"
 
 #include "HAL/MemoryMisc.h"
-#include "HAL/LowLevelMemStats.h"
-#include "HAL/LowLevelMemTracker.h"
 
 /** Malloc binned allocator specific stats. */
 DEFINE_STAT(STAT_Binned_OsCurrent);
@@ -33,7 +31,7 @@ DEFINE_STAT(STAT_Binned_NanoMallocPages_WastePeak);
 #if PLATFORM_IOS
 #define PLAT_PAGE_SIZE_LIMIT 16384
 #define PLAT_BINNED_ALLOC_POOLSIZE 16384
-#define PLAT_SMALL_BLOCK_POOL_SIZE 256 //224
+#define PLAT_SMALL_BLOCK_POOL_SIZE 256
 #else
 #define PLAT_PAGE_SIZE_LIMIT 65536
 #define PLAT_BINNED_ALLOC_POOLSIZE 65536
@@ -47,6 +45,8 @@ struct FMallocBinned::FFreeMem
 	FFreeMem*	Next;
 	/** Number of consecutive free blocks here, at least 1. */
 	uint32		NumFreeBlocks;
+	/** make the struct 16 bytes for better alignment */
+	uint32		Padding;
 };
 
 // Memory pool info. 32 bytes.
@@ -448,6 +448,23 @@ struct FMallocBinned::Private
 		return Indirect;
 	}
 
+	/**
+	* Initializes tables for HashBuckets if they haven't already been initialized.
+	*/
+	static FORCEINLINE PoolHashBucket* CreateHashBuckets(const FMallocBinned& Allocator)
+	{
+		// Init tables.
+		LLM_PLATFORM_SCOPE(ELLMTag::FMalloc);
+		PoolHashBucket* Result = (PoolHashBucket*)FPlatformMemory::BinnedAllocFromOS(Align(Allocator.MaxHashBuckets * sizeof(PoolHashBucket), Allocator.PageSize));
+
+		for (uint32 i = 0; i < Allocator.MaxHashBuckets; ++i)
+		{
+			new (Result + i) PoolHashBucket();
+		}
+
+		return Result;
+	}
+	
 	/** 
 	* Gets the FPoolInfo for a memory address. If no valid info exists one is created. 
 	* NOTE: This function requires a mutex across threads, but its is the callers responsibility to 
@@ -457,15 +474,9 @@ struct FMallocBinned::Private
 	{
 		if (!Allocator.HashBuckets)
 		{
-			// Init tables.
-            LLM_PLATFORM_SCOPE(ELLMTag::FMalloc);
-			Allocator.HashBuckets = (PoolHashBucket*)FPlatformMemory::BinnedAllocFromOS(Align(Allocator.MaxHashBuckets * sizeof(PoolHashBucket), Allocator.PageSize));
-
-			for (uint32 i = 0; i < Allocator.MaxHashBuckets; ++i) 
-			{
-				new (Allocator.HashBuckets + i) PoolHashBucket();
-			}
+			Allocator.HashBuckets = CreateHashBuckets(Allocator);
 		}
+		checkSlow(Allocator.HashBuckets);
 
 		UPTRINT Key       = Ptr >> Allocator.HashKeyShift;
 		UPTRINT Hash      = Key & (Allocator.MaxHashBuckets - 1);
@@ -1323,6 +1334,13 @@ void* FMallocBinned::Malloc(SIZE_T Size, uint32 Alignment)
 #if USE_OS_SMALL_BLOCK_ALLOC && !USE_OS_SMALL_BLOCK_GRAB_MEMORY_FROM_OS
 	if (Size <= Private::SMALL_BLOCK_POOL_SIZE)
 	{
+		//Make sure we have initialized our hash buckets even if we are using the NANO_MALLOC grabber, as otherwise we can end
+		//up making bad assumptions and trying to grab invalid data during a Realloc of this data.
+		if (!HashBuckets)
+		{
+			HashBuckets = Private::CreateHashBuckets(*this);
+		}
+		
 		bUsePools = false;
 		UPTRINT AlignedSize = Align(Size, Alignment);
 		SIZE_T ActualPoolSize; //TODO: use this to reduce waste?

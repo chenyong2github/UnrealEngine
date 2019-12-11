@@ -126,7 +126,7 @@ namespace Generator
 
 	inline void FMaterialExpressionFactory::SetCurrentNormal(UMaterialExpression* InNormalExpression, bool InIsGeometryExpression)
 	{
-		check(InNormalExpression);
+		ensure(InNormalExpression);
 		CurrentNormalExpression = InNormalExpression;
 		bIsGeometryExpression   = InIsGeometryExpression;
 	}

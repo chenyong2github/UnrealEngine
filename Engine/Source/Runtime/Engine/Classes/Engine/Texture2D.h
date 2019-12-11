@@ -200,7 +200,7 @@ public:
 	{
 		if (PlatformData)
 		{
-			return FMath::Max(0, PlatformData->Mips.Num() - (int32)PlatformData->NumMipsInTail);
+			return FMath::Max(0, PlatformData->Mips.Num() - (int32)PlatformData->GetNumMipsInTail());
 		}
 		return 0;
 	}
@@ -213,7 +213,7 @@ public:
 	{
 		if (PlatformData)
 		{
-			return PlatformData->ExtData;
+			return PlatformData->GetExtData();
 		}
 		return 0;
 	}
@@ -239,7 +239,7 @@ public:
 	/** Returns the minimum number of mips that must be resident in memory (cannot be streamed). */
 	FORCEINLINE int32 GetMinTextureResidentMipCount() const
 	{
-		return FMath::Max(GMinTextureResidentMipCount, PlatformData ? (int32)PlatformData->NumMipsInTail : 0);
+		return FMath::Max(GMinTextureResidentMipCount, PlatformData ? (int32)PlatformData->GetNumMipsInTail() : 0);
 	}
 
 	/** Returns the minimum number of mips that must be resident in memory (cannot be streamed). */

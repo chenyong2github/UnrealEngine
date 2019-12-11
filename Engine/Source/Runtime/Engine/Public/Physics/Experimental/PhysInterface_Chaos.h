@@ -13,6 +13,7 @@
 #include "Physics/PhysicsInterfaceTypes.h"
 #include "Physics/GenericPhysicsInterface.h"
 #include "Physics/Experimental/PhysicsUserData_Chaos.h"
+#include "Chaos/PhysicalMaterials.h"
 
 //NOTE: Do not include Chaos headers directly as it means recompiling all of engine. This should be reworked to avoid allocations
 
@@ -37,8 +38,7 @@ namespace Chaos
 	template <typename T, int>
 	class TBVHParticles;
 
-	template <typename T, int>
-	class TImplicitObject;
+	class FImplicitObject;
 
 	template <typename T, int>
 	class TPBDRigidParticles;
@@ -49,8 +49,7 @@ namespace Chaos
 	template <typename T, int>
 	class TPBDSpringConstraints;
 
-	template <typename T, int>
-	class TConvex;
+	class FConvex;
 
 	template <typename T>
 	class TCapsule;
@@ -99,7 +98,7 @@ public:
 	bool Equals(const FPhysicsShapeReference_Chaos& Other) const { return Shape == Other.Shape; }
     bool operator==(const FPhysicsShapeReference_Chaos& Other) const { return Equals(Other); }
 	
-	const Chaos::TImplicitObject<float, 3>& GetGeometry() const;
+	const Chaos::FImplicitObject& GetGeometry() const;
 
 
 	Chaos::TPerShapeData<float, 3>* Shape;
@@ -143,18 +142,18 @@ struct ENGINE_API FPhysicsGeometryCollection_Chaos
 	~FPhysicsGeometryCollection_Chaos();
 
 	ECollisionShapeType GetType() const;
-	const Chaos::TImplicitObject<float, 3>& GetGeometry() const;
+	const Chaos::FImplicitObject& GetGeometry() const;
 	const Chaos::TBox<float, 3>& GetBoxGeometry() const;
 	const Chaos::TSphere<float, 3>&  GetSphereGeometry() const;
 	const Chaos::TCapsule<float>&  GetCapsuleGeometry() const;
-	const Chaos::TConvex<float, 3>& GetConvexGeometry() const;
+	const Chaos::FConvex& GetConvexGeometry() const;
 	const Chaos::TTriangleMeshImplicitObject<float>& GetTriMeshGeometry() const;
 
 private:
 	friend class FPhysInterface_Chaos;
 	explicit FPhysicsGeometryCollection_Chaos(const FPhysicsShapeReference_Chaos& InShape);
 
-	const Chaos::TImplicitObject<float, 3>& Geom;
+	const Chaos::FImplicitObject& Geom;
 };
 
 
@@ -178,6 +177,9 @@ public:
     FPhysInterface_Chaos(const AWorldSettings* Settings=nullptr);
     ~FPhysInterface_Chaos();
 
+	// Describe the interface to identify it to the caller
+	static FString GetInterfaceDescription() { return TEXT("Chaos"); }
+
     // Interface needed for interface
 	static void CreateActor(const FActorCreationParams& InParams, FPhysicsActorHandle& Handle);
 	static void ReleaseActor(FPhysicsActorHandle& InActorReference, FPhysScene* InScene = nullptr, bool bNeverDeferRelease=false);
@@ -192,11 +194,10 @@ public:
 	static void AddActorToAggregate_AssumesLocked(const FPhysicsAggregateReference_Chaos& InAggregate, const FPhysicsActorHandle& InActor);
 
 	// Material interface functions
-    // @todo(mlentine): How do we set material on the solver?
-	static FPhysicsMaterialHandle CreateMaterial(const UPhysicalMaterial* InMaterial) { return nullptr; }
-    static void ReleaseMaterial(FPhysicsMaterialHandle& InHandle) {}
-    static void UpdateMaterial(const FPhysicsMaterialHandle& InHandle, UPhysicalMaterial* InMaterial) {}
-    static void SetUserData(const FPhysicsMaterialHandle& InHandle, void* InUserData) {}
+	static FPhysicsMaterialHandle CreateMaterial(const UPhysicalMaterial* InMaterial);
+    static void ReleaseMaterial(FPhysicsMaterialHandle& InHandle);
+    static void UpdateMaterial(FPhysicsMaterialHandle& InHandle, UPhysicalMaterial* InMaterial);
+    static void SetUserData(FPhysicsMaterialHandle& InHandle, void* InUserData);
 
 	// Actor interface functions
 	template<typename AllocatorType>
@@ -211,10 +212,7 @@ public:
 	static void SetActorUserData_AssumesLocked(FPhysicsActorHandle& InActorReference, FPhysicsUserData* InUserData);
 
 	static bool IsRigidBody(const FPhysicsActorHandle& InActorReference);
-	static bool IsDynamic(const FPhysicsActorHandle& InActorReference)
-    {
-        return !IsStatic(InActorReference);
-    }
+	static bool IsDynamic(const FPhysicsActorHandle& InActorReference);
     static bool IsStatic(const FPhysicsActorHandle& InActorReference);
     static bool IsKinematic(const FPhysicsActorHandle& InActorReference);
 	static bool IsKinematic_AssumesLocked(const FPhysicsActorHandle& InActorReference);
@@ -225,6 +223,7 @@ public:
     static bool HasAsyncSceneData(const FPhysicsActorHandle& InHandle) { return false; }
 	static bool IsInScene(const FPhysicsActorHandle& InActorReference);
 	static FPhysScene* GetCurrentScene(const FPhysicsActorHandle& InHandle);
+	static void FlushScene(FPhysScene* InScene);
 	static bool CanSimulate_AssumesLocked(const FPhysicsActorHandle& InActorReference);
 	static float GetMass_AssumesLocked(const FPhysicsActorHandle& InActorReference);
 
@@ -368,7 +367,7 @@ public:
 	// Shape interface functions
 	static FPhysicsShapeHandle CreateShape(physx::PxGeometry* InGeom, bool bSimulation = true, bool bQuery = true, UPhysicalMaterial* InSimpleMaterial = nullptr, TArray<UPhysicalMaterial*>* InComplexMaterials = nullptr);
 	
-	static void CreateGeometry(const FGeometryAddParams& InParams, TArray<TUniquePtr<Chaos::TImplicitObject<float, 3>>>& OutGeoms, Chaos::TShapesArray<float, 3>& OutShapes, TArray<FPhysicsShapeHandle>* OutOptShapes);
+	static void CreateGeometry(const FGeometryAddParams& InParams, TArray<TUniquePtr<Chaos::FImplicitObject>>& OutGeoms, Chaos::TShapesArray<float, 3>& OutShapes, TArray<FPhysicsShapeHandle>* OutOptShapes);
 	static void AddGeometry(FPhysicsActorHandle& InActor, const FGeometryAddParams& InParams, TArray<FPhysicsShapeHandle>* OutOptShapes = nullptr);
 	static FPhysicsShapeHandle CloneShape(const FPhysicsShapeHandle& InShape);
 	static FPhysicsGeometryCollection_Chaos GetGeometryCollection(const FPhysicsShapeHandle& InShape);
@@ -377,10 +376,9 @@ public:
 	static FCollisionFilterData GetQueryFilter(const FPhysicsShapeHandle& InShape);
 	static bool IsSimulationShape(const FPhysicsShapeHandle& InShape);
 	static bool IsQueryShape(const FPhysicsShapeHandle& InShape);
-	static bool IsShapeType(const FPhysicsShapeHandle& InShape, ECollisionShapeType InType);
-	static ECollisionShapeType GetShapeType(const FPhysicsShapeHandle& InShape, bool GetInnerType = false);
+	static ECollisionShapeType GetShapeType(const FPhysicsShapeHandle& InShape);
 	static FTransform GetLocalTransform(const FPhysicsShapeHandle& InShape);
-    static void* GetUserData(const FPhysicsShapeHandle& InShape) { return nullptr; }
+    static void* GetUserData(const FPhysicsShapeHandle& InShape);
 
 	// Trace functions for testing specific geometry (not against a world)
 	static bool LineTrace_Geom(FHitResult& OutHit, const FBodyInstance* InInstance, const FVector& InStart, const FVector& InEnd, bool bTraceComplex, bool bExtractPhysMaterial = false);
@@ -396,14 +394,14 @@ public:
 	static void SetQueryFilter(const FPhysicsShapeHandle& InShape, const FCollisionFilterData& InFilter);
     static void SetIsSimulationShape(const FPhysicsShapeHandle& InShape, bool bIsSimShape) { const_cast<FPhysicsShapeHandle&>(InShape).bSimulation = bIsSimShape; }
     static void SetIsQueryShape(const FPhysicsShapeHandle& InShape, bool bIsQueryShape) { const_cast<FPhysicsShapeHandle&>(InShape).bSimulation = bIsQueryShape; }
-    static void SetUserData(const FPhysicsShapeHandle& InShape, void* InUserData) {}
+    static void SetUserData(const FPhysicsShapeHandle& InShape, void* InUserData);
     static void SetGeometry(const FPhysicsShapeHandle& InShape, physx::PxGeometry& InGeom) {}
 	static void SetLocalTransform(const FPhysicsShapeHandle& InShape, const FTransform& NewLocalTransform);
-    static void SetMaterials(const FPhysicsShapeHandle& InShape, const TArrayView<UPhysicalMaterial*>InMaterials) {}
+    static void SetMaterials(const FPhysicsShapeHandle& InShape, const TArrayView<UPhysicalMaterial*>InMaterials);
 };
 
 /*
-FORCEINLINE ECollisionShapeType GetType(const Chaos::TImplicitObject<float, 3>& Geom)
+FORCEINLINE ECollisionShapeType GetType(const Chaos::FImplicitObject& Geom)
 {
 	if (Geom.GetType() == Chaos::ImplicitObjectType::Box)
 	{
@@ -434,20 +432,17 @@ FORCEINLINE float GetHalfHeight(const Chaos::TCapsule<float>& Capsule)
 }
 */
 
-FORCEINLINE void DrawOverlappingTris(const UWorld* World, const FLocationHit& Hit, const Chaos::TImplicitObject<float, 3>& Geom, const FTransform& QueryTM)
+FORCEINLINE void DrawOverlappingTris(const UWorld* World, const FLocationHit& Hit, const Chaos::FImplicitObject& Geom, const FTransform& QueryTM)
 {
 	//TODO_SQ_IMPLEMENTATION
 }
 
-FORCEINLINE void ComputeZeroDistanceImpactNormalAndPenetration(const UWorld* World, const FLocationHit& Hit, const Chaos::TImplicitObject<float, 3>& Geom, const FTransform& QueryTM, FHitResult& OutResult)
+FORCEINLINE void ComputeZeroDistanceImpactNormalAndPenetration(const UWorld* World, const FLocationHit& Hit, const Chaos::FImplicitObject& Geom, const FTransform& QueryTM, FHitResult& OutResult)
 {
 	//TODO_SQ_IMPLEMENTATION
 }
 
-inline FPhysTypeDummy* GetMaterialFromInternalFaceIndex(const FPhysicsShape& Shape, uint32 InternalFaceIndex)
-{
-	return nullptr;
-}
+Chaos::FChaosPhysicsMaterial* GetMaterialFromInternalFaceIndex(const FPhysicsShape& Shape, const FPhysicsActor& Actor, uint32 InternalFaceIndex);
 
 inline uint32 GetTriangleMeshExternalFaceIndex(const FPhysicsShape& Shape, uint32 InternalFaceIndex)
 {

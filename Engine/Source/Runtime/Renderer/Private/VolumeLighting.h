@@ -57,11 +57,12 @@ public:
 		// .zw:DistanceFadeMAD to use MAD for efficiency in the shader, default to ignore the plane
 		FVector4 ShadowInjectParamValue(1, 1, 0, 0);
 
-		if (InnerSplitIndex >= 0)
+		if (InnerSplitIndex != INDEX_NONE)
 		{
 			FShadowCascadeSettings ShadowCascadeSettings;
 
-			LightSceneInfo->Proxy->GetShadowSplitBounds(View, (uint32)InnerSplitIndex, LightSceneInfo->IsPrecomputedLightingValid(), &ShadowCascadeSettings);
+			LightSceneInfo->Proxy->GetShadowSplitBounds(View, InnerSplitIndex, LightSceneInfo->IsPrecomputedLightingValid(), &ShadowCascadeSettings);
+			ensureMsgf(ShadowCascadeSettings.ShadowSplitIndex != INDEX_NONE, TEXT("FLightSceneProxy::GetShadowSplitBounds did not return an initialized ShadowCascadeSettings"));
 
 			// near cascade plane
 			{
@@ -74,7 +75,7 @@ public:
 			// far cascade plane
 			if(InnerSplitIndex != CascadeCount - 1)
 			{
-				ShadowInjectParamValue.Y = 1.0f / ShadowCascadeSettings.SplitFarFadeRegion;
+				ShadowInjectParamValue.Y = 1.0f / (ShadowCascadeSettings.SplitFarFadeRegion == 0.0f ? 0.0001f : ShadowCascadeSettings.SplitFarFadeRegion);
 				Planes[1] = FVector4((FVector)(ShadowCascadeSettings.FarFrustumPlane), -ShadowCascadeSettings.FarFrustumPlane.W);
 			}
 

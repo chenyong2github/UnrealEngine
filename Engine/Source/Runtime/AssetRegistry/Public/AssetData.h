@@ -363,12 +363,7 @@ public:
 	/** Returns true if the asset is loaded */
 	bool IsAssetLoaded() const
 	{
-		if (IsValid())
-		{
-			UPackage* Package = FindObjectFast<UPackage>(nullptr, PackageName);
-			return (Package != NULL) && (FindObjectFast<UObject>(Package, AssetName) != NULL);
-		}
-		return false;
+		return IsValid() && FindObjectSafe<UObject>(NULL, *ObjectPath.ToString()) != NULL;
 	}
 
 	/** Prints the details of the asset to the log */

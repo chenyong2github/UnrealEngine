@@ -1372,18 +1372,23 @@ bool MeshPaintHelpers::DoesMeshComponentContainPerLODColors(const UMeshComponent
 	{
 		bPerLODColors = StaticMeshComponent->bCustomOverrideVertexColorPerLOD;
 		
-		const int32 NumLODs = StaticMeshComponent->LODData.Num();
 		bool bInstancedLODColors = false;
-		for (int32 LODIndex = 1; LODIndex < NumLODs; ++LODIndex)
-		{
-			if (StaticMeshComponent->LODData[LODIndex].PaintedVertices.Num() > 0)
-			{
-				bInstancedLODColors = true;
-				break;
-			}
+		if (bPerLODColors)
+        {
+
+		  const int32 NumLODs = StaticMeshComponent->LODData.Num();
+		  
+		  for (int32 LODIndex = 1; LODIndex < NumLODs; ++LODIndex)
+		  {
+			  if (StaticMeshComponent->LODData[LODIndex].PaintedVertices.Num() > 0)
+			  {
+				  bInstancedLODColors = true;
+				  break;
+			  }
+		  }
 		}
 
-		bPerLODColors = bInstancedLODColors;		
+		bPerLODColors = bPerLODColors && bInstancedLODColors;
 	}
 	else if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(MeshComponent))
 	{

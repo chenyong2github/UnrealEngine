@@ -14,7 +14,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "PacketHandler.h"
 #include "Channel.h"
-#include "DDoSDetection.h"
+#include "Net/Core/Misc/DDoSDetection.h"
 #include "IPAddress.h"
 #include "Net/NetAnalyticsTypes.h"
 
@@ -330,6 +330,8 @@ class IAnalyticsProvider;
 class FNetAnalyticsAggregator;
 class UNetDriver;
 
+enum class ECreateReplicationChangelistMgrFlags;
+
 using FConnectionMap = TMap<TSharedRef<const FInternetAddr>, UNetConnection*, FDefaultSetAllocator, FInternetAddrConstKeyMapFuncs<UNetConnection*>>;
 
 extern ENGINE_API TAutoConsoleVariable<int32> CVarNetAllowEncryption;
@@ -473,6 +475,13 @@ struct ENGINE_API FPacketSimulationSettings
 	 */
 	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
 	int32	PktIncomingLoss = 0;
+
+	/**
+	 * Causes sent packets to have a variable latency that fluctuates from [PktLagMin] to [PktLagMin+PktJitter]
+	 * Note that this will cause packet loss on the receiving end.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
+	int32	PktJitter = 0;
 
 	/** reads in settings from the .ini file 
 	 * @note: overwrites all previous settings
@@ -1330,6 +1339,9 @@ public:
 
 	ENGINE_API virtual void NotifyActorTearOff(AActor* Actor);
 
+	/** Set whether this actor should swap roles before replicating properties. */
+	ENGINE_API void SetRoleSwapOnReplicate(AActor* Actor, bool bSwapRoles);
+
 	// ---------------------------------------------------------------
 	//
 	// ---------------------------------------------------------------	
@@ -1493,10 +1505,12 @@ public:
 	ENGINE_API virtual bool ShouldClientDestroyActor(AActor* Actor) const;
 
 	/** Called when an actor channel is remotely opened for an actor. */
-	ENGINE_API virtual void NotifyActorChannelOpen(UActorChannel* Channel, AActor* Actor) {}
+	ENGINE_API virtual void NotifyActorChannelOpen(UActorChannel* Channel, AActor* Actor);
 	
 	/** Called when an actor channel is cleaned up foor an actor. */
-	ENGINE_API virtual void NotifyActorChannelCleanedUp(UActorChannel* Channel, EChannelCloseReason CloseReason) {}
+	ENGINE_API virtual void NotifyActorChannelCleanedUp(UActorChannel* Channel, EChannelCloseReason CloseReason);
+
+	ENGINE_API virtual void NotifyActorTornOff(AActor* Actor);
 
 	/**
 	 * Returns the current delinquency analytics and resets them.
@@ -1567,6 +1581,8 @@ public:
 	 */
 	inline void IncreaseOutTotalNotifiedPackets() { ++OutTotalNotifiedPackets; }
 
+	bool DidHitchLastFrame() const;
+
 protected:
 
 	bool bMaySendProperties;
@@ -1575,6 +1591,8 @@ protected:
 	FRandomStream UpdateDelayRandomStream;
 
 private:
+
+	ENGINE_API virtual ECreateReplicationChangelistMgrFlags GetCreateReplicationChangelistMgrFlags() const;
 
 	FDelegateHandle PostGarbageCollectHandle;
 	void PostGarbageCollect();
@@ -1610,4 +1628,5 @@ private:
 	bool bForcedPacketSettings;
 #endif 
 
+	bool bDidHitchLastFrame = false;
 };

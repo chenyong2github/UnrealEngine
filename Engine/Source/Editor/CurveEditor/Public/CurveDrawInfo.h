@@ -81,11 +81,15 @@ struct FCurveDrawParams
 	/** Value defining how to draw keys of type ECurvePointType::LeaveTangent. */
 	FKeyDrawInfo LeaveTangentDrawInfo;
 
+	/** Whether or not to draw keys on the curve. */
+	uint8 bKeyDrawEnabled : 1;
+
 	/**
 	 * Construct new draw parameters for the specified curve ID
 	 */
 	FCurveDrawParams(FCurveModelID InID)
 		: Color(FLinearColor::White)
+		, bKeyDrawEnabled(1)
 		, ID(InID)
 	{}
 

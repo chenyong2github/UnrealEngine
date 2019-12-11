@@ -228,6 +228,8 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 
 #include "Particles/ParticleSystemManager.h"
 #include "Components/SkinnedMeshComponent.h"
+#include "ObjectTrace.h"
+#include "Animation/AnimTrace.h"
 
 DEFINE_LOG_CATEGORY(LogEngine);
 IMPLEMENT_MODULE( FEngineModule, Engine );
@@ -263,6 +265,14 @@ void FEngineModule::StartupModule()
 
 #if WITH_EDITOR
 	USkinnedMeshComponent::BindWorldDelegates();
+#endif
+
+#if OBJECT_TRACE_ENABLED
+	FObjectTrace::Init();
+#endif
+
+#if ANIM_TRACE_ENABLED
+	FAnimTrace::Init();
 #endif
 }
 
@@ -359,6 +369,81 @@ bool GIsTextureMemoryCorrupted = false;
 /** Whether PrepareMapChange is attempting to load a map that doesn't exist */
 bool GIsPrepareMapChangeBroken = false;
 #endif
+
+#if WITH_EDITOR
+// A debugging aid set when we switch out different play worlds during Play In Editor / PIE
+ENGINE_API FString GPlayInEditorContextString(TEXT("invalid"));
+#endif
+
+ENGINE_API void UpdatePlayInEditorWorldDebugString(const FWorldContext* WorldContext)
+{
+#if WITH_EDITOR
+	if (WorldContext == nullptr)
+	{
+		ensure(GPlayInEditorID == INDEX_NONE);
+		GPlayInEditorContextString = NSLOCTEXT("Engine", "PlayWorldIsNotActive", "Not in a play world").ToString();
+	}
+	else
+	{
+		FString WorldName;
+		if (UWorld* World = WorldContext->World())
+		{
+			switch (World->GetNetMode())
+			{
+			case NM_Standalone:
+				WorldName = NSLOCTEXT("Engine", "PlayWorldIsStandalone", "Standalone").ToString();
+				break;
+
+			case NM_ListenServer:
+				WorldName = NSLOCTEXT("Engine", "PlayWorldIsListenServer", "Listen Server").ToString();
+				break;
+
+			case NM_DedicatedServer:
+				WorldName = NSLOCTEXT("Engine", "PlayWorldIsDedicatedServer", "Dedicated Server").ToString();
+				break;
+
+			case NM_Client:
+				WorldName = FText::Format(NSLOCTEXT("Engine", "PlayWorldIsClient", "Client {0}"), FText::AsNumber(WorldContext->PIEInstance - 1)).ToString();
+				break;
+
+			default:
+				unimplemented();
+			};
+		}
+		else
+		{
+			WorldName = NSLOCTEXT("Engine", "PlayWorldBeingCreated", "(World Being Created)").ToString();
+		}
+
+		if (!WorldContext->CustomDescription.IsEmpty())
+		{
+			WorldName += TEXT(" ") + WorldContext->CustomDescription;
+		}
+
+		GPlayInEditorContextString = WorldName;
+	}
+#endif
+}
+
+FTemporaryPlayInEditorIDOverride::FTemporaryPlayInEditorIDOverride(int32 NewOverrideID)
+	: PreviousID(GPlayInEditorID)
+{
+	SetID(NewOverrideID);
+}
+
+FTemporaryPlayInEditorIDOverride::~FTemporaryPlayInEditorIDOverride()
+{
+	SetID(PreviousID);
+}
+
+void FTemporaryPlayInEditorIDOverride::SetID(int32 NewID)
+{
+	if (GPlayInEditorID != NewID)
+	{
+		GPlayInEditorID = NewID;
+		UpdatePlayInEditorWorldDebugString(GEngine->GetWorldContextFromPIEInstance(GPlayInEditorID));
+	}
+}
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FSimpleMulticastDelegate UEngine::OnPostEngineInit;
@@ -571,7 +656,8 @@ bool ParseResolution(const TCHAR* InResolution, uint32& OutX, uint32& OutY, int3
 					StringTripLen = 1;
 				}
 
-				YString = YString.Left(YString.Len() - StringTripLen).TrimStartAndEnd();
+				YString.LeftInline(YString.Len() - StringTripLen, false);
+				YString.TrimStartAndEndInline();
 			}
 
 			if (YString.IsNumeric())
@@ -867,6 +953,7 @@ namespace
 		return NewWorld;
 	}
 }
+
 /*-----------------------------------------------------------------------------
 Object class implementation.
 -----------------------------------------------------------------------------*/
@@ -1596,13 +1683,13 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_ColorList"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatColorList, NULL));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Levels"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatLevels, NULL));
 #if !UE_BUILD_SHIPPING
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Sounds"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSounds, &UEngine::ToggleStatSounds));
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundCues"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSoundCues, &UEngine::ToggleStatSoundCues));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundMixes"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSoundMixes, &UEngine::ToggleStatSoundMixes));
-	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_AudioStreaming"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatAudioStreaming, &UEngine::ToggleStatAudioStreaming));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundModulators"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSoundModulators, &UEngine::ToggleStatSoundModulators));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundModulatorsHelp"), TEXT("STATCAT_Engine"), FText::GetEmpty(), nullptr, &UEngine::PostStatSoundModulatorHelp));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_AudioStreaming"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatAudioStreaming, &UEngine::ToggleStatAudioStreaming));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundReverb"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSoundReverb, nullptr));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Sounds"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSounds, &UEngine::ToggleStatSounds));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundCues"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSoundCues, &UEngine::ToggleStatSoundCues));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundWaves"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSoundWaves, &UEngine::ToggleStatSoundWaves));
 #endif // !UE_BUILD_SHIPPING
 	/* @todo UE4 physx fix this once we have convexelem drawing again
@@ -1631,6 +1718,10 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 
 	// Record the analytics for any attached HMD devices
 	RecordHMDAnalytics();
+
+#if !UE_BUILD_SHIPPING
+	UE_CLOG(FPlatformMemory::IsExtraDevelopmentMemoryAvailable(), LogInit, Warning, TEXT("Running with %dMB of extra development memory!"),FPlatformMemory::GetExtraDevelopmentMemorySize()/1024ull/1024ull);
+#endif
 }
 
 void UEngine::Start()
@@ -1871,6 +1962,7 @@ void UEngine::UpdateTimeAndHandleMaxTickRate()
 
 															// Figure out whether we want to use real or fixed time step.
 	const bool bUseFixedTimeStep = FApp::IsBenchmarking() || FApp::UseFixedTimeStep();
+	static bool bPreviousUseFixedTimeStep = bUseFixedTimeStep;
 
 	// Updates logical last time to match logical current time from last tick
 	FApp::UpdateLastTime();
@@ -1893,9 +1985,16 @@ void UEngine::UpdateTimeAndHandleMaxTickRate()
 
 		// Did we just switch from a fixed time step to real-time?  If so, then we'll update our
 		// cached 'last time' so our current interval isn't huge (or negative!)
-		if( bTimeWasManipulated && !bUseFixedFrameRate )
+		if (bUseFixedTimeStep != bPreviousUseFixedTimeStep)
 		{
-			LastRealTime = CurrentRealTime - FApp::GetDeltaTime();
+			if (bUseFixedFrameRate)
+			{
+				LastRealTime = CurrentRealTime - (1.0 / FixedFrameRate);
+			}
+			else
+			{
+				LastRealTime = CurrentRealTime - FApp::GetDeltaTime();
+			}
 			bTimeWasManipulated = false;
 		}
 
@@ -2042,6 +2141,8 @@ void UEngine::UpdateTimeAndHandleMaxTickRate()
 			}
 		}
 	}
+
+	bPreviousUseFixedTimeStep = bUseFixedTimeStep;
 
 #if !UE_BUILD_SHIPPING
 	{
@@ -2866,7 +2967,7 @@ public:
 		// We have to do all the work for secondary views that are on a different GPU than
 		// the primary view. NB: This assumes that the primary view is assigned to the
 		// first GPU of the AFR group. See FSceneRenderer::ComputeViewGPUMasks.
-		if (View.StereoPass != eSSP_FULL && AFRUtils::GetIndexWithinGroup(View.GPUMask.ToIndex()) != 0)
+		if (IStereoRendering::IsStereoEyeView(View) && AFRUtils::GetIndexWithinGroup(View.GPUMask.ToIndex()) != 0)
 		{
 			return true;
 		}
@@ -6423,7 +6524,7 @@ bool UEngine::HandleMergeMeshCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorl
 		const TCHAR* LocalCmd = *CmdCopy;
 		FString Token = FParse::Token( LocalCmd, true );
 		Tokens.Add( Token );
-		CmdCopy = CmdCopy.Right( CmdCopy.Len() - Token.Len() - 1 );
+		CmdCopy.RightInline( CmdCopy.Len() - Token.Len() - 1, false);
 	}
 
 	// array of source meshes that will be merged
@@ -7743,6 +7844,12 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 	{
 		const bool bShowHashBucketCollisionInfo = FParse::Param(Cmd, TEXT("SHOWBUCKETCOLLISIONS"));
 		LogHashOuterStatistics(Ar, bShowHashBucketCollisionInfo);
+		return true;
+	}
+	else if (FParse::Command(&Cmd, TEXT("OVERHEAD")))
+	{
+		const bool bShowIndividualStats = FParse::Param(Cmd, TEXT("DETAILED"));
+		LogHashMemoryOverheadStatistics(Ar, bShowIndividualStats);
 		return true;
 	}
 #endif
@@ -9097,7 +9204,7 @@ void UEngine::PerformanceCapture(UWorld* World, const FString& MapName, const FS
 	// can be define by command line -BuildName="ByCustomBuildName" or "CL<changelist>"
 	FString BuildName = GetBuildNameForPerfTesting();
 
-	// e.g. XboxOne, AllDesktop, Android_.., PS4, HTML5 
+	// e.g. XboxOne, AllDesktop, Android_.., PS4
 	FString PlatformName = FPlatformProperties::PlatformName();
 
 	// e.g. D3D11,OpenGL,Vulcan,D3D12
@@ -9510,11 +9617,11 @@ static void DrawProperty(UCanvas* CanvasObject, UObject* Obj, const FDebugDispla
 	do
 	{
 		FString Str = ValueText;
-		CommaIdx = ValueText.Find( TEXT(",") );
+		CommaIdx = ValueText.Find( TEXT(","), ESearchCase::CaseSensitive);
 		if( CommaIdx >= 0 )
 		{
 			Str = ValueText.Left(CommaIdx);
-			ValueText = ValueText.Mid( CommaIdx+1 );
+			ValueText.MidInline( CommaIdx+1, MAX_int32, false );
 		}
 
 		int32 XL, YL;
@@ -10260,9 +10367,17 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 		{
 			UWorld* ServerWorld = *It;
 			if (ServerWorld->WorldType == EWorldType::PIE && ServerWorld->GetNetMode() == NM_DedicatedServer)
-			{				
+			{
+				FString WorldDesc = TEXT("[Server]");
+
+				FWorldContext& WorldContext = GEngine->GetWorldContextFromWorldChecked(ServerWorld);
+				if (!WorldContext.CustomDescription.IsEmpty())
+				{
+					WorldDesc += TEXT("[") + WorldContext.CustomDescription + TEXT("]");
+				}
+
 				Y += 20;
-				Y += Canvas->DrawShadowedString( X, Y, TEXT("[Server]"), GEngine->GetSmallFont(), FLinearColor::Gray);
+				Y += Canvas->DrawShadowedString( X, Y, *WorldDesc, GEngine->GetSmallFont(), FLinearColor::Gray);
 				DrawDebugPropertiesForWorld(ServerWorld, X, Y);
 			}
 		}
@@ -12377,7 +12492,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 
 	MALLOC_PROFILER( FMallocProfiler::SnapshotMemoryLoadMapMid( URL.Map ); )
 
-		WorldContext.OwningGameInstance->PreloadContentForURL(URL);
+	WorldContext.OwningGameInstance->PreloadContentForURL(URL);
 
 	UPackage* WorldPackage = NULL;
 	UWorld*	NewWorld = NULL;
@@ -12400,6 +12515,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 					// We are loading a new world for this context, so clear out PIE fixups that might be lingering.
 					// (note we dont want to do this in DuplicateWorldForPIE, since that is also called on streaming worlds.
 					GPlayInEditorID = WorldContext.PIEInstance;
+					UpdatePlayInEditorWorldDebugString(&WorldContext);
 					FLazyObjectPtr::ResetPIEFixups();
 
 					NewWorld = UWorld::DuplicateWorldForPIE(SourceWorldPackage, nullptr);
@@ -12703,7 +12819,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	TRACE_BOOKMARK(TEXT("LoadMapComplete - %s"), *URL.Map);
 	MALLOC_PROFILER( FMallocProfiler::SnapshotMemoryLoadMapEnd( URL.Map ); )
 
-		double StopTime = FPlatformTime::Seconds();
+	double StopTime = FPlatformTime::Seconds();
 
 	UE_LOG(LogLoad, Log, TEXT("Took %f seconds to LoadMap(%s)"), StopTime - StartTime, *URL.Map);
 	FLoadTimeTracker::Get().DumpRawLoadTimes();

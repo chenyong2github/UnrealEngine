@@ -205,7 +205,8 @@ void GetShadowTerms(FGBufferData GBuffer, FDeferredLightData LightData, float3 W
 		{
 			// If hair transmittance is enabled, sharp shadowing should already be handled by 
 			// the dedicated deep shadow maps. Thus no need for contact shadow
-			if (!LightData.HairTransmittance.Enable)
+			const bool bUseComplexTransmittance = (LightData.HairTransmittance.ScatteringComponent & HAIR_COMPONENT_MULTISCATTER) > 0;
+			if (!bUseComplexTransmittance)
 			{
 				Shadow.TransmissionShadow *= ContactShadow;
 			}

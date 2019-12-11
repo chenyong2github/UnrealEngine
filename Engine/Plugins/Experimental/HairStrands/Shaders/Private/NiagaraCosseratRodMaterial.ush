@@ -19,7 +19,9 @@ void SetupStretchRodMaterial(in int StrandsSize, in float YoungModulus, in float
 		OutMaterialCompliance = 4.0/(YoungModulus*PI*RodThickness*RestLength*RodThickness*DeltaTime*DeltaTime);
 
 		const float SumInverseMass = !ProjectConstraint ? ( SharedInverseMass[GGroupThreadId.x] + SharedInverseMass[GGroupThreadId.x-1] ) / (RestLength*RestLength) + 
-					SharedInverseInertia[GGroupThreadId.x-1]*4.0 : SharedInverseMass[GGroupThreadId.x];
+					SharedInverseInertia[GGroupThreadId.x-1]*4.0 : SharedInverseMass[GGroupThreadId.x] / (RestLength*RestLength) ;
+
+		//const float SumInverseMass = !ProjectConstraint ? ( SharedInverseMass[GGroupThreadId.x] + SharedInverseMass[GGroupThreadId.x-1] ) / (RestLength*RestLength) : SharedInverseMass[GGroupThreadId.x] / (RestLength*RestLength) ;
 
 		const float SchurDiagonal = ( (1.0  + MaterialDamping / DeltaTime ) * SumInverseMass + OutMaterialCompliance );
 		OutMaterialWeight = ( SchurDiagonal != 0.0 ) ? 1.0 / SchurDiagonal : 0.0;
@@ -60,6 +62,8 @@ void UpdateStretchRodMultiplier( in float RestLength, in float DeltaTime, in boo
 	if(!ProjectConstraint)
 	{
 		SharedNodePosition[GGroupThreadId.x-1] -= PositionDelta * SharedInverseMass[GGroupThreadId.x-1];
+
+		//const float QuaternionDelta = 0.5 * MultiplyQuat(float4(cross( TargetDirection, DeltaLambda),0), q0 );
 
 		const float4 QuaternionDelta = -2.0 * float4( DeltaLambda.xyz * qebar.w + cross(DeltaLambda.xyz, qebar.xyz),
 						- dot(DeltaLambda.xyz, qebar.xyz) );
@@ -127,7 +131,7 @@ void ProjectStretchRodMaterial(in int StrandsSize, in float YoungModulus, in flo
 	{
 		// Compliance = 1.0 / (k * dt * dt)
 		// with k = (Y * I * L) 
-		// A is the polar moment of inertia (Pi * R * R * R * R / 4), L is the rest length and Y is the young modulus
+		// I is the polar moment of inertia (Pi * R * R * R * R / 4), L is the rest length and Y is the young modulus
 		OutMaterialCompliance = 64.0/(YoungModulus*PI*RestLength*RodThickness*RodThickness*RodThickness*RodThickness*DeltaTime*DeltaTime);
 
 		const float SumInverseMass = !ProjectConstraint ? ( SharedInverseInertia[GGroupThreadId.x] + SharedInverseInertia[GGroupThreadId.x-1] ) * 4.0 / (RestLength*RestLength) 

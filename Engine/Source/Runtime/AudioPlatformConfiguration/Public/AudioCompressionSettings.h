@@ -56,6 +56,9 @@ struct FPlatformAudioCookOverrides
 	// Scales all compression qualities when cooking to this platform. For example, 0.5 will halve all compression qualities, and 1.0 will leave them unchanged.
 	float CompressionQualityModifier;
 
+	// If set, the cooker will keep only this level of quality
+	int32 SoundCueCookQualityIndex = INDEX_NONE;
+
 	// When set to any platform > 0.0, this will automatically set any USoundWave beyond this value to be streamed from disk.
 	// If StreamCaching is set to true, this will be used 
 	float AutoStreamingThreshold;

@@ -95,7 +95,7 @@ Unreal Python API HTML generation manually using Sphinx
 
 Use the same command-line as above with -NoHTML added:
 
--run=PythonOnlineDocs -NoShaderCompile -IncludeEngine -NoHTML -EnableAllPlugins -ExceptPlugins="MixedRealityCaptureFramework,Oodle,RenderDocPlugin,OculusAvatar"
+-run=PythonOnlineDocs -NoShaderCompile -IncludeEngine -NoHTML -EnableAllPlugins -ExceptPlugins="MixedRealityCaptureFramework,Oodle,RenderDocPlugin,OculusAvatar,VoiceChat"
 
 
 Ensure Python is installed

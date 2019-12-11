@@ -50,92 +50,75 @@ struct FD3D12_COMPUTE_PIPELINE_STATE_STREAM
 	CD3DX12_PIPELINE_STATE_STREAM_CACHED_PSO CachedPSO;
 };
 
+struct ComputePipelineCreationArgs_POD;
+struct GraphicsPipelineCreationArgs_POD;
+
+#include "D3D12PipelineState.h"
+
+void SaveByteCode(D3D12_SHADER_BYTECODE& ByteCode);
+
 struct ComputePipelineCreationArgs_POD
 {
-	const FD3D12ComputePipelineStateDesc* Desc;
+	FD3D12ComputePipelineStateDesc Desc;
 	ID3D12PipelineLibrary* Library;
 
-	void Init(ComputePipelineCreationArgs_POD InArgs)
+	void Init(const ComputePipelineCreationArgs_POD& InArgs)
 	{
 		Desc = InArgs.Desc;
 		Library = InArgs.Library;
+
+		SaveByteCode(Desc.Desc.CS);
 	}
+
+	void Destroy();
 };
 
 struct GraphicsPipelineCreationArgs_POD
 {
-	const FD3D12LowLevelGraphicsPipelineStateDesc* Desc;
+	FD3D12LowLevelGraphicsPipelineStateDesc Desc;
 	ID3D12PipelineLibrary* Library;
 
-	void Init(GraphicsPipelineCreationArgs_POD InArgs)
+	void Init(const GraphicsPipelineCreationArgs_POD& InArgs)
 	{
 		Desc = InArgs.Desc;
 		Library = InArgs.Library;
-	}
-};
 
-#include "D3D12PipelineState.h"
+		SaveByteCode(Desc.Desc.VS);
+		SaveByteCode(Desc.Desc.PS);
+		SaveByteCode(Desc.Desc.GS);
+		SaveByteCode(Desc.Desc.HS);
+		SaveByteCode(Desc.Desc.DS);
+	}
+
+	void Destroy();
+};
 
 struct ComputePipelineCreationArgs
 {
-	ComputePipelineCreationArgs()
-	{
-		Args.Desc = nullptr;
-		Args.Library = nullptr;
-	}
-
 	ComputePipelineCreationArgs(const FD3D12ComputePipelineStateDesc* InDesc, ID3D12PipelineLibrary* InLibrary)
 	{
-		Args.Desc = InDesc;
+		Args.Desc = *InDesc;
 		Args.Library = InLibrary;
 	}
 
 	ComputePipelineCreationArgs(const ComputePipelineCreationArgs& InArgs)
-		: ComputePipelineCreationArgs(InArgs.Args.Desc, InArgs.Args.Library)
+		: ComputePipelineCreationArgs(&InArgs.Args.Desc, InArgs.Args.Library)
 	{}
-
-	ComputePipelineCreationArgs& operator=(const ComputePipelineCreationArgs& Other)
-	{
-		if (this != &Other)
-		{
-			Args.Desc = Other.Args.Desc;
-			Args.Library = Other.Args.Library;
-		}
-
-		return *this;
-	}
 
 	ComputePipelineCreationArgs_POD Args;
 };
 
 struct GraphicsPipelineCreationArgs
 {
-	GraphicsPipelineCreationArgs()
-	{
-		Args.Desc = nullptr;
-		Args.Library = nullptr;
-	}
-
 	GraphicsPipelineCreationArgs(const FD3D12LowLevelGraphicsPipelineStateDesc* InDesc, ID3D12PipelineLibrary* InLibrary)
 	{
-		Args.Desc = InDesc;
+		Args.Desc = *InDesc;
 		Args.Library = InLibrary;
 	}
 
 	GraphicsPipelineCreationArgs(const GraphicsPipelineCreationArgs& InArgs)
-		: GraphicsPipelineCreationArgs(InArgs.Args.Desc, InArgs.Args.Library)
+		: GraphicsPipelineCreationArgs(&InArgs.Args.Desc, InArgs.Args.Library)
 	{}
-
-	GraphicsPipelineCreationArgs& operator=(const GraphicsPipelineCreationArgs& Other)
-	{
-		if (this != &Other)
-		{
-			Args.Desc = Other.Args.Desc;
-			Args.Library = Other.Args.Library;
-		}
-
-		return *this;
-	}
 
 	GraphicsPipelineCreationArgs_POD Args;
 };

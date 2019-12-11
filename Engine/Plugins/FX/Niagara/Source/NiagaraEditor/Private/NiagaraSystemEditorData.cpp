@@ -233,6 +233,7 @@ void UNiagaraSystemEditorData::SynchronizeOverviewGraphWithSystem(UNiagaraSystem
 	{
 		if(bSystemIsPlaceholder == false)
 		{
+			SystemOverviewGraph->Modify();
 			FGraphNodeCreator<UNiagaraOverviewNode> SystemOverviewNodeCreator(*SystemOverviewGraph);
 			UNiagaraOverviewNode* SystemOverviewNode = SystemOverviewNodeCreator.CreateNode(false);
 			SystemOverviewNode->Initialize(&OwnerSystem);
@@ -256,13 +257,16 @@ void UNiagaraSystemEditorData::SynchronizeOverviewGraphWithSystem(UNiagaraSystem
 	for (const FNiagaraEmitterHandle& EmitterHandle : OwnerSystem.GetEmitterHandles())
 	{
 		int32 EmitterNodeIndex = OverviewNodes.IndexOfByPredicate([&EmitterHandle] (UNiagaraOverviewNode* OverviewNode) { return OverviewNode->GetEmitterHandleGuid() == EmitterHandle.GetId(); });
+		UNiagaraOverviewNode* EmitterNode = nullptr;
 		if (EmitterNodeIndex != INDEX_NONE)
 		{
 			// If a node for this emitter exists already, remove it from the collection so that we can track nodes for emitters which no longer exist.
+			EmitterNode = OverviewNodes[EmitterNodeIndex];
 			OverviewNodes.RemoveAt(EmitterNodeIndex);
 		}
 		else
 		{
+			SystemOverviewGraph->Modify();
 			FGraphNodeCreator<UNiagaraOverviewNode> EmitterOverviewNodeCreator(*SystemOverviewGraph);
 			UNiagaraOverviewNode* EmitterOverviewNode = EmitterOverviewNodeCreator.CreateNode(false);
 			EmitterOverviewNode->Initialize(&OwnerSystem, EmitterHandle.GetId());
@@ -278,7 +282,10 @@ void UNiagaraSystemEditorData::SynchronizeOverviewGraphWithSystem(UNiagaraSystem
 			EmitterOverviewNodeCreator.Finalize();
 
 			RightNode = EmitterOverviewNode;
+			EmitterNode = EmitterOverviewNode;
 		}
+		EmitterNode->Modify();
+		EmitterNode->SetEnabledState(EmitterHandle.GetIsEnabled() ? ENodeEnabledState::Enabled : ENodeEnabledState::Disabled);
 	}
 
 	// If there are any nodes remaining in the list they're no longer being used so destroy them.

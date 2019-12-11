@@ -1,9 +1,11 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Processor.h"
+#include "DataStream.h"
 #include "HAL/Event.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/RunnableThread.h"
+#include "StreamReader.h"
 #include "Templates/UnrealTemplate.h"
 #include "Trace/Analysis.h"
 
@@ -32,16 +34,28 @@ FAnalysisProcessor::FImpl::~FImpl()
 ////////////////////////////////////////////////////////////////////////////////
 uint32 FAnalysisProcessor::FImpl::Run()
 {
-	for (FStreamReader Reader(DataStream); FStreamReader::FData* Data = Reader.Read();)
+	FStreamBuffer Buffer;
+
+	while (!StopEvent->Wait(0, true))
 	{
-		if (StopEvent->Wait(0, true))
+		UnpausedEvent->Wait();
+
+		int32 BytesRead = Buffer.Fill([&] (uint8* Out, uint32 Size)
+		{
+			return DataStream.Read(Out, Size);
+		});
+
+		if (BytesRead < 0)
 		{
 			break;
 		}
 
-		UnpausedEvent->Wait();
+		if (!AnalysisEngine.OnData(Buffer))
+		{
+			break;
+		}
 
-		if (!AnalysisEngine.OnData(*Data))
+		if (Buffer.IsEof())
 		{
 			break;
 		}

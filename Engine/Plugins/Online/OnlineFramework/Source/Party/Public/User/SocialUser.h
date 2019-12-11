@@ -15,6 +15,8 @@ class FOnlineUserPresence;
 class UPartyMember;
 enum class EPlatformIconDisplayRule : uint8;
 
+struct FOnlineError;
+
 namespace EOnlinePresenceState { enum Type : uint8; }
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnNewSocialUserInitialized, USocialUser&);
@@ -44,6 +46,8 @@ public:
 	FUniqueNetIdRepl GetUserId(ESocialSubsystem SubsystemType) const;
 	FString GetDisplayName() const;
 	FString GetDisplayName(ESocialSubsystem SubsystemType) const;
+	virtual FString GetNickname() const;
+	virtual bool SetNickname(const FString& InNickName);
 
 	EInviteStatus::Type GetFriendInviteStatus(ESocialSubsystem SubsystemType) const;
 	bool IsFriend() const;
@@ -51,6 +55,7 @@ public:
 	bool IsFriendshipPending(ESocialSubsystem SubsystemType) const;
 	const FOnlineUserPresence* GetFriendPresenceInfo(ESocialSubsystem SubsystemType) const;
 	FDateTime GetFriendshipCreationDate() const;
+	virtual FDateTime GetLastOnlineDate() const;
 	FText GetSocialName() const;
 	virtual FUserPlatform GetCurrentPlatform() const;
 
@@ -69,7 +74,8 @@ public:
 	bool IsPlayingThisGame() const;
 	
 	virtual bool CanReceiveOfflineInvite() const { return false; }
-	virtual int32 GetCustomSortValue() const { return 0; }
+	virtual int64 GetCustomSortValuePrimary() const { return 0; }
+	virtual int64 GetCustomSortValueSecondary() const { return 0; }
 
 	bool SetUserLocalAttribute(ESocialSubsystem SubsystemType, const FString& AttrName, const FString& AttrValue);
 	bool GetUserAttribute(ESocialSubsystem SubsystemType, const FString& AttrName, FString& OutAttrValue) const;
@@ -100,6 +106,9 @@ public:
 	virtual bool UnblockUser(ESocialSubsystem Subsystem) const;
 
 	UPartyMember* GetPartyMember(const FOnlinePartyTypeId& PartyTypeId) const;
+
+	DECLARE_EVENT_OneParam(USocialUser, FOnNicknameChanged, const FText&);
+	FOnNicknameChanged& OnSetNicknameCompleted() const { return OnSetNicknameCompletedEvent; }
 
 	DECLARE_EVENT(USocialUser, FPartyInviteResponseEvent);
 	FPartyInviteResponseEvent& OnPartyInviteAccepted() const { return OnPartyInviteAcceptedEvent; }
@@ -144,18 +153,11 @@ protected:
 	virtual void OnPresenceChangedInternal(ESocialSubsystem SubsystemType);
 	virtual void OnPartyInviteAcceptedInternal(const FOnlinePartyTypeId& PartyTypeId) const;
 	virtual void OnPartyInviteRejectedInternal(const FOnlinePartyTypeId& PartyTypeId) const;
+	virtual void HandleSetNicknameComplete(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName, const FOnlineError& Error);
 	virtual void SetSubsystemId(ESocialSubsystem SubsystemType, const FUniqueNetIdRepl& SubsystemId);
 	int32 NumPendingQueries = 0;
 
 	void TryBroadcastInitializationComplete();
-private:
-	
-	void SetUserInfo(ESocialSubsystem SubsystemType, const TSharedRef<FOnlineUser>& UserInfo);
-	void HandleQueryUserInfoComplete(ESocialSubsystem SubsystemType, bool bWasSuccessful, const TSharedPtr<FOnlineUser>& UserInfo);
-
-	virtual FString SanitizePresenceString(FString InString) const;
-	
-private:
 
 	struct FSubsystemUserInfo
 	{
@@ -180,6 +182,15 @@ private:
 		TWeakPtr<FOnlineRecentPlayer> RecentPlayerInfo;
 		TWeakPtr<FOnlineBlockedPlayer> BlockedPlayerInfo;
 	};
+	const FSubsystemUserInfo* GetSubsystemUserInfo(ESocialSubsystem Subsystem) const { return SubsystemInfoByType.Find(Subsystem); }
+
+private:
+	void SetUserInfo(ESocialSubsystem SubsystemType, const TSharedRef<FOnlineUser>& UserInfo);
+	void HandleQueryUserInfoComplete(ESocialSubsystem SubsystemType, bool bWasSuccessful, const TSharedPtr<FOnlineUser>& UserInfo);
+
+	virtual FString SanitizePresenceString(FString InString) const;
+
+private:
 	FSubsystemUserInfo& FindOrCreateSubsystemInfo(const FUniqueNetIdRepl& SubsystemId, ESocialSubsystem SubsystemType);
 
 	bool bIsInitialized = false;
@@ -190,6 +201,7 @@ private:
 	// Initialization delegates that fire only when a specific user has finishing initializing
 	static TMap<TWeakObjectPtr<USocialUser>, FOnNewSocialUserInitialized> InitEventsByUser;
 
+	mutable FOnNicknameChanged OnSetNicknameCompletedEvent;
 	mutable FPartyInviteResponseEvent OnPartyInviteAcceptedEvent;
 	mutable FPartyInviteResponseEvent OnPartyInviteRejectedEvent;
 	mutable FOnUserPresenceChanged OnUserPresenceChangedEvent;

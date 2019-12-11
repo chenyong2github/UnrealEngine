@@ -9,6 +9,7 @@
 #include "ISequencer.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraScript.h"
@@ -33,7 +34,7 @@ void SNiagaraGeneratedCodeView::Construct(const FArguments& InArgs, TSharedRef<F
 	ensure(ScriptEnum);
 
 	SystemViewModel = InSystemViewModel;
-	SystemViewModel->GetSelectionViewModel()->OnSelectionChanged().AddSP(this, &SNiagaraGeneratedCodeView::SystemSelectionChanged);
+	SystemViewModel->GetSelectionViewModel()->OnEmitterHandleIdSelectionChanged().AddSP(this, &SNiagaraGeneratedCodeView::SystemSelectionChanged);
 	SystemViewModel->GetSystemScriptViewModel()->OnSystemCompiled().AddRaw(this, &SNiagaraGeneratedCodeView::OnCodeCompiled);
 
 	TSharedRef<SWidget> HeaderContentsFirstLine = SNew(SHorizontalBox)
@@ -329,7 +330,7 @@ void SNiagaraGeneratedCodeView::OnCodeCompiled()
 	DoSearch(SearchBox->GetText());
 }
 
-void SNiagaraGeneratedCodeView::SystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource)
+void SNiagaraGeneratedCodeView::SystemSelectionChanged()
 {
 	UpdateUI();
 	DoSearch(SearchBox->GetText());
@@ -533,7 +534,7 @@ SNiagaraGeneratedCodeView::~SNiagaraGeneratedCodeView()
 	{
 		if (SystemViewModel->GetSelectionViewModel())
 		{
-			SystemViewModel->GetSelectionViewModel()->OnSelectionChanged().RemoveAll(this);
+			SystemViewModel->GetSelectionViewModel()->OnEmitterHandleIdSelectionChanged().RemoveAll(this);
 		}
 
 		if (SystemViewModel->GetSystemScriptViewModel().IsValid())

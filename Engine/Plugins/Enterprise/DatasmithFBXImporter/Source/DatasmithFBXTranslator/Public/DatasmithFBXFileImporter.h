@@ -43,12 +43,12 @@ protected:
 	TSharedPtr<FDatasmithFBXSceneMesh> ImportMesh(FbxMesh* InMesh, FbxNode* InNode);
 
 	/** Convert Fbx mesh into FRawMesh */
-	void DoImportMesh(FbxMesh* InMesh, FDatasmithFBXSceneMesh* Mesh);
+	static void DoImportMesh(FbxMesh* InMesh, FDatasmithFBXSceneMesh* Mesh);
 
 	/** Import an Fbx material */
 	TSharedPtr<FDatasmithFBXSceneMaterial> ImportMaterial(FbxSurfaceMaterial* InMaterial);
 
-	void FindFbxUVChannels(FbxMesh* Mesh, TArray<FFbxUVInfo>& FbxUVs);
+	static void FindFbxUVChannels(FbxMesh* Mesh, TArray<FFbxUVInfo>& FbxUVs);
 
 	bool IsOddNegativeScale(FbxAMatrix& TotalMatrix);
 

@@ -2862,9 +2862,6 @@ private:
 	/** Delegate callback for when a streaming level is removed from world. */
 	void OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld);
 
-	/** Delegate callback for when a streamed out levels going to be removed by GC. */
-	void OnGCStreamedOutLevels();
-
 	/** Puts the currently loaded project file at the top of the recents list and trims and files that fell off the list */
 	void UpdateRecentlyLoadedProjectFiles();
 
@@ -3084,7 +3081,7 @@ protected:
 	void HandleStageStarted(const FString& InStage, TWeakPtr<SNotificationItem> NotificationItemPtr);
 	void HandleStageCompleted(const FString& InStage, double StageTime, bool bHasCode, TWeakPtr<SNotificationItem> NotificationItemPtr);
 	void HandleLaunchCanceled(double TotalTime, bool bHasCode, TWeakPtr<SNotificationItem> NotificationItemPtr);
-	void HandleLaunchCompleted(bool Succeeded, double TotalTime, int32 ErrorCode, bool bHasCode, TWeakPtr<SNotificationItem> NotificationItemPtr, TSharedPtr<class FMessageLog> MessageLog);
+	void HandleLaunchCompleted(bool Succeeded, double TotalTime, int32 ErrorCode, bool bHasCode, TWeakPtr<SNotificationItem> NotificationItemPtr);
 
 	// Handle requests from slate application to open assets.
 	bool HandleOpenAsset(UObject* Asset);

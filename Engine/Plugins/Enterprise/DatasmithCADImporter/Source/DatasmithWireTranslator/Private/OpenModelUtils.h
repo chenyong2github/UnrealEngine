@@ -4,8 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "CADLibraryOptions.h"
-
+#include "CADOptions.h"
 
 #ifdef USE_OPENMODEL
 
@@ -50,7 +49,7 @@ namespace OpenModelUtils
 	FString GetUEUUIDFromAIPersistentID(const FString& ParentUEuuid, const FString& CurrentNodePersistentID);
 
 	// Note that Alias file unit is cm like UE
-	bool TransferAlMeshToMeshDescription(const AlMesh& Mesh, FMeshDescription& MeshDescription, CADLibrary::FMeshParameters& SymmetricParameters, bool& bHasNormal);
+	bool TransferAlMeshToMeshDescription(const AlMesh& Mesh, FMeshDescription& MeshDescription, CADLibrary::FMeshParameters& SymmetricParameters, bool& bHasNormal, bool bMerge = false);
 
 	AlDagNode* TesselateDagLeaf(AlDagNode* DagLeaf, ETesselatorType TessType, double Tolerance);
 }

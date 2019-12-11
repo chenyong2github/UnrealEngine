@@ -684,12 +684,15 @@ bool UAnimGraphNode_LinkedAnimLayer::HasValidNonSelfLayer() const
 
 void UAnimGraphNode_LinkedAnimLayer::HandleSetObjectBeingDebugged(UObject* InDebugObj)
 {
-	NodeTitleChangedEvent.Broadcast();
-
-	FAnimNode_LinkedAnimLayer* PreviewNode = GetPreviewNode();
-	if(PreviewNode)
+	if(HasValidBlueprint())
 	{
-		PreviewNode->OnInstanceChanged().AddUObject(this, &UAnimGraphNode_LinkedAnimLayer::HandleInstanceChanged);
+		NodeTitleChangedEvent.Broadcast();
+
+		FAnimNode_LinkedAnimLayer* PreviewNode = GetPreviewNode();
+		if(PreviewNode)
+		{
+			PreviewNode->OnInstanceChanged().AddUObject(this, &UAnimGraphNode_LinkedAnimLayer::HandleInstanceChanged);
+		}
 	}
 }
 

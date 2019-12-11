@@ -130,6 +130,11 @@ FOnClicked SGraphPinClass::GetOnUseButtonDelegate()
 
 void SGraphPinClass::OnPickedNewClass(UClass* ChosenClass)
 {
+	if(GraphPinObj->IsPendingKill())
+	{
+		return;
+	}
+
 	FString NewPath;
 	if (ChosenClass)
 	{

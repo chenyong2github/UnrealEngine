@@ -62,7 +62,7 @@ public class ResonanceAudio : ModuleRules
             PrivateDependencyModuleNames.Add("Landscape");
         }
 
-        bEnableShadowVariableWarnings = false;
+		ShadowVariableWarningLevel = WarningLevel.Off;
 
         AddEngineThirdPartyPrivateStaticDependencies(Target,
                 "UEOgg",
@@ -85,16 +85,6 @@ public class ResonanceAudio : ModuleRules
         {
             PrivateDefinitions.Add("PFFFT_SIMD_DISABLE=1");
             PrivateDefinitions.Add("EIGEN_HAS_CXX11_MATH=0");
-        }
-
-		// whitelist platforms  to use the plugin in the first place
-        if(Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.PS4 || Target.Platform == UnrealTargetPlatform.XboxOne)
-        {
-            PublicDefinitions.Add("RESONANCE_SPAT_ENABLED=1");
-        }
-        else
-        {
-            PublicDefinitions.Add("RESONANCE_SPAT_ENABLED=0");
         }
 
         //Embree support:

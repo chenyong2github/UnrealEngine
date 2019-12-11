@@ -11,6 +11,12 @@
 #include "SlateFwd.h"
 #include "Input/Reply.h"
 #include "TickableEditorObject.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+
+DECLARE_LOG_CATEGORY_EXTERN(LogFindInBlueprint, Warning, All);
+
+/** CSV stats profiling category */
+CSV_DECLARE_CATEGORY_EXTERN(FindInBlueprint);
 
 struct FAssetData;
 class FFindInBlueprintsResult;
@@ -105,6 +111,8 @@ struct KISMET_API FFindInBlueprintSearchTags
 /** FiB data versioning */
 enum EFiBVersion
 {
+	FIB_VER_NONE = -1, // Unknown version (not set)
+
 	FIB_VER_BASE = 0, // All Blueprints prior to versioning will automatically be assumed to be at 0 if they have FiB data collected
 	FIB_VER_VARIABLE_REFERENCE, // Variable references (FMemberReference) is collected in FiB
 	FIB_VER_INTERFACE_GRAPHS, // Implemented Interface Graphs is collected in FiB
@@ -118,7 +126,7 @@ enum EFiBVersion
 struct FSearchDataVersionInfo
 {
 	/** FiB asset registry tag data version */
-	int32 FiBDataVersion = EFiBVersion::FIB_VER_BASE;
+	int32 FiBDataVersion = EFiBVersion::FIB_VER_NONE;
 
 	/** Editor object version used to serialize values in the JSON string lookup table */
 	int32 EditorObjectVersion = -1;
@@ -158,6 +166,11 @@ struct FSearchData
 		: Blueprint(nullptr)
 		, bMarkedForDeletion(false)
 	{
+	}
+
+	bool IsValid() const
+	{
+		return AssetPath != NAME_None;
 	}
 };
 
@@ -310,6 +323,22 @@ typedef TSharedPtr<FFindInBlueprintsResult> FSearchResult;
 ////////////////////////////////////
 // FStreamSearch
 
+struct FStreamSearchOptions
+{
+	/** Filter to limit the FilteredImaginaryResults to */
+	enum ESearchQueryFilter ImaginaryDataFilter;
+
+	/** When searching, any Blueprint below this version will be considered out-of-date */
+	EFiBVersion MinimiumVersionRequirement;
+
+	/** Default constructor. */
+	FStreamSearchOptions()
+		:ImaginaryDataFilter(ESearchQueryFilter::AllFilter)
+		,MinimiumVersionRequirement(EFiBVersion::FIB_VER_LATEST)
+	{
+	}
+};
+
 /**
  * Async task for searching Blueprints
  */
@@ -317,8 +346,7 @@ class FStreamSearch : public FRunnable
 {
 public:
 	/** Constructor */
-	FStreamSearch(const FString& InSearchValue);
-	FStreamSearch(const FString& InSearchValue, enum ESearchQueryFilter InImaginaryDataFilter, EFiBVersion InMinimiumVersionRequirement);
+	FStreamSearch(const FString& InSearchValue, const FStreamSearchOptions& InSearchOptions = FStreamSearchOptions());
 
 	/** Begin FRunnable Interface */
 	virtual bool Init() override;
@@ -365,26 +393,27 @@ public:
 	/** The search value to filter results by */
 	FString SearchValue;
 
+	/** Options for setting up the search */
+	FStreamSearchOptions SearchOptions;
+
 	/** Prevents searching while other threads are pulling search results */
 	FCriticalSection SearchCriticalSection;
-
-	// Whether the thread has finished running
-	bool bThreadCompleted;
 
 	/** > 0 if we've been asked to abort work in progress at the next opportunity */
 	FThreadSafeCounter StopTaskCounter;
 
-	/** When searching, any Blueprint below this version will be considered out-of-date */
-	EFiBVersion MinimiumVersionRequirement;
+	/** Filtered (ImaginaryDataFilter) list of imaginary data results that met the search requirements. Must be declared as thread-safe since imaginary data is a shared resource. */
+	TArray<FImaginaryFiBDataSharedPtr> FilteredImaginaryResults;
 
 	/** A going count of all Blueprints below the MinimiumVersionRequirement */
 	int32 BlueprintCountBelowVersion;
 
-	/** Filtered (ImaginaryDataFilter) list of imaginary data results that met the search requirements. Must be declared as thread-safe since imaginary data is a shared resource. */
-	TArray<FImaginaryFiBDataSharedPtr> FilteredImaginaryResults;
+	// Whether the thread has finished running
+	bool bThreadCompleted;
 
-	/** Filter to limit the FilteredImaginaryResults to */
-	enum ESearchQueryFilter ImaginaryDataFilter;
+private:
+	/** Unique identifier for this search (used with benchmarking) */
+	int32 SearchId;
 };
 
 ////////////////////////////////////
@@ -405,6 +434,14 @@ public:
 	virtual bool IsTickable() const override;
 	virtual TStatId GetStatId() const override;
 	//~ End FTickableObject Interface
+
+	/**
+	 * Given an asset path, locate and return a copy of its matching search data in the index cache.
+	 *
+	 * @param InAssetPath				Asset path (search index key).
+	 * @return							Matching search data from the index cache. Will return invalid (empty) search data if a matching entry was not found.
+	 */
+	FSearchData GetSearchDataForAssetPath(FName InAssetPath);
 
 	/**
 	 * Gathers the Blueprint's search metadata and adds or updates it in the cache
@@ -454,12 +491,6 @@ public:
 	 * @return							The search block
 	 */
 	const FSearchData* QuerySingleBlueprint(UBlueprint* InBlueprint, bool bInRebuildSearchData);
-
-	/** Converts a string of hex characters, previously converted by ConvertFTextToHexString, to an FText. */
-	static FText ConvertHexStringToFText(FString InHexString);
-
-	/** Serializes an FText to memory and converts the memory into a string of hex characters */
-	static FString ConvertFTextToHexString(FText InValue);
 
 	/** Returns the number of assets that are waiting to be re-indexed */
 	int32 GetNumberPendingAssets() const;
@@ -526,12 +557,11 @@ public:
 	/** Returns a weak reference to the widget that initiated the current caching operation */
 	TWeakPtr<SFindInBlueprints> GetSourceCachingWidget() const { return SourceCachingWidget; }
 
-	/** Given a fully constructed Find-in-Blueprint FString of searchable data, will parse and construct a JsonObject */
-	static TSharedPtr< class FJsonObject > ConvertJsonStringToObject(FSearchDataVersionInfo InVersionInfo, FString InJsonString, TMap<int32, FText>& OutFTextLookupTable);
-
 	void EnableGatheringData(bool bInEnableGatheringData) { bEnableGatheringData = bInEnableGatheringData; }
 
 	bool IsGatheringDataEnabled() const { return bEnableGatheringData; }
+
+	bool ShouldEnableDeveloperMenuTools() const { return bEnableDeveloperMenuTools; }
 
 	/** Find or create the global find results widget */
 	TSharedPtr<SFindInBlueprints> GetGlobalFindResults();
@@ -543,6 +573,22 @@ public:
 	void CloseOrphanedGlobalFindResultsTabs(TSharedPtr<class FTabManager> TabManager);
 
 	void GlobalFindResultsClosed(const TSharedRef<SFindInBlueprints>& FindResults);
+
+	/** Dumps the full index cache to the given stream (for debugging purposes) */
+	void DumpCache(FArchive& Ar);
+
+public:
+	/** Converts a string of hex characters, previously converted by ConvertFTextToHexString, to an FText. */
+	static FText ConvertHexStringToFText(FString InHexString);
+
+	/** Serializes an FText to memory and converts the memory into a string of hex characters */
+	static FString ConvertFTextToHexString(FText InValue);
+
+	/** Given a fully constructed Find-in-Blueprint FString of searchable data, will parse and construct a JsonObject */
+	static TSharedPtr< class FJsonObject > ConvertJsonStringToObject(FSearchDataVersionInfo InVersionInfo, FString InJsonString, TMap<int32, FText>& OutFTextLookupTable);
+
+	/** Generates a human-readable search index for the given Blueprint (for debugging purposes) */
+	static FString GenerateSearchIndexForDebugging(UBlueprint* InBlueprint);
 
 private:
 	/** Initializes the FiB manager */
@@ -563,6 +609,9 @@ private:
 	/** Callback hook from the Asset Registry, marks the asset for deletion from the cache */
 	void OnAssetRenamed(const struct FAssetData& InAssetData, const FString& InOldName);
 
+	/** Callback hook from the Asset Registry, signals that the initial asset discovery stage has been completed */
+	void OnAssetRegistryFilesLoaded();
+
 	/** Callback hook from the Asset Registry when an asset is loaded */
 	void OnAssetLoaded(class UObject* InAsset);
 
@@ -571,9 +620,6 @@ private:
 
 	/** Callback hook from the Hot Reload manager that indicates that a module has been hot-reloaded */
 	void OnHotReload(bool bWasTriggeredAutomatically);
-
-	/** Helper to gathers the Blueprint's search metadata */
-	FString GatherBlueprintSearchMetadata(const UBlueprint* Blueprint);
 
 	/** Cleans the cache of any excess data from Blueprints that have been moved, renamed, or deleted. Occurs during post-garbage collection */
 	void CleanCache();
@@ -593,7 +639,7 @@ private:
 	void RemoveBlueprintByPath(FName InPath);
 
 	/** Begins the process of extracting unloaded FiB data */
-	void ExtractUnloadedFiBData(const FAssetData& InAssetData, const FString& InFiBData, bool bIsVersioned);
+	void ExtractUnloadedFiBData(const FAssetData& InAssetData, const FString& InFiBData, EFiBVersion InFiBDataVersion);
 
 	/** Determines the global find results tab label */
 	FText GetGlobalFindResultsTabLabel(int32 TabIdx);
@@ -605,12 +651,6 @@ private:
 	TSharedPtr<SFindInBlueprints> OpenGlobalFindResultsTab();
 
 protected:
-	/** Tells if gathering data is currently allowed */
-	bool bEnableGatheringData;
-
-	/** Tells if deferred indexing is configured as disabled */
-	bool bDisableDeferredIndexing;
-
 	/** Maps the Blueprint paths to their index in the SearchArray */
 	TMap<FName, int32> SearchMap;
 
@@ -631,9 +671,6 @@ protected:
 
 	/** Critical section to safely modify cached data */
 	FCriticalSection SafeModifyCacheCriticalSection;
-
-	/** TRUE when the the FiB manager wants to pause all searches, helps manage the pausing procedure */
-	volatile bool bIsPausing;
 
 	/** Because we are unable to query for the module on another thread, cache it for use later */
 	class FAssetRegistryModule* AssetRegistryModule;
@@ -667,6 +704,21 @@ protected:
 
 	/** Global Find Results workspace menu item */
 	TSharedPtr<class FWorkspaceItem> GlobalFindResultsMenuItem;
+
+	/** Tells if gathering data is currently allowed */
+	bool bEnableGatheringData;
+
+	/** Tells if deferred indexing is configured as disabled */
+	bool bDisableDeferredIndexing;
+
+	/** Whether CSV profiling has been enabled (default=false) */
+	bool bEnableCSVStatsProfiling;
+
+	/** Whether to enable Blueprint editor developer menu tools */
+	bool bEnableDeveloperMenuTools;
+
+	/** TRUE when the the FiB manager wants to pause all searches, helps manage the pausing procedure */
+	volatile bool bIsPausing;
 };
 
 struct KISMET_API FDisableGatheringDataOnScope

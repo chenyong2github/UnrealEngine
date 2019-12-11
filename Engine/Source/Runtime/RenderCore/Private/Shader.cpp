@@ -1012,15 +1012,13 @@ void FShaderResource::InitRHI()
 	{
 		if (GRHISupportsRayTracing)
 		{
-			RayTracingShader = RHICreateRayTracingShader(UncompressedCode, Target.GetFrequency());
+			RayTracingShader = FShaderCodeLibrary::CreateRayTracingShader((EShaderPlatform)Target.Platform, Target.GetFrequency(), OutputHash, UncompressedCode);
 			UE_CLOG((bCodeInSharedLocation && !IsValidRef(RayTracingShader)), LogShaders, Fatal, TEXT("FShaderResource::SerializeShaderCode can't find shader code for: [%s]"), *LegacyShaderPlatformToShaderFormat((EShaderPlatform)Target.Platform).ToString());
 
 			if (Target.Frequency == SF_RayHitGroup)
 			{
 				RayTracingMaterialLibraryIndex = AddToRayTracingLibrary(RayTracingShader);
 			}
-
-			RayTracingShader->SetHash(OutputHash);
 		}
 	}
 #endif // RHI_RAYTRACING
@@ -1891,6 +1889,38 @@ void FShaderPipeline::CookPipeline(FShaderPipeline* Pipeline)
 #endif
 }
 
+void FShaderPipeline::SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform, const struct FStableShaderKeyAndValue& InSaveKeyVal)
+{
+	// the higher level code can pass SP_NumPlatforms, in which case play it safe and use a platform that we know can remove inteprolators
+	const EShaderPlatform ShaderPlatformThatSupportsRemovingInterpolators = SP_PCD3D_SM5;
+	checkf(RHISupportsShaderPipelines(ShaderPlatformThatSupportsRemovingInterpolators), TEXT("We assumed that shader platform %d supports shaderpipelines while it doesn't"), static_cast<int32>(ShaderPlatformThatSupportsRemovingInterpolators));
+
+	bool bCanHaveUniqueShaders = (TargetShaderPlatform != SP_NumPlatforms) ? PipelineType->ShouldOptimizeUnusedOutputs(TargetShaderPlatform) : PipelineType->ShouldOptimizeUnusedOutputs(ShaderPlatformThatSupportsRemovingInterpolators);
+	if (bCanHaveUniqueShaders)
+	{
+		FStableShaderKeyAndValue SaveKeyVal(InSaveKeyVal);
+		SaveKeyVal.SetPipelineHash(this); // could use PipelineType->GetSourceHash(), but each pipeline instance even of the same type can have unique shaders
+
+		// Using GetShaders() would be more future-proof but would result in more dynamic allocation churn.
+		// Instead, mirroring the logic here
+		VertexShader->SaveShaderStableKeys(TargetShaderPlatform, SaveKeyVal);
+
+		if (PixelShader)
+		{
+			PixelShader->SaveShaderStableKeys(TargetShaderPlatform, SaveKeyVal);
+		}
+		if (GeometryShader)
+		{
+			GeometryShader->SaveShaderStableKeys(TargetShaderPlatform, SaveKeyVal);
+		}
+		if (HullShader)
+		{
+			HullShader->SaveShaderStableKeys(TargetShaderPlatform, SaveKeyVal);
+			DomainShader->SaveShaderStableKeys(TargetShaderPlatform, SaveKeyVal);
+		}
+	}
+}
+
 void DumpShaderStats(EShaderPlatform Platform, EShaderFrequency Frequency)
 {
 #if ALLOW_DEBUG_FILES
@@ -2292,9 +2322,21 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		{
 			// make it per shader platform ?
 			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.SupportGPUScene"));
-			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_MobGPUSc") : TEXT("");
+			bool bMobileGpuScene = (CVar && CVar->GetInt() != 0);
+			KeyString += bMobileGpuScene ? TEXT("_MobGPUSc") : TEXT("");
+			if (bMobileGpuScene)
+			{
+				// Mobile specific verify if we are using texturebuffer or texture2D
+				if (!GPUSceneUseTexture2D(Platform))
+				{
+					KeyString += TEXT("_TexBuf");
+				}
+				else
+				{
+					KeyString += TEXT("_Tex2D");
+				}
+			}
 		}
-		
 	}
 
 	const FName ShaderFormatName = LegacyShaderPlatformToShaderFormat(Platform);
@@ -2393,9 +2435,10 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		}
 	}
 
+	ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), LegacyShaderPlatformToShaderFormat(Platform));
+
 	{
 		bool bForwardShading = false;
-		ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), LegacyShaderPlatformToShaderFormat(Platform));
 		if (TargetPlatform)
 		{
 			// if there is a specific target platform that matches our shader platform, use that to drive forward shading
@@ -2411,6 +2454,13 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		if (bForwardShading)
 		{
 			KeyString += TEXT("_FS");
+		}
+	}
+
+	{
+		if (UseVirtualTexturing(GetMaxSupportedFeatureLevel(Platform), TargetPlatform))
+		{
+			KeyString += TEXT("_VT");
 		}
 	}
 
@@ -2498,9 +2548,9 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 
 		ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
 		check(TPM);
-		auto TargetPlatform = TPM->GetRunningTargetPlatform();
-		check(TargetPlatform);
-		const bool VTSupported = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
+		auto RunningTargetPlatform = TPM->GetRunningTargetPlatform();
+		check(RunningTargetPlatform);
+		const bool VTSupported = RunningTargetPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
 
 		auto tt = FString::Printf(TEXT("_VT-%d-%d-%d-%d"), VTLightmaps, VTTextures, VTFeedbackFactor, VTSupported);
  		KeyString += tt;

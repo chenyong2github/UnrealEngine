@@ -96,6 +96,8 @@ public:
 
 	virtual void PostRenderAllViewports() override;
 
+	virtual void PerFrameCleanupIfSkipRenderer() override;
+
 	virtual IAllocatedVirtualTexture* AllocateVirtualTexture(const FAllocatedVTDescription& Desc) override;
 	virtual void DestroyVirtualTexture(IAllocatedVirtualTexture* AllocatedVT) override;
 	virtual FVirtualTextureProducerHandle RegisterVirtualTextureProducer(const FVTProducerDescription& Desc, IVirtualTexture* Producer) override;

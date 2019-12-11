@@ -649,7 +649,7 @@ FString ResolveIniObjectsReference(const FString& ObjectReference, const FString
 	if (i != -1)
 	{
 		Key = Section.Mid(i + 1);
-		Section = Section.Left(i);
+		Section.LeftInline(i, false);
 	}
 
 	FString Output;
@@ -1638,8 +1638,7 @@ void EndLoad(FUObjectSerializeContext* LoadContext)
 				}
 			}
 			// Create clusters after all objects have been loaded
-			extern int32 GCreateGCClusters;
-			if (FPlatformProperties::RequiresCookedData() && !GIsInitialLoad && GCreateGCClusters && !GUObjectArray.IsOpenForDisregardForGC())
+			if (FPlatformProperties::RequiresCookedData() && !GIsInitialLoad && GCreateGCClusters && GAssetClustreringEnabled && !GUObjectArray.IsOpenForDisregardForGC())
 			{
 				for (UObject* Obj : ObjLoaded)
 				{
@@ -2168,6 +2167,11 @@ bool SaveToTransactionBuffer(UObject* Object, bool bMarkDirty)
 
 void SnapshotTransactionBuffer(UObject* Object)
 {
+	SnapshotTransactionBuffer(Object, TArrayView<const UProperty*>());
+}
+
+void SnapshotTransactionBuffer(UObject* Object, TArrayView<const UProperty*> Properties)
+{
 	// Script packages should not end up in the transaction buffer.
 	// PIE objects should go through however. Additionally, in order
 	// to save a copy of the object, we must have a transactor and the object must be transactional.
@@ -2176,7 +2180,7 @@ void SnapshotTransactionBuffer(UObject* Object)
 
 	if (GUndo && bIsTransactional && bIsNotScriptPackage)
 	{
-		GUndo->SnapshotObject(Object);
+		GUndo->SnapshotObject(Object, Properties);
 	}
 }
 
@@ -2509,7 +2513,7 @@ UObject::UObject()
 	EnsureNotRetrievingVTablePtr();
 
 	FObjectInitializer* ObjectInitializerPtr = FUObjectThreadContext::Get().TopInitializer();
-	UE_CLOG(!ObjectInitializerPtr, LogUObjectGlobals, Fatal, TEXT("%s is not being constructed with either NewObject, NewNamedObject or ConstructObject."), *GetName());
+	UE_CLOG(!ObjectInitializerPtr, LogUObjectGlobals, Fatal, TEXT("%s is not being constructed with NewObject."), *GetName());
 	FObjectInitializer& ObjectInitializer = *ObjectInitializerPtr;
 	UE_CLOG(ObjectInitializer.Obj != nullptr && ObjectInitializer.Obj != this, LogUObjectGlobals, Fatal, TEXT("UObject() constructor called but it's not the object that's currently being constructed with NewObject. Maybe you are trying to construct it on the stack, which is not supported."));
 	const_cast<FObjectInitializer&>(ObjectInitializer).Obj = this;
@@ -3254,7 +3258,7 @@ void ConstructorHelpers::StripObjectClass( FString& PathName, bool bAssertOnBadP
 		PathName.FindLastChar( TCHAR('\''), NameEndIndex );
 		if(NameEndIndex > NameStartIndex)
 		{
-			PathName = PathName.Mid( NameStartIndex+1, NameEndIndex-NameStartIndex-1 );
+			PathName.MidInline( NameStartIndex+1, NameEndIndex-NameStartIndex-1, false );
 		}
 		else
 		{

@@ -8,7 +8,6 @@
 
 namespace ImmediatePhysics_Chaos
 {
-
 	/** handle associated with a physics actor. This is the proper way to read/write to the physics simulation */
 	struct ENGINE_API FActorHandle
 	{
@@ -26,10 +25,8 @@ namespace ImmediatePhysics_Chaos
 		/** Is the actor kinematic */
 		bool GetIsKinematic() const;
 
-#if IMMEDIATEPHYSICS_CHAOS_TODO
 		/** Gets the kinematic target (next transform) for the actor if one is set (check HasKinematicTarget() to see if a target is available) */
-		FImmediateKinematicTarget& GetKinematicTarget();
-#endif
+		const FKinematicTarget& GetKinematicTarget() const;
 
 		/** Sets the kinematic target. This will affect velocities as expected*/
 		void SetKinematicTarget(const FTransform& WorldTM);
@@ -108,7 +105,7 @@ namespace ImmediatePhysics_Chaos
 		float GetMaxContactImpulse() const;
 
 		/** Get the actor-space centre of mass offset */
-		const FTransform& GetLocalCoMTransform() const;
+		FTransform GetLocalCoMTransform() const;
 
 		Chaos::TGeometryParticleHandle<FReal, Dimensions>* GetParticle();
 		const Chaos::TGeometryParticleHandle<FReal, Dimensions>* GetParticle() const;
@@ -117,18 +114,19 @@ namespace ImmediatePhysics_Chaos
 		void SetLevel(int32 InLevel);
 
 	private:
+		FKinematicTarget& GetKinematicTarget();
+
 		friend struct FSimulation;
 		friend struct FJointHandle;
 
-		FActorHandle(Chaos::TPBDRigidsEvolutionGBF<FReal, Dimensions>* InEvolution, EActorType ActorType, FBodyInstance* BodyInstance, const FTransform& Transform);
+		FActorHandle(Chaos::TPBDRigidsSOAs<FReal, 3>& InParticles, EActorType ActorType, FBodyInstance* BodyInstance, const FTransform& Transform);
 
 		Chaos::TGenericParticleHandle<FReal, Dimensions> Handle() const;
 
-		Chaos::TPBDRigidsEvolutionGBF<FReal, Dimensions>* Evolution;
+		Chaos::TPBDRigidsSOAs<FReal, 3>& Particles;
 		Chaos::TGeometryParticleHandle<FReal, Dimensions>* ParticleHandle;
-		TUniquePtr<Chaos::TImplicitObject<float, 3>> Geometry;
+		TUniquePtr<Chaos::FImplicitObject> Geometry;
 		TArray<TUniquePtr<Chaos::TPerShapeData<float, 3>>> Shapes;
-		FTransform ActorToCoMTransform;
 		int32 Level;
 	};
 

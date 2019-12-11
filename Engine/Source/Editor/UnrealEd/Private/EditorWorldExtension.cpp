@@ -40,6 +40,10 @@ bool UEditorWorldExtension::InputAxis( FEditorViewportClient* InViewportClient, 
 
 UWorld* UEditorWorldExtension::GetWorld() const
 {
+	if (OwningExtensionsCollection == nullptr)
+	{
+		return nullptr;
+	}
 	return OwningExtensionsCollection->GetWorld();
 }
 
@@ -66,9 +70,10 @@ AActor* UEditorWorldExtension::SpawnTransientSceneActor(TSubclassOf<AActor> Acto
 	const bool bWasWorldPackageDirty = World->GetOutermost()->IsDirty();
 
 	FActorSpawnParameters ActorSpawnParameters;
-	ActorSpawnParameters.Name = MakeUniqueObjectName(World, ActorClass, *ActorName);
+	ActorSpawnParameters.Name = MakeUniqueObjectName(World->GetCurrentLevel(), ActorClass, *ActorName);
 	ActorSpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	ActorSpawnParameters.ObjectFlags = InObjectFlags;
+	ActorSpawnParameters.OverrideLevel = World->GetCurrentLevel();
 
 	check(ActorClass != nullptr);
 	AActor* NewActor = World->SpawnActor< AActor >(ActorClass, ActorSpawnParameters);

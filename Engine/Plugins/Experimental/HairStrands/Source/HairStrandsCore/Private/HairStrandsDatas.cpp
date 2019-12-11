@@ -1,10 +1,12 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "HairStrandsDatas.h"
+#include "UObject/ReleaseObjectVersion.h"
 
 void FHairStrandsInterpolationDatas::SetNum(const uint32 NumCurves)
 {
 	PointsSimCurvesVertexWeights.SetNum(NumCurves);
+	PointsSimCurvesVertexLerp.SetNum(NumCurves);
 	PointsSimCurvesVertexIndex.SetNum(NumCurves);
 	PointsSimCurvesIndex.SetNum(NumCurves);
 }
@@ -22,11 +24,14 @@ void FHairStrandsPoints::SetNum(const uint32 NumPoints)
 	PointsPosition.SetNum(NumPoints);
 	PointsRadius.SetNum(NumPoints);
 	PointsCoordU.SetNum(NumPoints);
+	PointsBaseColor.SetNum(NumPoints);
+	PointsRoughness.SetNum(NumPoints);
 }
 
 void FHairStrandsInterpolationDatas::Reset()
 {
 	PointsSimCurvesVertexWeights.Reset();
+	PointsSimCurvesVertexLerp.Reset();
 	PointsSimCurvesVertexIndex.Reset();
 	PointsSimCurvesIndex.Reset();
 }
@@ -71,10 +76,38 @@ FArchive& operator<<(FArchive& Ar, FPackedHairVertex& Vertex)
 
 FArchive& operator<<(FArchive& Ar, FPackedHairAttributeVertex& Vertex)
 {
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+
 	Ar << Vertex.RootU;
 	Ar << Vertex.RootV;
 	Ar << Vertex.UCoord;
 	Ar << Vertex.Seed;
+
+	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::GroomAssetVersion1)
+	{
+		Ar << Vertex.IndexU;
+		Ar << Vertex.IndexV;
+		Ar << Vertex.Unused0;
+		Ar << Vertex.Unused1;
+	}
+	else
+	{
+		Vertex.IndexU = 0;
+		Vertex.IndexV = 0;
+		Vertex.Unused0 = 0;
+		Vertex.Unused1 = 0;
+	}
+	
+
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, FHairMaterialVertex& Vertex)
+{
+	Ar << Vertex.BaseColorR;
+	Ar << Vertex.BaseColorG;
+	Ar << Vertex.BaseColorB;
+	Ar << Vertex.Roughness;
 
 	return Ar;
 }
@@ -92,10 +125,37 @@ FArchive& operator<<(FArchive& Ar, FHairInterpolation0Vertex& Vertex)
 
 FArchive& operator<<(FArchive& Ar, FHairInterpolation1Vertex& Vertex)
 {
-	Ar << Vertex.VertexIndex0;
-	Ar << Vertex.VertexIndex1;
-	Ar << Vertex.VertexIndex2;
-	Ar << Vertex.Pad0;
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+
+	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::GroomAssetVersion3)
+	{
+		Ar << Vertex.VertexIndex0;
+		Ar << Vertex.VertexIndex1;
+		Ar << Vertex.VertexIndex2;
+
+		Ar << Vertex.VertexLerp0;
+		Ar << Vertex.VertexLerp1;
+		Ar << Vertex.VertexLerp2;
+
+		Ar << Vertex.Pad0;
+		Ar << Vertex.Pad1;
+	}
+	else
+	{
+		Ar << Vertex.VertexIndex0;
+		Ar << Vertex.VertexIndex1;
+		Ar << Vertex.VertexIndex2;
+
+		uint8 Pad0 = 0;
+		Ar << Pad0;
+
+		if (Ar.IsLoading())
+		{
+			Vertex.VertexLerp0 = 0;
+			Vertex.VertexLerp1 = 0;
+			Vertex.VertexLerp2 = 0;
+		}
+	}
 
 	return Ar;
 }
@@ -108,18 +168,48 @@ void FHairStrandsInterpolationDatas::FRenderData::Serialize(FArchive& Ar)
 
 void FHairStrandsInterpolationDatas::Serialize(FArchive& Ar)
 {
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+
 	Ar << PointsSimCurvesVertexWeights;
 	Ar << PointsSimCurvesVertexIndex;
 	Ar << PointsSimCurvesIndex;
+
+	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::GroomAssetVersion3)
+	{
+		Ar << PointsSimCurvesVertexLerp;
+	}
+	else if (Ar.IsLoading())
+	{
+		const uint32 ElmentCount = PointsSimCurvesVertexIndex.Num();
+		PointsSimCurvesVertexLerp.SetNum(ElmentCount);
+		for (FVector& S : PointsSimCurvesVertexLerp)
+		{
+			S = FVector::ZeroVector;
+		}
+	}
 
 	RenderData.Serialize(Ar);
 }
 
 void FHairStrandsPoints::Serialize(FArchive& Ar)
 {
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+
 	Ar << PointsPosition;
 	Ar << PointsRadius;
 	Ar << PointsCoordU;
+
+	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::GroomAssetVersion2)
+	{
+		Ar << PointsBaseColor;
+		Ar << PointsRoughness;
+	}
+	else
+	{
+		const uint32 ElementCount = PointsPosition.Num();
+		PointsBaseColor.InsertZeroed(0, ElementCount);
+		PointsRoughness.InsertZeroed(0, ElementCount);
+	}
 }
 
 void FHairStrandsCurves::Serialize(FArchive& Ar)
@@ -134,8 +224,19 @@ void FHairStrandsCurves::Serialize(FArchive& Ar)
 
 void FHairStrandsDatas::FRenderData::Serialize(FArchive& Ar)
 {
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+
 	Ar << RenderingPositions;
 	Ar << RenderingAttributes;
+	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::GroomAssetVersion2)
+	{
+		Ar << RenderingMaterials;
+	}
+	else
+	{
+		const uint32 ElementCount = RenderingAttributes.Num();
+		RenderingMaterials.InsertZeroed(0, ElementCount);
+	}
 }
 
 void FHairStrandsDatas::Serialize(FArchive& Ar)

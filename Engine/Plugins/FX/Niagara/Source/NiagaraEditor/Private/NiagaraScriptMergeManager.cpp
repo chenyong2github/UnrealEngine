@@ -1600,7 +1600,7 @@ TOptional<bool> FNiagaraScriptMergeManager::DoFunctionInputOverridesMatch(TShare
 
 		if (BaseCustomHlsl && OtherCustomHlsl)
 		{
-			if (BaseCustomHlsl->CustomHlsl != OtherCustomHlsl->CustomHlsl || BaseCustomHlsl->ScriptUsage != OtherCustomHlsl->ScriptUsage)
+			if (BaseCustomHlsl->GetCustomHlsl() != OtherCustomHlsl->GetCustomHlsl() || BaseCustomHlsl->ScriptUsage != OtherCustomHlsl->ScriptUsage)
 			{
 				return false;
 			}
@@ -1782,8 +1782,7 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::AddInp
 				if (CustomHlslFunction != nullptr)
 				{
 					UNiagaraNodeCustomHlsl* DynamicInputFunctionCall;
-					FNiagaraStackGraphUtilities::SetCustomExpressionForFunctionInput(InputOverridePin, DynamicInputFunctionCall, OverrideToAdd->GetOverrideNodeId());
-					DynamicInputFunctionCall->CustomHlsl = CustomHlslFunction->CustomHlsl;
+					FNiagaraStackGraphUtilities::SetCustomExpressionForFunctionInput(InputOverridePin, CustomHlslFunction->GetCustomHlsl(), DynamicInputFunctionCall, OverrideToAdd->GetOverrideNodeId());
 					for (TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter> DynamicInputInputOverride : OverrideToAdd->GetDynamicValueFunction()->GetInputOverrides())
 					{
 						FApplyDiffResults AddResults = AddInputOverride(UniqueEmitterName, OwningScript, *((UNiagaraNodeFunctionCall*)DynamicInputFunctionCall), DynamicInputInputOverride);

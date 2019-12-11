@@ -186,4 +186,14 @@ LANDSCAPE_API void FLandscapeComponentDataInterface::GetWorldPositionTangents(in
 	WorldTangentZ = Component->GetComponentTransform().TransformVectorNoScale(WorldTangentZ);
 }
 
+int32 FLandscapeComponentDataInterface::GetHeightmapSizeX(int32 MipIndex) const
+{
+	return Component->GetHeightmap(bWorkOnEditingLayer)->Source.GetSizeX() >> MipIndex;
+}
+
+int32 FLandscapeComponentDataInterface::GetHeightmapSizeY(int32 MipIndex) const
+{
+	return Component->GetHeightmap(bWorkOnEditingLayer)->Source.GetSizeY() >> MipIndex;
+}
+
 #endif // WITH_EDITOR

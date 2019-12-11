@@ -7,6 +7,7 @@
 
 class FFrameGrabber;
 class FSceneViewport;
+class SWindow;
 
 /**
  *	Use the FrameGrabber on the host to provide an image to the image channel.
@@ -15,7 +16,7 @@ class REMOTESESSION_API FRemoteSessionFrameBufferImageProvider : public IRemoteS
 {
 public:
 
-	FRemoteSessionFrameBufferImageProvider(TWeakPtr<FRemoteSessionImageChannel> Owner);
+	FRemoteSessionFrameBufferImageProvider(TSharedPtr<FRemoteSessionImageChannel::FImageSender, ESPMode::ThreadSafe> ImageSender);
 	~FRemoteSessionFrameBufferImageProvider();
 
 	/** Specifies which viewport to capture */
@@ -30,19 +31,22 @@ public:
 	/** Signals that the viewport was resized */
 	void OnViewportResized(FVector2D NewSize);
 
+protected:
+
+	/** Release the FrameGrabber */
+	void ReleaseFrameGrabber();
+
+	/** When the window is destroyed */
+	void OnWindowClosedEvent(const TSharedRef<SWindow>&);
+
 	/** Safely create the frame grabber */
 	void CreateFrameGrabber(TSharedRef<FSceneViewport> Viewport);
 
-protected:
-
-	/** Release the FrameGrabber*/
-	void ReleaseFrameGrabber();
-
-	TWeakPtr<FRemoteSessionImageChannel> ImageChannel;
+	TWeakPtr<FRemoteSessionImageChannel::FImageSender, ESPMode::ThreadSafe> ImageSender;
 
 	TSharedPtr<FFrameGrabber> FrameGrabber;
 
-	FThreadSafeCounter NumDecodingTasks;
+	TSharedPtr<FThreadSafeCounter, ESPMode::ThreadSafe> NumDecodingTasks;
 
 	/** Time we last sent an image */
 	double LastSentImageTime;
@@ -51,5 +55,8 @@ protected:
 	bool ViewportResized;
 
 	/** Holds a reference to the scene viewport */
-	TSharedPtr<FSceneViewport> SceneViewport;
+	TWeakPtr<FSceneViewport> SceneViewport;
+
+	/** Holds a reference to the SceneViewport SWindow */
+	TWeakPtr<SWindow> SceneViewportWindow;
 };

@@ -3,6 +3,7 @@
 #include "LoudnessNRT.h"
 #include "LoudnessNRTFactory.h"
 #include "InterpolateSorted.h"
+#include "AudioSynesthesiaLog.h"
 
 namespace
 {
@@ -36,7 +37,7 @@ ULoudnessNRTSettings::ULoudnessNRTSettings()
 ,	NoiseFloorDb(-60.f)
 {}
 
-TUniquePtr<Audio::IAnalyzerNRTSettings> ULoudnessNRTSettings::GetSettings()
+TUniquePtr<Audio::IAnalyzerNRTSettings> ULoudnessNRTSettings::GetSettings(const float InSampleRate, const int32 InNumChannels) const
 {
 	TUniquePtr<Audio::FLoudnessNRTSettings> Settings = MakeUnique<Audio::FLoudnessNRTSettings>();
 
@@ -80,26 +81,30 @@ ULoudnessNRT::ULoudnessNRT()
 	Settings = CreateDefaultSubobject<ULoudnessNRTSettings>(TEXT("DefaultLoudnessNRTSettings"));
 #if WITH_EDITOR
 	// Bind settings to audio analyze so changes to default settings will trigger analysis.
-	Settings->AnalyzeAudioDelegate.BindUObject(this, &UAudioAnalyzerNRT::AnalyzeAudio);
+	SetSettingsDelegate(Settings);
 #endif
 }
 
-void ULoudnessNRT::GetLoudnessAtTime(const float InSeconds, float& OutLoudness)
+void ULoudnessNRT::GetLoudnessAtTime(const float InSeconds, float& OutLoudness) const
 {
 	GetChannelLoudnessAtTime(InSeconds, Audio::FLoudnessNRTResult::ChannelIndexOverall, OutLoudness);
 }
 
-void ULoudnessNRT::GetChannelLoudnessAtTime(const float InSeconds, const int32 InChannel, float& OutLoudness)
+void ULoudnessNRT::GetChannelLoudnessAtTime(const float InSeconds, const int32 InChannel, float& OutLoudness) const
 {
 	OutLoudness = 0.0f;
 
-	TSharedPtr<Audio::FLoudnessNRTResult, ESPMode::ThreadSafe> LoudnessResult = GetResult<Audio::FLoudnessNRTResult>();
+	TSharedPtr<const Audio::FLoudnessNRTResult, ESPMode::ThreadSafe> LoudnessResult = GetResult<Audio::FLoudnessNRTResult>();
 
 	if (LoudnessResult.IsValid())
 	{
-		if (!LoudnessResult->IsSortedChronologically())
+		// The loudness result should never used here if it is not already sorted.
+		check(LoudnessResult->IsSortedChronologically());
+
+		if (!LoudnessResult->ContainsChannel(InChannel))
 		{
-			LoudnessResult->SortChronologically();
+			UE_LOG(LogAudioSynesthesia, Warning, TEXT("LoudnessNRT does not contain channel %d"), InChannel);
+			return;
 		}
 
 		const TArray<Audio::FLoudnessDatum>& LoudnessArray = LoudnessResult->GetChannelLoudnessArray(InChannel);
@@ -108,22 +113,26 @@ void ULoudnessNRT::GetChannelLoudnessAtTime(const float InSeconds, const int32 I
 	}
 }
 
-void ULoudnessNRT::GetNormalizedLoudnessAtTime(const float InSeconds, float& OutLoudness)
+void ULoudnessNRT::GetNormalizedLoudnessAtTime(const float InSeconds, float& OutLoudness) const
 {
 	GetNormalizedChannelLoudnessAtTime(InSeconds, Audio::FLoudnessNRTResult::ChannelIndexOverall, OutLoudness);
 }
 
-void ULoudnessNRT::GetNormalizedChannelLoudnessAtTime(const float InSeconds, const int32 InChannel, float& OutLoudness)
+void ULoudnessNRT::GetNormalizedChannelLoudnessAtTime(const float InSeconds, const int32 InChannel, float& OutLoudness) const
 {
 	OutLoudness = 0.0f;
 
-	TSharedPtr<Audio::FLoudnessNRTResult, ESPMode::ThreadSafe> LoudnessResult = GetResult<Audio::FLoudnessNRTResult>();
+	TSharedPtr<const Audio::FLoudnessNRTResult, ESPMode::ThreadSafe> LoudnessResult = GetResult<Audio::FLoudnessNRTResult>();
 
 	if (LoudnessResult.IsValid())
 	{
-		if (!LoudnessResult->IsSortedChronologically())
+		// The loudness result should never used here if it is not already sorted.
+		check(LoudnessResult->IsSortedChronologically());
+
+		if (!LoudnessResult->ContainsChannel(InChannel))
 		{
-			LoudnessResult->SortChronologically();
+			UE_LOG(LogAudioSynesthesia, Warning, TEXT("LoudnessNRT does not contain channel %d"), InChannel);
+			return;
 		}
 
 		const TArray<Audio::FLoudnessDatum>& LoudnessArray = LoudnessResult->GetChannelLoudnessArray(InChannel);
@@ -141,13 +150,13 @@ void ULoudnessNRT::GetNormalizedChannelLoudnessAtTime(const float InSeconds, con
 	}
 }
 
-TUniquePtr<Audio::IAnalyzerNRTSettings> ULoudnessNRT::GetSettings()
+TUniquePtr<Audio::IAnalyzerNRTSettings> ULoudnessNRT::GetSettings(const float InSampleRate, const int32 InNumChannels) const
 {
 	TUniquePtr<Audio::IAnalyzerNRTSettings> AnalyzerSettings;
 
 	if (Settings)
 	{
-		AnalyzerSettings = Settings->GetSettings();	
+		AnalyzerSettings = Settings->GetSettings(InSampleRate, InNumChannels);	
 	}
 
 	return AnalyzerSettings;

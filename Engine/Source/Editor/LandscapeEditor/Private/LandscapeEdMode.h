@@ -573,6 +573,10 @@ public:
 	class ALandscapeBlueprintBrushBase* GetBrushForCurrentLayer(int8 BrushIndex) const;
 	TArray<class ALandscapeBlueprintBrushBase*> GetBrushesForCurrentLayer();
 	
+	void ShowOnlySelectedBrush(class ALandscapeBlueprintBrushBase* InBrush);
+	
+	void DuplicateBrush(class ALandscapeBlueprintBrushBase* InBrush);
+
 	bool NeedToFillEmptyMaterialLayers() const;
 	void RequestLayersContentUpdate(ELandscapeLayerUpdateMode InUpdateMode);
 	void RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode InUpdateMode = ELandscapeLayerUpdateMode::Update_All);

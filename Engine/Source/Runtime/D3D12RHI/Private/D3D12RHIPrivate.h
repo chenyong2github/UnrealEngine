@@ -27,10 +27,6 @@
 
 #define D3D12_RHI_RAYTRACING (RHI_RAYTRACING)
 
-#ifndef WITH_DX_PERF
-#define WITH_DX_PERF 0
-#endif
-
 // Dependencies.
 #include "CoreMinimal.h"
 #include "RHI.h"
@@ -337,7 +333,7 @@ public:
 	virtual void RHIBindDebugLabelName(FRHITexture* Texture, const TCHAR* Name) final override;
 	virtual void RHIReadSurfaceData(FRHITexture* Texture, FIntRect Rect, TArray<FColor>& OutData, FReadSurfaceDataFlags InFlags) final override;
 	virtual void RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect InRect, TArray<FLinearColor>& OutData, FReadSurfaceDataFlags InFlags) final override;
-	virtual void RHIMapStagingSurface(FRHITexture* Texture, void*& OutData, int32& OutWidth, int32& OutHeight, uint32 GPUIndex = 0) final override;
+	virtual void RHIMapStagingSurface(FRHITexture* Texture, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight, uint32 GPUIndex = 0) final override;
 	virtual void RHIUnmapStagingSurface(FRHITexture* Texture, uint32 GPUIndex = 0) final override;
 	virtual void RHIReadSurfaceFloatData(FRHITexture* Texture, FIntRect Rect, TArray<FFloat16Color>& OutData, ECubeFace CubeFace, int32 ArrayIndex, int32 MipIndex) final override;
 	virtual void RHIRead3DSurfaceFloatData(FRHITexture* Texture, FIntRect Rect, FIntPoint ZMinMax, TArray<FFloat16Color>& OutData) final override;
@@ -365,6 +361,7 @@ public:
 	virtual void RHIVirtualTextureSetFirstMipVisible(FRHITexture2D* Texture, uint32 FirstMip) override;
 	virtual void RHIExecuteCommandList(FRHICommandList* CmdList) final override;
 	virtual void* RHIGetNativeDevice() final override;
+	virtual void* RHIGetNativeInstance() final override;
 	virtual class IRHICommandContext* RHIGetDefaultContext() final override;
 	virtual class IRHIComputeContext* RHIGetDefaultAsyncComputeContext() final override;
 	virtual class IRHICommandContextContainer* RHIGetCommandContextContainer(int32 Index, int32 Num) final override;
@@ -1044,7 +1041,7 @@ private:
 	D3D12_RESOURCE_STATES Current;
 	const D3D12_RESOURCE_STATES Desired;
 	const uint32 Subresource;
-	const bool bUseTracking;
+	bool bRestoreDefaultState;
 
 public:
 	explicit FConditionalScopeResourceBarrier(FD3D12CommandListHandle& hInCommandList, FD3D12Resource* pInResource, const D3D12_RESOURCE_STATES InDesired, const uint32 InSubresource)
@@ -1053,12 +1050,18 @@ public:
 		, Current(D3D12_RESOURCE_STATE_TBD)
 		, Desired(InDesired)
 		, Subresource(InSubresource)
-		, bUseTracking(pResource->RequiresResourceStateTracking())
+		, bRestoreDefaultState(false)
 	{
-		if (!bUseTracking)
+		// when we don't use resource state tracking, transition the resource (only if necessary)
+		if (!pResource->RequiresResourceStateTracking())
 		{
 			Current = pResource->GetDefaultResourceState();
-			hCommandList.AddTransitionBarrier(pResource, Current, Desired, Subresource);
+			if (Current != Desired)
+			{
+				// we will add a transition, we need to transition back to the default state when the scoped object dies : 
+				bRestoreDefaultState = true;
+				hCommandList.AddTransitionBarrier(pResource, Current, Desired, Subresource);
+			}
 		}
 		else
 		{
@@ -1068,8 +1071,8 @@ public:
 
 	~FConditionalScopeResourceBarrier()
 	{
-		// Return the resource to it's default state if it doesn't use tracking
-		if (!bUseTracking)
+		// Return the resource to it's default state if necessary : 
+		if (bRestoreDefaultState)
 		{
 			hCommandList.AddTransitionBarrier(pResource, Desired, Current, Subresource);
 		}

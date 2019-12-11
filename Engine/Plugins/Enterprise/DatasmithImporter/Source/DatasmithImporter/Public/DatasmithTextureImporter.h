@@ -17,7 +17,8 @@ public:
 	FDatasmithTextureImporter(FDatasmithImportContext& InImportContext);
 	~FDatasmithTextureImporter();
 
-	UTexture* CreateTexture(const TSharedPtr<IDatasmithTextureElement>& TextureElement);
+	UTexture* CreateTexture(const TSharedPtr<IDatasmithTextureElement>& TextureElement, const TArray<uint8>& TextureData, const FString& Extension);
+	bool GetTextureData(const TSharedPtr<IDatasmithTextureElement>& TextureElement, TArray<uint8>& TextureData, FString& Extension);
 
 private:
 	bool ResizeTextureElement(const TSharedPtr<IDatasmithTextureElement>& TextureElement, FString& ResizedFilename);

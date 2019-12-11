@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimNode_LinkedAnimLayer.h"
+#include "Animation/AnimClassInterface.h"
 
 FName FAnimNode_LinkedAnimLayer::GetDynamicLinkFunctionName() const
 {
@@ -33,6 +34,8 @@ void FAnimNode_LinkedAnimLayer::InitializeSelfLayer(const UAnimInstance* SelfAni
 {
 	UAnimInstance* CurrentTarget = GetTargetInstance<UAnimInstance>();
 
+	IAnimClassInterface* PriorAnimBPClass = CurrentTarget ? IAnimClassInterface::GetFromClass(CurrentTarget->GetClass()) : nullptr;
+
 	USkeletalMeshComponent* MeshComp = SelfAnimInstance->GetSkelMeshComponent();
 	check(MeshComp);
 
@@ -54,7 +57,12 @@ void FAnimNode_LinkedAnimLayer::InitializeSelfLayer(const UAnimInstance* SelfAni
 	// Link before we call InitializeAnimation() so we propgate the call to linked input poses
 	DynamicLink(const_cast<UAnimInstance*>(SelfAnimInstance));
 
-	InitializeProperties(SelfAnimInstance, SelfAnimInstance->GetClass());
+	UClass* SelfClass = SelfAnimInstance->GetClass();
+	InitializeProperties(SelfAnimInstance, SelfClass);
+
+	IAnimClassInterface* NewAnimBPClass = IAnimClassInterface::GetFromClass(SelfClass);
+
+	RequestBlend(PriorAnimBPClass, NewAnimBPClass);
 }
 
 void FAnimNode_LinkedAnimLayer::SetLinkedLayerInstance(const UAnimInstance* InOwningAnimInstance, UAnimInstance* InNewLinkedInstance)

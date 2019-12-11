@@ -58,6 +58,7 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "VariantManagerUtils.h"
 #include "SwitchActor.h"
+#include "Brushes/SlateImageBrush.h"
 
 #define LOCTEXT_NAMESPACE "SVariantManager"
 
@@ -184,6 +185,8 @@ void SVariantManager::Construct(const FArguments& InArgs, TSharedRef<FVariantMan
 		OnMapChangedHandle = LevelEditorModule.OnMapChanged().AddSP(this, &SVariantManager::OnMapChanged);
 	}
 
+	RecordButtonBrush = MakeShared<FSlateImageBrush>(FPaths::EngineContentDir() / TEXT("Editor/Slate/Icons/CA_Record.png"), FVector2D(24.0f, 24.0f));
+
 	ChildSlot
 	[
 		SAssignNew(MainSplitter, SSplitter)
@@ -240,7 +243,7 @@ void SVariantManager::Construct(const FArguments& InArgs, TSharedRef<FVariantMan
 								.Padding(FMargin(0.0f, 2.0, 2.0f, 2.0)) // Extra padding on the right because ToggleButtonCheckboxes always nudges the image to the right
 								[
 									SNew(SImage)
-									.Image(FEditorStyle::GetBrush("Sequencer.ToggleIsSnapEnabled"))
+									.Image(RecordButtonBrush.Get())
 								]
 							]
 						]
@@ -606,9 +609,9 @@ void SVariantManager::AddEditorSelectedActorsToVariant()
 	}
 
 	FScopedTransaction Transaction(FText::Format(
-		LOCTEXT("AddEditorSelectedActorsToVariantTransaction", "Add {0} actor bindings to {1} variants"),
-		FText::FromString(FString::FromInt(Actors.Num())),
-		FText::FromString(FString::FromInt(SelectedVariants.Num()))
+		LOCTEXT("AddEditorSelectedActorsToVariantTransaction", "Add {0} actor {0}|plural(one=binding,other=bindings) to {1} {1}|plural(one=variant,other=variants)"),
+		Actors.Num(),
+		SelectedVariants.Num()
 	));
 
 	VariantManager->CreateObjectBindingsAndCaptures(Actors, SelectedVariants);
@@ -733,9 +736,9 @@ void SVariantManager::CutSelectionVariantTree()
 	// Don't capture CopySelection in the transaction buffer because if we undo we kind of expect
 	// our cut stuff to still be in the clipboard
 	FScopedTransaction Transaction(FText::Format(
-		LOCTEXT("CutSelectionVariantTreeTransaction", "Cut {0} variants and {1} variant sets"),
-		FText::FromString(FString::FromInt(CopiedVariants.Num())),
-		FText::FromString(FString::FromInt(CopiedVariantSets.Num()))
+		LOCTEXT("CutSelectionVariantTreeTransaction", "Cut {0} {0}|plural(one=variant,other=variants) and {1} variant {1}|plural(one=set,other=sets)"),
+		CopiedVariants.Num(),
+		CopiedVariantSets.Num()
 		));
 
 
@@ -782,9 +785,9 @@ void SVariantManager::PasteSelectionVariantTree()
 	const TArray<TStrongObjectPtr<UVariant>>& CopiedVariants = FVariantManagerClipboard::GetVariants();
 
 	FScopedTransaction Transaction(FText::Format(
-		LOCTEXT("PasteSelectionVariantTreeTransaction", "Paste {0} variants and {1} variant sets"),
-		FText::FromString(FString::FromInt(CopiedVariants.Num())),
-		FText::FromString(FString::FromInt(CopiedVariantSets.Num()))
+		LOCTEXT("PasteSelectionVariantTreeTransaction", "Paste {0} {0}|plural(one=variant,other=variants) and {1} variant {1}|plural(one=set,other=sets)"),
+		CopiedVariants.Num(),
+		CopiedVariantSets.Num()
 		));
 
 	// Paste variant sets onto the tree, regardless of where we clicked
@@ -888,9 +891,9 @@ void SVariantManager::DeleteSelectionVariantTree()
 	VariantManager->GetSelection().GetSelectedVariantsAndVariantSets(VariantsToDelete, VariantSetsToDelete);
 
 	FScopedTransaction Transaction(FText::Format(
-		LOCTEXT("DeleteSelectionVariantTreeTransaction", "Delete {0} variants and {1} variant sets"),
-		FText::FromString(FString::FromInt(VariantsToDelete.Num())),
-		FText::FromString(FString::FromInt(VariantSetsToDelete.Num()))
+		LOCTEXT("DeleteSelectionVariantTreeTransaction", "Delete {0} {0}|plural(one=variant,other=variants) and {1} variant {1}|plural(one=set,other=sets)"),
+		VariantsToDelete.Num(),
+		VariantSetsToDelete.Num()
 		));
 
 	VariantManager->RemoveVariantsFromParent(VariantsToDelete);
@@ -922,9 +925,9 @@ void SVariantManager::DuplicateSelectionVariantTree()
 	TArray<UVariant*> NewVariants;
 
 	FScopedTransaction Transaction(FText::Format(
-		LOCTEXT("DuplicateSelectionVariantTreeTransaction", "Duplicate {0} variants and {1} variant sets"),
-		FText::FromString(FString::FromInt(VariantsToDuplicate.Num())),
-		FText::FromString(FString::FromInt(VariantSetsToDuplicate.Num()))
+		LOCTEXT("DuplicateSelectionVariantTreeTransaction", "Duplicate {0} {0}|plural(one=variant,other=variants) and {1} variant {1}|plural(one=set,other=sets)"),
+		VariantsToDuplicate.Num(),
+		VariantSetsToDuplicate.Num()
 		));
 
 	// Duplicate variants
@@ -1237,9 +1240,8 @@ void SVariantManager::CaptureNewPropertiesFromSelectedActors()
 		int32 NumBindings = SelectedBindings.Num();
 
 		FScopedTransaction Transaction(FText::Format(
-			LOCTEXT("ActorNodeCaptureNewPropertiesTransaction", "Capture new properties for {0} actor binding{1}"),
-			FText::FromString(FString::FromInt(NumBindings)),
-			NumBindings != 1 ? FText::FromString(TEXT("s")) : FText()
+			LOCTEXT("ActorNodeCaptureNewPropertiesTransaction", "Capture new properties for {0} actor {0}|plural(one=binding,other=bindings)"),
+			NumBindings
 			));
 
 		PinnedVariantManager->CaptureNewProperties(SelectedBindings);
@@ -1278,9 +1280,8 @@ void SVariantManager::AddFunctionCaller()
 
 	int32 NumNewCallers = SelectedActorNodes.Num();
 	FScopedTransaction Transaction(FText::Format(
-		LOCTEXT("AddFunctionCaller", "Created {0} new function caller{1}"),
-		FText::FromString(FString::FromInt(NumNewCallers)),
-		NumNewCallers != 1 ? FText::FromString(TEXT("s")) : FText()
+		LOCTEXT("AddFunctionCaller", "Created {0} new function {0}|plural(one=caller,other=callers)"),
+		NumNewCallers
 	));
 
 	for (const TSharedPtr<FVariantManagerActorNode>& Node : SelectedActorNodes)
@@ -1330,9 +1331,8 @@ void SVariantManager::RemoveActorBindings()
 		int32 NumBindings = SelectedBindings.Num();
 
 		FScopedTransaction Transaction(FText::Format(
-			LOCTEXT("ActorNodeRemoveTransaction", "Remove {0} actor binding{1}"),
-			FText::FromString(FString::FromInt(NumBindings)),
-			NumBindings != 1 ? FText::FromString(TEXT("s")) : FText()
+			LOCTEXT("ActorNodeRemoveTransaction", "Remove {0} actor {0}|plural(one=binding,other=bindings)"),
+			NumBindings
 		));
 
 		PinnedVariantManager->RemoveObjectBindingsFromParent(SelectedBindings);
@@ -1458,8 +1458,8 @@ void SVariantManager::RemoveCapture()
 	}
 
 	FScopedTransaction Transaction(FText::Format(
-		LOCTEXT("RemoveCaptureTransaction", "Remove {0} property captures"),
-		FText::AsNumber(PropValuesToRemove.Num())));
+		LOCTEXT("RemoveCaptureTransaction", "Remove {0} property {0}|plural(one=capture,other=captures)"),
+		PropValuesToRemove.Num()));
 
 	PinnedVariantManager->RemovePropertyCapturesFromParent(PropValuesToRemove);
 
@@ -1528,8 +1528,8 @@ void SVariantManager::RemoveDirectorFunctionCaller()
 	}
 
 	FScopedTransaction Transaction(FText::Format(
-		LOCTEXT("RemoveCaptureTransaction", "Remove {0} function callers"),
-		FText::AsNumber(NumCallersWellRemove)));
+		LOCTEXT("RemoveCallersTransaction", "Remove {0} function {0}|plural(one=caller,other=callers)"),
+		NumCallersWellRemove));
 
 	for (auto& Pair : FunctionCallers)
 	{
@@ -2191,7 +2191,9 @@ FReply SVariantManager::OnAddVariantSetClicked()
 // Will return true if it created or updated a UPropertyValue
 bool AutoCaptureProperty(FVariantManager* VarMan, AActor* TargetActor, const FString& PropertyPath, const UProperty* Property)
 {
-	if (!VarMan || !TargetActor || PropertyPath.IsEmpty())
+	// Transient actors are generated temporarily while dragging actors into the level. Once the
+	// mouse is released, another non-transient actor is instantiated
+	if (!VarMan || !TargetActor || TargetActor->HasAnyFlags(RF_Transient) || PropertyPath.IsEmpty())
 	{
 		return false;
 	}
@@ -2382,7 +2384,7 @@ void SVariantManager::OnObjectTransacted(UObject* Object, const class FTransacti
 		FString ParentActorPath;
 		if (ASwitchActor* SwitchActorParent = Cast<ASwitchActor>(TargetActor->GetAttachParentActor()))
 		{
-			if (Object->IsA(USceneComponent::StaticClass()) && Event.GetChangedProperties().Contains(GET_MEMBER_NAME_CHECKED(USceneComponent, bVisible)))
+			if (Object->IsA(USceneComponent::StaticClass()) && Event.GetChangedProperties().Contains(USceneComponent::GetVisiblePropertyName()))
 			{
 				ParentActorPath = SwitchActorParent->GetPathName();
 				bool bSwitchWasCapturedAlready = CachedDisplayedActorPaths.Contains(ParentActorPath);
@@ -2438,7 +2440,8 @@ void SVariantManager::OnObjectPropertyChanged(UObject* Object, struct FPropertyC
 	AActor* TargetActor = nullptr;
 	FString PropertyPath;
 
-	bool bIsBuiltIn = VariantManagerUtils::IsBuiltInStructProperty(Event.MemberProperty);
+	bool bIsStructProperty = Event.MemberProperty && Event.MemberProperty->IsA(UStructProperty::StaticClass());
+	bool bIsBuiltIn = bIsStructProperty && FVariantManagerUtils::IsBuiltInStructProperty(Event.MemberProperty);
 
 	// We don't want to capture just the X component of a RelativeLocation property, but we want to capture
 	// the ISO property of a FPostProcessSettings StructProperty
@@ -2504,8 +2507,8 @@ void SVariantManager::OnObjectPropertyChanged(UObject* Object, struct FPropertyC
 	}
 
 	// If we're a non-built in struct property, build the path with the categories
-	// like the propertycapturer would have done
-	if (Event.MemberProperty && !bIsBuiltIn)
+	// like the propertycapturer would have done (this is mostly to manage Post Process Volume properties)
+	if (bIsStructProperty && !bIsBuiltIn)
 	{
 		// Add 'Settings /'
 		PropertyPath += Event.MemberProperty->GetDisplayNameText().ToString() + PATH_DELIMITER;
@@ -2521,12 +2524,11 @@ void SVariantManager::OnObjectPropertyChanged(UObject* Object, struct FPropertyC
 
 	FString PropertyName = Prop->GetDisplayNameText().ToString();
 	TArray<FString> PropertyPaths;
-	const UProperty* OverrideMaterialsProp = FindField<UProperty>( UMeshComponent::StaticClass(), GET_MEMBER_NAME_CHECKED( UMeshComponent, OverrideMaterials ) );
-	const TSet<FString> ProxyPropertyPaths{ TEXT("Relative Location"), TEXT("Relative Rotation"), TEXT("Relative Scale 3D") };
+	static const TSet<FString> ProxyPropertyPaths{ TEXT("Relative Location"), TEXT("Relative Rotation"), TEXT("Relative Scale 3D") };
 
 	// We capture as just 'Materials' in the Variant Manager UI, instead of 'Override Materials'
 	// Override Materials doesn't work like a regular UArrayProperty, we need to use GetNumMaterials
-	if (Prop == OverrideMaterialsProp)
+	if (Prop == FVariantManagerUtils::GetOverrideMaterialsProperty())
 	{
 		if (UStaticMeshComponent* ObjAsComp = Cast<UStaticMeshComponent>(Object))
 		{

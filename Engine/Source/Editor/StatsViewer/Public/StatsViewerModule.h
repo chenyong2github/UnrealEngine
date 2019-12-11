@@ -19,6 +19,7 @@ namespace EStatsPage
 		PrimitiveStats,
 		StaticMeshLightingInfo,
 		TextureStats,
+		ShaderCookerStats,
 	};
 }
 

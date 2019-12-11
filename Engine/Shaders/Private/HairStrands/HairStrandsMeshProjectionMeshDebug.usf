@@ -33,7 +33,7 @@ void MainVS(
 #if PERMUTATION_INPUT_TYPE == 1
 	const uint TriangleVertexIndex = (VertexId%3);
 	const uint TriangleIndex = VertexId / 3;
-	const FHairMeshTriangle Tri = GetTriangleData(TriangleIndex, LocalToWorld, InputVertexBuffer, InputIndexBuffer, IndexOffset, MaxIndexCount, MaxVertexCount);
+	const FHairMeshTriangle Tri = GetTriangleData(TriangleIndex, InputVertexBuffer, InputIndexBuffer, IndexOffset, MaxIndexCount, MaxVertexCount);
 	OutFaceNormal = Tri.N;
 
 	float3 P = 0;
@@ -44,7 +44,8 @@ void MainVS(
 	if (TriangleVertexIndex == 2)
 		P = Tri.P2;
 #endif
-
+	// TODO: the normal is in local space, not in world space so it won't appear correct
+	P = mul(float4(P, 1), LocalToWorld).xyz;
 	OutPosition = mul(float4(P,1), View.WorldToClip);
 }
 

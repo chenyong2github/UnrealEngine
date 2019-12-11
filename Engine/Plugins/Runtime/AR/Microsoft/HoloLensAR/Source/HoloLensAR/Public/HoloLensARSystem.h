@@ -202,6 +202,7 @@ private:
 	WindowsMixedReality::MixedRealityInterop* WMRInterop;
 
 	FARSessionStatus SessionStatus;
+	uint32 HandlerId = 0;
 
 	/** The current tracking quality for the system */
 	EARTrackingQuality TrackingQuality;

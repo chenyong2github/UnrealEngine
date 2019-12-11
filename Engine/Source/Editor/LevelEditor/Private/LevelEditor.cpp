@@ -100,10 +100,6 @@ public:
 		// Create the tooltip showing more detailed information
 		FFormatNamedArguments TooltipArgs;
 		FString TooltipVersionStr = EngineVersionString;
-		if (IProjectManager::Get().GetCurrentProject() && IProjectManager::Get().GetCurrentProject()->bIsEnterpriseProject)
-		{
-			TooltipVersionStr += TEXT(" Unreal Studio");
-		}
 		TooltipArgs.Add(TEXT("Version"), FText::FromString(TooltipVersionStr));
 		TooltipArgs.Add(TEXT("Branch"), FText::FromString(FEngineVersion::Current().GetBranch()));
 		TooltipArgs.Add(TEXT("BuildConfiguration"), EBuildConfigurations::ToText(BuildConfig));
@@ -1779,12 +1775,6 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, FPreviewPlatformInfo(ERHIFeatureLevel::SM5, NAME_None, false)),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, FPreviewPlatformInfo(ERHIFeatureLevel::SM5, NAME_None)));
-
-	ActionList.MapAction(
-		Commands.PreviewPlatformOverride_HTML5,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, FPreviewPlatformInfo(ERHIFeatureLevel::ES2, NAME_None, true)),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, FPreviewPlatformInfo(ERHIFeatureLevel::ES2, NAME_None)));
 
 	ActionList.MapAction(
 		Commands.PreviewPlatformOverride_AndroidGLES2,

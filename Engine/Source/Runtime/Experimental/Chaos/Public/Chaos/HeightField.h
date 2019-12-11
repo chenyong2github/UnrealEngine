@@ -11,26 +11,33 @@
 #include "Templates/UnrealTypeTraits.h"
 #include "UniformGrid.h"
 #include "Utilities.h"
-PRAGMA_DISABLE_OPTIMIZATION
+#include "UObject/ExternalPhysicsCustomObjectVersion.h"
 
 namespace Chaos
 {
 	template<typename T>
 	class THeightfieldRaycastVisitor;
+	class FConvex;
 }
 
 namespace Chaos
 {
 	template<typename T>
-	class CHAOS_API THeightField final : public TImplicitObject<T,3>
+	class CHAOS_API THeightField final : public FImplicitObject
 	{
 	public:
-		using TImplicitObject<T, 3>::GetTypeName;
+		using FImplicitObject::GetTypeName;
 
-		THeightField(TArray<T>&& Height, int32 InNumRows, int32 InNumCols, const TVector<T,3>& InScale);
+		THeightField(TArray<T>&& Height, TArray<uint8>&& InMaterialIndices, int32 InNumRows, int32 InNumCols, const TVector<T,3>& InScale);
+		THeightField(TArrayView<const uint16> InHeights, TArrayView<uint8> InMaterialIndices, int32 InNumRows, int32 InNumCols, const TVector<T, 3>& InScale);
 		THeightField(const THeightField& Other) = delete;
 		THeightField(THeightField&& Other) = default;
+
 		virtual ~THeightField() {}
+
+		/** Support for editing a subsection of the heightfield */
+		void EditHeights(TArrayView<T> InHeights, int32 InBeginRow, int32 InBeginCol, int32 InNumRows, int32 InNumCols);
+		void EditHeights(TArrayView<const uint16> InHeights, int32 InBeginRow, int32 InBeginCol, int32 InNumRows, int32 InNumCols);
 
 		virtual T PhiWithNormal(const TVector<T, 3>& x, TVector<T, 3>& Normal) const
 		{
@@ -40,14 +47,54 @@ namespace Chaos
 
 		virtual bool Raycast(const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T,3>& OutPosition, TVector<T,3>& OutNormal, int32& OutFaceIndex) const override;
 		virtual bool Overlap(const TVector<T, 3>& Point, const T Thickness) const override;
-		bool OverlapGeom(const TImplicitObject<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
-		bool SweepGeom(const TImplicitObject<T, 3>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0) const;
+		
+		bool OverlapGeom(const TSphere<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
+		bool OverlapGeom(const TBox<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
+		bool OverlapGeom(const TCapsule<T>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
+		bool OverlapGeom(const FConvex& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
+		bool OverlapGeom(const TImplicitObjectScaled<TSphere<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
+		bool OverlapGeom(const TImplicitObjectScaled<TBox<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
+		bool OverlapGeom(const TImplicitObjectScaled<TCapsule<T>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
+		bool OverlapGeom(const TImplicitObjectScaled<FConvex>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
+
+		bool SweepGeom(const TSphere<T, 3>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0, bool bComputeMTD = false) const;
+		bool SweepGeom(const TBox<T, 3>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0, bool bComputeMTD = false) const;
+		bool SweepGeom(const TCapsule<T>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0, bool bComputeMTD = false) const;
+		bool SweepGeom(const FConvex& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0, bool bComputeMTD = false) const;
+		bool SweepGeom(const TImplicitObjectScaled<TSphere<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0, bool bComputeMTD = false) const;
+		bool SweepGeom(const TImplicitObjectScaled<TBox<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0, bool bComputeMTD = false) const;
+		bool SweepGeom(const TImplicitObjectScaled<TCapsule<T>>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0, bool bComputeMTD = false) const;
+		bool SweepGeom(const TImplicitObjectScaled<FConvex>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0, bool bComputeMTD = false) const;
+
 		virtual int32 FindMostOpposingFace(const TVector<T, 3>& Position, const TVector<T, 3>& UnitDir, int32 HintFaceIndex, T SearchDist) const override;
 		virtual TVector<T, 3> FindGeometryOpposingNormal(const TVector<T, 3>& DenormDir, int32 FaceIndex, const TVector<T, 3>& OriginalNormal) const override;
 
+		virtual uint16 GetMaterialIndex(uint32 HintIndex) const override
+		{
+			ensure(GeomData.MaterialIndices.Num() > 0);
+
+			// If we've only got a default
+			if(GeomData.MaterialIndices.Num() == 1)
+			{
+				return GeomData.MaterialIndices[0];
+			}
+			else
+			{
+				// We store per cell for materials, so change to cell index
+				int32 CellIndex = HintIndex / 2;
+				if(ensure(GeomData.MaterialIndices.IsValidIndex(CellIndex)))
+				{
+					return GeomData.MaterialIndices[CellIndex];
+				}
+			}
+
+			return 0;
+		}
+
 		virtual const TBox<T, 3>& BoundingBox() const
 		{
-			return LocalBounds;
+			CachedBounds = TBox<T, 3>(LocalBounds.Min() * GeomData.Scale, LocalBounds.Max() * GeomData.Scale);
+			return CachedBounds;
 		}
 
 		virtual uint32 GetTypeHash() const override
@@ -63,7 +110,7 @@ namespace Chaos
 			return FCrc::MemCrc32(Bytes.GetData(), Bytes.GetAllocatedSize());
 		}
 
-		static ImplicitObjectType GetType()
+		static constexpr EImplicitObjectType StaticType()
 		{
 			return ImplicitObjectType::HeightField;
 		}
@@ -71,14 +118,34 @@ namespace Chaos
 		virtual void Serialize(FChaosArchive& Ar) override
 		{
 			FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName());
-			TImplicitObject<T, 3>::SerializeImp(Ar);
+			FImplicitObject::SerializeImp(Ar);
 			
 			GeomData.Serialize(Ar);
+
+			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::HeightfieldData)
+			{
+				Ar << FlatGrid;
+				Ar << FlattenedBounds.Min;
+				Ar << FlattenedBounds.Max;
+				Ar << LocalBounds;
+			}
+			else
+			{
+				CalcBounds();
+			}
+			
 
 			if(Ar.IsLoading())
 			{
 				BuildQueryData();
+				BoundingBox();	//temp hack to initialize cache
 			}
+		}
+
+		void SetScale(const TVector<T, 3>& InScale)
+		{
+			GeomData.Scale = InScale;
 		}
 
 		template<typename InStorageType, typename InRealType>
@@ -108,6 +175,7 @@ namespace Chaos
 			// With HeightPerUnit being the range of the min/max realtype values of
 			// the heightfield divided by the range of StorageType
 			TArray<StorageType> Heights;
+			TArray<uint8> MaterialIndices;
 			TVector<RealType, 3> Scale;
 			RealType MinValue;
 			RealType MaxValue;
@@ -115,7 +183,7 @@ namespace Chaos
 			uint16 NumCols;
 			RealType Range;
 			RealType HeightPerUnit;
-			TArray<TBox<RealType, 3>> CellBounds;
+			TArray<RealType> CellHeights; //todo: remove this and use heights directly
 
 			constexpr float GetCellWidth() const
 			{
@@ -137,15 +205,20 @@ namespace Chaos
 				const int32 X = Index % (NumCols);
 				const int32 Y = Index / (NumCols);
 
-				TVector<typename FDataType::RealType, 3> P0 = {(typename FDataType::RealType)X, (typename FDataType::RealType)Y, H0};
-				TVector<typename FDataType::RealType, 3> P1 = {(typename FDataType::RealType)X + 1, (typename FDataType::RealType)Y, H1};
-				TVector<typename FDataType::RealType, 3> P2 = {(typename FDataType::RealType)X, (typename FDataType::RealType)Y + 1, H2};
-				TVector<typename FDataType::RealType, 3> P3 = {(typename FDataType::RealType)X + 1, (typename FDataType::RealType)Y + 1, H3};
-				
-				OutPts[0] = (P0 * Scale);
-				OutPts[1] = (P1 * Scale);
-				OutPts[2] = (P2 * Scale);
-				OutPts[3] = (P3 * Scale);
+				OutPts[0] = {(typename FDataType::RealType)X, (typename FDataType::RealType)Y, H0};
+				OutPts[1] = {(typename FDataType::RealType)X + 1, (typename FDataType::RealType)Y, H1};
+				OutPts[2] = {(typename FDataType::RealType)X, (typename FDataType::RealType)Y + 1, H2};
+				OutPts[3] = {(typename FDataType::RealType)X + 1, (typename FDataType::RealType)Y + 1, H3};
+			}
+
+			FORCEINLINE void GetPointsScaled(int32 Index, TVector<T, 3> OutPts[4]) const
+			{
+				GetPoints(Index, OutPts);
+
+				OutPts[0] *= Scale;
+				OutPts[1] *= Scale;
+				OutPts[2] *= Scale;
+				OutPts[3] *= Scale;
 			}
 
 			void Serialize(FChaosArchive& Ar)
@@ -168,6 +241,32 @@ namespace Chaos
 				Ar << MaxValue;
 				Ar << NumRows;
 				Ar << NumCols;
+
+				Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+				if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::HeightfieldData)
+				{
+					Ar << Range;
+					Ar << HeightPerUnit;
+
+					if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::HeightfieldImplicitBounds)
+					{
+						TArray<TBox<RealType, 3>> CellBounds;
+						Ar << CellBounds;
+						for (const TBox<RealType, 3>& Box : CellBounds)
+						{
+							CellHeights.Add(Box.Extents().Z);
+						}
+					}
+					else
+					{
+						Ar << CellHeights;
+					}
+				}
+
+				if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddedMaterialManager)
+				{
+					Ar << MaterialIndices;
+				}
 			}
 		};
 
@@ -329,6 +428,8 @@ namespace Chaos
 		// Helpers for accessing bounds
 		bool GetCellBounds2D(const TVector<int32, 2> InCoord, FBounds2D& OutBounds, const TVector<T, 2>& InInflate = {0}) const;
 		bool GetCellBounds3D(const TVector<int32, 2> InCoord, TVector<T, 3>& OutMin, TVector<T, 3>& OutMax, const TVector<T, 3>& InInflate = TVector<T, 3>(0)) const;
+		bool GetCellBounds2DScaled(const TVector<int32, 2> InCoord, FBounds2D& OutBounds, const TVector<T, 2>& InInflate = {0}) const;
+		bool GetCellBounds3DScaled(const TVector<int32, 2> InCoord, TVector<T, 3>& OutMin, TVector<T, 3>& OutMax, const TVector<T, 3>& InInflate = TVector<T, 3>(0)) const;
 		bool CalcCellBounds3D(const TVector<int32, 2> InCoord, TVector<T, 3>& OutMin, TVector<T, 3>& OutMax, const TVector<T, 3>& InInflate = TVector<T, 3>(0)) const;
 
 		// Query functions - sweep, ray, overlap
@@ -337,18 +438,29 @@ namespace Chaos
 		bool GridCast(const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, THeightfieldRaycastVisitor<T>& Visitor) const;
 		bool GetGridIntersections(FBounds2D InFlatBounds, TArray<TVector<int32, 2>>& OutInterssctions) const;
 		
+		FBounds2D GetFlatBounds() const;
+
 		// Grid for queries, faster than bounding volumes for heightfields
 		TUniformGrid<T, 2> FlatGrid;
 		// Bounds in 2D of the whole heightfield, to clip queries against
 		FBounds2D FlattenedBounds;
 		// 3D bounds for the heightfield, for insertion to the scene structure
 		TBox<T, 3> LocalBounds;
+		// Cached when bounds are requested. Mutable to allow GetBounds to be logical const
+		mutable TBox<T, 3> CachedBounds;
 
+		void CalcBounds();
 		void BuildQueryData();
 		
 		// Needed for serialization
-		THeightField() : TImplicitObject<T, 3>(EImplicitObject::HasBoundingBox, ImplicitObjectType::HeightField) {}
-		friend TImplicitObject<T, 3>;
+		THeightField() : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::HeightField) {}
+		friend FImplicitObject;
+
+		template <typename QueryGeomType>
+		bool OverlapGeomImp(const QueryGeomType& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const;
+
+		template <typename QueryGeomType>
+		bool SweepGeomImp(const QueryGeomType& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness, bool bComputeMTD) const;
+
 	};
 }
-PRAGMA_ENABLE_OPTIMIZATION

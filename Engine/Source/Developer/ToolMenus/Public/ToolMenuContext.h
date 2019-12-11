@@ -38,6 +38,20 @@ public:
 	FToolMenuContext(TSharedPtr<FUICommandList> InCommandList, TSharedPtr<FExtender> InExtender = TSharedPtr<FExtender>(), UObject* InContext = nullptr);
 
 	template <typename TContextType>
+	TContextType* FindContext() const
+	{
+		for (UObject* Object : ContextObjects)
+		{
+			if (TContextType* Result = Cast<TContextType>(Object))
+			{
+				return Result;
+			}
+		}
+
+		return nullptr;
+	}
+
+	template <typename TContextType>
 	TContextType* Find() const
 	{
 		for (UObject* Object : ContextObjects)

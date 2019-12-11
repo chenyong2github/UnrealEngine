@@ -49,6 +49,9 @@ public:
 	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
 	virtual void OnEndHover() override;
 
+	// IModifierToggleBehaviorTarget implementation (inherited via IClickDragBehaviorTarget)
+	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
+
 public:
 	UPROPERTY()
 	TScriptInterface<IGizmoAxisSource> AxisSource;
@@ -94,5 +97,9 @@ public:
 protected:
 	FVector LastHitPosition;
 	float InitialTargetAngle;
+
+	static const int SnapAngleModifierID = 1;		// identifier we associate with the shift key
+	bool bEnableSnapAngleModifier = false;			// flag we use to keep track of modifier state
+
 };
 

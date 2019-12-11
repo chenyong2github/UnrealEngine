@@ -4,8 +4,7 @@
 #include "VREditorUISystem.h"
 #include "VREditorBaseUserWidget.h"
 #include "VREditorMode.h"
-#include "Components/WidgetComponent.h"
-#include "VREditorWidgetComponent.h"
+#include "VREditorCameraWidgetComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "VRModeSettings.h"
 #include "VREditorAssetContainer.h"
@@ -16,8 +15,9 @@
 
 #define LOCTEXT_NAMESPACE "AVREditorFloatingCameraUI"
 
-AVREditorFloatingCameraUI::AVREditorFloatingCameraUI()
-	: Super()
+AVREditorFloatingCameraUI::AVREditorFloatingCameraUI(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UVREditorCameraWidgetComponent>(TEXT("WidgetComponent"))),
+	OffsetFromCamera( -25.0f, 0.0f, 30.0f )
 {
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -46,8 +46,7 @@ FTransform AVREditorFloatingCameraUI::MakeCustomUITransform()
 		CameraTransform = LinkedActor->GetTransform();
 
 		const FTransform UIFlipTransform(FRotator(0.0f, 180.0f, 0.0f).Quaternion(), FVector::ZeroVector);
-		const FVector Offset = FVector(-25.0f, 0.0f, 40.0f);
-		const FTransform OffsetTransform(FRotator::ZeroRotator, Offset);
+		const FTransform OffsetTransform(FRotator::ZeroRotator, OffsetFromCamera);
 
 		UITransform = UIFlipTransform * OffsetTransform * CameraTransform;
 	}

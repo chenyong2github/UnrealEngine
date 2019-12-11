@@ -152,7 +152,8 @@ void FLandscapeEditorCustomNodeBuilder_Layers::GenerateChildContent(IDetailChild
 
 		InlineTextBlocks.Empty();
 		InlineTextBlocks.AddDefaulted(LandscapeEdMode->GetLayerCount());
-		for (int32 i = 0; i < LandscapeEdMode->GetLayerCount(); ++i)
+		// Slots are displayed in the opposite order of LandscapeLayers
+		for (int32 i = LandscapeEdMode->GetLayerCount()-1; i >= 0 ; --i)
 		{
 			TSharedPtr<SWidget> GeneratedRowWidget = GenerateRow(i);
 
@@ -456,6 +457,13 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_Layers::OnLayerContextMenu
 					FUIAction DeleteLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex] { SharedThis->DeleteLayer(InLayerIndex); }), FCanExecuteAction::CreateLambda([Landscape] { return Landscape->LandscapeLayers.Num() > 1; }));
 					TAttribute<FText> DeleteLayerText(Landscape->LandscapeLayers.Num() == 1 ? LOCTEXT("CantDeleteLastLayer", "Delete (Last layer)") : LOCTEXT("DeleteLayer", "Delete..."));
 					MenuBuilder.AddMenuEntry(DeleteLayerText, LOCTEXT("DeleteLayerTooltip", "Delete Layer"), FSlateIcon(), DeleteLayerAction);
+
+					// Collapse Layer
+					if (LandscapeEdMode->CurrentToolMode->ToolModeName == "ToolMode_Manage")
+					{
+						FUIAction CollapseLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex] { SharedThis->CollapseLayer(InLayerIndex); }));
+						MenuBuilder.AddMenuEntry(LOCTEXT("CollapseLayer", "Collapse..."), LOCTEXT("CollapseLayerTooltip", "Collapse layer into top neighbor layer"), FSlateIcon(), CollapseLayerAction);
+					}
 				}
 
 				if (Landscape->GetLandscapeSplinesReservedLayer() != Landscape->GetLayer(InLayerIndex))
@@ -644,6 +652,82 @@ void FLandscapeEditorCustomNodeBuilder_Layers::DeleteLayer(int32 InLayerIndex)
 	}
 }
 
+bool FLandscapeEditorCustomNodeBuilder_Layers::CanCollapseLayer(int32 InLayerIndex, FText& OutReason) const
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
+	if (!Landscape || Landscape->LandscapeLayers.Num() <= 1)
+	{
+		OutReason = LOCTEXT("Landscape_CollapseLayer_Reason_NotEnoughLayersToCollapse", "Not enough layers to do Collapse.");
+		return false;
+	}
+
+	if (InLayerIndex < 1)
+	{
+		OutReason = LOCTEXT("Landscape_CollapseLayer_Reason_CantCollapseBaseLayer", "Can't Collapse first layer.");
+		return false;
+	}
+	
+	FLandscapeLayer* SplineLayer = Landscape->GetLandscapeSplinesReservedLayer();
+	if (SplineLayer == LandscapeEdMode->GetLayer(InLayerIndex))
+	{
+		OutReason = LOCTEXT("Landscape_CollapseLayer_Reason_CantCollapseSplineLayer", "Can't Collapse reserved spline layer.");
+		return false;
+	}
+
+	FLandscapeLayer* BaseLayer = LandscapeEdMode->GetLayer(InLayerIndex - 1);
+	if (!BaseLayer)
+	{
+		OutReason = LOCTEXT("Landscape_CollapseLayer_Reason_InvalidBaseLayer", "Invalid base layer.");
+		return false;
+	}
+
+	if (SplineLayer == BaseLayer)
+	{
+		OutReason = LOCTEXT("Landscape_CollapseLayer_Reason_CantCollapseOnSplineLayer", "Can't Collapse on reserved spline layer.");
+		return false;
+	}
+	
+	// Can't collapse on layer that has a Brush because result will change...
+	if (BaseLayer->Brushes.Num() > 0)
+	{
+		OutReason = FText::Format(LOCTEXT("Landscape_CollapseLayer_Reason_CantCollapseOnLayerWithBrush", "Can't Collapse because base layer '{0}' contains Brush(es)."), FText::FromName(BaseLayer->Name));
+		return false;
+	}
+	
+
+	return true;
+}
+
+void FLandscapeEditorCustomNodeBuilder_Layers::CollapseLayer(int32 InLayerIndex)
+{
+	FText Reason;
+	if (CanCollapseLayer(InLayerIndex, Reason))
+	{
+		if (FEdModeLandscape* LandscapeEdMode = GetEditorMode())
+		{
+			ALandscape* Landscape = LandscapeEdMode->GetLandscape();
+			FLandscapeLayer* Layer = LandscapeEdMode->GetLayer(InLayerIndex);
+			FLandscapeLayer* BaseLayer = LandscapeEdMode->GetLayer(InLayerIndex - 1);
+			if (Landscape && Layer && BaseLayer)
+			{
+				EAppReturnType::Type Result = FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(LOCTEXT("Landscape_CollapseLayer_Message", "The layer {0} will be collapsed into layer {1}.  Continue?"), FText::FromName(Layer->Name), FText::FromName(BaseLayer->Name)));
+				if (Result == EAppReturnType::Yes)
+				{
+					const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_Collapse", "Collapse Layer"));
+					Landscape->CollapseLayer(InLayerIndex);
+					OnLayerSelectionChanged(InLayerIndex - 1);
+					LandscapeEdMode->RefreshDetailPanel();
+				}
+			}
+		}
+	}
+	else
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, Reason);
+	}
+}
+
 void FLandscapeEditorCustomNodeBuilder_Layers::ShowOnlySelectedLayer(int32 InLayerIndex)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
@@ -778,15 +862,29 @@ const FSlateBrush* FLandscapeEditorCustomNodeBuilder_Layers::GetLockBrushForLaye
 	return bIsLocked ? FEditorStyle::GetBrush(TEXT("PropertyWindow.Locked")) : FEditorStyle::GetBrush(TEXT("PropertyWindow.Unlocked"));
 }
 
+int32 FLandscapeEditorCustomNodeBuilder_Layers::SlotIndexToLayerIndex(int32 SlotIndex)
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
+	if (!Landscape)
+	{
+		return INDEX_NONE;
+	}
+	
+	check(Landscape->LandscapeLayers.IsValidIndex(SlotIndex));
+	return Landscape->LandscapeLayers.Num() - SlotIndex - 1;
+}
+
 FReply FLandscapeEditorCustomNodeBuilder_Layers::HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, int32 SlotIndex, SVerticalBox::FSlot* Slot)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode)
 	{
-		FLandscapeLayer* Layer = LandscapeEdMode->GetLayer(SlotIndex);
+		int32 LayerIndex = SlotIndexToLayerIndex(SlotIndex);
+		FLandscapeLayer* Layer = LandscapeEdMode->GetLayer(LayerIndex);
 		if (Layer && !Layer->bLocked)
 		{
-			TSharedPtr<SWidget> Row = GenerateRow(SlotIndex);
+			TSharedPtr<SWidget> Row = GenerateRow(LayerIndex);
 			if (Row.IsValid())
 			{
 				return FReply::Handled().BeginDragDrop(FLandscapeListElementDragDropOp::New(SlotIndex, Slot, Row));
@@ -816,8 +914,8 @@ FReply FLandscapeEditorCustomNodeBuilder_Layers::HandleAcceptDrop(FDragDropEvent
 		ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
 		if (Landscape)
 		{
-			int32 StartingLayerIndex = DragDropOperation->SlotIndexBeingDragged;
-			int32 DestinationLayerIndex = SlotIndex;
+			int32 StartingLayerIndex = SlotIndexToLayerIndex(DragDropOperation->SlotIndexBeingDragged);
+			int32 DestinationLayerIndex = SlotIndexToLayerIndex(SlotIndex);
 			const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_Reorder", "Reorder Layer"));
 			if (Landscape->ReorderLayer(StartingLayerIndex, DestinationLayerIndex))
 			{

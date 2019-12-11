@@ -7,9 +7,11 @@
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
+#include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "Sequencer/NiagaraSequence/NiagaraSequence.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "NiagaraEditorStyle.h"
+#include "NiagaraEditorModule.h"
 
 #include "EditorStyleSet.h"
 #include "Styling/SlateIconFinder.h"
@@ -17,6 +19,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraEmitterTrackEditor"
 
@@ -30,6 +33,7 @@ public:
 	{
 		EmitterTrack = &InEmitterTrack;
 
+		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 		TSharedRef<SHorizontalBox> TrackBox = SNew(SHorizontalBox)
 			// Track initialization error icon.
 			+ SHorizontalBox::Slot()
@@ -42,17 +46,15 @@ public:
 				.Image(FEditorStyle::GetBrush("Icons.Info"))
 				.ToolTipText(this, &SEmitterTrackWidget::GetTrackErrorIconToolTip)
 			]
-			// Enabled checkbox.
+			// Stack issues icon
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Center)
 			.Padding(3, 0, 0, 0)
 			[
-				SNew(SCheckBox)
-				.ToolTipText(LOCTEXT("EnabledTooltip", "Toggle whether or not this emitter is enabled."))
-				.IsChecked(this, &SEmitterTrackWidget::GetEnabledCheckState)
-				.OnCheckStateChanged(this, &SEmitterTrackWidget::OnEnabledCheckStateChanged)
-				.Visibility(this, &SEmitterTrackWidget::GetEnableCheckboxVisibility)
+				NiagaraEditorModule.GetWidgetProvider()->CreateStackIssueIcon( 
+					*EmitterTrack->GetEmitterHandleViewModel()->GetEmitterStackViewModel(),
+					*EmitterTrack->GetEmitterHandleViewModel()->GetEmitterStackViewModel()->GetRootEntry())
 			]
 			// Isolate toggle
 			+ SHorizontalBox::Slot()
@@ -94,6 +96,19 @@ public:
 					]
 				];
 		}
+
+		// Enabled checkbox.
+		TrackBox->AddSlot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(3, 0, 0, 0)
+			[
+				SNew(SCheckBox)
+				.ToolTipText(LOCTEXT("EnabledTooltip", "Toggle whether or not this emitter is enabled."))
+				.IsChecked(this, &SEmitterTrackWidget::GetEnabledCheckState)
+				.OnCheckStateChanged(this, &SEmitterTrackWidget::OnEnabledCheckStateChanged)
+				.Visibility(this, &SEmitterTrackWidget::GetEnableCheckboxVisibility)
+			];
 
 		ChildSlot
 		[

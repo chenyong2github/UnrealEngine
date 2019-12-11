@@ -11,6 +11,8 @@
 #include "SequencerUtilities.h"
 #include "Modules/ModuleManager.h"
 #include "MaterialEditorModule.h"
+#include "Engine/Selection.h"
+#include "ISequencerModule.h"
 
 
 #define LOCTEXT_NAMESPACE "MaterialTrackEditor"
@@ -218,6 +220,95 @@ UMaterialInterface* FComponentMaterialTrackEditor::GetMaterialInterfaceForTrack(
 	}
 	return nullptr;
 }
+
+void FComponentMaterialTrackEditor::ExtendObjectBindingTrackMenu(TSharedRef<FExtender> Extender, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
+{
+	if (ObjectClass->IsChildOf(UPrimitiveComponent::StaticClass()))
+	{
+		Extender->AddMenuExtension(SequencerMenuExtensionPoints::AddTrackMenu_PropertiesSection, EExtensionHook::Before, nullptr, FMenuExtensionDelegate::CreateSP(this, &FComponentMaterialTrackEditor::ConstructObjectBindingTrackMenu, ObjectBindings));
+	}
+}
+
+void FComponentMaterialTrackEditor::ConstructObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings)
+{
+	UObject* Object = GetSequencer()->FindSpawnedObjectOrTemplate(ObjectBindings[0]);
+	if (!Object)
+	{
+		return;
+	}
+
+	if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Object))
+	{
+		int32 NumMaterials = PrimitiveComponent->GetNumMaterials();
+		if (NumMaterials > 0)
+		{
+			MenuBuilder.BeginSection("Materials", LOCTEXT("MaterialSection", "Material Parameters"));
+			{
+				for (int32 MaterialIndex = 0; MaterialIndex < NumMaterials; MaterialIndex++)
+				{
+					FUIAction AddComponentMaterialAction(FExecuteAction::CreateRaw(this, &FComponentMaterialTrackEditor::HandleAddComponentMaterialActionExecute, PrimitiveComponent, MaterialIndex));
+					FText AddComponentMaterialLabel = FText::Format(LOCTEXT("ComponentMaterialIndexLabelFormat", "Element {0}"), FText::AsNumber(MaterialIndex));
+					FText AddComponentMaterialToolTip = FText::Format(LOCTEXT("ComponentMaterialIndexToolTipFormat", "Add material element {0}"), FText::AsNumber(MaterialIndex));
+					MenuBuilder.AddMenuEntry(AddComponentMaterialLabel, AddComponentMaterialToolTip, FSlateIcon(), AddComponentMaterialAction);
+				}
+			}
+			MenuBuilder.EndSection();
+		}
+	}
+}
+
+void FComponentMaterialTrackEditor::HandleAddComponentMaterialActionExecute(UPrimitiveComponent* Component, int32 MaterialIndex)
+{
+	TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
+	UMovieScene* MovieScene = SequencerPtr->GetFocusedMovieSceneSequence()->GetMovieScene();
+	if (MovieScene->IsReadOnly())
+	{
+		return;
+	}
+
+	const FScopedTransaction Transaction(LOCTEXT("AddComponentMaterialTrack", "Add component material track"));
+
+	MovieScene->Modify();
+
+	FString ComponentName = Component->GetName();
+
+	TArray<UActorComponent*> ActorComponents;
+	ActorComponents.Add(Component);
+
+	USelection* SelectedActors = GEditor->GetSelectedActors();
+	if (SelectedActors && SelectedActors->Num() > 0)
+	{
+		for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
+		{
+			AActor* Actor = CastChecked<AActor>(*Iter);
+
+			TArray<UActorComponent*> OutActorComponents;
+			Actor->GetComponents(OutActorComponents);
+			for (UActorComponent* ActorComponent : OutActorComponents)
+			{
+				if (ActorComponent->GetName() == ComponentName)
+				{
+					ActorComponents.AddUnique(ActorComponent);
+				}
+			}
+		}
+	}
+
+	for (UActorComponent* ActorComponent : ActorComponents)
+	{
+		FGuid ObjectHandle = SequencerPtr->GetHandleToObject(ActorComponent);
+		FName IndexName(*FString::FromInt(MaterialIndex));
+		if (MovieScene->FindTrack(UMovieSceneComponentMaterialTrack::StaticClass(), ObjectHandle, IndexName) == nullptr)
+		{
+			UMovieSceneComponentMaterialTrack* MaterialTrack = MovieScene->AddTrack<UMovieSceneComponentMaterialTrack>(ObjectHandle);
+			MaterialTrack->Modify();
+			MaterialTrack->SetMaterialIndex(MaterialIndex);
+		}
+	}
+
+	SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
+}
+
 
 
 #undef LOCTEXT_NAMESPACE

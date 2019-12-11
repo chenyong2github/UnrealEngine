@@ -42,6 +42,8 @@ public:
 		];
 	}
 
+	virtual bool CanChangeContinuously() const override { return true; }
+	
 protected:
 	virtual float GetValue(int32 Index) const = 0;
 
@@ -165,8 +167,8 @@ FString FNiagaraEditorVector2TypeUtilities::GetPinDefaultStringFromValue(const F
 
 bool FNiagaraEditorVector2TypeUtilities::SetValueFromPinDefaultString(const FString& StringValue, FNiagaraVariable& Variable) const
 {
-	FVector2D VectorValue;
-	if (VectorValue.InitFromString(StringValue))
+	FVector2D VectorValue = FVector2D::ZeroVector;
+	if (VectorValue.InitFromString(StringValue) || !Variable.IsDataAllocated())
 	{
 		Variable.SetValue<FVector2D>(VectorValue);
 		return true;
@@ -241,8 +243,8 @@ FString FNiagaraEditorVector3TypeUtilities::GetPinDefaultStringFromValue(const F
 bool FNiagaraEditorVector3TypeUtilities::SetValueFromPinDefaultString(const FString& StringValue, FNiagaraVariable& Variable) const
 {
 	// NOTE: We can not use InitFromString() here since the vector pin control doesn't use the standard 'X=0,Y=0,Z=0' syntax.
-	FVector Value;
-	if (FDefaultValueHelper::ParseVector(StringValue, Value))
+	FVector Value = FVector::ZeroVector;
+	if (FDefaultValueHelper::ParseVector(StringValue, Value) || !Variable.IsDataAllocated())
 	{
 		Variable.SetValue<FVector>(Value);
 		return true;
@@ -316,8 +318,8 @@ FString FNiagaraEditorVector4TypeUtilities::GetPinDefaultStringFromValue(const F
 bool FNiagaraEditorVector4TypeUtilities::SetValueFromPinDefaultString(const FString& StringValue, FNiagaraVariable& Variable) const
 {
 	// NOTE: We can not use InitFromString() here since the vector pin control doesn't use the standard 'X=0,Y=0,Z=0,W=0' syntax.
-	FVector4 Value;
-	if (FDefaultValueHelper::ParseVector4(StringValue, Value))
+	FVector4 Value(0, 0, 0, 0);
+	if (FDefaultValueHelper::ParseVector4(StringValue, Value) || !Variable.IsDataAllocated())
 	{
 		Variable.SetValue<FVector4>(Value);
 		return true;
@@ -421,8 +423,8 @@ FString FNiagaraEditorQuatTypeUtilities::GetPinDefaultStringFromValue(const FNia
 bool FNiagaraEditorQuatTypeUtilities::SetValueFromPinDefaultString(const FString& StringValue, FNiagaraVariable& Variable) const
 {
 	// NOTE: We can not use InitFromString() here since the vector pin control doesn't use the standard 'X=0,Y=0,Z=0,W=0' syntax.
-	FVector4 Value;
-	if (FDefaultValueHelper::ParseVector4(StringValue, Value))
+	FVector4 Value(0, 0, 0, 0);
+	if (FDefaultValueHelper::ParseVector4(StringValue, Value) || !Variable.IsDataAllocated())
 	{
 		FQuat Quat(Value.X, Value.Y, Value.Z, Value.W);
 		Variable.SetValue<FQuat>(Quat);

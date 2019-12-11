@@ -38,7 +38,7 @@ UStaticMeshSimulationComponent::UStaticMeshSimulationComponent(const FObjectInit
 	PrimaryComponentTick.bStartWithTickEnabled = true;
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.SetTickFunctionEnable(true);
-	ChaosMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<float>>();
+	ChaosMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 }
 
 // We tick to detect components that unreal has moved, so we can update the solver.

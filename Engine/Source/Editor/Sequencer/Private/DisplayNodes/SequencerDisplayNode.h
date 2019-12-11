@@ -248,6 +248,13 @@ public:
 	virtual TSharedRef<SWidget> GetCustomOutlinerContent();
 
 	/**
+	 * Creates an additional label widget to appear immediately beside this node's label on the tree
+	 * 
+	 * @return Content to display on the outliner node
+	 */
+	virtual TSharedPtr<SWidget> GetAdditionalOutlinerLabel() { return nullptr; }
+
+	/**
 	 * Generates a widget for display in the section area portion of the track area
 	 * 
 	 * @param ViewRange	The range of time in the sequencer that we are displaying
@@ -437,6 +444,11 @@ public:
 	bool IsExpanded() const;
 
 	/**
+	 * Called by FSequencer to update the cached pinned state
+	 */
+	void UpdateCachedPinnedState(bool bParentIsPinned = false);
+
+	/**
 	 * @return Whether or not this node is pinned
 	 */
 	bool IsPinned() const;
@@ -565,6 +577,9 @@ protected:
 
 	/** Whether or not the node is pinned */
 	bool bPinned;
+
+	/** Cached value of whether this node or one of it's parents is pinned */
+	bool bInPinnedBranch;
 
 	/** Event that is triggered when rename is requested */
 	FRequestRenameEvent RenameRequestedEvent;

@@ -58,6 +58,19 @@ enum ENiagaraBaseTypes
 	NBT_Max,
 };
 
+// TODO: Custom will eventually mean that the default value or binding will be overridden by a subgraph default, i.e. expose it to a "Initialize variable" node. 
+// TODO: Should we add an "Uninitialized" entry, or is that too much friction? 
+UENUM()
+enum class ENiagaraDefaultMode : uint8
+{
+	// Default initialize using a value widget in the Selected Details panel. 
+	Value = 0, 
+	// Default initialize using a dropdown widget in the Selected Details panel. 
+	Binding,   
+	// Default initialization is done using a sub-graph.
+	Custom,    
+};
+
 UENUM()
 enum class ENiagaraSimTarget : uint8
 {
@@ -122,8 +135,7 @@ enum class ENiagaraScriptCompileStatus : uint8
 
 FORCEINLINE bool NiagaraSupportsComputeShaders(EShaderPlatform ShaderPlatform)
 {
-	// Change to RHISupportsComputeShaders(ShaderPlatform) to support ES3_1
-	return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5);
+	return RHISupportsComputeShaders(ShaderPlatform);
 }
 
 USTRUCT()
@@ -244,9 +256,17 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	/** True if this is the signature for a "member" function of a data interface. If this is true, the first input is the owner. */
 	UPROPERTY()
 	bool bMemberFunction;
+	/** Is this function experimental? */
+	UPROPERTY()
+	bool bExperimental;
 	/** Function specifiers verified at bind time. */
 	UPROPERTY()
 	TMap<FName, FName> FunctionSpecifiers;
+
+	UPROPERTY()
+	bool bSupportsCPU = true;
+	UPROPERTY()
+	bool bSupportsGPU = true;
 
 	/** Localized description of this node. Note that this is *not* used during the operator == below since it may vary from culture to culture.*/
 #if WITH_EDITORONLY_DATA
@@ -257,6 +277,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	FNiagaraFunctionSignature() 
 		: bRequiresContext(false)
 		, bMemberFunction(false)
+		, bExperimental(false)
 	{
 	}
 
@@ -266,6 +287,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, Outputs(InOutputs)
 		, bRequiresContext(bInRequiresContext)
 		, bMemberFunction(bInMemberFunction)
+		, bExperimental(false)
 		, FunctionSpecifiers()
 	{
 
@@ -277,6 +299,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, Outputs(InOutputs)
 		, bRequiresContext(bInRequiresContext)
 		, bMemberFunction(bInMemberFunction)
+		, bExperimental(false)
 		, FunctionSpecifiers(InFunctionSpecifiers)
 	{
 
@@ -455,16 +478,18 @@ struct FVMExternalFunctionBindingInfo
 
 struct NIAGARA_API FNiagaraSystemUpdateContext
 {
-	FNiagaraSystemUpdateContext(const UNiagaraSystem* System, bool bReInit) { Add(System, bReInit); }
+	FNiagaraSystemUpdateContext(const UNiagaraSystem* System, bool bReInit) :bDestroyOnAdd(false) { Add(System, bReInit); }
 #if WITH_EDITORONLY_DATA
-	FNiagaraSystemUpdateContext(const UNiagaraEmitter* Emitter, bool bReInit) { Add(Emitter, bReInit); }
-	FNiagaraSystemUpdateContext(const UNiagaraScript* Script, bool bReInit) { Add(Script, bReInit); }
+	FNiagaraSystemUpdateContext(const UNiagaraEmitter* Emitter, bool bReInit) : bDestroyOnAdd(false) { Add(Emitter, bReInit); }
+	FNiagaraSystemUpdateContext(const UNiagaraScript* Script, bool bReInit) :bDestroyOnAdd(false) { Add(Script, bReInit); }
 	//FNiagaraSystemUpdateContext(UNiagaraDataInterface* Interface, bool bReinit) : Add(Interface, bReinit) {}
-	FNiagaraSystemUpdateContext(const UNiagaraParameterCollection* Collection, bool bReInit) { Add(Collection, bReInit); }
+	FNiagaraSystemUpdateContext(const UNiagaraParameterCollection* Collection, bool bReInit) :bDestroyOnAdd(false) { Add(Collection, bReInit); }
 #endif
-	FNiagaraSystemUpdateContext() { }
+	FNiagaraSystemUpdateContext():bDestroyOnAdd(false){ }
 
 	~FNiagaraSystemUpdateContext();
+
+	void SetDestroyOnAdd(bool bInDestroyOnAdd) { bDestroyOnAdd = bInDestroyOnAdd; }
 
 	void Add(const UNiagaraSystem* System, bool bReInit);
 #if WITH_EDITORONLY_DATA
@@ -479,13 +504,14 @@ struct NIAGARA_API FNiagaraSystemUpdateContext
 
 private:
 	void AddInternal(class UNiagaraComponent* Comp, bool bReInit);
-	FNiagaraSystemUpdateContext(FNiagaraSystemUpdateContext& Other) { }
+	FNiagaraSystemUpdateContext(FNiagaraSystemUpdateContext& Other) :bDestroyOnAdd(false) { }
 
 	TArray<UNiagaraComponent*> ComponentsToReset;
 	TArray<UNiagaraComponent*> ComponentsToReInit;
 
 	TArray<UNiagaraSystem*> SystemSimsToDestroy;
 
+	bool bDestroyOnAdd;
 	//TODO: When we allow component less systems we'll also want to find and reset those.
 };
 
@@ -592,6 +618,31 @@ struct FNiagaraVariableDataInterfaceBinding
 	FNiagaraVariable BoundVariable;
 };
 
+/** Primarily a wrapper around an FName to be used for customizations in the Selected Details panel 
+    to select a default binding to initialize module inputs. The customization implementation
+    is FNiagaraScriptVariableBindingCustomization. */
+USTRUCT()
+struct FNiagaraScriptVariableBinding
+{
+	GENERATED_USTRUCT_BODY();
+
+	FNiagaraScriptVariableBinding() {}
+	FNiagaraScriptVariableBinding(const FNiagaraVariable& InVar) : Name(InVar.GetName())
+	{
+		
+	}
+	FNiagaraScriptVariableBinding(const FName& InName) : Name(InName)
+	{
+		
+	}
+
+	UPROPERTY(EditAnywhere, Category = "Variable")
+	FName Name;
+
+	FName GetName() const { return Name; }
+	void SetName(FName InName) { Name = InName; }
+	bool IsValid() const { return Name != NAME_None; }
+};
 
 namespace FNiagaraUtilities
 {

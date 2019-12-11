@@ -14,12 +14,11 @@ public class CADLibrary : ModuleRules
 			new string[]
 			{
 				"Core",
-				"CoreUObject",
+				"DatasmithCore",
+				"MeshDescription",
+				"StaticMeshDescription"
 			}
 		);
-
-		// Module is effectively empty without non redistributable content
-		bool bHasNonRedistSources = Directory.Exists(Path.Combine(ModuleDirectory, "Public", "NotForLicensees"));
 
 		// Support for Windows only
 		bool bIsPlateformSupported = Target.Platform == UnrealTargetPlatform.Win64;
@@ -27,7 +26,7 @@ public class CADLibrary : ModuleRules
 		// CAD library is only available if CoreTech is available too
 		bool bHasCoretech = System.Type.GetType("CoreTech") != null;
 
-		if (bHasNonRedistSources && bIsPlateformSupported && bHasCoretech)
+		if (bIsPlateformSupported && bHasCoretech)
 		{
 			PublicDefinitions.Add("CAD_LIBRARY");
 
@@ -35,17 +34,10 @@ public class CADLibrary : ModuleRules
 				new string[]
 				{
 					"CoreTech",
-					"DatasmithCore",
-					"MeshDescription",
-					"StaticMeshDescription"
+					"CADInterfaces",
+					"CADTools"
 				}
 			);
-		}
-
-		if (bHasNonRedistSources)
-		{
-			PublicIncludePaths.Add(ModuleDirectory + "/Public/NotForLicensees");
-			PrivateIncludePaths.Add(ModuleDirectory + "/Private/NotForLicensees");
 		}
 	}
 }

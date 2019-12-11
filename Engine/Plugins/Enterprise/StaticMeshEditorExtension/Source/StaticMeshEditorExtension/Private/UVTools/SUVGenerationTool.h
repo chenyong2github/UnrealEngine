@@ -8,7 +8,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Styling/SlateColor.h"
-#include "UVGenerationUtils.h"
+#include "UVGenerationSettings.h"
 #include "SUVGenerationTool.generated.h"
 
 class SMultiLineEditableTextBox;

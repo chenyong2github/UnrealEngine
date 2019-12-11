@@ -149,7 +149,7 @@ void FVulkanGPUTiming::Initialize()
 	{
 		check(!Pool);
 		Pool = new FVulkanTimingQueryPool(Device, 8);
-		Pool->ResultsBuffer = Device->GetStagingManager().AcquireBuffer(8 * sizeof(uint64), VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+		Pool->ResultsBuffer = Device->GetStagingManager().AcquireBuffer(8 * sizeof(uint64), VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	}
 }
 
@@ -740,6 +740,16 @@ namespace VulkanRHI
 			break;
 		}
 
+#if VULKAN_HAS_DEBUGGING_ENABLED
+		if (Result == VK_ERROR_VALIDATION_FAILED_EXT)
+		{
+			if (GValidationCvar.GetValueOnRenderThread() == 0)
+			{
+				UE_LOG(LogVulkanRHI, Fatal, TEXT("Failed with Validation error. Try running with r.Vulkan.EnableValidation=1 to get information from the driver"));
+			}
+		}
+#endif
+
 		UE_LOG(LogVulkanRHI, Error, TEXT("%s failed, VkResult=%d\n at %s:%u \n with error %s"),
 			ANSI_TO_TCHAR(VkFunction), (int32)Result, ANSI_TO_TCHAR(Filename), Line, *ErrorString);
 
@@ -763,6 +773,19 @@ namespace VulkanRHI
 	}
 }
 
+
+DEFINE_STAT(STAT_VulkanNumPSOs);
+DEFINE_STAT(STAT_VulkanNumGraphicsPSOs);
+DEFINE_STAT(STAT_VulkanNumPSOLRU);
+DEFINE_STAT(STAT_VulkanNumPSOLRUSize);
+DEFINE_STAT(STAT_VulkanPSOLookupTime);
+DEFINE_STAT(STAT_VulkanPSOCreationTime);
+DEFINE_STAT(STAT_VulkanPSOHeaderInitTime);
+DEFINE_STAT(STAT_VulkanPSOVulkanCreationTime);
+DEFINE_STAT(STAT_VulkanNumComputePSOs);
+DEFINE_STAT(STAT_VulkanPSOKeyMemory);
+
+
 DEFINE_STAT(STAT_VulkanDrawCallTime);
 DEFINE_STAT(STAT_VulkanDispatchCallTime);
 DEFINE_STAT(STAT_VulkanDrawCallPrepareTime);
@@ -772,7 +795,6 @@ DEFINE_STAT(STAT_VulkanGetOrCreatePipeline);
 DEFINE_STAT(STAT_VulkanGetDescriptorSet);
 DEFINE_STAT(STAT_VulkanPipelineBind);
 DEFINE_STAT(STAT_VulkanNumCmdBuffers);
-DEFINE_STAT(STAT_VulkanNumPSOs);
 DEFINE_STAT(STAT_VulkanNumRenderPasses);
 DEFINE_STAT(STAT_VulkanNumFrameBuffers);
 DEFINE_STAT(STAT_VulkanNumBufferViews);

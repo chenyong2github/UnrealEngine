@@ -1829,11 +1829,11 @@ FText FPropertyNode::GetResetToDefaultLabel()
 
 		if ( DefaultValue.Len() > MaxValueLen )
 		{
-			DefaultValue = DefaultValue.Left( MaxValueLen );
+			DefaultValue.LeftInline( MaxValueLen, false );
 			DefaultValue += TEXT( "..." );
 		}
 
-		return FText::Format(NSLOCTEXT("FPropertyNode", "ResetToDefaultLabelFmt", "{0}: {1}"), OutLabel, FText::FromString(DefaultValue));
+		return FText::Format(NSLOCTEXT("FPropertyNode", "ResetToDefaultLabelFmt", "{0}: {1}"), OutLabel, FText::FromString(MoveTemp(DefaultValue)));
 	}
 
 	return OutLabel;

@@ -22,7 +22,12 @@ class AVREditorFloatingCameraUI : public AVREditorFloatingUI
 	GENERATED_BODY()
 
 public:
-	AVREditorFloatingCameraUI();
+
+	/** The offset of this UI from its camera */
+	UPROPERTY(EditDefaultsOnly, Category = "FloatingCameraUI")
+	FVector OffsetFromCamera;
+
+	AVREditorFloatingCameraUI(const FObjectInitializer& ObjectInitializer);
 	void SetLinkedActor(class AActor* InActor);
 
 	virtual FTransform MakeCustomUITransform() override;

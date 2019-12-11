@@ -468,7 +468,8 @@ private:
 		Result.bRenderInDepthPass = bEnableOcclusion;
 		Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
 		Result.bRenderCustomDepth = ShouldRenderCustomDepth();
-		Result.bSeparateTranslucencyRelevance = MaterialToUse->GetMaterial()->bEnableSeparateTranslucency;
+		UMaterialInterface::TMicRecursionGuard RecursionGuard;
+		Result.bSeparateTranslucencyRelevance = MaterialToUse->GetMaterial_Concurrent(RecursionGuard)->bEnableSeparateTranslucency;
 		//MaterialRelevance.SetPrimitiveViewRelevance(Result);
 		return Result;
 	}
@@ -555,7 +556,7 @@ void UMRMeshComponent::SetCollisionEnabled(ECollisionEnabled::Type NewType)
 	Super::SetCollisionEnabled(NewType);
 }
 
-void UMRMeshComponent::SetCollisionProfileName(FName InCollisionProfileName)
+void UMRMeshComponent::SetCollisionProfileName(FName InCollisionProfileName, bool bUpdateOverlaps)
 {
 	SCOPE_CYCLE_COUNTER(STAT_MrMesh_SetCollisionProfileName);
 
@@ -576,7 +577,7 @@ void UMRMeshComponent::SetCollisionProfileName(FName InCollisionProfileName)
 		}
 	}
 
-	Super::SetCollisionProfileName(InCollisionProfileName);
+	Super::SetCollisionProfileName(InCollisionProfileName, bUpdateOverlaps);
 }
 
 void UMRMeshComponent::SetCollisionObjectType(ECollisionChannel Channel)

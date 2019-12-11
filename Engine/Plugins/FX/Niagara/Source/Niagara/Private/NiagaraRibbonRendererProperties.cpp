@@ -4,6 +4,9 @@
 #include "NiagaraRendererRibbons.h"
 #include "NiagaraConstants.h"
 #include "NiagaraBoundsCalculatorHelper.h"
+#include "Modules/ModuleManager.h"
+
+TArray<TWeakObjectPtr<UNiagaraRibbonRendererProperties>> UNiagaraRibbonRendererProperties::RibbonRendererPropertiesToDeferredInit;
 
 UNiagaraRibbonRendererProperties::UNiagaraRibbonRendererProperties()
 	: Material(nullptr)
@@ -21,6 +24,8 @@ UNiagaraRibbonRendererProperties::UNiagaraRibbonRendererProperties()
 	, TessellationAngle(15)
 	, bScreenSpaceTessellation(true)
 {
+	FNiagaraTypeDefinition MaterialDef(UMaterialInterface::StaticClass());
+	MaterialUserParamBinding.Parameter.SetType(MaterialDef);
 }
 
 FNiagaraRenderer* UNiagaraRibbonRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter)
@@ -30,6 +35,21 @@ FNiagaraRenderer* UNiagaraRibbonRendererProperties::CreateEmitterRenderer(ERHIFe
 	return NewRenderer;
 }
 
+
+void UNiagaraRibbonRendererProperties::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITORONLY_DATA
+
+	if (MaterialUserParamBinding.Parameter.GetType().GetClass() != UMaterialInterface::StaticClass())
+	{
+		FNiagaraTypeDefinition MaterialDef(UMaterialInterface::StaticClass());
+		MaterialUserParamBinding.Parameter.SetType(MaterialDef);
+	}
+#endif
+}
+
 FNiagaraBoundsCalculator* UNiagaraRibbonRendererProperties::CreateBoundsCalculator()
 {
 	return new FNiagaraBoundsCalculatorHelper<false, false, true>();
@@ -37,14 +57,31 @@ FNiagaraBoundsCalculator* UNiagaraRibbonRendererProperties::CreateBoundsCalculat
 
 void UNiagaraRibbonRendererProperties::GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const
 {
-	OutMaterials.Add(Material);
+
+	bool bSet = false;
+	if (MaterialUserParamBinding.Parameter.IsValid() && InEmitter->FindBinding(MaterialUserParamBinding, OutMaterials))
+	{
+		bSet = true;
+	}
+
+	if (!bSet)
+	{
+		OutMaterials.Add(Material);
+	}
 }
 
 void UNiagaraRibbonRendererProperties::PostInitProperties()
 {
 	Super::PostInitProperties();
+
 	if (HasAnyFlags(RF_ClassDefaultObject) == false)
 	{
+		// We can end up hitting PostInitProperties before the Niagara Module has initialized bindings this needs, mark this object for deferred init and early out.
+		if (FModuleManager::Get().IsModuleLoaded("Niagara") == false)
+		{
+			RibbonRendererPropertiesToDeferredInit.Add(this);
+			return;
+		}
 		InitBindings();
 	}
 }
@@ -54,6 +91,14 @@ void UNiagaraRibbonRendererProperties::InitCDOPropertiesAfterModuleStartup()
 {
 	UNiagaraRibbonRendererProperties* CDO = CastChecked<UNiagaraRibbonRendererProperties>(UNiagaraRibbonRendererProperties::StaticClass()->GetDefaultObject());
 	CDO->InitBindings();
+
+	for (TWeakObjectPtr<UNiagaraRibbonRendererProperties>& WeakRibbonRendererProperties : RibbonRendererPropertiesToDeferredInit)
+	{
+		if (WeakRibbonRendererProperties.Get())
+		{
+			WeakRibbonRendererProperties->InitBindings();
+		}
+	}
 }
 
 void UNiagaraRibbonRendererProperties::InitBindings()

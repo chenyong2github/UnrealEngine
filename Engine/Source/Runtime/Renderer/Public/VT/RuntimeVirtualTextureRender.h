@@ -60,6 +60,8 @@ namespace RuntimeVirtualTexture
 		uint8 MaxLevel;
 		/** Set to true to clear before rendering. */
 		bool bClearTextures;
+		/** Set to true for thumbnail rendering. */
+		bool bIsThumbnails;
 		/** Debug visualization to render with. */
 		ERuntimeVirtualTextureDebugType DebugType;
 

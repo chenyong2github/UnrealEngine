@@ -100,6 +100,7 @@
     <Compile Include="Tasks\StripTask.cs" />
     <Compile Include="Tasks\SetVersionTask.cs" />
     <Compile Include="Tasks\UnzipTask.cs" />
+    <Compile Include="Tasks\WriteTextFileTask.cs" />
     <Compile Include="Tasks\ZipTask.cs" />
     <Compile Include="TempStorage.cs" />
     <Compile Include="Tasks\ModifyConfigTask.cs" />

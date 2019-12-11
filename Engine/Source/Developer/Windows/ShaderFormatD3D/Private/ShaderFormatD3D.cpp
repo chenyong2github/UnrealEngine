@@ -72,7 +72,7 @@ public:
 	}
 	virtual const TCHAR* GetPlatformIncludeDirectory() const
 	{
-		return TEXT("");
+		return TEXT("D3D");
 	}
 };
 

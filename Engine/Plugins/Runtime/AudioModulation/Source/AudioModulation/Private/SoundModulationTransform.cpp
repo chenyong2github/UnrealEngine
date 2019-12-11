@@ -14,8 +14,10 @@ FSoundModulationInputTransform::FSoundModulationInputTransform()
 
 void FSoundModulationInputTransform::Apply(float& Value) const
 {
-	const float Alpha = FMath::Clamp((Value - InputMin) / (InputMax - InputMin), 0.0f, 1.0f);
+	const float Denom = FMath::Max(FMath::Abs(InputMax - InputMin), SMALL_NUMBER);
+	const float Alpha = FMath::Clamp(FMath::Abs(Value - InputMin) / Denom, 0.0f, 1.0f);
 	Value = FMath::Lerp(OutputMin, OutputMax, Alpha);
+	Value = FMath::Clamp(Value, OutputMin, OutputMax);
 }
 
 FSoundModulationOutputTransform::FSoundModulationOutputTransform()
@@ -23,6 +25,7 @@ FSoundModulationOutputTransform::FSoundModulationOutputTransform()
 	, InputMax(1.0f)
 	, Curve(ESoundModulatorOutputCurve::Linear)
 	, Scalar(2.5f)
+	, CurveShared(nullptr)
 	, OutputMin(0.0f)
 	, OutputMax(1.0f)
 {
@@ -44,21 +47,24 @@ void FSoundModulationOutputTransform::EvaluateCurve(float& Value) const
 	// If custom curve, evaluate curve and return before calculating alpha
 	if (Curve == ESoundModulatorOutputCurve::Custom)
 	{
-		if (const FRichCurve* RichCurve = FloatCurve.GetRichCurveConst())
+		Value = CurveCustom.Eval(Value);
+		return;
+	}
+
+	// If shared curve, evaluate curve and return before calculating alpha
+	if (Curve == ESoundModulatorOutputCurve::Shared)
+	{
+		if (CurveShared)
 		{
-			Value = RichCurve->Eval(Value);
+			Value = CurveShared->FloatCurve.Eval(Value);
 		}
 		return;
 	}
 
-	// Avoid divide-by-zero & return max if input range is limited to single value
-	if (InputMax == InputMin)
-	{
-		Value = OutputMax;
-		return;
-	}
-	
-	const float Alpha = FMath::Clamp((Value - InputMin) / (InputMax - InputMin), 0.0f, 1.0f);
+	// Avoid divide-by-zero
+	const float Denom = FMath::Max(FMath::Abs(InputMax - InputMin), SMALL_NUMBER);
+	const float Alpha = FMath::Clamp(FMath::Abs(Value - InputMin) / Denom, 0.0f, 1.0f);
+
 	switch (Curve)
 	{
 		case ESoundModulatorOutputCurve::Linear:
@@ -79,7 +85,7 @@ void FSoundModulationOutputTransform::EvaluateCurve(float& Value) const
 		{
 			// Alpha is limited to between 0.0f and 1.0f and ExponentialScalar
 			// between 0 and 10 to keep values "sane" and avoid float boundary.
-			Value = ((Alpha - 1.0f) * (Scalar * FMath::Pow(10.0f, Alpha))) + 1.0f;
+			Value = ((Alpha - 1.0f) * FMath::Pow(10.0f, -1.0f * Scalar * Alpha)) + 1.0f;
 		}
 		break;
 
@@ -103,7 +109,7 @@ void FSoundModulationOutputTransform::EvaluateCurve(float& Value) const
 
 		default:
 		{
-			static_assert(static_cast<int32>(ESoundModulatorOutputCurve::Count) == 7, "Possible missing case coverage for output curve.");
+			static_assert(static_cast<int32>(ESoundModulatorOutputCurve::Count) == 8, "Possible missing case coverage for output curve.");
 		}
 		break;
 	}

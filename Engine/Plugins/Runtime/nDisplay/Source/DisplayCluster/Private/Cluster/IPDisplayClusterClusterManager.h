@@ -10,7 +10,6 @@
 #include "Network/DisplayClusterMessage.h"
 
 class IPDisplayClusterNodeController;
-class IDisplayClusterClusterSyncObject;
 class FJsonObject;
 
 
@@ -26,25 +25,17 @@ public:
 	{ }
 
 	virtual IPDisplayClusterNodeController* GetController() const = 0;
-	
-	virtual float GetDeltaTime() const = 0;
-	virtual void  SetDeltaTime(float deltaTime) = 0;
 
-	virtual void GetTimecode(FTimecode& timecode, FFrameRate& frameRate) const = 0;
-	virtual void SetTimecode(const FTimecode& timecode, const FFrameRate& frameRate) = 0;
-	
-	virtual void RegisterSyncObject  (IDisplayClusterClusterSyncObject* pSyncObj) = 0;
-	virtual void UnregisterSyncObject(IDisplayClusterClusterSyncObject* pSyncObj) = 0;
+	virtual void ExportSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup) const = 0;
+	virtual void ImportSyncData(const FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup) = 0;
 
-	virtual void ExportSyncData(FDisplayClusterMessage::DataType& data) const = 0;
-	virtual void ImportSyncData(const FDisplayClusterMessage::DataType& data) = 0;
+	virtual void ExportEventsData(FDisplayClusterMessage::DataType& EventsData) const = 0;
+	virtual void ImportEventsData(const FDisplayClusterMessage::DataType& EventsData) = 0;
 
-	virtual void ExportEventsData(FDisplayClusterMessage::DataType& data) const = 0;
-	virtual void ImportEventsData(const FDisplayClusterMessage::DataType& data) = 0;
-
-	virtual void SyncObjects() = 0;
+	virtual void SyncObjects(EDisplayClusterSyncGroup SyncGroup) = 0;
 	virtual void SyncInput()   = 0;
 	virtual void SyncEvents()  = 0;
-
-	virtual void ClearSyncObjects() = 0;
+	
+	virtual void ProvideNativeInputData(const TMap<FString, FString>& NativeInputData) = 0;
+	virtual void SyncNativeInput(TMap<FString, FString>& NativeInputData) = 0;
 };

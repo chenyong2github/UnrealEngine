@@ -2,11 +2,11 @@
 
 #pragma once
 #include "CoreMinimal.h"
-
+#include "Containers/List.h"
 #include "Bevel/Contour.h"
-#include "Bevel/Data.h"
 
 struct FPart;
+class FData;
 
 class FTVectoriser;
 
@@ -23,19 +23,14 @@ public:
 
 	/**
 	 * Contructor.
-	 * @param MeshesIn - Documented in Bevel.h.
-	 * @param ExpandTotal - Total expand value (for all ArcSegments from Bevel.cpp).
-	 * @param HorizontalOffset - Documented in Bevel.h.
-	 * @param VerticalOffset - Documented in Bevel.h.
-	 * @param FontInverseScale - Documented in Bevel.h.
-	 * @param Scale - Documented in Bevel.h.
+	 * @param DataIn - Meshes data.
 	 * @param Vectoriser - Documented in Bevel.h.
 	 * @param IterationsIn - Documented in Bevel.h.
 	 * @param bHidePreviousIn - Documented in Bevel.h.
 	 * @param Segments - Documented in Bevel.h.
 	 * @param VisibleFaceIn - Documented in Bevel.h.
 	 */
-	FBevelLinear(TText3DMeshList* MeshesIn, const float ExpandTotal, const float HorizontalOffset, const float VerticalOffset, const float FontInverseScale, const FVector& Scale, const FTVectoriser& Vectoriser, const int32 IterationsIn, const bool bHidePreviousIn, const int32 Segments, const int32 VisibleFaceIn);
+	FBevelLinear(const TSharedPtr<FData> DataIn, const FTVectoriser& Vectoriser, const int32 IterationsIn, const bool bHidePreviousIn, const int32 Segments, const int32 VisibleFaceIn);
 
 	/**
 	 * Invoke bevel.
@@ -48,6 +43,11 @@ public:
 	 */
 	void BevelContours(const float Extrude, const float Expand, FVector2D NormalStart, FVector2D NormalEnd, const bool bSmooth, const int32 MarkedVertex);
 
+	/**
+	 * Create 'Extrude' part of glyph.
+	 * @param Extrude - Extrude value.
+	 */
+	void CreateExtrudeMesh(const float Extrude);
 	/**
 	 * Create back cap.
 	 */
@@ -68,7 +68,7 @@ public:
 	/**
 	 * Get meshes data.
 	 */
-	FData* GetData();
+	TSharedPtr<FData> GetData();
 
 	/**
 	 * FPart::Expanded for total expand value Data::ExpandTarget.
@@ -82,6 +82,12 @@ public:
 	 * @param Count - Amount of edges to which result point will belong. 2 for case without intersections, (n + 1) for case when (n) normals intersect in result point.
 	 */
 	void ExpandPoint(FPart* const Point, const int32 Count);
+	/**
+	 * Same as previous function but does not cover the intersection-case.
+	 * @param Point - Point that should be expanded.
+	 * @param TextureCoordinates - Texcture coordinates of added vertices.
+	 */
+	void ExpandPoint(FPart* const Point, const FVector2D TextureCoordinates = FVector2D(0, 0));
 
 	/**
 	 * Make triangulation of edge along paths of it's vertices (from end of previous triangulation to result of points' expansion). Removes covered points' indices from paths.
@@ -91,7 +97,7 @@ public:
 	void FillEdge(FPart* const Edge, const bool bSkipLastTriangle);
 
 private:
-	TUniquePtr<FData> Data;
+	const TSharedPtr<FData> Data;
 	TDoubleLinkedList<FContour> Contours;
 
 
@@ -149,4 +155,30 @@ private:
 	 * @param bSkipLastTriangle - See FBevelLinear::FillEdge.
 	 */
 	void MakeTriangleFanAlongNormal(const FPart* const Cap, FPart* const Normal, const bool bNormalIsCapNext, const bool bSkipLastTriangle);
+
+	/**
+	 * Clear PathPrev and PathNext.
+	 * @param Point - Point which paths should be cleared.
+	 */
+	void EmptyPaths(FPart* const Point) const;
+	/**
+	 * Common code for expanding, vertices are added uninitialized.
+	 * @param Point - Expanded point.
+	 */
+	void ExpandPointWithoutAddingVertices(FPart* const Point) const;
+
+	/**
+	 * Add vertex for smooth point.
+	 * @param Point - Expanded point.
+	 * @param TextureCoordinates - Texture coordinates of added vertex.
+	 */
+	void AddVertexSmooth(const FPart* const Point, const FVector2D TextureCoordinates);
+	/**
+	 * Add vertex for sharp point.
+	 * @param Point - Expanded point.
+	 * @param Edge - Edge from which TangentX and TangentZ will be assigned.
+	 * @param TextureCoordinates - Texture coordinates of added vertex.
+	 */
+	void AddVertexSharp(const FPart* const Point, const FPart* const Edge, const FVector2D TextureCoordinates);
+
 };

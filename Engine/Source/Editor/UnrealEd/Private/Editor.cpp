@@ -23,6 +23,7 @@
 #include "UObject/UObjectIterator.h"
 #include "EngineUtils.h"
 #include "Dialogs/Dialogs.h"
+#include "UnrealEngine.h"
 
 // needed for the RemotePropagator
 
@@ -549,7 +550,7 @@ void FReimportManager::ValidateAllSourceFileAndReimport(TArray<UObject*> &ToImpo
 				{
 					TArray<FString> SourceFilenames;
 					this->GetNewReimportPath(Asset, SourceFilenames, FileIndex);
-					if (SourceFilenames.Num() == 0)
+					if (SourceFilenames.Num() == 0 || SourceFilenames[0].IsEmpty())
 					{
 						continue;
 					}
@@ -806,6 +807,7 @@ UWorld* SetPlayInEditorWorld( UWorld* PlayInEditorWorld )
 	if (FWorldContext* WorldContext = GEngine->GetWorldContextFromWorld(PlayInEditorWorld))
 	{
 		GPlayInEditorID = WorldContext->PIEInstance;
+		UpdatePlayInEditorWorldDebugString(WorldContext);
 	}
 
 	return SavedWorld;
@@ -822,7 +824,8 @@ void RestoreEditorWorld( UWorld* EditorWorld )
 	check(GIsPlayInEditorWorld);
 	GIsPlayInEditorWorld = false;
 	GWorld = EditorWorld;
-	GPlayInEditorID = -1;
+	GPlayInEditorID = INDEX_NONE;
+	UpdatePlayInEditorWorldDebugString(nullptr);
 }
 
 /**

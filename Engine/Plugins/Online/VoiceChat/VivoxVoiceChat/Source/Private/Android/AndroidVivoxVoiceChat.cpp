@@ -100,7 +100,7 @@ bool FAndroidVivoxVoiceChat::Uninitialize()
 
 void FAndroidVivoxVoiceChat::OnVoiceChatConnectComplete(const FVoiceChatResult& Result)
 {
-	if (Result.bSuccess)
+	if (Result.IsSuccess())
 	{
 		OnVoiceChatReconnectedDelegate.Broadcast();
 	}

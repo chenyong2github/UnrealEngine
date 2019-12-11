@@ -89,6 +89,15 @@ float3 SigmaAFromReflectance(const float3 c, float beta_n)
 		SigmaAFromReflectance(c.z, beta_n));
 }
 
+
+float3 EvaluateHairMultipleScattering(
+	const FHairTransmittanceData TransmittanceData,
+	const float Roughness,
+	const float3 Fs)
+{
+	return TransmittanceData.GlobalScattering * (Fs + TransmittanceData.LocalScattering) * TransmittanceData.OpaqueVisibility;
+}
+
 float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Shadow, FHairTransmittanceData HairTransmittance, float Backlit, float Area, uint2 Random )
 {
 	// Strand tangent is oriented from root to tip, while the existing shading code expect tip to root orientation
@@ -145,7 +154,7 @@ float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Sha
 	float3 S = 0;
 
 	// R
-	if(HairTransmittance.ScatteringComponent.x > 0)
+	if(HairTransmittance.ScatteringComponent & HAIR_COMPONENT_R)
 	{
 		const float sa = sin( Alpha[0] );
 		const float ca = cos( Alpha[0] );
@@ -173,7 +182,7 @@ float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Sha
 	}
 
 	// TT
-	if(HairTransmittance.ScatteringComponent.y > 0)
+	if(HairTransmittance.ScatteringComponent & HAIR_COMPONENT_TT)
 	{
 		float Mp = Hair_g( B[1], SinThetaL + SinThetaV - Alpha[1] );
 
@@ -210,7 +219,7 @@ float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Sha
 	}
 
 	// TRT
-	if(HairTransmittance.ScatteringComponent.z > 0)
+	if(HairTransmittance.ScatteringComponent & HAIR_COMPONENT_TRT)
 	{
 		float Mp = Hair_g( B[2], SinThetaL + SinThetaV - Alpha[2] );
 		
@@ -236,31 +245,12 @@ float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Sha
 	}
 #endif
 
-	if (!HairTransmittance.Enable)
-	{
-		// Use soft Kajiya Kay diffuse attenuation
-		float KajiyaDiffuse = 1 - abs( dot(N,L) );
-	
-		float3 FakeNormal = normalize( V - N * dot(V,N) );
-		//N = normalize( DiffuseN + FakeNormal * 2 );
-		N = FakeNormal;
-	
-		// Hack approximation for multiple scattering.
-		float Wrap = 1;
-		float NoL = saturate( ( dot(N, L) + Wrap ) / Square( 1 + Wrap ) );
-		float DiffuseScatter = (1 / PI) * lerp( NoL, KajiyaDiffuse, 0.33 ) * GBuffer.Metallic;
-		float Luma = Luminance( GBuffer.BaseColor );
-		float3 ScatterTint = pow( GBuffer.BaseColor / Luma, 1 - Shadow );
-		S += GBuffer.BaseColor * DiffuseScatter * pow(ScatterTint,.5);
-	}
-
-	S = -min(-S, 0.0);
-
-	if (HairTransmittance.Enable && HairTransmittance.MultipleScattering > 0)
+	if (HairTransmittance.ScatteringComponent & HAIR_COMPONENT_MULTISCATTER)
 	{
 		S = EvaluateHairMultipleScattering(HairTransmittance, ClampedRoughness, S);
 	}
 
+	S = -min(-S, 0.0);
 	return S;
 }
 

@@ -7,11 +7,14 @@
 #include "DetailCustomizations/NiagaraDataInterfaceDetails.h"
 #include "DetailCustomizations/NiagaraDataInterfaceSkeletalMeshDetails.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
+#include "SNiagaraOverviewGraph.h"
+#include "NiagaraEditorWidgetsUtilities.h"
+#include "Stack/SNiagaraStackIssueIcon.h"
 
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
-
-#include "SNiagaraOverviewGraph.h"
+#include "GraphEditorActions.h"
+#include "NiagaraEditorCommands.h"
 
 IMPLEMENT_MODULE(FNiagaraEditorWidgetsModule, NiagaraEditorWidgets);
 
@@ -21,8 +24,23 @@ FNiagaraStackCurveEditorOptions::FNiagaraStackCurveEditorOptions()
 	, ViewMinOutput(0)
 	, ViewMaxOutput(1)
 	, bAreCurvesVisible(true)
+	, bNeedsInitializeView(true)
 	, Height(100)
 {
+}
+
+bool FNiagaraStackCurveEditorOptions::GetNeedsInitializeView() const
+{
+	return bNeedsInitializeView;
+}
+
+void FNiagaraStackCurveEditorOptions::InitializeView(float InViewMinInput, float InViewMaxInput, float InViewMinOutput, float InViewMaxOutput)
+{
+	ViewMinInput = InViewMinInput;
+	ViewMaxInput = InViewMaxInput;
+	ViewMinOutput = InViewMinOutput;
+	ViewMaxOutput = InViewMaxOutput;
+	bNeedsInitializeView = false;
 }
 
 float FNiagaraStackCurveEditorOptions::GetViewMinInput() const
@@ -103,6 +121,9 @@ void FNiagaraEditorWidgetsModule::StartupModule()
 		TEXT("fx.NiagaraEditorWidgets.ReinitializeStyle"),
 		TEXT("Reinitializes the style for the niagara editor widgets module.  Used in conjuction with live coding for UI tweaks.  May crash the editor if style objects are in use."),
 		FConsoleCommandDelegate::CreateRaw(this, &FNiagaraEditorWidgetsModule::ReinitializeStyle));
+
+	FGraphEditorCommands::Register();
+	FNiagaraEditorCommands::Register();
 }
 
 void FNiagaraEditorWidgetsModule::ShutdownModule()
@@ -151,12 +172,22 @@ TSharedRef<FNiagaraStackCurveEditorOptions> FNiagaraEditorWidgetsModule::GetOrCr
 	return *StackCurveEditorOptions;
 }
 
-TSharedRef<SWidget> FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::CreateStackView(UNiagaraStackViewModel& StackViewModel)
+TSharedRef<SWidget> FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::CreateStackView(UNiagaraStackViewModel& StackViewModel) const
 {
 	return SNew(SNiagaraStack, &StackViewModel);
 }
 
-TSharedRef<SWidget> FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::CreateSystemOverview(TSharedRef<FNiagaraSystemViewModel> SystemViewModel)
+TSharedRef<SWidget> FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::CreateSystemOverview(TSharedRef<FNiagaraSystemViewModel> SystemViewModel) const
 {
 	return SNew(SNiagaraOverviewGraph, SystemViewModel->GetOverviewGraphViewModel().ToSharedRef());
+}
+
+TSharedRef<SWidget> FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::CreateStackIssueIcon(UNiagaraStackViewModel& StackViewModel, UNiagaraStackEntry& StackEntry) const
+{
+	return SNew(SNiagaraStackIssueIcon, &StackViewModel, &StackEntry);
+}
+
+FLinearColor FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::GetColorForExecutionCategory(FName ExecutionCategory) const
+{
+	return FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(ExecutionCategory));
 }

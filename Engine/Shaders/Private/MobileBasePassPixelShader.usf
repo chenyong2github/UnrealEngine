@@ -558,9 +558,10 @@ void Main(
 		IndirectIrradiance *= MaterialAO;
 	#endif
 
+		half Shadow = 1.0f;
 	#if !MATERIAL_SHADINGMODEL_UNLIT
-		half Shadow = GetPrimaryPrecomputedShadowMask(Interpolants).r;
-		#if DIRECTIONAL_LIGHT_CSM && !MOBILE_MULTI_VIEW
+		Shadow = GetPrimaryPrecomputedShadowMask(Interpolants).r;
+		#if DIRECTIONAL_LIGHT_CSM && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 		// Cascaded Shadow Map
 		{
 			FPCFSamplerSettings Settings;
@@ -578,7 +579,12 @@ void Main(
 			{
 				if (MaterialParameters.ScreenPosition.w < MobileDirectionalLight.DirectionalLightShadowDistances[i])
 				{
+				#if MOBILE_MULTI_VIEW
+					ShadowPosition = mul(float4(MaterialParameters.ScreenPosition.xyw, 1), ResolvedView.MobileMultiviewShadowTransform);
+					ShadowPosition = mul(ShadowPosition, MobileDirectionalLight.DirectionalLightScreenToShadow[i]);
+				#else
 					ShadowPosition = mul(float4(MaterialParameters.ScreenPosition.xyw, 1), MobileDirectionalLight.DirectionalLightScreenToShadow[i]);
+				#endif
 					break; // position found.
 				}
 			}
@@ -660,7 +666,7 @@ void Main(
 #endif
 		#endif
 
-		#if MAX_DYNAMIC_POINT_LIGHTS > 0
+		#if MAX_DYNAMIC_POINT_LIGHTS > 0 && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 			#if VARIABLE_NUM_DYNAMIC_POINT_LIGHTS
 			#if WEBGL || ES2_PROFILE || VULKAN_PROFILE
 			// webgl and ES2 needs a constant loop counter
@@ -731,13 +737,14 @@ void Main(
 		const float3 SunIlluminance = ResolvedView.DirectionalLightColor.rgb * PI;			// times PI because it is divided by PI on CPU (=luminance) and we want illuminance here. 
 		const float3 WaterDiffuseIndirectIlluminance = WaterDiffuseIndirectLuminance * PI;	// DiffuseIndirectLighting is luminance. So we need to multiply by PI to get illuminance.
 		const float3 EnvBrdf = SpecularColor; // SpecularColor is not F0 as in BasePassPixelShader, it is EnvBRDF.
+		const uint EyeIndex = 0;
 
 		const float4 NullDistortionParams = 1.0f;
 		WaterVolumeLightingOutput WaterLighting = EvaluateWaterVolumeLighting(
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
 			Shadow, Specular, NullDistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
-			CameraIsUnderWater, WaterVisibility);
+			CameraIsUnderWater, WaterVisibility, EyeIndex);
 
 		// Accumulate luminance and occlude the background according to transmittance to view and mean transmittance to lights.
 		Color += WaterLighting.Luminance;
@@ -791,6 +798,11 @@ void Main(
 	#if !MATERIALBLENDING_MODULATE && !OUTPUT_MOBILE_HDR
 		// MobileHDR applies PreExposure in tonemapper
 		OutColor.rgb *= ResolvedView.PreExposure;
+	#endif
+
+	#if MATERIAL_IS_SKY
+		// Sky materials can result in high luminance values, e.g. the sun disk. So we make sure to at least stay within the boundaries of fp10 for some platforms.
+		OutColor.rgb = min(OutColor.rgb, Max10BitsFloat.xxx);
 	#endif
 
 #if USE_EDITOR_COMPOSITING && (MOBILE_EMULATION)

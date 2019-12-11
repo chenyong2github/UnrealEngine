@@ -63,6 +63,13 @@ bool UMovieScene::IsPostLoadThreadSafe() const
 	return true;
 }
 
+void UMovieScene::PostInitProperties()
+{
+	SetFlags(RF_Transactional);
+
+	Super::PostInitProperties();
+}
+
 void UMovieScene::Serialize( FArchive& Ar )
 {
 	Ar.UsingCustomVersion(FMovieSceneEvaluationCustomVersion::GUID);
@@ -410,27 +417,31 @@ FText UMovieScene::GetObjectDisplayName(const FGuid& ObjectId)
 }
 
 
-void UMovieScene::ExposeBinding(FName ExposeAs)
+void UMovieScene::AddNewBindingTag(const FName& NewTag)
 {
-	BindingGroups.Add(ExposeAs);
+	BindingGroups.Add(NewTag);
 }
 
-void UMovieScene::ExposeBinding(FName ExposeAs, FMovieSceneObjectBindingID BindingToExpose)
+void UMovieScene::TagBinding(const FName& NewTag, FMovieSceneObjectBindingID BindingToTag)
 {
-	BindingGroups.FindOrAdd(ExposeAs).IDs.AddUnique(BindingToExpose);
+	BindingGroups.FindOrAdd(NewTag).IDs.AddUnique(BindingToTag);
 }
 
-void UMovieScene::RemoveExposedBinding(FName ExposedAs, FMovieSceneObjectBindingID BindingToExpose)
+void UMovieScene::UntagBinding(const FName& Tag, FMovieSceneObjectBindingID Binding)
 {
-	if (FMovieSceneObjectBindingIDs* Array = BindingGroups.Find(ExposedAs))
+	if (FMovieSceneObjectBindingIDs* Array = BindingGroups.Find(Tag))
 	{
-		Array->IDs.Remove(BindingToExpose);
+		Array->IDs.Remove(Binding);
+		if (Array->IDs.Num() == 0)
+		{
+			BindingGroups.Remove(Tag);
+		}
 	}
 }
 
-void UMovieScene::RemoveExposedBinding(FName ExposedAs)
+void UMovieScene::RemoveTag(const FName& TagToRemove)
 {
-	BindingGroups.Remove(ExposedAs);
+	BindingGroups.Remove(TagToRemove);
 }
 
 #if WITH_EDITORONLY_DATA
@@ -769,17 +780,6 @@ bool UMovieScene::AddGivenTrack(UMovieSceneTrack* InTrack, const FGuid& ObjectGu
 	{
 		if (Binding.GetObjectGuid() == ObjectGuid)
 		{
-			// Tracks of the same class should be unique per name.
-			for (UMovieSceneTrack* Track : Binding.GetTracks())
-			{
-				if (Track->GetClass() == InTrack->GetClass() && Track->GetTrackName() == InTrack->GetTrackName())
-				{
-					// If a track of the same class and name exists, remove it so the new track replaces it
-					Binding.RemoveTrack(*Track);
-					break;
-				}
-			}
-
 			InTrack->Rename(nullptr, this);
 			check(InTrack);
 			Binding.AddTrack(*InTrack);

@@ -50,13 +50,14 @@ void FFrameNumberDetailsCustomization::CustomizeChildren(TSharedRef<IPropertyHan
 		[
 			SNew(STextBlock)
 			.Text(PropertyHandle->GetPropertyDisplayName())
-			.ToolTipText(LOCTEXT("TimeLabelTooltip", "Time field which takes timecode, frames and seconds formats."))
+			.ToolTipText(PropertyHandle->GetToolTipText())
 			.Font(CustomizationUtils.GetRegularFont())
 		]
 		.ValueContent()
 		[
 			SNew(SEditableTextBox)
 			.Text(this, &FFrameNumberDetailsCustomization::OnGetTimeText)
+			.ToolTipText(LOCTEXT("TimeLabelTooltip", "Time field which takes timecode, frames and seconds formats."))
 			.OnTextCommitted(this, &FFrameNumberDetailsCustomization::OnTimeTextCommitted)
 			.SelectAllTextWhenFocused(true)
 			.ClearKeyboardFocusOnCommit(false)

@@ -27,6 +27,16 @@ uint32 FAssetTypeActions_ResonanceAudioReverbPluginPreset::GetCategories()
 	return EAssetTypeCategories::Sounds;
 }
 
+const TArray<FText>& FAssetTypeActions_ResonanceAudioReverbPluginPreset::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		NSLOCTEXT("AssetTypeActions", "AssetTypeActions_AssetSoundResonanceSubMenu", "Resonance")
+	};
+
+	return SubMenus;
+}
+
 UResonanceAudioReverbPluginPresetFactory::UResonanceAudioReverbPluginPresetFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

@@ -222,7 +222,11 @@ private:
 	void ToggleRenderOnlySelectedConstraints();
 	bool IsRenderingOnlySelectedConstraints() const;
 	void ToggleRenderOnlySelectedSolid();
+	void ToggleHideSimulatedBodies();
+	void ToggleHideKinematicBodies();
 	bool IsRenderingOnlySelectedSolid() const;
+	bool IsHidingSimulatedBodies() const;
+	bool IsHidingKinematicBodies() const;
 	void OnToggleMassProperties();
 	bool IsToggleMassProperties() const;
 	void OnSetCollision(bool bEnable);
@@ -265,8 +269,12 @@ private:
 
 	//menu commands
 	void OnSelectAllBodies();
+	void OnSelectKinematicBodies();
+	void OnSelectSimulatedBodies();
+	void OnSelectBodies(EPhysicsType PhysicsType = EPhysicsType::PhysType_Simulated);
 	void OnSelectAllConstraints();
 	void OnToggleSelectionType();
+	void OnToggleShowSelected();
 	void OnDeselectAll();
 
 	FText GetRepeatLastSimulationToolTip() const;
@@ -283,9 +291,13 @@ private:
 
 	/** Filter menu toggles */
 	void HandleToggleShowBodies();
+	void HandleToggleShowSimulatedBodies();
+	void HandleToggleShowKinematicBodies();
 	void HandleToggleShowConstraints();
 	void HandleToggleShowPrimitives();
 	ECheckBoxState GetShowBodiesChecked() const;
+	ECheckBoxState GetShowSimulatedBodiesChecked() const;
+	ECheckBoxState GetShowKinematicBodiesChecked() const;
 	ECheckBoxState GetShowConstraintsChecked() const;
 	ECheckBoxState GetShowPrimitivesChecked() const;
 
@@ -340,4 +352,9 @@ private:
 
 	/** Records PhysicsAssetEditor related data - simulating or mode change */
 	void OnAddPhatRecord(const FString& Action, bool bRecordSimulate, bool bRecordMode);
+
+public:
+
+	TArray<int32> HiddenBodies;
+	TArray<int32> HiddenConstraints;
 };

@@ -29,26 +29,18 @@ void USoundControlBusMix::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-	UWorld* World = GetWorld();
-	if (!World)
+	if (UWorld* World = GetWorld())
 	{
-		return;
-	}
-
-	FAudioDevice* AudioDevice = World->GetAudioDevice();
-	if (!AudioDevice)
-	{
-		return;
-	}
-
-	check(AudioDevice->IsModulationPluginEnabled());
-	if (IAudioModulation* ModulationInterface = AudioDevice->ModulationInterface.Get())
-	{
-		auto ModulationImpl = static_cast<AudioModulation::FAudioModulation*>(ModulationInterface)->GetImpl();
-		check(ModulationImpl);
-
-		auto BusMixId = static_cast<const AudioModulation::FBusMixId>(GetUniqueID());
-		ModulationImpl->DeactivateBusMix(BusMixId);
+		if (FAudioDevice* AudioDevice = World->GetAudioDevice())
+		{
+			check(AudioDevice->IsModulationPluginEnabled());
+			if (IAudioModulation* ModulationInterface = AudioDevice->ModulationInterface.Get())
+			{
+				auto ModulationImpl = static_cast<AudioModulation::FAudioModulation*>(ModulationInterface)->GetImpl();
+				check(ModulationImpl);
+				ModulationImpl->DeactivateBusMix(*this);
+			}
+		}
 	}
 }
 
@@ -62,11 +54,30 @@ namespace AudioModulation
 	{
 	}
 
-	FModulatorBusMixProxy::FModulatorBusMixProxy(const USoundControlBusMix& Mix)
-		: TModulatorProxyRefBase<FBusMixId>(Mix.GetName(), Mix.GetUniqueID(), Mix.bAutoActivate)
-		, Status(BusMixStatus::Enabled)
+	FModulatorBusMixProxy::FModulatorBusMixProxy(const USoundControlBusMix& InBusMix)
+		: TModulatorProxyRefType(InBusMix.GetName(), InBusMix.GetUniqueID())
 	{
-		for (const FSoundControlBusMixChannel& Channel : Mix.Channels)
+		Init(InBusMix);
+	}
+
+	FModulatorBusMixProxy& FModulatorBusMixProxy::operator =(const USoundControlBusMix& InBusMix)
+	{
+		Init(InBusMix);
+
+		return *this;
+	}
+
+	bool FModulatorBusMixProxy::CanDestroy() const
+	{
+		return Status == BusMixStatus::Stopped;
+	}
+
+	void FModulatorBusMixProxy::Init(const USoundControlBusMix& InBusMix)
+	{
+		Channels.Reset();
+
+		Status = BusMixStatus::Enabled;
+		for (const FSoundControlBusMixChannel& Channel : InBusMix.Channels)
 		{
 			if (Channel.Bus)
 			{
@@ -76,7 +87,7 @@ namespace AudioModulation
 				{
 					UE_LOG(LogAudioModulation, Warning,
 						TEXT("USoundControlBusMix '%s' already contains bus '%s'. Only one representative channel for this bus added."),
-						*Mix.GetFullName(), *Channel.Bus->GetFullName());
+						*InBusMix.GetFullName(), *Channel.Bus->GetFullName());
 				}
 #endif // UE_BUILD_SHIPPING
 				Channels.Emplace(BusId, FModulatorBusMixChannelProxy(Channel));
@@ -85,25 +96,10 @@ namespace AudioModulation
 			{
 				UE_LOG(LogAudioModulation, Warning,
 					TEXT("USoundControlBusMix '%s' has channel with no bus specified. "
-					"Mix activated but channel ignored."),
-					*Mix.GetFullName());
+						"Mix activated but channel ignored."),
+					*InBusMix.GetFullName());
 			}
 		}
-	}
-
-	bool FModulatorBusMixProxy::CanDestroy() const
-	{
-		if (Status != BusMixStatus::Stopped)
-		{
-			return false;
-		}
-
-		return TModulatorProxyRefBase<FBusMixId>::CanDestroy();
-	}
-
-	void FModulatorBusMixProxy::OnUpdateProxy(const FModulatorBusMixProxy& InBusMixProxy)
-	{
-		Channels = InBusMixProxy.Channels;
 	}
 
 	void FModulatorBusMixProxy::SetMix(const TArray<FSoundControlBusMixChannel>& InChannels)
@@ -167,7 +163,7 @@ namespace AudioModulation
 		}
 	}
 
-	void FModulatorBusMixProxy::Update(float Elapsed, BusProxyMap& ProxyMap)
+	void FModulatorBusMixProxy::Update(float Elapsed, FBusProxyMap& ProxyMap)
 	{
 		bool bRequestStop = true;
 		for (TPair<FBusId, FModulatorBusMixChannelProxy>& Channel : Channels)

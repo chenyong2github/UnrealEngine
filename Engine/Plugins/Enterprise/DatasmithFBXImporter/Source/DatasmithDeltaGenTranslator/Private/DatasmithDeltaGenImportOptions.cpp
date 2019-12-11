@@ -13,7 +13,6 @@
 
 UDatasmithDeltaGenImportOptions::UDatasmithDeltaGenImportOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, bMergeNodes(true)
 	, bOptimizeDuplicatedNodes(true)
 	, bRemoveInvisibleNodes(true)
 	, bSimplifyNodeHierarchy(true)
@@ -22,7 +21,6 @@ UDatasmithDeltaGenImportOptions::UDatasmithDeltaGenImportOptions(const FObjectIn
 	, bImportTml(true)
 	, ShadowTextureMode(EShadowTextureMode::Ignore)
 {
-	bGenerateLightmapUVs = false;
 }
 
 namespace DeltaGenImportOptionsImpl
@@ -166,7 +164,6 @@ void UDatasmithDeltaGenImportOptions::FromSceneImportData(UDatasmithFBXSceneImpo
 
 	if (UDatasmithDeltaGenSceneImportData* DGImportData = Cast<UDatasmithDeltaGenSceneImportData>(InImportData))
 	{
-		bMergeNodes					= DGImportData->bMergeNodes;
 		bOptimizeDuplicatedNodes	= DGImportData->bOptimizeDuplicatedNodes;
 		bRemoveInvisibleNodes		= DGImportData->bRemoveInvisibleNodes;
 		bSimplifyNodeHierarchy		= DGImportData->bSimplifyNodeHierarchy;
@@ -185,7 +182,6 @@ void UDatasmithDeltaGenImportOptions::ToSceneImportData(UDatasmithFBXSceneImport
 
 	if (UDatasmithDeltaGenSceneImportData* DGImportData = Cast<UDatasmithDeltaGenSceneImportData>(OutImportData))
 	{
-		DGImportData->bMergeNodes				= bMergeNodes;
 		DGImportData->bOptimizeDuplicatedNodes	= bOptimizeDuplicatedNodes;
 		DGImportData->bRemoveInvisibleNodes		= bRemoveInvisibleNodes;
 		DGImportData->bSimplifyNodeHierarchy	= bSimplifyNodeHierarchy;

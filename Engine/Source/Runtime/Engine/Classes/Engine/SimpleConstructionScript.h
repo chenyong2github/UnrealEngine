@@ -85,8 +85,12 @@ class USimpleConstructionScript : public UObject
 	/** Adds this node to the root set */
 	ENGINE_API void AddNode(USCS_Node* Node);
 
-	/** Remove this node from the script */
-	ENGINE_API void RemoveNode(USCS_Node* Node);
+	/** 
+	 * Remove this node from the script
+	 * @param Node							The node to remove.
+	 * @param bValidateSceneRootNodes		Whether to validate scene root nodes after removing the node. Set to false if there are other operations that need to occur before validating.
+	 */
+	ENGINE_API void RemoveNode(USCS_Node* Node, bool bValidateSceneRootNodes = true);
 
 	/** Remove this node from the script and if it's the root, promote its first child to replace it */
 	ENGINE_API void RemoveNodeAndPromoteChildren(USCS_Node* Node);

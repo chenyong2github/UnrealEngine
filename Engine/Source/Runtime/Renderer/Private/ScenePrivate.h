@@ -930,7 +930,7 @@ public:
 	FIESLightProfileResource IESLightProfileResources;
 
 	TRefCountPtr<FPooledRDGBuffer> GatherPointsBuffer;
-	FIntPoint GatherPointsResolution;
+	FIntVector GatherPointsResolution;
 #endif
 
 	TUniquePtr<FForwardLightingViewResources> ForwardLightingResources;
@@ -958,7 +958,9 @@ public:
 	FRWBuffer CapsuleTileIntersectionCountsBuffer;
 
 	/** Contains both DynamicPrimitiveShaderData (per view) and primitive shader data (per scene).  Stored in ViewState for pooling only (contents are not persistent). */
+	/** Only one of the resources(TextureBuffer or Texture2D) will be used depending on the Mobile.UseGPUSceneTexture cvar */
 	FRWBufferStructured PrimitiveShaderDataBuffer;
+	FTextureRWBuffer2D PrimitiveShaderDataTexture;
 
 	/** Timestamp queries around separate translucency, used for auto-downsampling. */
 	FRenderQueryPoolRHIRef TimerQueryPool;
@@ -1667,7 +1669,9 @@ public:
 	TBitArray<> PrimitivesMarkedToUpdate;
 
 	/** GPU mirror of Primitives */
+	/** Only one of the resources(TextureBuffer or Texture2D) will be used depending on the Mobile.UseGPUSceneTexture cvar */
 	FRWBufferStructured PrimitiveBuffer;
+	FTextureRWBuffer2D PrimitiveTexture;
 
 	FGrowOnlySpanAllocator LightmapDataAllocator;
 
@@ -2308,8 +2312,10 @@ public:
 
 	/** Compares the provided view against the cached view and updates the view uniform buffer
 	 *  if the views differ. Returns whether uniform buffer was updated.
+	 *  If bShouldWaitForPersistentViewUniformBufferExtensionsJobs == true, it calls Extension->BeginRenderView() which
+	 *  waits on the potential jobs dispatched in Extension->PrepareView(). Currently it is false only in FMobileSceneRenderer::InitViews()
 	 */
-	bool UpdateViewUniformBuffer(const FViewInfo& View);
+	bool UpdateViewUniformBuffer(const FViewInfo& View, bool bShouldWaitForPersistentViewUniformBufferExtensionsJobs = true);
 
 	/** Updates view uniform buffer and invalidates the internally cached view instance. */
 	void UpdateViewUniformBufferImmediate(const FViewUniformShaderParameters& Parameters);
@@ -2317,7 +2323,7 @@ public:
 	const FViewInfo& GetInstancedView(const FViewInfo& View)
 	{
 		// When drawing the left eye in a stereo scene, copy the right eye view values into the instanced view uniform buffer.
-		const EStereoscopicPass StereoPassIndex = (View.StereoPass != eSSP_FULL) ? eSSP_RIGHT_EYE : eSSP_FULL;
+		const EStereoscopicPass StereoPassIndex = IStereoRendering::IsStereoEyeView(View) ? eSSP_RIGHT_EYE : eSSP_FULL;
 
 		return static_cast<const FViewInfo&>(View.Family->GetStereoEyeView(StereoPassIndex));
 	}

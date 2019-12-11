@@ -122,6 +122,7 @@ public:
 	uint8 bExcludeFromRandomNodeBranchCulling : 1;
 
 private:
+	
 	/** Whether a sound has play when silent enabled (i.e. for a sound cue, if any sound wave player has it enabled). */
 	UPROPERTY()
 	uint8 bHasPlayWhenSilent : 1;

@@ -30,52 +30,6 @@ namespace SConcertSandboxPersistWidgetDefs
 	const float IconColumnWidth = 21.0f;
 };
 
-/**
- * Persist Widget Row Item View Model
- */
-class FConcertPersistItem : public TSharedFromThis<FConcertPersistItem>
-{
-public:
-	/** Constructor */
-	explicit FConcertPersistItem(const FSourceControlStateRef& InItem)
-		: Item(InItem)
-	{
-		CheckBoxState = ECheckBoxState::Checked;
-		DisplayName = FText::FromString(Item->GetFilename());
-	}
-
-
-	/** Returns the full path of the item in source control */
-	FString GetFilename() const { return Item->GetFilename(); }
-
-	/** Returns the name of the item as displayed in the widget */
-	FText GetDisplayName() const { return DisplayName; }
-
-	/** Returns the name of the icon to be used in the list item widget */
-	FName GetIconName() const { return Item->GetSmallIconName(); }
-
-	/** Returns the tooltip text for the icon */
-	FText GetIconTooltip() const { return Item->GetDisplayTooltip(); }
-
-	/** Returns the checkbox state of this item */
-	ECheckBoxState GetCheckBoxState() const { return CheckBoxState; }
-
-	/** Sets the checkbox state of this item */
-	void SetCheckBoxState(ECheckBoxState NewState) { CheckBoxState = NewState; }
-
-	/** true if the item is enabled in the list */
-	bool IsEnabled() const { return true; }
-private:
-	/** Reference to the source control state */
-	FSourceControlStateRef Item;
-
-	/** Checkbox state */
-	ECheckBoxState CheckBoxState;
-
-	/** Cached name to display in the listview */
-	FText DisplayName;
-};
-
 /** Persist Widget Row */
 class SConcertSandboxPersistListRow : public SMultiColumnTableRow<TSharedPtr<FConcertPersistItem>>
 {
@@ -143,10 +97,7 @@ void SConcertSandboxPersistWidget::Construct(const FArguments& InArgs)
 {
 	bDialogConfirmed = false;
 	ParentWindow = InArgs._ParentWindow;
-	Algo::Transform(InArgs._Items, ListViewItems, [](const FSourceControlStateRef& SCCState)
-	{
-		return MakeShared<FConcertPersistItem>(SCCState);
-	});
+	ListViewItems = InArgs._Items;
 
 	SortByColumn = SConcertSandboxPersistWidgetDefs::ColumnID_FileLabel;
 	SortMode = EColumnSortMode::Ascending;
@@ -307,16 +258,17 @@ FConcertPersistCommand SConcertSandboxPersistWidget::GetPersistCommand() const
 	FConcertPersistCommand Cmd;
 	Cmd.bShouldSubmit = !IsSubmitDescriptionReadOnly();
 	Cmd.ChangelistDescription = SubmitDescriptionTextCtrl->GetText();
+	Cmd.PackagesToPersist.Reserve(ListViewItems.Num());
 	Cmd.FilesToPersist.Reserve(ListViewItems.Num());
-	Algo::TransformIf(ListViewItems, Cmd.FilesToPersist,
-		[](const TSharedPtr<FConcertPersistItem>& Item)
+
+	for (const TSharedPtr<FConcertPersistItem>& Item : ListViewItems)
+	{
+		if (Item->GetCheckBoxState() == ECheckBoxState::Checked)
 		{
-			return Item->GetCheckBoxState() == ECheckBoxState::Checked;
-		},
-		[](const TSharedPtr<FConcertPersistItem>& Item)
-		{
-			return Item->GetFilename();
-		});
+			Cmd.PackagesToPersist.Add(Item->GetPackageName());
+			Cmd.FilesToPersist.Add(Item->GetFilename());
+		}
+	}
 	return Cmd;
 }
 

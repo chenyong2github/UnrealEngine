@@ -40,6 +40,10 @@ void UK2Node_GetInputVectorAxisValue::ValidateNodeDuringCompilation(class FCompi
 	{
 		MessageLog.Warning(*FText::Format(NSLOCTEXT("KismetCompiler", "NotAxis_GetInputVectorAxis_Warning", "GetInputVectorAxis Value specifies FKey'{0}' which is not a vector axis for @@"), FText::FromString(InputAxisKey.ToString())).ToString(), this);
 	}
+	else if (InputAxisKey.IsDeprecated())
+	{
+		MessageLog.Warning(*FText::Format(NSLOCTEXT("KismetCompiler", "Deprecated_GetInputVectorAxis_Warning", "GetInputVectorAxis Value specifies FKey'{0}' which has been deprecated for @@"), FText::FromString(InputAxisKey.ToString())).ToString(), this);
+	}
 	else if (!InputAxisKey.IsBindableInBlueprints())
 	{
 		MessageLog.Warning(*FText::Format(NSLOCTEXT("KismetCompiler", "NotBindanble_GetInputVectorAxis_Warning", "GetInputVectorAxis Value specifies FKey'{0}' that is not blueprint bindable for @@"), FText::FromString(InputAxisKey.ToString())).ToString(), this);

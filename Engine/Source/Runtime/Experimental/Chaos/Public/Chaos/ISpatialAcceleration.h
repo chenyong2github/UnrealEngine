@@ -7,6 +7,62 @@
 namespace Chaos
 {
 
+struct CHAOS_API FQueryFastData
+{
+	FQueryFastData(const FVec3& InDir, const FReal InLength)
+		: bParallel{ InDir[0] == 0, InDir[1] == 0, InDir[2] == 0 }
+		, Dir(InDir)
+		, InvDir(bParallel[0] ? 0 : 1 / Dir[0], bParallel[1] ? 0 : 1 / Dir[1], bParallel[2] ? 0 : 1 / Dir[2])
+	{
+		ensure(InLength);
+		SetLength(InLength);
+	}
+
+	const bool bParallel[3];
+	const FVec3& Dir;
+	const FVec3 InvDir;
+
+	FReal CurrentLength;
+	FReal InvCurrentLength;
+
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+	#pragma warning (push)
+	#pragma warning(disable:4723)
+#endif
+	//compiler complaining about divide by 0, but we are guarding against it.
+	//Seems like it's trying to evaluate div independent of the guard?
+
+	void SetLength(const FReal InLength)
+	{
+		CurrentLength = InLength;
+
+		if(InLength)
+		{
+			InvCurrentLength = 1 / InLength;
+		}
+	}
+
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+	#pragma warning(pop)
+#endif
+
+
+protected:
+	FQueryFastData(const FVec3& InDummyDir)
+		: bParallel{}
+		, Dir(InDummyDir)
+		, InvDir()
+	{}
+};
+
+//dummy struct for templatized paths
+struct CHAOS_API FQueryFastDataVoid : public FQueryFastData
+{
+	FQueryFastDataVoid() : FQueryFastData(DummyDir) {}
+	
+	FVec3 DummyDir;
+};
+
 template <typename T, int d>
 class TBox;
 
@@ -69,23 +125,17 @@ public:
 
 	/** Called whenever an instance in the acceleration structure may intersect with a raycast
 		@Instance - the instance we are potentially intersecting with a raycast
-		@CurLength - the length all future intersection tests will use. A blocking intersection should update this
+		@CurData - the current query data. Call SetLength to update the length all future intersection tests will use. A blocking intersection should update this
 		Returns true to continue iterating through the acceleration structure
 	*/
-	virtual bool Raycast(const TSpatialVisitorData<TPayloadType>& Instance, T& CurLength) = 0;
+	virtual bool Raycast(const TSpatialVisitorData<TPayloadType>& Instance, FQueryFastData& CurData) = 0;
 
 	/** Called whenever an instance in the acceleration structure may intersect with a sweep
 		@Instance - the instance we are potentially intersecting with a sweep
 		@CurLength - the length all future intersection tests will use. A blocking intersection should update this
 		Returns true to continue iterating through the acceleration structure
 	*/
-	virtual bool Sweep(const TSpatialVisitorData<TPayloadType>& Instance, T& CurLength) = 0;
-};
-
-enum class ESpatialAccelerationType
-{
-	Grid,
-	BVH
+	virtual bool Sweep(const TSpatialVisitorData<TPayloadType>& Instance, FQueryFastData& CurData) = 0;
 };
 
 /**
@@ -113,8 +163,11 @@ enum ESpatialAcceleration
 	AABBTree,
 	AABBTreeBV,
 	Collection,
-	Unknown
+	Unknown,
+	//For custom types continue the enum after ESpatialAcceleration::Unknown
 };
+
+using SpatialAccelerationType = uint8;	//see ESpatialAcceleration. Projects can add their own custom types by using enum values higher than ESpatialAcceleration::Unknown
 
 
 template <typename TPayloadType, typename T>
@@ -149,16 +202,18 @@ class CHAOS_API ISpatialAcceleration
 {
 public:
 
-	ISpatialAcceleration(ESpatialAcceleration InType = ESpatialAcceleration::Unknown)
-		: Type(InType)
+	ISpatialAcceleration(SpatialAccelerationType InType = ESpatialAcceleration::Unknown)
+		: Type(InType), AsyncTimeSlicingComplete(true)
 	{
 	}
 	virtual ~ISpatialAcceleration() = default;
 
+	virtual bool IsAsyncTimeSlicingComplete() { return AsyncTimeSlicingComplete; }
+	virtual void ProgressAsyncTimeSlicing(bool ForceBuildCompletion = false) {}
 	virtual TArray<TPayloadType> FindAllIntersections(const TBox<T, d>& Box) const { check(false); return TArray<TPayloadType>(); }
 
-	virtual void Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T OriginalLength, ISpatialVisitor<TPayloadType, T>& Visitor) const { check(false); }
-	virtual void Sweep(const TVector<T, d>& Start, const TVector<T, d>& Dir, T OriginalLength, const TVector<T, d> QueryHalfExtents, ISpatialVisitor<TPayloadType, T>& Visitor) const { check(false); }
+	virtual void Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T Length, ISpatialVisitor<TPayloadType, T>& Visitor) const { check(false); }
+	virtual void Sweep(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T Length, const TVector<T, d> QueryHalfExtents, ISpatialVisitor<TPayloadType, T>& Visitor) const { check(false);}
 	virtual void Overlap(const TBox<T, d>& QueryBounds, ISpatialVisitor<TPayloadType, T>& Visitor) const { check(false); }
 
 	virtual void RemoveElement(const TPayloadType& Payload)
@@ -198,6 +253,8 @@ public:
 		check(false);
 	}
 
+	SpatialAccelerationType GetType() const { return Type; }
+
 	template <typename TConcrete>
 	TConcrete* As()
 	{
@@ -224,8 +281,12 @@ public:
 		return static_cast<const TConcrete&>(*this);
 	}
 
+protected:
+	virtual void SetAsyncTimeSlicingComplete(bool InState) { AsyncTimeSlicingComplete = InState; }
+
 private:
-	ESpatialAcceleration Type;
+	SpatialAccelerationType Type;
+	bool AsyncTimeSlicingComplete;
 };
 
 template <typename TBase, typename TDerived>
@@ -259,14 +320,14 @@ public:
 		return Visitor.Overlap(Instance);
 	}
 
-	FORCEINLINE bool VisitRaycast(const TSpatialVisitorData<TPayloadType>& Instance, T& CurLength)
+	FORCEINLINE bool VisitRaycast(const TSpatialVisitorData<TPayloadType>& Instance, FQueryFastData& CurData)
 	{
-		return Visitor.Raycast(Instance, CurLength);
+		return Visitor.Raycast(Instance, CurData);
 	}
 
-	FORCEINLINE bool VisitSweep(const TSpatialVisitorData<TPayloadType>& Instance, T& CurLength)
+	FORCEINLINE bool VisitSweep(const TSpatialVisitorData<TPayloadType>& Instance, FQueryFastData& CurData)
 	{
-		return Visitor.Sweep(Instance, CurLength);
+		return Visitor.Sweep(Instance, CurData);
 	}
 
 private:

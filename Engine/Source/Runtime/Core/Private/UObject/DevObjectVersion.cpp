@@ -45,9 +45,8 @@ void FDevVersionRegistration::DumpVersionsToLog()
 	UE_LOG(LogDevObjectVersion, Log, TEXT("Number of dev versions registered: %d"), GDevVersions.Num());
 	for (FGuid& Guid : GDevVersions)
 	{
-		const FCustomVersion* Version = FCustomVersionContainer::GetRegistered().GetVersion(Guid);
-		check(Version);
-		UE_LOG(LogDevObjectVersion, Log, TEXT("  %s (%s): %d"), *Version->GetFriendlyName().ToString(), *Version->Key.ToString(EGuidFormats::DigitsWithHyphens), Version->Version);
+		FCustomVersion Version = FCurrentCustomVersions::Get(Guid).GetValue();
+		UE_LOG(LogDevObjectVersion, Log, TEXT("  %s (%s): %d"), *Version.GetFriendlyName().ToString(), *Version.Key.ToString(EGuidFormats::DigitsWithHyphens), Version.Version);
 	}
 #endif
 }

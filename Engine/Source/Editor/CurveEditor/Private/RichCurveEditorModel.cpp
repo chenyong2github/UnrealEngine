@@ -276,6 +276,11 @@ void FRichCurveEditorModel::GetKeyPositions(TArrayView<const FKeyHandle> InKeys,
 
 void FRichCurveEditorModel::SetKeyPositions(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyPosition> InKeyPositions)
 {
+	if (IsReadOnly())
+	{
+		return;
+	}
+
 	if (UObject* Owner = WeakOwner.Get())
 	{
 		Owner->Modify();
@@ -291,6 +296,8 @@ void FRichCurveEditorModel::SetKeyPositions(TArrayView<const FKeyHandle> InKeys,
 			}
 		}
 		RichCurve->AutoSetTangents();
+		FPropertyChangedEvent PropertyChangeStruct(nullptr, EPropertyChangeType::ValueSet);
+		Owner->PostEditChangeProperty(PropertyChangeStruct);
 	}
 }
 
@@ -345,6 +352,11 @@ void FRichCurveEditorModel::GetKeyAttributes(TArrayView<const FKeyHandle> InKeys
 
 void FRichCurveEditorModel::SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyAttributes> InAttributes)
 {
+	if (IsReadOnly())
+	{
+		return;
+	}
+
 	if (UObject* Owner = WeakOwner.Get())
 	{
 		const TArray<FRichCurveKey>& AllKeys = RichCurve->GetConstRefOfKeys();
@@ -475,6 +487,9 @@ void FRichCurveEditorModel::SetKeyAttributes(TArrayView<const FKeyHandle> InKeys
 		{
 			RichCurve->AutoSetTangents();
 		}
+
+		FPropertyChangedEvent PropertyChangeStruct(nullptr, EPropertyChangeType::ValueSet);
+		Owner->PostEditChangeProperty(PropertyChangeStruct);
 	}
 }
 
@@ -502,6 +517,9 @@ void FRichCurveEditorModel::SetCurveAttributes(const FCurveAttributes& InCurveAt
 		{
 			RichCurve->PostInfinityExtrap = InCurveAttributes.GetPostExtrapolation();
 		}
+
+		FPropertyChangedEvent PropertyChangeStruct(nullptr, EPropertyChangeType::ValueSet);
+		Owner->PostEditChangeProperty(PropertyChangeStruct);
 	}
 }
 

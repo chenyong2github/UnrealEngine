@@ -70,6 +70,16 @@ void AActor::SeedAllRandomStreams()
 }
 #endif //WITH_EDITOR
 
+bool IsBlueprintAddedContainer(UProperty* Prop)
+{
+	if (Prop->IsA<UArrayProperty>() || Prop->IsA<USetProperty>() || Prop->IsA<UMapProperty>())
+	{
+		return Prop->IsInBlueprint();
+	}
+
+	return false;
+}
+
 void AActor::ResetPropertiesForConstruction()
 {
 	// Get class CDO
@@ -96,7 +106,7 @@ void AActor::ResetPropertiesForConstruction()
 			StreamPtr->Reset();
 		}
 		// If it is a blueprint exposed variable that is not editable per-instance, reset to default before running construction script
-		else if (!bIsLevelScriptActor && !Prop->ContainsInstancedObjectProperty())
+		else if (!bIsLevelScriptActor && (!Prop->ContainsInstancedObjectProperty() || IsBlueprintAddedContainer(Prop)))
 		{
 			const bool bExposedOnSpawn = bIsPlayInEditor && Prop->HasAnyPropertyFlags(CPF_ExposeOnSpawn);
 			const bool bCanEditInstanceValue = !Prop->HasAnyPropertyFlags(CPF_DisableEditOnInstance) && Prop->HasAnyPropertyFlags(CPF_Edit);
@@ -208,22 +218,27 @@ void AActor::RerunConstructionScripts()
 	FEditorScriptExecutionGuard ScriptGuard;
 	// don't allow (re)running construction scripts on dying actors and Actors that seamless traveled 
 	// were constructed in the previous level and should not have construction scripts rerun
-	bool bAllowReconstruction =  !bActorSeamlessTraveled && !IsPendingKill() && !HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed);
+	bool bAllowReconstruction = !bActorSeamlessTraveled && !IsPendingKill() && !HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed);
 #if WITH_EDITOR
 	if(bAllowReconstruction && GIsEditor)
 	{
-		// Generate the blueprint hierarchy for this actor
-		TArray<UBlueprint*> ParentBPStack;
-		bAllowReconstruction = UBlueprint::GetBlueprintHierarchyFromClass(GetClass(), ParentBPStack);
-		if(bAllowReconstruction)
+		// Don't allow reconstruction if we're still in the middle of construction.
+		bAllowReconstruction = !bActorIsBeingConstructed;
+		if (ensureMsgf(bAllowReconstruction, TEXT("Attempted to rerun construction scripts on an Actor that isn't fully constructed yet (%s)."), *GetFullName()))
 		{
-			for(int i = ParentBPStack.Num() - 1; i > 0 && bAllowReconstruction; --i)
+			// Generate the blueprint hierarchy for this actor
+			TArray<UBlueprint*> ParentBPStack;
+			bAllowReconstruction = UBlueprint::GetBlueprintHierarchyFromClass(GetClass(), ParentBPStack);
+			if (bAllowReconstruction)
 			{
-				const UBlueprint* ParentBP = ParentBPStack[i];
-				if(ParentBP && ParentBP->bBeingCompiled)
+				for (int i = ParentBPStack.Num() - 1; i > 0 && bAllowReconstruction; --i)
 				{
-					// don't allow (re)running construction scripts if a parent BP is being compiled
-					bAllowReconstruction = false;
+					const UBlueprint* ParentBP = ParentBPStack[i];
+					if (ParentBP && ParentBP->bBeingCompiled)
+					{
+						// don't allow (re)running construction scripts if a parent BP is being compiled
+						bAllowReconstruction = false;
+					}
 				}
 			}
 		}
@@ -683,6 +698,13 @@ bool AActor::ExecuteConstruction(const FTransform& Transform, const FRotationCon
 {
 	check(!IsPendingKill());
 	check(!HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed));
+
+#if WITH_EDITOR
+	// Guard against reentrancy due to attribute editing at construction time.
+	// @see RerunConstructionScripts()
+	checkf(!bActorIsBeingConstructed, TEXT("Actor construction is not reentrant"));
+	FGuardValue_Bitfield(bActorIsBeingConstructed, true);
+#endif
 
 	// ensure that any existing native root component gets this new transform
 	// we can skip this in the default case as the given transform will be the root component's transform
@@ -1188,7 +1210,7 @@ void AActor::CheckComponentInstanceName(const FName InName)
 			if (CharIndex < ConflictingObjectName.Len() - 1)
 			{
 				Counter = FCString::Atoi(*ConflictingObjectName.RightChop(CharIndex + 1));
-				ConflictingObjectName = ConflictingObjectName.Left(CharIndex + 1);
+				ConflictingObjectName.LeftInline(CharIndex + 1, false);
 			}
 			FString NewObjectName;
 			do
@@ -1210,6 +1232,14 @@ void AActor::PostCreateBlueprintComponent(UActorComponent* NewActorComp)
 
 		// Need to do this so component gets saved - Components array is not serialized
 		BlueprintCreatedComponents.Add(NewActorComp);
+
+		// The component may not have been added to ReplicatedComponents if it was duplicated from
+		// a template, since ReplicatedComponents is normally only updated before the duplicated properties
+		// are copied over - in this case bReplicates would not have been set yet, but it will be now.
+		if (NewActorComp->GetIsReplicated())
+		{
+			ReplicatedComponents.AddUnique(NewActorComp);
+		}
 	}
 }
 

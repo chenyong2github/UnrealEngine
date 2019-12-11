@@ -2,25 +2,22 @@
 
 #include "DatasmithCADTranslator.h"
 
-#include "CADLibraryOptions.h"
+#ifdef CAD_LIBRARY
 #include "CoreTechParametricSurfaceExtension.h"
 #include "DatasmithCADTranslatorModule.h"
-#include "DatasmithImportOptions.h"
-#include "DatasmithMeshHelper.h"
-#include "DatasmithSceneFactory.h"
-#include "DatasmithUtils.h"
-#include "IDatasmithSceneElements.h"
+#include "DatasmithDispatcher.h"
+#include "DatasmithMeshBuilder.h"
+#include "DatasmithSceneGraphBuilder.h"
 #include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
 
 
-FDatasmithCADTranslator::FDatasmithCADTranslator()
-	: Translator(nullptr)
-{
-}
+#define CAD_CACHE_VERSION 1
 
 void FDatasmithCADTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {
+#ifndef CAD_TRANSLATOR_DEBUG
+	OutCapabilities.bParallelLoadStaticMeshSupported = true;
+#endif
 	OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("CATPart"), TEXT("CATIA Part files") });
 	OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("CATProduct"), TEXT("CATIA Product files") });
 	OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("cgr"), TEXT("CATIA Graphical Representation V5 files") });
@@ -58,55 +55,80 @@ void FDatasmithCADTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCa
 
 	OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("dwg"), TEXT("AutoCAD, Model files") });
 	OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("dgn"), TEXT("MicroStation files") });
-}
 
-bool FDatasmithCADTranslator::IsSourceSupported(const FDatasmithSceneSource& Source)
-{
-	return true;
+	OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("ct"), TEXT("Kernel_IO files") });
 }
 
 bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithScene)
 {
-	FString CachePath = FPaths::ConvertRelativePathToFull(FDatasmithCADTranslatorModule::Get().GetCacheDir());
-
-	double FileMetricUnit = 0.001;
-	double ScaleFactor = 0.1;
+	ImportParameters.MetricUnit = 0.001;
+	ImportParameters.ScaleFactor = 0.1;
+	const FDatasmithTessellationOptions& TesselationOptions = GetCommonTessellationOptions();
+	ImportParameters.ChordTolerance = TesselationOptions.ChordTolerance;
+	ImportParameters.MaxEdgeLength = TesselationOptions.MaxEdgeLength;
+	ImportParameters.MaxNormalAngle = TesselationOptions.NormalTolerance;
+	ImportParameters.StitchingTechnique = (CADLibrary::EStitchingTechnique) TesselationOptions.StitchingTechnique;
 
 	FString FileExtension = GetSource().GetSourceFileExtension();
 	if (FileExtension == TEXT("jt"))
 	{
-		FileMetricUnit = 1.;
-		ScaleFactor = 100.;
+		ImportParameters.MetricUnit = 1.;
+		ImportParameters.ScaleFactor = 100.;
 	}
 
-	Translator = MakeShared<FDatasmithCADTranslatorImpl>(GetSource(), DatasmithScene, CachePath, FileMetricUnit, ScaleFactor);
-	if (!Translator)
+	ImportParameters.ModelCoordSys = CADLibrary::EModelCoordSystem::ZUp_RightHanded;
+	if (FileExtension == TEXT("sldprt") || FileExtension == TEXT("sldasm") || // Solidworks
+		FileExtension == TEXT("iam") || FileExtension == TEXT("ipt") || // Inventor
+		FileExtension.StartsWith(TEXT("asm")) || FileExtension.StartsWith(TEXT("creo")) || FileExtension.StartsWith(TEXT("prt")) // Creo
+		)
 	{
-		return false;
+		ImportParameters.ModelCoordSys = CADLibrary::EModelCoordSystem::YUp_RightHanded;
+		ImportParameters.DisplayPreference = CADLibrary::EDisplayPreference::ColorOnly;
+		ImportParameters.Propagation = CADLibrary::EDisplayDataPropagationMode::BodyOnly;
 	}
 
-	FString OutputPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FDatasmithCADTranslatorModule::Get().GetTempDir(), TEXT("Cache"), GetSource().GetSceneName()));
-	IFileManager::Get().MakeDirectory(*OutputPath, true);
+	FString CachePath = FPaths::ConvertRelativePathToFull(FDatasmithCADTranslatorModule::Get().GetCacheDir());
 
-	Translator->SetOutputPath(OutputPath);
-	Translator->SetTessellationOptions(TessellationOptions);
+	TMap<FString, FString> CADFileToUE4FileMap;
+	int32 NumCores = FPlatformMisc::NumberOfCores();
+	{
+		DatasmithDispatcher::FDatasmithDispatcher Dispatcher(ImportParameters, CachePath, NumCores, CADFileToUE4FileMap, CADFileToUE4GeomMap);
+		Dispatcher.AddTask(FPaths::ConvertRelativePathToFull(GetSource().GetSourceFile()));
 
-	return Translator->Read();
+		bool bWithProcessor = true;
+
+#ifdef CAD_TRANSLATOR_DEBUG
+		bWithProcessor = false;
+#endif //CAD_TRANSLATOR_DEBUG
+		
+		Dispatcher.Process(bWithProcessor);
+	}
+
+	FDatasmithSceneGraphBuilder SceneGraphBuilder(CADFileToUE4FileMap, CachePath, DatasmithScene, GetSource(), ImportParameters);
+	SceneGraphBuilder.Build();
+
+	MeshBuilderPtr = MakeUnique<FDatasmithMeshBuilder>(CADFileToUE4GeomMap, CachePath, ImportParameters);
 
 	return true;
 }
 
 void FDatasmithCADTranslator::UnloadScene()
 {
-	Translator->UnloadScene();
+	MeshBuilderPtr = nullptr;
+
+	CADFileToUE4GeomMap.Empty();
 }
 
 bool FDatasmithCADTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload)
 {
-	CADLibrary::FMeshParameters MeshParameters;
-	MeshParameters.ModelCoordSys = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded;
+	if (!MeshBuilderPtr.IsValid())
+	{
+		return false;
+	}
 
-	if (TOptional< FMeshDescription > Mesh = Translator->GetMeshDescription(MeshElement, MeshParameters))
+	CADLibrary::FMeshParameters MeshParameters;
+
+	if (TOptional< FMeshDescription > Mesh = MeshBuilderPtr->GetMeshDescription(MeshElement, MeshParameters))
 	{
 		OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
 
@@ -120,16 +142,16 @@ bool FDatasmithCADTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElem
 				UCoreTechParametricSurfaceData* CoreTechData = Datasmith::MakeAdditionalData<UCoreTechParametricSurfaceData>();
 				CoreTechData->SourceFile = CoretechFile;
 				CoreTechData->RawData = MoveTemp(ByteArray);
-				CoreTechData->SceneParameters.ModelCoordSys = uint8(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded);
-				CoreTechData->SceneParameters.MetricUnit = 0.001;
-				CoreTechData->SceneParameters.ScaleFactor= 0.1;
+				CoreTechData->SceneParameters.ModelCoordSys = uint8(ImportParameters.ModelCoordSys);
+				CoreTechData->SceneParameters.MetricUnit = ImportParameters.MetricUnit;
+				CoreTechData->SceneParameters.ScaleFactor = ImportParameters.ScaleFactor;
 
 				CoreTechData->MeshParameters.bNeedSwapOrientation = MeshParameters.bNeedSwapOrientation;
 				CoreTechData->MeshParameters.bIsSymmetric = MeshParameters.bIsSymmetric;
 				CoreTechData->MeshParameters.SymmetricNormal = MeshParameters.SymmetricNormal;
 				CoreTechData->MeshParameters.SymmetricOrigin = MeshParameters.SymmetricOrigin;
 
-				CoreTechData->LastTessellationOptions = TessellationOptions;
+				CoreTechData->LastTessellationOptions = GetCommonTessellationOptions();
 				OutMeshPayload.AdditionalData.Add(CoreTechData);
 			}
 		}
@@ -137,29 +159,11 @@ bool FDatasmithCADTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElem
 	return OutMeshPayload.LodMeshes.Num() > 0;
 }
 
-void FDatasmithCADTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
-{
-	TStrongObjectPtr<UDatasmithCommonTessellationOptions> TessellationOptionsPtr = Datasmith::MakeOptions<UDatasmithCommonTessellationOptions>();
-	Options.Add(TessellationOptionsPtr);
-}
-
 void FDatasmithCADTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UObject>>& Options)
 {
-	for (const TStrongObjectPtr<UObject>& OptionPtr : Options)
-	{
-		if (UObject* Option = OptionPtr.Get())
-		{
-			if (UDatasmithCommonTessellationOptions* TessellationOptionsObject = Cast<UDatasmithCommonTessellationOptions>(Option))
-			{
-				TessellationOptions = TessellationOptionsObject->Options;
-				if (Translator)
-				{
-					Translator->SetTessellationOptions(TessellationOptions);
-				}
-			}
-		}
-	}
+	FDatasmithCoreTechTranslator::SetSceneImportOptions(Options);
 }
+#endif
 
 
 

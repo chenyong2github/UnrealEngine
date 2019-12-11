@@ -25,7 +25,7 @@ class IImportantToggleSettingInterface
 {
 	GENERATED_IINTERFACE_BODY()
 
-	virtual void GetToogleCategoryAndPropertyNames(FName& OutCategory, FName& OutProperty) const { OutCategory = NAME_None; OutProperty = NAME_None; }
+	virtual void GetToggleCategoryAndPropertyNames(FName& OutCategory, FName& OutProperty) const { OutCategory = NAME_None; OutProperty = NAME_None; }
 
 	virtual FText GetFalseStateLabel() const { return FText::GetEmpty(); }
 	virtual FText GetFalseStateTooltip() const { return FText::GetEmpty(); }

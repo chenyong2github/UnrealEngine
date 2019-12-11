@@ -34,8 +34,8 @@ Wav::Wav(size_t num_channels, int sample_rate,
 
 Wav::~Wav() {}
 
-std::unique_ptr<const Wav> Wav::CreateOrNull(std::istream* binary_stream) {
-  WavReader wav_reader(binary_stream);
+std::unique_ptr<const Wav> Wav::CreateOrNull(const unsigned char* byte_array, size_t array_size) {
+  WavReader wav_reader(byte_array, array_size);
   const size_t num_total_samples = wav_reader.GetNumTotalSamples();
   if (!wav_reader.IsHeaderValid() || num_total_samples == 0) {
     return nullptr;

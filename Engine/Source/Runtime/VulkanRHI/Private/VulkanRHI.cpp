@@ -21,6 +21,7 @@
 #include "GlobalShader.h"
 #include "RHIValidation.h"
 
+static_assert(sizeof(VkStructureType) == sizeof(int32), "ZeroVulkanStruct() assumes VkStructureType is int32!");
 
 extern RHI_API bool GUseTexture3DBulkDataRHI;
 
@@ -29,6 +30,9 @@ TAtomic<uint64> GVulkanBufferViewHandleIdCounter{ 0 };
 TAtomic<uint64> GVulkanImageViewHandleIdCounter{ 0 };
 TAtomic<uint64> GVulkanSamplerHandleIdCounter{ 0 };
 TAtomic<uint64> GVulkanDSetLayoutHandleIdCounter{ 0 };
+
+
+FVulkanCommandBufferManager* GVulkanCommandBufferManager = nullptr;
 
 #if VULKAN_ENABLE_DESKTOP_HMD_SUPPORT
 #include "Runtime/HeadMountedDisplay/Public/IHeadMountedDisplayModule.h"
@@ -122,10 +126,11 @@ FVulkanCommandListContext::FVulkanCommandListContext(FVulkanDynamicRHI* InRHI, F
 	, GpuProfiler(this, InDevice)
 {
 	FrameTiming = new FVulkanGPUTiming(this, InDevice);
-	FrameTiming->Initialize();
 
 	// Create CommandBufferManager, contain all active buffers
 	CommandBufferManager = new FVulkanCommandBufferManager(InDevice, this);
+	GVulkanCommandBufferManager = CommandBufferManager;
+	FrameTiming->Initialize();
 	if (IsImmediate())
 	{
 		// Insert the Begin frame timestamp query. On EndDrawingViewport() we'll insert the End and immediately after a new Begin()
@@ -156,6 +161,7 @@ FVulkanCommandListContext::~FVulkanCommandListContext()
 	check(CommandBufferManager != nullptr);
 	delete CommandBufferManager;
 	CommandBufferManager = nullptr;
+	GVulkanCommandBufferManager = nullptr;
 
 	TransitionAndLayoutManager.Destroy(*Device, Immediate ? &TransitionAndLayoutManager : nullptr);
 
@@ -323,6 +329,8 @@ void FVulkanDynamicRHI::Shutdown()
 
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 	IConsoleManager::Get().UnregisterConsoleObject(DumpMemoryCmd);
+	IConsoleManager::Get().UnregisterConsoleObject(DumpLRUCmd);
+	IConsoleManager::Get().UnregisterConsoleObject(TrimLRUCmd);
 #endif
 
 	FVulkanPlatform::FreeVulkanLibrary();
@@ -757,6 +765,19 @@ void FVulkanDynamicRHI::InitInstance()
 			FConsoleCommandDelegate::CreateStatic(DumpMemory),
 			ECVF_Default
 			);
+		DumpLRUCmd = IConsoleManager::Get().RegisterConsoleCommand(
+			TEXT("r.Vulkan.DumpPSOLRU"),
+			TEXT("Dumps Vulkan PSO LRU."),
+			FConsoleCommandDelegate::CreateStatic(DumpLRU),
+			ECVF_Default
+		);
+		TrimLRUCmd = IConsoleManager::Get().RegisterConsoleCommand(
+			TEXT("r.Vulkan.TrimPSOLRU"),
+			TEXT("Trim Vulkan PSO LRU."),
+			FConsoleCommandDelegate::CreateStatic(TrimLRU),
+			ECVF_Default
+		);
+
 #endif
 	}
 }
@@ -966,6 +987,11 @@ void FVulkanDynamicRHI::RHIReleaseThreadOwnership()
 void* FVulkanDynamicRHI::RHIGetNativeDevice()
 {
 	return (void*)Device->GetInstanceHandle();
+}
+
+void* FVulkanDynamicRHI::RHIGetNativeInstance()
+{
+	return (void*)GetInstance();
 }
 
 IRHICommandContext* FVulkanDynamicRHI::RHIGetDefaultContext()
@@ -1735,6 +1761,18 @@ void FVulkanDynamicRHI::DumpMemory()
 	GVulkanRHI->Device->GetResourceHeapManager().DumpMemory();
 	GVulkanRHI->Device->GetStagingManager().DumpMemory();
 }
+void FVulkanDynamicRHI::DumpLRU()
+{
+	FVulkanDynamicRHI* RHI = (FVulkanDynamicRHI*)GDynamicRHI;
+	RHI->Device->PipelineStateCache->LRUDump();
+}
+void FVulkanDynamicRHI::TrimLRU()
+{
+	FVulkanDynamicRHI* RHI = (FVulkanDynamicRHI*)GDynamicRHI;
+	RHI->Device->PipelineStateCache->LRUDebugEvictAll();
+}
+
+
 #endif
 
 void FVulkanDynamicRHI::DestroySwapChain()

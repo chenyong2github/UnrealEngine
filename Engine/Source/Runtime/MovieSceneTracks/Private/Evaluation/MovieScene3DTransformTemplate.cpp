@@ -94,7 +94,7 @@ struct FComponentTransformActuator : TMovieSceneBlendingActuator<F3DTransformTra
 
 			SceneComponent->SetMobility(EComponentMobility::Movable);
 
-			InFinalValue.Apply(*SceneComponent, Context.GetDelta() / Context.GetFrameRate());
+			InFinalValue.Apply(*SceneComponent);
 		}
 	}
 

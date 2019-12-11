@@ -151,6 +151,84 @@ void MemcpyBuffer(FRHICommandList& RHICmdList, const FRWBufferStructured& SrcBuf
 	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, DstBuffer.UAV);
 }
 
+class FMemcpyTextureToTextureCS : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(FMemcpyTextureToTextureCS, Global)
+
+	FMemcpyTextureToTextureCS() {}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return RHISupportsComputeShaders(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), ThreadGroupSize);
+	}
+
+public:
+	enum { ThreadGroupSize = 64 };
+
+	FShaderParameter			Size;
+	FShaderParameter			SrcOffset;
+	FShaderParameter			DstOffset;
+	FShaderParameter			FloatsPerLine;
+	FShaderResourceParameter	SrcTexture;
+	FShaderResourceParameter	DstTexture;
+
+	FMemcpyTextureToTextureCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{
+		Size.Bind(Initializer.ParameterMap, TEXT("Size"));
+		SrcOffset.Bind(Initializer.ParameterMap, TEXT("SrcOffset"));
+		DstOffset.Bind(Initializer.ParameterMap, TEXT("DstOffset"));
+		FloatsPerLine.Bind(Initializer.ParameterMap, TEXT("FloatsPerLine"));
+		SrcTexture.Bind(Initializer.ParameterMap, TEXT("SrcTexture"));
+		DstTexture.Bind(Initializer.ParameterMap, TEXT("DstTexture"));
+	}
+
+	virtual bool Serialize(FArchive& Ar) override
+	{
+		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
+		Ar << Size;
+		Ar << SrcOffset;
+		Ar << DstOffset;
+		Ar << FloatsPerLine;
+		Ar << SrcTexture;
+		Ar << DstTexture;
+		return bShaderHasOutdatedParameters;
+	}
+};
+
+IMPLEMENT_SHADER_TYPE(, FMemcpyTextureToTextureCS, TEXT("/Engine/Private/ByteBuffer.usf"), TEXT("MemcpyTextureToTextureCS"), SF_Compute);
+
+void MemcpyTextureToTexture(FRHICommandList& RHICmdList, const FTextureRWBuffer2D& SrcBuffer, const FTextureRWBuffer2D& DstBuffer, uint32 SrcOffset, uint32 DstOffset, uint32 NumFloat4s, uint32 FloatsPerLine)
+{
+	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+
+	TShaderMapRef< FMemcpyTextureToTextureCS > ComputeShader(ShaderMap);
+
+	FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
+	RHICmdList.SetComputeShader(ShaderRHI);
+
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, DstBuffer.UAV);
+
+	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->SrcOffset, SrcOffset);
+	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->DstOffset, DstOffset);
+	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->FloatsPerLine, FloatsPerLine);
+	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->Size, NumFloat4s);
+	SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->SrcTexture, SrcBuffer.SRV);
+	SetUAVParameter(RHICmdList, ShaderRHI, ComputeShader->DstTexture, DstBuffer.UAV);
+
+	RHICmdList.DispatchComputeShader(FMath::DivideAndRoundUp< uint32 >(NumFloat4s, FMemcpyBufferCS::ThreadGroupSize), 1, 1);
+
+	SetUAVParameter(RHICmdList, ShaderRHI, ComputeShader->DstTexture, FUnorderedAccessViewRHIRef());
+
+	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, DstBuffer.UAV);
+}
+
 bool ResizeBufferIfNeeded(FRHICommandList& RHICmdList, FRWBufferStructured& Buffer, uint32 NumFloat4s)
 {
 	EPixelFormat BufferFormat = PF_A32B32G32R32F;
@@ -170,6 +248,31 @@ bool ResizeBufferIfNeeded(FRHICommandList& RHICmdList, FRWBufferStructured& Buff
 		MemcpyBuffer(RHICmdList, Buffer, NewBuffer, CopyFloat4s);
 
 		Buffer = NewBuffer;
+		return true;
+	}
+
+	return false;
+}
+
+bool ResizeTextureIfNeeded(FRHICommandList& RHICmdList, FTextureRWBuffer2D& Texture, uint32 NumFloat4s, uint32 PrimitiveStride)
+{
+	EPixelFormat BufferFormat = PF_A32B32G32R32F;
+	uint32 BytesPerElement = GPixelFormats[BufferFormat].BlockBytes;
+
+	uint32 TotalSize = 0;
+	uint16 PrimitivesPerTextureLine = FPrimitiveSceneShaderData::GetPrimitivesPerTextureLine();
+	uint32 SizeY = (NumFloat4s / (PrimitiveStride * PrimitivesPerTextureLine)) + 1;
+
+	if (Texture.NumBytes == 0)
+	{
+		Texture.Initialize(BytesPerElement, PrimitiveStride * PrimitivesPerTextureLine, SizeY, PF_A32B32G32R32F, TexCreate_RenderTargetable | TexCreate_UAV);
+	}
+	else if ((SizeY * PrimitiveStride * PrimitivesPerTextureLine * BytesPerElement) != Texture.NumBytes)
+	{
+		FTextureRWBuffer2D NewTexture;
+		NewTexture.Initialize(BytesPerElement, PrimitiveStride * PrimitivesPerTextureLine, SizeY, PF_A32B32G32R32F, TexCreate_RenderTargetable | TexCreate_UAV);
+		MemcpyTextureToTexture(RHICmdList, Texture, NewTexture, 0, 0, NumFloat4s, PrimitiveStride * PrimitivesPerTextureLine);
+		Texture = NewTexture;
 		return true;
 	}
 
@@ -222,6 +325,59 @@ public:
 };
 
 IMPLEMENT_SHADER_TYPE(, FScatterCopyCS, TEXT("/Engine/Private/ByteBuffer.usf"), TEXT("ScatterCopyCS"), SF_Compute );
+
+class FScatterCopyTextureCS : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(FScatterCopyTextureCS, Global)
+
+	FScatterCopyTextureCS() {}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return RHISupportsComputeShaders(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), ThreadGroupSize);
+	}
+
+public:
+	enum { ThreadGroupSize = 64 };
+
+	FShaderParameter			NumScatters;
+	FShaderParameter			FloatsPerLine;
+	FShaderParameter			Size;
+	FShaderResourceParameter	ScatterBuffer;
+	FShaderResourceParameter	UploadBuffer;
+	FShaderResourceParameter	DstTexture;
+
+	FScatterCopyTextureCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{
+		NumScatters.Bind(Initializer.ParameterMap, TEXT("NumScatters"));
+		FloatsPerLine.Bind(Initializer.ParameterMap, TEXT("FloatsPerLine"));
+		Size.Bind(Initializer.ParameterMap, TEXT("Size"));
+		ScatterBuffer.Bind(Initializer.ParameterMap, TEXT("ScatterBuffer"));
+		UploadBuffer.Bind(Initializer.ParameterMap, TEXT("UploadBuffer"));
+		DstTexture.Bind(Initializer.ParameterMap, TEXT("DstTexture"));
+	}
+
+	virtual bool Serialize(FArchive& Ar) override
+	{
+		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
+		Ar << NumScatters;
+		Ar << FloatsPerLine;
+		Ar << Size;
+		Ar << ScatterBuffer;
+		Ar << UploadBuffer;
+		Ar << DstTexture;
+		return bShaderHasOutdatedParameters;
+	}
+};
+
+IMPLEMENT_SHADER_TYPE(, FScatterCopyTextureCS, TEXT("/Engine/Private/ByteBuffer.usf"), TEXT("ScatterCopyTextureCS"), SF_Compute);
 
 FScatterUploadBuilder::FScatterUploadBuilder(uint32 NumUploads, uint32 InStrideInFloat4s, FReadBuffer& InScatterBuffer, FReadBuffer& InUploadBuffer)
 	: ScatterBuffer(InScatterBuffer)
@@ -289,6 +445,39 @@ void FScatterUploadBuilder::UploadTo(FRHICommandList& RHICmdList, FRWBufferStruc
 	SetUAVParameter(RHICmdList, ShaderRHI, ComputeShader->DstBuffer, FUnorderedAccessViewRHIRef());
 }
 
+int32 FTextureScatterUploadBuilder::GetMaxPrimitivesUpdate(uint32 NumUploads, uint32 InStrideInFloat4s)
+{
+	return GMaxTextureBufferSize == 0 ? NumUploads : FMath::Min((uint32)(GMaxTextureBufferSize / InStrideInFloat4s), NumUploads);
+}
+
+void FTextureScatterUploadBuilder::TextureUploadTo(FRHICommandList& RHICmdList, FTextureRWBuffer2D& DstTexture, uint32 NumFloat4, uint32 FloatsPerLine)
+{
+	RHIUnlockVertexBuffer(ScatterBuffer.Buffer);
+	RHIUnlockVertexBuffer(UploadBuffer.Buffer);
+
+	ScatterData = nullptr;
+	UploadData = nullptr;
+
+	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+
+	TShaderMapRef<FScatterCopyTextureCS> ComputeShader(ShaderMap);
+
+	FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
+	
+	RHICmdList.SetComputeShader(ShaderRHI);
+
+	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->NumScatters, NumScatters);
+	SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->ScatterBuffer, ScatterBuffer.SRV);
+	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->FloatsPerLine, FloatsPerLine);
+	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->Size, NumFloat4);
+	SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->UploadBuffer, UploadBuffer.SRV);
+	SetUAVParameter(RHICmdList, ShaderRHI, ComputeShader->DstTexture, DstTexture.UAV);
+
+	RHICmdList.DispatchComputeShader(FMath::DivideAndRoundUp<uint32>(NumScatters, FScatterCopyTextureCS::ThreadGroupSize), 1, 1);
+
+	SetUAVParameter(RHICmdList, ShaderRHI, ComputeShader->DstTexture, FUnorderedAccessViewRHIRef());
+}
+
 void FScatterUploadBuilder::UploadTo_Flush(FRHICommandList& RHICmdList, FRWBufferStructured& DstBuffer)
 {
 	RHIUnlockVertexBuffer(ScatterBuffer.Buffer);
@@ -314,4 +503,33 @@ void FScatterUploadBuilder::UploadTo_Flush(FRHICommandList& RHICmdList, FRWBuffe
 	FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
 	SetUAVParameter(RHICmdList, ShaderRHI, ComputeShader->DstBuffer, FUnorderedAccessViewRHIRef());
+}
+
+void FTextureScatterUploadBuilder::TextureUploadTo_Flush(FRHICommandList& RHICmdList, FTextureRWBuffer2D& DstTexture, uint32 NumFloat4, uint32 FloatsPerLine)
+{
+	RHIUnlockVertexBuffer(ScatterBuffer.Buffer);
+	RHIUnlockVertexBuffer(UploadBuffer.Buffer);
+
+	ScatterData = nullptr;
+	UploadData = nullptr;
+
+	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+
+	TShaderMapRef<FScatterCopyTextureCS> ComputeShader(ShaderMap);
+
+	FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
+	RHICmdList.SetComputeShader(ShaderRHI);
+
+	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->NumScatters, NumScatters);
+	SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->ScatterBuffer, ScatterBuffer.SRV);
+	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->FloatsPerLine, FloatsPerLine);
+	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->Size, NumFloat4);
+	SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->UploadBuffer, UploadBuffer.SRV);
+	SetUAVParameter(RHICmdList, ShaderRHI, ComputeShader->DstTexture, DstTexture.UAV);
+
+	RHICmdList.DispatchComputeShader(FMath::DivideAndRoundUp<uint32>(NumScatters, FScatterCopyTextureCS::ThreadGroupSize), 1, 1);
+
+	FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+
+	SetUAVParameter(RHICmdList, ShaderRHI, ComputeShader->DstTexture, FUnorderedAccessViewRHIRef());
 }

@@ -37,7 +37,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "PacketHandler.h"
 #include "PacketHandlers/StatelessConnectHandlerComponent.h"
-#include "NetAnalytics.h"
+#include "Net/Core/Analytics/NetAnalytics.h"
 #include "Engine/NetDriver.h"
 #include "Engine/LocalPlayer.h"
 #include "Net/DataBunch.h"
@@ -84,7 +84,6 @@ DEFINE_STAT(STAT_Channels);
 DEFINE_STAT(STAT_MaxPacketOverhead);
 DEFINE_STAT(STAT_InRate);
 DEFINE_STAT(STAT_OutRate);
-DEFINE_STAT(STAT_OutSaturation);
 DEFINE_STAT(STAT_InRateClientMax);
 DEFINE_STAT(STAT_InRateClientMin);
 DEFINE_STAT(STAT_InRateClientAvg);
@@ -448,6 +447,20 @@ void UNetDriver::AddNetworkActor(AActor* Actor)
 	}
 }
 
+void UNetDriver::SetRoleSwapOnReplicate(AActor* Actor, bool bSwapRoles)
+{
+	TSharedPtr<FNetworkObjectInfo> InfoPtr = GetNetworkObjectList().Find(Actor);
+	if (InfoPtr.IsValid())
+	{
+		InfoPtr->bSwapRolesOnReplicate = bSwapRoles;
+	}
+
+	if (ReplicationDriver)
+	{
+		ReplicationDriver->SetRoleSwapOnReplicate(Actor, bSwapRoles);
+	}
+}
+
 FNetworkObjectInfo* UNetDriver::FindOrAddNetworkObjectInfo(const AActor* InActor)
 {
 	ensureMsgf(InActor == nullptr || !(InActor->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject)), TEXT("%s is a CDO or Archetype and should not be replicated."), *GetFullNameSafe(InActor));
@@ -598,7 +611,6 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 			int32 ClientOutPacketsAvg = 0;
 			int NumClients = 0;
 			int32 MaxPacketOverhead = 0;
-			float RemoteSaturationMax = 0.0f;
 
 			// these need to be updated even if we are not collecting stats, since they get reported to analytics/QoS
 			for (UNetConnection * Client : ClientConnections)
@@ -680,13 +692,11 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 				if (ServerConnection != NULL)
 				{
 					NumOpenChannels = ServerConnection->OpenChannels.Num();
-					RemoteSaturationMax = FMath::Max(RemoteSaturationMax, ServerConnection->RemoteSaturation);
 				}
 
 				for (int32 i = 0; i < ClientConnections.Num(); i++)
 				{
 					NumOpenChannels += ClientConnections[i]->OpenChannels.Num();
-					RemoteSaturationMax = FMath::Max(RemoteSaturationMax, ClientConnections[i]->RemoteSaturation);
 				}
 
 				// Use the elapsed time to keep things scaled to one measured unit
@@ -749,7 +759,6 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 				SET_DWORD_STAT(STAT_InLoss, InPacketsLost);
 				SET_DWORD_STAT(STAT_InRate, InBytes);
 				SET_DWORD_STAT(STAT_OutRate, OutBytes);
-				SET_DWORD_STAT(STAT_OutSaturation, RemoteSaturationMax);
 				SET_DWORD_STAT(STAT_InRateClientMax, ClientInBytesMax);
 				SET_DWORD_STAT(STAT_InRateClientMin, ClientInBytesMin);
 				SET_DWORD_STAT(STAT_InRateClientAvg, ClientInBytesAvg);
@@ -801,7 +810,6 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 					GMBase->ServerStatReplicator->InLoss = InPacketsLost;
 					GMBase->ServerStatReplicator->InRate = InBytes;
 					GMBase->ServerStatReplicator->OutRate = OutBytes;
-					GMBase->ServerStatReplicator->OutSaturation = RemoteSaturationMax;
 					GMBase->ServerStatReplicator->InRateClientMax = ClientInBytesMax;
 					GMBase->ServerStatReplicator->InRateClientMin = ClientInBytesMin;
 					GMBase->ServerStatReplicator->InRateClientAvg = ClientInBytesAvg;
@@ -941,8 +949,6 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 				PerfCounters->Set(TEXT("OutPackets"), OutPackets);
 				PerfCounters->Set(TEXT("InBunches"), InBunches);
 				PerfCounters->Set(TEXT("OutBunches"), OutBunches);
-
-				PerfCounters->Set(TEXT("OutSaturationMax"), RemoteSaturationMax);
 			}
 #endif // USE_SERVER_PERF_COUNTERS
 
@@ -1701,7 +1707,9 @@ void UNetDriver::TickDispatch( float DeltaTime )
 	// Setting this to somewhat large value for now, but small enough to catch blocking calls that are causing timeouts
 	const float TickLogThreshold = 5.0f;
 
-	if ( DeltaTime > TickLogThreshold || DeltaRealtime > TickLogThreshold )
+	bDidHitchLastFrame = (DeltaTime > TickLogThreshold || DeltaRealtime > TickLogThreshold);
+
+	if (bDidHitchLastFrame)
 	{
 		UE_LOG( LogNet, Log, TEXT( "UNetDriver::TickDispatch: Very long time between ticks. DeltaTime: %2.2f, Realtime: %2.2f. %s" ), DeltaTime, DeltaRealtime, *GetName() );
 	}
@@ -2316,7 +2324,9 @@ void UNetDriver::FReplicationChangelistMgrWrapper::CountBytes(FArchive& Ar) cons
 
 void UNetDriver::Serialize( FArchive& Ar )
 {
-	Super::Serialize( Ar );
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UNetDriver::Serialize");
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("UNetDriver::Super", Super::Serialize(Ar));
 
 	if (Ar.IsCountingMemory())
 	{
@@ -2329,8 +2339,6 @@ void UNetDriver::Serialize( FArchive& Ar )
 		//		Delegate Handles
 		//		DDoSDetection data
 		// These are probably insignificant, though.
-
-		GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UNetDriver::Serialize");
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("MappedClientConnection", MappedClientConnections.CountBytes(Ar));
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RecentlyDisconnectedClients", RecentlyDisconnectedClients.CountBytes(Ar));
@@ -2960,6 +2968,15 @@ void UNetDriver::NotifyActorRenamed(AActor* ThisActor, FName PreviousName)
 	const bool bIsActorStatic = !GuidCache->IsDynamicObject(ThisActor);
 	const bool bActorHasRole = ThisActor->GetRemoteRole() != ROLE_None;
 
+#if WITH_EDITOR
+	// When recompiling and reinstancing a Blueprint, we rename the old actor out of the way, which would cause this code to emit a warning during PIE
+	// Since that old actor is about to die (on both client and server) in the reinstancing case, it's safe to skip
+	if (GCompilingBlueprint)
+	{
+		return;
+	}
+#endif
+
 	if (bIsActorStatic && bActorHasRole)
 	{
 		if (bIsServer)
@@ -3158,6 +3175,7 @@ void UNetDriver::NotifyActorDormancyChange(AActor* Actor, ENetDormancy OldDorman
 
 void UNetDriver::FlushActorDormancyInternal(AActor *Actor)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_NetDriver_FlushActorDormancy);
 	// Go through each connection and remove the actor from the dormancy list
 	for (int32 i=0; i < ClientConnections.Num(); ++i)
 	{
@@ -3332,6 +3350,8 @@ void FPacketSimulationSettings::LoadConfig(const TCHAR* OptionalQualifier)
 	ConfigHelperInt(TEXT("PktIncomingLagMin"), PktIncomingLagMin, OptionalQualifier);
 	ConfigHelperInt(TEXT("PktIncomingLagMax"), PktIncomingLagMax, OptionalQualifier);
 	ConfigHelperInt(TEXT("PktIncomingLoss"), PktIncomingLoss, OptionalQualifier);
+
+	ConfigHelperInt(TEXT("PktJitter"), PktJitter, OptionalQualifier);
 
 	ValidateSettings();
 }
@@ -3512,6 +3532,11 @@ bool FPacketSimulationSettings::ParseSettings(const TCHAR* Cmd, const TCHAR* Opt
 	{
 		bParsed = true;
 		UE_LOG(LogNet, Log, TEXT("PktIncomingLoss set to %d"), PktIncomingLoss);
+	}
+	if (ParseHelper(Cmd, TEXT("PktJitter="), PktJitter, OptionalQualifier))
+	{
+		bParsed = true;
+		UE_LOG(LogNet, Log, TEXT("PktJitter set to %d"), PktJitter);
 	}
 
 	ValidateSettings();
@@ -4152,6 +4177,12 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 			if ( bIsRecentlyRelevant )
 			{
 				FinalRelevantCount++;
+
+				TOptional<FScopedActorRoleSwap> SwapGuard;
+				if (ActorInfo->bSwapRolesOnReplicate)
+				{
+					SwapGuard = FScopedActorRoleSwap(Actor);
+				}
 
 				// Find or create the channel for this actor.
 				// we can't create the channel if the client is in a different world than we are
@@ -5289,7 +5320,7 @@ TSharedPtr< FReplicationChangelistMgr > UNetDriver::GetReplicationChangeListMgr(
 	if (!ReplicationChangeListMgrPtr)
 	{
 		const TSharedPtr<const FRepLayout> RepLayout = GetObjectClassRepLayout(Object->GetClass());
-		FReplicationChangelistMgrWrapper Wrapper(Object, RepLayout->CreateReplicationChangelistMgr(Object));
+		FReplicationChangelistMgrWrapper Wrapper(Object, RepLayout->CreateReplicationChangelistMgr(Object, GetCreateReplicationChangelistMgrFlags()));
 		ReplicationChangeListMgrPtr = &ReplicationChangeListMap.Add(Object, Wrapper);
 	}
 
@@ -5559,6 +5590,21 @@ bool UNetDriver::ShouldClientDestroyActor(AActor* Actor) const
 	return (Actor && !Actor->IsA(ALevelScriptActor::StaticClass()));
 }
 
+void UNetDriver::NotifyActorChannelOpen(UActorChannel* Channel, AActor* Actor)
+{
+
+}
+
+void UNetDriver::NotifyActorChannelCleanedUp(UActorChannel* Channel, EChannelCloseReason CloseReason)
+{
+
+}
+
+void UNetDriver::NotifyActorTornOff(AActor* Actor)
+{
+
+}
+
 void UNetDriver::ConsumeAsyncLoadDelinquencyAnalytics(FNetAsyncLoadDelinquencyAnalytics& Out)
 {
 	if (FNetGUIDCache* LocalGuidCache = GuidCache.Get())
@@ -5589,6 +5635,16 @@ void UNetDriver::ResetAsyncLoadDelinquencyAnalytics()
 	{
 		LocalGuidCache->ResetAsyncLoadDelinquencyAnalytics();
 	}
+}
+
+bool UNetDriver::DidHitchLastFrame() const
+{
+	return bDidHitchLastFrame;
+}
+
+ECreateReplicationChangelistMgrFlags UNetDriver::GetCreateReplicationChangelistMgrFlags() const
+{
+	return ECreateReplicationChangelistMgrFlags::None;
 }
 
 FAutoConsoleCommandWithWorld	DumpRelevantActorsCommand(
@@ -5669,6 +5725,7 @@ BUILD_NETEMULATION_CONSOLE_COMMAND(PktLagMax, "Sets maximum outgoing packet late
 BUILD_NETEMULATION_CONSOLE_COMMAND(PktIncomingLagMin, "Sets minimum incoming packet latency");
 BUILD_NETEMULATION_CONSOLE_COMMAND(PktIncomingLagMax, "Sets maximum incoming packet latency");
 BUILD_NETEMULATION_CONSOLE_COMMAND(PktIncomingLoss, "Simulates incoming packet loss");
+BUILD_NETEMULATION_CONSOLE_COMMAND(PktJitter, "Simulates outgoing packet jitter");
 
 #endif //#if DO_ENABLE_NET_TEST
 

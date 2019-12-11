@@ -169,7 +169,7 @@ public:
 
 				FAddPropertyParams Params = FAddPropertyParams()
 					.UniqueId(Parameter.GetName())
-					.AllowChildren(true)
+					.AllowChildren(false) //Don't show the material's properties
 					.CreateCategoryNodes(false);
 
 				Row = ChildrenBuilder.AddExternalObjectProperty(Objects, NAME_None, Params);

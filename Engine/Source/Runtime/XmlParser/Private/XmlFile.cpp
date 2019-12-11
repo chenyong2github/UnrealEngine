@@ -162,7 +162,7 @@ void FXmlFile::PreProcessInput(TArray<FString>& Input)
 
 		if(NumWhiteSpace > 0)
 		{
-			Input[i] = Input[i].Mid(NumWhiteSpace);
+			Input[i].MidInline(NumWhiteSpace, MAX_int32, false);
 		}
 	}
 

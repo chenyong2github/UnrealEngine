@@ -2,6 +2,20 @@
 
 #include "NiagaraEditorWidgetsUtilities.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
+#include "ViewModels/Stack/NiagaraStackItem.h"
+#include "ViewModels/Stack/NiagaraStackModuleItem.h"
+#include "Stack/SNiagaraStackItemGroupAddMenu.h"
+#include "NiagaraEditorWidgetsStyle.h"
+
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "IContentBrowserSingleton.h"
+#include "ContentBrowserModule.h"
+#include "Modules/ModuleManager.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
+
+#define LOCTEXT_NAMESPACE "NiagaraStackEditorWidgetsUtilities"
 
 FName FNiagaraStackEditorWidgetsUtilities::GetColorNameForExecutionCategory(FName ExecutionCategoryName)
 {
@@ -102,3 +116,307 @@ FName FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(
 		return NAME_None;
 	}
 }
+
+void OpenSourceAsset(TWeakObjectPtr<UNiagaraStackEntry> StackEntryWeak)
+{
+	UNiagaraStackEntry* StackEntry = StackEntryWeak.Get();
+	if (StackEntry != nullptr)
+	{
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(StackEntry->GetExternalAsset());
+	}
+}
+
+void ShowAssetInContentBrowser(TWeakObjectPtr<UNiagaraStackEntry> StackEntryWeak)
+{
+	UNiagaraStackEntry* StackEntry = StackEntryWeak.Get();
+	if (StackEntry != nullptr)
+	{
+		FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+		TArray<FAssetData> Assets;
+		Assets.Add(FAssetData(StackEntry->GetExternalAsset()));
+		ContentBrowserModule.Get().SyncBrowserToAssets(Assets);
+	}
+}
+
+bool FNiagaraStackEditorWidgetsUtilities::AddStackEntryAssetContextMenuActions(FMenuBuilder& MenuBuilder, UNiagaraStackEntry& StackEntry)
+{
+	if (StackEntry.GetExternalAsset() != nullptr)
+	{
+		MenuBuilder.BeginSection("AssetActions", LOCTEXT("AssetActions", "Asset Actions"));
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("OpenAndFocusAsset", "Open and Focus Asset"),
+				FText::Format(LOCTEXT("OpenAndFocusAssetTooltip", "Open {0} in separate editor"), StackEntry.GetDisplayName()),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateStatic(&OpenSourceAsset, TWeakObjectPtr<UNiagaraStackEntry>(&StackEntry))));
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("ShowAssetInContentBrowser", "Show in Content Browser"),
+				FText::Format(LOCTEXT("ShowAssetInContentBrowserToolTip", "Navigate to {0} in the Content Browser window"), StackEntry.GetDisplayName()),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateStatic(&ShowAssetInContentBrowser, TWeakObjectPtr<UNiagaraStackEntry>(&StackEntry))));
+		}
+		MenuBuilder.EndSection();
+		return true;
+	}
+	return false;
+}
+
+void CopyEntry(TWeakObjectPtr<UNiagaraStackEntry> StackEntryWeak)
+{
+	UNiagaraStackEntry* StackEntry = StackEntryWeak.Get();
+	if (StackEntry != nullptr)
+	{
+		StackEntry->Copy();
+	}
+}
+
+void PasteEntry(TWeakObjectPtr<UNiagaraStackEntry> StackEntryWeak)
+{
+	UNiagaraStackEntry* StackEntry = StackEntryWeak.Get();
+	if (StackEntry != nullptr)
+	{
+		StackEntry->Paste();
+	}
+}
+
+bool FNiagaraStackEditorWidgetsUtilities::AddStackEntryContextMenuActions(FMenuBuilder& MenuBuilder, UNiagaraStackEntry& StackEntry)
+{
+	if (StackEntry.SupportsCut() || StackEntry.SupportsCopy() || StackEntry.SupportsPaste())
+	{
+		MenuBuilder.BeginSection("EntryEdit", LOCTEXT("EntryEditActions", "Edit"));
+		{
+			if (StackEntry.SupportsCut())
+			{
+				FText CutMessage;
+				bool bCanCut = StackEntry.TestCanCutWithMessage(CutMessage);
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("CutAction", "Cut"),
+					CutMessage,
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateUObject(&StackEntry, &UNiagaraStackEntry::Cut),
+						FCanExecuteAction::CreateLambda([bCanCut]() { return bCanCut; })));
+			}
+			if (StackEntry.SupportsCopy())
+			{
+				FText CopyMessage;
+				bool bCanCopy = StackEntry.TestCanCopyWithMessage(CopyMessage);
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("CopyAction", "Copy"),
+					CopyMessage,
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateStatic(&CopyEntry, TWeakObjectPtr<UNiagaraStackEntry>(&StackEntry)),
+						FCanExecuteAction::CreateLambda([bCanCopy]() { return bCanCopy; })));
+			}
+			if (StackEntry.SupportsPaste())
+			{
+				FText PasteMessage;
+				bool bCanPaste = StackEntry.TestCanPasteWithMessage(PasteMessage);
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("PasteAction", "Paste"),
+					PasteMessage,
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateStatic(&PasteEntry, TWeakObjectPtr<UNiagaraStackEntry>(&StackEntry)),
+						FCanExecuteAction::CreateLambda([bCanPaste]() { return bCanPaste; })));
+			}
+		}
+		MenuBuilder.EndSection();
+		return true;
+	}
+	return false;
+}
+
+void DeleteItem(TWeakObjectPtr<UNiagaraStackItem> StackItemWeak)
+{
+	UNiagaraStackItem* StackItem = StackItemWeak.Get();
+	FText Unused;
+	if (StackItem != nullptr && StackItem->TestCanDeleteWithMessage(Unused))
+	{
+		StackItem->Delete();
+	}
+}
+
+void ToggleEnabledState(TWeakObjectPtr<UNiagaraStackItem> StackItemWeak)
+{
+	UNiagaraStackItem* StackItem = StackItemWeak.Get();
+	if (StackItem != nullptr)
+	{
+		StackItem->SetIsEnabled(!StackItem->GetIsEnabled());
+	}
+}
+
+bool FNiagaraStackEditorWidgetsUtilities::AddStackItemContextMenuActions(FMenuBuilder& MenuBuilder, UNiagaraStackItem& StackItem)
+{
+	if (StackItem.SupportsDelete() || StackItem.SupportsChangeEnabled())
+	{
+		MenuBuilder.BeginSection("ItemActions", LOCTEXT("ItemActions", "Item Actions"));
+		{
+			if (StackItem.SupportsChangeEnabled())
+			{
+				FUIAction Action(FExecuteAction::CreateStatic(&ToggleEnabledState, TWeakObjectPtr<UNiagaraStackItem>(&StackItem)),
+					FCanExecuteAction(),
+					FIsActionChecked::CreateUObject(&StackItem, &UNiagaraStackItem::GetIsEnabled));
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("IsEnabled", "Is Enabled"),
+					LOCTEXT("ToggleEnabledToolTip", "Toggle enabled/disabled state"),
+					FSlateIcon(),
+					Action,
+					NAME_None,
+					EUserInterfaceActionType::Check);
+			}
+
+			if (StackItem.SupportsDelete())
+			{
+				FText CanDeleteMessage;
+				bool bCanDelete = StackItem.TestCanDeleteWithMessage(CanDeleteMessage);
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("DeleteModule", "Delete Item"),
+					CanDeleteMessage,
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateStatic(&DeleteItem, TWeakObjectPtr<UNiagaraStackItem>(&StackItem)),
+						FCanExecuteAction::CreateLambda([=]() { return bCanDelete; })));
+
+			}
+		}
+		MenuBuilder.EndSection();
+		return true;
+	}
+	return false;
+}
+
+void ShowInsertModuleMenu(TWeakObjectPtr<UNiagaraStackModuleItem> StackModuleItemWeak, int32 InsertOffset, TWeakPtr<SWidget> TargetWidgetWeak)
+{
+	UNiagaraStackModuleItem* StackModuleItem = StackModuleItemWeak.Get();
+	TSharedPtr<SWidget> TargetWidget = TargetWidgetWeak.Pin();
+	if (StackModuleItem != nullptr && TargetWidget.IsValid())
+	{
+		TSharedRef<SWidget> MenuContent = SNew(SNiagaraStackItemGroupAddMenu, StackModuleItem->GetGroupAddUtilities(), StackModuleItem->GetModuleIndex() + InsertOffset);
+		FGeometry ThisGeometry = TargetWidget->GetCachedGeometry();
+		bool bAutoAdjustForDpiScale = false; // Don't adjust for dpi scale because the push menu command is expecting an unscaled position.
+		FVector2D MenuPosition = FSlateApplication::Get().CalculatePopupWindowPosition(ThisGeometry.GetLayoutBoundingRect(), MenuContent->GetDesiredSize(), bAutoAdjustForDpiScale);
+		FSlateApplication::Get().PushMenu(TargetWidget.ToSharedRef(), FWidgetPath(), MenuContent, MenuPosition, FPopupTransitionEffect::ContextMenu);
+	}
+}
+
+bool FNiagaraStackEditorWidgetsUtilities::AddStackModuleItemContextMenuActions(FMenuBuilder& MenuBuilder, UNiagaraStackModuleItem& StackModuleItem, TSharedRef<SWidget> TargetWidget)
+{
+	MenuBuilder.BeginSection("ModuleActions", LOCTEXT("ModuleActions", "Module Actions"));
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("InsertModuleAbove", "Insert Above"),
+			LOCTEXT("InsertModuleAboveToolTip", "Insert a new module above this module in the stack."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateStatic(&ShowInsertModuleMenu, TWeakObjectPtr<UNiagaraStackModuleItem>(&StackModuleItem), 0, TWeakPtr<SWidget>(TargetWidget))));
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("InsertModuleBelow", "Insert Below"),
+			LOCTEXT("InsertModuleBelowToolTip", "Insert a new module below this module in the stack."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateStatic(&ShowInsertModuleMenu, TWeakObjectPtr<UNiagaraStackModuleItem>(&StackModuleItem), 1, TWeakPtr<SWidget>(TargetWidget))));
+	}
+	MenuBuilder.EndSection();
+	return true;
+}
+
+TSharedRef<FDragDropOperation> FNiagaraStackEditorWidgetsUtilities::ConstructDragDropOperationForStackEntries(const TArray<UNiagaraStackEntry*>& DraggedEntries)
+{
+	TSharedRef<FNiagaraStackEntryDragDropOp> DragDropOp = MakeShared<FNiagaraStackEntryDragDropOp>(DraggedEntries);
+	DragDropOp->CurrentHoverText = DraggedEntries.Num() == 1 
+		? DraggedEntries[0]->GetDisplayName()
+		: FText::Format(LOCTEXT("MultipleEntryDragFormat", "{0} (and {1} others)"), DraggedEntries[0]->GetDisplayName(), FText::AsNumber(DraggedEntries.Num() - 1));
+	DragDropOp->CurrentIconBrush = FNiagaraEditorWidgetsStyle::Get().GetBrush(
+		GetIconNameForExecutionSubcategory(DraggedEntries[0]->GetExecutionSubcategoryName(), true));
+	DragDropOp->CurrentIconColorAndOpacity = FNiagaraEditorWidgetsStyle::Get().GetColor(
+		GetIconColorNameForExecutionCategory(DraggedEntries[0]->GetExecutionCategoryName()));
+	DragDropOp->SetupDefaults();
+	DragDropOp->Construct();
+	return DragDropOp;
+}
+
+void FNiagaraStackEditorWidgetsUtilities::HandleDragLeave(const FDragDropEvent& InDragDropEvent)
+{
+	if (InDragDropEvent.GetOperation().IsValid())
+	{
+		TSharedPtr<FDecoratedDragDropOp> DecoratedDragDropOp = InDragDropEvent.GetOperationAs<FDecoratedDragDropOp>();
+		if (DecoratedDragDropOp.IsValid())
+		{
+			DecoratedDragDropOp->ResetToDefaultToolTip();
+		}
+	}
+}
+
+TOptional<EItemDropZone> FNiagaraStackEditorWidgetsUtilities::RequestDropForStackEntry(const FDragDropEvent& InDragDropEvent, EItemDropZone InDropZone, UNiagaraStackEntry* InTargetEntry, UNiagaraStackEntry::EDropOptions DropOptions)
+{
+	TOptional<EItemDropZone> DropZone;
+	if (InDragDropEvent.GetOperation().IsValid())
+	{
+		TSharedPtr<FDecoratedDragDropOp> DecoratedDragDropOp = InDragDropEvent.GetOperationAs<FDecoratedDragDropOp>();
+		if (DecoratedDragDropOp.IsValid())
+		{
+			DecoratedDragDropOp->ResetToDefaultToolTip();
+		}
+
+		UNiagaraStackEntry::EDragOptions DragOptions = UNiagaraStackEntry::EDragOptions::None;
+		if (InDragDropEvent.IsAltDown() &&
+			InDragDropEvent.IsShiftDown() == false &&
+			InDragDropEvent.IsControlDown() == false &&
+			InDragDropEvent.IsCommandDown() == false)
+		{
+			DragOptions = UNiagaraStackEntry::EDragOptions::Copy;
+		}
+
+		TOptional<UNiagaraStackEntry::FDropRequestResponse> Response = InTargetEntry->CanDrop(UNiagaraStackEntry::FDropRequest(InDragDropEvent.GetOperation().ToSharedRef(), InDropZone, DragOptions, DropOptions));
+		if (Response.IsSet())
+		{
+			if (DecoratedDragDropOp.IsValid() && Response.GetValue().DropMessage.IsEmptyOrWhitespace() == false)
+			{
+				DecoratedDragDropOp->CurrentHoverText = FText::Format(LOCTEXT("DropFormat", "{0} - {1}"), DecoratedDragDropOp->GetDefaultHoverText(), Response.GetValue().DropMessage);
+			}
+
+			if (Response.GetValue().DropZone.IsSet())
+			{
+				DropZone = Response.GetValue().DropZone.GetValue();
+			}
+			else
+			{
+				if (DecoratedDragDropOp.IsValid())
+				{
+					DecoratedDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush("Icons.Error");
+					DecoratedDragDropOp->CurrentIconColorAndOpacity = FLinearColor::White;
+				}
+			}
+		}
+	}
+	return DropZone;
+}
+
+bool FNiagaraStackEditorWidgetsUtilities::HandleDropForStackEntry(const FDragDropEvent& InDragDropEvent, EItemDropZone InDropZone, UNiagaraStackEntry* InTargetEntry, UNiagaraStackEntry::EDropOptions DropOptions)
+{
+	bool bHandled = false;
+	if (InDragDropEvent.GetOperation().IsValid())
+	{
+		UNiagaraStackEntry::EDragOptions DragOptions = UNiagaraStackEntry::EDragOptions::None;
+		if (InDragDropEvent.IsAltDown() &&
+			InDragDropEvent.IsShiftDown() == false &&
+			InDragDropEvent.IsControlDown() == false &&
+			InDragDropEvent.IsCommandDown() == false)
+		{
+			DragOptions = UNiagaraStackEntry::EDragOptions::Copy;
+		}
+
+		UNiagaraStackEntry::FDropRequest DropRequest(InDragDropEvent.GetOperation().ToSharedRef(), InDropZone, DragOptions, DropOptions);
+		bHandled = ensureMsgf(InTargetEntry->Drop(DropRequest).IsSet(),
+			TEXT("Failed to drop stack entry when it was requested"));
+	}
+	return bHandled;
+}
+
+FString FNiagaraStackEditorWidgetsUtilities::StackEntryToStringForListDebug(UNiagaraStackEntry* StackEntry)
+{
+	return FString::Printf(TEXT("0x%08x - %s - %s"), StackEntry, *StackEntry->GetClass()->GetName(), *StackEntry->GetDisplayName().ToString());
+}
+
+#undef LOCTEXT_NAMESPACE

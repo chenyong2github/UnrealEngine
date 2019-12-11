@@ -816,7 +816,7 @@ public:
 	const FVector2D& GetLastScreenSpacePosition() const { return LastScreenSpacePosition; }
 
 	/** Returns the distance the mouse traveled since the last event was handled. */
-	FVector2D GetCursorDelta() const { return CursorDelta; }
+	const FVector2D& GetCursorDelta() const { return CursorDelta; }
 
 	/** Mouse buttons that are currently pressed */
 	bool IsMouseButtonDown( FKey MouseButton ) const { return PressedButtons.Contains( MouseButton ); }

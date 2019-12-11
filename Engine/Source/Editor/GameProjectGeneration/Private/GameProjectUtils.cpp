@@ -93,8 +93,6 @@
 TWeakPtr<SNotificationItem> GameProjectUtils::UpdateGameProjectNotification = NULL;
 TWeakPtr<SNotificationItem> GameProjectUtils::WarningProjectNameNotification = NULL;
 
-FString GameProjectUtils::DefaultFeaturePackExtension(TEXT(".upack"));
-
 bool GameProjectUtils::bUseAudioMixerForAllPlatforms = false;
 
 struct FAudioDefaultPlatformSettings
@@ -159,6 +157,7 @@ namespace
 		return MoveTemp(DefaultProjectSettings);
 	}
 
+	// @todo: This is currently not called from anywhere as this approach does not work for binary builds.
 	/** Set the state of XR plugins in OutProject based on the flags in InProjectInfo. */
 	void SetXRPluginStates(const FProjectInformation& InProjectInfo, FProjectDescriptor& OutProject)
 	{
@@ -168,7 +167,8 @@ namespace
 			TEXT("OculusVR"),
 			TEXT("SteamVR") };
 
-		if (!InProjectInfo.bEnableXR)
+		if (InProjectInfo.bEnableXR.IsSet() && 
+			InProjectInfo.bEnableXR.GetValue() == false)
 		{
 			for (const FString& Plugin : XRPlugins)
 			{
@@ -185,22 +185,47 @@ namespace
 	}
 
 	/** Get the configuration values for raytracing if enabled. */
-	FString GetRaytracingConfigString(const FProjectInformation& InProjectInfo)
+	void AddRaytracingConfigValues(const FProjectInformation& InProjectInfo, TArray<FTemplateConfigValue>& ConfigValues)
 	{
-		FString RaytracingConfig;
-
-		if (InProjectInfo.bEnableRaytracing)
+		if (InProjectInfo.bEnableRaytracing.IsSet() && 
+			InProjectInfo.bEnableRaytracing.GetValue() == true)
 		{
-			RaytracingConfig += LINE_TERMINATOR;
-			RaytracingConfig += TEXT("[/Script/WindowsTargetPlatform.WindowsTargetSettings]") LINE_TERMINATOR;
-			RaytracingConfig += TEXT("DefaultGraphicsRHI=DefaultGraphicsRHI_DX12") LINE_TERMINATOR;
-			RaytracingConfig += LINE_TERMINATOR;
-			RaytracingConfig += TEXT("[/Script/Engine.RendererSettings]") LINE_TERMINATOR;
-			RaytracingConfig += TEXT("r.SkinCache.CompileShaders=True") LINE_TERMINATOR;
-			RaytracingConfig += TEXT("r.RayTracing=True") LINE_TERMINATOR;
-		}
+			ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
+				TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"),
+				TEXT("DefaultGraphicsRHI"),
+				TEXT("DefaultGraphicsRHI_DX12"),
+				true /* ShouldReplaceExistingValue */);
 
-		return MoveTemp(RaytracingConfig);
+			ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
+				TEXT("/Script/Engine.RendererSettings"),
+				TEXT("r.SkinCache.CompileShaders"),
+				TEXT("True"),
+				true /* ShouldReplaceExistingValue */);
+
+			ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
+				TEXT("/Script/Engine.RendererSettings"),
+				TEXT("r.RayTracing"),
+				TEXT("True"),
+				true /* ShouldReplaceExistingValue */);
+		}
+	}
+
+	void AddDefaultMapConfigValues(const FProjectInformation& InProjectInfo, TArray<FTemplateConfigValue>& ConfigValues)
+	{
+		if (InProjectInfo.bIsBlankTemplate &&
+			InProjectInfo.bCopyStarterContent &&
+			GameProjectUtils::IsStarterContentAvailableForNewProjects())
+		{
+			const FString DefaultMap = InProjectInfo.TargetedHardware == EHardwareClass::Mobile ?
+				TEXT("/Game/MobileStarterContent/Maps/Minimal_Default") :
+				TEXT("/Game/StarterContent/Maps/Minimal_Default");
+
+			ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
+				TEXT("/Script/EngineSettings.GameMapsSettings"),
+				TEXT("EditorStartupMap"),
+				DefaultMap,
+				true /* ShouldReplaceExistingValue */);
+		}
 	}
 } // namespace <>
 
@@ -246,11 +271,11 @@ FText FNewClassInfo::GetClassDescription(const bool bFullDescription/* = true*/)
 					if(ClassDescription.FindChar('.', FullStopIndex))
 					{
 						// Only show the first sentence so as not to clutter up the UI with a detailed description of implementation details
-						ClassDescription = ClassDescription.Left(FullStopIndex + 1);
+						ClassDescription.LeftInline(FullStopIndex + 1, false);
 					}
 
 					// Strip out any new-lines in the description
-					ClassDescription.ReplaceInline(TEXT("\n"), TEXT(" "));
+					ClassDescription.ReplaceInline(TEXT("\n"), TEXT(" "), ESearchCase::CaseSensitive);
 				}
 
 				return FText::FromString(ClassDescription);
@@ -345,11 +370,11 @@ FString FNewClassInfo::GetCleanClassName(const FString& ClassName) const
 			// if our class ends with either Widget or WidgetStyle, we need to strip those out to avoid silly looking duplicates
 			if(CleanClassName.EndsWith(TEXT("Style")))
 			{
-				CleanClassName = CleanClassName.LeftChop(5); // 5 for "Style"
+				CleanClassName.LeftChopInline(5, false); // 5 for "Style"
 			}
 			if(CleanClassName.EndsWith(TEXT("Widget")))
 			{
-				CleanClassName = CleanClassName.LeftChop(6); // 6 for "Widget"
+				CleanClassName.LeftChopInline(6, false); // 6 for "Widget"
 			}
 		}
 		break;
@@ -795,13 +820,11 @@ bool GameProjectUtils::OpenCodeIDE(const FString& ProjectFile, FText& OutFailRea
 	return true;
 }
 
-void GameProjectUtils::GetStarterContentFiles(TArray<FString>& OutFilenames)
+bool GameProjectUtils::IsStarterContentAvailableForNewProjects()
 {
-	FString const SrcFolder = FPaths::FeaturePackDir();
-
-	FString SearchPath = TEXT("*");
-	SearchPath += DefaultFeaturePackExtension;
-	IFileManager::Get().FindFilesRecursive(OutFilenames, *SrcFolder, *SearchPath, /*Files=*/true, /*Directories=*/false);
+	TArray<FString> OutFilenames;
+	IFileManager::Get().FindFilesRecursive(OutFilenames, *FPaths::FeaturePackDir(), TEXT("*StarterContent.upack"), /*Files=*/true, /*Directories=*/false);
+	return OutFilenames.Num() > 0;
 }
 
 bool GameProjectUtils::CreateProject(const FProjectInformation& InProjectInfo, FText& OutFailReason, FText& OutFailLog, TArray<FString>* OutCreatedFiles)
@@ -846,10 +869,24 @@ bool GameProjectUtils::CreateProject(const FProjectInformation& InProjectInfo, F
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("ProjectType"), InProjectInfo.bShouldGenerateCode ? TEXT("C++ Code") : TEXT("Content Only")));
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("Outcome"), bProjectCreationSuccessful ? TEXT("Successful") : TEXT("Failed")));
 
-		UEnum* Enum = StaticEnum<EHardwareClass::Type>();
-		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("HardwareClass"), Enum ? Enum->GetNameStringByValue(InProjectInfo.TargetedHardware) : FString()));
-		Enum = StaticEnum<EGraphicsPreset::Type>();
-		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("GraphicsPreset"), Enum ? Enum->GetNameStringByValue(InProjectInfo.DefaultGraphicsPerformance) : FString()));
+		if (InProjectInfo.TargetedHardware.IsSet())
+		{
+			UEnum* HardwareClassEnum = StaticEnum<EHardwareClass::Type>();
+			if (HardwareClassEnum != nullptr)
+			{
+				EventAttributes.Add(FAnalyticsEventAttribute(TEXT("HardwareClass"), HardwareClassEnum->GetNameStringByValue(InProjectInfo.TargetedHardware.GetValue())));
+			}
+		}
+
+		if (InProjectInfo.DefaultGraphicsPerformance.IsSet())
+		{
+			UEnum* GraphicsPresetEnum = StaticEnum<EGraphicsPreset::Type>();
+			if (GraphicsPresetEnum != nullptr)
+			{
+				EventAttributes.Add(FAnalyticsEventAttribute(TEXT("GraphicsPreset"), GraphicsPresetEnum->GetNameStringByValue(InProjectInfo.DefaultGraphicsPerformance.GetValue())));
+			}
+		}
+
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("StarterContent"), InProjectInfo.bCopyStarterContent ? TEXT("Yes") : TEXT("No")));
 		
 		FEngineAnalytics::GetProvider().RecordEvent( TEXT( "Editor.NewProject.ProjectCreated" ), EventAttributes );
@@ -1316,22 +1353,6 @@ UTemplateProjectDefs* GameProjectUtils::LoadTemplateDefs(const FString& ProjectD
 		{
 			UE_LOG(LogGameProjectGeneration, Warning, TEXT("Template '%s' contains 'All' in HiddenSettings in addition to other entries. This is a mistake, and means that all settings will be hidden."), *ProjectDirectory);
 		}
-
-		TArray<TSharedPtr<FTemplateCategory>> AllTemplateCategories;
-		FGameProjectGenerationModule::Get().GetAllTemplateCategories(AllTemplateCategories);
-
-		for (const FName& CategoryKey : TemplateDefs->Categories)
-		{
-			bool bCategoryExists = AllTemplateCategories.ContainsByPredicate([&CategoryKey](const TSharedPtr<FTemplateCategory>& Category)
-				{
-					return Category->Key == CategoryKey;
-				});
-
-			if (!bCategoryExists)
-			{
-				UE_LOG(LogGameProjectGeneration, Warning, TEXT("Failed to find category definition named '%s' while loading template '%s', it is not defined in any TemplateCategories.ini."), *CategoryKey.ToString(), *ProjectDirectory);
-			}
-		}
 	}
 
 	return TemplateDefs;
@@ -1406,8 +1427,6 @@ bool GameProjectUtils::GenerateProjectFromScratch(const FProjectInformation& InP
 
 		Project.bIsEnterpriseProject = InProjectInfo.bIsEnterpriseProject;
 
-		SetXRPluginStates(InProjectInfo, Project);
-
 		// Try to save it
 		FText LocalFailReason;
 		if(!Project.Save(InProjectInfo.ProjectFilename, LocalFailReason))
@@ -1441,6 +1460,113 @@ bool GameProjectUtils::GenerateProjectFromScratch(const FProjectInformation& InP
 	return true;
 }
 
+static bool SaveConfigValues(const FProjectInformation& InProjectInfo, const TArray<FTemplateConfigValue>& ConfigValues, FText& OutFailReason)
+{
+	const FString ProjectConfigPath = FPaths::GetPath(InProjectInfo.ProjectFilename) / TEXT("Config");
+
+	// Fix all specified config values
+	for (const FTemplateConfigValue& ConfigValue : ConfigValues)
+	{
+		const FString IniFilename = ProjectConfigPath / ConfigValue.ConfigFile;
+		bool bSuccessfullyProcessed = false;
+
+		TArray<FString> FileLines;
+		if (FFileHelper::LoadANSITextFileToStrings(*IniFilename, &IFileManager::Get(), FileLines))
+		{
+			FString FileOutput;
+			const FString TargetSection = ConfigValue.ConfigSection;
+			FString CurSection;
+			bool bFoundTargetKey = false;
+			for (const FString& LineIn : FileLines)
+			{
+				FString Line = LineIn;
+				Line.TrimStartAndEndInline();
+
+				bool bShouldExcludeLineFromOutput = false;
+
+				// If we not yet found the target key parse each line looking for it
+				if (!bFoundTargetKey)
+				{
+					if (Line.Len() == 0)
+					{
+						// Check for an empty line. No work needs to be done on these lines
+					}
+					else if (Line.StartsWith(TEXT(";")))
+					{
+						// Comment lines start with ";". Skip these lines entirely.
+					}
+					else if (Line.StartsWith(TEXT("[")))
+					{
+						// If this is a section line, update the section
+						// If we are entering a new section and we have not yet found our key in the target section, add it to the end of the section
+						if (CurSection == TargetSection)
+						{
+							FileOutput += ConfigValue.ConfigKey + TEXT("=") + ConfigValue.ConfigValue + LINE_TERMINATOR + LINE_TERMINATOR;
+							bFoundTargetKey = true;
+						}
+
+						// Update the current section
+						CurSection = Line.Mid(1, Line.Len() - 2);
+					}
+					// This is possibly an actual key/value pair
+					else if (CurSection == TargetSection)
+					{
+						// Key value pairs contain an equals sign
+						const int32 EqualsIdx = Line.Find(TEXT("="));
+						if (EqualsIdx != INDEX_NONE)
+						{
+							// Determine the key and see if it is the target key
+							const FString Key = Line.Left(EqualsIdx);
+							if (Key == ConfigValue.ConfigKey)
+							{
+								// Found the target key, add it to the output and skip the current line if the target value is supposed to replace
+								FileOutput += ConfigValue.ConfigKey + TEXT("=") + ConfigValue.ConfigValue + LINE_TERMINATOR;
+								bShouldExcludeLineFromOutput = ConfigValue.bShouldReplaceExistingValue;
+								bFoundTargetKey = true;
+							}
+						}
+					}
+				}
+
+				// Unless we replaced the key, add this line to the output
+				if (!bShouldExcludeLineFromOutput)
+				{
+					FileOutput += Line;
+					if (&LineIn != &FileLines.Last())
+					{
+						// Add a line terminator on every line except the last
+						FileOutput += LINE_TERMINATOR;
+					}
+				}
+			}
+
+			// If the key did not exist, add it here
+			if (!bFoundTargetKey)
+			{
+				// If we did not end in the correct section, add the section to the bottom of the file
+				if (CurSection != TargetSection)
+				{
+					FileOutput += LINE_TERMINATOR;
+					FileOutput += FString::Printf(TEXT("[%s]"), *TargetSection) + LINE_TERMINATOR;
+				}
+
+				// Add the key/value here
+				FileOutput += ConfigValue.ConfigKey + TEXT("=") + ConfigValue.ConfigValue + LINE_TERMINATOR;
+			}
+
+			if (!FFileHelper::SaveStringToFile(FileOutput, *IniFilename))
+			{
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("ConfigFile"), FText::FromString(IniFilename));
+				OutFailReason = LOCTEXT("FailedToFixUpConfigFile", "Failed to process file {ConfigFile}.");
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
 bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InProjectInfo, FText& OutFailReason, FText& OutFailLog,TArray<FString>* OutCreatedFiles)
 {
 	FScopedSlowTask SlowTask(10);
@@ -1471,6 +1597,16 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 	}
 
 	SlowTask.EnterProgressFrame();
+
+	// create a Content folder in the destination directory
+	const FString DestContentFolder = DestFolder / TEXT("Content");
+	if (!IFileManager::Get().MakeDirectory(*DestContentFolder, true))
+	{
+		FFormatNamedArguments FailArgs;
+		FailArgs.Add(TEXT("DestContentFolder"), FText::FromString(DestContentFolder));
+		OutFailReason = FText::Format(LOCTEXT("FailedToCreateDirectory", "Failed to create directory \"{DestContentFolder}\"."), FailArgs);
+		return false;
+	}
 
 	// Add a rule to replace the build settings version with the appropriate number
 	FTemplateReplacement& DefaultBuildSettingsRepl = TemplateDefs->ReplacementsInFiles.AddZeroed_GetRef();
@@ -1630,29 +1766,15 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 
 	SlowTask.EnterProgressFrame();
 
-	const FString ProjectConfigPath = DestFolder / TEXT("Config");
-
-	// Write out the hardware class target settings chosen for this project
-	{
-		const FString DefaultEngineIniFilename = ProjectConfigPath / TEXT("DefaultEngine.ini");
-
-		FString FileContents;
-		// Load the existing file - if it doesn't exist we create it
-		FFileHelper::LoadFileToString(FileContents, *DefaultEngineIniFilename);
-
-		FileContents += LINE_TERMINATOR;
-		FileContents += GetHardwareConfigString(InProjectInfo);
-
-		FileContents += GetRaytracingConfigString(InProjectInfo);
-
-		if ( !WriteOutputFile(DefaultEngineIniFilename, FileContents, OutFailReason) )
-		{
-			return false;
-		}
-	}
-
 	// Fixup specific ini values
 	TArray<FTemplateConfigValue> ConfigValuesToSet;
+
+	AddHardwareConfigValues(InProjectInfo, ConfigValuesToSet);
+
+	AddRaytracingConfigValues(InProjectInfo, ConfigValuesToSet);
+
+	AddDefaultMapConfigValues(InProjectInfo, ConfigValuesToSet);
+	
 	TemplateDefs->AddConfigValues(ConfigValuesToSet, TemplateName, ProjectName, InProjectInfo.bShouldGenerateCode);
 	ConfigValuesToSet.Emplace(TEXT("DefaultGame.ini"), TEXT("/Script/EngineSettings.GeneralProjectSettings"), TEXT("ProjectID"), FGuid::NewGuid().ToString(), /*InShouldReplaceExistingValue=*/true);
 
@@ -1663,110 +1785,9 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 		ConfigValuesToSet.Emplace(TEXT("DefaultEngine.ini"), TEXT("/Script/Engine.Engine"), TEXT("+ActiveClassRedirects"), *ClassRedirectString, /*InShouldReplaceExistingValue=*/false);
 	}
 
-	// Fix all specified config values
-	for ( const FTemplateConfigValue& ConfigValue : ConfigValuesToSet )
+	if (!SaveConfigValues(InProjectInfo, ConfigValuesToSet, OutFailReason))
 	{
-		const FString IniFilename = ProjectConfigPath / ConfigValue.ConfigFile;
-		bool bSuccessfullyProcessed = false;
-
-		TArray<FString> FileLines;
-		if ( FFileHelper::LoadANSITextFileToStrings(*IniFilename, &IFileManager::Get(), FileLines) )
-		{
-			FString FileOutput;
-			const FString TargetSection = ConfigValue.ConfigSection;
-			FString CurSection;
-			bool bFoundTargetKey = false;
-			for ( const FString& LineIn : FileLines )
-			{
-				FString Line = LineIn;
-				Line.TrimStartAndEndInline();
-
-				bool bShouldExcludeLineFromOutput = false;
-
-				// If we not yet found the target key parse each line looking for it
-				if ( !bFoundTargetKey )
-				{
-					// Check for an empty line. No work needs to be done on these lines
-					if ( Line.Len() == 0 )
-					{
-
-					}
-					// Comment lines start with ";". Skip these lines entirely.
-					else if ( Line.StartsWith(TEXT(";")) )
-					{
-
-					}
-					// If this is a section line, update the section
-					else if ( Line.StartsWith(TEXT("[")) )
-					{
-						// If we are entering a new section and we have not yet found our key in the target section, add it to the end of the section
-						if ( CurSection == TargetSection )
-						{
-							FileOutput += ConfigValue.ConfigKey + TEXT("=") + ConfigValue.ConfigValue + LINE_TERMINATOR + LINE_TERMINATOR;
-							bFoundTargetKey = true;
-						}
-
-						// Update the current section
-						CurSection = Line.Mid(1, Line.Len() - 2);
-					}
-					// This is possibly an actual key/value pair
-					else if ( CurSection == TargetSection )
-					{
-						// Key value pairs contain an equals sign
-						const int32 EqualsIdx = Line.Find(TEXT("="));
-						if ( EqualsIdx != INDEX_NONE )
-						{
-							// Determine the key and see if it is the target key
-							const FString Key = Line.Left(EqualsIdx);
-							if ( Key == ConfigValue.ConfigKey )
-							{
-								// Found the target key, add it to the output and skip the current line if the target value is supposed to replace
-								FileOutput += ConfigValue.ConfigKey + TEXT("=") + ConfigValue.ConfigValue + LINE_TERMINATOR;
-								bShouldExcludeLineFromOutput = ConfigValue.bShouldReplaceExistingValue;
-								bFoundTargetKey = true;
-							}
-						}
-					}
-				}
-
-				// Unless we replaced the key, add this line to the output
-				if ( !bShouldExcludeLineFromOutput )
-				{
-					FileOutput += Line;
-					if ( &LineIn != &FileLines.Last() )
-					{
-						// Add a line terminator on every line except the last
-						FileOutput += LINE_TERMINATOR;
-					}
-				}
-			}
-
-			// If the key did not exist, add it here
-			if ( !bFoundTargetKey )
-			{
-				// If we did not end in the correct section, add the section to the bottom of the file
-				if ( CurSection != TargetSection )
-				{
-					FileOutput += LINE_TERMINATOR;
-					FileOutput += LINE_TERMINATOR;
-					FileOutput += FString::Printf(TEXT("[%s]"), *TargetSection) + LINE_TERMINATOR;
-				}
-
-				// Add the key/value here
-				FileOutput += ConfigValue.ConfigKey + TEXT("=") + ConfigValue.ConfigValue + LINE_TERMINATOR;
-			}
-
-			if ( FFileHelper::SaveStringToFile(FileOutput, *IniFilename) )
-			{
-				bSuccessfullyProcessed = true;
-			}
-		}
-
-		if ( !bSuccessfullyProcessed )
-		{
-			OutFailReason = LOCTEXT("FailedToFixUpDefaultEngine", "Failed to process file DefaultEngine.ini");
-			return false;
-		}
+		return false;
 	}
 
 	// Insert any required feature packs (EG starter content) into ini file. These will be imported automatically when the editor is first run
@@ -1800,8 +1821,6 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 		Project.EngineAssociation.Empty();
 		Project.EpicSampleNameHash = 0;
 
-		Project.bIsEnterpriseProject = InProjectInfo.bIsEnterpriseProject; // Force the enterprise flag to the value that was requested in the ProjectInfo.
-
 		// Fix up module names
 		const FString BaseSourceName = FPaths::GetBaseFilename(InProjectInfo.TemplateFile);
 		const FString BaseNewName = FPaths::GetBaseFilename(InProjectInfo.ProjectFilename);
@@ -1809,9 +1828,6 @@ bool GameProjectUtils::CreateProjectFromTemplate(const FProjectInformation& InPr
 		{
 			ModuleInfo.Name = FName(*ModuleInfo.Name.ToString().Replace(*BaseSourceName, *BaseNewName));
 		}
-
-		// Disable XR plugins if desired
-		SetXRPluginStates(InProjectInfo, Project);
 
 		// Save it to disk
 		if(!Project.Save(InProjectInfo.ProjectFilename, OutFailReason))
@@ -1963,22 +1979,45 @@ void GameProjectUtils::DeleteCreatedFiles(const FString& RootFolder, const TArra
 	}
 }
 
-FString GameProjectUtils::GetHardwareConfigString(const FProjectInformation& InProjectInfo)
+void GameProjectUtils::AddHardwareConfigValues(const FProjectInformation& InProjectInfo, TArray<FTemplateConfigValue>& ConfigValues)
 {
-	FString HardwareTargeting;
+	if (InProjectInfo.TargetedHardware.IsSet())
+	{
+		UEnum* HardwareClassEnum = StaticEnum<EHardwareClass::Type>();
+		if (HardwareClassEnum != nullptr)
+		{
+			FString TargetHardwareString;
+			HardwareClassEnum->GetValueAsString(InProjectInfo.TargetedHardware.GetValue(), /*out*/ TargetHardwareString);
 
-	FString TargetHardwareAsString;
-	UEnum::GetValueAsString(TEXT("/Script/HardwareTargeting.EHardwareClass"), InProjectInfo.TargetedHardware, /*out*/ TargetHardwareAsString);
+			if (!TargetHardwareString.IsEmpty())
+			{
+				ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
+					TEXT("/Script/HardwareTargeting.HardwareTargetingSettings"),
+					TEXT("TargetedHardwareClass"),
+					TargetHardwareString,
+					true /* ShouldReplaceExistingValue */);
+			}
+		}
+	}
 
-	FString GraphicsPresetAsString;
-	UEnum::GetValueAsString(TEXT("/Script/HardwareTargeting.EGraphicsPreset"), InProjectInfo.DefaultGraphicsPerformance, /*out*/ GraphicsPresetAsString);
+	if (InProjectInfo.DefaultGraphicsPerformance.IsSet())
+	{
+		UEnum* GraphicsPresetEnum = StaticEnum<EGraphicsPreset::Type>();
+		if (GraphicsPresetEnum != nullptr)
+		{
+			FString GraphicsPresetString;
+			GraphicsPresetEnum->GetValueAsString(InProjectInfo.DefaultGraphicsPerformance.GetValue(), /*out*/ GraphicsPresetString);
 
-	HardwareTargeting += TEXT("[/Script/HardwareTargeting.HardwareTargetingSettings]") LINE_TERMINATOR;
-	HardwareTargeting += FString::Printf(TEXT("TargetedHardwareClass=%s") LINE_TERMINATOR, *TargetHardwareAsString);
-	HardwareTargeting += FString::Printf(TEXT("DefaultGraphicsPerformance=%s") LINE_TERMINATOR, *GraphicsPresetAsString);
-	HardwareTargeting += LINE_TERMINATOR;
-
-	return MoveTemp(HardwareTargeting);
+			if (!GraphicsPresetString.IsEmpty())
+			{
+				ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
+					TEXT("/Script/HardwareTargeting.HardwareTargetingSettings"),
+					TEXT("DefaultGraphicsPerformance"),
+					GraphicsPresetString,
+					true /* ShouldReplaceExistingValue */);
+			}
+		}
+	}
 }
 
 bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectInfo, TArray<FString>& OutCreatedFiles, FText& OutFailReason)
@@ -1993,63 +2032,59 @@ bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectI
 		const FString DefaultEngineIniFilename = ProjectConfigPath / TEXT("DefaultEngine.ini");
 		FString FileContents;
 
-		FileContents += TEXT("[URL]") LINE_TERMINATOR;
-
-		FileContents += GetHardwareConfigString(InProjectInfo);
-		FileContents += LINE_TERMINATOR;
-
 		if(bUseAudioMixerForAllPlatforms)
 		{
+			FileContents += LINE_TERMINATOR;
 			FileContents += TEXT("[Audio]") LINE_TERMINATOR;
 			FileContents += TEXT("UseAudioMixer=True") LINE_TERMINATOR;
-			FileContents += LINE_TERMINATOR;
 		}
 
 		if (InProjectInfo.bForceExtendedLuminanceRange)
 		{
+			FileContents += LINE_TERMINATOR;
 			FileContents += TEXT("[/Script/Engine.RendererSettings]") LINE_TERMINATOR;
 			FileContents += TEXT("r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange=True") LINE_TERMINATOR;
-			FileContents += LINE_TERMINATOR;
 		}
 
 		if (InProjectInfo.bCopyStarterContent)
 		{
-			FString SpecificEditorStartupMap;
-			FString SpecificGameDefaultMap;
+			FileContents += LINE_TERMINATOR;
+			FileContents += TEXT("[/Script/EngineSettings.GameMapsSettings]") LINE_TERMINATOR;
 
-			// If we have starter content packs available, specify starter map
-			if( IsStarterContentAvailableForNewProjects() == true )
+			if (GameProjectUtils::IsStarterContentAvailableForNewProjects())
 			{
 				if (InProjectInfo.TargetedHardware == EHardwareClass::Mobile)
 				{
-					SpecificEditorStartupMap = TEXT("/Game/MobileStarterContent/Maps/Minimal_Default");
-					SpecificGameDefaultMap = TEXT("/Game/MobileStarterContent/Maps/Minimal_Default");
+					FileContents += TEXT("EditorStartupMap=/Game/MobileStarterContent/Maps/Minimal_Default") LINE_TERMINATOR;
+					FileContents += TEXT("GameDefaultMap=/Game/MobileStarterContent/Maps/Minimal_Default") LINE_TERMINATOR;
 				}
 				else
 				{
-					SpecificEditorStartupMap = TEXT("/Game/StarterContent/Maps/Minimal_Default");
-					SpecificGameDefaultMap = TEXT("/Game/StarterContent/Maps/Minimal_Default");
+					FileContents += TEXT("EditorStartupMap=/Game/StarterContent/Maps/Minimal_Default") LINE_TERMINATOR;
+					FileContents += TEXT("GameDefaultMap=/Game/StarterContent/Maps/Minimal_Default") LINE_TERMINATOR;
 				}
 			}
 
-			// Write out the settings for startup map and game default map
-			FileContents += TEXT("[/Script/EngineSettings.GameMapsSettings]") LINE_TERMINATOR;
-			FileContents += FString::Printf(TEXT("EditorStartupMap=%s") LINE_TERMINATOR, *SpecificEditorStartupMap);
-			FileContents += FString::Printf(TEXT("GameDefaultMap=%s") LINE_TERMINATOR, *SpecificGameDefaultMap);
 			if (InProjectInfo.bShouldGenerateCode)
 			{
 				FileContents += FString::Printf(TEXT("GlobalDefaultGameMode=\"/Script/%s.%sGameMode\"") LINE_TERMINATOR, *NewProjectName, *NewProjectName);
 			}
 		}
 
-		FileContents += LINE_TERMINATOR;
-		FileContents += GetRaytracingConfigString(InProjectInfo);
-
 		if (WriteOutputFile(DefaultEngineIniFilename, FileContents, OutFailReason))
 		{
 			OutCreatedFiles.Add(DefaultEngineIniFilename);
 		}
 		else
+		{
+			return false;
+		}
+
+		TArray<FTemplateConfigValue> ConfigValuesToSet;
+		AddHardwareConfigValues(InProjectInfo, ConfigValuesToSet);
+		AddRaytracingConfigValues(InProjectInfo, ConfigValuesToSet);
+
+		if (!SaveConfigValues(InProjectInfo, ConfigValuesToSet, OutFailReason))
 		{
 			return false;
 		}
@@ -2362,15 +2397,6 @@ bool GameProjectUtils::GenerateCodeProjectFiles(const FString& ProjectFilename, 
 	}
 
 	return true;
-}
-
-bool GameProjectUtils::IsStarterContentAvailableForNewProjects()
-{
-	TArray<FString> StarterContentFiles;
-	GetStarterContentFiles(StarterContentFiles);
-
-	bool bHasStaterContent = StarterContentFiles.FindByPredicate([&](const FString& Str){ return Str.Contains("StarterContent"); }) != nullptr;
-	return bHasStaterContent;
 }
 
 int32 FindSpecificBuildFiles(const TCHAR* Path, TMap<FString, FString>& BuildFiles)
@@ -2728,7 +2754,8 @@ GameProjectUtils::EProjectDuplicateResult GameProjectUtils::DuplicateProjectForU
 			break;
 		}
 
-		NewDirectoryName = NewDirectoryName.Left(LastSpace).TrimEnd();
+		NewDirectoryName.LeftInline(LastSpace, false);
+		NewDirectoryName.TrimEndInline();
 	}
 
 	// Append the new version number
@@ -3836,6 +3863,9 @@ GameProjectUtils::EAddCodeToProjectResult GameProjectUtils::AddCodeToProject_Int
 	const bool bProjectHadCodeFiles = ProjectHasCodeFiles();
 	if (!bProjectHadCodeFiles)
 	{
+		// Delete any generated intermediate code files. This ensures that blueprint projects with custom build settings can be converted to code projects without causing errors.
+		IFileManager::Get().DeleteDirectory(*(FPaths::ProjectIntermediateDir() / TEXT("Source")), false, true);
+
 		// We always add the basic source code to the root directory, not the potential sub-directory provided by NewClassPath
 		const FString SourceDir = FPaths::GameSourceDir().LeftChop(1); // Trim the trailing /
 
@@ -4089,11 +4119,11 @@ bool GameProjectUtils::InsertFeaturePacksIntoINIFile(const FProjectInformation& 
 		FString StarterPack;
 		if (InProjectInfo.TargetedHardware == EHardwareClass::Mobile)
 		{
-			StarterPack = TEXT("InsertPack=(PackSource=\"MobileStarterContent") + DefaultFeaturePackExtension + TEXT("\",PackName=\"StarterContent\")");
+			StarterPack = TEXT("InsertPack=(PackSource=\"MobileStarterContent.upack\",PackName=\"StarterContent\")");
 		}
 		else
 		{
-			StarterPack = TEXT("InsertPack=(PackSource=\"StarterContent")  + DefaultFeaturePackExtension + TEXT("\",PackName=\"StarterContent\")");
+			StarterPack = TEXT("InsertPack=(PackSource=\"StarterContent.upack\",PackName=\"StarterContent\")");
 		}
 		PackList.Add(StarterPack);
 	}
@@ -4133,9 +4163,6 @@ bool GameProjectUtils::AddSharedContentToProject(const FProjectInformation &InPr
 	const FString SrcFolder = FPaths::GetPath(InProjectInfo.TemplateFile);
 	const FString DestFolder = FPaths::GetPath(InProjectInfo.ProjectFilename);
 
-	const FString ProjectConfigPath = DestFolder / TEXT("Config");
-	const FString IniFilename = ProjectConfigPath / TEXT("DefaultGame.ini");
-
 	// Now any packs specified in the template def.
 	UTemplateProjectDefs* TemplateDefs = LoadTemplateDefs(SrcFolder);
 	if (TemplateDefs != NULL)
@@ -4147,7 +4174,7 @@ bool GameProjectUtils::AddSharedContentToProject(const FProjectInformation &InPr
 		}
 
 		TUniquePtr<FFeaturePackContentSource> TempFeaturePack = MakeUnique<FFeaturePackContentSource>();
-		bool bCopied = TempFeaturePack->InsertAdditionalResources(TemplateDefs->SharedContentPacks,RequiredDetail, DestFolder,CreatedFiles);
+		bool bCopied = TempFeaturePack->InsertAdditionalResources(TemplateDefs->SharedContentPacks, RequiredDetail, DestFolder, CreatedFiles);
 		if( bCopied == false )
 		{
 			FFormatNamedArguments Args;

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/SynthComponent.h"
 #include "DSP/Granulator.h"
+#include "Sound/SampleBufferIO.h"
 #include "Sound/SoundWave.h"
 #include "SynthComponentGranulator.generated.h"
 

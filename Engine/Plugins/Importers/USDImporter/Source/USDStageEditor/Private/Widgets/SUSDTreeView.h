@@ -24,7 +24,7 @@ public:
 	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > TreeItem ) = 0;
 
 public:
-	bool bIsMainColumn;
+	bool bIsMainColumn = false;
 };
 
 struct FSharedUsdTreeData
@@ -80,7 +80,7 @@ inline void SUsdTreeView< ItemType >::Construct( const FArguments& InArgs )
 
 	STreeView< ItemType >::Construct
 	(
-		STreeView< ItemType >::FArguments()
+		typename STreeView< ItemType >::FArguments()
 		.TreeItemsSource( &RootItems )
 		.OnGenerateRow( this, &SUsdTreeView< ItemType >::OnGenerateRow )
 		.OnGetChildren( this, &SUsdTreeView< ItemType >::OnGetChildren )
@@ -101,7 +101,7 @@ public:
 		TreeItem = InTreeItem;
 		SharedData = InSharedData;
 
-		SMultiColumnTableRow< ItemType >::Construct( SMultiColumnTableRow< ItemType >::FArguments(), OwnerTable );
+		SMultiColumnTableRow< ItemType >::Construct( typename SMultiColumnTableRow< ItemType >::FArguments(), OwnerTable );
 	}
 
 	/** Overridden from SMultiColumnTableRow.  Generates a widget for this column of the tree row. */

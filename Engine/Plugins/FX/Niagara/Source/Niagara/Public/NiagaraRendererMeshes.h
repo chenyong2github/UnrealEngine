@@ -21,7 +21,7 @@ public:
 	
 	//FNiagaraRenderer Interface
 	virtual void CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher) override;
-	virtual void ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher) override;
+	virtual void ReleaseRenderThreadResources() override;
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const override;
 	virtual FNiagaraDynamicDataBase* GenerateDynamicData(const FNiagaraSceneProxy* Proxy, const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) const override;
@@ -32,7 +32,7 @@ public:
 	void SetupVertexFactory(FNiagaraMeshVertexFactory *InVertexFactory, const FStaticMeshLODResources& LODResources) const;
 
 private:
-
+	mutable TArray<class FNiagaraMeshVertexFactory*, TInlineAllocator<2>> VertexFactories;
 	/** Render data of the static mesh we use. */
 	FStaticMeshRenderData* MeshRenderData;
 

@@ -273,22 +273,29 @@ void FStaticMeshInstanceBuffer::UpdateFromCommandBuffer_RenderThread(FInstanceUp
 	for (int32 i = 0; i < NumCommands; ++i)
 	{
 		const auto& Cmd = CmdBuffer.Cmds[i];
+
+		int32 InstanceIndex = Cmd.Type != FInstanceUpdateCmdBuffer::Add ? Cmd.InstanceIndex : AddIndex++;
+		if (!ensure(InstanceData->IsValidIndex(InstanceIndex)))
+		{
+			continue;
+		}
+
 		switch (Cmd.Type)
 		{
 		case FInstanceUpdateCmdBuffer::Add:
-			InstanceData->SetInstance(AddIndex++, Cmd.XForm, 0);
+			InstanceData->SetInstance(InstanceIndex, Cmd.XForm, 0);
 			break;
 		case FInstanceUpdateCmdBuffer::Hide:
-			InstanceData->NullifyInstance(Cmd.InstanceIndex);
+			InstanceData->NullifyInstance(InstanceIndex);
 			break;
 		case FInstanceUpdateCmdBuffer::Update:
-			InstanceData->SetInstance(Cmd.InstanceIndex, Cmd.XForm, 0);
+			InstanceData->SetInstance(InstanceIndex, Cmd.XForm, 0);
 			break;
 		case FInstanceUpdateCmdBuffer::EditorData:
-			InstanceData->SetInstanceEditorData(Cmd.InstanceIndex, Cmd.HitProxyColor, Cmd.bSelected);
+			InstanceData->SetInstanceEditorData(InstanceIndex, Cmd.HitProxyColor, Cmd.bSelected);
 			break;
 		case FInstanceUpdateCmdBuffer::LightmapData:
-			InstanceData->SetInstanceLightMapData(Cmd.InstanceIndex, Cmd.LightmapUVBias, Cmd.ShadowmapUVBias);
+			InstanceData->SetInstanceLightMapData(InstanceIndex, Cmd.LightmapUVBias, Cmd.ShadowmapUVBias);
 			break;
 		default:
 			check(false);
@@ -435,7 +442,6 @@ void FStaticMeshInstanceBuffer::BindInstanceVertexBuffer(const class FVertexFact
 
 void FStaticMeshInstanceData::Serialize(FArchive& Ar)
 {
-	// HTML5 doesn't support half float so we need to convert at cook time.
 	const bool bCookConvertTransformsToFullFloat = Ar.IsCooking() && bUseHalfFloat && !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::HalfFloatVertexFormat);
 
 	if (bCookConvertTransformsToFullFloat)
@@ -1443,7 +1449,7 @@ void UInstancedStaticMeshComponent::BuildRenderData(FStaticMeshInstanceData& Out
 	
 	for (int32 Index = 0; Index < NumInstances; ++Index)
 	{
-		int32 RenderIndex = InstanceReorderTable.IsValidIndex(Index) ? InstanceReorderTable[Index] : Index;
+		const int32 RenderIndex = GetRenderIndex(Index);
 		if (RenderIndex == INDEX_NONE) 
 		{
 			// could be skipped by density settings
@@ -1972,7 +1978,7 @@ void UInstancedStaticMeshComponent::SerializeRenderData(FArchive& Ar)
 					// Clear editor data for the cooked data
 					for (int32 Index = 0; Index < NumInstances; ++Index)
 					{
-						int32 RenderIndex = InstanceReorderTable.IsValidIndex(Index) ? InstanceReorderTable[Index] : Index;
+						const int32 RenderIndex = GetRenderIndex(Index);
 						if (RenderIndex == INDEX_NONE)
 						{
 							// could be skipped by density settings
@@ -1991,7 +1997,7 @@ void UInstancedStaticMeshComponent::SerializeRenderData(FArchive& Ar)
 
 					for (int32 Index = 0; Index < NumInstances; ++Index)
 					{
-						int32 RenderIndex = InstanceReorderTable.IsValidIndex(Index) ? InstanceReorderTable[Index] : Index;
+						const int32 RenderIndex = GetRenderIndex(Index);
 						if (RenderIndex == INDEX_NONE)
 						{
 							// could be skipped by density settings
@@ -2870,7 +2876,7 @@ void UInstancedStaticMeshComponent::SelectInstance(bool bInSelected, int32 InIns
 						HitProxyColor = PerInstanceRenderData->HitProxies[InstanceIndex]->Id.GetColor();
 					}
 
-					int32 RenderIndex = InstanceReorderTable.IsValidIndex(InstanceIndex) ? InstanceReorderTable[InstanceIndex] : InstanceIndex;
+					const int32 RenderIndex = GetRenderIndex(InstanceIndex);
 					if (RenderIndex != INDEX_NONE)
 					{
 						InstanceUpdateCmdBuffer.SetEditorData(RenderIndex, HitProxyColor, bSelected);
@@ -2902,7 +2908,7 @@ void UInstancedStaticMeshComponent::ClearInstanceSelection()
 					HitProxyColor = PerInstanceRenderData->HitProxies[InstanceIndex]->Id.GetColor();
 				}
 				
-				int32 RenderIndex = InstanceReorderTable.IsValidIndex(InstanceIndex) ? InstanceReorderTable[InstanceIndex] : InstanceIndex;
+				const int32 RenderIndex = GetRenderIndex(InstanceIndex);
 				if (RenderIndex != INDEX_NONE)
 				{
 					InstanceUpdateCmdBuffer.SetEditorData(RenderIndex, HitProxyColor, false);

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "DataprepParameterizableObject.h"
+
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
@@ -11,10 +13,10 @@
 /**
  * The Dataprep fetcher is a base class for Dataprep Selection system.
  * The responsibility of fetcher is return a certain type of data for a object. (Look at DataprepStringFetcher for a example)
- * This absract base class exist currently for the discovery process and some compile time validation
+ * This abstract base class exist currently for the discovery process, some compile time validation and to propagate UDataprepParameterizableObject
  */
 UCLASS(Abstract)
-class DATAPREPCORE_API UDataprepFetcher : public UObject
+class DATAPREPCORE_API UDataprepFetcher : public UDataprepParameterizableObject
 {
 	GENERATED_BODY()
 
@@ -31,6 +33,12 @@ public:
 	FText GetDisplayFetcherName() const;
 
 	/**
+	 * The name displayed on node title.
+	 */
+	UFUNCTION(BlueprintNativeEvent, Category = "Display")
+	FText GetNodeDisplayFetcherName() const;
+
+	/**
 	 * Allows to change the tooltip of the fetcher for the ui if needed.
 	 */
 	UFUNCTION(BlueprintNativeEvent,  Category = "Display")
@@ -45,6 +53,7 @@ public:
 
 	// The Native way to override the blueprint native events above
 	virtual FText GetDisplayFetcherName_Implementation() const;
+	virtual FText GetNodeDisplayFetcherName_Implementation() const;
 	virtual FText GetTooltipText_Implementation() const;
 	virtual FText GetAdditionalKeyword_Implementation() const;
 };

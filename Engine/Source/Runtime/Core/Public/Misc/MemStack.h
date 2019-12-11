@@ -345,6 +345,11 @@ public:
 		{
 			return !!Data;
 		}
+
+		SizeType GetInitialCapacity() const
+		{
+			return 0;
+		}
 			
 	private:
 

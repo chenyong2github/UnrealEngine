@@ -892,16 +892,26 @@ void FMeshDescriptionOperations::CreatePolygonNTB(FMeshDescription& MeshDescript
 						// Use InverseSlow to catch singular matrices.  Inverse can miss this sometimes.
 						const FMatrix TextureToLocal = ParameterToTexture.Inverse() * ParameterToLocal;
 
-						FVector TmpTangentX(0.0f);
-						FVector TmpTangentY(0.0f);
-						FVector TmpTangentZ(0.0f);
-						TmpTangentX = TextureToLocal.TransformVector(FVector(1, 0, 0)).GetSafeNormal();
-						TmpTangentY = TextureToLocal.TransformVector(FVector(0, 1, 0)).GetSafeNormal();
-						TmpTangentZ = Normal;
+						FVector TmpTangentX = TextureToLocal.TransformVector(FVector(1, 0, 0)).GetSafeNormal();
+						FVector TmpTangentY = TextureToLocal.TransformVector(FVector(0, 1, 0)).GetSafeNormal();
+						FVector TmpTangentZ = Normal;
 						FVector::CreateOrthonormalBasis(TmpTangentX, TmpTangentY, TmpTangentZ);
+
+						if (TmpTangentX.IsNearlyZero() || TmpTangentX.ContainsNaN()
+							|| TmpTangentY.IsNearlyZero() || TmpTangentY.ContainsNaN())
+						{
+							TmpTangentX = FVector::ZeroVector;
+							TmpTangentY = FVector::ZeroVector;
+						}
+
+						if (TmpTangentZ.IsNearlyZero() || TmpTangentZ.ContainsNaN())
+						{
+							TmpTangentZ = FVector::ZeroVector;
+						}
+
 						TangentX += TmpTangentX;
 						TangentY += TmpTangentY;
-						TangentZ += TmpTangentZ;
+						TangentZ += TmpTangentZ;						
 					}
 					else
 					{
@@ -1601,15 +1611,22 @@ bool FMeshDescriptionOperations::GenerateUniqueUVsForStaticMesh(const FMeshDescr
 		TArray<FPolygonID> ToDeletePolygons;
 		RemapVertexInstance.Reserve(DuplicateMeshDescription.VertexInstances().Num());
 		TArray<FPolygonID> UniquePolygons;
+
+		TArray<FVector2D> RefUVs;
 		for (FPolygonID RefPolygonID : DuplicateMeshDescription.Polygons().GetElementIDs())
 		{
 			FPolygonGroupID RefPolygonGroupID = DuplicateMeshDescription.GetPolygonPolygonGroup(RefPolygonID);
 			const TArray<FVertexInstanceID>& RefVertexInstances = DuplicateMeshDescription.GetPolygonVertexInstances(RefPolygonID);
-			TArray<FVector2D> RefUVs;
+
+			RefUVs.Empty(RefVertexInstances.Num() * VertexInstanceUVs.GetNumIndices());
 			for (FVertexInstanceID RefVertexInstanceID : RefVertexInstances)
 			{
-				RefUVs.Add(VertexInstanceUVs[RefVertexInstanceID]);
+				for (int32 UVChannel = 0; UVChannel < VertexInstanceUVs.GetNumIndices(); ++UVChannel)
+				{
+					RefUVs.Add(VertexInstanceUVs.Get(RefVertexInstanceID, UVChannel));
+				}
 			}
+
 			FPolygonID MatchPolygonID = FPolygonID::Invalid;
 			for (FPolygonID TestPolygonID : UniquePolygons)
 			{
@@ -1618,21 +1635,27 @@ bool FMeshDescriptionOperations::GenerateUniqueUVsForStaticMesh(const FMeshDescr
 				{
 					continue;
 				}
+
 				const TArray<FVertexInstanceID>& TestVertexInstances = DuplicateMeshDescription.GetPolygonVertexInstances(TestPolygonID);
 				if (TestVertexInstances.Num() != RefVertexInstances.Num())
 				{
 					continue;
 				}
+				
 				bool bIdentical = true;
 				int32 UVIndex = 0;
 				for (FVertexInstanceID TestVertexInstanceID : TestVertexInstances)
 				{
-					if (VertexInstanceUVs[TestVertexInstanceID] != RefUVs[UVIndex])
+					// All UV channels must match for polygons to be identical
+					for (int32 UVChannel = 0; bIdentical && UVChannel < VertexInstanceUVs.GetNumIndices(); ++UVIndex, ++UVChannel)
 					{
-						bIdentical = false;
+						bIdentical = VertexInstanceUVs.Get(TestVertexInstanceID, UVChannel) == RefUVs[UVIndex];
+					}
+
+					if (!bIdentical)
+					{
 						break;
 					}
-					UVIndex++;
 				}
 				if (bIdentical)
 				{

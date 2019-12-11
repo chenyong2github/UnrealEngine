@@ -234,7 +234,9 @@ ExistingSkelMeshData* SaveExistingSkelMeshData(USkeletalMesh* ExistingSkelMesh, 
 	{
 		return nullptr;
 	}
+
 	bool ReimportSpecificLOD = (ReimportLODIndex > 0) && ExistingSkelMesh->GetLODNum() > ReimportLODIndex;
+	int32 SafeReimportLODIndex = ReimportLODIndex < 0 ? 0 : ReimportLODIndex;
 
 	ExistingMeshDataPtr = new ExistingSkelMeshData();
 		
@@ -255,20 +257,65 @@ ExistingSkelMeshData* SaveExistingSkelMeshData(USkeletalMesh* ExistingSkelMesh, 
 
 	for (int32 LodIndex = 0; LodIndex < ImportedResource->LODModels.Num(); ++LodIndex)
 	{
-		const FSkeletalMeshLODModel& LODModel = ImportedResource->LODModels[LodIndex];
-		ExistingMeshDataPtr->ExistingImportMeshLodSectionMaterialData.AddZeroed();
-		for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); ++SectionIndex)
+		FSkeletalMeshLODModel OriginalLODModel;
+		FSkeletalMeshLODModel* BackupLODModel = &(ImportedResource->LODModels[LodIndex]);
+		if (LodIndex == SafeReimportLODIndex && (ImportedResource->OriginalReductionSourceMeshData.IsValidIndex(SafeReimportLODIndex) && !ImportedResource->OriginalReductionSourceMeshData[SafeReimportLODIndex]->IsEmpty()))
 		{
-			const FSkelMeshSourceSectionUserData& UserSectionData = LODModel.UserSectionsData.FindChecked(LODModel.Sections[SectionIndex].OriginalDataSectionIndex);
-			int32 SectionMaterialIndex = LODModel.Sections[SectionIndex].MaterialIndex;
-			bool SectionCastShadow = UserSectionData.bCastShadow;
-			bool SectionRecomputeTangents = UserSectionData.bRecomputeTangent;
-			int32 GenerateUpTo = UserSectionData.GenerateUpToLodIndex;
-			bool bDisabled = UserSectionData.bDisabled;
-			bool bBoneChunkedSection = LODModel.Sections[SectionIndex].ChunkedParentSectionIndex != INDEX_NONE;
-			if (ExistingMeshDataPtr->ExistingImportMaterialOriginalNameData.IsValidIndex(SectionMaterialIndex))
+			FSkeletalMeshLODInfo* LODInfo = ExistingSkelMesh->GetLODInfo(SafeReimportLODIndex);
+			TMap<FString, TArray<FMorphTargetDelta>> TempLODMorphTargetData;
+			//Get the before reduce LODModel, this lod model contain all the possible sections
+			ImportedResource->OriginalReductionSourceMeshData[SafeReimportLODIndex]->LoadReductionData(OriginalLODModel, TempLODMorphTargetData, ExistingSkelMesh);
+			//If there was section that was remove by the reduction (Disabled in the original data, zero triangle after reduction, GenerateUpTo settings...),
+			//we have to use the original section data and apply the section data that was modified after the reduction
+			if (OriginalLODModel.Sections.Num() > BackupLODModel->Sections.Num())
 			{
-				ExistingMeshDataPtr->ExistingImportMeshLodSectionMaterialData[LodIndex].Add(ExistingMeshLodSectionData(ExistingMeshDataPtr->ExistingImportMaterialOriginalNameData[SectionMaterialIndex], SectionCastShadow, SectionRecomputeTangents, GenerateUpTo, bDisabled, bBoneChunkedSection));
+				TArray<bool> OriginalMatched;
+				OriginalMatched.AddZeroed(OriginalLODModel.Sections.Num());
+				//Now apply the after reduce settings change, but we need to match the section since there can be reduced one
+				for (int32 ReduceSectionIndex = 0; ReduceSectionIndex < BackupLODModel->Sections.Num(); ++ReduceSectionIndex)
+				{
+					const FSkelMeshSection& ReduceSection = BackupLODModel->Sections[ReduceSectionIndex];
+					for (int32 OriginalSectionIndex = 0; OriginalSectionIndex < OriginalLODModel.Sections.Num(); ++OriginalSectionIndex)
+					{
+						if (OriginalMatched[OriginalSectionIndex])
+						{
+							continue;
+						}
+						FSkelMeshSection& OriginalSection = OriginalLODModel.Sections[OriginalSectionIndex];
+						if ((OriginalSection.bDisabled) || (OriginalSection.GenerateUpToLodIndex != INDEX_NONE && OriginalSection.GenerateUpToLodIndex < SafeReimportLODIndex))
+						{
+							continue;
+						}
+
+						if (ReduceSection.MaterialIndex == OriginalSection.MaterialIndex)
+						{
+							OriginalMatched[OriginalSectionIndex] = true;
+							OriginalSection.bDisabled = ReduceSection.bDisabled;
+							OriginalSection.bCastShadow = ReduceSection.bCastShadow;
+							OriginalSection.bRecomputeTangent = ReduceSection.bRecomputeTangent;
+							OriginalSection.GenerateUpToLodIndex = ReduceSection.GenerateUpToLodIndex;
+						}
+					}
+				}
+				//Use the OriginalLODModel
+				BackupLODModel = &OriginalLODModel;
+			}
+		}
+		ExistingMeshDataPtr->ExistingImportMeshLodSectionMaterialData.AddZeroed();
+		check(ExistingMeshDataPtr->ExistingImportMeshLodSectionMaterialData.IsValidIndex(LodIndex));
+
+		for (int32 SectionIndex = 0; SectionIndex < BackupLODModel->Sections.Num(); ++SectionIndex)
+		{
+			int32 SectionMaterialIndex = BackupLODModel->Sections[SectionIndex].MaterialIndex;
+			bool SectionCastShadow = BackupLODModel->Sections[SectionIndex].bCastShadow;
+			bool SectionRecomputeTangents = BackupLODModel->Sections[SectionIndex].bRecomputeTangent;
+			int32 GenerateUpTo = BackupLODModel->Sections[SectionIndex].GenerateUpToLodIndex;
+			bool bDisabled = BackupLODModel->Sections[SectionIndex].bDisabled;
+			bool bBoneChunkedSection = BackupLODModel->Sections[SectionIndex].ChunkedParentSectionIndex != INDEX_NONE;
+			//Only save the original section, do not save the chunked sections
+			if (!bBoneChunkedSection && ExistingMeshDataPtr->ExistingImportMaterialOriginalNameData.IsValidIndex(SectionMaterialIndex))
+			{
+				ExistingMeshDataPtr->ExistingImportMeshLodSectionMaterialData[LodIndex].Add(ExistingMeshLodSectionData(ExistingMeshDataPtr->ExistingImportMaterialOriginalNameData[SectionMaterialIndex], SectionCastShadow, SectionRecomputeTangents, GenerateUpTo, bDisabled));
 			}
 		}
 	}
@@ -285,7 +332,7 @@ ExistingSkelMeshData* SaveExistingSkelMeshData(USkeletalMesh* ExistingSkelMesh, 
 		ExistingSkelMesh->GetLODNum() == ImportedResource->LODModels.Num() )
 	{
 		int32 OffsetReductionLODIndex = 0;
-		FSkeletalMeshLODInfo* LODInfo = ExistingSkelMesh->GetLODInfo( ReimportLODIndex < 0 ? 0 : ReimportLODIndex);
+		FSkeletalMeshLODInfo* LODInfo = ExistingSkelMesh->GetLODInfo( SafeReimportLODIndex);
 		ExistingMeshDataPtr->bIsReimportLODReduced = (LODInfo && LODInfo->bHasBeenSimplified);
 		if (ExistingMeshDataPtr->bIsReimportLODReduced)
 		{
@@ -414,33 +461,6 @@ ExistingSkelMeshData* SaveExistingSkelMeshData(USkeletalMesh* ExistingSkelMesh, 
 	ExistingMeshDataPtr->ExistingOnMeshChanged = ExistingSkelMesh->GetOnMeshChanged();
 
 	return ExistingMeshDataPtr;
-}
-
-void RegenerateDependentLODs(USkeletalMesh* SkelMesh, int32 LODIndex)
-{
-	check(SkelMesh);
-
-	IMeshReductionModule& ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionModule>("MeshReductionInterface");
-	IMeshReduction* MeshReduction = ReductionModule.GetSkeletalMeshReductionInterface();
-	if (MeshReduction && MeshReduction->IsSupported())
-	{
-		FSkeletalMeshUpdateContext UpdateContext;
-		UpdateContext.SkeletalMesh = SkelMesh;
-		TArray<bool> DependentLODs;
-		DependentLODs.AddZeroed(SkelMesh->GetLODNum());
-		DependentLODs[LODIndex] = true;
-		for (int32 CurrentLODIndex = LODIndex + 1; CurrentLODIndex < DependentLODs.Num(); ++CurrentLODIndex)
-		{
-			FSkeletalMeshLODInfo& CurrentLODInfo = *(SkelMesh->GetLODInfo(CurrentLODIndex));
-			FSkeletalMeshOptimizationSettings& Settings = CurrentLODInfo.ReductionSettings;
-			if (CurrentLODInfo.bHasBeenSimplified && DependentLODs[Settings.BaseLOD])
-			{
-				DependentLODs[CurrentLODIndex] = true;
-				//Regenerate this LOD
-				FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, CurrentLODIndex, false);
-			}
-		}
-	}
 }
 
 void RestoreDependentLODs(ExistingSkelMeshData* MeshData, USkeletalMesh* SkeletalMesh)
@@ -658,7 +678,7 @@ void RestoreExistingSkelMeshData(ExistingSkelMeshData* MeshData, USkeletalMesh* 
 	{
 		return;
 	}
-
+	int32 SafeReimportLODIndex = ReimportLODIndex < 0 ? 0 : ReimportLODIndex;
 	SkeletalMesh->MinLod = MeshData->MinLOD;
 	SkeletalMesh->DisableBelowMinLodStripping = MeshData->DisableBelowMinLodStripping;
 	SkeletalMesh->bSupportLODStreaming = MeshData->bSupportLODStreaming;
@@ -726,6 +746,10 @@ void RestoreExistingSkelMeshData(ExistingSkelMeshData* MeshData, USkeletalMesh* 
 			//Copy the re ordered materials (this ensure the material array do not change when we re-import)
 			SkeletalMesh->Materials = MaterialOrdered;
 		}
+		else
+		{
+			bMaterialReset = true;
+		}
 	}
 
 	SkeletalMesh->LODSettings = MeshData->ExistingLODSettings;
@@ -735,21 +759,8 @@ void RestoreExistingSkelMeshData(ExistingSkelMeshData* MeshData, USkeletalMesh* 
 		SkeletalMesh->LODSettings->SetLODSettingsToMesh(SkeletalMesh, 0);
 	}
 
-	//Copy back the reimport LOD specific data
-	if (SkeletalMesh->GetLODInfoArray().IsValidIndex(ReimportLODIndex))
-	{
-		FSkeletalMeshLODInfo& BaseLODInfo = SkeletalMesh->GetLODInfoArray()[ReimportLODIndex];
-		//Restore the build setting first
-		BaseLODInfo.BuildSettings = MeshData->ExistingBaseLODInfo.BuildSettings;
-		if (MeshData->bIsReimportLODReduced)
-		{
-			//Restore the reimport LOD reduction settings
-			BaseLODInfo.ReductionSettings = MeshData->ExistingBaseLODInfo.ReductionSettings;
-		}
-	}
-
 	//Do everything we need for base LOD re-import
-	if (ReimportLODIndex < 1)
+	if (SafeReimportLODIndex < 1)
 	{
 		// this is not ideal. Ideally we'll have to save only diff with indicating which joints, 
 		// but for now, we allow them to keep the previous pose IF the element count is same
@@ -954,33 +965,34 @@ void RestoreExistingSkelMeshData(ExistingSkelMeshData* MeshData, USkeletalMesh* 
 	if (MeshData->UseMaterialNameSlotWorkflow)
 	{
 		//Restore the base LOD materialMap the LODs LODMaterialMap are restore differently
-		if (ReimportLODIndex < 1 && SkeletalMesh->GetLODInfoArray().IsValidIndex(ReimportLODIndex))
+		if (SafeReimportLODIndex < 1 && SkeletalMesh->GetLODInfoArray().IsValidIndex(SafeReimportLODIndex))
 		{
-			FSkeletalMeshLODInfo& BaseLODInfo = SkeletalMesh->GetLODInfoArray()[ReimportLODIndex];
-			//Restore the Base MaterialMap
-			if (SkeletalMesh->GetImportedModel() && SkeletalMesh->GetImportedModel()->LODModels.IsValidIndex(ReimportLODIndex))
+			FSkeletalMeshLODInfo& BaseLODInfo = SkeletalMesh->GetLODInfoArray()[SafeReimportLODIndex];
+			if(bMaterialReset)
 			{
-				FSkeletalMeshLODModel& LODModel = SkeletalMesh->GetImportedModel()->LODModels[ReimportLODIndex];
+				//If we reset the material array there is no point keeping the user changes
+				BaseLODInfo.LODMaterialMap.Empty();
+			}
+			else if (SkeletalMesh->GetImportedModel() && SkeletalMesh->GetImportedModel()->LODModels.IsValidIndex(SafeReimportLODIndex))
+			{
+				//Restore the Base MaterialMap
+				FSkeletalMeshLODModel& LODModel = SkeletalMesh->GetImportedModel()->LODModels[SafeReimportLODIndex];
 				for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); ++SectionIndex)
 				{
 					int32 MaterialIndex = LODModel.Sections[SectionIndex].MaterialIndex;
-					if (MeshData->ExistingBaseLODInfo.LODMaterialMap.IsValidIndex(MaterialIndex))
+					if (MeshData->ExistingBaseLODInfo.LODMaterialMap.IsValidIndex(SectionIndex))
 					{
-						int32 ExistingLODMaterialIndex = MeshData->ExistingBaseLODInfo.LODMaterialMap[MaterialIndex];
-						while (BaseLODInfo.LODMaterialMap.Num() <= MaterialIndex)
+						int32 ExistingLODMaterialIndex = MeshData->ExistingBaseLODInfo.LODMaterialMap[SectionIndex];
+						while (BaseLODInfo.LODMaterialMap.Num() <= SectionIndex)
 						{
 							BaseLODInfo.LODMaterialMap.Add(INDEX_NONE);
 						}
-						if (RemapMaterial.IsValidIndex(ExistingLODMaterialIndex))
-						{
-							ExistingLODMaterialIndex = RemapMaterial[ExistingLODMaterialIndex];
-						}
-						BaseLODInfo.LODMaterialMap[MaterialIndex] = ExistingLODMaterialIndex;
+						BaseLODInfo.LODMaterialMap[SectionIndex] = ExistingLODMaterialIndex;
 					}
 				}
 			}
 		}
-		FSkeletalMeshLODModel &NewSkelMeshLodModel = SkeletalMeshImportedModel->LODModels[ReimportLODIndex];
+		FSkeletalMeshLODModel &NewSkelMeshLodModel = SkeletalMeshImportedModel->LODModels[SafeReimportLODIndex];
 		int32 ParentSectionIndex = 0;
 		//Restore the section changes from the old import data
 		for (int32 SectionIndex = 0; SectionIndex < NewSkelMeshLodModel.Sections.Num(); SectionIndex++)
@@ -994,53 +1006,52 @@ void RestoreExistingSkelMeshData(ExistingSkelMeshData* MeshData, USkeletalMesh* 
 				if (SkeletalMesh->Materials.IsValidIndex(RemapMaterial[NewMeshSectionMaterialIndex]))
 				{
 					NewSkelMeshLodModel.Sections[SectionIndex].MaterialIndex = RemapMaterial[NewMeshSectionMaterialIndex];
-					if (MeshData->ExistingImportMeshLodSectionMaterialData[ReimportLODIndex].IsValidIndex(RemapMaterial[NewMeshSectionMaterialIndex]))
+					if (MeshData->ExistingImportMeshLodSectionMaterialData[SafeReimportLODIndex].IsValidIndex(RemapMaterial[NewMeshSectionMaterialIndex]))
 					{
-						NewSkelMeshLodModel.Sections[SectionIndex].bCastShadow = MeshData->ExistingImportMeshLodSectionMaterialData[ReimportLODIndex][RemapMaterial[NewMeshSectionMaterialIndex]].bCastShadow;
-						NewSkelMeshLodModel.Sections[SectionIndex].bRecomputeTangent = MeshData->ExistingImportMeshLodSectionMaterialData[ReimportLODIndex][RemapMaterial[NewMeshSectionMaterialIndex]].bRecomputeTangents;
-						NewSkelMeshLodModel.Sections[SectionIndex].GenerateUpToLodIndex = MeshData->ExistingImportMeshLodSectionMaterialData[ReimportLODIndex][RemapMaterial[NewMeshSectionMaterialIndex]].GenerateUpTo;
-						NewSkelMeshLodModel.Sections[SectionIndex].bDisabled = MeshData->ExistingImportMeshLodSectionMaterialData[ReimportLODIndex][RemapMaterial[NewMeshSectionMaterialIndex]].bDisabled;
-						bool bBoneChunkedSection = MeshData->ExistingImportMeshLodSectionMaterialData[ReimportLODIndex][RemapMaterial[NewMeshSectionMaterialIndex]].bBoneChunkedSection;
+						NewSkelMeshLodModel.Sections[SectionIndex].bCastShadow = MeshData->ExistingImportMeshLodSectionMaterialData[SafeReimportLODIndex][RemapMaterial[NewMeshSectionMaterialIndex]].bCastShadow;
+						NewSkelMeshLodModel.Sections[SectionIndex].bRecomputeTangent = MeshData->ExistingImportMeshLodSectionMaterialData[SafeReimportLODIndex][RemapMaterial[NewMeshSectionMaterialIndex]].bRecomputeTangents;
+						NewSkelMeshLodModel.Sections[SectionIndex].GenerateUpToLodIndex = MeshData->ExistingImportMeshLodSectionMaterialData[SafeReimportLODIndex][RemapMaterial[NewMeshSectionMaterialIndex]].GenerateUpTo;
+						NewSkelMeshLodModel.Sections[SectionIndex].bDisabled = MeshData->ExistingImportMeshLodSectionMaterialData[SafeReimportLODIndex][RemapMaterial[NewMeshSectionMaterialIndex]].bDisabled;
+						bool bBoneChunkedSection = NewSkelMeshLodModel.Sections[SectionIndex].ChunkedParentSectionIndex >= 0;
+						int32 ParentOriginalSectionIndex = NewSkelMeshLodModel.Sections[SectionIndex].OriginalDataSectionIndex;
 						if (!bBoneChunkedSection)
 						{
 							//Set the new Parent Index
 							ParentSectionIndex = SectionIndex;
-							FSkelMeshSourceSectionUserData& UserSectionData = NewSkelMeshLodModel.UserSectionsData.FindOrAdd(ParentSectionIndex);
+							FSkelMeshSourceSectionUserData& UserSectionData = NewSkelMeshLodModel.UserSectionsData.FindOrAdd(ParentOriginalSectionIndex);
 							UserSectionData.bDisabled = NewSkelMeshLodModel.Sections[SectionIndex].bDisabled;
 							UserSectionData.bCastShadow = NewSkelMeshLodModel.Sections[SectionIndex].bCastShadow;
 							UserSectionData.bRecomputeTangent = NewSkelMeshLodModel.Sections[SectionIndex].bRecomputeTangent;
 							UserSectionData.GenerateUpToLodIndex = NewSkelMeshLodModel.Sections[SectionIndex].GenerateUpToLodIndex;
 							//The cloth will be rebind later after the reimport is done
 						}
-						NewSkelMeshLodModel.Sections[SectionIndex].ChunkedParentSectionIndex = bBoneChunkedSection ? ParentSectionIndex : INDEX_NONE;
-						NewSkelMeshLodModel.Sections[SectionIndex].OriginalDataSectionIndex = ParentSectionIndex;
 					}
 				}
 			}
 
-			if (MeshData->LastImportMeshLodSectionMaterialData.Num() < 1 || !MeshData->LastImportMeshLodSectionMaterialData.IsValidIndex(ReimportLODIndex) || MeshData->LastImportMeshLodSectionMaterialData[ReimportLODIndex].Num() <= SectionIndex ||
-				MeshData->ExistingImportMeshLodSectionMaterialData.Num() < 1 || !MeshData->ExistingImportMeshLodSectionMaterialData.IsValidIndex(ReimportLODIndex) || MeshData->ExistingImportMeshLodSectionMaterialData[ReimportLODIndex].Num() <= SectionIndex)
+			if (MeshData->LastImportMeshLodSectionMaterialData.Num() < 1 || !MeshData->LastImportMeshLodSectionMaterialData.IsValidIndex(SafeReimportLODIndex) || MeshData->LastImportMeshLodSectionMaterialData[SafeReimportLODIndex].Num() <= SectionIndex ||
+				MeshData->ExistingImportMeshLodSectionMaterialData.Num() < 1 || !MeshData->ExistingImportMeshLodSectionMaterialData.IsValidIndex(SafeReimportLODIndex) || MeshData->ExistingImportMeshLodSectionMaterialData[SafeReimportLODIndex].Num() <= SectionIndex)
 			{
 				break;
 			}
 
 			FName CurrentSectionImportedMaterialName = SkeletalMesh->Materials[NewSkelMeshLodModel.Sections[SectionIndex].MaterialIndex].ImportedMaterialSlotName;
-			for (int32 ExistSectionIndex = 0; ExistSectionIndex < MeshData->ExistingImportMeshLodSectionMaterialData[ReimportLODIndex].Num(); ++ExistSectionIndex)
+			for (int32 ExistSectionIndex = 0; ExistSectionIndex < MeshData->LastImportMeshLodSectionMaterialData[SafeReimportLODIndex].Num(); ++ExistSectionIndex)
 			{
-				if (!MeshData->LastImportMeshLodSectionMaterialData[ReimportLODIndex].IsValidIndex(ExistSectionIndex) || !MeshData->ExistingImportMeshLodSectionMaterialData[ReimportLODIndex].IsValidIndex(ExistSectionIndex))
+				int32 OriginalSectionIndex = NewSkelMeshLodModel.Sections[ExistSectionIndex].OriginalDataSectionIndex;
+				if (!MeshData->LastImportMeshLodSectionMaterialData[SafeReimportLODIndex].IsValidIndex(ExistSectionIndex) || !MeshData->ExistingImportMeshLodSectionMaterialData[SafeReimportLODIndex].IsValidIndex(OriginalSectionIndex))
 				{
 					continue;
 				}
 				//Get the Last imported skelmesh section slot import name
-				FName OriginalImportMeshSectionSlotName = MeshData->LastImportMeshLodSectionMaterialData[ReimportLODIndex][ExistSectionIndex];
+				FName OriginalImportMeshSectionSlotName = MeshData->LastImportMeshLodSectionMaterialData[SafeReimportLODIndex][ExistSectionIndex];
 				if (OriginalImportMeshSectionSlotName != CurrentSectionImportedMaterialName)
 				{
 					continue;
 				}
 
 				//Get the current skelmesh section slot import name
-				FName ExistMeshSectionSlotName = MeshData->ExistingImportMeshLodSectionMaterialData[ReimportLODIndex][ExistSectionIndex].ImportedMaterialSlotName;
-				if (ExistMeshSectionSlotName != OriginalImportMeshSectionSlotName)
+				FName ExistMeshSectionSlotName = MeshData->ExistingImportMeshLodSectionMaterialData[SafeReimportLODIndex][OriginalSectionIndex].ImportedMaterialSlotName;
 				{
 					//The last import slot name match the New import slot name, but the Exist slot name is different then the last import slot name.
 					//This mean the user has change the section assign slot and the fbx file did not change it
@@ -1062,18 +1073,16 @@ void RestoreExistingSkelMeshData(ExistingSkelMeshData* MeshData, USkeletalMesh* 
 		NewSkelMeshLodModel.SyncronizeUserSectionsDataArray(true);
 	}
 
-	if (!bImportSkinningOnly && !MeshData->bIsReimportLODReduced)
+	//Copy back the reimport LOD specific data
+	if (SkeletalMesh->GetLODInfoArray().IsValidIndex(SafeReimportLODIndex))
 	{
-		if (ReimportLODIndex < 0)
+		FSkeletalMeshLODInfo& BaseLODInfo = SkeletalMesh->GetLODInfoArray()[SafeReimportLODIndex];
+		//Restore the build setting first
+		BaseLODInfo.BuildSettings = MeshData->ExistingBaseLODInfo.BuildSettings;
+		if (MeshData->bIsReimportLODReduced)
 		{
-			if (SkeletalMeshImportedModel->OriginalReductionSourceMeshData.IsValidIndex(0))
-			{
-				SkeletalMeshImportedModel->OriginalReductionSourceMeshData[0]->EmptyBulkData();
-			}
-		}
-		else if (SkeletalMeshImportedModel->OriginalReductionSourceMeshData.IsValidIndex(ReimportLODIndex))
-		{
-			SkeletalMeshImportedModel->OriginalReductionSourceMeshData[ReimportLODIndex]->EmptyBulkData();
+			//Restore the reimport LOD reduction settings
+			BaseLODInfo.ReductionSettings = MeshData->ExistingBaseLODInfo.ReductionSettings;
 		}
 	}
 
@@ -1089,6 +1098,15 @@ void RestoreExistingSkelMeshData(ExistingSkelMeshData* MeshData, USkeletalMesh* 
 		UserDataObject->Rename(nullptr, SkeletalMesh, REN_DontCreateRedirectors | REN_DoNotDirty);
 		SkeletalMesh->AddAssetUserData(UserDataObject);
 	}
+
+	if (!bImportSkinningOnly && !MeshData->bIsReimportLODReduced)
+	{
+		if (SkeletalMeshImportedModel->OriginalReductionSourceMeshData.IsValidIndex(SafeReimportLODIndex))
+		{
+			SkeletalMeshImportedModel->OriginalReductionSourceMeshData[SafeReimportLODIndex]->EmptyBulkData();
+		}
+	}
+
 	//Copy mesh changed delegate data
 	SkeletalMesh->GetOnMeshChanged() = MeshData->ExistingOnMeshChanged;
 }

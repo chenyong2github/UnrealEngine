@@ -300,10 +300,6 @@ void SMyBlueprint::Construct(const FArguments& InArgs, TWeakPtr<FBlueprintEditor
 			FCanExecuteAction(),
 			FIsActionChecked(),
 			FIsActionButtonVisible::CreateSP(this, &SMyBlueprint::IsNativeVariable) );
-
-		TSharedPtr<FBlueprintEditorToolbar> Toolbar = MakeShareable(new FBlueprintEditorToolbar(InBlueprintEditor.Pin()));
-		TSharedPtr<FExtender> Extender = MakeShareable(new FExtender);
-		Toolbar->AddNewToolbar(Extender);
 		ToolbarBuilderWidget = SNullWidget::NullWidget;
 	
 		ToolKitCommandList->MapAction(FGenericCommands::Get().Rename,
@@ -1407,6 +1403,11 @@ void SMyBlueprint::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 						OverridableFunctionActions.Add(NewFuncAction);
 						OverridableFunctionNames.Add(FunctionName);
 					}
+
+					if(bIsAnimFunction && NewFuncAction->EdGraph)
+					{
+						GetChildGraphs(NewFuncAction->EdGraph, NewFuncAction->GetSectionID(), SortList, FunctionCategory);
+					}
 				}
 			}
 		}
@@ -2144,6 +2145,10 @@ void SMyBlueprint::BuildAddNewMenu(FMenuBuilder& MenuBuilder)
 		if (CurrentBlueprint->SupportsDelegates())
 		{
 			MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewDelegate);
+		}
+		if (CurrentBlueprint->SupportsAnimLayers())
+		{
+			MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewAnimationLayer);
 		}
 	}
 	MenuBuilder.EndSection();

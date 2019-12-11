@@ -85,6 +85,8 @@ FSkeletalMeshEditorMode::FSkeletalMeshEditorMode(TSharedRef<FWorkflowCentricAppl
 	LayoutExtender = MakeShared<FLayoutExtender>();
 	PersonaModule.OnRegisterLayoutExtensions().Broadcast(*LayoutExtender.Get());
 	TabLayout->ProcessExtensions(*LayoutExtender.Get());
+
+	SkeletalMeshEditor->RegisterModeToolbarIfUnregistered(GetModeName());
 }
 
 void FSkeletalMeshEditorMode::RegisterTabFactories(TSharedPtr<FTabManager> InTabManager)

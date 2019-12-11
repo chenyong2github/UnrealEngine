@@ -63,6 +63,7 @@ public:
 	UNiagaraRibbonRendererProperties();
 
 	//UObject Interface
+	virtual void PostLoad() override;
 	virtual void PostInitProperties() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -88,6 +89,10 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")
 	UMaterialInterface* Material;
+
+	/** Use the UMaterialInterface bound to this user variable if it is set to a valid value. If this is bound to a valid value and Material is also set, UserParamBinding wins.*/
+	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")
+	FNiagaraUserParameterBinding MaterialUserParamBinding;
 
 	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")
 	ENiagaraRibbonFacingMode FacingMode;
@@ -209,4 +214,7 @@ public:
 
 protected:
 	void InitBindings();
+
+private: 
+	static TArray<TWeakObjectPtr<UNiagaraRibbonRendererProperties>> RibbonRendererPropertiesToDeferredInit;
 };

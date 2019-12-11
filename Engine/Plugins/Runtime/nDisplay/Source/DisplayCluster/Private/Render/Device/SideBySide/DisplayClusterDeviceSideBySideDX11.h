@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Render/Device/SideBySide/DisplayClusterDeviceSideBySideBase.h"
-#include "Render/Presentation/DisplayClusterDevicePresentationDX11.h"
 
 
 /**
@@ -11,15 +10,11 @@
  */
 class FDisplayClusterDeviceSideBySideDX11
 	: public FDisplayClusterDeviceSideBySideBase
-	, public FDisplayClusterDevicePresentationDX11
 {
 public:
 	FDisplayClusterDeviceSideBySideDX11();
 	virtual ~FDisplayClusterDeviceSideBySideDX11();
 
 protected:
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	// FRHICustomPresent
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual bool Present(int32& InOutSyncInterval) override;
+	virtual FDisplayClusterPresentationBase* CreatePresentationObject(FViewport* const Viewport, TSharedPtr<IDisplayClusterRenderSyncPolicy>& SyncPolicy) override;
 };

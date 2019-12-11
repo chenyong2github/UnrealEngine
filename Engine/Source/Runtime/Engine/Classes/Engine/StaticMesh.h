@@ -661,6 +661,7 @@ class UStaticMesh : public UStreamableRenderAsset, public IInterface_CollisionDa
 	/**
 	 * If true, StaticMesh has been built at runtime
 	 */
+	UPROPERTY()
 	uint8 bIsBuiltAtRuntime : 1;
 
 protected:
@@ -781,7 +782,7 @@ public:
 	/**
 	 * Registers the mesh attributes required by the mesh description for a static mesh.
 	 */
-	UE_DEPRECATED(4.25, "Please use FStaticMeshAttributes::Register to do this.")
+	UE_DEPRECATED(4.24, "Please use FStaticMeshAttributes::Register to do this.")
 	ENGINE_API static void RegisterMeshAttributes( FMeshDescription& MeshDescription );
 
 #if WITH_EDITORONLY_DATA
@@ -790,6 +791,15 @@ public:
 	 * and there is a FRawMesh data for this LODIndex.
 	 */
 	ENGINE_API FMeshDescription* GetMeshDescription(int32 LodIndex) const;
+
+	/* 
+	 * Clone the MeshDescription associated to the LODIndex.
+	 *
+	 * This will make a copy of any pending mesh description that hasn't been committed or will deserialize
+	 * from the bulkdata or rawmesh directly if no current working copy exists.
+	 */
+	ENGINE_API bool CloneMeshDescription(int32 LodIndex, FMeshDescription& OutMeshDescription) const;
+
 	ENGINE_API bool IsMeshDescriptionValid(int32 LodIndex) const;
 	ENGINE_API FMeshDescription* CreateMeshDescription(int32 LodIndex);
 	ENGINE_API FMeshDescription* CreateMeshDescription(int32 LodIndex, FMeshDescription MeshDescription);
@@ -1207,7 +1217,7 @@ public:
 	ENGINE_API void RemoveVertexColors();
 
 	/** Make sure the Lightmap UV point on a valid UVChannel */
-	ENGINE_API void EnforceLightmapRestrictions();
+	ENGINE_API void EnforceLightmapRestrictions(bool bUseRenderData = true);
 
 	/** Calculates the extended bounds */
 	ENGINE_API void CalculateExtendedBounds();
@@ -1299,6 +1309,13 @@ private:
 	 * Complete the static mesh building process - Can't be done in parallel.
 	 */
 	void PostBuildInternal(const TArray<UStaticMeshComponent*>& InAffectedComponents, bool bHasRenderDataChanged);
+
+#if WITH_EDITORONLY_DATA
+	/**
+	 * Deserialize MeshDescription for the specified LodIndex from BulkData, DDC or RawMesh.
+	 */
+	bool LoadMeshDescription(int32 LodIndex, FMeshDescription& OutMeshDescription) const;
+#endif
 
 public:
 	/**

@@ -293,6 +293,7 @@ public:
 	void ForgetActor(AActor* ActorToForget);
 
 	/** basically cleans up PerceptualData, resulting in loss of all previous perception */
+	UFUNCTION(BlueprintCallable, Category = "AI|Perception")
 	void ForgetAll();
 
 	float GetYoungestStimulusAge(const AActor& Source) const;

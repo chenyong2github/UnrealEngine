@@ -22,6 +22,9 @@
 #include "Widgets/Input/STextComboBox.h"
 #include "NiagaraSystem.h"
 
+#include "NiagaraScriptVariable.h"
+#include "NiagaraConstants.h"
+
 #define LOCTEXT_NAMESPACE "FNiagaraVariableAttributeBindingCustomization"
 
 
@@ -125,7 +128,7 @@ FText FNiagaraVariableAttributeBindingCustomization::GetTooltipText() const
 			DefaultValueStr.TrimEndInline();
 		}
 
-		FText TooltipDesc = FText::Format(LOCTEXT("BindingTooltip", "Use the variable \"{0}\" if it exists, otherwise use the default \"{1}\" "), FText::FromName(TargetVariableBinding->BoundVariable.GetName()),
+		FText TooltipDesc = FText::Format(LOCTEXT("AttributeBindingTooltip", "Use the variable \"{0}\" if it exists, otherwise use the default \"{1}\" "), FText::FromName(TargetVariableBinding->BoundVariable.GetName()),
 			FText::FromString(DefaultValueStr));
 		return TooltipDesc;
 	}
@@ -224,7 +227,7 @@ void FNiagaraVariableAttributeBindingCustomization::OnActionSelected(const TArra
 
 void FNiagaraVariableAttributeBindingCustomization::ChangeSource(FName InVarName)
 {
-	FScopedTransaction Transaction(FText::Format(LOCTEXT("ChangeSource", " Change Variable Source to \"{0}\" "), FText::FromName(InVarName)));
+	FScopedTransaction Transaction(FText::Format(LOCTEXT("ChangeVariableSource", " Change Variable Source to \"{0}\" "), FText::FromName(InVarName)));
 	TArray<UObject*> Objects;
 	PropertyHandle->GetOuterObjects(Objects);
 	for (UObject* Obj : Objects)
@@ -314,7 +317,7 @@ FText FNiagaraUserParameterBindingCustomization::GetTooltipText() const
 {
 	if (BaseSystem && TargetUserParameterBinding && TargetUserParameterBinding->Parameter.IsValid())
 	{
-		FText TooltipDesc = FText::Format(LOCTEXT("BindingTooltip", "Bound to the user parameter \"{0}\""), FText::FromName(TargetUserParameterBinding->Parameter.GetName()));
+		FText TooltipDesc = FText::Format(LOCTEXT("ParameterBindingTooltip", "Bound to the user parameter \"{0}\""), FText::FromName(TargetUserParameterBinding->Parameter.GetName()));
 		return TooltipDesc;
 	}
 	return FText::FromString(TEXT("Missing"));
@@ -366,7 +369,7 @@ void FNiagaraUserParameterBindingCustomization::CollectAllActions(FGraphActionLi
 		FText CategoryName = FText();
 		FString DisplayNameString = FName::NameToDisplayString(UserParamName.ToString(), false);
 		const FText NameText = FText::FromString(DisplayNameString);
-		const FText TooltipDesc = FText::Format(LOCTEXT("SetFunctionPopupTooltip", "Bind to the User Parameter \"{0}\" "), FText::FromString(DisplayNameString));
+		const FText TooltipDesc = FText::Format(LOCTEXT("BindToUserParameter", "Bind to the User Parameter \"{0}\" "), FText::FromString(DisplayNameString));
 		TSharedPtr<FNiagaraStackAssetAction_VarBind> NewNodeAction(new FNiagaraStackAssetAction_VarBind(UserParamName, CategoryName, NameText,
 			TooltipDesc, 0, FText()));
 		OutAllActions.AddAction(NewNodeAction);
@@ -406,7 +409,7 @@ void FNiagaraUserParameterBindingCustomization::OnActionSelected(const TArray< T
 
 void FNiagaraUserParameterBindingCustomization::ChangeSource(FName InVarName)
 {
-	FScopedTransaction Transaction(FText::Format(LOCTEXT("ChangeSource", " Change User Parameter Source to \"{0}\" "), FText::FromName(InVarName)));
+	FScopedTransaction Transaction(FText::Format(LOCTEXT("ChangeParameterSource", " Change User Parameter Source to \"{0}\" "), FText::FromName(InVarName)));
 	TArray<UObject*> Objects;
 	PropertyHandle->GetOuterObjects(Objects);
 	for (UObject* Obj : Objects)
@@ -476,6 +479,227 @@ void FNiagaraUserParameterBindingCustomization::CustomizeHeader(TSharedRef<IProp
 	}
 }
 
+
+FText FNiagaraScriptVariableBindingCustomization::GetCurrentText() const
+{
+	if (BaseGraph && TargetVariableBinding && TargetVariableBinding->IsValid())
+	{
+		return FText::FromName(TargetVariableBinding->Name);
+	}
+	return FText::FromString(TEXT("None"));
+}
+
+FText FNiagaraScriptVariableBindingCustomization::GetTooltipText() const
+{
+	if (BaseGraph && TargetVariableBinding && TargetVariableBinding->IsValid())
+	{
+		FText TooltipDesc = FText::Format(LOCTEXT("BindingTooltip", "Use the variable \"{0}\" if it is defined, otherwise use the type's default value."), FText::FromName(TargetVariableBinding->Name));
+		return TooltipDesc;
+	}
+	return FText::FromString(TEXT("There is no default binding selected."));
+}
+
+TSharedRef<SWidget> FNiagaraScriptVariableBindingCustomization::OnGetMenuContent() const
+{
+	FGraphActionMenuBuilder MenuBuilder; // TODO: Is this necessary? It's included in all the other implementations above, but it's never used. Spooky
+
+	return SNew(SBorder)
+		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.Padding(5)
+		[
+			SNew(SBox)
+			[
+				SNew(SGraphActionMenu)
+				.OnActionSelected(const_cast<FNiagaraScriptVariableBindingCustomization*>(this), &FNiagaraScriptVariableBindingCustomization::OnActionSelected)
+				.OnCreateWidgetForAction(SGraphActionMenu::FOnCreateWidgetForAction::CreateSP(const_cast<FNiagaraScriptVariableBindingCustomization*>(this), &FNiagaraScriptVariableBindingCustomization::OnCreateWidgetForAction))
+				.OnCollectAllActions(const_cast<FNiagaraScriptVariableBindingCustomization*>(this), &FNiagaraScriptVariableBindingCustomization::CollectAllActions)
+				.AutoExpandActionMenu(false)
+				.ShowFilterTextBox(true)
+			]
+		];
+}
+
+TArray<FName> FNiagaraScriptVariableBindingCustomization::GetNames() const
+{
+	// TODO: Only show Particles attributes for valid graphs,
+	//       i.e. only show Particles attributes for Particle scripts
+	//       and only show Emitter attributes for Emitter and Particle scripts.
+	TArray<FName> Names;
+
+	for (const FNiagaraParameterMapHistory& History : UNiagaraNodeParameterMapBase::GetParameterMaps(BaseGraph))
+	{
+		for (const FNiagaraVariable& Var : History.Variables)
+		{
+			FString Namespace = FNiagaraParameterMapHistory::GetNamespace(Var);
+			if (Namespace == TEXT("Module."))
+			{
+				// TODO: Skip module inputs for now. Does it make sense to bind module inputs to module inputs?
+				continue;
+			}
+			if (Var.GetType() == BaseScriptVariable->Variable.GetType())
+			{
+				Names.AddUnique(Var.GetName());
+			}
+		}
+	}
+
+	for (const auto& Var : BaseGraph->GetParameterReferenceMap())
+	{
+		FString Namespace = FNiagaraParameterMapHistory::GetNamespace(Var.Key);
+		if (Namespace == TEXT("Module."))
+		{
+			// TODO: Skip module inputs for now. Does it make sense to bind module inputs to module inputs?
+			continue;
+		}
+		if (Var.Key.GetType() == BaseScriptVariable->Variable.GetType())
+		{
+			Names.AddUnique(Var.Key.GetName());
+		}
+	}
+
+	for (const FNiagaraVariable& Var : FNiagaraConstants::GetEngineConstants())
+	{
+		if (Var.GetType() == BaseScriptVariable->Variable.GetType())
+		{
+			Names.AddUnique(Var.GetName());
+		}
+	}
+
+	for (const FNiagaraVariable& Var : FNiagaraConstants::GetCommonParticleAttributes())
+	{
+		if (Var.GetType() == BaseScriptVariable->Variable.GetType())
+		{
+			Names.AddUnique(Var.GetName());
+		}
+	}
+
+	return Names;
+}
+
+void FNiagaraScriptVariableBindingCustomization::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
+{
+	if (BaseGraph)
+	{
+		for (FName Name : GetNames())
+		{
+			const FText NameText = FText::FromName(Name);
+			const FText TooltipDesc = FText::Format(LOCTEXT("SetFunctionPopupTooltip", "Use the variable \"{0}\" "), NameText);
+			TSharedPtr<FNiagaraStackAssetAction_VarBind> NewNodeAction(
+				new FNiagaraStackAssetAction_VarBind(Name, FText(), NameText, TooltipDesc, 0, FText())
+			);
+			OutAllActions.AddAction(NewNodeAction);
+		}
+	}
+}
+
+TSharedRef<SWidget> FNiagaraScriptVariableBindingCustomization::OnCreateWidgetForAction(struct FCreateWidgetForActionData* const InCreateData)
+{
+	return SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew(STextBlock)
+			.Text(InCreateData->Action->GetMenuDescription())
+			.ToolTipText(InCreateData->Action->GetTooltipDescription())
+		];
+}
+
+void FNiagaraScriptVariableBindingCustomization::OnActionSelected(const TArray< TSharedPtr<FEdGraphSchemaAction> >& SelectedActions, ESelectInfo::Type InSelectionType)
+{
+	if (InSelectionType == ESelectInfo::OnMouseClick || InSelectionType == ESelectInfo::OnKeyPress || SelectedActions.Num() == 0)
+	{
+		for (auto& CurrentAction : SelectedActions)
+		{
+			if (CurrentAction.IsValid())
+			{
+				FSlateApplication::Get().DismissAllMenus();
+				FNiagaraStackAssetAction_VarBind* EventSourceAction = (FNiagaraStackAssetAction_VarBind*)CurrentAction.Get();
+				ChangeSource(EventSourceAction->VarName);
+			}
+		}
+	}
+}
+
+void FNiagaraScriptVariableBindingCustomization::ChangeSource(FName InVarName)
+{
+	FScopedTransaction Transaction(FText::Format(LOCTEXT("ChangeBinding", " Change default binding to \"{0}\" "), FText::FromName(InVarName)));
+	TArray<UObject*> Objects;
+	PropertyHandle->GetOuterObjects(Objects);
+	for (UObject* Obj : Objects)
+	{
+		Obj->Modify();
+	}
+
+	PropertyHandle->NotifyPreChange();
+	TargetVariableBinding->Name = InVarName;
+	PropertyHandle->NotifyPostChange();
+	PropertyHandle->NotifyFinishedChangingProperties();
+}
+
+void FNiagaraScriptVariableBindingCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
+{
+	PropertyHandle = InPropertyHandle;
+	TArray<UObject*> Objects;
+	PropertyHandle->GetOuterObjects(Objects);
+	bool bAddDefault = true;
+	if (Objects.Num() == 1)
+	{
+		BaseScriptVariable = Cast<UNiagaraScriptVariable>(Objects[0]);
+		if (BaseScriptVariable)
+		{
+		    BaseGraph = Cast<UNiagaraGraph>(BaseScriptVariable->GetOuter());
+			if (BaseGraph)
+			{
+				TargetVariableBinding = (FNiagaraScriptVariableBinding*)PropertyHandle->GetValueBaseAddress((uint8*)Objects[0]);
+
+				HeaderRow
+					.NameContent()
+					[
+						PropertyHandle->CreatePropertyNameWidget()
+					]
+				.ValueContent()
+					.MaxDesiredWidth(200.f)
+					[
+						SNew(SComboButton)
+						.OnGetMenuContent(this, &FNiagaraScriptVariableBindingCustomization::OnGetMenuContent)
+					.ContentPadding(1)
+					.ToolTipText(this, &FNiagaraScriptVariableBindingCustomization::GetTooltipText)
+					.ButtonContent()
+					[
+						SNew(STextBlock)
+						.Text(this, &FNiagaraScriptVariableBindingCustomization::GetCurrentText)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+					]
+					];
+				bAddDefault = false;
+			}
+			else
+			{
+				BaseScriptVariable = nullptr;
+			}
+		}
+		else
+		{
+			BaseGraph = nullptr;
+		}
+	}
+	
+	if (bAddDefault)
+	{
+		HeaderRow
+			.NameContent()
+			[
+				PropertyHandle->CreatePropertyNameWidget()
+			]
+		.ValueContent()
+			.MaxDesiredWidth(200.f)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(FName::NameToDisplayString(Cast<UStructProperty>(PropertyHandle->GetProperty())->Struct->GetName(), false)))
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			];
+	}
+}
 
 
 

@@ -138,7 +138,7 @@ public:
 		, _AllowInvisibleItemSelection(false)
 		, _HighlightParentNodesForSelection(false)
 		{
-			//_Clipping = EWidgetClipping::ClipToBounds;
+			this->_Clipping = EWidgetClipping::ClipToBounds;
 		}
 
 		SLATE_EVENT( FOnGenerateRow, OnGenerateRow )
@@ -284,6 +284,7 @@ public:
 			{
 				this->ScrollBar->SetDragFocusCause(InArgs._ScrollbarDragFocusCause);
 			}
+			this->AddMetadata(MakeShared<TTableViewMetadata<ItemType>>(this->SharedThis(this)));
 		}
 	}
 

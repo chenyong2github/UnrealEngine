@@ -490,14 +490,14 @@ public:
 				VisitedSandboxFiles.Add( *LocalFilename );
 				// Now convert the sandbox path back to engine path because the sandbox folder should not be exposed
 				// to the engine and remain transparent.
-				LocalFilename = LocalFilename.Mid(SandboxFile.GetSandboxDirectory().Len());
+				LocalFilename.MidInline(SandboxFile.GetSandboxDirectory().Len(), MAX_int32, false);
 				if (LocalFilename.StartsWith(TEXT("Engine/")) || (FCString::Stricmp( *LocalFilename, TEXT("Engine") ) == 0))
 				{
 					LocalFilename = SandboxFile.GetAbsoluteRootDirectory() / LocalFilename;
 				}
 				else
 				{
-					LocalFilename = LocalFilename.Mid(SandboxFile.GetGameSandboxDirectoryName().Len());
+					LocalFilename.MidInline(SandboxFile.GetGameSandboxDirectoryName().Len(), MAX_int32, false);
 					LocalFilename = SandboxFile.GetAbsoluteGameDirectory() / LocalFilename;
 				}
 			}
@@ -562,7 +562,7 @@ public:
 				VisitedSandboxFiles.Add( *LocalFilename );
 				// Now convert the sandbox path back to engine path because the sandbox folder should not be exposed
 				// to the engine and remain transparent.
-				LocalFilename = LocalFilename.Mid(SandboxFile.GetSandboxDirectory().Len());
+				LocalFilename.MidInline(SandboxFile.GetSandboxDirectory().Len(), MAX_int32, false);
 				if (LocalFilename.StartsWith(TEXT("Engine/")))
 				{
 					LocalFilename = SandboxFile.GetAbsoluteRootDirectory() / LocalFilename;

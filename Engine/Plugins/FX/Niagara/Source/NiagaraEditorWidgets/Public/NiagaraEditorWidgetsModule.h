@@ -13,6 +13,9 @@ class FNiagaraStackCurveEditorOptions
 public:
 	FNiagaraStackCurveEditorOptions();
 
+	bool GetNeedsInitializeView() const;
+	void InitializeView(float InViewMinInput, float InViewMaxInput, float InViewMinOutput, float InViewMaxOutput);
+
 	float GetViewMinInput() const;
 	float GetViewMaxInput() const;
 	void SetInputViewRange(float InViewMinInput, float InViewMaxInput);
@@ -35,6 +38,7 @@ private:
 	float ViewMinOutput;
 	float ViewMaxOutput;
 	bool bAreCurvesVisible;
+	bool bNeedsInitializeView;
 	float Height;
 };
 
@@ -47,8 +51,10 @@ private:
 	class FNiagaraEditorWidgetProvider : public INiagaraEditorWidgetProvider
 	{
 	public:
-		virtual TSharedRef<SWidget> CreateStackView(UNiagaraStackViewModel& StackViewModel) override;
-		virtual TSharedRef<SWidget> CreateSystemOverview(TSharedRef<FNiagaraSystemViewModel> SystemViewModel) override;
+		virtual TSharedRef<SWidget> CreateStackView(UNiagaraStackViewModel& StackViewModel) const override;
+		virtual TSharedRef<SWidget> CreateSystemOverview(TSharedRef<FNiagaraSystemViewModel> SystemViewModel) const override;
+		virtual TSharedRef<SWidget> CreateStackIssueIcon(UNiagaraStackViewModel& StackViewModel, UNiagaraStackEntry& StackEntry) const override;
+		virtual FLinearColor GetColorForExecutionCategory(FName ExecutionCategory) const override;
 	};
 
 public:

@@ -17,7 +17,8 @@ public class AudioSettingsEditor : ModuleRules
 				"PropertyEditor",
 				"SharedSettingsWidgets",
 				"UnrealEd",
-			}
+                "CoreUObject"
+            }
 		);
 	}
 }

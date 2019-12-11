@@ -119,6 +119,11 @@ struct CHAOS_API FLatentDrawCommand
 		Capsule,
 	} Type;
 
+	FLatentDrawCommand()
+		: TestBaseActor(nullptr)
+	{
+	}
+
 	static FLatentDrawCommand DrawPoint(const FVector& Position, const FColor& Color, bool bPersistentLines, float LifeTime, uint8 DepthPriority, float Thickness)
 	{
 		FLatentDrawCommand Command;

@@ -15,7 +15,7 @@
 // Insights
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
-#include "Insights/Widgets/STimersViewTooltip.h"
+#include "Insights/Widgets/STimerTableRow.h"
 
 #define LOCTEXT_NAMESPACE "STimersView"
 
@@ -23,7 +23,7 @@
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
-void STimerTableCell::Construct(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow)
+void STimerTableCell::Construct(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
 	TablePtr = InArgs._TablePtr;
 	ColumnPtr = InArgs._ColumnPtr;
@@ -43,7 +43,7 @@ void STimerTableCell::Construct(const FArguments& InArgs, const TSharedRef<class
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> STimerTableCell::GenerateWidgetForColumn(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow)
+TSharedRef<SWidget> STimerTableCell::GenerateWidgetForColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
 	if (InArgs._IsNameColumn)
 	{
@@ -57,7 +57,7 @@ TSharedRef<SWidget> STimerTableCell::GenerateWidgetForColumn(const FArguments& I
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> STimerTableCell::GenerateWidgetForNameColumn(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow)
+TSharedRef<SWidget> STimerTableCell::GenerateWidgetForNameColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
 	return
 		SNew(SHorizontalBox)
@@ -91,7 +91,7 @@ TSharedRef<SWidget> STimerTableCell::GenerateWidgetForNameColumn(const FArgument
 				SNew(SImage)
 				.Visibility(this, &STimerTableCell::GetHintIconVisibility)
 				.Image(FEditorStyle::GetBrush("Profiler.Tooltip.HintIcon10"))
-				.ToolTip(STimersViewTooltip::GetCellTooltip(TimerNodePtr, ColumnPtr))
+				.ToolTip(GetRowToolTip(TableRow))
 			]
 		]
 
@@ -114,10 +114,23 @@ TSharedRef<SWidget> STimerTableCell::GenerateWidgetForNameColumn(const FArgument
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> STimerTableCell::GenerateWidgetForStatsColumn(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow)
+TSharedPtr<IToolTip> STimerTableCell::GetRowToolTip(const TSharedRef<ITableRow>& TableRow) const
 {
-	const FText CellText = ColumnPtr->GetValueAsText(*TimerNodePtr);
+	TSharedRef<STimerTableRow> Row = StaticCastSharedRef<STimerTableRow, ITableRow>(TableRow);
+	return Row->GetRowToolTip();
+}
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText STimerTableCell::GetValueAsText() const
+{
+	return ColumnPtr->GetValueAsText(*TimerNodePtr);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> STimerTableCell::GenerateWidgetForStatsColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
+{
 	return
 		SNew(SHorizontalBox)
 
@@ -129,7 +142,7 @@ TSharedRef<SWidget> STimerTableCell::GenerateWidgetForStatsColumn(const FArgumen
 		.Padding(FMargin(2.0f, 0.0f))
 		[
 			SNew(STextBlock)
-			.Text(CellText)
+			.Text(this, &STimerTableCell::GetValueAsText)
 			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 			.ColorAndOpacity(this, &STimerTableCell::GetStatsColorAndOpacity)
 			.ShadowColorAndOpacity(this, &STimerTableCell::GetShadowColorAndOpacity)

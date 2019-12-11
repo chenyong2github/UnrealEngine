@@ -6,20 +6,19 @@
 # Setup Mono
 source Engine/Build/BatchFiles/Mac/SetupMono.sh Engine/Build/BatchFiles/Mac
 
-# override env if action is specified on command line 
-if [ $1 == "clean" ] 
-	then 
-		ACTION="clean" 
-fi 
+# override env if action is specified on command line
+if [ $1 == "clean" ]; then
+	ACTION="clean"
+fi
 
 
 case $ACTION in
 	"")
 		echo Building $1...
 
-                Platform=""
-                AdditionalFlags=""
-		
+		Platform=""
+		AdditionalFlags=""
+
 		case $CLANG_STATIC_ANALYZER_MODE in
 				"deep")
 					AdditionalFlags+="-SkipActionHistory"
@@ -36,31 +35,28 @@ case $ACTION in
 			;;
 			esac
 
-		case $2 in 
+		case $2 in
 			"iphoneos"|"IOS")
-		        Platform="IOS"
+				Platform="IOS"
 				AdditionalFlags+=" -deploy "
-			;; 
+			;;
 			"appletvos")
-		        Platform="TVOS"
+				Platform="TVOS"
 				AdditionalFlags+=" -deploy "
-			;; 
-  			"iphonesimulator")
-		        	Platform="IOS"
-		         	AdditionalFlags+=" -deploy -simulator"
+			;;
+			"iphonesimulator")
+				Platform="IOS"
+				AdditionalFlags+=" -deploy -simulator"
 			;;
 			"macosx")
-					Platform="Mac"
-			;;
-			"HTML5")
-				Platform="HTML5"
+				Platform="Mac"
 			;;
 			*)
 				Platform="$2"
-				AdditionalFlags+=" -deploy " 
-			;; 
+#				AdditionalFlags+=" -deploy "
+			;;
 		esac
-		
+
 		BuildTasks=$(defaults read com.apple.dt.Xcode IDEBuildOperationMaxNumberOfConcurrentCompileTasks)
 		export NumUBTBuildTasks=$BuildTasks
 
@@ -75,29 +71,26 @@ case $ACTION in
 	"clean")
 		echo "Cleaning $2 $3 $4..."
 
-                Platform=""
-                AdditionalFlags="-clean"
+			Platform=""
+			AdditionalFlags="-clean"
 
-		case $3 in 
+		case $3 in
 			"iphoneos"|"IOS")
-	        	        Platform="IOS"
+				Platform="IOS"
 				AdditionalFlags+=" "
 			;;
 			"iphonesimulator")
-			        Platform="IOS"
-		        	AdditionalFlags+=" -simulator"
+				Platform="IOS"
+				AdditionalFlags+=" -simulator"
 				AdditionalFlags+=" "
-			;; 
+			;;
 			"macosx")
 					Platform="Mac"
 			;;
-			"HTML5")
-				Platform="HTML5"
+			*)
+				Platform="$3"
 			;;
-			*) 
-        			Platform="$3"
-			;;
-		
+
 		esac
 		echo Running command: mono Engine/Binaries/DotNET/UnrealBuildTool.exe $2 $Platform $4 $AdditionalFlags "${@:5}"
 		mono Engine/Binaries/DotNET/UnrealBuildTool.exe $2 $Platform $4 $AdditionalFlags "${@:5}"
@@ -107,6 +100,5 @@ esac
 ExitCode=$?
 if [ $ExitCode -eq 254 ] || [ $ExitCode -eq 255 ] || [ $ExitCode -eq 2 ]; then
 	exit 0
-else
-	exit $ExitCode
 fi
+exit $ExitCode

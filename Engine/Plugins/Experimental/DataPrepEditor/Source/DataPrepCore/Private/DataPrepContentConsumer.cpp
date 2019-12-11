@@ -23,6 +23,12 @@ UDataprepContentConsumer::UDataprepContentConsumer()
 	TargetContentFolder = FPaths::GetPath( GetOutermost()->GetPathName() );
 }
 
+void UDataprepContentConsumer::PostEditUndo()
+{
+	Super::PostEditUndo();
+	OnChanged.Broadcast();
+}
+
 bool UDataprepContentConsumer::Consume(const FDataprepConsumerContext& InContext)
 {
 	if(!InContext.WorldPtr.IsValid())
@@ -59,25 +65,57 @@ bool UDataprepContentConsumer::Consume(const FDataprepConsumerContext& InContext
 	return bSuccessful;
 }
 
-bool UDataprepContentConsumer::SetTargetContentFolder(const FString& InTargetContentFolder)
+bool UDataprepContentConsumer::SetTargetContentFolder(const FString& InTargetContentFolder, FText& OutReason)
 {
-	if( InTargetContentFolder.IsEmpty() )
+	bool bValidContentFolder = true;
+
+	if( !InTargetContentFolder.IsEmpty() )
 	{
-		TargetContentFolder = FPaths::GetPath( GetOutermost()->GetPathName() );
-		OnChanged.Broadcast();
-		return true;
+		// Pretend creating a dummy package to verify packages could be created under this content folder.
+		bValidContentFolder = FPackageName::IsValidLongPackageName( InTargetContentFolder / TEXT("DummyPackageName"), false, &OutReason );
 	}
 
-	// Pretend creating a dummy package to verify packages could be created under this content folder.
-	FString LongPackageName = InTargetContentFolder / TEXT("DummyPackageName");
-	if( FPackageName::IsValidLongPackageName( LongPackageName ) )
+	if(bValidContentFolder)
 	{
-		TargetContentFolder = InTargetContentFolder;
+		Modify();
+
+		TargetContentFolder = !InTargetContentFolder.IsEmpty() ? InTargetContentFolder : FPaths::GetPath( GetOutermost()->GetPathName() );
+
+		// Remove ending '/' if applicable
+		if(TargetContentFolder[TargetContentFolder.Len() - 1] == L'/')
+		{
+			TargetContentFolder.RemoveAt(TargetContentFolder.Len() - 1, 1);
+		}
+
 		OnChanged.Broadcast();
-		return true;
 	}
 
-	return false;
+	return bValidContentFolder;
+}
+
+FString UDataprepContentConsumer::GetTargetPackagePath() const
+{
+	FString TargetPackagePath(TargetContentFolder);
+
+	if( TargetPackagePath.IsEmpty() )
+	{
+		TargetPackagePath = TEXT("/Game/");
+	}
+	else if( TargetPackagePath.StartsWith( TEXT("/Content") ) )
+	{
+		TargetPackagePath = TargetPackagePath.Replace( TEXT("/Content"), TEXT("/Game") );
+	}
+
+	// If path is one level deep, make sure it ends with a '/'
+	int32 Index = -1;
+	TargetPackagePath.FindLastChar(L'/', Index);
+	check(Index >= 0);
+	if(Index == 0)
+	{
+		TargetPackagePath.Append( TEXT("/") );
+	}
+
+	return TargetPackagePath;
 }
 
 bool UDataprepContentConsumer::SetLevelName(const FString & InLevelName, FText& OutReason)
@@ -101,7 +139,7 @@ void UDataprepContentConsumer::AddDataprepAssetUserData()
 
 				if(!DataprepAssetUserData)
 				{
-					EObjectFlags Flags = RF_Public /*| RF_Transactional*/; // RF_Transactional Disabled as is can cause a crash in the transaction system for blueprints
+					EObjectFlags Flags = RF_Public /*| RF_Transactional*/; // RF_Transactional Disabled as it can cause a crash in the transaction system for blueprints
 
 					DataprepAssetUserData = NewObject< UDataprepAssetUserData >( Object, NAME_None, Flags );
 

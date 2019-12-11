@@ -41,6 +41,16 @@ public:
 	virtual void SetBaseOrientation(const FQuat& BaseOrient) override;
 	virtual FQuat GetBaseOrientation() const override;
 
+	virtual class IHeadMountedDisplay* GetHMDDevice() override
+	{
+		return this;
+	}
+
+	virtual class TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > GetStereoRenderingDevice() override
+	{
+		return SharedThis(this);
+	}
+
 protected:
 	/** FXRTrackingSystemBase protected interface */
 	virtual float GetWorldToMetersScale() const override;

@@ -219,8 +219,6 @@ public:
 	// IModuleInterface interface
 	virtual void StartupModule() override
 	{
-		IModularFeatures::Get().RegisterModularFeature(INetworkMessagingExtension::ModularFeatureName, this);
-
 		if (!IsSupportEnabled())
 		{
 			return;
@@ -264,6 +262,8 @@ public:
 		FCoreDelegates::ApplicationWillDeactivateDelegate.AddRaw(this, &FUdpMessagingModule::HandleApplicationWillDeactivate);
 
 		RestartServices();
+
+		IModularFeatures::Get().RegisterModularFeature(INetworkMessagingExtension::ModularFeatureName, this);
 	}
 
 	virtual void ShutdownModule() override
@@ -537,7 +537,12 @@ protected:
 			
 			FString StaticEndpoints;
 			FParse::Value(CommandLine, TEXT("-UDPMESSAGING_TRANSPORT_STATIC="), StaticEndpoints, false);
-			StaticEndpoints.ParseIntoArray(Settings->StaticEndpoints, TEXT(","));
+			TArray<FString> CommandLineStaticEndpoints;
+			StaticEndpoints.ParseIntoArray(CommandLineStaticEndpoints, TEXT(","));
+			for (const FString& CmdStaticEndpoint : CommandLineStaticEndpoints)
+			{
+				Settings->StaticEndpoints.AddUnique(CmdStaticEndpoint);
+			}
 		}
 	}
 

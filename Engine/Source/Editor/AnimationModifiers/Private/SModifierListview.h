@@ -7,6 +7,7 @@
 #include "AnimationModifier.h"
 
 DECLARE_DELEGATE_OneParam(FOnModifierArray, const TArray<TWeakObjectPtr<UAnimationModifier>>&);
+DECLARE_DELEGATE_RetVal_OneParam(bool, FOnCanModifierArray, const TArray<TWeakObjectPtr<UAnimationModifier>>&);
 DECLARE_DELEGATE_OneParam(FOnSingleModifier, const TWeakObjectPtr<UAnimationModifier>&);
 
 /** Data representation of a modifier in the listview */
@@ -27,6 +28,7 @@ class SModifierListView : public SCompoundWidget
 	SLATE_ARGUMENT(TArray<ModifierListviewItem>*, Items)
 	SLATE_ARGUMENT(TSharedPtr<IDetailsView>, InstanceDetailsView)
 	SLATE_ARGUMENT(FOnModifierArray, OnApplyModifier);
+	SLATE_ARGUMENT(FOnCanModifierArray, OnCanRevertModifier)
 	SLATE_ARGUMENT(FOnModifierArray, OnRevertModifier);
 	SLATE_ARGUMENT(FOnModifierArray, OnRemoveModifier);
 	SLATE_ARGUMENT(FOnSingleModifier, OnOpenModifier);
@@ -44,6 +46,7 @@ class SModifierListView : public SCompoundWidget
 	void OnRemoveModifier();
 	void OnOpenModifier();
 	void OnRevertModifier();
+	bool OnCanRevertModifier();
 	void OnMoveUpModifier();
 	void OnMoveDownModifier();
 
@@ -65,6 +68,7 @@ protected:
 	/** Delegates back to SAnimationModifiersTab functionality */
 	FOnModifierArray OnApplyModifierDelegate;
 	FOnModifierArray OnRevertModifierDelegate;
+	FOnCanModifierArray OnCanRevertModifierDelegate;
 	FOnModifierArray OnRemoveModifierDelegate;
 	FOnSingleModifier OnOpenModifierDelegate;
 	FOnSingleModifier OnMoveUpModifierDelegate;

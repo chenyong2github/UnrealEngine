@@ -25,6 +25,11 @@ public:
 	{
 		return new Audio::FMixerDevice(new Audio::FAudioMixerPlatformSDL());
 	}
+
+	virtual Audio::IAudioMixerPlatformInterface* CreateAudioMixerPlatformInterface() override
+	{
+		return new Audio::FAudioMixerPlatformSDL();
+	}
 };
 
 IMPLEMENT_MODULE(FAudioMixerModuleSDL, AudioMixerSDL);

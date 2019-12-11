@@ -15,7 +15,7 @@ FStaticMeshComponentBuilder::FStaticMeshComponentBuilder()
 	NewStaticMesh = nullptr;
 }
 
-void FStaticMeshComponentBuilder::Initialize(UPackage* AssetPackage, FName MeshName)
+void FStaticMeshComponentBuilder::Initialize(UPackage* AssetPackage, FName MeshName, int NumMaterialSlots)
 {
 	// create new UStaticMesh object
 	EObjectFlags flags = EObjectFlags::RF_Public | EObjectFlags::RF_Standalone;
@@ -39,8 +39,12 @@ void FStaticMeshComponentBuilder::Initialize(UPackage* AssetPackage, FName MeshN
 		NewStaticMesh->BodySetup->CollisionTraceFlag = ECollisionTraceFlag::CTF_UseComplexAsSimple;
 	}
 
-	// add a material slot
-	NewStaticMesh->StaticMaterials.Add(FStaticMaterial());
+	// add a material slot. Must always have one material slot.
+	int AddMaterialCount = FMath::Max(1, NumMaterialSlots);
+	for (int MatIdx = 0; MatIdx < AddMaterialCount; MatIdx++)
+	{
+		NewStaticMesh->StaticMaterials.Add(FStaticMaterial());
+	}
 }
 
 

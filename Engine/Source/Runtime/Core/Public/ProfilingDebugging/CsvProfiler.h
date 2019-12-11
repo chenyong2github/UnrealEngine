@@ -29,6 +29,10 @@
 #define CSV_PROFILER_ALLOW_DEBUG_FEATURES (!UE_BUILD_SHIPPING)
 #endif
 
+#ifndef CSV_PROFILER_USE_CUSTOM_FRAME_TIMINGS
+#define CSV_PROFILER_USE_CUSTOM_FRAME_TIMINGS 0
+#endif
+
 #if WITH_SERVER_CODE
   #define CSV_PROFILER (WITH_ENGINE && 1)
 #else
@@ -257,6 +261,7 @@ public:
 	CORE_API bool IsWritingFile();
 
 	CORE_API int32 GetCaptureFrameNumber();
+	CORE_API int32 GetNumFrameToCaptureOnEvent();
 
 	CORE_API bool EnableCategoryByString(const FString& CategoryName) const;
 
@@ -306,6 +311,7 @@ private:
 
 	int32 NumFramesToCapture;
 	int32 CaptureFrameNumber;
+	int32 CaptureOnEventFrameCount;
 
 	bool bInsertEndFrameAtFrameStart;
 

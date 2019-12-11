@@ -342,6 +342,12 @@ void* FD3D12DynamicRHI::RHIGetNativeDevice()
 	return (void*)GetAdapter().GetD3DDevice();
 }
 
+void* FD3D12DynamicRHI::RHIGetNativeInstance()
+{
+	return nullptr;
+}
+
+
 /**
 * Returns a supported screen resolution that most closely matches the input.
 * @param Width - Input: Desired resolution width in pixels. Output: A width that the platform supports.

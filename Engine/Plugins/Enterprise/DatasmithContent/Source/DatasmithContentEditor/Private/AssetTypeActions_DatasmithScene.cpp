@@ -6,6 +6,8 @@
 #include "DatasmithContentEditorModule.h"
 #include "DatasmithScene.h"
 
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+
 #define LOCTEXT_NAMESPACE "AssetTypeActions_DatasmithScene"
 
 uint32 FAssetTypeActions_DatasmithScene::GetCategories()
@@ -15,7 +17,7 @@ uint32 FAssetTypeActions_DatasmithScene::GetCategories()
 
 FText FAssetTypeActions_DatasmithScene::GetName() const
 {
-	return NSLOCTEXT("AssetTypeActions_DatasmithScene", "AssetTypeActions_DatasmithScene_Name", "Datasmith Scene");
+	return LOCTEXT("AssetTypeActions_DatasmithScene_Name", "Datasmith Scene");
 }
 
 UClass* FAssetTypeActions_DatasmithScene::GetSupportedClass() const

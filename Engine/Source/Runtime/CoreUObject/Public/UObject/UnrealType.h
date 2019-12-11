@@ -10,6 +10,7 @@
 
 #include "Concepts/GetTypeHashable.h"
 #include "Containers/List.h"
+#include "Containers/ArrayView.h"
 #include "Serialization/SerializedPropertyScope.h"
 #include "Templates/Casts.h"
 #include "Templates/Greater.h"
@@ -22,6 +23,7 @@
 #include "UObject/LazyObjectPtr.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/PropertyPortFlags.h"
 #include "UObject/PropertyTag.h"
 #include "UObject/ScriptInterface.h"
 #include "UObject/SoftObjectPtr.h"
@@ -320,6 +322,7 @@ public:
 		{
 			return NULL;
 		}
+		PortFlags |= EPropertyPortFlags::PPF_UseDeprecatedProperties; // Imports should always process deprecated properties
 		return ImportText_Internal( Buffer, Data, PortFlags, OwnerObject, ErrorText );
 	}
 protected:
@@ -4735,27 +4738,26 @@ namespace EPropertyChangeType
  */
 struct FPropertyChangedEvent
 {
-	//default constructor
-	FPropertyChangedEvent(UProperty* InProperty)
-		: Property(InProperty)
-		, MemberProperty(InProperty)
-		, ChangeType(EPropertyChangeType::Unspecified)
-		, ObjectIteratorIndex(INDEX_NONE)
-		, ArrayIndicesPerObject(nullptr)
-		, InstancesChangedResultPerArchetype(nullptr)
-		, TopLevelObjects(nullptr)
-	{
-	}
-
-	FPropertyChangedEvent(UProperty* InProperty, EPropertyChangeType::Type InChangeType, const TArray<const UObject*>* InTopLevelObjects = nullptr )
+	FPropertyChangedEvent(UProperty* InProperty, EPropertyChangeType::Type InChangeType = EPropertyChangeType::Unspecified, TArrayView<const UObject* const> InTopLevelObjects = TArrayView<const UObject* const>())
 		: Property(InProperty)
 		, MemberProperty(InProperty)
 		, ChangeType(InChangeType)
 		, ObjectIteratorIndex(INDEX_NONE)
-		, ArrayIndicesPerObject(nullptr)
-		, InstancesChangedResultPerArchetype(nullptr)
 		, TopLevelObjects(InTopLevelObjects)
 	{
+	}
+
+	UE_DEPRECATED(4.25, "The FPropertyChangedEvent constructor taking a TArray* is deprecated. Use the version taking a TArrayView instead.")
+	FPropertyChangedEvent(UProperty* InProperty, EPropertyChangeType::Type InChangeType, const TArray<const UObject*>* InTopLevelObjects)
+		: Property(InProperty)
+		, MemberProperty(InProperty)
+		, ChangeType(InChangeType)
+		, ObjectIteratorIndex(INDEX_NONE)
+	{
+		if (InTopLevelObjects)
+		{
+			TopLevelObjects = MakeArrayView(*InTopLevelObjects);
+		}
 	}
 
 	void SetActiveMemberProperty( UProperty* InActiveMemberProperty )
@@ -4766,17 +4768,17 @@ struct FPropertyChangedEvent
 	/**
 	 * Saves off map of array indices per object being set.
 	 */
-	void SetArrayIndexPerObject(const TArray< TMap<FString,int32> >& InArrayIndices)
+	void SetArrayIndexPerObject(TArrayView<const TMap<FString, int32>> InArrayIndices)
 	{
-		ArrayIndicesPerObject = &InArrayIndices; 
+		ArrayIndicesPerObject = InArrayIndices; 
 	}
 
 	/**
 	 * Saves off map of instance changed result per archetype being set.
 	 */
-	void SetInstancesChangedResultPerArchetype(const TArray< TMap<UObject*, bool> >& InInstancesChangedResultPerArchetype)
+	void SetInstancesChangedResultPerArchetype(TArrayView<const TMap<UObject*, bool>> InInstancesChangedResultPerArchetype)
 	{
-		InstancesChangedResultPerArchetype = &InInstancesChangedResultPerArchetype;
+		InstancesChangedResultPerArchetype = InInstancesChangedResultPerArchetype;
 	}
 
 	/**
@@ -4787,9 +4789,9 @@ struct FPropertyChangedEvent
 	{
 		//default to unknown index
 		int32 Retval = -1;
-		if (ArrayIndicesPerObject && ArrayIndicesPerObject->IsValidIndex(ObjectIteratorIndex))
+		if (ArrayIndicesPerObject.IsValidIndex(ObjectIteratorIndex))
 		{
-			const int32* ValuePtr = (*ArrayIndicesPerObject)[ObjectIteratorIndex].Find(InName);
+			const int32* ValuePtr = ArrayIndicesPerObject[ObjectIteratorIndex].Find(InName);
 			if (ValuePtr)
 			{
 				Retval = *ValuePtr;
@@ -4806,9 +4808,9 @@ struct FPropertyChangedEvent
 	{
 		bool Retval = true;
 
-		if (InstancesChangedResultPerArchetype && InstancesChangedResultPerArchetype->IsValidIndex(ObjectIteratorIndex))
+		if (InstancesChangedResultPerArchetype.IsValidIndex(ObjectIteratorIndex))
 		{
-			const bool* ValuePtr = (*InstancesChangedResultPerArchetype)[ObjectIteratorIndex].Find(InInstance);
+			const bool* ValuePtr = InstancesChangedResultPerArchetype[ObjectIteratorIndex].Find(InInstance);
 			if (ValuePtr)
 			{
 				Retval = *ValuePtr;
@@ -4821,7 +4823,7 @@ struct FPropertyChangedEvent
 	/**
 	 * @return The number of objects being edited during this change event
 	 */
-	int32 GetNumObjectsBeingEdited() const { return TopLevelObjects ? TopLevelObjects->Num() : 0; }
+	int32 GetNumObjectsBeingEdited() const { return TopLevelObjects.Num(); }
 
 	/**
 	 * Gets an object being edited by this change event.  Multiple objects could be edited at once
@@ -4829,7 +4831,7 @@ struct FPropertyChangedEvent
 	 * @param Index	The index of the object being edited. Assumes index is valid.  Call GetNumObjectsBeingEdited first to check if there are valid objects
 	 * @return The object being edited or nullptr if no object was found
 	 */
-	const UObject* GetObjectBeingEdited(int32 Index) const { return TopLevelObjects ? (*TopLevelObjects)[Index] : nullptr; }
+	const UObject* GetObjectBeingEdited(int32 Index) const { return TopLevelObjects[Index]; }
 
 	/**
 	 * Simple utility to get the name of the property and takes care of the possible null property.
@@ -4857,13 +4859,13 @@ struct FPropertyChangedEvent
 	int32 ObjectIteratorIndex;
 private:
 	//In the property window, multiple objects can be selected at once.  In the case of adding/inserting to an array, each object COULD have different indices for the new entries in the array
-	const TArray< TMap<FString,int32> >* ArrayIndicesPerObject;
+	TArrayView<const TMap<FString, int32>> ArrayIndicesPerObject;
 	
 	//In the property window, multiple objects can be selected at once. In this case we want to know if an instance was updated for this operation (used in array/set/map context)
-	const TArray< TMap<UObject*, bool> >* InstancesChangedResultPerArchetype;
+	TArrayView<const TMap<UObject*, bool>> InstancesChangedResultPerArchetype;
 
 	/** List of top level objects being changed */
-	const TArray<const UObject*>* TopLevelObjects;
+	TArrayView<const UObject* const> TopLevelObjects;
 };
 
 /**

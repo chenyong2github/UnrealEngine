@@ -1068,6 +1068,8 @@ public:
 	uint8 bHasStaticLighting:1;
 	uint8 bCastVolumetricShadow:1;
 	uint8 bCastRayTracedShadow:1;
+	uint8 bAffectReflection:1;
+	uint8 bAffectGlobalIllumination:1;
 	TEnumAsByte<EOcclusionCombineMode> OcclusionCombineMode;
 	float AverageBrightness;
 	float IndirectLightingIntensity;
@@ -1559,7 +1561,7 @@ protected:
 	/** Whether the light affects objects in reflections, when ray-traced reflection is enabled. */
 	const uint8 bAffectReflection : 1;
 
-	/** Whether the light affects objects in reflections, when ray-traced global illumination is enabled. */
+	/** Whether the light affects global illumination, when ray-traced global illumination is enabled. */
 	const uint8 bAffectGlobalIllumination : 1;
 
 	/** Whether the light affects translucency or not.  Disabling this can save GPU time when there are many small lights. */
@@ -2849,12 +2851,24 @@ float ENGINE_API ComputeBoundsScreenSize(const FVector4& BoundsOrigin, const flo
 /**
  * Computes the screen radius squared of a given sphere bounds in the given view. This is used at
  * runtime instead of ComputeBoundsScreenSize to avoid a square root.
+ * It is a wrapper for the version below that does not take a FSceneView reference but parameters directly
  * @param Origin - Origin of the bounds in world space
  * @param SphereRadius - Radius of the sphere to use to calculate screen coverage
  * @param View - The view to calculate the display factor for
  * @return float - The screen size calculated
  */
 float ENGINE_API ComputeBoundsScreenRadiusSquared(const FVector4& Origin, const float SphereRadius, const FSceneView& View);
+
+/**
+ * Computes the screen radius squared of a given sphere bounds in the given view. This is used at
+ * runtime instead of ComputeBoundsScreenSize to avoid a square root.
+ * @param Origin - Origin of the bounds in world space
+ * @param SphereRadius - Radius of the sphere to use to calculate screen coverage
+ * @param ViewOrigin - The view origin involved in the calculation
+ * @param ProjMatrix - The projection matrix of the view involved in the calculation
+ * @return float - The screen size calculated
+ */
+float ENGINE_API ComputeBoundsScreenRadiusSquared(const FVector4& BoundsOrigin, const float SphereRadius, const FVector4& ViewOrigin, const FMatrix& ProjMatrix);
 
 /**
  * Computes the draw distance of a given sphere bounds in the given view with the specified screen size.

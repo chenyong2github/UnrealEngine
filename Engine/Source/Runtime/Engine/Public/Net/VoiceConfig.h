@@ -148,6 +148,7 @@ class ENGINE_API UVOIPStatics : public UBlueprintFunctionLibrary
 public:
 	// Returns the voice sample rate specified in Audio Settings.
 	static int32 GetVoiceSampleRate();
+	static int32 GetVoiceNumChannels();
 
 	// Returns the max voice data size per packet, uncompressed, and compressed based on the voice sample rate specified in Audio Settings.
 	static uint32 GetMaxVoiceDataSize();
@@ -162,6 +163,9 @@ public:
 
 	// Returns the amount of seconds to spend buffering specified by AudioSettings.
 	static float GetBufferingDelay();
+
+	// Returns the noise gate threshold we use for incoming audio.
+	static float GetVoiceNoiseGateLevel();
 
 	// returns the amount of packets to allocate memory for based on the buffering delay.
 	static int32 GetNumBufferedPackets();

@@ -1,0 +1,30 @@
+{
+	"apps": [
+		{
+			"name": "Cirrus",
+			"executable": "node.exe",
+			"parameters" :  "cirrus.js",
+			"working_directory" :  "..\\..\\WebServers\\SignallingWebServer",
+			"initial_timeout": 10000,
+			"shutdown_timeout": 10000,
+			"parameter_prefix" :  "--",
+			"oncrash" :  "RestartApp"
+		},
+		{
+			"name": "WebRTCProxy",
+			"executable": "../../WebRTCProxy/bin/WebRTCProxy_x64_Development.exe",
+			"parameters" :  "",
+			"initial_timeout": 10000,
+			"shutdown_timeout": 10000,
+			"oncrash" :  "RestartApp"
+		},
+		{
+			"name": "FP_FirstPerson",
+			"executable": "../../../../../Binaries/Win64/UE4Editor.exe",
+			"parameters" :  "FP_FirstPerson -game -windowed -PixelStreamingPort=8124 -audiomixer -ResX=1280 -ResY=720 -execcmds=\"stat fps\"",
+			"initial_timeout": 20000,
+			"shutdown_timeout": 20000,
+			"oncrash" :  "RestartSession"
+		}
+	]
+}

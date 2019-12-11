@@ -119,10 +119,12 @@ float ShadowRayTraceThroughCulledObjects(
 			if (IntersectionTimes.x < IntersectionTimes.y)
 			{
 				float SampleRayTime = IntersectionTimes.x * VolumeRayLength;
-#if DF_SHADOW_QUALITY > 1
+#if DF_SHADOW_QUALITY == 3
 				uint MaxSteps = 64;
-#else
+#elif DF_SHADOW_QUALITY == 2
 				uint MaxSteps = 32;
+#else
+				uint MaxSteps = 20;
 #endif
 				float MinStepSize = 1.0f / (4 * MaxSteps);
 

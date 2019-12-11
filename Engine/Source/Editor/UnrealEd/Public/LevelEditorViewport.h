@@ -12,6 +12,7 @@
 #include "UObject/ObjectKey.h"
 
 struct FAssetData;
+struct FMinimalViewInfo;
 class FCanvas;
 class FDragTool;
 class HModel;
@@ -83,7 +84,7 @@ struct UNREALED_API FTrackingTransaction
 	/**
 	 * Initiates a transaction.
 	 */
-	void Begin(const FText& Description);
+	void Begin(const FText& Description, AActor* AdditionalActor = nullptr);
 
 	void End();
 
@@ -119,7 +120,6 @@ private:
 	TMap<UPackage*, bool> InitialPackageDirtyStates;
 	
 };
-
 
 /** */
 class UNREALED_API FLevelEditorViewportClient : public FEditorViewportClient
@@ -748,6 +748,7 @@ public:
 
 	/** When enabled, the Unreal transform widget will become visible after an actor is selected, even if it was turned off via a show flag */
 	bool bAlwaysShowModeWidgetAfterSelectionChanges;
+
 private:
 	/** The actors that are currently being placed in the viewport via dragging */
 	static TArray< TWeakObjectPtr< AActor > > DropPreviewActors;

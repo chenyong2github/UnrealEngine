@@ -153,7 +153,7 @@ namespace GeometryCollectionExample
 	template<class T>
 	void Solver_ValidateReverseMapping()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 		InitMaterialToZero(PhysicalMaterial);
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
@@ -212,9 +212,9 @@ namespace GeometryCollectionExample
 	template void Solver_ValidateReverseMapping<float>();
 
 	template<class T>
-	void CommonInit(int32 NumObjects, bool UseClusters, Chaos::FPBDRigidsSolver** SolverInOut, TUniquePtr<Chaos::TChaosPhysicsMaterial<T>>& PhysicalMaterial, TArray<TSharedPtr<FGeometryCollection>>& RestArray, TArray<TSharedPtr<FGeometryDynamicCollection>>& DynamicArray)
+	void CommonInit(int32 NumObjects, bool UseClusters, Chaos::FPBDRigidsSolver** SolverInOut, TUniquePtr<Chaos::FChaosPhysicsMaterial>& PhysicalMaterial, TArray<TSharedPtr<FGeometryCollection>>& RestArray, TArray<TSharedPtr<FGeometryDynamicCollection>>& DynamicArray)
 	{
-		PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
+		PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 		InitMaterialToZero(PhysicalMaterial);
 
 		*SolverInOut = FChaosSolversModule::GetModule()->CreateSolver(true);
@@ -294,7 +294,7 @@ namespace GeometryCollectionExample
 		float TestMassThreshold = 6.0f;
 
 		Chaos::FPBDRigidsSolver* Solver;
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial;
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial;
 		TArray<TSharedPtr<FGeometryCollection> > RestArray;
 		TArray<TSharedPtr<FGeometryDynamicCollection> > DynamicArray;
 
@@ -357,7 +357,7 @@ namespace GeometryCollectionExample
 		float TestMass = 6.0f;
 
 		Chaos::FPBDRigidsSolver* Solver;
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial;
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial;
 		TArray<TSharedPtr<FGeometryCollection> > RestArray;
 		TArray<TSharedPtr<FGeometryDynamicCollection> > DynamicArray;
 

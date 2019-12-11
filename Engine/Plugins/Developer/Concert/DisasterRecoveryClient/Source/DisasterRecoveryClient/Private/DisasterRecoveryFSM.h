@@ -3,20 +3,22 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ConcertMessageData.h"
 #include "IConcertModule.h"
+#include "Templates/Function.h"
 
 class IConcertSyncClient;
+class IDisasterRecoverySessionManager;
 
 namespace DisasterRecoveryUtil
 {
-
 /**
  * Start the recovery flow. This should be called when the previous instance of the editor exited unexpectedly.
  * @param SyncClient The client configured with the recovery server URL, the recovery session name and recovery archive name.
- * @param SessionNameToRecover The name of the session to recover.
+ * @param RecoverySessionManager The manager used to interact with the available recovery sessions.
  * @param bLiveDataOnly Filter the recovery data to only recover live transaction data. (Transaction that were not saved to disk yet)
  */
-void StartRecovery(TSharedRef<IConcertSyncClient> SyncClient, const FString& SessionNameToRecover, bool bLiveDataOnly);
+void StartRecovery(TSharedRef<IConcertSyncClient> SyncClient, IDisasterRecoverySessionManager& RecoverySessionManager, bool bLiveDataOnly);
 
 /**
  * End the recovery flow. This can be called to abort the recovery process.
@@ -24,4 +26,8 @@ void StartRecovery(TSharedRef<IConcertSyncClient> SyncClient, const FString& Ses
  */
 bool EndRecovery();
 
+/**
+ * Return the name of the executable hosting disaster recovery service, like 'UnrealDisasterRecoveryService' without the extension.
+ */
+FString GetDisasterRecoveryServiceExeName();
 }

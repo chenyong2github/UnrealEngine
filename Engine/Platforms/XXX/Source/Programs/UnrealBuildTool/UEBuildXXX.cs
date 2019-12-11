@@ -206,6 +206,12 @@ class XXXPlatform : UEBuildPlatform
 			Rules.AppendStringToPublicDefinition("DDPI_SHADER_PLATFORM_NAME_MAP", "{ TEXT(\"XXX\"), SP_XXX },");
 		}
 
+		// don't do any target platform stuff if SDK is not available
+		if (!UEBuildPlatform.IsPlatformAvailable(Platform))
+		{
+			return;
+		}
+
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			bool bIsMonolithic = true;
@@ -435,13 +441,8 @@ class XXXPlatformFactory : UEBuildPlatformFactory
  		XXXPlatformSDK SDK = new XXXPlatformSDK();
  		SDK.ManageAndValidateSDK();
 
-		// Make sure the SDK is installed
-		if (SDK.HasRequiredSDKsInstalled() == SDKStatus.Valid)
-		{
-			// Register this build platform for XXX
-			Log.TraceVerbose("        Registering for {0}", UnrealTargetPlatform.XXX.ToString());
-			UEBuildPlatform.RegisterBuildPlatform(new XXXPlatform(SDK));
-			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.XXX, UnrealPlatformGroup.Fake);
-		}
+		// Register this build platform for XXX
+		UEBuildPlatform.RegisterBuildPlatform(new XXXPlatform(SDK));
+		UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.XXX, UnrealPlatformGroup.Fake);
 	}
 }

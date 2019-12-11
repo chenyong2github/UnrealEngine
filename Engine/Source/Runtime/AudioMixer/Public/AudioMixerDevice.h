@@ -6,7 +6,11 @@
 #include "AudioMixerSourceManager.h"
 #include "AudioDevice.h"
 
+
+// Forward Declarations
+class FOnSubmixEnvelopeBP;
 class IAudioMixerPlatformInterface;
+
 
 namespace Audio
 {
@@ -104,6 +108,9 @@ namespace Audio
 
 		virtual void InitSoundEffectPresets() override;
 		virtual int32 GetNumActiveSources() const override;
+
+		// Updates the provided source's modulation control values
+		virtual void UpdateModulationControls(const uint32 InSourceId, const FSoundModulationControls& InControls) override;
 
 		// Updates the source effect chain (using unique object id). 
 		virtual void UpdateSourceEffectChain(const uint32 SourceEffectChainId, const TArray<FSourceEffectChainEntry>& SourceEffectChain, const bool bPlayEffectChainTails) override;

@@ -41,14 +41,6 @@
         {
 			"Name": "DatasmithContent",
 			"Enabled": true
-		},
-        {
-			"Name": "VariantManager",
-			"Enabled": true
-		},
-        {
-			"Name": "VariantManagerContent",
-			"Enabled": true
-		},
+		}
     ]
 }

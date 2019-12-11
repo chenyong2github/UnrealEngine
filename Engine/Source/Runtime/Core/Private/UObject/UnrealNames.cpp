@@ -265,7 +265,7 @@ public:
 	FNameEntryAllocator()
 	{
 		LLM_SCOPE(ELLMTag::FName);
-		Blocks[0] = (uint8*)FMemory::Malloc(BlockSizeBytes, FPlatformMemory::GetConstants().PageSize);
+		Blocks[0] = (uint8*)FMemory::MallocPersistentAuxiliary(BlockSizeBytes, FPlatformMemory::GetConstants().PageSize);
 	}
 
 	~FNameEntryAllocator()
@@ -393,7 +393,7 @@ private:
 		check(CurrentBlock < FNameMaxBlocks);
 		check(Blocks[CurrentBlock] == nullptr);
 
-		Blocks[CurrentBlock] = (uint8*)FMemory::Malloc(BlockSizeBytes, FPlatformMemory::GetConstants().PageSize);
+		Blocks[CurrentBlock] = (uint8*)FMemory::MallocPersistentAuxiliary(BlockSizeBytes, FPlatformMemory::GetConstants().PageSize);
 	}
 
 	mutable FRWLock Lock;
@@ -1408,7 +1408,7 @@ bool FName::IsWithinBounds(FNameEntryId Id)
 -----------------------------------------------------------------------------*/
 
 template<class CharType>
-static bool NumberEqualsString(int32 Number, const CharType* Str)
+static bool NumberEqualsString(uint32 Number, const CharType* Str)
 {
 	CharType* End = nullptr;
 	return TCString<CharType>::Strtoi64(Str, &End, 10) == Number && End && *End == '\0';
@@ -1509,11 +1509,15 @@ struct FNameHelper
 		{
 			return FName();
 		}
-
-		using CharType = typename ViewType::CharType;
-		const CharType* Name = View.Str;
-		const int32 Len = View.Len;
 		
+		uint32 InternalNumber = ParseNumber(View.Str, /* may be shortened */ View.Len);
+		return MakeWithNumber(View, FindType, InternalNumber);
+	}
+
+	template<typename CharType>
+	static uint32 ParseNumber(const CharType* Name, int32& InOutLen)
+	{
+		const int32 Len = InOutLen;
 		int32 Digits = 0;
 		for (const CharType* It = Name + Len - 1; It >= Name && *It >= '0' && *It <= '9'; --It)
 		{
@@ -1530,16 +1534,16 @@ struct FNameHelper
 			{
 				// Attempt to convert what's following it to a number
 				// This relies on Name being null-terminated
-				uint64 Number = TCString<CharType>::Atoi64(Name + Len - Digits);
-				if (Number < MAX_uint32)
+				int64 Number = TCString<CharType>::Atoi64(Name + Len - Digits);
+				if (Number < MAX_int32)
 				{
-					View.Len -= 1 + Digits;
-					return MakeWithNumber(View, FindType, static_cast<uint32>(NAME_EXTERNAL_TO_INTERNAL(Number)));
+					InOutLen -= 1 + Digits;
+					return static_cast<uint32>(NAME_EXTERNAL_TO_INTERNAL(Number));
 				}
 			}
 		}
 
-		return MakeWithNumber(View, FindType, NAME_NO_NUMBER_INTERNAL);
+		return NAME_NO_NUMBER_INTERNAL;
 	}
 
 	static FName MakeWithNumber(FNameAnsiStringView	 View, EFindName FindType, int32 InternalNumber)
@@ -1629,7 +1633,6 @@ struct FNameHelper
 			: FNameStringView(LoadedEntry.AnsiName, FCStringAnsi::Strlen(LoadedEntry.AnsiName));
 
 		return Make(View, FNAME_Add, NAME_NO_NUMBER_INTERNAL);
-
 	}
 
 	template<class CharType>
@@ -1904,6 +1907,19 @@ bool FName::IsValidXName(const FString& InName, const FString& InInvalidChars, F
 	return true;
 }
 
+template <typename CharType, int N>
+void CheckLazyName(const CharType(&Literal)[N])
+{
+	check(FName(Literal) == FLazyName(Literal));
+	check(FLazyName(Literal) == FName(Literal));
+	check(FLazyName(Literal) == FLazyName(Literal));
+	check(FName(Literal) == FLazyName(Literal).Resolve());
+
+	CharType Literal2[N];
+	FMemory::Memcpy(Literal2, Literal);
+	check(FLazyName(Literal) == FLazyName(Literal2));
+}
+
 void FName::AutoTest()
 {
 #if DO_CHECK
@@ -1954,6 +1970,7 @@ void FName::AutoTest()
 	check(FCStringAnsi::Strlen("ABC_9") == FName("ABC_9").GetStringLength());
 	check(FCStringAnsi::Strlen("ABC_10") == FName("ABC_10").GetStringLength());
 	check(FCStringAnsi::Strlen("ABC_2000000000") == FName("ABC_2000000000").GetStringLength());
+	check(FCStringAnsi::Strlen("ABC_4000000000") == FName("ABC_4000000000").GetStringLength());
 
 	const FName NullName(static_cast<ANSICHAR*>(nullptr));
 	check(NullName.IsNone());
@@ -2029,6 +2046,7 @@ void FName::AutoTest()
 	check(NumberEqualsString(0, "0"));
 	check(NumberEqualsString(11, "11"));
 	check(NumberEqualsString(2147483647, "2147483647"));
+	check(NumberEqualsString(4294967294, "4294967294"));
 
 	check(!NumberEqualsString(0, "1"));
 	check(!NumberEqualsString(1, "0"));
@@ -2072,6 +2090,23 @@ void FName::AutoTest()
 	check(Names[4] == "FooB");
 	check(Names[5] == "FooC");
 	check(Names[6] == FooWide);
+
+	
+	CheckLazyName("Hej");
+	CheckLazyName(TEXT("Hej"));
+	CheckLazyName("Hej_0");
+	CheckLazyName("Hej_00");
+	CheckLazyName("Hej_1");
+	CheckLazyName("Hej_01");
+	CheckLazyName("Hej_-1");
+	CheckLazyName("Hej__0");
+	CheckLazyName("Hej_2147483647");
+	CheckLazyName("Hej_123");
+	CheckLazyName("None");
+	CheckLazyName("none");
+	CheckLazyName("None_0");
+	CheckLazyName("None_1");
+
 
 #if 0
 	// Check hash table growth still yields the same unique FName ids
@@ -2215,7 +2250,63 @@ void FName::TearDown()
 	{
 		GetNamePoolPostInit().~FNamePool();
 		bNamePoolInitialized = false;
-	
+	}
+}
+
+FName FLazyName::Resolve() const
+{
+	// Make a stack copy to ensure thread-safety
+	FLiteralOrName Copy = Either;
+
+	if (Copy.IsName())
+	{
+		FNameEntryId Id = Copy.AsName();
+		return FName(Id, Id, Number);
+	}
+
+	// Resolve to FName but throw away the number part
+	FNameEntryId Id = bLiteralIsWide ? FName(Copy.AsWideLiteral()).GetComparisonIndex()
+										: FName(Copy.AsAnsiLiteral()).GetComparisonIndex();
+
+	// Deliberately unsynchronized write of word-sized int, ok if multiple threads resolve same lazy name
+	Either = FLiteralOrName(Id);
+
+	return FName(Id, Id, Number);		
+}
+
+uint32 FLazyName::ParseNumber(const ANSICHAR* Str, int32 Len)
+{
+	return FNameHelper::ParseNumber(Str, Len);
+}
+
+uint32 FLazyName::ParseNumber(const WIDECHAR* Str, int32 Len)
+{
+	return FNameHelper::ParseNumber(Str, Len);
+}
+
+bool operator==(const FLazyName& A, const FLazyName& B)
+{
+	// If we have started creating FNames we might as well resolve and cache both lazy names
+	if (A.Either.IsName() || B.Either.IsName())
+	{
+		return A.Resolve() == B.Resolve();
+	}
+
+	// Literal pointer comparison, can ignore width
+	if (A.Either.AsAnsiLiteral() == B.Either.AsAnsiLiteral())
+	{
+		return true;
+	}
+
+	if (A.bLiteralIsWide)
+	{
+		return B.bLiteralIsWide ? FPlatformString::Stricmp(A.Either.AsWideLiteral(), B.Either.AsWideLiteral()) == 0
+								: FPlatformString::Stricmp(A.Either.AsWideLiteral(), B.Either.AsAnsiLiteral()) == 0;
+	}
+	else
+	{
+		return B.bLiteralIsWide ? FPlatformString::Stricmp(A.Either.AsAnsiLiteral(), B.Either.AsWideLiteral()) == 0
+								: FPlatformString::Stricmp(A.Either.AsAnsiLiteral(), B.Either.AsAnsiLiteral()) == 0;	
 	}
 }
 

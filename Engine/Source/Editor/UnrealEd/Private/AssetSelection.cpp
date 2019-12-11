@@ -240,7 +240,8 @@ namespace AssetSelectionUtils
 
 							// Check for experimental/early-access classes in the component hierarchy
 							bool bIsExperimental, bIsEarlyAccess;
-							FObjectEditorUtils::GetClassDevelopmentStatus(Component->GetClass(), bIsExperimental, bIsEarlyAccess);
+							FString MostDerivedDevelopmentClassName;
+							FObjectEditorUtils::GetClassDevelopmentStatus(Component->GetClass(), bIsExperimental, bIsEarlyAccess, MostDerivedDevelopmentClassName);
 
 							ActorInfo.bHaveExperimentalClass |= bIsExperimental;
 							ActorInfo.bHaveEarlyAccessClass |= bIsEarlyAccess;
@@ -250,7 +251,8 @@ namespace AssetSelectionUtils
 					// Check for experimental/early-access classes in the actor hierarchy
 					{
 						bool bIsExperimental, bIsEarlyAccess;
-						FObjectEditorUtils::GetClassDevelopmentStatus(CurrentClass, bIsExperimental, bIsEarlyAccess);
+						FString MostDerivedDevelopmentClassName;
+						FObjectEditorUtils::GetClassDevelopmentStatus(CurrentClass, bIsExperimental, bIsEarlyAccess, MostDerivedDevelopmentClassName);
 
 						ActorInfo.bHaveExperimentalClass |= bIsExperimental;
 						ActorInfo.bHaveEarlyAccessClass |= bIsEarlyAccess;
@@ -481,7 +483,16 @@ namespace ActorPlacementUtils
 		}
 		if (InLevel && GetDefault<ULevelEditorMiscSettings>()->bPromptWhenAddingToLevelOutsideBounds)
 		{
-			FBox CurrentLevelBounds = ALevelBounds::CalculateLevelBounds(InLevel);
+			FBox CurrentLevelBounds(ForceInit);
+			if (InLevel->LevelBoundsActor.IsValid())
+			{
+				CurrentLevelBounds = InLevel->LevelBoundsActor.Get()->GetComponentsBoundingBox();
+			}
+			else
+			{
+				CurrentLevelBounds = ALevelBounds::CalculateLevelBounds(InLevel);
+			}
+
 			FVector BoundsExtent = CurrentLevelBounds.GetExtent();
 			if (BoundsExtent.X < GetDefault<ULevelEditorMiscSettings>()->MinimumBoundsForCheckingSize.X
 				&& BoundsExtent.Y < GetDefault<ULevelEditorMiscSettings>()->MinimumBoundsForCheckingSize.Y
@@ -564,6 +575,16 @@ static AActor* PrivateAddActor( UObject* Asset, UActorFactory* Factory, bool Sel
 	FSnappingUtils::ClearSnappingHelpers( bClearImmediately );
 
 	ULevel* DesiredLevel = GWorld->GetCurrentLevel();
+
+	// If DesireLevel is part of a LevelPartition find the proper DesiredLevel by asking the Partition
+	if (const ILevelPartitionInterface* LevelPartition = DesiredLevel->GetLevelPartition())
+	{
+		if (ULevel* SubLevel = LevelPartition->GetSubLevel(ActorTransform.GetLocation()))
+		{
+			DesiredLevel = SubLevel;
+		}
+	}
+
 	bool bSpawnActor = true;
 
 	if ((ObjectFlags & RF_Transactional) != 0)

@@ -37,6 +37,6 @@ void FMovieSceneToolsProjectSettingsCustomization::OnTakeSeparatorUpdated()
 	}
 	else if (ProjectSettings->TakeSeparator.Len() > 1)
 	{
-		ProjectSettings->TakeSeparator = ProjectSettings->TakeSeparator.LeftChop(ProjectSettings->TakeSeparator.Len()-1);
+		ProjectSettings->TakeSeparator.LeftChopInline(ProjectSettings->TakeSeparator.Len()-1);
 	}
 }

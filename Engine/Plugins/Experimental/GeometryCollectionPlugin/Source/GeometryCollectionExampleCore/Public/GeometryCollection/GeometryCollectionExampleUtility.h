@@ -32,8 +32,7 @@ namespace GeometryCollectionExample {
 	TSharedPtr<FGeometryCollection>	CreateClusteredBody_ThreeByTwo_ThreeTransform(FVector Position);
 	TSharedPtr<FGeometryCollection>	CreateClusteredBody_FracturedGeometry(FVector Position = FVector(0));
 
-	template<class T>
-	void InitMaterialToZero(TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> const &PhysicalMaterial);
+	void InitMaterialToZero(TUniquePtr<Chaos::FChaosPhysicsMaterial> const &PhysicalMaterial);
 
 	using FCollectionInitFunc = TFunction<void(TSharedPtr<FGeometryCollection>&)>;
 	struct InitCollectionsParameters
@@ -44,18 +43,16 @@ namespace GeometryCollectionExample {
 		int DynamicStateDefault;
 	};
 
-	template<class T>
 	void InitCollections(
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> &PhysicalMaterial,
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> &PhysicalMaterial,
 		TSharedPtr<FGeometryCollection>& RestCollection,
 		TSharedPtr<FGeometryDynamicCollection>& DynamicCollection,
 		InitCollectionsParameters& InitParams
 	);
 
 	using FInitFunc = TFunction<void(FSimulationParameters&)>;
-	template<class T>
 	FGeometryCollectionPhysicsProxy* RigidBodySetup(
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> &PhysicalMaterial,
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> &PhysicalMaterial,
 		TSharedPtr<FGeometryCollection> &RestCollection,
 		TSharedPtr<FGeometryDynamicCollection> &DynamicCollection,
 		FInitFunc CustomFunc = nullptr

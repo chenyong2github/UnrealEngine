@@ -288,6 +288,18 @@ template <typename D> Microsoft::Holographic::AppRemoting::PlayerFrameStatistics
     return value;
 }
 
+template <typename D> Windows::Foundation::TimeSpan consume_Microsoft_Holographic_AppRemoting_IPlayerContext2<D>::BlitRemoteFrameTimeout() const
+{
+    Windows::Foundation::TimeSpan value{};
+    check_hresult(WINRT_SHIM(Microsoft::Holographic::AppRemoting::IPlayerContext2)->get_BlitRemoteFrameTimeout(put_abi(value)));
+    return value;
+}
+
+template <typename D> void consume_Microsoft_Holographic_AppRemoting_IPlayerContext2<D>::BlitRemoteFrameTimeout(Windows::Foundation::TimeSpan const& value) const
+{
+    check_hresult(WINRT_SHIM(Microsoft::Holographic::AppRemoting::IPlayerContext2)->put_BlitRemoteFrameTimeout(get_abi(value)));
+}
+
 template <typename D> Microsoft::Holographic::AppRemoting::PlayerContext consume_Microsoft_Holographic_AppRemoting_IPlayerContextStatics<D>::Create() const
 {
     Microsoft::Holographic::AppRemoting::PlayerContext result{ nullptr };
@@ -1186,6 +1198,34 @@ struct produce<D, Microsoft::Holographic::AppRemoting::IPlayerContext> : produce
 };
 
 template <typename D>
+struct produce<D, Microsoft::Holographic::AppRemoting::IPlayerContext2> : produce_base<D, Microsoft::Holographic::AppRemoting::IPlayerContext2>
+{
+    int32_t WINRT_CALL get_BlitRemoteFrameTimeout(Windows::Foundation::TimeSpan* value) noexcept final
+    {
+        try
+        {
+            typename D::abi_guard guard(this->shim());
+            WINRT_ASSERT_DECLARATION(BlitRemoteFrameTimeout, WINRT_WRAP(Windows::Foundation::TimeSpan));
+            *value = detach_from<Windows::Foundation::TimeSpan>(this->shim().BlitRemoteFrameTimeout());
+            return 0;
+        }
+        catch (...) { return to_hresult(); }
+    }
+
+    int32_t WINRT_CALL put_BlitRemoteFrameTimeout(Windows::Foundation::TimeSpan value) noexcept final
+    {
+        try
+        {
+            typename D::abi_guard guard(this->shim());
+            WINRT_ASSERT_DECLARATION(BlitRemoteFrameTimeout, WINRT_WRAP(void), Windows::Foundation::TimeSpan const&);
+            this->shim().BlitRemoteFrameTimeout(*reinterpret_cast<Windows::Foundation::TimeSpan const*>(&value));
+            return 0;
+        }
+        catch (...) { return to_hresult(); }
+    }
+};
+
+template <typename D>
 struct produce<D, Microsoft::Holographic::AppRemoting::IPlayerContextStatics> : produce_base<D, Microsoft::Holographic::AppRemoting::IPlayerContextStatics>
 {
     int32_t WINRT_CALL Create(void** result) noexcept final
@@ -1740,6 +1780,7 @@ template<> struct hash<winrt::Microsoft::Holographic::AppRemoting::ICertificateV
 template<> struct hash<winrt::Microsoft::Holographic::AppRemoting::ICertificateValidator> : winrt::impl::hash_base<winrt::Microsoft::Holographic::AppRemoting::ICertificateValidator> {};
 template<> struct hash<winrt::Microsoft::Holographic::AppRemoting::IDataChannel> : winrt::impl::hash_base<winrt::Microsoft::Holographic::AppRemoting::IDataChannel> {};
 template<> struct hash<winrt::Microsoft::Holographic::AppRemoting::IPlayerContext> : winrt::impl::hash_base<winrt::Microsoft::Holographic::AppRemoting::IPlayerContext> {};
+template<> struct hash<winrt::Microsoft::Holographic::AppRemoting::IPlayerContext2> : winrt::impl::hash_base<winrt::Microsoft::Holographic::AppRemoting::IPlayerContext2> {};
 template<> struct hash<winrt::Microsoft::Holographic::AppRemoting::IPlayerContextStatics> : winrt::impl::hash_base<winrt::Microsoft::Holographic::AppRemoting::IPlayerContextStatics> {};
 template<> struct hash<winrt::Microsoft::Holographic::AppRemoting::IRemoteContext> : winrt::impl::hash_base<winrt::Microsoft::Holographic::AppRemoting::IRemoteContext> {};
 template<> struct hash<winrt::Microsoft::Holographic::AppRemoting::IRemoteContextStatics> : winrt::impl::hash_base<winrt::Microsoft::Holographic::AppRemoting::IRemoteContextStatics> {};

@@ -703,8 +703,21 @@ struct FRHICommand : public FRHICommandBase
 		{
 			__CpuProfilerEventSpecId = FCpuProfilerTrace::OutputEventType(NameType::TStr(), CpuProfilerGroup_Default);
 		}
-		FCpuProfilerTrace::FEventScope __CpuProfilerEventScope(__CpuProfilerEventSpecId);
-#endif
+
+		extern RHI_API int32 GRHICmdTraceEvents;
+		struct FConditionalTraceScope
+		{
+			FConditionalTraceScope(const uint16 InSpecId) : SpecId(InSpecId)
+			{
+				if (SpecId) FCpuProfilerTrace::OutputBeginEvent(SpecId);
+			}
+			~FConditionalTraceScope()
+			{
+				if (SpecId) FCpuProfilerTrace::OutputEndEvent();
+			}
+			const uint16 SpecId;
+		} TraceScope(GRHICmdTraceEvents ? __CpuProfilerEventSpecId : 0);
+#endif // CPUPROFILERTRACE_ENABLED
 
 		TCmd *ThisCmd = static_cast<TCmd*>(this);
 #if RHI_COMMAND_LIST_DEBUG_TRACES
@@ -2045,17 +2058,10 @@ FRHICOMMAND_MACRO(FRHICommandCopyBufferRegions)
 template <ECmdList CmdListType>
 struct FRHICommandBuildAccelerationStructure final : public FRHICommand<FRHICommandBuildAccelerationStructure<CmdListType>>
 {
-	FRHIRayTracingGeometry* Geometry;
 	FRHIRayTracingScene* Scene;
 
-	explicit FRHICommandBuildAccelerationStructure(FRHIRayTracingGeometry* InGeometry)
-		: Geometry(InGeometry)
-		, Scene(nullptr)
-	{}
-
 	explicit FRHICommandBuildAccelerationStructure(FRHIRayTracingScene* InScene)
-		: Geometry(nullptr)
-		, Scene(InScene)
+		: Scene(InScene)
 	{}
 
 	RHI_API void Execute(FRHICommandListBase& CmdList);
@@ -2073,24 +2079,12 @@ FRHICOMMAND_MACRO(FRHICommandClearRayTracingBindings)
 };
 
 template <ECmdList CmdListType>
-struct FRHICommandUpdateAccelerationStructures final : public FRHICommand<FRHICommandUpdateAccelerationStructures<CmdListType>>
-{
-	const TArrayView<const FAccelerationStructureUpdateParams> UpdateParams;
-
-	explicit FRHICommandUpdateAccelerationStructures(const TArrayView<const FAccelerationStructureUpdateParams> InParams)
-		: UpdateParams(InParams)
-	{}
-
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
-template <ECmdList CmdListType>
 struct FRHICommandBuildAccelerationStructures final : public FRHICommand<FRHICommandBuildAccelerationStructures<CmdListType>>
 {
-	const TArrayView<const FAccelerationStructureUpdateParams> UpdateParams;
+	const TArrayView<const FAccelerationStructureBuildParams> Params;
 
-	explicit FRHICommandBuildAccelerationStructures(const TArrayView<const FAccelerationStructureUpdateParams> InParams)
-		: UpdateParams(InParams)
+	explicit FRHICommandBuildAccelerationStructures(const TArrayView<const FAccelerationStructureBuildParams> InParams)
+		: Params(InParams)
 	{}
 
 	RHI_API void Execute(FRHICommandListBase& CmdList);
@@ -3194,6 +3188,7 @@ public:
 
 #if RHI_RAYTRACING
 	// Ray tracing API
+	UE_DEPRECATED(4.25, "CopyBufferRegion API is deprecated. Use an explicit compute shader copy dispatch instead.")
 	FORCEINLINE_DEBUGGABLE void CopyBufferRegion(FRHIVertexBuffer* DestBuffer, uint64 DstOffset, FRHIVertexBuffer* SourceBuffer, uint64 SrcOffset, uint64 NumBytes)
 	{
 		// No copy/DMA operation inside render passes
@@ -3209,6 +3204,7 @@ public:
 		}
 	}
 
+	UE_DEPRECATED(4.25, "CopyBufferRegions API is deprecated. Use an explicit compute shader copy dispatch instead.")
 	FORCEINLINE_DEBUGGABLE void CopyBufferRegions(const TArrayView<const FCopyBufferRegionParams> Params)
 	{
 		// No copy/DMA operation inside render passes
@@ -3224,31 +3220,7 @@ public:
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructure(FRHIRayTracingGeometry* Geometry)
-	{
-		if (Bypass())
-		{
-			GetContext().RHIBuildAccelerationStructure(Geometry);
-		}
-		else
-		{
-			ALLOC_COMMAND(FRHICommandBuildAccelerationStructure<ECmdList::EGfx>)(Geometry);
-		}
-	}
-
-	FORCEINLINE_DEBUGGABLE void UpdateAccelerationStructures(const TArrayView<const FAccelerationStructureUpdateParams> Params)
-	{
-		if (Bypass())
-		{
-			GetContext().RHIUpdateAccelerationStructures(Params);
-		}
-		else
-		{
-			ALLOC_COMMAND(FRHICommandUpdateAccelerationStructures<ECmdList::EGfx>)(AllocArray(Params));
-		}
-	}
-
-	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructures(const TArrayView<const FAccelerationStructureUpdateParams> Params)
+	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructures(const TArrayView<const FAccelerationStructureBuildParams> Params)
 	{
 		if (Bypass())
 		{
@@ -3258,6 +3230,14 @@ public:
 		{
 			ALLOC_COMMAND(FRHICommandBuildAccelerationStructures<ECmdList::EGfx>)(AllocArray(Params));
 		}
+	}
+
+	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructure(FRHIRayTracingGeometry* Geometry)
+	{
+		FAccelerationStructureBuildParams Params;
+		Params.Geometry = Geometry;
+		Params.BuildMode = EAccelerationStructureBuildMode::Build;
+		BuildAccelerationStructures(MakeArrayView(&Params, 1));
 	}
 
 	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructure(FRHIRayTracingScene* Scene)
@@ -3411,7 +3391,7 @@ public:
 		if (GPUMask != InGPUMask)
 		{
 			GPUMask = InGPUMask;
-			if (HasCommands())
+			if (HasCommands() || Bypass())
 			{
 				SetGPUMaskOnContext();
 			}
@@ -3713,29 +3693,13 @@ public:
 #if RHI_RAYTRACING
 	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructure(FRHIRayTracingGeometry* Geometry)
 	{
-		if (Bypass())
-		{
-			GetComputeContext().RHIBuildAccelerationStructure(Geometry);
-		}
-		else
-		{
-			ALLOC_COMMAND(FRHICommandBuildAccelerationStructure<ECmdList::ECompute>)(Geometry);
-		}
+		FAccelerationStructureBuildParams Params;
+		Params.Geometry = Geometry;
+		Params.BuildMode = EAccelerationStructureBuildMode::Build;
+		BuildAccelerationStructures(MakeArrayView(&Params, 1));
 	}
 
-	FORCEINLINE_DEBUGGABLE void UpdateAccelerationStructures(const TArrayView<const FAccelerationStructureUpdateParams> Params)
-	{
-		if (Bypass())
-		{
-			GetComputeContext().RHIUpdateAccelerationStructures(Params);
-		}
-		else
-		{
-			ALLOC_COMMAND(FRHICommandUpdateAccelerationStructures<ECmdList::ECompute>)(AllocArray(Params));
-		}
-	}
-
-	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructures(const TArrayView<const FAccelerationStructureUpdateParams> Params)
+	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructures(const TArrayView<const FAccelerationStructureBuildParams> Params)
 	{
 		if (Bypass())
 		{
@@ -4388,11 +4352,16 @@ public:
 		GDynamicRHI->RHIReadSurfaceData(Texture, Rect, OutData, InFlags);
 	}
 	
-	FORCEINLINE void MapStagingSurface(FRHITexture* Texture,void*& OutData,int32& OutWidth,int32& OutHeight)
+	FORCEINLINE void MapStagingSurface(FRHITexture* Texture, void*& OutData, int32& OutWidth, int32& OutHeight)
 	{
-		GDynamicRHI->RHIMapStagingSurface_RenderThread(*this, Texture,OutData,OutWidth,OutHeight);
+		GDynamicRHI->RHIMapStagingSurface_RenderThread(*this, Texture, nullptr, OutData, OutWidth, OutHeight);
 	}
-	
+
+	FORCEINLINE void MapStagingSurface(FRHITexture* Texture, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight)
+	{
+		GDynamicRHI->RHIMapStagingSurface_RenderThread(*this, Texture, Fence, OutData, OutWidth, OutHeight);
+	}
+
 	FORCEINLINE void UnmapStagingSurface(FRHITexture* Texture)
 	{
 		GDynamicRHI->RHIUnmapStagingSurface_RenderThread(*this, Texture);
@@ -4512,11 +4481,6 @@ public:
 		return RHIGetViewportBackBuffer(Viewport);
 	}
 	
-	FORCEINLINE void AdvanceFrameFence()
-	{
-		RHIAdvanceFrameFence();
-	}
-
 	FORCEINLINE void AdvanceFrameForGetViewportBackBuffer(FRHIViewport* Viewport)
 	{
 		return RHIAdvanceFrameForGetViewportBackBuffer(Viewport);
@@ -4656,7 +4620,15 @@ public:
 		 
 		return GDynamicRHI->RHIGetNativeDevice();
 	}
-	
+
+	FORCEINLINE void* GetNativeInstance()
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_GetNativeInstance_Flush);
+		ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+
+		return GDynamicRHI->RHIGetNativeInstance();
+	}
+
 	FORCEINLINE class IRHICommandContext* GetDefaultContext()
 	{
 		return RHIGetDefaultContext();
@@ -5325,6 +5297,12 @@ FORCEINLINE void* RHIGetNativeDevice()
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().GetNativeDevice();
 }
+
+FORCEINLINE void* RHIGetNativeInstance()
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().GetNativeInstance();
+}
+
 
 FORCEINLINE FRHIShaderLibraryRef RHICreateShaderLibrary(EShaderPlatform Platform, FString const& FilePath, FString const& Name)
 {

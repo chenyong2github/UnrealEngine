@@ -556,8 +556,11 @@ void FConcertClientPresenceManager::OnSessionClientChanged(IConcertClientSession
 			SetPresenceVisibility(InClientInfo.ClientEndpointId, PresencePersistentState->bVisible, PresencePersistentState->bPropagateToAll);
 		}
 
-		// Send avatar-related info for this client when a remote client connects or is updated
-		SendPresenceInVREvent(&InClientInfo.ClientEndpointId);
+		if (!IsInGame())
+		{
+			// Send avatar-related info for this client when a remote client connects or is updated
+			SendPresenceInVREvent(&InClientInfo.ClientEndpointId);
+		}
 	}
 	else if (InClientStatus == EConcertClientStatus::Disconnected)
 	{
@@ -700,6 +703,7 @@ FConcertClientPresenceState& FConcertClientPresenceManager::EnsurePresenceState(
 			if (Session->FindSessionClient(InEndpointId, ClientSessionInfo))
 			{
 				PresenceState->DisplayName = ClientSessionInfo.ClientInfo.DisplayName;
+				PresenceState->AvatarColor = ClientSessionInfo.ClientInfo.AvatarColor;
 			}
 		}
 		PresencePersistentStateMap.FindOrAdd(PresenceState->DisplayName);
@@ -900,6 +904,10 @@ FConcertClientDefaultPresenceModeFactory::FConcertClientDefaultPresenceModeFacto
 	// Add handler for VR mode
 	IVREditorModule::Get().OnVREditingModeEnter().AddRaw(this, &FConcertClientDefaultPresenceModeFactory::OnVREditingModeEnter);
 	IVREditorModule::Get().OnVREditingModeExit().AddRaw(this, &FConcertClientDefaultPresenceModeFactory::OnVREditingModeExit);
+
+	// Set the initial vr device if any
+	UVREditorMode* VRMode = IVREditorModule::Get().GetVRMode();
+	VRDeviceType = VRMode ? VRMode->GetHMDDeviceType() : FName();
 }
 
 FConcertClientDefaultPresenceModeFactory::~FConcertClientDefaultPresenceModeFactory()

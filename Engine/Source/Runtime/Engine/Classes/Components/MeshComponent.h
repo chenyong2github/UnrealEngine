@@ -17,7 +17,7 @@
  * @see UStaticMeshComponent
  * @see USkeletalMeshComponent
  */
-UCLASS(abstract)
+UCLASS(abstract, ShowCategories = (VirtualTexture))
 class ENGINE_API UMeshComponent : public UPrimitiveComponent
 {
 	GENERATED_UCLASS_BODY()

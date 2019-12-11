@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AudioMixerSource.h"
+#include "AudioMixerSourceBuffer.h"
 #include "ActiveSound.h"
 #include "AudioMixerSourceBuffer.h"
 #include "AudioMixerDevice.h"
@@ -439,7 +440,7 @@ namespace Audio
 
 		if (!MixerBuffer)
 		{
-			MixerSourceBuffer.Reset();
+			FreeResources(); // APM: maybe need to call this here too? 
 			return false;
 		}
 
@@ -476,6 +477,20 @@ namespace Audio
 
 		check(!MixerSourceBuffer.IsValid());
 		MixerSourceBuffer = FMixerSourceBuffer::Create(*MixerBuffer, SoundWave, InWaveInstance->LoopingMode, bIsSeeking);
+		
+		if (!MixerSourceBuffer.IsValid())
+		{
+			FreeResources();
+
+			// Guarantee that this wave instance does not try to replay by disabling looping.
+			WaveInstance->LoopingMode = LOOP_Never;
+
+			if (ensure(WaveInstance->ActiveSound))
+			{
+				WaveInstance->ActiveSound->bShouldRemainActiveIfDropped = false;
+			}
+		}
+		
 		return MixerSourceBuffer.IsValid();
 	}
 
@@ -587,6 +602,13 @@ namespace Audio
 		}
 
 		if (!MixerSourceVoice)
+		{
+			StopNow();
+			return;
+		}
+
+		// Always stop procedural sounds immediately.
+		if (WaveInstance && WaveInstance->WaveData && WaveInstance->WaveData->bProcedural)
 		{
 			StopNow();
 			return;
@@ -709,11 +731,6 @@ namespace Audio
 		return true;
 	}
 
-	FString FMixerSource::Describe(bool bUseLongName)
-	{
-		return FString(TEXT("Stub"));
-	}
-
 	float FMixerSource::GetPlaybackPercent() const
 	{
 		if (InitializationState != EMixerSourceInitializationState::Initialized)
@@ -821,7 +838,13 @@ namespace Audio
 
 		if (AudioDevice->IsModulationPluginEnabled())
 		{
-			AudioDevice->ModulationInterface->ProcessControls(MixerSourceVoice->GetSourceId(), WaveInstance->SoundModulationControls);
+			const int32 SourceId = MixerSourceVoice->GetSourceId();
+			const bool bUpdatePending = AudioDevice->ModulationInterface->ProcessControls(SourceId, WaveInstance->SoundModulationControls);
+
+			if (bUpdatePending)
+			{
+				AudioDevice->UpdateModulationControls(SourceId, WaveInstance->SoundModulationControls);
+			}
 		}
 	}
 

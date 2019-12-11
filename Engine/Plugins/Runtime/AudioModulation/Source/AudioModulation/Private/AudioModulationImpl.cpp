@@ -9,7 +9,9 @@
 #include "Misc/CoreDelegates.h"
 #include "SoundModulatorLFO.h"
 #include "SoundModulationPatch.h"
+#include "SoundModulationProxy.h"
 #include "SoundModulationValue.h"
+#include "UObject/WeakObjectPtr.h"
 
 #if !UE_BUILD_SHIPPING
 #include "AudioModulationDebugger.h"
@@ -22,40 +24,6 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("Mix Count"), STAT_AudioModulationMixCount, STAT
 
 namespace
 {
-#if WITH_EDITOR
-	// Checks whether new inputs being modified require stopping referencing preview sound for proxies to be updated and take change.
-	template <typename T>
-	bool InputUpdateRequiresStop(const TArray<T>& NewInputs, const TArray<AudioModulation::FModulationInputProxy>& CurrentInputProxies)
-	{
-		check(IsInAudioThread());
-
-		if (NewInputs.Num() != CurrentInputProxies.Num())
-		{
-			return true;
-		}
-
-		for (int32 i = 0; i < NewInputs.Num(); ++i)
-		{
-			if (const USoundControlBusBase* NewBus = NewInputs[i].GetBus())
-			{
-				if (NewBus->GetUniqueID() != CurrentInputProxies[i].BusId)
-				{
-					return true;
-				}
-			}
-			else
-			{
-				if (CurrentInputProxies[i].BusId != INDEX_NONE)
-				{
-					return true;
-				}
-			}
-		}
-
-		return false;
-	};
-#endif
-
 	void MixInModulationValue(ESoundModulatorOperator& Operator, float ModStageValue, float& Value)
 	{
 		switch (Operator)
@@ -87,9 +55,6 @@ namespace
 namespace AudioModulation
 {
 	FAudioModulationImpl::FAudioModulationImpl()
-#if !UE_BUILD_SHIPPING
-		: PreviewSound(nullptr)
-#endif
 	{
 	}
 
@@ -101,67 +66,32 @@ namespace AudioModulation
 #if WITH_EDITOR
 	void FAudioModulationImpl::OnEditPluginSettings(const USoundModulationPluginSourceSettingsBase& InSettings)
 	{
-		// Find if sound is being referenced and auditioned and stop immediately.
-		// This informs user that modifying sound's settings does not translate to
-		// currently playing sound.
-		const uint32 SettingsId = InSettings.GetUniqueID();
-		auto UpdateSettings = [this, SettingsId]()
+		const TWeakObjectPtr<const USoundModulationPluginSourceSettingsBase> SettingsPtr = &InSettings;
+		RunCommandOnAudioThread([this, SettingsPtr]()
 		{
-			if (PreviewSound)
+			if (!SettingsPtr.IsValid())
 			{
-				USoundModulationPluginSourceSettingsBase* SettingsBase = PreviewSound->FindModulationSettings();
-				if (SettingsBase && SettingsId == SettingsBase->GetUniqueID())
+				return;
+			}
+
+			const USoundModulationSettings* Settings = CastChecked<USoundModulationSettings>(SettingsPtr.Get());
+			const uint32 SettingsId = Settings->GetUniqueID();
+			for (FModulationSettingsProxy& SourceSetting : SourceSettings)
+			{
+				if (SourceSetting.GetId() == SettingsId)
 				{
-					const USoundModulationSettings* Settings = CastChecked<USoundModulationSettings>(SettingsBase);
-
-					bool bShouldStop = false;
-					if (InputUpdateRequiresStop<FSoundVolumeModulationInput>(Settings->Volume.Inputs, PreviewSettings.Volume.InputProxies))
-					{
-						bShouldStop = true;
-					}
-					else if (InputUpdateRequiresStop<FSoundHPFModulationInput>(Settings->Highpass.Inputs, PreviewSettings.Highpass.InputProxies))
-					{
-						bShouldStop = true;
-					}
-					else if (InputUpdateRequiresStop<FSoundLPFModulationInput>(Settings->Lowpass.Inputs, PreviewSettings.Lowpass.InputProxies))
-					{
-						bShouldStop = true;
-					}
-					else if (InputUpdateRequiresStop<FSoundPitchModulationInput>(Settings->Pitch.Inputs, PreviewSettings.Pitch.InputProxies))
-					{
-						bShouldStop = true;
-					}
-
-					if (bShouldStop)
-					{
-						PreviewSound->Stop();
-						PreviewSound = nullptr;
-						PreviewSettings = FModulationSettingsProxy();
-					}
-					else
-					{
-						PreviewSettings = FModulationSettingsProxy(*Settings);
-						for (FModulationSettingsProxy& SourceSetting : SourceSettings)
-						{
-							if (SourceSetting.GetId() == PreviewSettings.GetId())
-							{
-								SourceSetting = PreviewSettings;
-							}
-						}
-
-						for (TPair<uint32, FModulationSettingsProxy>& Pair : SoundSettings)
-						{
-							if (Pair.Value.GetId() == PreviewSettings.GetId())
-							{
-								Pair.Value = PreviewSettings;
-							}
-						}
-					}
+					SourceSetting = FModulationSettingsProxy(*Settings, RefProxies);
 				}
 			}
-		};
 
-		IsInAudioThread() ? UpdateSettings() : FAudioThread::RunCommandOnAudioThread(UpdateSettings);
+			for (TPair<uint32, FModulationSettingsProxy>& Pair : SoundSettings)
+			{
+				if (Pair.Value.GetId() == SettingsId)
+				{
+					Pair.Value = FModulationSettingsProxy(*Settings, RefProxies);
+				}
+			}
+		});
 	}
 #endif // WITH_EDITOR
 
@@ -169,73 +99,11 @@ namespace AudioModulation
 	{
 		check(IsInAudioThread());
 
-		const USoundModulationSettings* Settings = CastChecked<USoundModulationSettings>(&InSettings);
 		const uint32 SoundId = InSound.GetObjectId();
-
-#if !UE_BUILD_SHIPPING
-		if (InSound.IsPreviewSound())
-		{
-			PreviewSound = &InSound;
-			PreviewSettings = FModulationSettingsProxy(*Settings);
-		}
-#endif
-
 		if (!SoundSettings.Contains(SoundId))
 		{
-			SoundSettings.Add(SoundId, FModulationSettingsProxy(*Settings));
-		}
-
-		for (const USoundControlBusMix* Mix : Settings->Mixes)
-		{
-			if (Mix && (Mix->bAutoActivate || InSound.IsPreviewSound()))
-			{
-				ActivateBusMix(*Mix, &InSound);
-			}
-		}
-
-		auto CheckRefActivate = [this, &InSound](const USoundControlBusBase* Bus)
-		{
-			if (!Bus)
-			{
-				return;
-			}
-
-			if (Bus->bAutoActivate || InSound.IsPreviewSound())
-			{
-				ActivateBus(*Bus, &InSound);
-			}
-
-			for (const USoundBusModulatorBase* Modulator : Bus->Modulators)
-			{
-				if (const USoundBusModulatorLFO* LFO = Cast<USoundBusModulatorLFO>(Modulator))
-				{
-					if (LFO->bAutoActivate || InSound.IsPreviewSound())
-					{
-						FModulatorLFOProxy LFOProxy(*LFO);
-						ActivateLFO(*LFO, &InSound);
-					}
-				}
-			}
-		};
-
-		for (const FSoundVolumeModulationInput& Input : Settings->Volume.Inputs)
-		{
-			CheckRefActivate(Cast<USoundControlBusBase>(Input.Bus));
-		}
-
-		for (const FSoundPitchModulationInput& Input : Settings->Pitch.Inputs)
-		{
-			CheckRefActivate(Cast<USoundControlBusBase>(Input.Bus));
-		}
-
-		for (const FSoundLPFModulationInput& Input : Settings->Lowpass.Inputs)
-		{
-			CheckRefActivate(Cast<USoundControlBusBase>(Input.Bus));
-		}
-
-		for (const FSoundHPFModulationInput& Input : Settings->Highpass.Inputs)
-		{
-			CheckRefActivate(Cast<USoundControlBusBase>(Input.Bus));
+			const USoundModulationSettings* Settings = CastChecked<USoundModulationSettings>(&InSettings);
+			SoundSettings.Add(SoundId, FModulationSettingsProxy(*Settings, RefProxies));
 		}
 	}
 
@@ -245,7 +113,7 @@ namespace AudioModulation
 
 		if (const USoundModulationSettings* Settings = CastChecked<USoundModulationSettings>(&InSettings))
 		{
-			SourceSettings[InSourceId] = FModulationSettingsProxy(*Settings);
+			SourceSettings[InSourceId] = FModulationSettingsProxy(*Settings, RefProxies);
 		}
 	}
 
@@ -261,40 +129,10 @@ namespace AudioModulation
 		check(IsInAudioThread());
 		check(InSound.GetObjectId() != INDEX_NONE);
 
-		const FModulationSettingsProxy& Settings = SoundSettings.FindChecked(InSound.GetObjectId());
-		for (FBusMixId MixId : Settings.Mixes)
+		if (InSound.GetPlayCount() == 0)
 		{
-			DeactivateBusMix(MixId, &InSound);
+			SoundSettings.Remove(InSound.GetObjectId());
 		}
-
-		for (const FModulationInputProxy& Input : Settings.Volume.InputProxies)
-		{
-			DeactivateBus(Input.BusId, &InSound);
-		}
-
-		for (const FModulationInputProxy& Input : Settings.Pitch.InputProxies)
-		{
-			DeactivateBus(Input.BusId, &InSound);
-		}
-
-		for (const FModulationInputProxy& Input : Settings.Lowpass.InputProxies)
-		{
-			DeactivateBus(Input.BusId, &InSound);
-		}
-
-		for (const FModulationInputProxy& Input : Settings.Highpass.InputProxies)
-		{
-			DeactivateBus(Input.BusId, &InSound);
-		}
-
-#if !UE_BUILD_SHIPPING
-		if (InSound.IsPreviewSound())
-		{
-			check(&InSound == PreviewSound);
-			PreviewSound = nullptr;
-			PreviewSettings = FModulationSettingsProxy();
-		}
-#endif
 	}
 
 #if !UE_BUILD_SHIPPING
@@ -314,78 +152,50 @@ namespace AudioModulation
 	}
 #endif // !UE_BUILD_SHIPPING
 
-	void FAudioModulationImpl::ActivateBus(const USoundControlBusBase& InBus, const ISoundModulatable* InSound)
+	void FAudioModulationImpl::ActivateBus(const USoundControlBusBase& InBus)
 	{
-		const FControlBusProxy NewBusProxy(InBus);
-		const bool bCanCreateNew = InBus.CanAutoActivate(InSound);
-
-		auto ActivateBusInternal = [this, NewBusProxy, InSound, bCanCreateNew]()
+		const TWeakObjectPtr<const USoundControlBusBase>BusPtr = &InBus;
+		RunCommandOnAudioThread([this, BusPtr]()
 		{
-			const FBusId NewBusId = NewBusProxy.GetId();
-			FControlBusProxy* BusProxy = ActiveBuses.Find(NewBusId);
-			if (!BusProxy && bCanCreateNew)
+			if (BusPtr.IsValid())
 			{
-				BusProxy = &ActiveBuses.Add(NewBusId, NewBusProxy);
-			}
+				auto OnCreate = [this, BusPtr](FControlBusProxy& NewProxy)
+				{
+					NewProxy.InitLFOs(*BusPtr.Get(), RefProxies.LFOs);
+				};
 
-			if (BusProxy && InSound)
-			{
-				BusProxy->OnInitSound(*InSound);
+				FBusHandle BusHandle = FBusHandle::Create(*BusPtr.Get(), RefProxies.Buses, OnCreate);
+				ManuallyActivatedBuses.Add(MoveTemp(BusHandle));
 			}
-		};
+		});
 
-		IsInAudioThread() ? ActivateBusInternal() : FAudioThread::RunCommandOnAudioThread(ActivateBusInternal);
 	}
 
-	void FAudioModulationImpl::ActivateBusMix(const USoundControlBusMix& InBusMix, const ISoundModulatable* InSound)
+	void FAudioModulationImpl::ActivateBusMix(const USoundControlBusMix& InBusMix)
 	{
-		const FModulatorBusMixProxy NewMixProxy(InBusMix);
-		const bool bCanCreateNew = InBusMix.CanAutoActivate(InSound);
-
-		auto ActivateMixInternal = [this, NewMixProxy, InSound, bCanCreateNew]()
+		const TWeakObjectPtr<const USoundControlBusMix>BusMixPtr = &InBusMix;
+		RunCommandOnAudioThread([this, BusMixPtr]()
 		{
-			const FBusMixId MixId = static_cast<FBusMixId>(NewMixProxy.GetId());
-			FModulatorBusMixProxy* BusMixProxy = ActiveBusMixes.Find(MixId);
-			if (BusMixProxy)
+			if (BusMixPtr.IsValid())
 			{
-				// Enable in case mix is currently stopping but not yet stopped.
-				BusMixProxy->SetEnabled();
+				FBusMixHandle BusMixHandle = FBusMixHandle::Create(*BusMixPtr.Get(), RefProxies.BusMixes);
+				ManuallyActivatedBusMixes.Add(MoveTemp(BusMixHandle));
 			}
-			else if (bCanCreateNew)
-			{
-				BusMixProxy = &ActiveBusMixes.Add(MixId, NewMixProxy);
-			}
+		});
 
-			if (BusMixProxy && InSound)
-			{
-				BusMixProxy->OnInitSound(*InSound);
-			}
-		};
-
-		IsInAudioThread() ? ActivateMixInternal() : FAudioThread::RunCommandOnAudioThread(ActivateMixInternal);
 	}
 
-	void FAudioModulationImpl::ActivateLFO(const USoundBusModulatorLFO& InLFO, const ISoundModulatable* InSound)
+	void FAudioModulationImpl::ActivateLFO(const USoundBusModulatorLFO& InLFO)
 	{
-		const FModulatorLFOProxy NewLFOProxy(InLFO);
-		const bool bCanCreateNew = InLFO.CanAutoActivate(InSound);
-
-		auto ActivateLFOInternal = [this, NewLFOProxy, InSound, bCanCreateNew]()
+		const TWeakObjectPtr<const USoundBusModulatorLFO>LFOPtr = &InLFO;
+		RunCommandOnAudioThread([this, LFOPtr]()
 		{
-			const AudioModulation::FLFOId LFOId = NewLFOProxy.GetId();
-			FModulatorLFOProxy* LFOProxy = ActiveLFOs.Find(LFOId);
-			if (!LFOProxy && bCanCreateNew)
+			if (LFOPtr.IsValid())
 			{
-				LFOProxy = &ActiveLFOs.Add(LFOId, NewLFOProxy);
+				FLFOHandle LFOHandle = FLFOHandle::Create(*LFOPtr.Get(), RefProxies.LFOs);
+				ManuallyActivatedLFOs.Add(MoveTemp(LFOHandle));
 			}
-
-			if (LFOProxy && InSound)
-			{
-				LFOProxy->OnInitSound(*InSound);
-			}
-		};
-
-		IsInAudioThread() ? ActivateLFOInternal() : FAudioThread::RunCommandOnAudioThread(ActivateLFOInternal);
+		});
 	}
 
 	float FAudioModulationImpl::CalculateModulationValue(FModulationPatchProxy& OutProxy) const
@@ -427,11 +237,12 @@ namespace AudioModulation
 		{
 			if (InputProxy.bSampleAndHold)
 			{
-				if (!OutProxy.OutputProxy.bInitialized)
+				if (!OutProxy.OutputProxy.bInitialized && InputProxy.BusHandle.IsValid())
 				{
-					if (const FControlBusProxy* BusProxy = ActiveBuses.Find(InputProxy.BusId))
+					const FControlBusProxy& BusProxy = InputProxy.BusHandle.FindProxy();
+					if (!BusProxy.IsBypassed())
 					{
-						float ModStageValue = BusProxy->GetValue();
+						float ModStageValue = BusProxy.GetValue();
 						InputProxy.Transform.Apply(ModStageValue);
 						MixInModulationValue(OutProxy.OutputProxy.Operator, ModStageValue, OutSampleHold);
 					}
@@ -439,11 +250,15 @@ namespace AudioModulation
 			}
 			else
 			{
-				if (const FControlBusProxy* BusProxy = ActiveBuses.Find(InputProxy.BusId))
+				if (InputProxy.BusHandle.IsValid())
 				{
-					float ModStageValue = BusProxy->GetValue();
-					InputProxy.Transform.Apply(ModStageValue);
-					MixInModulationValue(OutProxy.OutputProxy.Operator, ModStageValue, OutValue);
+					const FControlBusProxy& BusProxy = InputProxy.BusHandle.FindProxy();
+					if (!BusProxy.IsBypassed())
+					{
+						float ModStageValue = BusProxy.GetValue();
+						InputProxy.Transform.Apply(ModStageValue);
+						MixInModulationValue(OutProxy.OutputProxy.Operator, ModStageValue, OutValue);
+					}
 				}
 			}
 		}
@@ -461,92 +276,67 @@ namespace AudioModulation
 		return OutValue;
 	}
 
-	void FAudioModulationImpl::DeactivateBusMix(const FBusMixId InBusMixId, const ISoundModulatable* InSound)
+	bool FAudioModulationImpl::CalculateModulationValue(FModulationPatchProxy& OutProxy, float& OutValue) const
 	{
-		auto DeactivateMix = [this, InBusMixId, InSound]()
+		if (OutProxy.bBypass)
 		{
-			check(IsInAudioThread());
+			return false;
+		}
 
-			if (FModulatorBusMixProxy* Mix = ActiveBusMixes.Find(InBusMixId))
-			{
-				if (!InSound)
-				{
-					if (!Mix->GetAutoActivate())
-					{
-						Mix->SetStopping();
-					}
-				}
-				else if (Mix->OnReleaseSound(*InSound) == 0)
-				{
-					if (Mix->GetAutoActivate())
-					{
-						Mix->SetStopping();
-					}
-				}
-			}
-		};
+		const float InitValue = OutValue;
+		OutValue = CalculateModulationValue(OutProxy);
 
-		IsInAudioThread() ? DeactivateMix() : FAudioThread::RunCommandOnAudioThread(DeactivateMix);
+		return !FMath::IsNearlyEqual(InitValue, OutValue);
 	}
 
-	void FAudioModulationImpl::DeactivateBus(const FBusId InBusId, const ISoundModulatable* InSound)
+	float FAudioModulationImpl::CalculateInitialVolume(const USoundModulationPluginSourceSettingsBase& SettingsBase)
 	{
-		RunCommandOnAudioThread([this, InBusId, InSound]()
+		check(IsInAudioThread());
+
+		const USoundModulationSettings* Settings = CastChecked<USoundModulationSettings>(&SettingsBase);
+		FModulationPatchProxy VolumePatch(Settings->Volume, RefProxies);
+
+		return CalculateModulationValue(VolumePatch);
+	}
+
+	void FAudioModulationImpl::DeactivateBus(const USoundControlBusBase& InBus)
+	{
+		const TWeakObjectPtr<const USoundControlBusBase>BusPtr = &InBus;
+		RunCommandOnAudioThread([this, BusPtr]()
 		{
-			check(IsInAudioThread());
-
-			if (FControlBusProxy* Bus = ActiveBuses.Find(InBusId))
+			if (BusPtr.IsValid())
 			{
-				if (!InSound)
-				{
-					if (!Bus->GetAutoActivate())
-					{
-						ActiveBuses.Remove(InBusId);
-					}
-				}
-				else if (Bus->OnReleaseSound(*InSound) == 0)
-				{
-					if (Bus->GetAutoActivate())
-					{
-						ActiveBuses.Remove(InBusId);
-					}
-				}
-
-				// Only pass along to referenced LFOs if deactivating
-				// via notification of sound release
-				if (InSound)
-				{
-					for (FLFOId LFOId : Bus->GetLFOIds())
-					{
-						DeactivateLFO(LFOId, InSound);
-					}
-				}
+				const USoundControlBusBase& Bus = *BusPtr.Get();
+				FBusHandle BusHandle = FBusHandle::Create(Bus, RefProxies.Buses);
+				ManuallyActivatedBuses.Remove(MoveTemp(BusHandle));
 			}
 		});
 	}
 
-	void FAudioModulationImpl::DeactivateLFO(const FLFOId InLFOId, const ISoundModulatable* InSound)
+	void FAudioModulationImpl::DeactivateBusMix(const USoundControlBusMix& InBusMix)
 	{
-		RunCommandOnAudioThread([this, InLFOId, InSound]()
+		const TWeakObjectPtr<const USoundControlBusMix> BusMixPtr = &InBusMix;
+		RunCommandOnAudioThread([this, BusMixPtr]()
 		{
-			check(IsInAudioThread());
-
-			if (FModulatorLFOProxy* LFO = ActiveLFOs.Find(InLFOId))
+			if (BusMixPtr.IsValid())
 			{
-				if (!InSound)
-				{
-					if (!LFO->GetAutoActivate())
-					{
-						ActiveBuses.Remove(InLFOId);
-					}
-				}
-				else if (LFO->OnReleaseSound(*InSound) == 0)
-				{
-					if (LFO->GetAutoActivate())
-					{
-						ActiveBuses.Remove(InLFOId);
-					}
-				}
+				const USoundControlBusMix& BusMix = *BusMixPtr.Get();
+				FBusMixHandle BusMixHandle = FBusMixHandle::Create(BusMix, RefProxies.BusMixes);
+				ManuallyActivatedBusMixes.Remove(MoveTemp(BusMixHandle));
+			}
+		});
+	}
+
+	void FAudioModulationImpl::DeactivateLFO(const USoundBusModulatorLFO& InLFO)
+	{
+		const TWeakObjectPtr<const USoundBusModulatorLFO>LFOPtr = &InLFO;
+		RunCommandOnAudioThread([this, LFOPtr]()
+		{
+			if (LFOPtr.IsValid())
+			{
+				const USoundBusModulatorLFO& LFO = *LFOPtr.Get();
+				FLFOHandle LFOHandle = FLFOHandle::Create(LFO, RefProxies.LFOs);
+				ManuallyActivatedLFOs.Remove(MoveTemp(LFOHandle));
 			}
 		});
 	}
@@ -555,26 +345,63 @@ namespace AudioModulation
 	{
 		check(IsInAudioThread());
 
-		return ActiveBuses.Contains(InBusId);
+		return RefProxies.Buses.Contains(InBusId);
 	}
 
-	bool FAudioModulationImpl::IsLFOActive(const FLFOId InLFOId) const
+	bool FAudioModulationImpl::ProcessControls(const uint32 InSourceId, FSoundModulationControls& OutControls)
 	{
 		check(IsInAudioThread());
 
-		return ActiveLFOs.Contains(InLFOId);
-	}
+		bool bControlsUpdated = false;
 
-	void FAudioModulationImpl::ProcessControls(const uint32 SourceId, FSoundModulationControls& Controls)
-	{
-		check(IsInAudioThread());
+		FModulationSettingsProxy& Settings = SourceSettings[InSourceId];
 
-		FModulationSettingsProxy& Settings = SourceSettings[SourceId];
+		if (Settings.Volume.bBypass)
+		{
+			OutControls.Volume = 1.0f;
+		}
+		else
+		{
+			bControlsUpdated |= CalculateModulationValue(Settings.Volume, OutControls.Volume);
+		}
 
-		Controls.Volume   = CalculateModulationValue(Settings.Volume);
-		Controls.Pitch    = CalculateModulationValue(Settings.Pitch);
-		Controls.Lowpass  = CalculateModulationValue(Settings.Lowpass);
-		Controls.Highpass = CalculateModulationValue(Settings.Highpass);
+		if (Settings.Pitch.bBypass)
+		{
+			OutControls.Pitch = 1.0f;
+		}
+		else
+		{
+			bControlsUpdated |= CalculateModulationValue(Settings.Pitch, OutControls.Pitch);
+		}
+
+		if (Settings.Highpass.bBypass)
+		{
+			OutControls.Highpass = MIN_FILTER_FREQUENCY;
+		}
+		else
+		{
+			bControlsUpdated |= CalculateModulationValue(Settings.Highpass, OutControls.Highpass);
+		}
+
+		if (Settings.Lowpass.bBypass)
+		{
+			OutControls.Lowpass = MAX_FILTER_FREQUENCY;
+		}
+		else
+		{
+			bControlsUpdated |= CalculateModulationValue(Settings.Lowpass, OutControls.Lowpass);
+		}
+
+		for (TPair<FName, FModulationPatchProxy>& Pair : Settings.Controls)
+		{
+			if (!Pair.Value.bBypass)
+			{
+				float& OutputValue = OutControls.Controls.FindOrAdd(Pair.Key);
+				bControlsUpdated |= CalculateModulationValue(Pair.Value, OutputValue);
+			}
+		}
+
+		return bControlsUpdated;
 	}
 
 	void FAudioModulationImpl::ProcessModulators(float Elapsed)
@@ -582,27 +409,27 @@ namespace AudioModulation
 		check(IsInAudioThread());
 
 		// Update LFOs (prior to bus mixing to avoid single-frame latency)
-		for (TPair<FLFOId, FModulatorLFOProxy>& Pair : ActiveLFOs)
+		for (TPair<FLFOId, FModulatorLFOProxy>& Pair : RefProxies.LFOs)
 		{
 			Pair.Value.Update(Elapsed);
 		}
 
 		// Reset buses & refresh cached LFO
-		for (TPair<FBusId, FControlBusProxy>& Pair : ActiveBuses)
+		for (TPair<FBusId, FControlBusProxy>& Pair : RefProxies.Buses)
 		{
 			Pair.Value.Reset();
-			Pair.Value.MixLFO(ActiveLFOs);
+			Pair.Value.MixLFO();
 		}
 
 		// Update mix values and apply to prescribed buses.
 		// Track bus mixes ready to remove
 		TArray<FBusMixId> MixesToDeactivate;
-		for (TPair<FBusMixId, FModulatorBusMixProxy>& Pair : ActiveBusMixes)
+		for (TPair<FBusMixId, FModulatorBusMixProxy>& Pair : RefProxies.BusMixes)
 		{
-			Pair.Value.Update(Elapsed, ActiveBuses);
+			Pair.Value.Update(Elapsed, RefProxies.Buses);
 			if (Pair.Value.CanDestroy())
 			{
-				UE_LOG(LogAudioModulation, Log, TEXT("Audio modulation mix '%u' stopped."), static_cast<uint32>(Pair.Key));
+				UE_LOG(LogAudioModulation, Log, TEXT("Audio modulation mix '%s' stopped."), *Pair.Value.GetName());
 				MixesToDeactivate.Add(Pair.Key);
 			}
 		}
@@ -610,15 +437,15 @@ namespace AudioModulation
 		// Destroy mixes that have stopped
 		for (const FBusMixId& MixId : MixesToDeactivate)
 		{
-			ActiveBusMixes.Remove(MixId);
+			RefProxies.BusMixes.Remove(MixId);
 		}
 
-		SET_DWORD_STAT(STAT_AudioModulationBusCount, ActiveBuses.Num());
-		SET_DWORD_STAT(STAT_AudioModulationMixCount, ActiveBusMixes.Num());
-		SET_DWORD_STAT(STAT_AudioModulationLFOCount, ActiveLFOs.Num());
+		SET_DWORD_STAT(STAT_AudioModulationBusCount, RefProxies.Buses.Num());
+		SET_DWORD_STAT(STAT_AudioModulationMixCount, RefProxies.BusMixes.Num());
+		SET_DWORD_STAT(STAT_AudioModulationLFOCount, RefProxies.LFOs.Num());
 
 #if !UE_BUILD_SHIPPING
-		Debugger.UpdateDebugData(ActiveBuses, ActiveBusMixes, ActiveLFOs);
+		Debugger.UpdateDebugData(RefProxies);
 #endif // !UE_BUILD_SHIPPING
 	}
 
@@ -639,7 +466,7 @@ namespace AudioModulation
 		const FBusMixId MixId = static_cast<FBusMixId>(InMix.GetUniqueID());
 		RunCommandOnAudioThread([this, MixId, InChannels]()
 		{
-			if (FModulatorBusMixProxy* BusMixes = ActiveBusMixes.Find(MixId))
+			if (FModulatorBusMixProxy* BusMixes = RefProxies.BusMixes.Find(MixId))
 			{
 				BusMixes->SetMix(InChannels);
 			}
@@ -658,7 +485,7 @@ namespace AudioModulation
 
 		RunCommandOnAudioThread([this, ClassId, MixId, AddressFilter, InValue]()
 		{
-			if (FModulatorBusMixProxy* MixProxy = ActiveBusMixes.Find(MixId))
+			if (FModulatorBusMixProxy* MixProxy = RefProxies.BusMixes.Find(MixId))
 			{
 				MixProxy->SetMixByFilter(AddressFilter, ClassId, InValue);
 			}
@@ -667,41 +494,67 @@ namespace AudioModulation
 
 	void FAudioModulationImpl::UpdateModulator(const USoundModulatorBase& InModulator)
 	{
-		if (const USoundBusModulatorLFO* LFO = Cast<USoundBusModulatorLFO>(&InModulator))
+		if (const USoundBusModulatorLFO* InLFO = Cast<USoundBusModulatorLFO>(&InModulator))
 		{
-			const FLFOId LFOId = static_cast<FLFOId>(InModulator.GetUniqueID());
-			const FModulatorLFOProxy UpdateProxy(*LFO);
-			RunCommandOnAudioThread([this, UpdateProxy, LFOId]()
+			const TWeakObjectPtr<const USoundBusModulatorLFO> LFOPtr = InLFO;
+			RunCommandOnAudioThread([this, LFOPtr]()
 			{
-				if (FModulatorLFOProxy* LFOProxy = ActiveLFOs.Find(static_cast<FLFOId>(LFOId)))
+				if (LFOPtr.IsValid())
 				{
-					LFOProxy->OnUpdateProxy(UpdateProxy);
+					const USoundBusModulatorLFO& LFO = *LFOPtr.Get();
+					FLFOHandle LFOHandle = FLFOHandle::Get(LFO, RefProxies.LFOs);
+					if (LFOHandle.IsValid())
+					{
+						LFOHandle.FindProxy() = LFO;
+					}
+					else
+					{
+						UE_LOG(LogAudioModulation, Verbose, TEXT("Update to '%s' Ignored: LFO is inactive."), *LFO.GetName());
+					}
 				}
 			});
 		}
 
-		if (const USoundControlBusBase* Bus = Cast<USoundControlBusBase>(&InModulator))
+		if (const USoundControlBusBase* InBus = Cast<USoundControlBusBase>(&InModulator))
 		{
-			const FBusId BusId = static_cast<FBusId>(InModulator.GetUniqueID());
-			const FControlBusProxy UpdateProxy(*Bus);
-			RunCommandOnAudioThread([this, UpdateProxy, BusId]()
+			const TWeakObjectPtr<const USoundControlBusBase> BusPtr = InBus;
+			RunCommandOnAudioThread([this, BusPtr]()
 			{
-				if (FControlBusProxy* BusProxy = ActiveBuses.Find(static_cast<FBusId>(BusId)))
+				if (BusPtr.IsValid())
 				{
-					BusProxy->OnUpdateProxy(UpdateProxy);
+					const USoundControlBusBase* Bus = BusPtr.Get();
+					FBusHandle BusHandle = FBusHandle::Get(*Bus, RefProxies.Buses);
+					if (BusHandle.IsValid())
+					{
+						FControlBusProxy& Proxy = BusHandle.FindProxy();
+						Proxy = *Bus;
+						Proxy.InitLFOs(*Bus, RefProxies.LFOs);
+					}
+					else
+					{
+						UE_LOG(LogAudioModulation, Verbose, TEXT("Update to '%s' Ignored: Control Bus is inactive."), *Bus->GetName());
+					}
 				}
 			});
 		}
 
-		if (const USoundControlBusMix* Mix = Cast<USoundControlBusMix>(&InModulator))
+		if (const USoundControlBusMix* InMix = Cast<USoundControlBusMix>(&InModulator))
 		{
-			const FBusMixId BusMixId = static_cast<FBusMixId>(InModulator.GetUniqueID());
-			const FModulatorBusMixProxy UpdateProxy(*Mix);
-			RunCommandOnAudioThread([this, UpdateProxy, BusMixId]()
+			const TWeakObjectPtr<const USoundControlBusMix> BusMixPtr = InMix;
+			RunCommandOnAudioThread([this, BusMixPtr]()
 			{
-				if (FModulatorBusMixProxy* BusMixProxy = ActiveBusMixes.Find(static_cast<FBusMixId>(BusMixId)))
+				if (BusMixPtr.IsValid())
 				{
-					BusMixProxy->OnUpdateProxy(UpdateProxy);
+					const USoundControlBusMix& Mix = *BusMixPtr.Get();
+					FBusMixHandle BusMixHandle = FBusMixHandle::Get(Mix, RefProxies.BusMixes);
+					if (BusMixHandle.IsValid())
+					{
+						BusMixHandle.FindProxy() = Mix;
+					}
+					else
+					{
+						UE_LOG(LogAudioModulation, Verbose, TEXT("Update to '%s' Ignored: Control Bus Mix is inactive."), *Mix.GetName());
+					}
 				}
 			});
 		}

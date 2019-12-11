@@ -64,7 +64,8 @@ public class UMGEditor : ModuleRules
                 "TargetPlatform",
 				"TimeManagement",
 				"GameProjectGeneration",
-				"PropertyPath"
+				"PropertyPath",
+				"ToolMenus",
 			}
 			);
 	}

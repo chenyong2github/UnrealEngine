@@ -191,10 +191,6 @@ void D3D12RHI::FD3DGPUProfiler::EndFrame(FD3D12DynamicRHI* InRHI)
 
 void D3D12RHI::FD3DGPUProfiler::PushEvent(const TCHAR* Name, FColor Color)
 {
-#if WITH_DX_PERF
-	D3DPERF_BeginEvent(Color.DWColor(), Name);
-#endif
-
 	FGPUProfiler::PushEvent(Name, Color);
 }
 
@@ -238,10 +234,6 @@ void D3D12RHI::FD3DGPUProfiler::PushEvent(const TCHAR* Name, FColor Color, GFSDK
 
 void D3D12RHI::FD3DGPUProfiler::PopEvent()
 {
-#if WITH_DX_PERF
-	D3DPERF_EndEvent();
-#endif
-
 #if NV_AFTERMATH
 	if (GDX12NVAfterMathEnabled && bTrackingGPUCrashData)
 	{

@@ -7,6 +7,9 @@
 #include "Layout/Visibility.h"
 #include "NiagaraStackItemGroup.generated.h"
 
+class FNiagaraEmitterHandleViewModel;
+class UNiagaraStackItemGroupFooter;
+
 UCLASS()
 class NIAGARAEDITOR_API UNiagaraStackItemGroup : public UNiagaraStackEntry
 {
@@ -23,6 +26,8 @@ public:
 	virtual bool CanDelete() const { return false; }
 	virtual bool Delete() { return false; }
 
+	virtual bool GetIsEnabled() const override;
+
 	INiagaraStackItemGroupAddUtilities* GetAddUtilities() const;
 
 	uint32 GetRecursiveStackIssuesCount() const;
@@ -38,6 +43,9 @@ protected:
 	virtual void ChlildStructureChangedInternal() override;
 
 private:
+	UPROPERTY()
+	UNiagaraStackItemGroupFooter* GroupFooter;
+
 	INiagaraStackItemGroupAddUtilities* AddUtilities;
 
 	FText GroupDisplayName;
@@ -47,4 +55,19 @@ private:
 	mutable TOptional<uint32> RecursiveStackIssuesCount;
 	/** The highest severity of issues along this entry's tree. */
 	mutable TOptional<EStackIssueSeverity> HighestIssueSeverity;
+
+	TSharedPtr<FNiagaraEmitterHandleViewModel> OwningEmitterHandleViewModel;
+};
+
+UCLASS()
+class NIAGARAEDITOR_API UNiagaraStackItemGroupFooter : public UNiagaraStackEntry
+{
+	GENERATED_BODY()
+
+public:
+	void Initialize(FRequiredEntryData InRequiredEntryData);
+
+	virtual EStackRowStyle GetStackRowStyle() const override;
+
+	virtual bool GetCanExpand() const;
 };

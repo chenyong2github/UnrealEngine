@@ -2,12 +2,23 @@
 
 #include "Chaos/ChaosDebugDrawComponent.h"
 #include "Chaos/DebugDrawQueue.h"
+#include "ChaosLog.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
+#include "VisualLogger/VisualLogger.h"
+
+int bChaosDebugDraw_DrawMode = 0;
+FAutoConsoleVariableRef CVarArrowSize(TEXT("p.Chaos.DebugDrawMode"), bChaosDebugDraw_DrawMode, TEXT("Where to send debug draw commands. 0 = UE Debug Draw; 1 = VisLog; 2 = Both"));
 
 #if CHAOS_DEBUG_DRAW
-void DebugDrawChaos(UWorld* World)
+void DebugDrawChaos(AActor* DebugDrawActor)
 {
+	if (!DebugDrawActor)
+	{
+		return;
+	}
+
+	UWorld* World = DebugDrawActor->GetWorld();
 	if (!World || !World->IsGameWorld())
 	{
 		return;
@@ -16,51 +27,116 @@ void DebugDrawChaos(UWorld* World)
 	using namespace Chaos;
 	TArray<FLatentDrawCommand> LatenetDrawCommands;
 
+	bool bDrawUe = bChaosDebugDraw_DrawMode != 1;
+	bool bDrawVisLog = bChaosDebugDraw_DrawMode != 0;
+
 	FDebugDrawQueue::GetInstance().ExtractAllElements(LatenetDrawCommands, !World->IsPaused());
 	for (const FLatentDrawCommand& Command : LatenetDrawCommands)
 	{
+		AActor* Actor = (Command.TestBaseActor) ? Command.TestBaseActor : DebugDrawActor;
+
 		switch (Command.Type)
 		{
 		case FLatentDrawCommand::EDrawType::Point:
 		{
-			DrawDebugPoint(World, Command.LineStart, Command.Thickness, Command.Color, Command.bPersistentLines, Command.LifeTime, Command.DepthPriority);
+			if (bDrawUe)
+			{
+				DrawDebugPoint(World, Command.LineStart, Command.Thickness, Command.Color, Command.bPersistentLines, Command.LifeTime, Command.DepthPriority);
+			}
+			if (bDrawVisLog)
+			{
+				UE_VLOG_SEGMENT_THICK(Actor, LogChaos, Log, Command.LineStart, Command.LineStart, Command.Color, Command.Thickness, TEXT_EMPTY);
+			}
 			break;
 		}
 		case FLatentDrawCommand::EDrawType::Line:
 		{
-			DrawDebugLine(World, Command.LineStart, Command.LineEnd, Command.Color, Command.bPersistentLines, Command.LifeTime, Command.DepthPriority, Command.Thickness);
+			if (bDrawUe)
+			{
+				DrawDebugLine(World, Command.LineStart, Command.LineEnd, Command.Color, Command.bPersistentLines, Command.LifeTime, Command.DepthPriority, Command.Thickness);
+			}
+			if (bDrawVisLog)
+			{
+				UE_VLOG_SEGMENT(Actor, LogChaos, Log, Command.LineStart, Command.LineEnd, Command.Color, TEXT_EMPTY);
+			}
 			break;
 		}
 		case FLatentDrawCommand::EDrawType::DirectionalArrow:
 		{
-			DrawDebugDirectionalArrow(World, Command.LineStart, Command.LineEnd, Command.ArrowSize, Command.Color, Command.bPersistentLines, Command.LifeTime, Command.DepthPriority, Command.Thickness);
+			if (bDrawUe)
+			{
+				DrawDebugDirectionalArrow(World, Command.LineStart, Command.LineEnd, Command.ArrowSize, Command.Color, Command.bPersistentLines, Command.LifeTime, Command.DepthPriority, Command.Thickness);
+			}
+			if (bDrawVisLog)
+			{
+				UE_VLOG_SEGMENT(Actor, LogChaos, Log, Command.LineStart, Command.LineEnd, Command.Color, TEXT_EMPTY);
+			}
 			break;
 		}
 		case FLatentDrawCommand::EDrawType::Sphere:
 		{
-			DrawDebugSphere(World, Command.LineStart, Command.Radius, Command.Segments, Command.Color, Command.bPersistentLines, Command.LifeTime, Command.DepthPriority, Command.Thickness);
+			if (bDrawUe)
+			{
+				DrawDebugSphere(World, Command.LineStart, Command.Radius, Command.Segments, Command.Color, Command.bPersistentLines, Command.LifeTime, Command.DepthPriority, Command.Thickness);
+			}
+			if (bDrawVisLog)
+			{
+				// VLOG Capsule uses the bottom end as the origin (though the variable is named Center)
+				FVector Base = Command.LineStart - Command.Radius * FVector::UpVector;
+				UE_VLOG_CAPSULE(Actor, LogChaos, Log, Base, Command.Radius + KINDA_SMALL_NUMBER, Command.Radius, FQuat::Identity, Command.Color, TEXT_EMPTY);
+			}
 			break;
 		}
 		case FLatentDrawCommand::EDrawType::Box:
 		{
-			DrawDebugBox(World, Command.Center, Command.Extent, Command.Rotation, Command.Color, Command.bPersistentLines, Command.LifeTime, Command.DepthPriority, Command.Thickness);
+			if (bDrawUe)
+			{
+				DrawDebugBox(World, Command.Center, Command.Extent, Command.Rotation, Command.Color, Command.bPersistentLines, Command.LifeTime, Command.DepthPriority, Command.Thickness);
+			}
+			if (bDrawVisLog)
+			{
+				UE_VLOG_OBOX(Actor, LogChaos, Log, FBox(-Command.Extent, Command.Extent), FQuatRotationTranslationMatrix::Make(Command.Rotation, Command.Center), Command.Color, TEXT_EMPTY);
+			}
 			break;
 		}
 		case FLatentDrawCommand::EDrawType::String:
 		{
-			DrawDebugString(World, Command.TextLocation, Command.Text, Command.TestBaseActor, Command.Color, Command.LifeTime, Command.bDrawShadow, Command.FontScale);
+			if (bDrawUe)
+			{
+				DrawDebugString(World, Command.TextLocation, Command.Text, Command.TestBaseActor, Command.Color, Command.LifeTime, Command.bDrawShadow, Command.FontScale);
+			}
+			if (bDrawVisLog)
+			{
+				UE_VLOG(Command.TestBaseActor, LogChaos, Log, TEXT("%s"), *Command.Text);
+			}
 			break;
 		}
 		case FLatentDrawCommand::EDrawType::Circle:
 		{
-			FMatrix M = FRotationMatrix::MakeFromYZ(Command.YAxis, Command.ZAxis);
-			M.SetOrigin(Command.Center);
-			DrawDebugCircle(World, M, Command.Radius, Command.Segments, Command.Color, Command.bPersistentLines, Command.LifeTime, Command.DepthPriority, Command.Thickness, Command.bDrawAxis);
+			if (bDrawUe)
+			{
+				FMatrix M = FRotationMatrix::MakeFromYZ(Command.YAxis, Command.ZAxis);
+				M.SetOrigin(Command.Center);
+				DrawDebugCircle(World, M, Command.Radius, Command.Segments, Command.Color, Command.bPersistentLines, Command.LifeTime, Command.DepthPriority, Command.Thickness, Command.bDrawAxis);
+			}
+			//if (bDrawVisLog)
+			//{
+			//	UE_VLOG_CONE(Actor, LogChaos, Log, Command.Center, Command.ZAxis, 0.1f, PI, Command.Color, TEXT_EMPTY);
+			//}
 			break;
 		}
 		case FLatentDrawCommand::EDrawType::Capsule:
 		{
-			DrawDebugCapsule(World, Command.Center, Command.HalfHeight, Command.Radius, Command.Rotation, Command.Color, Command.bPersistentLines, Command.LifeTime, Command.DepthPriority, Command.Thickness);
+			if (bDrawUe)
+			{
+				DrawDebugCapsule(World, Command.Center, Command.HalfHeight, Command.Radius, Command.Rotation, Command.Color, Command.bPersistentLines, Command.LifeTime, Command.DepthPriority, Command.Thickness);
+			}
+			if (bDrawVisLog)
+			{
+				// VLOG Capsule uses the bottom end as the origin (though the variable is named Center)
+				FVector Base = Command.Center - Command.HalfHeight * (Command.Rotation * FVector::UpVector);
+				UE_VLOG_CAPSULE(Actor, LogChaos, Log, Base, Command.HalfHeight, Command.Radius, Command.Rotation, Command.Color, TEXT_EMPTY);
+			}
 			break;
 		}
 		default:
@@ -122,7 +198,7 @@ void UChaosDebugDrawComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 #if CHAOS_DEBUG_DRAW
-	DebugDrawChaos(GetWorld());
+	DebugDrawChaos(GetOwner());
 #endif
 }
 

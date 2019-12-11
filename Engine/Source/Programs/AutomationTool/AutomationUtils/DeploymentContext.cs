@@ -258,6 +258,17 @@ public class DeploymentContext //: ProjectParams
 	/// </summary>
 	public HashSet<StagedFileReference> BlacklistConfigFiles = new HashSet<StagedFileReference>();
 
+
+	/// <summary>
+	/// List of ini keys to strip when staging
+	/// </summary>
+	public List<string> IniKeyBlacklist = null;
+
+	/// <summary>
+	/// List of ini sections to strip when staging
+	/// </summary>
+	public List<string> IniSectionBlacklist = null;
+
 	/// <summary>
 	/// List of localization targets that are not included in staged build. By default, all project Content/Localization targets are automatically staged.
 	/// This list is read from the +BlacklistLocalizationTargets=... array in the [Staging] section of *Game.ini files.
@@ -477,23 +488,29 @@ public class DeploymentContext //: ProjectParams
 		ReadConfigFileList(GameConfig, "Staging", "WhitelistConfigFiles", WhitelistConfigFiles);
 		ReadConfigFileList(GameConfig, "Staging", "BlacklistConfigFiles", BlacklistConfigFiles);
 
-        // If we were configured to use manifests across the whole project, then this platform should use manifests.
-        // Otherwise, read whether we are generating chunks from the ProjectPackagingSettings ini.
-        if (InForceChunkManifests)
-        {
-            PlatformUsesChunkManifests = true;
-        }
-        else
-        {
-            ConfigHierarchy GameIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, ProjectRoot, InTargetPlatform.PlatformType);
-            String IniPath = "/Script/UnrealEd.ProjectPackagingSettings";
-            bool bSetting = false;
-            if (GameIni.GetBool(IniPath, "bGenerateChunks", out bSetting))
-            {
-                PlatformUsesChunkManifests = bSetting;
-            }
-        }
-    }
+		// Grab the game ini data
+		ConfigHierarchy GameIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, ProjectRoot, InTargetPlatform.PlatformType);
+		String IniPath = "/Script/UnrealEd.ProjectPackagingSettings";
+
+		// Read the config blacklists
+		GameIni.GetArray(IniPath, "IniKeyBlacklist", out IniKeyBlacklist);
+		GameIni.GetArray(IniPath, "IniSectionBlacklist", out IniSectionBlacklist);
+
+		// If we were configured to use manifests across the whole project, then this platform should use manifests.
+		// Otherwise, read whether we are generating chunks from the ProjectPackagingSettings ini.
+		if (InForceChunkManifests)
+		{
+			PlatformUsesChunkManifests = true;
+		}
+		else
+		{
+			bool bSetting = false;
+			if (GameIni.GetBool(IniPath, "bGenerateChunks", out bSetting))
+			{
+				PlatformUsesChunkManifests = bSetting;
+			}
+		}
+	}
 
 	/// <summary>
 	/// Read a list of whitelisted or blacklisted config files names from a config file

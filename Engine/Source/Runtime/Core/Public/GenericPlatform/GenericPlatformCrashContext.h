@@ -98,6 +98,7 @@ enum class ECrashContextType
 	GPUCrash,
 	Hang,
 	OutOfMemory,
+	AbnormalShutdown,
 
 	Max
 };
@@ -129,6 +130,7 @@ struct FSessionContext
 	bool 					bIsSourceDistribution;
 	bool 					bIsUE4Release;
 	bool					bIsOOM;
+	bool					bIsExitRequested;
 	uint32					ProcessId;
 	int32 					LanguageLCID;
 	int32 					NumberOfCores;
@@ -142,6 +144,7 @@ struct FSessionContext
 	TCHAR					EngineMode[CR_MAX_GENERIC_FIELD_CHARS];
 	TCHAR					EngineModeEx[CR_MAX_GENERIC_FIELD_CHARS];
 	TCHAR 					ExecutableName[CR_MAX_GENERIC_FIELD_CHARS];
+	TCHAR					BuildConfigurationName[CR_MAX_GENERIC_FIELD_CHARS];
 	TCHAR 					DeploymentName[CR_MAX_GENERIC_FIELD_CHARS];
 	TCHAR 					BaseDir[CR_MAX_DIRECTORY_CHARS];
 	TCHAR 					RootDir[CR_MAX_DIRECTORY_CHARS];
@@ -162,7 +165,15 @@ struct FSessionContext
 	TCHAR 					GameStateName[CR_MAX_GENERIC_FIELD_CHARS];
 	TCHAR 					CrashConfigFilePath[CR_MAX_DIRECTORY_CHARS];
 	FPlatformMemoryStats	MemoryStats;
-	TOptional<bool>			bIsVanilla;
+};
+
+/** Additional user settings to be communicated to crash reporting client. */
+struct FUserSettingsContext
+{
+	bool					bNoDialog = false;
+	bool					bSendUnattendedBugReports = false;
+	bool					bSendUsageData = false;
+	TCHAR					LogFilePath[CR_MAX_DIRECTORY_CHARS];
 };
 
 /**
@@ -179,14 +190,12 @@ struct FSharedCrashContext
 	uint32					CrashingThreadId;
 	uint32					NumStackFramesToIgnore;
 	ECrashContextType		CrashType;
+
+	// Additional user settings.
+	FUserSettingsContext	UserSettings;
+
 	// Platform specific crash context (must be portable)
 	void*					PlatformCrashContext;
-	// Platform specific memory stats
-	FPlatformMemoryStats	MemoryStats;
-	// User settings info
-	bool					bNoDialog;
-	bool					bSendUnattenededBugReports;
-	bool					bSendUsageData;
 	// Directory for dumped files
 	TCHAR					CrashFilesDirectory[CR_MAX_DIRECTORY_CHARS];
 	// Game/Engine information not possible to catch out of process
@@ -237,6 +246,7 @@ public:
 	static const TCHAR* const CrashTypeEnsure;
 	static const TCHAR* const CrashTypeGPU;
 	static const TCHAR* const CrashTypeHang;
+	static const TCHAR* const CrashTypeAbnormalShutdown;
 
 	static const TCHAR* const EngineModeExUnknown;
 	static const TCHAR* const EngineModeExDirty;
@@ -278,6 +288,9 @@ public:
 
 	virtual ~FGenericCrashContext() { }
 
+	/** Get the file path to the temporary session context file that we create for the given process. */
+	static FString GetTempSessionContextFilePath(uint64 ProcessID);
+
 	/** Serializes all data to the buffer. */
 	void SerializeContentToBuffer() const;
 
@@ -302,14 +315,16 @@ public:
 	/** Serializes crash's informations to the specified filename. Should be overridden for platforms where using FFileHelper is not safe, all POSIX platforms. */
 	virtual void SerializeAsXML( const TCHAR* Filename ) const;
 
-	/** Writes a common property to the buffer. */
-	void AddCrashProperty( const TCHAR* PropertyName, const TCHAR* PropertyValue ) const;
-
-	/** Writes a common property to the buffer. */
+	/** 
+	 * Serializes session context to the given buffer. 
+	 * NOTE: Assumes that the buffer already has a header and section open.
+	 */
+	static void SerializeSessionContext(FString& Buffer);
+	
 	template <typename Type>
-	void AddCrashProperty( const TCHAR* PropertyName, const Type& Value ) const
+	void AddCrashProperty(const TCHAR* PropertyName, const Type& Value) const
 	{
-		AddCrashProperty( PropertyName, *TTypeToString<Type>::ToString( Value ) );
+		AddCrashPropertyInternal(CommonBuffer, PropertyName, Value);
 	}
 
 	/** Escapes and appends specified text to XML string */
@@ -323,9 +338,6 @@ public:
 
 	/** Get the Game Name of the crash */
 	static FString GetCrashGameName();
-
-	/** Gets the "vanilla" status string. */
-	static const TCHAR* EngineModeExString();
 
 	/** Helper to get the crash report client config filepath saved by this instance and copied to each crash report folder. */
 	static const TCHAR* GetCrashConfigFilePath();
@@ -363,7 +375,7 @@ public:
 	static void SetMemoryStats(const FPlatformMemoryStats& MemoryStats);
 
 	/** Attempts to create the output report directory. */
-	static bool CreateCrashReportDirectory(const TCHAR* CrashGUIDRoot, const TCHAR* AppName, int32 CrashIndex, FString& OutCrashDirectoryAbsolute);
+	static bool CreateCrashReportDirectory(const TCHAR* CrashGUIDRoot, int32 CrashIndex, FString& OutCrashDirectoryAbsolute);
 
 	/** Sets the process id to that has crashed. On supported platforms this will analyze the given process rather than current. Default is current process. */
 	void SetCrashedProcess(const FProcHandle& Process) { ProcessHandle = Process; }
@@ -381,7 +393,7 @@ public:
 	virtual void SetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames);
 
 	/** Gets the portable callstack to a specified stack and puts it into OutCallStack */
-	virtual void GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack);
+	virtual void GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack) const;
 
 	/** Adds a portable callstack for a thread */
 	virtual void AddPortableThreadCallStack(uint32 ThreadId, const TCHAR* ThreadName, const uint64* StackFrames, int32 NumStackFrames);
@@ -421,6 +433,22 @@ protected:
 
 private:
 
+	/** Serializes the session context section of the crash context to a temporary file. */
+	static void SerializeTempCrashContextToFile();
+
+	/** Serializes the current user setting struct to a buffer. */
+	static void SerializeUserSettings(FString& Buffer);
+
+	/** Writes a common property to the buffer. */
+	static void AddCrashPropertyInternal(FString& Buffer, const TCHAR* PropertyName, const TCHAR* PropertyValue);
+
+	/** Writes a common property to the buffer. */
+	template <typename Type>
+	static void AddCrashPropertyInternal(FString& Buffer, const TCHAR* PropertyName, const Type& Value)
+	{
+		AddCrashPropertyInternal(Buffer, PropertyName, *TTypeToString<Type>::ToString(Value));
+	}
+
 	/** Serializes platform specific properties to the buffer. */
 	virtual void AddPlatformSpecificProperties() const;
 
@@ -431,13 +459,13 @@ private:
 	void AddPortableCallStackHash() const;
 
 	/** Writes header information to the buffer. */
-	void AddHeader() const;
+	static void AddHeader(FString& Buffer);
 
 	/** Writes footer to the buffer. */
-	void AddFooter() const;
+	static void AddFooter(FString& Buffer);
 
-	void BeginSection( const TCHAR* SectionName ) const;
-	void EndSection( const TCHAR* SectionName ) const;
+	static void BeginSection(FString& Buffer, const TCHAR* SectionName);
+	static void EndSection(FString& Buffer, const TCHAR* SectionName);
 
 	/** Called once when GConfig is initialized. Opportunity to cache values from config. */
 	static void InitializeFromConfig();

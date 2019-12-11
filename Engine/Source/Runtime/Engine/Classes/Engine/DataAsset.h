@@ -13,7 +13,7 @@
  * Base class for a simple asset containing data. The editor will list this in the content browser if you inherit from this class
  */
 UCLASS(abstract, MinimalAPI)
-class UDataAsset : public UObject
+class ENGINE_VTABLE UDataAsset : public UObject
 {
 	GENERATED_UCLASS_BODY()
 public:

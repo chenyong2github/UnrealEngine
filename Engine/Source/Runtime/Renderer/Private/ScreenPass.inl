@@ -23,7 +23,7 @@ inline FScreenPassRenderTarget FScreenPassRenderTarget::CreateViewFamilyOutput(F
 		// Raw output mode uses the original view rect. Otherwise the final unscaled rect is used.
 		View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::RawOutput ? View.ViewRect : View.UnscaledViewRect,
 		// First view clears the view family texture; all remaining views load.
-		View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
+		(!View.Family->bAdditionalViewFamily && View.IsFirstInFamily() )? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
 }
 
 inline FScreenPassTextureViewport FScreenPassTextureViewport::CreateDownscaled(const FScreenPassTextureViewport& Other, uint32 DownscaleFactor)

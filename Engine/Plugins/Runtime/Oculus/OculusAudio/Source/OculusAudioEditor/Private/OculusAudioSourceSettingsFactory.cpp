@@ -58,3 +58,5 @@ uint32 UOculusAudioSourceSettingsFactory::GetMenuCategories() const
 {
     return EAssetTypeCategories::Sounds;
 }
+
+#undef LOCTEXT_NAMESPACE

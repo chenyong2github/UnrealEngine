@@ -153,4 +153,9 @@ CORE_API void ClearNativeEditorCultureName();
  */
 CORE_API TArray<FString> GetLocalizedCultureNames(const TArray<FString>& InLocalizationPaths);
 
+/**
+ * Get the array of localization targets that have been disabled for the current configuration.
+ */
+CORE_API const TArray<FString>& GetDisabledLocalizationTargets();
+
 }

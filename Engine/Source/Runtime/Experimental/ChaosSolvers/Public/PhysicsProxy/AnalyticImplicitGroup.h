@@ -65,7 +65,7 @@ public:
 		for (Chaos::TBox<float, 3>* Box : Boxes) if (Box) delete Box;
 		for (Chaos::TCapsule<float>* Capsule : Capsules) if (Capsule) delete Capsule;
 		for (Chaos::TTaperedCylinder<float>* TaperedCylinder : TaperedCylinders) if (TaperedCylinder) delete TaperedCylinder;
-		for (Chaos::TConvex<float, 3>* ConvexHull : ConvexHulls) if (ConvexHull) delete ConvexHull;
+		for (Chaos::FConvex* ConvexHull : ConvexHulls) if (ConvexHull) delete ConvexHull;
 		for (Chaos::TLevelSet<float, 3>* LevelSet : LevelSets) if (LevelSet) delete LevelSet;
 	}
 
@@ -100,7 +100,7 @@ public:
 	int32 Add(const FTransform &InitialXf, Chaos::TBox<float, 3> *Box) { Boxes.Add(Box); return Transforms.Insert(InitialXf, Spheres.Num()+Boxes.Num()-1); }
 	int32 Add(const FTransform &InitialXf, Chaos::TCapsule<float> *Capsule) { Capsules.Add(Capsule); return Transforms.Insert(InitialXf, Spheres.Num()+Boxes.Num()+Capsules.Num()-1); }
 	int32 Add(const FTransform &InitialXf, Chaos::TTaperedCylinder<float> *TaperedCylinder) { TaperedCylinders.Add(TaperedCylinder); return Transforms.Insert(InitialXf, Spheres.Num()+Boxes.Num()+Capsules.Num()+TaperedCylinders.Num()-1); }
-	int32 Add(const FTransform &InitialXf, Chaos::TConvex<float, 3> *ConvexHull) { ConvexHulls.Add(ConvexHull); return Transforms.Insert(InitialXf, Spheres.Num()+Boxes.Num()+Capsules.Num()+TaperedCylinders.Num()+ConvexHulls.Num()-1); }
+	int32 Add(const FTransform &InitialXf, Chaos::FConvex *ConvexHull) { ConvexHulls.Add(ConvexHull); return Transforms.Insert(InitialXf, Spheres.Num()+Boxes.Num()+Capsules.Num()+TaperedCylinders.Num()+ConvexHulls.Num()-1); }
 	int32 Add(const FTransform &InitialXf, Chaos::TLevelSet<float, 3> *LevelSet) { LevelSets.Add(LevelSet); return Transforms.Add(InitialXf); }
 
 	void SetCollisionTopology(
@@ -164,7 +164,7 @@ public:
 			MP.CenterOfMass = Xf.TransformPositionNoScale(TaperedCylinder->GetCenterOfMass());
 			MP.RotationOfMass = Xf.TransformRotation(TaperedCylinder->GetRotationOfMass());
 		}
-		for (Chaos::TConvex<float, 3>* Convex : ConvexHulls)
+		for (Chaos::FConvex* Convex : ConvexHulls)
 		{
 			const FTransform& Xf = Transforms[TransformIndex];
 			BBoxes[TransformIndex] = Convex->BoundingBox().TransformedBox(Xf);
@@ -240,7 +240,7 @@ public:
 			TotalMass += Mass;
 			MP.InertiaTensor = TaperedCylinder->GetInertiaTensor(Mass);
 		}
-		for (Chaos::TConvex<float, 3>* Convex : ConvexHulls)
+		for (Chaos::FConvex* Convex : ConvexHulls)
 		{
 			Chaos::TMassProperties<float, 3> &MP = MPArray[TransformIndex++];
 			float Mass = Density * MP.Volume;
@@ -308,7 +308,7 @@ public:
 			CullDeepPoints(Points, TransformIndex);
 			TransformIndex++;
 		}
-		for (Chaos::TConvex<float, 3>* Convex : ConvexHulls)
+		for (Chaos::FConvex* Convex : ConvexHulls)
 		{
 			TArray<Chaos::TVector<float, 3>>& Points = CollisionPoints[TransformIndex];
 			if (!Points.Num())
@@ -405,7 +405,7 @@ public:
 	 *
 	 * Transfers ownership of sub structures to the returned implicit object.
 	 */
-	Chaos::TImplicitObject<float, 3>* BuildSimImplicitObject()
+	Chaos::FImplicitObject* BuildSimImplicitObject()
 	{
 		// TODO: We make copies of implicit objects owned by this class, so we
 		// give the solver memory it can own.  It'd be nice if we could transfer
@@ -425,7 +425,7 @@ public:
 			else
 			{
 				// Make a copy and transfer ownership to the transformed implicit.
-				TUniquePtr<Chaos::TImplicitObject<float, 3>> ObjPtr(TransferImplicitObj(0));
+				TUniquePtr<Chaos::FImplicitObject> ObjPtr(TransferImplicitObj(0));
 				return new Chaos::TImplicitObjectTransformed<float, 3, true>(
 					MoveTemp(ObjPtr),
 					Chaos::TRigidTransform<float, 3>(Transforms[0]));
@@ -435,11 +435,11 @@ public:
 		{
 			// Make copies of the implicits owned by transformed immplicits, and 
 			// transfer ownership of the transformed implicits to the implicit union.
-			TArray<TUniquePtr<Chaos::TImplicitObject<float, 3>>> ImplicitObjects;
+			TArray<TUniquePtr<Chaos::FImplicitObject>> ImplicitObjects;
 			ImplicitObjects.Reserve(Num);
 			for (int i = 0; i < Num; i++)
 			{
-				TUniquePtr<Chaos::TImplicitObject<float, 3>> ObjPtr(TransferImplicitObj(i));
+				TUniquePtr<Chaos::FImplicitObject> ObjPtr(TransferImplicitObj(i));
 
 				const FTransform &Xf = Transforms[i];
 				if (Xf.Equals(FTransform::Identity))
@@ -451,7 +451,7 @@ public:
 				else
 				{
 					ImplicitObjects.Add(
-						TUniquePtr<Chaos::TImplicitObject<float, 3>>(
+						TUniquePtr<Chaos::FImplicitObject>(
 							new Chaos::TImplicitObjectTransformed<float, 3, true>(
 								MoveTemp(ObjPtr),
 								Chaos::TRigidTransform<float, 3>(Xf))));
@@ -544,7 +544,7 @@ protected:
 			}
 			TransformIndex++;
 		}
-		for (Chaos::TConvex<float, 3>* Convex : ConvexHulls)
+		for (Chaos::FConvex* Convex : ConvexHulls)
 		{
 			if (TransformIndex != SkipIndex)
 			{
@@ -562,9 +562,9 @@ protected:
 		}
 	}
 
-	Chaos::TImplicitObject<float, 3>* TransferImplicitObj(int32 Idx)
+	Chaos::FImplicitObject* TransferImplicitObj(int32 Idx)
 	{
-		Chaos::TImplicitObject<float, 3>* Obj = nullptr;
+		Chaos::FImplicitObject* Obj = nullptr;
 		if (Idx < Spheres.Num())
 		{
 			Obj = Spheres[Idx]; 
@@ -636,7 +636,7 @@ protected:
 	// FKTaperedCapsuleElem - Z axis is the capsule axis
 	TArray<Chaos::TTaperedCylinder<float>*> TaperedCylinders;
 	// FKConvexElem
-	TArray<Chaos::TConvex<float, 3>*> ConvexHulls;
+	TArray<Chaos::FConvex*> ConvexHulls;
 	// Chaos::TConvex replacement
 	TArray<Chaos::TLevelSet<float, 3>*> LevelSets;
 

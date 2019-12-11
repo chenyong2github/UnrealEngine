@@ -3,6 +3,8 @@
 #include "GenericPlatform/GenericPlatformMisc.h"
 #include "Misc/AssertionMacros.h"
 #include "HAL/PlatformFilemanager.h"
+#include "HAL/CriticalSection.h"
+#include "Misc/ScopeRWLock.h"
 #include "Math/UnrealMathUtility.h"
 #include "HAL/UnrealMemory.h"
 #include "Containers/Array.h"
@@ -61,27 +63,27 @@ bool LexTryParseString(EBuildConfiguration& OutConfiguration, const TCHAR* Confi
 		return true;
 	}
 	else if (FCString::Stricmp(Configuration, TEXT("DebugGame")) == 0)
-	{
+		{
 		OutConfiguration = EBuildConfiguration::DebugGame;
 		return true;
-	}
+		}
 	else if (FCString::Stricmp(Configuration, TEXT("Development")) == 0)
-	{
+		{
 		OutConfiguration = EBuildConfiguration::Development;
 		return true;
-	}
+		}
 	else if (FCString::Stricmp(Configuration, TEXT("Shipping")) == 0)
-	{
+		{
 		OutConfiguration = EBuildConfiguration::Shipping;
 		return true;
-	}
+		}
 	else if(FCString::Stricmp(Configuration, TEXT("Test")) == 0)
-	{
+		{
 		OutConfiguration = EBuildConfiguration::Test;
 		return true;
-	}
+		}
 	else if(FCString::Stricmp(Configuration, TEXT("Unknown")) == 0)
-	{
+		{
 		OutConfiguration = EBuildConfiguration::Unknown;
 		return true;
 	}
@@ -89,27 +91,27 @@ bool LexTryParseString(EBuildConfiguration& OutConfiguration, const TCHAR* Confi
 	{
 		OutConfiguration = EBuildConfiguration::Unknown;
 		return false;
+		}
 	}
-}
 
 const TCHAR* LexToString( EBuildConfiguration Configuration )
-{
-	switch (Configuration)
 	{
+		switch (Configuration)
+		{
 	case EBuildConfiguration::Debug:
-		return TEXT("Debug");
+				return TEXT("Debug");
 	case EBuildConfiguration::DebugGame:
-		return TEXT("DebugGame");
+				return TEXT("DebugGame");
 	case EBuildConfiguration::Development:
-		return TEXT("Development");
+				return TEXT("Development");
 	case EBuildConfiguration::Shipping:
-		return TEXT("Shipping");
+				return TEXT("Shipping");
 	case EBuildConfiguration::Test:
-		return TEXT("Test");
-	default:
-		return TEXT("Unknown");
+				return TEXT("Test");
+			default:
+				return TEXT("Unknown");
+		}
 	}
-}
 
 namespace EBuildConfigurations
 {
@@ -167,7 +169,7 @@ bool LexTryParseString(EBuildTargetType& OutType, const TCHAR* Type)
 		return true;
 	}
 	else if (FCString::Strcmp(Type, TEXT("Server")) == 0)
-	{
+{
 		OutType = EBuildTargetType::Server;
 		return true;
 	}
@@ -177,40 +179,40 @@ bool LexTryParseString(EBuildTargetType& OutType, const TCHAR* Type)
 		return true;
 	}
 	else if (FCString::Strcmp(Type, TEXT("Program")) == 0)
-	{
+		{
 		OutType = EBuildTargetType::Program;
 		return true;
-	}
+		}
 	else if (FCString::Strcmp(Type, TEXT("Unknown")) == 0)
-	{
+		{
 		OutType = EBuildTargetType::Unknown;
 		return true;
-	}
+		}
 	else
-	{
+		{
 		OutType = EBuildTargetType::Unknown;
 		return false;
+		}
 	}
-}
 
 const TCHAR* LexToString(EBuildTargetType Type)
-{
-	switch (Type)
 	{
+	switch (Type)
+		{
 	case EBuildTargetType::Editor:
-		return TEXT("Editor");
+				return TEXT("Editor");
 	case EBuildTargetType::Game:
-		return TEXT("Game");
+				return TEXT("Game");
 	case EBuildTargetType::Server:
-		return TEXT("Server");
+				return TEXT("Server");
 	case EBuildTargetType::Client:
 		return TEXT("Client");
 	case EBuildTargetType::Program:
 		return TEXT("Program");
-	default:
-		return TEXT("Unknown");
+			default:
+				return TEXT("Unknown");
+		}
 	}
-}
 
 EBuildTargetType EBuildTargets::FromString(const FString& Target)
 {
@@ -279,6 +281,7 @@ struct FGenericPlatformMisc::FStaticData
 {
 	FString         RootDir;
 	TArray<FString> AdditionalRootDirectories;
+	FRWLock         AdditionalRootDirectoriesLock;
 	FString         EngineDirectory;
 	FString         LaunchDir;
 	FString         ProjectDir;
@@ -454,11 +457,6 @@ bool FGenericPlatformMisc::GetDiskTotalAndFreeSpace( const FString& InPath, uint
 
 void FGenericPlatformMisc::MemoryBarrier()
 {
-}
-
-void FGenericPlatformMisc::HandleIOFailure( const TCHAR* Filename )
-{
-	UE_LOG(LogGenericPlatformMisc, Fatal,TEXT("I/O failure operating on '%s'"), Filename ? Filename : TEXT("Unknown file"));
 }
 
 void FGenericPlatformMisc::RaiseException(uint32 ExceptionCode)
@@ -754,7 +752,7 @@ const TCHAR* FGenericPlatformMisc::RootDir()
 		int32 chopPos = TempPath.Find(TEXT("/Engine"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
 		if (chopPos != INDEX_NONE)
 		{
-			TempPath = TempPath.Left(chopPos + 1);
+			TempPath.LeftInline(chopPos + 1, false);
 		}
 		else
 		{
@@ -763,7 +761,7 @@ const TCHAR* FGenericPlatformMisc::RootDir()
 			// if the path ends in a separator, remove it
 			if (TempPath.Right(1) == TEXT("/"))
 			{
-				TempPath = TempPath.LeftChop(1);
+				TempPath.LeftChopInline(1, false);
 			}
 
 			// keep going until we've removed Binaries
@@ -774,7 +772,7 @@ const TCHAR* FGenericPlatformMisc::RootDir()
 #endif
 			if (pos != INDEX_NONE)
 			{
-				TempPath = TempPath.Left(pos + 1);
+				TempPath.LeftInline(pos + 1, false);
 			}
 			else
 			{
@@ -787,7 +785,7 @@ const TCHAR* FGenericPlatformMisc::RootDir()
 				{
 					while (TempPath.Len() && TempPath.Right(1) != TEXT("/"))
 					{
-						TempPath = TempPath.LeftChop(1);
+						TempPath.LeftChopInline(1, false);
 					}
 				}
 			}
@@ -799,13 +797,17 @@ const TCHAR* FGenericPlatformMisc::RootDir()
 	return *Path;
 }
 
-const TArray<FString>& FGenericPlatformMisc::GetAdditionalRootDirectories()
+TArray<FString> FGenericPlatformMisc::GetAdditionalRootDirectories()
 {
+	FRWScopeLock Lock(TLazySingleton<FStaticData>::Get().AdditionalRootDirectoriesLock, SLT_ReadOnly);
+
 	return TLazySingleton<FStaticData>::Get().AdditionalRootDirectories;
 }
 
 void FGenericPlatformMisc::AddAdditionalRootDirectory(const FString& RootDir)
 {
+	FRWScopeLock Lock(TLazySingleton<FStaticData>::Get().AdditionalRootDirectoriesLock, SLT_Write);
+
 	TArray<FString>& RootDirectories = TLazySingleton<FStaticData>::Get().AdditionalRootDirectories;
 	FString NewRootDirectory = RootDir;
 	FPaths::MakePlatformFilename(NewRootDirectory);

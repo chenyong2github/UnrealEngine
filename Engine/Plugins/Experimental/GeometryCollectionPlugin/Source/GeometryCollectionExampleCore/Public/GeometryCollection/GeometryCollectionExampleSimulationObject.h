@@ -48,7 +48,7 @@ namespace GeometryCollectionExample {
 			: Parameters(InParameters)
 			, RestCollection(RestCollectionIn)
 			, DynamicCollection(GeometryCollectionToGeometryDynamicCollection(RestCollection.Get()))
-			, PhysicalMaterial(new Chaos::TChaosPhysicsMaterial<T>())
+			, PhysicalMaterial(new Chaos::FChaosPhysicsMaterial())
 			, PhysicsProxy(new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), [&](FSimulationParameters& P) {Init(P); }, nullptr, nullptr))
 		{
 			PhysicalMaterial->Friction = 0;
@@ -63,11 +63,11 @@ namespace GeometryCollectionExample {
 		SimulationObjects(FParameters InParameters,
 			TSharedPtr<FGeometryCollection> InRestCollection, 
 			TSharedPtr<FGeometryDynamicCollection> InDynamicCollection, 
-			TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> InPhysicalMaterial)
+			TUniquePtr<Chaos::FChaosPhysicsMaterial> InPhysicalMaterial)
 			: Parameters(InParameters)
 			, RestCollection(InRestCollection)
 			, DynamicCollection(InDynamicCollection)
-			, PhysicalMaterial(InPhysicalMaterial)
+			, PhysicalMaterial(MoveTemp(InPhysicalMaterial))
 			, PhysicsProxy(new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), [&](FSimulationParameters& P) {Init(P); }, nullptr, nullptr))
 		{
 		}
@@ -96,7 +96,7 @@ namespace GeometryCollectionExample {
 		FParameters Parameters;
 		TSharedPtr<FGeometryCollection> RestCollection;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection;
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial;
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial;
 		TSharedPtr<FGeometryCollectionPhysicsProxy> PhysicsProxy;
 		FSharedSimulationSizeSpecificData SimulationData;
 	};

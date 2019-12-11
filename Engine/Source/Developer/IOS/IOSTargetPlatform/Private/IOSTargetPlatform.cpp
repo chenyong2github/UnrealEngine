@@ -722,6 +722,12 @@ namespace IOS
 	{
 		const TCHAR* CategoryName = TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings");
 
+		int32 SoundCueQualityIndex = INDEX_NONE;
+		if (GConfig->GetInt(CategoryName, TEXT("SoundCueCookQualityIndex"), SoundCueQualityIndex, GEngineIni))
+		{
+			OutOverrides.SoundCueCookQualityIndex = SoundCueQualityIndex;
+		}
+
 		GConfig->GetBool(CategoryName, TEXT("bUseAudioStreamCaching"), OutOverrides.bUseStreamCaching, GEngineIni);
 
 		/** Memory Load On Demand Settings */

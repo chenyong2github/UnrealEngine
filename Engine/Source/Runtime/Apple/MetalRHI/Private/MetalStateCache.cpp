@@ -273,6 +273,7 @@ void FMetalStateCache::Reset(void)
 		for (uint32 i = 0; i < ML_MaxTextures; i++)
 		{
 			ShaderTextures[Frequency].Textures[i] = nil;
+			ShaderTextures[Frequency].Usage[i] = mtlpp::ResourceUsage(0);
 		}
 		ShaderTextures[Frequency].Bound = 0;
 	}
@@ -1427,11 +1428,11 @@ void FMetalStateCache::SetShaderTexture(EMetalShaderStages const Frequency, FMet
 		
 		if (Texture && !bMemoryLess)
 		{
-			ShaderTextures[Frequency].Bound |= (1 << Index);
+			ShaderTextures[Frequency].Bound |= (FMetalTextureMask(1) << FMetalTextureMask(Index));
 		}
 		else
 		{
-			ShaderTextures[Frequency].Bound &= ~(1 << Index);
+			ShaderTextures[Frequency].Bound &= ~(FMetalTextureMask(1) << FMetalTextureMask(Index));
 		}
 	}
 }
@@ -2716,10 +2717,11 @@ void FMetalStateCache::CommitResourceTable(EMetalShaderStages const Frequency, m
 	{
 		uint32 Index = __builtin_ctzll(HiTextures);
 		HiTextures &= ~(uint64(1) << uint64(Index));
+		Index += 64;
 		
 		if (Index < ML_MaxTextures && TextureBindings.Textures[Index])
 		{
-			CommandEncoder.SetShaderTexture(Type, TextureBindings.Textures[Index], Index + 64, TextureBindings.Usage[Index]);
+			CommandEncoder.SetShaderTexture(Type, TextureBindings.Textures[Index], Index, TextureBindings.Usage[Index]);
 		}
 	}
 	

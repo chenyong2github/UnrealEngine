@@ -119,9 +119,14 @@ void FBaseAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IProper
 		.Visibility(TAttribute<EVisibility>(this, &FBaseAttenuationSettingsCustomization::IsCustomCurveSelected))
 		.EditCondition(GetIsAttenuationEnabledAttribute(), nullptr);
 
-	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FBaseAttenuationSettings, dBAttenuationAtMax)))
+	DbAttenuationAtMaxHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FBaseAttenuationSettings, dBAttenuationAtMax));
+	LayoutBuilder.AddPropertyToCategory(DbAttenuationAtMaxHandle)
 		.Visibility(TAttribute<EVisibility>(this, &FBaseAttenuationSettingsCustomization::IsNaturalSoundSelected))
 		.EditCondition(GetIsAttenuationEnabledAttribute(), nullptr);
+
+	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FBaseAttenuationSettings, FalloffMode)))
+		.Visibility(TAttribute<EVisibility>(this, &FBaseAttenuationSettingsCustomization::IsNaturalSoundSelected))
+		.EditCondition(GetIsFalloffModeEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(AttenuationShapeHandle)
 		.EditCondition(GetIsAttenuationEnabledAttribute(), nullptr);
@@ -269,6 +274,33 @@ TAttribute<bool> FBaseAttenuationSettingsCustomization::GetIsAttenuationEnabledA
 	return TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda(Lambda));
 }
 
+TAttribute<bool> FBaseAttenuationSettingsCustomization::GetIsFalloffModeEnabledAttribute() const
+{
+	TWeakPtr<IPropertyHandle> bOverrideAttenuationPropertyWeakPtr = bOverrideAttenuationHandle;
+	TWeakPtr<IPropertyHandle> bIsAttenuatedPropertyWeakPtr = bIsAttenuatedHandle;
+	TWeakPtr<IPropertyHandle> DbAttenuationAtMaxHandleWeakPtr = DbAttenuationAtMaxHandle;
+
+	auto Lambda = [bOverrideAttenuationPropertyWeakPtr, bIsAttenuatedPropertyWeakPtr, DbAttenuationAtMaxHandleWeakPtr]()
+	{
+		TSharedPtr<IPropertyHandle> bOverrideAttenuationPropertyPtr = bOverrideAttenuationPropertyWeakPtr.Pin();
+		TSharedPtr<IPropertyHandle> bIsAttenuatedPropertyPtr = bIsAttenuatedPropertyWeakPtr.Pin();
+		TSharedPtr<IPropertyHandle> DbAttenuationAtMaxHandlePtr = DbAttenuationAtMaxHandleWeakPtr.Pin();
+
+		float AttenuationValue = -60.f;
+		if (DbAttenuationAtMaxHandlePtr.IsValid())
+		{
+			DbAttenuationAtMaxHandlePtr->GetValue(AttenuationValue);
+		}
+
+		bool Value = GetValue(bOverrideAttenuationPropertyPtr);
+		Value &= GetValue(bIsAttenuatedPropertyPtr);
+		Value &= AttenuationValue > -60.f;
+		return Value;
+	};
+
+	return TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda(Lambda));
+}
+
 void FSoundAttenuationSettingsCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
 	// Property handle here is the base struct. We are going to hide it since we're showing it's properties directly.
@@ -293,7 +325,9 @@ void FSoundAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IPrope
 	bIsSpatializedHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bSpatialize)).ToSharedRef();
 	bIsAirAbsorptionEnabledHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bAttenuateWithLPF)).ToSharedRef();
 	bIsReverbSendEnabledHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bEnableReverbSend)).ToSharedRef();
+	bIsPriorityAttenuationEnabledHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bEnablePriorityAttenuation)).ToSharedRef();
 	ReverbSendMethodHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, ReverbSendMethod)).ToSharedRef();
+	PriorityAttenuationMethodHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, PriorityAttenuationMethod)).ToSharedRef();
 	AbsorptionMethodHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, AbsorptionMethod)).ToSharedRef();
 
 	bIsFocusedHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bEnableListenerFocus)).ToSharedRef();
@@ -304,10 +338,10 @@ void FSoundAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IPrope
 	// Get handle to layout builder so we can add properties to categories
 	IDetailLayoutBuilder& LayoutBuilder = ChildBuilder.GetParentCategory().GetParentLayout();
 
-	FBaseAttenuationSettingsCustomization::CustomizeChildren(StructPropertyHandle, ChildBuilder, StructCustomizationUtils);
-
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bAttenuate)))
 		.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
+
+	FBaseAttenuationSettingsCustomization::CustomizeChildren(StructPropertyHandle, ChildBuilder, StructCustomizationUtils);
 
 	LayoutBuilder.AddPropertyToCategory(bIsSpatializedHandle)
 		.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
@@ -456,13 +490,45 @@ void FSoundAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IPrope
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bUseComplexCollisionForOcclusion)))
 		.EditCondition(GetIsOcclusionEnabledAttribute(), nullptr);
 
+	// Add the attenuation priority
+	LayoutBuilder.AddPropertyToCategory(bIsPriorityAttenuationEnabledHandle)
+		.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
+
+	LayoutBuilder.AddPropertyToCategory(PriorityAttenuationMethodHandle)
+		.EditCondition(GetIsPriorityAttenuationEnabledAttribute(), nullptr);
+
+	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, PriorityAttenuationMin)))
+		.Visibility(TAttribute<EVisibility>(this, &FSoundAttenuationSettingsCustomization::IsPriorityAttenuationLinearMethodSelected))
+		.EditCondition(GetIsPriorityAttenuationEnabledAttribute(), nullptr);
+
+	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, PriorityAttenuationMax)))
+		.Visibility(TAttribute<EVisibility>(this, &FSoundAttenuationSettingsCustomization::IsPriorityAttenuationLinearMethodSelected))
+		.EditCondition(GetIsPriorityAttenuationEnabledAttribute(), nullptr);
+
+	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, CustomPriorityAttenuationCurve)))
+		.Visibility(TAttribute<EVisibility>(this, &FSoundAttenuationSettingsCustomization::IsCustomPriorityAttenuationCurveSelected))
+		.EditCondition(GetIsPriorityAttenuationEnabledAttribute(), nullptr);
+
+	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, PriorityAttenuationDistanceMin)))
+		.Visibility(TAttribute<EVisibility>(this, &FSoundAttenuationSettingsCustomization::IsLinearOrCustomPriorityAttenuationSelected))
+		.EditCondition(GetIsPriorityAttenuationEnabledAttribute(), nullptr);
+
+	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, PriorityAttenuationDistanceMax)))
+		.Visibility(TAttribute<EVisibility>(this, &FSoundAttenuationSettingsCustomization::IsLinearOrCustomPriorityAttenuationSelected))
+		.EditCondition(GetIsPriorityAttenuationEnabledAttribute(), nullptr);
+
+	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, ManualPriorityAttenuation)))
+		.Visibility(TAttribute<EVisibility>(this, &FSoundAttenuationSettingsCustomization::IsManualPriorityAttenuationSelected))
+		.EditCondition(GetIsPriorityAttenuationEnabledAttribute(), nullptr);
+
+
 	if (bIsAudioMixerEnabled)
 	{
 		LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, PluginSettings)))
 			.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
 	}
 
-	if (PropertyHandles.Num() != 52)
+	if (PropertyHandles.Num() != 61)
 	{
 		FString PropertyList;
 		for (auto It(PropertyHandles.CreateConstIterator()); It; ++It)
@@ -603,6 +669,24 @@ TAttribute<bool> FSoundAttenuationSettingsCustomization::GetIsReverbSendEnabledA
 	return TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda(Lambda));
 }
 
+TAttribute<bool> FSoundAttenuationSettingsCustomization::GetIsPriorityAttenuationEnabledAttribute() const
+{
+	TWeakPtr<IPropertyHandle> bOverrideAttenuationPropertyWeakPtr = bOverrideAttenuationHandle;
+	TWeakPtr<IPropertyHandle> bIsPriorityAttenuationEnabledWeakPtr = bIsPriorityAttenuationEnabledHandle;
+
+	auto Lambda = [bOverrideAttenuationPropertyWeakPtr, bIsPriorityAttenuationEnabledWeakPtr]()
+	{
+		TSharedPtr<IPropertyHandle> bOverrideAttenuationProperty = bOverrideAttenuationPropertyWeakPtr.Pin();
+		TSharedPtr<IPropertyHandle> bIsPriorityAttenuationEnabledProperty = bIsPriorityAttenuationEnabledWeakPtr.Pin();
+
+		bool Value = GetValue(bOverrideAttenuationProperty);
+		Value &= GetValue(bIsPriorityAttenuationEnabledProperty);
+		return Value;
+	};
+
+	return TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda(Lambda));
+}
+
 EVisibility FSoundAttenuationSettingsCustomization::IsLinearMethodSelected() const
 {
 	uint8 SendMethodValue;
@@ -653,6 +737,45 @@ EVisibility FSoundAttenuationSettingsCustomization::IsManualReverbSendSelected()
 	return (SendMethodType == EReverbSendMethod::Manual ? EVisibility::Visible : EVisibility::Hidden);
 }
 
+EVisibility FSoundAttenuationSettingsCustomization::IsPriorityAttenuationLinearMethodSelected() const
+{
+	uint8 Value;
+	PriorityAttenuationMethodHandle->GetValue(Value);
+
+	const EPriorityAttenuationMethod MethodType = (EPriorityAttenuationMethod)Value;
+
+	return (MethodType == EPriorityAttenuationMethod::Linear ? EVisibility::Visible : EVisibility::Hidden);
+}
+
+EVisibility FSoundAttenuationSettingsCustomization::IsCustomPriorityAttenuationCurveSelected() const
+{
+	uint8 Value;
+	PriorityAttenuationMethodHandle->GetValue(Value);
+
+	const EPriorityAttenuationMethod MethodType = (EPriorityAttenuationMethod)Value;
+
+	return (MethodType == EPriorityAttenuationMethod::CustomCurve ? EVisibility::Visible : EVisibility::Hidden);
+}
+
+EVisibility FSoundAttenuationSettingsCustomization::IsLinearOrCustomPriorityAttenuationSelected() const
+{
+	uint8 Value;
+	PriorityAttenuationMethodHandle->GetValue(Value);
+
+	const EPriorityAttenuationMethod MethodType = (EPriorityAttenuationMethod)Value;
+
+	return (MethodType != EPriorityAttenuationMethod::Manual ? EVisibility::Visible : EVisibility::Hidden);
+}
+
+EVisibility FSoundAttenuationSettingsCustomization::IsManualPriorityAttenuationSelected() const
+{
+	uint8 Value;
+	PriorityAttenuationMethodHandle->GetValue(Value);
+
+	const EPriorityAttenuationMethod MethodType = (EPriorityAttenuationMethod)Value;
+
+	return (MethodType == EPriorityAttenuationMethod::Manual ? EVisibility::Visible : EVisibility::Hidden);
+}
 
 EVisibility FBaseAttenuationSettingsCustomization::IsConeSelected() const
 {

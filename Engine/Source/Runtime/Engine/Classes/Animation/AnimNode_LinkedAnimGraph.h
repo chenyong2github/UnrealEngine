@@ -71,9 +71,13 @@ public:
 	void CacheBonesSubGraph_AnyThread(const FAnimationCacheBonesContext& Context);
 
 protected:
+
 	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
 	virtual bool NeedsOnInitializeAnimInstance() const override { return true; }
 	// End of FAnimNode_Base interface
+
+	// Inertial blending duration to request next update
+	float PendingBlendDuration;
 
 	// Re-create the linked instances for this node
 	void ReinitializeLinkedAnimInstance(const UAnimInstance* InOwningAnimInstance, UAnimInstance* InNewAnimInstance = nullptr);
@@ -95,6 +99,9 @@ protected:
 
 	/** Helper function for finding function inputs when linking/unlinking */
 	int32 FindFunctionInputIndex(const FAnimBlueprintFunction& AnimBlueprintFunction, const FName& InInputName);
+
+	/** Request a blend when the active instance changes */
+	void RequestBlend(const IAnimClassInterface* PriorAnimBPClass, const IAnimClassInterface* NewAnimBPClass);
 
 	friend class UAnimInstance;
 };

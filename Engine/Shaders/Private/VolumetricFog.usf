@@ -440,7 +440,7 @@ float GetLightFunction(float3 WorldPosition)
 
 float SkyLightVolumetricScatteringIntensity;
 float4 SkySH[3];
-float UseHeightFogColors;
+float2 UseHeightFogColors;	// x=override directional light using height fog inscattering color, y=override sky light using heigh fog inscattering cubemap
 float UseDirectionalLightShadowing;
 float StaticLightingScatteringIntensity;
 
@@ -495,7 +495,7 @@ void LightScatteringCS(
 
 			float3 DirectionalLightColor = ForwardLightData.DirectionalLightColor;
 
-			if (UseHeightFogColors > 0)
+			if (UseHeightFogColors.x > 0)
 			{
 				// Attempt to maintain intensity ratio between sky and sun
 				DirectionalLightColor = VolumetricFog.HeightFogDirectionalLightInscatteringColor * Luminance(ForwardLightData.DirectionalLightColor);
@@ -524,7 +524,7 @@ void LightScatteringCS(
 		{
 			float3 SkyLighting;
 
-			if (UseHeightFogColors > 0)
+			if (UseHeightFogColors.y > 0)
 			{
 				float3 HeightFogInscatteringColor = ComputeInscatteringColor(CameraVector, CameraVectorLength);
 				float ScalarFactor = SHAmbientFunction();

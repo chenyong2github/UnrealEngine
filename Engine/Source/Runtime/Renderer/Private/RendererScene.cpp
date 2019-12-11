@@ -223,7 +223,7 @@ FSceneViewState::FSceneViewState()
 	RayCountGPUReadback = new FRHIGPUBufferReadback(TEXT("Ray Count Readback"));
 
 	GatherPointsBuffer = nullptr;
-	GatherPointsResolution = FIntPoint(0, 0);
+	GatherPointsResolution = FIntVector(0, 0, 0);
 #endif
 }
 
@@ -927,8 +927,14 @@ void FRendererModule::RegisterPersistentViewUniformBufferExtension(IPersistentVi
 	PersistentViewUniformBufferExtensions.Add(Extension);
 }
 
-bool FPersistentUniformBuffers::UpdateViewUniformBuffer(const FViewInfo& View)
+bool FPersistentUniformBuffers::UpdateViewUniformBuffer(const FViewInfo& View, bool bShouldWaitForPersistentViewUniformBufferExtensionsJobs)
 {
+	// Let the implementation of each extension decide whether it can cache the result for CachedView
+	for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+	{
+		Extension->BeginRenderView(&View, bShouldWaitForPersistentViewUniformBufferExtensionsJobs);
+	}
+
 	// ViewUniformBuffer can be cached by mesh commands, so we need to update it every time we change current view.
 	if (CachedView != &View)
 	{
@@ -948,11 +954,6 @@ bool FPersistentUniformBuffers::UpdateViewUniformBuffer(const FViewInfo& View)
 		}
 
 		CachedView = &View;
-
-		for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
-		{
-			Extension->BeginRenderView(&View);
-		}
 
 		return true;
 	}
@@ -1089,6 +1090,8 @@ FScene::~FScene()
 
 	BeginReleaseResource(&HaltonPrimesResource);
 #endif
+
+	checkf(RemovedPrimitiveSceneInfos.Num() == 0, TEXT("Leaking %d FPrimitiveSceneInfo instances."), RemovedPrimitiveSceneInfos.Num()); // Ensure UpdateAllPrimitiveSceneInfos() is called before destruction.
 }
 
 void FScene::AddPrimitive(UPrimitiveComponent* Primitive)
@@ -1416,6 +1419,15 @@ void FScene::RemovePrimitiveSceneInfo_RenderThread(FPrimitiveSceneInfo* Primitiv
 
 		{
 			SCOPED_NAMED_EVENT(FScene_DeletePrimitiveSceneInfo, FColor::Red);
+			// Delete the PrimitiveSceneInfo on the game thread after the rendering thread has processed its removal.
+			// This must be done on the game thread because the hit proxy references (and possibly other members) need to be freed on the game thread.
+			struct DeferDeleteHitProxies : FDeferredCleanupInterface
+			{
+				DeferDeleteHitProxies(TArray<TRefCountPtr<HHitProxy>>&& InHitProxies) : HitProxies(MoveTemp(InHitProxies)) {}
+				TArray<TRefCountPtr<HHitProxy>> HitProxies;
+			};
+
+			BeginCleanup(new DeferDeleteHitProxies(MoveTemp(PrimitiveSceneInfo->HitProxies)));
 			delete PrimitiveSceneInfo->Proxy;
 			delete PrimitiveSceneInfo;
 		}
@@ -1611,6 +1623,7 @@ void FScene::AddLight(ULightComponent* Light)
 		ENQUEUE_RENDER_COMMAND(FAddLightCommand)(
 			[Scene, LightSceneInfo](FRHICommandListImmediate& RHICmdList)
 			{
+				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Scene_AddLight);
 				FScopeCycleCounter Context(LightSceneInfo->Proxy->GetStatId());
 				Scene->AddLightSceneInfo_RenderThread(LightSceneInfo);
 			});
@@ -3070,6 +3083,8 @@ void FScene::Release()
 	ENQUEUE_RENDER_COMMAND(FReleaseCommand)(
 		[Scene](FRHICommandListImmediate& RHICmdList)
 		{
+			// Update one more time to clear RemovedPrimitiveSceneInfos and prevent leaking FPrimitiveSceneInfo instances.
+			Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
 			delete Scene;
 		});
 }
@@ -3339,6 +3354,7 @@ void FScene::OnLevelAddedToWorld(FName LevelAddedName, UWorld* InWorld, bool bIs
 	ENQUEUE_RENDER_COMMAND(FLevelAddedToWorld)(
 		[Scene, LevelAddedName](FRHICommandListImmediate& RHICmdList)
 		{
+			Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
 			Scene->OnLevelAddedToWorld_RenderThread(LevelAddedName);
 		});
 }
@@ -3917,8 +3933,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList)
 		SCOPED_NAMED_EVENT(FScene_DeletePrimitiveSceneInfo, FColor::Red);
 		for (FPrimitiveSceneInfo* PrimitiveSceneInfo : DeletedSceneInfos)
 		{
-			// free the primitive scene proxy.
-			delete PrimitiveSceneInfo->Proxy;
+			// It is possible that hte HitProxies list isn't empty if PrimitiveSceneInfo was Added/Removed in same frame
 			// Delete the PrimitiveSceneInfo on the game thread after the rendering thread has processed its removal.
 			// This must be done on the game thread because the hit proxy references (and possibly other members) need to be freed on the game thread.
 			struct DeferDeleteHitProxies : FDeferredCleanupInterface
@@ -3926,7 +3941,10 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList)
 				DeferDeleteHitProxies(TArray<TRefCountPtr<HHitProxy>>&& InHitProxies) : HitProxies(MoveTemp(InHitProxies)) {}
 				TArray<TRefCountPtr<HHitProxy>> HitProxies;
 			};
+
 			BeginCleanup(new DeferDeleteHitProxies(MoveTemp(PrimitiveSceneInfo->HitProxies)));
+			// free the primitive scene proxy.
+			delete PrimitiveSceneInfo->Proxy;
 			delete PrimitiveSceneInfo;
 		}
 	}

@@ -60,6 +60,25 @@ namespace DatasmithMeshHelper
 		return NormalLengthSquare < SMALL_NUMBER;
 	}
 
+	void RemoveEmptyPolygonGroups(FMeshDescription& Mesh)
+	{
+		bool bRemovedSection = false;
+		for (const FPolygonGroupID& PolygonGroupID : Mesh.PolygonGroups().GetElementIDs())
+		{
+			if (Mesh.GetNumPolygonGroupPolygons(PolygonGroupID) == 0)
+			{
+				Mesh.DeletePolygonGroup(PolygonGroupID);
+				bRemovedSection = true;
+			}
+		}
+
+		if (bRemovedSection)
+		{
+			FElementIDRemappings Remappings;
+			Mesh.Compact(Remappings);
+		}
+	}
+
 	FMeshDescription* InitMeshDescription(UStaticMesh* StaticMesh, int32 LodIndex)
 	{
 		if (!ensure(StaticMesh))
@@ -343,7 +362,10 @@ namespace DatasmithMeshHelper
 				FVector RawNormal = (Corners[1] - Corners[2]) ^ (Corners[0] - Corners[2]);
 				RawNormal *= RawNormalScale;
 				double FourSquaredTriangleArea = RawNormal.SizeSquared();
-				if (FourSquaredTriangleArea > SMALL_NUMBER)
+
+				// We support even small triangles, but this function is still useful to
+				// see if we have at least one valid triangle in the mesh
+				if (FourSquaredTriangleArea > 0.0f)
 				{
 					return true;
 				}

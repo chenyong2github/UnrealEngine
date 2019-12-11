@@ -29,4 +29,7 @@ private:
 
 private:
 	TSharedPtr<IPropertyRowGenerator> PropertyRowGenerator;
+
+	TSharedPtr<SWidget> TempTimeWidget;
+	TSharedPtr<SWidget> TempValueWidget;
 };

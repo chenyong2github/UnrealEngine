@@ -248,7 +248,7 @@ UClothingAssetBase* UClothingAssetFactory::CreateFromSkeletalMesh(USkeletalMesh*
 
 	// Adding a new LOD from this skeletal mesh
 	NewAsset->AddNewLod();
-	UClothLODDataBase* LodData = NewAsset->ClothLodData.Last();
+	UClothLODDataCommon* LodData = NewAsset->ClothLodData.Last();
 
 	if(ImportToLodInternal(TargetMesh, Params.LodIndex, Params.SourceSection, NewAsset, LodData))
 	{
@@ -327,7 +327,7 @@ UClothingAssetBase* UClothingAssetFactory::ImportLodToClothing(USkeletalMesh* Ta
 			// Everything looks good, continue to actual import
 			UClothingAssetCommon* ConcreteTarget = CastChecked<UClothingAssetCommon>(TargetClothing);
 
-			UClothLODDataBase* RemapSource = nullptr;
+			UClothLODDataCommon* RemapSource = nullptr;
 
 			if(Params.bRemapParameters)
 			{
@@ -354,7 +354,7 @@ UClothingAssetBase* UClothingAssetFactory::ImportLodToClothing(USkeletalMesh* Ta
 				return nullptr;
 			}
 
-			UClothLODDataBase* NewLod = ConcreteTarget->ClothLodData[Params.TargetLod];
+			UClothLODDataCommon* NewLod = ConcreteTarget->ClothLodData[Params.TargetLod];
 
 			if(Params.TargetLod > 0 && Params.bRemapParameters)
 			{
@@ -403,12 +403,12 @@ UClothingAssetBase* UClothingAssetFactory::CreateFromApexAsset(nvidia::apex::Clo
 	for(int32 CurrLodIdx = 0; CurrLodIdx < NumLodsToBuild; ++CurrLodIdx)
 	{
 		NewClothingAsset->AddNewLod();
-		UClothLODDataNv* CurrentLodDataPtr = Cast<UClothLODDataNv>(NewClothingAsset->ClothLodData[CurrLodIdx]);
+		UClothLODDataCommon* CurrentLodDataPtr = NewClothingAsset->ClothLodData[CurrLodIdx];
 		if (!ensure(CurrentLodDataPtr))
 		{
 			continue;
 		}
-		UClothLODDataNv& CurrentLodData = *CurrentLodDataPtr;
+		UClothLODDataCommon& CurrentLodData = *CurrentLodDataPtr;
 
 		TArray<FApexVertData> ApexVertData;
 
@@ -476,7 +476,7 @@ UClothingAssetBase* UClothingAssetFactory::CreateFromApexAsset(nvidia::apex::Clo
 	NewClothingAsset->CalculateReferenceBoneIndex();
 
 	// Add masks for parameters
-	for (UClothLODDataBase* LodPtr : NewClothingAsset->ClothLodData)
+	for (UClothLODDataCommon* LodPtr : NewClothingAsset->ClothLodData)
 	{
 		check(LodPtr);
 		UClothPhysicalMeshDataNv* PhysMeshPtr = Cast<UClothPhysicalMeshDataNv>(LodPtr->PhysicalMeshData);
@@ -856,7 +856,7 @@ void UClothingAssetFactory::ExtractBoneData(UClothingAssetCommon* NewAsset, Clot
 	}
 }
 
-void UClothingAssetFactory::ExtractSphereCollisions(UClothingAssetCommon* NewAsset, nvidia::apex::ClothingAsset &InApexAsset, int32 InLodIdx, UClothLODDataNv &InLodData)
+void UClothingAssetFactory::ExtractSphereCollisions(UClothingAssetCommon* NewAsset, nvidia::apex::ClothingAsset &InApexAsset, int32 InLodIdx, UClothLODDataCommon &InLodData)
 {
 	const NvParameterized::Interface* AssetParams = InApexAsset.getAssetNvParameterized();
 
@@ -1139,8 +1139,8 @@ bool UClothingAssetFactory::ImportToLodInternal(
 	int32 SourceLodIndex, 
 	int32 SourceSectionIndex, 
 	UClothingAssetCommon* DestAsset, 
-	UClothLODDataBase* DestLod, 
-	UClothLODDataBase* InParameterRemapSource)
+	UClothLODDataCommon* DestLod, 
+	UClothLODDataCommon* InParameterRemapSource)
 {
 	if(!SourceMesh || !SourceMesh->GetImportedModel())
 	{
@@ -1339,7 +1339,7 @@ bool UClothingAssetFactory::ImportToLodInternal(
 
 #if WITH_APEX_CLOTHING
 
-void UClothingAssetFactory::ExtractLodPhysicalData(UClothingAssetCommon* NewAsset, ClothingAsset &InApexAsset, int32 InLodIdx, UClothLODDataNv &InLodData, TArray<FApexVertData>& OutApexVertData)
+void UClothingAssetFactory::ExtractLodPhysicalData(UClothingAssetCommon* NewAsset, ClothingAsset &InApexAsset, int32 InLodIdx, UClothLODDataCommon &InLodData, TArray<FApexVertData>& OutApexVertData)
 {
 	const NvParameterized::Interface* AssetParams = InApexAsset.getAssetNvParameterized();
 

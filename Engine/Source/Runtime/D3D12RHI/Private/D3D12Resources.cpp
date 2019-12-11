@@ -69,21 +69,13 @@ void FD3D12DeferredDeletionQueue::EnqueueResource(ID3D12Object* pResource, FD3D1
 	DeferredReleaseQueue.Enqueue(FencedObject);
 }
 
-bool FD3D12DeferredDeletionQueue::ReleaseResources(bool DeleteImmediately)
+bool FD3D12DeferredDeletionQueue::ReleaseResources(bool bDeleteImmediately, bool bIsShutDown)
 {
 	FD3D12Adapter* Adapter = GetParentAdapter();
 
-		struct FDequeueFenceObject
-		{
-			bool operator() (FencedObjectType FenceObject) const
-			{
-				return FenceObject.Fence->IsFenceComplete(FenceObject.FenceValue);
-			}
-		};
-
 	if (GD3D12AsyncDeferredDeletion)
 	{
-		if (DeleteImmediately)
+		if (bDeleteImmediately)
 		{
 			FAsyncTask<FD3D12AsyncDeletionWorker>* DeleteTask = nullptr;
 			// Call back all threads
@@ -114,15 +106,57 @@ bool FD3D12DeferredDeletionQueue::ReleaseResources(bool DeleteImmediately)
 
 	FencedObjectType FenceObject;
 
-	while (DeferredReleaseQueue.Dequeue(FenceObject, FDequeueFenceObject()))
+	if (bIsShutDown)
 	{
-		if (FenceObject.Type == EObjectType::RHI)
+		// FORT-236194 - Output what we are releasing on exit to catch a crash on Release()
+		UE_LOG(LogD3D12RHI, Display, TEXT("D3D12 ReleaseResources: %u items to release"), DeferredReleaseQueue.GetSize());
+
+		while (DeferredReleaseQueue.Dequeue(FenceObject))
 		{
-			FenceObject.RHIObject->Release();
+			if (FenceObject.Type == EObjectType::RHI)
+			{
+				D3D12_RESOURCE_DESC Desc = FenceObject.RHIObject->GetDesc();
+				FString Name = FenceObject.RHIObject->GetName().ToString();
+				UE_LOG(LogD3D12RHI, Display, TEXT("D3D12 ReleaseResources: \"%s\", %llu x %u x %u, Mips: %u, Format: 0x%X, Flags: 0x%X"), *Name, Desc.Width, Desc.Height, Desc.DepthOrArraySize, Desc.MipLevels, Desc.Format, Desc.Flags);
+
+				uint32 RefCount = FenceObject.RHIObject->Release();
+				if (RefCount)
+				{
+					UE_LOG(LogD3D12RHI, Display, TEXT("RefCount was %u"), RefCount);
+				}
+			}
+			else
+			{
+				UE_LOG(LogD3D12RHI, Display, TEXT("D3D12 ReleaseResources: 0x%llX"), FenceObject.D3DObject);
+
+				uint32 RefCount = FenceObject.D3DObject->Release();
+				if (RefCount)
+				{
+					UE_LOG(LogD3D12RHI, Display, TEXT("RefCount was %u"), RefCount);
+				}
+			}
 		}
-		else
+	}
+	else
+	{
+		struct FDequeueFenceObject
 		{
-			FenceObject.D3DObject->Release();
+			bool operator() (FencedObjectType FenceObject) const
+			{
+				return FenceObject.Fence->IsFenceComplete(FenceObject.FenceValue);
+			}
+		};
+
+		while (DeferredReleaseQueue.Dequeue(FenceObject, FDequeueFenceObject()))
+		{
+			if (FenceObject.Type == EObjectType::RHI)
+			{
+				FenceObject.RHIObject->Release();
+			}
+			else
+			{
+				FenceObject.D3DObject->Release();
+			}
 		}
 	}
 
@@ -299,7 +333,7 @@ void FD3D12Heap::BeginTrackingResidency(uint64 Size)
 //	FD3D12 Adapter
 /////////////////////////////////////////////////////////////////////
 
-HRESULT FD3D12Adapter::CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc, FRHIGPUMask CreationNode, const D3D12_HEAP_PROPERTIES& HeapProps, const D3D12_RESOURCE_STATES& InitialUsage, const D3D12_CLEAR_VALUE* ClearValue, FD3D12Resource** ppOutResource, const TCHAR* Name)
+HRESULT FD3D12Adapter::CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc, FRHIGPUMask CreationNode, const D3D12_HEAP_PROPERTIES& HeapProps, const D3D12_RESOURCE_STATES& InitialUsage, const D3D12_CLEAR_VALUE* ClearValue, FD3D12Resource** ppOutResource, const TCHAR* Name, bool bVerifyHResult)
 {
 	if (!ppOutResource)
 	{
@@ -309,8 +343,17 @@ HRESULT FD3D12Adapter::CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc
 	LLM_PLATFORM_SCOPE(ELLMTag::GraphicsPlatform);
 
 	TRefCountPtr<ID3D12Resource> pResource;
-	const HRESULT hr = RootDevice->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &InDesc, InitialUsage, ClearValue, IID_PPV_ARGS(pResource.GetInitReference()));
-	VERIFYD3D12RESULT_EX(hr, RootDevice);
+	D3D12_HEAP_FLAGS HeapFlags = D3D12_HEAP_FLAG_NONE;
+	if (InDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS)
+	{
+		HeapFlags |= D3D12_HEAP_FLAG_SHARED;
+	}
+
+	const HRESULT hr = RootDevice->CreateCommittedResource(&HeapProps, HeapFlags, &InDesc, InitialUsage, ClearValue, IID_PPV_ARGS(pResource.GetInitReference()));
+	if (bVerifyHResult)
+	{
+		VERIFYD3D12RESULT_EX(hr, RootDevice);
+	}
 
 	if (SUCCEEDED(hr))
 	{
@@ -331,7 +374,7 @@ HRESULT FD3D12Adapter::CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc
 	return hr;
 }
 
-HRESULT FD3D12Adapter::CreatePlacedResource(const D3D12_RESOURCE_DESC& InDesc, FD3D12Heap* BackingHeap, uint64 HeapOffset, const D3D12_RESOURCE_STATES& InitialUsage, const D3D12_CLEAR_VALUE* ClearValue, FD3D12Resource** ppOutResource, const TCHAR* Name)
+HRESULT FD3D12Adapter::CreatePlacedResource(const D3D12_RESOURCE_DESC& InDesc, FD3D12Heap* BackingHeap, uint64 HeapOffset, const D3D12_RESOURCE_STATES& InitialUsage, const D3D12_CLEAR_VALUE* ClearValue, FD3D12Resource** ppOutResource, const TCHAR* Name, bool bVerifyHResult)
 {
 	if (!ppOutResource)
 	{
@@ -342,7 +385,11 @@ HRESULT FD3D12Adapter::CreatePlacedResource(const D3D12_RESOURCE_DESC& InDesc, F
 
 	TRefCountPtr<ID3D12Resource> pResource;
 	const HRESULT hr = RootDevice->CreatePlacedResource(Heap, HeapOffset, &InDesc, InitialUsage, nullptr, IID_PPV_ARGS(pResource.GetInitReference()));
-	VERIFYD3D12RESULT_EX(hr, RootDevice);
+
+	if (bVerifyHResult)
+	{
+		VERIFYD3D12RESULT_EX(hr, RootDevice);
+	}
 
 	if (SUCCEEDED(hr))
 	{

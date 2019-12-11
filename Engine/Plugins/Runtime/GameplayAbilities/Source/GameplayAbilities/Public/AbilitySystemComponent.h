@@ -713,6 +713,10 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category = "GameplayEffects", meta=(DisplayName = "Get Activate Gameplay Effects for Query"))
 	TArray<FActiveGameplayEffectHandle> GetActiveEffects(const FGameplayEffectQuery& Query) const;
 
+	/** Returns list of active effects that have all of the passed in tags */
+	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "GameplayEffects")
+	TArray<FActiveGameplayEffectHandle> GetActiveEffectsWithAllTags(FGameplayTagContainer Tags) const;
+
 	/** This will give the world time that all effects matching this query will be finished. If multiple effects match, it returns the one that returns last */
 	float GetActiveEffectsEndTime(const FGameplayEffectQuery& Query) const;
 	float GetActiveEffectsEndTimeWithInstigators(const FGameplayEffectQuery& Query, TArray<AActor*>& Instigators) const;

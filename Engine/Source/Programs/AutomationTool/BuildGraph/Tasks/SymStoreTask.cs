@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -42,14 +42,14 @@ namespace AutomationTool
         public string Product;
 
 		/// <summary>
-		/// BuildVersion associated with these symbols. Used for cleanup in AgeStore by matching this version against a directory name in a build share
+		/// BuildVersion associated with these symbols. Used for clean-up in AgeStore by matching this version against a directory name in a build share.
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public string BuildVersion;
 	}
 
     /// <summary>
-    /// Task which strips symbols from a set of files
+    /// Task that strips symbols from a set of files.
     /// </summary>
     [TaskElement("SymStore", typeof(SymStoreTaskParameters))]
     public class SymStoreTask : CustomTask

@@ -638,11 +638,24 @@ void FDynamicMeshBuilder::AddTriangles(const TArray<uint32> &InIndices)
 	}
 	else
 	{
+		IndexBuffer->Indices.Reserve(IndexBuffer->Indices.Num() + InIndices.Num());
 		for (int32 Index : InIndices)
 		{
 			IndexBuffer->Indices.Add(static_cast<DynamicMeshIndexType>(Index));
 		}
 	}
+}
+
+/** Pre-allocate space for the given number of vertices. */
+void FDynamicMeshBuilder::ReserveVertices(int32 InNumVertices)
+{
+	VertexBuffer->Vertices.Reserve(InNumVertices);
+}
+
+/** Pre-allocate space for the given number of triangles. */
+void FDynamicMeshBuilder::ReserveTriangles(int32 InNumTriangles)
+{
+	IndexBuffer->Indices.Reserve(3 * InNumTriangles);
 }
 
 FMeshBuilderOneFrameResources::~FMeshBuilderOneFrameResources()

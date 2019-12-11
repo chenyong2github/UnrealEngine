@@ -390,7 +390,7 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 		const FText TooltipDesc = LOCTEXT("CustomHlslPopupTooltip", "Add a node with custom hlsl content");
 		TSharedPtr<FNiagaraSchemaAction_NewNode> FunctionCallAction = AddNewNodeAction(NewActions, LOCTEXT("Function Menu Title", "Functions"), MenuDesc, TEXT("CustomHLSL"), TooltipDesc);
 		UNiagaraNodeCustomHlsl* CustomHlslNode = NewObject<UNiagaraNodeCustomHlsl>(OwnerOfTemporaries);
-		CustomHlslNode->CustomHlsl = TEXT("// Insert the body of the function here and add any inputs\r\n// and outputs by name using the add pins above.\r\n// Currently, complicated branches, for loops, switches, etc are not advised.");
+		CustomHlslNode->SetCustomHlsl(TEXT("// Insert the body of the function here and add any inputs\r\n// and outputs by name using the add pins above.\r\n// Currently, complicated branches, for loops, switches, etc are not advised."));
 		FunctionCallAction->NodeTemplate = CustomHlslNode;
 	}
 
@@ -1011,8 +1011,8 @@ const FPinConnectionResponse UEdGraphSchema_Niagara::CanCreateConnection(const U
 		}
 	}
 
-	int32 Depth = 0;
-	if (UEdGraphSchema_Niagara::CheckCircularConnection(PinB->GetOwningNode(), PinB->Direction, PinA, Depth))
+	TSet<const UEdGraphNode*> VisitedNodes;
+	if (UEdGraphSchema_Niagara::CheckCircularConnection(VisitedNodes, OutputPin->GetOwningNode(), InputPin->GetOwningNode()))
 	{
 		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("Circular connection found"));
 	}
@@ -1523,41 +1523,42 @@ void UEdGraphSchema_Niagara::ConvertNumericPinToType(UEdGraphPin* InGraphPin, FN
 	}
 }
 
-bool UEdGraphSchema_Niagara::CheckCircularConnection(const UEdGraphNode* InRootNode, const EEdGraphPinDirection InRootPinDirection, const UEdGraphPin* InPin, int32& OutDepth)
+bool UEdGraphSchema_Niagara::CheckCircularConnection(TSet<const UEdGraphNode*>& VisitedNodes, const UEdGraphNode* InNode, const UEdGraphNode* InTestNode)
 {
-	if (InPin->GetOwningNode() == InRootNode)
-	{
-		return true;
-	}
+	bool AlreadyAdded = false;
 
-	static const int32 MaxDepth = 3;
-	OutDepth++;
-	if (OutDepth > MaxDepth)
+	VisitedNodes.Add(InNode, &AlreadyAdded);
+	if (AlreadyAdded)
 	{
+		// node is already in our set, so return so we don't reprocess it
 		return false;
 	}
 
-	for (const UEdGraphPin* Pin : InPin->GetOwningNode()->GetAllPins())
+	if (InNode == InTestNode)
 	{
-		if (Pin->Direction == InRootPinDirection && Pin != InPin)
-		{
-			for (const UEdGraphPin* LinkedPin : Pin->LinkedTo)
-			{
-				if (UEdGraphSchema_Niagara::CheckCircularConnection(InRootNode, InRootPinDirection, LinkedPin, OutDepth))
-				{
-					return true;
-				}
+		// we've found a match, so we have a circular reference
+		return true;
+	}
 
-				// If the CheckCircularConnection call above returned without finding the root node and was too deep.
-				if (OutDepth > MaxDepth)
+	// iterate over all of the nodes that are inputs to InNode
+	for (const UEdGraphPin* Pin : InNode->GetAllPins())
+	{
+		if (Pin && Pin->Direction == EGPD_Input)
+		{
+			for (const UEdGraphPin* OutputPin : Pin->LinkedTo)
+			{
+				if (const UEdGraphNode* InputNode = OutputPin ? OutputPin->GetOwningNode() : nullptr)
 				{
-					return false;
+					if (CheckCircularConnection(VisitedNodes, InputNode, InTestNode))
+					{
+						return true;
+					}
 				}
 			}
+
 		}
 	}
 
-	OutDepth--;
 	return false;
 }
 
@@ -1753,9 +1754,9 @@ void UEdGraphSchema_Niagara::GetContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 			const FName SectionName = "EdGraphSchema_NiagaraNodeActions";
 			FToolMenuSection& Section = Menu->AddSection(SectionName, LOCTEXT("PinConversionMenuHeader", "Convert Pins"));
 			Section.AddSubMenu(
-				"ConvertNumericSpecific",
-				LOCTEXT("ConvertNumericSpecific", "Convert All Numerics To..."),
-				LOCTEXT("ConvertNumericSpecificToolTip", "Convert all Numeric pins to the specific typed pin."),
+				"ConvertAllNumericSpecific",
+				LOCTEXT("ConvertAllNumericSpecific", "Convert All Numerics To..."),
+				LOCTEXT("ConvertAllNumericSpecificToolTip", "Convert all Numeric pins to the specific typed pin."),
 				FNewToolMenuDelegate::CreateUObject((UEdGraphSchema_Niagara*const)this, &UEdGraphSchema_Niagara::GetNumericConversionToSubMenuActionsAll, SectionName, const_cast<UNiagaraNode*>(Node)));
 		}
 		

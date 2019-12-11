@@ -124,6 +124,7 @@
 #include "Engine/HLODProxy.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Interfaces/Interface_PostProcessVolume.h"
+#include "ObjectTrace.h"
 
 #if INCLUDE_CHAOS
 #include "ChaosSolversModule.h"
@@ -960,7 +961,7 @@ void UWorld::PostLoad()
 	RepairWorldSettings();
 #endif
 #if INCLUDE_CHAOS
-	RepairChaosActors();
+	//RepairChaosActors();
 #endif
 
 	for (auto It = StreamingLevels.CreateIterator(); It; ++It)
@@ -1411,7 +1412,7 @@ void UWorld::InitWorld(const InitializationValues IVS)
 	RepairWorldSettings();
 #endif
 #if INCLUDE_CHAOS
-	RepairChaosActors();
+	//RepairChaosActors();
 #endif
 
 	// initialize DefaultPhysicsVolume for the world
@@ -1635,13 +1636,13 @@ void UWorld::InitializeNewWorld(const InitializationValues IVS)
 #endif
 
 #if INCLUDE_CHAOS
-	FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
+	/*FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
 	check(ChaosModule);
 	FActorSpawnParameters ChaosSpawnInfo;
 	ChaosSpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	ChaosSpawnInfo.Name = TEXT("DefaultChaosActor");
 	SpawnActor(ChaosModule->GetSolverActorClass(), nullptr, nullptr, ChaosSpawnInfo);
-	check(PhysicsScene_Chaos);
+	check(PhysicsScene_Chaos);*/
 #endif
 
 	// Initialize the world
@@ -3006,7 +3007,7 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 		checkf(false, TEXT("Unable to determine PIEInstanceID to duplicate for PIE."));
 	}
 
-	GPlayInEditorID = PIEInstanceID;
+	FTemporaryPlayInEditorIDOverride IDHelper(PIEInstanceID);
 
 	FString PrefixedLevelName = ConvertToPIEPackageName(PackageName, PIEInstanceID);
 	const FName PrefixedLevelFName = FName(*PrefixedLevelName);
@@ -3907,7 +3908,7 @@ bool UWorld::SetGameMode(const FURL& InURL)
 {
 	if( IsServer() && !AuthorityGameMode )
 	{
-		AuthorityGameMode = GetGameInstance()->CreateGameModeForURL(InURL);
+		AuthorityGameMode = GetGameInstance()->CreateGameModeForURL(InURL, this);
 		if( AuthorityGameMode != NULL )
 		{
 			return true;
@@ -3924,6 +3925,8 @@ bool UWorld::SetGameMode(const FURL& InURL)
 
 void UWorld::InitializeActorsForPlay(const FURL& InURL, bool bResetTime)
 {
+	TRACE_OBJECT_EVENT(this, InitializeActorsForPlay);
+
 	check(bIsWorldInitialized);
 	SCOPED_BOOT_TIMING("UWorld::InitializeActorsForPlay");
 	double StartTime = FPlatformTime::Seconds();
@@ -4108,6 +4111,8 @@ void UWorld::BeginPlay()
 			GetAISystem()->StartPlay();
 		}
 	}
+
+	OnWorldBeginPlay.Broadcast();
 
 #if WITH_CHAOS
 	if(PhysicsScene)
@@ -4497,7 +4502,12 @@ bool UWorld::AreActorsInitialized() const
 
 void UWorld::CreatePhysicsScene(const AWorldSettings* Settings)
 {
+#if CHAOS_CHECKED
+	const FName PhysicsName = IsNetMode(NM_DedicatedServer) ? TEXT("ServerPhysics") : TEXT("ClientPhysics");
+	FPhysScene* NewScene = new FPhysScene(Settings, PhysicsName);
+#else
 	FPhysScene* NewScene = new FPhysScene(Settings);
+#endif
 	SetPhysicsScene(NewScene);
 }
 
@@ -4513,10 +4523,14 @@ void UWorld::SetPhysicsScene(FPhysScene* InScene)
 	// Assign pointer
 	PhysicsScene = InScene;
 
-	// Set pointer in scene to know which world its coming from
 	if(PhysicsScene != NULL)
 	{
+		// Set pointer in scene to know which world its coming from
 		PhysicsScene->SetOwningWorld(this);
+
+#if WITH_CHAOS
+		FPhysInterface_Chaos::FlushScene(PhysicsScene);
+#endif
 	}
 }
 
@@ -7223,7 +7237,7 @@ static ULevel* DuplicateLevelWithPrefix(ULevel* InLevel, int32 InstanceID )
 
 	FSoftObjectPath::AddPIEPackageName(NewPackage->GetFName());
 
-	GPlayInEditorID = InstanceID;
+	FTemporaryPlayInEditorIDOverride IDHelper(InstanceID);
 
 	// Create "vestigial" world for the persistent level - it's OwningWorld will still be the main world,
 	// but we're treating it like a streaming level (even though it's a duplicate of the persistent level).
@@ -7267,8 +7281,6 @@ static ULevel* DuplicateLevelWithPrefix(ULevel* InLevel, int32 InstanceID )
 	const float TotalSeconds = ( DuplicateEnd - DuplicateStart );
 
 	UE_LOG( LogNet, Log, TEXT( "DuplicateLevelWithPrefix. TotalSeconds: %2.2f" ), TotalSeconds );
-
-	GPlayInEditorID = -1;
 
 	return NewLevel;
 }

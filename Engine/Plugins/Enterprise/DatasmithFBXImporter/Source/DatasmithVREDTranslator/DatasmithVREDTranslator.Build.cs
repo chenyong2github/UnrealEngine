@@ -22,7 +22,6 @@ namespace UnrealBuildTool.Rules
 					"MeshDescription",
 					"UnrealEd",
 					"XmlParser",
-					"VariantManagerContent",
 				}
 			);
 

@@ -4,6 +4,8 @@
 
 #include "Widgets/SWindow.h"
 
+#include "IAnalyticsProviderET.h"
+
 enum class EPreLoadScreenTypes : uint8
 {
 	CustomSplashScreen,
@@ -19,7 +21,7 @@ class IPreLoadScreen //: public TSharedFromThis<IPreLoadScreen, ESPMode::ThreadS
 public:
     virtual ~IPreLoadScreen() {};
 
-    virtual bool Init() = 0;
+    virtual void Init() = 0;
     
     //Standard tick that happens every frame
     virtual void Tick(float DeltaTime) = 0;

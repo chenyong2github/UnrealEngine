@@ -70,6 +70,8 @@ struct INPUTCORE_API FKey
 	bool IsVectorAxis() const;
 	bool IsBindableInBlueprints() const;
 	bool ShouldUpdateAxisWithoutSamples() const;
+	bool IsBindableToActions() const;
+	bool IsDeprecated() const;
 	FText GetDisplayName(bool bLongDisplayName = true) const;
 	FString ToString() const;
 	FName GetFName() const;
@@ -129,12 +131,14 @@ struct INPUTCORE_API FKeyDetails
 		FloatAxis				 = 1 << 5,
 		VectorAxis				 = 1 << 6,
 		UpdateAxisWithoutSamples = 1 << 7,
+		NotActionBindableKey	 = 1 << 8,
+		Deprecated				 = 1 << 9,
 
 		NoFlags                 = 0,
 	};
 
-	FKeyDetails(const FKey InKey, const TAttribute<FText>& InLongDisplayName, const uint8 InKeyFlags = 0, const FName InMenuCategory = NAME_None, const TAttribute<FText>& InShortDisplayName = TAttribute<FText>() );
-	FKeyDetails(const FKey InKey, const TAttribute<FText>& InLongDisplayName, const TAttribute<FText>& InShortDisplayName, const uint8 InKeyFlags = 0, const FName InMenuCategory = NAME_None);
+	FKeyDetails(const FKey InKey, const TAttribute<FText>& InLongDisplayName, const uint16 InKeyFlags = 0, const FName InMenuCategory = NAME_None, const TAttribute<FText>& InShortDisplayName = TAttribute<FText>() );
+	FKeyDetails(const FKey InKey, const TAttribute<FText>& InLongDisplayName, const TAttribute<FText>& InShortDisplayName, const uint16 InKeyFlags = 0, const FName InMenuCategory = NAME_None);
 
 	FORCEINLINE bool IsModifierKey() const { return bIsModifierKey != 0; }
 	FORCEINLINE bool IsGamepadKey() const { return bIsGamepadKey != 0; }
@@ -144,13 +148,15 @@ struct INPUTCORE_API FKeyDetails
 	FORCEINLINE bool IsVectorAxis() const { return AxisType == EInputAxisType::Vector; }
 	FORCEINLINE bool IsBindableInBlueprints() const { return bIsBindableInBlueprints != 0; }
 	FORCEINLINE bool ShouldUpdateAxisWithoutSamples() const { return bShouldUpdateAxisWithoutSamples != 0; }
+	FORCEINLINE bool IsBindableToActions() const { return bIsBindableToActions != 0; }
+	FORCEINLINE bool IsDeprecated() const { return bIsDeprecated != 0; }
 	FORCEINLINE FName GetMenuCategory() const { return MenuCategory; }
 	FText GetDisplayName(const bool bLongDisplayName = true) const;
 	FORCEINLINE const FKey& GetKey() const { return Key; }
 
 private:
 
-	void CommonInit(const uint8 InKeyFlags);	
+	void CommonInit(const uint16 InKeyFlags);	
 
 	enum class EInputAxisType : uint8
 	{
@@ -169,6 +175,8 @@ private:
 	uint8 bIsMouseButton : 1;
 	uint8 bIsBindableInBlueprints : 1;
 	uint8 bShouldUpdateAxisWithoutSamples : 1;
+	uint8 bIsBindableToActions : 1;
+	uint8 bIsDeprecated : 1;
 	EInputAxisType AxisType;
 
 	TAttribute<FText> LongDisplayName;
@@ -460,6 +468,7 @@ struct INPUTCORE_API EKeys
 	 
 	//   Motion Controller Axes
 	//		Left Controller
+	static const FKey MotionController_Left_Thumbstick_XY;
 	static const FKey MotionController_Left_Thumbstick_X;
 	static const FKey MotionController_Left_Thumbstick_Y;
 	static const FKey MotionController_Left_TriggerAxis;
@@ -467,6 +476,7 @@ struct INPUTCORE_API EKeys
 	static const FKey MotionController_Left_Grip2Axis;
 
 	//		Right Controller
+	static const FKey MotionController_Right_Thumbstick_XY;
 	static const FKey MotionController_Right_Thumbstick_X;
 	static const FKey MotionController_Right_Thumbstick_Y;
 	static const FKey MotionController_Right_TriggerAxis;
@@ -496,6 +506,200 @@ struct INPUTCORE_API EKeys
 	static const FKey Android_Volume_Up;
 	static const FKey Android_Volume_Down;
 	static const FKey Android_Menu;
+
+	// Google Daydream
+	static const FKey Daydream_Left_Select_Click;
+	static const FKey Daydream_Left_Trackpad_X;
+	static const FKey Daydream_Left_Trackpad_Y;
+	static const FKey Daydream_Left_Trackpad_Click;
+	static const FKey Daydream_Left_Trackpad_Touch;
+	static const FKey Daydream_Right_Select_Click;
+	static const FKey Daydream_Right_Trackpad_X;
+	static const FKey Daydream_Right_Trackpad_Y;
+	static const FKey Daydream_Right_Trackpad_Click;
+	static const FKey Daydream_Right_Trackpad_Touch;
+
+	// HTC Vive Controller
+	static const FKey Vive_Left_System_Click;
+	static const FKey Vive_Left_Grip_Click;
+	static const FKey Vive_Left_Menu_Click;
+	static const FKey Vive_Left_Trigger_Click;
+	static const FKey Vive_Left_Trigger_Axis;
+	static const FKey Vive_Left_Trackpad_X;
+	static const FKey Vive_Left_Trackpad_Y;
+	static const FKey Vive_Left_Trackpad_Click;
+	static const FKey Vive_Left_Trackpad_Touch;
+	static const FKey Vive_Left_Trackpad_Up;
+	static const FKey Vive_Left_Trackpad_Down;
+	static const FKey Vive_Left_Trackpad_Left;
+	static const FKey Vive_Left_Trackpad_Right;
+	static const FKey Vive_Right_System_Click;
+	static const FKey Vive_Right_Grip_Click;
+	static const FKey Vive_Right_Menu_Click;
+	static const FKey Vive_Right_Trigger_Click;
+	static const FKey Vive_Right_Trigger_Axis;
+	static const FKey Vive_Right_Trackpad_X;
+	static const FKey Vive_Right_Trackpad_Y;
+	static const FKey Vive_Right_Trackpad_Click;
+	static const FKey Vive_Right_Trackpad_Touch;
+	static const FKey Vive_Right_Trackpad_Up;
+	static const FKey Vive_Right_Trackpad_Down;
+	static const FKey Vive_Right_Trackpad_Left;
+	static const FKey Vive_Right_Trackpad_Right;
+
+	// Microsoft Mixed Reality Motion Controller
+	static const FKey MixedReality_Left_Menu_Click;
+	static const FKey MixedReality_Left_Grip_Click;
+	static const FKey MixedReality_Left_Trigger_Click;
+	static const FKey MixedReality_Left_Trigger_Axis;
+	static const FKey MixedReality_Left_Thumbstick_X;
+	static const FKey MixedReality_Left_Thumbstick_Y;
+	static const FKey MixedReality_Left_Thumbstick_Click;
+	static const FKey MixedReality_Left_Thumbstick_Up;
+	static const FKey MixedReality_Left_Thumbstick_Down;
+	static const FKey MixedReality_Left_Thumbstick_Left;
+	static const FKey MixedReality_Left_Thumbstick_Right;
+	static const FKey MixedReality_Left_Trackpad_X;
+	static const FKey MixedReality_Left_Trackpad_Y;
+	static const FKey MixedReality_Left_Trackpad_Click;
+	static const FKey MixedReality_Left_Trackpad_Touch;
+	static const FKey MixedReality_Left_Trackpad_Up;
+	static const FKey MixedReality_Left_Trackpad_Down;
+	static const FKey MixedReality_Left_Trackpad_Left;
+	static const FKey MixedReality_Left_Trackpad_Right;
+	static const FKey MixedReality_Right_Menu_Click;
+	static const FKey MixedReality_Right_Grip_Click;
+	static const FKey MixedReality_Right_Trigger_Click;
+	static const FKey MixedReality_Right_Trigger_Axis;
+	static const FKey MixedReality_Right_Thumbstick_X;
+	static const FKey MixedReality_Right_Thumbstick_Y;
+	static const FKey MixedReality_Right_Thumbstick_Click;
+	static const FKey MixedReality_Right_Thumbstick_Up;
+	static const FKey MixedReality_Right_Thumbstick_Down;
+	static const FKey MixedReality_Right_Thumbstick_Left;
+	static const FKey MixedReality_Right_Thumbstick_Right;
+	static const FKey MixedReality_Right_Trackpad_X;
+	static const FKey MixedReality_Right_Trackpad_Y;
+	static const FKey MixedReality_Right_Trackpad_Click;
+	static const FKey MixedReality_Right_Trackpad_Touch;
+	static const FKey MixedReality_Right_Trackpad_Up;
+	static const FKey MixedReality_Right_Trackpad_Down;
+	static const FKey MixedReality_Right_Trackpad_Left;
+	static const FKey MixedReality_Right_Trackpad_Right;
+
+	// Oculus Go Controller
+	static const FKey OculusGo_Left_System_Click;
+	static const FKey OculusGo_Left_Back_Click;
+	static const FKey OculusGo_Left_Trigger_Click;
+	static const FKey OculusGo_Left_Trackpad_X;
+	static const FKey OculusGo_Left_Trackpad_Y;
+	static const FKey OculusGo_Left_Trackpad_Click;
+	static const FKey OculusGo_Left_Trackpad_Touch;
+	static const FKey OculusGo_Right_System_Click;
+	static const FKey OculusGo_Right_Back_Click;
+	static const FKey OculusGo_Right_Trigger_Click;
+	static const FKey OculusGo_Right_Trackpad_X;
+	static const FKey OculusGo_Right_Trackpad_Y;
+	static const FKey OculusGo_Right_Trackpad_Click;
+	static const FKey OculusGo_Right_Trackpad_Touch;
+
+	// Oculus Touch Controller
+	static const FKey OculusTouch_Left_X_Click;
+	static const FKey OculusTouch_Left_Y_Click;
+	static const FKey OculusTouch_Left_X_Touch;
+	static const FKey OculusTouch_Left_Y_Touch;
+	static const FKey OculusTouch_Left_Menu_Click;
+	static const FKey OculusTouch_Left_Grip_Click;
+	static const FKey OculusTouch_Left_Grip_Axis;
+	static const FKey OculusTouch_Left_Trigger_Click;
+	static const FKey OculusTouch_Left_Trigger_Axis;
+	static const FKey OculusTouch_Left_Trigger_Touch;
+	static const FKey OculusTouch_Left_Thumbstick_X;
+	static const FKey OculusTouch_Left_Thumbstick_Y;
+	static const FKey OculusTouch_Left_Thumbstick_Click;
+	static const FKey OculusTouch_Left_Thumbstick_Touch;
+	static const FKey OculusTouch_Left_Thumbstick_Up;
+	static const FKey OculusTouch_Left_Thumbstick_Down;
+	static const FKey OculusTouch_Left_Thumbstick_Left;
+	static const FKey OculusTouch_Left_Thumbstick_Right;
+	static const FKey OculusTouch_Right_A_Click;
+	static const FKey OculusTouch_Right_B_Click;
+	static const FKey OculusTouch_Right_A_Touch;
+	static const FKey OculusTouch_Right_B_Touch;
+	static const FKey OculusTouch_Right_System_Click;
+	static const FKey OculusTouch_Right_Grip_Click;
+	static const FKey OculusTouch_Right_Grip_Axis;
+	static const FKey OculusTouch_Right_Trigger_Click;
+	static const FKey OculusTouch_Right_Trigger_Axis;
+	static const FKey OculusTouch_Right_Trigger_Touch;
+	static const FKey OculusTouch_Right_Thumbstick_X;
+	static const FKey OculusTouch_Right_Thumbstick_Y;
+	static const FKey OculusTouch_Right_Thumbstick_Click;
+	static const FKey OculusTouch_Right_Thumbstick_Touch;
+	static const FKey OculusTouch_Right_Thumbstick_Up;
+	static const FKey OculusTouch_Right_Thumbstick_Down;
+	static const FKey OculusTouch_Right_Thumbstick_Left;
+	static const FKey OculusTouch_Right_Thumbstick_Right;
+
+	// Valve Index Controller
+	static const FKey ValveIndex_Left_A_Click;
+	static const FKey ValveIndex_Left_B_Click;
+	static const FKey ValveIndex_Left_A_Touch;
+	static const FKey ValveIndex_Left_B_Touch;
+	static const FKey ValveIndex_Left_System_Click;
+	static const FKey ValveIndex_Left_System_Touch;
+	static const FKey ValveIndex_Left_Grip_Click;
+	static const FKey ValveIndex_Left_Grip_Axis;
+	static const FKey ValveIndex_Left_Grip_Force;
+	static const FKey ValveIndex_Left_Trigger_Click;
+	static const FKey ValveIndex_Left_Trigger_Axis;
+	static const FKey ValveIndex_Left_Trigger_Touch;
+	static const FKey ValveIndex_Left_Thumbstick_X;
+	static const FKey ValveIndex_Left_Thumbstick_Y;
+	static const FKey ValveIndex_Left_Thumbstick_Click;
+	static const FKey ValveIndex_Left_Thumbstick_Touch;
+	static const FKey ValveIndex_Left_Thumbstick_Up;
+	static const FKey ValveIndex_Left_Thumbstick_Down;
+	static const FKey ValveIndex_Left_Thumbstick_Left;
+	static const FKey ValveIndex_Left_Thumbstick_Right;
+	static const FKey ValveIndex_Left_Trackpad_X;
+	static const FKey ValveIndex_Left_Trackpad_Y;
+	static const FKey ValveIndex_Left_Trackpad_Click;
+	static const FKey ValveIndex_Left_Trackpad_Force;
+	static const FKey ValveIndex_Left_Trackpad_Touch;
+	static const FKey ValveIndex_Left_Trackpad_Up;
+	static const FKey ValveIndex_Left_Trackpad_Down;
+	static const FKey ValveIndex_Left_Trackpad_Left;
+	static const FKey ValveIndex_Left_Trackpad_Right;
+	static const FKey ValveIndex_Right_A_Click;
+	static const FKey ValveIndex_Right_B_Click;
+	static const FKey ValveIndex_Right_A_Touch;
+	static const FKey ValveIndex_Right_B_Touch;
+	static const FKey ValveIndex_Right_System_Click;
+	static const FKey ValveIndex_Right_System_Touch;
+	static const FKey ValveIndex_Right_Grip_Click;
+	static const FKey ValveIndex_Right_Grip_Axis;
+	static const FKey ValveIndex_Right_Grip_Force;
+	static const FKey ValveIndex_Right_Trigger_Click;
+	static const FKey ValveIndex_Right_Trigger_Axis;
+	static const FKey ValveIndex_Right_Trigger_Touch;
+	static const FKey ValveIndex_Right_Thumbstick_X;
+	static const FKey ValveIndex_Right_Thumbstick_Y;
+	static const FKey ValveIndex_Right_Thumbstick_Click;
+	static const FKey ValveIndex_Right_Thumbstick_Touch;
+	static const FKey ValveIndex_Right_Thumbstick_Up;
+	static const FKey ValveIndex_Right_Thumbstick_Down;
+	static const FKey ValveIndex_Right_Thumbstick_Left;
+	static const FKey ValveIndex_Right_Thumbstick_Right;
+	static const FKey ValveIndex_Right_Trackpad_X;
+	static const FKey ValveIndex_Right_Trackpad_Y;
+	static const FKey ValveIndex_Right_Trackpad_Click;
+	static const FKey ValveIndex_Right_Trackpad_Force;
+	static const FKey ValveIndex_Right_Trackpad_Touch;
+	static const FKey ValveIndex_Right_Trackpad_Up;
+	static const FKey ValveIndex_Right_Trackpad_Down;
+	static const FKey ValveIndex_Right_Trackpad_Left;
+	static const FKey ValveIndex_Right_Trackpad_Right;
 
 	// Virtual buttons that use other buttons depending on the platform
 	static const FKey Virtual_Accept;

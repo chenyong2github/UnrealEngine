@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "ClothPhysicalMeshData.h"
+#include "ClothPhysicalMeshDataBase.h"
 #include "ClothPhysicalMeshDataNv.generated.h"
 
 /** The possible targets for a physical mesh point weight map. */
@@ -31,9 +31,9 @@ public:
 	ClearParticleParameters() override;
 
 	virtual void
-	BuildSelfCollisionData(const UClothConfigBase* ClothConfig);
+	BuildSelfCollisionData(const UClothConfigBase* ClothConfig) override;
 
-	virtual UEnum* GetFloatArrayTargets() const
+	virtual UEnum* GetFloatArrayTargets() const override
 	{ return StaticEnum<MaskTarget_PhysMesh>(); }
 
 	virtual bool IsFullyKinematic() const override

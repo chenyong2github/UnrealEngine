@@ -54,7 +54,7 @@ bool FOnlineSharingFacebook::RequestNewReadPermissions(int32 LocalUserNum, EOnli
 				if (PermissionsRequested)
                 {
 					FBSDKLoginManager *loginManager = [[FBSDKLoginManager alloc] init];
-					[loginManager logInWithReadPermissions:PermissionsRequested
+					[loginManager logInWithPermissions:PermissionsRequested
 										fromViewController:nil
 										handler: ^(FBSDKLoginManagerLoginResult* result, NSError* error)
 						{
@@ -144,7 +144,7 @@ bool FOnlineSharingFacebook::RequestNewPublishPermissions(int32 LocalUserNum, EO
                             break;
                     }
 
-					[loginManager logInWithPublishPermissions:PermissionsRequested
+					[loginManager logInWithPermissions:PermissionsRequested
 										fromViewController:nil
 										handler: ^(FBSDKLoginManagerLoginResult* result, NSError* error)
 						{

@@ -32,8 +32,6 @@
 #if WITH_EDITOR
 #include "EditorModeManager.h"
 #include "EditorModes.h"
-#include "Editor/GeometryMode/Public/GeometryEdMode.h"
-#include "Editor/GeometryMode/Public/EditorGeometry.h"
 #include "Editor/LevelEditor/Public/LevelEditor.h"
 #endif
 
@@ -84,14 +82,17 @@ DEFINE_STAT(STAT_Navigation_RegisterNavOctreeElement);
 DEFINE_STAT(STAT_Navigation_UnregisterNavOctreeElement);
 DEFINE_STAT(STAT_Navigation_AddingActorsToNavOctree);
 DEFINE_STAT(STAT_Navigation_RecastAddGeneratedTiles);
+DEFINE_STAT(STAT_Navigation_RecastAddGeneratedTileLayer);
 DEFINE_STAT(STAT_Navigation_RecastTick);
 DEFINE_STAT(STAT_Navigation_RecastPathfinding);
 DEFINE_STAT(STAT_Navigation_RecastTestPath);
+DEFINE_STAT(STAT_RecastNavMeshGenerator_StoringCompressedLayers);
 DEFINE_STAT(STAT_Navigation_RecastBuildCompressedLayers);
 DEFINE_STAT(STAT_Navigation_RecastCreateHeightField);
 DEFINE_STAT(STAT_Navigation_RecastRasterizeTriangles);
 DEFINE_STAT(STAT_Navigation_RecastVoxelFilter);
 DEFINE_STAT(STAT_Navigation_RecastFilter);
+DEFINE_STAT(STAT_Navigation_FilterLedgeSpans);
 DEFINE_STAT(STAT_Navigation_RecastBuildCompactHeightField);
 DEFINE_STAT(STAT_Navigation_RecastErodeWalkable);
 DEFINE_STAT(STAT_Navigation_RecastBuildLayers);
@@ -103,6 +104,7 @@ DEFINE_STAT(STAT_Navigation_RecastCreateNavMeshData);
 DEFINE_STAT(STAT_Navigation_RecastMarkAreas);
 DEFINE_STAT(STAT_Navigation_RecastBuildContours);
 DEFINE_STAT(STAT_Navigation_RecastBuildNavigation);
+DEFINE_STAT(STAT_Navigation_GenerateNavigationDataLayer);
 DEFINE_STAT(STAT_Navigation_RecastBuildRegions);
 DEFINE_STAT(STAT_Navigation_UpdateNavOctree);
 DEFINE_STAT(STAT_Navigation_CollisionTreeMemory);
@@ -422,28 +424,12 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 		const FTransform RecastToUnrealTransfrom(Recast2UnrealMatrix());
 		SetCoordTransform(ENavigationCoordSystem::Navigation, ENavigationCoordSystem::Unreal, RecastToUnrealTransfrom);
 	}
-
-#if WITH_EDITOR
-	if (GIsEditor && HasAnyFlags(RF_ClassDefaultObject) == false)
-	{
-		FEditorDelegates::EditorModeIDEnter.AddUObject(this, &UNavigationSystemV1::OnEditorModeIDChanged, true);
-		FEditorDelegates::EditorModeIDExit.AddUObject(this, &UNavigationSystemV1::OnEditorModeIDChanged, false);
-	}
-#endif // WITH_EDITOR
 }
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UNavigationSystemV1::~UNavigationSystemV1()
 {
 	CleanUp(FNavigationSystem::ECleanupMode::CleanupUnsafe);
-
-#if WITH_EDITOR
-	if (GIsEditor)
-	{
-		FEditorDelegates::EditorModeIDEnter.RemoveAll(this);
-		FEditorDelegates::EditorModeIDExit.RemoveAll(this);
-	}
-#endif // WITH_EDITOR
 
 #if !UE_BUILD_SHIPPING
 	FCoreDelegates::OnGetOnScreenMessages.RemoveAll(this);
@@ -723,7 +709,7 @@ void UNavigationSystemV1::OnInitializeActors()
 
 void UNavigationSystemV1::OnBeginTearingDown()
 {
-	DestroyNavOctree();
+	CleanUp(FNavigationSystem::ECleanupMode::CleanupWithWorld);
 }
 
 void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
@@ -736,6 +722,11 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 	check(World);
 
 	World->OnBeginTearingDown().AddUObject(this, &UNavigationSystemV1::OnBeginTearingDown);
+
+	// process all queued custom link registration requests
+	// (since it's possible navigation system was not ready by the time
+	// those links were serialized-in or spawned)
+	ProcessCustomLinkPendingRegistration();
 
 	if (IsThereAnywhereToBuildNavigation() == false
 		// Simulation mode is a special case - better not do it in this case
@@ -939,11 +930,6 @@ void UNavigationSystemV1::Tick(float DeltaSeconds)
 		)
 	{
 		return;
-	}
-	
-	if (PendingCustomLinkRegistration.Num())
-	{
-		ProcessCustomLinkPendingRegistration();
 	}
 
 	if (PendingNavBoundsUpdates.Num() > 0)
@@ -1859,7 +1845,17 @@ void UNavigationSystemV1::ProcessCustomLinkPendingRegistration()
 		
 		if (LinkOb.IsValid() && ILink)
 		{
+#if WITH_EDITOR
+			// In Editor multiple NavigationSystems may exist at the same time (i.e. Editor, Client Game, Server Game worlds)
+			// so we want to make sure that any given NavigationSystem instance performs a single flush of the global pending queue
+			// to register the links associated to their outer World.
+			// Following registration requests will be forwarded directly to the NavigationSystem and won't use the queue.
+			// We call RequestCustomLinkRegistering instead of RegisterCustomLink so each link
+			// will register to the navigation system associated to their outer world (if created) or put back in the queue.
+			RequestCustomLinkRegistering(*ILink, LinkOb.Get());
+#else
 			RegisterCustomLink(*ILink);
+#endif // WITH_EDITOR
 		}
 	}
 }
@@ -1975,6 +1971,11 @@ UNavigationSystemV1::ERegistrationResult UNavigationSystemV1::RegisterNavData(AN
 	// care needs to be taken to not make it implement navigation for agent who's real implementation has 
 	// not been loaded yet.
 
+	if (Result == RegistrationSuccessful && CrowdManager != nullptr)
+	{
+		CrowdManager->OnNavDataRegistered(*NavData);
+	}
+
 	return Result;
 }
 
@@ -1992,10 +1993,18 @@ void UNavigationSystemV1::UnregisterNavData(ANavigationData* NavData)
 	FScopeLock Lock(&NavDataRegistration);
 	NavDataRegistrationQueue.Remove(NavData);
 	NavData->OnUnregistered();
+
+	if (CrowdManager != nullptr)
+	{
+		CrowdManager->OnNavDataUnregistered(*NavData);
+	}
 }
 
 void UNavigationSystemV1::RegisterCustomLink(INavLinkCustomInterface& CustomLink)
 {
+	ensureMsgf(CustomLink.GetLinkOwner() == nullptr || GetWorld() == CustomLink.GetLinkOwner()->GetWorld(), 
+		TEXT("Registering a link from a world different than the navigation system world should not happen."));
+
 	uint32 LinkId = CustomLink.GetLinkId();
 
 	// if there's already a link with that Id registered, assign new Id and mark dirty area
@@ -2759,47 +2768,6 @@ void UNavigationSystemV1::UpdateLevelCollision(ULevel* InLevel)
 		OnLevelAddedToWorld(InLevel, World);
 	}
 }
-
-void UNavigationSystemV1::OnEditorModeChanged(FEdMode* Mode, bool IsEntering)
-{
-	if (Mode == NULL)
-	{
-		return;
-	}
-
-	if (IsEntering == false && Mode->GetID() == FBuiltinEditorModes::EM_Geometry)
-	{
-		// check if any of modified brushes belongs to an ANavMeshBoundsVolume
-		FEdModeGeometry* GeometryMode = (FEdModeGeometry*)Mode;
-		for (auto GeomObjectIt = GeometryMode->GeomObjectItor(); GeomObjectIt; GeomObjectIt++)
-		{
-			ANavMeshBoundsVolume* Volume = Cast<ANavMeshBoundsVolume>((*GeomObjectIt)->GetActualBrush());
-			if (Volume)
-			{
-				OnNavigationBoundsUpdated(Volume);
-			}
-		}
-	}
-}
-
-void UNavigationSystemV1::OnEditorModeIDChanged(const FEditorModeID& ModeID, bool IsEntering)
-{
-	if (IsEntering == false && ModeID == FBuiltinEditorModes::EM_Geometry)
-	{
-		// check if any of modified brushes belongs to an ANavMeshBoundsVolume
-		FEdMode* Mode = GLevelEditorModeTools().GetActiveMode(ModeID);
-		FEdModeGeometry* GeometryMode = (FEdModeGeometry*)Mode;
-		for (auto GeomObjectIt = GeometryMode->GeomObjectItor(); GeomObjectIt; GeomObjectIt++)
-		{
-			ANavMeshBoundsVolume* Volume = Cast<ANavMeshBoundsVolume>((*GeomObjectIt)->GetActualBrush());
-			if (Volume)
-			{
-				OnNavigationBoundsUpdated(Volume);
-			}
-		}
-	}
-}
-
 #endif
 
 void UNavigationSystemV1::OnNavigationBoundsUpdated(ANavMeshBoundsVolume* NavVolume)
@@ -3216,7 +3184,7 @@ ANavigationData* UNavigationSystemV1::CreateNavigationDataInstanceInLevel(const 
 			// temporary solution to make sure we don't try to change name while there's already
 			// an object with this name
 			UObject* ExistingObject = StaticFindObject(/*Class=*/ NULL, Instance->GetOuter(), *StrName, true);
-			if (ExistingObject != NULL)
+			while (ExistingObject != NULL)
 			{
 				ANavigationData* ExistingNavigationData = Cast<ANavigationData>(ExistingObject);
 				if (ExistingNavigationData)
@@ -3224,7 +3192,11 @@ ANavigationData* UNavigationSystemV1::CreateNavigationDataInstanceInLevel(const 
 					UnregisterNavData(ExistingNavigationData);
 				}
 
+				// Reset the existing object's name
 				ExistingObject->Rename(NULL, NULL, REN_DontCreateRedirectors | REN_ForceGlobalUnique | REN_DoNotDirty | REN_NonTransactional | REN_ForceNoResetLoaders);
+				// see if there's another one, it does happen when undo/redoing 
+				// nav instance deletion in the editor
+				ExistingObject = StaticFindObject(/*Class=*/ NULL, Instance->GetOuter(), *StrName, true);
 			}
 
 			// Set descriptive name

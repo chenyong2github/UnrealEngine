@@ -33,9 +33,9 @@ void SetMobilePassFlipVerticalAxis(const FRenderingCompositePass* FlipPass)
 	GMobilePassShouldFlipVerticalAxis = FlipPass;
 }
 
-bool ShouldMobilePassFlipVerticalAxis(const FRenderingCompositePass* ShouldFlipPass)
+bool ShouldMobilePassFlipVerticalAxis(const FRenderingCompositePassContext& Context, const FRenderingCompositePass* ShouldFlipPass)
 {
-	return GMobilePassShouldFlipVerticalAxis == ShouldFlipPass;
+	return RHINeedsToSwitchVerticalAxis(Context.GetShaderPlatform()) && (GMobilePassShouldFlipVerticalAxis == ShouldFlipPass);
 }
 
 //
@@ -2953,7 +2953,7 @@ void FRCPassPostProcessAaES2::Process(FRenderingCompositePassContext& Context)
 
 	ERenderTargetActions LoadStoreAction = ERenderTargetActions::Load_Store;
 	//#todo-rv-vr
-	if (Context.View.StereoPass != eSSP_RIGHT_EYE)
+	if (!IStereoRendering::IsASecondaryView(Context.View))
 	{
 		// Full clear to avoid restore
 		LoadStoreAction = ERenderTargetActions::Clear_Store;

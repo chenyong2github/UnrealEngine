@@ -295,7 +295,7 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 									.Visibility(this, &SFoliageEdit::GetVisibility_SpawnInCurrentLevelMode)
 									.OnCheckStateChanged(this, &SFoliageEdit::OnCheckStateChanged_SpawnInCurrentLevelMode)
 									.IsChecked(this, &SFoliageEdit::GetCheckState_SpawnInCurrentLevelMode)
-									.ToolTipText(LOCTEXT("SpawnInCurrentLevelModeTooltips", "Wether to place foliage meshes in the current level or in the level containing the mesh being painted on."))
+									.ToolTipText(LOCTEXT("SpawnInCurrentLevelModeTooltips", "Whether to place foliage meshes in the current level or in the level containing the mesh being painted on."))
 									[
 										SNew(STextBlock)
 										.Text(LOCTEXT("SpawnInCurrentLevelMode", "Place in Current Level"))

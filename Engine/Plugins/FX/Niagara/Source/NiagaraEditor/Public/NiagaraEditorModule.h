@@ -15,6 +15,8 @@ class INiagaraEditorTypeUtilities;
 class UNiagaraSettings;
 class USequencerSettings;
 class UNiagaraStackViewModel;
+class UNiagaraStackEntry;
+class UNiagaraStackIssue;
 class FNiagaraSystemViewModel;
 class FNiagaraScriptMergeManager;
 class FNiagaraCompileOptions;
@@ -22,6 +24,9 @@ class FNiagaraCompileRequestDataBase;
 class UMovieSceneNiagaraParameterTrack;
 struct IConsoleCommand;
 class INiagaraEditorOnlyDataUtilities;
+class FNiagaraEditorCommands;
+struct FNiagaraScriptHighlight;
+class FNiagaraClipboard;
 
 DECLARE_STATS_GROUP(TEXT("Niagara Editor"), STATGROUP_NiagaraEditor, STATCAT_Advanced);
 
@@ -29,9 +34,13 @@ DECLARE_STATS_GROUP(TEXT("Niagara Editor"), STATGROUP_NiagaraEditor, STATCAT_Adv
 class NIAGARAEDITOR_API INiagaraEditorWidgetProvider
 {
 public:
-	virtual TSharedRef<SWidget> CreateStackView(UNiagaraStackViewModel& StackViewModel) = 0;
-	virtual TSharedRef<SWidget> CreateSystemOverview(TSharedRef<FNiagaraSystemViewModel> SystemViewModel) = 0;
+	virtual TSharedRef<SWidget> CreateStackView(UNiagaraStackViewModel& StackViewModel) const = 0;
+	virtual TSharedRef<SWidget> CreateSystemOverview(TSharedRef<FNiagaraSystemViewModel> SystemViewModel) const = 0;
+	virtual TSharedRef<SWidget> CreateStackIssueIcon(UNiagaraStackViewModel& StackViewModel, UNiagaraStackEntry& StackEntry) const = 0;
+	virtual FLinearColor GetColorForExecutionCategory(FName ExecutionCategory) const = 0;
 };
+
+extern int32 GbShowFastPathOptions;
 
 /** Niagara Editor module */
 class FNiagaraEditorModule : public IModuleInterface,
@@ -97,6 +106,16 @@ public:
 
 	NIAGARAEDITOR_API TSharedPtr<FNiagaraSystemViewModel> GetExistingViewModelForSystem(UNiagaraSystem* InSystem);
 
+	NIAGARAEDITOR_API const FNiagaraEditorCommands& GetCommands() const;
+
+	void InvalidateCachedScriptAssetData();
+
+	const TArray<FNiagaraScriptHighlight>& GetCachedScriptAssetHighlights() const;
+
+	void GetScriptAssetsMatchingHighlight(const FNiagaraScriptHighlight& InHighlight, TArray<FAssetData>& OutMatchingScriptAssets) const;
+
+	FNiagaraClipboard& GetClipboard() const;
+
 private:
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action);
 	void OnNiagaraSettingsChangedEvent(const FString& PropertyName, const UNiagaraSettings* Settings);
@@ -106,6 +125,10 @@ private:
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return "FNiagaraEditorModule";
+	}
 
 	void TestCompileScriptFromConsole(const TArray<FString>& Arguments);
 
@@ -152,4 +175,10 @@ private:
 	IConsoleCommand* DumpCompileIdDataForAssetCommand;
 
 	FOnCheckScriptToolkitsShouldFocusGraphElement OnCheckScriptToolkitsShouldFocusGraphElement;
+
+	mutable TOptional<TArray<FNiagaraScriptHighlight>> CachedScriptAssetHighlights;
+
+	bool bThumbnailRenderersRegistered;
+
+	TSharedRef<FNiagaraClipboard> Clipboard;
 };

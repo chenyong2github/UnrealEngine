@@ -472,6 +472,8 @@ public:
 
 	void RefreshSelectedClothingSkinnedPositions();
 
+	virtual bool CanOverrideCollisionProfile() const { return true; }
+
 	virtual void GetUsedMaterials(TArray<UMaterialInterface *>& OutMaterials, bool bGetDebugMaterials = false) const override;
 
 	/**

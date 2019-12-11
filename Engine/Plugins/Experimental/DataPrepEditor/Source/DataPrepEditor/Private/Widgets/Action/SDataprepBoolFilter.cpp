@@ -9,13 +9,4 @@
 
 void SDataprepBoolFilter::Construct(const FArguments& InArgs, UDataprepBoolFilter& InFilter)
 {
-	ChildSlot
-	[
-		SNew(SBox)
-		.MinDesiredWidth( 400.f )
-		.Padding( 5.f )
-		[
-			SNew( SDataprepFetcherSelector, InFilter )
-		]
-	];
 }

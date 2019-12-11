@@ -18,11 +18,13 @@
 #include "AssetTypeActions/AssetTypeActions_NiagaraEmitter.h"
 #include "AssetTypeActions/AssetTypeActions_NiagaraScript.h"
 #include "AssetTypeActions/AssetTypeActions_NiagaraParameterCollection.h"
+#include "AssetTypeActions/AssetTypeActions_NiagaraEffectType.h"
 
 #include "EdGraphUtilities.h"
 #include "SGraphPin.h"
 #include "KismetPins/SGraphPinVector4.h"
 #include "KismetPins/SGraphPinNum.h"
+#include "KismetPins/SGraphPinExec.h"
 #include "KismetPins/SGraphPinInteger.h"
 #include "KismetPins/SGraphPinVector.h"
 #include "KismetPins/SGraphPinVector2D.h"
@@ -70,6 +72,8 @@
 #include "NiagaraTypes.h"
 #include "NiagaraSystemFactoryNew.h"
 #include "NiagaraSystemEditorData.h"
+#include "NiagaraEditorCommands.h"
+#include "NiagaraClipboard.h"
 
 #include "MovieScene/Parameters/MovieSceneNiagaraBoolParameterTrack.h"
 #include "MovieScene/Parameters/MovieSceneNiagaraFloatParameterTrack.h"
@@ -90,6 +94,7 @@
 #include "Customizations/NiagaraComponentDetails.h"
 #include "Customizations/NiagaraTypeCustomizations.h"
 #include "Customizations/NiagaraEventScriptPropertiesCustomization.h"
+#include "Customizations/NiagaraScriptVariableCustomization.h"
 #include "HAL/IConsoleManager.h"
 #include "NiagaraHlslTranslator.h"
 #include "NiagaraThumbnailRenderer.h"
@@ -112,6 +117,14 @@ const FName FNiagaraEditorModule::NiagaraEditorAppIdentifier( TEXT( "NiagaraEdit
 const FLinearColor FNiagaraEditorModule::WorldCentricTabColorScale(0.0f, 0.0f, 0.2f, 0.5f);
 
 EAssetTypeCategories::Type FNiagaraEditorModule::NiagaraAssetCategory;
+
+int32 GbShowFastPathOptions = 0;
+static FAutoConsoleVariableRef CVarShowFastPathOptions(
+	TEXT("fx.Niagara.ShowFastPathOptions"),
+	GbShowFastPathOptions,
+	TEXT("If > 0 the experimental fast path options will be shown in the system and emitter properties in the niagara system editor.\n"),
+	ECVF_Default
+);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -218,6 +231,7 @@ FNiagaraEditorModule::FNiagaraEditorModule()
 	: SequencerSettings(nullptr)
 	, TestCompileScriptCommand(nullptr)
 	, DumpCompileIdDataForAssetCommand(nullptr)
+	, Clipboard(MakeShared<FNiagaraClipboard>())
 {
 }
 
@@ -585,6 +599,8 @@ class FNiagaraSystemColorParameterTrackEditor : public FNiagaraSystemParameterTr
 
 void FNiagaraEditorModule::StartupModule()
 {
+	bThumbnailRenderersRegistered = false;
+
 	FHlslNiagaraTranslator::Init();
 	MenuExtensibilityManager = MakeShareable(new FExtensibilityManager);
 	ToolBarExtensibilityManager = MakeShareable(new FExtensibilityManager);
@@ -596,8 +612,9 @@ void FNiagaraEditorModule::StartupModule()
 	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraScriptFunctions()));
 	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraScriptModules()));
 	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraScriptDynamicInputs()));
-	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraParameterCollection()));
+	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraParameterCollection())); 
 	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraParameterCollectionInstance()));
+	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraEffectType()));
 
 	UNiagaraSettings::OnSettingsChanged().AddRaw(this, &FNiagaraEditorModule::OnNiagaraSettingsChangedEvent);
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FNiagaraEditorModule::OnPreGarbageCollection);
@@ -610,6 +627,8 @@ void FNiagaraEditorModule::StartupModule()
 	PropertyModule.RegisterCustomClassLayout("NiagaraComponent", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraComponentDetails::MakeInstance));
 
 	PropertyModule.RegisterCustomClassLayout("NiagaraNodeStaticSwitch", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraStaticSwitchNodeDetails::MakeInstance));
+
+	PropertyModule.RegisterCustomClassLayout("NiagaraScriptVariable", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraScriptVariableDetails::MakeInstance));
 
 	PropertyModule.RegisterCustomClassLayout("NiagaraNodeFunctionCall", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraFunctionCallNodeDetails::MakeInstance));
 	
@@ -641,7 +660,11 @@ void FNiagaraEditorModule::StartupModule()
 	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraVariableAttributeBinding",
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraVariableAttributeBindingCustomization::MakeInstance)
 	);
-
+	
+	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraScriptVariableBinding",
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraScriptVariableBindingCustomization::MakeInstance)
+	);
+		
 	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraUserParameterBinding",
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraUserParameterBindingCustomization::MakeInstance)
 	);
@@ -678,6 +701,10 @@ void FNiagaraEditorModule::StartupModule()
 	// TODO: Don't register this here.
 	GraphPanelPinFactory->RegisterMiscSubCategoryPin(UNiagaraNodeWithDynamicPins::AddPinSubCategory, FNiagaraScriptGraphPanelPinFactory::FCreateGraphPin::CreateLambda(
 		[](UEdGraphPin* GraphPin) -> TSharedRef<SGraphPin> { return SNew(SNiagaraGraphPinAdd, GraphPin); }));
+
+	GraphPanelPinFactory->RegisterTypePin(FNiagaraTypeDefinition::GetParameterMapStruct(), FNiagaraScriptGraphPanelPinFactory::FCreateGraphPin::CreateLambda(
+		[](UEdGraphPin* GraphPin) -> TSharedRef<SGraphPin> { return SNew(SGraphPinExec, GraphPin); }));
+
 
 	EnumTypeUtilities = MakeShareable(new FNiagaraEditorEnumTypeUtilities());
 	RegisterTypeUtilities(FNiagaraTypeDefinition::GetFloatDef(), MakeShareable(new FNiagaraEditorFloatTypeUtilities()));
@@ -808,11 +835,6 @@ void FNiagaraEditorModule::StartupModule()
 		TEXT("Dumps data relevant to generating the compile id for an asset."),
 		FConsoleCommandWithArgsDelegate::CreateStatic(&DumpCompileIdDataForAsset));
 
-	if (GIsEditor)
-	{
-		UThumbnailManager::Get().RegisterCustomRenderer(UNiagaraEmitter::StaticClass(), UNiagaraEmitterThumbnailRenderer::StaticClass());
-		UThumbnailManager::Get().RegisterCustomRenderer(UNiagaraSystem::StaticClass(), UNiagaraSystemThumbnailRenderer::StaticClass());
-	}
 }
 
 
@@ -913,16 +935,22 @@ void FNiagaraEditorModule::ShutdownModule()
 		DumpCompileIdDataForAssetCommand = nullptr;
 	}
 
-	if (UObjectInitialized() && GIsEditor)
+	if (UObjectInitialized() && GIsEditor && bThumbnailRenderersRegistered)
 	{
 		UThumbnailManager::Get().UnregisterCustomRenderer(UNiagaraEmitter::StaticClass());
 		UThumbnailManager::Get().UnregisterCustomRenderer(UNiagaraSystem::StaticClass());
 	}
 }
 
-
 void FNiagaraEditorModule::OnPostEngineInit()
 {
+	if (GIsEditor)
+	{
+		UThumbnailManager::Get().RegisterCustomRenderer(UNiagaraEmitter::StaticClass(), UNiagaraEmitterThumbnailRenderer::StaticClass());
+		UThumbnailManager::Get().RegisterCustomRenderer(UNiagaraSystem::StaticClass(), UNiagaraSystemThumbnailRenderer::StaticClass());
+		bThumbnailRenderersRegistered = true;
+	}
+
 	// The editor should be valid at this point.. log a warning if not!
 	if (GEditor)
 	{
@@ -1030,6 +1058,102 @@ const FNiagaraEditorCommands& FNiagaraEditorModule::Commands()
 TSharedPtr<FNiagaraSystemViewModel> FNiagaraEditorModule::GetExistingViewModelForSystem(UNiagaraSystem* InSystem)
 {
 	return FNiagaraSystemViewModel::GetExistingViewModelForObject(InSystem);
+}
+
+const FNiagaraEditorCommands& FNiagaraEditorModule::GetCommands() const
+{
+	return FNiagaraEditorCommands::Get();
+}
+
+void FNiagaraEditorModule::InvalidateCachedScriptAssetData()
+{
+	CachedScriptAssetHighlights.Reset();
+}
+
+const TArray<FNiagaraScriptHighlight>& FNiagaraEditorModule::GetCachedScriptAssetHighlights() const
+{
+	if (CachedScriptAssetHighlights.IsSet() == false)
+	{
+		CachedScriptAssetHighlights = TArray<FNiagaraScriptHighlight>();
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+		TArray<FAssetData> ScriptAssets;
+		AssetRegistryModule.Get().GetAssetsByClass(UNiagaraScript::StaticClass()->GetFName(), ScriptAssets);
+		for (const FAssetData& ScriptAsset : ScriptAssets)
+		{
+			if (ScriptAsset.IsAssetLoaded())
+			{
+				UNiagaraScript* Script = CastChecked<UNiagaraScript>(ScriptAsset.GetAsset());
+				for (const FNiagaraScriptHighlight& Highlight : Script->Highlights)
+				{
+					if (Highlight.IsValid())
+					{
+						CachedScriptAssetHighlights->AddUnique(Highlight);
+					}
+				}
+			}
+			else
+			{
+				FString HighlightsString;
+				if (ScriptAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Highlights), HighlightsString))
+				{
+					TArray<FNiagaraScriptHighlight> Highlights;
+					FNiagaraScriptHighlight::JsonToArray(HighlightsString, Highlights);
+					for (const FNiagaraScriptHighlight& Highlight : Highlights)
+					{
+						if (Highlight.IsValid())
+						{
+							CachedScriptAssetHighlights->AddUnique(Highlight);
+						}
+					}
+				}
+			}
+		}
+	}
+	return CachedScriptAssetHighlights.GetValue();
+}
+
+void FNiagaraEditorModule::GetScriptAssetsMatchingHighlight(const FNiagaraScriptHighlight& InHighlight, TArray<FAssetData>& OutMatchingScriptAssets) const
+{
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	TArray<FAssetData> ScriptAssets;
+	AssetRegistryModule.Get().GetAssetsByClass(UNiagaraScript::StaticClass()->GetFName(), ScriptAssets);
+	for (const FAssetData& ScriptAsset : ScriptAssets)
+	{
+		if (ScriptAsset.IsAssetLoaded())
+		{
+			UNiagaraScript* Script = CastChecked<UNiagaraScript>(ScriptAsset.GetAsset());
+			for (const FNiagaraScriptHighlight& Highlight : Script->Highlights)
+			{
+				if (Highlight == InHighlight)
+				{
+					OutMatchingScriptAssets.Add(ScriptAsset);
+					break;
+				}
+			}
+		}
+		else
+		{
+			FString HighlightsString;
+			if (ScriptAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Highlights), HighlightsString))
+			{
+				TArray<FNiagaraScriptHighlight> Highlights;
+				FNiagaraScriptHighlight::JsonToArray(HighlightsString, Highlights);
+				for (const FNiagaraScriptHighlight& Highlight : Highlights)
+				{
+					if (Highlight == InHighlight)
+					{
+						OutMatchingScriptAssets.Add(ScriptAsset);
+						break;
+					}
+				}
+			}
+		}
+	}
+}
+
+FNiagaraClipboard& FNiagaraEditorModule::GetClipboard() const
+{
+	return Clipboard.Get();
 }
 
 void FNiagaraEditorModule::RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)

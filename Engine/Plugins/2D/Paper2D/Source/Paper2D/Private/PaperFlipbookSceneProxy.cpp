@@ -7,12 +7,8 @@
 // FPaperFlipbookSceneProxy
 
 FPaperFlipbookSceneProxy::FPaperFlipbookSceneProxy(const UPaperFlipbookComponent* InComponent)
-	: FPaperRenderSceneProxy(InComponent)
+	: FPaperRenderSceneProxy_SpriteBase(InComponent)
 {
-	//@TODO: PAPER2D: WireframeColor = RenderComp->GetWireframeColor();
-
-	Material = InComponent->GetMaterial(0);
-	MaterialRelevance = InComponent->GetMaterialRelevance(GetScene().GetFeatureLevel());
 }
 
 SIZE_T FPaperFlipbookSceneProxy::GetTypeHash() const

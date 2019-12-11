@@ -214,7 +214,8 @@ void FixupUnsanitizedNames(const FString& Src, TArray<FString>& OutFields)
 		}
 		OutFields.Empty();
 		NewSrc.TrimStartAndEnd().ParseIntoArray(OutFields, TEXT(","), false);
-		check(OutFields.Num() == 11);
+		// allow formats both with and without pipeline hash
+		check(OutFields.Num() == 11 || OutFields.Num() == 12);
 	}
 }
 
@@ -233,19 +234,24 @@ void FStableShaderKeyAndValue::ComputeKeyHash()
 
 	KeyHash = HashCombine(KeyHash, GetTypeHash(VFType));
 	KeyHash = HashCombine(KeyHash, GetTypeHash(PermutationId));
+	KeyHash = HashCombine(KeyHash, GetTypeHash(PipelineHash));
 }
 
 void FStableShaderKeyAndValue::ParseFromString(const FString& Src)
 {
 	TArray<FString> Fields;
 	Src.TrimStartAndEnd().ParseIntoArray(Fields, TEXT(","), false);
-	if (Fields.Num() > 11)
+
+	/* disabled, should not be happening since 1H 2018
+	if (Fields.Num() > 12)
 	{
 		// hack fix for unsanitized names, should not occur anymore.
 		FixupUnsanitizedNames(Src, Fields);
 	}
+	*/
 
-	check(Fields.Num() == 11);
+	// for a while, accept old .scl.csv without pipelinehash
+	check(Fields.Num() == 11 || Fields.Num() == 12);
 
 	int32 Index = 0;
 	ClassNameAndObjectPath.ParseFromString(Fields[Index++]);
@@ -266,6 +272,15 @@ void FStableShaderKeyAndValue::ParseFromString(const FString& Src)
 
 	check(Index == 11);
 
+	if (Fields.Num() == 12)
+	{
+		PipelineHash.FromString(Fields[Index++]);
+	}
+	else
+	{
+		PipelineHash = FSHAHash();
+	}
+
 	ComputeKeyHash();
 }
 
@@ -275,13 +290,16 @@ void FStableShaderKeyAndValue::ParseFromStringCached(const FString& Src, TMap<ui
 	TArray<FString> Fields;
 	Src.TrimStartAndEnd().ParseIntoArray(Fields, TEXT(","), false);
 
+	/* disabled, should not be happening since 1H 2018
 	if (Fields.Num() > 11)
 	{
 		// hack fix for unsanitized names, should not occur anymore.
 		FixupUnsanitizedNames(Src, Fields);
 	}
+	*/
 	
-	check(Fields.Num() == 11);
+	// for a while, accept old .scl.csv without pipelinehash
+	check(Fields.Num() == 11 || Fields.Num() == 12);
 
 	int32 Index = 0;
 	ClassNameAndObjectPath.ParseFromString(Fields[Index++]);
@@ -303,6 +321,15 @@ void FStableShaderKeyAndValue::ParseFromStringCached(const FString& Src, TMap<ui
 	OutputHash.FromString(Fields[Index++]);
 
 	check(Index == 11);
+
+	if (Fields.Num() == 12)
+	{
+		PipelineHash.FromString(Fields[Index++]);
+	}
+	else
+	{
+		PipelineHash = FSHAHash();
+	}
 
 	ComputeKeyHash();
 }
@@ -345,6 +372,9 @@ void FStableShaderKeyAndValue::ToString(FString& OutResult) const
 	OutResult += Delim;
 
 	OutResult += OutputHash.ToString();
+	OutResult += Delim;
+
+	OutResult += PipelineHash.ToString();
 }
 
 FString FStableShaderKeyAndValue::HeaderLine()
@@ -378,10 +408,66 @@ FString FStableShaderKeyAndValue::HeaderLine()
 	Result += Delim;
 
 	Result += TEXT("OutputHash");
+	Result += Delim;
+
+	Result += TEXT("PipelineHash");
 
 	return Result;
 }
 
+void FStableShaderKeyAndValue::SetPipelineHash(FShaderPipeline* Pipeline)
+{
+	if (LIKELY(Pipeline))
+	{
+		// cache this?
+		FShaderCodeLibraryPipeline LibraryPipeline;
+		LibraryPipeline.Initialize(Pipeline);
+		LibraryPipeline.GetPipelineHash(PipelineHash); 
+	}
+	else
+	{
+		PipelineHash = FSHAHash();
+	}
+}
+
+void FShaderCodeLibraryPipeline::Initialize(FShaderPipeline* Pipeline)
+{
+	check(Pipeline != nullptr);
+
+	if (IsValidRef(Pipeline->VertexShader))
+	{
+		VertexShader = Pipeline->VertexShader->GetOutputHash();
+	}
+	if (IsValidRef(Pipeline->GeometryShader))
+	{
+		GeometryShader = Pipeline->GeometryShader->GetOutputHash();
+	}
+	if (IsValidRef(Pipeline->HullShader))
+	{
+		HullShader = Pipeline->HullShader->GetOutputHash();
+	}
+	if (IsValidRef(Pipeline->DomainShader))
+	{
+		DomainShader = Pipeline->DomainShader->GetOutputHash();
+	}
+	if (IsValidRef(Pipeline->PixelShader))
+	{
+		PixelShader = Pipeline->PixelShader->GetOutputHash();
+	}
+}
+
+void FShaderCodeLibraryPipeline::GetPipelineHash(FSHAHash& Output)
+{
+	FSHA1 Hasher;
+	Hasher.Update(&VertexShader.Hash[0], sizeof(VertexShader.Hash));
+	Hasher.Update(&PixelShader.Hash[0], sizeof(PixelShader.Hash));
+	Hasher.Update(&GeometryShader.Hash[0], sizeof(GeometryShader.Hash));
+	Hasher.Update(&HullShader.Hash[0], sizeof(HullShader.Hash));
+	Hasher.Update(&DomainShader.Hash[0], sizeof(DomainShader.Hash));
+
+	Hasher.Final();
+	Hasher.GetHash(&Output.Hash[0]);
+}
 
 struct FShaderCodeEntry
 {
@@ -424,6 +510,7 @@ public:
 		, LibraryDir(InLibraryDir)
 		, LibraryCodeOffset(0)
 		, LibraryAsyncFileHandle(nullptr)
+		, InFlightAsyncReadRequests(0)
 	{
 		FName PlatformName = LegacyShaderPlatformToShaderFormat(InPlatform);
 		FString DestFilePath = GetCodeArchiveFilename(LibraryDir, LibraryName, PlatformName);
@@ -462,6 +549,33 @@ public:
 
 	virtual ~FShaderCodeArchive()
 	{
+		if(LibraryAsyncFileHandle != nullptr)
+		{
+			UE_LOG(LogShaderLibrary, Display, TEXT("FShaderCodeArchive: Shutting down %s"), *GetName());
+
+			FScopeLock ScopeLock(&ReadRequestLock);
+
+			const int64 OutstandingReads = FPlatformAtomics::AtomicRead(&InFlightAsyncReadRequests);
+			if(OutstandingReads > 0)
+			{
+				const float MaxWaitTimePerRead = 1.f / 60.f;
+				UE_LOG(LogShaderLibrary, Warning, TEXT("FShaderCodeArchive: Library %s has %d inflight requests to LibraryAsyncFileHandle - cancelling and waiting %f seconds each for them to finish."), *GetName(), OutstandingReads, MaxWaitTimePerRead);
+
+				for(auto& Pair : Shaders)
+				{
+					FShaderCodeEntry& Entry = Pair.Value;
+					TSharedPtr<IAsyncReadRequest, ESPMode::ThreadSafe> LocalReadRequest = Entry.ReadRequest.Pin();
+					if(LocalReadRequest.IsValid())
+					{
+						LocalReadRequest->Cancel();
+						LocalReadRequest->WaitCompletion(MaxWaitTimePerRead);
+					}
+				}
+			}
+
+			delete LibraryAsyncFileHandle;
+			LibraryAsyncFileHandle = nullptr;
+		}
 	}
 
 	virtual bool IsLibraryNativeFormat() const { return false; }
@@ -561,6 +675,8 @@ public:
 
 			if (bHasReadRequest)
 			{
+				FPlatformAtomics::InterlockedAdd(&InFlightAsyncReadRequests, 1);
+			
 				FExternalReadCallback ExternalReadCallback = [this, Entry, LocalReadRequest](double ReaminingTime)
 				{
 					return this->OnExternalReadCallback(LocalReadRequest, Entry, ReaminingTime);
@@ -602,6 +718,8 @@ public:
 #if DO_CHECK
 		Entry->bReadCompleted = 1;
 #endif
+
+		FPlatformAtomics::InterlockedAdd(&InFlightAsyncReadRequests, -1);
 		
 		return true;
 	}
@@ -756,6 +874,30 @@ public:
 		return Shader;
 	}
 
+	FRayTracingShaderRHIRef CreateRayTracingShader(EShaderFrequency Frequency, const FSHAHash& Hash) override final
+	{
+		FRayTracingShaderRHIRef Shader;
+
+#if RHI_RAYTRACING
+		int32 Size = 0;
+		bool bWasSync = false;
+		TArray<uint8>* Code = LookupShaderCode(Hash, Size, bWasSync);
+		if (Code)
+		{
+			TArray<uint8> UCode;
+			TArray<uint8>& UncompressedCode = FShaderLibraryHelperUncompressCode(Platform, Size, *Code, UCode);
+			Shader = RHICreateRayTracingShader(UncompressedCode, Frequency);
+			CheckShaderCreation(Shader.GetReference(), Hash);
+			if (bWasSync)
+			{
+				ReleaseShaderCode(Hash);
+			}
+		}
+#endif // RHI_RAYTRACING
+
+		return Shader;
+	}
+
 	class FShaderCodeLibraryIterator : public FRHIShaderLibrary::FShaderLibraryIterator
 	{
 	public:
@@ -837,6 +979,9 @@ private:
 	// Library file handle for async reads
 	IAsyncReadFileHandle* LibraryAsyncFileHandle;
 	FCriticalSection ReadRequestLock;
+	
+	// A count of the number of LibraryAsync Read Requests in flight
+	volatile int64 InFlightAsyncReadRequests;
 
 	// The shader code present in the library
 	TMap<FSHAHash, FShaderCodeEntry> Shaders;
@@ -931,26 +1076,7 @@ struct FEditorShaderCodeArchive
 		EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(FormatName);
 
 		FShaderCodeLibraryPipeline LibraryPipeline;
-		if (IsValidRef(Pipeline->VertexShader))
-		{
-			LibraryPipeline.VertexShader = Pipeline->VertexShader->GetOutputHash();
-		}
-		if (IsValidRef(Pipeline->GeometryShader))
-		{
-			LibraryPipeline.GeometryShader = Pipeline->GeometryShader->GetOutputHash();
-		}
-		if (IsValidRef(Pipeline->HullShader))
-		{
-			LibraryPipeline.HullShader = Pipeline->HullShader->GetOutputHash();
-		}
-		if (IsValidRef(Pipeline->DomainShader))
-		{
-			LibraryPipeline.DomainShader = Pipeline->DomainShader->GetOutputHash();
-		}
-		if (IsValidRef(Pipeline->PixelShader))
-		{
-			LibraryPipeline.PixelShader = Pipeline->PixelShader->GetOutputHash();
-		}
+		LibraryPipeline.Initialize(Pipeline);
 		if (!Pipelines.Contains(LibraryPipeline))
 		{
 			Pipelines.Add(LibraryPipeline);
@@ -1463,7 +1589,8 @@ struct FEditorShaderStableInfo
 			{
 				TUniquePtr<FArchive> IntermediateFormatAr(IFileManager::Get().CreateFileWriter(*IntermediateFormatPath));
 
-				const FString HeaderText = FStableShaderKeyAndValue::HeaderLine();
+				FString HeaderText = FStableShaderKeyAndValue::HeaderLine();
+				HeaderText += TCHAR('\n');
 				auto HeaderSrc = StringCast<ANSICHAR>(*HeaderText, HeaderText.Len());
 
 				IntermediateFormatAr->Serialize((ANSICHAR*)HeaderSrc.Get(), HeaderSrc.Length() * sizeof(ANSICHAR));
@@ -1873,6 +2000,22 @@ public:
 				Result = ((FShaderCodeArchive*)ShaderCodeArchive)->CreateComputeShader(Hash);
 			}
 		}
+		return Result;
+	}
+
+	FRayTracingShaderRHIRef CreateRayTracingShader(EShaderPlatform Platform, EShaderFrequency Frequency, FSHAHash Hash)
+	{
+		FRayTracingShaderRHIRef Result;
+
+#if RHI_RAYTRACING
+		checkSlow(Platform == GetRuntimeShaderPlatform());
+		FRHIShaderLibrary* ShaderCodeArchive = FindShaderLibrary(Hash);
+		if (ShaderCodeArchive)
+		{
+			Result = ((FShaderCodeArchive*)ShaderCodeArchive)->CreateRayTracingShader(Frequency, Hash);
+		}
+#endif // RHI_RAYTRACING
+
 		return Result;
 	}
 
@@ -2369,6 +2512,25 @@ FComputeShaderRHIRef FShaderCodeLibrary::CreateComputeShader(EShaderPlatform Pla
 	SafeAssignHash(Shader, Hash);
 	FPipelineFileCache::CacheComputePSO(GetTypeHash(Shader.GetReference()), Shader.GetReference());
 	Shader->SetStats(FPipelineFileCache::RegisterPSOStats(GetTypeHash(Shader.GetReference())));
+	return Shader;
+}
+
+FRayTracingShaderRHIRef FShaderCodeLibrary::CreateRayTracingShader(EShaderPlatform Platform, EShaderFrequency Frequency, FSHAHash Hash, TArray<uint8> const& Code)
+{
+	FRayTracingShaderRHIRef Shader;
+
+#if RHI_RAYTRACING
+	if (FShaderCodeLibraryImpl::Impl)
+	{
+		Shader = FShaderCodeLibraryImpl::Impl->CreateRayTracingShader(Platform, Frequency, Hash);
+	}
+	if (!IsValidRef(Shader))
+	{
+		Shader = RHICreateRayTracingShader(Code, Frequency);
+	}
+	SafeAssignHash(Shader, Hash);
+#endif // RHI_RAYTRACING
+
 	return Shader;
 }
 

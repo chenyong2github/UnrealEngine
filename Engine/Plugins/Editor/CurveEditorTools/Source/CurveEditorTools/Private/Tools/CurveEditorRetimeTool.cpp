@@ -138,7 +138,7 @@ FReply FCurveEditorRetimeTool::OnMouseButtonDown(TSharedRef<SWidget> OwningWidge
 		}
 
 		// We always handle the left mouse button so clicks don't bubble through to selection
-		return FReply::Handled();
+		return FReply::Handled().PreventThrottling();
 	}
 
 	// Right Clicks need to go through so that panning the graph works

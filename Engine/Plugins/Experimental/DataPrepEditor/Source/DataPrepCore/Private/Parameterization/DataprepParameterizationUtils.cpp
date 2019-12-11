@@ -4,6 +4,7 @@
 
 #include "DataPrepAsset.h"
 #include "DataPrepOperation.h"
+#include "DataprepParameterizableObject.h"
 #include "SelectionSystem/DataprepFetcher.h"
 #include "SelectionSystem/DataprepFilter.h"
 
@@ -34,11 +35,14 @@ namespace DataprepParameterizationUtils
 
 	bool IsASupportedClassForParameterization(UClass* Class)
 	{
-		return Class == UDataprepOperation::StaticClass()
-			|| Class == UDataprepFilter::StaticClass()
-			|| Class == UDataprepFetcher::StaticClass();
+		return Class->IsChildOf<UDataprepParameterizableObject>();
 	}
 
+}
+
+bool operator==(const FDataprepPropertyLink& A, const FDataprepPropertyLink& B)
+{
+	return A.PropertyName == B.PropertyName && A.ContainerIndex == B.ContainerIndex;
 }
 
 uint32 GetTypeHash(const FDataprepPropertyLink& PropertyLink)
@@ -69,7 +73,7 @@ TArray<FDataprepPropertyLink> FDataprepParameterizationUtils::MakePropertyChain(
 				// We manipulate a bit the chain to store the property inside a container in a special way. So that we can 
 				if ( DataprepParameterizationUtils::IsAContainerProperty( ParentProperty ) )
 				{
-					PropertyChain.Emplace( Property, Property->GetFName(), 0);
+					PropertyChain.Emplace( Property, Property->GetFName(), INDEX_NONE );
 					PropertyChain.Emplace( ParentProperty, ParentProperty->GetFName(), CurrentHandle->GetIndexInArray() );
 					CurrentHandle = ParentHandle->GetParentHandle();
 					bWasProccess = true;
@@ -83,8 +87,25 @@ TArray<FDataprepPropertyLink> FDataprepParameterizationUtils::MakePropertyChain(
 			}
 
 			if ( CurrentHandle )
-			{ 
-				Property = CurrentHandle->GetProperty();
+			{
+				UProperty* NextProperty = CurrentHandle->GetProperty();
+
+				// Deal with the case of a property of a raw c++ array
+				while ( CurrentHandle && NextProperty == Property )
+				{
+					// Skip the new current handle as it point on the same property
+					CurrentHandle = CurrentHandle->GetParentHandle();
+					if ( CurrentHandle.IsValid() )
+					{
+						NextProperty = CurrentHandle->GetProperty();
+					}
+					else
+					{
+						NextProperty = nullptr;
+					}
+				}
+
+				Property = NextProperty;
 			}
 		}
 		
@@ -101,6 +122,91 @@ TArray<FDataprepPropertyLink> FDataprepParameterizationUtils::MakePropertyChain(
 	}
 
 	return PropertyChain;
+}
+
+TArray<FDataprepPropertyLink> FDataprepParameterizationUtils::MakePropertyChain(FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	// This implementation is base on what the property editor does in general
+	const FEditPropertyChain& EditPropertyChain = PropertyChangedEvent.PropertyChain;
+
+	TArray<FDataprepPropertyLink> DataprepPropertyChain;
+	DataprepPropertyChain.Reserve( EditPropertyChain.Num() + 1 );
+
+	const TDoubleLinkedList<UProperty*>::TDoubleLinkedListNode* CurrentNode = EditPropertyChain.GetHead();
+
+	UProperty* Property = nullptr;
+	while( CurrentNode )
+	{
+		Property = CurrentNode->GetValue();
+		if ( Property )
+		{ 
+			int32 ContainerIndex = PropertyChangedEvent.GetArrayIndex( Property->GetName() );
+			DataprepPropertyChain.Emplace( Property, Property->GetFName(), ContainerIndex);
+
+			// Used to validate if we should skip the next property
+			UProperty* PossibleNextProperty = nullptr;
+
+			if ( Property->GetClass() == UArrayProperty::StaticClass() )
+			{
+				UArrayProperty* ArrayProperty  = static_cast<UArrayProperty*>( Property );
+				UProperty* ArrayTypeProperty = ArrayProperty->Inner;
+				DataprepPropertyChain.Emplace( ArrayTypeProperty, ArrayTypeProperty->GetFName(), INDEX_NONE );
+				PossibleNextProperty = ArrayTypeProperty;
+			}
+			else if ( Property->GetClass() == USetProperty::StaticClass() )
+			{
+				USetProperty* SetProperty = static_cast<USetProperty*>(Property);
+				UProperty* SetTypeProperty = SetProperty->ElementProp;
+				DataprepPropertyChain.Emplace(SetTypeProperty, SetTypeProperty->GetFName(), INDEX_NONE);
+				PossibleNextProperty = SetTypeProperty;
+			}
+
+			// We can't deal with map yet du to a lack of information from the property chain
+
+			
+			if ( PossibleNextProperty )
+			{ 
+				const TDoubleLinkedList<UProperty*>::TDoubleLinkedListNode* NextNode = CurrentNode->GetNextNode();
+				if ( NextNode && PossibleNextProperty == NextNode->GetValue() )
+				{
+					//skip the next property
+					CurrentNode = NextNode->GetNextNode();
+				}
+			}
+		}
+		else
+		{
+			return {};
+		}
+
+		CurrentNode = CurrentNode->GetNextNode();
+	}
+
+	if ( Property != PropertyChangedEvent.Property )
+	{
+		DataprepPropertyChain.Emplace( PropertyChangedEvent.Property, PropertyChangedEvent.Property->GetFName(), INDEX_NONE );
+	}
+
+	return DataprepPropertyChain;
+}
+
+FDataprepParameterizationContext FDataprepParameterizationUtils::CreateContext(TSharedPtr<IPropertyHandle> PropertyHandle, const FDataprepParameterizationContext& ParameterisationContext)
+{
+	FDataprepParameterizationContext NewContext;
+	NewContext.State = ParameterisationContext.State;
+
+	if ( NewContext.State == EParametrizationState::CanBeParameterized || NewContext.State == EParametrizationState::InvalidForParameterization )
+	{
+		// This implementation could be improved by incrementally expending the property chain.
+		NewContext.PropertyChain = MakePropertyChain( PropertyHandle );
+		NewContext.State = IsPropertyChainValid( NewContext.PropertyChain ) ? EParametrizationState::CanBeParameterized : EParametrizationState::InvalidForParameterization;
+	}
+	else if ( NewContext.State == EParametrizationState::IsParameterized )
+	{
+		NewContext.State = EParametrizationState::ParentIsParameterized;
+	}
+
+	return NewContext;
 }
 
 UDataprepAsset* FDataprepParameterizationUtils::GetDataprepAssetForParameterization(UObject* Object)
@@ -138,4 +244,52 @@ UDataprepAsset* FDataprepParameterizationUtils::GetDataprepAssetForParameterizat
 	}
 
 	return nullptr;
+}
+
+bool FDataprepParameterizationUtils::IsPropertyChainValid(const TArray<FDataprepPropertyLink>& PropertyChain)
+{
+	if ( PropertyChain.Num() == 0 )
+	{
+		return false;
+	}
+
+	bool bParentWasAContainer = false;
+	for ( const FDataprepPropertyLink& PropertyLink : PropertyChain )
+	{
+		UProperty* Property = PropertyLink.CachedProperty.Get();
+		if ( !Property )
+		{
+			return false;
+		}
+
+		// Ensure that the properties are editable
+		if ( !bParentWasAContainer && !bool( Property->PropertyFlags & CPF_Edit ) )
+		{
+			return false;
+		}
+
+		if ( Property->ArrayDim <= PropertyLink.ContainerIndex )
+		{
+			return false;
+		}
+
+		// Temporary unsupported properties check
+		{
+			// We don't support properties chain that are a subpart of a container property
+			if ( bParentWasAContainer )
+			{
+				return false;
+			}
+
+			// We are not able to serialize the text properties yet
+			if ( Property->GetClass() == UTextProperty::StaticClass() )
+			{
+				return false;
+			}
+
+			bParentWasAContainer = DataprepParameterizationUtils::IsAContainerProperty( Property );
+		}
+	}
+
+	return true;
 }

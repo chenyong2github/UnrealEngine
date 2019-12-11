@@ -452,7 +452,7 @@ namespace Audio
 		SerializedWavData.Reset();
 		SerializeWaveFile(SerializedWavData, (const uint8*)CurrentBuffer.GetData(), CurrentBuffer.GetNumSamples() * sizeof(int16), CurrentBuffer.GetNumChannels(), CurrentBuffer.GetSampleRate());
 
-		UE_LOG(LogAudio, Display, TEXT("Serializing %d sample file (%d bytes) to sound asset at %s"), CurrentBuffer.GetNumSamples(), SerializedWavData.Num(), *AbsoluteFilePath);
+		UE_LOG(LogAudio, Verbose, TEXT("Serializing %d sample file (%d bytes) to sound asset at %s"), CurrentBuffer.GetNumSamples(), SerializedWavData.Num(), *AbsoluteFilePath);
 
 		// TODO: Check to see if we need to call USoundWave::FreeResources here.
 
@@ -486,7 +486,7 @@ namespace Audio
 		// Clamp buffer to prevent wraparound when serializing:
 		CurrentBuffer.Clamp(0.9999f);
 		SerializeWaveFile(SerializedWavData, (const uint8*) CurrentBuffer.GetData(), CurrentBuffer.GetNumSamples() * sizeof(int16), CurrentBuffer.GetNumChannels(), CurrentBuffer.GetSampleRate());
-		UE_LOG(LogAudio, Display, TEXT("Serializing %d sample file (%d bytes) to %s"), CurrentBuffer.GetNumSamples(), SerializedWavData.Num(), *AbsoluteFilePath);
+		UE_LOG(LogAudio, Verbose, TEXT("Serializing %d sample file (%d bytes) to %s"), CurrentBuffer.GetNumSamples(), SerializedWavData.Num(), *AbsoluteFilePath);
 		if (SerializedWavData.Num() == 0)
 		{
 			UE_LOG(LogAudio, Error, TEXT("Wave serialize operation failed: failiure in SerializeWaveFile"));
@@ -502,7 +502,7 @@ namespace Audio
 			if (FileHandle)
 			{
 				int32 NumChunks = FMath::CeilToInt((float)SerializedWavData.Num() / ChunkSize);
-				UE_LOG(LogAudio, Display, TEXT("Writing wav file in %d chunks..."), NumChunks);
+				UE_LOG(LogAudio, Verbose, TEXT("Writing wav file in %d chunks..."), NumChunks);
 				for (int32 ChunkIndex = 0; ChunkIndex < NumChunks; ChunkIndex++)
 				{
 					int32 BufferIndex = ChunkIndex * ChunkSize;
@@ -536,7 +536,7 @@ namespace Audio
 				return;
 			}
 		}
-		UE_LOG(LogAudio, Display, TEXT("Succeeded in writing wav file."));
+		UE_LOG(LogAudio, Verbose, TEXT("Succeeded in writing wav file."));
 		CurrentState = ESoundWavePCMWriterState::Suceeded;
 	}
 

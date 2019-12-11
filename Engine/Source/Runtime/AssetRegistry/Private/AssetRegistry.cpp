@@ -337,11 +337,11 @@ void UAssetRegistryImpl::InitializeSerializationOptionsFromIni(FAssetRegistrySer
 		TrimmedFilterlistItem.TrimStartAndEndInline();
 		if (TrimmedFilterlistItem.Left(1) == TEXT("("))
 		{
-			TrimmedFilterlistItem = TrimmedFilterlistItem.RightChop(1);
+			TrimmedFilterlistItem.RightChopInline(1, false);
 		}
 		if (TrimmedFilterlistItem.Right(1) == TEXT(")"))
 		{
-			TrimmedFilterlistItem = TrimmedFilterlistItem.LeftChop(1);
+			TrimmedFilterlistItem.LeftChopInline(1, false);
 		}
 
 		TArray<FString> Tokens;
@@ -2702,10 +2702,10 @@ void UAssetRegistryImpl::OnContentPathDismounted(const FString& InAssetPath, con
 {
 	// Sanitize
 	FString AssetPath = InAssetPath;
-	if (AssetPath.EndsWith(TEXT("/")))
+	if (AssetPath.EndsWith(TEXT("/"), ESearchCase::CaseSensitive))
 	{
 		// We don't want a trailing slash here as it could interfere with RemoveAssetPath
-		AssetPath = AssetPath.LeftChop(1);
+		AssetPath.LeftChopInline(1, false);
 	}
 
 	// Remove all cached assets found at this location

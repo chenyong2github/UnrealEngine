@@ -163,7 +163,7 @@ void UDataprepAssetInterface::ExecuteRecipe_Internal(const TSharedPtr<FDataprepA
 			Task.ReportNextStep(FText::Format(LOCTEXT("ExecutingAction", "Executing \"{0}\" ..."), FText::FromString(ActionAsset->GetLabel())));
 
 			ActionAsset->ExecuteAction(InActionsContext);
-			if (ActionAsset->bExecutionInterrupted)
+			if (Task.IsWorkCancelled())
 			{
 				Task.ReportNextStep(LOCTEXT("InterruptedExecution", "Execution interrupted ..."));
 				break;

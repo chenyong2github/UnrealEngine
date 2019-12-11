@@ -109,7 +109,8 @@ void UAIPerceptionComponent::ConfigureSense(UAISenseConfig& Config)
 	// first check if we're reconfiguring a sense
 	for (int32 Index = 0; Index < SensesConfig.Num(); ++Index)
 	{
-		if (SensesConfig[Index]->GetClass() == Config.GetClass())
+		if (SensesConfig[Index] != nullptr
+			&& SensesConfig[Index]->GetClass() == Config.GetClass())
 		{
 			ConfigIndex = Index;
 			SensesConfig[Index] = &Config;

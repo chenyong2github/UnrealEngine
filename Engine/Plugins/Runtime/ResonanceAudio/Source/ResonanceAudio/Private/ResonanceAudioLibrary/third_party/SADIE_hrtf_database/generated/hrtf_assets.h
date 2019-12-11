@@ -25,21 +25,14 @@ limitations under the License.
 namespace sadie {
 
 // Note this class is automatically generated. Do not modify.
-class HrtfAssets {
- public:
+namespace HrtfAssets {
   // Lookups and retrieves a file from an asset class.
   //
   // @param filename: Filename to be retrieved.
   // @return std::string with raw file data. In case of an error, a nullptr is
   //     returned. Caller must take over the ownership of the returned data.
-  std::unique_ptr<std::string> GetFile(const std::string& filename) const;
-
- private:
-  typedef std::unordered_map<std::string, std::vector<unsigned char>>
-      AssetDataMap;
-  static const AssetDataMap kAssetMap;
+  const unsigned char* GetFile(const std::string& filename, size_t& out_file_size);
 };
-
 }  // namespace sadie
 
 #endif  // THIRD_PARTY_SADIE_HRTF_DATABASE_GENERATED_HRTF_ASSETS_H_

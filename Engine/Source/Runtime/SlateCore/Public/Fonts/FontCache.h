@@ -132,6 +132,9 @@ struct FShapedGlyphEntry
 	 * False if the glyph is invisible (eg, whitespace or a control code) and should skip drawing, but still include its advance amount.
 	 */
 	bool bIsVisible = false;
+	
+	/** Check whether this entry contains a valid glyph (non-zero, and not the SlateFontRendererUtils::InvalidSubChar glyph) */
+	SLATECORE_API bool HasValidGlyph() const;
 
 	/** Get any additional scale that should be applied when rendering this glyph */
 	SLATECORE_API float GetBitmapRenderScale() const;
@@ -792,6 +795,16 @@ public:
 	 * @return Whether or not the font used has kerning information
 	 */
 	bool HasKerning( const FFontData& InFontData ) const;
+
+	/**
+	 * Whether or not the specified character, within the specified font, can be loaded with the specified maximum font fallback level
+	 *
+	 * @param InFontData		Information about the font to load
+	 * @param InCodepoint		The codepoint being loaded
+	 * @param MaxFallbackLevel	The maximum fallback level to try for the font
+	 * @return					Whether or not the character can be loaded
+	 */
+	bool CanLoadCodepoint(const FFontData& InFontData, const UTF32CHAR InCodepoint, EFontFallback MaxFallbackLevel = EFontFallback::FF_NoFallback) const;
 
 	/**
 	 * Returns the font attributes for the specified font.

@@ -4771,6 +4771,16 @@ void CompilerMSL::emit_custom_functions()
 			end_scope();
 			end_scope_decl();
 			statement("");
+						
+		case SPVFuncImplIdentity:
+			statement("// Identity function as workaround for bug in Metal compiler");
+			statement("template<typename T>");
+			statement("T spvIdentity(T x)");
+			begin_scope();
+			statement("return x;");
+			end_scope();
+			statement("");
+			break;
 
 		default:
 			break;
@@ -5654,8 +5664,10 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 		auto store_type = texel_type;
 		store_type.vecsize = 4;
 
-		statement(join(to_expression(img_id), ".write(",
-		               remap_swizzle(store_type, texel_type.vecsize, to_expression(texel_id)), ", ",
+		// Wrap first argument into identity function to workaround bug in Metal compiler
+		add_spv_func_and_recompile(SPVFuncImplIdentity);
+		statement(join(to_expression(img_id), ".write(spvIdentity(",
+		               remap_swizzle(store_type, texel_type.vecsize, to_expression(texel_id)), "), ",
 		               to_function_args(img_id, img_type, true, false, false, coord_id, 0, 0, 0, 0, lod, 0, 0, 0, 0, 0,
 		                                0, &forward),
 		               ");"));

@@ -339,7 +339,7 @@ UNetReplicationGraphConnection* UReplicationGraph::FindOrAddConnectionManager(UN
 	if (NetConnection->GetUChildConnection() != nullptr)
 	{
 		NetConnection = ((UChildConnection*)NetConnection)->Parent;
-		UE_LOG(LogReplicationGraph, Warning, TEXT("UReplicationGraph::FindOrAddConnectionManager was called with a child connection, redirecting to parent"));
+		UE_LOG(LogReplicationGraph, Verbose, TEXT("UReplicationGraph::FindOrAddConnectionManager was called with a child connection, redirecting to parent"));
 		check(NetConnection != nullptr);
 	}
 
@@ -540,6 +540,13 @@ void UReplicationGraph::AddNetworkActor(AActor* Actor)
 	RouteAddNetworkActorToNodes(FNewReplicatedActorInfo(Actor), GlobalInfo);
 }
 
+void UReplicationGraph::SetRoleSwapOnReplicate(AActor* Actor, bool bSwapRoles)
+{
+	if (FGlobalActorReplicationInfo* GlobalInfo = GlobalActorReplicationInfoMap.Find(Actor))
+	{
+		GlobalInfo->bSwapRolesOnReplicate = bSwapRoles;
+	}
+}
 
 void UReplicationGraph::RouteAddNetworkActorToNodes(const FNewReplicatedActorInfo& ActorInfo, FGlobalActorReplicationInfo& GlobalInfo)
 {
@@ -595,7 +602,7 @@ void UReplicationGraph::ForceNetUpdate(AActor* Actor)
 
 void UReplicationGraph::FlushNetDormancy(AActor* Actor, bool bWasDormInitial)
 {
-	RG_QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraph_FlushNetDormancy);
+	QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraph_FlushNetDormancy);
 
 	if (Actor->IsActorInitialized() == false)
 	{
@@ -1555,6 +1562,12 @@ int64 UReplicationGraph::ReplicateSingleActor_FastShared(AActor* Actor, FConnect
 		ConnectionData.FastPath_NextReplicationFrameNum = FrameNum + ConnectionData.FastPath_ReplicationPeriodFrame;
 	};
 	
+	TOptional<FScopedActorRoleSwap> SwapGuard;
+	if (GlobalActorInfo.bSwapRolesOnReplicate)
+	{
+		SwapGuard = FScopedActorRoleSwap(Actor);
+	}
+
 	if (CVar_RepGraph_FastShared_ForceFull > 0)
 	{
 		return ReplicateSingleActor(Actor, ConnectionData, GlobalActorInfo, FindOrAddConnectionManager(NetConnection)->ActorInfoMap, ConnectionManager, FrameNum);
@@ -1708,6 +1721,12 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 		GlobalActorInfo.LastPreReplicationFrame = FrameNum;
 
 		Actor->CallPreReplication(NetDriver);
+	}
+
+	TOptional<FScopedActorRoleSwap> SwapGuard;
+	if (GlobalActorInfo.bSwapRolesOnReplicate)
+	{
+		SwapGuard = FScopedActorRoleSwap(Actor);
 	}
 
 	const bool bWantsToGoDormant = GlobalActorInfo.bWantsToBeDormant;
@@ -3287,19 +3306,21 @@ void UReplicationGraphNode_DynamicSpatialFrequency::GatherActorListsForConnectio
 REPGRAPH_DEVCVAR_SHIPCONST(int32, "Net.RepGraph.DynamicSpatialFrequency.Draw", CVar_RepGraph_DynamicSpatialFrequency_Draw, 0, "");
 REPGRAPH_DEVCVAR_SHIPCONST(int32, "Net.RepGraph.DynamicSpatialFrequency.ForceMaxFreq", CVar_RepGraph_DynamicSpatialFrequency_ForceMaxFreq, 0, "Forces DSF to set max frame replication periods on all actors (1 frame rep periods). 1 = default replication. 2 = fast path. 3 = Both (effectively, default)");
 
-FORCEINLINE uint32 CalcDynamicReplicationPeriod(const float FinalPCT, const uint32 MinRepPeriod, const uint32 MaxRepPeriod, uint8& OutReplicationPeriodFrame, uint32& OutNextReplicationFrame, const uint32 LastRepFrameNum, const uint32 FrameNum, bool ForFastPath)
+FORCEINLINE uint32 CalcDynamicReplicationPeriod(const float FinalPCT, const uint32 MinRepPeriod, const uint32 MaxRepPeriod, uint16& OutReplicationPeriodFrame, uint32& OutNextReplicationFrame, const uint32 LastRepFrameNum, const uint32 FrameNum, bool ForFastPath)
 {
 	const float PeriodRange = (float)(MaxRepPeriod - MinRepPeriod);
 	const uint32 ExtraPeriod = (uint32)FMath::CeilToInt(PeriodRange * FinalPCT);
 				
-	uint32 FinalPeriod = MinRepPeriod + ExtraPeriod;
-	OutReplicationPeriodFrame = FinalPeriod;
+	const uint32 FinalPeriod = MinRepPeriod + ExtraPeriod;
+	OutReplicationPeriodFrame = (uint16)FMath::Clamp<uint32>(FinalPeriod, 1, MAX_uint16);
 
-	const uint32 NextRepFrameNum = LastRepFrameNum + FinalPeriod;
+	const uint32 NextRepFrameNum = LastRepFrameNum + OutReplicationPeriodFrame;
 	OutNextReplicationFrame = NextRepFrameNum;
 
 
 #if !(UE_BUILD_SHIPPING)
+	ensureMsgf(OutReplicationPeriodFrame == FinalPeriod, TEXT("Overflow error when FinalPeriod(%u) was assigned to OutReplicationPeriodFrame(%u). RepPeriod values are probably too big"), FinalPeriod, OutReplicationPeriodFrame);
+
 	if (CVar_RepGraph_DynamicSpatialFrequency_ForceMaxFreq > 0)
 	{
 		if ((CVar_RepGraph_DynamicSpatialFrequency_ForceMaxFreq == 1 && ForFastPath == 0) ||
@@ -3383,7 +3404,7 @@ FORCEINLINE void UReplicationGraphNode_DynamicSpatialFrequency::CalcFrequencyFor
 	const FVector DirToActor = (GlobalInfo.WorldLocation - LowestDistanceViewer->ViewLocation);
 	const float DistanceToActor = FMath::Sqrt(SmallestDistanceToActorSq);
 	const FVector NormDirToActor = DistanceToActor > SMALL_NUMBER ? (DirToActor / DistanceToActor) : DirToActor;
-	const float DotP = FVector::DotProduct(NormDirToActor, ConnectionViewDir);
+	const float DotP = FMath::Clamp(FVector::DotProduct(NormDirToActor, ConnectionViewDir), -1.0f, 1.0f);
 
 	const bool ActorSupportsFastShared = (GlobalInfo.Settings.FastSharedReplicationFunc != nullptr);
 	TArrayView<FSpatializationZone>& ZoneList = ActorSupportsFastShared ? MySettings.ZoneSettings : MySettings.ZoneSettings_NonFastSharedActors;

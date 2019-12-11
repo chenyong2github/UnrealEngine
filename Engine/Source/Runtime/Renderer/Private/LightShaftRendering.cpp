@@ -121,6 +121,7 @@ public:
 		AspectRatioAndInvAspectRatioParameter.Bind(ParameterMap,TEXT("AspectRatioAndInvAspectRatio"));
 		LightShaftParameters.Bind(ParameterMap, TEXT("LightShaftParameters"));
 		BloomTintAndThresholdParameter.Bind(ParameterMap,TEXT("BloomTintAndThreshold"));
+		BloomMaxBrightnessParameter.Bind(ParameterMap,TEXT("BloomMaxBrightness"));
 		DistanceFadeParameter.Bind(ParameterMap, TEXT("DistanceFade"));
 		SourceTextureParameter.Bind(ParameterMap, TEXT("SourceTexture"));
 		SourceTextureSamplerParameter.Bind(ParameterMap, TEXT("SourceTextureSampler"));
@@ -138,6 +139,7 @@ public:
 		Ar << Parameters.AspectRatioAndInvAspectRatioParameter;
 		Ar << Parameters.LightShaftParameters;
 		Ar << Parameters.BloomTintAndThresholdParameter;
+		Ar << Parameters.BloomMaxBrightnessParameter;
 		Ar << Parameters.DistanceFadeParameter;
 		Ar << Parameters.SourceTextureParameter;
 		Ar << Parameters.SourceTextureSamplerParameter;
@@ -220,6 +222,7 @@ public:
 
 		const FLinearColor BloomTint = LightSceneInfo->BloomTint;
 		SetShaderValue(RHICmdList, Shader, BloomTintAndThresholdParameter, FVector4(BloomTint.R, BloomTint.G, BloomTint.B, LightSceneInfo->BloomThreshold));
+		SetShaderValue(RHICmdList, Shader, BloomMaxBrightnessParameter, LightSceneInfo->BloomMaxBrightness);
 
 		float OcclusionMaskDarkness;
 		float OcclusionDepthRange;
@@ -258,6 +261,7 @@ private:
 	FShaderParameter AspectRatioAndInvAspectRatioParameter;
 	FShaderParameter LightShaftParameters;
 	FShaderParameter BloomTintAndThresholdParameter;
+	FShaderParameter BloomMaxBrightnessParameter;
 	FShaderParameter DistanceFadeParameter;
 	FShaderResourceParameter SourceTextureParameter;
 	FShaderResourceParameter SourceTextureSamplerParameter;
@@ -480,7 +484,7 @@ void AllocateOrReuseLightShaftRenderTarget(FRHICommandListImmediate& RHICmdList,
 		EPixelFormat LightShaftFilterBufferFormat = PF_FloatRGB;
 		const FIntPoint BufferSize = FSceneRenderTargets::Get(RHICmdList).GetBufferSizeXY();
 		FIntPoint LightShaftSize(FMath::Max<uint32>(BufferSize.X / GetLightShaftDownsampleFactor(), 1), FMath::Max<uint32>(BufferSize.Y / GetLightShaftDownsampleFactor(), 1));
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(LightShaftSize, LightShaftFilterBufferFormat, FClearValueBinding::White, TexCreate_None, TexCreate_RenderTargetable, false));
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(LightShaftSize, LightShaftFilterBufferFormat, FClearValueBinding::White, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable, false));
 		Desc.AutoWritable = false;
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, Target, Name);
 

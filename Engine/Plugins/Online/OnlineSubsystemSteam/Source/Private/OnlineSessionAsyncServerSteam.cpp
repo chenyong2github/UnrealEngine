@@ -3,11 +3,14 @@
 #include "OnlineSessionAsyncServerSteam.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
+#include "Misc/CoreMisc.h"
+#include "Misc/ConfigCacheIni.h"
 #include "OnlineSubsystemUtils.h"
 #include "SocketSubsystem.h"
 #include "IPAddressSteam.h"
 #include "SteamSessionKeys.h"
 #include "SteamUtilities.h"
+#include "OnlineSubsystemSteam.h"
 #include "OnlineAuthInterfaceSteam.h"
 
 
@@ -128,24 +131,58 @@ void GetServerKeyValuePairsFromSessionSettings(const FOnlineSessionSettings& Ses
  * @param SessionInfo session info to get key, value pairs from
  * @param KeyValuePairs key value pair structure to add to
  */
-void GetServerKeyValuePairsFromSessionInfo(const FOnlineSessionInfoSteam* SessionInfo, FSteamSessionKeyValuePairs& KeyValuePairs)
+void GetServerKeyValuePairsFromSessionInfo(FOnlineSessionInfoSteam* SessionInfo, FSteamSessionKeyValuePairs& KeyValuePairs)
 {
-	// @TODO ONLINE - not needed
-	/*
-	if (SessionInfo->HostAddr.IsValid())
+	FOnlineSubsystemSteam* SteamSubsystem = static_cast<FOnlineSubsystemSteam*>(IOnlineSubsystem::Get(STEAM_SUBSYSTEM));
+	FSteamConnectionMethod MethodUsed = SessionInfo->ConnectionMethod;
+
+	// We should not enter this check here if we're using LAN.
+	if (SteamSubsystem && GConfig && MethodUsed == FSteamConnectionMethod::None)
 	{
-		uint32 HostAddr;
-		SessionInfo->HostAddr->GetIp(HostAddr);
-		KeyValuePairs.Add(STEAMKEY_HOSTIP, FString::FromInt(HostAddr));
-		KeyValuePairs.Add(STEAMKEY_HOSTPORT, FString::FromInt(SessionInfo->HostAddr->GetPort()));
+		bool bUseRelays = false;
+		bool bIsDefaultSubsystem = false;
+		GConfig->GetBool(TEXT("OnlineSubsystemSteam"), TEXT("bAllowP2PPacketRelay"), bUseRelays, GEngineIni);
+		// If this config specifically does not exist, then set it to true
+		if (!GConfig->GetBool(TEXT("OnlineSubsystemSteam"), TEXT("bUseSteamNetworking"), bIsDefaultSubsystem, GEngineIni))
+		{
+			bIsDefaultSubsystem = true;
+		}
+
+		// Using Steam sockets. This checks if the SteamSockets plugin is enabled
+		if (!SteamSubsystem->IsUsingSteamNetworking())
+		{
+			if (!bUseRelays)
+			{
+				MethodUsed = FSteamConnectionMethod::Direct;
+			}
+			else
+			{
+				MethodUsed = FSteamConnectionMethod::P2P;
+			}
+		}
+		else
+		{
+			// Determine if we are a default. If so, we're using SteamNetworking P2P.
+			if (bIsDefaultSubsystem)
+			{
+				MethodUsed = FSteamConnectionMethod::P2P;
+			}
+			else
+			{
+				MethodUsed = FSteamConnectionMethod::Direct;
+			}
+		}
+
+		// Set this if it hasn't been set yet.
+		SessionInfo->ConnectionMethod = MethodUsed;
 	}
-	*/
+
+	KeyValuePairs.Add(STEAMKEY_CONNECTIONMETHOD, FString::Printf(TEXT("%s"), *LexToString(MethodUsed)));
 
 	if (SessionInfo->SteamP2PAddr.IsValid())
 	{
-		TSharedPtr<FInternetAddrSteam> SteamAddr = StaticCastSharedPtr<FInternetAddrSteam>(SessionInfo->SteamP2PAddr);
-		KeyValuePairs.Add(STEAMKEY_P2PADDR, SteamAddr->ToString(false));
-		KeyValuePairs.Add(STEAMKEY_P2PPORT, FString::FromInt(SteamAddr->GetPort()));
+		KeyValuePairs.Add(STEAMKEY_P2PADDR, SessionInfo->SteamP2PAddr->ToString(false));
+		KeyValuePairs.Add(STEAMKEY_P2PPORT, FString::FromInt(SessionInfo->SteamP2PAddr->GetPort()));
 	}
 }
 
@@ -635,6 +672,11 @@ bool FPendingSearchResultSteam::FillSessionFromServerRules()
 				KeysFound++;
 			}
 		}
+		else if (FCStringAnsi::Stricmp(TCHAR_TO_ANSI(*It.Key()), STEAMKEY_CONNECTIONMETHOD) == 0)
+		{
+			SessionInfo->ConnectionMethod = ToConnectionMethod(It.Value());
+			++KeysFound;
+		}
 // 		else if (FCStringAnsi::Stricmp(TCHAR_TO_ANSI(*It.Key()), STEAMKEY_NUMOPENPRIVATECONNECTIONS) == 0)
 // 		{
 // 			Session->NumOpenPrivateConnections = FCString::Atoi(*It.Value());
@@ -647,7 +689,11 @@ bool FPendingSearchResultSteam::FillSessionFromServerRules()
 // 		}
 		else if (FCStringAnsi::Stricmp(TCHAR_TO_ANSI(*It.Key()), STEAMKEY_P2PADDR) == 0)
 		{
-			uint64 SteamAddr = FCString::Atoi64(*It.Value());
+			FString KeyValue = It.Value();
+			// Remove any protocol flags from the start.
+			KeyValue.RemoveFromStart(STEAM_URL_PREFIX);
+
+			uint64 SteamAddr = FCString::Atoi64(*KeyValue);
 			if (SteamAddr != 0)
 			{
 				SteamP2PAddr->SteamId.UniqueNetId = SteamAddr;
@@ -678,7 +724,7 @@ bool FPendingSearchResultSteam::FillSessionFromServerRules()
 
 	// Verify success with all required keys found
 	// If the user has SteamNetworking off, then we should just check if their host addressing is correct.
-	if (bSuccess && (KeysFound == STEAMKEY_NUMREQUIREDSERVERKEYS) && (SteamAddrKeysFound == 2 || (HostAddr->IsValid() && HostAddr.IsValid())))
+	if (bSuccess && (KeysFound == STEAMKEY_NUMREQUIREDSERVERKEYS) && (SteamAddrKeysFound == 2 || (HostAddr.IsValid() && HostAddr->IsValid())))
 	{
 		SessionInfo->HostAddr = HostAddr;
 		SessionInfo->SteamP2PAddr = SteamP2PAddr;

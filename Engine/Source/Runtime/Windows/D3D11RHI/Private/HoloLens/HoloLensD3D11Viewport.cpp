@@ -202,6 +202,23 @@ void FD3D11Viewport::CheckHDRMonitorStatus()
 
 void FD3D11Viewport::ConditionalResetSwapChain(bool bIgnoreFocus)
 {
+	if (!bIsValid)
+	{
+		if (bFullscreenLost)
+		{
+			FlushRenderingCommands();
+			bFullscreenLost = false;
+			Resize(SizeX, SizeY, false, PixelFormat);
+		}
+		else
+		{
+			ResetSwapChainInternal(bIgnoreFocus);
+		}
+	}
+}
+
+void FD3D11Viewport::ResetSwapChainInternal(bool bIgnoreFocus)
+{
 	if(!bIsValid)
 	{
 		const bool bIsFocused = true;

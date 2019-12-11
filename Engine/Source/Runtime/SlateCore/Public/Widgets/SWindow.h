@@ -409,8 +409,12 @@ public:
 	/** Relocate the window to a screenspace position specified by NewPosition and resize it to NewSize */
 	void ReshapeWindow( FVector2D NewPosition, FVector2D NewSize );
 	void ReshapeWindow( const FSlateRect& InNewShape );
-	/** Resize the window to be NewSize immediately */
-	void Resize( FVector2D NewSize );
+	/**
+	 * Resize the window to be dpi scaled NewClientSize immediately
+	 *
+	 * @param NewClientSize: Client size with DPI scaling already applied that does not include border or title bars.
+	 */
+	void Resize( FVector2D NewClientSize );
 
 	/** Returns the rectangle of the screen the window is associated with */
 	FSlateRect GetFullScreenInfo() const;
@@ -817,10 +821,18 @@ private:
 	virtual FVector2D ComputeDesiredSize(float) const override;
 	virtual bool ComputeVolatility() const override;
 
+	/** Resize using already dpi scaled window size including borders/title bar */
+	void ResizeWindowSize( FVector2D NewWindowSize );
+
 	void OnGlobalInvalidationToggled(bool bGlobalInvalidationEnabled);
 public:
-	// For a given client size, calculate the window size required to accomodate any potential non-OS borders and tilebars
-	FVector2D GetWindowSizeFromClientSize(FVector2D InClientSize);
+	/**
+	 * For a given client size, calculate the window size required to accommodate any potential non-OS borders and title bars
+	 *
+	 * @param InClientSize: Client size with DPI scaling already applied
+	 * @param DPIScale: Scale that will be applied for border and title. When not supplied detects DPIScale using native or initial position.
+	 */
+	FVector2D GetWindowSizeFromClientSize(FVector2D InClientSize, TOptional<float> DPIScale = TOptional<float>());
 
 	/** @return true if this window will be focused when it is first shown */
 	inline bool IsFocusedInitially() const

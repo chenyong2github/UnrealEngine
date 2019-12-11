@@ -16,6 +16,10 @@
 #include "NiagaraStats.h"
 #include "NiagaraEditorDataBase.h"
 #include "INiagaraEditorOnlyDataUtlities.h"
+#include "NiagaraWorldManager.h"
+#include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraSettings.h"
+
 
 #if WITH_EDITOR
 #include "NiagaraScriptDerivedData.h"
@@ -26,10 +30,9 @@ DECLARE_CYCLE_STAT(TEXT("Niagara - System - Precompile"), STAT_Niagara_System_Pr
 DECLARE_CYCLE_STAT(TEXT("Niagara - System - CompileScript"), STAT_Niagara_System_CompileScript, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Niagara - System - CompileScript_ResetAfter"), STAT_Niagara_System_CompileScriptResetAfter, STATGROUP_Niagara);
 
-// UNiagaraSystemCategory::UNiagaraSystemCategory(const FObjectInitializer& ObjectInitializer)
-// 	: Super(ObjectInitializer)
-// {
-// }
+//Disable for now until we can spend more time on a good method of applying the data gathered.
+int32 GEnableNiagaraRuntimeCycleCounts = 0;
+static FAutoConsoleVariableRef CVarEnableNiagaraRuntimeCycleCounts(TEXT("fx.EnableNiagaraRuntimeCycleCounts"), GEnableNiagaraRuntimeCycleCounts, TEXT("Toggle for runtime cylce counts tracking Niagara's frame time. \n"), ECVF_ReadOnly);
 
 static int GNiagaraForceSystemsToCookOutRapidIterationOnLoad = 0;
 static FAutoConsoleVariableRef CVarNiagaraForceSystemsToCookOutRapidIterationOnLoad(
@@ -59,15 +62,24 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 	MaxPoolSize = 32;
 }
 
+UNiagaraSystem::UNiagaraSystem(FVTableHelper& Helper)
+	: Super(Helper)
+{
+}
+
 void UNiagaraSystem::BeginDestroy()
 {
 	Super::BeginDestroy();
+
 #if WITH_EDITORONLY_DATA
 	while (ActiveCompilations.Num() > 0)
 	{
 		QueryCompileComplete(true, false, true);
 	}
 #endif
+
+	//Should we just destroy all system sims here to simplify cleanup?
+	//FNiagaraWorldManager::DestroyAllSystemSimulations(this);
 }
 
 void UNiagaraSystem::PreSave(const class ITargetPlatform * TargetPlatform)
@@ -190,9 +202,52 @@ void UNiagaraSystem::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
+
+	if (Ar.CustomVer(FNiagaraCustomVersion::GUID) >= FNiagaraCustomVersion::ChangeEmitterCompiledDataToSharedRefs)
+	{
+		UScriptStruct* NiagaraEmitterCompiledDataStruct = FNiagaraEmitterCompiledData::StaticStruct();
+
+		int32 EmitterCompiledDataNum = 0;
+		if (Ar.IsSaving())
+		{
+			EmitterCompiledDataNum = EmitterCompiledData.Num();
+		}
+		Ar << EmitterCompiledDataNum;
+
+		if (Ar.IsLoading())
+		{
+			// Clear out EmitterCompiledData when loading or else we will end up with duplicate entries. 
+			EmitterCompiledData.Reset();
+		}
+		for (int32 EmitterIndex = 0; EmitterIndex < EmitterCompiledDataNum; ++EmitterIndex)
+		{
+			if (Ar.IsLoading())
+			{
+				EmitterCompiledData.Add(MakeShared<FNiagaraEmitterCompiledData>());
+			}
+
+			NiagaraEmitterCompiledDataStruct->SerializeTaggedProperties(Ar, (uint8*)&ConstCastSharedRef<FNiagaraEmitterCompiledData>(EmitterCompiledData[EmitterIndex]).Get(), NiagaraEmitterCompiledDataStruct, nullptr);
+		}
+	}
 }
 
 #if WITH_EDITOR
+
+void UNiagaraSystem::PreEditChange(UProperty* PropertyThatWillChange)
+{
+	Super::PreEditChange(PropertyThatWillChange);
+
+	if (PropertyThatWillChange && PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraSystem, EffectType))
+	{
+		FNiagaraSystemUpdateContext UpdateContext;
+		UpdateContext.SetDestroyOnAdd(true);
+		UpdateContext.Add(this, false);
+		
+		//We have to clear this here and reset so that we unregister properly from the scalability manager.
+		EffectType = nullptr;
+	}
+}
+
 void UNiagaraSystem::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -220,6 +275,8 @@ void UNiagaraSystem::PostEditChangeProperty(struct FPropertyChangedEvent& Proper
 			}
 		}
 	}
+
+	ResolveScalabilityOverrides();
 }
 #endif 
 
@@ -369,7 +426,7 @@ void UNiagaraSystem::PostLoad()
 			UE_LOG(LogNiagara, Log, TEXT("System %s being compiled because there were changes to an emitter script Change ID."), *GetPathName());
 		}
 
-		if (EmitterCompiledData.Num() == 0 || EmitterCompiledData[0].DataSetCompiledData.Variables.Num() == 0)
+		if (EmitterCompiledData.Num() == 0 || EmitterCompiledData[0]->DataSetCompiledData.Variables.Num() == 0)
 		{
 			InitEmitterCompiledData();
 		}
@@ -432,6 +489,8 @@ void UNiagaraSystem::PostLoad()
 	{
 		bIsReadyToRunCached = IsReadyToRunInternal();
 	}
+
+	ResolveScalabilityOverrides();
 }
 
 #if WITH_EDITORONLY_DATA
@@ -957,6 +1016,7 @@ void UNiagaraSystem::InitEmitterVariableAliasNames(FNiagaraEmitterCompiledData& 
 	EmitterCompiledDataToInit.EmitterAgeVar.SetName(GetEmitterVariableAliasName(SYS_PARAM_EMITTER_AGE, InAssociatedEmitter));
 	EmitterCompiledDataToInit.EmitterSpawnGroupVar.SetName(GetEmitterVariableAliasName(SYS_PARAM_EMITTER_SPAWN_GROUP, InAssociatedEmitter));
 	EmitterCompiledDataToInit.EmitterRandomSeedVar.SetName(GetEmitterVariableAliasName(SYS_PARAM_EMITTER_RANDOM_SEED, InAssociatedEmitter));
+	EmitterCompiledDataToInit.EmitterTotalSpawnedParticlesVar.SetName(GetEmitterVariableAliasName(SYS_PARAM_ENGINE_EMITTER_TOTAL_SPAWNED_PARTICLES, InAssociatedEmitter));
 }
 
 const FName UNiagaraSystem::GetEmitterVariableAliasName(const FNiagaraVariable& InEmitterVar, const UNiagaraEmitter* InEmitter) const
@@ -1106,8 +1166,13 @@ void UNiagaraSystem::InitEmitterCompiledData()
 	EmitterCompiledData.Empty();
 	if (SystemSpawnScript->GetVMExecutableData().IsValid() && SystemUpdateScript->GetVMExecutableData().IsValid())
 	{
-		EmitterCompiledData.SetNum(EmitterHandles.Num());
-	FNiagaraTypeDefinition SpawnInfoDef = FNiagaraTypeDefinition(FNiagaraSpawnInfo::StaticStruct());
+		TArray<TSharedRef<FNiagaraEmitterCompiledData>> NewEmitterCompiledData;
+		for (int32 EmitterIdx = 0; EmitterIdx < EmitterHandles.Num(); ++EmitterIdx)
+		{
+			NewEmitterCompiledData.Add(MakeShared<FNiagaraEmitterCompiledData>());
+		}
+
+		FNiagaraTypeDefinition SpawnInfoDef = FNiagaraTypeDefinition(FNiagaraSpawnInfo::StaticStruct());
 
 		for (FNiagaraVariable& Var : SystemSpawnScript->GetVMExecutableData().Attributes)
 		{
@@ -1119,7 +1184,7 @@ void UNiagaraSystem::InitEmitterCompiledData()
 					FString EmitterName = Emitter->GetUniqueEmitterName() + TEXT(".");
 					if (Var.GetType() == SpawnInfoDef && Var.GetName().ToString().StartsWith(EmitterName))
 					{
-						EmitterCompiledData[EmitterIdx].SpawnAttributes.AddUnique(Var.GetName());
+						NewEmitterCompiledData[EmitterIdx]->SpawnAttributes.AddUnique(Var.GetName());
 					}
 				}
 			}
@@ -1135,28 +1200,33 @@ void UNiagaraSystem::InitEmitterCompiledData()
 					FString EmitterName = Emitter->GetUniqueEmitterName() + TEXT(".");
 					if (Var.GetType() == SpawnInfoDef && Var.GetName().ToString().StartsWith(EmitterName))
 					{
-						EmitterCompiledData[EmitterIdx].SpawnAttributes.AddUnique(Var.GetName());
+						NewEmitterCompiledData[EmitterIdx]->SpawnAttributes.AddUnique(Var.GetName());
 					}
 				}
-				}
 			}
+		}
 
 		for (int32 EmitterIdx = 0; EmitterIdx < EmitterHandles.Num(); ++EmitterIdx)
 		{
 			const FNiagaraEmitterHandle& EmitterHandle = EmitterHandles[EmitterIdx];
 			const UNiagaraEmitter* Emitter = EmitterHandle.GetInstance();
-			FNiagaraDataSetCompiledData& EmitterDataSetCompiledData = EmitterCompiledData[EmitterIdx].DataSetCompiledData;
-			FNiagaraDataSetCompiledData& GPUCaptureCompiledData = EmitterCompiledData[EmitterIdx].GPUCaptureDataSetCompiledData;
+			FNiagaraDataSetCompiledData& EmitterDataSetCompiledData = NewEmitterCompiledData[EmitterIdx]->DataSetCompiledData;
+			FNiagaraDataSetCompiledData& GPUCaptureCompiledData = NewEmitterCompiledData[EmitterIdx]->GPUCaptureDataSetCompiledData;
 			if ensureMsgf(Emitter != nullptr, TEXT("Failed to get Emitter Instance from Emitter Handle in post compile, please investigate."))
 			{
 				static FName GPUCaptureDataSetName = TEXT("GPU Capture Dataset");
-				InitEmitterVariableAliasNames(EmitterCompiledData[EmitterIdx], Emitter);
+				InitEmitterVariableAliasNames(NewEmitterCompiledData[EmitterIdx].Get(), Emitter);
 				InitEmitterDataSetCompiledData(EmitterDataSetCompiledData, Emitter, EmitterHandle);
 				GPUCaptureCompiledData.ID = FNiagaraDataSetID(GPUCaptureDataSetName, ENiagaraDataSetType::ParticleData);
 				GPUCaptureCompiledData.Variables = EmitterDataSetCompiledData.Variables;
 				GPUCaptureCompiledData.SimTarget = ENiagaraSimTarget::CPUSim;
 				GPUCaptureCompiledData.BuildLayout();				
 			}
+		}
+
+		for (int32 EmitterIdx = 0; EmitterIdx < EmitterHandles.Num(); ++EmitterIdx)
+		{
+			EmitterCompiledData.Add(NewEmitterCompiledData[EmitterIdx]);
 		}
 	}
 }
@@ -1271,6 +1341,114 @@ void UNiagaraSystem::GenerateStatID()const
 #endif
 }
 
+UNiagaraEffectType* UNiagaraSystem::GetEffectType()const
+{
+	if (EffectType)
+	{
+		return EffectType;
+	}
+	
+	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+	check(Settings);
+	return Settings->GetDefaultEffectType();
+}
+
+const FNiagaraScalabilitySettings& UNiagaraSystem::GetScalabilitySettings(int32 DetailLevel)
+{
+#if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
+	int32 UseDetailLevel = DetailLevel == INDEX_NONE ? INiagaraModule::GetDetailLevel() : DetailLevel;
+
+	int32 SettingsIndex = ResolvedScalabilitySettings.IsValidIndex(UseDetailLevel) ? UseDetailLevel : ResolvedScalabilitySettings.Num() - 1;
+	check(SettingsIndex != INDEX_NONE);//We should always have at least one entry in our settings array.
+	return ResolvedScalabilitySettings[SettingsIndex];
+#else
+	return CurrentScalabilitySettings;
+#endif
+}
+
+void UNiagaraSystem::ResolveScalabilityOverrides()
+{
+	ResolvedScalabilitySettings.Empty();
+
+	UNiagaraEffectType* ActualEffectType = GetEffectType();
+	int32 NumEffectTypeSettings = 0;
+	if (ActualEffectType)
+	{
+		ActualEffectType->GetScalabilitySettings().Num();
+	}
+	int32 NumOverrides = ScalabilityOverrides.Num();
+
+	int32 ResolvedCount = FMath::Max(NumEffectTypeSettings, NumOverrides);
+	if (ResolvedCount == 0)
+	{
+		//Just add a single defaulted entry to make other calling code simpler.
+		ResolvedScalabilitySettings.AddDefaulted();
+	}
+	else
+	{
+
+		ResolvedScalabilitySettings.Reserve(ResolvedCount);
+		for (int32 i = 0; i < ResolvedCount; ++i)
+		{
+			int32 NewIdx = ResolvedScalabilitySettings.AddDefaulted();
+			FNiagaraScalabilitySettings& NewSettings = ResolvedScalabilitySettings[NewIdx];
+			if (ActualEffectType)
+			{
+				const TArray<FNiagaraScalabilitySettings>& EffectTypeSettings = ActualEffectType->GetScalabilitySettings();
+				int32 LastIndex = EffectTypeSettings.Num() - 1;
+				if (LastIndex >= 0)
+				{
+					NewSettings = EffectTypeSettings[FMath::Min(i, LastIndex)];
+				}
+			}
+
+			if (ScalabilityOverrides.IsValidIndex(i) && bOverrideScalabilitySettings)
+			{
+				const FNiagaraScalabilityOverrides& Overrides = ScalabilityOverrides[i];
+
+				if (Overrides.bOverrideDistanceSettings)
+				{
+					NewSettings.bCullByDistance = Overrides.bCullByDistance;
+					NewSettings.MaxDistance = Overrides.MaxDistance;
+				}
+
+				if (Overrides.bOverrideOwnerLODSettings)
+				{
+					NewSettings.bCullByMaxOwnerLOD = Overrides.bCullByMaxOwnerLOD;
+					NewSettings.MaxOwnerLOD = Overrides.MaxOwnerLOD;
+				}
+
+				if (Overrides.bOverrideInstanceCountSettings)
+				{
+					NewSettings.bCullMaxInstanceCount = Overrides.bCullMaxInstanceCount;
+					NewSettings.MaxInstances = Overrides.MaxInstances;
+				}
+
+				if (Overrides.bOverrideTimeSinceRendererSettings)
+				{
+					NewSettings.bCullByMaxTimeWithoutRender = Overrides.bCullByMaxTimeWithoutRender;
+					NewSettings.MaxTimeWithoutRender = Overrides.MaxTimeWithoutRender;
+				}
+
+// 				if (Overrides.bOverrideSpawnCountScale)
+// 				{
+// 					NewSettings.SpawnCountScale = Overrides.SpawnCountScale;
+// 				}
+			}
+		}
+	}
+
+	OnDetailLevelChanges(INiagaraModule::GetDetailLevel());
+}
+
+void UNiagaraSystem::OnDetailLevelChanges(int32 DetailLevel)
+{
+	int32 SettingsIndex = ResolvedScalabilitySettings.IsValidIndex(DetailLevel) ? DetailLevel : ResolvedScalabilitySettings.Num() - 1;
+	check(SettingsIndex != INDEX_NONE);//We should always have at least one entry in our settings array.
+	CurrentScalabilitySettings = ResolvedScalabilitySettings[SettingsIndex];
+}
+
+
 FNiagaraEmitterCompiledData::FNiagaraEmitterCompiledData()
 {
 	EmitterSpawnIntervalVar = SYS_PARAM_EMITTER_SPAWN_INTERVAL;
@@ -1278,4 +1456,5 @@ FNiagaraEmitterCompiledData::FNiagaraEmitterCompiledData()
 	EmitterAgeVar = SYS_PARAM_EMITTER_AGE;
 	EmitterSpawnGroupVar = SYS_PARAM_EMITTER_SPAWN_GROUP;
 	EmitterRandomSeedVar = SYS_PARAM_EMITTER_RANDOM_SEED;
+	EmitterTotalSpawnedParticlesVar = SYS_PARAM_ENGINE_EMITTER_TOTAL_SPAWNED_PARTICLES;
 }

@@ -202,7 +202,7 @@ public:
 	 *
 	 * @return true if the object was explicitly added as part of the root set.
 	 */
-	FORCEINLINE bool IsRooted()
+	FORCEINLINE bool IsRooted() const
 	{
 		return GUObjectArray.IndexToObject(InternalIndex)->IsRootSet();
 	}
@@ -490,8 +490,8 @@ public:
 		const UClass* ThisClass = GetClass();
 
 		// Stop the compiler doing some unnecessary branching for nullptr checks
-		ASSUME(SomeBaseClass);
-		ASSUME(ThisClass);
+		UE_ASSUME(SomeBaseClass);
+		UE_ASSUME(ThisClass);
 
 		return IsChildOfWorkaround(ThisClass, SomeBaseClass);
 	}

@@ -12,6 +12,8 @@
 #include "HAL/PlatformAtomics.h"
 #include "Engine/RendererSettings.h"
 
+extern FVulkanCommandBufferManager* GVulkanCommandBufferManager;
+
 struct FRHICommandProcessDeferredDeletionQueue final : public FRHICommand<FRHICommandProcessDeferredDeletionQueue>
 {
 	FVulkanDevice* Device;
@@ -145,7 +147,7 @@ FVulkanViewport::FVulkanViewport(FVulkanDynamicRHI* InRHI, FVulkanDevice* InDevi
 
 	if (FVulkanPlatform::SupportsStandardSwapchain())
 	{
-		for (int32 Index = 0; Index < NUM_BUFFERS; ++Index)
+		for (int32 Index = 0, NumBuffers = RenderingDoneSemaphores.Num(); Index < NumBuffers; ++Index)
 		{
 			RenderingDoneSemaphores[Index] = new VulkanRHI::FSemaphore(*InDevice);
 			RenderingDoneSemaphores[Index]->AddRef();
@@ -165,7 +167,7 @@ FVulkanViewport::~FVulkanViewport()
 	
 	if (FVulkanPlatform::SupportsStandardSwapchain())
 	{
-		for (int32 Index = 0; Index < NUM_BUFFERS; ++Index)
+		for (int32 Index = 0, NumBuffers = RenderingDoneSemaphores.Num(); Index < NumBuffers; ++Index)
 		{
 			RenderingDoneSemaphores[Index]->Release();
 
@@ -612,7 +614,10 @@ void FVulkanViewport::CreateSwapchain(FVulkanSwapChainRecreateInfo* RecreateInfo
 			RecreateInfo
 		);
 
-		checkf(Images.Num() == NUM_BUFFERS, TEXT("Actual Num: %i"), Images.Num());
+		checkf(Images.Num() >= NUM_BUFFERS, TEXT("We wanted at least %i images, actual Num: %i"), NUM_BUFFERS, Images.Num());
+		BackBufferImages.SetNum(Images.Num());
+		RenderingDoneSemaphores.SetNum(Images.Num());
+		TextureViews.SetNum(Images.Num());
 
 		FVulkanCmdBuffer* CmdBuffer = Device->GetImmediateContext().GetCommandBufferManager()->GetUploadCmdBuffer();
 		ensure(CmdBuffer->IsOutsideRenderPass());
@@ -699,7 +704,7 @@ void FVulkanViewport::DestroySwapchain(FVulkanSwapChainRecreateInfo* RecreateInf
 		
 	if (FVulkanPlatform::SupportsStandardSwapchain() && SwapChain)
 	{
-		for (int32 Index = 0; Index < NUM_BUFFERS; ++Index)
+		for (int32 Index = 0, NumBuffers = BackBufferImages.Num(); Index < NumBuffers; ++Index)
 		{
 			TextureViews[Index].Destroy(*Device);
 			Device->NotifyDeletedImage(BackBufferImages[Index]);
@@ -830,7 +835,7 @@ bool FVulkanViewport::Present(FVulkanCommandListContext* Context, FVulkanCmdBuff
 	}
 
 	CmdBuffer->End();
-
+	GVulkanCommandBufferManager->FlushResetQueryPools();
 	if (FVulkanPlatform::SupportsStandardSwapchain())
 	{
 		if (LIKELY(!bFailedToDelayAcquireBackbuffer))

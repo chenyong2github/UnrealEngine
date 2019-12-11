@@ -13,36 +13,26 @@ class FPendingCleanupObjects;
 class ISessionService;
 class FSlateRenderer;
 
+struct FScopedSlowTask;
 
 struct FPreInitContext
 {
-	bool bDumpEarlyConfigReads;
-	bool bDumpEarlyPakFileReads;
-	bool bForceQuitAfterEarlyReads;
-	bool bWithConfigPatching;
-	bool bDisableDisregardForGC;
-	bool bHasEditorToken;
-	bool bIsRegularClient;
-	bool bTokenDoesNotHaveDash;
+	bool bDumpEarlyConfigReads = false;
+	bool bDumpEarlyPakFileReads = false;
+	bool bForceQuitAfterEarlyReads = false;
+	bool bWithConfigPatching = false;
+	bool bDisableDisregardForGC = false;
+	bool bHasEditorToken = false;
+	bool bIsRegularClient = false;
+	bool bTokenDoesNotHaveDash = false;
 
 	FString Token;
-	const TCHAR* CommandletCommandLine;
-	TCHAR* CommandLineCopy;
+	const TCHAR* CommandletCommandLine = nullptr;
+	TCHAR* CommandLineCopy = nullptr;
 
-	FPreInitContext() :
-		CommandletCommandLine(nullptr),
-		CommandLineCopy(nullptr)
-	{
-	}
+	FScopedSlowTask* SlowTaskPtr = nullptr;
 
-	void Cleanup()
-	{
-#if WITH_ENGINE && !UE_SERVER
-		SlateRenderer = nullptr;
-#endif // WITH_ENGINE && !UE_SERVER
-		CommandletCommandLine = nullptr;
-		CommandLineCopy = nullptr;
-	}
+	void Cleanup();
 
 #if WITH_ENGINE && !UE_SERVER
 	TSharedPtr<FSlateRenderer> SlateRenderer;
@@ -95,6 +85,9 @@ public:
 
 	/** Load core modules. */
 	bool LoadCoreModules();
+
+	/** Clean up PreInit context. */
+	void CleanupPreInitContext();
 
 #if WITH_ENGINE
 	

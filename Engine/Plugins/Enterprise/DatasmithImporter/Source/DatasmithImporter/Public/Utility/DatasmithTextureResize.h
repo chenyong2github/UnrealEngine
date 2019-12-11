@@ -9,7 +9,11 @@
 class DATASMITHIMPORTER_API FDatasmithTextureResize
 {
 public:
-#if PLATFORM_WINDOWS // #ueent_todo Datasmith texture handling is currently limited to windows platforms
+#if WITH_FREEIMAGE_LIB
+	/**
+	 * Must be called from the main thread before doing any parallel work.
+	 */
+	static void Initialize();
 
 	/**
 	 * Returns true if image extension is supported by Unreal Engine
@@ -34,6 +38,12 @@ public:
 
 #else
 	/**
+	 * Must be called from the main thread before doing any parallel work.
+	 */
+	static void Initialize()
+	{ }
+
+	/**
 	* Returns true if image extension is supported by Unreal Engine
 	* IMPORTANT: Extension is expected with the starting dot
 	*/
@@ -56,5 +66,5 @@ public:
 	*/
 	static EDSTextureUtilsError ResizeTexture( const TCHAR* Source, const TCHAR* Destination, EDSResizeTextureMode Mode, uint32 MaxSize, bool bGenerateNormalMap )
 	{ return EDSTextureUtilsError::ResizeFailed; }
-#endif // PLATFORM_WINDOWS
+#endif // WITH_FREEIMAGE_LIB
 };

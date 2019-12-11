@@ -30,12 +30,9 @@ namespace Chaos
 		TArray<int32> LocalUniqueToSourceIndices;
 		// Remapping table from source index to unique index
 		TArray<int32> LocalVertexRemap;
-		// Remapping table from source triangle to unique triangle
-		TArray<int32> LocalTriangleRemap;
-
+		
 		LocalUniqueVerts.Reserve(NumSourceVerts);
 		LocalVertexRemap.AddUninitialized(NumSourceVerts);
-		LocalTriangleRemap.AddUninitialized(NumSourceTriangles);
 
 		auto ValidateTrianglesPre = [&InOutVertices](int32 A, int32 B, int32 C) -> bool
 		{
@@ -111,6 +108,10 @@ namespace Chaos
 
 		int32 NumDiscardedTriangles_Welded = 0;
 		int32 NumDiscardedTriangles_Area = 0;
+
+		// Remapping table from source triangle to unique triangle
+		TArray<int32> LocalTriangleRemap;
+		LocalTriangleRemap.Reserve(NumSourceTriangles);
 
 		for(int32 OriginalTriIndex = 0; OriginalTriIndex < NumSourceTriangles; ++OriginalTriIndex)
 		{

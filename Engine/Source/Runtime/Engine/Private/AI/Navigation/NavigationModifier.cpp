@@ -528,7 +528,7 @@ void FAreaNavModifier::FillConvexNavAreaData(const FVector* InPoints, const int3
 	TArray<int32, TInlineAllocator<MaxConvexPoints>> HullIndices;
 	HullIndices.Empty(MaxConvexPoints);
 
-	ConvexHull2D::ComputeConvexHull(HullVertices, HullIndices);
+	ConvexHull2D::ComputeConvexHullLegacy(HullVertices, HullIndices);
 	
 	// ConvexHull implementation requires at least 3 vertices  (i.e. GrowConvexHull)
 	const int32 MIN_NUM_POINTS = 3;
@@ -731,6 +731,7 @@ void FCompositeNavModifier::Reset()
 	bHasPotentialLinks = false;
 	bAdjustHeight = false;
 	bIsPerInstanceModifier = false;
+	bModifierFillCollisionUnderneathForNavmesh = false;
 }
 
 void FCompositeNavModifier::Empty()
@@ -740,6 +741,7 @@ void FCompositeNavModifier::Empty()
 	CustomLinks.Empty();
 	bHasPotentialLinks = false;
 	bAdjustHeight = false;
+	bModifierFillCollisionUnderneathForNavmesh = false;
 }
 
 FCompositeNavModifier FCompositeNavModifier::GetInstantiatedMetaModifier(const FNavAgentProperties* NavAgent, TWeakObjectPtr<UObject> WeakOwnerPtr) const
@@ -888,6 +890,37 @@ void FCompositeNavModifier::CreateAreaModifiers(const UPrimitiveComponent* PrimC
 
 		FAreaNavModifier AreaMod(SphereElem.Radius, SphereElem.Radius * 2.0f, AreaOffset * PrimComp->GetComponentTransform(), AreaClass);
 		Add(AreaMod);
+	}
+}
+
+void FCompositeNavModifier::CreateAreaModifiers(const FCollisionShape& CollisionShape, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass, const bool bIncludeAgentHeight /*= false*/)
+{
+	if (CollisionShape.IsBox())
+	{
+		const FVector BoxExtent = CollisionShape.GetBox();
+		FAreaNavModifier AreaMod(FBox(-BoxExtent, BoxExtent), LocalToWorld, AreaClass);
+		AreaMod.SetIncludeAgentHeight(bIncludeAgentHeight);
+		Add(AreaMod);
+	}
+	else if (CollisionShape.IsCapsule())
+	{
+		const float CapsuleHalfHeight = CollisionShape.GetCapsuleHalfHeight();
+		const FTransform AreaOffset(FVector(0.0f, 0.0f, -CapsuleHalfHeight));
+		FAreaNavModifier AreaMod(CollisionShape.GetCapsuleRadius(), CapsuleHalfHeight * 2.0f, AreaOffset * LocalToWorld, AreaClass); // Note: FAreaNavModifier creates a cylinder shape under the hood
+		AreaMod.SetIncludeAgentHeight(bIncludeAgentHeight);
+		Add(AreaMod);
+	}
+	else if (CollisionShape.IsSphere())
+	{
+		const float SphereRadius = CollisionShape.GetSphereRadius();
+		const FTransform AreaOffset(FVector(0.0f, 0.0f, -SphereRadius));
+		FAreaNavModifier AreaMod(SphereRadius, SphereRadius * 2.0f, AreaOffset * LocalToWorld, AreaClass); // Note: FAreaNavModifier creates a cylinder shape under the hood
+		AreaMod.SetIncludeAgentHeight(bIncludeAgentHeight);
+		Add(AreaMod);
+	}
+	else
+	{
+		UE_LOG(LogNavigation, Error, TEXT("Asked to create a FAreaNavModifier with an unknown collision shape type! Collision Shape Type = %d"), CollisionShape.ShapeType);
 	}
 }
 

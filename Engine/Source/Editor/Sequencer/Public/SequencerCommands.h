@@ -231,6 +231,9 @@ public:
 
 	/** Opens the director blueprint for a sequence. */
 	TSharedPtr< FUICommandInfo > OpenDirectorBlueprint;
+
+	/** Opens the tagged binding manager. */
+	TSharedPtr< FUICommandInfo > OpenTaggedBindingManager;
 	
 	/** Sets the tree search widget as the focused widget in Slate for easy typing. */
 	TSharedPtr< FUICommandInfo > QuickTreeSearch;

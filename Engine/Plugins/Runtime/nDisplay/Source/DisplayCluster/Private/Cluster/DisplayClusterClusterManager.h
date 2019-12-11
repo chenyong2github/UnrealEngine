@@ -10,6 +10,7 @@
 class ADisplayClusterGameMode;
 class ADisplayClusterSettings;
 class FJsonObject;
+class FEvent;
 
 
 /**
@@ -32,7 +33,10 @@ public:
 	virtual void EndSession() override;
 	virtual bool StartScene(UWorld* pWorld) override;
 	virtual void EndScene() override;
+	virtual void EndFrame(uint64 FrameNum) override;
 	virtual void PreTick(float DeltaSeconds) override;
+	virtual void Tick(float DeltaSeconds) override;
+	virtual void PostTick(float DeltaSeconds) override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -49,6 +53,9 @@ public:
 	virtual uint32 GetNodesAmount() const override
 	{ return NodesAmount; }
 
+	virtual void RegisterSyncObject(IDisplayClusterClusterSyncObject* pSyncObj, EDisplayClusterSyncGroup SyncGroup) override;
+	virtual void UnregisterSyncObject(IDisplayClusterClusterSyncObject* pSyncObj) override;
+
 	virtual void AddClusterEventListener(TScriptInterface<IDisplayClusterClusterEventListener>) override;
 	virtual void RemoveClusterEventListener(TScriptInterface<IDisplayClusterClusterEventListener>) override;
 
@@ -63,33 +70,18 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual IPDisplayClusterNodeController* GetController() const override;
 
-	virtual float GetDeltaTime() const override
-	{ return DeltaTime; }
+	virtual void ExportSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup) const override;
+	virtual void ImportSyncData(const FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup) override;
 
-	virtual void  SetDeltaTime(float deltaTime) override
-	{ DeltaTime = deltaTime; }
+	virtual void ExportEventsData(FDisplayClusterMessage::DataType& EventsData) const override;
+	virtual void ImportEventsData(const FDisplayClusterMessage::DataType& EventsData) override;
 
-	virtual void GetTimecode(FTimecode& timecode, FFrameRate& frameRate) const override
-	{ timecode = FApp::GetTimecode(); frameRate = FApp::GetTimecodeFrameRate(); }
-
-	virtual void SetTimecode(const FTimecode& timecode, const FFrameRate& frameRate) override
-	{ FApp::SetTimecodeAndFrameRate(timecode, frameRate); }
-	
-	virtual void RegisterSyncObject(IDisplayClusterClusterSyncObject* pSyncObj) override;
-	virtual void UnregisterSyncObject(IDisplayClusterClusterSyncObject* pSyncObj) override;
-
-	virtual void ExportSyncData(FDisplayClusterMessage::DataType& data) const override;
-	virtual void ImportSyncData(const FDisplayClusterMessage::DataType& data) override;
-
-	virtual void ExportEventsData(FDisplayClusterMessage::DataType& data) const override;
-	virtual void ImportEventsData(const FDisplayClusterMessage::DataType& data) override;
-
-	virtual void SyncObjects() override;
+	virtual void SyncObjects(EDisplayClusterSyncGroup SyncGroup) override;
 	virtual void SyncInput()   override;
 	virtual void SyncEvents()  override;
 
-	virtual void ClearSyncObjects() override;
-
+	virtual void ProvideNativeInputData(const TMap<FString, FString>& NativeInputData) override;
+	virtual void SyncNativeInput(TMap<FString, FString>& NativeInputData) override;
 
 private:
 	bool GetResolvedNodeId(FString& id) const;
@@ -106,8 +98,6 @@ private:
 	TController Controller;
 	// Cluster/node props
 	uint32 NodesAmount = 0;
-	// Current time delta for sync
-	float DeltaTime = 0.f;
 
 	// Current operation mode
 	EDisplayClusterOperationMode CurrentOperationMode;
@@ -119,8 +109,7 @@ private:
 	UWorld* CurrentWorld;
 
 	// Sync transforms
-	TSet<IDisplayClusterClusterSyncObject*>      ObjectsToSync;
-	mutable FDisplayClusterMessage::DataType     SyncObjectsCache;
+	TMap<EDisplayClusterSyncGroup, TSet<IDisplayClusterClusterSyncObject*>> ObjectsToSync;
 	mutable FCriticalSection                     ObjectsToSyncCritSec;
 
 	// Sync events - types
@@ -135,6 +124,9 @@ private:
 	mutable FCriticalSection                     ClusterEventsCritSec;
 	FOnClusterEvent                              OnClusterEvent;
 	TArray<TScriptInterface<IDisplayClusterClusterEventListener>> ClusterEventListeners;
+	// Sync native input
+	FEvent* NativeInputDataAvailableEvent = nullptr;
+	TMap<FString, FString> NativeInputDataCache;
 
 	mutable FCriticalSection InternalsSyncScope;
 };

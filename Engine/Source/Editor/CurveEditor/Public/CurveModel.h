@@ -38,6 +38,7 @@ public:
 
 	FCurveModel()
 		: Color(FLinearColor::White)
+		, bKeyDrawEnabled(1)
 		, SupportedViews(ECurveEditorViewID::ANY_BUILT_IN)
 	{}
 
@@ -196,6 +197,14 @@ public:
 	}
 
 	/**
+	 * Retrieve this curve's color
+	 */
+	virtual FLinearColor GetColor() const
+	{
+		return IsReadOnly() ? Color.Desaturate(.6f) : Color;
+	}
+
+	/**
 	 * Create key proxy objects for the specified key handles. One object should be assigned to OutObjects per index within InKeyHandles
 	 *
 	 * @param InKeyHandles           Array of key handles to create edit objects for
@@ -305,19 +314,26 @@ public:
 	}
 
 	/**
-	 * Retrieve this curve's color
-	 */
-	FORCEINLINE FLinearColor GetColor() const
-	{
-		return IsReadOnly() ? Color.Desaturate(.6f) : Color;
-	}
-
-	/**
-	 * Assign a new color to this curve
 	 */
 	FORCEINLINE void SetColor(const FLinearColor& InColor)
 	{
 		Color = InColor;
+	}
+
+	/**
+ * Retrieves whether or not to disable drawing keys
+ */
+	FORCEINLINE bool IsKeyDrawEnabled() const
+	{
+		return bKeyDrawEnabled != 0;
+	}
+
+	/**
+	 * Assign whether or not to disable drawing keys
+	 */
+	FORCEINLINE void SetIsKeyDrawEnabled(bool bInKeyDrawEnabled)
+	{
+		bKeyDrawEnabled = bInKeyDrawEnabled ? 1 : 0;
 	}
 
 	/**
@@ -341,6 +357,9 @@ protected:
 
 	/** This curve's display color */
 	FLinearColor Color;
+
+	/** Whether or not to draw curve's keys */
+	uint8 bKeyDrawEnabled : 1;
 
 	/** A set of views supported by this curve */
 	ECurveEditorViewID SupportedViews;

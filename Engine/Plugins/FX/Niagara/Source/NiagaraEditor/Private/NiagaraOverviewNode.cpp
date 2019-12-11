@@ -2,8 +2,22 @@
 
 #include "NiagaraOverviewNode.h"
 #include "NiagaraSystem.h"
+#include "NiagaraEditorModule.h"
+#include "NiagaraEditorStyle.h"
+#include "ViewModels/Stack/NiagaraStackEntry.h"
+
+#include "Modules/ModuleManager.h"
+#include "ToolMenuSection.h"
+#include "ToolMenu.h"
+#include "GraphEditorActions.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewNodeStackItem"
+
+bool UNiagaraOverviewNode::bColorsAreInitialized = false;
+FLinearColor UNiagaraOverviewNode::EmitterColor;
+FLinearColor UNiagaraOverviewNode::SystemColor;
+FLinearColor UNiagaraOverviewNode::IsolatedColor;
+FLinearColor UNiagaraOverviewNode::NotIsolatedColor;
 
 UNiagaraOverviewNode::UNiagaraOverviewNode()
 	: OwningSystem(nullptr)
@@ -27,6 +41,21 @@ const FGuid UNiagaraOverviewNode::GetEmitterHandleGuid() const
 	return EmitterHandleGuid;
 }
 
+static const FNiagaraEmitterHandle* FindEmitterHandleByID(const UNiagaraSystem* System, const FGuid& Guid)
+{
+	check(System != nullptr);
+
+	for (const FNiagaraEmitterHandle& Handle : System->GetEmitterHandles())
+	{
+		if (Handle.GetId() == Guid)
+		{
+			return &Handle;
+		}
+	}
+
+	return nullptr;
+}
+
 FText UNiagaraOverviewNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	if (OwningSystem == nullptr)
@@ -36,20 +65,41 @@ FText UNiagaraOverviewNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 
 	if (EmitterHandleGuid.IsValid())
 	{
-		for (const FNiagaraEmitterHandle& Handle : OwningSystem->GetEmitterHandles())
+		const FNiagaraEmitterHandle* Handle = FindEmitterHandleByID(OwningSystem, EmitterHandleGuid);
+		if (ensureMsgf(Handle != nullptr, TEXT("Failed to find matching emitter handle for existing overview node!")))
 		{
-			if (Handle.GetId() == EmitterHandleGuid)
-			{
-				return FText::FromName(Handle.GetName());
-			}
+			return FText::FromName(Handle->GetName());
 		}
-		ensureMsgf(false, TEXT("Failed to find matching emitter handle for existing overview node!"));
+
 		return LOCTEXT("UnknownEmitterName", "Unknown Emitter");
 	}
 	else
 	{
 		return FText::FromString(OwningSystem->GetName());
 	}
+}
+
+FLinearColor UNiagaraOverviewNode::GetNodeTitleColor() const
+{
+	if (bColorsAreInitialized == false)
+	{
+		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+		EmitterColor = NiagaraEditorModule.GetWidgetProvider()->GetColorForExecutionCategory(UNiagaraStackEntry::FExecutionCategoryNames::Emitter);
+		SystemColor = NiagaraEditorModule.GetWidgetProvider()->GetColorForExecutionCategory(UNiagaraStackEntry::FExecutionCategoryNames::System);
+		IsolatedColor = FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.OverviewNode.IsolatedColor");
+		NotIsolatedColor = FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.OverviewNode.NotIsolatedColor");
+	}
+
+	if (EmitterHandleGuid.IsValid() && OwningSystem->GetIsolateEnabled())
+	{
+		const FNiagaraEmitterHandle* Handle = FindEmitterHandleByID(OwningSystem, EmitterHandleGuid);
+		if (ensureMsgf(Handle != nullptr, TEXT("Failed to find matching emitter handle for existing overview node!")))
+		{
+			return Handle->IsIsolated() ? IsolatedColor : NotIsolatedColor;
+		}
+	}
+
+	return EmitterHandleGuid.IsValid() ? EmitterColor : SystemColor;
 }
 
 bool UNiagaraOverviewNode::CanUserDeleteNode() const
@@ -61,6 +111,30 @@ bool UNiagaraOverviewNode::CanDuplicateNode() const
 {
 	// The class object must return true for can duplicate otherwise the CanImportNodesFromText utility function fails.
 	return HasAnyFlags(RF_ClassDefaultObject) || EmitterHandleGuid.IsValid();
+}
+
+void UNiagaraOverviewNode::GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
+{
+	FToolMenuSection& Section = Menu->AddSection("Alignment");
+	Section.AddSubMenu(
+		"Alignment",
+		LOCTEXT("AlignmentHeader", "Alignment"),
+		FText(),
+		FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+	{
+		{
+			FToolMenuSection& SubMenuSection = InMenu->AddSection("EdGraphSchemaAlignment", LOCTEXT("AlignHeader", "Align"));
+			SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesTop);
+			SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesMiddle);
+			SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesBottom);
+		}
+
+		{
+			FToolMenuSection& SubMenuSection = InMenu->AddSection("EdGraphSchemaDistribution", LOCTEXT("DistributionHeader", "Distribution"));
+			SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesHorizontally);
+			SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesVertically);
+		}
+	}));
 }
 
 UNiagaraSystem* UNiagaraOverviewNode::GetOwningSystem()

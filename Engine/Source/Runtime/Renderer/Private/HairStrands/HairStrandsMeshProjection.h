@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "RendererInterface.h"
+#include "HairStrandsInterface.h"
 #include "Shader.h"
 
 /* Project hair strands onto a LOD mesh */
@@ -11,8 +12,8 @@ void ProjectHairStrandsOntoMesh(
 	FRHICommandListImmediate& RHICmdList, 
 	TShaderMap<FGlobalShaderType>* ShaderMap,
 	const int32 LODIndex,
-	struct FHairStrandsProjectionMeshData& ProjectionMeshData, 
-	struct FHairStrandsProjectionHairData& ProjectionHairData);
+	FHairStrandsProjectionMeshData& ProjectionMeshData, 
+	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData);
 
 enum class HairStrandsTriangleType
 {
@@ -26,5 +27,5 @@ void UpdateHairStrandsMeshTriangles(
 	TShaderMap<FGlobalShaderType>* ShaderMap,
 	const int32 LODIndex,
 	const HairStrandsTriangleType Type,
-	struct FHairStrandsProjectionMeshData& ProjectionMeshData,
-	struct FHairStrandsProjectionHairData& ProjectionHairData);
+	FHairStrandsProjectionMeshData& ProjectionMeshData,
+	FHairStrandsProjectionHairData::HairGroup& ProjectionHairData);

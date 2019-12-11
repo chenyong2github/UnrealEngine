@@ -21,9 +21,10 @@ class FLoadTimeProfilerProvider
 public:
 	typedef TMonotonicTimeline<FLoadTimeProfilerCpuEvent> CpuTimelineInternal;
 
-	FLoadTimeProfilerProvider(IAnalysisSession& Session);
-	virtual void ReadMainThreadCpuTimeline(TFunctionRef<void(const CpuTimeline&)> Callback) const override;
-	virtual void ReadAsyncLoadingThreadCpuTimeline(TFunctionRef<void(const CpuTimeline&)> Callback) const override;
+	FLoadTimeProfilerProvider(IAnalysisSession& Session, ICounterProvider& CounterProvider);
+	virtual uint64 GetTimelineCount() const override { return CpuTimelines.Num(); }
+	virtual bool GetCpuThreadTimelineIndex(uint32 ThreadId, uint32& OutTimelineIndex) const override;
+	virtual bool ReadTimeline(uint32 Index, TFunctionRef<void(const CpuTimeline&)> Callback) const override;
 	virtual ITable<FLoadTimeProfilerAggregatedStats>* CreateEventAggregation(double IntervalStart, double IntervalEnd) const override;
 	virtual ITable<FLoadTimeProfilerAggregatedStats>* CreateObjectTypeAggregation(double IntervalStart, double IntervalEnd) const override;
 	virtual ITable<FPackagesTableRow>* CreatePackageDetailsTable(double IntervalStart, double IntervalEnd) const override;
@@ -31,69 +32,88 @@ public:
 	virtual const ITable<FLoadRequest>& GetRequestsTable() const override { return RequestsTable; }
 	const FClassInfo& AddClassInfo(const TCHAR* ClassName);
 	FLoadRequest& CreateRequest();
-	FPackageInfo& CreatePackage(const TCHAR* PackageName);
+	FPackageInfo& EditPackageInfo(const TCHAR* PackageName);
+	uint64 BeginLoadPackage(const FPackageInfo& PackageInfo, double Time);
+	void EndLoadPackage(uint64 LoadHandle, double Time);
 	FPackageExportInfo& CreateExport();
-	CpuTimelineInternal& EditMainThreadCpuTimeline() { return MainThreadCpuTimeline.Get(); }
-	CpuTimelineInternal& EditAsyncLoadingThreadCpuTimeline() { return AsyncLoadingThreadCpuTimeline.Get(); }
-	CpuTimelineInternal& EditAdditionalCpuTimeline(uint32 ThreadId);
-	virtual uint32 GetMainThreadId() const override { return MainThreadId; }
-	void SetMainThreadId(uint32 ThreadId) { MainThreadId = ThreadId; }
-	virtual uint32 GetAsyncLoadingThreadId() const override { return AsyncLoadingThreadId; }
-	void SetAsyncLoadingThreadId(uint32 ThreadId) { AsyncLoadingThreadId = ThreadId; }
+	CpuTimelineInternal& EditCpuTimeline(uint32 ThreadId);
+	uint64 BeginIoDispatcherBatch(uint64 BatchId, double Time);
+	void EndIoDispatcherBatch(uint64 BatchHandle, double Time, uint64 TotalSize);
 
 private:
+	struct FLoaderFrame;
+
 	static uint64 PackageSizeSum(const FLoadRequest& Row);
+	void CreateCounters();
+	void DistributeBytesAcrossFrames(uint64 ByteCount, double StartTime, double EndTime, uint64 FLoaderFrame::* FrameVariable);
 
-	UE_TRACE_TABLE_LAYOUT_BEGIN(FAggregatedStatsTableLayout, FLoadTimeProfilerAggregatedStats)
-		UE_TRACE_TABLE_COLUMN(Name, TEXT("Name"))
-		UE_TRACE_TABLE_COLUMN(Count, TEXT("Count"))
-		UE_TRACE_TABLE_COLUMN(Total, TEXT("Total"))
-		UE_TRACE_TABLE_COLUMN(Min, TEXT("Min"))
-		UE_TRACE_TABLE_COLUMN(Max, TEXT("Max"))
-		UE_TRACE_TABLE_COLUMN(Average, TEXT("Avg"))
-		UE_TRACE_TABLE_COLUMN(Median, TEXT("Med"))
-	UE_TRACE_TABLE_LAYOUT_END()
+	static constexpr double LoaderFrameLength = 1.0 / 60.0;
 
-	UE_TRACE_TABLE_LAYOUT_BEGIN(FPackagesTableLayout, FPackagesTableRow)
-		UE_TRACE_TABLE_PROJECTED_COLUMN(TableColumnType_CString, TEXT("Package"), [](const FPackagesTableRow& Row) { return Row.PackageInfo->Name; })
-		UE_TRACE_TABLE_PROJECTED_COLUMN(TableColumnType_CString, TEXT("EventType"), [](const FPackagesTableRow& Row) { return GetLoadTimeProfilerPackageEventTypeString(Row.EventType); })
-		UE_TRACE_TABLE_COLUMN(SerializedHeaderSize, TEXT("SerializedHeaderSize"))
-		UE_TRACE_TABLE_COLUMN(SerializedExportsCount, TEXT("SerializedExportsCount"))
-		UE_TRACE_TABLE_COLUMN(SerializedExportsSize, TEXT("SerializedExportsSize"))
-		UE_TRACE_TABLE_COLUMN(MainThreadTime, TEXT("MainThreadTime"))
-		UE_TRACE_TABLE_COLUMN(AsyncLoadingThreadTime, TEXT("AsyncLoadingThreadTime"))
-	UE_TRACE_TABLE_LAYOUT_END()
+	struct FPackageLoad
+	{
+		const FPackageInfo* Package = nullptr;
+		double StartTime = 0.0;
+		double EndTime = 0.0;
+	};
 
-	UE_TRACE_TABLE_LAYOUT_BEGIN(FExportsTableLayout, FExportsTableRow)
-		UE_TRACE_TABLE_PROJECTED_COLUMN(TableColumnType_CString, TEXT("Package"), [](const FExportsTableRow& Row) { return Row.ExportInfo->Package ? Row.ExportInfo->Package->Name : TEXT("[unknown]"); })
-		UE_TRACE_TABLE_PROJECTED_COLUMN(TableColumnType_CString, TEXT("Class"), [](const FExportsTableRow& Row) { return Row.ExportInfo->Class ? Row.ExportInfo->Class->Name : TEXT("[unknown]"); })
-		UE_TRACE_TABLE_PROJECTED_COLUMN(TableColumnType_CString, TEXT("EventType"), [](const FExportsTableRow& Row) { return GetLoadTimeProfilerObjectEventTypeString(Row.EventType); })
-		UE_TRACE_TABLE_COLUMN(SerializedSize, TEXT("SerializedSize"))
-		UE_TRACE_TABLE_COLUMN(MainThreadTime, TEXT("MainThreadTime"))
-		UE_TRACE_TABLE_COLUMN(AsyncLoadingThreadTime, TEXT("AsyncLoadingThreadTime"))
-	UE_TRACE_TABLE_LAYOUT_END()
+	struct FIoDispatcherBatch
+	{
+		double StartTime = 0.0;
+		double EndTime = 0.0;
+		uint64 TotalSize = 0;
+	};
 
-	UE_TRACE_TABLE_LAYOUT_BEGIN(FRequestsTableLayout, FLoadRequest)
-		UE_TRACE_TABLE_COLUMN(Name, TEXT("Name"))
-		UE_TRACE_TABLE_COLUMN(ThreadId, TEXT("ThreadId"))
-		UE_TRACE_TABLE_COLUMN(StartTime, TEXT("StartTime"))
-		UE_TRACE_TABLE_COLUMN(EndTime, TEXT("EndTime"))
-		UE_TRACE_TABLE_PROJECTED_COLUMN(TableColumnType_Int, TEXT("PackageCount"), [](const FLoadRequest& Row) { return Row.Packages.Num(); })
-		UE_TRACE_TABLE_PROJECTED_COLUMN(TableColumnType_Int, TEXT("Size"), PackageSizeSum)
-		UE_TRACE_TABLE_PROJECTED_COLUMN(TableColumnType_CString, TEXT("FirstPackage"), [](const FLoadRequest& Row) { return Row.Packages.Num() ? Row.Packages[0]->Name : TEXT("N/A"); })
-	UE_TRACE_TABLE_LAYOUT_END()
+	struct FLoaderFrame
+	{
+		uint64 IoDispatcherReadBytes = 0;
+		uint64 HeaderLoadedBytes = 0;
+		uint64 ExportLoadedBytes = 0;
+	};
+
+	class FLoaderFrameCounter
+		: public ICounter
+	{
+	public:
+		enum ELoaderFrameCounterType
+		{
+			LoaderFrameCounterType_IoDispatcherThroughput,
+			LoaderFrameCounterType_LoaderThroughput,
+			LoaderFrameCounterType_Count
+		};
+
+		FLoaderFrameCounter(ELoaderFrameCounterType Type, const TPagedArray<FLoaderFrame>& Frames);
+		virtual const TCHAR* GetName() const override;
+		virtual const TCHAR* GetDescription() const override;
+		virtual bool IsFloatingPoint() const override;
+		virtual ECounterDisplayHint GetDisplayHint() const override;
+		virtual void EnumerateValues(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, int64)> Callback) const override;
+		virtual void EnumerateFloatValues(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, double)> Callback) const override;
+
+	private:
+		const TPagedArray<FLoaderFrame>& Frames;
+		ELoaderFrameCounterType Type;
+	};
 
 	IAnalysisSession& Session;
+	ICounterProvider& CounterProvider;
 	TPagedArray<FClassInfo> ClassInfos;
 	TPagedArray<FLoadRequest> Requests;
 	TPagedArray<FPackageInfo> Packages;
+	TPagedArray<FPackageLoad> PackageLoads;
+	TPagedArray<FIoDispatcherBatch> IoDispatcherBatches;
 	TPagedArray<FPackageExportInfo> Exports;
-	TSharedRef<CpuTimelineInternal> MainThreadCpuTimeline;
-	TSharedRef<CpuTimelineInternal> AsyncLoadingThreadCpuTimeline;
-	TMap<uint32, TSharedRef<CpuTimelineInternal>> AdditionalCpuTimelinesMap;
-	uint32 MainThreadId = uint32(-1);
-	uint32 AsyncLoadingThreadId = uint32(-1);
-	TTableView<FRequestsTableLayout> RequestsTable;
+	TArray<TSharedRef<CpuTimelineInternal>> CpuTimelines;
+	TMap<uint32, uint32> CpuTimelinesThreadMap;
+	TTableView<FLoadRequest> RequestsTable;
+	TTableLayout<FLoadTimeProfilerAggregatedStats> AggregatedStatsTableLayout;
+	TTableLayout<FPackagesTableRow> PackagesTableLayout;
+	TTableLayout<FExportsTableRow> ExportsTableLayout;
+	TPagedArray<FLoaderFrame> Frames;
+	bool bHasCreatedCounters = false;
+	IEditableCounter* ActiveIoDispatcherBatchesCounter = nullptr;
+	IEditableCounter* TotalIoDispatcherBytesReadCounter = nullptr;
+	IEditableCounter* LoadingPackagesCounter = nullptr;
+	IEditableCounter* TotalLoaderBytesLoadedCounter = nullptr;
 };
 
 }

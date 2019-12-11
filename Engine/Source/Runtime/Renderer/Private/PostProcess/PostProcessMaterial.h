@@ -96,6 +96,13 @@ struct FPostProcessMaterialInputs
 
 	/** Performs a vertical axis flip if the RHI allows it. */
 	bool bFlipYAxis = false;
+
+	/** Allows (but doesn't guarantee) an optimization where, if possible, the scene color input is reused as
+	 *  the output. This can elide a copy in certain circumstances; for example, when the scene color input isn't
+	 *  actually used by the post process material and no special depth-stencil / blend composition is required.
+	 *  Set this to false when you need to guarantee creation of a dedicated output texture.
+	 */
+	bool bAllowSceneColorInputAsOutput = true;
 };
 
 FScreenPassTexture AddPostProcessMaterialPass(

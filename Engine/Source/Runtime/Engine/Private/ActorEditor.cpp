@@ -148,6 +148,11 @@ void AActor::PostEditMove(bool bFinished)
 		}
 	}
 
+	if (!FLevelUtils::IsMovingLevel())
+	{
+		GEngine->BroadcastOnActorMoving(this);
+	}
+
 	if ( bFinished )
 	{
 		UWorld* World = GetWorld();
@@ -185,7 +190,13 @@ void AActor::PostEditMove(bool bFinished)
 
 bool AActor::ReregisterComponentsWhenModified() const
 {
-	return !IsTemplate() && !GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor) && GetWorld() != nullptr;
+	// For child actors, redirect to the parent's owner (we do the same in RerunConstructionScripts).
+	if (const AActor* ParentActor = GetParentActor())
+	{
+		return ParentActor->ReregisterComponentsWhenModified();
+	}
+
+	return !bActorIsBeingConstructed && !IsTemplate() && !GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor) && GetWorld() != nullptr;
 }
 
 void AActor::DebugShowComponentHierarchy(  const TCHAR* Info, bool bShowPosition )
@@ -551,6 +562,15 @@ bool AActor::InternalPostEditUndo()
 
 	// This is a normal undo, so call super
 	return true;
+}
+
+void AActor::PostTransacted(const FTransactionObjectEvent& TransactionEvent)
+{
+	Super::PostTransacted(TransactionEvent);
+	if (TransactionEvent.HasOuterChange())
+	{
+		GEngine->BroadcastLevelActorOuterChanged(this, StaticFindObject(ULevel::StaticClass(), nullptr, *TransactionEvent.GetOriginalObjectOuterPathName().ToString()));
+	}
 }
 
 void AActor::PostEditUndo()

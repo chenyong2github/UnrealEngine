@@ -27,7 +27,6 @@
 	<Option Name="WithAndroid-ARM64" DefaultValue="false" Description="Compile for Android ARM64"/>
 	<Option Name="WithAndroid-x86" DefaultValue="false" Description="Compile for Android x86"/>
 	<Option Name="WithAndroid-x64" DefaultValue="false" Description="Compile for Android x64"/>
-	<Option Name="WithHTML5" DefaultValue="false" Description="Compile for HTML5"/>
 	<Option Name="WithSwitch" DefaultValue="false" Description="Compile for Switch"/>
 	<Option Name="ShelvedChange" DefaultValue="" Description="Change to unshelve"/>
 
@@ -105,11 +104,6 @@
 			<Command Name="BuildPhysX" Arguments="-TargetPlatforms=Android-x64 -TargetConfigs=&quot;$(TargetConfigs)&quot; -TargetWindowsCompilers=&quot;$(TargetWindowsCompilers)&quot; $(OtherArgs)"/>
 		</Node>
 	</Agent>
-	<Agent Name="PhysX HTML5" Type="EngineWin64;PhysX_CompileWin64;Win64">
-		<Node Name="Compile PhysX HTML5">
-			<Command Name="BuildPhysX" Arguments="-TargetPlatforms=HTML5 -TargetConfigs=&quot;$(TargetConfigs)&quot; -TargetWindowsCompilers=&quot;$(TargetWindowsCompilers)&quot; $(OtherArgs)"/>
-		</Node>
-	</Agent>
 	<Agent Name="PhysX Mac" Type="EngineMac;PhysX_CompileMac;Mac">
 		<Node Name="Compile PhysX Mac">
 			<Command Name="BuildPhysX" Arguments="-TargetPlatforms=Mac -TargetConfigs=&quot;$(TargetConfigs)&quot; $(OtherArgs)"/>
@@ -145,7 +139,6 @@
 	<Property Name="PhysXTargets" Value="$(PhysXTargets);Compile PhysX Android Arm64" If="$(WithAndroid-ARM64)"/>
 	<Property Name="PhysXTargets" Value="$(PhysXTargets);Compile PhysX Android x86" If="$(WithAndroid-x86)"/>
 	<Property Name="PhysXTargets" Value="$(PhysXTargets);Compile PhysX Android x64" If="$(WithAndroid-x64)"/>
-	<Property Name="PhysXTargets" Value="$(PhysXTargets);Compile PhysX HTML5" If="$(WithHTML5)"/>
 	<Property Name="PhysXTargets" Value="$(PhysXTargets);Compile PhysX Mac" If="$(WithMac)"/>
 	<Property Name="PhysXTargets" Value="$(PhysXTargets);Compile PhysX IOS" If="$(WithIOS)"/>
 	<Property Name="PhysXTargets" Value="$(PhysXTargets);Compile PhysX TVOS" If="$(WithTVOS)"/>
@@ -160,7 +153,6 @@
 	<Notify Nodes="Compile PhysX XboxOne" Users="$(AllEmailTargets);jeff.campeau@epicgames.com"/>
 	<Notify Nodes="Compile PhysX Linux;Compile PhysX Linux x86;Compile PhysX Linux ARM32;Compile PhysX Linux ARM64" Users="$(AllEmailTargets);arciel.rekman@epicgames.com"/>
 	<Notify Nodes="Compile PhysX Android Armv7;Compile PhysX Android Arm64;Compile PhysX Android x86;Compile PhysX Android x64" Users="$(AllEmailTargets);chris.babcock@epicgames.com"/>
-	<Notify Nodes="Compile PhysX HTML5" Users="$(AllEmailTargets);nshin@phosphorgames.com"/>
 	<Notify Nodes="Compile PhysX Mac;Compile PhysX IOS;Compile PhysX TVOS" Users="$(AllEmailTargets);michael.trepka@epicgames.com"/>
 	<Notify Nodes="Compile PhysX Switch" Users="$(AllEmailTargets);joe.barnes@epicgames.com"/>
 </BuildGraph>

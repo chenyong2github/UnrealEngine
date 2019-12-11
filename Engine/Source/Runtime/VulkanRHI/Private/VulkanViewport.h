@@ -81,9 +81,10 @@ public:
 	}
 
 protected:
-	TStaticArray<VkImage, NUM_BUFFERS> BackBufferImages;
-	TStaticArray<VulkanRHI::FSemaphore*, NUM_BUFFERS> RenderingDoneSemaphores;
-	TStaticArray<FVulkanTextureView, NUM_BUFFERS> TextureViews;
+	// NUM_BUFFERS don't have to match exactly as the driver can require a minimum number larger than NUM_BUFFERS. Provide some slack
+	TArray<VkImage, TInlineAllocator<NUM_BUFFERS*2>> BackBufferImages;
+	TArray<VulkanRHI::FSemaphore*, TInlineAllocator<NUM_BUFFERS*2>> RenderingDoneSemaphores;
+	TArray<FVulkanTextureView, TInlineAllocator<NUM_BUFFERS*2>> TextureViews;
 	TRefCountPtr<FVulkanBackBuffer> RHIBackBuffer;
 
 	// 'Dummy' back buffer

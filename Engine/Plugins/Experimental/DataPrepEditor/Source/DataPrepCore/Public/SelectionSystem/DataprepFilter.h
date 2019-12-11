@@ -3,6 +3,7 @@
 #pragma once
 
 #include "DataprepFetcher.h"
+#include "DataprepParameterizableObject.h"
 
 #include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
@@ -16,7 +17,7 @@
  * It's main responsibility is to filter a array of object and to return the selected objects
  */
 UCLASS(Abstract)
-class DATAPREPCORE_API UDataprepFilter : public UObject
+class DATAPREPCORE_API UDataprepFilter : public UDataprepParameterizableObject
 {
 	GENERATED_BODY()
 

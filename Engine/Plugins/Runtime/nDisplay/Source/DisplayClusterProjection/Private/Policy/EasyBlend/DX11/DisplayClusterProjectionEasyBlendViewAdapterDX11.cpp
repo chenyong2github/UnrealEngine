@@ -128,27 +128,16 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::GetProjectionMatrix(cons
 {
 	check(Views.Num() > (int)ViewIdx);
 
-	// Invert Z-axis (UE4 uses Z-inverted LHS)
-	static const FMatrix flipZ = FMatrix(
-		FPlane(1, 0, 0, 0),
-		FPlane(0, 1, 0, 0),
-		FPlane(0, 0, -1, 0),
-		FPlane(0, 0, 1, 1));
-
 	// Build Projection matrix:
 	const float n = ZNear;
 	const float f = ZFar;
 
-	float l = float(ZNear * tan(FMath::DegreesToRadians(Views[ViewIdx].EasyBlendMeshData->Frustum.LeftAngle)));
-	float r = float(ZNear * tan(FMath::DegreesToRadians(Views[ViewIdx].EasyBlendMeshData->Frustum.RightAngle)));
-	float b = float(ZNear * tan(FMath::DegreesToRadians(Views[ViewIdx].EasyBlendMeshData->Frustum.BottomAngle)));
-	float t = float(ZNear * tan(FMath::DegreesToRadians(Views[ViewIdx].EasyBlendMeshData->Frustum.TopAngle)));
+	const float l = Views[ViewIdx].EasyBlendMeshData->Frustum.LeftAngle;
+	const float r = Views[ViewIdx].EasyBlendMeshData->Frustum.RightAngle;
+	const float b = Views[ViewIdx].EasyBlendMeshData->Frustum.BottomAngle;
+	const float t = Views[ViewIdx].EasyBlendMeshData->Frustum.TopAngle;
 
-	const FMatrix pm = DisplayClusterHelpers::math::GetSafeProjectionMatrix(l, r, t, b, n, f);
-
-	const FMatrix result(pm * flipZ);
-
-	OutPrjMatrix = result;
+	OutPrjMatrix = DisplayClusterHelpers::math::GetProjectionMatrixFromAngles(l, r, t, b, n, f);
 
 	return true;
 }

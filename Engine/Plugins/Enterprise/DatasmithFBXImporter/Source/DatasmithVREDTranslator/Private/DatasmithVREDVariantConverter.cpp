@@ -7,7 +7,6 @@
 #include "DatasmithVariantElements.h"
 #include "DatasmithVREDImportData.h"
 #include "DatasmithVREDLog.h"
-#include "PropertyValue.h"
 
 #define UNGROUPED_VARSET_NAME TEXT("Ungrouped variant sets")
 
@@ -184,7 +183,7 @@ TSharedPtr<IDatasmithLevelVariantSetsElement> FVREDVariantConverter::ConvertVari
 				for (const TSharedPtr<IDatasmithActorElement>& NodeActor : NodeActorsArray)
 				{
 					TSharedPtr<IDatasmithPropertyCaptureElement> PropertyCapture = FDatasmithSceneFactory::CreatePropertyCapture();
-					PropertyCapture->SetCategory(EPropertyValueCategory::Visibility);
+					PropertyCapture->SetCategory(EDatasmithPropertyCategory::Visibility);
 
 					FString OriginalName = NodeActor->GetTagsCount() > 0 ? NodeActor->GetTag(0) : FString();
 					bool bVisible = VisibileNodes.Contains(OriginalName);
@@ -242,7 +241,7 @@ TSharedPtr<IDatasmithLevelVariantSetsElement> FVREDVariantConverter::ConvertVari
 				for (const TSharedPtr<IDatasmithActorElement>& NodeActor : NodeActorsArray)
 				{
 					TSharedPtr<IDatasmithPropertyCaptureElement> PropertyCapture = FDatasmithSceneFactory::CreatePropertyCapture();
-					PropertyCapture->SetCategory(EPropertyValueCategory::Visibility);
+					PropertyCapture->SetCategory(EDatasmithPropertyCategory::Visibility);
 					PropertyCapture->SetRecordedData((uint8*)&bVisible, sizeof(bool));
 
 					TSharedPtr<IDatasmithActorBindingElement> Binding = FDatasmithSceneFactory::CreateActorBinding();
@@ -293,7 +292,7 @@ TSharedPtr<IDatasmithLevelVariantSetsElement> FVREDVariantConverter::ConvertVari
 				for (const TSharedPtr<IDatasmithActorElement>& NodeActor : NodeActorsArray)
 				{
 					TSharedPtr<IDatasmithObjectPropertyCaptureElement> PropertyCapture = FDatasmithSceneFactory::CreateObjectPropertyCapture();
-					PropertyCapture->SetCategory(EPropertyValueCategory::Material);
+					PropertyCapture->SetCategory(EDatasmithPropertyCategory::Material);
 					PropertyCapture->SetRecordedObject(*DatasmithMaterial);
 
 					TSharedPtr<IDatasmithActorBindingElement> Binding = FDatasmithSceneFactory::CreateActorBinding();
@@ -335,15 +334,15 @@ TSharedPtr<IDatasmithLevelVariantSetsElement> FVREDVariantConverter::ConvertVari
 				for (const TSharedPtr<IDatasmithActorElement>& NodeActor : NodeActorsArray)
 				{
 					TSharedPtr<IDatasmithPropertyCaptureElement> LocationProperty = FDatasmithSceneFactory::CreatePropertyCapture();
-					LocationProperty->SetCategory(EPropertyValueCategory::RelativeLocation);
+					LocationProperty->SetCategory(EDatasmithPropertyCategory::RelativeLocation);
 					LocationProperty->SetRecordedData((uint8*)&Loc, sizeof(FVector));
 
 					TSharedPtr<IDatasmithPropertyCaptureElement> RotationProperty = FDatasmithSceneFactory::CreatePropertyCapture();
-					RotationProperty->SetCategory(EPropertyValueCategory::RelativeRotation);
+					RotationProperty->SetCategory(EDatasmithPropertyCategory::RelativeRotation);
 					RotationProperty->SetRecordedData((uint8*)&Rot, sizeof(FRotator));
 
 					TSharedPtr<IDatasmithPropertyCaptureElement> ScaleProperty = FDatasmithSceneFactory::CreatePropertyCapture();
-					ScaleProperty->SetCategory(EPropertyValueCategory::RelativeScale3D);
+					ScaleProperty->SetCategory(EDatasmithPropertyCategory::RelativeScale3D);
 					ScaleProperty->SetRecordedData((uint8*)&Scale, sizeof(FVector));
 
 					TSharedPtr<IDatasmithActorBindingElement> Binding = FDatasmithSceneFactory::CreateActorBinding();

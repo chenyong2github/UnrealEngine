@@ -240,7 +240,7 @@ static bool signal_handler_callback (int signal, siginfo_t *info, pl_ucontext_t 
     /* If we are a fatal signal, we *can* only handle one at a time. So avoid allow multiple fatal signals going through */
     if (fatal_signal) {
         /* Returns true if set to 1, otherwise we failed to meaning more then one thread has been past here already */
-        if (!__sync_val_compare_and_swap(&handling_fatal_signal, 0, 1)) {
+        if (!__sync_bool_compare_and_swap(&handling_fatal_signal, 0, 1)) {
             spin_wait_for_max_seconds_then_exit(60);
         }
     }
@@ -271,7 +271,6 @@ static bool signal_handler_callback (int signal, siginfo_t *info, pl_ucontext_t 
     /* Call any post-crash callback */
     if (crashCallbacks.handleSignal != NULL)
         crashCallbacks.handleSignal(info, uap, crashCallbacks.context);
-
 
     // This was moved to the last statement, which may not work how it was original an issue as mentioned in the comment
     /* Remove all signal handlers -- if the crash reporting code fails, the default terminate

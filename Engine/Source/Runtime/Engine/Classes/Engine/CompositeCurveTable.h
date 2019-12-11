@@ -47,10 +47,13 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Tables)
 	TArray<UCurveTable*> ParentTables;
 
-	// true if this asset is currently being loaded; false otherwise
-	uint8 bIsLoading : 1;
-
 	// temporary copy used to detect changes so we can update delegates correctly on removal
 	UPROPERTY(transient)
 	TArray<UCurveTable*> OldParentTables;
+
+	// true if this asset is currently being loaded; false otherwise
+	uint8 bIsLoading : 1;
+
+	// true if we're already in the middle of updating parent tables for this asset
+	uint8 bUpdatingParentTables : 1;
 };

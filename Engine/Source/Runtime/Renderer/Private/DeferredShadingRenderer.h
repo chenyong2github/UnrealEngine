@@ -28,6 +28,7 @@ class UStaticMeshComponent;
 class FExponentialHeightFogSceneInfo;
 
 struct FSingleLayerWaterPassData;
+struct FHeightFogRenderingParameters;
 
 class FLightShaftsOutput
 {
@@ -47,6 +48,7 @@ public:
 	EDepthDrawingMode EarlyZPassMode;
 	bool bEarlyZPassMovable;
 	bool bDitheredLODTransitionsUseStencil;
+	int32 StencilLODMode = 0;
 	
 	FComputeFenceRHIRef TranslucencyLightingVolumeClearEndFence;
 
@@ -117,7 +119,7 @@ public:
 	*/
 	bool RenderSingleLayerWaterPass(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& PassData, FExclusiveDepthStencil::Type WaterPassDepthStencilAccess, bool bParallel);
 	/** Renders the water draw pass for a given View. */
-	bool RenderSingleLayerWaterPassView(FRHICommandListImmediate& RHICmdList, FViewInfo& View, FSingleLayerWaterPassData& PassData, const FMeshPassProcessorRenderState& InDrawRenderState, bool bParallel);
+	bool RenderSingleLayerWaterPassView(FRHICommandListImmediate& RHICmdList, FViewInfo& View, const FMeshPassProcessorRenderState& InDrawRenderState, bool bParallel);
 	/** Render, denoise and composite the scene SSR and under water effect.*/
 	void RenderSingleLayerWaterReflections(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& PassData);
 
@@ -193,6 +195,9 @@ private:
 	*/
 	bool PreRenderPrePass(FRHICommandListImmediate& RHICmdList);
 
+	void PreRenderDitherFill(FRHIAsyncComputeCommandListImmediate& RHICmdList, FSceneRenderTargets& SceneContext, FRHIUnorderedAccessView* StencilTextureUAV);
+	void PreRenderDitherFill(FRHICommandListImmediate& RHICmdList, FSceneRenderTargets& SceneContext, FRHIUnorderedAccessView* StencilTextureUAV);
+
 	void RenderPrePassEditorPrimitives(FRHICommandList& RHICmdList, const FViewInfo& View, const FMeshPassProcessorRenderState& DrawRenderState, EDepthDrawingMode DepthDrawingMode, bool bRespectUseAsOccluderFlag);
 
 	/**
@@ -210,9 +215,10 @@ private:
 
 	/** Renders the scene's fogging. */
 	bool RenderFog(FRHICommandListImmediate& RHICmdList, const FLightShaftsOutput& LightShaftsOutput);
+	void RenderUnderWaterFog(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& PassData);
 	
 	/** Renders the scene's fogging for a view. */
-	void RenderViewFog(FRHICommandList& RHICmdList, const FViewInfo& View, const FLightShaftsOutput& LightShaftsOutput);
+	void RenderViewFog(FRHICommandList& RHICmdList, const FViewInfo& View, const FHeightFogRenderingParameters& Params);
 
 	/** Renders the scene's atmosphere. */
 	void RenderAtmosphere(FRHICommandListImmediate& RHICmdList, const FLightShaftsOutput& LightShaftsOutput);
@@ -511,8 +517,8 @@ private:
 		const IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements,
 		const bool bSubPixelShadowMask,
 		FRDGTextureRef HairCategorizationTexture,
-		FRDGTextureRef* OutShadowMask,
-		FRDGTextureRef* OutRayHitDistance);
+		FRDGTextureUAV* OutShadowMaskUAV,
+		FRDGTextureUAV* OutRayHitDistanceUAV);
 
 	void RenderRayTracingStochasticRectLight(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo& RectLightSceneInfo, TRefCountPtr<IPooledRenderTarget>& RectLightRT, TRefCountPtr<IPooledRenderTarget>& HitDistanceRT);
 	void CompositeRayTracingSkyLight(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& SkyLightRT, TRefCountPtr<IPooledRenderTarget>& HitDistanceRT);
@@ -538,7 +544,7 @@ private:
 		FViewInfo& View,
 		int32 UpscaleFactor,
 		FRDGBufferRef& GatherPointsBuffer,
-		FIntPoint& GatherPointsResolution);
+		FIntVector& GatherPointsResolution);
 
 	void RenderRayTracingGlobalIlluminationFinalGather(
 		FRDGBuilder& GraphBuilder,

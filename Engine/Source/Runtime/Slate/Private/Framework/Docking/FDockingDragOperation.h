@@ -51,7 +51,7 @@ public:
 
 		/** We'll put the tab relative to this node */
 		TWeakPtr<class SDockingNode> TargetNode;
-		/** Relation to node where we will put the tab.qqq */
+		/** Relation to node where we will put the tab. */
 		SDockingNode::RelativeDirection DockDirection;
 	};
 

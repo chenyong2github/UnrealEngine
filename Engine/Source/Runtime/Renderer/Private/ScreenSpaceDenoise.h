@@ -246,6 +246,7 @@ public:
 		const FAmbientOcclusionRayTracingConfig Config) const = 0;
 
 	/** Entry point to denoise SSGI. */
+	virtual bool SupportsScreenSpaceDiffuseIndirectDenoiser(EShaderPlatform Platform) const = 0;
 	virtual FDiffuseIndirectOutputs DenoiseScreenSpaceDiffuseIndirect(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,

@@ -8,6 +8,8 @@
 #include "Serialization/StructuredArchive.h"
 #include "Algo/Sort.h"
 #include "Containers/Map.h"
+#include "Misc/ScopeRWLock.h"
+#include "CoreGlobals.h"
 
 namespace
 {
@@ -74,29 +76,8 @@ namespace
 }
 
 /** Defer FName creation and allocations from static FCustomVersionRegistrations that may never be needed */
-class FStaticCustomVersionRegistry
+struct FStaticCustomVersionRegistry
 {
-public:
-	static const FCustomVersionContainer& Get()
-	{
-		FStaticCustomVersionRegistry& StaticVersions = GetInstance();
-		StaticVersions.RegisterQueue();
-		return StaticVersions.Registered;
-	}
-
-	static void Register(FGuid Key, int32 Version, const TCHAR* Name)
-	{
-		RegistrationQueue& Queue = GetInstance().Queue;
-		check(Queue.Find(Key) == nullptr);
-		Queue.Add(Key, { Version, Name });
-	}
-
-	static void Unregister(FGuid Key)
-	{
-		 GetInstance().UnregisterImpl(Key);
-	}
-
-private:
 	struct FPendingRegistration
 	{
 		int32 Version;
@@ -104,14 +85,30 @@ private:
 	};
 	typedef TMap<FGuid, FPendingRegistration, TInlineSetAllocator<64>> RegistrationQueue;
 
+	FRWLock Lock;
 	FCustomVersionContainer Registered;
 	RegistrationQueue Queue;
 
-	static FStaticCustomVersionRegistry& GetInstance()
+	static FStaticCustomVersionRegistry& Get()
 	{
 		static FStaticCustomVersionRegistry Singleton;
 		return Singleton;
-	};
+	}
+
+	TOptional<FCustomVersion> Find(const FGuid& Guid) const
+	{
+		if (const FCustomVersion* RegisteredVersion = Registered.GetVersion(Guid))
+		{
+			return *RegisteredVersion;
+		}
+
+		if (const FPendingRegistration* Pending = Queue.Find(Guid))
+		{
+			return FCustomVersion(Guid, Pending->Version, Pending->FriendlyName);
+		}
+
+		return TOptional<FCustomVersion>();
+	}
 
 	void RegisterQueue()
 	{
@@ -148,7 +145,7 @@ private:
 		}
 	}
 
-	void UnregisterImpl(FGuid Key)
+	void Unregister(FGuid Key)
 	{
 		if (Queue.Remove(Key) == 0)
 		{
@@ -168,18 +165,99 @@ private:
 	}
 };
 
+FCustomVersionContainer FCurrentCustomVersions::GetAll()
+{
+	FStaticCustomVersionRegistry& Registry = FStaticCustomVersionRegistry::Get();
+
+	{
+		FReadScopeLock Scope(Registry.Lock);
+
+		if (Registry.Queue.Num() == 0)
+		{
+			return Registry.Registered;
+		}
+	}
+
+	FWriteScopeLock Scope(Registry.Lock);
+	Registry.RegisterQueue();
+	return Registry.Registered;
+}
+
+TOptional<FCustomVersion> FCurrentCustomVersions::Get(const FGuid& Guid)
+{
+	FStaticCustomVersionRegistry& Registry = FStaticCustomVersionRegistry::Get();
+
+	FReadScopeLock Scope(Registry.Lock);
+	return Registry.Find(Guid);
+}
+
+TArray<FCustomVersionDifference> FCurrentCustomVersions::Compare(const FCustomVersionArray& CompareVersions)
+{
+	TArray<FCustomVersionDifference> Result;
+
+	if (CompareVersions.Num())
+	{
+		FStaticCustomVersionRegistry& Registry = FStaticCustomVersionRegistry::Get();
+
+		FReadScopeLock Scope(Registry.Lock);
+
+		for (const FCustomVersion& CompareVersion : CompareVersions)
+		{
+			if (TOptional<FCustomVersion> CurrentVersion = Registry.Find(CompareVersion.Key))
+			{
+				if (int Delta = CurrentVersion.GetValue().Version - CompareVersion.Version)
+				{
+					Result.Add({ Delta < 0	? ECustomVersionDifference::Newer 
+											: ECustomVersionDifference::Older, &CompareVersion });
+				}
+			}
+			else
+			{
+				Result.Add({ ECustomVersionDifference::Missing, &CompareVersion });
+			}			
+		}
+	}
+
+	return Result;
+}
+
+void FCurrentCustomVersions::Register(const FGuid& Key, int32 Version, const TCHAR* Name)
+{
+	FStaticCustomVersionRegistry& Registry = FStaticCustomVersionRegistry::Get();
+
+	FWriteScopeLock Scope(Registry.Lock);
+	check(Registry.Queue.Find(Key) == nullptr);
+	Registry.Queue.Add(Key, { Version, Name });
+}
+
+void FCurrentCustomVersions::Unregister(const FGuid& Key)
+{
+	FStaticCustomVersionRegistry& Registry = FStaticCustomVersionRegistry::Get();
+
+	FWriteScopeLock Scope(Registry.Lock);
+	Registry.Unregister(Key);
+}
+
 const FName FCustomVersion::GetFriendlyName() const
 {
 	if (FriendlyName == NAME_None)
 	{
-		FriendlyName = FCustomVersionContainer::GetRegistered().GetFriendlyName(Key);
+		if (TOptional<FCustomVersion> CurrentVersion = FCurrentCustomVersions::Get(Key))
+		{
+			FriendlyName = CurrentVersion.GetValue().GetFriendlyName();
+		}
 	}
 	return FriendlyName;
 }
 
 const FCustomVersionContainer& FCustomVersionContainer::GetRegistered()
 {
-	return FStaticCustomVersionRegistry::Get();
+	FStaticCustomVersionRegistry& Registry = FStaticCustomVersionRegistry::Get();
+
+	// Even though returning a reference isn't thread-safe, we can still synchronize access to the queue
+	FWriteScopeLock Scope(Registry.Lock);
+	Registry.RegisterQueue();
+	return Registry.Registered;
 }
 
 void FCustomVersionContainer::Empty()
@@ -306,14 +384,4 @@ void FCustomVersionContainer::SetVersion(FGuid CustomKey, int32 Version, FName F
 	{
 		Versions.Add(FCustomVersion(CustomKey, Version, FriendlyName));
 	}
-}
-
-void FCustomVersionRegistration::QueueRegistration(FGuid Key, int32 Version, const TCHAR* Name)
-{
-	FStaticCustomVersionRegistry::Register(Key, Version, Name);
-}
-
-FCustomVersionRegistration::~FCustomVersionRegistration()
-{
-	FStaticCustomVersionRegistry::Unregister(Key);
 }

@@ -10,13 +10,13 @@
 #include "ReflectionEnvironmentShared.ush"
 #include "ShadingModels.ush"
 #include "SceneTextureParameters.ush"
+#include "LightGridCommon.ush"
 
 // Scale for encoding depth into SceneDepthWithoutSingleLayerWaterTexture
+// Must match FDeferredShadingSceneRenderer::RenderUnderWaterFog
 #define SINGLE_LAYER_WATER_DEPTH_SCALE 100.0f
 
 #define ENABLE_SKY_LIGHT 1
-
-#include "LightGridCommon.ush"
 
 #define REFLECTION_COMPOSITE_USE_BLENDED_REFLECTION_CAPTURES (FEATURE_LEVEL >= FEATURE_LEVEL_SM5)
 #define REFLECTION_COMPOSITE_SUPPORT_SKYLIGHT_BLEND 0
@@ -29,7 +29,7 @@ SamplerState ScreenSpaceReflectionsSampler;
 Texture2D SceneNoWaterDepthTexture;
 SamplerState SceneNoWaterDepthSampler;
 
-float2 SceneNoWaterMaxUV;
+float4 SceneNoWaterMinMaxUV;
 
 struct SingleLayerWaterCompositeOutput
 {
@@ -60,7 +60,7 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 #endif
 	if (ShadingModelID == SHADINGMODELID_SINGLELAYERWATER)
 	{
-		const float2 SceneNoWaterUV = min(BufferUV, SceneNoWaterMaxUV);
+		const float2 SceneNoWaterUV = clamp(BufferUV, SceneNoWaterMinMaxUV.xy, SceneNoWaterMinMaxUV.zw);
 
 		float OpaqueDepth = SceneNoWaterDepthTexture.SampleLevel(SceneNoWaterDepthSampler, SceneNoWaterUV, 0).x * SINGLE_LAYER_WATER_DEPTH_SCALE;
 		float WaterDepth = GBuffer.Depth;
@@ -87,6 +87,7 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 			float NoV = saturate(dot(N, V));
 			// Point lobe in off-specular peak direction
 			R = GetOffSpecularPeakReflectionDir(N, R, GBuffer.Roughness);
+			const bool bCompositeSkylight = true;
 			Reflection += PreExposure * CompositeReflectionCapturesAndSkylight(
 				1,
 				WorldPosition,
@@ -97,7 +98,8 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 				ExtraIndirectSpecular,
 				NumCulledReflectionCaptures,
 				CaptureDataStartIndex,
-				0);
+				0,
+				bCompositeSkylight);
 
 			// Then combine reflection with SSR
 			float4 SSR = Texture2DSample(ScreenSpaceReflectionsTexture, ScreenSpaceReflectionsSampler, BufferUV);
@@ -147,8 +149,8 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 
 uint VertexCountPerInstanceIndirect;
 
-RWStructuredBuffer<uint> DispatchIndirectDataUAV;
-RWStructuredBuffer<uint> WaterTileListDataUAV;
+RWBuffer<uint> DispatchIndirectDataUAV;
+RWBuffer<uint> WaterTileListDataUAV;
 
 groupshared bool ContainsWater[WORK_TILE_SIZE*WORK_TILE_SIZE];
 
@@ -247,7 +249,7 @@ void WaterTileCatergorisationCS(uint3 ThreadId : SV_DispatchThreadID, uint3 Grou
 #elif defined(TILE_VERTEX_SHADER)
 
 
-StructuredBuffer<uint> TileListData; //
+Buffer<uint> TileListData;
 
 void WaterTileVS(
 	in uint InstanceId : SV_InstanceID,
@@ -257,7 +259,7 @@ void WaterTileVS(
 	uint TileData = TileListData[InstanceId.x];
 	uint2 TileOrigin = uint2((TileData & 0x0000FFFF) * WORK_TILE_SIZE, (TileData >> 16) * WORK_TILE_SIZE);
 
-	uint2 TileVertex = TileOrigin + View.ViewRectMin.xy;
+	uint2 TileVertex = TileOrigin;
 	TileVertex.x += VertexId == 1 || VertexId == 2 || VertexId == 4 ? WORK_TILE_SIZE : 0;
 	TileVertex.y += VertexId == 2 || VertexId == 4 || VertexId == 5 ? WORK_TILE_SIZE : 0;
 

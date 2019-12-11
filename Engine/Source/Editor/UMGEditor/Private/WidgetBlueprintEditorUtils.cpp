@@ -1509,7 +1509,8 @@ bool FWidgetBlueprintEditorUtils::IsUsableWidgetClass(UClass* WidgetClass)
 	{
 		// We aren't interested in classes that are experimental or cannot be instantiated
 		bool bIsExperimental, bIsEarlyAccess;
-		FObjectEditorUtils::GetClassDevelopmentStatus(WidgetClass, bIsExperimental, bIsEarlyAccess);
+		FString MostDerivedDevelopmentClassName;
+		FObjectEditorUtils::GetClassDevelopmentStatus(WidgetClass, bIsExperimental, bIsEarlyAccess, MostDerivedDevelopmentClassName);
 		const bool bIsInvalid = WidgetClass->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists);
 		if ( bIsExperimental || bIsEarlyAccess || bIsInvalid )
 		{

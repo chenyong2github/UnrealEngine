@@ -14,7 +14,8 @@ enum class ELightmapUVVersion : int32
 	Allocator2DFlipFix = 5,
 	ConsiderLightmapPadding = 6,
 	ForceLightmapPadding = 7,
-	Latest = ForceLightmapPadding
+	Segments2D = 8,
+	Latest = Segments2D
 };
 
 /** Helper struct for building acceleration structures. */

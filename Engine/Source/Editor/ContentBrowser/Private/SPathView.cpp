@@ -24,6 +24,9 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "NativeClassHierarchy.h"
 #include "EmptyFolderVisibilityManager.h"
+#include "ContentBrowserModule.h"
+
+#include "Application/SlateApplicationBase.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -71,6 +74,8 @@ void SPathView::Construct( const FArguments& InArgs )
 	{
 		RegisterActiveTimer( 0.f, FWidgetActiveTimerDelegate::CreateSP( this, &SPathView::SetFocusPostConstruct ) );
 	}
+
+	ContentBrowserSingleton = &FContentBrowserSingleton::Get();
 
 	// Listen for when view settings are changed
 	UContentBrowserSettings::OnSettingChanged().AddSP(this, &SPathView::HandleSettingChanged);
@@ -330,6 +335,11 @@ TSharedPtr<FTreeItem> SPathView::AddPath(const FString& Path, bool bUserNamed)
 	if ( !ensure(TreeViewPtr.IsValid()) )
 	{
 		// No tree view for some reason
+		return TSharedPtr<FTreeItem>();
+	}
+
+	if (!ContentBrowserSingleton->PathViewPathPassesFilter(Path))
+	{
 		return TSharedPtr<FTreeItem>();
 	}
 
@@ -1071,13 +1081,13 @@ void SPathView::Populate()
 			// Strip off any leading or trailing forward slashes.  We just want a root path name that
 			// we can display, and we'll add the path separators back later on
 			FString CleanRootPathName = *RootPathIt;
-			while( CleanRootPathName.StartsWith( TEXT( "/" ) ) )
+			while( CleanRootPathName.StartsWith( TEXT( "/" ), ESearchCase::CaseSensitive ) )
 			{
-				CleanRootPathName = CleanRootPathName.Mid( 1 );
+				CleanRootPathName.MidInline( 1, MAX_int32, false);
 			}
-			while( CleanRootPathName.EndsWith( TEXT( "/" ) ) )
+			while( CleanRootPathName.EndsWith( TEXT( "/" ), ESearchCase::CaseSensitive) )
 			{
-				CleanRootPathName = CleanRootPathName.Mid( 0, CleanRootPathName.Len() - 1 );
+				CleanRootPathName.MidInline( 0, CleanRootPathName.Len() - 1, false );
 			}
 
 			// Templates can mount "root" items which are actually sub-items under a root (see FUnrealEdMisc::MountTemplateSharedPaths)
@@ -1165,14 +1175,14 @@ void SPathView::SortRootItems()
 		const bool bOneIsClass = OneModuleName.StartsWith(ClassesPrefix);
 		if(bOneIsClass)
 		{
-			OneModuleName = OneModuleName.Mid(ClassesPrefix.Len());
+			OneModuleName.MidInline(ClassesPrefix.Len(), MAX_int32, false);
 		}
 
 		FString TwoModuleName = Two->FolderName;
 		const bool bTwoIsClass = TwoModuleName.StartsWith(ClassesPrefix);
 		if(bTwoIsClass)
 		{
-			TwoModuleName = TwoModuleName.Mid(ClassesPrefix.Len());
+			TwoModuleName.MidInline(ClassesPrefix.Len(), MAX_int32, false);
 		}
 
 		// We want to sort content before classes if both items belong to the same module
@@ -1579,8 +1589,16 @@ void SPathView::OnFolderPopulated(const FString& Path)
 
 void SPathView::OnContentPathMountedOrDismounted( const FString& AssetPath, const FString& FilesystemPath )
 {
-	// A new content path has appeared, so we should refresh out root set of paths
-	RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateSP(this, &SPathView::TriggerRepopulate));
+	/**
+	 * Hotfix
+	 * For some reason this widget sometime outlive the slate application shutdown
+	 * Validating that Slate application base is initialized will at least avoid the possible crash
+	 */
+	if ( FSlateApplicationBase::IsInitialized() )
+	{
+		// A new content path has appeared, so we should refresh out root set of paths
+		RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateSP(this, &SPathView::TriggerRepopulate));
+	}
 }
 
 void SPathView::OnClassHierarchyUpdated()
@@ -1842,6 +1860,11 @@ TSharedPtr<FTreeItem> SFavoritePathView::AddPath(const FString& Path, bool bUser
 	if (!ensure(TreeViewPtr.IsValid()))
 	{
 		// No tree view for some reason
+		return TSharedPtr<FTreeItem>();
+	}
+
+	if (!ContentBrowserSingleton->PathViewPathPassesFilter(Path))
+	{
 		return TSharedPtr<FTreeItem>();
 	}
 

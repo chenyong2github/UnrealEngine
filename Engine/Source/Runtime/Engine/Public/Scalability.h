@@ -30,6 +30,7 @@ namespace Scalability
 		int32 TextureQuality;
 		int32 EffectsQuality;
 		int32 FoliageQuality;
+		int32 ShadingQuality;
 
 		float CPUBenchmarkResults;
 		float GPUBenchmarkResults;
@@ -99,6 +100,10 @@ namespace Scalability
 		// Sets the foliage quality
 		// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
 		void SetFoliageQuality(int32 Value);
+
+		// Sets the sharing quality
+		// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
+		void SetShadingQuality(int32 Value);
 
 		void SetBenchmarkFallback();
 

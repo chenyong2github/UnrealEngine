@@ -7,6 +7,7 @@
 #include "VoicePacketBuffer.h"
 #include "DSP/DynamicsProcessor.h"
 #include "DSP/EQ.h"
+#include "DSP/MultithreadedPatching.h"
 #include "VoipListenerSynthComponent.generated.h"
 
 #define DEBUG_BUFFERING 0
@@ -77,12 +78,17 @@ public:
 	*/
 	void SubmitPacket(void* InBuffer, int32 NumBytes, int64 InStartSample, EVoipStreamDataFormat DataFormat);
 
+	/**
+	 * Optionally connect this VOIP Synth Component to a splitter.
+	 */
+	void ConnectToSplitter(Audio::FPatchMixerSplitter& InSplitter);
+
 	/*
 	 * Thread safe way to get whether this synth component still has buffered packets of audio to play back.
 	 * This function is used by the Voice Engine to clean up voice sounds when they are not playing back audio
 	 * to make space for other sounds to be rendered.
 
-	 * @returns true if this synth component is lollygagging/dawdling/out of audio to play. 
+	 * @returns true if this synth component is out of audio to play. 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Voice|Sender")
 	bool IsIdling();
@@ -94,14 +100,29 @@ public:
 	*/
 	uint64 GetSampleCounter();
 
-private:
 
-	// This is allocated on OpenPacketStream()
+	virtual void BeginDestroy() override;
+
+private:
+	/**
+	 * This call will check how much audio we have buffered and drop the oldest audio if necessary.
+	 */
+	void ForceResync();
+
+
+	/** This patch input can optionally be set  */
+	Audio::FPatchInput ExternalSend;
+
+	/** This is allocated on OpenPacketStream() */
 	TUniquePtr<FVoicePacketBuffer> PacketBuffer;
+	FCriticalSection PacketBufferCriticalSection;
 
 	float MySampleRate;
 
 	int32 PreDelaySampleCounter;
+
+	/** The amount of audio we keep buffered to reduce underruns. */
+	float JitterDelayInSeconds;
 
 #if DEBUG_BUFFERING
 	FDebugFMTone FMToneGenerator;

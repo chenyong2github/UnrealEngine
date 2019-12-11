@@ -5,6 +5,15 @@
 #include "Physics/ImmediatePhysics/ImmediatePhysicsChaos/ImmediatePhysicsCore_Chaos.h"
 
 #include "Chaos/ChaosDebugDrawDeclares.h"
+#include "Chaos/Evolution/PBDMinEvolution.h"
+#include "Chaos/Collision/CollisionDetector.h"
+#include "Chaos/Collision/CollisionReceiver.h"
+#include "Chaos/Collision/NarrowPhase.h"
+#include "Chaos/Collision/ParticlePairBroadPhase.h"
+#include "Chaos/PBDCollisionConstraints.h"
+#include "Chaos/PBDConstraintRule.h"
+#include "Chaos/PBDJointConstraints.h"
+
 #include "Engine/EngineTypes.h"
 #include "Templates/UniquePtr.h"
 
@@ -59,8 +68,8 @@ namespace ImmediatePhysics_Chaos
 		//void SetIsKinematic(int32 ActorDataIndex, bool bKinematic);
 
 		/** Advance the simulation by DeltaTime */
-		void Simulate(float DeltaTime, const FVector& InGravity);
-		void Simulate_AssumesLocked(float DeltaTime, const FVector& InGravity) { Simulate(DeltaTime, InGravity); }
+		void Simulate(float DeltaTime, float MaxDeltaTime, int32 MaxSubSteps, const FVector& InGravity);
+		void Simulate_AssumesLocked(float DeltaTime, float MaxDeltaTime, int32 MaxSubSteps, const FVector& InGravity) { Simulate(DeltaTime, MaxDeltaTime, MaxSubSteps, InGravity); }
 
 		///** Whether or not an entity is simulated */
 		//bool IsSimulated(int32 ActorDataIndex) const;
@@ -81,14 +90,32 @@ namespace ImmediatePhysics_Chaos
 	private:
 		void ConditionConstraints();
 
-		void DebugDrawElementsAll(const int32 MinDebugLevel, const int32 MaxDebugLevel, const float ColorScale);
-		void DebugDrawElementsIsland(const int32 Island, const int32 MinDebugLevel, const int32 MaxDebugLevel, const float ColorScale);
+		void DebugDrawParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const float ColorScale, bool bDrawKinematic, bool bDrawDynamic);
+		void DebugDrawConstraints(const int32 MinDebugLevel, const int32 MaxDebugLevel, const float ColorScale);
+		void DebugDrawIslandParticles(const int32 Island, const int32 MinDebugLevel, const int32 MaxDebugLevel, const float ColorScale, bool bDrawKinematic, bool bDrawDynamic);
+		void DebugDrawIslandConstraints(const int32 Island, const int32 MinDebugLevel, const int32 MaxDebugLevel, const float ColorScale);
 
+		using FCollisionConstraints = Chaos::TPBDCollisionConstraints<FReal, 3>;
+		using FCollisionDetector = Chaos::TCollisionDetector<Chaos::FParticlePairBroadPhase, Chaos::FNarrowPhase, Chaos::FSyncCollisionReceiver, FCollisionConstraints>;
+		using FRigidParticleSOAs = Chaos::TPBDRigidsSOAs<FReal, 3>;
 		using FParticleHandle = Chaos::TGeometryParticleHandle<FReal, Dimensions>;
-		TUniquePtr<Chaos::TPBDRigidsEvolutionGBF<FReal, Dimensions>> Evolution;
-		TUniquePtr<Chaos::TPBDRigidsSOAs<FReal, Dimensions>> Particles;
-		TUniquePtr<Chaos::TPBDJointConstraints<FReal, Dimensions>> Joints;
-		TUniquePtr<Chaos::TPBDConstraintIslandRule<Chaos::TPBDJointConstraints<FReal, Dimensions>, FReal, Dimensions>> JointsRule;		// @todo(ccaulfield): Don't need islands for anim node physics...
+		using FParticlePair = Chaos::TVector<Chaos::TGeometryParticleHandle<Chaos::FReal, 3>*, 2>;
+
+		// @todo(ccaulfield): Look into these...
+		TArray<FParticlePair> PotentiallyCollidingPairs;
+		Chaos::TArrayCollectionArray<bool> CollidedParticles;
+		Chaos::TArrayCollectionArray<Chaos::TSerializablePtr<Chaos::FChaosPhysicsMaterial>> ParticleMaterials;
+		Chaos::TArrayCollectionArray<TUniquePtr<Chaos::FChaosPhysicsMaterial>> PerParticleMaterials;
+
+		FRigidParticleSOAs Particles;
+		Chaos::FPBDJointConstraints Joints;
+		FCollisionConstraints Collisions;
+		Chaos::FParticlePairBroadPhase BroadPhase;
+		FCollisionDetector CollisionDetector;
+		Chaos::TSimpleConstraintRule<Chaos::FPBDJointConstraints> JointsRule;
+		Chaos::TSimpleConstraintRule<FCollisionConstraints> CollisionsRule;
+		Chaos::FPBDMinEvolution Evolution;
+
 
 		/** Mapping from entity index to handle */
 		// @todo(ccaulfield): we now have handles pointing to handles which is inefficient - we can do better than this, but don't want to change API yet

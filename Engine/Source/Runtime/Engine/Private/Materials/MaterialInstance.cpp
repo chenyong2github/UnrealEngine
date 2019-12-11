@@ -1319,8 +1319,15 @@ void UMaterialInstance::LogMaterialsAndTextures(FOutputDevice& Ar, int32 Indent)
 
 void UMaterialInstance::ValidateTextureOverrides(ERHIFeatureLevel::Type InFeatureLevel) const
 {
+	if (!(IsInGameThread() || IsAsyncLoading()))
+	{
+		// Fatal to call getmaterial in a non-game thread or async loading
+		return;
+	}
+	
 	const UMaterial* Material = GetMaterial();
 	const FMaterialResource* CurrentResource = Material->GetMaterialResource(InFeatureLevel);
+	
 
 	if (!CurrentResource)
 	{
@@ -3587,7 +3594,7 @@ void UMaterialInstance::PostLoad()
 
 		// Make sure static parameters are up to date and shaders are cached for the current platform
 		InitStaticPermutation();
-#if WITH_EDITOR
+#if WITH_EDITOR && 1
 		// enable caching in postload for derived data cache commandlet and cook by the book
 		ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
 		if (TPM && (TPM->RestrictFormatsToRuntimeOnly() == false)) 

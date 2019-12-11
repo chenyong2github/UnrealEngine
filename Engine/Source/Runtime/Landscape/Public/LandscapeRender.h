@@ -92,6 +92,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeUniformShaderParameters, LANDSCAP
 SHADER_PARAMETER(int32, ComponentBaseX)
 SHADER_PARAMETER(int32, ComponentBaseY)
 SHADER_PARAMETER(int32, SubsectionSizeVerts)
+SHADER_PARAMETER(int32, NumSubsections)
 SHADER_PARAMETER(int32, LastLOD)
 SHADER_PARAMETER(FVector4, HeightmapUVScaleBias)
 SHADER_PARAMETER(FVector4, WeightmapUVScaleBias)
@@ -381,15 +382,6 @@ public:
 // FLandscapeNeighborInfo
 //
 
-struct LODSettingsComponent
-{
-	float LOD0ScreenSizeSquared;
-	float LOD1ScreenSizeSquared;
-	float LODOnePlusDistributionScalarSquared;
-	float LastLODScreenSizeSquared;
-	int8 LastLODIndex;
-};
-
 class FLandscapeNeighborInfo
 {
 public:
@@ -450,10 +442,6 @@ protected:
 	bool					bRegistered;
 	int32					PrimitiveCustomDataIndex;
 
-	LODSettingsComponent LODSettings;
-	FVector4 OriginAndSphereRadius;
-	FLandscapeComponentSceneProxy* LandscapeSceneProxy;
-
 	friend class FLandscapeComponentSceneProxy;
 
 public:
@@ -465,7 +453,6 @@ public:
 	, LODBias(InLODBias)
 	, bRegistered(false)
 	, PrimitiveCustomDataIndex(INDEX_NONE)
-	, LandscapeSceneProxy(nullptr)
 	{
 		//       -Y       
 		//    - - 0 - -   
@@ -481,8 +468,8 @@ public:
 		Neighbors[3] = nullptr;
 	}
 
-	void RegisterNeighbors();
-	void UnregisterNeighbors();
+	void RegisterNeighbors(FLandscapeComponentSceneProxy* SceneProxy = nullptr);
+	void UnregisterNeighbors(FLandscapeComponentSceneProxy* SceneProxy = nullptr);
 };
 
 
@@ -525,6 +512,15 @@ extern RENDERER_API TAutoConsoleVariable<float> CVarStaticMeshLODDistanceScale;
 
 struct FLandscapeRenderSystem
 {
+	struct LODSettingsComponent
+	{
+		float LOD0ScreenSizeSquared;
+		float LOD1ScreenSizeSquared;
+		float LODOnePlusDistributionScalarSquared;
+		float LastLODScreenSizeSquared;
+		int8 LastLODIndex;
+	};
+
 	static int8 GetLODFromScreenSize(LODSettingsComponent LODSettings, float InScreenSizeSquared, float InViewLODScale, float& OutFractionalLOD)
 	{
 		float ScreenSizeSquared = InScreenSizeSquared / InViewLODScale;
@@ -548,6 +544,7 @@ struct FLandscapeRenderSystem
 	}
 
 	int32 NumRegisteredEntities;
+	int32 NumEntitiesWithTessellation;
 
 	FIntPoint Min;
 	FIntPoint Size;
@@ -578,22 +575,31 @@ struct FLandscapeRenderSystem
 
 	TUniformBufferRef<FLandscapeSectionLODUniformParameters> UniformBuffer;
 
+	FCriticalSection CachedValuesCS;
 	TMap<const FSceneView*, TResourceArray<float>> CachedSectionLODValues;
 	TMap<const FSceneView*, TResourceArray<float>> CachedSectionTessellationFalloffC;
 	TMap<const FSceneView*, TResourceArray<float>> CachedSectionTessellationFalloffK;
 	const FSceneView* CachedView;
 
-	TMap<const FSceneView*, FGraphEventRef> TaskEventRef;
+	TMap<const FSceneView*, FGraphEventRef> PerViewParametersTasks;
 	FGraphEventRef FetchHeightmapLODBiasesEventRef;
 
 	struct FComputeSectionPerViewParametersTask
 	{
 		FLandscapeRenderSystem& RenderSystem;
-		const FSceneView* View;
+		const FSceneView* ViewPtrAsIdentifier;
+		bool ViewEngineShowFlagLOD;
+		float ViewLODDistanceFactor;
+		FVector ViewOrigin;
+		FMatrix ViewProjectionMatrix;
 
 		FComputeSectionPerViewParametersTask(FLandscapeRenderSystem& InRenderSystem, const FSceneView* InView)
 			: RenderSystem(InRenderSystem)
-			, View(InView)
+			, ViewPtrAsIdentifier(InView)
+			, ViewEngineShowFlagLOD(InView->Family->EngineShowFlags.LOD)
+			, ViewLODDistanceFactor(InView->LODDistanceFactor)
+			, ViewOrigin(InView->ViewMatrices.GetViewOrigin())
+			, ViewProjectionMatrix(InView->ViewMatrices.GetProjectionMatrix())
 		{
 		}
 
@@ -614,7 +620,7 @@ struct FLandscapeRenderSystem
 
 		void AnyThreadTask()
 		{
-			RenderSystem.ComputeSectionPerViewParameters(View);
+			RenderSystem.ComputeSectionPerViewParameters(ViewPtrAsIdentifier, ViewEngineShowFlagLOD, ViewLODDistanceFactor, ViewOrigin, ViewProjectionMatrix);
 		}
 
 		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
@@ -660,6 +666,7 @@ struct FLandscapeRenderSystem
 
 	FLandscapeRenderSystem()
 		: NumRegisteredEntities(0)
+		, NumEntitiesWithTessellation(0)
 		, Min(MAX_int32, MAX_int32)
 		, Size(EForceInit::ForceInitToZero)
 		, CachedView(nullptr)
@@ -669,6 +676,10 @@ struct FLandscapeRenderSystem
 		SectionTessellationFalloffC.SetAllowCPUAccess(true);
 		SectionTessellationFalloffK.SetAllowCPUAccess(true);
 	}
+
+	void RegisterEntity(FLandscapeComponentSceneProxy* SceneProxy);
+
+	void UnregisterEntity(FLandscapeComponentSceneProxy* SceneProxy);
 
 	int32 GetComponentLinearIndex(FIntPoint ComponentBase)
 	{
@@ -701,47 +712,24 @@ struct FLandscapeRenderSystem
 		return SectionLODBiases[GetComponentLinearIndex(ComponentBase)];
 	}
 
-	void ComputeSectionPerViewParameters(const FSceneView* View);
+	void ComputeSectionPerViewParameters(
+		const FSceneView* ViewPtrAsIdentifier,
+		bool ViewEngineShowFlagLOD,
+		float ViewLODDistanceFactor,
+		FVector ViewOrigin,
+		FMatrix ViewProjectionMarix);
 
-	void PrepareView(const FSceneView* View)
-	{
-		const bool bExecuteInParallel = FApp::ShouldUseThreadingForPerformance()
-			&& GRenderingThread; // Rendering thread is required to safely use rendering resources in parallel.
+	void PrepareView(const FSceneView* View);
 
-		if (bExecuteInParallel)
-		{
-			TaskEventRef.Add(View, TGraphTask<FComputeSectionPerViewParametersTask>::CreateTask(
-				nullptr, ENamedThreads::GetRenderThread()).ConstructAndDispatchWhenReady(*this, View));
-		}
-	}
-
-	void BeginRenderView(const FSceneView* View)
-	{
-		if (FetchHeightmapLODBiasesEventRef.IsValid())
-		{
-			FTaskGraphInterface::Get().WaitUntilTaskCompletes(FetchHeightmapLODBiasesEventRef, ENamedThreads::GetRenderThread_Local());
-			FetchHeightmapLODBiasesEventRef.SafeRelease();
-		}
-
-		if (TaskEventRef.Contains(View))
-		{
-			FTaskGraphInterface::Get().WaitUntilTaskCompletes(TaskEventRef[View], ENamedThreads::GetRenderThread_Local());
-			TaskEventRef.Remove(View);
-		}
-		else
-		{
-			FComputeSectionPerViewParametersTask Task(*this, View);
-			Task.AnyThreadTask();
-		}
-
-		RecreateBuffers(View);
-	}
+	void BeginRenderView(const FSceneView* View);
 
 	void BeginFrame();
 
 	void FetchHeightmapLODBiases();
 
 	void RecreateBuffers(const FSceneView* InView = nullptr);
+
+	void EndFrame();
 };
 
 extern TMap<FLandscapeNeighborInfo::FLandscapeKey, FLandscapeRenderSystem*> LandscapeRenderSystems;
@@ -863,7 +851,7 @@ public:
 	TStaticArray<FLandscapeSectionRayTracingState, MAX_SUBSECTION_COUNT> SectionRayTracingStates;
 #endif
 
-	friend FLandscapeNeighborInfo;
+	friend FLandscapeRenderSystem;
 
 protected:
 	int8						MaxLOD;		// Maximum LOD level, user override possible
@@ -883,6 +871,8 @@ protected:
 	float						MaxValidLOD;							// Max LOD Taking into account LODBias
 	float						TessellationComponentSquaredScreenSize;	// Screen size of the component at which we start to apply tessellation
 	float						TessellationComponentScreenSizeFalloff;	// Min Component screen size before we start applying the tessellation falloff
+
+	FLandscapeRenderSystem::LODSettingsComponent LODSettings;
 
 	/** 
 	 * Number of subsections within the component in each dimension, this can be 1 or 2.

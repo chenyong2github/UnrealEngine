@@ -57,8 +57,8 @@ public:
 	void Initialize(FRequiredEntryData InRequiredEntryData, FStackIssue InStackIssue, FStackIssueFix InIssueFix, FString InStackEditorDataKey);
 
 	FStackIssueFix GetStackIssueFix() const { return IssueFix; };
-	FText FixDescription() const;
 	FReply OnTryFixError();
+	virtual FText GetDisplayName() const override;
 	virtual EStackRowStyle GetStackRowStyle() const override;
 	virtual FText GetFixButtonText() const;
 	UNiagaraStackErrorItem::FOnIssueNotify& OnIssueFixed();

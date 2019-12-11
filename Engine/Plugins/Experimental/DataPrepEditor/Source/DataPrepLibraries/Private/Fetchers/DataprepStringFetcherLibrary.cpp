@@ -5,6 +5,8 @@
 #include "GameFramework/Actor.h"
 #include "UObject/Object.h"
 
+#define LOCTEXT_NAMESPACE "DataprepStringFetcherLibrary"
+
 /* UDataprepStringObjectNameFetcher methods
  *****************************************************************************/
 FString UDataprepStringObjectNameFetcher::Fetch_Implementation(const UObject* Object, bool& bOutFetchSucceded) const
@@ -24,6 +26,10 @@ bool UDataprepStringObjectNameFetcher::IsThreadSafe() const
 	return true;
 }
 
+FText UDataprepStringObjectNameFetcher::GetNodeDisplayFetcherName_Implementation() const
+{
+	return LOCTEXT("ObjectNameFilterTitle", "Object Name");
+}
 
 /* UDataprepStringActorLabelFetcher methods
  *****************************************************************************/
@@ -43,3 +49,10 @@ bool UDataprepStringActorLabelFetcher::IsThreadSafe() const
 {
 	return true;
 }
+
+FText UDataprepStringActorLabelFetcher::GetNodeDisplayFetcherName_Implementation() const
+{
+	return LOCTEXT("ActorLabelFilterTitle", "Actor Label");
+}
+
+#undef LOCTEXT_NAMESPACE

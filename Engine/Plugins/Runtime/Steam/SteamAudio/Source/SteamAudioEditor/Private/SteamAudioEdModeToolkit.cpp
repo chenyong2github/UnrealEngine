@@ -249,10 +249,10 @@ namespace SteamAudio
 			// Export the scene
 			UWorld* World = GEditor->GetLevelViewportClients()[0]->GetWorld();
 			IPLhandle PhononScene = nullptr;
-			TArray<IPLhandle> PhononStaticMeshes;
+			IPLhandle PhononStaticMesh = nullptr;
 			FPhononSceneInfo PhononSceneInfo;
 
-			if (!CreateScene(World, &PhononScene, &PhononStaticMeshes, PhononSceneInfo.NumTriangles))
+			if (!CreateScene(World, &PhononScene, &PhononStaticMesh, PhononSceneInfo.NumTriangles))
 			{
 				GEdModeTickable->QueueWorkItem(FWorkItem([](FText& DisplayText) {
 					DisplayText = NSLOCTEXT("SteamAudio", "ErrorExportingOBJ", "Error exporting OBJ.");
@@ -261,13 +261,10 @@ namespace SteamAudio
 			}
 
 			// Write OBJ
-			iplDumpSceneToObjFile(PhononScene, TCHAR_TO_ANSI(*(EditorOnlyPath + World->GetMapName() + ".obj")));
+			iplSaveSceneAsObj(PhononScene, TCHAR_TO_ANSI(*(EditorOnlyPath + World->GetMapName() + ".obj")));
 
 			// Clean up Phonon structures
-			for (IPLhandle PhononStaticMesh : PhononStaticMeshes)
-			{
-				iplDestroyStaticMesh(&PhononStaticMesh);
-			}
+			iplDestroyStaticMesh(&PhononStaticMesh);
 			iplDestroyScene(&PhononScene);
 
 			// Notify UI that we're done
@@ -295,10 +292,10 @@ namespace SteamAudio
 			// Create the scene
 			UWorld* World = GEditor->GetLevelViewportClients()[0]->GetWorld();
 			IPLhandle PhononScene = nullptr;
-			TArray<IPLhandle> PhononStaticMeshes;
+			IPLhandle PhononStaticMesh = nullptr;
 			FPhononSceneInfo PhononSceneInfo;
 
-			if (!CreateScene(World, &PhononScene, &PhononStaticMeshes, PhononSceneInfo.NumTriangles))
+			if (!CreateScene(World, &PhononScene, &PhononStaticMesh, PhononSceneInfo.NumTriangles))
 			{
 				GEdModeTickable->QueueWorkItem(FWorkItem([](FText& DisplayText) {
 					DisplayText = NSLOCTEXT("SteamAudio", "ErrorExportingScene", "Error exporting scene.");
@@ -307,15 +304,11 @@ namespace SteamAudio
 			}
 
 			// Finalize and save to disk
-			iplFinalizeScene(PhononScene, FinalizeSceneProgressCallback);
-			PhononSceneInfo.DataSize = iplSaveFinalizedScene(PhononScene, nullptr);
+			PhononSceneInfo.DataSize = iplSaveScene(PhononScene, nullptr);
 			bool SaveSceneSuccessful = SaveFinalizedSceneToDisk(World, PhononScene, PhononSceneInfo);
 
 			// Clean up Phonon structures
-			for (IPLhandle PhononStaticMesh : PhononStaticMeshes)
-			{
-				iplDestroyStaticMesh(&PhononStaticMesh);
-			}
+			iplDestroyStaticMesh(&PhononStaticMesh);
 			iplDestroyScene(&PhononScene);
 
 			if (SaveSceneSuccessful)

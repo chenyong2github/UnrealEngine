@@ -378,7 +378,7 @@ public:
 				void* Data = Mip.BulkData.Lock(LOCK_READ_WRITE);
 				FMemory::Memcpy(Data, (void*)RawResource->rubTextureMapData, Mip.BulkData.GetBulkDataSize());
 				Mip.BulkData.Unlock();
-				NewTexture->PlatformData->NumSlices = 1;
+				NewTexture->PlatformData->SetNumSlices(1);
 #if WITH_EDITORONLY_DATA
 				NewTexture->CompressionNone = true;
 				NewTexture->DeferCompression = false;

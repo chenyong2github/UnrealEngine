@@ -28,6 +28,7 @@
 #include "NiagaraParameterCollection.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "NiagaraSystem.h"
+#include "SNiagaraGraphActionWidget.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackFunctionInputValue"
@@ -53,6 +54,7 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 		.VerticalImage(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.DropTarget.BorderVertical"))
 		.BackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.DropTarget.BackgroundColor"))
 		.BackgroundColorHover(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.DropTarget.BackgroundColorHover"))
+		.IsEnabled_UObject(FunctionInput, &UNiagaraStackEntry::GetOwnerIsEnabled)
 		.Content()
 		[
 			// Values
@@ -131,6 +133,7 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 						SNew(STextBlock)
 						.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
 						.Text(this, &SNiagaraStackFunctionInputValue::GetDynamicValueText)
+						.ToolTipText(this, &SNiagaraStackFunctionInputValue::GetDynamicValueToolTip)
 						.OnDoubleClicked(this, &SNiagaraStackFunctionInputValue::DynamicInputTextDoubleClicked)
 					]
 				]
@@ -142,15 +145,9 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 					.Visibility(this, &SNiagaraStackFunctionInputValue::GetValueWidgetVisibility, UNiagaraStackFunctionInput::EValueMode::Expression)
 					.VAlign(VAlign_Center)
 					[
-						//SNew(SInlineEditableTextBlock)
-						//.Style(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterInlineEditableText")
-						//.Text(this, &SNiagaraStackFunctionInputValue::GetExpressionValueText)
-						//.OnTextCommitted(this, &SNiagaraStackFunctionInputValue::OnExpressionTextCommitted)
-						// SNew(SMultiLineEditableTextBox)
-						//.AutoWrapText(false)
 						SNew(SEditableTextBox)
 						.IsReadOnly(false)
-						.Text(this, &SNiagaraStackFunctionInputValue::GetExpressionValueText)
+						.Text_UObject(FunctionInput, &UNiagaraStackFunctionInput::GetCustomExpressionText)
 						.OnTextCommitted(this, &SNiagaraStackFunctionInputValue::OnExpressionTextCommitted)
 					]
 				]
@@ -177,7 +174,6 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 			.Padding(3, 0, 0, 0)
 			[
 				SAssignNew(SetFunctionInputButton, SComboButton)
-				.IsFocusable(false)
 				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 				.ForegroundColor(FSlateColor::UseForeground())
 				.OnGetMenuContent(this, &SNiagaraStackFunctionInputValue::OnGetAvailableHandleMenu)
@@ -377,11 +373,11 @@ FText SNiagaraStackFunctionInputValue::GetDynamicValueText() const
 	}
 }
 
-FText SNiagaraStackFunctionInputValue::GetExpressionValueText() const
+FText SNiagaraStackFunctionInputValue::GetDynamicValueToolTip() const
 {
-	if (FunctionInput->GetExpressionNode() != nullptr)
+	if (FunctionInput->GetDynamicInputNode() != nullptr)
 	{
-		return FunctionInput->GetExpressionNode()->GetHlslText();
+		return FunctionInput->GetDynamicInputNode()->GetTooltipText();
 	}
 	else
 	{
@@ -391,10 +387,7 @@ FText SNiagaraStackFunctionInputValue::GetExpressionValueText() const
 
 void SNiagaraStackFunctionInputValue::OnExpressionTextCommitted(const FText& Name, ETextCommit::Type CommitInfo)
 {
-	if (FunctionInput->GetExpressionNode() != nullptr)
-	{
-		FunctionInput->GetExpressionNode()->OnCustomHlslTextCommitted(Name, CommitInfo);
-	}
+	FunctionInput->SetCustomExpression(Name.ToString());
 }
 
 FText SNiagaraStackFunctionInputValue::GetInvalidValueText() const
@@ -517,6 +510,10 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::OnGetAvailableHandleMenu()
 				.AutoExpandActionMenu(false)
 				.ShowFilterTextBox(true)
 				.OnCreateCustomRowExpander_Static(&CreateCustomNiagaraFunctionInputActionExpander)
+				.OnCreateWidgetForAction_Lambda([](const FCreateWidgetForActionData* InData)
+				{
+					return SNew(SNiagaraGraphActionWidget, InData);
+				})
 			]
 		]
 	];
@@ -572,6 +569,8 @@ void SNiagaraStackFunctionInputValue::CollectAllActions(FGraphActionListBuilderB
 			const FText Tooltip = FNiagaraEditorUtilities::FormatScriptAssetDescription(DynamicInputScript->Description, *(DynamicInputScript->GetPathName() + (DynamicInputScript->bExposeToLibrary ? "" : "\n*Not exposed to library")));
 			TSharedPtr<FNiagaraMenuAction> DynamicInputAction(new FNiagaraMenuAction(CategoryName, DynamicInputText, Tooltip, 0, DynamicInputScript->Keywords,
 				FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraStackFunctionInputValue::DynamicInputScriptSelected, DynamicInputScript)));
+
+			DynamicInputAction->IsExperimental = DynamicInputScript->bExperimental;
 			OutAllActions.AddAction(DynamicInputAction);
 		}
 	}
@@ -707,7 +706,7 @@ void SNiagaraStackFunctionInputValue::SetToLocalValue()
 		if (DefaultValueData.Num() == LocalValueStruct->GetStructureSize())
 		{
 			FMemory::Memcpy(LocalValue->GetStructMemory(), DefaultValueData.GetData(), DefaultValueData.Num());
-			FunctionInput->SetLocalValue(LocalValue);
+			FunctionInput->SetLocalValue(LocalValue, true);
 		}
 	}
 }
@@ -831,10 +830,10 @@ FSlateColor SNiagaraStackFunctionInputValue::GetInputIconColor() const
 
 FReply SNiagaraStackFunctionInputValue::OnFunctionInputDrop(TSharedPtr<FDragDropOperation> DragDropOperation)
 {
-	if (DragDropOperation->IsOfType<FNiagaraStackDragOperation>())
+	if (DragDropOperation->IsOfType<FNiagaraParameterDragOperation>())
 	{
-		TSharedPtr<FNiagaraStackDragOperation> InputDragDropOperation = StaticCastSharedPtr<FNiagaraStackDragOperation>(DragDropOperation);
-		TSharedPtr<FNiagaraParameterAction> Action = StaticCastSharedPtr<FNiagaraParameterAction>(InputDragDropOperation->GetAction());
+		TSharedPtr<FNiagaraParameterDragOperation> InputDragDropOperation = StaticCastSharedPtr<FNiagaraParameterDragOperation>(DragDropOperation);
+		TSharedPtr<FNiagaraParameterAction> Action = StaticCastSharedPtr<FNiagaraParameterAction>(InputDragDropOperation->GetSourceAction());
 		if (Action.IsValid())
 		{
 			FunctionInput->SetLinkedValueHandle(FNiagaraParameterHandle(Action->GetParameter().GetName()));
@@ -847,10 +846,10 @@ FReply SNiagaraStackFunctionInputValue::OnFunctionInputDrop(TSharedPtr<FDragDrop
 
 bool SNiagaraStackFunctionInputValue::OnFunctionInputAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation)
 {
-	if (FunctionInput && DragDropOperation->IsOfType<FNiagaraStackDragOperation>())
+	if (FunctionInput && DragDropOperation->IsOfType<FNiagaraParameterDragOperation>())
 	{
-		TSharedPtr<FNiagaraStackDragOperation> InputDragDropOperation = StaticCastSharedPtr<FNiagaraStackDragOperation>(DragDropOperation);
-		TSharedPtr<FNiagaraParameterAction> Action = StaticCastSharedPtr<FNiagaraParameterAction>(InputDragDropOperation->GetAction());
+		TSharedPtr<FNiagaraParameterDragOperation> InputDragDropOperation = StaticCastSharedPtr<FNiagaraParameterDragOperation>(DragDropOperation);
+		TSharedPtr<FNiagaraParameterAction> Action = StaticCastSharedPtr<FNiagaraParameterAction>(InputDragDropOperation->GetSourceAction());
 		if (Action->GetParameter().GetType() == FunctionInput->GetInputType() && FNiagaraStackGraphUtilities::ParameterAllowedInExecutionCategory(Action->GetParameter().GetName(), FunctionInput->GetExecutionCategoryName()))
 		{
 			return true;

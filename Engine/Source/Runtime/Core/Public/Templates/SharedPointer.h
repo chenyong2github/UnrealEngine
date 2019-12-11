@@ -792,12 +792,26 @@ public:
 	 * @return  Reference to the object
 	 */
 	// NOTE: The following is an Unreal extension to standard shared_ptr behavior
-	FORCEINLINE TSharedRef< ObjectType, Mode > ToSharedRef() const
+	FORCEINLINE TSharedRef< ObjectType, Mode > ToSharedRef() const&
 	{
- 		// If this assert goes off, it means a shared reference was created from a shared pointer that was nullptr.
- 		// Shared references are never allowed to be null.  Consider using TSharedPtr instead.
+		// If this assert goes off, it means a shared reference was created from a shared pointer that was nullptr.
+		// Shared references are never allowed to be null.  Consider using TSharedPtr instead.
 		check( IsValid() );
 		return TSharedRef< ObjectType, Mode >( *this );
+	}
+
+	/**
+	 * Converts a shared pointer to a shared reference.  The pointer *must* be valid or an assertion will trigger.
+	 *
+	 * @return  Reference to the object
+	 */
+	 // NOTE: The following is an Unreal extension to standard shared_ptr behavior
+	FORCEINLINE TSharedRef< ObjectType, Mode > ToSharedRef() &&
+	{
+		// If this assert goes off, it means a shared reference was created from a shared pointer that was nullptr.
+		// Shared references are never allowed to be null.  Consider using TSharedPtr instead.
+		check( IsValid() );
+		return TSharedRef< ObjectType, Mode >( MoveTemp( *this ) );
 	}
 
 	/**
@@ -908,6 +922,32 @@ private:
 		if( SharedReferenceCount.IsValid() )
 		{
 			Object = InWeakPtr.Object;
+		}
+	}
+
+	/**
+	 * Constructs a shared pointer from a weak pointer, allowing you to access the object (if it
+	 * hasn't expired yet.)  Remember, if there are no more shared references to the object, the
+	 * shared pointer will not be valid.  You should always check to make sure this shared
+	 * pointer is valid before trying to dereference the shared pointer!
+	 *
+	 * NOTE: This constructor is private to force users to be explicit when converting a weak
+	 *       pointer to a shared pointer.  Use the weak pointer's Pin() method instead!
+	 */
+	template <
+		typename OtherType,
+		typename = typename TEnableIf<TPointerIsConvertibleFromTo<OtherType, ObjectType>::Value>::Type
+	>
+	FORCEINLINE explicit TSharedPtr(TWeakPtr< OtherType, Mode >&& InWeakPtr)
+		: Object(nullptr)
+		, SharedReferenceCount( MoveTemp( InWeakPtr.WeakReferenceCount ) )
+	{
+		// Check that the shared reference was created from the weak reference successfully.  We'll only
+		// cache a pointer to the object if we have a valid shared reference.
+		if (SharedReferenceCount.IsValid())
+		{
+			Object = InWeakPtr.Object;
+			InWeakPtr.Object = nullptr;
 		}
 	}
 
@@ -1132,9 +1172,22 @@ public:
 	 *
 	 * @return  Shared pointer for this object (will only be valid if still referenced!)
 	 */
-	FORCEINLINE TSharedPtr< ObjectType, Mode > Pin() const
+	FORCEINLINE TSharedPtr< ObjectType, Mode > Pin() const&
 	{
 		return TSharedPtr< ObjectType, Mode >( *this );
+	}
+
+	/**
+	 * Converts this weak pointer to a shared pointer that you can use to access the object (if it
+	 * hasn't expired yet.)  Remember, if there are no more shared references to the object, the
+	 * returned shared pointer will not be valid.  You should always check to make sure the returned
+	 * pointer is valid before trying to dereference the shared pointer!
+	 *
+	 * @return  Shared pointer for this object (will only be valid if still referenced!)
+	 */
+	FORCEINLINE TSharedPtr< ObjectType, Mode > Pin() &&
+	{
+		return TSharedPtr< ObjectType, Mode >( MoveTemp( *this ) );
 	}
 
 	/**
@@ -1233,7 +1286,7 @@ public:
 
 		// Now that we've verified the shared pointer is valid, we'll convert it to a shared reference
 		// and return it!
-		return SharedThis.ToSharedRef();
+		return MoveTemp( SharedThis ).ToSharedRef();
 	}
 
 	/**
@@ -1260,7 +1313,7 @@ public:
 
 		// Now that we've verified the shared pointer is valid, we'll convert it to a shared reference
 		// and return it!
-		return SharedThis.ToSharedRef();
+		return MoveTemp( SharedThis ).ToSharedRef();
 	}
 
 protected:

@@ -10,6 +10,7 @@
 #include "IImageWrapperModule.h"
 #include "Engine/Texture2D.h"
 #include "Modules/ModuleManager.h"
+#include "Widgets/SWindow.h"
 
 DECLARE_CYCLE_STAT(TEXT("RSFrameBufferCap"), STAT_FrameBufferCapture, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("RSImageCompression"), STAT_ImageCompression, STATGROUP_Game);
@@ -32,15 +33,24 @@ static FAutoConsoleVariableRef CVarResYOverride(
 	TEXT("Sets the desired Y resolution"),
 	ECVF_Default);
 
-FRemoteSessionFrameBufferImageProvider::FRemoteSessionFrameBufferImageProvider(TWeakPtr<FRemoteSessionImageChannel> InOwner)
+FRemoteSessionFrameBufferImageProvider::FRemoteSessionFrameBufferImageProvider(TSharedPtr<FRemoteSessionImageChannel::FImageSender, ESPMode::ThreadSafe> InImageSender)
 {
-	ImageChannel = InOwner;
+	ImageSender = InImageSender;
 	LastSentImageTime = 0.0;
 	ViewportResized = false;
+	NumDecodingTasks = MakeShared<FThreadSafeCounter, ESPMode::ThreadSafe>();
 }
 
 FRemoteSessionFrameBufferImageProvider::~FRemoteSessionFrameBufferImageProvider()
 {
+	if (TSharedPtr<FSceneViewport> PreviousSceneViewportPinned = SceneViewport.Pin())
+	{
+		PreviousSceneViewportPinned->SetOnSceneViewportResizeDel(FOnSceneViewportResize());
+	}
+	if (TSharedPtr<SWindow> SceneViewportWindowPin = SceneViewportWindow.Pin())
+	{
+		SceneViewportWindowPin->GetOnWindowClosedEvent().RemoveAll(this);
+	}
 	ReleaseFrameGrabber();
 }
 
@@ -64,12 +74,37 @@ void FRemoteSessionFrameBufferImageProvider::SetCaptureFrameRate(int32 InFramera
 
 void FRemoteSessionFrameBufferImageProvider::SetCaptureViewport(TSharedRef<FSceneViewport> Viewport)
 {
-	SceneViewport = Viewport;
+	if (Viewport != SceneViewport)
+	{
+		if (TSharedPtr<FSceneViewport> PreviousSceneViewportPinned = SceneViewport.Pin())
+		{
+			PreviousSceneViewportPinned->SetOnSceneViewportResizeDel(FOnSceneViewportResize());
+		}
+		if (TSharedPtr<SWindow> SceneViewportWindowPin = SceneViewportWindow.Pin())
+		{
+			SceneViewportWindowPin->GetOnWindowClosedEvent().RemoveAll(this);
+		}
 
-	CreateFrameGrabber(Viewport);
+		SceneViewportWindow.Reset();
+		SceneViewport = Viewport;
 
-	// set the listener for the window resize event
-	Viewport->SetOnSceneViewportResizeDel(FOnSceneViewportResize::CreateRaw(this, &FRemoteSessionFrameBufferImageProvider::OnViewportResized));
+		if (TSharedPtr<SWindow> Window = Viewport->FindWindow())
+		{
+			SceneViewportWindow = Window;
+			Window->GetOnWindowClosedEvent().AddRaw(this, &FRemoteSessionFrameBufferImageProvider::OnWindowClosedEvent);
+		}
+
+		CreateFrameGrabber(Viewport);
+
+		// set the listener for the window resize event
+		Viewport->SetOnSceneViewportResizeDel(FOnSceneViewportResize::CreateRaw(this, &FRemoteSessionFrameBufferImageProvider::OnViewportResized));
+	}
+}
+
+void FRemoteSessionFrameBufferImageProvider::OnWindowClosedEvent(const TSharedRef<SWindow>&)
+{
+	ReleaseFrameGrabber();
+	SceneViewport.Reset();
 }
 
 void FRemoteSessionFrameBufferImageProvider::CreateFrameGrabber(TSharedRef<FSceneViewport> Viewport)
@@ -77,7 +112,7 @@ void FRemoteSessionFrameBufferImageProvider::CreateFrameGrabber(TSharedRef<FScen
 	ReleaseFrameGrabber();
 
 	// For times when we want a specific resolution
-	FIntPoint FrameGrabberSize = SceneViewport->GetSize();
+	FIntPoint FrameGrabberSize = Viewport->GetSize();
 	if (FrameGrabberResX > 0)
 	{
 		FrameGrabberSize.X = FrameGrabberResX;
@@ -97,51 +132,63 @@ void FRemoteSessionFrameBufferImageProvider::Tick(const float InDeltaTime)
 	{
 		if (ViewportResized)
 		{
-			CreateFrameGrabber(SceneViewport.ToSharedRef());
+			ReleaseFrameGrabber();
+			if (TSharedPtr<FSceneViewport> SceneViewportPinned = SceneViewport.Pin())
+			{
+				CreateFrameGrabber(SceneViewportPinned.ToSharedRef());
+			}
 			ViewportResized = false;
 		}
 		SCOPE_CYCLE_COUNTER(STAT_FrameBufferCapture);
 
-		FrameGrabber->CaptureThisFrame(FFramePayloadPtr());
-
-		TArray<FCapturedFrameData> Frames = FrameGrabber->GetCapturedFrames();
-
-		if (Frames.Num())
+		if (FrameGrabber)
 		{
-			const double ElapsedImageTimeMS = (FPlatformTime::Seconds() - LastSentImageTime) * 1000;
-			const int32 DesiredFrameTimeMS = 1000 / FramerateMasterSetting;
+			FrameGrabber->CaptureThisFrame(FFramePayloadPtr());
 
-			// Encoding/decoding can take longer than a frame, so skip if we're still processing the previous frame
-			if (NumDecodingTasks.GetValue() == 0 && ElapsedImageTimeMS >= DesiredFrameTimeMS)
+			TArray<FCapturedFrameData> Frames = FrameGrabber->GetCapturedFrames();
+
+			if (Frames.Num())
 			{
-				NumDecodingTasks.Increment();
+				const double ElapsedImageTimeMS = (FPlatformTime::Seconds() - LastSentImageTime) * 1000;
+				const int32 DesiredFrameTimeMS = 1000 / FramerateMasterSetting;
 
-				FCapturedFrameData& LastFrame = Frames.Last();
-
-				TArray<FColor>* ColorData = new TArray<FColor>(MoveTemp(LastFrame.ColorBuffer));
-
-				FIntPoint Size = LastFrame.BufferSize;
-
-				AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [this, Size, ColorData]()
+				// Encoding/decoding can take longer than a frame, so skip if we're still processing the previous frame
+				if (NumDecodingTasks->GetValue() == 0 && ElapsedImageTimeMS >= DesiredFrameTimeMS)
 				{
-					SCOPE_CYCLE_COUNTER(STAT_ImageCompression);
+					NumDecodingTasks->Increment();
 
-					if (TSharedPtr<FRemoteSessionImageChannel> ImageChannelPinned = ImageChannel.Pin())
+					FCapturedFrameData& LastFrame = Frames.Last();
+					FIntPoint Size = LastFrame.BufferSize;
+					TArray<FColor> ColorData = MoveTemp(LastFrame.ColorBuffer);
+					TWeakPtr<FThreadSafeCounter, ESPMode::ThreadSafe> WeakNumDecodingTasks = NumDecodingTasks;
+					TWeakPtr<FRemoteSessionImageChannel::FImageSender, ESPMode::ThreadSafe> WeakImageSender = ImageSender;
+
+					AsyncTask(ENamedThreads::AnyBackgroundHiPriTask, [WeakNumDecodingTasks, WeakImageSender, Size, ColorData=MoveTemp(ColorData)]() mutable
 					{
-						for (FColor& Color : *ColorData)
+						SCOPE_CYCLE_COUNTER(STAT_ImageCompression);
+
+						if (WeakImageSender.IsValid())
 						{
-							Color.A = 255;
+							if (TSharedPtr<FThreadSafeCounter, ESPMode::ThreadSafe> NumDecodingTasksPinned = WeakNumDecodingTasks.Pin())
+							{
+								for (FColor& Color : ColorData)
+								{
+									Color.A = 255;
+								}
+
+								if (TSharedPtr<FRemoteSessionImageChannel::FImageSender, ESPMode::ThreadSafe> ImageSenderPinned = WeakImageSender.Pin())
+								{
+									ImageSenderPinned->SendRawImageToClients(Size.X, Size.Y, ColorData.GetData(), ColorData.GetAllocatedSize());
+								}
+
+								NumDecodingTasksPinned->Decrement();
+							}
 						}
 
-						ImageChannelPinned->SendRawImageToClients(Size.X, Size.Y, *ColorData);
-					}
+					});
 
-					delete ColorData;
-
-					NumDecodingTasks.Decrement();
-				});
-
-				LastSentImageTime = FPlatformTime::Seconds();
+					LastSentImageTime = FPlatformTime::Seconds();
+				}
 			}
 		}
 	}

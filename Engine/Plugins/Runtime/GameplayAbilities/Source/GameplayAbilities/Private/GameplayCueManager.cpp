@@ -313,9 +313,20 @@ void UGameplayCueManager::OnMissingCueAsyncLoadComplete(FSoftObjectPath LoadedOb
 		return;
 	}
 
-	if (OwningSet.IsValid() && TargetActor.IsValid())
+	if (OwningSet.IsValid())
 	{
-		CurrentWorld = TargetActor->GetWorld();
+		CurrentWorld = TargetActor.IsValid() ? TargetActor->GetWorld() : nullptr;
+		if (!CurrentWorld)
+		{
+			// TargetActor has since been destroyed.  Attempt to get the world from the other actors.
+			const AActor* CueInstigator = Parameters.GetInstigator();
+			CurrentWorld = CueInstigator ? CueInstigator->GetWorld() : nullptr;
+			if (!CurrentWorld)
+			{
+				const AActor* EffectCauser = Parameters.GetEffectCauser();
+				CurrentWorld = EffectCauser ? EffectCauser->GetWorld() : nullptr;
+			}
+		}
 
 		// Don't handle gameplay cues when world is tearing down
 		if (!GetWorld() || GetWorld()->bIsTearingDown)

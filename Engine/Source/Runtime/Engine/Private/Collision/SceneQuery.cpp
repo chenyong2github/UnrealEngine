@@ -351,9 +351,10 @@ bool TSceneCastCommon(const UWorld* World, typename Traits::TOutHits& OutHits, c
 	bool bHaveBlockingHit = false;
 
 	FVector Delta = End - Start;
-	float DeltaMag = Delta.Size();
+	float DeltaSize = Delta.Size();
+	float DeltaMag = FMath::IsNearlyZero(DeltaSize) ? 0.f : DeltaSize;
 	float MinBlockingDistance = DeltaMag;
-	if (DeltaMag > KINDA_SMALL_NUMBER)
+	if (Traits::IsSweep() || DeltaMag > 0.f)
 	{
 		// Create filter data used to filter collisions 
 		CA_SUPPRESS(6326);
@@ -371,7 +372,7 @@ bool TSceneCastCommon(const UWorld* World, typename Traits::TOutHits& OutHits, c
 		typename Traits::THitBuffer HitBufferSync;
 
 		bool bBlockingHit = false;
-		const FVector Dir = Delta / DeltaMag;
+		const FVector Dir = DeltaMag > 0.f ? (Delta / DeltaMag) : FVector(1, 0, 0);
 		const FTransform StartTM = Traits::IsRay() ? FTransform(Start) : FTransform(*GeomInputs.GetGeometryOrientation(), Start);
 
 		// Enable scene locks, in case they are required
@@ -637,7 +638,7 @@ bool FGenericPhysicsInterface::GeomOverlapAnyTest(const UWorld* World, const str
 	TArray<FOverlapResult> Overlaps;	//needed only for template shared code
 	FTransform GeomTransform(Rot, Pos);
 	FPhysicsShapeAdapter Adaptor(GeomTransform.GetRotation(), CollisionShape);
-	return GeomOverlapMultiImp<EQueryInfo::GatherAll>(World, Adaptor.GetGeometry(), CollisionShape, Adaptor.GetGeomPose(GeomTransform.GetTranslation()), Overlaps, TraceChannel, Params, ResponseParams, ObjectParams);
+	return GeomOverlapMultiImp<EQueryInfo::IsAnything>(World, Adaptor.GetGeometry(), CollisionShape, Adaptor.GetGeomPose(GeomTransform.GetTranslation()), Overlaps, TraceChannel, Params, ResponseParams, ObjectParams);
 }
 
 template<>

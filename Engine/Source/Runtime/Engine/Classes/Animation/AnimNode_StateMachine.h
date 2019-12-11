@@ -263,6 +263,8 @@ protected:
 
 	FAnimNode_AssetPlayerBase* GetRelevantAssetPlayerFromState(const FAnimationUpdateContext& Context, const FBakedAnimationState& StateInfo);
 
+	void LogInertializationRequestError(const FAnimationUpdateContext& Context, int32 PreviousState, int32 NextState);
+
 public:
 	friend struct FAnimInstanceProxy;
 };

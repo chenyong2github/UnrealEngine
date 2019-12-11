@@ -504,7 +504,7 @@ void UPlayerInput::InvertAxis(const FName AxisName)
 		}
 		if (bInverted)
 		{
-			InvertedAxis.Add(AxisName);
+			InvertedAxis.AddUnique(AxisName);
 		}
 		else
 		{
@@ -985,6 +985,8 @@ void UPlayerInput::ProcessNonAxesKeys(FKey InKey, FKeyState* KeyState)
 
 void UPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused)
 {
+	ConditionalBuildKeyMappings();
+
 	// We collect axis contributions by delegate, so we can sum up 
 	// contributions from multiple bindings.
 	struct FAxisDelegateDetails
@@ -2096,7 +2098,7 @@ void UPlayerInput::SetBind(FName BindName, const FString& Command)
 		FString CommandMod = Command;
 		if ( CommandMod.Left(1) == TEXT("\"") && CommandMod.Right(1) == ("\"") )
 		{
-			CommandMod = CommandMod.Mid(1, CommandMod.Len() - 2);
+			CommandMod.MidInline(1, CommandMod.Len() - 2, false);
 		}
 
 		for(int32 BindIndex = DebugExecBindings.Num()-1;BindIndex >= 0;BindIndex--)

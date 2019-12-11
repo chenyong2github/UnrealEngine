@@ -22,8 +22,6 @@
 
 #define LOCTEXT_NAMESPACE "StaticMeshEditorExtensionToolbar"
 
-DEFINE_LOG_CATEGORY_STATIC(LogStaticMeshEditorExtension, Log, All);
-
 const FEditorModeID FPolygonSelectionTool::EM_PolygonSelection(TEXT("EM_PolygonSelection"));
 
 // @todo mesheditor extensibility: This should probably be removed after we've evicted all current mesh editing actions to another module

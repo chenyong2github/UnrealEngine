@@ -115,7 +115,7 @@ TSharedRef<ITableRow> FGameplayCueTagDetails::GenerateListRow(TSharedRef<FSoftOb
 	int32 idx;
 	if (ShortName.FindLastChar(TEXT('.'), idx))
 	{
-		ShortName = ShortName.Right(ShortName.Len() - (idx+1));
+		ShortName.RightInline(ShortName.Len() - (idx+1), false);
 		ShortName.RemoveFromEnd(TEXT("_c"));
 	}
 

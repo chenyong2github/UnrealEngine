@@ -121,6 +121,12 @@ namespace UnrealBuildTool
 		public bool bCreateDebugInfo = true;
 
 		/// <summary>
+		/// True if runtime symbols files should be generated as a post build step for some platforms.
+		/// These files are used by the engine to resolve symbol names of callstack backtraces in logs.
+		/// </summary>
+		public bool bGenerateRuntimeSymbolFiles = true;
+
+		/// <summary>
 		/// True if debug symbols that are cached for some platforms should not be created.
 		/// </summary>
 		public bool bDisableSymbolCache = false;
@@ -329,6 +335,7 @@ namespace UnrealBuildTool
 			DelayLoadDLLs.AddRange(Other.DelayLoadDLLs);
 			AdditionalArguments = Other.AdditionalArguments;
 			bCreateDebugInfo = Other.bCreateDebugInfo;
+			bGenerateRuntimeSymbolFiles = Other.bGenerateRuntimeSymbolFiles;
 			bIsBuildingLibrary = Other.bIsBuildingLibrary;
             bDisableSymbolCache = Other.bDisableSymbolCache;
 			bIsBuildingDLL = Other.bIsBuildingDLL;

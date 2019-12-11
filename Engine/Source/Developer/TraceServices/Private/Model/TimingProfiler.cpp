@@ -52,6 +52,24 @@ FTimingProfilerProvider::FTimingProfilerProvider(IAnalysisSession& InSession)
 	: Session(InSession)
 {
 	Timelines.Add(MakeShared<TimelineInternal>(Session.GetLinearAllocator()));
+
+	AggregatedStatsTableLayout.
+		AddColumn<const TCHAR*>([](const FTimingProfilerAggregatedStats& Row)
+			{
+				return Row.Timer->Name;
+			},
+			TEXT("Name")).
+		AddColumn(&FTimingProfilerAggregatedStats::InstanceCount, TEXT("Count")).
+		AddColumn(&FTimingProfilerAggregatedStats::TotalInclusiveTime, TEXT("Incl")).
+		AddColumn(&FTimingProfilerAggregatedStats::MinInclusiveTime, TEXT("I.Min")).
+		AddColumn(&FTimingProfilerAggregatedStats::MaxInclusiveTime, TEXT("I.Max")).
+		AddColumn(&FTimingProfilerAggregatedStats::AverageInclusiveTime, TEXT("I.Avg")).
+		AddColumn(&FTimingProfilerAggregatedStats::MedianInclusiveTime, TEXT("I.Med")).
+		AddColumn(&FTimingProfilerAggregatedStats::TotalExclusiveTime, TEXT("Excl")).
+		AddColumn(&FTimingProfilerAggregatedStats::MinExclusiveTime, TEXT("E.Min")).
+		AddColumn(&FTimingProfilerAggregatedStats::MaxExclusiveTime, TEXT("E.Max")).
+		AddColumn(&FTimingProfilerAggregatedStats::AverageExclusiveTime, TEXT("E.Avg")).
+		AddColumn(&FTimingProfilerAggregatedStats::MedianExclusiveTime, TEXT("E.Med"));
 }
 
 FTimingProfilerProvider::~FTimingProfilerProvider()
@@ -205,12 +223,23 @@ ITable<FTimingProfilerAggregatedStats>* FTimingProfilerProvider::CreateAggregati
 
 	TMap<const FTimingProfilerTimer*, FAggregatedTimingStats> Aggregation;
 	FTimelineStatistics::CreateAggregation(IncludedTimelines, BucketMappingFunc, IntervalStart, IntervalEnd, Aggregation);
-	TTable<FAggregatedStatsTableLayout>* Table = new TTable<FAggregatedStatsTableLayout>();
+	TTable<FTimingProfilerAggregatedStats>* Table = new TTable<FTimingProfilerAggregatedStats>(AggregatedStatsTableLayout);
 	for (const auto& KV : Aggregation)
 	{
 		FTimingProfilerAggregatedStats& Row = Table->AddRow();
-		*static_cast<FAggregatedTimingStats*>(&Row) = KV.Value;
 		Row.Timer = KV.Key;
+		const FAggregatedTimingStats& Stats = KV.Value;
+		Row.InstanceCount = Stats.InstanceCount;
+		Row.TotalInclusiveTime = Stats.TotalInclusiveTime;
+		Row.MinInclusiveTime = Stats.MinInclusiveTime;
+		Row.MaxInclusiveTime = Stats.MaxInclusiveTime;
+		Row.AverageInclusiveTime = Stats.AverageInclusiveTime;
+		Row.MedianInclusiveTime = Stats.MedianInclusiveTime;
+		Row.TotalExclusiveTime = Stats.TotalExclusiveTime;
+		Row.MinExclusiveTime = Stats.MinExclusiveTime;
+		Row.MaxExclusiveTime = Stats.MaxExclusiveTime;
+		Row.AverageExclusiveTime = Stats.AverageExclusiveTime;
+		Row.MedianExclusiveTime = Stats.MedianExclusiveTime;
 	}
 	return Table;
 }

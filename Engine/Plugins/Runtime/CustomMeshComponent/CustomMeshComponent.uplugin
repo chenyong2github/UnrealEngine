@@ -22,7 +22,6 @@
 			"LoadingPhase" : "Default",
 			"BlacklistPlatforms" :
 			[
-				"HTML5"
 			]
 		}
 	]

@@ -149,6 +149,16 @@ namespace Audio
 		}
 
 		FPlatformProcess::ReturnSynchEventToPool(CommandsProcessedEvent);
+
+		// We are tearing the whole system down, so clear the MixerSourceBuffers Wave pointer
+		// prior to them destructing, which prevents them doing the normal OnGenerateEnd flow.
+		for (FSourceInfo& i : SourceInfos)
+		{
+			if (FMixerSourceBuffer* Buffer = i.MixerSourceBuffer.Get())
+			{				
+				Buffer->ClearWave(); // NOTE; this does not decrement the active source count on the wave and assumes the pointer is unsafe.
+			}
+		}
 	}
 
 	void FMixerSourceManager::Init(const FSourceManagerInitParams& InitParams)
@@ -232,6 +242,7 @@ namespace Audio
 			SourceInfo.bIsVorbis = false;
 			SourceInfo.bIsBypassingLPF = false;
 			SourceInfo.bIsBypassingHPF = false;
+			SourceInfo.bIsModulationUpdated = false;
 
 #if AUDIO_MIXER_ENABLE_DEBUG_MODE
 			SourceInfo.bIsDebugMode = false;
@@ -1010,6 +1021,22 @@ namespace Audio
 			}
 
 			SourceInfos[SourceId].DistanceAttenuationSourceDestination = DistanceAttenuation;
+		});
+	}
+
+	void FMixerSourceManager::UpdateModulationControls(const int32 SourceId, const FSoundModulationControls& InControls)
+	{
+		AUDIO_MIXER_CHECK(SourceId < NumTotalSources);
+		AUDIO_MIXER_CHECK(GameThreadInfo.bIsBusy[SourceId]);
+		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
+
+		const FSoundModulationControls UpdatedControls = InControls;
+		AudioMixerThreadCommand([this, SourceId, UpdatedControls]()
+		{
+			AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
+
+			SourceInfos[SourceId].ModulationControls = UpdatedControls;
+			SourceInfos[SourceId].bIsModulationUpdated = true;
 		});
 	}
 
@@ -2074,15 +2101,29 @@ namespace Audio
 				// Loop through the effect chain passing in buffers
 				for (FSoundEffectSource* SoundEffectSource : SourceInfo.SourceEffects)
 				{
+					bool bPresetUpdated = false;
 					if (SoundEffectSource->IsActive())
 					{
-						SoundEffectSource->Update();
+						bPresetUpdated = SoundEffectSource->Update();
+					}
+
+					// Modulation must be updated regardless of whether or not the source is
+					// active to allow for initial conditions to be set if source is reactivated.
+					if (bPresetUpdated || SourceInfo.bIsModulationUpdated)
+					{
+						SoundEffectSource->ProcessControls(SourceInfo.ModulationControls);
+					}
+
+					if (SoundEffectSource->IsActive())
+					{
 						SoundEffectSource->ProcessAudio(SourceInfo.SourceEffectInputData, OutputSourceEffectBufferPtr);
 
 						// Copy output to input
 						FMemory::Memcpy(SourceInfo.SourceEffectInputData.InputSourceEffectBufferPtr, OutputSourceEffectBufferPtr, sizeof(float)*NumSamples);
 					}
 				}
+
+				SourceInfo.bIsModulationUpdated = false;
 			}
 
 			const bool bWasEffectTailsDone = SourceInfo.bEffectTailsDone;
@@ -2158,6 +2199,8 @@ namespace Audio
 				SourceInfo.NextFrameValues.Reset();
 				SourceInfo.CurrentPCMBuffer = nullptr;
 			}
+
+			SourceInfo.bIsModulationUpdated = false;
 		}
 	}
 

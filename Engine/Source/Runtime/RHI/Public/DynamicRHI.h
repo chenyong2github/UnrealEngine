@@ -79,8 +79,20 @@ struct FRHIFlipDetails
 struct FRayTracingGeometryInstance
 {
 	FRHIRayTracingGeometry* GeometryRHI = nullptr;
-	FMatrix Transform = FMatrix(EForceInit::ForceInitToZero);
-	uint32 UserData = 0;
+
+	// A physical FRayTracingGeometryInstance may be duplicated many times in the scene with different transforms and user data.
+	// All copies share the same shader binding table entries and therefore will have the same material and shader resources.
+	TArray<FMatrix, TInlineAllocator<1>> Transforms;
+
+	// Each geometry copy can receive a user-provided integer, which can be used to retrieve extra shader parameters or customize appearance.
+	// This data can be retrieved using GetInstanceUserData() in closest/any hit shaders.
+	// If UserData is empty, then 0 will be implicitly used for all entries.
+	// If UserData contains a single entry, then it will be applied to all instances/copies.
+	// Otherwise one UserData entry must be provided per entry in Transforms array.
+	TArray<uint32, TInlineAllocator<1>> UserData;
+
+	// Mask that will be tested against one provided to TraceRay() in shader code.
+	// If binary AND of instance mask with ray mask is zero, then the instance is considered not intersected / invisible.
 	uint8 Mask = 0xFF;
 
 	// No any-hit shaders will be invoked for this geometry instance (only closest hit)
@@ -107,6 +119,17 @@ enum ERayTracingGeometryType
 
 struct FRayTracingGeometrySegment
 {
+	FVertexBufferRHIRef VertexBuffer = nullptr;
+	EVertexElementType VertexBufferElementType = VET_Float3;
+
+	// Offset in bytes from the base address of the vertex buffer.
+	uint32 VertexBufferOffset = 0;
+
+	// Number of bytes between elements of the vertex buffer (sizeof VET_Float3 by default).
+	// Must be equal or greater than the size of the position vector.
+	uint32 VertexBufferStride = 12;
+
+	// Primitive range for this segment.
 	uint32 FirstPrimitive = 0;
 	uint32 NumPrimitives = 0;
 
@@ -121,17 +144,20 @@ struct FRayTracingGeometrySegment
 
 struct FRayTracingGeometryInitializer
 {
-	FVertexBufferRHIRef PositionVertexBuffer = nullptr;
-	uint32 VertexBufferByteOffset = 0;
-	uint32 VertexBufferStride = 0;
-	EVertexElementType VertexBufferElementType = VET_Float3;
-
 	FIndexBufferRHIRef IndexBuffer = nullptr;
-	uint32 IndexBufferByteOffset = 0;
+
+	// Offset in bytes from the base address of the index buffer.
+	uint32 IndexBufferOffset = 0;
 
 	ERayTracingGeometryType GeometryType = RTGT_Triangles;
+
+	// Total number of primitives in all segments of the geometry. Only used for validation.
 	uint32 TotalPrimitiveCount = 0;
+
+	// Partitions of geometry to allow different shader and resource bindings.
+	// All ray tracing geometries must have at least one segment.
 	TArray<FRayTracingGeometrySegment> Segments;
+
 	bool bFastBuild = false;
 	bool bAllowUpdate = false;
 };
@@ -528,6 +554,21 @@ public:
 	virtual uint64 RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign) = 0;
 
 	/**
+	* Computes the total size of a virtual memory (VM) based 2D texture with the specified parameters.
+	*
+	* @param Mip0Width - width of the top mip
+	* @param Mip0Height - height of the top mip
+	* @param Format - EPixelFormat texture format
+	* @param NumMips - number of mips the texture has
+	* @param FirstMipIdx - index of the first resident mip
+	* @param NumSamples - number of MSAA samples, usually 1
+	* @param Flags - ETextureCreateFlags creation flags
+	* @param OutAlign - Alignment required for this texture. Output parameter.
+	*/
+	// FlushType: Thread safe
+	virtual uint64 RHICalcVMTexture2DPlatformSize(uint32 Mip0Width, uint32 Mip0Height, uint8 Format, uint32 NumMips, uint32 FirstMipIdx, uint32 NumSamples, uint32 Flags, uint32& OutAlign);
+
+	/**
 	* Computes the total size of a 3D texture with the specified parameters.
 	* @param SizeX - width of the texture to create
 	* @param SizeY - height of the texture to create
@@ -914,7 +955,7 @@ public:
 
 	/** Watch out for OutData to be 0 (can happen on DXGI_ERROR_DEVICE_REMOVED), don't call RHIUnmapStagingSurface in that case. */
 	// FlushType: Flush Immediate (seems wrong)
-	virtual void RHIMapStagingSurface(FRHITexture* Texture, void*& OutData, int32& OutWidth, int32& OutHeight, uint32 GPUIndex = 0) = 0;
+	virtual void RHIMapStagingSurface(FRHITexture* Texture, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight, uint32 GPUIndex = 0) = 0;
 
 	/** call after a succesful RHIMapStagingSurface() call */
 	// FlushType: Flush Immediate (seems wrong)
@@ -954,6 +995,11 @@ public:
 	}
 
 	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessViewHTile(FRHITexture2D* RenderTarget)
+	{
+		return nullptr;
+	}
+
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessViewStencil(FRHITexture2D* DepthTarget, int32 MipLevel)
 	{
 		return nullptr;
 	}
@@ -1102,6 +1148,13 @@ public:
 	// FlushType: Flush RHI Thread
 	virtual void* RHIGetNativeDevice() = 0;
 
+	/**
+	* Provides access to the native instance. Generally this should be avoided but is useful for third party plugins.
+	*/
+	// FlushType: Flush RHI Thread
+	virtual void* RHIGetNativeInstance() = 0;
+
+
 	// FlushType: Thread safe
 	virtual IRHICommandContext* RHIGetDefaultContext() = 0;
 
@@ -1201,7 +1254,7 @@ public:
 	virtual void RHIDiscardTransientResource_RenderThread(FRHIStructuredBuffer* Buffer) { }
 
 
-	virtual void RHIMapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, void*& OutData, int32& OutWidth, int32& OutHeight);
+	virtual void RHIMapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight);
 	virtual void RHIUnmapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture);
 	virtual void RHIReadSurfaceFloatData_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, FIntRect Rect, TArray<FFloat16Color>& OutData, ECubeFace CubeFace, int32 ArrayIndex, int32 MipIndex);
 
@@ -1364,6 +1417,11 @@ FORCEINLINE uint64 RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint
 	return GDynamicRHI->RHICalcTexture2DPlatformSize(SizeX, SizeY, Format, NumMips, NumSamples, Flags, CreateInfo, OutAlign);
 }
 
+FORCEINLINE uint64 RHICalcVMTexture2DPlatformSize(uint32 Mip0Width, uint32 Mip0Height, uint8 Format, uint32 NumMips, uint32 FirstMipIdx, uint32 NumSamples, uint32 Flags, uint32& OutAlign)
+{
+	return GDynamicRHI->RHICalcVMTexture2DPlatformSize(Mip0Width, Mip0Height, Format, NumMips, FirstMipIdx, NumSamples, Flags, OutAlign);
+}
+
 FORCEINLINE uint64 RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 {
 	return GDynamicRHI->RHICalcTexture3DPlatformSize(SizeX, SizeY, SizeZ, Format, NumMips, Flags, CreateInfo, OutAlign);
@@ -1414,11 +1472,6 @@ FORCEINLINE FTexture2DRHIRef RHIGetViewportBackBuffer(FRHIViewport* Viewport)
 	return GDynamicRHI->RHIGetViewportBackBuffer(Viewport);
 }
 
-FORCEINLINE void RHIAdvanceFrameFence()
-{
-	return GDynamicRHI->RHIAdvanceFrameFence();
-}
-
 FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceViewHTile(FRHITexture2D* RenderTarget)
 {
 	return GDynamicRHI->RHICreateShaderResourceViewHTile(RenderTarget);
@@ -1427,6 +1480,11 @@ FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceViewHTile(FRHITextu
 FORCEINLINE FUnorderedAccessViewRHIRef RHICreateUnorderedAccessViewHTile(FRHITexture2D* RenderTarget)
 {
 	return GDynamicRHI->RHICreateUnorderedAccessViewHTile(RenderTarget);
+}
+
+FORCEINLINE FUnorderedAccessViewRHIRef RHICreateUnorderedAccessViewStencil(FRHITexture2D* DepthTarget, int32 MipLevel)
+{
+	return GDynamicRHI->RHICreateUnorderedAccessViewStencil(DepthTarget, MipLevel);
 }
 
 FORCEINLINE void RHIAdvanceFrameForGetViewportBackBuffer(FRHIViewport* Viewport)

@@ -48,7 +48,7 @@ public class Sequencer : ModuleRules
 				"GraphEditor",
                 "ViewportInteraction",
                 "SerializedRecorderInterface",
-				"ToolMenus"
+				"ToolMenus",
 			}
 		);
 

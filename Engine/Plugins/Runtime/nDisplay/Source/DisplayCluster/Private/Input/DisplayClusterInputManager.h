@@ -34,6 +34,7 @@ public:
 	virtual void EndSession() override;
 	virtual bool StartScene(UWorld* pWorld) override;
 	virtual void EndScene() override;
+	virtual void StartFrame(uint64 FrameNum) override;
 	virtual void PreTick(float DeltaSeconds);
 
 public:
@@ -82,8 +83,8 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual void Update() override;
 
-	virtual void ExportInputData(FDisplayClusterMessage::DataType& data) const override;
-	virtual void ImportInputData(const FDisplayClusterMessage::DataType& data) override;
+	virtual void ExportInputData(FDisplayClusterMessage::DataType& InputData) const override;
+	virtual void ImportInputData(const FDisplayClusterMessage::DataType& InputData) override;
 
 private:
 	typedef TUniquePtr<IDisplayClusterInputDevice>    TDevice;
@@ -103,8 +104,6 @@ private:
 private:
 	// Input devices
 	TDeviceMap Devices;
-	// Input state data cache
-	FDisplayClusterMessage::DataType PackedTransferData;
 	// Current config path
 	FString ConfigPath;
 	// Current cluster node ID

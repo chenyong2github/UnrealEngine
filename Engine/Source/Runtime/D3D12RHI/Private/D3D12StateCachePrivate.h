@@ -96,13 +96,9 @@ struct FD3D12IndexBufferCache
 	inline void Clear()
 	{
 		FMemory::Memzero(&CurrentIndexBufferView, sizeof(CurrentIndexBufferView));
-		CurrentIndexBufferLocation = nullptr;
-		ResidencyHandle = nullptr;
 	}
 
 	D3D12_INDEX_BUFFER_VIEW CurrentIndexBufferView;
-	FD3D12ResourceLocation* CurrentIndexBufferLocation;
-	FD3D12ResidencyHandle* ResidencyHandle;
 };
 
 template<typename ResourceSlotMask>
@@ -111,6 +107,11 @@ struct FD3D12ResourceCache
 	static inline void CleanSlot(ResourceSlotMask& SlotMask, uint32 SlotIndex)
 	{
 		SlotMask &= ~((ResourceSlotMask)1 << SlotIndex);
+	}
+
+	static inline void CleanSlots(ResourceSlotMask& SlotMask, uint32 NumSlots)
+	{
+		SlotMask &= ~(((ResourceSlotMask)1 << NumSlots) - 1);
 	}
 
 	static inline void DirtySlot(ResourceSlotMask& SlotMask, uint32 SlotIndex)
@@ -268,6 +269,11 @@ static inline D3D_PRIMITIVE_TOPOLOGY GetD3D12PrimitiveType(uint32 PrimitiveType,
 		D3D_PRIMITIVE_TOPOLOGY_LINELIST,                   // PT_LineList
 		0,                                                 // PT_QuadList
 		D3D_PRIMITIVE_TOPOLOGY_POINTLIST,                  // PT_PointList
+#if defined(D3D12RHI_PRIMITIVE_TOPOLOGY_RECTLIST)          // PT_RectList
+		D3D_PRIMITIVE_TOPOLOGY_RECTLIST,
+#else
+		0,
+#endif
 		D3D_PRIMITIVE_TOPOLOGY_1_CONTROL_POINT_PATCHLIST,  // PT_1_ControlPointPatchList
 		D3D_PRIMITIVE_TOPOLOGY_2_CONTROL_POINT_PATCHLIST,  // PT_2_ControlPointPatchList
 		D3D_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST,  // PT_3_ControlPointPatchList
@@ -301,6 +307,7 @@ static inline D3D_PRIMITIVE_TOPOLOGY GetD3D12PrimitiveType(uint32 PrimitiveType,
 		D3D_PRIMITIVE_TOPOLOGY_31_CONTROL_POINT_PATCHLIST, // PT_31_ControlPointPatchList
 		D3D_PRIMITIVE_TOPOLOGY_32_CONTROL_POINT_PATCHLIST, // PT_32_ControlPointPatchList
 	};
+	static_assert(UE_ARRAY_COUNT(D3D12PrimitiveType) == PT_Num, "Primitive lookup table is wrong size");
 
 	if (bUsingTessellation)
 	{
@@ -311,8 +318,6 @@ static inline D3D_PRIMITIVE_TOPOLOGY GetD3D12PrimitiveType(uint32 PrimitiveType,
 		}
 		else/* if (PrimitiveType < PT_1_ControlPointPatchList)*/
 		{
-			//UE_LOG(LogD3D12RHI, Fatal, TEXT("Invalid type specified for tessellated render, probably missing a case in FSkeletalMeshSceneProxy::DrawDynamicElementsByMaterial or FStaticMeshSceneProxy::GetMeshElement"));
-
 			checkf(PrimitiveType >= PT_1_ControlPointPatchList, TEXT("Invalid type specified for tessellated render, probably missing a case in FSkeletalMeshSceneProxy::DrawDynamicElementsByMaterial or FStaticMeshSceneProxy::GetMeshElement"));
 		}
 	}
@@ -333,7 +338,6 @@ protected:
 	FD3D12CommandContext* CmdContext;
 
 	bool bNeedSetVB;
-	bool bNeedSetIB;
 	bool bNeedSetRTs;
 	bool bNeedSetSOs;
 	bool bSRVSCleared;
@@ -428,7 +432,7 @@ protected:
 
 	FD3D12DescriptorCache DescriptorCache;
 
-	void InternalSetIndexBuffer(FD3D12ResourceLocation *IndexBufferLocation, DXGI_FORMAT Format, uint32 Offset);
+	void InternalSetIndexBuffer(FD3D12Resource* Resource);
 
 	void InternalSetStreamSource(FD3D12ResourceLocation* VertexBufferLocation, uint32 StreamIndex, uint32 Stride, uint32 Offset);
 
@@ -851,14 +855,24 @@ public:
 
 public:
 
-	D3D12_STATE_CACHE_INLINE void SetIndexBuffer(FD3D12ResourceLocation* IndexBufferLocation, DXGI_FORMAT Format, uint32 Offset)
+	D3D12_STATE_CACHE_INLINE void SetIndexBuffer(const FD3D12ResourceLocation& IndexBufferLocation, DXGI_FORMAT Format, uint32 Offset)
 	{
-		InternalSetIndexBuffer(IndexBufferLocation, Format, Offset);
-	}
+		D3D12_GPU_VIRTUAL_ADDRESS BufferLocation = IndexBufferLocation.GetGPUVirtualAddress() + Offset;
+		UINT SizeInBytes = IndexBufferLocation.GetSize() - Offset;
 
-	D3D12_STATE_CACHE_INLINE bool IsIndexBuffer(const FD3D12ResourceLocation *ResourceLocation) const
-	{
-		return PipelineState.Graphics.IBCache.CurrentIndexBufferLocation == ResourceLocation;
+		D3D12_INDEX_BUFFER_VIEW& CurrentView = PipelineState.Graphics.IBCache.CurrentIndexBufferView;
+
+		if (BufferLocation != CurrentView.BufferLocation ||
+			SizeInBytes != CurrentView.SizeInBytes ||
+			Format != CurrentView.Format ||
+			GD3D12SkipStateCaching)
+		{
+			CurrentView.BufferLocation = BufferLocation;
+			CurrentView.SizeInBytes = SizeInBytes;
+			CurrentView.Format = Format;
+
+			InternalSetIndexBuffer(IndexBufferLocation.GetResource());
+		}
 	}
 
 	D3D12_STATE_CACHE_INLINE void GetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY* PrimitiveTopology) const
@@ -955,7 +969,6 @@ public:
 	void ForceSetGraphicsRootSignature() { PipelineState.Graphics.bNeedSetRootSignature = true; }
 	void ForceSetComputeRootSignature() { PipelineState.Compute.bNeedSetRootSignature = true; }
 	void ForceSetVB() { bNeedSetVB = true; }
-	void ForceSetIB() { bNeedSetIB = true; }
 	void ForceSetRTs() { bNeedSetRTs = true; }
 	void ForceSetSOs() { bNeedSetSOs = true; }
 	void ForceSetSamplersPerShaderStage(uint32 Frequency) { PipelineState.Common.SamplerCache.Dirty((EShaderFrequency)Frequency); }
@@ -967,7 +980,6 @@ public:
 	void ForceSetStencilRef() { bNeedSetStencilRef = true; }
 
 	bool GetForceSetVB() const { return bNeedSetVB; }
-	bool GetForceSetIB() const { return bNeedSetIB; }
 	bool GetForceSetRTs() const { return bNeedSetRTs; }
 	bool GetForceSetSOs() const { return bNeedSetSOs; }
 	bool GetForceSetSamplersPerShaderStage(uint32 Frequency) const { return PipelineState.Common.SamplerCache.DirtySlotMask[Frequency] != 0; }

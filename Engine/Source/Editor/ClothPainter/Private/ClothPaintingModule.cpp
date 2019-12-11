@@ -18,6 +18,8 @@
 #include "ClothPaintToolCommands.h"
 #include "ISkeletalMeshEditorModule.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
+#include "SkeletalMeshToolMenuContext.h"
 #include "ClothPainterCommands.h"
 #include "Widgets/Docking/SDockTab.h"
 
@@ -68,6 +70,8 @@ void FClothPaintingModule::StartupModule()
 	ClothPaintToolCommands::RegisterClothPaintToolCommands();
 	FClothPainterCommands::Register();
 
+	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FClothPaintingModule::RegisterMenus));
+
 	if(!SkelMeshEditorExtenderHandle.IsValid())
 	{
 		ISkeletalMeshEditorModule& SkelMeshEditorModule = FModuleManager::Get().LoadModuleChecked<ISkeletalMeshEditorModule>("SkeletalMeshEditor");
@@ -112,19 +116,30 @@ TSharedRef<FExtender> FClothPaintingModule::ExtendSkelMeshEditorToolbar(const TS
 		FIsActionChecked::CreateRaw(this, &FClothPaintingModule::GetIsPaintToolsButtonChecked, Ptr)
 	);
 
-	ToolbarExtender->AddToolBarExtension("Asset", EExtensionHook::After, InCommandList, FToolBarExtensionDelegate::CreateLambda(
-		[this, Ptr](FToolBarBuilder& Builder)
-	{
-		Builder.AddToolBarButton(
-			FClothPainterCommands::Get().TogglePaintMode, 
-			NAME_None, 
-			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FClothPaintingModule::GetPaintToolsButtonText, Ptr)), 
-			TAttribute<FText>(), 
-			FSlateIcon(FEditorStyle::GetStyleSetName(), 
-			"LevelEditor.MeshPaintMode.TexturePaint"));
-	}));
-
 	return ToolbarExtender.ToSharedRef();
+}
+
+void FClothPaintingModule::RegisterMenus()
+{
+	FToolMenuOwnerScoped OwnerScoped(this);
+
+	UToolMenu* Toolbar = UToolMenus::Get()->ExtendMenu("AssetEditor.SkeletalMeshEditor.ToolBar");
+	{
+		FToolMenuSection& Section = Toolbar->FindOrAddSection("SkeletalMesh");
+		Section.AddDynamicEntry("TogglePaintMode", FNewToolMenuSectionDelegate::CreateLambda([this](FToolMenuSection& InSection)
+		{
+			USkeletalMeshToolMenuContext* Context = InSection.FindContext<USkeletalMeshToolMenuContext>();
+			if (Context && Context->SkeletalMeshEditor.IsValid())
+			{
+				InSection.AddEntry(FToolMenuEntry::InitToolBarButton(
+					FClothPainterCommands::Get().TogglePaintMode,
+					TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FClothPaintingModule::GetPaintToolsButtonText, Context->SkeletalMeshEditor)),
+					FText(),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.MeshPaintMode.TexturePaint")
+				));	
+			}
+		}));
+	}
 }
 
 FText FClothPaintingModule::GetPaintToolsButtonText(TWeakPtr<ISkeletalMeshEditor> InSkeletalMeshEditor) const
@@ -193,6 +208,9 @@ TSharedPtr<SClothPaintTab> FClothPaintingModule::GetActiveClothTab(TWeakPtr<ISke
 void FClothPaintingModule::ShutdownModule()
 {
 	ShutdownMode();
+
+	UToolMenus::UnRegisterStartupCallback(this);
+	UToolMenus::UnregisterOwner(this);
 
 	// Remove skel mesh editor extenders
 	ISkeletalMeshEditorModule* SkelMeshEditorModule = FModuleManager::GetModulePtr<ISkeletalMeshEditorModule>("SkeletalMeshEditor");

@@ -63,6 +63,11 @@ struct FCpuProfilerTraceInternal
 	struct FThreadBuffer
 		: public FTlsAutoCleanup
 	{
+		FThreadBuffer()
+			: DynamicScopeNamesMemory(0)
+		{
+		}
+
 		uint64 LastCycle = 0;
 		uint16 BufferSize = 0;
 		uint8 Buffer[MaxBufferSize];
@@ -108,98 +113,76 @@ void FCpuProfilerTraceInternal::EndCapture(FThreadBuffer* InThreadBuffer)
 	InThreadBuffer->BufferSize = 0;
 }
 
+#define CPUPROFILERTRACE_OUTPUTBEGINEVENT_PROLOGUE() \
+	++FCpuProfilerTraceInternal::ThreadDepth; \
+	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(CpuProfiler, EventBatch); \
+	if ((!bEventEnabled) & (bEventEnabled == FCpuProfilerTraceInternal::bThreadEnabled)) \
+	{ \
+		return; \
+	} \
+	FCpuProfilerTraceInternal::bThreadEnabled = bEventEnabled; \
+	FCpuProfilerTraceInternal::FThreadBuffer* ThreadBuffer = FCpuProfilerTraceInternal::ThreadBuffer; \
+	if (!ThreadBuffer) \
+	{ \
+		ThreadBuffer = FCpuProfilerTraceInternal::CreateThreadBuffer(); \
+	} \
+	if (!bEventEnabled) \
+	{ \
+		FCpuProfilerTraceInternal::EndCapture(ThreadBuffer); \
+		return; \
+	}
+
+#define CPUPROFILERTRACE_OUTPUTBEGINEVENT_EPILOGUE() \
+	uint64 Cycle = FPlatformTime::Cycles64(); \
+	uint64 CycleDiff = Cycle - ThreadBuffer->LastCycle; \
+	ThreadBuffer->LastCycle = Cycle; \
+	uint8* BufferPtr = ThreadBuffer->Buffer + ThreadBuffer->BufferSize; \
+	FTraceUtils::Encode7bit((CycleDiff << 1) | 1ull, BufferPtr); \
+	FTraceUtils::Encode7bit(SpecId, BufferPtr); \
+	ThreadBuffer->BufferSize = BufferPtr - ThreadBuffer->Buffer; \
+	if (ThreadBuffer->BufferSize >= FCpuProfilerTraceInternal::FullBufferThreshold) \
+	{ \
+		FCpuProfilerTraceInternal::FlushThreadBuffer(ThreadBuffer); \
+	}
+
 void FCpuProfilerTrace::OutputBeginEvent(uint32 SpecId)
 {
-	++FCpuProfilerTraceInternal::ThreadDepth;
-	bool bEventEnabled = UE_TRACE_EVENT_IS_ENABLED(CpuProfiler, EventBatch);
-	if ((!bEventEnabled) & (bEventEnabled == FCpuProfilerTraceInternal::bThreadEnabled))
-	{
-		return;
-	}
-	FCpuProfilerTraceInternal::bThreadEnabled = bEventEnabled;
-	FCpuProfilerTraceInternal::FThreadBuffer* ThreadBuffer = FCpuProfilerTraceInternal::ThreadBuffer;
-	if (!ThreadBuffer)
-	{
-		ThreadBuffer = FCpuProfilerTraceInternal::CreateThreadBuffer();
-	}
-	if (!bEventEnabled)
-	{
-		FCpuProfilerTraceInternal::EndCapture(ThreadBuffer);
-		return;
-	}
-	if (ThreadBuffer->BufferSize >= FCpuProfilerTraceInternal::FullBufferThreshold)
-	{
-		FCpuProfilerTraceInternal::FlushThreadBuffer(ThreadBuffer);
-	}
-	uint64 Cycle = FPlatformTime::Cycles64();
-	uint64 CycleDiff = Cycle - ThreadBuffer->LastCycle;
-	ThreadBuffer->LastCycle = Cycle;
-	uint8* BufferPtr = ThreadBuffer->Buffer + ThreadBuffer->BufferSize;
-	FTraceUtils::Encode7bit((CycleDiff << 1) | 1ull, BufferPtr);
-	FTraceUtils::Encode7bit(SpecId, BufferPtr);
-	ThreadBuffer->BufferSize = BufferPtr - ThreadBuffer->Buffer;
+	CPUPROFILERTRACE_OUTPUTBEGINEVENT_PROLOGUE();
+	CPUPROFILERTRACE_OUTPUTBEGINEVENT_EPILOGUE();
 }
 
 void FCpuProfilerTrace::OutputBeginDynamicEvent(const ANSICHAR* Name, ECpuProfilerGroup Group)
 {
-	if (UE_TRACE_EVENT_IS_ENABLED(CpuProfiler, EventBatch))
+	CPUPROFILERTRACE_OUTPUTBEGINEVENT_PROLOGUE();
+	uint32 SpecId = ThreadBuffer->DynamicAnsiScopeNamesMap.FindRef(Name);
+	if (!SpecId)
 	{
-		FCpuProfilerTraceInternal::FThreadBuffer* ThreadBuffer = FCpuProfilerTraceInternal::ThreadBuffer;
-		if (!ThreadBuffer)
-		{
-			ThreadBuffer = FCpuProfilerTraceInternal::CreateThreadBuffer();
-		}
-		uint32* FindSpecId = ThreadBuffer->DynamicAnsiScopeNamesMap.Find(Name);
-		if (!FindSpecId)
-		{
-			int32 NameSize = strlen(Name) + 1;
-			ANSICHAR* NameCopy = reinterpret_cast<ANSICHAR*>(ThreadBuffer->DynamicScopeNamesMemory.Alloc(NameSize, alignof(ANSICHAR)));
-			FMemory::Memmove(NameCopy, Name, NameSize);
-			uint32 SpecId = OutputEventType(NameCopy, Group);
-			ThreadBuffer->DynamicAnsiScopeNamesMap.Add(NameCopy, SpecId);
-			OutputBeginEvent(SpecId);
-		}
-		else
-		{
-			OutputBeginEvent(*FindSpecId);
-		}
-		
+		int32 NameSize = strlen(Name) + 1;
+		ANSICHAR* NameCopy = reinterpret_cast<ANSICHAR*>(ThreadBuffer->DynamicScopeNamesMemory.Alloc(NameSize, alignof(ANSICHAR)));
+		FMemory::Memmove(NameCopy, Name, NameSize);
+		SpecId = OutputEventType(NameCopy, Group);
+		ThreadBuffer->DynamicAnsiScopeNamesMap.Add(NameCopy, SpecId);
 	}
-	else
-	{
-		OutputBeginEvent(0);
-	}
+	CPUPROFILERTRACE_OUTPUTBEGINEVENT_EPILOGUE();
 }
 
 void FCpuProfilerTrace::OutputBeginDynamicEvent(const TCHAR* Name, ECpuProfilerGroup Group)
 {
-	if (UE_TRACE_EVENT_IS_ENABLED(CpuProfiler, EventBatch))
+	CPUPROFILERTRACE_OUTPUTBEGINEVENT_PROLOGUE();
+	uint32 SpecId = ThreadBuffer->DynamicTCharScopeNamesMap.FindRef(Name);
+	if (!SpecId)
 	{
-		FCpuProfilerTraceInternal::FThreadBuffer* ThreadBuffer = FCpuProfilerTraceInternal::ThreadBuffer;
-		if (!ThreadBuffer)
-		{
-			ThreadBuffer = FCpuProfilerTraceInternal::CreateThreadBuffer();
-		}
-		uint32* FindSpecId = ThreadBuffer->DynamicTCharScopeNamesMap.Find(Name);
-		if (!FindSpecId)
-		{
-			int32 NameSize = (FCString::Strlen(Name) + 1) * sizeof(TCHAR);
-			TCHAR* NameCopy = reinterpret_cast<TCHAR*>(ThreadBuffer->DynamicScopeNamesMemory.Alloc(NameSize, alignof(TCHAR)));
-			FMemory::Memmove(NameCopy, Name, NameSize);
-			uint32 SpecId = OutputEventType(NameCopy, Group);
-			ThreadBuffer->DynamicTCharScopeNamesMap.Add(NameCopy, SpecId);
-			OutputBeginEvent(SpecId);
-		}
-		else
-		{
-			OutputBeginEvent(*FindSpecId);
-		}
+		int32 NameSize = (FCString::Strlen(Name) + 1) * sizeof(TCHAR);
+		TCHAR* NameCopy = reinterpret_cast<TCHAR*>(ThreadBuffer->DynamicScopeNamesMemory.Alloc(NameSize, alignof(TCHAR)));
+		FMemory::Memmove(NameCopy, Name, NameSize);
+		SpecId = OutputEventType(NameCopy, Group);
+		ThreadBuffer->DynamicTCharScopeNamesMap.Add(NameCopy, SpecId);
 	}
-	else
-	{
-		OutputBeginEvent(0);
-	}
+	CPUPROFILERTRACE_OUTPUTBEGINEVENT_EPILOGUE();
 }
+
+#undef CPUPROFILERTRACE_OUTPUTBEGINEVENT_PROLOGUE
+#undef CPUPROFILERTRACE_OUTPUTBEGINEVENT_EPILOGUE
 
 void FCpuProfilerTrace::OutputEndEvent()
 {
@@ -220,16 +203,16 @@ void FCpuProfilerTrace::OutputEndEvent()
 		FCpuProfilerTraceInternal::EndCapture(ThreadBuffer);
 		return;
 	}
-	if ((FCpuProfilerTraceInternal::ThreadDepth == 0) | (ThreadBuffer->BufferSize >= FCpuProfilerTraceInternal::FullBufferThreshold))
-	{
-		FCpuProfilerTraceInternal::FlushThreadBuffer(ThreadBuffer);
-	}
 	uint64 Cycle = FPlatformTime::Cycles64();
 	uint64 CycleDiff = Cycle - ThreadBuffer->LastCycle;
 	ThreadBuffer->LastCycle = Cycle;
 	uint8* BufferPtr = ThreadBuffer->Buffer + ThreadBuffer->BufferSize;
 	FTraceUtils::Encode7bit(CycleDiff << 1, BufferPtr);
 	ThreadBuffer->BufferSize = BufferPtr - ThreadBuffer->Buffer;
+	if ((FCpuProfilerTraceInternal::ThreadDepth == 0) | (ThreadBuffer->BufferSize >= FCpuProfilerTraceInternal::FullBufferThreshold))
+	{
+		FCpuProfilerTraceInternal::FlushThreadBuffer(ThreadBuffer);
+	}
 }
 
 uint32 FCpuProfilerTraceInternal::GetNextSpecId()

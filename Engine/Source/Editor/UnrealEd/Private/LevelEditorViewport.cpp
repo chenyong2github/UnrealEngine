@@ -53,7 +53,6 @@
 #include "AssetRegistryModule.h"
 #include "IPlacementModeModule.h"
 #include "Engine/Polys.h"
-#include "Editor/GeometryMode/Public/EditorGeometry.h"
 #include "ActorEditorUtils.h"
 #include "ObjectTools.h"
 #include "PackageTools.h"
@@ -77,6 +76,7 @@
 #include "ActorGroupingUtils.h"
 #include "EditorWorldExtension.h"
 #include "VREditorMode.h"
+#include "Subsystems/BrushEditingSubsystem.h"
 #include "Engine/VolumeTexture.h"
 #include "Materials/MaterialExpressionDivide.h"
 #include "Materials/MaterialExpressionSubtract.h"
@@ -201,6 +201,31 @@ static FVector4 AttemptToSnapLocationToOriginPlane( const FViewportCursorLocatio
 	}
 
 	return Location;
+}
+
+/** Helper function to get an atmosphere light from an index*/
+static UDirectionalLightComponent* GetAtmosphericLight(const uint8 DesiredLightIndex, UWorld* ViewportWorld)
+{
+	UDirectionalLightComponent* SelectedAtmosphericLight = nullptr;
+	float SelectedLightLuminance = 0.0f;
+	for (TObjectIterator<UDirectionalLightComponent> ComponentIt; ComponentIt; ++ComponentIt)
+	{
+		if (ComponentIt->GetWorld() == ViewportWorld)
+		{
+			UDirectionalLightComponent* AtmosphericLight = *ComponentIt;
+
+			if (!AtmosphericLight->IsUsedAsAtmosphereSunLight() || AtmosphericLight->GetAtmosphereSunLightIndex() != DesiredLightIndex || !AtmosphericLight->GetVisibleFlag())
+				continue;
+
+			float LightLuminance = AtmosphericLight->GetColoredLightBrightness().ComputeLuminance();
+			if (!SelectedAtmosphericLight ||					// Set it if null
+				SelectedLightLuminance < LightLuminance)		// Or choose the brightest atmospheric light
+			{
+				SelectedAtmosphericLight = AtmosphericLight;
+			}
+		}
+	}
+	return SelectedAtmosphericLight;
 }
 
 namespace LevelEditorViewportClientHelper
@@ -1568,7 +1593,7 @@ FTrackingTransaction::~FTrackingTransaction()
 	USelection::SelectionChangedEvent.RemoveAll(this);
 }
 
-void FTrackingTransaction::Begin(const FText& Description)
+void FTrackingTransaction::Begin(const FText& Description, AActor* AdditionalActor)
 {
 	End();
 	
@@ -1578,11 +1603,8 @@ void FTrackingTransaction::Begin(const FText& Description)
 
 	TSet<AGroupActor*> GroupActors;
 
-	// Modify selected actors to record their state at the start of the transaction
-	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+	auto ProcessActorModify = [&](AActor* Actor)
 	{
-		AActor* Actor = CastChecked<AActor>(*It);
-
 		// Some tracking transactions, such as a duplication operation into a sublevel do not modify the selected Actors
 		// Store the initial package dirty state so we can restore if necessary
 		UPackage* Package = Actor->GetOutermost();
@@ -1602,6 +1624,18 @@ void FTrackingTransaction::Begin(const FText& Description)
 				GroupActors.Add(ActorLockedRootGroup);
 			}
 		}
+	};
+
+	// Modify selected actors to record their state at the start of the transaction
+	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+	{
+		AActor* Actor = CastChecked<AActor>(*It);
+		ProcessActorModify(Actor);
+	}
+	// And the additional optional actor provided
+	if (AdditionalActor)
+	{
+		ProcessActorModify(AdditionalActor);
 	}
 
 	// Modify unique group actors
@@ -1802,8 +1836,6 @@ void FLevelEditorViewportClient::InitializeVisibilityFlags()
 FSceneView* FLevelEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, const EStereoscopicPass StereoPass)
 {
 	bWasControlledByOtherViewport = false;
-
-	UpdateViewForLockedActor();
 
 	// set all other matching viewports to my location, if the LOD locking is enabled,
 	// unless another viewport already set me this frame (otherwise they fight)
@@ -2084,18 +2116,19 @@ void FLevelEditorViewportClient::LostFocus(FViewport* InViewport)
 //
 void FLevelEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY)
 {
+	UBrushEditingSubsystem* BrushSubsystem = GEditor->GetEditorSubsystem<UBrushEditingSubsystem>();
 
 	const FViewportClick Click(&View,this,Key,Event,HitX,HitY);
 	if (Click.GetKey() == EKeys::MiddleMouseButton && !Click.IsAltDown() && !Click.IsShiftDown())
 	{
-		ClickHandlers::ClickViewport(this, Click);
+		LevelViewportClickHandlers::ClickViewport(this, Click);
 		return;
 	}
 	if (!ModeTools->HandleClick(this, HitProxy,Click))
 	{
 		if (HitProxy == NULL)
 		{
-			ClickHandlers::ClickBackdrop(this,Click);
+			LevelViewportClickHandlers::ClickBackdrop(this,Click);
 		}
 		else if (HitProxy->IsA(HWidgetAxis::StaticGetType()))
 		{
@@ -2165,11 +2198,11 @@ void FLevelEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitPr
 
 			if (bSelectComponent)
 			{
-				ClickHandlers::ClickComponent(this, ActorHitProxy, Click);
+				LevelViewportClickHandlers::ClickComponent(this, ActorHitProxy, Click);
 			}
 			else
 			{
-				ClickHandlers::ClickActor(this, ConsideredActor, Click, true);
+				LevelViewportClickHandlers::ClickActor(this, ConsideredActor, Click, true);
 			}
 
 			// We clicked an actor, allow the pivot to reposition itself.
@@ -2177,56 +2210,19 @@ void FLevelEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitPr
 		}
 		else if (HitProxy->IsA(HInstancedStaticMeshInstance::StaticGetType()))
 		{
-			ClickHandlers::ClickActor(this, ((HInstancedStaticMeshInstance*)HitProxy)->Component->GetOwner(), Click, true);
+			LevelViewportClickHandlers::ClickActor(this, ((HInstancedStaticMeshInstance*)HitProxy)->Component->GetOwner(), Click, true);
 		}
 		else if (HitProxy->IsA(HBSPBrushVert::StaticGetType()) && ((HBSPBrushVert*)HitProxy)->Brush.IsValid())
 		{
-			ClickHandlers::ClickBrushVertex(this,((HBSPBrushVert*)HitProxy)->Brush.Get(),((HBSPBrushVert*)HitProxy)->Vertex,Click);
+			LevelViewportClickHandlers::ClickBrushVertex(this,((HBSPBrushVert*)HitProxy)->Brush.Get(),((HBSPBrushVert*)HitProxy)->Vertex,Click);
 		}
 		else if (HitProxy->IsA(HStaticMeshVert::StaticGetType()))
 		{
-			ClickHandlers::ClickStaticMeshVertex(this,((HStaticMeshVert*)HitProxy)->Actor,((HStaticMeshVert*)HitProxy)->Vertex,Click);
+			LevelViewportClickHandlers::ClickStaticMeshVertex(this,((HStaticMeshVert*)HitProxy)->Actor,((HStaticMeshVert*)HitProxy)->Vertex,Click);
 		}
-		else if (HitProxy->IsA(HGeomPolyProxy::StaticGetType()))
+		else if (BrushSubsystem && BrushSubsystem->ProcessClickOnBrushGeometry(this, HitProxy, Click))
 		{
-			HGeomPolyProxy* GeomHitProxy = (HGeomPolyProxy*)HitProxy;
-
-			if( GeomHitProxy->GetGeomObject() )
-			{
-				FHitResult CheckResult(ForceInit);
-				FCollisionQueryParams BoxParams(SCENE_QUERY_STAT(ProcessClickTrace), false, GeomHitProxy->GetGeomObject()->ActualBrush);
-				bool bHit = GWorld->SweepSingleByObjectType(CheckResult, Click.GetOrigin(), Click.GetOrigin() + Click.GetDirection() * HALF_WORLD_MAX, FQuat::Identity, FCollisionObjectQueryParams(ECC_WorldStatic), FCollisionShape::MakeBox(FVector(1.f)), BoxParams);
-
-				if(bHit)
-				{
-					GEditor->UnsnappedClickLocation = CheckResult.Location;
-					GEditor->ClickLocation = CheckResult.Location;
-					GEditor->ClickPlane = FPlane(CheckResult.Location, CheckResult.Normal);
-				}
-
-				if(!ClickHandlers::ClickActor(this, GeomHitProxy->GetGeomObject()->ActualBrush, Click, false))
-				{
-					ClickHandlers::ClickGeomPoly(this, GeomHitProxy, Click);
-				}
-
-				Invalidate(true, true);
-			}
-		}
-		else if (HitProxy->IsA(HGeomEdgeProxy::StaticGetType()))
-		{
-			HGeomEdgeProxy* GeomHitProxy = (HGeomEdgeProxy*)HitProxy;
-
-			if( GeomHitProxy->GetGeomObject() !=nullptr )
-			{
-				if(!ClickHandlers::ClickGeomEdge(this, GeomHitProxy, Click))
-				{
-					ClickHandlers::ClickActor(this, GeomHitProxy->GetGeomObject()->ActualBrush, Click, true);
-				}
-			}
-		}
-		else if (HitProxy->IsA(HGeomVertexProxy::StaticGetType()))
-		{
-			ClickHandlers::ClickGeomVertex(this,(HGeomVertexProxy*)HitProxy,Click);
+			// Handled by the brush subsystem
 		}
 		else if (HitProxy->IsA(HModel::StaticGetType()))
 		{
@@ -2239,12 +2235,12 @@ void FLevelEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitPr
 			uint32 SurfaceIndex = INDEX_NONE;
 			if(ModelHit->ResolveSurface(SceneView,HitX,HitY,SurfaceIndex))
 			{
-				ClickHandlers::ClickSurface(this,ModelHit->GetModel(),SurfaceIndex,Click);
+				LevelViewportClickHandlers::ClickSurface(this,ModelHit->GetModel(),SurfaceIndex,Click);
 			}
 		}
 		else if (HitProxy->IsA(HLevelSocketProxy::StaticGetType()))
 		{
-			ClickHandlers::ClickLevelSocket(this, HitProxy, Click);
+			LevelViewportClickHandlers::ClickLevelSocket(this, HitProxy, Click);
 		}
 	}
 }
@@ -2293,7 +2289,7 @@ void FLevelEditorViewportClient::Tick(float DeltaTime)
 
 	UpdateViewForLockedActor(DeltaTime);
 
-	UserIsControllingSunLightTimer = FMath::Max(UserIsControllingSunLightTimer - DeltaTime, 0.0f);
+	UserIsControllingAtmosphericLightTimer = FMath::Max(UserIsControllingAtmosphericLightTimer - DeltaTime, 0.0f);
 }
 
 void FLevelEditorViewportClient::UpdateViewForLockedActor(float DeltaTime)
@@ -2758,21 +2754,42 @@ bool FLevelEditorViewportClient::InputKey(FViewport* InViewport, int32 Controlle
 		return true;
 	}
 
-	bool bCtrlLPressed = InputState.IsCtrlButtonPressed() && Key == EKeys::L;
-	if (bCtrlLPressed && InputState.IsShiftButtonPressed())
+	UWorld* ViewportWorld = GetWorld();
+	auto ProcessAtmosphericLightShortcut = [&](const uint8 LightIndex, bool& bCurrentUserControl)
 	{
-		bUserIsControllingSunLight1 = true;
-		UserIsControllingSunLightTimer = 3.0f; // Keep the widget open for a few seconds even when not tweaking the sun light
+		UDirectionalLightComponent* SelectedSunLight = GetAtmosphericLight(LightIndex, ViewportWorld);
+		if (SelectedSunLight)
+		{
+			if (!bCurrentUserControl)
+			{
+				FText TrackingDescription = FText::Format(LOCTEXT("RotatationShortcut", "Rotate Atmosphere Light {0}"), LightIndex);
+				TrackingTransaction.Begin(TrackingDescription, SelectedSunLight->GetOwner());
+				SetRealtime(true, true); // The first time, save that setting for RestoreRealtime
+			}
+			bCurrentUserControl = true;
+			UserIsControllingAtmosphericLightTimer = 3.0f; // Keep the widget open for a few seconds even when not tweaking the sun light
+		}
+	};
+
+
+	bool bCmdCtrlLPressed = (InputState.IsCommandButtonPressed() || InputState.IsCtrlButtonPressed()) && Key == EKeys::L;
+	if (bCmdCtrlLPressed && InputState.IsShiftButtonPressed())
+	{
+		ProcessAtmosphericLightShortcut(1, bUserIsControllingAtmosphericLight1);
 		return true;
 	}
-	if (bCtrlLPressed)
+	if (bCmdCtrlLPressed)
 	{
-		bUserIsControllingSunLight0 = true;
-		UserIsControllingSunLightTimer = 3.0f; // Keep the widget open for a few seconds even when not tweaking the sun light
+		ProcessAtmosphericLightShortcut(0, bUserIsControllingAtmosphericLight0);
 		return true;
 	}
-	bUserIsControllingSunLight0 = false;
-	bUserIsControllingSunLight1 = false;
+	if (bUserIsControllingAtmosphericLight0 || bUserIsControllingAtmosphericLight1)
+	{
+		TrackingTransaction.End();					// End undo/redo translation
+		RestoreRealtime(true);						// Restore previous real-time state
+	}
+	bUserIsControllingAtmosphericLight0 = false;	// Disable all atmospheric light controls
+	bUserIsControllingAtmosphericLight1 = false;
 
 	bool bHandled = FEditorViewportClient::InputKey(InViewport,ControllerId,Key,Event,AmountDepressed,bGamepad);
 
@@ -3038,7 +3055,9 @@ void FLevelEditorViewportClient::TrackingStopped()
 		// Create post edit property change event
 		UProperty* TransformProperty = LevelEditorViewportClientHelper::GetEditTransformProperty(GetWidgetMode());
 		FPropertyChangedEvent PropertyChangedEvent(TransformProperty, EPropertyChangeType::ValueSet);
-		
+
+		TArray<AActor*> MovedActors;
+
 		for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It) 
 		{
 			AActor* Actor = static_cast<AActor*>( *It );
@@ -3114,10 +3133,14 @@ void FLevelEditorViewportClient::TrackingStopped()
 				// Broadcast Post Edit change notification, we can't call PostEditChangeProperty directly on Actor or ActorComponent from here since it wasn't pair with a proper PreEditChange
 				FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(Actor, PropertyChangedEvent);
 				Actor->PostEditMove(true);
+
+				MovedActors.Add(Actor);
 	
 				GEditor->BroadcastEndObjectMovement(*Actor);
 			}
 		}
+
+		GEditor->BroadcastActorsMoved(MovedActors);
 
 		if (!GUnrealEd->IsPivotMovedIndependently())
 		{
@@ -3447,7 +3470,7 @@ void FLevelEditorViewportClient::MoveLockedActorToCamera()
 			TOptional<FRotator> PreviousRotator;
 			if (ActiveActorLockComponent)
 			{
-				PreviousRotator = ActiveActorLockComponent->RelativeRotation;
+				PreviousRotator = ActiveActorLockComponent->GetRelativeRotation();
 			}
 
 			// If we're locked to a camera then we're reflecting the camera view and not the actor position. We need to reflect that delta when we reposition the piloted actor
@@ -3473,7 +3496,7 @@ void FLevelEditorViewportClient::MoveLockedActorToCamera()
 				FRotator ActorRotWind, ActorRotRem;
 				Rot.GetWindingAndRemainder(ActorRotWind, ActorRotRem);
 				const FQuat ActorQ = ActorRotRem.Quaternion();
-				const FQuat ResultQ = ActiveActorLockComponent->RelativeRotation.Quaternion();
+				const FQuat ResultQ = ActiveActorLockComponent->GetRelativeRotation().Quaternion();
 				FRotator NewActorRotRem = FRotator(ResultQ);
 				ActorRotRem.SetClosestToMe(NewActorRotRem);
 				FRotator DeltaRot = NewActorRotRem - ActorRotRem;
@@ -4115,51 +4138,32 @@ EMouseCursor::Type FLevelEditorViewportClient::GetCursor(FViewport* InViewport,i
 
 void FLevelEditorViewportClient::MouseMove(FViewport* InViewport, int32 x, int32 y)
 {
-	if (bUserIsControllingSunLight0 || bUserIsControllingSunLight1)
+	if (bUserIsControllingAtmosphericLight0 || bUserIsControllingAtmosphericLight1)
 	{
 		UWorld* ViewportWorld = GetWorld();
 
-		UDirectionalLightComponent* SelectedSunLight = nullptr;
-		float SelectedLightLuminance = 0.0f;
-		const uint8 DesiredLightIndex = bUserIsControllingSunLight0 ? 0 : 1;
-		for (TObjectIterator<UDirectionalLightComponent> ComponentIt; ComponentIt; ++ComponentIt)
-		{
-			if (ComponentIt->GetWorld() == ViewportWorld)
-			{
-				UDirectionalLightComponent* SunLight = *ComponentIt;
+		const uint8 DesiredLightIndex = bUserIsControllingAtmosphericLight0 ? 0 : 1;
+		UDirectionalLightComponent* SelectedAtmosphericLight = GetAtmosphericLight(DesiredLightIndex, ViewportWorld);
 
-				if (!SunLight->IsUsedAsAtmosphereSunLight() || SunLight->GetAtmosphereSunLightIndex()!= DesiredLightIndex || !SunLight->GetVisibleFlag())
-					continue;
-
-				float LightLuminance = SunLight->GetColoredLightBrightness().ComputeLuminance();
-				if (!SelectedSunLight ||							// Set it if null
-					SelectedLightLuminance < LightLuminance)		// Or choose the brightest sun light
-				{
-					SelectedSunLight = SunLight;
-				}
-			}
-		}
-
-		if (SelectedSunLight)
+		if (SelectedAtmosphericLight)
 		{
 			int32 mouseDeltaX = x - CachedLastMouseX;
 			int32 mouseDeltaY = y - CachedLastMouseY;
 
-			FTransform ComponentTransform = SelectedSunLight->GetComponentTransform();
-			FQuat SunRotation = ComponentTransform.GetRotation();
+			FTransform ComponentTransform = SelectedAtmosphericLight->GetComponentTransform();
+			FQuat LightRotation = ComponentTransform.GetRotation();
 			// Rotate around up axis (yaw)
 			FVector UpVector = FVector(0, 0, 1);
-			SunRotation = FQuat(UpVector, float(mouseDeltaX)*0.01f) * SunRotation;
-			// Sun Zenith rotation (pitch)
-			FVector PitchRotationAxis = FVector::CrossProduct(SunRotation.GetForwardVector(), UpVector);
+			LightRotation = FQuat(UpVector, float(mouseDeltaX)*0.01f) * LightRotation;
+			// Light Zenith rotation (pitch)
+			FVector PitchRotationAxis = FVector::CrossProduct(LightRotation.GetForwardVector(), UpVector);
 			PitchRotationAxis.Normalize();
-			SunRotation = FQuat(PitchRotationAxis, float(mouseDeltaY)*0.01f) * SunRotation;
+			LightRotation = FQuat(PitchRotationAxis, float(mouseDeltaY)*0.01f) * LightRotation;
 
-			ComponentTransform.SetRotation(SunRotation);
-			SelectedSunLight->SetWorldTransform(ComponentTransform);
+			ComponentTransform.SetRotation(LightRotation);
+			SelectedAtmosphericLight->SetWorldTransform(ComponentTransform);
 
-			// Only manipulate a single light, the first one.
-			UserControlledSunLightMatrix = ComponentTransform;
+			UserControlledAtmosphericLightMatrix = ComponentTransform;
 		}
 	}
 
@@ -4500,9 +4504,9 @@ void FLevelEditorViewportClient::Draw(const FSceneView* View,FPrimitiveDrawInter
 		}
 	}
 
-	if (UserIsControllingSunLightTimer > 0.0f)
+	if (UserIsControllingAtmosphericLightTimer > 0.0f)
 	{
-		// Draw a gizmo helping to figure out where is the sun when moving it using a shortcut.
+		// Draw a gizmo helping to figure out where is the light when moving it using a shortcut.
 		FQuat ViewRotation = FQuat(GetViewRotation());
 		FVector ViewPosition = GetViewLocation();
 		const float GizmoDistance = 50.0f;
@@ -4533,17 +4537,17 @@ void FLevelEditorViewportClient::Draw(const FSceneView* View,FPrimitiveDrawInter
 		DrawArc(PDI, Base, Z, Y, -90.0f, 90.0f, GizmoRadius, 32, FLinearColor(1.0f, 0.2f, 0.2f), SDPG_World);
 		DrawArc(PDI, Base, Z, X, -90.0f, 90.0f, GizmoRadius, 32, FLinearColor(0.2f, 1.0f, 0.2f), SDPG_World);
 
-		// Draw the sun incoming light direction. The arrow is offset outward to help depth perception when it intersects with other gizmo elements.
-		const FLinearColor ArrowColor = -UserControlledSunLightMatrix.GetRotation().GetForwardVector() * 0.5f + 0.5f;
-		const FVector ArrowOrigin = Base - UserControlledSunLightMatrix.GetRotation().GetForwardVector()*GizmoRadius*1.25;
-		const FQuatRotationTranslationMatrix ArrowToWorld(UserControlledSunLightMatrix.GetRotation(), ArrowOrigin);
+		// Draw the light incoming light direction. The arrow is offset outward to help depth perception when it intersects with other gizmo elements.
+		const FLinearColor ArrowColor = -UserControlledAtmosphericLightMatrix.GetRotation().GetForwardVector() * 0.5f + 0.5f;
+		const FVector ArrowOrigin = Base - UserControlledAtmosphericLightMatrix.GetRotation().GetForwardVector()*GizmoRadius*1.25;
+		const FQuatRotationTranslationMatrix ArrowToWorld(UserControlledAtmosphericLightMatrix.GetRotation(), ArrowOrigin);
 		DrawDirectionalArrow(PDI, ArrowToWorld, ArrowColor, GizmoRadius, 0.3f, SDPG_World, ThicknessBold);
 
 		// Now draw x, y and z axis to help getting a sense of depth when look at the vectors on screen.
-		FVector SunArrowTip = -UserControlledSunLightMatrix.GetRotation().GetForwardVector()*GizmoRadius;
-		FVector P0 = Base + SunArrowTip * FVector(1.0f, 0.0f, 0.0f);
-		FVector P1 = Base + SunArrowTip * FVector(1.0f, 1.0f, 0.0f);
-		FVector P2 = Base + SunArrowTip * FVector(1.0f, 1.0f, 1.0f);
+		FVector LightArrowTip = -UserControlledAtmosphericLightMatrix.GetRotation().GetForwardVector()*GizmoRadius;
+		FVector P0 = Base + LightArrowTip * FVector(1.0f, 0.0f, 0.0f);
+		FVector P1 = Base + LightArrowTip * FVector(1.0f, 1.0f, 0.0f);
+		FVector P2 = Base + LightArrowTip * FVector(1.0f, 1.0f, 1.0f);
 		PDI->DrawLine(Base, P0, FLinearColor(1.0f, 0.0f, 0.0f), SDPG_World, ThicknessLight);
 		PDI->DrawLine(P0, P1, FLinearColor(0.0f, 1.0f, 0.0f), SDPG_World, ThicknessLight);
 		PDI->DrawLine(P1, P2, FLinearColor(0.0f, 0.0f, 1.0f), SDPG_World, ThicknessLight);
@@ -5168,10 +5172,3 @@ bool FLevelEditorViewportClient::GetPivotForOrbit(FVector& Pivot) const
 }
 
 #undef LOCTEXT_NAMESPACE
-
-// Doxygen cannot parse these correctly since the declarations are made in Editor, not UnrealEd
-#if !UE_BUILD_DOCS
-IMPLEMENT_HIT_PROXY(HGeomPolyProxy,HHitProxy);
-IMPLEMENT_HIT_PROXY(HGeomEdgeProxy,HHitProxy);
-IMPLEMENT_HIT_PROXY(HGeomVertexProxy,HHitProxy);
-#endif

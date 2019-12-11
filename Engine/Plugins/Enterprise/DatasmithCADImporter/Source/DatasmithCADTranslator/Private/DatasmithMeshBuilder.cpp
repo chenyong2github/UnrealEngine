@@ -1,107 +1,74 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "DatasmithMeshBuilder.h"
 
-#ifdef USE_CORETECH_MT_PARSER
-
+#ifdef CAD_INTERFACE
 #include "CoreTechHelper.h"
+#endif // CAD_INTERFACE
+
+#include "CoreTechFileParser.h"
 #include "DatasmithMeshHelper.h"
 #include "IDatasmithSceneElements.h"
+
+#include "HAL/FileManager.h"
 #include "MeshDescription.h"
-#include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
 using namespace CADLibrary;
 
-FCoretechBody::FCoretechBody(uint32 InBodyID)
-	: TriangleCount(0)
-	, BodyID(InBodyID)
-{
-}
-
-void FCoretechBody::Add(FCTTessellation* InFaceTessellation)
-{
-	if (InFaceTessellation == nullptr)
-	{
-		return;
-	}
-	FaceTessellationSet.Add(InFaceTessellation);
-	TriangleCount += InFaceTessellation->IndexCount / 3;
-	MaterialToPartition.LinkMaterialId2MaterialHash(InFaceTessellation->MaterialId, InFaceTessellation->MaterialHash);
-}
-
-FDatasmithMeshBuilder::FDatasmithMeshBuilder(const FString& InCachePath, TMap<FString, FString>& InCADFileToUE4GeomMap, TMap< TSharedPtr< IDatasmithMeshElement >, uint32 >& InMeshElementToCTBodyUuidMap)
+FDatasmithMeshBuilder::FDatasmithMeshBuilder(TMap<FString, FString>& InCADFileToUE4GeomMap, const FString& InCachePath, const CADLibrary::FImportParameters& InImportParameters)
 	: CachePath(InCachePath)
-	, CADFileToUE4GeomMap(InCADFileToUE4GeomMap)
-	, MeshElementToCTBodyUuidMap(InMeshElementToCTBodyUuidMap)
+	, CADFileToMeshFile(InCADFileToUE4GeomMap)
+	, ImportParameters(InImportParameters)
 {
+	LoadMeshFiles();
 }
 
-void FDatasmithMeshBuilder::LoadRawDataGeom()
+void FDatasmithMeshBuilder::LoadMeshFiles()
 {
-	RawDataArray.Reserve(CADFileToUE4GeomMap.Num());
-	for (const auto& FilePair : CADFileToUE4GeomMap)
+	BodyMeshes.Reserve(CADFileToMeshFile.Num());
+
+	for (const auto& FilePair : CADFileToMeshFile)
 	{
-		FString RawDataFile = FPaths::Combine(CachePath, TEXT("mesh"), FilePair.Value + TEXT(".gm"));
-		if (!IFileManager::Get().FileExists(*RawDataFile)) 
+		FString MeshFile = FPaths::Combine(CachePath, TEXT("mesh"), FilePair.Value + TEXT(".gm"));
+		if (!IFileManager::Get().FileExists(*MeshFile))
 		{
 			continue;
 		}
-
-		int32 index = RawDataArray.Emplace(RawDataFile, BodyUuidToCoretechBodyMap);
-	}
-}
-
-FCTRawGeomFile::FCTRawGeomFile(FString& InFileName, TMap< uint32, FCoretechBody* >& InBodyUuidToCTBodyMap)
-	: BodyUuidToCTBodyMap(InBodyUuidToCTBodyMap)
-{
-	uint32 NbBody = 0;
-
-	FFileHelper::LoadFileToArray(RawData, *InFileName);
-	ReadTessellationSetFromFile(RawData, NbBody, FaceTessellationSet);
-	CTBodySet.Reserve(NbBody);
-
-	for (int index = 0; index < FaceTessellationSet.Num(); ++index)
-	{
-		uint32* PBodyIndex = CTIdToBodyMap.Find(FaceTessellationSet[index].BodyId);
-		if (!PBodyIndex)
+		TArray<CADLibrary::FBodyMesh>& BodyMeshSet = BodyMeshes.Emplace_GetRef();
+		DeserializeBodyMeshFile(*MeshFile, BodyMeshSet);
+		for (FBodyMesh& Body : BodyMeshSet)
 		{
-			uint32 BodyIndex = CTBodySet.Emplace(FaceTessellationSet[index].BodyId);
-			PBodyIndex = &BodyIndex;
-			CTIdToBodyMap.Emplace(FaceTessellationSet[index].BodyId, BodyIndex);
-			BodyUuidToCTBodyMap.Emplace(FaceTessellationSet[index].BodyUuId, &CTBodySet[BodyIndex]);
+			MeshActorNameToBodyMesh.Emplace(Body.MeshActorName, &Body);
 		}
-		CTBodySet[*PBodyIndex].Add(&FaceTessellationSet[index]);
 	}
 }
 
 TOptional<FMeshDescription> FDatasmithMeshBuilder::GetMeshDescription(TSharedRef<IDatasmithMeshElement> OutMeshElement, CADLibrary::FMeshParameters& OutMeshParameters)
 {
-	uint32* BodyUuid = MeshElementToCTBodyUuidMap.Find(OutMeshElement);
-	if (BodyUuid == nullptr)
+#ifdef CAD_INTERFACE
+	const TCHAR* NameLabel = OutMeshElement->GetName();
+	CADUUID BodyUuid = (CADUUID) FCString::Atoi64(OutMeshElement->GetName()+2);  // +2 to remove 2 first char (Ox)
+	if (BodyUuid == 0)
 	{
 		return TOptional<FMeshDescription>();
 	}
 
-	FCoretechBody*const* PPBody = BodyUuidToCoretechBodyMap.Find(*BodyUuid);
+	FBodyMesh** PPBody = MeshActorNameToBodyMesh.Find(BodyUuid);
 	if(PPBody == nullptr || *PPBody == nullptr)
 	{
 		return TOptional<FMeshDescription>();
 	}
 
-	FCoretechBody& Body = **PPBody;
-
-	FCTMaterialPartition Material2Partition;
+	FBodyMesh& Body = **PPBody;
 
 	FMeshDescription MeshDescription;
 	DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
 
-	if(!ConvertCTBodySetToMeshDescription(ScaleFactor, OutMeshParameters, Body.GetTriangleCount(), Body.GetTessellationSet(), Material2Partition, MeshDescription))
+	if (ConvertCTBodySetToMeshDescription(ImportParameters, OutMeshParameters, Body, MeshDescription))
 	{
-		return TOptional<FMeshDescription>();
+		return MoveTemp(MeshDescription);
 	}
+#endif // CAD_INTERFACE
 
-	return MoveTemp(MeshDescription);
+	return TOptional<FMeshDescription>();
 }
-
-
-#endif  // USE_CORETECH_MT_PARSER

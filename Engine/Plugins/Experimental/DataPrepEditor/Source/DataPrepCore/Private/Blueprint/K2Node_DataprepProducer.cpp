@@ -54,5 +54,3 @@ TSharedPtr<SGraphNode> UK2Node_DataprepProducer::CreateVisualWidget()
 	return SNew(SGraphNodeDataprepProducer, this);
 }
 #endif
-
-#undef LOCTEXT_NAMESPACE

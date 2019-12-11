@@ -25,6 +25,8 @@
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraScriptMergeManager.h"
 
+#include "Styling/SlateIconFinder.h"
+
 #define LOCTEXT_NAMESPACE "UNiagaraStackRendererItem"
 
 UNiagaraStackRendererItem::UNiagaraStackRendererItem()
@@ -144,12 +146,26 @@ FText UNiagaraStackRendererItem::GetDisplayName() const
 	}
 }
 
-bool UNiagaraStackRendererItem::CanDelete() const
+bool UNiagaraStackRendererItem::TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const
 {
-	return HasBaseRenderer() == false;
+	if (GetOwnerIsEnabled() == false)
+	{
+		OutCanDeleteMessage = LOCTEXT("CantDeleteOwnerDisabledToolTip", "This renderer can not be deleted because its owner is disabled.");
+		return false;
+	}
+	else if (HasBaseRenderer() == false)
+	{
+		OutCanDeleteMessage = LOCTEXT("DeleteToolTip", "Delete this renderer.");
+		return true;
+	}
+	else
+	{
+		OutCanDeleteMessage = LOCTEXT("CantDeleteToolTip", "This renderer can not be deleted becaue it is inherited.");
+		return false;
+	}
 }
 
-void UNiagaraStackRendererItem::Delete()
+void UNiagaraStackRendererItem::DeleteInternal()
 {
 	const FScopedTransaction Transaction(LOCTEXT("DeleteRenderer", "Delete Renderer"));
 
@@ -159,7 +175,6 @@ void UNiagaraStackRendererItem::Delete()
 
 	OnDataObjectModified().Broadcast(RendererProperties.Get());
 	Finalize();
-	ModifiedGroupItemsDelegate.Broadcast();
 }
 
 bool UNiagaraStackRendererItem::HasBaseRenderer() const
@@ -208,12 +223,18 @@ bool UNiagaraStackRendererItem::GetIsEnabled() const
 	return RendererProperties->GetIsEnabled();
 }
 
-void UNiagaraStackRendererItem::SetIsEnabled(bool bInIsEnabled)
+void UNiagaraStackRendererItem::SetIsEnabledInternal(bool bInIsEnabled)
 {
 	FScopedTransaction ScopedTransaction(LOCTEXT("SetRendererEnabledState", "Set renderer enabled/disabled state."));
 	RendererProperties->Modify();
 	RendererProperties->SetIsEnabled(bInIsEnabled);
 	OnDataObjectModified().Broadcast(RendererProperties.Get());
+	RefreshChildren();
+}
+
+const FSlateBrush* UNiagaraStackRendererItem::GetIconBrush() const
+{
+	return FSlateIconFinder::FindIconBrushForClass(RendererProperties->GetClass());
 }
 
 void UNiagaraStackRendererItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)

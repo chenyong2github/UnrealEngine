@@ -7,34 +7,22 @@
 #include "../DeferredShadingCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
 
-Texture2DMS<float, HAIR_VISIBILITY_MAXSAMPLECOUNT> HairVisibilityDepthTexture;
+Texture2D<uint4> CategorisationTexture;
 
 void MainPS(
 	in FScreenVertexOutput Input,
 	out float SvDepth		: SV_Depth,
-	out uint4  OutGBufferB	: SV_Target0,
-	out uint4  OutColor		: SV_Target1
+	out float4  OutGBufferB	: SV_Target0,
+	out float4 OutColor		: SV_Target1
 )
 {
-	float MaxDepth = 0;
-	float MinDepth = 1;
-	const uint2 PixelCoord = floor(Input.Position.xy);
-	uint ValidSampleCount = 0;
-	for (uint SampleIt=0; SampleIt<HAIR_VISIBILITY_MAXSAMPLECOUNT; ++SampleIt)
+	const FCategorizationData CategorisationData = DecodeCategorizationData(CategorisationTexture.Load(uint3(Input.Position.xy, 0)));
+	if (CategorisationData.PixelCoverage < 1.0f)
 	{
-		const float SampleDepth = HairVisibilityDepthTexture.Load(PixelCoord, SampleIt).x;
-		MinDepth = min(MinDepth, SampleDepth);
-		MaxDepth = max(MaxDepth, SampleDepth);
-		const bool bIsValid = SampleDepth > 0;
-		ValidSampleCount += bIsValid ? 1 : 0;
+		discard;
 	}
 
-	if (ValidSampleCount < HAIR_VISIBILITY_MAXSAMPLECOUNT || MaxDepth == 0)
-		discard;
-
-	SvDepth = MinDepth;
+	SvDepth = CategorisationData.ClosestDepth;
 	OutGBufferB = 0;
 	OutColor = 0;
 }
-
-

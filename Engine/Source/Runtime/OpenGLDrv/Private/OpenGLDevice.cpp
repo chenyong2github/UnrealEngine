@@ -696,6 +696,9 @@ static void InitRHICapabilitiesForGL()
 #define LOG_AND_GET_GL_INT_TEMP(IntEnum,Default) GLint Value_##IntEnum = Default; if (IntEnum) {glGetIntegerv(IntEnum, &Value_##IntEnum); glGetError();} else {Value_##IntEnum = Default;} UE_LOG(LogRHI, Log, TEXT("  " #IntEnum ": %d"), Value_##IntEnum)
 #endif
 	LOG_AND_GET_GL_INT_TEMP(GL_MAX_TEXTURE_SIZE, 0);
+#if defined(GL_MAX_TEXTURE_BUFFER_SIZE)
+	LOG_AND_GET_GL_INT_TEMP(GL_MAX_TEXTURE_BUFFER_SIZE, 0);
+#endif
 	LOG_AND_GET_GL_INT_TEMP(GL_MAX_CUBE_MAP_TEXTURE_SIZE, 0);
 #if defined(GL_MAX_ARRAY_TEXTURE_LAYERS) && GL_MAX_ARRAY_TEXTURE_LAYERS
 	LOG_AND_GET_GL_INT_TEMP(GL_MAX_ARRAY_TEXTURE_LAYERS, 0);
@@ -737,6 +740,9 @@ static void InitRHICapabilitiesForGL()
 	GMaxOpenGLColorSamples = Value_GL_MAX_COLOR_TEXTURE_SAMPLES;
 	GMaxOpenGLDepthSamples = Value_GL_MAX_DEPTH_TEXTURE_SAMPLES;
 	GMaxOpenGLIntegerSamples = Value_GL_MAX_INTEGER_SAMPLES;
+#if defined(GL_MAX_TEXTURE_BUFFER_SIZE)
+	GMaxTextureBufferSize = Value_GL_MAX_TEXTURE_BUFFER_SIZE;
+#endif
 
 	// Verify some assumptions.
 	// Android seems like reports one color attachment even when it supports MRT
@@ -801,7 +807,9 @@ static void InitRHICapabilitiesForGL()
 	
 	// Emulate uniform buffers on ES2
 	// Optional emulation on ES3.1 and PC
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	GUseEmulatedUniformBuffers = (IsES2Platform(GMaxRHIShaderPlatform) && !IsPCPlatform(GMaxRHIShaderPlatform)) || bUseEmulatedUBs;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FString FeatureLevelName;
 	GetFeatureLevelName(GMaxRHIFeatureLevel, FeatureLevelName);
@@ -851,8 +859,11 @@ static void InitRHICapabilitiesForGL()
 	GMaxShadowDepthBufferSizeX = FMath::Min<int32>(Value_GL_MAX_RENDERBUFFER_SIZE, 4096); // Limit to the D3D11 max.
 	GMaxShadowDepthBufferSizeY = FMath::Min<int32>(Value_GL_MAX_RENDERBUFFER_SIZE, 4096);
 	GHardwareHiddenSurfaceRemoval = FOpenGL::HasHardwareHiddenSurfaceRemoval();
-	GRHISupportsInstancing = FOpenGL::SupportsInstancing(); // HTML5 supports it with ANGLE_instanced_arrays or WebGL 2.0+. Android supports it with OpenGL ES3.0+
+	GRHISupportsInstancing = FOpenGL::SupportsInstancing();
 	GSupportsTimestampRenderQueries = FOpenGL::SupportsTimestampQueries();
+
+	// It's not possible to create a framebuffer with the backbuffer as the color attachment and a custom renderbuffer as the depth/stencil surface.
+	GRHISupportsBackBufferWithCustomDepthStencil = false;
 
 	GSupportsHDR32bppEncodeModeIntrinsic = FOpenGL::SupportsHDR32bppEncodeModeIntrinsic();
 
@@ -1018,9 +1029,7 @@ static void InitRHICapabilitiesForGL()
 		SetupTextureFormat(PF_G8, FOpenGLTextureFormat(GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE, GL_UNSIGNED_BYTE, false, false));
 		SetupTextureFormat(PF_A8, FOpenGLTextureFormat(GL_ALPHA, GL_ALPHA, GL_ALPHA, GL_ALPHA, GL_ALPHA, GL_UNSIGNED_BYTE, false, false));
 	#endif
-	#ifdef __EMSCRIPTEN__
-		SetupTextureFormat(PF_R8G8B8A8_UINT, FOpenGLTextureFormat(GL_RGBA8UI, GL_RGBA8UI, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, false, false));
-	#endif
+		FOpenGL::PE_SetupTextureFormat(&SetupTextureFormat); // platform extension
 
 #if PLATFORM_ANDROID
 		if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1)
@@ -1104,8 +1113,6 @@ static void InitRHICapabilitiesForGL()
 		}
 		else
 		{
-			// WebGL does not support SRGB versions of DXTn texture formats! Run with SRGB formats disabled.  Will need to make sure
-			// sRGB is always emulated if it's needed.
 			SetupTextureFormat( PF_DXT1,	FOpenGLTextureFormat(GL_COMPRESSED_RGBA_S3TC_DXT1_EXT,	GL_COMPRESSED_RGBA_S3TC_DXT1_EXT,		GL_RGBA,	GL_UNSIGNED_BYTE,	true,	false));
 			SetupTextureFormat( PF_DXT3,	FOpenGLTextureFormat(GL_COMPRESSED_RGBA_S3TC_DXT3_EXT,	GL_COMPRESSED_RGBA_S3TC_DXT3_EXT,		GL_RGBA,	GL_UNSIGNED_BYTE,	true,	false));
 			SetupTextureFormat( PF_DXT5,	FOpenGLTextureFormat(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT,	GL_COMPRESSED_RGBA_S3TC_DXT5_EXT,		GL_RGBA,	GL_UNSIGNED_BYTE,	true,	false));
@@ -1129,8 +1136,10 @@ static void InitRHICapabilitiesForGL()
 #if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
 	if ( FOpenGL::SupportsETC2() )
 	{
-		SetupTextureFormat( PF_ETC2_RGB,	FOpenGLTextureFormat(GL_COMPRESSED_RGB8_ETC2,		GL_COMPRESSED_SRGB8_ETC2,					GL_RGBA,	GL_UNSIGNED_BYTE,	true,		false));
-		SetupTextureFormat( PF_ETC2_RGBA,	FOpenGLTextureFormat(GL_COMPRESSED_RGBA8_ETC2_EAC,	GL_COMPRESSED_SRGB8_ALPHA8_ETC2_EAC,		GL_RGBA,	GL_UNSIGNED_BYTE,	true,		false));
+		SetupTextureFormat( PF_ETC2_RGB,		FOpenGLTextureFormat(GL_COMPRESSED_RGB8_ETC2,		GL_COMPRESSED_SRGB8_ETC2,					GL_RGBA,		GL_UNSIGNED_BYTE,	true,		false));
+		SetupTextureFormat( PF_ETC2_RGBA,		FOpenGLTextureFormat(GL_COMPRESSED_RGBA8_ETC2_EAC,	GL_COMPRESSED_SRGB8_ALPHA8_ETC2_EAC,		GL_RGBA,		GL_UNSIGNED_BYTE,	true,		false));
+		SetupTextureFormat( PF_ETC2_R11_EAC,	FOpenGLTextureFormat(GL_COMPRESSED_R11_EAC,			GL_COMPRESSED_R11_EAC,						GL_RED,			GL_UNSIGNED_BYTE,	true,		false));
+		SetupTextureFormat( PF_ETC2_RG11_EAC,	FOpenGLTextureFormat(GL_COMPRESSED_RG11_EAC,		GL_COMPRESSED_RG11_EAC,						GL_RG,			GL_UNSIGNED_BYTE,	true,		false));
 
 		// ETC2 is a superset of ETC1 with sRGB support
 		if (FOpenGL::SupportsSRGB())
@@ -1293,6 +1302,7 @@ static void CheckVaryingLimit()
 {
 #if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
 	FOpenGL::bRequiresGLFragCoordVaryingLimitHack = false;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (IsES2Platform(GMaxRHIShaderPlatform))
 	{
 		// Some mobile GPUs require an available varying vector to support gl_FragCoord.
@@ -1432,17 +1442,21 @@ static void CheckVaryingLimit()
 			AttemptLinkProgramExecute(VertexShader->Resource, PixelShader->Resource);
 		}
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #elif PLATFORM_IOS
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (IsES2Platform(GMaxRHIShaderPlatform))
 	{
 		FOpenGL::bIsLimitingShaderCompileCount = FPlatformMisc::GetIOSDeviceType() == FPlatformMisc::IOS_IPad4;
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 }
 
 static void CheckTextureCubeLodSupport()
 {
 #if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (IsES2Platform(GMaxRHIShaderPlatform))
 	{
 		UE_LOG(LogRHI, Display, TEXT("Testing for shader compiler compatibility"));
@@ -1569,6 +1583,7 @@ static void CheckTextureCubeLodSupport()
 		UE_LOG(LogRHI, Warning, TEXT("Unable to find a test shader that compiles try running anyway"));
 		FOpenGL::bIsCheckingShaderCompilerHacks = false;
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 }
 
@@ -1576,6 +1591,7 @@ static void CheckRoundFunction()
 {
 #if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
 	FOpenGL::bRequiresRoundFunctionHack = false;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (IsES2Platform(GMaxRHIShaderPlatform))
 	{
 		UE_LOG(LogRHI, Display, TEXT("Testing for round() function availability"));
@@ -1624,6 +1640,7 @@ static void CheckRoundFunction()
 
 		UE_LOG(LogRHI, Warning, TEXT("Disabling the need for the round() function hack"));
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 }
 
@@ -1843,6 +1860,11 @@ void FOpenGLDynamicRHI::RHIFlushComputeShaderCache()
 void* FOpenGLDynamicRHI::RHIGetNativeDevice()
 {
 	return PlatformDevice;
+}
+
+void* FOpenGLDynamicRHI::RHIGetNativeInstance()
+{
+	return nullptr;
 }
 
 void FOpenGLDynamicRHI::InvalidateQueries( void )

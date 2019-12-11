@@ -21,13 +21,11 @@ public:
 public:
 	virtual void BeginPlay() override;
 	virtual void TickComponent( float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction ) override;
-	virtual void DestroyComponent(bool bPromoteChildren) override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterClusterSyncObject
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual FString GetSyncId() const override;
 	virtual bool IsDirty() const override;
 	virtual void ClearDirty() override;
 
@@ -35,6 +33,7 @@ protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// UDisplayClusterSceneComponentSync
 	//////////////////////////////////////////////////////////////////////////////////////////////
+	virtual FString GenerateSyncId() override;
 	virtual FTransform GetSyncTransform() const override;
 	virtual void SetSyncTransform(const FTransform& t) override;
 };

@@ -379,10 +379,12 @@ void FAnimationViewportClient::HandleSkeletalMeshChanged(USkeletalMesh* OldSkele
 		PhysAsset->InvalidateAllPhysicsMeshes();
 		PreviewMeshComponent->TermArticulated();
 		PreviewMeshComponent->InitArticulated(GetWorld()->GetPhysicsScene());
-
-		// Set to PhysicsActor to enable tracing regardless of project overrides
-		static FName CollisionProfileName(TEXT("PhysicsActor"));
-		PreviewMeshComponent->SetCollisionProfileName(CollisionProfileName);
+		if (PreviewMeshComponent->CanOverrideCollisionProfile())
+		{
+			// Set to PhysicsActor to enable tracing regardless of project overrides
+			static FName CollisionProfileName(TEXT("PhysicsActor"));
+			PreviewMeshComponent->SetCollisionProfileName(CollisionProfileName);
+		}
 	}
 
 	Invalidate();
@@ -1246,7 +1248,7 @@ void FAnimationViewportClient::DrawMeshBonesBakedAnimation(UDebugSkelMeshCompone
 
 void FAnimationViewportClient::DrawMeshBones(UDebugSkelMeshComponent * MeshComponent, FPrimitiveDrawInterface* PDI) const
 {
-	if ( MeshComponent && MeshComponent->SkeletalMesh )
+	if ( MeshComponent && MeshComponent->SkeletalMesh && MeshComponent->GetNumDrawTransform() > 0)
 	{
 		TArray<FTransform> WorldTransforms;
 		WorldTransforms.AddUninitialized(MeshComponent->GetNumDrawTransform());

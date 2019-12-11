@@ -224,17 +224,9 @@ public:
 			}
 		}
 
-		ViewMinInput = 0;
-		ViewMaxOutput = 1;
-
-		for (const FRichCurveEditInfo& CurveEditInfo : CurveOwner->GetCurves())
+		if (StackCurveEditorOptions->GetNeedsInitializeView())
 		{
-			FRealCurve* Curve = CurveEditInfo.CurveToEdit;
-			if (Curve->GetNumKeys())
-			{
-				ViewMinInput = FMath::Min(ViewMinInput, Curve->GetKeyTime(Curve->GetFirstKeyHandle()));
-				ViewMaxOutput = FMath::Max(ViewMaxOutput, Curve->GetKeyTime(Curve->GetLastKeyHandle()));
-			}
+			InitializeView();
 		}
 
 		ChildSlot
@@ -260,6 +252,49 @@ public:
 	}
 
 private:
+	void InitializeView()
+	{
+		bool bHasKeys = false;
+		float ViewMinInput = TNumericLimits<float>::Max();
+		float ViewMaxInput = TNumericLimits<float>::Lowest();
+		float ViewMinOutput = TNumericLimits<float>::Max();
+		float ViewMaxOutput = TNumericLimits<float>::Lowest();
+
+		for (const FRichCurveEditInfo& CurveEditInfo : CurveOwner->GetCurves())
+		{
+			FRealCurve* Curve = CurveEditInfo.CurveToEdit;
+			for(auto KeyIterator = Curve->GetKeyHandleIterator(); KeyIterator; ++KeyIterator)
+			{
+				float KeyTime = Curve->GetKeyTime(*KeyIterator);
+				float KeyValue = Curve->GetKeyValue(*KeyIterator);
+				ViewMinInput = FMath::Min(ViewMinInput, KeyTime);
+				ViewMaxInput = FMath::Max(ViewMaxInput, KeyTime);
+				ViewMinOutput = FMath::Min(ViewMinOutput, KeyValue);
+				ViewMaxOutput = FMath::Max(ViewMaxOutput, KeyValue);
+				bHasKeys = true;
+			}
+		}
+
+		if (bHasKeys == false)
+		{
+			ViewMinInput = 0;
+			ViewMaxInput = 1;
+			ViewMinOutput = 0;
+			ViewMaxOutput = 1;
+		}
+
+		float ViewInputRange = ViewMaxInput - ViewMinInput;
+		float ViewOutputRange = ViewMaxOutput - ViewMinOutput;
+		float ViewInputPadding = ViewInputRange * .05f;
+		float ViewOutputPadding = ViewOutputRange * .05f;
+
+		StackCurveEditorOptions->InitializeView(
+			ViewMinInput - ViewInputPadding,
+			ViewMaxInput + ViewInputPadding,
+			ViewMinOutput - ViewOutputPadding,
+			ViewMaxOutput + ViewOutputPadding);
+	}
+
 	void CurveChanged(FRichCurve* ChangedCurve, UObject* CurveOwnerObject)
 	{
 		UNiagaraDataInterfaceCurveBase* EditedCurve = Cast<UNiagaraDataInterfaceCurveBase>(CurveOwnerObject);
@@ -275,8 +310,6 @@ private:
 	}
 
 private:
-	float ViewMinInput;
-	float ViewMaxOutput;
 	TArray<TSharedRef<IPropertyHandle>> CurveProperties;
 	TSharedPtr<FNiagaraStackCurveEditorOptions> StackCurveEditorOptions;
 	TSharedPtr<FNiagaraCurveOwner> CurveOwner;

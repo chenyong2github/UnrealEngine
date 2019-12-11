@@ -21,6 +21,7 @@ using Tools.DotNETCommon;
 [Help("LocalizationSteps", "Optional comma separated list of localization steps to perform [Download, Gather, Import, Export, Compile, GenerateReports, Upload] (default is all). Only valid for projects using a modular config.")]
 [Help("IncludePlugins", "Optional flag to include plugins from within the given UEProjectDirectory as part of the gather. This may optionally specify a comma separated list of the specific plugins to gather (otherwise all plugins will be gathered).")]
 [Help("ExcludePlugins", "Optional comma separated list of plugins to exclude from the gather.")]
+[Help("IncludePlatforms", "Optional flag to include platforms from within the given UEProjectDirectory as part of the gather.")]
 [Help("AdditionalCommandletArguments", "Optional arguments to pass to the gather process.")]
 class Localize : BuildCommand
 {
@@ -119,6 +120,8 @@ class Localize : BuildCommand
 			}
 		}
 
+		var ShouldGatherPlatforms = ParseParam("IncludePlatforms");
+
 		var AdditionalCommandletArguments = ParseParamValue("AdditionalCommandletArguments");
 		if (AdditionalCommandletArguments == null)
 		{
@@ -133,11 +136,32 @@ class Localize : BuildCommand
 			LocalizationBatches.Add(new LocalizationBatch(UEProjectDirectory, UEProjectDirectory, "", LocalizationProjectNames));
 		}
 
+		// Build up any additional batches needed for platforms
+		if (ShouldGatherPlatforms)
+		{
+			var PlatformsRootDirectory = new DirectoryReference(CombinePaths(UEProjectRoot, UEProjectDirectory, "Platforms"));
+			if (DirectoryReference.Exists(PlatformsRootDirectory))
+			{
+				foreach (DirectoryReference PlatformDirectory in DirectoryReference.EnumerateDirectories(PlatformsRootDirectory))
+				{
+					// Find the localization targets defined for this platform
+					var PlatformTargetNames = GetLocalizationTargetsFromDirectory(new DirectoryReference(CombinePaths(PlatformDirectory.FullName, "Config", "Localization")));
+					if (PlatformTargetNames.Count > 0)
+					{
+						var RootRelativePluginPath = PlatformDirectory.MakeRelativeTo(new DirectoryReference(UEProjectRoot));
+						RootRelativePluginPath = RootRelativePluginPath.Replace('\\', '/'); // Make sure we use / as these paths are used with P4
+
+						LocalizationBatches.Add(new LocalizationBatch(UEProjectDirectory, RootRelativePluginPath, "", PlatformTargetNames));
+					}
+				}
+			}
+		}
+
 		// Build up any additional batches needed for plugins
 		if (ShouldGatherPlugins)
 		{
-			var PluginsRootDirectory = CombinePaths(UEProjectRoot, UEProjectDirectory);
-			IReadOnlyList<PluginInfo> AllPlugins = Plugins.ReadPluginsFromDirectory(new DirectoryReference(PluginsRootDirectory), "Plugins", UEProjectName.Length == 0 ? PluginType.Engine : PluginType.Project);
+			var PluginsRootDirectory = new DirectoryReference(CombinePaths(UEProjectRoot, UEProjectDirectory));
+			IReadOnlyList<PluginInfo> AllPlugins = Plugins.ReadPluginsFromDirectory(PluginsRootDirectory, "Plugins", UEProjectName.Length == 0 ? PluginType.Engine : PluginType.Project);
 
 			// Add a batch for each plugin that meets our criteria
 			var AvailablePluginNames = new HashSet<string>();
@@ -459,6 +483,40 @@ class Localize : BuildCommand
 		var ProjectImportExportInfo = new ProjectImportExportInfo(DestinationPath, ManifestName, ArchiveName, PortableObjectName, NativeCulture, CulturesToGenerate, bUseCultureDirectory);
 		ProjectImportExportInfo.CalculateSplitPlatformNames(RootWorkingDirectory);
 		return ProjectImportExportInfo;
+	}
+
+	private List<string> GetLocalizationTargetsFromDirectory(DirectoryReference ConfigDirectory)
+	{
+		var LocalizationTargets = new List<string>();
+
+		if (DirectoryReference.Exists(ConfigDirectory))
+		{
+			var FileSuffixes = new[] {
+				"_Gather",
+				"_Import",
+				"_Export",
+				"_Compile",
+				"_GenerateReports",
+			};
+
+			foreach (FileReference ConfigFile in DirectoryReference.EnumerateFiles(ConfigDirectory))
+			{
+				string LocalizationTarget = ConfigFile.GetFileNameWithoutExtension();
+				foreach (var FileSuffix in FileSuffixes)
+				{
+					if (LocalizationTarget.EndsWith(FileSuffix))
+					{
+						LocalizationTarget = LocalizationTarget.Remove(LocalizationTarget.Length - FileSuffix.Length);
+					}
+				}
+				if (!LocalizationTargets.Contains(LocalizationTarget))
+				{
+					LocalizationTargets.Add(LocalizationTarget);
+				}
+			}
+		}
+
+		return LocalizationTargets;
 	}
 
 	private Dictionary<string, byte[]> GetPOFileHashes(IReadOnlyList<LocalizationBatch> LocalizationBatches, string UEProjectRoot)

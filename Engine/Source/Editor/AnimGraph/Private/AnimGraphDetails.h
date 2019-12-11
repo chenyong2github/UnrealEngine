@@ -35,9 +35,6 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 
 private:
-	/** Helper function to get the root node of this graph */
-	UAnimGraphNode_Root* GetRoot() const;
-
 	/** UI handlers */
 	FReply OnAddNewInputPoseClicked();
 	EVisibility OnGetNewInputPoseTextVisibility(TWeakPtr<SWidget> WeakInputsHeaderWidget) const;
@@ -47,8 +44,8 @@ private:
 	void OnGroupSelectionChanged(TSharedPtr<FText> ProposedSelection, ESelectInfo::Type SelectInfo);
 	TSharedRef<ITableRow> MakeGroupViewWidget(TSharedPtr<FText> Item, const TSharedRef< STableViewBase >& OwnerTable);
 
-	/** Set the layer's group */
-	void SetAnimationGraphLayerGroup(const FText& InGroupName);
+	/** Helper function to check if this is the anim graph details for an anim bp interface */
+	bool IsInterface() const;
 
 	/** Refresh the displayed groups */
 	void RefreshGroupSource();

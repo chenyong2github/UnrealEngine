@@ -86,6 +86,12 @@ bool FModelingToolsEditorMode::ProcessEditDelete()
 }
 
 
+bool FModelingToolsEditorMode::CanAutoSave() const
+{
+	// prevent autosave if any tool is active
+	return ToolsContext->ToolManager->HasAnyActiveTool() == false;
+}
+
 bool FModelingToolsEditorMode::AllowWidgetMove()
 { 
 	return false; 
@@ -123,6 +129,12 @@ void FModelingToolsEditorMode::Tick(FEditorViewportClient* ViewportClient, float
 void FModelingToolsEditorMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
 	FEdMode::Render(View, Viewport, PDI);
+
+	// we do not use PDI hit testing in modeling tools, so skip these render passes
+	if (PDI->IsHitTesting())
+	{
+		return;
+	}
 
 	if (ToolsContext != nullptr)
 	{

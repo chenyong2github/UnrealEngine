@@ -45,6 +45,14 @@ struct APPLICATIONCORE_API FGenericPlatformSplash
 	FORCEINLINE static void Hide() { }
 
 	/**
+	 * Sets a custom splash image to display
+	 * 
+	 * @param SplashFilename Full path to the splash image to display
+	 */
+	static void SetCustomSplashImage(const TCHAR* SplashFilename);
+
+
+	/**
 	 * Sets the text displayed on the splash screen (for startup/loading progress)
 	 *
 	 * @param	InType		Type of text to change

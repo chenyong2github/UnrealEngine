@@ -1269,6 +1269,9 @@ struct GAMEPLAYABILITIES_API FActiveGameplayEffect : public FFastArraySerializer
 	}
 
 	void CheckOngoingTagRequirements(const FGameplayTagContainer& OwnerTags, struct FActiveGameplayEffectsContainer& OwningContainer, bool bInvokeGameplayCueEvents = false);
+	
+	/** Method to check if this effect should remove because the owner tags pass the RemovalTagRequirements requirement check */
+	bool CheckRemovalTagRequirements(const FGameplayTagContainer& OwnerTags, struct FActiveGameplayEffectsContainer& OwningContainer) const;
 
 	void PrintAll() const;
 
@@ -1655,6 +1658,9 @@ struct GAMEPLAYABILITIES_API FActiveGameplayEffectsContainer : public FFastArray
 
 	int32 RemoveActiveEffects(const FGameplayEffectQuery& Query, int32 StacksToRemove);
 
+	/** Method called during effect application to process if any active effects should be removed from this effects application */
+	void AttemptRemoveActiveEffectsOnEffectApplication(const FGameplayEffectSpec &InSpec, const FActiveGameplayEffectHandle& InHandle);
+
 	/**
 	 * Get the count of the effects matching the specified query (including stack count)
 	 * 
@@ -2019,6 +2025,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Tags, meta=(Categories="ApplicationTagRequirementsCategory"))
 	FGameplayTagRequirements ApplicationTagRequirements;
 
+	/** Tag requirements that if met will remove this effect. Also prevents effect application. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Tags, meta=(Categories="ApplicationTagRequirementsCategory"))
+	FGameplayTagRequirements RemovalTagRequirements;
+
 	/** GameplayEffects that *have* tags in this container will be cleared upon effect application. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Tags, meta=(Categories="RemoveTagRequirementsCategory"))
 	FInheritedTagContainer RemoveGameplayEffectsWithTags;
@@ -2032,7 +2042,14 @@ public:
 	FGameplayEffectQuery GrantedApplicationImmunityQuery;
 
 	/** Cached !GrantedApplicationImmunityQuery.IsEmpty(). Set on PostLoad. */
-	bool HasGrantedApplicationImmunityQuery;
+	bool HasGrantedApplicationImmunityQuery = false;
+
+	/** On Application of an effect, any active effects with this this query that matches against the added effect will be removed. Queries are more powerful but slightly slower than RemoveGameplayEffectsWithTags. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Tags, meta = (DisplayAfter = "RemovalTagRequirements"))
+	FGameplayEffectQuery RemoveGameplayEffectQuery;
+
+	/** Cached !RemoveGameplayEffectsQuery.IsEmpty(). Set on PostLoad. */
+	bool HasRemoveGameplayEffectsQuery = false;
 
 	// ----------------------------------------------------------------------
 	//	Stacking

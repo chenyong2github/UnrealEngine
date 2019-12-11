@@ -7,7 +7,6 @@
 #include "EditorUndoClient.h"
 #include "Styling/SlateColor.h"
 #include "Framework/Commands/UICommandList.h"
-#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 
 class UNiagaraGraph;
 class FNiagaraSystemViewModel;
@@ -68,7 +67,7 @@ private:
 
 	void GraphSelectionChanged();
 
-	void SystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource);
+	void SystemSelectionChanged();
 
 private:
 

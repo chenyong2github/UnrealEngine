@@ -8,7 +8,6 @@
 #include "UObject/GCObject.h"
 #include "NiagaraCurveOwner.h"
 #include "ViewModels/TNiagaraViewModelManager.h"
-#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ISequencer.h"
 
 #include "TickableEditorObject.h"
@@ -24,6 +23,7 @@ struct FNiagaraEmitterHandle;
 class FNiagaraEmitterHandleViewModel;
 class FNiagaraSystemScriptViewModel;
 class UNiagaraStackViewModel;
+class UNiagaraStackEntry;
 class UNiagaraSystemSelectionViewModel;
 class FNiagaraSystemInstance;
 class ISequencer;
@@ -100,6 +100,8 @@ public:
 
 	DECLARE_MULTICAST_DELEGATE(FOnPinnedCurvesChanged);
 
+	DECLARE_MULTICAST_DELEGATE(FOnPreClose);
+
 public:
 	struct FEmitterHandleToDuplicate
 	{
@@ -150,10 +152,11 @@ public:
 	/** Gets an array of the view models for the emitter handles owned by this System. */
 	NIAGARAEDITOR_API const TArray<TSharedRef<FNiagaraEmitterHandleViewModel>>& GetEmitterHandleViewModels();
 
-	/** Gets an emitter handle view model by id.  Returns an invalid shared ptr if it can't be found. */
+	/** Gets an emitter handle view model by ID. Returns an invalid shared ptr if it can't be found. */
 	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> GetEmitterHandleViewModelById(FGuid InEmitterHandleId);
 
-	TSharedPtr<FNiagaraEmitterHandleViewModel> GetEmitterHandleViewModelForEmitter(UNiagaraEmitter* InEmitter) const;
+	/** Gets an emitter handle view model for the given emitter. Returns an invalid shared ptr if it can't be found. */
+	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> GetEmitterHandleViewModelForEmitter(UNiagaraEmitter* InEmitter) const;
 
 	/** Gets the view model for the System script. */
 	TSharedPtr<FNiagaraSystemScriptViewModel> GetSystemScriptViewModel();
@@ -267,8 +270,11 @@ public:
 	/** Checks whether or not an emitter is pinned in the stack UI*/
 	NIAGARAEDITOR_API bool GetIsEmitterPinned(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleModel);
 
-	NIAGARAEDITOR_API void OnPreSave();
-	NIAGARAEDITOR_API void OnPreClose();
+	NIAGARAEDITOR_API void NotifyPreSave();
+
+	NIAGARAEDITOR_API void NotifyPreClose();
+
+	NIAGARAEDITOR_API FOnPreClose& OnPreClose();
 	
 	/** Gets the system toolkit command list. */
 	NIAGARAEDITOR_API TSharedPtr<FUICommandList> GetToolkitCommands();
@@ -279,8 +285,8 @@ public:
 	/** Set the system toolkit command list. */
 	void SetToolkitCommands(const TSharedRef<FUICommandList>& InToolkitCommands);
 
-	/** Gets the stack module data for the provided emitter, for use in module dependencies. */
-	const TArray<FNiagaraStackModuleData>& GetStackModuleDataForEmitter(TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
+	/** Gets the stack module data for the provided module, for use in determining dependencies. */
+	const TArray<FNiagaraStackModuleData>& GetStackModuleData(UNiagaraStackEntry* ModuleEntry);
 
 	/** Gets the ViewModel for the system overview graph. */
 	NIAGARAEDITOR_API TSharedPtr<FNiagaraOverviewGraphViewModel> GetOverviewGraphViewModel() const;
@@ -374,7 +380,7 @@ private:
 	void SequencerTimeChanged();
 
 	/** Called whenever the current selection in the system changes. */
-	void SystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource);
+	void SystemSelectionChanged();
 
 	/** Called whenever the track selection in sequencer changes. */
 	void SequencerTrackSelectionChanged(TArray<UMovieSceneTrack*> SelectedTracks);
@@ -414,6 +420,9 @@ private:
 
 	/** builds stack module data for use in module dependencies */
 	void BuildStackModuleData(UNiagaraScript* Script, FGuid InEmitterHandleId, TArray<FNiagaraStackModuleData>& OutStackModuleData);
+
+	/** Called whenever one of the owned stack viewmodels structure changes. */
+	void StackViewModelStructureChanged();
 
 private:
 	/** The System being viewed and edited by this view model. */
@@ -476,6 +485,9 @@ private:
 	/** A multicast delegate which is called whenever the system has been compiled. */
 	FOnSystemCompiled OnSystemCompiledDelegate;
 
+	/** A multicast delegate which is called whenever this has been notified it's owner will be closing. */
+	FOnPreClose OnPreCloseDelegate;
+
 	/** A flag for preventing reentrancy when syncrhonizing sequencer data. */
 	bool bUpdatingEmittersFromSequencerDataChange;
 
@@ -523,8 +535,8 @@ private:
 	/** A flag which indicates that a compile has been requested, but has not completed. */
 	bool bCompilePendingCompletion;
 
-	/** The cache of stack module data for each emitter */
-	TMap<FGuid, TArray<FNiagaraStackModuleData>> EmitterToCachedStackModuleData;
+	/** The cache of stack module data for each emitter and for the system */
+	TMap<FGuid, TArray<FNiagaraStackModuleData>> GuidToCachedStackModuleData;
 	
 	/** A handle to the on graph changed delegate for the system script. */
 	FDelegateHandle SystemScriptGraphChangedHandler;

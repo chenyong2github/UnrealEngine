@@ -265,6 +265,8 @@ struct FGPUDriverInfo
 	FString UserDriverVersion;
 	// e.g. 3-13-2015
 	FString DriverDate;
+	// e.g. D3D11, D3D12
+	FString RHIName;
 
 	bool IsValid() const
 	{
@@ -328,6 +330,8 @@ struct FBlackListEntry
 	FString DriverVersionString;
 	// optional, e.g. "<=MM-DD-YYYY"
 	FString DriverDateString;
+	// optional, e.g. "D3D11", "D3D12"
+	FString RHIName;
 	// required
 	FString Reason;
 
@@ -339,6 +343,8 @@ struct FBlackListEntry
 		FParse::Value(In, TEXT("DriverDate="), DriverDateString);
 		ensure(!DriverVersionString.IsEmpty() || !DriverDateString.IsEmpty());
 
+		FParse::Value(In, TEXT("RHI="), RHIName);
+		
 		// later:
 //		FParse::Value(In, TEXT("DeviceId="), DeviceId);
 //		FParse::Value(In, TEXT("OS="), OS);
@@ -355,6 +361,12 @@ struct FBlackListEntry
 	{
 		if (IsValid())
 		{
+			// If RHI specified, ignore if mismatched
+			if (!RHIName.IsEmpty() && RHIName != Info.RHIName)
+			{
+				return false;
+			}
+
 			if (!DriverVersionString.IsEmpty())
 			{
 				return CompareStringOp(*DriverVersionString, *Info.GetUnifiedDriverVersion());
@@ -375,13 +387,13 @@ struct FBlackListEntry
 
 				FString DriverDateComparisonOp = DriverDateString.Left(OpLength);
 				FString TrimmedDriverDateString = DriverDateString.RightChop(OpLength);
-				TrimmedDriverDateString.Split(TEXT("-"), &TempMonthDay, &TempYear, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-				TempMonthDay.Split(TEXT("-"), &TempMonth, &TempDay, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+				TrimmedDriverDateString.Split(TEXT("-"), &TempMonthDay, &TempYear, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+				TempMonthDay.Split(TEXT("-"), &TempMonth, &TempDay, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 				
 				FDateTime TestDate(FCString::Atoi(*TempYear), FCString::Atoi(*TempMonth), FCString::Atoi(*TempDay));
 
-				Info.DriverDate.Split(TEXT("-"), &TempMonthDay, &TempYear, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-				TempMonthDay.Split(TEXT("-"), &TempMonth, &TempDay, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+				Info.DriverDate.Split(TEXT("-"), &TempMonthDay, &TempYear, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+				TempMonthDay.Split(TEXT("-"), &TempMonth, &TempDay, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 
 				FDateTime InfoDate(FCString::Atoi(*TempYear), FCString::Atoi(*TempMonth), FCString::Atoi(*TempDay));
 

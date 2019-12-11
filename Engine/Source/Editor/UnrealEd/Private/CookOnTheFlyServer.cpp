@@ -1610,8 +1610,7 @@ bool UCookOnTheFlyServer::StartNetworkFileServer( const bool BindAnyPort )
 		NetworkFileServers.Add(TcpFileServer);
 	}
 
-	// cookonthefly server for html5 -- NOTE: if this is crashing COTF servers, please ask for Nick.Shin (via Josh.Adams)
-#if 1
+#if 0 // cookonthefly server via http
 	INetworkFileServer *HttpFileServer = FModuleManager::LoadModuleChecked<INetworkFileSystemModule>("NetworkFileSystem")
 		.CreateNetworkFileServer(true, BindAnyPort ? 0 : -1, NetworkFileDelegateContainer, ENetworkFileServerProtocol::NFSP_Http);
 	if ( HttpFileServer )
@@ -1986,7 +1985,7 @@ bool UCookOnTheFlyServer::IsCookByTheBookMode() const
 
 bool UCookOnTheFlyServer::IsUsingPackageStore() const
 {
-	return CookByTheBookOptions->bPackageStore;
+	return IsCookByTheBookMode() && CookByTheBookOptions->bPackageStore;
 }
 
 bool UCookOnTheFlyServer::IsCookOnTheFlyMode() const
@@ -3341,7 +3340,8 @@ void UCookOnTheFlyServer::MarkPackageDirtyForCooker( UPackage *Package )
 	{
 		return;
 	}
-	if (Package->HasAnyPackageFlags(PKG_PlayInEditor | PKG_ContainsScript | PKG_CompiledIn) == true && !GetClass()->HasAnyClassFlags(CLASS_DefaultConfig | CLASS_Config))
+
+	if (Package->HasAnyPackageFlags(PKG_PlayInEditor | PKG_ContainsScript | PKG_InMemoryOnly) == true && !GetClass()->HasAnyClassFlags(CLASS_DefaultConfig | CLASS_Config))
 	{
 		return;
 	}
@@ -3358,6 +3358,8 @@ void UCookOnTheFlyServer::MarkPackageDirtyForCooker( UPackage *Package )
 
 	if ( !bIsSavingPackage )
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(MarkPackageDirtyForCooker);
+
 		// could have just cooked a file which we might need to write
 		UPackage::WaitForAsyncFileWrites();
 
@@ -3703,7 +3705,7 @@ private:
 		int32 ParamIndex = InOutParams.Find(InParamToRemove);
 		if (ParamIndex >= 0)
 		{
-			int32 NextParamIndex = InOutParams.Find(TEXT(" -"), ESearchCase::IgnoreCase, ESearchDir::FromStart, ParamIndex + 1);
+			int32 NextParamIndex = InOutParams.Find(TEXT(" -"), ESearchCase::CaseSensitive, ESearchDir::FromStart, ParamIndex + 1);
 			if (NextParamIndex < ParamIndex)
 			{
 				NextParamIndex = InOutParams.Len();
@@ -4029,7 +4031,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UPackage* Package, uint32 SaveFlags,
 						}
 						else
 						{
-							FSavePackageContext* const SavePackageContext = IsUsingPackageStore() ? SavePackageContexts[PlatformIndex] : nullptr;
+							FSavePackageContext* const SavePackageContext = SavePackageContexts.Num() > 0 ? SavePackageContexts[PlatformIndex] : nullptr;
 
 							Result = GEditor->Save(	Package, World, FlagsToCook, *PlatFilename, 
 													GError, nullptr, bSwap, false, SaveFlags, Target, 
@@ -4497,9 +4499,8 @@ void GetAdditionalCurrentIniVersionStrings( const ITargetPlatform* TargetPlatfor
 		IniVersionMap.Add(TEXT("fastcook"));
 	}
 
-
-	static const FCustomVersionContainer& CustomVersionContainer = FCustomVersionContainer::GetRegistered();
-	for (const auto& CustomVersion : CustomVersionContainer.GetAllVersions())
+	FCustomVersionContainer AllCurrentVersions = FCurrentCustomVersions::GetAll();
+	for (const FCustomVersion& CustomVersion : AllCurrentVersions.GetAllVersions())
 	{
 		FString CustomVersionString = FString::Printf(TEXT("%s:%s"), *CustomVersion.GetFriendlyName().ToString(), *CustomVersion.Key.ToString());
 		FString CustomVersionValue = FString::Printf(TEXT("%d"), CustomVersion.Version);
@@ -5071,6 +5072,9 @@ FName UCookOnTheFlyServer::ConvertCookedPathToUncookedPath(
 		BuildUncookedPath(FullCookedFilename, SandboxRootDir, RelativeRootDir);
 	}
 
+	// Convert to a standard filename as required by FPackageNameCache where this path is used.
+	FPaths::MakeStandardFilename(OutUncookedPath);
+
 	return FName(*OutUncookedPath);
 }
 
@@ -5450,6 +5454,24 @@ void UCookOnTheFlyServer::GenerateAssetRegistry()
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	AssetRegistry = &AssetRegistryModule.Get();
 
+	// Mark package as dirty for the last ones saved
+	if(PackageNameCache != nullptr)
+	{
+		for (FName AssetFilename : ModifiedAssetFilenames)
+		{
+			const FString AssetPathOnDisk = AssetFilename.ToString();
+			if(FPaths::FileExists(AssetPathOnDisk))
+			{
+				const FString PackageName = FPackageName::FilenameToLongPackageName(AssetPathOnDisk);
+				FSoftObjectPath SoftPackage(PackageName);
+				if(UPackage* Package = Cast<UPackage>(SoftPackage.ResolveObject()))
+				{
+					MarkPackageDirtyForCooker( Package );
+				}
+			}
+		}
+	}
+
 	if (!!(CookFlags & ECookInitializationFlags::GeneratedAssetRegistry))
 	{
 		// Force a rescan of modified package files
@@ -5462,8 +5484,6 @@ void UCookOnTheFlyServer::GenerateAssetRegistry()
 
 		AssetRegistry->ScanModifiedAssetFiles(ModifiedPackageFileList);
 
-		ModifiedAssetFilenames.Reset();
-
 		// This is cook in the editor on a second pass, so refresh the generators
 		for (TPair<FName, FAssetRegistryGenerator*>& Pair : RegistryGenerators)
 		{
@@ -5472,6 +5492,8 @@ void UCookOnTheFlyServer::GenerateAssetRegistry()
 		return;
 	}
 	CookFlags |= ECookInitializationFlags::GeneratedAssetRegistry;
+
+	ModifiedAssetFilenames.Reset();
 
 	double GenerateAssetRegistryTime = 0.0;
 	{
@@ -6332,18 +6354,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 
 	UPackage::WaitForAsyncFileWrites();
 	
-	if (IsCookByTheBookMode() && IsUsingPackageStore())
-	{
-		SCOPE_TIMER(SavingNameMap);
-		UE_LOG(LogCook, Display, TEXT("Saving name map(s)..."));
-		const TArray<ITargetPlatform*>& TargetPlatforms = GetCookingTargetPlatforms();
-		for (int32 PlatformIndex = 0; PlatformIndex < TargetPlatforms.Num(); ++PlatformIndex)
-		{
-			INameMapSaver& NameMapSaver = SavePackageContexts[PlatformIndex]->HeaderSaver.NameMapSaver;
-			NameMapSaver.End();
-		}
-		UE_LOG(LogCook, Display, TEXT("Done saving name map(s)"));
-	}
+	FinalizePackageStore();
 
 	GetDerivedDataCacheRef().WaitForQuiescence(true);
 	
@@ -6718,34 +6729,43 @@ void UCookOnTheFlyServer::InitializeSandbox()
 
 void UCookOnTheFlyServer::InitializePackageStore(const TArray<FName>& TargetPlatformNames)
 {
-	// TODO: should ideally support cook-on-the-fly
+	const FString RootPath = FPaths::RootDir();
+	const FString RootPathSandbox = ConvertToFullSandboxPath(*RootPath, true);
 
-	if (!(IsCookByTheBookMode() && IsUsingPackageStore()))
-	{
-		// set up reusable buffers for non-package store case???
-		SavePackageContexts.SetNum(TargetPlatformNames.Num());
+	const FString ProjectPath = FPaths::ProjectDir();
+	const FString ProjectPathSandbox = ConvertToFullSandboxPath(*ProjectPath, true);
 
-		return;
-	}
-
-	const FString NameMapFilename = FPaths::RootDir() / TEXT("megafile.unamemap");
-	const FString NameMapSandboxFilename = ConvertToFullSandboxPath(*NameMapFilename, true);
-
-	FString NameMapCookedSandboxFilename;
 	SavePackageContexts.Reserve(TargetPlatformNames.Num());
 
 	for (const FName PlatformName : TargetPlatformNames)
 	{
-		NameMapCookedSandboxFilename = NameMapSandboxFilename.Replace(TEXT("[Platform]"), *PlatformName.ToString());
+		const FString PlatformString = PlatformName.ToString();
+
+		const FString ResolvedRootPath = RootPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
+		const FString ResolvedProjectPath = ProjectPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
 
 		// just leak all memory for now
-		FPackageStoreNameMapSaver* NameMapSaver = new FPackageStoreNameMapSaver(*NameMapCookedSandboxFilename);
-		FPackageHeaderSaver* PackageHeaderSaver = new FPackageHeaderSaver(*NameMapSaver);
-		FLooseFileWriter* LooseFileWriter		= new FLooseFileWriter();
-		FSavePackageContext* SavePackageContext = new FSavePackageContext(*PackageHeaderSaver, *LooseFileWriter);
+		FPackageStoreBulkDataManifest* BulkDataManifest	= new FPackageStoreBulkDataManifest(ResolvedProjectPath);
+		FLooseFileWriter* LooseFileWriter				= IsUsingPackageStore() ? new FLooseFileWriter() : nullptr;
 
+		FSavePackageContext* SavePackageContext			= new FSavePackageContext(LooseFileWriter, BulkDataManifest);
 		SavePackageContexts.Add(SavePackageContext);
 	}
+}
+
+void UCookOnTheFlyServer::FinalizePackageStore()
+{
+	SCOPE_TIMER(FinalizePackageStore);
+
+	UE_LOG(LogCook, Display, TEXT("Saving BulkData manifest(s)..."));
+	for (FSavePackageContext* PackageContext : SavePackageContexts)
+	{
+		if (PackageContext != nullptr && PackageContext->BulkDataManifest != nullptr)
+		{
+			PackageContext->BulkDataManifest->Save();
+		}
+	}
+	UE_LOG(LogCook, Display, TEXT("Done saving BulkData manifest(s)"));
 }
 
 void UCookOnTheFlyServer::InitializeTargetPlatforms()
@@ -7145,8 +7165,10 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 		UE_LOG(LogCook, Warning, TEXT("No files found."));
 	}
 
-	if (FParse::Param(FCommandLine::Get(), TEXT("DIFFONLY")) && !FParse::Param(FCommandLine::Get(), TEXT("DIFFNORANDCOOK")))
+	if (FParse::Param(FCommandLine::Get(), TEXT("RANDOMPACKAGEORDER")) || 
+		(FParse::Param(FCommandLine::Get(), TEXT("DIFFONLY")) && !FParse::Param(FCommandLine::Get(), TEXT("DIFFNORANDCOOK"))))
 	{
+		UE_LOG(LogCook, Log, TEXT("Randomizing package order."));
 		//randomize the array, taking the Array_Shuffle approach, in order to help bring cooking determinism issues to the surface.
 		for (int32 FileIndex = 0; FileIndex < FilesInPath.Num(); ++FileIndex)
 		{

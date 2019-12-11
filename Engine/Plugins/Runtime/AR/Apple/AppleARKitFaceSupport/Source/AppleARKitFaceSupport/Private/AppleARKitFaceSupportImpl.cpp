@@ -246,3 +246,10 @@ TArray<FARVideoFormat> FAppleARKitFaceSupport::ToARConfiguration()
 	return FAppleARKitConversion::FromARVideoFormatArray(ARFaceTrackingConfiguration.supportedVideoFormats);
 }
 #endif
+
+#if SUPPORTS_ARKIT_3_0
+bool FAppleARKitFaceSupport::IsARFrameSemanticsSupported(ARFrameSemantics InSemantics) const
+{
+	return [ARFaceTrackingConfiguration supportsFrameSemantics: InSemantics];
+}
+#endif

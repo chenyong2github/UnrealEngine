@@ -104,6 +104,7 @@ const float ForceRetryClientRestartTime = -100.0f;
 
 FUpdateLevelVisibilityLevelInfo::FUpdateLevelVisibilityLevelInfo(const ULevel* const Level, const bool bInIsVisible)
 	: bIsVisible(bInIsVisible)
+	, bSkipCloseOnError(false)
 {
 	const UPackage* const LevelPackage = Level->GetOutermost();
 	PackageName = LevelPackage->GetFName();
@@ -2685,7 +2686,7 @@ void APlayerController::SpawnPlayerCameraManager()
 	}
 }
 
-void APlayerController::GetAudioListenerPosition(FVector& OutLocation, FVector& OutFrontDir, FVector& OutRightDir)
+void APlayerController::GetAudioListenerPosition(FVector& OutLocation, FVector& OutFrontDir, FVector& OutRightDir) const
 {
 	FVector ViewLocation;
 	FRotator ViewRotation;
@@ -2716,7 +2717,7 @@ void APlayerController::GetAudioListenerPosition(FVector& OutLocation, FVector& 
 	OutRightDir = ViewRotationMatrix.GetUnitAxis( EAxis::Y );
 }
 
-bool APlayerController::GetAudioListenerAttenuationOverridePosition(FVector& OutLocation)
+bool APlayerController::GetAudioListenerAttenuationOverridePosition(FVector& OutLocation) const
 {
 	if (bOverrideAudioAttenuationListener)
 	{
@@ -4334,6 +4335,22 @@ void APlayerController::ClientStopCameraShake_Implementation( TSubclassOf<class 
 	if (PlayerCameraManager != NULL)
 	{
 		PlayerCameraManager->StopAllInstancesOfCameraShake(Shake, bImmediately);
+	}
+}
+
+void APlayerController::ClientPlayCameraShakeFromSource(TSubclassOf<class UCameraShake> Shake, class UCameraShakeSourceComponent* SourceComponent)
+{
+	if (PlayerCameraManager != NULL)
+	{
+		PlayerCameraManager->PlayCameraShakeFromSource(Shake, SourceComponent);
+	}
+}
+
+void APlayerController::ClientStopCameraShakesFromSource(class UCameraShakeSourceComponent* SourceComponent, bool bImmediately)
+{
+	if (PlayerCameraManager != NULL)
+	{
+		PlayerCameraManager->StopAllInstancesOfCameraShakeFromSource(SourceComponent, bImmediately);
 	}
 }
 

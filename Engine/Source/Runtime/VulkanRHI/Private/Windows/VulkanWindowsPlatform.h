@@ -39,8 +39,6 @@
 	EnumMacro(PFN_vkCreateSamplerYcbcrConversionKHR, vkCreateSamplerYcbcrConversionKHR) \
 	EnumMacro(PFN_vkDestroySamplerYcbcrConversionKHR, vkDestroySamplerYcbcrConversionKHR)
 
-#include "../VulkanLoader.h"
-
 // and now, include the GenericPlatform class
 #include "../VulkanGenericPlatform.h"
 

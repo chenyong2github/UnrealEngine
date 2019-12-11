@@ -311,7 +311,7 @@ int32 FSkeletalAnimationSection::OnPaintSection( FSequencerSectionPainter& Paint
 	FFrameRate TickResolution = TimeToPixelConverter.GetTickResolution();
 
 	// Add lines where the animation starts and ends/loops
-	const float AnimPlayRate = FMath::IsNearlyZero(Section.Params.PlayRate) ? 1.0f : Section.Params.PlayRate * Section.Params.Animation->RateScale;
+	const float AnimPlayRate = FMath::IsNearlyZero(Section.Params.PlayRate) || Section.Params.Animation == nullptr ? 1.0f : Section.Params.PlayRate * Section.Params.Animation->RateScale;
 	const float SeqLength = (Section.Params.GetSequenceLength() - TickResolution.AsSeconds(Section.Params.StartFrameOffset + Section.Params.EndFrameOffset)) / AnimPlayRate;
 	const float FirstLoopSeqLength = SeqLength - TickResolution.AsSeconds(Section.Params.FirstLoopStartFrameOffset) / AnimPlayRate;
 
@@ -375,8 +375,10 @@ void FSkeletalAnimationSection::ResizeSection(ESequencerSectionResizeMode Resize
 
 		if (StartOffset < 0)
 		{
+			FFrameTime FrameTimeOver = FFrameTime::FromDecimal(StartOffset.Value / Section.Params.PlayRate);
+
 			// Ensure start offset is not less than 0 and adjust ResizeTime
-			ResizeTime = ResizeTime - StartOffset;
+			ResizeTime = ResizeTime - FrameTimeOver.GetFrame();
 
 			StartOffset = FFrameNumber(0);
 		}

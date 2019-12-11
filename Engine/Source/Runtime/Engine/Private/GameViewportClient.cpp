@@ -223,7 +223,6 @@ UGameViewportClient::UGameViewportClient(const FObjectInitializer& ObjectInitial
 	SplitscreenInfo[ESplitScreenType::FourPlayer_Horizontal].PlayerData.Add(FPerPlayerSplitscreenData(1.f, 0.25f, 0.0f, 0.5f));
 	SplitscreenInfo[ESplitScreenType::FourPlayer_Horizontal].PlayerData.Add(FPerPlayerSplitscreenData(1.f, 0.25f, 0.0f, 0.75f));
 
-	MaxSplitscreenPlayers = 4;
 	bSuppressTransitionMessage = true;
 
 	if (HasAnyFlags(RF_ClassDefaultObject) == false)
@@ -1334,11 +1333,11 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 								FVector OverrideAttenuation;
 								if (PlayerController->GetAudioListenerAttenuationOverridePosition(OverrideAttenuation))
 								{
-									AudioDevice->SetListenerAttenuationOverride(OverrideAttenuation);
+									AudioDevice->SetListenerAttenuationOverride(ViewportIndex, OverrideAttenuation);
 								}
 								else
 								{
-									AudioDevice->ClearListenerAttenuationOverride();
+									AudioDevice->ClearListenerAttenuationOverride(ViewportIndex);
 								}
 							}
 						}
@@ -1400,7 +1399,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 
 	// If the views don't cover the entire bounding rectangle, clear the entire buffer.
 	bool bBufferCleared = false;
-	bool bStereoscopicPass = (ViewFamily.Views.Num() != 0 && ViewFamily.Views[0]->StereoPass != eSSP_FULL);
+	bool bStereoscopicPass = (ViewFamily.Views.Num() != 0 && IStereoRendering::IsStereoEyeView(*ViewFamily.Views[0]));
 	if (ViewFamily.Views.Num() == 0 || TotalArea != (MaxX-MinX)*(MaxY-MinY) || bDisableWorldRendering || bStereoscopicPass)
 	{
 		if (bDisableWorldRendering || !bStereoscopicPass) // TotalArea computation does not work correctly for stereoscopic views
@@ -1512,6 +1511,8 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 	}
 	else
 	{
+		GetRendererModule().PerFrameCleanupIfSkipRenderer();
+
 		// Make sure RHI resources get flushed if we're not using a renderer
 		ENQUEUE_RENDER_COMMAND(UGameViewportClient_FlushRHIResources)(
 			[](FRHICommandListImmediate& RHICmdList)

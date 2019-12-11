@@ -49,9 +49,8 @@
 #include "EditorLevelUtils.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "LevelEditorViewport.h"
+#include "Layers/ILayers.h"
 #include "Layers/LayersSubsystem.h"
-#include "Editor/GeometryMode/Public/GeometryEdMode.h"
-#include "Editor/GeometryMode/Public/EditorGeometry.h"
 #include "ActorEditorUtils.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "UnrealExporter.h"
@@ -65,6 +64,8 @@
 #include "AssetToolsModule.h"
 #include "AssetSelection.h"
 #include "Framework/Application/SlateApplication.h"
+#include "EdMode.h"
+#include "Subsystems/BrushEditingSubsystem.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
@@ -233,14 +234,14 @@ static FVector CreateLocationOffset(bool bDuplicate, bool bOffsetLocations)
 
 bool UUnrealEdEngine::WarnIfDestinationLevelIsHidden( UWorld* InWorld )
 {
-	bool result = false;
+	bool bShouldLoadHiddenLevels = true;
+	bool bShowPasteHiddenWarning = true;
 	TArray<ULevel*> Levels;
 	TArray<bool> bTheyShouldBeVisible;
 	//prepare the warning dialog
 	FSuppressableWarningDialog::FSetupInfo Info( LOCTEXT( "Warning_PasteWarningBody","You are trying to paste to a hidden level.\nSuppressing this will default to Do Not Paste" ), LOCTEXT( "Warning_PasteWarningHeader","Pasting To Hidden Level" ), "PasteHiddenWarning" );
 	Info.ConfirmText = LOCTEXT( "Warning_PasteContinue","Unhide Level and paste" );
 	Info.CancelText = LOCTEXT( "Warning_PasteCancel","Do not paste" );
-	FSuppressableWarningDialog PasteHiddenWarning( Info );
 
 	//check streaming levels first
 	for (ULevelStreaming* StreamedLevel : InWorld->GetStreamingLevels())
@@ -251,13 +252,14 @@ bool UUnrealEdEngine::WarnIfDestinationLevelIsHidden( UWorld* InWorld )
 			ULevel* Level = StreamedLevel->GetLoadedLevel();
 			if( Level && Level->IsCurrentLevel() )
 			{
-				//the streamed level is not visible - check what the user wants to do
-				FSuppressableWarningDialog::EResult DialogResult = PasteHiddenWarning.ShowModal();
-				if( ( DialogResult == FSuppressableWarningDialog::Cancel )  || ( DialogResult == FSuppressableWarningDialog::Suppressed ) )
+				if (bShowPasteHiddenWarning)
 				{
-					result = true;
+					bShowPasteHiddenWarning = false;
+					//the streamed level is not visible - check what the user wants to do
+					bShouldLoadHiddenLevels = (FSuppressableWarningDialog(Info).ShowModal() == FSuppressableWarningDialog::Confirm);
 				}
-				else
+				
+				if (bShouldLoadHiddenLevels)
 				{
 					Levels.Add(Level);
 					bTheyShouldBeVisible.Add(true);
@@ -267,17 +269,18 @@ bool UUnrealEdEngine::WarnIfDestinationLevelIsHidden( UWorld* InWorld )
 	}
 
 	//now check the active level (this handles the persistent level also)
-	if( result == false )
+	if (bShouldLoadHiddenLevels)
 	{
 		if( FLevelUtils::IsLevelVisible( InWorld->GetCurrentLevel() ) == false )
 		{	
-			//the level is not visible - check what the user wants to do
-			FSuppressableWarningDialog::EResult DialogResult = PasteHiddenWarning.ShowModal();
-			if( ( DialogResult == FSuppressableWarningDialog::Cancel )  || ( DialogResult == FSuppressableWarningDialog::Suppressed ) )
+			if (bShowPasteHiddenWarning)
 			{
-				result = true;
+				bShowPasteHiddenWarning = false;
+				//the streamed level is not visible - check what the user wants to do
+				bShouldLoadHiddenLevels = (FSuppressableWarningDialog(Info).ShowModal() == FSuppressableWarningDialog::Confirm);
 			}
-			else 
+
+			if (bShouldLoadHiddenLevels)
 			{
 				Levels.Add(InWorld->GetCurrentLevel());
 				bTheyShouldBeVisible.Add(true);
@@ -290,7 +293,7 @@ bool UUnrealEdEngine::WarnIfDestinationLevelIsHidden( UWorld* InWorld )
 	{
 		EditorLevelUtils::SetLevelsVisibility(Levels, bTheyShouldBeVisible, true);
 	}
-	return result;
+	return !bShouldLoadHiddenLevels;
 }
 
 void UUnrealEdEngine::edactPasteSelected(UWorld* InWorld, bool bDuplicate, bool bOffsetLocations, bool bWarnIfHidden, FString* SourceData)
@@ -470,9 +473,13 @@ public:
 		// Cache the current dest level
 		OldLevel = DestLevel->OwningWorld->GetCurrentLevel();
 		// Paste to the dest level.
-		DestLevel->OwningWorld->SetCurrentLevel( DestLevel );
-		GEditor->edactPasteSelected( DestLevel->OwningWorld, true, bOffsetLocations, true, &ScratchData );
-
+		{
+			FLevelPartitionOperationScope LevelPartitionScope(DestLevel);
+			DestLevel->OwningWorld->SetCurrentLevel(LevelPartitionScope.GetLevel());
+			GEditor->edactPasteSelected(DestLevel->OwningWorld, true, bOffsetLocations, true, &ScratchData);
+			// Restore dest level
+			DestLevel->OwningWorld->SetCurrentLevel(OldLevel);
+		}
 		// The selection set will be the newly created actors; copy them over to the output array.
 		for ( FSelectionIterator It( GEditor->GetSelectedActorIterator() ) ; It ; ++It )
 		{
@@ -480,8 +487,6 @@ public:
 			checkSlow( Actor->IsA(AActor::StaticClass()) );
 			OutNewActors.Add( Actor );
 		}
-		// Restore dest level
-		DestLevel->OwningWorld->SetCurrentLevel( OldLevel );
 	}
 };
 }
@@ -844,6 +849,7 @@ bool UUnrealEdEngine::edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletion
 
 		bool bReferencedByLevelScript = bWarnAboutReferences && (nullptr != LSB && ReferencedToActorsFromLevelScriptArray.Num() > 0);
 		bool bReferencedByActor = false;
+		bool bReferencedByLODActor = false;
 		bool bReferencedBySoftReference = false;
 		TArray<UObject*>* SoftReferencingObjects = nullptr;
 
@@ -867,26 +873,32 @@ bool UUnrealEdEngine::edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletion
 				{
 					continue;
 				}
-
-				// If the referencing actor is a child actor that is referencing us, do not treat it
-				// as referencing for the purposes of warning about deletion
-				UChildActorComponent* ParentComponent = ReferencingActor->GetParentComponent();
-				if (ParentComponent == nullptr || ParentComponent->GetOwner() != Actor)
+				else if (Cast<ALODActor>(ReferencingActor))
 				{
-					bReferencedByActor = true;
+					bReferencedByLODActor = true;
+				}
+				else
+				{
+					// If the referencing actor is a child actor that is referencing us, do not treat it
+					// as referencing for the purposes of warning about deletion
+					UChildActorComponent* ParentComponent = ReferencingActor->GetParentComponent();
+					if (ParentComponent == nullptr || ParentComponent->GetOwner() != Actor)
+					{
+						bReferencedByActor = true;
 
-					FText ActorReferencedMessage = FText::Format(LOCTEXT("ActorDeleteReferencedMessage",
-						"Actor {0} is referenced by {1}."),
-						FText::FromString(Actor->GetActorLabel()),
-						FText::FromString(ReferencingActor->GetActorLabel())
-					);
-					UE_LOG(LogEditorActor, Log, TEXT("%s"), *ActorReferencedMessage.ToString());
+						FText ActorReferencedMessage = FText::Format(LOCTEXT("ActorDeleteReferencedMessage",
+							"Actor {0} is referenced by {1}."),
+							FText::FromString(Actor->GetActorLabel()),
+							FText::FromString(ReferencingActor->GetActorLabel())
+						);
+						UE_LOG(LogEditorActor, Log, TEXT("%s"), *ActorReferencedMessage.ToString());
+					}
 				}
 			}
 		}
 
 		// We have references from one or more sources, prompt the user for feedback.
-		if (bReferencedByLevelScript || bReferencedByActor || bReferencedBySoftReference)
+		if (bReferencedByLevelScript || bReferencedByActor || bReferencedBySoftReference || bReferencedByLODActor)
 		{
 			if ((bReferencedByLevelScript && !bRequestedDeleteAllByLevel) ||
 				(bReferencedByActor && !bRequestedDeleteAllByActor) ||
@@ -989,8 +1001,10 @@ bool UUnrealEdEngine::edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletion
 			{
 				FBlueprintEditorUtils::ModifyActorReferencedGraphNodes(LSB, Actor);
 			}
-			if (bReferencedByActor && ReferencingActors != nullptr)
+
+			if (bReferencedByActor || bReferencedByLODActor)
 			{
+				check(ReferencingActors != nullptr);
 				for (int32 ReferencingActorIndex = 0; ReferencingActorIndex < ReferencingActors->Num(); ReferencingActorIndex++)
 				{
 					AActor* ReferencingActor = (*ReferencingActors)[ReferencingActorIndex];
@@ -1001,6 +1015,13 @@ bool UUnrealEdEngine::edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletion
 					if (LODActor)
 					{
 						LODActor->RemoveSubActor(Actor);
+
+						FText SubActorRemovedMessage = FText::Format(LOCTEXT("LODActorSubActorDeletedMessage",
+							"Sub Actor '{0}' was removed from LODActor '{1}'."),
+							FText::FromString(Actor->GetActorLabel()),
+							FText::FromString(ReferencingActor->GetActorLabel())
+						);
+						UE_LOG(LogEditorActor, Log, TEXT("%s"), *SubActorRemovedMessage.ToString());
 					}
 				}
 			}
@@ -2593,24 +2614,9 @@ void UUnrealEdEngine::edactAlignVertices()
 						PolyIdx = -1;
 					}
 
-					// Determine if we are in geometry edit mode.
-					if ( GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_Geometry) )
+					if (UBrushEditingSubsystem* BrushSubsystem = GEditor->GetEditorSubsystem<UBrushEditingSubsystem>())
 					{
-						// If we are in geometry mode, go through the list of geometry objects
-						// and find our current brush and update its source data as it might have changed 
-						// in RecomputePoly
-						FEdModeGeometry* GeomMode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FBuiltinEditorModes::EM_Geometry);
-						FEdModeGeometry::TGeomObjectIterator GeomModeIt = GeomMode->GeomObjectItor();
-						for( ; GeomModeIt; ++GeomModeIt )
-						{
-							FGeomObjectPtr Object = *GeomModeIt;
-							if( Object->GetActualBrush() == Brush )
-							{
-								// We found our current brush, update the geometry object's data
-								Object->GetFromSource();
-								break;
-							}
-						}
+						BrushSubsystem->UpdateGeometryFromBrush(Brush);
 					}
 				}
 			}

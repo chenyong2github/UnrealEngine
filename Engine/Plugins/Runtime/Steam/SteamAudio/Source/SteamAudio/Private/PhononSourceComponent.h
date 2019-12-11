@@ -11,7 +11,7 @@
  * Phonon Source Components can be placed alongside statically positioned Audio Components in order to bake impulse response data
  * to be applied at runtime.
  */
-UCLASS(ClassGroup = (Audio), meta = (BlueprintSpawnableComponent), HideCategories = (Activation, Collision, Tags, Rendering, Physics, LOD))
+UCLASS(ClassGroup = (Audio), meta = (BlueprintSpawnableComponent), HideCategories = (Activation, Collision, Tags, Rendering, Physics, LOD, Mobility, Cooking, AssetUserData))
 class STEAMAUDIO_API UPhononSourceComponent : public USceneComponent
 {
 	GENERATED_BODY()

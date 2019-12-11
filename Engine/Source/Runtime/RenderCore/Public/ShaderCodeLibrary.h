@@ -21,7 +21,10 @@ struct RENDERCORE_API FShaderCodeLibraryPipeline
 	FSHAHash HullShader;
 	FSHAHash DomainShader;
 	mutable uint32 Hash;
-	
+
+	/** Fills the hashes from the pipeline stage shaders */
+	void Initialize(FShaderPipeline* Pipeline);
+
 	FShaderCodeLibraryPipeline() : Hash(0) {}
 	
 	friend bool operator ==(const FShaderCodeLibraryPipeline& A,const FShaderCodeLibraryPipeline& B)
@@ -41,6 +44,9 @@ struct RENDERCORE_API FShaderCodeLibraryPipeline
 		}
 		return Key.Hash;
 	}
+
+	/** Computes a longer hash that uniquely identifies the whole pipeline, used in FStableShaderKeyAndValue */
+	void GetPipelineHash(FSHAHash& Output);
 	
 	friend FArchive& operator<<( FArchive& Ar, FShaderCodeLibraryPipeline& Info )
 	{
@@ -75,6 +81,7 @@ struct RENDERCORE_API FStableShaderKeyAndValue
 	FName TargetPlatform;
 	FName VFType;
 	FName PermutationId;
+	FSHAHash PipelineHash;
 
 	uint32 KeyHash;
 
@@ -92,6 +99,9 @@ struct RENDERCORE_API FStableShaderKeyAndValue
 	void ToString(FString& OutResult) const;
 	static FString HeaderLine();
 
+	/** Computes pipeline hash from the passed pipeline. Pass nullptr to clear */
+	void SetPipelineHash(FShaderPipeline* Pipeline);
+
 	friend bool operator ==(const FStableShaderKeyAndValue& A, const FStableShaderKeyAndValue& B)
 	{
 		return
@@ -104,7 +114,8 @@ struct RENDERCORE_API FStableShaderKeyAndValue
 			A.TargetFrequency == B.TargetFrequency &&
 			A.TargetPlatform == B.TargetPlatform &&
 			A.VFType == B.VFType &&
-			A.PermutationId == B.PermutationId;
+			A.PermutationId == B.PermutationId &&
+			A.PipelineHash == B.PipelineHash;
 	}
 
 	friend uint32 GetTypeHash(const FStableShaderKeyAndValue &Key)
@@ -127,6 +138,7 @@ public:
 	virtual FDomainShaderRHIRef CreateDomainShader(const FSHAHash& Hash) = 0;
 	virtual FGeometryShaderRHIRef CreateGeometryShader(const FSHAHash& Hash) = 0;
 	virtual FComputeShaderRHIRef CreateComputeShader(const FSHAHash& Hash) = 0;
+	virtual FRayTracingShaderRHIRef CreateRayTracingShader(EShaderFrequency Frequency, const FSHAHash& Hash) = 0;
 };
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FSharedShaderCodeRequest, const FSHAHash&, FArchive*);
@@ -163,6 +175,8 @@ struct RENDERCORE_API FShaderCodeLibrary
 	static FDomainShaderRHIRef CreateDomainShader(EShaderPlatform Platform, FSHAHash Hash, TArray<uint8> const& Code);
 	/** Instantiate or retrieve a compute shader from the cache for the provided code & hash. */
 	static FComputeShaderRHIRef CreateComputeShader(EShaderPlatform Platform, FSHAHash Hash, TArray<uint8> const& Code);
+	/** Instantiate or retrieve a ray tracing shader from the cache for the provided code & hash. */
+	static FRayTracingShaderRHIRef CreateRayTracingShader(EShaderPlatform Platform, EShaderFrequency Frequency, FSHAHash Hash, TArray<uint8> const& Code);
 
     static bool ContainsShaderCode(const FSHAHash& Hash);
     

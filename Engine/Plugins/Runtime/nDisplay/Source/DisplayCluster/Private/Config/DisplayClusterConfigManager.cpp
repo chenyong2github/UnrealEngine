@@ -16,6 +16,8 @@
 #include "DisplayClusterLog.h"
 #include "DisplayClusterStrings.h"
 
+#include "HAL/FileManager.h"
+
 
 FDisplayClusterConfigManager::FDisplayClusterConfigManager()
 {
@@ -76,11 +78,6 @@ TArray<FDisplayClusterConfigClusterNode> FDisplayClusterConfigManager::GetCluste
 int32 FDisplayClusterConfigManager::GetClusterNodesAmount() const
 {
 	return CfgClusterNodes.Num();
-}
-
-bool FDisplayClusterConfigManager::GetClusterNode(int32 idx, FDisplayClusterConfigClusterNode& node) const
-{
-	return GetItem(CfgClusterNodes, idx, node, FString("GetNode"));
 }
 
 bool FDisplayClusterConfigManager::GetClusterNode(const FString& id, FDisplayClusterConfigClusterNode& node) const
@@ -154,11 +151,6 @@ int32 FDisplayClusterConfigManager::GetScreensAmount() const
 	return CfgScreens.Num();
 }
 
-bool FDisplayClusterConfigManager::GetScreen(int32 idx, FDisplayClusterConfigScreen& screen) const
-{
-	return GetItem(CfgScreens, idx, screen, FString("GetScreen"));
-}
-
 bool FDisplayClusterConfigManager::GetScreen(const FString& id, FDisplayClusterConfigScreen& screen) const
 {
 	return GetItem(CfgScreens, id, screen, FString("GetScreen"));
@@ -174,11 +166,6 @@ TArray<FDisplayClusterConfigCamera> FDisplayClusterConfigManager::GetCameras() c
 int32 FDisplayClusterConfigManager::GetCamerasAmount() const
 {
 	return CfgCameras.Num();
-}
-
-bool FDisplayClusterConfigManager::GetCamera(int32 idx, FDisplayClusterConfigCamera& camera) const
-{
-	return GetItem(CfgCameras, idx, camera, FString("GetCamera"));
 }
 
 bool FDisplayClusterConfigManager::GetCamera(const FString& id, FDisplayClusterConfigCamera& camera) const
@@ -198,11 +185,6 @@ int32 FDisplayClusterConfigManager::GetViewportsAmount() const
 	return CfgViewports.Num();
 }
 
-bool FDisplayClusterConfigManager::GetViewport(int32 idx, FDisplayClusterConfigViewport& viewport) const
-{
-	return GetItem(CfgViewports, idx, viewport, FString("GetViewport"));
-}
-
 bool FDisplayClusterConfigManager::GetViewport(const FString& id, FDisplayClusterConfigViewport& viewport) const
 {
 	return GetItem(CfgViewports, id, viewport, FString("GetViewport"));
@@ -218,11 +200,6 @@ TArray<FDisplayClusterConfigPostprocess> FDisplayClusterConfigManager::GetPostpr
 int32 FDisplayClusterConfigManager::GetPostprocessAmount() const
 {
 	return CfgPostprocess.Num();
-}
-
-bool FDisplayClusterConfigManager::GetPostprocess(int32 idx, FDisplayClusterConfigPostprocess& postprocess) const
-{
-	return GetItem(CfgPostprocess, idx, postprocess, FString("GetPostprocess"));
 }
 
 bool FDisplayClusterConfigManager::GetPostprocess(const FString& id, FDisplayClusterConfigPostprocess& postprocess) const
@@ -242,11 +219,6 @@ int32 FDisplayClusterConfigManager::GetSceneNodesAmount() const
 	return CfgSceneNodes.Num();
 }
 
-bool FDisplayClusterConfigManager::GetSceneNode(int32 idx, FDisplayClusterConfigSceneNode& actor) const
-{
-	return GetItem(CfgSceneNodes, idx, actor, FString("GetActor"));
-}
-
 bool FDisplayClusterConfigManager::GetSceneNode(const FString& id, FDisplayClusterConfigSceneNode& actor) const
 {
 	return GetItem(CfgSceneNodes, id, actor, FString("GetActor"));
@@ -262,11 +234,6 @@ TArray<FDisplayClusterConfigInput> FDisplayClusterConfigManager::GetInputDevices
 int32 FDisplayClusterConfigManager::GetInputDevicesAmount() const
 {
 	return CfgInputDevices.Num();
-}
-
-bool FDisplayClusterConfigManager::GetInputDevice(int32 idx, FDisplayClusterConfigInput& input) const
-{
-	return GetItem(CfgInputDevices, idx, input, FString("GetInputDevice"));
 }
 
 bool FDisplayClusterConfigManager::GetInputDevice(const FString& id, FDisplayClusterConfigInput& input) const
@@ -457,27 +424,36 @@ bool FDisplayClusterConfigManager::LoadConfig(const FString& cfgPath)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 
+	FString ConfigFile = cfgPath;
+	ConfigFile.TrimStartAndEndInline();
+
+	if (FPaths::IsRelative(ConfigFile))
+	{
+		const FString ProjectDir = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*FPaths::ProjectDir());
+		ConfigFile = FPaths::ConvertRelativePathToFull(ProjectDir, ConfigFile);
+	}
+
 	// Actually the data is reset on EndFrame. This one is a safety call.
 	ResetConfigData();
 
 #ifdef DISPLAY_CLUSTER_USE_DEBUG_STANDALONE_CONFIG
-	if (cfgPath.Compare(FString(DisplayClusterStrings::misc::DbgStubConfig), ESearchCase::IgnoreCase) != 0 &&
-		FPaths::FileExists(cfgPath) == false)
+	if (ConfigFile.Compare(FString(DisplayClusterStrings::misc::DbgStubConfig), ESearchCase::IgnoreCase) != 0 &&
+		FPaths::FileExists(ConfigFile) == false)
 	{
-		UE_LOG(LogDisplayClusterConfig, Error, TEXT("File not found: %s"), *cfgPath);
+		UE_LOG(LogDisplayClusterConfig, Error, TEXT("File not found: %s"), *ConfigFile);
 		return false;
 	}
 #else
-	if (FPaths::FileExists(cfgPath) == false)
+	if (FPaths::FileExists(ConfigFile) == false)
 	{
-		UE_LOG(LogDisplayClusterConfig, Error, TEXT("File not found: %s"), *cfgPath);
+		UE_LOG(LogDisplayClusterConfig, Error, TEXT("File not found: %s"), *ConfigFile);
 		return false;
 	}
 #endif
 
 	// Instantiate appropriate parser
 	TUniquePtr<FDisplayClusterConfigParser> parser;
-	switch (GetConfigFileType(cfgPath))
+	switch (GetConfigFileType(ConfigFile))
 	{
 	case EConfigFileType::Text:
 		parser.Reset(new FDisplayClusterConfigParserText(this));
@@ -499,7 +475,7 @@ bool FDisplayClusterConfigManager::LoadConfig(const FString& cfgPath)
 		return false;
 	}
 
-	return parser->ParseFile(cfgPath);
+	return parser->ParseFile(ConfigFile);
 }
 
 void FDisplayClusterConfigManager::ResetConfigData()
@@ -522,19 +498,6 @@ void FDisplayClusterConfigManager::ResetConfigData()
 	CfgRender  = FDisplayClusterConfigRender();
 	CfgDebug   = FDisplayClusterConfigDebug();
 	CfgCustom  = FDisplayClusterConfigCustom();
-}
-
-template <typename DataType>
-bool FDisplayClusterConfigManager::GetItem(const TArray<DataType>& container, uint32 idx, DataType& item, const FString& logHeader) const
-{
-	if (idx >= static_cast<uint32>(container.Num()))
-	{
-		UE_LOG(LogDisplayClusterConfig, Error, TEXT("%s: index is out of bound <%d>"), *logHeader, idx);
-		return false;
-	}
-
-	item = container[static_cast<int32>(idx)];
-	return true;
 }
 
 template <typename DataType>

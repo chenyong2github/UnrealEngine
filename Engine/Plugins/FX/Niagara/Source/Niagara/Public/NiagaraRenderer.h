@@ -23,6 +23,8 @@ NiagaraRenderer.h: Base class for Niagara render modules
 #include "NiagaraBoundsCalculator.h"
 
 class FNiagaraDataSet;
+class FNiagaraSceneProxy;
+class FNiagaraGPURendererCount;
 
 /** Struct used to pass dynamic data from game thread to render thread */
 struct FNiagaraDynamicDataBase
@@ -91,7 +93,7 @@ public:
 
 	virtual void Initialize(const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
 	virtual void CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher);
-	virtual void ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher);
+	virtual void ReleaseRenderThreadResources();
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View, const FNiagaraSceneProxy *SceneProxy)const;
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const {}
@@ -130,7 +132,7 @@ protected:
 
 	uint32 bLocalSpace : 1;
 	uint32 bHasLights : 1;
-	ENiagaraSimTarget SimTarget;
+	const ENiagaraSimTarget SimTarget;
 	uint32 NumIndicesPerInstance;
 
 	ERHIFeatureLevel::Type FeatureLevel;
@@ -149,5 +151,6 @@ protected:
 	TArray<UMaterialInterface*> BaseMaterials_GT;
 	FMaterialRelevance BaseMaterialRelevance_GT;
 
+	TRefCountPtr<FNiagaraGPURendererCount> NumRegisteredGPURenderers;
 };
 

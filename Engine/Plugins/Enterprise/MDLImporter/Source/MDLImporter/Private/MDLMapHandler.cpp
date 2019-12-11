@@ -29,6 +29,10 @@ FMDLMapHandler::FMDLMapHandler(const Mdl::FApiContext& MdlContext)
 	MaterialExpressionFactory.SetFunctionLoader(FunctionLoader.Get());
 }
 
+FMDLMapHandler::~FMDLMapHandler()
+{
+}
+
 void FMDLMapHandler::PreImport(const mi::neuraylib::IMaterial_definition& MDLMaterialDefinition,
                                const mi::neuraylib::ICompiled_material&   MDLMaterial,
                                mi::neuraylib::ITransaction&               MDLTransaction)
@@ -103,7 +107,15 @@ bool FMDLMapHandler::Import(const FString& MapName, bool bIsTexture, Mdl::FBakeP
 	{
 		return false;
 	}
-	check(Outputs.Num() == 1);
+
+	if (Outputs.Num() == 0)
+	{
+		// Map expression has no output - thus invalid to use. This happens when, for example, referenced texture file is not found
+		UE_LOG(LogMDLImporter, Warning, TEXT("Failed to create valid expression for: %s from: %s"), *MapName,
+			*MapBakeParam.InputBakePath);
+		return false;
+	}
+
 
 	if (!FirstNormalExpression && MapNameLower.Find(TEXT("normal")) != INDEX_NONE)
 	{

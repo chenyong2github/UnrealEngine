@@ -554,6 +554,13 @@ protected:
 		SPVFuncImplConvertYCbCrBT601,
 		SPVFuncImplConvertYCbCrBT2020,
 		SPVFuncImplDynamicImageSampler,
+		// Identity function as workaround for bug in Metal compiler
+		// This bug happens with binary + ternary expressions as argument in a 'texture.write' call:
+		//      myTex.write(int4(a || b ? 1 : 0), uint2(0))
+		//                       ^~~~~~
+		// Wrapping it into a templated identity function solves the issue:
+		//      myTex.write(spvIdentity(int4(a || b ? 1 : 0)), uint2(0))
+		SPVFuncImplIdentity,
 
 		SPVFuncImplArrayCopyMultidimMax = 6
 	};

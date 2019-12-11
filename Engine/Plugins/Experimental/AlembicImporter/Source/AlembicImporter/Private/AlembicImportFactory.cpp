@@ -474,7 +474,7 @@ EReimportResult::Type UAlembicImportFactory::Reimport(UObject* Obj)
 		}
 
 		// Close possible open editors using this asset	
-		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(SkeletalMesh);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(AnimSequence);
 
 		EReimportResult::Type Result = ReimportSkeletalMesh(SkeletalMesh);
 

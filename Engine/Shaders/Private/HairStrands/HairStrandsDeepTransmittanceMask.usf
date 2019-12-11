@@ -29,6 +29,7 @@ float3 ToWorldPosition(float2 UV, float Depth)
 uint2				DeepShadow_Resolution;
 float4x4			DeepShadow_WorldToLightTransforms[MAX_HAIR_CLUSTER_COUNT];
 float3				LightDirection;
+uint				MaxVisibilityNodeCount;
 float4				LightPosition;
 float				DepthBiasScale;
 float				DensityScale;
@@ -53,7 +54,7 @@ Texture3D<uint> 	Voxel_DensityTexture7;
 
 StructuredBuffer<FNodeData> HairVisibilityNodeData;
 StructuredBuffer<uint>		HairVisibilityNodeCoord;
-StructuredBuffer<uint4>		IndirectArgsBuffer;
+Buffer<uint4>				IndirectArgsBuffer;
 
 Texture3D<float4>			HairLUTTexture;
 RWStructuredBuffer<float4>	OutputColor;
@@ -73,6 +74,9 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	// Note: Use a fixed group count width (HAIR_VISIBILITY_GROUP_COUNT_WIDTH) for avoiding loading the indirect args (to avoid dep. memory fetch)
 	const uint LocalOffset = DispatchThreadId.x + DispatchThreadId.y * TRANSMITTANCE_GROUP_SIZE * HAIR_VISIBILITY_GROUP_COUNT_WIDTH;
+
+	if (LocalOffset >= MaxVisibilityNodeCount)
+		return;
 
 	const uint PackedCoord	 = HairVisibilityNodeCoord[LocalOffset];
 	const uint2 PixelCoord	 = uint2((PackedCoord & 0xFFFF), ((PackedCoord>>16) & 0xFFFF));
@@ -143,15 +147,16 @@ float4 ComputeTransmittanceVoxel(
 	}
 
 	// Compute the number of hair count between light & shading point
+	const float DistanceThreshold = 100000;
 	float HairCount = 0;
-	if (ClusterId == 0) HairCount = ComputeHairCountVoxel(WorldPosition, L, Voxel_MinAABBs[0], Voxel_MaxAABBs[0], Voxel_Resolution, Voxel_DensityTexture0, Settings.DeepShadowDensityScale, 0);
-	if (ClusterId == 1) HairCount = ComputeHairCountVoxel(WorldPosition, L, Voxel_MinAABBs[1], Voxel_MaxAABBs[1], Voxel_Resolution, Voxel_DensityTexture1, Settings.DeepShadowDensityScale, 0);
-	if (ClusterId == 2) HairCount = ComputeHairCountVoxel(WorldPosition, L, Voxel_MinAABBs[2], Voxel_MaxAABBs[2], Voxel_Resolution, Voxel_DensityTexture2, Settings.DeepShadowDensityScale, 0);
-	if (ClusterId == 3) HairCount = ComputeHairCountVoxel(WorldPosition, L, Voxel_MinAABBs[3], Voxel_MaxAABBs[3], Voxel_Resolution, Voxel_DensityTexture3, Settings.DeepShadowDensityScale, 0);
-	if (ClusterId == 4) HairCount = ComputeHairCountVoxel(WorldPosition, L, Voxel_MinAABBs[4], Voxel_MaxAABBs[4], Voxel_Resolution, Voxel_DensityTexture4, Settings.DeepShadowDensityScale, 0);
-	if (ClusterId == 5) HairCount = ComputeHairCountVoxel(WorldPosition, L, Voxel_MinAABBs[5], Voxel_MaxAABBs[5], Voxel_Resolution, Voxel_DensityTexture5, Settings.DeepShadowDensityScale, 0);
-	if (ClusterId == 6) HairCount = ComputeHairCountVoxel(WorldPosition, L, Voxel_MinAABBs[6], Voxel_MaxAABBs[6], Voxel_Resolution, Voxel_DensityTexture6, Settings.DeepShadowDensityScale, 0);
-	if (ClusterId == 7) HairCount = ComputeHairCountVoxel(WorldPosition, L, Voxel_MinAABBs[7], Voxel_MaxAABBs[7], Voxel_Resolution, Voxel_DensityTexture7, Settings.DeepShadowDensityScale, 0);
+	if (ClusterId == 0) HairCount = ComputeHairCountVoxel(WorldPosition, L, Voxel_MinAABBs[0], Voxel_MaxAABBs[0], Voxel_Resolution, Voxel_DensityTexture0, Settings.DeepShadowDensityScale, 0, DistanceThreshold);
+	if (ClusterId == 1) HairCount = ComputeHairCountVoxel(WorldPosition, L, Voxel_MinAABBs[1], Voxel_MaxAABBs[1], Voxel_Resolution, Voxel_DensityTexture1, Settings.DeepShadowDensityScale, 0, DistanceThreshold);
+	if (ClusterId == 2) HairCount = ComputeHairCountVoxel(WorldPosition, L, Voxel_MinAABBs[2], Voxel_MaxAABBs[2], Voxel_Resolution, Voxel_DensityTexture2, Settings.DeepShadowDensityScale, 0, DistanceThreshold);
+	if (ClusterId == 3) HairCount = ComputeHairCountVoxel(WorldPosition, L, Voxel_MinAABBs[3], Voxel_MaxAABBs[3], Voxel_Resolution, Voxel_DensityTexture3, Settings.DeepShadowDensityScale, 0, DistanceThreshold);
+	if (ClusterId == 4) HairCount = ComputeHairCountVoxel(WorldPosition, L, Voxel_MinAABBs[4], Voxel_MaxAABBs[4], Voxel_Resolution, Voxel_DensityTexture4, Settings.DeepShadowDensityScale, 0, DistanceThreshold);
+	if (ClusterId == 5) HairCount = ComputeHairCountVoxel(WorldPosition, L, Voxel_MinAABBs[5], Voxel_MaxAABBs[5], Voxel_Resolution, Voxel_DensityTexture5, Settings.DeepShadowDensityScale, 0, DistanceThreshold);
+	if (ClusterId == 6) HairCount = ComputeHairCountVoxel(WorldPosition, L, Voxel_MinAABBs[6], Voxel_MaxAABBs[6], Voxel_Resolution, Voxel_DensityTexture6, Settings.DeepShadowDensityScale, 0, DistanceThreshold);
+	if (ClusterId == 7) HairCount = ComputeHairCountVoxel(WorldPosition, L, Voxel_MinAABBs[7], Voxel_MaxAABBs[7], Voxel_Resolution, Voxel_DensityTexture7, Settings.DeepShadowDensityScale, 0, DistanceThreshold);
 
 	return ComputeTransmittanceFromHairCount(HairCount, GBuffer, SinLightAngle, HairLUTTexture, HairLUTSampler);
 }

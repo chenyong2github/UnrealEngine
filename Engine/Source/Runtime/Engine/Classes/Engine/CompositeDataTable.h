@@ -50,6 +50,7 @@ class UCompositeDataTable
 	ENGINE_API virtual void RestoreAfterStructChange() override;
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditUndo() override;
 #endif // WITH_EDITOR
 
 	// Support for runtime modification of parent tables
@@ -75,16 +76,20 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Tables)
 	TArray<UDataTable*> ParentTables;
 
-	// true if this asset is currently being loaded; false otherwise
-	uint8 bIsLoading : 1;
-
-	// if this is true then the parent table array will not be cleared when EmptyTable is called
-	uint8 bShouldNotClearParentTablesOnEmpty : 1;
-
 	// temporary copy used to detect changes so we can update delegates correctly on removal
 	UPROPERTY(transient)
 	TArray<UDataTable*> OldParentTables;
+
 #if WITH_EDITORONLY_DATA
 	TMap<FName, ERowState> RowSourceMap;
 #endif // WITH_EDITORONLY_DATA
+
+	// true if this asset is currently being loaded; false otherwise
+	uint8 bIsLoading : 1;
+
+	// true if we're already in the middle of updating parent tables for this asset
+	uint8 bUpdatingParentTables : 1;
+
+	// if this is true then the parent table array will not be cleared when EmptyTable is called
+	uint8 bShouldNotClearParentTablesOnEmpty : 1;
 };

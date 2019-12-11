@@ -16,6 +16,7 @@
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraEditorCommands.h"
+#include "NiagaraEditorModule.h"
 #include "GraphEditorActions.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
@@ -30,6 +31,7 @@ void SNiagaraOverviewGraph::Construct(const FArguments& InArgs, TSharedRef<FNiag
 {
 	ViewModel = InViewModel;
 	ViewModel->GetNodeSelection()->OnSelectedObjectsChanged().AddSP(this, &SNiagaraOverviewGraph::ViewModelSelectionChanged);
+	ViewModel->GetSystemViewModel()->OnPreClose().AddSP(this, &SNiagaraOverviewGraph::PreClose);
 
 	bUpdatingViewModelSelectionFromGraph = false;
 	bUpdatingGraphSelectionFromViewModel = false;
@@ -70,12 +72,34 @@ void SNiagaraOverviewGraph::Construct(const FArguments& InArgs, TSharedRef<FNiag
 		FGraphEditorCommands::Get().CreateComment,
 		FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::OnCreateComment));
 	Commands->MapAction(
-		FNiagaraEditorCommands::Get().ZoomToFit,
+		FNiagaraEditorModule::Get().GetCommands().ZoomToFit,
 		FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::ZoomToFit));
 	Commands->MapAction(
-		FNiagaraEditorCommands::Get().ZoomToFitAll,
+		FNiagaraEditorModule::Get().GetCommands().ZoomToFitAll,
 		FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::ZoomToFitAll));
-	
+	// Alignment Commands
+	Commands->MapAction(FGraphEditorCommands::Get().AlignNodesTop,
+		FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::OnAlignTop)
+	);
+
+	Commands->MapAction(FGraphEditorCommands::Get().AlignNodesMiddle,
+		FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::OnAlignMiddle)
+	);
+
+	Commands->MapAction(FGraphEditorCommands::Get().AlignNodesBottom,
+		FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::OnAlignBottom)
+	);
+
+	// Distribution Commands
+	Commands->MapAction(FGraphEditorCommands::Get().DistributeNodesHorizontally,
+		FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::OnDistributeNodesH)
+	);
+
+	Commands->MapAction(FGraphEditorCommands::Get().DistributeNodesVertically,
+		FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::OnDistributeNodesV)
+	);
+
+
 	GraphEditor = SNew(SGraphEditor)
 		.AdditionalCommands(Commands)
 		.Appearance(AppearanceInfo)
@@ -103,17 +127,6 @@ void SNiagaraOverviewGraph::Construct(const FArguments& InArgs, TSharedRef<FNiag
 	[
 		GraphEditor.ToSharedRef()
 	];
-}
-
-SNiagaraOverviewGraph::~SNiagaraOverviewGraph()
-{
-	if (ViewModel.IsValid() && GraphEditor.IsValid())
-	{
-		FVector2D Location;
-		float Zoom;
-		GraphEditor->GetViewLocation(Location, Zoom);
-		ViewModel->SetViewSettings(FNiagaraGraphViewSettings(Location, Zoom));
-	}
 }
 
 void SNiagaraOverviewGraph::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -164,6 +177,17 @@ void SNiagaraOverviewGraph::GraphSelectionChanged(const TSet<UObject*>& Selected
 	}
 }
 
+void SNiagaraOverviewGraph::PreClose()
+{
+	if (ViewModel.IsValid() && GraphEditor.IsValid())
+	{
+		FVector2D Location;
+		float Zoom;
+		GraphEditor->GetViewLocation(Location, Zoom);
+		ViewModel->SetViewSettings(FNiagaraGraphViewSettings(Location, Zoom));
+	}
+}
+
 FActionMenuContent SNiagaraOverviewGraph::OnCreateGraphActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed)
 {
 	if (ViewModel->GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
@@ -185,7 +209,7 @@ FActionMenuContent SNiagaraOverviewGraph::OnCreateGraphActionMenu(UEdGraph* InGr
 		}
 		MenuBuilder.EndSection();
 
-		MenuBuilder.BeginSection(TEXT("NiagaraOverview_View"), LOCTEXT("EditGraph", "View"));
+		MenuBuilder.BeginSection(TEXT("NiagaraOverview_View"), LOCTEXT("View", "View"));
 		{
 			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ZoomToFit);
 			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ZoomToFitAll);
@@ -280,6 +304,47 @@ void SNiagaraOverviewGraph::ZoomToFit()
 void SNiagaraOverviewGraph::ZoomToFitAll()
 {
 	GraphEditor->ZoomToFit(false);
+}
+
+
+void SNiagaraOverviewGraph::OnAlignTop()
+{
+	if (GraphEditor.IsValid())
+	{
+		GraphEditor->OnAlignTop();
+	}
+}
+
+void SNiagaraOverviewGraph::OnAlignMiddle()
+{
+	if (GraphEditor.IsValid())
+	{
+		GraphEditor->OnAlignMiddle();
+	}
+}
+
+void SNiagaraOverviewGraph::OnAlignBottom()
+{
+	if (GraphEditor.IsValid())
+	{
+		GraphEditor->OnAlignBottom();
+	}
+}
+
+void SNiagaraOverviewGraph::OnDistributeNodesH()
+{
+	if (GraphEditor.IsValid())
+	{
+		GraphEditor->OnDistributeNodesH();
+	}
+}
+
+void SNiagaraOverviewGraph::OnDistributeNodesV()
+{
+	if (GraphEditor.IsValid())
+	{
+		GraphEditor->OnDistributeNodesV();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE // "NiagaraOverviewGraph"

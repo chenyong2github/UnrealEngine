@@ -131,6 +131,7 @@ void SScrollBox::Construct( const FArguments& InArgs )
 	WheelScrollMultiplier = InArgs._WheelScrollMultiplier;
 	NavigationScrollPadding = InArgs._NavigationScrollPadding;
 	NavigationDestination = InArgs._NavigationDestination;
+	ScrollWhenFocusChanges = InArgs._ScrollWhenFocusChanges;
 	bTouchPanningCapture = false;
 	bVolatilityAlwaysInvalidatesPrepass = true;
 
@@ -355,6 +356,8 @@ void SScrollBox::SetScrollOffset( float NewScrollOffset )
 {
 	DesiredScrollOffset = NewScrollOffset;
 	bScrollToEnd = false;
+
+	Invalidate(EInvalidateWidget::Layout);
 }
 
 void SScrollBox::ScrollToStart()
@@ -994,6 +997,17 @@ FNavigationReply SScrollBox::OnNavigation(const FGeometry& MyGeometry, const FNa
 	}
 
 	return SCompoundWidget::OnNavigation(MyGeometry, InNavigationEvent);
+}
+
+void SScrollBox::OnFocusChanging(const FWeakWidgetPath& PreviousFocusPath, const FWidgetPath& NewWidgetPath, const FFocusEvent& InFocusEvent)
+{
+	if (ScrollWhenFocusChanges != EScrollWhenFocusChanges::NoScroll)
+	{
+		if (NewWidgetPath.IsValid() && NewWidgetPath.ContainsWidget(SharedThis(this)))
+		{
+			ScrollDescendantIntoView(NewWidgetPath.GetLastWidget(), ScrollWhenFocusChanges == EScrollWhenFocusChanges::AnimatedScroll ? true : false, NavigationDestination, NavigationScrollPadding);
+		}
+	}
 }
 
 TSharedPtr<SWidget> SScrollBox::GetKeyboardFocusableWidget(TSharedPtr<SWidget> InWidget)

@@ -33,9 +33,10 @@ public:
 	 * @param  NodeClass	The type of node you want the spawner to create.
 	 * @param  Field		The field you want assigned to new nodes.
 	 * @param  Outer		Optional outer for the new spawner (if left null, the transient package will be used).
+	 * @param  OwnerClass	The class that the variable is a member of or the class it is associated with if it is in a sidecar data structure.
 	 * @return A newly allocated instance of this class.
 	 */
-	static UBlueprintFieldNodeSpawner* Create(TSubclassOf<UK2Node> NodeClass, UField const* const Field, UObject* Outer = nullptr);
+	static UBlueprintFieldNodeSpawner* Create(TSubclassOf<UK2Node> NodeClass, UField const* const Field, UObject* Outer = nullptr, UClass const* OwnerClass = nullptr);
 
 	// UBlueprintNodeSpawner interface
 	virtual FBlueprintNodeSignature GetSpawnerSignature() const override;
@@ -57,4 +58,8 @@ protected:
 	/** The field to configure new nodes with. */
 	UPROPERTY()
 	UField const* Field;
+
+	/** The owning class to configure new nodes with. */
+	UPROPERTY()
+	UClass const* OwnerClass;
 };

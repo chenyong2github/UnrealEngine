@@ -53,7 +53,7 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_ClusterTest_SingleLevelNonBreaking()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 		InitMaterialToZero(PhysicalMaterial);
 
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 0.)), FVector(0, -10, 10)),FVector(1.0));
@@ -134,7 +134,7 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_ClusterTest_DeactivateClusterParticle()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 		InitMaterialToZero(PhysicalMaterial);
 
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f)), FVector(20.f)),FVector(1.0));
@@ -287,7 +287,7 @@ namespace GeometryCollectionExample
 		// Wait until the cluster hits the ground.
 		// Ensure that the cluster breaks and that the children have the correct states from then on.
 		//
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 		InitMaterialToZero(PhysicalMaterial);
 
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 0.)), FVector(0, -10, 10)),FVector(1.0));
@@ -423,7 +423,7 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_ClusterTest_NestedCluster()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 		InitMaterialToZero(PhysicalMaterial);
 
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 0.)), FVector(0, -10, 10)),FVector(1.0));
@@ -542,7 +542,7 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_ClusterTest_NestedCluster_MultiStrain()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 		InitMaterialToZero(PhysicalMaterial);
 
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f)), FVector(20.f)),FVector(1.0));
@@ -696,7 +696,7 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_ClusterTest_NestedCluster_Halt()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 		InitMaterialToZero(PhysicalMaterial);
 
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f)), FVector(20.f)),FVector(1.0));
@@ -833,7 +833,7 @@ namespace GeometryCollectionExample
 		// Test : Set one element kinematic. When the cluster breaks the elements that do not contain the kinematic
 		//        rigid body should be dynamic, while the clusters that contain the kinematic body should remain 
 		//        kinematic. 
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 		InitMaterialToZero(PhysicalMaterial);
 
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f)), FVector(20.f)), FVector(1.0));
@@ -1071,7 +1071,7 @@ namespace GeometryCollectionExample
 		// Test : Set one element static. When the cluster breaks the elements that do not contain the static
 		//        rigid body should be dynamic, while the clusters that contain the static body should remain 
 		//        static. 
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 		InitMaterialToZero(PhysicalMaterial);
 
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f)), FVector(20.f)), FVector(1.0));
@@ -1283,7 +1283,7 @@ namespace GeometryCollectionExample
 	{
 		// Test : Set one element kinematic. When the cluster breaks the elements that do not contain the kinematic
 		//        Rigid body should be dynamic, while the clusters that contain the kinematic body should remain kinematic. 
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 		InitMaterialToZero(PhysicalMaterial);
 
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody( FVector(0,0,100) );
@@ -1414,7 +1414,7 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_ClusterTest_ReleaseClusterParticle_ClusteredNode()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 		InitMaterialToZero(PhysicalMaterial);
 
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody(FVector(0, 0, 100));
@@ -1551,7 +1551,7 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_ClusterTest_ReleaseClusterParticle_ClusteredKinematicNode()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 		InitMaterialToZero(PhysicalMaterial);
 
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody(FVector(0, 0, 100));
@@ -1685,7 +1685,7 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_ClusterTest_ReleaseClusterParticles_AllLeafNodes()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 		InitMaterialToZero(PhysicalMaterial);
 
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody(FVector(0, 0, 100));
@@ -1773,7 +1773,7 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_ClusterTest_ReleaseClusterParticles_ClusterNodeAndSubClusterNode()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 		InitMaterialToZero(PhysicalMaterial);
 
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody_TwoParents_TwoBodies(FVector(0, 0, 100));
@@ -1868,7 +1868,7 @@ namespace GeometryCollectionExample
 	template<class T>
 	void RigidBodies_ClusterTest_RemoveOnFracture()
 	{
-		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial = MakeUnique<Chaos::TChaosPhysicsMaterial<T>>();
+		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeUnique<Chaos::FChaosPhysicsMaterial>();
 		InitMaterialToZero(PhysicalMaterial);
 
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 0.)), FVector(0, -10, 10)), FVector(1.0));
@@ -1978,7 +1978,7 @@ namespace GeometryCollectionExample
 		Object->PhysicsProxy->Initialize();
 		Object->PhysicsProxy->ActivateBodies();
 
-		typedef TUniquePtr<Chaos::TImplicitObject<float, 3>> FImplicitPointer;
+		typedef TUniquePtr<Chaos::FImplicitObject> FImplicitPointer;
 		const TManagedArray<FImplicitPointer> & Implicits = Object->RestCollection->template GetAttribute<FImplicitPointer>(FGeometryCollectionPhysicsProxy::ImplicitsAttribute, FTransformCollection::TransformGroup);
 
 		typedef TUniquePtr< FCollisionStructureManager::FSimplicial > FSimplicialPointer;

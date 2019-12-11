@@ -2,6 +2,7 @@
 
 #include "SplineComponentVisualizer.h"
 #include "CoreMinimal.h"
+#include "Algo/AnyOf.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/InputChord.h"
 #include "Framework/Commands/Commands.h"
@@ -351,10 +352,6 @@ void FSplineComponentVisualizer::DrawVisualization(const UActorComponent* Compon
 		const float GrabHandleSize = 10.0f;
 		const float TangentHandleSize = 8.0f;
 
-		static const float HitTestLineTolerance = 20.0f;
-
-		const float DefaultLineThickness = (bIsSplineEditable && PDI->IsHitTesting()) ? HitTestLineTolerance : 0.0f;
-
 		// Draw the tangent handles before anything else so they will not overdraw the rest of the spline
 		if (SplineComp == EditedSplineComp)
 		{
@@ -372,20 +369,20 @@ void FSplineComponentVisualizer::DrawVisualization(const UActorComponent* Compon
 
 					PDI->SetHitProxy(NULL);
 
-					PDI->DrawLine(Location, Location + LeaveTangent, NormalColor, SDPG_Foreground);
-					PDI->DrawLine(Location, Location - ArriveTangent, NormalColor, SDPG_Foreground);
+					PDI->DrawLine(Location, Location + LeaveTangent, SelectedColor, SDPG_Foreground);
+					PDI->DrawLine(Location, Location - ArriveTangent, SelectedColor, SDPG_Foreground);
 
 					if (bIsSplineEditable)
 					{
 						PDI->SetHitProxy(new HSplineTangentHandleProxy(Component, SelectedKey, false));
 					}
-					PDI->DrawPoint(Location + LeaveTangent, NormalColor, TangentHandleSize, SDPG_Foreground);
+					PDI->DrawPoint(Location + LeaveTangent, SelectedColor, TangentHandleSize, SDPG_Foreground);
 
 					if (bIsSplineEditable)
 					{
 						PDI->SetHitProxy(new HSplineTangentHandleProxy(Component, SelectedKey, true));
 					}
-					PDI->DrawPoint(Location - ArriveTangent, NormalColor, TangentHandleSize, SDPG_Foreground);
+					PDI->DrawPoint(Location - ArriveTangent, SelectedColor, TangentHandleSize, SDPG_Foreground);
 
 					PDI->SetHitProxy(NULL);
 				}
@@ -477,16 +474,16 @@ void FSplineComponentVisualizer::DrawVisualization(const UActorComponent* Compon
 						const FVector NewRightVector = SplineComp->GetRightVectorAtSplineInputKey(Key, ESplineCoordinateSpace::World);
 						const FVector NewScale = SplineComp->GetScaleAtSplineInputKey(Key) * DefaultScale;
 
-						PDI->DrawLine(OldPos, NewPos, LineColor, SDPG_Foreground, DefaultLineThickness);
+						PDI->DrawLine(OldPos, NewPos, LineColor, SDPG_Foreground);
 						if (bShouldVisualizeScale)
 						{
-							PDI->DrawLine(OldPos - OldRightVector * OldScale.Y, NewPos - NewRightVector * NewScale.Y, LineColor, SDPG_Foreground, DefaultLineThickness);
-							PDI->DrawLine(OldPos + OldRightVector * OldScale.Y, NewPos + NewRightVector * NewScale.Y, LineColor, SDPG_Foreground, DefaultLineThickness);
+							PDI->DrawLine(OldPos - OldRightVector * OldScale.Y, NewPos - NewRightVector * NewScale.Y, LineColor, SDPG_Foreground);
+							PDI->DrawLine(OldPos + OldRightVector * OldScale.Y, NewPos + NewRightVector * NewScale.Y, LineColor, SDPG_Foreground);
 
 							#if VISUALIZE_SPLINE_UPVECTORS
 							const FVector NewUpVector = SplineComp->GetUpVectorAtSplineInputKey(Key, ESplineCoordinateSpace::World);
-							PDI->DrawLine(NewPos, NewPos + NewUpVector * SplineComp->ScaleVisualizationWidth * 0.5f, LineColor, SDPG_Foreground, DefaultLineThickness);
-							PDI->DrawLine(NewPos, NewPos + NewRightVector * SplineComp->ScaleVisualizationWidth * 0.5f, LineColor, SDPG_Foreground, DefaultLineThickness);
+							PDI->DrawLine(NewPos, NewPos + NewUpVector * SplineComp->ScaleVisualizationWidth * 0.5f, LineColor, SDPG_Foreground);
+							PDI->DrawLine(NewPos, NewPos + NewRightVector * SplineComp->ScaleVisualizationWidth * 0.5f, LineColor, SDPG_Foreground);
 							#endif
 						}
 
@@ -714,15 +711,17 @@ bool FSplineComponentVisualizer::GetWidgetLocation(const FEditorViewportClient* 
 		{
 			// Otherwise use the last key index set
 			check(LastKeyIndexSelected >= 0);
-			check(LastKeyIndexSelected < Position.Points.Num());
-			check(SelectedKeys.Contains(LastKeyIndexSelected));
-			const FInterpCurvePointVector& Point = Position.Points[LastKeyIndexSelected];
-			OutLocation = SplineComp->GetComponentTransform().TransformPosition(Point.OutVal);
-			if (!DuplicateDelayAccumulatedDrag.IsZero())
+			if (LastKeyIndexSelected < Position.Points.Num())
 			{
-				OutLocation += DuplicateDelayAccumulatedDrag;
+				check(SelectedKeys.Contains(LastKeyIndexSelected));
+				const FInterpCurvePointVector& Point = Position.Points[LastKeyIndexSelected];
+				OutLocation = SplineComp->GetComponentTransform().TransformPosition(Point.OutVal);
+				if (!DuplicateDelayAccumulatedDrag.IsZero())
+				{
+					OutLocation += DuplicateDelayAccumulatedDrag;
+				}
+				return true;
 			}
-			return true;
 		}
 	}
 
@@ -753,11 +752,26 @@ bool FSplineComponentVisualizer::IsVisualizingArchetype() const
 }
 
 
+bool FSplineComponentVisualizer::IsAnySelectedKeyIndexOutOfRange(const USplineComponent* Comp) const
+{
+	const int32 NumPoints = Comp->GetSplinePointsPosition().Points.Num();
+
+	return Algo::AnyOf(SelectedKeys, [NumPoints](int32 Index) { return Index >= NumPoints; });
+}
+
+
 bool FSplineComponentVisualizer::HandleInputDelta(FEditorViewportClient* ViewportClient, FViewport* Viewport, FVector& DeltaTranslate, FRotator& DeltaRotate, FVector& DeltaScale)
 {
 	USplineComponent* SplineComp = GetEditedSplineComponent();
 	if (SplineComp != nullptr)
 	{
+		if (IsAnySelectedKeyIndexOutOfRange(SplineComp))
+		{
+			// Something external has changed the number of spline points, meaning that the cached selected keys are no longer valid
+			EndEditing();
+			return false;
+		}
+
 		if (SelectedTangentHandle != INDEX_NONE)
 		{
 			return TransformSelectedTangent(DeltaTranslate);
@@ -962,9 +976,16 @@ bool FSplineComponentVisualizer::HandleInputKey(FEditorViewportClient* ViewportC
 {
 	bool bHandled = false;
 
+	USplineComponent* SplineComp = GetEditedSplineComponent();
+	if (SplineComp != nullptr && IsAnySelectedKeyIndexOutOfRange(SplineComp))
+	{
+		// Something external has changed the number of spline points, meaning that the cached selected keys are no longer valid
+		EndEditing();
+		return false;
+	}
+
 	if (Key == EKeys::LeftMouseButton && Event == IE_Released)
 	{
-		USplineComponent* SplineComp = GetEditedSplineComponent();
 		if (SplineComp != nullptr)
 		{
 			// Recache widget rotation
@@ -2482,7 +2503,7 @@ void FSplineComponentVisualizer::GenerateContextMenuSections(FMenuBuilder& InMen
 
 			InMenuBuilder.AddSubMenu(
 				LOCTEXT("SplinePointType", "Spline Point Type"),
-				LOCTEXT("KeyTypeTooltip", "Define the type of the spline point."),
+				LOCTEXT("SplinePointTypeTooltip", "Define the type of the spline point."),
 				FNewMenuDelegate::CreateSP(this, &FSplineComponentVisualizer::GenerateSplinePointTypeSubMenu));
 
 			// Only add the Automatic Tangents submenu if any of the keys is a curve type
@@ -2524,13 +2545,13 @@ void FSplineComponentVisualizer::GenerateContextMenuSections(FMenuBuilder& InMen
 
 		InMenuBuilder.AddSubMenu(
 			LOCTEXT("SnapAlign", "Snap/Align"),
-			LOCTEXT("KeyTypeTooltip", "Snap align options."),
+			LOCTEXT("SnapAlignTooltip", "Snap align options."),
 			FNewMenuDelegate::CreateSP(this, &FSplineComponentVisualizer::GenerateSnapAlignSubMenu));
 
 		/* temporarily disabled
 		InMenuBuilder.AddSubMenu(
 			LOCTEXT("LockAxis", "Lock Axis"),
-			LOCTEXT("KeyTypeTooltip", "Axis to lock when adding new spline points."),
+			LOCTEXT("LockAxisTooltip", "Axis to lock when adding new spline points."),
 			FNewMenuDelegate::CreateSP(this, &FSplineComponentVisualizer::GenerateLockAxisSubMenu));
 			*/
 	}
@@ -2594,7 +2615,9 @@ void FSplineComponentVisualizer::CreateSplineGeneratorPanel()
 			.ScreenPosition(FSlateApplication::Get().GetCursorPos())
 			.Title(FText::FromString("Spline Generation"))
 			.SizingRule(ESizingRule::Autosized)
-			.AutoCenter(EAutoCenter::None);
+			.AutoCenter(EAutoCenter::None)
+			.SupportsMaximize(false)
+			.SupportsMinimize(false);
 
 		ExistingWindow->SetOnWindowClosed(FOnWindowClosed::CreateSP(SplineGeneratorPanel.ToSharedRef(), &SSplineGeneratorPanel::OnWindowClosed));
 

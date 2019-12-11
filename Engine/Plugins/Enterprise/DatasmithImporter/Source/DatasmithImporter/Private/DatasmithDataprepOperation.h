@@ -8,20 +8,26 @@
 
 #include "DatasmithDataprepOperation.generated.h"
 
-UCLASS(Experimental, Category = MeshOperation, Meta = (DisplayName="Compute Lightmap Resolution", ToolTip = "For each static mesh to process, recompute the lilghtmap resolution based on the specified ratio") )
-class UDatasmithComputeLightmapResolutionOperation : public UDataprepOperation
+UCLASS(Experimental, Category = LightmapOptions, Meta = (DisplayName = "Setup Static Lighting", ToolTip = "For each static mesh to process, setup the settings to enable lightmap UVs generation and compute the lightmap resolution."))
+class UDataprepSetupStaticLightingOperation : public UDataprepOperation
 {
 	GENERATED_BODY()
 
-	UDatasmithComputeLightmapResolutionOperation()
-		: IdealRatio( 0.2f )
+		UDataprepSetupStaticLightingOperation()
+		: bEnableLightmapUVGeneration(true),
+		LightmapResolutionIdealRatio(0.2f)
 	{
 	}
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LightmapOptions )
-	float IdealRatio;
+	// The value to set for the generate lightmap uvs flag on each static mesh
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LightmapOptions, meta = (DisplayName = "Enable Lightmap UV Generation", ToolTip = "Enable the lightmap UV generation."))
+	bool bEnableLightmapUVGeneration;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LightmapOptions, meta = (DisplayName = "Resolution Ideal Ratio", ToolTip = "The ratio used to compute the resolution of the lightmap."))
+	float LightmapResolutionIdealRatio;
+
+protected:
 	//~ Begin UDataprepOperation Interface
 public:
 	virtual FText GetCategory_Implementation() const override

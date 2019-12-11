@@ -62,7 +62,7 @@ public:
 	FObjectInitializer& TopInitializerChecked()
 	{
 		FObjectInitializer* ObjectInitializerPtr = TopInitializer();
-		UE_CLOG(!ObjectInitializerPtr, LogUObjectThreadContext, Fatal, TEXT("Tried to get the current ObjectInitializer, but none is set. Please use NewObject or NewNamedObject to construct new UObject-derived classes."));
+		UE_CLOG(!ObjectInitializerPtr, LogUObjectThreadContext, Fatal, TEXT("Tried to get the current ObjectInitializer, but none is set. Please use NewObject to construct new UObject-derived classes."));
 		return *ObjectInitializerPtr;
 	}
 
@@ -77,7 +77,7 @@ public:
 	/* Object that is currently being constructed with ObjectInitializer */
 	UObject* ConstructedObject;
 	/** Async Package currently processing objects */
-	class FGCObject* AsyncPackage;
+	void* AsyncPackage;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	/** Stack to ensure that PostInitProperties is routed through Super:: calls. **/

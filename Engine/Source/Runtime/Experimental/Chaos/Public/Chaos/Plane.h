@@ -7,34 +7,34 @@
 namespace Chaos
 {
 template<class T, int d>
-class TPlane final : public TImplicitObject<T, d>
+class TPlane final : public FImplicitObject
 {
   public:
-	using TImplicitObject<T, d>::GetTypeName;
+	using FImplicitObject::GetTypeName;
 
 
-	TPlane() : TImplicitObject<T, d>(0, ImplicitObjectType::Plane) {}	//needed for serialization
+	TPlane() : FImplicitObject(0, ImplicitObjectType::Plane) {}	//needed for serialization
 	TPlane(const TVector<T, d>& InX, const TVector<T, d>& InNormal)
-	    : TImplicitObject<T, d>(0, ImplicitObjectType::Plane)
+	    : FImplicitObject(0, ImplicitObjectType::Plane)
 	    , MX(InX)
 	    , MNormal(InNormal)
 	{
 	}
 	TPlane(const TPlane<T, d>& Other)
-	    : TImplicitObject<T, d>(0, ImplicitObjectType::Plane)
+	    : FImplicitObject(0, ImplicitObjectType::Plane)
 	    , MX(Other.MX)
 	    , MNormal(Other.MNormal)
 	{
 	}
 	TPlane(TPlane<T, d>&& Other)
-	    : TImplicitObject<T, d>(0, ImplicitObjectType::Plane)
+	    : FImplicitObject(0, ImplicitObjectType::Plane)
 	    , MX(MoveTemp(Other.MX))
 	    , MNormal(MoveTemp(Other.MNormal))
 	{
 	}
 	virtual ~TPlane() {}
 
-	static ImplicitObjectType GetType()
+	static constexpr EImplicitObjectType StaticType()
 	{
 		return ImplicitObjectType::Plane;
 	}
@@ -133,7 +133,7 @@ class TPlane final : public TImplicitObject<T, d>
 	
 	FORCEINLINE void SerializeImp(FArchive& Ar)
 	{
-		TImplicitObject<T, d>::SerializeImp(Ar);
+		FImplicitObject::SerializeImp(Ar);
 		Ar << MX << MNormal;
 	}
 

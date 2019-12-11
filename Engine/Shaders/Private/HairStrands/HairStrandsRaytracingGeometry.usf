@@ -38,7 +38,7 @@ FControlPoint GetControlPoint(uint Index)
 
 		Out.Position 	= f16tof32(PackedData.xyz) + StrandHairWorldOffset;
 		Out.PointType 	= PackedAlpha & 0x3;
-		Out.WorldRadius	= ((PackedAlpha & 0x00FC) >> 2) / 63.f * StrandHairRadius;	
+		Out.WorldRadius	= StrandHairRadius * float((PackedAlpha & 0x00FC) >> 2) / 63.0f;
 	}
 
 	return Out;

@@ -1,0 +1,168 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+  
+#include "../Common.ush"
+#include "../MonteCarlo.ush"
+#include "../DeferredShadingCommon.ush"  
+#include "../SceneTextureParameters.ush"
+#include "HairStrandsCommon.ush"
+#include "HairStrandsVisibilityCommon.ush"
+#include "HairStrandsDeepVoxelCommon.ush"
+
+Texture2D<uint4> HairCategorizationTexture;
+
+uint  Voxel_ClusterId;
+float Voxel_TanConeAngle;
+float Voxel_DensityScale;
+float Voxel_DepthBiasScale;
+
+float AO_Power;
+float AO_Intensity;
+uint  AO_SampleCount;
+float AO_DistanceThreshold;
+
+float3 Voxel_MinAABB;
+float3 Voxel_MaxAABB;
+uint   Voxel_Resolution;
+Texture3D<uint> Voxel_DensityTexture;
+
+// todo: make this function in common with the sky lighting integration pass
+float InternalComputeHairCountVoxel(
+	float3 WorldPosition, 
+	float3 LightDirection, 
+	float3 InVoxelAABBMin, 
+	float3 InVoxelAABBMax, 
+	float InVoxelResolution, 
+	Texture3D<uint> InDensityTexture, 
+	float DensityScale, 
+	float CountThreshold, 
+	float DistanceThreshold, 
+	bool bUseConeTracing)
+{
+	if (bUseConeTracing)
+		return ComputeHairCountVoxelCone(
+			WorldPosition,
+			LightDirection,
+			InVoxelAABBMin,
+			InVoxelAABBMax,
+			InVoxelResolution,
+			InDensityTexture,
+			DensityScale,
+			CountThreshold,
+			DistanceThreshold,
+			Voxel_TanConeAngle);
+	else
+		return ComputeHairCountVoxel(
+			WorldPosition,
+			LightDirection,
+			InVoxelAABBMin,
+			InVoxelAABBMax,
+			InVoxelResolution,
+			InDensityTexture,
+			DensityScale,
+			CountThreshold,
+			DistanceThreshold);
+}
+
+float TraceAO(float3 WorldPosition, float3 WorldNormal, float4 SvPosition)
+{
+	const float3 VoxelSize = (Voxel_MaxAABB - Voxel_MinAABB) / Voxel_Resolution;
+	const float  VoxelMaxSize = max(VoxelSize.x, max(VoxelSize.y, VoxelSize.z));
+	const float3 VoxelOffset = VoxelMaxSize * GetHairVoxelJitter(SvPosition.xy, View.StateFrameIndexMod8);
+	
+	float3 UnoccludedN = 0;
+	uint TotalHairCount = 0;
+#if PERMUTATION_SAMPLESET == 0
+	// Poisson disk position http://developer.download.nvidia.com/whitepapers/2008/PCSS_Integration.pdf
+	float2 PoissonDisk[16] =
+	{
+		float2(-0.94201624, -0.39906216),
+		float2(0.94558609, -0.76890725),
+		float2(-0.094184101, -0.92938870),
+		float2(0.34495938, 0.29387760),
+		float2(-0.91588581, 0.45771432),
+		float2(-0.81544232, -0.87912464),
+		float2(-0.38277543, 0.27676845),
+		float2(0.97484398, 0.75648379),
+		float2(0.44323325, -0.97511554),
+		float2(0.53742981, -0.47373420),
+		float2(-0.26496911, -0.41893023),
+		float2(0.79197514, 0.19090188),
+		float2(-0.24188840, 0.99706507),
+		float2(-0.81409955, 0.91437590),
+		float2(0.19984126, 0.78641367),
+		float2(0.14383161, -0.14100790)
+	};
+	const uint SampleCount = clamp(AO_SampleCount, 1, 16);
+#else
+	const uint SampleCount = max(AO_SampleCount, 1);
+#endif
+
+	float3 BentNormal = 0;
+	float Occlusion = 0;
+	for (uint i = 0; i < SampleCount; ++i)
+	{
+	#if PERMUTATION_SAMPLESET == 0
+		const float2 Rand2 = (PoissonDisk[i] + float2(1, 1)) * 0.5f;
+	#else // PERMUTATION_SAMPLESET == 1
+		const float2 Rand2 = Hammersley(i, SampleCount, uint2(0, 0));
+	#endif
+		const float2 SequenceOffset = float2(
+			InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8 + i * 13),
+			InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8 + i * 117));
+
+		const float3 LocalL = CosineSampleHemisphere(frac(Rand2 + SequenceOffset)).xyz;
+		const float3 SampleL = TangentToWorld(LocalL.xyz, WorldNormal);
+
+		// Depth bias
+		const float3 SampleVoxelOffset = VoxelMaxSize * GetHairVoxelJitter(SvPosition, View.StateFrameIndexMod8 + i * 17);
+		const float3 SampleWorldPosition = WorldPosition + VoxelOffset;
+
+		// Compute the number of hair count between light & shading point
+		const float HairCount = InternalComputeHairCountVoxel(SampleWorldPosition, SampleL, Voxel_MinAABB, Voxel_MaxAABB, Voxel_Resolution, Voxel_DensityTexture, Voxel_DensityScale, 0, AO_DistanceThreshold, true);
+		BentNormal += SampleL * saturate(1 - HairCount);
+		Occlusion += saturate(HairCount);
+	}
+	Occlusion /= SampleCount;
+	BentNormal /= SampleCount;
+
+	// User adjust AO
+	const float AO = 1 - (1 - pow(saturate(1 - Occlusion), AO_Power)) * AO_Intensity;
+	return saturate(AO);
+}
+
+float3 TotWorldPosition(float2 UV, float Depth)
+{
+	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+	float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * Depth, Depth, 1), View.ScreenToWorld);
+	float3 WorldPosition = HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
+
+	return WorldPosition;
+}
+
+void MainPS(
+	in float4 SvPosition : SV_Position,
+	out float4 OutAO : SV_Target0
+)
+{
+	const float2 BufferUV = SvPositionToBufferUV(SvPosition);
+	const uint3 PixelCoord = uint3(floor(SvPosition.xy), 0);
+
+	OutAO = 1;
+
+	const FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
+	const float3 WorldPosition = TotWorldPosition(BufferUV, GBuffer.Depth);
+	const float3 WorldNormal = GBuffer.WorldNormal;
+
+	// Trace AO for all pixel which are partially covered or not covered at all.
+	const FCategorizationData CatData = DecodeCategorizationData(HairCategorizationTexture.Load(PixelCoord));
+	const bool bIsValid = (CatData.PixelCoverage > 0 && CatData.PixelCoverage < 1) || (GBuffer.ShadingModelID != SHADINGMODELID_UNLIT);
+
+	if (bIsValid)
+	{
+		OutAO = TraceAO(WorldPosition, WorldNormal, SvPosition);
+	}
+	else
+	{
+		discard;
+	}
+}

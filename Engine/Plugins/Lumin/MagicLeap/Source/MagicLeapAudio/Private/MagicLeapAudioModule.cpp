@@ -25,10 +25,9 @@ FAudioDevice* FMagicLeapAudioModule::CreateAudioDevice()
 		{
 			return new Audio::FMixerDevice(new Audio::FMixerPlatformMagicLeap());
 		}
-		return new Audio::FMixerDevice(new Audio::FFakeAudioMixerMagicLeap());;
 	}
 
-	return nullptr;
+	return new Audio::FMixerDevice(new Audio::FFakeAudioMixerMagicLeap());
 #elif PLATFORM_LUMIN
 	return new Audio::FMixerDevice(new Audio::FMixerPlatformMagicLeap());
 #else

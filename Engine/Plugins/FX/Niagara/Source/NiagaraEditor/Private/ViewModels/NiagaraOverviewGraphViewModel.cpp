@@ -10,6 +10,7 @@
 #include "NiagaraObjectSelection.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "NiagaraSystem.h"
@@ -29,6 +30,14 @@ FNiagaraOverviewGraphViewModel::FNiagaraOverviewGraphViewModel()
 FNiagaraOverviewGraphViewModel::~FNiagaraOverviewGraphViewModel()
 {
 	GEditor->UnregisterForUndo(this);
+	TSharedPtr<FNiagaraSystemViewModel> SystemViewModelPinned = SystemViewModel.Pin();
+	if (SystemViewModelPinned.IsValid())
+	{
+		if (SystemViewModelPinned->GetSelectionViewModel() != nullptr)
+		{
+			SystemViewModelPinned->GetSelectionViewModel()->OnEntrySelectionChanged().RemoveAll(this);
+		}
+	}
 }
 
 void FNiagaraOverviewGraphViewModel::Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel)
@@ -40,7 +49,7 @@ void FNiagaraOverviewGraphViewModel::Initialize(TSharedRef<FNiagaraSystemViewMod
 	GEditor->RegisterForUndo(this);
 
 	NodeSelection->OnSelectedObjectsChanged().AddSP(this, &FNiagaraOverviewGraphViewModel::GraphSelectionChanged);
-	InSystemViewModel->GetSelectionViewModel()->OnSelectionChanged().AddSP(this, &FNiagaraOverviewGraphViewModel::SystemSelectionChanged);
+	InSystemViewModel->GetSelectionViewModel()->OnEntrySelectionChanged().AddSP(this, &FNiagaraOverviewGraphViewModel::SystemSelectionChanged);
 }
 
 FText FNiagaraOverviewGraphViewModel::GetDisplayName() const
@@ -362,57 +371,75 @@ void FNiagaraOverviewGraphViewModel::GraphSelectionChanged()
 	{
 		TGuardValue<bool> UpdateGuard(bUpdatingSystemSelectionFromGraph, true);
 
-		bool bSystemIsSelected = false;
-		TArray<FGuid> SelectedEmitterHandleGuids;
-		for (UObject* SelectedNode : NodeSelection->GetSelectedObjects())
+		TArray<FGuid> SelectedGuids;
+		for (UObject* SelectedObject : NodeSelection->GetSelectedObjects())
 		{
-			UNiagaraOverviewNode* OverviewNode = Cast<UNiagaraOverviewNode>(SelectedNode);
-			if (OverviewNode != nullptr)
+			UNiagaraOverviewNode* SelectedOverviewNode = Cast<UNiagaraOverviewNode>(SelectedObject);
+			if (SelectedOverviewNode != nullptr)
 			{
-				if (OverviewNode->GetEmitterHandleGuid().IsValid())
-				{
-					SelectedEmitterHandleGuids.Add(OverviewNode->GetEmitterHandleGuid());
-				}
-				else
-				{
-					bSystemIsSelected = true;
-				}
+				SelectedGuids.AddUnique(SelectedOverviewNode->GetEmitterHandleGuid());
+			}
+		}
+
+		TArray<UNiagaraStackEntry*> EntriesToSelect;
+		TArray<UNiagaraStackEntry*> EntriesToDeselect;
+		UNiagaraStackEntry* SystemRootEntry = GetSystemViewModel()->GetSystemStackViewModel()->GetRootEntry();
+		if (SelectedGuids.Contains(FGuid()))
+		{
+			EntriesToSelect.Add(SystemRootEntry);
+		}
+		else
+		{
+			EntriesToDeselect.Add(SystemRootEntry);
+		}
+
+		for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : GetSystemViewModel()->GetEmitterHandleViewModels())
+		{
+			UNiagaraStackEntry* EmitterRootEntry = EmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry();
+			if (SelectedGuids.Contains(EmitterHandleViewModel->GetId()))
+			{
+				EntriesToSelect.Add(EmitterRootEntry);
+			}
+			else
+			{
+				EntriesToDeselect.Add(EmitterRootEntry);
 			}
 		}
 
 		bool bClearCurrentSelection = FSlateApplication::Get().GetModifierKeys().IsControlDown() == false;
-		GetSystemViewModel()->GetSelectionViewModel()->UpdateSelectionFromTopLevelObjects(bSystemIsSelected, SelectedEmitterHandleGuids, bClearCurrentSelection);
+		GetSystemViewModel()->GetSelectionViewModel()->UpdateSelectedEntries(EntriesToSelect, EntriesToDeselect, bClearCurrentSelection);
 	}
 }
 
-void FNiagaraOverviewGraphViewModel::SystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource)
+void FNiagaraOverviewGraphViewModel::SystemSelectionChanged()
 {
-	if (bUpdatingSystemSelectionFromGraph == false && 
-		SelectionChangeSource != UNiagaraSystemSelectionViewModel::ESelectionChangeSource::EntrySelection)
+	if (bUpdatingSystemSelectionFromGraph == false)
 	{
 		TGuardValue<bool> UpdateGuard(bUpdatingGraphSelectionFromSystem, true);
 
 		TArray<UObject*> SelectedNodes;
 		TArray<UNiagaraOverviewNode*> OverviewNodes;
 		OverviewGraph->GetNodesOfClass<UNiagaraOverviewNode>(OverviewNodes);
+		TArray<UNiagaraStackEntry*> SelectedEntries;
+		GetSystemViewModel()->GetSelectionViewModel()->GetSelectedEntries(SelectedEntries);
 		for (UNiagaraOverviewNode* OverviewNode : OverviewNodes)
 		{
 			if (OverviewNode->GetEmitterHandleGuid().IsValid())
 			{
-				if (GetSystemViewModel()->GetSelectionViewModel()->GetSelectedEmitterHandleIds().Contains(OverviewNode->GetEmitterHandleGuid()))
+				TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleviewModel = GetSystemViewModel()->GetEmitterHandleViewModelById(OverviewNode->GetEmitterHandleGuid());
+				if (EmitterHandleviewModel.IsValid() && SelectedEntries.Contains(EmitterHandleviewModel->GetEmitterStackViewModel()->GetRootEntry()))
 				{
 					SelectedNodes.Add(OverviewNode);
 				}
 			}
 			else
 			{
-				if (GetSystemViewModel()->GetSelectionViewModel()->GetSystemIsSelected())
+				if (SelectedEntries.Contains(GetSystemViewModel()->GetSystemStackViewModel()->GetRootEntry()))
 				{
 					SelectedNodes.Add(OverviewNode);
 				}
 			}
 		}
-
 		NodeSelection->SetSelectedObjects(SelectedNodes);
 	}
 }

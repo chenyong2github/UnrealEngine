@@ -11,6 +11,7 @@
 #include "IAudioExtensionPlugin.h"
 #include "Misc/CoreDelegates.h"
 #include "SoundModulationPatch.h"
+#include "SoundModulationProxy.h"
 #include "SoundModulationValue.h"
 
 
@@ -28,7 +29,7 @@ namespace AudioModulation
 				: FColor::Green;
 		}
 
-		int32 RenderStatLFO(const TArray<FModulatorLFOProxy>& FilteredLFOs, FCanvas& Canvas, int32 X, int32 Y, const UFont& Font)
+		int32 RenderStatLFO(const TArray<FLFODebugInfo>& FilteredLFOs, FCanvas& Canvas, int32 X, int32 Y, const UFont& Font)
 		{
 			int32 Height = 12;
 			int32 Width = 12;
@@ -50,9 +51,9 @@ namespace AudioModulation
 			};
 
 			int32 CellWidth = FMath::Max(StaticCellWidths);
-			for (const FModulatorLFOProxy& LFOProxy : FilteredLFOs)
+			for (const FLFODebugInfo& LFODebugInfo : FilteredLFOs)
 			{
-				CellWidth = FMath::Max(CellWidth, LFOProxy.GetName().Len());
+				CellWidth = FMath::Max(CellWidth, LFODebugInfo.Name.Len());
 			}
 
 			Canvas.DrawShadowedString(X + XIndent, Y, TEXT("Active LFOs:"), &Font, FColor::Red);
@@ -76,17 +77,19 @@ namespace AudioModulation
 			RowX += Width * CellWidth;
 
 			Y += Height;
-			for (const FModulatorLFOProxy& LFOPair : FilteredLFOs)
+			for (const FLFODebugInfo& LFODebugInfo : FilteredLFOs)
 			{
 				RowX = X;
 
-				FString Name = LFOPair.GetName().Left(MaxNameLength);
+				FString Name = LFODebugInfo.Name.Left(MaxNameLength);
+				Name += FString::Printf(TEXT(" (%u)"), LFODebugInfo.RefCount);
+
 				if (Name.Len() < MaxNameLength)
 				{
 					Name = Name.RightPad(MaxNameLength - Name.Len());
 				}
 
-				const FString ValueString  = FString::Printf(TEXT("%.6f"), LFOPair.GetValue());
+				const FString ValueString  = FString::Printf(TEXT("%.6f"), LFODebugInfo.Value);
 
 				Canvas.DrawShadowedString(RowX, Y, *Name, &Font, FColor::Green);
 				RowX += Width * CellWidth;
@@ -100,7 +103,7 @@ namespace AudioModulation
 			return Y;
 		}
 
-		int32 RenderStatMixMatrix(const TArray<FModulatorBusMixProxy>& FilteredMixes, const TArray<FControlBusProxy>& FilteredBuses, FCanvas& Canvas, int32 X, int32 Y, const UFont& Font)
+		int32 RenderStatMixMatrix(const TArray<FControlBusMixDebugInfo>& FilteredMixes, const TArray<FControlBusDebugInfo>& FilteredBuses, FCanvas& Canvas, int32 X, int32 Y, const UFont& Font)
 		{
 			int32 Height = 12;
 			int32 Width = 12;
@@ -123,20 +126,22 @@ namespace AudioModulation
 			};
 
 			int32 CellWidth = FMath::Max(StaticCellWidths);
-			for (const FModulatorBusMixProxy& BusMix : FilteredMixes)
+			for (const FControlBusMixDebugInfo& BusMix : FilteredMixes)
 			{
-				CellWidth = FMath::Max(CellWidth, BusMix.GetName().Len());
+				CellWidth = FMath::Max(CellWidth, BusMix.Name.Len());
 			}
-			for (const FControlBusProxy& BusPair : FilteredBuses)
+			for (const FControlBusDebugInfo& Bus : FilteredBuses)
 			{
-				CellWidth = FMath::Max(CellWidth, BusPair.GetName().Len());
+				CellWidth = FMath::Max(CellWidth, Bus.Name.Len());
 			}
 
 			// Draw Column Headers
 			int32 RowX = X;
-			for (const FControlBusProxy& BusPair : FilteredBuses)
+			for (const FControlBusDebugInfo& Bus : FilteredBuses)
 			{
-				FString Name = BusPair.GetName().Left(MaxNameLength);
+				FString Name = Bus.Name.Left(MaxNameLength);
+				Name += FString::Printf(TEXT(" (%u)"), Bus.RefCount);
+
 				if (Name.Len() < MaxNameLength)
 				{
 					Name = Name.RightPad(MaxNameLength - Name.Len());
@@ -148,9 +153,11 @@ namespace AudioModulation
 
 			// Draw Row Headers
 			int32 ColumnY = Y;
-			for (const FModulatorBusMixProxy& BusMix : FilteredMixes)
+			for (const FControlBusMixDebugInfo& BusMix : FilteredMixes)
 			{
-				FString Name = BusMix.GetName().Left(MaxNameLength);
+				FString Name = BusMix.Name.Left(MaxNameLength);
+				Name += FString::Printf(TEXT(" (%u)"), BusMix.RefCount);
+
 				if (Name.Len() < MaxNameLength)
 				{
 					Name = Name.RightPad(MaxNameLength - Name.Len());
@@ -163,21 +170,21 @@ namespace AudioModulation
 			// Reset Corner of Matrix & Draw Per Bus Data
 			RowX = X;
 			ColumnY = Y;
-			for (const FModulatorBusMixProxy& BusMix : FilteredMixes)
+			for (const FControlBusMixDebugInfo& BusMix : FilteredMixes)
 			{
 				ColumnY += Height; // Add before to leave space for column headers
 				RowX = X;
 
-				for (const FControlBusProxy& Bus : FilteredBuses)
+				for (const FControlBusDebugInfo& Bus : FilteredBuses)
 				{
 					RowX += Width * CellWidth; // Add before to leave space for row headers
 
-					float Target = Bus.GetDefaultValue();
-					float Value = Bus.GetDefaultValue();
-					if (const FModulatorBusMixChannelProxy* ChannelProxy = BusMix.Channels.Find(Bus.GetId()))
+					float Target = Bus.DefaultValue;
+					float Value = Bus.DefaultValue;
+					if (const FControlBusMixChannelDebugInfo* Channel = BusMix.Channels.Find(Bus.Id))
 					{
-						Target = ChannelProxy->Value.TargetValue;
-						Value  = ChannelProxy->Value.GetCurrentValue();
+						Target = Channel->TargetValue;
+						Value  = Channel->CurrentValue;
 					}
 
 					if (Target != Value)
@@ -196,18 +203,18 @@ namespace AudioModulation
 			// Draw Sub-Totals & Totals
 			Canvas.DrawShadowedString(X, Y, *MixSubTotalHeader, &Font, FColor::Yellow);
 			RowX = X;
-			for (const FControlBusProxy& BusPair : FilteredBuses)
+			for (const FControlBusDebugInfo& Bus : FilteredBuses)
 			{
 				RowX += Width * CellWidth; // Add before to leave space for row headers
 
-				const float Value = BusPair.GetMixValue();
+				const float Value = Bus.MixValue;
 				if (FMath::IsNaN(Value))
 				{
 					Canvas.DrawShadowedString(RowX, Y, TEXT("N/A"), &Font, FColor::Green);
 				}
 				else
 				{
-					const FColor Color = GetUnitRenderColor(Value, BusPair.GetRange());
+					const FColor Color = GetUnitRenderColor(Value, Bus.Range);
 					Canvas.DrawShadowedString(RowX, Y, *FString::Printf(TEXT("%.4f"), Value), &Font, Color);
 				}
 			}
@@ -215,23 +222,22 @@ namespace AudioModulation
 
 			Canvas.DrawShadowedString(X, Y, *LFOSubTotalHeader, &Font, FColor::Yellow);
 			RowX = X;
-			for (const FControlBusProxy& BusPair : FilteredBuses)
+			for (const FControlBusDebugInfo& Bus : FilteredBuses)
 			{
 				RowX += Width * CellWidth; // Add before to leave space for row headers
-				const float Value = BusPair.GetLFOValue();
-				const FColor Color = GetUnitRenderColor(Value, BusPair.GetRange());
+				const float Value = Bus.LFOValue;
+				const FColor Color = GetUnitRenderColor(Value, Bus.Range);
 				Canvas.DrawShadowedString(RowX, Y, *FString::Printf(TEXT("%.4f"), Value), &Font, Color);
 			}
 
 			Y += Height;
 			Canvas.DrawShadowedString(X, Y, *TotalHeader, &Font, FColor::Yellow);
 			RowX = X;
-			for (const FControlBusProxy& BusPair : FilteredBuses)
+			for (const FControlBusDebugInfo& Bus : FilteredBuses)
 			{
 				RowX += Width * CellWidth; // Add before to leave space for row headers
-				const float Value = BusPair.GetValue();
-				const FColor Color = GetUnitRenderColor(Value, BusPair.GetRange());
-				Canvas.DrawShadowedString(RowX, Y, *FString::Printf(TEXT("%.4f"), Value), &Font, Color);
+				const FColor Color = GetUnitRenderColor(Bus.Value, Bus.Range);
+				Canvas.DrawShadowedString(RowX, Y, *FString::Printf(TEXT("%.4f"), Bus.Value), &Font, Color);
 			}
 			Y += Height;
 
@@ -241,14 +247,12 @@ namespace AudioModulation
 		template <typename T>
 		bool CompareNames(const T& A, const T& B)
 		{
-			return A.GetName() < B.GetName();
+			return A.Name < B.Name;
 		}
 
 		template <typename T, typename U>
-		void FilterDebugArray(const T& Map, const FString& FilterString, int32 MaxCount, TArray<U>& FilteredArray)
+		void FilterDebugArray(const T& Map, const FString& FilterString, int32 MaxCount, TArray<const U*>& FilteredArray)
 		{
-			FilteredArray.Reset(MaxCount);
-
 			int32 FilteredItemCount = 0;
 			for (const auto& IdItemPair : Map)
 			{
@@ -257,7 +261,7 @@ namespace AudioModulation
 					&& !Item.GetName().Contains(FilterString);
 				if (!Filtered)
 				{
-					FilteredArray.Add(Item);
+					FilteredArray.Add(&Item);
 					if (++FilteredItemCount >= MaxCount)
 					{
 						return;
@@ -274,10 +278,7 @@ namespace AudioModulation
 	{
 	}
 
-	void FAudioModulationDebugger::UpdateDebugData(
-		const BusProxyMap&    ActiveBuses,
-		const BusMixProxyMap& ActiveMixes,
-		const LFOProxyMap&    ActiveLFOs)
+	void FAudioModulationDebugger::UpdateDebugData(const FReferencedProxies& RefProxies)
 	{
 		check(IsInAudioThread());
 
@@ -287,27 +288,66 @@ namespace AudioModulation
 		}
 
 		static const int32 MaxFilteredBuses = 8;
-		TArray<FControlBusProxy> InFilteredBuses;
-		FilterDebugArray<BusProxyMap, FControlBusProxy>(ActiveBuses, BusStringFilter, MaxFilteredBuses, InFilteredBuses);
+		TArray<const FControlBusProxy*> FilteredBusProxies;
+		FilterDebugArray<FBusProxyMap, FControlBusProxy>(RefProxies.Buses, BusStringFilter, MaxFilteredBuses, FilteredBusProxies);
+		TArray<FControlBusDebugInfo> RefreshedFilteredBuses;
+		for (const FControlBusProxy* Proxy : FilteredBusProxies)
+		{
+			FControlBusDebugInfo DebugInfo;
+			DebugInfo.DefaultValue = Proxy->GetDefaultValue();
+			DebugInfo.Id = Proxy->GetId();
+			DebugInfo.LFOValue = Proxy->GetLFOValue();
+			DebugInfo.MixValue = Proxy->GetMixValue();
+			DebugInfo.Name = Proxy->GetName();
+			DebugInfo.Range = Proxy->GetRange();
+			DebugInfo.RefCount = Proxy->GetRefCount();
+			DebugInfo.Value = Proxy->GetValue();
+			RefreshedFilteredBuses.Add(DebugInfo);
+		}
 
 		static const int32 MaxFilteredMixes = 16;
-		TArray<FModulatorBusMixProxy> InFilteredMixes;
-		FilterDebugArray<BusMixProxyMap, FModulatorBusMixProxy>(ActiveMixes, MixStringFilter, MaxFilteredMixes, InFilteredMixes);
+		TArray<const FModulatorBusMixProxy*> FilteredMixProxies;
+		FilterDebugArray<FBusMixProxyMap, FModulatorBusMixProxy>(RefProxies.BusMixes, MixStringFilter, MaxFilteredMixes, FilteredMixProxies);
+		TArray<FControlBusMixDebugInfo> RefreshedFilteredMixes;
+		for (const FModulatorBusMixProxy* Proxy : FilteredMixProxies)
+		{
+			FControlBusMixDebugInfo DebugInfo;
+			DebugInfo.Name = Proxy->GetName();
+			DebugInfo.RefCount = Proxy->GetRefCount();
+			for (const TPair< FBusId, FModulatorBusMixChannelProxy>& Channel : Proxy->Channels)
+			{
+				FControlBusMixChannelDebugInfo ChannelDebugInfo;
+				ChannelDebugInfo.CurrentValue = Channel.Value.Value.GetCurrentValue();
+				ChannelDebugInfo.TargetValue = Channel.Value.Value.TargetValue;
+				DebugInfo.Channels.Add(Channel.Key, ChannelDebugInfo);
+			}
+			RefreshedFilteredMixes.Add(DebugInfo);
+		}
 
 		static const int32 MaxFilteredLFOs = 8;
-		TArray<FModulatorLFOProxy> InFilteredLFOs;
-		FilterDebugArray<LFOProxyMap, FModulatorLFOProxy>(ActiveLFOs, LFOStringFilter, MaxFilteredLFOs, InFilteredLFOs);
+		TArray<const FModulatorLFOProxy*> FilteredLFOProxies;
+		FilterDebugArray<FLFOProxyMap, FModulatorLFOProxy>(RefProxies.LFOs, LFOStringFilter, MaxFilteredLFOs, FilteredLFOProxies);
 
-		FAudioThread::RunCommandOnGameThread([this, InFilteredBuses, InFilteredMixes, InFilteredLFOs]()
+		TArray<FLFODebugInfo> RefreshedFilteredLFOs;
+		for (const FModulatorLFOProxy* Proxy : FilteredLFOProxies)
 		{
-			FilteredBuses = InFilteredBuses;
-			FilteredBuses.Sort(&CompareNames<FControlBusProxy>);
+			FLFODebugInfo DebugInfo;
+			DebugInfo.Name = Proxy->GetName();
+			DebugInfo.RefCount = Proxy->GetRefCount();
+			DebugInfo.Value = Proxy->GetValue();
+			RefreshedFilteredLFOs.Add(DebugInfo);
+		}
 
-			FilteredMixes = InFilteredMixes;
-			FilteredMixes.Sort(&CompareNames<FModulatorBusMixProxy>);
+		FAudioThread::RunCommandOnGameThread([this, RefreshedFilteredBuses, RefreshedFilteredMixes, RefreshedFilteredLFOs]()
+		{
+			FilteredBuses = RefreshedFilteredBuses;
+			FilteredBuses.Sort(&CompareNames<FControlBusDebugInfo>);
 
-			FilteredLFOs = InFilteredLFOs;
-			FilteredLFOs.Sort(&CompareNames<FModulatorLFOProxy>);
+			FilteredMixes = RefreshedFilteredMixes;
+			FilteredMixes.Sort(&CompareNames<FControlBusMixDebugInfo>);
+
+			FilteredLFOs = RefreshedFilteredLFOs;
+			FilteredLFOs.Sort(&CompareNames<FLFODebugInfo>);
 		});
 	}
 

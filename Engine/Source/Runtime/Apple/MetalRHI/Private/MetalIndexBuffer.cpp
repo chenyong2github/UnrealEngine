@@ -148,4 +148,3 @@ FIndexBufferRHIRef FMetalDynamicRHI::CreateIndexBuffer_RenderThread(class FRHICo
 		return IndexBuffer.GetReference();
 	}
 }
-

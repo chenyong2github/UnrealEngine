@@ -291,19 +291,19 @@ namespace UnrealBuildTool
 		};
 
 		/// <summary>
-		/// Sets the provider to use for determining the working set
+		/// Sets the provider to use for determining the working set.
 		/// </summary>
 		[XmlConfigFile]
 		static ProviderType Provider = ProviderType.Default;
 
 		/// <summary>
-		/// Sets the path to use for the repository. Interpreted relative to the UE root directory (ie. folder above the Engine folder) if relative.
+		/// Sets the path to use for the repository. Interpreted relative to the Unreal Engine root directory (the folder above the Engine folder) -- if relative.
 		/// </summary>
 		[XmlConfigFile]
 		public static string RepositoryPath = null;
 
 		/// <summary>
-		/// Sets the path to use for the Git executable. Defaults to "git" (assuming it's in the PATH).
+		/// Sets the path to use for the Git executable. Defaults to "git" (assuming it is in the PATH).
 		/// </summary>
 		[XmlConfigFile]
 		public static string GitPath = "git";

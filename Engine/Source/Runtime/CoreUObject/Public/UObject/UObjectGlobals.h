@@ -11,6 +11,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "UObject/PrimaryAssetId.h"
+#include "Containers/ArrayView.h"
 #include "Templates/Function.h"
 #include "Templates/IsArrayOrRefOfType.h"
 #include "Serialization/ArchiveUObject.h"
@@ -423,11 +424,6 @@ COREUOBJECT_API bool IsEventDrivenLoaderEnabled();
 COREUOBJECT_API float GetAsyncLoadPercentage( const FName& PackageName );
 
 /**
-* Whether we are inside garbage collection
-*/
-COREUOBJECT_API bool IsGarbageCollecting();
-
-/**
 * Whether we are running on the Garbage Collector Thread
 */
 COREUOBJECT_API bool IsInGarbageCollectorThread();
@@ -629,8 +625,10 @@ COREUOBJECT_API bool SaveToTransactionBuffer(UObject* Object, bool bMarkDirty);
  *  b) The object has changed since it started transacting.
  *
  * @param	Object		object to snapshot.
+ * @param	Properties	optional list of properties that have potentially changed on the object (to avoid snapshotting the entire object).
  */
 COREUOBJECT_API void SnapshotTransactionBuffer(UObject* Object);
+COREUOBJECT_API void SnapshotTransactionBuffer(UObject* Object, TArrayView<const UProperty*> Properties);
 
 /**
  * Check for StaticAllocateObject error; only for use with the editor, make or other commandlets.
@@ -2123,6 +2121,12 @@ struct COREUOBJECT_API FCoreUObjectDelegates
 
 /** Allows release builds to override not verifying GC assumptions. Useful for profiling as it's hitchy. */
 extern COREUOBJECT_API bool GShouldVerifyGCAssumptions;
+
+/** If non-zero, the engine will create Garbage Collector clusters to speed up Garbage Collection */
+extern COREUOBJECT_API int32 GCreateGCClusters;
+
+/** If non-zero, the engine will attempt to create clusters from asset files */
+extern COREUOBJECT_API int32 GAssetClustreringEnabled;
 
 /** A struct used as stub for deleted ones. */
 COREUOBJECT_API UScriptStruct* GetFallbackStruct();

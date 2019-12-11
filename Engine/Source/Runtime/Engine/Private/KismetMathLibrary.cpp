@@ -575,6 +575,11 @@ float UKismetMathLibrary::Transform_Determinant(const FTransform& Transform)
 	return Transform.ToMatrixWithScale().Determinant();
 }
 
+FMatrix UKismetMathLibrary::Conv_TransformToMatrix(const FTransform& Tranform)
+{
+	return Tranform.ToMatrixWithScale();
+}
+
 bool UKismetMathLibrary::ClassIsChildOf(TSubclassOf<class UObject> TestClass, TSubclassOf<class UObject> ParentClass)
 {
 	return ((*ParentClass != NULL) && (*TestClass != NULL)) ? (*TestClass)->IsChildOf(*ParentClass) : false;
@@ -967,7 +972,7 @@ void UKismetMathLibrary::MinimumAreaRectangle(class UObject* WorldContextObject,
 	OutRectCenter /= InVerts.Num();
 
 	// Compute the convex hull of the sample points
-	ConvexHull2D::ComputeConvexHull(TransformedVerts, PolyVertIndices);
+	ConvexHull2D::ComputeConvexHullLegacy(TransformedVerts, PolyVertIndices);
 
 	// Minimum area rectangle as computed by http://www.geometrictools.com/Documentation/MinimumAreaRectangle.pdf
 	for (int32 Idx = 1; Idx < PolyVertIndices.Num() - 1; ++Idx)

@@ -88,7 +88,7 @@ void FInternetAddrSteamSockets::SetIp(const TCHAR* InAddr, bool& bIsValid)
 {
 	FString InAddrStr(InAddr);
 	// See if we're a SteamID.
-	if (InAddrStr.StartsWith(STEAM_URL_PREFIX))
+	if (InAddrStr.StartsWith(STEAM_URL_PREFIX) || InAddrStr.IsNumeric())
 	{
 		InAddrStr.RemoveFromStart(STEAM_URL_PREFIX);
 		FString SteamIPStr, SteamChannelStr;
@@ -179,7 +179,7 @@ FString FInternetAddrSteamSockets::ToString(bool bAppendPort) const
 	{
 		if (GetProtocolType() == FNetworkProtocolTypes::SteamSocketsP2P)
 		{
-			FString BaseResult = FString::Printf(TEXT("%s%llu"), STEAM_URL_PREFIX, Addr.GetSteamID64());
+			FString BaseResult = FString::Printf(TEXT("%llu"), Addr.GetSteamID64());
 			if (bAppendPort)
 			{
 				BaseResult += FString::Printf(TEXT(":%d"), P2PVirtualPort);

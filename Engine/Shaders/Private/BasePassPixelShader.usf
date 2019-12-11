@@ -85,16 +85,15 @@ float NormalCurvatureToRoughness(float3 WorldNormal)
 #define EDITOR_ALPHA2COVERAGE (USE_EDITOR_COMPOSITING && SUPPORTS_PIXEL_COVERAGE)
 #define POST_PROCESS_SUBSURFACE ((MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE || MATERIAL_SHADINGMODEL_EYE) && USES_GBUFFER)
 
-#if TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || FORWARD_SHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
-#include "ForwardLightingCommon.ush"
-#endif
-
 #if  MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 
 #if SINGLE_LAYER_WATER_SIMPLE_FORWARD
 
 	// Use mobile like simple shading
 	#define SIMPLE_SINGLE_LAYER_WATER 1
+
+	// Remove forward lighting directional light shadow
+	#define DISABLE_FORWARD_DIRECTIONAL_LIGHT_SHADOW 1
 
 	// Change the blend mode here from opaque to pre-multiplied-alpha for simplicity
 	#undef MATERIALBLENDING_ALPHACOMPOSITE
@@ -107,6 +106,10 @@ float NormalCurvatureToRoughness(float3 WorldNormal)
 #include "SingleLayerWaterCommon.ush"
 
 #endif // MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+
+#if TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || FORWARD_SHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+#include "ForwardLightingCommon.ush"
+#endif
 
 #if !FORWARD_SHADING
 
@@ -271,7 +274,7 @@ void GetSkyLighting(FMaterialPixelParameters MaterialParameters, VTPageTableResu
 	
 	#if HQ_TEXTURE_LIGHTMAP || CACHED_POINT_INDIRECT_LIGHTING || CACHED_VOLUME_INDIRECT_LIGHTING || PRECOMPUTED_IRRADIANCE_VOLUME_LIGHTING
 		BRANCH
-		if (View.SkyLightParameters.x > 0)
+		if (ShouldSkyLightApplyPrecomputedBentNormalShadowing())
 		{
 			float3 NormalizedBentNormal = SkyLightingNormal;
 
@@ -772,8 +775,10 @@ void FPixelShaderInOut_MainPS(
 	inout FPixelShaderOut Out)
 {
 #if INSTANCED_STEREO
-	ResolvedView = ResolveView(Interpolants.EyeIndex);
+	const uint EyeIndex = Interpolants.EyeIndex;
+	ResolvedView = ResolveView(EyeIndex);
 #else
+	const uint EyeIndex = 0;
 	ResolvedView = ResolveView();
 #endif
 
@@ -1113,12 +1118,6 @@ ShadingModel);
 		#elif FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 			uint GridIndex = 0;
 
-			#if INSTANCED_STEREO
-				const uint EyeIndex = Interpolants.EyeIndex;
-			#else
-				const uint EyeIndex = 0;
-			#endif
-
 			#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 				GridIndex = ComputeLightGridCellIndex((uint2)(MaterialParameters.SvPosition.xy - ResolvedView.ViewRectMin.xy), MaterialParameters.SvPosition.w, EyeIndex);
 
@@ -1177,15 +1176,11 @@ ShadingModel);
 	if (FogStruct.ApplyVolumetricFog > 0) 
 	{
 		float3 VolumeUV = ComputeVolumeUV(MaterialParameters.AbsoluteWorldPosition, ResolvedView.WorldToClip);
-#if INSTANCED_STEREO
-		Fogging = CombineVolumetricFog(HeightFogging, VolumeUV, Interpolants.EyeIndex);
-#else
-		Fogging = CombineVolumetricFog(HeightFogging, VolumeUV, 0);
-#endif
+		Fogging = CombineVolumetricFog(HeightFogging, VolumeUV, EyeIndex);
 	}
 #endif
 
-#if NEEDS_BASEPASS_PIXEL_FOGGING && PROJECT_SUPPORT_SKY_ATMOSPHERE && MATERIAL_FORCE_SKIP_AERIAL_PERSPECTIVE==0
+#if NEEDS_BASEPASS_PIXEL_FOGGING && PROJECT_SUPPORT_SKY_ATMOSPHERE && MATERIAL_IS_SKY==0 // Do not apply aerial perpsective on sky materials
 	if (ResolvedView.SkyAtmosphereApplyCameraAerialPerspectiveVolume > 0.0f)
 	{
 		const float OneOverPreExposure = USE_PREEXPOSURE ? ResolvedView.OneOverPreExposure : 1.0f;
@@ -1263,7 +1258,7 @@ ShadingModel);
 			OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture, SingleLayerWaterSceneDepthSampler, // Scene depth texture
 			Specular, NullDistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
-			CameraIsUnderWater, WaterVisibility);
+			CameraIsUnderWater, WaterVisibility, EyeIndex);
 
 		// Add water luminance contribution
 		Color += WaterLighting.Luminance;
@@ -1275,10 +1270,11 @@ ShadingModel);
 			DirectionalLightShadow,
 			OpaqueBasePass.SceneColorWithoutSingleLayerWaterTexture, SingleLayerWaterSceneColorSampler,
 			OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture, SingleLayerWaterSceneDepthSampler,
-			OpaqueBasePass.SceneWithoutSingleLayerWaterMaxUV,
+			OpaqueBasePass.SceneWithoutSingleLayerWaterMinMaxUV.xy,
+			OpaqueBasePass.SceneWithoutSingleLayerWaterMinMaxUV.zw,
 			Specular, OpaqueBasePass.DistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
-			CameraIsUnderWater, WaterVisibility).Luminance;
+			CameraIsUnderWater, WaterVisibility, EyeIndex).Luminance;
 #endif
 	}
 #endif // MATERIAL_SHADINGMODEL_SINGLELAYERWATER
@@ -1392,6 +1388,10 @@ ShadingModel);
 
 #if !MATERIALBLENDING_MODULATE && USE_PREEXPOSURE
 	Out.MRT[0].xyz *= View.PreExposure;
+#endif
+#if MATERIAL_IS_SKY
+	// Sky materials can result in high luminance values, e.g. the sun disk. So we make sure to at least stay within the boundaries of fp10 for some platforms.
+	Out.MRT[0].xyz = min(Out.MRT[0].xyz, Max10BitsFloat.xxx);
 #endif
 
 #if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED

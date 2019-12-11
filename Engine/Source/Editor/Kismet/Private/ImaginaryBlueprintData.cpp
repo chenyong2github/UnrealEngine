@@ -64,12 +64,6 @@ bool FComponentUniqueDisplay::operator==(const FComponentUniqueDisplay& Other)
 
 FCriticalSection FImaginaryFiBData::ParseChildDataCriticalSection;
 
-FImaginaryFiBData::FImaginaryFiBData(FImaginaryFiBDataWeakPtr InOuter)
-	: LookupTablePtr(nullptr)
-	, Outer(InOuter)
-{
-}
-
 FImaginaryFiBData::FImaginaryFiBData(FImaginaryFiBDataWeakPtr InOuter, TSharedPtr< FJsonObject > InUnparsedJsonObject, TMap<int32, FText>* InLookupTablePtr)
 	: UnparsedJsonObject(InUnparsedJsonObject)
 	, LookupTablePtr(InLookupTablePtr)
@@ -79,6 +73,8 @@ FImaginaryFiBData::FImaginaryFiBData(FImaginaryFiBDataWeakPtr InOuter, TSharedPt
 
 FSearchResult FImaginaryFiBData::CreateSearchResult(FSearchResult InParent) const
 {
+	CSV_SCOPED_TIMING_STAT(FindInBlueprint, CreateSearchResult);
+
 	FSearchResult ReturnSearchResult = CreateSearchResult_Internal(InParent);
 
 	FText DisplayName;
@@ -95,6 +91,9 @@ FSearchResult FImaginaryFiBData::CreateSearchResult(FSearchResult InParent) cons
 
 FSearchResult FImaginaryFiBData::CreateSearchTree(FSearchResult InParentSearchResult, FImaginaryFiBDataWeakPtr InCurrentPointer, TArray< const FImaginaryFiBData* >& InValidSearchResults, TMultiMap< const FImaginaryFiBData*, FComponentUniqueDisplay >& InMatchingSearchComponents)
 {
+	CSV_SCOPED_TIMING_STAT(FindInBlueprint, CreateSearchTree);
+	CSV_CUSTOM_STAT(FindInBlueprint, CreateSearchTreeIterations, 1, ECsvCustomStatOp::Accumulate);
+
 	FImaginaryFiBDataSharedPtr CurrentDataPtr = InCurrentPointer.Pin();
 	if (FImaginaryFiBData* CurrentData = CurrentDataPtr.Get())
 	{
@@ -206,6 +205,9 @@ void FImaginaryFiBData::ParseAllChildData_Internal(ESearchableValueStatus InSear
 
 void FImaginaryFiBData::ParseAllChildData(ESearchableValueStatus InSearchabilityOverride/* = ESearchableValueStatus::Searchable*/)
 {
+	CSV_SCOPED_TIMING_STAT(FindInBlueprint, ParseAllChildData);
+	CSV_CUSTOM_STAT(FindInBlueprint, ParseAllChildDataIterations, 1, ECsvCustomStatOp::Accumulate);
+
 	FScopeLock ScopeLock(&FImaginaryFiBData::ParseChildDataCriticalSection);
 	ParseAllChildData_Internal(InSearchabilityOverride);
 }
@@ -326,6 +328,40 @@ UObject* FImaginaryFiBData::GetObject(UBlueprint* InBlueprint) const
 	return CreateSearchResult(nullptr)->GetObject(InBlueprint);
 }
 
+void FImaginaryFiBData::DumpParsedObject(FArchive& Ar, int32 InTreeLevel) const
+{
+	FString CommaStr = TEXT(",");
+	for (int32 i = 0; i < InTreeLevel; ++i)
+	{
+		Ar.Serialize(TCHAR_TO_ANSI(*CommaStr), CommaStr.Len());
+	}
+
+	DumpParsedObject_Internal(Ar);
+
+	for (const TPair< FindInBlueprintsHelpers::FSimpleFTextKeyStorage, FSearchableValueInfo >& TagsValuePair : ParsedTagsAndValues)
+	{
+		FText Value = TagsValuePair.Value.GetDisplayText(*LookupTablePtr);
+		FString ValueAsString = Value.ToString();
+		ValueAsString.ReplaceInline(TEXT(" "), TEXT(""));
+
+		FString LineStr = FString::Printf(TEXT(",%s:%s"), *TagsValuePair.Key.Text.ToString(), *ValueAsString);
+		Ar.Serialize(TCHAR_TO_ANSI(*LineStr), LineStr.Len());
+	}
+
+	FString NewLine(TEXT("\n"));
+	Ar.Serialize(TCHAR_TO_ANSI(*NewLine), NewLine.Len());
+
+	for (const FImaginaryFiBDataSharedPtr Child : ParsedChildData)
+	{
+		Child->DumpParsedObject(Ar, InTreeLevel + 1);
+	}
+
+	if (InTreeLevel == 0)
+	{
+		Ar.Serialize(TCHAR_TO_ANSI(*NewLine), NewLine.Len());
+	}
+}
+
 ///////////////////////////
 // FFiBMetaData
 
@@ -424,6 +460,12 @@ void FCategorySectionHelper::ParseAllChildData_Internal(ESearchableValueStatus I
 	}
 }
 
+void FCategorySectionHelper::DumpParsedObject_Internal(FArchive& Ar) const
+{
+	FString OutputString = FString::Printf(TEXT("FCategorySectionHelper,CategoryName:%s,IsTagAndValueCategory:%s"), *CategoryName.ToString(), IsTagAndValueCategory() ? TEXT("true") : TEXT("false"));
+	Ar.Serialize(TCHAR_TO_ANSI(*OutputString), OutputString.Len());
+}
+
 //////////////////////////////////////////
 // FImaginaryBlueprint
 
@@ -452,6 +494,12 @@ FImaginaryBlueprint::FImaginaryBlueprint(FString InBlueprintName, FString InBlue
 FSearchResult FImaginaryBlueprint::CreateSearchResult_Internal(FSearchResult InParent) const
 {
 	return FSearchResult(new FFindInBlueprintsResult(ParsedTagsAndValues.Find(FindInBlueprintsHelpers::FSimpleFTextKeyStorage(FFindInBlueprintSearchTags::FiB_Path))->GetDisplayText(LookupTable)));
+}
+
+void FImaginaryBlueprint::DumpParsedObject_Internal(FArchive& Ar) const
+{
+	FString OutputString = FString::Printf(TEXT("FImaginaryBlueprint"));
+	Ar.Serialize(TCHAR_TO_ANSI(*OutputString), OutputString.Len());
 }
 
 UBlueprint* FImaginaryBlueprint::GetBlueprint() const
@@ -566,6 +614,12 @@ FSearchResult FImaginaryGraph::CreateSearchResult_Internal(FSearchResult InParen
 	return FSearchResult(new FFindInBlueprintsGraph(FText::GetEmpty(), InParent, GraphType));
 }
 
+void FImaginaryGraph::DumpParsedObject_Internal(FArchive& Ar) const
+{
+	FString OutputString = FString::Printf(TEXT("FImaginaryGraph"));
+	Ar.Serialize(TCHAR_TO_ANSI(*OutputString), OutputString.Len());
+}
+
 bool FImaginaryGraph::IsCompatibleWithFilter(ESearchQueryFilter InSearchQueryFilter) const
 {
 	return InSearchQueryFilter == ESearchQueryFilter::AllFilter || 
@@ -633,6 +687,12 @@ FImaginaryGraphNode::FImaginaryGraphNode(FImaginaryFiBDataWeakPtr InOuter, TShar
 FSearchResult FImaginaryGraphNode::CreateSearchResult_Internal(FSearchResult InParent) const
 {
 	return FSearchResult(new FFindInBlueprintsGraphNode(FText::GetEmpty(), InParent));
+}
+
+void FImaginaryGraphNode::DumpParsedObject_Internal(FArchive& Ar) const
+{
+	FString OutputString = FString::Printf(TEXT("FImaginaryGraphNode"));
+	Ar.Serialize(TCHAR_TO_ANSI(*OutputString), OutputString.Len());
 }
 
 bool FImaginaryGraphNode::IsCompatibleWithFilter(ESearchQueryFilter InSearchQueryFilter) const
@@ -733,6 +793,12 @@ FSearchResult FImaginaryProperty::CreateSearchResult_Internal(FSearchResult InPa
 	return FSearchResult(new FFindInBlueprintsProperty(FText::GetEmpty(), InParent));
 }
 
+void FImaginaryProperty::DumpParsedObject_Internal(FArchive& Ar) const
+{
+	FString OutputString = FString::Printf(TEXT("FImaginaryProperty"));
+	Ar.Serialize(TCHAR_TO_ANSI(*OutputString), OutputString.Len());
+}
+
 ESearchableValueStatus FImaginaryProperty::GetSearchabilityStatus(FString InKey)
 {
 	// This is a non-ideal way to assign searchability vs being a core display item and will be resolved in future versions of the FiB data in the AR
@@ -785,6 +851,12 @@ bool FImaginaryPin::IsCompatibleWithFilter(ESearchQueryFilter InSearchQueryFilte
 FSearchResult FImaginaryPin::CreateSearchResult_Internal(FSearchResult InParent) const
 {
 	return FSearchResult(new FFindInBlueprintsPin(FText::GetEmpty(), InParent, SchemaName));
+}
+
+void FImaginaryPin::DumpParsedObject_Internal(FArchive& Ar) const
+{
+	FString OutputString = FString::Printf(TEXT("FImaginaryPin"));
+	Ar.Serialize(TCHAR_TO_ANSI(*OutputString), OutputString.Len());
 }
 
 ESearchableValueStatus FImaginaryPin::GetSearchabilityStatus(FString InKey)

@@ -11,6 +11,7 @@
 #include "DatasmithSceneFactory.h"
 #include "DatasmithStaticMeshImporter.h"
 #include "IDatasmithSceneElements.h"
+#include "LayoutUV.h"
 #include "Translators/DatasmithTranslatableSource.h"
 #include "Translators/DatasmithTranslatorManager.h"
 #include "Utility/DatasmithImporterUtils.h"
@@ -49,14 +50,17 @@ namespace DatasmithImportFactoryImpl
 				// This factory handles both UDatasmithSceneImportData and UDatasmithTranslatedSceneImportData but not other children of UDatasmithSceneImportData
 				UDatasmithSceneImportData* SceneAssetImportData = Cast< UDatasmithScene >(Obj)->AssetImportData;
 
-				if ( SceneAssetImportData->GetClass() == UDatasmithSceneImportData::StaticClass() )
+				if ( SceneAssetImportData )
 				{
-					return SceneAssetImportData;
-				}
-				else
-				{
-					// UDatasmithTranslatedSceneImportData are associated with scenes imported through Translators system
-					return ExactCast<UDatasmithTranslatedSceneImportData>(SceneAssetImportData);
+					if ( SceneAssetImportData->GetClass() == UDatasmithSceneImportData::StaticClass() )
+					{
+						return SceneAssetImportData;
+					}
+					else
+					{
+						// UDatasmithTranslatedSceneImportData are associated with scenes imported through Translators system
+						return ExactCast<UDatasmithTranslatedSceneImportData>(SceneAssetImportData);
+					}
 				}
 			}
 			if (Class == UDatasmithSceneImportData::StaticClass())
@@ -292,6 +296,8 @@ namespace DatasmithImportFactoryImpl
 
 	static void ReportImportStats(const FDatasmithImportContext& ImportContext, uint64 StartTime)
 	{
+		FLayoutUV::LogStats();
+
 		// Log time spent to import incoming file in minutes and seconds
 		double ElapsedSeconds = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - StartTime);
 
@@ -468,6 +474,8 @@ bool UDatasmithImportFactory::Import( FDatasmithImportContext& ImportContext )
 	{
 		bShowOptions = false;
 	}
+
+	FLayoutUV::ResetStats();
 
 	if ( !ImportContext.bIsAReimport )
 	{

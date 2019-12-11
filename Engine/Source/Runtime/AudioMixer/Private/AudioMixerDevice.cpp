@@ -5,18 +5,19 @@
 #include "AudioMixerSubmix.h"
 #include "AudioMixerSourceVoice.h"
 #include "AudioPluginUtilities.h"
-#include "UObject/UObjectHash.h"
 #include "AudioMixerEffectsManager.h"
+#include "Sound/AudioSettings.h"
+#include "Sound/SoundSubmixSend.h"
 #include "SubmixEffects/AudioMixerSubmixEffectReverb.h"
 #include "SubmixEffects/AudioMixerSubmixEffectReverbFast.h"
 #include "SubmixEffects/AudioMixerSubmixEffectEQ.h"
 #include "SubmixEffects/AudioMixerSubmixEffectDynamicsProcessor.h"
 #include "DSP/Noise.h"
 #include "DSP/SinOsc.h"
+#include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "Runtime/HeadMountedDisplay/Public/IHeadMountedDisplayModule.h"
 #include "Misc/App.h"
-#include "Sound/AudioSettings.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Async/Async.h"
 
@@ -896,6 +897,11 @@ namespace Audio
 		{
 			MasterSubmixInstances[EMasterSubmixType::Master]->ClearSoundEffectSubmixes();
 		});
+	}
+
+	void FMixerDevice::UpdateModulationControls(const uint32 InSourceId, const FSoundModulationControls& InControls)
+	{
+		SourceManager.UpdateModulationControls(InSourceId, InControls);
 	}
 
 	void FMixerDevice::UpdateSourceEffectChain(const uint32 SourceEffectChainId, const TArray<FSourceEffectChainEntry>& SourceEffectChain, const bool bPlayEffectChainTails)

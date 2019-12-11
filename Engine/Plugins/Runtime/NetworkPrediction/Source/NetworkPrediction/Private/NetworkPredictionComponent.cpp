@@ -4,62 +4,70 @@
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
-#include "NetworkSimulationGlobalManager.h"
+#include "NetworkedSimulationGlobalManager.h"
+#include "Engine/World.h"
 
 UNetworkPredictionComponent::UNetworkPredictionComponent()
 {
 	SetIsReplicatedByDefault(true);
+	
+	// Tick in order to dispatch NetSimCues. FIXME: Might be useful to have this as an option. Some may want to dispatch cues from actor tick (avoid component ticking at all)
+	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bStartWithTickEnabled = true;
+	PrimaryComponentTick.TickGroup = TG_PrePhysics;
 }
 
 void UNetworkPredictionComponent::InitializeComponent()
 {
 	Super::InitializeComponent();
 
-	// Child class will instantiate
-	INetworkSimulationModel* NewNetworkSim = InstantiateNetworkSimulation();
-	NetworkSim.Reset(NewNetworkSim);
-
-	if (NewNetworkSim == nullptr)
-	{
-		// Its ok to not instantiate a sim
-		return;
-	}
-
-	// Init RepProxies
-	ReplicationProxy_ServerRPC.Init(NewNetworkSim, EReplicationProxyTarget::ServerRPC);
-	ReplicationProxy_Autonomous.Init(NewNetworkSim, EReplicationProxyTarget::AutonomousProxy);
-	ReplicationProxy_Simulated.Init(NewNetworkSim, EReplicationProxyTarget::SimulatedProxy);
-	ReplicationProxy_Replay.Init(NewNetworkSim, EReplicationProxyTarget::Replay);
-#if NETSIM_MODEL_DEBUG
-	ReplicationProxy_Debug.Init(NewNetworkSim, EReplicationProxyTarget::Debug);
-#endif
-
-	// Register with GlobalManager
+	UWorld* World = GetWorld();
 	UNetworkSimulationGlobalManager* NetworkSimGlobalManager = GetWorld()->GetSubsystem<UNetworkSimulationGlobalManager>();
-	check(NetworkSimGlobalManager);
+	if (NetworkSimGlobalManager)
+	{
 
-	NetworkSimGlobalManager->RegisterModel(NewNetworkSim, GetOwner());
-	
-	CheckOwnerRoleChange();
+		// Child class will instantiate
+		INetworkedSimulationModel* NewNetworkSim = InstantiateNetworkedSimulation();
+		NetSimModel.Reset(NewNetworkSim);
+
+		if (NewNetworkSim == nullptr)
+		{
+			// Its ok to not instantiate a sim
+			return;
+		}
+
+		// Init RepProxies
+		ReplicationProxy_ServerRPC.Init(NewNetworkSim, EReplicationProxyTarget::ServerRPC);
+		ReplicationProxy_Autonomous.Init(NewNetworkSim, EReplicationProxyTarget::AutonomousProxy);
+		ReplicationProxy_Simulated.Init(NewNetworkSim, EReplicationProxyTarget::SimulatedProxy);
+		ReplicationProxy_Replay.Init(NewNetworkSim, EReplicationProxyTarget::Replay);
+	#if NETSIM_MODEL_DEBUG
+		ReplicationProxy_Debug.Init(NewNetworkSim, EReplicationProxyTarget::Debug);
+	#endif
+
+		// Register with GlobalManager			
+		NetworkSimGlobalManager->RegisterModel(NewNetworkSim, GetOwner());
+		CheckOwnerRoleChange();
+	}
 }
 
 void UNetworkPredictionComponent::UninitializeComponent()
 {
 	Super::UninitializeComponent();
 
-	if (NetworkSim.IsValid())
+	if (NetSimModel.IsValid())
 	{
 		UNetworkSimulationGlobalManager* NetworkSimGlobalManager = GetWorld()->GetSubsystem<UNetworkSimulationGlobalManager>();
-		check(NetworkSimGlobalManager);
-
-		NetworkSimGlobalManager->UnregisterModel(NetworkSim.Get(), GetOwner());
-
-		if (ServerRPCHandle.IsValid())
+		if (ensure(NetworkSimGlobalManager))
 		{
-			NetworkSimGlobalManager->TickServerRPCDelegate.Remove(ServerRPCHandle);
-		}
+			NetworkSimGlobalManager->UnregisterModel(NetSimModel.Get(), GetOwner());
+			if (ServerRPCHandle.IsValid())
+			{
+				NetworkSimGlobalManager->TickServerRPCDelegate.Remove(ServerRPCHandle);
+			}
 
-		NetworkSim.Reset(nullptr);
+			NetSimModel.Reset(nullptr);
+		}
 	}
 }
 
@@ -67,7 +75,7 @@ void UNetworkPredictionComponent::PreReplication(IRepChangedPropertyTracker & Ch
 {
 	Super::PreReplication(ChangedPropertyTracker);
 
-	if (NetworkSim.IsValid())
+	if (NetSimModel.IsValid())
 	{
 		// We have to update our replication proxies so they can be accurately compared against client shadowstate during property replication. ServerRPC proxy does not need to do this.
 		ReplicationProxy_Autonomous.OnPreReplication();
@@ -100,9 +108,9 @@ void UNetworkPredictionComponent::GetLifetimeReplicatedProps(TArray< FLifetimePr
 
 void UNetworkPredictionComponent::InitializeForNetworkRole(ENetRole Role)
 {
-	if (NetworkSim.IsValid())
+	if (NetSimModel.IsValid())
 	{
-		NetworkSim->InitializeForNetworkRole(Role, GetSimulationInitParameters(Role));
+		NetSimModel->InitializeForNetworkRole(Role, GetSimulationInitParameters(Role));
 	}
 }
 
@@ -176,8 +184,8 @@ void UNetworkPredictionComponent::ServerRecieveClientInput_Implementation(const 
 
 void UNetworkPredictionComponent::TickServerRPC(float DeltaSeconds)
 {
-	check(NetworkSim.IsValid());
-	if (NetworkSim->ShouldSendServerRPC(DeltaSeconds))
+	check(NetSimModel.IsValid());
+	if (NetSimModel->ShouldSendServerRPC(DeltaSeconds))
 	{
 		// Temp hack to make sure the ServerRPC doesn't get suppressed from bandwidth limiting
 		// (system hasn't been optimized and not mature enough yet to handle gaps in input stream)
@@ -203,4 +211,12 @@ void UNetworkPredictionComponent::UnregisterServerRPCDelegate()
 		NetworkSimGlobalManager->TickServerRPCDelegate.Remove(ServerRPCHandle);
 		ServerRPCHandle.Reset();
 	}
+}
+
+void UNetworkPredictionComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	// Handle all pending cues (dispatch them to their handler)
+	NetSimModel->ProcessPendingNetSimCues();
 }

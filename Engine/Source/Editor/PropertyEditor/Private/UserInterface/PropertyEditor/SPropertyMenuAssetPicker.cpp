@@ -239,10 +239,10 @@ bool SPropertyMenuAssetPicker::CanPaste()
 
 	FString Class;
 	FString PossibleObjectPath = ClipboardText;
-	if( ClipboardText.Split( TEXT("'"), &Class, &PossibleObjectPath ) )
+	if( ClipboardText.Split( TEXT("'"), &Class, &PossibleObjectPath, ESearchCase::CaseSensitive) )
 	{
 		// Remove the last item
-		PossibleObjectPath = PossibleObjectPath.LeftChop( 1 );
+		PossibleObjectPath.LeftChopInline( 1, false );
 	}
 
 	bool bCanPaste = false;
@@ -291,12 +291,15 @@ void SPropertyMenuAssetPicker::OnCreateNewAssetSelected(TWeakObjectPtr<UFactory>
 	if (FactoryPtr.IsValid())
 	{
 		UFactory* FactoryInstance = DuplicateObject<UFactory>(FactoryPtr.Get(), GetTransientPackage());
+		// Ensure this object is not GC for the duration of CreateAssetWithDialog
+		FactoryInstance->AddToRoot();
 		FAssetToolsModule& AssetToolsModule = FAssetToolsModule::GetModule();
 		UObject* NewAsset = AssetToolsModule.Get().CreateAssetWithDialog(FactoryInstance->GetSupportedClass(), FactoryInstance);
 		if (NewAsset != nullptr)
 		{
 			SetValue(NewAsset);
 		}
+		FactoryInstance->RemoveFromRoot();
 	}
 }
 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/GCObject.h"
 #include "Misc/Attribute.h"
 #include "Input/Reply.h"
 #include "Layout/Visibility.h"
@@ -41,7 +42,7 @@ DECLARE_DELEGATE(FOnSearchOptionChanged);
 /**
  * A widget to display a list of filtered assets
  */
-class SAssetView : public SCompoundWidget
+class SAssetView : public SCompoundWidget, public FGCObject
 {
 public:
 	SLATE_BEGIN_ARGS( SAssetView )
@@ -292,6 +293,10 @@ public:
 	virtual FReply OnMouseWheel( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 	virtual void OnFocusChanging( const FWeakWidgetPath& PreviousFocusPath, const FWidgetPath& NewWidgetPath, const FFocusEvent& InFocusEvent ) override;
 
+	//~ FGCObject inherited
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override { return TEXT("SAssetView"); }
+
 	/** Opens the selected assets or folders, depending on the selection */
 	void OnOpenAssetsOrFolders();
 
@@ -429,9 +434,6 @@ private:
 
 	/** Returns true if the specified asset data item passes all applied frontend (non asset registry) filters */
 	bool PassesCurrentFrontendFilter(const FAssetData& Item) const;
-
-	/** Returns true if the specified asset data item passes all applied backend (asset registry) filters */
-	bool PassesCurrentBackendFilter(const FAssetData& Item) const;
 
 	/** Removes asset data items from the given array that don't pass all applied backend (asset registry) filters */
 	void RunAssetsThroughBackendFilter(TArray<FAssetData>& InOutAssetDataList) const;
@@ -785,8 +787,12 @@ private:
 
 	/** Creates the row header context menu allowing for hiding individually clicked columns*/
 	TSharedRef<SWidget> CreateRowHeaderMenuContent(const FString ColumnName);
+
 	/** Will compute the max row size from all its children for the specified column id*/
 	FVector2D GetMaxRowSizeForColumn(const FName& ColumnId);
+
+	/** Append the current effective backend filter (intersection of BackendFilter and SupportedFilter) to the given filter. */
+	void AppendBackendFilter(FARFilter& FilterToAppendTo) const;
 
 public:
 	/** Delegate that handles if any folder paths changed as a result of a move, rename, etc. in the asset view*/
@@ -823,6 +829,7 @@ private:
 	/** The current base source filter for the view */
 	FSourcesData SourcesData;
 	FARFilter BackendFilter;
+	FARFilter SupportedFilter;
 	TSharedPtr<FAssetFilterCollectionType> FrontendFilters;
 
 	/** If true, the source items will be refreshed next frame. Very slow. */
@@ -1047,10 +1054,16 @@ private:
 
 		/** The factory to use */
 		UFactory* Factory;
+
+		void AddReferencedObjects(FReferenceCollector& Collector)
+		{
+			Collector.AddReferencedObject(AssetClass);
+			Collector.AddReferencedObject(Factory);
+		}
 	};
 
 	/** Asset pending deferred creation */
-	TSharedPtr<FCreateDeferredAssetData> DeferredAssetToCreate;
+	TUniquePtr<FCreateDeferredAssetData> DeferredAssetToCreate;
 
 	/** A struct to hold data for the deferred creation of a folder */
 	struct FCreateDeferredFolderData
@@ -1063,7 +1076,7 @@ private:
 	};
 
 	/** Folder pending deferred creation */
-	TSharedPtr<FCreateDeferredFolderData> DeferredFolderToCreate;
+	TUniquePtr<FCreateDeferredFolderData> DeferredFolderToCreate;
 
 	/** Struct holding the data for the asset quick-jump */
 	struct FQuickJumpData

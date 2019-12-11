@@ -241,7 +241,8 @@ namespace UnrealBuildTool.Rules
 				//PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, PlatformString, "armeabi-v7a", "libLeapC.so"));
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, PlatformString, "arm64-v8a", "libLeapC.so"));
 
-				AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(ModulePath, "LeapMotion_APL.xml"));
+                string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
+                AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "LeapMotion_APL.xml"));
 			}
 
 			return IsLibrarySupported;

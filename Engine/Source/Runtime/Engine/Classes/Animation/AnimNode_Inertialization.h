@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Animation/AnimNodeBase.h"
+#include "Animation/AnimCurveTypes.h"
 #include "AnimNode_Inertialization.generated.h"
 
 
@@ -60,6 +61,11 @@ struct FInertializationPose
 	//
 	TArray<EInertializationBoneState> BoneStates;
 
+	// Snapshot of active curves
+	// 
+	FBlendedHeapCurve Curves;
+	TArray<uint16> CurveUIDToArrayIndexLUT;
+
 	FName AttachParentName;
 	float DeltaTime;
 
@@ -70,7 +76,7 @@ struct FInertializationPose
 	{
 	}
 
-	void InitFrom(const FCompactPose& Pose, const FTransform& InComponentTransform, const FName& InAttachParentName, float InDeltaTime);
+	void InitFrom(const FCompactPose& Pose, const FBlendedCurve& InCurves, const FTransform& InComponentTransform, const FName& InAttachParentName, float InDeltaTime);
 };
 
 
@@ -119,6 +125,26 @@ struct FInertializationBoneDiff
 	}
 };
 
+USTRUCT()
+struct FInertializationCurveDiff
+{
+	GENERATED_BODY();
+
+	float Delta;
+	float Derivative;
+
+	FInertializationCurveDiff()
+		: Delta(0.0f)
+		, Derivative(0.0f)
+	{}
+
+	void Clear()
+	{
+		Delta = 0.0f;
+		Derivative = 0.0f;
+	}
+};
+
 
 USTRUCT()
 struct FInertializationPoseDiff
@@ -133,6 +159,7 @@ struct FInertializationPoseDiff
 	void Reset()
 	{
 		BoneDiffs.Empty();
+		CurveDiffs.Empty();
 		InertializationSpace = EInertializationSpace::Default;
 	}
 
@@ -144,11 +171,11 @@ struct FInertializationPoseDiff
 	// Prev1				the previous frame's pose
 	// Prev2				the pose from two frames before
 	//
-	void InitFrom(const FCompactPose& Pose, const FTransform& ComponentTransform, const FName& AttachParentName, const FInertializationPose& Prev1, const FInertializationPose& Prev2);
+	void InitFrom(const FCompactPose& Pose, const FBlendedCurve& Curves, const FTransform& ComponentTransform, const FName& AttachParentName, const FInertializationPose& Prev1, const FInertializationPose& Prev2);
 
 	// Apply this difference to a pose, decaying over time as InertializationElapsedTime approaches InertializationDuration
 	//
-	void ApplyTo(FCompactPose& Pose, float InertializationElapsedTime, float InertializationDuration) const;
+	void ApplyTo(FCompactPose& Pose, FBlendedCurve& Curves, float InertializationElapsedTime, float InertializationDuration) const;
 
 	// Get the inertialization space for this pose diff (for debug display)
 	//
@@ -163,6 +190,9 @@ private:
 
 	// Bone differences indexed by skeleton bone index
 	TArray<FInertializationBoneDiff> BoneDiffs;
+
+	// Curve differences indexed by CurveID
+	TArray<FInertializationCurveDiff> CurveDiffs;
 
 	// Inertialization space (local vs world for situations where we wish to correct a world-space discontinuity such as an abrupt orientation change)
 	EInertializationSpace InertializationSpace;
@@ -184,10 +214,13 @@ public: // FAnimNode_Inertialization
 	// Request to activate inertialization for a duration.
 	// If multiple requests are made on the same inertialization node, the minimum requested time will be used.
 	//
-	virtual void Request(float Duration);
+	virtual void RequestInertialization(float Duration);
 
 	virtual float GetRequestedDuration() const { return RequestedDuration; }
 
+	// Log an error when a node wants to inertialize but no inertialization ancestor node exists
+	//
+	static void LogRequestError(const FAnimationUpdateContext& Context, const FPoseLinkBase& RequesterPoseLink);
 
 public: // FAnimNode_Base
 
@@ -248,7 +281,11 @@ private:
 	EInertializationState InertializationState;
 	float InertializationElapsedTime;
 	float InertializationDuration;
+	float InertializationDeficit;
 
 	// Inertialization pose differences
 	FInertializationPoseDiff InertializationPoseDiff;
+
+	// Reset inertialization timing and state
+	void Deactivate();
 };

@@ -224,6 +224,7 @@ namespace CrossCompiler
 				// Types
 				InsertToken(TEXT("void"), EHlslToken::Void);
 				InsertToken(TEXT("const"), EHlslToken::Const);
+				InsertToken(TEXT("precise"), EHlslToken::Precise);
 
 				InsertToken(TEXT("bool"), EHlslToken::Bool);
 				InsertToken(TEXT("bool1"), EHlslToken::Bool1);
@@ -408,6 +409,8 @@ namespace CrossCompiler
 				InsertToken(TEXT("groupshared"), EHlslToken::GroupShared);
 				InsertToken(TEXT("row_major"), EHlslToken::RowMajor);
 				InsertToken(TEXT("register"), EHlslToken::Register);
+				InsertToken(TEXT("inline"), EHlslToken::Inline);
+				InsertToken(TEXT("typedef"), EHlslToken::Typedef);
 			}
 		} GStaticInitializer;
 	}
@@ -793,7 +796,7 @@ namespace CrossCompiler
 
 		static void ProcessDirective(FTokenizer& Tokenizer, FCompilerMessages& CompilerMessages, class FHlslScanner& Scanner);
 
-		FString ReadToEndOfLine()
+		FString ReadToEndOfLine(bool bSkipToNextLine = true)
 		{
 			FString String;
 			const TCHAR* Start = Current;
@@ -816,7 +819,11 @@ namespace CrossCompiler
 					++Current;
 				}
 			}
-			SkipToNextLine();
+
+			if (bSkipToNextLine)
+			{
+				SkipToNextLine();
+			}
 
 			int32 Count = (int32)(EndOfLine - Start) + 1;
 			String.AppendChars(Start, Count);
@@ -1163,7 +1170,7 @@ namespace CrossCompiler
 		}
 		else if (Tokenizer.MatchString(MATCH_TARGET(TEXT("#pragma"))))
 		{
-			FString Pragma = TEXT("#pragma") + Tokenizer.ReadToEndOfLine();
+			FString Pragma = TEXT("#pragma") + Tokenizer.ReadToEndOfLine(false);
 			Scanner.AddToken(FHlslToken(EHlslToken::Pragma, Pragma), Tokenizer);
 		}
 		else if (Tokenizer.MatchString(MATCH_TARGET(TEXT("#if 0"))))
@@ -1178,7 +1185,7 @@ namespace CrossCompiler
 
 				if (Tokenizer.MatchString(MATCH_TARGET(TEXT("#endif"))))
 				{
-					Tokenizer.SkipToNextLine();
+					// Nothing here, skip to next line will happen later
 				}
 				else
 				{
@@ -1194,7 +1201,7 @@ namespace CrossCompiler
 		else
 		{
 			FString Directive = TEXT("#") + Tokenizer.ReadToEndOfLine();
-			CompilerMessages.SourceWarning(*FString::Printf(TEXT("Unhandled preprocessor directive (%s); HlslParser requires preprocessed input!"), Tokenizer.Current));
+			CompilerMessages.SourceWarning(*FString::Printf(TEXT("Unhandled token (%s); HlslParser requires preprocessed input!"), Tokenizer.Current));
 		}
 
 		Tokenizer.SkipToNextLine();

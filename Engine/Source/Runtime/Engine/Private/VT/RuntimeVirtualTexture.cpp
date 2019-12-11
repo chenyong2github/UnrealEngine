@@ -7,18 +7,9 @@
 #include "VT/VirtualTextureBuildSettings.h"
 #include "VT/RuntimeVirtualTextureNotify.h"
 #include "VT/RuntimeVirtualTextureStreamingProxy.h"
-#include "VT/UploadingVirtualTexture.h"
 #include "VT/VirtualTextureLevelRedirector.h"
-
-
-/** Device scalability option for runtime virtual texture size. */
-static TAutoConsoleVariable<int32> CVarVTTileCountBias(
-	TEXT("r.VT.RVT.TileCountBias"),
-	0,
-	TEXT("Bias to apply to Runtime Virtual Texture size."),
-	ECVF_RenderThreadSafe
-);
-
+#include "VT/VirtualTextureScalability.h"
+#include "VT/UploadingVirtualTexture.h"
 
 namespace
 {
@@ -147,6 +138,7 @@ protected:
 			VTDesc.TileBorderSize = InDesc.TileBorderSize;
 			VTDesc.NumTextureLayers = InDesc.NumTextureLayers;
 			VTDesc.bPrivateSpace = InPrivateSpace;
+			VTDesc.bShareDuplicateLayers = true;
 
 			for (uint32 LayerIndex = 0u; LayerIndex < VTDesc.NumTextureLayers; ++LayerIndex)
 			{
@@ -229,7 +221,7 @@ void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutD
 	OutDesc.HeightInBlocks = 1;
 
 	// Apply TileCount modifier here to allow size scalability option
-	const int32 TileCountBias = CVarVTTileCountBias.GetValueOnAnyThread();
+	const int32 TileCountBias = VirtualTextureScalability::GetRuntimeVirtualTextureSizeBias();
 	const int32 MaxSizeInTiles = GetTileCount(TileCount + TileCountBias);
 
 	// Set width and height to best match the runtime virtual texture volume's aspect ratio
@@ -271,11 +263,10 @@ int32 URuntimeVirtualTexture::GetLayerCount(ERuntimeVirtualTextureMaterialType I
 	case ERuntimeVirtualTextureMaterialType::BaseColor:
 	case ERuntimeVirtualTextureMaterialType::WorldHeight:
 		return 1;
-	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal:
 	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
-	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex:
 		return 2;
 	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
+	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Mask_YCoCg:
 		return 3;
 	default:
 		break;
@@ -298,11 +289,10 @@ EPixelFormat URuntimeVirtualTexture::GetLayerFormat(int32 LayerIndex) const
 		switch (MaterialType)
 		{
 		case ERuntimeVirtualTextureMaterialType::BaseColor:
-		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal:
-		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
 			return bCompressTextures ? PF_DXT1 : PF_B8G8R8A8;
-		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex:
+		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
+		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Mask_YCoCg:
 			return bCompressTextures ? PF_DXT5 : PF_B8G8R8A8;
 		case ERuntimeVirtualTextureMaterialType::WorldHeight:
 			return PF_G16;
@@ -314,12 +304,11 @@ EPixelFormat URuntimeVirtualTexture::GetLayerFormat(int32 LayerIndex) const
 	{
 		switch (MaterialType)
 		{
-		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal:
-		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
-			return bCompressTextures ? PF_BC5 : PF_B8G8R8A8;
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
-		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex:
 			return bCompressTextures ? PF_DXT5 : PF_B8G8R8A8;
+		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
+		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Mask_YCoCg:
+			return bCompressTextures ? PF_BC5 : PF_B8G8R8A8;
 		default:
 			break;
 		}
@@ -330,6 +319,8 @@ EPixelFormat URuntimeVirtualTexture::GetLayerFormat(int32 LayerIndex) const
 		{
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
 			return bCompressTextures ? PF_DXT1 : PF_B8G8R8A8;
+		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Mask_YCoCg:
+			return bCompressTextures ? PF_DXT5 : PF_B8G8R8A8;
 		default:
 			break;
 		}
@@ -345,12 +336,11 @@ bool URuntimeVirtualTexture::IsLayerSRGB(int32 LayerIndex) const
 	switch (MaterialType)
 	{
 	case ERuntimeVirtualTextureMaterialType::BaseColor:
-	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal:
 	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
-	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Ex:
 		// Only BaseColor layer is sRGB
 		return LayerIndex == 0;
 	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
+	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Mask_YCoCg:
 	case ERuntimeVirtualTextureMaterialType::WorldHeight:
 		return false;
 	default:
@@ -364,7 +354,15 @@ bool URuntimeVirtualTexture::IsLayerSRGB(int32 LayerIndex) const
 
 bool URuntimeVirtualTexture::IsLayerYCoCg(int32 LayerIndex) const
 {
-	return MaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg && LayerIndex == 0;
+	switch (MaterialType)
+	{
+	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
+	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Mask_YCoCg:
+		return LayerIndex == 0;
+	default:
+		break;
+	}
+	return false;
 }
 
 int32 URuntimeVirtualTexture::GetEstimatedPageTableTextureMemoryKb() const
@@ -463,6 +461,12 @@ void URuntimeVirtualTexture::PostLoad()
 		Size_DEPRECATED = -1;
 	}
 
+	// Convert BaseColor_Normal_DEPRECATED
+	if (MaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal_DEPRECATED)
+	{
+		MaterialType = ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular;
+	}
+
 	Super::PostLoad();
 }
 
@@ -495,6 +499,7 @@ uint32 URuntimeVirtualTexture::GetStreamingTextureBuildHash() const
 			uint32 TileSize : 4;
 			uint32 TileBorderSize : 4;
 			uint32 StreamLowMips : 4;
+			uint32 EnableCompressCrunch : 1;
 		};
 	};
 
@@ -506,6 +511,7 @@ uint32 URuntimeVirtualTexture::GetStreamingTextureBuildHash() const
 	Settings.TileSize = (uint32)TileSize;
 	Settings.TileBorderSize = (uint32)TileBorderSize;
 	Settings.StreamLowMips = (uint32)GetStreamLowMips();
+	Settings.EnableCompressCrunch = (uint32)bEnableCompressCrunch;
 
 	return Settings.PackedValue;
 }
@@ -523,6 +529,7 @@ void URuntimeVirtualTexture::InitializeStreamingTexture(uint32 InSizeX, uint32 I
 	StreamingTexture->Settings.Init();
 	StreamingTexture->Settings.TileSize = GetTileSize();
 	StreamingTexture->Settings.TileBorderSize = GetTileBorderSize();
+	StreamingTexture->Settings.bEnableCompressCrunch = bEnableCompressCrunch;
 
 	StreamingTexture->BuildHash = GetStreamingTextureBuildHash();
 

@@ -149,6 +149,12 @@ namespace WindowsMixedReality
 		{
 			hmd->ConnectToRemoteHoloLens(*remoteIP, bitrate, isHoloLens1);
 		}
+		else
+		{
+			UE_LOG(LogWmrHmd, Log, TEXT("FWindowsMixedRealityStatics::ConnectToRemoteHoloLens() is doing nothing because FWindowsMixedRealityHMD fetch failed.  Perhaps you need to enable remoting and restart the editor?"));
+		}
+#else
+		UE_LOG(LogWmrHmd, Log, TEXT("FWindowsMixedRealityStatics::ConnectToRemoteHoloLens() is doing nothing because PLATFORM_HOLOLENS. (You don't 'remote' when running on device or emulated device.)"));
 #endif
 	}
 

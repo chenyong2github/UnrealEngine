@@ -120,6 +120,11 @@ public:
 	void		UpdateUsage(uint32 Frame, uint16 pAddress);
 
 	/**
+	 * Returns the number of pages marked as used since a given frame. 
+	 */
+	uint32		GetNumVisiblePages(uint32 Frame) const;
+
+	/**
 	* Map the physical address to a specific virtual address.
 	*/
 	void		MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 PageTableLayerIndex, uint8 vLogSize, uint32 vAddress, uint8 vLevel, uint16 pAddress);

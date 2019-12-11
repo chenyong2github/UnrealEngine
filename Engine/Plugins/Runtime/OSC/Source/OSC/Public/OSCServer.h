@@ -112,7 +112,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
 	void BindEventToOnOSCAddressPatternMatchesPath(const FOSCAddress& OSCAddressPattern, const FOSCDispatchMessageEventBP& Event);
 
-	/** Unbinds specific event from OSCAddress patter */
+	/** Unbinds specific event from OSCAddress pattern. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
 	void UnbindEventFromOnOSCAddressPatternMatchesPath(const FOSCAddress& OSCAddressPattern, const FOSCDispatchMessageEventBP& Event);
 

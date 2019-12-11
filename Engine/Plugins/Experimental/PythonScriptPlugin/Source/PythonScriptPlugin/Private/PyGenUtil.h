@@ -10,13 +10,12 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
+#include "UObject/PropertyAccessUtil.h"
 
 #if WITH_PYTHON
 
 struct FOutParmRec;
 struct FPyWrapperBaseMetaData;
-
-class FPyWrapperOwnerContext;
 
 struct FReportPythonGenerationIssue_Private
 {
@@ -858,11 +857,11 @@ namespace PyGenUtil
 		FPythonizeTooltipContext()
 			: Prop(nullptr)
 			, Func(nullptr)
-			, ReadOnlyFlags(CPF_BlueprintReadOnly | CPF_EditConst)
+			, ReadOnlyFlags(PropertyAccessUtil::RuntimeReadOnlyFlags)
 		{
 		}
 
-		explicit FPythonizeTooltipContext(const UProperty* InProp, const uint64 InReadOnlyFlags = CPF_BlueprintReadOnly | CPF_EditConst);
+		explicit FPythonizeTooltipContext(const UProperty* InProp, const uint64 InReadOnlyFlags = PropertyAccessUtil::RuntimeReadOnlyFlags);
 
 		explicit FPythonizeTooltipContext(const UFunction* InFunc, const TSet<FName>& InParamsToIgnore = TSet<FName>());
 
@@ -910,10 +909,10 @@ namespace PyGenUtil
 	bool InvokePythonCallableFromUnrealFunctionThunk(FPyObjectPtr InSelf, PyObject* InCallable, const UFunction* InFunc, UObject* Context, FFrame& Stack, RESULT_DECL);
 
 	/** Get the current value of the given property from the given struct */
-	PyObject* GetPropertyValue(const UStruct* InStruct, void* InStructData, const FGeneratedWrappedProperty& InPropDef, const char *InAttributeName, PyObject* InOwnerPyObject, const TCHAR* InErrorCtxt);
+	PyObject* GetPropertyValue(const UStruct* InStruct, const void* InStructData, const FGeneratedWrappedProperty& InPropDef, const char *InAttributeName, PyObject* InOwnerPyObject, const TCHAR* InErrorCtxt);
 
 	/** Set the current value of the given property from the given struct */
-	int SetPropertyValue(const UStruct* InStruct, void* InStructData, PyObject* InValue, const FGeneratedWrappedProperty& InPropDef, const char *InAttributeName, const FPyWrapperOwnerContext& InChangeOwner, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const TCHAR* InErrorCtxt);
+	int SetPropertyValue(const UStruct* InStruct, void* InStructData, PyObject* InValue, const FGeneratedWrappedProperty& InPropDef, const char *InAttributeName, const FPropertyAccessChangeNotify* InChangeNotify, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const TCHAR* InErrorCtxt);
 
 	/** Build a Python doc string for the given function and arguments list */
 	FString BuildFunctionDocString(const UFunction* InFunc, const FString& InFuncPythonName, const TArray<FGeneratedWrappedMethodParameter>& InInputParams, const TArray<FGeneratedWrappedMethodParameter>& InOutputParams, const bool* InStaticOverride = nullptr);
@@ -964,7 +963,7 @@ namespace PyGenUtil
 	FString PythonizePropertyName(const FString& InName, const EPythonizeNameCase InNameCase);
 
 	/** Given a property tooltip, convert it to a doc string */
-	FString PythonizePropertyTooltip(const FString& InTooltip, const UProperty* InProp, const uint64 InReadOnlyFlags = CPF_BlueprintReadOnly | CPF_EditConst);
+	FString PythonizePropertyTooltip(const FString& InTooltip, const UProperty* InProp, const uint64 InReadOnlyFlags = PropertyAccessUtil::RuntimeReadOnlyFlags);
 
 	/** Given a function tooltip, convert it to a doc string */
 	FString PythonizeFunctionTooltip(const FString& InTooltip, const UFunction* InFunc, const TSet<FName>& ParamsToIgnore = TSet<FName>());
@@ -1045,7 +1044,7 @@ namespace PyGenUtil
 	void AppendPropertyPythonType(const UProperty* InProp, FString& OutStr);
 
 	/** Append the given Python property read /write state to the given string */
-	void AppendPropertyPythonReadWriteState(const UProperty* InProp, FString& OutStr, const uint64 InReadOnlyFlags = CPF_BlueprintReadOnly | CPF_EditConst);
+	void AppendPropertyPythonReadWriteState(const UProperty* InProp, FString& OutStr, const uint64 InReadOnlyFlags = PropertyAccessUtil::RuntimeReadOnlyFlags);
 
 	/** Get the tooltip for the given field */
 	FString GetFieldTooltip(const UField* InField);

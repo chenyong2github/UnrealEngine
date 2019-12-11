@@ -172,11 +172,11 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 	}
 
 	// Face indices
-	VtArray<int> FaceIndices;
+	VtArray<int> OriginalFaceIndices;
 	UsdAttribute FaceIndicesAttribute = UsdMesh.GetFaceVertexIndicesAttr();
 	if (FaceIndicesAttribute)
 	{
-		FaceIndicesAttribute.Get(&FaceIndices, UsdTimeCode::Default());
+		FaceIndicesAttribute.Get(&OriginalFaceIndices, UsdTimeCode::Default());
 	}
 
 	// Normals
@@ -191,7 +191,7 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 	uint32 NumExistingWedges = SkelMeshImportData.Wedges.Num();
 
 	uint32 NumFaces = FaceCounts.size();
-	SkelMeshImportData.Faces.AddUninitialized(NumFaces);
+	SkelMeshImportData.Faces.Reserve( NumFaces * 2 );
 
 	// Retrieve prim materials
 	TTuple< TArray< FString >, TArray< int32 > > GeometryMaterials = IUsdPrim::GetGeometryMaterials( UsdTimeCode::Default().GetValue(), SkinningPrim );
@@ -244,220 +244,152 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 	SkelMeshImportData.NumTexCoords = 0;
 
 	bool bReverseOrder = IUsdPrim::GetGeometryOrientation(UsdMesh) == EUsdGeomOrientation::LeftHanded;
-	uint32 CurrentVertexInstanceIndex = 0;
+
+	struct FUVSet
+	{
+		TOptional< VtIntArray > UVIndices; // UVs might be indexed or they might be flat (one per vertex)
+		VtVec2fArray UVs;
+
+		EUsdInterpolationMethod InterpolationMethod = EUsdInterpolationMethod::FaceVarying;
+	};
+
+	TArray< FUVSet > UVSets;
+
+	int32 UVChannelIndex = 0;
+	while ( true )
+	{
+		pxr::TfToken UsdUVSetName = UsdUtils::GetUVSetName( UVChannelIndex ).Get();
+		UsdGeomPrimvar PrimvarST = UsdMesh.GetPrimvar( UsdUVSetName );
+
+		if ( PrimvarST )
+		{
+			FUVSet UVSet;
+
+			if ( PrimvarST.GetInterpolation() == UsdGeomTokens->vertex )
+			{
+				UVSet.InterpolationMethod = EUsdInterpolationMethod::Vertex;
+			}
+			else if ( PrimvarST.GetInterpolation() == UsdGeomTokens->faceVarying )
+			{
+				UVSet.InterpolationMethod = EUsdInterpolationMethod::FaceVarying;
+			}
+			else if (  PrimvarST.GetInterpolation() == UsdGeomTokens->uniform )
+			{
+				UVSet.InterpolationMethod = EUsdInterpolationMethod::Uniform;
+			}
+			else if ( PrimvarST.GetInterpolation() == UsdGeomTokens->constant )
+			{
+				UVSet.InterpolationMethod = EUsdInterpolationMethod::Constant;
+			}
+
+			if ( PrimvarST.IsIndexed() )
+			{
+				UVSet.UVIndices.Emplace();
+
+				if ( PrimvarST.GetIndices( &UVSet.UVIndices.GetValue() ) && PrimvarST.Get( &UVSet.UVs ) )
+				{
+					if ( UVSet.UVs.size() > 0 )
+					{
+						UVSets.Add( MoveTemp( UVSet ) );
+					}
+				}
+			}
+			else
+			{
+				if ( PrimvarST.Get( &UVSet.UVs ) )
+				{
+					if ( UVSet.UVs.size() > 0 )
+					{
+						UVSets.Add( MoveTemp( UVSet ) );
+					}
+				}
+			}
+		}
+		else
+		{
+			break;
+		}
+
+		++UVChannelIndex;
+	}
 
 	// SkeletalMeshImportData uses triangle faces so quads will have to be split into triangles
 	SkeletalMeshImportData::FVertex TmpWedges[3];
-	TArray<SkeletalMeshImportData::FTriangle> SplitQuads;
 
 	for (uint32 PolygonIndex = NumExistingFaces, LocalIndex = 0; PolygonIndex < NumExistingFaces + NumFaces; ++PolygonIndex, ++LocalIndex)
 	{
-		uint32 NumFaceVertices = FaceCounts[LocalIndex];
+		const uint32 NumOriginalFaceVertices = FaceCounts[LocalIndex];
+		const uint32 NumFinalFaceVertices = 3;
 
 		// Face must be processed as triangle
-		bool bIsQuad = NumFaceVertices == 4;
-		NumFaceVertices = 3;
+		bool bIsQuad = ( NumOriginalFaceVertices == 4 );
 
-		SkeletalMeshImportData::FTriangle& Triangle = SkelMeshImportData.Faces[PolygonIndex];
+		uint32 NumTriangles = bIsQuad ? 2 : 1;
 
-		// Set the face smoothing by default. It could be any number, but not zero
-		Triangle.SmoothingGroups = 255;
-
-		// #ueent_todo: Convert normals to TangentZ (TangentX/TangentY are tangents/binormals)
-
-		// Manage materials
-		int32 LocalMaterialIndex = 0;
-		if (LocalIndex >= 0 && LocalIndex < (uint32) FaceMaterialIndices.Num())
+		for ( uint32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex )
 		{
-			LocalMaterialIndex = FaceMaterialIndices[LocalIndex];
-			if (LocalMaterialIndex < 0 || LocalMaterialIndex > MaterialNames.Num())
+			int32 TriangleFaceIndex = SkelMeshImportData.Faces.AddUninitialized();
+
+			SkeletalMeshImportData::FTriangle& Triangle = SkelMeshImportData.Faces[ TriangleFaceIndex ];
+
+			// Set the face smoothing by default. It could be any number, but not zero
+			Triangle.SmoothingGroups = 255;
+
+			// #ueent_todo: Convert normals to TangentZ (TangentX/TangentY are tangents/binormals)
+
+			// Manage materials
+			int32 LocalMaterialIndex = 0;
+			if (LocalIndex >= 0 && LocalIndex < (uint32) FaceMaterialIndices.Num())
 			{
-				LocalMaterialIndex = 0;
+				LocalMaterialIndex = FaceMaterialIndices[LocalIndex];
+				if (LocalMaterialIndex < 0 || LocalMaterialIndex > MaterialNames.Num())
+				{
+					LocalMaterialIndex = 0;
+				}
 			}
-		}
 
-		int32 RealMaterialIndex = 0;
-		if (LocalMaterialIndex < MaterialNames.Num())
-		{
-			FString MaterialName = MaterialNames[LocalMaterialIndex];
-			if (!ExistingMaterialNames.Contains(MaterialName))
+			int32 RealMaterialIndex = 0;
+			if (LocalMaterialIndex < MaterialNames.Num())
 			{
-				// If new material, add it to the list
-				SkeletalMeshImportData::FMaterial NewMaterial;
-
-				NewMaterial.MaterialImportName = MaterialName;
-				RealMaterialIndex = SkelMeshImportData.Materials.Add(NewMaterial);
-				ExistingMaterialNames.Add(MaterialName, RealMaterialIndex);
-			}
-			else
-			{
-				RealMaterialIndex = ExistingMaterialNames[MaterialName];
-			}
-		}
-
-		Triangle.MatIndex = RealMaterialIndex;
-		SkelMeshImportData.MaxMaterialIndex = FMath::Max<uint32>(SkelMeshImportData.MaxMaterialIndex, Triangle.MatIndex);
-
-		Triangle.AuxMatIndex = 0;
-
-		struct FUVSet
-		{
-			TOptional< VtIntArray > UVIndices; // UVs might be indexed or they might be flat (one per vertex)
-			VtVec2fArray UVs;
-
-			EUsdInterpolationMethod InterpolationMethod = EUsdInterpolationMethod::FaceVarying;
-		};
-
-		TArray< FUVSet > UVSets;
-
-		int32 UVChannelIndex = 0;
-		while ( true )
-		{
-			pxr::TfToken UsdUVSetName = UsdUtils::GetUVSetName( UVChannelIndex ).Get();
-			UsdGeomPrimvar PrimvarST = UsdMesh.GetPrimvar( UsdUVSetName );
-
-			if ( PrimvarST )
-			{
-				FUVSet UVSet;
-
-				if ( PrimvarST.GetInterpolation() == UsdGeomTokens->vertex )
+				FString MaterialName = MaterialNames[LocalMaterialIndex];
+				if (!ExistingMaterialNames.Contains(MaterialName))
 				{
-					UVSet.InterpolationMethod = EUsdInterpolationMethod::Vertex;
-				}
-				else if ( PrimvarST.GetInterpolation() == UsdGeomTokens->faceVarying )
-				{
-					UVSet.InterpolationMethod = EUsdInterpolationMethod::FaceVarying;
-				}
-				else if (  PrimvarST.GetInterpolation() == UsdGeomTokens->uniform )
-				{
-					UVSet.InterpolationMethod = EUsdInterpolationMethod::Uniform;
-				}
-				else if ( PrimvarST.GetInterpolation() == UsdGeomTokens->constant )
-				{
-					UVSet.InterpolationMethod = EUsdInterpolationMethod::Constant;
-				}
+					// If new material, add it to the list
+					SkeletalMeshImportData::FMaterial NewMaterial;
 
-				if ( PrimvarST.IsIndexed() )
-				{
-					UVSet.UVIndices.Emplace();
-
-					if ( PrimvarST.GetIndices( &UVSet.UVIndices.GetValue() ) && PrimvarST.Get( &UVSet.UVs ) )
-					{
-						UVSets.Add( MoveTemp( UVSet ) );
-					}
+					NewMaterial.MaterialImportName = MaterialName;
+					RealMaterialIndex = SkelMeshImportData.Materials.Add(NewMaterial);
+					ExistingMaterialNames.Add(MaterialName, RealMaterialIndex);
 				}
 				else
 				{
-					if ( PrimvarST.Get( &UVSet.UVs ) )
-					{
-						UVSets.Add( MoveTemp( UVSet ) );
-					}
+					RealMaterialIndex = ExistingMaterialNames[MaterialName];
 				}
 			}
-			else
+
+			Triangle.MatIndex = RealMaterialIndex;
+			SkelMeshImportData.MaxMaterialIndex = FMath::Max<uint32>(SkelMeshImportData.MaxMaterialIndex, Triangle.MatIndex);
+
+			Triangle.AuxMatIndex = 0;
+
+			// Manage vertex colors
+			FColor FaceColor = SkelMeshImportData.bHasVertexColors ? FaceColors[bIsConstantColor ? 0 : LocalIndex] : FColor::White;
+
+			// Fill the wedge data and complete the triangle setup with the wedge indices
+			SkelMeshImportData.Wedges.Reserve( SkelMeshImportData.Wedges.Num() + NumFinalFaceVertices );
+
+			for ( uint32 CornerIndex = 0; CornerIndex < NumFinalFaceVertices; ++CornerIndex )
 			{
-				break;
-			}
+				uint32 OriginalCornerIndex = ( ( TriangleIndex * ( NumOriginalFaceVertices - 2 ) ) + CornerIndex ) % NumOriginalFaceVertices;
+				uint32 OriginalVertexInstanceIndex = ( LocalIndex * NumOriginalFaceVertices ) + OriginalCornerIndex;
+				int32 OriginalVertexIndex = OriginalFaceIndices[ OriginalVertexInstanceIndex ];
 
-			++UVChannelIndex;
-		}
+				int32 FinalCornerIndex = bReverseOrder ? NumFinalFaceVertices - 1 - CornerIndex : CornerIndex;
 
-		// Manage vertex colors
-		FColor FaceColor = SkelMeshImportData.bHasVertexColors ? FaceColors[bIsConstantColor ? 0 : LocalIndex] : FColor::White;
-
-		for (uint32 VertexIndex = 0; VertexIndex < NumFaceVertices; ++VertexIndex, ++CurrentVertexInstanceIndex)
-		{
-			int32 PointIndex = FaceIndices[CurrentVertexInstanceIndex];
-
-			int32 UnrealVertexIndex = bReverseOrder ? NumFaceVertices - 1 - VertexIndex : VertexIndex;
-
-			TmpWedges[UnrealVertexIndex].MatIndex = Triangle.MatIndex;
-			TmpWedges[UnrealVertexIndex].VertexIndex = NumExistingPoints + PointIndex;
+				TmpWedges[ FinalCornerIndex ].MatIndex = Triangle.MatIndex;
+				TmpWedges[ FinalCornerIndex ].VertexIndex = NumExistingPoints + OriginalVertexIndex;
 			
-			TmpWedges[UnrealVertexIndex].Color = FaceColor;
-
-			int32 UVLayerIndex = 0;
-			for ( const FUVSet& UVSet : UVSets )
-			{
-				int32 ValueIndex = 0;
-
-				if ( UVSet.InterpolationMethod == EUsdInterpolationMethod::Vertex )
-				{
-					ValueIndex = UnrealVertexIndex;
-				}
-				else if ( UVSet.InterpolationMethod == EUsdInterpolationMethod::FaceVarying )
-				{
-					ValueIndex = CurrentVertexInstanceIndex;
-				}
-				else if ( UVSet.InterpolationMethod == EUsdInterpolationMethod::Uniform )
-				{
-					ValueIndex = PolygonIndex;
-				}
-				else if ( UVSet.InterpolationMethod == EUsdInterpolationMethod::Constant )
-				{
-					ValueIndex = 0;
-				}
-
-				GfVec2f UV( 0.f, 0.f );
-
-				if ( UVSet.UVIndices.IsSet() )
-				{
-					if ( ensure( UVSet.UVIndices.GetValue().size() > ValueIndex ) )
-					{
-						UV = UVSet.UVs[ UVSet.UVIndices.GetValue()[ ValueIndex ] ];
-					}
-				}
-				else if ( ensure( UVSet.UVs.size() > ValueIndex ) )
-				{
-					UV = UVSet.UVs[ ValueIndex ];
-				}
-
-				// Flip V for Unreal uv's which match directx
-				FVector2D FinalUVVector( UV[0], 1.f - UV[1] );
-				TmpWedges[ UnrealVertexIndex ].UVs[ UVLayerIndex ] = FinalUVVector;
-
-				++UVLayerIndex;
-			}
-
-			Triangle.TangentX[UnrealVertexIndex] = FVector::ZeroVector;
-			Triangle.TangentY[UnrealVertexIndex] = FVector::ZeroVector;
-			Triangle.TangentZ[UnrealVertexIndex] = FVector::ZeroVector;
-		}
-
-		// Fill the wedge data and complete the triangle setup with the wedge indices
-		SkelMeshImportData.Wedges.Reserve( SkelMeshImportData.Wedges.Num() + NumFaceVertices );
-		for (uint32 VertexIndex = 0; VertexIndex < NumFaceVertices; ++VertexIndex)
-		{
-			uint32 WedgeIndex = SkelMeshImportData.Wedges.AddUninitialized();
-			SkelMeshImportData.Wedges[WedgeIndex].VertexIndex = TmpWedges[VertexIndex].VertexIndex;
-			SkelMeshImportData.Wedges[WedgeIndex].MatIndex = TmpWedges[VertexIndex].MatIndex;
-			SkelMeshImportData.Wedges[WedgeIndex].Color = TmpWedges[VertexIndex].Color;
-			SkelMeshImportData.Wedges[WedgeIndex].Reserved = 0;
-			FMemory::Memcpy(SkelMeshImportData.Wedges[WedgeIndex].UVs, TmpWedges[VertexIndex].UVs, sizeof(FVector2D) * MAX_TEXCOORDS);
-
-			Triangle.WedgeIndex[VertexIndex] = WedgeIndex;
-		}
-
-		// Do the same processing for the other half of the quad
-		if (bIsQuad)
-		{
-			SkeletalMeshImportData::FTriangle& SplitTriangle = SplitQuads.AddDefaulted_GetRef();
-
-			SplitTriangle.SmoothingGroups = 255;
-			SplitTriangle.MatIndex = RealMaterialIndex;
-			SplitTriangle.AuxMatIndex = 0;
-
-			uint32 SplitCurrentVertexInstanceIndex = CurrentVertexInstanceIndex - 3;
-			for (uint32 VertexIndex = 0; VertexIndex < NumFaceVertices; ++VertexIndex)
-			{
-				int32 LocalVertexInstanceIndex = SplitCurrentVertexInstanceIndex + VertexIndex + (VertexIndex > 0 ? 1 : 0);
-				int32 PointIndex = FaceIndices[LocalVertexInstanceIndex];
-
-				int32 UnrealVertexIndex = bReverseOrder ? NumFaceVertices - 1 - VertexIndex : VertexIndex;
-
-				TmpWedges[UnrealVertexIndex].MatIndex = SplitTriangle.MatIndex;
-				TmpWedges[UnrealVertexIndex].VertexIndex = NumExistingPoints + PointIndex;
-				TmpWedges[UnrealVertexIndex].Color = FaceColor;
+				TmpWedges[ FinalCornerIndex ].Color = FaceColor;
 
 				int32 UVLayerIndex = 0;
 				for ( const FUVSet& UVSet : UVSets )
@@ -466,11 +398,11 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 
 					if ( UVSet.InterpolationMethod == EUsdInterpolationMethod::Vertex )
 					{
-						ValueIndex = UnrealVertexIndex;
+						ValueIndex = OriginalVertexIndex;
 					}
 					else if ( UVSet.InterpolationMethod == EUsdInterpolationMethod::FaceVarying )
 					{
-						ValueIndex = CurrentVertexInstanceIndex;
+						ValueIndex = OriginalVertexInstanceIndex;
 					}
 					else if ( UVSet.InterpolationMethod == EUsdInterpolationMethod::Uniform )
 					{
@@ -497,34 +429,28 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 
 					// Flip V for Unreal uv's which match directx
 					FVector2D FinalUVVector( UV[0], 1.f - UV[1] );
-					TmpWedges[ UnrealVertexIndex ].UVs[ UVLayerIndex ] = FinalUVVector;
+					TmpWedges[ FinalCornerIndex ].UVs[ UVLayerIndex ] = FinalUVVector;
 
 					++UVLayerIndex;
 				}
 
-				SplitTriangle.TangentX[VertexIndex] = FVector::ZeroVector;
-				SplitTriangle.TangentY[VertexIndex] = FVector::ZeroVector;
-				SplitTriangle.TangentZ[VertexIndex] = FVector::ZeroVector;
-			}
+				Triangle.TangentX[ FinalCornerIndex ] = FVector::ZeroVector;
+				Triangle.TangentY[ FinalCornerIndex ] = FVector::ZeroVector;
+				Triangle.TangentZ[ FinalCornerIndex ] = FVector::ZeroVector;
 
-			SkelMeshImportData.Wedges.Reserve( SkelMeshImportData.Wedges.Num() + NumFaceVertices );
-			for (uint32 VertexIndex = 0; VertexIndex < NumFaceVertices; ++VertexIndex)
-			{
-				uint32 WedgeIndex = SkelMeshImportData.Wedges.AddUninitialized();
-				SkelMeshImportData.Wedges[WedgeIndex].VertexIndex = TmpWedges[VertexIndex].VertexIndex;
-				SkelMeshImportData.Wedges[WedgeIndex].MatIndex = TmpWedges[VertexIndex].MatIndex;
-				SkelMeshImportData.Wedges[WedgeIndex].Color = TmpWedges[VertexIndex].Color;
-				SkelMeshImportData.Wedges[WedgeIndex].Reserved = 0;
-				FMemory::Memcpy(SkelMeshImportData.Wedges[WedgeIndex].UVs, TmpWedges[VertexIndex].UVs, sizeof(FVector2D)*MAX_TEXCOORDS);
+				{
+					uint32 WedgeIndex = SkelMeshImportData.Wedges.AddUninitialized();
+					SkelMeshImportData.Wedges[ WedgeIndex ].VertexIndex = TmpWedges[ FinalCornerIndex ].VertexIndex;
+					SkelMeshImportData.Wedges[ WedgeIndex ].MatIndex = TmpWedges[ FinalCornerIndex ].MatIndex;
+					SkelMeshImportData.Wedges[ WedgeIndex ].Color = TmpWedges[ FinalCornerIndex ].Color;
+					SkelMeshImportData.Wedges[ WedgeIndex ].Reserved = 0;
+					FMemory::Memcpy( SkelMeshImportData.Wedges[ WedgeIndex ].UVs, TmpWedges[ FinalCornerIndex ].UVs, sizeof(FVector2D) * MAX_TEXCOORDS );
 
-				SplitTriangle.WedgeIndex[VertexIndex] = WedgeIndex;
+					Triangle.WedgeIndex[ FinalCornerIndex ] = WedgeIndex;
+				}
 			}
-			++CurrentVertexInstanceIndex;
 		}
 	}
-
-	// Add the triangles that were split off from the quads
-	SkelMeshImportData.Faces.Append(SplitQuads);
 
 	// Convert joint influences into the SkeletalMeshImportData
 

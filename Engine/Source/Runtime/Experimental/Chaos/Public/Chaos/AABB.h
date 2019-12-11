@@ -387,6 +387,17 @@ namespace Chaos
 			return ChosenPt;
 		}
 
+		FORCEINLINE TVector<T, d> Support2(const TVector<T, d>& Direction) const
+		{
+			TVector<T, d> ChosenPt;
+			for (int Axis = 0; Axis < d; ++Axis)
+			{
+				ChosenPt[Axis] = Direction[Axis] < 0 ? MMin[Axis] : MMax[Axis];
+			}
+
+			return ChosenPt;
+		}
+
 		FORCEINLINE void GrowToInclude(const TVector<T, d>& V)
 		{
 			MMin = TVector<T, d>(FGenericPlatformMath::Min(MMin[0], V[0]), FGenericPlatformMath::Min(MMin[1], V[1]), FGenericPlatformMath::Min(MMin[2], V[2]));
@@ -472,6 +483,12 @@ namespace Chaos
 	private:
 		TVector<T, d> MMin, MMax;
 	};
+
+	FORCEINLINE FChaosArchive& operator<<(FChaosArchive& Ar, TAABB<FReal, 3>& AABB)
+	{
+		AABB.Serialize(Ar);
+		return Ar;
+	}
 
 	template<typename T>
 	struct TAABBSpecializeSamplingHelper<T, 2>

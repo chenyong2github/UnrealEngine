@@ -17,6 +17,16 @@
 	#define COMPILE_SIGNAL_COLOR_ARRAY 0
 #endif
 
+// Maximum number of indepedendent signal domain that can be denoised at same time.
+#ifndef MAX_SIGNAL_BATCH_SIZE
+	#error Need to specify the number of signal domain being denoised.
+#endif
+
+// Number of sample that can be multiplexed into FSSDSignalSample.
+#ifndef SIGNAL_ARRAY_SIZE
+	#error Need to specify the size of the signal array.
+#endif
+
 
 //------------------------------------------------------- STRUCTURE
 
@@ -54,7 +64,7 @@ struct FSSDSignalSample
 /** Array of signal samples. Technically should be a typedef, but there is a bug in HLSL with the out operator of an array. */
 struct FSSDSignalArray
 {
-	FSSDSignalSample Array[MAX_SIGNAL_MULTIPLEXING];
+	FSSDSignalSample Array[SIGNAL_ARRAY_SIZE];
 };
 
 
@@ -101,8 +111,8 @@ FSSDSignalSample CreateSignalSample()
 FSSDSignalArray CreateSignalArrayFromScalarValue(float Scalar)
 {
 	FSSDSignalArray OutSamples;
-	UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
-	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_MULTIPLEXING; BatchedSignalId++)
+	UNROLL_N(SIGNAL_ARRAY_SIZE)
+	for (uint BatchedSignalId = 0; BatchedSignalId < SIGNAL_ARRAY_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = CreateSignalSampleFromScalarValue(Scalar);
 	}

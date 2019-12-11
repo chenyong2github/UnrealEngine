@@ -507,6 +507,7 @@ private:
 
 public:
 
+	int32 GetNumQueuedBunchNetGUIDs() const;
 	void ConsumeQueuedActorDelinquencyAnalytics(FNetQueuedActorDelinquencyAnalytics& Out);
 	const FNetQueuedActorDelinquencyAnalytics& GetQueuedActorDelinquencyAnalytics() const;
 	void ResetQueuedActorDelinquencyAnalytics();

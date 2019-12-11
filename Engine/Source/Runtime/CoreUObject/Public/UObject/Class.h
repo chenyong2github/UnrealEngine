@@ -297,6 +297,9 @@ public:
 	/** Array of object references embedded in script code. Mirrored for easy access by realtime garbage collection code */
 	TArray<UObject*> ScriptObjectReferences;
 
+	/** Cached schema for optimized unversioned property serialization, owned by this. */
+	mutable const struct FUnversionedStructSchema* UnversionedSchema = nullptr;
+
 public:
 	// Constructors.
 	UStruct( EStaticConstructor, int32 InSize, int32 InAlignment, EObjectFlags InFlags );
@@ -384,7 +387,6 @@ public:
 	 */
 	virtual void DestroyStruct(void* Dest, int32 ArrayDim = 1) const;
 
-public:
 	/** Look up a property by an alternate name if it was not found in the first search, this is overridden for user structs */
 	virtual UProperty* CustomFindProperty(const FName InName) const { return nullptr; };
 
@@ -489,6 +491,9 @@ protected:
 	/** Returns if we have access to property guids */
 	virtual bool ArePropertyGuidsAvailable() const { return false; }
 
+	/** Serializes list of properties to a te, using property tags to handle mismatches */
+	void LoadTaggedPropertiesFromText(FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, uint8* Defaults, const UObject* BreakRecursionIfFullyLoad) const;
+
 private:
 #if USTRUCT_FAST_ISCHILDOF_IMPL == USTRUCT_ISCHILDOF_STRUCTARRAY
 	// For UObjectBaseUtility
@@ -499,6 +504,8 @@ private:
 	friend class FStructBaseChain;
 	friend class FBlueprintCompileReinstancer;
 #endif
+
+	void SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, uint8* Defaults, const UObject* BreakRecursionIfFullyLoad) const;
 };
 
 enum EStructFlags
@@ -2542,6 +2549,8 @@ public:
 private:
 	void* CreateSparseClassData();
 
+	void CleanupSparseClassData();
+
 #if WITH_EDITOR
 	/** Provides access to attributes of the underlying C++ class. Should never be unset. */
 	TOptional<FCppClassTypeInfo> CppTypeInfo;
@@ -2969,10 +2978,9 @@ public:
 	}
 
 	/** serializes the associated sparse class data for the passed in object using the given archive slot. This should only be called if the class has an associated sparse data structure.
-	 * @param Object the object to serialize as default
 	 * @param Slot the structured archive slot to serialize from
 	 */
-	void SerializeSparseClassData(UObject* Object, FStructuredArchive::FSlot Slot);
+	void SerializeSparseClassData(FStructuredArchive::FSlot Slot);
 
 	/** Wraps the PostLoad() call for the class default object.
 	 * @param Object the default object to call PostLoad() on
@@ -3048,6 +3056,7 @@ public:
 	 * Also happens after blueprint compiliation.
 	 */
 	void SetUpRuntimeReplicationData();
+	void SetUpUhtReplicationData(UClass** OutSuperClassWithReplicatedData);
 
 	/**
 	 * Helper function for determining if the given class is compatible with structured archive serialization

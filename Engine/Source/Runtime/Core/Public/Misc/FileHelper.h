@@ -50,10 +50,29 @@ struct CORE_API FFileHelper
 	 * Load a text file to an FString. Supports all combination of ANSI/Unicode files and platforms.
 	 *
 	 * @param Result       String representation of the loaded file
+	 * @param Archive      Name of the archive to load from
+	 * @param VerifyFlags  Flags controlling the hash verification behavior ( see EHashOptions )
+	 */
+	static bool LoadFileToString(FString& Result, FArchive& Reader, EHashOptions VerifyFlags = EHashOptions::None);
+
+	/**
+	 * Load a text file to an FString. Supports all combination of ANSI/Unicode files and platforms.
+	 *
+	 * @param Result       String representation of the loaded file
 	 * @param Filename     Name of the file to load
 	 * @param VerifyFlags  Flags controlling the hash verification behavior ( see EHashOptions )
 	 */
 	static bool LoadFileToString( FString& Result, const TCHAR* Filename, EHashOptions VerifyFlags = EHashOptions::None, uint32 ReadFlags = 0 );
+
+	/**
+	 * Load a text file to an FString. Supports all combination of ANSI/Unicode files and platforms.
+	 *
+	 * @param Result       String representation of the loaded file
+	 * @param PlatformFile PlatformFile interface to use
+	 * @param Filename     Name of the file to load
+	 * @param VerifyFlags  Flags controlling the hash verification behavior ( see EHashOptions )
+	 */
+	static bool LoadFileToString(FString& Result, IPlatformFile* PlatformFile, const TCHAR* Filename, EHashOptions VerifyFlags = EHashOptions::None);
 
 	/**
 	 * Load a text file to an array of strings. Supports all combination of ANSI/Unicode files and platforms.
@@ -63,6 +82,16 @@ struct CORE_API FFileHelper
 	 * @param VerifyFlags  Flags controlling the hash verification behavior ( see EHashOptions )
 	 */
 	static bool LoadFileToStringArray( TArray<FString>& Result, const TCHAR* Filename, EHashOptions VerifyFlags = EHashOptions::None );
+
+	/**
+	 * Load a text file to an array of strings, filtered by a user-defined predicate. Supports all combination of ANSI/Unicode files and platforms.
+	 *
+	 * @param Result       String representation of the loaded file
+	 * @param Filename     Name of the file to load
+	 * @param Predicate    Condition for whether or not to add the line to the array
+	 * @param VerifyFlags  Flags controlling the hash verification behavior ( see EHashOptions )
+	 */
+	static bool LoadFileToStringArrayWithPredicate(TArray<FString>& Result, const TCHAR* Filename, TFunctionRef<bool(const FString&)> Predicate, EHashOptions VerifyFlags = EHashOptions::None);
 
 	/**
 	 * Save a binary array to a file.
@@ -108,7 +137,7 @@ struct CORE_API FFileHelper
 	 * @return true if success
 	 */
 	static bool GenerateNextBitmapFilename(const FString& Pattern, const FString& Extension, FString& OutFilename, IFileManager* FileManager = &IFileManager::Get());
-
+	
 	/**
 	 * Generates the next unique bitmap filename with a specified extension
 	 *

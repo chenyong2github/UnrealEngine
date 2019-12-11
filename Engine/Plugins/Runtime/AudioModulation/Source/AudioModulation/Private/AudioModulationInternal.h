@@ -6,11 +6,12 @@
 #include "Containers/Queue.h"
 
 #include "AudioModulation.h"
+#include "IAudioExtensionPlugin.h"
+#include "SoundModulationProxy.h"
 #include "SoundModulatorBase.h"
 #include "SoundControlBus.h"
 #include "SoundControlBusMix.h"
 #include "SoundModulatorLFO.h"
-#include "IAudioExtensionPlugin.h"
 
 
 #if WITH_AUDIOMODULATION
@@ -30,7 +31,6 @@ namespace AudioModulation
 
 #if WITH_EDITOR
 		void OnEditPluginSettings(const USoundModulationPluginSourceSettingsBase& Settings);
-		void OnExitPIE(bool bSimulating);
 #endif // WITH_EDITOR
 
 		void OnInitSound(ISoundModulatable& InSound, const USoundModulationPluginSourceSettingsBase& Settings);
@@ -38,23 +38,23 @@ namespace AudioModulation
 		void OnReleaseSound(ISoundModulatable& InSound);
 		void OnReleaseSource(const uint32 InSourceId);
 
-		void ActivateBus(const USoundControlBusBase& InBus, const ISoundModulatable* Sound = nullptr);
-		void ActivateBusMix(const USoundControlBusMix& InBusMix, const ISoundModulatable* Sound = nullptr);
-		void ActivateLFO(const USoundBusModulatorLFO& InLFO, const ISoundModulatable* Sound = nullptr);
+		void ActivateBus(const USoundControlBusBase& InBus);
+		void ActivateBusMix(const USoundControlBusMix& InBusMix);
+		void ActivateLFO(const USoundBusModulatorLFO& InLFO);
+
+		float CalculateInitialVolume(const USoundModulationPluginSourceSettingsBase& InSettingsBase);
 
 		/**
-		 * Deactivates respective type if InSoundId is invalid (default behavior).  Only deactivates type if
-		 * provided a InSoundId that is releasing, type is set to AutoActivate, and sounds are no longer referencing type.
+		 * Deactivates respectively typed (i.e. BusMix, Bus, etc.) object proxy if no longer referenced.
+		 * If still referenced, will wait until references are finished before destroying.
 		 */
-		void DeactivateBusMix(const FBusMixId InBusMixId, const ISoundModulatable* Sound = nullptr);
-		void DeactivateBus(const FBusId InBusId, const ISoundModulatable* Sound = nullptr);
-		void DeactivateLFO(const FLFOId InLFOId, const ISoundModulatable* Sound = nullptr);
+		void DeactivateBus(const USoundControlBusBase& InBus);
+		void DeactivateBusMix(const USoundControlBusMix& InBusMix);
+		void DeactivateLFO(const USoundBusModulatorLFO& InLFO);
 
 		bool IsBusActive(const FBusId InBusId) const;
-		bool IsLFOActive(const FLFOId InLFOId) const;
 
-		void ProcessAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData);
-		void ProcessControls(const uint32 InSourceId, FSoundModulationControls& OutControls);
+		bool ProcessControls(const uint32 InSourceId, FSoundModulationControls& OutControls);
 		void ProcessModulators(const float Elapsed);
 
 		void UpdateMix(const USoundControlBusMix& InMix, const TArray<FSoundControlBusMixChannel>& InChannels);
@@ -62,12 +62,19 @@ namespace AudioModulation
 		void UpdateModulator(const USoundModulatorBase& InModulator);
 
 	private:
+		/** Calculates modulation value and returns updated value */
 		float CalculateModulationValue(FModulationPatchProxy& Proxy) const;
+
+		/* Calculates modulation value, storing it in the provided float reference and returns if value changed */
+		bool CalculateModulationValue(FModulationPatchProxy& Proxy, float& OutValue) const;
+
 		void RunCommandOnAudioThread(TFunction<void()> Cmd);
 
-		BusMixProxyMap ActiveBusMixes;
-		BusProxyMap    ActiveBuses;
-		LFOProxyMap    ActiveLFOs;
+		FReferencedProxies RefProxies;
+
+		TSet<FBusHandle>    ManuallyActivatedBuses;
+		TSet<FBusMixHandle> ManuallyActivatedBusMixes;
+		TSet<FLFOHandle>    ManuallyActivatedLFOs;
 
 		// Cache of SoundId to sound setting state at time of sound initialization.
 		TMap<uint32, FModulationSettingsProxy> SoundSettings;
@@ -83,8 +90,6 @@ namespace AudioModulation
 
 	private:
 		FAudioModulationDebugger Debugger;
-		ISoundModulatable* PreviewSound;
-		FModulationSettingsProxy PreviewSettings;
 #endif // !UE_BUILD_SHIPPING
 	};
 } // namespace AudioModulation
@@ -101,7 +106,6 @@ namespace AudioModulation
 
 #if WITH_EDITOR
 		void OnEditPluginSettings(const USoundModulationPluginSourceSettingsBase& Settings) { }
-		void OnExitPIE(bool bSimulating) { }
 #endif // WITH_EDITOR
 
 		void OnInitSound(ISoundModulatable& InSound, const USoundModulationPluginSourceSettingsBase& Settings) { }
@@ -115,26 +119,22 @@ namespace AudioModulation
 		bool OnToggleStat(FCommonViewportClient* ViewportClient, const TCHAR* Stream) { return false; }
 #endif // !UE_BUILD_SHIPPING
 
-		void ActivateBus(const USoundControlBusBase& InBus, const ISoundModulatable* Sound = nullptr) { }
-		void ActivateBusMix(const USoundControlBusMix& InBusMix, const ISoundModulatable* Sound = nullptr) { }
-		void ActivateLFO(const USoundBusModulatorLFO& InLFO, const ISoundModulatable* Sound = nullptr) { }
-		void DeactivateBusMix(const FBusMixId BusMixId, const ISoundModulatable* Sound = nullptr) { }
-		void DeactivateBus(const FBusId BusId, const ISoundModulatable* Sound = nullptr) { }
-		void DeactivateLFO(const FLFOId LFOId, const ISoundModulatable* Sound = nullptr) { }
+		void ActivateBus(const USoundControlBusBase& InBus) { }
+		void ActivateBusMix(const USoundControlBusMix& InBusMix) { }
+		void ActivateLFO(const USoundBusModulatorLFO& InLFO) { }
 
-		void ProcessAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData) { }
-		void ProcessControls(const uint32 InSourceId, FSoundModulationControls& OutControls) { }
+		float CalculateInitialVolume(const USoundModulationPluginSourceSettingsBase& InSettingsBase) { return 1.0f; }
+
+		void DeactivateBus(const USoundControlBusBase& InBus) { }
+		void DeactivateBusMix(const USoundControlBusBase& InBusMix) { }
+		void DeactivateLFO(const USoundBusModulatorLFO& InLFO) { }
+
+		bool ProcessControls(const uint32 InSourceId, FSoundModulationControls& OutControls) { return false; }
 		void ProcessModulators(const float Elapsed) { }
 
 		void UpdateMix(const USoundControlBusMix& InMix, const TArray<FSoundControlBusMixChannel>& InChannels) { }
 		void UpdateMixByFilter(const USoundControlBusMix& InMix, const FString& InAddressFilter, const TSubclassOf<USoundControlBusBase>& InClassFilter, const FSoundModulationValue& InValue) { }
 		void UpdateModulator(const USoundModulatorBase& InModulator) { }
-
-		void SetBusDefault(const USoundControlBusBase& InBus, const float Value) { }
-		void SetBusMin(const USoundControlBusBase& InBus, const float Value) { }
-		void SetBusMax(const USoundControlBusBase& InBus, const float Value) { }
-		void SetBusMixChannel(const USoundControlBusMix& InBusMix, const USoundControlBusBase& InBus, const float TargetValue) { }
-		void SetLFOFrequency(const USoundBusModulatorLFO& InLFO, const float Freq) { }
 	};
 } // namespace AudioModulation
 #endif // WITH_AUDIOMODULATION

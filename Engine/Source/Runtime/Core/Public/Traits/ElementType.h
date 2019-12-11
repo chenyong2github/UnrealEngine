@@ -3,6 +3,7 @@
 #pragma once
 
 #include <initializer_list>
+#include "Templates/RemoveCV.h"
 
 /**
  * Traits class which gets the element type of a container.

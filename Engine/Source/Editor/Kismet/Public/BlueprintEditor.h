@@ -45,6 +45,8 @@ class UUserDefinedEnum;
 class UUserDefinedStruct;
 class UBlueprintEditorOptions;
 struct Rect;
+class UToolMenu;
+struct FToolMenuContext;
 class UK2Node_FunctionEntry;
 class UK2Node_Event;
 
@@ -237,6 +239,9 @@ public:
 	FBlueprintEditor();
 
 	virtual ~FBlueprintEditor();
+
+	/** Add context objects for menus and toolbars */
+	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
 
 	/** Check the Node Title is visible */
 	bool IsNodeTitleVisible(const UEdGraphNode* Node, bool bRequestRename);
@@ -568,6 +573,12 @@ public:
 
 	/** Can generate native code for current blueprint */
 	bool CanGenerateNativeCode() const;
+
+	/** Dumps the current blueprint search index to a JSON file for debugging purposes */
+	void OnGenerateSearchIndexForDebugging();
+
+	/** Dumps the currently-cached index data for the blueprint to a file for debugging */
+	void OnDumpCachedIndexDataForBlueprint();
 
 	/**
 	 * Check to see if we can customize the SCS editor for the passed-in scene component

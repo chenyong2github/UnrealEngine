@@ -971,10 +971,11 @@ namespace UnrealGameSync
             this.SyncContextMenu_LatestStarredChange.Name = "SyncContextMenu_LatestStarredChange";
             this.SyncContextMenu_LatestStarredChange.Size = new System.Drawing.Size(189, 22);
             this.SyncContextMenu_LatestStarredChange.Text = "Latest Starred Change";
-            // 
-            // toolStripSeparator8
-            // 
-            this.toolStripSeparator8.Name = "toolStripSeparator8";
+			this.SyncContextMenu_LatestStarredChange.Click += new System.EventHandler(SyncContextMenu_LatestStarredChange_Click);
+			// 
+			// toolStripSeparator8
+			// 
+			this.toolStripSeparator8.Name = "toolStripSeparator8";
             this.toolStripSeparator8.Size = new System.Drawing.Size(186, 6);
             // 
             // SyncContexMenu_EnterChangelist

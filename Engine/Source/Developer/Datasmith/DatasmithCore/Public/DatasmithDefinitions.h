@@ -335,6 +335,26 @@ enum class EDatasmithCompletionMode : uint8
 	ProjectDefault,
 };
 
+/**
+ * Describes a category of an UPropertyValue asset, indicating types of
+ * properties that require special handling for any reason.
+ * Mirrors EPropertyValueCategory
+ */
+UENUM()
+enum class EDatasmithPropertyCategory : uint8
+{
+	Undefined = 0,
+	Generic = 1,
+	RelativeLocation = 2,
+	RelativeRotation = 4,
+	RelativeScale3D = 8,
+	Visibility = 16,
+	Material = 32,
+	Color = 64,
+	Option = 128
+};
+ENUM_CLASS_FLAGS(EDatasmithPropertyCategory)
+
 static const TCHAR* KeyValuePropertyTypeStrings[] = { TEXT("String"), TEXT("Color"), TEXT("Float"), TEXT("Bool"), TEXT("Texture"), TEXT("Vector") };
 
 // HOST NAME

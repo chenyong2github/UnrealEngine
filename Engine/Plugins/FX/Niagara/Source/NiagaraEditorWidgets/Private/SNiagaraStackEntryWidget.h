@@ -19,12 +19,16 @@ public:
 
 	void Construct(const FArguments& InArgs, UNiagaraStackEntry& InStackEntry, UNiagaraStackViewModel& InStackViewModel, FName InTextStyleName);
 
+	~SNiagaraStackDisplayName();
+
 private:
 	TSharedRef<SWidget> ConstructChildren();
 
 	FText GetTopLevelDisplayName(TWeakPtr<UNiagaraStackViewModel::FTopLevelViewModel> TopLevelViewModelWeak) const;
 
 	void StackViewModelStructureChanged();
+
+	bool GetIsEnabled() const;
 
 private:
 	UNiagaraStackEntry* StackEntry;

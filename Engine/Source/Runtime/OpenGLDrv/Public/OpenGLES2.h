@@ -933,8 +933,6 @@ public:
 #define GL_MAX_SAMPLES 0x8D57
 #else
 // In native OpenGL ES 2.0, define to zero things that are not available.
-// In HTML5 however, always query from the browser what the supported
-// values are.
 #define GL_MAX_3D_TEXTURE_SIZE 0	//0x8073
 #define GL_MAX_COLOR_ATTACHMENTS 0	//0x8CDF
 #define GL_MAX_SAMPLES 0	//0x8D57

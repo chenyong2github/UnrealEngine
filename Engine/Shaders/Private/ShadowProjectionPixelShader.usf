@@ -51,6 +51,9 @@ float ShadowFadeFraction;
 float ShadowSharpen;
 float4 LightPositionAndInvRadius;
 
+float PerObjectShadowFadeStart;
+float InvPerObjectShadowFadeLength;
+
 #if USE_TRANSMISSION
 	#include "TransmissionThickness.ush"
 #else
@@ -116,7 +119,7 @@ void Main(
 #if SUBPIXEL_SHADOW
 	const uint3 PixelCoord = uint3(floor(SVPos.xy), 0);
 	const FCategorizationData CategorizationData = DecodeCategorizationData(HairCategorizationTexture.Load(PixelCoord));
-	if (CategorizationData.TotalCoverage8bit > 0)
+	if (CategorizationData.PixelCoverage > 0)
 	{
 		SceneW = ConvertFromDeviceZ(CategorizationData.ClosestDepth);
 		bIsSubsurfaceCompatible = false;
@@ -159,6 +162,8 @@ void Main(
 	// Must not clamp for SSS shadowing, the subsurface gradient must continue past the far plane
 	float LightSpacePixelDepthForSSS = ShadowZ;
 
+	// fade out per-object shadow before cut-off, goes from 1 at start of fade plane to 0 at the end of the fade length.
+	float PerObjectDistanceFadeFraction = 1.0f - saturate((LightSpacePixelDepthForSSS - PerObjectShadowFadeStart) * InvPerObjectShadowFadeLength);
 
 	float Shadow = 1;
 	float SSSTransmission = 1;
@@ -305,7 +310,7 @@ void Main(
 
 	// 0 is shadowed, 1 is unshadowed
 	// RETURN_COLOR not needed unless writing to SceneColor;
-	float FadedShadow = lerp(1.0f, Square(Shadow), ShadowFadeFraction);
+	float FadedShadow = lerp(1.0f, Square(Shadow), ShadowFadeFraction * PerObjectDistanceFadeFraction);
 
 #if FORWARD_SHADING
 	float LightInfluenceMask = GetLightInfluenceMask(WorldPosition);
@@ -314,7 +319,7 @@ void Main(
 	// Write into all channels, the write mask will constrain to the correct one
 	OutColor = EncodeLightAttenuation(FadedShadow);
 #else
-	float FadedSSSShadow = lerp(1.0f, Square(SSSTransmission), ShadowFadeFraction);
+	float FadedSSSShadow = lerp(1.0f, Square(SSSTransmission), ShadowFadeFraction * PerObjectDistanceFadeFraction);
 
 	// the channel assignment is documented in ShadowRendering.cpp (look for Light Attenuation channel assignment)
 	OutColor = EncodeLightAttenuation(half4(FadedShadow, FadedSSSShadow, FadedShadow, FadedSSSShadow));

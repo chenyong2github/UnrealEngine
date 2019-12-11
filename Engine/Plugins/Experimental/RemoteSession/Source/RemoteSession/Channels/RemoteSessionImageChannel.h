@@ -23,11 +23,42 @@ public:
 };
 
 /**
- *	A channel that take an image, encodes it as a jpg in an async task, then sends it to the client.
+ *	A channel that takes an image (created by an IRemoteSessionImageProvider), then sends it to the client (with a FRemoteSessionImageSender).
  *	On the client images are decoded into a double-buffered texture that can be accessed via GetHostScreen.
  */
 class REMOTESESSION_API FRemoteSessionImageChannel : public IRemoteSessionChannel, FRunnable
 {
+public:
+
+	/**
+	*	A helper object responsible to take the raw data, encode it to jpg and send it to the client for the RemoteSessionImageChannel
+	*/
+	class FImageSender
+	{
+	public:
+  
+		FImageSender(TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection);
+  
+		/** Set the jpg compression quality */
+		void SetCompressQuality(int32 InQuality);
+  
+		/** Send an image to the connected clients */
+		void SendRawImageToClients(int32 Width, int32 Height, const TArray<FColor>& ImageData);
+  
+		/** Send an image to the connected clients */
+		void SendRawImageToClients(int32 Width, int32 Height, const void* ImageData, int32 AllocatedImageDataSize);
+  
+	private:
+  
+		/** Underlying connection */
+		TWeakPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> Connection;
+  
+		/** Compression quality of the raw image we wish to send to client */
+		TAtomic<int32> CompressQuality;
+  
+		int32 NumSentImages;
+	};
+
 public:
 
 	FRemoteSessionImageChannel(ERemoteSessionChannelMode InRole, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection);
@@ -46,11 +77,8 @@ public:
 	/** Set the jpg compression quality */
 	void SetCompressQuality(int32 InQuality);
 
-	/** Send an image to the connected clients */
-	void SendRawImageToClients(int32 Width, int32 Height, const TArray<FColor>& ImageData);
-
-	/** Send an image to the connected clients */
-	void SendRawImageToClients(int32 Width, int32 Height, const void* ImageData, int32 AllocatedImageDataSize);
+	/** Return the image sender connected to the clients */
+	TSharedPtr<FRemoteSessionImageChannel::FImageSender, ESPMode::ThreadSafe> GetImageSender() { return ImageSender; }
 
 	/* Begin IRemoteSessionChannel implementation */
 	static const TCHAR* StaticType() { return TEXT("FRemoteSessionImageChannel"); }
@@ -89,18 +117,16 @@ protected:
 	};
 
 	FCriticalSection										IncomingImageMutex;
-	TArray<TSharedPtr<FImageData, ESPMode::ThreadSafe>>		IncomingEncodedImages;
+	TArray<TUniquePtr<FImageData>>							IncomingEncodedImages;
 
 	FCriticalSection										DecodedImageMutex;
-	TArray<TSharedPtr<FImageData, ESPMode::ThreadSafe>>		IncomingDecodedImages;
+	TArray<TUniquePtr<FImageData>>							IncomingDecodedImages;
 
 	UTexture2D*												DecodedTextures[2];
-	int32													DecodedTextureIndex;
+	TSharedPtr<TAtomic<int32>, ESPMode::ThreadSafe>			DecodedTextureIndex;
 
-	int32													NumSentImages;
-
-	/** Compression quality of the raw image we wish to send to client */
-	int32 CompressQuality;
+	/** Image sender used by the channel */
+	TSharedPtr<FImageSender, ESPMode::ThreadSafe> ImageSender;
 
 	/** So we can manage callback lifetimes properly */
 	FDelegateHandle MessageCallbackHandle;

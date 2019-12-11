@@ -21,6 +21,7 @@ namespace UnrealBuildTool.Rules
 					"MainFrame",
 					"Slate",
 					"SlateCore",
+					"Projects",
 					"UnrealEd",
 					"AssetTools",
 				});

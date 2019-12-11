@@ -23,6 +23,7 @@ void UAxisAngleGizmo::Setup()
 
 	// Add default mouse input behavior
 	UClickDragInputBehavior* MouseBehavior = NewObject<UClickDragInputBehavior>();
+	MouseBehavior->Modifiers.RegisterModifier(SnapAngleModifierID, FInputDeviceState::IsShiftKeyDown);
 	MouseBehavior->Initialize(this);
 	MouseBehavior->SetDefaultPriority(FInputCapturePriority(FInputCapturePriority::DEFAULT_GIZMO_PRIORITY));
 	AddInputBehavior(MouseBehavior);
@@ -37,6 +38,15 @@ void UAxisAngleGizmo::Setup()
 	StateTarget = NewObject<UGizmoNilStateTarget>(this);
 
 	bInInteraction = false;
+}
+
+
+void UAxisAngleGizmo::OnUpdateModifierState(int ModifierID, bool bIsOn)
+{
+	if (ModifierID == SnapAngleModifierID)
+	{
+		bEnableSnapAngleModifier = bIsOn;
+	}
 }
 
 
@@ -96,6 +106,39 @@ void UAxisAngleGizmo::OnClickPress(const FInputDeviceRay& PressPos)
 }
 
 
+// these functions should move to a utility namespace
+
+static float SnapToIncrement(float fValue, float fIncrement, float offset = 0)
+{
+	if (!FMath::IsFinite(fValue))
+	{
+		return 0;
+	}
+	fValue -= offset;
+	float sign = FMath::Sign(fValue);
+	fValue = FMath::Abs(fValue);
+	int nInc = (int)(fValue / fIncrement);
+	float fRem = (float)fmod(fValue, fIncrement);
+	if (fRem > fIncrement / 2)
+	{
+		++nInc;
+	}
+	return sign * (float)nInc * fIncrement + offset;
+}
+
+
+static float SnapToNearbyIncrement(float fValue, float fIncrement, float fTolerance)
+{
+	float snapped = SnapToIncrement(fValue, fIncrement);
+	if (FMath::Abs(snapped - fValue) < fTolerance)
+	{
+		return snapped;
+	}
+	return fValue;
+}
+
+
+
 void UAxisAngleGizmo::OnClickDrag(const FInputDeviceRay& DragPos)
 {
 	check(bInInteraction);
@@ -117,6 +160,10 @@ void UAxisAngleGizmo::OnClickDrag(const FInputDeviceRay& DragPos)
 		RotationOrigin, RotationAxis, RotationPlaneX, RotationPlaneY);
 
 	float DeltaAngle = InteractionCurAngle - InteractionStartAngle;
+	if (bEnableSnapAngleModifier)
+	{
+		DeltaAngle = SnapToIncrement(DeltaAngle, 3.14159f / 4.0f);				// hardcoded 45-degree snap
+	}
 	float NewAngle = InitialTargetAngle + DeltaAngle;
 
 	AngleSource->SetParameter(NewAngle);

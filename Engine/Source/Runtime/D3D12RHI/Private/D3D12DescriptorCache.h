@@ -561,7 +561,6 @@ public:
 #endif
 	TRefCountPtr<FD3D12SamplerState> pDefaultSampler;
 
-	void SetIndexBuffer(FD3D12IndexBufferCache& Cache);
 	void SetVertexBuffers(FD3D12VertexBufferCache& Cache);
 	void SetRenderTargets(FD3D12RenderTargetView** RenderTargetViewArray, uint32 Count, FD3D12DepthStencilView* DepthStencilTarget);
 

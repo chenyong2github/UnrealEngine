@@ -24,8 +24,6 @@
 
 #include "AnimCompressionTypes.generated.h"
 
-CSV_DECLARE_CATEGORY_EXTERN(Animation);
-
 /**
  * Indicates animation data key format.
  */
@@ -560,6 +558,11 @@ public:
 		bool HasAllocation() const
 		{
 			return !!Data;
+		}
+
+		SizeType GetInitialCapacity() const
+		{
+			return 0;
 		}
 
 		void AcceptFileMapping(IMappedFileHandle* InMappedHandle, IMappedFileRegion* InMappedRegion, void *MallocPtr)

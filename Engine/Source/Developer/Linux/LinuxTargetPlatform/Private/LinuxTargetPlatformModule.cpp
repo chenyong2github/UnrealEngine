@@ -24,7 +24,7 @@ static ITargetPlatform* Singleton = NULL;
 
 
 /**
- * Module for the Android target platform.
+ * Module for the Linux target platform.
  */
 class FLinuxTargetPlatformModule
 	: public ITargetPlatformModule

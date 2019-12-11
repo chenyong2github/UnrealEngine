@@ -11,6 +11,7 @@
 #include "Chaos/UniformGrid.h"
 #include "Chaos/ISpatialAcceleration.h"
 #include "ChaosStats.h"
+#include "ChaosLog.h"
 #include "HAL/IConsoleManager.h"
 #include "Chaos/ParticleHandleFwd.h"
 #include "Templates/Models.h"
@@ -123,6 +124,7 @@ class TBoundingVolume final : public ISpatialAcceleration<InPayloadType, T,d>
 	static constexpr ESpatialAcceleration StaticType = ESpatialAcceleration::BoundingVolume;
 	TBoundingVolume()
 		: ISpatialAcceleration<InPayloadType, T, d>(StaticType)
+		, MaxPayloadBounds(DefaultMaxPayloadBounds)
 	{
 	}
 
@@ -255,390 +257,45 @@ public:
 		return MGlobalPayloads;
 	}
 
-	virtual void Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T OriginalLength, ISpatialVisitor<TPayloadType, T>& Visitor) const override
+	virtual void Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T Length, ISpatialVisitor<TPayloadType, T>& Visitor) const override
 	{
 		TSpatialVisitor<TPayloadType, T> ProxyVisitor(Visitor);
-		Raycast(Start, Dir, OriginalLength, ProxyVisitor);
+		return Raycast(Start, Dir, Length, ProxyVisitor);
 	}
 
 	template <typename SQVisitor>
-	bool RaycastFast(const TVector<T,d>& Start, const TVector<T,d>& Dir, const TVector<T,d>& InvDir, const bool* bParallel, T& CurrentLength, T& InvCurrentLength, SQVisitor& Visitor) const
+	bool RaycastFast(const TVector<T,d>& Start, FQueryFastData& CurData, SQVisitor& Visitor) const
 	{
-		if (Raycast(Start, Dir, CurrentLength, Visitor))
-		{
-			InvCurrentLength = 1 / CurrentLength;
-			return true;
-		}
-		return false;
+		return RaycastImp(Start, CurData, Visitor);
 	}
 
 	template <typename SQVisitor, bool bPruneDuplicates = true>
-	bool Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T OriginalLength, SQVisitor& Visitor) const
+	void Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T Length, SQVisitor& Visitor) const
 	{
-		T CurrentLength = OriginalLength;
-
-		bool bParallel[d];
-		TVector<T, d> InvDir;
-
-		T InvCurrentLength = 1 / CurrentLength;
-		for (int Axis = 0; Axis < d; ++Axis)
-		{
-			bParallel[Axis] = Dir[Axis] == 0;
-			InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
-		}
-
-		TVector<T, d> TmpPosition;
-		T TOI;
-
-		for (const auto& Elem : MGlobalPayloads)
-		{
-			const auto& InstanceBounds = Elem.Bounds;
-			if (TBox<T, d>::RaycastFast(InstanceBounds.Min(), InstanceBounds.Max(), Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, TOI, TmpPosition))
-			{
-				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
-				const bool bContinue = Visitor.VisitRaycast(VisitData, CurrentLength);
-				if (!bContinue)
-				{
-					return false;
-				}
-				InvCurrentLength = 1 / CurrentLength;
-			}
-		}
-
-		for (const auto& Elem : MDirtyElements)
-		{
-			const auto& InstanceBounds = Elem.Bounds;
-			if (TBox<T, d>::RaycastFast(InstanceBounds.Min(), InstanceBounds.Max(), Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, TOI, TmpPosition))
-			{
-				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
-				const bool bContinue = Visitor.VisitRaycast(VisitData, CurrentLength);
-				if (!bContinue)
-				{
-					return false;
-				}
-				InvCurrentLength = 1 / CurrentLength;
-			}
-		}
-
-		TBox<T, d> GlobalBounds(MGrid.MinCorner(), MGrid.MaxCorner());
-		TVector<T, d> NextStart;
-		TVector<int32, d> CellIdx;
-		bool bCellsLeft = MElements.Num() && TBox<T,d>::RaycastFast(GlobalBounds.Min(), GlobalBounds.Max(), Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, TOI, NextStart);
-		if (bCellsLeft)
-		{
-			CellIdx = MGrid.Cell(NextStart);
-			CellIdx = MGrid.ClampIndex(CellIdx);	//raycast may have ended slightly outside of grid
-			FGridSet CellsVisited(MGrid.Counts());
-
-			do
-			{
-				//gather all instances in current cell whose bounds intersect with ray
-				const auto& Elems = MElements(CellIdx);
-				//should we let callback know about max potential?
-
-				for (const auto& Elem : Elems)
-				{
-					if (bPruneDuplicates)
-					{
-
-						bool bSkip = false;
-						if (Elem.StartIdx[0] != Elem.EndIdx[0] || Elem.StartIdx[1] != Elem.EndIdx[1] || Elem.StartIdx[2] != Elem.EndIdx[2])
-						{
-							for (int32 X = Elem.StartIdx[0]; X <= Elem.EndIdx[0]; ++X)
-							{
-								for (int32 Y = Elem.StartIdx[1]; Y <= Elem.EndIdx[1]; ++Y)
-								{
-									for (int32 Z = Elem.StartIdx[2]; Z <= Elem.EndIdx[2]; ++Z)
-									{
-										if (CellsVisited.Contains(TVector<int32, 3>(X, Y, Z)))
-										{
-											bSkip = true;
-											break;
-										}
-									}
-								}
-							}
-
-							if (bSkip)
-							{
-								continue;
-							}
-						}
-					}
-					const auto& InstanceBounds = Elem.Bounds;
-					if (TBox<T,d>::RaycastFast(InstanceBounds.Min(), InstanceBounds.Max(), Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, TOI, TmpPosition))
-					{
-						TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
-						const bool bContinue = Visitor.VisitRaycast(VisitData, CurrentLength);
-						if (!bContinue)
-						{
-							return false;
-						}
-						InvCurrentLength = 1 / CurrentLength;
-					}
-				}
-
-				CellsVisited.Add(CellIdx);
-
-
-				//find next cell
-
-				//We want to know which plane we used to cross into next cell
-				const TVector<T, d> CellCenter = MGrid.Location(CellIdx);
-				const TVector<T, d>& Dx = MGrid.Dx();
-
-				T Times[3];
-				T BestTime = CurrentLength;
-				bool bTerminate = true;
-				for (int Axis = 0; Axis < d; ++Axis)
-				{
-					if (!bParallel[Axis])
-					{
-						const T CrossPoint = Dir[Axis] > 0 ? CellCenter[Axis] + Dx[Axis] / 2 : CellCenter[Axis] - Dx[Axis] / 2;
-						const T Distance = CrossPoint - NextStart[Axis];	//note: CellCenter already has /2, we probably want to use the corner instead
-						const T Time = Distance * InvDir[Axis];
-						Times[Axis] = Time;
-						if (Time < BestTime)
-						{
-							bTerminate = false;	//found at least one plane to pass through
-							BestTime = Time;
-						}
-					}
-					else
-					{
-						Times[Axis] = TNumericLimits<T>::Max();
-					}
-				}
-
-				if (bTerminate)
-				{
-					return true;
-				}
-
-				for (int Axis = 0; Axis < d; ++Axis)
-				{
-					constexpr T Epsilon = 1e-2;	//if raycast is slightly off we still count it as hitting the cell surface
-					CellIdx[Axis] += (Times[Axis] <= BestTime + Epsilon) ? (Dir[Axis] > 0 ? 1 : -1) : 0;
-					if (CellIdx[Axis] < 0 || CellIdx[Axis] >= MGrid.Counts()[Axis])
-					{
-						return true;
-					}
-				}
-
-				NextStart = NextStart + Dir * BestTime;
-			} while (true);
-		}
-		
-		return true;
+		FQueryFastData CurData(Dir, Length); 
+		RaycastImp<SQVisitor, bPruneDuplicates>(Start, CurData, Visitor);
 	}
 
-	void Sweep(const TVector<T, d>& Start, const TVector<T, d>& Dir, T OriginalLength, const TVector<T, d> QueryHalfExtents, ISpatialVisitor<TPayloadType, T>& Visitor) const override
+	void Sweep(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T Length, const TVector<T, d> QueryHalfExtents, ISpatialVisitor<TPayloadType, T>& Visitor) const override
 	{
 		TSpatialVisitor<TPayloadType, T> ProxyVisitor(Visitor);
-		Sweep(Start, Dir, OriginalLength, QueryHalfExtents, ProxyVisitor);
+		Sweep(Start, Dir, Length, QueryHalfExtents, ProxyVisitor);
 	}
 
 	template <typename SQVisitor>
-	bool SweepFast(const TVector<T,d>& Start, const TVector<T,d>& Dir, const TVector<T,d>& InvDir, const bool* bParallel, T& CurrentLength, T& InvCurrentLength, const TVector<T,d>& QueryHalfExtents, SQVisitor& Visitor) const
+	bool SweepFast(const TVector<T,d>& Start, FQueryFastData& CurData, const TVector<T,d>& QueryHalfExtents, SQVisitor& Visitor) const
 	{
-		if (Sweep(Start, Dir, CurrentLength, QueryHalfExtents, Visitor))
-		{
-			InvCurrentLength = 1 / CurrentLength;
-			return true;
-		}
-		return false;
+		return SweepImp(Start, CurData, QueryHalfExtents, Visitor);
 	}
 
 	template <typename SQVisitor, bool bPruneDuplicates = true>
-	bool Sweep(const TVector<T, d>& Start, const TVector<T, d>& Dir, T OriginalLength, const TVector<T, d> QueryHalfExtents, SQVisitor& Visitor) const
+	void Sweep(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T Length, const TVector<T, d> QueryHalfExtents, SQVisitor& Visitor) const
 	{
-		T CurrentLength = OriginalLength;
-
-		T TOI = 0;	//not needed, but fixes compiler warning
-		bool bParallel[d];
-		TVector<T, d> InvDir;
-
-		T InvCurrentLength = 1 / CurrentLength;
-		for (int Axis = 0; Axis < d; ++Axis)
-		{
-			bParallel[Axis] = Dir[Axis] == 0;
-			InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
-		}
-
-		for (const auto& Elem : MGlobalPayloads)
-		{
-			const TBox<T, d>& InstanceBounds = Elem.Bounds;
-			const TVector<T, d> Min = InstanceBounds.Min() - QueryHalfExtents;
-			const TVector<T, d> Max = InstanceBounds.Max() + QueryHalfExtents;
-			TVector<T, d> TmpPosition;
-			if (TBox<T, d>::RaycastFast(Min, Max, Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, TOI, TmpPosition))
-			{
-				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
-				const bool bContinue = Visitor.VisitSweep(VisitData, CurrentLength);
-				if (!bContinue)
-				{
-					return false;
-				}
-				InvCurrentLength = 1 / CurrentLength;
-			}
-		}
-
-		for (const auto& Elem : MDirtyElements)
-		{
-			const TBox<T, d>& InstanceBounds = Elem.Bounds;
-			const TVector<T, d> Min = InstanceBounds.Min() - QueryHalfExtents;
-			const TVector<T, d> Max = InstanceBounds.Max() + QueryHalfExtents;
-			TVector<T, d> TmpPosition;
-			if (TBox<T, d>::RaycastFast(Min, Max, Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, TOI, TmpPosition))
-			{
-				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
-				const bool bContinue = Visitor.VisitSweep(VisitData, CurrentLength);
-				if (!bContinue)
-				{
-					return false;
-				}
-				InvCurrentLength = 1 / CurrentLength;
-			}
-		}
-
-		if (MElements.Num() == 0)
-		{
-			return true;
-		}
-
-		TBox<T, d> GlobalBounds(MGrid.MinCorner() - QueryHalfExtents, MGrid.MaxCorner() + QueryHalfExtents);
-		
-
-		struct FCellIntersection
-		{
-			TVector<int32, d> CellIdx;
-			T TOI;
-		};
-
-		
-		TVector<T, d> HitPoint;
-		FGridSet IdxsSeen(MGrid.Counts());
-		FGridSet CellsVisited(MGrid.Counts());
-		const bool bInitialHit = TBox<T,d>::RaycastFast(GlobalBounds.Min(), GlobalBounds.Max(), Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, TOI, HitPoint);
-		if (bInitialHit)
-		{
-			//Flood fill from inflated cell so that we get all cells along the ray
-			TVector<int32, d> HitCellIdx = MGrid.Cell(HitPoint);
-			HitCellIdx = MGrid.ClampIndex(HitCellIdx);	//inflation means we likely are outside grid, just get closest cell
-
-			TArray<FCellIntersection> IdxsQueue;	//cells we need to visit
-			IdxsQueue.Add({ HitCellIdx, TOI });
-
-			const TVector<T, d> HalfDx = MGrid.Dx() * (T)0.5;
-
-			int32 QueueIdx = 0;	//FIFO because early cells are more likely to block later cells we can skip
-			while (QueueIdx < IdxsQueue.Num())
-			{
-				const FCellIntersection CellIntersection = IdxsQueue[QueueIdx++];
-				if (CellIntersection.TOI > CurrentLength)
-				{
-					continue;
-				}
-
-				//ray still visiting this cell so check all neighbors
-				check(d == 3);
-				static const TVector<int32, 3> Neighbors[] =
-				{
-					//grid on z=-1 plane
-					{-1, -1, -1}, {0, -1, -1}, {1, -1, -1},
-					{-1, 0, -1}, {0, 0, -1}, {1, 0, -1},
-					{-1, 1, -1}, {0, 1, -1}, {1, 1, -1},
-
-					//grid on z=0 plane
-					{-1, -1, 0}, {0, -1, 0}, {1, -1, 0},
-					{-1, 0, 0},			 {1, 0, 0},
-					{-1, 1, 0}, {0, 1, 0}, {1, 0, 0},
-
-					//grid on z=1 plane
-					{-1, -1, 1}, {0, -1, 1}, {1, -1, 1},
-					{-1, 0, 1}, {0, 0, 1}, {1, 0, 1},
-					{-1, 1, 1}, {0, 1, 1}, {1, 1, 1}
-				};
-
-				for (const TVector<int32, 3>& Neighbor : Neighbors)
-				{
-					const TVector<int32, 3> NeighborIdx = Neighbor + CellIntersection.CellIdx;
-					bool bSkip = false;
-					for (int32 Axis = 0; Axis < d; ++Axis)
-					{
-						if (NeighborIdx[Axis] < 0 || NeighborIdx[Axis] >= MGrid.Counts()[Axis])
-						{
-							bSkip = true;
-							break;
-						}
-					}
-					if (!bSkip && !IdxsSeen.Contains(NeighborIdx))
-					{
-						IdxsSeen.Add(NeighborIdx);
-
-						const TVector<T, d> NeighborCenter = MGrid.Location(NeighborIdx);
-						const TVector<T, d> Min = NeighborCenter - QueryHalfExtents - HalfDx;
-						const TVector<T, d> Max = NeighborCenter + QueryHalfExtents + HalfDx;
-						if (TBox<T,d>::RaycastFast(Min, Max, Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, TOI, HitPoint))
-						{
-							IdxsQueue.Add({ NeighborIdx, TOI });	//should we sort by TOI?
-						}
-					}
-				}
-
-				//check if any instances in the cell are hit
-				const auto& Elems = MElements(CellIntersection.CellIdx);
-				for (const auto& Elem : Elems)
-				{
-					if (bPruneDuplicates)
-					{
-						bool bSkip = false;
-						if (Elem.StartIdx[0] != Elem.EndIdx[0] || Elem.StartIdx[1] != Elem.EndIdx[1] || Elem.StartIdx[2] != Elem.EndIdx[2])
-						{
-							for (int32 X = Elem.StartIdx[0]; X <= Elem.EndIdx[0]; ++X)
-							{
-								for (int32 Y = Elem.StartIdx[1]; Y <= Elem.EndIdx[1]; ++Y)
-								{
-									for (int32 Z = Elem.StartIdx[2]; Z <= Elem.EndIdx[2]; ++Z)
-									{
-										if (CellsVisited.Contains(TVector<int32,3>(X,Y,Z)))
-										{
-											bSkip = true;
-											break;
-										}
-									}
-								}
-							}
-
-							if (bSkip)
-							{
-								continue;
-							}
-						}
-					}
-
-					const TBox<T, d>& InstanceBounds = Elem.Bounds;
-					const TVector<T, d> Min = InstanceBounds.Min() - QueryHalfExtents;
-					const TVector<T, d> Max = InstanceBounds.Max() + QueryHalfExtents;
-					if (TBox<T,d>::RaycastFast(Min, Max, Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, TOI, HitPoint))
-					{
-						TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
-						const bool bContinue = Visitor.VisitSweep(VisitData, CurrentLength);
-						if (!bContinue)
-						{
-							return false;
-						}
-						InvCurrentLength = 1 / CurrentLength;
-					}
-				}
-				CellsVisited.Add(CellIntersection.CellIdx);
-			}
-		}
-
-		return true;
+		FQueryFastData CurData(Dir, Length);
+		SweepImp<SQVisitor, bPruneDuplicates>(Start, CurData, QueryHalfExtents, Visitor);
 	}
 
-	void Overlap(const TBox<T, d>& QueryBounds, ISpatialVisitor<TPayloadType, T>& Visitor) const override
+	virtual void Overlap(const TBox<T, d>& QueryBounds, ISpatialVisitor<TPayloadType, T>& Visitor) const override
 	{
 		TSpatialVisitor<TPayloadType, T> ProxyVisitor(Visitor);
 		Overlap(QueryBounds, ProxyVisitor);
@@ -647,76 +304,13 @@ public:
 	template <typename SQVisitor>
 	bool OverlapFast(const TBox<T, d>& QueryBounds, SQVisitor& Visitor) const
 	{
-		return Overlap(QueryBounds, Visitor);
+		return OverlapImp(QueryBounds, Visitor);
 	}
 
 	template <typename SQVisitor, bool bPruneDuplicates = true>
-	bool Overlap(const TBox<T, d>& QueryBounds, SQVisitor& Visitor) const
+	void Overlap(const TBox<T, d>& QueryBounds, SQVisitor& Visitor) const
 	{
-		for (const auto& Elem : MGlobalPayloads)
-		{
-			const TBox<T, d>& InstanceBounds = Elem.Bounds;
-			if (QueryBounds.Intersects(InstanceBounds))
-			{
-				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
-				if (Visitor.VisitOverlap(VisitData) == false)
-				{
-					return false;
-				}
-			}
-		}
-
-		for (const auto& Elem : MDirtyElements)
-		{
-			const TBox<T, d>& InstanceBounds = Elem.Bounds;
-			if (QueryBounds.Intersects(InstanceBounds))
-			{
-				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
-				if (Visitor.VisitOverlap(VisitData) == false)
-				{
-					return false;
-				}
-			}
-		}
-
-		TBox<T, d> GlobalBounds(MGrid.MinCorner(), MGrid.MaxCorner());
-
-		const TVector<int32, d> StartIndex = MGrid.ClampIndex(MGrid.Cell(QueryBounds.Min()));
-		const TVector<int32, d> EndIndex = MGrid.ClampIndex(MGrid.Cell(QueryBounds.Max()));
-		TSet<TPayloadType> InstancesSeen;
-
-		for (int32 X = StartIndex[0]; X <= EndIndex[0]; ++X)
-		{
-			for (int32 Y = StartIndex[1]; Y <= EndIndex[1]; ++Y)
-			{
-				for (int32 Z = StartIndex[2]; Z <= EndIndex[2]; ++Z)
-				{
-					const auto& Elems = MElements(X, Y, Z);
-					for (const auto& Elem : Elems)
-					{
-						if (bPruneDuplicates)
-						{
-							if (InstancesSeen.Contains(Elem.Payload))
-							{
-								continue;
-							}
-							InstancesSeen.Add(Elem.Payload);
-						}
-						const TBox<T, d>& InstanceBounds = Elem.Bounds;
-						if (QueryBounds.Intersects(InstanceBounds))
-						{
-							TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
-							if (Visitor.VisitOverlap(VisitData) == false)
-							{
-								return false;
-							}
-						}
-					}
-				}
-			}
-		}
-
-		return true;
+		OverlapImp<SQVisitor, bPruneDuplicates>(QueryBounds, Visitor);
 	}
 
 	virtual void Serialize(FChaosArchive& Ar) override
@@ -764,9 +358,473 @@ private:
 	using FCellElement = TBVCellElement<TPayloadType, T, d>;
 	using FPayloadInfo = TBVPayloadInfo<T, d>;
 
+	template <typename SQVisitor, bool bPruneDuplicates = true>
+	bool RaycastImp(const TVector<T, d>& Start, FQueryFastData& CurData, SQVisitor& Visitor) const
+	{
+		TVector<T, d> TmpPosition;
+		T TOI;
+
+		for (const auto& Elem : MGlobalPayloads)
+		{
+			const auto& InstanceBounds = Elem.Bounds;
+			if (TBox<T, d>::RaycastFast(InstanceBounds.Min(), InstanceBounds.Max(), Start,
+				CurData.Dir, CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPosition))
+			{
+				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
+				const bool bContinue = Visitor.VisitRaycast(VisitData, CurData);
+
+				if (!bContinue)
+				{
+					return false;
+				}
+			}
+		}
+
+		for (const auto& Elem : MDirtyElements)
+		{
+			const auto& InstanceBounds = Elem.Bounds;
+			if (TBox<T, d>::RaycastFast(InstanceBounds.Min(), InstanceBounds.Max(), Start, CurData.Dir,
+				CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPosition))
+			{
+				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
+				const bool bContinue = Visitor.VisitRaycast(VisitData, CurData);
+				if (!bContinue)
+				{
+					return false;
+				}
+			}
+		}
+
+		if (bIsEmpty)
+		{
+			return true;
+		}
+
+		TBox<T, d> GlobalBounds(MGrid.MinCorner(), MGrid.MaxCorner());
+		TVector<T, d> NextStart;
+		TVector<int32, d> CellIdx;
+		bool bCellsLeft = MElements.Num() && TBox<T, d>::RaycastFast(GlobalBounds.Min(), GlobalBounds.Max(), Start, CurData.Dir,
+			CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, NextStart);
+		if (bCellsLeft)
+		{
+			CellIdx = MGrid.Cell(NextStart);
+			CellIdx = MGrid.ClampIndex(CellIdx);	//raycast may have ended slightly outside of grid
+			FGridSet CellsVisited(MGrid.Counts());
+
+			do
+			{
+				//gather all instances in current cell whose bounds intersect with ray
+				const auto& Elems = MElements(CellIdx);
+				//should we let callback know about max potential?
+
+				for (const auto& Elem : Elems)
+				{
+					if (bPruneDuplicates)
+					{
+						bool bSkip = false;
+						if (Elem.StartIdx[0] != Elem.EndIdx[0] || Elem.StartIdx[1] != Elem.EndIdx[1] || Elem.StartIdx[2] != Elem.EndIdx[2])
+						{
+							for (int32 X = Elem.StartIdx[0]; X <= Elem.EndIdx[0]; ++X)
+							{
+								for (int32 Y = Elem.StartIdx[1]; Y <= Elem.EndIdx[1]; ++Y)
+								{
+									for (int32 Z = Elem.StartIdx[2]; Z <= Elem.EndIdx[2]; ++Z)
+									{
+										if (CellsVisited.Contains(TVector<int32, 3>(X, Y, Z)))
+										{
+											bSkip = true;
+											break;
+										}
+									}
+								}
+							}
+
+							if (bSkip)
+							{
+								continue;
+							}
+						}
+					}
+					const auto& InstanceBounds = Elem.Bounds;
+					if (TBox<T, d>::RaycastFast(InstanceBounds.Min(), InstanceBounds.Max(), Start,
+						CurData.Dir, CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPosition))
+					{
+						TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
+						const bool bContinue = Visitor.VisitRaycast(VisitData, CurData);
+						if (!bContinue)
+						{
+							return false;
+						}
+					}
+				}
+
+				CellsVisited.Add(CellIdx);
+
+
+				//find next cell
+
+				//We want to know which plane we used to cross into next cell
+				const TVector<T, d> CellCenter = MGrid.Location(CellIdx);
+				const TVector<T, d>& Dx = MGrid.Dx();
+
+				T Times[3];
+				T BestTime = CurData.CurrentLength;
+				bool bTerminate = true;
+				for (int Axis = 0; Axis < d; ++Axis)
+				{
+					if (!CurData.bParallel[Axis])
+					{
+						const T CrossPoint = CurData.Dir[Axis] > 0 ? CellCenter[Axis] + Dx[Axis] / 2 : CellCenter[Axis] - Dx[Axis] / 2;
+						const T Distance = CrossPoint - NextStart[Axis];	//note: CellCenter already has /2, we probably want to use the corner instead
+						const T Time = Distance * CurData.InvDir[Axis];
+						Times[Axis] = Time;
+						if (Time < BestTime)
+						{
+							bTerminate = false;	//found at least one plane to pass through
+							BestTime = Time;
+						}
+					}
+					else
+					{
+						Times[Axis] = TNumericLimits<T>::Max();
+					}
+				}
+
+				if (bTerminate)
+				{
+					return true;
+				}
+
+				for (int Axis = 0; Axis < d; ++Axis)
+				{
+					constexpr T Epsilon = 1e-2;	//if raycast is slightly off we still count it as hitting the cell surface
+					CellIdx[Axis] += (Times[Axis] <= BestTime + Epsilon) ? (CurData.Dir[Axis] > 0 ? 1 : -1) : 0;
+					if (CellIdx[Axis] < 0 || CellIdx[Axis] >= MGrid.Counts()[Axis])
+					{
+						return true;
+					}
+				}
+
+				NextStart = NextStart + CurData.Dir * BestTime;
+			} while (true);
+		}
+
+		return true;
+	}
+
+	template <typename SQVisitor, bool bPruneDuplicates = true>
+	bool SweepImp(const TVector<T, d>& Start, FQueryFastData& CurData, const TVector<T, d> QueryHalfExtents, SQVisitor& Visitor) const
+	{
+		T TOI = 0;
+		for (const auto& Elem : MGlobalPayloads)
+		{
+			const TBox<T, d>& InstanceBounds = Elem.Bounds;
+			const TVector<T, d> Min = InstanceBounds.Min() - QueryHalfExtents;
+			const TVector<T, d> Max = InstanceBounds.Max() + QueryHalfExtents;
+			TVector<T, d> TmpPosition;
+			if (TBox<T, d>::RaycastFast(Min, Max, Start, CurData.Dir, CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPosition))
+			{
+				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
+				const bool bContinue = Visitor.VisitSweep(VisitData, CurData);
+				if (!bContinue)
+				{
+					return false;
+				}
+			}
+		}
+
+		for (const auto& Elem : MDirtyElements)
+		{
+			const TBox<T, d>& InstanceBounds = Elem.Bounds;
+			const TVector<T, d> Min = InstanceBounds.Min() - QueryHalfExtents;
+			const TVector<T, d> Max = InstanceBounds.Max() + QueryHalfExtents;
+			TVector<T, d> TmpPosition;
+			if (TBox<T, d>::RaycastFast(Min, Max, Start, CurData.Dir, CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPosition))
+			{
+				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
+				const bool bContinue = Visitor.VisitSweep(VisitData, CurData);
+				if (!bContinue)
+				{
+					return false;
+				}
+			}
+		}
+
+		if (bIsEmpty)
+		{
+			return true;
+		}
+
+		TBox<T, d> GlobalBounds(MGrid.MinCorner() - QueryHalfExtents, MGrid.MaxCorner() + QueryHalfExtents);
+
+
+		struct FCellIntersection
+		{
+			TVector<int32, d> CellIdx;
+			T TOI;
+		};
+
+		const TVector<int32, d> StartMinIndex = MGrid.ClampIndex(MGrid.Cell(Start - QueryHalfExtents));
+		const TVector<int32, d> StartMaxIndex = MGrid.ClampIndex(MGrid.Cell(Start + QueryHalfExtents));
+
+		if (StartMinIndex == StartMaxIndex)
+		{
+			const TVector<T, d> End = Start + CurData.CurrentLength * CurData.Dir;
+			const TVector<int32, d> EndMinIndex = MGrid.ClampIndex(MGrid.Cell(End  - QueryHalfExtents));
+			const TVector<int32, d> EndMaxIndex = MGrid.ClampIndex(MGrid.Cell(End + QueryHalfExtents));
+			if (StartMinIndex == EndMinIndex && StartMinIndex == EndMaxIndex)
+			{
+				//sweep is fully contained within one cell, this is a common special case - just test all elements
+				const auto& Elems = MElements(StartMinIndex);
+				TVector<T, d> TmpPoint;
+				for (const auto& Elem : Elems)
+				{
+					const TBox<T, d>& InstanceBounds = Elem.Bounds;
+					const TVector<T, d> Min = InstanceBounds.Min() - QueryHalfExtents;
+					const TVector<T, d> Max = InstanceBounds.Max() + QueryHalfExtents;
+					if (TBox<T, d>::RaycastFast(Min, Max, Start, CurData.Dir, CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPoint))
+					{
+						TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
+						const bool bContinue = Visitor.VisitSweep(VisitData, CurData);
+						if (!bContinue)
+						{
+							return false;
+						}
+					}
+				}
+
+				return true;
+			}
+		}
+
+		FGridSet IdxsSeen(MGrid.Counts());
+		FGridSet CellsVisited(MGrid.Counts());
+		TArray<FCellIntersection> IdxsQueue;	//cells we need to visit
+
+		for (int32 X = StartMinIndex[0]; X <= StartMaxIndex[0]; ++X)
+		{
+			for (int32 Y = StartMinIndex[1]; Y <= StartMaxIndex[1]; ++Y)
+			{
+				for (int32 Z = StartMinIndex[2]; Z <= StartMaxIndex[2]; ++Z)
+				{
+					const TVector<int32, 3> Idx(X, Y, Z);
+					IdxsQueue.Add({Idx, 0 });
+					IdxsSeen.Add(Idx);
+				}
+			}
+		}
+
+		TVector<T, d> HitPoint;
+		const bool bInitialHit = TBox<T, d>::RaycastFast(GlobalBounds.Min(), GlobalBounds.Max(),
+			Start, CurData.Dir, CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, HitPoint);
+		if (bInitialHit)	//NOTE: it's possible to have a non empty IdxsQueue and bInitialHit be false. This is because the IdxsQueue works off clamped cells which we can skip
+		{
+			//Flood fill from inflated cell so that we get all cells along the ray
+			TVector<int32, d> HitCellIdx = MGrid.Cell(HitPoint);
+			HitCellIdx = MGrid.ClampIndex(HitCellIdx);	//inflation means we likely are outside grid, just get closest cell
+
+			if (!IdxsSeen.Contains(HitCellIdx))
+			{
+				ensure(TOI > 0);	//Not an initial overlap so TOI must be positive
+				IdxsQueue.Add({ HitCellIdx, TOI });
+			}
+
+			const TVector<T, d> HalfDx = MGrid.Dx() * (T)0.5;
+
+			int32 QueueIdx = 0;	//FIFO because early cells are more likely to block later cells we can skip
+			while (QueueIdx < IdxsQueue.Num())
+			{
+				const FCellIntersection CellIntersection = IdxsQueue[QueueIdx++];
+				if (CellIntersection.TOI > CurData.CurrentLength)
+				{
+					continue;
+				}
+
+				//ray still visiting this cell so check all neighbors
+				check(d == 3);
+				static const TVector<int32, 3> Neighbors[] =
+				{
+					//grid on z=-1 plane
+					{-1, -1, -1}, {0, -1, -1}, {1, -1, -1},
+					{-1, 0, -1}, {0, 0, -1}, {1, 0, -1},
+					{-1, 1, -1}, {0, 1, -1}, {1, 1, -1},
+
+					//grid on z=0 plane
+					{-1, -1, 0}, {0, -1, 0}, {1, -1, 0},
+					{-1, 0, 0},			 {1, 0, 0},
+					{-1, 1, 0}, {0, 1, 0}, {1, 0, 0},
+
+					//grid on z=1 plane
+					{-1, -1, 1}, {0, -1, 1}, {1, -1, 1},
+					{-1, 0, 1}, {0, 0, 1}, {1, 0, 1},
+					{-1, 1, 1}, {0, 1, 1}, {1, 1, 1}
+				};
+
+				for (const TVector<int32, 3>& Neighbor : Neighbors)
+				{
+					const TVector<int32, 3> NeighborIdx = Neighbor + CellIntersection.CellIdx;
+					bool bSkip = false;
+					for (int32 Axis = 0; Axis < d; ++Axis)
+					{
+						if (NeighborIdx[Axis] < 0 || NeighborIdx[Axis] >= MGrid.Counts()[Axis])
+						{
+							bSkip = true;
+							break;
+						}
+					}
+					if (!bSkip && !IdxsSeen.Contains(NeighborIdx))
+					{
+						IdxsSeen.Add(NeighborIdx);
+
+						const TVector<T, d> NeighborCenter = MGrid.Location(NeighborIdx);
+						const TVector<T, d> Min = NeighborCenter - QueryHalfExtents - HalfDx;
+						const TVector<T, d> Max = NeighborCenter + QueryHalfExtents + HalfDx;
+						if (TBox<T, d>::RaycastFast(Min, Max, Start, CurData.Dir, CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, HitPoint))
+						{
+							IdxsQueue.Add({ NeighborIdx, TOI });	//should we sort by TOI?
+						}
+					}
+				}
+
+				//check if any instances in the cell are hit
+				const auto& Elems = MElements(CellIntersection.CellIdx);
+				for (const auto& Elem : Elems)
+				{
+					if (bPruneDuplicates)
+					{
+						bool bSkip = false;
+						if (Elem.StartIdx[0] != Elem.EndIdx[0] || Elem.StartIdx[1] != Elem.EndIdx[1] || Elem.StartIdx[2] != Elem.EndIdx[2])
+						{
+							for (int32 X = Elem.StartIdx[0]; X <= Elem.EndIdx[0]; ++X)
+							{
+								for (int32 Y = Elem.StartIdx[1]; Y <= Elem.EndIdx[1]; ++Y)
+								{
+									for (int32 Z = Elem.StartIdx[2]; Z <= Elem.EndIdx[2]; ++Z)
+									{
+										if (CellsVisited.Contains(TVector<int32, 3>(X, Y, Z)))
+										{
+											bSkip = true;
+											break;
+										}
+									}
+								}
+							}
+
+							if (bSkip)
+							{
+								continue;
+							}
+						}
+					}
+
+					const TBox<T, d>& InstanceBounds = Elem.Bounds;
+					const TVector<T, d> Min = InstanceBounds.Min() - QueryHalfExtents;
+					const TVector<T, d> Max = InstanceBounds.Max() + QueryHalfExtents;
+					if (TBox<T, d>::RaycastFast(Min, Max, Start,
+						CurData.Dir, CurData.InvDir, CurData.bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, HitPoint))
+					{
+						TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
+						const bool bContinue = Visitor.VisitSweep(VisitData, CurData);
+						if (!bContinue)
+						{
+							return false;
+						}
+					}
+				}
+				CellsVisited.Add(CellIntersection.CellIdx);
+			}
+		}
+
+		return true;
+	}
+
+	template <typename SQVisitor, bool bPruneDuplicates = true>
+	bool OverlapImp(const TBox<T, d>& QueryBounds, SQVisitor& Visitor) const
+	{
+		for (const auto& Elem : MGlobalPayloads)
+		{
+			const TBox<T, d>& InstanceBounds = Elem.Bounds;
+			if (QueryBounds.Intersects(InstanceBounds))
+			{
+				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
+				if (Visitor.VisitOverlap(VisitData) == false)
+				{
+					return false;
+				}
+			}
+		}
+
+		for (const auto& Elem : MDirtyElements)
+		{
+			const TBox<T, d>& InstanceBounds = Elem.Bounds;
+			if (QueryBounds.Intersects(InstanceBounds))
+			{
+				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
+				if (Visitor.VisitOverlap(VisitData) == false)
+				{
+					return false;
+				}
+			}
+		}
+
+		if (bIsEmpty)
+		{
+			return true;
+		}
+
+		TBox<T, d> GlobalBounds(MGrid.MinCorner(), MGrid.MaxCorner());
+
+		const TVector<int32, d> StartIndex = MGrid.ClampIndex(MGrid.Cell(QueryBounds.Min()));
+		const TVector<int32, d> EndIndex = MGrid.ClampIndex(MGrid.Cell(QueryBounds.Max()));
+		TSet<TPayloadType> InstancesSeen;
+
+		for (int32 X = StartIndex[0]; X <= EndIndex[0]; ++X)
+		{
+			for (int32 Y = StartIndex[1]; Y <= EndIndex[1]; ++Y)
+			{
+				for (int32 Z = StartIndex[2]; Z <= EndIndex[2]; ++Z)
+				{
+					const auto& Elems = MElements(X, Y, Z);
+					for (const auto& Elem : Elems)
+					{
+						if (bPruneDuplicates)
+						{
+							if (InstancesSeen.Contains(Elem.Payload))
+							{
+								continue;
+							}
+							InstancesSeen.Add(Elem.Payload);
+						}
+						const TBox<T, d>& InstanceBounds = Elem.Bounds;
+						if (QueryBounds.Intersects(InstanceBounds))
+						{
+							TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
+							if (Visitor.VisitOverlap(VisitData) == false)
+							{
+								return false;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		return true;
+	}
+
 	template <typename ParticleView>
 	void GenerateTree(const ParticleView& Particles, const bool bUseVelocity, const T Dt, const int32 MaxCells)
 	{
+		MGlobalPayloads.Reset();
+		MPayloadInfo.Reset();
+		bIsEmpty = true;
+
+		if (!Particles.Num())
+		{
+			bIsEmpty = true;
+			return;
+		}
+
 		SCOPE_CYCLE_COUNTER(STAT_BoundingVolumeGenerateTree);
 		TArray<TBox<T, d>> AllBounds;
 		TArray<bool> HasBounds;
@@ -790,11 +848,9 @@ private:
 		};
 
 		//compute DX and fill global payloads
-		MGlobalPayloads.Reset();
 		auto& GlobalPayloads = MGlobalPayloads;
 		auto& PayloadInfos = MPayloadInfo;
 		T NumObjectsWithBounds = 0;
-		MPayloadInfo.Reset();
 
 		auto ComputeBoxAndDx = [&Particles, &AllBounds, &HasBounds, &GlobalPayloads, &PayloadInfos, &GetValidBounds, &NumObjectsWithBounds](TBox<T,d>& OutGlobalBox, bool bFirstPass) -> T
 		{
@@ -1123,6 +1179,14 @@ private:
 	T MaxPayloadBounds;
 	bool bIsEmpty;
 };
+
+#if PLATFORM_MAC || PLATFORM_LINUX
+    extern template class CHAOS_API TBoundingVolume<int32,float,3>;
+    extern template class CHAOS_API TBoundingVolume<TAccelerationStructureHandle<float,3>,float,3>;
+#else
+    extern template class TBoundingVolume<int32,float,3>;
+    extern template class TBoundingVolume<TAccelerationStructureHandle<float,3>,float,3>;
+#endif
 
 template<typename TPayloadType, class T, int d>
 FArchive& operator<<(FArchive& Ar, TBoundingVolume<TPayloadType, T, d>& BoundingVolume)

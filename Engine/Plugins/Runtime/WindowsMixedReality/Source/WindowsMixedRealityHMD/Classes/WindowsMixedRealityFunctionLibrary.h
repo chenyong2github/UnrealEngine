@@ -99,4 +99,12 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealityHMD")
 	static FPointerPoseInfo GetPointerPoseInfo(EControllerHand hand);
+
+
+	/**
+	 *  Set the focus point for the current frame to stabilize your holograms.
+	 *  When run on device, the depth buffer with be used.  Use this for remoting.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealityHMD")
+	static void SetFocusPointForFrame(FVector position);
 };

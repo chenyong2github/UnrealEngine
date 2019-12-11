@@ -14,8 +14,7 @@ namespace VREd
 	static FAutoConsoleVariable UIFadeSpeed(TEXT("VREd.UIFadeSpeed"), 6.0f, TEXT("How fast UI should fade in and out"));
 }
 
-
-AVREditorFloatingUI::AVREditorFloatingUI()
+AVREditorFloatingUI::AVREditorFloatingUI(const FObjectInitializer& ObjectInitializer)
 	: Super(),
 	SlateWidget(nullptr),
 	UserWidget(nullptr),

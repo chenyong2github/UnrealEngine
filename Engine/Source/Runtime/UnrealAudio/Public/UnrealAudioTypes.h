@@ -83,7 +83,6 @@ namespace UAudio
 			ALSA,
 			CORE_AUDIO,
 			OPENAL,
-			HTML5,
 			DUMMY,
 		};
 
@@ -97,7 +96,6 @@ namespace UAudio
 				case ALSA:			return TEXT("ALSA");
 				case CORE_AUDIO:	return TEXT("CORE_AUDIO");
 				case OPENAL:		return TEXT("OPENAL");
-				case HTML5:			return TEXT("HTML5");
 				case DUMMY:			return TEXT("DUMMY");
 				default:			check(false);
 			}

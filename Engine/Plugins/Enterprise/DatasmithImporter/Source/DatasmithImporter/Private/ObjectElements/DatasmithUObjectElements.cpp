@@ -2,12 +2,12 @@
 
 #include "ObjectElements/DatasmithUObjectElements.h"
 
+#include "DatasmithDefinitions.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithUElementsUtils.h"
 #include "DatasmithUtils.h"
 #include "IDatasmithSceneElements.h"
 #include "ObjectElements/DatasmithUSceneElement.h"
-#include "PropertyValue.h"
 #include "Utility/DatasmithImporterUtils.h"
 
 #include "Engine/StaticMesh.h"
@@ -56,6 +56,18 @@ FString UDatasmithObjectElement::GetElementName() const
 {
 	DATASMITHOBJECTELEMENT_GETSHARED_AND_EARLYRETURN(IDatasmithElement, GetIDatasmithElement(), FString());
 	return FString(Element->GetName());
+}
+
+FString UDatasmithObjectElement::GetLabel() const
+{
+	DATASMITHOBJECTELEMENT_GETSHARED_AND_EARLYRETURN(IDatasmithElement, GetIDatasmithElement(), FString());
+	return Element->GetLabel();
+}
+
+void UDatasmithObjectElement::SetLabel(const FString& InLabel)
+{
+	DATASMITHOBJECTELEMENT_GETSHARED_AND_EARLYRETURN(IDatasmithElement, GetIDatasmithElement(), );
+	Element->SetLabel(*InLabel);
 }
 
 bool UDatasmithObjectElement::IsElementValid() const
@@ -117,18 +129,6 @@ void UDatasmithActorElement::SetLayer(const FString& InLayer)
 {
 	DATASMITHOBJECTELEMENT_GETSHARED_AND_EARLYRETURN(IDatasmithActorElement, GetIDatasmithActorElement(), );
 	Element->SetLayer(*InLayer);
-}
-
-FString UDatasmithActorElement::GetLabel() const
-{
-	DATASMITHOBJECTELEMENT_GETSHARED_AND_EARLYRETURN(IDatasmithActorElement, GetIDatasmithActorElement(), FString());
-	return Element->GetLabel();
-}
-
-void UDatasmithActorElement::SetLabel(const FString& InLabel)
-{
-	DATASMITHOBJECTELEMENT_GETSHARED_AND_EARLYRETURN(IDatasmithActorElement, GetIDatasmithActorElement(), );
-	Element->SetLabel(*InLabel);
 }
 
 TArray<FString> UDatasmithActorElement::GetTags() const
@@ -1073,15 +1073,15 @@ FString UDatasmithBasePropertyCaptureElement::GetPropertyPath() const
 	return Element->GetPropertyPath();
 }
 
-void UDatasmithBasePropertyCaptureElement::SetCategory(EPropertyValueCategory Category)
+void UDatasmithBasePropertyCaptureElement::SetCategory(EDatasmithPropertyCategory Category)
 {
 	DATASMITHOBJECTELEMENT_GETSHARED_AND_EARLYRETURN(IDatasmithBasePropertyCaptureElement, DatasmithElement, );
 	Element->SetCategory(Category);
 }
 
-EPropertyValueCategory UDatasmithBasePropertyCaptureElement::GetCategory() const
+EDatasmithPropertyCategory UDatasmithBasePropertyCaptureElement::GetCategory() const
 {
-	DATASMITHOBJECTELEMENT_GETSHARED_AND_EARLYRETURN(IDatasmithBasePropertyCaptureElement, DatasmithElement, EPropertyValueCategory::Undefined);
+	DATASMITHOBJECTELEMENT_GETSHARED_AND_EARLYRETURN(IDatasmithBasePropertyCaptureElement, DatasmithElement, EDatasmithPropertyCategory::Undefined);
 	return Element->GetCategory();
 }
 

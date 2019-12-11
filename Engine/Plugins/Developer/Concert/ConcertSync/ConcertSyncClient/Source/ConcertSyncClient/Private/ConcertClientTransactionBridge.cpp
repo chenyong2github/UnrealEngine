@@ -59,8 +59,8 @@ bool RunTransactionFilters(const TArray<FTransactionClassFilter>& InFilters, UOb
 
 ETransactionFilterResult ApplyTransactionFilters(UObject* InObject, UPackage* InChangedPackage)
 {
-	// Ignore transient packages and objects
-	if (!InChangedPackage || InChangedPackage == GetTransientPackage() || InChangedPackage->HasAnyFlags(RF_Transient) || InObject->HasAnyFlags(RF_Transient))
+	// Ignore transient packages and objects, compiled in package are not considered Multi-user content.
+	if (!InChangedPackage || InChangedPackage == GetTransientPackage() || InChangedPackage->HasAnyFlags(RF_Transient) || InChangedPackage->HasAnyPackageFlags(PKG_CompiledIn) || InObject->HasAnyFlags(RF_Transient))
 	{
 		return ETransactionFilterResult::ExcludeObject;
 	}

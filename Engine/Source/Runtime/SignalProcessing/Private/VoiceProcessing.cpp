@@ -363,7 +363,7 @@ namespace Audio
 
 	Audio::FPatchInput FAcousticEchoCancellation::AddNewSignalPatch(int32 ExpectedLatency, float Gain /*= 1.0f*/)
 	{
-		return PatchMixer.AddNewPatch(ExpectedLatency, Gain);
+		return PatchMixer.AddNewInput(ExpectedLatency, Gain);
 	}
 
 	void FAcousticEchoCancellation::RemoveSignalPatch(const FPatchInput& Patch)

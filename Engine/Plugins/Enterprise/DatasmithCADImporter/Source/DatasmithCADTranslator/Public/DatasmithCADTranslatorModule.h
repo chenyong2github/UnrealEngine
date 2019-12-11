@@ -29,7 +29,6 @@ public:
 
 	virtual void ShutdownModule() override;
 
-	FString GetTempDir() const;
 	FString GetCacheDir() const;
 
 private:

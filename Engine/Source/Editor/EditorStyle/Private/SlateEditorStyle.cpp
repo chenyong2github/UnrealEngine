@@ -2043,7 +2043,7 @@ void FSlateEditorStyle::FStyle::SetupGeneralStyles()
 		Set( "ToolBar.Block.Padding", FMargin( 2.0f, 2.0f, 4.0f, 4.0f ) );
 
 		Set( "ToolBar.Separator", new FSlateColorBrush( FLinearColor(FColor(47, 47, 47)) ) );
-		Set( "ToolBar.Separator.Padding", FMargin( 0.5f ) );
+		Set( "ToolBar.Separator.Padding", FMargin( 8.f, 0.f, 8.f, 0.f) );
 
 		Set( "ToolBar.Label", FTextBlockStyle(NormalText) .SetFont( DEFAULT_FONT( "Regular", 9 ) ) );
 		Set( "ToolBar.EditableText", FEditableTextBoxStyle(NormalEditableTextBoxStyle) .SetFont( DEFAULT_FONT( "Regular", 9 ) ) );
@@ -2451,6 +2451,22 @@ void FSlateEditorStyle::FStyle::SetupSequencerStyles()
 		Set("Sequencer.Section.BackgroundText", DEFAULT_FONT("Bold", 24));
 		Set("Sequencer.Section.EmptySpace", new BOX_BRUSH(TEXT("Sequencer/EmptySpace"), FMargin(0.f, 7.f / 14.f)));
 
+		Set("Sequencer.ExposedNamePill_BG", new BOX_BRUSH(TEXT("Sequencer/ExposedNamePill_BG"), FMargin(14.f / 30.f), FLinearColor(1.f, 1.f, 1.f, .8f)));
+		Set("Sequencer.ExposedNamePill", FButtonStyle()
+			.SetNormal(  BOX_BRUSH(TEXT("Sequencer/ExposedNamePill_BG"), FMargin(14.f / 30.f), FLinearColor(1.f, 1.f, 1.f, .8f)) )
+			.SetHovered( BOX_BRUSH(TEXT("Sequencer/ExposedNamePill_BG_Hovered"), FMargin(14.f / 30.f), FLinearColor::White) )
+			.SetPressed( BOX_BRUSH(TEXT("Sequencer/ExposedNamePill_BG_Pressed"), FMargin(14.f / 30.f), FLinearColor::White) )
+			.SetNormalPadding( FMargin(0,0,0,0) )
+			.SetPressedPadding( FMargin(0,0,0,0) )
+		);
+		Set("Sequencer.ExposedNamePill.Input", FEditableTextBoxStyle()
+			.SetBackgroundImageNormal(FSlateColorBrush(FLinearColor::Transparent))
+			.SetBackgroundImageHovered(FSlateColorBrush(FLinearColor::Transparent))
+			.SetBackgroundImageFocused(FSlateColorBrush(FLinearColor::Transparent))
+			.SetBackgroundImageReadOnly(FSlateColorBrush(FLinearColor::Transparent))
+		);
+
+
 		Set("Sequencer.AnimationOutliner.ColorStrip", FButtonStyle()
 			.SetNormal(FSlateNoResource())
 			.SetHovered(FSlateNoResource())
@@ -2623,7 +2639,43 @@ void FSlateEditorStyle::FStyle::SetupSequencerStyles()
 	Set("EMovieSceneBlendType::Absolute", new IMAGE_BRUSH("Sequencer/EMovieSceneBlendType_Absolute", FVector2D(32, 16)));
 	Set("EMovieSceneBlendType::Relative", new IMAGE_BRUSH("Sequencer/EMovieSceneBlendType_Relative", FVector2D(32, 16)));
 	Set("EMovieSceneBlendType::Additive", new IMAGE_BRUSH("Sequencer/EMovieSceneBlendType_Additive", FVector2D(32, 16)));
-		}
+
+
+	// Sequencer & Curve Editor Toolbar Style ( Grabs core default, copies brushes, changes separator and block spacing )
+	Set( "Sequencer.ToolBar.Background", 		new CORE_BOX_BRUSH( "Common/GroupBorder", FMargin(4.0f/16.0f) ) );
+	Set( "Sequencer.ToolBar.Icon", 				new CORE_IMAGE_BRUSH( "Icons/icon_tab_toolbar_16px", Icon16x16 ) );
+	Set( "Sequencer.ToolBar.Expand", 			new CORE_IMAGE_BRUSH( "Icons/toolbar_expand_16x", Icon16x16) );
+	Set( "Sequencer.ToolBar.SubMenuIndicator", 	new CORE_IMAGE_BRUSH( "Common/SubmenuArrow", Icon8x8 ) );
+	Set( "Sequencer.ToolBar.SToolBarComboButtonBlock.Padding", 		 FCoreStyle::Get().GetMargin("ToolBar.SToolBarComboButtonBlock.Padding"));
+	Set( "Sequencer.ToolBar.SToolBarButtonBlock.Padding", 			 FCoreStyle::Get().GetMargin("ToolBar.SToolBarButtonBlock.Padding"));
+	Set( "Sequencer.ToolBar.SToolBarCheckComboButtonBlock.Padding",  FCoreStyle::Get().GetMargin("ToolBar.SToolBarCheckComboButtonBlock.Padding"));
+	Set( "Sequencer.ToolBar.SToolBarButtonBlock.CheckBox.Padding", 	 FCoreStyle::Get().GetMargin("ToolBar.SToolBarButtonBlock.CheckBox.Padding"));
+	Set( "Sequencer.ToolBar.SToolBarComboButtonBlock.ComboButton.Color", GetColor("ToolBar.SToolBarComboButtonBlock.ComboButton.Color"));
+
+	// Used only for WidgetBlocks
+	Set( "Sequencer.ToolBar.Block.IndentedPadding", 	FCoreStyle::Get().GetMargin("Sequencer.ToolBar.Block.IndentedPadding") );
+	Set( "Sequencer.ToolBar.Block.Padding", 			FMargin(0.0f, 4.0f));
+
+	Set( "Sequencer.ToolBar.Separator", 				new FSlateColorBrush( FLinearColor(FColor(48, 48, 48)) ) );
+	Set( "Sequencer.ToolBar.Separator.Padding", 		FMargin( 1.f, 1.f ) );
+
+	Set( "Sequencer.ToolBar.Label", 					FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("ToolBar.Label"));
+	Set( "Sequencer.ToolBar.EditableText",  			FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("ToolBar.EditableText"));
+	Set( "Sequencer.ToolBar.Keybinding", 				FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("ToolBar.Keybinding"));
+	Set( "Sequencer.ToolBar.Heading", 					FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("ToolBar.Heading"));
+	Set( "Sequencer.ToolBar.CheckBox", 					FCoreStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToolBar.CheckBox"));
+	Set( "Sequencer.Toolbar.Check", 					FCoreStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToolBar.Check"));
+	Set( "Sequencer.ToolBar.RadioButton", 				FCoreStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToolBar.RadioButton"));
+	Set( "Sequencer.ToolBar.ToggleButton", 				FCoreStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToolBar.ToggleButton"));
+	Set( "Sequencer.ToolBar.Button", 					FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("ToolBar.Button"));
+	Set( "ToolBar.Button.Normal", 						new FSlateNoResource() );
+	Set( "ToolBar.Button.Pressed", 						new CORE_BOX_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, SelectionColor_Pressed ) );
+	Set( "ToolBar.Button.Hovered", 						new CORE_BOX_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, SelectionColor ) );
+	Set( "ToolBar.Button.Checked", 						new CORE_BOX_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, SelectionColor_Pressed ) );
+	Set( "ToolBar.Button.Checked_Hovered", 				new CORE_BOX_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, SelectionColor_Pressed ) );
+	Set( "ToolBar.Button.Checked_Pressed", 				new CORE_BOX_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, SelectionColor ) );
+
+	}
 
 
 	// Sequence recorder standalone UI
@@ -2664,7 +2716,7 @@ void FSlateEditorStyle::FStyle::SetupViewportStyles()
 		Set("ViewportMenu.SToolBarComboButtonBlock.ComboButton.Color", FLinearColor(0.f, 0.f, 0.f, 0.75f));
 
 		Set("ViewportMenu.Separator", new BOX_BRUSH("Old/Button", 8.0f / 32.0f, FLinearColor::Transparent));
-		Set("ViewportMenu.Separator.Padding", FMargin(100.0f));
+		Set("ViewportMenu.Separator.Padding", FMargin( 1.f, 0.f, 0.f, 0.f) );
 
 		Set("ViewportMenu.Label", FTextBlockStyle(NormalText)
 			.SetFont(DEFAULT_FONT("Bold", 9))
@@ -4873,6 +4925,7 @@ void FSlateEditorStyle::FStyle::SetupLevelEditorStyle()
 		Set( "LevelEditor.Build", new IMAGE_BRUSH( "Icons/icon_build_40x", Icon40x40 ) );
 		Set( "LevelEditor.Build.Small", new IMAGE_BRUSH( "Icons/icon_build_40x", Icon20x20 ) );
 		Set( "LevelEditor.MapCheck", new IMAGE_BRUSH( "Icons/icon_MapCheck_40x", Icon40x40 ) );
+		Set( "LevelEditor.MapCheck.Small", new IMAGE_BRUSH( "Icons/icon_MapCheck_40x", Icon20x20 ) );
 
 		Set( "LevelEditor.Recompile", new IMAGE_BRUSH( "Icons/icon_compile_40x", Icon40x40 ) );
 		Set( "LevelEditor.Recompile.Small", new IMAGE_BRUSH( "Icons/icon_compile_40x", Icon20x20 ) );
@@ -4916,10 +4969,6 @@ void FSlateEditorStyle::FStyle::SetupLevelEditorStyle()
 		Set("LevelEditor.PreviewMode.iOS.Enabled.Small", new IMAGE_BRUSH("Icons/icon_PreviewMode_iOS_Enabled_40x", Icon20x20));
 		Set("LevelEditor.PreviewMode.iOS.Disabled", new IMAGE_BRUSH("Icons/icon_PreviewMode_iOS_Disabled_40x", Icon40x40));
 		Set("LevelEditor.PreviewMode.iOS.Disabled.Small", new IMAGE_BRUSH("Icons/icon_PreviewMode_iOS_Disabled_40x", Icon20x20));
-		Set("LevelEditor.PreviewMode.HTML5.Enabled", new IMAGE_BRUSH("Icons/icon_PreviewMode_HTML5_Enabled_40x", Icon40x40));
-		Set("LevelEditor.PreviewMode.HTML5.Enabled.Small", new IMAGE_BRUSH("Icons/icon_PreviewMode_HTML5_Enabled_40x", Icon20x20));
-		Set("LevelEditor.PreviewMode.HTML5.Disabled", new IMAGE_BRUSH("Icons/icon_PreviewMode_HTML5_Disabled_40x", Icon40x40));
-		Set("LevelEditor.PreviewMode.HTML5.Disabled.Small", new IMAGE_BRUSH("Icons/icon_PreviewMode_HTML5_Disabled_40x", Icon20x20));
 
 		Set("LevelEditor.ViewOptions", new IMAGE_BRUSH("Icons/icon_view_40x", Icon40x40));
 		Set( "LevelEditor.ViewOptions.Small", new IMAGE_BRUSH( "Icons/icon_view_40x", Icon20x20 ) );
@@ -4943,9 +4992,9 @@ void FSlateEditorStyle::FStyle::SetupLevelEditorStyle()
 			.SetCheckedImage(             FSlateBoxBrush( RootToCoreContentDir("Docking/Tab_Shape.png"),  2.f/8.0f, FColor(62, 62, 62) ) )
 			.SetCheckedHoveredImage(      FSlateBoxBrush( RootToCoreContentDir("Docking/Tab_Shape.png"),  2.f/8.0f, FColor(62, 62, 62) ) )
 			.SetCheckedPressedImage(      FSlateBoxBrush( RootToCoreContentDir("Docking/Tab_Shape.png"),  2.f/8.0f, FColor(62, 62, 62) ) )
-			.SetUncheckedImage(           FSlateNoResource() )
-			.SetUncheckedHoveredImage(    FSlateNoResource() )
-			.SetUncheckedPressedImage(    FSlateNoResource() )
+			.SetUncheckedImage(           FSlateBoxBrush( RootToCoreContentDir("Docking/Tab_Shape.png"),  2.f/8.0f, FColor(45, 45, 45) ) )
+			.SetUncheckedHoveredImage(    FSlateBoxBrush( RootToCoreContentDir("Docking/Tab_Shape.png"),  2.f/8.0f, FColor(54, 54, 54) ) )    			
+			.SetUncheckedPressedImage(    FSlateBoxBrush( RootToCoreContentDir("Docking/Tab_Shape.png"),  2.f/8.0f, FColor(54, 54, 54) ) )    			   
 			.SetUndeterminedImage(        FSlateNoResource() )
 			.SetUndeterminedHoveredImage( FSlateNoResource() )
 			.SetUndeterminedPressedImage( FSlateNoResource() )
@@ -5334,7 +5383,7 @@ void FSlateEditorStyle::FStyle::SetupLevelEditorStyle()
 		Set( "EditorModesToolbar.Block.Padding", FMargin( 0 ) );
 
 		Set( "EditorModesToolbar.Separator", new BOX_BRUSH( "Old/Button", 4.0f / 32.0f ) );
-		Set( "EditorModesToolbar.Separator.Padding", FMargin( 0.5f ) );
+		Set( "EditorModesToolbar.Separator.Padding", FMargin( 8.f, 0.f, 8.f, 0.f) );
 
 		Set( "EditorModesToolbar.Label", FTextBlockStyle(NormalText) .SetFont( DEFAULT_FONT( "Regular", 7 ) ) );
 		Set( "EditorModesToolbar.EditableText", FEditableTextBoxStyle(NormalEditableTextBoxStyle) .SetFont( DEFAULT_FONT( "Regular", 9 ) ) );
@@ -5701,6 +5750,8 @@ void FSlateEditorStyle::FStyle::SetupPersonaStyle()
 		Set( "BlueprintEditor.ManageInterfaces.Small", new IMAGE_BRUSH( "Icons/icon_BlueprintEditor_Interfaces_40x", Icon20x20) );	
 		Set( "BlueprintEditor.AddNewDelegate.Small", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddDelegate_40x", Icon20x20) );
 		Set( "BlueprintEditor.AddNewDelegate", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddDelegate_40x", Icon40x40) );
+		Set( "BlueprintEditor.AddNewAnimationLayer.Small", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddFunction_40px", Icon20x20) );
+		Set( "BlueprintEditor.AddNewAnimationLayer", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddFunction_40px", Icon40x40) );
 
 		Set( "Kismet.Status.Unknown.Small", new IMAGE_BRUSH( "Old/Kismet2/CompileStatus_Unknown_Small", Icon16x16 ) );
 		Set( "Kismet.Status.Error.Small", new IMAGE_BRUSH( "Old/Kismet2/CompileStatus_Broken_Small", Icon16x16 ) );

@@ -142,7 +142,9 @@ void MultiChannelIir::Process(AudioBuffer::Channel* interleaved_buffer) {
 MultiChannelIir::MultiChannelIir(size_t num_channels, size_t frames_per_buffer,
                                  size_t num_coefficients)
     : num_channels_(num_channels),
+#if !DISABLE_CHECKS
       frames_per_buffer_(frames_per_buffer),
+#endif
       num_coefficients_(num_coefficients),
       delay_line_front_(0),
       numerator_(kNumMonoChannels, num_coefficients_ * num_channels_),

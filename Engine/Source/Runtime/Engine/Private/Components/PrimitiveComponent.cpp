@@ -324,6 +324,7 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	bCastVolumetricTranslucentShadow = false;
 	IndirectLightingCacheQuality = ILCQ_Point;
 	bSelectable = true;
+	bFillCollisionUnderneathForNavmesh = false;
 	AlwaysLoadOnClient = true;
 	AlwaysLoadOnServer = true;
 	SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
@@ -785,6 +786,30 @@ void UPrimitiveComponent::EnsurePhysicsStateCreated()
 	}
 }
 
+
+
+void UPrimitiveComponent::MarkChildPrimitiveComponentRenderStateDirty()
+{
+	// Go through all potential children and update them 
+	TArray<USceneComponent*, TInlineAllocator<8>> ProcessStack;
+	ProcessStack.Append(GetAttachChildren());
+
+	// Walk down the tree updating
+	while (ProcessStack.Num() > 0)
+	{
+		if (USceneComponent* Current = ProcessStack.Pop(/*bAllowShrinking=*/ false))
+		{
+			if (UPrimitiveComponent* CurrentPrimitive = Cast<UPrimitiveComponent>(Current))
+			{
+				CurrentPrimitive->MarkRenderStateDirty();
+			}
+
+			ProcessStack.Append(Current->GetAttachChildren());
+		}
+	}
+}
+
+
 bool UPrimitiveComponent::IsWelded() const
 {
 	return BodyInstance.WeldParent != nullptr;
@@ -926,6 +951,12 @@ void UPrimitiveComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 			MarkRenderStateDirty();
 		}
 
+		// In the light attachment as group has changed, we need to notify attachment children that they are invalid (they may have a new root)
+		// Unless multiple roots are in the way, in either case, they need to work this out.
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UPrimitiveComponent, bLightAttachmentsAsGroup))
+		{
+			MarkChildPrimitiveComponentRenderStateDirty();
+		}
 	}
 
 	if (UProperty* MemberPropertyThatChanged = PropertyChangedEvent.MemberProperty)
@@ -1401,6 +1432,7 @@ void UPrimitiveComponent::SetLightAttachmentsAsGroup(bool bInLightAttachmentsAsG
 	{
 		bLightAttachmentsAsGroup = bInLightAttachmentsAsGroup;
 		MarkRenderStateDirty();
+		MarkChildPrimitiveComponentRenderStateDirty();
 	}
 }
 
@@ -1634,7 +1666,7 @@ UMaterialInstanceDynamic* UPrimitiveComponent::CreateDynamicMaterialInstance(int
 void UPrimitiveComponent::SetCustomPrimitiveDataInternal(int32 DataIndex, const TArray<float>& Values)
 {
 	// Can only set data on valid indices and only if there's actually any data to set
-	if (DataIndex < FCustomPrimitiveData::NumCustomPrimitiveDataFloats && Values.Num() > 0)
+	if (DataIndex >= 0 && DataIndex < FCustomPrimitiveData::NumCustomPrimitiveDataFloats && Values.Num() > 0)
 	{
 		// Number of floats needed in the custom primitive data array
 		const int32 NeededFloats = FMath::Min(DataIndex + Values.Num(), FCustomPrimitiveData::NumCustomPrimitiveDataFloats);
@@ -2345,6 +2377,15 @@ void UPrimitiveComponent::DispatchWakeEvents(ESleepEvent WakeEvent, FName BoneNa
 	}
 }
 
+void UPrimitiveComponent::GetNavigationData(FNavigationRelevantData& OutData) const
+{
+	if (bFillCollisionUnderneathForNavmesh)
+	{
+		FCompositeNavModifier CompositeNavModifier;
+		CompositeNavModifier.SetFillCollisionUnderneathForNavmesh(bFillCollisionUnderneathForNavmesh);
+		OutData.Modifiers.Add(CompositeNavModifier);
+	}
+}
 
 bool UPrimitiveComponent::IsNavigationRelevant() const 
 { 
@@ -3684,6 +3725,19 @@ void UPrimitiveComponent::SetCustomNavigableGeometry(const EHasCustomNavigableGe
 	bHasCustomNavigableGeometry = InType;
 }
  
+bool UPrimitiveComponent::WasRecentlyRendered(float Tolerance /*= 0.2*/) const
+{
+	if (const UWorld* const World = GetWorld())
+	{
+		// Adjust tolerance, so visibility is not affected by bad frame rate / hitches.
+		const float RenderTimeThreshold = FMath::Max(Tolerance, World->DeltaTimeSeconds + KINDA_SMALL_NUMBER);
+
+		// If the current cached value is less than the tolerance then we don't need to go look at the components
+		return World->TimeSince(GetLastRenderTime()) <= RenderTimeThreshold;
+	}
+	return false;
+}
+
 void UPrimitiveComponent::SetLastRenderTime(float InLastRenderTime)
 {
 	LastRenderTime = InLastRenderTime;

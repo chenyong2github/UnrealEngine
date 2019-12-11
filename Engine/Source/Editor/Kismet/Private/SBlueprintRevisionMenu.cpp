@@ -242,7 +242,7 @@ void SBlueprintRevisionMenu::OnSourceControlQueryComplete(const FSourceControlOp
 	MenuBuilder.EndSection();
 	MenuBox->AddSlot() 
 	[
-		MenuBuilder.MakeWidget()
+		MenuBuilder.MakeWidget(nullptr, 500)
 	];
 
 	SourceControlQueryOp.Reset();

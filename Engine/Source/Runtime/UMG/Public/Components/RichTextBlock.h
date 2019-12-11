@@ -156,7 +156,7 @@ protected:
 	virtual TSharedPtr< class IRichTextMarkupWriter > CreateMarkupWriter();
 
 	void BeginDefaultStyleOverride();
-	void ApplyUpdatedDefaultTextStyle();
+	virtual void ApplyUpdatedDefaultTextStyle();
 
 protected:
 	/** The text to display */

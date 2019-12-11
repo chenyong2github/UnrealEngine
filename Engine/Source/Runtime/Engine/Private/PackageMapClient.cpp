@@ -1518,7 +1518,12 @@ void UPackageMapClient::AppendNetFieldExportsInternal(FArchive& Archive, const T
 
 void UPackageMapClient::ReceiveNetFieldExportsCompat(FInBunch &InBunch)
 {
-	check(Connection->InternalAck);
+	if(!Connection->InternalAck)
+	{
+		UE_LOG(LogNetPackageMap, Error, TEXT("ReceiveNetFieldExportsCompat: connection is not a replay connection."));
+		InBunch.SetError();
+		return;
+	}
 
 	// Read number of net field exports
 	uint32 NumLayoutCmdExports = 0;
@@ -1589,7 +1594,7 @@ void UPackageMapClient::ReceiveNetFieldExportsCompat(FInBunch &InBunch)
 
 		TArray<FNetFieldExport>& NetFieldExportsRef = NetFieldExportGroup->NetFieldExports;
 
-		if ((int32)NetFieldExport.Handle < NetFieldExportsRef.Num())
+		if (NetFieldExportsRef.IsValidIndex((int32)NetFieldExport.Handle))
 		{
 			// Assign it to the correct slot (NetFieldExport.Handle is just the index into the array)
 			NetFieldExportGroup->NetFieldExports[NetFieldExport.Handle] = NetFieldExport;
@@ -2218,14 +2223,14 @@ void UPackageMapClient::SetHasQueuedBunches(const FNetworkGUID& NetGUID, bool bH
 
 void UPackageMapClient::Serialize(FArchive& Ar)
 {
-	Super::Serialize(Ar);
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UPackageMapClient::Serialize");
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Super", Super::Serialize(Ar));
 
 	if (Ar.IsCountingMemory())
 	{
 		// TODO: We don't currently track:
 		//		Working Bunches.
-
-		GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UPackageMapClient::Serialize");
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("NetGUIDExportCountMap", NetGUIDExportCountMap.CountBytes(Ar));
 
@@ -3119,6 +3124,9 @@ UObject* FNetGUIDCache::GetObjectFromNetGUID( const FNetworkGUID& NetGUID, const
 				// Something else is already async loading this package, calling load again will add our callback to the existing load request
 				StartAsyncLoadingPackage(*CacheObjectPtr, NetGUID, true);
 				UE_LOG(LogNetPackageMap, Log, TEXT("GetObjectFromNetGUID: Listening to existing async load. Path: %s, NetGUID: %s"), *CacheObjectPtr->PathName.ToString(), *NetGUID.ToString());
+
+				// We don't want to hook up this package into the cache yet or return it, because it's only partially loaded.
+				return nullptr;
 			}
 			else
 			{
@@ -3517,6 +3525,11 @@ void FPackageMapAckState::CountBytes(FArchive& Ar) const
 	NetGUIDAckStatus.CountBytes(Ar);
 	NetFieldExportGroupPathAcked.CountBytes(Ar);
 	NetFieldExportAcked.CountBytes(Ar);
+}
+
+int32 UPackageMapClient::GetNumQueuedBunchNetGUIDs() const
+{
+	return CurrentQueuedBunchNetGUIDs.Num();
 }
 
 void FNetGUIDCache::ConsumeAsyncLoadDelinquencyAnalytics(FNetAsyncLoadDelinquencyAnalytics& Out)

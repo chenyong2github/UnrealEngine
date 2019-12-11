@@ -28,6 +28,7 @@
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Algo/Sort.h"
 #include "ScopedTransaction.h"
+#include "Features/IModularFeatures.h"
 
 #define LOCTEXT_NAMESPACE "PreviewSceneCustomizations"
 
@@ -305,7 +306,7 @@ void FPreviewSceneDescriptionCustomization::CustomizeDetails(IDetailLayoutBuilde
 		for (const auto& ClassProvider : ClassProviders)
 		{
 			// Populate cloth factory list
-			ClothSimulationFactoryList.Add(MakeShared<TSubclassOf<class UClothingSimulationFactory>>(ClassProvider->GetDefaultSimulationFactoryClass()));
+			ClothSimulationFactoryList.Add(MakeShared<TSubclassOf<class UClothingSimulationFactory>>(ClassProvider->GetClothingSimulationFactoryClass()));
 		}
 
 		DetailBuilder.EditCategory("Physics")

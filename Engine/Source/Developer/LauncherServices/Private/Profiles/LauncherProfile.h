@@ -1573,13 +1573,17 @@ public:
 			{
 				ServerPlatforms.Add(TEXT("Mac"));
 			}
-			else if (PlatformInfo->TargetPlatformName == FName("LinuxNoEditor"))
+			else if (PlatformInfo->TargetPlatformName == FName("LinuxNoEditor") || PlatformInfo->TargetPlatformName == FName("LinuxClient"))
 			{
 				ClientPlatforms.Add(TEXT("Linux"));
 			}
-			else if (PlatformInfo->TargetPlatformName == FName("LinuxAArch64NoEditor"))
+			else if (PlatformInfo->TargetPlatformName == FName("LinuxAArch64NoEditor") || PlatformInfo->TargetPlatformName == FName("LinuxAArch64Client"))
 			{
 				ClientPlatforms.Add(TEXT("LinuxAArch64"));
+			}
+			else if (PlatformInfo->TargetPlatformName == FName("LinuxAArch64Server"))
+			{
+				ServerPlatforms.Add(TEXT("LinuxAArch64"));
 			}
 			else if (PlatformInfo->TargetPlatformName == FName("WindowsNoEditor") || PlatformInfo->TargetPlatformName == FName("Windows"))
 			{

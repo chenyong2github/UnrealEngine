@@ -19,7 +19,8 @@
 			"LoadingPhase": "PostEngineInit",
 			"WhitelistPlatforms": [
 				"Win64",
-				"Linux"
+				"Linux",
+				"Mac"
 			],
 			"BlacklistTargets": [
 				"Server"
@@ -41,7 +42,8 @@
 			"LoadingPhase": "PostEngineInit",
 			"WhitelistPlatforms": [
 				"Win64",
-				"Linux"
+				"Linux",
+				"Mac"
 			],
 			"BlacklistTargets": [
 				"Server"

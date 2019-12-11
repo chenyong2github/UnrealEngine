@@ -2,6 +2,7 @@
 
 #include "Components/Widget.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/UObjectToken.h"
 #include "CoreGlobals.h"
 #include "Widgets/SNullWidget.h"
 #include "Types/NavigationMetaData.h"
@@ -485,8 +486,7 @@ bool UWidget::HasUserFocus(APlayerController* PlayerController) const
 
 		if ( ULocalPlayer* LocalPlayer = Context.GetLocalPlayer() )
 		{
-			// HACK: We use the controller Id as the local player index for focusing widgets in Slate.
-			int32 UserIndex = LocalPlayer->GetControllerId();
+			int32 UserIndex = FSlateApplication::Get().GetUserIndexForController(LocalPlayer->GetControllerId());
 
 			TOptional<EFocusCause> FocusCause = SafeWidget->HasUserFocus(UserIndex);
 			return FocusCause.IsSet();
@@ -533,14 +533,18 @@ bool UWidget::HasUserFocusedDescendants(APlayerController* PlayerController) con
 
 		if ( ULocalPlayer* LocalPlayer = Context.GetLocalPlayer() )
 		{
-			// HACK: We use the controller Id as the local player index for focusing widgets in Slate.
-			int32 UserIndex = LocalPlayer->GetControllerId();
+			int32 UserIndex = FSlateApplication::Get().GetUserIndexForController(LocalPlayer->GetControllerId());
 
 			return SafeWidget->HasUserFocusedDescendants(UserIndex);
 		}
 	}
 
 	return false;
+}
+
+void UWidget::SetFocus()
+{
+	SetUserFocus(GetOwningPlayer());
 }
 
 void UWidget::SetUserFocus(APlayerController* PlayerController)
@@ -559,18 +563,30 @@ void UWidget::SetUserFocus(APlayerController* PlayerController)
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if ( !SafeWidget->SupportsKeyboardFocus() )
 		{
-			FMessageLog("PIE").Warning(LOCTEXT("ThisWidgetDoesntSupportFocus", "This widget does not support focus.  If this is a UserWidget, you should set bIsFocusable to true."));
+			TSharedRef<FTokenizedMessage> Message = FMessageLog("PIE").Warning()->AddToken(FUObjectToken::Create(this));
+#if WITH_EDITORONLY_DATA
+			if(UObject* GeneratedBy = WidgetGeneratedBy.Get())
+			{
+				Message->AddToken(FTextToken::Create(FText::FromString(TEXT(" in "))))->AddToken(FUObjectToken::Create(GeneratedBy));
+			}
+#endif
+			if (IsA(UUserWidget::StaticClass()))
+			{
+				Message->AddToken(FTextToken::Create(LOCTEXT("UserWidgetDoesntSupportFocus", " does not support focus, you should set bIsFocusable to true.")));
+			}
+			else
+			{
+				Message->AddToken(FTextToken::Create(LOCTEXT("NonUserWidgetDoesntSupportFocus", " does not support focus.")));
+			}
+			
 		}
 #endif
 
-		FLocalPlayerContext Context(PlayerController);
-
-		if ( ULocalPlayer* LocalPlayer = Context.GetLocalPlayer() )
+		if ( ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer() )
 		{
-			// HACK: We use the controller Id as the local player index for focusing widgets in Slate.
-			int32 UserIndex = LocalPlayer->GetControllerId();
+			int32 UserIndex = FSlateApplication::Get().GetUserIndexForController(LocalPlayer->GetControllerId());
 
-			if ( !FSlateApplication::Get().SetUserFocus(UserIndex, SafeWidget) )
+			if (UserIndex >= 0 && !FSlateApplication::Get().SetUserFocus(UserIndex, SafeWidget) )
 			{
 				LocalPlayer->GetSlateOperations().SetUserFocus(SafeWidget.ToSharedRef());
 			}

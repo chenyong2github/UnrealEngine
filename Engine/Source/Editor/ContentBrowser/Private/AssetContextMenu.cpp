@@ -249,7 +249,14 @@ void FAssetContextMenu::RegisterContextMenu(const FName MenuName)
 			}
 		}));
 
-		Menu->AddDynamicSection("AddMenuOptions", FNewToolMenuDelegate::CreateSP(this, &FAssetContextMenu::AddMenuOptions));
+		Menu->AddDynamicSection("AddMenuOptions", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+		{
+			UContentBrowserAssetContextMenuContext* Context = InMenu->FindContext<UContentBrowserAssetContextMenuContext>();
+			if (Context && Context->AssetContextMenu.IsValid())
+			{
+				Context->AssetContextMenu.Pin()->AddMenuOptions(InMenu);
+			}
+		}));
 	}
 }
 
@@ -275,6 +282,9 @@ void FAssetContextMenu::AddMenuOptions(UToolMenu* InMenu)
 
 	// Add reference options
 	AddReferenceMenuOptions(InMenu);
+
+	// Add copy full path options
+	AddCopyFilePathMenuOptions(InMenu);
 
 	// Add collection options
 	AddCollectionMenuOptions(InMenu);
@@ -871,7 +881,7 @@ void FAssetContextMenu::DoTextFormatRoundtrip()
 	Args.bIncludeEngineContent = true;
 	Args.bVerifyJson = true;
 	Args.CSVFilename = TEXT("");
-	Args.ProcessingMode = UTextAssetCommandlet::EProcessingMode::RoundTrip;
+	Args.ProcessingMode = ETextAssetCommandletMode::RoundTrip;
 	Args.bFilenameIsFilter = false;
 
 	for (const FAssetData& Asset : SelectedAssets)
@@ -1281,6 +1291,22 @@ bool FAssetContextMenu::AddReferenceMenuOptions(UToolMenu* Menu)
 			FSlateIcon(),
 			FUIAction( FExecuteAction::CreateSP( this, &FAssetContextMenu::ExecuteCopyReference ) )
 			);
+	}
+
+	return true;
+}
+
+bool FAssetContextMenu::AddCopyFilePathMenuOptions(UToolMenu* Menu)
+{
+	FToolMenuSection& Section = Menu->AddSection("AssetContextReferences", LOCTEXT("ReferencesMenuHeading", "References"));
+	{
+		Section.AddMenuEntry(
+			"CopyFilePath",
+			LOCTEXT("CopyFilePath", "Copy File Path"),
+			LOCTEXT("CopyFilePathTooltip", "Copies the file paths on disk for the selected assets to the clipboard."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &FAssetContextMenu::ExecuteCopyFilePath))
+		);
 	}
 
 	return true;
@@ -2522,6 +2548,11 @@ void FAssetContextMenu::ExecuteGoToDocsForAsset(UClass* SelectedClass, const FSt
 void FAssetContextMenu::ExecuteCopyReference()
 {
 	ContentBrowserUtils::CopyAssetReferencesToClipboard(SelectedAssets);
+}
+
+void FAssetContextMenu::ExecuteCopyFilePath()
+{
+	ContentBrowserUtils::CopyFilePathsToClipboard(SelectedAssets);
 }
 
 void FAssetContextMenu::ExecuteCopyTextToClipboard(FString InText)

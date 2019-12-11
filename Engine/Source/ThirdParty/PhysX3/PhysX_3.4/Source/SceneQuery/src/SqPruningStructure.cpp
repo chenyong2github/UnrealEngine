@@ -306,7 +306,7 @@ void PruningStructure::resolveReferences(PxDeserializationContext& context)
 
 //////////////////////////////////////////////////////////////////////////
 
-void PruningStructure::requires(PxProcessPxBaseCallback& c)
+void PruningStructure::requiresObjects(PxProcessPxBaseCallback& c)
 {
 	if (!isValid())		
 		return;

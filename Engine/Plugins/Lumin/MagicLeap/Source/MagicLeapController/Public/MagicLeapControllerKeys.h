@@ -20,9 +20,31 @@ struct FMagicLeapControllerKeyNames
 {
 	static const FName MotionController_Left_Thumbstick_Z_Name;
 	static const FName Left_HomeButton_Name;
+	static const FName Left_Bumper_Name;
+	static const FName Left_Trigger_Name;
+	static const FName Left_Trigger_Axis_Name;
+	static const FName Left_Trackpad_X_Name;
+	static const FName Left_Trackpad_Y_Name;
+	static const FName Left_Trackpad_Force_Name;
+	static const FName Left_Trackpad_Touch_Name;
+	static const FName Left_Touch1_X_Name;
+	static const FName Left_Touch1_Y_Name;
+	static const FName Left_Touch1_Force_Name;
+	static const FName Left_Touch1_Touch_Name;
 
 	static const FName MotionController_Right_Thumbstick_Z_Name;
 	static const FName Right_HomeButton_Name;
+	static const FName Right_Bumper_Name;
+	static const FName Right_Trigger_Name;
+	static const FName Right_Trigger_Axis_Name;
+	static const FName Right_Trackpad_X_Name;
+	static const FName Right_Trackpad_Y_Name;
+	static const FName Right_Trackpad_Force_Name;
+	static const FName Right_Trackpad_Touch_Name;
+	static const FName Right_Touch1_X_Name;
+	static const FName Right_Touch1_Y_Name;
+	static const FName Right_Touch1_Force_Name;
+	static const FName Right_Touch1_Touch_Name;
 
 	static const FName TouchpadGesture_Swipe_Up_Name;
 	static const FName TouchpadGesture_Swipe_Down_Name;
@@ -49,9 +71,31 @@ struct MAGICLEAPCONTROLLER_API FMagicLeapKeys
 {
 	static const FKey MotionController_Left_Thumbstick_Z;
 	static const FKey Left_HomeButton;
+	static const FKey Left_Bumper;
+	static const FKey Left_Trigger;
+	static const FKey Left_Trigger_Axis;
+	static const FKey Left_Trackpad_X;
+	static const FKey Left_Trackpad_Y;
+	static const FKey Left_Trackpad_Force;
+	static const FKey Left_Trackpad_Touch;
+	static const FKey Left_Touch1_X;
+	static const FKey Left_Touch1_Y;
+	static const FKey Left_Touch1_Force;
+	static const FKey Left_Touch1_Touch;
 
 	static const FKey MotionController_Right_Thumbstick_Z;
 	static const FKey Right_HomeButton;
+	static const FKey Right_Bumper;
+	static const FKey Right_Trigger;
+	static const FKey Right_Trigger_Axis;
+	static const FKey Right_Trackpad_X;
+	static const FKey Right_Trackpad_Y;
+	static const FKey Right_Trackpad_Force;
+	static const FKey Right_Trackpad_Touch;
+	static const FKey Right_Touch1_X;
+	static const FKey Right_Touch1_Y;
+	static const FKey Right_Touch1_Force;
+	static const FKey Right_Touch1_Touch;
 
 	static const FKey TouchpadGesture_Swipe_Up;
 	static const FKey TouchpadGesture_Swipe_Down;

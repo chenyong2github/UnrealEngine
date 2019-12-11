@@ -389,13 +389,13 @@ public:
 	}
 
 
-	virtual void RHIMapStagingSurface(FRHITexture* Texture,void*& OutData,int32& OutWidth,int32& OutHeight, uint32 GPUIndex = 0) final override
+	virtual void RHIMapStagingSurface(FRHITexture* Texture, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight, uint32 GPUIndex) final override
 	{
 
 	}
 
 
-	virtual void RHIUnmapStagingSurface(FRHITexture* Texture, uint32 GPUIndex = 0) final override
+	virtual void RHIUnmapStagingSurface(FRHITexture* Texture, uint32 GPUIndex) final override
 	{
 
 	}
@@ -792,6 +792,10 @@ public:
 	virtual void* RHIGetNativeDevice() final override
 	{ 
 		return 0; 
+	}
+	virtual void* RHIGetNativeInstance() final override
+	{
+		return 0;
 	}
 	virtual void RHIPushEvent(const TCHAR* Name, FColor Color) final override
 	{

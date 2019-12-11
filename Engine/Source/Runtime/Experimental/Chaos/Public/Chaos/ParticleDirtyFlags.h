@@ -9,28 +9,37 @@ namespace Chaos
 	// but clean property values will get overridden with physics thread results.
 	enum EParticleFlags : int32
 	{
-		X =				 1 << 0,
-		R =				 1 << 1,
-		V =				 1 << 2,
-		W =				 1 << 3,
-		CollisionGroup = 1 << 4,
-		Disabled =		 1 << 5,
-		PreV =			 1 << 6,
-		PreW =			 1 << 7,
-		P =				 1 << 8,
-		Q =				 1 << 9,
-		F =				 1 << 10,
-		Torque =		 1 << 11,
-		I =				 1 << 12,
-		InvI =			 1 << 13,
-		M =				 1 << 14,
-		InvM =			 1 << 15,
-		ObjectState =	 1 << 16,
-		Geometry =		 1 << 17,
-		ExternalForce =  1 << 18,
-		ExternalTorque = 1 << 19,
-		GravityEnabled = 1 << 20,
-		SpatialIdx     = 1 << 21
+		X						= 1 << 0,
+		R						= 1 << 1,
+		V						= 1 << 2,
+		W						= 1 << 3,
+		CenterOfMass			= 1 << 4,
+		RotationOfMass			= 1 << 5,
+		CollisionGroup			= 1 << 6,
+		Disabled				= 1 << 7,
+		PreV					= 1 << 8,
+		PreW					= 1 << 9,
+		P						= 1 << 10,
+		Q						= 1 << 11,
+		F						= 1 << 12,
+		Torque					= 1 << 13,
+		I						= 1 << 14,
+		InvI					= 1 << 15,
+		M						= 1 << 16,
+		InvM					= 1 << 17,
+		LinearDamping			= 1 << 18,
+		AngularDamping			= 1 << 19,
+		ObjectState				= 1 << 20,
+		Geometry				= 1 << 21,
+		ExternalForce			= 1 << 22,
+		ExternalTorque			= 1 << 23,
+		GravityEnabled			= 1 << 24,
+		SpatialIdx				= 1 << 25,
+		HashResult				= 1 << 26,
+		ShapeDisableCollision	= 1 << 27
+#if CHAOS_CHECKED
+		, DebugName				= 1 << 28
+#endif
 	};
 
 	class FParticleDirtyFlags
@@ -47,6 +56,11 @@ namespace Chaos
 		bool IsDirty(const EParticleFlags CheckBits) const
 		{
 			return (Bits & (int32)CheckBits) != 0;
+		}
+
+		bool IsDirty(const int32 CheckBits) const
+		{
+			return (Bits & CheckBits) != 0;
 		}
 
 		void MarkDirty(const EParticleFlags DirtyBits)

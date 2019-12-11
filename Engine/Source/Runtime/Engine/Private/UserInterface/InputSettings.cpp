@@ -73,6 +73,22 @@ void UInputSettings::PostInitProperties()
 		}
 	}
 #endif
+
+	for (const FInputActionKeyMapping& KeyMapping : ActionMappings)
+	{
+		if (KeyMapping.Key.IsDeprecated())
+		{
+			UE_LOG(LogInput, Warning, TEXT("Action %s uses deprecated key %s."), *KeyMapping.ActionName.ToString(), *KeyMapping.Key.ToString());
+		}
+	}
+
+	for (const FInputAxisKeyMapping& KeyMapping : AxisMappings)
+	{
+		if (KeyMapping.Key.IsDeprecated())
+		{
+			UE_LOG(LogInput, Warning, TEXT("Axis %s uses deprecated key %s."), *KeyMapping.AxisName.ToString(), *KeyMapping.Key.ToString());
+		}
+	}
 }
 
 void UInputSettings::PopulateAxisConfigs()

@@ -147,9 +147,8 @@ TOptional<EItemDropZone> FVariantManagerActorNode::CanDrop(const FDragDropEvent&
 
 		if (NumActorsWeCanAdd > 0)
 		{
-			FText NewHoverText = FText::Format( LOCTEXT("CanDropActors", "Bind {0} actor{1} to variant '{2}'"),
-				FText::FromString(FString::FromInt(NumActorsWeCanAdd)),
-				NumActorsWeCanAdd != 1 ? FText::FromString(TEXT("s")) : FText(),
+			FText NewHoverText = FText::Format( LOCTEXT("CanDrop_BindActors", "Bind {0} {0}|plural(one=actor,other=actors) to variant '{1}'"),
+				NumActorsWeCanAdd,
 				Var->GetDisplayText());
 
 			const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
@@ -160,7 +159,7 @@ TOptional<EItemDropZone> FVariantManagerActorNode::CanDrop(const FDragDropEvent&
 		}
 		else
 		{
-			FText NewHoverText = FText::Format( LOCTEXT("CanDropActors", "Actors already bound to variant '{0}'!"),
+			FText NewHoverText = FText::Format( LOCTEXT("CanDrop_ActorsAlreadyBound", "Actors already bound to variant '{0}'!"),
 				Var->GetDisplayText());
 
 			const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
@@ -235,9 +234,8 @@ TOptional<EItemDropZone> FVariantManagerActorNode::CanDrop(const FDragDropEvent&
 		// Can copy new bindings
 		if (NumBindingsWeCanCopy > 0 && bIsCopy)
 		{
-			FText NewHoverText = FText::Format( LOCTEXT("CanDropActors", "Copy {0} actor binding{1} to variant '{2}'"),
-				FText::FromString(FString::FromInt(NumBindingsWeCanCopy)),
-				(NumBindingsWeCanCopy) != 1 ? FText::FromString(TEXT("s")) : FText(),
+			FText NewHoverText = FText::Format( LOCTEXT("CanDrop_CopyActorBindings", "Copy {0} actor {0}|plural(one=binding,other=bindings) to variant '{1}'"),
+				NumBindingsWeCanCopy,
 				Var->GetDisplayText());
 
 			const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
@@ -249,9 +247,8 @@ TOptional<EItemDropZone> FVariantManagerActorNode::CanDrop(const FDragDropEvent&
 		// Have at least one binding we can move
 		else if ((NumOwnBindings+NumBindingsWeCanCopy) > 0 && !bIsCopy)
 		{
-			FText NewHoverText = FText::Format( LOCTEXT("CanDropActors", "Move {0} actor binding{1} to variant '{2}'"),
-				FText::FromString(FString::FromInt(NumOwnBindings + NumBindingsWeCanCopy)),
-				(NumOwnBindings + NumBindingsWeCanCopy) != 1 ? FText::FromString(TEXT("s")) : FText(),
+			FText NewHoverText = FText::Format( LOCTEXT("CanDrop_MoveActorBindings", "Move {0} actor {0}|plural(one=binding,other=bindings) to variant '{1}'"),
+				NumOwnBindings + NumBindingsWeCanCopy,
 				Var->GetDisplayText());
 
 			const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
@@ -263,7 +260,7 @@ TOptional<EItemDropZone> FVariantManagerActorNode::CanDrop(const FDragDropEvent&
 		// If we at least were dragging some bindings (or else we were dragging variants/variant sets, etc)
 		else if(DraggedBindings.Num() > 0)
 		{
-			FText NewHoverText = FText::Format( LOCTEXT("CanDropActors", "All bindings already exist on variant '{0}'!"),
+			FText NewHoverText = FText::Format( LOCTEXT("CanDrop_AllBindingsAlreadyExist", "All bindings already exist on variant '{0}'!"),
 				Var->GetDisplayText());
 
 			const FSlateBrush* NewHoverIcon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
@@ -324,8 +321,8 @@ void FVariantManagerActorNode::Drop(const FDragDropEvent& DragDropEvent, EItemDr
 			}
 
 			FScopedTransaction Transaction(FText::Format(
-				LOCTEXT("ActorNodeDropSceneActors", "Drop {0} scene actors near actor binding '{1}'"),
-				FText::AsNumber(Actors.Num()),
+				LOCTEXT("ActorNodeDropSceneActors", "Drop {0} scene {0}|plural(one=actor,other=actors) near actor binding '{1}'"),
+				Actors.Num(),
 				GetDisplayName()));
 
 			VarMan->CreateObjectBindingsAndCaptures(Actors, {Var}, TargetIndex);
@@ -390,8 +387,8 @@ void FVariantManagerActorNode::Drop(const FDragDropEvent& DragDropEvent, EItemDr
 			}
 
 			FScopedTransaction Transaction(FText::Format(
-				LOCTEXT("ActorNodeDropActors", "Drop {0} actor bindings near actor binding '{1}'"),
-				FText::AsNumber(BindingsWeCanDuplicate.Num()),
+				LOCTEXT("ActorNodeDropActors", "Drop {0} actor {0}|plural(one=binding,other=bindings) near actor binding '{1}'"),
+				BindingsWeCanDuplicate.Num(),
 				GetDisplayName()));
 
 			VarMan->DuplicateObjectBindings(BindingsWeCanDuplicate, Var, TargetIndex);
@@ -412,8 +409,8 @@ void FVariantManagerActorNode::Drop(const FDragDropEvent& DragDropEvent, EItemDr
 			}
 
 			FScopedTransaction Transaction(FText::Format(
-				LOCTEXT("ActorNodeDropActors", "Drop {0} actor bindings near actor binding '{1}'"),
-				FText::AsNumber(BindingsWeCanMove.Num()),
+				LOCTEXT("ActorNodeDropActors", "Drop {0} actor {0}|plural(one=binding,other=bindings) near actor binding '{1}'"),
+				BindingsWeCanMove.Num(),
 				GetDisplayName()));
 
 			VarMan->AddObjectBindings(BindingsWeCanMove, Var, TargetIndex, true);

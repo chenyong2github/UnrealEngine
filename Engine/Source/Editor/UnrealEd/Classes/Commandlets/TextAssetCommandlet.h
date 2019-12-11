@@ -10,6 +10,17 @@
 
 UNREALED_API DECLARE_LOG_CATEGORY_EXTERN(LogTextAsset, Log, All);
 
+UENUM()
+enum class ETextAssetCommandletMode
+{
+	ResaveText,
+	ResaveBinary,
+	RoundTrip,
+	LoadBinary,
+	LoadText,
+	FindMismatchedSerializers
+};
+
 UCLASS(config=Editor)
 class UTextAssetCommandlet
 	: public UCommandlet
@@ -18,19 +29,9 @@ class UTextAssetCommandlet
 
 public:
 
-	enum class EProcessingMode
-	{
-		ResaveText,
-		ResaveBinary,
-		RoundTrip,
-		LoadBinary,
-		LoadText,
-		FindMismatchedSerializers,
-	};
-
 	struct FProcessingArgs
 	{
-		EProcessingMode ProcessingMode = EProcessingMode::ResaveText;
+		ETextAssetCommandletMode ProcessingMode = ETextAssetCommandletMode::ResaveText;
 		int32 NumSaveIterations = 1;
 		bool bIncludeEngineContent = false;
 		bool bFilenameIsFilter = true;

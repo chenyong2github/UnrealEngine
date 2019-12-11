@@ -1027,10 +1027,10 @@ void SFindInBlueprints::FocusForUse(bool bSetFindWithinBlueprint, FString NewSea
 	}
 }
 
-void SFindInBlueprints::MakeSearchQuery(FString InSearchString, bool bInIsFindWithinBlueprint, enum ESearchQueryFilter InSearchFilterForImaginaryDataReturn/* = ESearchQueryFilter::AllFilter*/, EFiBVersion InMinimiumVersionRequirement/* = EFiBVersion::FIB_VER_LATEST*/, FOnSearchComplete InOnSearchComplete/* = FOnSearchComplete()*/)
+void SFindInBlueprints::MakeSearchQuery(FString InSearchString, bool bInIsFindWithinBlueprint, const FStreamSearchOptions& InSearchOptions/* = FStreamSearchOptions()*/, FOnSearchComplete InOnSearchComplete/* = FOnSearchComplete()*/)
 {
 	SearchTextField->SetText(FText::FromString(InSearchString));
-	LastSearchedFiBVersion = InMinimiumVersionRequirement;
+	LastSearchedFiBVersion = InSearchOptions.MinimiumVersionRequirement;
 
 	if(ItemsFound.Num())
 	{
@@ -1053,6 +1053,8 @@ void SFindInBlueprints::MakeSearchQuery(FString InSearchString, bool bInIsFindWi
 
 		if (bInIsFindWithinBlueprint)
 		{
+			const double StartTime = FPlatformTime::Seconds();
+
 			if(StreamSearch.IsValid() && !StreamSearch->IsComplete())
 			{
 				StreamSearch->Stop();
@@ -1116,10 +1118,12 @@ void SFindInBlueprints::MakeSearchQuery(FString InSearchString, bool bInIsFindWi
 			}
 
 			TreeView->RequestTreeRefresh();
+
+			UE_LOG(LogFindInBlueprint, Log, TEXT("Search completed in %0.2f seconds."), FPlatformTime::Seconds() - StartTime);
 		}
 		else
 		{
-			LaunchStreamThread(InSearchString, InSearchFilterForImaginaryDataReturn, InMinimiumVersionRequirement, InOnSearchComplete);
+			LaunchStreamThread(InSearchString, InSearchOptions, InOnSearchComplete);
 		}
 	}
 }
@@ -1147,7 +1151,7 @@ ECheckBoxState SFindInBlueprints::OnGetFindModeChecked() const
 	return bIsInFindWithinBlueprintMode ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
-void SFindInBlueprints::LaunchStreamThread(const FString& InSearchValue)
+void SFindInBlueprints::LaunchStreamThread(const FString& InSearchValue, const FStreamSearchOptions& InSearchOptions, FOnSearchComplete InOnSearchComplete)
 {
 	if(StreamSearch.IsValid() && !StreamSearch->IsComplete())
 	{
@@ -1160,24 +1164,7 @@ void SFindInBlueprints::LaunchStreamThread(const FString& InSearchValue)
 		RegisterActiveTimer( 0.f, FWidgetActiveTimerDelegate::CreateSP( this, &SFindInBlueprints::UpdateSearchResults ) );
 	}
 
-	StreamSearch = MakeShareable(new FStreamSearch(InSearchValue));
-	OnSearchComplete = FOnSearchComplete();
-}
-
-void SFindInBlueprints::LaunchStreamThread(const FString& InSearchValue, enum ESearchQueryFilter InSearchFilterForRawDataReturn, EFiBVersion InMinimiumVersionRequirement, FOnSearchComplete InOnSearchComplete)
-{
-	if(StreamSearch.IsValid() && !StreamSearch->IsComplete())
-	{
-		StreamSearch->Stop();
-		StreamSearch->EnsureCompletion();
-	}
-	else
-	{
-		// If the stream search wasn't already running, register the active timer
-		RegisterActiveTimer( 0.f, FWidgetActiveTimerDelegate::CreateSP( this, &SFindInBlueprints::UpdateSearchResults ) );
-	}
-
-	StreamSearch = MakeShareable(new FStreamSearch(InSearchValue, InSearchFilterForRawDataReturn, InMinimiumVersionRequirement));
+	StreamSearch = MakeShared<FStreamSearch>(InSearchValue, InSearchOptions);
 	OnSearchComplete = InOnSearchComplete;
 }
 
@@ -1568,6 +1555,20 @@ void SFindInBlueprints::CloseHostTab()
 	{
 		HostTabPtr->RequestCloseTab();
 	}
+}
+
+FReply SFindInBlueprints::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	// BlueprintEditor's IToolkit code will handle shortcuts itself - but we can just use 
+	// simple slate handlers when we're standalone:
+	if(!BlueprintEditorPtr.IsValid() && CommandList.IsValid())
+	{
+		if( CommandList->ProcessCommandBindings(InKeyEvent))
+		{
+			return FReply::Handled();
+		}
+	}
+	return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
 }
 
 #undef LOCTEXT_NAMESPACE

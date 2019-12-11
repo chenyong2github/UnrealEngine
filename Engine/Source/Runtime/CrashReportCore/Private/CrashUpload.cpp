@@ -29,8 +29,6 @@
 namespace CrashUploadDefs
 {
 	const float PingTimeoutSeconds = 5.f;
-	// Ignore files bigger than 100MB; mini-dumps are smaller than this, but heap dumps can be very large
-	const int MaxFileSizeToUpload = 100 * 1024 * 1024;
 
 	const FString APIKey(TEXT("CrashReporter"));
 	const FString AppEnvironmentInternal(TEXT("Dev"));
@@ -175,12 +173,6 @@ bool FCrashUploadBase::CompressData(const TArray<FString>& InPendingFiles, FComp
 				IFileManager::Get().Copy(*DestinationPath, *PathOfFileToUpload, false);
 			}
 
-			continue;
-		}
-
-		if (IFileManager::Get().FileSize(*PathOfFileToUpload) > CrashUploadDefs::MaxFileSizeToUpload)
-		{
-			UE_LOG(CrashReportCoreLog, Warning, TEXT("Skipping large crash report file"));
 			continue;
 		}
 

@@ -22,7 +22,7 @@
 #include "Containers/CircularBuffer.h"
 #include "ReplicationDriver.h"
 #include "Analytics/EngineNetAnalytics.h"
-#include "PacketTraits.h"
+#include "Net/Core/Misc/PacketTraits.h"
 #include "Net/Util/ResizableCircularQueue.h"
 #include "Net/NetAnalyticsTypes.h"
 
@@ -38,6 +38,13 @@ class UChildConnection;
 
 typedef TMap<TWeakObjectPtr<AActor>, UActorChannel*, FDefaultSetAllocator, TWeakObjectPtrMapKeyFuncs<TWeakObjectPtr<AActor>, UActorChannel*>> FActorChannelMap;
 
+namespace NetConnectionHelper
+{
+	/** Number of bits to use in the packet header for sending the milliseconds on the clock when the packet is sent */
+	constexpr int32 NumBitsForJitterClockTimeInHeader = 10;
+}
+
+
 /*-----------------------------------------------------------------------------
 	Types.
 -----------------------------------------------------------------------------*/
@@ -45,8 +52,9 @@ enum { RELIABLE_BUFFER = 256 }; // Power of 2 >= 1.
 enum { MAX_PACKETID = FNetPacketNotify::SequenceNumberT::SeqNumberCount };  // Power of 2 >= 1, covering guaranteed loss/misorder time.
 enum { MAX_CHSEQUENCE = 1024 }; // Power of 2 >RELIABLE_BUFFER, covering loss/misorder time.
 enum { MAX_BUNCH_HEADER_BITS = 256 };
-enum { UE_PACKET_MAX_SEQUENCE_HISTORY_BITS = FNetPacketNotify::MaxSequenceHistoryLength };
-enum { MAX_PACKET_HEADER_BITS = 49 + UE_PACKET_MAX_SEQUENCE_HISTORY_BITS }; // = [(Header)32 + (SeqHistory)32-MaxSequenceHistoryLength|(bool)1|?(ServerTime)8|(ReceviedRateByte)8]
+enum { MAX_PACKET_RELIABLE_SEQUENCE_HEADER_BITS = 32 /*PackedHeader*/ + FNetPacketNotify::SequenceHistoryT::MaxSizeInBits };
+enum { MAX_PACKET_INFO_HEADER_BITS = 1 /*bHasPacketInfo*/ + NetConnectionHelper::NumBitsForJitterClockTimeInHeader + 1 /*bHasServerFrameTime*/ + 8 /*ServerFrameTime*/};
+enum { MAX_PACKET_HEADER_BITS = MAX_PACKET_RELIABLE_SEQUENCE_HEADER_BITS + MAX_PACKET_INFO_HEADER_BITS  };
 enum { MAX_PACKET_TRAILER_BITS = 1 };
 
 // 
@@ -380,6 +388,18 @@ private:
 	FPacketTimestamp	LastOSReceiveTime;		// Last time a packet was received at the OS/NIC layer
 	bool				bIsOSReceiveTimeLocal;	// Whether LastOSReceiveTime uses the same clock as the game, or needs translating
 
+	/** Did we write the dummy PacketInfo in the current SendBuffer */
+	bool bSendBufferHasDummyPacketInfo = false;
+
+	/** Stores the bit number where we wrote the dummy packet info in the packet header */
+	FBitWriterMark HeaderMarkForPacketInfo;
+
+	/** The difference between the send and receive clock time of the last received packet */
+	int32 PreviousJitterTimeDelta;
+
+	/** Timestamp of the last packet sent*/
+	double PreviousPacketSendTimeInS;
+
 public:
 	// Merge info.
 	FBitWriterMark  LastStart;				// Most recently sent bunch start.
@@ -396,16 +416,38 @@ public:
 	double			StatUpdateTime;
 	/** Interval between gathering stats */
 	float			StatPeriod;
-	float			BestLag,   AvgLag;		// Lag.
 
-	// Stat accumulators.
-	double			LagAcc, BestLagAcc;		// Previous msec lag.
-	int32			LagCount;				// Counter for lag measurement.
-	double			LastTime, FrameTime;	// Monitors frame time.
-	/** @todo document */
-	double			CumulativeTime, AverageFrameTime; 
-	/** @todo document */
+	/** Average lag seen during the last StatPeriod */
+	float AvgLag;
+
+private:
+	// BestLag variable is deprecated. Use AvgLag instead
+	float			BestLag;
+	// BestLagAcc variable is deprecated. Use LagAcc instead
+	double			BestLagAcc;
+
+public:
+
+	/** Total accumulated lag values during the current StatPeriod */
+	double			LagAcc;
+	/** Nb of stats accumulated in LagAcc */
+	int32			LagCount;
+	
+	/** Monitors frame time */
+	double			LastTime, FrameTime;
+
+	/** Total frames times accumulator */
+	double			CumulativeTime;
+	
+	/** The average frame delta time over the last 1 second period.*/
+	double			AverageFrameTime;
+
+	/** Current jitter for this connection in milliseconds */
+	float			GetAverageJitterInMS() const { return AverageJitterInMS; }
+
+	/** Nb of stats accumulated in CumulativeTime */
 	int32			CountedFrames;
+
 	/** bytes sent/received on this connection (accumulated during a StatPeriod) */
 	int32 InBytes, OutBytes;
 	/** total bytes sent/received on this connection */
@@ -425,6 +467,30 @@ public:
 	/** total acks sent on this connection */
 	int32 OutTotalAcks;
 
+	/** Percentage of packets lost during the last StatPeriod */
+	using FNetConnectionPacketLoss = TPacketLossData<3>;
+	const FNetConnectionPacketLoss& GetInLossPercentage() const  { return InPacketsLossPercentage; }
+	const FNetConnectionPacketLoss& GetOutLossPercentage() const { return OutPacketsLossPercentage;  }
+
+
+private:
+
+	FNetConnectionPacketLoss InPacketsLossPercentage;
+	FNetConnectionPacketLoss OutPacketsLossPercentage;
+
+	/** Counts the number of stat samples taken */
+	int32 StatPeriodCount;
+
+	/**
+	* Jitter represents the average time divergence of all sent packets.
+	* Ex:
+	* If the time between the sending and the reception of packets is always 100ms; the jitter will be 0.
+	* If the time difference is either 150ms or 100ms, the jitter will tend towards 50ms.
+	*/
+	float AverageJitterInMS;
+
+public:
+
 	/** Net Analytics */
 
 	/** The locally cached/updated analytics variables, for the NetConnection - aggregated upon connection Close */
@@ -438,6 +504,7 @@ public:
 	double			OutLagTime[256];				// For lag measuring.
 	int32			OutLagPacketId[256];			// For lag measuring.
 	uint8			OutBytesPerSecondHistory[256];	// For saturation measuring.
+	UE_DEPRECATED(4.25, "RemoteSaturation is not calculated anymore and is now deprecated")
 	float			RemoteSaturation;
 	int32			InPacketId;						// Full incoming packet index.
 	int32			OutPacketId;					// Most recently sent packet.
@@ -635,8 +702,11 @@ private:
 	/** delayed incoming packet array */
 	TArray<FDelayedIncomingPacket> DelayedIncomingPackets;
 
+	/** Allow emulated packets to be sent out of order. This causes packet loss on the receiving end */
+	bool bSendDelayedPacketsOutofOrder = false;
+
 	/** set to true when already delayed packets are reinjected */
-	bool bIsReinjectingDelayedPackets;
+	bool bIsReinjectingDelayedPackets = false;
 
 	/** Process incoming packets that have been delayed for long enough */
 	void ReinjectDelayedPackets();
@@ -978,8 +1048,11 @@ public:
 	/** Create a channel. */
 	ENGINE_API UChannel* CreateChannelByName( const FName& ChName, EChannelCreateFlags CreateFlags, int32 ChannelIndex=INDEX_NONE );
 
-	/** Handle a packet we just received. */
-	void ReceivedPacket( FBitReader& Reader );
+	/** 
+	* Handle a packet we just received. 
+	* bIsReinjectedPacket is true if a packet is reprocessed after getting cached 
+	*/
+	void ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacket=false );
 
 	/** Packet was negatively acknowledged. */
 	void ReceivedNak( int32 NakPacketId );
@@ -1167,6 +1240,11 @@ public:
 
 protected:
 
+	bool GetPendingCloseDueToSocketSendFailure() const
+	{
+		return bConnectionPendingCloseDueToSocketSendFailure;
+	}
+
 	ENGINE_API void SetPendingCloseDueToSocketSendFailure();
 
 	void CleanupDormantActorState();
@@ -1215,14 +1293,20 @@ private:
 	/** Write packetHeader */
 	void WritePacketHeader(FBitWriter& Writer);
 
-	/** Write extended packet header information (ServerFrameTime, SaturationData) */
-	void WritePacketInfo(FBitWriter& Writer) const;
+	/** Write placeholder bits for data filled before the real send (ServerFrameTime, JitterClockTime) */
+	void WriteDummyPacketInfo(FBitWriter& Writer);
+
+	/** Overwrite the dummy packet info values with real values before sending */
+	void WriteFinalPacketInfo(FBitWriter& Writer, double PacketSentTimeInS);
 	
-	/** Read extended packet header information (ServerFrameTime, SaturationData) */
-	bool ReadPacketInfo(FBitReader& Reader);
+	/** Read extended packet header information (ServerFrameTime) */
+	bool ReadPacketInfo(FBitReader& Reader, bool bHasPacketInfoPayload);
 
 	/** Packet was acknowledged as delivered */
 	void ReceivedAck(int32 AckPacketId);
+
+	/** Calculate the average jitter while adding the new packet's jitter value */
+	void ProcessJitter(int32 PacketJitterClockTimeMS);
 
 	/**
 	 * on the server, the world the client has told us it has loaded
@@ -1290,6 +1374,11 @@ private:
 
 	/** Whether or not PacketOrderCache is presently being flushed */
 	bool bFlushingPacketOrderCache;
+
+	/** 
+	* Set to true after a packet is flushed (sent) and reset at the end of the connection's Tick. 
+	*/
+	bool bFlushedNetThisFrame = false;
 };
 
 /** Help structs for temporarily setting network settings */

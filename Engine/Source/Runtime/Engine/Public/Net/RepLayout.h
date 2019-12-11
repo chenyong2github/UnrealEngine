@@ -275,16 +275,7 @@ struct FRepSerializationSharedInfo
 	/** Binary blob of net serialized data to be shared */
 	TUniquePtr<FNetBitWriter> SerializedProperties;
 
-	void CountBytes(FArchive& Ar) const
-	{
-		SharedPropertyInfo.CountBytes(Ar);
-
-		if (FNetBitWriter const * const LocalSerializedProperties = SerializedProperties.Get())
-		{
-			Ar.CountBytes(sizeof(FNetBitWriter), sizeof(FNetBitWriter));
-			LocalSerializedProperties->CountMemory(Ar);
-		}
-	}
+	void CountBytes(FArchive& Ar) const;
 
 private:
 
@@ -313,6 +304,18 @@ public:
 	void CountBytes(FArchive& Ar) const
 	{
 		Changed.CountBytes(Ar);
+	}
+
+	bool WasSent() const
+	{
+		return OutPacketIdRange.First != INDEX_NONE;
+	}
+
+	void Reset()
+	{
+		OutPacketIdRange = FPacketIdRange();
+		Changed.Empty();
+		Resend = false;
 	}
 
 	/** Range of the Packets that this changelist was last sent with. Used to track acknowledgments. */
@@ -710,7 +713,6 @@ public:
 		ShadowOffset(0),
 		CmdStart(0), 
 		CmdEnd(0), 
-		RoleSwapIndex(-1), 
 		Condition(COND_None),
 		RepNotifyCondition(REPNOTIFY_OnChanged),
 		RepNotifyNumParams(INDEX_NONE),
@@ -745,14 +747,6 @@ public:
 
 	/** @see CmdStart */
 	uint16 CmdEnd;
-
-	/**
-	 * This value indicates whether or not this command needs to swapped, and what other
-	 * command it should be swapped with.
-	 *
-	 * This is used for Role and RemoteRole which have inverted values on Servers and Clients.
-	 */
-	int32 RoleSwapIndex;
 
 	ELifetimeCondition Condition;
 	ELifetimeRepNotifyCondition RepNotifyCondition;
@@ -973,6 +967,14 @@ private:
 	int32 LastSuccessfulCmdIndex;
 };
 
+enum class ECreateReplicationChangelistMgrFlags
+{
+	None,
+	SkipDeltaCustomState,	//! Skip creating CustomDeltaState used for tracking.
+							//! Only do this if you know you'll never need it (like for replay recording)
+};
+ENUM_CLASS_FLAGS(ECreateReplicationChangelistMgrFlags);
+
 enum class ECreateRepLayoutFlags
 {
 	None,
@@ -1063,6 +1065,25 @@ enum class UE_DEPRECATED(4.24, "Use FRepLayout::IsEmpty() instead.") ERepLayoutS
  * Receiving is very similar, except the Handles are baked into the serialized data so no
  * explicit changelist is required. As each Handle is read, a Layout Command is applied
  * that serializes the data from the network bunch and applies it to an object.
+ *
+ * RETRIES AND RELIABLES
+ *
+ * @FSendingRepState maintains a circular buffer that tracks recently sent Changelists (@FRepChangedHistory).
+ * These history items track the Changelist alongside the Packet ID that the bunches were sent in.
+ * 
+ * Once we receive ACKs for all associated packets, the history will be removed from the buffer.
+ * If NAKs are received for any of the packets, we will merge the changelist into the next set of properties we replicate.
+ *
+ * If we receive no NAKs or ACKs for an extended period, to prevent overflows in the history buffer,
+ * we will merge the entire buffer into a single monolithic changelist which will be sent alongside the next set of properties.
+ *
+ * In both cases of NAKs or no response, the merged changelists will be tracked in the latest history item
+ * alongside with other sent properties.
+ *
+ * When "net.PartialBunchReliableThreshold" is non-zero and property data bunches are split into partial bunches above
+ * the threshold, we will not generate a history item. Instead, we will rely on the reliable bunch framework for resends
+ * and replication of the Object will be completely paused until the property bunches are acknowledged.
+ * However, this will not affect other history items since they are still unreliable.
  */
 class ENGINE_VTABLE FRepLayout : public FGCObject, public TSharedFromThis<FRepLayout>
 {
@@ -1107,9 +1128,10 @@ public:
 	/**
 	 * Creates and initializes a new FReplicationChangelistMgr.
 	 *
-	 * @param InObject	The Object that is being managed.
+	 * @param InObject		The Object that is being managed.
+	 * @param CreateFlags	Flags modifying how the manager is created.
 	 */
-	TSharedPtr<FReplicationChangelistMgr> CreateReplicationChangelistMgr(const UObject* InObject) const;
+	TSharedPtr<FReplicationChangelistMgr> CreateReplicationChangelistMgr(const UObject* InObject, const ECreateReplicationChangelistMgrFlags CreateFlags) const;
 
 	/**
 	 * Creates and initializes a new FRepState.
@@ -1733,12 +1755,6 @@ private:
 	const ELifetimeCondition GetLifetimeCustomDeltaPropertyCondition(const uint16 RepIndCustomDeltaPropertyIndexex) const;
 
 	ERepLayoutFlags Flags;
-
-	/** Index of the Role property in the Parents list. May be INDEX_NONE if Owner doesn't have the property. */
-	int16 RoleIndex;
-
-	/** Index of the RemoteRole property in the Parents list. May be INDEX_NONE if Owner doesn't have the property. */
-	int16 RemoteRoleIndex;
 
 	/** Size (in bytes) needed to allocate a single instance of a Shadow buffer for this RepLayout. */
 	int32 ShadowDataBufferSize;

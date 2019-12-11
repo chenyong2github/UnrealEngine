@@ -9,11 +9,13 @@
 #include "HairStrandsInterface.h"
 
 static int32 GHairDeformationType = 0;
-static FAutoConsoleVariableRef CVarHairDeformationType(TEXT("r.HairStrands.DeformationType"), GHairDeformationType, TEXT("Type of procedural deformation applied on hair strands (0:bypass, 1:wave, 2:normal)"));
+static FAutoConsoleVariableRef CVarHairDeformationType(TEXT("r.HairStrands.DeformationType"), GHairDeformationType, TEXT("Type of procedural deformation applied on hair strands (0:use simulation's output, 1:use rest strands, 2: use rest guides, 3:wave pattern, 4:follow root normal)"));
 
-static float GHairRaytracingRadiusScale = 1;
-static FAutoConsoleVariableRef CVarHairRaytracingRadiusScale(TEXT("r.HairStrands.RaytracingRadiusScale"), GHairRaytracingRadiusScale, TEXT("Scale factor for raytracing hair strands geometry"));
+static float GHairRaytracingRadiusScale = 0;
+static FAutoConsoleVariableRef CVarHairRaytracingRadiusScale(TEXT("r.HairStrands.RaytracingRadiusScale"), GHairRaytracingRadiusScale, TEXT("Override the per instance scale factor for raytracing hair strands geometry (0: disabled, >0:enabled)"));
 
+static int32 GHairStrandsInterpolateSimulation = 1;
+static FAutoConsoleVariableRef CVarHairInterpolateSimulation(TEXT("r.HairStrands.InterpolateSimulation"), GHairStrandsInterpolateSimulation, TEXT("Enable/disable simulation output during the hair interpolation"));
 
 static FIntVector ComputeDispatchCount(uint32 ItemCount, uint32 GroupSize)
 {
@@ -37,6 +39,29 @@ inline uint32 ComputeGroupSize()
 inline uint32 GetGroupSizePermutation(uint32 GroupSize)
 {
 	return GroupSize == 64 ? 0 : (GroupSize == 32 ? 1 : 2);
+}
+
+enum class EDeformationType : uint8
+{
+	Simulation,		// Use the output of the hair simulation
+	RestStrands,	// Use the rest strands position (no weighted interpolation)
+	RestGuide,		// Use the rest guide as input of the interpolation (no deformation), only weighted interpolation
+	Wave,			// Apply a wave pattern to deform the guides
+	NormalDirection // Apply a stretch pattern aligned with the guide root's normal
+};
+
+static EDeformationType GetDeformationType()
+{
+	switch (GHairDeformationType)
+	{
+	case 0: return EDeformationType::Simulation;
+	case 1: return EDeformationType::RestStrands;
+	case 2: return EDeformationType::RestGuide;
+	case 3: return EDeformationType::Wave;
+	case 4: return EDeformationType::NormalDirection;
+	}
+
+	return EDeformationType::Simulation;
 }
 
 class FDeformGuideCS : public FGlobalShader
@@ -64,7 +89,7 @@ IMPLEMENT_GLOBAL_SHADER(FDeformGuideCS, "/Engine/Private/HairStrands/HairStrands
 
 static void AddDeformSimHairStrandsPass(
 	FRDGBuilder& GraphBuilder,
-	uint32 DeformationType,
+	EDeformationType DeformationType,
 	uint32 VertexCount,
 	FRHIShaderResourceView* SimRestPosePositionBuffer,
 	FRHIShaderResourceView* SimRootIndexBuffer,
@@ -72,6 +97,16 @@ static void AddDeformSimHairStrandsPass(
 {
 	static uint32 IterationCount = 0;
 	++IterationCount;
+
+	int32 InternalDeformationType = -1;
+	switch (DeformationType)
+	{
+	case EDeformationType::RestGuide: InternalDeformationType = 0; break;
+	case EDeformationType::Wave: InternalDeformationType = 1; break;
+	case EDeformationType::NormalDirection: InternalDeformationType = 2; break;
+	}
+
+	if (InternalDeformationType < 0) return;
 
 	FDeformGuideCS::FParameters* Parameters = GraphBuilder.AllocParameters<FDeformGuideCS::FParameters>();
 	Parameters->SimRestPosePositionBuffer = SimRestPosePositionBuffer;
@@ -83,7 +118,7 @@ static void AddDeformSimHairStrandsPass(
 
 	FDeformGuideCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FDeformGuideCS::FGroupSize>(GetGroupSizePermutation(GroupSize));
-	PermutationVector.Set<FDeformGuideCS::FDeformationType>(DeformationType);
+	PermutationVector.Set<FDeformGuideCS::FDeformationType>(InternalDeformationType);
 
 	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 
@@ -107,17 +142,24 @@ class FHairInterpolationCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FHairInterpolationCS, FGlobalShader);
 
 	class FGroupSize : SHADER_PERMUTATION_INT("PERMUTATION_GROUP_SIZE", 2);
-	class FDebug : SHADER_PERMUTATION_INT("PERMUTATION_DEBUG", 2);
+	class FDebug : SHADER_PERMUTATION_INT("PERMUTATION_DEBUG", 3);
 	class FDynamicGeometry : SHADER_PERMUTATION_INT("PERMUTATION_DYNAMIC_GEOMETRY", 2);
-	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FDebug, FDynamicGeometry>;
+	class FSimulation : SHADER_PERMUTATION_INT("PERMUTATION_SIMULATION", 2);
+	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FDebug, FDynamicGeometry, FSimulation>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, VertexCount)
 		SHADER_PARAMETER(uint32, DispatchCountX)
+		SHADER_PARAMETER(FVector, InRenderHairPositionOffset)
+		SHADER_PARAMETER(FVector, InSimHairPositionOffset)
+		SHADER_PARAMETER(FVector, OutHairPositionOffset)
+		SHADER_PARAMETER(FIntPoint, HairStrandsCullIndex)
 
-		SHADER_PARAMETER(FVector, RestPositionWorldCenter)
-		SHADER_PARAMETER(FVector, DeformedPositionWorldCenter)
-		SHADER_PARAMETER(FVector, OutRenderDeformedPositionCenter)
+		SHADER_PARAMETER(FVector, RestPositionOffset)
+		SHADER_PARAMETER(FVector, DeformedPositionOffset)
+
+		SHADER_PARAMETER(FVector, SimRestPositionOffset)
+		SHADER_PARAMETER(FVector, SimDeformedPositionOffset)
 
 		SHADER_PARAMETER_SRV(Buffer, RenderRestPosePositionBuffer)
 		SHADER_PARAMETER_UAV(RWBuffer, OutRenderDeformedPositionBuffer)
@@ -138,8 +180,21 @@ class FHairInterpolationCS : public FGlobalShader
 		SHADER_PARAMETER_SRV(Buffer<float4>, DeformedPosition1Buffer)
 		SHADER_PARAMETER_SRV(Buffer<float4>, DeformedPosition2Buffer)
 
-		SHADER_PARAMETER_SRV(Buffer<uint>,	RootToTriangleIndex)
-		SHADER_PARAMETER_SRV(Buffer<uint>, VertexToRootIndexBuffer)
+		SHADER_PARAMETER_SRV(Buffer<uint>, RootBarycentricBuffer)
+		SHADER_PARAMETER_SRV(Buffer<uint>, RootToTriangleIndex)
+		SHADER_PARAMETER_SRV(Buffer<uint>, RenVertexToRootIndexBuffer)
+
+		SHADER_PARAMETER_SRV(Buffer<float4>, SimRestPosition0Buffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>, SimRestPosition1Buffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>, SimRestPosition2Buffer)
+
+		SHADER_PARAMETER_SRV(Buffer<float4>, SimDeformedPosition0Buffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>, SimDeformedPosition1Buffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>, SimDeformedPosition2Buffer)
+
+		SHADER_PARAMETER_SRV(Buffer<uint>, SimRootBarycentricBuffer)
+		SHADER_PARAMETER_SRV(Buffer<uint>, SimRootToTriangleIndex)
+		SHADER_PARAMETER_SRV(Buffer<uint>, SimVertexToRootIndexBuffer)
 
 		END_SHADER_PARAMETER_STRUCT()
 
@@ -151,8 +206,13 @@ IMPLEMENT_GLOBAL_SHADER(FHairInterpolationCS, "/Engine/Private/HairStrands/HairS
 
 static void AddHairStrandsInterpolationPass(
 	FRDGBuilder& GraphBuilder,
-	const FHairStrandsProjectionHairData& InHairData,
+	const FHairStrandsProjectionHairData::HairGroup& InRenHairData,
+	const FHairStrandsProjectionHairData::HairGroup& InSimHairData,
+	const FVector& InRenderHairWorldOffset,
+	const FVector& InSimHairWorldOffset,
+	const FVector& OutHairWorldOffset,
 	const int32 LODIndex,
+	const bool bHasSimulationEnable,
 	const uint32 VertexCount,
 	const FShaderResourceViewRHIRef& RenderRestPosePositionBuffer,
 	const FShaderResourceViewRHIRef& Interpolation0Buffer,
@@ -163,7 +223,6 @@ static void AddHairStrandsInterpolationPass(
 	const FUnorderedAccessViewRHIRef& OutRenderPositionBuffer,
 	const FUnorderedAccessViewRHIRef& OutRenderAttributeBuffer)
 {
-	const bool bCopySimAttributesToRenderAttributes = SimAttributeBuffer != nullptr && OutRenderAttributeBuffer != nullptr;
 	const uint32 GroupSize = ComputeGroupSize();
 	const FIntVector DispatchCount = ComputeDispatchCount(VertexCount, GroupSize);
 
@@ -174,39 +233,73 @@ static void AddHairStrandsInterpolationPass(
 	Parameters->Interpolation0Buffer = Interpolation0Buffer;
 	Parameters->Interpolation1Buffer = Interpolation1Buffer;
 	Parameters->OutRenderDeformedPositionBuffer = OutRenderPositionBuffer;
+	Parameters->HairStrandsCullIndex = FIntPoint(-1, -1);
+	Parameters->VertexCount = VertexCount;
+	Parameters->InRenderHairPositionOffset = InRenderHairWorldOffset;
+	Parameters->InSimHairPositionOffset = InSimHairWorldOffset;
+	Parameters->OutHairPositionOffset = OutHairWorldOffset;
+	Parameters->DispatchCountX = DispatchCount.X;
+	
+	const bool bIsVertexToCurveBuffersValid = InRenHairData.VertexToCurveIndexBuffer && InSimHairData.VertexToCurveIndexBuffer;
+	if (bIsVertexToCurveBuffersValid)
+	{
+		Parameters->RenVertexToRootIndexBuffer = InRenHairData.VertexToCurveIndexBuffer->SRV;
+		Parameters->SimVertexToRootIndexBuffer = InSimHairData.VertexToCurveIndexBuffer->SRV;
+	}
+
+	const FHairCullInfo Info = GetHairStrandsCullInfo();
+	const bool bCullingEnable = Info.CullMode != EHairCullMode::None && bIsVertexToCurveBuffersValid;
+	if (bCullingEnable)
+	{
+		if (Info.CullMode == EHairCullMode::Sim)
+			Parameters->HairStrandsCullIndex.Y = Info.ExplicitIndex >= 0 ? Info.ExplicitIndex : FMath::Clamp(uint32(Info.NormalizedIndex * InSimHairData.RootCount), 0u, InSimHairData.RootCount - 1);
+		if (Info.CullMode == EHairCullMode::Render)
+			Parameters->HairStrandsCullIndex.X = Info.ExplicitIndex >= 0 ? Info.ExplicitIndex : FMath::Clamp(uint32(Info.NormalizedIndex * InRenHairData.RootCount), 0u, InRenHairData.RootCount - 1);
+	}
+
+	const bool bCopySimAttributesToRenderAttributes = SimAttributeBuffer != nullptr && OutRenderAttributeBuffer != nullptr;
 	if (bCopySimAttributesToRenderAttributes)
 	{
 		Parameters->SimAttributeBuffer = SimAttributeBuffer;
 		Parameters->OutRenderAttributeBuffer = OutRenderAttributeBuffer;
 	}
-	Parameters->VertexCount = VertexCount;
-	Parameters->DispatchCountX = DispatchCount.X;
-	Parameters->OutRenderDeformedPositionCenter = FVector::ZeroVector;
 
-	const bool bSupportDynamicMesh = InHairData.RootCount > 0 && LODIndex >= 0 && LODIndex < InHairData.LODDatas.Num() && InHairData.LODDatas[LODIndex].bIsValid;
+	const bool bSupportDynamicMesh = InRenHairData.RootCount > 0 && LODIndex >= 0 && LODIndex < InRenHairData.LODDatas.Num() && InRenHairData.LODDatas[LODIndex].bIsValid && bIsVertexToCurveBuffersValid;
 	if (bSupportDynamicMesh)
 	{
-		Parameters->OutRenderDeformedPositionCenter = FVector::ZeroVector; // TODO
+		Parameters->RestPositionOffset = InRenHairData.LODDatas[LODIndex].RestPositionOffset;
+		Parameters->RestPosition0Buffer = InRenHairData.LODDatas[LODIndex].RestRootTrianglePosition0Buffer->SRV;
+		Parameters->RestPosition1Buffer = InRenHairData.LODDatas[LODIndex].RestRootTrianglePosition1Buffer->SRV;
+		Parameters->RestPosition2Buffer = InRenHairData.LODDatas[LODIndex].RestRootTrianglePosition2Buffer->SRV;
 
-		Parameters->RestPositionWorldCenter = FVector::ZeroVector; // TODO: InHairData.LODDatas[LODIndex].RestRootCenter;
-		Parameters->RestPosition0Buffer = InHairData.LODDatas[LODIndex].RestRootTrianglePosition0Buffer->SRV;
-		Parameters->RestPosition1Buffer = InHairData.LODDatas[LODIndex].RestRootTrianglePosition1Buffer->SRV;
-		Parameters->RestPosition2Buffer = InHairData.LODDatas[LODIndex].RestRootTrianglePosition2Buffer->SRV;
+		Parameters->DeformedPositionOffset = InRenHairData.LODDatas[LODIndex].DeformedPositionOffset;
+		Parameters->DeformedPosition0Buffer = InRenHairData.LODDatas[LODIndex].DeformedRootTrianglePosition0Buffer->SRV;
+		Parameters->DeformedPosition1Buffer = InRenHairData.LODDatas[LODIndex].DeformedRootTrianglePosition1Buffer->SRV;
+		Parameters->DeformedPosition2Buffer = InRenHairData.LODDatas[LODIndex].DeformedRootTrianglePosition2Buffer->SRV;
 
-		Parameters->DeformedPositionWorldCenter = FVector::ZeroVector; // TODO: InHairData.LODDatas[LODIndex].DeformedRootCenter;
-		Parameters->DeformedPosition0Buffer = InHairData.LODDatas[LODIndex].DeformedRootTrianglePosition0Buffer->SRV;
-		Parameters->DeformedPosition1Buffer = InHairData.LODDatas[LODIndex].DeformedRootTrianglePosition1Buffer->SRV;
-		Parameters->DeformedPosition2Buffer = InHairData.LODDatas[LODIndex].DeformedRootTrianglePosition2Buffer->SRV;
+		Parameters->RootToTriangleIndex = InRenHairData.LODDatas[LODIndex].RootTriangleIndexBuffer->SRV;
+		Parameters->RootBarycentricBuffer = InRenHairData.LODDatas[LODIndex].RootTriangleBarycentricBuffer->SRV;
 
-		Parameters->RootToTriangleIndex = InHairData.LODDatas[LODIndex].RootTriangleIndexBuffer->SRV;
-		Parameters->VertexToRootIndexBuffer = InHairData.VertexToCurveIndexBuffer->SRV;
+		Parameters->SimRestPositionOffset = InSimHairData.LODDatas[LODIndex].RestPositionOffset;
+		Parameters->SimRestPosition0Buffer = InSimHairData.LODDatas[LODIndex].RestRootTrianglePosition0Buffer->SRV;
+		Parameters->SimRestPosition1Buffer = InSimHairData.LODDatas[LODIndex].RestRootTrianglePosition1Buffer->SRV;
+		Parameters->SimRestPosition2Buffer = InSimHairData.LODDatas[LODIndex].RestRootTrianglePosition2Buffer->SRV;
+
+		Parameters->SimDeformedPositionOffset = InSimHairData.LODDatas[LODIndex].DeformedPositionOffset;
+		Parameters->SimDeformedPosition0Buffer = InSimHairData.LODDatas[LODIndex].DeformedRootTrianglePosition0Buffer->SRV;
+		Parameters->SimDeformedPosition1Buffer = InSimHairData.LODDatas[LODIndex].DeformedRootTrianglePosition1Buffer->SRV;
+		Parameters->SimDeformedPosition2Buffer = InSimHairData.LODDatas[LODIndex].DeformedRootTrianglePosition2Buffer->SRV;
+
+		Parameters->SimRootToTriangleIndex = InSimHairData.LODDatas[LODIndex].RootTriangleIndexBuffer->SRV;
+		Parameters->SimRootBarycentricBuffer = InSimHairData.LODDatas[LODIndex].RootTriangleBarycentricBuffer->SRV;
 	}
 
 	FHairInterpolationCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairInterpolationCS::FGroupSize>(GetGroupSizePermutation(GroupSize));
-	PermutationVector.Set<FHairInterpolationCS::FDebug>(bCopySimAttributesToRenderAttributes ? 1 : 0);
+	PermutationVector.Set<FHairInterpolationCS::FDebug>(bCopySimAttributesToRenderAttributes ? 1 : (bCullingEnable ? 2 : 0));
 	PermutationVector.Set<FHairInterpolationCS::FDynamicGeometry>(bSupportDynamicMesh ? 1 : 0);
-	
+	PermutationVector.Set<FHairInterpolationCS::FSimulation>(bHasSimulationEnable ? 1 : 0);
+
 	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 
 	TShaderMapRef<FHairInterpolationCS> ComputeShader(ShaderMap, PermutationVector);
@@ -335,28 +428,30 @@ static void UpdateHairAccelerationStructure(FRHICommandList& RHICmdList, FRayTra
 {
 	SCOPED_DRAW_EVENT(RHICmdList, CommitHairRayTracingGeometryUpdates);
 
-	TArray<FAccelerationStructureUpdateParams> Updates;
-	FAccelerationStructureUpdateParams Params;
+	FAccelerationStructureBuildParams Params;
+	Params.BuildMode = EAccelerationStructureBuildMode::Update;
 	Params.Geometry = RayTracingGeometry->RayTracingGeometryRHI;
-	Params.VertexBuffer = RayTracingGeometry->Initializer.PositionVertexBuffer;
-	Updates.Add(Params);
+	Params.Segments = RayTracingGeometry->Initializer.Segments;
 
-	RHICmdList.UpdateAccelerationStructures(Updates);
+	RHICmdList.BuildAccelerationStructures(MakeArrayView(&Params, 1));
 }
 
 static void BuildHairAccelerationStructure(FRHICommandList& RHICmdList, uint32 RaytracingVertexCount, FVertexBufferRHIRef& PositionBuffer, FRayTracingGeometry* OutRayTracingGeometry)
 {
 	FRayTracingGeometryInitializer Initializer;
-	Initializer.PositionVertexBuffer = PositionBuffer;
-	Initializer.VertexBufferByteOffset = 0;
-	Initializer.VertexBufferStride = FHairStrandsRaytracingFormat::SizeInByte;
-	Initializer.VertexBufferElementType = FHairStrandsRaytracingFormat::VertexElementType;
 	Initializer.IndexBuffer = nullptr;
-	Initializer.IndexBufferByteOffset = 0;
+	Initializer.IndexBufferOffset = 0;
 	Initializer.GeometryType = RTGT_Triangles;
-	Initializer.TotalPrimitiveCount = RaytracingVertexCount;
+	Initializer.TotalPrimitiveCount = RaytracingVertexCount / 3;
 	Initializer.bFastBuild = true;
 	Initializer.bAllowUpdate = true;
+
+	FRayTracingGeometrySegment Segment;
+	Segment.VertexBuffer = PositionBuffer;
+	Segment.VertexBufferStride = FHairStrandsRaytracingFormat::SizeInByte;
+	Segment.VertexBufferElementType = FHairStrandsRaytracingFormat::VertexElementType;
+	Segment.NumPrimitives = RaytracingVertexCount / 3;
+	Initializer.Segments.Add(Segment);
 
 	OutRayTracingGeometry->SetInitializer(Initializer);
 	OutRayTracingGeometry->RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);
@@ -368,130 +463,148 @@ void ComputeHairStrandsInterpolation(
 	FRHICommandListImmediate& RHICmdList,
 	FHairStrandsInterpolationInput* InInput,
 	FHairStrandsInterpolationOutput* InOutput,
-	FHairStrandsProjectionHairData& InHairData,
+	FHairStrandsProjectionHairData& InRenHairDatas,
+	FHairStrandsProjectionHairData& InSimHairDatas,
 	int32 LODIndex)
 {
 	if (!InInput || !InOutput) return;
-	FHairStrandsInterpolationInput& Input = *InInput;
-	FHairStrandsInterpolationOutput& Output = *InOutput;
-	Output.VFInput.Reset();
 
-	if (!Input.IsValid() || !Output.IsValid()) return;
-
-	DECLARE_GPU_STAT(HairStrandsInterpolation);
-	SCOPED_DRAW_EVENT(RHICmdList, HairStrandsInterpolation);
-	SCOPED_GPU_STAT(RHICmdList, HairStrandsInterpolation);
-
-	FRDGBuilder GraphBuilder(RHICmdList);
-
-	const uint32 CurrIndex = Output.CurrentIndex;
-	const uint32 PrevIndex = (Output.CurrentIndex+1)%2;
-
-	// Procedural deformers in place of actual physics solver
-	// 0: Simulation
-	// 1: Bypass
-	// 2: Wave
-	// 3: Straighten hair in direction of the root's normal
-	const int32 DeformationType = FMath::Clamp(GHairDeformationType, 0, Input.SimRootPointIndexBuffer ? 3 : 2) - 1;
-	if (GHairDeformationType > 0)
+	const uint32 GroupCount = InOutput->HairGroups.Num();
+	for (uint32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
 	{
-		AddDeformSimHairStrandsPass(
-			GraphBuilder,
-			DeformationType,
-			Input.SimVertexCount,
-			Input.SimRestPosePositionBuffer->SRV,
-			Input.SimRootPointIndexBuffer ? Input.SimRootPointIndexBuffer->SRV : nullptr,
-			Output.SimDeformedPositionBuffer[CurrIndex]->UAV);
-	}
+		FHairStrandsInterpolationInput::FHairGroup& Input   = InInput->HairGroups[GroupIndex];
+		FHairStrandsInterpolationOutput::HairGroup& Output = InOutput->HairGroups[GroupIndex];
+		Output.VFInput.Reset();
 
-	// If the deformation is driven by the physics simulation, then the output is always the 0 index
-	const uint32 SimIndex = GHairDeformationType == 0 ? 0 : CurrIndex;
+		if (!Input.IsValid() || !Output.IsValid()) return;
 
-	// Debug mode:
-	// * None	: Display hair normally
-	// * Sim	: Show sim strands
-	// * Render : Show rendering strands with sim color influence
-	const EHairStrandsDebugMode DebugMode = GetHairStrandsDebugStrandsMode();
-	if (DebugMode == EHairStrandsDebugMode::SimHairStrands)
-	{
-		AddHairTangentPass(
-			GraphBuilder,
-			Input.SimVertexCount,
-			Output.SimDeformedPositionBuffer[SimIndex]->SRV,
-			Output.SimTangentBuffer->UAV);
+		DECLARE_GPU_STAT(HairStrandsInterpolation);
+		SCOPED_DRAW_EVENT(RHICmdList, HairStrandsInterpolation);
+		SCOPED_GPU_STAT(RHICmdList, HairStrandsInterpolation);
 
-		GraphBuilder.Execute();
-	
-		Output.VFInput.HairPositionBuffer = Output.SimDeformedPositionBuffer[SimIndex]->SRV;
-		Output.VFInput.HairPreviousPositionBuffer = Output.SimDeformedPositionBuffer[SimIndex]->SRV;
-		Output.VFInput.HairTangentBuffer = Output.SimTangentBuffer->SRV;
-		Output.VFInput.HairAttributeBuffer = Input.SimAttributeBuffer->SRV;
-		Output.VFInput.VertexCount = Input.SimVertexCount;
-	}
-	else
-	{
-		const uint32 BufferSizeInBytes = Input.RenderVertexCount * FHairStrandsAttributeFormat::SizeInByte;
-		if (DebugMode == EHairStrandsDebugMode::RenderHairStrands && Output.RenderPatchedAttributeBuffer.NumBytes != BufferSizeInBytes)
+		FRDGBuilder GraphBuilder(RHICmdList);
+
+		const uint32 CurrIndex = Output.CurrentIndex;
+		const uint32 PrevIndex = (Output.CurrentIndex + 1) % 2;
+
+		const EDeformationType DeformationType = GetDeformationType();
+		if (DeformationType != EDeformationType::RestStrands && DeformationType != EDeformationType::Simulation)
 		{
-			Output.RenderPatchedAttributeBuffer.Release();
-			Output.RenderPatchedAttributeBuffer.Initialize(FHairStrandsAttributeFormat::SizeInByte, Input.RenderVertexCount, FHairStrandsAttributeFormat::Format, BUF_Static);
+			AddDeformSimHairStrandsPass(
+				GraphBuilder,
+				DeformationType,
+				Input.SimVertexCount,
+				Input.SimRestPosePositionBuffer->SRV,
+				Input.SimRootPointIndexBuffer ? Input.SimRootPointIndexBuffer->SRV : nullptr,
+				Output.SimDeformedPositionBuffer[CurrIndex]->UAV);
 		}
 
-		AddHairStrandsInterpolationPass(
-			GraphBuilder,
-			InHairData,
-			LODIndex,
-			Input.RenderVertexCount,
-			Input.RenderRestPosePositionBuffer->SRV,
-			Input.Interpolation0Buffer->SRV,
-			Input.Interpolation1Buffer->SRV,
-			Input.SimRestPosePositionBuffer->SRV,
-			Output.SimDeformedPositionBuffer[SimIndex]->SRV,
-			DebugMode == EHairStrandsDebugMode::RenderHairStrands ? Input.SimAttributeBuffer->SRV : nullptr,
-			Output.RenderDeformedPositionBuffer[CurrIndex]->UAV,
-			DebugMode == EHairStrandsDebugMode::RenderHairStrands ? Output.RenderPatchedAttributeBuffer.UAV : nullptr);
+		// If the deformation is driven by the physics simulation, then the output is always the 0 index
+		const uint32 SimIndex = GHairDeformationType == 0 ? 0 : CurrIndex;
 
-		AddHairTangentPass(
-			GraphBuilder,
-			Input.RenderVertexCount,
-			Output.RenderDeformedPositionBuffer[CurrIndex]->SRV,
-			Output.RenderTangentBuffer->UAV);
-
-#if RHI_RAYTRACING
-		if (IsRayTracingEnabled())
+		// Debug mode:
+		// * None	: Display hair normally
+		// * Sim	: Show sim strands
+		// * Render : Show rendering strands with sim color influence
+		const EHairStrandsDebugMode DebugMode = GetHairStrandsDebugStrandsMode();
+		if (DebugMode == EHairStrandsDebugMode::SimHairStrands)
 		{
-			AddGenerateRaytracingGeometryPass(
+			AddHairTangentPass(
+				GraphBuilder,
+				Input.SimVertexCount,
+				Output.SimDeformedPositionBuffer[SimIndex]->SRV,
+				Output.SimTangentBuffer->UAV);
+
+			GraphBuilder.Execute();
+
+			const bool bHasSimulationEnabled = Input.bIsSimulationEnable && GHairStrandsInterpolateSimulation && DeformationType != EDeformationType::RestStrands;
+
+			Output.VFInput.HairPositionBuffer = Output.SimDeformedPositionBuffer[SimIndex]->SRV;
+			Output.VFInput.HairPreviousPositionBuffer = Output.SimDeformedPositionBuffer[SimIndex]->SRV;
+			Output.VFInput.HairTangentBuffer = Output.SimTangentBuffer->SRV;
+			Output.VFInput.HairAttributeBuffer = Input.SimAttributeBuffer->SRV;
+			Output.VFInput.HairMaterialBuffer = Output.RenderMaterialBuffer->SRV;
+			Output.VFInput.HairPositionOffset = bHasSimulationEnabled ? Input.OutHairPositionOffset : Input.InSimHairPositionOffset;
+			Output.VFInput.HairPreviousPositionOffset = bHasSimulationEnabled ? Input.OutHairPreviousPositionOffset : Input.InSimHairPositionOffset;
+			Output.VFInput.VertexCount = Input.SimVertexCount;
+		}
+		else
+		{
+			const uint32 BufferSizeInBytes = Input.RenderVertexCount * FHairStrandsAttributeFormat::SizeInByte;
+			if (DebugMode == EHairStrandsDebugMode::RenderHairStrands && Output.RenderPatchedAttributeBuffer.NumBytes != BufferSizeInBytes)
+			{
+				Output.RenderPatchedAttributeBuffer.Release();
+				Output.RenderPatchedAttributeBuffer.Initialize(FHairStrandsAttributeFormat::SizeInByte, Input.RenderVertexCount, FHairStrandsAttributeFormat::Format, BUF_Static);
+			}
+
+			const bool bHasSimulationEnabled = Input.bIsSimulationEnable && GHairStrandsInterpolateSimulation && DeformationType != EDeformationType::RestStrands;
+			check(GroupIndex < uint32(InRenHairDatas.HairGroups.Num()));
+			check(GroupIndex < uint32(InSimHairDatas.HairGroups.Num()));
+			AddHairStrandsInterpolationPass(
+				GraphBuilder,
+				InRenHairDatas.HairGroups[GroupIndex],
+				InSimHairDatas.HairGroups[GroupIndex],
+				Input.InRenderHairPositionOffset,
+				Input.InSimHairPositionOffset,
+				Input.OutHairPositionOffset,
+				LODIndex,
+				bHasSimulationEnabled,
+				Input.RenderVertexCount,
+				Input.RenderRestPosePositionBuffer->SRV,
+				Input.Interpolation0Buffer->SRV,
+				Input.Interpolation1Buffer->SRV,
+				Input.SimRestPosePositionBuffer->SRV,
+				Output.SimDeformedPositionBuffer[SimIndex]->SRV,
+				DebugMode == EHairStrandsDebugMode::RenderHairStrands ? Input.SimAttributeBuffer->SRV : nullptr,
+				Output.RenderDeformedPositionBuffer[CurrIndex]->UAV,
+				DebugMode == EHairStrandsDebugMode::RenderHairStrands ? Output.RenderPatchedAttributeBuffer.UAV : nullptr);
+
+			Output.VFInput.HairPositionBuffer = Output.RenderDeformedPositionBuffer[CurrIndex]->SRV;
+			Output.VFInput.HairPreviousPositionBuffer = Output.RenderDeformedPositionBuffer[PrevIndex]->SRV;
+			
+			AddHairTangentPass(
 				GraphBuilder,
 				Input.RenderVertexCount,
-				Input.HairRadius * GHairRaytracingRadiusScale,
-				Input.HairWorldOffset,
-				Output.RenderDeformedPositionBuffer[CurrIndex]->SRV,
-				Input.RaytracingPositionBuffer->UAV);
+				Output.VFInput.HairPositionBuffer,
+				Output.RenderTangentBuffer->UAV);
+
+			#if RHI_RAYTRACING
+			if (IsRayTracingEnabled())
+			{
+				AddGenerateRaytracingGeometryPass(
+					GraphBuilder,
+					Input.RenderVertexCount,
+					Input.HairRadius * (GHairRaytracingRadiusScale > 0 ? GHairRaytracingRadiusScale : Input.HairRaytracingRadiusScale),
+					Input.OutHairPositionOffset,
+					Output.VFInput.HairPositionBuffer,
+					Input.RaytracingPositionBuffer->UAV);
+			}
+			#endif
+			GraphBuilder.Execute();
+
+			Output.VFInput.HairTangentBuffer = Output.RenderTangentBuffer->SRV;
+			Output.VFInput.HairAttributeBuffer = DebugMode == EHairStrandsDebugMode::RenderHairStrands ? Output.RenderPatchedAttributeBuffer.SRV : Input.RenderAttributeBuffer->SRV;
+			Output.VFInput.HairMaterialBuffer = Output.RenderMaterialBuffer->SRV;
+			Output.VFInput.HairPositionOffset = Input.OutHairPositionOffset;
+			Output.VFInput.HairPreviousPositionOffset = Input.OutHairPreviousPositionOffset;
+			Output.VFInput.VertexCount = Input.RenderVertexCount;
+
+			#if RHI_RAYTRACING
+			if (IsRayTracingEnabled())
+			{
+				FRHIUnorderedAccessView* UAV = Input.RaytracingPositionBuffer->UAV;
+				RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, &UAV, 1);
+
+				const bool bNeedFullBuild = !Input.bIsRTGeometryInitialized;
+				if (bNeedFullBuild)
+					BuildHairAccelerationStructure(RHICmdList, Input.RaytracingVertexCount, Input.RaytracingPositionBuffer->Buffer, Input.RaytracingGeometry);
+				else
+					UpdateHairAccelerationStructure(RHICmdList, Input.RaytracingGeometry);
+				Input.bIsRTGeometryInitialized = true;
+			}
+			#endif
 		}
-#endif
-		GraphBuilder.Execute();
 
-		Output.VFInput.HairPositionBuffer = Output.RenderDeformedPositionBuffer[CurrIndex]->SRV;
-		Output.VFInput.HairPreviousPositionBuffer = Output.RenderDeformedPositionBuffer[PrevIndex]->SRV;
-		Output.VFInput.HairTangentBuffer = Output.RenderTangentBuffer->SRV;
-		Output.VFInput.HairAttributeBuffer = DebugMode == EHairStrandsDebugMode::RenderHairStrands ? Output.RenderPatchedAttributeBuffer.SRV : Input.RenderAttributeBuffer->SRV;
-		Output.VFInput.VertexCount = Input.RenderVertexCount;
-
-#if RHI_RAYTRACING
-		if (IsRayTracingEnabled())
-		{
-			FRHIUnorderedAccessView* UAV = Input.RaytracingPositionBuffer->UAV;
-			RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, &UAV, 1);
-
-			const bool bNeedFullBuild = !Input.bIsRTGeometryInitialized;
-			if (bNeedFullBuild)
-				BuildHairAccelerationStructure(RHICmdList, Input.RaytracingVertexCount, Input.RaytracingPositionBuffer->Buffer, Input.RaytracingGeometry);
-			else
-				UpdateHairAccelerationStructure(RHICmdList, Input.RaytracingGeometry);
-			Input.bIsRTGeometryInitialized = true;
-		}
-#endif
+		Output.CurrentIndex = PrevIndex;
 	}
-
-	Output.CurrentIndex = PrevIndex;
 }

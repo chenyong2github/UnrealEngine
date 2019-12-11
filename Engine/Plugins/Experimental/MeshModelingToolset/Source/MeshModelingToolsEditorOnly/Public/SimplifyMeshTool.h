@@ -8,44 +8,12 @@
 #include "InteractiveToolBuilder.h"
 #include "DynamicMesh3.h"
 #include "DynamicMeshAABBTree3.h"
+#include "MeshOpPreviewHelpers.h"
+#include "CleaningOps/SimplifyMeshOp.h"
 #include "Properties/MeshStatisticsProperties.h"
+
 #include "SimplifyMeshTool.generated.h"
 
-
-// predeclarations
-struct FMeshDescription;
-class USimpleDynamicMeshComponent;
-
-
-
-
-/**  */
-UENUM()
-enum class ESimplifyTargetType : uint8
-{
-	/** Percentage of input triangles */
-	Percentage = 0 UMETA(DisplayName = "Percentage"),
-
-	/** Target triangle count */
-	TriangleCount = 1 UMETA(DisplayName = "Triangle Count"),
-
-	/** Target edge length */
-	EdgeLength = 2 UMETA(DisplayName = "Edge Length")
-};
-
-/**  */
-UENUM()
-enum class ESimplifyType : uint8
-{
-	/** Fastest. Standard quadric error metric. Will not simplify UV boundaries.*/
-	QEM = 0 UMETA(DisplayName = "QEM"),
-
-	/** Potentially higher quality. Takes the normal into account. Will not simplify UV bounaries. */
-	Attribute = 1 UMETA(DisplayName = "Normal Aware"),
-
-	/** Highest quality reduction.  Will simplify UV boundaries. */
-	UE4Standard = 2 UMETA(DisplayName = "UE4 Standard"),
-};
 
 
 
@@ -59,6 +27,8 @@ class MESHMODELINGTOOLSEDITORONLY_API USimplifyMeshToolBuilder : public UInterac
 	GENERATED_BODY()
 
 public:
+	IToolsContextAssetAPI* AssetAPI = nullptr;
+
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
@@ -116,14 +86,18 @@ public:
  * Simple Mesh Simplifying Tool
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API USimplifyMeshTool : public USingleSelectionTool
+class MESHMODELINGTOOLSEDITORONLY_API USimplifyMeshTool : public USingleSelectionTool, public IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
 public:
+	virtual void SetWorld(UWorld* World);
+	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
+
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
+	virtual void Tick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return true; }
@@ -132,21 +106,27 @@ public:
 
 	virtual void OnPropertyModified(UObject* PropertySet, UProperty* Property) override;
 
-protected:
-	// need to update bResultValid if these are modified, so we don't publicly expose them. 
-	// @todo setters/getters for these
+	// IDynamicMeshOperatorFactory API
+	virtual TSharedPtr<FDynamicMeshOperator> MakeNewOperator() override;
 
+protected:
 	UPROPERTY()
 	USimplifyMeshToolProperties* SimplifyProperties;
 
 	UPROPERTY()
 	UMeshStatisticsProperties* MeshStatisticsProperties;
 
-protected:
-	USimpleDynamicMeshComponent* DynamicMeshComponent;
-	FDynamicMesh3 OriginalMesh;
-	FDynamicMeshAABBTree3 OriginalMeshSpatial;
-	bool bResultValid;
-	void UpdateResult();
+	UPROPERTY()
+	UMeshOpPreviewWithBackgroundCompute* Preview;
 
+protected:
+	UWorld* TargetWorld;
+	IToolsContextAssetAPI* AssetAPI;
+
+	TSharedPtr<FMeshDescription> OriginalMeshDescription;
+	// Dynamic Mesh versions precomputed in Setup (rather than recomputed for every simplify op)
+	TSharedPtr<FDynamicMesh3> OriginalMesh;
+	TSharedPtr<FDynamicMeshAABBTree3> OriginalMeshSpatial;
+
+	void GenerateAsset(const FDynamicMeshOpResult& Result);
 };

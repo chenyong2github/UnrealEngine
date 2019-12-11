@@ -1,0 +1,22 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+uint NumElements;
+RWBuffer<uint> OutBoundingBoxBuffer;
+
+[numthreads(THREAD_COUNT, 1, 1)]
+void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+{
+	const uint UINT_MAX = 0xffffffff;
+
+	const uint ElementIndex = DispatchThreadId.x;
+	if (ElementIndex < NumElements)
+	{
+		OutBoundingBoxBuffer[0] = UINT_MAX;
+		OutBoundingBoxBuffer[1] = UINT_MAX;
+		OutBoundingBoxBuffer[2] = UINT_MAX;
+
+		OutBoundingBoxBuffer[3] = 0;
+		OutBoundingBoxBuffer[4] = 0;
+		OutBoundingBoxBuffer[5] = 0;
+	}
+}

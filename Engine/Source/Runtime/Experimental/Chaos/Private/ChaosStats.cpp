@@ -30,6 +30,7 @@ DEFINE_STAT(STAT_DispatchCollisionEvents);
 DEFINE_STAT(STAT_DispatchBreakEvents);
 DEFINE_STAT(STAT_BufferPhysicsResults);
 DEFINE_STAT(STAT_FlipResults);
+DEFINE_STAT(STAT_SqUpdateMaterials);
 DEFINE_STAT(STAT_CacheResultGeomCollection);
 DEFINE_STAT(STAT_CacheResultStaticMesh);
 DEFINE_STAT(STAT_CaptureDisabledState);

@@ -35,6 +35,7 @@
 #include "EditorFontGlyphs.h"
 #include "DetailCategoryBuilder.h"
 #include "IDetailGroup.h"
+#include "AssetToolsModule.h"
 
 #define LOCTEXT_NAMESPACE "PropertyCustomizationHelpers"
 
@@ -421,32 +422,29 @@ namespace PropertyCustomizationHelpers
 
 	TArray<UFactory*> GetNewAssetFactoriesForClasses(const TArray<const UClass*>& Classes, const TArray<const UClass*>& DisallowedClasses)
 	{
-		TArray<UFactory*> Factories;
-		for (TObjectIterator<UClass> It; It; ++It)
-		{
-			UClass* Class = *It;
-			if (Class->IsChildOf(UFactory::StaticClass()) && !Class->HasAnyClassFlags(CLASS_Abstract))
-			{
-				UFactory* Factory = Class->GetDefaultObject<UFactory>();
-				if (Factory->ShouldShowInNewMenu() && ensure(!Factory->GetDisplayName().IsEmpty()))
+		const IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+		TArray<UFactory*> AllFactories = AssetTools.GetNewAssetFactories();
+		TArray<UFactory*> FilteredFactories;
+
+		for (UFactory* Factory : AllFactories)
 				{
 					UClass* SupportedClass = Factory->GetSupportedClass();
+			auto IsChildOfLambda = [SupportedClass](const UClass* InClass) { return SupportedClass->IsChildOf(InClass); };
+
 					if (SupportedClass != nullptr 
-						&& Classes.ContainsByPredicate([=](const UClass* InClass) { return SupportedClass->IsChildOf(InClass); })
-						&& !DisallowedClasses.ContainsByPredicate([=](const UClass* InClass) { return SupportedClass->IsChildOf(InClass); }))
+				&& Classes.ContainsByPredicate(IsChildOfLambda)
+				&& !DisallowedClasses.ContainsByPredicate(IsChildOfLambda))
 					{
-						Factories.Add(Factory);
-					}
-				}
+				FilteredFactories.Add(Factory);
 			}
 		}
 
-		Factories.Sort([](UFactory& A, UFactory& B) -> bool
+		FilteredFactories.Sort([](UFactory& A, UFactory& B) -> bool
 		{
 			return A.GetDisplayName().CompareToCaseIgnored(B.GetDisplayName()) < 0;
 		});
 
-		return Factories;
+		return FilteredFactories;
 	}
 }
 

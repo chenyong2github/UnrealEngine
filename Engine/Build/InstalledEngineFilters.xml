@@ -8,6 +8,9 @@
 			<Case If="'$(RestrictedFolderName)' == 'PS4' And '$(WithPS4)' == true">
 				<!-- Allow this folder -->
 			</Case>
+			<Case If="'$(RestrictedFolderName)' == 'Sony' And '$(WithPS4)' == true">
+				<!-- Allow this folder -->
+			</Case>
 			<Case If="'$(RestrictedFolderName)' == 'XboxOne' And '$(WithXboxOne)' == true">
 				<!-- Allow this folder -->
 			</Case>
@@ -38,6 +41,35 @@
 	<Property Name="MacSignFilter" Value="*.dylib;*.app"/>
 	<Property Name="SignExceptions" Value=".../ThirdParty/..."/>
 
+	<!-- List of project to build Feature packs -->
+	<Property Name="ProjectsToFeaturePack">
+		FP_FirstPerson
+		FP_FirstPersonBP
+		TP_2DSideScroller
+		TP_2DSideScrollerBP
+		TP_Flying
+		TP_FlyingBP
+		TP_HandheldARBP
+		TP_Puzzle
+		TP_PuzzleBP
+		TP_Rolling
+		TP_RollingBP
+		TP_SideScroller
+		TP_SideScrollerBP
+		TP_ThirdPerson
+		TP_ThirdPersonBP
+		TP_TopDown
+		TP_TopDownBP
+		TP_TwinStick
+		TP_TwinStickBP
+		TP_Vehicle
+		TP_VehicleAdv
+		TP_VehicleAdvBP
+		TP_VehicleBP
+		TP_VirtualRealityBP
+		TP_CollaborativeBP
+	</Property>
+
 	<!-- List of projects to build DDC for -->
 	<Property Name="ProjectsToBuildDDC">
 		Templates/FP_FirstPersonBP/FP_FirstPersonBP.uproject
@@ -52,6 +84,10 @@
 		Templates/TP_PuzzleBP/TP_PuzzleBP.uproject
 		Templates/TP_2DSideScrollerBP/TP_2DSideScrollerBP.uproject
 		Templates/TP_VehicleAdvBP/TP_VehicleAdvBP.uproject
+		Templates/TP_CollaborativeBP/TP_CollaborativeBP.uproject
+		Templates/TP_AEC_BlankBP/TP_AEC_BlankBP.uproject
+		Templates/TP_AEC_ArchvisBP/TP_AEC_ArchvisBP.uproject
+		Templates/TP_PhotoStudioBP/TP_PhotoStudioBP.uproject
 		Samples/StarterContent/StarterContent.uproject
 		Samples/MobileStarterContent/MobileStarterContent.uproject
 	</Property>
@@ -113,8 +149,10 @@
 		Samples/MobileStarterContent/Content/...
 
 		<!-- Templates -->
-		Templates/FP_FirstPerson/...
-		Templates/FP_FirstPersonBP/...
+		Templates/TemplateCategories.ini
+		Templates/Media/...
+		Templates/TP_Blank/...
+		Templates/TP_BlankBP/...
 		Templates/TP_FirstPerson/...
 		Templates/TP_FirstPersonBP/...
 		Templates/TP_Flying/...
@@ -138,7 +176,16 @@
 		Templates/TP_2DSideScrollerBP/...
 		Templates/TP_VehicleAdv/...
 		Templates/TP_VehicleAdvBP/...
-		
+
+		<!-- Enterprise Templates -->
+		Templates/TP_AEC_BlankBP/...
+		Templates/TP_AEC_ArchvisBP/...
+		Templates/TP_CollaborativeBP/...
+		Templates/TP_PhotoStudioBP/...
+
+		Templates/TP_ME_BlankBP/...
+		Templates/TP_ME_VProdBP/...
+
 		<!-- Shared template resources -->
 		Templates/TemplateResources/...
 
@@ -150,7 +197,7 @@
 	<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Engine/Source/UE4Client.Target.cs" If="$(WithClient)"/>
 	<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Engine/Source/UE4Server.Target.cs" If="$(WithServer)"/>
 	<!-- Optional API docs -->
-	<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Engine/Documentation/Builds/CodeAPI-HTML.tgz" If="Exists('Engine/Documentation/Builds/CodeAPI-HTML.tgz')"/>
+	<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Engine/Documentation/Builds/CppAPI-HTML.tgz" If="Exists('Engine/Documentation/Builds/CppAPI-HTML.tgz')"/>
 	<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Engine/Documentation/Builds/BlueprintAPI-HTML.tgz" If="Exists('Engine/Documentation/Builds/BlueprintAPI-HTML.tgz')"/>
 	<!-- Don't add VR template for Mac and Linux -->
 	<Property Name="CopyEditorFilter" Value="$(CopyEditorFilter);Templates/TP_VirtualRealityBP/..." If="'$(HostPlatform)' != 'Linux'"/>
@@ -470,22 +517,6 @@
 <Property Name="CopyLinuxFilter" Value="$(CopyLinuxFilter);Engine/Extras/ThirdPartyNotUE/putty/..."/>	
 
 <!-- Win64 specific -->
-	<!-- HTML5 -->
-	<Property Name="CopyHTML5Filter">
-		<!-- Build Files -->
-		Engine/Build/HTML5/...
-
-		<!-- SDK -->
-		Engine/Extras/ThirdPartyNotUE/emsdk/emscripten/...
-	</Property>
-	<Property Name="CopyHTML5Filter" Value="$(CopyHTML5Filter)" If="'$(HostPlatform)' == 'Win64'">
-		Engine/Extras/ThirdPartyNotUE/emsdk/Win64/...
-	</Property>
-	<Property Name="CopyHTML5Filter" Value="$(CopyHTML5Filter)" If="'$(HostPlatform)' == 'Mac'">
-		Engine/Extras/ThirdPartyNotUE/emsdk/Mac/...
-	</Property>
-		<Property Name="CopyHTML5Exceptions">
-	</Property>
 
 	<!-- PS4 -->
 	<Property Name="CopyPS4Filter">

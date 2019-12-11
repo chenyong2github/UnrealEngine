@@ -119,7 +119,7 @@ bool UDataprepCoreLibrary::ExecuteWithReporting( UDataprepAssetInterface* Datapr
 #endif
 
 	TSharedPtr<IDataprepLogger> Logger( new FDataprepCoreUtils::FDataprepLogger );
-	TSharedPtr<IDataprepProgressReporter> Reporter( new FDataprepCoreUtils::FDataprepProgressUIReporter );
+	TSharedPtr<IDataprepProgressReporter> Reporter( new FDataprepCoreUtils::FDataprepProgressUIReporter() );
 	return Execute_Internal( DataprepAssetInterface, Logger, Reporter );
 }
 
@@ -162,12 +162,14 @@ bool UDataprepCoreLibrary::Execute_Internal(UDataprepAssetInterface* DataprepAss
 			UPackage* TransientPackage = NewObject< UPackage >( nullptr, *TransientContentFolder, RF_Transient );
 			TransientPackage->FullyLoad();
 
+			TSharedPtr< FDataprepCoreUtils::FDataprepFeedbackContext > FeedbackContext( new FDataprepCoreUtils::FDataprepFeedbackContext );
+
 			FDataprepProducerContext Context;
 			Context.SetWorld( TransientWorld.Get() )
 				.SetRootPackage( TransientPackage )
 				.SetLogger( Logger)
 				.SetProgressReporter( Reporter );
-
+			
 			FText Message = FText::Format( LOCTEXT( "Running_Producers", "Running \"{0}\'s Producers ..."), DataprepAssetTextName );
 			ProgressTask.ReportNextStep( Message );
 			Assets = DataprepAssetInterface->GetProducers()->Produce( Context );
@@ -259,7 +261,6 @@ bool UDataprepCoreLibrary::Execute_Internal(UDataprepAssetInterface* DataprepAss
 				}
 			}
 
-			// #ueent_todo: Should we find a better way to silently delete assets?
 			// Disable warnings from LogStaticMesh because FDataprepCoreUtils::PurgeObjects is pretty verbose on harmless warnings
 			ELogVerbosity::Type PrevLogStaticMeshVerbosity = LogStaticMesh.GetVerbosity();
 			LogStaticMesh.SetVerbosity( ELogVerbosity::Error );

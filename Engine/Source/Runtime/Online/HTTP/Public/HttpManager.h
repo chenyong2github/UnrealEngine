@@ -146,6 +146,11 @@ public:
 	 */
 	virtual void OnAfterFork();
 
+	/**
+	 * Update configuration. Called when config has been updated and we need to apply any changes.
+	 */
+	virtual void UpdateConfigs();
+
 protected:
 	/** 
 	 * Create HTTP thread object

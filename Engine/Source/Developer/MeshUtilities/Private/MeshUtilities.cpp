@@ -17,6 +17,8 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
+#include "SkeletalMeshToolMenuContext.h"
 #include "Components/MeshComponent.h"
 #include "RawIndexBuffer.h"
 #include "Components/StaticMeshComponent.h"
@@ -301,10 +303,10 @@ static void SkinnedMeshToRawMeshes(USkinnedMeshComponent* InSkinnedMeshComponent
 				}
 
 				int32 MaterialIndex = SkelMeshSection.MaterialIndex;
-				// use the remapping of material indices for all LODs besides the base LOD 
-				if (LODIndexRead > 0 && SrcLODInfo.LODMaterialMap.IsValidIndex(SkelMeshSection.MaterialIndex))
+				// use the remapping of material indices if there is a valid value
+				if (SrcLODInfo.LODMaterialMap.IsValidIndex(SectionIndex) && SrcLODInfo.LODMaterialMap[SectionIndex] != INDEX_NONE)
 				{
-					MaterialIndex = FMath::Clamp<int32>(SrcLODInfo.LODMaterialMap[SkelMeshSection.MaterialIndex], 0, InSkinnedMeshComponent->SkeletalMesh->Materials.Num());
+					MaterialIndex = FMath::Clamp<int32>(SrcLODInfo.LODMaterialMap[SectionIndex], 0, InSkinnedMeshComponent->SkeletalMesh->Materials.Num());
 				}
 
 				// copy face info
@@ -1112,12 +1114,16 @@ static void ComputeTriangleTangents(
 				OutTangentY[TriangleIndex],
 				OutTangentZ[TriangleIndex]
 			);
+
 			if (OutTangentX[TriangleIndex].IsNearlyZero() || OutTangentX[TriangleIndex].ContainsNaN()
-				|| OutTangentY[TriangleIndex].IsNearlyZero() || OutTangentY[TriangleIndex].ContainsNaN()
-				|| OutTangentZ[TriangleIndex].IsNearlyZero() || OutTangentZ[TriangleIndex].ContainsNaN())
+				|| OutTangentY[TriangleIndex].IsNearlyZero() || OutTangentY[TriangleIndex].ContainsNaN())
 			{
 				OutTangentX[TriangleIndex] = FVector::ZeroVector;
 				OutTangentY[TriangleIndex] = FVector::ZeroVector;
+			}
+
+			if (OutTangentZ[TriangleIndex].IsNearlyZero() || OutTangentZ[TriangleIndex].ContainsNaN())
+			{
 				OutTangentZ[TriangleIndex] = FVector::ZeroVector;
 			}
 		}
@@ -3501,7 +3507,7 @@ public:
 		
 		int32 NumFaces = BuildData->GetNumFaces();
 		int32 NumWedges = BuildData->GetNumWedges();
-		check(NumFaces * 3 == NumWedges);
+		check(NumFaces * 3 <= NumWedges);
 		
 		// Compute per-triangle tangents.
 		TArray<FVector> TriangleTangentX;
@@ -3615,12 +3621,15 @@ public:
 				for (int32 k = 0; k < DupVerts.Num(); k++)
 				{
 					int32 PotentialTriangleIndex = DupVerts[k] / 3;
-					
-					bool bDegeneratedTriangles = TriangleTangentZ[FaceIndex].IsNearlyZero() || TriangleTangentZ[PotentialTriangleIndex].IsNearlyZero();
-					//Do not add mirror triangle to the adjacentFaces. Also make sure adjacent triangle is in the same connected triangle patch. Accept connected degenerate triangle
-					if ((bDegeneratedTriangles || !IsTriangleMirror(BuildData, TriangleTangentZ, FaceIndex, PotentialTriangleIndex)) && PatchIndex == FaceIndexToPatchIndex[PotentialTriangleIndex])
+					//Do not add a triangle that was remove
+					if (TriangleTangentZ.IsValidIndex(PotentialTriangleIndex))
 					{
-						AdjacentFaces.AddUnique(PotentialTriangleIndex);
+						bool bDegeneratedTriangles = TriangleTangentZ[FaceIndex].IsNearlyZero() || TriangleTangentZ[PotentialTriangleIndex].IsNearlyZero();
+						//Do not add mirror triangle to the adjacentFaces. Also make sure adjacent triangle is in the same connected triangle patch. Accept connected degenerate triangle
+						if ((bDegeneratedTriangles || !IsTriangleMirror(BuildData, TriangleTangentZ, FaceIndex, PotentialTriangleIndex)) && PatchIndex == FaceIndexToPatchIndex[PotentialTriangleIndex])
+						{
+							AdjacentFaces.AddUnique(PotentialTriangleIndex);
+						}
 					}
 				}
 			}
@@ -5546,20 +5555,21 @@ void FMeshUtilities::StartupModule()
 			{
 				AddAnimationEditorToolbarExtender();
 			}
-			else if (InModuleName == "SkeletalMeshEditor")
-			{
-				AddSkeletalMeshEditorToolbarExtender();
-			}
 			else if (InModuleName == "SkeletonEditor")
 			{
 				AddSkeletonEditorToolbarExtender();
 			}
 		}
 	});
+
+	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FMeshUtilities::RegisterMenus));
 }
 
 void FMeshUtilities::ShutdownModule()
 {
+	UToolMenus::UnRegisterStartupCallback(this);
+	UToolMenus::UnregisterOwner(this);
+
 	static const FName PropertyEditorModuleName("PropertyEditor");
 	if(FModuleManager::Get().IsModuleLoaded(PropertyEditorModuleName))
 	{
@@ -5573,12 +5583,42 @@ void FMeshUtilities::ShutdownModule()
 	RemoveLevelViewportMenuExtender();
 	RemoveAnimationBlueprintEditorToolbarExtender();
 	RemoveAnimationEditorToolbarExtender();
-	RemoveSkeletalMeshEditorToolbarExtender();
 	RemoveSkeletonEditorToolbarExtender();
 	FModuleManager::Get().OnModulesChanged().Remove(ModuleLoadedDelegateHandle);
 	VersionString.Empty();
 }
 
+void FMeshUtilities::RegisterMenus()
+{
+	FToolMenuOwnerScoped OwnerScoped(this);
+
+	static auto AddMakeStaticMeshToolbarButton = [this](FToolMenuSection& InSection, const FToolMenuExecuteAction& InAction)
+	{
+		InSection.AddEntry(FToolMenuEntry::InitToolBarButton(
+			"MakeStaticMesh",
+			InAction,
+			LOCTEXT("MakeStaticMesh", "Make Static Mesh"),
+			LOCTEXT("MakeStaticMeshTooltip", "Make a new static mesh out of the preview's current pose."),
+			FSlateIcon("EditorStyle", "Persona.ConvertToStaticMesh")
+		));
+	};
+
+	{
+		UToolMenu* Toolbar = UToolMenus::Get()->ExtendMenu("AssetEditor.SkeletalMeshEditor.ToolBar");
+		FToolMenuSection& Section = Toolbar->FindOrAddSection("SkeletalMesh");
+		AddMakeStaticMeshToolbarButton(Section, FToolMenuExecuteAction::CreateLambda([this](const FToolMenuContext& InMenuContext)
+		{
+			USkeletalMeshToolMenuContext* Context = InMenuContext.FindContext<USkeletalMeshToolMenuContext>();
+			if (Context && Context->SkeletalMeshEditor.IsValid())
+			{
+				if (UMeshComponent* MeshComponent = Context->SkeletalMeshEditor.Pin()->GetPersonaToolkit()->GetPreviewMeshComponent())
+				{
+					ConvertMeshesToStaticMesh(TArray<UMeshComponent*>({ MeshComponent }), MeshComponent->GetComponentToWorld());
+				}
+			}
+		}));
+	}
+}
 
 bool FMeshUtilities::GenerateUniqueUVsForSkeletalMesh(const FSkeletalMeshLODModel& LODModel, int32 TextureResolution, TArray<FVector2D>& OutTexCoords) const
 {
@@ -5836,25 +5876,6 @@ TSharedRef<FExtender> FMeshUtilities::GetAnimationEditorToolbarExtender(const TS
 	);
 
 	return Extender;
-}
-
-void FMeshUtilities::AddSkeletalMeshEditorToolbarExtender()
-{
-	ISkeletalMeshEditorModule& SkeletalMeshEditorModule = FModuleManager::Get().LoadModuleChecked<ISkeletalMeshEditorModule>("SkeletalMeshEditor");
-	auto& ToolbarExtenders = SkeletalMeshEditorModule.GetAllSkeletalMeshEditorToolbarExtenders();
-
-	ToolbarExtenders.Add(ISkeletalMeshEditorModule::FSkeletalMeshEditorToolbarExtender::CreateRaw(this, &FMeshUtilities::GetSkeletalMeshEditorToolbarExtender));
-	SkeletalMeshEditorExtenderHandle = ToolbarExtenders.Last().GetHandle();
-}
-
-void FMeshUtilities::RemoveSkeletalMeshEditorToolbarExtender()
-{
-	ISkeletalMeshEditorModule* SkeletalMeshEditorModule = FModuleManager::Get().GetModulePtr<ISkeletalMeshEditorModule>("SkeletalMeshEditor");
-	if (SkeletalMeshEditorModule)
-	{
-		typedef ISkeletalMeshEditorModule::FSkeletalMeshEditorToolbarExtender DelegateType;
-		SkeletalMeshEditorModule->GetAllSkeletalMeshEditorToolbarExtenders().RemoveAll([=](const DelegateType& In) { return In.GetHandle() == SkeletalMeshEditorExtenderHandle; });
-	}
 }
 
 TSharedRef<FExtender> FMeshUtilities::GetSkeletalMeshEditorToolbarExtender(const TSharedRef<FUICommandList> CommandList, TSharedRef<ISkeletalMeshEditor> InSkeletalMeshEditor)

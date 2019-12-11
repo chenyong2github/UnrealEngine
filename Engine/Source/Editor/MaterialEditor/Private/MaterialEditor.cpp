@@ -1163,8 +1163,6 @@ void FMaterialEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 	}
 	ToolbarBuilder.EndSection();
 
-	ToolbarBuilder.AddSeparator();
-
 	ToolbarBuilder.BeginSection("Stats");
 	{
 		ToolbarBuilder.AddToolBarButton(FMaterialEditorCommands::Get().ToggleMaterialStats);
@@ -1243,18 +1241,7 @@ TSharedRef<SWidget> FMaterialEditor::GenerateInheritanceMenu()
 		MenuBuilder.EndSection();
 	}
 
-	TSharedRef<SWidget> ConstrainedMenu = SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.MaxHeight(500.0f)
-		[
-			SNew(SScrollBox)
-			+ SScrollBox::Slot()
-		[
-			MenuBuilder.MakeWidget()
-		]
-		];
-
-	return ConstrainedMenu;
+	return MenuBuilder.MakeWidget(nullptr, 500);
 }
 
 TSharedRef< SWidget > FMaterialEditor::GeneratePreviewMenuContent()
@@ -3025,6 +3012,11 @@ void FMaterialEditor::OnConvertObjects()
 		{
 			GraphEditor->SetNodeSelection(*NodeIter, true);
 		}
+
+		if (MaterialEditorInstance != nullptr)
+		{
+			MaterialParametersOverviewWidget->UpdateEditorInstance(MaterialEditorInstance);
+		}
 	}
 }
 
@@ -4530,6 +4522,7 @@ void FMaterialEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyCha
 			Material->MaterialGraph->RebuildGraph();
 			TArray<TWeakObjectPtr<UObject>> SelectedObjects = MaterialDetailsView->GetSelectedObjects();
 			MaterialDetailsView->SetObjects( SelectedObjects, true );
+			SetPreviewMaterial(Material);
 
 			if (ExpressionPreviewMaterial)
 			{

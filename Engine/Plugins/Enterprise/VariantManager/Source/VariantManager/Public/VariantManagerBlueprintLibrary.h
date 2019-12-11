@@ -123,82 +123,82 @@ public:
 
 
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static void SetValueBool(UPropertyValue* Property, bool InValue);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static bool GetValueBool(UPropertyValue* Property);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static void SetValueInt(UPropertyValue* Property, int32 InValue);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static int32 GetValueInt(UPropertyValue* Property);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static void SetValueFloat(UPropertyValue* Property, float InValue);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static float GetValueFloat(UPropertyValue* Property);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static void SetValueObject(UPropertyValue* Property, UObject* InValue);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static UObject* GetValueObject(UPropertyValue* Property);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static void SetValueString(UPropertyValue* Property, const FString& InValue);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static FString GetValueString(UPropertyValue* Property);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static void SetValueRotator(UPropertyValue* Property, FRotator InValue);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static FRotator GetValueRotator(UPropertyValue* Property);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static void SetValueColor(UPropertyValue* Property, FColor InValue);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static FColor GetValueColor(UPropertyValue* Property);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static void SetValueLinearColor(UPropertyValue* Property, FLinearColor InValue);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static FLinearColor GetValueLinearColor(UPropertyValue* Property);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static void SetValueVector(UPropertyValue* Property, FVector InValue);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static FVector GetValueVector(UPropertyValue* Property);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static void SetValueQuat(UPropertyValue* Property, FQuat InValue);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static FQuat GetValueQuat(UPropertyValue* Property);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static void SetValueVector4(UPropertyValue* Property, FVector4 InValue);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static FVector4 GetValueVector4(UPropertyValue* Property);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static void SetValueVector2D(UPropertyValue* Property, FVector2D InValue);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static FVector2D GetValueVector2D(UPropertyValue* Property);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static void SetValueIntPoint(UPropertyValue* Property, FIntPoint InValue);
 
-	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager | Property Accessors")
+	UFUNCTION(BlueprintCallable, meta=(ScriptMethod), Category = "VariantManager|PropertyAccessors")
 	static FIntPoint GetValueIntPoint(UPropertyValue* Property);
 
 private:

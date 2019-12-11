@@ -615,6 +615,14 @@ inline FVector FMatrix::GetColumn(int32 i) const
 	return FVector(M[0][i], M[1][i], M[2][i]);
 }
 
+inline void FMatrix::SetColumn(int32 i, FVector Value)
+{
+	checkSlow(i >= 0 && i <= 3);
+	M[0][i] = Value.X;
+	M[1][i] = Value.Y;
+	M[2][i] = Value.Z;
+}
+
 FORCEINLINE bool MakeFrustumPlane(float A,float B,float C,float D,FPlane& OutPlane)
 {
 	const float	LengthSquared = A * A + B * B + C * C;
@@ -749,7 +757,7 @@ inline void FMatrix::Mirror(EAxis::Type MirrorAxis, EAxis::Type FlipAxis)
 /** 
  * Apply Scale to this matrix
  */
-inline FMatrix FMatrix::ApplyScale(float Scale)
+inline FMatrix FMatrix::ApplyScale(float Scale) const
 {
 	FMatrix ScaleMatrix(
 		FPlane(Scale, 0.0f, 0.0f, 0.0f),

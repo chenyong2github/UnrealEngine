@@ -26,7 +26,7 @@ public:
 protected:
 
 	// StreamIn_Default : Locked mips of the intermediate textures, used as disk load destination.
-	uint32 DDCHandles[MAX_TEXTURE_MIP_COUNT];
+	TArray<uint32, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > DDCHandles;
 
 	// Whether the DDC data was compatible or not.
 	bool bDDCIsInvalid;
@@ -44,5 +44,23 @@ protected:
 	// Load from DDC into MipData
 	void DoLoadNewMipsFromDDC(const FContext& Context);
 };
+
+/**
+* This class provides a helper to release DDC handles that haven't been waited for.
+* This is to get around limitations of FDerivedDataCacheInterface.
+*/
+
+class FAbandonedDDCHandleManager
+{
+public:
+	void Add(uint32 InHandle);
+	void Purge();
+private:
+	TArray<uint32> Handles;	
+	FCriticalSection CS;
+	uint32 TotalAdd = 0;
+};
+
+extern FAbandonedDDCHandleManager GAbandonedDDCHandleManager;
 
 #endif // WITH_EDITORONLY_DATA

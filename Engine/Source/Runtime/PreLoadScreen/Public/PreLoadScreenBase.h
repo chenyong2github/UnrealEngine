@@ -25,7 +25,7 @@ public:
     //By default have a small added tick delay so we don't super spin out while waiting on other threads to load data / etc.
     virtual float GetAddedTickDelay() override { return 0.02f; }
 
-	virtual bool Init() override { return true; }
+	virtual void Init() override {}
     
     virtual TSharedPtr<SWidget> GetWidget() override { return nullptr; }
     virtual const TSharedPtr<const SWidget> GetWidget() const override { return nullptr; }

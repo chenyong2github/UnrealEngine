@@ -3,12 +3,36 @@
 #include "Animation/AnimNode_LinkedAnimGraph.h"
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimNode_Inertialization.h"
 #include "Animation/AnimNode_LinkedInputPose.h"
 #include "Animation/AnimNode_Root.h"
+
+static float GetBlendDuration(const IAnimClassInterface* PriorAnimBPClass, const IAnimClassInterface* NewAnimBPClass, FName Layer)
+{
+	const FAnimGraphBlendOptions* PriorBlendOptions = PriorAnimBPClass ? PriorAnimBPClass->GetGraphBlendOptions().Find(Layer) : nullptr;
+	const FAnimGraphBlendOptions* NewBlendOptions = NewAnimBPClass ? NewAnimBPClass->GetGraphBlendOptions().Find(Layer) : nullptr;
+
+	float BlendOutTime = PriorBlendOptions ? PriorBlendOptions->BlendOutTime : -1.0f;
+	float BlendInTime = NewBlendOptions ? NewBlendOptions->BlendInTime : -1.0f;
+
+	if (BlendInTime < 0.0f)
+	{
+		return BlendOutTime;
+	}
+
+	if (BlendOutTime < 0.0f)
+	{
+		return BlendInTime;
+	}
+
+	return FMath::Min(BlendInTime, BlendOutTime);
+}
 
 FAnimNode_LinkedAnimGraph::FAnimNode_LinkedAnimGraph()
 	: InstanceClass(nullptr)
 	, Tag(NAME_None)
+	, LinkedRoot(nullptr)
+	, PendingBlendDuration(-1.0f)
 {
 }
 
@@ -18,6 +42,10 @@ void FAnimNode_LinkedAnimGraph::InitializeSubGraph_AnyThread(const FAnimationIni
 	if(InstanceToRun && LinkedRoot)
 	{
 		FAnimInstanceProxy& Proxy = InstanceToRun->GetProxyOnAnyThread<FAnimInstanceProxy>();
+
+		// Make sure we have valid objects in place for the sub-graph init
+		Proxy.InitializeObjects(InstanceToRun);
+
 		Proxy.InitializationCounter.SynchronizeWith(Context.AnimInstanceProxy->InitializationCounter);
 		Proxy.InitializeRootNode_WithRoot(LinkedRoot);
 	}
@@ -74,18 +102,36 @@ void FAnimNode_LinkedAnimGraph::Update_AnyThread(const FAnimationUpdateContext& 
 
 		PropagateInputProperties(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 
-		// Only update if we've not had a single-threaded update already
-		if(InstanceToRun->bNeedsUpdate)
-		{
-			FAnimationUpdateContext NewContext = InContext.WithOtherProxy(&Proxy);
-			Proxy.UpdateAnimation_WithRoot(NewContext, LinkedRoot, GetDynamicLinkFunctionName());
-		}
+		// We can call this unconditionally here now because linked anim instances are forced to have a parallel update
+		// in USkeletalMeshComponent::TickAnimation. It used to be the case that we could do non-parallel work in 
+		// USkeletalMeshComponent::TickAnimation, which would mean we would have to skip doing that work here.
+		FAnimationUpdateContext NewContext = InContext.WithOtherProxy(&Proxy);
+		Proxy.UpdateAnimation_WithRoot(NewContext, LinkedRoot, GetDynamicLinkFunctionName());
 	}
 	else if(InputPoses.Num() > 0)
 	{
 		// If we have no valid instance (self or otherwise), we need to propagate down the graph to make sure
 		// subsequent nodes get properly updated
 		InputPoses[0].Update(InContext);
+	}
+
+	// Consume pending inertial blend request
+	if(PendingBlendDuration >= 0.0f)
+	{
+		if(InputPoses.Num() > 0)
+		{
+			FAnimNode_Inertialization* InertializationNode = InContext.GetAncestor<FAnimNode_Inertialization>();
+			if(InertializationNode)
+			{
+				InertializationNode->RequestInertialization(PendingBlendDuration);
+			}
+			else if (PendingBlendDuration != 0.0f)
+			{
+				FAnimNode_Inertialization::LogRequestError(InContext, InputPoses[0]);
+			}
+		}
+
+		PendingBlendDuration = -1.0f;
 	}
 }
 
@@ -173,6 +219,8 @@ void FAnimNode_LinkedAnimGraph::ReinitializeLinkedAnimInstance(const UAnimInstan
 {
 	UAnimInstance* InstanceToRun = GetTargetInstance<UAnimInstance>();
 
+	IAnimClassInterface* PriorAnimBPClass = InstanceToRun ? IAnimClassInterface::GetFromClass(InstanceToRun->GetClass()) : nullptr;
+
 	if(*InstanceClass || InNewAnimInstance)
 	{
 		USkeletalMeshComponent* MeshComp = InOwningAnimInstance->GetSkelMeshComponent();
@@ -207,6 +255,10 @@ void FAnimNode_LinkedAnimGraph::ReinitializeLinkedAnimInstance(const UAnimInstan
 		}
 
 		InitializeProperties(InOwningAnimInstance, InstanceToRun->GetClass());
+
+		IAnimClassInterface* NewAnimBPClass = IAnimClassInterface::GetFromClass(InstanceToRun->GetClass());
+
+		RequestBlend(PriorAnimBPClass, NewAnimBPClass);
 	}
 	else if(InstanceToRun)
 	{
@@ -355,4 +407,9 @@ int32 FAnimNode_LinkedAnimGraph::FindFunctionInputIndex(const FAnimBlueprintFunc
 	}
 
 	return INDEX_NONE;
+}
+
+void FAnimNode_LinkedAnimGraph::RequestBlend(const IAnimClassInterface* PriorAnimBPClass, const IAnimClassInterface* NewAnimBPClass)
+{
+	PendingBlendDuration = GetBlendDuration(PriorAnimBPClass, NewAnimBPClass, GetDynamicLinkFunctionName());
 }

@@ -89,6 +89,7 @@
 #include "BlueprintFunctionNodeSpawner.h"
 #include "SBlueprintEditorToolbar.h"
 #include "FindInBlueprints.h"
+#include "ImaginaryBlueprintData.h"
 #include "SGraphTitleBar.h"
 #include "Kismet2/Kismet2NameValidators.h"
 #include "Kismet2/DebuggerCommands.h"
@@ -99,6 +100,8 @@
 
 #include "BlueprintEditorTabs.h"
 
+#include "ToolMenus.h"
+#include "BlueprintEditorContext.h"
 
 #include "Interfaces/IProjectManager.h"
 
@@ -1895,6 +1898,15 @@ void FBlueprintEditor::InitBlueprintEditor(
 	}
 }
 
+void FBlueprintEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
+{
+	FAssetEditorToolkit::InitToolMenuContext(MenuContext);
+
+	UBlueprintEditorToolMenuContext* Context = NewObject<UBlueprintEditorToolMenuContext>();
+	Context->BlueprintEditor = SharedThis(this);
+	MenuContext.AddObject(Context);
+}
+
 void FBlueprintEditor::InitalizeExtenders()
 {
 	TSharedPtr<FExtender> MenuExtender = MakeShareable(new FExtender);
@@ -2700,6 +2712,14 @@ void FBlueprintEditor::CreateDefaultCommands()
 		FExecuteAction::CreateSP(this, &FBlueprintEditor::OpenNativeCodeGenerationTool),
 		FCanExecuteAction::CreateSP(this, &FBlueprintEditor::CanGenerateNativeCode));
 
+	ToolkitCommands->MapAction(FBlueprintEditorCommands::Get().GenerateSearchIndex,
+		FExecuteAction::CreateSP(this, &FBlueprintEditor::OnGenerateSearchIndexForDebugging),
+		FCanExecuteAction());
+
+	ToolkitCommands->MapAction(FBlueprintEditorCommands::Get().DumpCachedIndexData,
+		FExecuteAction::CreateSP(this, &FBlueprintEditor::OnDumpCachedIndexDataForBlueprint),
+		FCanExecuteAction());
+
 	ToolkitCommands->MapAction(FBlueprintEditorCommands::Get().ShowActionMenuItemSignatures,
 		FExecuteAction::CreateLambda([]()
 			{ 
@@ -2754,6 +2774,54 @@ bool FBlueprintEditor::CanGenerateNativeCode() const
 {
 	UBlueprint* Blueprint = GetBlueprintObj();
 	return Blueprint && FNativeCodeGenerationTool::CanGenerate(*Blueprint);
+}
+
+void FBlueprintEditor::OnGenerateSearchIndexForDebugging()
+{
+	UBlueprint* Blueprint = GetBlueprintObj();
+	if (Blueprint)
+	{
+		FString FileLocation = FPaths::ConvertRelativePathToFull(FPaths::ProjectIntermediateDir() + TEXT("BlueprintSearchTools"));
+		FString FullPath = FString::Printf(TEXT("%s/%s.index.xml"), *FileLocation, *Blueprint->GetName());
+
+		FArchive* DumpFile = IFileManager::Get().CreateFileWriter(*FullPath);
+		if (DumpFile)
+		{
+			FString JsonOutput = FFindInBlueprintSearchManager::Get().GenerateSearchIndexForDebugging(Blueprint);
+			DumpFile->Serialize(TCHAR_TO_ANSI(*JsonOutput), JsonOutput.Len());
+
+			DumpFile->Close();
+			delete DumpFile;
+
+			UE_LOG(LogFindInBlueprint, Log, TEXT("Wrote search index to %s"), *FullPath);
+		}
+	}
+}
+
+void FBlueprintEditor::OnDumpCachedIndexDataForBlueprint()
+{
+	UBlueprint* Blueprint = GetBlueprintObj();
+	if (Blueprint)
+	{
+		FString FileLocation = FPaths::ConvertRelativePathToFull(FPaths::ProjectIntermediateDir() + TEXT("BlueprintSearchTools"));
+		FString FullPath = FString::Printf(TEXT("%s/%s.cache.csv"), *FileLocation, *Blueprint->GetName());
+
+		FArchive* DumpFile = IFileManager::Get().CreateFileWriter(*FullPath);
+		if (DumpFile)
+		{
+			const FName AssetPath = *Blueprint->GetPathName();
+			FSearchData SearchData = FFindInBlueprintSearchManager::Get().GetSearchDataForAssetPath(AssetPath);
+			if (SearchData.IsValid() && SearchData.ImaginaryBlueprint.IsValid())
+			{
+				SearchData.ImaginaryBlueprint->DumpParsedObject(*DumpFile);
+			}
+
+			DumpFile->Close();
+			delete DumpFile;
+
+			UE_LOG(LogFindInBlueprint, Log, TEXT("Wrote cached index data to %s"), *FullPath);
+		}
+	}
 }
 
 void FBlueprintEditor::FindInBlueprint_Clicked()
@@ -2838,7 +2906,20 @@ void FBlueprintEditor::ReparentBlueprint_NewParentChosen(UClass* ChosenClass)
 
 		if ( bReparent )
 		{
+			const FScopedTransaction Transaction( LOCTEXT("ReparentBlueprint", "Reparent Blueprint") );
 			UE_LOG(LogBlueprint, Warning, TEXT("Reparenting blueprint %s from %s to %s..."), *BlueprintObj->GetFullName(), BlueprintObj->ParentClass ? *BlueprintObj->ParentClass->GetName() : TEXT("[None]"), *ChosenClass->GetName());
+			
+			BlueprintObj->Modify();
+			if(USimpleConstructionScript* SCS = BlueprintObj->SimpleConstructionScript)
+			{
+				SCS->Modify();
+
+				const TArray<USCS_Node*>& AllNodes = SCS->GetAllNodes();
+				for(USCS_Node* Node : AllNodes )
+				{
+					Node->Modify();
+				}
+			}
 
 			UClass* OldParentClass = BlueprintObj->ParentClass ;
 			BlueprintObj->ParentClass = ChosenClass;
@@ -3245,8 +3326,9 @@ void FBlueprintEditor::OnSelectedNodesChangedImpl(const FGraphPanelSelectionSet&
 		SetUISelectionState(FBlueprintEditor::SelectionState_Graph);
 	}
 
-	Inspector->ShowDetailsForObjects(NewSelection.Array());
-
+	SKismetInspector::FShowDetailsOptions DetailsOptions;
+	DetailsOptions.bForceRefresh = true;
+	Inspector->ShowDetailsForObjects(NewSelection.Array(), DetailsOptions);
 
 	bSelectRegularNode = false;
 	for (FGraphPanelSelectionSet::TConstIterator It(NewSelection); It; ++It)
@@ -5420,7 +5502,7 @@ void FBlueprintEditor::OnConvertFunctionToEvent()
 
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("SpecificErrorMessage"), SpecificErrorMessage);
-		MessageLog.Notify(FText::Format(LOCTEXT("OnConvertEventToFunctionError", "Convert Event to Function Failed!\n{SpecificErrorMessage}"), Arguments));
+		MessageLog.Notify(FText::Format(LOCTEXT("OnConvertEventToFunctionErrorMsg", "Convert Event to Function Failed!\n{SpecificErrorMessage}"), Arguments));
 	}
 }
 
@@ -5529,19 +5611,25 @@ void FBlueprintEditor::ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCal
 		{
 			Result->DestroyNode();
 		}
+
 		// Connect any pins that need to be set from the old function
 		if (NewEventNode)
 		{
 			// Link the nodes from the original function entry node to the new event node
 			FEdGraphUtilities::ReconnectPinMap(NewEventNode, PinConnections);
 			FEdGraphUtilities::CopyPinDefaults(SelectedCallFunctionNode, NewEventNode);
-			FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(NewEventNode, false);
 		}
 
 		// Remove the old function graph
 		FBlueprintEditorUtils::RemoveGraph(NodeBP, FunctionGraph, EGraphRemoveFlags::Recompile);
 		FunctionGraph->MarkPendingKill();
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(NodeBP);
+
+		// Do this AFTER removing the function graph so that it's not opened into the existing function graph document tab.
+		if (NewEventNode)
+		{
+			FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(NewEventNode, false);
+		}
 	}
 }
 
@@ -5602,7 +5690,7 @@ void FBlueprintEditor::OnConvertEventToFunction()
 		// Format the title node
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("SpecificErrorMessage"), SpecificErrorMessage);
-		MessageLog.Notify(FText::Format(LOCTEXT("OnConvertEventToFunctionError", "Convert Event to Function Failed!\n{SpecificErrorMessage}"), Arguments));
+		MessageLog.Notify(FText::Format(LOCTEXT("OnConvertEventToFunctionErrorMsg", "Convert Event to Function Failed!\n{SpecificErrorMessage}"), Arguments));
 	}
 }
 
@@ -6348,7 +6436,7 @@ private:
 		{
 			NewTarget = NewObject<UK2Node_VariableGet>(Graph);
 			check(NewTarget);
-			NewTarget->SetFromProperty(Property, true);
+			NewTarget->SetFromProperty(Property, true, Property->GetOwnerClass());
 			AddedTargets.Add(NewTarget);
 			const float AutoNodeOffsetX = 160.0f;
 			InitializeNewNode(NewTarget, OldTarget, OldCall->NodePosX - AutoNodeOffsetX, OldCall->NodePosY);
@@ -8622,8 +8710,17 @@ TSharedPtr<SGraphEditor> FBlueprintEditor::OpenGraphAndBringToFront(UEdGraph* Gr
 	// First, switch back to standard mode
 	SetCurrentMode(FBlueprintEditorApplicationModes::StandardBlueprintEditorMode);
 
-	// Next, try to make sure there is a copy open
-	TSharedPtr<SDockTab> TabWithGraph = OpenDocument(Graph, FDocumentTracker::NavigatingCurrentDocument);
+		
+	TSharedPtr<SDockTab> TabWithGraph;
+	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+	if (FocusedGraphEd.IsValid() && FocusedGraphEd->GetCurrentGraph() == Graph)
+	{
+		TabWithGraph = OpenDocument(Graph, FDocumentTracker::CreateHistoryEvent);
+	}
+	else
+	{
+		 TabWithGraph = OpenDocument(Graph, FDocumentTracker::NavigatingCurrentDocument);
+	}
 
 	// We know that the contents of the opened tabs will be a graph editor.
 	TSharedRef<SGraphEditor> NewGraphEditor = StaticCastSharedRef<SGraphEditor>(TabWithGraph->GetContent());
@@ -9386,5 +9483,10 @@ void FBlueprintEditor::ClearAllGraphEditorQuickJumps()
 /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
+
+UBlueprint* UBlueprintEditorToolMenuContext::GetBlueprintObj() const
+{
+	return BlueprintEditor.IsValid() ? BlueprintEditor.Pin()->GetBlueprintObj() : nullptr;
+}
 
 #undef LOCTEXT_NAMESPACE

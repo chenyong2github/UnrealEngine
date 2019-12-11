@@ -320,7 +320,7 @@ void UCollisionProfile::LoadProfileConfig(bool bForceInit)
 	for ( int32 EnumIndex=0; EnumIndex<NumEnum; ++EnumIndex )
 	{
 		FString EnumName = Enum->GetNameStringByIndex(EnumIndex);
-		EnumName = EnumName.RightChop(Prefix.Len());
+		EnumName.RightChopInline(Prefix.Len(), false);
 		FName DisplayName = FName(*EnumName);
 
 		if ( IS_VALID_COLLISIONCHANNEL(EnumIndex) )

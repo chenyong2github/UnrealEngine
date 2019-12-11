@@ -8,7 +8,11 @@
 #include "Interfaces/IBackgroundHttpRequest.h"
 #include "IOS/ApplePlatformBackgroundHttpRequest.h"
 
+#include "IOS/IOSBackgroundURLSessionHandler.h"
+
 typedef TWeakPtr<FApplePlatformBackgroundHttpRequest,ESPMode::ThreadSafe> FBackgroundHttpURLMappedRequestPtr;
+
+DECLARE_DELEGATE(FIOSBackgroundHttpPostSessionWorkCallback);
 
 /**
  * Manages Background Http request that are currently being processed if we are on an Apple Platform
@@ -57,11 +61,16 @@ protected:
 protected:
 	//This dictionary is used to hold tasks that already existed on our Background Session when our BackgroundHttpManager was initialized. See PopulateUnAssociatedTasks and CheckForExistingUnAssociatedTask
 	NSMutableDictionary<NSString*, NSURLSessionDownloadTask*>* UnAssociatedTasks;
-
+	FRWLock UnAssociatedTasksLock;
+	
 	//Map to hold the associated BackgroundHttpRequest for any given URL. Multiple URLs will end up pointing to the same request in this list as it stores
     TMap<const FString, FBackgroundHttpURLMappedRequestPtr> URLToRequestMap;
 	FRWLock URLToRequestMapLock;
 
+	//Used to track if we came into certain code branches through a pathway that has initialized the manager yet or not.
+	//Some of our platform callbacks can end up hitting VERY early or in background versions of our app without the engine being fully spun-up.
+	static volatile bool bWasAppleBGHTTPInitialized;
+	
 private:
 	//Checks for tasks that already exist on the BackgroundSession. Should only be called during Initialize. These tasks should really only exist 
 	//due to previous application sessions starting background downloads that finished after the app closed. (IE: If the user started a patch and then our app was terminated by the OS while 
@@ -74,18 +83,18 @@ private:
 
     //These are used internally to pause/resume things at the task level
 	void PauseAllActiveTasks();
-	void ResumeAllTasksWithoutPausedRequests();
+	void ResumeTasksForBackgrounding(FIOSBackgroundHttpPostSessionWorkCallback Callback = FIOSBackgroundHttpPostSessionWorkCallback());
+	bool ResumeDownloadTaskForBackgroundingIfAppropriate(NSURLSessionDownloadTask* DownloadTask, const FAppleBackgroundHttpRequestPtr Request, EBackgroundHTTPPriority LowestPriorityToQueue);
 
     void PauseAllUnassociatedTasks();
     void UnpauseAllUnassociatedTasks();
     
     void TickRequests(float DeltaTime);
-    void TickTasks(float DeltaTime);
     void TickUnassociatedTasks(float DeltaTime);
     
     void StartRequest(FAppleBackgroundHttpRequestPtr Request);
 	void FinishRequest(FAppleBackgroundHttpRequestPtr Request);
-	void RetryRequest(FAppleBackgroundHttpRequestPtr Request, bool bShouldIncreaseRetryCount, bool bShouldStartImmediately, NSData* RetryData);
+	void RetryRequest(FAppleBackgroundHttpRequestPtr Request, bool bShouldIncreaseRetryCount, NSData* RetryData);
     void RemoveSessionTasksForRequest(FAppleBackgroundHttpRequestPtr Request);
     bool GenerateURLMapEntriesForRequest(FAppleBackgroundHttpRequestPtr Request);
     void RemoveURLMapEntriesForRequest(FAppleBackgroundHttpRequestPtr Request);
@@ -99,7 +108,7 @@ private:
 	void OnTask_DidFinishDownloadingToURL(NSURLSessionDownloadTask* Task, NSError* Error, const FString& TempFilePath);
 	void OnTask_DidWriteData(NSURLSessionDownloadTask* Task, int64_t BytesWrittenSinceLastCall, int64_t TotalBytesWritten, int64_t TotalBytesExpectedToWrite);
 	void OnTask_DidCompleteWithError(NSURLSessionTask* Task, NSError* Error);
-	void OnSession_SessionDidFinishAllEvents(NSURLSession* Session);
+	void OnSession_SessionDidFinishAllEvents(NSURLSession* Session, FIOSBackgroundDownloadCoreDelegates::FIOSBackgroundDownload_DelayedBackgroundURLSessionCompleteHandler Callback);
 
 	FDelegateHandle OnApp_EnteringForegroundHandle;
 	FDelegateHandle OnApp_EnteringBackgroundHandle;

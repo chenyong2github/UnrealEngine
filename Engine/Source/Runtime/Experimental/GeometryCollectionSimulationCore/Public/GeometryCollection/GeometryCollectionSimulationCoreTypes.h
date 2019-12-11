@@ -291,7 +291,9 @@ struct FSimulationParameters
 	float ReverseCacheBeginTime;
 	bool bClearCache;
 
-	Chaos::TSerializablePtr<Chaos::TChaosPhysicsMaterial<float>> PhysicalMaterial;
+	EObjectStateTypeEnum ObjectType;
+
+	Chaos::TSerializablePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial;
 
 	FCollisionDataSimulationParameters CollisionData;
 	FBreakingDataSimulationParameters BreakingData;

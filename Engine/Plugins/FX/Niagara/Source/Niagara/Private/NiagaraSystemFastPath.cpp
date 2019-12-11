@@ -3,6 +3,14 @@
 #include "NiagaraSystemFastPath.h"
 #include "NiagaraEmitter.h"
 
+namespace FNiagaraSystemFastPath
+{
+	FORCEINLINE float SafeReciprocal(float v)
+	{
+		return FMath::Abs(v) > SMALL_NUMBER ? 1.0f / v : 0.0f;
+	}
+}
+
 FName FNiagaraSystemFastPath::FParameterNames::ExecutionState = "ExecutionState";
 FName FNiagaraSystemFastPath::FParameterNames::ExecutionStateSource = "ExecutionStateSource";
 
@@ -19,18 +27,18 @@ void FNiagaraSystemFastPath::SetUpdateMapDefaults(FParamMap0& Map)
 
 void FNiagaraSystemFastPath::Module_SystemScalability(const FNiagaraFastPath_Module_SystemScalability& Context_Map_SystemScalability, FParamMap0& Context_Map)
 {
-	bool Result9 = Context_Map.Engine.Owner.TimeSinceRendered > Context_Map_SystemScalability.VisibilityCullDelay;
-	bool Result10 = Context_Map_SystemScalability.bEnableVisibilityCulling && Result9;
-	ENiagaraExecutionState ENiagaraExecutionState_IfResult3;
-	if (Result10)
-	{
-		ENiagaraExecutionState_IfResult3 = Context_Map_SystemScalability.CulledState;
-	}
-	else
-	{
-		ENiagaraExecutionState_IfResult3 = Context_Map.Scalability.ExecutionState;
-	}
-	Context_Map.Scalability.ExecutionState = ENiagaraExecutionState_IfResult3;
+// 	bool Result9 = Context_Map.Engine.Owner.TimeSinceRendered > Context_Map_SystemScalability.VisibilityCullDelay;
+// 	bool Result10 = Context_Map_SystemScalability.bEnableVisibilityCulling && Result9;
+// 	ENiagaraExecutionState ENiagaraExecutionState_IfResult3;
+// 	if (Result10)
+// 	{
+// 		ENiagaraExecutionState_IfResult3 = Context_Map_SystemScalability.CulledState;
+// 	}
+// 	else
+// 	{
+// 		ENiagaraExecutionState_IfResult3 = Context_Map.Scalability.ExecutionState;
+// 	}
+// 	Context_Map.Scalability.ExecutionState = ENiagaraExecutionState_IfResult3;
 }
 
 void FNiagaraSystemFastPath::Function_SystemChangeState(ENiagaraExecutionState In_NewState, bool In_Condition, ENiagaraExecutionStateSource In_NewStateSource, FParamMap0& Context_Map)
@@ -285,7 +293,7 @@ void FNiagaraEmitterFastPath::Module_EmitterScalability(const FNiagaraFastPath_M
 		float_IfResult = Constant13;
 	}
 	float Result9 = Context_Map.Engine.Owner.LODDistance - float_IfResult;
-	float Constant14 = 1e+12;
+	float Constant14 = Context_Map.Engine.Owner.MaxLODDistance;
 	float float_IfResult1;
 	if (Context_Map_EmitterScalability.bUseMaxDistance)
 	{
@@ -471,21 +479,24 @@ void FNiagaraEmitterFastPath::Module_EmitterLifeCycle(const FNiagaraFastPath_Mod
 	ENiagaraExecutionStateSource Constant32 = ENiagaraExecutionStateSource::Scalability;
 	bool Result31 = Context_Map.System->ExecutionStateSource != Constant32;
 	Function_EmitterLifeCycle_EmitterChangeState(Context_Map.System->ExecutionState, Result31, Context_Map.System->ExecutionStateSource, Context_Map);
-	ENiagaraExecutionStateSource Constant35 = ENiagaraExecutionStateSource::Scalability;
-	bool Result38 = Context_Map.System->ExecutionStateSource == Constant35;
-	ENiagaraExecutionState Constant36 = (ENiagaraExecutionState::Active);
-	bool Result39 = Context_Map.System->ExecutionState != Constant36;
-	bool Result40 = Result38 && Result39;
-	ENiagaraExecutionState ENiagaraExecutionState_IfResult7;
-	if (Result40)
-	{
-		ENiagaraExecutionState_IfResult7 = Context_Map.System->ExecutionState;
-	}
-	else
-	{
-		ENiagaraExecutionState_IfResult7 = Context_Map.Scalability.Emitter.ExecutionState;
-	}
-	Context_Map.Scalability.Emitter.ExecutionState = ENiagaraExecutionState_IfResult7;
+
+	//System level scalability is now handled in higher level C++ code.
+// 	ENiagaraExecutionStateSource Constant35 = ENiagaraExecutionStateSource::Scalability;
+// 	bool Result38 = Context_Map.System->ExecutionStateSource == Constant35;
+// 	ENiagaraExecutionState Constant36 = (ENiagaraExecutionState::Active);
+// 	bool Result39 = Context_Map.System->ExecutionState != Constant36;
+// 	bool Result40 = Result38 && Result39;
+// 	ENiagaraExecutionState ENiagaraExecutionState_IfResult7;
+// 	if (Result40)
+// 	{
+// 		ENiagaraExecutionState_IfResult7 = Context_Map.System->ExecutionState;
+// 	}
+// 	else
+// 	{
+// 		ENiagaraExecutionState_IfResult7 = Context_Map.Scalability.Emitter.ExecutionState;
+// 	}
+// 	Context_Map.Scalability.Emitter.ExecutionState = ENiagaraExecutionState_IfResult7;
+
 	bool Constant37 = true;
 	ENiagaraExecutionStateSource Constant38 = ENiagaraExecutionStateSource::Scalability;
 	Function_EmitterLifeCycle_EmitterChangeState(Context_Map.Scalability.Emitter.ExecutionState, Constant37, Constant38, Context_Map);
@@ -507,7 +518,10 @@ void FNiagaraEmitterFastPath::Module_EmitterLifeCycle(const FNiagaraFastPath_Mod
 	int32 Constant46 = 0;
 	bool Result50 = Context_Map.Engine.Emitter.NumParticles == Constant46;
 	ENiagaraExecutionState Constant47 = ENiagaraExecutionState::Active;
-	bool Result51 = Context_Map.Emitter.ExecutionState != Constant47;
+
+	//Manual edit to stop auto complete when we become inactive due to scalability.
+	bool Result51 = Context_Map.Emitter.ExecutionState != Constant47 && Context_Map.Emitter.ExecutionStateSource != ENiagaraExecutionStateSource::Scalability;
+
 	bool Result52 = Result50 && Result51;
 	bool Result53 = Result52 && Context_Map_EmitterLifeCycle.bAutoComplete;
 	bool Result54 = Context_Map_EmitterLifeCycle.bCompleteOnInactive && Result51;
@@ -524,7 +538,7 @@ void FNiagaraEmitterFastPath::Module_SpawnRate(FParamMap0& Context_Map)
 		FParamMap0_Emitter_SpawnRate& Context_Map_Emitter_SpawnRate = Context_Map.Emitter.SpawnRate[SpawnRateIndex];
 
 		float Result57 = Context_Map_SpawnRate.SpawnRate * Context_Map.Scalability.Emitter.SpawnCountScale * Context_Map.Emitter.SpawnCountScale;
-		float Result58 = 1.0f / Result57;// Reciprocal(Result57);
+		float Result58 = FNiagaraSystemFastPath::SafeReciprocal(Result57);
 		float Result59 = 1 - Context_Map_Emitter_SpawnRate.SpawnRemainder;
 		float Result60 = Result58 * Result59;
 		float Context_Map_Local_SpawnRate_SpawnRate = Result57;
@@ -603,7 +617,7 @@ void FNiagaraEmitterFastPath::Module_SpawnPerUnit(FParamMap0& Context_Map)
 		float Constant54 = 500000;
 		float Result70 = FMath::Fmod(Context_Map.Emitter.DistanceTraveled, Constant54);
 		float Result71 = Result69 + Result70;
-		float Result72 = 1.0f / Context_Map_SpawnPerUnit.SpawnPerUnit; // Reciprocal(Context_Map_SpawnPerUnit.SpawnPerUnit);
+		float Result72 = FNiagaraSystemFastPath::SafeReciprocal(Context_Map_SpawnPerUnit.SpawnPerUnit);
 		float Result73 = Context_Map_Local_SpawnPerUnit_MovementThresholdVectorLength * Result72;
 		Context_Map.Emitter.DistanceTraveled = Result71;
 		float Context_Map_Local_SpawnPerUnit_SpawnSpacing = Result73;
@@ -611,7 +625,7 @@ void FNiagaraEmitterFastPath::Module_SpawnPerUnit(FParamMap0& Context_Map)
 		float Result75 = Result74 * Context_Map.Engine.DeltaTime + Context_Map_Emitter_SpawnPerUnit.SpawnRemainder;
 		int32 Result76 = FMath::FloorToInt(Result75);
 		float Result77 = Result75 - Result76;
-		float Result78 = 1.0f / Context_Map_Local_SpawnPerUnit_SpawnSpacing; // Reciprocal(Context.Map.Local.SpawnPerUnit.SpawnSpacing);
+		float Result78 = FNiagaraSystemFastPath::SafeReciprocal(Context_Map_Local_SpawnPerUnit_SpawnSpacing);
 		float Result79 = 1 - Context_Map_Emitter_SpawnPerUnit.SpawnRemainder;
 		float Result80 = Result79 * Result78;
 		int32 Context_Map_Local_SpawnPerUnit_SpawnCountInt = Result76;

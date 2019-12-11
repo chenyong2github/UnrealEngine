@@ -573,6 +573,7 @@ void FMeshDescription::CreatePolygon_Internal(const FPolygonID PolygonID, const 
 		// End backward compatibility
 	}
 
+	check(PolygonGroupID != FPolygonGroupID::Invalid);
 	Polygon.PolygonGroupID = PolygonGroupID;
 	PolygonGroupArray[PolygonGroupID].Polygons.Add(PolygonID);
 

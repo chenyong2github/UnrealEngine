@@ -18,25 +18,25 @@ namespace BuildGraph.Tasks
 	public class ZipTaskParameters
 	{
 		/// <summary>
-		/// The directory to read compressed files from
+		/// The directory to read compressed files from.
 		/// </summary>
 		[TaskParameter]
 		public DirectoryReference FromDir;
 
 		/// <summary>
-		/// List of file specifications separated by semicolons (eg. *.cpp;Engine/.../*.bat), or the name of a tag set. Relative paths are taken from FromDir.
+		/// List of file specifications separated by semicolons (for example, *.cpp;Engine/.../*.bat), or the name of a tag set. Relative paths are taken from FromDir.
 		/// </summary>
 		[TaskParameter(Optional = true, ValidationType = TaskParameterValidationType.FileSpec)]
 		public string Files;
 
 		/// <summary>
-		/// The zip file to create
+		/// The zip file to create.
 		/// </summary>
 		[TaskParameter]
 		public FileReference ZipFile;
 
 		/// <summary>
-		/// Tag to be applied to the created zip file
+		/// Tag to be applied to the created zip file.
 		/// </summary>
 		[TaskParameter(Optional = true, ValidationType = TaskParameterValidationType.TagList)]
 		public string Tag;

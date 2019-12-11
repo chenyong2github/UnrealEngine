@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "LoudnessNRTFactory.h"
+#include "AudioSynesthesiaCustomVersion.h"
 #include "DSP/SlidingWindow.h"
 
 namespace Audio
@@ -10,6 +11,8 @@ namespace Audio
 	/************************************************************************/
 	FArchive &operator <<(FArchive& Ar, FLoudnessDatum& Datum)
 	{
+		Ar.UsingCustomVersion(FAudioSynesthesiaCustomVersion::GUID);
+
 		Ar << Datum.Channel;
 		Ar << Datum.Timestamp;
 		Ar << Datum.Energy;
@@ -23,16 +26,17 @@ namespace Audio
 
 
 	FLoudnessNRTResult::FLoudnessNRTResult()
-	: bIsSortedChronologically(false)
+	:	DurationInSeconds(0.f)
+	,	bIsSortedChronologically(false)
 	{
-		// By  default, overall loudness exists
-		ChannelLoudnessArrays.Add(ChannelIndexOverall);
-		ChannelLoudnessIntervals.Add(ChannelIndexOverall);
 	}
 
 
 	void FLoudnessNRTResult::Serialize(FArchive& Archive)
 	{
+		Archive.UsingCustomVersion(FAudioSynesthesiaCustomVersion::GUID);
+
+		Archive << DurationInSeconds;
 		Archive << bIsSortedChronologically;
 		Archive << ChannelLoudnessArrays;
 		Archive << ChannelLoudnessIntervals;
@@ -50,6 +54,11 @@ namespace Audio
 
 		// Mark as not sorted
 		bIsSortedChronologically = false;
+	}
+
+	bool FLoudnessNRTResult::ContainsChannel(int32 InChannelIndex) const
+	{
+		return ChannelLoudnessArrays.Contains(InChannelIndex);
 	}
 
 	const TArray<FLoudnessDatum>& FLoudnessNRTResult::GetChannelLoudnessArray(int32 ChannelIdx) const
@@ -85,9 +94,19 @@ namespace Audio
 		return Interval.Size();
 	}
 
-	int32 FLoudnessNRTResult::GetNumChannels() const 
+	void FLoudnessNRTResult::GetChannels(TArray<int32>& OutChannels) const
 	{
-		return FMath::Max(0, ChannelLoudnessArrays.Num() - 1);
+		ChannelLoudnessArrays.GetKeys(OutChannels);
+	}
+
+	float FLoudnessNRTResult::GetDurationInSeconds() const 
+	{
+		return DurationInSeconds;
+	}
+
+	void FLoudnessNRTResult::SetDurationInSeconds(float InDuration)
+	{
+		DurationInSeconds = InDuration;
 	}
 
 	bool FLoudnessNRTResult::IsSortedChronologically() const
@@ -113,9 +132,11 @@ namespace Audio
 	: NumChannels(InParams.NumChannels)
 	, NumAnalyzedBuffers(0)
 	, NumHopFrames(0)
+	, NumFrames(0)
 	, SampleRate(InParams.SampleRate)
 	{
-		check(NumChannels >= 0);
+		check(NumChannels > 0);
+		check(SampleRate > 0.f);
 
 		// Include NumChannels in calculating window size because windows are generated 
 		// with interleaved samples and deinterleaved later. 
@@ -134,6 +155,8 @@ namespace Audio
 
 	void FLoudnessNRTWorker::Analyze(TArrayView<const float> InAudio, IAnalyzerNRTResult* OutResult) 
 	{
+		NumFrames += InAudio.Num() / NumChannels;
+
 		// Assume that outer layers ensured that this is of correct type.
 		FLoudnessNRTResult* LoudnessResult = static_cast<FLoudnessNRTResult*>(OutResult);
 
@@ -168,8 +191,11 @@ namespace Audio
 		// Prepare result for fast lookup.
 		LoudnessResult->SortChronologically(); 
 
+		LoudnessResult->SetDurationInSeconds(static_cast<float>(NumFrames) / SampleRate);
+
 		// Reset internal counters
 		NumAnalyzedBuffers = 0; 
+		NumFrames = 0;
 
 		// Reset sliding buffer
 		InternalBuffer->Reset();
@@ -231,13 +257,13 @@ namespace Audio
 		return TEXT("Loudness Analyzer Non-Real-Time");
 	}
 
-	TUniquePtr<IAnalyzerNRTResult> FLoudnessNRTFactory::NewResult()
+	TUniquePtr<IAnalyzerNRTResult> FLoudnessNRTFactory::NewResult() const
 	{
 		TUniquePtr<FLoudnessNRTResult> Result = MakeUnique<FLoudnessNRTResult>();
 		return Result;
 	}
 
-	TUniquePtr<IAnalyzerNRTWorker> FLoudnessNRTFactory::NewWorker(const FAnalyzerNRTParameters& InParams, const IAnalyzerNRTSettings* InSettings)
+	TUniquePtr<IAnalyzerNRTWorker> FLoudnessNRTFactory::NewWorker(const FAnalyzerNRTParameters& InParams, const IAnalyzerNRTSettings* InSettings) const
 	{
 		const FLoudnessNRTSettings* LoudnessSettings = static_cast<const FLoudnessNRTSettings*>(InSettings);
 

@@ -65,7 +65,7 @@ public:
 	 *
 	 * @return  New widget object
 	 */
-	virtual TSharedRef< class SWidget > MakeWidget( FMultiBox::FOnMakeMultiBoxBuilderOverride* InMakeMultiBoxBuilderOverride = nullptr );
+	virtual TSharedRef< class SWidget > MakeWidget( FMultiBox::FOnMakeMultiBoxBuilderOverride* InMakeMultiBoxBuilderOverride = nullptr, uint32 MaxHeight = INT_MAX);
 	
 
 	/** 
@@ -119,6 +119,12 @@ public:
 	/** @return  The customization settings for the box being built */
 	FMultiBoxCustomization GetCustomization() const;
 
+	/** Sets extender support */
+	void SetExtendersEnabled(bool bEnabled) { bExtendersEnabled = bEnabled; }
+
+	/** @return True if extenders are enabled */
+	bool ExtendersEnabled() const { return bExtendersEnabled; }
+
 protected:
 	/** Applies any potential extension hooks at the current place */
 	virtual void ApplyHook(FName InExtensionHook, EExtensionHook::Position HookPosition) = 0;
@@ -143,6 +149,9 @@ protected:
 
 	/** Name of the menu */
 	FName MenuName;
+
+	/** If extenders are enabled */
+	bool bExtendersEnabled;
 };
 
 
@@ -230,7 +239,7 @@ public:
 	*
 	* @return  New widget object
 	*/
-	virtual TSharedRef< class SWidget > MakeWidget( FMultiBox::FOnMakeMultiBoxBuilderOverride* InMakeMultiBoxBuilderOverride = nullptr ) override;
+	virtual TSharedRef< class SWidget > MakeWidget( FMultiBox::FOnMakeMultiBoxBuilderOverride* InMakeMultiBoxBuilderOverride = nullptr, uint32 MaxHeight = INT_MAX) override;
 
 	/**
 	 * Adds a menu separator

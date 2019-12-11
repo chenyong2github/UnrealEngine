@@ -16,6 +16,6 @@ public class Eigen : ModuleRules
         }
 
         PublicDefinitions.Add("EIGEN_MPL2_ONLY");
-        bEnableShadowVariableWarnings = false;
-    }
+		ShadowVariableWarningLevel = WarningLevel.Off;
+	}
 }

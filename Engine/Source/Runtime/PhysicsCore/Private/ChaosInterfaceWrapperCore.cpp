@@ -9,9 +9,9 @@
 
 namespace ChaosInterface
 {
-	ECollisionShapeType GetImplicitType(const Chaos::TImplicitObject<float, 3>& InGeometry)
+	ECollisionShapeType GetImplicitType(const Chaos::FImplicitObject& InGeometry)
 	{
-		switch (InGeometry.GetType())
+		switch (Chaos::GetInnerType(InGeometry.GetType()))
 		{
 		case Chaos::ImplicitObjectType::Sphere: return ECollisionShapeType::Sphere;
 		case Chaos::ImplicitObjectType::Box: return ECollisionShapeType::Box;
@@ -19,7 +19,6 @@ namespace ChaosInterface
 		case Chaos::ImplicitObjectType::Convex: return ECollisionShapeType::Convex;
 		case Chaos::ImplicitObjectType::TriangleMesh: return ECollisionShapeType::Trimesh;
 		case Chaos::ImplicitObjectType::HeightField: return ECollisionShapeType::Heightfield;
-		case Chaos::ImplicitObjectType::Scaled: return ECollisionShapeType::Scaled;
 		default: break;
 		}
 

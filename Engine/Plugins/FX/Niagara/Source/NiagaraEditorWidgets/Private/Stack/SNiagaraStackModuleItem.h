@@ -32,7 +32,13 @@ private:
 
 	void OnCheckStateChanged(ECheckBoxState InCheckState);
 
-	EVisibility GetEditButtonVisibility() const;
+	bool GetButtonsEnabled() const;
+
+	FText GetDeleteButtonToolTipText() const;
+
+	bool GetDeleteButtonEnabled() const;
+
+	bool GetEnabledCheckBoxEnabled() const;
 
 	EVisibility GetRaiseActionMenuVisibility() const;
 
@@ -46,19 +52,9 @@ private:
 
 	FReply RefreshClicked();
 
-	void InsertModuleAbove();
-
-	void InsertModuleBelow();
-
-	void ShowInsertModuleMenu(int32 InsertIndex);
-
 	FReply OnModuleItemDrop(TSharedPtr<class FDragDropOperation> DragDropOperation);
 
 	bool OnModuleItemAllowDrop(TSharedPtr<class FDragDropOperation> DragDropOperation);
-
-	EVisibility GetStackIssuesWarningVisibility() const;
-
-	FText GetErrorButtonTooltipText() const;
 
 	void ShowReassignModuleScriptMenu();
 

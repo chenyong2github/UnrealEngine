@@ -245,6 +245,7 @@ void AWorldSettings::NotifyBeginPlay()
 			const bool bFromLevelLoad = true;
 			It->DispatchBeginPlay(bFromLevelLoad);
 		}
+
 		World->bBegunPlay = true;
 	}
 }
@@ -439,7 +440,7 @@ void AWorldSettings::PostLoad()
 	for (FHierarchicalSimplification& Entry : HierarchicalLODSetup)
 	{
 		Entry.ProxySetting.PostLoadDeprecated();
-		Entry.MergeSetting.LODSelectionType = EMeshLODSelectionType::CalculateLOD;
+		Entry.MergeSetting.PostLoadDeprecated();
 	}
 
 #endif// WITH_EDITOR
@@ -700,6 +701,8 @@ void UHierarchicalLODSetup::PostEditChangeProperty(struct FPropertyChangedEvent&
 			}
 		}
 	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif // WITH_EDITOR
 

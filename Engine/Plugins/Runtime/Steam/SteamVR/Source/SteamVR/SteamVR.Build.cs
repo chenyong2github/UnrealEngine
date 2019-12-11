@@ -48,16 +48,34 @@ namespace UnrealBuildTool.Rules
 
             if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
             {
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenVR");
-                PrivateDependencyModuleNames.Add("D3D11RHI");     //@todo steamvr: multiplatform
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+							"D3D11RHI",
+							"D3D12RHI",
+					});
 
-                AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenGL");
+				PrivateIncludePaths.AddRange(
+					new string[]
+					{
+							"../../../../../Source/Runtime/Windows/D3D11RHI/Private",
+							"../../../../../Source/Runtime/Windows/D3D11RHI/Private/Windows",
+							"../../../../../Source/Runtime/D3D12RHI/Private",
+							"../../../../../Source/Runtime/D3D12RHI/Private/Windows",
+					});
+
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenVR");
+
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenGL");
                 PrivateDependencyModuleNames.Add("OpenGLDrv");
 
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
                 PrivateDependencyModuleNames.Add("VulkanRHI");
-            }
-            else if (Target.Platform == UnrealTargetPlatform.Mac)
+
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
+			}
+			else if (Target.Platform == UnrealTargetPlatform.Mac)
             {
 				PublicFrameworks.Add("IOSurface");
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenVR");

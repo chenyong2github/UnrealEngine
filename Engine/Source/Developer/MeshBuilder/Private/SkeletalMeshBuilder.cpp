@@ -172,6 +172,19 @@ bool FSkeletalMeshBuilder::Build(USkeletalMesh* SkeletalMesh, const int32 LODInd
 			}
 			FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LODIndex, false);
 		}
+		else
+		{
+			if (LODInfo->BonesToRemove.Num() > 0)
+			{
+				TArray<FName> BonesToRemove;
+				BonesToRemove.Reserve(LODInfo->BonesToRemove.Num());
+				for (const FBoneReference& BoneReference : LODInfo->BonesToRemove)
+				{
+					BonesToRemove.Add(BoneReference.BoneName);
+				}
+				MeshUtilities.RemoveBonesFromMesh(SkeletalMesh, LODIndex, &BonesToRemove);
+			}
+		}
 	}
 
 	FSkeletalMeshLODModel& LODModelAfterReduction = SkeletalMesh->GetImportedModel()->LODModels[LODIndex];

@@ -18,6 +18,7 @@
 void FDatasmithC4DTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {
 	OutCapabilities.bIsEnabled = true;
+	OutCapabilities.bParallelLoadStaticMeshSupported = true;
 
 	TArray<FFileFormatInfo>& Formats = OutCapabilities.SupportedFileFormats;
     Formats.Emplace(TEXT("c4d"), TEXT("Cinema 4D file format"));
@@ -42,7 +43,8 @@ bool FDatasmithC4DTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElem
 {
 	if (ensure(Importer.IsValid()))
 	{
-		TArray<FMeshDescription> MeshDescriptions = Importer->GetGeometriesForMeshElement(MeshElement);
+		TArray<FMeshDescription> MeshDescriptions;
+		Importer->GetGeometriesForMeshElementAndRelease(MeshElement, MeshDescriptions);
 		if (MeshDescriptions.Num() > 0)
 		{
 			OutMeshPayload.LodMeshes.Add(MoveTemp(MeshDescriptions[0]));

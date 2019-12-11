@@ -29,7 +29,7 @@
 #include "IMeshReductionManagerModule.h"
 #include "Animation/SkinWeightProfile.h"
 
-#include "Modules/ModuleManager.h"
+#include "Async/ParallelFor.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, SkeletalMeshUtilitiesCommon)
 
@@ -232,7 +232,8 @@ bool FLODUtilities::RegenerateLOD(USkeletalMesh* SkeletalMesh, int32 NewLODCount
 		// we need to add more
 		else if (LODCount > CurrentNumLODs)
 		{
-			// Only create new skeletal mesh LOD level entries
+			// Only create new skeletal mesh LOD level entries, we cannot multi thread since the LOD will be create here
+			//TArray are not thread safe.
 			for (int32 LODIdx = CurrentNumLODs; LODIdx < LODCount; LODIdx++)
 			{
 				// if no previous setting found, it will use default setting. 
@@ -823,7 +824,32 @@ void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 So
 	}
 
 	const FSkeletalMeshLODModel& BaseLODModel = bReduceBaseLOD ? TempBaseLODModel : SkeletalMeshResource->LODModels[SourceLOD];
+	const FSkeletalMeshLODInfo* BaseLODInfo = SkeletalMesh->GetLODInfo(SourceLOD);
 	const FSkeletalMeshLODModel& TargetLODModel = SkeletalMeshResource->LODModels[DestinationLOD];
+	const FSkeletalMeshLODInfo* TargetLODInfo = SkeletalMesh->GetLODInfo(DestinationLOD);
+
+	TArray<int32> BaseLODMaterialMap = BaseLODInfo ? BaseLODInfo->LODMaterialMap : TArray<int32>();
+	TArray<int32> TargetLODMaterialMap = TargetLODInfo ? TargetLODInfo->LODMaterialMap : TArray<int32>();
+
+	auto InternalGetSectionMaterialIndex = [](const FSkeletalMeshLODModel& LODModel, int32 SectionIndex)->int32
+	{
+		if (!LODModel.Sections.IsValidIndex(SectionIndex))
+		{
+			return 0;
+		}
+		return LODModel.Sections[SectionIndex].MaterialIndex;
+	};
+
+	auto GetBaseSectionMaterialIndex = [&BaseLODModel, &InternalGetSectionMaterialIndex](int32 SectionIndex)->int32
+	{
+		return InternalGetSectionMaterialIndex(BaseLODModel, SectionIndex);
+	};
+
+	auto GetTargetSectionMaterialIndex = [&TargetLODModel, &InternalGetSectionMaterialIndex](int32 SectionIndex)->int32
+	{
+		return InternalGetSectionMaterialIndex(TargetLODModel, SectionIndex);
+	};
+
 	//Make sure we have some morph for this LOD
 	bool bContainsMorphTargets = false;
 	for (UMorphTarget *MorphTarget : SkeletalMesh->MorphTargets)
@@ -847,30 +873,33 @@ void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 So
 	{
 		TargetSectionMatchBaseIndex[TargetSectionIndex] = INDEX_NONE;
 	}
+	TBitArray<> BaseSectionMatch;
+	BaseSectionMatch.Init(false, BaseLODModel.Sections.Num());
 	//Find corresponding section indices from Source LOD for Target LOD
-	for (int32 BaseSectionIndex = 0; BaseSectionIndex < BaseLODModel.Sections.Num(); ++BaseSectionIndex)
+	for (int32 TargetSectionIndex = 0; TargetSectionIndex < TargetLODModel.Sections.Num(); ++TargetSectionIndex)
 	{
-		int32 TargetSectionIndexMatch = INDEX_NONE;
-		for (int32 TargetSectionIndex = 0; TargetSectionIndex < TargetLODModel.Sections.Num(); ++TargetSectionIndex)
+		int32 TargetSectionMaterialIndex = GetTargetSectionMaterialIndex(TargetSectionIndex);
+		for (int32 BaseSectionIndex = 0; BaseSectionIndex < BaseLODModel.Sections.Num(); ++BaseSectionIndex)
 		{
-			if (TargetLODModel.Sections[TargetSectionIndex].MaterialIndex == BaseLODModel.Sections[BaseSectionIndex].MaterialIndex && TargetSectionMatchBaseIndex[TargetSectionIndex] == INDEX_NONE)
+			if (BaseSectionMatch[BaseSectionIndex])
 			{
-				TargetSectionIndexMatch = TargetSectionIndex;
+				continue;
+			}
+			int32 BaseSectionMaterialIndex = GetBaseSectionMaterialIndex(BaseSectionIndex);
+			if (TargetSectionMaterialIndex == BaseSectionMaterialIndex)
+			{
+				TargetSectionMatchBaseIndex[TargetSectionIndex] = BaseSectionIndex;
+				BaseSectionMatch[BaseSectionIndex] = true;
 				break;
 			}
-		}
-		//We can set the data only once. There should be no clash
-		if (TargetSectionMatchBaseIndex.IsValidIndex(TargetSectionIndexMatch) && TargetSectionMatchBaseIndex[TargetSectionIndexMatch] == INDEX_NONE)
-		{
-			TargetSectionMatchBaseIndex[TargetSectionIndexMatch] = BaseSectionIndex;
 		}
 	}
 	//We should have match all the target sections
 	check(!TargetSectionMatchBaseIndex.Contains(INDEX_NONE));
 	TArray<FSoftSkinVertex> BaseVertices;
 	TArray<FSoftSkinVertex> TargetVertices;
-	BaseLODModel.GetNonClothVertices(BaseVertices);
-	TargetLODModel.GetNonClothVertices(TargetVertices);
+	BaseLODModel.GetVertices(BaseVertices);
+	TargetLODModel.GetVertices(TargetVertices);
 	//Create the base triangle indices per section
 	TArray<TArray<uint32>> BaseTriangleIndices;
 	int32 SectionCount = BaseLODModel.Sections.Num();
@@ -878,16 +907,13 @@ void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 So
 	for (int32 SectionIndex = 0; SectionIndex < SectionCount; ++SectionIndex)
 	{
 		const FSkelMeshSection& Section = BaseLODModel.Sections[SectionIndex];
-		if (Section.ClothingData.AssetGuid.IsValid())
-		{
-			continue;
-		}
 		uint32 TriangleCount = Section.NumTriangles;
 		for (uint32 TriangleIndex = 0; TriangleIndex < TriangleCount; ++TriangleIndex)
 		{
 			for (uint32 PointIndex = 0; PointIndex < 3; PointIndex++)
 			{
-				BaseTriangleIndices[SectionIndex].Add(BaseLODModel.IndexBuffer[Section.BaseIndex + ((TriangleIndex * 3) + PointIndex)]);
+				uint32 IndexBufferValue = BaseLODModel.IndexBuffer[Section.BaseIndex + ((TriangleIndex * 3) + PointIndex)];
+				BaseTriangleIndices[SectionIndex].Add(IndexBufferValue);
 			}
 		}
 	}
@@ -971,6 +997,7 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 		return;
 	}
 
+	if (IsInGameThread())
 	{
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("DesiredLOD"), DesiredLOD);
@@ -1082,7 +1109,10 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 		FLODUtilities::RestoreClothingFromBackup(SkeletalMesh, ClothingBindings, DesiredLOD);
 	}
 
-	GWarn->EndSlowTask();
+	if (IsInGameThread())
+	{
+		GWarn->EndSlowTask();
+	}
 }
 
 void FLODUtilities::SimplifySkeletalMeshLOD(FSkeletalMeshUpdateContext& UpdateContext, int32 DesiredLOD, bool bRestoreClothing /*= false*/)
@@ -1121,9 +1151,11 @@ void FLODUtilities::RestoreSkeletalMeshLODImportedData(USkeletalMesh* SkeletalMe
 	TMap<FString, TArray<FMorphTargetDelta>> ImportedBaseLODMorphTargetData;
 	SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData[LodIndex]->LoadReductionData(ImportedBaseLODModel, ImportedBaseLODMorphTargetData, SkeletalMesh);
 	{
-		FSkeletalMeshUpdateContext UpdateContext;
-		UpdateContext.SkeletalMesh = SkeletalMesh;
-
+		TArray<int32> EmptyLodInfoMaterialMap;
+		ImportedBaseLODModel.UpdateChunkedSectionInfo(SkeletalMesh->GetName(), EmptyLodInfoMaterialMap);
+		//When we restore a LOD we destroy the LODMaterialMap (user manual section material slot assignation)
+		FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo(LodIndex);
+		LODInfo->LODMaterialMap.Empty();
 		//Copy the SkeletalMeshLODModel
 		SkeletalMesh->GetImportedModel()->LODModels[LodIndex] = ImportedBaseLODModel;
 		//Copy the morph target deltas
@@ -1146,12 +1178,6 @@ void FLODUtilities::RestoreSkeletalMeshLODImportedData(USkeletalMesh* SkeletalMe
 
 		//Put back the clothing for the restore LOD
 		FLODUtilities::RestoreClothingFromBackup(SkeletalMesh, ClothingBindings);
-
-		if (UpdateContext.OnLODChanged.IsBound())
-		{
-			//Notify calling system of change
-			UpdateContext.OnLODChanged.ExecuteIfBound();
-		}
 	}
 }
 
@@ -1945,41 +1971,93 @@ void FLODUtilities::RegenerateAllImportSkinWeightProfileData(FSkeletalMeshLODMod
 
 void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 LODIndex)
 {
-	FSkeletalMeshUpdateContext UpdateContext;
-	UpdateContext.SkeletalMesh = SkeletalMesh;
-
-	//Check the dependencies and regenerate the LODs according to it
-	TArray<bool> LODDependencies;
 	int32 LODNumber = SkeletalMesh->GetLODNum();
-	LODDependencies.AddZeroed(LODNumber);
-	bool bRegenLODs = false;
-	LODDependencies[LODIndex] = true;
+	TMap<int32, TArray<int32>> Dependencies;
+	TBitArray<> DependentLOD;
+	DependentLOD.Init(false, LODNumber);
+	DependentLOD[LODIndex] = true;
 	for (int32 DependentLODIndex = LODIndex + 1; DependentLODIndex < LODNumber; ++DependentLODIndex)
 	{
 		const FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo(DependentLODIndex);
-		if (LODInfo && LODInfo->bHasBeenSimplified && LODDependencies[LODInfo->ReductionSettings.BaseLOD])
+		//Only add active reduction LOD that are not inline reducted (inline mean they do not depend on LODIndex)
+		if (LODInfo && (SkeletalMesh->IsReductionActive(DependentLODIndex) || LODInfo->bHasBeenSimplified) && DependentLODIndex > LODInfo->ReductionSettings.BaseLOD && DependentLOD[LODInfo->ReductionSettings.BaseLOD])
 		{
-			LODDependencies[DependentLODIndex] = true;
-			bRegenLODs = true;
-
+			TArray<int32>& LODDependencies = Dependencies.FindOrAdd(LODInfo->ReductionSettings.BaseLOD);
+			LODDependencies.Add(DependentLODIndex);
+			DependentLOD[DependentLODIndex] = true;
 		}
 	}
-	if (bRegenLODs)
+	if (Dependencies.Contains(LODIndex))
 	{
+		//Load the necessary module before going multithreaded
+		IMeshReductionModule& ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionModule>("MeshReductionInterface");
+		//This will load all necessary module before kicking the multi threaded reduction
+		IMeshReduction* MeshReduction = ReductionModule.GetSkeletalMeshReductionInterface();
+		check(MeshReduction && MeshReduction->IsSupported());
+
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
-		auto SimplifyDependentLODS = [&LODIndex, &LODNumber, &LODDependencies, &UpdateContext]()
 		{
-			for (int32 DependentLODIndex = LODIndex + 1; DependentLODIndex < LODNumber; ++DependentLODIndex)
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("DesiredLOD"), LODIndex);
+			Args.Add(TEXT("SkeletalMeshName"), FText::FromString(SkeletalMesh->GetName()));
+			const FText StatusUpdate = FText::Format(NSLOCTEXT("UnrealEd", "MeshSimp_GeneratingDependentLODs_F", "Generating All Dependent LODs from LOD {DesiredLOD} for {SkeletalMeshName}..."), Args);
+			GWarn->BeginSlowTask(StatusUpdate, true);
+		}
+		for (const auto& Kvp : Dependencies)
+		{
+			SkeletalMesh->Modify();
+			//Use a TQueue which is thread safe, this Queue will be fill by some delegate call from other threads
+			TQueue<FSkeletalMeshLODModel*> LODModelReplaceByReduction;
+
+			const TArray<int32>& DependentLODs = Kvp.Value;
+			//Clothing do not play well with multithread, backup it here. Also bind the LODModel delete delegates
+			TMap<int32, TArray<ClothingAssetUtils::FClothingAssetMeshBinding>> PerLODClothingBindings;
+			for (int32 DependentLODIndex : DependentLODs)
 			{
-				if (LODDependencies[DependentLODIndex])
+				TArray<ClothingAssetUtils::FClothingAssetMeshBinding>& ClothingBindings = PerLODClothingBindings.FindOrAdd(DependentLODIndex);
+				FLODUtilities::UnbindClothingAndBackup(SkeletalMesh, ClothingBindings, DependentLODIndex);
+
+				const FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo(DependentLODIndex);
+				check(LODInfo);
+				LODInfo->ReductionSettings.OnDeleteLODModelDelegate.BindLambda([&LODModelReplaceByReduction](FSkeletalMeshLODModel* ReplacedLODModel)
 				{
-					FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, DependentLODIndex, true);
+					LODModelReplaceByReduction.Enqueue(ReplacedLODModel);
+				});
+			}
+
+			//Reduce all dependent LOD in same time
+			ParallelFor(DependentLODs.Num(), [&DependentLODs, &SkeletalMesh](int32 IterationIndex)
+			{
+				check(DependentLODs.IsValidIndex(IterationIndex));
+				int32 DependentLODIndex = DependentLODs[IterationIndex];
+				check(SkeletalMesh->GetLODInfo(DependentLODIndex)); //We cannot add a LOD when reducing with multi thread, so check we already have one
+				FLODUtilities::SimplifySkeletalMeshLOD(SkeletalMesh, DependentLODIndex, false);
+			});
+
+			//Restore the clothings and unbind the delegates
+			for (int32 DependentLODIndex : DependentLODs)
+			{
+				TArray<ClothingAssetUtils::FClothingAssetMeshBinding>& ClothingBindings = PerLODClothingBindings.FindChecked(DependentLODIndex);
+				FLODUtilities::RestoreClothingFromBackup(SkeletalMesh, ClothingBindings);
+
+				FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo(DependentLODIndex);
+				check(LODInfo);
+				LODInfo->ReductionSettings.OnDeleteLODModelDelegate.Unbind();
+			}
+
+			while (!LODModelReplaceByReduction.IsEmpty())
+			{
+				FSkeletalMeshLODModel* ReplacedLODModel = nullptr;
+				LODModelReplaceByReduction.Dequeue(ReplacedLODModel);
+				if (ReplacedLODModel)
+				{
+					delete ReplacedLODModel;
 				}
 			}
-		};
+			check(LODModelReplaceByReduction.IsEmpty());
+		}
 
-		SkeletalMesh->Modify();
-		SimplifyDependentLODS();
+		GWarn->EndSlowTask();
 	}
 }
 

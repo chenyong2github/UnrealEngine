@@ -2,32 +2,11 @@
 
 #pragma once
 
+#include "Trace/Config.h"
+
+#if UE_TRACE_ENABLED
+
 #include "CoreTypes.h"
-
-////////////////////////////////////////////////////////////////////////////////
-#if !defined(UE_TRACE_ENABLED)
-#	if !UE_BUILD_SHIPPING && !IS_PROGRAM
-#		if PLATFORM_WINDOWS || /* PLATFORM_APPLE || */ PLATFORM_PS4 || PLATFORM_XBOXONE || PLATFORM_SWITCH || PLATFORM_ANDROID
-#			define UE_TRACE_ENABLED	1
-#		endif
-#	endif
-#endif // !IS_PROGRAM
-
-#if !defined(UE_TRACE_ENABLED)
-#	define UE_TRACE_ENABLED		0
-#endif
-
-#if UE_TRACE_ENABLED
-#	define UE_TRACE_IMPL(...)
-#	define UE_TRACE_API			TRACELOG_API
-#else
-#	define UE_TRACE_IMPL(...)	{ return __VA_ARGS__; }
-#	define UE_TRACE_API			inline
-#endif
-
-
-
-#if UE_TRACE_ENABLED
 
 #define TRACE_PRIVATE_EVENT_DEFINE(LoggerName, EventName) \
 	Trace::FEventDef LoggerName##EventName##Event;
@@ -58,15 +37,17 @@
 				return true; \
 			}(); \
 		} \
-		Trace::TField<0, 
+		Trace::TField<0 /*Index*/, 0 /*Offset*/,
 
 #define TRACE_PRIVATE_EVENT_FIELD(FieldType, FieldName) \
 		FieldType> const FieldName = Trace::FLiteralName(#FieldName); \
-		Trace::TField<decltype(FieldName)::Offset + decltype(FieldName)::Size,
+		Trace::TField< \
+			decltype(FieldName)::Index + 1, \
+			decltype(FieldName)::Offset + decltype(FieldName)::Size,
 
 #define TRACE_PRIVATE_EVENT_END() \
 		Trace::EndOfFields> const EventSize_Private = {}; \
-		Trace::TField<decltype(EventSize_Private)::Value, Trace::Attachment> const Attachment = {}; \
+		Trace::TField<0, decltype(EventSize_Private)::Value, Trace::Attachment> const Attachment = {}; \
 		explicit operator bool () const { return true; } \
 	};
 

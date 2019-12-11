@@ -190,6 +190,8 @@ struct FD3D12RHICommandInitializeTexture final : public FRHICommand<FD3D12RHICom
 			FD3D12CommandListHandle& hCommandList = Device->GetDefaultCommandContext().CommandListHandle;
 			hCommandList.GetCurrentOwningContext()->numCopies += NumSlices * NumMips;
 
+			FConditionalScopeResourceBarrier ConditionalScopeResourceBarrier(hCommandList, Resource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+
 			ID3D12Device* D3DDevice = Device->GetDevice();
 			ID3D12GraphicsCommandList* CmdList = hCommandList.GraphicsCommandList();
 
@@ -227,15 +229,6 @@ struct FD3D12RHICommandInitializeTexture final : public FRHICommand<FD3D12RHICom
 			}
 
 			hCommandList.UpdateResidency(Resource);
-
-			if (!Resource->RequiresResourceStateTracking())
-			{
-				hCommandList.AddTransitionBarrier(Resource, D3D12_RESOURCE_STATE_COPY_DEST, DestinationState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-			}
-			else
-			{
-				FD3D12DynamicRHI::TransitionResource(hCommandList, Resource, DestinationState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-			}
 
 			CurrentTexture = CurrentTexture->GetNextObject();
 		}
@@ -782,6 +775,11 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 	bool bCreateRTV = false;
 	bool bCreateDSV = false;
 
+	if (Flags & TexCreate_Shared)
+	{
+		TextureDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS;
+	}
+
 	if (Flags & TexCreate_RenderTargetable)
 	{
 		check(!(Flags & TexCreate_DepthStencilTargetable));
@@ -1070,7 +1068,7 @@ FD3D12Texture3D* FD3D12DynamicRHI::CreateD3D12Texture3D(FRHICommandListImmediate
 	{
 		FD3D12Texture3D* Texture3D = new FD3D12Texture3D(Device, SizeX, SizeY, SizeZ, NumMips, Format, Flags, CreateInfo.ClearValueBinding);
 
-		Device->GetTextureAllocator().AllocateTexture(TextureDesc, ClearValuePtr, Format, Texture3D->ResourceLocation, (CreateInfo.BulkData != nullptr) ? D3D12_RESOURCE_STATE_COPY_DEST : DestinationState, CreateInfo.DebugName);
+		VERIFYD3D12CREATETEXTURERESULT(Device->GetTextureAllocator().AllocateTexture(TextureDesc, ClearValuePtr, Format, Texture3D->ResourceLocation, (CreateInfo.BulkData != nullptr) ? D3D12_RESOURCE_STATE_COPY_DEST : DestinationState, CreateInfo.DebugName), TextureDesc);
 
 		if (bCreateRTV)
 		{
@@ -2128,10 +2126,9 @@ public:
 
 			CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(TextureLink->GetResource()->GetResource(), MipIdx);
 
-			FScopeResourceBarrier ScopeResourceBarrierDest(
+			FConditionalScopeResourceBarrier ScopeResourceBarrierDest(
 				NativeCmdList,
 				TextureLink->GetResource(),
-				TextureLink->GetResource()->GetDefaultResourceState(),
 				D3D12_RESOURCE_STATE_COPY_DEST,
 				DestCopyLocation.SubresourceIndex);
 

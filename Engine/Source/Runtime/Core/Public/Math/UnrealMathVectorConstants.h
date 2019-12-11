@@ -66,7 +66,7 @@ namespace GlobalVectorConstants
 	static const VectorRegister Float180 = MakeVectorRegister(180.f, 180.f, 180.f, 180.f);
 
 	// All float numbers greater than or equal to this have no fractional value.
-	static const VectorRegister FloatNonFractional = MakeVectorRegister(8388608.f, 8388608.f, 8388608.f, 8388608.f);
+	static const VectorRegister FloatNonFractional = MakeVectorRegister(FLOAT_NON_FRACTIONAL, FLOAT_NON_FRACTIONAL, FLOAT_NON_FRACTIONAL, FLOAT_NON_FRACTIONAL);
 
 	static const VectorRegister FloatTwo = MakeVectorRegister(2.0f, 2.0f, 2.0f, 2.0f);
 	static const uint32 AlmostTwoBits = 0x3fffffff;

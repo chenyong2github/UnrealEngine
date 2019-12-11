@@ -28,8 +28,8 @@ class Wav {
  public:
   ~Wav();
 
-  // Reads a RIFF WAVE from an opened binary stream.
-  static std::unique_ptr<const Wav> CreateOrNull(std::istream* binary_stream);
+  // Reads a RIFF WAVE from a byte array.
+  static std::unique_ptr<const Wav> CreateOrNull(const unsigned char* byte_array, size_t array_size);
 
   // Returns reference to interleaved samples.
   const std::vector<int16_t>& interleaved_samples() const {

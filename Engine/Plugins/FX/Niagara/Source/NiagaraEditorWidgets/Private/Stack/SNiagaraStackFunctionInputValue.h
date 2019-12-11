@@ -51,7 +51,7 @@ private:
 
 	FText GetDynamicValueText() const;
 
-	FText GetExpressionValueText() const;
+	FText GetDynamicValueToolTip() const;
 
 	void OnExpressionTextCommitted(const FText& Name, ETextCommit::Type CommitInfo);
 

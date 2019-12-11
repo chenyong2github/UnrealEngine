@@ -248,6 +248,11 @@ public:
 	void AbandonModuleWithCallback( const FName InModuleName );
 
 	/**
+	 * Add any extra search paths that may be required
+	 */
+	void AddExtraBinarySearchPaths();
+
+	/**
 	  * Gets a module by name, checking to ensure it exists.
 	  *
 	  * This method checks whether the module actually exists. If the module does not exist, an assertion will be triggered.

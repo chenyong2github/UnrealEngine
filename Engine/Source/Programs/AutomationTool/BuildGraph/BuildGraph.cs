@@ -47,6 +47,7 @@ namespace AutomationTool
 	[Help("Target=<Name>", "Name of the node or output tag to be built")]
 	[Help("Schema", "Generates a schema to the default location")]
 	[Help("Schema=<FileName>", "Generate a schema describing valid script documents, including all the known tasks")]
+	[Help("ImportSchema=<FileName>", "Imports a schema from an existing schema file")]
 	[Help("Set:<Property>=<Value>", "Sets a named property to the given value")]
 	[Help("Clean", "Cleans all cached state of completed build nodes before running")]
 	[Help("CleanNode=<Name>[+<Name>...]", "Cleans just the given nodes before running")]
@@ -78,6 +79,7 @@ namespace AutomationTool
 			string TargetNames = ParseParamValue("Target", null);
 			string DocumentationFileName = ParseParamValue("Documentation", null);
 			string SchemaFileName = ParseParamValue("Schema", null);
+			string ImportSchemaFileName = ParseParamValue("ImportSchema", null);
 			string ExportFileName = ParseParamValue("Export", null);
 			string PreprocessedFileName = ParseParamValue("Preprocess", null);
 			string SharedStorageDir = ParseParamValue("SharedStorageDir", null);
@@ -126,11 +128,20 @@ namespace AutomationTool
 			DefaultProperties["EscapedBranch"] = P4Enabled ? CommandUtils.EscapePath(P4Env.Branch) : "Unknown";
 			DefaultProperties["Change"] = P4Enabled ? P4Env.Changelist.ToString() : "0";
 			DefaultProperties["CodeChange"] = P4Enabled ? P4Env.CodeChangelist.ToString() : "0";
-			DefaultProperties["RootDir"] = CommandUtils.RootDirectory.FullName;
 			DefaultProperties["IsBuildMachine"] = IsBuildMachine ? "true" : "false";
 			DefaultProperties["HostPlatform"] = HostPlatform.Current.HostEditorPlatform.ToString();
 			DefaultProperties["RestrictedFolderNames"] = String.Join(";", RestrictedFolder.GetNames());
 			DefaultProperties["RestrictedFolderFilter"] = String.Join(";", RestrictedFolder.GetNames().Select(x => String.Format(".../{0}/...", x)));
+
+			// Prevent expansion of the root directory if we're just preprocessing the output. They may vary by machine.
+			if (PreprocessedFileName == null)
+			{
+				DefaultProperties["RootDir"] = CommandUtils.RootDirectory.FullName;
+			}
+			else
+			{
+				DefaultProperties["RootDir"] = null;
+			}
 
 			// Attempt to read existing Build Version information
 			BuildVersion Version;
@@ -175,16 +186,25 @@ namespace AutomationTool
 				return ExitCode.Success;
 			}
 
-			// Create a schema for the given tasks
-			ScriptSchema Schema = new ScriptSchema(NameToTask);
-			if(SchemaFileName != null)
+			// Import schema if one is passed in
+			ScriptSchema Schema;
+			if (ImportSchemaFileName != null)
 			{
-				FileReference FullSchemaFileName = new FileReference(SchemaFileName);
-				LogInformation("Writing schema to {0}...", FullSchemaFileName.FullName);
-				Schema.Export(FullSchemaFileName);
-				if(ScriptFileName == null)
+				Schema = ScriptSchema.Import(FileReference.FromString(ImportSchemaFileName), NameToTask);
+			}
+			else
+			{
+				// Create a schema for the given tasks
+				Schema = new ScriptSchema(NameToTask);
+				if (SchemaFileName != null)
 				{
-					return ExitCode.Success;
+					FileReference FullSchemaFileName = new FileReference(SchemaFileName);
+					LogInformation("Writing schema to {0}...", FullSchemaFileName.FullName);
+					Schema.Export(FullSchemaFileName);
+					if (ScriptFileName == null)
+					{
+						return ExitCode.Success;
+					}
 				}
 			}
 
@@ -197,7 +217,7 @@ namespace AutomationTool
 
 			// Read the script from disk
 			Graph Graph;
-			if(!ScriptReader.TryRead(new FileReference(ScriptFileName), Arguments, DefaultProperties, Schema, out Graph))
+			if(!ScriptReader.TryRead(new FileReference(ScriptFileName), Arguments, DefaultProperties, PreprocessedFileName != null, Schema, out Graph))
 			{
 				return ExitCode.Error_Unknown;
 			}
@@ -364,7 +384,7 @@ namespace AutomationTool
 				FileReference PreprocessedFileLocation = new FileReference(PreprocessedFileName);
 				LogInformation("Writing {0}...", PreprocessedFileLocation);
 				Graph.Write(PreprocessedFileLocation, (SchemaFileName != null)? new FileReference(SchemaFileName) : null);
-				return ExitCode.Success;
+				bListOnly = true;
 			}
 
 			// Find the triggers which we are explicitly running.

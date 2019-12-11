@@ -23,9 +23,6 @@ StructuredBuffer<FSkyLightVisibilityRays> SkyLightVisibilityRays;
 RWTexture2D<float4> RWOcclusionMaskUAV;
 RWTexture2D<float2> RWRayDistanceUAV;
 
-#define USE_MIP_PDF_TEXTURE 1
-#define USE_SOLID_ANGLE_TEXTURE 1
-
 float3 EvalSkyLight(float3 Direction)
 {
 	return SkyLight.Color * TextureCubeSampleLevel(SkyLight.Texture, SkyLight.TextureSampler, Direction, 0).rgb;
@@ -140,29 +137,24 @@ RAY_TRACING_ENTRY_RAYGEN(SkyLightRGS)
 		ApplyCameraRelativeDepthBias(Ray, PixelCoord, DeviceZ, WorldNormal, SkyLight.MaxNormalBias);
 
 		uint RayFlags = 0;
+		const uint InstanceInclusionMask = RAY_TRACING_MASK_SHADOW;
+
 #if !ENABLE_MATERIALS
 		RayFlags |= RAY_FLAG_FORCE_OPAQUE;
 #endif
 #if !ENABLE_TWO_SIDED_GEOMETRY
 		RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 #endif
-		FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
-		Payload.SetMinimalPayloadMode(); // Only HitT will be filled by closest hit shader, skipping full material evaluation.
 
-		TraceRay(
-			TLAS,      // AccelerationStructure
+		FMinimalPayload MinimalPayload = TraceVisibilityRay(
+			TLAS,
 			RayFlags,
-			RAY_TRACING_MASK_SHADOW,          // InstanceInclusionMask
-			RAY_TRACING_SHADER_SLOT_SHADOW,   // RayContributionToHitGroupIndex
-			RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
-			0,         // MissShaderIndex
-			Ray,       // RayDesc
-			Payload    // Payload
-		);
+			InstanceInclusionMask,
+			Ray);
 
-		if (Payload.IsHit())
+		if (MinimalPayload.IsHit())
 		{
-			RayDistance += Payload.HitT;
+			RayDistance += MinimalPayload.HitT;
 			HitCount += 1.0;
 		}
 		else
@@ -217,36 +209,29 @@ RAY_TRACING_ENTRY_RAYGEN(SkyLightRGS)
 		// Cast ray from light to shading point to get estimation of "shadow thickness"
 		float ShadowThickness = 0.0;
 		{
-			uint RayFlagsLocal = 0;
-#if !ENABLE_MATERIALS
-			RayFlagsLocal |= RAY_FLAG_FORCE_OPAQUE;
-#endif
-#if !ENABLE_TWO_SIDED_GEOMETRY
-			RayFlagsLocal |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
-#endif
-			FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
-			Payload.SetMinimalPayloadMode(); // Only HitT will be filled by closest hit shader, skipping full material evaluation.
-
 			RayDesc RayLocal;
 			RayLocal.Origin = WorldPosition + L * SkyLight.MaxShadowThickness;
 			RayLocal.Direction = -L;
 			RayLocal.TMin = 0.0;
 			RayLocal.TMax = SkyLight.MaxShadowThickness;
 
-			FPackedMaterialClosestHitPayload PayloadLocal = (FPackedMaterialClosestHitPayload)0;
-			PayloadLocal.SetMinimalPayloadMode(); // Only HitT will be filled by closest hit shader, skipping full material evaluation.
-			TraceRay(
-				TLAS,      // AccelerationStructure
-				RayFlagsLocal,
-				RAY_TRACING_MASK_SHADOW,          // InstanceInclusionMask
-				RAY_TRACING_SHADER_SLOT_SHADOW,   // RayContributionToHitGroupIndex
-				RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
-				0,         // MissShaderIndex
-				RayLocal,       // RayDesc
-				PayloadLocal    // Payload
-			);
+			uint RayFlagsLocal = 0;
+			const uint InstanceInclusionMaskLocal = RAY_TRACING_MASK_SHADOW;
 
-			float3 P = RayLocal.Origin + RayLocal.Direction * PayloadLocal.HitT;
+#if !ENABLE_MATERIALS
+			RayFlagsLocal |= RAY_FLAG_FORCE_OPAQUE;
+#endif
+#if !ENABLE_TWO_SIDED_GEOMETRY
+			RayFlagsLocal |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+#endif
+
+			FMinimalPayload MinimalPayloadLocal = TraceVisibilityRay(
+				TLAS,
+				RayFlagsLocal,
+				InstanceInclusionMaskLocal,
+				RayLocal);
+
+			float3 P = RayLocal.Origin + RayLocal.Direction * MinimalPayloadLocal.HitT;
 			ShadowThickness = min(length(WorldPosition - P), 1.0);
 		}
 		float3 ScatterThroughput = PI * KajiyaKayDiffuseAttenuation(GBufferData, L, V, N, ShadowThickness);

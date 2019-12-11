@@ -514,6 +514,10 @@ int32 USkeleton::BuildLinkup(const USkeletalMesh* InSkelMesh)
 			// Fix missing bone.
 			SkeletonBoneIndex = SkeletonRefSkel.FindBoneIndex(MeshBoneName);
 		}
+#else
+		// If we're not in editor, we still want to know which skeleton is missing a bone.
+		ensureMsgf(SkeletonBoneIndex != INDEX_NONE, TEXT("USkeleton::BuildLinkup: The Skeleton %s, is missing bones that SkeletalMesh %s needs. MeshBoneName %s"),
+				*GetNameSafe(this), *GetNameSafe(InSkelMesh), *MeshBoneName.ToString());
 #endif
 
 		NewMeshLinkup.MeshToSkeletonTable[MeshBoneIndex] = SkeletonBoneIndex;
@@ -878,7 +882,20 @@ int32 USkeleton::GetChildBones(int32 ParentBoneIndex, TArray<int32> & Children) 
 
 void USkeleton::CollectAnimationNotifies()
 {
-	// need to verify if these pose is used by anybody else
+	CollectAnimationNotifies(AnimationNotifies);
+}
+
+void USkeleton::CollectAnimationNotifies(TArray<FName>& OutNotifies) const
+{
+	// first merge in AnimationNotifies
+	if(&AnimationNotifies != &OutNotifies)
+	{
+		for(const FName& NotifyName : AnimationNotifies)
+		{
+			OutNotifies.AddUnique(NotifyName);
+		}
+	}
+
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
 	// @Todo : remove it when we know the asset registry is updated
@@ -886,7 +903,7 @@ void USkeleton::CollectAnimationNotifies()
 	//AnimationNotifies.Empty();
 	TArray<FAssetData> AssetList;
 	AssetRegistryModule.Get().GetAssetsByClass(UAnimSequenceBase::StaticClass()->GetFName(), AssetList, true);
-#if WITH_EDITOR
+
 	// do not clear AnimationNotifies. We can't remove old ones yet. 
 	FString CurrentSkeletonName = FAssetData(this).GetExportTextName();
 	for (auto Iter = AssetList.CreateConstIterator(); Iter; ++Iter)
@@ -903,12 +920,11 @@ void USkeleton::CollectAnimationNotifies()
 				for (auto NotifyIter = NotifyList.CreateConstIterator(); NotifyIter; ++NotifyIter)
 				{
 					FString NotifyName = *NotifyIter;
-					AddNewAnimationNotify(FName(*NotifyName));
+					OutNotifies.AddUnique(FName(*NotifyName));
 				}
 			}
 		}
 	}
-#endif
 }
 
 void USkeleton::AddNewAnimationNotify(FName NewAnimNotifyName)

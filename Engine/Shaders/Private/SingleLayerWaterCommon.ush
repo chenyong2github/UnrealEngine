@@ -49,11 +49,12 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 #if !SIMPLE_SINGLE_LAYER_WATER
 	Texture2D SceneColorWithoutSingleLayerWaterTexture, SamplerState SceneColorWithoutSingleLayerWaterSampler,
 	Texture2D SceneDepthWithoutSingleLayerWaterTexture, SamplerState SceneDepthWithoutSingleLayerWaterSampler,
+	float2 SceneWithoutSingleLayerWaterMinUV,
 	float2 SceneWithoutSingleLayerWaterMaxUV,
 #endif // SIMPLE_SINGLE_LAYER_WATER
 	float Specular, const float4 DistortionParams,
 	float3 SunIlluminance, float3 AmbiantIlluminance, float3 EnvBrdf,
-	bool CameraIsUnderWater, float WaterVisibility)
+	bool CameraIsUnderWater, float WaterVisibility, uint EyeIndex)
 {
 	WaterVolumeLightingOutput Output;
 	Output.Luminance = 0.0f;
@@ -96,19 +97,19 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 
 #else  // !SIMPLE_SINGLE_LAYER_WATER
 
-		ViewportUV = min(ViewportUV, SceneWithoutSingleLayerWaterMaxUV);
+		ViewportUV = clamp(ViewportUV, SceneWithoutSingleLayerWaterMinUV, SceneWithoutSingleLayerWaterMaxUV);
 
 		float PixelSceneDepth = SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(SceneDepthWithoutSingleLayerWaterSampler, ViewportUV, 0).x * SINGLE_LAYER_WATER_DEPTH_SCALE;
 		
 		float2 Refraction = GetMaterialRefraction(PixelMaterialInputs); // X = IOR, Y = Refraction Bias
 		float2 BufferUVDistortion = ComputeBufferUVDistortion(
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
-			MaterialParameters.WorldNormal, DistortionParams, ViewportUV, Refraction, false);
+			MaterialParameters.WorldNormal, DistortionParams, ViewportUV, Refraction, false, EyeIndex);
 		PostProcessUVDistortion(MaterialParameters, PixelMaterialInputs, PixelSceneDepth, BufferUVDistortion, Refraction);
 		// Also reduce refraction according to water thickness
 		BufferUVDistortion *= saturate((PixelSceneDepth - WaterDepth) * 1.0 / 30.0f);// *(1 - saturate(WaterDepth * 1.0 / 2000.0f));
 
-		const float2 DistortedUV = min(ViewportUV + BufferUVDistortion, SceneWithoutSingleLayerWaterMaxUV);
+		const float2 DistortedUV = clamp(ViewportUV + BufferUVDistortion, SceneWithoutSingleLayerWaterMinUV, SceneWithoutSingleLayerWaterMaxUV);
 
 		float SceneDepth = SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(SceneDepthWithoutSingleLayerWaterSampler, DistortedUV, 0).x * SINGLE_LAYER_WATER_DEPTH_SCALE;
 
@@ -137,11 +138,11 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		
 		float DirLightPhaseValue = 0.0f; // Default when Total Internal Reflection happens.
 		{
+#if SIMPLE_SINGLE_LAYER_WATER
+			DirLightPhaseValue = IsotropicPhase();
+#else
 			float IorFrom = 1.0f; // assumes we come from air
 			float IorTo   = DielectricF0ToIor(DielectricSpecularToF0(Specular)); // Wrong if metal is set to >1. But we still keep refraction on the water surface nonetheless.
-#if 0
-			DirLightPhaseValue = SchlickPhase(PhaseG, dot(-ResolvedView.DirectionalLightDirection.xyz, refract(MaterialParameters.CameraVector, MaterialParameters.WorldNormal, IorFrom / IorTo)));
-#else
 			const float relativeIOR = IorFrom / IorTo;
 			float3 UnderWaterRayDir = 0.0f;
 			if (WaterRefract(MaterialParameters.CameraVector, MaterialParameters.WorldNormal, relativeIOR, UnderWaterRayDir))
@@ -169,11 +170,14 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		float3 SunScattLuminance = DirLightPhaseValue * SunIlluminance;
 		float3 AmbScattLuminance = IsotropicPhase()   * AmbiantIlluminance;
 
-#if 1 || SIMPLE_SINGLE_LAYER_WATER
+#define VOLUMETRICSHADOW	0
+#if !VOLUMETRICSHADOW || SIMPLE_SINGLE_LAYER_WATER
+
 		const float3 OpticalDepth = ExtinctionCoeff * BehindWaterDeltaDepth;
 		float3 Transmittance = exp(-OpticalDepth);
 		float3 ScatteredLuminance = ScatteringCoeff * (AmbScattLuminance + SunScattLuminance * DirectionalLightShadow);
 		ScatteredLuminance = (ScatteredLuminance - ScatteredLuminance * Transmittance) / ExtinctionCoeffSafe;
+
 #else
 		// TODO Make the volumetric shadow part work again
 		float3 Transmittance = 1.0f;

@@ -87,6 +87,9 @@ public:
 	/** Returns all editors currently opened for the specified asset */
 	TArray<IAssetEditorInstance*> FindEditorsForAsset(UObject* Asset);
 
+	/** Returns all editors currently opened for the specified asset or any of its subobjects */
+	TArray<IAssetEditorInstance*> FindEditorsForAssetAndSubObjects(UObject* Asset);
+
 	/** Close all active editors for the supplied asset and return the number of asset editors that were closed */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
 	int32 CloseAllEditorsForAsset(UObject* Asset);

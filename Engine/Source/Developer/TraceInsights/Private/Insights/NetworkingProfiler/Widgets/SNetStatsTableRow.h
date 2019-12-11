@@ -12,6 +12,9 @@
 // Insights
 #include "Insights/NetworkingProfiler/ViewModels/NetEventNodeHelper.h"
 
+class IToolTip;
+class SNetEventTableRowToolTip;
+
 namespace Insights
 {
 	class FTable;
@@ -23,7 +26,7 @@ DECLARE_DELEGATE_RetVal_OneParam(bool, FIsColumnVisibleDelegate, const FName /*C
 DECLARE_DELEGATE_RetVal_OneParam(EHorizontalAlignment, FGetColumnOutlineHAlignmentDelegate, const FName /*ColumnId*/);
 DECLARE_DELEGATE_ThreeParams(FSetHoveredNetEventTableCell, TSharedPtr<Insights::FTable> /*TablePtr*/, TSharedPtr<Insights::FTableColumn> /*ColumnPtr*/, const FNetEventNodePtr /*NetEventNodePtr*/);
 
-/** Widget that represents a table row in a timer tree control. Generates widgets for each column on demand. */
+/** Widget that represents a table row in the tree control. Generates widgets for each column on demand. */
 class SNetStatsTableRow : public SMultiColumnTableRow<FNetEventNodePtr>
 {
 public:
@@ -59,6 +62,9 @@ public:
 	 */
 	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
+	TSharedRef<IToolTip> GetRowToolTip() const;
+	void InvalidateContent();
+
 protected:
 	FSlateColor GetBackgroundColorAndOpacity() const;
 	FSlateColor GetBackgroundColorAndOpacity(uint32 Size) const;
@@ -85,4 +91,6 @@ protected:
 
 	/** Name of the timer node that should be drawn as highlighted. */
 	TAttribute<FName> HighlightedNodeName;
+
+	TSharedPtr<SNetEventTableRowToolTip> RowToolTip;
 };

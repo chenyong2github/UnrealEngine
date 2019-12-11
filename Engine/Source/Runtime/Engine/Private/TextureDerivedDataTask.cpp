@@ -195,11 +195,14 @@ void FTextureSourceData::GetAsyncSourceMips(IImageWrapperModule* InImageWrapper)
 
 void FTextureCacheDerivedDataWorker::BuildTexture()
 {
+	const bool bHasValidMip0 = TextureData.Blocks.Num() && TextureData.Blocks[0].MipsPerLayer.Num() && TextureData.Blocks[0].MipsPerLayer[0].Num();
+
 	FFormatNamedArguments Args;
 	Args.Add(TEXT("TextureName"), FText::FromString(Texture.GetName()));
 	Args.Add(TEXT("TextureFormatName"), FText::FromString(BuildSettingsPerLayer[0].TextureFormatName.GetPlainNameString()));
-	Args.Add(TEXT("TextureResolutionX"), FText::FromString(FString::FromInt(TextureData.Blocks[0].MipsPerLayer[0][0].SizeX)));
-	Args.Add(TEXT("TextureResolutionY"), FText::FromString(FString::FromInt(TextureData.Blocks[0].MipsPerLayer[0][0].SizeY)));
+	Args.Add(TEXT("TextureResolutionX"), FText::FromString(FString::FromInt(bHasValidMip0 ? TextureData.Blocks[0].MipsPerLayer[0][0].SizeX : 0)));
+	Args.Add(TEXT("TextureResolutionY"), FText::FromString(FString::FromInt(bHasValidMip0 ? TextureData.Blocks[0].MipsPerLayer[0][0].SizeY : 0)));
+
 	FTextureStatusMessageContext StatusMessage(FText::Format(NSLOCTEXT("Engine", "BuildTextureStatus", "Building textures: {TextureName} ({TextureFormatName}, {TextureResolutionX}X{TextureResolutionY})"), Args));
 
 	if (!ensure(Compressor))
@@ -222,7 +225,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture()
 		DerivedData->SizeX = DerivedData->VTData->Width;
 		DerivedData->SizeY = DerivedData->VTData->Height;
 		DerivedData->PixelFormat = DerivedData->VTData->LayerTypes[0];
-		DerivedData->NumSlices = 1;
+		DerivedData->SetNumSlices(1);
 
 		// Store it in the cache.
 		// @todo: This will remove the streaming bulk data, which we immediately reload below!
@@ -240,9 +243,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture()
 			UE_LOG(LogTexture, Warning, TEXT("Failed to build %s derived data for %s"), *BuildSettingsPerLayer[0].TextureFormatName.GetPlainNameString(), *Texture.GetPathName());
 		}
 	}
-	else if (TextureData.Blocks.Num() &&
-		TextureData.Blocks[0].MipsPerLayer.Num() &&
-		TextureData.Blocks[0].MipsPerLayer[0].Num())
+	else if (bHasValidMip0)
 	{
 		// Only support single Block/Layer here (Blocks and Layers are intended for VT support)
 		ensure(TextureData.Blocks.Num() == 1);
@@ -252,8 +253,10 @@ void FTextureCacheDerivedDataWorker::BuildTexture()
 		DerivedData->SizeX = 0;
 		DerivedData->SizeY = 0;
 		DerivedData->PixelFormat = PF_Unknown;
-		DerivedData->bCubemap = false;
+		DerivedData->SetIsCubemap(false);
 		DerivedData->VTData = nullptr;
+
+		FOptTexturePlatformData OptData;
 
 		// Compress the texture.
 		TArray<FCompressedImage2D> CompressedMips;
@@ -261,8 +264,8 @@ void FTextureCacheDerivedDataWorker::BuildTexture()
 			((bool)Texture.CompositeTexture && CompositeTextureData.Blocks.Num() && CompositeTextureData.Blocks[0].MipsPerLayer.Num()) ? CompositeTextureData.Blocks[0].MipsPerLayer[0] : TArray<FImage>(),
 			BuildSettingsPerLayer[0],
 			CompressedMips,
-			DerivedData->NumMipsInTail,
-			DerivedData->ExtData))
+			OptData.NumMipsInTail,
+			OptData.ExtData))
 		{
 			check(CompressedMips.Num());
 
@@ -288,14 +291,16 @@ void FTextureCacheDerivedDataWorker::BuildTexture()
 					DerivedData->SizeX = CompressedImage.SizeX;
 					DerivedData->SizeY = CompressedImage.SizeY;
 					DerivedData->PixelFormat = (EPixelFormat)CompressedImage.PixelFormat;
-					DerivedData->NumSlices = BuildSettingsPerLayer[0].bCubemap ? 6 : (BuildSettingsPerLayer[0].bVolume || BuildSettingsPerLayer[0].bTextureArray) ? CompressedImage.SizeZ : 1;
-					DerivedData->bCubemap = BuildSettingsPerLayer[0].bCubemap;
+					DerivedData->SetNumSlices(BuildSettingsPerLayer[0].bCubemap ? 6 : (BuildSettingsPerLayer[0].bVolume || BuildSettingsPerLayer[0].bTextureArray) ? CompressedImage.SizeZ : 1);
+					DerivedData->SetIsCubemap(BuildSettingsPerLayer[0].bCubemap);
 				}
 				else
 				{
 					check(CompressedImage.PixelFormat == DerivedData->PixelFormat);
 				}
 			}
+
+			DerivedData->SetOptData(OptData);
 
 			// Store it in the cache.
 			// @todo: This will remove the streaming bulk data, which we immediately reload below!

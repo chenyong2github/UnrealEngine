@@ -15,9 +15,11 @@
 #include "Components/SkyLightComponent.h"
 #include "Components/LineBatchComponent.h"
 #include "Components/ReflectionCaptureComponent.h"
+#include "GameFramework/GameModeBase.h"
+#include "GameFramework/GameMode.h"
 
 FPreviewScene::FPreviewScene(FPreviewScene::ConstructionValues CVS)
-	: PreviewWorld(NULL)
+	: PreviewWorld(nullptr)
 	, bForceAllUsedMipsResident(CVS.bForceMipsResident)
 {
 	EObjectFlags NewObjectFlags = RF_NoFlags;
@@ -42,7 +44,31 @@ FPreviewScene::FPreviewScene(FPreviewScene::ConstructionValues CVS)
 										.SetTransactional(CVS.bTransactional)
 										.SetDefaultGameMode(CVS.DefaultGameMode));
 
-	PreviewWorld->InitializeActorsForPlay(FURL());
+	FURL URL = FURL();
+	//URL += TEXT("?SpectatorOnly=1");
+	//URL = FURL(NULL, *EditorEngine->BuildPlayWorldURL(*PIEMapName, Params.bStartInSpectatorMode, ExtraURLOptions), TRAVEL_Absolute);
+
+	if (CVS.OwningGameInstance && PreviewWorld->WorldType == EWorldType::GamePreview)
+	{
+		PreviewWorld->SetGameInstance(CVS.OwningGameInstance);
+
+		FWorldContext& PreviewWorldContext = GEngine->GetWorldContextFromWorldChecked(PreviewWorld);
+		PreviewWorldContext.OwningGameInstance = CVS.OwningGameInstance;
+		PreviewWorldContext.GameViewport = CVS.OwningGameInstance->GetGameViewportClient();
+		PreviewWorldContext.AddRef(PreviewWorld);
+		
+		//PreviewWorldContext.PIEInstance =
+
+		if (CVS.DefaultGameMode)
+		{
+			PreviewWorld->SetGameMode(URL);
+
+			AGameMode* Mode = PreviewWorld->GetAuthGameMode<AGameMode>();
+			ensure(Mode);
+		}
+	}
+
+	PreviewWorld->InitializeActorsForPlay(URL);
 
 	if (CVS.bDefaultLighting)
 	{
@@ -97,12 +123,14 @@ FPreviewScene::~FPreviewScene()
 		Component->UnregisterComponent();
 	}
 	
-	PreviewWorld->CleanupWorld();
-	GEngine->DestroyWorldContext(GetWorld());
-
-	// Release PhysicsScene for fixing big fbx importing bug
-	PreviewWorld->ReleasePhysicsScene();
-
+	// The world may be released by now.
+	if (PreviewWorld)
+	{
+		PreviewWorld->CleanupWorld();
+		GEngine->DestroyWorldContext(GetWorld());
+		// Release PhysicsScene for fixing big fbx importing bug
+		PreviewWorld->ReleasePhysicsScene();
+	}
 }
 
 void FPreviewScene::AddComponent(UActorComponent* Component,const FTransform& LocalToWorld, bool bAttachToRoot /*= false*/)

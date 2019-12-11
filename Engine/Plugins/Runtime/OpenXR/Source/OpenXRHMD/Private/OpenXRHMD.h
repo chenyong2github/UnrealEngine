@@ -96,7 +96,7 @@ public:
 	}
 	virtual class TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > GetStereoRenderingDevice() override
 	{
-		return FHeadMountedDisplayBase::SharedThis(static_cast<FHeadMountedDisplayBase*>(this));
+		return SharedThis(this);
 	}
 
 protected:
@@ -181,6 +181,7 @@ public:
 	void FinishRendering();
 
 	OPENXRHMD_API int32 AddActionDevice(XrAction Action);
+	OPENXRHMD_API void ResetActionDevices();
 
 	FXRSwapChain* GetSwapchain() { return Swapchain.Get(); }
 	FXRSwapChain* GetDepthSwapchain() { return DepthSwapchain.Get(); }
@@ -200,6 +201,7 @@ private:
 	bool					bIsRendering;
 	bool					bRunRequested;
 	bool					bDepthExtensionSupported;
+	bool					bHiddenAreaMaskSupported;
 	bool					bNeedReAllocatedDepth;
 	
 	XrSessionState			CurrentSessionState;

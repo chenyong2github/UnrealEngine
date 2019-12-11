@@ -52,6 +52,18 @@ float3 GetSkyLightReflectionSupportingBlend(float3 ReflectionVector, float Rough
 	return Reflection;
 }
 
+bool ShouldSkyLightApplyPrecomputedBentNormalShadowing() {
+	return View.SkyLightApplyPrecomputedBentNormalShadowingFlag != 0.0f;
+}
+
+bool ShouldSkyLightAffectReflection() {
+	return View.SkyLightAffectReflectionFlag != 0.0f;
+}
+
+bool ShouldSkyLightAffectGlobalIllumination() {
+	return View.SkyLightAffectGlobalIlluminationFlag != 0.0f;
+}
+
 /** 
  * Computes sky diffuse lighting from the SH irradiance map.  
  * This has the SH basis evaluation and diffuse convolution weights combined for minimal ALU's - see "Stupid Spherical Harmonics (SH) Tricks" 

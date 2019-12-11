@@ -695,6 +695,10 @@ public:
 	UPROPERTY(EditAnywhere, Category=Landscape)
 	uint32 bUsedForNavigation:1;
 
+	/** Set to true to prevent navmesh generation under the terrain geometry */
+	UPROPERTY(EditAnywhere, Category = Landscape)
+	uint32 bFillCollisionUnderLandscapeForNavmesh:1;
+
 	/** When set to true it will generate MaterialInstanceDynamic for each components, so material can be changed at runtime */
 	UPROPERTY(EditAnywhere, Category = Landscape)
 	bool bUseDynamicMaterialInstance;
@@ -841,6 +845,9 @@ public:
 	LANDSCAPE_API void InvalidateGeneratedComponentData();
 
 #if WITH_EDITOR
+	/** Update Grass maps */
+	void UpdateGrassData();
+
 	/** Render grass maps for the specified components */
 	void RenderGrassMaps(const TArray<ULandscapeComponent*>& LandscapeComponents, const TArray<ULandscapeGrassType*>& GrassTypes);
 
@@ -875,6 +882,8 @@ public:
 	LANDSCAPE_API FTransform LandscapeActorToWorld() const;
 
 #if WITH_EDITOR
+	LANDSCAPE_API void CreateSplineComponent(const FVector& Scale3D);
+
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditImport() override;
 	//~ End UObject Interface
@@ -1058,6 +1067,10 @@ protected:
 private:
 	/** Returns Grass Update interval */
 	int32 GetGrassUpdateInterval() const;
+
+#if WITH_EDITOR
+	void UpdateGrassDataStatus(TSet<UTexture2D*>& OutCurrentForcedStreamedTextures, TSet<UTexture2D*>* OutDesiredForcedStreamedTextures, TSet<ULandscapeComponent*>& OutComponentsNeedingGrassMapRender, TSet<ULandscapeComponent*>* OutOutdatedComponents, bool bInEnableForceResidentFlag);
+#endif
 
 #if WITH_EDITORONLY_DATA
 public:

@@ -204,7 +204,7 @@ void URejoinCheck::RejoinCheckTimer()
 	}
 }
 
-void URejoinCheck::RejoinLastSession(FOnRejoinLastSessionComplete& InCompletionDelegate)
+void URejoinCheck::RejoinLastSession(const FOnRejoinLastSessionComplete& InCompletionDelegate)
 {
 	if (LastKnownStatus == ERejoinStatus::UpdatingStatus)
 	{

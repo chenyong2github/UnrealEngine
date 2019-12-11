@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "UVGenerationFlattenMapping.h"
+#include "UVTools/UVGenerationFlattenMapping.h"
 
 #include "Algo/Sort.h"
 #include "Async/ParallelFor.h"
@@ -20,6 +20,8 @@
 #include "OverlappingCorners.h"
 #include "StaticMeshAttributes.h"
 #include "Templates/TypeHash.h"
+
+#define FLATTEN_AREA_WEIGHT 0.7
 
 class FUVGenerationFlattenMappingInternal
 {
@@ -411,17 +413,17 @@ void FUVGenerationFlattenMappingInternal::AlignIslandOnAxes(TArray< FaceStruct* 
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithFlattenMappingInternal::AlignIslandOnAxes)
 
-	TSet< FVector > Vertices;
+	TSet< FVector2D > Vertices;
 	Vertices.Reserve( Island.Num() * 3 );
 
 	for ( const FaceStruct* Face : Island )
 	{
-		Vertices.Add( FVector( Face->Uvs[0], 0.f ) );
-		Vertices.Add( FVector( Face->Uvs[1], 0.f ) );
-		Vertices.Add( FVector( Face->Uvs[2], 0.f ) );
+		Vertices.Add( Face->Uvs[0] );
+		Vertices.Add( Face->Uvs[1] );
+		Vertices.Add( Face->Uvs[2] );
 	}
 
-	TArray< FVector > VerticesArray = Vertices.Array();
+	TArray< FVector2D > VerticesArray = Vertices.Array();
 
 	TArray< int32 > ConvexHullIndices;
 	ConvexHull2D::ComputeConvexHull( VerticesArray, ConvexHullIndices );
@@ -431,7 +433,7 @@ void FUVGenerationFlattenMappingInternal::AlignIslandOnAxes(TArray< FaceStruct* 
 
 	for ( int32 Index : ConvexHullIndices )
 	{
-		ConvexHull.Emplace( VerticesArray[ Index ].X, VerticesArray[ Index ].Y );
+		ConvexHull.Emplace( VerticesArray[ Index ] );
 	}
 
 	FVector IslandTangent(ForceInit);
@@ -461,17 +463,7 @@ void FUVGenerationFlattenMappingInternal::AlignIslandOnAxes(TArray< FaceStruct* 
 	{
 		IslandTangent.Normalize();
 
-		float DotForward = FMath::Abs( IslandTangent | FVector::ForwardVector );
-		float DotSide = FMath::Abs( IslandTangent | FVector::RightVector );
-
-		FVector AxisDirection = DotForward > DotSide ? FVector::ForwardVector : FVector::RightVector;
-
-		if ( ( IslandTangent | AxisDirection ) < 0.f )
-		{
-			AxisDirection *= -1.f;
-		}
-
-		IslandRotation = FQuat::FindBetweenNormals( IslandTangent, AxisDirection );
+		IslandRotation = FQuat::FindBetweenNormals( IslandTangent, FVector::ForwardVector );
 	}
 
 	for ( int32 Face = 0; Face < Island.Num(); Face++ )
@@ -1162,7 +1154,7 @@ TArray<FUVGenerationFlattenMappingInternal::FaceStruct> FUVGenerationFlattenMapp
 	return FlattenFaces;
 }
 
-void UUVGenerationFlattenMapping::GenerateFlattenMappingUVs(UStaticMesh* InStaticMesh, int32 UVChannel, float AngleThreshold, float AreaWeight)
+void UUVGenerationFlattenMapping::GenerateFlattenMappingUVs(UStaticMesh* InStaticMesh, int32 UVChannel, float AngleThreshold)
 {
 	if (InStaticMesh == nullptr)
 	{
@@ -1183,7 +1175,7 @@ void UUVGenerationFlattenMapping::GenerateFlattenMappingUVs(UStaticMesh* InStati
 
 		FMeshBuildSettings& BuildSettings = InStaticMesh->GetSourceModel(LodIndex).BuildSettings;
 		FMeshDescription& MeshDescription = *InStaticMesh->GetMeshDescription(LodIndex);
-		UUVGenerationFlattenMapping::GenerateUVs(MeshDescription, UVChannel, BuildSettings.bRemoveDegenerates, AngleThreshold, AreaWeight);
+		UUVGenerationFlattenMapping::GenerateUVs(MeshDescription, UVChannel, BuildSettings.bRemoveDegenerates, AngleThreshold);
 
 		UStaticMesh::FCommitMeshDescriptionParams CommitMeshDescriptionParam;
 		CommitMeshDescriptionParam.bUseHashAsGuid = true;
@@ -1193,7 +1185,7 @@ void UUVGenerationFlattenMapping::GenerateFlattenMappingUVs(UStaticMesh* InStati
 	InStaticMesh->PostEditChange();
 }
 
-void UUVGenerationFlattenMapping::GenerateUVs(FMeshDescription& InMesh, int32 UVChannel, bool bRemoveDegenerates, float AngleThreshold, float AreaWeight)
+void UUVGenerationFlattenMapping::GenerateUVs(FMeshDescription& InMesh, int32 UVChannel, bool bRemoveDegenerates, float AngleThreshold)
 {
 	if (!ensure(UVChannel >= 0 && UVChannel < MAX_MESH_TEXTURE_COORDS_MD))
 	{
@@ -1212,7 +1204,7 @@ void UUVGenerationFlattenMapping::GenerateUVs(FMeshDescription& InMesh, int32 UV
 	// Get the Internal Face Array
 	TArray< FUVGenerationFlattenMappingInternal::FaceStruct > FlattenFaces = FUVGenerationFlattenMappingInternal::GetFacesFrom(InMesh, OverlappingCorners);
 	
-	FUVGenerationFlattenMappingInternal::CalculateUVs(FlattenFaces, InMesh.Vertices().Num(), AngleThreshold, AreaWeight);
+	FUVGenerationFlattenMappingInternal::CalculateUVs(FlattenFaces, InMesh.Vertices().Num(), AngleThreshold, FLATTEN_AREA_WEIGHT);
 
 	// Write unwrapped UVs back to mesh description
 	// Vertex instances shared across islands will be split

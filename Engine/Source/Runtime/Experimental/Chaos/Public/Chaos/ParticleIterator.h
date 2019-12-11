@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/Framework/Parallel.h"
 #include "Chaos/ParallelFor.h"
 #include "Chaos/Particles.h"
 #include "ChaosStats.h"
@@ -12,8 +13,6 @@ DECLARE_CYCLE_STAT(TEXT("HandleViewParallelForImp"), STAT_HandleViewParallelForI
 
 namespace Chaos
 {
-CHAOS_API extern int32 ChaosParticleParallelFor;
-
 template <typename TSOA>
 class TConstParticleView;
 
@@ -89,15 +88,13 @@ void ParticlesParallelFor(const TView& Particles, const Lambda& Func, bool bForc
 {
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesParallelFor);
 
-	switch (ChaosParticleParallelFor)
+	if (!bForceSingleThreaded && !bDisableParticleParallelFor)
 	{
-		case 0:
-			Chaos::ParticlesSequentialFor(Particles, Func);
-			break;
-
-		case 1:
-			Chaos::ParticlesParallelForImp(Particles, Func);
-			break;
+		Chaos::ParticlesParallelForImp(Particles, Func);
+	}
+	else
+	{
+		Chaos::ParticlesSequentialFor(Particles, Func);
 	}
 }
 
@@ -347,6 +344,7 @@ public:
 			if (CurHandleIdx < CurHandlesArray->Num())
 			{
 				TransientHandle.ParticleIdx = (*CurHandlesArray)[CurHandleIdx]->ParticleIdx;
+				TransientHandle.GeometryParticles = (*CurHandlesArray)[CurHandleIdx]->GeometryParticles;
 			}
 			else
 			{
@@ -412,7 +410,11 @@ protected:
 	void RangedForValidation() const
 	{
 #if PARTICLE_ITERATOR_RANGED_FOR_CHECK
-		if (TransientHandle.GeometryParticles)
+		if (CurHandlesArray)
+		{
+			check(DirtyValidationCount == CurHandlesArray->Num());
+		}
+		else if (TransientHandle.GeometryParticles)
 		{
 			check(DirtyValidationCount != INDEX_NONE);
 			check(TransientHandle.GeometryParticles->DirtyValidationCount() == DirtyValidationCount && TEXT("Iterating over particles while modifying the underlying SOA. Consider delaying any operations that require a Handle*"));
@@ -430,7 +432,14 @@ protected:
 	{
 
 #if PARTICLE_ITERATOR_RANGED_FOR_CHECK
-		DirtyValidationCount = TransientHandle.GeometryParticles ? TransientHandle.GeometryParticles->DirtyValidationCount() : INDEX_NONE;
+		if (CurHandlesArray)
+		{
+			DirtyValidationCount = CurHandlesArray->Num();
+		}
+		else
+		{
+			DirtyValidationCount = TransientHandle.GeometryParticles ? TransientHandle.GeometryParticles->DirtyValidationCount() : INDEX_NONE;
+		}
 #endif
 	}
 

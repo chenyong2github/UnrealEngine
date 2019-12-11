@@ -1061,7 +1061,10 @@ FORCEINLINE VectorRegister VectorFractional(const VectorRegister& X)
 
 FORCEINLINE VectorRegister VectorMod(const VectorRegister& X, const VectorRegister& Y)
 {
-	return DirectX::XMVectorMod(X, Y);
+	VectorRegister AbsY = VectorAbs(Y);
+	VectorRegister Result = DirectX::XMVectorMod(X, Y);
+	// Clamp to [-AbsY, AbsY] because of possible failures for very large numbers (>1e10) due to precision loss.
+	return DirectX::XMVectorClamp(Result, VectorNegate(AbsY), AbsY);
 }
 
 //TODO: Vectorize
@@ -1190,7 +1193,7 @@ FORCEINLINE VectorRegisterInt VectorIntAbs(const VectorRegisterInt& A)
 * @param Ptr	Unaligned memory pointer to the 4 int32s
 * @return		VectorRegisterInt(*Ptr, *Ptr, *Ptr, *Ptr)
 */
-#define VectorIntLoad1( Ptr )	_mm_shuffle_epi32(_mm_loadu_si128((VectorRegisterInt*)Ptr),_MM_SHUFFLE(0,0,0,0))
+#define VectorIntLoad1( Ptr )	_mm_shuffle_epi32(_mm_loadu_si128((VectorRegisterInt*)(Ptr)),_MM_SHUFFLE(0,0,0,0))
 
 #endif
 

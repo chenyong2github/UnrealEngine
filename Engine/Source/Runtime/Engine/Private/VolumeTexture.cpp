@@ -247,7 +247,7 @@ uint32 UVolumeTexture::CalcTextureMemorySize(int32 MipCount) const
 		CalcMipMapExtent3D(GetSizeX(), GetSizeY(), GetSizeZ(), Format, FMath::Max<int32>(0, GetNumMips() - MipCount), SizeX, SizeY, SizeZ);
 
 		uint32 TextureAlign = 0;
-		Size = (uint32)RHICalcTexture3DPlatformSize(SizeX, SizeY, SizeZ, Format, MipCount, Flags, FRHIResourceCreateInfo(PlatformData->ExtData), TextureAlign);
+		Size = (uint32)RHICalcTexture3DPlatformSize(SizeX, SizeY, SizeZ, Format, MipCount, Flags, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign);
 	}
 	return Size;
 }
@@ -420,7 +420,7 @@ public:
 			const uint32 BaseMipSizeY = FMath::Max<uint32>(SizeY >> CurrentFirstMip, 1);
 			const uint32 BaseMipSizeZ = FMath::Max<uint32>(SizeZ >> CurrentFirstMip, 1);
 
-			CreateInfo.ExtData = Owner->PlatformData ? Owner->PlatformData->ExtData : 0;
+			CreateInfo.ExtData = Owner->PlatformData ? Owner->PlatformData->GetExtData() : 0;
 			Texture3DRHI = RHICreateTexture3D(BaseMipSizeX, BaseMipSizeY, BaseMipSizeZ, PixelFormat, NumMips - CurrentFirstMip, CreationFlags, CreateInfo);
 			TextureRHI = Texture3DRHI; 
 		}

@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "MockNetworkSimulation.h"
-#include "NetworkSimulationModelDebugger.h"
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
 #include "Components/PrimitiveComponent.h"
@@ -59,46 +58,30 @@ static FAutoConsoleVariableRef CVarBindAutomatically(TEXT("mns.BindAutomatically
 // ============================================================================================
 
 static bool ForceMispredict = false;
+const FName FMockNetworkModelDef::GroupName(TEXT("Mock"));
 
-const FName FMockNetworkSimulation::GroupName(TEXT("Mock"));
+NETSIMCUE_REGISTER(FMockCue, TEXT("MockCue"));
+NETSIMCUESET_REGISTER(UMockNetworkSimulationComponent, FMockCueSet);
 
-void FMockNetworkSimulation::Update(IMockDriver* Driver, const float DeltaTimeSeconds, const FMockInputCmd& InputCmd, const FMockSyncState& InputState, FMockSyncState& OutputState, const FMockAuxState& AuxState)
+void FMockNetworkSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<TMockNetworkSimulationBufferTypes>& Input, const TNetSimOutput<TMockNetworkSimulationBufferTypes>& Output)
 {
-	OutputState.Total = InputState.Total + (InputCmd.InputValue * AuxState.Multiplier * DeltaTimeSeconds);
+	Output.Sync.Total = Input.Sync.Total + (Input.Cmd.InputValue * Input.Aux.Multiplier * TimeStep.StepMS.ToRealTimeSeconds());
 
 	// Dev hack to force mispredict
 	if (ForceMispredict)
 	{
 		const float Fudge = FMath::FRand() * 100.f;
-		OutputState.Total += Fudge;
-		UE_LOG(LogMockNetworkSim, Warning, TEXT("ForcingMispredict via CVar. Fudge=%.2f. NewTotal: %.2f"), Fudge, OutputState.Total);
+		Output.Sync.Total += Fudge;
+		UE_LOG(LogMockNetworkSim, Warning, TEXT("ForcingMispredict via CVar. Fudge=%.2f. NewTotal: %.2f"), Fudge, Output.Sync.Total);
 		
 		ForceMispredict = false;
 	}
-}
-
-void FMockSyncState::VisualLog(const FVisualLoggingParameters& Parameters, IMockDriver* Driver, IMockDriver* LogDriver) const
-{
-	// This function is awkward because the mock example doesn't include any positional data, so we added an explicit ::GetDebugWorldTransform to the driver interface.
-	// still, this doesn't give us historical location info. So we will just use Z offset based on the EvisualLoggingContext to space things out.
-	const bool DrawStyleMinor = (Parameters.Context == EVisualLoggingContext::OtherMispredicted || Parameters.Context == EVisualLoggingContext::OtherPredicted);
-	const FTransform WorldTransform = LogDriver->GetDebugWorldTransform(); // No sense using the Driver's world transform (this would be the server's position in PIE, not useful in mock sim)
-	UWorld* DebugWorld = LogDriver->GetDriverWorld();
-
-	FString DebugStr = FString::Printf(TEXT("[%d][%s] Total: %.4f"), Parameters.Keyframe, *LexToString(Parameters.Context), this->Total);
-	if (MockNetworkSimCVars::UseDrawDebug)
+	
+	if ((int32)(Input.Sync.Total/10.f) < (int32)(Output.Sync.Total/10.f))
 	{
-		const float Lifetime = Parameters.Lifetime == EVisualLoggingLifetime::Transient ? 0.0001f : MockNetworkSimCVars::DrawDebugDefaultLifeTime;
-		const float YOffset = 0.f; //DrawStyleMinor ? ((100.f * (Parameters.Keyframe % 32)) - 50.f) : 0.f;
-		const float ZOffset = 20.f * (int32)Parameters.Context;
-		
-		DrawDebugString( DebugWorld, WorldTransform.GetLocation() + WorldTransform.GetRotation().RotateVector( FVector(0.f, YOffset, ZOffset) ), *DebugStr, nullptr, Parameters.GetDebugColor(), Lifetime );
-	}
-
-	if (MockNetworkSimCVars::UseVLogger)
-	{
-		// I don't see a "Draw string in th world" function in VLOG so we are just doing this
-		UE_VLOG(LogDriver->GetVLogOwner(), LogMockNetworkSim, Log, TEXT("%s"), *DebugStr);
+		// Emit a cue for crossing this threshold. Note this could mostly be accomplished with a state transition (by detecting this in FinalizeFrame)
+		// But to illustrate Cues, we are adding a random number to the cue's payload. The point being cues can transmit data that is not part of the sync/aux state.
+		Output.CueDispatch.Invoke<FMockCue>( FMath::Rand() % 1024 );
 	}
 }
 
@@ -132,15 +115,22 @@ UMockNetworkSimulationComponent::UMockNetworkSimulationComponent()
 	}
 }
 
-INetworkSimulationModel* UMockNetworkSimulationComponent::InstantiateNetworkSimulation()
+INetworkedSimulationModel* UMockNetworkSimulationComponent::InstantiateNetworkedSimulation()
 {
-	auto* NewSim = new FMockNetworkModel(this);
-	DO_NETSIM_MODEL_DEBUG(FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(NewSim, GetOwner()));
-	return NewSim;
+	check(MockNetworkSimulation == nullptr);
+	MockNetworkSimulation = new FMockNetworkSimulation();
+
+	FMockSyncState InitialSyncState;
+	InitialSyncState.Total = MockValue;
+
+	auto* NewModel = new TNetworkedSimulationModel<FMockNetworkModelDef>(MockNetworkSimulation, this, InitialSyncState);
+	return NewModel;
 }
 
 void UMockNetworkSimulationComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
 	const ENetRole OwnerRole = GetOwnerRole();
 
 	// Check if we should trip a mispredict. (Note how its not possible to do this inside the Update function!)
@@ -166,12 +156,7 @@ void UMockNetworkSimulationComponent::ProduceInput(const FNetworkSimTime SimTime
 	}
 }
 
-void UMockNetworkSimulationComponent::InitSyncState(FMockSyncState& OutSyncState) const
-{
-	OutSyncState.Total = MockValue;
-}
-
-void UMockNetworkSimulationComponent::FinalizeFrame(const FMockSyncState& SyncState)
+void UMockNetworkSimulationComponent::FinalizeFrame(const FMockSyncState& SyncState, const FMockAuxState& AuxState)
 {
 	MockValue = SyncState.Total;
 }
@@ -181,14 +166,25 @@ FString UMockNetworkSimulationComponent::GetDebugName() const
 	return FString::Printf(TEXT("MockSim. %s. %s"), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwnerRole()), *GetName());
 }
 
-FTransform UMockNetworkSimulationComponent::GetDebugWorldTransform() const
-{
-	return GetOwner()->GetActorTransform();
-}
-
-UObject* UMockNetworkSimulationComponent::GetVLogOwner() const
+AActor* UMockNetworkSimulationComponent::GetVLogOwner() const
 {
 	return GetOwner();
+}
+
+void UMockNetworkSimulationComponent::VisualLog(const FMockInputCmd* Input, const FMockSyncState* Sync, const FMockAuxState* Aux, const FVisualLoggingParameters& SystemParameters) const
+{
+	FVisualLoggingParameters LocalParameters = SystemParameters;
+	AActor* Owner = GetOwner();
+	FTransform Transform = Owner->GetActorTransform();
+
+	LocalParameters.DebugString += FString::Printf(TEXT(" [%d] Total: %.4f"), SystemParameters.Frame, Sync->Total);
+
+	FVisualLoggingHelpers::VisualLogActor(Owner, Transform, LocalParameters);
+}
+
+void UMockNetworkSimulationComponent::HandleCue(const FMockCue& MockCue, const FNetSimCueSystemParamemters& SystemParameters)
+{
+	UE_LOG(LogMockNetworkSim, Display, TEXT("MockCue Handled! Value: %d"), MockCue.RandomData);
 }
 
 // ------------------------------------------------------------------------------------------------------------------------

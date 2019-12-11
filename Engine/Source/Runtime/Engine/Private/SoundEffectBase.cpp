@@ -6,7 +6,6 @@
 
 FSoundEffectBase::FSoundEffectBase()
 	: bChanged(false)
-	, Preset(nullptr)
 	, bIsRunning(false)
 	, bIsActive(false)
 {}
@@ -32,7 +31,7 @@ void FSoundEffectBase::SetPreset(USoundEffectPreset* Inpreset)
 		ClearPreset();
 
 		Preset = Inpreset;
-		if (Preset)
+		if (Preset.IsValid())
 		{
 			Preset->AddEffectInstance(this);
 		}
@@ -45,27 +44,34 @@ void FSoundEffectBase::SetPreset(USoundEffectPreset* Inpreset)
 
 USoundEffectPreset* FSoundEffectBase::GetPreset()
 {
-	return Preset;
+	return Preset.Get();
 }
 
-void FSoundEffectBase::ClearPreset()
+void FSoundEffectBase::ClearPreset(bool bRemoveFromPreset)
 {
-	if (Preset)
+	if (Preset.IsValid())
 	{
-		Preset->RemoveEffectInstance(this);
-		Preset = nullptr;
+		if (bRemoveFromPreset)
+		{
+			Preset->RemoveEffectInstance(this);
+		}
+		Preset.Reset();
 	}
 }
 
-void FSoundEffectBase::Update()
+bool FSoundEffectBase::Update()
 {
 	PumpPendingMessages();
 
-	if (bChanged && Preset)
+	if (bChanged && Preset.IsValid())
 	{
 		OnPresetChanged();
 		bChanged = false;
+
+		return true;
 	}
+
+	return false;
 }
 
 bool FSoundEffectBase::IsPreset(USoundEffectPreset* InPreset) const

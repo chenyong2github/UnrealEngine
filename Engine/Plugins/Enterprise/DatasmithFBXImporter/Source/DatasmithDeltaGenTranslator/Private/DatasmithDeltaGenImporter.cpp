@@ -3,16 +3,16 @@
 #include "DatasmithDeltaGenImporter.h"
 
 #include "DatasmithDeltaGenImportData.h"
-#include "DatasmithDeltaGenImporterAuxFiles.h"
 #include "DatasmithDeltaGenImportOptions.h"
+#include "DatasmithDeltaGenImporterAuxFiles.h"
 #include "DatasmithDeltaGenLog.h"
+#include "DatasmithDeltaGenSceneProcessor.h"
 #include "DatasmithDeltaGenTranslatorModule.h"
 #include "DatasmithDeltaGenVariantConverter.h"
 #include "DatasmithFBXFileImporter.h"
-#include "DatasmithFBXImporter.h"
 #include "DatasmithFBXImportOptions.h"
+#include "DatasmithFBXImporter.h"
 #include "DatasmithFBXScene.h"
-#include "DatasmithFBXSceneProcessor.h"
 #include "DatasmithScene.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithUtils.h"
@@ -299,7 +299,7 @@ void FDatasmithDeltaGenImporter::FetchAOTexture(const FString& MeshName, TShared
 
 bool FDatasmithDeltaGenImporter::ProcessScene()
 {
-	FDatasmithFBXSceneProcessor Processor(IntermediateScene.Get());
+	FDatasmithDeltaGenSceneProcessor Processor(IntermediateScene.Get());
 
 	// We need to create AO textures before we merge as they depend on the name of the mesh itself,
 	// and we only want to add this AO texture to the one material used by that mesh
@@ -318,22 +318,9 @@ bool FDatasmithDeltaGenImporter::ProcessScene()
 
 	Processor.FindPersistentNodes();
 
-	// TODO: BaseOptions
-	//if (Context.Options->BaseOptions.bIncludeLight)
-	//{
-		Processor.SplitLightNodes();
-	//}
+	Processor.SplitLightNodes();
 
-	// We don't export cameras from DG except for the scene camera that we
-	// ourselves create, so we don't need this.
-	//if (Context.Options->BaseOptions.bIncludeCamera)
-	//{
-		//Processor.SplitCameraNodes();
-	//}
-
-	Processor.DecomposeRotationPivots();
-
-	Processor.DecomposeScalingPivots();
+	Processor.DecomposePivots(TmlTimelines);
 
 	Processor.FindDuplicatedMaterials();
 
@@ -354,14 +341,6 @@ bool FDatasmithDeltaGenImporter::ProcessScene()
 	if (ImportOptions->bOptimizeDuplicatedNodes)
 	{
 		Processor.OptimizeDuplicatedNodes();
-	}
-
-	if (ImportOptions->bMergeNodes)
-	{
-		Processor.MergeSceneNodes();
-
-		//Call "RemoveEmptyNodes" again after merging, because all nodes which previously had meshes are empty now.
-		Processor.RemoveEmptyNodes();
 	}
 
 	Processor.FixMeshNames();
@@ -453,20 +432,16 @@ TSharedPtr<IDatasmithActorElement> FDatasmithDeltaGenImporter::ConvertNode(const
 			MeshNameToFBXMesh.Add(MeshName, ThisMesh);
 			TSharedRef<IDatasmithMeshElement> MeshElement = FDatasmithSceneFactory::CreateMesh(*ThisMesh->Name);
 
-			if (ImportOptions->bGenerateLightmapUVs)
-			{
-				MeshElement->SetLightmapSourceUV(0);
-				MeshElement->SetLightmapCoordinateIndex(-1);
-			}
-			else
-			{
-				FMeshDescription& MeshDescription = ThisMesh->MeshDescription;
-				FStaticMeshAttributes StaticMeshAttributes(MeshDescription);
-				TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = StaticMeshAttributes.GetVertexInstanceUVs();
-				int32 NumUVChannels = VertexInstanceUVs.GetNumIndices();
+			FMeshDescription& MeshDescription = ThisMesh->MeshDescription;
+			FStaticMeshAttributes StaticMeshAttributes(MeshDescription);
+			TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = StaticMeshAttributes.GetVertexInstanceUVs();
+			int32 NumUVChannels = VertexInstanceUVs.GetNumIndices();
 
-				// DeltaGen uses UV channel 0 for texture UVs, and UV channel 1 for lightmap UVs
-				MeshElement->SetLightmapCoordinateIndex(NumUVChannels > 1 ? 1 : 0);
+			// DeltaGen uses UV channel 0 for texture UVs, and UV channel 1 for lightmap UVs
+			// Don't set it to zero or else it will disable Datasmith's GenerateLightmapUV option
+			if (NumUVChannels > 1)
+			{
+				MeshElement->SetLightmapCoordinateIndex(1);
 			}
 
 			DatasmithScene->AddMesh(MeshElement);
@@ -891,24 +866,24 @@ void PopulateTransformAnimation(IDatasmithTransformAnimationElement& TransformAn
 	EDatasmithTransformType DSType = EDatasmithTransformType::Count;
 	switch(Track.Type)
 	{
-	case FDeltaGenTmlDataAnimationTrackType::Translation:
+	case EDeltaGenTmlDataAnimationTrackType::Translation:
 	{
 		DSType = EDatasmithTransformType::Translation;
 		break;
 	}
 	// We convert Rotation to Euler on import as well
-	case FDeltaGenTmlDataAnimationTrackType::Rotation:
-	case FDeltaGenTmlDataAnimationTrackType::RotationDeltaGenEuler:
+	case EDeltaGenTmlDataAnimationTrackType::Rotation:
+	case EDeltaGenTmlDataAnimationTrackType::RotationDeltaGenEuler:
 	{
 		DSType = EDatasmithTransformType::Rotation;
 		break;
 	}
-	case FDeltaGenTmlDataAnimationTrackType::Scale:
+	case EDeltaGenTmlDataAnimationTrackType::Scale:
 	{
 		DSType = EDatasmithTransformType::Scale;
 		break;
 	}
-	case FDeltaGenTmlDataAnimationTrackType::Center:
+	case EDeltaGenTmlDataAnimationTrackType::Center:
 	{
 		UE_LOG(LogDatasmithDeltaGenImport, Warning, TEXT("Center animations are currently not supported!"));
 		return;
@@ -1122,15 +1097,24 @@ bool FDatasmithDeltaGenImporter::SendSceneToDatasmith()
 		for (FDeltaGenTmlDataTimeline& Timeline : TmlTimelines)
 		{
 			TSharedPtr<IDatasmithLevelSequenceElement> ConvertedSequence = ConvertAnimationTimeline(Timeline);
-			DatasmithScene->AddLevelSequence(ConvertedSequence.ToSharedRef());
+			if (ConvertedSequence.IsValid())
+			{
+				DatasmithScene->AddLevelSequence(ConvertedSequence.ToSharedRef());
+			}
 		}
 
 		TMap<FName, TArray<TSharedPtr<IDatasmithActorElement>>> ImportedActorsByOriginalName;
 		TMap<FName, TSharedPtr<IDatasmithBaseMaterialElement>> ImportedMaterialsByName;
 		BuildAssetMaps(DatasmithScene, ImportedActorsByOriginalName, ImportedMaterialsByName);
 
-		TSharedPtr<IDatasmithLevelVariantSetsElement> LevelVariantSets = FDeltaGenVariantConverter::ConvertVariants(VariantSwitches, PosStates, ImportedActorsByOriginalName, ImportedMaterialsByName);
-		DatasmithScene->AddLevelVariantSets(LevelVariantSets.ToSharedRef());
+		if (ImportOptions->bImportVar)
+		{
+			TSharedPtr<IDatasmithLevelVariantSetsElement> LevelVariantSets = FDeltaGenVariantConverter::ConvertVariants(VariantSwitches, PosStates, ImportedActorsByOriginalName, ImportedMaterialsByName);
+			if (LevelVariantSets.IsValid())
+			{
+				DatasmithScene->AddLevelVariantSets(LevelVariantSets.ToSharedRef());
+			}
+		}
 	}
 	else
 	{

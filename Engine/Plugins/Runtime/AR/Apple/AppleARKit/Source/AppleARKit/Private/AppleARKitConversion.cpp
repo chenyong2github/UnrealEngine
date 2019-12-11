@@ -3,6 +3,7 @@
 #include "AppleARKitConversion.h"
 #include "AppleARKitModule.h"
 #include "HAL/PlatformMisc.h"
+#include "AppleARKitFaceSupport.h"
 
 template<typename TEnum>
 static FString GetEnumValueAsString(const FString& Name, TEnum Value)
@@ -459,7 +460,22 @@ bool FAppleARKitConversion::IsSessionTrackingFeatureSupported(EARSessionType Ses
 					return [ARWorldTrackingConfiguration supportsFrameSemantics: Semantics];
 				
 				case EARSessionType::Face:
-					return [ARFaceTrackingConfiguration supportsFrameSemantics: Semantics];
+					{
+						static TMap<EARSessionTrackingFeature, bool> SupportFlags;
+						
+						if (!SupportFlags.Contains(SessionTrackingFeature))
+						{
+							SupportFlags.Add(SessionTrackingFeature, false);
+							
+							TArray<IAppleARKitFaceSupport*> Impls = IModularFeatures::Get().GetModularFeatureImplementations<IAppleARKitFaceSupport>("AppleARKitFaceSupport");
+							if (Impls.Num() && Impls[0]->IsARFrameSemanticsSupported(Semantics))
+							{
+								SupportFlags[SessionTrackingFeature] = true;
+							}
+						}
+						
+						return SupportFlags[SessionTrackingFeature];
+					}
 				
 				case EARSessionType::Image:
 					return [ARImageTrackingConfiguration supportsFrameSemantics: Semantics];

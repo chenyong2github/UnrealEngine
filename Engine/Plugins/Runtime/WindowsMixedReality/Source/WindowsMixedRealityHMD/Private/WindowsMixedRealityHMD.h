@@ -32,7 +32,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogWmrHmd, Log, All);
 namespace WindowsMixedReality
 {
 	// Plugin for stereo rendering on Windows Mixed Reality devices.
-	class FWindowsMixedRealityHMD
+	class WINDOWSMIXEDREALITYHMD_API FWindowsMixedRealityHMD
 		: public FHeadMountedDisplayBase
 		, public FXRRenderTargetManager
 		, public FSceneViewExtensionBase
@@ -74,7 +74,16 @@ namespace WindowsMixedReality
 			FVector& CurrentPosition) override;
 		virtual bool GetRelativeEyePose(int32 DeviceId, EStereoscopicPass Eye, FQuat& OutOrientation, FVector& OutPosition) override;
 
-		
+		virtual class IHeadMountedDisplay* GetHMDDevice() override
+		{
+			return this;
+		}
+
+		virtual class TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > GetStereoRenderingDevice() override
+		{
+			return SharedThis(this);
+		}
+
 		// Tracking status
 		virtual bool DoesSupportPositionalTracking() const override { return true; }
 		virtual bool HasValidTrackingPosition() override;
@@ -109,12 +118,18 @@ namespace WindowsMixedReality
 		virtual FMatrix GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const override;
 		virtual IStereoRenderTargetManager* GetRenderTargetManager() override { return this; }
 		virtual class IStereoLayers* GetStereoLayers() override;
+		virtual int32 GetDesiredNumberOfViews(bool bStereoRequested) const override { return (bStereoRequested) ? 2 : 1; }
 
 		virtual bool HasHiddenAreaMesh() const override;
 		virtual void DrawHiddenAreaMesh_RenderThread(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const override;
 
 		virtual bool HasVisibleAreaMesh() const override;
 		virtual void DrawVisibleAreaMesh_RenderThread(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const override;
+
+		// Spectator screen Hooks.
+		virtual FIntRect GetFullFlatEyeRect_RenderThread(FTexture2DRHIRef EyeTexture) const override;
+		// Helper to copy one render target into another for spectator screen display
+		virtual void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FIntRect SrcRect, FRHITexture2D* DstTexture, FIntRect DstRect, bool bClearBlack, bool bNoAlpha) const override;
 
 		/** ISceneViewExtension interface */
 		virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override;
@@ -323,6 +338,9 @@ namespace WindowsMixedReality
 			return new SpeechRecognizerInterop();
 		}
 #endif
+
+	private:
+		void CreateSpectatorScreenController();
 	};
 }
 

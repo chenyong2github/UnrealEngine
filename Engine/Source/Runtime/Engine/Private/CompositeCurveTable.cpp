@@ -46,7 +46,14 @@ void UCompositeCurveTable::Serialize(FArchive& Ar)
 
 	Super::Serialize(Ar);
 
-	if (Ar.IsLoading())
+#if WITH_EDITORONLY_DATA
+	if (Ar.IsLoading() && GIsTransacting)
+	{
+		bIsLoading = false;
+	}
+#endif
+
+	if (bIsLoading)
 	{
 		for (UCurveTable* ParentTable : ParentTables)
 		{
@@ -66,11 +73,6 @@ void UCompositeCurveTable::Serialize(FArchive& Ar)
 
 void UCompositeCurveTable::UpdateCachedRowMap(bool bWarnOnInvalidChildren)
 {
-#if WITH_EDITOR
-	FCurveTableEditorUtils::BroadcastPreChange(this, FCurveTableEditorUtils::ECurveTableChangeInfo::RowList);
-#endif
-	UCurveTable::EmptyTable();
-
 	bool bLeaveEmpty = false;
 	// Throw up an error message and stop if any loops are found
 	if (const UCompositeCurveTable* LoopTable = FindLoops(TArray<const UCompositeCurveTable*>()))
@@ -90,7 +92,18 @@ void UCompositeCurveTable::UpdateCachedRowMap(bool bWarnOnInvalidChildren)
 			}
 		}
 		bLeaveEmpty = true;
+
+		// if the rowmap is empty, stop. We don't need to do the pre and post change since no changes will actually be done
+		if (RowMap.Num() == 0)
+		{
+			return;
+		}
 	}
+
+#if WITH_EDITOR
+	FCurveTableEditorUtils::BroadcastPreChange(this, FCurveTableEditorUtils::ECurveTableChangeInfo::RowList);
+#endif
+	UCurveTable::EmptyTable();
 
 	if (!bLeaveEmpty)
 	{
@@ -185,7 +198,7 @@ void UCompositeCurveTable::PostEditChangeProperty(FPropertyChangedEvent& Propert
 
 	if (PropertyName == Name_ParentTables)
 	{
-		OnParentTablesUpdated();
+		OnParentTablesUpdated(PropertyChangedEvent.ChangeType);
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -193,14 +206,21 @@ void UCompositeCurveTable::PostEditChangeProperty(FPropertyChangedEvent& Propert
 
 void UCompositeCurveTable::PostEditUndo()
 {
-	Super::PostEditUndo();
-
 	OnParentTablesUpdated();
+
+	Super::PostEditUndo();
 }
 #endif // WITH_EDITOR
 
 void UCompositeCurveTable::OnParentTablesUpdated(EPropertyChangeType::Type ChangeType)
 {
+	// Prevent recursion when there was a cycle in the parent hierarchy (or during the undo of the action that created the cycle; in that case PostEditUndo will recall OnParentTablesUpdated when the dust has settled)
+	if (bUpdatingParentTables)
+	{
+		return;
+	}
+	bUpdatingParentTables = true;
+
 	for (UCurveTable* Table : OldParentTables)
 	{
 		if (Table && ParentTables.Find(Table) == INDEX_NONE)
@@ -213,13 +233,15 @@ void UCompositeCurveTable::OnParentTablesUpdated(EPropertyChangeType::Type Chang
 
 	for (UCurveTable* Table : ParentTables)
 	{
-		if (Table && OldParentTables.Find(Table) == INDEX_NONE)
+		if ((Table != nullptr) && (Table != this) && (OldParentTables.Find(Table) == INDEX_NONE))
 		{
 			Table->OnCurveTableChanged().AddUObject(this, &UCompositeCurveTable::OnParentTablesUpdated, EPropertyChangeType::Unspecified);
 		}
 	}
 
 	OldParentTables = ParentTables;
+
+	bUpdatingParentTables = false;
 }
 
 void UCompositeCurveTable::EmptyTable()

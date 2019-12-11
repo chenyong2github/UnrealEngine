@@ -261,7 +261,7 @@ TSharedPtr<FHttpServerRequest> FHttpConnectionRequestReadContext::BuildRequest(c
 	if (RequestHttpPath.FindChar(TCHAR('?'), QueryParamsIndex))
 	{
 		FString QueryParamsStr = RequestHttpPath.Mid(QueryParamsIndex+1);
-		RequestHttpPath = RequestHttpPath.Mid(0, QueryParamsIndex);
+		RequestHttpPath.MidInline(0, QueryParamsIndex, false);
 
 		// Split query params
 		TArray<FString> QueryParamPairs;

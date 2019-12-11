@@ -22,6 +22,15 @@
 		#include <dwmapi.h>
 #endif	//D3D11_WITH_DWMAPI
 
+#ifndef DXGI_PRESENT_ALLOW_TEARING
+#define DXGI_PRESENT_ALLOW_TEARING          0x00000200UL
+#endif
+
+#ifndef DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
+#define DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING  2048
+#endif
+
+
 /**
  * RHI console variables used by viewports.
  */
@@ -269,7 +278,8 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 
 				if (FAILED(SwapChain->ResizeTarget(&BufferDesc)))
 				{
-					ConditionalResetSwapChain(true);
+					ResetSwapChainInternal(true);
+					VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, D3D11GetSwapChainFlags()), SizeX, SizeY, RenderTargetFormat, D3DRHI->GetDevice());
 				}
 			}
 		}
@@ -284,7 +294,9 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 		{
 			// Use ConditionalResetSwapChain to call SetFullscreenState, to handle the failure case.
 			// Ignore the viewport's focus state; since Resize is called as the result of a user action we assume authority without waiting for Focus.
-			ConditionalResetSwapChain(true);
+			ResetSwapChainInternal(true);
+			DXGI_FORMAT RenderTargetFormat = GetRenderTargetFormat(PixelFormat);
+			VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, D3D11GetSwapChainFlags()), SizeX, SizeY, RenderTargetFormat, D3DRHI->GetDevice());
 		}
 	}
 
@@ -332,7 +344,13 @@ bool FD3D11Viewport::PresentChecked(int32 SyncInterval)
 		if (SwapChain.IsValid())
 		{
 			// Present the back buffer to the viewport window.
-			Result = SwapChain->Present(SyncInterval, 0);
+			uint32 Flags = 0;
+			if( (D3D11GetSwapChainFlags() & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) != 0 && !SyncInterval && !bIsFullscreen )
+			{
+				Flags |= DXGI_PRESENT_ALLOW_TEARING;
+			}
+
+			Result = SwapChain->Present(SyncInterval, Flags);
 		}
 
 		if (IsValidRef(CustomPresent))
@@ -533,6 +551,10 @@ bool FD3D11Viewport::Present(bool bLockToVsync)
 		DXGIDevice->SetMaximumFrameLatency(MaximumFrameLatency);
 	}
 
+	if (!bIsValid)
+	{
+		return false;
+	}
 	// When desktop composition is enabled, locking to vsync via the Present
 	// call is unreliable. Instead, communicate with the desktop window manager
 	// directly to enable vsync.

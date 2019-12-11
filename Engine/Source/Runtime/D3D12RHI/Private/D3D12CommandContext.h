@@ -336,9 +336,7 @@ public:
 #if D3D12_RHI_RAYTRACING
 	virtual void RHICopyBufferRegion(FRHIVertexBuffer* DestBuffer, uint64 DstOffset, FRHIVertexBuffer* SourceBuffer, uint64 SrcOffset, uint64 NumBytes) final override;
 	virtual void RHICopyBufferRegions(const TArrayView<const FCopyBufferRegionParams> Params) final override;
-	virtual void RHIBuildAccelerationStructure(FRHIRayTracingGeometry* Geometry) final override;
-	virtual void RHIUpdateAccelerationStructures(const TArrayView<const FAccelerationStructureUpdateParams> Params) final override;
-	virtual void RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureUpdateParams> Params) final override;
+	virtual void RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureBuildParams> Params) final override;
 	virtual void RHIBuildAccelerationStructure(FRHIRayTracingScene* Scene) final override;
 	virtual void RHIClearRayTracingBindings(FRHIRayTracingScene* Scene) final override;
 	virtual void RHIRayTraceOcclusion(FRHIRayTracingScene* Scene,
@@ -753,29 +751,7 @@ public:
 		ContextRedirect(RHIEndRenderPass());
 	}
 
-
-#if RHI_RAYTRACING
-	virtual void RHICopyBufferRegion(FRHIVertexBuffer* DestBuffer, uint64 DstOffset, FRHIVertexBuffer* SourceBuffer, uint64 SrcOffset, uint64 NumBytes) final override
-	{
-		ContextRedirect(RHICopyBufferRegion(DestBuffer, DstOffset, SourceBuffer, SrcOffset, NumBytes));
-	}
-
-	virtual void RHICopyBufferRegions(const TArrayView<const FCopyBufferRegionParams> Params) final override
-	{
-		ContextRedirect(RHICopyBufferRegions(Params));
-	}
-#endif
-	virtual void RHIBuildAccelerationStructure(FRHIRayTracingGeometry* Geometry) final override
-	{
-		ContextRedirect(RHIBuildAccelerationStructure(Geometry));
-	}
-
-	virtual void RHIUpdateAccelerationStructures(const TArrayView<const FAccelerationStructureUpdateParams> Params) final override
-	{
-		ContextRedirect(RHIUpdateAccelerationStructures(Params));
-	}
-
-	virtual void RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureUpdateParams> Params) final override
+	virtual void RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureBuildParams> Params) final override
 	{
 		ContextRedirect(RHIBuildAccelerationStructures(Params));
 	}

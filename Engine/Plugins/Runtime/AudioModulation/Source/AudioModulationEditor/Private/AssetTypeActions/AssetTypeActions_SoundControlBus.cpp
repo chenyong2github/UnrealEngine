@@ -53,4 +53,14 @@ const TArray<FText>& FAssetTypeActions_SoundHPFControlBus::GetSubMenus() const
 {
 	return Modulation::SubMenus;
 }
+
+UClass* FAssetTypeActions_SoundControlBus::GetSupportedClass() const
+{
+	return USoundControlBus::StaticClass();
+}
+
+const TArray<FText>& FAssetTypeActions_SoundControlBus::GetSubMenus() const
+{
+	return Modulation::SubMenus;
+}
 #undef LOCTEXT_NAMESPACE

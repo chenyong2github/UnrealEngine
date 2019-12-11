@@ -4,16 +4,27 @@
 #include "NiagaraOverviewNode.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "SNiagaraOverviewStack.h"
 #include "NiagaraEditorModule.h"
-#include "Widgets/Layout/SBox.h"
-
+#include "NiagaraEditorStyle.h"
+#include "NiagaraEditorWidgetsStyle.h"
+#include "Stack/SNiagaraStackIssueIcon.h"
 #include "Modules/ModuleManager.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
+
+#define LOCTEXT_NAMESPACE "NiagaraOverviewStackNode"
 
 void SNiagaraOverviewStackNode::Construct(const FArguments& InArgs, UNiagaraOverviewNode* InNode)
 {
 	GraphNode = InNode;
 	OverviewStackNode = InNode;
+	StackViewModel = nullptr;
+	OverviewSelectionViewModel = nullptr;
+	EmitterHandleViewModelWeak.Reset();
+
 	if (OverviewStackNode->GetOwningSystem() != nullptr)
 	{
 		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::Get().LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
@@ -26,16 +37,86 @@ void SNiagaraOverviewStackNode::Construct(const FArguments& InArgs, UNiagaraOver
 			}
 			else
 			{
-				TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleviewModel = OwningSystemViewModel->GetEmitterHandleViewModelById(OverviewStackNode->GetEmitterHandleGuid());
-				if (EmitterHandleviewModel.IsValid())
+				EmitterHandleViewModelWeak = OwningSystemViewModel->GetEmitterHandleViewModelById(OverviewStackNode->GetEmitterHandleGuid());
+				if (EmitterHandleViewModelWeak.IsValid())
 				{
-					StackViewModel = EmitterHandleviewModel->GetEmitterStackViewModel();
+					StackViewModel = EmitterHandleViewModelWeak.Pin()->GetEmitterStackViewModel();
 				}
 			}
 			OverviewSelectionViewModel = OwningSystemViewModel->GetSelectionViewModel();
 		}
 	}
+
 	UpdateGraphNode();
+}
+
+TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle)
+{
+	TSharedRef<SWidget> DefaultTitle = SGraphNode::CreateTitleWidget(NodeTitle);
+
+	if (StackViewModel == nullptr)
+	{
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.Padding(0, 0, 5, 0)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("InvalidNode", "INVALID"))
+			]
+			+ SHorizontalBox::Slot()
+			[
+				DefaultTitle
+			];
+	}
+
+	return SNew(SHorizontalBox)
+		// Enabled checkbox
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(0)
+		[
+			SNew(SCheckBox)
+			.Visibility(this, &SNiagaraOverviewStackNode::GetEnabledCheckBoxVisibility)
+			.IsChecked(this, &SNiagaraOverviewStackNode::GetEnabledCheckState)
+			.OnCheckStateChanged(this, &SNiagaraOverviewStackNode::OnEnabledCheckStateChanged)
+		]
+		// Isolate toggle
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(3, 0, 0, 0)
+		[
+			SNew(SButton)
+			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.HAlign(HAlign_Center)
+			.ContentPadding(1)
+			.ToolTipText(this, &SNiagaraOverviewStackNode::GetToggleIsolateToolTip)
+			.OnClicked(this, &SNiagaraOverviewStackNode::OnToggleIsolateButtonClicked)
+			.Visibility(this, &SNiagaraOverviewStackNode::GetToggleIsolateVisibility)
+			.Content()
+			[
+				SNew(SImage)
+				.Image(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Isolate"))
+				.ColorAndOpacity(this, &SNiagaraOverviewStackNode::GetToggleIsolateImageColor)
+			]
+		]
+		// Name
+		+ SHorizontalBox::Slot()
+		.Padding(3, 0, 0, 0)
+		.FillWidth(1.0f)
+		[
+			DefaultTitle
+		]
+		// Stack issues icon
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Right)
+		.Padding(5, 0, 0, 0)
+		[
+			SNew(SNiagaraStackIssueIcon, StackViewModel, StackViewModel->GetRootEntry())
+			.Visibility(this, &SNiagaraOverviewStackNode::GetIssueIconVisibility)
+		];
 }
 
 TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
@@ -56,10 +137,10 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 
 	// NODE CONTENT AREA
 	return SNew(SBorder)
-		.BorderImage( FEditorStyle::GetBrush("NoBorder") )
+		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
 		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Fill)
-		.Padding( FMargin(0,3) )
+		.Padding(FMargin(2, 2, 2, 4))
 		[
 			SNew(SHorizontalBox)
 			+SHorizontalBox::Slot()
@@ -71,7 +152,15 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 			]
 			+SHorizontalBox::Slot()
 			[
-				ContentWidget.ToSharedRef()
+				SNew(SBorder)
+				.BorderImage(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.SystemOverview.NodeBackgroundBorder"))
+				.BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.SystemOverview.NodeBackgroundColor"))
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
+				.Padding(FMargin(0, 0, 0, 4))
+				[
+					ContentWidget.ToSharedRef()
+				]
 			]
 			+SHorizontalBox::Slot()
 			.AutoWidth()
@@ -82,3 +171,66 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 			]
 		];
 }
+
+EVisibility SNiagaraOverviewStackNode::GetIssueIconVisibility() const
+{
+	return StackViewModel->HasIssues() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility SNiagaraOverviewStackNode::GetEnabledCheckBoxVisibility() const
+{
+	return EmitterHandleViewModelWeak.IsValid() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+ECheckBoxState SNiagaraOverviewStackNode::GetEnabledCheckState() const
+{
+	return EmitterHandleViewModelWeak.IsValid() && EmitterHandleViewModelWeak.Pin()->GetIsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void SNiagaraOverviewStackNode::OnEnabledCheckStateChanged(ECheckBoxState InCheckState)
+{
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelWeak.Pin();
+	if (EmitterHandleViewModel.IsValid())
+	{
+		EmitterHandleViewModel->SetIsEnabled(InCheckState == ECheckBoxState::Checked);
+	}
+}
+
+FReply SNiagaraOverviewStackNode::OnToggleIsolateButtonClicked()
+{
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelWeak.Pin();
+	if (EmitterHandleViewModel.IsValid())
+	{
+		bool bShouldBeIsolated = !EmitterHandleViewModel->GetIsIsolated();
+		EmitterHandleViewModel->SetIsIsolated(bShouldBeIsolated);
+	}
+	return FReply::Handled();
+}
+
+FText SNiagaraOverviewStackNode::GetToggleIsolateToolTip() const
+{
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelWeak.Pin();
+	return EmitterHandleViewModel.IsValid() && EmitterHandleViewModel->GetIsIsolated()
+		? LOCTEXT("TurnOffEmitterIsolation", "Disable emitter isolation.")
+		: LOCTEXT("IsolateThisEmitter", "Enable isolation for this emitter.");
+}
+
+EVisibility SNiagaraOverviewStackNode::GetToggleIsolateVisibility() const
+{
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelWeak.Pin();
+	return EmitterHandleViewModel.IsValid() &&
+		EmitterHandleViewModel->GetOwningSystemEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset 
+		? EVisibility::Visible 
+		: EVisibility::Collapsed;
+}
+
+FSlateColor SNiagaraOverviewStackNode::GetToggleIsolateImageColor() const
+{
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelWeak.Pin();
+	return EmitterHandleViewModel.IsValid() && 
+		EmitterHandleViewModel->GetIsIsolated()
+		? FEditorStyle::GetSlateColor("SelectionColor")
+		: FLinearColor::Gray;
+}
+
+#undef LOCTEXT_NAMESPACE

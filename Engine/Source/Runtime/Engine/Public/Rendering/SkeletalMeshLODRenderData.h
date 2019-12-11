@@ -130,11 +130,7 @@ public:
 
 	uint32 BuffersSize;
 
-#if USE_BULKDATA_STREAMING_TOKEN
-	FBulkDataStreamingToken BulkDataStreamingToken;
-#else
-	FByteBulkData StreamingBulkData;
-#endif
+	typename TChooseClass<USE_BULKDATA_STREAMING_TOKEN, FBulkDataStreamingToken, FByteBulkData>::Result StreamingBulkData;
 
 	/** Whether buffers of this LOD is inlined (i.e. stored in .uexp instead of .ubulk) */
 	uint32 bStreamedDataInlined : 1;

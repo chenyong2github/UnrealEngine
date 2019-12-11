@@ -21,11 +21,6 @@
 #include "GameFramework/PlayerController.h"
 #include "Blueprint/WidgetNavigation.h"
 
-#if WITH_EDITOR
-// This violates IWYU, but the alternative is .cpp includes that are invariably not within #if WITH_EDITOR and cause non-editor build failures
-#include "Kismet2/CompilerResultsLog.h"
-#endif
-
 #include "Widget.generated.h"
 
 class ULocalPlayer;
@@ -366,7 +361,7 @@ public:
 
 private:
 	/** A custom set of accessibility rules for this widget. If null, default rules for the widget are used. */
-	UPROPERTY()
+	UPROPERTY(Instanced)
 	USlateAccessibleWidgetData* AccessibleWidgetData;
 
 protected:
@@ -595,13 +590,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Widget")
 	bool HasUserFocusedDescendants(APlayerController* PlayerController) const;
 	
-	/** Sets the focus to this widget for a specific user */
+	/** Sets the focus to this widget for the owning user */
+	UFUNCTION(BlueprintCallable, Category="Widget")
+	void SetFocus();
+
+	/** Sets the focus to this widget for a specific user (if setting focus for the owning user, prefer SetFocus()) */
 	UFUNCTION(BlueprintCallable, Category="Widget")
 	void SetUserFocus(APlayerController* PlayerController);
 
 	/**
 	 * Forces a pre-pass.  A pre-pass caches the desired size of the widget hierarchy owned by this widget.  
-	 * One pre-pass is already happens for every widget before Tick occurs.  You only need to perform another 
+	 * One pre-pass already happens for every widget before Tick occurs.  You only need to perform another 
 	 * pre-pass if you are adding child widgets this frame and want them to immediately be visible this frame.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Widget")

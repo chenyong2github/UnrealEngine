@@ -2,19 +2,20 @@
 
 #include "VariantManagerBlueprintLibrary.h"
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "VariantManagerModule.h"
-#include "VariantManager.h"
+#include "CapturableProperty.h"
 #include "LevelVariantSets.h"
 #include "LevelVariantSetsActor.h"
-#include "VariantSet.h"
-#include "Variant.h"
-#include "VariantObjectBinding.h"
 #include "PropertyValue.h"
-#include "VariantManagerPropertyCapturer.h"
+#include "Variant.h"
+#include "VariantManager.h"
 #include "VariantManagerLog.h"
-#include "CapturableProperty.h"
+#include "VariantManagerContentEditorModule.h"
+#include "VariantManagerPropertyCapturer.h"
+#include "VariantObjectBinding.h"
+#include "VariantSet.h"
+
+#include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
 
 FVariantManager UVariantManagerBlueprintLibrary::VariantManager;
 
@@ -25,8 +26,8 @@ UVariantManagerBlueprintLibrary::UVariantManagerBlueprintLibrary(const FObjectIn
 
 ULevelVariantSets* UVariantManagerBlueprintLibrary::CreateLevelVariantSetsAsset(const FString& AssetName, const FString& AssetPath)
 {
-	IVariantManagerModule& VarManModule = FModuleManager::LoadModuleChecked<IVariantManagerModule>(VARIANTMANAGERMODULE_MODULE_NAME);
-	return Cast<ULevelVariantSets>(VarManModule.CreateLevelVariantSetsAsset(AssetName, AssetPath));
+	IVariantManagerContentEditorModule& ContentEditorModule = FModuleManager::LoadModuleChecked<IVariantManagerContentEditorModule>(VARIANTMANAGERCONTENTEDITORMODULE_MODULE_NAME);
+	return Cast<ULevelVariantSets>(ContentEditorModule.CreateLevelVariantSetsAsset(AssetName, AssetPath));
 }
 
 ALevelVariantSetsActor* UVariantManagerBlueprintLibrary::CreateLevelVariantSetsActor(ULevelVariantSets* LevelVariantSetsAsset)
@@ -36,8 +37,8 @@ ALevelVariantSetsActor* UVariantManagerBlueprintLibrary::CreateLevelVariantSetsA
 		return nullptr;
 	}
 
-	IVariantManagerModule& VarManModule = FModuleManager::LoadModuleChecked<IVariantManagerModule>(VARIANTMANAGERMODULE_MODULE_NAME);
-	return Cast<ALevelVariantSetsActor>(VarManModule.GetOrCreateLevelVariantSetsActor(LevelVariantSetsAsset));
+	IVariantManagerContentEditorModule& ContentEditorModule = FModuleManager::LoadModuleChecked<IVariantManagerContentEditorModule>(VARIANTMANAGERCONTENTEDITORMODULE_MODULE_NAME);
+	return Cast<ALevelVariantSetsActor>(ContentEditorModule.GetOrCreateLevelVariantSetsActor(LevelVariantSetsAsset));
 }
 
 

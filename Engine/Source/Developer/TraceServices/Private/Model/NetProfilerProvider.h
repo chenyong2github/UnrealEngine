@@ -53,6 +53,8 @@ public:
 	explicit FNetProfilerProvider(IAnalysisSession& InSession);
 	virtual ~FNetProfilerProvider();
 
+	void SetNetTraceVersion(uint32 NetTraceVersion);
+
 	uint32 AddNetProfilerName(const TCHAR* Name);
 
 	uint32 AddNetProfilerEventType(uint32 NameIndex, uint32 Level);
@@ -70,6 +72,8 @@ public:
 	Trace::FNetProfilerObjectInstance* EditObject(uint32 GameInstanceIndex, uint32 ObjectIndex);
 
 	// INetProfilerProvider Interface
+
+	virtual uint32 GetNetTraceVersion() const override;
 
 	// Access Names
 	virtual uint32 GetNameCount() const override { return Names.Num(); }
@@ -111,21 +115,12 @@ public:
 	virtual ITable<FNetProfilerAggregatedStats>* CreateAggregation(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode, uint32 PacketIndexIntervalStart, uint32 PacketIndexIntervalEnd, uint32 StartPosition, uint32 EndPosition) const override;
 
 private:
-
-	UE_TRACE_TABLE_LAYOUT_BEGIN(FAggregatedStatsTableLayout, FNetProfilerAggregatedStats)
-		UE_TRACE_TABLE_COLUMN(EventTypeIndex, TEXT("EventTypeIndex"))
-		UE_TRACE_TABLE_COLUMN(InstanceCount, TEXT("Count"))
-		UE_TRACE_TABLE_COLUMN(TotalInclusive, TEXT("Incl"))
-		UE_TRACE_TABLE_COLUMN(MaxInclusive, TEXT("I.Max"))
-		UE_TRACE_TABLE_COLUMN(AverageInclusive, TEXT("I.Avg"))
-		UE_TRACE_TABLE_COLUMN(TotalExclusive, TEXT("Excl"))
-		UE_TRACE_TABLE_COLUMN(MaxExclusive, TEXT("E.Max"))
-	UE_TRACE_TABLE_LAYOUT_END()
-
 	const FNetProfilerName* GetNetProfilerName(uint32 ProfilerNameId) const;
 	const FNetProfilerEventType* GetNetProfilerEventType(uint32 ProfilerEventTypeId) const;
 
 	IAnalysisSession& Session;
+
+	uint32 NetTraceVersion;
 
 	TArray<FNetProfilerName> Names;
 
@@ -137,6 +132,7 @@ private:
 	// All connections we have seen throughout the session
 	TPagedArray<FNetProfilerConnectionInternal> Connections;
 	uint32 ConnectionChangeCount;
+	TTableLayout<FNetProfilerAggregatedStats> AggregatedStatsTableLayout;
 };
 
 }

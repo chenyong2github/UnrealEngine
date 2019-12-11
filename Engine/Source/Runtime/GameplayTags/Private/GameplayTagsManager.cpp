@@ -110,23 +110,26 @@ void UGameplayTagsManager::AddTagIniSearchPath(const FString& RootDir)
 	// Read all tags from the ini
 	TArray<FString> FilesInDirectory;
 	IFileManager::Get().FindFilesRecursive(FilesInDirectory, *RootDir, TEXT("*.ini"), true, false);
-	FilesInDirectory.Sort();
-	for (const FString& IniFilePath : FilesInDirectory)
+	if (FilesInDirectory.Num() > 0)
 	{
-		ExtraTagIniList.AddUnique(IniFilePath);
-	}
+		FilesInDirectory.Sort();
+		for (const FString& IniFilePath : FilesInDirectory)
+		{
+			ExtraTagIniList.AddUnique(IniFilePath);
+		}
 
-	if (!bIsConstructingGameplayTagTree)
-	{
+		if (!bIsConstructingGameplayTagTree)
+		{
 #if WITH_EDITOR
-		EditorRefreshGameplayTagTree();
+			EditorRefreshGameplayTagTree();
 #else
-		AddTagsFromAdditionalLooseIniFiles(FilesInDirectory);
+			AddTagsFromAdditionalLooseIniFiles(FilesInDirectory);
 
-		ConstructNetIndex();
+			ConstructNetIndex();
 
-		IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
+			IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
 #endif
+		}
 	}
 }
 
@@ -1345,7 +1348,7 @@ FString UGameplayTagsManager::StaticGetCategoriesMetaFromPropertyHandle(TSharedP
 	return Categories;
 }
 
-FString UGameplayTagsManager::GetCategoriesMetaFromFunction(UFunction* ThisFunction, FName ParamName /** = NAME_None */) const
+FString UGameplayTagsManager::GetCategoriesMetaFromFunction(const UFunction* ThisFunction, FName ParamName /** = NAME_None */) const
 {
 	FString FilterString;
 	if (ThisFunction)

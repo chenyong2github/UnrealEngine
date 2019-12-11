@@ -83,6 +83,7 @@ public:
 
 private:
 	TSharedRef<SWidget> CreateOptionalDataOnlyMessage() const;
+	TSharedRef<SWidget> CreateOptionalEditableWarning() const;
 
 	void OnChangeBlueprintToNotDataOnly();
 };

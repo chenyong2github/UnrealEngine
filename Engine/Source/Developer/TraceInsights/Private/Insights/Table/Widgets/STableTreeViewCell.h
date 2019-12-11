@@ -100,10 +100,14 @@ protected:
 		return IsHovered() ? EVisibility::Visible : EVisibility::Hidden;
 	}
 
+	TSharedPtr<class IToolTip> GetRowToolTip(const TSharedRef<ITableRow>& TableRow) const;
+
 	FText GetDisplayName() const
 	{
 		return TableTreeNodePtr->GetDisplayName();
 	}
+
+	FText GetValueAsText() const;
 
 	FSlateColor GetColorAndOpacity() const
 	{

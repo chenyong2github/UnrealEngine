@@ -524,7 +524,7 @@ public:
 	void Tick(float DeltaTime);
 
 	/** Process the frame's input events given the current input component stack. */
-	void ProcessInputStack(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused);
+	virtual void ProcessInputStack(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused);
 
 	/** Rather than processing input, consume it and discard without doing anything useful with it.  Like calling ProcessInputStack() and ignoring all results. */
 	void DiscardPlayerInput();
@@ -623,6 +623,8 @@ public:
 	static const TArray<FInputAxisKeyMapping>& GetEngineDefinedAxisMappings() { return EngineDefinedAxisMappings; }
 
 protected:
+	TMap<FKey, FKeyState>& GetKeyStateMap()
+	{ return KeyStateMap; }
 
 	/**
 	* Given raw keystate value of a vector axis, returns the "massaged" value. Override for any custom behavior,

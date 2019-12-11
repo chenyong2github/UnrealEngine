@@ -16,7 +16,7 @@
 #include "Insights/InsightsStyle.h"
 #include "Insights/ViewModels/StatsViewColumn.h"
 #include "Insights/ViewModels/StatsViewColumnFactory.h"
-#include "Insights/Widgets/SStatsViewTooltip.h"
+#include "Insights/Widgets/SStatsTableRow.h"
 
 #define LOCTEXT_NAMESPACE "SStatsView"
 
@@ -24,12 +24,14 @@
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
-void SStatsTableCell::Construct(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow)
+void SStatsTableCell::Construct(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
-	SetHoveredTableCellDelegate = InArgs._OnSetHoveredTableCell;
 	StatsNodePtr = InArgs._StatsNodePtr;
 	ColumnId = InArgs._ColumnId;
-	//HighlightText = InArgs._HighlightText;
+
+	ensure(StatsNodePtr.IsValid());
+
+	SetHoveredTableCellDelegate = InArgs._OnSetHoveredTableCell;
 
 	ChildSlot
 		[
@@ -39,7 +41,7 @@ void SStatsTableCell::Construct(const FArguments& InArgs, const TSharedRef<class
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForColumn(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow)
+TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
 	if (InArgs._IsNameColumn)
 	{
@@ -53,7 +55,7 @@ TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForColumn(const FArguments& I
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForNameColumn(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow)
+TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForNameColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
 	const FStatsViewColumn& Column = *FStatsViewColumnFactory::Get().ColumnIdToPtrMapping.FindChecked(ColumnId);
 
@@ -77,7 +79,7 @@ TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForNameColumn(const FArgument
 			SNew(SImage)
 			.Visibility(this, &SStatsTableCell::GetHintIconVisibility)
 			.Image(FEditorStyle::GetBrush("Profiler.Tooltip.HintIcon10"))
-			.ToolTip(SStatsViewTooltip::GetTableCellTooltip(StatsNodePtr))
+			.ToolTip(GetRowToolTip(TableRow))
 		]
 
 		// Color box
@@ -118,11 +120,25 @@ TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForNameColumn(const FArgument
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForStatsColumn(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow)
+TSharedPtr<IToolTip> SStatsTableCell::GetRowToolTip(const TSharedRef<ITableRow>& TableRow) const
+{
+	TSharedRef<SStatsTableRow> Row = StaticCastSharedRef<SStatsTableRow, ITableRow>(TableRow);
+	return Row->GetRowToolTip();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SStatsTableCell::GetValueAsText() const
 {
 	const FStatsViewColumn& Column = *FStatsViewColumnFactory::Get().ColumnIdToPtrMapping.FindChecked(ColumnId);
-	const FText CellText = Column.GetFormattedValue(*StatsNodePtr);
-	//const FText CellText = ColumnPtr->GetValueAsText(*StatsNodePtr);
+	return Column.GetFormattedValue(*StatsNodePtr);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForStatsColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
+{
+	const FStatsViewColumn& Column = *FStatsViewColumnFactory::Get().ColumnIdToPtrMapping.FindChecked(ColumnId);
 
 	return
 		SNew(SHorizontalBox)
@@ -135,7 +151,7 @@ TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForStatsColumn(const FArgumen
 		.Padding(FMargin(2.0f, 0.0f))
 		[
 			SNew(STextBlock)
-			.Text(CellText)
+			.Text(this, &SStatsTableCell::GetValueAsText)
 			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 			.ColorAndOpacity(this, &SStatsTableCell::GetStatsColorAndOpacity)
 			.ShadowColorAndOpacity(this, &SStatsTableCell::GetShadowColorAndOpacity)

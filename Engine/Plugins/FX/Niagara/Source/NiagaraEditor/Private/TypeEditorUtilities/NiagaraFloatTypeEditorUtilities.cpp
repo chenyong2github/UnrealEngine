@@ -49,6 +49,8 @@ public:
 		((FNiagaraFloat*)Struct->GetStructMemory())->Value = FloatValue;
 	}
 
+	virtual bool CanChangeContinuously() const override { return true; }
+
 private:
 	void BeginSliderMovement()
 	{
@@ -102,7 +104,7 @@ FString FNiagaraEditorFloatTypeUtilities::GetPinDefaultStringFromValue(const FNi
 bool FNiagaraEditorFloatTypeUtilities::SetValueFromPinDefaultString(const FString& StringValue, FNiagaraVariable& Variable) const
 {
 	FNiagaraFloat FloatValue;
-	if (LexTryParseString(FloatValue.Value, *StringValue))
+	if (LexTryParseString(FloatValue.Value, *StringValue) || !Variable.IsDataAllocated())
 	{
 		Variable.SetValue<FNiagaraFloat>(FloatValue);
 		return true;

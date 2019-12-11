@@ -60,7 +60,7 @@ public:
 		EImplicitTypeEnum ShapeType;
 		bool bSimulating;
 		FTransform* TargetTransform;
-		Chaos::TSerializablePtr<Chaos::TChaosPhysicsMaterial<float>> PhysicalMaterial;
+		Chaos::TSerializablePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial;
 		float Mass;
 		int32 MinRes;
 		int32 MaxRes;

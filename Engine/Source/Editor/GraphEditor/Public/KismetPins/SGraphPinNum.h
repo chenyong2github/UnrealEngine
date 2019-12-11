@@ -55,6 +55,11 @@ protected:
 
 	void SetNumericValue(NumericType InValue, ETextCommit::Type CommitType)
 	{
+		if(GraphPinObj->IsPendingKill())
+		{
+			return;
+		}
+
 		const FString TypeValueString = LexToString(InValue);
 		if (GraphPinObj->GetDefaultAsString() != TypeValueString)
 		{

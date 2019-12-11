@@ -7,7 +7,7 @@
 #include "Serialization/BitWriter.h"
 #include "Modules/ModuleInterface.h"
 #include "Containers/Queue.h"
-#include "PacketTraits.h"
+#include "Net/Core/Misc/PacketTraits.h"
 #include "IPAddress.h"
 
 PACKETHANDLER_API DECLARE_LOG_CATEGORY_EXTERN(PacketHandlerLog, Log, All);

@@ -64,6 +64,13 @@ struct CORE_API FMacPlatformMisc : public FApplePlatformMisc
 	static FString GetCPUVendor();
 
 	/**
+	 * Uses cpuid instruction to get the CPU brand string
+	 *
+	 * @return    CPU brand string
+	 */
+	static FString GetCPUBrand();
+
+	/**
 	 * Uses cpuid instruction to get the vendor string
 	 *
 	 * @return	CPU info bitfield
