@@ -19,6 +19,14 @@ void FClothConstraintSetupNv::MigrateFrom(const FClothConstraintSetup_Legacy& Se
 	CompressionLimit = Setup.CompressionLimit;
 }
 
+void FClothConstraintSetupNv::MigrateTo(FClothConstraintSetup_Legacy& Setup) const
+{
+	Setup.Stiffness = Stiffness;
+	Setup.StiffnessMultiplier = StiffnessMultiplier;
+	Setup.StretchLimit = StretchLimit;
+	Setup.CompressionLimit = CompressionLimit;
+}
+
 UClothConfigNv::UClothConfigNv()
 	: ClothingWindMethod(EClothingWindMethodNv::Legacy)
 	, SelfCollisionRadius(0.0f)
@@ -97,6 +105,40 @@ void UClothConfigNv::MigrateFrom(const FClothConfig_Legacy& ClothConfig)
 	AnimDriveSpringStiffness = ClothConfig.AnimDriveSpringStiffness;
 	AnimDriveDamperStiffness = ClothConfig.AnimDriveDamperStiffness;
 }
+
+bool UClothConfigNv::MigrateTo(FClothConfig_Legacy& ClothConfig) const
+{
+	ClothConfig.WindMethod = static_cast<EClothingWindMethod_Legacy>(ClothingWindMethod);
+	VerticalConstraint.MigrateTo(ClothConfig.VerticalConstraintConfig);
+	HorizontalConstraint.MigrateTo(ClothConfig.HorizontalConstraintConfig);
+	BendConstraint.MigrateTo(ClothConfig.BendConstraintConfig);
+	ShearConstraint.MigrateTo(ClothConfig.ShearConstraintConfig);
+	ClothConfig.SelfCollisionRadius = SelfCollisionRadius;
+	ClothConfig.SelfCollisionStiffness = SelfCollisionStiffness;
+	ClothConfig.SelfCollisionCullScale = SelfCollisionCullScale;
+	ClothConfig.Damping = Damping;
+	ClothConfig.Friction = Friction;
+	ClothConfig.WindDragCoefficient = WindDragCoefficient;
+	ClothConfig.WindLiftCoefficient = WindLiftCoefficient;
+	ClothConfig.LinearDrag = LinearDrag;
+	ClothConfig.AngularDrag = AngularDrag;
+	ClothConfig.LinearInertiaScale = LinearInertiaScale;
+	ClothConfig.AngularInertiaScale = AngularInertiaScale;
+	ClothConfig.CentrifugalInertiaScale = CentrifugalInertiaScale;
+	ClothConfig.SolverFrequency = SolverFrequency;
+	ClothConfig.StiffnessFrequency = StiffnessFrequency;
+	ClothConfig.GravityScale = GravityScale;
+	ClothConfig.GravityOverride = GravityOverride;
+	ClothConfig.bUseGravityOverride = bUseGravityOverride;
+	ClothConfig.TetherStiffness = TetherStiffness;
+	ClothConfig.TetherLimit = TetherLimit;
+	ClothConfig.CollisionThickness = CollisionThickness;
+	ClothConfig.AnimDriveSpringStiffness = AnimDriveSpringStiffness;
+	ClothConfig.AnimDriveDamperStiffness = AnimDriveDamperStiffness;
+
+	return true;
+}
+
 
 bool UClothConfigNv::UseSelfCollisions() const
 {
