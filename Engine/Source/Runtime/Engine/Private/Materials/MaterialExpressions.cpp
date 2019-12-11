@@ -12956,14 +12956,6 @@ void UMaterialExpressionMaterialFunctionCall::UpdateFromFunctionResource(bool bR
 				CurrentInput.Input = OriginalInput->Input;
 				CurrentInput.Input.InputName = TempInputName;
 			}
-
-			if (GraphNode)
-			{
-				if (CurrentInput.ExpressionInput->bUsePreviewValueAsDefault)
-				{
-					bRecreateAndLinkNode = true;
-				}
-			}
 		}
 
 		for (int32 OutputIndex = 0; OutputIndex < FunctionOutputs.Num(); OutputIndex++)
