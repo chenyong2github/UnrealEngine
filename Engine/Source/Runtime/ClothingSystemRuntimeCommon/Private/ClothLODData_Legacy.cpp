@@ -14,10 +14,12 @@ FClothParameterMask_Legacy::FClothParameterMask_Legacy()
 
 void FClothParameterMask_Legacy::MigrateTo(FPointWeightMap* Weights) const
 {
+	Weights->Values = Values;
+#if WITH_EDITORONLY_DATA
 	Weights->Name = MaskName;
 	Weights->CurrentTarget = static_cast<uint8>(CurrentTarget);
-	Weights->Values = Values;
 	Weights->bEnabled = bEnabled;
+#endif
 }
 
 bool FClothLODData_Legacy::Serialize(FArchive& Ar)
