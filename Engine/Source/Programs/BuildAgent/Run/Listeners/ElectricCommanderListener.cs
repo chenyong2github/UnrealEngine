@@ -134,20 +134,18 @@ namespace BuildAgent.Run.Listeners
 			string Outcome = null;
 
 			List<ErrorMatch> Errors = new List<ErrorMatch>();
-			while (!bDisposing)
+			for(; ;)
 			{
 				// Copy the current set of errors
-				lock(LockObject)
+				bool bReadyToDispose;
+				lock (LockObject)
 				{
 					if (NewErrors.Count > 0)
 					{
 						Errors.AddRange(NewErrors);
 						NewErrors.Clear();
 					}
-					else if(bDisposing)
-					{
-						break;
-					}
+					bReadyToDispose = bDisposing;
 				}
 
 				// Write them to disk
@@ -182,6 +180,12 @@ namespace BuildAgent.Run.Listeners
 				{
 					SetProperty("/myJobStep/outcome", NewOutcome);
 					Outcome = NewOutcome;
+				}
+
+				// Exit once we've flushed everything
+				if(bReadyToDispose)
+				{
+					break;
 				}
 
 				// Wait until the next update
