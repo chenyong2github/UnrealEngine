@@ -1020,6 +1020,8 @@ void UNiagaraComponent::DestroyInstance()
 	//UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent::DestroyInstance: %p  %s\n"), SystemInstance.Get(), *GetAsset()->GetFullName());
 	//UE_LOG(LogNiagara, Log, TEXT("DestroyInstance: %u - %s"), this, *Asset->GetName());
 	SetActiveFlag(false);
+
+	UnregisterWithScalabilityManager();
 	
 	// Rather than setting the unique ptr to null here, we allow it to transition ownership to the system's deferred deletion queue. This allows us to safely
 	// get rid of the system interface should we be doing this in response to a callback invoked during the system interface's lifetime completion cycle.
@@ -1089,6 +1091,8 @@ void UNiagaraComponent::OnUnregister()
 
 	SetActiveFlag(false);
 
+	UnregisterWithScalabilityManager();
+
 	if (SystemInstance)
 	{
 		//UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent::OnUnregister: %p  %s\n"), SystemInstance.Get(), *GetAsset()->GetFullName());
@@ -1107,7 +1111,7 @@ void UNiagaraComponent::OnUnregister()
 
 void UNiagaraComponent::BeginDestroy()
 {
-	//UE_LOG(LogNiagara, Log, TEXT("~UNiagaraComponent: %p  %s\n"), SystemInstance.Get(), *GetAsset()->GetFullName());
+	//UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent::BeginDestroy(): %0xP  %s\n"), this, *GetAsset()->GetFullName());
 	DestroyInstance();
 
 	Super::BeginDestroy();
