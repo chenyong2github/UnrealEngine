@@ -123,6 +123,31 @@ void UNiagaraNodeOp::Compile(class FHlslNiagaraTranslator* Translator, TArray<in
 			FText Format = LOCTEXT("InputErrorFormat", "Error compiling input on {OpName} node.");
 			Translator->Error(FText::Format(Format, Args), this, Pin);
 		}
+		else if (i < OpInfo->Inputs.Num() && OpInfo->Inputs[i].DataType == FNiagaraTypeDefinition::GetGenericNumericDef()) 
+		{
+			// Some nodes disallow integer or floating numeric input pins, so we guard against them here. 
+			// This will catch both implicitly and explicitly set pin types.
+			// Currently this is for the Random Float/Integer and Seeded Random Float/Integer ops, but might be useful for others in the future. 
+
+			const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
+			FNiagaraTypeDefinition TypeDef = Schema->PinToTypeDefinition(Pin);
+			if (TypeDef.IsFloatPrimitive() && !OpInfo->bNumericsCanBeFloats)
+			{
+				bError = true;
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("OpName"), GetNodeTitle(ENodeTitleType::FullTitle));
+				FText Format = LOCTEXT("InputTypeErrorFormat", "The {OpName} node cannot have float based numeric input pins.");
+				Translator->Error(FText::Format(Format, Args), this, Pin);
+			}
+			else if (!TypeDef.IsFloatPrimitive() && !OpInfo->bNumericsCanBeIntegers)
+			{
+				bError = true;
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("OpName"), GetNodeTitle(ENodeTitleType::FullTitle));
+				FText Format = LOCTEXT("InputTypeErrorFormat", "The {OpName} node cannot have integer based numeric input pins.");
+				Translator->Error(FText::Format(Format, Args), this, Pin);
+			}
+		}
 		Inputs.Add(CompiledInput);
 	}
 	
