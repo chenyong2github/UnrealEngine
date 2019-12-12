@@ -122,6 +122,8 @@ void UNiagaraSystem::PostInitProperties()
 		EditorData = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorData(this);
 #endif
 	}
+
+	ResolveScalabilityOverrides();
 }
 
 bool UNiagaraSystem::IsLooping() const
