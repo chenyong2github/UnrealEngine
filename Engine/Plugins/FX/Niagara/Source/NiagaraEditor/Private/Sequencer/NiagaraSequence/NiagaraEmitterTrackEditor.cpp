@@ -12,7 +12,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraEditorModule.h"
-
+#include "NiagaraEditorUtilities.h"
 #include "EditorStyleSet.h"
 #include "Styling/SlateIconFinder.h"
 #include "Widgets/SBoxPanel.h"
@@ -246,26 +246,7 @@ void FNiagaraEmitterTrackEditor::BuildTrackContextMenu( FMenuBuilder& MenuBuilde
 
 	if (SystemViewModel.GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
 	{
-		MenuBuilder.BeginSection("Niagara", LOCTEXT("NiagaraContextMenuSectionName", "Niagara"));
-		{
-			MenuBuilder.AddMenuEntry(
-				EmitterTrack->GetEmitterHandleViewModel()->GetIsIsolated()
-					? LOCTEXT("RemoveFromIsolation", "Remove this from isolation.")
-					: LOCTEXT("AddToIsolation", "Add this to isolation"),
-				EmitterTrack->GetEmitterHandleViewModel()->GetIsIsolated()
-					? LOCTEXT("RemoveFromIsolation_NoChangeOthers", "Remove this emitter from isolation, without changing other emitters.")
-					: LOCTEXT("AddToIsolation_NoChangeOthers", "Add this emitter to isolation, without changing other emitters."),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateRaw(&SystemViewModel, &FNiagaraSystemViewModel::ToggleEmitterIsolation, EmitterTrack->GetEmitterHandleViewModel().ToSharedRef())));
-			
-			TArray<FGuid> SelectedEmitterHandleIds = SystemViewModel.GetSelectionViewModel()->GetSelectedEmitterHandleIds();
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("IsolateSelected", "Isolate all selected"),
-				LOCTEXT("IsolateSelectedToolTip", "Add all of the selected emitters to isloation"),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateRaw(&SystemViewModel, &FNiagaraSystemViewModel::IsolateEmitters, SelectedEmitterHandleIds)));
-		}
-		MenuBuilder.EndSection();
+		FNiagaraEditorUtilities::AddEmitterContextMenuActions(MenuBuilder, EmitterTrack->GetEmitterHandleViewModel());
 	}
 }
 

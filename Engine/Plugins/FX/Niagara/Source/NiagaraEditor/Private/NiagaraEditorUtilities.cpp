@@ -27,6 +27,7 @@
 #include "EditorStyleSet.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
+#include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "AssetRegistryModule.h"
 #include "Misc/FeedbackContext.h"
@@ -41,6 +42,12 @@
 #include "NiagaraParameterMapHistory.h"
 #include "ScopedTransaction.h"
 #include "NiagaraStackEditorData.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "IContentBrowserSingleton.h"
+#include "ContentBrowserModule.h"
+#include "Toolkits/AssetEditorManager.h"
+#include "Modules/ModuleManager.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 
@@ -1261,6 +1268,201 @@ bool FNiagaraEditorUtilities::AddParameter(FNiagaraVariable& NewParameterVariabl
 		StackEditorData.SetModuleInputIsRenamePending(NewParameterVariable.GetName().ToString(), true);
 	}
 	return bSuccess;
+}
+
+void FNiagaraEditorUtilities::ShowParentEmitterInContentBrowser(TSharedRef<FNiagaraEmitterViewModel> Emitter)
+{
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+	ContentBrowserModule.Get().SyncBrowserToAssets(TArray<FAssetData> { FAssetData(Emitter->GetParentEmitter()) });
+}
+
+ECheckBoxState FNiagaraEditorUtilities::GetSelectedEmittersEnabledCheckState(TSharedRef<FNiagaraSystemViewModel> SystemViewModel)
+{
+	bool bFirst = true;
+	ECheckBoxState CurrentState = ECheckBoxState::Undetermined;
+
+	const TArray<FGuid>& SelectedHandleIds = SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds();
+	for (const TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterHandle : SystemViewModel->GetEmitterHandleViewModels())
+	{
+		if (SelectedHandleIds.Contains(EmitterHandle->GetId()))
+		{
+			ECheckBoxState EmitterState = EmitterHandle->GetIsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+			if (bFirst)
+			{
+				CurrentState = EmitterState;
+				bFirst = false;
+				continue;
+			}
+
+			if (CurrentState != EmitterState)
+			{
+				return ECheckBoxState::Undetermined;
+			}
+		}
+	}
+
+	return CurrentState;
+}
+
+void FNiagaraEditorUtilities::ToggleSelectedEmittersEnabled(TSharedRef<FNiagaraSystemViewModel> SystemViewModel)
+{
+	bool bEnabled = GetSelectedEmittersEnabledCheckState(SystemViewModel) != ECheckBoxState::Checked;
+
+	const TArray<FGuid>& SelectedHandleIds = SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds();
+	for (const FGuid& HandleId : SelectedHandleIds)
+	{
+		TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = SystemViewModel->GetEmitterHandleViewModelById(HandleId);
+		if (EmitterHandleViewModel.IsValid())
+		{
+			EmitterHandleViewModel->SetIsEnabled(bEnabled);
+		}
+	}
+}
+
+ECheckBoxState FNiagaraEditorUtilities::GetSelectedEmittersIsolatedCheckState(TSharedRef<FNiagaraSystemViewModel> SystemViewModel)
+{
+	bool bFirst = true;
+	ECheckBoxState CurrentState = ECheckBoxState::Undetermined;
+
+	const TArray<FGuid>& SelectedHandleIds = SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds();
+	for (const TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterHandle : SystemViewModel->GetEmitterHandleViewModels())
+	{
+		if (SelectedHandleIds.Contains(EmitterHandle->GetId()))
+		{
+			ECheckBoxState EmitterState = EmitterHandle->GetIsIsolated() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+			if (bFirst)
+			{
+				CurrentState = EmitterState;
+				bFirst = false;
+				continue;
+			}
+
+			if (CurrentState != EmitterState)
+			{
+				return ECheckBoxState::Undetermined;
+			}
+		}
+	}
+
+	return CurrentState;
+}
+
+void FNiagaraEditorUtilities::ToggleSelectedEmittersIsolated(TSharedRef<FNiagaraSystemViewModel> SystemViewModel)
+{
+	bool bIsolated = GetSelectedEmittersIsolatedCheckState(SystemViewModel) != ECheckBoxState::Checked;
+
+	TArray<FGuid> EmittersToIsolate;
+	for (const TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterHandle : SystemViewModel->GetEmitterHandleViewModels())
+	{
+		if (EmitterHandle->GetIsIsolated())
+		{
+			EmittersToIsolate.Add(EmitterHandle->GetId());
+		}
+	}
+
+	const TArray<FGuid>& SelectedHandleIds = SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds();
+	for (const FGuid& HandleId : SelectedHandleIds)
+	{
+		if (bIsolated)
+		{
+			EmittersToIsolate.Add(HandleId);
+		}
+		else
+		{
+			EmittersToIsolate.Remove(HandleId);
+		}
+	}
+
+	SystemViewModel->IsolateEmitters(EmittersToIsolate);
+}
+
+bool FNiagaraEditorUtilities::AddEmitterContextMenuActions(FMenuBuilder& MenuBuilder, const TSharedPtr<FNiagaraEmitterHandleViewModel>& EmitterHandleViewModelPtr)
+{
+	if (EmitterHandleViewModelPtr.IsValid())
+	{
+		TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelPtr.ToSharedRef();
+		TSharedRef<FNiagaraSystemViewModel> OwningSystemViewModel = EmitterHandleViewModel->GetOwningSystemViewModel();
+
+		bool bSingleSelection = OwningSystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds().Num() == 1;
+
+		MenuBuilder.BeginSection("EmitterActions", LOCTEXT("EmitterActions", "Emitter Actions"));
+		{
+			TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel = EmitterHandleViewModel->GetEmitterViewModel();
+
+			if (OwningSystemViewModel->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
+			{
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("ToggleEmittersEnabled", "Enabled"),
+					LOCTEXT("ToggleEmittersEnabledToolTip", "Toggle whether or not the selected emitters are enabled."),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::ToggleSelectedEmittersEnabled, OwningSystemViewModel),
+						FCanExecuteAction(),
+						FGetActionCheckState::CreateStatic(&FNiagaraEditorUtilities::GetSelectedEmittersEnabledCheckState, OwningSystemViewModel)
+					),
+					NAME_None,
+					EUserInterfaceActionType::ToggleButton
+				);
+
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("ToggleEmittersIsolated", "Isolated"),
+					LOCTEXT("ToggleEmittersIsolatedToolTip", "Toggle whether or not the selected emitters are isolated."),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::ToggleSelectedEmittersIsolated, OwningSystemViewModel),
+						FCanExecuteAction(),
+						FGetActionCheckState::CreateStatic(&FNiagaraEditorUtilities::GetSelectedEmittersIsolatedCheckState, OwningSystemViewModel)
+					),
+					NAME_None,
+					EUserInterfaceActionType::ToggleButton
+				);
+
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("RenameEmitter", "Rename Emitter"),
+					LOCTEXT("RenameEmitterToolTip", "Rename this local emitter copy."),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateSP(EmitterHandleViewModel, &FNiagaraEmitterHandleViewModel::SetIsRenamePending, true)
+					)
+				);
+			}
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("RemoveParentEmitter", "Remove Parent Emitter"),
+				LOCTEXT("RemoveParentEmitterToolTip", "Remove this emitter's parent, preventing inheritance of any further changes."),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(EmitterViewModel, &FNiagaraEmitterViewModel::RemoveParentEmitter),
+					FCanExecuteAction::CreateLambda(
+						[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
+						{
+							return bSingleSelection && bHasParent;
+						}
+					)
+				)
+			);
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("ShowEmitterInContentBrowser", "Show in Content Browser"),
+				LOCTEXT("ShowEmitterInContentBrowserToolTip", "Show the selected emitter in the Content Browser."),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::ShowParentEmitterInContentBrowser, EmitterViewModel),
+					FCanExecuteAction::CreateLambda(
+						[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
+						{
+							return bSingleSelection && bHasParent;
+						}
+					)
+				)
+			);
+		}
+		MenuBuilder.EndSection();
+
+		return true;
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE
