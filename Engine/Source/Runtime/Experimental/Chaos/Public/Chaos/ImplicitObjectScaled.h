@@ -139,6 +139,7 @@ public:
 	TImplicitObjectScaled(ObjectType Object, const TVector<T, d>& Scale, T Thickness = 0)
 	    : FImplicitObject(EImplicitObject::HasBoundingBox, Object->GetType() | ImplicitObjectType::IsScaled)
 	    , MObject(MoveTemp(Object))
+		, MSharedPtrForRefCount(nullptr)
 		, MInternalThickness(Thickness)
 	{
 		ensureMsgf((IsScaled(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain each other."));
@@ -154,9 +155,31 @@ public:
 		this->bIsConvex = MObject->IsConvex();
 		SetScale(Scale);
 	}
+
+	TImplicitObjectScaled(TSharedPtr<TConcrete, ESPMode::ThreadSafe> Object, const TVector<T, d>& Scale, T Thickness = 0)
+	    : FImplicitObject(EImplicitObject::HasBoundingBox, Object->GetType() | ImplicitObjectType::IsScaled)
+	    , MObject(MakeSerializable<TConcrete, ESPMode::ThreadSafe>(Object))
+		, MSharedPtrForRefCount(Object)
+		, MInternalThickness(Thickness)
+	{
+		ensureMsgf((IsScaled(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain each other."));
+		ensureMsgf((IsInstanced(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain instances."));
+		switch (MObject->GetType(true))
+		{
+		case ImplicitObjectType::Transformed:
+		case ImplicitObjectType::Union:
+			check(false);	//scale is only supported for concrete types like sphere, capsule, convex, levelset, etc... Nothing that contains other objects
+		default:
+			break;
+		}
+		this->bIsConvex = MObject->IsConvex();
+		SetScale(Scale);
+	}
+
 	TImplicitObjectScaled(ObjectType Object, TUniquePtr<Chaos::FImplicitObject> &&ObjectOwner, const TVector<T, d>& Scale, T Thickness = 0)
 	    : FImplicitObject(EImplicitObject::HasBoundingBox, Object->GetType() | ImplicitObjectType::IsScaled)
 	    , MObject(Object)
+		, MSharedPtrForRefCount(nullptr)
 		, MInternalThickness(Thickness)
 	{
 		ensureMsgf((IsScaled(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain each other."));
@@ -169,6 +192,7 @@ public:
 	TImplicitObjectScaled(TImplicitObjectScaled<TConcrete, bInstanced>&& Other)
 	    : FImplicitObject(EImplicitObject::HasBoundingBox, Other.MObject->GetType() | ImplicitObjectType::IsScaled)
 	    , MObject(MoveTemp(Other.MObject))
+		, MSharedPtrForRefCount(MoveTemp(Other.MSharedPtrForRefCount))
 	    , MScale(Other.MScale)
 		, MInvScale(Other.MInvScale)
 		, MInternalThickness(Other.MInternalThickness)
@@ -502,6 +526,7 @@ public:
 #endif
 private:
 	ObjectType MObject;
+	TSharedPtr<TConcrete, ESPMode::ThreadSafe> MSharedPtrForRefCount; // Temporary solution to force ref counting on trianglemesh from body setup.
 	TVector<T, d> MScale;
 	TVector<T, d> MInvScale;
 	T MInternalThickness;	//Allows us to inflate the instance before the scale is applied. This is useful when sweeps need to apply a non scale on a geometry with uniform thickness
