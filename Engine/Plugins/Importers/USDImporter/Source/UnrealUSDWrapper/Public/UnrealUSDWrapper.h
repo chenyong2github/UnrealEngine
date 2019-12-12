@@ -144,14 +144,14 @@ struct FUsdQuatData
 class IUnrealUSDWrapperModule : public IModuleInterface
 {
 public:
-	virtual void Initialize(const std::vector<std::string>& InPluginDirectories) = 0;
+	virtual void Initialize(const TArray< FString >& InPluginDirectories ) = 0;
 };
 
 class UnrealUSDWrapper
 {
 public:
 #if USE_USD_SDK
-	UNREALUSDWRAPPER_API static void Initialize(const std::vector<std::string>& InPluginDirectories);
+	UNREALUSDWRAPPER_API static void Initialize( const TArray< FString > & InPluginDirectories );
 	UNREALUSDWRAPPER_API static const char* GetErrors();
 	UNREALUSDWRAPPER_API static double GetDefaultTimeCode();
 

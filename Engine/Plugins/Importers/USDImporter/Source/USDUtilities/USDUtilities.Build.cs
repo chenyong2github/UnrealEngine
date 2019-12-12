@@ -35,15 +35,11 @@ namespace UnrealBuildTool.Rules
 					"RenderCore",
 					"RHI",
 					"StaticMeshDescription",
+					"UnrealUSDWrapper",
 					"MessageLog",
 					"JsonUtilities",
 				}
 				);
-
-			if (Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				PrivateDependencyModuleNames.Add("UnrealUSDWrapper");
-			}
 		}
 	}
 }

@@ -49,7 +49,7 @@ namespace UsdUtils
 	{
 		if (Stage->HasAuthoredMetadata(pxr::UsdGeomTokens->upAxis))
 		{
-			pxr::TfToken Axis;
+			pxr::TfToken Axis = pxr::UsdGeomTokens->z;
 			Stage->GetMetadata(pxr::UsdGeomTokens->upAxis, &Axis);
 			return Axis;
 		}

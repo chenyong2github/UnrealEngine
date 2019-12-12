@@ -11,12 +11,19 @@ namespace UnrealBuildTool.Rules
         {
 			bUseRTTI = true;
 
-			PrivateDependencyModuleNames.AddRange(
+			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"Core",
 					"CoreUObject",
 					"Engine",
+					"UnrealUSDWrapper"
+				}
+				);
+
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
 					"JsonUtilities",
 					"UnrealEd",
 					"InputCore",
@@ -35,29 +42,6 @@ namespace UnrealBuildTool.Rules
 					"USDUtilities",
                 }
 				);
-
-			if (Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				PrivateDependencyModuleNames.Add("UnrealUSDWrapper");
-
-				foreach (string FilePath in Directory.EnumerateFiles(Path.Combine(ModuleDirectory, "../../Binaries/Win64/"), "*.dll", SearchOption.AllDirectories))
-                {
-                    RuntimeDependencies.Add(FilePath);
-                }
-            }
-            else if (Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture.StartsWith("x86_64"))
-			{
-				PrivateDependencyModuleNames.Add("UnrealUSDWrapper");
-
-				// link directly to runtime libs on Linux, as this also puts them into rpath
-				string RuntimeLibraryPath = Path.Combine(ModuleDirectory, "../../Binaries", Target.Platform.ToString(), Target.Architecture.ToString());
-				PrivateRuntimeLibraryPaths.Add(RuntimeLibraryPath);
-
-				foreach (string FilePath in Directory.EnumerateFiles(RuntimeLibraryPath, "*.so*", SearchOption.AllDirectories))
-                {
-                    RuntimeDependencies.Add(FilePath);
-                }
-            }
 		}
 	}
 }

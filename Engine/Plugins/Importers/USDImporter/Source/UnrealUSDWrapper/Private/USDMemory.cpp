@@ -138,6 +138,7 @@ void* FUsdMemoryManager::Malloc( SIZE_T Count )
 {
 	void* Result = nullptr;
 
+#if USD_USES_SYSTEM_MALLOC
 	if ( FUsdMemoryManager::IsUsingSystemMalloc() )
 	{
 		Result = FMemory::SystemMalloc( Count );
@@ -148,6 +149,7 @@ void* FUsdMemoryManager::Malloc( SIZE_T Count )
 		}
 	}
 	else
+#endif // #if USD_USES_SYSTEM_MALLOC
 	{
 		Result = FMemory::Malloc( Count );
 	}
@@ -157,6 +159,7 @@ void* FUsdMemoryManager::Malloc( SIZE_T Count )
 
 void FUsdMemoryManager::Free( void* Original )
 {
+#if USD_USES_SYSTEM_MALLOC
 	// Because USD is multi-threaded, it might call us back to free an object after we've exited our allocator scope.
 	// This can happen for inlined USD functions that call delete.
 	if ( FUsdMemoryManager::IsUsingSystemMalloc() || SystemAllocedPtrs.Contains( Original ) )
@@ -169,6 +172,7 @@ void FUsdMemoryManager::Free( void* Original )
 		FMemory::SystemFree( Original );
 	}
 	else
+#endif // #if USD_USES_SYSTEM_MALLOC
 	{
 		FMemory::Free( Original );
 	}

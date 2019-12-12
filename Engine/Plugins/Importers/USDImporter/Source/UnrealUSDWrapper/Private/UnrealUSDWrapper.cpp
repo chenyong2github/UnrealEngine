@@ -922,11 +922,28 @@ bool UnrealUSDWrapper::bInitialized = false;
 std::string UnrealUSDWrapper::Errors;
 
 
-void UnrealUSDWrapper::Initialize(const std::vector<std::string>& InPluginDirectories)
+void UnrealUSDWrapper::Initialize( const TArray< FString >& InPluginDirectories )
 {
 	{
-		FScopedUsdAllocs UsdAllocs;
-		PlugRegistry::GetInstance().RegisterPlugins(InPluginDirectories);
+		TArray< FTCHARToUTF8 > ConvertedStrings;
+
+		for ( const FString& PluginDirectory : InPluginDirectories )
+		{
+			ConvertedStrings.Emplace( *PluginDirectory, PluginDirectory.Len() );
+		}
+
+		{
+			FScopedUsdAllocs UsdAllocs;
+
+			std::vector< std::string > UsdPluginDirectories;
+
+			for ( const FTCHARToUTF8& ConvertedString : ConvertedStrings )
+			{
+				UsdPluginDirectories.emplace_back( ConvertedString.Get(), ConvertedString.Length() );
+			}
+
+			PlugRegistry::GetInstance().RegisterPlugins( UsdPluginDirectories );
+		}
 	}
 
 	bInitialized = true;
@@ -999,7 +1016,7 @@ public:
 		FUsdMemoryManager::Shutdown();
 	}
 
-	virtual void Initialize(const std::vector<std::string>& InPluginDirectories) override
+	virtual void Initialize( const TArray< FString >& InPluginDirectories ) override
 	{
 #if USE_USD_SDK
 		UnrealUSDWrapper::Initialize( InPluginDirectories );

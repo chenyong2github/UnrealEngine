@@ -38,16 +38,12 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"StaticMeshDescription",
 					"USDImporter",
+					"UnrealUSDWrapper",
 					"USDSchemas",
 					"USDUtilities",
 					"UnrealEd",
 				}
 				);
-
-			if (Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				PrivateDependencyModuleNames.Add("UnrealUSDWrapper");
-			}
 		}
 	}
 }
