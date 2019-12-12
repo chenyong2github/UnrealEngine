@@ -1091,8 +1091,6 @@ void UNiagaraComponent::OnUnregister()
 
 	SetActiveFlag(false);
 
-	UnregisterWithScalabilityManager();
-
 	if (SystemInstance)
 	{
 		//UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent::OnUnregister: %p  %s\n"), SystemInstance.Get(), *GetAsset()->GetFullName());
