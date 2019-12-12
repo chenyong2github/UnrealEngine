@@ -78,8 +78,8 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		TArrayCollection::AddArray(&MInvI);
 		TArrayCollection::AddArray(&MM);
 		TArrayCollection::AddArray(&MInvM);
-		TArrayCollection::AddArray(&MLinearDamping);
-		TArrayCollection::AddArray(&MAngularDamping);
+		TArrayCollection::AddArray(&MLinearEtherDrag);
+		TArrayCollection::AddArray(&MAngularEtherDrag);
 		TArrayCollection::AddArray(&MCollisionParticles);
 		TArrayCollection::AddArray(&MCollisionGroup);
 		TArrayCollection::AddArray(&MDisabled);
@@ -99,8 +99,8 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		TArrayCollection::AddArray(&MInvI);
 		TArrayCollection::AddArray(&MM);
 		TArrayCollection::AddArray(&MInvM);
-		TArrayCollection::AddArray(&MLinearDamping);
-		TArrayCollection::AddArray(&MAngularDamping);
+		TArrayCollection::AddArray(&MLinearEtherDrag);
+		TArrayCollection::AddArray(&MAngularEtherDrag);
 		TArrayCollection::AddArray(&MCollisionParticles);
 		TArrayCollection::AddArray(&MCollisionGroup);
 		TArrayCollection::AddArray(&MDisabled);
@@ -136,11 +136,11 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	FORCEINLINE const T InvM(const int32 Index) const { return MInvM[Index]; }
 	FORCEINLINE T& InvM(const int32 Index) { return MInvM[Index]; }
 
-	CHAOS_API const T& LinearDamping(const int32 index) const { return MLinearDamping[index]; }
-	CHAOS_API T& LinearDamping(const int32 index) { return MLinearDamping[index]; }
+	FORCEINLINE const T& LinearEtherDrag(const int32 index) const { return MLinearEtherDrag[index]; }
+	FORCEINLINE T& LinearEtherDrag(const int32 index) { return MLinearEtherDrag[index]; }
 
-	CHAOS_API const T& AngularDamping(const int32 index) const { return MAngularDamping[index]; }
-	CHAOS_API T& AngularDamping(const int32 index) { return MAngularDamping[index]; }
+	FORCEINLINE const T& AngularEtherDrag(const int32 index) const { return MAngularEtherDrag[index]; }
+	FORCEINLINE T& AngularEtherDrag(const int32 index) { return MAngularEtherDrag[index]; }
 
 	FORCEINLINE int32 CollisionParticlesSize(int32 Index) const { return MCollisionParticles[Index] == nullptr ? 0 : MCollisionParticles[Index]->Size(); }
 
@@ -200,7 +200,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddDampingToRigids)
 		{
-			Ar << MLinearDamping << MAngularDamping;
+			Ar << MLinearEtherDrag << MAngularEtherDrag;
 		}
 
 		Ar << MCollisionParticles << MCollisionGroup << MIsland << MDisabled << MObjectState;
@@ -215,8 +215,8 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	TArrayCollectionArray<PMatrix<T, d, d>> MInvI;
 	TArrayCollectionArray<T> MM;
 	TArrayCollectionArray<T> MInvM;
-	TArrayCollectionArray<T> MLinearDamping;
-	TArrayCollectionArray<T> MAngularDamping;
+	TArrayCollectionArray<T> MLinearEtherDrag;
+	TArrayCollectionArray<T> MAngularEtherDrag;
 	TArrayCollectionArray<TUniquePtr<TBVHParticles<T, d>>> MCollisionParticles;
 	TArrayCollectionArray<int32> MCollisionGroup;
 	TArrayCollectionArray<int32> MIsland;
