@@ -174,7 +174,7 @@ static FAutoConsoleVariableRef CVarParallelVVMInstancesPerChunk(
 	ECVF_ReadOnly
 );
 
-static int32 GbOptimizeVMByteCode = 0;
+static int32 GbOptimizeVMByteCode = 1;
 static FAutoConsoleVariableRef CVarbOptimizeVMByteCode(
 	TEXT("vm.OptimizeVMByteCode"),
 	GbOptimizeVMByteCode,
@@ -182,7 +182,7 @@ static FAutoConsoleVariableRef CVarbOptimizeVMByteCode(
 	ECVF_Default
 );
 
-static int32 GbFreeUnoptimizedVMByteCode = 0;
+static int32 GbFreeUnoptimizedVMByteCode = 1;
 static FAutoConsoleVariableRef CVarbFreeUnoptimizedVMByteCode(
 	TEXT("vm.FreeUnoptimizedByteCode"),
 	GbFreeUnoptimizedVMByteCode,
@@ -190,7 +190,7 @@ static FAutoConsoleVariableRef CVarbFreeUnoptimizedVMByteCode(
 	ECVF_Default
 );
 
-static int32 GbUseOptimizedVMByteCode = 0;
+static int32 GbUseOptimizedVMByteCode = 1;
 static FAutoConsoleVariableRef CVarbUseOptimizedVMByteCode(
 	TEXT("vm.UseOptimizedVMByteCode"),
 	GbUseOptimizedVMByteCode,
