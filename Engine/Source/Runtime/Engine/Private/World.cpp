@@ -4112,6 +4112,8 @@ void UWorld::BeginPlay()
 		}
 	}
 
+	OnWorldBeginPlay.Broadcast();
+
 #if WITH_CHAOS
 	if(PhysicsScene)
 	{
