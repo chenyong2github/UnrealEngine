@@ -267,6 +267,9 @@ private:
 	float OrthoZoom;
 };
 
+/** Delegate for modifying view parameters of an editor viewport. */
+DECLARE_MULTICAST_DELEGATE_OneParam(FEditorViewportViewModifierDelegate, FMinimalViewInfo&);
+
 /** Viewport client for editor viewports. Contains common functionality for camera movement, rendering debug information, etc. */
 class UNREALED_API FEditorViewportClient : public FCommonViewportClient, public FViewElementDrawer, public FGCObject
 {
@@ -1491,6 +1494,12 @@ public:
 
 	/** If true, draw vertices for selected BSP brushes and static meshes if the large vertices show flag is set. */
 	bool bDrawVertices;
+
+	/** List of view modifiers to apply on view parameters. */
+	FEditorViewportViewModifierDelegate ViewModifiers;
+
+	/** Whether view modifiers should be called and applied. */
+	bool bShouldApplyViewModifiers;
 
 protected:
 	/** Does this viewport client own the mode tools instance pointed at by ModeTools control the lifetime of it? */
