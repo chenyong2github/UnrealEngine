@@ -10,7 +10,6 @@
 #include "Chaos/Collision/SpatialAccelerationBroadPhase.h"
 #include "Chaos/PerParticleInitForce.h"
 #include "Chaos/PerParticleEulerStepVelocity.h"
-#include "Chaos/PerParticleVelocityDamping.h"
 #include "Chaos/PerParticleEtherDrag.h"
 #include "Chaos/PerParticleGravity.h"
 #include "Chaos/PerParticlePBDEulerStep.h"
@@ -128,8 +127,7 @@ public:
 		CHAOS_SCOPED_TIMER(Integrate);
 		TPerParticleInitForce<T, d> InitForceRule;
 		TPerParticleEulerStepVelocity<T, d> EulerStepVelocityRule;
-		TPerParticleVelocityDamping<T, d> VelocityDampingRule;
-		TPerParticleEtherDrag<T, d> EtherDragRule(HackLinearDrag, HackAngularDrag);
+		TPerParticleEtherDrag<T, d> EtherDragRule;
 		TPerParticlePBDEulerStep<T, d> EulerStepRule;
 
 		const T MaxAngularSpeedSq = HackMaxAngularVelocity * HackMaxAngularVelocity;
@@ -152,7 +150,6 @@ public:
 					ForceRule(Particle, Dt);
 				}
 				EulerStepVelocityRule.Apply(Particle, Dt);
-				VelocityDampingRule.Apply(Particle, Dt);
 				EtherDragRule.Apply(Particle, Dt);
 
 				if (HackMaxAngularVelocity >= 0.f)
