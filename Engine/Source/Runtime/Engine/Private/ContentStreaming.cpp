@@ -791,7 +791,7 @@ FStreamingManagerCollection::~FStreamingManagerCollection()
 	delete VirtualTextureChunkStreamingManager;
 	VirtualTextureChunkStreamingManager = nullptr;
 
-	check(StreamingManagers.Num() == 0);
+	UE_CLOG(StreamingManagers.Num() > 0, LogContentStreaming, Display, TEXT("There are %d unreleased StreamingManagers"), StreamingManagers.Num());
 }
 
 /**
