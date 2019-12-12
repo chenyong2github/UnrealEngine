@@ -83,12 +83,15 @@ void FShaderCookerStats::Initialize(uint32 Index)
 	TArray<FString> PlatformNames;
 	for (int32 Platform = 0; Platform < SP_NumPlatforms; ++Platform)
 	{
-		FString FormatName = ShaderPlatformToShaderFormatName((EShaderPlatform)Platform).ToString();
-		if (FormatName.StartsWith(TEXT("SF_")))
+		if(!IsDeprecatedShaderPlatform((EShaderPlatform)Platform))
 		{
-			FormatName.MidInline(3, MAX_int32, false);
+			FString FormatName = ShaderPlatformToShaderFormatName((EShaderPlatform)Platform).ToString();
+			if (FormatName.StartsWith(TEXT("SF_")))
+			{
+				FormatName.MidInline(3, MAX_int32, false);
+			}
+			PlatformNames.Add(MoveTemp(FormatName));
 		}
-		PlatformNames.Add(MoveTemp(FormatName));
 	}
 	FShaderCookerStatsSet& Set = StatSets[Index];
 	FString CSVData;
