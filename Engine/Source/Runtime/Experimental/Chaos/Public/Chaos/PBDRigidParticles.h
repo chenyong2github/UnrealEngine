@@ -5,7 +5,7 @@
 #include "Chaos/RigidParticles.h"
 #include "Chaos/Rotation.h"
 
-#if !PLATFORM_PS4
+#if defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable:4946)
 #endif
@@ -187,6 +187,6 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TPBDRigidParticles<T, d>& Particles
 }
 }
 
-#if !PLATFORM_PS4
+#if defined(MSC_VER)
 #pragma warning(pop)
 #endif

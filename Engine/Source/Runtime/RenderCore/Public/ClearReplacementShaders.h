@@ -277,3 +277,4 @@ typedef TClearReplacementCS<EClearReplacementResourceType::Texture2DArray, FClea
 typedef TClearReplacementCS<EClearReplacementResourceType::Texture3D,      FClearReplacementBase_Uint4>         FClearReplacementCS_Texture3D_Uint4;
 typedef TClearReplacementCS<EClearReplacementResourceType::Texture2D,      FClearReplacementBase_Uint4>         FClearReplacementCS_Texture2D_Uint4;
 typedef TClearReplacementCS<EClearReplacementResourceType::Texture2DArray, FClearReplacementBase_Uint4>         FClearReplacementCS_Texture2DArray_Uint4;
+typedef TClearReplacementCS<EClearReplacementResourceType::Buffer,         FClearReplacementBase_Uint4>         FClearReplacementCS_Buffer_Uint4;

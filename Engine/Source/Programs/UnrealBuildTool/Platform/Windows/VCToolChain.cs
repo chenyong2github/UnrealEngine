@@ -1292,7 +1292,8 @@ namespace UnrealBuildTool
 
 				// Resource tool can run remotely if possible
 				CompileAction.bCanExecuteRemotely = true;
-
+				CompileAction.bCanExecuteRemotelyWithSNDBS = false;	// no tool template for SN-DBS results in warnings
+			
 				List<string> Arguments = new List<string>();
 
 				// Suppress header spew
@@ -1333,7 +1334,7 @@ namespace UnrealBuildTool
 					}
 				}
 
-				// Figure the icon to use. We can only use a custom icon when compiling to a project-specific intemediate directory (and not for the shared editor executable, for example).
+				// Figure the icon to use. We can only use a custom icon when compiling to a project-specific intermediate directory (and not for the shared editor executable, for example).
 				FileReference IconFile;
 				if(Target.ProjectFile != null && !CompileEnvironment.bUseSharedBuildEnvironment)
 				{

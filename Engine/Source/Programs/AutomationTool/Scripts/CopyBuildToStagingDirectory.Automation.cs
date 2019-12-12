@@ -3481,6 +3481,8 @@ public partial class Project : CommandUtils
 				// clean the staging directories first
 				foreach (var SC in DeployContextList)
 				{
+					SC.StageTargetPlatform.PreStage(Params, SC);
+
 					// write out the commandline file now so it can go into the manifest
 					WriteStageCommandline(Params, SC);
 					CreateStagingManifest(Params, SC);
