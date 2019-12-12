@@ -117,7 +117,7 @@ void FAnimNode_SaveCachedPose::PostGraphUpdate()
 			{
 				for (auto Iter : AncestorTracker->Map)
 				{
-					FAnimNode_Base* AncestorNode = Iter.Value.Top();
+					FAnimNode_Base* AncestorNode = Iter.Value.Num() ? Iter.Value.Top() : nullptr;
 					if (AncestorNode && AncestorNode->WantsSkippedUpdates())
 					{
 						AncestorsWithSkippedUpdateHandlers.Add(AncestorNode);
