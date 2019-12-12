@@ -622,6 +622,14 @@ namespace Chaos
 		{
 			return TVector<float, 2>(X / Other, Y / Other);
 		}
+		TVector<float, 2> operator*(const float Other) const
+		{
+			return TVector<float, 2>(X * Other, Y * Other);
+		}
+		TVector<float, 2> operator*(const TVector<float, 2>& Other) const
+		{
+			return TVector<float, 2>(X * Other[0], Y * Other[1]);
+		}
 	};
 #endif // !COMPILE_WITHOUT_UNREAL_SUPPORT
 
@@ -804,6 +812,11 @@ namespace Chaos
 			: X((int32)InVector.X)
 			, Y((int32)InVector.Y)
 		{}
+		FORCEINLINE TVector(std::istream& Stream)
+		{
+			Stream.read(reinterpret_cast<char*>(&X), sizeof(int32));
+			Stream.read(reinterpret_cast<char*>(&Y), sizeof(int32));
+		}
 		FORCEINLINE ~TVector()
 		{}
 

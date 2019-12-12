@@ -16,6 +16,9 @@
 #if WITH_PHYSX
 	#include "PhysXPublic.h"
 #endif
+#if WITH_CHAOS
+	#include "Chaos/HeightField.h"
+#endif
 #include "NavMesh/PImplRecastNavMesh.h"
 
 // recast includes
@@ -205,6 +208,9 @@ struct FRecastGeometryExport : public FNavigableGeometryExport
 	virtual void ExportPxConvexMesh(physx::PxConvexMesh const * const ConvexMesh, const FTransform& LocalToWorld) override;
 	virtual void ExportPxHeightField(physx::PxHeightField const * const HeightField, const FTransform& LocalToWorld) override;
 #endif // WITH_PHYSX
+#if WITH_CHAOS
+	virtual void ExportChaosHeightField(const Chaos::THeightField<float>* const Heightfield, const FTransform& LocalToWorld) override;
+#endif
 	virtual void ExportHeightFieldSlice(const FNavHeightfieldSamples& PrefetchedHeightfieldSamples, const int32 NumRows, const int32 NumCols, const FTransform& LocalToWorld, const FBox& SliceBox) override;
 	virtual void ExportCustomMesh(const FVector* InVertices, int32 NumVerts, const int32* InIndices, int32 NumIndices, const FTransform& LocalToWorld) override;
 	virtual void ExportRigidBodySetup(UBodySetup& BodySetup, const FTransform& LocalToWorld) override;
@@ -527,6 +533,81 @@ void ExportPxHeightField(PxHeightField const * const HeightField, const FTransfo
 	}
 }
 #endif // WITH_PHYSX
+
+#if WITH_CHAOS
+void ExportChaosHeightField(const Chaos::THeightField<float>* const HeightField, const FTransform& LocalToWorld
+	, TNavStatArray<float>& VertexBuffer, TNavStatArray<int32>& IndexBuffer
+	, FBox& UnrealBounds)
+{
+	using namespace Chaos;
+
+	if(HeightField == nullptr)
+	{
+		return;
+	}
+
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_ExportPxHeightField);
+
+	const int32 NumRows = HeightField->GetNumRows();
+	const int32 NumCols = HeightField->GetNumCols();
+	const int32 VertexCount = NumRows * NumCols;
+
+	const int32 VertOffset = VertexBuffer.Num() / 3;
+	const int32 NumQuads = (NumRows - 1) * (NumCols - 1);
+
+	VertexBuffer.Reserve(VertexBuffer.Num() + VertexCount * 3);
+	IndexBuffer.Reserve(IndexBuffer.Num() + NumQuads * 6);
+
+	const bool bMirrored = (LocalToWorld.GetDeterminant() < 0.f);
+
+	for(int32 Y = 0; Y < NumRows; Y++)
+	{
+		for(int32 X = 0; X < NumCols; X++)
+		{
+			const int32 SampleIdx = Y * NumCols + X;
+
+			const FVector UnrealCoords = LocalToWorld.TransformPosition(FVector(X, Y, HeightField->GetHeight(SampleIdx)));
+			UnrealBounds += UnrealCoords;
+
+			VertexBuffer.Add(UnrealCoords.X);
+			VertexBuffer.Add(UnrealCoords.Y);
+			VertexBuffer.Add(UnrealCoords.Z);
+		}
+	}
+
+	for(int32 Y = 0; Y < NumRows - 1; Y++)
+	{
+		for(int32 X = 0; X < NumCols - 1; X++)
+		{
+			// #PHYSTODO Hole support for chaos heightfields
+			const bool bIsHole = false;
+			if(bIsHole)
+			{
+				continue;
+			}
+
+			const int32 I0 = Y * NumCols + X;
+			int32 I1 = I0 + 1;
+			int32 I2 = I0 + NumCols;
+			const int32 I3 = I2 + 1;
+
+			if(bMirrored)
+			{
+				// Flip the winding so the triangles face the right way after scaling
+				Swap(I1, I2);
+			}
+
+			IndexBuffer.Add(VertOffset + I0);
+			IndexBuffer.Add(VertOffset + I3);
+			IndexBuffer.Add(VertOffset + I1);
+
+			IndexBuffer.Add(VertOffset + I0);
+			IndexBuffer.Add(VertOffset + I2);
+			IndexBuffer.Add(VertOffset + I3);
+		}
+	}
+}
+#endif
 
 void ExportHeightFieldSlice(const FNavHeightfieldSamples& PrefetchedHeightfieldSamples, const int32 NumRows, const int32 NumCols, const FTransform& LocalToWorld
 	, TNavStatArray<float>& VertexBuffer, TNavStatArray<int32>& IndexBuffer, const FBox& SliceBox
@@ -1088,6 +1169,13 @@ void FRecastGeometryExport::ExportPxHeightField(physx::PxHeightField const * con
 	RecastGeometryExport::ExportPxHeightField(HeightField, LocalToWorld, VertexBuffer, IndexBuffer, Data->Bounds);
 }
 #endif // WITH_PHYSX
+
+#if WITH_CHAOS
+void FRecastGeometryExport::ExportChaosHeightField(const Chaos::THeightField<float>* const Heightfield, const FTransform& LocalToWorld)
+{
+	RecastGeometryExport::ExportChaosHeightField(Heightfield, LocalToWorld, VertexBuffer, IndexBuffer, Data->Bounds);
+}
+#endif
 
 void FRecastGeometryExport::ExportHeightFieldSlice(const FNavHeightfieldSamples& PrefetchedHeightfieldSamples, const int32 NumRows, const int32 NumCols, const FTransform& LocalToWorld, const FBox& SliceBox)
 {

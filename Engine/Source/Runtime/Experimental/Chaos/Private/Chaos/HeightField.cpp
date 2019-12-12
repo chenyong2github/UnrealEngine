@@ -506,6 +506,85 @@ namespace Chaos
 	}
 
 	template<typename T>
+	T Chaos::THeightField<T>::GetHeight(int32 InIndex) const
+	{
+		if (CHAOS_ENSURE(InIndex >= 0 && InIndex < GeomData.Heights.Num()))
+		{
+			return GeomData.GetPoint(InIndex).Z;
+		}
+
+		return TNumericLimits<T>::Max();
+	}
+
+	template<typename T>
+	T Chaos::THeightField<T>::GetHeight(int32 InX, int32 InY) const
+	{
+		const int32 Index = InY * GeomData.NumCols + InX;
+		return GetHeight(Index);
+	}
+
+	template<typename T>
+	T Chaos::THeightField<T>::GetHeightAt(const TVector<T, 2>& InGridLocation) const
+	{
+		const TVector<T, 2> Scale2D(GeomData.Scale[0], GeomData.Scale[1]);
+		const TVector<T, 2> UnscaledLocation = InGridLocation / Scale2D;
+
+		if(UnscaledLocation == FlatGrid.Clamp(UnscaledLocation))
+		{
+			TVector<int32, 2> CellCoord = FlatGrid.Cell(UnscaledLocation);
+
+			const int32 SingleIndex = CellCoord[1] * (GeomData.NumCols - 1) + CellCoord[0];
+			TVector<T, 3> Pts[4];
+			GeomData.GetPoints(SingleIndex, Pts);
+
+			float FractionX = FMath::Frac(UnscaledLocation[0]);
+			float FractionY = FMath::Frac(UnscaledLocation[1]);
+
+			if(FractionX > FractionY)
+			{
+				// In the second triangle (0,3,2)
+#if 0
+				// Reduced form of Bary calculation - TODO confirm working
+				float U = -1.0f * (FractionY - 1);
+				float V = FractionX;
+				float W = 1.0f - U - V;
+#endif
+
+				FVector Tri[3];
+				Tri[0] = FVector(0.0f, 0.0f, 0.0f);
+				Tri[1] = FVector(1.0f, 1.0f, 0.0f);
+				Tri[2] = FVector(0.0f, 1.0f, 0.0f);
+				
+				FVector Bary = FMath::GetBaryCentric2D({ FractionX, FractionY, 0.0f }, Tri[0], Tri[1], Tri[2]);
+
+				return Pts[0].Z * Bary[0] + Pts[1].Z * Bary[1] * Pts[3].Z * Bary[2];
+			}
+			else
+			{
+				// In the first triangle (0,1,3)
+
+#if 0
+				// Reduced form of Bary calculation - TODO confirm working
+				float U = ((-1) * (FractionX - 1));
+				float V = ((FractionX - 1) - (FractionY - 1));
+				float W = 1.0f - U - V;
+#endif
+
+				FVector Tri[3];
+				Tri[0] = FVector(0.0f, 0.0f, 0.0f);
+				Tri[1] = FVector(1.0f, 0.0f, 0.0f);
+				Tri[2] = FVector(1.0f, 1.0f, 0.0f);
+
+				FVector Bary = FMath::GetBaryCentric2D({FractionX, FractionY, 0.0f}, Tri[0], Tri[1], Tri[2]);
+
+				return Pts[0].Z * Bary[0] + Pts[1].Z * Bary[1] * Pts[3].Z * Bary[2];
+			}
+		}
+
+		return 0.0f;
+	}
+
+	template<typename T>
 	bool Chaos::THeightField<T>::GetCellBounds3D(const TVector<int32, 2> InCoord, TVector<T, 3>& OutMin, TVector<T, 3>& OutMax, const TVector<T, 3>& InInflate /*= {0}*/) const
 	{
 		if (FlatGrid.IsValid(InCoord))
