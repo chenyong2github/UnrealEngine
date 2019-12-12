@@ -458,6 +458,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	bCanShowDevelopersFolder = InArgs._CanShowDevelopersFolder;
 
 	bCanShowFavorites = InArgs._CanShowFavorites;
+	bCanDockCollections = InArgs._CanDockCollections;
 	bPreloadAssetsForContextMenu = InArgs._PreloadAssetsForContextMenu;
 
 	SelectionMode = InArgs._SelectionMode;
@@ -3162,6 +3163,19 @@ TSharedRef<SWidget> SAssetView::GetViewButtonContent()
 		);
 
 		MenuBuilder.AddMenuEntry(
+			LOCTEXT("DockCollectionsOptions", "Dock Collections"),
+			LOCTEXT("DockCollectionsOptionToolTip", "Dock the collections view under the path view?"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SAssetView::ToggleDockCollections),
+				FCanExecuteAction::CreateSP(this, &SAssetView::IsToggleDockCollectionsAllowed),
+				FIsActionChecked::CreateSP(this, &SAssetView::HasDockedCollections)
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.AddMenuEntry(
 			LOCTEXT("FilterRecursivelyOption", "Filter Recursively"),
 			LOCTEXT("FilterRecursivelyOptionToolTip", "Should filters apply recursively in the view?"),
 			FSlateIcon(),
@@ -3521,6 +3535,23 @@ bool SAssetView::IsToggleShowFavoritesAllowed() const
 bool SAssetView::IsShowingFavorites() const
 {
 	return IsToggleShowFavoritesAllowed() && GetDefault<UContentBrowserSettings>()->GetDisplayFavorites();
+}
+
+void SAssetView::ToggleDockCollections()
+{
+	const bool bDockCollections = GetDefault<UContentBrowserSettings>()->GetDockCollections();
+	GetMutableDefault<UContentBrowserSettings>()->SetDockCollections(!bDockCollections);
+	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
+}
+
+bool SAssetView::IsToggleDockCollectionsAllowed() const
+{
+	return bCanDockCollections;
+}
+
+bool SAssetView::HasDockedCollections() const
+{
+	return IsToggleDockCollectionsAllowed() && GetDefault<UContentBrowserSettings>()->GetDockCollections();
 }
 
 void SAssetView::ToggleShowCppContent()
