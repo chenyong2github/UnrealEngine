@@ -29,18 +29,11 @@ struct FIoStoreTocHeader
 };
 
 /**
- * I/O Store TOC entry.
+ * Combined offset and length.
  */
-struct FIoStoreTocEntry
+struct FIoOffsetAndLength
 {
-	// We use 5 bytes for offset and size, this is enough to represent 
-	// an offset and size of 1PB
-	uint8		OffsetAndLength[5 + 5];
-
-	// TBD: should the chunk ID use content addressing, or names, or a
-	//      mix of both?
-	FIoChunkId	ChunkId;
-
+public:
 	inline uint64 GetOffset() const
 	{
 		return OffsetAndLength[4]
@@ -77,5 +70,42 @@ struct FIoStoreTocEntry
 		OffsetAndLength[7] = uint8(Length >> 16);
 		OffsetAndLength[8] = uint8(Length >> 8);
 		OffsetAndLength[9] = uint8(Length >> 0);
+	}
+
+private:
+	// We use 5 bytes for offset and size, this is enough to represent
+	// an offset and size of 1PB
+	uint8 OffsetAndLength[5 + 5];
+};
+
+/**
+ * I/O Store TOC entry.
+ */
+struct FIoStoreTocEntry
+{
+	FIoOffsetAndLength	OffsetAndLength;
+
+	// TBD: should the chunk ID use content addressing, or names, or a
+	//      mix of both?
+	FIoChunkId	ChunkId;
+
+	inline uint64 GetOffset() const
+	{
+		return OffsetAndLength.GetOffset();
+	}
+
+	inline uint64 GetLength() const
+	{
+		return OffsetAndLength.GetLength();
+	}
+
+	inline void SetOffset(uint64 Offset)
+	{
+		OffsetAndLength.SetOffset(Offset);
+	}
+
+	inline void SetLength(uint64 Length)
+	{
+		OffsetAndLength.SetLength(Length);
 	}
 };

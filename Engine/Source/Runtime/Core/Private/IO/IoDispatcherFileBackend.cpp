@@ -94,7 +94,7 @@ FIoStatus FFileIoStoreReader::Initialize(const FIoStoreEnvironment& Environment)
 			return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC entry out of container bounds while reading '") << *TocFilePath << TEXT("'");
 		}
 
-		Toc.Add(Entry->ChunkId, *Entry);
+		Toc.Add(Entry->ChunkId, Entry->OffsetAndLength);
 		++Entry;
 	}
 
@@ -108,11 +108,11 @@ bool FFileIoStoreReader::DoesChunkExist(const FIoChunkId& ChunkId) const
 
 TIoStatusOr<uint64> FFileIoStoreReader::GetSizeForChunk(const FIoChunkId& ChunkId) const
 {
-	const FIoStoreTocEntry* Entry = Toc.Find(ChunkId);
+	const FIoOffsetAndLength* OffsetAndLength = Toc.Find(ChunkId);
 
-	if (Entry != nullptr)
+	if (OffsetAndLength != nullptr)
 	{
-		return Entry->GetLength();
+		return OffsetAndLength->GetLength();
 	}
 	else
 	{
@@ -122,16 +122,16 @@ TIoStatusOr<uint64> FFileIoStoreReader::GetSizeForChunk(const FIoChunkId& ChunkI
 
 bool FFileIoStoreReader::Resolve(FFileIoStoreResolvedRequest& ResolvedRequest)
 {
-	const FIoStoreTocEntry* Entry = Toc.Find(ResolvedRequest.Request->ChunkId);
+	const FIoOffsetAndLength* OffsetAndLength = Toc.Find(ResolvedRequest.Request->ChunkId);
 
-	if (!Entry)
+	if (!OffsetAndLength)
 	{
 		return false;
 	}
 
 	ResolvedRequest.ResolvedFileHandle = ContainerFileHandle;
-	uint64 FileEndOffset = Entry->GetOffset() + Entry->GetLength();
-	uint64 RequestedBeginOffset = Entry->GetOffset() + ResolvedRequest.Request->Options.GetOffset();
+	uint64 FileEndOffset = OffsetAndLength->GetOffset() + OffsetAndLength->GetLength();
+	uint64 RequestedBeginOffset = OffsetAndLength->GetOffset() + ResolvedRequest.Request->Options.GetOffset();
 	uint64 RequestedEndOffset = FMath::Min(FileEndOffset, RequestedBeginOffset + ResolvedRequest.Request->Options.GetSize());
 	ResolvedRequest.ResolvedFileSize = ContainerFileSize;
 	ResolvedRequest.ResolvedOffset = RequestedBeginOffset;

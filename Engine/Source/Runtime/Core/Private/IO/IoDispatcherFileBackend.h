@@ -64,7 +64,7 @@ public:
 private:
 	FFileIoStoreImpl& PlatformImpl;
 
-	TMap<FIoChunkId, FIoStoreTocEntry> Toc;
+	TMap<FIoChunkId, FIoOffsetAndLength> Toc;
 	uint64 ContainerFileHandle;
 	uint64 ContainerFileSize;
 };
