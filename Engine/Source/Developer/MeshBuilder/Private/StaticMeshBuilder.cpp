@@ -261,8 +261,9 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 
 		StaticMeshLOD.Sections.Empty(PolygonGroups.Num());
 		TArray<int32> RemapVerts; //Because we will remove MeshVertex that are redundant, we need a remap
-		TArray<int32> &WedgeMap = StaticMeshLOD.WedgeMap;
-		WedgeMap.Reset();
+								  //Render data Wedge map is only set for LOD 0???
+		TArray<int32> TempWedgeMap;
+		TArray<int32> &WedgeMap = (LodIndex == 0) ? StaticMeshRenderData.WedgeMap : TempWedgeMap;
 
 		//Prepare the PerSectionIndices array so we can optimize the index buffer for the GPU
 		TArray<TArray<uint32> > PerSectionIndices;

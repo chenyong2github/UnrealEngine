@@ -391,9 +391,6 @@ struct FStaticMeshLODResources
 	FByteBulkData BulkData;
 
 	FString DerivedDataKey;
-
-	/** Map of wedge index to vertex index. Each LOD need one*/
-	TArray<int32> WedgeMap;
 #endif
 	
 	/** Default constructor. */
@@ -583,6 +580,9 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** The derived data key associated with this render data. */
 	FString DerivedDataKey;
+
+	/** Map of wedge index to vertex index. */
+	TArray<int32> WedgeMap;
 
 	/** Map of material index -> original material index at import time. */
 	TArray<int32> MaterialIndexToImportIndex;

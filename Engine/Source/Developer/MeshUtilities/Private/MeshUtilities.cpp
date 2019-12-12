@@ -2772,8 +2772,7 @@ public:
 				// TODO_STATICMESH: The wedge map is only valid for LODIndex 0 if no reduction has been performed.
 				// We can compute an approximate one instead for other LODs.
 				TArray<int32> TempWedgeMap;
-				TArray<int32>& WedgeMap = InOutModels[LODIndex].ReductionSettings.PercentTriangles >= 1.0f ? LODModel.WedgeMap : TempWedgeMap;
-				WedgeMap.Reset();
+				TArray<int32>& WedgeMap = (LODIndex == 0 && InOutModels[0].ReductionSettings.PercentTriangles >= 1.0f) ? OutRenderData.WedgeMap : TempWedgeMap;
 				float ComparisonThreshold = GetComparisonThreshold(LODBuildSettings[LODIndex]);
 				MeshUtilities.BuildStaticMeshVertexAndIndexBuffers(Vertices, PerSectionIndices, WedgeMap, RawMesh, LODOverlappingCorners[LODIndex], MaterialToSectionMapping, ComparisonThreshold, LODBuildSettings[LODIndex].BuildScale3D, ImportVersion);
 				check(WedgeMap.Num() == RawMesh.WedgeIndices.Num());
