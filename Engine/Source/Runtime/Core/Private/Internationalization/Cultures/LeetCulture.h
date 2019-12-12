@@ -28,6 +28,7 @@ public:
 	virtual FString GetRegion() const override { return FString(); }
 	virtual FString GetScript() const override { return FString(); }
 	virtual FString GetVariant() const override { return FString(); }
+	virtual bool IsRightToLeft() const override { return false; }
 
 private:
 	FCultureRef InvariantCulture;

@@ -18,7 +18,8 @@ FLegacyCultureImplementation::FLegacyCultureImplementation(
 	const FString& InTwoLetterISOLanguageName,
 	const FDecimalNumberFormattingRules& InDecimalNumberFormattingRules,
 	const FDecimalNumberFormattingRules& InPercentFormattingRules,
-	const FDecimalNumberFormattingRules& InBaseCurrencyFormattingRules
+	const FDecimalNumberFormattingRules& InBaseCurrencyFormattingRules,
+	bool InIsRightToLeft
 	)
 	: DisplayName(InDisplayName)
 	, EnglishName(InEnglishName)
@@ -32,6 +33,7 @@ FLegacyCultureImplementation::FLegacyCultureImplementation(
 	, DecimalNumberFormattingRules( InDecimalNumberFormattingRules )
 	, PercentFormattingRules( InPercentFormattingRules )
 	, BaseCurrencyFormattingRules( InBaseCurrencyFormattingRules )
+	, bIsRightToLeft(InIsRightToLeft)
 { 
 }
 
@@ -105,6 +107,11 @@ FString FLegacyCultureImplementation::GetScript() const
 FString FLegacyCultureImplementation::GetVariant() const
 {
 	return FString();
+}
+
+bool FLegacyCultureImplementation::IsRightToLeft() const
+{
+	return bIsRightToLeft;
 }
 
 FString FLegacyCultureImplementation::GetUnrealLegacyThreeLetterISOLanguageName() const
