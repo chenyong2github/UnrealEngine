@@ -8,10 +8,6 @@
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num Death Events"), STAT_NiagaraNumDeathEvents, STATGROUP_Niagara);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num Spawn Events"), STAT_NiagaraNumSpawnEvents, STATGROUP_Niagara);
 
-
-TMap<FNiagaraSystemInstanceID, TMap<FName, PerEmitterEventDataSetMap>> FNiagaraEventDataSetMgr::EmitterEventDataSets;
-
-
 void UNiagaraEventReceiverEmitterAction_SpawnParticles::PerformAction(FNiagaraEmitterInstance& OwningSim, const FNiagaraEventReceiverProperties& OwningEventReceiver)
 {
 	//Find the generator set we're bound to and spawn NumParticles particles for every event it generated last frame.

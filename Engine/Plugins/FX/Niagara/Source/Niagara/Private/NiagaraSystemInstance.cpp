@@ -989,6 +989,9 @@ void FNiagaraSystemInstance::Cleanup()
 
 	// Clear out the emitters.
 	Emitters.Empty(0);
+
+	// clean up any event datasets that we're holding onto for our child emitters
+	ClearEventDataSets();
 }
 
 //Unsure on usage of this atm. Possibly useful in future.
@@ -1568,6 +1571,40 @@ void FNiagaraSystemInstance::ResetFastPathBindings()
 	FastPathFloatUpdateRangedInputBindings.Empty();
 }
 
+void
+FNiagaraSystemInstance::ClearEventDataSets()
+{
+	for (auto& EventDataSetIt : EmitterEventDataSetMap)
+	{
+		delete EventDataSetIt.Value;
+	}
+
+	EmitterEventDataSetMap.Empty();
+}
+
+FNiagaraDataSet*
+FNiagaraSystemInstance::CreateEventDataSet(FName EmitterName, FName EventName)
+{
+	// TODO: find a better way of multiple events trying to write to the same data set; 
+	// for example, if two analytical collision primitives want to send collision events, they need to push to the same data set
+	FNiagaraDataSet*& OutSet = EmitterEventDataSetMap.FindOrAdd(EmitterEventKey(EmitterName, EventName));
+
+	if (!OutSet)
+	{
+		OutSet = new FNiagaraDataSet();
+	}
+
+	return OutSet;
+}
+
+FNiagaraDataSet*
+FNiagaraSystemInstance::GetEventDataSet(FName EmitterName, FName EventName) const
+{
+	FNiagaraDataSet* const* OutDataSet = EmitterEventDataSetMap.Find(EmitterEventKey(EmitterName, EventName));
+
+	return OutDataSet ? *OutDataSet : nullptr;
+}
+
 #if WITH_EDITORONLY_DATA
 
 bool FNiagaraSystemInstance::UsesEmitter(const UNiagaraEmitter* Emitter)const
@@ -1644,11 +1681,9 @@ void FNiagaraSystemInstance::InitEmitters()
 
 		for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Simulation : Emitters)
 		{
-			FNiagaraEmitterInstance& Inst = Simulation.Get();
-			if (Inst.GetCachedEmitter() != nullptr)
+			if (const UNiagaraEmitter* Emitter = Simulation->GetCachedEmitter())
 			{
-				bHasGPUEmitters |= Inst.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim;
-				Inst.PostInitSimulation();
+				bHasGPUEmitters |= Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim;
 			}
 		}
 
