@@ -24,6 +24,8 @@ class TFunction;
 
 #define UE_DEBUG_BREAK_IMPL()	PLATFORM_BREAK()
 
+#define ANDROID_HAS_RTSIGNALS !PLATFORM_LUMIN && PLATFORM_USED_NDK_VERSION_INTEGER >= 21
+
 /**
  * Android implementation of the misc OS functions
  */
