@@ -256,6 +256,7 @@ namespace Audio
 		GameThreadInfo.bIsBusy.AddDefaulted(NumTotalSources);
 		GameThreadInfo.bNeedsSpeakerMap.AddDefaulted(NumTotalSources);
 		GameThreadInfo.bIsDebugMode.AddDefaulted(NumTotalSources);
+		GameThreadInfo.bIsUsingHRTFSpatializer.AddDefaulted(NumTotalSources);
 		GameThreadInfo.FreeSourceIndices.Reset(NumTotalSources);
 		for (int32 i = NumTotalSources - 1; i >= 0; --i)
 		{
@@ -628,6 +629,8 @@ namespace Audio
 
 		// Make sure we flag that this source needs a speaker map to at least get one
 		GameThreadInfo.bNeedsSpeakerMap[SourceId] = true;
+
+		GameThreadInfo.bIsUsingHRTFSpatializer[SourceId] = InitParams.bUseHRTFSpatialization;
 
 		// Create the modulation plugin source effect
 		if (InitParams.ModulationPluginSettings != nullptr)
@@ -1273,6 +1276,12 @@ namespace Audio
 	{
 		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
 		return SourceInfos[SourceId].SourceEnvelopeValue;
+	}
+
+	bool FMixerSourceManager::IsUsingHRTFSpatializer(const int32 SourceId) const
+	{
+		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
+		return GameThreadInfo.bIsUsingHRTFSpatializer[SourceId];
 	}
 
 	bool FMixerSourceManager::NeedsSpeakerMap(const int32 SourceId) const
