@@ -129,7 +129,11 @@ namespace UnrealBuildTool
 				{
 					Executor = new XGE();
 				}
-				else if(BuildConfiguration.bAllowDistcc)
+				else if (BuildConfiguration.bAllowFASTBuild && FASTBuild.IsAvailable())
+				{
+					Executor = new FASTBuild();
+				}
+				else if (BuildConfiguration.bAllowDistcc)
 				{
 					Executor = new Distcc();
 				}
