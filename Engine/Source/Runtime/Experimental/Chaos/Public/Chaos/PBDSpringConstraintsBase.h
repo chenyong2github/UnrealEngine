@@ -21,18 +21,21 @@ namespace Chaos
 		TPBDSpringConstraintsBase(const TDynamicParticles<T, d>& InParticles, TArray<TVector<int32, 2>>&& Constraints, const T Stiffness = (T)1)
 		    : MConstraints(MoveTemp(Constraints)), MStiffness(Stiffness)
 		{
+			RemoveDuplicateConstraints();
 			UpdateDistances(InParticles);
 		}
 		TPBDSpringConstraintsBase(const TDynamicParticles<T, d>& InParticles, const TArray<TVector<int32, 3>>& Constraints, const T Stiffness = (T)1)
 		    : MStiffness(Stiffness)
 		{
 			Init<3>(Constraints);
+			RemoveDuplicateConstraints();
 			UpdateDistances(InParticles);
 		}
 		TPBDSpringConstraintsBase(const TDynamicParticles<T, d>& InParticles, const TArray<TVector<int32, 4>>& Constraints, const T Stiffness = (T)1)
 		    : MStiffness(Stiffness)
 		{
 			Init<4>(Constraints);
+			RemoveDuplicateConstraints();
 			UpdateDistances(InParticles);
 		}
 		virtual ~TPBDSpringConstraintsBase()
@@ -73,10 +76,32 @@ namespace Chaos
 				}
 			}
 		}
+		
+		uint32 RemoveDuplicateConstraints()
+		{
+			const uint32 OriginalSize = MConstraints.Num();
+			TArray<TVector<int32, 2>> TrimmedConstraints;
+			TSet<TVector<int32, 2>>   ConstraintsAlreadyAdded;
+			TrimmedConstraints.Reserve(MConstraints.Num());
+			ConstraintsAlreadyAdded.Reserve(MConstraints.Num());
+			for (TVector<int32, 2> Constraint : MConstraints)
+			{
+				if (Constraint[0] > Constraint[1])
+				{
+					Swap(Constraint[0], Constraint[1]);
+				}
+				if (!ConstraintsAlreadyAdded.Contains(Constraint))
+				{
+					TrimmedConstraints.Add(Constraint);
+					ConstraintsAlreadyAdded.Add(Constraint);
+				}
+			}
+			MConstraints = MoveTemp(TrimmedConstraints);
+			return OriginalSize - MConstraints.Num();
+		}
 
 		template<class T_PARTICLES>
-		void
-		UpdateDistances(const T_PARTICLES& InParticles)
+		void UpdateDistances(const T_PARTICLES& InParticles)
 		{
 			MDists.Reset();
 			MDists.Reserve(MConstraints.Num());
@@ -91,8 +116,7 @@ namespace Chaos
 		}
 
 		template<class T_PARTICLES>
-		TVector<T, d>
-		GetDelta(const T_PARTICLES& InParticles, const int32 i) const
+		inline TVector<T, d> GetDelta(const T_PARTICLES& InParticles, const int32 i) const
 		{
 			const auto& Constraint = MConstraints[i];
 			const int32 i1 = Constraint[0];
@@ -115,8 +139,7 @@ namespace Chaos
 		// the dynamic particle positions prior to normalizing. Use this if you happen
 		// to know that the particle positions aren't coincident.
 		template<class T_PARTICLES>
-		TVector<T, d>
-		GetUnsafeDelta(const T_PARTICLES& InParticles, const int32 i) const
+		inline TVector<T, d> GetUnsafeDelta(const T_PARTICLES& InParticles, const int32 i) const
 		{
 			const auto& Constraint = MConstraints[i];
 			const int32 i1 = Constraint[0];
