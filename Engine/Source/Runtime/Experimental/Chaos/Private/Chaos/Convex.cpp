@@ -29,4 +29,35 @@ namespace Chaos
 		CHAOS_ENSURE(MostOpposingIdx != INDEX_NONE);
 		return MostOpposingIdx;
 	}
+
+	int32 FConvex::FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist) const
+	{
+		//
+		//  todo(chaos) : Create a correspondence between the faces and surface particles on construction.
+		//
+
+		int32 ReturnIndex = INDEX_NONE;
+		TSet<int32> IncludedParticles;
+		for (int32 Idx = 0; Idx < Planes.Num(); ++Idx)
+		{
+			const TPlane<FReal, 3>& Plane = Planes[Idx];
+			FReal AbsOfSignedDistance = FMath::Abs(Plane.SignedDistance(Position));
+			if (AbsOfSignedDistance < SearchDist)
+			{
+				for (int32 Fdx = 0; Fdx < (int32)SurfaceParticles.Size(); Fdx++)
+				{
+					if (!IncludedParticles.Contains(Fdx))
+					{
+						if (FMath::Abs(Plane.SignedDistance(SurfaceParticles.X(Fdx))) < SearchDist)
+						{
+							FaceVertices.Add(SurfaceParticles.X(Fdx));
+							IncludedParticles.Add(Fdx);
+						}
+					}
+				}
+				ReturnIndex = Idx;
+			}
+		}
+		return ReturnIndex;
+	}
 }

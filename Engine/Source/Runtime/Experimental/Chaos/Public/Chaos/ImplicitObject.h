@@ -214,6 +214,19 @@ public:
 		return INDEX_NONE;
 	}
 
+
+	/** Finds the first intersecting face at given position
+	@param Position - local position to search around (for example a point on the surface of a convex hull)
+	@param FaceIndices - Vertices that lie on the face plane.
+	@param SearchDistance - distance to surface [def:0.01]
+	*/
+	virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01) const
+	{
+		//Many objects have no concept of a face
+		return INDEX_NONE;
+	}
+
+
 	/** Given a normal and a face index, compute the most opposing normal associated with the underlying geometry features.
 		For example a sphere swept against a box may not give a normal associated with one of the box faces. This function will return a normal associated with one of the faces.
 		@param DenormDir - the direction we want to oppose

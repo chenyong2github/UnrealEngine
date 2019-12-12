@@ -422,6 +422,22 @@ public:
 		return ClosestIntersection;
 	}
 
+	virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01) const override
+	{
+		const FVec3 UnscaledPoint = MInvScale * Position;
+		const FReal UnscaledSearchDist = SearchDist * MInvScale.Max();	//this is not quite right since it's no longer a sphere, but the whole thing is fuzzy anyway
+		int32 FaceIndex =  MObject->FindClosestFaceAndVertices(UnscaledPoint, FaceVertices, UnscaledSearchDist);
+		if (FaceIndex != INDEX_NONE)
+		{
+			for (FVec3& Vec : FaceVertices)
+			{
+				Vec = Vec * MScale;
+			}
+		}
+		return FaceIndex;
+	}
+
+
 	FORCEINLINE_DEBUGGABLE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const
 	{
 		// Support_obj(dir) = pt => for all x in obj, pt \dot dir >= x \dot dir
