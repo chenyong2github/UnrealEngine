@@ -13,6 +13,7 @@
 #include <DirectXMath.h>
 #pragma warning( pop )
 #include <DirectXPackedVector.h>
+#include "Math/sse_mathfun.h"
 
 /*=============================================================================
  *	Helpers:
@@ -970,10 +971,9 @@ FORCEINLINE bool VectorContainsNaNOrInfinite(const VectorRegister& Vec)
 	return !IsFinite;
 }
 
-//TODO: Vectorize
 FORCEINLINE VectorRegister VectorExp(const VectorRegister& X)
 {
-	return MakeVectorRegister(FMath::Exp(VectorGetComponent(X, 0)), FMath::Exp(VectorGetComponent(X, 1)), FMath::Exp(VectorGetComponent(X, 2)), FMath::Exp(VectorGetComponent(X, 3)));
+	return SseMath_exp_ps(X);
 }
 
 //TODO: Vectorize
@@ -982,10 +982,9 @@ FORCEINLINE VectorRegister VectorExp2(const VectorRegister& X)
 	return DirectX::XMVectorExp2(X);
 }
 
-//TODO: Vectorize
 FORCEINLINE VectorRegister VectorLog(const VectorRegister& X)
 {
-	return MakeVectorRegister(FMath::Loge(VectorGetComponent(X, 0)), FMath::Loge(VectorGetComponent(X, 1)), FMath::Loge(VectorGetComponent(X, 2)), FMath::Loge(VectorGetComponent(X, 3)));
+	return SseMath_log_ps(X);
 }
 
 //TODO: Vectorize
@@ -1194,6 +1193,14 @@ FORCEINLINE VectorRegisterInt VectorIntAbs(const VectorRegisterInt& A)
 * @return		VectorRegisterInt(*Ptr, *Ptr, *Ptr, *Ptr)
 */
 #define VectorIntLoad1( Ptr )	_mm_shuffle_epi32(_mm_loadu_si128((VectorRegisterInt*)(Ptr)),_MM_SHUFFLE(0,0,0,0))
+
+/**
+ * Shuffles a VectorInt using a provided shuffle mask
+ *
+ * @param Vec		Source vector
+ * @param Mask		Shuffle vector
+ */
+#define VectorIntShuffle( Vec, Mask )	_mm_shuffle_epi8( (Vec), (Mask) )
 
 #endif
 
