@@ -13,6 +13,7 @@
 #include "HAL/PlatformProcess.h"
 #include "Serialization/LargeMemoryReader.h"
 #include "GenericPlatform/GenericPlatformChunkInstall.h"
+#include "HAL/Event.h"
 
 DEFINE_LOG_CATEGORY(LogIoDispatcher);
 
