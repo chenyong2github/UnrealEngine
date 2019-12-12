@@ -34,6 +34,7 @@ FPluginDescriptor::FPluginDescriptor()
 	, bInstalled(false)
 	, bRequiresBuildPlatform(false)
 	, bIsHidden(false)
+	, bExplicitlyLoaded(false)
 	, bIsPluginExtension(false)
 {
 }
@@ -142,6 +143,7 @@ bool FPluginDescriptor::Read(const FJsonObject& Object, FText& OutFailReason)
 	Object.TryGetBoolField(TEXT("Installed"), bInstalled);
 	Object.TryGetBoolField(TEXT("RequiresBuildPlatform"), bRequiresBuildPlatform);
 	Object.TryGetBoolField(TEXT("Hidden"), bIsHidden);
+	Object.TryGetBoolField(TEXT("ExplicitlyLoaded"), bExplicitlyLoaded);
 
 	bool bCanBeUsedWithUnrealHeaderTool;
 	if(Object.TryGetBoolField("CanBeUsedWithUnrealHeaderTool", bCanBeUsedWithUnrealHeaderTool) && bCanBeUsedWithUnrealHeaderTool)
@@ -237,6 +239,11 @@ void FPluginDescriptor::Write(TJsonWriter<>& Writer) const
 	if (bIsHidden)
 	{
 		Writer.WriteValue(TEXT("Hidden"), bIsHidden);
+	}
+
+	if (bExplicitlyLoaded)
+	{
+		Writer.WriteValue(TEXT("ExplicitlyLoaded"), bExplicitlyLoaded);
 	}
 
 	if(!PreBuildSteps.IsEmpty())
