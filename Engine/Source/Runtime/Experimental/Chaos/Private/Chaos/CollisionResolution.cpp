@@ -599,11 +599,11 @@ namespace Chaos
 
 					TArray<FVec3> CollisionSamples;
 					//
-					//  @todo(chaos) : Collision Manifold
+					//  @todo(chaos) : Collision Manifold
 					//   Remove the dependency on the virtual calls on the Implicit. Don't use FindClosestFaceAndVertices
-					//   this relies on virtual calls on the ImplicitObject. Instead pass a parameters structures into 
-					//   ConvexConvexContactPoint that can collect the face indices during evaluation of the support functions. 
-					//   This can be implemented without virtual calls. 
+					//   this relies on virtual calls on the ImplicitObject. Instead pass a parameters structures into 
+					//   ConvexConvexContactPoint that can collect the face indices during evaluation of the support functions. 
+					//   This can be implemented without virtual calls.
 					//
 					int32 FaceIndex = Constraint.Manifold.Implicit[0]->FindClosestFaceAndVertices(Transform0.InverseTransformPosition(ContactPoint.Location), CollisionSamples, 1.f);
 
