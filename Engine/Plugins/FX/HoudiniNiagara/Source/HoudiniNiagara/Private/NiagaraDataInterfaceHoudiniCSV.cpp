@@ -2269,23 +2269,15 @@ struct FNiagaraDataInterfaceParametersCS_HoudiniCSV : public FNiagaraDataInterfa
 		SetShaderValue(RHICmdList, ComputeShaderRHI, NumberOfColumns, HoudiniDI->NumColumns);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, NumberOfPoints, HoudiniDI->NumColumns);
 
-		FRWBuffer& FloatRWBuffer = HoudiniDI->FloatValuesGPUBuffer;
- 		RHICmdList.SetShaderResourceViewParameter( ComputeShaderRHI, FloatValuesBuffer.GetBaseIndex(), FloatRWBuffer.SRV );
-
-		FRWBuffer& AttributeColumnRWBuffer = HoudiniDI->SpecialAttributesColumnIndexesGPUBuffer;
-		RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, SpecialAttributesColumnIndexesBuffer.GetBaseIndex(), AttributeColumnRWBuffer.SRV);
-
-		FRWBuffer& SpawnRWBuffer = HoudiniDI->SpawnTimesGPUBuffer;
-		RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, SpawnTimesBuffer.GetBaseIndex(), SpawnRWBuffer.SRV);
-		FRWBuffer& LifeRWBuffer = HoudiniDI->LifeValuesGPUBuffer;
-		RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, LifeValuesBuffer.GetBaseIndex(), LifeRWBuffer.SRV);
-		FRWBuffer& TypesRWBuffer = HoudiniDI->PointTypesGPUBuffer;
-		RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, PointTypesBuffer.GetBaseIndex(), TypesRWBuffer.SRV);
+		SetSRVParameter(RHICmdList, ComputeShaderRHI, FloatValuesBuffer, HoudiniDI->FloatValuesGPUBuffer.SRV);
+		SetSRVParameter(RHICmdList, ComputeShaderRHI, SpecialAttributesColumnIndexesBuffer, HoudiniDI->SpecialAttributesColumnIndexesGPUBuffer.SRV);
+		SetSRVParameter(RHICmdList, ComputeShaderRHI, SpawnTimesBuffer, HoudiniDI->SpawnTimesGPUBuffer.SRV);
+		SetSRVParameter(RHICmdList, ComputeShaderRHI, LifeValuesBuffer, HoudiniDI->LifeValuesGPUBuffer.SRV);
+		SetSRVParameter(RHICmdList, ComputeShaderRHI, PointTypesBuffer, HoudiniDI->PointTypesGPUBuffer.SRV);
 
 		SetShaderValue(RHICmdList, ComputeShaderRHI, MaxNumberOfIndexesPerPoint, HoudiniDI->MaxNumberOfIndexesPerPoint);
 
-		FRWBuffer& PointValuesIndexesRWBuffer = HoudiniDI->PointValueIndexesGPUBuffer;
-		RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, PointValueIndexesBuffer.GetBaseIndex(), PointValuesIndexesRWBuffer.SRV);
+		SetSRVParameter(RHICmdList, ComputeShaderRHI, PointValueIndexesBuffer, HoudiniDI->PointValueIndexesGPUBuffer.SRV);
 
 		SetShaderValue(RHICmdList, ComputeShaderRHI, LastSpawnedPointId, -1);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, LastSpawnTime, -1);
