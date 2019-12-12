@@ -6,10 +6,15 @@
 #include "Misc/App.h"
 #include "AudioThread.h"
 #include "AudioDevice.h"
+#include "IAudioExtensionPlugin.h"
+#include "Sound/AudioSettings.h"
+#include "Sound/SoundClass.h"
 #include "Sound/SoundCue.h"
 #include "Sound/SoundWave.h"
 #include "Sound/SoundNodeAttenuation.h"
+#include "Sound/SoundSubmix.h"
 #include "SubtitleManager.h"
+
 
 static int32 AudioOcclusionDisabledCvar = 0;
 FAutoConsoleVariableRef CVarAudioOcclusionEnabled(
@@ -30,7 +35,6 @@ FActiveSound::FActiveSound()
 	, OwnerID(0)
 	, AudioDevice(nullptr)
 	, SoundClassOverride(nullptr)
-	, SoundSubmixOverride(nullptr)
 	, bHasCheckedOcclusion(false)
 	, bAllowSpatialization(true)
 	, bHasAttenuationSettings(false)
@@ -45,7 +49,6 @@ FActiveSound::FActiveSound()
 	, bHasExternalSubtitles(false)
 	, bLocationDefined(false)
 	, bIgnoreForFlushing(false)
-	, bEQFilterApplied(false)
 	, bAlwaysPlay(false)
 	, bIsUISound(false)
 	, bIsMusic(false)
@@ -321,15 +324,7 @@ USoundClass* FActiveSound::GetSoundClass() const
 
 USoundSubmix* FActiveSound::GetSoundSubmix() const
 {
-	if (SoundSubmixOverride)
-	{
-		return SoundSubmixOverride;
-	}
-	else if (Sound)
-	{
-		return Sound->GetSoundSubmix();
-	}
-	return nullptr;
+	return Sound ? Sound->GetSoundSubmix() : nullptr;
 }
 
 void FActiveSound::SetSubmixSend(const FSoundSubmixSendInfo& SubmixSendInfo)
@@ -566,15 +561,15 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 		}
 		else
 		{
-			ParseParams.ReverbSendMethod = EReverbSendMethod::Manual;		
+			ParseParams.ReverbSendMethod = EReverbSendMethod::Manual;
 			if (ParseParams.SoundClass)
 			{
 				ParseParams.ManualReverbSendLevel = ParseParams.SoundClass->Properties.Default2DReverbSendAmount;
-		}
-		else
-		{
-			ParseParams.ManualReverbSendLevel = AudioDevice->GetDefaultReverbSendLevel();
-		}
+			}
+			else
+			{
+				ParseParams.ManualReverbSendLevel = AudioDevice->GetDefaultReverbSendLevel();
+			}
 		}
 
 		ParseParams.ModulationPluginSettings = FindModulationSettings();

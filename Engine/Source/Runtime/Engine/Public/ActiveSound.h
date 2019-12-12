@@ -346,9 +346,6 @@ private:
 	/** Optional SoundClass to override for the sound. */
 	USoundClass* SoundClassOverride;
 
-	/** Optional SoundSubmix to override for the sound. */
-	USoundSubmix* SoundSubmixOverride;
-
 	/** Optional override the submix sends for the sound. */
 	TArray<FSoundSubmixSendInfo> SoundSubmixSendsOverride;
 
@@ -411,9 +408,6 @@ public:
 
 	/** If true, this sound will not be stopped when flushing the audio device. */
 	uint8 bIgnoreForFlushing:1;
-
-	/** Whether audio effects are applied */
-	uint8 bEQFilterApplied:1;
 
 	/** Whether to artificially prioritize the component to play */
 	uint8 bAlwaysPlay:1;

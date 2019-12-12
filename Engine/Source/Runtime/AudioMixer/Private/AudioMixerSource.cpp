@@ -236,7 +236,7 @@ namespace Audio
 							// Send the voice to the EQ submix if it's enabled
 							const bool bIsEQDisabled = GetDefault<UAudioSettings>()->bDisableMasterEQ;
 							bool bUseMaster = true;
-							if (!bIsEQDisabled && IsEQFilterApplied())
+							if (!bIsEQDisabled)
 							{
 								if (MixerDevice->GetMasterEQSubmix().IsValid())
 								{

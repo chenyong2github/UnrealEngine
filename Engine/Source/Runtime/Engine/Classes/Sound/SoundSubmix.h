@@ -94,7 +94,7 @@ class ENGINE_API USoundSubmix : public UObject
 #endif
 
 	// Experimental! Specifies the channel format for the submix. Sources will be mixed at the specified format. Useful for specific effects that need to operate on a specific format.
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = SoundSubmix)
 	ESubmixChannelFormat ChannelFormat;
 
 	/** Mute this submix when the application is muted or in the background. Used to prevent submix effect tails from continuing when tabbing out of application or if application is muted. */
