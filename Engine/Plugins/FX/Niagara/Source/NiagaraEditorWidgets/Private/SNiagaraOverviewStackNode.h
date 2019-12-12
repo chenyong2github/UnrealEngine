@@ -40,6 +40,18 @@ private:
 	FReply OnToggleIsolateButtonClicked();
 	EVisibility GetToggleIsolateVisibility() const;
 	FSlateColor GetToggleIsolateImageColor() const;
+	void SetIsHoveringThumbnail(const FGeometry& InGeometry, const FPointerEvent& InEvent, const bool bInHoveringThumbnail)
+	{
+		SetIsHoveringThumbnail(InEvent, bInHoveringThumbnail);
+	}
+	void SetIsHoveringThumbnail(const FPointerEvent& InEvent, const bool bInHoveringThumbnail)
+	{
+		bIsHoveringThumbnail = bInHoveringThumbnail;
+	}
+	bool IsHoveringThumbnail()
+	{
+		return bIsHoveringThumbnail;
+	}
 
 private:
 	UNiagaraOverviewNode* OverviewStackNode;
@@ -50,5 +62,5 @@ private:
 	/** Thumbnail widget containers */
 	TSharedPtr<SHorizontalBox> ThumbnailBar;
 	TArray<FRendererPreviewData*> PreviewData;
-	
+	bool bIsHoveringThumbnail;
 };
