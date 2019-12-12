@@ -3206,6 +3206,9 @@ public:
 	UObject* AnimClassImplementation;
 
 	DynamicClassInitializerType DynamicClassInitializer;
+
+	/** Prefix for the temporary package where the dynamic classes are stored when being generated */
+	static const FString& GetTempPackagePrefix();
 };
 
 /**

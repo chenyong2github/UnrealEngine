@@ -343,9 +343,9 @@ FGuid UUserDefinedStruct::GetCustomGuid() const
 ENGINE_API FString GetPathPostfix(const UObject* ForObject)
 {
 	FString FullAssetName = ForObject->GetOutermost()->GetPathName();
-	if (FullAssetName.StartsWith(TEXT("/Temp/__TEMP_BP__"), ESearchCase::CaseSensitive))
+	if (FullAssetName.StartsWith(UDynamicClass::GetTempPackagePrefix(), ESearchCase::CaseSensitive))
 	{
-		FullAssetName.RemoveFromStart(TEXT("/Temp/__TEMP_BP__"), ESearchCase::CaseSensitive);
+		FullAssetName.RemoveFromStart(UDynamicClass::GetTempPackagePrefix(), ESearchCase::CaseSensitive);
 	}
 	FString AssetName = FPackageName::GetLongPackageAssetName(FullAssetName);
 	// append a hash of the path, this uniquely identifies assets with the same name, but different folders:

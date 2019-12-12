@@ -6069,6 +6069,12 @@ FStructProperty* UDynamicClass::FindStructPropertyChecked(const TCHAR* PropertyN
 	return FindFieldChecked<FStructProperty>(this, PropertyName);
 }
 
+const FString& UDynamicClass::GetTempPackagePrefix()
+{
+	static const FString PackagePrefix(TEXT("/Temp/__TEMP_BP__"));
+	return PackagePrefix;
+}
+
 IMPLEMENT_CORE_INTRINSIC_CLASS(UDynamicClass, UClass,
 {
 	Class->ClassAddReferencedObjects = &UDynamicClass::AddReferencedObjects;

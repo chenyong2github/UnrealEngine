@@ -532,7 +532,7 @@ void UAnimBlueprintGeneratedClass::LinkFunctionsToDefaultObjectNodes(UObject* De
 	// Determine whether functions are 'implemented'
 	for(FAnimBlueprintFunction& AnimBlueprintFunction : AnimBlueprintFunctions)
 	{
-		if(AnimBlueprintFunction.OutputPoseNodeProperty)
+		if(AnimBlueprintFunction.OutputPoseNodeProperty.Get())
 		{
 			FAnimNode_Root* RootNode = AnimBlueprintFunction.OutputPoseNodeProperty->ContainerPtrToValuePtr<FAnimNode_Root>(DefaultObject);
 			if(RootNode->Result.LinkID != INDEX_NONE)

@@ -10,6 +10,7 @@
 #include "UObject/Interface.h"
 #include "Animation/AnimTypes.h"
 #include "Animation/AnimStateMachineTypes.h"
+#include "UObject/FieldPath.h"
 
 #include "AnimClassInterface.generated.h"
 
@@ -64,13 +65,16 @@ struct FAnimBlueprintFunction
 	TArray<int32> InputPoseNodeIndices;
 
 	/** The property of the output node, patched up during link */
-	FStructProperty* OutputPoseNodeProperty;
+	UPROPERTY(transient)
+	TFieldPath<FStructProperty> OutputPoseNodeProperty;
 
 	/** The properties of the input nodes, patched up during link */
-	TArray<FStructProperty*> InputPoseNodeProperties;
+	UPROPERTY(transient)
+	TArray< TFieldPath<FStructProperty> > InputPoseNodeProperties;
 
 	/** The input properties themselves */
-	TArray<FProperty*> InputProperties;
+	UPROPERTY(transient)
+	TArray< TFieldPath<FProperty> > InputProperties;
 
 	/** Whether this function is actually implemented by this class - it could just be a stub */
 	UPROPERTY(transient)

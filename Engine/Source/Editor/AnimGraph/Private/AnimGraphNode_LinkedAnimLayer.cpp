@@ -518,9 +518,9 @@ void UAnimGraphNode_LinkedAnimLayer::GetExposableProperties(TArray<FProperty*>& 
 			// Check name matches.
 			if(AnimBlueprintFunction.Name == Node.GetDynamicLinkFunctionName())
 			{
-				for(FProperty* Property : AnimBlueprintFunction.InputProperties)
+				for(const TFieldPath<FProperty>& Property : AnimBlueprintFunction.InputProperties)
 				{
-					OutExposableProperties.Add(Property);
+					OutExposableProperties.Add(Property.Get());
 				}
 			}
 		}

@@ -136,7 +136,13 @@ FString FFieldPath::ToString() const
 	// Generate path from the outermost (last item) to the property (first item)
 	for (int32 PathIndex = Path.Num() - 1; PathIndex >= 0; --PathIndex)
 	{
-		Result += Path[PathIndex].ToString();		
+		// @todo: this should be handled by some kind of a flag passed to this function
+		FString ObjName = Path[PathIndex].ToString();
+		if (PathIndex == (Path.Num() - 1) && ObjName.StartsWith(UDynamicClass::GetTempPackagePrefix(), ESearchCase::IgnoreCase))
+		{
+			ObjName.RemoveFromStart(UDynamicClass::GetTempPackagePrefix(), ESearchCase::IgnoreCase);
+		}
+		Result += ObjName;
 		if (PathIndex > 0)
 		{
 			// Separator between the package name (last item) and the class (asset object - the second to last item is a '.', oterwise use SUBOBJECT_DELIMITER_CHAR)

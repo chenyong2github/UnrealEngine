@@ -41,38 +41,31 @@ public:
 
 	// The array of anim nodes
 	UPROPERTY()
-	TArray<UStructProperty*> AnimNodeProperties_DEPRECATED;
-	TArray<FStructPropertyPath> AnimNodeProperties;
+	TArray< TFieldPath<FStructProperty> > AnimNodeProperties;
 
 	// The array of linked anim graph nodes
 	UPROPERTY()
-	TArray<UStructProperty*> LinkedAnimGraphNodeProperties_DEPRECATED;
-	TArray<FStructPropertyPath> LinkedAnimGraphNodeProperties;
+	TArray< TFieldPath<FStructProperty> > LinkedAnimGraphNodeProperties;
 
 	// The array of linked anim layer nodes
 	UPROPERTY()
-	TArray<UStructProperty*> LinkedAnimLayerNodeProperties_DEPRECATED;
-	TArray<FStructPropertyPath> LinkedAnimLayerNodeProperties;
+	TArray< TFieldPath<FStructProperty> > LinkedAnimLayerNodeProperties;
 
 	// Array of nodes that need a PreUpdate() call
 	UPROPERTY()
-	TArray<UStructProperty*> PreUpdateNodeProperties_DEPRECATED;
-	TArray<FStructPropertyPath> PreUpdateNodeProperties;
+	TArray< TFieldPath<FStructProperty> > PreUpdateNodeProperties;
 
 	// Array of nodes that need a DynamicReset() call
 	UPROPERTY()
-	TArray<UStructProperty*> DynamicResetNodeProperties_DEPRECATED;
-	TArray<FStructPropertyPath> DynamicResetNodeProperties;
+	TArray< TFieldPath<FStructProperty> > DynamicResetNodeProperties;
 
 	// Array of state machine nodes
 	UPROPERTY()
-	TArray<UStructProperty*> StateMachineNodeProperties_DEPRECATED;
-	TArray<FStructPropertyPath> StateMachineNodeProperties;
+	TArray< TFieldPath<FStructProperty> > StateMachineNodeProperties;
 
 	// Array of nodes that need an OnInitializeAnimInstance call
 	UPROPERTY()
-	TArray<UStructProperty*> InitializationNodeProperties_DEPRECATED;
-	TArray<FStructPropertyPath> InitializationNodeProperties;
+	TArray< TFieldPath<FStructProperty> > InitializationNodeProperties;
 
 	// Indices for any Asset Player found within a specific (named) Anim Layer Graph, or implemented Anim Interface Graph
 	UPROPERTY()
@@ -109,9 +102,6 @@ public:
 	virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const { return EvaluateGraphExposedInputs; }
 	virtual const TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation() const { return GraphNameAssetPlayers; }
 	virtual const TMap<FName, FAnimGraphBlendOptions>& GetGraphBlendOptions() const { return GraphBlendOptions; }
-
-	// UObject interface
-	virtual void Serialize(FArchive& Ar) override;
 
 #if WITH_EDITOR
 	void CopyFrom(IAnimClassInterface* AnimClass)

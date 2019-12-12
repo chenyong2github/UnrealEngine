@@ -95,7 +95,7 @@ void FAnimInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 		RootNode = nullptr;
 		if(AnimClassInterface->GetAnimBlueprintFunctions().Num() > 0)
 		{
-			if(FProperty* RootNodeProperty = AnimClassInterface->GetAnimBlueprintFunctions()[0].OutputPoseNodeProperty)
+			if(FProperty* RootNodeProperty = AnimClassInterface->GetAnimBlueprintFunctions()[0].OutputPoseNodeProperty.Get())
 			{
 				RootNode = RootNodeProperty->ContainerPtrToValuePtr<FAnimNode_Root>(InAnimInstance);
 			}
