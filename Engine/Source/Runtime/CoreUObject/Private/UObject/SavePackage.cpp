@@ -477,6 +477,21 @@ void FPackageStoreBulkDataManifest::PackageDesc::AddData(EIoChunkType InType, ui
 	}
 }
 
+void FPackageStoreBulkDataManifest::PackageDesc::AddZeroByteData(EIoChunkType InType)
+{
+	// Make sure we only add one empty read per Bulkdata type!
+	auto func = [=](const BulkDataDesc& Entry) { return Entry.Type == InType && Entry.Size == 0; };
+	if (Data.FindByPredicate(func) == nullptr)
+	{
+		BulkDataDesc& Entry = Data.Emplace_GetRef();
+
+		Entry.ChunkId = TNumericLimits<uint64>::Max();
+		Entry.Offset = 0;
+		Entry.Size = 0;
+		Entry.Type = InType;
+	}
+}
+
 FPackageStoreBulkDataManifest::FPackageStoreBulkDataManifest(const FString& ProjectPath)
 {
 	Filename = ProjectPath / TEXT("Metadata/BulkDataInfo.ubulkmanifest");
@@ -536,7 +551,16 @@ void FPackageStoreBulkDataManifest::AddFileAccess(const FString& PackageFilename
 	const FString NormalizedFilename = FixFilename(PackageFilename);
 	
 	PackageDesc& Entry = GetOrCreateFileAccess(NormalizedFilename);
-	Entry.AddData(InType, InChunkId, InOffset, InSize, NormalizedFilename);
+
+	if (InSize > 0)
+	{
+		Entry.AddData(InType, InChunkId, InOffset, InSize, NormalizedFilename);
+	}
+	else
+	{
+		Entry.AddZeroByteData(InType);
+	}
+	
 }
 
 FPackageStoreBulkDataManifest::PackageDesc& FPackageStoreBulkDataManifest::GetOrCreateFileAccess(const FString& PackageFilename)
