@@ -39,9 +39,9 @@ void SNiagaraStackIssueIcon::Construct(const FArguments& InArgs, UNiagaraStackVi
 	{
 		TSharedRef<SButton> IconButton =
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "RoundButton")
-			.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
-			.ContentPadding(FMargin(1,0,0,0))
+			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ForegroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.ForegroundColor"))
+			.ContentPadding(FMargin(1, 0, 0, 0))
 			.OnClicked(InArgs._OnClicked)
 			.Content()
 			[
