@@ -23,7 +23,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogContentValidation, Log, All);
 /**
 * Implements the settings for Data Validation 
 */
-UCLASS(config = EditorSettings)
+UCLASS(config = Editor)
 class DATAVALIDATION_API UDataValidationSettings : public UObject
 {
 	GENERATED_BODY()
