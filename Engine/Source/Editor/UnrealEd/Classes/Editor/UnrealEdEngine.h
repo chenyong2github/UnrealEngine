@@ -840,11 +840,6 @@ public:
 	DECLARE_DELEGATE_RetVal_OneParam(TSharedPtr<IAssetReferenceFilter>, FOnMakeAssetReferenceFilter, const FAssetReferenceFilterContext& /*Context*/);
 	FOnMakeAssetReferenceFilter& OnMakeAssetReferenceFilter() { return OnMakeAssetReferenceFilterDelegate; }
 	TSharedPtr<IAssetReferenceFilter> MakeAssetReferenceFilter(const FAssetReferenceFilterContext& Context) { return OnMakeAssetReferenceFilterDelegate.IsBound() ? OnMakeAssetReferenceFilterDelegate.Execute(Context) : nullptr; }
-
-	/** Add Visualizers that are active even when Actor is not part of the selection. */
-	void AddNonSelectionVisualizers(AActor* Actor);
-	/** Remove Visualizers that are active even when Actor is not part of the selection */
-	void RemoveNonSelectionVisualizers(AActor* Actor);
 	
 protected:
 
@@ -865,12 +860,7 @@ protected:
 	/**
 	 * The list of visualizers to draw when selection changes
 	 */
-	TArray<FCachedComponentVisualizer> SelectionVisualizers;
-
-	/**
-	 * The list of visualizers to draw independant of selection
-	 */
-	TArray<FCachedComponentVisualizer> NonSelectionVisualizers;
+	TArray<FCachedComponentVisualizer> VisualizersForSelection;
 
 	/** Instance responsible for monitoring this editor's performance */
 	FPerformanceMonitor* PerformanceMonitor;
@@ -894,7 +884,4 @@ private:
 	* @return	Returns the number of dirty packages that require checkout. If bCheckIfAny is true, returns 1 if any packages will require checkout.
 	*/
 	int32 InternalGetNumDirtyPackagesThatNeedCheckout(bool bCheckIfAny) const;
-
-	/** Internal function to filter and add visualizers to a specific list */
-	void AddVisualizers(AActor* Actor, TArray<FCachedComponentVisualizer>& Visualizers, TFunctionRef<bool(const TSharedPtr<FComponentVisualizer>&)> Condition);
 };
