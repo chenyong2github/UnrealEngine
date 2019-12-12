@@ -33,7 +33,10 @@ namespace Chaos
 	int32 FConvex::FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist) const
 	{
 		//
-		//  todo(chaos) : Create a correspondence between the faces and surface particles on construction.
+		//  @todo(chaos) : Collision Manifold 
+		//     Create a correspondence between the faces and surface particles on construction.
+		//     The correspondence will provide an index between the Planes and the SurfaceParticles,
+		//     removing the need for the exhaustive search here. 
 		//
 
 		int32 ReturnIndex = INDEX_NONE;

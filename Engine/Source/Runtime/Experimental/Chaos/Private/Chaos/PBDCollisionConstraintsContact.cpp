@@ -294,6 +294,13 @@ namespace Chaos
 					Particle1->AuxilaryValue(*ParticleParameters.Collided) = true;
 				}
 
+				//
+				// @todo(chaos) : Collision Constraints
+				//   Consider applying all constraints in ::Apply at each iteration, right now it just takes the deepest.
+				//   For example, and iterative constraint might have 4 penetrating points that need to be resolved. 
+				//
+
+
 				Constraint.AccumulatedImpulse +=
 					ApplyContact(Constraint.Manifold, Particle0, Particle1, IterationParameters, ParticleParameters);
 			}
