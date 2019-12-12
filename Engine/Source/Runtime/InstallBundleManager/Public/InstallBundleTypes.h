@@ -166,3 +166,20 @@ struct FInstallBundleSourcePauseInfo
 	// which is different than the flags changing
 	bool bDidPauseChange = false;
 };
+
+enum class EInstallBundleStatus : int
+{
+	Requested,
+	Installing,
+	Finishing,
+	Installed,
+	Count,
+};
+INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleStatus Status);
+
+struct FInstallBundleSourceStatus
+{
+	FName BundleName;
+
+	float Install_Percent = 0;
+};

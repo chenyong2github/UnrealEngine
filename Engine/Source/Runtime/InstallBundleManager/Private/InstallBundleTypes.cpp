@@ -12,6 +12,7 @@ const TCHAR* LexToString(EInstallBundleSourceType Type)
 		TEXT("Bulk"),
 		TEXT("BuildPatchServices"),
 	};
+
 	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleSourceType::Count) == UE_ARRAY_COUNT(Strings), "");
 	return Strings[InstallBundleUtil::CastToUnderlying(Type)];
 }
@@ -33,6 +34,7 @@ const TCHAR* LexToString(EInstallBundleManagerInitResult Result)
 		TEXT("NoInternetConnectionError"),
 		TEXT("ConfigurationError"),
 	};
+
 	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleManagerInitResult::Count) == UE_ARRAY_COUNT(Strings), "");
 	return Strings[InstallBundleUtil::CastToUnderlying(Result)];
 }
@@ -46,8 +48,8 @@ const TCHAR* LexToString(EInstallBundleContentState State)
 		TEXT("NeedsUpdate"),
 		TEXT("UpToDate"),
 	};
-	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleContentState::Count) == UE_ARRAY_COUNT(Strings), "");
 
+	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleContentState::Count) == UE_ARRAY_COUNT(Strings), "");
 	return Strings[InstallBundleUtil::CastToUnderlying(State)];
 }
 
@@ -63,7 +65,21 @@ const TCHAR* LexToString(EInstallBundleResult Result)
 		TEXT("UserCancelledError"),
 		TEXT("InitializationError"),
 	};
-	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleResult::Count) == UE_ARRAY_COUNT(Strings), "");
 
+	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleResult::Count) == UE_ARRAY_COUNT(Strings), "");
 	return Strings[InstallBundleUtil::CastToUnderlying(Result)];
+}
+
+const TCHAR* LexToString(EInstallBundleStatus Status)
+{
+	static const TCHAR* Strings[] =
+	{
+		TEXT("Requested"),
+		TEXT("Installing"),
+		TEXT("Finishing"),
+		TEXT("Installed"),
+	};
+
+	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleStatus::Count) == UE_ARRAY_COUNT(Strings), "");
+	return Strings[InstallBundleUtil::CastToUnderlying(Status)];
 }
