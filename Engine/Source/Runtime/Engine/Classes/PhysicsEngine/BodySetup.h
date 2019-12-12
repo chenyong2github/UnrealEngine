@@ -266,7 +266,7 @@ public:
 
 #if WITH_CHAOS
 	//FBodySetupTriMeshes* TriMeshWrapper;
-	TArray<TUniquePtr<Chaos::TTriangleMeshImplicitObject<float>>> ChaosTriMeshes;
+	TArray<TSharedPtr<Chaos::TTriangleMeshImplicitObject<float>, ESPMode::ThreadSafe>> ChaosTriMeshes;
 #endif
 
 	/** Additional UV info, if available. Used for determining UV for a line trace impact. */

@@ -56,7 +56,7 @@ struct FGeometryAddParams
 	TArrayView<physx::PxTriangleMesh*> TriMeshes;
 #endif
 #if WITH_CHAOS
-	TArrayView<TUniquePtr<Chaos::TTriangleMeshImplicitObject<float>>> ChaosTriMeshes;
+	TArrayView<TSharedPtr<Chaos::TTriangleMeshImplicitObject<float>, ESPMode::ThreadSafe>> ChaosTriMeshes;
 #endif
 };
 
