@@ -10,7 +10,7 @@
 
 class IAnalyticsProviderET;
 
-struct FInstallBundleStatus
+struct FInstallBundleProgress
 {
 	FName BundleName;
 
@@ -98,7 +98,7 @@ public:
 
 	virtual void RequestPausedBundleCallback() = 0;
 
-	virtual TOptional<FInstallBundleStatus> GetBundleProgress(FName BundleName) const = 0;
+	virtual TOptional<FInstallBundleProgress> GetBundleProgress(FName BundleName) const = 0;
 
 	virtual EInstallBundleRequestFlags GetModifyableContentRequestFlags() const = 0;
 	virtual void UpdateContentRequestFlags(FName BundleName, EInstallBundleRequestFlags AddFlags, EInstallBundleRequestFlags RemoveFlags) = 0;

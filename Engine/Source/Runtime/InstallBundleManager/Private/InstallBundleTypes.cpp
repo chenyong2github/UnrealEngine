@@ -75,9 +75,9 @@ const TCHAR* LexToString(EInstallBundleStatus Status)
 	static const TCHAR* Strings[] =
 	{
 		TEXT("Requested"),
-		TEXT("Installing"),
+		TEXT("Updating"),
 		TEXT("Finishing"),
-		TEXT("Installed"),
+		TEXT("Ready"),
 	};
 
 	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleStatus::Count) == UE_ARRAY_COUNT(Strings), "");

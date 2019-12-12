@@ -108,9 +108,9 @@ class FNullInstallBundleManager : public IInstallBundleManager
 
 	}
 
-	virtual TOptional<FInstallBundleStatus> GetBundleProgress(FName BundleName) const override
+	virtual TOptional<FInstallBundleProgress> GetBundleProgress(FName BundleName) const override
 	{
-		return TOptional<FInstallBundleStatus>();
+		return TOptional<FInstallBundleProgress>();
 	}
 
 	virtual EInstallBundleRequestFlags GetModifyableContentRequestFlags() const override

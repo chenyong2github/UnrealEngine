@@ -146,7 +146,7 @@ void FBundlePrereqCombinedStatusHelper::UpdateBundleCache()
 	{
 		for (FName& BundleName : RequiredBundleNames)
 		{
-			TOptional<FInstallBundleStatus> BundleProgress = InstallBundleManager->GetBundleProgress(BundleName);
+			TOptional<FInstallBundleProgress> BundleProgress = InstallBundleManager->GetBundleProgress(BundleName);
 			
 			//Copy progress to the cache as long as we have progress to copy.
 			if (BundleProgress.IsSet())
@@ -176,11 +176,11 @@ void FBundlePrereqCombinedStatusHelper::UpdateCombinedStatus()
 	if ((BundleStatusCache.Num() < RequiredBundleNames.Num())
 		&& (BundleStatusCache.Num() > 0))
 	{
-		EarliestBundleState = EInstallBundleStatus::Installing;
+		EarliestBundleState = EInstallBundleStatus::Updating;
 	}
 	
 	float EarliestFinishingPercent = 1.0f;
-	for (const TPair<FName,FInstallBundleStatus>& BundlePair : BundleStatusCache)
+	for (const TPair<FName,FInstallBundleProgress>& BundlePair : BundleStatusCache)
 	{
 		if (BundlePair.Value.Status < EarliestBundleState)
 		{
@@ -199,7 +199,7 @@ void FBundlePrereqCombinedStatusHelper::UpdateCombinedStatus()
 	
 	//if we have any paused bundles, and we have any bundle that isn't finished installed, we are Paused
 	//if everything is installed ignore the pause flags as we completed after pausing the bundles
-	CurrentCombinedStatus.bIsPaused = (bIsAnythingPaused && (EarliestBundleState < EInstallBundleStatus::Installed));
+	CurrentCombinedStatus.bIsPaused = (bIsAnythingPaused && (EarliestBundleState < EInstallBundleStatus::Ready));
 	if(CurrentCombinedStatus.bIsPaused)
 	{
 		CurrentCombinedStatus.CombinedPauseFlags = CombinedPauseFlags;
@@ -217,7 +217,7 @@ void FBundlePrereqCombinedStatusHelper::UpdateCombinedStatus()
 	{
 		CurrentCombinedStatus.CombinedState = FCombinedBundleStatus::ECombinedBundleStateEnum::Initializing;
 	}
-	else if (EarliestBundleState <= EInstallBundleStatus::Installing)
+	else if (EarliestBundleState <= EInstallBundleStatus::Updating)
 	{
 		CurrentCombinedStatus.CombinedState = FCombinedBundleStatus::ECombinedBundleStateEnum::Updating;
 	}
@@ -235,7 +235,7 @@ void FBundlePrereqCombinedStatusHelper::UpdateCombinedStatus()
 			CurrentCombinedStatus.CombinedState = FCombinedBundleStatus::ECombinedBundleStateEnum::Updating;
 		}
 	}
-	else if (EarliestBundleState == EInstallBundleStatus::Installed)
+	else if (EarliestBundleState == EInstallBundleStatus::Ready)
 	{
 		CurrentCombinedStatus.CombinedState = FCombinedBundleStatus::ECombinedBundleStateEnum::Finished;
 		CurrentCombinedStatus.bDoesCurrentStateSupportPausing = false;
@@ -252,7 +252,7 @@ float FBundlePrereqCombinedStatusHelper::GetCombinedProgressPercent() const
 	
 	ensureAlwaysMsgf((CachedBundleWeights.Num() >= BundleStatusCache.Num()), TEXT("Missing Cache Entries for BundleWeights!Any missing bundles will have 0 for their progress!"));
 	
-	for (const TPair<FName,FInstallBundleStatus>& BundleStatusPair : BundleStatusCache)
+	for (const TPair<FName,FInstallBundleProgress>& BundleStatusPair : BundleStatusCache)
 	{
 		const float* FoundWeight = CachedBundleWeights.Find(BundleStatusPair.Key);
 		if (ensureAlwaysMsgf((nullptr != FoundWeight), TEXT("Found missing entry for BundleWeight! Bundle %s does not have a weight entry!"), *(BundleStatusPair.Key.ToString())))
@@ -288,10 +288,10 @@ void FBundlePrereqCombinedStatusHelper::OnBundleInstallComplete(FInstallBundleRe
 	if (bBundleCompletedSuccessfully && bWasRequiredBundle)
 	{
 		//Make sure our BundleCache shows this as finished all the way
-		FInstallBundleStatus& BundleCacheInfo = BundleStatusCache.FindOrAdd(CompletedBundleName);
-		BundleCacheInfo.Status = EInstallBundleStatus::Installed;
+		FInstallBundleProgress& BundleCacheInfo = BundleStatusCache.FindOrAdd(CompletedBundleName);
+		BundleCacheInfo.Status = EInstallBundleStatus::Ready;
 		
-		TOptional<FInstallBundleStatus> BundleProgress = InstallBundleManager->GetBundleProgress(CompletedBundleName);
+		TOptional<FInstallBundleProgress> BundleProgress = InstallBundleManager->GetBundleProgress(CompletedBundleName);
 		if (ensureAlwaysMsgf(BundleProgress.IsSet(), TEXT("Expected to find BundleProgress for completed bundle, but did not. Leaving old progress values")))
 		{
 			BundleCacheInfo = BundleProgress.GetValue();
@@ -306,7 +306,7 @@ void FBundlePrereqCombinedStatusHelper::OnBundleInstallPauseChanged(FInstallBund
 	const bool bWasRequiredBundle = RequiredBundleNames.Contains(PauseInfo.BundleName);
 	if (bWasRequiredBundle)
 	{
-		FInstallBundleStatus& BundleCacheInfo = BundleStatusCache.FindOrAdd(PauseInfo.BundleName);
+		FInstallBundleProgress& BundleCacheInfo = BundleStatusCache.FindOrAdd(PauseInfo.BundleName);
 		BundleCacheInfo.PauseFlags = PauseInfo.PauseFlags;
 	}
 }

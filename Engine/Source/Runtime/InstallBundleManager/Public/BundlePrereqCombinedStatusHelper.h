@@ -66,7 +66,7 @@ private:
 	TArray<FName> RequiredBundleNames;
 	
 	//Internal Cache of all bundle statuses to track progress
-	TMap<FName, FInstallBundleStatus> BundleStatusCache;
+	TMap<FName, FInstallBundleProgress> BundleStatusCache;
 	
 	//Bundle weights that determine what % of the overall install each bundle represents
 	TMap<FName, float> CachedBundleWeights;

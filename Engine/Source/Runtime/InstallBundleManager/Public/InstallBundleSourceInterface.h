@@ -76,7 +76,7 @@ public:
 	virtual void UpdateContentRequestFlags(TArrayView<const FName> BundleNames, EInstallBundleRequestFlags AddFlags, EInstallBundleRequestFlags RemoveFlags) {}
 
 	// Derived classes should implement this if their content install will take a significant amount of time
-	virtual TOptional<FInstallBundleSourceStatus> GetBundleProgress(FName BundleName) const { return TOptional<FInstallBundleSourceStatus>(); }
+	virtual TOptional<FInstallBundleSourceProgress> GetBundleProgress(FName BundleName) const { return TOptional<FInstallBundleSourceProgress>(); }
 
 	// Called by bundle manager to pass through command line options to simulate errors
 	virtual void SetErrorSimulationCommands(const FString& CommandLine) {}

@@ -170,14 +170,14 @@ struct FInstallBundleSourcePauseInfo
 enum class EInstallBundleStatus : int
 {
 	Requested,
-	Installing,
+	Updating,
 	Finishing,
-	Installed,
+	Ready,
 	Count,
 };
 INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleStatus Status);
 
-struct FInstallBundleSourceStatus
+struct FInstallBundleSourceProgress
 {
 	FName BundleName;
 
