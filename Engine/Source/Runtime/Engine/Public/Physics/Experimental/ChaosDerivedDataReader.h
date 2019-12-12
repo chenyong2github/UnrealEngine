@@ -8,8 +8,7 @@ namespace Chaos
 {
 	class FImplicitObject;
 
-	template <typename T>
-	class TTriangleMeshImplicitObject;
+	class FTriangleMeshImplicitObject;
 
 	class FConvex;
 }
@@ -25,7 +24,7 @@ public:
 	explicit FChaosDerivedDataReader(FUntypedBulkData* InBulkData);
 
 	TArray<TUniquePtr<Chaos::FConvex>> ConvexImplicitObjects;
-	TArray<TSharedPtr<Chaos::TTriangleMeshImplicitObject<T>, ESPMode::ThreadSafe>> TrimeshImplicitObjects;
+	TArray<TSharedPtr<Chaos::FTriangleMeshImplicitObject, ESPMode::ThreadSafe>> TrimeshImplicitObjects;
 	FBodySetupUVInfo UVInfo;
 	TArray<int32> FaceRemap;
 

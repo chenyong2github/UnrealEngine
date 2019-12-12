@@ -150,7 +150,7 @@ struct ENGINE_API FPhysicsGeometryCollection_Chaos
 	const Chaos::TSphere<float, 3>&  GetSphereGeometry() const;
 	const Chaos::TCapsule<float>&  GetCapsuleGeometry() const;
 	const Chaos::FConvex& GetConvexGeometry() const;
-	const Chaos::TTriangleMeshImplicitObject<float>& GetTriMeshGeometry() const;
+	const Chaos::FTriangleMeshImplicitObject& GetTriMeshGeometry() const;
 
 private:
 	friend class FPhysInterface_Chaos;
