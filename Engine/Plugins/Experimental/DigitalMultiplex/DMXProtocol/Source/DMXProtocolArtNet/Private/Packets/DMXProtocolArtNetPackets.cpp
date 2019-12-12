@@ -1,3 +1,5 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
 #include "Packets/DMXProtocolArtNetPackets.h"
 #include "DMXProtocolTypes.h"
 #include "Serialization/DMXMemoryWriter.h"

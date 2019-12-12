@@ -1,3 +1,5 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
 #include "DMXProtocolPortSACN.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "Interfaces/IDMXProtocolUniverse.h"

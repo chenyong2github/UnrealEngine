@@ -1,3 +1,5 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
 #include "Packets/DMXProtocolE131PDUPacket.h"
 #include "DMXProtocolTypes.h"
 #include "Serialization/DMXMemoryWriter.h"
