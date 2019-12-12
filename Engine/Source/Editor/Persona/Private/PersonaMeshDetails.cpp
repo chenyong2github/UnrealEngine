@@ -5113,7 +5113,6 @@ void FPersonaMeshDetails::OnGenerateElementForClothingAsset( TSharedRef<IPropert
 			.ShowPublicViewControl(false)
 			.HideNameArea(true)
 			.IsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateSP(this, &FPersonaMeshDetails::IsClothingPanelEnabled))
-			.OnFinishedChangingProperties(FOnFinishedChangingProperties::FDelegate::CreateSP(this, &FPersonaMeshDetails::OnFinishedChangingClothingProperties, ElementIndex))
 		]
 	];
 
@@ -5539,24 +5538,6 @@ void FPersonaMeshDetails::OnClothingSelectionChanged(TSharedPtr<FClothingEntry> 
 bool FPersonaMeshDetails::IsClothingPanelEnabled() const
 {
 	return !GEditor->bIsSimulatingInEditor && !GEditor->PlayWorld;
-}
-
-void FPersonaMeshDetails::OnFinishedChangingClothingProperties(const FPropertyChangedEvent& Event, int32 InAssetIndex)
-{
-	USkeletalMesh* CurrentMesh = GetPersonaToolkit()->GetMesh();
-	if(CurrentMesh->MeshClothingAssets.IsValidIndex(InAssetIndex))
-	{
-		UClothingAssetBase* Asset = CurrentMesh->MeshClothingAssets[InAssetIndex];
-		if (Asset)
-		{
-			Asset->PostPropertyChangeCb(Event);
-		}
-	}
-	if(UDebugSkelMeshComponent* PreviewComponent = GetPersonaToolkit()->GetPreviewMeshComponent())
-	{
-		// Reregister our preview component to apply the change
-		FComponentReregisterContext Context(PreviewComponent);
-	}
 }
 
 bool FPersonaMeshDetails::CanDeleteMaterialElement(int32 LODIndex, int32 SectionIndex) const
