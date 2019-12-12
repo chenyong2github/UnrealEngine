@@ -570,14 +570,58 @@ private:
 	uint8	Id[12];
 };
 
+class FIoStoreInstallManifest
+{
+public:
+	struct FEntry
+	{
+		FString PartitionName;
+		int32 InstallChunkId;
+	};
+
+	inline const TArray<FEntry>& ReadEntries() const
+	{
+		return Entries;
+	}
+
+	inline TArray<FEntry>& EditEntries()
+	{
+		return Entries;
+	}
+
+	friend FArchive& operator<<(FArchive& Ar, FIoStoreInstallManifest& IoStoreManifest)
+	{
+		int32 Version = CurrentVersion;
+		Ar << Version;
+		check(Version == CurrentVersion);
+		int32 EntryCount = IoStoreManifest.Entries.Num();
+		Ar << EntryCount;
+		if (Ar.IsLoading())
+		{
+			IoStoreManifest.Entries.SetNum(EntryCount);
+		}
+		for (int32 Index = 0; Index < EntryCount; ++Index)
+		{
+			FEntry& Entry = IoStoreManifest.Entries[Index];
+			Ar << Entry.PartitionName;
+			Ar << Entry.InstallChunkId;
+		}
+		return Ar;
+	}
+
+private:
+	static constexpr int32 CurrentVersion = 1;
+
+	TArray<FEntry> Entries;
+};
+
 /**
  * Addressable chunk types.
  */
 enum class EIoChunkType : uint8
 {
 	Invalid,
-	PackageSummary,
-	ExportData,
+	InstallManifest,
 	ExportBundleData,
 	BulkData,
 	OptionalBulkData,
@@ -732,7 +776,7 @@ public:
 	CORE_API						FIoDispatcher();
 	CORE_API virtual				~FIoDispatcher();
 
-	CORE_API FIoStatus				Mount(FIoStoreEnvironment& Environment);
+	CORE_API FIoStatus				Mount(const FIoStoreEnvironment& Environment);
 
 	CORE_API FIoBatch				NewBatch();
 	CORE_API void					FreeBatch(FIoBatch Batch);
@@ -746,8 +790,9 @@ public:
 	FIoDispatcher(const FIoDispatcher&) = default;
 	FIoDispatcher& operator=(const FIoDispatcher&) = delete;
 
+	static CORE_API bool IsValidEnvironment(const FIoStoreEnvironment& Environment);
 	static CORE_API bool IsInitialized();
-	static CORE_API FIoStatus Initialize();
+	static CORE_API FIoStatus Initialize(const FIoStoreEnvironment& InitialEnvironment);
 	static CORE_API void Shutdown();
 	static CORE_API FIoDispatcher& Get();
 
@@ -767,14 +812,17 @@ class FIoStoreEnvironment
 {
 public:
 	CORE_API FIoStoreEnvironment();
+	CORE_API FIoStoreEnvironment(const FIoStoreEnvironment& BaseEnvironment, FStringView PartitionName);
 	CORE_API ~FIoStoreEnvironment();
 
-	CORE_API void InitializeFileEnvironment(FStringView InRootPath);
+	CORE_API void InitializeFileEnvironment(FStringView InBasePath);
 
-	CORE_API const FString& GetRootPath() const { return RootPath; }
+	CORE_API const FString& GetBasePath() const { return BasePath; }
+	CORE_API const FString& GetPartitionName() const { return PartitionName; }
 
 private:
-	FString			RootPath;
+	FString			BasePath;
+	FString			PartitionName;
 };
 
 //////////////////////////////////////////////////////////////////////////

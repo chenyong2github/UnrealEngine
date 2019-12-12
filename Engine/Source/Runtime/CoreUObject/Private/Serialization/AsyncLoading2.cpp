@@ -1472,7 +1472,7 @@ class FAsyncLoadingThread2Impl
 {
 	friend struct FAsyncPackage2;
 public:
-	FAsyncLoadingThread2Impl(IEDLBootNotificationManager& InEDLBootNotificationManager);
+	FAsyncLoadingThread2Impl(FIoDispatcher& IoDispatcher, IEDLBootNotificationManager& InEDLBootNotificationManager);
 	virtual ~FAsyncLoadingThread2Impl();
 
 private:
@@ -1880,18 +1880,9 @@ struct FAsyncLoadingTickScope2
 
 void FAsyncLoadingThread2Impl::InitializeLoading()
 {
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(InitIoDispatcher);
-
-		FIoStoreEnvironment IoStoreEnvironment;
-		IoStoreEnvironment.InitializeFileEnvironment(FPaths::ProjectDir());
-		FIoStatus ReaderStatus = IoDispatcher.Mount(IoStoreEnvironment);
-		UE_CLOG(!ReaderStatus.IsOk(), LogStreaming, Fatal, TEXT("Failed to initialize I/O dispatcher: '%s'"), *ReaderStatus.ToString());
-
 #if USE_NEW_BULKDATA
-		FBulkDataBase::SetIODispatcher(&IoDispatcher);
+	FBulkDataBase::SetIODispatcher(&IoDispatcher);
 #endif
-	}
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(LoadGlobalNameMap);
@@ -3419,10 +3410,10 @@ EAsyncPackageState::Type FAsyncLoadingThread2Impl::TickAsyncLoadingFromGameThrea
 	return Result;
 }
 
-FAsyncLoadingThread2Impl::FAsyncLoadingThread2Impl(IEDLBootNotificationManager& InEDLBootNotificationManager)
+FAsyncLoadingThread2Impl::FAsyncLoadingThread2Impl(FIoDispatcher& InIoDispatcher, IEDLBootNotificationManager& InEDLBootNotificationManager)
 	: Thread(nullptr)
 	, EDLBootNotificationManager(InEDLBootNotificationManager)
-	, IoDispatcher(FIoDispatcher::Get())
+	, IoDispatcher(InIoDispatcher)
 {
 	GEventDrivenLoaderEnabled = true;
 
@@ -3469,8 +3460,6 @@ FAsyncLoadingThread2Impl::~FAsyncLoadingThread2Impl()
 
 void FAsyncLoadingThread2Impl::ShutdownLoading()
 {
-	FIoDispatcher::Shutdown();
-
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
 	FCoreUObjectDelegates::GetPostGarbageCollect().RemoveAll(this);
 
@@ -4594,9 +4583,9 @@ EAsyncPackageState::Type FAsyncLoadingThread2Impl::ProcessLoadingUntilCompleteFr
 	return TimeLimit <= 0 ? EAsyncPackageState::TimeOut : EAsyncPackageState::Complete;
 }
 
-FAsyncLoadingThread2::FAsyncLoadingThread2(IEDLBootNotificationManager& InEDLBootNotificationManager)
+FAsyncLoadingThread2::FAsyncLoadingThread2(FIoDispatcher& InIoDispatcher, IEDLBootNotificationManager& InEDLBootNotificationManager)
 {
-	Impl = new FAsyncLoadingThread2Impl(InEDLBootNotificationManager);
+	Impl = new FAsyncLoadingThread2Impl(InIoDispatcher, InEDLBootNotificationManager);
 }
 
 FAsyncLoadingThread2::~FAsyncLoadingThread2()

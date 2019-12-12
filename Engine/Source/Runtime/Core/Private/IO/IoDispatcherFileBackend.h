@@ -56,7 +56,7 @@ class FFileIoStoreReader
 {
 public:
 	FFileIoStoreReader(FFileIoStoreImpl& InPlatformImpl);
-	FIoStatus Initialize(const TCHAR* RootPath);
+	FIoStatus Initialize(const FIoStoreEnvironment& Environment);
 	bool DoesChunkExist(const FIoChunkId& ChunkId) const;
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const;
 	bool Resolve(FFileIoStoreResolvedRequest& ResolvedRequest);
@@ -73,11 +73,13 @@ class FFileIoStore
 {
 public:
 	FFileIoStore(FIoDispatcherEventQueue& InEventQueue);
-	FIoStatus Mount(const TCHAR* RootPath);
+	FIoStatus Mount(const FIoStoreEnvironment& Environment);
 	EIoStoreResolveResult Resolve(FIoRequestImpl* Request);
 	bool DoesChunkExist(const FIoChunkId& ChunkId) const;
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const;
 	void ProcessIncomingBlocks();
+
+	static bool IsValidEnvironment(const FIoStoreEnvironment& Environment);
 
 private:
 	void InitCache();

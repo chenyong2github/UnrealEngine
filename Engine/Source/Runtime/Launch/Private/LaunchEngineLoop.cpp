@@ -1581,14 +1581,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		IFileManager::Get().ProcessCommandLineOptions();
 	}
 
-#if !(IS_PROGRAM || WITH_EDITOR)
-	// Initialize I/O dispatcher when using the new package loader
-	if (FParse::Param(FCommandLine::Get(), TEXT("zenloader")))
-	{
-		FIoDispatcher::Initialize();
-	}
-#endif
-
 	if (GIsGameAgnosticExe)
 	{
 		// If we launched without a project file, but with a game name that is incomplete, warn about the improper use of a Game suffix
@@ -5487,6 +5479,22 @@ bool FEngineLoop::AppInit( )
 
 	FEmbeddedCommunication::ForceTick(18);
 
+#if !(IS_PROGRAM || WITH_EDITOR)
+	// Initialize I/O dispatcher if available
+	if (!FParse::Param(FCommandLine::Get(), TEXT("noiodispatcher")))
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(InitIoDispatcher);
+
+		FIoStoreEnvironment IoStoreEnvironment;
+		IoStoreEnvironment.InitializeFileEnvironment(FPaths::ProjectDir() / TEXT("Content") / TEXT("Containers"));
+		if (FIoDispatcher::IsValidEnvironment(IoStoreEnvironment))
+		{
+			FIoStatus IoDispatcherInitStatus = FIoDispatcher::Initialize(IoStoreEnvironment);
+			UE_CLOG(!IoDispatcherInitStatus.IsOk(), LogInit, Fatal, TEXT("Failed to initialize I/O dispatcher: '%s'"), *IoDispatcherInitStatus.ToString());
+		}
+	}
+#endif
+
 	// Init other systems.
 	{
 		SCOPED_BOOT_TIMING("FCoreDelegates::OnInit.Broadcast");
@@ -5564,6 +5572,10 @@ void FEngineLoop::AppPreExit( )
 
 void FEngineLoop::AppExit( )
 {
+#if !(IS_PROGRAM || WITH_EDITOR)
+	FIoDispatcher::Shutdown();
+#endif
+
 #if !WITH_ENGINE
 	// when compiled WITH_ENGINE, this will happen in FEngineLoop::Exit()
 	FTaskGraphInterface::Shutdown();

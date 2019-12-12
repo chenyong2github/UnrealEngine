@@ -11,6 +11,8 @@
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/PlatformProcess.h"
+#include "Serialization/LargeMemoryReader.h"
+#include "GenericPlatform/GenericPlatformChunkInstall.h"
 
 DEFINE_LOG_CATEGORY(LogIoDispatcher);
 
@@ -141,6 +143,64 @@ public:
 		Thread = FRunnableThread::Create(this, TEXT("IoDispatcher"), 0, TPri_AboveNormal);
 	}
 
+	~FIoDispatcherImpl()
+	{
+		IPlatformChunkInstall* ChunkInstall = FPlatformMisc::GetPlatformChunkInstall();
+		if (ChunkInstall && ChunkDownloadedDelegateHandle.IsValid())
+		{
+			ChunkInstall->RemoveChunkInstallDelegate(ChunkDownloadedDelegateHandle);
+		}
+	}
+
+	FIoStatus Initialize(const FIoStoreEnvironment& InitialEnvironment)
+	{
+		FIoStatus IoStatus = Mount(InitialEnvironment);
+		if (!IoStatus.IsOk())
+		{
+			return IoStatus;
+		}
+
+		FIoBuffer IoBuffer;
+		FEvent* Event = FPlatformProcess::GetSynchEventFromPool();
+		ReadWithCallback(
+			CreateIoChunkId(0, 0, EIoChunkType::InstallManifest),
+			FIoReadOptions(),
+			[Event, &IoBuffer](TIoStatusOr<FIoBuffer> Result)
+		{
+			if (Result.IsOk())
+			{
+				IoBuffer = Result.ConsumeValueOrDie();
+			}
+			Event->Trigger();
+		});
+		Event->Wait();
+		if (!IoBuffer.DataSize())
+		{
+			return FIoStatusBuilder(EIoErrorCode::NotFound) << TEXT("Failed to open install manifest");
+		}
+		FLargeMemoryReader InstallManifestAr(IoBuffer.Data(), IoBuffer.DataSize());
+
+		FIoStoreInstallManifest InstallManifest;
+		InstallManifestAr << InstallManifest;
+
+		IPlatformChunkInstall* ChunkInstall = FPlatformMisc::GetPlatformChunkInstall();
+		ChunkDownloadedDelegateHandle = ChunkInstall->AddChunkInstallDelegate(FPlatformChunkInstallDelegate::CreateRaw(this, &FIoDispatcherImpl::OnChunkDownloaded));
+		for (const FIoStoreInstallManifest::FEntry& InstallManifestEntry : InstallManifest.ReadEntries())
+		{
+			FIoStoreEnvironment PartitionEnvironment(InitialEnvironment, InstallManifestEntry.PartitionName);
+			if (ChunkInstall && ChunkInstall->GetChunkLocation(InstallManifestEntry.InstallChunkId) == EChunkLocation::NotAvailable)
+			{
+				PendingInstallChunks.Add(MakeTuple(InstallManifestEntry.InstallChunkId, PartitionEnvironment));
+			}
+			else
+			{
+				Mount(PartitionEnvironment);
+			}
+		}
+
+		return FIoStatus::Ok;
+	}
+
 	FIoRequestImpl* AllocRequest(const FIoChunkId& ChunkId, FIoReadOptions Options)
 	{
 		FIoRequestImpl* Request = RequestAllocator.Construct();
@@ -208,9 +268,9 @@ public:
 		EventQueue.Notify();
 	}
 
-	FIoStatus Mount(FIoStoreEnvironment& Environment)
+	FIoStatus Mount(const FIoStoreEnvironment& Environment)
 	{
-		return FileIoStore.Mount(*Environment.GetRootPath());
+		return FileIoStore.Mount(Environment);
 	}
 
 	bool DoesChunkExist(const FIoChunkId& ChunkId) const
@@ -354,6 +414,23 @@ private:
 		}
 	}
 
+	void OnChunkDownloaded(uint32 ChunkId, bool bSuccess)
+	{
+		if (bSuccess)
+		{
+			for (auto It = PendingInstallChunks.CreateIterator(); It; ++It)
+			{
+				int32 PendingChunkId = It->Get<0>();
+				if (PendingChunkId == ChunkId)
+				{
+					const FIoStoreEnvironment& PendingEnvironment = It->Get<1>();
+					Mount(PendingEnvironment);
+					It.RemoveCurrent();
+				}
+			}
+		}
+	}
+
 	virtual bool Init()
 	{
 		return true;
@@ -392,6 +469,8 @@ private:
 	int32 CurrentRequestsToSubmitIndex = 0;
 	FIoRequestImpl* SubmittedRequestsHead = nullptr;
 	FIoRequestImpl* SubmittedRequestsTail = nullptr;
+	FDelegateHandle ChunkDownloadedDelegateHandle;
+	TArray<TTuple<int32, FIoStoreEnvironment>> PendingInstallChunks;
 };
 
 FIoDispatcher::FIoDispatcher()
@@ -404,7 +483,7 @@ FIoDispatcher::~FIoDispatcher()
 	delete Impl;
 }
 
-FIoStatus FIoDispatcher::Mount(FIoStoreEnvironment& Environment)
+FIoStatus FIoDispatcher::Mount(const FIoStoreEnvironment& Environment)
 {
 	return Impl->Mount(Environment);
 }
@@ -440,12 +519,24 @@ FIoDispatcher::GetSizeForChunk(const FIoChunkId& ChunkId) const
 	return Impl->GetSizeForChunk(ChunkId);
 }
 
+bool
+FIoDispatcher::IsInitialized()
+{
+	return GIoDispatcher.IsValid();
+}
+
+bool
+FIoDispatcher::IsValidEnvironment(const FIoStoreEnvironment& Environment)
+{
+	return FFileIoStore::IsValidEnvironment(Environment);
+}
+
 FIoStatus
-FIoDispatcher::Initialize()
+FIoDispatcher::Initialize(const FIoStoreEnvironment& InitialEnvironment)
 {
 	GIoDispatcher = MakeUnique<FIoDispatcher>();
 
-	return EIoErrorCode::Ok;
+	return GIoDispatcher->Impl->Initialize(InitialEnvironment);
 }
 
 void

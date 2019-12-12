@@ -558,11 +558,10 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 		Ar << BulkDataOffsetInFile;
 
 #if ENABLE_IO_DISPATCHER
-		static const bool bUseZenLoader = FParse::Param(FCommandLine::Get(), TEXT("zenloader"));
+		const bool bUseIoDispatcher = FIoDispatcher::IsInitialized();
 #else
-		const bool bUseZenLoader = false;
+		const bool bUseIoDispatcher = false;
 #endif
-
 		if ((BulkDataFlags & BULKDATA_BadDataVersion) != 0)
 		{
 			uint16 DummyValue;
@@ -576,7 +575,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 		const UPackage* Package = Owner->GetOutermost();
 		check(Package != nullptr);
 
-		if (!IsInlined() && bUseZenLoader)
+		if (!IsInlined() && bUseIoDispatcher)
 		{
 			const EIoChunkType Type = IsOptional() ? EIoChunkType::OptionalBulkData : EIoChunkType::BulkData;
 			ChunkID = CreateBulkdataChunkId(Package->GetPackageId().ToIndex(), BulkDataOffsetInFile, Type);
@@ -594,7 +593,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 		FName PackageName;
 		const FLinkerLoad* Linker = nullptr;
 
-		if (bUseZenLoader == false)
+		if (bUseIoDispatcher == false)
 		{
 			Linker = FLinkerLoad::FindExistingLinkerForPackage(Package);
 			check(Linker != nullptr);
@@ -638,7 +637,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 					{
 						SerializeDuplicateData(Ar, BulkDataFlags, BulkDataSizeOnDisk, BulkDataOffsetInFile);
 
-						if (!IsInlined() && bUseZenLoader)
+						if (!IsInlined() && bUseIoDispatcher)
 						{
 							// Regenerate the FIoChunkId to find the optional BulkData instead!
 							ChunkID = CreateBulkdataChunkId(Package->GetPackageId().ToIndex(), BulkDataOffsetInFile, EIoChunkType::OptionalBulkData);
@@ -668,7 +667,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			}
 
 			// If we are not using the FIoDispatcher then we need to make sure we can retrieve the filename later
-			if (bUseZenLoader == false)
+			if (bUseIoDispatcher == false)
 			{
 				check(Filename != nullptr);
 				Fallback.Token = FileTokenSystem::RegisterFileToken( PackageName, *Filename, BulkDataOffsetInFile);

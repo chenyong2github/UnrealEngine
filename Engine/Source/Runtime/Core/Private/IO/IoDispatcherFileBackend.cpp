@@ -15,22 +15,29 @@ FFileIoStoreReader::FFileIoStoreReader(FFileIoStoreImpl& InPlatformImpl)
 {
 }
 
-FIoStatus FFileIoStoreReader::Initialize(const TCHAR* RootPath)
+FIoStatus FFileIoStoreReader::Initialize(const FIoStoreEnvironment& Environment)
 {
 	IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
 
 	TStringBuilder<256> ContainerFilePath;
-	ContainerFilePath.Append(RootPath);
+	ContainerFilePath.Append(Environment.GetBasePath());
 	if (ContainerFilePath.LastChar() != '/')
 	{
 		ContainerFilePath.Append(TEXT('/'));
 	}
-
+	if (Environment.GetPartitionName().IsEmpty())
+	{
+		ContainerFilePath.Append(TEXT("global"));
+	}
+	else
+	{
+		ContainerFilePath.Append(Environment.GetPartitionName());
+	}
 	TStringBuilder<256> TocFilePath;
 	TocFilePath.Append(ContainerFilePath);
-	TocFilePath.Append(TEXT("Container.utoc"));
 
-	ContainerFilePath.Append(TEXT("Container.ucas"));
+	ContainerFilePath.Append(TEXT(".ucas"));
+	TocFilePath.Append(TEXT(".utoc"));
 
 	if (!PlatformImpl.OpenContainer(*ContainerFilePath, ContainerFileHandle, ContainerFileSize))
 	{
@@ -145,10 +152,10 @@ FFileIoStore::FFileIoStore(FIoDispatcherEventQueue& InEventQueue)
 	InitCache();
 }
 
-FIoStatus FFileIoStore::Mount(const TCHAR* RootPath)
+FIoStatus FFileIoStore::Mount(const FIoStoreEnvironment& Environment)
 {
 	TUniquePtr<FFileIoStoreReader> Reader(new FFileIoStoreReader(PlatformImpl));
-	FIoStatus IoStatus = Reader->Initialize(RootPath);
+	FIoStatus IoStatus = Reader->Initialize(Environment);
 	if (IoStatus.IsOk())
 	{
 		FWriteScopeLock _(IoStoreReadersLock);
@@ -228,6 +235,26 @@ TIoStatusOr<uint64> FFileIoStore::GetSizeForChunk(const FIoChunkId& ChunkId) con
 		}
 	}
 	return FIoStatus(EIoErrorCode::NotFound);
+}
+
+bool FFileIoStore::IsValidEnvironment(const FIoStoreEnvironment& Environment)
+{
+	TStringBuilder<256> TocFilePath;
+	TocFilePath.Append(Environment.GetBasePath());
+	if (TocFilePath.LastChar() != '/')
+	{
+		TocFilePath.Append(TEXT('/'));
+	}
+	if (Environment.GetPartitionName().IsEmpty())
+	{
+		TocFilePath.Append(TEXT("global"));
+	}
+	else
+	{
+		TocFilePath.Append(Environment.GetPartitionName());
+	}
+	TocFilePath.Append(TEXT(".utoc"));
+	return FPlatformFileManager::Get().GetPlatformFile().FileExists(*TocFilePath);
 }
 
 void FFileIoStore::ProcessIncomingBlocks()
