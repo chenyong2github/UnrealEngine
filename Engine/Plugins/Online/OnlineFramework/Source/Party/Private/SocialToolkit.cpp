@@ -540,9 +540,12 @@ void USocialToolkit::OnOwnerLoggedOut()
 				FriendsInterface->ClearOnInviteReceivedDelegates(this);
 				FriendsInterface->ClearOnInviteAcceptedDelegates(this);
 				FriendsInterface->ClearOnInviteRejectedDelegates(this);
+				FriendsInterface->ClearOnInviteAbortedDelegates(this);
 
 				FriendsInterface->ClearOnBlockedPlayerCompleteDelegates(LocalUserNum, this);
 				FriendsInterface->ClearOnUnblockedPlayerCompleteDelegates(LocalUserNum, this);
+
+				FriendsInterface->ClearOnRecentPlayersAddedDelegates(this);
 
 				FriendsInterface->ClearOnQueryBlockedPlayersCompleteDelegates(this);
 				FriendsInterface->ClearOnQueryRecentPlayersCompleteDelegates(this);
