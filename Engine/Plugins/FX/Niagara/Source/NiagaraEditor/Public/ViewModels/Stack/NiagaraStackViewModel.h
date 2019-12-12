@@ -97,8 +97,12 @@ public:
 
 	bool GetShowOutputs() const;
 	void SetShowOutputs(bool bInShowOutputs);
+
 	bool GetShowLinkedInputs() const;
 	void SetShowLinkedInputs(bool bInShowLinkedInputs);
+
+	bool GetShowOnlyIssues() const;
+	void SetShowOnlyIssues(bool bInShowOnlyIssues);
 
 	double GetLastScrollPosition() const;
 	void SetLastScrollPosition(double InLastScrollPosition);
@@ -118,6 +122,9 @@ public:
 	int GetCurrentFocusedMatchIndex() const { return CurrentFocusedSearchMatchIndex; }
 	UNiagaraStackEntry* GetCurrentFocusedEntry();
 	void AddSearchScrollOffset(int NumberOfSteps);
+
+	void OnCycleThroughIssues();
+	UNiagaraStackEntry* GetCurrentFocusedIssue() const;
 
 	void GetPathForEntry(UNiagaraStackEntry* Entry, TArray<UNiagaraStackEntry*>& EntryPath) const;
 
@@ -193,6 +200,7 @@ private:
 	bool bRestartSearch;
 	bool bRefreshPending;
 	bool bHasIssues;
+	int32 CurrentIssueCycleIndex;
 
 	bool bUsesTopLevelViewModels;
 	TArray<TSharedRef<FTopLevelViewModel>> TopLevelViewModels;

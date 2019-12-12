@@ -64,11 +64,14 @@ class SNiagaraStackEmitterHeader : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS(SNiagaraStackEmitterHeader) {}
 		SLATE_ATTRIBUTE(EVisibility, IssueIconVisibility);
+		SLATE_EVENT(FSimpleDelegate, OnCycleThroughIssues);
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs, TSharedRef<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel, UNiagaraStackEntry* InRootEntry)
+	void Construct(const FArguments& InArgs, TSharedRef<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel, UNiagaraStackEntry* InRootEntry, UNiagaraStackViewModel* InStackViewModel)
 	{
 		EmitterHandleViewModel = InEmitterHandleViewModel;
+		OnCycleThroughIssues = InArgs._OnCycleThroughIssues;
+		StackViewModel = InStackViewModel;
 
 		ChildSlot
 		[
@@ -83,47 +86,38 @@ public:
 				//~ Enabled
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
-				.Padding(2, 0, 0, 0)
+				.Padding(2, 4, 0, 0)
+				.VAlign(VAlign_Top)
 				[
 					SNew(SCheckBox)
 					.ToolTipText(LOCTEXT("EnabledToolTip", "Toggles whether this emitter is enabled. Disabled emitters don't simulate or render."))
 					.IsChecked(EmitterHandleViewModel.ToSharedRef(), &FNiagaraEmitterHandleViewModel::GetIsEnabledCheckState)
 					.OnCheckStateChanged(EmitterHandleViewModel.ToSharedRef(), &FNiagaraEmitterHandleViewModel::OnIsEnabledCheckStateChanged)
 				]
-				// Name and Source Emitter Name
 				+ SHorizontalBox::Slot()
 				.Padding(2)
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Center)
+				.FillWidth(1.0f)
 				[
+					// Name and Source Emitter Name
 					SNew(SWrapBox)
 					.Clipping(EWidgetClipping::ClipToBoundsAlways) 
 					.UseAllottedWidth(true)
 					+ SWrapBox::Slot()
-					.Padding(3, 0)
 					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						[
-							SAssignNew(EmitterNameTextBlock, SInlineEditableTextBlock)
-							.ToolTipText(this, &SNiagaraStackEmitterHeader::GetEmitterNameToolTip)
-							.Style(FNiagaraEditorStyle::Get(), "NiagaraEditor.HeadingInlineEditableText") 
-							.Clipping(EWidgetClipping::ClipToBoundsAlways)
-							.Text(EmitterHandleViewModel.ToSharedRef(), &FNiagaraEmitterHandleViewModel::GetNameText)
-							.OnTextCommitted(EmitterHandleViewModel.ToSharedRef(), &FNiagaraEmitterHandleViewModel::OnNameTextComitted)
-							.OnVerifyTextChanged(EmitterHandleViewModel.ToSharedRef(), &FNiagaraEmitterHandleViewModel::VerifyNameTextChanged)
-							.IsReadOnly(EmitterHandleViewModel->CanRenameEmitter() == false)
-						]
-						// Issue Icon
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						.Padding(4, 0, 0, 0)
-						[
-							SNew(SNiagaraStackIssueIcon, EmitterHandleViewModel->GetEmitterStackViewModel(), InRootEntry)
-							.Visibility(InArgs._IssueIconVisibility)
-						]
+				
+						SAssignNew(EmitterNameTextBlock, SInlineEditableTextBlock)
+						.ToolTipText(this, &SNiagaraStackEmitterHeader::GetEmitterNameToolTip)
+						.Style(FNiagaraEditorStyle::Get(), "NiagaraEditor.HeadingInlineEditableText") 
+						.Clipping(EWidgetClipping::ClipToBoundsAlways)
+						.Text(EmitterHandleViewModel.ToSharedRef(), &FNiagaraEmitterHandleViewModel::GetNameText)
+						.OnTextCommitted(EmitterHandleViewModel.ToSharedRef(), &FNiagaraEmitterHandleViewModel::OnNameTextComitted)
+						.OnVerifyTextChanged(EmitterHandleViewModel.ToSharedRef(), &FNiagaraEmitterHandleViewModel::VerifyNameTextChanged)
+						.IsReadOnly(EmitterHandleViewModel->CanRenameEmitter() == false)
 					]
 					+ SWrapBox::Slot()
-					.Padding(4, 0)
+					.Padding(4, 0, 0, 0)
 					[
 						SNew(STextBlock)
 						.ToolTipText(this, &SNiagaraStackEmitterHeader::GetEmitterNameToolTip)
@@ -132,13 +126,24 @@ public:
 						.Text(EmitterHandleViewModel->GetEmitterViewModel(), &FNiagaraEmitterViewModel::GetParentNameText)
 						.Visibility(this, &SNiagaraStackEmitterHeader::GetSourceEmitterNameVisibility) 
 					]
- 				]
+				]
+				// Issue Icon
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Top)
+				.Padding(0, 4, 2, 0)
+				[
+					SNew(SNiagaraStackIssueIcon, StackViewModel, InRootEntry)
+					.Visibility(InArgs._IssueIconVisibility)
+					.OnClicked(this, &SNiagaraStackEmitterHeader::OnIssueIconClicked)
+				]
 				// Open and Focus Source Emitter
 				+ SHorizontalBox::Slot()
+				.AutoWidth()
 				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Center)
-				.AutoWidth()
-				.Padding(2)
+				.Padding(0, 4, 2, 0)
 				[
 					SNew(SButton)
 					.IsFocusable(false)
@@ -223,15 +228,22 @@ private:
 		return EmitterHandleViewModel->GetEmitterViewModel()->GetEmitter()->GetParent() != nullptr ? EVisibility::Visible : EVisibility::Collapsed;
 	}
 
+	FReply OnIssueIconClicked() const
+	{
+		StackViewModel->OnCycleThroughIssues();
+		OnCycleThroughIssues.ExecuteIfBound();
+		return FReply::Handled();
+	}
+
 private:
 	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel;
 
 	TSharedPtr<SInlineEditableTextBlock> EmitterNameTextBlock;
+	FSimpleDelegate OnCycleThroughIssues;
+	UNiagaraStackViewModel* StackViewModel;
 };
 
 const float SpacerHeight = 6;
-
-const FText SNiagaraStack::OccurencesFormat = NSLOCTEXT("NiagaraStack", "OccurencesFound", "{0} / {1}");
 
 void SNiagaraStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel* InStackViewModel)
 {
@@ -263,15 +275,15 @@ void SNiagaraStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel* 
 			.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
 			.BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.BackgroundColor"))
 			[
-			SAssignNew(StackTree, STreeView<UNiagaraStackEntry*>)
-			.OnGenerateRow(this, &SNiagaraStack::OnGenerateRowForStackItem)
-			.OnGetChildren(this, &SNiagaraStack::OnGetChildren)
-			.TreeItemsSource(&StackViewModel->GetRootEntryAsArray())
-			.OnTreeViewScrolled(this, &SNiagaraStack::StackTreeScrolled)
-			.SelectionMode(ESelectionMode::Single)
-			.OnItemToString_Debug_Static(&FNiagaraStackEditorWidgetsUtilities::StackEntryToStringForListDebug)
-			.OnMouseButtonClick(this, &SNiagaraStack::OnStackItemClicked)
-		]
+				SAssignNew(StackTree, STreeView<UNiagaraStackEntry*>)
+				.OnGenerateRow(this, &SNiagaraStack::OnGenerateRowForStackItem)
+				.OnGetChildren(this, &SNiagaraStack::OnGetChildren)
+				.TreeItemsSource(&StackViewModel->GetRootEntryAsArray())
+				.OnTreeViewScrolled(this, &SNiagaraStack::StackTreeScrolled)
+				.SelectionMode(ESelectionMode::Single)
+				.OnItemToString_Debug_Static(&FNiagaraStackEditorWidgetsUtilities::StackEntryToStringForListDebug)
+				.OnMouseButtonClick(this, &SNiagaraStack::OnStackItemClicked)
+			]
 		]
 	];
 
@@ -366,33 +378,29 @@ void SNiagaraStack::OnSearchTextChanged(const FText& SearchText)
 	StackViewModel->OnSearchTextChanged(SearchText);
 }
 
+static void ExpandAllInPath(const TArray<UNiagaraStackEntry*>& EntryPath)
+{
+	for (UNiagaraStackEntry* Entry : EntryPath)
+	{
+		if (!Entry->IsA<UNiagaraStackRoot>())
+		{
+			Entry->SetIsExpanded(true);
+		}
+	}
+}
+
 FReply SNiagaraStack::ScrollToNextMatch()
 {
-	
-	const int NextMatchIndex = StackViewModel->GetCurrentFocusedMatchIndex() + 1;
+	int NextMatchIndex = StackViewModel->GetCurrentFocusedMatchIndex() + 1;
 	TArray<UNiagaraStackViewModel::FSearchResult> CurrentSearchResults = StackViewModel->GetCurrentSearchResults();
 	if (CurrentSearchResults.Num() != 0)
 	{
-		if (NextMatchIndex < CurrentSearchResults.Num())
+		if (NextMatchIndex >= CurrentSearchResults.Num())
 		{
-			for (auto SearchResultEntry : CurrentSearchResults[NextMatchIndex].EntryPath)
-			{
-				if (!SearchResultEntry->IsA<UNiagaraStackRoot>())
-				{
-					SearchResultEntry->SetIsExpanded(true);
-				}
-			}
+			NextMatchIndex = 0;
 		}
-		else
-		{
-			for (auto SearchResultEntry : CurrentSearchResults[0].EntryPath)
-			{
-				if (!SearchResultEntry->IsA<UNiagaraStackRoot>())
-				{
-					SearchResultEntry->SetIsExpanded(true);
-				}
-			}
-		}
+
+		ExpandAllInPath(CurrentSearchResults[NextMatchIndex].EntryPath);
 		SynchronizeTreeExpansion();
 	}
 
@@ -539,6 +547,16 @@ TSharedRef<SWidget> SNiagaraStack::GetViewOptionsMenu() const
 			FGetActionCheckState::CreateLambda([=]() { return StackViewModel->GetShowOutputs() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })),
 		NAME_None, EUserInterfaceActionType::Check);
 
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ShowIssuesLabel", "Show Only Issues"),
+		LOCTEXT("ShowIssuesToolTip", "Hides all modules except those that have unresolved issues."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([=]() { StackViewModel->SetShowOnlyIssues(!StackViewModel->GetShowOnlyIssues()); }),
+			FCanExecuteAction(),
+			FGetActionCheckState::CreateLambda([=]() { return StackViewModel->GetShowOnlyIssues() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })),
+		NAME_None, EUserInterfaceActionType::Check);
+
 	return MenuBuilder.MakeWidget();
 }
 
@@ -657,8 +675,9 @@ TSharedRef<ITableRow> SNiagaraStack::OnGenerateRowForTopLevelObject(TSharedRef<U
 	}
 	else if(Item->EmitterHandleViewModel.IsValid())
 	{
-		Content = SNew(SNiagaraStackEmitterHeader, Item->EmitterHandleViewModel.ToSharedRef(), Item->RootEntry.Get())
-			.IssueIconVisibility(this, &SNiagaraStack::GetIssueIconVisibility);
+		Content = SNew(SNiagaraStackEmitterHeader, Item->EmitterHandleViewModel.ToSharedRef(), Item->RootEntry.Get(), StackViewModel)
+			.IssueIconVisibility(this, &SNiagaraStack::GetIssueIconVisibility)
+			.OnCycleThroughIssues(this, &SNiagaraStack::OnCycleThroughIssues);
 	}
 
 	Content->SetOnMouseButtonUp(FPointerEventHandler::CreateSP(this, &SNiagaraStack::OnTopLevelRowMouseButtonDown, TWeakPtr<UNiagaraStackViewModel::FTopLevelViewModel>(Item)));
@@ -1017,6 +1036,20 @@ void SNiagaraStack::OnStackItemClicked(UNiagaraStackEntry* Item)
 	// Focus the stack search if we are just clicking on an item
 	// This won't be hit by a bubbling-up click if a widget with text entry is clicked
 	FSlateApplication::Get().SetKeyboardFocus(SearchBox, EFocusCause::OtherWidgetLostFocus);
+}
+
+void SNiagaraStack::OnCycleThroughIssues()
+{
+	UNiagaraStackEntry* StackEntry = StackViewModel->GetCurrentFocusedIssue();
+
+	TArray<UNiagaraStackEntry*> EntryPath;
+	StackViewModel->GetPathForEntry(StackEntry, EntryPath);
+	EntryPath.Add(StackEntry);
+
+	ExpandAllInPath(EntryPath);
+	SynchronizeTreeExpansion();
+
+	StackTree->RequestScrollIntoView(StackEntry);
 }
 
 #undef LOCTEXT_NAMESPACE
