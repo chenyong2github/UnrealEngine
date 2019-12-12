@@ -186,6 +186,8 @@ struct FD3D12UpdateTexture3DData
 /** Forward declare the context for the AMD AGS utility library. */
 struct AGSContext;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 /** The interface which is implemented by the dynamically bound RHI. */
 class FD3D12DynamicRHI : public FDynamicRHI
 {
@@ -341,7 +343,9 @@ public:
 	virtual bool RHIGetRenderQueryResult(FRHIRenderQuery* RenderQuery, uint64& OutResult, bool bWait) final override;
 	virtual uint32 RHIGetViewportNextPresentGPUIndex(FRHIViewport* Viewport) final override;
 	virtual FTexture2DRHIRef RHIGetViewportBackBuffer(FRHIViewport* Viewport) final override;
+	UE_DEPRECATED(4.25, "RHIAliasTextureResources now takes references to FTextureRHIRef objects as parameters")
 	virtual void RHIAliasTextureResources(FRHITexture* DestTexture, FRHITexture* SrcTexture) final override;
+	UE_DEPRECATED(4.25, "RHICreateAliasedTexture now takes a reference to an FTextureRHIRef object")
 	virtual FTextureRHIRef RHICreateAliasedTexture(FRHITexture* SourceTexture) final override;
 	virtual void RHIAliasTextureResources(FTextureRHIRef& DestTexture, FTextureRHIRef& SrcTexture) final override;
 	virtual FTextureRHIRef RHICreateAliasedTexture(FTextureRHIRef& SourceTexture) final override;
@@ -966,6 +970,8 @@ protected:
 
 	HANDLE FlipEvent;
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /** Implements the D3D12RHI module as a dynamic RHI providing module. */
 class FD3D12DynamicRHIModule : public IDynamicRHIModule
