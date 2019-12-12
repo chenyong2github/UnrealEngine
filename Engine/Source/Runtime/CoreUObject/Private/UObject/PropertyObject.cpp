@@ -181,6 +181,34 @@ void UObjectProperty::SetObjectPropertyValue(void* PropertyValueAddress, UObject
 	SetPropertyValue(PropertyValueAddress, Value);
 }
 
+
+void UObjectProperty::CopySingleValueToScriptVM( void* Dest, void const* Src ) const
+{
+	*(UObject**)Dest = GetObjectPropertyValue(Src);
+}
+
+void UObjectProperty::CopyCompleteValueToScriptVM( void* Dest, void const* Src ) const
+{
+	for (int32 Index = 0; Index < ArrayDim; Index++)
+	{
+		((UObject**)Dest)[Index] = GetObjectPropertyValue(((uint8*)Src) + Index * ElementSize);
+	}
+}
+
+void UObjectProperty::CopySingleValueFromScriptVM( void* Dest, void const* Src ) const
+{
+	SetObjectPropertyValue(Dest, *(UObject**)Src);
+}
+
+void UObjectProperty::CopyCompleteValueFromScriptVM( void* Dest, void const* Src ) const
+{
+	checkSlow(ElementSize == sizeof(UObject*)); // the idea that script pointers are the same size as weak pointers is maybe required, maybe not
+	for (int32 Index = 0; Index < ArrayDim; Index++)
+	{
+		SetObjectPropertyValue(((uint8*)Dest) + Index * ElementSize, ((UObject**)Src)[Index]);
+	}
+}
+
 IMPLEMENT_CORE_INTRINSIC_CLASS(UObjectProperty, UObjectPropertyBase,
 	{
 	}
