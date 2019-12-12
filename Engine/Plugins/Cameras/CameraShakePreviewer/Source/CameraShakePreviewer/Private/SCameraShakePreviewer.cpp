@@ -10,7 +10,6 @@
 #include "LevelEditorViewport.h"
 #include "Modules/ModuleManager.h"
 #include "Slate/SceneViewport.h"
-#include "TickableEditorObject.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SBox.h"

@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "EditorUndoClient.h"
 #include "Templates/SharedPointer.h"
+#include "TickableEditorObject.h"
 #include "UObject/GCObject.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Views/SListView.h"
