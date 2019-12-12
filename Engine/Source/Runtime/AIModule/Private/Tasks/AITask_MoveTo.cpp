@@ -242,25 +242,13 @@ void UAITask_MoveTo::ResetObservers()
 
 void UAITask_MoveTo::ResetTimers()
 {
-	if (MoveRetryTimerHandle.IsValid())
+	if (OwnerController)
 	{
-		if (OwnerController)
-		{
-			OwnerController->GetWorldTimerManager().ClearTimer(MoveRetryTimerHandle);
-		}
-
-		MoveRetryTimerHandle.Invalidate();
+		// Remove all timers including the ones that might have been set with SetTimerForNextTick 
+		OwnerController->GetWorldTimerManager().ClearAllTimersForObject(this);
 	}
-
-	if (PathRetryTimerHandle.IsValid())
-	{
-		if (OwnerController)
-		{
-			OwnerController->GetWorldTimerManager().ClearTimer(PathRetryTimerHandle);
-		}
-
-		PathRetryTimerHandle.Invalidate();
-	}
+	MoveRetryTimerHandle.Invalidate();
+	PathRetryTimerHandle.Invalidate();
 }
 
 void UAITask_MoveTo::OnDestroy(bool bInOwnerFinished)
