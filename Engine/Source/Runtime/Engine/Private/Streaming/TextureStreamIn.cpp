@@ -22,6 +22,11 @@ FTextureUpdateContext::FTextureUpdateContext(UStreamableRenderAsset* InTexture, 
 {
 }
 
+UStreamableRenderAsset* FTextureUpdateContext::GetRenderAsset() const
+{
+	return Texture;
+}
+
 bool FTextureStreamIn::IsSameThread(FTextureMipAllocator::ETickThread TickThread, int32 TaskThread)
 {
 	if (TaskThread == TT_Async)
