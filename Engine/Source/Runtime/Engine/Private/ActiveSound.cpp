@@ -18,13 +18,6 @@ FAutoConsoleVariableRef CVarAudioOcclusionEnabled(
 	TEXT("Disables (1) or enables (0) audio occlusion.\n"),
 	ECVF_Default);
 
-static int32 AudioDisableConcurrencyStopSilentForLoopsCvar = 0;
-FAutoConsoleVariableRef CVarAudioDisableConcurrencyStopSilentForLoops(
-	TEXT("au.DisableConcurrencyStopSilentForLoops"),
-	AudioDisableConcurrencyStopSilentForLoopsCvar,
-	TEXT("Disables (1) or enables (0) audio concurrency for loops subscribing to stop silent.\n"),
-	ECVF_Default);
-
 FTraceDelegate FActiveSound::ActiveSoundTraceDelegate;
 TMap<FTraceHandle, FActiveSound::FAsyncTraceDetails> FActiveSound::TraceToActiveSoundMap;
 
@@ -101,7 +94,7 @@ FActiveSound::FActiveSound()
 	, EnvelopeFollowerReleaseTime(100)
 #if ENABLE_AUDIO_DEBUG
 	, DebugColor(FColor::Black)
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // ENABLE_AUDIO_DEBUG
 {
 	if (!ActiveSoundTraceDelegate.IsBound())
 	{
@@ -455,20 +448,6 @@ void FActiveSound::GetConcurrencyHandles(TArray<FConcurrencyHandle>& OutConcurre
 			}
 		}
 	}
-
-	if (IsLooping() && AudioDisableConcurrencyStopSilentForLoopsCvar)
-	{
-		for (int32 i = OutConcurrencyHandles.Num() - 1; i >= 0; --i)
-		{
-			if (OutConcurrencyHandles[i].Settings.ResolutionRule == EMaxConcurrentResolutionRule::StopQuietest)
-			{
-				UE_LOG(LogAudio, Warning,
-					TEXT("Concurrency not observed for '%s': StopQuietest concurrency disabled for looping sounds"),
-					Sound ? *Sound->GetName() : TEXT("N/A"));
-				OutConcurrencyHandles.RemoveAtSwap(i, 1, false);
-			}
-		}
-	}
 }
 
 bool FActiveSound::GetConcurrencyFadeDuration(float& OutFadeDuration) const
@@ -478,12 +457,12 @@ bool FActiveSound::GetConcurrencyFadeDuration(float& OutFadeDuration) const
 	GetConcurrencyHandles(Handles);
 	for (FConcurrencyHandle& Handle : Handles)
 	{
-		// StopQuietest can spam if a looping ActiveSound isn't active longer than a virtualization update period, which
+		// Resolution rules that don't support eviction (effectively requiring a sound to start before culling)
+		// can spam if a looping ActiveSound isn't active longer than a virtualization update period, which
 		// can happen when a concurrency group is maxed and constantly evicting.  If the voice steal fade time is particularly
 		// long, this can flood the active sound count. Therefore, only use the voice steal fade time if the sound has been
 		// active for a sufficient period of time.
-		const bool bStopQuietest = Handle.Settings.ResolutionRule == EMaxConcurrentResolutionRule::StopQuietest;
-		if (bStopQuietest && IsLooping() && FMath::IsNearlyZero(PlaybackTimeNonVirtualized, 0.1f))
+		if (!Handle.Settings.IsEvictionSupported() && IsLooping() && FMath::IsNearlyZero(PlaybackTimeNonVirtualized, 0.1f))
 		{
 			OutFadeDuration = 0.0f;
 			return false;
@@ -524,6 +503,8 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 		SCOPE_CYCLE_COUNTER( STAT_AudioFindNearestLocation );
 		ClosestListenerIndex = AudioDevice->FindClosestListenerIndex(Transform);
 	}
+
+	FocusData.PriorityHighest = 1.0f;
 
 	FSoundParseParameters ParseParams;
 	ParseParams.Transform = Transform;
@@ -639,7 +620,7 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 			}
 
 			// Remove concurrency volume scalars as this can cause ping-ponging to occur with virtualization and loops
-			// utilizing concurrency with StopQuietest.
+			// utilizing concurrency with rules that don't support eviction (removal from concurrency system prior to playback).
 			const float VolumeScale = GetTotalConcurrencyVolumeScale();
 			if (VolumeScale > SMALL_NUMBER)
 			{
@@ -1530,6 +1511,7 @@ void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& Par
 
 	// Reset Focus data and recompute if necessary
 	FAttenuationFocusData FocusDataToApply;
+	FocusDataToApply.PriorityHighest = FocusData.PriorityHighest;
 
 	if (Settings->bEnableReverbSend)
 	{
@@ -1578,6 +1560,10 @@ void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& Par
 		// Update azimuth angles prior to updating focus as it uses this in calculating
 		// in and out of focus values.
 		UpdateFocusData(DeltaTime, ListenerData, &FocusDataToApply);
+
+		// Update FocusData's highest priority copy prior to applying cached scalar immediately following
+		// to avoid applying scalar twice
+		FocusDataToApply.PriorityHighest = FMath::Max(FocusDataToApply.PriorityHighest, ParseParams.Priority);
 
 		ParseParams.Volume *= FocusDataToApply.VolumeScale;
 		ParseParams.Priority *= FocusDataToApply.PriorityScale;
@@ -1727,5 +1713,10 @@ void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& Par
 	if (!SettingsAttenuationNode)
 	{
 		FocusData = FocusDataToApply;
+	}
+	// Make sure to always update highest priority
+	else
+	{
+		FocusData.PriorityHighest = FocusDataToApply.PriorityHighest;
 	}
 }
