@@ -95,6 +95,12 @@ namespace UnrealBuildTool
 		{
 			base.ModifyModuleRulesForOtherPlatform(ModuleName, Rules, Target);
 
+			// don't do any target platform stuff if SDK is not available
+			if (!UEBuildPlatform.IsPlatformAvailable(Platform))
+			{
+				return;
+			}
+
 			if ((Target.Platform == UnrealTargetPlatform.Win32) || (Target.Platform == UnrealTargetPlatform.Win64) || (Target.Platform == UnrealTargetPlatform.Mac))
 			{
 				// allow standalone tools to use targetplatform modules, without needing Engine
@@ -155,7 +161,6 @@ namespace UnrealBuildTool
 			SDK.ManageAndValidateSDK();
 
 			// Register this build platform for IOS
-			Log.TraceVerbose("        Registering for {0}", UnrealTargetPlatform.TVOS.ToString());
 			UEBuildPlatform.RegisterBuildPlatform(new TVOSPlatform(SDK));
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.TVOS, UnrealPlatformGroup.Apple);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.TVOS, UnrealPlatformGroup.IOS);
