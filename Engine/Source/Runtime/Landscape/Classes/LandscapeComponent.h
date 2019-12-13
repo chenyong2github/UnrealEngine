@@ -897,11 +897,14 @@ public:
 	 */
 	LANDSCAPE_API void ReallocateWeightmaps(FLandscapeEditDataInterface* DataInterface = nullptr, bool InCanUseEditingWeightmap = true, bool InSaveToTransactionBuffer = true, bool InInitPlatformDataAsync = false, bool InForceReallocate = false, ALandscapeProxy* InTargetProxy = nullptr, TArray<UTexture2D*>* OutNewCreatedTextures = nullptr);
 
-	/** Returns the actor's LandscapeMaterial, or the Component's OverrideLandscapeMaterial if set */
+	/** Returns the component's LandscapeMaterial, or the Component's OverrideLandscapeMaterial if set */
 	LANDSCAPE_API UMaterialInterface* GetLandscapeMaterial(int8 InLODIndex = INDEX_NONE) const;
 
-	/** Returns the actor's LandscapeHoleMaterial, or the Component's OverrideLandscapeHoleMaterial if set */
+	/** Returns the components's LandscapeHoleMaterial, or the Component's OverrideLandscapeHoleMaterial if set */
 	LANDSCAPE_API UMaterialInterface* GetLandscapeHoleMaterial() const;
+
+	/** Returns true if the component has a valid LandscapeHoleMaterial */
+	LANDSCAPE_API bool IsLandscapeHoleMaterialValid() const;
 
 	/** Returns true if this component has visibility painted */
 	LANDSCAPE_API bool ComponentHasVisibilityPainted() const;

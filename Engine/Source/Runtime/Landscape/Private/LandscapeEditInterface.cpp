@@ -2785,6 +2785,11 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 				continue;
 			}
 
+			if (LayerInfo == ALandscape::VisibilityLayer && !Component->IsLandscapeHoleMaterialValid())
+			{
+				continue;
+			}
+
 			if (PaintingRestriction == ELandscapeLayerPaintingRestriction::UseComponentWhitelist && !Component->LayerWhitelist.Contains(LayerInfo))
 			{
 				continue;
