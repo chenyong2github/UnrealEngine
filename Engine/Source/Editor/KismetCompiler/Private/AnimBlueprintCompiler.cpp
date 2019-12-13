@@ -137,12 +137,12 @@ FAnimBlueprintCompilerContext::FAnimBlueprintCompilerContext(UAnimBlueprint* Sou
 		// Tracking to see if we need to warn for deterministic cooking
 		bool bNodeGuidsRegenerated = false;
 
-		for (UEdGraph* Graph : AnimBlueprint->FunctionGraphs)
+		auto CheckGraph = [&bNodeGuidsRegenerated, &NodeGuids, &ChildGraphs](UEdGraph* InGraph)
 		{
-			if (AnimationEditorUtils::IsAnimGraph(Graph))
+			if (AnimationEditorUtils::IsAnimGraph(InGraph))
 			{
 				ChildGraphs.Reset();
-				AnimationEditorUtils::FindChildGraphsFromNodes(Graph, ChildGraphs);
+				AnimationEditorUtils::FindChildGraphsFromNodes(InGraph, ChildGraphs);
 
 				for (int32 Index = 0; Index < ChildGraphs.Num(); ++Index) // Not ranged for as we modify array within the loop
 				{
@@ -168,6 +168,19 @@ FAnimBlueprintCompilerContext::FAnimBlueprintCompilerContext(UAnimBlueprint* Sou
 						}
 					}
 				}
+			}
+		};
+
+		for (UEdGraph* Graph : AnimBlueprint->FunctionGraphs)
+		{
+			CheckGraph(Graph);
+		}
+
+		for(FBPInterfaceDescription& InterfaceDesc : Blueprint->ImplementedInterfaces)
+		{
+			for(UEdGraph* Graph : InterfaceDesc.Graphs)
+			{
+				CheckGraph(Graph);
 			}
 		}
 
