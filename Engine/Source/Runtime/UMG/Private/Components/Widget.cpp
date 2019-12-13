@@ -486,10 +486,12 @@ bool UWidget::HasUserFocus(APlayerController* PlayerController) const
 
 		if ( ULocalPlayer* LocalPlayer = Context.GetLocalPlayer() )
 		{
-			int32 UserIndex = FSlateApplication::Get().GetUserIndexForController(LocalPlayer->GetControllerId());
-
-			TOptional<EFocusCause> FocusCause = SafeWidget->HasUserFocus(UserIndex);
-			return FocusCause.IsSet();
+			TOptional<int32> UserIndex = FSlateApplication::Get().GetUserIndexForController(LocalPlayer->GetControllerId());
+			if (UserIndex.IsSet())
+			{
+				TOptional<EFocusCause> FocusCause = SafeWidget->HasUserFocus(UserIndex.GetValue());
+				return FocusCause.IsSet();
+			}
 		}
 	}
 
@@ -533,9 +535,11 @@ bool UWidget::HasUserFocusedDescendants(APlayerController* PlayerController) con
 
 		if ( ULocalPlayer* LocalPlayer = Context.GetLocalPlayer() )
 		{
-			int32 UserIndex = FSlateApplication::Get().GetUserIndexForController(LocalPlayer->GetControllerId());
-
-			return SafeWidget->HasUserFocusedDescendants(UserIndex);
+			TOptional<int32> UserIndex = FSlateApplication::Get().GetUserIndexForController(LocalPlayer->GetControllerId());
+			if (UserIndex.IsSet())
+			{
+				return SafeWidget->HasUserFocusedDescendants(UserIndex.GetValue());
+			}
 		}
 	}
 
@@ -584,9 +588,8 @@ void UWidget::SetUserFocus(APlayerController* PlayerController)
 
 		if ( ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer() )
 		{
-			int32 UserIndex = FSlateApplication::Get().GetUserIndexForController(LocalPlayer->GetControllerId());
-
-			if (UserIndex >= 0 && !FSlateApplication::Get().SetUserFocus(UserIndex, SafeWidget) )
+			TOptional<int32> UserIndex = FSlateApplication::Get().GetUserIndexForController(LocalPlayer->GetControllerId());
+			if (UserIndex.IsSet() && !FSlateApplication::Get().SetUserFocus(UserIndex.GetValue(), SafeWidget) )
 			{
 				LocalPlayer->GetSlateOperations().SetUserFocus(SafeWidget.ToSharedRef());
 			}
