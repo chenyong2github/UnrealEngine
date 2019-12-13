@@ -55,11 +55,11 @@
 			<statString>exclusive/gamethread/* gamethreadtime</statString>
 		</graph>
     
-		<graph title="Renderthread Breakdown" showAverages="1" hideStatPrefix="exclusive/RenderThread/" stacked="1" mainStat="renderthreadtime" ignoreStats="exclusive/Renderthread/FetchVisibilityForPrimitives;exclusive/renderthread/eventwait*">
+		<graph title="Renderthread Breakdown" showAverages="1" hideStatPrefix="exclusive/RenderThread/" stacked="1" mainStat="renderthreadtime" ignoreStats="exclusive/renderthread/eventwait*">
 			<statString>exclusive/renderthread/* renderthreadtime</statString>
 		</graph>
 
-		<graph title="Renderthread Breakdown Raw" hideStatPrefix="exclusive/RenderThread/" stacked="1" mainStat="renderthreadtime" ignoreStats="exclusive/Renderthread/FetchVisibilityForPrimitives;exclusive/renderthread/eventwait*" smooth="0"  maxy="100">
+		<graph title="Renderthread Breakdown Raw" hideStatPrefix="exclusive/RenderThread/" stacked="1" mainStat="renderthreadtime" ignoreStats="exclusive/renderthread/eventwait*" smooth="0"  maxy="100">
 			<statString>exclusive/renderthread/* renderthreadtime</statString>
 		</graph>
 
