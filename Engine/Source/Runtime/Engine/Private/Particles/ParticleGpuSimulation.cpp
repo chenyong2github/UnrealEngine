@@ -4684,6 +4684,27 @@ bool FFXSystem::UsesGlobalDistanceFieldInternal() const
 	return false;
 }
 
+bool FFXSystem::UsesDepthBufferInternal() const
+{
+	for (TSparseArray<FParticleSimulationGPU*>::TConstIterator It(GPUSimulations); It; ++It)
+	{
+		const FParticleSimulationGPU* Simulation = *It;
+
+		if (Simulation->SimulationPhase == EParticleSimulatePhase::CollisionDepthBuffer
+			&& Simulation->TileVertexBuffer.AlignedTileCount > 0)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FFXSystem::RequiresEarlyViewUniformBufferInternal() const
+{
+	return false;
+}
+
 void FFXSystem::PrepareGPUSimulation(FRHICommandListImmediate& RHICmdList)
 {
 	// Grab resources.

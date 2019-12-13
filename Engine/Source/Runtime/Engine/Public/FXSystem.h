@@ -205,7 +205,13 @@ public:
 	 */
 	virtual void PreInitViews(FRHICommandListImmediate& RHICmdList, bool bAllowGPUParticleUpdate) = 0;
 
+	virtual void PostInitViews(FRHICommandListImmediate& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, bool bAllowGPUParticleUpdate) = 0;
+
 	virtual bool UsesGlobalDistanceField() const = 0;
+
+	virtual bool UsesDepthBuffer() const = 0;
+
+	virtual bool RequiresEarlyViewUniformBuffer() const = 0;
 
 	/**
 	 * Notification from the renderer that it is about to draw FX belonging to

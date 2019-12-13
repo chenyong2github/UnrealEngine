@@ -80,6 +80,8 @@ public:
 	
 	FNiagaraWorldManager* GetWorldManager()const;
 	bool RequiresDistanceFieldData() const;
+	bool RequiresDepthBuffer() const;
+	bool RequiresEarlyViewData() const;
 
 	/** Requests the the simulation be reset on the next tick. */
 	void Reset(EResetMode Mode);

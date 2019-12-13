@@ -313,7 +313,9 @@ public:
 	FNiagaraSystemInstanceID SystemInstanceID;
 	FNiagaraDataInterfaceInstanceData* DIInstanceData;
 	uint8* InstanceData_ParamData_Packed;
-	bool bRequiredDistanceFieldData = false;
+	bool bRequiresDistanceFieldData = false;
+	bool bRequiresDepthBuffer = false;
+	bool bRequiresEarlyViewData = false;
 	bool bNeedsReset = false;
 	bool bIsFinalTick = false;
 };

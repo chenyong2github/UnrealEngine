@@ -262,6 +262,8 @@ public:
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target)const { return false; }
 
 	virtual bool RequiresDistanceFieldData() const { return false; }
+	virtual bool RequiresDepthBuffer() const { return false; }
+	virtual bool RequiresEarlyViewData() const { return false; }
 
 	virtual bool HasTickGroupPrereqs() const { return false; }
 	virtual ETickingGroup CalculateTickGroup(void* PerInstanceData) const { return NiagaraFirstTickGroup; }
