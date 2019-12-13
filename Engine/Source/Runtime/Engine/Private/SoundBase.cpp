@@ -4,6 +4,7 @@
 #include "EngineDefines.h"
 #include "IAudioExtensionPlugin.h"
 #include "Sound/AudioSettings.h"
+#include "Sound/SoundClass.h"
 #include "Sound/SoundSubmix.h"
 
 
