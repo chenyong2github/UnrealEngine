@@ -3,169 +3,131 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Delegates/Delegate.h"
 
-/** 
- * Filter for blacklisting or whitelisting items with ownership to allow change cleanup
- */
-class FNamedBlacklist
+/** List of owner names that requested a specific item filtered, allows unregistering specific set of changes by a given plugin or system */
+typedef TArray<FName> FBlacklistOwners;
+
+class CORE_API FBlacklistNames : public TSharedFromThis<FBlacklistNames>
 {
 public:
+	FBlacklistNames();
+	~FBlacklistNames() {}
 
-	/** Returns true if passes filter restrictions */
-	bool PassesFilter(const FName ItemName) const
-	{
-		if (BlacklistAll.Num() > 0)
-		{
-			return false;
-		}
-		else if (Blacklist.Contains(ItemName))
-		{
-			return false;
-		}
-		else if (Whitelist.Num() > 0 && !Whitelist.Contains(ItemName))
-		{
-			return false;
-		}
+	/** Returns true if passes filter restrictions using exact match */
+	bool PassesFilter(const FName Item) const;
 
-		return true;
-	}
-	
 	/** Add item to blacklist, this specific item will be filtered out */
-	void AddBlacklistItem(const FName OwnerName, const FName ItemName)
-	{
-		Blacklist.FindOrAdd(ItemName).AddUnique(OwnerName);
-	}
+	void AddBlacklistItem(const FName OwnerName, const FName Item);
 
 	/** Add item to whitelist after which all items not in the whitelist will be filtered out */
-	void AddWhitelistItem(const FName OwnerName, const FName ItemName)
-	{
-		Whitelist.FindOrAdd(ItemName).AddUnique(OwnerName);
-	}
+	void AddWhitelistItem(const FName OwnerName, const FName Item);
 
 	/** Set to filter out all items */
-	void AddBlacklistAll(const FName OwnerName)
-	{
-		BlacklistAll.AddUnique(OwnerName);
-	}
+	void AddBlacklistAll(const FName OwnerName);
+	
+	/** True if has filters active */
+	bool HasFiltering() const;
 
 	/** Removes all filtering changes associated with a specific owner name */
-	void UnregisterOwner(const FName OwnerName)
-	{
-		for (auto It = Blacklist.CreateIterator(); It; ++It)
-		{
-			It->Value.Remove(OwnerName);
-			if (It->Value.Num() == 0)
-			{
-				It.RemoveCurrent();
-			}
-		}
-
-		for (auto It = Whitelist.CreateIterator(); It; ++It)
-		{
-			It->Value.Remove(OwnerName);
-			if (It->Value.Num() == 0)
-			{
-				It.RemoveCurrent();
-			}
-		}
-
-		BlacklistAll.Remove(OwnerName);
-	}
-
-	/** True if has filters active */
-	bool HasFiltering() const
-	{
-		return Blacklist.Num() > 0 || Whitelist.Num() > 0 || BlacklistAll.Num() > 0;
-	}
+	void UnregisterOwner(const FName OwnerName);
 
 	/** Combine two filters together */
-	void Append(const FNamedBlacklist& Other)
-	{
-		for (const auto& It : Other.Blacklist)
-		{
-			for (const auto& OwnerName : It.Value)
-			{
-				AddBlacklistItem(OwnerName, It.Key);
-			}
-		}
+	void Append(const FBlacklistNames& Other);
 
-		for (const auto& It : Other.Whitelist)
-		{
-			for (const auto& OwnerName : It.Value)
-			{
-				AddWhitelistItem(OwnerName, It.Key);
-			}
-		}
+	/** Get raw blacklist */
+	const TMap<FName, FBlacklistOwners>& GetBlacklist() const { return Blacklist; }
+	
+	/** Get raw whitelist */
+	const TMap<FName, FBlacklistOwners>& GetWhitelist() const { return Whitelist; }
 
-		for (const auto& OwnerName : Other.BlacklistAll)
-		{
-			AddBlacklistAll(OwnerName);
-		}
-	}
+	/** Are all items set to be filtered out */
+	bool IsBlacklistAll() const { return Blacklist.Num() > 0; }
 
-private:
+	/** Triggered when filter changes */
+	FSimpleMulticastDelegate& OnFilterChanged() { return OnFilterChangedDelegate; }
 
-	/** List of owner names that requested a specific item filtered, allows unregistering specific set of changes by a given plugin or system */
-	typedef TArray<FName> FNamedBlacklistOwners;
+protected:
 
 	/** List if items to filter out */
-	TMap<FName, FNamedBlacklistOwners> Blacklist;
+	TMap<FName, FBlacklistOwners> Blacklist;
 
 	/** List of items to allow, if not empty all items will be filtered out unless they are in the list */
-	TMap<FName, FNamedBlacklistOwners> Whitelist;
+	TMap<FName, FBlacklistOwners> Whitelist;
 
 	/** List of owner names that requested all items to be filtered out */
-	FNamedBlacklistOwners BlacklistAll;
+	FBlacklistOwners BlacklistAll;
+
+	/** Triggered when filter changes */
+	FSimpleMulticastDelegate OnFilterChangedDelegate;
+
+	/** Temporarily prevent delegate from being triggered */
+	bool bSuppressOnFilterChanged;
 };
 
-/**
- * Collection of blacklisting filters
- */
-class FNamedBlacklistCollection
+class CORE_API FBlacklistPaths : public TSharedFromThis<FBlacklistPaths>
 {
 public:
+	FBlacklistPaths();
+	~FBlacklistPaths() {}
+	
+	/** Returns true if passes filter restrictions using exact match */
+	bool PassesFilter(const FString& Item) const;
 
-	/** Returns true if passes filter restrictions */
-	bool PassesFilter(const FName GroupName, const FName ItemName) const
-	{
-		const FNamedBlacklist* Filter = Filters.Find(GroupName);
-		return !Filter || Filter->PassesFilter(ItemName);
-	}
+	/** Returns true if passes filter restrictions using exact match */
+	bool PassesFilter(const FName Item) const;
 
-	/** Add item to blacklist */
-	void AddBlacklistItem(const FName OwnerName, const FName GroupName, const FName ItemName)
-	{
-		Filters.FindOrAdd(GroupName).AddBlacklistItem(OwnerName, ItemName);
-	}
+	/** Returns true if passes filter restrictions for path */
+	bool PassesStartsWithFilter(const FString& Item) const;
 
-	/** Add item to whitelist */
-	void AddWhitelistItem(const FName OwnerName, const FName GroupName, const FName ItemName)
-	{
-		Filters.FindOrAdd(GroupName).AddWhitelistItem(OwnerName, ItemName);
-	}
+	/** Returns true if passes filter restrictions for path */
+	bool PassesStartsWithFilter(const FName Item) const;
 
-	/** Sets group to fully blacklisted */
-	void AddBlacklistAll(const FName OwnerName, const FName GroupName)
-	{
-		Filters.FindOrAdd(GroupName).AddBlacklistAll(OwnerName);
-	}
+	/** Add item to blacklist, this specific item will be filtered out */
+	void AddBlacklistItem(const FName OwnerName, const FString& Item);
 
-	/** Remove filtering associated with owner name */
-	void UnregisterOwner(const FName OwnerName)
-	{
-		for (auto GroupIt = Filters.CreateIterator(); GroupIt; ++GroupIt)
-		{
-			FNamedBlacklist& Filter = GroupIt->Value;
-			Filter.UnregisterOwner(OwnerName);
-			if (!Filter.HasFiltering())
-			{
-				GroupIt.RemoveCurrent();
-			}
-		}
-	}
+	/** Add item to whitelist after which all items not in the whitelist will be filtered out */
+	void AddWhitelistItem(const FName OwnerName, const FString& Item);
 
-private:
+	/** Set to filter out all items */
+	void AddBlacklistAll(const FName OwnerName);
+	
+	/** True if has filters active */
+	bool HasFiltering() const;
 
-	/** List of filters */
-	TMap<FName, FNamedBlacklist> Filters;
+	/** Removes all filtering changes associated with a specific owner name */
+	void UnregisterOwner(const FName OwnerName);
+
+	/** Combine two filters together */
+	void Append(const FBlacklistPaths& Other);
+
+	/** Get raw blacklist */
+	const TMap<FString, FBlacklistOwners>& GetBlacklist() const { return Blacklist; }
+	
+	/** Get raw whitelist */
+	const TMap<FString, FBlacklistOwners>& GetWhitelist() const { return Whitelist; }
+
+	/** Are all items set to be filtered out */
+	bool IsBlacklistAll() const { return Blacklist.Num() > 0; }
+	
+	/** Triggered when filter changes */
+	FSimpleMulticastDelegate& OnFilterChanged() { return OnFilterChangedDelegate; }
+
+protected:
+
+	/** List if items to filter out */
+	TMap<FString, FBlacklistOwners> Blacklist;
+
+	/** List of items to allow, if not empty all items will be filtered out unless they are in the list */
+	TMap<FString, FBlacklistOwners> Whitelist;
+
+	/** List of owner names that requested all items to be filtered out */
+	FBlacklistOwners BlacklistAll;
+	
+	/** Triggered when filter changes */
+	FSimpleMulticastDelegate OnFilterChangedDelegate;
+
+	/** Temporarily prevent delegate from being triggered */
+	bool bSuppressOnFilterChanged;
 };

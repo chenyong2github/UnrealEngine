@@ -1624,7 +1624,7 @@ bool FTabManager::HasTabSpawner(FName TabId) const
 	return Spawner != nullptr;
 }
 
-FNamedBlacklist& FTabManager::GetTabBlacklist()
+FBlacklistNames& FTabManager::GetTabBlacklist()
 {
 	return TabBlacklist;
 }

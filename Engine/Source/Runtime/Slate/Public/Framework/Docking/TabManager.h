@@ -803,7 +803,7 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		TSharedPtr<SDockTab> GetOwnerTab() { return OwnerTabPtr.Pin(); }
 
 		/** Returns filter for additional control over available tabs */
-		FNamedBlacklist& GetTabBlacklist();
+		FBlacklistNames& GetTabBlacklist();
 
 	protected:
 		void InvokeTabForMenu( FName TabId );
@@ -972,7 +972,7 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		bool bCanDoDragOperation;
 
 		/** Allow systems to dynamically hide tabs */
-		FNamedBlacklist TabBlacklist;
+		FBlacklistNames TabBlacklist;
 };
 
 
