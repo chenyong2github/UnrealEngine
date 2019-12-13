@@ -364,6 +364,16 @@ public:
 		}
 	}
 
+	void FlipSelectedSplineSegments()
+	{
+		FScopedTransaction Transaction(LOCTEXT("LandscapeSpline_FlipSegments", "Flip Selected Landscape Spline Segments"));
+		for (ULandscapeSplineSegment* Segment : SelectedSplineSegments)
+		{
+			FlipSegment(Segment);
+		}
+		EdMode->AutoUpdateDirtyLandscapeSplines();
+	}
+
 	// called when alt-dragging a newly added end segment
 	bool UpdateAddSegment(ULandscapeSplineControlPoint* ControlPoint, FVector Location)
 	{
@@ -1151,14 +1161,7 @@ public:
 		{
 			if (SelectedSplineSegments.Num() > 0)
 			{
-				FScopedTransaction Transaction(LOCTEXT("LandscapeSpline_FlipSegments", "Flip Landscape Spline Segments"));
-
-				for (ULandscapeSplineSegment* Segment : SelectedSplineSegments)
-				{
-					FlipSegment(Segment);
-				}
-
-				EdMode->AutoUpdateDirtyLandscapeSplines();
+				FlipSelectedSplineSegments();
 				return true;
 			}
 		}
@@ -2222,6 +2225,22 @@ protected:
 	friend FEdModeLandscape;
 };
 
+
+bool FEdModeLandscape::HasSelectedSplineSegments() const
+{
+	return SplinesTool && (SplinesTool->SelectedSplineSegments.Num() > 0);
+}
+
+void FEdModeLandscape::FlipSelectedSplineSegments()
+{
+	if (!SplinesTool)
+	{
+		return;
+	}
+
+	// Do Flip
+	SplinesTool->FlipSelectedSplineSegments();
+}
 
 void FEdModeLandscape::ShowSplineProperties()
 {
