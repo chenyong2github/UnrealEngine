@@ -206,6 +206,18 @@ public:
 	/** Is the list pending a refresh? */
 	virtual bool Private_IsPendingRefresh() const = 0;
 
+	/** @return All currently selected items in the table view */
+	virtual TArray<ItemType> GetSelectedItems() const = 0;
+
+	/**
+	 * Find a widget for this item if it has already been constructed.
+	 *
+	 * @param InItem  The item for which to find the widget.
+	 *
+	 * @return A pointer to the corresponding widget if it exists; otherwise nullptr.
+	*/
+	virtual TSharedPtr<ITableRow> WidgetFromItem(const ItemType& InItem) const = 0;
+
 	/** @return Is the tableview a tree or a list? */
 	virtual ETableViewMode::Type GetTableViewMode() const = 0;
 	
