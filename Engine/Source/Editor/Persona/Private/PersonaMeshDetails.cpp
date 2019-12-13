@@ -5155,10 +5155,9 @@ TSharedRef<SUniformGridPanel> FPersonaMeshDetails::MakeClothingDetailsWidget(int
 
 		if (UClothingAssetCommon* Asset = Cast<UClothingAssetCommon>(ClothingAsset))
 		{
-			UClothLODDataCommon* LodData = Asset->ClothLodData[LODIndex];
-			check(LodData->PhysicalMeshData);
-			UClothPhysicalMeshDataBase& PhysMeshData = *LodData->PhysicalMeshData;
-			FClothCollisionData& CollisionData = LodData->CollisionData;
+			const UClothLODDataCommon* const LodData = Asset->ClothLodData[LODIndex];
+			const FClothPhysicalMeshData& PhysMeshData = LodData->ClothPhysicalMeshData;
+			const FClothCollisionData& CollisionData = LodData->CollisionData;
 
 			Grid->AddSlot(0, RowNumber)
 				.HAlign(HAlign_Center)

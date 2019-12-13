@@ -4,7 +4,6 @@
 
 #include "ClothingAsset.h"
 #include "ClothingAssetFactoryInterface.h"
-#include "ClothLODDataNv.h"
 #include "GPUSkinPublicDefs.h"
 
 #include "ClothingAssetFactory.generated.h"
@@ -13,6 +12,7 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogClothingAssetFactory, Log, All);
 
 class FSkeletalMeshLODModel;
+class UClothingAssetCommon;
 
 namespace nvidia
 {
