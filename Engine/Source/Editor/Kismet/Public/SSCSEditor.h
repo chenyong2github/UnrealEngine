@@ -712,7 +712,9 @@ public:
 		, _ClearSelectionOnClick(true)
 		, _ExternalScrollbar()
 		, _OnTableViewBadState()
-		{}
+		{
+			_Clipping = EWidgetClipping::ClipToBounds;
+		}
 
 		SLATE_ARGUMENT( SSCSEditor*, SCSEditor )
 
