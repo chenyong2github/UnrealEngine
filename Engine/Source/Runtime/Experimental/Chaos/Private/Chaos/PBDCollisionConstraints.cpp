@@ -233,7 +233,10 @@ namespace Chaos
 			check(false);
 		}
 
-		Manifolds.Remove(KeyToRemove); // todo(brice): Add index to the handle to prevent the search. 
+		// @todo(chaos): Collision Manifold
+		//   Add an index to the handle in the Manifold.Value 
+		//   to prevent the search in Handles when removed.
+		Manifolds.Remove(KeyToRemove);  
 		Handles.Remove(Handle);
 
 		ensure(Handles.Num() == PointConstraints.Num() + IterativeConstraints.Num());
