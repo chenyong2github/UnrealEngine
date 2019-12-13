@@ -203,6 +203,26 @@ uint32 USoftObjectProperty::GetValueTypeHashInternal(const void* Src) const
 	return GetTypeHash(GetPropertyValue(Src));
 }
 
+void USoftObjectProperty::CopySingleValueToScriptVM(void* Dest, void const* Src) const
+{
+	CopySingleValue(Dest, Src);
+}
+
+void USoftObjectProperty::CopyCompleteValueToScriptVM(void* Dest, void const* Src) const
+{
+	CopyCompleteValue(Dest, Src);
+}
+
+void USoftObjectProperty::CopySingleValueFromScriptVM(void* Dest, void const* Src) const
+{
+	CopySingleValue(Dest, Src);
+}
+
+void USoftObjectProperty::CopyCompleteValueFromScriptVM(void* Dest, void const* Src) const
+{
+	CopyCompleteValue(Dest, Src);
+}
+
 IMPLEMENT_CORE_INTRINSIC_CLASS(USoftObjectProperty, UObjectPropertyBase,
 	{
 	}

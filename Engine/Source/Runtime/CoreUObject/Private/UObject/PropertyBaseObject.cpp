@@ -542,6 +542,33 @@ bool UObjectPropertyBase::SameType(const UProperty* Other) const
 	return Super::SameType(Other) && (PropertyClass == ((UObjectPropertyBase*)Other)->PropertyClass);
 }
 
+void UObjectPropertyBase::CopySingleValueToScriptVM( void* Dest, void const* Src ) const
+{
+	*(UObject**)Dest = GetObjectPropertyValue(Src);
+}
+
+void UObjectPropertyBase::CopyCompleteValueToScriptVM( void* Dest, void const* Src ) const
+{
+	for (int32 Index = 0; Index < ArrayDim; Index++)
+	{
+		((UObject**)Dest)[Index] = GetObjectPropertyValue(((uint8*)Src) + Index * ElementSize);
+	}
+}
+
+void UObjectPropertyBase::CopySingleValueFromScriptVM( void* Dest, void const* Src ) const
+{
+	SetObjectPropertyValue(Dest, *(UObject**)Src);
+}
+
+void UObjectPropertyBase::CopyCompleteValueFromScriptVM( void* Dest, void const* Src ) const
+{
+	checkSlow(ElementSize == sizeof(UObject*)); // the idea that script pointers are the same size as weak pointers is maybe required, maybe not
+	for (int32 Index = 0; Index < ArrayDim; Index++)
+	{
+		SetObjectPropertyValue(((uint8*)Dest) + Index * ElementSize, ((UObject**)Src)[Index]);
+	}
+}
+
 IMPLEMENT_CORE_INTRINSIC_CLASS(UObjectPropertyBase, UProperty,
 	{
 		Class->EmitObjectReference(STRUCT_OFFSET(UObjectProperty, PropertyClass), TEXT("PropertyClass"));
