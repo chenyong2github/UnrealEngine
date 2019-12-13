@@ -386,6 +386,14 @@ public:
 	}
 
 	/**
+	 * Concatenate this with the given string
+	 *
+	 * @param Str string view to be concatenated onto the end of this
+	 * @return reference to this
+	 */
+	FString& operator+=(const FStringView& Str);
+
+	/**
 	 * Concatenate this with given string
 	 * 
 	 * @param Str array of TCHAR to be concatenated onto the end of this

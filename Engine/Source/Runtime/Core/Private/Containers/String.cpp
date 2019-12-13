@@ -2,6 +2,7 @@
 
 #include "Containers/UnrealString.h"
 
+#include "Containers/StringView.h"
 #include "CoreGlobals.h"
 #include "CoreTypes.h"
 #include "HAL/UnrealMemory.h"
@@ -10,7 +11,6 @@
 #include "Math/UnrealMathUtility.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/ByteSwap.h"
-#include "Misc/StringView.h"
 #include "Misc/VarArgs.h"
 #include "Templates/UnrealTemplate.h"
 
@@ -148,6 +148,13 @@ FString& FString::operator=(const FStringView& Other)
 		CopyAssignItems(DataPtr, OtherData, OtherLen);
 		DataPtr[OtherLen] = TEXT('\0');
 	}
+	return *this;
+}
+
+FString& FString::operator+=(const FStringView& Str)
+{
+	CheckInvariants();
+	AppendChars(Str.GetData(), Str.Len());
 	return *this;
 }
 
