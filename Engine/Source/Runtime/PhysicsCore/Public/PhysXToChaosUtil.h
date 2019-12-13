@@ -178,7 +178,7 @@ inline TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> PxShapeToChaosGeo
 			}
 		}
 
-		TUniquePtr<FTriangleMeshImplicitObject> TriMeshObj = MakeUnique<FTriangleMeshImplicitObject>(MoveTemp(Particles), MoveTemp(Triangles), MoveTemp(MaterialIndices));
+		TUniquePtr<TTriangleMeshImplicitObject<float>> TriMeshObj = MakeUnique<TTriangleMeshImplicitObject<float>>(MoveTemp(Particles), MoveTemp(Triangles), MoveTemp(MaterialIndices));
 		if (TriMeshGeom.scale.isIdentity())
 		{
 			InnerObj = MoveTemp(TriMeshObj);
@@ -186,7 +186,7 @@ inline TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> PxShapeToChaosGeo
 		else
 		{
 			ensure(TriMeshGeom.scale.rotation == PxQuat(PxIdentity));
-			InnerObj = MakeUnique<TImplicitObjectScaled<FTriangleMeshImplicitObject, /*bInstanced=*/false>>(MoveTemp(TriMeshObj), P2UVector(TriMeshGeom.scale.scale));	//todo: make instanced
+			InnerObj = MakeUnique<TImplicitObjectScaled<TTriangleMeshImplicitObject<float>, /*bInstanced=*/false>>(MoveTemp(TriMeshObj), P2UVector(TriMeshGeom.scale.scale));	//todo: make instanced
 		}
 		break;
 	}
