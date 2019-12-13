@@ -8,7 +8,7 @@
 #include "PhysicsInterfaceUtilsCore.h"
 
 class FPhysScene_PhysX;
-class FConstraintInstance;
+struct FConstraintInstance;
 
 // FILTER DATA
 
