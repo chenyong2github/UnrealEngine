@@ -1928,6 +1928,11 @@ uint32 FWindowsPlatformMisc::GetLastError()
 	return (uint32)::GetLastError();
 }
 
+void FWindowsPlatformMisc::SetLastError(uint32 ErrorCode)
+{
+	::SetLastError((DWORD)ErrorCode);
+}
+
 bool FWindowsPlatformMisc::CoInitialize()
 {
 	HRESULT hr = ::CoInitialize(NULL);

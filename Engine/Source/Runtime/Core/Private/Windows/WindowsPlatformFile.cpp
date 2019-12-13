@@ -1051,7 +1051,13 @@ public:
 	virtual bool DeleteDirectory(const TCHAR* Directory) override
 	{
 		RemoveDirectoryW(*NormalizeDirectory(Directory));
-		return !DirectoryExists(Directory);
+		uint32 LastError = GetLastError();
+		const bool bSucceeded = !DirectoryExists(Directory);
+		if (!bSucceeded)
+		{
+			SetLastError(LastError);
+		}
+		return bSucceeded;
 	}
 	virtual FFileStatData GetStatData(const TCHAR* FilenameOrDirectory) override
 	{

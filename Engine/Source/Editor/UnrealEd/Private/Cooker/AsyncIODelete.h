@@ -110,7 +110,7 @@ private:
 	/** Delete the given path synchronously; called from a task or in error fallback cases from the public thread */
 	bool SynchronousDelete(const TCHAR* InDeletePath, EPathType PathType);
 
-	bool DeleteTempRootDirectory();
+	bool DeleteTempRootDirectory(uint32& OutErrorCode);
 
 	FString	TempRoot;
 	TArray<FString> PausedDeletes;

@@ -378,11 +378,26 @@ bool FFileManagerGeneric::MakeDirectory( const TCHAR* Path, bool Tree )
 
 bool FFileManagerGeneric::DeleteDirectory( const TCHAR* Path, bool RequireExists, bool Tree )
 {
-	if( Tree )
+	bool bSucceeded;
+	if (Tree)
 	{
-		return GetLowLevel().DeleteDirectoryRecursively( Path ) || ( !RequireExists && !GetLowLevel().DirectoryExists( Path ) );
+		bSucceeded = GetLowLevel().DeleteDirectoryRecursively(Path);
 	}
-	return GetLowLevel().DeleteDirectory( Path ) || ( !RequireExists && !GetLowLevel().DirectoryExists( Path ) );
+	else
+	{
+		bSucceeded = GetLowLevel().DeleteDirectory(Path);
+	}
+
+	if (!bSucceeded && !RequireExists)
+	{
+		uint32 ErrorFromDelete = FPlatformMisc::GetLastError();
+		bSucceeded = !GetLowLevel().DirectoryExists(Path);
+		if (!bSucceeded)
+		{
+			FPlatformMisc::SetLastError(ErrorFromDelete);
+		}
+	}
+	return bSucceeded;
 }
 
 FFileStatData FFileManagerGeneric::GetStatData(const TCHAR* FilenameOrDirectory)
