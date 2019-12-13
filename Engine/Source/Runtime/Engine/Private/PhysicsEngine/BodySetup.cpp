@@ -735,6 +735,12 @@ void UBodySetup::FinishCreatingPhysicsMeshes_Chaos(FChaosDerivedDataReader<float
 	ChaosTriMeshes = MoveTemp(InReader.TrimeshImplicitObjects);
 	UVInfo = MoveTemp(InReader.UVInfo);
 	FaceRemap = MoveTemp(InReader.FaceRemap);
+#if TRACK_CHAOS_GEOMETRY
+	for (auto& TriMesh : ChaosTriMeshes)
+	{
+		TriMesh->Track(Chaos::MakeSerializable(TriMesh), FullName);
+	}
+#endif
 
 	// Clear the cooked data
 	if (!GIsEditor && !bSharedCookedData)

@@ -12,6 +12,7 @@
 #include "Chaos/Plane.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/TaperedCylinder.h"
+#include "Chaos/TrackedGeometryManager.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "HAL/IConsoleManager.h"
 #include "UObject/DestructionObjectVersion.h"
@@ -23,12 +24,37 @@ FImplicitObject::FImplicitObject(int32 Flags, EImplicitObjectType InType)
     , bIsConvex(!!(Flags & EImplicitObject::IsConvex))
     , bIgnoreAnalyticCollisions(!!(Flags & EImplicitObject::IgnoreAnalyticCollisions))
     , bHasBoundingBox(!!(Flags & EImplicitObject::HasBoundingBox))
+#if TRACK_CHAOS_GEOMETRY
+    , bIsTracked(false)
+#endif
 {
 }
 
 FImplicitObject::~FImplicitObject()
 {
+#if TRACK_CHAOS_GEOMETRY
+	if (bIsTracked)
+	{
+		FTrackedGeometryManager::Get().RemoveGeometry(this);
+	}
+#endif
 }
+
+#if TRACK_CHAOS_GEOMETRY
+
+void FImplicitObject::Track(TSerializablePtr<FImplicitObject> This, const FString& DebugInfo)
+{
+	if (ensure(This.Get() == this))
+	{
+		if (!bIsTracked)
+		{
+			bIsTracked = true;
+			FTrackedGeometryManager::Get().AddGeometry(This, DebugInfo);
+		}
+	}
+}
+
+#endif
 
 EImplicitObjectType FImplicitObject::GetType(bool bGetTrueType) const
 {
