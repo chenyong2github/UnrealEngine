@@ -1553,7 +1553,7 @@ void UStaticMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 	// Ensure that OverriddenLightMapRes is a factor of 4
 	OverriddenLightMapRes = FMath::Max(OverriddenLightMapRes + 3 & ~3,4);
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if (PropertyThatChanged)
 	{
 		if (((PropertyThatChanged->GetName().Contains(TEXT("OverriddenLightMapRes")) ) && (bOverrideLightMapRes == true)) ||
@@ -1609,7 +1609,7 @@ void UStaticMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
-bool UStaticMeshComponent::CanEditChange(const UProperty* InProperty) const
+bool UStaticMeshComponent::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{

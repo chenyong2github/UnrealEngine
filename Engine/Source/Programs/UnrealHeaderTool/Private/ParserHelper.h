@@ -8,6 +8,7 @@
 #include "UObject/MetaData.h"
 #include "UObject/TextProperty.h"
 #include "UObject/EnumProperty.h"
+#include "UObject/FieldPathProperty.h"
 #include "UnrealHeaderToolGlobals.h"
 #include "ClassMaps.h"
 #include "Templates/UniqueObj.h"
@@ -15,7 +16,7 @@
 
 class UEnum;
 class UScriptStruct;
-class UProperty;
+class FProperty;
 class FUnrealSourceFile;
 class UObject;
 class UField;
@@ -114,6 +115,7 @@ public:
 		class UClass* PropertyClass;
 		class UScriptStruct* Struct;
 		class UFunction* Function;
+		class FFieldClass* PropertyPathClass;
 #if PLATFORM_64BITS
 		int64 StringSize;
 #else
@@ -204,7 +206,7 @@ public:
 	, PointerType         (EPointerType::None)
 	, IntType             (EIntType::None)
 	{
-		// if this is an interface class, we use the UInterfaceProperty class instead of UObjectProperty
+		// if this is an interface class, we use the FInterfaceProperty class instead of FObjectProperty
 		if ( InClass->HasAnyClassFlags(CLASS_Interface) )
 		{
 			Type = CPT_Interface;
@@ -244,7 +246,7 @@ public:
 	{
 	}
 
-	explicit FPropertyBase(UProperty* Property)
+	explicit FPropertyBase(FProperty* Property)
 	: PropertyExportFlags(PROPEXPORT_Public)
 	, DelegateName       (NAME_None)
 	, DelegateSignatureOwnerClass(nullptr)
@@ -255,83 +257,83 @@ public:
 
 		EArrayType::Type ArrType         = EArrayType::None;
 		EPropertyFlags   PropagateFlags  = CPF_None;
-		UClass*          ClassOfProperty = Property->GetClass();
+		FFieldClass*     ClassOfProperty = Property->GetClass();
 
-		if( ClassOfProperty==UArrayProperty::StaticClass() )
+		if( ClassOfProperty==FArrayProperty::StaticClass() )
 		{
 			ArrType = EArrayType::Dynamic;
 
 			// if we're an array, save up Parm flags so we can propagate them.
 			// below the array will be assigned the inner property flags. This allows propagation of Parm flags (out, optional..)
 			PropagateFlags = Property->PropertyFlags & CPF_ParmFlags;
-			Property = CastChecked<UArrayProperty>(Property)->Inner;
+			Property = CastFieldChecked<FArrayProperty>(Property)->Inner;
 			ClassOfProperty = Property->GetClass();
 		}
 
-		if( ClassOfProperty==UByteProperty::StaticClass() )
+		if( ClassOfProperty==FByteProperty::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_Byte);
-			Enum = Cast<UByteProperty>(Property)->Enum;
+			Enum = CastField<FByteProperty>(Property)->Enum;
 			IntType = EIntType::Sized;
 		}
-		else if( ClassOfProperty==UEnumProperty::StaticClass() )
+		else if( ClassOfProperty==FEnumProperty::StaticClass() )
 		{
-			UEnumProperty* EnumProp = Cast<UEnumProperty>(Property);
-			UNumericProperty* UnderlyingProp = EnumProp->GetUnderlyingProperty();
+			FEnumProperty* EnumProp = CastField<FEnumProperty>(Property);
+			FNumericProperty* UnderlyingProp = EnumProp->GetUnderlyingProperty();
 
 			*this = FPropertyBase(
-				  UnderlyingProp->IsA<UInt8Property>()   ? CPT_Int8
-				: UnderlyingProp->IsA<UInt16Property>()  ? CPT_Int16
-				: UnderlyingProp->IsA<UIntProperty>()    ? CPT_Int
-				: UnderlyingProp->IsA<UInt64Property>()  ? CPT_Int64
-				: UnderlyingProp->IsA<UByteProperty>()   ? CPT_Byte
-				: UnderlyingProp->IsA<UUInt16Property>() ? CPT_UInt16
-				: UnderlyingProp->IsA<UUInt32Property>() ? CPT_UInt32
-				: UnderlyingProp->IsA<UUInt64Property>() ? CPT_UInt64
+				  UnderlyingProp->IsA<FInt8Property>()   ? CPT_Int8
+				: UnderlyingProp->IsA<FInt16Property>()  ? CPT_Int16
+				: UnderlyingProp->IsA<FIntProperty>()    ? CPT_Int
+				: UnderlyingProp->IsA<FInt64Property>()  ? CPT_Int64
+				: UnderlyingProp->IsA<FByteProperty>()   ? CPT_Byte
+				: UnderlyingProp->IsA<FUInt16Property>() ? CPT_UInt16
+				: UnderlyingProp->IsA<FUInt32Property>() ? CPT_UInt32
+				: UnderlyingProp->IsA<FUInt64Property>() ? CPT_UInt64
 				:                                          CPT_None
 			);
 			check(this->Type != CPT_None);
 			Enum = EnumProp->Enum;
 			IntType = EIntType::Sized;
 		}
-		else if( ClassOfProperty==UInt8Property::StaticClass() )
+		else if( ClassOfProperty==FInt8Property::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_Int8);
 			IntType = EIntType::Sized;
 		}
-		else if( ClassOfProperty==UInt16Property::StaticClass() )
+		else if( ClassOfProperty==FInt16Property::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_Int16);
 			IntType = EIntType::Sized;
 		}
-		else if( ClassOfProperty==UIntProperty::StaticClass() )
+		else if( ClassOfProperty==FIntProperty::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_Int);
 			IntType = EIntType::Sized;
 		}
-		else if( ClassOfProperty==UInt64Property::StaticClass() )
+		else if( ClassOfProperty==FInt64Property::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_Int64);
 			IntType = EIntType::Sized;
 		}
-		else if( ClassOfProperty==UUInt16Property::StaticClass() )
+		else if( ClassOfProperty==FUInt16Property::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_UInt16);
 			IntType = EIntType::Sized;
 		}
-		else if( ClassOfProperty==UUInt32Property::StaticClass() )
+		else if( ClassOfProperty==FUInt32Property::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_UInt32);
 			IntType = EIntType::Sized;
 		}
-		else if( ClassOfProperty==UUInt64Property::StaticClass() )
+		else if( ClassOfProperty==FUInt64Property::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_UInt64);
 			IntType = EIntType::Sized;
 		}
-		else if( ClassOfProperty==UBoolProperty::StaticClass() )
+		else if( ClassOfProperty==FBoolProperty::StaticClass() )
 		{
-			UBoolProperty* BoolProperty =  Cast<UBoolProperty>(Property);
+			FBoolProperty* BoolProperty =  CastField<FBoolProperty>(Property);
 			if (BoolProperty->IsNativeBool())
 			{
 				*this = FPropertyBase(CPT_Bool);
@@ -355,78 +357,83 @@ public:
 				}
 			}
 		}
-		else if( ClassOfProperty==UFloatProperty::StaticClass() )
+		else if( ClassOfProperty==FFloatProperty::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_Float);
 		}
-		else if( ClassOfProperty==UDoubleProperty::StaticClass() )
+		else if( ClassOfProperty==FDoubleProperty::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_Double);
 		}
-		else if( ClassOfProperty==UClassProperty::StaticClass() )
+		else if( ClassOfProperty==FClassProperty::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_ObjectReference);
-			PropertyClass = Cast<UClassProperty>(Property)->PropertyClass;
-			MetaClass = Cast<UClassProperty>(Property)->MetaClass;
+			PropertyClass = CastField<FClassProperty>(Property)->PropertyClass;
+			MetaClass = CastField<FClassProperty>(Property)->MetaClass;
 		}
-		else if( ClassOfProperty==UObjectProperty::StaticClass() )
+		else if( ClassOfProperty==FObjectProperty::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_ObjectReference);
-			PropertyClass = Cast<UObjectProperty>(Property)->PropertyClass;
+			PropertyClass = CastField<FObjectProperty>(Property)->PropertyClass;
 		}
-		else if( ClassOfProperty==UWeakObjectProperty::StaticClass() )
+		else if( ClassOfProperty==FWeakObjectProperty::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_WeakObjectReference);
-			PropertyClass = Cast<UWeakObjectProperty>(Property)->PropertyClass;
+			PropertyClass = CastField<FWeakObjectProperty>(Property)->PropertyClass;
 		}
-		else if( ClassOfProperty==ULazyObjectProperty::StaticClass() )
+		else if( ClassOfProperty==FLazyObjectProperty::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_LazyObjectReference);
-			PropertyClass = Cast<ULazyObjectProperty>(Property)->PropertyClass;
+			PropertyClass = CastField<FLazyObjectProperty>(Property)->PropertyClass;
 		}
-		else if( ClassOfProperty==USoftClassProperty::StaticClass() )
+		else if( ClassOfProperty==FSoftClassProperty::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_SoftObjectReference);
-			PropertyClass = Cast<USoftClassProperty>(Property)->PropertyClass;
-			MetaClass = Cast<USoftClassProperty>(Property)->MetaClass;
+			PropertyClass = CastField<FSoftClassProperty>(Property)->PropertyClass;
+			MetaClass = CastField<FSoftClassProperty>(Property)->MetaClass;
 		}
-		else if( ClassOfProperty==USoftObjectProperty::StaticClass() )
+		else if( ClassOfProperty==FSoftObjectProperty::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_SoftObjectReference);
-			PropertyClass = Cast<USoftObjectProperty>(Property)->PropertyClass;
+			PropertyClass = CastField<FSoftObjectProperty>(Property)->PropertyClass;
 		}
-		else if( ClassOfProperty==UNameProperty::StaticClass() )
+		else if( ClassOfProperty==FNameProperty::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_Name);
 		}
-		else if( ClassOfProperty==UStrProperty::StaticClass() )
+		else if( ClassOfProperty==FStrProperty::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_String);
 		}
-		else if( ClassOfProperty==UTextProperty::StaticClass() )
+		else if( ClassOfProperty==FTextProperty::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_Text);
 		}
-		else if( ClassOfProperty==UStructProperty::StaticClass() )
+		else if( ClassOfProperty==FStructProperty::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_Struct);
-			Struct = Cast<UStructProperty>(Property)->Struct;
+			Struct = CastField<FStructProperty>(Property)->Struct;
 		}
-		else if( ClassOfProperty==UDelegateProperty::StaticClass() )
+		else if( ClassOfProperty==FDelegateProperty::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_Delegate);
-			Function = Cast<UDelegateProperty>(Property)->SignatureFunction;
+			Function = CastField<FDelegateProperty>(Property)->SignatureFunction;
 		}
-		else if( ClassOfProperty==UMulticastDelegateProperty::StaticClass() )
+		else if( ClassOfProperty==FMulticastDelegateProperty::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_MulticastDelegate);
 			// @todo delegate: Any other setup for calling multi-cast delegates from script needed?
-			Function = Cast<UMulticastDelegateProperty>(Property)->SignatureFunction;
+			Function = CastField<FMulticastDelegateProperty>(Property)->SignatureFunction;
 		}
-		else if ( ClassOfProperty==UInterfaceProperty::StaticClass() )
+		else if ( ClassOfProperty==FInterfaceProperty::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_Interface);
-			PropertyClass = Cast<UInterfaceProperty>(Property)->InterfaceClass;
+			PropertyClass = CastField<FInterfaceProperty>(Property)->InterfaceClass;
+		}
+		else if (ClassOfProperty == FFieldPathProperty::StaticClass())
+		{
+			*this = FPropertyBase(CPT_FieldPath);
+			PropertyPathClass = CastField<FFieldPathProperty>(Property)->PropertyClass;
 		}
 		else
 		{
@@ -437,6 +444,23 @@ public:
 		ImpliedPropertyFlags = CPF_None;
 		RefQualifier         = ERefQualifier::None;
 		PointerType          = EPointerType::None;
+	}
+
+	explicit FPropertyBase(FFieldClass* InPropertyClass, EPropertyType InType)
+		: Type(InType)
+		, ArrayType(EArrayType::None)
+		, PropertyFlags(CPF_None)
+		, ImpliedPropertyFlags(CPF_None)
+		, RefQualifier(ERefQualifier::None)
+		, PropertyExportFlags(PROPEXPORT_Public)
+		, PropertyPathClass(InPropertyClass)
+		, MetaClass(nullptr)
+		, DelegateName(NAME_None)
+		, DelegateSignatureOwnerClass(nullptr)
+		, RepNotifyName(NAME_None)
+		, PointerType(EPointerType::None)
+		, IntType(GetSizedIntTypeFromPropertyType(InType))
+	{
 	}
 	//@}
 
@@ -715,8 +739,8 @@ public:
 	int32 StartLine;
 	/** Always valid. */
 	TCHAR Identifier[NAME_SIZE];
-	/** property that corresponds to this FToken - null if this Token doesn't correspond to a UProperty */
-	UProperty* TokenProperty;
+	/** property that corresponds to this FToken - null if this Token doesn't correspond to a FProperty */
+	FProperty* TokenProperty;
 
 	union
 	{
@@ -1161,11 +1185,11 @@ struct FTokenData
 
 /**
  * Class for storing data about a list of properties.  Though FToken contains a reference to its
- * associated UProperty, it's faster lookup to use the UProperty as the key in a TMap.
+ * associated FProperty, it's faster lookup to use the FProperty as the key in a TMap.
  */
-class FPropertyData : public TMap< UProperty*, TSharedPtr<FTokenData> >
+class FPropertyData : public TMap< FProperty*, TSharedPtr<FTokenData> >
 {
-	typedef TMap<UProperty*, TSharedPtr<FTokenData> >	Super;
+	typedef TMap<FProperty*, TSharedPtr<FTokenData> >	Super;
 
 public:
 	/**
@@ -1174,7 +1198,7 @@ public:
 	 * @return	A pointer to the value associated with the specified key, or NULL if the key isn't contained in this map.  The pointer
 	 *			is only valid until the next change to any key in the map.
 	 */
-	FTokenData* Find(UProperty* Key)
+	FTokenData* Find(FProperty* Key)
 	{
 		FTokenData* Result = NULL;
 
@@ -1185,7 +1209,7 @@ public:
 		}
 		return Result;
 	}
-	const FTokenData* Find(UProperty* Key) const
+	const FTokenData* Find(FProperty* Key) const
 	{
 		const FTokenData* Result = NULL;
 
@@ -1206,7 +1230,7 @@ public:
 	 *
 	 * @return	a pointer to token data created associated with the property
 	 */
-	FTokenData* Set(UProperty* InKey, const FTokenData& InValue, FUnrealSourceFile* UnrealSourceFile);
+	FTokenData* Set(FProperty* InKey, const FTokenData& InValue, FUnrealSourceFile* UnrealSourceFile);
 
 	/**
 	 * (debug) Dumps the values of this FPropertyData to the log file
@@ -1361,7 +1385,7 @@ public:
 	 */
 	void AddProperty(const FToken& PropertyToken, FUnrealSourceFile* UnrealSourceFile)
 	{
-		const UProperty* Prop = PropertyToken.TokenProperty;
+		const FProperty* Prop = PropertyToken.TokenProperty;
 		check(Prop);
 		check( (Prop->PropertyFlags&CPF_Parm) != 0 );
 
@@ -1570,10 +1594,11 @@ public:
 	 */
 	void AddProperty(const FToken& PropertyToken, FUnrealSourceFile* UnrealSourceFile)
 	{
-		UProperty* Prop = PropertyToken.TokenProperty;
+		FProperty* Prop = PropertyToken.TokenProperty;
 		check(Prop);
 
-		UObject* Outer = Prop->GetOuter();
+		UObject* Outer = Prop->GetOwner<UObject>();
+		check(Outer);
 		UStruct* OuterClass = Cast<UStruct>(Outer);
 		if ( OuterClass != NULL )
 		{
@@ -1594,16 +1619,16 @@ public:
 		// update the optimization flags
 		if ( !bContainsDelegates )
 		{
-			if( Prop->IsA( UDelegateProperty::StaticClass() ) || Prop->IsA( UMulticastDelegateProperty::StaticClass() ) )
+			if( Prop->IsA( FDelegateProperty::StaticClass() ) || Prop->IsA( FMulticastDelegateProperty::StaticClass() ) )
 			{
 				bContainsDelegates = true;
 			}
 			else
 			{
-				UArrayProperty* ArrayProp = Cast<UArrayProperty>(Prop);
+				FArrayProperty* ArrayProp = CastField<FArrayProperty>(Prop);
 				if ( ArrayProp != NULL )
 				{
-					if( ArrayProp->Inner->IsA( UDelegateProperty::StaticClass() ) || ArrayProp->Inner->IsA( UMulticastDelegateProperty::StaticClass() ) )
+					if( ArrayProp->Inner->IsA( FDelegateProperty::StaticClass() ) || ArrayProp->Inner->IsA( FMulticastDelegateProperty::StaticClass() ) )
 					{
 						bContainsDelegates = true;
 					}
@@ -1628,12 +1653,40 @@ public:
 
 			// get (or create) a metadata object for this package
 			UMetaData* MetaData = Field->GetOutermost()->GetMetaData();
-
-			// set the metadata for this field
-			MetaData->SetObjectValues(Field, InMetaData);
+			TMap<FName, FString>* ExistingMetaData = MetaData->GetMapForObject(Field);
+			if (ExistingMetaData && ExistingMetaData->Num())
+			{
+				// Merge the existing metadata
+				TMap<FName, FString> MergedMetaData;
+				MergedMetaData.Reserve(InMetaData.Num() + ExistingMetaData->Num());
+				MergedMetaData.Append(*ExistingMetaData);
+				MergedMetaData.Append(InMetaData);
+				MetaData->SetObjectValues(Field, MergedMetaData);
+			}
+			else
+			{
+				// set the metadata for this field
+				MetaData->SetObjectValues(Field, InMetaData);
+			}
 		}
 	}
+	static void AddMetaData(FField* Field, const TMap<FName, FString>& InMetaData)
+	{
+		// only add if we have some!
+		if (InMetaData.Num())
+		{
+			check(Field);
 
+			UPackage* Package = Field->GetOutermost();
+			// get (or create) a metadata object for this package
+			UMetaData* MetaData = Package->GetMetaData();
+			
+			for (const TPair<FName, FString>& MetaKeyValue : InMetaData)
+			{
+				Field->SetMetaData(MetaKeyValue.Key, *MetaKeyValue.Value);
+			}
+		}
+	}
 
 	/**
 	 * Finds the metadata for the function specified
@@ -1657,7 +1710,7 @@ public:
 	 *			is declared in a package that is already compiled and has had its
 	 *			source stripped)
 	 */
-	FTokenData* FindTokenData( UProperty* Prop );
+	FTokenData* FindTokenData( FProperty* Prop );
 
 	/**
 	 * (debug) Dumps the values of this FFunctionData to the log file
@@ -1728,7 +1781,7 @@ public:
 /**
  * Class for storing and linking data about properties and functions that is only required by the compiler.
  * The type of data tracked by this class is data that would otherwise only be accessible by adding a 
- * member property to UFunction/UProperty.  
+ * member property to UFunction/FProperty.  
  */
 class FCompilerMetadataManager : protected TMap<UStruct*, TUniquePtr<FClassMetaData> >
 {

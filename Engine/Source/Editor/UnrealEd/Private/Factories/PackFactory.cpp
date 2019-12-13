@@ -186,8 +186,8 @@ namespace PackFactoryHelper
 		PackConfig.ProcessInputFileContents(ConfigString);
 
 		// Input Settings
-		static UArrayProperty* ActionMappingsProp = FindFieldChecked<UArrayProperty>(UInputSettings::StaticClass(), UInputSettings::GetActionMappingsPropertyName());
-		static UArrayProperty* AxisMappingsProp = FindFieldChecked<UArrayProperty>(UInputSettings::StaticClass(), UInputSettings::GetAxisMappingsPropertyName());
+		static FArrayProperty* ActionMappingsProp = FindFieldChecked<FArrayProperty>(UInputSettings::StaticClass(), UInputSettings::GetActionMappingsPropertyName());
+		static FArrayProperty* AxisMappingsProp = FindFieldChecked<FArrayProperty>(UInputSettings::StaticClass(), UInputSettings::GetAxisMappingsPropertyName());
 
 		UInputSettings* InputSettingsCDO = GetMutableDefault<UInputSettings>();
 		bool bCheckedOut = false;

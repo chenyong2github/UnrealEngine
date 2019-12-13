@@ -68,7 +68,7 @@ UGameplayTagsSettings::UGameplayTagsSettings(const FObjectInitializer& ObjectIni
 }
 
 #if WITH_EDITOR
-void UGameplayTagsSettings::PreEditChange(UProperty* PropertyThatWillChange)
+void UGameplayTagsSettings::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);
 

@@ -332,7 +332,7 @@ void UNiagaraDataInterfaceCurlNoise::PostLoad()
 
 #if WITH_EDITOR
 
-void UNiagaraDataInterfaceCurlNoise::PreEditChange(UProperty* PropertyAboutToChange)
+void UNiagaraDataInterfaceCurlNoise::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	Super::PreEditChange(PropertyAboutToChange);
 	

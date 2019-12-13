@@ -18,12 +18,13 @@
  *			is declared in a package that is already compiled and has had its
  *			source stripped)
  */
-FTokenData* FClassMetaData::FindTokenData( UProperty* Prop )
+FTokenData* FClassMetaData::FindTokenData( FProperty* Prop )
 {
 	check(Prop);
 
 	FTokenData* Result = nullptr;
-	UObject* Outer = Prop->GetOuter();
+	UObject* Outer = Prop->GetOwner<UObject>();
+	check(Outer);
 	UClass* OuterClass = nullptr;
 	if (Outer->IsA<UStruct>())
 	{
@@ -127,6 +128,7 @@ const TCHAR* FPropertyBase::GetPropertyTypeText( EPropertyType Type )
 		CASE_TEXT(CPT_LazyObjectReference);
 		CASE_TEXT(CPT_Map);
 		CASE_TEXT(CPT_Set);
+		CASE_TEXT(CPT_FieldPath);
 		CASE_TEXT(CPT_MAX);
 	}
 
@@ -260,7 +262,7 @@ FClassMetaData* FCompilerMetadataManager::AddClassData(UStruct* Struct, FUnrealS
 	return pClassData->Get();
 }
 
-FTokenData* FPropertyData::Set(UProperty* InKey, const FTokenData& InValue, FUnrealSourceFile* UnrealSourceFile)
+FTokenData* FPropertyData::Set(FProperty* InKey, const FTokenData& InValue, FUnrealSourceFile* UnrealSourceFile)
 {
 	FTokenData* Result = NULL;
 

@@ -10,7 +10,7 @@
 
 class IPropertyHandle;
 class UDataprepAsset;
-class UProperty;
+class FProperty;
 
 enum class EParametrizationState : uint8
 {
@@ -35,8 +35,8 @@ struct FDataprepPropertyLink
 {
 	GENERATED_BODY()
 
-	FDataprepPropertyLink( UProperty* InCachedProperty, const FName& InPropertyName, int32 InContenerIndex )
-		: CachedProperty( MakeWeakObjectPtr(InCachedProperty) )
+	FDataprepPropertyLink( FProperty* InCachedProperty, const FName& InPropertyName, int32 InContenerIndex )
+		: CachedProperty(InCachedProperty)
 		, PropertyName( InPropertyName )
 		, ContainerIndex( InContenerIndex )
 	{}
@@ -50,7 +50,7 @@ struct FDataprepPropertyLink
 	friend bool operator==(const FDataprepPropertyLink& A,const FDataprepPropertyLink& B);
 
 	UPROPERTY()
-	TWeakObjectPtr<UProperty> CachedProperty;
+	TFieldPath<FProperty> CachedProperty;
 
 	UPROPERTY()
 	FName PropertyName;

@@ -10,7 +10,7 @@ FPropertyAndParent::FPropertyAndParent(const TSharedRef<IPropertyHandle>& InProp
 	TSharedPtr<IPropertyHandle> ParentHandle = InPropertyHandle->GetParentHandle();
 	while (ParentHandle.IsValid())
 	{
-		const UProperty* ParentProperty = ParentHandle->GetProperty();
+		const FProperty* ParentProperty = ParentHandle->GetProperty();
 		if (ParentProperty != nullptr)
 		{
 			ParentProperties.Add(ParentProperty);

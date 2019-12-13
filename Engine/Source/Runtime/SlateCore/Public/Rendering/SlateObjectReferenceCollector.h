@@ -28,7 +28,7 @@ public:
 		return false;
 	}
 
-	virtual void HandleObjectReference(UObject*& InObject, const UObject* InReferencingObject, const UProperty* InReferencingProperty) override
+	virtual void HandleObjectReference(UObject*& InObject, const UObject* InReferencingObject, const FProperty* InReferencingProperty) override
 	{
 		if (InObject)
 		{

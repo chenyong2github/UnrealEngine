@@ -68,15 +68,15 @@ struct GAMEPLAYABILITIES_API FGameplayAttribute
 	{
 	}
 
-	FGameplayAttribute(UProperty *NewProperty);
+	FGameplayAttribute(FProperty *NewProperty);
 
 	bool IsValid() const
 	{
 		return Attribute != nullptr;
 	}
 
-	/** Set up from a UProperty inside a set */
-	void SetUProperty(UProperty *NewProperty)
+	/** Set up from a FProperty inside a set */
+	void SetUProperty(FProperty *NewProperty)
 	{
 		Attribute = NewProperty;
 		if (NewProperty)
@@ -92,23 +92,23 @@ struct GAMEPLAYABILITIES_API FGameplayAttribute
 	}
 
 	/** Returns raw property */
-	UProperty* GetUProperty() const
+	FProperty* GetUProperty() const
 	{
-		return Attribute;
+		return Attribute.Get();
 	}
 
 	/** Returns the AttributeSet subclass holding this attribute */
 	UClass* GetAttributeSetClass() const
 	{
-		check(Attribute);
-		return CastChecked<UClass>(Attribute->GetOuter());
+		check(Attribute.Get());
+		return CastChecked<UClass>(Attribute->GetOwner<UObject>());
 	}
 
 	/** Returns true if this is one of the special attributes defined on the bBilitySystemComponent itself */
 	bool IsSystemAttribute() const;
 
 	/** Returns true if the variable associated with Property is of type FGameplayAttributeData or one of its subclasses */
-	static bool IsGameplayAttributeDataProperty(const UProperty* Property);
+	static bool IsGameplayAttributeDataProperty(const FProperty* Property);
 
 	/** Modifies the current value of an attribute, will not modify base value if that is supported */
 	void SetNumericValueChecked(float& NewValue, class UAttributeSet* Dest) const;
@@ -128,13 +128,13 @@ struct GAMEPLAYABILITIES_API FGameplayAttribute
 	friend uint32 GetTypeHash( const FGameplayAttribute& InAttribute )
 	{
 		// FIXME: Use ObjectID or something to get a better, less collision prone hash
-		return PointerHash(InAttribute.Attribute);
+		return PointerHash(InAttribute.Attribute.Get());
 	}
 
 	/** Returns name of attribute, usually the same as the property */
 	FString GetName() const
 	{
-		return AttributeName.IsEmpty() ? *GetNameSafe(Attribute) : AttributeName;
+		return AttributeName.IsEmpty() ? *GetNameSafe(Attribute.Get()) : AttributeName;
 	}
 
 #if WITH_EDITORONLY_DATA
@@ -147,13 +147,14 @@ struct GAMEPLAYABILITIES_API FGameplayAttribute
 	FString AttributeName;
 
 	/** In editor, this will filter out properties with meta tag "HideInDetailsView" or equal to FilterMetaStr. In non editor, it returns all properties */
-	static void GetAllAttributeProperties(TArray<UProperty*>& OutProperties, FString FilterMetaStr=FString(), bool UseEditorOnlyData=true);
+	static void GetAllAttributeProperties(TArray<FProperty*>& OutProperties, FString FilterMetaStr=FString(), bool UseEditorOnlyData=true);
 
 private:
 	friend class FAttributePropertyDetails;
 
-	UPROPERTY(Category=GameplayAttribute, EditAnywhere)
-	UProperty*	Attribute;
+	UPROPERTY(Category = GameplayAttribute, EditAnywhere)
+	TFieldPath<FProperty> Attribute;
+	//FProperty*	Attribute;
 
 	UPROPERTY(Category = GameplayAttribute, VisibleAnywhere)
 	UStruct* AttributeOwner;
@@ -185,7 +186,7 @@ class GAMEPLAYABILITIES_API UAttributeSet : public UObject
 public:
 
 	/** Override to disable initialization for specific properties */
-	virtual bool ShouldInitProperty(bool FirstInit, UProperty* PropertyToInit) const { return true; }
+	virtual bool ShouldInitProperty(bool FirstInit, FProperty* PropertyToInit) const { return true; }
 
 	/**
 	 *	Called just before modifying the value of an attribute. AttributeSet can make additional modifications here. Return true to continue, or false to throw out the modification.
@@ -329,7 +330,7 @@ public:
 
 	/** Error checking: checks if we have a curve table specified but no valid curve entry */
 	bool IsValid() const
-	{	
+	{
 		static const FString ContextString = TEXT("FScalableFloat::IsValid");
 		GetValueAtLevel(1.f, &ContextString);
 		bool bInvalid = (Curve.CurveTable != nullptr || Curve.RowName != NAME_None ) && (FinalCurve == nullptr);
@@ -443,7 +444,7 @@ struct GAMEPLAYABILITIES_API FAttributeSetInitter
 	virtual void PreloadAttributeSetData(const TArray<UCurveTable*>& CurveData) = 0;
 	virtual void InitAttributeSetDefaults(UAbilitySystemComponent* AbilitySystemComponent, FName GroupName, int32 Level, bool bInitialInit) const = 0;
 	virtual void ApplyAttributeDefault(UAbilitySystemComponent* AbilitySystemComponent, FGameplayAttribute& InAttribute, FName GroupName, int32 Level) const = 0;
-	virtual TArray<float> GetAttributeSetValues(UClass* AttributeSetClass, UProperty* AttributeProperty, FName GroupName) const { return TArray<float>(); }
+	virtual TArray<float> GetAttributeSetValues(UClass* AttributeSetClass, FProperty* AttributeProperty, FName GroupName) const { return TArray<float>(); }
 };
 
 /** Explicit implementation of attribute set initter, relying on the existence and usage of discrete levels for data look-up (that is, CurveTable->Eval is not possible) */
@@ -454,24 +455,24 @@ struct GAMEPLAYABILITIES_API FAttributeSetInitterDiscreteLevels : public FAttrib
 	virtual void InitAttributeSetDefaults(UAbilitySystemComponent* AbilitySystemComponent, FName GroupName, int32 Level, bool bInitialInit) const override;
 	virtual void ApplyAttributeDefault(UAbilitySystemComponent* AbilitySystemComponent, FGameplayAttribute& InAttribute, FName GroupName, int32 Level) const override;
 
-	virtual TArray<float> GetAttributeSetValues(UClass* AttributeSetClass, UProperty* AttributeProperty, FName GroupName) const override;
+	virtual TArray<float> GetAttributeSetValues(UClass* AttributeSetClass, FProperty* AttributeProperty, FName GroupName) const override;
 private:
 
-	bool IsSupportedProperty(UProperty* Property) const;
+	bool IsSupportedProperty(FProperty* Property) const;
 
 	struct FAttributeDefaultValueList
 	{
-		void AddPair(UProperty* InProperty, float InValue)
+		void AddPair(FProperty* InProperty, float InValue)
 		{
 			List.Add(FOffsetValuePair(InProperty, InValue));
 		}
 
 		struct FOffsetValuePair
 		{
-			FOffsetValuePair(UProperty* InProperty, float InValue)
+			FOffsetValuePair(FProperty* InProperty, float InValue)
 			: Property(InProperty), Value(InValue) { }
 
-			UProperty*	Property;
+			FProperty*	Property;
 			float		Value;
 		};
 
@@ -502,7 +503,7 @@ private:
 
 #define GAMEPLAYATTRIBUTE_REPNOTIFY(C, P) \
 { \
-	static UProperty* ThisProperty = FindFieldChecked<UProperty>(C::StaticClass(), GET_MEMBER_NAME_CHECKED(C, P)); \
+	static FProperty* ThisProperty = FindFieldChecked<FProperty>(C::StaticClass(), GET_MEMBER_NAME_CHECKED(C, P)); \
 	GetOwningAbilitySystemComponent()->SetBaseAttributeValueFromReplication(P, FGameplayAttribute(ThisProperty)); \
 }
 
@@ -529,7 +530,7 @@ private:
 #define GAMEPLAYATTRIBUTE_PROPERTY_GETTER(ClassName, PropertyName) \
 	static FGameplayAttribute Get##PropertyName##Attribute() \
 	{ \
-		static UProperty* Prop = FindFieldChecked<UProperty>(ClassName::StaticClass(), GET_MEMBER_NAME_CHECKED(ClassName, PropertyName)); \
+		static FProperty* Prop = FindFieldChecked<FProperty>(ClassName::StaticClass(), GET_MEMBER_NAME_CHECKED(ClassName, PropertyName)); \
 		return Prop; \
 	}
 

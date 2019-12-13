@@ -327,9 +327,9 @@ void FPyUValueDef::ApplyMetaData(FPyUValueDef* InSelf, const TFunctionRef<void(c
 }
 
 
-FPyUPropertyDef* FPyUPropertyDef::New(PyTypeObject* InType)
+FPyFPropertyDef* FPyFPropertyDef::New(PyTypeObject* InType)
 {
-	FPyUPropertyDef* Self = (FPyUPropertyDef*)InType->tp_alloc(InType, 0);
+	FPyFPropertyDef* Self = (FPyFPropertyDef*)InType->tp_alloc(InType, 0);
 	if (Self)
 	{
 		Self->PropType = nullptr;
@@ -340,7 +340,7 @@ FPyUPropertyDef* FPyUPropertyDef::New(PyTypeObject* InType)
 	return Self;
 }
 
-void FPyUPropertyDef::Free(FPyUPropertyDef* InSelf)
+void FPyFPropertyDef::Free(FPyFPropertyDef* InSelf)
 {
 	Deinit(InSelf);
 
@@ -349,7 +349,7 @@ void FPyUPropertyDef::Free(FPyUPropertyDef* InSelf)
 	Py_TYPE(InSelf)->tp_free((PyObject*)InSelf);
 }
 
-int FPyUPropertyDef::Init(FPyUPropertyDef* InSelf, PyObject* InPropType, PyObject* InMetaData, FString InGetterFuncName, FString InSetterFuncName)
+int FPyFPropertyDef::Init(FPyFPropertyDef* InSelf, PyObject* InPropType, PyObject* InMetaData, FString InGetterFuncName, FString InSetterFuncName)
 {
 	Deinit(InSelf);
 
@@ -365,7 +365,7 @@ int FPyUPropertyDef::Init(FPyUPropertyDef* InSelf, PyObject* InPropType, PyObjec
 	return 0;
 }
 
-void FPyUPropertyDef::Deinit(FPyUPropertyDef* InSelf)
+void FPyFPropertyDef::Deinit(FPyFPropertyDef* InSelf)
 {
 	Py_XDECREF(InSelf->PropType);
 	InSelf->PropType = nullptr;
@@ -377,7 +377,7 @@ void FPyUPropertyDef::Deinit(FPyUPropertyDef* InSelf)
 	InSelf->SetterFuncName.Reset();
 }
 
-void FPyUPropertyDef::ApplyMetaData(FPyUPropertyDef* InSelf, UProperty* InProp)
+void FPyFPropertyDef::ApplyMetaData(FPyFPropertyDef* InSelf, FProperty* InProp)
 {
 	PyCoreUtil::ApplyMetaData(InSelf->MetaData, [InProp](const FString& InMetaDataKey, const FString& InMetaDataValue)
 	{
@@ -866,21 +866,21 @@ PyTypeObject InitializePyUValueDefType()
 }
 
 
-PyTypeObject InitializePyUPropertyDefType()
+PyTypeObject InitializePyFPropertyDefType()
 {
 	struct FFuncs
 	{
 		static PyObject* New(PyTypeObject* InType, PyObject* InArgs, PyObject* InKwds)
 		{
-			return (PyObject*)FPyUPropertyDef::New(InType);
+			return (PyObject*)FPyFPropertyDef::New(InType);
 		}
 
-		static void Dealloc(FPyUPropertyDef* InSelf)
+		static void Dealloc(FPyFPropertyDef* InSelf)
 		{
-			FPyUPropertyDef::Free(InSelf);
+			FPyFPropertyDef::Free(InSelf);
 		}
 
-		static int Init(FPyUPropertyDef* InSelf, PyObject* InArgs, PyObject* InKwds)
+		static int Init(FPyFPropertyDef* InSelf, PyObject* InArgs, PyObject* InKwds)
 		{
 			PyObject* PyPropTypeObj = nullptr;
 			PyObject* PyMetaObj = nullptr;
@@ -907,14 +907,14 @@ PyTypeObject InitializePyUPropertyDefType()
 				return -1;
 			}
 
-			return FPyUPropertyDef::Init(InSelf, PyPropTypeObj, PyMetaObj, MoveTemp(PropGetter), MoveTemp(PropSetter));
+			return FPyFPropertyDef::Init(InSelf, PyPropTypeObj, PyMetaObj, MoveTemp(PropGetter), MoveTemp(PropSetter));
 		}
 	};
 
 	PyTypeObject PyType = {
 		PyVarObject_HEAD_INIT(nullptr, 0)
 		"PropertyDef", /* tp_name */
-		sizeof(FPyUPropertyDef), /* tp_basicsize */
+		sizeof(FPyFPropertyDef), /* tp_basicsize */
 	};
 
 	PyType.tp_new = (newfunc)&FFuncs::New;
@@ -922,7 +922,7 @@ PyTypeObject InitializePyUPropertyDefType()
 	PyType.tp_init = (initproc)&FFuncs::Init;
 
 	PyType.tp_flags = Py_TPFLAGS_DEFAULT;
-	PyType.tp_doc = "Type used to define UProperty fields from Python";
+	PyType.tp_doc = "Type used to define FProperty fields from Python";
 
 	return PyType;
 }
@@ -1012,7 +1012,7 @@ PyTypeObject PyClassIteratorType = InitializePyTypeIteratorType<UClass, FPyClass
 PyTypeObject PyStructIteratorType = InitializePyTypeIteratorType<UScriptStruct, FPyStructIterator>("StructIterator", "Type for iterating Unreal struct types");
 PyTypeObject PyTypeIteratorType = InitializePyTypeIteratorType<UStruct, FPyTypeIterator>("TypeIterator", "Type for iterating Python types");
 PyTypeObject PyUValueDefType = InitializePyUValueDefType();
-PyTypeObject PyUPropertyDefType = InitializePyUPropertyDefType();
+PyTypeObject PyFPropertyDefType = InitializePyFPropertyDefType();
 PyTypeObject PyUFunctionDefType = InitializePyUFunctionDefType();
 
 
@@ -1739,9 +1739,9 @@ void InitializeModule()
 		NativePythonModule.AddType(&PyUValueDefType);
 	}
 
-	if (PyType_Ready(&PyUPropertyDefType) == 0)
+	if (PyType_Ready(&PyFPropertyDefType) == 0)
 	{
-		NativePythonModule.AddType(&PyUPropertyDefType);
+		NativePythonModule.AddType(&PyFPropertyDefType);
 	}
 
 	if (PyType_Ready(&PyUFunctionDefType) == 0)

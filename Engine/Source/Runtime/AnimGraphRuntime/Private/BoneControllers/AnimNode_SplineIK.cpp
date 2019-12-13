@@ -5,6 +5,7 @@
 #include "AnimationRuntime.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "SplineIK.h"
+#include "Animation/AnimTrace.h"
 
 FAnimNode_SplineIK::FAnimNode_SplineIK() 
 	: BoneAxis(ESplineBoneAxis::X)
@@ -91,6 +92,9 @@ void FAnimNode_SplineIK::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseCo
 			OutBoneTransforms.Emplace(CompactPoseBoneIndices[OutBoneIndex], OutTransforms[OutBoneIndex]);
 		}
 	}
+
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("Start Bone"), StartBone.BoneName);
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("End Bone"), EndBone.BoneName);
 }
 
 bool FAnimNode_SplineIK::IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) 

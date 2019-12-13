@@ -19,7 +19,7 @@ UPythonScriptPluginSettings::UPythonScriptPluginSettings()
 
 #if WITH_EDITOR
 
-bool UPythonScriptPluginSettings::CanEditChange(const UProperty* InProperty) const
+bool UPythonScriptPluginSettings::CanEditChange(const FProperty* InProperty) const
 {
 	bool bCanEditChange = Super::CanEditChange(InProperty);
 

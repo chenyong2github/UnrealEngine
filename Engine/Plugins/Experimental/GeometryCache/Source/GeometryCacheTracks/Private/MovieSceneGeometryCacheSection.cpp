@@ -194,7 +194,7 @@ float UMovieSceneGeometryCacheSection::MapTimeToAnimation(float ComponentDuratio
 
 
 #if WITH_EDITOR
-void UMovieSceneGeometryCacheSection::PreEditChange(UProperty* PropertyAboutToChange)
+void UMovieSceneGeometryCacheSection::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	// Store the current play rate so that we can compute the amount to compensate the section end time when the play rate changes
 	PreviousPlayRate = Params.PlayRate;

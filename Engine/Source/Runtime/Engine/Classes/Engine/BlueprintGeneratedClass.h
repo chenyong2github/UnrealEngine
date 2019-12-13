@@ -10,6 +10,10 @@
 #include "UObject/Class.h"
 #include "UObject/UnrealType.h"
 #include "EdGraph/EdGraphPin.h"
+
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
+
 #include "BlueprintGeneratedClass.generated.h"
 
 class AActor;
@@ -223,10 +227,10 @@ protected:
 	TMap<TWeakObjectPtr<UFunction>, FDebuggingInfoForSingleFunction> PerFunctionLineNumbers;
 
 	// Map from objects to class properties they created
-	TMap<TWeakObjectPtr<UObject>, UProperty*> DebugObjectToPropertyMap;
+	TMap<TWeakObjectPtr<UObject>, FProperty*> DebugObjectToPropertyMap;
 
 	// Map from pins or nodes to class properties they created
-	TMap<FEdGraphPinReference, UProperty*> DebugPinToPropertyMap;
+	TMap<FEdGraphPinReference, FProperty*> DebugPinToPropertyMap;
 
 public:
 
@@ -372,14 +376,14 @@ public:
 	}
 
 	// Looks thru the debugging data for any class variables associated with the node
-	UProperty* FindClassPropertyForPin(const UEdGraphPin* Pin) const
+	FProperty* FindClassPropertyForPin(const UEdGraphPin* Pin) const
 	{
 		if (!Pin)
 		{
 			return nullptr;
 		}
 
-		UProperty* PropertyPtr = DebugPinToPropertyMap.FindRef(Pin);
+		FProperty* PropertyPtr = DebugPinToPropertyMap.FindRef(Pin);
 		if ((PropertyPtr == nullptr) && (Pin->LinkedTo.Num() > 0))
 		{
 			// Try checking the other side of the connection
@@ -390,7 +394,7 @@ public:
 	}
 
 	// Looks thru the debugging data for any class variables associated with the node (e.g., temporary variables or timelines)
-	UProperty* FindClassPropertyForNode(const UEdGraphNode* Node) const
+	FProperty* FindClassPropertyForNode(const UEdGraphNode* Node) const
 	{
 		return DebugObjectToPropertyMap.FindRef(MakeWeakObjectPtr(const_cast<UEdGraphNode*>(Node)));
 	}
@@ -437,12 +441,12 @@ public:
 	}
 
 	// Registers an association between an object (pin or node typically) and an associated class member property
-	void RegisterClassPropertyAssociation(class UObject* TrueSourceObject, class UProperty* AssociatedProperty)
+	void RegisterClassPropertyAssociation(class UObject* TrueSourceObject, class FProperty* AssociatedProperty)
 	{
 		DebugObjectToPropertyMap.Add(TrueSourceObject, AssociatedProperty);
 	}
 
-	void RegisterClassPropertyAssociation(const UEdGraphPin* TrueSourcePin, class UProperty* AssociatedProperty)
+	void RegisterClassPropertyAssociation(const UEdGraphPin* TrueSourcePin, class FProperty* AssociatedProperty)
 	{
 		if (TrueSourcePin)
 		{
@@ -457,7 +461,7 @@ public:
 	}
 
 	// Returns the object that caused the specified property to be created (can return nullptr if the association is unknown)
-	UObject* FindObjectThatCreatedProperty(class UProperty* AssociatedProperty) const
+	UObject* FindObjectThatCreatedProperty(class FProperty* AssociatedProperty) const
 	{
 		if (const TWeakObjectPtr<UObject>* pValue = DebugObjectToPropertyMap.FindKey(AssociatedProperty))
 		{
@@ -470,7 +474,7 @@ public:
 	}
 
 	// Returns the pin that caused the specified property to be created (can return nullptr if the association is unknown or the association is from an object instead)
-	UEdGraphPin* FindPinThatCreatedProperty(class UProperty* AssociatedProperty) const
+	UEdGraphPin* FindPinThatCreatedProperty(class FProperty* AssociatedProperty) const
 	{
 		if (const FEdGraphPinReference* pValue = DebugPinToPropertyMap.FindKey(AssociatedProperty))
 		{
@@ -482,9 +486,9 @@ public:
 		}
 	}
 
-	void GenerateReversePropertyMap(TMap<UProperty*, UObject*>& PropertySourceMap)
+	void GenerateReversePropertyMap(TMap<FProperty*, UObject*>& PropertySourceMap)
 	{
-		for (TMap<TWeakObjectPtr<UObject>, UProperty*>::TIterator MapIt(DebugObjectToPropertyMap); MapIt; ++MapIt)
+		for (TMap<TWeakObjectPtr<UObject>, FProperty*>::TIterator MapIt(DebugObjectToPropertyMap); MapIt; ++MapIt)
 		{
 			if (UObject* SourceObj = MapIt.Key().Get())
 			{
@@ -567,7 +571,7 @@ struct ENGINE_API FBlueprintCookedComponentInstancingData
 	/** Destructor. */
 	~FBlueprintCookedComponentInstancingData();
 
-	/** Builds/returns the internal property list that's used for serialization. This is a linked list of UProperty references. */
+	/** Builds/returns the internal property list that's used for serialization. This is a linked list of FProperty references. */
 	const FCustomPropertyListNode* GetCachedPropertyList() const;
 
 	/** Called at load time to generate the internal cached property data stream from serialization of the source template object. */
@@ -581,7 +585,7 @@ protected:
 	void BuildCachedPropertyList(FCustomPropertyListNode** CurrentNode, const UStruct* CurrentScope, int32* CurrentSourceIdx = nullptr) const;
 
 	/** Internal method used to help recursively build a cached sub property list from an array property for serialization. */
-	void BuildCachedArrayPropertyList(const UArrayProperty* ArraySubPropertyNode, FCustomPropertyListNode** CurrentNode, int32* CurrentSourceIdx) const;
+	void BuildCachedArrayPropertyList(const FArrayProperty* ArraySubPropertyNode, FCustomPropertyListNode** CurrentNode, int32* CurrentSourceIdx) const;
 
 private:
 	/** Internal property list that's used in binary object serialization at component instancing time. */
@@ -676,7 +680,9 @@ public:
 	class UInheritableComponentHandler* InheritableComponentHandler;
 
 	UPROPERTY()
-	UStructProperty* UberGraphFramePointerProperty;
+	class UStructProperty* UberGraphFramePointerProperty_DEPRECATED;
+	
+	FStructProperty* UberGraphFramePointerProperty;
 
 	UPROPERTY()
 	UFunction* UberGraphFunction;
@@ -795,7 +801,7 @@ protected:
 	* @param	DataPtr				destination address (where to start copying values to)
 	* @param	DefaultDataPtr		source address (where to start copying the defaults data from)
 	*/
-	static void InitArrayPropertyFromCustomList(const UArrayProperty* ArrayProperty, const FCustomPropertyListNode* InPropertyList, uint8* DataPtr, const uint8* DefaultDataPtr);
+	static void InitArrayPropertyFromCustomList(const FArrayProperty* ArrayProperty, const FCustomPropertyListNode* InPropertyList, uint8* DataPtr, const uint8* DefaultDataPtr);
 
 	/** Check for and handle manual application of default value overrides to component subobjects that were inherited from a nativized parent class */
 	static void CheckAndApplyComponentTemplateOverrides(UObject* InClassDefaultObject);
@@ -834,7 +840,7 @@ public:
 	static void UnbindDynamicDelegates(const UClass* ThisClass, UObject* InInstance);
 
 	/** Unbind functions on supplied actor from delegates tied to a specific property */
-	void UnbindDynamicDelegatesForProperty(UObject* InInstance, const UObjectProperty* InObjectProperty);
+	void UnbindDynamicDelegatesForProperty(UObject* InInstance, const FObjectProperty* InObjectProperty);
 #endif
 
 	/** called to gather blueprint replicated properties */
@@ -854,7 +860,7 @@ protected:
 	bool BuildCustomPropertyListForPostConstruction(FCustomPropertyListNode*& InPropertyList, UStruct* InStruct, const uint8* DataPtr, const uint8* DefaultDataPtr);
 
 	/** Internal helper method used to recursively build a custom property list from an array property used for post-construct initialization. */
-	bool BuildCustomArrayPropertyListForPostConstruction(UArrayProperty* ArrayProperty, FCustomPropertyListNode*& InPropertyList, const uint8* DataPtr, const uint8* DefaultDataPtr, int32 StartIndex = 0);
+	bool BuildCustomArrayPropertyListForPostConstruction(FArrayProperty* ArrayProperty, FCustomPropertyListNode*& InPropertyList, const uint8* DataPtr, const uint8* DefaultDataPtr, int32 StartIndex = 0);
 
 private:
 	/** List of native class-owned properties that differ from defaults. This is used to optimize property initialization during post-construction by minimizing the number of native class-owned property values that get copied to the new instance. */
@@ -862,3 +868,5 @@ private:
 	/** In some cases UObject::ConditionalPostLoad() code calls PostLoadDefaultObject() on a class that's still being serialized. */
 	FCriticalSection SerializeAndPostLoadCritical;
 };
+
+#include "UObject/DefineUPropertyMacros.h"

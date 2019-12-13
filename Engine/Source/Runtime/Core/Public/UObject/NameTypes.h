@@ -19,7 +19,7 @@
 
 /** 
  * Do we want to support case-variants for FName?
- * This will add an extra NAME_INunrealDEX variable to FName, but means that ToString() will return you the exact same 
+ * This will add an extra NAME_INDEX variable to FName, but means that ToString() will return you the exact same 
  * string that FName::Init was called with (which is useful if your FNames are shown to the end user)
  * Currently this is enabled for the Editor and any Programs (such as UHT), but not the Runtime
  */
@@ -27,6 +27,10 @@
 	#define WITH_CASE_PRESERVING_NAME WITH_EDITORONLY_DATA
 #endif
 
+class FAnsiStringBuilderBase;
+class FAnsiStringView;
+class FStringBuilderBase;
+class FStringView;
 class FText;
 
 /** Maximum size of name. */
@@ -223,8 +227,17 @@ public:
 	/** Copy name to a dynamically allocated FString. */
 	CORE_API FString GetPlainNameString() const;
 
+	/** Copy name to a FStringBuilderBase. */
+	CORE_API void GetPlainNameString(FStringBuilderBase& OutString) const;
+
 	/** Appends name to string. May allocate. */
 	CORE_API void AppendNameToString(FString& OutString) const;
+
+	/** Appends name to string builder. */
+	CORE_API void AppendNameToString(FStringBuilderBase& OutString) const;
+
+	/** Appends name to string builder. Entry must not be wide. */
+	CORE_API void AppendAnsiNameToString(FAnsiStringBuilderBase& OutString) const;
 
 	/** Appends name to string with path separator using FString::PathAppend(). */
 	CORE_API void AppendNameToPathString(FString& OutString) const;
@@ -438,6 +451,13 @@ public:
 	void ToString(FString& Out) const;
 
 	/**
+	 * Converts an FName to a readable format, in place
+	 * 
+	 * @param Out StringBuilder to fill with the string representation of the name
+	 */
+	void ToString(FStringBuilderBase& Out) const;
+
+	/**
 	 * Get the number of characters, excluding null-terminator, that ToString() would yield
 	 */
 	uint32 GetStringLength() const;
@@ -470,6 +490,22 @@ public:
 	void AppendString(FString& Out) const;
 
 	/**
+	 * Converts an FName to a readable format, in place, appending to an existing string (ala GetFullName)
+	 * 
+	 * @param Out StringBuilder to append with the string representation of the name
+	 */
+	void AppendString(FStringBuilderBase& Out) const;
+
+	/**
+	 * Converts an ANSI FName to a readable format appended to the string builder.
+	 *
+	 * @param Out A string builder to write the readable representation of the name into.
+	 *
+	 * @return Whether the string is ANSI. A return of false indicates that the string was wide and was not written.
+	 */
+	bool TryAppendAnsiString(FAnsiStringBuilderBase& Out) const;
+
+	/**
 	 * Check to see if this FName matches the other FName, potentially also checking for any case variations
 	 */
 	FORCEINLINE bool IsEqual(const FName& Other, const ENameCase CompareMethod = ENameCase::IgnoreCase, const bool bCompareNumber = true ) const
@@ -478,12 +514,16 @@ public:
 			&& (!bCompareNumber || GetNumber() == Other.GetNumber());
 	}
 
-	FORCEINLINE bool operator==(const FName& Other) const
+	FORCEINLINE bool operator==(FName Other) const
 	{
+#if PLATFORM_64BITS && !WITH_CASE_PRESERVING_NAME
+		return ToComparableInt() == Other.ToComparableInt();
+#else
 		return (ComparisonIndex == Other.ComparisonIndex) & (GetNumber() == Other.GetNumber());
+#endif
 	}
 
-	FORCEINLINE bool operator!=(const FName& Other) const
+	FORCEINLINE bool operator!=(FName Other) const
 	{
 		return !(*this == Other);
 	}
@@ -526,7 +566,11 @@ public:
 	/** True for FName(), FName(NAME_None) and FName("None") */
 	FORCEINLINE bool IsNone() const
 	{
+#if PLATFORM_64BITS && !WITH_CASE_PRESERVING_NAME
+		return ToComparableInt() == 0;
+#else
 		return !ComparisonIndex && GetNumber() == NAME_NO_NUMBER_INTERNAL;
+#endif
 	}
 
 	/**
@@ -725,6 +769,8 @@ public:
 	/** Create FName from non-null string with known length  */
 	FName(int32 Len, const WIDECHAR* Name, EFindName FindType=FNAME_Add);
 	FName(int32 Len, const ANSICHAR* Name, EFindName FindType=FNAME_Add);
+	FName(const FStringView& Name, EFindName FindType=FNAME_Add);
+	FName(const FAnsiStringView& Name, EFindName FindType=FNAME_Add);
 
 	/**
 	 * Create an FName. If FindType is FNAME_Find, and the string part of the name 
@@ -739,6 +785,8 @@ public:
 	FName(const ANSICHAR* Name, int32 InNumber, EFindName FindType = FNAME_Add);
 	FName(int32 Len, const WIDECHAR* Name, int32 Number, EFindName FindType = FNAME_Add);
 	FName(int32 Len, const ANSICHAR* Name, int32 InNumber, EFindName FindType = FNAME_Add);
+	FName(const FStringView& Name, int32 InNumber, EFindName FindType=FNAME_Add);
+	FName(const FAnsiStringView& Name, int32 InNumber, EFindName FindType=FNAME_Add);
 
 	/**
 	 * Create an FName. If FindType is FNAME_Find, and the string part of the name 
@@ -844,6 +892,15 @@ private:
 	/** Number portion of the string/number pair (stored internally as 1 more than actual, so zero'd memory will be the default, no-instance case) */
 	uint32			Number;
 
+#if PLATFORM_64BITS && !WITH_CASE_PRESERVING_NAME
+	FORCEINLINE uint64 ToComparableInt() const
+	{
+		static_assert(sizeof(*this) == sizeof(uint64), "");
+		alignas(uint64) FName AlignedCopy = *this;
+		return reinterpret_cast<uint64&>(AlignedCopy);
+	}
+#endif
+
 	friend const TCHAR* DebugFName(int32);
 	friend const TCHAR* DebugFName(int32, int32);
 	friend const TCHAR* DebugFName(FName&);
@@ -856,6 +913,10 @@ private:
 		return ComparisonIndex;
 #endif
 	}
+
+
+
+
 
 	static bool IsWithinBounds(FNameEntryId Id);
 };
@@ -899,6 +960,11 @@ FORCEINLINE FName ScriptNameToName(const FScriptName& InName)
 	return FName(InName.ComparisonIndex, InName.DisplayIndex, InName.Number);
 }
 
+inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FName& Name)
+{
+	Name.AppendString(Builder);
+	return Builder;
+}
 
 /**
  * Equality operator with CharType* on left hand side and FName on right hand side

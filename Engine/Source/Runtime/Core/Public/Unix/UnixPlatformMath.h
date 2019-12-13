@@ -21,46 +21,71 @@ struct FLinuxPlatformMath : public FClangPlatformMath
 #if PLATFORM_ENABLE_VECTORINTRINSICS
 	static FORCEINLINE int32 TruncToInt(float F)
 	{
-		return _mm_cvtt_ss2si(_mm_set_ss(F));
+		return UnrealPlatformMathSSE::TruncToInt(F);
 	}
 
+#if !PLATFORM_LINUX // Linux Clang does not yet support _mm_round_ps/_mm_round_pd
 	static FORCEINLINE float TruncToFloat(float F)
 	{
-		return (float)TruncToInt(F); // same as generic implementation, but this will call the faster trunc
+		return UnrealPlatformMathSSE::TruncToFloat(F);
 	}
+
+	static FORCEINLINE double TruncToDouble(double F)
+	{
+		return UnrealPlatformMathSSE::TruncToDouble(F);
+	}
+#endif
 
 	static FORCEINLINE int32 RoundToInt(float F)
 	{
-		// Note: the x2 is to workaround the rounding-to-nearest-even-number issue when the fraction is .5
-		return _mm_cvt_ss2si(_mm_set_ss(F + F + 0.5f)) >> 1;
+		return UnrealPlatformMathSSE::RoundToInt(F);
 	}
 
+#if !PLATFORM_LINUX // Linux Clang does not yet support _mm_round_ps/_mm_round_pd
 	static FORCEINLINE float RoundToFloat(float F)
 	{
-		return (float)RoundToInt(F);
+		return UnrealPlatformMathSSE::RoundToFloat(F);
 	}
+
+	static FORCEINLINE double RoundToDouble(double F)
+	{
+		return UnrealPlatformMathSSE::RoundToDouble(F);
+	}
+#endif
 
 	static FORCEINLINE int32 FloorToInt(float F)
 	{
-		return _mm_cvt_ss2si(_mm_set_ss(F + F - 0.5f)) >> 1;
+		return UnrealPlatformMathSSE::FloorToInt(F);
 	}
 
+#if !PLATFORM_LINUX // Linux Clang does not yet support _mm_round_ps/_mm_round_pd
 	static FORCEINLINE float FloorToFloat(float F)
 	{
-		return (float)FloorToInt(F);
+		return UnrealPlatformMathSSE::FloorToFloat(F);
 	}
+
+	static FORCEINLINE double FloorToDouble(double F)
+	{
+		return UnrealPlatformMathSSE::FloorToDouble(F);
+	}
+#endif
 
 	static FORCEINLINE int32 CeilToInt(float F)
 	{
-		// Note: the x2 is to workaround the rounding-to-nearest-even-number issue when the fraction is .5
-		return -(_mm_cvt_ss2si(_mm_set_ss(-0.5f - (F + F))) >> 1);
+		return UnrealPlatformMathSSE::CeilToInt(F);
 	}
 
+#if !PLATFORM_LINUX // Linux Clang does not yet support _mm_round_ps/_mm_round_pd
 	static FORCEINLINE float CeilToFloat(float F)
 	{
-		// Note: the x2 is to workaround the rounding-to-nearest-even-number issue when the fraction is .5
-		return (float)CeilToInt(F);
+		return UnrealPlatformMathSSE::CeilToFloat(F);
 	}
+
+	static FORCEINLINE double CeilToDouble(double F)
+	{
+		return UnrealPlatformMathSSE::CeilToDouble(F);
+	}
+#endif
 
 	static FORCEINLINE bool IsNaN( float A ) { return isnan(A) != 0; }
 	static FORCEINLINE bool IsFinite( float A ) { return isfinite(A); }

@@ -74,7 +74,7 @@ void UActorFactoryMediaBundle::PostSpawnActor(UObject* Asset, AActor* NewActor)
 	UMediaBundle* MediaBundle = CastChecked<UMediaBundle>(Asset);
 	AMediaBundleActorBase* MediaBundleActor = CastChecked<AMediaBundleActorBase>(NewActor);
 
-	UProperty* MediaBundleProperty = FindFieldChecked<UProperty>(AMediaBundleActorBase::StaticClass(), "MediaBundle");
+	FProperty* MediaBundleProperty = FindFieldChecked<FProperty>(AMediaBundleActorBase::StaticClass(), "MediaBundle");
 	FEditPropertyChain PropertyChain;
 	PropertyChain.AddHead(MediaBundleProperty);
 	static_cast<UObject*>(NewActor)->PreEditChange(PropertyChain);

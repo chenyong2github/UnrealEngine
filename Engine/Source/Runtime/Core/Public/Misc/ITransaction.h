@@ -367,5 +367,5 @@ public:
 	 * @param Object	The object to snapshot.
 	 * @param Property	The optional list of properties that have potentially changed on the object (to avoid snapshotting the entire object).
 	 */
-	virtual void SnapshotObject( UObject* Object, TArrayView<const UProperty*> Properties ) = 0;
+	virtual void SnapshotObject( UObject* Object, TArrayView<const FProperty*> Properties ) = 0;
 };

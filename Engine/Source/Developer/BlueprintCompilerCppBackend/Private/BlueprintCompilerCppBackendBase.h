@@ -80,9 +80,9 @@ private:
 	/** Builds both the header declaration and body implementation of a function */
 	void ConstructFunction(FKismetFunctionContext& FunctionContext, FEmitterLocalContext& EmitterContext, bool bGenerateStubOnly);
 
-	static TArray<FString> ConstructFunctionDeclaration(FEmitterLocalContext &EmitterContext, FKismetFunctionContext &FunctionContext, TArray<UProperty*> &ArgumentList);
+	static TArray<FString> ConstructFunctionDeclaration(FEmitterLocalContext &EmitterContext, FKismetFunctionContext &FunctionContext, TArray<FProperty*> &ArgumentList);
 
-	static FString GenerateArgList(const FEmitterLocalContext &EmitterContext, const TArray<UProperty*> &ArgumentList, bool bOnlyParamName = false);
+	static FString GenerateArgList(const FEmitterLocalContext &EmitterContext, const TArray<FProperty*> &ArgumentList, bool bOnlyParamName = false);
 
 	static FString GenerateReturnType(const FEmitterLocalContext &EmitterContext, const UFunction* Function);
 

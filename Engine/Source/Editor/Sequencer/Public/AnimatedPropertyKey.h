@@ -9,12 +9,12 @@
 struct FAnimatedPropertyKey
 {
 	/**
-	 * The name of the type of property that can be animated (i.e. UBoolProperty)
+	 * The name of the type of property that can be animated (i.e. FBoolProperty)
 	 */
 	FName PropertyTypeName;
 
 	/**
-	 * The name of the type of object that can be animated inside the property (i.e. the name of the struct or object for UStructProperty or UObjectProperty). NAME_None for any properties.
+	 * The name of the type of object that can be animated inside the property (i.e. the name of the struct or object for FStructProperty or FObjectProperty). NAME_None for any properties.
 	 */
 	FName ObjectTypeName;
 
@@ -28,26 +28,26 @@ struct FAnimatedPropertyKey
 		return A.PropertyTypeName == B.PropertyTypeName && A.ObjectTypeName == B.ObjectTypeName;
 	}
 
-	static FAnimatedPropertyKey FromProperty(const UProperty* Property)
+	static FAnimatedPropertyKey FromProperty(const FProperty* Property)
 	{
 		FAnimatedPropertyKey Definition;
 		Definition.PropertyTypeName = Property->GetClass()->GetFName();
 
-		if (const UStructProperty* StructProperty = Cast<const UStructProperty>(Property))
+		if (const FStructProperty* StructProperty = CastField<const FStructProperty>(Property))
 		{
 			Definition.ObjectTypeName = StructProperty->Struct->GetFName();
 		}
-		else if (const UObjectPropertyBase* ObjectProperty = Cast<const UObjectPropertyBase>(Property))
+		else if (const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(Property))
 		{
 			if (ObjectProperty->PropertyClass)
 			{
 				Definition.ObjectTypeName = ObjectProperty->PropertyClass->GetFName();
 			}
 		}
-		else if(const UArrayProperty* ArrayProperty = Cast<const UArrayProperty>(Property))
+		else if(const FArrayProperty* ArrayProperty = CastField<const FArrayProperty>(Property))
 		{
 			Definition.PropertyTypeName = ArrayProperty->Inner->GetClass()->GetFName();
-			if (const UStructProperty* InnerStructProperty = Cast<const UStructProperty>(ArrayProperty->Inner))
+			if (const FStructProperty* InnerStructProperty = CastField<const FStructProperty>(ArrayProperty->Inner))
 			{
 				Definition.ObjectTypeName = InnerStructProperty->Struct->GetFName();
 			}
@@ -84,7 +84,7 @@ struct FAnimatedPropertyKey
 		return Definition;
 	}
 
-	static FAnimatedPropertyKey FromPropertyType(TSubclassOf<UProperty> PropertyType)
+	static FAnimatedPropertyKey FromPropertyType(TSubclassOf<FProperty> PropertyType)
 	{
 		FAnimatedPropertyKey Definition;
 		Definition.PropertyTypeName = PropertyType->GetFName();

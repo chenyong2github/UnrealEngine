@@ -358,10 +358,10 @@ void FLocalizationTargetDetailCustomization::CustomizeDetails(IDetailLayoutBuild
 	}
 
 	// We need to add the customizations in the same order as the properties to ensure that things are ordered correctly
-	UStructProperty* const SettingsStructProperty = CastChecked<UStructProperty>(TargetSettingsPropertyHandle->GetProperty());
-	for (TFieldIterator<UProperty> Iterator(SettingsStructProperty->Struct); Iterator; ++Iterator)
+	FStructProperty* const SettingsStructProperty = CastFieldChecked<FStructProperty>(TargetSettingsPropertyHandle->GetProperty());
+	for (TFieldIterator<FProperty> Iterator(SettingsStructProperty->Struct); Iterator; ++Iterator)
 	{
-		UProperty* const MemberProperty = *Iterator;
+		FProperty* const MemberProperty = *Iterator;
 		
 		if (!MemberProperty->HasAnyPropertyFlags(CPF_Edit))
 		{

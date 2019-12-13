@@ -267,7 +267,7 @@ void FPaperTileMapDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& D
 			TArray<UObject*> ListOfSelectedLayers;
 			ListOfSelectedLayers.Add(SelectedLayer);
 
-			for (const UProperty* TestProperty : TFieldRange<UProperty>(SelectedLayer->GetClass()))
+			for (const FProperty* TestProperty : TFieldRange<FProperty>(SelectedLayer->GetClass()))
 			{
 				if (TestProperty->HasAnyPropertyFlags(CPF_Edit))
 				{
@@ -289,7 +289,7 @@ void FPaperTileMapDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& D
 		TArray<UObject*> ListOfTileMaps;
 		ListOfTileMaps.Add(TileMap);
 
-		for (const UProperty* TestProperty : TFieldRange<UProperty>(TileMap->GetClass()))
+		for (const FProperty* TestProperty : TFieldRange<FProperty>(TileMap->GetClass()))
 		{
 			if (TestProperty->HasAnyPropertyFlags(CPF_Edit))
 			{

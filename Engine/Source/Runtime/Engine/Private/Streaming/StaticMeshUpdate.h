@@ -184,7 +184,7 @@ protected:
 	void CancelIORequest();
 
 	class IBulkDataIORequest* IORequest;
-	FAsyncFileCallBack AsyncFileCallback;
+	FBulkDataIORequestCallBack AsyncFileCallback;
 	bool bHighPrioIORequest;
 };
 

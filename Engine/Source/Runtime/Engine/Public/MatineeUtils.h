@@ -21,7 +21,7 @@ namespace FMatineeUtils
 	 * @param   InName  The name of boolean property to retrieve a reference.
 	 * @return  A pointer to the actual value; NULL if the property was not found.
 	 */
-	ENGINE_API uint32* GetInterpBoolPropertyRef( AActor* InActor, FName InPropName, UBoolProperty*& OutProperty );
+	ENGINE_API uint32* GetInterpBoolPropertyRef( AActor* InActor, FName InPropName, FBoolProperty*& OutProperty );
 	
 	/**
  	 * Looks up the matching vector property and returns a
@@ -88,7 +88,7 @@ namespace FMatineeUtils
 	* @param   StructTypes		Names of the structs of the property if struct is contained in the list of class types (NULL will match any property that is a struct)
 	* returns the passed object if a match was found otherwise returns NULL
 	*/
-	ENGINE_API UObject* FindObjectAndPropOffset( void*& OutPropContainer, UProperty*& OutProperty, UObject* InObject, FName InPropName, const TArray<UClass*>* RequiredClasses = NULL, const TArray<FName>* StructTypes = NULL );
+	ENGINE_API UObject* FindObjectAndPropOffset( void*& OutPropContainer, FProperty*& OutProperty, UObject* InObject, FName InPropName, const TArray<FFieldClass*>* RequiredClasses = NULL, const TArray<FName>* StructTypes = NULL );
 
 	/**
 	 * Check if a property/struct matches given class requirements
@@ -98,20 +98,20 @@ namespace FMatineeUtils
 	 * @param   StructTypes		The names of the structs if a STRUCT property is specified in the class check parameter (E.G. NAME_Vector, NAME_Color etc)
 	 * @return  true if the property matches the given criteria
 	 */
-	ENGINE_API bool PropertyMatchesClassRequirements( UProperty* Prop, const TArray<UClass*>* RequiredClasses, const TArray<FName>* StructTypes );
+	ENGINE_API bool PropertyMatchesClassRequirements( FProperty* Prop, const TArray<FFieldClass*>* RequiredClasses, const TArray<FName>* StructTypes );
 	
 	/**
 	* Gets the address (typed) of a property to modify
 	*
 	* @param BaseObject			The base object to search for properties in
 	* @param InPropName			The name or path to the property
-	* @param OutProperty		The UProperty that would be modified by changing the address
-	* @param OutPropertyOwner	The owner of the UProperty. This is the actual UObject that is modified
+	* @param OutProperty		The FProperty that would be modified by changing the address
+	* @param OutPropertyOwner	The owner of the FProperty. This is the actual UObject that is modified
 	*
 	* @return The typed address
 	*/
 	template<typename T>
-	T* GetPropertyAddress( UObject* BaseObject, FName InPropName, UProperty*& OutProperty, UObject*& OutPropertyOwner )
+	T* GetPropertyAddress( UObject* BaseObject, FName InPropName, FProperty*& OutProperty, UObject*& OutPropertyOwner )
 	{
 		void* PropContainer = NULL;
 		UObject* PropObject = FindObjectAndPropOffset( PropContainer, OutProperty, BaseObject, InPropName );

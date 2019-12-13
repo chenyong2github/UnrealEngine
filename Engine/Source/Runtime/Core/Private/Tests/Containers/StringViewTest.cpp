@@ -1,17 +1,25 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Misc/StringView.h"
+#include "Containers/StringView.h"
 
 #include "Containers/UnrealString.h"
 #include "Misc/AutomationTest.h"
 
-#if WITH_DEV_AUTOMATION_TESTS 
+#if WITH_DEV_AUTOMATION_TESTS
+
+static_assert(TIsSame<typename FStringView::ElementType, TCHAR>::Value, "FStringView must use TCHAR.");
+static_assert(TIsSame<typename FAnsiStringView::ElementType, ANSICHAR>::Value, "FAnsiStringView must use ANSICHAR.");
+static_assert(TIsSame<typename FWideStringView::ElementType, WIDECHAR>::Value, "FWideStringView must use WIDECHAR.");
+
+static_assert(TIsSame<FStringView, TStringView<TCHAR>>::Value, "FStringView must be the same as TStringView<TCHAR>.");
+static_assert(TIsSame<FAnsiStringView, TStringView<ANSICHAR>>::Value, "FAnsiStringView must be the same as TStringView<ANSICHAR>.");
+static_assert(TIsSame<FWideStringView, TStringView<WIDECHAR>>::Value, "FWideStringView must be the same as TStringView<WIDECHAR>.");
 
 static_assert(TIsContiguousContainer<FStringView>::Value, "FStringView must be a contiguous container.");
 static_assert(TIsContiguousContainer<FAnsiStringView>::Value, "FAnsiStringView must be a contiguous container.");
 static_assert(TIsContiguousContainer<FWideStringView>::Value, "FWideStringView must be a contiguous container.");
 
-#define TEST_NAME_ROOT "System.Core.Misc.StringView"
+#define TEST_NAME_ROOT "System.Core.StringView"
 constexpr const uint32 TestFlags = EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter;
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringViewTestCtor, TEST_NAME_ROOT ".Ctor", TestFlags)
@@ -20,8 +28,15 @@ bool FStringViewTestCtor::RunTest(const FString& Parameters)
 	// Empty View
 	{
 		FStringView View( TEXT("") );
-		TestEqual("", View.Len(), 0);
-		TestTrue("View.IsEmpty", View.IsEmpty());
+		TestEqual(TEXT(""), View.Len(), 0);
+		TestTrue(TEXT("View.IsEmpty"), View.IsEmpty());
+	}
+
+	// Constructing from nullptr is supported; nullptr interpreted as empty string
+	{
+		FStringView View(nullptr);
+		TestEqual(TEXT(""), View.Len(), 0);
+		TestTrue(TEXT("View.IsEmpty"), View.IsEmpty());
 	}
 
 	// Create from a wchar literal
@@ -29,7 +44,7 @@ bool FStringViewTestCtor::RunTest(const FString& Parameters)
 		FStringView View(TEXT("Test Ctor"));
 		TestEqual(TEXT("View length"), View.Len(), FCStringWide::Strlen(TEXT("Test Ctor")));
 		TestEqual(TEXT("The result of Strncmp"), FCStringWide::Strncmp(View.GetData(), TEXT("Test Ctor"), View.Len()), 0);
-		TestFalse("View.IsEmpty", View.IsEmpty());
+		TestFalse(TEXT("View.IsEmpty"), View.IsEmpty());
 	}
 
 	// Create from a sub section of a wchar literal
@@ -37,7 +52,7 @@ bool FStringViewTestCtor::RunTest(const FString& Parameters)
 		FStringView View(TEXT("Test SubSection Ctor"), 4);
 		TestEqual(TEXT("View length"), View.Len(), 4);
 		TestEqual(TEXT("The result of Strncmp"), FCStringWide::Strncmp(View.GetData(), TEXT("Test"), View.Len()), 0);
-		TestFalse("View.IsEmpty", View.IsEmpty());
+		TestFalse(TEXT("View.IsEmpty"), View.IsEmpty());
 	}
 
 	// Create from a FString
@@ -47,7 +62,7 @@ bool FStringViewTestCtor::RunTest(const FString& Parameters)
 
 		TestEqual(TEXT("View length"), View.Len(), String.Len());
 		TestEqual(TEXT("The result of Strncmp"), FCStringWide::Strncmp(View.GetData(), *String, View.Len()), 0);
-		TestFalse("View.IsEmpty", View.IsEmpty());
+		TestFalse(TEXT("View.IsEmpty"), View.IsEmpty());
 	}
 
 	// Create from a ansi literal
@@ -55,7 +70,7 @@ bool FStringViewTestCtor::RunTest(const FString& Parameters)
 		FAnsiStringView View("Test Ctor");
 		TestEqual(TEXT("View length"), View.Len(), FCStringAnsi::Strlen("Test Ctor"));
 		TestEqual(TEXT("The result of Strncmp"), FCStringAnsi::Strncmp(View.GetData(), "Test Ctor", View.Len()), 0);
-		TestFalse("View.IsEmpty", View.IsEmpty());
+		TestFalse(TEXT("View.IsEmpty"), View.IsEmpty());
 	}
 
 	// Create from a sub section of an ansi literal
@@ -63,7 +78,14 @@ bool FStringViewTestCtor::RunTest(const FString& Parameters)
 		FAnsiStringView View("Test SubSection Ctor", 4);
 		TestEqual(TEXT("View length"), View.Len(), 4);
 		TestEqual(TEXT("The result of Strncmp"), FCStringAnsi::Strncmp(View.GetData(), "Test", View.Len()), 0);
-		TestFalse("View.IsEmpty", View.IsEmpty());
+		TestFalse(TEXT("View.IsEmpty"), View.IsEmpty());
+	}
+
+	// Create using string view literals
+	{
+		FStringView View = TEXT("Test"_SV);
+		FAnsiStringView ViewAnsi = "Test"_ASV;
+		FWideStringView ViewWide = TEXT("Test"_WSV);
 	}
 
 	return true;
@@ -372,32 +394,32 @@ bool FStringViewTestStartsWith::RunTest(const FString& Parameters)
 	// Test an empty view
 	{
 		FStringView View( TEXT(""));
-		TestTrue(" View.StartsWith", View.StartsWith(TEXT("")));
-		TestFalse(" View.StartsWith", View.StartsWith(TEXT("Text")));
-		TestFalse(" View.StartsWith", View.StartsWith('A'));
+		TestTrue(TEXT(" View.StartsWith"), View.StartsWith(TEXT("")));
+		TestFalse(TEXT(" View.StartsWith"), View.StartsWith(TEXT("Text")));
+		TestFalse(TEXT(" View.StartsWith"), View.StartsWith('A'));
 	}
 
 	// Test a valid view with the correct text
 	{
 		FStringView View(TEXT("String to test"));
-		TestTrue(" View.StartsWith", View.StartsWith(TEXT("String")));
-		TestTrue(" View.StartsWith", View.StartsWith('S'));
+		TestTrue(TEXT(" View.StartsWith"), View.StartsWith(TEXT("String")));
+		TestTrue(TEXT(" View.StartsWith"), View.StartsWith('S'));
 	}
 
 	// Test a valid view with incorrect text
 	{
 		FStringView View(TEXT("String to test"));
-		TestFalse(" View.StartsWith", View.StartsWith(TEXT("test")));
-		TestFalse(" View.StartsWith", View.StartsWith('t'));
+		TestFalse(TEXT(" View.StartsWith"), View.StartsWith(TEXT("test")));
+		TestFalse(TEXT(" View.StartsWith"), View.StartsWith('t'));
 	}
 
 	// Test a valid view with the correct text but with different case
 	{
 		FStringView View(TEXT("String to test"));
-		TestTrue(" View.StartsWith", View.StartsWith(TEXT("sTrInG")));
+		TestTrue(TEXT(" View.StartsWith"), View.StartsWith(TEXT("sTrInG")));
 
 		// Searching by char is case sensitive to keep compatibility with FString
-		TestFalse(" View.StartsWith", View.StartsWith('s'));
+		TestFalse(TEXT(" View.StartsWith"), View.StartsWith('s'));
 	}
 
 	return true;
@@ -409,32 +431,32 @@ bool FStringViewTestEndsWith::RunTest(const FString& Parameters)
 	// Test an empty view
 	{
 		FStringView View(TEXT(""));
-		TestTrue(" View.EndsWith", View.EndsWith(TEXT("")));
-		TestFalse(" View.EndsWith", View.EndsWith(TEXT("Text")));
-		TestFalse(" View.EndsWith", View.EndsWith('A'));
+		TestTrue(TEXT(" View.EndsWith"), View.EndsWith(TEXT("")));
+		TestFalse(TEXT(" View.EndsWith"), View.EndsWith(TEXT("Text")));
+		TestFalse(TEXT(" View.EndsWith"), View.EndsWith('A'));
 	}
 
 	// Test a valid view with the correct text
 	{
 		FStringView View(TEXT("String to test"));
-		TestTrue(" View.EndsWith", View.EndsWith(TEXT("test")));
-		TestTrue(" View.EndsWith", View.EndsWith('t'));
+		TestTrue(TEXT(" View.EndsWith"), View.EndsWith(TEXT("test")));
+		TestTrue(TEXT(" View.EndsWith"), View.EndsWith('t'));
 	}
 
 	// Test a valid view with incorrect text
 	{
 		FStringView View(TEXT("String to test"));
-		TestFalse(" View.EndsWith", View.EndsWith(TEXT("String")));
-		TestFalse(" View.EndsWith", View.EndsWith('S'));
+		TestFalse(TEXT(" View.EndsWith"), View.EndsWith(TEXT("String")));
+		TestFalse(TEXT(" View.EndsWith"), View.EndsWith('S'));
 	}
 
 	// Test a valid view with the correct text but with different case
 	{
 		FStringView View(TEXT("String to test"));
-		TestTrue(" View.EndsWith", View.EndsWith(TEXT("TeST")));
+		TestTrue(TEXT(" View.EndsWith"), View.EndsWith(TEXT("TeST")));
 
 		// Searching by char is case sensitive to keep compatibility with FString
-		TestFalse(" View.EndsWith", View.EndsWith('T')); 
+		TestFalse(TEXT(" View.EndsWith"), View.EndsWith('T')); 
 	}
 
 	return true;
@@ -479,10 +501,10 @@ bool FStringViewTestLeft::RunTest(const FString& Parameters)
 	{
 		FStringView EmptyView(TEXT(""));
 		FStringView EmptyResult = EmptyView.Left(0);
-		TestTrue("FStringView::Left", EmptyResult.IsEmpty());
+		TestTrue(TEXT("FStringView::Left"), EmptyResult.IsEmpty());
 
 		FStringView OutofBoundsResult = EmptyView.Left(1024);
-		TestTrue("FStringView::Left", OutofBoundsResult.IsEmpty());
+		TestTrue(TEXT("FStringView::Left"), OutofBoundsResult.IsEmpty());
 	}
 	
 	{
@@ -504,10 +526,10 @@ bool FStringViewTestLeftChop::RunTest(const FString& Parameters)
 	{
 		FStringView EmptyView(TEXT(""));
 		FStringView EmptyResult = EmptyView.LeftChop(0);
-		TestTrue("FStringView::LeftChop", EmptyResult.IsEmpty());
+		TestTrue(TEXT("FStringView::LeftChop"), EmptyResult.IsEmpty());
 
 		FStringView OutofBoundsResult = EmptyView.LeftChop(1024);
-		TestTrue("FStringView::LeftChop", OutofBoundsResult.IsEmpty());
+		TestTrue(TEXT("FStringView::LeftChop"), OutofBoundsResult.IsEmpty());
 	}
 
 	{
@@ -529,10 +551,10 @@ bool FStringViewTestRight::RunTest(const FString& Parameters)
 	{
 		FStringView EmptyView(TEXT(""));
 		FStringView EmptyResult = EmptyView.Right(0);
-		TestTrue("FStringView::Right", EmptyResult.IsEmpty());
+		TestTrue(TEXT("FStringView::Right"), EmptyResult.IsEmpty());
 
 		FStringView OutofBoundsResult = EmptyView.Right(1024);
-		TestTrue("FStringView::Right", OutofBoundsResult.IsEmpty());
+		TestTrue(TEXT("FStringView::Right"), OutofBoundsResult.IsEmpty());
 	}
 
 	{
@@ -554,10 +576,10 @@ bool FStringViewTestRightChop::RunTest(const FString& Parameters)
 	{
 		FStringView EmptyView(TEXT(""));
 		FStringView EmptyResult = EmptyView.RightChop(0);
-		TestTrue("FStringView::RightChop", EmptyResult.IsEmpty());
+		TestTrue(TEXT("FStringView::RightChop"), EmptyResult.IsEmpty());
 
 		FStringView OutofBoundsResult = EmptyView.RightChop(1024);
-		TestTrue("FStringView::RightChop", OutofBoundsResult.IsEmpty());
+		TestTrue(TEXT("FStringView::RightChop"), OutofBoundsResult.IsEmpty());
 	}
 
 	{
@@ -607,6 +629,51 @@ bool FStringViewTestMid::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringViewTestTrimStartAndEnd, TEST_NAME_ROOT ".TrimStartAndEnd", TestFlags)
+bool FStringViewTestTrimStartAndEnd::RunTest(const FString& Parameters)
+{
+	TestTrue(TEXT("FStringView::TrimStartAndEnd(\"\")"), TEXT(""_SV).TrimStartAndEnd().IsEmpty());
+	TestTrue(TEXT("FStringView::TrimStartAndEnd(\" \")"), TEXT(" "_SV).TrimStartAndEnd().IsEmpty());
+	TestTrue(TEXT("FStringView::TrimStartAndEnd(\"  \")"), TEXT("  "_SV).TrimStartAndEnd().IsEmpty());
+	TestTrue(TEXT("FStringView::TrimStartAndEnd(\" \\t\\r\\n\")"), TEXT(" \t\r\n"_SV).TrimStartAndEnd().IsEmpty());
+
+	TestEqual(TEXT("FStringView::TrimStartAndEnd(\"ABC123\")"), TEXT("ABC123"_SV).TrimStartAndEnd(), TEXT("ABC123"_SV));
+	TestEqual(TEXT("FStringView::TrimStartAndEnd(\"A \\t\\r\\nB\")"), TEXT("A \t\r\nB"_SV).TrimStartAndEnd(), TEXT("A \t\r\nB"_SV));
+	TestEqual(TEXT("FStringView::TrimStartAndEnd(\" \\t\\r\\nABC123\\n\\r\\t \")"), TEXT(" \t\r\nABC123\n\r\t "_SV).TrimStartAndEnd(), TEXT("ABC123"_SV));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringViewTestTrimStart, TEST_NAME_ROOT ".TrimStart", TestFlags)
+bool FStringViewTestTrimStart::RunTest(const FString& Parameters)
+{
+	TestTrue(TEXT("FStringView::TrimStart(\"\")"), TEXT(""_SV).TrimStart().IsEmpty());
+	TestTrue(TEXT("FStringView::TrimStart(\" \")"), TEXT(" "_SV).TrimStart().IsEmpty());
+	TestTrue(TEXT("FStringView::TrimStart(\"  \")"), TEXT("  "_SV).TrimStart().IsEmpty());
+	TestTrue(TEXT("FStringView::TrimStart(\" \\t\\r\\n\")"), TEXT(" \t\r\n"_SV).TrimStart().IsEmpty());
+
+	TestEqual(TEXT("FStringView::TrimStart(\"ABC123\")"), TEXT("ABC123"_SV).TrimStart(), TEXT("ABC123"_SV));
+	TestEqual(TEXT("FStringView::TrimStart(\"A \\t\\r\\nB\")"), TEXT("A \t\r\nB"_SV).TrimStart(), TEXT("A \t\r\nB"_SV));
+	TestEqual(TEXT("FStringView::TrimStart(\" \\t\\r\\nABC123\\n\\r\\t \")"), TEXT(" \t\r\nABC123\n\r\t "_SV).TrimStart(), TEXT("ABC123\n\r\t "_SV));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringViewTestTrimEnd, TEST_NAME_ROOT ".TrimEnd", TestFlags)
+bool FStringViewTestTrimEnd::RunTest(const FString& Parameters)
+{
+	TestTrue(TEXT("FStringView::TrimEnd(\"\")"), TEXT(""_SV).TrimEnd().IsEmpty());
+	TestTrue(TEXT("FStringView::TrimEnd(\" \")"), TEXT(" "_SV).TrimEnd().IsEmpty());
+	TestTrue(TEXT("FStringView::TrimEnd(\"  \")"), TEXT("  "_SV).TrimEnd().IsEmpty());
+	TestTrue(TEXT("FStringView::TrimEnd(\" \\t\\r\\n\")"), TEXT(" \t\r\n"_SV).TrimEnd().IsEmpty());
+
+	TestEqual(TEXT("FStringView::TrimEnd(\"ABC123\")"), TEXT("ABC123"_SV).TrimEnd(), TEXT("ABC123"_SV));
+	TestEqual(TEXT("FStringView::TrimEnd(\"A \\t\\r\\nB\")"), TEXT("A \t\r\nB"_SV).TrimEnd(), TEXT("A \t\r\nB"_SV));
+	TestEqual(TEXT("FStringView::TrimEnd(\" \\t\\r\\nABC123\\n\\r\\t \")"), TEXT(" \t\r\nABC123\n\r\t "_SV).TrimEnd(), TEXT(" \t\r\nABC123"_SV));
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringViewTestFindChar, TEST_NAME_ROOT ".FindChar", TestFlags)
 bool FStringViewTestFindChar::RunTest(const FString& Parameters)
 {
@@ -615,37 +682,37 @@ bool FStringViewTestFindChar::RunTest(const FString& Parameters)
 
 	{
 		int32 Index = INDEX_NONE;
-		TestFalse(TEXT("FStringView::FindChar-Return(0)"), EmptyView.FindChar('a', Index));
+		TestFalse(TEXT("FStringView::FindChar-Return(0)"), EmptyView.FindChar(TEXT('a'), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(0)"), Index, INDEX_NONE);
 	}
 
 	{
 		int32 Index = INDEX_NONE;
-		TestTrue(TEXT("FStringView::FindChar-Return(1)"), View.FindChar('a', Index));
+		TestTrue(TEXT("FStringView::FindChar-Return(1)"), View.FindChar(TEXT('a'), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(1)"), Index, 0);
 	}
 
 	{
 		int32 Index = INDEX_NONE;
-		TestTrue(TEXT("FStringView::FindChar-Return(2)"), View.FindChar('F', Index));
+		TestTrue(TEXT("FStringView::FindChar-Return(2)"), View.FindChar(TEXT('F'), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(2)"), Index, 5);
 	}
 
 	{
 		int32 Index = INDEX_NONE;
-		TestFalse(TEXT("FStringView::FindChar-Return(3)"), View.FindChar('A', Index));
+		TestFalse(TEXT("FStringView::FindChar-Return(3)"), View.FindChar(TEXT('A'), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(3)"), Index, INDEX_NONE);
 	}
 
 	{
 		int32 Index = INDEX_NONE;
-		TestFalse(TEXT("FStringView::FindChar-Return(4)"), View.FindChar('d', Index));
+		TestFalse(TEXT("FStringView::FindChar-Return(4)"), View.FindChar(TEXT('d'), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(4)"), Index, INDEX_NONE);
 	}
 
 	{
 		int32 Index = INDEX_NONE;
-		TestTrue(TEXT("FStringView::FindChar-Return(5)"), View.FindChar(' ', Index));
+		TestTrue(TEXT("FStringView::FindChar-Return(5)"), View.FindChar(TEXT(' '), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(5)"), Index, 4);
 	}
 
@@ -660,37 +727,37 @@ bool FStringViewTestFindLastChar::RunTest(const FString& Parameters)
 
 	{
 		int32 Index = INDEX_NONE;
-		TestFalse(TEXT("FStringView::FindChar-Return(0)"), EmptyView.FindLastChar('a', Index));
+		TestFalse(TEXT("FStringView::FindChar-Return(0)"), EmptyView.FindLastChar(TEXT('a'), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(0)"), Index, INDEX_NONE);
 	}
 
 	{
 		int32 Index = INDEX_NONE;
-		TestTrue(TEXT("FStringView::FindChar-Return(1)"), View.FindLastChar('a', Index));
+		TestTrue(TEXT("FStringView::FindChar-Return(1)"), View.FindLastChar(TEXT('a'), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(1)"), Index, 7);
 	}
 
 	{
 		int32 Index = INDEX_NONE;
-		TestTrue(TEXT("FStringView::FindChar-Return(2)"), View.FindLastChar('B', Index));
+		TestTrue(TEXT("FStringView::FindChar-Return(2)"), View.FindLastChar(TEXT('B'), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(2)"), Index, 1);
 	}
 
 	{
 		int32 Index = INDEX_NONE;
-		TestFalse(TEXT("FStringView::FindChar-Return(3)"), View.FindLastChar('A', Index));
+		TestFalse(TEXT("FStringView::FindChar-Return(3)"), View.FindLastChar(TEXT('A'), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(3)"), Index, INDEX_NONE);
 	}
 
 	{
 		int32 Index = INDEX_NONE;
-		TestFalse(TEXT("FStringView::FindChar-Return(4)"), View.FindLastChar('d', Index));
+		TestFalse(TEXT("FStringView::FindChar-Return(4)"), View.FindLastChar(TEXT('d'), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(4)"), Index, INDEX_NONE);
 	}
 
 	{
 		int32 Index = INDEX_NONE;
-		TestTrue(TEXT("FStringView::FindChar-Return(5)"), View.FindLastChar(' ', Index));
+		TestTrue(TEXT("FStringView::FindChar-Return(5)"), View.FindLastChar(TEXT(' '), Index));
 		TestEqual(TEXT("FStringView::FindChar-Index(5)"), Index, 4);
 	}
 

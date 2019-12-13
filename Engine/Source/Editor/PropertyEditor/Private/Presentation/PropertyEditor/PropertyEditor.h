@@ -26,7 +26,7 @@ public:
 	/** @return The String containing the value of the property as Text, possibly using an alternate form more suitable for display in the UI */
 	FText GetValueAsDisplayText() const;
 
-	bool PropertyIsA(const UClass* Class) const;
+	bool PropertyIsA(const FFieldClass* InClass) const;
 
 	bool IsFavorite() const;
 
@@ -92,7 +92,7 @@ public:
 
 	/**	In an ideal world we wouldn't expose these */
 	TSharedRef< FPropertyNode > GetPropertyNode() const;
-	const UProperty* GetProperty() const;
+	const FProperty* GetProperty() const;
 	TSharedRef< IPropertyHandle > GetPropertyHandle() const;
 
 	static void SyncToObjectsInNode( const TWeakPtr< FPropertyNode >& WeakPropertyNode );

@@ -7,6 +7,7 @@
 #include "IHasPersonaToolkit.h"
 
 class IAnimationSequenceBrowser;
+class UAnimInstance;
 
 class IAnimationBlueprintEditor : public FBlueprintEditor, public IHasPersonaToolkit
 {
@@ -19,4 +20,7 @@ public:
 
 	/** Get the asset browser we host */
 	virtual IAnimationSequenceBrowser* GetAssetBrowser() const = 0;
+
+	/** Get the preview anim instance we are using, which can be a linked instance depending on preview settings */
+	virtual UAnimInstance* GetPreviewInstance() const = 0;
 };

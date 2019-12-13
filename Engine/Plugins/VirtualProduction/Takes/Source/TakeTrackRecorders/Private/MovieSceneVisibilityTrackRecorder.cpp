@@ -19,7 +19,7 @@ bool FMovieSceneVisibilityTrackRecorderFactory::CanRecordObject(UObject* InObjec
 	return InObjectToRecord->IsA<AActor>() || InObjectToRecord->IsA<USceneComponent>();
 }
 
-bool FMovieSceneVisibilityTrackRecorderFactory::CanRecordProperty(UObject* InObjectToRecord, class UProperty* InPropertyToRecord) const
+bool FMovieSceneVisibilityTrackRecorderFactory::CanRecordProperty(UObject* InObjectToRecord, class FProperty* InPropertyToRecord) const
 {
 	// This returns true for the visibility properties so that the generic bool recorder does not record them
 	if (InPropertyToRecord->GetFName() == ActorVisibilityTrackName || InPropertyToRecord->GetFName() == ComponentVisibilityTrackName)

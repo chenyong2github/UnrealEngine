@@ -227,10 +227,10 @@ bool UEdGraphNode::GetCanRenameNode() const
 
 #if WITH_EDITOR
 
-FString UEdGraphNode::GetPropertyNameAndValueForDiff(const UProperty* Prop, const uint8* PropertyAddr) const
+FString UEdGraphNode::GetPropertyNameAndValueForDiff(const FProperty* Prop, const uint8* PropertyAddr) const
 {
 	FString ExportedStringValue;
-	if (const UFloatProperty* FloatProp = Cast<const UFloatProperty>(Prop))
+	if (const FFloatProperty* FloatProp = CastField<const FFloatProperty>(Prop))
 	{
 		// special case for floats to remove unnecessary zeros
 		const float FloatValue = FloatProp->GetPropertyValue(PropertyAddr);
@@ -241,7 +241,7 @@ FString UEdGraphNode::GetPropertyNameAndValueForDiff(const UProperty* Prop, cons
 		Prop->ExportTextItem(ExportedStringValue, PropertyAddr, NULL, NULL, PPF_PropertyWindow, NULL);
 	}
 
-	const bool bIsBool = Prop->IsA(UBoolProperty::StaticClass());
+	const bool bIsBool = Prop->IsA(FBoolProperty::StaticClass());
 	return FString::Printf(TEXT("%s: %s"), *FName::NameToDisplayString(Prop->GetName(), bIsBool), *ExportedStringValue);
 }
 
@@ -261,10 +261,10 @@ void UEdGraphNode::DiffProperties(UClass* StructA, UClass* StructB, UObject* Dat
 void UEdGraphNode::DiffProperties(UStruct* StructA, UStruct* StructB, uint8* DataA, uint8* DataB, FDiffResults& Results, FDiffSingleResult& Diff) const
 {
 	// Run through all the properties in the first struct
-	for (TFieldIterator<UProperty> PropertyIt(StructA, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<FProperty> PropertyIt(StructA, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 	{
-		UProperty* Prop = *PropertyIt;
-		UProperty* PropB = StructB->FindPropertyByName(Prop->GetFName());
+		FProperty* Prop = *PropertyIt;
+		FProperty* PropB = StructB->FindPropertyByName(Prop->GetFName());
 
 		if (!PropB || Prop->GetClass() != PropB->GetClass())
 		{
@@ -276,8 +276,8 @@ void UEdGraphNode::DiffProperties(UStruct* StructA, UStruct* StructB, uint8* Dat
 		if (!Prop->HasAnyPropertyFlags(CPF_Edit | CPF_BlueprintVisible) ||
 			Prop->HasAnyPropertyFlags(CPF_Transient) ||
 			Prop->HasAnyPropertyFlags(CPF_DisableEditOnInstance) ||
-			Prop->IsA(UDelegateProperty::StaticClass()) ||
-			Prop->IsA(UMulticastDelegateProperty::StaticClass()))
+			Prop->IsA(FDelegateProperty::StaticClass()) ||
+			Prop->IsA(FMulticastDelegateProperty::StaticClass()))
 		{
 			continue;
 		}

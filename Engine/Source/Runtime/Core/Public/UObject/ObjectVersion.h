@@ -509,7 +509,7 @@ enum EUnrealEngineObjectUE4Version
 	VER_UE4_CONSTRAINT_INSTANCE_MOTOR_FLAGS,
 	// Serialize bIsConst in FEdGraphPinType
 	VER_UE4_SERIALIZE_PINTYPE_CONST,
-	// Change UMaterialFunction::LibraryCategories to LibraryCategoriesText (old assets were saved before auto-conversion of UArrayProperty was possible)
+	// Change UMaterialFunction::LibraryCategories to LibraryCategoriesText (old assets were saved before auto-conversion of FArrayProperty was possible)
 	VER_UE4_LIBRARY_CATEGORIES_AS_FTEXT,
 	// Check for duplicate exports while saving packages.
 	VER_UE4_SKIP_DUPLICATE_EXPORTS_ON_SAVE_PACKAGE,

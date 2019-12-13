@@ -1000,7 +1000,7 @@ void FMaterialEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& 
 	bool bRefreshNodePreviews = false;
 	if (PropertyChangedEvent.Property != nullptr && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
-		UStructProperty* Property = Cast<UStructProperty>(PropertyChangedEvent.Property);
+		FStructProperty* Property = CastField<FStructProperty>(PropertyChangedEvent.Property);
 		if (Property != nullptr)
 		{
 			if (Property->Struct->GetFName() == TEXT("LinearColor") || Property->Struct->GetFName() == TEXT("Color")) // if we changed a color property refresh the previews
@@ -4487,14 +4487,14 @@ void FMaterialEditor::PostUndo(bool bSuccess)
 	}
 }
 
-void FMaterialEditor::NotifyPreChange(UProperty* PropertyAboutToChange)
+void FMaterialEditor::NotifyPreChange(FProperty* PropertyAboutToChange)
 {
 	check( !ScopedTransaction );
 	ScopedTransaction = new FScopedTransaction( NSLOCTEXT("UnrealEd", "MaterialEditorEditProperties", "Material Editor: Edit Properties") );
 	FlushRenderingCommands();
 }
 
-void FMaterialEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged)
+void FMaterialEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
 	check( ScopedTransaction );
 
@@ -4557,7 +4557,7 @@ void FMaterialEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyCha
 				{
 					Material->UpdateExpressionDynamicParameters(SelectedNode->MaterialExpression);
 				}
-				else if (PropertyThatChanged->IsA<UTextProperty>())
+				else if (PropertyThatChanged->IsA<FTextProperty>())
 				{
 					// Do nothing to the expression if we are just changing the label
 				}

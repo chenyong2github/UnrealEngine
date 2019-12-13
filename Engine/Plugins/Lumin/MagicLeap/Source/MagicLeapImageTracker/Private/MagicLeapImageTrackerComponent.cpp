@@ -97,7 +97,7 @@ bool UMagicLeapImageTrackerComponent::RemoveTargetAsync()
 }
 
 #if WITH_EDITOR
-void UMagicLeapImageTrackerComponent::PreEditChange(UProperty* PropertyAboutToChange)
+void UMagicLeapImageTrackerComponent::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	if ((PropertyAboutToChange != nullptr) && (PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UMagicLeapImageTrackerComponent, TargetImageTexture)))
 	{

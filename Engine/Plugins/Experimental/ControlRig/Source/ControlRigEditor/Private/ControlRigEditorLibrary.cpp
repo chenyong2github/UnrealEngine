@@ -34,7 +34,7 @@ URigUnitEditor_Base* UControlRigEditorLibrary::GetEditorObject( UControlRig* Con
 	{
 		// find the class from property name
 		UControlRigBlueprintGeneratedClass* Class = Cast<UControlRigBlueprintGeneratedClass>(ControlRig->GetClass());
-		for (UStructProperty* UnitProperty : Class->RigUnitProperties)
+		for (FStructProperty* UnitProperty : Class->RigUnitProperties)
 		{
 			if (UnitProperty->GetFName() == RigUnitName)
 			{

@@ -27,7 +27,7 @@ public:
 	virtual bool CanRecordObject(class UObject* InObjectToRecord) const override;
 	virtual UMovieSceneTrackRecorder* CreateTrackRecorderForObject() const override;
 
-	virtual bool CanRecordProperty(class UObject* InObjectToRecord, class UProperty* InPropertyToRecord) const override { return false; }
+	virtual bool CanRecordProperty(class UObject* InObjectToRecord, class FProperty* InPropertyToRecord) const override { return false; }
 	virtual UMovieSceneTrackRecorder* CreateTrackRecorderForProperty(UObject* InObjectToRecord, const FName& InPropertyToRecord) const override { return nullptr; }
 
 	virtual FText GetDisplayName() const override { return NSLOCTEXT("MovieSceneAnimationTrackRecorderFactory", "DisplayName", "Animation Track"); }

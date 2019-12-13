@@ -177,9 +177,9 @@ static bool BlueprintActionMenuUtilsImpl::IsUnexposedMemberAction(FBlueprintActi
 	if (UFunction const* Function = BlueprintAction.GetAssociatedFunction())
 	{
 		TArray<FString> AllExposedCategories;
-		for (TWeakObjectPtr<UObject> Binding : BlueprintAction.GetBindings())
+		for (FBindingObject Binding : BlueprintAction.GetBindings())
 		{
-			if (UProperty* Property = Cast<UProperty>(Binding.Get()))
+			if (FProperty* Property = Binding.Get<FProperty>())
 			{
 				const FString& ExposedCategoryMetadata = Property->GetMetaData(FBlueprintMetadata::MD_ExposeFunctionCategories);
 				if (ExposedCategoryMetadata.IsEmpty())
@@ -204,9 +204,9 @@ static bool BlueprintActionMenuUtilsImpl::IsUnexposedNonComponentAction(FBluepri
 {
 	bool bIsFilteredOut = false;
 
-	for (TWeakObjectPtr<UObject> Binding : BlueprintAction.GetBindings())
+	for (FBindingObject Binding : BlueprintAction.GetBindings())
 	{
-		if (UObjectProperty* ObjectProperty = Cast<UObjectProperty>(Binding.Get()))
+		if (FObjectProperty* ObjectProperty = Binding.Get<FObjectProperty>())
 		{
 			bool const bIsComponent = ObjectProperty->PropertyClass->IsChildOf<UActorComponent>();
 			// ignoring components for this rejection test
@@ -316,9 +316,9 @@ static FBlueprintActionFilter BlueprintActionMenuUtilsImpl::MakeCallOnMemberFilt
 	for ( const auto& ClassData : TargetClasses)
 	{
 		UClass const* TargetClass = ClassData.TargetClass;
-		for (TFieldIterator<UObjectProperty> PropertyIt(TargetClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<FObjectProperty> PropertyIt(TargetClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
- 			UObjectProperty* ObjectProperty = *PropertyIt;
+ 			FObjectProperty* ObjectProperty = *PropertyIt;
 			if (!ObjectProperty->HasAnyPropertyFlags(CPF_BlueprintVisible))
 			{
 				continue;
@@ -343,7 +343,7 @@ static void BlueprintActionMenuUtilsImpl::AddComponentSections(FBlueprintActionF
 
 	if (ComponentsFilter.Context.SelectedObjects.Num() == 1)
 	{
-		FText const ComponentName = FText::FromName(ComponentsFilter.Context.SelectedObjects.Last()->GetFName());
+		FText const ComponentName = FText::FromName(ComponentsFilter.Context.SelectedObjects.Last().GetFName());
 		FuncSectionHeading  = FText::Format(LOCTEXT("SingleComponentFuncCategory", "Call Function on {0}"), ComponentName);
 		EventSectionHeading = FText::Format(LOCTEXT("SingleComponentEventCategory", "Add Event for {0}"), ComponentName);
 	}
@@ -365,7 +365,7 @@ static void BlueprintActionMenuUtilsImpl::AddLevelActorSections(FBlueprintAction
 
 	if (LevelActorsFilter.Context.SelectedObjects.Num() == 1)
 	{
-		FText const ActorName = FText::FromName(LevelActorsFilter.Context.SelectedObjects.Last()->GetFName());
+		FText const ActorName = FText::FromName(LevelActorsFilter.Context.SelectedObjects.Last().GetFName());
 		FuncSectionHeading  = FText::Format(LOCTEXT("SingleActorFuncCategory", "Call Function on {0}"), ActorName);
 		EventSectionHeading = FText::Format(LOCTEXT("SingleActorEventCategory", "Add Event for {0}"), ActorName);
 	}
@@ -497,13 +497,13 @@ void FBlueprintActionMenuUtils::MakeContextMenu(FBlueprintActionContext const& C
 	UEdGraphSchema_K2 const* K2Schema = GetDefault<UEdGraphSchema_K2>();
 
 	// make sure the bound menu sections have the proper OwnerClasses specified
-	for (UObject* Selection : Context.SelectedObjects)
+	for (FFieldVariant Selection : Context.SelectedObjects)
 	{
-		if (UObjectProperty* ObjProperty = Cast<UObjectProperty>(Selection))
+		if (FObjectProperty* ObjProperty = CastField<FObjectProperty>(Selection.ToField()))
 		{
 			LevelActorsFilter.Context.SelectedObjects.Remove(Selection);
 		}
-		else if (AActor* LevelActor = Cast<AActor>(Selection))
+		else if (AActor* LevelActor = Cast<AActor>(Selection.ToUObject()))
 		{
 			ComponentsFilter.Context.SelectedObjects.Remove(Selection);
 			if (!bCanOperateOnLevelActors || (!LevelActor->NeedsLoadForClient() && !LevelActor->NeedsLoadForServer()))

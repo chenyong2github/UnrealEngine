@@ -128,7 +128,7 @@ FBlueprintNodeSignature UBlueprintEventNodeSpawner::GetSpawnerSignature() const
 	}
 	else
 	{
-		SpawnerSignature.AddSubObject(EventFunc);
+		SpawnerSignature.AddSubObject(const_cast<UFunction*>(EventFunc));
 	}
 	return SpawnerSignature;
 }

@@ -31,12 +31,12 @@ public: // UStruct -> JSON
 	 * If this returns a valid pointer it will be inserted into the export chain. If not, or if this is not
 	 * passed in, then we will call the generic ToString on the type and export as a JSON string.
 	 */
-	DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<FJsonValue>, CustomExportCallback, UProperty* /* Property */, const void* /* Value */);
+	DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<FJsonValue>, CustomExportCallback, FProperty* /* Property */, const void* /* Value */);
 
 	/**
 	 * Utility Export Callback for having object properties expanded to full Json.
 	 */
-	static TSharedPtr<FJsonValue> ObjectJsonCallback(UProperty* Property , const void* Value);
+	static TSharedPtr<FJsonValue> ObjectJsonCallback(FProperty* Property , const void* Value);
 
 	/**
 	 * Templated version of UStructToJsonObject to try and make most of the params. Also serves as an example use case
@@ -147,7 +147,7 @@ public: // UStruct -> JSON
 	 */
 	static bool UStructToJsonAttributes(const UStruct* StructDefinition, const void* Struct, TMap< FString, TSharedPtr<FJsonValue> >& OutJsonAttributes, int64 CheckFlags, int64 SkipFlags, const CustomExportCallback* ExportCb = nullptr);
 
-	/* * Converts from a UProperty to a Json Value using exportText
+	/* * Converts from a FProperty to a Json Value using exportText
 	 *
 	 * @param Property			The property to export
 	 * @param Value				Pointer to the value of the property
@@ -157,7 +157,7 @@ public: // UStruct -> JSON
 	 *
 	 * @return					The constructed JsonValue from the property
 	 */
-	static TSharedPtr<FJsonValue> UPropertyToJsonValue(UProperty* Property, const void* Value, int64 CheckFlags, int64 SkipFlags, const CustomExportCallback* ExportCb = nullptr);
+	static TSharedPtr<FJsonValue> UPropertyToJsonValue(FProperty* Property, const void* Value, int64 CheckFlags, int64 SkipFlags, const CustomExportCallback* ExportCb = nullptr);
 
 public: // JSON -> UStruct
 
@@ -204,17 +204,17 @@ public: // JSON -> UStruct
 	static bool JsonAttributesToUStruct(const TMap< FString, TSharedPtr<FJsonValue> >& JsonAttributes, const UStruct* StructDefinition, void* OutStruct, int64 CheckFlags, int64 SkipFlags);
 
 	/**
-	 * Converts a single JsonValue to the corresponding UProperty (this may recurse if the property is a UStruct for instance).
+	 * Converts a single JsonValue to the corresponding FProperty (this may recurse if the property is a UStruct for instance).
 	 *
 	 * @param JsonValue The value to assign to this property
-	 * @param Property The UProperty definition of the property we're setting.
+	 * @param Property The FProperty definition of the property we're setting.
 	 * @param OutValue Pointer to the property instance to be modified.
 	 * @param CheckFlags Only convert sub-properties that match at least one of these flags. If 0 check all properties.
 	 * @param SkipFlags Skip sub-properties that match any of these flags
 	 *
 	 * @return False if the property failed to serialize
 	 */
-	static bool JsonValueToUProperty(const TSharedPtr<FJsonValue>& JsonValue, UProperty* Property, void* OutValue, int64 CheckFlags, int64 SkipFlags);
+	static bool JsonValueToUProperty(const TSharedPtr<FJsonValue>& JsonValue, FProperty* Property, void* OutValue, int64 CheckFlags, int64 SkipFlags);
 
 	/**
 	 * Converts from a json string containing an object to a UStruct

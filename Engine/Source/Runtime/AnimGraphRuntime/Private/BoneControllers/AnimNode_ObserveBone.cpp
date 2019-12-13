@@ -3,6 +3,7 @@
 #include "BoneControllers/AnimNode_ObserveBone.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_ObserveBone
@@ -48,6 +49,11 @@ void FAnimNode_ObserveBone::EvaluateSkeletalControl_AnyThread(FComponentSpacePos
 	Translation = BoneTM.GetTranslation();
 	Rotation = BoneTM.GetRotation().Rotator();
 	Scale = BoneTM.GetScale3D();
+
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("Bone"), BoneToObserve.BoneName);
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("Translation"), Translation);
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("Rotation"), Rotation.Euler());
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("Scale"), Scale);
 }
 
 bool FAnimNode_ObserveBone::IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones)

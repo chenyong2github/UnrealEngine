@@ -192,7 +192,7 @@ public:
 	static bool IsStructureWildcardProperty(const UFunction* InFunction, const FName PropertyName);
 
 	/** returns true if InProperty should be treated as a wildcard (e.g. due to SetParam markup) */
-	static bool IsWildcardProperty(const UFunction* InFunction, const UProperty* InProperty);
+	static bool IsWildcardProperty(const UFunction* InFunction, const FProperty* InProperty);
 
 	/** Used to determine the result of AllowMultipleSelfs() (without having a node instance) */
 	static bool CanFunctionSupportMultipleTargets(UFunction const* InFunction);

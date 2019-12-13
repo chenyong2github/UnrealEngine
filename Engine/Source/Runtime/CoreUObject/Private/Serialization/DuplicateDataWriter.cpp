@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "UObject/LazyObjectPtr.h"
 #include "UObject/PropertyPortFlags.h"
+#include "UObject/UnrealType.h"
 #include "Serialization/DuplicatedObject.h"
 #include "Serialization/DuplicatedDataWriter.h"
 
@@ -147,4 +148,19 @@ UObject* FDuplicateDataWriter::GetDuplicatedObject(UObject* Object, bool bCreate
 	}
 
 	return Result;
+}
+
+FArchive& FDuplicateDataWriter::operator<<(FField*& Field)
+{
+	//if (Field &&
+	//	!Field->HasAnyFlags(RF_DuplicateTransient) &&
+	//	(!Field->HasAnyFlags(RF_NonPIEDuplicateTransient) || HasAnyPortFlags(PPF_DuplicateForPIE)))
+	//{
+	//}
+	//else
+	//{
+	//	UObject* NullObject = nullptr;
+	//	Serialize(&NullObject, sizeof(UObject*));
+	//}
+	return *this;
 }

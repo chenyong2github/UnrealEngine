@@ -53,7 +53,7 @@ bool SPropertyEditorStruct::Supports(const TSharedRef< class FPropertyEditor >& 
 	}
 
 	const TSharedRef< FPropertyNode > PropertyNode = InPropertyEditor->GetPropertyNode();
-	const UProperty* Property = InPropertyEditor->GetProperty();
+	const FProperty* Property = InPropertyEditor->GetProperty();
 	int32 ArrayIndex = PropertyNode->GetArrayIndex();
 
 	if (Supports(Property) && ((ArrayIndex == -1 && Property->ArrayDim == 1) || (ArrayIndex > -1 && Property->ArrayDim > 0)))
@@ -64,9 +64,9 @@ bool SPropertyEditorStruct::Supports(const TSharedRef< class FPropertyEditor >& 
 	return false;
 }
 
-bool SPropertyEditorStruct::Supports(const UProperty* InProperty)
+bool SPropertyEditorStruct::Supports(const FProperty* InProperty)
 {
-	const UObjectPropertyBase* ObjectProperty = Cast<UObjectPropertyBase>(InProperty);
+	const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(InProperty);
 	return ObjectProperty && ObjectProperty->PropertyClass && ObjectProperty->PropertyClass->IsChildOf(UScriptStruct::StaticClass());
 }
 
@@ -77,8 +77,8 @@ void SPropertyEditorStruct::Construct(const FArguments& InArgs, const TSharedPtr
 	if (PropertyEditor.IsValid())
 	{
 		const TSharedRef<FPropertyNode> PropertyNode = PropertyEditor->GetPropertyNode();
-		UProperty* const Property = PropertyNode->GetProperty();
-		if (const UObjectPropertyBase* ObjectProperty = Cast<UObjectPropertyBase>(Property))
+		FProperty* const Property = PropertyNode->GetProperty();
+		if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
 		{
 			// Read the MetaStruct from the property meta-data
 			MetaStruct = nullptr;

@@ -53,7 +53,7 @@ void UInteractiveTool::AddToolPropertySource(UInteractiveToolPropertySet* Proper
 	check(ToolPropertyObjects.Contains(PropertySet) == false);
 	ToolPropertyObjects.Add(PropertySet);
 	// @todo do we need to create a lambda every time for this?
-	PropertySet->GetOnModified().AddLambda([this](UObject* PropertySetArg, UProperty* PropertyArg)
+	PropertySet->GetOnModified().AddLambda([this](UObject* PropertySetArg, FProperty* PropertyArg)
 	{
 		OnPropertyModified(PropertySetArg, PropertyArg);
 	});

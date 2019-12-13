@@ -402,7 +402,7 @@ void FCsvProfilerAnalyzer::HandleEventEvent(const FOnEventContext& Context)
 
 uint32 FCsvProfilerAnalyzer::GetFrameNumberForTimestamp(ETraceFrameType FrameType, double Timestamp) const
 {
-	const TArray<double>& FrameStartTimes = FrameProvider.GetFrameStartTimes(FrameType);
+	const TArray64<double>& FrameStartTimes = FrameProvider.GetFrameStartTimes(FrameType);
 
 	if (FrameStartTimes.Num() == 0 || Timestamp < FrameStartTimes[0])
 	{

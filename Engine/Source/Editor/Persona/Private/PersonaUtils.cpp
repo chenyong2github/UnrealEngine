@@ -45,12 +45,12 @@ int32 CopyPropertiesToCDO(UAnimInstance* InAnimInstance, const FCopyOptions& Opt
 
 	// Copy properties from the instance to the CDO
 	TSet<UObject*> ModifiedObjects;
-	for( UProperty* Property = AnimInstanceClass->PropertyLink; Property != nullptr; Property = Property->PropertyLinkNext )
+	for( FProperty* Property = AnimInstanceClass->PropertyLink; Property != nullptr; Property = Property->PropertyLinkNext )
 	{
 		const bool bIsTransient = !!( Property->PropertyFlags & CPF_Transient );
 		const bool bIsBlueprintReadonly = !!(Options.Flags & ECopyOptions::FilterBlueprintReadOnly) && !!( Property->PropertyFlags & CPF_BlueprintReadOnly );
 		const bool bIsIdentical = Property->Identical_InContainer(SourceInstance, TargetInstance);
-		const bool bIsAnimGraphNodeProperty = Property->IsA<UStructProperty>() && Cast<UStructProperty>(Property)->Struct->IsChildOf(FAnimNode_Base::StaticStruct());
+		const bool bIsAnimGraphNodeProperty = Property->IsA<FStructProperty>() && CastField<FStructProperty>(Property)->Struct->IsChildOf(FAnimNode_Base::StaticStruct());
 
 		if( !bIsAnimGraphNodeProperty && !bIsTransient && !bIsIdentical && !bIsBlueprintReadonly)
 		{

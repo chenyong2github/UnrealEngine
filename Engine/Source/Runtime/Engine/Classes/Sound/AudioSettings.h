@@ -73,7 +73,7 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	GENERATED_UCLASS_BODY()
 
 #if WITH_EDITOR
-	virtual void PreEditChange(UProperty* PropertyAboutToChange) override;
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 
 	/** Event to listen for when settings reflected properties are changed. */

@@ -17,13 +17,13 @@ struct ENGINE_API FAnimNode_AssetPlayerBase : public FAnimNode_Base
 	FAnimNode_AssetPlayerBase();
 
 	/** Get the last encountered blend weight for this node */
-	virtual float GetCachedBlendWeight();
+	virtual float GetCachedBlendWeight() const;
 	
 	/** Set the cached blendweight to zero */
 	void ClearCachedBlendWeight();
 
 	/** Get the currently referenced time within the asset player node */
-	virtual float GetAccumulatedTime();
+	virtual float GetAccumulatedTime() const;
 
 	/** Override the currently accumulated time */
 	virtual void SetAccumulatedTime(const float& NewTime);

@@ -75,7 +75,7 @@ void UParticleModuleTrailSource::PostEditChangeProperty(FPropertyChangedEvent& P
 
 //	SourceOffsetCount
 //	SourceOffsetDefaults
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if (PropertyThatChanged)
 	{
 		if (PropertyThatChanged->GetFName() == FName(TEXT("SourceOffsetCount")))
@@ -197,7 +197,7 @@ void UParticleModuleTypeDataRibbon::PostEditChangeProperty(FPropertyChangedEvent
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if (PropertyThatChanged && PropertyThatChanged->GetName() == TEXT("MaxTessellationBetweenParticles"))
 	{
 		if (MaxTessellationBetweenParticles < 0)

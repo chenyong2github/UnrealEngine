@@ -175,7 +175,7 @@ public:
 #if WITH_EDITOR
 	// UObject interface
 	using Super::PreEditChange;
-	virtual void PreEditChange(UProperty* PropertyThatWillChange) override;
+	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 	// End of UObject interface
 

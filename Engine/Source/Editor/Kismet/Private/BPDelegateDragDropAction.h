@@ -47,7 +47,7 @@ public:
 		FVector2D GraphPosition;
 		UEdGraph* Graph;
 		bool bSelfContext;
-		const UProperty* Property;
+		const FProperty* Property;
 		FNodeCreationAnalytic AnalyticCallback;
 	};
 

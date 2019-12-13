@@ -5,10 +5,10 @@
 
 ULiveCodingSettings::ULiveCodingSettings(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
-	UProperty* EngineModulesProperty = StaticClass()->FindPropertyByName("bPreloadEngineModules");
+	FProperty* EngineModulesProperty = StaticClass()->FindPropertyByName("bPreloadEngineModules");
 	check(EngineModulesProperty != nullptr);
 
-	UProperty* EnginePluginModulesProperty = StaticClass()->FindPropertyByName("bPreloadEnginePluginModules");
+	FProperty* EnginePluginModulesProperty = StaticClass()->FindPropertyByName("bPreloadEnginePluginModules");
 	check(EnginePluginModulesProperty != nullptr);
 
 	if (FApp::IsEngineInstalled())

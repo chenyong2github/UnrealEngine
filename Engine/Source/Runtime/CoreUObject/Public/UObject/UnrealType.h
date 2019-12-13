@@ -30,11 +30,17 @@
 #include "UObject/SparseDelegate.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/WeakObjectPtr.h"
+#include "UObject/Field.h"
+
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
+
+class UPropertyWrapper;
 
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogType, Log, All);
 
 /*-----------------------------------------------------------------------------
-	UProperty.
+	FProperty.
 -----------------------------------------------------------------------------*/
 
 enum EPropertyExportCPPFlags
@@ -81,10 +87,9 @@ enum class EConvertFromTypeResult
 //
 // An UnrealScript variable.
 //
-class COREUOBJECT_API UProperty : public UField
+class COREUOBJECT_API FProperty : public FField
 {
-	DECLARE_CASTED_CLASS_INTRINSIC_NO_CTOR(UProperty, UField, CLASS_Abstract, TEXT("/Script/CoreUObject"), CASTCLASS_UProperty, NO_API)
-	DECLARE_WITHIN(UField)
+	DECLARE_FIELD(FProperty, FField, CASTCLASS_FProperty)
 
 	// Persistent variables.
 	int32			ArrayDim;
@@ -102,24 +107,28 @@ public:
 	FName		RepNotifyFunc;
 
 	/** In memory only: Linked list of properties from most-derived to base **/
-	UProperty*	PropertyLinkNext;
+	FProperty*	PropertyLinkNext;
 	/** In memory only: Linked list of object reference properties from most-derived to base **/
-	UProperty*  NextRef;
+	FProperty*  NextRef;
 	/** In memory only: Linked list of properties requiring destruction. Note this does not include things that will be destroyed byt he native destructor **/
-	UProperty*	DestructorLinkNext;
+	FProperty*	DestructorLinkNext;
 	/** In memory only: Linked list of properties requiring post constructor initialization.**/
-	UProperty*	PostConstructLinkNext;
+	FProperty*	PostConstructLinkNext;
 
 public:
 	// Constructors.
-	UProperty(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	UProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags);
-	UProperty( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags );
+	FProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags);
+	FProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags);
+#if WITH_EDITORONLY_DATA
+	explicit FProperty(UField* InField);
+#endif // WITH_EDITORONLY_DATA
 
 	// UObject interface
 	virtual void Serialize( FArchive& Ar ) override;
 	// End of UObject interface
+
+	// FField interface
+	virtual void PostDuplicate(const FField& InField) override;
 
 	/** parses and imports a text definition of a single property's value (if array, may be an individual element)
 	 * also includes parsing of special operations for array properties (Add/Remove/RemoveIndex/Empty)
@@ -158,11 +167,15 @@ public:
 	 * @param	ExtendedTypeText	for property types which use templates, will be filled in with the type
 	 * @param	CPPExportFlags		flags for modifying the behavior of the export
 	 */
-	virtual FString GetCPPType( FString* ExtendedTypeText=NULL, uint32 CPPExportFlags=0 ) const PURE_VIRTUAL(UProperty::GetCPPType,return TEXT(""););
+	virtual FString GetCPPType( FString* ExtendedTypeText=NULL, uint32 CPPExportFlags=0 ) const PURE_VIRTUAL(FProperty::GetCPPType,return TEXT(""););
 
-	virtual FString GetCPPTypeForwardDeclaration() const PURE_VIRTUAL(UProperty::GetCPPTypeForwardDeclaration, return TEXT(""););
+	virtual FString GetCPPTypeForwardDeclaration() const PURE_VIRTUAL(FProperty::GetCPPTypeForwardDeclaration, return TEXT(""););
 	// End of UHT interface
 
+#if WITH_EDITORONLY_DATA
+	/** Gets the wrapper object for this property or creates one if it doesn't exist yet */
+	UPropertyWrapper* GetUPropertyWrapper();
+#endif
 private:
 	/** Set the alignment offset for this property 
 	 * @return the size of the structure including this newly added property
@@ -170,9 +183,9 @@ private:
 	int32 SetupOffset();
 
 protected:
-	friend class UMapProperty;
+	friend class FMapProperty;
 
-	/** Set the alignment offset for this property - added for UMapProperty */
+	/** Set the alignment offset for this property - added for FMapProperty */
 	void SetOffset_Internal(int32 NewOffset);
 
 	/**
@@ -245,7 +258,7 @@ public:
 	 *
 	 * @return	true if the property values are identical
 	 */
-	virtual bool Identical( const void* A, const void* B, uint32 PortFlags=0 ) const PURE_VIRTUAL(UProperty::Identical,return false;);
+	virtual bool Identical( const void* A, const void* B, uint32 PortFlags=0 ) const PURE_VIRTUAL(FProperty::Identical,return false;);
 
 	/**
 	 * Determines whether the property values are identical.
@@ -311,11 +324,10 @@ public:
 		}
 	}
 
-	virtual bool IsPostLoadThreadSafe() const override;
-	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults = NULL) const PURE_VIRTUAL(UProperty::SerializeItem, );
+	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults = NULL) const PURE_VIRTUAL(FProperty::SerializeItem, );
 	virtual bool NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8> * MetaData = NULL ) const;
 	virtual bool SupportsNetSharedSerialization() const;
-	virtual void ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope = NULL ) const PURE_VIRTUAL(UProperty::ExportTextItem,);
+	virtual void ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope = NULL ) const PURE_VIRTUAL(FProperty::ExportTextItem,);
 	const TCHAR* ImportText( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText = (FOutputDevice*)GWarn ) const
 	{
 		if ( !ValidateImportFlags(PortFlags,ErrorText) || Buffer == NULL )
@@ -326,7 +338,7 @@ public:
 		return ImportText_Internal( Buffer, Data, PortFlags, OwnerObject, ErrorText );
 	}
 protected:
-	virtual const TCHAR* ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText ) const PURE_VIRTUAL(UProperty::ImportText,return NULL;);
+	virtual const TCHAR* ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText ) const PURE_VIRTUAL(FProperty::ImportText,return NULL;);
 public:
 	
 	bool ExportText_Direct( FString& ValueStr, const void* Data, const void* Delta, UObject* Parent, int32 PortFlags, UObject* ExportRootScope = NULL ) const;
@@ -345,7 +357,7 @@ private:
 		if (0)
 		{
 			// in the future, these checks will be tested if the property is NOT relative to a UClass
-			check(!Cast<UClass>(GetOuter())); // Check we are _not_ calling this on a direct child property of a UClass, you should pass in a UObject* in that case
+			check(!GetOwner<UClass>()); // Check we are _not_ calling this on a direct child property of a UClass, you should pass in a UObject* in that case
 		}
 
 		return (uint8*)ContainerPtr + Offset_Internal + ElementSize * ArrayIndex;
@@ -360,19 +372,19 @@ private:
 		// need something for networking, since those are NOT live uobjects, just memory blocks
 		check(((UObject*)ContainerPtr)->IsValidLowLevel()); // Check its a valid UObject that was passed in
 		check(((UObject*)ContainerPtr)->GetClass() != NULL);
-		check(GetOuter()->IsA(UClass::StaticClass())); // Check that the outer of this property is a UClass (not another property)
+		check(GetOwner<UClass>()); // Check that the outer of this property is a UClass (not another property)
 
 		// Check that the object we are accessing is of the class that contains this property
-		checkf(((UObject*)ContainerPtr)->IsA((UClass*)GetOuter()), TEXT("'%s' is of class '%s' however property '%s' belongs to class '%s'")
+		checkf(((UObject*)ContainerPtr)->IsA(GetOwner<UClass>()), TEXT("'%s' is of class '%s' however property '%s' belongs to class '%s'")
 			, *((UObject*)ContainerPtr)->GetName()
 			, *((UObject*)ContainerPtr)->GetClass()->GetName()
 			, *GetName()
-			, *((UClass*)GetOuter())->GetName());
+			, *GetOwner<UClass>()->GetName());
 
 		if (0)
 		{
 			// in the future, these checks will be tested if the property is NOT relative to a UClass
-			check(!GetOuter()->IsA(UClass::StaticClass())); // Check we are _not_ calling this on a direct child property of a UClass, you should pass in a UObject* in that case
+			check(!GetOwner<UClass>()); // Check we are _not_ calling this on a direct child property of a UClass, you should pass in a UObject* in that case
 		}
 
 		return (uint8*)ContainerPtr + Offset_Internal + ElementSize * ArrayIndex;
@@ -462,9 +474,9 @@ public:
 	 * 
 	 * @param	Dest				the address where the value should be copied to.  This should always correspond to the BASE + OFFSET + INDEX * SIZE, where
 	 *									BASE = (for member properties) the address of the UObject which contains this data, (for locals/parameters) the address of the space allocated for the function's locals
-	 *									OFFSET = the Offset of this UProperty
+	 *									OFFSET = the Offset of this FProperty
 	 *									INDEX = the index that you want to copy.  for properties which are not arrays, this should always be 0
-	 *									SIZE = the ElementSize of this UProperty
+	 *									SIZE = the ElementSize of this FProperty
 	 * @param	Src					the address of the value to copy from. should be evaluated the same way as Dest
 	 * @param	InstancingParams	contains information about instancing (if any) to perform
 	 */
@@ -498,7 +510,7 @@ public:
 	 * 
 	 * @param	Dest				the address where the value should be copied to.  This should always correspond to the BASE + OFFSET, where
 	 *									BASE = (for member properties) the address of the UObject which contains this data, (for locals/parameters) the address of the space allocated for the function's locals
-	 *									OFFSET = the Offset of this UProperty
+	 *									OFFSET = the Offset of this FProperty
 	 * @param	Src					the address of the value to copy from. should be evaluated the same way as Dest
 	 * @param	InstancingParams	contains information about instancing (if any) to perform
 	 */
@@ -526,9 +538,9 @@ public:
 	 * 
 	 * @param	Dest				the address where the value should be copied to.  This should always correspond to the BASE + OFFSET + INDEX * SIZE, where
 	 *									BASE = (for member properties) the address of the UObject which contains this data, (for locals/parameters) the address of the space allocated for the function's locals
-	 *									OFFSET = the Offset of this UProperty
+	 *									OFFSET = the Offset of this FProperty
 	 *									INDEX = the index that you want to copy.  for properties which are not arrays, this should always be 0
-	 *									SIZE = the ElementSize of this UProperty
+	 *									SIZE = the ElementSize of this FProperty
 	 * @param	Src					the address of the value to copy from. should be evaluated the same way as Dest
 	 */
 	virtual void CopySingleValueToScriptVM( void* Dest, void const* Src ) const;
@@ -538,7 +550,7 @@ public:
 	 * 
 	 * @param	Dest				the address where the value should be copied to.  This should always correspond to the BASE + OFFSET, where
 	 *									BASE = (for member properties) the address of the UObject which contains this data, (for locals/parameters) the address of the space allocated for the function's locals
-	 *									OFFSET = the Offset of this UProperty
+	 *									OFFSET = the Offset of this FProperty
 	 * @param	Src					the address of the value to copy from. should be evaluated the same way as Dest
 	 */
 	virtual void CopyCompleteValueToScriptVM( void* Dest, void const* Src ) const;
@@ -548,9 +560,9 @@ public:
 	 * 
 	 * @param	Dest				the address where the value should be copied to.  This should always correspond to the BASE + OFFSET + INDEX * SIZE, where
 	 *									BASE = (for member properties) the address of the UObject which contains this data, (for locals/parameters) the address of the space allocated for the function's locals
-	 *									OFFSET = the Offset of this UProperty
+	 *									OFFSET = the Offset of this FProperty
 	 *									INDEX = the index that you want to copy.  for properties which are not arrays, this should always be 0
-	 *									SIZE = the ElementSize of this UProperty
+	 *									SIZE = the ElementSize of this FProperty
 	 * @param	Src					the address of the value to copy from. should be evaluated the same way as Dest
 	 */
 	virtual void CopySingleValueFromScriptVM( void* Dest, void const* Src ) const;
@@ -560,7 +572,7 @@ public:
 	 * 
 	 * @param	Dest				the address where the value should be copied to.  This should always correspond to the BASE + OFFSET, where
 	 *									BASE = (for member properties) the address of the UObject which contains this data, (for locals/parameters) the address of the space allocated for the function's locals
-	 *									OFFSET = the Offset of this UProperty
+	 *									OFFSET = the Offset of this FProperty
 	 * @param	Src					the address of the value to copy from. should be evaluated the same way as Dest
 	 */
 	virtual void CopyCompleteValueFromScriptVM( void* Dest, void const* Src ) const;
@@ -703,7 +715,7 @@ public:
 	 *
 	 * @return true if property (or sub- properties) contain a UObject reference, false otherwise
 	 */
-	virtual bool ContainsObjectReference(TArray<const UStructProperty*>& EncounteredStructProps) const;
+	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps) const;
 
 	/**
 	 * Returns true if this property, or in the case of e.g. array or struct properties any sub- property, contains a
@@ -717,7 +729,7 @@ public:
 	 * Returns true if this property, or in the case of e.g. array or struct properties any sub- property, contains a
 	 * UObject reference that is marked CPF_NeedCtorLink (i.e. instanced keyword).
 	 *
-	 * @return true if property (or sub- properties) contain a UObjectProperty that is marked CPF_NeedCtorLink, false otherwise
+	 * @return true if property (or sub- properties) contain a FObjectProperty that is marked CPF_NeedCtorLink, false otherwise
 	 */
 	FORCEINLINE bool ContainsInstancedObjectProperty() const
 	{
@@ -728,7 +740,7 @@ public:
 	 * Emits tokens used by realtime garbage collection code to passed in ReferenceTokenStream. The offset emitted is relative
 	 * to the passed in BaseOffset which is used by e.g. arrays of structs.
 	 */
-	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const UStructProperty*>& EncounteredStructProps);
+	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps);
 
 	FORCEINLINE int32 GetSize() const
 	{
@@ -747,22 +759,22 @@ public:
 	}
 
 	/**
-	 * Returns the first UProperty in this property's Outer chain that does not have a UProperty for an Outer
+	 * Returns the first FProperty in this property's Outer chain that does not have a FProperty for an Outer
 	 */
-	UProperty* GetOwnerProperty()
+	FProperty* GetOwnerProperty()
 	{
-		UProperty* Result=this;
-		for (UProperty* PropBase = dynamic_cast<UProperty*>(GetOuter()); PropBase; PropBase = dynamic_cast<UProperty*>(PropBase->GetOuter()))
+		FProperty* Result = this;
+		for (FProperty* PropBase = GetOwner<FProperty>(); PropBase; PropBase = PropBase->GetOwner<FProperty>())
 		{
 			Result = PropBase;
 		}
 		return Result;
 	}
 
-	const UProperty* GetOwnerProperty() const
+	const FProperty* GetOwnerProperty() const
 	{
-		const UProperty* Result = this;
-		for (UProperty* PropBase = dynamic_cast<UProperty*>(GetOuter()); PropBase; PropBase = dynamic_cast<UProperty*>(PropBase->GetOuter()))
+		const FProperty* Result = this;
+		for (const FProperty* PropBase = GetOwner<FProperty>(); PropBase; PropBase = PropBase->GetOwner<FProperty>())
 		{
 			Result = PropBase;
 		}
@@ -817,7 +829,7 @@ public:
 	 * Returns the replication owner, which is the property itself, or NULL if this isn't important for replication.
 	 * It is relevant if the property is a net relevant and not being run in the editor
 	 */
-	FORCEINLINE UProperty* GetRepOwner()
+	FORCEINLINE FProperty* GetRepOwner()
 	{
 		return (!GIsEditor && ((PropertyFlags & CPF_Net) != 0)) ? this : NULL;
 	}
@@ -835,7 +847,7 @@ public:
 	}
 
 	/** returns true, if Other is property of exactly the same type */
-	virtual bool SameType(const UProperty* Other) const;
+	virtual bool SameType(const FProperty* Other) const;
 
 	ELifetimeCondition GetBlueprintReplicationCondition() const { return BlueprintReplicationCondition; }
 	void SetBlueprintReplicationCondition(ELifetimeCondition InBlueprintReplicationCondition) { BlueprintReplicationCondition = InBlueprintReplicationCondition; }
@@ -847,7 +859,7 @@ public:
 };
 
 
-class COREUOBJECT_API UPropertyHelpers
+class COREUOBJECT_API FPropertyHelpers
 {
 public:
 
@@ -859,7 +871,7 @@ public:
 /** reference to a property and optional array index used in property text import to detect duplicate references */
 struct COREUOBJECT_API FDefinedProperty
 {
-    UProperty* Property;
+    FProperty* Property;
     int32 Index;
     bool operator== (const FDefinedProperty& Other) const
     {
@@ -868,12 +880,12 @@ struct COREUOBJECT_API FDefinedProperty
 };
 
 /**
- * Creates a temporary object that represents the default constructed value of a UProperty
+ * Creates a temporary object that represents the default constructed value of a FProperty
  */
 class COREUOBJECT_API FDefaultConstructedPropertyElement
 {
 public:
-	explicit FDefaultConstructedPropertyElement(UProperty* InProp)
+	explicit FDefaultConstructedPropertyElement(FProperty* InProp)
 		: Prop(InProp)
 		, Obj(FMemory::Malloc(InProp->GetSize(), InProp->GetMinAlignment()))
 	{
@@ -897,7 +909,7 @@ private:
 	FDefaultConstructedPropertyElement& operator=(const FDefaultConstructedPropertyElement&) = delete;
 
 private:
-	UProperty* Prop;
+	FProperty* Prop;
 	void* Obj;
 };
 
@@ -988,24 +1000,30 @@ public:
 	typedef TInPropertyBaseClass Super;
 	typedef TPropertyTypeFundamentals<InTCppType> TTypeFundamentals;
 
-	TProperty(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get())
-		: Super(ObjectInitializer)
+	TProperty(EInternal InInernal, FFieldClass* InClass)
+		: Super(EC_InternalUseOnlyConstructor, InClass)
 	{
-		SetElementSize();
 	}
-	TProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags)
-		: Super(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags | TTypeFundamentals::GetComputedFlagsPropertyFlags())
-	{
-		SetElementSize();
-	}
-	TProperty( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags )
-		:	Super( ObjectInitializer, EC_CppProperty, InOffset, InFlags | TTypeFundamentals::GetComputedFlagsPropertyFlags())
+
+	TProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: Super(InOwner, InName, InObjectFlags)
 	{
 		SetElementSize();
 	}
 
-	/** DO NOT USE. This constructor is for internal usage only for hot-reload purposes. */
-	TProperty(FVTableHelper& Helper) : Super(Helper) {};
+	TProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+		: Super(InOwner, InName, InObjectFlags, InOffset, InFlags | TTypeFundamentals::GetComputedFlagsPropertyFlags())
+	{
+		SetElementSize();
+	}
+
+#if WITH_EDITORONLY_DATA
+	explicit TProperty(UField* InField)
+		: Super(InField)
+	{
+		SetElementSize();
+	}
+#endif // WITH_EDITORONLY_DATA
 
 	// UHT interface
 	virtual FString GetCPPType( FString* ExtendedTypeText=NULL, uint32 CPPExportFlags=0 ) const override
@@ -1019,7 +1037,7 @@ public:
 	}
 	// End of UHT interface
 
-	// UProperty interface.
+	// FProperty interface.
 	virtual int32 GetMinAlignment() const override
 	{
 		return TTypeFundamentals::CPPAlignment;
@@ -1087,7 +1105,7 @@ protected:
 	{
 		this->ElementSize = TTypeFundamentals::CPPSize;
 	}
-	// End of UProperty interface
+	// End of FProperty interface
 };
 
 template<typename InTCppType, class TInPropertyBaseClass>
@@ -1099,23 +1117,32 @@ public:
 	typedef InTCppType TCppType;
 	typedef typename Super::TTypeFundamentals TTypeFundamentals;
 
-	TProperty_WithEqualityAndSerializer(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get())
-		: Super(ObjectInitializer)
+	TProperty_WithEqualityAndSerializer(EInternal InInernal, FFieldClass* InClass)
+		: Super(EC_InternalUseOnlyConstructor, InClass)
 	{
 	}
-	TProperty_WithEqualityAndSerializer(ECppProperty, int32 InOffset, EPropertyFlags InFlags)
-		: Super(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
+
+	TProperty_WithEqualityAndSerializer(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: Super(InOwner, InName, InObjectFlags)
 	{
 	}
-	TProperty_WithEqualityAndSerializer( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags )
-		:	Super( ObjectInitializer, EC_CppProperty, InOffset, InFlags)
+
+	TProperty_WithEqualityAndSerializer(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+		: Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
 	{
 	}
+
+#if WITH_EDITORONLY_DATA
+	explicit TProperty_WithEqualityAndSerializer(UField* InField)
+		: Super(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
 
 	/** DO NOT USE. This constructor is for internal usage only for hot-reload purposes. */
 	TProperty_WithEqualityAndSerializer(FVTableHelper& Helper) : Super(Helper) {};
 
-	// UProperty interface.
+	// FProperty interface.
 	virtual bool Identical( const void* A, const void* B, uint32 PortFlags=0 ) const override
 	{
 		// RHS is the same as TTypeFundamentals::GetOptionalPropertyValue(B) but avoids an unnecessary copy of B
@@ -1125,29 +1152,36 @@ public:
 	{
 		Slot << *TTypeFundamentals::GetPropertyValuePtr(Value);
 	}
-	// End of UProperty interface
+	// End of FProperty interface
 
 };
 
-class COREUOBJECT_API UNumericProperty : public UProperty
+class COREUOBJECT_API FNumericProperty : public FProperty
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UNumericProperty, UProperty, CLASS_Abstract, TEXT("/Script/CoreUObject"), CASTCLASS_UNumericProperty)
+	DECLARE_FIELD(FNumericProperty, FProperty, CASTCLASS_FNumericProperty)
 
-	UNumericProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags)
-		: UProperty(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
+	FNumericProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: FProperty(InOwner, InName, InObjectFlags)
 	{}
 
-	UNumericProperty( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags )
-		:	UProperty( ObjectInitializer, EC_CppProperty, InOffset, InFlags )
+	FNumericProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+		: FProperty(InOwner, InName, InObjectFlags, InOffset, InFlags)
 	{}
 
-	// UProperty interface.
+#if WITH_EDITORONLY_DATA
+	explicit FNumericProperty(UField* InField)
+		: Super(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
+
+	// FProperty interface.
 	virtual const TCHAR* ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const override;
 
 	virtual void ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const override;
-	// End of UProperty interface
+	// End of FProperty interface
 
-	// UNumericProperty interface.
+	// FNumericProperty interface.
 
 	/** Return true if this property is for a floating point number **/
 	virtual bool IsFloatingPoint() const;
@@ -1172,13 +1206,13 @@ class COREUOBJECT_API UNumericProperty : public UProperty
 		}
 	}
 
-	/** Return true if this property is a UByteProperty with a non-null Enum **/
+	/** Return true if this property is a FByteProperty with a non-null Enum **/
 	FORCEINLINE bool IsEnum() const
 	{
 		return !!GetIntPropertyEnum();
 	}
 
-	/** Return the UEnum if this property is a UByteProperty with a non-null Enum **/
+	/** Return the UEnum if this property is a FByteProperty with a non-null Enum **/
 	virtual UEnum* GetIntPropertyEnum() const;
 
 	/** 
@@ -1238,47 +1272,52 @@ class COREUOBJECT_API UNumericProperty : public UProperty
 	 * CAUTION: This routine does not do enum name conversion
 	**/
 	virtual FString GetNumericPropertyValueToString(void const* Data) const;
-	// End of UNumericProperty interface
+	// End of FNumericProperty interface
 
 	static int64 ReadEnumAsInt64(FStructuredArchive::FSlot Slot, UStruct* DefaultsStruct, const FPropertyTag& Tag);
 
 private:
-	virtual bool CanHoldDoubleValueInternal  (double Value) const PURE_VIRTUAL(UNumericProperty::CanHoldDoubleValueInternal,   return false;);
-	virtual bool CanHoldSignedValueInternal  (int64  Value) const PURE_VIRTUAL(UNumericProperty::CanHoldSignedValueInternal,   return false;);
-	virtual bool CanHoldUnsignedValueInternal(uint64 Value) const PURE_VIRTUAL(UNumericProperty::CanHoldUnsignedValueInternal, return false;);
+	virtual bool CanHoldDoubleValueInternal  (double Value) const PURE_VIRTUAL(FNumericProperty::CanHoldDoubleValueInternal,   return false;);
+	virtual bool CanHoldSignedValueInternal  (int64  Value) const PURE_VIRTUAL(FNumericProperty::CanHoldSignedValueInternal,   return false;);
+	virtual bool CanHoldUnsignedValueInternal(uint64 Value) const PURE_VIRTUAL(FNumericProperty::CanHoldUnsignedValueInternal, return false;);
 };
 
 template<typename InTCppType>
-class TProperty_Numeric : public TProperty_WithEqualityAndSerializer<InTCppType, UNumericProperty>
+class TProperty_Numeric : public TProperty_WithEqualityAndSerializer<InTCppType, FNumericProperty>
 {
 public:
-	typedef TProperty_WithEqualityAndSerializer<InTCppType, UNumericProperty> Super;
+	typedef TProperty_WithEqualityAndSerializer<InTCppType, FNumericProperty> Super;
 	typedef InTCppType TCppType;
 	typedef typename Super::TTypeFundamentals TTypeFundamentals;
-	TProperty_Numeric(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get())
-		: Super(ObjectInitializer)
+
+	TProperty_Numeric(EInternal InInernal, FFieldClass* InClass)
+		: Super(EC_InternalUseOnlyConstructor, InClass)
 	{
 	}
 
-	TProperty_Numeric(ECppProperty, int32 InOffset, EPropertyFlags InFlags)
-		: Super(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
+	TProperty_Numeric(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: Super(InOwner, InName, InObjectFlags)
 	{
 	}
 
-	TProperty_Numeric( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags )
-		:	Super( ObjectInitializer, EC_CppProperty, InOffset, InFlags)
+	TProperty_Numeric(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+		: Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
 	{
 	}
 
-	/** DO NOT USE. This constructor is for internal usage only for hot-reload purposes. */
-	TProperty_Numeric(FVTableHelper& Helper) : Super(Helper) {};
+#if WITH_EDITORONLY_DATA
+	explicit TProperty_Numeric(UField* InField)
+		: Super(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
 
 	virtual FString GetCPPTypeForwardDeclaration() const override
 	{
 		return FString();
 	}
 
-	// UProperty interface
+	// FProperty interface
 	virtual uint32 GetValueTypeHashInternal(const void* Src) const override
 	{
 		return GetTypeHash(*(const InTCppType*)Src);
@@ -1397,9 +1436,9 @@ public:
 
 		return EConvertFromTypeResult::UseSerializeItem;
 	}
-	// End of UProperty interface
+	// End of FProperty interface
 
-	// UNumericProperty interface.
+	// FNumericProperty interface.
 	virtual bool IsFloatingPoint() const override
 	{
 		return TIsFloatingPoint<TCppType>::Value;
@@ -1446,7 +1485,7 @@ public:
 		check(TIsFloatingPoint<TCppType>::Value);
 		return TTypeFundamentals::GetPropertyValue(Data);
 	}
-	// End of UNumericProperty interface
+	// End of FNumericProperty interface
 
 private:
 	virtual bool CanHoldDoubleValueInternal(double Value) const
@@ -1466,203 +1505,263 @@ private:
 };
 
 /*-----------------------------------------------------------------------------
-	UByteProperty.
+	FByteProperty.
 -----------------------------------------------------------------------------*/
 
 //
 // Describes an unsigned byte value or 255-value enumeration variable.
 //
-class COREUOBJECT_API UByteProperty : public TProperty_Numeric<uint8>
+class COREUOBJECT_API FByteProperty : public TProperty_Numeric<uint8>
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UByteProperty, TProperty_Numeric<uint8>, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UByteProperty)
+	DECLARE_FIELD(FByteProperty, TProperty_Numeric<uint8>, CASTCLASS_FByteProperty)
 
 	// Variables.
 	UEnum* Enum;
 
-	UByteProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UEnum* InEnum = nullptr)
-		: TProperty_Numeric(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
-		, Enum(InEnum)
+	FByteProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: TProperty_Numeric(InOwner, InName, InObjectFlags)
+		, Enum(nullptr)
 	{
 	}
 
-	UByteProperty(const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, UEnum* InEnum = nullptr)
-	:	TProperty_Numeric( ObjectInitializer, EC_CppProperty, InOffset, InFlags)
+	FByteProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UEnum* InEnum = nullptr)
+		: TProperty_Numeric(InOwner, InName, InObjectFlags, InOffset, InFlags)
 	,	Enum( InEnum )
 	{
 	}
 
+#if WITH_EDITORONLY_DATA
+	explicit FByteProperty(UField* InField);
+#endif // WITH_EDITORONLY_DATA
+
 	// UObject interface.
 	virtual void Serialize( FArchive& Ar ) override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
-
 	// End of UObject interface
+
+	// Field interface
+	virtual void PostDuplicate(const FField& InField) override;
 
 	// UHT interface
 	virtual FString GetCPPType( FString* ExtendedTypeText=NULL, uint32 CPPExportFlags=0 ) const override;
 	// End of UHT interface
 
-	// UProperty interface.
+	// FProperty interface.
 	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
 	virtual bool NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8> * MetaData = NULL ) const override;
 	virtual void ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const override;
 	virtual const TCHAR* ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
-	// End of UProperty interface
+	// End of FProperty interface
 
-	// UNumericProperty interface.
+	// FNumericProperty interface.
 	virtual UEnum* GetIntPropertyEnum() const override;
-	// End of UNumericProperty interface
+	// End of FNumericProperty interface
 };
 
 /*-----------------------------------------------------------------------------
-	UInt8Property.
+	FInt8Property.
 -----------------------------------------------------------------------------*/
 
 //
 // Describes a 8-bit signed integer variable.
 //
-class COREUOBJECT_API UInt8Property : public TProperty_Numeric<int8>
+class COREUOBJECT_API FInt8Property : public TProperty_Numeric<int8>
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UInt8Property, TProperty_Numeric<int8>, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UInt8Property)
+	DECLARE_FIELD(FInt8Property, TProperty_Numeric<int8>, CASTCLASS_FInt8Property)
 
-	UInt8Property(ECppProperty, int32 InOffset, EPropertyFlags InFlags)
-		: TProperty_Numeric(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
+	FInt8Property(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: TProperty_Numeric(InOwner, InName, InObjectFlags)
 	{
 	}
 
-	UInt8Property( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags )
-		:	TProperty_Numeric( ObjectInitializer, EC_CppProperty, InOffset, InFlags)
+	FInt8Property(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+		: TProperty_Numeric(InOwner, InName, InObjectFlags, InOffset, InFlags)
 	{
 	}
+
+#if WITH_EDITORONLY_DATA
+	explicit FInt8Property(UField* InField)
+		: TProperty_Numeric(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
 };
 
 /*-----------------------------------------------------------------------------
-	UInt16Property.
+	FInt16Property.
 -----------------------------------------------------------------------------*/
 
 //
 // Describes a 16-bit signed integer variable.
 //
-class COREUOBJECT_API UInt16Property : public TProperty_Numeric<int16>
+class COREUOBJECT_API FInt16Property : public TProperty_Numeric<int16>
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UInt16Property, TProperty_Numeric<int16>, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UInt16Property)
+	DECLARE_FIELD(FInt16Property, TProperty_Numeric<int16>, CASTCLASS_FInt16Property)
 
-	UInt16Property(ECppProperty, int32 InOffset, EPropertyFlags InFlags)
-		: TProperty_Numeric(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
+	FInt16Property(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: TProperty_Numeric(InOwner, InName, InObjectFlags)
 	{
 	}
 
-	UInt16Property( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags )
-	:	TProperty_Numeric( ObjectInitializer, EC_CppProperty, InOffset, InFlags)
+	FInt16Property(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+		: TProperty_Numeric(InOwner, InName, InObjectFlags, InOffset, InFlags)
 	{
 	}
+
+#if WITH_EDITORONLY_DATA
+	explicit FInt16Property(UField* InField)
+		: TProperty_Numeric(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
 };
 
 
 /*-----------------------------------------------------------------------------
-	UIntProperty.
+	FIntProperty.
 -----------------------------------------------------------------------------*/
 
 //
 // Describes a 32-bit signed integer variable.
 //
-class COREUOBJECT_API UIntProperty : public TProperty_Numeric<int32>
+class COREUOBJECT_API FIntProperty : public TProperty_Numeric<int32>
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UIntProperty, TProperty_Numeric<int32>, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UIntProperty)
+	DECLARE_FIELD(FIntProperty, TProperty_Numeric<int32>, CASTCLASS_FIntProperty)
 
-	UIntProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags)
-		: TProperty_Numeric(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
+	FIntProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: TProperty_Numeric(InOwner, InName, InObjectFlags)
 	{
 	}
 
-	UIntProperty( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags )
-	:	TProperty_Numeric( ObjectInitializer, EC_CppProperty, InOffset, InFlags)
+	FIntProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+		: TProperty_Numeric(InOwner, InName, InObjectFlags, InOffset, InFlags)
 	{
 	}
+
+#if WITH_EDITORONLY_DATA
+	explicit FIntProperty(UField* InField)
+		: TProperty_Numeric(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
 };
 
 /*-----------------------------------------------------------------------------
-	UInt64Property.
+	FInt64Property.
 -----------------------------------------------------------------------------*/
 
 //
 // Describes a 64-bit signed integer variable.
 //
-class COREUOBJECT_API UInt64Property : public TProperty_Numeric<int64>
+class COREUOBJECT_API FInt64Property : public TProperty_Numeric<int64>
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UInt64Property, TProperty_Numeric<int64>, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UInt64Property)
+	DECLARE_FIELD(FInt64Property, TProperty_Numeric<int64>, CASTCLASS_FInt64Property)
 
-	UInt64Property(ECppProperty, int32 InOffset, EPropertyFlags InFlags)
-		: TProperty_Numeric(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
+	FInt64Property(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: TProperty_Numeric(InOwner, InName, InObjectFlags)
 	{
 	}
 
-	UInt64Property( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags )
-	:	TProperty_Numeric( ObjectInitializer, EC_CppProperty, InOffset, InFlags )
+	FInt64Property(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+		: TProperty_Numeric(InOwner, InName, InObjectFlags, InOffset, InFlags)
 	{
 	}
+
+#if WITH_EDITORONLY_DATA
+	explicit FInt64Property(UField* InField)
+		: TProperty_Numeric(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
 };
 
 /*-----------------------------------------------------------------------------
-	UUInt16Property.
+	FUInt16Property.
 -----------------------------------------------------------------------------*/
 
 //
 // Describes a 16-bit unsigned integer variable.
 //
-class COREUOBJECT_API UUInt16Property : public TProperty_Numeric<uint16>
+class COREUOBJECT_API FUInt16Property : public TProperty_Numeric<uint16>
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UUInt16Property, TProperty_Numeric<uint16>, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UUInt16Property)
+	DECLARE_FIELD(FUInt16Property, TProperty_Numeric<uint16>, CASTCLASS_FUInt16Property)
 
-	UUInt16Property(ECppProperty, int32 InOffset, EPropertyFlags InFlags)
-		: TProperty_Numeric(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
+	FUInt16Property(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: TProperty_Numeric(InOwner, InName, InObjectFlags)
 	{
 	}
 
-	UUInt16Property( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags )
-	:	TProperty_Numeric( ObjectInitializer, EC_CppProperty, InOffset, InFlags )
+	FUInt16Property(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+		: TProperty_Numeric(InOwner, InName, InObjectFlags, InOffset, InFlags)
 	{
 	}
+
+#if WITH_EDITORONLY_DATA
+	explicit FUInt16Property(UField* InField)
+		: TProperty_Numeric(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
 };
 
 /*-----------------------------------------------------------------------------
-	UUInt32Property.
+	FUInt32Property.
 -----------------------------------------------------------------------------*/
 
 //
 // Describes a 32-bit unsigned integer variable.
 //
-class COREUOBJECT_API UUInt32Property : public TProperty_Numeric<uint32>
+class COREUOBJECT_API FUInt32Property : public TProperty_Numeric<uint32>
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UUInt32Property, TProperty_Numeric<uint32>, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UUInt32Property)
+	DECLARE_FIELD(FUInt32Property, TProperty_Numeric<uint32>, CASTCLASS_FUInt32Property)
 
-	UUInt32Property( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags )
-	:	TProperty_Numeric( ObjectInitializer, EC_CppProperty, InOffset, InFlags )
+	FUInt32Property(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: TProperty_Numeric(InOwner, InName, InObjectFlags)
 	{
 	}
+
+	FUInt32Property(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+	:	TProperty_Numeric(InOwner, InName, InObjectFlags, InOffset, InFlags)
+	{
+	}
+
+#if WITH_EDITORONLY_DATA
+	explicit FUInt32Property(UField* InField)
+		: TProperty_Numeric(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
 };
 
 /*-----------------------------------------------------------------------------
-	UUInt64Property.
+	FUInt64Property.
 -----------------------------------------------------------------------------*/
 
 //
 // Describes a 64-bit unsigned integer variable.
 //
-class COREUOBJECT_API UUInt64Property : public TProperty_Numeric<uint64>
+class COREUOBJECT_API FUInt64Property : public TProperty_Numeric<uint64>
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UUInt64Property, TProperty_Numeric<uint64>, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UUInt64Property)
+	DECLARE_FIELD(FUInt64Property, TProperty_Numeric<uint64>, CASTCLASS_FUInt64Property)
 
-	UUInt64Property(ECppProperty, int32 InOffset, EPropertyFlags InFlags)
-		: TProperty_Numeric(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
+	FUInt64Property(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: TProperty_Numeric(InOwner, InName, InObjectFlags)
 	{
 	}
 
-	UUInt64Property( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags )
-	:	TProperty_Numeric( ObjectInitializer, EC_CppProperty, InOffset, InFlags )
+	FUInt64Property(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+		: TProperty_Numeric(InOwner, InName, InObjectFlags, InOffset, InFlags)
 	{
 	}
+
+#if WITH_EDITORONLY_DATA
+	explicit FUInt64Property(UField* InField)
+		: TProperty_Numeric(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
 };
 
 
@@ -1674,80 +1773,94 @@ namespace UE4Types_Private
 {
 	template <typename IntType> struct TIntegerPropertyMapping;
 
-	template <> struct TIntegerPropertyMapping<int8>   { typedef UInt8Property   Type; };
-	template <> struct TIntegerPropertyMapping<int16>  { typedef UInt16Property  Type; };
-	template <> struct TIntegerPropertyMapping<int32>  { typedef UIntProperty    Type; };
-	template <> struct TIntegerPropertyMapping<int64>  { typedef UInt64Property  Type; };
-	template <> struct TIntegerPropertyMapping<uint8>  { typedef UByteProperty   Type; };
-	template <> struct TIntegerPropertyMapping<uint16> { typedef UUInt16Property Type; };
-	template <> struct TIntegerPropertyMapping<uint32> { typedef UUInt32Property Type; };
-	template <> struct TIntegerPropertyMapping<uint64> { typedef UUInt64Property Type; };
+	template <> struct TIntegerPropertyMapping<int8>   { typedef FInt8Property   Type; };
+	template <> struct TIntegerPropertyMapping<int16>  { typedef FInt16Property  Type; };
+	template <> struct TIntegerPropertyMapping<int32>  { typedef FIntProperty    Type; };
+	template <> struct TIntegerPropertyMapping<int64>  { typedef FInt64Property  Type; };
+	template <> struct TIntegerPropertyMapping<uint8>  { typedef FByteProperty   Type; };
+	template <> struct TIntegerPropertyMapping<uint16> { typedef FUInt16Property Type; };
+	template <> struct TIntegerPropertyMapping<uint32> { typedef FUInt32Property Type; };
+	template <> struct TIntegerPropertyMapping<uint64> { typedef FUInt64Property Type; };
 }
 
 typedef UE4Types_Private::TIntegerPropertyMapping<signed int>::Type UUnsizedIntProperty;
-typedef UE4Types_Private::TIntegerPropertyMapping<unsigned int>::Type UUnsizedUIntProperty;
+typedef UE4Types_Private::TIntegerPropertyMapping<unsigned int>::Type UUnsizedFIntProperty;
 
 
 /*-----------------------------------------------------------------------------
-	UFloatProperty.
+	FFloatProperty.
 -----------------------------------------------------------------------------*/
 
 //
 // Describes an IEEE 32-bit floating point variable.
 //
-class COREUOBJECT_API UFloatProperty : public TProperty_Numeric<float>
+class COREUOBJECT_API FFloatProperty : public TProperty_Numeric<float>
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UFloatProperty, TProperty_Numeric<float>, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UFloatProperty)
+	DECLARE_FIELD(FFloatProperty, TProperty_Numeric<float>, CASTCLASS_FFloatProperty)
 
-	UFloatProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags)
-		: TProperty_Numeric(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
+	FFloatProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: TProperty_Numeric(InOwner, InName, InObjectFlags)
 	{
 	}
 
-	UFloatProperty( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags )
-		:	TProperty_Numeric( ObjectInitializer, EC_CppProperty, InOffset, InFlags )
+	FFloatProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+		: TProperty_Numeric(InOwner, InName, InObjectFlags, InOffset, InFlags)
 	{
 	}
 
-	// UProperty interface
+#if WITH_EDITORONLY_DATA
+	explicit FFloatProperty(UField* InField)
+		: TProperty_Numeric(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
+
+	// FProperty interface
 	virtual void ExportTextItem(FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const override;
-	// End of UProperty interface
+	// End of FProperty interface
 };
 
 /*-----------------------------------------------------------------------------
-	UDoubleProperty.
+	FDoubleProperty.
 -----------------------------------------------------------------------------*/
 
 //
 // Describes an IEEE 64-bit floating point variable.
 //
-class COREUOBJECT_API UDoubleProperty : public TProperty_Numeric<double>
+class COREUOBJECT_API FDoubleProperty : public TProperty_Numeric<double>
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UDoubleProperty, TProperty_Numeric<double>, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UDoubleProperty)
+	DECLARE_FIELD(FDoubleProperty, TProperty_Numeric<double>, CASTCLASS_FDoubleProperty)
 
-	UDoubleProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags)
-		: TProperty_Numeric(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
+	FDoubleProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: TProperty_Numeric(InOwner, InName, InObjectFlags)
 	{
 	}
 
-	UDoubleProperty(const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags)
-		: TProperty_Numeric(ObjectInitializer, EC_CppProperty, InOffset, InFlags)
+	FDoubleProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+		: TProperty_Numeric(InOwner, InName, InObjectFlags, InOffset, InFlags)
 	{
 	}
+
+#if WITH_EDITORONLY_DATA
+	explicit FDoubleProperty(UField* InField)
+		: TProperty_Numeric(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
 };
 
 
 
 /*-----------------------------------------------------------------------------
-	UBoolProperty.
+	FBoolProperty.
 -----------------------------------------------------------------------------*/
 
 //
 // Describes a single bit flag variable residing in a 32-bit unsigned double word.
 //
-class COREUOBJECT_API UBoolProperty : public UProperty
+class COREUOBJECT_API FBoolProperty : public FProperty
 {
-	DECLARE_CASTED_CLASS_INTRINSIC_NO_CTOR(UBoolProperty, UProperty, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UBoolProperty, NO_API)
+	DECLARE_FIELD(FBoolProperty, FProperty, CASTCLASS_FBoolProperty)
 
 	// Variables.
 private:
@@ -1763,25 +1876,11 @@ private:
 
 public:
 
-	UBoolProperty(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-	
-	/**
-	 * Constructor.
-	 *
-	 * @param ECppProperty Unused.
-	 * @param InOffset Offset of the property.
-	 * @param InCategory Category of the property.
-	 * @param InFlags Property flags.
-	 * @param InBitMask Bitmask of the bitfield this property represents.
-	 * @param InElementSize Sizeof of the boolean type this property represents.
-	 * @param bIsNativeBool true if this property represents C++ bool type.
-	 */
-	UBoolProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags, uint32 InBitMask, uint32 InElementSize, bool bIsNativeBool);
+	FBoolProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags);
 
 	/**
 	 * Constructor.
 	 *
-	 * @param ObjectInitializer Properties.
 	 * @param ECppProperty Unused.
 	 * @param InOffset Offset of the property.
 	 * @param InCategory Category of the property.
@@ -1790,11 +1889,18 @@ public:
 	 * @param InElementSize Sizeof of the boolean type this property represents.
 	 * @param bIsNativeBool true if this property represents C++ bool type.
 	 */
-	UBoolProperty( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, uint32 InBitMask, uint32 InElementSize, bool bIsNativeBool );
+	FBoolProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, uint32 InBitMask, uint32 InElementSize, bool bIsNativeBool);
+
+#if WITH_EDITORONLY_DATA
+	explicit FBoolProperty(UField* InField);
+#endif // WITH_EDITORONLY_DATA
 
 	// UObject interface.
 	virtual void Serialize( FArchive& Ar ) override;
 	// End of UObject interface
+
+	// Field interface
+	virtual void PostDuplicate(const FField& InField) override;
 
 	// UHT interface
 	virtual FString GetCPPType( FString* ExtendedTypeText, uint32 CPPExportFlags ) const override;
@@ -1802,7 +1908,7 @@ public:
 	virtual FString GetCPPTypeForwardDeclaration() const override;
 	// End of UHT interface
 
-	// UProperty interface.
+	// FProperty interface.
 	virtual void LinkInternal(FArchive& Ar) override;
 	virtual bool Identical( const void* A, const void* B, uint32 PortFlags ) const override;
 	virtual void SerializeItem( FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
@@ -1814,7 +1920,7 @@ public:
 	virtual void InitializeValueInternal( void* Dest ) const override;
 	virtual int32 GetMinAlignment() const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
-	// End of UProperty interface
+	// End of FProperty interface
 
 	// Emulate the CPP type API, see TPropertyTypeFundamentals
 	// this is incomplete as some operations make no sense for bitfields, for example they don't have a usable address
@@ -1855,7 +1961,7 @@ public:
 
 	/** 
 	 * Sets the bitfield/bool type and size. 
-	 * This function must be called before UBoolProperty can be used.
+	 * This function must be called before FBoolProperty can be used.
 	 *
 	 * @param InSize size of the bitfield/bool type.
 	 * @param bIsNativeBool true if this property represents C++ bool type.
@@ -1863,7 +1969,7 @@ public:
 	void SetBoolSize( const uint32 InSize, const bool bIsNativeBool = false, const uint32 InBitMask = 0 );
 
 	/**
-	 * If the return value is true this UBoolProperty represents C++ bool type.
+	 * If the return value is true this FBoolProperty represents C++ bool type.
 	 */
 	FORCEINLINE bool IsNativeBool() const
 	{
@@ -1879,36 +1985,45 @@ public:
 };
 
 /*-----------------------------------------------------------------------------
-	UObjectPropertyBase.
+	FObjectPropertyBase.
 -----------------------------------------------------------------------------*/
 
 //
 // Describes a reference variable to another object which may be nil.
 //
-class COREUOBJECT_API UObjectPropertyBase : public UProperty
+class COREUOBJECT_API FObjectPropertyBase : public FProperty
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UObjectPropertyBase, UProperty, CLASS_Abstract, TEXT("/Script/CoreUObject"), CASTCLASS_UObjectPropertyBase)
+	DECLARE_FIELD(FObjectPropertyBase, FProperty, CASTCLASS_FObjectPropertyBase)
+
+public:
 
 	// Variables.
 	class UClass* PropertyClass;
 
-	UObjectPropertyBase(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UClass* InClass = NULL)
-		: UProperty(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
+	FObjectPropertyBase(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: FProperty(InOwner, InName, InObjectFlags)
+		, PropertyClass(nullptr)
+	{}
+
+	FObjectPropertyBase(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UClass* InClass = NULL)
+		: FProperty(InOwner, InName, InObjectFlags, InOffset, InFlags)
 		, PropertyClass(InClass)
 	{}
 
-	UObjectPropertyBase( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, UClass* InClass=NULL )
-	:	UProperty( ObjectInitializer, EC_CppProperty, InOffset, InFlags )
-	,	PropertyClass( InClass )
-	{}
+#if WITH_EDITORONLY_DATA
+	explicit FObjectPropertyBase(UField* InField);
+#endif // WITH_EDITORONLY_DATA
 
 	// UObject interface
 	virtual void Serialize( FArchive& Ar ) override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual void BeginDestroy() override;
 	// End of UObject interface
 
-	// UProperty interface
+	// Field interface
+	virtual void PostDuplicate(const FField& InField) override;
+
+	// FProperty interface
 	virtual bool Identical( const void* A, const void* B, uint32 PortFlags ) const override;
 	virtual bool NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8> * MetaData = NULL ) const override;
 	virtual bool SupportsNetSharedSerialization() const override { return false; }
@@ -1916,15 +2031,15 @@ class COREUOBJECT_API UObjectPropertyBase : public UProperty
 	virtual const TCHAR* ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText ) const override;
 	virtual FName GetID() const override;
 	virtual void InstanceSubobjects( void* Data, void const* DefaultData, UObject* Owner, struct FObjectInstancingGraph* InstanceGraph ) override;
-	virtual bool SameType(const UProperty* Other) const override;
+	virtual bool SameType(const FProperty* Other) const override;
 	/**
 	 * Copy the value for a single element of this property. To the script VM.
 	 * 
 	 * @param	Dest				the address where the value should be copied to.  This should always correspond to the BASE + OFFSET + INDEX * SIZE, where
 	 *									BASE = (for member properties) the address of the UObject which contains this data, (for locals/parameters) the address of the space allocated for the function's locals
-	 *									OFFSET = the Offset of this UProperty
+	 *									OFFSET = the Offset of this FProperty
 	 *									INDEX = the index that you want to copy.  for properties which are not arrays, this should always be 0
-	 *									SIZE = the ElementSize of this UProperty
+	 *									SIZE = the ElementSize of this FProperty
 	 * @param	Src					the address of the value to copy from. should be evaluated the same way as Dest
 	 */
 	virtual void CopySingleValueToScriptVM( void* Dest, void const* Src ) const override;
@@ -1934,7 +2049,7 @@ class COREUOBJECT_API UObjectPropertyBase : public UProperty
 	 * 
 	 * @param	Dest				the address where the value should be copied to.  This should always correspond to the BASE + OFFSET, where
 	 *									BASE = (for member properties) the address of the UObject which contains this data, (for locals/parameters) the address of the space allocated for the function's locals
-	 *									OFFSET = the Offset of this UProperty
+	 *									OFFSET = the Offset of this FProperty
 	 * @param	Src					the address of the value to copy from. should be evaluated the same way as Dest
 	 */
 	virtual void CopyCompleteValueToScriptVM( void* Dest, void const* Src ) const override;
@@ -1944,9 +2059,9 @@ class COREUOBJECT_API UObjectPropertyBase : public UProperty
 	 * 
 	 * @param	Dest				the address where the value should be copied to.  This should always correspond to the BASE + OFFSET + INDEX * SIZE, where
 	 *									BASE = (for member properties) the address of the UObject which contains this data, (for locals/parameters) the address of the space allocated for the function's locals
-	 *									OFFSET = the Offset of this UProperty
+	 *									OFFSET = the Offset of this FProperty
 	 *									INDEX = the index that you want to copy.  for properties which are not arrays, this should always be 0
-	 *									SIZE = the ElementSize of this UProperty
+	 *									SIZE = the ElementSize of this FProperty
 	 * @param	Src					the address of the value to copy from. should be evaluated the same way as Dest
 	 */
 	virtual void CopySingleValueFromScriptVM( void* Dest, void const* Src ) const override;
@@ -1956,16 +2071,16 @@ class COREUOBJECT_API UObjectPropertyBase : public UProperty
 	 * 
 	 * @param	Dest				the address where the value should be copied to.  This should always correspond to the BASE + OFFSET, where
 	 *									BASE = (for member properties) the address of the UObject which contains this data, (for locals/parameters) the address of the space allocated for the function's locals
-	 *									OFFSET = the Offset of this UProperty
+	 *									OFFSET = the Offset of this FProperty
 	 * @param	Src					the address of the value to copy from. should be evaluated the same way as Dest
 	 */
 	virtual void CopyCompleteValueFromScriptVM( void* Dest, void const* Src ) const override;
-	// End of UProperty interface
+	// End of FProperty interface
 
-	// UObjectPropertyBase interface
+	// FObjectPropertyBase interface
 public:
 
-	virtual FString GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& InnerNativeTypeName) const PURE_VIRTUAL(UObjectPropertyBase::GetCPPTypeCustom, return TEXT(""););
+	virtual FString GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& InnerNativeTypeName) const PURE_VIRTUAL(FObjectPropertyBase::GetCPPTypeCustom, return TEXT(""););
 
 	/**
 	 * Parses a text buffer into an object reference.
@@ -1981,8 +2096,8 @@ public:
 	 * @param InSerializeContext	Additional context when called during serialization
 	 * @return	true if the text is successfully resolved into a valid object reference of the correct type, false otherwise.
 	 */
-	static bool ParseObjectPropertyValue( const UProperty* Property, UObject* OwnerObject, UClass* RequiredMetaClass, uint32 PortFlags, const TCHAR*& Buffer, UObject*& out_ResolvedValue, FUObjectSerializeContext* InSerializeContext = nullptr );
-	static UObject* FindImportedObject( const UProperty* Property, UObject* OwnerObject, UClass* ObjectClass, UClass* RequiredMetaClass, const TCHAR* Text, uint32 PortFlags = 0, FUObjectSerializeContext* InSerializeContext = nullptr);
+	static bool ParseObjectPropertyValue( const FProperty* Property, UObject* OwnerObject, UClass* RequiredMetaClass, uint32 PortFlags, const TCHAR*& Buffer, UObject*& out_ResolvedValue, FUObjectSerializeContext* InSerializeContext = nullptr );
+	static UObject* FindImportedObject( const FProperty* Property, UObject* OwnerObject, UClass* ObjectClass, UClass* RequiredMetaClass, const TCHAR* Text, uint32 PortFlags = 0, FUObjectSerializeContext* InSerializeContext = nullptr);
 	
 	// Returns the qualified export path for a given object, parent, and export root scope
 	static FString GetExportPath(const UObject* Object, const UObject* Parent, const UObject* ExportRootScope, const uint32 PortFlags);
@@ -2025,39 +2140,44 @@ protected:
 	virtual bool AllowCrossLevel() const;
 
 	virtual void CheckValidObject(void* Value) const;
-	// End of UObjectPropertyBase interface
+	// End of FObjectPropertyBase interface
 };
 
 template<typename InTCppType>
-class COREUOBJECT_API TUObjectPropertyBase : public TProperty<InTCppType, UObjectPropertyBase>
+class COREUOBJECT_API TFObjectPropertyBase : public TProperty<InTCppType, FObjectPropertyBase>
 {
 public:
-	typedef TProperty<InTCppType, UObjectPropertyBase> Super;
+	typedef TProperty<InTCppType, FObjectPropertyBase> Super;
 	typedef InTCppType TCppType;
 	typedef typename Super::TTypeFundamentals TTypeFundamentals;
 
-	TUObjectPropertyBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get())
-		: Super(ObjectInitializer)
+	TFObjectPropertyBase(EInternal InInernal, FFieldClass* InClass)
+		: Super(EC_InternalUseOnlyConstructor, InClass)
 	{
 	}
 
-	TUObjectPropertyBase(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UClass* InClass)
-		: Super(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
+	TFObjectPropertyBase(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: Super(InOwner, InName, InObjectFlags)
+	{
+		this->PropertyClass = nullptr;
+	}
+
+
+	TFObjectPropertyBase(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UClass* InClass)
+		: Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
 	{
 		this->PropertyClass = InClass;
 	}
 
-	TUObjectPropertyBase( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, UClass* InClass )
-		:	Super( ObjectInitializer, EC_CppProperty, InOffset, InFlags)
+#if WITH_EDITORONLY_DATA
+	explicit TFObjectPropertyBase(UField* InField)
+		: Super(InField)
 	{
-		this->PropertyClass = InClass;
 	}
+#endif // WITH_EDITORONLY_DATA
 
-	/** DO NOT USE. This constructor is for internal usage only for hot-reload purposes. */
-	TUObjectPropertyBase(FVTableHelper& Helper) : Super(Helper) {};
-
-	// UProperty interface.
-	virtual bool ContainsObjectReference(TArray<const UStructProperty*>& EncounteredStructProps) const override
+	// FProperty interface.
+	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps) const override
 	{
 		return !TIsWeakPointerType<InTCppType>::Value;
 	}
@@ -2065,7 +2185,7 @@ public:
 	{
 		return TIsWeakPointerType<InTCppType>::Value;
 	}
-	// End of UProperty interface
+	// End of FProperty interface
 
 	// TProperty::GetCPPType should not be used here
 	virtual FString GetCPPType(FString* ExtendedTypeText, uint32 CPPExportFlags) const override
@@ -2080,135 +2200,163 @@ public:
 //
 // Describes a reference variable to another object which may be nil.
 //
-class COREUOBJECT_API UObjectProperty : public TUObjectPropertyBase<UObject*>
+class COREUOBJECT_API FObjectProperty : public TFObjectPropertyBase<UObject*>
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UObjectProperty, TUObjectPropertyBase<UObject*>, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UObjectProperty)
+	DECLARE_FIELD(FObjectProperty, TFObjectPropertyBase<UObject*>, CASTCLASS_FObjectProperty)
 
-	UObjectProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UClass* InClass)
-		: TUObjectPropertyBase(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags, InClass)
+	FObjectProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: TFObjectPropertyBase(InOwner, InName, InObjectFlags)
 	{
 	}
 
-	UObjectProperty( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, UClass* InClass )
-		: TUObjectPropertyBase(ObjectInitializer, EC_CppProperty, InOffset, InFlags, InClass)
+	FObjectProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UClass* InClass)
+		: TFObjectPropertyBase(InOwner, InName, InObjectFlags, InOffset, InFlags, InClass)
 	{
 	}
+
+#if WITH_EDITORONLY_DATA
+	explicit FObjectProperty(UField* InField)
+		: TFObjectPropertyBase(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
 
 	// UHT interface
 	virtual FString GetCPPMacroType( FString& ExtendedTypeText ) const  override;
 	virtual FString GetCPPTypeForwardDeclaration() const override;
 	// End of UHT interface
 
-	// UProperty interface
+	// FProperty interface
 	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
-	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const UStructProperty*>& EncounteredStructProps) override;
+	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps) override;
 	virtual const TCHAR* ImportText_Internal(const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
 
 private:
 	virtual uint32 GetValueTypeHashInternal(const void* Src) const override;
 public:
-	// End of UProperty interface
+	// End of FProperty interface
 
-	// UObjectPropertyBase interface
+	// FObjectPropertyBase interface
 	virtual UObject* GetObjectPropertyValue(const void* PropertyValueAddress) const override;
 	virtual void SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const override;
 	virtual FString GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& InnerNativeTypeName)  const override;
-	// End of UObjectPropertyBase interface
+	// End of FObjectPropertyBase interface
 };
 
 //
 // Describes a reference variable to another object which may be nil, and may turn nil at any point
 //
-class COREUOBJECT_API UWeakObjectProperty : public TUObjectPropertyBase<FWeakObjectPtr>
+class COREUOBJECT_API FWeakObjectProperty : public TFObjectPropertyBase<FWeakObjectPtr>
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UWeakObjectProperty, TUObjectPropertyBase<FWeakObjectPtr>, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UWeakObjectProperty)
+	DECLARE_FIELD(FWeakObjectProperty, TFObjectPropertyBase<FWeakObjectPtr>, CASTCLASS_FWeakObjectProperty)
 
-	UWeakObjectProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UClass* InClass)
-		: TUObjectPropertyBase(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags, InClass)
+	FWeakObjectProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: TFObjectPropertyBase(InOwner, InName, InObjectFlags)
 	{
 	}
 
-	UWeakObjectProperty( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, UClass* InClass )
-	:	TUObjectPropertyBase( ObjectInitializer, EC_CppProperty, InOffset, InFlags, InClass )
+	FWeakObjectProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UClass* InClass)
+		: TFObjectPropertyBase(InOwner, InName, InObjectFlags, InOffset, InFlags, InClass)
 	{
 	}
 	
+#if WITH_EDITORONLY_DATA
+	explicit FWeakObjectProperty(UField* InField)
+		: TFObjectPropertyBase(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
+
 	// UHT interface
 	virtual FString GetCPPMacroType( FString& ExtendedTypeText ) const  override;
 	virtual FString GetCPPType( FString* ExtendedTypeText, uint32 CPPExportFlags ) const override;
 	virtual FString GetCPPTypeForwardDeclaration() const override;
 	// End of UHT interface
 
-	// UProperty interface
+	// FProperty interface
 	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
-	// End of UProperty interface
+	// End of FProperty interface
 
-	// UObjectProperty interface
+	// FObjectProperty interface
 	virtual UObject* GetObjectPropertyValue(const void* PropertyValueAddress) const override;
 	virtual void SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const override;
-	// End of UObjectProperty interface
+	// End of FObjectProperty interface
 };
 
 //
 // Describes a reference variable to another object which may be nil, and will become valid or invalid at any point
 //
-class COREUOBJECT_API ULazyObjectProperty : public TUObjectPropertyBase<FLazyObjectPtr>
+class COREUOBJECT_API FLazyObjectProperty : public TFObjectPropertyBase<FLazyObjectPtr>
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(ULazyObjectProperty, TUObjectPropertyBase<FLazyObjectPtr>, 0, TEXT("/Script/CoreUObject"), CASTCLASS_ULazyObjectProperty)
+	DECLARE_FIELD(FLazyObjectProperty, TFObjectPropertyBase<FLazyObjectPtr>, CASTCLASS_FLazyObjectProperty)
 
-	ULazyObjectProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UClass* InClass)
-		: TUObjectPropertyBase(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags, InClass)
+	FLazyObjectProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: TFObjectPropertyBase(InOwner, InName, InObjectFlags)
 	{
 	}
 
-	ULazyObjectProperty( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, UClass* InClass )
-		: TUObjectPropertyBase(ObjectInitializer, EC_CppProperty, InOffset, InFlags, InClass)
+	FLazyObjectProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UClass* InClass)
+		: TFObjectPropertyBase(InOwner, InName, InObjectFlags, InOffset, InFlags, InClass)
 	{
 	}
+
+#if WITH_EDITORONLY_DATA
+	explicit FLazyObjectProperty(UField* InField)
+		: TFObjectPropertyBase(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
 
 	// UHT interface
 	virtual FString GetCPPMacroType( FString& ExtendedTypeText ) const  override;
 	virtual FString GetCPPType( FString* ExtendedTypeText, uint32 CPPExportFlags ) const override;
 	// End of UHT interface
 
-	// UProperty interface
+	// FProperty interface
 	virtual FName GetID() const override;
 	virtual bool Identical( const void* A, const void* B, uint32 PortFlags ) const override;
 	virtual void SerializeItem( FStructuredArchive::FSlot Slot, void* Value, void const* Defaults ) const override;
-	// End of UProperty interface
+	// End of FProperty interface
 
-	// UObjectProperty interface
+	// FObjectProperty interface
 	virtual UObject* GetObjectPropertyValue(const void* PropertyValueAddress) const override;
 	virtual void SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const override;
 	virtual bool AllowCrossLevel() const override;
 private:
 	virtual uint32 GetValueTypeHashInternal(const void* Src) const override;
 public:
-	// End of UObjectProperty interface
+	// End of FObjectProperty interface
 };
 
 //
 // Describes a reference variable to another object which may be nil, and will become valid or invalid at any point
 //
-class COREUOBJECT_API USoftObjectProperty : public TUObjectPropertyBase<FSoftObjectPtr>
+class COREUOBJECT_API FSoftObjectProperty : public TFObjectPropertyBase<FSoftObjectPtr>
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(USoftObjectProperty, TUObjectPropertyBase<FSoftObjectPtr>, 0, TEXT("/Script/CoreUObject"), CASTCLASS_USoftObjectProperty)
+	DECLARE_FIELD(FSoftObjectProperty, TFObjectPropertyBase<FSoftObjectPtr>, CASTCLASS_FSoftObjectProperty)
 
-	USoftObjectProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UClass* InClass)
-		: TUObjectPropertyBase(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags, InClass)
+	FSoftObjectProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: TFObjectPropertyBase(InOwner, InName, InObjectFlags)
 	{}
 
-	USoftObjectProperty( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, UClass* InClass )
-		: TUObjectPropertyBase(ObjectInitializer, EC_CppProperty, InOffset, InFlags, InClass)
+	FSoftObjectProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UClass* InClass)
+		: TFObjectPropertyBase(InOwner, InName, InObjectFlags, InOffset, InFlags, InClass)
 	{}
+
+#if WITH_EDITORONLY_DATA
+	explicit FSoftObjectProperty(UField* InField)
+		: TFObjectPropertyBase(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
 
 	// UHT interface
 	virtual FString GetCPPMacroType( FString& ExtendedTypeText ) const  override;
 	virtual FString GetCPPTypeForwardDeclaration() const override;
 	// End of UHT interface
 
-	// UProperty interface
+	// FProperty interface
 	virtual FName GetID() const override;
 	virtual bool Identical( const void* A, const void* B, uint32 PortFlags ) const override;
 	virtual void SerializeItem( FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
@@ -2216,9 +2364,9 @@ class COREUOBJECT_API USoftObjectProperty : public TUObjectPropertyBase<FSoftObj
 	virtual void ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const override;
 	virtual const TCHAR* ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText ) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
-	// End of UProperty interface
+	// End of FProperty interface
 
-	// UObjectProperty interface
+	// FObjectProperty interface
 	virtual UObject* LoadObjectPropertyValue(const void* PropertyValueAddress) const override;
 	virtual UObject* GetObjectPropertyValue(const void* PropertyValueAddress) const override;
 	virtual void SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const override;
@@ -2247,40 +2395,48 @@ public:
 	virtual void CopyCompleteValueToScriptVM(void* Dest, void const* Src) const override;
 	virtual void CopySingleValueFromScriptVM(void* Dest, void const* Src) const override;
 	virtual void CopyCompleteValueFromScriptVM(void* Dest, void const* Src) const override;
-	// End of UObjectProperty interface
+	// End of FObjectProperty interface
 };
 
 /*-----------------------------------------------------------------------------
-	UClassProperty.
+	FClassProperty.
 -----------------------------------------------------------------------------*/
 
 //
 // Describes a reference variable to another object which may be nil.
 //
-class COREUOBJECT_API UClassProperty : public UObjectProperty
+class COREUOBJECT_API FClassProperty : public FObjectProperty
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UClassProperty, UObjectProperty, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UClassProperty)
+	DECLARE_FIELD(FClassProperty, FObjectProperty, CASTCLASS_FClassProperty)
 
 	// Variables.
 	class UClass* MetaClass;
 public:
-	UClassProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UClass* InMetaClass, UClass* InClassType)
-		: UObjectProperty(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags, InClassType ? InClassType : UClass::StaticClass())
+
+	FClassProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: FObjectProperty(InOwner, InName, InObjectFlags)
+		, MetaClass(nullptr)
+	{
+	}
+
+	FClassProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UClass* InMetaClass, UClass* InClassType)
+		: FObjectProperty(InOwner, InName, InObjectFlags, InOffset, InFlags, InClassType ? InClassType : UClass::StaticClass())
 		, MetaClass(InMetaClass)
 	{
 	}
 
-	UClassProperty(const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, UClass* InMetaClass, UClass* InClassType)
-		: UObjectProperty(ObjectInitializer, EC_CppProperty, InOffset, InFlags, InClassType ? InClassType : UClass::StaticClass())
-	,	MetaClass( InMetaClass )
-	{
-	}
+#if WITH_EDITORONLY_DATA
+	explicit FClassProperty(UField* InField);
+#endif // WITH_EDITORONLY_DATA
 
 	// UObject interface
 	virtual void Serialize( FArchive& Ar ) override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual void BeginDestroy() override;
 	// End of UObject interface
+
+	// Field Interface
+	virtual void PostDuplicate(const FField& InField) override;
 
 	// UHT interface
 	virtual FString GetCPPType(FString* ExtendedTypeText, uint32 CPPExportFlags)  const override;
@@ -2288,11 +2444,11 @@ public:
 	virtual FString GetCPPTypeForwardDeclaration() const override;
 	// End of UHT interface
 
-	// UProperty interface
+	// FProperty interface
 	virtual const TCHAR* ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText ) const override;
-	virtual bool SameType(const UProperty* Other) const override;
+	virtual bool SameType(const FProperty* Other) const override;
 	virtual bool Identical( const void* A, const void* B, uint32 PortFlags ) const override;
-	// End of UProperty interface
+	// End of FProperty interface
 
 	virtual FString GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& InnerNativeTypeName)  const override;
 
@@ -2313,28 +2469,33 @@ public:
 };
 
 /*-----------------------------------------------------------------------------
-	USoftClassProperty.
+	FSoftClassProperty.
 -----------------------------------------------------------------------------*/
 
 //
 // Describes a reference variable to another class which may be nil, and will become valid or invalid at any point
 //
-class COREUOBJECT_API USoftClassProperty : public USoftObjectProperty
+class COREUOBJECT_API FSoftClassProperty : public FSoftObjectProperty
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(USoftClassProperty, USoftObjectProperty, 0, TEXT("/Script/CoreUObject"), CASTCLASS_USoftClassProperty)
+	DECLARE_FIELD(FSoftClassProperty, FSoftObjectProperty, CASTCLASS_FSoftClassProperty)
 
 	// Variables.
 	class UClass* MetaClass;
 public:
-	USoftClassProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UClass* InMetaClass)
-		: Super(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags, UClass::StaticClass())
+
+	FSoftClassProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: Super(InOwner, InName, InObjectFlags)
+		, MetaClass(nullptr)
+	{}
+
+	FSoftClassProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UClass* InMetaClass)
+		: Super(InOwner, InName, InObjectFlags, InOffset, InFlags, UClass::StaticClass())
 		, MetaClass(InMetaClass)
 	{}
 
-	USoftClassProperty( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, UClass* InMetaClass )
-		:	Super(ObjectInitializer, EC_CppProperty, InOffset, InFlags, UClass::StaticClass() )
-		,	MetaClass( InMetaClass )
-	{}
+#if WITH_EDITORONLY_DATA
+	explicit FSoftClassProperty(UField* InField);
+#endif // WITH_EDITORONLY_DATA
 
 	// UHT interface
 	virtual FString GetCPPType(FString* ExtendedTypeText, uint32 CPPExportFlags) const override;
@@ -2342,15 +2503,18 @@ public:
 	virtual FString GetCPPTypeForwardDeclaration() const override;
 	// End of UHT interface
 
+	// Field Interface
+	virtual void PostDuplicate(const FField& InField) override;
+
 	// UObject interface
 	virtual void Serialize( FArchive& Ar ) override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual void BeginDestroy() override;
 	// End of UObject interface
 
-	// UProperty interface
-	virtual bool SameType(const UProperty* Other) const override;
-	// End of UProperty interface
+	// FProperty interface
+	virtual bool SameType(const FProperty* Other) const override;
+	// End of FProperty interface
 
 	virtual FString GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& InnerNativeTypeName)  const override;
 
@@ -2371,7 +2535,7 @@ public:
 };
 
 /*-----------------------------------------------------------------------------
-	UInterfaceProperty.
+	FInterfaceProperty.
 -----------------------------------------------------------------------------*/
 
 /**
@@ -2380,29 +2544,33 @@ public:
  */
 
 // need to break this out a different type so that the DECLARE_CASTED_CLASS_INTRINSIC macro can digest the comma
-typedef TProperty<FScriptInterface, UProperty> UInterfaceProperty_Super;
+typedef TProperty<FScriptInterface, FProperty> FInterfaceProperty_Super;
 
-class COREUOBJECT_API UInterfaceProperty : public UInterfaceProperty_Super
+class COREUOBJECT_API FInterfaceProperty : public FInterfaceProperty_Super
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UInterfaceProperty, UInterfaceProperty_Super, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UInterfaceProperty)
+	DECLARE_FIELD(FInterfaceProperty, FInterfaceProperty_Super, CASTCLASS_FInterfaceProperty)
 
 	/** The native interface class that this interface property refers to */
 	class	UClass*		InterfaceClass;
 public:
-	typedef UInterfaceProperty_Super::TTypeFundamentals TTypeFundamentals;
+	typedef FInterfaceProperty_Super::TTypeFundamentals TTypeFundamentals;
 	typedef TTypeFundamentals::TCppType TCppType;
 
-	UInterfaceProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UClass* InInterfaceClass)
-		: UInterfaceProperty_Super(FObjectInitializer::Get(), EC_CppProperty, InOffset, (InFlags & ~CPF_InterfaceClearMask))
+	FInterfaceProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: FInterfaceProperty_Super(InOwner, InName, InObjectFlags)
+		, InterfaceClass(nullptr)
+	{
+	}
+
+	FInterfaceProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UClass* InInterfaceClass)
+		: FInterfaceProperty_Super(InOwner, InName, InObjectFlags, InOffset, (InFlags & ~CPF_InterfaceClearMask))
 		, InterfaceClass(InInterfaceClass)
 	{
 	}
 
-	UInterfaceProperty( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, UClass* InInterfaceClass )
-		:	UInterfaceProperty_Super( ObjectInitializer, EC_CppProperty, InOffset, (InFlags & ~CPF_InterfaceClearMask) )
-		,	InterfaceClass( InInterfaceClass )
-	{
-	}
+#if WITH_EDITORONLY_DATA
+	explicit FInterfaceProperty(UField* InField);
+#endif // WITH_EDITORONLY_DATA
 
 	// UHT interface
 	virtual FString GetCPPMacroType( FString& ExtendedTypeText ) const  override;
@@ -2410,22 +2578,25 @@ public:
 	virtual FString GetCPPTypeForwardDeclaration() const override;
 	// End of UHT interface
 
-	// UProperty interface
+	// Field interface
+	virtual void PostDuplicate(const FField& InField) override;
+
+	// FProperty interface
 	virtual void LinkInternal(FArchive& Ar) override;
 	virtual bool Identical( const void* A, const void* B, uint32 PortFlags ) const override;
 	virtual void SerializeItem( FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
 	virtual bool NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8> * MetaData = NULL ) const override;
 	virtual void ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const override;
 	virtual const TCHAR* ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText ) const override;
-	virtual bool ContainsObjectReference(TArray<const UStructProperty*>& EncounteredStructProps) const override;
-	virtual bool SameType(const UProperty* Other) const override;
-	// End of UProperty interface
+	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps) const override;
+	virtual bool SameType(const FProperty* Other) const override;
+	// End of FProperty interface
 
 	// UObject interface
 	virtual void Serialize( FArchive& Ar ) override;
-	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const UStructProperty*>& EncounteredStructProps) override;
+	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps) override;
 	virtual void BeginDestroy() override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	// End of UObject interface
 
 	/**
@@ -2445,7 +2616,7 @@ public:
 };
 
 /*-----------------------------------------------------------------------------
-	UNameProperty.
+	FNameProperty.
 -----------------------------------------------------------------------------*/
 
 //
@@ -2453,36 +2624,43 @@ public:
 //
 
 // need to break this out a different type so that the DECLARE_CASTED_CLASS_INTRINSIC macro can digest the comma
-typedef TProperty_WithEqualityAndSerializer<FName, UProperty> UNameProperty_Super;
+typedef TProperty_WithEqualityAndSerializer<FName, FProperty> FNameProperty_Super;
 
-class COREUOBJECT_API UNameProperty : public UNameProperty_Super
+class COREUOBJECT_API FNameProperty : public FNameProperty_Super
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UNameProperty, UNameProperty_Super, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UNameProperty)
+	DECLARE_FIELD(FNameProperty, FNameProperty_Super, CASTCLASS_FNameProperty)
 public:
-	typedef UNameProperty_Super::TTypeFundamentals TTypeFundamentals;
+	typedef FNameProperty_Super::TTypeFundamentals TTypeFundamentals;
 	typedef TTypeFundamentals::TCppType TCppType;
 
-	UNameProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags)
-		: UNameProperty_Super(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
+	FNameProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: FNameProperty_Super(InOwner, InName, InObjectFlags)
 	{
 	}
 
-	UNameProperty( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags )
-	:	UNameProperty_Super( ObjectInitializer, EC_CppProperty, InOffset, InFlags )
+	FNameProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+		: FNameProperty_Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
 	{
 	}
 
-	// UProperty interface
+#if WITH_EDITORONLY_DATA
+	explicit FNameProperty(UField* InField)
+		: FNameProperty_Super(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
+
+	// FProperty interface
 	virtual void ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const override;
 	virtual const TCHAR* ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText ) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
 	virtual FString GetCPPTypeForwardDeclaration() const override;
 	uint32 GetValueTypeHashInternal(const void* Src) const override;
-	// End of UProperty interface
+	// End of FProperty interface
 };
 
 /*-----------------------------------------------------------------------------
-	UStrProperty.
+	FStrProperty.
 -----------------------------------------------------------------------------*/
 
 //
@@ -2490,39 +2668,46 @@ public:
 //
 
 // need to break this out a different type so that the DECLARE_CASTED_CLASS_INTRINSIC macro can digest the comma
-typedef TProperty_WithEqualityAndSerializer<FString, UProperty> UStrProperty_Super;
+typedef TProperty_WithEqualityAndSerializer<FString, FProperty> FStrProperty_Super;
 
-class COREUOBJECT_API UStrProperty : public UStrProperty_Super
+class COREUOBJECT_API FStrProperty : public FStrProperty_Super
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UStrProperty, UStrProperty_Super, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UStrProperty)
+	DECLARE_FIELD(FStrProperty, FStrProperty_Super, CASTCLASS_FStrProperty)
 public:
-	typedef UStrProperty_Super::TTypeFundamentals TTypeFundamentals;
+	typedef FStrProperty_Super::TTypeFundamentals TTypeFundamentals;
 	typedef TTypeFundamentals::TCppType TCppType;
 
-	UStrProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags)
-		: UStrProperty_Super(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
+	FStrProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: FStrProperty_Super(InOwner, InName, InObjectFlags)
 	{
 	}
 
-	UStrProperty( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags )
-	:	UStrProperty_Super( ObjectInitializer, EC_CppProperty, InOffset, InFlags)
+	FStrProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+		: FStrProperty_Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
 	{
 	}
 
-	// UProperty interface
+#if WITH_EDITORONLY_DATA
+	explicit FStrProperty(UField* InField)
+		: FStrProperty_Super(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
+
+	// FProperty interface
 	virtual void ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const override;
 	virtual const TCHAR* ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText ) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
 	virtual FString GetCPPTypeForwardDeclaration() const override;
 	uint32 GetValueTypeHashInternal(const void* Src) const override;
-	// End of UProperty interface
+	// End of FProperty interface
 
 	// Necessary to fix Compiler Error C2026
 	static FString ExportCppHardcodedText(const FString& InSource, const FString& Indent);
 };
 
 /*-----------------------------------------------------------------------------
-	UArrayProperty.
+	FArrayProperty.
 -----------------------------------------------------------------------------*/
 
 //
@@ -2530,41 +2715,54 @@ public:
 //
 
 // need to break this out a different type so that the DECLARE_CASTED_CLASS_INTRINSIC macro can digest the comma
-typedef TProperty<FScriptArray, UProperty> UArrayProperty_Super;
+typedef TProperty<FScriptArray, FProperty> FArrayProperty_Super;
 class FScriptArrayHelper;
 
-class COREUOBJECT_API UArrayProperty : public UArrayProperty_Super
+class COREUOBJECT_API FArrayProperty : public FArrayProperty_Super
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UArrayProperty, UArrayProperty_Super, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UArrayProperty)
+	DECLARE_FIELD(FArrayProperty, FArrayProperty_Super, CASTCLASS_FArrayProperty)
 
 	// Variables.
-	UProperty* Inner;
+	FProperty* Inner;
 
 public:
-	typedef UArrayProperty_Super::TTypeFundamentals TTypeFundamentals;
+	typedef FArrayProperty_Super::TTypeFundamentals TTypeFundamentals;
 	typedef TTypeFundamentals::TCppType TCppType;
 
-	UArrayProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags)
-		: UArrayProperty_Super(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
+	FArrayProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: FArrayProperty_Super(InOwner, InName, InObjectFlags)
+		, Inner(nullptr)
 	{
 	}
 
-	UArrayProperty( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags )
-	:	UArrayProperty_Super( ObjectInitializer, EC_CppProperty, InOffset, InFlags)
+	FArrayProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+		: FArrayProperty_Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
+		, Inner(nullptr)
 	{
 	}
+
+	virtual ~FArrayProperty();
+
+#if WITH_EDITORONLY_DATA
+	explicit FArrayProperty(UField* InField);
+#endif // WITH_EDITORONLY_DATA
 
 	// UObject interface
 	virtual void Serialize( FArchive& Ar ) override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
 	// End of UObject interface
 
+	// Field interface
+	virtual void PostDuplicate(const FField& InField) override;
+
 	// UField interface
-	virtual void AddCppProperty( UProperty* Property ) override;
+	virtual void AddCppProperty(FProperty* Property) override;
+	virtual FField* GetInnerFieldByName(const FName& InName) override;
+
 	// End of UField interface
 
-	// UProperty interface
+	// FProperty interface
 	virtual FString GetCPPMacroType( FString& ExtendedTypeText ) const  override;
 	virtual FString GetCPPType( FString* ExtendedTypeText, uint32 CPPExportFlags ) const override;
 	virtual FString GetCPPTypeForwardDeclaration() const override;
@@ -2579,51 +2777,62 @@ public:
 	virtual void DestroyValueInternal( void* Dest ) const override;
 	virtual bool PassCPPArgsByRef() const override;
 	virtual void InstanceSubobjects( void* Data, void const* DefaultData, UObject* Owner, struct FObjectInstancingGraph* InstanceGraph ) override;
-	virtual bool ContainsObjectReference(TArray<const UStructProperty*>& EncounteredStructProps) const override;
+	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps) const override;
 	virtual bool ContainsWeakObjectReference() const override;
-	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const UStructProperty*>& EncounteredStructProps) override;
-	virtual bool SameType(const UProperty* Other) const override;
+	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps) override;
+	virtual bool SameType(const FProperty* Other) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
-	// End of UProperty interface
+	// End of FProperty interface
 
 	FString GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& InnerTypeText, const FString& InInnerExtendedTypeText) const;
 
 	/** Called by ExportTextItem, but can also be used by a non-ArrayProperty whose ArrayDim is > 1. */
-	static void ExportTextInnerItem(FString& ValueStr, UProperty* Inner, const void* PropertyValue, int32 PropertySize, const void* DefaultValue, int32 DefaultSize, UObject* Parent = nullptr, int32 PortFlags = 0, UObject* ExportRootScope = nullptr);
+	static void ExportTextInnerItem(FString& ValueStr, FProperty* Inner, const void* PropertyValue, int32 PropertySize, const void* DefaultValue, int32 DefaultSize, UObject* Parent = nullptr, int32 PortFlags = 0, UObject* ExportRootScope = nullptr);
 
 	/** Called by ImportTextItem, but can also be used by a non-ArrayProperty whose ArrayDim is > 1. ArrayHelper should be supplied by ArrayProperties and nullptr for fixed-size arrays. */
-	static const TCHAR* ImportTextInnerItem(const TCHAR* Buffer, UProperty* Inner, void* Data, int32 PortFlags, UObject* OwnerObject, FScriptArrayHelper* ArrayHelper = nullptr, FOutputDevice* ErrorText = (FOutputDevice*)GWarn);
+	static const TCHAR* ImportTextInnerItem(const TCHAR* Buffer, FProperty* Inner, void* Data, int32 PortFlags, UObject* OwnerObject, FScriptArrayHelper* ArrayHelper = nullptr, FOutputDevice* ErrorText = (FOutputDevice*)GWarn);
 };
 
 // need to break this out a different type so that the DECLARE_CASTED_CLASS_INTRINSIC macro can digest the comma
-typedef TProperty<FScriptMap, UProperty> UMapProperty_Super;
+typedef TProperty<FScriptMap, FProperty> FMapProperty_Super;
 
-class COREUOBJECT_API UMapProperty : public UMapProperty_Super
+class COREUOBJECT_API FMapProperty : public FMapProperty_Super
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UMapProperty, UMapProperty_Super, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UMapProperty)
+	DECLARE_FIELD(FMapProperty, FMapProperty_Super, CASTCLASS_FMapProperty)
 
 	// Properties representing the key type and value type of the contained pairs
-	UProperty*       KeyProp;
-	UProperty*       ValueProp;
+	FProperty*       KeyProp;
+	FProperty*       ValueProp;
 	FScriptMapLayout MapLayout;
 
 public:
-	typedef UMapProperty_Super::TTypeFundamentals TTypeFundamentals;
+	typedef FMapProperty_Super::TTypeFundamentals TTypeFundamentals;
 	typedef TTypeFundamentals::TCppType TCppType;
 
-	UMapProperty(const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags);
+	FMapProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags);
+	FMapProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags);
+
+#if WITH_EDITORONLY_DATA
+	explicit FMapProperty(UField* InField);
+#endif // WITH_EDITORONLY_DATA
+
+	virtual ~FMapProperty();
 
 	// UObject interface
 	virtual void Serialize(FArchive& Ar) override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
 	// End of UObject interface
 
+	// Field Interface
+	virtual void PostDuplicate(const FField& InField) override;
+	virtual FField* GetInnerFieldByName(const FName& InName) override;
+	 
 	// UField interface
-	virtual void AddCppProperty(UProperty* Property) override;
+	virtual void AddCppProperty(FProperty* Property) override;
 	// End of UField interface
 
-	// UProperty interface
+	// FProperty interface
 	virtual FString GetCPPMacroType(FString& ExtendedTypeText) const  override;
 	virtual FString GetCPPType(FString* ExtendedTypeText, uint32 CPPExportFlags) const override;
 	virtual FString GetCPPTypeForwardDeclaration() const override;
@@ -2638,44 +2847,55 @@ public:
 	virtual void DestroyValueInternal(void* Dest) const override;
 	virtual bool PassCPPArgsByRef() const override;
 	virtual void InstanceSubobjects(void* Data, void const* DefaultData, UObject* Owner, struct FObjectInstancingGraph* InstanceGraph) override;
-	virtual bool ContainsObjectReference(TArray<const UStructProperty*>& EncounteredStructProps) const override;
+	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps) const override;
 	virtual bool ContainsWeakObjectReference() const override;
-	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const UStructProperty*>& EncounteredStructProps) override;
-	virtual bool SameType(const UProperty* Other) const override;
+	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps) override;
+	virtual bool SameType(const FProperty* Other) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
-	// End of UProperty interface
+	// End of FProperty interface
 
 	FString GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& KeyTypeText, const FString& InKeyExtendedTypeText, const FString& ValueTypeText, const FString& InValueExtendedTypeText) const;
 };
 
 // need to break this out a different type so that the DECLARE_CASTED_CLASS_INTRINSIC macro can digest the comma
-typedef TProperty<FScriptSet, UProperty> USetProperty_Super;
+typedef TProperty<FScriptSet, FProperty> FSetProperty_Super;
 
-class COREUOBJECT_API USetProperty : public USetProperty_Super
+class COREUOBJECT_API FSetProperty : public FSetProperty_Super
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(USetProperty, USetProperty_Super, 0, TEXT("/Script/CoreUObject"), CASTCLASS_USetProperty)
+	DECLARE_FIELD(FSetProperty, FSetProperty_Super, CASTCLASS_FSetProperty)
 
 	// Properties representing the key type and value type of the contained pairs
-	UProperty*       ElementProp;
+	FProperty*       ElementProp;
 	FScriptSetLayout SetLayout;
 
 public:
-	typedef USetProperty_Super::TTypeFundamentals TTypeFundamentals;
+	typedef FSetProperty_Super::TTypeFundamentals TTypeFundamentals;
 	typedef TTypeFundamentals::TCppType TCppType;
 
-	USetProperty(const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags);
+	FSetProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags);
+	FSetProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags);
+
+#if WITH_EDITORONLY_DATA
+	explicit FSetProperty(UField* InField);
+#endif // WITH_EDITORONLY_DATA
+
+	virtual ~FSetProperty();
 
 	// UObject interface
 	virtual void Serialize(FArchive& Ar) override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
 	// End of UObject interface
 
+	// Field interface
+	virtual void PostDuplicate(const FField& InField) override;
+	virtual FField* GetInnerFieldByName(const FName& InName) override;
+
 	// UField interface
-	virtual void AddCppProperty(UProperty* Property) override;
+	virtual void AddCppProperty(FProperty* Property) override;
 	// End of UField interface
 
-	// UProperty interface
+	// FProperty interface
 	virtual FString GetCPPMacroType(FString& ExtendedTypeText) const  override;
 	virtual FString GetCPPType(FString* ExtendedTypeText, uint32 CPPExportFlags) const override;
 	virtual FString GetCPPTypeForwardDeclaration() const override;
@@ -2690,12 +2910,12 @@ public:
 	virtual void DestroyValueInternal(void* Dest) const override;
 	virtual bool PassCPPArgsByRef() const override;
 	virtual void InstanceSubobjects(void* Data, void const* DefaultData, UObject* Owner, struct FObjectInstancingGraph* InstanceGraph) override;
-	virtual bool ContainsObjectReference(TArray<const UStructProperty*>& EncounteredStructProps) const override;
+	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps) const override;
 	virtual bool ContainsWeakObjectReference() const override;
-	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const UStructProperty*>& EncounteredStructProps) override;
-	virtual bool SameType(const UProperty* Other) const override;
+	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps) override;
+	virtual bool SameType(const FProperty* Other) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
-	// End of UProperty interface
+	// End of FProperty interface
 
 	FString GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& ElementTypeText, const FString& InElementExtendedTypeText) const;
 };
@@ -2711,7 +2931,7 @@ public:
 	 *	@param	InProperty: the property associated with this memory
 	 *	@param	InArray: pointer to raw memory that corresponds to this array. This can be NULL, and sometimes is, but in that case almost all operations will crash.
 	**/
-	FORCEINLINE FScriptArrayHelper(const UArrayProperty* InProperty, const void *InArray)
+	FORCEINLINE FScriptArrayHelper(const FArrayProperty* InProperty, const void *InArray)
 		: InnerProperty(InProperty->Inner)
 		, Array((FScriptArray*)InArray)  //@todo, we are casting away the const here
 		, ElementSize(InnerProperty->ElementSize)
@@ -2949,7 +3169,7 @@ public:
 		Array->CountBytes(Ar, ElementSize);
 	}	
 
-	static FScriptArrayHelper CreateHelperFormInnerProperty(const UProperty* InInnerProperty, const void *InArray)
+	static FScriptArrayHelper CreateHelperFormInnerProperty(const FProperty* InInnerProperty, const void *InArray)
 	{
 		check(InInnerProperty);
 		FScriptArrayHelper ScriptArrayHelper;
@@ -3036,7 +3256,7 @@ private:
 		}
 	}
 
-	const UProperty* InnerProperty;
+	const FProperty* InnerProperty;
 	FScriptArray* Array;
 	int32 ElementSize;
 };
@@ -3044,12 +3264,12 @@ private:
 class FScriptArrayHelper_InContainer : public FScriptArrayHelper
 {
 public:
-	FORCEINLINE FScriptArrayHelper_InContainer(const UArrayProperty* InProperty, const void* InContainer, int32 FixedArrayIndex=0)
+	FORCEINLINE FScriptArrayHelper_InContainer(const FArrayProperty* InProperty, const void* InContainer, int32 FixedArrayIndex=0)
 		:FScriptArrayHelper(InProperty, InProperty->ContainerPtrToValuePtr<void>(InContainer, FixedArrayIndex))
 	{
 	}
 
-	FORCEINLINE FScriptArrayHelper_InContainer(const UArrayProperty* InProperty, const UObject* InContainer, int32 FixedArrayIndex=0)
+	FORCEINLINE FScriptArrayHelper_InContainer(const FArrayProperty* InProperty, const UObject* InContainer, int32 FixedArrayIndex=0)
 		:FScriptArrayHelper(InProperty, InProperty->ContainerPtrToValuePtr<void>(InContainer, FixedArrayIndex))
 	{
 	}
@@ -3061,7 +3281,7 @@ public:
  */
 class FScriptMapHelper
 {
-	friend class UMapProperty;
+	friend class FMapProperty;
 
 public:
 	/**
@@ -3070,7 +3290,7 @@ public:
 	 * @param  InProperty  The property associated with this memory
 	 * @param  InMap       Pointer to raw memory that corresponds to this map. This can be NULL, and sometimes is, but in that case almost all operations will crash.
 	 */
-	FORCEINLINE FScriptMapHelper(const UMapProperty* InProperty, const void* InMap)
+	FORCEINLINE FScriptMapHelper(const FMapProperty* InProperty, const void* InMap)
 		: KeyProp         (InProperty->KeyProp)
 		, ValueProp       (InProperty->ValueProp)
 		, Map             ((FScriptMap*)InMap)  //@todo, we are casting away the const here
@@ -3265,7 +3485,7 @@ public:
 	 *
 	 * @return The property representing the key of the map pair.
 	 */
-	UProperty* GetKeyProperty() const
+	FProperty* GetKeyProperty() const
 	{
 		return KeyProp;
 	}
@@ -3275,7 +3495,7 @@ public:
 	 *
 	 * @return The property representing the value of the map pair.
 	 */
-	UProperty* GetValueProperty() const
+	FProperty* GetValueProperty() const
 	{
 		return ValueProp;
 	}
@@ -3351,7 +3571,7 @@ public:
 
 		check(IndexHint >= 0 && IndexHint < MapMax);
 
-		UProperty* LocalKeyProp = this->KeyProp; // prevent aliasing in loop below
+		FProperty* LocalKeyProp = this->KeyProp; // prevent aliasing in loop below
 
 		int32 Index = IndexHint;
 		for (;;)
@@ -3396,7 +3616,7 @@ public:
 	/** Finds the associated pair from hash, rather than linearly searching */
 	uint8* FindMapPairPtrFromHash(const void* KeyPtr)
 	{
-		UProperty* LocalKeyPropForCapture = KeyProp;
+		FProperty* LocalKeyPropForCapture = KeyProp;
 		int32 Index = Map->FindPairIndex(
 			KeyPtr,
 			MapLayout,
@@ -3410,7 +3630,7 @@ public:
 	/** Finds the associated value from hash, rather than linearly searching */
 	uint8* FindValueFromHash(const void* KeyPtr)
 	{
-		UProperty* LocalKeyPropForCapture = KeyProp;
+		FProperty* LocalKeyPropForCapture = KeyProp;
 		return Map->FindValue(
 			KeyPtr, 
 			MapLayout,
@@ -3422,8 +3642,8 @@ public:
 	/** Adds the (key, value) pair to the map, returning true if the element was added, or false if the element was already present and has been overwritten */
 	void AddPair(const void* KeyPtr, const void* ValuePtr)
 	{
-		UProperty* LocalKeyPropForCapture = KeyProp;
-		UProperty* LocalValuePropForCapture = ValueProp;
+		FProperty* LocalKeyPropForCapture = KeyProp;
+		FProperty* LocalValuePropForCapture = ValueProp;
 		Map->Add(
 			KeyPtr,
 			ValuePtr,
@@ -3487,8 +3707,8 @@ public:
 	 **/
 	void* FindOrAdd(const void* KeyPtr)
 	{
-		UProperty* LocalKeyPropForCapture = KeyProp;
-		UProperty* LocalValuePropForCapture = ValueProp;
+		FProperty* LocalKeyPropForCapture = KeyProp;
+		FProperty* LocalValuePropForCapture = ValueProp;
 		return Map->FindOrAdd(
 			KeyPtr,
 			MapLayout,
@@ -3524,7 +3744,7 @@ public:
 	/** Removes the key and its associated value from the map */
 	bool RemovePair(const void* KeyPtr)
 	{
-		UProperty* LocalKeyPropForCapture = KeyProp;
+		FProperty* LocalKeyPropForCapture = KeyProp;
 		if(uint8* Entry =  Map->FindValue(
 			KeyPtr, 
 			MapLayout,
@@ -3564,7 +3784,7 @@ public:
 				FString KeyValue;
 				if (KeyPtr != InBaseAddress && KeyProp->ExportText_Direct(KeyValue, KeyPtr, KeyPtr, nullptr, 0))
 				{
-					if ((Cast<UObjectProperty>(KeyProp) != nullptr && KeyValue.Contains(InKeyValue)) || InKeyValue == KeyValue)
+					if ((CastField<FObjectProperty>(KeyProp) != nullptr && KeyValue.Contains(InKeyValue)) || InKeyValue == KeyValue)
 					{
 						return true;
 					}
@@ -3575,7 +3795,7 @@ public:
 		return false;
 	}
 
-	static FScriptMapHelper CreateHelperFormInnerProperties(UProperty* InKeyProperty, UProperty* InValProperty, const void *InMap)
+	static FScriptMapHelper CreateHelperFormInnerProperties(FProperty* InKeyProperty, FProperty* InValProperty, const void *InMap)
 	{
 		check(InKeyProperty && InValProperty);
 
@@ -3750,8 +3970,8 @@ private:
 	}
 
 public:
-	UProperty*       KeyProp;
-	UProperty*       ValueProp;
+	FProperty*       KeyProp;
+	FProperty*       ValueProp;
 	FScriptMap*      Map;
 	FScriptMapLayout MapLayout;
 };
@@ -3759,7 +3979,7 @@ public:
 class FScriptMapHelper_InContainer : public FScriptMapHelper
 {
 public:
-	FORCEINLINE FScriptMapHelper_InContainer(const UMapProperty* InProperty, const void* InArray, int32 FixedArrayIndex=0)
+	FORCEINLINE FScriptMapHelper_InContainer(const FMapProperty* InProperty, const void* InArray, int32 FixedArrayIndex=0)
 		:FScriptMapHelper(InProperty, InProperty->ContainerPtrToValuePtr<void>(InArray, FixedArrayIndex))
 	{
 	}
@@ -3770,7 +3990,7 @@ public:
 */
 class FScriptSetHelper
 {
-	friend class USetProperty;
+	friend class FSetProperty;
 
 public:
 	/**
@@ -3779,7 +3999,7 @@ public:
 	* @param  InProperty  The property associated with this memory
 	* @param  InSet       Pointer to raw memory that corresponds to this Set. This can be NULL, and sometimes is, but in that case almost all operations will crash.
 	*/
-	FORCEINLINE FScriptSetHelper(const USetProperty* InProperty, const void* InSet)
+	FORCEINLINE FScriptSetHelper(const FSetProperty* InProperty, const void* InSet)
 		: ElementProp(InProperty->ElementProp)
 		, Set((FScriptSet*)InSet)  //@todo, we are casting away the const here
 		, SetLayout(InProperty->SetLayout)
@@ -3931,7 +4151,7 @@ public:
 	/**
 	* Returns the property representing the element of the set
 	*/
-	UProperty* GetElementProperty() const
+	FProperty* GetElementProperty() const
 	{
 		return ElementProp;
 	}
@@ -4007,7 +4227,7 @@ public:
 
 		check(IndexHint >= 0 && IndexHint < SetMax);
 
-		UProperty* LocalKeyProp = this->ElementProp; // prevent aliasing in loop below
+		FProperty* LocalKeyProp = this->ElementProp; // prevent aliasing in loop below
 
 		int32 Index = IndexHint;
 		for (;;)
@@ -4052,7 +4272,7 @@ public:
 	/** Finds element index from hash, rather than linearly searching */
 	FORCEINLINE int32 FindElementIndexFromHash(const void* ElementToFind) const
 	{
-		UProperty* LocalElementPropForCapture = ElementProp;
+		FProperty* LocalElementPropForCapture = ElementProp;
 		return Set->FindIndex(
 			ElementToFind,
 			SetLayout,
@@ -4072,7 +4292,7 @@ public:
 	/** Adds the element to the set, returning true if the element was added, or false if the element was already present */
 	void AddElement(const void* ElementToAdd)
 	{
-		UProperty* LocalElementPropForCapture = ElementProp;
+		FProperty* LocalElementPropForCapture = ElementProp;
 		FScriptSetLayout& LocalSetLayoutForCapture = SetLayout;
 		Set->Add(
 			ElementToAdd,
@@ -4105,7 +4325,7 @@ public:
 	/** Removes the element from the set */
 	bool RemoveElement(const void* ElementToRemove)
 	{
-		UProperty* LocalElementPropForCapture = ElementProp;
+		FProperty* LocalElementPropForCapture = ElementProp;
 		int32 FoundIndex = Set->FindIndex(
 			ElementToRemove,
 			SetLayout,
@@ -4144,7 +4364,7 @@ public:
 				FString ElementValue;
 				if (Element != InBaseAddress && ElementProp->ExportText_Direct(ElementValue, Element, Element, nullptr, 0))
 				{
-					if ((Cast<UObjectProperty>(ElementProp) != nullptr && ElementValue.Contains(InElementValue)) || ElementValue == InElementValue)
+					if ((CastField<FObjectProperty>(ElementProp) != nullptr && ElementValue.Contains(InElementValue)) || ElementValue == InElementValue)
 					{
 						return true;
 					}
@@ -4155,7 +4375,7 @@ public:
 		return false;
 	}
 
-	static FScriptSetHelper CreateHelperFormElementProperty(UProperty* InElementProperty, const void *InSet)
+	static FScriptSetHelper CreateHelperFormElementProperty(FProperty* InElementProperty, const void *InSet)
 	{
 		check(InElementProperty);
 
@@ -4293,7 +4513,7 @@ private:
 	}
 
 public:
-	UProperty*       ElementProp;
+	FProperty*       ElementProp;
 	FScriptSet*      Set;
 	FScriptSetLayout SetLayout;
 };
@@ -4301,37 +4521,44 @@ public:
 class FScriptSetHelper_InContainer : public FScriptSetHelper
 {
 public:
-	FORCEINLINE FScriptSetHelper_InContainer(const USetProperty* InProperty, const void* InArray, int32 FixedArrayIndex=0)
+	FORCEINLINE FScriptSetHelper_InContainer(const FSetProperty* InProperty, const void* InArray, int32 FixedArrayIndex=0)
 		:FScriptSetHelper(InProperty, InProperty->ContainerPtrToValuePtr<void>(InArray, FixedArrayIndex))
 	{
 	}
 };
 
 /*-----------------------------------------------------------------------------
-	UStructProperty.
+	FStructProperty.
 -----------------------------------------------------------------------------*/
 
 //
 // Describes a structure variable embedded in (as opposed to referenced by) 
 // an object.
 //
-class COREUOBJECT_API UStructProperty : public UProperty
+class COREUOBJECT_API FStructProperty : public FProperty
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UStructProperty, UProperty, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UStructProperty)
+	DECLARE_FIELD(FStructProperty, FProperty, CASTCLASS_FStructProperty)
 
 	// Variables.
 	class UScriptStruct* Struct;
 public:
-	UStructProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UScriptStruct* InStruct);
-	UStructProperty( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, UScriptStruct* InStruct );
+	FStructProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags);
+	FStructProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UScriptStruct* InStruct);
+
+#if WITH_EDITORONLY_DATA
+	explicit FStructProperty(UField* InField);
+#endif // WITH_EDITORONLY_DATA
 
 	// UObject interface
 	virtual void Serialize( FArchive& Ar ) override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
 	// End of UObject interface
 
-	// UProperty interface
+	// Field interface
+	virtual void PostDuplicate(const FField& InField) override;
+
+	// FProperty interface
 	virtual FString GetCPPMacroType( FString& ExtendedTypeText ) const  override;
 	virtual FString GetCPPType( FString* ExtendedTypeText, uint32 CPPExportFlags ) const override;
 	virtual FString GetCPPTypeForwardDeclaration() const override;
@@ -4348,12 +4575,12 @@ public:
 	virtual void InitializeValueInternal( void* Dest ) const override;
 	virtual void InstanceSubobjects( void* Data, void const* DefaultData, UObject* Owner, struct FObjectInstancingGraph* InstanceGraph ) override;
 	virtual int32 GetMinAlignment() const override;
-	virtual bool ContainsObjectReference(TArray<const UStructProperty*>& EncounteredStructProps) const override;
+	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps) const override;
 	virtual bool ContainsWeakObjectReference() const override;
-	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const UStructProperty*>& EncounteredStructProps) override;
-	virtual bool SameType(const UProperty* Other) const override;
+	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps) override;
+	virtual bool SameType(const FProperty* Other) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
-	// End of UProperty interface
+	// End of FProperty interface
 
 	UE_DEPRECATED(4.14, "Use UScriptStruct::ImportText instead")
 	static const TCHAR* ImportText_Static(UScriptStruct* InStruct, const FString& InName, const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText);
@@ -4380,44 +4607,51 @@ public:
 };
 
 /*-----------------------------------------------------------------------------
-	UDelegateProperty.
+	FDelegateProperty.
 -----------------------------------------------------------------------------*/
 
 /**
  * Describes a pointer to a function bound to an Object.
  */
 // need to break this out a different type so that the DECLARE_CASTED_CLASS_INTRINSIC macro can digest the comma
-typedef TProperty<FScriptDelegate, UProperty> UDelegateProperty_Super;
+typedef TProperty<FScriptDelegate, FProperty> FDelegateProperty_Super;
 
-class COREUOBJECT_API UDelegateProperty : public UDelegateProperty_Super
+class COREUOBJECT_API FDelegateProperty : public FDelegateProperty_Super
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UDelegateProperty, UDelegateProperty_Super, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UDelegateProperty)
+	DECLARE_FIELD(FDelegateProperty, FDelegateProperty_Super, CASTCLASS_FDelegateProperty)
 
 	/** Points to the source delegate function (the function declared with the delegate keyword) used in the declaration of this delegate property. */
 	UFunction* SignatureFunction;
 public:
 
-	typedef UDelegateProperty_Super::TTypeFundamentals TTypeFundamentals;
+	typedef FDelegateProperty_Super::TTypeFundamentals TTypeFundamentals;
 	typedef TTypeFundamentals::TCppType TCppType;
 
-	UDelegateProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = NULL)
-		: UDelegateProperty_Super(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
+	FDelegateProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: FDelegateProperty_Super(InOwner, InName, InObjectFlags)
+		, SignatureFunction(nullptr)
+	{
+	}
+
+	FDelegateProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = NULL)
+		: FDelegateProperty_Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
 		, SignatureFunction(InSignatureFunction)
 	{
 	}
 
-	UDelegateProperty( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = NULL )
-		: UDelegateProperty_Super( ObjectInitializer, EC_CppProperty, InOffset, InFlags)
-		, SignatureFunction(InSignatureFunction)
-	{
-	}
+#if WITH_EDITORONLY_DATA
+	explicit FDelegateProperty(UField* InField);
+#endif // WITH_EDITORONLY_DATA
 
 	// UObject interface
 	virtual void Serialize( FArchive& Ar ) override;
 	virtual void BeginDestroy() override;
 	// End of UObject interface
 
-	// UProperty interface
+	// Field interface
+	virtual void PostDuplicate(const FField& InField) override;
+
+	// FProperty interface
 	virtual FString GetCPPType( FString* ExtendedTypeText, uint32 CPPExportFlags ) const override;
 	virtual FString GetCPPTypeForwardDeclaration() const override;
 	virtual bool Identical( const void* A, const void* B, uint32 PortFlags ) const override;
@@ -4427,39 +4661,52 @@ public:
 	virtual const TCHAR* ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText ) const override;
 	virtual bool ContainsWeakObjectReference() const override;
 	virtual void InstanceSubobjects( void* Data, void const* DefaultData, UObject* Owner, struct FObjectInstancingGraph* InstanceGraph ) override;
-	virtual bool SameType(const UProperty* Other) const override;
-	// End of UProperty interface
+	virtual bool SameType(const FProperty* Other) const override;
+	// End of FProperty interface
 };
 
 
 /*-----------------------------------------------------------------------------
-	UMulticastDelegateProperty.
+	FMulticastDelegateProperty.
 -----------------------------------------------------------------------------*/
 
 /**
  * Describes a list of functions bound to an Object.
  */
-class COREUOBJECT_API UMulticastDelegateProperty : public UProperty
+class COREUOBJECT_API FMulticastDelegateProperty : public FProperty
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UMulticastDelegateProperty, UProperty, CLASS_Abstract, TEXT("/Script/CoreUObject"), CASTCLASS_UMulticastDelegateProperty)
+	DECLARE_FIELD(FMulticastDelegateProperty, FProperty, CASTCLASS_FMulticastDelegateProperty)
 
 	/** Points to the source delegate function (the function declared with the delegate keyword) used in the declaration of this delegate property. */
 	UFunction* SignatureFunction;
 
 public:
 
-	UMulticastDelegateProperty(const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags)
-		: UProperty(ObjectInitializer, EC_CppProperty, InOffset, InFlags)
+	FMulticastDelegateProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: FProperty(InOwner, InName, InObjectFlags)
 		, SignatureFunction(nullptr)
 	{
 	}
+
+	FMulticastDelegateProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = NULL)
+		: FProperty(InOwner, InName, InObjectFlags, InOffset, InFlags)
+		, SignatureFunction(InSignatureFunction)
+	{
+	}
+
+#if WITH_EDITORONLY_DATA
+	explicit FMulticastDelegateProperty(UField* InField);
+#endif // WITH_EDITORONLY_DATA
 
 	// UObject interface
 	virtual void Serialize( FArchive& Ar ) override;
 	virtual void BeginDestroy() override;
 	// End of UObject interface
 
-	// UProperty interface
+	// Field interface
+	virtual void PostDuplicate(const FField& InField) override;
+
+	// FProperty interface
 	virtual FString GetCPPType( FString* ExtendedTypeText, uint32 CPPExportFlags ) const override;
 	virtual FString GetCPPTypeForwardDeclaration() const override;
 	virtual bool Identical( const void* A, const void* B, uint32 PortFlags ) const override;
@@ -4467,22 +4714,22 @@ public:
 	virtual void ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const override;
 	virtual bool ContainsWeakObjectReference() const override;
 	virtual void InstanceSubobjects( void* Data, void const* DefaultData, UObject* Owner, struct FObjectInstancingGraph* InstanceGraph ) override;
-	virtual bool SameType(const UProperty* Other) const override;
+	virtual bool SameType(const FProperty* Other) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
-	// End of UProperty interface
+	// End of FProperty interface
 
-	virtual const FMulticastScriptDelegate* GetMulticastDelegate(const void* PropertyValue) const PURE_VIRTUAL(UMulticastDelegateProperty::GetMulticastDelegate, return nullptr;);
-	virtual void SetMulticastDelegate(void* PropertyValue, FMulticastScriptDelegate ScriptDelegate) const PURE_VIRTUAL(UMulticastDelegateProperty::SetMulticastDelegate, );
+	virtual const FMulticastScriptDelegate* GetMulticastDelegate(const void* PropertyValue) const PURE_VIRTUAL(FMulticastDelegateProperty::GetMulticastDelegate, return nullptr;);
+	virtual void SetMulticastDelegate(void* PropertyValue, FMulticastScriptDelegate ScriptDelegate) const PURE_VIRTUAL(FMulticastDelegateProperty::SetMulticastDelegate, );
 
-	virtual void AddDelegate(FScriptDelegate ScriptDelegate, UObject* Parent = nullptr, void* PropertyValue = nullptr) const PURE_VIRTUAL(UMulticastDelegateProperty::AddDelegate, );
-	virtual void RemoveDelegate(const FScriptDelegate& ScriptDelegate, UObject* Parent = nullptr, void* PropertyValue = nullptr) const PURE_VIRTUAL(UMulticastDelegateProperty::RemoveDelegate, );
-	virtual void ClearDelegate(UObject* Parent = nullptr, void* PropertyValue = nullptr)  const PURE_VIRTUAL(UMulticastDelegateProperty::ClearDelegate, );
+	virtual void AddDelegate(FScriptDelegate ScriptDelegate, UObject* Parent = nullptr, void* PropertyValue = nullptr) const PURE_VIRTUAL(FMulticastDelegateProperty::AddDelegate, );
+	virtual void RemoveDelegate(const FScriptDelegate& ScriptDelegate, UObject* Parent = nullptr, void* PropertyValue = nullptr) const PURE_VIRTUAL(FMulticastDelegateProperty::RemoveDelegate, );
+	virtual void ClearDelegate(UObject* Parent = nullptr, void* PropertyValue = nullptr)  const PURE_VIRTUAL(FMulticastDelegateProperty::ClearDelegate, );
 
 protected:
-	friend class UProperty;
+	friend class FProperty;
 
 	static FMulticastScriptDelegate::FInvocationList EmptyList;
-	virtual FMulticastScriptDelegate::FInvocationList& GetInvocationList(const void* PropertyValue) const PURE_VIRTUAL(UMulticastDelegateProperty::GetInvocationList, return EmptyList;);
+	virtual FMulticastScriptDelegate::FInvocationList& GetInvocationList(const void* PropertyValue) const PURE_VIRTUAL(FMulticastDelegateProperty::GetInvocationList, return EmptyList;);
 
 
 	const TCHAR* ImportText_Add( const TCHAR* Buffer, void* PropertyValue, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const;
@@ -4492,63 +4739,79 @@ protected:
 };
 
 template<class InTCppType>
-class COREUOBJECT_API TProperty_MulticastDelegate : public TProperty<InTCppType, UMulticastDelegateProperty>
+class COREUOBJECT_API TProperty_MulticastDelegate : public TProperty<InTCppType, FMulticastDelegateProperty>
 {
 public:
-	typedef TProperty<InTCppType, UMulticastDelegateProperty> Super;
+	typedef TProperty<InTCppType, FMulticastDelegateProperty> Super;
 	typedef InTCppType TCppType;
 	typedef typename Super::TTypeFundamentals TTypeFundamentals;
-	TProperty_MulticastDelegate(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get(), UFunction* InSignatureFunction = nullptr)
-		: Super(ObjectInitializer)
+	TProperty_MulticastDelegate(FFieldVariant InOwner, const FName& InName, UFunction* InSignatureFunction = nullptr)
+		: Super(InOwner, InName)
 	{
 		this->SignatureFunction = InSignatureFunction;
 	}
 
-	TProperty_MulticastDelegate(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = nullptr)
-		: Super(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
+	TProperty_MulticastDelegate(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: Super(InOwner, InName, InObjectFlags)
+	{
+		this->SignatureFunction = nullptr;
+	}
+
+	TProperty_MulticastDelegate(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = nullptr)
+		: Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
 	{
 		this->SignatureFunction = InSignatureFunction;
 	}
 
-	TProperty_MulticastDelegate(const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = nullptr)
-		: Super(ObjectInitializer, EC_CppProperty, InOffset, InFlags)
+	TProperty_MulticastDelegate(EInternal InInernal, FFieldClass* InClass)
+		: Super(EC_InternalUseOnlyConstructor, InClass)
 	{
-		this->SignatureFunction = InSignatureFunction;
 	}
 
-	/** DO NOT USE. This constructor is for internal usage only for hot-reload purposes. */
-	TProperty_MulticastDelegate(FVTableHelper& Helper) : Super(Helper) {};
+#if WITH_EDITORONLY_DATA
+	explicit TProperty_MulticastDelegate(UField* InField)
+		: Super(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
 
-	// UProperty interface.
+	// FProperty interface.
 	virtual FString GetCPPType(FString* ExtendedTypeText, uint32 CPPExportFlags) const override
 	{
-		return UMulticastDelegateProperty::GetCPPType(ExtendedTypeText, CPPExportFlags);
+		return FMulticastDelegateProperty::GetCPPType(ExtendedTypeText, CPPExportFlags);
 	}
-	// End of UProperty interface
+	// End of FProperty interface
 };
 
-class COREUOBJECT_API UMulticastInlineDelegateProperty : public TProperty_MulticastDelegate<FMulticastScriptDelegate>
+class COREUOBJECT_API FMulticastInlineDelegateProperty : public TProperty_MulticastDelegate<FMulticastScriptDelegate>
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UMulticastInlineDelegateProperty, TProperty_MulticastDelegate<FMulticastScriptDelegate>, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UMulticastInlineDelegateProperty)
+	DECLARE_FIELD(FMulticastInlineDelegateProperty, TProperty_MulticastDelegate<FMulticastScriptDelegate>, CASTCLASS_FMulticastInlineDelegateProperty)
 
 public:
 
-	UMulticastInlineDelegateProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = nullptr)
-		: TProperty_MulticastDelegate(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags, InSignatureFunction)
+	FMulticastInlineDelegateProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: TProperty_MulticastDelegate(InOwner, InName, InObjectFlags)
 	{
 	}
 
-	UMulticastInlineDelegateProperty(const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = nullptr)
-		: TProperty_MulticastDelegate(ObjectInitializer, EC_CppProperty, InOffset, InFlags, InSignatureFunction)
+	FMulticastInlineDelegateProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = nullptr)
+		: TProperty_MulticastDelegate(InOwner, InName, InObjectFlags, InOffset, InFlags, InSignatureFunction)
 	{
 	}
 
-	// UProperty interface
+#if WITH_EDITORONLY_DATA
+	explicit FMulticastInlineDelegateProperty(UField* InField)
+		: TProperty_MulticastDelegate(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
+
+	// FProperty interface
 	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
 	virtual const TCHAR* ImportText_Internal(const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText) const override;
-	// End of UProperty interface
+	// End of FProperty interface
 
-	// UMulticastDelegateProperty interface
+	// FMulticastDelegateProperty interface
 	virtual const FMulticastScriptDelegate* GetMulticastDelegate(const void* PropertyValue) const override;
 	virtual void SetMulticastDelegate(void* PropertyValue, FMulticastScriptDelegate ScriptDelegate) const override;
 
@@ -4558,31 +4821,38 @@ public:
 
 protected:
 	virtual FMulticastScriptDelegate::FInvocationList& GetInvocationList(const void* PropertyValue) const;
-	// End of UMulticastDelegateProperty interface
+	// End of FMulticastDelegateProperty interface
 };
 
-class COREUOBJECT_API UMulticastSparseDelegateProperty : public TProperty_MulticastDelegate<FSparseDelegate> 
+class COREUOBJECT_API FMulticastSparseDelegateProperty : public TProperty_MulticastDelegate<FSparseDelegate> 
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UMulticastSparseDelegateProperty, TProperty_MulticastDelegate<FSparseDelegate>, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UMulticastSparseDelegateProperty)
+	DECLARE_FIELD(FMulticastSparseDelegateProperty, TProperty_MulticastDelegate<FSparseDelegate>, CASTCLASS_FMulticastSparseDelegateProperty)
 
 public:
 
-	UMulticastSparseDelegateProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = nullptr)
-		: TProperty_MulticastDelegate(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags, InSignatureFunction)
+	FMulticastSparseDelegateProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: TProperty_MulticastDelegate(InOwner, InName, InObjectFlags)
 	{
 	}
 
-	UMulticastSparseDelegateProperty(const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = nullptr)
-		: TProperty_MulticastDelegate(ObjectInitializer, EC_CppProperty, InOffset, InFlags, InSignatureFunction)
+	FMulticastSparseDelegateProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = nullptr)
+		: TProperty_MulticastDelegate(InOwner, InName, InObjectFlags, InOffset, InFlags, InSignatureFunction)
 	{
 	}
 
-	// UProperty interface
+#if WITH_EDITORONLY_DATA
+	explicit FMulticastSparseDelegateProperty(UField* InField)
+		: TProperty_MulticastDelegate(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
+
+	// FProperty interface
 	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
 	virtual const TCHAR* ImportText_Internal(const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText) const override;
-	// End of UProperty interface
+	// End of FProperty interface
 
-	// UMulticastDelegateProperty interface
+	// FMulticastDelegateProperty interface
 	virtual const FMulticastScriptDelegate* GetMulticastDelegate(const void* PropertyValue) const override;
 	virtual void SetMulticastDelegate(void* PropertyValue, FMulticastScriptDelegate ScriptDelegate) const override;
 
@@ -4592,7 +4862,7 @@ public:
 
 protected:
 	virtual FMulticastScriptDelegate::FInvocationList& GetInvocationList(const void* PropertyValue) const;
-	// End of UMulticastDelegateProperty interface
+	// End of FMulticastDelegateProperty interface
 
 private:
 	virtual void SerializeItemInternal(FArchive& Ar, void* Value, void const* Defaults) const;
@@ -4602,7 +4872,7 @@ private:
 struct COREUOBJECT_API FCustomPropertyListNode
 {
 	/** The property that's being referenced at this node. */
-	UProperty* Property;
+	FProperty* Property;
 
 	/** Used to identify which array index is specifically being referenced if this is an array property. Defaults to 0. */
 	int32 ArrayIndex;
@@ -4614,7 +4884,7 @@ struct COREUOBJECT_API FCustomPropertyListNode
 	struct FCustomPropertyListNode* PropertyListNext;
 
 	/** Default constructor. */
-	FCustomPropertyListNode(UProperty* InProperty = nullptr, int32 InArrayIndex = 0)
+	FCustomPropertyListNode(FProperty* InProperty = nullptr, int32 InArrayIndex = 0)
 		:Property(InProperty)
 		, ArrayIndex(InArrayIndex)
 		, SubPropertyList(nullptr)
@@ -4623,7 +4893,7 @@ struct COREUOBJECT_API FCustomPropertyListNode
 	}
 
 	/** Convenience method to return the next property in the list and advance the given ptr. */
-	FORCEINLINE static UProperty* GetNextPropertyAndAdvance(const FCustomPropertyListNode*& Node)
+	FORCEINLINE static FProperty* GetNextPropertyAndAdvance(const FCustomPropertyListNode*& Node)
 	{
 		if (Node)
 		{
@@ -4639,7 +4909,7 @@ struct COREUOBJECT_API FCustomPropertyListNode
  * This class represents the chain of member properties leading to an internal struct property.  It is used
  * for tracking which member property corresponds to the UScriptStruct that owns a particular property.
  */
-class COREUOBJECT_API FEditPropertyChain : public TDoubleLinkedList<UProperty*>
+class COREUOBJECT_API FEditPropertyChain : public TDoubleLinkedList<FProperty*>
 {
 
 public:
@@ -4649,23 +4919,23 @@ public:
 	/**
 	 * Sets the ActivePropertyNode to the node associated with the property specified.
 	 *
-	 * @param	NewActiveProperty	the UProperty that is currently being evaluated by Pre/PostEditChange
+	 * @param	NewActiveProperty	the FProperty that is currently being evaluated by Pre/PostEditChange
 	 *
 	 * @return	true if the ActivePropertyNode was successfully changed to the node associated with the property
 	 *			specified.  false if there was no node corresponding to that property.
 	 */
-	bool SetActivePropertyNode( UProperty* NewActiveProperty );
+	bool SetActivePropertyNode( FProperty* NewActiveProperty );
 
 	/**
 	 * Sets the ActiveMemberPropertyNode to the node associated with the property specified.
 	 *
-	 * @param	NewActiveMemberProperty		the member UProperty which contains the property currently being evaluated
+	 * @param	NewActiveMemberProperty		the member FProperty which contains the property currently being evaluated
 	 *										by Pre/PostEditChange
 	 *
 	 * @return	true if the ActiveMemberPropertyNode was successfully changed to the node associated with the
 	 *			property specified.  false if there was no node corresponding to that property.
 	 */
-	bool SetActiveMemberPropertyNode( UProperty* NewActiveMemberProperty );
+	bool SetActiveMemberPropertyNode( FProperty* NewActiveMemberProperty );
 
 	/**
 	 * Returns the node corresponding to the currently active property.
@@ -4738,7 +5008,7 @@ namespace EPropertyChangeType
  */
 struct FPropertyChangedEvent
 {
-	FPropertyChangedEvent(UProperty* InProperty, EPropertyChangeType::Type InChangeType = EPropertyChangeType::Unspecified, TArrayView<const UObject* const> InTopLevelObjects = TArrayView<const UObject* const>())
+	FPropertyChangedEvent(FProperty* InProperty, EPropertyChangeType::Type InChangeType = EPropertyChangeType::Unspecified, TArrayView<const UObject* const> InTopLevelObjects = TArrayView<const UObject* const>())
 		: Property(InProperty)
 		, MemberProperty(InProperty)
 		, ChangeType(InChangeType)
@@ -4748,7 +5018,7 @@ struct FPropertyChangedEvent
 	}
 
 	UE_DEPRECATED(4.25, "The FPropertyChangedEvent constructor taking a TArray* is deprecated. Use the version taking a TArrayView instead.")
-	FPropertyChangedEvent(UProperty* InProperty, EPropertyChangeType::Type InChangeType, const TArray<const UObject*>* InTopLevelObjects)
+	FPropertyChangedEvent(FProperty* InProperty, EPropertyChangeType::Type InChangeType, const TArray<const UObject*>* InTopLevelObjects)
 		: Property(InProperty)
 		, MemberProperty(InProperty)
 		, ChangeType(InChangeType)
@@ -4760,7 +5030,7 @@ struct FPropertyChangedEvent
 		}
 	}
 
-	void SetActiveMemberProperty( UProperty* InActiveMemberProperty )
+	void SetActiveMemberProperty( FProperty* InActiveMemberProperty )
 	{
 		MemberProperty = InActiveMemberProperty;
 	}
@@ -4844,13 +5114,13 @@ struct FPropertyChangedEvent
 	/**
 	 * The actual property that changed
 	 */
-	UProperty* Property;
+	FProperty* Property;
 
 	/**
 	 * The member property of the object that PostEditChange is being called on.  
 	 * For example if the property that changed is inside a struct on the object, this property is the struct property
 	 */
-	UProperty* MemberProperty;
+	FProperty* MemberProperty;
 
 	// The kind of change event that occurred
 	EPropertyChangeType::Type ChangeType;
@@ -4907,6 +5177,26 @@ namespace EFieldIteratorFlags
 	};
 }
 
+template <class FieldType>
+FieldType* GetChildFieldsFromStruct(const UStruct* Owner)
+{
+	check(false);
+	return nullptr;
+}
+
+template <>
+inline UField* GetChildFieldsFromStruct(const UStruct* Owner)
+{
+	return Owner->Children;
+}
+
+template <>
+inline FField* GetChildFieldsFromStruct(const UStruct* Owner)
+{
+	return Owner->ChildProperties;
+}
+
+
 //
 // For iterating through a linked list of fields.
 //
@@ -4917,7 +5207,7 @@ private:
 	/** The object being searched for the specified field */
 	const UStruct* Struct;
 	/** The current location in the list of fields being iterated */
-	UField* Field;
+	typename T::BaseFieldClass* Field;
 	/** The index of the current interface being iterated */
 	int32 InterfaceIndex;
 	/** Whether to include the super class or not */
@@ -4933,7 +5223,7 @@ public:
 	               EFieldIteratorFlags::DeprecatedPropertyFlags InDeprecatedFieldFlags = EFieldIteratorFlags::IncludeDeprecated,
 	               EFieldIteratorFlags::InterfaceClassFlags     InInterfaceFieldFlags  = EFieldIteratorFlags::ExcludeInterfaces)
 		: Struct            ( InStruct )
-		, Field             ( InStruct ? InStruct->Children : NULL )
+		, Field             ( InStruct ? GetChildFieldsFromStruct<typename T::BaseFieldClass>(InStruct) : NULL )
 		, InterfaceIndex    ( -1 )
 		, bIncludeSuper     ( InSuperClassFlags      == EFieldIteratorFlags::IncludeSuper )
 		, bIncludeDeprecated( InDeprecatedFieldFlags == EFieldIteratorFlags::IncludeDeprecated )
@@ -4967,6 +5257,11 @@ public:
 		checkSlow(Field);
 		return (T*)Field;
 	}
+	inline const T* operator*() const
+	{
+		checkSlow(Field);
+		return (const T*)Field;
+	}
 	inline T* operator->()
 	{
 		checkSlow(Field);
@@ -4979,20 +5274,18 @@ public:
 protected:
 	inline void IterateToNext()
 	{
-		      UField*  CurrentField  = Field;
+		typename T::BaseFieldClass* CurrentField  = Field;
 		const UStruct* CurrentStruct = Struct;
 
 		while (CurrentStruct)
 		{
 			while (CurrentField)
 			{
-				UClass* FieldClass = CurrentField->GetClass();
-
-				if (FieldClass->HasAllCastFlags(T::StaticClassCastFlags()) &&
+				if (CurrentField->HasAllCastFlags(T::StaticClassCastFlags()) &&
 					(
 						   bIncludeDeprecated
-						|| !FieldClass->HasAllCastFlags(CASTCLASS_UProperty)
-						|| !((UProperty*)CurrentField)->HasAllPropertyFlags(CPF_Deprecated)
+						|| !CurrentField->HasAllCastFlags(CASTCLASS_FProperty)
+						|| !((FProperty*)CurrentField)->HasAllPropertyFlags(CPF_Deprecated)
 					)
 				)
 				{
@@ -5012,7 +5305,7 @@ protected:
 				if (InterfaceIndex < CurrentClass->Interfaces.Num())
 				{
 					FImplementedInterface& Interface = CurrentClass->Interfaces[InterfaceIndex];
-					CurrentField = Interface.Class ? Interface.Class->Children : nullptr;
+					CurrentField = Interface.Class ? GetChildFieldsFromStruct<typename T::BaseFieldClass>(Interface.Class) : nullptr;
 					continue;
 				}
 			}
@@ -5022,7 +5315,7 @@ protected:
 				CurrentStruct = CurrentStruct->GetInheritanceSuper();
 				if (CurrentStruct)
 				{
-					CurrentField   = CurrentStruct->Children;
+					CurrentField   = GetChildFieldsFromStruct<typename T::BaseFieldClass>(CurrentStruct);
 					InterfaceIndex = -1;
 					continue;
 				}
@@ -5128,22 +5421,22 @@ enum class EPropertyValueIteratorFlags : uint8
 	FullRecursion = 1,	// Recurse into containers and structs
 };
 
-/** For recursively iterating over a UStruct to find nested UProperty pointers and values */
+/** For recursively iterating over a UStruct to find nested FProperty pointers and values */
 class FPropertyValueIterator
 {
 public:
-	typedef TPair<const UProperty*, const void*> BasePairType;
+	typedef TPair<const FProperty*, const void*> BasePairType;
 
 	/** 
 	 * Construct an iterator using a struct and struct value
 	 *
-	 * @param InPropertyClass	The UClass of the UProperty type you are looking for
+	 * @param InPropertyClass	The UClass of the FProperty type you are looking for
 	 * @param InStruct			The UClass or UScriptStruct containing properties to search for
 	 * @param InStructValue		Address in memory of struct to search for property values
 	 * @param InRecursionFlags	Rather to recurse into container and struct properties
 	 * @param InDeprecatedPropertyFlags	Rather to iterate over deprecated properties
 	 */
-	FPropertyValueIterator(const UClass* InPropertyClass, const UStruct* InStruct, const void* InStructValue,
+	FPropertyValueIterator(FFieldClass* InPropertyClass, const UStruct* InStruct, const void* InStructValue,
 		EPropertyValueIteratorFlags						InRecursionFlags = EPropertyValueIteratorFlags::FullRecursion,
 		EFieldIteratorFlags::DeprecatedPropertyFlags	InDeprecatedPropertyFlags = EFieldIteratorFlags::IncludeDeprecated)
 		: PropertyClass(InPropertyClass)
@@ -5199,7 +5492,7 @@ public:
 	}
 
 	/** Returns Property currently being iterated */
-	FORCEINLINE const UProperty* Key() const 
+	FORCEINLINE const FProperty* Key() const 
 	{
 		return (*this)->Key; 
 	}
@@ -5227,18 +5520,18 @@ public:
 	 *
 	 * @param PropertyChain	Filled in with ordered list of Properties, with currently active property first and top parent last
 	 */
-	COREUOBJECT_API void GetPropertyChain(TArray<const UProperty*>& PropertyChain) const;
+	COREUOBJECT_API void GetPropertyChain(TArray<const FProperty*>& PropertyChain) const;
 
 private:
 	struct FPropertyValueStackEntry
 	{
 		/** Field iterator within a UStruct */
-		TFieldIterator<const UProperty> FieldIterator;
+		TFieldIterator<const FProperty> FieldIterator;
 
 		/** Address of owning UStruct */
 		const void* StructValue;
 		
-		/** List of current root property+value pairs for the current top level UProperty */
+		/** List of current root property+value pairs for the current top level FProperty */
 		TArray<BasePairType> ValueArray;
 
 		/** Current position inside ValueArray */
@@ -5266,7 +5559,7 @@ private:
 	TArray<FPropertyValueStackEntry> PropertyIteratorStack;
 
 	/** Property type that is explicitly checked for */
-	const UClass* PropertyClass;
+	FFieldClass* PropertyClass;
 
 	/** Whether to recurse into containers and StructProperties */
 	const EPropertyValueIteratorFlags RecursionFlags;
@@ -5385,3 +5678,45 @@ static_assert(sizeof(bool) == sizeof(uint8), "Bool is not one byte.");
 /** helper to calculate an array's dimensions **/
 #define CPP_ARRAY_DIM(ArrayName, ClassName) \
 	(sizeof(((ClassName*)0)->ArrayName) / sizeof(((ClassName*)0)->ArrayName[0]))
+
+
+/**
+ * FProperty wrapper object.
+ * The purpose of this object is to provide a UObject wrapper for native FProperties that can
+ * be used by property editors (grids).
+ * Specialized wrappers can be used to allow specialized editors for specific property types.
+ * Property wrappers are owned by UStruct that owns the property they wrap and are tied to its lifetime
+ * so that weak object pointer functionality works as expected.
+ */
+class COREUOBJECT_API UPropertyWrapper : public UObject
+{
+	DECLARE_CLASS_INTRINSIC(UPropertyWrapper, UObject, CLASS_Transient, TEXT("/Script/CoreUObject"));
+
+protected:
+	/** Cached property object */
+	FProperty* DestProperty;
+public:
+	/** Sets the property this object wraps */
+	void SetProperty(FProperty* InProperty)
+	{
+		DestProperty = InProperty;
+	}
+	/* Gets property wrapped by this object */
+	FProperty* GetProperty()
+	{
+		return DestProperty;
+	}
+	/* Gets property wrapped by this object */
+	const FProperty* GetProperty() const
+	{
+		return DestProperty;
+	}
+};
+
+class COREUOBJECT_API UMulticastDelegatePropertyWrapper : public UPropertyWrapper
+{
+	DECLARE_CLASS_INTRINSIC(UMulticastDelegatePropertyWrapper, UPropertyWrapper, CLASS_Transient, TEXT("/Script/CoreUObject"));
+};
+
+
+#include "UObject/DefineUPropertyMacros.h"

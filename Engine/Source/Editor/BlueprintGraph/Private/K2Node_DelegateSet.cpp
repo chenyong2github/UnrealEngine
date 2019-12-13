@@ -54,10 +54,10 @@ public:
 		check(DelegatePin);
 
 		// Find the property on the specified scope
-		UProperty* BoundProperty = NULL;
-		for (TFieldIterator<UProperty> It(DelegateNode->DelegatePropertyClass, EFieldIteratorFlags::IncludeSuper); It; ++It)
+		FProperty* BoundProperty = NULL;
+		for (TFieldIterator<FProperty> It(DelegateNode->DelegatePropertyClass, EFieldIteratorFlags::IncludeSuper); It; ++It)
 		{
-			UProperty* Prop = *It;
+			FProperty* Prop = *It;
 			if( Prop->GetFName() == DelegateNode->DelegatePropertyName )
 			{
 				check(Prop->HasAllPropertyFlags(CPF_BlueprintAssignable));
@@ -192,18 +192,18 @@ UEdGraphPin* UK2Node_DelegateSet::GetDelegateOwner() const
 
 UFunction* UK2Node_DelegateSet::GetDelegateSignature()
 {
-	UMulticastDelegateProperty* DelegateProperty = FindField<UMulticastDelegateProperty>(DelegatePropertyClass, DelegatePropertyName);
+	FMulticastDelegateProperty* DelegateProperty = FindField<FMulticastDelegateProperty>(DelegatePropertyClass, DelegatePropertyName);
 
 	if( !DelegateProperty )
 	{
 		// Attempt to find a remapped delegate property
-		UMulticastDelegateProperty* NewProperty = FMemberReference::FindRemappedField<UMulticastDelegateProperty>(DelegatePropertyClass, DelegatePropertyName);
+		FMulticastDelegateProperty* NewProperty = FMemberReference::FindRemappedField<FMulticastDelegateProperty>(DelegatePropertyClass, DelegatePropertyName);
 		if( NewProperty )
 		{
 			// Found a remapped property, update the node
 			DelegateProperty = NewProperty;
 			DelegatePropertyName = NewProperty->GetFName();
-			DelegatePropertyClass = Cast<UClass>(NewProperty->GetOuter());
+			DelegatePropertyClass = Cast<UClass>(NewProperty->GetOwner<UObject>());
 		}
 	}
 
@@ -212,12 +212,12 @@ UFunction* UK2Node_DelegateSet::GetDelegateSignature()
 
 UFunction* UK2Node_DelegateSet::GetDelegateSignature() const
 {
-	UMulticastDelegateProperty* DelegateProperty = FindField<UMulticastDelegateProperty>(DelegatePropertyClass, DelegatePropertyName);
+	FMulticastDelegateProperty* DelegateProperty = FindField<FMulticastDelegateProperty>(DelegatePropertyClass, DelegatePropertyName);
 
 	if( !DelegateProperty )
 	{
 		// Attempt to find a remapped delegate property
-		DelegateProperty = FMemberReference::FindRemappedField<UMulticastDelegateProperty>(DelegatePropertyClass, DelegatePropertyName);
+		DelegateProperty = FMemberReference::FindRemappedField<FMulticastDelegateProperty>(DelegatePropertyClass, DelegatePropertyName);
 	}
 
 	return (DelegateProperty != NULL) ? DelegateProperty->SignatureFunction : NULL;

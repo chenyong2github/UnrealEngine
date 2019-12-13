@@ -504,6 +504,8 @@ public:
 	virtual void GetAllStaticComponentMaskParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 		PURE_VIRTUAL(UMaterialInterface::GetAllStaticComponentMaskParameterInfo,return;);
 
+	virtual bool IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const
+		PURE_VIRTUAL(UMaterialInterface::IterateDependentFunctions,return false;);
 	virtual void GetDependentFunctions(TArray<class UMaterialFunctionInterface*>& DependentFunctions) const
 		PURE_VIRTUAL(UMaterialInterface::GetDependentFunctions,return;);
 

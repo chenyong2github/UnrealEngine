@@ -1257,7 +1257,7 @@ public:
 	void AddCurveValue(const FName& CurveName, float Value);
 
 	/** Given a machine and state index, record a state weight for this frame */
-	void RecordStateWeight(const int32 InMachineClassIndex, const int32 InStateIndex, const float InStateWeight);
+	void RecordStateWeight(const int32 InMachineClassIndex, const int32 InStateIndex, const float InStateWeight, const float InElapsedTime);
 
 protected:
 #if WITH_EDITORONLY_DATA

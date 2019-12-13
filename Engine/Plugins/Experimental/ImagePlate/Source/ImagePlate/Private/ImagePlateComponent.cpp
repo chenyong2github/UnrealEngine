@@ -445,9 +445,9 @@ void UImagePlateComponent::PostEditUndo()
 	UpdateMaterialParametersForMedia();
 }
 
-UStructProperty* UImagePlateComponent::GetImagePlateProperty()
+FStructProperty* UImagePlateComponent::GetImagePlateProperty()
 {
-	return FindField<UStructProperty>(StaticClass(), GET_MEMBER_NAME_CHECKED(UImagePlateComponent, Plate));
+	return FindField<FStructProperty>(StaticClass(), GET_MEMBER_NAME_CHECKED(UImagePlateComponent, Plate));
 }
 
 #endif

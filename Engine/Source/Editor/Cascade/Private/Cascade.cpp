@@ -1710,7 +1710,7 @@ TSharedRef<SWidget> FCascade::GenerateAnimSpeedMenuContent(TSharedRef<FUICommand
 	return MenuBuilder.MakeWidget();
 }
 
-void FCascade::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged)
+void FCascade::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
 	FPropertyChangedEvent Event = PropertyChangedEvent;
 	if (SelectedModule)
@@ -1740,7 +1740,7 @@ void FCascade::NotifyPreChange(FEditPropertyChain* PropertyChain)
 	CurveToReplace = NULL;
 
 	// get the property that is being edited
-	UObjectPropertyBase* ObjProp = Cast<UObjectPropertyBase>(PropertyChain->GetActiveNode()->GetValue());
+	FObjectPropertyBase* ObjProp = CastField<FObjectPropertyBase>(PropertyChain->GetActiveNode()->GetValue());
 	if (ObjProp && 
 		(ObjProp->PropertyClass->IsChildOf(UDistributionFloat::StaticClass()) || 
 		ObjProp->PropertyClass->IsChildOf(UDistributionVector::StaticClass()))
@@ -1777,7 +1777,7 @@ void FCascade::NotifyPreChange(FEditPropertyChain* PropertyChain)
 				BaseObject = It->ContainerPtrToValuePtr<void>(BaseObject);
 
 				// If it is an object property, then reset our base pointer/offset
-				UObjectPropertyBase* ObjectPropertyBase = Cast<UObjectPropertyBase>(*It);
+				FObjectPropertyBase* ObjectPropertyBase = CastField<FObjectPropertyBase>(*It);
 				if (ObjectPropertyBase)
 				{
 					BaseObject = ObjectPropertyBase->GetObjectPropertyValue(BaseObject);
@@ -1832,7 +1832,7 @@ void FCascade::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEven
 	if (CurveToReplace)
 	{
 		// This should be the same property we just got in NotifyPreChange!
-		UObjectPropertyBase* ObjProp = Cast<UObjectPropertyBase>(PropertyChain->GetActiveNode()->GetValue());
+		FObjectPropertyBase* ObjProp = CastField<FObjectPropertyBase>(PropertyChain->GetActiveNode()->GetValue());
 		check(ObjProp);
 		check(ObjProp->PropertyClass->IsChildOf(UDistributionFloat::StaticClass()) || ObjProp->PropertyClass->IsChildOf(UDistributionVector::StaticClass()));
 
@@ -1859,7 +1859,7 @@ void FCascade::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEven
 			BaseObject = It->ContainerPtrToValuePtr<void>(BaseObject);
 
 			// If it is an object property, then reset our base pointer/offset
-			UObjectPropertyBase* ObjectPropertyBase = Cast<UObjectPropertyBase>(*It);
+			FObjectPropertyBase* ObjectPropertyBase = CastField<FObjectPropertyBase>(*It);
 			if (ObjectPropertyBase)
 			{
 				BaseObject = ObjectPropertyBase->GetObjectPropertyValue(BaseObject);

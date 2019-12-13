@@ -200,8 +200,8 @@ void FTwoBoneIKEditMode::OnExternalNodePropertyChange(FPropertyChangedEvent& InP
 	// this code doesn't really work great unless you have very specific order of operation is happening
 	// 
 /*
-	UProperty* Property = InPropertyEvent.Property;
-	UProperty* InnerProperty = InPropertyEvent.MemberProperty;
+	FProperty* Property = InPropertyEvent.Property;
+	FProperty* InnerProperty = InPropertyEvent.MemberProperty;
 	
 	if(InnerProperty && InnerProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UAnimGraphNode_TwoBoneIK, Node))
 	{

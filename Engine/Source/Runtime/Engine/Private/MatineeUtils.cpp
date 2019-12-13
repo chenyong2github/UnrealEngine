@@ -28,7 +28,7 @@ protected:
 	TArray<FName>& GatheredPropertyPaths;
 
 protected:
-	virtual bool IsDesiredProperty(UProperty* Property) const
+	virtual bool IsDesiredProperty(FProperty* Property) const
 	{
 		return false;
 	}
@@ -38,9 +38,9 @@ protected:
 		UClass* ObjectClass = InObject->GetClass();
 
 		// First search for any properties in this object
-		for (TFieldIterator<UProperty> ClassFieldIt(ObjectClass); ClassFieldIt; ++ClassFieldIt)
+		for (TFieldIterator<FProperty> ClassFieldIt(ObjectClass); ClassFieldIt; ++ClassFieldIt)
 		{
-			UProperty* ClassMemberProperty = *ClassFieldIt;
+			FProperty* ClassMemberProperty = *ClassFieldIt;
 			if (ClassMemberProperty->HasAnyPropertyFlags(CPF_Interp))
 			{
 				// Is this property the desired type?
@@ -51,11 +51,11 @@ protected:
 				}
 
 				// If this is a struct, look for any desired properties inside of it
-				if (UStructProperty* OuterStructProperty = Cast<UStructProperty>(ClassMemberProperty))
+				if (FStructProperty* OuterStructProperty = CastField<FStructProperty>(ClassMemberProperty))
 				{
-					for (TFieldIterator<UProperty> StructFieldIt(OuterStructProperty->Struct); StructFieldIt; ++StructFieldIt)
+					for (TFieldIterator<FProperty> StructFieldIt(OuterStructProperty->Struct); StructFieldIt; ++StructFieldIt)
 					{
-						UProperty* StructMemberProperty = *StructFieldIt;
+						FProperty* StructMemberProperty = *StructFieldIt;
 						if (StructMemberProperty->HasAnyPropertyFlags(CPF_Interp) && IsDesiredProperty(StructMemberProperty))
 						{
 							const FString QualifiedFullPath = FString::Printf(TEXT("%s%s.%s"), *Prefix, *OuterStructProperty->GetName(), *StructMemberProperty->GetName());
@@ -82,7 +82,7 @@ protected:
 /////////////////////////////////////////////////////
 // FBasicInterpPropertyGatherer
 
-// This template will gather any properties that have a specified basic type (e.g., UFloatProperty or UBoolProperty)
+// This template will gather any properties that have a specified basic type (e.g., FFloatProperty or FBoolProperty)
 template <typename BasicPropertyType>
 struct FBasicInterpPropertyGatherer : public FInterpPropertyGatherer
 {
@@ -93,9 +93,9 @@ public:
 	}
 
 protected:
-	virtual bool IsDesiredProperty(UProperty* Property) const override
+	virtual bool IsDesiredProperty(FProperty* Property) const override
 	{
-		return Cast<BasicPropertyType>(Property) != NULL;
+		return CastField<BasicPropertyType>(Property) != NULL;
 	}
 };
 
@@ -115,9 +115,9 @@ public:
 protected:
 	FName DesiredStructName;
 protected:
-	virtual bool IsDesiredProperty(UProperty* Property) const override
+	virtual bool IsDesiredProperty(FProperty* Property) const override
 	{
-		if (UStructProperty* StructProperty = Cast<UStructProperty>(Property))
+		if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 		{
 			if (StructProperty->Struct->GetFName() == DesiredStructName)
 			{
@@ -229,33 +229,33 @@ namespace FMatineeUtils
 {
 	float* GetInterpFloatPropertyRef( AActor* InActor, FName InPropName )
 	{
-		TArray<UClass*> ClassRequirements;
-		ClassRequirements.Add(UFloatProperty::StaticClass());
+		TArray<FFieldClass*> ClassRequirements;
+		ClassRequirements.Add(FFloatProperty::StaticClass());
 		
 		// get the property name and the Object its in. handles property being in a component.
 		void* PropContainer = NULL;
-		UProperty* Property = NULL;
+		FProperty* Property = NULL;
 		UObject* PropObject = FindObjectAndPropOffset(PropContainer, Property, InActor, InPropName, &ClassRequirements );
 		
 		if (PropObject != NULL)
 		{
-			return CastChecked<UFloatProperty>(Property)->GetPropertyValuePtr_InContainer(PropContainer);
+			return CastFieldChecked<FFloatProperty>(Property)->GetPropertyValuePtr_InContainer(PropContainer);
 		}
 		return NULL;
 	}
 
-	uint32* GetInterpBoolPropertyRef( AActor* InActor, FName InPropName, UBoolProperty*& OutProperty )
+	uint32* GetInterpBoolPropertyRef( AActor* InActor, FName InPropName, FBoolProperty*& OutProperty )
 	{
-		TArray<UClass*> ClassRequirements;
-		ClassRequirements.Add(UBoolProperty::StaticClass());
+		TArray<FFieldClass*> ClassRequirements;
+		ClassRequirements.Add(FBoolProperty::StaticClass());
 		// get the property name and the Object its in. handles property being in a component.
 		void* PropContainer = NULL;
-		UProperty* Property = NULL;
+		FProperty* Property = NULL;
 		UObject* PropObject = FindObjectAndPropOffset( PropContainer, Property, InActor, InPropName, &ClassRequirements );
 
 		if( PropObject )
 		{
-			OutProperty = Cast<UBoolProperty>(Property);
+			OutProperty = CastField<FBoolProperty>(Property);
 			// Since booleans can be handled as bitfields in the engine, 
 			// we have to return a bitfield pointer instead. 
 			return Property->ContainerPtrToValuePtr<uint32>(PropContainer);
@@ -267,13 +267,13 @@ namespace FMatineeUtils
 
 	FVector* GetInterpVectorPropertyRef( AActor* InActor, FName InPropName )
 	{
-		TArray<UClass*> ClassRequirements;
-		ClassRequirements.Add(UStructProperty::StaticClass());
+		TArray<FFieldClass*> ClassRequirements;
+		ClassRequirements.Add(FStructProperty::StaticClass());
 		TArray<FName> StructTypes;
 		StructTypes.Add(NAME_Vector);		
 		// get the property name and the Object its in. handles property being in a component.
 		void* PropContainer = NULL;
-		UProperty* Property = NULL;
+		FProperty* Property = NULL;
 		UObject* PropObject = FindObjectAndPropOffset(PropContainer, Property, InActor, InPropName, &ClassRequirements, &StructTypes );
 		if (PropObject != NULL)
 		{
@@ -285,13 +285,13 @@ namespace FMatineeUtils
 
 	FColor* GetInterpColorPropertyRef( AActor* InActor, FName InPropName )
 	{
-		TArray<UClass*> ClassRequirements;
-		ClassRequirements.Add(UStructProperty::StaticClass());
+		TArray<FFieldClass*> ClassRequirements;
+		ClassRequirements.Add(FStructProperty::StaticClass());
 		TArray<FName> StructTypes;
 		StructTypes.Add(NAME_Color);
 		// get the property name and the Object its in. handles property being in a component.
 		void* PropContainer = NULL;
-		UProperty* Property = NULL;
+		FProperty* Property = NULL;
 		UObject* PropObject = FindObjectAndPropOffset(PropContainer, Property, InActor, InPropName, &ClassRequirements, &StructTypes );
 		if (PropObject != NULL)
 		{
@@ -304,13 +304,13 @@ namespace FMatineeUtils
 
 	FLinearColor* GetInterpLinearColorPropertyRef( AActor* InActor, FName InPropName )
 	{
-		TArray<UClass*> ClassRequirements;
-		ClassRequirements.Add(UStructProperty::StaticClass());
+		TArray<FFieldClass*> ClassRequirements;
+		ClassRequirements.Add(FStructProperty::StaticClass());
 		TArray<FName> StructTypes;
 		StructTypes.Add(NAME_LinearColor);
 		// get the property name and the Object its in. handles property being in a component.
 		void* PropContainer = NULL;
-		UProperty* Property = NULL;
+		FProperty* Property = NULL;
 		UObject* PropObject = FindObjectAndPropOffset(PropContainer, Property, InActor, InPropName, &ClassRequirements, &StructTypes );
 		if (PropObject != NULL)
 		{
@@ -323,7 +323,7 @@ namespace FMatineeUtils
 	struct FMatineePropertyQuery
 	{
 		void* OutPropContainer;
-		UProperty* OutProperty;
+		FProperty* OutProperty;
 		UObject* OutObject;
 
 		FMatineePropertyQuery()
@@ -342,7 +342,7 @@ namespace FMatineeUtils
 
 			if (InPropertyName.Split(TEXT("."), &CompString, &PropString))
 			{
-				if (UStructProperty* StructProp = FindField<UStructProperty>(InStruct, *CompString))
+				if (FStructProperty* StructProp = FindField<FStructProperty>(InStruct, *CompString))
 				{
 					// The first part of the path was a struct, look inside it
 					void* StructContainer = StructProp->ContainerPtrToValuePtr<void>(InObject);
@@ -375,7 +375,7 @@ namespace FMatineeUtils
 			else
 			{
 				// Look for the property in the current scope
-				if (UProperty* Prop = FindField<UProperty>(InStruct, *InPropertyName))
+				if (FProperty* Prop = FindField<FProperty>(InStruct, *InPropertyName))
 				{
 					OutPropContainer = BasePointer;
 					OutProperty = Prop;
@@ -401,7 +401,7 @@ namespace FMatineeUtils
 		}
 	};
 
-	UObject* FindObjectAndPropOffset(void*& OutPropContainer, UProperty*& OutProperty, UObject* InObject, FName InPropName, const TArray<UClass*>* RequiredClasses, const TArray<FName>* StructTypes)
+	UObject* FindObjectAndPropOffset(void*& OutPropContainer, FProperty*& OutProperty, UObject* InObject, FName InPropName, const TArray<FFieldClass*>* RequiredClasses, const TArray<FName>* StructTypes)
 	{
 		OutPropContainer = NULL;
 		OutProperty = NULL;
@@ -440,13 +440,13 @@ namespace FMatineeUtils
 #if WITH_EDITOR
 	void GetInterpFloatPropertyNames(AActor* InActor, TArray<FName>& OutNames)
 	{
-		FBasicInterpPropertyGatherer<UFloatProperty> GatherFunctor(OutNames);
+		FBasicInterpPropertyGatherer<FFloatProperty> GatherFunctor(OutNames);
 		GatherFunctor.Execute(InActor);
 	}
 
 	void GetInterpBoolPropertyNames(AActor* InActor, TArray<FName>& OutNames)
 	{
-		FBasicInterpPropertyGatherer<UBoolProperty> GatherFunctor(OutNames);
+		FBasicInterpPropertyGatherer<FBoolProperty> GatherFunctor(OutNames);
 		GatherFunctor.Execute(InActor);
 	}
 
@@ -470,7 +470,7 @@ namespace FMatineeUtils
 #endif
 
 
-	bool PropertyMatchesClassRequirements( UProperty* Prop, const TArray<UClass*>* RequiredClasses, const TArray<FName>* StructTypes )
+	bool PropertyMatchesClassRequirements( FProperty* Prop, const TArray<FFieldClass*>* RequiredClasses, const TArray<FName>* StructTypes )
 	{
 		bool bMatches = false;
 		if( RequiredClasses == NULL )
@@ -479,11 +479,11 @@ namespace FMatineeUtils
 		}
 		else
 		{
-			const TArray<UClass*>& Classes = *RequiredClasses;
+			const TArray<FFieldClass*>& Classes = *RequiredClasses;
 			for (int32 iClass = 0; iClass < Classes.Num() ; iClass++)
 			{
-				UClass* EachClass = Classes[ iClass ];
-				if(Prop->IsA(UStructProperty::StaticClass()))
+				FFieldClass* EachClass = Classes[ iClass ];
+				if(Prop->IsA(FStructProperty::StaticClass()))
 				{
 					if( StructTypes == NULL )
 					{
@@ -493,7 +493,7 @@ namespace FMatineeUtils
 					else
 					{
 						const TArray<FName>& Structs = *StructTypes;
-						UStructProperty* StructProp = CastChecked<UStructProperty>( Prop );
+						FStructProperty* StructProp = CastFieldChecked<FStructProperty>( Prop );
 						FName StructType = StructProp->Struct->GetFName();
 						for (int32 iStructType = 0; iStructType < Structs.Num() ; iStructType++)
 						{

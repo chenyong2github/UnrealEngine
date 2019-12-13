@@ -956,7 +956,7 @@ protected:
 	virtual void DiffProperties(UStruct* StructA, UStruct* StructB, uint8* DataA, uint8* DataB, FDiffResults& Results, FDiffSingleResult& Diff) const;
 
 	// Returns a human-friendly description of the property in the form "PropertyName: Value"
-	virtual FString GetPropertyNameAndValueForDiff(const UProperty* Prop, const uint8* PropertyAddr) const;
+	virtual FString GetPropertyNameAndValueForDiff(const FProperty* Prop, const uint8* PropertyAddr) const;
 
 #endif // WITH_EDITOR
 

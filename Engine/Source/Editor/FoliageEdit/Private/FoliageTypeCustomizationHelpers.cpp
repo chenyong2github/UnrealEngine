@@ -52,7 +52,7 @@ void FFoliageTypeCustomizationHelpers::BindHiddenPropertyVisibilityGetter(const 
 	// Determine the conditions for showing this property. 
 	// Note that any special cases can override the visibility attribute by using ModifyFoliageProperty
 	
-	if (PropertyHandle->GetProperty()->IsA<UBoolProperty>())
+	if (PropertyHandle->GetProperty()->IsA<FBoolProperty>())
 	{
 		// If hidden behind a bool, show when that bool is true
 		OutVisibilityGetter.BindLambda([=]
@@ -62,7 +62,7 @@ void FFoliageTypeCustomizationHelpers::BindHiddenPropertyVisibilityGetter(const 
 			return bState && Result == FPropertyAccess::Success ? EVisibility::Visible : EVisibility::Collapsed;
 		});
 	}
-	else if (PropertyHandle->GetProperty()->IsA<UByteProperty>() || PropertyHandle->GetProperty()->IsA<UEnumProperty>())
+	else if (PropertyHandle->GetProperty()->IsA<FByteProperty>() || PropertyHandle->GetProperty()->IsA<FEnumProperty>())
 	{
 		// If hidden behind a byte/enum, assume that 0 = disabled and show if nonzero
 		OutVisibilityGetter.BindLambda([=]

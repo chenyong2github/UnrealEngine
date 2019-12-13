@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Kismet/KismetArrayLibrary.h"
 #include "GameFramework/Actor.h"
@@ -72,13 +72,13 @@ void UKismetArrayLibrary::FilterArray(const TArray<AActor*>& TargetArray, TSubcl
 	}
 }
 
-int32 UKismetArrayLibrary::GenericArray_Add(void* TargetArray, const UArrayProperty* ArrayProp, const void* NewItem)
+int32 UKismetArrayLibrary::GenericArray_Add(void* TargetArray, const FArrayProperty* ArrayProp, const void* NewItem)
 {
 	int32 NewIndex = INDEX_NONE;
 	if( TargetArray )
 	{
 		FScriptArrayHelper ArrayHelper(ArrayProp, TargetArray);
-		UProperty* InnerProp = ArrayProp->Inner;
+		FProperty* InnerProp = ArrayProp->Inner;
 
 		NewIndex = ArrayHelper.AddValue();
 		InnerProp->CopySingleValueToScriptVM(ArrayHelper.GetRawPtr(NewIndex), NewItem);
@@ -86,13 +86,13 @@ int32 UKismetArrayLibrary::GenericArray_Add(void* TargetArray, const UArrayPrope
 	return NewIndex;
 }
 
-int32 UKismetArrayLibrary::GenericArray_AddUnique(void* TargetArray, const UArrayProperty* ArrayProp, const void* NewItem)
+int32 UKismetArrayLibrary::GenericArray_AddUnique(void* TargetArray, const FArrayProperty* ArrayProp, const void* NewItem)
 {
 	int32 NewIndex = INDEX_NONE;
 	if (TargetArray)
 	{
 		FScriptArrayHelper ArrayHelper(ArrayProp, TargetArray);
-		UProperty* InnerProp = ArrayProp->Inner;
+		FProperty* InnerProp = ArrayProp->Inner;
 
 		if (GenericArray_Find(TargetArray, ArrayProp, NewItem) == INDEX_NONE)
 		{
@@ -103,11 +103,11 @@ int32 UKismetArrayLibrary::GenericArray_AddUnique(void* TargetArray, const UArra
 	return NewIndex;
 }
 
-bool UKismetArrayLibrary::GenericArray_Identical(void* ArrayA, const UArrayProperty* ArrayAProp, void* ArrayB, const UArrayProperty* ArrayBProp)
+bool UKismetArrayLibrary::GenericArray_Identical(void* ArrayA, const FArrayProperty* ArrayAProp, void* ArrayB, const FArrayProperty* ArrayBProp)
 {
 	if (ArrayA && ArrayB)
 	{
-		UProperty* InnerAProp = ArrayAProp->Inner;
+		FProperty* InnerAProp = ArrayAProp->Inner;
 
 		if (InnerAProp->SameType(ArrayBProp->Inner))
 		{
@@ -135,7 +135,7 @@ bool UKismetArrayLibrary::GenericArray_Identical(void* ArrayA, const UArrayPrope
 	return false;
 }
 
-void UKismetArrayLibrary::GenericArray_Append(void* TargetArray, const UArrayProperty* TargetArrayProp, void* SourceArray, const UArrayProperty* SourceArrayProperty)
+void UKismetArrayLibrary::GenericArray_Append(void* TargetArray, const FArrayProperty* TargetArrayProp, void* SourceArray, const FArrayProperty* SourceArrayProperty)
 {
 	if(TargetArray && SourceArray)
 	{
@@ -144,7 +144,7 @@ void UKismetArrayLibrary::GenericArray_Append(void* TargetArray, const UArrayPro
 
 		if(SourceArrayHelper.Num() > 0)
 		{
-			UProperty* InnerProp = TargetArrayProp->Inner;
+			FProperty* InnerProp = TargetArrayProp->Inner;
 
 			int32 StartIdx = TargetArrayHelper.AddValues(SourceArrayHelper.Num());
 			for(int32 x = 0; x < SourceArrayHelper.Num(); ++x, ++StartIdx)
@@ -155,12 +155,12 @@ void UKismetArrayLibrary::GenericArray_Append(void* TargetArray, const UArrayPro
 	}
 }
 
-void UKismetArrayLibrary::GenericArray_Insert(void* TargetArray, const UArrayProperty* ArrayProp, const void* NewItem, int32 Index)
+void UKismetArrayLibrary::GenericArray_Insert(void* TargetArray, const FArrayProperty* ArrayProp, const void* NewItem, int32 Index)
 {
 	if( TargetArray )
 	{
 		FScriptArrayHelper ArrayHelper(ArrayProp, TargetArray);
-		UProperty* InnerProp = ArrayProp->Inner;
+		FProperty* InnerProp = ArrayProp->Inner;
 
 		if (ArrayHelper.IsValidIndex(Index)
 			|| (Index >= 0 && Index <= ArrayHelper.Num()) )
@@ -175,7 +175,7 @@ void UKismetArrayLibrary::GenericArray_Insert(void* TargetArray, const UArrayPro
 	}
 }
 
-void UKismetArrayLibrary::GenericArray_Remove(void* TargetArray, const UArrayProperty* ArrayProp, int32 IndexToRemove)
+void UKismetArrayLibrary::GenericArray_Remove(void* TargetArray, const FArrayProperty* ArrayProp, int32 IndexToRemove)
 {
 	if( TargetArray )
 	{
@@ -192,7 +192,7 @@ void UKismetArrayLibrary::GenericArray_Remove(void* TargetArray, const UArrayPro
 }
 
 
-bool UKismetArrayLibrary::GenericArray_RemoveItem(void* TargetArray, const UArrayProperty* ArrayProp, const void* Item)
+bool UKismetArrayLibrary::GenericArray_RemoveItem(void* TargetArray, const FArrayProperty* ArrayProp, const void* Item)
 {
 	bool bRemoved = false;
 
@@ -212,7 +212,7 @@ bool UKismetArrayLibrary::GenericArray_RemoveItem(void* TargetArray, const UArra
 	return bRemoved;
 }
 
-void UKismetArrayLibrary::GenericArray_Shuffle(void* TargetArray, const UArrayProperty* ArrayProp)
+void UKismetArrayLibrary::GenericArray_Shuffle(void* TargetArray, const FArrayProperty* ArrayProp)
 {
 	if (TargetArray)
 	{
@@ -229,7 +229,7 @@ void UKismetArrayLibrary::GenericArray_Shuffle(void* TargetArray, const UArrayPr
 	}
 }
 
-void UKismetArrayLibrary::GenericArray_Clear(void* TargetArray, const UArrayProperty* ArrayProp)
+void UKismetArrayLibrary::GenericArray_Clear(void* TargetArray, const FArrayProperty* ArrayProp)
 {
 	if( TargetArray )
 	{
@@ -239,7 +239,7 @@ void UKismetArrayLibrary::GenericArray_Clear(void* TargetArray, const UArrayProp
 	}
 }
 
-void UKismetArrayLibrary::GenericArray_Resize(void* TargetArray, const UArrayProperty* ArrayProp, int32 Size)
+void UKismetArrayLibrary::GenericArray_Resize(void* TargetArray, const FArrayProperty* ArrayProp, int32 Size)
 {
 	if( TargetArray )
 	{
@@ -255,7 +255,7 @@ void UKismetArrayLibrary::GenericArray_Resize(void* TargetArray, const UArrayPro
 	}
 }
 
-int32 UKismetArrayLibrary::GenericArray_Length(const void* TargetArray, const UArrayProperty* ArrayProp)
+int32 UKismetArrayLibrary::GenericArray_Length(const void* TargetArray, const FArrayProperty* ArrayProp)
 {
 	if( TargetArray )
 	{
@@ -267,7 +267,7 @@ int32 UKismetArrayLibrary::GenericArray_Length(const void* TargetArray, const UA
 	return 0;
 }
 
-int32 UKismetArrayLibrary::GenericArray_LastIndex(const void* TargetArray, const UArrayProperty* ArrayProp)
+int32 UKismetArrayLibrary::GenericArray_LastIndex(const void* TargetArray, const FArrayProperty* ArrayProp)
 {
 	if( TargetArray )
 	{
@@ -279,13 +279,13 @@ int32 UKismetArrayLibrary::GenericArray_LastIndex(const void* TargetArray, const
 	return INDEX_NONE;
 }
 
-void UKismetArrayLibrary::GenericArray_Get(void* TargetArray, const UArrayProperty* ArrayProp, int32 Index, void* Item)
+void UKismetArrayLibrary::GenericArray_Get(void* TargetArray, const FArrayProperty* ArrayProp, int32 Index, void* Item)
 {
 	if( TargetArray )
 	{
 		FScriptArrayHelper ArrayHelper(ArrayProp, TargetArray);
 
-		UProperty* InnerProp = ArrayProp->Inner;
+		FProperty* InnerProp = ArrayProp->Inner;
 		if( ArrayHelper.IsValidIndex(Index) )
 		{
 			InnerProp->CopyCompleteValueFromScriptVM(Item, ArrayHelper.GetRawPtr(Index));	
@@ -296,7 +296,7 @@ void UKismetArrayLibrary::GenericArray_Get(void* TargetArray, const UArrayProper
 				Index,
 				*ArrayProp->GetName(),
 				ArrayHelper.Num(),
-				*GetPathNameSafe(ArrayProp->GetOuter())),
+				*ArrayProp->GetOwnerVariant().GetPathName()),
 				ELogVerbosity::Warning,
 				GetOutOfBoundsWarning);
 			InnerProp->InitializeValue(Item);
@@ -305,12 +305,12 @@ void UKismetArrayLibrary::GenericArray_Get(void* TargetArray, const UArrayProper
 }
 
 
-void UKismetArrayLibrary::GenericArray_Set(void* TargetArray, const UArrayProperty* ArrayProp, int32 Index, const void* NewItem, bool bSizeToFit)
+void UKismetArrayLibrary::GenericArray_Set(void* TargetArray, const FArrayProperty* ArrayProp, int32 Index, const void* NewItem, bool bSizeToFit)
 {
 	if( TargetArray )
 	{
 		FScriptArrayHelper ArrayHelper(ArrayProp, TargetArray);
-		UProperty* InnerProp = ArrayProp->Inner;
+		FProperty* InnerProp = ArrayProp->Inner;
 
 		// Expand the array, if desired
 		if (!ArrayHelper.IsValidIndex(Index) && bSizeToFit && (Index >= 0))
@@ -329,7 +329,7 @@ void UKismetArrayLibrary::GenericArray_Set(void* TargetArray, const UArrayProper
 	}
 }
 
-void UKismetArrayLibrary::GenericArray_Swap(const void* TargetArray, const UArrayProperty* ArrayProp, int32 First, int32 Second)
+void UKismetArrayLibrary::GenericArray_Swap(const void* TargetArray, const FArrayProperty* ArrayProp, int32 First, int32 Second)
 {
 	if (TargetArray)
 	{
@@ -363,14 +363,14 @@ void UKismetArrayLibrary::GenericArray_Swap(const void* TargetArray, const UArra
 	}
 }
 
-int32 UKismetArrayLibrary::GenericArray_Find(const void* TargetArray, const UArrayProperty* ArrayProperty, const void* ItemToFind)
+int32 UKismetArrayLibrary::GenericArray_Find(const void* TargetArray, const FArrayProperty* ArrayProperty, const void* ItemToFind)
 {
 	int32 ResultIndex = INDEX_NONE;
 
 	if( TargetArray )
 	{
 		FScriptArrayHelper ArrayHelper(ArrayProperty, TargetArray);
-		UProperty* InnerProp = ArrayProperty->Inner;
+		FProperty* InnerProp = ArrayProperty->Inner;
 
 		// compare against each element in the array
 		for (int32 Idx = 0; Idx < ArrayHelper.Num() && ResultIndex == INDEX_NONE; Idx++)
@@ -390,7 +390,7 @@ void UKismetArrayLibrary::GenericArray_SetArrayPropertyByName(UObject* OwnerObje
 {
 	if (OwnerObject != NULL)
 	{
-		UArrayProperty* ArrayProp = FindField<UArrayProperty>(OwnerObject->GetClass(), ArrayPropertyName);
+		FArrayProperty* ArrayProp = FindField<FArrayProperty>(OwnerObject->GetClass(), ArrayPropertyName);
 		if (ArrayProp != NULL)
 		{
 			void* Dest = ArrayProp->ContainerPtrToValuePtr<void>(OwnerObject);
@@ -399,7 +399,7 @@ void UKismetArrayLibrary::GenericArray_SetArrayPropertyByName(UObject* OwnerObje
 	}
 }
 
-bool UKismetArrayLibrary::GenericArray_IsValidIndex(const void* TargetArray, const UArrayProperty* ArrayProp, int32 IndexToTest)
+bool UKismetArrayLibrary::GenericArray_IsValidIndex(const void* TargetArray, const FArrayProperty* ArrayProp, int32 IndexToTest)
 {
 	bool ReturnBool = false;
 
@@ -413,9 +413,9 @@ bool UKismetArrayLibrary::GenericArray_IsValidIndex(const void* TargetArray, con
 	return ReturnBool;
 }
 
-void UKismetArrayLibrary::GenericArray_HandleBool(const UProperty* Property, void* ItemPtr)
+void UKismetArrayLibrary::GenericArray_HandleBool(const FProperty* Property, void* ItemPtr)
 {
-	const UBoolProperty* BoolProperty = Cast<const UBoolProperty>(Property);
+	const FBoolProperty* BoolProperty = CastField<const FBoolProperty>(Property);
 	if (BoolProperty)
 	{
 		ensure((BoolProperty->ElementSize * BoolProperty->ArrayDim) == sizeof(uint8));

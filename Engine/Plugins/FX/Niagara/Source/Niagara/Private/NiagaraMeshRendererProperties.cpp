@@ -259,7 +259,7 @@ void UNiagaraMeshRendererProperties::BeginDestroy()
 #endif
 }
 
-void UNiagaraMeshRendererProperties::PreEditChange(class UProperty* PropertyThatWillChange)
+void UNiagaraMeshRendererProperties::PreEditChange(class FProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);
 

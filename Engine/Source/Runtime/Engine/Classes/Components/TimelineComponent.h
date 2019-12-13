@@ -93,8 +93,7 @@ struct FTimelineVectorTrack
 	FName VectorPropertyName;
 
 	/** Cached vector struct property pointer */
-	UPROPERTY(transient)
-	UStructProperty* VectorProperty;
+	FStructProperty* VectorProperty;
 
 	/** Static version of FOnTimelineVector, for use with non-UObjects  */
 	FOnTimelineVectorStatic InterpFuncStatic;
@@ -131,8 +130,7 @@ struct FTimelineFloatTrack
 	FName FloatPropertyName;
 
 	/** Cached float property pointer */
-	UPROPERTY(transient)
-	UFloatProperty* FloatProperty;
+	FFloatProperty* FloatProperty;
 
 	/** Static version of FOnTimelineFloat, for use with non-UObjects */
 	FOnTimelineFloatStatic InterpFuncStatic;
@@ -170,8 +168,7 @@ struct FTimelineLinearColorTrack
 	FName LinearColorPropertyName;
 
 	/** Cached linear color struct property pointer */
-	UPROPERTY(transient)
-	UStructProperty* LinearColorProperty;
+	FStructProperty* LinearColorProperty;
 
 	/** Static version of FOnTimelineFloat, for use with non-UObjects */
 	FOnTimelineLinearColorStatic InterpFuncStatic;
@@ -255,8 +252,7 @@ private:
 	FOnTimelineEventStatic TimelineFinishFuncStatic;
 
 	/** Cached property pointer for setting timeline direction */
-	UPROPERTY(Transient, NotReplicated)
-	UProperty* DirectionProperty;
+	FProperty* DirectionProperty;
 
 public:
 	FTimeline()

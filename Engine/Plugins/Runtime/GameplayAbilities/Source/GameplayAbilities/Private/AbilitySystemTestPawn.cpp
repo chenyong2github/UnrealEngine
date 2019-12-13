@@ -17,7 +17,7 @@ AAbilitySystemTestPawn::AAbilitySystemTestPawn(const FObjectInitializer& ObjectI
 
 void AAbilitySystemTestPawn::PostInitializeComponents()
 {	
-	static UProperty *DamageProperty = FindFieldChecked<UProperty>(UAbilitySystemTestAttributeSet::StaticClass(), GET_MEMBER_NAME_CHECKED(UAbilitySystemTestAttributeSet, Damage));
+	static FProperty *DamageProperty = FindFieldChecked<FProperty>(UAbilitySystemTestAttributeSet::StaticClass(), GET_MEMBER_NAME_CHECKED(UAbilitySystemTestAttributeSet, Damage));
 
 	Super::PostInitializeComponents();
 	AbilitySystemComponent->InitStats(UAbilitySystemTestAttributeSet::StaticClass(), NULL);

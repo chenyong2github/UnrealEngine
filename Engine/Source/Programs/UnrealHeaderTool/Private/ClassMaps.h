@@ -10,7 +10,7 @@
 
 class UField;
 class UClass;
-class UProperty;
+class FProperty;
 class UPackage;
 class UEnum;
 class FClassDeclarationMetaData;
@@ -38,12 +38,12 @@ extern TMap<const UPackage*, TArray<UField*>> GPackageSingletons;
 extern TMap<UClass*, FString> GClassStrippedHeaderTextMap;
 extern TMap<UClass*, FString> GClassHeaderNameWithNoPathMap;
 extern TSet<FUnrealSourceFile*> GPublicSourceFileSet;
-extern TMap<UProperty*, FString> GArrayDimensions;
+extern TMap<FProperty*, FString> GArrayDimensions;
 extern TMap<UPackage*,  const FManifestModule*> GPackageToManifestModuleMap;
-extern TMap<UField*, uint32> GGeneratedCodeHashes;
+extern TMap<void*, uint32> GGeneratedCodeHashes;
 extern TMap<UEnum*, EUnderlyingEnumType> GEnumUnderlyingTypes;
 extern TMap<FName, TSharedRef<FClassDeclarationMetaData> > GClassDeclarations;
-extern TSet<UProperty*> GUnsizedProperties;
+extern TSet<FProperty*> GUnsizedProperties;
 extern TSet<UField*> GEditorOnlyDataTypes;
 extern TMap<UStruct*, TTuple<TSharedRef<FUnrealSourceFile>, int32>> GStructToSourceLine;
 extern TMap<UClass*, FArchiveTypeDefinePair> GClassSerializerMap;

@@ -671,25 +671,25 @@ public:
 	bool K2_AttachTo(USceneComponent* InParent, FName InSocketName = NAME_None, EAttachLocation::Type AttachType = EAttachLocation::KeepRelativeOffset, bool bWeldSimulatedBodies = true);
 
 	/**
-	 * Attach this component to another scene component, optionally at a named socket. It is valid to call this on components whether or not they have been Registered, however from
-	 * constructor or when not registered it is preferable to use SetupAttachment.
-	 * @param  Parent				Parent to attach to.
-	 * @param  AttachmentRules		How to handle transforms & welding when attaching.
-	 * @param  SocketName			Optional socket to attach to on the parent.
-	 * @return True if attachment is successful (or already attached to requested parent/socket), false if attachment is rejected and there is no change in AttachParent.
-	 */
+	* Attach this component to another scene component, optionally at a named socket. It is valid to call this on components whether or not they have been Registered, however from
+	* constructor or when not registered it is preferable to use SetupAttachment.
+	* @param  Parent				Parent to attach to.
+	* @param  AttachmentRules		How to handle transforms & welding when attaching.
+	* @param  SocketName			Optional socket to attach to on the parent.
+	* @return True if attachment is successful (or already attached to requested parent/socket), false if attachment is rejected and there is no change in AttachParent.
+	*/
 	bool AttachToComponent(USceneComponent* InParent, const FAttachmentTransformRules& AttachmentRules, FName InSocketName = NAME_None );
 
 	/**
-	 * Attach this component to another scene component, optionally at a named socket. It is valid to call this on components whether or not they have been Registered.
-	 * @param  Parent					Parent to attach to.
-	 * @param  SocketName				Optional socket to attach to on the parent.
-	 * @param  LocationRule				How to handle translation when attaching.
-	 * @param  RotationRule				How to handle rotation when attaching.
-	 * @param  ScaleRule					How to handle scale when attaching.
-	 * @param  bWeldSimulatedBodies		Whether to weld together simulated physics bodies.
-	 * @return True if attachment is successful (or already attached to requested parent/socket), false if attachment is rejected and there is no change in AttachParent.
-	 */
+	* Attach this component to another scene component, optionally at a named socket. It is valid to call this on components whether or not they have been Registered.
+	* @param  Parent					Parent to attach to.
+	* @param  SocketName				Optional socket to attach to on the parent.
+	* @param  LocationRule				How to handle translation when attaching.
+	* @param  RotationRule				How to handle rotation when attaching.
+	* @param  ScaleRule					How to handle scale when attaching.
+	* @param  bWeldSimulatedBodies		Whether to weld together simulated physics bodies.
+	* @return True if attachment is successful (or already attached to requested parent/socket), false if attachment is rejected and there is no change in AttachParent.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "Utilities|Transformation", meta = (DisplayName = "AttachComponentToComponent", ScriptName = "AttachToComponent", bWeldSimulatedBodies=true))
 	bool K2_AttachToComponent(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule, bool bWeldSimulatedBodies);
 
@@ -868,7 +868,7 @@ public:
 	//~ End ActorComponent Interface
 
 	//~ Begin UObject Interface
-	virtual void PostInterpChange(UProperty* PropertyThatChanged) override;
+	virtual void PostInterpChange(FProperty* PropertyThatChanged) override;
 	virtual void BeginDestroy() override;
 	virtual bool IsPostLoadThreadSafe() const override;
 	virtual void PreNetReceive() override;
@@ -882,7 +882,7 @@ public:
 	virtual bool NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
-	virtual bool CanEditChange(const UProperty* Property) const override;
+	virtual bool CanEditChange(const FProperty* Property) const override;
 #endif
 	//~ End UObject Interface
 
@@ -1779,7 +1779,7 @@ protected:
 	FRotator InitialRelativeRotation;
 	FVector InitialRelativeScale;
 
-	int32 FinalOverlapCandidatesIndex;			// If not INDEX_NONE, overlaps at this index and beyond in PendingOverlaps are at the final destination
+	int32 FinalOverlapCandidatesIndex;		// If not INDEX_NONE, overlaps at this index and beyond in PendingOverlaps are at the final destination
 	TScopedOverlapInfoArray PendingOverlaps;	// All overlaps encountered during the scope of moves.
 	TScopedBlockingHitArray BlockingHits;		// All blocking hits encountered during the scope of moves.
 

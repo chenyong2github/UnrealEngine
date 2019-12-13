@@ -35,7 +35,7 @@ FNameTableArchiveReader::FNameTableArchiveReader(int32 SerializationVersion, con
 			{
 				if (SerializeNameMap())
 				{
-					// Succesfully loaded
+					// Successfully loaded
 					return;
 				}
 			}
@@ -74,7 +74,7 @@ bool FNameTableArchiveReader::SerializeNameMap()
 
 	if (NameOffset > TotalSize())
 	{
-		// The file was corrupted. Return false to fail to load the cache an thus regenerate it.
+		// The file was corrupted. Return false to fail to load the cache and thus regenerate it.
 		return false;
 	}
 
@@ -85,8 +85,14 @@ bool FNameTableArchiveReader::SerializeNameMap()
 
 		int32 NameCount = 0;
 		*this << NameCount;
+		if (IsError() || NameCount < 0)
+		{
+			return false;
+		}
 		
-		NameMap.Reserve(NameCount);
+		const int32 MinFNameEntrySize = sizeof(int32);
+		int32 MaxReservation = (TotalSize() - Tell()) / MinFNameEntrySize;
+		NameMap.Reserve(FMath::Min(NameCount, MaxReservation));
 		for ( int32 NameMapIdx = 0; NameMapIdx < NameCount; ++NameMapIdx )
 		{
 			// Read the name entry from the file.

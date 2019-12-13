@@ -86,6 +86,7 @@
 #include "AnimPreviewInstance.h"
 #include "ISequenceRecorder.h"
 #include "SkinWeightProfileCustomization.h"
+#include "SAnimationBlendSpaceGridWidget.h"
 
 IMPLEMENT_MODULE( FPersonaModule, Persona );
 
@@ -341,6 +342,18 @@ TSharedRef<class FWorkflowTabFactory> FPersonaModule::CreateAnimBlueprintAssetOv
 TSharedRef<class FWorkflowTabFactory> FPersonaModule::CreateSkeletonSlotNamesTabFactory(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, const TSharedRef<class IEditableSkeleton>& InEditableSkeleton, FSimpleMulticastDelegate& InOnPostUndo, FOnObjectSelected InOnObjectSelected) const
 {
 	return MakeShareable(new FSkeletonSlotNamesSummoner(InHostingApp, InEditableSkeleton, InOnPostUndo, InOnObjectSelected));
+}
+
+TSharedRef<SWidget> FPersonaModule::CreateBlendSpacePreviewWidget(TAttribute<const UBlendSpaceBase*> InBlendSpace, TAttribute<FVector> InPosition) const
+{
+	return
+		SNew(SBlendSpaceGridWidget)
+		.Cursor(EMouseCursor::Crosshairs)
+		.BlendSpaceBase(InBlendSpace)
+		.Position(InPosition)
+		.ReadOnly(true)
+		.ShowAxisLabels(false)
+		.ShowSettingsButtons(false);
 }
 
 TSharedRef<SWidget> FPersonaModule::CreateEditorWidgetForAnimDocument(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, UObject* InAnimAsset, const FAnimDocumentArgs& InArgs, FString& OutDocumentLink)

@@ -22,6 +22,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FMenuBuilder;
+class SNetworkingProfilerWindow;
 
 namespace Trace
 {
@@ -63,7 +64,7 @@ public:
 	 * Construct this widget
 	 * @param InArgs - The declaration data for this widget
 	 */
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, TSharedPtr<SNetworkingProfilerWindow> InProfilerWindow);
 
 	TSharedPtr<Insights::FTable> GetTable() const { return Table; }
 
@@ -89,8 +90,6 @@ public:
 
 	void SelectNetEventNode(uint64 Id);
 
-	//const TSet<FNetEventNodePtr>& GetNetEventNodes() const { return NetEventNodes; }
-	//const TMap<uint64, FNetEventNodePtr> GetNetEventNodesIdMap() const { return NetEventNodesIdMap; }
 	const FNetEventNodePtr* GetNetEventNode(uint64 Id) const { return NetEventNodesIdMap.Find(Id); }
 
 protected:
@@ -253,6 +252,8 @@ protected:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 protected:
+	TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow;
+
 	/** Table view model. */
 	TSharedPtr<Insights::FTable> Table;
 

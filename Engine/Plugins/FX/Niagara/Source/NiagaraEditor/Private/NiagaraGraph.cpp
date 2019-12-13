@@ -1140,7 +1140,7 @@ void UNiagaraGraph::RebuildCachedCompileIds(bool bForce)
 		}
 		HashState.Final();
 
-		// We can't store in a FShaHash struct directly because you can't UProperty it. Using a standin of the same size.
+		// We can't store in a FShaHash struct directly because you can't FProperty it. Using a standin of the same size.
 		TArray<uint8> DataHash;
 		DataHash.AddUninitialized(20);
 		HashState.GetHash(DataHash.GetData());

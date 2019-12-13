@@ -43,13 +43,13 @@ void GenerateSocketViewModelsRecursive(const UEdGraphSchema_Niagara* Schema, TSh
 	int32 NumProperties = 0;
 	int32 NumStructProperties = 0;
 	const UStruct* Struct = TypeDef.GetStruct();
-	for (TFieldIterator<UProperty> PropertyIterator(Struct); PropertyIterator; ++PropertyIterator)
+	for (TFieldIterator<FProperty> PropertyIterator(Struct); PropertyIterator; ++PropertyIterator)
 	{
-		UProperty* Property = *PropertyIterator;
+		FProperty* Property = *PropertyIterator;
 		if (Property != nullptr)
 		{
 			NumProperties++;
-			UStructProperty* StructProperty = Cast<UStructProperty>(Property);
+			FStructProperty* StructProperty = CastField<FStructProperty>(Property);
 			if (StructProperty != nullptr)
 			{
 				NumStructProperties++;
@@ -77,15 +77,15 @@ void GenerateSocketViewModelsRecursive(const UEdGraphSchema_Niagara* Schema, TSh
 	TArray<TSharedRef<FNiagaraConvertPinSocketViewModel>> OwnerChildSocketViewModels;
 
 	// Now iterate all properties and create their sockets recursively.
-	for (TFieldIterator<UProperty> PropertyIterator(Struct); PropertyIterator; ++PropertyIterator)
+	for (TFieldIterator<FProperty> PropertyIterator(Struct); PropertyIterator; ++PropertyIterator)
 	{
-		UProperty* Property = *PropertyIterator;
+		FProperty* Property = *PropertyIterator;
 		if (Property != nullptr)
 		{
 			FNiagaraTypeDefinition ChildTypeDef = Schema->GetTypeDefForProperty(Property);
 			TSharedRef<FNiagaraConvertPinSocketViewModel> SocketViewModel = MakeShareable(new FNiagaraConvertPinSocketViewModel(OwnerPinViewModel, OwnerPinSocketViewModel, Property->GetFName(), FName(*Property->GetDisplayNameText().ToString()), ChildTypeDef, Direction, TypeTraversalDepth));
 
-			UStructProperty* StructProperty = Cast<UStructProperty>(Property);
+			FStructProperty* StructProperty = CastField<FStructProperty>(Property);
 			if (StructProperty != nullptr)
 			{
 				TArray<TSharedRef<FNiagaraConvertPinSocketViewModel>> ChildSocketViewModels;

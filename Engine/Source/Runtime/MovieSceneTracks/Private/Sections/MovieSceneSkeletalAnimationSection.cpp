@@ -290,7 +290,7 @@ float UMovieSceneSkeletalAnimationSection::GetTotalWeightValue(FFrameTime InTime
 
 
 #if WITH_EDITOR
-void UMovieSceneSkeletalAnimationSection::PreEditChange(UProperty* PropertyAboutToChange)
+void UMovieSceneSkeletalAnimationSection::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	// Store the current play rate so that we can compute the amount to compensate the section end time when the play rate changes
 	PreviousPlayRate = Params.PlayRate;

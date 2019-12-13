@@ -552,6 +552,23 @@ bool UTexture2D::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFi
 	return false;
 }
 
+bool UTexture2D::DoesMipDataExist(const int32 MipIndex) const
+{
+#if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA == 0
+	if (PlatformData)
+	{
+		if (MipIndex < PlatformData->Mips.Num() && MipIndex >= 0)
+		{
+			return PlatformData->Mips[MipIndex].BulkData.DoesExist();
+		}
+	}
+#else
+	checkf(false, TEXT("Should not be possible to reach this path, if USE_NEW_BULKDATA is enabled then TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA should be disabled!"));
+#endif
+
+	return false;
+}
+
 int32 UTexture2D::GetNumResidentMips() const
 {
 	if (IsCurrentlyVirtualTextured())

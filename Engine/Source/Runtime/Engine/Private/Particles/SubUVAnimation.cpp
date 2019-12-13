@@ -146,7 +146,7 @@ void USubUVAnimation::PostLoad()
 
 #if WITH_EDITOR
 
-void USubUVAnimation::PreEditChange(UProperty* PropertyThatChanged)
+void USubUVAnimation::PreEditChange(FProperty* PropertyThatChanged)
 {
 	Super::PreEditChange(PropertyThatChanged);
 

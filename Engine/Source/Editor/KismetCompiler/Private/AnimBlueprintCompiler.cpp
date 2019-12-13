@@ -85,7 +85,7 @@ bool FAnimBlueprintCompilerContext::FEffectiveConstantRecord::Apply(UObject* Obj
 
 	if (ArrayIndex != INDEX_NONE)
 	{
-		UArrayProperty* ArrayProperty = CastChecked<UArrayProperty>(ConstantProperty);
+		FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(ConstantProperty);
 
 		// Peer inside the array
 		FScriptArrayHelper ArrayHelper(ArrayProperty, PropertyPtr);
@@ -376,97 +376,97 @@ void FAnimBlueprintCompilerContext::CreateEvaluationHandler(UAnimGraphNode_Base*
 
 	if (Record.bServicesNodeProperties)
 	{
-		// Create a struct member write node to store the parameters into the animation node
-		UK2Node_StructMemberSet* AssignmentNode = SpawnIntermediateNode<UK2Node_StructMemberSet>(VisualAnimNode, ConsolidatedEventGraph);
-		AssignmentNode->VariableReference.SetSelfMember(Record.NodeVariableProperty->GetFName());
-		AssignmentNode->StructType = Record.NodeVariableProperty->Struct;
-		AssignmentNode->AllocateDefaultPins();
+	// Create a struct member write node to store the parameters into the animation node
+	UK2Node_StructMemberSet* AssignmentNode = SpawnIntermediateNode<UK2Node_StructMemberSet>(VisualAnimNode, ConsolidatedEventGraph);
+	AssignmentNode->VariableReference.SetSelfMember(Record.NodeVariableProperty->GetFName());
+	AssignmentNode->StructType = Record.NodeVariableProperty->Struct;
+	AssignmentNode->AllocateDefaultPins();
 
-		// Wire up the variable node execution wires
-		UEdGraphPin* ExecVariablesIn = Schema->FindExecutionPin(*AssignmentNode, EGPD_Input);
-		ExecChain->MakeLinkTo(ExecVariablesIn);
-		ExecChain = Schema->FindExecutionPin(*AssignmentNode, EGPD_Output);
+	// Wire up the variable node execution wires
+	UEdGraphPin* ExecVariablesIn = Schema->FindExecutionPin(*AssignmentNode, EGPD_Input);
+	ExecChain->MakeLinkTo(ExecVariablesIn);
+	ExecChain = Schema->FindExecutionPin(*AssignmentNode, EGPD_Output);
 
-		// Run thru each property
-		TSet<FName> PropertiesBeingSet;
+	// Run thru each property
+	TSet<FName> PropertiesBeingSet;
 
-		for (auto TargetPinIt = AssignmentNode->Pins.CreateIterator(); TargetPinIt; ++TargetPinIt)
+	for (auto TargetPinIt = AssignmentNode->Pins.CreateIterator(); TargetPinIt; ++TargetPinIt)
+	{
+		UEdGraphPin* TargetPin = *TargetPinIt;
+		FName PropertyName(TargetPin->PinName);
+
+		// Does it get serviced by this handler?
+		if (FAnimNodeSinglePropertyHandler* SourceInfo = Record.ServicedProperties.Find(PropertyName))
 		{
-			UEdGraphPin* TargetPin = *TargetPinIt;
-			FName PropertyName(TargetPin->PinName);
-
-			// Does it get serviced by this handler?
-			if (FAnimNodeSinglePropertyHandler* SourceInfo = Record.ServicedProperties.Find(PropertyName))
+			if (TargetPin->PinType.IsArray())
 			{
-				if (TargetPin->PinType.IsArray())
+				// Grab the array that we need to set members for
+				UK2Node_StructMemberGet* FetchArrayNode = SpawnIntermediateNode<UK2Node_StructMemberGet>(VisualAnimNode, ConsolidatedEventGraph);
+				FetchArrayNode->VariableReference.SetSelfMember(Record.NodeVariableProperty->GetFName());
+				FetchArrayNode->StructType = Record.NodeVariableProperty->Struct;
+				FetchArrayNode->AllocatePinsForSingleMemberGet(PropertyName);
+
+				UEdGraphPin* ArrayVariableNode = FetchArrayNode->FindPin(PropertyName);
+
+				if (SourceInfo->CopyRecords.Num() > 0)
 				{
-					// Grab the array that we need to set members for
-					UK2Node_StructMemberGet* FetchArrayNode = SpawnIntermediateNode<UK2Node_StructMemberGet>(VisualAnimNode, ConsolidatedEventGraph);
-					FetchArrayNode->VariableReference.SetSelfMember(Record.NodeVariableProperty->GetFName());
-					FetchArrayNode->StructType = Record.NodeVariableProperty->Struct;
-					FetchArrayNode->AllocatePinsForSingleMemberGet(PropertyName);
-
-					UEdGraphPin* ArrayVariableNode = FetchArrayNode->FindPin(PropertyName);
-
-					if (SourceInfo->CopyRecords.Num() > 0)
+					// Set each element in the array
+					for (FPropertyCopyRecord& CopyRecord : SourceInfo->CopyRecords)
 					{
-						// Set each element in the array
-						for (FPropertyCopyRecord& CopyRecord : SourceInfo->CopyRecords)
-						{
-							int32 ArrayIndex = CopyRecord.DestArrayIndex;
-							UEdGraphPin* DestPin = CopyRecord.DestPin;
+						int32 ArrayIndex = CopyRecord.DestArrayIndex;
+						UEdGraphPin* DestPin = CopyRecord.DestPin;
 
-							// Create an array element set node
-							UK2Node_CallArrayFunction* ArrayNode = SpawnIntermediateNode<UK2Node_CallArrayFunction>(VisualAnimNode, ConsolidatedEventGraph);
-							ArrayNode->FunctionReference.SetExternalMember(GET_FUNCTION_NAME_CHECKED(UKismetArrayLibrary, Array_Set), UKismetArrayLibrary::StaticClass());
-							ArrayNode->AllocateDefaultPins();
+						// Create an array element set node
+						UK2Node_CallArrayFunction* ArrayNode = SpawnIntermediateNode<UK2Node_CallArrayFunction>(VisualAnimNode, ConsolidatedEventGraph);
+						ArrayNode->FunctionReference.SetExternalMember(GET_FUNCTION_NAME_CHECKED(UKismetArrayLibrary, Array_Set), UKismetArrayLibrary::StaticClass());
+						ArrayNode->AllocateDefaultPins();
 
-							// Connect the execution chain
-							ExecChain->MakeLinkTo(ArrayNode->GetExecPin());
-							ExecChain = ArrayNode->GetThenPin();
+						// Connect the execution chain
+						ExecChain->MakeLinkTo(ArrayNode->GetExecPin());
+						ExecChain = ArrayNode->GetThenPin();
 
-							// Connect the input array
-							UEdGraphPin* TargetArrayPin = ArrayNode->FindPinChecked(TEXT("TargetArray"));
-							TargetArrayPin->MakeLinkTo(ArrayVariableNode);
-							ArrayNode->PinConnectionListChanged(TargetArrayPin);
+						// Connect the input array
+						UEdGraphPin* TargetArrayPin = ArrayNode->FindPinChecked(TEXT("TargetArray"));
+						TargetArrayPin->MakeLinkTo(ArrayVariableNode);
+						ArrayNode->PinConnectionListChanged(TargetArrayPin);
 
-							// Set the array index
-							UEdGraphPin* TargetIndexPin = ArrayNode->FindPinChecked(TEXT("Index"));
-							TargetIndexPin->DefaultValue = FString::FromInt(ArrayIndex);
+						// Set the array index
+						UEdGraphPin* TargetIndexPin = ArrayNode->FindPinChecked(TEXT("Index"));
+						TargetIndexPin->DefaultValue = FString::FromInt(ArrayIndex);
 
-							// Wire up the data input
-							UEdGraphPin* TargetItemPin = ArrayNode->FindPinChecked(TEXT("Item"));
-							TargetItemPin->CopyPersistentDataFromOldPin(*DestPin);
-							MessageLog.NotifyIntermediatePinCreation(TargetItemPin, DestPin);
-							DestPin->BreakAllPinLinks();
-						}
-					}
-				}
-				else
-				{
-					check(!TargetPin->PinType.IsContainer());
-					// Single property
-					if (SourceInfo->CopyRecords.Num() > 0 && SourceInfo->CopyRecords[0].DestPin != nullptr)
-					{
-						UEdGraphPin* DestPin = SourceInfo->CopyRecords[0].DestPin;
-
-						PropertiesBeingSet.Add(DestPin->PinName);
-						TargetPin->CopyPersistentDataFromOldPin(*DestPin);
-						MessageLog.NotifyIntermediatePinCreation(TargetPin, DestPin);
+						// Wire up the data input
+						UEdGraphPin* TargetItemPin = ArrayNode->FindPinChecked(TEXT("Item"));
+						TargetItemPin->CopyPersistentDataFromOldPin(*DestPin);
+						MessageLog.NotifyIntermediatePinCreation(TargetItemPin, DestPin);
 						DestPin->BreakAllPinLinks();
 					}
 				}
 			}
-		}
+			else
+			{
+					check(!TargetPin->PinType.IsContainer());
+				// Single property
+				if (SourceInfo->CopyRecords.Num() > 0 && SourceInfo->CopyRecords[0].DestPin != nullptr)
+				{
+					UEdGraphPin* DestPin = SourceInfo->CopyRecords[0].DestPin;
 
-		// Remove any unused pins from the assignment node to avoid smashing constant values
-		for (int32 PinIndex = 0; PinIndex < AssignmentNode->ShowPinForProperties.Num(); ++PinIndex)
-		{
-			FOptionalPinFromProperty& TestProperty = AssignmentNode->ShowPinForProperties[PinIndex];
-			TestProperty.bShowPin = PropertiesBeingSet.Contains(TestProperty.PropertyName);
+					PropertiesBeingSet.Add(DestPin->PinName);
+					TargetPin->CopyPersistentDataFromOldPin(*DestPin);
+					MessageLog.NotifyIntermediatePinCreation(TargetPin, DestPin);
+					DestPin->BreakAllPinLinks();
+				}
+			}
 		}
+	}
 
-		AssignmentNode->ReconstructNode();
+	// Remove any unused pins from the assignment node to avoid smashing constant values
+	for (int32 PinIndex = 0; PinIndex < AssignmentNode->ShowPinForProperties.Num(); ++PinIndex)
+	{
+		FOptionalPinFromProperty& TestProperty = AssignmentNode->ShowPinForProperties[PinIndex];
+		TestProperty.bShowPin = PropertiesBeingSet.Contains(TestProperty.PropertyName);
+	}
+
+	AssignmentNode->ReconstructNode();
 	}
 }
 
@@ -507,7 +507,7 @@ void FAnimBlueprintCompilerContext::ProcessAnimationNode(UAnimGraphNode_Base* Vi
 	NodeVariableType.PinCategory = UAnimationGraphSchema::PC_Struct;
 	NodeVariableType.PinSubCategoryObject = MakeWeakObjectPtr(const_cast<UScriptStruct*>(NodeType));
 
-	UStructProperty* NewProperty = Cast<UStructProperty>(CreateVariable(FName(*NodeVariableName), NodeVariableType));
+	FStructProperty* NewProperty = CastField<FStructProperty>(CreateVariable(FName(*NodeVariableName), NodeVariableType));
 
 	if (NewProperty == NULL)
 	{
@@ -631,7 +631,7 @@ void FAnimBlueprintCompilerContext::ProcessAnimationNode(UAnimGraphNode_Base* Vi
 		{
 			// The property source for our data, either the struct property for an anim node, or the
 			// owning anim instance if using a linked instance node.
-			UProperty* SourcePinProperty = nullptr;
+			FProperty* SourcePinProperty = nullptr;
 			int32 SourceArrayIndex = INDEX_NONE;
 			bool bInstancePropertyExists = false;
 
@@ -757,7 +757,7 @@ void FAnimBlueprintCompilerContext::ProcessUseCachedPose(UAnimGraphNode_UseCache
 	{
 		if (UAnimGraphNode_SaveCachedPose* AssociatedSaveNode = SaveCachedPoseNodes.FindRef(UseCachedPose->SaveCachedPoseNode->CacheName))
 		{
-			UStructProperty* LinkProperty = FindField<UStructProperty>(FAnimNode_UseCachedPose::StaticStruct(), TEXT("LinkToCachingNode"));
+			FStructProperty* LinkProperty = FindField<FStructProperty>(FAnimNode_UseCachedPose::StaticStruct(), TEXT("LinkToCachingNode"));
 			check(LinkProperty);
 
 			FPoseLinkMappingRecord LinkRecord = FPoseLinkMappingRecord::MakeFromMember(UseCachedPose, AssociatedSaveNode, LinkProperty);
@@ -795,7 +795,7 @@ void FAnimBlueprintCompilerContext::ProcessCustomPropertyNode(UAnimGraphNode_Cus
 		{
 			// avoid to add properties which already exist on the custom node.
 			// for example the ControlRig_CustomNode has a pin called "alpha" which is not custom.
-			if (UStructProperty* NodeProperty = Cast<UStructProperty>(CustomPropNode->GetClass()->FindPropertyByName(TEXT("Node"))))
+			if (FStructProperty* NodeProperty = CastField<FStructProperty>(CustomPropNode->GetClass()->FindPropertyByName(TEXT("Node"))))
 			{
 				if(NodeProperty->Struct->FindPropertyByName(Pin->GetFName()))
 				{
@@ -807,7 +807,7 @@ void FAnimBlueprintCompilerContext::ProcessCustomPropertyNode(UAnimGraphNode_Cus
 			FString PrefixedName = CustomPropNode->GetPinTargetVariableName(Pin);
 
 			// Create a property on the new class to hold the pin data
-			UProperty* NewProperty = FKismetCompilerUtilities::CreatePropertyOnScope(NewAnimBlueprintClass, FName(*PrefixedName), Pin->PinType, NewAnimBlueprintClass, CPF_None, GetSchema(), MessageLog);
+			FProperty* NewProperty = FKismetCompilerUtilities::CreatePropertyOnScope(NewAnimBlueprintClass, FName(*PrefixedName), Pin->PinType, NewAnimBlueprintClass, CPF_None, GetSchema(), MessageLog);
 			if (NewProperty)
 			{
 				FKismetCompilerUtilities::LinkAddedProperty(NewAnimBlueprintClass, NewProperty);
@@ -816,7 +816,7 @@ void FAnimBlueprintCompilerContext::ProcessCustomPropertyNode(UAnimGraphNode_Cus
 				if (!bGenerateLinkedAnimGraphVariables)
 				{
 					UClass* InstClass = CustomPropNode->GetTargetSkeletonClass();
-					if (UProperty* FoundProperty = FindField<UProperty>(InstClass, Pin->PinName))
+					if (FProperty* FoundProperty = FindField<FProperty>(InstClass, Pin->PinName))
 					{
 						CustomPropNode->AddSourceTargetProperties(NewProperty->GetFName(), FoundProperty->GetFName());
 					}
@@ -1299,8 +1299,8 @@ void FAnimBlueprintCompilerContext::ProcessAllAnimationNodes()
 		MessageLog.Error(*LOCTEXT("ExpectedAFunctionEntry_Error", "Expected at least one animation root, but did not find any").ToString());
 	}
 
-	// Build cached pose map
-	BuildCachedPoseNodeUpdateOrder();
+		// Build cached pose map
+		BuildCachedPoseNodeUpdateOrder();
 }
 
 int32 FAnimBlueprintCompilerContext::ExpandGraphAndProcessNodes(UEdGraph* SourceGraph, UAnimGraphNode_Base* SourceRootNode, UAnimStateTransitionNode* TransitionNode, TArray<UEdGraphNode*>* ClonedNodes)
@@ -1764,15 +1764,15 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 		}
 		UObject* RootDefaultObject = RootAnimClass->GetDefaultObject();
 
-		for (TFieldIterator<UProperty> It(RootAnimClass); It; ++It)
+		for (TFieldIterator<FProperty> It(RootAnimClass); It; ++It)
 		{
-			UProperty* RootProp = *It;
+			FProperty* RootProp = *It;
 
-			if (UStructProperty* RootStructProp = Cast<UStructProperty>(RootProp))
+			if (FStructProperty* RootStructProp = CastField<FStructProperty>(RootProp))
 			{
 				if (RootStructProp->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
 				{
-					UStructProperty* ChildStructProp = FindField<UStructProperty>(NewAnimBlueprintClass, *RootStructProp->GetName());
+					FStructProperty* ChildStructProp = FindField<FStructProperty>(NewAnimBlueprintClass, *RootStructProp->GetName());
 					check(ChildStructProp);
 					uint8* SourcePtr = RootStructProp->ContainerPtrToValuePtr<uint8>(RootDefaultObject);
 					uint8* DestPtr = ChildStructProp->ContainerPtrToValuePtr<uint8>(DefaultAnimInstance);
@@ -1816,15 +1816,15 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 		TMap<UAnimGraphNode_Base*, uint8*> NodeBaseAddresses;
 
 		// Initialize animation nodes from their templates
-		for (TFieldIterator<UProperty> It(DefaultAnimInstance->GetClass(), EFieldIteratorFlags::ExcludeSuper); It; ++It)
+		for (TFieldIterator<FProperty> It(DefaultAnimInstance->GetClass(), EFieldIteratorFlags::ExcludeSuper); It; ++It)
 		{
-			UProperty* TargetProperty = *It;
+			FProperty* TargetProperty = *It;
 
 			if (UAnimGraphNode_Base* VisualAnimNode = AllocatedNodePropertiesToNodes.FindRef(TargetProperty))
 			{
-				const UStructProperty* SourceNodeProperty = VisualAnimNode->GetFNodeProperty();
+				const FStructProperty* SourceNodeProperty = VisualAnimNode->GetFNodeProperty();
 				check(SourceNodeProperty != NULL);
-				check(CastChecked<UStructProperty>(TargetProperty)->Struct == SourceNodeProperty->Struct);
+				check(CastFieldChecked<FStructProperty>(TargetProperty)->Struct == SourceNodeProperty->Struct);
 
 				uint8* DestinationPtr = TargetProperty->ContainerPtrToValuePtr<uint8>(DefaultAnimInstance);
 				uint8* SourcePtr = SourceNodeProperty->ContainerPtrToValuePtr<uint8>(VisualAnimNode);
@@ -1842,6 +1842,20 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 					FAnimNode_LinkedInputPose NewLinkedInputPose = *reinterpret_cast<FAnimNode_LinkedInputPose*>(SourcePtr);
 					NewLinkedInputPose.Graph = Cast<UAnimGraphNode_LinkedInputPose>(MessageLog.FindSourceObject(LinkedInputPoseNode))->GetGraph()->GetFName();
 					TargetProperty->CopyCompleteValue(DestinationPtr, &NewLinkedInputPose);
+				}
+				else if(UAnimGraphNode_LinkedAnimGraph* LinkedAnimGraphNode = ExactCast<UAnimGraphNode_LinkedAnimGraph>(VisualAnimNode))
+				{
+					// patch node index into linked anim graph nodes
+					FAnimNode_LinkedAnimGraph NewLinkedAnimGraph = *reinterpret_cast<FAnimNode_LinkedAnimGraph*>(SourcePtr);
+					NewLinkedAnimGraph.NodeIndex = LinkIndexCount;
+					TargetProperty->CopyCompleteValue(DestinationPtr, &NewLinkedAnimGraph);
+				}
+				else if(UAnimGraphNode_LinkedAnimLayer* LinkedAnimLayerNode = ExactCast<UAnimGraphNode_LinkedAnimLayer>(VisualAnimNode))
+				{
+					// patch node index into linked anim layer nodes
+					FAnimNode_LinkedAnimLayer NewLinkedAnimLayer = *reinterpret_cast<FAnimNode_LinkedAnimLayer*>(SourcePtr);
+					NewLinkedAnimLayer.NodeIndex = LinkIndexCount;
+					TargetProperty->CopyCompleteValue(DestinationPtr, &NewLinkedAnimLayer);
 				}
 				else
 				{
@@ -1927,7 +1941,7 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 			}
 
 			// iterate all properties to determine validity
-			for (UStructProperty* Property : TFieldRange<UStructProperty>(AnimBlueprintGeneratedClass, EFieldIteratorFlags::IncludeSuper))
+			for (FStructProperty* Property : TFieldRange<FStructProperty>(AnimBlueprintGeneratedClass, EFieldIteratorFlags::IncludeSuper))
 			{
 				if(Property->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
 				{
@@ -2164,7 +2178,7 @@ void FAnimBlueprintCompilerContext::ProcessLinkedInputPose(UAnimGraphNode_Linked
 		if(!UAnimationGraphSchema::IsPosePin(InPinType))
 		{
 			// create properties for 'local' linked input pose pins
-			UProperty* NewLinkedInputPoseProperty = CreateVariable(InName, InPinType);
+			FProperty* NewLinkedInputPoseProperty = CreateVariable(InName, InPinType);
 			if(NewLinkedInputPoseProperty)
 			{
 				if(bIsFullCompile)
@@ -2342,7 +2356,7 @@ void FAnimBlueprintCompilerContext::PostCompile()
 	{
 		// iterate all anim node and call PostCompile
 		const USkeleton* CurrentSkeleton = AnimBlueprint->TargetSkeleton;
-		for (UStructProperty* Property : TFieldRange<UStructProperty>(AnimBlueprintGeneratedClass, EFieldIteratorFlags::IncludeSuper))
+		for (FStructProperty* Property : TFieldRange<FStructProperty>(AnimBlueprintGeneratedClass, EFieldIteratorFlags::IncludeSuper))
 		{
 			if (Property->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
 			{
@@ -2428,7 +2442,7 @@ void FAnimBlueprintCompilerContext::ProcessTransitionGetter(UK2Node_TransitionRu
 
 		if (bNeedTimePin && (PlayerNodeIndex != INDEX_NONE) && (TimePropertyName != NULL) && (TimePropertyInStructType != NULL))
 		{
-			UProperty* NodeProperty = AllocatedPropertiesByIndex.FindChecked(PlayerNodeIndex);
+			FProperty* NodeProperty = AllocatedPropertiesByIndex.FindChecked(PlayerNodeIndex);
 
 			// Create a struct member read node to grab the current position of the sequence player node
 			UK2Node_StructMemberGet* TimeReadNode = SpawnIntermediateNode<UK2Node_StructMemberGet>(Getter, ConsolidatedEventGraph);
@@ -2782,7 +2796,7 @@ void FAnimBlueprintCompilerContext::AutoWireAnimGetter(class UK2Node_AnimGetter*
 
 				if(ReferencedNodeIndex != INDEX_NONE && TimePropertyName && TimePropertyInStructType)
 				{
-					UProperty* NodeProperty = AllocatedPropertiesByIndex.FindChecked(ReferencedNodeIndex);
+					FProperty* NodeProperty = AllocatedPropertiesByIndex.FindChecked(ReferencedNodeIndex);
 
 					UK2Node_StructMemberGet* ReaderNode = SpawnIntermediateNode<UK2Node_StructMemberGet>(Getter, ConsolidatedEventGraph);
 					ReaderNode->VariableReference.SetSelfMember(NodeProperty->GetFName());
@@ -2856,7 +2870,7 @@ void FAnimBlueprintCompilerContext::FEvaluationHandlerRecord::PatchFunctionNameA
 			{
 				  // get the correct property sizes for the type we are dealing with (array etc.)
 				  int32 DestPropertySize = PropertyCopyRecord.DestProperty->GetSize();
-				  if (UArrayProperty* DestArrayProperty = Cast<UArrayProperty>(PropertyCopyRecord.DestProperty))
+				  if (FArrayProperty* DestArrayProperty = CastField<FArrayProperty>(PropertyCopyRecord.DestProperty))
 				  {
 					  DestPropertySize = DestArrayProperty->Inner->GetSize();
 				  }
@@ -2931,7 +2945,7 @@ static UEdGraphNode* FollowKnots(UEdGraphPin* FromPin, UEdGraphPin*& ToPin)
 	return nullptr;
 }
 
-void FAnimBlueprintCompilerContext::FEvaluationHandlerRecord::RegisterPin(UEdGraphPin* DestPin, UProperty* AssociatedProperty, int32 AssociatedPropertyArrayIndex)
+void FAnimBlueprintCompilerContext::FEvaluationHandlerRecord::RegisterPin(UEdGraphPin* DestPin, FProperty* AssociatedProperty, int32 AssociatedPropertyArrayIndex)
 {
 	FAnimNodeSinglePropertyHandler& Handler = ServicedProperties.FindOrAdd(AssociatedProperty->GetFName());
 	Handler.CopyRecords.Emplace(DestPin, AssociatedProperty, AssociatedPropertyArrayIndex);
@@ -3170,15 +3184,15 @@ void FAnimBlueprintCompilerContext::FPropertyCopyRecord::ValidateFastPath(UClass
 	if (IsFastPath())
 	{
 		int32 DestPropertySize = DestProperty->GetSize();
-		if (UArrayProperty* DestArrayProperty = Cast<UArrayProperty>(DestProperty))
+		if (FArrayProperty* DestArrayProperty = CastField<FArrayProperty>(DestProperty))
 		{
 			DestPropertySize = DestArrayProperty->Inner->GetSize();
 		}
 
-		UProperty* SourceProperty = InCompiledClass->FindPropertyByName(SourcePropertyName);
+		FProperty* SourceProperty = InCompiledClass->FindPropertyByName(SourcePropertyName);
 		if (SourceProperty)
 		{
-			if (UArrayProperty* SourceArrayProperty = Cast<UArrayProperty>(SourceProperty))
+			if (FArrayProperty* SourceArrayProperty = CastField<FArrayProperty>(SourceProperty))
 			{
 				// We dont support arrays as source properties
 				InvalidateFastPath();
@@ -3188,7 +3202,7 @@ void FAnimBlueprintCompilerContext::FPropertyCopyRecord::ValidateFastPath(UClass
 			int32 SourcePropertySize = SourceProperty->GetSize();
 			if (SourceSubStructPropertyName != NAME_None)
 			{
-				UProperty* SourceSubStructProperty = CastChecked<UStructProperty>(SourceProperty)->Struct->FindPropertyByName(SourceSubStructPropertyName);
+				FProperty* SourceSubStructProperty = CastFieldChecked<FStructProperty>(SourceProperty)->Struct->FindPropertyByName(SourceSubStructPropertyName);
 				if (SourceSubStructProperty)
 				{
 					SourcePropertySize = SourceSubStructProperty->GetSize();

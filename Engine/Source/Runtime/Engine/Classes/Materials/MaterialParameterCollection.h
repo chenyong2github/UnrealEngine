@@ -91,7 +91,7 @@ class UMaterialParameterCollection : public UObject
 	//~ Begin UObject Interface.
 #if WITH_EDITOR
 	using Super::PreEditChange;
-	virtual void PreEditChange(UProperty* PropertyThatWillChange) override;
+	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	virtual void PostInitProperties() override;

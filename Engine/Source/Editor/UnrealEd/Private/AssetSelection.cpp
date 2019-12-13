@@ -905,7 +905,7 @@ bool FActorFactoryAssetProxy::ApplyMaterialToActor( AActor* TargetActor, UMateri
 		ALandscapeProxy* Landscape = Cast<ALandscapeProxy>(TargetActor);
 		if (Landscape != NULL)
 		{
-			UProperty* MaterialProperty = FindField<UProperty>(ALandscapeProxy::StaticClass(), "LandscapeMaterial");
+			FProperty* MaterialProperty = FindField<FProperty>(ALandscapeProxy::StaticClass(), "LandscapeMaterial");
 			Landscape->PreEditChange(MaterialProperty);
 			Landscape->LandscapeMaterial = MaterialToApply;
 			FPropertyChangedEvent PropertyChangedEvent(MaterialProperty);

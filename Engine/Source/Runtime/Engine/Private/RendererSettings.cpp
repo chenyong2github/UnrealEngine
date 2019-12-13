@@ -92,7 +92,7 @@ void URendererSettings::PostInitProperties()
 }
 
 #if WITH_EDITOR
-void URendererSettings::PreEditChange(UProperty* PropertyAboutToChange)
+void URendererSettings::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	Super::PreEditChange(PropertyAboutToChange);
 
@@ -128,9 +128,9 @@ void URendererSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 			{
 				bSupportSkinCacheShaders = 1;
 
-				for (TFieldIterator<UProperty> PropIt(GetClass()); PropIt; ++PropIt)
+				for (TFieldIterator<FProperty> PropIt(GetClass()); PropIt; ++PropIt)
 				{
-					UProperty* Property = *PropIt;
+					FProperty* Property = *PropIt;
 					if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bSupportSkinCacheShaders))
 					{
 						UpdateSinglePropertyInConfigFile(Property, GetDefaultConfigFilename());
@@ -141,9 +141,9 @@ void URendererSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 			{
 				bEnableRayTracing = 0;
 
-				for (TFieldIterator<UProperty> PropIt(GetClass()); PropIt; ++PropIt)
+				for (TFieldIterator<FProperty> PropIt(GetClass()); PropIt; ++PropIt)
 				{
-					UProperty* Property = *PropIt;
+					FProperty* Property = *PropIt;
 					if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bEnableRayTracing))
 					{
 						UpdateSinglePropertyInConfigFile(Property, GetDefaultConfigFilename());
@@ -180,7 +180,7 @@ void URendererSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 	}
 }
 
-bool URendererSettings::CanEditChange(const UProperty* InProperty) const
+bool URendererSettings::CanEditChange(const FProperty* InProperty) const
 {
 	const bool ParentVal = Super::CanEditChange(InProperty);
 

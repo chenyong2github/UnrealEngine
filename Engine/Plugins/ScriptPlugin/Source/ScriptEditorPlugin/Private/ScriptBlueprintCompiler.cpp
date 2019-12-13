@@ -46,30 +46,30 @@ void FScriptBlueprintCompiler::CreateClassVariablesFromBlueprint()
 	for (FScriptField& Field : ScriptDefinedFields)
 	{
 		UClass* InnerType = Field.Class;
-		if (Field.Class->IsChildOf(UProperty::StaticClass()))
+		if (Field.PropertyClass)
 		{
 			FName PinCategory;
-			if (Field.Class->IsChildOf(UStrProperty::StaticClass()))
+			if (Field.PropertyClass->IsChildOf(FStrProperty::StaticClass()))
 			{
 				PinCategory = UEdGraphSchema_K2::PC_String;
 			}
-			else if (Field.Class->IsChildOf(UFloatProperty::StaticClass()))
+			else if (Field.PropertyClass->IsChildOf(FFloatProperty::StaticClass()))
 			{
 				PinCategory = UEdGraphSchema_K2::PC_Float;
 			}
-			else if (Field.Class->IsChildOf(UIntProperty::StaticClass()))
+			else if (Field.PropertyClass->IsChildOf(FIntProperty::StaticClass()))
 			{
 				PinCategory = UEdGraphSchema_K2::PC_Int;
 			}
-			else if (Field.Class->IsChildOf(UInt64Property::StaticClass()))
+			else if (Field.PropertyClass->IsChildOf(FInt64Property::StaticClass()))
 			{
 				PinCategory = UEdGraphSchema_K2::PC_Int64;
 			}
-			else if (Field.Class->IsChildOf(UBoolProperty::StaticClass()))
+			else if (Field.PropertyClass->IsChildOf(FBoolProperty::StaticClass()))
 			{
 				PinCategory = UEdGraphSchema_K2::PC_Boolean;
 			}
-			else if (Field.Class->IsChildOf(UObjectProperty::StaticClass()))
+			else if (Field.PropertyClass->IsChildOf(FObjectProperty::StaticClass()))
 			{
 				PinCategory = UEdGraphSchema_K2::PC_Object;
 				// @todo: some scripting extensions (that are strongly typed) can handle this better
@@ -78,7 +78,7 @@ void FScriptBlueprintCompiler::CreateClassVariablesFromBlueprint()
 			if (!PinCategory.IsNone())
 			{
 				FEdGraphPinType ScriptPinType(PinCategory, NAME_None, InnerType, EPinContainerType::None, false, FEdGraphTerminalType());
-				UProperty* ScriptProperty = CreateVariable(Field.Name, ScriptPinType);
+				FProperty* ScriptProperty = CreateVariable(Field.Name, ScriptPinType);
 				if (ScriptProperty)
 				{
 					ScriptProperty->SetMetaData(TEXT("Category"), *ScriptBP->GetName());
@@ -108,7 +108,7 @@ void FScriptBlueprintCompiler::CreateScriptContextProperty()
 	if (ContextClass)
 	{
 		FEdGraphPinType ScriptContextPinType(UEdGraphSchema_K2::PC_Object, NAME_None, ContextClass, EPinContainerType::None, false, FEdGraphTerminalType());
-		ContextProperty = CastChecked<UObjectProperty>(CreateVariable(TEXT("Generated_ScriptContext"), ScriptContextPinType));
+		ContextProperty = CastFieldChecked<FObjectProperty>(CreateVariable(TEXT("Generated_ScriptContext"), ScriptContextPinType));
 		ContextProperty->SetPropertyFlags(CPF_ContainsInstancedReference | CPF_InstancedReference);
 	}
 }

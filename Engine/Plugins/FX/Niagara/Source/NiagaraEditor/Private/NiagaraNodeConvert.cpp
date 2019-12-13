@@ -101,11 +101,11 @@ void UNiagaraNodeConvert::AutowireNewNode(UEdGraphPin* FromPin)
 			TArray<FName> SrcPath;
 			TArray<FName> DestPath;
 			//Add a corresponding pin for each property in the from Pin.
-			for (TFieldIterator<UProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+			for (TFieldIterator<FProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 			{
 				SrcPath.Empty(SrcPath.Num());
 				DestPath.Empty(DestPath.Num());
-				const UProperty* Property = *PropertyIt;
+				const FProperty* Property = *PropertyIt;
 				FNiagaraTypeDefinition PropType = Schema->GetTypeDefForProperty(Property);
 				UEdGraphPin* NewPin = RequestNewTypedPin(Dir, PropType, *Property->GetDisplayNameText().ToString());
 
@@ -298,14 +298,14 @@ bool UNiagaraNodeConvert::InitConversion(UEdGraphPin* FromPin, UEdGraphPin* ToPi
 
 	TArray<FName> SrcPath;
 	TArray<FName> DestPath;
-	TFieldIterator<UProperty> FromPropertyIt(FromType.GetScriptStruct(), EFieldIteratorFlags::IncludeSuper);
-	TFieldIterator<UProperty> ToPropertyIt(ToType.GetScriptStruct(), EFieldIteratorFlags::IncludeSuper);
+	TFieldIterator<FProperty> FromPropertyIt(FromType.GetScriptStruct(), EFieldIteratorFlags::IncludeSuper);
+	TFieldIterator<FProperty> ToPropertyIt(ToType.GetScriptStruct(), EFieldIteratorFlags::IncludeSuper);
 
-	TFieldIterator<UProperty> NextFromPropertyIt(FromType.GetScriptStruct(), EFieldIteratorFlags::IncludeSuper);
+	TFieldIterator<FProperty> NextFromPropertyIt(FromType.GetScriptStruct(), EFieldIteratorFlags::IncludeSuper);
 	while (FromPropertyIt && ToPropertyIt)
 	{
-		UProperty* FromProp = *FromPropertyIt;
-		UProperty* ToProp = *ToPropertyIt;
+		FProperty* FromProp = *FromPropertyIt;
+		FProperty* ToProp = *ToPropertyIt;
 		if (NextFromPropertyIt)
 		{
 			++NextFromPropertyIt;

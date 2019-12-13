@@ -360,7 +360,7 @@ public:
 public:
 
 	/** Begin UObject interface */
-	virtual void PostReloadConfig(class UProperty* PropertyThatWasLoaded) override;
+	virtual void PostReloadConfig(class FProperty* PropertyThatWasLoaded) override;
 	/** End UObject interface */
 
 private:

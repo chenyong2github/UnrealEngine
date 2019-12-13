@@ -470,7 +470,7 @@ void UExporter::EmitBeginObject( FOutputDevice& Ar, UObject* Obj, uint32 PortFla
 			UObject* Archetype = Obj->GetArchetype();
 			// since we could have two object owners with the same name (like named Blueprints in different folders),
 			// we need the fully qualified path for the archetype (so we don't get confused when unpacking this)
-			Ar.Logf(TEXT(" Archetype=%s"), *UObjectPropertyBase::GetExportPath(Archetype, Archetype->GetOutermost(), /*ExportRootScope =*/nullptr, PortFlags & ~PPF_ExportsNotFullyQualified));
+			Ar.Logf(TEXT(" Archetype=%s"), *FObjectPropertyBase::GetExportPath(Archetype, Archetype->GetOutermost(), /*ExportRootScope =*/nullptr, PortFlags & ~PPF_ExportsNotFullyQualified));
 		}
 	}
 
@@ -662,25 +662,25 @@ void ExportProperties
 	FString ThisName = TEXT("(none)");
 	check(ObjectClass != NULL);
 
-	for( UProperty* Property = ObjectClass->PropertyLink; Property; Property = Property->PropertyLinkNext )
+	for( FProperty* Property = ObjectClass->PropertyLink; Property; Property = Property->PropertyLinkNext )
 	{
 		if (!Property->ShouldPort(PortFlags))
 			continue;
 
 		ThisName = Property->GetName();
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Property);
-		UObjectPropertyBase* ExportObjectProp = (Property->PropertyFlags & CPF_ExportObject) != 0 ? Cast<UObjectPropertyBase>(Property) : NULL;
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property);
+		FObjectPropertyBase* ExportObjectProp = (Property->PropertyFlags & CPF_ExportObject) != 0 ? CastField<FObjectPropertyBase>(Property) : NULL;
 		const uint32 ExportFlags = PortFlags | PPF_Delimited;
 
 		if ( ArrayProperty != NULL )
 		{
 			// Export dynamic array.
-			UProperty* InnerProp = ArrayProperty->Inner;
-			ExportObjectProp = (Property->PropertyFlags & CPF_ExportObject) != 0 ? Cast<UObjectPropertyBase>(InnerProp) : NULL;
+			FProperty* InnerProp = ArrayProperty->Inner;
+			ExportObjectProp = (Property->PropertyFlags & CPF_ExportObject) != 0 ? CastField<FObjectPropertyBase>(InnerProp) : NULL;
 			// This is used as the default value in the case of an array property that has
 			// fewer elements than the exported object.
 			uint8* StructDefaults = NULL;
-			UStructProperty* StructProperty = Cast<UStructProperty>(InnerProp);
+			FStructProperty* StructProperty = CastField<FStructProperty>(InnerProp);
 			if ( StructProperty != NULL )
 			{
 				checkSlow(StructProperty->Struct);

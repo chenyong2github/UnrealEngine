@@ -129,7 +129,7 @@ void FBehaviorTreeEditor::PostRedo(bool bSuccess)
 	FAIGraphEditor::PostRedo(bSuccess);
 }
 
-void FBehaviorTreeEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged )
+void FBehaviorTreeEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged )
 {
 	if(PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{

@@ -313,7 +313,7 @@ void readSimpleProperties(const std::string &archiveName)
                         // Short/UShort
                         case kUint16POD:
                         {
-                            IUInt16Property prop( props,  propNames[jj] );
+                            IFInt16Property prop( props,  propNames[jj] );
                             printSampleValue( prop, iss );
                             break;
                         }
@@ -341,7 +341,7 @@ void readSimpleProperties(const std::string &archiveName)
                         // Long/ULong
                         case kUint64POD:
                         {
-                            IUInt64Property prop( props,  propNames[jj] );
+                            IFInt64Property prop( props,  propNames[jj] );
                             printSampleValue( prop, iss );
                             break;
                         }

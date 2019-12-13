@@ -165,10 +165,10 @@
 #endif
 
 #ifndef likely
-#define likely(expr)     expect((expr) != 0, 1)
+#define likely(expr)     expect(int(expr) != 0, 1)
 #endif
 #ifndef unlikely
-#define unlikely(expr)   expect((expr) != 0, 0)
+#define unlikely(expr)   expect(int(expr) != 0, 0)
 #endif
 
 
@@ -242,6 +242,9 @@ static int g_debuglog_enable = 1;
 **************************************/
 #if defined(__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
 # include <stdint.h>
+
+LZ4_BEGIN_NAMESPACE // EPIC MOD : Wrap library in an optional namespace
+
   typedef  uint8_t BYTE;
   typedef uint16_t U16;
   typedef uint32_t U32;
@@ -611,9 +614,13 @@ int LZ4_sizeofState() { return LZ4_STREAMSIZE; }
 /*-************************************
 *  Internal Definitions used in Tests
 **************************************/
+LZ4_END_NAMESPACE // EPIC MOD : Wrap library in an optional namespace
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
+
+LZ4_BEGIN_NAMESPACE // EPIC MOD : Wrap library in an optional namespace
 
 int LZ4_compress_forceExtDict (LZ4_stream_t* LZ4_dict, const char* source, char* dest, int srcSize);
 
@@ -621,9 +628,13 @@ int LZ4_decompress_safe_forceExtDict(const char* source, char* dest,
                                      int compressedSize, int maxOutputSize,
                                      const void* dictStart, size_t dictSize);
 
+LZ4_END_NAMESPACE // EPIC MOD : Wrap library in an optional namespace
+
 #if defined (__cplusplus)
 }
 #endif
+
+LZ4_BEGIN_NAMESPACE // EPIC MOD : Wrap library in an optional namespace
 
 /*-******************************
 *  Compression functions
@@ -2410,3 +2421,5 @@ char* LZ4_slideInputBuffer (void* state)
 }
 
 #endif   /* LZ4_COMMONDEFS_ONLY */
+
+LZ4_END_NAMESPACE // EPIC MOD : Wrap library in an optional namespace

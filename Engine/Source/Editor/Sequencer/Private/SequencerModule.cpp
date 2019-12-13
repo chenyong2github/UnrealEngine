@@ -255,18 +255,18 @@ public:
 		PropertyAnimators.Remove(Key);
 	}
 
-	virtual bool CanAnimateProperty(UProperty* Property) override
+	virtual bool CanAnimateProperty(FProperty* Property) override
 	{
 		if (PropertyAnimators.Contains(FAnimatedPropertyKey::FromProperty(Property)))
 		{
 			return true;
 		}
 
-		UObjectPropertyBase* ObjectProperty = Cast<UObjectPropertyBase>(Property);
+		FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property);
 
 		// Check each level of the property hierarchy
-		UClass* PropertyType = Property->GetClass();
-		while (PropertyType && PropertyType != UProperty::StaticClass())
+		FFieldClass* PropertyType = Property->GetClass();
+		while (PropertyType && PropertyType != FProperty::StaticClass())
 		{
 			FAnimatedPropertyKey Key = FAnimatedPropertyKey::FromPropertyTypeName(PropertyType->GetFName());
 

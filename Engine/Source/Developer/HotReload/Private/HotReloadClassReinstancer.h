@@ -26,7 +26,7 @@ class FHotReloadClassReinstancer : public FBlueprintCompileReinstancer
 			, SerializedValueSize(0)
 		{}
 
-		UProperty* Property;
+		FProperty* Property;
 		FName SubobjectName;
 		int64 SerializedValueOffset;
 		int64 SerializedValueSize;

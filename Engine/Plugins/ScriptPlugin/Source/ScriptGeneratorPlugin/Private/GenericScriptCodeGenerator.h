@@ -23,7 +23,7 @@ protected:
 	/** Exports a wrapper function */
 	FString ExportFunction(const FString& ClassNameCPP, UClass* Class, UFunction* Function);
 	/** Exports a wrapper functions for properties */
-	FString ExportProperty(const FString& ClassNameCPP, UClass* Class, UProperty* Property, int32 PropertyIndex);
+	FString ExportProperty(const FString& ClassNameCPP, UClass* Class, FProperty* Property, int32 PropertyIndex);
 	/** Exports additional class glue code (like ctor/dtot) */
 	FString ExportAdditionalClassGlue(const FString& ClassNameCPP, UClass* Class);
 	/** Generates wrapper function declaration */
@@ -31,11 +31,11 @@ protected:
 	/** Generates wrapper function declaration */
 	FString GenerateWrapperFunctionDeclaration(const FString& ClassNameCPP, UClass* Class, const FString& FunctionName);
 	/** Generates function parameter declaration */
-	FString GenerateFunctionParamDeclaration(const FString& ClassNameCPP, UClass* Class, UFunction* Function, UProperty* Param);
+	FString GenerateFunctionParamDeclaration(const FString& ClassNameCPP, UClass* Class, UFunction* Function, FProperty* Param);
 	/** Generates code responsible for getting the object pointer from script context */
 	FString GenerateObjectDeclarationFromContext(const FString& ClassNameCPP, UClass* Class);
 	/** Handles the wrapped function's return value */
-	FString GenerateReturnValueHandler(const FString& ClassNameCPP, UClass* Class, UFunction* Function, UProperty* ReturnValue);
+	FString GenerateReturnValueHandler(const FString& ClassNameCPP, UClass* Class, UFunction* Function, FProperty* ReturnValue);
 
 	// FScriptCodeGeneratorBase
 	virtual bool CanExportClass(UClass* Class) override;

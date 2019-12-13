@@ -258,7 +258,7 @@ void USkyAtmosphereComponent::PostEditChangeProperty(FPropertyChangedEvent& Prop
 
 #endif // WITH_EDITOR
 
-void USkyAtmosphereComponent::PostInterpChange(UProperty* PropertyThatChanged)
+void USkyAtmosphereComponent::PostInterpChange(FProperty* PropertyThatChanged)
 {
 	Super::PostInterpChange(PropertyThatChanged);
 	MarkRenderStateDirty();

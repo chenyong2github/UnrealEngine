@@ -30,10 +30,10 @@ void SPropertyEditorMap::Construct(const FArguments& InArgs, const TSharedRef< c
 bool SPropertyEditorMap::Supports(const TSharedRef< FPropertyEditor >& InPropertyEditor)
 {
 	const TSharedRef< FPropertyNode > PropertyNode = InPropertyEditor->GetPropertyNode();
-	const UProperty* Property = InPropertyEditor->GetProperty();
+	const FProperty* Property = InPropertyEditor->GetProperty();
 
 	if (!PropertyNode->HasNodeFlags(EPropertyNodeFlags::EditInlineNew)
-		&& Property->IsA<UMapProperty>())
+		&& Property->IsA<FMapProperty>())
 	{
 		return true;
 	}

@@ -511,14 +511,14 @@ void FLevelSequenceEditorToolkit::AddDefaultTracksForActor(AActor& Actor, const 
 					break;
 				}
 
-				UProperty* Property = PropertyOwnerClass->FindPropertyByName(*PropertyName);
+				FProperty* Property = PropertyOwnerClass->FindPropertyByName(*PropertyName);
 
 				if (Property != nullptr)
 				{
 					PropertyPath->AddProperty(FPropertyInfo(Property));
 				}
 
-				UStructProperty* StructProperty = Cast<UStructProperty>(Property);
+				FStructProperty* StructProperty = CastField<FStructProperty>(Property);
 
 				if (StructProperty != nullptr)
 				{
@@ -526,7 +526,7 @@ void FLevelSequenceEditorToolkit::AddDefaultTracksForActor(AActor& Actor, const 
 					continue;
 				}
 
-				UObjectProperty* ObjectProperty = Cast<UObjectProperty>(Property);
+				FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property);
 
 				if (ObjectProperty != nullptr)
 				{

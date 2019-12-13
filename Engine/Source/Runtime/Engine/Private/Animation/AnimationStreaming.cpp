@@ -215,8 +215,8 @@ void FStreamingAnimationData::BeginPendingRequests(const TArray<uint32>& Indices
 			int64 ChunkSize = Chunk.BulkData.GetBulkDataSize();
 			ChunkStorage.RequestStart = FPlatformTime::Seconds();
 			UE_LOG(LogAnimation, Warning, TEXT("Anim Streaming Request Started %s Chunk:%i At:%.3f\n"), *StreamableAnim->GetName(), ChunkIndex, ChunkStorage.RequestStart);
-			FAsyncFileCallBack AsyncFileCallBack =
-				[this, ChunkIndex, ChunkSize](bool bWasCancelled, IAsyncReadRequest* Req)
+			FBulkDataIORequestCallBack AsyncFileCallBack =
+				[this, ChunkIndex, ChunkSize](bool bWasCancelled, IBulkDataIORequest* Req)
 			{
 				AnimationStreamingManager->OnAsyncFileCallback(this, ChunkIndex, ChunkSize, Req, bWasCancelled);
 			};
@@ -325,7 +325,7 @@ FAnimationStreamingManager::~FAnimationStreamingManager()
 {
 }
 
-void FAnimationStreamingManager::OnAsyncFileCallback(FStreamingAnimationData* StreamingAnimData, int32 ChunkIndex, int64 ReadSize, IAsyncReadRequest* ReadRequest, bool bWasCancelled)
+void FAnimationStreamingManager::OnAsyncFileCallback(FStreamingAnimationData* StreamingAnimData, int32 ChunkIndex, int64 ReadSize, IBulkDataIORequest* ReadRequest, bool bWasCancelled)
 {
 	// Check to see if we successfully managed to load anything
 	uint8* Mem = ReadRequest->GetReadResults();

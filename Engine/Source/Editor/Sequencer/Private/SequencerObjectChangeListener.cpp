@@ -63,15 +63,15 @@ void FSequencerObjectChangeListener::BroadcastPropertyChanged( FKeyPropertyParam
 	// both the CameraActor and the CameraComponent.
 	TArray<UObject*> KeyableObjects;
 	FOnAnimatablePropertyChanged Delegate;
-	UProperty* Property = nullptr;
+	FProperty* Property = nullptr;
 	FPropertyPath PropertyPath;
 	for (auto ObjectToKey : KeyPropertyParams.ObjectsToKey)
 	{
 		if (KeyPropertyParams.PropertyPath.GetNumProperties() > 0)
 		{
-			for (TFieldIterator<UProperty> PropertyIterator(ObjectToKey->GetClass()); PropertyIterator; ++PropertyIterator)
+			for (TFieldIterator<FProperty> PropertyIterator(ObjectToKey->GetClass()); PropertyIterator; ++PropertyIterator)
 			{
-				UProperty* CheckProperty = *PropertyIterator;
+				FProperty* CheckProperty = *PropertyIterator;
 
 				for (int32 Index = 0; Index < KeyPropertyParams.PropertyPath.GetNumProperties(); ++Index)
 				{
@@ -188,7 +188,7 @@ bool IsHiddenFunction(const UStruct& PropertyStructure, FAnimatedPropertyKey Pro
 	return HideFunctions.Contains(FunctionName.ToString());
 }
 
-const FOnAnimatablePropertyChanged* FSequencerObjectChangeListener::FindPropertySetter(const UStruct& PropertyStructure, FAnimatedPropertyKey PropertyKey, const UProperty& Property) const
+const FOnAnimatablePropertyChanged* FSequencerObjectChangeListener::FindPropertySetter(const UStruct& PropertyStructure, FAnimatedPropertyKey PropertyKey, const FProperty& Property) const
 {
 	const FOnAnimatablePropertyChanged* DelegatePtr = PropertyChangedEventMap.Find(PropertyKey);
 	if (DelegatePtr != nullptr)
@@ -218,7 +218,7 @@ const FOnAnimatablePropertyChanged* FSequencerObjectChangeListener::FindProperty
 		if (Function && !Function->HasMetaData(DeprecatedFunctionName))
 		{
 			// FIXME: FTrackInstancePropertyBindings::InvokeSetterFunction doesn't support array properties.
-			if (!Cast<const UArrayProperty>(&Property))
+			if (!CastField<const FArrayProperty>(&Property))
 			{
 				bFoundValidFunction = true;
 			}
@@ -258,12 +258,12 @@ const FOnAnimatablePropertyChanged* FSequencerObjectChangeListener::FindProperty
 bool FSequencerObjectChangeListener::CanKeyProperty(FCanKeyPropertyParams CanKeyPropertyParams) const
 {
 	FOnAnimatablePropertyChanged Delegate;
-	UProperty* Property = nullptr;
+	FProperty* Property = nullptr;
 	FPropertyPath PropertyPath;
 	return CanKeyProperty_Internal(CanKeyPropertyParams, Delegate, Property, PropertyPath);
 }
 
-bool FSequencerObjectChangeListener::CanKeyProperty_Internal(FCanKeyPropertyParams CanKeyPropertyParams, FOnAnimatablePropertyChanged& InOutDelegate, UProperty*& InOutProperty, FPropertyPath& InOutPropertyPath) const
+bool FSequencerObjectChangeListener::CanKeyProperty_Internal(FCanKeyPropertyParams CanKeyPropertyParams, FOnAnimatablePropertyChanged& InOutDelegate, FProperty*& InOutProperty, FPropertyPath& InOutPropertyPath) const
 {
 	if (CanKeyPropertyParams.PropertyPath.GetNumProperties() == 0)
 	{
@@ -279,7 +279,7 @@ bool FSequencerObjectChangeListener::CanKeyProperty_Internal(FCanKeyPropertyPara
 		// Add this to our 'potentially truncated' path
 		InOutPropertyPath.AddProperty(PropertyInfo);
 
-		UProperty* Property = CanKeyPropertyParams.PropertyPath.GetPropertyInfo(Index).Property.Get();
+		FProperty* Property = CanKeyPropertyParams.PropertyPath.GetPropertyInfo(Index).Property.Get();
 		if (Property)
 		{
 			const UStruct* PropertyContainer = CanKeyPropertyParams.FindPropertyContainer(Property);
@@ -297,11 +297,11 @@ bool FSequencerObjectChangeListener::CanKeyProperty_Internal(FCanKeyPropertyPara
 				}
 
 
-				UObjectPropertyBase* ObjectProperty = Cast<UObjectPropertyBase>(Property);
+				FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property);
 
 				// Check each level of the property hierarchy
-				UClass* PropertyType = Property->GetClass();
-				while (PropertyType && PropertyType != UProperty::StaticClass())
+				FFieldClass* PropertyType = Property->GetClass();
+				while (PropertyType && PropertyType != FProperty::StaticClass())
 				{
 					FAnimatedPropertyKey Key = FAnimatedPropertyKey::FromPropertyTypeName(PropertyType->GetFName());
 

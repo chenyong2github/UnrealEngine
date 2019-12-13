@@ -729,7 +729,7 @@ public:
 	{
 		SampleRate = InSampleRate;
 #if !WITH_EDITOR
-		// Ensure that we invalidate our cached sample rate if the UProperty sample rate is changed.
+		// Ensure that we invalidate our cached sample rate if the FProperty sample rate is changed.
 		bCachedSampleRateFromPlatformSettings = false;
 		bSampleRateManuallyReset = true;
 #endif //WITH_EDITOR

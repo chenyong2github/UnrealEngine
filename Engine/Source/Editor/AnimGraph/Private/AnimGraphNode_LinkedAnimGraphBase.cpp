@@ -165,7 +165,7 @@ void UAnimGraphNode_LinkedAnimGraphBase::PostEditChangeProperty(FPropertyChanged
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	bool bRequiresNodeReconstruct = false;
-	UProperty* ChangedProperty = PropertyChangedEvent.Property;
+	FProperty* ChangedProperty = PropertyChangedEvent.Property;
 
 	if(ChangedProperty)
 	{
@@ -270,7 +270,7 @@ void UAnimGraphNode_LinkedAnimGraphBase::GenerateExposedPinsDetails(IDetailLayou
 		return;
 	}
 
-	TArray<UProperty*> ExposableProperties;
+	TArray<FProperty*> ExposableProperties;
 	GetExposableProperties(ExposableProperties);
 
 	if(ExposableProperties.Num() > 0)
@@ -308,7 +308,7 @@ void UAnimGraphNode_LinkedAnimGraphBase::GenerateExposedPinsDetails(IDetailLayou
 			]
 		];
 
-		for(UProperty* Property : ExposableProperties)
+		for(FProperty* Property : ExposableProperties)
 		{
 			FDetailWidgetRow& PropertyWidgetRow = CategoryBuilder.AddCustomRow(FText::FromString(Property->GetName()));
 
@@ -354,7 +354,7 @@ void UAnimGraphNode_LinkedAnimGraphBase::GenerateExposedPinsDetails(IDetailLayou
 	}
 }
 
-bool UAnimGraphNode_LinkedAnimGraphBase::IsStructuralProperty(UProperty* InProperty) const
+bool UAnimGraphNode_LinkedAnimGraphBase::IsStructuralProperty(FProperty* InProperty) const
 {
 	return InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(FAnimNode_LinkedAnimGraph, InstanceClass);
 }
@@ -434,7 +434,7 @@ FPoseLinkMappingRecord UAnimGraphNode_LinkedAnimGraphBase::GetLinkIDLocation(con
 		// perform name-based logic for input pose pins
 		if (UAnimGraphNode_Base* LinkedNode = Cast<UAnimGraphNode_Base>(FBlueprintEditorUtils::FindFirstCompilerRelevantNode(SourcePin->LinkedTo[0])))
 		{
-			UArrayProperty* ArrayProperty = FindFieldChecked<UArrayProperty>(NodeType, GET_MEMBER_NAME_CHECKED(FAnimNode_LinkedAnimGraph, InputPoses));
+			FArrayProperty* ArrayProperty = FindFieldChecked<FArrayProperty>(NodeType, GET_MEMBER_NAME_CHECKED(FAnimNode_LinkedAnimGraph, InputPoses));
 			int32 ArrayIndex = INDEX_NONE;
 			if(Node.InputPoseNames.Find(SourcePin->GetFName(), ArrayIndex))
 			{

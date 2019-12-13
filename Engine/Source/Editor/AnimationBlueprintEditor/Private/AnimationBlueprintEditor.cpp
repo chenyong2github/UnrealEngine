@@ -1285,7 +1285,7 @@ void FAnimationBlueprintEditor::ClearupPreviewMeshAnimNotifyStates()
 	}
 }
 
-void FAnimationBlueprintEditor::GetCustomDebugObjects(TArray<FCustomDebugObject>& DebugList) const
+UAnimInstance* FAnimationBlueprintEditor::GetPreviewInstance() const
 {
 	UDebugSkelMeshComponent* PreviewMeshComponent = PersonaToolkit->GetPreviewMeshComponent();
 	if (PreviewMeshComponent->IsAnimBlueprintInstanced())
@@ -1306,8 +1306,22 @@ void FAnimationBlueprintEditor::GetCustomDebugObjects(TArray<FCustomDebugObject>
 			}
 		}
 
+		return PreviewInstance;
+	}
+
+	return nullptr;
+}
+
+void FAnimationBlueprintEditor::GetCustomDebugObjects(TArray<FCustomDebugObject>& DebugList) const
+{
+	UAnimInstance* PreviewInstance = GetPreviewInstance();
+	if (PreviewInstance)
+	{
 		new (DebugList) FCustomDebugObject(PreviewInstance, LOCTEXT("PreviewObjectLabel", "Preview Instance").ToString());
 	}
+
+	FAnimationBlueprintEditorModule& AnimationBlueprintEditorModule = FModuleManager::GetModuleChecked<FAnimationBlueprintEditorModule>("AnimationBlueprintEditor");
+	AnimationBlueprintEditorModule.OnGetCustomDebugObjects().Broadcast(*this, DebugList);
 }
 
 void FAnimationBlueprintEditor::CreateDefaultTabContents(const TArray<UBlueprint*>& InBlueprints)
@@ -1375,7 +1389,7 @@ void FAnimationBlueprintEditor::RedoAction()
 	GEditor->RedoTransaction();
 }
 
-void FAnimationBlueprintEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged)
+void FAnimationBlueprintEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
 	FBlueprintEditor::NotifyPostChange(PropertyChangedEvent, PropertyThatChanged);
 
@@ -1624,7 +1638,7 @@ void FAnimationBlueprintEditor::HandleSetObjectBeingDebugged(UObject* InObject)
 			}
 			else
 			{
-				// Otherwise eet us to display the debugged instance via copy-pose
+				// Otherwise set us to display the debugged instance via copy-pose
 				GetPreviewScene()->GetPreviewMeshComponent()->EnablePreview(true, nullptr);
 				GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance->SetDebugSkeletalMeshComponent(SkeletalMeshComponent);
 			}

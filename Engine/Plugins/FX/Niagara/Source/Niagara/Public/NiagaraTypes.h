@@ -224,22 +224,22 @@ struct FNiagaraTypeLayoutInfo
 private:
 	static void GenerateLayoutInfoInternal(FNiagaraTypeLayoutInfo& Layout, const UScriptStruct* Struct, int32 BaseOffest = 0)
 	{
-		for (TFieldIterator<UProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<FProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
-			UProperty* Property = *PropertyIt;
+			FProperty* Property = *PropertyIt;
 			int32 PropOffset = BaseOffest + Property->GetOffset_ForInternal();
-			if (Property->IsA(UFloatProperty::StaticClass()))
+			if (Property->IsA(FFloatProperty::StaticClass()))
 			{
 				Layout.FloatComponentRegisterOffsets.Add(Layout.GetNumComponents());
 				Layout.FloatComponentByteOffsets.Add(PropOffset);
 			}
-			else if (Property->IsA(UIntProperty::StaticClass()) || Property->IsA(UBoolProperty::StaticClass()))
+			else if (Property->IsA(FIntProperty::StaticClass()) || Property->IsA(FBoolProperty::StaticClass()))
 			{
 				Layout.Int32ComponentRegisterOffsets.Add(Layout.GetNumComponents());
 				Layout.Int32ComponentByteOffsets.Add(PropOffset);
 			}
 			//Should be able to support double easily enough
-			else if (UStructProperty* StructProp = CastChecked<UStructProperty>(Property))
+			else if (FStructProperty* StructProp = CastFieldChecked<FStructProperty>(Property))
 			{
 				GenerateLayoutInfoInternal(Layout, StructProp->Struct, PropOffset);
 			}

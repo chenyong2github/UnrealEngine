@@ -38,7 +38,7 @@ namespace BlueprintFunctionNodeSpawnerImpl
 	 * @param  BoundObject	
 	 * @return 
 	 */
-	static bool BindFunctionNode(UK2Node_CallFunction* NewNode, UObject* BoundObject);
+	static bool BindFunctionNode(UK2Node_CallFunction* NewNode, FBindingObject BoundObject);
 
 	/**
 	 * 
@@ -70,21 +70,21 @@ namespace BlueprintFunctionNodeSpawnerImpl
 }
 
 //------------------------------------------------------------------------------
-static bool BlueprintFunctionNodeSpawnerImpl::BindFunctionNode(UK2Node_CallFunction* NewNode, UObject* BoundObject)
+static bool BlueprintFunctionNodeSpawnerImpl::BindFunctionNode(UK2Node_CallFunction* NewNode, FBindingObject BoundObject)
 {
 	bool bSuccessfulBinding = false;
 
 	bool const bIsTemplateNode = FBlueprintNodeTemplateCache::IsTemplateOuter(NewNode->GetGraph());
 	if (!bIsTemplateNode)
 	{
-		if (UProperty const* BoundProperty = Cast<UProperty>(BoundObject))
+		if (FProperty const* BoundProperty = BoundObject.Get<FProperty>())
 		{
 			if (UK2Node_CallFunctionOnMember* CallOnMemberNode = Cast<UK2Node_CallFunctionOnMember>(NewNode))
 			{
 				// force bIsConsideredSelfContext to false, else the target 
 				// could end up being the skeleton class (and functionally, 
 				// there is no difference)
-				CallOnMemberNode->MemberVariableToCallOn.SetFromField<UProperty>(BoundProperty, /*bIsConsideredSelfContext =*/false);
+				CallOnMemberNode->MemberVariableToCallOn.SetFromField<FProperty>(BoundProperty, /*bIsConsideredSelfContext =*/false);
 				bSuccessfulBinding = true;
 				CallOnMemberNode->ReconstructNode();
 			}
@@ -94,7 +94,7 @@ static bool BlueprintFunctionNodeSpawnerImpl::BindFunctionNode(UK2Node_CallFunct
 				bSuccessfulBinding = BindFunctionNode<UK2Node_VariableGet>(NewNode, TempNodeSpawner);
 			}
 		}
-		else if (AActor* BoundActor = Cast<AActor>(BoundObject))
+		else if (AActor* BoundActor = BoundObject.Get<AActor>())
 		{
 			auto PostSpawnSetupLambda = [](UEdGraphNode* InNewNode, bool /*bIsTemplateNode*/, AActor* ActorInst)
 			{
@@ -226,7 +226,7 @@ UBlueprintFunctionNodeSpawner* UBlueprintFunctionNodeSpawner::Create(TSubclassOf
 	//--------------------------------------
 
 	UBlueprintFunctionNodeSpawner* NodeSpawner = NewObject<UBlueprintFunctionNodeSpawner>(Outer);
-	NodeSpawner->Field = Function;
+	NodeSpawner->SetField(const_cast<UFunction*>(Function));
 
 	if (NodeClass == nullptr)
 	{
@@ -273,13 +273,13 @@ UBlueprintFunctionNodeSpawner* UBlueprintFunctionNodeSpawner::Create(TSubclassOf
 	// Post-Spawn Setup
 	//--------------------------------------
 
-	auto SetNodeFunctionLambda = [](UEdGraphNode* NewNode, UField const* InField)
+	auto SetNodeFunctionLambda = [](UEdGraphNode* NewNode, FFieldVariant InField)
 	{
 		// user could have changed the node class (to something like
 		// UK2Node_BaseAsyncTask, which also wraps a function)
 		if (UK2Node_CallFunction* FuncNode = Cast<UK2Node_CallFunction>(NewNode))
 		{
-			FuncNode->SetFromFunction(Cast<UFunction>(InField));
+			FuncNode->SetFromFunction(Cast<UFunction>(InField.ToUObject()));
 		}
 	};
 	NodeSpawner->SetNodeFieldDelegate = FSetNodeFieldDelegate::CreateStatic(SetNodeFunctionLambda);
@@ -379,7 +379,7 @@ FBlueprintActionUiSpec UBlueprintFunctionNodeSpawner::GetUiSpec(FBlueprintAction
 
 	if (Bindings.Num() == 1)
 	{
-		UObjectProperty const* ObjectProperty = Cast<UObjectProperty>(Bindings.CreateConstIterator()->Get());
+		FObjectProperty const* ObjectProperty = Bindings.CreateConstIterator()->Get<FObjectProperty>();
 		if (ObjectProperty != nullptr)
 		{
 			FString BoundFunctionName = FString::Printf(TEXT("%s (%s)"), *MenuSignature.MenuName.ToString(), *ObjectProperty->GetName());
@@ -396,7 +396,7 @@ UEdGraphNode* UBlueprintFunctionNodeSpawner::Invoke(UEdGraph* ParentGraph, FBind
 {
 	auto PostSpawnSetupLambda = [](UEdGraphNode* NewNode, bool bIsTemplateNode, UFunction const* Function, FSetNodeFieldDelegate SetFieldDelegate, FCustomizeNodeDelegate UserDelegate)
 	{
-		SetFieldDelegate.ExecuteIfBound(NewNode, Function);
+		SetFieldDelegate.ExecuteIfBound(NewNode, const_cast<UFunction*>(Function));
 		UserDelegate.ExecuteIfBound(NewNode, bIsTemplateNode);
 	};
 	FCustomizeNodeDelegate PostSpawnSetupDelegate = FCustomizeNodeDelegate::CreateStatic(PostSpawnSetupLambda, GetFunction(), SetNodeFieldDelegate, CustomizeNodeDelegate);
@@ -406,7 +406,7 @@ UEdGraphNode* UBlueprintFunctionNodeSpawner::Invoke(UEdGraph* ParentGraph, FBind
 	const UBlueprintEditorSettings* BPSettings = GetDefault<UBlueprintEditorSettings>();
 	bool const bIsTemplateNode = FBlueprintNodeTemplateCache::IsTemplateOuter(ParentGraph);
 
-	bool const bSpawnCallOnMember = (Bindings.Num() == 1) && (*Bindings.CreateConstIterator())->IsA<UObjectProperty>();
+	bool const bSpawnCallOnMember = (Bindings.Num() == 1) && Bindings.CreateConstIterator()->Get<FObjectProperty>();
 	if (bSpawnCallOnMember && (bIsTemplateNode || BPSettings->bCompactCallOnMemberNodes))
 	{
 		SpawnClass = UK2Node_CallFunctionOnMember::StaticClass();
@@ -428,7 +428,7 @@ bool UBlueprintFunctionNodeSpawner::CanBindMultipleObjects() const
 }
 
 //------------------------------------------------------------------------------
-bool UBlueprintFunctionNodeSpawner::IsBindingCompatible(UObject const* BindingCandidate) const
+bool UBlueprintFunctionNodeSpawner::IsBindingCompatible(FBindingObject BindingCandidate) const
 {
 	UFunction const* Function = GetFunction();
 	checkSlow(Function != nullptr);
@@ -453,7 +453,7 @@ bool UBlueprintFunctionNodeSpawner::IsBindingCompatible(UObject const* BindingCa
 }
 
 //------------------------------------------------------------------------------
-bool UBlueprintFunctionNodeSpawner::BindToNode(UEdGraphNode* Node, UObject* Binding) const
+bool UBlueprintFunctionNodeSpawner::BindToNode(UEdGraphNode* Node, FBindingObject Binding) const
 {
 	return BlueprintFunctionNodeSpawnerImpl::BindFunctionNode(CastChecked<UK2Node_CallFunction>(Node), Binding);
 }
@@ -461,7 +461,7 @@ bool UBlueprintFunctionNodeSpawner::BindToNode(UEdGraphNode* Node, UObject* Bind
 //------------------------------------------------------------------------------
 UFunction const* UBlueprintFunctionNodeSpawner::GetFunction() const
 {
-	return Cast<UFunction>(GetField());
+	return Cast<UFunction>(GetField().ToUObject());
 }
 
 #undef LOCTEXT_NAMESPACE

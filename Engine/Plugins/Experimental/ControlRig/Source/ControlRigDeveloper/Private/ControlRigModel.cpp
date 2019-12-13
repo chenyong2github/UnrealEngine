@@ -603,7 +603,7 @@ bool UControlRigModel::AddNode(const FControlRigModelNode& InNode, bool bUndo)
 				}
 
 				FString PinPath = AddedNode.GetPinPath(Pin.Index, false);
-				if (UArrayProperty* Property = Cast<UArrayProperty>(Struct->FindPropertyByName(*PinPath)))
+				if (FArrayProperty* Property = CastField<FArrayProperty>(Struct->FindPropertyByName(*PinPath)))
 				{
 					int32 DefaultArraySize = Property->GetIntMetaData(UControlRig::DefaultArraySizeMetaName);
 					if (DefaultArraySize > 0)
@@ -2148,12 +2148,12 @@ bool UControlRigModel::SetPinArraySize(const FControlRigModelPair& InPin, int32 
 		UScriptStruct* UnitScriptStruct = (UScriptStruct*)Cast<UScriptStruct>(Node.UnitStruct());
 		if (UnitScriptStruct)
 		{
-			if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(UnitScriptStruct->FindPropertyByName(*GetPinPath(InPin, false))))
+			if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(UnitScriptStruct->FindPropertyByName(*GetPinPath(InPin, false))))
 			{
 				FString DefaultValue = InDefaultValue;
 				TArray<uint8> TempBuffer;
 
-				if (UStructProperty* InnerStructProp = Cast<UStructProperty>(ArrayProperty->Inner))
+				if (FStructProperty* InnerStructProp = CastField<FStructProperty>(ArrayProperty->Inner))
 				{
 					if (UScriptStruct* InnerScriptStruct = Cast<UScriptStruct>(InnerStructProp->Struct))
 					{
@@ -2174,7 +2174,7 @@ bool UControlRigModel::SetPinArraySize(const FControlRigModelPair& InPin, int32 
 				{
 					SetPinDefaultValue(Node.Pins[AddedPinIndex].GetPair(), DefaultValue, bUndo);
 
-					if (UStructProperty* InnerStructProp = Cast<UStructProperty>(ArrayProperty->Inner))
+					if (FStructProperty* InnerStructProp = CastField<FStructProperty>(ArrayProperty->Inner))
 					{
 						if (UScriptStruct* InnerScriptStruct = Cast<UScriptStruct>(InnerStructProp->Struct))
 						{
@@ -2367,7 +2367,7 @@ bool UControlRigModel::ShouldStructBeUnfolded(const UStruct* Struct)
 	return true;
 }
 
-FEdGraphPinType UControlRigModel::GetPinTypeFromField(UProperty* Property)
+FEdGraphPinType UControlRigModel::GetPinTypeFromField(FProperty* Property)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -2385,7 +2385,7 @@ void UControlRigModel::AddNodePinsForFunction(FControlRigModelNode& Node)
 	const UStruct* Struct = Node.UnitStruct();
 	if (Struct)
 	{
-		for (TFieldIterator<UProperty> It(Struct); It; ++It)
+		for (TFieldIterator<FProperty> It(Struct); It; ++It)
 		{
 			FControlRigModelPin Pin;
 			ConfigurePinFromField(Pin, *It, Node);
@@ -2395,7 +2395,7 @@ void UControlRigModel::AddNodePinsForFunction(FControlRigModelNode& Node)
 				Pin.Index = ++LastAddedIndex;
 				Pin.Direction = EGPD_Input;
 				Node.Pins.Add(Pin);
-				if (UStructProperty* StructProp = Cast<UStructProperty>(*It))
+				if (FStructProperty* StructProp = CastField<FStructProperty>(*It))
 				{
 					AddPinsRecursive(Node, Pin.Index, StructProp->Struct, Pin.Direction, LastAddedIndex);
 				}
@@ -2405,7 +2405,7 @@ void UControlRigModel::AddNodePinsForFunction(FControlRigModelNode& Node)
 				Pin.Index = ++LastAddedIndex;
 				Pin.Direction = EGPD_Output;
 				Node.Pins.Add(Pin);
-				if (UStructProperty* StructProp = Cast<UStructProperty>(*It))
+				if (FStructProperty* StructProp = CastField<FStructProperty>(*It))
 				{
 					AddPinsRecursive(Node, Pin.Index, StructProp->Struct, Pin.Direction, LastAddedIndex);
 				}
@@ -2530,7 +2530,7 @@ void UControlRigModel::SetNodePinDefaultsForParameter(FControlRigModelNode& Node
 	}
 }
 
-void UControlRigModel::ConfigurePinFromField(FControlRigModelPin& Pin, UProperty* Property, FControlRigModelNode& Node)
+void UControlRigModel::ConfigurePinFromField(FControlRigModelPin& Pin, FProperty* Property, FControlRigModelNode& Node)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -2586,7 +2586,7 @@ void UControlRigModel::ConfigurePinFromField(FControlRigModelPin& Pin, UProperty
 	}
 
 	int32 NumberOfPinsAdded = 0;
-	for (TFieldIterator<UProperty> It(Struct); It; ++It)
+	for (TFieldIterator<FProperty> It(Struct); It; ++It)
 	{
 		FControlRigModelPin Pin;
 		Pin.Index = ++LastAddedIndex;
@@ -2605,7 +2605,7 @@ void UControlRigModel::ConfigurePinFromField(FControlRigModelPin& Pin, UProperty
 
 		NumberOfPinsAdded++;
 
-		if (UStructProperty* StructProp = Cast<UStructProperty>(*It))
+		if (FStructProperty* StructProp = CastField<FStructProperty>(*It))
 		{
 			if (!ShouldStructBeUnfolded(StructProp->Struct))
 			{

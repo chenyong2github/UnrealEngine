@@ -10,15 +10,15 @@ namespace Trace
 {
 
 ////////////////////////////////////////////////////////////////////////////////
-inline FEventDef::FLogScope::FLogScope(uint16 EventUid, uint16 Size)
+inline FEventDef::FLogScope::FLogScope(uint16 EventUid, uint16 Size, bool bMaybeHasAux)
 {
-	Instance = Writer_BeginLog(EventUid, Size);
+	Instance = Writer_BeginLog(EventUid, Size, bMaybeHasAux);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-inline FEventDef::FLogScope::FLogScope(uint16 EventUid, uint16 Size, uint16 ExtraBytes)
+inline FEventDef::FLogScope::FLogScope(uint16 EventUid, uint16 Size, bool bMaybeHasAux, uint16 ExtraBytes)
 {
-	Instance = Writer_BeginLog(EventUid, Size + ExtraBytes);
+	Instance = Writer_BeginLog(EventUid, Size + ExtraBytes, bMaybeHasAux);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

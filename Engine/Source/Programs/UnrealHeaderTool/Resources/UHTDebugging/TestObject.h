@@ -116,6 +116,8 @@ public:
 		return FString("Hello").Len();
 	}
 
+	virtual void PureVirtualImplementedFunction() PURE_VIRTUAL(, )
+
 	UFUNCTION()
 	FORCENOINLINE int32 NoInlineFunc()
 	{

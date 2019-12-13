@@ -395,7 +395,8 @@ void FThreadTimingTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Buil
 					Timeline.EnumerateEventsDownSampled(Viewport.GetStartTime(), Viewport.GetEndTime(), SecondsPerPixel,
 						[this, &Builder, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
 						{
-							const uint64 Type = Timers[Event.TimerIndex].Id;
+							//ensure(Timers[Event.TimerIndex].Id == Event.TimerIndex);
+							const uint64 Type = Event.TimerIndex;
 							const uint32 Color = 0;
 							Builder.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name, Type, Color);
 						});
@@ -405,13 +406,57 @@ void FThreadTimingTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Buil
 					Timeline.EnumerateEvents(Viewport.GetStartTime(), Viewport.GetEndTime(),
 						[this, &Builder, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
 						{
-							const uint64 Type = Timers[Event.TimerIndex].Id;
+							//ensure(Timers[Event.TimerIndex].Id == Event.TimerIndex);
+							const uint64 Type = Event.TimerIndex;
 							const uint32 Color = 0;
 							Builder.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name, Type, Color);
 						});
 				}
 			});
 		});
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FThreadTimingTrack::BuildFilteredDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context)
+{
+	const TSharedPtr<ITimingEventFilter> EventFilterPtr = Context.GetEventFilter();
+	if (EventFilterPtr.IsValid() && FTimingEventFilter::CheckTypeName(*EventFilterPtr))
+	{
+		const FTimingEventFilter& EventFilter = static_cast<const FTimingEventFilter&>(*EventFilterPtr);
+		const uint64 FilterEventType = EventFilter.GetEventType();
+
+		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		if (Session.IsValid() && Trace::ReadTimingProfilerProvider(*Session.Get()))
+		{
+			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+
+			const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
+
+			const FTimingTrackViewport& Viewport = Context.GetViewport();
+
+			TimingProfilerProvider.ReadTimers([this, &Builder, &Viewport, &TimingProfilerProvider, FilterEventType](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
+			{
+				TimingProfilerProvider.ReadTimeline(TimelineIndex, [this, &Builder, &Viewport, Timers, FilterEventType](const Trace::ITimingProfilerProvider::Timeline& Timeline)
+				{
+					// Note: Enumerating events for filtering should not use downsampling.
+					//const double SecondsPerPixel = 1.0 / Viewport.GetScaleX();
+					//Timeline.EnumerateEventsDownSampled(Viewport.GetStartTime(), Viewport.GetEndTime(), SecondsPerPixel,
+					Timeline.EnumerateEvents(Viewport.GetStartTime(), Viewport.GetEndTime(),
+						[this, &Builder, Timers, FilterEventType](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
+					{
+						//ensure(Timers[Event.TimerIndex].Id == Event.TimerIndex);
+						const uint64 Type = Event.TimerIndex;
+						if (Type == FilterEventType)
+						{
+							const uint32 Color = 0;
+							Builder.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name, Type, Color);
+						}
+					});
+				});
+			});
+		}
 	}
 }
 
@@ -565,7 +610,8 @@ const TSharedPtr<const ITimingEvent> FThreadTimingTrack::SearchEvent(const FTimi
 
 	FindTimingProfilerEvent(InSearchParameters, [this, &FoundEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const Trace::FTimingProfilerEvent& InFoundEvent)
 	{
-		FoundEvent = MakeShared<FTimingEvent>(SharedThis(this), InFoundStartTime, InFoundEndTime, InFoundDepth);
+		const uint64 EventType = InFoundEvent.TimerIndex;
+		FoundEvent = MakeShared<FTimingEvent>(SharedThis(this), InFoundStartTime, InFoundEndTime, InFoundDepth, EventType);
 	});
 
 	return FoundEvent;
@@ -654,11 +700,16 @@ void FThreadTimingTrack::OnEventSelected(const ITimingEvent& InSelectedEvent) co
 	{
 		const FTimingEvent& TrackEvent = static_cast<const FTimingEvent&>(InSelectedEvent);
 
-		FindTimingProfilerEvent(TrackEvent, [](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const Trace::FTimingProfilerEvent& InFoundEvent)
-		{
-			// Select the timer node corresponding to timing event type of selected timing event.
-			FTimingProfilerManager::Get()->SetSelectedTimer(InFoundEvent.TimerIndex);
-		});
+		//uint64 TimerType = uint64(-1);
+		//FindTimingProfilerEvent(TrackEvent, [&TimerType](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const Trace::FTimingProfilerEvent& InFoundEvent)
+		//{
+		//	TimerType = InFoundEvent.TimerIndex;
+		//});
+
+		const uint64 TimerType = TrackEvent.GetType();
+
+		// Select the timer node corresponding to timing event type of selected timing event.
+		FTimingProfilerManager::Get()->SetSelectedTimer(TimerType);
 	}
 }
 
@@ -670,15 +721,20 @@ void FThreadTimingTrack::OnClipboardCopyEvent(const ITimingEvent& InSelectedEven
 	{
 		const FTimingEvent& TrackEvent = static_cast<const FTimingEvent&>(InSelectedEvent);
 
-		FindTimingProfilerEvent(TrackEvent, [](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const Trace::FTimingProfilerEvent& InFoundEvent)
+		//uint64 TimerType = uint64(-1);
+		//FindTimingProfilerEvent(TrackEvent, [&TimerType](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const Trace::FTimingProfilerEvent& InFoundEvent)
+		//{
+		//	TimerType = InFoundEvent.TimerIndex;
+		//});
+
+		const uint64 TimerType = TrackEvent.GetType();
+
+		const FTimerNodePtr TimerNodePtr = FTimingProfilerManager::Get()->GetTimerNode(TimerType);
+		if (TimerNodePtr.IsValid())
 		{
-			const FTimerNodePtr TimerNodePtr = FTimingProfilerManager::Get()->GetTimerNode(InFoundEvent.TimerIndex);
-			if (TimerNodePtr.IsValid())
-			{
-				// Copy name of selected timing event to clipboard.
-				FPlatformApplicationMisc::ClipboardCopy(*TimerNodePtr->GetName().ToString());
-			}
-		});
+			// Copy name of selected timing event to clipboard.
+			FPlatformApplicationMisc::ClipboardCopy(*TimerNodePtr->GetName().ToString());
+		}
 	}
 }
 

@@ -39,7 +39,7 @@ public:
 	}
 
 	/** Check if the property can be recorded */
-	static bool CanPropertyBeRecorded(const UProperty& InProperty);
+	static bool CanPropertyBeRecorded(const FProperty& InProperty);
 
 private:
 	/** Object to record from */

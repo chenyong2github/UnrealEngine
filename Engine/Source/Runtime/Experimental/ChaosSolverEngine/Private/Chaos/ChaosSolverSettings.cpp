@@ -14,7 +14,7 @@ UClass* UChaosSolverSettings::GetSolverActorClass() const
 	return (SolverActorClass != nullptr) ? SolverActorClass : AChaosSolverActor::StaticClass();
 }
 
-void UChaosSolverSettings::UpdateProperty(UProperty* InProperty)
+void UChaosSolverSettings::UpdateProperty(FProperty* InProperty)
 {
 	UpdateAllProperties();
 }
@@ -49,7 +49,7 @@ void UChaosSolverSettings::PostInitProperties()
 	UpdateAllProperties();
 }
 
-void UChaosSolverSettings::PostReloadConfig(class UProperty* PropertyThatWasLoaded)
+void UChaosSolverSettings::PostReloadConfig(class FProperty* PropertyThatWasLoaded)
 {
 	Super::PostReloadConfig(PropertyThatWasLoaded);
 

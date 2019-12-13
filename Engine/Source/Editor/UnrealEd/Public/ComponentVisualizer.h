@@ -151,10 +151,10 @@ public:
 	static UActorComponent* GetComponentFromPropertyName(const AActor* CompOwner, const FPropertyNameAndIndex& Property);
 
 	/** Notify that a component property has been modified */
-	static void NotifyPropertyModified(UActorComponent* Component, UProperty* Property);
+	static void NotifyPropertyModified(UActorComponent* Component, FProperty* Property);
 
 	/** Notify that many component properties have been modified */
-	static void NotifyPropertiesModified(UActorComponent* Component, const TArray<UProperty*>& Properties);
+	static void NotifyPropertiesModified(UActorComponent* Component, const TArray<FProperty*>& Properties);
 };
 
 struct FCachedComponentVisualizer

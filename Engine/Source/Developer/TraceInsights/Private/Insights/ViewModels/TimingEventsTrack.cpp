@@ -2,6 +2,8 @@
 
 #include "Insights/ViewModels/TimingEventsTrack.h"
 
+#include "Insights/Common/Stopwatch.h"
+#include "Insights/TimingProfilerCommon.h"
 #include "Insights/ViewModels/TimingEvent.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
@@ -9,8 +11,20 @@
 #define LOCTEXT_NAMESPACE "TimingEventsTrack"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// FTimingEvent, FTimingEventFilter
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const FName FTimingEvent::TypeName = FName(TEXT("FTimingEvent"));
+const FName FTimingEventFilter::TypeName = FName(TEXT("FTimingEventFilter"));
+
+bool FTimingEventFilter::FilterTrack(const FBaseTimingTrack& InTrack) const
+{
+	return !bFilterByTrackType || InTrack.GetType() == TrackType;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FTimingEventsTrack
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool FTimingEventsTrack::bUseDownSampling = true;
 
@@ -20,6 +34,7 @@ FTimingEventsTrack::FTimingEventsTrack(const FName& InType, const FName& InSubTy
 	: FBaseTimingTrack(InType, InSubType, InName)
 	, NumLanes(0)
 	, DrawState(MakeShared<FTimingEventsTrackDrawState>())
+	, FilteredDrawState(MakeShared<FTimingEventsTrackDrawState>())
 {
 }
 
@@ -37,6 +52,7 @@ void FTimingEventsTrack::Reset()
 
 	NumLanes = 0;
 	DrawState->Reset();
+	FilteredDrawState->Reset();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -47,13 +63,89 @@ void FTimingEventsTrack::PreUpdate(const ITimingTrackUpdateContext& Context)
 	{
 		ClearDirtyFlag();
 
-		FTimingEventsTrackDrawStateBuilder Builder(*DrawState, Context.GetViewport());
+		int32 MaxDepth = -1;
 
-		BuildDrawState(Builder, Context);
+		{
+			FTimingEventsTrackDrawStateBuilder Builder(*DrawState, Context.GetViewport());
 
-		Builder.Flush();
+			BuildDrawState(Builder, Context);
 
-		SetNumLanes(Builder.GetMaxDepth() + 1);
+			Builder.Flush();
+
+			if (Builder.GetMaxDepth() > MaxDepth)
+			{
+				MaxDepth = Builder.GetMaxDepth();
+			}
+		}
+
+		const TSharedPtr<ITimingEventFilter> EventFilter = Context.GetEventFilter();
+		if (EventFilter.IsValid() && EventFilter->FilterTrack(*this))
+		{
+			const FTimingTrackViewport& Viewport = Context.GetViewport();
+
+			const bool bFastLastBuild = FilteredDrawStateInfo.LastBuildDuration < 0.005; // LastBuildDuration < 5ms
+			const bool bFilterPointerChanged = !FilteredDrawStateInfo.LastEventFilter.HasSameObject(EventFilter.Get());
+			const bool bFilterContentChanged = FilteredDrawStateInfo.LastFilterChangeNumber != EventFilter->GetChangeNumber();
+
+			if (bFastLastBuild || bFilterPointerChanged || bFilterContentChanged)
+			{
+				FilteredDrawStateInfo.LastEventFilter = EventFilter;
+				FilteredDrawStateInfo.LastFilterChangeNumber = EventFilter->GetChangeNumber();
+				FilteredDrawStateInfo.ViewportStartTime = Context.GetViewport().GetStartTime();
+				FilteredDrawStateInfo.ViewportScaleX = Context.GetViewport().GetScaleX();
+				FilteredDrawStateInfo.Counter = 0;
+			}
+			else
+			{
+				if (FilteredDrawStateInfo.ViewportStartTime == Viewport.GetStartTime() &&
+					FilteredDrawStateInfo.ViewportScaleX == Viewport.GetScaleX())
+				{
+					if (FilteredDrawStateInfo.Counter > 0)
+					{
+						FilteredDrawStateInfo.Counter--;
+					}
+				}
+				else
+				{
+					FilteredDrawStateInfo.ViewportStartTime = Context.GetViewport().GetStartTime();
+					FilteredDrawStateInfo.ViewportScaleX = Context.GetViewport().GetScaleX();
+					FilteredDrawStateInfo.Counter = 1; // wait
+				}
+			}
+
+			if (FilteredDrawStateInfo.Counter == 0)
+			{
+				FStopwatch Stopwatch;
+				Stopwatch.Start();
+				{
+					FTimingEventsTrackDrawStateBuilder Builder(*FilteredDrawState, Context.GetViewport());
+					BuildFilteredDrawState(Builder, Context);
+					Builder.Flush();
+				}
+				Stopwatch.Stop();
+				FilteredDrawStateInfo.LastBuildDuration = Stopwatch.GetAccumulatedTime();
+			}
+			else
+			{
+				FilteredDrawState->Reset();
+				FilteredDrawStateInfo.Opacity = 0.0f;
+				SetDirtyFlag();
+			}
+		}
+		else
+		{
+			FilteredDrawStateInfo.LastBuildDuration = 0.0;
+
+			if (FilteredDrawStateInfo.LastEventFilter.IsValid())
+			{
+				FilteredDrawStateInfo.LastEventFilter.Reset();
+				FilteredDrawStateInfo.LastFilterChangeNumber = 0;
+				FilteredDrawStateInfo.Counter = 0;
+				FilteredDrawState->Reset();
+			}
+		}
+
+		SetNumLanes(MaxDepth + 1);
 	}
 
 	UpdateTrackHeight(Context);
@@ -123,9 +215,8 @@ void FTimingEventsTrack::PostUpdate(const ITimingTrackUpdateContext& Context)
 
 void FTimingEventsTrack::Draw(const ITimingTrackDrawContext& Context) const
 {
-	const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
-	Helper.DrawEvents(*DrawState, *this);
-	Helper.DrawTrackHeader(*this);
+	DrawEvents(Context, 1.0f);
+	DrawHeader(Context);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -133,7 +224,25 @@ void FTimingEventsTrack::Draw(const ITimingTrackDrawContext& Context) const
 void FTimingEventsTrack::DrawEvents(const ITimingTrackDrawContext& Context, const float OffsetY) const
 {
 	const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
-	Helper.DrawEvents(*DrawState, *this, OffsetY);
+
+	if (Context.GetEventFilter().IsValid())
+	{
+		Helper.DrawFadedEvents(*DrawState, *this, OffsetY, 0.1f);
+
+		if (FilteredDrawStateInfo.Opacity == 1.0f)
+		{
+			Helper.DrawEvents(*FilteredDrawState, *this, OffsetY);
+		}
+		else
+		{
+			FilteredDrawStateInfo.Opacity = FMath::Min(1.0f, FilteredDrawStateInfo.Opacity + 0.05f);
+			Helper.DrawFadedEvents(*FilteredDrawState, *this, OffsetY, FilteredDrawStateInfo.Opacity);
+		}
+	}
+	else
+	{
+		Helper.DrawEvents(*DrawState, *this, OffsetY);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -200,6 +309,23 @@ const TSharedPtr<const ITimingEvent> FTimingEventsTrack::GetEvent(float InPosX, 
 		return SearchEvent(FTimingEventSearchParameters(StartTime, EndTime, ETimingEventSearchFlags::StopAtFirstMatch, EventFilter));
 	}
 
+	return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<ITimingEventFilter> FTimingEventsTrack::GetFilterByEvent(const TSharedPtr<const ITimingEvent> InTimingEvent) const
+{
+	if (InTimingEvent.IsValid() && FTimingEvent::CheckTypeName(*InTimingEvent))
+	{
+		const FTimingEvent& Event = *StaticCastSharedPtr<const FTimingEvent, const ITimingEvent>(InTimingEvent);
+
+		TSharedRef<FTimingEventFilter> EventFilterRef = MakeShared<FTimingEventFilter>();
+		EventFilterRef->SetFilterByEventType(true);
+		EventFilterRef->SetEventType(Event.GetType());
+
+		return EventFilterRef;
+	}
 	return nullptr;
 }
 

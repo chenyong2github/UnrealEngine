@@ -69,7 +69,7 @@ protected:
 		}
 		else if ( PropertyPath.IsValid() && PropertyPath->GetNumProperties() > 0 )
 		{
-			UProperty* Property = PropertyPath->GetLeafMostProperty().Property.Get();
+			FProperty* Property = PropertyPath->GetLeafMostProperty().Property.Get();
 			const FText ToolTipText = PropertyEditorHelpers::GetToolTipText( Property );
 			const FString DocumentationLink = PropertyEditorHelpers::GetDocumentationLink( Property );
 			const FString DocumentationExcerptName = PropertyEditorHelpers::GetDocumentationExcerptName( Property );

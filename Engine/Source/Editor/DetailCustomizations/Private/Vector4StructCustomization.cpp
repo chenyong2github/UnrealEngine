@@ -27,7 +27,7 @@ FVector4StructCustomization::~FVector4StructCustomization()
 
 void FVector4StructCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
-	UProperty* Property = StructPropertyHandle->GetProperty();
+	FProperty* Property = StructPropertyHandle->GetProperty();
 	if (Property)
 	{
 		const FString& ColorGradingModeString = Property->GetMetaData(TEXT("ColorGradingMode"));
@@ -64,7 +64,7 @@ TSharedPtr<FColorGradingVectorCustomization> FVector4StructCustomization::GetOrC
 
 void FVector4StructCustomization::MakeHeaderRow(TSharedRef<IPropertyHandle>& StructPropertyHandle, FDetailWidgetRow& Row)
 {
-	UProperty* Property = StructPropertyHandle->GetProperty();
+	FProperty* Property = StructPropertyHandle->GetProperty();
 	if (Property)
 	{
 		const FString& ColorGradingModeString = Property->GetMetaData(TEXT("ColorGradingMode"));

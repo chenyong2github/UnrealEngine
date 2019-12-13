@@ -262,7 +262,7 @@ void FGameplayEffectExecutionScopedModifierInfoDetails::CustomizeChildren(TShare
 	ScopedModifierStructPropertyHandle = StructPropertyHandle;
 
 	TSharedPtr<IPropertyHandle> ParentArrayHandle = StructPropertyHandle->GetParentHandle();
-	const bool bIsExecutionDefAttribute = (ParentArrayHandle.IsValid() && ParentArrayHandle->GetProperty()->GetOuter() == FGameplayEffectExecutionDefinition::StaticStruct());
+	const bool bIsExecutionDefAttribute = (ParentArrayHandle.IsValid() && ParentArrayHandle->GetProperty()->GetOwner<UObject>() == FGameplayEffectExecutionDefinition::StaticStruct());
 	
 	if (bIsExecutionDefAttribute)
 	{

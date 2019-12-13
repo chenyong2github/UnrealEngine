@@ -1489,7 +1489,7 @@ bool FPaths::IsUnderDirectory(const FString& InPath, const FString& InDirectory)
 	int Compare = FCString::Strncmp(*Path, *Directory, Directory.Len());
 #endif
 
-	return Compare == 0 && (Path[Directory.Len()] == 0 || Path[Directory.Len()] == '/');
+	return Compare == 0 && (Path.Len() == Directory.Len() || Path[Directory.Len()] == '/');
 }
 
 

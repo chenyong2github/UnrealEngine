@@ -2,6 +2,7 @@
 
 #include "AnimNodes/AnimNode_MakeDynamicAdditive.h"
 #include "AnimationRuntime.h"
+#include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_MakeDynamicAdditive
@@ -32,6 +33,8 @@ void FAnimNode_MakeDynamicAdditive::Update_AnyThread(const FAnimationUpdateConte
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread)
 	Base.Update(Context.FractionalWeight(1.f));
 	Additive.Update(Context.FractionalWeight(1.f));
+
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Mesh Space Additive"), bMeshSpaceAdditive);
 }
 
 void FAnimNode_MakeDynamicAdditive::Evaluate_AnyThread(FPoseContext& Output)

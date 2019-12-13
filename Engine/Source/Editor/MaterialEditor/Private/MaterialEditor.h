@@ -19,6 +19,7 @@
 #include "SMaterialEditorViewport.h"
 #include "Materials/Material.h"
 #include "Tickable.h"
+#include "UObject/WeakFieldPtr.h"
 
 struct FAssetData;
 class FCanvas;
@@ -695,8 +696,8 @@ private:
 	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
 
 	// FNotifyHook interface
-	virtual void NotifyPreChange(UProperty* PropertyAboutToChange) override;
-	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged) override;
+	virtual void NotifyPreChange(FProperty* PropertyAboutToChange) override;
+	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 
 	/** Flags the material as dirty */
 	void SetMaterialDirty() {bMaterialDirty = true;}
@@ -725,7 +726,7 @@ private:
 
 	/** Pointer to the object that the current color picker is working on. Can be NULL and stale. */
 	TWeakObjectPtr<UObject> ColorPickerObject;
-	TWeakObjectPtr<UProperty> ColorPickerProperty;
+	TWeakFieldPtr<FProperty> ColorPickerProperty;
 
 	/** Called before the color picker commits a change. */
 	void PreColorPickerCommit(FLinearColor LinearColor);

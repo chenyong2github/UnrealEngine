@@ -34,9 +34,9 @@ public:
 private:
 	void PerformBindingCustomization(IDetailLayoutBuilder& DetailLayout);
 
-	void CreateEventCustomization( IDetailLayoutBuilder& DetailLayout, UDelegateProperty* Property, UWidget* Widget );
+	void CreateEventCustomization( IDetailLayoutBuilder& DetailLayout, FDelegateProperty* Property, UWidget* Widget );
 
-	void CreateMulticastEventCustomization(IDetailLayoutBuilder& DetailLayout, FName ThisComponentName, UClass* PropertyClass, UMulticastDelegateProperty* Property);
+	void CreateMulticastEventCustomization(IDetailLayoutBuilder& DetailLayout, FName ThisComponentName, UClass* PropertyClass, FMulticastDelegateProperty* Property);
 
 	void ResetToDefault_RemoveBinding(TSharedPtr<IPropertyHandle> PropertyHandle);
 

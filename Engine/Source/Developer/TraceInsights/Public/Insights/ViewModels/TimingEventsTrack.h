@@ -38,9 +38,12 @@ public:
 
 	virtual const TSharedPtr<const ITimingEvent> GetEvent(float InPosX, float InPosY, const FTimingTrackViewport& Viewport) const override;
 
+	virtual TSharedPtr<ITimingEventFilter> GetFilterByEvent(const TSharedPtr<const ITimingEvent> InTimingEvent) const override;
+
 	//////////////////////////////////////////////////
 
 	virtual void BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) = 0;
+	virtual void BuildFilteredDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) {}
 
 protected:
 	int32 GetNumLanes() const { return NumLanes; }
@@ -57,9 +60,22 @@ protected:
 private:
 	int32 NumLanes; // number of lanes (sub-tracks)
 	TSharedRef<struct FTimingEventsTrackDrawState> DrawState;
+	TSharedRef<struct FTimingEventsTrackDrawState> FilteredDrawState;
+
+	struct FFilteredDrawStateInfo
+	{
+		double ViewportStartTime = 0.0;
+		double ViewportScaleX = 0.0;
+		double LastBuildDuration = 0.0;
+		TWeakPtr<ITimingEventFilter> LastEventFilter;
+		uint32 LastFilterChangeNumber = 0;
+		uint32 Counter = 0;
+		mutable float Opacity = 0.0f;
+	};
+	FFilteredDrawStateInfo FilteredDrawStateInfo;
 
 public:
-	static bool bUseDownSampling;
+	static bool bUseDownSampling; // toggle to enable/disbale downsampling, for debugging purposes only
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

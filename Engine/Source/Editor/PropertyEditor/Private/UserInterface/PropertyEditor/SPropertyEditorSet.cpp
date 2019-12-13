@@ -30,10 +30,10 @@ void SPropertyEditorSet::Construct( const FArguments& InArgs, const TSharedRef< 
 bool SPropertyEditorSet::Supports( const TSharedRef< FPropertyEditor >& InPropertyEditor)
 {
 	const TSharedRef< FPropertyNode > PropertyNode = InPropertyEditor->GetPropertyNode();
-	const UProperty* Property = InPropertyEditor->GetProperty();
+	const FProperty* Property = InPropertyEditor->GetProperty();
 
 	if (!PropertyNode->HasNodeFlags(EPropertyNodeFlags::EditInlineNew)
-		&& Property->IsA<USetProperty>())
+		&& Property->IsA<FSetProperty>())
 	{
 		return true;
 	}

@@ -76,7 +76,7 @@ void APostProcessVolume::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 	}
 }
 
-bool APostProcessVolume::CanEditChange(const UProperty* InProperty) const
+bool APostProcessVolume::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{

@@ -232,7 +232,7 @@ struct ENGINE_API FRawDistribution
 	 * @return The UDisitribution* object if this is a FRawDistribution* struct, 
 	 *         or NULL otherwise
 	 */
-	static UObject* TryGetDistributionObjectFromRawDistributionProperty(UStructProperty* Property, uint8* Data);
+	static UObject* TryGetDistributionObjectFromRawDistributionProperty(FStructProperty* Property, uint8* Data);
 
 protected:
 

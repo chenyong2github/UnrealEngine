@@ -286,7 +286,7 @@ void UMeshInspectorTool::Render(IToolsContextRenderAPI* RenderAPI)
 }
 
 
-void UMeshInspectorTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UMeshInspectorTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	GetToolManager()->PostInvalidation();
 	DynamicMeshComponent->bExplicitShowWireframe = Settings->bWireframe;

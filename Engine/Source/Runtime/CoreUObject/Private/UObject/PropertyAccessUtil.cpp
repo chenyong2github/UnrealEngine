@@ -7,13 +7,13 @@
 namespace PropertyAccessUtil
 {
 
-EPropertyAccessResultFlags GetPropertyValue_Object(const UProperty* InProp, const UObject* InObject, void* InDestValue, const int32 InArrayIndex)
+EPropertyAccessResultFlags GetPropertyValue_Object(const FProperty* InProp, const UObject* InObject, void* InDestValue, const int32 InArrayIndex)
 {
 	check(InObject->IsA(InProp->GetOwnerClass()));
 	return GetPropertyValue_InContainer(InProp, InObject, InDestValue, InArrayIndex);
 }
 
-EPropertyAccessResultFlags GetPropertyValue_InContainer(const UProperty* InProp, const void* InContainerData, void* InDestValue, const int32 InArrayIndex)
+EPropertyAccessResultFlags GetPropertyValue_InContainer(const FProperty* InProp, const void* InContainerData, void* InDestValue, const int32 InArrayIndex)
 {
 	if (InArrayIndex == INDEX_NONE || InProp->ArrayDim == 1)
 	{
@@ -28,7 +28,7 @@ EPropertyAccessResultFlags GetPropertyValue_InContainer(const UProperty* InProp,
 	}
 }
 
-EPropertyAccessResultFlags GetPropertyValue_DirectSingle(const UProperty* InProp, const void* InSrcValue, void* InDestValue)
+EPropertyAccessResultFlags GetPropertyValue_DirectSingle(const FProperty* InProp, const void* InSrcValue, void* InDestValue)
 {
 	EPropertyAccessResultFlags Result = CanGetPropertyValue(InProp);
 	if (Result != EPropertyAccessResultFlags::Success)
@@ -43,7 +43,7 @@ EPropertyAccessResultFlags GetPropertyValue_DirectSingle(const UProperty* InProp
 	});
 }
 
-EPropertyAccessResultFlags GetPropertyValue_DirectComplete(const UProperty* InProp, const void* InSrcValue, void* InDestValue)
+EPropertyAccessResultFlags GetPropertyValue_DirectComplete(const FProperty* InProp, const void* InSrcValue, void* InDestValue)
 {
 	EPropertyAccessResultFlags Result = CanGetPropertyValue(InProp);
 	if (Result != EPropertyAccessResultFlags::Success)
@@ -66,7 +66,7 @@ EPropertyAccessResultFlags GetPropertyValue(const FPropertyAccessGetFunc& InGetF
 		: EPropertyAccessResultFlags::ConversionFailed;
 }
 
-EPropertyAccessResultFlags CanGetPropertyValue(const UProperty* InProp)
+EPropertyAccessResultFlags CanGetPropertyValue(const FProperty* InProp)
 {
 	if (!InProp->HasAnyPropertyFlags(CPF_Edit | CPF_BlueprintVisible | CPF_BlueprintAssignable))
 	{
@@ -76,7 +76,7 @@ EPropertyAccessResultFlags CanGetPropertyValue(const UProperty* InProp)
 	return EPropertyAccessResultFlags::Success;
 }
 
-EPropertyAccessResultFlags SetPropertyValue_Object(const UProperty* InProp, UObject* InObject, const void* InSrcValue, const int32 InArrayIndex, const uint64 InReadOnlyFlags)
+EPropertyAccessResultFlags SetPropertyValue_Object(const FProperty* InProp, UObject* InObject, const void* InSrcValue, const int32 InArrayIndex, const uint64 InReadOnlyFlags)
 {
 	check(InObject->IsA(InProp->GetOwnerClass()));
 	return SetPropertyValue_InContainer(InProp, InObject, InSrcValue, InArrayIndex, InReadOnlyFlags, IsObjectTemplate(InObject), [InProp, InObject]()
@@ -85,7 +85,7 @@ EPropertyAccessResultFlags SetPropertyValue_Object(const UProperty* InProp, UObj
 	});
 }
 
-EPropertyAccessResultFlags SetPropertyValue_InContainer(const UProperty* InProp, void* InContainerData, const void* InSrcValue, const int32 InArrayIndex, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const FPropertyAccessBuildChangeNotifyFunc& InBuildChangeNotifyFunc)
+EPropertyAccessResultFlags SetPropertyValue_InContainer(const FProperty* InProp, void* InContainerData, const void* InSrcValue, const int32 InArrayIndex, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const FPropertyAccessBuildChangeNotifyFunc& InBuildChangeNotifyFunc)
 {
 	if (InArrayIndex == INDEX_NONE || InProp->ArrayDim == 1)
 	{
@@ -100,7 +100,7 @@ EPropertyAccessResultFlags SetPropertyValue_InContainer(const UProperty* InProp,
 	}
 }
 
-EPropertyAccessResultFlags SetPropertyValue_DirectSingle(const UProperty* InProp, const void* InSrcValue, void* InDestValue, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const FPropertyAccessBuildChangeNotifyFunc& InBuildChangeNotifyFunc)
+EPropertyAccessResultFlags SetPropertyValue_DirectSingle(const FProperty* InProp, const void* InSrcValue, void* InDestValue, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const FPropertyAccessBuildChangeNotifyFunc& InBuildChangeNotifyFunc)
 {
 	EPropertyAccessResultFlags Result = CanSetPropertyValue(InProp, InReadOnlyFlags, InOwnerIsTemplate);
 	if (Result != EPropertyAccessResultFlags::Success)
@@ -120,7 +120,7 @@ EPropertyAccessResultFlags SetPropertyValue_DirectSingle(const UProperty* InProp
 	}, InBuildChangeNotifyFunc);
 }
 
-EPropertyAccessResultFlags SetPropertyValue_DirectComplete(const UProperty* InProp, const void* InSrcValue, void* InDestValue, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const FPropertyAccessBuildChangeNotifyFunc& InBuildChangeNotifyFunc)
+EPropertyAccessResultFlags SetPropertyValue_DirectComplete(const FProperty* InProp, const void* InSrcValue, void* InDestValue, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const FPropertyAccessBuildChangeNotifyFunc& InBuildChangeNotifyFunc)
 {
 	EPropertyAccessResultFlags Result = CanSetPropertyValue(InProp, InReadOnlyFlags, InOwnerIsTemplate);
 	if (Result != EPropertyAccessResultFlags::Success)
@@ -161,7 +161,7 @@ EPropertyAccessResultFlags SetPropertyValue(const FPropertyAccessSetFunc& InSetF
 		: EPropertyAccessResultFlags::ConversionFailed;
 }
 
-EPropertyAccessResultFlags CanSetPropertyValue(const UProperty* InProp, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate)
+EPropertyAccessResultFlags CanSetPropertyValue(const FProperty* InProp, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate)
 {
 	if (!InProp->HasAnyPropertyFlags(CPF_Edit | CPF_BlueprintVisible | CPF_BlueprintAssignable))
 	{
@@ -220,15 +220,15 @@ void EmitPostChangeNotify(const FPropertyAccessChangeNotify* InChangeNotify)
 #endif
 }
 
-TUniquePtr<FPropertyAccessChangeNotify> BuildBasicChangeNotify(const UProperty* InProp, const UObject* InObject)
+TUniquePtr<FPropertyAccessChangeNotify> BuildBasicChangeNotify(const FProperty* InProp, const UObject* InObject)
 {
 	check(InObject->IsA(InProp->GetOwnerClass()));
 #if WITH_EDITOR
 	TUniquePtr<FPropertyAccessChangeNotify> ChangeNotify = MakeUnique<FPropertyAccessChangeNotify>();
 	ChangeNotify->ChangedObject = const_cast<UObject*>(InObject);
-	ChangeNotify->ChangedPropertyChain.AddHead(const_cast<UProperty*>(InProp));
-	ChangeNotify->ChangedPropertyChain.SetActivePropertyNode(const_cast<UProperty*>(InProp));
-	ChangeNotify->ChangedPropertyChain.SetActiveMemberPropertyNode(const_cast<UProperty*>(InProp));
+	ChangeNotify->ChangedPropertyChain.AddHead(const_cast<FProperty*>(InProp));
+	ChangeNotify->ChangedPropertyChain.SetActivePropertyNode(const_cast<FProperty*>(InProp));
+	ChangeNotify->ChangedPropertyChain.SetActiveMemberPropertyNode(const_cast<FProperty*>(InProp));
 	return ChangeNotify;
 #else
 	return nullptr;
@@ -240,13 +240,13 @@ bool IsObjectTemplate(const UObject* InObject)
 	return InObject->IsTemplate() || InObject->IsAsset();
 }
 
-UProperty* FindPropertyByName(const FName InPropName, const UStruct* InStruct)
+FProperty* FindPropertyByName(const FName InPropName, const UStruct* InStruct)
 {
-	UProperty* Prop = InStruct->FindPropertyByName(InPropName);
+	FProperty* Prop = InStruct->FindPropertyByName(InPropName);
 
 	if (!Prop)
 	{
-		const FName NewPropName = UProperty::FindRedirectedPropertyName(const_cast<UStruct*>(InStruct), InPropName);
+		const FName NewPropName = FProperty::FindRedirectedPropertyName(const_cast<UStruct*>(InStruct), InPropName);
 		if (!NewPropName.IsNone())
 		{
 			Prop = InStruct->FindPropertyByName(NewPropName);

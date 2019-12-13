@@ -27,7 +27,7 @@ class UGizmoTransformChangeStateTarget;
  * which Translate and Rotate UProperties are initialized, will associate those Components
  * with UInteractiveGizmo's that implement Axis Translation, Plane Translation, and Axis Rotation.
  * 
- * If a particular sub-Gizmo is not required, simply set that UProperty to null.
+ * If a particular sub-Gizmo is not required, simply set that FProperty to null.
  * 
  * The static factory method ::ConstructDefault3AxisGizmo() creates and initializes an 
  * Actor suitable for use in a standard 3-axis Transformation Gizmo.
@@ -176,7 +176,7 @@ public:
  * a standard XYZ translate/rotate Gizmo (axis and plane translation).
  * 
  * The in-scene representation of the Gizmo is a ATransformGizmoActor (or subclass).
- * This Actor has UProperty members for the various sub-widgets, each as a separate Component.
+ * This Actor has FProperty members for the various sub-widgets, each as a separate Component.
  * Any particular sub-widget of the Gizmo can be disabled by setting the respective
  * Actor Component to null. 
  * 

@@ -28,7 +28,7 @@ void UOculusAudioSettings::PostEditChangeProperty(FPropertyChangedEvent& Propert
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
-bool UOculusAudioSettings::CanEditChange(const UProperty* InProperty) const
+bool UOculusAudioSettings::CanEditChange(const FProperty* InProperty) const
 {
 	// TODO disable settings when reflection engine is disabled
 

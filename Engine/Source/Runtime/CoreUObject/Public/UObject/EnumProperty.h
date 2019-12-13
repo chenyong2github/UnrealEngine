@@ -7,32 +7,35 @@
 #include "UObject/ObjectMacros.h"
 
 class UEnum;
-class UNumericProperty;
+class FNumericProperty;
 
-namespace UE4EnumProperty_Private
+class COREUOBJECT_API FEnumProperty : public FProperty
 {
-	struct FEnumPropertyFriend;
-}
-
-class COREUOBJECT_API UEnumProperty : public UProperty
-{
-	DECLARE_CASTED_CLASS_INTRINSIC(UEnumProperty, UProperty, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UEnumProperty)
+	DECLARE_FIELD(FEnumProperty, FProperty, CASTCLASS_FEnumProperty)
 
 public:
-	UEnumProperty(const FObjectInitializer& ObjectInitializer, UEnum* InEnum);
-	UEnumProperty(const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, UEnum* InEnum);
+	FEnumProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags);
+	FEnumProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, UEnum* InEnum);
+	FEnumProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UEnum* InEnum);
+#if WITH_EDITORONLY_DATA
+	explicit FEnumProperty(UField* InField);
+#endif // WITH_EDITORONLY_DATA
+	virtual ~FEnumProperty();
 
 	// UObject interface
 	virtual void Serialize( FArchive& Ar ) override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
 	// End of UObject interface
 
+	// Field interface
+	virtual void PostDuplicate(const FField& InField) override;
+
 	// UField interface
-	virtual void AddCppProperty(UProperty* Property) override;
+	virtual void AddCppProperty(FProperty* Property) override;
 	// End of UField interface
 
-	// UProperty interface
+	// FProperty interface
 	virtual FString GetCPPMacroType( FString& ExtendedTypeText ) const  override;
 	virtual FString GetCPPType( FString* ExtendedTypeText, uint32 CPPExportFlags ) const override;
 	virtual FString GetCPPTypeForwardDeclaration() const override;
@@ -43,9 +46,9 @@ public:
 	virtual void ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const override;
 	virtual const TCHAR* ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText ) const override;
 	virtual int32 GetMinAlignment() const override;
-	virtual bool SameType(const UProperty* Other) const override;
+	virtual bool SameType(const FProperty* Other) const override;
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
-	// End of UProperty interface
+	// End of FProperty interface
 
 	/**
 	 * Set the UEnum of this property.
@@ -53,7 +56,7 @@ public:
 	 */
 	FORCEINLINE void SetEnum(UEnum* InEnum)
 	{
-		checkf(!Enum, TEXT("UEnumProperty enum may only be set once"));
+		checkf(!Enum, TEXT("FEnumProperty enum may only be set once"));
 		Enum = InEnum;
 	}
 
@@ -68,7 +71,7 @@ public:
 	/**
 	 * Returns the numeric property which represents the integral type of the enum.
 	 */
-	FORCEINLINE UNumericProperty* GetUnderlyingProperty() const
+	FORCEINLINE FNumericProperty* GetUnderlyingProperty() const
 	{
 		return UnderlyingProp;
 	}
@@ -76,11 +79,9 @@ public:
 private:
 	virtual uint32 GetValueTypeHashInternal(const void* Src) const override;
 
-	friend struct UE4EnumProperty_Private::FEnumPropertyFriend;
-	
 #if HACK_HEADER_GENERATOR
 public:
 #endif
-	UNumericProperty* UnderlyingProp; // The property which represents the underlying type of the enum
+	FNumericProperty* UnderlyingProp; // The property which represents the underlying type of the enum
 	UEnum* Enum; // The enum represented by this property
 };

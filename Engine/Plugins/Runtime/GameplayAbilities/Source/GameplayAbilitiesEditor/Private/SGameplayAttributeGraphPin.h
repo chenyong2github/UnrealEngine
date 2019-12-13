@@ -19,9 +19,9 @@ public:
 	virtual TSharedRef<SWidget>	GetDefaultValueWidget() override;
 	//~ End SGraphPin Interface
 
-	void OnAttributeChanged(UProperty* SelectedAttribute);
+	void OnAttributeChanged(FProperty* SelectedAttribute);
 
-	UProperty* LastSelectedProperty;
+	FProperty* LastSelectedProperty;
 
 private:
 

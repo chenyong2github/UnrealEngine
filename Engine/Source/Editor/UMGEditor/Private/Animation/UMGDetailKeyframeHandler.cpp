@@ -30,7 +30,7 @@ bool FUMGDetailKeyframeHandler::IsPropertyAnimated(const IPropertyHandle& Proper
 		if (ObjectHandle.IsValid()) 
 		{
 			UMovieScene* MovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
-			UProperty* Property = PropertyHandle.GetProperty();
+			FProperty* Property = PropertyHandle.GetProperty();
 			TSharedRef<FPropertyPath> PropertyPath = FPropertyPath::CreateEmpty();
 			PropertyPath->AddProperty(FPropertyInfo(Property));
 			FName PropertyName(*PropertyPath->ToString(TEXT(".")));

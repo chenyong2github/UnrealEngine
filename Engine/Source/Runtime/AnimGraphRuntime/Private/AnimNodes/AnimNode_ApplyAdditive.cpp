@@ -3,6 +3,7 @@
 #include "AnimNodes/AnimNode_ApplyAdditive.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_ApplyAdditive
@@ -59,6 +60,8 @@ void FAnimNode_ApplyAdditive::Update_AnyThread(const FAnimationUpdateContext& Co
 			Additive.Update(Context.FractionalWeight(ActualAlpha));
 		}
 	}
+
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Alpha"), ActualAlpha);
 }
 
 void FAnimNode_ApplyAdditive::Evaluate_AnyThread(FPoseContext& Output)

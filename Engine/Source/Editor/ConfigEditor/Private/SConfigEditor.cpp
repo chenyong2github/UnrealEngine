@@ -18,7 +18,7 @@
 
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-void SConfigEditor::Construct(const FArguments& InArgs, TWeakObjectPtr<UProperty> InEditProperty)
+void SConfigEditor::Construct(const FArguments& InArgs, TWeakFieldPtr<FProperty> InEditProperty)
 {
 	TargetPlatformSelection = SNew(STargetPlatformSelector)
 		.OnTargetPlatformChanged(this, &SConfigEditor::HandleTargetPlatformChanged);
@@ -78,7 +78,7 @@ void SConfigEditor::CreateDisplayObjectForSelectedTargetPlatform()
 		PropHelper->AddToRoot();
 	}
 
-	PropHelper->EditProperty = EditProperty;
+	PropHelper->EditProperty = EditProperty.Get();
 	FString ClassConfigName = PropHelper->EditProperty->GetOwnerClass()->ClassConfigName.ToString();
 
 	FConfigFile PlatformIniFile;

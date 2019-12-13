@@ -90,7 +90,7 @@ void FAnimGraphNodeDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailB
 	TargetSkeletonName = TargetSkeleton ? FString::Printf(TEXT("%s'%s'"), *TargetSkeleton->GetClass()->GetName(), *TargetSkeleton->GetPathName()) : FString(TEXT(""));
 
 	// Get the node property
-	const UStructProperty* NodeProperty = AnimGraphNode->GetFNodeProperty();
+	const FStructProperty* NodeProperty = AnimGraphNode->GetFNodeProperty();
 	if (NodeProperty == nullptr)
 	{
 		return;
@@ -105,22 +105,22 @@ void FAnimGraphNodeDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailB
 
 	uint32 NumChildHandles = 0;
 	FPropertyAccess::Result Result = NodePropertyHandle->GetNumChildren(NumChildHandles);
-	if(Result != FPropertyAccess::Fail)
+	if (Result != FPropertyAccess::Fail)
 	{
-		for(uint32 ChildHandleIndex = 0; ChildHandleIndex < NumChildHandles; ++ChildHandleIndex)
+		for (uint32 ChildHandleIndex = 0; ChildHandleIndex < NumChildHandles; ++ChildHandleIndex)
 		{
 			TSharedPtr<IPropertyHandle> TargetPropertyHandle = NodePropertyHandle->GetChildHandle(ChildHandleIndex);
-			if(TargetPropertyHandle.IsValid())
+			if (TargetPropertyHandle.IsValid())
 			{
-				UProperty* TargetProperty = TargetPropertyHandle->GetProperty();
+				FProperty* TargetProperty = TargetPropertyHandle->GetProperty();
 				IDetailCategoryBuilder& CurrentCategory = DetailBuilder.EditCategory(FObjectEditorUtils::GetCategoryFName(TargetProperty));
-			
+
 				int32 CustomPinIndex = AnimGraphNode->ShowPinForProperties.IndexOfByPredicate([TargetProperty](const FOptionalPinFromProperty& InOptionalPin)
 				{
 					return TargetProperty->GetFName() == InOptionalPin.PropertyName;
 				});
 
-				if(CustomPinIndex != INDEX_NONE)
+				if (CustomPinIndex != INDEX_NONE)
 				{
 					const FOptionalPinFromProperty& OptionalPin = AnimGraphNode->ShowPinForProperties[CustomPinIndex];
 
@@ -132,17 +132,17 @@ void FAnimGraphNodeDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailB
 						continue;
 					}
 
-					if(!TargetPropertyHandle->GetProperty())
+					if (!TargetPropertyHandle->GetProperty())
 					{
 						continue;
 					}
 
 					// if customized, do not do anything
-					if(TargetPropertyHandle->IsCustomized())
+					if (TargetPropertyHandle->IsCustomized())
 					{
 						continue;
 					}
-		
+
 					// sometimes because of order of customization
 					// this gets called first for the node you'd like to customize
 					// then the above statement won't work
@@ -159,11 +159,11 @@ void FAnimGraphNodeDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailB
 					{
 						IDetailPropertyRow& PropertyRow = CurrentCategory.AddProperty(TargetPropertyHandle);
 
-						TSharedPtr<SWidget> NameWidget; 
+						TSharedPtr<SWidget> NameWidget;
 						TSharedPtr<SWidget> ValueWidget;
 						FDetailWidgetRow Row;
-						PropertyRow.GetDefaultWidgets( NameWidget, ValueWidget, Row );
-						
+						PropertyRow.GetDefaultWidgets(NameWidget, ValueWidget, Row);
+
 						ValueWidget = (InternalCustomWidget == SNullWidget::NullWidget) ? ValueWidget : InternalCustomWidget;
 
 						const FName OptionalPinArrayEntryName(*FString::Printf(TEXT("ShowPinForProperties[%d].bShowPin"), CustomPinIndex));
@@ -175,7 +175,7 @@ void FAnimGraphNodeDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailB
 
 						// If we have an edit condition, that comes as part of the default name widget, so just use a text block to avoid duplicate checkboxes
 						TSharedPtr<SWidget> PropertyNameWidget;
-						if(TargetProperty->HasMetaData(TEXT("EditCondition")))
+						if (TargetProperty->HasMetaData(TEXT("EditCondition")))
 						{
 							PropertyNameWidget = SNew(STextBlock)
 							.Text(TargetProperty->GetDisplayNameText())
@@ -206,7 +206,7 @@ void FAnimGraphNodeDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailB
 							ValueWidget.ToSharedRef()
 						];
 					}
-					else if(InternalCustomWidget != SNullWidget::NullWidget)
+					else if (InternalCustomWidget != SNullWidget::NullWidget)
 					{
 						// A few properties are internally customized within this customization. Here we
 						// catch instances of these that don't have an optional pin flag.
@@ -232,9 +232,9 @@ void FAnimGraphNodeDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailB
 }
 
 
-TSharedRef<SWidget> FAnimGraphNodeDetails::CreatePropertyWidget(UProperty* TargetProperty, TSharedRef<IPropertyHandle> TargetPropertyHandle, UClass* NodeClass)
+TSharedRef<SWidget> FAnimGraphNodeDetails::CreatePropertyWidget(FProperty* TargetProperty, TSharedRef<IPropertyHandle> TargetPropertyHandle, UClass* NodeClass)
 {
-	if(const UObjectPropertyBase* ObjectProperty = Cast<const UObjectPropertyBase>( TargetProperty ))
+	if(const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>( TargetProperty ))
 	{
 		if(ObjectProperty->PropertyClass->IsChildOf(UAnimationAsset::StaticClass()))
 		{
@@ -641,10 +641,10 @@ TSharedRef<IPropertyTypeCustomization> FBoneSocketTargetCustomization::MakeInsta
 void FBoneSocketTargetCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
 	// set property handle 
-	SetPropertyHandle(StructPropertyHandle);
-	// set editable skeleton info from struct
-	SetEditableSkeleton(StructPropertyHandle);
-	Build(StructPropertyHandle, ChildBuilder);
+ 	SetPropertyHandle(StructPropertyHandle);
+ 	// set editable skeleton info from struct
+ 	SetEditableSkeleton(StructPropertyHandle);
+ 	Build(StructPropertyHandle, ChildBuilder);
 }
 
 void FBoneSocketTargetCustomization::SetPropertyHandle(TSharedRef<IPropertyHandle> StructPropertyHandle)
@@ -1162,7 +1162,7 @@ void FAnimGraphNodeShowAsPinExtension::GetOptionalPinData(const IPropertyHandle&
 	TArray<UObject*> Objects;
 	PropertyHandle.GetOuterObjects(Objects);
 
-	UProperty* Property = PropertyHandle.GetProperty();
+	FProperty* Property = PropertyHandle.GetProperty();
 	if(Property)
 	{
 		OutAnimGraphNode = Cast<UAnimGraphNode_Base>(Objects[0]);

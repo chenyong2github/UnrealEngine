@@ -39,7 +39,7 @@ DECLARE_MULTICAST_DELEGATE(FOnMessageBusShutdown);
  *
  * Depending on their usage, messages are classified into a number of types, such as commands, events and documents. In Unreal Engine,
  * all these messages are modeled with regular built-in or user defined UStructs that may either be empty or contain data in the
- * form of UProperty fields[2]. Before being dispatched, messages are internally wrapped into so called Message Context objects
+ * form of FProperty fields[2]. Before being dispatched, messages are internally wrapped into so called Message Context objects
  * (IMessageContext) that contain additional information about a message, such as when it was sent and the sender and recipients.
  *
  * The sending and receiving of messages is not limited to message endpoints within the same thread or process, but may be extended

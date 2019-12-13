@@ -78,15 +78,11 @@ FTidPacketTransport::FThreadStream& FTidPacketTransport::FindOrAddThread(uint32 
 void FTidPacketTransport::Update()
 {
 	while (ReadPacket());
-	Threads.RemoveAllSwap([] (const FThreadStream& Thread) { return Thread.Buffer.IsEmpty(); });
 
-	if (bool bEof = Reader->IsEof())
+	Threads.RemoveAllSwap([] (const FThreadStream& Thread)
 	{
-		for (auto& Thread : Threads)
-		{
-			Thread.Buffer.SetEof();
-		}
-	}
+		return Thread.Buffer.IsEmpty();
+	});
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -108,6 +104,18 @@ FStreamReader* FTidPacketTransport::GetNextThread(ThreadIter& Iter)
 	}
 
 	return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+int32 FTidPacketTransport::GetThreadId(ThreadIter Iter) const
+{
+	uint32 Index = Iter - 1;
+	if (Index >= uint32(Threads.Num()))
+	{
+		return -1;
+	}
+
+	return Threads[Index].ThreadId;
 }
 
 } // namespace Trace

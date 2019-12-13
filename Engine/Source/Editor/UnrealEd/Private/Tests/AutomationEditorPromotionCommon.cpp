@@ -193,7 +193,7 @@ void FEditorPromotionTestUtilities::SendCommandToCurrentEditor(const FInputChord
 */
 FString FEditorPromotionTestUtilities::GetPropertyByName(UObject* TargetObject, const FString& InVariableName)
 {
-	UProperty* FoundProperty = FindField<UProperty>(TargetObject->GetClass(), *InVariableName);
+	FProperty* FoundProperty = FindField<FProperty>(TargetObject->GetClass(), *InVariableName);
 	if (FoundProperty)
 	{
 		FString ValueString;
@@ -213,7 +213,7 @@ FString FEditorPromotionTestUtilities::GetPropertyByName(UObject* TargetObject, 
 */
 void FEditorPromotionTestUtilities::SetPropertyByName(UObject* TargetObject, const FString& InVariableName, const FString& NewValueString)
 {
-	UProperty* FoundProperty = FindField<UProperty>(TargetObject->GetClass(), *InVariableName);
+	FProperty* FoundProperty = FindField<FProperty>(TargetObject->GetClass(), *InVariableName);
 	if (FoundProperty)
 	{
 		const FScopedTransaction PropertyChanged(LOCTEXT("PropertyChanged", "Object Property Change"));

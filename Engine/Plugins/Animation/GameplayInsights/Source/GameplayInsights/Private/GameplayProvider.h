@@ -22,6 +22,9 @@ public:
 	virtual void EnumerateObjects(TFunctionRef<void(const FObjectInfo&)> Callback) const override;
 	virtual const FClassInfo* FindClassInfo(uint64 InClassId) const override;
 	virtual const FObjectInfo* FindObjectInfo(uint64 InObjectId) const override;
+	virtual const FClassInfo& GetClassInfo(uint64 InClassId) const override;
+	virtual const FClassInfo& GetClassInfoFromObject(uint64 InObjectId) const override;
+	virtual const FObjectInfo& GetObjectInfo(uint64 InObjectId) const override;
 	virtual FOnObjectEndPlay& OnObjectEndPlay() override { return OnObjectEndPlayDelegate; }
 
 	/** Add a class message */

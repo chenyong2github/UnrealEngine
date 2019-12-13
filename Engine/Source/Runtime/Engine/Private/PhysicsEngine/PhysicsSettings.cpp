@@ -94,7 +94,7 @@ void UPhysicsSettings::PostInitProperties()
 }
 
 #if WITH_EDITOR
-bool UPhysicsSettings::CanEditChange(const UProperty* Property) const
+bool UPhysicsSettings::CanEditChange(const FProperty* Property) const
 {
 	bool bIsEditable = Super::CanEditChange(Property);
 	if(bIsEditable && Property != NULL)

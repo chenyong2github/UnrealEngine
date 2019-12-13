@@ -37,7 +37,7 @@ THIRD_PARTY_INCLUDES_END
 class FCEFJSScripting;
 class IStructDeserializerBackend;
 enum class EStructDeserializerBackendTokens;
-class UProperty;
+class FProperty;
 class UStruct;
 
 #if WITH_CEF3
@@ -52,7 +52,7 @@ public:
 	virtual ~ICefContainerWalker() {}
 
 	virtual TSharedPtr<ICefContainerWalker> GetNextToken( EStructDeserializerBackendTokens& OutToken, FString& PropertyName ) = 0;
-	virtual bool ReadProperty(TSharedPtr<FCEFJSScripting> Scripting, UProperty* Property, UProperty* Outer, void* Data, int32 ArrayIndex) = 0;
+	virtual bool ReadProperty(TSharedPtr<FCEFJSScripting> Scripting, FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex) = 0;
 
 	TSharedPtr<ICefContainerWalker> Parent;
 };
@@ -68,7 +68,7 @@ public:
 	{}
 
 	virtual TSharedPtr<ICefContainerWalker> GetNextToken( EStructDeserializerBackendTokens& OutToken, FString& PropertyName ) override;
-	virtual bool ReadProperty(TSharedPtr<FCEFJSScripting> Scripting, UProperty* Property, UProperty* Outer, void* Data, int32 ArrayIndex ) override;
+	virtual bool ReadProperty(TSharedPtr<FCEFJSScripting> Scripting, FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex ) override;
 
 	CefRefPtr<CefListValue> List;
 	size_t Index;
@@ -87,7 +87,7 @@ public:
 	}
 
 	virtual TSharedPtr<ICefContainerWalker> GetNextToken( EStructDeserializerBackendTokens& OutToken, FString& PropertyName ) override;
-	virtual bool ReadProperty(TSharedPtr<FCEFJSScripting> Scripting, UProperty* Property, UProperty* Outer, void* Data, int32 ArrayIndex ) override;
+	virtual bool ReadProperty(TSharedPtr<FCEFJSScripting> Scripting, FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex ) override;
 
 private:
 	CefRefPtr<CefDictionaryValue> Dictionary;
@@ -122,7 +122,7 @@ public:
 	virtual FString GetDebugString() const override;
 	virtual const FString& GetLastErrorMessage() const override;
 	virtual bool GetNextToken( EStructDeserializerBackendTokens& OutToken ) override;
-	virtual bool ReadProperty( UProperty* Property, UProperty* Outer, void* Data, int32 ArrayIndex ) override;
+	virtual bool ReadProperty( FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex ) override;
 	virtual void SkipArray() override;
 	virtual void SkipStructure() override;
 

@@ -45,15 +45,15 @@ struct UMGEDITOR_API FEditorPropertyPathSegment
 
 public:
 	FEditorPropertyPathSegment();
-	FEditorPropertyPathSegment(const UProperty* InProperty);
+	FEditorPropertyPathSegment(const FProperty* InProperty);
 	FEditorPropertyPathSegment(const UFunction* InFunction);
 	FEditorPropertyPathSegment(const UEdGraph* InFunctionGraph);
 
 	UStruct* GetStruct() const { return Struct; }
-	UField* GetMember() const;
+	FFieldVariant GetMember() const;
 
 	void Rebase(UBlueprint* SegmentBase);
-	bool ValidateMember(UDelegateProperty* DelegateProperty, FText& OutError) const;
+	bool ValidateMember(FDelegateProperty* DelegateProperty, FText& OutError) const;
 
 	FName GetMemberName() const;
 	FText GetMemberDisplayText() const;
@@ -94,7 +94,7 @@ public:
 	FEditorPropertyPath();
 
 	/**  */
-	FEditorPropertyPath(const TArray<UField*>& BindingChain);
+	FEditorPropertyPath(const TArray<FFieldVariant>& BindingChain);
 
 	/**  */
 	bool Rebase(UBlueprint* SegmentBase);
@@ -103,7 +103,7 @@ public:
 	bool IsEmpty() const { return Segments.Num() == 0; }
 
 	/**  */
-	bool Validate(UDelegateProperty* Destination, FText& OutError) const;
+	bool Validate(FDelegateProperty* Destination, FText& OutError) const;
 
 	/**  */
 	FText GetDisplayText() const;

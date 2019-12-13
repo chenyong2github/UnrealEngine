@@ -294,7 +294,7 @@ FBlueprintCompileReinstancer::FBlueprintCompileReinstancer(UClass* InClassToRein
 
 		ObjectsThatShouldUseOldStuff.Add(DuplicatedClass); //CDO of REINST_ class can be used as archetype
 
-		if( !bIsBytecodeOnly )
+		if (!bIsBytecodeOnly)
 		{
 			TArray<UObject*> ObjectsToChange;
 			const bool bIncludeDerivedClasses = false;
@@ -306,7 +306,7 @@ FBlueprintCompileReinstancer::FBlueprintCompileReinstancer(UClass* InClassToRein
 
 			TArray<UClass*> ChildrenOfClass;
 			GetDerivedClasses(ClassToReinstance, ChildrenOfClass);
-			for ( UClass* ChildClass : ChildrenOfClass )
+			for (UClass* ChildClass : ChildrenOfClass)
 			{
 				UBlueprint* ChildBP = Cast<UBlueprint>(ChildClass->ClassGeneratedBy);
 				if (ChildBP)
@@ -328,9 +328,9 @@ FBlueprintCompileReinstancer::FBlueprintCompileReinstancer(UClass* InClassToRein
 						}
 					}
 					// If this is a direct child, change the parent and relink so the property chain is valid for reinstancing
-					else if( !ChildBP->HasAnyFlags(RF_NeedLoad) )
+					else if (!ChildBP->HasAnyFlags(RF_NeedLoad))
 					{
-						if( ChildClass->GetSuperClass() == ClassToReinstance )
+						if (ChildClass->GetSuperClass() == ClassToReinstance)
 						{
 							ReparentChild(ChildBP);
 						}
@@ -376,7 +376,7 @@ void FBlueprintCompileReinstancer::SaveClassFieldMapping(UClass* InClassToReinst
 {
 	check(InClassToReinstance);
 
-	for (UProperty* Prop = InClassToReinstance->PropertyLink; Prop && (Prop->GetOuter() == InClassToReinstance); Prop = Prop->PropertyLinkNext)
+	for (FProperty* Prop = InClassToReinstance->PropertyLink; Prop && (Prop->GetOwner<UObject>() == InClassToReinstance); Prop = Prop->PropertyLinkNext)
 	{
 		PropertyMap.Add(Prop->GetFName(), Prop);
 	}
@@ -387,15 +387,15 @@ void FBlueprintCompileReinstancer::SaveClassFieldMapping(UClass* InClassToReinst
 	}
 }
 
-void FBlueprintCompileReinstancer::GenerateFieldMappings(TMap<UObject*, UObject*>& FieldMapping)
+void FBlueprintCompileReinstancer::GenerateFieldMappings(TMap<FFieldVariant, FFieldVariant>& FieldMapping)
 {
 	check(ClassToReinstance);
 
 	FieldMapping.Empty();
 
-	for (TPair<FName, UProperty*>& Prop : PropertyMap)
+	for (TPair<FName, FProperty*>& Prop : PropertyMap)
 	{
-		FieldMapping.Add(Prop.Value, FindField<UProperty>(ClassToReinstance, *Prop.Key.ToString()));
+		FieldMapping.Add(Prop.Value, FindField<FProperty>(ClassToReinstance, *Prop.Key.ToString()));
 	}
 
 	for (TPair<FName, UFunction*>& Func : FunctionMap)
@@ -422,7 +422,13 @@ void FBlueprintCompileReinstancer::AddReferencedObjects(FReferenceCollector& Col
 	// memory was used for a new (unrelated) function, then we were replacing references to the 
 	// new function (bad), as well as any old stale references (both were using the same memory address)
 	Collector.AddReferencedObjects(FunctionMap);
-	Collector.AddReferencedObjects(PropertyMap);
+	for (TPair<FName, FProperty*>& PropertyNamePair : PropertyMap)
+	{
+		if (PropertyNamePair.Value)
+		{
+			PropertyNamePair.Value->AddReferencedObjects(Collector);
+		}
+	}
 }
 
 void FBlueprintCompileReinstancer::OptionallyRefreshNodes(UBlueprint* CurrentBP)
@@ -554,7 +560,7 @@ public:
 					//UAnimInstance* ActiveInstance = SkelComponent->GetAnimInstance();
 					//if(AnimClass && ActiveInstance)
 					//{
-					//	for(UStructProperty* NodeProp : AnimClass->AnimNodeProperties)
+					//	for(FStructProperty* NodeProp : AnimClass->AnimNodeProperties)
 					//	{
 					//		// Guaranteed to have only FAnimNode_Base pointers added during compilation
 					//		FAnimNode_Base* AnimNode = NodeProp->ContainerPtrToValuePtr<FAnimNode_Base>(ActiveInstance);
@@ -812,6 +818,134 @@ void FBlueprintCompileReinstancer::ReinstanceObjects(bool bForceAlwaysReinstance
 }
 
 
+class FArchiveReplaceFieldReferences : public FArchiveReplaceObjectRefBase
+{
+public:
+	/**
+	 * Initializes variables and starts the serialization search
+	 *
+	 * @param InSearchObject		The object to start the search on
+	 * @param ReplacementMap		Map of objects to find -> objects to replace them with (null zeros them)
+	 * @param bNullPrivateRefs		Whether references to non-public objects not contained within the SearchObject
+	 *								should be set to null
+	 * @param bIgnoreOuterRef		Whether we should replace Outer pointers on Objects.
+	 * @param bIgnoreArchetypeRef	Whether we should replace the ObjectArchetype reference on Objects.
+	 * @param bDelayStart			Specify true to prevent the constructor from starting the process.  Allows child classes' to do initialization stuff in their ctor
+	 */
+	FArchiveReplaceFieldReferences
+	(
+		UObject* InSearchObject,
+		const TMap<FFieldVariant, FFieldVariant>& InReplacementMap,
+		bool bNullPrivateRefs,
+		bool bIgnoreOuterRef,
+		bool bIgnoreArchetypeRef,
+		bool bDelayStart = false,
+		bool bIgnoreClassGeneratedByRef = true
+	)
+		: ReplacementMap(InReplacementMap)
+	{
+		SearchObject = InSearchObject;
+		Count = 0;
+		bNullPrivateReferences = bNullPrivateRefs;
+
+		ArIsObjectReferenceCollector = true;
+		ArIsModifyingWeakAndStrongReferences = true;		// Also replace weak references too!
+		ArIgnoreArchetypeRef = bIgnoreArchetypeRef;
+		ArIgnoreOuterRef = bIgnoreOuterRef;
+		ArIgnoreClassGeneratedByRef = bIgnoreClassGeneratedByRef;
+
+		if (!bDelayStart)
+		{
+			SerializeSearchObject();
+		}
+	}
+
+	/**
+	 * Starts the serialization of the root object
+	 */
+	void SerializeSearchObject()
+	{
+		ReplacedReferences.Empty();
+
+		if (SearchObject != NULL && !SerializedObjects.Find(SearchObject)
+			&& (ReplacementMap.Num() > 0 || bNullPrivateReferences))
+		{
+			// start the initial serialization
+			SerializedObjects.Add(SearchObject);
+			SerializeObject(SearchObject);
+			for (int32 Iter = 0; Iter < PendingSerializationObjects.Num(); Iter++)
+			{
+				SerializeObject(PendingSerializationObjects[Iter]);
+			}
+			PendingSerializationObjects.Reset();
+		}
+	}
+
+	/**
+	 * Serializes the reference to the object
+	 */
+	virtual FArchive& operator << (UObject*& Obj) override
+	{
+		if (Obj != nullptr)
+		{
+			// If these match, replace the reference
+			const FFieldVariant* ReplaceWith = ReplacementMap.Find(Obj);
+			if (ReplaceWith != nullptr)
+			{
+				Obj = ReplaceWith->ToUObject();
+				ReplacedReferences.FindOrAdd(Obj).AddUnique(GetSerializedProperty());
+				Count++;
+			}
+			// A->IsIn(A) returns false, but we don't want to NULL that reference out, so extra check here.
+			else if (Obj == SearchObject || Obj->IsIn(SearchObject))
+			{
+#if 0
+				// DEBUG: Log when we are using the A->IsIn(A) path here.
+				if (Obj == SearchObject)
+				{
+					FString ObjName = Obj->GetPathName();
+					UE_LOG(LogSerialization, Log, TEXT("FArchiveReplaceObjectRef: Obj == SearchObject : '%s'"), *ObjName);
+				}
+#endif
+				bool bAlreadyAdded = false;
+				SerializedObjects.Add(Obj, &bAlreadyAdded);
+				if (!bAlreadyAdded)
+				{
+					// No recursion
+					PendingSerializationObjects.Add(Obj);
+				}
+			}
+			else if (bNullPrivateReferences && !Obj->HasAnyFlags(RF_Public))
+			{
+				Obj = nullptr;
+			}
+		}
+		return *this;
+	}
+
+
+	/**
+	 * Serializes the reference to a field
+	 */
+	virtual FArchive& operator << (FField*& Field) override
+	{
+		if (Field != nullptr)
+		{
+			// If these match, replace the reference
+			const FFieldVariant* ReplaceWith = ReplacementMap.Find(Field);
+			if (ReplaceWith != nullptr)
+			{
+				Field = ReplaceWith->ToField();
+				//ReplacedReferences.FindOrAdd(Obj).AddUnique(GetSerializedProperty());
+				Count++;
+			}
+		}
+		return *this;
+	}
+protected:
+	/** Map of objects to find references to -> object to replace references with */
+	const TMap<FFieldVariant, FFieldVariant>& ReplacementMap;
+};
 
 void FBlueprintCompileReinstancer::UpdateBytecodeReferences()
 {
@@ -819,7 +953,7 @@ void FBlueprintCompileReinstancer::UpdateBytecodeReferences()
 
 	if(ClassToReinstance != nullptr)
 	{
-		TMap<UObject*, UObject*> FieldMappings;
+		TMap<FFieldVariant, FFieldVariant> FieldMappings;
 		GenerateFieldMappings(FieldMappings);
 
 		// Determine whether or not we will be updating references for an Animation Blueprint class.
@@ -854,7 +988,7 @@ void FBlueprintCompileReinstancer::UpdateBytecodeReferences()
 			for( TFieldIterator<UFunction> FuncIter(BPClass, EFieldIteratorFlags::ExcludeSuper); FuncIter; ++FuncIter )
 			{
 				UFunction* CurrentFunction = *FuncIter;
-				FArchiveReplaceObjectRef<UObject> ReplaceAr(CurrentFunction, FieldMappings, /*bNullPrivateRefs=*/ false, /*bIgnoreOuterRef=*/ true, /*bIgnoreArchetypeRef=*/ true);
+				FArchiveReplaceFieldReferences ReplaceAr(CurrentFunction, FieldMappings, /*bNullPrivateRefs=*/ false, /*bIgnoreOuterRef=*/ true, /*bIgnoreArchetypeRef=*/ true);
 				bBPWasChanged |= (0 != ReplaceAr.GetCount());
 			}
 
@@ -863,12 +997,12 @@ void FBlueprintCompileReinstancer::UpdateBytecodeReferences()
 			{
 				for(int32 Idx = 0; Idx < AsBPGC->CalledFunctions.Num(); ++Idx)
 				{
-					UObject** Val = FieldMappings.Find(AsBPGC->CalledFunctions[Idx]);
-					if(Val && *Val)
+					FFieldVariant* Val = FieldMappings.Find(AsBPGC->CalledFunctions[Idx]);
+					if(Val && Val->IsValid())
 					{
 						// This ::Cast should always succeed, but I'm uncomfortable making 
 						// rigid assumptions about the FieldMappings array:
-						if(UFunction* NewFn = Cast<UFunction>(*Val))
+						if(UFunction* NewFn = Val->Get<UFunction>())
 						{
 							AsBPGC->CalledFunctions[Idx] = NewFn;
 						}
@@ -876,7 +1010,7 @@ void FBlueprintCompileReinstancer::UpdateBytecodeReferences()
 				}
 			}
 
-			FArchiveReplaceObjectRef<UObject> ReplaceInBPAr(*DependentBP, FieldMappings, false, true, true);
+			FArchiveReplaceFieldReferences ReplaceInBPAr(*DependentBP, FieldMappings, false, true, true);
 			if (ReplaceInBPAr.GetCount())
 			{
 				bBPWasChanged = true;
@@ -1243,7 +1377,7 @@ namespace InstancedPropertyUtils
 		{
 			if (Obj != nullptr)
 			{
-				UProperty* SerializingProperty = GetSerializedProperty();
+				FProperty* SerializingProperty = GetSerializedProperty();
 				const bool bHasInstancedValue = SerializingProperty && SerializingProperty->HasAnyPropertyFlags(CPF_PersistentInstance);
 
 				// default sub-objects are handled by CopyPropertiesForUnrelatedObjects()
@@ -1311,7 +1445,7 @@ namespace InstancedPropertyUtils
 		{
 			if (Obj == nullptr)
 			{
-				UProperty* SerializingProperty = GetSerializedProperty();
+				FProperty* SerializingProperty = GetSerializedProperty();
 				if (UObject* const* OldInstancedObjPtr = OldInstancedSubObjects.Find(SerializingProperty->GetFName()))
 				{
 					const UObject* OldInstancedObj = *OldInstancedObjPtr;
@@ -1321,7 +1455,7 @@ namespace InstancedPropertyUtils
 					// @TODO: Handle nested instances when we have more time to flush this all out  
 					if ( TargetClass->IsChildOf(SerializingProperty->GetOwnerClass()) )
 					{
-						UObjectPropertyBase* SerializingObjProperty = CastChecked<UObjectPropertyBase>(SerializingProperty);
+						FObjectPropertyBase* SerializingObjProperty = CastFieldChecked<FObjectPropertyBase>(SerializingProperty);
 						// being extra careful, not to create our own instanced version when we expect one from the CDO
 						if (SerializingObjProperty->GetObjectPropertyValue_InContainer(TargetCDO) == nullptr)
 						{
@@ -2025,7 +2159,7 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 		// construction-script attempts to modify another instance of the 
 		// same class... if this were to happen above, in the ObjectsToReplace 
 		// loop, then accessing that other instance would cause an assert in 
-		// UProperty::ContainerPtrToValuePtrInternal() (which appropriatly 
+		// FProperty::ContainerPtrToValuePtrInternal() (which appropriatly 
 		// complains that the other instance's type doesn't match because it 
 		// hasn't been replaced yet... that's why we wait until after 
 		// FArchiveReplaceObjectRef to run construction-scripts).

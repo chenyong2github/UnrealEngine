@@ -20,10 +20,8 @@ FCborStructSerializerBackend::~FCborStructSerializerBackend() = default;
 
 void FCborStructSerializerBackend::BeginArray(const FStructSerializerState& State)
 {
-	UObject* Outer = State.ValueProperty->GetOuter();
-
 	// Array nested in Array/Set
-	if ((Outer != nullptr) && (Outer->GetClass() == UArrayProperty::StaticClass() || Outer->GetClass() == USetProperty::StaticClass()))
+	if (State.ValueProperty->GetOwner<FArrayProperty>() || State.ValueProperty->GetOwner<FSetProperty>())
 	{
 		CborWriter.WriteContainerStart(ECborCode::Array, -1);
 	}
@@ -47,10 +45,8 @@ void FCborStructSerializerBackend::BeginStructure(const FStructSerializerState& 
 {
 	if (State.ValueProperty != nullptr)
 	{
-		UObject* Outer = State.ValueProperty->GetOuter();
-
 		// Object nested in Array/Set
-		if ((Outer != nullptr) && (Outer->GetClass() == UArrayProperty::StaticClass() || Outer->GetClass() == USetProperty::StaticClass()))
+		if (State.ValueProperty->GetOwner<FArrayProperty>() || State.ValueProperty->GetOwner<FSetProperty>())
 		{
 			CborWriter.WriteContainerStart(ECborCode::Map, -1/*Indefinite*/);
 		}
@@ -100,7 +96,7 @@ namespace CborStructSerializerBackend
 		// Value nested in Array/Set or as root
 		if ((State.ValueProperty == nullptr) ||
 			(State.ValueProperty->ArrayDim > 1) ||
-			(State.ValueProperty->GetOuter()->GetClass() == UArrayProperty::StaticClass() || State.ValueProperty->GetOuter()->GetClass() == USetProperty::StaticClass()))
+			(State.ValueProperty->GetOwner<FArrayProperty>() || State.ValueProperty->GetOwner<FSetProperty>()))
 		{
 			CborWriter.WriteValue(Value);
 		}
@@ -125,7 +121,7 @@ namespace CborStructSerializerBackend
 	{
 		if ((State.ValueProperty == nullptr) ||
 			(State.ValueProperty->ArrayDim > 1) ||
-			(State.ValueProperty->GetOuter()->GetClass() == UArrayProperty::StaticClass() || State.ValueProperty->GetOuter()->GetClass() == USetProperty::StaticClass()))
+			(State.ValueProperty->GetOwner<FArrayProperty>() || State.ValueProperty->GetOwner<FSetProperty>()))
 		{
 			CborWriter.WriteNull();
 		}
@@ -149,21 +145,21 @@ void FCborStructSerializerBackend::WriteProperty(const FStructSerializerState& S
 	using namespace CborStructSerializerBackend;
 
 	// Bool
-	if (State.ValueType == UBoolProperty::StaticClass())
+	if (State.FieldType == FBoolProperty::StaticClass())
 	{
-		WritePropertyValue(CborWriter, State, CastChecked<UBoolProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		WritePropertyValue(CborWriter, State, CastFieldChecked<FBoolProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
 
 	// Unsigned Bytes & Enums
-	else if (State.ValueType == UEnumProperty::StaticClass())
+	else if (State.FieldType == FEnumProperty::StaticClass())
 	{
-		UEnumProperty* EnumProperty = CastChecked<UEnumProperty>(State.ValueProperty);
+		FEnumProperty* EnumProperty = CastFieldChecked<FEnumProperty>(State.ValueProperty);
 
 		WritePropertyValue(CborWriter, State, EnumProperty->GetEnum()->GetNameStringByValue(EnumProperty->GetUnderlyingProperty()->GetSignedIntPropertyValue(EnumProperty->ContainerPtrToValuePtr<void>(State.ValueData, ArrayIndex))));
 	}
-	else if (State.ValueType == UByteProperty::StaticClass())
+	else if (State.FieldType == FByteProperty::StaticClass())
 	{
-		UByteProperty* ByteProperty = CastChecked<UByteProperty>(State.ValueProperty);
+		FByteProperty* ByteProperty = CastFieldChecked<FByteProperty>(State.ValueProperty);
 
 		if (ByteProperty->IsEnum())
 		{
@@ -176,59 +172,59 @@ void FCborStructSerializerBackend::WriteProperty(const FStructSerializerState& S
 	}
 
 	// Double & Float
-	else if (State.ValueType == UDoubleProperty::StaticClass())
+	else if (State.FieldType == FDoubleProperty::StaticClass())
 	{
-		WritePropertyValue(CborWriter, State, CastChecked<UDoubleProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		WritePropertyValue(CborWriter, State, CastFieldChecked<FDoubleProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
-	else if (State.ValueType == UFloatProperty::StaticClass())
+	else if (State.FieldType == FFloatProperty::StaticClass())
 	{
-		WritePropertyValue(CborWriter, State, CastChecked<UFloatProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		WritePropertyValue(CborWriter, State, CastFieldChecked<FFloatProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
 
 	// Signed Integers
-	else if (State.ValueType == UIntProperty::StaticClass())
+	else if (State.FieldType == FIntProperty::StaticClass())
 	{
-		WritePropertyValue(CborWriter, State, (int64)CastChecked<UIntProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		WritePropertyValue(CborWriter, State, (int64)CastFieldChecked<FIntProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
-	else if (State.ValueType == UInt8Property::StaticClass())
+	else if (State.FieldType == FInt8Property::StaticClass())
 	{
-		WritePropertyValue(CborWriter, State, (int64)CastChecked<UInt8Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		WritePropertyValue(CborWriter, State, (int64)CastFieldChecked<FInt8Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
-	else if (State.ValueType == UInt16Property::StaticClass())
+	else if (State.FieldType == FInt16Property::StaticClass())
 	{
-		WritePropertyValue(CborWriter, State, (int64)CastChecked<UInt16Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		WritePropertyValue(CborWriter, State, (int64)CastFieldChecked<FInt16Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
-	else if (State.ValueType == UInt64Property::StaticClass())
+	else if (State.FieldType == FInt64Property::StaticClass())
 	{
-		WritePropertyValue(CborWriter, State, (int64)CastChecked<UInt64Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		WritePropertyValue(CborWriter, State, (int64)CastFieldChecked<FInt64Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
 
 	// Unsigned Integers
-	else if (State.ValueType == UUInt16Property::StaticClass())
+	else if (State.FieldType == FUInt16Property::StaticClass())
 	{
-		WritePropertyValue(CborWriter, State, (int64)CastChecked<UUInt16Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		WritePropertyValue(CborWriter, State, (int64)CastFieldChecked<FUInt16Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
-	else if (State.ValueType == UUInt32Property::StaticClass())
+	else if (State.FieldType == FUInt32Property::StaticClass())
 	{
-		WritePropertyValue(CborWriter, State, (int64)CastChecked<UUInt32Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		WritePropertyValue(CborWriter, State, (int64)CastFieldChecked<FUInt32Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
-	else if (State.ValueType == UUInt64Property::StaticClass())
+	else if (State.FieldType == FUInt64Property::StaticClass())
 	{
-		WritePropertyValue(CborWriter, State, (int64)CastChecked<UUInt64Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		WritePropertyValue(CborWriter, State, (int64)CastFieldChecked<FUInt64Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
 
 	// FNames, Strings & Text
-	else if (State.ValueType == UNameProperty::StaticClass())
+	else if (State.FieldType == FNameProperty::StaticClass())
 	{
-		WritePropertyValue(CborWriter, State, CastChecked<UNameProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex).ToString());
+		WritePropertyValue(CborWriter, State, CastFieldChecked<FNameProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex).ToString());
 	}
-	else if (State.ValueType == UStrProperty::StaticClass())
+	else if (State.FieldType == FStrProperty::StaticClass())
 	{
-		WritePropertyValue(CborWriter, State, CastChecked<UStrProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		WritePropertyValue(CborWriter, State, CastFieldChecked<FStrProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
-	else if (State.ValueType == UTextProperty::StaticClass())
+	else if (State.FieldType == FTextProperty::StaticClass())
 	{
-		const FText& TextValue = CastChecked<UTextProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
+		const FText& TextValue = CastFieldChecked<FTextProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
 		if (EnumHasAnyFlags(Flags, EStructSerializerBackendFlags::WriteTextAsComplexString))
 		{
 			FString TextValueString;
@@ -242,29 +238,29 @@ void FCborStructSerializerBackend::WriteProperty(const FStructSerializerState& S
 	}
 
 	// Classes & Objects
-	else if (State.ValueType == UClassProperty::StaticClass())
+	else if (State.FieldType == FClassProperty::StaticClass())
 	{
-		UObject* const& Value = CastChecked<UClassProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
+		UObject* const& Value = CastFieldChecked<FClassProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
 		WritePropertyValue(CborWriter, State, Value ? Value->GetPathName() : FString());
 	}
-	else if (State.ValueType == USoftClassProperty::StaticClass())
+	else if (State.FieldType == FSoftClassProperty::StaticClass())
 	{
-		FSoftObjectPtr const& Value = CastChecked<USoftClassProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
+		FSoftObjectPtr const& Value = CastFieldChecked<FSoftClassProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
 		WritePropertyValue(CborWriter, State, Value.IsValid() ? Value->GetPathName() : FString());
 	}
-	else if (State.ValueType == UObjectProperty::StaticClass())
+	else if (State.FieldType == FObjectProperty::StaticClass())
 	{
-		UObject* const& Value = CastChecked<UObjectProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
+		UObject* const& Value = CastFieldChecked<FObjectProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
 		WritePropertyValue(CborWriter, State, Value ? Value->GetPathName() : FString());
 	}
-	else if (State.ValueType == UWeakObjectProperty::StaticClass())
+	else if (State.FieldType == FWeakObjectProperty::StaticClass())
 	{
-		FWeakObjectPtr const& Value = CastChecked<UWeakObjectProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
+		FWeakObjectPtr const& Value = CastFieldChecked<FWeakObjectProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
 		WritePropertyValue(CborWriter, State, Value.IsValid() ? Value.Get()->GetPathName() : FString());
 	}
-	else if (State.ValueType == USoftObjectProperty::StaticClass())
+	else if (State.FieldType == FSoftObjectProperty::StaticClass())
 	{
-		FSoftObjectPtr const& Value = CastChecked<USoftObjectProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
+		FSoftObjectPtr const& Value = CastFieldChecked<FSoftObjectProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
 		WritePropertyValue(CborWriter, State, Value.ToString());
 	}
 

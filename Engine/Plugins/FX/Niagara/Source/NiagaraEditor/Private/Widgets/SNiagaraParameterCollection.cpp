@@ -831,7 +831,7 @@ void SNiagaraParameterCollection::ParameterContentColumnWidthChanged(float Width
 	OnContentColumnWidthChanged.ExecuteIfBound(Width);
 }
 
-void SNiagaraParameterCollection::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged)
+void SNiagaraParameterCollection::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
 	for (TSharedRef<INiagaraParameterViewModel> Parameter : Collection->GetParameters())
 	{

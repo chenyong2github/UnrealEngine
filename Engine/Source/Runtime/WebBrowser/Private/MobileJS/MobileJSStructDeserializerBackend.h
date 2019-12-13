@@ -16,7 +16,7 @@ class FMobileJSStructDeserializerBackend
 public:
 	FMobileJSStructDeserializerBackend(FMobileJSScriptingRef InScripting, const FString& JsonString);
 
-	virtual bool ReadProperty( UProperty* Property, UProperty* Outer, void* Data, int32 ArrayIndex ) override;
+	virtual bool ReadProperty( FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex ) override;
 
 private:
 	FMobileJSScriptingRef Scripting;

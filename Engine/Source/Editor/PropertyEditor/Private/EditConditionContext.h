@@ -13,7 +13,7 @@ public:
 	virtual TOptional<FString> GetTypeName(const FString& PropertyName) const = 0;
 };
 
-class UProperty;
+class FProperty;
 class FPropertyNode;
 class FComplexPropertyNode;
 class FEditConditionExpression;
@@ -33,7 +33,7 @@ public:
 	 * Fetch the single boolean property referenced.
 	 * Returns nullptr if more than one property is referenced.
 	 */
-	const UBoolProperty* GetSingleBoolProperty(const TSharedPtr<FEditConditionExpression>& Expression) const;
+	const FBoolProperty* GetSingleBoolProperty(const TSharedPtr<FEditConditionExpression>& Expression) const;
 
 private:
 	TWeakPtr<FPropertyNode> PropertyNode;

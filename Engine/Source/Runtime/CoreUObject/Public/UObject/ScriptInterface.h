@@ -13,7 +13,7 @@
 /**
  * FScriptInterface
  *
- * This utility class stores the UProperty data for a native interface property.  ObjectPointer and InterfacePointer point to different locations in the same UObject.
+ * This utility class stores the FProperty data for a native interface property.  ObjectPointer and InterfacePointer point to different locations in the same UObject.
  */
 class FScriptInterface
 {

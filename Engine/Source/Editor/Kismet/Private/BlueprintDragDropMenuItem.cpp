@@ -76,9 +76,9 @@ FSlateBrush const* FBlueprintDragDropMenuItem::GetMenuIcon(FSlateColor& ColorOut
 	}
 	else if (UBlueprintVariableNodeSpawner const* VariableSpawner = Cast<UBlueprintVariableNodeSpawner const>(SampleAction))
 	{
-		if (UProperty const* Property = VariableSpawner->GetVarProperty())
+		if (FProperty const* Property = VariableSpawner->GetVarProperty())
 		{
-			UStruct* const PropertyOwner = CastChecked<UStruct>(Property->GetOuterUField());
+			UStruct* const PropertyOwner = Property->GetOwnerChecked<UStruct>();
 			// @note(DanO): not sure wht relies on this logic, but discarding extra icon info util
 			// I can confirm that containers are a possility here:
 			FSlateBrush const* Discarded = nullptr;
@@ -110,18 +110,18 @@ TSharedPtr<FDragDropOperation> FBlueprintDragDropMenuItem::OnDragged(FNodeCreati
 	UBlueprintNodeSpawner const* SampleAction = GetSampleAction();
 	if (UBlueprintDelegateNodeSpawner const* DelegateSpawner = Cast<UBlueprintDelegateNodeSpawner const>(SampleAction))
 	{
-		if (UMulticastDelegateProperty const* Property = DelegateSpawner->GetDelegateProperty())
+		if (FMulticastDelegateProperty const* Property = DelegateSpawner->GetDelegateProperty())
 		{
-			UStruct* const PropertyOwner = CastChecked<UStruct>(Property->GetOuterUField());
+			UStruct* const PropertyOwner = Property->GetOwnerChecked<UStruct>();
 			TSharedRef<FDragDropOperation> DragDropOpRef = FKismetDelegateDragDropAction::New(nullptr, Property->GetFName(), PropertyOwner, AnalyticsDelegate);
 			DragDropAction = TSharedPtr<FDragDropOperation>(DragDropOpRef);
 		}
 	}
 	else if (UBlueprintVariableNodeSpawner const* VariableSpawner = Cast<UBlueprintVariableNodeSpawner const>(SampleAction))
 	{
-		if (UProperty const* Property = VariableSpawner->GetVarProperty())
+		if (FProperty const* Property = VariableSpawner->GetVarProperty())
 		{
-			UStruct* const PropertyOwner = CastChecked<UStruct>(Property->GetOuterUField());
+			UStruct* const PropertyOwner = Property->GetOwnerChecked<UStruct>();
 			TSharedRef<FDragDropOperation> DragDropOpRef = FKismetVariableDragDropAction::New(nullptr, Property->GetFName(), PropertyOwner, AnalyticsDelegate);
 			DragDropAction = TSharedPtr<FDragDropOperation>(DragDropOpRef);
 		}

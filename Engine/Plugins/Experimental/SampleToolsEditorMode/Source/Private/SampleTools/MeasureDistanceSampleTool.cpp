@@ -145,7 +145,7 @@ void UMeasureDistanceSampleTool::UpdateDistance()
 }
 
 
-void UMeasureDistanceSampleTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UMeasureDistanceSampleTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	// if the user updated any of the property fields, update the distance
 	UpdateDistance();

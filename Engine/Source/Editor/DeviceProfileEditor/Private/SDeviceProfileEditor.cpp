@@ -558,9 +558,9 @@ void SDeviceProfileEditor::RebuildPropertyTable()
 
 	PropertyTable->SetIsUserAllowedToChangeRoot( false );
 
-	for (TFieldIterator<UProperty> DeviceProfilePropertyIter( UDeviceProfile::StaticClass() ); DeviceProfilePropertyIter; ++DeviceProfilePropertyIter)
+	for (TFieldIterator<FProperty> DeviceProfilePropertyIter( UDeviceProfile::StaticClass() ); DeviceProfilePropertyIter; ++DeviceProfilePropertyIter)
 	{
-		TWeakObjectPtr< UProperty > DeviceProfileProperty = *DeviceProfilePropertyIter;
+		TWeakFieldPtr< FProperty > DeviceProfileProperty = *DeviceProfilePropertyIter;
 		if(DeviceProfileProperty->GetName() != TEXT("Parent") )
 		{
 			PropertyTable->AddColumn(DeviceProfileProperty);

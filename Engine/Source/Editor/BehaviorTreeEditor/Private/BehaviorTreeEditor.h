@@ -60,7 +60,7 @@ public:
 	// End of FEditorUndoClient
 
 	//~ Begin FNotifyHook Interface
-	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged ) override;
+	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged ) override;
 	// End of FNotifyHook
 
 	// Delegates

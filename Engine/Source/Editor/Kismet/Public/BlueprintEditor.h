@@ -316,7 +316,7 @@ public:
 	bool InDebuggingMode() const;
 
 	/** Get the currently selected set of nodes */
-	TSet<UObject*> GetSelectedNodes() const;
+	FGraphPanelSelectionSet GetSelectedNodes() const;
 
 	/** Returns the currently selected node if there is a single node selected (if there are multiple nodes selected or none selected, it will return nullptr) */
 	UEdGraphNode* GetSingleSelectedNode() const;
@@ -1038,8 +1038,8 @@ protected:
 	void FindInBlueprints_OnClicked();
 
 	//~ Begin FNotifyHook Interface
-	virtual void NotifyPreChange( UProperty* PropertyAboutToChange ) override;
-	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged) override;
+	virtual void NotifyPreChange( FProperty* PropertyAboutToChange ) override;
+	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 	//~ End FNotifyHook Interface
 
 	/** Callback when properties have finished being handled */

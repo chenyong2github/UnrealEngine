@@ -1142,7 +1142,7 @@ bool FNiagaraScriptMergeManager::IsEventHandlerPropertySetDifferentFromBase(UNia
 		return true;
 	}
 
-	TArray<UProperty*> DifferentProperties;
+	TArray<FProperty*> DifferentProperties;
 	DiffEditableProperties(BaseEventHandlerAdapter->GetEventScriptProperties(), EventHandlerAdapter->GetEventScriptProperties(), *FNiagaraEventScriptProperties::StaticStruct(), DifferentProperties);
 	return DifferentProperties.Num() > 0;
 }
@@ -1161,7 +1161,7 @@ void FNiagaraScriptMergeManager::ResetEventHandlerPropertySetToBase(UNiagaraEmit
 		return;
 	}
 
-	TArray<UProperty*> DifferentProperties;
+	TArray<FProperty*> DifferentProperties;
 	DiffEditableProperties(BaseEventHandlerAdapter->GetEventScriptProperties(), EventHandlerAdapter->GetEventScriptProperties(), *FNiagaraEventScriptProperties::StaticStruct(), DifferentProperties);
 	CopyPropertiesToBase(EventHandlerAdapter->GetEditableEventScriptProperties(), BaseEventHandlerAdapter->GetEventScriptProperties(), DifferentProperties);
 	Emitter.PostEditChange();
@@ -1220,14 +1220,14 @@ void FNiagaraScriptMergeManager::ResetRendererToBase(UNiagaraEmitter& Emitter, c
 
 bool FNiagaraScriptMergeManager::IsEmitterEditablePropertySetDifferentFromBase(const UNiagaraEmitter& Emitter, const UNiagaraEmitter& BaseEmitter)
 {
-	TArray<UProperty*> DifferentProperties;
+	TArray<FProperty*> DifferentProperties;
 	DiffEditableProperties(&BaseEmitter, &Emitter, *UNiagaraEmitter::StaticClass(), DifferentProperties);
 	return DifferentProperties.Num() > 0;
 }
 
 void FNiagaraScriptMergeManager::ResetEmitterEditablePropertySetToBase(UNiagaraEmitter& Emitter, const UNiagaraEmitter& BaseEmitter)
 {
-	TArray<UProperty*> DifferentProperties;
+	TArray<FProperty*> DifferentProperties;
 	DiffEditableProperties(&BaseEmitter, &Emitter, *UNiagaraEmitter::StaticClass(), DifferentProperties);
 	CopyPropertiesToBase(&Emitter, &BaseEmitter, DifferentProperties);
 	Emitter.PostEditChange();
@@ -1370,7 +1370,7 @@ void FNiagaraScriptMergeManager::DiffEventHandlers(const TArray<TSharedRef<FNiag
 		}
 		else
 		{
-			TArray<UProperty*> DifferentProperties;
+			TArray<FProperty*> DifferentProperties;
 			DiffEditableProperties(CommonValuePair.BaseValue->GetEventScriptProperties(), CommonValuePair.OtherValue->GetEventScriptProperties(), *FNiagaraEventScriptProperties::StaticStruct(), DifferentProperties);
 
 			FNiagaraScriptStackDiffResults EventHandlerScriptStackDiffResults;
@@ -1513,9 +1513,9 @@ void FNiagaraScriptMergeManager::DiffFunctionInputs(TSharedRef<FNiagaraStackFunc
 	}
 }
 
-void FNiagaraScriptMergeManager::DiffEditableProperties(const void* BaseDataAddress, const void* OtherDataAddress, UStruct& Struct, TArray<UProperty*>& OutDifferentProperties) const
+void FNiagaraScriptMergeManager::DiffEditableProperties(const void* BaseDataAddress, const void* OtherDataAddress, UStruct& Struct, TArray<FProperty*>& OutDifferentProperties) const
 {
-	for (TFieldIterator<UProperty> PropertyIterator(&Struct); PropertyIterator; ++PropertyIterator)
+	for (TFieldIterator<FProperty> PropertyIterator(&Struct); PropertyIterator; ++PropertyIterator)
 	{
 		if (PropertyIterator->HasAllPropertyFlags(CPF_Edit) && PropertyIterator->HasMetaData("NiagaraNoMerge") == false)
 		{
@@ -1868,9 +1868,9 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::AddInp
 	return Results;
 }
 
-void FNiagaraScriptMergeManager::CopyPropertiesToBase(void* BaseDataAddress, const void* OtherDataAddress, TArray<UProperty*> PropertiesToCopy) const
+void FNiagaraScriptMergeManager::CopyPropertiesToBase(void* BaseDataAddress, const void* OtherDataAddress, TArray<FProperty*> PropertiesToCopy) const
 {
-	for (UProperty* PropertyToCopy : PropertiesToCopy)
+	for (FProperty* PropertyToCopy : PropertiesToCopy)
 	{
 		PropertyToCopy->CopyCompleteValue(PropertyToCopy->ContainerPtrToValuePtr<void>(BaseDataAddress), PropertyToCopy->ContainerPtrToValuePtr<void>(OtherDataAddress));
 	}

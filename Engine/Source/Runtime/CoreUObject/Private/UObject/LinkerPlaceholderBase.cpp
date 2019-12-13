@@ -4,7 +4,11 @@
 
 #include "UObject/LinkerPlaceholderExportObject.h"
 #include "UObject/UnrealType.h"
+#include "UObject/UnrealTypePrivate.h"
 #include "Blueprint/BlueprintSupport.h"
+
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
 
 #if USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
 	#define DEFERRED_DEPENDENCY_ENSURE(EnsueExpr) ensure(EnsueExpr)
@@ -23,7 +27,7 @@ struct FPlaceholderContainerTracker : TThreadSingleton<FPlaceholderContainerTrac
 	TArray<void*> PerspectiveRootDataStack;
 	// as far as I can tell, structs are going to be the only bridging point 
 	// between property ownership
-	TArray<const UStructProperty*> IntermediatePropertyStack; 
+	TArray<FFieldVariant> IntermediatePropertyStack;  // const FStructProperty*
 };
 
 /**  */
@@ -48,7 +52,7 @@ public:
 	 * @param  ReplacementValue	The new object to replace all references to this with.
 	 * @return The number of references that were replaced.
 	 */
-	static int32 ResolvePlaceholderValues(const TArray<const UProperty*>& PropertyChain, int32 ChainIndex, uint8* ValueAddress, UObject* OldValue, UObject* ReplacementValue);
+	static int32 ResolvePlaceholderValues(const TArray<FFieldVariant>& PropertyChain, int32 ChainIndex, uint8* ValueAddress, UObject* OldValue, UObject* ReplacementValue);
 	
 	/**
 	 * Uses the current FPlaceholderContainerTracker::PerspectiveReferencerStack
@@ -63,20 +67,22 @@ public:
 };
 
 //------------------------------------------------------------------------------
-int32 FLinkerPlaceholderObjectImpl::ResolvePlaceholderValues(const TArray<const UProperty*>& PropertyChain, int32 ChainIndex, uint8* ValueAddress, UObject* OldValue, UObject* ReplacementValue)
+int32 FLinkerPlaceholderObjectImpl::ResolvePlaceholderValues(const TArray<FFieldVariant>& PropertyChain, int32 ChainIndex, uint8* ValueAddress, UObject* OldValue, UObject* ReplacementValue)
 {
 	int32 ReplacementCount = 0;
 
 	for (int32 PropertyIndex = ChainIndex; PropertyIndex >= 0; --PropertyIndex)
 	{
-		const UProperty* Property = PropertyChain[PropertyIndex];
+		FFieldVariant Property = PropertyChain[PropertyIndex]; // FProperty
+		check(Property.IsA<FProperty>() || Property.IsA<UProperty>());
 		if (PropertyIndex == 0)
 		{
 #if USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
-			check(Property->IsA<UObjectProperty>());
+			check(Property.IsA<FObjectProperty>() || Property.IsA<UObjectProperty>());
 #endif // USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
 
-			const UObjectProperty* ReferencingProperty = (const UObjectProperty*)Property;
+			const FObjectProperty* ReferencingProperty = Property.Get<FObjectProperty>();
+			check(ReferencingProperty);
 
 			UObject* CurrentValue = ReferencingProperty->GetObjectPropertyValue(ValueAddress);
 			if (CurrentValue == OldValue)
@@ -90,10 +96,10 @@ int32 FLinkerPlaceholderObjectImpl::ResolvePlaceholderValues(const TArray<const 
 				++ReplacementCount;
 			}
 		}
-		else if (const UArrayProperty* ArrayProperty = Cast<const UArrayProperty>(Property))
+		else if (const FArrayProperty* ArrayProperty = Property.Get<FArrayProperty>())
 		{
 #if USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
-			const UProperty* NextProperty = PropertyChain[PropertyIndex - 1];
+			const FProperty* NextProperty = PropertyChain[PropertyIndex - 1];
 			check(NextProperty == ArrayProperty->Inner);
 #endif // USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
 
@@ -110,10 +116,15 @@ int32 FLinkerPlaceholderObjectImpl::ResolvePlaceholderValues(const TArray<const 
 			// PropertyChain, no need to keep on here
 			break;
 		}
-		else if (const USetProperty* SetProperty = Cast<const USetProperty>(Property))
+		else if (const UArrayProperty* ArrayUProperty = Property.Get<UArrayProperty>())
+		{
+			// With FProperties this should never happen
+			check(false);
+		}
+		else if (const FSetProperty* SetProperty = Property.Get<FSetProperty>())
 		{
 #if USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
-			const UProperty* NextProperty = PropertyChain[PropertyIndex - 1];
+			const FProperty* NextProperty = PropertyChain[PropertyIndex - 1];
 			check(NextProperty == SetProperty->ElementProp);
 #endif // USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
 
@@ -135,10 +146,15 @@ int32 FLinkerPlaceholderObjectImpl::ResolvePlaceholderValues(const TArray<const 
 			// PropertyChain, no need to keep on here
 			break;
 		}
-		else if (const UMapProperty* MapProperty = Cast<const UMapProperty>(Property))
+		else if (const USetProperty* SetUProperty = Property.Get<USetProperty>())
+		{
+			// With FProperties this should never happen
+			check(false);
+		}
+		else if (const FMapProperty* MapProperty = Property.Get<FMapProperty>())
 		{
 #if USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
-			const UProperty* NextProperty = PropertyChain[PropertyIndex - 1];
+			const FProperty* NextProperty = PropertyChain[PropertyIndex - 1];
 			check(NextProperty == MapProperty->KeyProp);
 #endif // USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
 
@@ -163,10 +179,18 @@ int32 FLinkerPlaceholderObjectImpl::ResolvePlaceholderValues(const TArray<const 
 			// PropertyChain, no need to keep on here
 			break;
 		}
-		else
+		else if (const UMapProperty* MapUProperty = Property.Get<UMapProperty>())
 		{
-			const UProperty* NextProperty = PropertyChain[PropertyIndex - 1];
+			// With FProperties this should never happen
+			check(false);
+		}
+		else if (const FProperty* NextProperty = PropertyChain[PropertyIndex - 1].Get<FProperty>())
+		{
 			ValueAddress = NextProperty->ContainerPtrToValuePtr<uint8>(ValueAddress, /*ArrayIndex =*/0);
+		}
+		else if (const UProperty* NextUProperty = PropertyChain[PropertyIndex - 1].Get<UProperty>())
+		{
+			ValueAddress = NextUProperty->ContainerPtrToValuePtr<uint8>(ValueAddress, /*ArrayIndex =*/0);
 		}
 	}
 
@@ -251,12 +275,13 @@ FScopedPlaceholderRawContainerTracker::~FScopedPlaceholderRawContainerTracker()
 }
 
 //------------------------------------------------------------------------------
-FScopedPlaceholderPropertyTracker::FScopedPlaceholderPropertyTracker(const UStructProperty* InIntermediateProperty)
-	: IntermediateProperty(nullptr) // leave null, as a sentinel value (implying that PerspectiveReferencerStack was empty)
+FScopedPlaceholderPropertyTracker::FScopedPlaceholderPropertyTracker(FFieldVariant InIntermediateProperty)
+	: IntermediateProperty() // leave null, as a sentinel value (implying that PerspectiveReferencerStack was empty)
 {
 	FPlaceholderContainerTracker& ContainerRepository = FPlaceholderContainerTracker::Get();
 	if (ContainerRepository.PerspectiveReferencerStack.Num() > 0 || ContainerRepository.PerspectiveRootDataStack.Num() > 0)
 	{
+		check(InIntermediateProperty.IsA<UStructProperty>() || InIntermediateProperty.IsA<FStructProperty>());
 		IntermediateProperty = InIntermediateProperty;
 		ContainerRepository.IntermediatePropertyStack.Add(InIntermediateProperty);
 	}
@@ -269,9 +294,9 @@ FScopedPlaceholderPropertyTracker::FScopedPlaceholderPropertyTracker(const UStru
 FScopedPlaceholderPropertyTracker::~FScopedPlaceholderPropertyTracker()
 {
 	FPlaceholderContainerTracker& ContainerRepository = FPlaceholderContainerTracker::Get();
-	if (IntermediateProperty != nullptr)
+	if (IntermediateProperty.IsValid())
 	{
-		const UStructProperty* StackTop = ContainerRepository.IntermediatePropertyStack.Pop();
+		FFieldVariant StackTop = ContainerRepository.IntermediatePropertyStack.Pop();
 #if USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
 		check(StackTop == IntermediateProperty);
 	}
@@ -289,33 +314,53 @@ FScopedPlaceholderPropertyTracker::~FScopedPlaceholderPropertyTracker()
  ******************************************************************************/
 
 //------------------------------------------------------------------------------
-FLinkerPlaceholderBase::FPlaceholderValuePropertyPath::FPlaceholderValuePropertyPath(const UProperty* ReferencingProperty)
+FLinkerPlaceholderBase::FPlaceholderValuePropertyPath::FPlaceholderValuePropertyPath(FFieldVariant ReferencingProperty)
 {
+	check(ReferencingProperty.IsA<FProperty>() || ReferencingProperty.IsA<UProperty>());
+
 	PropertyChain.Add(ReferencingProperty);
-	const UObject* PropertyOuter = ReferencingProperty->GetOuter();
+	FFieldVariant PropertyOuter = ReferencingProperty.GetOwnerVariant();
 	
-	const TArray<const UStructProperty*>& StructPropertyStack = FPlaceholderContainerTracker::Get().IntermediatePropertyStack;
+	const TArray<FFieldVariant>& StructPropertyStack = FPlaceholderContainerTracker::Get().IntermediatePropertyStack;
 	int32 StructStackIndex = StructPropertyStack.Num() - 1; // "top" of the array is the last element
 
-	while (PropertyOuter && !PropertyOuter->GetClass()->IsChildOf<UClass>())
+	while (PropertyOuter.IsValid() && !(PropertyOuter.IsUObject() && PropertyOuter.ToUObject()->GetClass()->IsChildOf<UClass>()))
 	{
 		// handle nested properties (like array members)
-		if (const UProperty* PropertyOwner = Cast<const UProperty>(PropertyOuter))
+		const FProperty* PropertyOwner = nullptr;
+		if (!PropertyOuter.IsUObject())
 		{
-			PropertyChain.Add(PropertyOwner);
+			PropertyOwner = CastField<const FProperty>(PropertyOuter.ToField());
+			if (PropertyOwner)
+			{
+				PropertyChain.Add(PropertyOwner);
+			}
 		}
 		// handle nested struct properties (use the FPlaceholderContainerTracker::IntermediatePropertyStack
 		// to help trace the property path)
-		else if (const UScriptStruct* StructOwner = Cast<const UScriptStruct>(PropertyOuter))
+		else if (const UScriptStruct* StructOwner = Cast<const UScriptStruct>(PropertyOuter.ToUObject()))
 		{
 			if (StructStackIndex != INDEX_NONE)
 			{
 				// we expect the top struct property to be the one we're currently serializing
-				const UStructProperty* SerializingStructProp = StructPropertyStack[StructStackIndex];
-				if (DEFERRED_DEPENDENCY_ENSURE(SerializingStructProp->Struct->IsChildOf(StructOwner)))
+				//const FStructProperty* SerializingStructProp = StructPropertyStack[StructStackIndex];
+				const FFieldVariant& SerializingStructProp = StructPropertyStack[StructStackIndex];
+				UScriptStruct* InnerStruct = nullptr;
+				if (FStructProperty* SerializingStructFProp = SerializingStructProp.Get<FStructProperty>())
 				{
-					PropertyOuter = SerializingStructProp;
-					PropertyChain.Add(SerializingStructProp);
+					InnerStruct = SerializingStructFProp->Struct;
+				}
+				else if (UStructProperty* SerializingStructUProp = SerializingStructProp.Get<UStructProperty>())
+				{
+					InnerStruct = SerializingStructUProp->Struct;
+				}
+				check(InnerStruct);
+				if (DEFERRED_DEPENDENCY_ENSURE(InnerStruct->IsChildOf(StructOwner)))
+				{
+					// With FProperties this should never happen
+					check(false);
+					//PropertyOuter = SerializingStructProp;
+					//PropertyChain.Add(SerializingStructProp);
 				}
 				else
 				{
@@ -333,7 +378,7 @@ FLinkerPlaceholderBase::FPlaceholderValuePropertyPath::FPlaceholderValueProperty
 				break;
 			}
 		}
-		PropertyOuter = PropertyOuter->GetOuter();
+		PropertyOuter = PropertyOuter.GetOwnerVariant();
 	}
 
 #if USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
@@ -347,33 +392,54 @@ FLinkerPlaceholderBase::FPlaceholderValuePropertyPath::FPlaceholderValueProperty
 //------------------------------------------------------------------------------
 bool FLinkerPlaceholderBase::FPlaceholderValuePropertyPath::IsValid() const
 {
-	return (PropertyChain.Num() > 0) && PropertyChain[0]->IsA<UObjectProperty>() && PropertyChain.Last()->GetOuter()->IsA<UClass>();
+	return (PropertyChain.Num() > 0) && 
+		(PropertyChain[0].IsA<FObjectProperty>() || PropertyChain[0].IsA<UObjectProperty>()) &&
+		PropertyChain.Last().GetOwnerClass();
 }
 
 //------------------------------------------------------------------------------
 UClass* FLinkerPlaceholderBase::FPlaceholderValuePropertyPath::GetOwnerClass() const
 {
-	return (PropertyChain.Num() > 0) ? Cast<UClass>(PropertyChain.Last()->GetOuter()) : nullptr;
+	return (PropertyChain.Num() > 0) ? PropertyChain.Last().GetOwnerClass() : nullptr;
+}
+
+static inline uint8* ResolvePropertyAddress(FFieldVariant Field, void* Container)
+{
+	uint8* OutermostAddress = nullptr;
+	if (FProperty* OutermostFProperty = Field.Get<FProperty>())
+	{
+		OutermostAddress = OutermostFProperty->ContainerPtrToValuePtr<uint8>((uint8*)Container, /*ArrayIndex =*/0);
+	}
+	else if (UProperty* OutermostUProperty = Field.Get<UProperty>())
+	{
+		OutermostAddress = OutermostUProperty->ContainerPtrToValuePtr<uint8>((uint8*)Container, /*ArrayIndex =*/0);
+	}
+	else
+	{
+		// We shouldn't get here
+		check(false);
+	}
+	return OutermostAddress;
 }
 
 //------------------------------------------------------------------------------
 int32 FLinkerPlaceholderBase::FPlaceholderValuePropertyPath::Resolve(FLinkerPlaceholderBase* Placeholder, UObject* Replacement, UObject* Container) const
 {
-	const UProperty* OutermostProperty = PropertyChain.Last();
+	FFieldVariant OutermostProperty = PropertyChain.Last();
 
 #if USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
-	UClass* OwnerClass = OutermostProperty->GetOwnerClass();
+	UClass* OwnerClass = OutermostProperty.GetOwnerClass();
 	check(OwnerClass && Container->IsA(OwnerClass));
 #endif 
 
-	uint8* OutermostAddress = OutermostProperty->ContainerPtrToValuePtr<uint8>((uint8*)Container, /*ArrayIndex =*/0);
+	uint8* OutermostAddress = ResolvePropertyAddress(OutermostProperty, Container);
 	return FLinkerPlaceholderObjectImpl::ResolvePlaceholderValues(PropertyChain, PropertyChain.Num() - 1, OutermostAddress, Placeholder->GetPlaceholderAsUObject(), Replacement);
 }
 
 int32 FLinkerPlaceholderBase::FPlaceholderValuePropertyPath::ResolveRaw(FLinkerPlaceholderBase* Placeholder, UObject* Replacement, void* Container) const
 {
-	const UProperty* OutermostProperty = PropertyChain.Last();
-	uint8* OutermostAddress = OutermostProperty->ContainerPtrToValuePtr<uint8>((uint8*)Container, /*ArrayIndex =*/0);
+	FFieldVariant OutermostProperty = PropertyChain.Last();
+	uint8* OutermostAddress = ResolvePropertyAddress(OutermostProperty, Container);
 	return FLinkerPlaceholderObjectImpl::ResolvePlaceholderValues(PropertyChain, PropertyChain.Num() - 1, OutermostAddress, Placeholder->GetPlaceholderAsUObject(), Replacement);;
 }
  
@@ -396,8 +462,9 @@ FLinkerPlaceholderBase::~FLinkerPlaceholderBase()
 }
 
 //------------------------------------------------------------------------------
-bool FLinkerPlaceholderBase::AddReferencingPropertyValue(const UObjectProperty* ReferencingProperty, void* DataPtr)
+bool FLinkerPlaceholderBase::AddReferencingPropertyValue(FFieldVariant ReferencingProperty, void* DataPtr)
 {
+	check(ReferencingProperty.IsA<FObjectProperty>() || ReferencingProperty.IsA<UObjectProperty>())
 	FPlaceholderValuePropertyPath PropertyChain(ReferencingProperty);
 	UObject* ReferencingContainer = FLinkerPlaceholderObjectImpl::FindPlaceholderContainer(PropertyChain);
 	if (ReferencingContainer != nullptr)
@@ -532,9 +599,9 @@ int32 TLinkerImportPlaceholder<UClass>::ResolvePropertyReferences(UClass* Replac
 	int32 ReplacementCount = 0;
 	UClass* PlaceholderClass = CastChecked<UClass>(GetPlaceholderAsUObject());
 
-	for (UProperty* Property : ReferencingProperties)
+	for (FFieldVariant& Property : ReferencingProperties)
 	{
-		if (UObjectPropertyBase* BaseObjProperty = Cast<UObjectPropertyBase>(Property))
+		if (FObjectPropertyBase* BaseObjProperty = Property.Get<FObjectPropertyBase>())
 		{
 			if (BaseObjProperty->PropertyClass == PlaceholderClass)
 			{
@@ -542,7 +609,7 @@ int32 TLinkerImportPlaceholder<UClass>::ResolvePropertyReferences(UClass* Replac
 				++ReplacementCount;
 			}
 
-			if (UClassProperty* ClassProperty = Cast<UClassProperty>(BaseObjProperty))
+			if (FClassProperty* ClassProperty = CastField<FClassProperty>(BaseObjProperty))
 			{
 				if (ClassProperty->MetaClass == PlaceholderClass)
 				{
@@ -550,7 +617,7 @@ int32 TLinkerImportPlaceholder<UClass>::ResolvePropertyReferences(UClass* Replac
 					++ReplacementCount;
 				}
 			}
-			else if (USoftClassProperty* SoftClassProperty = Cast<USoftClassProperty>(BaseObjProperty))
+			else if (FSoftClassProperty* SoftClassProperty = CastField<FSoftClassProperty>(BaseObjProperty))
 			{
 				if (SoftClassProperty->MetaClass == PlaceholderClass)
 				{
@@ -558,8 +625,56 @@ int32 TLinkerImportPlaceholder<UClass>::ResolvePropertyReferences(UClass* Replac
 					++ReplacementCount;
 				}	
 			}
-		}	
-		else if (UInterfaceProperty* InterfaceProp = Cast<UInterfaceProperty>(Property))
+		}
+#if WITH_EDITORONLY_DATA
+		else if (UObjectPropertyBase* BaseUObjProperty = Property.Get<UObjectPropertyBase>())
+		{
+			if (BaseUObjProperty->PropertyClass == PlaceholderClass)
+			{
+				BaseUObjProperty->PropertyClass = ReplacementClass;
+				if (FObjectPropertyBase* AssociatedFProperty = CastField<FObjectPropertyBase>(BaseUObjProperty->GetAssociatedFField()))
+				{
+					if (AssociatedFProperty->PropertyClass == PlaceholderClass)
+					{
+						AssociatedFProperty->PropertyClass = ReplacementClass;
+					}
+				}
+				++ReplacementCount;
+			}
+
+			if (UClassProperty* ClassProperty = Cast<UClassProperty>(BaseUObjProperty))
+			{
+				if (ClassProperty->MetaClass == PlaceholderClass)
+				{
+					ClassProperty->MetaClass = ReplacementClass;
+					if (FClassProperty* AssociatedFProperty = CastField<FClassProperty>(ClassProperty->GetAssociatedFField()))
+					{
+						if (AssociatedFProperty->MetaClass == PlaceholderClass)
+						{
+							AssociatedFProperty->MetaClass = ReplacementClass;
+						}
+					}
+					++ReplacementCount;
+				}
+			}
+			else if (USoftClassProperty* SoftClassProperty = Cast<USoftClassProperty>(BaseUObjProperty))
+			{
+				if (SoftClassProperty->MetaClass == PlaceholderClass)
+				{
+					SoftClassProperty->MetaClass = ReplacementClass;
+					if (FSoftClassProperty* AssociatedFProperty = CastField<FSoftClassProperty>(SoftClassProperty->GetAssociatedFField()))
+					{
+						if (AssociatedFProperty->MetaClass == PlaceholderClass)
+						{
+							AssociatedFProperty->MetaClass = ReplacementClass;
+						}
+					}
+					++ReplacementCount;
+				}
+			}
+		}
+#endif // WITH_EDITORONLY_DATA
+		else if (FInterfaceProperty* InterfaceProp = Property.Get<FInterfaceProperty>())
 		{
 			if (InterfaceProp->InterfaceClass == PlaceholderClass)
 			{
@@ -567,9 +682,26 @@ int32 TLinkerImportPlaceholder<UClass>::ResolvePropertyReferences(UClass* Replac
 				++ReplacementCount;
 			}
 		}
+#if WITH_EDITORONLY_DATA
+		else if (UInterfaceProperty* UInterfaceProp = Property.Get<UInterfaceProperty>())
+		{
+			if (UInterfaceProp->InterfaceClass == PlaceholderClass)
+			{
+				UInterfaceProp->InterfaceClass = ReplacementClass;
+				if (FInterfaceProperty* AssociatedFProperty = CastField<FInterfaceProperty>(UInterfaceProp->GetAssociatedFField()))
+				{
+					if (AssociatedFProperty->InterfaceClass == PlaceholderClass)
+					{
+						AssociatedFProperty->InterfaceClass = ReplacementClass;
+					}
+				}
+				++ReplacementCount;
+			}
+		}
+#endif // WITH_EDITORONLY_DATA
 		else
 		{
-			checkf(false, TEXT("Unhandled property type: %s"), *Property->GetClass()->GetName());
+			checkf(false, TEXT("Unhandled property type: %s"), *Property.GetClassName());
 		}
 	}
 
@@ -588,9 +720,9 @@ int32 TLinkerImportPlaceholder<UFunction>::ResolvePropertyReferences(UFunction* 
 	int32 ReplacementCount = 0;
 	UFunction* PlaceholderFunc = CastChecked<UFunction>(GetPlaceholderAsUObject());
 
-	for (UProperty* Property : ReferencingProperties)
+	for (FFieldVariant& Property : ReferencingProperties)
 	{
-		if (UDelegateProperty* DelegateProperty = Cast<UDelegateProperty>(Property))
+		if (FDelegateProperty* DelegateProperty = Property.Get<FDelegateProperty>())
 		{
 			if (DelegateProperty->SignatureFunction == PlaceholderFunc)
 			{
@@ -598,7 +730,24 @@ int32 TLinkerImportPlaceholder<UFunction>::ResolvePropertyReferences(UFunction* 
 				++ReplacementCount;
 			}
 		}
-		else if (UMulticastDelegateProperty* MulticastDelegateProperty = Cast<UMulticastDelegateProperty>(Property))
+#if WITH_EDITORONLY_DATA
+		else if (UDelegateProperty* DelegateUProperty = Property.Get<UDelegateProperty>())
+		{
+			if (DelegateUProperty->SignatureFunction == PlaceholderFunc)
+			{
+				DelegateUProperty->SignatureFunction = ReplacementFunc;
+				if (FDelegateProperty* AssociatedFProperty = CastField<FDelegateProperty>(DelegateUProperty->GetAssociatedFField()))
+				{
+					if (AssociatedFProperty->SignatureFunction == PlaceholderFunc)
+					{
+						AssociatedFProperty->SignatureFunction = ReplacementFunc;
+					}
+				}
+				++ReplacementCount;
+			}
+		}
+#endif // WITH_EDITORONLY_DATA
+		else if (FMulticastDelegateProperty* MulticastDelegateProperty = Property.Get<FMulticastDelegateProperty>())
 		{
 			if (MulticastDelegateProperty->SignatureFunction == PlaceholderFunc)
 			{
@@ -606,9 +755,26 @@ int32 TLinkerImportPlaceholder<UFunction>::ResolvePropertyReferences(UFunction* 
 				++ReplacementCount;
 			}
 		}
+#if WITH_EDITORONLY_DATA
+		else if (UMulticastDelegateProperty* MulticastDelegateUProperty = Property.Get<UMulticastDelegateProperty>())
+		{
+			if (MulticastDelegateUProperty->SignatureFunction == PlaceholderFunc)
+			{
+				MulticastDelegateUProperty->SignatureFunction = ReplacementFunc;
+				if (FDelegateProperty* AssociatedFProperty = CastField<FDelegateProperty>(MulticastDelegateUProperty->GetAssociatedFField()))
+				{
+					if (AssociatedFProperty->SignatureFunction == PlaceholderFunc)
+					{
+						AssociatedFProperty->SignatureFunction = ReplacementFunc;
+					}
+				}
+				++ReplacementCount;
+			}
+		}
+#endif // WITH_EDITORONLY_DATA
 		else
 		{
-			checkf(false, TEXT("Unhandled property type: %s"), *Property->GetClass()->GetName());
+			checkf(false, TEXT("Unhandled property type: %s"), *Property.GetClassName());
 		}
 	}
 
@@ -617,3 +783,5 @@ int32 TLinkerImportPlaceholder<UFunction>::ResolvePropertyReferences(UFunction* 
 }
 
 #undef DEFERRED_DEPENDENCY_ENSURE
+
+#include "UObject/DefineUPropertyMacros.h"

@@ -180,20 +180,20 @@ void UParticleModule::SetToSensibleDefaults(UParticleEmitter* Owner)
 
 void UParticleModule::GetCurveObjects(TArray<FParticleCurvePair>& OutCurves)
 {
-	for (TFieldIterator<UProperty> It(GetClass()); It; ++It)
+	for (TFieldIterator<FProperty> It(GetClass()); It; ++It)
 	{
 		UObject* Distribution = NULL;
-		UProperty* Property = *It;
+		FProperty* Property = *It;
 		check(Property != NULL);
 
 		// attempt to get a distribution from a random struct property
-		if (Property->IsA(UStructProperty::StaticClass()))
+		if (Property->IsA(FStructProperty::StaticClass()))
 		{
-			Distribution = FRawDistribution::TryGetDistributionObjectFromRawDistributionProperty((UStructProperty*)Property, (uint8*)this);
+			Distribution = FRawDistribution::TryGetDistributionObjectFromRawDistributionProperty((FStructProperty*)Property, (uint8*)this);
 		}
-		else if (Property->IsA(UObjectPropertyBase::StaticClass()))
+		else if (Property->IsA(FObjectPropertyBase::StaticClass()))
 		{
-			UObjectPropertyBase* ObjProperty = (UObjectPropertyBase*)(Property);
+			FObjectPropertyBase* ObjProperty = (FObjectPropertyBase*)(Property);
 			if (ObjProperty && (ObjProperty->PropertyClass == UDistributionFloat::StaticClass() ||
 				ObjProperty->PropertyClass == UDistributionVector::StaticClass()))
 			{
@@ -298,7 +298,7 @@ void UParticleModule::ChangeEditorColor(FColor& Color, UInterpCurveEdSetup* EdSe
 void UParticleModule::AutoPopulateInstanceProperties(UParticleSystemComponent* PSysComp)
 {
 	check(IsInGameThread());
-	for (TFieldIterator<UStructProperty> It(GetClass()); It; ++It)
+	for (TFieldIterator<FStructProperty> It(GetClass()); It; ++It)
 	{
 		// attempt to get a distribution from a random struct property
 		UObject* Distribution = FRawDistribution::TryGetDistributionObjectFromRawDistributionProperty(*It, (uint8*)this);
@@ -581,7 +581,7 @@ void UParticleModule::GetParticleSysParamsUtilized(TArray<FString>& ParticleSysP
 
 void UParticleModule::GetParticleParametersUtilized(TArray<FString>& ParticleParameterList)
 {
-	for (TFieldIterator<UStructProperty> It(GetClass()); It; ++It)
+	for (TFieldIterator<FStructProperty> It(GetClass()); It; ++It)
 	{
 		// attempt to get a distribution from a random struct property
 		UObject* Distribution = FRawDistribution::TryGetDistributionObjectFromRawDistributionProperty(*It, (uint8*)this);
@@ -791,11 +791,11 @@ void UParticleModule::SetTransactionFlag()
 {
 	SetFlags( RF_Transactional );
 
-	for( TFieldIterator<UProperty> It(GetClass()); It; ++It )
+	for( TFieldIterator<FProperty> It(GetClass()); It; ++It )
 	{
-		UProperty* Property = *It;
+		FProperty* Property = *It;
 
-		if( UStructProperty* StructProp = Cast<UStructProperty>(Property) )
+		if( FStructProperty* StructProp = CastField<FStructProperty>(Property) )
 		{
 			UObject* Distribution = FRawDistribution::TryGetDistributionObjectFromRawDistributionProperty( StructProp, reinterpret_cast<uint8*>(this) );
 			if( Distribution )
@@ -803,7 +803,7 @@ void UParticleModule::SetTransactionFlag()
 				Distribution->SetFlags( RF_Transactional );
 			}
 		}
-		else if( UObjectPropertyBase* ObjectPropertyBase = Cast<UObjectPropertyBase>(Property) )
+		else if( FObjectPropertyBase* ObjectPropertyBase = CastField<FObjectPropertyBase>(Property) )
 		{
 			if( (ObjectPropertyBase->PropertyClass == UDistributionFloat::StaticClass() ||
 				 ObjectPropertyBase->PropertyClass == UDistributionVector::StaticClass()) )
@@ -819,16 +819,16 @@ void UParticleModule::SetTransactionFlag()
 				}
 			}
 		}
-		else if( UArrayProperty* ArrayProp = Cast<UArrayProperty>(Property) )
+		else if( FArrayProperty* ArrayProp = CastField<FArrayProperty>(Property) )
 		{
-			if( UStructProperty* InnerStructProp = Cast<UStructProperty>(ArrayProp->Inner) )
+			if( FStructProperty* InnerStructProp = CastField<FStructProperty>(ArrayProp->Inner) )
 			{
 				FScriptArrayHelper ArrayHelper( ArrayProp, Property->ContainerPtrToValuePtr<void>(this) );
 				for( int32 Idx = 0; Idx < ArrayHelper.Num(); ++Idx )
 				{
-					for( UProperty* ArrayProperty = InnerStructProp->Struct->PropertyLink; ArrayProperty; ArrayProperty = ArrayProperty->PropertyLinkNext )
+					for( FProperty* ArrayProperty = InnerStructProp->Struct->PropertyLink; ArrayProperty; ArrayProperty = ArrayProperty->PropertyLinkNext )
 					{
-						if( UStructProperty* ArrayStructProp = Cast<UStructProperty>(ArrayProperty) )
+						if( FStructProperty* ArrayStructProp = CastField<FStructProperty>(ArrayProperty) )
 						{
 							UObject* Distribution = FRawDistribution::TryGetDistributionObjectFromRawDistributionProperty( ArrayStructProp, ArrayHelper.GetRawPtr( Idx ) );
 							if( Distribution )
@@ -1033,7 +1033,7 @@ void UParticleModuleOrientationAxisLock::PostEditChangeProperty(FPropertyChanged
 	}
 	UParticleSystem* PartSys = PartSys = CastChecked<UParticleSystem>(OuterObj);
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if (PropertyThatChanged)
 	{
 		if (PropertyThatChanged->GetFName() == FName(TEXT("LockAxisFlags")))
@@ -1130,7 +1130,7 @@ void UParticleModuleRequired::Serialize(FStructuredArchive::FRecord Record)
 }
 
 #if WITH_EDITOR
-void UParticleModuleRequired::PreEditChange(UProperty* PropertyThatChanged)
+void UParticleModuleRequired::PreEditChange(FProperty* PropertyThatChanged)
 {
 	Super::PreEditChange(PropertyThatChanged);
 
@@ -1150,7 +1150,7 @@ void UParticleModuleRequired::PostEditChangeProperty(FPropertyChangedEvent& Prop
 	// Wait until unregister commands are processed on the RT
 	FlushRenderingCommands();
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if (PropertyThatChanged)
 	{
 		if (PropertyThatChanged->GetFName() == FName(TEXT("MaxDrawCount")))
@@ -3472,14 +3472,14 @@ void UParticleModuleTypeDataMesh::OnMeshChanged()
 		OuterObj = Emitter->GetOuter();
 	}
 
-	UProperty* MeshProperty = FindField<UProperty>(UParticleModuleTypeDataMesh::StaticClass(), FName(TEXT("Mesh")));
+	FProperty* MeshProperty = FindField<FProperty>(UParticleModuleTypeDataMesh::StaticClass(), FName(TEXT("Mesh")));
 	FPropertyChangedEvent PropertyChangedEvent(MeshProperty);
 
 	UParticleSystem* PartSys = CastChecked<UParticleSystem>(OuterObj);
 	PartSys->PostEditChangeProperty(PropertyChangedEvent);
 }
 
-void UParticleModuleTypeDataMesh::PreEditChange(UProperty* PropertyThatWillChange)
+void UParticleModuleTypeDataMesh::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	if ( (PropertyThatWillChange != nullptr) && (PropertyThatWillChange->GetFName() == FName(TEXT("Mesh"))) )
 	{
@@ -3501,7 +3501,7 @@ void UParticleModuleTypeDataMesh::BeginDestroy()
 
 void UParticleModuleTypeDataMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if (PropertyThatChanged)
 	{
 		if (PropertyThatChanged->GetFName() == FName(TEXT("Mesh")))

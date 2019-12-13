@@ -83,7 +83,7 @@ void UDestructibleMesh::PostLoad()
 }
 
 #if WITH_EDITOR
-void UDestructibleMesh::PreEditChange(UProperty* PropertyAboutToChange)
+void UDestructibleMesh::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	Super::PreEditChange(PropertyAboutToChange);
 

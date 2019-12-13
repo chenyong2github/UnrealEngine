@@ -30,6 +30,7 @@ private:
 
 public:
 	explicit FGraphTrack(const FName& InSubType = NAME_None);
+	explicit FGraphTrack(const FName& InSubType, const FString& InName);
 	virtual ~FGraphTrack();
 
 	//////////////////////////////////////////////////
@@ -39,6 +40,7 @@ public:
 
 	virtual void PostUpdate(const ITimingTrackUpdateContext& Context) override;
 
+	virtual void PreDraw(const ITimingTrackDrawContext& Context) const override;
 	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
 	virtual void DrawEvent(const ITimingTrackDrawContext& Context, const ITimingEvent& InTimingEvent, EDrawEventMode InDrawMode) const override;
 
@@ -65,33 +67,41 @@ protected:
 
 	void DrawSeries(const FGraphSeries& Series, FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
 
+	virtual bool ContextMenu_ShowPoints_CanExecute();
+	virtual bool ContextMenu_ShowPointsWithBorder_CanExecute();
+	virtual bool ContextMenu_ShowLines_CanExecute();
+	virtual bool ContextMenu_ShowPolygon_CanExecute();
+	virtual bool ContextMenu_UseEventDuration_CanExecute();
+	virtual bool ContextMenu_ShowBars_CanExecute();
+	virtual bool ContextMenu_ShowSeries_CanExecute(FGraphSeries* Series);
+
+	// Get the Y value that is used to provide a clipping border between adjacent graph tracks.
+	virtual float GetBorderY() const { return 0.0f; }
+
 private:
+	bool ContextMenu_ShowDebugInfo_CanExecute();
+	void ContextMenu_ShowDebugInfo_Execute();
+	bool ContextMenu_ShowDebugInfo_IsChecked();
+
 	void ContextMenu_ShowPoints_Execute();
-	bool ContextMenu_ShowPoints_CanExecute();
 	bool ContextMenu_ShowPoints_IsChecked();
 
 	void ContextMenu_ShowPointsWithBorder_Execute();
-	bool ContextMenu_ShowPointsWithBorder_CanExecute();
 	bool ContextMenu_ShowPointsWithBorder_IsChecked();
 
 	void ContextMenu_ShowLines_Execute();
-	bool ContextMenu_ShowLines_CanExecute();
 	bool ContextMenu_ShowLines_IsChecked();
 
 	void ContextMenu_ShowPolygon_Execute();
-	bool ContextMenu_ShowPolygon_CanExecute();
 	bool ContextMenu_ShowPolygon_IsChecked();
 
 	void ContextMenu_UseEventDuration_Execute();
-	bool ContextMenu_UseEventDuration_CanExecute();
 	bool ContextMenu_UseEventDuration_IsChecked();
 
 	void ContextMenu_ShowBars_Execute();
-	bool ContextMenu_ShowBars_CanExecute();
 	bool ContextMenu_ShowBars_IsChecked();
 
 	void ContextMenu_ShowSeries_Execute(FGraphSeries* Series);
-	bool ContextMenu_ShowSeries_CanExecute(FGraphSeries* Series);
 	bool ContextMenu_ShowSeries_IsChecked(FGraphSeries* Series);
 
 protected:
@@ -103,12 +113,14 @@ protected:
 	const FSlateBrush* BorderBrush;
 	const FSlateFontInfo Font;
 
+	bool bDrawDebugInfo;
 	bool bDrawPoints;
 	bool bDrawPointsWithBorder;
 	bool bDrawLines;
 	bool bDrawPolygon;
 	bool bUseEventDuration;
 	bool bDrawBoxes;
+	bool bDrawBaseline;
 
 	// Stats
 	int32 NumAddedEvents; // total event count

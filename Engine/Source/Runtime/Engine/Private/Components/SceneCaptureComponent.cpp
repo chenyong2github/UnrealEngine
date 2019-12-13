@@ -329,7 +329,7 @@ void USceneCaptureComponent::UpdateShowFlags()
 
 #if WITH_EDITOR
 
-bool USceneCaptureComponent::CanEditChange(const UProperty* InProperty) const
+bool USceneCaptureComponent::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{
@@ -614,7 +614,7 @@ void USceneCaptureComponent2D::UpdateDrawFrustum()
 
 #if WITH_EDITOR
 
-bool USceneCaptureComponent2D::CanEditChange(const UProperty* InProperty) const
+bool USceneCaptureComponent2D::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{

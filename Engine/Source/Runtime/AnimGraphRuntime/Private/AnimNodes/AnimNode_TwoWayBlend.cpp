@@ -100,6 +100,8 @@ void FAnimNode_TwoWayBlend::Update_AnyThread(const FAnimationUpdateContext& Cont
 		// Take all of A
 		A.Update(Context);
 	}
+
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Alpha"), InternalBlendAlpha);
 }
 
 void FAnimNode_TwoWayBlend::Evaluate_AnyThread(FPoseContext& Output)

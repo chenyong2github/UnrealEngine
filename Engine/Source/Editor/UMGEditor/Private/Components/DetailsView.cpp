@@ -120,7 +120,7 @@ void UDetailsView::OnObjectChanged()
 }
 
 
-void UDetailsView::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged)
+void UDetailsView::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
 	FNotifyHook::NotifyPostChange(PropertyChangedEvent, PropertyThatChanged);
 

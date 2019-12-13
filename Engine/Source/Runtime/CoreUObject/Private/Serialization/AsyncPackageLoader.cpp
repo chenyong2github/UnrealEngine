@@ -6,6 +6,7 @@
 #include "UObject/GCObject.h"
 #include "UObject/LinkerLoad.h"
 #include "Misc/CoreDelegates.h"
+#include "IO/IoDispatcher.h"
 
 volatile int32 GIsLoaderCreated;
 TUniquePtr<IAsyncPackageLoader> GPackageLoader;
@@ -518,9 +519,9 @@ IAsyncPackageLoader& GetAsyncPackageLoader()
 
 void InitAsyncThread()
 {
-	if (FParse::Param(FCommandLine::Get(), TEXT("zenloader")))
+	if (FIoDispatcher::IsInitialized())
 	{
-		GPackageLoader = MakeUnique<FAsyncLoadingThread2>(GetGEDLBootNotificationManager());
+		GPackageLoader = MakeUnique<FAsyncLoadingThread2>(FIoDispatcher::Get(), GetGEDLBootNotificationManager());
 	}
 	else
 	{

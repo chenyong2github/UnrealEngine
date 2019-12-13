@@ -103,9 +103,9 @@ public:
 	DECLARE_FUNCTION(execMap_Add)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UMapProperty>(NULL);
+		Stack.StepCompiledIn<FMapProperty>(NULL);
 		void* MapAddr = Stack.MostRecentPropertyAddress;
-		UMapProperty* MapProperty = Cast<UMapProperty>(Stack.MostRecentProperty);
+		FMapProperty* MapProperty = CastField<FMapProperty>(Stack.MostRecentProperty);
 		if (!MapProperty)
 		{
 			Stack.bArrayContextFailed = true;
@@ -113,21 +113,21 @@ public:
 		}
 
 		// Since Key and Value aren't really an int, step the stack manually
-		const UProperty* CurrKeyProp = MapProperty->KeyProp;
+		const FProperty* CurrKeyProp = MapProperty->KeyProp;
 		const int32 KeyPropertySize = CurrKeyProp->ElementSize * CurrKeyProp->ArrayDim;
 		void* KeyStorageSpace = FMemory_Alloca(KeyPropertySize);
 		CurrKeyProp->InitializeValue(KeyStorageSpace);
 
 		Stack.MostRecentPropertyAddress = NULL;
-		Stack.StepCompiledIn<UProperty>(KeyStorageSpace);
+		Stack.StepCompiledIn<FProperty>(KeyStorageSpace);
 		
-		const UProperty* CurrValueProp = MapProperty->ValueProp;
+		const FProperty* CurrValueProp = MapProperty->ValueProp;
 		const int32 ValuePropertySize = CurrValueProp->ElementSize * CurrValueProp->ArrayDim;
 		void* ValueStorageSpace = FMemory_Alloca(ValuePropertySize);
 		CurrValueProp->InitializeValue(ValueStorageSpace);
 		
 		Stack.MostRecentPropertyAddress = NULL;
-		Stack.StepCompiledIn<UProperty>(ValueStorageSpace);
+		Stack.StepCompiledIn<FProperty>(ValueStorageSpace);
 
 		P_FINISH;
 
@@ -142,9 +142,9 @@ public:
 	DECLARE_FUNCTION(execMap_Remove)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UMapProperty>(NULL);
+		Stack.StepCompiledIn<FMapProperty>(NULL);
 		void* MapAddr = Stack.MostRecentPropertyAddress;
-		UMapProperty* MapProperty = Cast<UMapProperty>(Stack.MostRecentProperty);
+		FMapProperty* MapProperty = CastField<FMapProperty>(Stack.MostRecentProperty);
 		if (!MapProperty)
 		{
 			Stack.bArrayContextFailed = true;
@@ -152,13 +152,13 @@ public:
 		}
 
 		// Since Key and Value aren't really an int, step the stack manually
-		const UProperty* CurrKeyProp = MapProperty->KeyProp;
+		const FProperty* CurrKeyProp = MapProperty->KeyProp;
 		const int32 KeyPropertySize = CurrKeyProp->ElementSize * CurrKeyProp->ArrayDim;
 		void* KeyStorageSpace = FMemory_Alloca(KeyPropertySize);
 		CurrKeyProp->InitializeValue(KeyStorageSpace);
 
 		Stack.MostRecentPropertyAddress = NULL;
-		Stack.StepCompiledIn<UProperty>(KeyStorageSpace);
+		Stack.StepCompiledIn<FProperty>(KeyStorageSpace);
 		
 		P_FINISH;
 		P_NATIVE_BEGIN;
@@ -171,9 +171,9 @@ public:
 	DECLARE_FUNCTION(execMap_Find)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UMapProperty>(NULL);
+		Stack.StepCompiledIn<FMapProperty>(NULL);
 		void* MapAddr = Stack.MostRecentPropertyAddress;
-		UMapProperty* MapProperty = Cast<UMapProperty>(Stack.MostRecentProperty);
+		FMapProperty* MapProperty = CastField<FMapProperty>(Stack.MostRecentProperty);
 		if (!MapProperty)
 		{
 			Stack.bArrayContextFailed = true;
@@ -181,21 +181,21 @@ public:
 		}
 
 		// Since Key and Value aren't really an int, step the stack manually
-		const UProperty* CurrKeyProp = MapProperty->KeyProp;
+		const FProperty* CurrKeyProp = MapProperty->KeyProp;
 		const int32 KeyPropertySize = CurrKeyProp->ElementSize * CurrKeyProp->ArrayDim;
 		void* KeyStorageSpace = FMemory_Alloca(KeyPropertySize);
 		CurrKeyProp->InitializeValue(KeyStorageSpace);
 
 		Stack.MostRecentPropertyAddress = NULL;
-		Stack.StepCompiledIn<UProperty>(KeyStorageSpace);
+		Stack.StepCompiledIn<FProperty>(KeyStorageSpace);
 		
-		const UProperty* CurrValueProp = MapProperty->ValueProp;
+		const FProperty* CurrValueProp = MapProperty->ValueProp;
 		const int32 ValuePropertySize = CurrValueProp->ElementSize * CurrValueProp->ArrayDim;
 		void* ValueStorageSpace = FMemory_Alloca(ValuePropertySize);
 		CurrValueProp->InitializeValue(ValueStorageSpace);
 		
 		Stack.MostRecentPropertyAddress = NULL;
-		Stack.StepCompiledIn<UProperty>(ValueStorageSpace);
+		Stack.StepCompiledIn<FProperty>(ValueStorageSpace);
 		void* ItemPtr = (Stack.MostRecentPropertyAddress != NULL && Stack.MostRecentProperty->GetClass() == CurrValueProp->GetClass()) ? Stack.MostRecentPropertyAddress : ValueStorageSpace;
 		
 		P_FINISH;
@@ -210,9 +210,9 @@ public:
 	DECLARE_FUNCTION(execMap_Keys)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UMapProperty>(NULL);
+		Stack.StepCompiledIn<FMapProperty>(NULL);
 		void* MapAddr = Stack.MostRecentPropertyAddress;
-		UMapProperty* MapProperty = Cast<UMapProperty>(Stack.MostRecentProperty);
+		FMapProperty* MapProperty = CastField<FMapProperty>(Stack.MostRecentProperty);
 		if (!MapProperty)
 		{
 			Stack.bArrayContextFailed = true;
@@ -220,9 +220,9 @@ public:
 		}
 
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UArrayProperty>(NULL);
+		Stack.StepCompiledIn<FArrayProperty>(NULL);
 		void* ArrayAddr = Stack.MostRecentPropertyAddress;
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 		if (!ArrayProperty)
 		{
 			Stack.bArrayContextFailed = true;
@@ -239,9 +239,9 @@ public:
 	DECLARE_FUNCTION(execMap_Values)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UMapProperty>(NULL);
+		Stack.StepCompiledIn<FMapProperty>(NULL);
 		void* MapAddr = Stack.MostRecentPropertyAddress;
-		UMapProperty* MapProperty = Cast<UMapProperty>(Stack.MostRecentProperty);
+		FMapProperty* MapProperty = CastField<FMapProperty>(Stack.MostRecentProperty);
 		if (!MapProperty)
 		{
 			Stack.bArrayContextFailed = true;
@@ -249,9 +249,9 @@ public:
 		}
 
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UArrayProperty>(NULL);
+		Stack.StepCompiledIn<FArrayProperty>(NULL);
 		void* ArrayAddr = Stack.MostRecentPropertyAddress;
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Stack.MostRecentProperty);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
 		if (!ArrayProperty)
 		{
 			Stack.bArrayContextFailed = true;
@@ -267,9 +267,9 @@ public:
 	DECLARE_FUNCTION(execMap_Contains)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UMapProperty>(NULL);
+		Stack.StepCompiledIn<FMapProperty>(NULL);
 		void* MapAddr = Stack.MostRecentPropertyAddress;
-		UMapProperty* MapProperty = Cast<UMapProperty>(Stack.MostRecentProperty);
+		FMapProperty* MapProperty = CastField<FMapProperty>(Stack.MostRecentProperty);
 		if (!MapProperty)
 		{
 			Stack.bArrayContextFailed = true;
@@ -277,13 +277,13 @@ public:
 		}
 
 		// Since Key and Value aren't really an int, step the stack manually
-		const UProperty* CurrKeyProp = MapProperty->KeyProp;
+		const FProperty* CurrKeyProp = MapProperty->KeyProp;
 		const int32 KeyPropertySize = CurrKeyProp->ElementSize * CurrKeyProp->ArrayDim;
 		void* KeyStorageSpace = FMemory_Alloca(KeyPropertySize);
 		CurrKeyProp->InitializeValue(KeyStorageSpace);
 
 		Stack.MostRecentPropertyAddress = NULL;
-		Stack.StepCompiledIn<UProperty>(KeyStorageSpace);
+		Stack.StepCompiledIn<FProperty>(KeyStorageSpace);
 
 		P_FINISH;
 		P_NATIVE_BEGIN;
@@ -296,9 +296,9 @@ public:
 	DECLARE_FUNCTION(execMap_Length)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UMapProperty>(NULL);
+		Stack.StepCompiledIn<FMapProperty>(NULL);
 		void* MapAddr = Stack.MostRecentPropertyAddress;
-		UMapProperty* MapProperty = Cast<UMapProperty>(Stack.MostRecentProperty);
+		FMapProperty* MapProperty = CastField<FMapProperty>(Stack.MostRecentProperty);
 		if (!MapProperty)
 		{
 			Stack.bArrayContextFailed = true;
@@ -314,9 +314,9 @@ public:
 	DECLARE_FUNCTION(execMap_Clear)
 	{
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<UMapProperty>(NULL);
+		Stack.StepCompiledIn<FMapProperty>(NULL);
 		void* MapAddr = Stack.MostRecentPropertyAddress;
-		UMapProperty* MapProperty = Cast<UMapProperty>(Stack.MostRecentProperty);
+		FMapProperty* MapProperty = CastField<FMapProperty>(Stack.MostRecentProperty);
 		if (!MapProperty)
 		{
 			Stack.bArrayContextFailed = true;
@@ -332,9 +332,9 @@ public:
 	DECLARE_FUNCTION(execSetMapPropertyByName)
 	{
 		P_GET_OBJECT(UObject, OwnerObject);
-		P_GET_PROPERTY(UNameProperty, MapPropertyName);
+		P_GET_PROPERTY(FNameProperty, MapPropertyName);
 
-		Stack.StepCompiledIn<UMapProperty>(nullptr);
+		Stack.StepCompiledIn<FMapProperty>(nullptr);
 		void* SrcMapAddr = Stack.MostRecentPropertyAddress;
 
 		P_FINISH;
@@ -344,13 +344,13 @@ public:
 		P_NATIVE_END;
 	}
 
-	static void GenericMap_Add(const void* TargetMap, const UMapProperty* MapProperty, const void* KeyPtr, const void* ValuePtr);
-	static bool GenericMap_Remove(const void* TargetMap, const UMapProperty* MapProperty, const void* KeyPtr);
-	static bool GenericMap_Find(const void* TargetMap, const UMapProperty* MapProperty, const void* KeyPtr, void* ValuePtr);
-	static void GenericMap_Keys(const void* MapAddr, const UMapProperty* MapProperty, const void* ArrayAddr, const UArrayProperty* ArrayProperty);
-	static void GenericMap_Values(const void* MapAddr, const UMapProperty* MapProperty, const void* ArrayAddr, const UArrayProperty* ArrayProperty);
-	static int32 GenericMap_Length(const void* TargetMap, const UMapProperty* MapProperty);
-	static void GenericMap_Clear(const void* TargetMap, const UMapProperty* MapProperty);
+	static void GenericMap_Add(const void* TargetMap, const FMapProperty* MapProperty, const void* KeyPtr, const void* ValuePtr);
+	static bool GenericMap_Remove(const void* TargetMap, const FMapProperty* MapProperty, const void* KeyPtr);
+	static bool GenericMap_Find(const void* TargetMap, const FMapProperty* MapProperty, const void* KeyPtr, void* ValuePtr);
+	static void GenericMap_Keys(const void* MapAddr, const FMapProperty* MapProperty, const void* ArrayAddr, const FArrayProperty* ArrayProperty);
+	static void GenericMap_Values(const void* MapAddr, const FMapProperty* MapProperty, const void* ArrayAddr, const FArrayProperty* ArrayProperty);
+	static int32 GenericMap_Length(const void* TargetMap, const FMapProperty* MapProperty);
+	static void GenericMap_Clear(const void* TargetMap, const FMapProperty* MapProperty);
 	static void GenericMap_SetMapPropertyByName(UObject* OwnerObject, FName MapPropertyName, const void* SrcMapAddr);
 };
 

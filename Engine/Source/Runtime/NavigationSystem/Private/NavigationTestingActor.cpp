@@ -90,7 +90,7 @@ void ANavigationTestingActor::BeginDestroy()
 }
 
 #if WITH_EDITOR
-void ANavigationTestingActor::PreEditChange(UProperty* PropertyThatWillChange)
+void ANavigationTestingActor::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	static const FName NAME_OtherActor = GET_MEMBER_NAME_CHECKED(ANavigationTestingActor, OtherActor);
 

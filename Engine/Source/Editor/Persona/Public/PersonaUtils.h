@@ -40,7 +40,7 @@ struct FCopyOptions
 	FCopyOptions(const ECopyOptions InFlags) : Flags(InFlags) {}
 
 	/** Check whether we can copy the specified property */
-	bool CanCopyProperty(UProperty& Property, UObject& Object) const
+	bool CanCopyProperty(FProperty& Property, UObject& Object) const
 	{
 		return !PropertyFilter || PropertyFilter(Property, Object);
 	}
@@ -49,7 +49,7 @@ struct FCopyOptions
 	ECopyOptions Flags;
 
 	/** User-specified custom property filter predicate */
-	TFunction<bool(UProperty&, UObject&)> PropertyFilter;
+	TFunction<bool(FProperty&, UObject&)> PropertyFilter;
 };
 
 /** Copy modified properties from the specified anim instance back to its CDO */

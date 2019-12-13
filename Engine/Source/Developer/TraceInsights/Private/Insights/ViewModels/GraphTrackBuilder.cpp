@@ -34,7 +34,7 @@ FGraphTrackBuilder::~FGraphTrackBuilder()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FGraphTrackBuilder::AddEvent(double Time, double Duration, double Value)
+void FGraphTrackBuilder::AddEvent(double Time, double Duration, double Value, bool bConnected)
 {
 	Track.NumAddedEvents++;
 
@@ -47,11 +47,11 @@ void FGraphTrackBuilder::AddEvent(double Time, double Duration, double Value)
 
 	if (Track.bDrawLines || Track.bDrawPolygon)
 	{
-		AddConnectedLine(Time, Value);
+		AddConnectedLine(Time, Value, !bConnected);
 
 		if (Track.bUseEventDuration && Duration != 0.0)
 		{
-			AddConnectedLine(Time + Duration, Value);
+			AddConnectedLine(Time + Duration, Value, false);
 		}
 	}
 
@@ -149,6 +149,7 @@ void FGraphTrackBuilder::EndPoints()
 void FGraphTrackBuilder::BeginConnectedLines()
 {
 	Series.LinePoints.Reset();
+	Series.LinePoints.AddDefaulted();
 
 	LinesCurrentX = -FLT_MAX;
 	LinesMinY = FLT_MAX;
@@ -160,7 +161,7 @@ void FGraphTrackBuilder::BeginConnectedLines()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FGraphTrackBuilder::AddConnectedLine(double Time, double Value)
+void FGraphTrackBuilder::AddConnectedLine(double Time, double Value, bool bNewBatch)
 {
 	if (bIsLastLineAdded)
 	{
@@ -171,6 +172,22 @@ void FGraphTrackBuilder::AddConnectedLine(double Time, double Value)
 	const float Y = Series.GetRoundedYForValue(Value);
 
 	//ensure(X >= LinesCurrentX); // we are assuming events are already sorted by Time
+
+	// Start a new batch
+	if (bNewBatch)
+	{
+		if (Series.LinePoints.Num() > 0)
+		{
+			Series.LinePoints.AddDefaulted();
+		}
+
+		// Reset the reduction
+		LinesCurrentX = -FLT_MAX;
+		LinesMinY = FLT_MAX;
+		LinesMaxY = -FLT_MAX;
+		LinesFirstY = FLT_MAX;
+		LinesLastY = FLT_MAX;
+	}
 
 	if (X < 0)
 	{
@@ -189,8 +206,8 @@ void FGraphTrackBuilder::AddConnectedLine(double Time, double Value)
 			{
 				FlushConnectedLine();
 
-				Series.LinePoints.Add(FVector2D(LinesCurrentX, LinesLastY));
-				Series.LinePoints.Add(FVector2D(X, Y));
+				Series.LinePoints.Last().Add(FVector2D(LinesCurrentX, LinesLastY));
+				Series.LinePoints.Last().Add(FVector2D(X, Y));
 			}
 
 			// Reset the "reduction line" so last FlushConnectedLine() call will do nothing.
@@ -206,8 +223,8 @@ void FGraphTrackBuilder::AddConnectedLine(double Time, double Value)
 		{
 			FlushConnectedLine();
 
-			Series.LinePoints.Add(FVector2D(LinesCurrentX, LinesLastY));
-			Series.LinePoints.Add(FVector2D(X, Y));
+			Series.LinePoints.Last().Add(FVector2D(LinesCurrentX, LinesLastY));
+			Series.LinePoints.Last().Add(FVector2D(X, Y));
 		}
 
 		// Advance the "reduction line".
@@ -238,8 +255,8 @@ void FGraphTrackBuilder::FlushConnectedLine()
 {
 	if (LinesCurrentX >= 0.0f && LinesMinY != LinesMaxY)
 	{
-		Series.LinePoints.Add(FVector2D(LinesCurrentX, LinesMaxY));
-		Series.LinePoints.Add(FVector2D(LinesCurrentX, LinesMinY));
+		Series.LinePoints.Last().Add(FVector2D(LinesCurrentX, LinesMaxY));
+		Series.LinePoints.Last().Add(FVector2D(LinesCurrentX, LinesMinY));
 	}
 }
 

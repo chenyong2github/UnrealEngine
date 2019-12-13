@@ -114,7 +114,7 @@ private:
 			return true;
 		}
 
-		const UStructProperty* StructProp = Cast<const UStructProperty>(Bindings.GetProperty(InObject));
+		const FStructProperty* StructProp = CastField<const FStructProperty>(Bindings.GetProperty(InObject));
 		if (!StructProp || !StructProp->Struct)
 		{
 			return false;

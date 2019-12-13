@@ -28,8 +28,7 @@ struct AIMODULE_API FAIDataProviderValue
 
 private:
 	/** cached uproperty of provider */
-	UPROPERTY(transient)
-	mutable UProperty* CachedProperty;
+	mutable FProperty* CachedProperty;
 
 public:
 	/** (optional) provider for dynamic data binding */
@@ -45,7 +44,7 @@ public:
 	FString ToString() const;
 
 	/** filter for provider's properties */
-	virtual bool IsMatchingType(UProperty* PropType) const;
+	virtual bool IsMatchingType(FProperty* PropType) const;
 
 	/** find all properties of provider that are matching filter */
 	void GetMatchingProperties(TArray<FName>& MatchingProperties) const;
@@ -78,10 +77,23 @@ struct AIMODULE_API FAIDataProviderTypedValue : public FAIDataProviderValue
 
 	/** type of value */
 	UPROPERTY()
-	TSubclassOf<UProperty> PropertyType;
+	UClass* PropertyType_DEPRECATED;
+	FFieldClass* PropertyType;
 
 	/** filter for provider's properties */
-	virtual bool IsMatchingType(UProperty* PropType) const override;
+	virtual bool IsMatchingType(FProperty* PropType) const override;
+
+	/** Implementing Serialize to convert UClass to FFieldClass */
+	bool Serialize(FArchive& Ar);
+};
+
+template<>
+struct TStructOpsTypeTraits<FAIDataProviderTypedValue> : public TStructOpsTypeTraitsBase2<FAIDataProviderTypedValue>
+{
+	enum
+	{
+		WithSerializer = true,
+	};
 };
 
 USTRUCT()
@@ -92,7 +104,7 @@ struct AIMODULE_API FAIDataProviderStructValue : public FAIDataProviderValue
 	/** name of UStruct type */
 	FString StructName;
 
-	virtual bool IsMatchingType(UProperty* PropType) const override;
+	virtual bool IsMatchingType(FProperty* PropType) const override;
 };
 
 USTRUCT()

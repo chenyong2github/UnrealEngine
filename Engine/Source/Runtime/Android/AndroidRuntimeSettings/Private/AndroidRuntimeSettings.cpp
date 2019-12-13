@@ -46,7 +46,7 @@ UAndroidRuntimeSettings::UAndroidRuntimeSettings(const FObjectInitializer& Objec
 	bBuildForES2 = !bBuildForES2 && !bBuildForES31 && !bSupportsVulkan;
 }
 
-void UAndroidRuntimeSettings::PostReloadConfig(UProperty* PropertyThatWasLoaded)
+void UAndroidRuntimeSettings::PostReloadConfig(FProperty* PropertyThatWasLoaded)
 {
 	Super::PostReloadConfig(PropertyThatWasLoaded);
 

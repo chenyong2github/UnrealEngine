@@ -27,7 +27,7 @@ public:
 		SLATE_ARGUMENT(bool, GeneratePureBindings)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TSharedRef<FWidgetBlueprintEditor> InEditor, UDelegateProperty* DelegateProperty, TSharedRef<IPropertyHandle> Property);
+	void Construct(const FArguments& InArgs, TSharedRef<FWidgetBlueprintEditor> InEditor, FDelegateProperty* DelegateProperty, TSharedRef<IPropertyHandle> Property);
 
 protected:
 	struct FFunctionInfo
@@ -45,7 +45,7 @@ protected:
 	};
 
 	TSharedRef<SWidget> OnGenerateDelegateMenu(UWidget* Widget, TSharedRef<IPropertyHandle> PropertyHandle);
-	void FillPropertyMenu(FMenuBuilder& MenuBuilder, TSharedRef<IPropertyHandle> PropertyHandle, UStruct* OwnerStruct, TArray<UField*> BindingChain);
+	void FillPropertyMenu(FMenuBuilder& MenuBuilder, TSharedRef<IPropertyHandle> PropertyHandle, UStruct* OwnerStruct, TArray<FFieldVariant> BindingChain);
 
 	const FSlateBrush* GetCurrentBindingImage(TSharedRef<IPropertyHandle> PropertyHandle) const;
 	FText GetCurrentBindingText(TSharedRef<IPropertyHandle> PropertyHandle) const;
@@ -53,9 +53,9 @@ protected:
 	bool CanRemoveBinding(TSharedRef<IPropertyHandle> PropertyHandle);
 	void HandleRemoveBinding(TSharedRef<IPropertyHandle> PropertyHandle);
 
-	void HandleAddFunctionBinding(TSharedRef<IPropertyHandle> PropertyHandle, TSharedPtr<FFunctionInfo> SelectedFunction, TArray<UField*> BindingChain);
+	void HandleAddFunctionBinding(TSharedRef<IPropertyHandle> PropertyHandle, TSharedPtr<FFunctionInfo> SelectedFunction, TArray<FFieldVariant> BindingChain);
 	void HandleAddFunctionBinding(TSharedRef<IPropertyHandle> PropertyHandle, TSharedPtr<FFunctionInfo> SelectedFunction, FEditorPropertyPath& BindingPath);
-	void HandleAddPropertyBinding(TSharedRef<IPropertyHandle> PropertyHandle, UProperty* SelectedProperty, TArray<UField*> BindingChain);
+	void HandleAddPropertyBinding(TSharedRef<IPropertyHandle> PropertyHandle, FProperty* SelectedProperty, TArray<FFieldVariant> BindingChain);
 
 	void HandleCreateAndAddBinding(UWidget* Widget, TSharedRef<IPropertyHandle> PropertyHandle);
 	void GotoFunction(UEdGraph* FunctionGraph);

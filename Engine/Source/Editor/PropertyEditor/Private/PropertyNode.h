@@ -148,7 +148,7 @@ private:
 };
 
 /**
- * A list of read addresses for a property node which contains the address for the nodes UProperty on each object
+ * A list of read addresses for a property node which contains the address for the nodes FProperty on each object
  */
 class FReadAddressList
 {
@@ -195,7 +195,7 @@ struct FPropertyNodeInitParams
 	/** The parent of the property node */
 	TSharedPtr<FPropertyNode> ParentNode;
 	/** The property that the node observes and modifies*/
-	UProperty* Property;
+	FProperty* Property;
 	/** Offset to the property data within either a fixed array or a dynamic array */
 	int32 ArrayOffset;
 	/** Index of the property in its array parent */
@@ -372,8 +372,8 @@ public:
 	/**
 	 * Returns the Property this Node represents
 	 */
-	UProperty*			GetProperty() { return Property.Get(); }
-	const UProperty*	GetProperty() const { return Property.Get(); }
+	FProperty*			GetProperty() { return Property.Get(); }
+	const FProperty*	GetProperty() const { return Property.Get(); }
 
 	/**
 	 * Accessor functions for internals
@@ -453,12 +453,12 @@ public:
 	virtual bool GetReadAddressUncached(FPropertyNode& InNode, FReadAddressListData& OutAddresses) const;
 
 	/**
-	 * Calculates the memory address for the data associated with this item's property.  This is typically the value of a UProperty or a UObject address.
+	 * Calculates the memory address for the data associated with this item's property.  This is typically the value of a FProperty or a UObject address.
 	 *
 	 * @param	StartAddress	the location to use as the starting point for the calculation; typically the address of the object that contains this property.
 	 * @param	bIsSparseData	True if StartAddress is pointing to a sidecar structure containing sparse class data, false otherwise
 	 *
-	 * @return	a pointer to a UProperty value or UObject.  (For dynamic arrays, you'd cast this value to an FArray*)
+	 * @return	a pointer to a FProperty value or UObject.  (For dynamic arrays, you'd cast this value to an FArray*)
 	 */
 	virtual uint8* GetValueBaseAddress(uint8* StartAddress, bool bIsSparseData);
 
@@ -469,16 +469,16 @@ public:
 	 * @param	StartAddress	the location to use as the starting point for the calculation; typically the address of the object that contains this property.
 	 * @param	bIsSparseData	True if StartAddress is pointing to a sidecar structure containing sparse class data, false otherwise
 	 *
-	 * @return	a pointer to a UProperty value or UObject.  (For dynamic arrays, you'd cast this value to whatever type is the Inner for the dynamic array)
+	 * @return	a pointer to a FProperty value or UObject.  (For dynamic arrays, you'd cast this value to whatever type is the Inner for the dynamic array)
 	 */
 	virtual uint8* GetValueAddress(uint8* StartAddress, bool bIsSparseData);
 
 	/**
-	 * Calculates the memory address for the data associated with this item's property.  This is typically the value of a UProperty or a UObject address.
+	 * Calculates the memory address for the data associated with this item's property.  This is typically the value of a FProperty or a UObject address.
 	 *
 	 * @param	Obj	The object that contains this property; used as the starting point for the calculation
 	 *
-	 * @return	a pointer to a UProperty value or UObject.  (For dynamic arrays, you'd cast this value to an FArray*)
+	 * @return	a pointer to a FProperty value or UObject.  (For dynamic arrays, you'd cast this value to an FArray*)
 	 */
 	uint8* GetValueBaseAddressFromObject(const UObject* Obj);
 
@@ -488,7 +488,7 @@ public:
 	 *
 	 * @param	Obj	The object that contains this property; used as the starting point for the calculation
 	 *
-	 * @return	a pointer to a UProperty value or UObject.  (For dynamic arrays, you'd cast this value to whatever type is the Inner for the dynamic array)
+	 * @return	a pointer to a FProperty value or UObject.  (For dynamic arrays, you'd cast this value to whatever type is the Inner for the dynamic array)
 	 */
 	uint8* GetValueAddressFromObject(const UObject* Obj);
 
@@ -550,7 +550,7 @@ public:
 	/**Walks up the hierarchy and return true if any parent node is a favorite*/
 	bool IsChildOfFavorite(void) const;
 
-	void NotifyPreChange(UProperty* PropertyAboutToChange, class FNotifyHook* InNotifyHook);
+	void NotifyPreChange(FProperty* PropertyAboutToChange, class FNotifyHook* InNotifyHook);
 
 	void NotifyPostChange(FPropertyChangedEvent& InPropertyChangedEvent, class FNotifyHook* InNotifyHook);
 
@@ -849,7 +849,7 @@ public:
 	TSharedPtr<FPropertyNode>& GetPropertyKeyNode() { return PropertyKeyNode; }
 
 	const TSharedPtr<FPropertyNode>& GetPropertyKeyNode() const { return PropertyKeyNode; }
-	
+
 	/**
 	* Gets the default value of the property as string.
 	*/
@@ -865,7 +865,7 @@ protected:
 	// This will often be Obj but may also point to a sidecar data structure
 	uint8* GetStartAddress(const UObject* Obj) const;
 
-	TSharedRef<FEditPropertyChain> BuildPropertyChain( UProperty* PropertyAboutToChange );
+	TSharedRef<FEditPropertyChain> BuildPropertyChain( FProperty* PropertyAboutToChange );
 
 	/**
 	 * Destroys all node within the hierarchy
@@ -897,12 +897,14 @@ protected:
 	void ExpandParent( bool bInRecursive );
 
 	/** @return		The property stored at this node, to be passed to Pre/PostEditChange. */
-	UProperty*		GetStoredProperty()		{ return nullptr; }
+	FProperty*		GetStoredProperty()		{ return nullptr; }
 
-	bool GetDiffersFromDefaultForObject( FPropertyItemValueDataTrackerSlate& ValueTracker, UProperty* InProperty );
+	bool GetDiffersFromDefaultForObject( FPropertyItemValueDataTrackerSlate& ValueTracker, FProperty* InProperty );
 
-	FString GetDefaultValueAsStringForObject( FPropertyItemValueDataTrackerSlate& ValueTracker, UObject* InObject, UProperty* InProperty, bool bUseDisplayName );
+	FString GetDefaultValueAsStringForObject( FPropertyItemValueDataTrackerSlate& ValueTracker, UObject* InObject, FProperty* InProperty, bool bUseDisplayName );
 
+	FString GetDefaultValueAsStringForObject( FPropertyItemValueDataTrackerSlate& ValueTracker, UObject* InObject, FProperty* InProperty );
+	
 	/**
 	 * Helper function to obtain the display name for an enum property
 	 * @param InEnum		The enum whose metadata to pull from
@@ -943,7 +945,7 @@ protected:
 	 * @param	InChildProp		The property of the child node
 	 * @return	True if the property requires validation, false otherwise
 	 */
-	static bool DoesChildPropertyRequireValidation(UProperty* InChildProp);
+	static bool DoesChildPropertyRequireValidation(FProperty* InChildProp);
 
 protected:
 	/**
@@ -984,7 +986,7 @@ protected:
 	FPropertyResetToDefaultEvent PropertyResetToDefaultEvent;
 
 	/** The property being displayed/edited. */
-	TWeakObjectPtr<UProperty> Property;
+	TWeakFieldPtr<FProperty> Property;
 
 	/** Offset to the property data within either a fixed array or a dynamic array */
 	int32 ArrayOffset;
@@ -1069,7 +1071,7 @@ public:
 	/**
 	 * Returns a pointer to the stored value of InProperty on InParentNode's Index'th instance.
 	 */
-	virtual uint8* GetValuePtrOfInstance(int32 Index, const UProperty* InProperty, FPropertyNode* InParentNode) = 0;
+	virtual uint8* GetValuePtrOfInstance(int32 Index, const FProperty* InProperty, FPropertyNode* InParentNode) = 0;
 	virtual TWeakObjectPtr<UObject> GetInstanceAsUObject(int32 Index) = 0;
 	virtual EPropertyType GetPropertyType() const = 0;
 

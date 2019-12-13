@@ -178,9 +178,9 @@ bool FComponentEditorUtils::CanEditNativeComponent(const UActorComponent* Native
 	UClass* OwnerClass = (ComponentOuter ? ComponentOuter->GetClass() : nullptr);
 	if (OwnerClass != nullptr)
 	{
-		for (TFieldIterator<UObjectProperty> It(OwnerClass); It; ++It)
+		for (TFieldIterator<FObjectProperty> It(OwnerClass); It; ++It)
 		{
-			UObjectProperty* ObjectProp = *It;
+			FObjectProperty* ObjectProp = *It;
 
 			// Must be visible - note CPF_Edit is set for all properties that should be visible, not just those that are editable
 			if (( ObjectProp->PropertyFlags & ( CPF_Edit ) ) == 0)
@@ -856,7 +856,7 @@ FName FComponentEditorUtils::FindVariableNameGivenComponentInstance(const UActor
 	check(ComponentInstance != nullptr);
 
 	// When names mismatch, try finding a differently named variable pointing to the the component (the mismatch should only be possible for native components)
-	auto FindPropertyReferencingComponent = [](const UActorComponent* Component) -> UProperty*
+	auto FindPropertyReferencingComponent = [](const UActorComponent* Component) -> FProperty*
 	{
 		if (AActor* OwnerActor = Component->GetOwner())
 		{
@@ -864,9 +864,9 @@ FName FComponentEditorUtils::FindVariableNameGivenComponentInstance(const UActor
 			AActor* OwnerCDO = CastChecked<AActor>(OwnerClass->GetDefaultObject());
 			check(OwnerCDO->HasAnyFlags(RF_ClassDefaultObject));
 
-			for (TFieldIterator<UObjectProperty> PropIt(OwnerClass, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
+			for (TFieldIterator<FObjectProperty> PropIt(OwnerClass, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
 			{
-				UObjectProperty* TestProperty = *PropIt;
+				FObjectProperty* TestProperty = *PropIt;
 				if (Component->GetClass()->IsChildOf(TestProperty->PropertyClass))
 				{
 					void* TestPropertyInstanceAddress = TestProperty->ContainerPtrToValuePtr<void>(OwnerCDO);
@@ -879,12 +879,12 @@ FName FComponentEditorUtils::FindVariableNameGivenComponentInstance(const UActor
 				}
 			}
 
-			for (TFieldIterator<UArrayProperty> PropIt(OwnerClass, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
+			for (TFieldIterator<FArrayProperty> PropIt(OwnerClass, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
 			{
-				UArrayProperty* TestProperty = *PropIt;
+				FArrayProperty* TestProperty = *PropIt;
 				void* ArrayPropInstAddress = TestProperty->ContainerPtrToValuePtr<void>(OwnerCDO);
 
-				UObjectProperty* ArrayEntryProp = Cast<UObjectProperty>(TestProperty->Inner);
+				FObjectProperty* ArrayEntryProp = CastField<FObjectProperty>(TestProperty->Inner);
 				if ((ArrayEntryProp == nullptr) || !ArrayEntryProp->PropertyClass->IsChildOf<UActorComponent>())
 				{
 					continue;
@@ -909,23 +909,23 @@ FName FComponentEditorUtils::FindVariableNameGivenComponentInstance(const UActor
 	if (AActor* OwnerActor = ComponentInstance->GetOwner())
 	{
 		UClass* OwnerActorClass = OwnerActor->GetClass();
-		if (UObjectProperty* TestProperty = FindField<UObjectProperty>(OwnerActorClass, ComponentInstance->GetFName()))
+		if (FObjectProperty* TestProperty = FindField<FObjectProperty>(OwnerActorClass, ComponentInstance->GetFName()))
 		{
 			if (ComponentInstance->GetClass()->IsChildOf(TestProperty->PropertyClass))
-			{
-				return TestProperty->GetFName();
-			}
-		}
+					{
+						return TestProperty->GetFName();
+					}
+				}
 
-		if (UProperty* ReferencingProp = FindPropertyReferencingComponent(ComponentInstance))
+		if (FProperty* ReferencingProp = FindPropertyReferencingComponent(ComponentInstance))
 		{
 			return ReferencingProp->GetFName();
 		}
-	}
+			}
 
 	if (UActorComponent* Archetype = Cast<UActorComponent>(ComponentInstance->GetArchetype()))
 	{
-		if (UProperty* ReferencingProp = FindPropertyReferencingComponent(Archetype))
+		if (FProperty* ReferencingProp = FindPropertyReferencingComponent(Archetype))
 		{
 			return ReferencingProp->GetFName();
 		}

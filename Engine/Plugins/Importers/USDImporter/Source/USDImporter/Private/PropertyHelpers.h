@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 
 class FPropertyPath;
-class UProperty;
+class FProperty;
 class UStruct;
 
 namespace PropertyHelpers
@@ -13,7 +13,7 @@ namespace PropertyHelpers
 
 	struct FPropertyAddress
 	{
-		UProperty* Property;
+		FProperty* Property;
 		void* Address;
 
 		FPropertyAddress()
@@ -26,14 +26,14 @@ namespace PropertyHelpers
 	{
 		FPropertyAndIndex() : Property(nullptr), ArrayIndex(INDEX_NONE) {}
 
-		UProperty* Property;
+		FProperty* Property;
 		int32 ArrayIndex;
 	};
 
 	FPropertyAndIndex FindPropertyAndArrayIndex(UStruct* InStruct, const FString& PropertyName);
 
-	FPropertyAddress FindPropertyRecursive(void* BasePointer, UStruct* InStruct, TArray<FString>& InPropertyNames, uint32 Index, TArray<UProperty*>& InOutPropertyChain, bool bAllowArrayResize);
+	FPropertyAddress FindPropertyRecursive(void* BasePointer, UStruct* InStruct, TArray<FString>& InPropertyNames, uint32 Index, TArray<FProperty*>& InOutPropertyChain, bool bAllowArrayResize);
 
-	FPropertyAddress FindProperty(void* BasePointer, UStruct* InStruct, const FString& InPropertyPath, TArray<UProperty*>& InOutPropertyChain, bool bAllowArrayResize);
+	FPropertyAddress FindProperty(void* BasePointer, UStruct* InStruct, const FString& InPropertyPath, TArray<FProperty*>& InOutPropertyChain, bool bAllowArrayResize);
 
 }

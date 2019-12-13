@@ -27,11 +27,11 @@
 
 #define LOCTEXT_NAMESPACE "ErrorChecking"
 
-void AActor::PreEditChange(UProperty* PropertyThatWillChange)
+void AActor::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);
 
-	UObjectProperty* ObjProp = Cast<UObjectProperty>(PropertyThatWillChange);
+	FObjectProperty* ObjProp = CastField<FObjectProperty>(PropertyThatWillChange);
 	UBlueprintGeneratedClass* BPGC = Cast<UBlueprintGeneratedClass>(GetClass());
 	if ( BPGC != nullptr && ObjProp != nullptr )
 	{
@@ -51,7 +51,7 @@ static FName Name_RelativeScale3D = USceneComponent::GetRelativeScale3DPropertyN
 
 void AActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	UProperty* MemberPropertyThatChanged = PropertyChangedEvent.MemberProperty;
+	FProperty* MemberPropertyThatChanged = PropertyChangedEvent.MemberProperty;
 	const FName MemberPropertyName = MemberPropertyThatChanged != NULL ? MemberPropertyThatChanged->GetFName() : NAME_None;
 	
 	const bool bTransformationChanged = (MemberPropertyName == Name_RelativeLocation || MemberPropertyName == Name_RelativeRotation || MemberPropertyName == Name_RelativeScale3D);
@@ -882,7 +882,7 @@ void AActor::SetActorLabelInternal(const FString& NewActorLabelDirty, bool bMake
 		}
 	}
 
-	FPropertyChangedEvent PropertyEvent( FindField<UProperty>( AActor::StaticClass(), "ActorLabel" ) );
+	FPropertyChangedEvent PropertyEvent( FindField<FProperty>( AActor::StaticClass(), "ActorLabel" ) );
 	PostEditChangeProperty(PropertyEvent);
 
 	FCoreDelegates::OnActorLabelChanged.Broadcast(this);

@@ -922,17 +922,17 @@ void FLuaContext::GetScriptDefinedFields(TArray<FScriptField>& OutFields)
 		switch (ValueType)
 		{
 			case LUA_TNUMBER:
-				PropertyInfo.Class = UFloatProperty::StaticClass();
+				PropertyInfo.Class = FFloatProperty::StaticClass();
 				break;
 			case LUA_TSTRING:
-				PropertyInfo.Class = UStrProperty::StaticClass();
+				PropertyInfo.Class = FStrProperty::StaticClass();
 				break;
 			case LUA_TBOOLEAN:
-				PropertyInfo.Class = UBoolProperty::StaticClass();
+				PropertyInfo.Class = FBoolProperty::StaticClass();
 				break;
 			case LUA_TNIL:
 			case LUA_TUSERDATA:
-				PropertyInfo.Class = UObjectProperty::StaticClass();
+				PropertyInfo.Class = FObjectProperty::StaticClass();
 				break;
 			case LUA_TFUNCTION:
 				if (KeyName.StartsWith(TEXT("Event")))

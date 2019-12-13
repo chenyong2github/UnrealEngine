@@ -26,7 +26,7 @@ FString GetSourceString(const FText& Text)
 	return Text.ToString();
 }
 
-void AssignStringToPropertyDirect(const FString& InString, const UProperty* InProp, uint8* InData, const int32 InPortFlags, FStringOutputDevice& OutImportError)
+void AssignStringToPropertyDirect(const FString& InString, const FProperty* InProp, uint8* InData, const int32 InPortFlags, FStringOutputDevice& OutImportError)
 {
 	auto DoImportText = [&](const FString& InStringToImport)
 	{
@@ -37,11 +37,11 @@ void AssignStringToPropertyDirect(const FString& InString, const UProperty* InPr
 
 	UEnum* Enum = nullptr;
 
-	if (const UEnumProperty* EnumProp = Cast<const UEnumProperty>(InProp))
+	if (const FEnumProperty* EnumProp = CastField<const FEnumProperty>(InProp))
 	{
 		Enum = EnumProp->GetEnum();
 	}
-	else if (const UByteProperty* ByteProp = Cast<const UByteProperty>(InProp))
+	else if (const FByteProperty* ByteProp = CastField<const FByteProperty>(InProp))
 	{
 		if (ByteProp->IsEnum())
 		{
@@ -51,7 +51,7 @@ void AssignStringToPropertyDirect(const FString& InString, const UProperty* InPr
 
 	if (Enum)
 	{
-		// Enum properties may use the friendly name in their import data, however the UPropertyByte::ImportText function will only accept the internal enum entry name
+		// Enum properties may use the friendly name in their import data, however the FPropertyByte::ImportText function will only accept the internal enum entry name
 		// Detect if we're using a friendly name for an entry, and if so, try and map it to the correct internal name before performing the import
 		const int32 EnumIndex = Enum->GetIndexByNameString(InString);
 		if(EnumIndex == INDEX_NONE)
@@ -82,13 +82,13 @@ void AssignStringToPropertyDirect(const FString& InString, const UProperty* InPr
 	}
 }
 
-void AssignStringToProperty(const FString& InString, const UProperty* InProp, uint8* InData, const int32 InIndex, const int32 InPortFlags, FStringOutputDevice& OutImportError)
+void AssignStringToProperty(const FString& InString, const FProperty* InProp, uint8* InData, const int32 InIndex, const int32 InPortFlags, FStringOutputDevice& OutImportError)
 {
 	uint8* ValuePtr = InProp->ContainerPtrToValuePtr<uint8>(InData, InIndex);
 	AssignStringToPropertyDirect(InString, InProp, ValuePtr, InPortFlags, OutImportError);
 }
 
-void GetPropertyValueAsStringDirect(const UProperty* InProp, const uint8* InData, const int32 InPortFlags, const EDataTableExportFlags InDTExportFlags, FString& OutString)
+void GetPropertyValueAsStringDirect(const FProperty* InProp, const uint8* InData, const int32 InPortFlags, const EDataTableExportFlags InDTExportFlags, FString& OutString)
 {
 #if WITH_EDITOR
 	if (InPortFlags & PPF_PropertyWindow)
@@ -113,13 +113,13 @@ void GetPropertyValueAsStringDirect(const UProperty* InProp, const uint8* InData
 			return JsonOutputStr;
 		};
 
-		const UArrayProperty* ArrayProp = Cast<const UArrayProperty>(InProp);
-		const USetProperty* SetProp = Cast<const USetProperty>(InProp);
-		const UMapProperty* MapProp = Cast<const UMapProperty>(InProp);
+		const FArrayProperty* ArrayProp = CastField<const FArrayProperty>(InProp);
+		const FSetProperty* SetProp = CastField<const FSetProperty>(InProp);
+		const FMapProperty* MapProp = CastField<const FMapProperty>(InProp);
 
-		if (ArrayProp && ArrayProp->Inner->IsA<UStructProperty>() && !!(InDTExportFlags & EDataTableExportFlags::UseJsonObjectsForStructs))
+		if (ArrayProp && ArrayProp->Inner->IsA<FStructProperty>() && !!(InDTExportFlags & EDataTableExportFlags::UseJsonObjectsForStructs))
 		{
-			const UStructProperty* StructInner = CastChecked<const UStructProperty>(ArrayProp->Inner);
+			const FStructProperty* StructInner = CastFieldChecked<const FStructProperty>(ArrayProp->Inner);
 
 			OutString.AppendChar('(');
 
@@ -139,9 +139,9 @@ void GetPropertyValueAsStringDirect(const UProperty* InProp, const uint8* InData
 			OutString.AppendChar(')');
 			return;
 		}
-		else if (SetProp && SetProp->ElementProp->IsA<UStructProperty>() && !!(InDTExportFlags & EDataTableExportFlags::UseJsonObjectsForStructs))
+		else if (SetProp && SetProp->ElementProp->IsA<FStructProperty>() && !!(InDTExportFlags & EDataTableExportFlags::UseJsonObjectsForStructs))
 		{
-			const UStructProperty* StructInner = CastChecked<const UStructProperty>(SetProp->ElementProp);
+			const FStructProperty* StructInner = CastFieldChecked<const FStructProperty>(SetProp->ElementProp);
 
 			OutString.AppendChar('(');
 
@@ -190,9 +190,9 @@ void GetPropertyValueAsStringDirect(const UProperty* InProp, const uint8* InData
 
 					OutString.Append(TEXT(" = "));
 
-					if (MapHelper.GetValueProperty()->IsA<UStructProperty>() && !!(InDTExportFlags & EDataTableExportFlags::UseJsonObjectsForStructs))
+					if (MapHelper.GetValueProperty()->IsA<FStructProperty>() && !!(InDTExportFlags & EDataTableExportFlags::UseJsonObjectsForStructs))
 					{
-						const UStructProperty* StructMapValue = CastChecked<const UStructProperty>(MapHelper.GetValueProperty());
+						const FStructProperty* StructMapValue = CastFieldChecked<const FStructProperty>(MapHelper.GetValueProperty());
 						OutString.Append(ExportStructAsJson(StructMapValue->Struct, MapValueData));
 					}
 					else
@@ -205,7 +205,7 @@ void GetPropertyValueAsStringDirect(const UProperty* InProp, const uint8* InData
 			OutString.AppendChar(')');
 			return;
 		}
-		else if (const UStructProperty* StructProp = Cast<const UStructProperty>(InProp))
+		else if (const FStructProperty* StructProp = CastField<const FStructProperty>(InProp))
 		{
 			OutString.Append(ExportStructAsJson(StructProp->Struct, InData));
 			return;
@@ -215,7 +215,7 @@ void GetPropertyValueAsStringDirect(const UProperty* InProp, const uint8* InData
 	InProp->ExportText_Direct(OutString, InData, InData, nullptr, InPortFlags);
 }
 
-void GetPropertyValueAsString(const UProperty* InProp, const uint8* InData, const int32 InIndex, const int32 InPortFlags, const EDataTableExportFlags InDTExportFlags, FString& OutString)
+void GetPropertyValueAsString(const FProperty* InProp, const uint8* InData, const int32 InIndex, const int32 InPortFlags, const EDataTableExportFlags InDTExportFlags, FString& OutString)
 {
 	const uint8* ValuePtr = InProp->ContainerPtrToValuePtr<uint8>(InData, InIndex);
 	return GetPropertyValueAsStringDirect(InProp, ValuePtr, InPortFlags, InDTExportFlags, OutString);
@@ -223,7 +223,7 @@ void GetPropertyValueAsString(const UProperty* InProp, const uint8* InData, cons
 
 }
 
-FString DataTableUtils::AssignStringToPropertyDirect(const FString& InString, const UProperty* InProp, uint8* InData)
+FString DataTableUtils::AssignStringToPropertyDirect(const FString& InString, const FProperty* InProp, uint8* InData)
 {
 	FStringOutputDevice ImportError;
 	if(InProp && IsSupportedTableProperty(InProp))
@@ -235,7 +235,7 @@ FString DataTableUtils::AssignStringToPropertyDirect(const FString& InString, co
 	return Error;
 }
 
-FString DataTableUtils::AssignStringToProperty(const FString& InString, const UProperty* InProp, uint8* InData)
+FString DataTableUtils::AssignStringToProperty(const FString& InString, const FProperty* InProp, uint8* InData)
 {
 	FStringOutputDevice ImportError;
 	if(InProp && IsSupportedTableProperty(InProp))
@@ -278,7 +278,7 @@ FString DataTableUtils::AssignStringToProperty(const FString& InString, const UP
 	return Error;
 }
 
-FString DataTableUtils::GetPropertyValueAsStringDirect(const UProperty* InProp, const uint8* InData, const EDataTableExportFlags InDTExportFlags)
+FString DataTableUtils::GetPropertyValueAsStringDirect(const FProperty* InProp, const uint8* InData, const EDataTableExportFlags InDTExportFlags)
 {
 	FString Result;
 
@@ -290,7 +290,7 @@ FString DataTableUtils::GetPropertyValueAsStringDirect(const UProperty* InProp, 
 	return Result;
 }
 
-FString DataTableUtils::GetPropertyValueAsString(const UProperty* InProp, const uint8* InData, const EDataTableExportFlags InDTExportFlags)
+FString DataTableUtils::GetPropertyValueAsString(const FProperty* InProp, const uint8* InData, const EDataTableExportFlags InDTExportFlags)
 {
 	FString Result;
 
@@ -321,7 +321,7 @@ FString DataTableUtils::GetPropertyValueAsString(const UProperty* InProp, const 
 	return Result;
 }
 
-FText DataTableUtils::GetPropertyValueAsTextDirect(const UProperty* InProp, const uint8* InData)
+FText DataTableUtils::GetPropertyValueAsTextDirect(const FProperty* InProp, const uint8* InData)
 {
 	FText Result;
 
@@ -336,7 +336,7 @@ FText DataTableUtils::GetPropertyValueAsTextDirect(const UProperty* InProp, cons
 	return Result;
 }
 
-FText DataTableUtils::GetPropertyValueAsText(const UProperty* InProp, const uint8* InData)
+FText DataTableUtils::GetPropertyValueAsText(const FProperty* InProp, const uint8* InData)
 {
 	FText Result;
 
@@ -375,7 +375,7 @@ FText DataTableUtils::GetPropertyValueAsText(const UProperty* InProp, const uint
 TArray<FName> DataTableUtils::GetStructPropertyNames(UStruct* InStruct)
 {
 	TArray<FName> PropNames;
-	for (TFieldIterator<UProperty> It(InStruct); It; ++It)
+	for (TFieldIterator<FProperty> It(InStruct); It; ++It)
 	{
 		PropNames.Add(It->GetFName());
 	}
@@ -405,28 +405,28 @@ FName DataTableUtils::MakeValidName(const FString& InString)
 	return FName(*FixedString);
 }
 
-bool DataTableUtils::IsSupportedTableProperty(const UProperty* InProp)
+bool DataTableUtils::IsSupportedTableProperty(const FProperty* InProp)
 {
 	return( InProp &&
-			(InProp->IsA(UIntProperty::StaticClass()) || 
-			InProp->IsA(UNumericProperty::StaticClass()) ||
-			InProp->IsA(UDoubleProperty::StaticClass()) ||
-			InProp->IsA(UFloatProperty::StaticClass()) ||
-			InProp->IsA(UNameProperty::StaticClass()) ||
-			InProp->IsA(UStrProperty::StaticClass()) ||
-			InProp->IsA(UBoolProperty::StaticClass()) ||
-			InProp->IsA(UObjectPropertyBase::StaticClass()) ||
-			InProp->IsA(UStructProperty::StaticClass()) ||
-			InProp->IsA(UByteProperty::StaticClass()) ||
-			InProp->IsA(UTextProperty::StaticClass()) ||
-			InProp->IsA(UArrayProperty::StaticClass()) ||
-			InProp->IsA(USetProperty::StaticClass()) ||
-			InProp->IsA(UMapProperty::StaticClass()) ||
-			InProp->IsA(UEnumProperty::StaticClass()))
+			(InProp->IsA(FIntProperty::StaticClass()) || 
+			InProp->IsA(FNumericProperty::StaticClass()) ||
+			InProp->IsA(FDoubleProperty::StaticClass()) ||
+			InProp->IsA(FFloatProperty::StaticClass()) ||
+			InProp->IsA(FNameProperty::StaticClass()) ||
+			InProp->IsA(FStrProperty::StaticClass()) ||
+			InProp->IsA(FBoolProperty::StaticClass()) ||
+			InProp->IsA(FObjectPropertyBase::StaticClass()) ||
+			InProp->IsA(FStructProperty::StaticClass()) ||
+			InProp->IsA(FByteProperty::StaticClass()) ||
+			InProp->IsA(FTextProperty::StaticClass()) ||
+			InProp->IsA(FArrayProperty::StaticClass()) ||
+			InProp->IsA(FSetProperty::StaticClass()) ||
+			InProp->IsA(FMapProperty::StaticClass()) ||
+			InProp->IsA(FEnumProperty::StaticClass()))
 			);
 }
 
-FString DataTableUtils::GetPropertyExportName(const UProperty* Prop, const EDataTableExportFlags InDTExportFlags)
+FString DataTableUtils::GetPropertyExportName(const FProperty* Prop, const EDataTableExportFlags InDTExportFlags)
 {
 	if (!ensure(Prop))
 	{
@@ -435,7 +435,7 @@ FString DataTableUtils::GetPropertyExportName(const UProperty* Prop, const EData
 	return Prop->GetAuthoredName();
 }
 
-TArray<FString> DataTableUtils::GetPropertyImportNames(const UProperty* Prop)
+TArray<FString> DataTableUtils::GetPropertyImportNames(const FProperty* Prop)
 {
 	TArray<FString> Result;
 	if (ensure(Prop))
@@ -446,14 +446,14 @@ TArray<FString> DataTableUtils::GetPropertyImportNames(const UProperty* Prop)
 	return Result;
 }
 
-FText DataTableUtils::GetPropertyDisplayName(const UProperty* Prop, const FString& DefaultName)
+FText DataTableUtils::GetPropertyDisplayName(const FProperty* Prop, const FString& DefaultName)
 {
 #if WITH_EDITOR
 	if (Prop)
 	{
 		return Prop->GetDisplayNameText();
 	}
-#endif  // WITH_EDITOR
+#endif // WITH_EDITOR
 	return FText::FromString(DefaultName);
 }
 
@@ -469,7 +469,7 @@ TArray<FString> DataTableUtils::GetColumnDataAsString(const UDataTable* InTable,
 		return Result;
 	}
 
-	UProperty* ColumnProperty = InTable->FindTableProperty(PropertyName);
+	FProperty* ColumnProperty = InTable->FindTableProperty(PropertyName);
 	if (ColumnProperty)
 	{
 		for (auto RowIt = InTable->GetRowMap().CreateConstIterator(); RowIt; ++RowIt)

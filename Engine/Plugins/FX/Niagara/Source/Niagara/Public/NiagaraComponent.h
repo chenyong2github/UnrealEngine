@@ -387,7 +387,7 @@ public:
 	//~ Begin UObject Interface.
 	virtual void PostLoad();
 #if WITH_EDITOR
-	virtual void PreEditChange(UProperty* PropertyAboutToChange) override;
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	void OverrideUObjectParameter(const FNiagaraVariable& InVar, UObject* InObj);
 

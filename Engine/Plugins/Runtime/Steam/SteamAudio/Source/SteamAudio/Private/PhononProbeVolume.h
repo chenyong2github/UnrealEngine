@@ -73,7 +73,7 @@ public:
 	/** Writes a given probe batch out to the Runtime folder. Returns file size, or 0 if no file was written. */
 	int32 SaveProbeBatchToDisk(IPLhandle ProbeBatch);
 
-	virtual bool CanEditChange(const UProperty* InProperty) const override;
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 
 #endif
 

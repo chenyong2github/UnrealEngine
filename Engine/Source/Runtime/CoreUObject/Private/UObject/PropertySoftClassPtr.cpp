@@ -4,13 +4,27 @@
 #include "UObject/ObjectMacros.h"
 #include "Templates/Casts.h"
 #include "UObject/UnrealType.h"
+#include "UObject/UnrealTypePrivate.h"
 #include "UObject/LinkerPlaceholderClass.h"
 
-/*-----------------------------------------------------------------------------
-	USoftClassProperty.
------------------------------------------------------------------------------*/
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
 
-void USoftClassProperty::BeginDestroy()
+/*-----------------------------------------------------------------------------
+	FSoftClassProperty.
+-----------------------------------------------------------------------------*/
+IMPLEMENT_FIELD(FSoftClassProperty)
+
+#if WITH_EDITORONLY_DATA
+FSoftClassProperty::FSoftClassProperty(UField* InField)
+	: Super(InField)
+{
+	USoftClassProperty* SourceProperty = CastChecked<USoftClassProperty>(InField);
+	MetaClass = SourceProperty->MetaClass;
+}
+#endif // WITH_EDITORONLY_DATA
+
+void FSoftClassProperty::BeginDestroy()
 {
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 	if (ULinkerPlaceholderClass* PlaceholderClass = Cast<ULinkerPlaceholderClass>(MetaClass))
@@ -22,29 +36,36 @@ void USoftClassProperty::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-FString USoftClassProperty::GetCPPType(FString* ExtendedTypeText, uint32 CPPExportFlags) const
+void FSoftClassProperty::PostDuplicate(const FField& InField)
+{
+	const FSoftClassProperty& Source = static_cast<const FSoftClassProperty&>(InField);
+	MetaClass = Source.MetaClass;
+	Super::PostDuplicate(InField);
+}
+
+FString FSoftClassProperty::GetCPPType(FString* ExtendedTypeText, uint32 CPPExportFlags) const
 {
 	check(MetaClass);
 	return GetCPPTypeCustom(ExtendedTypeText, CPPExportFlags, 
 		FString::Printf(TEXT("%s%s"), MetaClass->GetPrefixCPP(), *MetaClass->GetName()));
 }
-FString USoftClassProperty::GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& InnerNativeTypeName) const
+FString FSoftClassProperty::GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& InnerNativeTypeName) const
 {
 	ensure(!InnerNativeTypeName.IsEmpty());
 	return FString::Printf(TEXT("TSoftClassPtr<%s> "), *InnerNativeTypeName);
 }
-FString USoftClassProperty::GetCPPMacroType( FString& ExtendedTypeText ) const
+FString FSoftClassProperty::GetCPPMacroType( FString& ExtendedTypeText ) const
 {
 	ExtendedTypeText = FString::Printf(TEXT("TSoftClassPtr<%s%s> "),MetaClass->GetPrefixCPP(),*MetaClass->GetName());
 	return TEXT("SOFTCLASS");
 }
 
-FString USoftClassProperty::GetCPPTypeForwardDeclaration() const
+FString FSoftClassProperty::GetCPPTypeForwardDeclaration() const
 {
 	return FString::Printf(TEXT("class %s%s;"), MetaClass->GetPrefixCPP(), *MetaClass->GetName());
 }
 
-void USoftClassProperty::Serialize( FArchive& Ar )
+void FSoftClassProperty::Serialize( FArchive& Ar )
 {
 	Super::Serialize( Ar );
 	Ar << MetaClass;
@@ -59,7 +80,7 @@ void USoftClassProperty::Serialize( FArchive& Ar )
 	}
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 
-	if( !(MetaClass||HasAnyFlags(RF_ClassDefaultObject)) )
+	if( !MetaClass )
 	{
 		// If we failed to load the MetaClass and we're not a CDO, that means we relied on a class that has been removed or doesn't exist.
 		// The most likely cause for this is either an incomplete recompile, or if content was migrated between games that had native class dependencies
@@ -73,7 +94,7 @@ void USoftClassProperty::Serialize( FArchive& Ar )
 }
 
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
-void USoftClassProperty::SetMetaClass(UClass* NewMetaClass)
+void FSoftClassProperty::SetMetaClass(UClass* NewMetaClass)
 {
 	if (ULinkerPlaceholderClass* NewPlaceholderClass = Cast<ULinkerPlaceholderClass>(NewMetaClass))
 	{
@@ -88,20 +109,15 @@ void USoftClassProperty::SetMetaClass(UClass* NewMetaClass)
 }
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 
-void USoftClassProperty::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+void FSoftClassProperty::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	USoftClassProperty* This = CastChecked<USoftClassProperty>(InThis);
-	Collector.AddReferencedObject( This->MetaClass, This );
-	Super::AddReferencedObjects( This, Collector );
+	Collector.AddReferencedObject( MetaClass );
+	Super::AddReferencedObjects( Collector );
 }
 
-bool USoftClassProperty::SameType(const UProperty* Other) const
+bool FSoftClassProperty::SameType(const FProperty* Other) const
 {
-	return Super::SameType(Other) && (MetaClass == ((USoftClassProperty*)Other)->MetaClass);
+	return Super::SameType(Other) && (MetaClass == ((FSoftClassProperty*)Other)->MetaClass);
 }
 
-IMPLEMENT_CORE_INTRINSIC_CLASS(USoftClassProperty, USoftObjectProperty,
-	{
-		Class->EmitObjectReference(STRUCT_OFFSET(USoftClassProperty, MetaClass), TEXT("MetaClass"));
-	}
-);
+#include "UObject/DefineUPropertyMacros.h"

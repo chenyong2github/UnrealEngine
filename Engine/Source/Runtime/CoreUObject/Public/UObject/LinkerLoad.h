@@ -1183,7 +1183,7 @@ private:
 
 	/** 
 	 * Internal list to track imports that were deferred, but don't belong to 
-	 * the ImportMap (thinks ones loaded through config files via UProperty::ImportText).
+	 * the ImportMap (thinks ones loaded through config files via FProperty::ImportText).
 	 */
 	TMap<FName, FLinkerPlaceholderBase*> ImportPlaceholders;
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING

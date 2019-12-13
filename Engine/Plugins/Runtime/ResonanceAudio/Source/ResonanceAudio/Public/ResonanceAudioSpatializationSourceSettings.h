@@ -22,7 +22,7 @@ public:
 	// See if Audio Component references this settings instance:
 	bool DoesAudioComponentReferenceThis(class UAudioComponent* InAudioComponent);
 
-	virtual bool CanEditChange(const UProperty* InProperty) const override;
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 

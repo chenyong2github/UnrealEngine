@@ -47,8 +47,8 @@ void FComponentReferenceCustomization::CustomizeHeader(TSharedRef<IPropertyHandl
 
 	if (bUseComponentPicker)
 	{
-		UProperty* Property = InPropertyHandle->GetProperty();
-		check(Cast<UStructProperty>(Property) && FComponentReference::StaticStruct() == CastChecked<const UStructProperty>(Property)->Struct);
+		FProperty* Property = InPropertyHandle->GetProperty();
+		check(CastField<FStructProperty>(Property) && FComponentReference::StaticStruct() == CastFieldChecked<const FStructProperty>(Property)->Struct);
 
 		bAllowClear = !(InPropertyHandle->GetMetaDataProperty()->PropertyFlags & CPF_NoClear);
 		bAllowAnyActor = InPropertyHandle->HasMetaData(NAME_AllowAnyActor);
@@ -326,7 +326,7 @@ void FComponentReferenceCustomization::SetValue(const FComponentReference& Value
 	if (bIsEmpty || bAllowedToSetBasedOnFilter)
 	{
 		FString TextValue;
-		CastChecked<const UStructProperty>(PropertyHandle->GetProperty())->Struct->ExportText(TextValue, &Value, &Value, nullptr, EPropertyPortFlags::PPF_None, nullptr);
+		CastFieldChecked<const FStructProperty>(PropertyHandle->GetProperty())->Struct->ExportText(TextValue, &Value, &Value, nullptr, EPropertyPortFlags::PPF_None, nullptr);
 		ensure(PropertyHandle->SetValueFromFormattedString(TextValue) == FPropertyAccess::Result::Success);
 	}
 }
@@ -512,7 +512,7 @@ FText FComponentReferenceCustomization::OnGetComponentName() const
 		if (UActorComponent* ActorComponent = CachedComponent.Get())
 		{
 			const FName ComponentName = FComponentEditorUtils::FindVariableNameGivenComponentInstance(ActorComponent);
-			const bool bIsArrayVariable = !ComponentName.IsNone() && ActorComponent->GetOwner() != nullptr && FindField<UArrayProperty>(ActorComponent->GetOwner()->GetClass(), ComponentName);
+			const bool bIsArrayVariable = !ComponentName.IsNone() && ActorComponent->GetOwner() != nullptr && FindField<FArrayProperty>(ActorComponent->GetOwner()->GetClass(), ComponentName);
 
 			if (!ComponentName.IsNone() && !bIsArrayVariable)
 			{

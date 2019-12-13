@@ -85,10 +85,10 @@ static FString GetVarType(UStruct* VarScope, FName VarName, bool bUseObjToolTip,
 
 	if (VarScope)
 	{
-		if (UProperty* Property = FindField<UProperty>(VarScope, VarName))
+		if (FProperty* Property = FindField<FProperty>(VarScope, VarName))
 		{
 			// If it is an object property, see if we can get a nice class description instead of just the name
-			UObjectProperty* ObjProp = Cast<UObjectProperty>(Property);
+			FObjectProperty* ObjProp = CastField<FObjectProperty>(Property);
 			if (bUseObjToolTip && ObjProp && ObjProp->PropertyClass)
 			{
 				VarDesc = ObjProp->PropertyClass->GetToolTipText().ToString();
@@ -126,7 +126,7 @@ static FString GetVarTooltip(UBlueprint* InBlueprint, UClass* VarClass, FName Va
 	if (VarClass)
 	{
 	
-		if (UProperty* Property = FindField<UProperty>(VarClass, VarName))
+		if (FProperty* Property = FindField<FProperty>(VarClass, VarName))
 		{
 			// discover if the variable property is a non blueprint user variable
 			UClass* SourceClass = Property->GetOwnerClass();
@@ -694,7 +694,7 @@ public:
 	 * @param  InVariableProperty		The variable property to select
 	 * @param  InBlueprintEditor			A pointer to the blueprint editor that the palette belongs to.
 	 */
-	void Construct(const FArguments& InArgs, UProperty* InVariableProperty, UBlueprint* InBlueprint, TWeakPtr<FBlueprintEditor> InBlueprintEditor)
+	void Construct(const FArguments& InArgs, FProperty* InVariableProperty, UBlueprint* InBlueprint, TWeakPtr<FBlueprintEditor> InBlueprintEditor)
 	{
 		BlueprintObj = InBlueprint;
 		BlueprintEditorPtr = InBlueprintEditor;
@@ -715,7 +715,7 @@ public:
 private:
 	FEdGraphPinType OnGetVarType() const
 	{
-		if (UProperty* VarProp = VariableProperty.Get())
+		if (FProperty* VarProp = const_cast<FProperty*>(VariableProperty))
 		{
 			const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 			FEdGraphPinType Type;
@@ -729,7 +729,7 @@ private:
 	{
 		if (FBlueprintEditorUtils::IsPinTypeValid(InNewPinType))
 		{
-			if (UProperty* VarProp = VariableProperty.Get())
+			if (FProperty* VarProp = VariableProperty)
 			{
 				FName VarName = VarProp->GetFName();
 
@@ -738,7 +738,7 @@ private:
 					// Set the MyBP tab's last pin type used as this, for adding lots of variables of the same type
 					BlueprintEditorPtr.Pin()->GetMyBlueprintWidget()->GetLastPinTypeUsed() = InNewPinType;
 
-					if (UFunction* LocalVariableScope = Cast<UFunction>(VarProp->GetOuter()))
+					if (UFunction* LocalVariableScope = VarProp->GetOwner<UFunction>())
 					{
 						FBlueprintEditorUtils::ChangeLocalVariableType(BlueprintObj, LocalVariableScope, VarName, InNewPinType);
 					}
@@ -762,7 +762,7 @@ private:
 	TWeakPtr<FBlueprintEditor>     BlueprintEditorPtr;
 
 	/** Variable Property to change the type of */
-	TWeakObjectPtr<UProperty> VariableProperty;
+	FProperty* VariableProperty;
 };
 
 /*******************************************************************************
@@ -793,10 +793,10 @@ public:
 		bool bShouldHaveAVisibilityToggle = false;
 		if (PaletteAction->GetTypeId() == FEdGraphSchemaAction_K2Var::StaticGetTypeId())
 		{
-			UProperty* VariableProp = StaticCastSharedPtr<FEdGraphSchemaAction_K2Var>(PaletteAction)->GetProperty();
-			UObjectProperty* VariableObjProp = Cast<UObjectProperty>(VariableProp);
+			FProperty* VariableProp = StaticCastSharedPtr<FEdGraphSchemaAction_K2Var>(PaletteAction)->GetProperty();
+			FObjectProperty* VariableObjProp = CastField<FObjectProperty>(VariableProp);
 
-			UStruct* VarSourceScope = (VariableProp ? CastChecked<UStruct>(VariableProp->GetOuter()) : nullptr);
+			UStruct* VarSourceScope = (VariableProp ? CastChecked<UStruct>(VariableProp->GetOwner<UObject>()) : nullptr);
 			const bool bIsBlueprintVariable = (VarSourceScope == BlueprintObj->SkeletonGeneratedClass);
 			const bool bIsComponentVar = (VariableObjProp && VariableObjProp->PropertyClass && VariableObjProp->PropertyClass->IsChildOf(UActorComponent::StaticClass()));
 			bShouldHaveAVisibilityToggle = bIsBlueprintVariable && (!bIsComponentVar || FBlueprintEditorUtils::IsVariableCreatedByBlueprint(BlueprintObj, VariableObjProp));
@@ -844,7 +844,7 @@ private:
 		if ( PaletteAction->GetTypeId() == FEdGraphSchemaAction_K2Var::StaticGetTypeId() )
 		{
 			TSharedPtr<FEdGraphSchemaAction_K2Var> VarAction = StaticCastSharedPtr<FEdGraphSchemaAction_K2Var>(PaletteAction);
-			if (UProperty* VariableProperty = VarAction->GetProperty())
+			if (FProperty* VariableProperty = VarAction->GetProperty())
 			{
 				return VariableProperty->HasAnyPropertyFlags(CPF_DisableEditOnInstance) ? ECheckBoxState::Unchecked : ECheckBoxState::Checked;
 			}
@@ -1037,7 +1037,7 @@ void SBlueprintPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetFor
 	// For Variables and Local Variables, we will convert the icon widget into a pin type selector.
 	if (GraphAction->GetTypeId() == FEdGraphSchemaAction_K2Var::StaticGetTypeId() || GraphAction->GetTypeId() == FEdGraphSchemaAction_K2LocalVar::StaticGetTypeId())
 	{
-		UProperty* VariableProp = nullptr;
+		FProperty* VariableProp = nullptr;
 
 		if (GraphAction->GetTypeId() == FEdGraphSchemaAction_K2Var::StaticGetTypeId())
 		{
@@ -1051,7 +1051,7 @@ void SBlueprintPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetFor
 		// If the variable is not a local variable or created by the current Blueprint, do not use the PinTypeSelector
 		if (VariableProp)
 		{
-			if (FBlueprintEditorUtils::IsVariableCreatedByBlueprint(Blueprint, VariableProp) || Cast<UFunction>(VariableProp->GetOuter()))
+			if (FBlueprintEditorUtils::IsVariableCreatedByBlueprint(Blueprint, VariableProp) || VariableProp->GetOwner<UFunction>())
 			{
 				const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
 				IconWidget = SNew(SPinTypeSelectorHelper, VariableProp, Blueprint, BlueprintEditorPtr)
@@ -1371,10 +1371,10 @@ void SBlueprintPaletteItem::OnNameTextCommitted(const FText& NewText, ETextCommi
 
 		// Double check we're not renaming a timeline disguised as a variable
 		bool bIsTimeline = false;
-		if (UProperty* VariableProperty = VarAction->GetProperty())
+		if (FProperty* VariableProperty = VarAction->GetProperty())
 		{
 			// Don't allow removal of timeline properties - you need to remove the timeline node for that
-			UObjectProperty* ObjProperty = Cast<UObjectProperty>(VariableProperty);
+			FObjectProperty* ObjProperty = CastField<FObjectProperty>(VariableProperty);
 			if (ObjProperty && ObjProperty->PropertyClass == UTimelineComponent::StaticClass())
 			{
 				bIsTimeline = true;

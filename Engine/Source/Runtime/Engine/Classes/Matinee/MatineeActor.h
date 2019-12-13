@@ -356,7 +356,7 @@ public:
 	//~ Begin UObject Interface
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty( FPropertyChangedEvent& PropertyChangedEvent ) override; 
-	virtual bool CanEditChange( const UProperty* Property ) const override;
+	virtual bool CanEditChange( const FProperty* Property ) const override;
 #endif // WITH_EDITOR
 	//~ End UObject Interface
 

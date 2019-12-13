@@ -16,10 +16,6 @@ FGraphSeries::FGraphSeries()
 	, bIsVisible(true)
 	, bIsDirty(false)
 	, bAutoZoom(false)
-	, TargetAutoZoomLowValue(0.0)
-	, TargetAutoZoomHighValue(1.0)
-	, AutoZoomLowValue(0.0)
-	, AutoZoomHighValue(1.0)
 	, BaselineY(0.0)
 	, ScaleY(1.0)
 	, Color(0.0f, 0.5f, 1.0f, 1.0f)
@@ -101,6 +97,61 @@ const FGraphSeriesEvent* FGraphSeries::GetEvent(const float X, const float Y, co
 FString FGraphSeries::FormatValue(double Value) const
 {
 	return FString::Printf(TEXT("%g"), Value);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FGraphSeries::UpdateAutoZoom(const float InTopY, const float InBottomY, const double InMinEventValue, const double InMaxEventValue)
+{
+	if (IsAutoZoomEnabled())
+	{
+		const double LowValue = GetValueForY(InBottomY);
+		const double HighValue = GetValueForY(InTopY);
+
+		double MinValue = InMinEventValue;
+		double MaxValue = InMaxEventValue;
+
+		// If MinValue == MaxValue, we keep the previous baseline and scale, but only if the min/max value is already visible.
+		if (MinValue == MaxValue && (MinValue < LowValue || MaxValue > HighValue))
+		{
+			MinValue = FMath::Min(MinValue, LowValue);
+			MaxValue = FMath::Max(MaxValue, HighValue);
+		}
+
+		if (MinValue < MaxValue)
+		{
+			constexpr bool bIsAutoZoomAnimated = true;
+			if (bIsAutoZoomAnimated)
+			{
+				// Interpolate the min-max interval (animating the vertical position and scale of the graph series).
+				constexpr double InterpolationSpeed = 0.5;
+				const double NewMinValue = InterpolationSpeed * MinValue + (1.0 - InterpolationSpeed) * LowValue;
+				const double NewMaxValue = InterpolationSpeed * MaxValue + (1.0 - InterpolationSpeed) * HighValue;
+
+				// Check if we reach the target min-max interval.
+				const double ErrorTolerance = 0.5 / GetScaleY(); // delta value for dy ~= 0.5 pixels
+				if (!FMath::IsNearlyEqual(NewMinValue, MinValue, ErrorTolerance) ||
+					!FMath::IsNearlyEqual(NewMaxValue, MaxValue, ErrorTolerance))
+				{
+					MinValue = NewMinValue;
+					MaxValue = NewMaxValue;
+
+					// Request a new update so we can further interpolate the min-max interval.
+					SetDirtyFlag();
+				}
+			}
+
+			double NewBaselineY;
+			double NewScaleY;
+			ComputeBaselineAndScale(MinValue, MaxValue, InTopY, InBottomY, NewBaselineY, NewScaleY);
+			SetBaselineY(NewBaselineY);
+			SetScaleY(NewScaleY);
+		}
+		else
+		{
+			// If MinValue == MaxValue, we keep the previous baseline and scale.
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

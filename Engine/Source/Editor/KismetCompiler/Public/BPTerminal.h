@@ -30,8 +30,8 @@ struct FBPTerminal
 	// Context->
 	FBPTerminal* Context;
 
-	// For non-literal terms, this is the UProperty being referenced (in the stack if bIsLocal set, or on the context otherwise)
-	UProperty* AssociatedVarProperty;
+	// For non-literal terms, this is the FProperty being referenced (in the stack if bIsLocal set, or on the context otherwise)
+	FProperty* AssociatedVarProperty;
 
 	/** Pointer to an object literal */
 	UObject* ObjectLiteral;

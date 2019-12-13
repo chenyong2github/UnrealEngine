@@ -148,7 +148,7 @@ void UNiagaraStackEventHandlerPropertiesItem::SelectEmitterStackObjectRootTreeNo
 			TSharedPtr<IPropertyHandle> EventHandlerArrayItemPropertyHandle = EventHandlerArrayItemNode->CreatePropertyHandle();
 			if (EventHandlerArrayItemPropertyHandle.IsValid())
 			{
-				UStructProperty* StructProperty = Cast<UStructProperty>(EventHandlerArrayItemPropertyHandle->GetProperty());
+				FStructProperty* StructProperty = CastField<FStructProperty>(EventHandlerArrayItemPropertyHandle->GetProperty());
 				if (StructProperty != nullptr && StructProperty->Struct == FNiagaraEventScriptProperties::StaticStruct())
 				{
 					TArray<void*> RawData;

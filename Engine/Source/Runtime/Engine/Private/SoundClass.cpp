@@ -119,7 +119,7 @@ void USoundClass::PostLoad()
 TArray<USoundClass*> BackupChildClasses;
 ESoundWaveLoadingBehavior BackupLoadingBehavior;
 
-void USoundClass::PreEditChange(UProperty* PropertyAboutToChange)
+void USoundClass::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	static const FName NAME_ChildClasses = GET_MEMBER_NAME_CHECKED(USoundClass, ChildClasses);
 	static const FName NAME_Properties = GET_MEMBER_NAME_CHECKED(FSoundClassProperties, LoadingBehavior);

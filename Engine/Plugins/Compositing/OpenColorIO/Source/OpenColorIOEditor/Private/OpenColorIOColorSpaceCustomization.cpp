@@ -21,8 +21,8 @@ void FOpenColorIOColorSpaceCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 
 	if (ColorSpaceProperty->GetNumPerObjectValues() == 1 && ColorSpaceProperty->IsValidHandle())
 	{
-		UProperty* Property = ColorSpaceProperty->GetProperty();
-		check(Property && Cast<UStructProperty>(Property) && Cast<UStructProperty>(Property)->Struct && Cast<UStructProperty>(Property)->Struct->IsChildOf(FOpenColorIOColorSpace::StaticStruct()));
+		FProperty* Property = ColorSpaceProperty->GetProperty();
+		check(Property && CastField<FStructProperty>(Property) && CastField<FStructProperty>(Property)->Struct && CastField<FStructProperty>(Property)->Struct->IsChildOf(FOpenColorIOColorSpace::StaticStruct()));
 
 		TArray<void*> RawData;
 		ColorSpaceProperty->AccessRawData(RawData);
@@ -202,7 +202,7 @@ void FOpenColorIOColorSpaceCustomization::AddMenuEntry(FMenuBuilder& InMenuBuild
 		FUIAction(
 			FExecuteAction::CreateLambda([=]
 			{
-				if (UStructProperty* StructProperty = Cast<UStructProperty>(ColorSpaceProperty->GetProperty()))
+				if (FStructProperty* StructProperty = CastField<FStructProperty>(ColorSpaceProperty->GetProperty()))
 				{
 					TArray<void*> RawData;
 					ColorSpaceProperty->AccessRawData(RawData);

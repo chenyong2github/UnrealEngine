@@ -283,7 +283,7 @@ public:
     {
         m_positionsProperty.reset();
         m_velocitiesProperty.reset();
-        m_numUProperty.reset();
+        m_numFProperty.reset();
         m_numVProperty.reset();
         m_uOrderProperty.reset();
         m_vOrderProperty.reset();
@@ -302,7 +302,7 @@ public:
         m_trimKnotProperty.reset();
         m_trimMinProperty.reset();
         m_trimMaxProperty.reset();
-        m_trimUProperty.reset();
+        m_trimFProperty.reset();
         m_trimVProperty.reset();
         m_trimWProperty.reset();
 
@@ -315,7 +315,7 @@ public:
     {
         return ( IGeomBaseSchema<NuPatchSchemaInfo>::valid() &&
                  m_positionsProperty.valid() &&
-                 m_numUProperty.valid() &&
+                 m_numFProperty.valid() &&
                  m_numVProperty.valid() &&
                  m_uOrderProperty.valid() &&
                  m_vOrderProperty.valid() &&
@@ -336,7 +336,7 @@ protected:
 
     // required properties
     Abc::IP3fArrayProperty m_positionsProperty;
-    Abc::IInt32Property m_numUProperty;
+    Abc::IInt32Property m_numFProperty;
     Abc::IInt32Property m_numVProperty;
     Abc::IInt32Property m_uOrderProperty;
     Abc::IInt32Property m_vOrderProperty;
@@ -357,7 +357,7 @@ protected:
     Abc::IFloatArrayProperty m_trimKnotProperty;
     Abc::IFloatArrayProperty m_trimMinProperty;
     Abc::IFloatArrayProperty m_trimMaxProperty;
-    Abc::IFloatArrayProperty m_trimUProperty;
+    Abc::IFloatArrayProperty m_trimFProperty;
     Abc::IFloatArrayProperty m_trimVProperty;
     Abc::IFloatArrayProperty m_trimWProperty;
 

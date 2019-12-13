@@ -94,7 +94,7 @@ bool VerifyAnimationRename( FWidgetBlueprintEditor& BlueprintEditor, UWidgetAnim
 	// Check for BindWidgetAnim property
 	if (Blueprint)
 	{
-		UProperty* Property = Blueprint->ParentClass->FindPropertyByName(NewAnimationNameAsName);
+		FProperty* Property = Blueprint->ParentClass->FindPropertyByName(NewAnimationNameAsName);
 		if (Property && FWidgetBlueprintEditorUtils::IsBindWidgetAnimProperty(Property))
 		{
 			return true;
@@ -198,7 +198,7 @@ private:
 		const FName NewFName = *InText.ToString();
 		const FName OldFName = WidgetAnimation->GetFName();
 
-		UObjectPropertyBase* ExistingProperty = Cast<UObjectPropertyBase>(Blueprint->ParentClass->FindPropertyByName(NewFName));
+		FObjectPropertyBase* ExistingProperty = CastField<FObjectPropertyBase>(Blueprint->ParentClass->FindPropertyByName(NewFName));
 		const bool bBindWidgetAnim = ExistingProperty && FWidgetBlueprintEditorUtils::IsBindWidgetAnimProperty(ExistingProperty) && ExistingProperty->PropertyClass->IsChildOf(UWidgetAnimation::StaticClass());
 
 		const bool bValidName = !OldFName.IsEqual(NewFName) && !InText.IsEmpty();

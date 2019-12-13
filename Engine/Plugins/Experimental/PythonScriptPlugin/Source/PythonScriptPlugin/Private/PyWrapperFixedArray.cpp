@@ -144,7 +144,7 @@ int FPyWrapperFixedArray::Init(FPyWrapperFixedArray* InSelf, const PyUtil::FProp
 		return BaseInit;
 	}
 
-	UProperty* ArrayProp = PyUtil::CreateProperty(InPropDef, InLen);
+	FProperty* ArrayProp = PyUtil::CreateProperty(InPropDef, InLen);
 	if (!ArrayProp)
 	{
 		PyUtil::SetPythonError(PyExc_Exception, InSelf, TEXT("Array property was null during init"));
@@ -161,7 +161,7 @@ int FPyWrapperFixedArray::Init(FPyWrapperFixedArray* InSelf, const PyUtil::FProp
 	return 0;
 }
 
-int FPyWrapperFixedArray::Init(FPyWrapperFixedArray* InSelf, const FPyWrapperOwnerContext& InOwnerContext, const UProperty* InProp, void* InValue, const EPyConversionMethod InConversionMethod)
+int FPyWrapperFixedArray::Init(FPyWrapperFixedArray* InSelf, const FPyWrapperOwnerContext& InOwnerContext, const FProperty* InProp, void* InValue, const EPyConversionMethod InConversionMethod)
 {
 	InOwnerContext.AssertValidConversionMethod(InConversionMethod);
 
@@ -175,7 +175,7 @@ int FPyWrapperFixedArray::Init(FPyWrapperFixedArray* InSelf, const FPyWrapperOwn
 
 	check(InProp && InValue);
 
-	const UProperty* PropToUse = nullptr;
+	const FProperty* PropToUse = nullptr;
 	void* ArrayInstanceToUse = nullptr;
 	switch (InConversionMethod)
 	{

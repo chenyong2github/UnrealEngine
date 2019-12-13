@@ -28,16 +28,16 @@ void FConfigPropertyHelperDetails::CustomizeDetails(IDetailLayoutBuilder& Detail
 	TSharedPtr<IPropertyHandle> PropertyHandle = DetailBuilder.GetProperty("EditProperty");
 	DetailBuilder.HideProperty(PropertyHandle);
 
-	UObject* PropValue;
+	FProperty* PropValue;
 	PropertyHandle->GetValue(PropValue);
-	OriginalProperty = CastChecked<UProperty>(PropValue);
+	OriginalProperty = CastFieldChecked<FProperty>(PropValue);
 
 	// Create a unique runtime UClass with the provided property as the only member. We will use this in the details view for the config hierarchy.
-	FName TempClassName = *(FString(TEXT("TempConfigEditorUClass_")) + OriginalProperty->GetOuter()->GetName() + OriginalProperty->GetName());
+	FName TempClassName = *(FString(TEXT("TempConfigEditorUClass_")) + OriginalProperty->GetOwnerVariant().GetName() + OriginalProperty->GetName());
 	ConfigEditorPropertyViewClass = NewObject<UClass>(GetTransientPackage(), TempClassName, RF_Standalone);
 
-	// Keep a record of the UProperty we are looking to update
-	ConfigEditorCopyOfEditProperty = DuplicateObject<UProperty>(OriginalProperty, ConfigEditorPropertyViewClass, PropValue->GetFName());
+	// Keep a record of the FProperty we are looking to update
+	ConfigEditorCopyOfEditProperty = CastField<FProperty>(FField::Duplicate(OriginalProperty, ConfigEditorPropertyViewClass, PropValue->GetFName()));
 	ConfigEditorPropertyViewClass->ClassConfigName = OriginalProperty->GetOwnerClass()->ClassConfigName;
 	ConfigEditorPropertyViewClass->SetSuperStruct(UObject::StaticClass());
 	ConfigEditorPropertyViewClass->ClassFlags |= (CLASS_DefaultConfig | CLASS_Config);
@@ -170,11 +170,11 @@ TSharedRef<SWidget> FConfigPropertyHelperDetails::ConstructPropertyTable(IDetail
 
 	TArray< TSharedRef<class IPropertyTableCustomColumn>> CustomColumns;
 	TSharedRef<FConfigPropertyCustomColumn> EditPropertyColumn = MakeShareable(new FConfigPropertyCustomColumn());
-	EditPropertyColumn->EditProperty = ConfigEditorCopyOfEditProperty; // FindFieldChecked<UProperty>(UPropertyConfigFileDisplay::StaticClass(), TEXT("EditProperty"));
+	EditPropertyColumn->EditProperty = ConfigEditorCopyOfEditProperty; // FindFieldChecked<FProperty>(FPropertyConfigFileDisplay::StaticClass(), TEXT("EditProperty"));
 	CustomColumns.Add(EditPropertyColumn);
 
 	//TSharedRef<FConfigPropertyConfigFileStateCustomColumn> ConfigFileStateColumn = MakeShareable(new FConfigPropertyConfigFileStateCustomColumn());
-	//ConfigFileStateColumn->SupportedProperty = FindFieldChecked<UProperty>(UPropertyConfigFileDisplay::StaticClass(), TEXT("FileState"));
+	//ConfigFileStateColumn->SupportedProperty = FindFieldChecked<FProperty>(FPropertyConfigFileDisplay::StaticClass(), TEXT("FileState"));
 	//CustomColumns.Add(ConfigFileStateColumn);
 
 	return PropertyEditorModule.CreatePropertyTableWidget(PropertyTable.ToSharedRef(), CustomColumns);
@@ -211,9 +211,9 @@ void FConfigPropertyHelperDetails::RepopulatePropertyTable(IDetailLayoutBuilder&
 	PropertyTable->SetObjects(ConfigPropertyDisplayObjects);
 
 	// We need a column for each property in our Helper class.
-	for (UProperty* NextProperty = UPropertyConfigFileDisplayRow::StaticClass()->PropertyLink; NextProperty; NextProperty = NextProperty->PropertyLinkNext)
+	for (FProperty* NextProperty = UPropertyConfigFileDisplayRow::StaticClass()->PropertyLink; NextProperty; NextProperty = NextProperty->PropertyLinkNext)
 	{
-		PropertyTable->AddColumn((TWeakObjectPtr<UProperty>)NextProperty);
+		PropertyTable->AddColumn((TWeakFieldPtr<FProperty>)NextProperty);
 	}
 
 	// Ensure the columns cannot be removed.

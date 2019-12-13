@@ -50,10 +50,10 @@ TSharedRef< SColumnHeader > ColumnWidgetFactory::CreateColumnHeaderWidget( const
 	const TSharedPtr< FPropertyPath > Path = ColumnDataSource->AsPropertyPath();
 	if( Path.IsValid() )
 	{
-		TWeakObjectPtr< UProperty > Property = Path->GetLeafMostProperty().Property;
+		TWeakFieldPtr< FProperty > Property = Path->GetLeafMostProperty().Property;
 		check( Property.IsValid() );
 
-		if ( Property->IsA( UBoolProperty::StaticClass() ) )
+		if ( Property->IsA( FBoolProperty::StaticClass() ) )
 		{
 			return SNew( SBoolColumnHeader, Column, Utilities )
 				.Style( Style )
@@ -61,7 +61,7 @@ TSharedRef< SColumnHeader > ColumnWidgetFactory::CreateColumnHeaderWidget( const
 		}
 	
 		//@todo Move [10/24/2012 Justin.Sargent]
-		if ( Cast<const UStructProperty>(Property.Get()) && (Cast<const UStructProperty>(Property.Get())->Struct->GetFName()==NAME_Color || Cast<const UStructProperty>(Property.Get())->Struct->GetFName()==NAME_LinearColor) )
+		if ( CastField<const FStructProperty>(Property.Get()) && (CastField<const FStructProperty>(Property.Get())->Struct->GetFName()==NAME_Color || CastField<const FStructProperty>(Property.Get())->Struct->GetFName()==NAME_LinearColor) )
 		{
 			return SNew( SColorColumnHeader, Column, Utilities )
 				.Style( Style )

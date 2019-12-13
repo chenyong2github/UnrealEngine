@@ -1405,7 +1405,7 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 #if WITH_EDITOR
 					if (Ar.IsCooking() && Ar.IsSaving())
 					{
-						check(LOD.DistanceFieldData != nullptr);
+					check(LOD.DistanceFieldData != nullptr);
 
 						float Divider = Ar.CookingTarget()->GetDownSampleMeshDistanceFieldDivider();
 
@@ -1419,19 +1419,19 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 							Ar << DownSampledDFVolumeData;
 						}
 						else
-						{
-							Ar << *(LOD.DistanceFieldData);
-						}
+					{
+						Ar << *(LOD.DistanceFieldData);
+					}
 					}
 					else
 #endif
 					{
-						if (LOD.DistanceFieldData == nullptr)
-						{
-							LOD.DistanceFieldData = new FDistanceFieldVolumeData();
-						}
+					if (LOD.DistanceFieldData == nullptr)
+					{
+						LOD.DistanceFieldData = new FDistanceFieldVolumeData();
+					}
 
-						Ar << *(LOD.DistanceFieldData);
+					Ar << *(LOD.DistanceFieldData);
 					}
 				}
 			}
@@ -2924,7 +2924,7 @@ void UStaticMesh::ReleaseResources()
 }
 
 #if WITH_EDITOR
-void UStaticMesh::PreEditChange(UProperty* PropertyAboutToChange)
+void UStaticMesh::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::PreEditChange);
 
@@ -2942,7 +2942,7 @@ void UStaticMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::PostEditChangeProperty);
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	const FName PropertyName = PropertyThatChanged ? PropertyThatChanged->GetFName() : NAME_None;
 	
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMesh, LODGroup))
@@ -3068,22 +3068,22 @@ void UStaticMesh::SetLODGroup(FName NewGroup, bool bRebuildImmediately)
 			
 			if (LODIndex != 0)
 			{
-				//Reset the section info map
-				if (bResetSectionInfoMap)
+			//Reset the section info map
+			if (bResetSectionInfoMap)
+			{
+				for (int32 SectionIndex = 0; SectionIndex < GetSectionInfoMap().GetSectionNumber(LODIndex); ++SectionIndex)
 				{
-					for (int32 SectionIndex = 0; SectionIndex < GetSectionInfoMap().GetSectionNumber(LODIndex); ++SectionIndex)
-					{
 						GetSectionInfoMap().Remove(LODIndex, SectionIndex);
-					}
-				}
-				//Clear the raw data if we change the LOD Group and we do not reduce ourself, this will force the user to do a import LOD which will manage the section info map properly
-				if (!SourceModel.IsRawMeshEmpty() && SourceModel.ReductionSettings.BaseLODModel != LODIndex)
-				{
-					FRawMesh EmptyRawMesh;
-					SourceModel.SaveRawMesh(EmptyRawMesh);
-					SourceModel.SourceImportFilename = FString();
 				}
 			}
+			//Clear the raw data if we change the LOD Group and we do not reduce ourself, this will force the user to do a import LOD which will manage the section info map properly
+			if (!SourceModel.IsRawMeshEmpty() && SourceModel.ReductionSettings.BaseLODModel != LODIndex)
+			{
+				FRawMesh EmptyRawMesh;
+				SourceModel.SaveRawMesh(EmptyRawMesh);
+				SourceModel.SourceImportFilename = FString();
+			}
+		}
 		}
 		LightMapResolution = GroupSettings.GetDefaultLightMapResolution();
 
@@ -3895,8 +3895,8 @@ bool UStaticMesh::IsMeshDescriptionValid(int32 LodIndex) const
 	// If there is a valid MeshDescriptionBulkData, we know this implies a valid mesh description.
 	// If not, then it's a legacy asset which will have a mesh description built from the RawMeshBulkData, if non-empty.
 	return SourceModel.MeshDescription.IsValid() ||
-		SourceModel.MeshDescriptionBulkData.IsValid() ||
-		!SourceModel.RawMeshBulkData->IsEmpty();
+		   SourceModel.MeshDescriptionBulkData.IsValid() ||
+		   !SourceModel.RawMeshBulkData->IsEmpty();
 }
 
 
@@ -3949,26 +3949,26 @@ void UStaticMesh::CommitMeshDescription(int32 LodIndex, const FCommitMeshDescrip
 			{
 				if (Num == 0)
 				{
-					TMap<FName, int32> MaterialMap;
-					for (int32 MaterialIndex = 0; MaterialIndex < StaticMaterials.Num(); ++MaterialIndex)
-					{
-						MaterialMap.Add(StaticMaterials[MaterialIndex].ImportedMaterialSlotName, MaterialIndex);
-					}
+		TMap<FName, int32> MaterialMap;
+		for (int32 MaterialIndex = 0; MaterialIndex < StaticMaterials.Num(); ++MaterialIndex)
+		{
+			MaterialMap.Add(StaticMaterials[MaterialIndex].ImportedMaterialSlotName, MaterialIndex);
+		}
 
 					FRawMesh TempRawMesh;
-					FMeshDescriptionOperations::ConvertToRawMesh(*SourceModel.MeshDescription, TempRawMesh, MaterialMap);
-					SourceModel.RawMeshBulkData->SaveRawMesh(TempRawMesh);
+		FMeshDescriptionOperations::ConvertToRawMesh(*SourceModel.MeshDescription, TempRawMesh, MaterialMap);
+		SourceModel.RawMeshBulkData->SaveRawMesh(TempRawMesh);
 				}
 				else
 				{
 					SourceModel.MeshDescriptionBulkData->SaveMeshDescription(*SourceModel.MeshDescription);
 
 					if (Params.bUseHashAsGuid)
-					{
+		{
 						SourceModel.MeshDescriptionBulkData->UseHashAsGuid();
 					}
 				}
-			}
+		}
 		);
 	}
 	else
@@ -3982,7 +3982,7 @@ void UStaticMesh::CommitMeshDescription(int32 LodIndex, const FCommitMeshDescrip
 	// This part is not thread-safe, so we give the caller the option of calling it manually from the mainthread
 	if (Params.bMarkPackageDirty)
 	{
-		MarkPackageDirty();
+	MarkPackageDirty();
 	}
 }
 
@@ -4767,10 +4767,10 @@ void UStaticMesh::PostLoad()
 		}
 		else
 		{
-			// This, among many other things, will build a MeshDescription from the legacy RawMesh if one has not already been serialized,
-			// or, failing that, if there is not already one in the DDC. This will remain cached until the end of PostLoad(), upon which it
-			// is then released, and can be reloaded on demand.
-			CacheDerivedData();
+		// This, among many other things, will build a MeshDescription from the legacy RawMesh if one has not already been serialized,
+		// or, failing that, if there is not already one in the DDC. This will remain cached until the end of PostLoad(), upon which it
+		// is then released, and can be reloaded on demand.
+		CacheDerivedData();
 		}
 
 		//Fix up the material to remove redundant material, this is needed since the material refactor where we do not have anymore copy of the materials
@@ -5377,6 +5377,18 @@ bool UStaticMesh::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataF
 	OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, MipIndex < MinLOD.Default ? TEXT(".uptnl") : TEXT(".ubulk"));
 	check(MipIndex < MinLOD.Default || IFileManager::Get().FileExists(*OutBulkDataFilename));
 	return true;
+}
+
+bool UStaticMesh::DoesMipDataExist(const int32 MipIndex) const
+{
+	check(MipIndex < MinLOD.Default);
+
+#if !USE_BULKDATA_STREAMING_TOKEN	
+	return RenderData->LODResources[MipIndex].StreamingBulkData.DoesExist();
+#else
+	checkf(false, TEXT("Should not be possible to reach this path, if USE_NEW_BULKDATA is enabled then USE_BULKDATA_STREAMING_TOKEN should be disabled!"));
+	return false;
+#endif
 }
 
 bool UStaticMesh::IsReadyForStreaming() const
@@ -6348,7 +6360,7 @@ void UStaticMesh::SetMaterial(int32 MaterialIndex, UMaterialInterface* NewMateri
 		FScopedTransaction ScopeTransaction(LOCTEXT("StaticMeshMaterialChanged", "StaticMesh: Material changed"));
 
 		// flag the property (Materials) we're modifying so that not all of the object is rebuilt.
-		UProperty* ChangedProperty = FindField<UProperty>(UStaticMesh::StaticClass(), NAME_StaticMaterials);
+		FProperty* ChangedProperty = FindField<FProperty>(UStaticMesh::StaticClass(), NAME_StaticMaterials);
 		check(ChangedProperty);
 		PreEditChange(ChangedProperty);
 		UMaterialInterface* CancelOldMaterial = StaticMaterials[MaterialIndex].MaterialInterface;

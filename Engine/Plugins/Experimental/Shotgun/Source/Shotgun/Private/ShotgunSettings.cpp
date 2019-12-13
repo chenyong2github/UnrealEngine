@@ -45,7 +45,7 @@ void UShotgunSettings::ClearMetaDataTagsSettings()
 	}
 }
 
-void UShotgunSettings::PreEditChange(UProperty* PropertyAboutToChange)
+void UShotgunSettings::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	Super::PreEditChange(PropertyAboutToChange);
 

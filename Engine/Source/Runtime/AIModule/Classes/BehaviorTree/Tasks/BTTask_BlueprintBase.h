@@ -58,7 +58,7 @@ protected:
 	mutable TEnumAsByte<EBTNodeResult::Type> CurrentCallResult;
 
 	/** properties that should be copied */
-	TArray<UProperty*> PropertyData;
+	TArray<FProperty*> PropertyData;
 
 	/** show detailed information about properties */
 	UPROPERTY(EditInstanceOnly, Category=Description)

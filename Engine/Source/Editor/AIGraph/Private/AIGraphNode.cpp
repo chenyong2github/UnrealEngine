@@ -242,7 +242,7 @@ bool UAIGraphNode::CanCreateUnderSpecifiedSchema(const UEdGraphSchema* DesiredSc
 	return false;
 }
 
-FString UAIGraphNode::GetPropertyNameAndValueForDiff(const UProperty* Prop, const uint8* PropertyAddr) const
+FString UAIGraphNode::GetPropertyNameAndValueForDiff(const FProperty* Prop, const uint8* PropertyAddr) const
 {
 	return BlueprintNodeHelpers::DescribeProperty(Prop, PropertyAddr);
 }

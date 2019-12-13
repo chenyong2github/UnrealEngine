@@ -7,25 +7,26 @@
 #include "UObject/PropertyHelper.h"
 
 /*-----------------------------------------------------------------------------
-	ULazyObjectProperty.
+	FLazyObjectProperty.
 -----------------------------------------------------------------------------*/
+IMPLEMENT_FIELD(FLazyObjectProperty)
 
-FString ULazyObjectProperty::GetCPPType( FString* ExtendedTypeText/*=NULL*/, uint32 CPPExportFlags/*=0*/ ) const
+FString FLazyObjectProperty::GetCPPType( FString* ExtendedTypeText/*=NULL*/, uint32 CPPExportFlags/*=0*/ ) const
 {
 	return FString::Printf( TEXT("TLazyObjectPtr<%s%s>"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName() );
 }
-FString ULazyObjectProperty::GetCPPMacroType( FString& ExtendedTypeText ) const
+FString FLazyObjectProperty::GetCPPMacroType( FString& ExtendedTypeText ) const
 {
 	ExtendedTypeText = FString::Printf(TEXT("TLazyObjectPtr<%s%s>"), PropertyClass->GetPrefixCPP(), *PropertyClass->GetName());
 	return TEXT("LAZYOBJECT");
 }
 
-FName ULazyObjectProperty::GetID() const
+FName FLazyObjectProperty::GetID() const
 {
 	return NAME_LazyObjectProperty;
 }
 
-void ULazyObjectProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* Value, void const* Defaults ) const
+void FLazyObjectProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* Value, void const* Defaults ) const
 {
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 
@@ -51,7 +52,7 @@ void ULazyObjectProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* V
 	}
 }
 
-bool ULazyObjectProperty::Identical( const void* A, const void* B, uint32 PortFlags ) const
+bool FLazyObjectProperty::Identical( const void* A, const void* B, uint32 PortFlags ) const
 {
 	FLazyObjectPtr ObjectA = A ? *((FLazyObjectPtr*)A) : FLazyObjectPtr();
 	FLazyObjectPtr ObjectB = B ? *((FLazyObjectPtr*)B) : FLazyObjectPtr();
@@ -86,28 +87,23 @@ bool ULazyObjectProperty::Identical( const void* A, const void* B, uint32 PortFl
 	return bResult;
 }
 
-UObject* ULazyObjectProperty::GetObjectPropertyValue(const void* PropertyValueAddress) const
+UObject* FLazyObjectProperty::GetObjectPropertyValue(const void* PropertyValueAddress) const
 {
 	return GetPropertyValue(PropertyValueAddress).Get();
 }
 
-void ULazyObjectProperty::SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const
+void FLazyObjectProperty::SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const
 {
 	SetPropertyValue(PropertyValueAddress, TCppType(Value));
 }
 
-bool ULazyObjectProperty::AllowCrossLevel() const
+bool FLazyObjectProperty::AllowCrossLevel() const
 {
 	return true;
 }
 
-uint32 ULazyObjectProperty::GetValueTypeHashInternal(const void* Src) const
+uint32 FLazyObjectProperty::GetValueTypeHashInternal(const void* Src) const
 {
 	return GetTypeHash(GetPropertyValue(Src));
 }
-
-IMPLEMENT_CORE_INTRINSIC_CLASS(ULazyObjectProperty, UObjectPropertyBase,
-	{
-	}
-);
 

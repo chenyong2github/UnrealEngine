@@ -308,7 +308,7 @@ const TCHAR* FCoreRedirect::ParseValueChanges(const TCHAR* Buffer)
 
 		// Parse the key and value
 		FString KeyString, ValueString;
-		Buffer = UPropertyHelpers::ReadToken(Buffer, KeyString, true);
+		Buffer = FPropertyHelpers::ReadToken(Buffer, KeyString, true);
 		if (!Buffer)
 		{
 			return nullptr;
@@ -322,7 +322,7 @@ const TCHAR* FCoreRedirect::ParseValueChanges(const TCHAR* Buffer)
 
 		// Parse the value
 		SkipWhitespace(Buffer);
-		Buffer = UPropertyHelpers::ReadToken(Buffer, ValueString, true);
+		Buffer = FPropertyHelpers::ReadToken(Buffer, ValueString, true);
 		if (!Buffer)
 		{
 			return nullptr;

@@ -34,7 +34,7 @@
 /////////////////////////////////////////////////////
 // SPropertyBinding
 
-void SPropertyBinding::Construct(const FArguments& InArgs, TSharedRef<FWidgetBlueprintEditor> InEditor, UDelegateProperty* DelegateProperty, TSharedRef<IPropertyHandle> Property)
+void SPropertyBinding::Construct(const FArguments& InArgs, TSharedRef<FWidgetBlueprintEditor> InEditor, FDelegateProperty* DelegateProperty, TSharedRef<IPropertyHandle> Property)
 {
 	Editor = InEditor;
 	Blueprint = InEditor->GetWidgetBlueprintObj();
@@ -116,18 +116,18 @@ static bool IsClassBlackListed(UClass* OwnerClass)
 	return false;
 }
 
-static bool IsFieldFromBlackListedClass(UField* Field)
+static bool IsFieldFromBlackListedClass(FFieldVariant Field)
 {
-	return IsClassBlackListed(Field->GetOwnerClass());
+	return IsClassBlackListed(Field.GetOwnerClass());
 }
 
 static bool HasFunctionBinder(UFunction* Function, UFunction* BindableSignature)
 {
 	if ( Function->NumParms == 1 && BindableSignature->NumParms == 1 )
 	{
-		if ( UProperty* FunctionReturn = Function->GetReturnProperty() )
+		if ( FProperty* FunctionReturn = Function->GetReturnProperty() )
 		{
-			if ( UProperty* DelegateReturn = BindableSignature->GetReturnProperty() )
+			if ( FProperty* DelegateReturn = BindableSignature->GetReturnProperty() )
 			{
 				// Find the binder that can handle the delegate return type.
 				TSubclassOf<UPropertyBinding> Binder = UWidget::FindBinderClassForDestination(DelegateReturn);
@@ -197,9 +197,9 @@ void SPropertyBinding::ForEachBindableProperty(UStruct* InStruct, Predicate Pred
 {
 	UBlueprintGeneratedClass* SkeletonClass = Cast<UBlueprintGeneratedClass>(Blueprint->GeneratedClass);
 
-	for ( TFieldIterator<UProperty> PropIt(InStruct, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt )
+	for ( TFieldIterator<FProperty> PropIt(InStruct, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt )
 	{
-		UProperty* Property = *PropIt;
+		FProperty* Property = *PropIt;
 
 		// Stop processing properties after reaching the stoppped base class
 		if ( IsFieldFromBlackListedClass(Property) )
@@ -219,7 +219,7 @@ void SPropertyBinding::ForEachBindableProperty(UStruct* InStruct, Predicate Pred
 		}
 
 		// Add matching properties, ensure they return the same type as the property.
-		if ( UProperty* ReturnProperty = BindableSignature->GetReturnProperty() )
+		if ( FProperty* ReturnProperty = BindableSignature->GetReturnProperty() )
 		{
 			// Find the binder that can handle the delegate return type.
 			TSubclassOf<UPropertyBinding> Binder = UWidget::FindBinderClassForDestination(ReturnProperty);
@@ -266,7 +266,7 @@ TSharedRef<SWidget> SPropertyBinding::OnGenerateDelegateMenu(UWidget* Widget, TS
 		// Get the current skeleton class, think header for the blueprint.
 		UBlueprintGeneratedClass* SkeletonClass = Cast<UBlueprintGeneratedClass>(Blueprint->GeneratedClass);
 
-		TArray<UField*> BindingChain;
+		TArray<FFieldVariant> BindingChain;
 		FillPropertyMenu(MenuBuilder, PropertyHandle, SkeletonClass, BindingChain);
 	}
 
@@ -283,7 +283,7 @@ TSharedRef<SWidget> SPropertyBinding::OnGenerateDelegateMenu(UWidget* Widget, TS
 		];
 }
 
-void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, TSharedRef<IPropertyHandle> PropertyHandle, UStruct* OwnerStruct, TArray<UField*> BindingChain)
+void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, TSharedRef<IPropertyHandle> PropertyHandle, UStruct* OwnerStruct, TArray<FFieldVariant> BindingChain)
 {
 	bool bFoundEntry = false;
 
@@ -297,7 +297,7 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, TSharedRef<IP
 		MenuBuilder.BeginSection("Functions", LOCTEXT("Functions", "Functions"));
 		{
 			ForEachBindableFunction(OwnerClass, [&] (TSharedPtr<FFunctionInfo> Info) {
-				TArray<UField*> NewBindingChain(BindingChain);
+				TArray<FFieldVariant> NewBindingChain(BindingChain);
 				NewBindingChain.Add(Info->Function);
 
 				bFoundEntry = true;
@@ -322,7 +322,7 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, TSharedRef<IP
 	// Only show bindable subobjects and variables if we're generating pure bindings.
 	if ( GeneratePureBindings )
 	{
-		UProperty* ReturnProperty = BindableSignature->GetReturnProperty();
+		FProperty* ReturnProperty = BindableSignature->GetReturnProperty();
 
 		// Find the binder that can handle the delegate return type, don't bother allowing people 
 		// to look for bindings that we don't support
@@ -332,8 +332,8 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, TSharedRef<IP
 
 			MenuBuilder.BeginSection("Properties", LOCTEXT("Properties", "Properties"));
 			{
-				ForEachBindableProperty(OwnerStruct, [&] (UProperty* Property) {
-					TArray<UField*> NewBindingChain(BindingChain);
+				ForEachBindableProperty(OwnerStruct, [&] (FProperty* Property) {
+					TArray<FFieldVariant> NewBindingChain(BindingChain);
 					NewBindingChain.Add(Property);
 
 					bFoundEntry = true;
@@ -352,9 +352,9 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, TSharedRef<IP
 			{
 				// Add all the properties that are not bindable, but are object or struct members that could contain children
 				// properties that are bindable.
-				for ( TFieldIterator<UProperty> PropIt(OwnerStruct, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt )
+				for ( TFieldIterator<FProperty> PropIt(OwnerStruct, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt )
 				{
-					UProperty* Property = *PropIt;
+					FProperty* Property = *PropIt;
 
 					// Stop processing properties after reaching the user widget properties.
 					if ( IsFieldFromBlackListedClass(Property) )
@@ -370,9 +370,9 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, TSharedRef<IP
 
 					if ( Property->HasAllPropertyFlags(CPF_BlueprintVisible) )
 					{
-						UObjectProperty* ObjectProperty = Cast<UObjectProperty>(Property);
-						UWeakObjectProperty* WeakObjectProperty = Cast<UWeakObjectProperty>(Property);
-						UStructProperty* StructProperty = Cast<UStructProperty>(Property);
+						FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property);
+						FWeakObjectProperty* WeakObjectProperty = CastField<FWeakObjectProperty>(Property);
+						FStructProperty* StructProperty = CastField<FStructProperty>(Property);
 
 						UStruct* Struct = nullptr;
 						UClass* Class = nullptr;
@@ -408,7 +408,7 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, TSharedRef<IP
 								break;
 							}
 
-							TArray<UField*> NewBindingChain(BindingChain);
+							TArray<FFieldVariant> NewBindingChain(BindingChain);
 							NewBindingChain.Add(Property);
 
 							bFoundEntry = true;
@@ -520,7 +520,7 @@ FText SPropertyBinding::GetCurrentBindingText(TSharedRef<IPropertyHandle> Proper
 					{
 						if ( Binding.MemberGuid.IsValid() )
 						{
-							FName FoundName = Blueprint->GetFieldNameFromClassByGuid<UProperty>(Blueprint->GeneratedClass, Binding.MemberGuid);
+							FName FoundName = Blueprint->GetFieldNameFromClassByGuid<FProperty>(Blueprint->GeneratedClass, Binding.MemberGuid);
 							return FText::FromString(FName::NameToDisplayString(FoundName.ToString(), false));
 						}
 						else
@@ -581,7 +581,7 @@ void SPropertyBinding::HandleRemoveBinding(TSharedRef<IPropertyHandle> PropertyH
 	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 }
 
-void SPropertyBinding::HandleAddFunctionBinding(TSharedRef<IPropertyHandle> PropertyHandle, TSharedPtr<FFunctionInfo> SelectedFunction, TArray<UField*> BindingChain)
+void SPropertyBinding::HandleAddFunctionBinding(TSharedRef<IPropertyHandle> PropertyHandle, TSharedPtr<FFunctionInfo> SelectedFunction, TArray<FFieldVariant> BindingChain)
 {
 	FEditorPropertyPath BindingPath(BindingChain);
 	HandleAddFunctionBinding(PropertyHandle, SelectedFunction, BindingPath);
@@ -621,7 +621,7 @@ void SPropertyBinding::HandleAddFunctionBinding(TSharedRef<IPropertyHandle> Prop
 	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 }
 
-void SPropertyBinding::HandleAddPropertyBinding(TSharedRef<IPropertyHandle> PropertyHandle, UProperty* SelectedProperty, TArray<UField*> BindingChain)
+void SPropertyBinding::HandleAddPropertyBinding(TSharedRef<IPropertyHandle> PropertyHandle, FProperty* SelectedProperty, TArray<FFieldVariant> BindingChain)
 {
 	const FScopedTransaction Transaction(LOCTEXT("BindDelegate", "Set Binding"));
 
@@ -631,7 +631,7 @@ void SPropertyBinding::HandleAddPropertyBinding(TSharedRef<IPropertyHandle> Prop
 	Blueprint->Modify();
 
 	FGuid MemberGuid;
-	UBlueprint::GetGuidFromClassByFieldName<UProperty>(SkeletonClass, SelectedProperty->GetFName(), MemberGuid);
+	UBlueprint::GetGuidFromClassByFieldName<FProperty>(SkeletonClass, SelectedProperty->GetFName(), MemberGuid);
 
 	TArray<UObject*> OuterObjects;
 	PropertyHandle->GetOuterObjects(OuterObjects);

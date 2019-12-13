@@ -366,7 +366,7 @@ public:
 #if ENABLE_GC_OBJECT_CHECKS
 			if (TokenIndex >= 0)
 			{
-				const FTokenInfo& TokenInfo = ReferencingObject->GetClass()->DebugTokenMap.GetTokenInfo(TokenIndex);
+				FTokenInfo TokenInfo = ReferencingObject->GetClass()->ReferenceTokenStream.GetTokenInfo(TokenIndex);
 				RefInfo.ReferencerName = TokenInfo.Name;
 				RefInfo.Type = FReferenceChainSearch::EReferenceType::Property;
 			}

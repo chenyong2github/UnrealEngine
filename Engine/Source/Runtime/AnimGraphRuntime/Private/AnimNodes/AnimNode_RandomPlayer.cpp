@@ -4,6 +4,7 @@
 #include "AnimationRuntime.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimTrace.h"
 
 FAnimNode_RandomPlayer::FAnimNode_RandomPlayer()
 : CurrentEntry(INDEX_NONE)
@@ -159,13 +160,22 @@ void FAnimNode_RandomPlayer::Update_AnyThread(const FAnimationUpdateContext& Con
 			FAnimTickRecord& TickRecord = AnimProxy->CreateUninitializedTickRecord(INDEX_NONE, SyncGroup);
 			AnimProxy->MakeSequenceTickRecord(TickRecord, Entries[CurrentEntry].Sequence, true, CurrentData->PlayRate, CurrentData->BlendWeight, CurrentData->InternalTimeAccumulator, CurrentData->MarkerTickRecord);
 
+			TRACE_ANIM_TICK_RECORD(Context, TickRecord);
+
 			if(NextData->BlendWeight > 0.0f)
 			{
 				FAnimTickRecord& NextTickRecord = AnimProxy->CreateUninitializedTickRecord(INDEX_NONE, SyncGroup);
 				AnimProxy->MakeSequenceTickRecord(NextTickRecord, Entries[NextEntry].Sequence, true, NextData->PlayRate, NextData->BlendWeight, NextData->InternalTimeAccumulator, NextData->MarkerTickRecord);
+
+				TRACE_ANIM_TICK_RECORD(Context, NextTickRecord);
 			}
 		}
 	}
+
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Current Sequence"), Entries[CurrentEntry].Sequence);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Current Weight"), CurrentData ? CurrentData->BlendWeight : 0.0f);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Next Sequence"), Entries[NextEntry].Sequence);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Next Weight"), NextData ? NextData->BlendWeight : 0.0f);
 }
 
 void FAnimNode_RandomPlayer::Evaluate_AnyThread(FPoseContext& Output)

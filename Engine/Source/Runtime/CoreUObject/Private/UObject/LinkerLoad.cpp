@@ -4152,7 +4152,7 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 			}
 		}
 
-		// Only UClass objects and UProperty objects of intrinsic classes can have Native flag set. Those property objects are never
+		// Only UClass objects and FProperty objects of intrinsic classes can have Native flag set. Those property objects are never
 		// serialized so we only have to worry about classes. If we encounter an object that is not a class and has Native flag set
 		// we warn about it and remove the flag.
 		if( (Export.ObjectFlags & RF_MarkAsNative) != 0 && !LoadClass->IsChildOf(UField::StaticClass()) )

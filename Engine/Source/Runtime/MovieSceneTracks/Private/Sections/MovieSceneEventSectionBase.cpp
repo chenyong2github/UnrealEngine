@@ -26,8 +26,8 @@ void UMovieSceneEventSectionBase::OnPostCompile(UBlueprint* Blueprint)
 				if (EntryPoint.Ptrs.Function && EntryPoint.BoundObjectPinName != NAME_None)
 				{
 					EntryPoint.Ptrs.BoundObjectProperty = EntryPoint.Ptrs.Function->FindPropertyByName(EntryPoint.BoundObjectPinName);
-					check(!EntryPoint.Ptrs.BoundObjectProperty || EntryPoint.Ptrs.BoundObjectProperty->GetOuter() == EntryPoint.Ptrs.Function);
-					if (Cast<UObjectProperty>(EntryPoint.Ptrs.BoundObjectProperty) || Cast<UInterfaceProperty>(EntryPoint.Ptrs.BoundObjectProperty))
+					check(!EntryPoint.Ptrs.BoundObjectProperty.Get() || EntryPoint.Ptrs.BoundObjectProperty->GetOwner<UObject>() == EntryPoint.Ptrs.Function);
+					if (CastField<FObjectProperty>(EntryPoint.Ptrs.BoundObjectProperty.Get()) || CastField<FInterfaceProperty>(EntryPoint.Ptrs.BoundObjectProperty.Get()))
 					{
 					}
 				}

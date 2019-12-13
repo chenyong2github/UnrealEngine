@@ -81,7 +81,7 @@ void FDefaultValueDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailLa
 
 		IDetailCategoryBuilder& StructureCategory = DetailLayout.EditCategory("DefaultValues", LOCTEXT("DefaultValues", "Default Values"));
 
-		for (TFieldIterator<UProperty> PropertyIter(UserDefinedStruct.Get()); PropertyIter; ++PropertyIter)
+		for (TFieldIterator<FProperty> PropertyIter(UserDefinedStruct.Get()); PropertyIter; ++PropertyIter)
 		{
 			StructureCategory.AddExternalStructureProperty(StructData, (*PropertyIter)->GetFName());
 		}
@@ -161,12 +161,12 @@ public:
 	}
 
 	// FNotifyHook interface
-	virtual void NotifyPreChange( UProperty* PropertyAboutToChange ) override
+	virtual void NotifyPreChange( FProperty* PropertyAboutToChange ) override
 	{
 		++PropertyChangeRecursionGuard;
 	}
 
-	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged) override
+	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override
 	{
 		--PropertyChangeRecursionGuard;
 	}
@@ -202,10 +202,10 @@ void FDefaultValueDetails::OnFinishedChangingProperties(const FPropertyChangedEv
 
 		if ( ensure(OwnerStruct == UserDefinedStruct.Get()) )
 		{
-			const UProperty* DirectProperty = PropertyChangedEvent.MemberProperty;
-			while (DirectProperty && !Cast<const UUserDefinedStruct>(DirectProperty->GetOuter()))
+			const FProperty* DirectProperty = PropertyChangedEvent.MemberProperty;
+			while (DirectProperty && !DirectProperty->GetOwner<const UUserDefinedStruct>())
 			{
-				DirectProperty = Cast<const UProperty>(DirectProperty->GetOuter());
+				DirectProperty = DirectProperty->GetOwner<const FProperty>();
 			}
 			ensure(nullptr != DirectProperty);
 

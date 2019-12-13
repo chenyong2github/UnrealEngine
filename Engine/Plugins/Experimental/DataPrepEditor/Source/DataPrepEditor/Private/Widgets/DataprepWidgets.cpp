@@ -217,16 +217,16 @@ void SDataprepConsumerWidget::OnTextCommitted( const FText& NewText, ETextCommit
 		
 		// Remove ending '/' if applicable
 		if( !NewContentFolder.IsEmpty() && NewContentFolder[ NewContentFolder.Len()-1 ] == TEXT('/') )
-		{
+	{
 			NewContentFolder[ NewContentFolder.Len()-1 ] = 0;
 			NewContentFolder = NewContentFolder.LeftChop(1);
-		}
+	}
 
 		const FScopedTransaction Transaction( LOCTEXT("Consumer_SetTargetContentFolder", "Set Target Content Folder") );
 
 		FText ErrorReason;
 		if( !DataprepConsumer->SetTargetContentFolder( NewContentFolder, ErrorReason ) )
-		{
+	{
 			UE_LOG( LogDataprepEditor, Error, TEXT("%s"), *ErrorReason.ToString() );
 			UpdateContentFolderText();
 		}
@@ -257,8 +257,8 @@ void SDataprepConsumerWidget::OnBrowseContentFolder()
 			FText ErrorReason;
 			if( DataprepConsumer->SetTargetContentFolder( PickContentPathDlg->GetPath().ToString(), ErrorReason ) )
 			{
-				UpdateContentFolderText();
-			}
+			UpdateContentFolderText();
+		}
 			else
 			{
 				UE_LOG( LogDataprepEditor, Error, TEXT("%s"), *ErrorReason.ToString() );
@@ -563,10 +563,10 @@ void SDataprepDetailsView::CreateDefaultWidget( int32 Index, TSharedPtr< SWidget
 	{
 		NameColumn->AddSlot()
 		.HAlign(HAlign_Right)
-		.VAlign(VAlign_Center)
+			.VAlign(VAlign_Center)
 		.Padding(FMargin(5.f, 0.f, 5.f, 0.f))
-		.AutoWidth()
-		[
+			.AutoWidth()
+			[
 			SNew(SDataprepParameterizationLinkIcon, DataprepAssetForParameterization.Get(), DetailedObjectAsParameterizable, ParameterizationContext.PropertyChain)
 		];
 	}
@@ -578,13 +578,13 @@ void SDataprepDetailsView::CreateDefaultWidget( int32 Index, TSharedPtr< SWidget
 		OnContextMenuOpening.BindLambda( [this, InPropertyChain = ParameterizationContext.PropertyChain] () -> TSharedPtr<SWidget>
 			{
 				if ( UDataprepAsset * DataprepAsset = DataprepAssetForParameterization.Get() )
-				{
-					if ( DetailedObjectAsParameterizable )
 					{
+					if ( DetailedObjectAsParameterizable )
+						{
 						FMenuBuilder MenuBuilder(true, nullptr);
 						FDataprepEditorUtils::PopulateMenuForParameterization(MenuBuilder, *DataprepAsset, *DetailedObjectAsParameterizable, InPropertyChain);
 						return MenuBuilder.MakeWidget();
-					}
+						}
 				}
 				return TSharedPtr<SWidget>();
 			});
@@ -597,7 +597,7 @@ void SDataprepDetailsView::CreateDefaultWidget( int32 Index, TSharedPtr< SWidget
 		[
 			DataprepWidgetUtils::CreatePropertyWidget( NameColumn, ValueWidget, ColumnSizeData, Spacing, HAlign, VAlign )
 		]
-	];
+		];
 
 	if(bColumnPadding)
 	{
@@ -606,24 +606,24 @@ void SDataprepDetailsView::CreateDefaultWidget( int32 Index, TSharedPtr< SWidget
 		.Padding(5.0f, 5.0f, 0.0f, 5.0f)
 		[
 			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
+	+ SHorizontalBox::Slot()
+	.VAlign(VAlign_Center)
 			.HAlign(HAlign_Right)
 			.AutoWidth()
-			[
+	[
 				SNew(SButton)
 				.IsFocusable(false)
 				.Visibility(EVisibility::Hidden)
 				.IsEnabled(false)
 				.VAlign(VAlign_Top)
 				.Content()
-				[
+		[
 					SNew(STextBlock)
 					.Font(FDataprepEditorUtils::GetGlyphFont())
 					.ColorAndOpacity(FLinearColor::Transparent)
 					.Text(FEditorFontGlyphs::Exclamation_Triangle)
 				]
-			]
+		]
 		];
 
 		GridPanel->AddSlot(2, Index)
@@ -646,9 +646,9 @@ void SDataprepDetailsView::CreateDefaultWidget( int32 Index, TSharedPtr< SWidget
 					.Font(FDataprepEditorUtils::GetGlyphFont())
 					.ColorAndOpacity(FLinearColor::Transparent)
 					.Text(FEditorFontGlyphs::Exclamation_Triangle)
-				]
 			]
-		];
+		]
+	];
 	}
 }
 
@@ -706,15 +706,15 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 	{
 		if(PropertyHandle.IsValid() && PropertyHandle->IsValidHandle() && PropertyHandle->IsEditable())
 		{
-			UProperty* Property = PropertyHandle->GetProperty();
+			FProperty* Property = PropertyHandle->GetProperty();
 
 			if ( Property )
 			{
-				if ( UObject * Outer = Property->GetOuter() )
+				if ( FFieldVariant Outer = Property->GetOwnerVariant() )
 				{
 					// if the outer is a container property (array,set or map) it's editable even without the proper flags.
-					UClass* OuterClass = Outer->GetClass();
-					if ( OuterClass == UArrayProperty::StaticClass() || OuterClass == USetProperty::StaticClass() || OuterClass == UMapProperty::StaticClass() )
+					//UClass* OuterClass = Outer->GetClass();
+					if (Outer.IsA<FArrayProperty>() || Outer.IsA<FSetProperty>() || Outer.IsA<FMapProperty>() )
 					{
 						return true;
 					}
@@ -732,10 +732,10 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 	{
 		if( PropertyHandle.IsValid() && PropertyHandle->IsValidHandle() && PropertyHandle->IsEditable() )
 		{
-			if ( UProperty* Property = PropertyHandle->GetProperty() )
+			if ( FProperty* Property = PropertyHandle->GetProperty() )
 			{ 
-				UClass* PropertyClass = Property->GetClass();
-				if ( PropertyClass == UArrayProperty::StaticClass() || PropertyClass == USetProperty::StaticClass() || PropertyClass == UMapProperty::StaticClass() )
+				FFieldClass* PropertyClass = Property->GetClass();
+				if ( PropertyClass == FArrayProperty::StaticClass() || PropertyClass == FSetProperty::StaticClass() || PropertyClass == FMapProperty::StaticClass() )
 				{
 					return !Property->HasAnyPropertyFlags(CPF_DisableEditOnInstance) && Property->HasAnyPropertyFlags(CPF_Edit);
 				}
@@ -1003,7 +1003,13 @@ void SDataprepDetailsView::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject( DetailedObject );
 	Collector.AddReferencedObject( DetailedObjectAsParameterizable );
-	Collector.AddReferencedObjects( TrackedProperties );
+	for (FProperty* Property : TrackedProperties)
+	{
+		if (Property)
+		{
+			Property->AddReferencedObjects(Collector);
+		}
+	}
 }
 
 bool SDataprepDetailsView::CustomPrepass(float LayoutScaleMultiplier)

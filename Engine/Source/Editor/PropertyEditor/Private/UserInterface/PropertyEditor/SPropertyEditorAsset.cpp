@@ -36,13 +36,13 @@ DECLARE_DELEGATE( FOnCopy );
 DECLARE_DELEGATE( FOnPaste );
 
 // Helper to retrieve the correct property that has the applicable metadata.
-static const UProperty* GetActualMetadataProperty(const UProperty* Property)
+static const FProperty* GetActualMetadataProperty(const FProperty* Property)
 {
-	if (UProperty* OuterProperty = Cast<UProperty>(Property->GetOuter()))
+	if (FProperty* OuterProperty = Property->GetOwner<FProperty>())
 	{
-		if (OuterProperty->IsA<UArrayProperty>()
-			|| OuterProperty->IsA<USetProperty>()
-			|| OuterProperty->IsA<UMapProperty>())
+		if (OuterProperty->IsA<FArrayProperty>()
+			|| OuterProperty->IsA<FSetProperty>()
+			|| OuterProperty->IsA<FMapProperty>())
 		{
 			return OuterProperty;
 		}
@@ -52,7 +52,7 @@ static const UProperty* GetActualMetadataProperty(const UProperty* Property)
 }
 
 // Helper to support both meta=(TagName) and meta=(TagName=true) syntaxes
-static bool GetTagOrBoolMetadata(const UProperty* Property, const TCHAR* TagName, bool bDefault)
+static bool GetTagOrBoolMetadata(const FProperty* Property, const TCHAR* TagName, bool bDefault)
 {
 	bool bResult = bDefault;
 
@@ -87,7 +87,7 @@ bool SPropertyEditorAsset::ShouldDisplayThumbnail(const FArguments& InArgs, cons
 	bool bShowThumbnail = InObjectClass == nullptr || !InObjectClass->IsChildOf(AActor::StaticClass());
 	
 	// also check metadata for thumbnail & text display
-	const UProperty* PropertyToCheck = nullptr;
+	const FProperty* PropertyToCheck = nullptr;
 	if (PropertyEditor.IsValid())
 	{
 		PropertyToCheck = PropertyEditor->GetProperty();
@@ -107,7 +107,7 @@ bool SPropertyEditorAsset::ShouldDisplayThumbnail(const FArguments& InArgs, cons
 	return bShowThumbnail;
 }
 
-void SPropertyEditorAsset::InitializeClassFilters(const UProperty* Property)
+void SPropertyEditorAsset::InitializeClassFilters(const FProperty* Property)
 {
 	if (Property == nullptr)
 	{
@@ -116,7 +116,7 @@ void SPropertyEditorAsset::InitializeClassFilters(const UProperty* Property)
 	}
 
 	// Account for the allowed classes specified in the property metadata
-	const UProperty* MetadataProperty = GetActualMetadataProperty(Property);
+	const FProperty* MetadataProperty = GetActualMetadataProperty(Property);
 
 	bExactClass = GetTagOrBoolMetadata(MetadataProperty, TEXT("ExactClass"), false);
 
@@ -205,14 +205,14 @@ void SPropertyEditorAsset::InitializeClassFilters(const UProperty* Property)
 	}
 }
 
-void SPropertyEditorAsset::InitializeAssetDataTags(const UProperty* Property)
+void SPropertyEditorAsset::InitializeAssetDataTags(const FProperty* Property)
 {
 	if (Property == nullptr)
 	{
 		return;
 	}
 
-	const UProperty* MetadataProperty = GetActualMetadataProperty(Property);
+	const FProperty* MetadataProperty = GetActualMetadataProperty(Property);
 	const FString DisallowedAssetDataTagsFilterString = MetadataProperty->GetMetaData(TEXT("DisallowedAssetDataTags"));
 	if (!DisallowedAssetDataTagsFilterString.IsEmpty())
 	{
@@ -271,7 +271,7 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 	OnShouldFilterAsset = InArgs._OnShouldFilterAsset;
 	ObjectPath = InArgs._ObjectPath;
 
-	UProperty* Property = nullptr;
+	FProperty* Property = nullptr;
 	if (PropertyEditor.IsValid())
 	{
 		Property = PropertyEditor->GetPropertyNode()->GetProperty();
@@ -339,7 +339,7 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 
 	if (Property)
 	{
-		const UProperty* PropToConsider = GetActualMetadataProperty(Property);
+		const FProperty* PropToConsider = GetActualMetadataProperty(Property);
 		if (PropToConsider->HasAnyPropertyFlags(CPF_EditConst | CPF_DisableEditOnTemplate))
 		{
 			// There are some cases where editing an Actor Property is not allowed, such as when it is contained within a struct or a CDO
@@ -720,14 +720,14 @@ bool SPropertyEditorAsset::Supports( const TSharedRef< FPropertyEditor >& InProp
 	return Supports(PropertyNode->GetProperty());
 }
 
-bool SPropertyEditorAsset::Supports( const UProperty* NodeProperty )
+bool SPropertyEditorAsset::Supports( const FProperty* NodeProperty )
 {
-	const UObjectPropertyBase* ObjectProperty = Cast<const UObjectPropertyBase>( NodeProperty );
-	const UInterfaceProperty* InterfaceProperty = Cast<const UInterfaceProperty>( NodeProperty );
+	const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>( NodeProperty );
+	const FInterfaceProperty* InterfaceProperty = CastField<const FInterfaceProperty>( NodeProperty );
 
 	if ( ( ObjectProperty != nullptr || InterfaceProperty != nullptr )
-		 && !NodeProperty->IsA(UClassProperty::StaticClass()) 
-		 && !NodeProperty->IsA(USoftClassProperty::StaticClass()) )
+		 && !NodeProperty->IsA(FClassProperty::StaticClass()) 
+		 && !NodeProperty->IsA(FSoftClassProperty::StaticClass()) )
 	{
 		return true;
 	}
@@ -980,7 +980,7 @@ FPropertyAccess::Result SPropertyEditorAsset::GetValue( FObjectOrAssetData& OutV
 #if !UE_BUILD_SHIPPING
 		if (Object && !Object->IsValidLowLevel())
 		{
-			const UProperty* Property = PropertyEditor->GetProperty();
+			const FProperty* Property = PropertyEditor->GetProperty();
 			UE_LOG(LogPropertyNode, Fatal, TEXT("Property \"%s\" (%s) contains invalid data."), *Property->GetName(), *Property->GetCPPType());
 		}
 #endif
@@ -1011,7 +1011,7 @@ FPropertyAccess::Result SPropertyEditorAsset::GetValue( FObjectOrAssetData& OutV
 #if !UE_BUILD_SHIPPING
 			if (!Object->IsValidLowLevel())
 			{
-				const UProperty* Property = PropertyEditor->GetProperty();
+				const FProperty* Property = PropertyEditor->GetProperty();
 				UE_LOG(LogPropertyNode, Fatal, TEXT("Property \"%s\" (%s) contains invalid data."), *Property->GetName(), *Property->GetCPPType());
 			}
 #endif
@@ -1414,17 +1414,17 @@ TSharedPtr<IPropertyHandle> SPropertyEditorAsset::GetMostSpecificPropertyHandle(
 	return TSharedPtr<IPropertyHandle>();
 }
 
-UClass* SPropertyEditorAsset::GetObjectPropertyClass(const UProperty* Property)
+UClass* SPropertyEditorAsset::GetObjectPropertyClass(const FProperty* Property)
 {
 	UClass* Class = nullptr;
 
-	if (Cast<const UObjectPropertyBase>(Property) != nullptr)
+	if (CastField<const FObjectPropertyBase>(Property) != nullptr)
 	{
-		Class = Cast<const UObjectPropertyBase>(Property)->PropertyClass;
+		Class = CastField<const FObjectPropertyBase>(Property)->PropertyClass;
 	}
-	else if (Cast<const UInterfaceProperty>(Property) != nullptr)
+	else if (CastField<const FInterfaceProperty>(Property) != nullptr)
 	{
-		Class = Cast<const UInterfaceProperty>(Property)->InterfaceClass;
+		Class = CastField<const FInterfaceProperty>(Property)->InterfaceClass;
 	}
 
 	if (!ensureMsgf(Class != nullptr, TEXT("Property (%s) is not an object or interface class"), Property ? *Property->GetFullName() : TEXT("null")))

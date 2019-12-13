@@ -69,7 +69,7 @@ void UCookerSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 				*NAME_bCookBlueprintComponentTemplateData.ToString(),
 				*GetDefaultConfigFilename());
 
-			if (const UBoolProperty* OldProperty = FindFieldChecked<UBoolProperty>(GetClass(), NAME_bCookBlueprintComponentTemplateData))
+			if (const FBoolProperty* OldProperty = FindFieldChecked<FBoolProperty>(GetClass(), NAME_bCookBlueprintComponentTemplateData))
 			{
 				OldProperty->SetPropertyValue_InContainer(this, false);
 				UpdateSinglePropertyInConfigFile(OldProperty, GetDefaultConfigFilename());

@@ -928,7 +928,7 @@ void UPrimitiveComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 	float NewCachedMaxDrawDistance = CachedMaxDrawDistance;
 	bool bCullDistanceInvalidated = false;
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if(PropertyThatChanged)
 	{
 		const FName PropertyName = PropertyThatChanged->GetFName();
@@ -959,7 +959,7 @@ void UPrimitiveComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 		}
 	}
 
-	if (UProperty* MemberPropertyThatChanged = PropertyChangedEvent.MemberProperty)
+	if (FProperty* MemberPropertyThatChanged = PropertyChangedEvent.MemberProperty)
 	{
 		const FName MemberPropertyName = MemberPropertyThatChanged->GetFName();
 
@@ -1019,7 +1019,7 @@ void UPrimitiveComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 	IStreamingManager::Get().NotifyPrimitiveUpdated(this);
 }
 
-bool UPrimitiveComponent::CanEditChange(const UProperty* InProperty) const
+bool UPrimitiveComponent::CanEditChange(const FProperty* InProperty) const
 {
 	bool bIsEditable = Super::CanEditChange( InProperty );
 	if (bIsEditable && InProperty)

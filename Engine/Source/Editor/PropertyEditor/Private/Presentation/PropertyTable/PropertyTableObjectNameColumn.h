@@ -132,7 +132,7 @@ public:
 		}
 	}
 
-	virtual TSharedPtr<struct FCompareRowByColumnBase> GetPropertySorter(UProperty* Property, EColumnSortMode::Type SortMode) override
+	virtual TSharedPtr<struct FCompareRowByColumnBase> GetPropertySorter(FProperty* Property, EColumnSortMode::Type SortMode) override
 	{
 		// Does not sort properties
 		return nullptr;

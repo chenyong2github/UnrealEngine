@@ -13,17 +13,24 @@
 #include "Logging/TokenizedMessage.h"
 #include "Stats/StatsHierarchical.h"
 #include "Animation/AnimTrace.h"
+#include "UObject/FieldPath.h"
+
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
 
 #include "AnimNodeBase.generated.h"
 
 #define DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Method) \
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
+#define ANIM_NODE_IDS_AVAILABLE	(ANIM_TRACE_ENABLED || WITH_EDITORONLY_DATA)
+
 class IAnimClassInterface;
 class UAnimBlueprint;
 class UAnimInstance;
 struct FAnimInstanceProxy;
 struct FAnimNode_Base;
+class UProperty;
 
 /**
  * Utility container for tracking a stack of ancestor nodes by node type during graph traversal
@@ -154,7 +161,7 @@ public:
 	ENGINE_API UAnimBlueprint* GetAnimBlueprint() const;
 #endif //WITH_EDITORONLY_DATA
 
-#if ANIM_TRACE_ENABLED
+#if ANIM_NODE_IDS_AVAILABLE
 	// Get the current node Id, set when we recurse into graph traversal functions from pose links
 	ENGINE_API int32 GetCurrentNodeId() const { return CurrentNodeId; }
 
@@ -237,6 +244,10 @@ public:
 		, RootMotionWeightModifier(Copy.RootMotionWeightModifier)
 		, DeltaTime(Copy.DeltaTime)
 	{
+#if ANIM_TRACE_ENABLED
+		CurrentNodeId = Copy.CurrentNodeId;
+		PreviousNodeId = Copy.PreviousNodeId;
+#endif
 	}
 
 public:
@@ -288,7 +299,7 @@ public:
 		return Result;
 	}
 
-#if ANIM_TRACE_ENABLED
+#if ANIM_NODE_IDS_AVAILABLE
 	FAnimationUpdateContext WithNodeId(int32 InNodeId) const
 	{ 
 		FAnimationUpdateContext Result(*this);
@@ -369,6 +380,14 @@ public:
 		Initialize(SourceContext.AnimInstanceProxy);
 	}
 
+#if ANIM_NODE_IDS_AVAILABLE
+	void SetNodeId(int32 InNodeId)
+	{ 
+		PreviousNodeId = CurrentNodeId;
+		CurrentNodeId = InNodeId;
+	}
+#endif
+
 	ENGINE_API void Initialize(FAnimInstanceProxy* InAnimInstanceProxy);
 
 	// Log evaluation message
@@ -445,6 +464,14 @@ public:
 	{
 		// No need to initialize, done through FA2CSPose::AllocateLocalPoses
 	}
+
+#if ANIM_NODE_IDS_AVAILABLE
+	void SetNodeId(int32 InNodeId)
+	{ 
+		PreviousNodeId = CurrentNodeId;
+		CurrentNodeId = InNodeId;
+	}
+#endif
 
 	ENGINE_API void ResetToRefPose();
 
@@ -702,7 +729,7 @@ struct FExposedValueCopyRecord
 		, CachedSourceStructSubProperty(nullptr)
 	{}
 
-	void* GetDestAddr(FAnimInstanceProxy* Proxy, const UProperty* NodeProperty) const;
+	void* GetDestAddr(FAnimInstanceProxy* Proxy, const FProperty* NodeProperty) const;
 	const void* GetSourceAddr(FAnimInstanceProxy* Proxy) const;
 
 #if WITH_EDITORONLY_DATA
@@ -732,7 +759,7 @@ struct FExposedValueCopyRecord
 	ECopyType CopyType;
 
 	UPROPERTY()
-	UProperty* DestProperty;
+	TFieldPath<FProperty> DestProperty;
 
 	UPROPERTY()
 	int32 DestArrayIndex;
@@ -742,10 +769,10 @@ struct FExposedValueCopyRecord
 
 	// cached source property
 	UPROPERTY()
-	UProperty* CachedSourceProperty;
+	TFieldPath<FProperty> CachedSourceProperty;
 
 	UPROPERTY()
-	UProperty* CachedSourceStructSubProperty;
+	TFieldPath<FProperty> CachedSourceStructSubProperty;
 };
 
 #if WITH_EDITORONLY_DATA
@@ -789,7 +816,7 @@ struct ENGINE_API FExposedValueHandler
 	// is instantiated from this property the node's ExposedValueHandler will 
 	// point back to this FExposedValueHandler:
 	UPROPERTY()
-	UStructProperty* ValueHandlerNodeProperty;
+	TFieldPath<FStructProperty> ValueHandlerNodeProperty;
 
 	// Prevent multiple initialization
 	bool bInitialized;
@@ -966,3 +993,6 @@ private:
 	// Reference to the exposed value handler used by this node. Allocated on the class, rather than per instance:
 	const FExposedValueHandler* ExposedValueHandler = nullptr;
 };
+
+
+#include "UObject/DefineUPropertyMacros.h"
