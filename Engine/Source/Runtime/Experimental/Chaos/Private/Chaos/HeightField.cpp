@@ -719,10 +719,10 @@ namespace Chaos
 				EndCell = FlatGrid.ClampIndex(EndCell);
 
 				int32 DeltaX = FMath::Abs(EndCell[0] - StartCell[0]);
-				int32 DeltaY = -FMath::Abs(EndCell[1] - StartCell[1]);
+				int32 DeltaY = FMath::Abs(EndCell[1] - StartCell[1]);
 				int32 DirX = StartCell[0] < EndCell[0] ? 1 : -1;
 				int32 DirY = StartCell[1] < EndCell[1] ? 1 : -1;
-				int32 Error = DeltaX + DeltaY;
+				int32 Error = 0;
 
 				if(StartCell == EndCell)
 				{
@@ -751,17 +751,18 @@ namespace Chaos
 
 					do 
 					{
-						const int32 DoubleError = Error * 2;
+						const int32 ErrorX = Error + DeltaY;
+						const int32 ErrorY = Error - DeltaX;
 
-						if(DoubleError >= DeltaY)
+
+						if(FMath::Abs(ErrorX) < FMath::Abs(ErrorY))
 						{
-							Error += DeltaY;
+							Error = ErrorX;
 							StartCell[0] += DirX;
 						}
-
-						if(DoubleError <= DeltaX)
+						else
 						{
-							Error += DeltaX;
+							Error = ErrorY;
 							StartCell[1] += DirY;
 						}
 
@@ -853,12 +854,12 @@ namespace Chaos
 			EndCell = FlatGrid.ClampIndex(EndCell);
 
 			const int32 DeltaX = FMath::Abs(EndCell[0] - StartCell[0]);
-			const int32 DeltaY = -FMath::Abs(EndCell[1] - StartCell[1]);
+			const int32 DeltaY = FMath::Abs(EndCell[1] - StartCell[1]);
 			const bool bSameCell = DeltaX == 0 && DeltaY == 0;
 
 			const int32 DirX = StartCell[0] < EndCell[0] ? 1 : -1;
 			const int32 DirY = StartCell[1] < EndCell[1] ? 1 : -1;
-			int32 Error = DeltaX + DeltaY;
+			int32 Error = 0;
 			const TVector<int32, 2> ThickenDir = FMath::Abs(DeltaX) > FMath::Abs(DeltaY) ? TVector<int32, 2>(0, 1) : TVector<int32, 2>(1, 0);
 
 			struct FQueueEntry
@@ -997,17 +998,17 @@ namespace Chaos
 						// Walk the line and add to the queue
 						if(StartCell != EndCell)
 						{
-							const int32 DoubleError = Error * 2;
+							const int32 ErrorX = Error + DeltaY;
+							const int32 ErrorY = Error - DeltaX;
 
-							if(DoubleError >= DeltaY)
+							if(FMath::Abs(ErrorX) < FMath::Abs(ErrorY))
 							{
-								Error += DeltaY;
+								Error = ErrorX;
 								StartCell[0] += DirX;
 							}
-
-							if(DoubleError <= DeltaX)
+							else
 							{
-								Error += DeltaX;
+								Error = ErrorY;
 								StartCell[1] += DirY;
 							}
 
