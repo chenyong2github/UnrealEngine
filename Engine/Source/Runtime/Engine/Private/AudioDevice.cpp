@@ -5998,7 +5998,7 @@ void FAudioDevice::StopSoundsUsingResource(USoundWave* SoundWave, TArray<UAudioC
 
 	if (!GIsEditor && bStoppedSounds)
 	{
-		UE_LOG(LogAudio, Warning, TEXT("All Sounds using SoundWave '%s' have been stopped"), *SoundWave->GetName());
+		UE_LOG(LogAudio, Verbose, TEXT("All Sounds using SoundWave '%s' have been stopped"), *SoundWave->GetName());
 	}
 }
 
