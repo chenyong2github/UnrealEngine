@@ -8,6 +8,7 @@
 #include "Templates/ChooseClass.h"
 #include "Templates/EnableIf.h"
 #include "Math/NumericLimits.h"
+#include "ChaosCheck.h"
 
 namespace Chaos
 {
@@ -281,7 +282,7 @@ public:
 					OutPosition = MScale * UnscaledPosition;
 					OutNormal = (MInvScale * UnscaledNormal).GetSafeNormal();
 				}
-				ensure(OutTime <= Length);
+				CHAOS_ENSURE(OutTime <= Length);
 				return true;
 			}
 		}
