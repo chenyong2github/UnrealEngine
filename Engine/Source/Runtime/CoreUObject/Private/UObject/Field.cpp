@@ -43,6 +43,8 @@ Field.cpp: Defines FField property system fundamentals
 #include "UObject/TextProperty.h"
 #include "UObject/EnumProperty.h"
 
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
 
 FFieldClass::FFieldClass(const TCHAR* InCPPName, uint64 InId, uint64 InCastFlags, FFieldClass* InSuperClass, FField* (*ConstructFnPtr)(const FFieldVariant&, const FName&, EObjectFlags))
 	: Id(InId)
@@ -1158,3 +1160,5 @@ FField* FindFieldByPath(const TCHAR* InFieldPath)
 	}
 	return FoundField;
 }
+
+#include "UObject/DefineUPropertyMacros.h"

@@ -8,6 +8,9 @@
 #include "LuaIntegration.h"
 #endif
 
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
+
 /////////////////////////////////////////////////////
 // UScriptBlueprintGeneratedClass
 
@@ -166,3 +169,5 @@ void FScriptContextBase::GetSupportedScriptFileFormats(TArray<FString>& OutForma
 	OutFormats.Add(TEXT("lua;Script"));
 #endif
 }
+
+#include "UObject/DefineUPropertyMacros.h"

@@ -1640,8 +1640,6 @@ ENGINE_API int32 IncrementUberGraphSerialNumber()
 
 void UBlueprintGeneratedClass::Serialize(FArchive& Ar)
 {
-	//Ar.UsingCustomVersion(FCoreObjectVersion::GUID);
-
 #if VALIDATE_UBER_GRAPH_PERSISTENT_FRAME
 	if (Ar.IsLoading() && 0 == (Ar.GetPortFlags() & PPF_Duplicate))
 	{
@@ -1650,11 +1648,6 @@ void UBlueprintGeneratedClass::Serialize(FArchive& Ar)
 #endif//VALIDATE_UBER_GRAPH_PERSISTENT_FRAME
 
 	Super::Serialize(Ar);
-
-	//if (Ar.CustomVer(FCoreObjectVersion::GUID) >= FCoreObjectVersion::FProperties)
-	//{
-	//	Ar << UberGraphFramePointerProperty;
-	//}
 
 	if (Ar.IsLoading() && 0 == (Ar.GetPortFlags() & PPF_Duplicate))
 	{

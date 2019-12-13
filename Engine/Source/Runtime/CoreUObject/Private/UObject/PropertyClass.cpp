@@ -9,6 +9,9 @@
 #include "Misc/ConfigCacheIni.h"
 #include "UObject/PropertyHelper.h"
 
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
+
 /*-----------------------------------------------------------------------------
 	FClassProperty.
 -----------------------------------------------------------------------------*/
@@ -174,3 +177,5 @@ bool FClassProperty::Identical( const void* A, const void* B, uint32 PortFlags )
 	check(ObjectB == nullptr || ObjectB->IsA<UClass>());
 	return (ObjectA == ObjectB);
 }
+
+#include "UObject/DefineUPropertyMacros.h"

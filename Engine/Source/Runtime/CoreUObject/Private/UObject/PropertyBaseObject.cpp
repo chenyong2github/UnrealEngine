@@ -10,6 +10,9 @@
 #include "UObject/LinkerPlaceholderClass.h"
 #include "UObject/LinkerPlaceholderExportObject.h"
 
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
+
 /*-----------------------------------------------------------------------------
 	FObjectPropertyBase.
 -----------------------------------------------------------------------------*/
@@ -585,3 +588,5 @@ void FObjectPropertyBase::CopyCompleteValueFromScriptVM( void* Dest, void const*
 		SetObjectPropertyValue(((uint8*)Dest) + Index * ElementSize, ((UObject**)Src)[Index]);
 	}
 }
+
+#include "UObject/DefineUPropertyMacros.h"

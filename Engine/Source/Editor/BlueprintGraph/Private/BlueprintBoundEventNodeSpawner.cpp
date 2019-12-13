@@ -10,8 +10,6 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "EditorCategoryUtils.h"
 #include "BlueprintNodeSpawnerUtils.h"
-#include "UObject/UnrealTypePrivate.h" // Only for converting UProperties to FProperties
-#include "UObject/CoreObjectVersion.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintBoundEventNodeSpawner"
 

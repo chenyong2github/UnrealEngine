@@ -11,6 +11,9 @@
 #include "Algo/Find.h"
 #include "UObject/LinkerLoad.h"
 
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
+
 /*-----------------------------------------------------------------------------
 	FByteProperty.
 -----------------------------------------------------------------------------*/
@@ -439,3 +442,5 @@ UEnum* FByteProperty::GetIntPropertyEnum() const
 {
 	return Enum;
 }
+
+#include "UObject/DefineUPropertyMacros.h"

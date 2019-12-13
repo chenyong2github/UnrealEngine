@@ -12,7 +12,6 @@
 #include "AnimClassData.generated.h"
 
 class USkeleton;
-class UStructProperty;
 
 UCLASS()
 class ENGINE_API UAnimClassData : public UObject, public IAnimClassInterface

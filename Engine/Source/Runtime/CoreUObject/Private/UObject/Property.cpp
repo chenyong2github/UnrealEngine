@@ -20,6 +20,9 @@
 #include "Math/Box2D.h"
 #include "UObject/ReleaseObjectVersion.h"
 
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
+
 DEFINE_LOG_CATEGORY(LogProperty);
 
 // List the core ones here as they have already been included (and can be used without CoreUObject!)
@@ -1533,3 +1536,6 @@ FProperty* UStruct::FindPropertyByName(FName InName) const
 
 	return NULL;
 }
+
+
+#include "UObject/DefineUPropertyMacros.h"

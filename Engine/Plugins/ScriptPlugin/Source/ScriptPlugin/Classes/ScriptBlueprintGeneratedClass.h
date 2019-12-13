@@ -3,6 +3,10 @@
 #pragma once
 
 #include "Engine/BlueprintGeneratedClass.h"
+
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
+
 #include "ScriptBlueprintGeneratedClass.generated.h"
 
 class UScriptBlueprintGeneratedClass;
@@ -181,3 +185,5 @@ public:
 
 	virtual void Serialize(FArchive& Ar) override;
 };
+
+#include "UObject/DefineUPropertyMacros.h"

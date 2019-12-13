@@ -9,6 +9,9 @@
 #include "CoreMinimal.h"
 #include "UnrealType.h"
 
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
+
 #define USE_UPROPERTY_LOAD_DEFERRING (USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING && WITH_EDITORONLY_DATA)
 
 class COREUOBJECT_API UProperty : public UField
@@ -860,3 +863,6 @@ public:
 	{
 	}
 };
+
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/DefineUPropertyMacros.h"

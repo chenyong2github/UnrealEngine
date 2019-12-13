@@ -10,6 +10,10 @@
 #include "UObject/Class.h"
 #include "UObject/UnrealType.h"
 #include "EdGraph/EdGraphPin.h"
+
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
+
 #include "BlueprintGeneratedClass.generated.h"
 
 class AActor;
@@ -864,3 +868,5 @@ private:
 	/** In some cases UObject::ConditionalPostLoad() code calls PostLoadDefaultObject() on a class that's still being serialized. */
 	FCriticalSection SerializeAndPostLoadCritical;
 };
+
+#include "UObject/DefineUPropertyMacros.h"

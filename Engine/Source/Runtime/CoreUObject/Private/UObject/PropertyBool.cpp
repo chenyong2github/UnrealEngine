@@ -7,6 +7,9 @@
 #include "UObject/UnrealTypePrivate.h"
 #include "UObject/PropertyHelper.h"
 
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
+
 /*-----------------------------------------------------------------------------
 	FBoolProperty.
 -----------------------------------------------------------------------------*/
@@ -387,3 +390,5 @@ uint32 FBoolProperty::GetValueTypeHashInternal(const void* Src) const
 {
 	return GetTypeHash(*(const bool*)Src);
 }
+
+#include "UObject/DefineUPropertyMacros.h"

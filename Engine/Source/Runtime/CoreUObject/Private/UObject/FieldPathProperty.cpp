@@ -6,6 +6,9 @@
 #include "UObject/UnrealTypePrivate.h"
 #include "UObject/LinkerLoad.h"
 
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
+
 IMPLEMENT_FIELD(FFieldPathProperty)
 
 #if WITH_EDITORONLY_DATA
@@ -155,3 +158,5 @@ FString FFieldPathProperty::GetCPPType(FString* ExtendedTypeText, uint32 CPPExpo
 	}
 	return TEXT("TFieldPath");
 }
+
+#include "UObject/DefineUPropertyMacros.h"

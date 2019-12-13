@@ -32,6 +32,9 @@
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/Field.h"
 
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
+
 class UPropertyWrapper;
 
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogType, Log, All);
@@ -5714,3 +5717,6 @@ class COREUOBJECT_API UMulticastDelegatePropertyWrapper : public UPropertyWrappe
 {
 	DECLARE_CLASS_INTRINSIC(UMulticastDelegatePropertyWrapper, UPropertyWrapper, CLASS_Transient, TEXT("/Script/CoreUObject"));
 };
+
+
+#include "UObject/DefineUPropertyMacros.h"

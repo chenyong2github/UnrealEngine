@@ -110,7 +110,6 @@
 #include "Particles/ParticleSystemReplay.h"
 #include "GameFramework/GameState.h"
 #include "UObject/CoreObjectVersion.h"
-#include "UObject/UnrealTypePrivate.h" // Only for FProperty to FProperty conversion
 
 #if WITH_EDITOR
 #include "Sound/SoundCue.h"

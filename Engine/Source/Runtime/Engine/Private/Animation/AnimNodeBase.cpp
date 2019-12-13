@@ -5,7 +5,6 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimTrace.h"
 #include "UObject/CoreObjectVersion.h"
-#include "UObject/UnrealTypePrivate.h" // FProperty is declared here but use it only for upgrading to FProperties
 
 void* FExposedValueCopyRecord::GetDestAddr(FAnimInstanceProxy* Proxy, const FProperty* NodeProperty) const
 {

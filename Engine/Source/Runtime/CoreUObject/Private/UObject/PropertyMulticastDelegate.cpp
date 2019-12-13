@@ -9,6 +9,9 @@
 #include "UObject/LinkerPlaceholderFunction.h"
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
 
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
+
 FMulticastScriptDelegate::FInvocationList FMulticastDelegateProperty::EmptyList;
 
 #if WITH_EDITORONLY_DATA
@@ -599,4 +602,4 @@ void FMulticastSparseDelegateProperty::ClearDelegate(UObject* Parent, void* Prop
 
 IMPLEMENT_FIELD(FMulticastSparseDelegateProperty)
 
-
+#include "UObject/DefineUPropertyMacros.h"

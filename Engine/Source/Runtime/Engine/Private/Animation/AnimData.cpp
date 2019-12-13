@@ -5,4 +5,3 @@
 =============================================================================*/ 
 
 #include "Animation/AnimClassData.h"
-#include "UObject/UnrealTypePrivate.h"

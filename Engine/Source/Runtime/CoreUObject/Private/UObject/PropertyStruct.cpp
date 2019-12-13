@@ -10,6 +10,9 @@
 #include "UObject/LinkerPlaceholderBase.h"
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
 
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
+
 static inline void PreloadInnerStructMembers(FStructProperty* StructProperty)
 {
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
@@ -413,3 +416,5 @@ EConvertFromTypeResult FStructProperty::ConvertFromType(const FPropertyTag& Tag,
 	}
 	return EConvertFromTypeResult::UseSerializeItem;
 }
+
+#include "UObject/DefineUPropertyMacros.h"

@@ -6,6 +6,9 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Field.h"
 
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
+
 #include "PropertyValue.generated.h"
 
 #define PATH_DELIMITER TEXT(" / ")
@@ -234,3 +237,5 @@ class VARIANTMANAGERCONTENT_API UPropertyValueVisibility : public UPropertyValue
 	virtual void Serialize(FArchive& Ar) override;
 	//~ End UObject Interface
 };
+
+#include "UObject/DefineUPropertyMacros.h"

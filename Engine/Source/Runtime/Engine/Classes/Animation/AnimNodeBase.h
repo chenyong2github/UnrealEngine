@@ -15,6 +15,9 @@
 #include "Animation/AnimTrace.h"
 #include "UObject/FieldPath.h"
 
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
+
 #include "AnimNodeBase.generated.h"
 
 #define DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Method) \
@@ -990,3 +993,6 @@ private:
 	// Reference to the exposed value handler used by this node. Allocated on the class, rather than per instance:
 	const FExposedValueHandler* ExposedValueHandler = nullptr;
 };
+
+
+#include "UObject/DefineUPropertyMacros.h"

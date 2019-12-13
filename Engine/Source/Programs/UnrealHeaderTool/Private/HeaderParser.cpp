@@ -9090,24 +9090,27 @@ void FHeaderParser::SimplifiedClassParse(const TCHAR* Filename, const TCHAR* InB
 		}
 		else if ( bProcess && FParse::Command(&Str,TEXT("#include")) )
 		{
-			if (bFoundGeneratedInclude)
-			{
-				FFileLineException::Throwf(Filename, CurrentLine, TEXT("#include found after .generated.h file - the .generated.h file should always be the last #include in a header"));
-			}
-
 			// Handle #include directives as if they were 'dependson' keywords.
 			FString DependsOnHeaderName = Str;
 
-			bFoundGeneratedInclude = DependsOnHeaderName.Contains(TEXT(".generated.h"));
-			if (!bFoundGeneratedInclude && DependsOnHeaderName.Len())
+			if (DependsOnHeaderName != TEXT("\"UObject/DefineUPropertyMacros.h\""))
 			{
-				bool  bIsQuotedInclude  = DependsOnHeaderName[0] == '\"';
-				int32 HeaderFilenameEnd = DependsOnHeaderName.Find(bIsQuotedInclude ? TEXT("\"") : TEXT(">"), ESearchCase::CaseSensitive, ESearchDir::FromStart, 1);
-
-				if (HeaderFilenameEnd != INDEX_NONE)
+				if (bFoundGeneratedInclude)
 				{
-					// Include the extension in the name so that we later know where this entry came from.
-					DependentOn.Add(FHeaderProvider(EHeaderProviderSourceType::FileName, *FPaths::GetCleanFilename(DependsOnHeaderName.Mid(1, HeaderFilenameEnd - 1))));
+					FFileLineException::Throwf(Filename, CurrentLine, TEXT("#include found after .generated.h file - the .generated.h file should always be the last #include in a header"));
+				}
+
+				bFoundGeneratedInclude = DependsOnHeaderName.Contains(TEXT(".generated.h"));
+				if (!bFoundGeneratedInclude && DependsOnHeaderName.Len())
+				{
+					bool  bIsQuotedInclude = DependsOnHeaderName[0] == '\"';
+					int32 HeaderFilenameEnd = DependsOnHeaderName.Find(bIsQuotedInclude ? TEXT("\"") : TEXT(">"), ESearchCase::CaseSensitive, ESearchDir::FromStart, 1);
+
+					if (HeaderFilenameEnd != INDEX_NONE)
+					{
+						// Include the extension in the name so that we later know where this entry came from.
+						DependentOn.Add(FHeaderProvider(EHeaderProviderSourceType::FileName, *FPaths::GetCleanFilename(DependsOnHeaderName.Mid(1, HeaderFilenameEnd - 1))));
+					}
 				}
 			}
 		}

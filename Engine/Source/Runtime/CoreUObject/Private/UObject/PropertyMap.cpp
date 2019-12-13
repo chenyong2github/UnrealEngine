@@ -12,6 +12,9 @@
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
 #include "UObject/UObjectThreadContext.h"
 
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
+
 namespace UE4MapProperty_Private
 {
 	/**
@@ -1179,3 +1182,5 @@ FField* FMapProperty::GetInnerFieldByName(const FName& InName)
 	}
 	return nullptr;
 }
+
+#include "UObject/DefineUPropertyMacros.h"

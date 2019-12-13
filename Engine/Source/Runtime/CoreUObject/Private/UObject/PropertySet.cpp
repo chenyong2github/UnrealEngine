@@ -10,6 +10,9 @@
 #include "Misc/ScopeExit.h"
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
 
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
+
 namespace UE4SetProperty_Private
 {
 	/**
@@ -985,3 +988,5 @@ FField* FSetProperty::GetInnerFieldByName(const FName& InName)
 	}
 	return nullptr;
 }
+
+#include "UObject/DefineUPropertyMacros.h"

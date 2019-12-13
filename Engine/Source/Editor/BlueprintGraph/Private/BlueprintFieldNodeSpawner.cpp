@@ -2,8 +2,6 @@
 
 #include "BlueprintFieldNodeSpawner.h"
 #include "UObject/Package.h"
-#include "UObject/UnrealTypePrivate.h" // only for converting to UProps
-#include "UObject/CoreObjectVersion.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintFieldNodeSpawner"
 
@@ -77,38 +75,5 @@ void UBlueprintFieldNodeSpawner::SetField(FFieldVariant InField)
 		Property = InField.Get<FProperty>();
 	}
 }
-
-// @todo FProp: add collector function
-//void UBlueprintFieldNodeSpawner::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
-//{
-//	UBlueprintFieldNodeSpawner* This = CastChecked<UBlueprintFieldNodeSpawner>(InThis);
-//
-//	if (This->Field.IsUObject())
-//	{
-//		UObject* Object = This->Field.Get<UObject>();
-//		UObject* OldObjectValue = Object;
-//		Collector.AddReferencedObject(Object, This);
-//		if (!Object && OldObjectValue)
-//		{
-//			This->Field = Object;
-//		}
-//	}
-//	else
-//	{
-//		FField* Field = This->Field.Get<FField>();
-//		UObject* Owner = Field ? Field->GetOwnerUObject() : nullptr;
-//		if (Owner)
-//		{
-//			UObject* OldObjectValue = Owner;
-//			Collector.AddReferencedObject(Owner, This);
-//			if (!Owner && OldObjectValue)
-//			{
-//				This->Field = (FField*)nullptr;
-//			}
-//		}
-//	}
-//
-//	Super::AddReferencedObjects(InThis, Collector);
-//}
 
 #undef LOCTEXT_NAMESPACE

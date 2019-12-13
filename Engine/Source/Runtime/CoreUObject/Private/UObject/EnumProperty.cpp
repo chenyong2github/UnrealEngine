@@ -11,6 +11,9 @@
 #include "UObject/LinkerLoad.h"
 #include "Misc/NetworkVersion.h"
 
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
+
 namespace UE4EnumProperty_Private
 {
 	template <typename OldIntType>
@@ -466,3 +469,5 @@ uint32 FEnumProperty::GetValueTypeHashInternal(const void* Src) const
 	check(UnderlyingProp);
 	return UnderlyingProp->GetValueTypeHash(Src);
 }
+
+#include "UObject/DefineUPropertyMacros.h"
