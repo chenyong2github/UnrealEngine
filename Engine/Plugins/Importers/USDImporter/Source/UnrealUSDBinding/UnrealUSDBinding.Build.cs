@@ -15,13 +15,9 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"Core",
-				}
+                    "UnrealUSDWrapper"
+                }
 			);
-
-			if (Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				PrivateDependencyModuleNames.Add("UnrealUSDWrapper");
-			}
 		}
 	}
 }
