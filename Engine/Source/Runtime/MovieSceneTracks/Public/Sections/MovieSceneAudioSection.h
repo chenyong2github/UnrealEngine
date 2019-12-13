@@ -103,6 +103,20 @@ public:
 		return AttenuationSettings;
 	}
 
+	/** Gets the attach binding for this Audio section */
+	UFUNCTION(BlueprintPure, Category = "Movie Scene Section")
+	const FMovieSceneObjectBindingID& GetAttachBindingID() const
+	{
+		return AttachBindingID;
+	}
+
+	/** Sets the attach binding for this Audio section */
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene Section")
+	void SetAttachBindingID(const FMovieSceneObjectBindingID& InAttachBindingID)
+	{
+		AttachBindingID = InAttachBindingID;
+	}
+
 	/** ~UObject interface */
 	virtual void PostLoad() override;
 
@@ -193,6 +207,10 @@ private:
 	/** The attenuation settings to use. */
 	UPROPERTY( EditAnywhere, Category="Attenuation" )
 	class USoundAttenuation* AttenuationSettings;
+
+	/** The object binding that this audio is attached to */
+	UPROPERTY(EditAnywhere, Category = "Audio")
+	FMovieSceneObjectBindingID AttachBindingID;
 
 	/** Called when subtitles are sent to the SubtitleManager.  Set this delegate if you want to hijack the subtitles for other purposes */
 	UPROPERTY()
