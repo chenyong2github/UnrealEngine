@@ -12,6 +12,7 @@
 #include "Misc/AssertionMacros.h"
 #include "Misc/ByteSwap.h"
 #include "Misc/VarArgs.h"
+#include "String/HexToBytes.h"
 #include "Templates/UnrealTemplate.h"
 
 /* FString implementation
@@ -1477,6 +1478,11 @@ FArchive& operator<<( FArchive& Ar, FString& A )
 	}
 
 	return Ar;
+}
+
+int32 HexToBytes(const FString& HexString, uint8* OutBytes)
+{
+	return String::HexToBytes(HexString, OutBytes);
 }
 
 int32 FindMatchingClosingParenthesis(const FString& TargetString, const int32 StartSearch)

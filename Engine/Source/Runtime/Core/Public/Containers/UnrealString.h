@@ -2103,21 +2103,25 @@ inline const bool CheckTCharIsHex( const TCHAR Char )
 
 /**
  * Convert a TChar to equivalent hex value as a uint8
- * @param Char		The character
+ * @param Hex		The character
  * @return	The uint8 value of a hex character
  */
-inline const uint8 TCharToNibble( const TCHAR Char )
+inline const uint8 TCharToNibble(const TCHAR Hex)
 {
-	check( CheckTCharIsHex( Char ) );
-	if( Char >= TEXT('0') && Char <= TEXT('9') )
+	if (Hex >= '0' && Hex <= '9')
 	{
-		return Char - TEXT('0');
+		return Hex - '0';
 	}
-	else if( Char >= TEXT('A') && Char <= TEXT('F') )
+	if (Hex >= 'A' && Hex <= 'F')
 	{
-		return ( Char - TEXT('A') ) + 10;
+		return Hex - 'A' + 10;
 	}
-	return ( Char - TEXT('a') ) + 10;
+	if (Hex >= 'a' && Hex <= 'f')
+	{
+		return Hex - 'a' + 10;
+	}
+	checkf(false, TEXT("'%c' (0x%02X) is not a valid hexadecimal digit"), Hex, Hex);
+	return 0;
 }
 
 /** 
@@ -2126,23 +2130,7 @@ inline const uint8 TCharToNibble( const TCHAR Char )
  * @param OutBytes		Ptr to memory must be preallocated large enough
  * @return	The number of bytes copied
  */
-inline int32 HexToBytes( const FString& HexString, uint8* OutBytes )
-{
-	int32 NumBytes = 0;
-	const bool bPadNibble = ( HexString.Len() % 2 ) == 1;
-	const TCHAR* CharPos = *HexString;
-	if( bPadNibble )
-	{
-		OutBytes[ NumBytes++ ] = TCharToNibble( *CharPos++ );
-	}
-	while( *CharPos )
-	{
-		OutBytes[ NumBytes ] = TCharToNibble( *CharPos++ ) << 4;
-		OutBytes[ NumBytes ] += TCharToNibble( *CharPos++ );
-		++NumBytes;
-	}
-	return NumBytes;
-}
+CORE_API int32 HexToBytes(const FString& HexString, uint8* OutBytes);
 
 /**
  * Generalized API to convert something to a string. Function named after the (deprecated) Lex namespace, which
