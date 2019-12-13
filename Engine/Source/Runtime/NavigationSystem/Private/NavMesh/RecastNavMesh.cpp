@@ -1411,6 +1411,10 @@ void ARecastNavMesh::UpdateCustomLink(const INavLinkCustomInterface* CustomLink)
 
 		RecastNavMeshImpl->UpdateNavigationLinkArea(UserId, AreaId, PolyFlags);
 		RecastNavMeshImpl->UpdateSegmentLinkArea(UserId, AreaId, PolyFlags);
+
+#if !UE_BUILD_SHIPPING
+		RequestDrawingUpdate(false);
+#endif
 	}
 }
 
