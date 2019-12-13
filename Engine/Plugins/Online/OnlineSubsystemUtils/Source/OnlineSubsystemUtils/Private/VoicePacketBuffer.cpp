@@ -83,7 +83,8 @@ int32 FVoicePacketBuffer::PopAudio(float* DestBuffer, uint32 RequestedSamples)
 			bIsIdle = false;
 			const uint32 NumSamplesLeftInPacketBuffer = ListHead->SamplesLeft;
 			const int32 PacketSampleIndex = ListHead->BufferNumSamples - NumSamplesLeftInPacketBuffer;
-			const float* PacketBufferPtr = &(ListHead->AudioBuffer[PacketSampleIndex]);
+			const float* AudioBuffer = ListHead->AudioBufferMem.GetData();
+			const float* PacketBufferPtr = &(AudioBuffer[PacketSampleIndex]);
 			FMemory::Memcpy(&(DestBuffer[DestBufferSampleIndex]), PacketBufferPtr, NumSamplesLeftInPacketBuffer * sizeof(float));
 			SampleCounter += NumSamplesLeftInPacketBuffer;
 			DestBufferSampleIndex += NumSamplesLeftInPacketBuffer;
@@ -101,7 +102,8 @@ int32 FVoicePacketBuffer::PopAudio(float* DestBuffer, uint32 RequestedSamples)
 		{
 			int32 SamplesLeft = RequestedSamples - DestBufferSampleIndex;
 			const int32 PacketSampleIndex = ListHead->BufferNumSamples - ListHead->SamplesLeft;
-			const float* PacketBufferPtr = &(ListHead->AudioBuffer[PacketSampleIndex]);
+			const float* AudioBuffer = ListHead->AudioBufferMem.GetData();
+			const float* PacketBufferPtr = &(AudioBuffer[PacketSampleIndex]);
 			FMemory::Memcpy(&(DestBuffer[DestBufferSampleIndex]), PacketBufferPtr, SamplesLeft * sizeof(float));
 #if DEBUG_POPPING
 			check(DestBufferSampleIndex + SamplesLeft == RequestedSamples);
