@@ -155,6 +155,7 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	, AssetRenameManager(MakeShareable(new FAssetRenameManager))
 	, AssetFixUpRedirectors(MakeShareable(new FAssetFixUpRedirectors))
 	, NextUserCategoryBit(EAssetTypeCategories::FirstUser)
+	, AssetClassBlacklist(MakeShared<FBlacklistNames>())
 	, FolderBlacklist(MakeShared<FBlacklistPaths>())
 {
 	TArray<FString> SupportedTypesArray;
@@ -162,8 +163,10 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 
 	for (const FString& Type : SupportedTypesArray)
 	{
-		SupportedAssetTypes.Add(*Type);
+		AssetClassBlacklist->AddWhitelistItem("AssetToolsConfigFile", *Type);
 	}
+
+	AssetClassBlacklist->OnFilterChanged().AddUObject(this, &UAssetToolsImpl::AssetClassBlacklistChanged);
 
 	// Register the built-in advanced categories
 	AllocatedCategoryBits.Add(TEXT("_BuiltIn_0"), FAdvancedAssetCategory(EAssetTypeCategories::Animation, LOCTEXT("AnimationAssetCategory", "Animation")));
@@ -264,22 +267,8 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 
 void UAssetToolsImpl::RegisterAssetTypeActions(const TSharedRef<IAssetTypeActions>& NewActions)
 {
-	if (SupportedAssetTypes.Num() > 0)
-	{
-		const UClass* SupportedClass = NewActions->GetSupportedClass();
-		if (SupportedClass != nullptr)
-		{
-			const FName ClassName = SupportedClass->GetFName();
-			if (!SupportedAssetTypes.Contains(ClassName))
-			{
-				NewActions->SetSupported(false);
-			}
-		}
-		else
-		{
-			NewActions->SetSupported(false);
-		}
-	}
+	const UClass* SupportedClass = NewActions->GetSupportedClass();
+	NewActions->SetSupported(SupportedClass && AssetClassBlacklist->PassesFilter(SupportedClass->GetFName()));
 
 	AssetTypeActionsList.Add(NewActions);
 }
@@ -3144,6 +3133,20 @@ TArray<UFactory*> UAssetToolsImpl::GetNewAssetFactories() const
 	}
 
 	return MoveTemp(Factories);
+}
+
+TSharedRef<FBlacklistNames>& UAssetToolsImpl::GetAssetClassBlacklist()
+{
+	return AssetClassBlacklist;
+}
+
+void UAssetToolsImpl::AssetClassBlacklistChanged()
+{
+	for (TSharedRef<IAssetTypeActions>& ActionsIt : AssetTypeActionsList)
+	{
+		const UClass* SupportedClass = ActionsIt->GetSupportedClass();
+		ActionsIt->SetSupported(SupportedClass && AssetClassBlacklist->PassesFilter(SupportedClass->GetFName()));
+	}
 }
 
 TSharedRef<FBlacklistPaths>& UAssetToolsImpl::GetFolderBlacklist()
