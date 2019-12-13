@@ -65,7 +65,7 @@ FNiagaraBoundsCalculator* UNiagaraSpriteRendererProperties::CreateBoundsCalculat
 void UNiagaraSpriteRendererProperties::GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const
 {
 	bool bSet = false;
-	if (MaterialUserParamBinding.Parameter.IsValid() && InEmitter->FindBinding(MaterialUserParamBinding, OutMaterials))
+	if (InEmitter != nullptr && MaterialUserParamBinding.Parameter.IsValid() && InEmitter->FindBinding(MaterialUserParamBinding, OutMaterials))
 	{
 		bSet = true;
 	}
