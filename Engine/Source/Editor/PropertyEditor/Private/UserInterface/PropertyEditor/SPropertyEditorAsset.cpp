@@ -205,14 +205,14 @@ void SPropertyEditorAsset::InitializeClassFilters(const FProperty* Property)
 	}
 }
 
-void SPropertyEditorAsset::InitializeAssetDataTags(const UProperty* Property)
+void SPropertyEditorAsset::InitializeAssetDataTags(const FProperty* Property)
 {
 	if (Property == nullptr)
 	{
 		return;
 	}
 
-	const UProperty* MetadataProperty = GetActualMetadataProperty(Property);
+	const FProperty* MetadataProperty = GetActualMetadataProperty(Property);
 	const FString DisallowedAssetDataTagsFilterString = MetadataProperty->GetMetaData(TEXT("DisallowedAssetDataTags"));
 	if (!DisallowedAssetDataTagsFilterString.IsEmpty())
 	{

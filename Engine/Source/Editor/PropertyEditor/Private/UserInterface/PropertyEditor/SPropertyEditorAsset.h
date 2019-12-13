@@ -330,7 +330,7 @@ private:
 	/**
 	 * Initialize DisallowedAssetDataTags based on the property metadata.
 	 */
-	void InitializeAssetDataTags(const UProperty* Property);
+	void InitializeAssetDataTags(const FProperty* Property);
 
 	/** @return Returns true if the asset is relevant for this property*/
 	bool IsAssetAllowed(const FAssetData& InAssetData);
