@@ -108,11 +108,7 @@ namespace Chaos
 			}
 		}
 
-		virtual void Serialize(FChaosArchive& Ar) override
-		{
-			FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName());
-			SerializeImp(Ar);
-		}
+		virtual void Serialize(FChaosArchive& Ar) override;
 
 		virtual uint32 GetTypeHash() const override
 		{
