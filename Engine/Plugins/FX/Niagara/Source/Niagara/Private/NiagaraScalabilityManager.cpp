@@ -56,8 +56,10 @@ void FNiagaraScalabilityManager::UnregisterAt(int32 IndexToRemove)
 
 	if (ManagedComponents.IsValidIndex(IndexToRemove))
 	{
-		check(ManagedComponents[IndexToRemove] != nullptr);
-		ManagedComponents[IndexToRemove]->ScalabilityManagerHandle = IndexToRemove;
+		if ((ManagedComponents[IndexToRemove] != nullptr))//Possible this has been GCd. It will be removed later if so.
+		{
+			ManagedComponents[IndexToRemove]->ScalabilityManagerHandle = IndexToRemove;
+		}
 	}
 }
 
