@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "SlateFwd.h"
 #include "Misc/Attribute.h"
-#include "Misc/NamedBlacklist.h"
+#include "Misc/BlacklistNames.h"
 #include "Textures/SlateIcon.h"
 #include "Widgets/SWindow.h"
 #include "Framework/Docking/WorkspaceItem.h"
