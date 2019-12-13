@@ -7,10 +7,16 @@
 #include "Containers/UnrealString.h"
 #include "Containers/Map.h"
 #include "Containers/StringConv.h"
+#include "Containers/StringView.h"
 #include "Stats/Stats.h"
 #include "Async/AsyncWork.h"
 #include "Serialization/BufferReader.h"
+#include "String/BytesToHex.h"
+#include "String/HexToBytes.h"
 
+class FAnsiStringBuilderBase;
+class FStringBuilderBase;
+class FStringView;
 struct FMD5Hash;
 
 /*-----------------------------------------------------------------------------
@@ -204,10 +210,11 @@ public:
 	{
 		return BytesToHex((const uint8*)Hash, sizeof(Hash));
 	}
-	void FromString(const FString& Src)
+
+	inline void FromString(const FStringView& Src)
 	{
 		check(Src.Len() == 40);
-		HexToBytes(Src, Hash);
+		String::HexToBytes(Src, Hash);
 	}
 
 	friend bool operator==(const FSHAHash& X, const FSHAHash& Y)
@@ -230,6 +237,9 @@ public:
 	friend CORE_API FString LexToString(const FSHAHash&);
 	friend CORE_API void LexFromString(FSHAHash& Hash, const TCHAR*);
 };
+
+inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FSHAHash& Hash) { String::BytesToHex(Hash.Hash, Builder); return Builder; }
+inline FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, const FSHAHash& Hash) { String::BytesToHex(Hash.Hash, Builder); return Builder; }
 
 class CORE_API FSHA1
 {
