@@ -7,6 +7,7 @@
 #include "ChaosArchive.h"
 #include "HAL/LowLevelMemTracker.h"
 
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #define PARTICLE_ITERATOR_RANGED_FOR_CHECK 1
 #else

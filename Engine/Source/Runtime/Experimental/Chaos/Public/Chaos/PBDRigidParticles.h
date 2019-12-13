@@ -4,7 +4,6 @@
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/RigidParticles.h"
 #include "Chaos/Rotation.h"
-#include "HAL/LowLevelMemTracker.h"
 
 #if defined(_MSC_VER)
 #pragma warning(push)
