@@ -4245,7 +4245,9 @@ void* UClass::CreateSparseClassData()
 {
 	check(SparseClassData == nullptr);
 
-	SparseClassData = GetDefaultObject()->CreateSparseClassData();
+	UObject* DefaultObj = GetDefaultObject();
+	checkf(!DefaultObj->HasAnyFlags(RF_NeedInitialization), TEXT("You cannot create sparse class data until the CDO has been initialized. If you are using sparse class data inside the constructor consider moving it to PostConstructInit."));
+	SparseClassData = DefaultObj->CreateSparseClassData();
 
 	if (SparseClassData)
 	{
