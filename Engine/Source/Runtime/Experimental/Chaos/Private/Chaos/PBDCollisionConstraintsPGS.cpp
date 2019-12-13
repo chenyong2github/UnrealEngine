@@ -96,7 +96,7 @@ void TPBDCollisionConstraintPGS<T, d>::ComputeConstraints(const TPBDRigidParticl
 		const int32 ParticleIndex = InIndices[Index];
 
 		TArray<int32> PotentialIntersections;
-		TBox<T, d> Box1;
+		TAABB<T, d> Box1;
 		if (InParticles.Geometry(ParticleIndex)->HasBoundingBox())
 		{
 			Box1 = Hierarchy.GetWorldSpaceBoundingBox(InParticles, ParticleIndex);
@@ -199,7 +199,7 @@ void TPBDCollisionConstraintPGS<T, d>::UpdateConstraints(const TPBDRigidParticle
 		if (InParticles.Disabled(Body1Index))
 			return;
 		TArray<int32> PotentialIntersections;
-		TBox<T, d> Box1;
+		TAABB<T, d> Box1;
 		if (InParticles.Geometry(Body1Index)->HasBoundingBox())
 		{
 			Box1 = Hierarchy.GetWorldSpaceBoundingBox(InParticles, Body1Index);
@@ -947,7 +947,7 @@ void TPBDCollisionConstraintPGS<T, d>::UpdateLevelsetConstraint(const T_PARTICLE
 	const TRigidTransform<T, d> LocalToWorld2 = GetTransformPGS(InParticles, Constraint.LevelsetIndex);
 	if (InParticles.Geometry(Constraint.LevelsetIndex)->HasBoundingBox())
 	{
-		TBox<T, d> ImplicitBox = InParticles.Geometry(Constraint.LevelsetIndex)->BoundingBox().TransformedBox(LocalToWorld2 * LocalToWorld1.Inverse());
+		TAABB<T, d> ImplicitBox = InParticles.Geometry(Constraint.LevelsetIndex)->BoundingBox().TransformedBox(LocalToWorld2 * LocalToWorld1.Inverse());
 		if (InParticles.CollisionParticles(Constraint.ParticleIndex))
 		{
 			TArray<int32> PotentialParticles = InParticles.CollisionParticles(Constraint.ParticleIndex)->FindAllIntersections(ImplicitBox);
@@ -1234,7 +1234,7 @@ typename TPBDCollisionConstraintPGS<T, d>::FRigidBodyContactConstraint TPBDColli
 template<class T, int d>
 typename TPBDCollisionConstraintPGS<T, d>::FRigidBodyContactConstraint TPBDCollisionConstraintPGS<T, d>::ComputeConstraint(const TPBDRigidParticles<T, d>& InParticles, int32 Body1Index, int32 Body2Index, const T Thickness)
 {
-	if (InParticles.Geometry(Body1Index)->GetType() == TBox<T, d>::GetType() && InParticles.Geometry(Body2Index)->GetType() == TBox<T, d>::GetType())
+	if (InParticles.Geometry(Body1Index)->GetType() == TAABB<T, d>::GetType() && InParticles.Geometry(Body2Index)->GetType() == TAABB<T, d>::GetType())
 	{
 		return ComputeBoxConstraint(InParticles, Body1Index, Body2Index, Thickness);
 	}
@@ -1242,11 +1242,11 @@ typename TPBDCollisionConstraintPGS<T, d>::FRigidBodyContactConstraint TPBDColli
 	{
 		return ComputeSphereConstraint(InParticles, Body1Index, Body2Index, Thickness);
 	}
-	else if (InParticles.Geometry(Body1Index)->GetType() == TBox<T, d>::GetType() && InParticles.Geometry(Body2Index)->GetType() == TPlane<T, d>::GetType())
+	else if (InParticles.Geometry(Body1Index)->GetType() == TAABB<T, d>::GetType() && InParticles.Geometry(Body2Index)->GetType() == TPlane<T, d>::GetType())
 	{
 		return ComputeBoxPlaneConstraint(InParticles, Body1Index, Body2Index, Thickness);
 	}
-	else if (InParticles.Geometry(Body2Index)->GetType() == TPlane<T, d>::GetType() && InParticles.Geometry(Body1Index)->GetType() == TBox<T, d>::GetType())
+	else if (InParticles.Geometry(Body2Index)->GetType() == TPlane<T, d>::GetType() && InParticles.Geometry(Body1Index)->GetType() == TAABB<T, d>::GetType())
 	{
 		return ComputeBoxPlaneConstraint(InParticles, Body2Index, Body1Index, Thickness);
 	}
@@ -1258,11 +1258,11 @@ typename TPBDCollisionConstraintPGS<T, d>::FRigidBodyContactConstraint TPBDColli
 	{
 		return ComputeSpherePlaneConstraint(InParticles, Body2Index, Body1Index, Thickness);
 	}
-	else if (InParticles.Geometry(Body1Index)->GetType() == TSphere<T, d>::GetType() && InParticles.Geometry(Body2Index)->GetType() == TBox<T, d>::GetType())
+	else if (InParticles.Geometry(Body1Index)->GetType() == TSphere<T, d>::GetType() && InParticles.Geometry(Body2Index)->GetType() == TAABB<T, d>::GetType())
 	{
 		return ComputeSphereBoxConstraint(InParticles, Body1Index, Body2Index, Thickness);
 	}
-	else if (InParticles.Geometry(Body2Index)->GetType() == TBox<T, d>::GetType() && InParticles.Geometry(Body1Index)->GetType() == TSphere<T, d>::GetType())
+	else if (InParticles.Geometry(Body2Index)->GetType() == TAABB<T, d>::GetType() && InParticles.Geometry(Body1Index)->GetType() == TSphere<T, d>::GetType())
 	{
 		return ComputeSphereBoxConstraint(InParticles, Body2Index, Body1Index, Thickness);
 	}
@@ -1277,7 +1277,7 @@ template<class T, int d>
 template<class T_PARTICLES>
 void TPBDCollisionConstraintPGS<T, d>::UpdateConstraint(const T_PARTICLES& InParticles, const T Thickness, FRigidBodyContactConstraint& Constraint)
 {
-	if (InParticles.Geometry(Constraint.ParticleIndex)->GetType() == TBox<T, d>::GetType() && InParticles.Geometry(Constraint.LevelsetIndex)->GetType() == TBox<T, d>::GetType())
+	if (InParticles.Geometry(Constraint.ParticleIndex)->GetType() == TAABB<T, d>::GetType() && InParticles.Geometry(Constraint.LevelsetIndex)->GetType() == TAABB<T, d>::GetType())
 	{
 		UpdateBoxConstraint(InParticles, Thickness, Constraint);
 	}
@@ -1285,7 +1285,7 @@ void TPBDCollisionConstraintPGS<T, d>::UpdateConstraint(const T_PARTICLES& InPar
 	{
 		UpdateSphereConstraint(InParticles, Thickness, Constraint);
 	}
-	else if (InParticles.Geometry(Constraint.ParticleIndex)->GetType() == TBox<T, d>::GetType() && InParticles.Geometry(Constraint.LevelsetIndex)->GetType() == TPlane<T, d>::GetType())
+	else if (InParticles.Geometry(Constraint.ParticleIndex)->GetType() == TAABB<T, d>::GetType() && InParticles.Geometry(Constraint.LevelsetIndex)->GetType() == TPlane<T, d>::GetType())
 	{
 		UpdateBoxPlaneConstraint(InParticles, Thickness, Constraint);
 	}
@@ -1293,11 +1293,11 @@ void TPBDCollisionConstraintPGS<T, d>::UpdateConstraint(const T_PARTICLES& InPar
 	{
 		UpdateSpherePlaneConstraint(InParticles, Thickness, Constraint);
 	}
-	else if (InParticles.Geometry(Constraint.ParticleIndex)->GetType() == TSphere<T, d>::GetType() && InParticles.Geometry(Constraint.LevelsetIndex)->GetType() == TBox<T, d>::GetType())
+	else if (InParticles.Geometry(Constraint.ParticleIndex)->GetType() == TSphere<T, d>::GetType() && InParticles.Geometry(Constraint.LevelsetIndex)->GetType() == TAABB<T, d>::GetType())
 	{
 		UpdateSphereBoxConstraint(InParticles, Thickness, Constraint);
 	}
-	else if (InParticles.Geometry(Constraint.ParticleIndex)->GetType() == TPlane<T, d>::GetType() && InParticles.Geometry(Constraint.LevelsetIndex)->GetType() == TBox<T, d>::GetType())
+	else if (InParticles.Geometry(Constraint.ParticleIndex)->GetType() == TPlane<T, d>::GetType() && InParticles.Geometry(Constraint.LevelsetIndex)->GetType() == TAABB<T, d>::GetType())
 	{
 		int32 Tmp = Constraint.ParticleIndex;
 		Constraint.ParticleIndex = Constraint.LevelsetIndex;
@@ -1311,7 +1311,7 @@ void TPBDCollisionConstraintPGS<T, d>::UpdateConstraint(const T_PARTICLES& InPar
 		Constraint.LevelsetIndex = Tmp;
 		UpdateSpherePlaneConstraint(InParticles, Thickness, Constraint);
 	}
-	else if (InParticles.Geometry(Constraint.ParticleIndex)->GetType() == TBox<T, d>::GetType() && InParticles.Geometry(Constraint.LevelsetIndex)->GetType() == TSphere<T, d>::GetType())
+	else if (InParticles.Geometry(Constraint.ParticleIndex)->GetType() == TAABB<T, d>::GetType() && InParticles.Geometry(Constraint.LevelsetIndex)->GetType() == TSphere<T, d>::GetType())
 	{
 		int32 Tmp = Constraint.ParticleIndex;
 		Constraint.ParticleIndex = Constraint.LevelsetIndex;

@@ -27,6 +27,9 @@ namespace Chaos
 	class TAABB
 	{
 	public:
+		using TType = T;
+		static constexpr int D = d;
+
 		FORCEINLINE TAABB()
 			: MMin()
 			, MMax()
@@ -140,6 +143,10 @@ namespace Chaos
 			return true;
 		}
 
+		FORCEINLINE const TAABB<T, d>& BoundingBox() const { return *this; }
+
+		FORCEINLINE uint16 GetMaterialIndex(uint32 HintIndex) const { return 0; }
+
 		FORCEINLINE T SignedDistance(const TVector<T, d>& x) const
 		{
 			TVector<T, d> Normal;
@@ -197,7 +204,7 @@ namespace Chaos
 		bool CHAOS_API Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const;
 
 
-		FORCEINLINE bool RaycastFast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const TVector<T, d>& InvDir, const bool* bParallel, const T Length, const T InvLength, T& OutTime, TVector<T, d>& OutPosition)
+		FORCEINLINE bool RaycastFast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const TVector<T, d>& InvDir, const bool* bParallel, const T Length, const T InvLength, T& OutTime, TVector<T, d>& OutPosition) const
 		{
 			const TVector<T, d> StartToMin = MMin - StartPoint;
 			const TVector<T, d> StartToMax = MMax - StartPoint;
@@ -467,6 +474,8 @@ namespace Chaos
 		FORCEINLINE T GetVolume() const { return GetVolume(Extents()); }
 		FORCEINLINE static T GetVolume(const TVector<T, 3>& Dim) { return Dim.Product(); }
 
+		FORCEINLINE T GetMargin() const { return 0; }
+
 		FORCEINLINE static TAABB<T, d> EmptyAABB() { return TAABB<T, d>(TVector<T, d>(TNumericLimits<T>::Max()), TVector<T, d>(-TNumericLimits<T>::Max())); }
 		FORCEINLINE static TAABB<T, d> ZeroAABB() { return TAABB<T, d>(TVector<T, d>((T)0), TVector<T, d>((T)0)); }
 
@@ -480,11 +489,36 @@ namespace Chaos
 			return HashCombine(::GetTypeHash(MMin), ::GetTypeHash(MMax));
 		}
 
+		FORCEINLINE PMatrix<T, d, d> GetInertiaTensor(const T Mass) const { return GetInertiaTensor(Mass, Extents()); }
+		FORCEINLINE static PMatrix<T, 3, 3> GetInertiaTensor(const T Mass, const TVector<T, 3>& Dim)
+		{
+			// https://www.wolframalpha.com/input/?i=cuboid
+			const T M = Mass / 12;
+			const T WW = Dim[0] * Dim[0];
+			const T HH = Dim[1] * Dim[1];
+			const T DD = Dim[2] * Dim[2];
+			return PMatrix<T, 3, 3>(M * (HH + DD), M * (WW + DD), M * (WW + HH));
+		}
+
+		FORCEINLINE static TRotation<T, d> GetRotationOfMass()
+		{
+			return TRotation<T, d>::FromElements(TVector<T, d>(0), 1);
+		}
+
+		FORCEINLINE constexpr bool IsConvex() const { return true; }
+
 	private:
 		TVector<T, d> MMin, MMax;
 	};
 
+
 	FORCEINLINE FChaosArchive& operator<<(FChaosArchive& Ar, TAABB<FReal, 3>& AABB)
+	{
+		AABB.Serialize(Ar);
+		return Ar;
+	}
+
+	FORCEINLINE FArchive& operator<<(FArchive& Ar, TAABB<FReal, 3>& AABB)
 	{
 		AABB.Serialize(Ar);
 		return Ar;
