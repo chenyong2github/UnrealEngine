@@ -6,6 +6,7 @@
 #include "ClothConfig.h"
 
 #include "Utils/ClothingMeshUtils.h"
+#include "Features/IModularFeatures.h"
 
 #if WITH_EDITOR
 #include "Engine/SkeletalMesh.h"
