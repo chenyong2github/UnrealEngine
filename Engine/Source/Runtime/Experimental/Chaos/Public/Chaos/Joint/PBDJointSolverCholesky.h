@@ -11,23 +11,35 @@
 
 namespace Chaos
 {
-	class FJointConstraintSolver
+	/**
+	 * Calculate new positions and rotations for a pair of bodies connected by a joint.
+	 *
+	 * This solver treats of the 6 possible constraints (up to 3 linear and 3 angular)
+	 * as a single block and resolves them in simultaneously.
+	 *
+	 * \see FJointSolverGaussSeidel
+	 */
+	class FJointSolverCholesky
 	{
 	public:
+		static const int32 MaxConstraintedBodies = 2;
+
 		using FDenseMatrix66 = TDenseMatrix<6 * 6>;
 		using FDenseMatrix61 = TDenseMatrix<6 * 1>;
 
 		FORCEINLINE const FVec3& GetP(const int32 Index) const
 		{
-			checkSlow(Index < 2);
+			checkSlow(Index < MaxConstraintedBodies);
 			return Ps[Index];
 		}
 
 		FORCEINLINE const FRotation3& GetQ(const int32 Index) const
 		{
-			checkSlow(Index < 2);
+			checkSlow(Index < MaxConstraintedBodies);
 			return Qs[Index];
 		}
+
+		FJointSolverCholesky();
 
 		void InitConstraints(
 			const FReal Dt,
@@ -46,30 +58,25 @@ namespace Chaos
 
 		void ApplyConstraints(
 			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FReal Stiffness);
+			const FPBDJointSettings& JointSettings);
 
 	private:
 
 		void UpdateDerivedState();
 
 		void AddLinearConstraints_Point(
-			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			FDenseMatrix66& J0,
 			FDenseMatrix66& J1,
 			FDenseMatrix61& C);
 
 		void AddLinearConstraints_Sphere(
-			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			FDenseMatrix66& J0,
 			FDenseMatrix66& J1,
 			FDenseMatrix61& C);
 
 		void AddLinearConstraints_Cylinder(
-			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const EJointMotionType AxisMotion,
 			const FVec3& Axis,
@@ -78,7 +85,6 @@ namespace Chaos
 			FDenseMatrix61& C);
 
 		void AddLinearConstraints_Plane(
-			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const EJointMotionType AxisMotion,
 			const FVec3& Axis,
@@ -87,7 +93,6 @@ namespace Chaos
 			FDenseMatrix61& C);
 
 		void AddAngularConstraints_Twist(
-			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const FRotation3& R01Twist,
 			const FRotation3& R01Swing,
@@ -96,7 +101,6 @@ namespace Chaos
 			FDenseMatrix61& C);
 
 		void AddAngularConstraints_Cone(
-			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const FRotation3& R01Twist,
 			const FRotation3& R01Swing,
@@ -105,7 +109,6 @@ namespace Chaos
 			FDenseMatrix61& C);
 
 		void AddAngularConstraints_Swing(
-			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const EJointAngularConstraintIndex SwingConstraintIndex,
 			const EJointAngularAxisIndex SwingAxisIndex,
@@ -116,29 +119,22 @@ namespace Chaos
 			FDenseMatrix61& C);
 
 		void AddLinearConstraints(
-			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			FDenseMatrix66& J0,
 			FDenseMatrix66& J1,
 			FDenseMatrix61& C);
 
 		void AddAngularConstraints(
-			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			FDenseMatrix66& J0,
 			FDenseMatrix66& J1,
 			FDenseMatrix61& C);
 
 		void BuildJacobianAndResidual(
-			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			FDenseMatrix66& J0,
 			FDenseMatrix66& J1,
 			FDenseMatrix61& C);
-
-		static void DecomposeSwingTwistLocal(const FRotation3& R0, const FRotation3& R1, FRotation3& R01Twist, FRotation3& R01Swing);
-
-		static const int32 MaxConstraintedBodies = 2;
 
 		// Local-space constraint settings
 		FRigidTransform3 XLs[MaxConstraintedBodies];	// Local-space joint connector transforms
@@ -152,6 +148,12 @@ namespace Chaos
 		// World-space body state
 		FVec3 Ps[MaxConstraintedBodies];				// World-space particle CoM positions
 		FRotation3 Qs[MaxConstraintedBodies];			// World-space particle CoM rotations
+
+		// Settings
+		FReal Stiffness;
+		FReal SwingTwistAngleTolerance;
+		bool bEnableTwistLimits;
+		bool bEnableSwingLimits;
 	};
 
 }
