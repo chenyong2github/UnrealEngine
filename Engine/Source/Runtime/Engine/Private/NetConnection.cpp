@@ -1071,7 +1071,11 @@ void UNetConnection::UpdateLevelVisibility(const FUpdateLevelVisibilityLevelInfo
 		else
 		{
 			UE_LOG(LogPlayerController, Warning, TEXT("ServerUpdateLevelVisibility() ignored non-existant package. PackageName='%s', FileName='%s'"), *LevelVisibility.PackageName.ToString(), *LevelVisibility.FileName.ToString());
-			Close();
+
+			if (!LevelVisibility.bSkipCloseOnError)
+			{
+				Close();
+			}
 		}
 	}
 	else
