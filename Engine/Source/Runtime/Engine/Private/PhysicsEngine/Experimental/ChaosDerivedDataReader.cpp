@@ -6,7 +6,7 @@
 #include "Chaos/Convex.h"
 
 template<typename T, int d>
-FChaosDerivedDataReader<T, d>::FChaosDerivedDataReader(FUntypedBulkData* InBulkData)
+FChaosDerivedDataReader<T, d>::FChaosDerivedDataReader(FBulkDataInterface* InBulkData)
 	: bReadSuccessful(false)
 {
 	const int32 DataTypeSize = sizeof(T);
