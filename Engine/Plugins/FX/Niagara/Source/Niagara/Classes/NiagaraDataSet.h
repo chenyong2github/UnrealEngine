@@ -422,6 +422,7 @@ struct FNiagaraDataSetAccessorBase
 		if (Var.IsValid())
 		{
 			DataSet = &InDataSet;
+			//checkSlow(VarLayout == InDataSet.GetVariableLayout(Var));
 		}
 		else
 		{
