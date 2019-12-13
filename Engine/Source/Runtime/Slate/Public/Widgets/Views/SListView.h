@@ -173,6 +173,8 @@ public:
 	 */
 	void Construct(const typename SListView<ItemType>::FArguments& InArgs)
 	{
+		this->Clipping = InArgs._Clipping;
+
 		this->OnGenerateRow = InArgs._OnGenerateRow;
 		this->OnEntryInitialized = InArgs._OnEntryInitialized;
 		this->OnRowReleased = InArgs._OnRowReleased;
