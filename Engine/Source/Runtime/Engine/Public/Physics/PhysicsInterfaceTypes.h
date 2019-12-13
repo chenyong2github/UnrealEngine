@@ -18,8 +18,7 @@ namespace Chaos
 
 	class FImplicitObject;
 
-	template <typename T>
-	class TTriangleMeshImplicitObject;
+	class FTriangleMeshImplicitObject;
 }
 #endif
 
@@ -56,7 +55,7 @@ struct FGeometryAddParams
 	TArrayView<physx::PxTriangleMesh*> TriMeshes;
 #endif
 #if WITH_CHAOS
-	TArrayView<TSharedPtr<Chaos::TTriangleMeshImplicitObject<float>, ESPMode::ThreadSafe>> ChaosTriMeshes;
+	TArrayView<TSharedPtr<Chaos::FTriangleMeshImplicitObject, ESPMode::ThreadSafe>> ChaosTriMeshes;
 #endif
 };
 

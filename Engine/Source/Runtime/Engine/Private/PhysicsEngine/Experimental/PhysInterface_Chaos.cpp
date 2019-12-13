@@ -1401,9 +1401,9 @@ const Chaos::FConvex& FPhysicsGeometryCollection_Chaos::GetConvexGeometry() cons
 	return Geom.GetObjectChecked<Chaos::FConvex>();
 }
 
-const Chaos::TTriangleMeshImplicitObject<float>& FPhysicsGeometryCollection_Chaos::GetTriMeshGeometry() const
+const Chaos::FTriangleMeshImplicitObject& FPhysicsGeometryCollection_Chaos::GetTriMeshGeometry() const
 {
-	return Geom.GetObjectChecked<Chaos::TTriangleMeshImplicitObject<float>>();
+	return Geom.GetObjectChecked<Chaos::FTriangleMeshImplicitObject>();
 }
 
 FPhysicsGeometryCollection_Chaos::FPhysicsGeometryCollection_Chaos(const FPhysicsShapeReference_Chaos& InShape)

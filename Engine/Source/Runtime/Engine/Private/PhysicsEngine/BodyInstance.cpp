@@ -1841,10 +1841,10 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 					// PhysX supports translation, we currently do not.
 					CHAOS_ENSURE(RelativeTM.GetTranslation() == FVector(0, 0, 0));
 
-					const TImplicitObjectScaled<TTriangleMeshImplicitObject<FReal>>* ScaledTriangleMesh = (static_cast<const TImplicitObjectScaled<TTriangleMeshImplicitObject<FReal>>*>(&ImplicitObject));
+					const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = (static_cast<const TImplicitObjectScaled<FTriangleMeshImplicitObject>*>(&ImplicitObject));
 					auto UnscaledTriangleMesh = ScaledTriangleMesh->Object();
 
-					TUniquePtr<TImplicitObjectScaled<TTriangleMeshImplicitObject<FReal>>> NewTriangleMesh = MakeUnique<TImplicitObjectScaled<TTriangleMeshImplicitObject<FReal>>>(UnscaledTriangleMesh, AdjustedScale3D);
+					TUniquePtr<TImplicitObjectScaled<FTriangleMeshImplicitObject>> NewTriangleMesh = MakeUnique<TImplicitObjectScaled<FTriangleMeshImplicitObject>>(UnscaledTriangleMesh, AdjustedScale3D);
 					NewGeometry.Emplace(MoveTemp(NewTriangleMesh));
 
 					bSuccess = true;
