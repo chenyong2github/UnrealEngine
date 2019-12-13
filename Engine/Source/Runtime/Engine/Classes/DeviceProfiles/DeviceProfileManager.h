@@ -122,28 +122,12 @@ public:
 	void GetAllPossibleParentProfiles(const UDeviceProfile* ChildProfile, OUT TArray<UDeviceProfile*>& PossibleParentProfiles) const;
 
 	/**
-	* Get the current active profile name.
-	*
-	* @return The selected profile.
-	*/
-	const FString GetActiveDeviceProfileName();
-
-	/**
 	* Get the selected device profile name, either the platform name, or the name
 	* provided by a Device Profile Selector Module.
 	*
 	* @return The selected profile.
 	*/
-	UE_DEPRECATED(4.24, "Use either GetActiveDeviceProfileName to have the current active device profile or GetPlatformDeviceProfileName to have the default one. Note, GetActiveDeviceProfileName will fallback on GetPlatformDeviceProfileName, if there is no active device profile ")
 	static const FString GetActiveProfileName();
-
-	/**
-	* Get the selected device profile name, either the platform name, or the name
-	* provided by a Device Profile Selector Module.
-	*
-	* @return The selected profile.
-	*/
-	static const FString GetPlatformDeviceProfileName();
 	
 	/** Retrieves the value of a scalability group cvar if it was set by the active device profile. */
 	static bool GetScalabilityCVar(const FString& CvarName, int32& OutValue);
