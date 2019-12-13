@@ -7,6 +7,7 @@
 #include "IAssetTypeActions.h"
 #include "AssetData.h"
 #include "AssetRenameManager.h"
+#include "Misc/BlacklistNames.h"
 #include "AssetTools.generated.h"
 
 class FAssetFixUpRedirectors;
@@ -116,6 +117,8 @@ public:
 	virtual void ConvertVirtualTextures(const TArray<UTexture2D*>& Textures, bool bConvertBackToNonVirtual, const TArray<UMaterial*>* RelatedMaterials = nullptr) const override;
 	virtual bool IsAssetClassSupported(const UClass* AssetClass) const override;
 	virtual TArray<UFactory*> GetNewAssetFactories() const override;
+	virtual TSharedRef<FBlacklistPaths>& GetFolderBlacklist() override;
+
 public:
 	/** Gets the asset tools singleton as a FAssetTools for asset tools module use */
 	static UAssetToolsImpl& Get();
@@ -182,6 +185,9 @@ private:
 	
 	/** The next user category bit to allocate (set to 0 when there are no more bits left) */
 	uint32 NextUserCategoryBit;
+
+	/** Blacklist of folder paths */
+	TSharedRef<FBlacklistPaths> FolderBlacklist;
 };
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

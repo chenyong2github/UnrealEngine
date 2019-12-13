@@ -131,6 +131,8 @@
 #include "AssetToolsSettings.h"
 #include "AssetVtConversion.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/BlacklistNames.h"
+
 #if WITH_EDITOR
 #include "Subsystems/AssetEditorSubsystem.h"
 #endif
@@ -153,6 +155,7 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	, AssetRenameManager(MakeShareable(new FAssetRenameManager))
 	, AssetFixUpRedirectors(MakeShareable(new FAssetFixUpRedirectors))
 	, NextUserCategoryBit(EAssetTypeCategories::FirstUser)
+	, FolderBlacklist(MakeShared<FBlacklistPaths>())
 {
 	TArray<FString> SupportedTypesArray;
 	GConfig->GetArray(TEXT("AssetTools"), TEXT("SupportedAssetTypes"), SupportedTypesArray, GEditorIni);
@@ -3141,6 +3144,11 @@ TArray<UFactory*> UAssetToolsImpl::GetNewAssetFactories() const
 	}
 
 	return MoveTemp(Factories);
+}
+
+TSharedRef<FBlacklistPaths>& UAssetToolsImpl::GetFolderBlacklist()
+{
+	return FolderBlacklist;
 }
 
 #undef LOCTEXT_NAMESPACE

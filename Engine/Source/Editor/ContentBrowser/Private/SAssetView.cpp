@@ -48,6 +48,7 @@
 #include "DesktopPlatformModule.h"
 #include "Misc/FileHelper.h"
 #include "Misc/TextFilterUtils.h"
+#include "Misc/BlacklistNames.h"
 #include "AssetRegistryState.h"
 #include "Materials/Material.h"
 
@@ -118,21 +119,13 @@ namespace AssetViewUtils
 	class FInitialAssetFilter
 	{
 	public:
-		FInitialAssetFilter(bool InDisplayL10N, bool InDisplayEngine, bool InDisplayPlugins) :
+		FInitialAssetFilter(bool InDisplayL10N, bool InDisplayEngine, bool InDisplayPlugins, const FBlacklistPaths* InFolderBlacklist) :
 			bDisplayL10N(InDisplayL10N),
 			bDisplayEngine(InDisplayEngine),
-			bDisplayPlugins(InDisplayPlugins)
-		{
-			Init(InDisplayL10N, InDisplayEngine, InDisplayPlugins);
-		}
-
-		void Init(bool InDisplayL10N, bool InDisplayEngine, bool InDisplayPlugins)
+			bDisplayPlugins(InDisplayPlugins),
+			FolderBlacklist(InFolderBlacklist)
 		{
 			ObjectRedirectorClassName = UObjectRedirector::StaticClass()->GetFName();
-
-			bDisplayL10N = InDisplayL10N;
-			bDisplayEngine = InDisplayEngine;
-			bDisplayPlugins = InDisplayPlugins;
 
 			Plugins = IPluginManager::Get().GetEnabledPluginsWithContent();
 			PluginNamesUpperWide.Reset(Plugins.Num());
@@ -172,12 +165,25 @@ namespace AssetViewUtils
 			TextFilterUtils::FNameBufferWithNumber ObjectPathBuffer(PackagePath);
 			if (ObjectPathBuffer.IsWide())
 			{
-				return PassesPackagePathFilter(ObjectPathBuffer.GetWideNamePtr());
+				if (!PassesPackagePathFilter(ObjectPathBuffer.GetWideNamePtr()))
+				{
+					return false;
+				}
 			}
 			else
 			{
-				return PassesPackagePathFilter(ObjectPathBuffer.GetAnsiNamePtr());
+				if (!PassesPackagePathFilter(ObjectPathBuffer.GetAnsiNamePtr()))
+				{
+					return false;
+				}
 			}
+			
+			if (FolderBlacklist && !FolderBlacklist->PassesStartsWithFilter(PackagePath))
+			{
+				return false;
+			}
+
+			return true;
 		}
 
 		template <typename CharType>
@@ -242,6 +248,8 @@ namespace AssetViewUtils
 			return true;
 		}
 
+		
+
 	private:
 		FName ObjectRedirectorClassName;
 		bool bDisplayL10N;
@@ -251,6 +259,7 @@ namespace AssetViewUtils
 		TArray<FString> PluginNamesUpperWide;
 		TArray<bool> PluginLoadedFromEngine;
 		TArray<TSharedRef<IPlugin>> Plugins;
+		const FBlacklistPaths* FolderBlacklist;
 
 		FORCEINLINE int32 FindPluginNameUpper(const WIDECHAR* PluginNameUpper, int32 Length) const
 		{
@@ -532,7 +541,8 @@ void SAssetView::Construct( const FArguments& InArgs )
 
 	NumVisibleColumns = 0;
 
-	SupportedFilter = AssetViewUtils::CreateSupportedFilter();
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	FolderBlacklist = AssetToolsModule.Get().GetFolderBlacklist();
 
 	FEditorWidgetsModule& EditorWidgetsModule = FModuleManager::LoadModuleChecked<FEditorWidgetsModule>("EditorWidgets");
 	TSharedRef<SWidget> AssetDiscoveryIndicator = EditorWidgetsModule.CreateAssetDiscoveryIndicator(EAssetDiscoveryIndicatorScaleMode::Scale_Vertical);
@@ -1984,11 +1994,12 @@ void SAssetView::RefreshSourceItems()
 
 	TArray<FAssetData>& Items = OnShouldFilterAsset.IsBound() ? QueriedAssetItems : AssetItems;
 
-	const bool bShowAll = SourcesData.IsEmpty() && SupportedFilter.IsEmpty() && BackendFilter.IsEmpty();
+	const FBlacklistPaths* FolderBlacklistToUse = (FolderBlacklist.IsValid() && FolderBlacklist->HasFiltering()) ? FolderBlacklist.Get() : nullptr;
+	const bool bShowAll = SourcesData.IsEmpty() && BackendFilter.IsEmpty() && FolderBlacklistToUse;
 
 	bool bShowClasses = false;
 	TArray<FName> ClassPathsToShow;
-	AssetViewUtils::FInitialAssetFilter InitialAssetFilter(IsShowingLocalizedContent(), IsShowingEngineContent(), IsShowingPluginContent());
+	AssetViewUtils::FInitialAssetFilter InitialAssetFilter(IsShowingLocalizedContent(), IsShowingEngineContent(), IsShowingPluginContent(), FolderBlacklistToUse);
 
 	if ( bShowAll )
 	{
@@ -2343,6 +2354,11 @@ void SAssetView::RefreshFolders()
 				}
 
 				if (!bDisplayL10N && ContentBrowserUtils::IsLocalizationFolder(SubPath))
+				{
+					continue;
+				}
+
+				if (FolderBlacklist.IsValid() && !FolderBlacklist->PassesStartsWithFilter(SubPath))
 				{
 					continue;
 				}
@@ -2743,7 +2759,8 @@ void SAssetView::OnAssetRegistryPathAdded(const FString& Path)
 		const bool bDisplayL10N = IsShowingLocalizedContent();
 		if ((bDisplayEmpty || EmptyFolderVisibilityManager->ShouldShowPath(Path)) &&  
 			(bDisplayDev || !ContentBrowserUtils::IsDevelopersFolder(Path)) && 
-			(bDisplayL10N || !ContentBrowserUtils::IsLocalizationFolder(Path))
+			(bDisplayL10N || !ContentBrowserUtils::IsLocalizationFolder(Path)) &&
+			(!FolderBlacklist.IsValid() || FolderBlacklist->PassesStartsWithFilter(Path))
 			)
 		{
 			for (const FName& SourcePathName : SourcesData.PackagePaths)
@@ -2973,6 +2990,32 @@ bool SAssetView::PassesCurrentFrontendFilter(const FAssetData& Item) const
 	return true;
 }
 
+void SAssetView::RunAssetsThroughBlacklists(TArray<FAssetData>& InOutAssetDataList) const
+{
+	if (InOutAssetDataList.Num() == 0)
+	{
+		return;
+	}
+
+	if (FolderBlacklist.IsValid() && FolderBlacklist->HasFiltering())
+	{
+		if (FolderBlacklist->IsBlacklistAll())
+		{
+			InOutAssetDataList.Reset();
+			return;
+		}
+
+		InOutAssetDataList.RemoveAll([this](const FAssetData& AssetData)
+		{
+			if (FolderBlacklist.IsValid() && !FolderBlacklist->PassesStartsWithFilter(AssetData.PackagePath))
+			{
+				return true;
+			}
+			return false;
+		});
+	}
+}
+
 void SAssetView::RunAssetsThroughBackendFilter(TArray<FAssetData>& InOutAssetDataList) const
 {
 	const bool bRecurse = ShouldFilterRecursively();
@@ -2991,6 +3034,8 @@ void SAssetView::RunAssetsThroughBackendFilter(TArray<FAssetData>& InOutAssetDat
 
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 		AssetRegistryModule.Get().RunAssetsThroughFilter(InOutAssetDataList, Filter);
+
+		RunAssetsThroughBlacklists(InOutAssetDataList);
 
 		if (SourcesData.HasCollections() && !bIsDynamicCollection)
 		{
