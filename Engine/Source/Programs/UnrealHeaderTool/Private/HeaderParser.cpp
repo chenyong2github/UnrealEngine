@@ -9093,7 +9093,7 @@ void FHeaderParser::SimplifiedClassParse(const TCHAR* Filename, const TCHAR* InB
 			// Handle #include directives as if they were 'dependson' keywords.
 			FString DependsOnHeaderName = Str;
 
-			if (DependsOnHeaderName != TEXT("\"UObject/DefineUPropertyMacros.h\""))
+			if (DependsOnHeaderName != TEXT("\"UObject/DefineUPropertyMacros.h\"") && DependsOnHeaderName != TEXT("\"UObject/UndefineUPropertyMacros.h\""))
 			{
 				if (bFoundGeneratedInclude)
 				{
