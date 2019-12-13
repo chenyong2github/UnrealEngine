@@ -89,6 +89,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 
 		// Serialize bSimulate on PerShapeData
 		SerializePerShapeDataSimulateFlag,
+
+		// Serialize whether or not an AABBTree is immutable
+		ImmutableAABBTree,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

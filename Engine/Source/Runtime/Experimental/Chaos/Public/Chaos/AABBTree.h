@@ -498,27 +498,42 @@ public:
 
 	virtual void Serialize(FChaosArchive& Ar) override
 	{
+		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+
 		TBox<FReal, 3>::SerializeAsAABB(Ar, FullBounds);
 		Ar << Nodes;
 		Ar << Leaves;
 		Ar << DirtyElements;
 		Ar << GlobalPayloads;
 
-		TArray<TPayloadType> Payloads;
-		if (!Ar.IsLoading())
+		bool bSerializePayloadToInfo = !bMutable;
+		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::ImmutableAABBTree)
 		{
-			PayloadToInfo.GenerateKeyArray(Payloads);
+			Ar << bSerializePayloadToInfo;
 		}
-		Ar << Payloads;
+		else
+		{
+			bSerializePayloadToInfo = true;
+		}
 
-		for (auto Payload : Payloads)
+		if (bSerializePayloadToInfo)
 		{
-			auto& Info = PayloadToInfo.FindOrAdd(Payload);
-			Ar << Info;
-		}
-		if (!bMutable)
-		{
-			PayloadToInfo.Empty();	//todo: avoid this entirely
+			TArray<TPayloadType> Payloads;
+			if (!Ar.IsLoading())
+			{
+				PayloadToInfo.GenerateKeyArray(Payloads);
+			}
+			Ar << Payloads;
+
+			for (auto Payload : Payloads)
+			{
+				auto& Info = PayloadToInfo.FindOrAdd(Payload);
+				Ar << Info;
+			}
+			if (!bMutable)	//if immutable empty this even if we had to serialize it in for backwards compat
+			{
+				PayloadToInfo.Empty();
+			}
 		}
 
 		Ar << MaxChildrenInLeaf;

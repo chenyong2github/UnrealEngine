@@ -128,7 +128,7 @@ namespace Chaos
 		TArray<uint16> MaterialIndices;
 
 		//using BVHType = TBoundingVolume<int32, T, 3>;
-		using BVHType = TAABBTree<int32, TAABBTreeLeafArray<int32, FReal>, FReal>;
+		using BVHType = TAABBTree<int32, TAABBTreeLeafArray<int32, FReal>, FReal, /*bMutable=*/false>;
 
 		template<typename InStorageType, typename InRealType>
 		friend struct FBvEntry;
