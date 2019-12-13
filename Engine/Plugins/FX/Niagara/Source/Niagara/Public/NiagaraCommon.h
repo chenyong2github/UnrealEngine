@@ -523,8 +523,17 @@ struct TStructOpsTypeTraits<FVMExternalFunctionBindingInfo> : public TStructOpsT
 	};
 };
 
+/**
+Helper for reseting/reinitializing Niagara systems currently active when they are being edited. 
+Can be used inside a scope with Systems being reinitialized on destruction or you can store the context and use CommitUpdate() to trigger reinitialization.
+For example, this can be split between PreEditChange and PostEditChange to ensure problematic data is not modified during execution of a system.
+This can be made a UPROPERTY() to ensure safey in cases where a GC could be possible between Add() and CommitUpdate().
+*/
+USTRUCT()
 struct NIAGARA_API FNiagaraSystemUpdateContext
 {
+	GENERATED_BODY()
+
 	FNiagaraSystemUpdateContext(const UNiagaraSystem* System, bool bReInit) :bDestroyOnAdd(false) { Add(System, bReInit); }
 #if WITH_EDITORONLY_DATA
 	FNiagaraSystemUpdateContext(const UNiagaraEmitter* Emitter, bool bReInit) : bDestroyOnAdd(false) { Add(Emitter, bReInit); }
@@ -549,13 +558,18 @@ struct NIAGARA_API FNiagaraSystemUpdateContext
 	/** Adds all currently active systems.*/
 	void AddAll(bool bReInit);
 
+	/** Handles any pending reinits or resets of system instances in this update context. */
+	void CommitUpdate();
+
 private:
 	void AddInternal(class UNiagaraComponent* Comp, bool bReInit);
 	FNiagaraSystemUpdateContext(FNiagaraSystemUpdateContext& Other) :bDestroyOnAdd(false) { }
 
+	UPROPERTY(transient)
 	TArray<UNiagaraComponent*> ComponentsToReset;
+	UPROPERTY(transient)
 	TArray<UNiagaraComponent*> ComponentsToReInit;
-
+	UPROPERTY(transient)
 	TArray<UNiagaraSystem*> SystemSimsToDestroy;
 
 	bool bDestroyOnAdd;

@@ -23,6 +23,7 @@ public:
 
 	/** Constructs this widget with InArgs */
 	void Construct(const FArguments& InArgs, UNiagaraOverviewNode* InNode);
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 protected:
 	virtual TSharedRef<SWidget> CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle) override;
@@ -33,12 +34,24 @@ private:
 	EVisibility GetEnabledCheckBoxVisibility() const;
 	ECheckBoxState GetEnabledCheckState() const;
 	void OnEnabledCheckStateChanged(ECheckBoxState InCheckState);
-	TSharedRef<SWidget> CreateThumbnailWidget(float InThumbnailSize, FRendererPreviewData InData);
+	TSharedRef<SWidget> CreateThumbnailWidget(float InThumbnailSize, FRendererPreviewData* InData);
 	FReply OnClickedRenderingPreview(const FGeometry& InGeometry, const FPointerEvent& InEvent, class UNiagaraStackEntry* InEntry);
 	FText GetToggleIsolateToolTip() const;
 	FReply OnToggleIsolateButtonClicked();
 	EVisibility GetToggleIsolateVisibility() const;
 	FSlateColor GetToggleIsolateImageColor() const;
+	void SetIsHoveringThumbnail(const FGeometry& InGeometry, const FPointerEvent& InEvent, const bool bInHoveringThumbnail)
+	{
+		SetIsHoveringThumbnail(InEvent, bInHoveringThumbnail);
+	}
+	void SetIsHoveringThumbnail(const FPointerEvent& InEvent, const bool bInHoveringThumbnail)
+	{
+		bIsHoveringThumbnail = bInHoveringThumbnail;
+	}
+	bool IsHoveringThumbnail()
+	{
+		return bIsHoveringThumbnail;
+	}
 
 private:
 	UNiagaraOverviewNode* OverviewStackNode;
@@ -48,5 +61,6 @@ private:
 	TSharedPtr<FAssetThumbnailPool> ThumbnailPool;
 	/** Thumbnail widget containers */
 	TSharedPtr<SHorizontalBox> ThumbnailBar;
-	TArray<FRendererPreviewData> PreviewData;
+	TArray<FRendererPreviewData*> PreviewData;
+	bool bIsHoveringThumbnail;
 };

@@ -28,6 +28,10 @@ class UEdGraphSchema_Niagara;
 class UEdGraphPin;
 class FCompileConstantResolver;
 class UNiagaraStackEditorData;
+class FMenuBuilder;
+class FNiagaraEmitterViewModel;
+class FNiagaraEmitterHandleViewModel;
+enum class ECheckBoxState : uint8;
 
 namespace FNiagaraEditorUtilities
 {
@@ -210,4 +214,14 @@ namespace FNiagaraEditorUtilities
 	 * @returns Bool for whether adding the parameter succeeded.
 	 */
 	bool AddParameter(FNiagaraVariable& NewParameterVariable, FNiagaraParameterStore& TargetParameterStore, UObject& ParameterStoreOwner, UNiagaraStackEditorData& StackEditorData);
+
+	NIAGARAEDITOR_API bool AddEmitterContextMenuActions(FMenuBuilder& MenuBuilder, const TSharedPtr<FNiagaraEmitterHandleViewModel>& EmitterHandleViewModel);
+
+	void ShowParentEmitterInContentBrowser(TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
+
+	ECheckBoxState GetSelectedEmittersEnabledCheckState(TSharedRef<FNiagaraSystemViewModel> SystemViewModel);
+	void ToggleSelectedEmittersEnabled(TSharedRef<FNiagaraSystemViewModel> SystemViewModel);
+
+	ECheckBoxState GetSelectedEmittersIsolatedCheckState(TSharedRef<FNiagaraSystemViewModel> SystemViewModel);
+	void ToggleSelectedEmittersIsolated(TSharedRef<FNiagaraSystemViewModel> SystemViewModel);
 };

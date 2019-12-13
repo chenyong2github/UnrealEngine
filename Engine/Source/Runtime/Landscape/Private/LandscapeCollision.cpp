@@ -83,7 +83,7 @@ ULandscapeHeightfieldCollisionComponent::FHeightfieldGeometryRef::FHeightfieldGe
 
 ULandscapeHeightfieldCollisionComponent::FHeightfieldGeometryRef::~FHeightfieldGeometryRef()
 {
-#if WITH_PHYSX
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 	// Free the existing heightfield data.
 	if (RBHeightfield)
 	{
@@ -107,7 +107,7 @@ TMap<FGuid, ULandscapeMeshCollisionComponent::FPhysXMeshRef* > GSharedMeshRefs;
 
 ULandscapeMeshCollisionComponent::FPhysXMeshRef::~FPhysXMeshRef()
 {
-#if WITH_PHYSX
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 	// Free the existing heightfield data.
 	if (RBTriangleMesh)
 	{
@@ -288,9 +288,10 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 
 			// Create the geometry
 			FVector FinalScale(LandscapeScale.X * CollisionScale, LandscapeScale.Y * CollisionScale, LandscapeScale.Z * LANDSCAPE_ZSCALE);
-			PxHeightFieldGeometry LandscapeComponentGeom(HeightfieldRef->RBHeightfield, PxMeshGeometryFlag::eDOUBLE_SIDED, LandscapeScale.Z * LANDSCAPE_ZSCALE, LandscapeScale.Y * CollisionScale, LandscapeScale.X * CollisionScale);
 
 #if PHYSICS_INTERFACE_PHYSX
+			PxHeightFieldGeometry LandscapeComponentGeom(HeightfieldRef->RBHeightfield, PxMeshGeometryFlag::eDOUBLE_SIDED, LandscapeScale.Z * LANDSCAPE_ZSCALE, LandscapeScale.Y * CollisionScale, LandscapeScale.X * CollisionScale);
+
 			if (LandscapeComponentGeom.isValid())
 			{
 				// Creating both a sync and async actor, since this object is static
@@ -656,8 +657,6 @@ void ULandscapeHeightfieldCollisionComponent::CreateCollisionObject()
 				for(UPhysicalMaterial* PhysicalMaterial : CookedPhysicalMaterials)
 				{
 					//todo: total hack until we get landscape fully converted to chaos
-					HeightfieldRef->UsedPhysicalMaterialArray.Add(GPhysXSDK->createMaterial(1, 1, 1));
-
 					HeightfieldRef->UsedChaosMaterials.Add(PhysicalMaterial->GetPhysicsMaterial());
 				}
 
@@ -1897,7 +1896,7 @@ bool ULandscapeHeightfieldCollisionComponent::ComponentIsTouchingSelectionFrustu
 bool ULandscapeHeightfieldCollisionComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const
 {
 	check(IsInGameThread());
-#if WITH_PHYSX
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 	if (IsValidRef(HeightfieldRef) && HeightfieldRef->RBHeightfield)
 	{
 		FTransform HFToW = GetComponentTransform();
@@ -1913,7 +1912,24 @@ bool ULandscapeHeightfieldCollisionComponent::DoCustomNavigableGeometryExport(FN
 			GeomExport.ExportPxHeightField(HeightfieldRef->RBHeightfield, HFToW);
 		}
 	}
-#endif// WITH_PHYSX
+#elif WITH_CHAOS
+	if(IsValidRef(HeightfieldRef) && HeightfieldRef->Heightfield)
+	{
+		FTransform HFToW = GetComponentTransform();
+		if(HeightfieldRef->HeightfieldSimple)
+		{
+			const float SimpleCollisionScale = CollisionScale * CollisionSizeQuads / SimpleCollisionSizeQuads;
+			HFToW.MultiplyScale3D(FVector(SimpleCollisionScale, SimpleCollisionScale, LANDSCAPE_ZSCALE));
+			GeomExport.ExportChaosHeightField(HeightfieldRef->HeightfieldSimple.Get(), HFToW);
+		}
+		else
+		{
+			HFToW.MultiplyScale3D(FVector(CollisionScale, CollisionScale, LANDSCAPE_ZSCALE));
+			GeomExport.ExportChaosHeightField(HeightfieldRef->Heightfield.Get(), HFToW);
+		}
+	}
+#endif
+
 	return false;
 }
 
@@ -1938,7 +1954,7 @@ ENavDataGatheringMode ULandscapeHeightfieldCollisionComponent::GetGeometryGather
 void ULandscapeHeightfieldCollisionComponent::PrepareGeometryExportSync()
 {
 	//check(IsInGameThread());
-#if WITH_PHYSX
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 	if (IsValidRef(HeightfieldRef) && HeightfieldRef->RBHeightfield != nullptr && CachedHeightFieldSamples.IsEmpty())
 	{
 		const UWorld* World = GetWorld();
@@ -1967,6 +1983,32 @@ void ULandscapeHeightfieldCollisionComponent::PrepareGeometryExportSync()
 			}
 		}
 	}
+#elif WITH_CHAOS
+	if(IsValidRef(HeightfieldRef) && HeightfieldRef->Heightfield.Get() && CachedHeightFieldSamples.IsEmpty())
+	{
+		const UWorld* World = GetWorld();
+
+		if(World != nullptr)
+		{
+			HeightfieldRowsCount = HeightfieldRef->Heightfield->GetNumRows();
+			HeightfieldColumnsCount = HeightfieldRef->Heightfield->GetNumCols();
+
+			if(CachedHeightFieldSamples.Heights.Num() != HeightfieldRowsCount * HeightfieldRowsCount)
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_ExportPxHeightField_saveCells);
+
+				CachedHeightFieldSamples.Heights.SetNumUninitialized(HeightfieldRowsCount * HeightfieldRowsCount);
+				
+				for(int32 SampleIndex = 0; SampleIndex < CachedHeightFieldSamples.Heights.Num(); ++SampleIndex)
+				{
+					CachedHeightFieldSamples.Heights[SampleIndex] = HeightfieldRef->Heightfield->GetHeight(SampleIndex);
+					// #PHYSTODO Hole support
+					CachedHeightFieldSamples.Holes.Add(false);
+				}
+			}
+		}
+	}
+
 #endif// WITH_PHYSX
 }
 
@@ -2513,11 +2555,16 @@ ULandscapeComponent* ULandscapeHeightfieldCollisionComponent::GetRenderComponent
 TOptional<float> ULandscapeHeightfieldCollisionComponent::GetHeight(float X, float Y)
 {
 	TOptional<float> Height;
-#if WITH_PHYSX
 	const float ZScale = GetComponentTransform().GetScale3D().Z * LANDSCAPE_ZSCALE;
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 	if (IsValidRef(HeightfieldRef) && HeightfieldRef->RBHeightfield != nullptr)
 	{
 		Height = HeightfieldRef->RBHeightfield->getHeight(HeightfieldRef->RBHeightfield->getNbRows() - 1 - X, Y) * ZScale;
+	}
+#elif WITH_CHAOS
+	if(IsValidRef(HeightfieldRef) && HeightfieldRef->Heightfield.Get())
+	{
+		Height = HeightfieldRef->Heightfield->GetHeightAt({ X, Y }) * ZScale;
 	}
 #endif
 	return Height;

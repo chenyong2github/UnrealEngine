@@ -647,14 +647,14 @@ FBox FPhysInterface_Chaos::GetBounds_AssumesLocked(const FPhysicsActorHandle& In
     return FBox(FVector(-0.5), FVector(0.5));
 }
 
-void FPhysInterface_Chaos::SetLinearDamping_AssumesLocked(const FPhysicsActorHandle& InActorReference, float InDamping)
+void FPhysInterface_Chaos::SetLinearDamping_AssumesLocked(const FPhysicsActorHandle& InActorReference, float InDrag)
 {
 	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
 	{
 		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
 		if (ensure(Rigid))
 		{
-			Rigid->SetLinearDamping(InDamping);
+			Rigid->SetLinearEtherDrag(InDrag);
 		}
 	}
 }
@@ -666,7 +666,7 @@ void FPhysInterface_Chaos::SetAngularDamping_AssumesLocked(const FPhysicsActorHa
 		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
 		if (ensure(Rigid))
 		{
-			Rigid->SetAngularDamping(InDamping);
+			Rigid->SetAngularEtherDrag(InDamping);
 		}
 	}
 }
@@ -1354,9 +1354,7 @@ void FPhysInterface_Chaos::AddGeometry(FPhysicsActorHandle& InActor, const FGeom
 }
 
 
-// todo(brice): Implicit Initialization Pipeline(WIP)
-// ... add virtual TImplicitObject::NewCopy()
-// @todo(mlentine,brice): We probably need to actually duplicate the data here, add virtual TImplicitObject::NewCopy()
+// @todo(chaos): We probably need to actually duplicate the data here, add virtual TImplicitObject::NewCopy()
 FPhysicsShapeHandle FPhysInterface_Chaos::CloneShape(const FPhysicsShapeHandle& InShape)
 {
 	FPhysicsActorHandle NewActor = nullptr; // why zero and not the default INDEX_NONE?
@@ -1401,9 +1399,9 @@ const Chaos::FConvex& FPhysicsGeometryCollection_Chaos::GetConvexGeometry() cons
 	return Geom.GetObjectChecked<Chaos::FConvex>();
 }
 
-const Chaos::TTriangleMeshImplicitObject<float>& FPhysicsGeometryCollection_Chaos::GetTriMeshGeometry() const
+const Chaos::FTriangleMeshImplicitObject& FPhysicsGeometryCollection_Chaos::GetTriMeshGeometry() const
 {
-	return Geom.GetObjectChecked<Chaos::TTriangleMeshImplicitObject<float>>();
+	return Geom.GetObjectChecked<Chaos::FTriangleMeshImplicitObject>();
 }
 
 FPhysicsGeometryCollection_Chaos::FPhysicsGeometryCollection_Chaos(const FPhysicsShapeReference_Chaos& InShape)

@@ -38,9 +38,6 @@ public:
 
 	void ResetSimulation(bool bKillExisting = true);
 
-	/** Called after all emitters in an System have been initialized, allows emitters to access information from one another. */
-	void PostInitSimulation();
-
 	void DirtyDataInterfaces();
 
 	/** Replaces the binding for a single parameter colleciton instance. If for example the component begins to override the global instance. */

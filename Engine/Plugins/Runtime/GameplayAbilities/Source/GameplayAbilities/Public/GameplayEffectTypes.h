@@ -1643,9 +1643,15 @@ struct GAMEPLAYABILITIES_API FMinimalReplicationTagCountMap
 	/** If true, we will skip updating the Owner ASC if we replicate on a connection owned by the ASC */
 	void SetRequireNonOwningNetConnection(bool b) { bRequireNonOwningNetConnection = b; }
 
+	void SetOwner(UAbilitySystemComponent* ASC);
+
+	// Removes all tags that this container is granting
+	void RemoveAllTags();
+
 private:
 
 	bool bRequireNonOwningNetConnection = false;
+	void UpdateOwnerTagMap();
 };
 
 template<>

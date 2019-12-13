@@ -586,6 +586,7 @@ struct ENGINE_VTABLE FStreamingManagerCollection : public IStreamingManager
 {
 	/** Default constructor, initializing all member variables. */
 	ENGINE_API FStreamingManagerCollection();
+	ENGINE_API ~FStreamingManagerCollection();
 
 	/**
 	 * Calls UpdateResourceStreaming(), and does per-frame cleaning. Call once per frame.
@@ -750,6 +751,11 @@ struct ENGINE_VTABLE FStreamingManagerCollection : public IStreamingManager
 	virtual void OnAudioStreamingParamsChanged() override;
 #endif
 
+	void SetVirtualTextureChunkStreamingManager(IStreamingManager* InVirtualTextureChunkStreamingManager)
+	{
+		VirtualTextureChunkStreamingManager = InVirtualTextureChunkStreamingManager;
+	}
+
 protected:
 
 	virtual void AddOrRemoveTextureStreamingManagerIfNeeded(bool bIsInit=false);
@@ -773,6 +779,8 @@ protected:
 
 	/** The animation streaming manager, should always exist */
 	IAnimationStreamingManager* AnimationStreamingManager;
+
+	IStreamingManager* VirtualTextureChunkStreamingManager;
 
 #if WITH_EDITOR
 	// Locks out any audio streaming manager call when we are re-initializing the audio streaming manager.

@@ -13,6 +13,7 @@ class FRHIStructuredBuffer;
 struct FVTUploadTileBuffer
 {
 	void* Memory = nullptr;
+	uint32 MemorySize = 0u;
 	uint32 Stride = 0u;
 };
 
@@ -79,6 +80,7 @@ private:
 		TRefCountPtr<FRHIStructuredBuffer> RHIStagingBuffer;
 		FRHITexture2D* RHISubmitTexture = nullptr;
 		void* Memory = nullptr;
+		uint32 MemorySize = 0u;
 		uint32 Stride = 0u;
 		uint32 FrameSubmitted = 0u;
 		uint32 SubmitBatchIndex = 0u;

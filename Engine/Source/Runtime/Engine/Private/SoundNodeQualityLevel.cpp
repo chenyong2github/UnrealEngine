@@ -6,12 +6,14 @@
 #include "ActiveSound.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/SoundCue.h"
+#include "Sound/SoundNode.h"
 #include "GameFramework/GameUserSettings.h"
 #include "Engine/Engine.h"
 
 #if WITH_EDITORONLY_DATA
-#include "Settings/LevelEditorPlaySettings.h"
+#include "EdGraph/EdGraph.h"
 #include "Editor.h"
+#include "Settings/LevelEditorPlaySettings.h"
 #endif
 
 #if WITH_EDITOR

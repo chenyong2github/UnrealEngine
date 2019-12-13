@@ -70,7 +70,7 @@ public:
 	uint8 bOverrideConcurrency : 1;
 
 	/** Whether or not to only send this audio's output to a bus. If true, will not be this sound won't be audible except through bus sends. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Source")
 	uint8 bOutputToBusOnly : 1;
 
 	/** Whether or not to only send this audio's output to a bus. If true, will not be this sound won't be audible except through bus sends. */
@@ -149,27 +149,25 @@ public:
 	UPROPERTY(EditAnywhere, Category = Modulation)
 	FSoundModulation Modulation;
 
-	/** Sound submix this sound belongs to.
-	  * Audio will play here and traverse through the submix graph.
-	  * A null entry will make the sound obey the default master effects graph.
-	  */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects, meta = (DisplayName = "Sound Submix"))
+	/** Submix to route sound output to. If unset, falls back to referenced SoundClass submix.
+	  * If SoundClass submix is unset, sends to the 'Master Submix' as set in the 'Audio' category of Project Settings'. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Submix", meta = (DisplayName = "Submix"))
 	USoundSubmix* SoundSubmixObject;
 
-	/** An array of submix sends. Audio from this sound will send a portion of its audio to these effects. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects)
+	/** Array of submix sends to which a prescribed amount (see 'Send Level') of this sound is sent. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Submix", meta = (DisplayName = "Submix Sends"))
 	TArray<FSoundSubmixSendInfo> SoundSubmixSends;
 
 	/** The source effect chain to use for this sound. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Source")
 	USoundEffectSourcePresetChain* SourceEffectChain;
 
 	/** This sound will send its audio output to this list of buses if there are bus instances playing after source effects are processed. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects, meta = (DisplayName = "Post-Effect Bus Sends"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Source", meta = (DisplayName = "Post-Effect Bus Sends"))
 	TArray<FSoundSourceBusSendInfo> BusSends;
 
 	/** This sound will send its audio output to this list of buses if there are bus instances playing before source effects are processed. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects, meta = (DisplayName = "Pre-Effect Bus Sends"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Source", meta = (DisplayName = "Pre-Effect Bus Sends"))
 	TArray<FSoundSourceBusSendInfo> PreEffectBusSends;
 
 public:

@@ -7,7 +7,7 @@ namespace Chaos
 	// There is a dirty flag for every user-settable particle property.
 	// Dirty property values will get copied from game to physics thread buffers,
 	// but clean property values will get overridden with physics thread results.
-	enum EParticleFlags : int32
+	enum class EParticleFlags : int32
 	{
 		X						= 1 << 0,
 		R						= 1 << 1,
@@ -27,8 +27,8 @@ namespace Chaos
 		InvI					= 1 << 15,
 		M						= 1 << 16,
 		InvM					= 1 << 17,
-		LinearDamping			= 1 << 18,
-		AngularDamping			= 1 << 19,
+		LinearEtherDrag			= 1 << 18,
+		AngularEtherDrag			= 1 << 19,
 		ObjectState				= 1 << 20,
 		Geometry				= 1 << 21,
 		ExternalForce			= 1 << 22,

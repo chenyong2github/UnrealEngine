@@ -1576,8 +1576,12 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 		
 		RayTracingInstance.BuildInstanceMaskAndFlags();
 
-		check(RayTracingInstance.Geometry->Initializer.Segments.Num() == RayTracingInstance.Materials.Num());
-		OutRayTracingInstances.Add(RayTracingInstance);
+		//#dxr_todo: verify why this condition is not fulfilled sometimes
+		verify(RayTracingInstance.Geometry->Initializer.Segments.Num() == RayTracingInstance.Materials.Num());
+		if (RayTracingInstance.Geometry->Initializer.Segments.Num() == RayTracingInstance.Materials.Num())
+		{
+			OutRayTracingInstances.Add(RayTracingInstance);
+		}
 	}
 }
 #endif

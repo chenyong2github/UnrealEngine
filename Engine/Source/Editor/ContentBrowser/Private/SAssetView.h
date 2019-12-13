@@ -59,6 +59,7 @@ public:
 		, _CanShowRealTimeThumbnails(false)
 		, _CanShowDevelopersFolder(false)
 		, _CanShowFavorites(false)
+		, _CanDockCollections(false)
 		, _PreloadAssetsForContextMenu(true)
 		, _SelectionMode( ESelectionMode::Multi )
 		, _AllowDragging(true)
@@ -164,6 +165,9 @@ public:
 
 		/** Indicates if the 'Show Favorites' option should be enabled or disabled */
 		SLATE_ARGUMENT(bool, CanShowFavorites)
+
+		/** Indicates if the 'Dock Collections' option should be enabled or disabled */
+		SLATE_ARGUMENT(bool, CanDockCollections)
 
 		/** Indicates if the context menu is going to load the assets, and if so to preload before the context menu is shown, and warn about the pending load. */
 		SLATE_ARGUMENT( bool, PreloadAssetsForContextMenu )
@@ -518,6 +522,15 @@ private:
 
 	/** @return true when we are showing favorites */
 	bool IsShowingFavorites() const;
+
+	/** Toggle whether the collections view should be docked under the paths view */
+	void ToggleDockCollections();
+
+	/** Whether or not it's possible to dock the collections view */
+	bool IsToggleDockCollectionsAllowed() const;
+
+	/** @return true when the collections view is docked */
+	bool HasDockedCollections() const;
 
 	/** Toggle whether C++ content should be shown or not */
 	void ToggleShowCppContent();
@@ -979,6 +992,9 @@ private:
 
 	/** Indicates if the 'Show Favorites' option should be enabled or disabled */
 	bool bCanShowFavorites;
+
+	/** Indicates if the 'Dock Collections' option should be enabled or disabled */
+	bool bCanDockCollections;
 
 	/** Indicates if the context menu is going to load the assets, and if so to preload before the context menu is shown, and warn about the pending load. */
 	bool bPreloadAssetsForContextMenu;

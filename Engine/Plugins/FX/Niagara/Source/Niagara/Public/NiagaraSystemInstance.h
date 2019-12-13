@@ -251,6 +251,10 @@ public:
 
 	void ResetFastPathBindings();
 
+	FNiagaraDataSet* CreateEventDataSet(FName EmitterName, FName EventName);
+	FNiagaraDataSet* GetEventDataSet(FName EmitterName, FName EventName) const;
+	void ClearEventDataSets();
+
 	FNiagaraSystemFastPath::FParamMap0& GetFastPathMap() { return FastPathMap; }
 
 	FORCEINLINE void SetLODDistance(float InLODDistance, float InMaxLODDistance);
@@ -361,6 +365,11 @@ public:
 	TArray<FNiagaraParameterDirectBinding<float>> ParameterSpawnCountScaleBindings;
 	TArray<FNiagaraParameterDirectBinding<int32>> ParameterNumParticleBindings;
 	TArray<FNiagaraParameterDirectBinding<int32>> ParameterTotalSpawnedParticlesBindings;
+
+	// registered events for each of the emitters
+	typedef TPair<FName, FName> EmitterEventKey;
+	typedef TMap<EmitterEventKey, FNiagaraDataSet*> EventDataSetMap;
+	EventDataSetMap EmitterEventDataSetMap;
 
 	/** Indicates whether this instance must update itself rather than being batched up as most instances are. */
 	uint32 bSolo : 1;

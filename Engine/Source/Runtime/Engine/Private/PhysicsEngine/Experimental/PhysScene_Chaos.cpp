@@ -35,7 +35,7 @@
 #include "PBDRigidActiveParticlesBuffer.h"
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/Box.h"
-
+#include "PhysicsReplication.h"
 
 #if !UE_BUILD_SHIPPING
 #include "Engine/World.h"
@@ -342,7 +342,8 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 	, const FName& DebugName
 #endif
 )
-	: ChaosModule(nullptr)
+	: PhysicsReplication(nullptr)
+	, ChaosModule(nullptr)
 	, SceneSolver(nullptr)
 	, SolverActor(InSolverActor)
 #if WITH_EDITOR
@@ -401,6 +402,17 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 
 FPhysScene_Chaos::~FPhysScene_Chaos()
 {
+#if WITH_CHAOS
+	if (IPhysicsReplicationFactory* RawReplicationFactory = FPhysScene_ChaosInterface::PhysicsReplicationFactory.Get())
+	{
+		RawReplicationFactory->Destroy(PhysicsReplication);
+	}
+	else if(PhysicsReplication)
+	{
+		delete PhysicsReplication;
+	}
+#endif
+
 	Shutdown();
 	
 	FCoreDelegates::OnPreExit.RemoveAll(this);
@@ -813,6 +825,16 @@ void FPhysScene_Chaos::Shutdown()
 	ComponentToPhysicsProxyMap.Reset();
 }
 
+FPhysicsReplication* FPhysScene_Chaos::GetPhysicsReplication()
+{
+	return PhysicsReplication;
+}
+
+void FPhysScene_Chaos::SetPhysicsReplication(FPhysicsReplication* InPhysicsReplication)
+{
+	PhysicsReplication = InPhysicsReplication;
+}
+
 void FPhysScene_Chaos::AddReferencedObjects(FReferenceCollector& Collector)
 {
 #if WITH_EDITOR
@@ -957,6 +979,10 @@ FPhysScene_ChaosInterface::FPhysScene_ChaosInterface(const AWorldSettings* InSet
 #if TODO_FIX_REFERENCES_TO_ADDARRAY
 	Scene.GetSolver()->GetEvolution()->GetParticles().AddArray(&BodyInstances);
 #endif
+
+	// Create replication manager
+	FPhysicsReplication* PhysicsReplication = PhysicsReplicationFactory.IsValid() ? PhysicsReplicationFactory->Create(this) : new FPhysicsReplication(this);
+	Scene.SetPhysicsReplication(PhysicsReplication);
 
 	Scene.GetSolver()->PhysSceneHack = this;
 	
@@ -1135,7 +1161,7 @@ void FPhysScene_ChaosInterface::Flush_AssumesLocked()
 
 FPhysicsReplication* FPhysScene_ChaosInterface::GetPhysicsReplication()
 {
-	return nullptr;
+	return Scene.GetPhysicsReplication();
 }
 
 void FPhysScene_ChaosInterface::RemoveBodyInstanceFromPendingLists_AssumesLocked(FBodyInstance* BodyInstance, int32 SceneType)
@@ -1430,6 +1456,11 @@ void FPhysScene_ChaosInterface::StartFrame()
 		default:
 			break;
 		}
+	}
+
+	if (FPhysicsReplication* PhysicsReplication = Scene.GetPhysicsReplication())
+	{
+		PhysicsReplication->Tick(Dt);
 	}
 }
 

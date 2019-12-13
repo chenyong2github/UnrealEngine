@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Audio.h"
 #include "AudioMixer.h"
 #include "AudioMixerSourceManager.h"
 #include "AudioDevice.h"
@@ -204,7 +205,7 @@ namespace Audio
 		uint32 GetNewUniqueAmbisonicsStreamID();
 
 		// Returns the channel array for the given submix channel type
-		const TArray<EAudioMixerChannel::Type>& GetChannelArrayForSubmixChannelType(const ESubmixChannelFormat InSubmixChannelType) const;
+		const TArray<EAudioMixerChannel::Type>& GetChannelArrayForSubmixChannelFormat(const ESubmixChannelFormat InSubmixChannelFormat) const;
 
 		// Retrieves the listener transforms
 		const TArray<FTransform>* GetListenerTransforms();
@@ -259,9 +260,6 @@ namespace Audio
 		TMap<ESubmixChannelFormat, TArray<FChannelPositionInfo>> ChannelAzimuthPositions;
 
 		int32 OutputChannels[(int32)ESubmixChannelFormat::Count];
-
-		/** Channel type arrays for submix channel types. */
-		TMap<ESubmixChannelFormat, TArray<EAudioMixerChannel::Type>> ChannelArrays;
 
 		/** What upmix method to use for mono channel upmixing. */
 		EMonoChannelUpmixMethod MonoChannelUpmixMethod;

@@ -132,9 +132,9 @@ public:
 
 	void Cleanup();
 
-	NIAGARAEDITOR_API void GetRendererPreviewData(TArray<FRendererPreviewData>& InRendererPreviewData);
-private:
-	TSharedRef<FNiagaraSystemViewModel> GetOwningSystemViewModel() const;
+	NIAGARAEDITOR_API void GetRendererPreviewData(TArray<FRendererPreviewData*>& InRendererPreviewData);
+
+	NIAGARAEDITOR_API TSharedRef<FNiagaraSystemViewModel> GetOwningSystemViewModel() const;
 
 private:
 	/** The system view model which owns this emitter handle view model. */

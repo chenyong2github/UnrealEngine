@@ -11,6 +11,7 @@
 #include <dlfcn.h>
 #include <cxxabi.h>
 #include <stdio.h>
+#include "Android/AndroidSignals.h"
 
 #define HAS_LIBUNWIND PLATFORM_ANDROID_ARM64 && !PLATFORM_LUMIN
 
@@ -18,9 +19,8 @@
 #define UNW_LOCAL_ONLY
 #include "libunwind.h"
 #endif
-#if ANDROID_HAS_THREADBACKTRACE
+#if ANDROID_HAS_RTSIGNALS
 #include <syscall.h>
-#include "HAL/PlatformTime.h"
 #endif
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformProcess.h"
@@ -273,7 +273,14 @@ static TAutoConsoleVariable<float> CVarAndroidPlatformThreadCallStackMaxWait(
 	GThreadCallStackMaxWait,
 	TEXT("The number of seconds allowed to spin before killing the process, with the assumption the back trace handler has hung."));
 
-#if ANDROID_HAS_THREADBACKTRACE
+#if ANDROID_HAS_RTSIGNALS
+/** Passed in through sigqueue for gathering of a callstack from a signal */
+struct ThreadStackUserData
+{
+	uint64* BackTrace;
+	int32 BackTraceCount;
+	SIZE_T CallStackSize;
+};
 
 int32 ThreadStackBackTraceStatus = 0;
 static const int32 ThreadStackBackTraceCurrentStatus_RUNNING = -2;
@@ -330,7 +337,7 @@ uint32 FAndroidPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, u
 					// request not yet started, skip it.
 					return 0;
 				}
-				FPlatformProcess::Sleep(PollTime);
+				FPlatformProcess::SleepNoStats(PollTime);
 			}
 
 			// We have waited for as long as we should for the signal handler to finish. Assume it has hang and we need to kill our selfs
@@ -375,4 +382,4 @@ uint32 FAndroidPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, u
 {
 	return 0;
 }
-#endif //ANDROID_HAS_THREADBACKTRACE
+#endif //ANDROID_HAS_RTSIGNALS

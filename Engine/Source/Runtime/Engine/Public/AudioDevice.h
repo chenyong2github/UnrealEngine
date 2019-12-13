@@ -40,7 +40,6 @@ class ICompressedAudioInfo;
 class UReverbEffect;
 class USoundAttenuation;
 class USoundBase;
-class USoundClass;
 class USoundConcurrency;
 class USoundEffectSourcePreset;
 class USoundEffectSubmixPreset;
@@ -1335,9 +1334,9 @@ private:
 	 */
 	void ParseSoundClasses(float InDeltaTime);
 
-	/** Stops quiet sounds due to being evaluated as not fulfilling concurrency requirements
+	/** Stops quiet/low priority sounds due to being evaluated as not fulfilling concurrency requirements
 	 */
-	void StopQuietSoundsDueToMaxConcurrency(TArray<FWaveInstance*>& WaveInstances, TArray<FActiveSound*>& ActiveSoundsCopy);
+	void CullSoundsDueToMaxConcurrency(TArray<FWaveInstance*>& WaveInstances, TArray<FActiveSound*>& ActiveSoundsCopy);
 
 	/**
 	 * Checks if the given sound would be audible.
@@ -1758,7 +1757,7 @@ private:
 	TMap<FWaveInstance*, FSoundSource*>	WaveInstanceSourceMap;
 
 	/** Current properties of all sound classes */
-	TMap<USoundClass*, FSoundClassProperties>	SoundClasses;
+	TMap<USoundClass*, FSoundClassProperties> SoundClasses;
 
 	/** The Base SoundMix that's currently active */
 	USoundMix* BaseSoundMix;

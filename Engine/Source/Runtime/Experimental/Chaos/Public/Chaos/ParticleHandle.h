@@ -80,8 +80,8 @@ void PBDRigidParticleHandleImpDefaultConstruct(TPBDRigidParticleHandleImp<T, d, 
 	Concrete.SetInvM(1);
 	Concrete.SetI(PMatrix<T, d, d>(1, 1, 1));
 	Concrete.SetInvI(PMatrix<T, d, d>(1, 1, 1));
-	Concrete.SetLinearDamping(0.f);
-	Concrete.SetAngularDamping(0.f);
+	Concrete.SetLinearEtherDrag(0.f);
+	Concrete.SetAngularEtherDrag(0.f);
 	Concrete.SetObjectStateLowLevel(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
 }
 
@@ -103,8 +103,8 @@ void PBDRigidParticleDefaultConstruct(TPBDRigidParticle<T,d>& Concrete, const TP
 	Concrete.SetInvM(1);
 	Concrete.SetI(PMatrix<T, d, d>(1, 1, 1));
 	Concrete.SetInvI(PMatrix<T, d, d>(1, 1, 1));
-	Concrete.SetLinearDamping(0.f);
-	Concrete.SetAngularDamping(0.f);
+	Concrete.SetLinearEtherDrag(0.f);
+	Concrete.SetAngularEtherDrag(0.f);
 	Concrete.SetObjectState(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
 	Concrete.SetGravityEnabled(Params.bGravityEnabled);
 }
@@ -675,13 +675,13 @@ public:
 	T& InvM() { return PBDRigidParticles->InvM(ParticleIdx); }
 	void SetInvM(const T& InInvM) { PBDRigidParticles->InvM(ParticleIdx) = InInvM; }
 
-	T LinearDamping() const { return PBDRigidParticles->LinearDamping(ParticleIdx); }
-	T& LinearDamping() { return PBDRigidParticles->LinearDamping(ParticleIdx); }
-	void SetLinearDamping(const T& InLinearDamping) { PBDRigidParticles->LinearDamping(ParticleIdx) = InLinearDamping; }
+	T LinearEtherDrag() const { return PBDRigidParticles->LinearEtherDrag(ParticleIdx); }
+	T& LinearEtherDrag() { return PBDRigidParticles->LinearEtherDrag(ParticleIdx); }
+	void SetLinearEtherDrag(const T& InLinearEtherDrag) { PBDRigidParticles->LinearEtherDrag(ParticleIdx) = InLinearEtherDrag; }
 
-	T AngularDamping() const { return PBDRigidParticles->AngularDamping(ParticleIdx); }
-	T& AngularDamping() { return PBDRigidParticles->AngularDamping(ParticleIdx); }
-	void SetAngularDamping(const T& InAngularDamping) { PBDRigidParticles->AngularDamping(ParticleIdx) = InAngularDamping; }
+	T AngularEtherDrag() const { return PBDRigidParticles->AngularEtherDrag(ParticleIdx); }
+	T& AngularEtherDrag() { return PBDRigidParticles->AngularEtherDrag(ParticleIdx); }
+	void SetAngularEtherDrag(const T& InAngularEtherDrag) { PBDRigidParticles->AngularEtherDrag(ParticleIdx) = InAngularEtherDrag; }
 
 	int32 Island() const { return PBDRigidParticles->Island(ParticleIdx); }
 	int32& Island() { return PBDRigidParticles->Island(ParticleIdx); }
@@ -1752,8 +1752,8 @@ public:
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddDampingToRigids)
 		{
-			Ar << MLinearDamping;
-			Ar << MAngularDamping;
+			Ar << MLinearEtherDrag;
+			Ar << MAngularEtherDrag;
 		}
 
 		Ar << MIsland;
@@ -1875,18 +1875,18 @@ public:
 		this->MInvM = InInvM;
 	}
 
-	T LinearDamping() const { return MLinearDamping; }
-	void SetLinearDamping(const T& InLinearDamping)
+	T LinearEtherDrag() const { return MLinearEtherDrag; }
+	void SetLinearEtherDrag(const T& InLinearEtherDrag)
 	{
-		this->MarkDirty(EParticleFlags::LinearDamping);
-		this->MLinearDamping = InLinearDamping;
+		this->MarkDirty(EParticleFlags::LinearEtherDrag);
+		this->MLinearEtherDrag = InLinearEtherDrag;
 	}
 
-	T AngularDamping() const { return MAngularDamping; }
-	void SetAngularDamping(const T& InAngularDamping)
+	T AngularEtherDrag() const { return MAngularEtherDrag; }
+	void SetAngularEtherDrag(const T& InAngularEtherDrag)
 	{
-		this->MarkDirty(EParticleFlags::AngularDamping);
-		this->MAngularDamping = InAngularDamping;
+		this->MarkDirty(EParticleFlags::AngularEtherDrag);
+		this->MAngularEtherDrag = InAngularEtherDrag;
 	}
 
 	int32 Island() const { return MIsland; }
@@ -1931,8 +1931,8 @@ private:
 	TUniquePtr<TBVHParticles<T, d>> MCollisionParticles;
 	T MM;
 	T MInvM;
-	T MLinearDamping;
-	T MAngularDamping;
+	T MLinearEtherDrag;
+	T MAngularEtherDrag;
 	int32 MIsland;
 	int32 MCollisionGroup;
 	EObjectStateType MObjectState;
@@ -1983,8 +1983,8 @@ public:
 		, MCollisionParticles(nullptr)
 		, MM(T(0))
 		, MInvM(T(0))
-		, MLinearDamping(T(0))
-		, MAngularDamping(T(0))
+		, MLinearEtherDrag(T(0))
+		, MAngularEtherDrag(T(0))
 		, MIsland(INDEX_NONE)
 		, MCollisionGroup(0)
 		, MObjectState(EObjectStateType::Uninitialized)
@@ -2006,8 +2006,8 @@ public:
 		, MCollisionParticles(nullptr)
 		, MM(InParticle.M())
 		, MInvM(InParticle.InvM())
-		, MLinearDamping(InParticle.LinearDamping())
-		, MAngularDamping(InParticle.AngularDamping())
+		, MLinearEtherDrag(InParticle.LinearEtherDrag())
+		, MAngularEtherDrag(InParticle.AngularEtherDrag())
 		, MIsland(InParticle.Island())
 		, MCollisionGroup(InParticle.CollisionGroup())
 		, MObjectState(InParticle.ObjectState())
@@ -2037,8 +2037,8 @@ public:
 	const TBVHParticles<T, d> * MCollisionParticles;
 	T MM;
 	T MInvM;
-	T MLinearDamping;
-	T MAngularDamping;
+	T MLinearEtherDrag;
+	T MAngularEtherDrag;
 	int32 MIsland;
 	int32 MCollisionGroup;
 	EObjectStateType MObjectState;
@@ -2061,8 +2061,8 @@ public:
 		MCollisionParticles = nullptr;
 		MM = T(0);
 		MInvM = T(0);
-		MLinearDamping = T(0);
-		MAngularDamping = T(0);
+		MLinearEtherDrag = T(0);
+		MAngularEtherDrag = T(0);
 		MIsland = INDEX_NONE;
 		MCollisionGroup = 0;
 		MObjectState = EObjectStateType::Uninitialized;

@@ -84,17 +84,28 @@ namespace Chaos
 			MultiPoint    //   TRigidBodyIterativeContactConstraint
 		};
 
-		TCollisionConstraintBase(int32 InTimestamp = -INT_MAX) 
+		TCollisionConstraintBase(FType InType = FType::None)
 			: AccumulatedImpulse(0)
-			, Timestamp(InTimestamp)
-			, Type(FType::None)
-		{ Particle[0] = nullptr; Particle[1] = nullptr; }
+			, Timestamp(-INT_MAX)
+			, Type(InType)
+		{ 
+			ImplicitTransform[0] = TRigidTransform<T, d>::Identity; ImplicitTransform[1] = TRigidTransform<T,d>::Identity;
+			Manifold.Implicit[0] = nullptr; Manifold.Implicit[1] = nullptr;
+			Particle[0] = nullptr; Particle[1] = nullptr; 
+		}
 		
-		TCollisionConstraintBase(FType InType, int32 InTimestamp = -INT_MAX) 
+		TCollisionConstraintBase(
+			FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const TRigidTransform<T, d>& Transform0,
+			FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform1,
+			FType InType, int32 InTimestamp = -INT_MAX)
 			: AccumulatedImpulse(0)
 			, Timestamp(InTimestamp)
 			, Type(InType)
-		{ Particle[0] = nullptr; Particle[1] = nullptr; }
+		{
+			ImplicitTransform[0] = Transform0; ImplicitTransform[1] = Transform1;
+			Manifold.Implicit[0] = Implicit0; Manifold.Implicit[1] = Implicit1;
+			Particle[0] = Particle0; Particle[1] = Particle1; 
+		}
 
 		FType GetType() const { return Type; }
 
@@ -129,6 +140,7 @@ namespace Chaos
 		}
 
 
+		TRigidTransform<T, d> ImplicitTransform[2]; // { Point, Volume }
 		FGeometryParticleHandle* Particle[2]; // { Point, Volume }
 		TVector<T, d> AccumulatedImpulse;
 		FManifold Manifold;
@@ -154,6 +166,11 @@ namespace Chaos
 		using Base::Particle;
 
 		TRigidBodyPointContactConstraint() : Base(Base::FType::SinglePoint) {}
+		TRigidBodyPointContactConstraint(
+			FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const TRigidTransform<T, d>& Transform0,
+			FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform1)
+			: Base(Particle0, Implicit0, Transform0, Particle1, Implicit1, Transform1, Base::FType::SinglePoint) {}
+
 		static typename Base::FType StaticType() { return Base::FType::SinglePoint; };
 	};
 	typedef TRigidBodyPointContactConstraint<float, 3> FRigidBodyPointContactConstraint;
@@ -172,22 +189,29 @@ namespace Chaos
 		using Base::Particle;
 		struct FSampleData { TVector<T,d> X; float Delta; FManifold Manifold; };
 
-		TRigidBodyIterativeContactConstraint() : Base(Base::FType::MultiPoint), PlaneNormal(0), PlanePosition(0), NumberSamples(0) {}
+		TRigidBodyIterativeContactConstraint() : Base(Base::FType::MultiPoint), SourceNormalIndex(INDEX_NONE), PlaneNormal(0), PlanePosition(0) {}
+		TRigidBodyIterativeContactConstraint(
+			FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const TRigidTransform<T, d>& Transform0,
+			FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform1)
+			: Base(Particle0, Implicit0, Transform0, Particle1, Implicit1, Transform1, Base::FType::MultiPoint)
+			, SourceNormalIndex(INDEX_NONE), PlaneNormal(0), PlanePosition(0) 
+		{}
+
 		static typename Base::FType StaticType() { return Base::FType::MultiPoint; };
 
+		int SourceNormalIndex; // index of normal on particle[0] body;
 		TVector<T, d> PlaneNormal; // local space contact normal on Particle1
 		TVector<T, d> PlanePosition; // local space surface position on Particle1
 
 		// Samples
-		int32               NumSamples()                   { return NumberSamples; }
-		void                AddSample(FSampleData && Data) {Samples[NumberSamples] = Data; NumberSamples++; };
-		void                ResetSamples()                 { NumberSamples=0; }
-		FSampleData &       operator[](int32 Index)        { return Samples[Index]; }
-		const FSampleData & operator[](int32 Index) const  { return Samples[Index]; }
+		int32               NumSamples()                   { return Samples.Num(); }
+		void                AddSample(FSampleData && Data) { Samples.Add(Data); };
+		void                ResetSamples()                 { Samples.Reset(); }
+		FSampleData &       operator[](int32 Index) { ensure(0 <= Index && Index < NumSamples()); return Samples[Index]; }
+		const FSampleData & operator[](int32 Index) const  { ensure(0 <= Index && Index < NumSamples()); return Samples[Index]; }
 
 	private:
-		int NumberSamples;
-		FSampleData Samples[4]; // iterative samples
+		TArray<FSampleData> Samples; // iterative samples
 	};
 	typedef TRigidBodyIterativeContactConstraint<float, 3> FRigidBodyIterativeContactConstraint;
 

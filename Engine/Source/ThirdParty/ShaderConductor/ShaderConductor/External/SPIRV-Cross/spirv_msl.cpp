@@ -2242,9 +2242,10 @@ uint32_t CompilerMSL::add_interface_block(StorageClass storage, bool patch)
 				statement("    ", input_wg_var_name, "[", to_expression(builtin_invocation_id_id), "] = ", ib_var_ref,
 				          ";");
 				statement("threadgroup_barrier(mem_flags::mem_threadgroup);");
-				statement("if (", to_expression(builtin_invocation_id_id), " >= ", get_entry_point().output_vertices,
-				          ")");
-				statement("    return;");
+				/* UE Change Begin: Early return from tess control shader will skip a threadgroup barrier. */
+				statement("if (", to_expression(builtin_invocation_id_id), " < ", get_entry_point().output_vertices, ")");
+				statement("{");
+				/* UE Change End */
 			});
 		}
 		break;
@@ -6357,6 +6358,13 @@ void CompilerMSL::emit_barrier(uint32_t id_exe_scope, uint32_t id_mem_scope, uin
 	// Use the wider of the two scopes (smaller value)
 	exe_scope = min(exe_scope, mem_scope);
 
+	/* UE Change Begin: Early return from tess control shader will skip a threadgroup barrier. */
+	if (get_execution_model() == ExecutionModelTessellationControl)
+	{
+		statement("} /* if (gl_InvocationID < 3) */");
+	}
+	/* UE Change End */
+
 	string bar_stmt;
 	if ((msl_options.is_ios() && msl_options.supports_msl_version(1, 2)) || msl_options.supports_msl_version(2))
 		bar_stmt = exe_scope < ScopeSubgroup ? "threadgroup_barrier" : "simdgroup_barrier";
@@ -8260,6 +8268,18 @@ string CompilerMSL::to_struct_member(const SPIRType &type, uint32_t member_type_
 	
 	if (!use_builtin_array && packed_array_type.length() > 0 && unpacked_array_type.length() > 0)
 		pack_pfx = "";
+
+	/* UE Change Begin: Force disable emit of a gl_Position field to VS output struct with disabled rasterization. */
+	{
+		BuiltIn builtin = BuiltInMax;
+		bool is_builtin = is_member_builtin(type, index, &builtin);
+
+		if (is_builtin && (builtin == BuiltInPosition) && (get_execution_model() == ExecutionModelVertex) && is_rasterization_disabled)
+		{
+			return string("");
+		}
+	}
+	/* UE Change End */
 
 	string result = join(pack_pfx, type_to_glsl(*declared_type, orig_id), " ", qualifier, to_member_name(type, index),
 	            member_attribute_qualifier(type, index), array_type, ";");
@@ -10980,6 +11000,13 @@ string CompilerMSL::builtin_to_glsl(BuiltIn builtin, StorageClass storage)
 			SPIRV_CROSS_THROW("ViewportIndex requires Metal 2.0.");
 		/* fallthrough */
 	case BuiltInPosition:
+		/* UE Change Begin: Force disable writing of the gl_Position field of the VS output struct with disabled rasterization. */
+		if ((get_execution_model() == ExecutionModelVertex) && is_rasterization_disabled)
+		{
+			return "// " + stage_out_var_name + "." + CompilerGLSL::builtin_to_glsl(builtin, storage);
+		}
+		// else, fallthrough
+		/* UE Change End */
 	case BuiltInPointSize:
 	case BuiltInClipDistance:
 	case BuiltInCullDistance:

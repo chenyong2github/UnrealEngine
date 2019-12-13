@@ -14,6 +14,7 @@ namespace Chaos
 	{
 	}
 
+
 	void FJointSolverGaussSeidel::UpdateDerivedState()
 	{
 		Xs[0] = Ps[0] + Qs[0] * XLs[0].GetTranslation();
@@ -21,6 +22,7 @@ namespace Chaos
 		Rs[0] = Qs[0] * XLs[0].GetRotation();
 		Rs[1] = Qs[1] * XLs[1].GetRotation();
 	}
+
 
 	void FJointSolverGaussSeidel::InitConstraints(
 		const FReal Dt,
@@ -55,6 +57,8 @@ namespace Chaos
 		TwistStiffness = FPBDJointUtilities::GetTwistStiffness(SolverSettings, JointSettings);
 		SwingStiffness = FPBDJointUtilities::GetSwingStiffness(SolverSettings, JointSettings);
 		AngularDriveStiffness = FPBDJointUtilities::GetAngularDriveStiffness(SolverSettings, JointSettings);
+		LinearProjection = FPBDJointUtilities::GetLinearProjection(SolverSettings, JointSettings);
+		AngularProjection = FPBDJointUtilities::GetAngularProjection(SolverSettings, JointSettings);
 		SwingTwistAngleTolerance = SolverSettings.SwingTwistAngleTolerance;
 		bEnableTwistLimits = SolverSettings.bEnableTwistLimits;
 		bEnableSwingLimits = SolverSettings.bEnableSwingLimits;
@@ -62,6 +66,37 @@ namespace Chaos
 
 		UpdateDerivedState();
 	}
+
+	void FJointSolverGaussSeidel::InitProjection(
+		const FReal Dt,
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings,
+		const FVec3& P0,
+		const FRotation3& Q0,
+		const FVec3& V0,
+		const FVec3& W0,
+		const FVec3& P1,
+		const FRotation3& Q1,
+		const FVec3& V1,
+		const FVec3& W1,
+		const FReal InvM0,
+		const FMatrix33& InvIL0,
+		const FReal InvM1,
+		const FMatrix33& InvIL1,
+		const FRigidTransform3& XL0,
+		const FRigidTransform3& XL1)
+	{
+		InitConstraints(Dt, SolverSettings, JointSettings, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1, XL0, XL1);
+
+		InvILs[0] = FMatrix33(0, 0, 0);
+		InvMs[0] = 0;
+
+		Vs[0] = V0;
+		Vs[1] = V1;
+		Ws[0] = W0;
+		Ws[1] = W1;
+	}
+
 
 	void FJointSolverGaussSeidel::ApplyConstraints(
 		const FReal Dt,
@@ -79,6 +114,14 @@ namespace Chaos
 		// @todo(ccaulfield): linear and velocity drives
 		ApplyRotationDrives(Dt, JointSettings);
 	}
+
+	void FJointSolverGaussSeidel::ApplyProjections(
+		const FReal Dt,
+		const FPBDJointSettings& JointSettings)
+	{
+		ApplyPositionProjection(Dt, JointSettings);
+	}
+
 
 	void FJointSolverGaussSeidel::ApplyRotationConstraints(
 		const FReal Dt,
@@ -197,6 +240,7 @@ namespace Chaos
 		Qs[1].EnforceShortestArcWith(Qs[0]);
 	}
 
+
 	void FJointSolverGaussSeidel::ApplyRotationDelta(
 		const FReal Stiffness,
 		const FVec3& Axis0,
@@ -213,6 +257,21 @@ namespace Chaos
 
 		ApplyRotationDelta(Stiffness, DR0, DR1);
 	}
+
+
+	void FJointSolverGaussSeidel::ApplyVelocityDelta(
+		const FReal Stiffness,
+		const FVec3& DV0,
+		const FVec3& DW0,
+		const FVec3& DV1,
+		const FVec3& DW1)
+	{
+		Vs[0] = Vs[0] + Stiffness * DV0;
+		Ws[0] = Ws[0] + Stiffness * DW0;
+		Vs[1] = Vs[1] + Stiffness * DV1;
+		Ws[1] = Ws[1] + Stiffness * DW1;
+	}
+
 
 	void FJointSolverGaussSeidel::ApplyTwistConstraint(
 		const FReal Dt,
@@ -526,4 +585,48 @@ namespace Chaos
 		UpdateDerivedState();
 	}
 
+
+	void FJointSolverGaussSeidel::ApplyPositionProjection(
+		const FReal Dt,
+		const FPBDJointSettings& JointSettings)
+	{
+		// Apply a position correction with the parent body set to infinite mass, then correct the velocity
+		// in the direction of the position correction.
+		const FVec3 CX = FPBDJointUtilities::GetLimitedPositionError(JointSettings, Rs[0], Xs[1] - Xs[0]);
+		const FReal CXLen = CX.Size();
+		if (CXLen > KINDA_SMALL_NUMBER)
+		{
+			const FVec3 CXDir = CX / CXLen;
+
+			// Get required velocity correction in direction of position correction
+			const FVec3 V0 = Vs[0] + FVec3::CrossProduct(Ws[0], Xs[0] - Ps[0]);
+			const FVec3 V1 = Vs[1] + FVec3::CrossProduct(Ws[1], Xs[1] - Ps[1]);
+			FVec3 CV = FPBDJointUtilities::GetLimitedVelocityError(JointSettings, Rs[0], CX, V1 - V0);
+			CV = CV - FVec3::DotProduct(CXDir, CV) * CXDir;
+
+			FMatrix33 InvI1 = Utilities::ComputeWorldSpaceInertia(Qs[1], InvILs[1]);
+			FMatrix33 M1 = Utilities::ComputeJointFactorMatrix(Xs[1] - Ps[1], InvI1, InvMs[1]);
+			FMatrix33 MI = M1.Inverse();
+			const FVec3 DX = Utilities::Multiply(MI, CX);
+
+			// Apply position correction
+			const FVec3 DP1 = -InvMs[1] * DX;
+			const FVec3 DR1 = Utilities::Multiply(InvI1, FVec3::CrossProduct(Xs[1] - Ps[1], -DX));
+
+			ApplyPositionDelta(LinearStiffness, FVec3(0), DP1);
+			ApplyRotationDelta(LinearStiffness, FVec3(0), DR1);
+			UpdateDerivedState();
+
+			InvI1 = Utilities::ComputeWorldSpaceInertia(Qs[1], InvILs[1]);
+			M1 = Utilities::ComputeJointFactorMatrix(Xs[1] - Ps[1], InvI1, InvMs[1]);
+			MI = M1.Inverse();
+
+			// Apply velocity correction
+			const FVec3 DV = Utilities::Multiply(MI, CV);
+			const FVec3 DV1 = -InvMs[1] * DV;
+			const FVec3 DW1 = Utilities::Multiply(InvI1, FVec3::CrossProduct(Xs[1] - Ps[1], -DV));
+
+			ApplyVelocityDelta(LinearProjection, FVec3(0), FVec3(0), DV1, DW1);
+		}
+	}
 }

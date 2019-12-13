@@ -1,53 +1,40 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/Matrix.h"
 #include "Chaos/PerParticleRule.h"
+#include "Chaos/Utilities.h"
 
 namespace Chaos
 {
-template<class T, int d>
-class TPerParticleEtherDrag : public TPerParticleRule<T, d>
-{
-  public:
-	TPerParticleEtherDrag(const T Coefficient = 0.01, const T AngularCoefficient = 0.01)
-	    : MCoefficient(Coefficient), MAngularCoefficient(AngularCoefficient)
+	template<class T, int d>
+	class TPerParticleEtherDrag : public TPerParticleRule<T, d>
 	{
-	}
-	virtual ~TPerParticleEtherDrag() {}
+	public:
+		TPerParticleEtherDrag() {}
+		virtual ~TPerParticleEtherDrag() {}
 
-	template<class T_PARTICLES>
-	inline void ApplyHelper(T_PARTICLES& InParticles, const T Dt, const int32 Index) const
-	{
-		InParticles.V(Index) -= MCoefficient * InParticles.V(Index);
-	}
-
-	inline void Apply(TDynamicParticles<T, d>& InParticles, const T Dt, const int32 Index) const override //-V762
-	{
-		if (InParticles.InvM(Index) == 0)
+		inline void ApplyHelper(FVec3& V, FVec3& W, FReal LinearDamp, FReal AngularDamp, T Dt) const
 		{
-			return; // Do not damp kinematic particles
-		}
-		ApplyHelper(InParticles, Dt, Index);
-	}
+			const FReal LinearMultiplier = FMath::Max(FReal(0), FReal(1) - (LinearDamp * Dt));
+			V *= LinearMultiplier;
 
-	inline void Apply(TRigidParticles<T, d>& InParticles, const T Dt, const int32 Index) const override //-V762
-	{
-		if (InParticles.InvM(Index) == 0)
+			const FReal AngularMultiplier = FMath::Max(FReal(0), FReal(1) - (AngularDamp * Dt));
+			W *= AngularMultiplier;
+		}
+
+		inline void Apply(TDynamicParticles<T, d>& InParticles, const T Dt, const int32 Index) const override //-V762
 		{
-			return; // Do not damp kinematic rigid bodies
+			ensure(false);
 		}
-		ApplyHelper(InParticles, Dt, Index);
-		InParticles.W(Index) -= MAngularCoefficient * InParticles.W(Index);
-	}
 
-	inline void Apply(TTransientPBDRigidParticleHandle<T, d>& Particle, const T Dt) const override
-	{
-		Particle.V() -= MCoefficient * Particle.V();
-	}
+		inline void Apply(TRigidParticles<T, d>& InParticles, const T Dt, const int32 Index) const override //-V762
+		{
+			ApplyHelper(InParticles.V(Index), InParticles.W(Index), InParticles.LinearEtherDrag(Index), InParticles.AngularEtherDrag(Index), Dt);
+		}
 
-  private:
-	T MCoefficient;
-	T MAngularCoefficient;
-};
+		inline void Apply(TTransientPBDRigidParticleHandle<T, d>& Particle, const T Dt) const override //-V762
+		{
+			ApplyHelper(Particle.V(), Particle.W(), Particle.LinearEtherDrag(), Particle.AngularEtherDrag(), Dt);
+		}
+	};
 }

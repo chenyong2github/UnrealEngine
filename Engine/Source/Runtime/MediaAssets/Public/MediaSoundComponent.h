@@ -15,7 +15,7 @@
 #include "DSP/SpectrumAnalyzer.h"
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/EnvelopeFollower.h"
-
+#include "Sound/SoundClass.h"
 
 #include "MediaSoundComponent.generated.h"
 
@@ -24,7 +24,6 @@ class FMediaPlayerFacade;
 class IMediaAudioSample;
 class IMediaPlayer;
 class UMediaPlayer;
-class USoundClass;
 
 
 /**

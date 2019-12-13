@@ -295,7 +295,6 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "Engine/SkeletalMeshSocket.h"
 #include "Animation/Skeleton.h"
 #include "Sound/DialogueSoundWaveProxy.h"
-#include "Sound/SoundClass.h"
 #include "Sound/SoundCue.h"
 #include "Sound/SoundGroups.h"
 #include "Sound/SoundMix.h"

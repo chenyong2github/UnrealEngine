@@ -107,6 +107,8 @@ private:
 	EVisibility GetIssueIconVisibility() const;
 
 	void OnStackItemClicked(UNiagaraStackEntry* Item);
+	void OnCycleThroughIssues();
+
 private:
 	UNiagaraStackViewModel* StackViewModel;
 
@@ -120,6 +122,5 @@ private:
 
 	// ~ search stuff
 	TSharedPtr<SSearchBox> SearchBox;
-	static const FText OccurencesFormat;
 	bool bNeedsJumpToNextOccurence;
 };

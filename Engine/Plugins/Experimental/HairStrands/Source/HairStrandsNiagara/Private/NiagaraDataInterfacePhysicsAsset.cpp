@@ -393,7 +393,6 @@ struct FNDIPhysicsAssetParametersCS : public FNiagaraDataInterfaceParametersCS
 			static_cast<FNDIPhysicsAssetProxy*>(Context.DataInterface);
 		FNDIPhysicsAssetData* ProxyData =
 			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstance);
-		ensure(ProxyData);
 
 		if (ProxyData != nullptr)
 		{
@@ -459,37 +458,22 @@ void FNDIPhysicsAssetProxy::DeferredDestroy()
 void FNDIPhysicsAssetProxy::ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance)
 {
 	FNDIPhysicsAssetData* SourceData = static_cast<FNDIPhysicsAssetData*>(PerInstanceData);
-	FNDIPhysicsAssetData* TargetData = SystemInstancesToProxyData.Find(Instance);
+	FNDIPhysicsAssetData& TargetData = SystemInstancesToProxyData.FindOrAdd(Instance);
 
-	ensure(TargetData);
-	if (TargetData)
-	{
-		TargetData->AssetBuffer = SourceData->AssetBuffer;
-		TargetData->BoxOrigin = SourceData->BoxOrigin;
-		TargetData->BoxExtent = SourceData->BoxExtent;
-	}
-	else
-	{
-		UE_LOG(LogPhysicsAsset, Log, TEXT("ConsumePerInstanceDataFromGameThread() ... could not find %d"), Instance);
-	}
+	TargetData.AssetBuffer = SourceData->AssetBuffer;
+	TargetData.BoxOrigin = SourceData->BoxOrigin;
+	TargetData.BoxExtent = SourceData->BoxExtent;
 }
 
 void FNDIPhysicsAssetProxy::InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance, FNDIPhysicsAssetBuffer* AssetBuffer, const FVector& BoxOrigin , const FVector& BoxExtent)
 {
 	check(IsInRenderingThread());
 
-	FNDIPhysicsAssetData* TargetData = SystemInstancesToProxyData.Find(SystemInstance);
-	if (TargetData != nullptr)
-	{
-		DeferredDestroyList.Remove(SystemInstance);
-	}
-	else
-	{
-		TargetData = &SystemInstancesToProxyData.Add(SystemInstance);
-	}
-	TargetData->AssetBuffer = AssetBuffer;
-	TargetData->BoxOrigin = BoxOrigin;
-	TargetData->BoxExtent = BoxExtent;
+	FNDIPhysicsAssetData& TargetData = SystemInstancesToProxyData.FindOrAdd(SystemInstance);
+
+	TargetData.AssetBuffer = AssetBuffer;
+	TargetData.BoxOrigin = BoxOrigin;
+	TargetData.BoxExtent = BoxExtent;
 }
 
 void FNDIPhysicsAssetProxy::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
@@ -605,7 +589,7 @@ void UNiagaraDataInterfacePhysicsAsset::DestroyPerInstanceData(void* PerInstance
 			[ThisProxy, InBuffer,  InstanceID = SystemInstance->GetId(), Batcher = SystemInstance->GetBatcher()](FRHICommandListImmediate& CmdList)
 		{
 			InBuffer->ReleaseResource();
-			ThisProxy->DestroyPerInstanceData(Batcher, InstanceID);
+			ThisProxy->SystemInstancesToProxyData.Remove(InstanceID);
 			delete InBuffer;
 		}
 		);

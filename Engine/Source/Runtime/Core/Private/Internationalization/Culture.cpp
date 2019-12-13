@@ -28,6 +28,7 @@ FCulture::FCulture(TUniquePtr<FCultureImplementation>&& InImplementation)
 	, CachedNativeRegion(Implementation->GetNativeRegion())
 	, CachedScript(Implementation->GetScript())
 	, CachedVariant(Implementation->GetVariant())
+	, CachedIsRightToLeft(Implementation->IsRightToLeft())
 { 
 }
 
@@ -175,6 +176,11 @@ const FString& FCulture::GetScript() const
 const FString& FCulture::GetVariant() const
 {
 	return CachedVariant;
+}
+
+bool FCulture::IsRightToLeft() const
+{
+	return CachedIsRightToLeft;
 }
 
 const FDecimalNumberFormattingRules& FCulture::GetDecimalNumberFormattingRules() const

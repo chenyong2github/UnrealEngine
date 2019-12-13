@@ -47,6 +47,9 @@ struct FAttenuationFocusData
 	/** The amount priority is scaled due to focus */
 	float PriorityScale;
 
+	/** Cached highest priority of the parent active sound's wave instances. */
+	float PriorityHighest;
+
 	/** The amount volume is scaled due to focus */
 	float VolumeScale;
 
@@ -56,6 +59,7 @@ struct FAttenuationFocusData
 		, FocusFactor(1.0f)
 		, DistanceScale(1.0f)
 		, PriorityScale(1.0f)
+		, PriorityHighest(1.0f)
 		, VolumeScale(1.0f)
 	{
 	}
@@ -342,9 +346,6 @@ private:
 	/** Optional SoundClass to override for the sound. */
 	USoundClass* SoundClassOverride;
 
-	/** Optional SoundSubmix to override for the sound. */
-	USoundSubmix* SoundSubmixOverride;
-
 	/** Optional override the submix sends for the sound. */
 	TArray<FSoundSubmixSendInfo> SoundSubmixSendsOverride;
 
@@ -407,9 +408,6 @@ public:
 
 	/** If true, this sound will not be stopped when flushing the audio device. */
 	uint8 bIgnoreForFlushing:1;
-
-	/** Whether audio effects are applied */
-	uint8 bEQFilterApplied:1;
 
 	/** Whether to artificially prioritize the component to play */
 	uint8 bAlwaysPlay:1;
@@ -657,8 +655,8 @@ public:
 	/** Applies the active sound's attenuation settings to the input parse params using the given listener */
 	void ParseAttenuation(FSoundParseParameters& OutParseParams, int32 ListenerIndex, const FSoundAttenuationSettings& InAttenuationSettings);
 
-	/** Returns the effective priority of the active sound */
-	float GetPriority() const { return Priority * FocusData.PriorityScale; }
+	/** Returns the highest effective priority of the child wave instances */
+	float GetHighestPriority() const { return Priority * FocusData.PriorityHighest * FocusData.PriorityScale; }
 
 	/** Sets the amount of audio from this active sound to send to the submix. */
 	void SetSubmixSend(const FSoundSubmixSendInfo& SubmixSendInfo);

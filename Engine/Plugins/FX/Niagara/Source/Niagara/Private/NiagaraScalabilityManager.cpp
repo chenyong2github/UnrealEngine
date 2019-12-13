@@ -20,6 +20,12 @@ FNiagaraScalabilityManager::FNiagaraScalabilityManager()
 
 }
 
+void FNiagaraScalabilityManager::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(EffectType);
+	Collector.AddReferencedObjects(ManagedComponents);
+}
+
 void FNiagaraScalabilityManager::Register(UNiagaraComponent* Component)
 {
 	check(Component->ScalabilityManagerHandle == INDEX_NONE);
@@ -27,6 +33,8 @@ void FNiagaraScalabilityManager::Register(UNiagaraComponent* Component)
 
 	Component->ScalabilityManagerHandle = ManagedComponents.Add(Component);
 	State.AddDefaulted();
+
+	//UE_LOG(LogNiagara, Warning, TEXT("Registered Component %0xP at index %d"), Component, Component->ScalabilityManagerHandle);
 }
 
 void FNiagaraScalabilityManager::Unregister(UNiagaraComponent* Component)
@@ -36,6 +44,13 @@ void FNiagaraScalabilityManager::Unregister(UNiagaraComponent* Component)
 
 	int32 IndexToRemove = Component->ScalabilityManagerHandle;
 	Component->ScalabilityManagerHandle = INDEX_NONE;
+	UnregisterAt(IndexToRemove);
+}
+
+void FNiagaraScalabilityManager::UnregisterAt(int32 IndexToRemove)
+{
+	//UE_LOG(LogNiagara, Warning, TEXT("Unregistering Component %0xP at index %d (Replaced with %0xP)"), ManagedComponents[IndexToRemove], IndexToRemove, ManagedComponents.Num() > 1 ? ManagedComponents.Last() : nullptr);
+
 	ManagedComponents.RemoveAtSwap(IndexToRemove);
 	State.RemoveAtSwap(IndexToRemove);
 
@@ -48,6 +63,14 @@ void FNiagaraScalabilityManager::Unregister(UNiagaraComponent* Component)
 
 void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan)
 {
+	//Paranoia code in case the EffectType is GCd from under us.
+	if (EffectType == nullptr)
+	{
+		ManagedComponents.Empty();
+		State.Empty();
+		LastUpdateTime = 0.0f;
+	}
+
 	float WorldTime = WorldMan->GetWorld()->GetTimeSeconds();
 	bool bShouldUpdateScalabilityStates = false;
 	switch (EffectType->UpdateFrequency)
@@ -65,22 +88,31 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan)
 
 	LastUpdateTime = WorldTime;
 
+	//Belt and braces paranoia code to ensure we're safe if a component or System is GCd but the component isn't unregistered for whatever reason.
 	int32 CompIdx = 0;
-#if WITH_EDITOR
-	//In cases such as undo/redo we can get components and system asset references pulled from under us.
 	while (CompIdx < ManagedComponents.Num())
 	{
 		UNiagaraComponent* Component = ManagedComponents[CompIdx];
-		if (Component && Component->GetAsset())
+		if (Component)
 		{
-			++CompIdx;
+			if (Component->GetAsset())
+			{
+				++CompIdx;
+			}
+			else
+			{
+				UE_LOG(LogNiagara, Warning, TEXT("Niagara System has been destroyed with components still registered to the scalability manager. Unregistering this component.\nComponent: %0xP - %s\nEffectType: %0xP - %s"),
+					Component, *Component->GetName(), EffectType, *EffectType->GetName());
+				Unregister(Component);
+			}
 		}
 		else
 		{
-			Unregister(Component);
+			UE_LOG(LogNiagara, Warning, TEXT("Niagara Component has been destroyed while still registered to the scalability manager. Unregistering this component.\nComponent: %0xP \nEffectType: %0xP - %s"),
+				Component, EffectType, *EffectType->GetName());
+			UnregisterAt(CompIdx);
 		}
 	}
-#endif
 
 	bool bNeedSortedSignificanceCull = false;
 	SignificanceSortedIndices.Reset(ManagedComponents.Num());

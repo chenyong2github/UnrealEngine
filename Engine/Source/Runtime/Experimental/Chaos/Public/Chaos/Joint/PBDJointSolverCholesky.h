@@ -22,20 +22,20 @@ namespace Chaos
 	class FJointSolverCholesky
 	{
 	public:
-		static const int32 MaxConstraintedBodies = 2;
+		static const int32 MaxConstrainedBodies = 2;
 
 		using FDenseMatrix66 = TDenseMatrix<6 * 6>;
 		using FDenseMatrix61 = TDenseMatrix<6 * 1>;
 
 		FORCEINLINE const FVec3& GetP(const int32 Index) const
 		{
-			checkSlow(Index < MaxConstraintedBodies);
+			checkSlow(Index < MaxConstrainedBodies);
 			return Ps[Index];
 		}
 
 		FORCEINLINE const FRotation3& GetQ(const int32 Index) const
 		{
-			checkSlow(Index < MaxConstraintedBodies);
+			checkSlow(Index < MaxConstrainedBodies);
 			return Qs[Index];
 		}
 
@@ -190,17 +190,17 @@ namespace Chaos
 			const FDenseMatrix61& C);
 
 		// Local-space constraint settings
-		FRigidTransform3 XLs[MaxConstraintedBodies];	// Local-space joint connector transforms
-		FMatrix33 InvILs[MaxConstraintedBodies];		// Local-space inverse inertias
-		FReal InvMs[MaxConstraintedBodies];				// Inverse masses
+		FRigidTransform3 XLs[MaxConstrainedBodies];	// Local-space joint connector transforms
+		FMatrix33 InvILs[MaxConstrainedBodies];		// Local-space inverse inertias
+		FReal InvMs[MaxConstrainedBodies];				// Inverse masses
 
 		// World-space constraint state
-		FVec3 Xs[MaxConstraintedBodies];				// World-space joint connector positions
-		FRotation3 Rs[MaxConstraintedBodies];			// World-space joint connector rotations
+		FVec3 Xs[MaxConstrainedBodies];				// World-space joint connector positions
+		FRotation3 Rs[MaxConstrainedBodies];			// World-space joint connector rotations
 
 		// World-space body state
-		FVec3 Ps[MaxConstraintedBodies];				// World-space particle CoM positions
-		FRotation3 Qs[MaxConstraintedBodies];			// World-space particle CoM rotations
+		FVec3 Ps[MaxConstrainedBodies];				// World-space particle CoM positions
+		FRotation3 Qs[MaxConstrainedBodies];			// World-space particle CoM rotations
 
 		// Settings
 		FReal Stiffness;

@@ -35,7 +35,7 @@ struct FVirtualTextureChunkStreamingManager& FVirtualTextureChunkStreamingManage
 
 FVirtualTextureChunkStreamingManager::FVirtualTextureChunkStreamingManager()
 {
-	IStreamingManager::Get().AddStreamingManager(this);
+	IStreamingManager::Get().SetVirtualTextureChunkStreamingManager(this);
 #if WITH_EDITOR
 	GetVirtualTextureChunkDDCCache()->Initialize();
 #endif
@@ -46,7 +46,7 @@ FVirtualTextureChunkStreamingManager::~FVirtualTextureChunkStreamingManager()
 #if WITH_EDITOR
 	GetVirtualTextureChunkDDCCache()->ShutDown();
 #endif
-	IStreamingManager::Get().RemoveStreamingManager(this);
+	IStreamingManager::Get().SetVirtualTextureChunkStreamingManager(nullptr);
 }
 
 void FVirtualTextureChunkStreamingManager::UpdateResourceStreaming(float DeltaTime, bool bProcessEverything /*= false*/)

@@ -851,7 +851,7 @@ bool FCoreAudioSoundSource::AttachToAUGraph()
 	bool bNeedReverbFilter = false;
 
 #if CORE_AUDIO_EQ_ENABLED
-	bNeedEQFilter = IsEQFilterApplied();
+	bNeedEQFilter = WaveInstance->SoundClass ? WaveInstance->SoundClass->Properties.bApplyEffects : false;
 #endif
 
 #if CORE_AUDIO_RADIO_ENABLED

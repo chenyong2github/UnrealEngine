@@ -227,8 +227,8 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 		RigidHandle->SetInvM(Data->MInvM);
 		RigidHandle->SetI(Data->MI);
 		RigidHandle->SetInvI(Data->MInvI);
-		RigidHandle->SetLinearDamping(Data->MLinearDamping);
-		RigidHandle->SetAngularDamping(Data->MAngularDamping);
+		RigidHandle->SetLinearEtherDrag(Data->MLinearEtherDrag);
+		RigidHandle->SetAngularEtherDrag(Data->MAngularEtherDrag);
 
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ExternalForce))
 		{
@@ -247,7 +247,7 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 			GetSolver()->GetEvolution()->GetGravityForces().SetEnabled(*RigidHandle, Data->MGravityEnabled);
 		}
 
-		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::X | Chaos::EParticleFlags::R | Chaos::EParticleFlags::V | Chaos::EParticleFlags::Geometry))
+		if (Data->DirtyFlags.IsDirty((int32)Chaos::EParticleFlags::X | (int32)Chaos::EParticleFlags::R | (int32)Chaos::EParticleFlags::V | (int32)Chaos::EParticleFlags::Geometry))
 		{
 			if (Data->Geometry && Data->Geometry->HasBoundingBox())
 			{

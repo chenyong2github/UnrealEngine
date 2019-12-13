@@ -211,7 +211,7 @@ private:
 
 
 
-class FRCPassPostProcessAmbientOcclusion_GTAO_TemporalFilter : public TRenderingCompositePassBase<1, 2>
+class FRCPassPostProcessAmbientOcclusion_GTAO_TemporalFilter : public TRenderingCompositePassBase<1, 3>
 {
 public:
 

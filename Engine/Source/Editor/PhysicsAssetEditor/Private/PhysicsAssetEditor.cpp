@@ -2933,11 +2933,7 @@ void FPhysicsAssetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPre
 
 	SharedData->EditorSkelComp->Stop();
 
-	SharedData->EditorSkelComp->SetAnimationMode(EAnimationMode::AnimationCustomMode);
 	SharedData->EditorSkelComp->PreviewInstance = NewObject<UPhysicsAssetEditorAnimInstance>(SharedData->EditorSkelComp, TEXT("PhatAnimScriptInstance"));
-	SharedData->EditorSkelComp->AnimScriptInstance = SharedData->EditorSkelComp->PreviewInstance;
-	SharedData->EditorSkelComp->AnimScriptInstance->InitializeAnimation();
-	SharedData->EditorSkelComp->InitAnim(true);
 
 	SharedData->PhysicalAnimationComponent = NewObject<UPhysicalAnimationComponent>(Actor);
 	SharedData->PhysicalAnimationComponent->SetSkeletalMeshComponent(SharedData->EditorSkelComp);

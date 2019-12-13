@@ -36,6 +36,7 @@ FAutoConsoleVariableRef CVarRigidBodyNodeEnableTimeBasedReset(TEXT("p.RigidBodyN
 FAnimNode_RigidBody::FAnimNode_RigidBody():
 	QueryParams(NAME_None, FCollisionQueryParams::GetUnknownStatId())
 {
+	AccumulatedDeltaTime = 0.0f;
 	ResetSimulatedTeleportType = ETeleportType::None;
 	PhysicsSimulation = nullptr;
 	OverridePhysicsAsset = nullptr;
@@ -50,6 +51,7 @@ FAnimNode_RigidBody::FAnimNode_RigidBody():
 	OverrideWorldGravity = FVector::ZeroVector;
 	TotalMass = 0.f;
 	CachedBounds.W = 0;
+	PhysScene = nullptr;
 	UnsafeWorld = nullptr;
 	bSimulationStarted = false;
 	bCheckForBodyTransformInit = false;
