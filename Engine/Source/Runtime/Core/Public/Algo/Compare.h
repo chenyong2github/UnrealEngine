@@ -8,37 +8,36 @@
 namespace Algo
 {
 	/**
-	* Compares entries in the container using a user-defined predicate container
+	* Compares two contiguous containers using a predicate to compare pairs of elements.
 	*
-	* @param  InputA     Container used as baseline
-	* @param  InputB     Container to compare against
-	* @param  Predicate  Condition which returns true for elements which are deemed equal
+	* @param  InputA     Container of elements that are used as the first argument to the predicate.
+	* @param  InputB     Container of elements that are used as the second argument to the predicate.
+	* @param  Predicate  Condition which returns true for elements which are deemed equal.
+	*
+	* @return Whether the containers are the same size and the predicate returned true for every pair of elements.
 	*/
-	template <typename InT, typename PredicateT>
-	FORCEINLINE bool CompareByPredicate(const InT& InputA, const InT& InputB, PredicateT Predicate)
+	template <typename InAT, typename InBT, typename PredicateT>
+	constexpr bool CompareByPredicate(InAT&& InputA, InBT&& InputB, PredicateT Predicate)
 	{
-		if (InputA.Num() == InputB.Num())
+		const SIZE_T SizeA = GetNum(InputA);
+		const SIZE_T SizeB = GetNum(InputB);
+
+		if (SizeA != SizeB)
 		{
-			uint32 Count = GetNum(InputA);
-
-			auto* A = GetData(InputA);
-			auto* B = GetData(InputB);
-
-			while (Count)
-			{
-				if (!(Invoke(Predicate, *A, *B)))
-				{
-					return false;
-				}
-
-				++A;
-				++B;
-				--Count;
-			}
-
-			return true;
+			return false;
 		}
 
-		return false;
+		auto* A = GetData(InputA);
+		auto* B = GetData(InputB);
+
+		for (SIZE_T Count = SizeA; Count; --Count)
+		{
+			if (!Invoke(Predicate, *A++, *B++))
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 }
