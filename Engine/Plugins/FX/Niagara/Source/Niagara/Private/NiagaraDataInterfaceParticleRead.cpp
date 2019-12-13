@@ -215,123 +215,92 @@ void UNiagaraDataInterfaceParticleRead::GetVMExternalFunction(const FVMExternalF
 {
 	bool bBindSuccessful = false;
 	FNDIParticleRead_InstanceData* PIData = static_cast<FNDIParticleRead_InstanceData*>(InstanceData);
-	const FName* AttributeToRead = BindingInfo.Specifiers.Find(FName("Attribute"));
+	static const FName NAME_Attribute("Attribute");
 
-	if (!AttributeToRead)
+	const FVMFunctionSpecifier* FunctionSpecifier = BindingInfo.FindSpecifier(NAME_Attribute);
+	if (FunctionSpecifier == nullptr)
 	{
 		UE_LOG(LogNiagara, Error, TEXT("VMExternalFunction '%s' does not have a function specifier 'attribute'!"), *BindingInfo.Name.ToString());
 		return;
 	}
 
+	const FName AttributeToRead = FunctionSpecifier->Value;
 	if (BindingInfo.Name == GetFloatAttributeFunctionName)
 	{
-		if (AttributeToRead)
+		FNiagaraVariable VariableToRead(FNiagaraTypeDefinition::GetFloatDef(), AttributeToRead);
+		if (PIData->EmitterInstance->GetData().GetVariables().Find(VariableToRead) != INDEX_NONE)
 		{
-			FNiagaraVariable VariableToRead(FNiagaraTypeDefinition::GetFloatDef(), *AttributeToRead);
-			FName Attr = *AttributeToRead;
-			if (PIData->EmitterInstance->GetData().GetVariables().Find(VariableToRead) != INDEX_NONE)
-			{
-				NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadFloat)::Bind(this, OutFunc, Attr);
-				bBindSuccessful = true;
-			}
+			NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadFloat)::Bind(this, OutFunc, AttributeToRead);
+			bBindSuccessful = true;
 		}
 	}
 	else if (BindingInfo.Name == GetVec2AttributeFunctionName)
 	{
-		if (AttributeToRead)
+		FNiagaraVariable VariableToRead(FNiagaraTypeDefinition::GetVec2Def(), AttributeToRead);
+		if (PIData->EmitterInstance->GetData().GetVariables().Find(VariableToRead) != INDEX_NONE)
 		{
-			FNiagaraVariable VariableToRead(FNiagaraTypeDefinition::GetVec2Def(), *AttributeToRead);
-			FName Attr = *AttributeToRead;
-			if (PIData->EmitterInstance->GetData().GetVariables().Find(VariableToRead) != INDEX_NONE)
-			{
-				NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadVector2)::Bind(this, OutFunc, Attr);
-				bBindSuccessful = true;
-			}
+			NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadVector2)::Bind(this, OutFunc, AttributeToRead);
+			bBindSuccessful = true;
 		}
 	}
 	else if (BindingInfo.Name == GetVec3AttributeFunctionName)
 	{
-		if (AttributeToRead)
+		FNiagaraVariable VariableToRead(FNiagaraTypeDefinition::GetVec3Def(), AttributeToRead);
+		if (PIData->EmitterInstance->GetData().GetVariables().Find(VariableToRead) != INDEX_NONE)
 		{
-			FNiagaraVariable VariableToRead(FNiagaraTypeDefinition::GetVec3Def(), *AttributeToRead);
-			FName Attr = *AttributeToRead;
-			if (PIData->EmitterInstance->GetData().GetVariables().Find(VariableToRead) != INDEX_NONE)
-			{
-				NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadVector3)::Bind(this, OutFunc, Attr);
-				bBindSuccessful = true;
-			}
+			NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadVector3)::Bind(this, OutFunc, AttributeToRead);
+			bBindSuccessful = true;
 		}
 	}
 	else if (BindingInfo.Name == GetVec4AttributeFunctionName)
 	{
-		if (AttributeToRead)
+		FNiagaraVariable VariableToRead(FNiagaraTypeDefinition::GetVec4Def(), AttributeToRead);
+		if (PIData->EmitterInstance->GetData().GetVariables().Find(VariableToRead) != INDEX_NONE)
 		{
-			FNiagaraVariable VariableToRead(FNiagaraTypeDefinition::GetVec4Def(), *AttributeToRead);
-			FName Attr = *AttributeToRead;
-			if (PIData->EmitterInstance->GetData().GetVariables().Find(VariableToRead) != INDEX_NONE)
-			{
-				NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadVector4)::Bind(this, OutFunc, Attr);
-				bBindSuccessful = true;
-			}
+			NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadVector4)::Bind(this, OutFunc, AttributeToRead);
+			bBindSuccessful = true;
 		}
 	}
 	else if (BindingInfo.Name == GetIntAttributeFunctionName)
 	{
-		if (AttributeToRead)
+		FNiagaraVariable VariableToRead(FNiagaraTypeDefinition::GetIntDef(), AttributeToRead);
+		if (PIData->EmitterInstance->GetData().GetVariables().Find(VariableToRead) != INDEX_NONE)
 		{
-			FNiagaraVariable VariableToRead(FNiagaraTypeDefinition::GetIntDef(), *AttributeToRead);
-			FName Attr = *AttributeToRead;
-			if (PIData->EmitterInstance->GetData().GetVariables().Find(VariableToRead) != INDEX_NONE)
-			{
-				NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadInt)::Bind(this, OutFunc, Attr);
-				bBindSuccessful = true;
-			}
+			NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadInt)::Bind(this, OutFunc, AttributeToRead);
+			bBindSuccessful = true;
 		}
 	}
 	else if (BindingInfo.Name == GetBoolAttributeFunctionName)
 	{
-		if (AttributeToRead)
+		FNiagaraVariable VariableToRead(FNiagaraTypeDefinition::GetBoolDef(), AttributeToRead);
+		if (PIData->EmitterInstance->GetData().GetVariables().Find(VariableToRead) != INDEX_NONE)
 		{
-			FNiagaraVariable VariableToRead(FNiagaraTypeDefinition::GetBoolDef(), *AttributeToRead);
-			FName Attr = *AttributeToRead;
-			if (PIData->EmitterInstance->GetData().GetVariables().Find(VariableToRead) != INDEX_NONE)
-			{
-				NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadBool)::Bind(this, OutFunc, Attr);
-				bBindSuccessful = true;
-			}
+			NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadBool)::Bind(this, OutFunc, AttributeToRead);
+			bBindSuccessful = true;
 		}
 	}
 	else if (BindingInfo.Name == GetColorAttributeFunctionName)
 	{
-		if (AttributeToRead)
+		FNiagaraVariable VariableToRead(FNiagaraTypeDefinition::GetColorDef(), AttributeToRead);
+		if (PIData->EmitterInstance->GetData().GetVariables().Find(VariableToRead) != INDEX_NONE)
 		{
-			FNiagaraVariable VariableToRead(FNiagaraTypeDefinition::GetColorDef(), *AttributeToRead);
-			FName Attr = *AttributeToRead;
-			if (PIData->EmitterInstance->GetData().GetVariables().Find(VariableToRead) != INDEX_NONE)
-			{
-				NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadColor)::Bind(this, OutFunc, Attr);
-				bBindSuccessful = true;
-			}
+			NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadColor)::Bind(this, OutFunc, AttributeToRead);
+			bBindSuccessful = true;
 		}
 	}
 	else if (BindingInfo.Name == GetQuatAttributeFunctionName)
 	{
-		if (AttributeToRead)
+		FNiagaraVariable VariableToRead(FNiagaraTypeDefinition::GetQuatDef(), AttributeToRead);
+		if (PIData->EmitterInstance->GetData().GetVariables().Find(VariableToRead) != INDEX_NONE)
 		{
-			FNiagaraVariable VariableToRead(FNiagaraTypeDefinition::GetQuatDef(), *AttributeToRead);
-			FName Attr = *AttributeToRead;
-			if (PIData->EmitterInstance->GetData().GetVariables().Find(VariableToRead) != INDEX_NONE)
-			{
-				NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadQuat)::Bind(this, OutFunc, Attr);
-				bBindSuccessful = true;
-			}
+			NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadQuat)::Bind(this, OutFunc, AttributeToRead);
+			bBindSuccessful = true;
 		}
 	}
 
-
 	if (!bBindSuccessful)
 	{
-		UE_LOG(LogNiagara, Error, TEXT("Failed to bind VMExternalFunction '%s' with attribute '%s'! Check that the attribute is named correctly."), *BindingInfo.Name.ToString(), *(*AttributeToRead).ToString());
+		UE_LOG(LogNiagara, Error, TEXT("Failed to bind VMExternalFunction '%s' with attribute '%s'! Check that the attribute is named correctly."), *BindingInfo.Name.ToString(), *AttributeToRead.ToString());
 	}
 }
 

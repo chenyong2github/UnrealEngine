@@ -408,3 +408,30 @@ FNiagaraUserParameterBinding::FNiagaraUserParameterBinding()
 	{
 
 	}
+
+//////////////////////////////////////////////////////////////////////////
+
+bool FVMExternalFunctionBindingInfo::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
+
+	if (Ar.IsLoading() || Ar.IsSaving())
+	{
+		UScriptStruct* Struct = FVMExternalFunctionBindingInfo::StaticStruct();
+		Struct->SerializeTaggedProperties(Ar, (uint8*)this, Struct, nullptr);
+	}
+
+#if WITH_EDITORONLY_DATA
+	const int32 NiagaraVersion = Ar.CustomVer(FNiagaraCustomVersion::GUID);
+
+	if (NiagaraVersion < FNiagaraCustomVersion::MemorySaving)
+	{
+		for (auto it = Specifiers_DEPRECATED.CreateConstIterator(); it; ++it)
+		{
+			FunctionSpecifiers.Emplace(it->Key, it->Value);
+		}
+	}
+#endif
+
+	return true;
+}
