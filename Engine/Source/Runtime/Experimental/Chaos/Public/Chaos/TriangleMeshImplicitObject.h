@@ -110,19 +110,7 @@ namespace Chaos
 
 		virtual void Serialize(FChaosArchive& Ar) override;
 
-		virtual uint32 GetTypeHash() const override
-		{
-			uint32 Result = MParticles.GetTypeHash();
-			Result = HashCombine(Result, MLocalBoundingBox.GetTypeHash());
-
-			for(TVector<int32, 3> Tri : MElements)
-			{
-				uint32 TriHash = HashCombine(::GetTypeHash(Tri[0]), HashCombine(::GetTypeHash(Tri[1]), ::GetTypeHash(Tri[2])));
-				Result = HashCombine(Result, TriHash);
-			}
-
-			return Result;
-		}
+		virtual uint32 GetTypeHash() const override;
 
 		TVector<T, 3> GetFaceNormal(const int32 FaceIdx) const;
 
