@@ -581,7 +581,7 @@ bool FFileHelper::CreateBitmap( const TCHAR* Pattern, int32 SourceWidth, int32 S
 				{
 					const uint8 Max = 255;
 					uint8 ChannelValue = 0;
-					// When using Channel mask write the masked channel to blue channel.
+					// When using Channel mask write the masked channel to all channels (except alpha).
 					switch (ChannelMask)
 					{
 					case EChannelMask::B:
@@ -595,9 +595,6 @@ bool FFileHelper::CreateBitmap( const TCHAR* Pattern, int32 SourceWidth, int32 S
 						break;
 					case EChannelMask::A:
 						ChannelValue = Data[i * SourceWidth + j].A;
-						break;
-					default:
-						check(0);
 						break;
 					}
 										
