@@ -24,7 +24,10 @@ public:
 
 	virtual bool GetCanExpand() const override;
 	virtual bool GetShouldShowInStack() const override;
-
+	UNiagaraStackRenderItemGroup* GetRenderGroup() const
+	{
+		return RenderGroup;
+	}
 protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
