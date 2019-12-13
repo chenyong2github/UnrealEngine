@@ -835,7 +835,7 @@ ULocalPlayer* UGameInstance::GetLocalPlayerByIndex(const int32 Index) const
 	return nullptr;
 }
 
-APlayerController* UGameInstance::GetFirstLocalPlayerController(UWorld* World) const
+APlayerController* UGameInstance::GetFirstLocalPlayerController(const UWorld* World) const
 {
 	if (World == nullptr)
 	{
