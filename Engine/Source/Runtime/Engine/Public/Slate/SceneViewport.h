@@ -26,6 +26,8 @@ DECLARE_DELEGATE_OneParam( FOnSceneViewportResize, FVector2D );
 
 class SViewport;
 
+extern const FName NAME_SceneViewport;
+
 /**
  * A viewport for use with Slate SViewport widgets.
  */

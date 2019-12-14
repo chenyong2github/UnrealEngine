@@ -24,6 +24,8 @@
 
 extern EWindowMode::Type GetWindowModeType(EWindowMode::Type WindowMode);
 
+const FName NAME_SceneViewport = FName(TEXT("SceneViewport"));
+
 FSceneViewport::FSceneViewport( FViewportClient* InViewportClient, TSharedPtr<SViewport> InViewportWidget )
 	: FViewport( InViewportClient )
 	, CurrentReplyState( FReply::Unhandled() )
@@ -53,6 +55,7 @@ FSceneViewport::FSceneViewport( FViewportClient* InViewportClient, TSharedPtr<SV
 	, NumTouches(0)
 {
 	bIsSlateViewport = true;
+	ViewportType = NAME_SceneViewport;
 	RenderThreadSlateTexture = new FSlateRenderTargetRHI(nullptr, 0, 0);
 
 	if (InViewportClient)

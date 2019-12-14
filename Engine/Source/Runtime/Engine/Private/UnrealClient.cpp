@@ -36,6 +36,8 @@ IMPLEMENT_STRUCT(PostProcessSettings);
 bool FViewport::bIsGameRenderingEnabled = true;
 int32 FViewport::PresentAndStopMovieDelay = 0;
 
+static const FName NAME_DummyViewport = FName(TEXT("DummyViewport"));
+
 /**
 * Reads the viewport's displayed pixels into a preallocated color buffer.
 * @param OutImageData - RGBA8 values will be stored in this buffer
@@ -1174,6 +1176,7 @@ FViewport::FViewport(FViewportClient* InViewportClient):
 	bHasRequestedToggleFreeze(false),
 	bIsSlateViewport(false),
 	bIsHDR(false),
+	ViewportType(NAME_None),
 	bTakeHighResScreenShot(false)
 {
 	//initialize the hit proxy kernel
@@ -2297,6 +2300,7 @@ FDummyViewport::FDummyViewport(FViewportClient* InViewportClient)
 	: FViewport(InViewportClient)
 	, DebugCanvas(NULL)
 {
+	ViewportType = NAME_DummyViewport;
 	UWorld* CurWorld = (InViewportClient != NULL ? InViewportClient->GetWorld() : NULL);
 	DebugCanvas = new FCanvas(this, NULL, CurWorld, (CurWorld != NULL ? CurWorld->FeatureLevel.GetValue() : GMaxRHIFeatureLevel));
 		

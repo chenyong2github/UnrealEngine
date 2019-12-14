@@ -326,12 +326,20 @@ void UGameViewportClient::DetachViewportClient()
 
 FSceneViewport* UGameViewportClient::GetGameViewport()
 {
-	return static_cast<FSceneViewport*>(Viewport);
+	if (Viewport && Viewport->GetViewportType() == NAME_SceneViewport)
+	{
+		return static_cast<FSceneViewport*>(Viewport);
+	}
+	return nullptr;
 }
 
 const FSceneViewport* UGameViewportClient::GetGameViewport() const
 {
-	return static_cast<FSceneViewport*>(Viewport);
+	if (Viewport && Viewport->GetViewportType() == NAME_SceneViewport)
+	{
+		return static_cast<FSceneViewport*>(Viewport);
+	}
+	return nullptr;
 }
 
 
