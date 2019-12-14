@@ -21,7 +21,7 @@ class FChaosDerivedDataReader
 public:
 
 	// Only valid use is to explicitly read chaos bulk data
-	explicit FChaosDerivedDataReader(FUntypedBulkData* InBulkData);
+	explicit FChaosDerivedDataReader(FBulkDataInterface* InBulkData);
 
 	TArray<TUniquePtr<Chaos::FConvex>> ConvexImplicitObjects;
 	TArray<TSharedPtr<Chaos::FTriangleMeshImplicitObject, ESPMode::ThreadSafe>> TrimeshImplicitObjects;
