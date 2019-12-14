@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Sound/SoundCueTemplate.h"
-
+#include "SoundCueTemplate.h"
 
 USoundCueTemplate::USoundCueTemplate(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

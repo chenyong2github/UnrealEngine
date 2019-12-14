@@ -1,18 +1,12 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-#include "AssetTypeActions/AssetTypeActions_SoundCueTemplate.h"
+#include "AssetTypeActions_SoundCueTemplate.h"
 
+#include "SoundCueTemplate.h"
+#include "SoundCueTemplateFactory.h"
+
+#include "ToolMenuSection.h"
 #include "ContentBrowserModule.h"
-#include "EditorStyleSet.h"
-#include "Factories/SoundCueFactoryNew.h"
-#include "Factories/SoundCueTemplateFactory.h"
-#include "ToolMenus.h"
 #include "IContentBrowserSingleton.h"
-#include "Sound/SoundCue.h"
-#include "Sound/SoundCueTemplate.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Images/SImage.h"
-
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
