@@ -154,7 +154,7 @@ namespace UnrealBuildTool
 		}
 	}
 
-	abstract class AppleToolChain : UEToolChain
+	abstract class AppleToolChain : ISPCToolChain
 	{
 		protected FileReference ProjectFile;
 

@@ -231,6 +231,8 @@ namespace UnrealBuildTool
 			{
 				Target.bCompileICU = false;
 			}
+
+			Target.bCompileISPC = true;
 		}
 
 		/// <summary>
