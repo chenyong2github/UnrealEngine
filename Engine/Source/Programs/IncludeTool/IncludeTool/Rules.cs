@@ -465,7 +465,12 @@ namespace IncludeTool
 				Flags |= SourceFileFlags.FwdHeader;
 			}
 
-			if(PinnedFileNames.Contains(NormalizedPath))
+			if(NormalizedPath.EndsWith("defineupropertymacros.h"))
+			{
+				Flags |= SourceFileFlags.Inline;
+			}
+
+			if (PinnedFileNames.Contains(NormalizedPath))
 			{
 				Flags = (Flags | SourceFileFlags.Pinned) & ~SourceFileFlags.Standalone;
 			}
