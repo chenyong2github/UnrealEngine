@@ -317,7 +317,7 @@ namespace AutomationTool
 			{
 				ChangelistNumber = ChangelistNumberOverride.HasValue? ChangelistNumberOverride.Value : CommandUtils.P4Env.Changelist;
 			}
-			int CompatibleChangelistNumber = ChangelistNumber;
+			int CompatibleChangelistNumber = 0;
 			if(bDoUpdateVersionFiles && CompatibleChangelistNumberOverride.HasValue)
 			{
 				CompatibleChangelistNumber = CompatibleChangelistNumberOverride.Value;
@@ -364,6 +364,10 @@ namespace AutomationTool
 					if(CompatibleChangelistNumber > 0)
 					{
 						Version.CompatibleChangelist = CompatibleChangelistNumber;
+					}
+					else if(bIsLicenseeVersion != Version.IsLicenseeVersion)
+					{
+						Version.CompatibleChangelist = 0; // Clear out the compatible changelist number; it corresponds to a different P4 server.
 					}
 					Version.IsLicenseeVersion = bIsLicenseeVersion;
 					Version.IsPromotedBuild = bIsPromotedBuild;
