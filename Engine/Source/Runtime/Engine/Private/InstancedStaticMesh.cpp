@@ -1953,7 +1953,7 @@ void UInstancedStaticMeshComponent::SerializeRenderData(FArchive& Ar)
 		{
 			uint64 RenderDataPos = Ar.Tell();
 
-			if (PerInstanceSMData.Num() > 0)
+			if (PerInstanceSMData.Num() > 0 && PerInstanceRenderData.IsValid())
 			{
 				check(PerInstanceRenderData.IsValid());
 
