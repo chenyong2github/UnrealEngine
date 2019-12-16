@@ -24,6 +24,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
 	FString GetElementName() const;
 
+	/** Gets the element label used in the UI */
+	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
+	FString GetLabel() const;
+
+	/** Sets the element label used in the UI */
+	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
+	void SetLabel(const FString& InLabel);
+
 	/** Is the Element still valid for the Datasmith Scene */
 	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
 	virtual bool IsElementValid() const;
@@ -116,14 +124,6 @@ public:
 	/** Set the the the layer that contains this entity, layer will be auto-created from its name */
 	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
 	void SetLayer(const FString& InLayer);
-
-	/** Gets the element label used in the UI */
-	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
-	FString GetLabel() const;
-
-	/** Sets the element label used in the UI */
-	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")
-	void SetLabel(const FString& InLabel);
 
 	/** Get the tags of an Actor element */
 	UFUNCTION(BlueprintCallable, Category="Datasmith | Element")

@@ -2345,7 +2345,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 
 	// Sometimes, the data is invalid and we get the same UStaticMesh multiple times
 	TSet< UStaticMesh* > StaticMeshes;
-	for (const TPair< TSharedRef< IDatasmithMeshElement >, UStaticMesh* >& ImportedStaticMeshPair : ImportContext.ImportedStaticMeshes)
+	for (TPair< TSharedRef< IDatasmithMeshElement >, UStaticMesh* >& ImportedStaticMeshPair : ImportContext.ImportedStaticMeshes)
 	{
 		if (ImportContext.bUserCancelled)
 		{
@@ -2372,6 +2372,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 		ExistingStaticMeshPtr = FinalizeStaticMesh(SourceStaticMesh, *DestinationPackagePath, ExistingStaticMesh, &ReferencesToRemap, false);
 		DatasmithImporterImpl::CheckAssetPersistenceValidity(ExistingStaticMeshPtr.Get(), ImportContext);
 
+		ImportedStaticMeshPair.Value = ExistingStaticMeshPtr.Get();
 		StaticMeshes.Add(ExistingStaticMeshPtr.Get());
 	}
 
