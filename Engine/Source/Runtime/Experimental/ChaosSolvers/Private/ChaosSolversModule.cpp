@@ -441,7 +441,11 @@ void FChaosSolversModule::SyncTask(bool bForceBlockingSync /*= false*/)
 	UpdateStats();
 }
 
-Chaos::FPhysicsSolver* FChaosSolversModule::CreateSolver(bool bStandalone /*= false*/)
+Chaos::FPhysicsSolver* FChaosSolversModule::CreateSolver(bool bStandalone /*= false*/
+#if CHAOS_CHECKED
+	, const FName& DebugName
+#endif
+)
 {
 	FChaosScopeSolverLock SolverScopeLock;
 	
@@ -453,6 +457,12 @@ Chaos::FPhysicsSolver* FChaosSolversModule::CreateSolver(bool bStandalone /*= fa
 
 	Solvers.Add(new Chaos::FPhysicsSolver(SolverBufferMode));
 	Chaos::FPhysicsSolver* NewSolver = Solvers.Last();
+
+#if CHAOS_CHECKED
+    // Add solver nubmer to solver name
+	const FName NewDebugName = *FString::Printf(TEXT("%s (%d)"), DebugName == NAME_None ? TEXT("Solver") : *DebugName.ToString(), Solvers.Num() - 1);
+	NewSolver->SetDebugName(NewDebugName);
+#endif
 
 	if(!bStandalone && IsPersistentTaskRunning() && Dispatcher)
 	{

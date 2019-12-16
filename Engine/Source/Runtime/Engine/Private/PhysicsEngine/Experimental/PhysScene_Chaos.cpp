@@ -337,7 +337,11 @@ struct FPhysScenePendingComponentTransform_Chaos
 	{}
 };
 
-FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor)
+FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
+#if CHAOS_CHECKED
+	, const FName& DebugName
+#endif
+)
 	: ChaosModule(nullptr)
 	, SceneSolver(nullptr)
 	, SolverActor(InSolverActor)
@@ -353,7 +357,11 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor)
 	ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
 	check(ChaosModule);
 
-	SceneSolver = ChaosModule->CreateSolver();
+	SceneSolver = ChaosModule->CreateSolver(false
+#if CHAOS_CHECKED
+	, DebugName
+#endif
+);
 	check(SceneSolver);
 
 	// If we're running the physics thread, hand over the solver to it - we are no longer
@@ -914,7 +922,15 @@ void FPhysScene_Chaos::RemoveFromComponentMaps(IPhysicsProxyBase* InObject)
 
 #if WITH_CHAOS
 
-FPhysScene_ChaosInterface::FPhysScene_ChaosInterface(const AWorldSettings* InSettings /*= nullptr*/)
+FPhysScene_ChaosInterface::FPhysScene_ChaosInterface(const AWorldSettings* InSettings /*= nullptr*/
+#if CHAOS_CHECKED
+	, const FName& DebugName
+#endif
+)	: Scene(nullptr
+#if CHAOS_CHECKED
+	, DebugName
+#endif
+)
 {
 	//Initialize unique ptrs that are just here to allow forward declare. This should be reworked todo(ocohen)
 #if TODO_FIX_REFERENCES_TO_ADDARRAY
