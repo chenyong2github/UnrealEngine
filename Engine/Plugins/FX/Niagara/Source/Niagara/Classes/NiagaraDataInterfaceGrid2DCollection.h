@@ -135,10 +135,10 @@ public:
 	// Fills a texture render target 2d with the current data from the simulation
 	// #todo(dmp): this will eventually go away when we formalize how data makes it out of Niagara
 	UFUNCTION(BlueprintCallable, Category = Niagara)
-	virtual void FillTexture2D(const UNiagaraComponent *Component, UTextureRenderTarget2D *dest, int AttributeIndex);
+	virtual bool FillTexture2D(const UNiagaraComponent *Component, UTextureRenderTarget2D *dest, int AttributeIndex);
 	
 	UFUNCTION(BlueprintCallable, Category = Niagara)
-	virtual void FillRawTexture2D(const UNiagaraComponent *Component, UTextureRenderTarget2D *Dest, int &TilesX, int &TilesY);
+	virtual bool FillRawTexture2D(const UNiagaraComponent *Component, UTextureRenderTarget2D *Dest, int &TilesX, int &TilesY);
 	
 	UFUNCTION(BlueprintCallable, Category = Niagara)
 	virtual void GetRawTextureSize(const UNiagaraComponent *Component, int &SizeX, int &SizeY);
