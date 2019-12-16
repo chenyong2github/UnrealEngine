@@ -494,18 +494,18 @@ void FPhysInterface_Chaos::SetAngularVelocity_AssumesLocked(const FPhysicsActorH
 
 float FPhysInterface_Chaos::GetMaxAngularVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	ensure(false);
+	CHAOS_ENSURE(false);
     return FLT_MAX;
 }
 
 void FPhysInterface_Chaos::SetMaxAngularVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference, float InMaxAngularVelocity)
 {
-	ensure(false);
+	CHAOS_ENSURE(false);
 }
 
 float FPhysInterface_Chaos::GetMaxDepenetrationVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	ensure(false);
+	CHAOS_ENSURE(false);
     return FLT_MAX;
 }
 
