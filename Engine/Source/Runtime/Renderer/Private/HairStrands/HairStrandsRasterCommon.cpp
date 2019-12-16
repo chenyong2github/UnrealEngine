@@ -408,11 +408,11 @@ void RasterHairStrands(
 
 	FDeepShadowMeshProcessor DeepShadowMeshProcessor(Scene, ViewInfo /* is a SceneView */, DrawRenderState, &ShadowContext, ShadowPassType);
 
-	for (const FMeshBatchAndRelevance& MeshBatchAndRelevance : PrimitiveSceneInfos)
+	for (const FHairStrandsClusterData::PrimitiveInfo& PrimitveInfo : PrimitiveSceneInfos)
 	{
-		const FMeshBatch& MeshBatch = *MeshBatchAndRelevance.Mesh;
+		const FMeshBatch& MeshBatch = *PrimitveInfo.MeshBatchAndRelevance.Mesh;
 		const uint64 BatchElementMask = ~0ull;
-		DeepShadowMeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, MeshBatchAndRelevance.PrimitiveSceneProxy);
+		DeepShadowMeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, PrimitveInfo.MeshBatchAndRelevance.PrimitiveSceneProxy);
 	}
 
 	if (VisibleMeshDrawCommands.Num() > 0)

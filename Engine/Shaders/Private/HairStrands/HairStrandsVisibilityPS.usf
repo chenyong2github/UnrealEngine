@@ -27,6 +27,10 @@
 #define SUPPORT_MATERIAL_PROPERTY 0
 #endif
 
+#if HAIR_RENDER_MODE == RENDER_MODE_MSAA_VISIBILITY
+#define SUPPORT_MATERIAL_PROPERTY 0
+#endif
+
 #if HAIR_RENDER_MODE == RENDER_MODE_PPLL 
 uint HairVisibilityPass_MaxPPLLNodeCount;
 RWTexture2D<uint> PPLLCounter;
@@ -35,12 +39,17 @@ RWStructuredBuffer<FPPLLNodeData> PPLLNodes;
 #endif
 
 uint HairVisibilityPass_HairClusterIndex;
+uint HairVisibilityPass_HairMaterialId;
 
 #if HAIR_RENDER_MODE == RENDER_MODE_PPLL
 EARLYDEPTHSTENCIL	// Required for UAV operations to not happen.
 #endif
 void MainVisibility(
+#if HAIR_RENDER_MODE == RENDER_MODE_MSAA_VISIBILITY
+	uint HairPrimitiveId : HAIR_PRIMITIVE_ID
+#else
 	centroid FVertexFactoryInterpolantsVSToPS Interpolants
+#endif
 	, in float4 SvPosition	: SV_Position
 #if HAIR_RENDER_MODE == RENDER_MODE_MSAA || HAIR_RENDER_MODE == RENDER_MODE_PPLL
 	, centroid in float WorldStrandRadius : TEXCOORD8
@@ -59,6 +68,8 @@ void MainVisibility(
 	, out float4 OutColor2	: SV_Target2
 	, out float2 OutColor3	: SV_Target3
   #endif
+#elif HAIR_RENDER_MODE == RENDER_MODE_MSAA_VISIBILITY
+	, out uint OutColor0 : SV_Target0
 #endif
 )
 {
@@ -73,6 +84,7 @@ void MainVisibility(
 	}
 	#endif
 
+#if HAIR_RENDER_MODE != RENDER_MODE_MSAA_VISIBILITY
 	float Coverage = 1;
 	{
 		FHairRenderInfo HairRenderInfo = GetHairRenderInfo(ResolvedView.HairRenderInfo);
@@ -81,6 +93,7 @@ void MainVisibility(
 		const float StrandRealRadius = WorldStrandRadius;
 		Coverage = StrandRealRadius / max(StrandRealRadius, PixelRadius);
 	}
+#endif
 
 #if HAIR_RENDER_MODE == RENDER_MODE_TRANSMITTANCE
 	OutColor0 = saturate(1.0f - Coverage);
@@ -154,6 +167,13 @@ void MainVisibility(
 	}
 #endif
 
+#if HAIR_RENDER_MODE == RENDER_MODE_MSAA_VISIBILITY
+  #if VF_STRAND_HAIR
+	OutColor0 = EncodeVisSample(HairPrimitiveId, HairVisibilityPass_HairMaterialId);
+  #else
+	OutColor0 = 0;
+  #endif
+#endif
 }
 
 
