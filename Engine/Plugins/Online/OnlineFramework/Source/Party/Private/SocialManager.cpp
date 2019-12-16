@@ -679,7 +679,7 @@ void USocialManager::RegisterSecondaryPlayer(int32 LocalPlayerNum, const FOnJoin
 			FString JoinInfoStr = PartyInterface->MakeJoinInfoJson(*PrimaryUserId, PersistentParty->GetPartyId());
 			IOnlinePartyJoinInfoConstPtr JoinInfo = PartyInterface->MakeJoinInfoFromJson(JoinInfoStr);
 
-			if (JoinInfo->IsValid())
+			if (JoinInfo && JoinInfo->IsValid())
 			{
 				PartyInterface->JoinParty(*SecondaryUserId, *JoinInfo, Delegate);
 			}
