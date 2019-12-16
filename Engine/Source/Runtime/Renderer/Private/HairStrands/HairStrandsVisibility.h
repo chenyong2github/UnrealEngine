@@ -22,6 +22,7 @@ struct FHairStrandsVisibilityData
 	TRefCountPtr<IPooledRenderTarget> AttributeTexture;
 	TRefCountPtr<IPooledRenderTarget> VelocityTexture;
 	TRefCountPtr<IPooledRenderTarget> CategorizationTexture;
+	TRefCountPtr<IPooledRenderTarget> ViewHairCountTexture;
 
 	TRefCountPtr<IPooledRenderTarget> PPLLNodeCounterTexture;
 	TRefCountPtr<IPooledRenderTarget> PPLLNodeIndexTexture;
