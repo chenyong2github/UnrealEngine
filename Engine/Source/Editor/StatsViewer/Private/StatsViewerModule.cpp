@@ -10,6 +10,7 @@
 #include "StatsPages/PrimitiveStatsPage.h"
 #include "StatsPages/StaticMeshLightingInfoStatsPage.h"
 #include "StatsPages/TextureStatsPage.h"
+#include "StatsPages/ShaderCookerStatsPage.h"
 #include "ObjectHyperlinkColumn.h"
 
 
@@ -24,6 +25,7 @@ static const FName LightingBuildInfoPage = FName("LightingBuildInfo");
 static const FName PrimitiveStatsPage = FName("PrimitiveStats");
 static const FName StaticMeshLightingInfoPage = FName("StaticMeshLightingInfo");
 static const FName TextureStatsPage = FName("TextureStats");
+static const FName ShaderCookerStatsPage = FName("ShaderCookerStats");
 
 namespace StatsViewerModuleUtils
 {
@@ -44,6 +46,7 @@ void FStatsViewerModule::StartupModule()
 	FStatsPageManager::Get().RegisterPage( EStatsPage::PrimitiveStats, MakeShareable(&FPrimitiveStatsPage::Get()) );
 	FStatsPageManager::Get().RegisterPage( EStatsPage::StaticMeshLightingInfo, MakeShareable(&FStaticMeshLightingInfoStatsPage::Get()) );
 	FStatsPageManager::Get().RegisterPage( EStatsPage::TextureStats, MakeShareable(&FTextureStatsPage::Get()) );
+	FStatsPageManager::Get().RegisterPage( EStatsPage::ShaderCookerStats, MakeShareable(&FShaderCookerStatsPage::Get()) );
 }
 
 void FStatsViewerModule::ShutdownModule()
@@ -116,6 +119,8 @@ TSharedPtr< IStatsPage > FStatsViewerModule::GetPage( EStatsPage::Type InType )
 		return GetPage(StaticMeshLightingInfoPage);
 	case EStatsPage::TextureStats:
 		return GetPage(TextureStatsPage);
+	case EStatsPage::ShaderCookerStats:
+		return GetPage(ShaderCookerStatsPage);
 	default:
 		return NULL;
 	}

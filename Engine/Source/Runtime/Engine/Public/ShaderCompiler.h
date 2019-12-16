@@ -372,6 +372,49 @@ struct FShaderMapFinalizeResults : public FShaderMapCompileResults
 	{}
 };
 
+class FShaderCompilerStats
+{
+public:
+	struct FShaderCompilerSinglePermutationStat
+	{
+		FShaderCompilerSinglePermutationStat(FString PermutationString, uint32 Compiled, uint32 Cooked)
+			: PermutationString(PermutationString)
+			, Compiled(Compiled)
+			, Cooked(Cooked)
+			, CompiledDouble(0)
+			, CookedDouble(0)
+
+		{}
+		FString PermutationString;
+		uint32 Compiled;
+		uint32 Cooked;
+		uint32 CompiledDouble;
+		uint32 CookedDouble;
+	};
+	struct FShaderStats
+	{
+		TArray<FShaderCompilerSinglePermutationStat> PermutationCompilations;
+		uint32 Compiled = 0;
+		uint32 Cooked = 0;
+		uint32 CompiledDouble = 0;
+		uint32 CookedDouble = 0;
+
+	};
+	using ShaderCompilerStats = TMap<FString, FShaderStats>;
+
+
+	ENGINE_API void RegisterCookedShaders(uint32 NumCooked, EShaderPlatform Platform, const FString MaterialPath, FString PermutationString = FString(""));
+	ENGINE_API void RegisterCompiledShaders(uint32 NumPermutations, EShaderPlatform Platform, const FString MaterialPath, FString PermutationString = FString(""));
+	ENGINE_API const TSparseArray<ShaderCompilerStats>& GetShaderCompilerStats() { return CompileStats; }
+	ENGINE_API void WriteStats();
+
+private:
+	FCriticalSection CompileStatsLock;
+	TSparseArray<ShaderCompilerStats> CompileStats;
+};
+
+
+
 /**  
  * Manager of asynchronous and parallel shader compilation.
  * This class contains an interface to enqueue and retreive asynchronous shader jobs, and manages a FShaderCompileThreadRunnable.
@@ -551,7 +594,7 @@ public:
 	 * Adds shader jobs to be asynchronously compiled. 
 	 * FinishCompilation or ProcessAsyncResults must be used to get the results.
 	 */
-	ENGINE_API void AddJobs(TArray<FShaderCommonCompileJob*>& NewJobs, bool bOptimizeForLowLatency, bool bRecreateComponentRenderStateOnCompletion);
+	ENGINE_API void AddJobs(TArray<FShaderCommonCompileJob*>& NewJobs, bool bOptimizeForLowLatency, bool bRecreateComponentRenderStateOnCompletion, const FString MaterialBasePath, FString PermutationString = FString(""));
 
 	/**
 	* Removes all outstanding compile jobs for the passed shader maps.
@@ -594,6 +637,9 @@ public:
 
 /** The global shader compiling thread manager. */
 extern ENGINE_API FShaderCompilingManager* GShaderCompilingManager;
+
+/** The global shader compiling stats */
+extern ENGINE_API FShaderCompilerStats* GShaderCompilerStats;
 
 /** The shader precompilers for each platform.  These are only set during the console shader compilation while cooking or in the PrecompileShaders commandlet. */
 extern class FConsoleShaderPrecompiler* GConsoleShaderPrecompilers[SP_NumPlatforms];
