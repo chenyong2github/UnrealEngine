@@ -197,6 +197,7 @@ void FSelectedRigidBodyCustomization::CustomizeChildren(TSharedRef<IPropertyHand
 
 void FSelectedRigidBodyCustomization::GetSelectedGeometryCollectionCluster(TSharedRef<IPropertyHandle> PropertyHandleActor, TSharedRef<IPropertyHandle> PropertyHandleId, const UGeometryCollectionComponent*& OutGeometryCollectionComponent, int32& OutTransformIndex)
 {
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
 	OutGeometryCollectionComponent = nullptr;
 	OutTransformIndex = INDEX_NONE;
 
@@ -225,10 +226,12 @@ void FSelectedRigidBodyCustomization::GetSelectedGeometryCollectionCluster(TShar
 		}
 	}
 	UE_CLOG(OutGeometryCollectionComponent && OutGeometryCollectionComponent->GetOwner(), LogSelectedRigidBodyCustomization, VeryVerbose, TEXT("Component actor %s, TransformIndex %d."), *OutGeometryCollectionComponent->GetOwner()->GetName(), OutTransformIndex);
+#endif // TODO_REIMPLEMENT_RIGID_CLUSTERING
 }
 
 int32 FSelectedRigidBodyCustomization::GetParentClusterRigidBodyId(TSharedRef<IPropertyHandle> PropertyHandleActor, TSharedRef<IPropertyHandle> PropertyHandleId)
 {
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
 	const UGeometryCollectionComponent* GeometryCollectionComponent;
 	int32 TransformIndex;
 	GetSelectedGeometryCollectionCluster(PropertyHandleActor, PropertyHandleId, GeometryCollectionComponent, TransformIndex);
@@ -240,11 +243,13 @@ int32 FSelectedRigidBodyCustomization::GetParentClusterRigidBodyId(TSharedRef<IP
 			return GeometryCollectionComponent->GetRigidBodyIdArray()[ParentTransformIndex];
 		}
 	}
+#endif // TODO_REIMPLEMENT_RIGID_CLUSTERING
 	return INDEX_NONE;
 }
 
 int32 FSelectedRigidBodyCustomization::GetChildClusterRigidBodyId(TSharedRef<IPropertyHandle> PropertyHandleActor, TSharedRef<IPropertyHandle> PropertyHandleId)
 {
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
 	const UGeometryCollectionComponent* GeometryCollectionComponent;
 	int32 TransformIndex;
 	GetSelectedGeometryCollectionCluster(PropertyHandleActor, PropertyHandleId, GeometryCollectionComponent, TransformIndex);
@@ -261,11 +266,13 @@ int32 FSelectedRigidBodyCustomization::GetChildClusterRigidBodyId(TSharedRef<IPr
 			}
 		}
 	}
+#endif // TODO_REIMPLEMENT_RIGID_CLUSTERING
 	return INDEX_NONE;
 }
 
 int32 FSelectedRigidBodyCustomization::GetPreviousClusteredSiblingRigidBodyId(TSharedRef<IPropertyHandle> PropertyHandleActor, TSharedRef<IPropertyHandle> PropertyHandleId)
 {
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
 	const UGeometryCollectionComponent* GeometryCollectionComponent;
 	int32 TransformIndex;
 	GetSelectedGeometryCollectionCluster(PropertyHandleActor, PropertyHandleId, GeometryCollectionComponent, TransformIndex);
@@ -291,11 +298,13 @@ int32 FSelectedRigidBodyCustomization::GetPreviousClusteredSiblingRigidBodyId(TS
 			}
 		}
 	}
+#endif // TODO_REIMPLEMENT_RIGID_CLUSTERING
 	return INDEX_NONE;
 }
 
 int32 FSelectedRigidBodyCustomization::GetNextClusteredSiblingRigidBodyId(TSharedRef<IPropertyHandle> PropertyHandleActor, TSharedRef<IPropertyHandle> PropertyHandleId)
 {
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
 	const UGeometryCollectionComponent* GeometryCollectionComponent;
 	int32 TransformIndex;
 	GetSelectedGeometryCollectionCluster(PropertyHandleActor, PropertyHandleId, GeometryCollectionComponent, TransformIndex);
@@ -324,6 +333,7 @@ int32 FSelectedRigidBodyCustomization::GetNextClusteredSiblingRigidBodyId(TShare
 			}
 		}
 	}
+#endif // TODO_REIMPLEMENT_RIGID_CLUSTERING
 	return INDEX_NONE;
 }
 

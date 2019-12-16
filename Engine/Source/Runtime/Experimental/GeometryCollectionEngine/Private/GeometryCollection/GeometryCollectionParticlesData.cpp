@@ -26,7 +26,8 @@ TGeometryCollectionParticlesData<T, d>::TGeometryCollectionParticlesData()
 }
 
 template<class T, int d>
-void TGeometryCollectionParticlesData<T, d>::Sync(const Chaos::FPhysicsSolver* Solver, const TManagedArray<int32>& RigidBodyIds)
+//void TGeometryCollectionParticlesData<T, d>::Sync(const Chaos::FPhysicsSolver* Solver, const TManagedArray<int32>& RigidBodyIds)
+void TGeometryCollectionParticlesData<T, d>::Sync(const Chaos::FPhysicsSolver* Solver, const TManagedArray<FGuid>& RigidBodyIds)
 {
 	// No point in calling twice the sync function within the same frame
 	if (!ensureMsgf(SyncFrame != GFrameCounter, TEXT("Sync should not happen twice during the same tick.")))
@@ -135,10 +136,13 @@ void TGeometryCollectionParticlesData<T, d>::FData::Reset(EGeometryCollectionPar
 }
 
 template<class T, int d>
-void TGeometryCollectionParticlesData<T, d>::FData::Copy(EGeometryCollectionParticlesData Data, const Chaos::FPhysicsSolver* Solver, const TManagedArray<int32>& RigidBodyIds)
+void TGeometryCollectionParticlesData<T, d>::FData::Copy(EGeometryCollectionParticlesData Data, const Chaos::FPhysicsSolver* Solver, const TManagedArray<FGuid>& RigidBodyIds)
 {
 	check(Solver);
 #if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
+	// 10.31.2019 Ryan - This code uses the RigidBodyIds as indices, and that's not going to work anymore.
+	// We need to figure that out...
+
 	const Chaos::TPBDRigidParticles<T, d>& Particles = Solver->GetRigidParticles();
 	const Chaos::TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraints, T, d>& Clustering = Solver->GetRigidClustering();
 
