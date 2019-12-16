@@ -169,7 +169,6 @@ public:
 	LANDSCAPE_API TSet<ULandscapeComponent*> GetSelectedComponents() const;
 	LANDSCAPE_API TSet<ULandscapeComponent*> GetSelectedRegionComponents() const;
 	LANDSCAPE_API void UpdateSelectedComponents(TSet<ULandscapeComponent*>& NewComponents, bool bIsComponentwise = true);
-	LANDSCAPE_API void SortSelectedComponents();
 	LANDSCAPE_API void ClearSelectedRegion(bool bIsComponentwise = true);
 
 	// only for use by the "add component" tool. Todo - move into the tool?
@@ -245,6 +244,10 @@ public:
 
 	/** Will clear all component dirty data */
 	LANDSCAPE_API void ClearDirtyData();
+
+	/** Moves Components to target level. Creates ALandscapeProxy if needed. */
+	LANDSCAPE_API ALandscapeProxy* MoveComponentsToLevel(const TArray<ULandscapeComponent*>& InComponents, ULevel* TargetLevel);
+
 #endif
 	/** Associates passed actor with this info object
  *  @param	Proxy		Landscape actor to register
