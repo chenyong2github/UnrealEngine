@@ -100,6 +100,7 @@ private:
 	void SetFaceMainMaterial(FObjectDisplayDataId& InFaceMaterial, FObjectDisplayDataId& InBodyMaterial, FBodyMesh& BodyMesh, int32 FaceIndex);
 
 	void ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FString>& OutMetaData);
+	void GetStringMetaDataValue(CT_OBJECT_ID NodeId, const TCHAR* InMetaDataName, FString& OutMetaDataValue);
 
 	CT_FLAGS SetCoreTechImportOption(const FString& MainFileExt);
 	void GetAttributeValue(CT_ATTRIB_TYPE attrib_type, int ith_field, FString& value);
