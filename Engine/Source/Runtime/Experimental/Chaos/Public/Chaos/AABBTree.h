@@ -796,8 +796,11 @@ private:
 					++BoxIdx;
 				}
 
-				SplitInfos[MinBoxIdx].Children.Add(Elem);
-				SplitInfos[MinBoxIdx].RealBounds.GrowToInclude(Elem.Bounds);
+				if (CHAOS_ENSURE(MinBoxIdx != INDEX_NONE))
+				{
+					SplitInfos[MinBoxIdx].Children.Add(Elem);
+					SplitInfos[MinBoxIdx].RealBounds.GrowToInclude(Elem.Bounds);
+				}
 			}
 
 			NumProcessedThisSlice += Elems.Num();
