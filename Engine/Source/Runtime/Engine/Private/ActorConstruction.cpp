@@ -43,29 +43,28 @@ DECLARE_CYCLE_STAT(TEXT("InstanceActorComponent"), STAT_InstanceActorComponent, 
 // AActor Blueprint Stuff
 
 #if WITH_EDITOR
-static TArray<FRandomStream*> FindRandomStreams(AActor* InActor)
-{
-	check(InActor);
-	TArray<FRandomStream*> OutStreams;
-	UScriptStruct* RandomStreamStruct = TBaseStructure<FRandomStream>::Get();
-	for( TFieldIterator<FStructProperty> It(InActor->GetClass()) ; It ; ++It )
-	{
-		FStructProperty* StructProp = *It;
-		if( StructProp->Struct == RandomStreamStruct )
-		{
-			FRandomStream* StreamPtr = StructProp->ContainerPtrToValuePtr<FRandomStream>(InActor);
-			OutStreams.Add(StreamPtr);
-		}
-	}
-	return OutStreams;
-}
-
 void AActor::SeedAllRandomStreams()
 {
-	TArray<FRandomStream*> Streams = FindRandomStreams(this);
-	for(int32 i=0; i<Streams.Num(); i++)
+	UScriptStruct* RandomStreamStruct = TBaseStructure<FRandomStream>::Get();
+	UObject* Archetype = GetArchetype();
+
+	for (TFieldIterator<FStructProperty> It(GetClass()); It; ++It)
 	{
-		Streams[i]->Reset();
+		FStructProperty* StructProp = *It;
+		if (StructProp->Struct == RandomStreamStruct)
+		{
+			FRandomStream* ArchetypeStreamPtr = StructProp->ContainerPtrToValuePtr<FRandomStream>(Archetype);
+			FRandomStream* StreamPtr = StructProp->ContainerPtrToValuePtr<FRandomStream>(this);
+
+			if (ArchetypeStreamPtr->GetInitialSeed() == 0)
+			{
+				StreamPtr->GenerateNewSeed();
+			}
+			else
+			{
+				StreamPtr->Reset();
+			}
+		}
 	}
 }
 #endif //WITH_EDITOR
