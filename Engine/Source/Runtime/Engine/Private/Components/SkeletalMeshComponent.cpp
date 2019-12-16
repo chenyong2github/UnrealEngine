@@ -806,8 +806,15 @@ void USkeletalMeshComponent::ClearAnimScriptInstance()
 	}
 	AnimScriptInstance = nullptr;
 	ResetLinkedAnimInstances();
+	ClearCachedAnimProperties();S
 }
 
+void USkeletalMeshComponent::ClearCachedAnimProperties()
+{
+	CachedBoneSpaceTransforms.Empty();
+	CachedComponentSpaceTransforms.Empty();
+	CachedCurve.Empty();
+}
 
 void USkeletalMeshComponent::InitializeComponent()
 {
@@ -1712,9 +1719,7 @@ void USkeletalMeshComponent::RecalcRequiredBones(int32 LODIndex)
 	bRequiredBonesUpToDate = true;
 
 	// Invalidate cached bones.
-	CachedBoneSpaceTransforms.Empty();
-	CachedComponentSpaceTransforms.Empty();
-	CachedCurve.Empty();
+	ClearCachedAnimProperties();
 }
 
 void USkeletalMeshComponent::MarkRequiredCurveUpToDate()

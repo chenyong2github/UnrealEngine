@@ -2028,6 +2028,9 @@ public:
 	bool IsAnimBlueprintInstanced() const;
 	void ClearAnimScriptInstance();
 
+	/** Clear cached animation data generated for URO during evaluation */
+	void ClearCachedAnimProperties();
+
 protected:
 	bool NeedToSpawnAnimScriptInstance() const;
 	bool NeedToSpawnPostPhysicsInstance(bool bForceReinit) const;
