@@ -793,6 +793,10 @@ public:
 	{ 
 		return 0; 
 	}
+	virtual void* RHIGetNativeInstance() final override
+	{
+		return 0;
+	}
 	virtual void RHIPushEvent(const TCHAR* Name, FColor Color) final override
 	{
 	}

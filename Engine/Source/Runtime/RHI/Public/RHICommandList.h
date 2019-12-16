@@ -4620,7 +4620,15 @@ public:
 		 
 		return GDynamicRHI->RHIGetNativeDevice();
 	}
-	
+
+	FORCEINLINE void* GetNativeInstance()
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_GetNativeInstance_Flush);
+		ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+
+		return GDynamicRHI->RHIGetNativeInstance();
+	}
+
 	FORCEINLINE class IRHICommandContext* GetDefaultContext()
 	{
 		return RHIGetDefaultContext();
@@ -5289,6 +5297,12 @@ FORCEINLINE void* RHIGetNativeDevice()
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().GetNativeDevice();
 }
+
+FORCEINLINE void* RHIGetNativeInstance()
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().GetNativeInstance();
+}
+
 
 FORCEINLINE FRHIShaderLibraryRef RHICreateShaderLibrary(EShaderPlatform Platform, FString const& FilePath, FString const& Name)
 {

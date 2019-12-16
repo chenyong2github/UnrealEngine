@@ -1133,6 +1133,13 @@ public:
 	// FlushType: Flush RHI Thread
 	virtual void* RHIGetNativeDevice() = 0;
 
+	/**
+	* Provides access to the native instance. Generally this should be avoided but is useful for third party plugins.
+	*/
+	// FlushType: Flush RHI Thread
+	virtual void* RHIGetNativeInstance() = 0;
+
+
 	// FlushType: Thread safe
 	virtual IRHICommandContext* RHIGetDefaultContext() = 0;
 
