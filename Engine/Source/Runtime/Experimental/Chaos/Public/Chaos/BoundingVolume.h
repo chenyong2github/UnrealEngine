@@ -11,6 +11,7 @@
 #include "Chaos/UniformGrid.h"
 #include "Chaos/ISpatialAcceleration.h"
 #include "ChaosStats.h"
+#include "ChaosLog.h"
 #include "HAL/IConsoleManager.h"
 #include "Chaos/ParticleHandleFwd.h"
 #include "Templates/Models.h"
@@ -1177,6 +1178,14 @@ private:
 	T MaxPayloadBounds;
 	bool bIsEmpty;
 };
+
+#if PLATFORM_MAC || PLATFORM_LINUX
+    extern template class CHAOS_API TBoundingVolume<int32,float,3>;
+    extern template class CHAOS_API TBoundingVolume<TAccelerationStructureHandle<float,3>,float,3>;
+#else
+    extern template class TBoundingVolume<int32,float,3>;
+    extern template class TBoundingVolume<TAccelerationStructureHandle<float,3>,float,3>;
+#endif
 
 template<typename TPayloadType, class T, int d>
 FArchive& operator<<(FArchive& Ar, TBoundingVolume<TPayloadType, T, d>& BoundingVolume)
