@@ -102,7 +102,7 @@ GLTF::ITextureElement* FGLTFTextureFactory::CreateTexture(const GLTF::FTexture& 
 	// save texture settings if texture exists
 	Factory->SuppressImportOverwriteDialog();
 
-	const FString PackageName  = UPackageTools::SanitizePackageName(FPaths::Combine(ParentPackage->GetName(), TextureName));
+	const FString PackageName  = UPackageTools::SanitizePackageName(FPaths::Combine(ParentPackage->GetName(), TEXT("Textures"), TextureName));
 	UPackage*     AssetPackage = CreatePackage(nullptr, *PackageName);
 
 	UTexture2D* Texture = nullptr;
