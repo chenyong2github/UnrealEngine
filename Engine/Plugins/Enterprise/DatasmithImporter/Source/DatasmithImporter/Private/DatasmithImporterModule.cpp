@@ -5,13 +5,14 @@
 #include "ActorFactoryDatasmithScene.h"
 #include "DatasmithAssetImportData.h"
 #include "DatasmithAssetUserData.h"
+#include "DatasmithConsumer.h"
 #include "DatasmithContentEditorModule.h"
 #include "DatasmithContentEditorStyle.h"
 #include "DatasmithCustomAction.h"
 #include "DatasmithFileProducer.h"
+#include "DatasmithImportFactory.h"
 #include "DatasmithImporterEditorSettings.h"
 #include "DatasmithImporterHelper.h"
-#include "DatasmithImportFactory.h"
 #include "DatasmithScene.h"
 #include "DatasmithStaticMeshImporter.h"
 #include "DatasmithUtils.h"
@@ -26,7 +27,11 @@
 
 #include "AssetToolsModule.h"
 #include "ContentBrowserDelegates.h"
+#include "ContentBrowserMenuContexts.h"
 #include "ContentBrowserModule.h"
+#include "DataprepAssetInterface.h"
+#include "DataprepAssetUserData.h"
+#include "DataprepCoreLibrary.h"
 #include "Editor.h"
 #include "EditorFramework/AssetImportData.h"
 #include "EditorStyleSet.h"
@@ -43,6 +48,11 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Settings/EditorLoadingSavingSettings.h"
+#include "ToolMenu.h"
+#include "ToolMenuDelegates.h"
+#include "ToolMenuSection.h"
+#include "ToolMenus.h"
+#include "UObject/StrongObjectPtr.h"
 
 #define LOCTEXT_NAMESPACE "DatasmithImporter"
 
@@ -82,6 +92,8 @@ public:
 			FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked< FPropertyEditorModule >( TEXT("PropertyEditor") );
 			PropertyModule.RegisterCustomClassLayout( TEXT("DatasmithFileProducer"), FOnGetDetailCustomizationInstance::CreateStatic( &FDatasmithFileProducerDetails::MakeDetails ) );
 			PropertyModule.RegisterCustomClassLayout( TEXT("DatasmithDirProducer"), FOnGetDetailCustomizationInstance::CreateStatic( &FDatasmithDirProducerDetails::MakeDetails ) );
+
+			AddDataprepMenuEntryForDatasmithSceneAsset();
 		}
 	}
 
@@ -90,6 +102,8 @@ public:
 		// Disable any UI feature if running in command mode
 		if (!IsRunningCommandlet())
 		{
+			RemoveDataprepMenuEntryForDatasmithSceneAsset();
+
 			if ( SpawnSceneActorsDelegateHandle.IsValid() && FModuleManager::Get().IsModuleLoaded( TEXT("DatasmithContentEditor") ) )
 			{
 				IDatasmithContentEditorModule& DatasmithContentEditorModule = FModuleManager::GetModuleChecked< IDatasmithContentEditorModule >( TEXT("DatasmithContentEditor") );
@@ -143,6 +157,10 @@ private:
 	void SetupMenuEntry();
 	void OnClickedMenuEntry();
 
+	// Add the menu entry for a datasmith asset generated from a dataprep asset
+	void AddDataprepMenuEntryForDatasmithSceneAsset();
+	void RemoveDataprepMenuEntryForDatasmithSceneAsset();
+
 	void SetupContentBrowserContextMenuExtender();
 	void RemoveContentBrowserContextMenuExtender();
 
@@ -177,6 +195,92 @@ void FDatasmithImporterModule::OnClickedMenuEntry()
 	if (!IsRunningCommandlet())
 	{
 		FDatasmithImporterHelper::Import<UDatasmithImportFactory>();
+	}
+}
+
+void FDatasmithImporterModule::AddDataprepMenuEntryForDatasmithSceneAsset()
+{
+	if (UToolMenu* Menu = UToolMenus::Get()->ExtendMenu(TEXT("ContentBrowser.AssetContextMenu.DatasmithScene")))
+	{
+
+		FNewToolMenuDelegate DataprepSectionConstructor;
+		DataprepSectionConstructor.BindLambda( [](UToolMenu* ToolMenu)
+			{
+				if ( ToolMenu )
+				{
+					TArray<TStrongObjectPtr<UDataprepAssetInterface>> DataprepAssetInterfacesPtr;
+					if (UContentBrowserAssetContextMenuContext* ContentBrowserMenuContext = ToolMenu->FindContext<UContentBrowserAssetContextMenuContext>())
+					{
+						if (ContentBrowserMenuContext->CommonClass == UDatasmithScene::StaticClass())
+						{
+							TArray<UObject*> SelectedObjects = ContentBrowserMenuContext->GetSelectedObjects();
+							DataprepAssetInterfacesPtr.Reserve( SelectedObjects.Num() );
+							for (UObject* SelectedObject : SelectedObjects)
+							{
+								if (UDatasmithScene* SelectedDatasmithScene = Cast<UDatasmithScene>(SelectedObject))
+								{
+									if (UDataprepAssetUserData* DataprepAssetUserData = SelectedDatasmithScene->GetAssetUserData<UDataprepAssetUserData>())
+									{
+										if (UDataprepAssetInterface* DataprepAsset = DataprepAssetUserData->DataprepAssetPtr.LoadSynchronous())
+										{
+											if (UDatasmithConsumer* DatasmithConsumer = Cast<UDatasmithConsumer>(DataprepAsset->GetConsumer()))
+											{
+												if (DatasmithConsumer->DatasmithScene.LoadSynchronous() == SelectedDatasmithScene)
+												{
+													// A Dataprep asset was found and it will regenerate this scene
+													DataprepAssetInterfacesPtr.Emplace( DataprepAsset );
+													continue;
+												}
+											}
+										}
+									}
+								}
+
+								// Couldn't find the dataprep asset for this scene
+								return;
+							}
+						}
+					}
+					else
+					{
+						return;
+					}
+
+
+					FToolUIAction UIAction;
+					UIAction.ExecuteAction.BindLambda( [DataprepAssetInterfacesPtr](const FToolMenuContext&)
+						{
+							for ( const TStrongObjectPtr<UDataprepAssetInterface>& DataprepAssetInterfacePtr : DataprepAssetInterfacesPtr )
+							{
+								UDataprepCoreLibrary::ExecuteWithReporting( DataprepAssetInterfacePtr.Get() );
+							}
+						});
+
+					FToolMenuInsert MenuInsert;
+					MenuInsert.Position = EToolMenuInsertType::First;
+					FToolMenuSection& Section = ToolMenu->AddSection( TEXT("Dataprep"), LOCTEXT("Dataprep", "Dataprep"), MenuInsert );
+
+					Section.AddMenuEntry(
+						TEXT("UpdateDataprepGeneratedAsset"),
+						LOCTEXT("UpdateDataprepGeneratedAsset", "Update Datasmith Scene(s)"),
+						LOCTEXT("UpdateDataprepGeneratedAssetTooltip", "Update the asset(s) by executing the Dataprep asset(s) that created it."),
+						FSlateIcon(),
+						UIAction
+					);
+
+				}
+			});
+
+
+		FToolMenuSection& Section = Menu->AddDynamicSection(TEXT("Dataprep"), DataprepSectionConstructor);
+	}
+}
+
+void FDatasmithImporterModule::RemoveDataprepMenuEntryForDatasmithSceneAsset()
+{
+	if (UToolMenu* Menu = UToolMenus::Get()->ExtendMenu(TEXT("ContentBrowser.AssetContextMenu.DatasmithScene")))
+	{
+		Menu->RemoveSection(TEXT("Dataprep"));
 	}
 }
 
