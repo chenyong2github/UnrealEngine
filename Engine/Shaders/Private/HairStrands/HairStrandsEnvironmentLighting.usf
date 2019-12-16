@@ -270,8 +270,9 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		}
 		#endif	
 
-		// Select the TT term for representing the MS roughness lookup as TT lobe carries the most energy
-		const float GGXRoughness = HairToGGXRoughness_TT(GBuffer.Roughness);
+		// Select the TT term for representing the MS roughness lookup as TT lobe carries the most energy + fudge scale as the MS lobe should be wider than a TT lobe
+		const float FudgeScale = 2;
+		const float GGXRoughness = HairToGGXRoughness_TT(GBuffer.Roughness) * FudgeScale;
 		ColorMS.rgb += PreExposure * GatherRadiance(R, GGXRoughness, PixelPosition, PixelSceneDepth, WorldPosition);
 		//ColorMS.rgb += PreExposure * GetSkySHDiffuse(R) * View.SkyLightColor.rgb;
 		ColorMS.rgb *= AvgDualScattering;
