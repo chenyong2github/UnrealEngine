@@ -640,7 +640,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 								ExtraIndirectSpecular,
 								NumCulledReflectionCaptures,
 								ReflectionCapturesStartIndex,
-								0);
+								0,
+								bSkyLightAffectReflection);
 					}
 
 					// Apply correct weights to the bottom and top layers (See ReflectionEnvironmentPixelShader)
@@ -767,7 +768,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 							ExtraIndirectSpecular,
 							NumCulledReflectionCaptures,
 							ReflectionCapturesStartIndex,
-							0);
+							0,
+							bSkyLightAffectReflection);
 				}
 
 				ReflectedColor += float4(PathRadiance, 1.0f);

@@ -86,6 +86,7 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 			float NoV = saturate(dot(N, V));
 			// Point lobe in off-specular peak direction
 			R = GetOffSpecularPeakReflectionDir(N, R, GBuffer.Roughness);
+			const bool bCompositeSkylight = true;
 			Reflection += PreExposure * CompositeReflectionCapturesAndSkylight(
 				1,
 				WorldPosition,
@@ -96,7 +97,8 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 				ExtraIndirectSpecular,
 				NumCulledReflectionCaptures,
 				CaptureDataStartIndex,
-				0);
+				0,
+				bCompositeSkylight);
 
 			// Then combine reflection with SSR
 			float4 SSR = Texture2DSample(ScreenSpaceReflectionsTexture, ScreenSpaceReflectionsSampler, BufferUV);
