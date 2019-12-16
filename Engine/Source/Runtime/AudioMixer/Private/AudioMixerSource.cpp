@@ -582,6 +582,11 @@ namespace Audio
 		// we'll just not actually play the source here. Instead we'll call play when the sound finishes loading.
 		if (MixerSourceVoice && InitializationState == EMixerSourceInitializationState::Initialized)
 		{
+			if (WaveInstance && WaveInstance->WaveData && WaveInstance->WaveData->bProcedural)
+			{
+				WaveInstance->WaveData->bPlayingProcedural = true;
+			}
+
 			MixerSourceVoice->Play();
 		}
 
@@ -610,6 +615,7 @@ namespace Audio
 		// Always stop procedural sounds immediately.
 		if (WaveInstance && WaveInstance->WaveData && WaveInstance->WaveData->bProcedural)
 		{
+			WaveInstance->WaveData->bPlayingProcedural = false;
 			StopNow();
 			return;
 		}
