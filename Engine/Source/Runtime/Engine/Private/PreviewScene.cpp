@@ -126,10 +126,10 @@ FPreviewScene::~FPreviewScene()
 	// The world may be released by now.
 	if (PreviewWorld)
 	{
-		// Release PhysicsScene for fixing big fbx importing bug
-		PreviewWorld->ReleasePhysicsScene();
 		PreviewWorld->CleanupWorld();
 		GEngine->DestroyWorldContext(GetWorld());
+		// Release PhysicsScene for fixing big fbx importing bug
+		PreviewWorld->ReleasePhysicsScene();
 	}
 }
 
