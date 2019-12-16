@@ -125,7 +125,7 @@ void SKeySelector::Construct(const FArguments& InArgs)
 		SAssignNew(KeyComboButton, SComboButton)
 		.OnGetMenuContent(this, &SKeySelector::GetMenuContent)
 		.ContentPadding(0)
-		.ToolTipText(LOCTEXT("KeySelector", "Select the key value."))
+		.ToolTipText(this, &SKeySelector::GetKeyTooltip)
 		.ButtonContent()
 		[
 			SNew(SHorizontalBox)
@@ -167,9 +167,35 @@ const FSlateBrush* SKeySelector::GetKeyIconImage() const
 	TOptional<FKey> CurrentKeyValue = CurrentKey.Get();
 	if (CurrentKeyValue.IsSet())
 	{
+		const FKey& Key = CurrentKeyValue.GetValue();
+		if (Key.IsValid() && (Key.IsDeprecated() || !Key.IsBindableToActions()))
+		{
+			return FEditorStyle::GetBrush("Icons.Warning");
+		}
 		return GetIconFromKey(CurrentKeyValue.GetValue());
 	}
 	return nullptr;
+}
+
+FText SKeySelector::GetKeyTooltip() const
+{
+	TOptional<FKey> CurrentKeyValue = CurrentKey.Get();
+	if (CurrentKeyValue.IsSet())
+	{
+		const FKey& Key = CurrentKeyValue.GetValue();
+		if (Key.IsValid())
+		{
+			if (Key.IsDeprecated())
+			{
+				return LOCTEXT("KeySelectorDeprecated", "The selected key has been deprecated.");
+			}
+			else if (!Key.IsBindableToActions())
+			{
+				return LOCTEXT("KeySelectorNotBindable", "The selected key can't be bound to actions.");
+			}
+		}
+	}
+	return LOCTEXT("KeySelector", "Select the key value.");
 }
 
 //=======================================================================

@@ -1164,7 +1164,7 @@ void FMagicLeapController::AddKeys()
 {
 	EKeys::AddMenuCategoryDisplayInfo("MagicLeap", LOCTEXT("MagicLeapSubCategory", "Magic Leap"), TEXT("GraphEditor.PadEvent_16x"));
 
-	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::MotionController_Left_Thumbstick_Z, LOCTEXT("MotionController_Left_Thumbstick_Z", "MotionController (L) Thumbstick Z"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey | FKeyDetails::NotActionBindableKey));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::MotionController_Left_Thumbstick_Z, LOCTEXT("MotionController_Left_Thumbstick_Z", "MotionController (L) Thumbstick Z"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::Deprecated));
 	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Left_HomeButton, LOCTEXT("MagicLeap_Left_HomeButton", "ML (L) Home Button"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
 	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Left_Bumper, LOCTEXT("MagicLeap_Left_Bumper", "ML (L) Bumper"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
 	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Left_Trigger, LOCTEXT("MagicLeap_Left_Trigger", "ML (L) Trigger"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
@@ -1178,7 +1178,7 @@ void FMagicLeapController::AddKeys()
 	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Left_Touch1_Force, LOCTEXT("MagicLeap_Left_Touch1_Force", "ML (L) Touch1 Force"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
 	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Left_Touch1_Touch, LOCTEXT("MagicLeap_Left_Touch1_Touch", "ML (L) Touch1 Touch"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
 
-	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::MotionController_Right_Thumbstick_Z, LOCTEXT("MotionController_Right_Thumbstick_Z", "MotionController (R) Thumbstick Z"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey | FKeyDetails::NotActionBindableKey));
+	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::MotionController_Right_Thumbstick_Z, LOCTEXT("MotionController_Right_Thumbstick_Z", "MotionController (R) Thumbstick Z"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::Deprecated));
 	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Right_HomeButton, LOCTEXT("MagicLeap_Right_HomeButton", "ML (R) Home Button"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
 	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Right_Bumper, LOCTEXT("MagicLeap_Right_Bumper", "ML (R) Bumper"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
 	EKeys::AddKey(FKeyDetails(FMagicLeapKeys::Right_Trigger, LOCTEXT("MagicLeap_Right_Trigger", "ML (R) Trigger"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MagicLeap"));
