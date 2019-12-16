@@ -1354,15 +1354,26 @@ private:
 	bool bIsCurrentTimecodeProviderInitialized;
 
 public:
-	/**
-	 * Set TimecodeProvider when the engine is started.
-	 */
-	UPROPERTY(config, EditAnywhere, Category=Timecode, meta=(MetaClass="TimecodeProvider", DisplayName="TimecodeProvider", ConfigRestartRequired=true))
+	/** Set TimecodeProvider when the engine is started. */
+	UPROPERTY(config, EditAnywhere, Category=Timecode, meta=(MetaClass="TimecodeProvider", DisplayName="Timecode Provider", ConfigRestartRequired=true))
 	FSoftClassPath TimecodeProviderClassName;
+
+	/**
+	 * Generate a default timecode from the computer clock when there is no timecode provider.
+	 * On desktop, the system time will be used and will behave as if a USystemTimecodeProvider was set.
+	 * On console, the high performance clock will be used. That may introduce drift over time.
+	 * If you wish to use the system time on console, set the timecode provider to USystemeTimecodeProvider.
+	 */
+	UPROPERTY(config, EditAnywhere, Category=Timecode)
+	bool bGenerateDefaultTimecode;
+
+	/** When generating a default timecode (bGenerateDefaultTimecode is true and no timecode provider is set) at which frame rate it should be generated (number of frames). */
+	UPROPERTY(config, EditAnywhere, Category=Timecode, meta=(EditCondition="bGenerateDefaultTimecode"))
+	FFrameRate GenerateDefaultTimecodeFrameRate;
 
 public:
 	/** 
-	 * Whether we should check for more than N pawns spawning in a single frame.  
+	 * Whether we should check for more than N pawns spawning in a single frame.
 	 * Basically, spawning pawns and all of their attachments can be slow.  And on consoles it
 	 * can be really slow.  If this bool is true we will display a 
 	 **/

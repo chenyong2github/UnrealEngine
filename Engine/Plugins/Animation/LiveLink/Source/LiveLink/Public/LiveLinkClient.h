@@ -11,7 +11,8 @@
 #include "LiveLinkRefSkeleton.h"
 #include "LiveLinkTypes.h"
 #include "LiveLinkVirtualSubject.h"
-#include "Misc/FrameRate.h"
+#include "Misc/Optional.h"
+#include "Misc/QualifiedFrameTime.h"
 #include "Misc/Timecode.h"
 #include "Tickable.h"
 #include "UObject/GCObject.h"
@@ -49,6 +50,7 @@ public:
 	virtual const FLiveLinkSubjectFrame* GetSubjectData(FName InSubjectName) override;
 	virtual const FLiveLinkSubjectFrame* GetSubjectDataAtWorldTime(FName InSubjectName, double InWorldTime) override;
 	virtual const FLiveLinkSubjectFrame* GetSubjectDataAtSceneTime(FName InSubjectName, const FTimecode& InSceneTime) override;
+	virtual bool EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName SubjectName, const FTimecode& SceneTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) override;
 	virtual const TArray<FLiveLinkFrame>* GetSubjectRawFrames(FName SubjectName) override;
 	virtual void ClearSubjectsFrames(FName SubjectName) override;
 	virtual void ClearAllSubjectsFrames() override;
@@ -116,7 +118,7 @@ public:
 	virtual bool EvaluateFrameFromSource_AnyThread(const FLiveLinkSubjectKey& SubjectKey, TSubclassOf<ULiveLinkRole> Role, FLiveLinkSubjectFrameData& OutFrame) override;
 	virtual bool EvaluateFrame_AnyThread(FLiveLinkSubjectName SubjectName, TSubclassOf<ULiveLinkRole> Role, FLiveLinkSubjectFrameData& OutFrame) override;
 	virtual bool EvaluateFrameAtWorldTime_AnyThread(FLiveLinkSubjectName SubjectName, double WorldTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) override;
-	virtual bool EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName SubjectName, const FTimecode& SceneTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) override;
+	virtual bool EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName SubjectName, const FQualifiedFrameTime& FrameTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) override;
 
 	virtual FSimpleMulticastDelegate& OnLiveLinkTicked() override;
 	virtual FSimpleMulticastDelegate& OnLiveLinkSourcesChanged() override;
@@ -255,7 +257,6 @@ private:
 
 	/** Cached value of the engine timecode and frame rate*/
 	double CachedEngineTime;
-	FTimecode CachedEngineTimecode;
-	FFrameRate CachedEngineTimecodeFrameRate;
+	TOptional<FQualifiedFrameTime> CachedEngineFrameTime;
 #endif
 };

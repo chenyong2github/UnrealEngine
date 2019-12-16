@@ -12,8 +12,8 @@
 /**
  * Read the LTC from the audio capture device.
  */
-UCLASS(Blueprintable, editinlinenew)
-class AUDIOCAPTURETIMECODEPROVIDER_API UAudioCaptureTimecodeProvider : public UTimecodeProvider
+UCLASS(Blueprintable, editinlinenew, deprecated)
+class AUDIOCAPTURETIMECODEPROVIDER_API UDEPRECATED_AudioCaptureTimecodeProvider : public UTimecodeProvider
 {
 	GENERATED_UCLASS_BODY()
 
@@ -43,8 +43,7 @@ public:
 
 public:
 	//~ UTimecodeProvider interface
-	virtual FTimecode GetTimecode() const override;
-	virtual FFrameRate GetFrameRate() const override;
+	virtual FQualifiedFrameTime GetQualifiedFrameTime() const override;
 	virtual ETimecodeProviderSynchronizationState GetSynchronizationState() const override { return SynchronizationState; }
 	virtual bool Initialize(class UEngine* InEngine) override;
 	virtual void Shutdown(class UEngine* InEngine) override;
@@ -53,6 +52,9 @@ public:
 	virtual void BeginDestroy() override;
 	
 private:
+	FTimecode GetTimecodeInternal() const;
+	FFrameRate GetFrameRateInternal() const;
+
 	/** Audio capture object dealing with getting audio callbacks */
 	struct FLinearTimecodeAudioCaptureCustomTimeStepImplementation;
 	friend FLinearTimecodeAudioCaptureCustomTimeStepImplementation;

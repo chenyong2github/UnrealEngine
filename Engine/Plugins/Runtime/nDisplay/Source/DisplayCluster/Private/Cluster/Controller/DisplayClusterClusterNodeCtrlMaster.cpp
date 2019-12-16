@@ -60,25 +60,30 @@ void FDisplayClusterClusterNodeCtrlMaster::GetDeltaTime(float& DeltaSeconds)
 	DeltaSeconds = CachedDeltaTime_GetDeltaTime;
 }
 
-void FDisplayClusterClusterNodeCtrlMaster::GetTimecode(FTimecode& Timecode, FFrameRate& FrameRate)
+void FDisplayClusterClusterNodeCtrlMaster::GetFrameTime(TOptional<FQualifiedFrameTime>& FrameTime)
 {
 	FScopeLock lock(&InternalsSyncScope);
 
 	// Cache data so it will be the same for all requests within current frame
-	if (!bIsDataCached_GetTimecode)
+	if (!bIsDataCached_GetFrameTime)
 	{
-		bIsDataCached_GetTimecode = true;
+		bIsDataCached_GetFrameTime = true;
 
 		// This values are updated in UEngine::UpdateTimeAndHandleMaxTickRate (via UpdateTimecode).
-		CachedTimecode_GetTimecode  = FApp::GetTimecode();
-		CachedFramerate_GetTimecode = FApp::GetTimecodeFrameRate();
+		CachedTimecode_GetFrameTime = FApp::GetCurrentFrameTime();
 
-		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetDeltaTime cached values: DeltaSeconds %f"), CachedDeltaTime_GetDeltaTime);
+		if (CachedTimecode_GetFrameTime.IsSet())
+		{
+			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetFrameTime cached values: Seconds %f"), CachedTimecode_GetFrameTime.GetValue().AsSeconds());
+		}
+		else
+		{
+			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetFrameTime cached values: [INVALID]"));
+		}
 	}
 
 	// Return cached value
-	Timecode  = CachedTimecode_GetTimecode;
-	FrameRate = CachedFramerate_GetTimecode;
+	FrameTime = CachedTimecode_GetFrameTime;
 }
 
 void FDisplayClusterClusterNodeCtrlMaster::GetSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup)
@@ -183,7 +188,7 @@ void FDisplayClusterClusterNodeCtrlMaster::ClearCache()
 
 	// Reset all cache flags
 	bIsDataCached_GetDeltaTime  = false;
-	bIsDataCached_GetTimecode   = false;
+	bIsDataCached_GetFrameTime  = false;
 	bIsDataCached_GetInputData  = false;
 	bIsDataCached_GetEventsData = false;
 

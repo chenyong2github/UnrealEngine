@@ -2235,14 +2235,24 @@ bool UEngine::SetTimecodeProvider(UTimecodeProvider* InTimecodeProvider)
 
 void UEngine::UpdateTimecode()
 {
+	FApp::InvalidateCurrentFrameTime();
+
 	const UTimecodeProvider* Provider = GetTimecodeProvider();
-	if (Provider && Provider->GetSynchronizationState() == ETimecodeProviderSynchronizationState::Synchronized)
+	if (Provider)
 	{
-		FApp::SetTimecodeAndFrameRate(Provider->GetDelayedTimecode(), Provider->GetFrameRate());
+		if (Provider->GetSynchronizationState() == ETimecodeProviderSynchronizationState::Synchronized)
+		{
+			FApp::SetCurrentFrameTime(Provider->GetDelayedQualifiedFrameTime());
+		}
 	}
-	else
+	else if(bGenerateDefaultTimecode)
 	{
-		FApp::SetTimecodeAndFrameRate(FTimecode(), FFrameRate());
+#if PLATFORM_DESKTOP
+		FApp::SetCurrentFrameTime(FQualifiedFrameTime(USystemTimeTimecodeProvider::GenerateTimecodeFromSystemTime(GenerateDefaultTimecodeFrameRate), GenerateDefaultTimecodeFrameRate));
+#else //PLATFORM_DESKTOP
+		//If a user wish to have an accurate TC value on console, he should set an accurate TC provider in his project settings.
+		FApp::SetCurrentFrameTime(FQualifiedFrameTime(USystemTimeTimecodeProvider::GenerateTimecodeFromHighPerformanceClock(GenerateDefaultTimecodeFrameRate), GenerateDefaultTimecodeFrameRate));
+#endif
 	}
 }
 

@@ -19,8 +19,7 @@ public:
 	UAppleARKitTimecodeProvider();
 
 	// ~UTimecodeProvider
-	virtual FTimecode GetTimecode() const override;
-	virtual FFrameRate GetFrameRate() const override;
+	virtual FQualifiedFrameTime GetQualifiedFrameTime() const override;
 	virtual ETimecodeProviderSynchronizationState GetSynchronizationState() const override;
 	virtual bool Initialize(class UEngine* InEngine) override;
 	virtual void Shutdown(class UEngine* InEngine) override;

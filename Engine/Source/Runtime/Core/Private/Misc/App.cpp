@@ -36,8 +36,7 @@ double FApp::LastTime = 0.0;
 double FApp::DeltaTime = 1 / 30.0;
 double FApp::IdleTime = 0.0;
 double FApp::IdleTimeOvershoot = 0.0;
-FTimecode FApp::Timecode = FTimecode();
-FFrameRate FApp::TimecodeFrameRate = FFrameRate(60,1);
+TOptional<FQualifiedFrameTime> FApp::CurrentFrameTime;
 float FApp::VolumeMultiplier = 1.0f;
 float FApp::UnfocusedVolumeMultiplier = 0.0f;
 bool FApp::bUseVRFocus = false;
@@ -261,6 +260,24 @@ bool FApp::ShouldUseThreadingForPerformance()
 #undef MIN_CORE_COUNT
 
 #endif // HAVE_RUNTIME_THREADING_SWITCHES
+
+FTimecode FApp::GetTimecode()
+{
+	if (CurrentFrameTime.IsSet())
+	{
+		return FTimecode::FromFrameNumber(CurrentFrameTime->Time.GetFrame(), CurrentFrameTime->Rate);
+	}
+	return FTimecode();
+}
+
+FFrameRate FApp::GetTimecodeFrameRate()
+{
+	if (CurrentFrameTime.IsSet())
+	{
+		return CurrentFrameTime->Rate;
+	}
+	return FFrameRate();
+}
 
 static bool GUnfocusedVolumeMultiplierInitialised = false;
 float FApp::GetUnfocusedVolumeMultiplier()

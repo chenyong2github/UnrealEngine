@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Misc/Timecode.h"
 #include "Misc/FrameRate.h"
+#include "Misc/QualifiedFrameTime.h"
 #include "DisplayClusterEnums.h"
 #include "DisplayClusterUtils/DisplayClusterCommonStrings.h"
 #include "DisplayClusterUtils/DisplayClusterCommonHelpers.h"
@@ -31,10 +32,10 @@ public:
 
 template <> inline FString FDisplayClusterTypesConverter::ToString<>(const FString& from)    { return from; }
 template <> inline FString FDisplayClusterTypesConverter::ToString<>(const bool& from)       { return (from ? DisplayClusterStrings::cfg::spec::ValTrue : DisplayClusterStrings::cfg::spec::ValFalse); }
-template <> inline FString FDisplayClusterTypesConverter::ToString<> (const int8& from)      { return FString::FromInt(from); }
-template <> inline FString FDisplayClusterTypesConverter::ToString<> (const uint8& from)     { return ToString(static_cast<int8>(from)); }
-template <> inline FString FDisplayClusterTypesConverter::ToString<> (const int32& from)     { return FString::FromInt(from); }
-template <> inline FString FDisplayClusterTypesConverter::ToString<> (const uint32& from)    { return ToString(static_cast<int32>(from)); }
+template <> inline FString FDisplayClusterTypesConverter::ToString<>(const int8& from)      { return FString::FromInt(from); }
+template <> inline FString FDisplayClusterTypesConverter::ToString<>(const uint8& from)     { return ToString(static_cast<int8>(from)); }
+template <> inline FString FDisplayClusterTypesConverter::ToString<>(const int32& from)     { return FString::FromInt(from); }
+template <> inline FString FDisplayClusterTypesConverter::ToString<>(const uint32& from)    { return ToString(static_cast<int32>(from)); }
 template <> inline FString FDisplayClusterTypesConverter::ToString<>(const float& from)      { return FString::SanitizeFloat(from); }
 template <> inline FString FDisplayClusterTypesConverter::ToString<>(const double& from)     { return FString::Printf(TEXT("%lf"), from); }
 template <> inline FString FDisplayClusterTypesConverter::ToString<>(const FVector& from)    { return from.ToString(); }
@@ -45,6 +46,7 @@ template <> inline FString FDisplayClusterTypesConverter::ToString<>(const FMatr
 // We can't just use FTimecode ToString as that loses information.
 template <> inline FString FDisplayClusterTypesConverter::ToString<>(const FTimecode& from)  { return FString::Printf(TEXT("%d;%d;%d;%d;%d"), from.bDropFrameFormat ? 1 : 0, from.Hours, from.Minutes, from.Seconds, from.Frames); }
 template <> inline FString FDisplayClusterTypesConverter::ToString<>(const FFrameRate& from) { return FString::Printf(TEXT("%d;%d"), from.Numerator, from.Denominator); }
+template <> inline FString FDisplayClusterTypesConverter::ToString<>(const FQualifiedFrameTime& from) { return FString::Printf(TEXT("%d;%s;%d;%d"), from.Time.GetFrame().Value, *FString::SanitizeFloat(from.Time.GetSubFrame()), from.Rate.Numerator, from.Rate.Denominator); }
 
 template <> inline FString FDisplayClusterTypesConverter::ToString<>(const EDisplayClusterOperationMode& from)
 {
@@ -176,6 +178,25 @@ template <> inline FFrameRate FDisplayClusterTypesConverter::FromString<> (const
 	}
 
 	return frameRate;
+}
+
+template <> inline FQualifiedFrameTime FDisplayClusterTypesConverter::FromString<>(const FString& from)
+{
+	FQualifiedFrameTime frameTime;
+
+	TArray<FString> parts;
+	parts.Reserve(4);
+	const int32 found = from.ParseIntoArray(parts, TEXT(";"));
+
+	// We are expecting 4 "parts" - Frame, SubFrame, Numerator, Denominator.
+	if (found == 4)
+	{
+		frameTime.Time = FFrameTime(FromString<int32>(parts[0]), FromString<float>(parts[1]));
+		frameTime.Rate.Numerator = FromString<int32>(parts[2]);
+		frameTime.Rate.Denominator = FromString<int32>(parts[3]);
+	}
+
+	return frameTime;
 }
 
 template <> inline EDisplayClusterSyncGroup FDisplayClusterTypesConverter::FromString<>(const FString& from)

@@ -197,7 +197,7 @@ FTimecode ULevelSequencePlaybackController::GetCurrentSequencePlaybackTimecode()
 		if (Sequencer)
 		{
 			const FFrameTime DisplayTime = Sequencer->GetLocalTime().ConvertTo(Sequencer->GetFocusedDisplayRate());
-			return FTimecode::FromFrameNumber(DisplayTime.FrameNumber, Sequencer->GetFocusedDisplayRate(), FTimecode::IsDropFormatTimecodeSupported(Sequencer->GetFocusedDisplayRate()));
+			return FTimecode::FromFrameNumber(DisplayTime.FrameNumber, Sequencer->GetFocusedDisplayRate());
 		}
 	}
 #endif //WITH_EDITOR

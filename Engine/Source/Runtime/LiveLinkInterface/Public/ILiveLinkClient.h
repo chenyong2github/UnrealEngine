@@ -271,15 +271,18 @@ public:
 	 */
 	virtual bool EvaluateFrameAtWorldTime_AnyThread(FLiveLinkSubjectName SubjectName, double WorldTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) = 0;
 
+	UE_DEPRECATED(4.25, "ILiveLinkClient::EvaluateFrameAtSceneTime_AnyThread is deprecated. Please use ILiveLinkClient::EvaluateFrameAtSceneTime_AnyThread with a QualifiedFrameTime instead!")
+	virtual bool EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName SubjectName, const FTimecode& SceneTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) { return false; }
+
 	/**
-	 * Evaluates a subject for a specific role at a Timecode.
+	 * Evaluates a subject for a specific role at a scene time.
 	 * The subject may go through a translator to get the desired role's frame data.
 	 * If it's a virtual subject EvaluateFrame_AnyThread will be used instead.
 	 * @return True if a frame data was calculated.
 	 * @note This value is not cached.
 	 * @see ULiveLinkSourceSettings
 	 */
-	virtual bool EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName SubjectName, const FTimecode& SceneTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) = 0;
+	virtual bool EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName SubjectName, const FQualifiedFrameTime& SceneTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) = 0;
 
 	/** Notify when the LiveLinkClient has ticked. */
 	virtual FSimpleMulticastDelegate& OnLiveLinkTicked() = 0;

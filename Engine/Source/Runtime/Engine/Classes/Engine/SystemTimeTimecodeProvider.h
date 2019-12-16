@@ -3,8 +3,6 @@
 #pragma once
 
 #include "TimecodeProvider.h"
-#include "Misc/FrameRate.h"
-#include "UObject/UnrealType.h"
 #include "SystemTimeTimecodeProvider.generated.h"
 
 /**
@@ -30,13 +28,18 @@ public:
 	{
 	}
 
-	//~ Begin UTimecodeProvider Interface
-	virtual FTimecode GetTimecode() const override;
+	/** Generate a timecode value using the system clock. */
+	static FTimecode GenerateTimecodeFromSystemTime(FFrameRate Rate);
 
-	virtual FFrameRate GetFrameRate() const override
-	{
-		return FrameRate;
-	}
+	/**
+	 * Generate a timecode value using the high performance clock
+	 * Using the high performance clock is faster but will make the value drift over time.
+	 * This is an optimized version. Prefer GenerateTimecodeFromSystemTime, if the value need to be accurate.
+	 **/
+	static FTimecode GenerateTimecodeFromHighPerformanceClock(FFrameRate Rate);
+
+	//~ Begin UTimecodeProvider Interface
+	virtual FQualifiedFrameTime GetQualifiedFrameTime() const override;
 	
 	virtual ETimecodeProviderSynchronizationState GetSynchronizationState() const override
 	{

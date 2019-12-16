@@ -1875,7 +1875,7 @@ void SSequencer::FillPlaybackSpeedMenu(FMenuBuilder& InMenuBarBuilder)
 void SSequencer::FillTimeDisplayFormatMenu(FMenuBuilder& MenuBuilder)
 {
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
-	bool bSupportsDropFormatDisplay = FTimecode::IsDropFormatTimecodeSupported(Sequencer->GetFocusedDisplayRate());
+	bool bShouldDisplayDropFormat = FTimecode::UseDropFormatTimecode(Sequencer->GetFocusedDisplayRate());
 
 	const UEnum* FrameNumberDisplayEnum = StaticEnum<EFrameNumberDisplayFormats>();
 	check(FrameNumberDisplayEnum);
@@ -1888,9 +1888,17 @@ void SSequencer::FillTimeDisplayFormatMenu(FMenuBuilder& MenuBuilder)
 			{
 				EFrameNumberDisplayFormats Value = (EFrameNumberDisplayFormats)FrameNumberDisplayEnum->GetValueByIndex(Index);
 
-				// Don't show Drop Frame Timecode when they're in a format that doesn't support it.
-				if (Value == EFrameNumberDisplayFormats::DropFrameTimecode && !bSupportsDropFormatDisplay)
+				// Don't show None Drop Frame Timecode when the format support drop format and the engine wants to use the drop format by default.
+				if (Value == EFrameNumberDisplayFormats::NonDropFrameTimecode && bShouldDisplayDropFormat)
+				{
 					continue;
+				}
+
+				// Don't show Drop Frame Timecode when they're in a format that doesn't support it.
+				if (Value == EFrameNumberDisplayFormats::DropFrameTimecode && !bShouldDisplayDropFormat)
+				{
+					continue;
+				}
 
 				MenuBuilder.AddMenuEntry(
 					FrameNumberDisplayEnum->GetDisplayNameTextByIndex(Index),

@@ -27,7 +27,7 @@ public:
 	// IPDisplayClusterClusterSyncProtocol
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual void GetDeltaTime(float& DeltaSeconds) override;
-	virtual void GetTimecode(FTimecode& Timecode, FFrameRate& FrameRate) override;
+	virtual void GetFrameTime(TOptional<FQualifiedFrameTime>& FrameTime) override;
 	virtual void GetSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup) override;
 	virtual void GetInputData(FDisplayClusterMessage::DataType& InputData) override;
 	virtual void GetEventsData(FDisplayClusterMessage::DataType& EventsData) override;
@@ -66,9 +66,8 @@ private:
 	float CachedDeltaTime_GetDeltaTime = 0.f;
 
 	// GetTimecode internals
-	bool       bIsDataCached_GetTimecode = false;
-	FTimecode  CachedTimecode_GetTimecode;
-	FFrameRate CachedFramerate_GetTimecode;
+	bool bIsDataCached_GetFrameTime = false;
+	TOptional<FQualifiedFrameTime>  CachedTimecode_GetFrameTime;
 
 	// GetSyncData internals
 	TMap<EDisplayClusterSyncGroup, bool> IsDataCached_GetSyncData;

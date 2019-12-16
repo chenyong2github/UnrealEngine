@@ -169,8 +169,7 @@ FText STimecodeSynchronizerSourceViewport::HandleIntervalMinTimecodeText() const
 	if (AttachedSource && AttachedSource->IsReady())
 	{
 		const FFrameNumber OldestFrame = AttachedSource->GetInputSourceState().OldestAvailableSample.GetFrame();
-		const bool bIsDropFrame = FTimecode::IsDropFormatTimecodeSupported(AttachedSource->GetFrameRate());
-		Timecode = FTimecode::FromFrameNumber(OldestFrame, AttachedSource->GetFrameRate(), bIsDropFrame);
+		Timecode = FTimecode::FromFrameNumber(OldestFrame, AttachedSource->GetFrameRate());
 	}
 
 	return FText::FromString(FString("Minimum: ") + Timecode.ToString());
@@ -183,8 +182,7 @@ FText STimecodeSynchronizerSourceViewport::HandleIntervalMaxTimecodeText() const
 	if (AttachedSource && AttachedSource->IsReady())
 	{
 		const FFrameNumber NewestFrame = AttachedSource->GetInputSourceState().NewestAvailableSample.GetFrame();
-		const bool bIsDropFrame = FTimecode::IsDropFormatTimecodeSupported(AttachedSource->GetFrameRate());
-		Timecode = FTimecode::FromFrameNumber(NewestFrame, AttachedSource->GetFrameRate(), bIsDropFrame);
+		Timecode = FTimecode::FromFrameNumber(NewestFrame, AttachedSource->GetFrameRate());
 	}
 
 	return FText::FromString(FString("Maximum: ") + Timecode.ToString());

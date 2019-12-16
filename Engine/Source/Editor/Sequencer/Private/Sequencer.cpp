@@ -10333,8 +10333,12 @@ void FSequencer::BindCommands()
 
 			// If the next framerate in the list is drop format timecode and we're not in a play rate that supports drop format timecode,
 			// then we will skip over it.
-			bool bCanShowDropFrameTimecode = FTimecode::IsDropFormatTimecodeSupported(GetFocusedDisplayRate());
-			if (!bCanShowDropFrameTimecode && NextFormat == EFrameNumberDisplayFormats::DropFrameTimecode)
+			bool bCanShowDropFrameTimecode = FTimecode::UseDropFormatTimecode(GetFocusedDisplayRate());
+			if (bCanShowDropFrameTimecode && NextFormat == EFrameNumberDisplayFormats::NonDropFrameTimecode)
+			{
+				NextFormat = EFrameNumberDisplayFormats::DropFrameTimecode;
+			}
+			else if (!bCanShowDropFrameTimecode && NextFormat == EFrameNumberDisplayFormats::DropFrameTimecode)
 			{
 				NextFormat = EFrameNumberDisplayFormats::Seconds;
 			}

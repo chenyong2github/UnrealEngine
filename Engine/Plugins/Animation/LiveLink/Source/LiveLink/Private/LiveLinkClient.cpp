@@ -175,8 +175,7 @@ void FLiveLinkClient::CacheValues()
 {
 #if WITH_EDITOR
 	CachedEngineTime = FApp::GetCurrentTime();
-	CachedEngineTimecode = FApp::GetTimecode();
-	CachedEngineTimecodeFrameRate = FApp::GetTimecodeFrameRate();
+	CachedEngineFrameTime = FApp::GetCurrentFrameTime();
 #endif
 }
 
@@ -1060,7 +1059,7 @@ bool FLiveLinkClient::EvaluateFrame_AnyThread(FLiveLinkSubjectName InSubjectName
 #if WITH_EDITOR
 		if (OnLiveLinkSubjectEvaluated().IsBound())
 		{
-			FLiveLinkTime RequestedTime = FLiveLinkTime(CachedEngineTime, FQualifiedFrameTime(CachedEngineTimecode, CachedEngineTimecodeFrameRate));
+			FLiveLinkTime RequestedTime = FLiveLinkTime(CachedEngineTime, CachedEngineFrameTime.Get(FQualifiedFrameTime()));
 			FLiveLinkTime ResultTime;
 			if (bResult)
 			{
@@ -1122,7 +1121,7 @@ bool FLiveLinkClient::EvaluateFrameAtWorldTime_AnyThread(FLiveLinkSubjectName In
 	return bResult;
 }
 
-bool FLiveLinkClient::EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName InSubjectName, const FTimecode& InSceneTime, TSubclassOf<ULiveLinkRole> InDesiredRole, FLiveLinkSubjectFrameData& OutFrame)
+bool FLiveLinkClient::EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName InSubjectName, const FQualifiedFrameTime& InSceneTime, TSubclassOf<ULiveLinkRole> InDesiredRole, FLiveLinkSubjectFrameData& OutFrame)
 {
 	SCOPE_CYCLE_COUNTER(STAT_LiveLink_EvaluateFrame);
 
@@ -1147,7 +1146,7 @@ bool FLiveLinkClient::EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName In
 #if WITH_EDITOR
 			if (OnLiveLinkSubjectEvaluated().IsBound())
 			{
-				FLiveLinkTime RequestedTime = FLiveLinkTime(0.0, FQualifiedFrameTime(InSceneTime, CachedEngineTimecodeFrameRate));
+				FLiveLinkTime RequestedTime = FLiveLinkTime(0.0, InSceneTime);
 				FLiveLinkTime ResultTime;
 				if (bResult)
 				{
@@ -1544,6 +1543,11 @@ const FLiveLinkSubjectFrame* FLiveLinkClient_Base_DEPRECATED::GetSubjectDataAtSc
 	static const FName NAME_UpdateYourCode = "LiveLinkClient_GetSubjectDataAtSceneTime";
 	FLiveLinkLog::WarningOnce(NAME_UpdateYourCode, FLiveLinkSubjectKey(FGuid(), InSubjectName), TEXT("Upgrade your code. There is no way to deprecate GetSubjectDataAtSceneTime without creating new memory."));
 	return nullptr;
+}
+
+bool FLiveLinkClient_Base_DEPRECATED::EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName SubjectName, const FTimecode& SceneTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame)
+{
+	return static_cast<ILiveLinkClient*>(this)->EvaluateFrameAtSceneTime_AnyThread(SubjectName, FQualifiedFrameTime(SceneTime, FApp::GetTimecodeFrameRate()), DesiredRole, OutFrame);
 }
 
 const TArray<FLiveLinkFrame>* FLiveLinkClient_Base_DEPRECATED::GetSubjectRawFrames(FName InSubjectName)

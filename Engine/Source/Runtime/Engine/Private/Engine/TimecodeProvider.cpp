@@ -3,15 +3,23 @@
 #include "Engine/TimecodeProvider.h"
 
 
+FQualifiedFrameTime UTimecodeProvider::GetDelayedQualifiedFrameTime() const
+{
+	FQualifiedFrameTime NewFrameTime = GetQualifiedFrameTime();
+	NewFrameTime.Time.FrameNumber -= FrameDelay;
+	return NewFrameTime;
+}
+
+
+FTimecode UTimecodeProvider::GetTimecode() const
+{
+	const FQualifiedFrameTime NewFrameTime = GetQualifiedFrameTime();
+	return FTimecode::FromFrameNumber(NewFrameTime.Time.GetFrame(), NewFrameTime.Rate);
+}
+
+
 FTimecode UTimecodeProvider::GetDelayedTimecode() const
 {
-	FTimecode NewTimecode = GetTimecode();
-	FFrameRate NewFrameRate = GetFrameRate();
-	if (FrameDelay != 0)
-	{
-		FFrameNumber TimecodeFrameNumber = NewTimecode.ToFrameNumber(NewFrameRate);
-		TimecodeFrameNumber -= FrameDelay;
-		NewTimecode = FTimecode::FromFrameNumber(TimecodeFrameNumber, NewFrameRate, NewTimecode.bDropFrameFormat);
-	}
-	return NewTimecode;
+	const FQualifiedFrameTime NewFrameTime = GetDelayedQualifiedFrameTime();
+	return FTimecode::FromFrameNumber(NewFrameTime.Time.GetFrame(), NewFrameTime.Rate);
 }

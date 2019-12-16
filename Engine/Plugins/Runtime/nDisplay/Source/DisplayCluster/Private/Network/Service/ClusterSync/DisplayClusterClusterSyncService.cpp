@@ -13,6 +13,7 @@
 #include "Network/Session/DisplayClusterSessionInternal.h"
 
 #include "Misc/DisplayClusterAppExit.h"
+#include "Misc/QualifiedFrameTime.h"
 
 #include "DisplayClusterEnums.h"
 #include "DisplayClusterGlobals.h"
@@ -131,13 +132,16 @@ TSharedPtr<FDisplayClusterMessage> FDisplayClusterClusterSyncService::ProcessMes
 		Response->SetArg(FDisplayClusterClusterSyncMsg::GetDeltaTime::argDeltaSeconds, DeltaSeconds);
 		return Response;
 	}
-	else if (ReqName == FDisplayClusterClusterSyncMsg::GetTimecode::name)
+	else if (ReqName == FDisplayClusterClusterSyncMsg::GetFrameTime::name)
 	{
-		FTimecode timecode;
-		FFrameRate frameRate;
-		GetTimecode(timecode, frameRate);
-		Response->SetArg(FDisplayClusterClusterSyncMsg::GetTimecode::argTimecode, timecode);
-		Response->SetArg(FDisplayClusterClusterSyncMsg::GetTimecode::argFrameRate, frameRate);
+		TOptional<FQualifiedFrameTime> frameTime;
+		GetFrameTime(frameTime);
+
+		Response->SetArg(FDisplayClusterClusterSyncMsg::GetFrameTime::argIsValid, frameTime.IsSet());
+		if (frameTime.IsSet())
+		{
+			Response->SetArg(FDisplayClusterClusterSyncMsg::GetFrameTime::argFrameTime, frameTime.GetValue());
+		}
 		return Response;
 	}
 	else if (ReqName == FDisplayClusterClusterSyncMsg::GetSyncData::name)
@@ -224,10 +228,10 @@ void FDisplayClusterClusterSyncService::GetDeltaTime(float& DeltaSeconds)
 	return NodeController->GetDeltaTime(DeltaSeconds);
 }
 
-void FDisplayClusterClusterSyncService::GetTimecode(FTimecode& Timecode, FFrameRate& FrameRate)
+void FDisplayClusterClusterSyncService::GetFrameTime(TOptional<FQualifiedFrameTime>& FrameTime)
 {
 	static IPDisplayClusterNodeController* const NodeController = GDisplayCluster->GetPrivateClusterMgr()->GetController();
-	return NodeController->GetTimecode(Timecode, FrameRate);
+	return NodeController->GetFrameTime(FrameTime);
 }
 
 void FDisplayClusterClusterSyncService::GetSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup)

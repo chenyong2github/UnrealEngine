@@ -62,28 +62,33 @@ void FLiveLinkSubject::Update()
 	}
 	else if (GetMode() == ELiveLinkSourceMode::Timecode)
 	{
-		const FQualifiedFrameTime CurrentSyncTime = FQualifiedFrameTime(FApp::GetTimecode(), FApp::GetTimecodeFrameRate());
-		const FFrameTime CurrentFrameTimeInFrameSpace = CurrentSyncTime.ConvertTo(CachedSettings.BufferSettings.TimecodeFrameRate);
-		int32 FrameIndex = 0;
-		for (const FLiveLinkFrameDataStruct& SourceFrameData : FrameData)
+		if (FApp::GetCurrentFrameTime().IsSet())
 		{
-			FFrameTime UsedFrameTime = CurrentFrameTimeInFrameSpace - CachedSettings.BufferSettings.TimecodeFrameOffset - CachedSettings.BufferSettings.ValidTimecodeFrame;
-			FFrameTime FrameTime = SourceFrameData.GetBaseData()->MetaData.SceneTime.Time;
-			if (FrameTime > UsedFrameTime)
+			const FQualifiedFrameTime CurrentSyncTime = FApp::GetCurrentFrameTime().GetValue();
+			const FFrameTime CurrentFrameTimeInFrameSpace = CurrentSyncTime.ConvertTo(CachedSettings.BufferSettings.TimecodeFrameRate);
+			int32 FrameIndex = 0;
+			for (const FLiveLinkFrameDataStruct& SourceFrameData : FrameData)
 			{
-				break;
+				FFrameTime UsedFrameTime = CurrentFrameTimeInFrameSpace - CachedSettings.BufferSettings.TimecodeFrameOffset - CachedSettings.BufferSettings.ValidTimecodeFrame;
+				FFrameTime FrameTime = SourceFrameData.GetBaseData()->MetaData.SceneTime.Time;
+				if (FrameTime > UsedFrameTime)
+				{
+					break;
+				}
+				++FrameIndex;
 			}
-			++FrameIndex;
+
+			if (FrameIndex - 1 >= 0)
+			{
+				const int32 Count = CachedSettings.BufferSettings.bKeepAtLeastOneFrame && FrameData.Num() == FrameIndex ? FrameIndex - 1 : FrameIndex;
+				if (Count > 0)
+				{
+					FrameData.RemoveAt(0, Count, false);
+				}
+			}
 		}
 
-		if (FrameIndex - 1 >= 0)
-		{
-			const int32 Count = CachedSettings.BufferSettings.bKeepAtLeastOneFrame && FrameData.Num() == FrameIndex ? FrameIndex - 1 : FrameIndex;
-			if (Count > 0)
-			{
-				FrameData.RemoveAt(0, Count, false);
-			}
-		}
+		// no warning if GetCurrentFrameTime is not set, the warning is done bellow after GetFrameAtSceneTime
 	}
 
 	// Build a snapshot for this role
@@ -94,8 +99,15 @@ void FLiveLinkSubject::Update()
 		{
 		case ELiveLinkSourceMode::Timecode:
 		{
-			const FQualifiedFrameTime CurrentSyncTime = FQualifiedFrameTime(FApp::GetTimecode(), FApp::GetTimecodeFrameRate());
-			bSnapshotIsValid = GetFrameAtSceneTime(CurrentSyncTime, FrameSnapshot);
+			if (FApp::GetCurrentFrameTime().IsSet())
+			{
+				bSnapshotIsValid = GetFrameAtSceneTime(FApp::GetCurrentFrameTime().GetValue(), FrameSnapshot);
+			}
+			else
+			{
+				static const FName NAME_InvalidRole = "LiveLinkSubject_NoCurrentFrameTime";
+				FLiveLinkLog::WarningOnce(NAME_InvalidRole, SubjectKey, TEXT("Can't evaluate frame for subject '%s'. The engine doesn't have a timecode value set."), *SubjectKey.SubjectName.ToString());
+			}
 		}
 		break;
 
@@ -186,7 +198,7 @@ bool FLiveLinkSubject::EvaluateFrameAtWorldTime(double InWorldTime, TSubclassOf<
 	return bSuccess;
 }
 
-bool FLiveLinkSubject::EvaluateFrameAtSceneTime(const FTimecode& InSceneTime, TSubclassOf<ULiveLinkRole> InDesiredRole, FLiveLinkSubjectFrameData& OutFrame)
+bool FLiveLinkSubject::EvaluateFrameAtSceneTime(const FQualifiedFrameTime& InSceneTime, TSubclassOf<ULiveLinkRole> InDesiredRole, FLiveLinkSubjectFrameData& OutFrame)
 {
 	if (Role == nullptr)
 	{
@@ -212,16 +224,15 @@ bool FLiveLinkSubject::EvaluateFrameAtSceneTime(const FTimecode& InSceneTime, TS
 	bool bSuccess = false;
 	if (FrameData.Num() != 0)
 	{
-		const FQualifiedFrameTime UseTime = FQualifiedFrameTime(InSceneTime, FApp::GetTimecodeFrameRate());
 		if (Role == InDesiredRole || Role->IsChildOf(InDesiredRole))
 		{
-			GetFrameAtSceneTime(UseTime, OutFrame);
+			GetFrameAtSceneTime(InSceneTime, OutFrame);
 			bSuccess = true;
 		}
 		else if (SupportsRole(InDesiredRole))
 		{
 			FLiveLinkSubjectFrameData TmpFrameData;
-			GetFrameAtSceneTime(UseTime, TmpFrameData);
+			GetFrameAtSceneTime(InSceneTime, TmpFrameData);
 			bSuccess = Translate(this, InDesiredRole, TmpFrameData.StaticData, TmpFrameData.FrameData, OutFrame);
 		}
 		else
@@ -366,8 +377,10 @@ int32 FLiveLinkSubject::FindNewFrame_SceneTime(const FQualifiedFrameTime& Qualif
 		return INDEX_NONE;
 	}
 
+	// If we do not have a TC set, keep buffering, the TC may be unresponsive for a moment. We do not want to loose data.
+	if (FApp::GetCurrentFrameTime().IsSet())
 	{
-		const FQualifiedFrameTime CurrentSyncTime = FQualifiedFrameTime(FApp::GetTimecode(), FApp::GetTimecodeFrameRate());
+		const FQualifiedFrameTime CurrentSyncTime = FApp::GetCurrentFrameTime().GetValue();
 		const FFrameTime CurrentFrameTimeInFrameSpace = CurrentSyncTime.ConvertTo(CachedSettings.BufferSettings.TimecodeFrameRate);
 		const FFrameTime CurrentOffsetFrameTime = CurrentFrameTimeInFrameSpace - CachedSettings.BufferSettings.TimecodeFrameOffset - CachedSettings.BufferSettings.ValidTimecodeFrame;
 		if (QualifiedFrameTime.Time.AsDecimal() < CurrentOffsetFrameTime.AsDecimal())
@@ -856,10 +869,11 @@ bool FLiveLinkSubject::IsTimeSynchronized() const
 	if (GetMode() == ELiveLinkSourceMode::Timecode)
 	{
 		const FLiveLinkSubjectFrameData& Snapshot = GetFrameSnapshot();
-		if (Snapshot.StaticData.IsValid() && Snapshot.FrameData.IsValid() && Snapshot.FrameData.GetBaseData())
+		if (Snapshot.StaticData.IsValid() && Snapshot.FrameData.IsValid() && Snapshot.FrameData.GetBaseData() && FApp::GetCurrentFrameTime().IsSet())
 		{
-			const FFrameNumber FrameDataInEngineFrameNumber = Snapshot.FrameData.GetBaseData()->MetaData.SceneTime.ConvertTo(FApp::GetTimecodeFrameRate()).GetFrame();
-			const FFrameNumber CurrentEngineFrameNumber = FApp::GetTimecode().ToFrameNumber(FApp::GetTimecodeFrameRate());
+			const FQualifiedFrameTime CurrentQualifiedFrameTime = FApp::GetCurrentFrameTime().GetValue();
+			const FFrameNumber FrameDataInEngineFrameNumber = Snapshot.FrameData.GetBaseData()->MetaData.SceneTime.ConvertTo(CurrentQualifiedFrameTime.Rate).GetFrame();
+			const FFrameNumber CurrentEngineFrameNumber = CurrentQualifiedFrameTime.Time.GetFrame();
 			return FrameDataInEngineFrameNumber == CurrentEngineFrameNumber;
 		}
 	}

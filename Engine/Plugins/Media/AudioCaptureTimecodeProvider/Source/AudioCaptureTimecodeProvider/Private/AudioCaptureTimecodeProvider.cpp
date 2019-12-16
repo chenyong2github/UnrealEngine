@@ -8,13 +8,14 @@
 #include "LinearTimecodeDecoder.h"
 #include "Stats/StatsMisc.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 /* FLinearTimecodeAudioCaptureCustomTimeStepImplementation implementation
 *****************************************************************************/
-struct UAudioCaptureTimecodeProvider::FLinearTimecodeAudioCaptureCustomTimeStepImplementation
+struct UDEPRECATED_AudioCaptureTimecodeProvider::FLinearTimecodeAudioCaptureCustomTimeStepImplementation
 {
 public:
-	FLinearTimecodeAudioCaptureCustomTimeStepImplementation(UAudioCaptureTimecodeProvider* InOwner)
+	FLinearTimecodeAudioCaptureCustomTimeStepImplementation(UDEPRECATED_AudioCaptureTimecodeProvider* InOwner)
 		: bWarnedAboutTheInvalidAudioChannel(false)
 		, bFrameRateReach0Counter(0)
 		, Owner(InOwner)
@@ -139,15 +140,15 @@ public:
 	FDropTimecode Timecode;
 
 	/** Owner of the implementation */
-	UAudioCaptureTimecodeProvider* Owner;
+	UDEPRECATED_AudioCaptureTimecodeProvider* Owner;
 
 	/** If the Owner requested the implementation to stop processing */
 	volatile bool bStopRequested;
 };
 
-/* UAudioCaptureTimecodeProvider
+/* UDEPRECATED_AudioCaptureTimecodeProvider
 *****************************************************************************/
-UAudioCaptureTimecodeProvider::UAudioCaptureTimecodeProvider(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_AudioCaptureTimecodeProvider::UDEPRECATED_AudioCaptureTimecodeProvider(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, AudioChannel(1)
 	, Implementation(nullptr)
@@ -157,7 +158,12 @@ UAudioCaptureTimecodeProvider::UAudioCaptureTimecodeProvider(const FObjectInitia
 
 /* UTimecodeProvider interface implementation
 *****************************************************************************/
-FTimecode UAudioCaptureTimecodeProvider::GetTimecode() const
+FQualifiedFrameTime UDEPRECATED_AudioCaptureTimecodeProvider::GetQualifiedFrameTime() const
+{
+	return FQualifiedFrameTime(GetTimecodeInternal(), GetFrameRateInternal());
+}
+
+FTimecode UDEPRECATED_AudioCaptureTimecodeProvider::GetTimecodeInternal() const
 {
 	FTimecode Result;
 	{
@@ -180,7 +186,7 @@ FTimecode UAudioCaptureTimecodeProvider::GetTimecode() const
 	return Result;
 }
 
-FFrameRate UAudioCaptureTimecodeProvider::GetFrameRate() const
+FFrameRate UDEPRECATED_AudioCaptureTimecodeProvider::GetFrameRateInternal() const
 {
 	FFrameRate Result = FrameRate;
 	if (bDetectFrameRate)
@@ -219,7 +225,7 @@ FFrameRate UAudioCaptureTimecodeProvider::GetFrameRate() const
 	return Result;
 }
 
-bool UAudioCaptureTimecodeProvider::Initialize(class UEngine* InEngine)
+bool UDEPRECATED_AudioCaptureTimecodeProvider::Initialize(class UEngine* InEngine)
 {
 	check(Implementation == nullptr);
 	delete Implementation; // in case
@@ -236,15 +242,17 @@ bool UAudioCaptureTimecodeProvider::Initialize(class UEngine* InEngine)
 	return bInitialized;
 }
 
-void UAudioCaptureTimecodeProvider::Shutdown(class UEngine* InEngine)
+void UDEPRECATED_AudioCaptureTimecodeProvider::Shutdown(class UEngine* InEngine)
 {
 	SynchronizationState = ETimecodeProviderSynchronizationState::Closed;
 	delete Implementation;
 	Implementation = nullptr;
 }
 
-void UAudioCaptureTimecodeProvider::BeginDestroy()
+void UDEPRECATED_AudioCaptureTimecodeProvider::BeginDestroy()
 {
 	delete Implementation;
 	Super::BeginDestroy();
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

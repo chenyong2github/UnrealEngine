@@ -271,7 +271,7 @@ namespace EvaluateLiveLinkFrame
 	};
 
 	bool Generic_Evaluate(const ULiveLinkBlueprintLibrary* InSelf, const struct FFrame& InStack, UStructProperty* InBlueprintDataStructProp
-		, FLiveLinkSubjectRepresentation InSubjectRepresentation, EEvaluateType InEvaluationType, double InWorldTime, FTimecode& InSceneTime, void* OutBlueprintDataPtr)
+		, FLiveLinkSubjectRepresentation InSubjectRepresentation, EEvaluateType InEvaluationType, double InWorldTime, const FQualifiedFrameTime& InQualifiedFrameTime, void* OutBlueprintDataPtr)
 	{
 		bool bSuccess = false;
 
@@ -308,7 +308,7 @@ namespace EvaluateLiveLinkFrame
 							bSuccess = LiveLinkClient.EvaluateFrameAtWorldTime_AnyThread(InSubjectRepresentation.Subject, InWorldTime, InSubjectRepresentation.Role, FrameData);
 							break;
 						case EEvaluateType::SceneTime:
-							bSuccess = LiveLinkClient.EvaluateFrameAtSceneTime_AnyThread(InSubjectRepresentation.Subject, InSceneTime, InSubjectRepresentation.Role, FrameData);
+							bSuccess = LiveLinkClient.EvaluateFrameAtSceneTime_AnyThread(InSubjectRepresentation.Subject, InQualifiedFrameTime, InSubjectRepresentation.Role, FrameData);
 							break;
 						case EEvaluateType::Snapshot:
 						default:
@@ -358,7 +358,7 @@ DEFINE_FUNCTION(ULiveLinkBlueprintLibrary::execEvaluateLiveLinkFrame)
 	P_FINISH;
 
 	double WorldTime = 0.0;
-	FTimecode SceneTime;
+	FQualifiedFrameTime SceneTime;
 	bool bSuccess = EvaluateLiveLinkFrame::Generic_Evaluate(P_THIS, Stack, BlueprintDataStructProp, SubjectRepresentation, EvaluateLiveLinkFrame::EEvaluateType::Snapshot, WorldTime, SceneTime, OutBlueprintDataPtr);
 	*(bool*)RESULT_PARAM = bSuccess;
 }
@@ -377,7 +377,7 @@ DEFINE_FUNCTION(ULiveLinkBlueprintLibrary::execEvaluateLiveLinkFrameWithSpecific
 
 
 	double WorldTime = 0.0;
-	FTimecode SceneTime;
+	FQualifiedFrameTime SceneTime;
 	bool bSuccess = EvaluateLiveLinkFrame::Generic_Evaluate(P_THIS, Stack, BlueprintDataStructProp, {SubjectName, RoleClass}, EvaluateLiveLinkFrame::EEvaluateType::Snapshot, WorldTime, SceneTime, OutBlueprintDataPtr);
 	*(bool*)RESULT_PARAM = bSuccess;
 }
@@ -398,7 +398,7 @@ DEFINE_FUNCTION(ULiveLinkBlueprintLibrary::execEvaluateLiveLinkFrameAtWorldTimeO
 	P_FINISH;
 
 	double WorldTime = FApp::GetCurrentTime() + WorldTimeOffset;
-	FTimecode SceneTime;
+	FQualifiedFrameTime SceneTime;
 	bool bSuccess = EvaluateLiveLinkFrame::Generic_Evaluate(P_THIS, Stack, BlueprintDataStructProp, {SubjectName, RoleClass}, EvaluateLiveLinkFrame::EEvaluateType::WorldTime, WorldTime, SceneTime, OutBlueprintDataPtr);
 	*(bool*)RESULT_PARAM = bSuccess;
 }
@@ -417,6 +417,6 @@ DEFINE_FUNCTION(ULiveLinkBlueprintLibrary::execEvaluateLiveLinkFrameAtSceneTime)
 	P_FINISH;
 
 	double WorldTime = 0.0;
-	bool bSuccess = EvaluateLiveLinkFrame::Generic_Evaluate(P_THIS, Stack, BlueprintDataStructProp, {SubjectName, RoleClass}, EvaluateLiveLinkFrame::EEvaluateType::SceneTime, WorldTime, SceneTime, OutBlueprintDataPtr);
+	bool bSuccess = EvaluateLiveLinkFrame::Generic_Evaluate(P_THIS, Stack, BlueprintDataStructProp, {SubjectName, RoleClass}, EvaluateLiveLinkFrame::EEvaluateType::SceneTime, WorldTime, FQualifiedFrameTime(SceneTime, FApp::GetTimecodeFrameRate()), OutBlueprintDataPtr);
 	*(bool*)RESULT_PARAM = bSuccess;
 }
