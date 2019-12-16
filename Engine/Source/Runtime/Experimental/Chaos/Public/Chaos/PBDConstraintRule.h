@@ -86,34 +86,15 @@ namespace Chaos
 	public:
 		typedef T_CONSTRAINTS FConstraints;
 
-		TPBDConstraintGraphRuleImpl(FConstraints& InConstraints, int32 InPriority)
-			: FPBDConstraintGraphRule(InPriority)
-			, Constraints(InConstraints)
-			, ConstraintGraph(nullptr)
-		{
-		}
+		TPBDConstraintGraphRuleImpl(FConstraints& InConstraints, int32 InPriority);
 
-		virtual void BindToGraph(FPBDConstraintGraph& InContactGraph, uint32 InContainerId) override
-		{
-			ConstraintGraph = &InContactGraph;
-			ContainerId = InContainerId;
-		}
+		virtual void BindToGraph(FPBDConstraintGraph& InContactGraph, uint32 InContainerId) override;
 
-		virtual void UpdatePositionBasedState(const FReal Dt) override
-		{
-			Constraints.UpdatePositionBasedState(Dt);
-		}
+		virtual void UpdatePositionBasedState(const FReal Dt) override;
 
-		virtual void AddToGraph() override
-		{
-			ConstraintGraph->ReserveConstraints(Constraints.NumConstraints());
-			for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.NumConstraints(); ++ConstraintIndex)
-			{
-				ConstraintGraph->AddConstraint(ContainerId, Constraints.GetConstraintHandle(ConstraintIndex), Constraints.GetConstrainedParticles(ConstraintIndex));
-			}
-		}
+		virtual void AddToGraph() override;
 
-		virtual int32 NumConstraints() const override { return Constraints.NumConstraints(); }
+		virtual int32 NumConstraints() const override;
 
 	protected:
 		FConstraints& Constraints;
@@ -259,7 +240,7 @@ namespace Chaos
 			int32 MaxColor = GraphColor.GetIslandMaxColor(Island);
 			int32 MaxLevel = GraphColor.GetIslandMaxLevel(Island);
 
-			TSet<TGeometryParticleHandle<FReal, 3>*> IsTemporarilyStatic;
+			TSet<const TGeometryParticleHandle<FReal, 3>*> IsTemporarilyStatic;
 			bool bNeedsAnotherIteration = false;
 			for (int32 Level = 0; Level <= MaxLevel; ++Level)
 			{
@@ -281,10 +262,12 @@ namespace Chaos
 				{
 					if (LevelToColorToConstraintListMap[Level].Contains(Color))
 					{
-						for (int32 Edge = 0; Edge < LevelToColorToConstraintListMap[Level][Color].Num(); ++Edge)
+						const TArray<typename FConstraints::FConstraintContainerHandle*>& ConstraintHandles = GetLevelColorConstraints(LevelToColorToConstraintListMap, Level, Color);
+
+						for (int32 Edge = 0; Edge < ConstraintHandles.Num(); ++Edge)
 						{
-							const int32 ConstraintIndex = LevelToColorToConstraintListMap[Level][Color][Edge]->GetConstraintIndex();
-							const TVector<TGeometryParticleHandle<FReal, 3>*, 2> Particles = Constraints.ConstraintParticles(ConstraintIndex);
+							const typename FConstraints::FConstraintContainerHandle* Handle = ConstraintHandles[Edge];
+							TVector<const TGeometryParticleHandle<FReal, 3>*, 2> Particles = Handle->GetConstrainedParticles();
 							if (It == NumIts - 1)
 							{
 								if (Particles[0]->AsDynamic() == nullptr || IsTemporarilyStatic.Contains(Particles[0]))

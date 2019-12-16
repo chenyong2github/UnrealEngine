@@ -17,13 +17,13 @@ namespace Chaos
 	public:
 		using FGeometryParticleHandle = TGeometryParticleHandle<FReal, 3>;
 
-		FConstraintHandle() : ConstraintIndex(INDEX_NONE) {}
-		FConstraintHandle(int32 InConstraintIndex) : ConstraintIndex(InConstraintIndex) {}
+		FConstraintHandle() : ConstraintIndex(INDEX_NONE) { }
+		FConstraintHandle(int32 InConstraintIndex): ConstraintIndex(InConstraintIndex) {}
 		~FConstraintHandle() {}
 
 		bool IsValid() const
 		{
-			return (ConstraintIndex != INDEX_NONE);
+			return (ConstraintIndex != INDEX_NONE );
 		}
 
 		int32 GetConstraintIndex() const
@@ -32,8 +32,7 @@ namespace Chaos
 		}
 
 		// @todo(ccaulfield): Add checked down - casting to specific constraint - type handle
-		template<typename T> 
-		T* As() { return static_cast<T*>(this); }
+		template<typename T>  T* As() { return static_cast<T*>(this); }
 
 	protected:
 		friend class FPBDConstraintContainer;
@@ -54,11 +53,10 @@ namespace Chaos
 		using FConstraintContainer = T_CONTAINER;
 
 		TContainerConstraintHandle() : ConstraintContainer(nullptr) {}
-		TContainerConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) : FConstraintHandle(InConstraintIndex), ConstraintContainer(InConstraintContainer) {}
+		TContainerConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) 
+			: FConstraintHandle(InConstraintIndex), ConstraintContainer(InConstraintContainer) {}
 
 		void RemoveConstraint() { ConstraintContainer->RemoveConstraint(ConstraintIndex); }
-
-		TVector<FGeometryParticleHandle*, 2> GetConstrainedParticles() const { return ConstraintContainer->GetConstrainedParticles(ConstraintIndex); }
 
 	protected:
 		using Base::ConstraintIndex;
@@ -79,6 +77,8 @@ namespace Chaos
 		using FConstraintContainerHandle = typename FConstraintContainer::FConstraintContainerHandle;
 
 		FConstraintContainerHandle* AllocHandle(FConstraintContainer* ConstraintContainer, int32 ConstraintIndex) { return new FConstraintContainerHandle(ConstraintContainer, ConstraintIndex); }
+		template<class TYPE>
+		FConstraintContainerHandle* AllocHandle(FConstraintContainer* ConstraintContainer, int32 ConstraintIndex) { return new FConstraintContainerHandle(ConstraintContainer, ConstraintIndex, TYPE::StaticType()); }
 		void FreeHandle(FConstraintContainerHandle* Handle) { delete Handle; }
 	};
 }

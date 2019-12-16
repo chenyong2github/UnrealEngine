@@ -6,6 +6,7 @@
 #include "Chaos/PBDRigidsEvolution.h"
 #include "Chaos/PBDRigidClustering.h"
 #include "Chaos/PBDCollisionConstraint.h"
+#include "Chaos/PBDCollisionTypes.h"
 #include "PBDRigidsSolver.h"
 #include "PhysicsProxy/SkeletalMeshPhysicsProxy.h"
 #include "PhysicsProxy/StaticMeshPhysicsProxy.h"
@@ -47,7 +48,7 @@ namespace Chaos
 			const FPBDRigidsSolver::FPBDRigidsEvolution* Evolution = Solver->GetEvolution();
 
 			const FPhysicsSolver::FPBDCollisionConstraints& CollisionRule = Evolution->GetCollisionConstraints();
-			const TArray<FPhysicsSolver::FPBDCollisionConstraints::FRigidBodyContactConstraint>& AllConstraintsArray = CollisionRule.GetAllConstraints();
+
 
 			const TPBDRigidParticles<float, 3>& Particles = Evolution->GetParticles().GetDynamicParticles();
 			const TArrayCollectionArray<ClusterId>& ClusterIdsArray = Evolution->GetRigidClustering().GetClusterIdsArray();
@@ -56,54 +57,57 @@ namespace Chaos
 #endif
 			const Chaos::TPBDRigidClustering<FPhysicsSolver::FPBDRigidsEvolution, FPhysicsSolver::FPBDCollisionConstraints, float, 3>::FClusterMap& ParentToChildrenMap = Evolution->GetRigidClustering().GetChildrenMap();
 
-			if(AllConstraintsArray.Num() > 0)
+			if(CollisionRule.NumConstraints() > 0)
 			{
 				// Get the number of valid constraints (AccumulatedImpulse != 0.f and Phi < 0.f) from AllConstraintsArray
-				TArray<int32> ValidCollisionIndices;
-				ValidCollisionIndices.SetNumUninitialized(AllConstraintsArray.Num());
+				TArray<const Chaos::TPBDCollisionConstraintHandle<float, 3> *> ValidCollisionHandles;
+				ValidCollisionHandles.SetNumUninitialized(CollisionRule.NumConstraints());
 				int32 NumValidCollisions = 0;
 
-				for(int32 Idx = 0; Idx < AllConstraintsArray.Num(); ++Idx)
+				for (const Chaos::TPBDCollisionConstraintHandle<float, 3> * ContactHandle : CollisionRule.GetConstConstraintHandles())
 				{
-					const TRigidBodyContactConstraint<float, 3>& Constraint = AllConstraintsArray[Idx];
-
-					// Since Clustered GCs can be unioned the particleIndex representing the union 
-					// is not associated with a PhysicsProxy
-					if(Constraint.Particle[0]->Handle()->GTGeometryParticle()->Proxy != nullptr)
-
+					if (ContactHandle->GetType() == TPBDCollisionConstraintHandle<float, 3>::FConstraintBase::FType::SinglePoint)
 					{
-						if(ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
+						const TRigidBodyContactConstraint<float, 3>& Constraint = ContactHandle->GetContact<TRigidBodyContactConstraint<float, 3>>();
+
+						// Since Clustered GCs can be unioned the particleIndex representing the union 
+						// is not associated with a PhysicsProxy
+						if (Constraint.Particle[0]->Handle()->GTGeometryParticle()->Proxy != nullptr)
+
 						{
-							TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
-							TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
-							TKinematicGeometryParticleHandle<float, 3>* Body0 = Particle0->AsKinematic();
-
-							// presently when a rigidbody or kinematic hits static geometry then Body1 is null
-							TKinematicGeometryParticleHandle<float, 3>* Body1 = Particle1->AsKinematic();
-
-							if(!Constraint.AccumulatedImpulse.IsZero() && Body0)
+							if (ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
 							{
-								if(ensure(!Constraint.GetLocation().ContainsNaN() &&
-									!Constraint.GetNormal().ContainsNaN()) &&
-									!Body0->V().ContainsNaN() &&
-									!Body0->W().ContainsNaN() &&
-									(Body1 == nullptr || ((!Body1->V().ContainsNaN()) && !Body1->W().ContainsNaN())))
+								TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
+								TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
+								TKinematicGeometryParticleHandle<float, 3>* Body0 = Particle0->AsKinematic();
+
+								// presently when a rigidbody or kinematic hits static geometry then Body1 is null
+								TKinematicGeometryParticleHandle<float, 3>* Body1 = Particle1->AsKinematic();
+
+								if (!Constraint.AccumulatedImpulse.IsZero() && Body0)
 								{
-									ValidCollisionIndices[NumValidCollisions] = Idx;
-									NumValidCollisions++;
+									if (ensure(!Constraint.GetLocation().ContainsNaN() &&
+										!Constraint.GetNormal().ContainsNaN()) &&
+										!Body0->V().ContainsNaN() &&
+										!Body0->W().ContainsNaN() &&
+										(Body1 == nullptr || ((!Body1->V().ContainsNaN()) && !Body1->W().ContainsNaN())))
+									{
+										ValidCollisionHandles[NumValidCollisions] = ContactHandle;
+										NumValidCollisions++;
+									}
 								}
 							}
 						}
 					}
 				}
 
-				ValidCollisionIndices.SetNum(NumValidCollisions);
+				ValidCollisionHandles.SetNum(NumValidCollisions);
 
-				if(ValidCollisionIndices.Num() > 0)
+				if(ValidCollisionHandles.Num() > 0)
 				{
-					for(int32 IdxCollision = 0; IdxCollision < ValidCollisionIndices.Num(); ++IdxCollision)
+					for(int32 IdxCollision = 0; IdxCollision < ValidCollisionHandles.Num(); ++IdxCollision)
 					{
-						Chaos::TPBDCollisionConstraint<float, 3>::FRigidBodyContactConstraint const& Constraint = AllConstraintsArray[ValidCollisionIndices[IdxCollision]];
+						Chaos::TPBDCollisionConstraint<float, 3>::FRigidBodyContactConstraint const& Constraint = ValidCollisionHandles[IdxCollision]->GetContact<TRigidBodyContactConstraint<float, 3>>();
 
 						TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
 						TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
@@ -174,7 +178,6 @@ namespace Chaos
 					}
 				}
 			}
-
 		});
 	}
 

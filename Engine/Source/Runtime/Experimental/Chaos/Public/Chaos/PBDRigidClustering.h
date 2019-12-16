@@ -37,7 +37,8 @@ class CHAOS_API TPBDRigidClustering
 	typedef typename FPBDCollisionConstraint::FRigidBodyContactConstraint FRigidBodyContactConstraint;
 
 public:
-	typedef TMap<TGeometryParticleHandle<T,d>*, TArray<uint32> > FClusterMap;
+	typedef TMap<const TGeometryParticleHandle<T,d>*, TArray<uint32> > FClusterMap;
+	using FCollisionConstraintHandle = TPBDCollisionConstraintHandle<T, d>;
 
 	TPBDRigidClustering(FPBDRigidEvolution& InEvolution, TPBDRigidClusteredParticles<T, d>& InParticles);
 	~TPBDRigidClustering();

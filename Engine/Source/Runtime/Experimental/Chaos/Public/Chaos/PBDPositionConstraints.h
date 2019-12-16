@@ -17,9 +17,11 @@ namespace Chaos
 	public:
 		using Base = TContainerConstraintHandle<TPBDPositionConstraints<T, d>>;
 		using FConstraintContainer = TPBDPositionConstraints<T, d>;
+		using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
 
 		TPBDPositionConstraintHandle() {}
 		TPBDPositionConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) : TContainerConstraintHandle<TPBDPositionConstraints<T, d>>(InConstraintContainer, InConstraintIndex) {}
+		TVector<FGeometryParticleHandle*, 2> GetConstrainedParticles() const { return ConstraintContainer->GetConstrainedParticles(ConstraintIndex); }
 
 	protected:
 		using Base::ConstraintIndex;
@@ -35,6 +37,7 @@ namespace Chaos
 		static const int Dimensions = d;
 		using FConstraintContainerHandle = TPBDPositionConstraintHandle<FReal, Dimensions>;
 		using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDPositionConstraints<FReal, Dimensions>>;
+		using FHandles = TArray<FConstraintContainerHandle*>;
 
 		TPBDPositionConstraints(const T InStiffness = (T)1)
 			: Stiffness(InStiffness)
@@ -114,6 +117,14 @@ namespace Chaos
 		//
 		// Constraint API
 		//
+		FHandles& GetConstraintHandles()
+		{
+			return Handles;
+		}
+		const FHandles& GetConstConstraintHandles() const
+		{
+			return Handles;
+		}
 
 		const FConstraintContainerHandle* GetConstraintHandle(int32 ConstraintIndex) const
 		{
@@ -156,13 +167,7 @@ namespace Chaos
 		{
 		}
 
-		void Apply(const T Dt, const TArray<FConstraintContainerHandle*>& ConstraintHandles, const int32 It, const int32 NumIts) const
-		{
-			for (FConstraintContainerHandle* ConstraintHandle : ConstraintHandles)
-			{
-				ApplySingle(Dt, ConstraintHandle->GetConstraintIndex());
-			}
-		}
+		void Apply(const T Dt, const TArray<FConstraintContainerHandle*>& ConstraintHandles, const int32 It, const int32 NumIts) const;
 
 		bool ApplyPushOut(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintIndices, const int32 It, const int32 NumIts) const
 		{
@@ -189,7 +194,7 @@ namespace Chaos
 		TArray<TPBDRigidParticleHandle<T,d>*> ConstrainedParticles;
 		T Stiffness;
 
-		TArray<FConstraintContainerHandle*> Handles;
+		FHandles Handles;
 		FConstraintHandleAllocator HandleAllocator;
 	};
 }

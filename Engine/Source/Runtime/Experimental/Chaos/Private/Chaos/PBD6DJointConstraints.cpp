@@ -22,7 +22,8 @@ namespace Chaos
 	}
 
 
-	FPBD6DJointConstraintHandle::FPBD6DJointConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) : TContainerConstraintHandle<FPBD6DJointConstraints>(InConstraintContainer, InConstraintIndex)
+	FPBD6DJointConstraintHandle::FPBD6DJointConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex)
+		: TContainerConstraintHandle<FPBD6DJointConstraints>(InConstraintContainer, InConstraintIndex)
 	{
 	}
 
@@ -43,6 +44,12 @@ namespace Chaos
 	{
 		return ConstraintContainer->GetConstraintLevel(ConstraintIndex);
 	}
+
+	TVector<TGeometryParticleHandle<float,3>*, 2> FPBD6DJointConstraintHandle::GetConstrainedParticles() const 
+	{ 
+		return ConstraintContainer->GetConstrainedParticles(ConstraintIndex); 
+	}
+
 
 	//
 	// Constraint Math

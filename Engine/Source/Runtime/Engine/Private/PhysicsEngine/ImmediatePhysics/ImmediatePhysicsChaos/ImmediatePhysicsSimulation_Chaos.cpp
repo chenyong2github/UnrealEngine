@@ -145,16 +145,17 @@ namespace ImmediatePhysics_Chaos
 			[this]()
 			{
 				Evolution->GetCollisionConstraints().ApplyCollisionModifier(
-					[this](TRigidBodyContactConstraint<float, 3>& Constraint)
+					[this](const TPBDCollisionConstraint<FReal, Dimensions>::FConstraintContainerHandle* Handle)
 					{
-						if (ShouldIgnoreCollisionConstraint(Constraint.Particle[0], Constraint.Particle[1], IgnoreCollisionParticlePairTable))
+						TVector<const TGeometryParticleHandle<FReal, Dimensions>*, 2> ConstrainedParticles = Handle->GetConstrainedParticles();
+						if (ShouldIgnoreCollisionConstraint(ConstrainedParticles[0], ConstrainedParticles[1], IgnoreCollisionParticlePairTable))
 						{
 							return ECollisionModifierResult::Disabled;
 						}
 						return ECollisionModifierResult::Unchanged;
 					});
 			});
-		
+
 #if CHAOS_DEBUG_DRAW
 		Evolution->SetPostIntegrateCallback(
 			[this]()

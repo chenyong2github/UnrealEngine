@@ -135,31 +135,34 @@ namespace Chaos
 
 		void DrawCollisionImpl(const FRigidTransform3& SpaceTransform, const TPBDCollisionConstraintHandle<float, 3>* ConstraintHandle, float ColorScale)
 		{
-			const TRigidBodyContactConstraint<FReal, 3>& Contact = ConstraintHandle->GetContact();
-			if (Contact.GetPhi() > 0)
+			if (ConstraintHandle->GetType() == TCollisionConstraintBase<float,3>::FType::SinglePoint)
 			{
-				ColorScale = ColorScale * (FReal)0.1;
-			}
+				const TRigidBodyContactConstraint<FReal, 3>& Contact = ConstraintHandle->GetContact< TRigidBodyContactConstraint<float, 3> >();
+				if (Contact.GetPhi() > 0)
+				{
+					ColorScale = ColorScale * (FReal)0.1;
+				}
 
-			FVec3 Location = SpaceTransform.TransformPosition(Contact.GetLocation());
-			FVec3 Normal = SpaceTransform.TransformVector(Contact.GetNormal());
+				FVec3 Location = SpaceTransform.TransformPosition(Contact.GetLocation());
+				FVec3 Normal = SpaceTransform.TransformVector(Contact.GetNormal());
 
-			if (ContactWidth > 0)
-			{
-				FColor C0 = (ColorScale * FColor(128, 0, 0)).ToFColor(false);
-				FMatrix Axes = FRotationMatrix::MakeFromX(Normal);
-				FDebugDrawQueue::GetInstance().DrawDebugCircle(Location, DrawScale * ContactWidth, 12, C0, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
-			}
-			if (ContactLen > 0)
-			{
-				FColor C1 = (ColorScale * FColor(255, 0, 0)).ToFColor(false);
-				FDebugDrawQueue::GetInstance().DrawDebugLine(Location, Location + DrawScale * ContactLen * Normal, C1, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
-			}
-			if (ContactPhiWidth > 0 && Contact.GetPhi() < FLT_MAX)
-			{
-				FColor C2 = (ColorScale * FColor(128, 128, 0)).ToFColor(false);
-				FMatrix Axes = FRotationMatrix::MakeFromX(Normal);
-				FDebugDrawQueue::GetInstance().DrawDebugCircle(Location - Contact.GetPhi() * Normal, DrawScale * ContactPhiWidth, 12, C2, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
+				if (ContactWidth > 0)
+				{
+					FColor C0 = (ColorScale * FColor(128, 0, 0)).ToFColor(false);
+					FMatrix Axes = FRotationMatrix::MakeFromX(Normal);
+					FDebugDrawQueue::GetInstance().DrawDebugCircle(Location, DrawScale * ContactWidth, 12, C0, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
+				}
+				if (ContactLen > 0)
+				{
+					FColor C1 = (ColorScale * FColor(255, 0, 0)).ToFColor(false);
+					FDebugDrawQueue::GetInstance().DrawDebugLine(Location, Location + DrawScale * ContactLen * Normal, C1, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+				}
+				if (ContactPhiWidth > 0 && Contact.GetPhi() < FLT_MAX)
+				{
+					FColor C2 = (ColorScale * FColor(128, 128, 0)).ToFColor(false);
+					FMatrix Axes = FRotationMatrix::MakeFromX(Normal);
+					FDebugDrawQueue::GetInstance().DrawDebugCircle(Location - Contact.GetPhi() * Normal, DrawScale * ContactPhiWidth, 12, C2, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
+				}
 			}
 		}
 
@@ -210,10 +213,6 @@ namespace Chaos
 		}
 
 #endif
-
-		//
-		//
-		//
 
 		void DrawParticleShapes(const FRigidTransform3& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView, float ColorScale, bool bDrawKinemtatic, bool bDrawDynamic)
 		{
@@ -284,12 +283,11 @@ namespace Chaos
 #if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
-				for (int32 ConstraintIndex = 0; ConstraintIndex < Collisions.NumConstraints(); ++ConstraintIndex)
+				for (const Chaos::TPBDCollisionConstraintHandle<float, 3> * ConstraintHandle : Collisions.GetConstConstraintHandles())
 				{
-					TVector<TGeometryParticleHandle<float, 3>*, 2> ConstrainedParticles = Collisions.GetConstrainedParticles(ConstraintIndex);
+					TVector<const TGeometryParticleHandle<float, 3>*, 2> ConstrainedParticles = ConstraintHandle->GetConstrainedParticles();
 					if ((ConstrainedParticles[0] == Particle) || (ConstrainedParticles[1] == Particle))
 					{
-						const typename TPBDCollisionConstraint<float, 3>::FConstraintContainerHandle* ConstraintHandle = Collisions.GetConstraintHandle(ConstraintIndex);
 						DrawCollisionImpl(SpaceTransform, ConstraintHandle, 1.0f);
 					}
 				}
@@ -302,9 +300,9 @@ namespace Chaos
 #if CHAOS_DEBUG_DRAW
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
-				for (int32 ConstraintIndex = 0; ConstraintIndex < Collisions.NumConstraints(); ++ConstraintIndex)
+				for (const Chaos::TPBDCollisionConstraintHandle<float, 3> * ConstraintHandle : Collisions.GetConstConstraintHandles())
 				{
-					DrawCollisionImpl(SpaceTransform, Collisions.GetConstraintHandle(ConstraintIndex), ColorScale);
+					DrawCollisionImpl(SpaceTransform, ConstraintHandle, ColorScale);
 				}
 			}
 #endif

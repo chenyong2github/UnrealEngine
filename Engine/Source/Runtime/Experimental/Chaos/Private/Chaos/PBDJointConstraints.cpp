@@ -61,7 +61,8 @@ namespace Chaos
 	}
 
 	
-	FPBDJointConstraintHandle::FPBDJointConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) : TContainerConstraintHandle<FPBDJointConstraints>(InConstraintContainer, InConstraintIndex)
+	FPBDJointConstraintHandle::FPBDJointConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex)
+		: TContainerConstraintHandle<FPBDJointConstraints>(InConstraintContainer, InConstraintIndex)
 	{
 	}
 
@@ -87,6 +88,11 @@ namespace Chaos
 	const FPBDJointSettings& FPBDJointConstraintHandle::GetSettings() const
 	{
 		return ConstraintContainer->GetConstraintSettings(ConstraintIndex);
+	}
+
+	TVector<TGeometryParticleHandle<float,3>*, 2> FPBDJointConstraintHandle::GetConstrainedParticles() const 
+	{ 
+		return ConstraintContainer->GetConstrainedParticles(ConstraintIndex); 
 	}
 
 	//

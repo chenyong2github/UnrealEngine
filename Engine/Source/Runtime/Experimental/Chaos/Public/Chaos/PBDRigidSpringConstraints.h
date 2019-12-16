@@ -17,12 +17,14 @@ namespace Chaos
 	public:
 		using Base = TContainerConstraintHandle<TPBDRigidSpringConstraints<T, d>>;
 		using FConstraintContainer = TPBDRigidSpringConstraints<T, d>;
+		using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
 
 		TPBDRigidSpringConstraintHandle() {}
 		TPBDRigidSpringConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) : TContainerConstraintHandle<TPBDRigidSpringConstraints<T, d>>(InConstraintContainer, InConstraintIndex) {}
 
 		const TVector<TVector<T, 3>, 2>& GetConstraintPositions() const;
 		void SetConstraintPositions(const TVector<TVector<T, 3>, 2>& ConstraintPositions);
+		TVector<FGeometryParticleHandle*, 2> GetConstrainedParticles() const { return ConstraintContainer->GetConstrainedParticles(ConstraintIndex); }
 
 	protected:
 		using Base::ConstraintIndex;
@@ -40,6 +42,7 @@ namespace Chaos
 		using FConstraintContainerHandle = TPBDRigidSpringConstraintHandle<FReal, Dimensions>;
 		using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDRigidSpringConstraints<FReal, Dimensions>>;
 		using FConstrainedParticlePair = TVector<TGeometryParticleHandle<T, d>*, 2>;
+		using FHandles = TArray<FConstraintContainerHandle*>;
 
 		TPBDRigidSpringConstraints(const T InStiffness = (T)1)
 			: Stiffness(InStiffness) 
@@ -112,7 +115,8 @@ namespace Chaos
 			// Update the handle for the constraint that was moved
 			if (ConstraintIndex < Handles.Num())
 			{
-				SetConstraintIndex(Handles[ConstraintIndex], ConstraintIndex);
+				FConstraintHandle* Handle = Handles[ConstraintIndex];
+				SetConstraintIndex(Handle, ConstraintIndex);
 			}
 		}
 
@@ -124,6 +128,14 @@ namespace Chaos
 		//
 		// Constraint API
 		//
+		FHandles& GetConstraintHandles()
+		{
+			return Handles;
+		}
+		const FHandles& GetConstConstraintHandles() const
+		{
+			return Handles;
+		}
 
 		const FConstraintContainerHandle* GetConstraintHandle(int32 ConstraintIndex) const
 		{
@@ -168,13 +180,7 @@ namespace Chaos
 		{
 		}
 
-		void Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
-		{
-			for (FConstraintContainerHandle* ConstraintHandle : InConstraintHandles)
-			{
-				ApplySingle(Dt, ConstraintHandle->GetConstraintIndex());
-			}
-		}
+		void Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
 
 		bool ApplyPushOut(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
 		{
