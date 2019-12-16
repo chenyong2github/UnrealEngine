@@ -3065,7 +3065,7 @@ void FAudioDevice::ClearListenerAttenuationOverride(int32 ListenerIndex)
 		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.ClearListenerAttenuationOverride"), STAT_AudioClearListenerAttenuationOverride, STATGROUP_AudioThreadCommands);
 
 		ListenerProxies[ListenerIndex].AttenuationOverride = FVector::ZeroVector;
-		ListenerProxies[ListenerIndex].bUseAttenuationOverride = true;
+		ListenerProxies[ListenerIndex].bUseAttenuationOverride = false;
 
 		FAudioDevice* AudioDevice = this;
 		FAudioThread::RunCommandOnAudioThread([AudioDevice, ListenerIndex]()
