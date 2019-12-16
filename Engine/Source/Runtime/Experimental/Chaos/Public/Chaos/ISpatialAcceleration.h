@@ -25,14 +25,23 @@ struct CHAOS_API FQueryFastData
 	FReal CurrentLength;
 	FReal InvCurrentLength;
 
+	#pragma warning (push)
+	#pragma warning(disable:4723)
+	//compiler complaining about divide by 0, but we are guarding against it.
+	//Seems like it's trying to evaluate div independent of the guard?
+
 	void SetLength(const FReal InLength)
 	{
 		CurrentLength = InLength;
+
 		if(InLength)
 		{
 			InvCurrentLength = 1 / InLength;
 		}
 	}
+
+	#pragma warning(pop)
+
 
 protected:
 	FQueryFastData(const FVec3& InDummyDir)

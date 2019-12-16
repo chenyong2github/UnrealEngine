@@ -119,7 +119,7 @@ namespace Chaos
 		const FRigidTransform3 BToATM = BTM.GetRelativeTransform(ATM);
 		const FVec3 LocalDir = ATM.InverseTransformVectorNoScale(Dir);
 
-		bool bSweepAsRaycast = BType == ImplicitObjectType::Sphere;
+		bool bSweepAsRaycast = BType == ImplicitObjectType::Sphere && !bComputeMTD;
 		if (bSweepAsRaycast && IsScaled(AType))
 		{
 			const auto& Scaled = TImplicitObjectScaledGeneric<FReal, 3>::AsScaledChecked(A);
@@ -175,20 +175,20 @@ namespace Chaos
 			case ImplicitObjectType::HeightField:
 			{
 				const auto& AHeightField = static_cast<const THeightField<FReal>&>(A);
-				bResult = AHeightField.SweepGeom(B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, OutFaceIndex, Thickness);
+				bResult = AHeightField.SweepGeom(B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, OutFaceIndex, Thickness, bComputeMTD);
 				break;
 			}
 			case ImplicitObjectType::TriangleMesh:
 			{
 				const auto& ATriangleMesh = static_cast<const TTriangleMeshImplicitObject<FReal>&>(A);
-				bResult = ATriangleMesh.SweepGeom(B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, OutFaceIndex, Thickness);
+				bResult = ATriangleMesh.SweepGeom(B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, OutFaceIndex, Thickness, bComputeMTD);
 				break;
 			}
 			default:
 				if (IsScaled(AType))
 				{
 					const auto& AScaled = TImplicitObjectScaled<TTriangleMeshImplicitObject<FReal>>::AsScaledChecked(A);
-					bResult = AScaled.LowLevelSweepGeom(B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, OutFaceIndex, Thickness);
+					bResult = AScaled.LowLevelSweepGeom(B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, OutFaceIndex, Thickness, bComputeMTD);
 					break;
 				}
 				else
@@ -197,18 +197,10 @@ namespace Chaos
 				}
 
 			}
-
-			// Compute MTD in the case of an initial overlap
-			if (bResult && bComputeMTD && OutTime == 0.f)
-			{
-				ensure(false); // We don't support MTD for non-convex types yet!
-				LocalNormal = FVec3(0, 0, 1);
-				LocalPosition = ATM.GetLocation();
-			}
 		}
 
 		//put back into world space
-		if (OutTime > 0 || bComputeMTD)
+		if (bResult && (OutTime > 0 || bComputeMTD))
 		{
 			OutNormal = ATM.TransformVectorNoScale(LocalNormal);
 			OutPosition = ATM.TransformPositionNoScale(LocalPosition);

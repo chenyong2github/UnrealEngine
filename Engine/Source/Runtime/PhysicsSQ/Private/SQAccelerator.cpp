@@ -282,7 +282,7 @@ private:
 
 						if (bBlocker)
 						{
-							CurData->SetLength(Distance);
+							CurData->SetLength(FMath::Max(0.f, Distance));	//Max is needed for MTD which returns negative distance
 							if (CurData->CurrentLength == 0 && (SQ == ESQType::Raycast || HitBuffer.WantsSingleResult()))	//raycasts always fail with distance 0, sweeps only matter if we want multi overlaps
 							{
 								return false;	//initial overlap so nothing will be better than this
