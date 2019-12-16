@@ -165,8 +165,6 @@ namespace Chaos
 		//Remove particle from constraint, maybe rethink some of these names
 		void RemoveParticle(TGeometryParticleHandle<FReal, 3>* Particle)
 		{
-			ParticleRemove(Particle);
-
 			//we know it just removes, probably rename later
 			DisableParticle(Particle);
 		}
