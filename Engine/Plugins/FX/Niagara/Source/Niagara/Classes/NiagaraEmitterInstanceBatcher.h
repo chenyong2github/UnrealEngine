@@ -126,6 +126,7 @@ public:
 				FRHIUniformBuffer* ViewUniformBuffer, 
 				const FNiagaraGpuSpawnInfo& SpawnInfo,
 				bool bCopyBeforeStart = false,
+				uint32 DefaultShaderStageIndex = 0,
 				uint32 ShaderStageIndex = 0,
 				FNiagaraDataInterfaceProxy *IterationInterface = nullptr,
 				bool HasRunParticleStage = false

@@ -135,6 +135,7 @@ UNiagaraEmitter::UNiagaraEmitter(const FObjectInitializer& Initializer)
 , bUseMaxDetailLevel(false)
 , bRequiresPersistentIDs(false)
 , MaxDeltaTimePerTick(0.125)
+, DefaultShaderStageIndex(0)
 , MaxUpdateIterations(1)
 , bLimitDeltaTime(true)
 #if WITH_EDITORONLY_DATA

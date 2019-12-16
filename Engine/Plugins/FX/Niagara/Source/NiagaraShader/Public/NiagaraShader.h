@@ -106,6 +106,7 @@ public:
 	FShaderParameter CopyInstancesBeforeStartParam;
 	FShaderParameter NumSpawnedInstancesParam;
 	FShaderParameter UpdateStartInstanceParam;
+	FShaderParameter DefaultShaderStageIndexParam;
 	FShaderParameter ShaderStageIndexParam;
 	FShaderParameter IterationInterfaceCount;
 	FShaderParameter ComponentBufferSizeReadParam;

@@ -333,6 +333,7 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 	/* Parameters for spawning and simulations
 	 */
 	uint UpdateStartInstance;
+	uint DefaultShaderStageIndex;
 	uint ShaderStageIndex;
 	int IterationInterfaceCount;
 	uint SpawnedInstances;
