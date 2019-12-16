@@ -3269,8 +3269,9 @@ void FBlueprintEditor::OnSelectedNodesChangedImpl(const FGraphPanelSelectionSet&
 		SetUISelectionState(FBlueprintEditor::SelectionState_Graph);
 	}
 
-	Inspector->ShowDetailsForObjects(NewSelection.Array());
-
+	SKismetInspector::FShowDetailsOptions DetailsOptions;
+	DetailsOptions.bForceRefresh = true;
+	Inspector->ShowDetailsForObjects(NewSelection.Array(), DetailsOptions);
 
 	bSelectRegularNode = false;
 	for (FGraphPanelSelectionSet::TConstIterator It(NewSelection); It; ++It)
