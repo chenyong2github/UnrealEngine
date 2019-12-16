@@ -417,6 +417,29 @@ FPhysScene_Chaos::~FPhysScene_Chaos()
 #endif
 }
 
+#if WITH_EDITOR
+bool FPhysScene_ChaosInterface::IsOwningWorldEditor() const
+{
+	const UWorld* WorldPtr = GetOwningWorld();
+	const TIndirectArray<FWorldContext>& WorldContexts = GEngine->GetWorldContexts();
+	for (const FWorldContext& Context : WorldContexts)
+	{
+		if (WorldPtr)
+		{
+			if (WorldPtr == Context.World())
+			{
+				if (Context.WorldType == EWorldType::Editor)
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+#endif
+
 bool FPhysScene_Chaos::IsTickable() const
 {
 	const bool bDedicatedThread = ChaosModule->IsPersistentTaskRunning();
@@ -936,6 +959,7 @@ FPhysScene_ChaosInterface::FPhysScene_ChaosInterface(const AWorldSettings* InSet
 #endif
 
 	Scene.GetSolver()->PhysSceneHack = this;
+	
 
 }
 
@@ -946,6 +970,31 @@ void FPhysScene_ChaosInterface::OnWorldBeginPlay()
 	{
 		Solver->SetEnabled(true);
 	}
+
+#if WITH_EDITOR
+	const UWorld* WorldPtr = GetOwningWorld();
+	const TIndirectArray<FWorldContext>& WorldContexts = GEngine->GetWorldContexts();
+	for (const FWorldContext& Context : WorldContexts)
+	{
+		if (Context.WorldType == EWorldType::Editor)
+		{
+			UWorld* World = Context.World();
+			if (World)
+			{
+				auto PhysScene = World->GetPhysicsScene();
+				if (PhysScene)
+				{
+					auto InnerSolver = PhysScene->GetSolver();
+					if (InnerSolver)
+					{
+						InnerSolver->SetEnabled(false);
+					}
+				}
+			}
+		}
+	}
+#endif
+
 }
 
 void FPhysScene_ChaosInterface::OnWorldEndPlay()
@@ -954,7 +1003,33 @@ void FPhysScene_ChaosInterface::OnWorldEndPlay()
 	if (Solver)
 	{
 		Solver->SetEnabled(false);
+
 	}
+
+#if WITH_EDITOR
+	const UWorld* WorldPtr = GetOwningWorld();
+	const TIndirectArray<FWorldContext>& WorldContexts = GEngine->GetWorldContexts();
+	for (const FWorldContext& Context : WorldContexts)
+	{
+		if (Context.WorldType == EWorldType::Editor)
+		{
+			UWorld* World = Context.World();
+			if (World)
+			{
+				auto PhysScene = World->GetPhysicsScene();
+				if (PhysScene)
+				{
+					auto InnerSolver = PhysScene->GetSolver();
+					if (InnerSolver)
+					{
+						InnerSolver->SetEnabled(true);
+					}
+				}
+			}
+		}
+	}
+#endif
+
 }
 
 void FPhysScene_ChaosInterface::AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& InHandles, const bool bImmediate)
@@ -993,6 +1068,14 @@ void FPhysScene_ChaosInterface::AddAggregateToScene(const FPhysicsAggregateHandl
 void FPhysScene_ChaosInterface::SetOwningWorld(UWorld* InOwningWorld)
 {
 	MOwningWorld = InOwningWorld;
+
+#if WITH_EDITOR
+	if (IsOwningWorldEditor())
+	{
+		GetScene().GetSolver()->SetEnabled(true);
+	}
+#endif
+
 }
 
 UWorld* FPhysScene_ChaosInterface::GetOwningWorld()
@@ -1279,6 +1362,21 @@ void FPhysScene_ChaosInterface::StartFrame()
 	FChaosSolversModule* SolverModule = FChaosSolversModule::GetModule();
 	checkSlow(SolverModule);
 
+	float Dt = MDeltaTime;
+
+#if WITH_EDITOR
+	if (IsOwningWorldEditor())
+	{
+		// Ensure editor solver is enabled
+		if (GetSolver()->Enabled() == false)
+		{
+			GetSolver()->SetEnabled(true);
+		}
+
+		Dt = 0.0f;
+	}
+#endif
+
 	if (Chaos::IDispatcher* Dispatcher = SolverModule->GetDispatcher())
 	{
 		for (auto * Solver : SolverModule->GetSolvers())
@@ -1290,27 +1388,27 @@ void FPhysScene_ChaosInterface::StartFrame()
 		{
 		case EChaosThreadingMode::SingleThread:
 		{
-			OnPhysScenePreTick.Broadcast(this, MDeltaTime);
-			OnPhysSceneStep.Broadcast(this, MDeltaTime);
+			OnPhysScenePreTick.Broadcast(this, Dt);
+			OnPhysSceneStep.Broadcast(this, Dt);
 
 			// Here we can directly tick the scene. Single threaded mode doesn't buffer any commands
 			// that would require pumping here - everything is done on demand.
-			Scene.Tick(MDeltaTime);
+			Scene.Tick(Dt);
 		}
 		break;
 		case EChaosThreadingMode::TaskGraph:
 		{
 			check(!CompletionEvent.GetReference())
 
-				OnPhysScenePreTick.Broadcast(this, MDeltaTime);
-			OnPhysSceneStep.Broadcast(this, MDeltaTime);
+			OnPhysScenePreTick.Broadcast(this, Dt);
+			OnPhysSceneStep.Broadcast(this, Dt);
 
 			FGraphEventRef SimulationCompleteEvent = FGraphEvent::CreateGraphEvent();
 
 			// Need to fire off a parallel task to handle running physics commands and
 			// ticking the scene while the engine continues on until TG_EndPhysics
 			// (this should happen in TG_StartPhysics)
-			PhysicsTickTask = TGraphTask<FPhysicsTickTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(SimulationCompleteEvent, MDeltaTime);
+			PhysicsTickTask = TGraphTask<FPhysicsTickTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(SimulationCompleteEvent, Dt);
 
 			// Setup post simulate tasks
 			if (PhysicsTickTask.GetReference())
