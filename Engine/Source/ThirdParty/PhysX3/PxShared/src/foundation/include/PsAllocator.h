@@ -37,7 +37,7 @@
 
 #if(PX_WINDOWS_FAMILY || PX_XBOXONE)
 #include <exception>
-#if(_MSC_VER >= 1923)
+#if(_MSC_VER >= 1923) || defined(__clang__)
 #include <typeinfo>
 #else
 #include <typeinfo.h>
