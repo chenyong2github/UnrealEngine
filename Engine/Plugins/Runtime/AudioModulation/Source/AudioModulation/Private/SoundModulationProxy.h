@@ -121,7 +121,24 @@ namespace AudioModulation
 		}
 
 		/*
-		 * Creates a handle to a proxy modulation object tracked in the provided InProxyMap
+		 * Creates a handle to a proxy modulation object tracked in the provided InProxyMap if it exists, otherwise returns invalid handle.
+		 */
+		static TProxyHandle<IdType, ProxyType, ProxyUObjType> Get(const ProxyUObjType& InObject, TMap<IdType, ProxyType>& InProxyMap)
+		{
+			const IdType ObjectId = static_cast<IdType>(InObject.GetUniqueID());
+			if (ProxyType* Proxy = InProxyMap.Find(ObjectId))
+			{
+				TProxyHandle<IdType, ProxyType, ProxyUObjType> NewHandle(ObjectId, InProxyMap);
+				Proxy->IncRef();
+
+				return NewHandle;
+			} 
+
+			return TProxyHandle<IdType, ProxyType, ProxyUObjType>();
+		}
+
+		/*
+		 * Creates a handle to a proxy modulation object tracked in the provided InProxyMap.  Creates new proxy if it doesn't exist.
 		 */
 		static TProxyHandle<IdType, ProxyType, ProxyUObjType> Create(const ProxyUObjType& InObject, TMap<IdType, ProxyType>& InProxyMap)
 		{
