@@ -36,12 +36,15 @@
 #include "Collision/CollisionConversions.h"
 #include "PhysicsInterfaceUtilsCore.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "PBDRigidsSolver.h"
 
 #if WITH_PHYSX
 #include "geometry/PxConvexMesh.h"
 #include "geometry/PxTriangleMesh.h"
 #include "foundation/PxVec3.h"
 #include "extensions/PxMassProperties.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
+#include "Containers/ArrayView.h"
 #endif
 
 DEFINE_STAT(STAT_TotalPhysicsTime);
@@ -82,6 +85,34 @@ ECollisionShapeType GetGeometryType(const Chaos::TPerShapeData<float, 3>& Shape)
 {
 	return GetType(*Shape.Geometry);
 }
+
+Chaos::FChaosPhysicsMaterial* GetMaterialFromInternalFaceIndex(const FPhysicsShape& Shape, const FPhysicsActor& Actor, uint32 InternalFaceIndex)
+{
+	if(Shape.Materials.Num() > 0 && Actor.Proxy)
+	{
+		Chaos::FPBDRigidsSolver* Solver = Actor.Proxy->GetSolver();
+
+		if(ensure(Solver))
+		{
+			if(Shape.Materials.Num() == 1)
+			{
+				Chaos::TSolverQueryMaterialScope<Chaos::ELockType::Read> Scope(Solver);
+				return Solver->GetQueryMaterials().Get(Shape.Materials[0].InnerHandle);
+			}
+
+			uint8 Index = Shape.Geometry->GetMaterialIndex(InternalFaceIndex);
+
+			if(Shape.Materials.IsValidIndex(Index))
+			{
+				Chaos::TSolverQueryMaterialScope<Chaos::ELockType::Read> Scope(Solver);
+				return Solver->GetQueryMaterials().Get(Shape.Materials[Index].InnerHandle);
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 
 const Chaos::FImplicitObject& FPhysicsShapeReference_Chaos::GetGeometry() const
 {
@@ -179,6 +210,39 @@ void FPhysInterface_Chaos::ReleaseAggregate(FPhysicsAggregateReference_Chaos& In
 int32 FPhysInterface_Chaos::GetNumActorsInAggregate(const FPhysicsAggregateReference_Chaos& InAggregate) { return 0; }
 void FPhysInterface_Chaos::AddActorToAggregate_AssumesLocked(const FPhysicsAggregateReference_Chaos& InAggregate, const FPhysicsActorHandle& InActor) {}
 
+
+FPhysicsMaterialHandle FPhysInterface_Chaos::CreateMaterial(const UPhysicalMaterial* InMaterial)
+{
+	Chaos::FMaterialHandle NewHandle = Chaos::FPhysicalMaterialManager::Get().Create();
+
+	return NewHandle;
+}
+
+void FPhysInterface_Chaos::ReleaseMaterial(FPhysicsMaterialHandle& InHandle)
+{
+	Chaos::FPhysicalMaterialManager::Get().Destroy(InHandle);
+}
+
+void FPhysInterface_Chaos::UpdateMaterial(FPhysicsMaterialHandle& InHandle, UPhysicalMaterial* InMaterial)
+{
+	if(Chaos::FChaosPhysicsMaterial* Material = InHandle.Get())
+	{
+		Material->Friction = InMaterial->Friction;
+		Material->Restitution = InMaterial->Restitution;
+	}
+
+	Chaos::FPhysicalMaterialManager::Get().UpdateMaterial(InHandle);
+}
+
+void FPhysInterface_Chaos::SetUserData(FPhysicsMaterialHandle& InHandle, void* InUserData)
+{
+	if(Chaos::FChaosPhysicsMaterial* Material = InHandle.Get())
+	{
+		Material->UserData = InUserData;
+	}
+
+	Chaos::FPhysicalMaterialManager::Get().UpdateMaterial(InHandle);
+}
 
 int32 FPhysInterface_Chaos::GetNumShapes(const FPhysicsActorHandle& InHandle)
 {
@@ -1103,12 +1167,18 @@ void FPhysInterface_Chaos::AddGeometry(FPhysicsActorHandle& InActor, const FGeom
 #if WITH_CHAOS
 	if (InActor && Geoms.Num())
 	{
-		if (OutOptShapes)
+		for (TUniquePtr<Chaos::TPerShapeData<float, 3>>& Shape : Shapes)
 		{
-			for (auto& Shape : Shapes)
+			FPhysicsShapeHandle NewHandle(Shape.Get(), true, true, InActor);
+			if (OutOptShapes)
 			{
-				OutOptShapes->Add({ Shape.Get(), true, true, InActor });
+				OutOptShapes->Add(NewHandle);
 			}
+
+			FBodyInstance::ApplyMaterialToShape_AssumesLocked(NewHandle, InParams.SimpleMaterial, InParams.ComplexMaterials);
+
+			//TArrayView<UPhysicalMaterial*> SimpleView = MakeArrayView(&(const_cast<UPhysicalMaterial*>(InParams.SimpleMaterial)), 1);
+			//FPhysInterface_Chaos::SetMaterials(NewHandle, InParams.ComplexMaterials.Num() > 0 ? InParams.ComplexMaterials : SimpleView);
 		}
 
 		//todo: we should not be creating unique geometry per actor
@@ -1252,6 +1322,20 @@ void FPhysInterface_Chaos::SetLocalTransform(const FPhysicsShapeHandle& InShape,
         }
     }
 #endif
+}
+
+void FPhysInterface_Chaos::SetMaterials(const FPhysicsShapeHandle& InShape, const TArrayView<UPhysicalMaterial*> InMaterials)
+{
+	// Build a list of handles to store on the shape
+	TArray<Chaos::FMaterialHandle> NewMaterialHandles;
+	NewMaterialHandles.Reserve(InMaterials.Num());
+
+	for(UPhysicalMaterial* UnrealMaterial : InMaterials)
+	{
+		NewMaterialHandles.Add(UnrealMaterial->GetPhysicsMaterial());
+	}
+
+	InShape.Shape->Materials = NewMaterialHandles;
 }
 
 void FinishSceneStat()

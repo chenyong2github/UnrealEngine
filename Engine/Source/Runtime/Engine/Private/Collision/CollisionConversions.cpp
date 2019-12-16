@@ -184,7 +184,7 @@ static void SetHitResultFromShapeAndFaceIndex(const FPhysicsShape& Shape,  const
 		if (bReturnPhysMat)
 		{
 			// This function returns the single material in all cases other than trimesh or heightfield
-			if(const FPhysicsMaterial* PhysicsMaterial = GetMaterialFromInternalFaceIndex(Shape, FaceIndex))
+			if(const FPhysicsMaterial* PhysicsMaterial = GetMaterialFromInternalFaceIndex(Shape, Actor, FaceIndex))
 			{
 				OutResult.PhysMaterial = GetUserData(*PhysicsMaterial);
 			}
@@ -320,7 +320,7 @@ EConvertQueryResult ConvertQueryImpactHit(const UWorld* World, const FHitLocatio
 		// Lookup physical material for heightfields
 		if (bReturnPhysMat && InternalFaceIndex != GetInvalidPhysicsFaceIndex())
 		{
-			if (const FPhysicsMaterial* Material = GetMaterialFromInternalFaceIndex(HitShape, InternalFaceIndex))
+			if (const FPhysicsMaterial* Material = GetMaterialFromInternalFaceIndex(HitShape, HitActor, InternalFaceIndex))
 			{
 				OutResult.PhysMaterial = GetUserData(*Material);
 			}

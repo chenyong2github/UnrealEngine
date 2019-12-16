@@ -128,7 +128,7 @@ ULandscapeMeshCollisionComponent::FPhysXMeshRef::~FPhysXMeshRef()
 }
 
 // Generate a new guid to force a recache of landscape collison derived data
-#define LANDSCAPE_COLLISION_DERIVEDDATA_VER	TEXT("9CAF1A48A5224D4BB307CEBE2776DE27")
+#define LANDSCAPE_COLLISION_DERIVEDDATA_VER	TEXT("1ECE4BBBBC7146DA8C6ADAD75BA52C77")
 
 static FString GetHFDDCKeyString(const FName& Format, bool bDefMaterial, const FGuid& StateId, const TArray<UPhysicalMaterial*>& PhysicalMaterials)
 {
@@ -423,6 +423,7 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 				NewShape->Geometry = MakeSerializable(ChaosHeightFieldFromCooked);
 				NewShape->QueryData = QueryFilterData;
 				NewShape->SimData = SimFilterData;
+				NewShape->Materials = HeightfieldRef->UsedChaosMaterials;
 
 				Geoms.Emplace(MoveTemp(ChaosHeightFieldFromCooked));
 				ShapeArray.Emplace(MoveTemp(NewShape));
@@ -600,7 +601,8 @@ void ULandscapeHeightfieldCollisionComponent::CreateCollisionObject()
 
 				for (UPhysicalMaterial* PhysicalMaterial : CookedPhysicalMaterials)
 				{
-					HeightfieldRef->UsedPhysicalMaterialArray.Add(GPhysXSDK->createMaterial(1, 1, 1));
+					const FPhysicsMaterialHandle_PhysX& MaterialHandle = PhysicalMaterial->GetPhysicsMaterial();
+					HeightfieldRef->UsedPhysicalMaterialArray.Add(MaterialHandle.Material);
 				}
 
 				// Release cooked collison data
@@ -642,6 +644,8 @@ void ULandscapeHeightfieldCollisionComponent::CreateCollisionObject()
 				{
 					//todo: total hack until we get landscape fully converted to chaos
 					HeightfieldRef->UsedPhysicalMaterialArray.Add(GPhysXSDK->createMaterial(1, 1, 1));
+
+					HeightfieldRef->UsedChaosMaterials.Add(PhysicalMaterial->GetPhysicsMaterial());
 				}
 
 #if WITH_EDITOR
@@ -864,6 +868,44 @@ bool ULandscapeHeightfieldCollisionComponent::CookCollisionData(const FName& For
 		Succeeded = Cooker->CookHeightField(Format, HFSizeSimple, SimpleSamples.GetData(), SimpleSamples.GetTypeSize(), OutData);
 	}
 #elif WITH_CHAOS
+
+	// Generate material indices
+	TArray<uint8> MaterialIndices;
+	MaterialIndices.Reserve(NumSamples + NumSimpleSamples);
+	for(int32 RowIndex = 0; RowIndex < CollisionSizeVerts; RowIndex++)
+	{
+		for(int32 ColIndex = 0; ColIndex < CollisionSizeVerts; ColIndex++)
+		{
+			const int32 SrcSampleIndex = (ColIndex * CollisionSizeVerts) + (bIsMirrored ? RowIndex : (CollisionSizeVerts - RowIndex - 1));
+
+			// Materials are not relevant on the last row/column because they are per-triangle and the last row/column don't own any
+			if(RowIndex < CollisionSizeVerts - 1 &&
+				ColIndex < CollisionSizeVerts - 1)
+			{
+				int32 MaterialIndex = 0; // Default physical material.
+				if(!bUseDefMaterial && DominantLayers)
+				{
+					uint8 DominantLayerIdx = DominantLayers[SrcSampleIndex];
+					if(ComponentLayerInfos.IsValidIndex(DominantLayerIdx))
+					{
+						ULandscapeLayerInfoObject* Layer = ComponentLayerInfos[DominantLayerIdx];
+						if(Layer == ALandscapeProxy::VisibilityLayer)
+						{
+							// If it's a hole, use the final index
+							MaterialIndex = TNumericLimits<uint8>::Max();
+						}
+						else
+						{
+							UPhysicalMaterial* DominantMaterial = Layer && Layer->PhysMaterial ? Layer->PhysMaterial : DefMaterial;
+							MaterialIndex = InOutMaterials.AddUnique(DominantMaterial);
+						}
+					}
+				}
+				MaterialIndices.Add(MaterialIndex);
+			}
+		}
+	}
+
 	TUniquePtr<Chaos::THeightField<float>> Heightfield = nullptr;
 	TUniquePtr<Chaos::THeightField<float>> HeightfieldSimple = nullptr;
 
@@ -874,12 +916,13 @@ bool ULandscapeHeightfieldCollisionComponent::CookCollisionData(const FName& For
 	Ar << bSerializeGenerateSimpleCollision;
 
 	TArrayView<const uint16> ComplexHeightView(Heights, NumSamples);
-	Heightfield = MakeUnique<Chaos::THeightField<float>>(ComplexHeightView, CollisionSizeVerts, CollisionSizeVerts, Chaos::TVector<float, 3>(1));
+	Heightfield = MakeUnique<Chaos::THeightField<float>>(ComplexHeightView, MakeArrayView(MaterialIndices), CollisionSizeVerts, CollisionSizeVerts, Chaos::TVector<float, 3>(1));
 	Ar << Heightfield;
 	if(bGenerateSimpleCollision)
 	{
+		// #BGTODO Materials for simple geometry, currently just passing in the default
 		TArrayView<const uint16> SimpleHeightView(Heights + NumSamples, NumSimpleSamples);
-		HeightfieldSimple = MakeUnique<Chaos::THeightField<float>>(SimpleHeightView, CollisionSizeVerts, CollisionSizeVerts, Chaos::TVector<float, 3>(1));
+		HeightfieldSimple = MakeUnique<Chaos::THeightField<float>>(SimpleHeightView, MakeArrayView(MaterialIndices.GetData(), 1), CollisionSizeVerts, CollisionSizeVerts, Chaos::TVector<float, 3>(1));
 		Ar << HeightfieldSimple;
 	}
 

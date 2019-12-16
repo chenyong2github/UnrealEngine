@@ -9,6 +9,7 @@
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/CollisionFilterData.h"
 #include "Chaos/Box.h"
+#include "Chaos/PhysicalMaterials.h"
 #include "UObject/PhysicsObjectVersion.h"
 #include "UObject/ExternalPhysicsCustomObjectVersion.h"
 
@@ -33,7 +34,7 @@ namespace Chaos
 		void* UserData;
 		TSerializablePtr<FImplicitObject> Geometry;
 		TAABB<FReal, 3> WorldSpaceInflatedShapeBounds;
-		
+		TArray<FMaterialHandle> Materials;
 
 		static TPerShapeData<T, d>* SerializationFactory(FChaosArchive& Ar, TPerShapeData<T, d>*);
 		void Serialize(FChaosArchive& Ar);

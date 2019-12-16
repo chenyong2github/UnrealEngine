@@ -1369,6 +1369,11 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 			{
 				SyncBodies(Solver);
 				Solver->SyncEvents_GameThread();
+
+				{
+					SCOPE_CYCLE_COUNTER(STAT_SqUpdateMaterials);
+					Solver->SyncQueryMaterials();
+				}
 			}
 		}
 

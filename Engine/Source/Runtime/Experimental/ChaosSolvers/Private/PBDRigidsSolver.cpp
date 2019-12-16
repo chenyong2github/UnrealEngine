@@ -520,4 +520,25 @@ namespace Chaos
 	}
 
 
+	void FPBDRigidsSolver::UpdateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData)
+	{
+		*SimMaterials.Get(InHandle.InnerHandle) = InNewData;
+	}
+
+	void FPBDRigidsSolver::CreateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData)
+	{
+		ensure(SimMaterials.Create(InNewData) == InHandle.InnerHandle);
+	}
+
+	void FPBDRigidsSolver::DestroyMaterial(Chaos::FMaterialHandle InHandle)
+	{
+		SimMaterials.Destroy(InHandle.InnerHandle);
+	}
+
+	void FPBDRigidsSolver::SyncQueryMaterials()
+	{
+		TSolverQueryMaterialScope<ELockType::Write> Scope(this);
+		QueryMaterials = SimMaterials;
+	}
+
 }; // namespace Chaos

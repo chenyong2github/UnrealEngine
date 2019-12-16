@@ -204,6 +204,11 @@ public:
 		return HashCombine(MObject->GetTypeHash(), ::GetTypeHash(MTransform));
 	}
 
+	virtual uint8 GetMaterialIndex(uint32 HintIndex) const override
+	{
+		return MObject->GetMaterialIndex(HintIndex);
+	}
+
 private:
 	ObjectType MObject;
 	TUniquePtr<Chaos::FImplicitObject> MObjectOwner;
@@ -212,6 +217,7 @@ private:
 
 	//needed for serialization
 	TImplicitObjectTransformed() : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::Transformed) {}
+
 	friend FImplicitObject;	//needed for serialization
 };
 

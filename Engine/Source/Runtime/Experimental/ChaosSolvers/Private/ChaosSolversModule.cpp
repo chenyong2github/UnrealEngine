@@ -19,6 +19,7 @@
 #include "Framework/Dispatcher.h"
 #include "Framework/DispatcherImpl.h"
 #include "Misc/App.h"
+#include "Chaos/PhysicalMaterials.h"
 
 TAutoConsoleVariable<int32> CVarChaosThreadEnabled(
 	TEXT("p.Chaos.DedicatedThreadEnabled"),
@@ -222,6 +223,12 @@ void FChaosSolversModule::Initialize()
 			break;
 		}
 
+		// Bind to the material manager
+		Chaos::FPhysicalMaterialManager& MaterialManager = Chaos::FPhysicalMaterialManager::Get();
+		OnCreateMaterialHandle = MaterialManager.OnMaterialCreated.Add(Chaos::FMaterialCreatedDelegate::CreateRaw(this, &FChaosSolversModule::OnCreateMaterial));
+		OnDestroyMaterialHandle = MaterialManager.OnMaterialDestroyed.Add(Chaos::FMaterialDestroyedDelegate::CreateRaw(this, &FChaosSolversModule::OnDestroyMaterial));
+		OnUpdateMaterialHandle = MaterialManager.OnMaterialUpdated.Add(Chaos::FMaterialUpdatedDelegate::CreateRaw(this, &FChaosSolversModule::OnUpdateMaterial));
+
 		bModuleInitialized = true;
 	}
 }
@@ -231,6 +238,12 @@ void FChaosSolversModule::Shutdown()
 	if(bModuleInitialized)
 	{
 		EndPhysicsTask();
+
+		// Unbind material events
+		Chaos::FPhysicalMaterialManager& MaterialManager = Chaos::FPhysicalMaterialManager::Get();
+		MaterialManager.OnMaterialCreated.Remove(OnCreateMaterialHandle);
+		MaterialManager.OnMaterialDestroyed.Remove(OnDestroyMaterialHandle);
+		MaterialManager.OnMaterialUpdated.Remove(OnUpdateMaterialHandle);
 
 		bModuleInitialized = false;
 	}
@@ -463,6 +476,15 @@ Chaos::FPhysicsSolver* FChaosSolversModule::CreateSolver(bool bStandalone /*= fa
 	const FName NewDebugName = *FString::Printf(TEXT("%s (%d)"), DebugName == NAME_None ? TEXT("Solver") : *DebugName.ToString(), Solvers.Num() - 1);
 	NewSolver->SetDebugName(NewDebugName);
 #endif
+
+	// Set up the material lists on the new solver, copying from the current master list
+	{
+		Chaos::FPhysicalMaterialManager& Manager =	Chaos::FPhysicalMaterialManager::Get();
+		NewSolver->QueryMaterialLock.WriteLock();
+		NewSolver->QueryMaterials = Manager.GetMasterMaterials();
+		NewSolver->SimMaterials = Manager.GetMasterMaterials();
+		NewSolver->QueryMaterialLock.WriteUnlock();
+	}
 
 	if(!bStandalone && IsPersistentTaskRunning() && Dispatcher)
 	{
@@ -867,6 +889,66 @@ Chaos::EThreadingMode FChaosSolversModule::GetDesiredThreadingMode() const
 Chaos::EMultiBufferMode FChaosSolversModule::GetDesiredBufferingMode() const
 {
 	return GetBufferModeFromThreadingModel(GetDesiredThreadingMode());
+}
+
+void FChaosSolversModule::OnUpdateMaterial(Chaos::FMaterialHandle InHandle)
+{
+	check(Dispatcher);
+
+	// Grab the material
+	Chaos::FChaosPhysicsMaterial* Material = InHandle.Get();
+
+	if(ensure(Material))
+	{
+		for(Chaos::FPhysicsSolver* Solver : Solvers)
+		{
+			// Send a copy of the material to each solver
+			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle, MaterialCopy = *Material](Chaos::FPhysicsSolver* InSolver)
+			{
+				InSolver->UpdateMaterial(InHandle, MaterialCopy);
+			});
+		}
+	}
+}
+
+void FChaosSolversModule::OnCreateMaterial(Chaos::FMaterialHandle InHandle)
+{
+	check(Dispatcher);
+
+	// Grab the material
+	Chaos::FChaosPhysicsMaterial* Material = InHandle.Get();
+
+	if(ensure(Material))
+	{
+		for(Chaos::FPhysicsSolver* Solver : Solvers)
+		{
+			// Send a copy of the material to each solver
+			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle, MaterialCopy = *Material](Chaos::FPhysicsSolver* InSolver)
+			{
+				InSolver->CreateMaterial(InHandle, MaterialCopy);
+			});
+		}
+	}
+}
+
+void FChaosSolversModule::OnDestroyMaterial(Chaos::FMaterialHandle InHandle)
+{
+	check(Dispatcher);
+
+	// Grab the material
+	Chaos::FChaosPhysicsMaterial* Material = InHandle.Get();
+
+	if(ensure(Material))
+	{
+		for(Chaos::FPhysicsSolver* Solver : Solvers)
+		{
+			// Notify each solver
+			Dispatcher->EnqueueCommandImmediate(Solver, [InHandle](Chaos::FPhysicsSolver* InSolver)
+			{
+				InSolver->DestroyMaterial(InHandle);
+			});
+		}
+	}
 }
 
 const IChaosSettingsProvider& FChaosSolversModule::GetSettingsProvider() const
