@@ -113,6 +113,12 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(FRH
 		return;
 	}
 
+	if (Views.Num() > 1 && ShouldRenderRayTracingAmbientOcclusion(Views[0]))
+	{
+		//#dxr_todo: enable RTAO in multiview mode
+		return;
+	}
+
 	FRDGBuilder GraphBuilder(RHICmdListImmediate);
 	
 	FSceneTextureParameters SceneTextures;
