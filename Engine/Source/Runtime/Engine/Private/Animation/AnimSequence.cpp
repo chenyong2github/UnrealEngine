@@ -46,7 +46,7 @@
 DECLARE_CYCLE_STAT(TEXT("AnimSeq GetBonePose"), STAT_AnimSeq_GetBonePose, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("AnimSeq EvalCurveData"), STAT_AnimSeq_EvalCurveData, STATGROUP_Anim);
 
-CSV_DECLARE_CATEGORY_EXTERN(Animation);
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
 
 int32 GPerformFrameStripping = 0;
 int32 GPerformFrameStrippingOddFramedAnimations = 0;
