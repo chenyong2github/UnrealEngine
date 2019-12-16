@@ -5,16 +5,25 @@
 
 float2 OutputResolution;
 uint FastResolveMask;
+uint DebugMode;
+int SampleIndex;
 
 Texture2D<uint4> CategorizationTexture;
 Texture2D<float> ViewTransmittanceTexture;
 Texture2D<uint2> DepthStencilTexture;
+Texture2D<uint> NodeIndex;
+StructuredBuffer<FNodeData> NodeData;
 SamplerState LinearSampler;
 
 #define DEBUG_MODE_SAMPLE_COUNT 0 
 #define DEBUG_MODE_COVERAGE_TYPE 1
 #define DEBUG_MODE_TAA_RESOLVE_TYPE 2
 #define DEBUG_MODE_COVERAGE 3
+#define DEBUG_MODE_DEPTH 4
+#define DEBUG_MODE_BASECOLOR 5
+#define DEBUG_MODE_ROUGHNESS 6
+#define DEBUG_MODE_SPECULAR 7
+#define DEBUG_MODE_TANGENT 8
 
 float3 HUEtoRGB(in float H)
 {
@@ -48,25 +57,112 @@ void MainPS(
 	if (!bIsValid)
 		discard;
 
-#if PERMUTATION_DEBUG_MODE == DEBUG_MODE_SAMPLE_COUNT
-	const float3 Color = GetColorCode(CatData.SampleCount/float(HAIR_VISIBILITY_MAXSAMPLECOUNT));
-#endif
+	float3 Color = 0;
+	if (DebugMode == DEBUG_MODE_SAMPLE_COUNT)
+	{
+		Color = GetColorCode(CatData.SampleCount/float(HAIR_VISIBILITY_MAXSAMPLECOUNT));
+	}
 
-#if PERMUTATION_DEBUG_MODE == DEBUG_MODE_COVERAGE_TYPE
-	const bool bIsFullyCovered = CatData.PixelCoverage >= 1;
-	const float3 Color = bIsFullyCovered ? float3(0.25,0.85,0.25) : float3(0.85,0.25,0.25);
-#endif
+	if (DebugMode == DEBUG_MODE_COVERAGE_TYPE)
+	{
+		const bool bIsFullyCovered = CatData.PixelCoverage >= 1;
+		Color = bIsFullyCovered ? float3(0.25,0.85,0.25) : float3(0.85,0.25,0.25);
+	}
 
-#if PERMUTATION_DEBUG_MODE == DEBUG_MODE_TAA_RESOLVE_TYPE
-	const uint Stencil = DepthStencilTexture.Load(uint3(PixelPos,0)).y;
-	const bool bIsFastResolve = (Stencil & FastResolveMask) != 0;
-	const float3 Color = bIsFastResolve ? float3(1,1,0) : float3(0.15f, 0.25f, 0.75f);
-#endif
+	if (DebugMode == DEBUG_MODE_TAA_RESOLVE_TYPE)
+	{
+		const uint Stencil = DepthStencilTexture.Load(uint3(PixelPos,0)).y;
+		const bool bIsFastResolve = (Stencil & FastResolveMask) != 0;
+		Color = bIsFastResolve ? float3(1,1,0) : float3(0.15f, 0.25f, 0.75f);
+	}
 
-#if PERMUTATION_DEBUG_MODE == DEBUG_MODE_COVERAGE
-	const float3 Color = GetColorCode(saturate(CatData.PixelCoverage));
-#endif
-	
+	if (DebugMode == DEBUG_MODE_COVERAGE)
+	{
+		Color = GetColorCode(saturate(CatData.PixelCoverage));
+	}
+
+	const bool bIsDebugModeMaterial =
+		DebugMode == DEBUG_MODE_DEPTH ||
+		DebugMode == DEBUG_MODE_BASECOLOR ||
+		DebugMode == DEBUG_MODE_ROUGHNESS ||
+		DebugMode == DEBUG_MODE_SPECULAR || 
+		DebugMode == DEBUG_MODE_TANGENT;
+
+	const FNodeDesc NodeDesc = DecodeNodeDesc(NodeIndex.Load(uint3(PixelPos, 0)));
+	if (NodeDesc.Count > 0 && bIsDebugModeMaterial)
+	{
+		const int LocalSampleIndex = SampleIndex; 
+		const bool bAverageAllSamples = LocalSampleIndex < 0;
+		const uint SelectedIndex = LocalSampleIndex >= 0 ? clamp(LocalSampleIndex, 0, NodeDesc.Count - 1) : 0;
+		float	Depth = 0;
+		float3	Tangent = 0;
+		float3	BaseColor = 0;
+		float	Roughness = 0;
+		float	Specular = 0;
+
+		for (uint NodeIt = 0; NodeIt < NodeDesc.Count; ++NodeIt)
+		{
+			const uint NodeOffset = NodeDesc.Offset + NodeIt;
+			const FNodeData Data = NodeData.Load(NodeOffset);
+			float			SampleDepth;
+			FVisibilityData SampleVisData;
+			float3			SampleBaseColor;
+			float			SampleRoughness;
+			float			SampleSpecular;
+			DecodeNodeData(Data, SampleDepth, SampleVisData, SampleBaseColor, SampleRoughness, SampleSpecular);
+
+			if (bAverageAllSamples)
+			{
+				Depth		+= SampleDepth;
+				Tangent		+= SampleVisData.Tangent;
+				BaseColor	+= SampleBaseColor;
+				Roughness	+= SampleRoughness;
+				Specular	+= SampleSpecular;
+			}
+			else if (SelectedIndex == NodeIt)
+			{
+				Depth		= SampleDepth;
+				Tangent		= SampleVisData.Tangent;
+				BaseColor	= SampleBaseColor;
+				Roughness	= SampleRoughness;
+				Specular	= SampleSpecular;
+			}
+		}
+
+		if (bAverageAllSamples)
+		{
+			Depth		/= NodeDesc.Count;
+			Tangent		/= NodeDesc.Count;
+			BaseColor	/= NodeDesc.Count;
+			Roughness	/= NodeDesc.Count;
+			Specular	/= NodeDesc.Count;
+		}
+
+		if (DebugMode == DEBUG_MODE_DEPTH)
+		{
+			Color = Depth;
+		}
+
+		if (DebugMode == DEBUG_MODE_BASECOLOR)
+		{
+			Color = BaseColor;
+		}
+
+		if (DebugMode == DEBUG_MODE_ROUGHNESS)
+		{
+			Color = Roughness;
+		}
+
+		if (DebugMode == DEBUG_MODE_SPECULAR)
+		{
+			Color = Specular;
+		}
+
+		if (DebugMode == DEBUG_MODE_TANGENT)
+		{
+			Color = (Tangent+1) * 0.5f;
+		}
+	}
 
 	OutColor = float4(Color, 1);
 }
