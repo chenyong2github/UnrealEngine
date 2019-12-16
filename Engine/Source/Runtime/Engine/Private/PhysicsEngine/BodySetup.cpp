@@ -1106,28 +1106,7 @@ void UBodySetup::PostLoad()
 	// data and extract the index data from there.
 	for(FKConvexElem& Convex : AggGeom.ConvexElems)
 	{
-		const int32 NumVerts = Convex.VertexData.Num();
-		if(NumVerts > 0 && Convex.IndexData.Num() == 0)
-		{
-			Chaos::TParticles<Chaos::FReal, 3> ConvexParticles;
-			ConvexParticles.AddParticles(NumVerts);
-
-			for(int32 VertIndex = 0; VertIndex < NumVerts; ++VertIndex)
-			{
-				ConvexParticles.X(VertIndex) = Convex.VertexData[VertIndex];
-			}
-
-			TArray<Chaos::TVector<int32, 3>> Triangles;
-			Chaos::FConvexBuilder::BuildConvexHull(ConvexParticles, Triangles);
-
-			Convex.IndexData.Reset(Triangles.Num() * 3);
-			for(Chaos::TVector<int32, 3> Tri : Triangles)
-			{
-				Convex.IndexData.Add(Tri[0]);
-				Convex.IndexData.Add(Tri[1]);
-				Convex.IndexData.Add(Tri[2]);
-			}
-		}
+		Convex.ComputeChaosConvexIndices();
 	}
 #endif
 }
@@ -1732,11 +1711,38 @@ const TUniquePtr<Chaos::FConvex>& FKConvexElem::GetChaosConvexMesh() const
 void FKConvexElem::SetChaosConvexMesh(TUniquePtr<Chaos::FConvex>&& InChaosConvex)
 {
 	ChaosConvex = MoveTemp(InChaosConvex);
+	ComputeChaosConvexIndices();
 }
 
 void FKConvexElem::ResetChaosConvexMesh()
 {
 	ChaosConvex.Reset();
+}
+
+ENGINE_API void FKConvexElem::ComputeChaosConvexIndices()
+{
+	const int32 NumVerts = VertexData.Num();
+	if(NumVerts > 0 && IndexData.Num() == 0)
+	{
+		Chaos::TParticles<Chaos::FReal, 3> ConvexParticles;
+		ConvexParticles.AddParticles(NumVerts);
+
+		for(int32 VertIndex = 0; VertIndex < NumVerts; ++VertIndex)
+		{
+			ConvexParticles.X(VertIndex) = VertexData[VertIndex];
+		}
+
+		TArray<Chaos::TVector<int32, 3>> Triangles;
+		Chaos::FConvexBuilder::BuildConvexHull(ConvexParticles, Triangles);
+
+		IndexData.Reset(Triangles.Num() * 3);
+		for(Chaos::TVector<int32, 3> Tri : Triangles)
+		{
+			IndexData.Add(Tri[0]);
+			IndexData.Add(Tri[1]);
+			IndexData.Add(Tri[2]);
+		}
+	}
 }
 #endif
 

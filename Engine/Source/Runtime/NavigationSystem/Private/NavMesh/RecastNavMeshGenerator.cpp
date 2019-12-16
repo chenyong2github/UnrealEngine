@@ -633,6 +633,11 @@ void ExportChaosConvexMesh(const FKConvexElem* const Convex, const FTransform& L
 		VertexBuffer.Add(UnrealCoord.Z);
 	}
 
+	if (Convex->VertexData.Num())
+	{
+		ensure(Convex->IndexData.Num());
+	}
+
 	for (int32 i = 0; i < Convex->IndexData.Num(); ++i)
 	{
 		IndexBuffer.Add(VertOffset + Convex->IndexData[i]);
