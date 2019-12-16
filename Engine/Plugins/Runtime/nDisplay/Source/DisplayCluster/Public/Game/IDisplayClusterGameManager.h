@@ -2,6 +2,7 @@
 
 #pragma once
 
+class ADisplayClusterRootActor;
 class UDisplayClusterCameraComponent;
 class UDisplayClusterRootComponent;
 class UDisplayClusterSceneComponent;
@@ -19,8 +20,8 @@ public:
 	{ }
 
 public:
-	virtual UDisplayClusterRootComponent*           GetRoot() const = 0;
-	virtual void                                    SetRoot(UDisplayClusterRootComponent* InRoot) = 0;
+	virtual ADisplayClusterRootActor*               GetRootActor() const = 0;
+	virtual UDisplayClusterRootComponent*           GetRootComponent() const = 0;
 
 	virtual TArray<UDisplayClusterScreenComponent*> GetAllScreens() const = 0;
 	virtual UDisplayClusterScreenComponent*         GetScreenById(const FString& id) const = 0;
