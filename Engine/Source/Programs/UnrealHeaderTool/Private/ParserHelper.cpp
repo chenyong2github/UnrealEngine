@@ -281,28 +281,22 @@ FTokenData* FPropertyData::Set(UProperty* InKey, const FTokenData& InValue, FUnr
 
 const TCHAR* FNameLookupCPP::GetNameCPP(UStruct* Struct, bool bForceInterface /*= false */)
 {
-	TCHAR* NameCPP = StructNameMap.FindRef(Struct);
-	if (NameCPP && !bForceInterface)
+	TMap<UStruct*, TCHAR*>& NameMap = (bForceInterface ? InterfaceNameMap : StructNameMap);
+
+	TCHAR* NameCPP = NameMap.FindRef(Struct);
+	if (NameCPP)
 	{
 		return NameCPP;
 	}
 
-	FString DesiredStructName = Struct->GetName();
-	FString	TempName = FString(bForceInterface ? TEXT("I") : Struct->GetPrefixCPP()) + DesiredStructName;
-	int32 StringLength = TempName.Len();
+	const FString TempName = FString::Printf(TEXT("%s%s"), (bForceInterface ? TEXT("I") : Struct->GetPrefixCPP()), *Struct->GetName());
+	const int32 StringLength = TempName.Len();
 
 	NameCPP = new TCHAR[StringLength + 1];
 	FCString::Strcpy(NameCPP, StringLength + 1, *TempName);
 	NameCPP[StringLength] = 0;
 
-	if (bForceInterface)
-	{
-		InterfaceAllocations.Add(NameCPP);
-	}
-	else
-	{
-		StructNameMap.Add(Struct, NameCPP);
-	}
+	NameMap.Add(Struct, NameCPP);
 
 	return NameCPP;
 }
