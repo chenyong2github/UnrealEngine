@@ -67,6 +67,7 @@ public:
 		, _OnEnteredBadState()
 		, _WrapHorizontalNavigation(true)
 		{
+			_Clipping = EWidgetClipping::ClipToBounds;
 		}
 
 		SLATE_EVENT( FOnGenerateRow, OnGenerateTile )
