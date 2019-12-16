@@ -10,7 +10,7 @@ namespace Chaos
 	class TBVHParticles;
 
 	template <typename T>
-	struct FClusterCreationParameters
+	struct CHAOS_API FClusterCreationParameters
 	{
 		enum EConnectionMethod { None = 0, PointImplicit, DelaunayTriangulation, MinimalSpanningSubsetDelaunayTriangulation, PointImplicitAugmentedWithMinimalDelaunay };
 
@@ -22,7 +22,7 @@ namespace Chaos
 			, bool bCopyCollisionParticlesIn = true
 			, bool bGenerateConnectionGraphIn = true
 			, EConnectionMethod ConnectionMethodIn = EConnectionMethod::PointImplicitAugmentedWithMinimalDelaunay
-			, TBVHParticles<float, 3>* CollisionParticlesIn = nullptr
+			, TBVHParticles<T, 3>* CollisionParticlesIn = nullptr
 			, int32 RigidBodyIndexIn = INDEX_NONE
 		)
 			: CoillisionThicknessPercent(CoillisionThicknessPercentIn)
@@ -41,7 +41,7 @@ namespace Chaos
 		bool bCopyCollisionParticles;
 		bool bGenerateConnectionGraph;
 		EConnectionMethod ConnectionMethod;
-		TBVHParticles<float, 3>* CollisionParticles;
+		TBVHParticles<T, 3>* CollisionParticles;
 		int32 RigidBodyIndex;
 	};
 }
