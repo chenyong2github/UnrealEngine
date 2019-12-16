@@ -14,8 +14,6 @@ class UBlueprint;
 class UMovieSceneSection;
 class UMovieSceneEventSectionBase;
 
-struct FGenerateBlueprintFunctionParams;
-
 class IMovieSceneToolsTakeData
 {
 public:
@@ -52,9 +50,8 @@ private:
 
 	void RegisterClipboardConversions();
 
-	static void HandleGenerateEventEntryPoints(UMovieSceneEventSectionBase* EventSection, const FGenerateBlueprintFunctionParams& Params);
 	static void FixupPayloadParameterNameForSection(UMovieSceneEventSectionBase* Section, UK2Node* InNode, FName OldPinName, FName NewPinName);
-	static void UpgradeLegacyEventEndpointForSection(UMovieSceneEventSectionBase* Section, UBlueprint* Blueprint);
+	static bool UpgradeLegacyEventEndpointForSection(UMovieSceneEventSectionBase* Section, UBlueprint* Blueprint);
 
 private:
 

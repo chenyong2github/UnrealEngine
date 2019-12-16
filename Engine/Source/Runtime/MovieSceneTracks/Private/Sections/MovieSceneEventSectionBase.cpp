@@ -8,7 +8,6 @@
 #include "Engine/Blueprint.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
-UMovieSceneEventSectionBase::FGenerateEventEntryPointFunctionsEvent UMovieSceneEventSectionBase::GenerateEventEntryPointsEvent;
 UMovieSceneEventSectionBase::FFixupPayloadParameterNameEvent UMovieSceneEventSectionBase::FixupPayloadParameterNameEvent;
 UMovieSceneEventSectionBase::FUpgradeLegacyEventEndpoint UMovieSceneEventSectionBase::UpgradeLegacyEventEndpoint;
 
@@ -59,23 +58,17 @@ void UMovieSceneEventSectionBase::OnPostCompile(UBlueprint* Blueprint)
 void UMovieSceneEventSectionBase::AttemptUpgrade()
 {
 	UBlueprint* Blueprint = DirectorBlueprint_DEPRECATED.Get();
+	// If we do not have the deprecated blueprint then this has already been upgraded and is this function is not necessary
 	if (!Blueprint)
 	{
 		return;
 	}
 
-	// Bind onto this event to ensure that we get another chance to upgrade when the BP compiles
-	Blueprint->GenerateFunctionGraphsEvent.AddUniqueDynamic(this, &UMovieSceneEventSectionBase::HandleGenerateEntryPoints);
-
-	for (UEdGraph* EdGraph : Blueprint->FunctionGraphs)
+	const bool bUpgradeSuccess = UpgradeLegacyEventEndpoint.IsBound() ? UpgradeLegacyEventEndpoint.Execute(this, Blueprint) : false;
+	if (!bUpgradeSuccess)
 	{
-		if (EdGraph->HasAnyFlags(RF_NeedLoad))
-		{
-			return;
-		}
+		return;
 	}
-
-	UpgradeLegacyEventEndpoint.Broadcast(this, Blueprint);
 
 	// If the BP has already been compiled (eg regenerate on load) we must perform PostCompile fixup immediately since
 	// We will not have had a chance to generate function entries. In this case we just bind directly to the already compiled functions.

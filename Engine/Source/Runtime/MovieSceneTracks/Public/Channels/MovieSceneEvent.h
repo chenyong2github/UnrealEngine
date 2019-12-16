@@ -53,10 +53,6 @@ struct FMovieSceneEvent
 	UPROPERTY()
 	FMovieSceneEventPtrs Ptrs;
 
-#if WITH_EDITORONLY_DATA
-	void PostSerialize(const FArchive& Ar);
-#endif
-
 public:
 
 #if WITH_EDITORONLY_DATA
@@ -83,8 +79,6 @@ public:
 	UPROPERTY(transient)
 	TWeakObjectPtr<UObject> WeakCachedEndpoint;
 
-private:
-
 	/** Deprecated weak pointer to the function entry to call - no longer serialized but cached on load. */
 	UPROPERTY()
 	TWeakObjectPtr<UObject> FunctionEntry_DEPRECATED;
@@ -92,16 +86,6 @@ private:
 #endif // WITH_EDITORONLY_DATA
 };
 
-#if WITH_EDITORONLY_DATA
-template<>
-struct TStructOpsTypeTraits<FMovieSceneEvent> : public TStructOpsTypeTraitsBase2<FMovieSceneEvent>
-{
-	enum
-	{
-		WithPostSerialize = true,
-	};
-};
-#endif
 
 
 
