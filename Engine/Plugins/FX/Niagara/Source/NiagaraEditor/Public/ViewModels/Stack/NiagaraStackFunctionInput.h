@@ -19,6 +19,7 @@ class UNiagaraScript;
 class UEdGraphPin;
 class UNiagaraDataInterface;
 enum class EStackParameterBehavior;
+class UNiagaraScriptVariable;
 
 /** Represents a single module input in the module stack view model. */
 UCLASS()
@@ -136,7 +137,7 @@ public:
 	bool IsEnabled() const;
 
 	/** Sets this input's local value. */
-	void SetLocalValue(TSharedRef<FStructOnScope> InLocalValue);
+	void SetLocalValue(TSharedRef<FStructOnScope> InLocalValue, bool bIsOverride = false);
 	
 	/** Returns whether or not the value or handle of this input has been overridden and can be reset. */
 	bool CanReset() const;
@@ -312,7 +313,7 @@ private:
 
 private:
 	/** Refreshes the current values for this input from the state of the graph. */
-	void RefreshValues();
+	void RefreshValues(bool bFromSetLocalValue=false);
 
 	/** Refreshes additional state for this input which comes from input metadata. */
 	void RefreshFromMetaData();
@@ -343,8 +344,10 @@ private:
 	  * pin don't exist, they will be created. */
 	UEdGraphPin& GetOrCreateOverridePin();
 
+	bool TryGetDefaultBinding(FNiagaraParameterHandle& LinkedValueHandle, UNiagaraScriptVariable* Variable, UEdGraphPin& ValuePin);
+
 	/** Tries to get a local value for this input if it exists by checking the graph data directly. */
-	bool TryGetCurrentLocalValue(TSharedPtr<FStructOnScope>& LocalValue, UEdGraphPin& DefaultPin, UEdGraphPin& ValuePin, TSharedPtr<FStructOnScope> OldValueToReuse);
+	bool TryGetCurrentLocalValue(TSharedPtr<FStructOnScope>& LocalValue, UEdGraphPin& DefaultPin, UEdGraphPin& ValuePin, TSharedPtr<FStructOnScope> OldValueToReuse, UNiagaraScriptVariable* Variable);
 
 	/** Tries to get a data interface value for this input if it exists by checking the graph data directly .*/
 	bool TryGetCurrentDataValue(FDataValues& DataValues, UEdGraphPin* OverrideValuePin, UEdGraphPin& DefaultValuePin, UNiagaraDataInterface* LocallyOwnedDefaultDataValueObjectToReuse);
@@ -462,4 +465,7 @@ private:
 
 	/** Whether or not the dynamic input for this input has a function script reassignment pending due to a request to fix a missing script. */
 	bool bIsDynamicInputScriptReassignmentPending;
+
+	bool bIsLocalOverride;
+	UNiagaraScriptVariable* Variable;
 };
