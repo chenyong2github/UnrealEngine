@@ -97,8 +97,7 @@ void FWorldBrowserModule::StartupModule()
 
 void FWorldBrowserModule::ShutdownModule()
 {
-	check(WorldModel.IsUnique());
-	WorldModel.Reset();
+	ReleaseWorldModel();
 
 	FLevelFolders::Cleanup();
 
@@ -114,6 +113,16 @@ void FWorldBrowserModule::ShutdownModule()
 
 	// unregister the editor mode
 	FEditorModeRegistry::Get().UnregisterMode(FBuiltinEditorModes::EM_StreamingLevel);
+}
+
+void FWorldBrowserModule::ReleaseWorldModel()
+{
+	if (WorldModel)
+	{
+		// So we have to be the last owner of this model
+		check(WorldModel.IsUnique());
+		WorldModel.Reset();
+	}
 }
 
 TSharedRef<SWidget> FWorldBrowserModule::CreateWorldBrowserHierarchy()
@@ -149,6 +158,8 @@ void FWorldBrowserModule::OnWorldCompositionChanged(UWorld* InWorld)
 		InWorld->WorldType == EWorldType::Editor)
 	{
 		OnBrowseWorld.Broadcast(NULL);
+		// Release World Model here so that a new one gets created in ShareWorldModel even if the World is the same.
+		ReleaseWorldModel();
 		OnBrowseWorld.Broadcast(InWorld);
 	}
 }
@@ -164,9 +175,7 @@ void FWorldBrowserModule::OnWorldDestroyed(UWorld* InWorld)
 		{
 			// Will reset all references to a shared world model
 			OnBrowseWorld.Broadcast(NULL);
-			// So we have to be the last owner of this model
-			check(WorldModel.IsUnique());
-			WorldModel.Reset();
+			ReleaseWorldModel();
 		}
 	}
 }

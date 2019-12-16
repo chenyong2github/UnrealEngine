@@ -65,7 +65,9 @@ private:
 
 	bool IsCurrentSublevel(TSharedPtr<class FLevelModel> InLevelModel);
 	void SetCurrentSublevel(TSharedPtr<class FLevelModel> InLevelModel);
-				
+			
+	void ReleaseWorldModel();
+
 private:
 	TSharedPtr<class FLevelCollectionModel> WorldModel;
 
