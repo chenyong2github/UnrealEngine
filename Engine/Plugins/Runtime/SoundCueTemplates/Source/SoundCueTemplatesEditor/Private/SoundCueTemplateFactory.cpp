@@ -87,3 +87,5 @@ UObject* USoundCueTemplateFactory::FactoryCreateNew(UClass* Class, UObject* InPa
 
 	return nullptr;
 }
+
+#undef LOCTEXT_NAMESPACE // "SoundCueTemplatesEditor"
