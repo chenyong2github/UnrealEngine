@@ -121,7 +121,7 @@ struct FVertexFactoryInput
 	float4 Position: ATTRIBUTE0;
 #else
 	float4 PackedPosition: ATTRIBUTE0; 
-	float4 LODHeights[3]: ATTRIBUTE1;  
+	float4 LODHeights[2]: ATTRIBUTE1;  
 #endif
 };
 
@@ -624,7 +624,8 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.InputPosition = Input.Position;
 #else
 	Intermediates.InputPosition = Input.PackedPosition * 255.f;
-	float2 SubXY = Intermediates.InputPosition.zw;
+	float2 SubXY = frac((Intermediates.InputPosition.zw) * .5f) * 2.f;
+	float2 LOD45 = (Intermediates.InputPosition.zw - SubXY) / 255.f;
 	Intermediates.InputPosition.zw = SubXY;
 #endif
 
@@ -645,16 +646,24 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	float2 ActualLODCoordsInt = floor(Intermediates.InputPosition.xy * pow(2, -(LodValue - LodValues.x)));
 	float InvLODScaleFactor = pow(2, -LodValue);
 #else
-	float InvLODScaleFactor = 1.0f / (float)(1 << (uint)LodValue);
-	uint LODHeightU = (uint)floor(LodValue * 0.5);
-	uint LODHeightV = Mod((uint)LodValue, 2) * 2;
-	float NextLodValue = LodValue + 1;
-	uint NextLODHeightU = (uint)floor(NextLodValue * 0.5);
-	uint NextLODHeightV = Mod((uint)NextLodValue, 2) * 2;
+	float3 HeightData = (LodValue < 1 ? float3(1.0, Input.LODHeights[1][0], Input.LODHeights[1][1]) :
+						(LodValue < 2 ? float3(0.5, Input.LODHeights[1][1], Input.LODHeights[1][2]) :
+						(LodValue < 3 ? float3(0.25, Input.LODHeights[1][2], Input.LODHeights[1][3]) :
+						(LodValue < 4 ? float3(0.125, Input.LODHeights[1][3], LOD45[0]) :
+						(LodValue < 5 ? float3(0.0625, LOD45[0], LOD45[1]) :
+						(float3(0.03125, LOD45[1], LOD45[1])))))));
 
+	// we can hardcode InvLODScaleFactor
+	float InvLODScaleFactor = HeightData.x;
 	// select the height values from the vertex input corresponding to the current and next LOD
-	float Height = DecodePackedHeight(float2(Input.LODHeights[LODHeightU][LODHeightV], Input.LODHeights[LODHeightU][LODHeightV + 1]));
-	float HeightNextLOD = DecodePackedHeight(float2(Input.LODHeights[NextLODHeightU][NextLODHeightV], Input.LODHeights[NextLODHeightU][NextLODHeightV + 1]));
+	float InputHeight = HeightData.y;
+	float InputHeightNextLOD = HeightData.z;
+
+	float MinHeight = DecodePackedHeight(Input.LODHeights[0].xy);
+	float MaxHeight = DecodePackedHeight(Input.LODHeights[0].zw);
+
+	float Height = lerp(MinHeight, MaxHeight, InputHeight);
+	float HeightNextLOD = lerp(MinHeight, MaxHeight, InputHeightNextLOD);
 
 	// LodValues.x is always 0 on mobile.
 	float2 ActualLODCoordsInt = floor(Intermediates.InputPosition.xy * InvLODScaleFactor);
