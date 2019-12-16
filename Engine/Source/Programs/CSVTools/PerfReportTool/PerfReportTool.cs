@@ -19,7 +19,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "3.90";
+        private static string VersionString = "3.91";
 
         public static string Get() { return VersionString; }
     };
@@ -1140,6 +1140,8 @@ namespace PerfReportTool
 				snapToPeaks = graphSettings.snapToPeaks.value;
 			}
 
+			int lineDecimalPlaces = graphSettings.lineDecimalPlaces.isSet ? graphSettings.lineDecimalPlaces.value : 1;
+
 			int maxHierarchyDepth = graphSettings.maxHierarchyDepth.value;
             string hideStatPrefix = graphSettings.hideStatPrefix.value;
             string showEvents = graphSettings.showEvents.value;
@@ -1208,8 +1210,9 @@ namespace PerfReportTool
                 " -height "  + (height*scaleby).ToString() +
                 " -budget "  + budget.ToString() +
                 " -maxy "    + maxy.ToString()   +
+				" -lineDecimalPlaces "+ lineDecimalPlaces.ToString() +
 
-                ( ( statMultiplier != 1.0)   ? " -statMultiplier " + statMultiplier.ToString("0.0000000000000000000000") : "") +
+				( ( statMultiplier != 1.0)   ? " -statMultiplier " + statMultiplier.ToString("0.0000000000000000000000") : "") +
                 (hideEventNames              ? " -hideeventNames 1" : "") +
                 ( ( minx > 0 )               ? ( " -minx " + minx.ToString() ) : "" ) +
                 ( ( maxx != Int32.MaxValue ) ? ( " -maxx " + maxx.ToString() ) : "" ) +
@@ -1318,7 +1321,7 @@ namespace PerfReportTool
 
     class ReportTypeInfo
     {
-        public ReportTypeInfo(XElement element, Dictionary<string,XElement> sharedSummaries)
+        public ReportTypeInfo(XElement element, Dictionary<string,XElement> sharedSummaries, string baseXmlDirectory)
         {
             graphs = new List<ReportGraph>();
             summaries = new List<Summary>();
@@ -1344,27 +1347,31 @@ namespace PerfReportTool
 					string summaryType = summaryElement.Attribute("type").Value;
 					if (summaryType == "histogram")
 					{
-						summaries.Add(new HistogramSummary(summaryElement));
+						summaries.Add(new HistogramSummary(summaryElement, baseXmlDirectory));
 					}
 					else if (summaryType == "peak")
 					{
-						summaries.Add(new PeakSummary(summaryElement));
+						summaries.Add(new PeakSummary(summaryElement, baseXmlDirectory));
 					}
 					else if (summaryType == "fpschart")
 					{
-						summaries.Add(new FPSChartSummary(summaryElement));
+						summaries.Add(new FPSChartSummary(summaryElement, baseXmlDirectory));
 					}
 					else if (summaryType == "hitches")
 					{
-						summaries.Add(new HitchSummary(summaryElement));
+						summaries.Add(new HitchSummary(summaryElement, baseXmlDirectory));
 					}
 					else if (summaryType == "event")
 					{
-						summaries.Add(new EventSummary(summaryElement));
+						summaries.Add(new EventSummary(summaryElement, baseXmlDirectory));
 					}
 					else if (summaryType == "boundedstatvalues")
 					{
-						summaries.Add(new BoundedStatValuesSummary(summaryElement));
+						summaries.Add(new BoundedStatValuesSummary(summaryElement, baseXmlDirectory));
+					}
+					else if (summaryType == "mapoverlay")
+					{
+						summaries.Add(new MapOverlaySummary(summaryElement, baseXmlDirectory));
 					}
 				}
 				else if (child.Name == "metadataToShow")
@@ -1434,6 +1441,7 @@ namespace PerfReportTool
             statMultiplier = new OptionalDouble(element, "statMultiplier");
 			legendAverageThreshold = new OptionalDouble(element, "legendAverageThreshold");
 			snapToPeaks = new OptionalBool(element, "snapToPeaks");
+			lineDecimalPlaces = new OptionalInt(element, "lineDecimalPlaces");
 		}
 		public void InheritFrom(GraphSettings baseSettings)
         {
@@ -1464,6 +1472,7 @@ namespace PerfReportTool
             ignoreStats.InheritFrom(baseSettings.ignoreStats);
 			legendAverageThreshold.InheritFrom(baseSettings.legendAverageThreshold);
 			snapToPeaks.InheritFrom(baseSettings.snapToPeaks);
+			lineDecimalPlaces.InheritFrom(baseSettings.lineDecimalPlaces);
 
 		}
         public OptionalBool smooth;
@@ -1494,6 +1503,7 @@ namespace PerfReportTool
 
 		public OptionalBool requiresDetailedStats;
 		public OptionalBool snapToPeaks;
+		public OptionalInt lineDecimalPlaces;
 
 	};
 
@@ -1604,6 +1614,8 @@ namespace PerfReportTool
 				}
 			}
 			Console.Out.WriteLine("BaseDir: " + baseDirectory);
+
+			baseXmlDirectory = baseDirectory;
 
 			// Read the report type XML
 			reportTypeXmlFilename = Path.Combine(baseDirectory, "reportTypes.xml" );
@@ -1780,7 +1792,7 @@ namespace PerfReportTool
 				{
 					if (IsReportTypeXMLCompatibleWithStats(element, csvFile.dummyCsvStats))
 					{
-						reportTypeInfo = new ReportTypeInfo(element, sharedSummaries);
+						reportTypeInfo = new ReportTypeInfo(element, sharedSummaries, baseXmlDirectory);
 						break;
 					}
 				}
@@ -1815,7 +1827,7 @@ namespace PerfReportTool
                         throw new Exception("Report type " + reportType + " is not compatible with CSV " + csvFile.filename);
                     }
                 }
-                reportTypeInfo = new ReportTypeInfo(foundReportTypeElement,sharedSummaries);
+                reportTypeInfo = new ReportTypeInfo(foundReportTypeElement, sharedSummaries, baseXmlDirectory);
             }
 
             // Load the graphs
@@ -1943,6 +1955,7 @@ namespace PerfReportTool
 		Dictionary<string, GraphSettings> graphs;
 		Dictionary<string, string> statDisplayNameMapping;
 		DerivedMetadataMappings derivedMetadataMappings;
+		string baseXmlDirectory;
 
 		List<CsvEventStripInfo> csvEventsToStrip;
         string reportTypeXmlFilename;

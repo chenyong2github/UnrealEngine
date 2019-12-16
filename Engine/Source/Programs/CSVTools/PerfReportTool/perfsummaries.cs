@@ -386,7 +386,7 @@ namespace PerfSummaries
 
     class FPSChartSummary : Summary
     {
-        public FPSChartSummary(XElement element)
+        public FPSChartSummary(XElement element, string baseXmlDirectory)
         {
             ReadStatsFromXML(element);
             fps = Convert.ToInt32(element.Attribute("fps").Value);
@@ -719,7 +719,7 @@ namespace PerfSummaries
 
     class EventSummary : Summary
     {
-        public EventSummary(XElement element)
+        public EventSummary(XElement element, string baseXmlDirectory)
         {
             title = element.GetSafeAttibute("title","Events");
             metadataKey = element.Attribute("metadataKey").Value;
@@ -797,7 +797,7 @@ namespace PerfSummaries
 
     class HitchSummary : Summary
     {
-        public HitchSummary(XElement element)
+        public HitchSummary(XElement element, string baseXmlDirectory)
         {
             ReadStatsFromXML(element);
 
@@ -892,7 +892,7 @@ namespace PerfSummaries
 
     class HistogramSummary : Summary
     {
-        public HistogramSummary(XElement element)
+        public HistogramSummary(XElement element, string baseXmlDirectory)
         {
             ReadStatsFromXML(element);
 
@@ -1047,7 +1047,7 @@ namespace PerfSummaries
 
     class PeakSummary : Summary
     {
-        public PeakSummary(XElement element)
+        public PeakSummary(XElement element, string baseXmlDirectory)
         {
 			hidePrefixes = new List<string>();
 			sectionPrefixes = new List<string>();
@@ -1308,7 +1308,7 @@ namespace PerfSummaries
 			public double threshold;
 			public ColourThresholdList colourThresholdList;
 		};
-		public BoundedStatValuesSummary(XElement element)
+		public BoundedStatValuesSummary(XElement element, string baseXmlDirectory)
 		{
 			ReadStatsFromXML(element);
 			if (stats.Count != 0)
@@ -1382,11 +1382,13 @@ namespace PerfSummaries
 			}
 			if ( startFrame == -1 )
 			{
-				throw new Exception("BoundedStatValuesSummary: Begin event " + beginEvent+" was not found");
+				Console.WriteLine("BoundedStatValuesSummary: Begin event " + beginEvent+" was not found");
+				return;
 			}
-			if (endFrame== -1)
+			if (endFrame==int.MaxValue)
 			{
-				throw new Exception("BoundedStatValuesSummary: End event " + endEvent + " was not found");
+				Console.WriteLine("BoundedStatValuesSummary: End event " + endEvent + " was not found");
+				return;
 			}
 			if ( startFrame >= endFrame )
 			{
@@ -1561,6 +1563,147 @@ namespace PerfSummaries
 		List<Column> columns;
 	};
 
+	class MapOverlaySummary : Summary
+	{
+		class MapOverlayEvent
+		{
+			public string name;
+			public string metadataPrefix;
+		};
+		public MapOverlaySummary(XElement element, string baseXmlDirectory)
+		{
+			ReadStatsFromXML(element);
+			if (stats.Count != 0)
+			{
+				throw new Exception("<stats> element is not supported");
+			}
+
+			xStatName = element.GetSafeAttibute<string>("xStat");
+			yStatName = element.GetSafeAttibute<string>("yStat");
+			zStatName = element.GetSafeAttibute<string>("zStat");
+			stats.Add(xStatName);
+			stats.Add(yStatName);
+			stats.Add(zStatName);
+			sourceImagePath = element.GetSafeAttibute<string>("sourceImage");
+			if ( !System.IO.Path.IsPathRooted(sourceImagePath))
+			{
+				sourceImagePath = System.IO.Path.GetFullPath(System.IO.Path.Combine(baseXmlDirectory,sourceImagePath));
+			}
+
+			offsetX = element.GetSafeAttibute<float>("offsetX",0.0f);
+			offsetY = element.GetSafeAttibute<float>("offsetY",0.0f);
+			scale = element.GetSafeAttibute<float>("scale",1.0f);
+			title = element.GetSafeAttibute("title", "Events");
+			destImageFilename = element.Attribute("destImage").Value;
+			imageWidth = element.GetSafeAttibute<float>("width", 250.0f);
+			imageHeight = element.GetSafeAttibute<float>("height", 250.0f);
+			framesPerLineSegment = element.GetSafeAttibute<int>("framesPerLineSegment", 5);
+
+			foreach (XElement eventEl in element.Elements("event"))
+			{
+				MapOverlayEvent ev = new MapOverlayEvent();
+				ev.name = eventEl.Attribute("name").Value;
+				ev.metadataPrefix = eventEl.GetSafeAttibute<string>("metadataPrefix");
+				events.Add(ev);
+			}
+		}
+
+		int toSvgX(float worldX, float worldY)
+		{
+			float svgX = (worldY * scale + offsetX) * 0.5f + 0.5f;
+			svgX *= imageWidth;
+			return (int)(svgX + 0.5f);
+		}
+
+		int toSvgY(float worldX, float worldY)
+		{ 
+			float svgY = 1.0f - (worldX * scale + offsetY) * 0.5f - 0.5f;
+			svgY *= imageHeight;
+			return (int)(svgY + 0.5f);
+		}
+
+		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryMetadata metadata, string htmlFileName)
+		{
+			// Output HTML
+			if (htmlFile != null)
+			{
+				//string outputDirectory= System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(htmlFileName));
+
+				//string outputMapFilename = System.IO.Path.Combine(outputDirectory, destImageFilename);
+
+				if ( !System.IO.File.Exists(destImageFilename))
+				{
+					System.IO.File.Copy(sourceImagePath, destImageFilename);
+				}
+
+				StatSamples xStat = csvStats.GetStat(xStatName);
+				StatSamples yStat = csvStats.GetStat(yStatName);
+
+				if ( xStat == null || yStat == null )
+				{
+					throw new Exception("MapOverlaySummary: CSV doesn't contain stat " + xStatName + " and/or " + yStatName);
+				}
+
+				// Check if the file exists in the output directory
+				htmlFile.WriteLine("  <br><h3>" + title + "</h3>");
+				htmlFile.WriteLine("<svg version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='" + imageWidth + "' height='" + imageHeight + "'>");
+				htmlFile.WriteLine("<image href='" + destImageFilename + "' width='" + imageWidth + "' height='" + imageHeight + "' />");
+
+				//List<string> polyLineStrings = new List<string>();
+				htmlFile.Write("<polyline points='");
+				for ( int i=0; i<xStat.samples.Count;i+=framesPerLineSegment)
+				{
+					float x = xStat.samples[i];
+					float y = yStat.samples[i];
+					htmlFile.Write(toSvgX(x,y)+","+toSvgY(x,y)+" ");
+				}
+				string colourString = "#ff0000";
+				htmlFile.WriteLine("' style='fill:none;stroke-width:1.3; clip-path: url(#graphArea)' stroke='" + colourString + "'/>");
+				float circleRadius = 3;
+				string eventColourString = "#ffffff";
+				foreach (MapOverlayEvent mapEvent in events)
+				{
+					foreach (CsvEvent ev in csvStats.Events)
+					{
+						if (CsvStats.DoesSearchStringMatch(ev.Name, mapEvent.name))
+						{
+							float x = xStat.samples[ev.Frame];
+							float y = yStat.samples[ev.Frame];
+							int svgX = toSvgX(x, y);
+							int svgY = toSvgY(x, y);
+							htmlFile.Write("<circle cx='" + svgX + "' cy='" + svgY + "' r='" + circleRadius + "' fill='" + eventColourString + "' fill-opacity='1.0'/>");
+							htmlFile.WriteLine("<text x='"+(svgX+5)+"' y='"+svgY+"' text-anchor='left' style='font-family: Verdana;fill: #ffffff; font-size: " + 9 + "px;'>" + ev.Name + "</text>");
+						}
+					}
+				}
+
+				htmlFile.WriteLine("<text x='50%' y='" + (imageHeight * 0.05) + "' text-anchor='middle' style='font-family: Verdana;fill: #FFFFFF; stroke: #C0C0C0;  font-size: " + 20 + "px;'>" + title + "</text>");
+				htmlFile.WriteLine("</svg>");
+			}
+
+			// Output metadata
+			if (metadata != null)
+			{
+			}
+		}
+		public override void PostInit(ReportTypeInfo reportTypeInfo, CsvStats csvStats)
+		{
+		}
+		string title;
+		string xStatName;
+		string yStatName;
+		string zStatName;
+		string sourceImagePath;
+		float offsetX;
+		float offsetY;
+		float scale;
+		string destImageFilename;
+		float imageWidth;
+		float imageHeight;
+		int framesPerLineSegment;
+
+		List<MapOverlayEvent> events = new List<MapOverlayEvent>();
+	};
 
 	class SummaryMetadataValue
     {
@@ -1898,6 +2041,7 @@ namespace PerfSummaries
 			List<float> RowMaxValues = new List<float>();
 			List<float> RowTotals = new List<float>();
 			List<float> RowMinValues = new List<float>();
+			List<int> RowValueCounts = new List<int>();
 
 			// Set the initial sort key
 			string CurrentRowSortKey = "";
@@ -1916,11 +2060,13 @@ namespace PerfSummaries
 					RowMaxValues.Clear();
 					RowMinValues.Clear();
 					RowTotals.Clear();
+					RowValueCounts.Clear();
 					for (int j = 0; j < columns.Count; j++)
 					{
 						RowMaxValues.Add(-float.MaxValue);
 						RowMinValues.Add(float.MaxValue);
 						RowTotals.Add(0.0f);
+						RowValueCounts.Add(0);
 					}
 					mergedRowsCount = 0;
 					reset = false;
@@ -1935,13 +2081,14 @@ namespace PerfSummaries
 						float value = column.GetValue(i);
 						if (value == float.MaxValue)
 						{
-							RowTotals[j] = float.MaxValue;
+							//RowTotals[j] = float.MaxValue;
 						}
 						else
 						{
 							RowMaxValues[j] = Math.Max(RowMaxValues[j], value);
 							RowMinValues[j] = Math.Min(RowMinValues[j], value);
 							RowTotals[j] += value;
+							RowValueCounts[j]++;
 						}
 					}
 				}
@@ -1973,7 +2120,7 @@ namespace PerfSummaries
 						int destColumnBaseIndex = srcToDestBaseColumnIndex[j];
 						if (destColumnBaseIndex != -1 && RowTotals[j] != float.MaxValue)
 						{
-							newColumns[destColumnBaseIndex].SetValue(destRowIndex, RowTotals[j] / (float)mergedRowsCount);
+							newColumns[destColumnBaseIndex].SetValue(destRowIndex, RowTotals[j] / (float)RowValueCounts[j]);
 							newColumns[destColumnBaseIndex+1].SetValue(destRowIndex, RowMinValues[j]);
 							newColumns[destColumnBaseIndex+2].SetValue(destRowIndex, RowMaxValues[j]);
 

@@ -24,7 +24,7 @@ namespace CSVTools
 {
     class Version
     {
-        private static string VersionString = "2.18";
+        private static string VersionString = "2.20";
         
         public static string Get() { return VersionString; }
     };
@@ -222,6 +222,7 @@ namespace CSVTools
             "       -percentile \n" +
             "       -percentile90 \n" +
             "       -percentile99 \n" +
+			"       -lineDecimalPlaces <N> (default 3)" +
             "";
 
 
@@ -1651,6 +1652,8 @@ namespace CSVTools
             int n = Math.Min(samples.Count,(int)(range.MaxX+0.5));
             int start = (int)(range.MinX+0.5);
 
+			int numDecimalPlaces = GetIntArg("lineDecimalPlaces", 3);
+
             if (start + 1 < n)
             {
                 List<Vec2> RawPoints = new List<Vec2>();
@@ -1668,14 +1671,22 @@ namespace CSVTools
                     RawPoints = CompressPoints(RawPoints, compression, rect, range);
                 }
 
+				string formatStr = "0";
+				if (numDecimalPlaces>0)
+				{
+					formatStr += ".";
+					for (int i=0; i<numDecimalPlaces;i++)
+					{
+						formatStr += "0";
+					}
+				}
                 string idString = id.Length > 0 ? "id='" + id + "'" : "";
                 SvgWriteLine("<polyline "+idString+" points='");
                 foreach (Vec2 point in RawPoints)
                 {
-                    float x = point.X;//ToSvgX((float)i, rect, range);
-                    float y = point.Y;//ToSvgY(sample, rect, range);
-
-                    SvgWrite(" " + x + "," + y,false);
+                    float x = point.X;
+                    float y = point.Y;
+                    SvgWrite(" " + x.ToString(formatStr) + "," + y.ToString(formatStr), false);
                 }
 
                 string fillString = "none";
