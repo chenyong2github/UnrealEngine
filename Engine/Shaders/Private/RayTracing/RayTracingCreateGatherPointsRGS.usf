@@ -117,7 +117,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 
 	for (uint Index = 0; Index < SamplesPerPixel; ++Index)
 	{
-		uint SampleIndexOffset = (SampleIndex + Index) % 16;
+		uint SampleIndexOffset = (SampleIndex + Index) % MAXIMUM_GATHER_POINTS_PER_PIXEL;
 #if 0
 		// Adaptive rejection optimization
 		{

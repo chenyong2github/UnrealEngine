@@ -86,7 +86,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 	uint GatherPointsIndex = DispatchThreadIdToLinearIndex(DispatchThreadId);
 
 	// Define rejection criteria and evaluate
-	bool bShouldReject[16];
+	bool bShouldReject[MAXIMUM_GATHER_POINTS_PER_PIXEL];
 	FRejectionCriteria RejectionCriteria = CreateRejectionCriteria(WorldPosition, FinalGatherDistance);
 	CreateRejectionMask(RejectionCriteria, GatherPointsBuffer, GatherPointsIndex, 0, GatherPointsResolution.x * GatherPointsResolution.y, SamplesPerPixel, bShouldReject);
 

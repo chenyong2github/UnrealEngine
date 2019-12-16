@@ -1,5 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#define MAXIMUM_GATHER_POINTS_PER_PIXEL 32
+
 struct FGatherPoints
 {
 	float3 CreationPoint;
@@ -70,7 +72,15 @@ FRejectionCriteria CreateRejectionCriteria(float3 CreationPoint, float DistanceT
 	return RejectionCriteria;
 }
 
-void CreateRejectionMask(FRejectionCriteria RejectionCriteria, StructuredBuffer<FGatherPoints> GatherBuffer, uint BaseIndex, uint SampleIndex, uint ElementCount, int SampleCount, out bool bShouldReject[16])
+void CreateRejectionMask(
+	FRejectionCriteria RejectionCriteria,
+	StructuredBuffer<FGatherPoints> GatherBuffer,
+	uint BaseIndex,
+	uint SampleIndex,
+	uint ElementCount,
+	int SampleCount,
+	out bool bShouldReject[MAXIMUM_GATHER_POINTS_PER_PIXEL]
+)
 {
 	for (int Index = 0; Index < SampleCount; ++Index)
 	{
