@@ -132,6 +132,8 @@ public:
 	// Dump details about what's inside the world manager
 	void DumpDetails(FOutputDevice& Ar);
 
+	UWorld* World;
+
 private:
 
 	// Callback function registered with global world delegates to instantiate world manager when a game world is created
@@ -159,8 +161,6 @@ private:
 	static FDelegateHandle TickWorldHandle;
 
 	static TMap<class UWorld*, class FNiagaraWorldManager*> WorldManagers;
-
-	UWorld* World;
 
 	FNiagaraWorldManagerTickFunction TickFunctions[NiagaraNumTickGroups];
 
