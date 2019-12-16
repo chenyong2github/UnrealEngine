@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Chaos/ParticleHandle.h"
+#include "UObject/ExternalPhysicsCustomObjectVersion.h"
 
 namespace Chaos
 {
@@ -24,6 +25,7 @@ public:
 
 		DynamicDisabledParticles = MakeUnique<TPBDRigidParticles<T, d>>();
 		DynamicParticles = MakeUnique<TPBDRigidParticles<T, d>>();
+		DynamicKinematicParticles = MakeUnique<TPBDRigidParticles<T, d>>();
 
 		ClusteredParticles = MakeUnique< TPBDRigidClusteredParticles<T, d>>();
 		ClusteredParticles->RemoveParticleBehavior() = ERemoveParticleBehavior::Remove;	//clustered particles maintain relative ordering
@@ -140,7 +142,7 @@ public:
 			}
 			else
 			{
-				Particle->MoveToSOA(*DynamicParticles);
+				SetDynamicParticleSOA(Particle->AsDynamic());
 			}
 
 			if (!PBDRigid->Sleeping())
@@ -201,6 +203,30 @@ public:
 		}
 	}
 
+	void SetDynamicParticleSOA(TPBDRigidParticleHandle<T, d>* Particle)
+	{
+		const EObjectStateType State = Particle->ObjectState();
+
+		// Move to appropriate dynamic SOA
+		switch (State)
+		{
+		case EObjectStateType::Kinematic:
+			Particle->MoveToSOA(*DynamicKinematicParticles);
+			break;
+
+		case EObjectStateType::Dynamic:
+			Particle->MoveToSOA(*DynamicParticles);
+			break;
+
+		default:
+			// TODO: Special SOAs for sleeping and static particles?
+			Particle->MoveToSOA(*DynamicParticles);
+			break;
+		}
+
+		UpdateViews();
+	}
+
 	void Serialize(FChaosArchive& Ar)
 	{
 		static const FName SOAsName = TEXT("PBDRigidsSOAs");
@@ -214,6 +240,13 @@ public:
 		Ar << KinematicDisabledParticles;
 		Ar << DynamicParticles;
 		Ar << DynamicDisabledParticles;
+
+		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddDynamicKinematicSOA)
+		{
+			Ar << DynamicKinematicParticles;
+		}
+
 		ensure(ClusteredParticles->Size() == 0);	//not supported yet
 		//Ar << ClusteredParticles;
 
@@ -338,7 +371,7 @@ private:
 	{
 		//build various views. Group SOA types together for better branch prediction
 		{
-			TArray<TSOAView<TGeometryParticles<T, d>>> TmpArray = { StaticParticles.Get(), KinematicParticles.Get(), DynamicParticles.Get(), {&NonDisabledClusteredArray} };
+			TArray<TSOAView<TGeometryParticles<T, d>>> TmpArray = { StaticParticles.Get(), KinematicParticles.Get(), DynamicParticles.Get(), DynamicKinematicParticles.Get(), {&NonDisabledClusteredArray} };
 			NonDisabledView = MakeParticleView(MoveTemp(TmpArray));
 		}
 		{
@@ -351,11 +384,11 @@ private:
 		}
 		{
 			TArray<TSOAView<TGeometryParticles<T, d>>> TmpArray = { StaticParticles.Get(), StaticDisabledParticles.Get(), KinematicParticles.Get(), KinematicDisabledParticles.Get(),
-				DynamicParticles.Get(), DynamicDisabledParticles.Get(), ClusteredParticles.Get() };
+				DynamicParticles.Get(), DynamicDisabledParticles.Get(), DynamicKinematicParticles.Get(), ClusteredParticles.Get() };
 			AllParticlesView = MakeParticleView(MoveTemp(TmpArray));
 		}
 		{
-			TArray<TSOAView<TKinematicGeometryParticles<T, d>>> TmpArray = { KinematicParticles.Get() };
+			TArray<TSOAView<TKinematicGeometryParticles<T, d>>> TmpArray = { KinematicParticles.Get(), DynamicKinematicParticles.Get() };
 			ActiveKinematicParticlesView = MakeParticleView(MoveTemp(TmpArray));
 		}
 	}
@@ -368,6 +401,7 @@ private:
 	TUniquePtr<TKinematicGeometryParticles<T, d>> KinematicDisabledParticles;
 
 	TUniquePtr<TPBDRigidParticles<T, d>> DynamicParticles;
+	TUniquePtr<TPBDRigidParticles<T, d>> DynamicKinematicParticles;
 	TUniquePtr<TPBDRigidParticles<T, d>> DynamicDisabledParticles;
 
 	TUniquePtr<TPBDRigidClusteredParticles<T, d>> ClusteredParticles;

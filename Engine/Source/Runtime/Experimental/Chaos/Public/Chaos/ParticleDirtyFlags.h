@@ -50,6 +50,11 @@ namespace Chaos
 			return (Bits & (int32)CheckBits) != 0;
 		}
 
+		bool IsDirty(const int32 CheckBits) const
+		{
+			return (Bits & CheckBits) != 0;
+		}
+
 		void MarkDirty(const EParticleFlags DirtyBits)
 		{
 			Bits |= (int32)DirtyBits;

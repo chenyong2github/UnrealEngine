@@ -60,6 +60,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 		// Serialize world space bounds of TPerShapeData
 		SerializeShapeWorldSpaceBounds,
 
+		// Add an SOA which contains particles with full dynamic data but which are in the kinematic object state.
+		AddDynamicKinematicSOA,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
