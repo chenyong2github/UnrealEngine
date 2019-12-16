@@ -1134,7 +1134,7 @@ void ClothingSimulation::GetSimulationData(
         {
 			const uint32 LocalIndex = j - VertexDomain[0];
             Data.Positions[LocalIndex] = Evolution->Particles().X(j);
-            Data.Normals[LocalIndex] = PointNormals[i][LocalIndex];
+            Data.Normals[LocalIndex] = -PointNormals[i][LocalIndex]; // Note the Normals are inverted due to how barycentric coordinates are calculated (see GetPointBaryAndDist in ClothingMeshUtils.cpp)
 		}
     }
 }

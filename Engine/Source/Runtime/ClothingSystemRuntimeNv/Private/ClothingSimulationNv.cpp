@@ -872,6 +872,8 @@ void FClothingSimulationNv::ComputePhysicalMeshNormals(FClothingActorNv &Actor)
 
 	// Using the face normals, calculate normals. These will not be normalized as we're adding together
 	// normals for every shared face a vert has. We'll normalize later
+	// Note: The normal points away from the Clockwise face (instead of the counter clockwise face) in Left Handed Coordinates
+	// this is to be consistent with how barycentric coordinate distances are calculated
 	for(uint32 BaseIndex = 0; BaseIndex < NumIndices; BaseIndex += 3)
 	{
 		const FVector A = P2UVector(Particles[Indices[BaseIndex]]);
