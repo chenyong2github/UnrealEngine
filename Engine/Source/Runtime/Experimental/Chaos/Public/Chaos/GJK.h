@@ -445,7 +445,7 @@ namespace Chaos
 
 					T Penetration;
 					TVec3<T> MTD, ClosestA, ClosestBInA;
-					if (EPA(VertsA, VertsB, SupportA, SupportBAtOriginFunc, Penetration, MTD, ClosestA, ClosestBInA) != EPAResult::BadInitialSimplex)
+					if (EPA(VertsA, VertsB, SupportAFunc, SupportBAtOriginFunc, Penetration, MTD, ClosestA, ClosestBInA) != EPAResult::BadInitialSimplex)
 					{
 						OutNormal = MTD;
 						OutTime = -Penetration - Inflation;
