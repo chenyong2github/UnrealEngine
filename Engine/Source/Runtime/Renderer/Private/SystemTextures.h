@@ -80,6 +80,8 @@ public:
 	TRefCountPtr<IPooledRenderTarget> MaxFP16Depth;
 	/** Depth texture that holds a single depth value */
 	TRefCountPtr<IPooledRenderTarget> DepthDummy;
+	/** Stencil texture that holds a single stencil value. */
+	TRefCountPtr<IPooledRenderTarget> StencilDummy;
 	// float4(0,1,0,1)
 	TRefCountPtr<IPooledRenderTarget> GreenDummy;
 	// float4(0.5,0.5,0.5,1)
@@ -92,6 +94,8 @@ public:
 
 	// SRV for WhiteDummy Texture.
 	TRefCountPtr<FRHIShaderResourceView> WhiteDummySRV;
+	// SRV for StencilDummy Texture.
+	TRefCountPtr<FRHIShaderResourceView> StencilDummySRV;
 
 	FRDGTextureRef GetWhiteDummy(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetBlackDummy(FRDGBuilder& GraphBuilder) const;
@@ -105,6 +109,7 @@ public:
 	FRDGTextureRef GetLTCAmp(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetMaxFP16Depth(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetDepthDummy(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef GetStencilDummy(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetGreenDummy(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetDefaultNormal8Bit(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef GetMidGreyDummy(FRDGBuilder& GraphBuilder) const;
