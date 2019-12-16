@@ -1401,8 +1401,8 @@ protected:
 
 	friend struct FAnimNode_LinkedAnimGraph;
 	
-	/** Return whethere this AnimNotifyState should be triggered */
-	virtual bool ShouldTriggerAnimNotifyState(const UAnimNotifyState* AnimNotifyState) const { return true; }
+	/** Return whether this AnimNotifyState should be triggered */
+	virtual bool ShouldTriggerAnimNotifyState(const UAnimNotifyState* AnimNotifyState) const;
 
 protected:
 	/** Proxy object, nothing should access this from an externally-callable API as it is used as a scratch area on worker threads */
