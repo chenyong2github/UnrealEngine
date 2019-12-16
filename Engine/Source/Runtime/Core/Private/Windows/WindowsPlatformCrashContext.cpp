@@ -469,8 +469,6 @@ int32 ReportCrashForMonitor(
 	void* ReadPipe,
 	EErrorReportUI ReportUI)
 {
-	//Initialize all the static data from crash context
-	FGenericCrashContext::Initialize();
 	FGenericCrashContext::CopySharedCrashContext(*SharedContext);
 
 	// Set the platform specific crash context, so that we can stack walk and minidump from
@@ -1058,6 +1056,11 @@ public:
 			const ECrashContextType Type = ECrashContextType::Crash;
 			const int NumStackFramesToIgnore = 1;
 			const TCHAR* ErrorMessage = TEXT("Crash during static initialization");
+
+			if (!FPlatformCrashContext::IsInitalized())
+			{
+				FPlatformCrashContext::Initialize();
+			}
 
 			return ReportCrashForMonitor(
 				InExceptionInfo,
