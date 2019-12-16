@@ -78,6 +78,7 @@ struct FD3D12LowLevelGraphicsPipelineStateDesc
 	ShaderBytecodeHash GSHash;
 	ShaderBytecodeHash PSHash;
 	uint32 InputLayoutHash;
+	bool bFromPSOFileCache;
 
 	SIZE_T CombinedHash;
 
