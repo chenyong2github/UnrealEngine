@@ -208,7 +208,7 @@ AChaosSolverActor::AChaosSolverActor(const FObjectInitializer& ObjectInitializer
 #if CHAOS_CHECKED
 		, TEXT("Solver Actor Physics")
 #endif
-	);
+	));
 	Solver = PhysScene->GetSolver();
 	// Ticking setup for collision/breaking notifies
 	PrimaryActorTick.TickGroup = TG_PostPhysics;
