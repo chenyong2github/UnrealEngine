@@ -1586,14 +1586,14 @@ int     get_ch( void)
     infile = file->parent;                  /* Unwind file chain    */
     xfree( file->buffer);                    /* Free buffer          */
     if (infile == NULL) {                   /* If at end of input   */
-        xfree( file->filename);
-        xfree( file->src_dir);
-        xfree( file);    /* full_fname is the same with filename for main file*/
+        xfree((void*)file->filename);
+        xfree((void*)file->src_dir);
+        xfree(file);    /* full_fname is the same with filename for main file*/
         return  CHAR_EOF;                   /* Return end of file   */
     }
     if (file->mf) {                         /* Source file included */
-        xfree( file->filename);              /* Free filename        */
-        xfree( file->src_dir);               /* Free src_dir         */
+        xfree((void*)file->filename);              /* Free filename        */
+        xfree((void*)file->src_dir);               /* Free src_dir         */
         //fclose( file->fp);                  /* Close finished file  */
 		mfclose(file->mf);
         /* Do not free file->real_fname and file->full_fname        */
@@ -1684,7 +1684,6 @@ static char *   parse_line( void)
         case '/':
             switch (*sp++) {
             case '*':                       /* Start of a comment   */
-com_start:
                 if ((sp = read_a_comment( sp, &com_size)) == NULL) {
                     xfree( temp);            /* End of file with un- */
                     return  NULL;           /*   terminated comment */
@@ -1938,9 +1937,9 @@ static char *   get_line(
 #endif
     static int  cr_converted;
     int     converted = FALSE;
-    int     len;                            /* Line length - alpha  */
+    size_t  len;                            /* Line length - alpha  */
     char *  ptr;
-    int     cat_line = 0;           /* Number of catenated lines    */
+    int     cat_line = 0;           /* Number of cocatenated lines    */
 
     if (infile == NULL)                     /* End of a source file */
         return  NULL;
@@ -1990,9 +1989,9 @@ static char *   get_line(
             if (converted)
                 len = strlen( ptr);
             /* Translation phase 2  */
-            len -= 2;
-            if (len >= 0) {
-                if ((*(ptr + len) == '\\') && ! last_is_mbchar( ptr, len)) {
+            if (len >= 2) {
+				len -= 2;
+				if ((*(ptr + len) == '\\') && !last_is_mbchar(ptr, len)) {
                             /* <backslash><newline> (not MBCHAR)    */
                     ptr = infile->bptr += len;  /* Splice the lines */
                     wrong_line = TRUE;
@@ -2008,9 +2007,10 @@ static char *   get_line(
                     }
                     continue;
                 }
+				len += 2;
             }
 #if NBUFF-2 > SLEN90MIN
-            if (ptr - infile->buffer + len + 2 > std_limits.str_len + 1
+            if ((long)(ptr - infile->buffer + len) > std_limits.str_len + 1
                     && (warn_level & 4))    /* +1 for '\n'          */
             cwarn( "Logical source line longer than %.0s%ld bytes"  /* _W4_ */
                         , NULL, std_limits.str_len, NULL);
@@ -2086,7 +2086,7 @@ int     cnv_digraph(
  */
 {
     int     count = 0;
-    int     i;
+    size_t  i;
     int     c1, c2;
 
     while ((i = strcspn( in, "%:<")), (c1 = *(in + i)) != '\0') {
@@ -2443,7 +2443,7 @@ LINE_COL *  get_src_location(
             cols--;
             col -= *cols;
         }
-        line = l_col_p->start_line + (cols - l_col_p->len);
+        line = l_col_p->start_line + (long)(cols - l_col_p->len);
     }
 
     p_line_col->line = line;

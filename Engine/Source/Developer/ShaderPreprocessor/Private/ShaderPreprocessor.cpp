@@ -272,6 +272,8 @@ bool PreprocessShader(
 			FileLoader.GetMcppInterface()
 		);
 
+		checkf(Result==0, TEXT("PreprocessShader - mcpp_run failed with error code %d"), Result);
+
 		McppOutput = McppOutAnsi;
 		McppErrors = McppErrAnsi;
 	}

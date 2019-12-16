@@ -110,7 +110,7 @@
     const char **   inc_dirp;       /* Directory of #includer       */
     const char *    cur_fname;      /* Current source file name     */
                 /* cur_fname is not rewritten by #line directive    */
-    char *      cur_fullname;
+    const char *    cur_fullname;
         /* Full path of current source file (i.e. infile->full_fname)       */
     int         no_source_line;     /* Do not output line in diag.  */
     char        identifier[ IDMAX + IDMAX/8];       /* Current identifier   */
@@ -468,18 +468,22 @@ int mcpp_run(
 {
 	int ret = 0;
 	int argc = 0;
-	char* argv[MAX_OPTIONS];
+	int i;
+	char* local_argv[MAX_OPTIONS];
+	char** argv = local_argv;
 
 	if (num_options + 2 > MAX_OPTIONS)
 	{
-		mcpp_fprintf(ERR, "Exceeded limit of MCPP options: limit is %d, but got %d.\n", (MAX_OPTIONS - 2), num_options);
-		return (IO_ERROR);
+		/*
+		 * Allocate dynamic array if the number of options exceed the limit for the stack-local array
+		 */
+		argv = (char**)xmalloc((num_options + 2) * sizeof(char*));
 	}
 
 	argv[argc++] = xstrdup("mcpp");
 	argv[argc++] = xstrdup(filename);
 
-	for (int i = 0; i < num_options; ++i)
+	for (i = 0; i < num_options; ++i)
 	{
 		argv[argc++] = xstrdup(in_options[i]);
 	}
@@ -495,9 +499,13 @@ int mcpp_run(
 	{
 		*outerrors = mcpp_get_mem_buffer(ERR);
 	}
-	for (int i = 0; i < argc; ++i)
+	for (i = 0; i < argc; ++i)
 	{
 		xfree(argv[i]);
+	}
+	if (argv != local_argv)
+	{
+		xfree(argv);
 	}
 
 	return ret;
@@ -774,7 +782,7 @@ static void mcpp_main( void)
                 }
                 if (keep_spaces && wrong_line && infile
                         && *(infile->bptr) != '\n' && *(infile->bptr) != EOS) {
-                    src_col = infile->bptr - infile->buffer;
+                    src_col = (int)(infile->bptr - infile->buffer);
                     /* Remember the current colums  */
                     break;                  /* Do sharp() now       */
                 }
