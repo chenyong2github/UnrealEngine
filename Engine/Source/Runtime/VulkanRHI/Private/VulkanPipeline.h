@@ -688,7 +688,7 @@ public:
 
 
 
-	bool								bHasInputAttachments;
+	bool								bHasInputAttachments = false;
 	bool								bIsRegistered;
 	bool								bShaderModulesLoaded = false;
 
