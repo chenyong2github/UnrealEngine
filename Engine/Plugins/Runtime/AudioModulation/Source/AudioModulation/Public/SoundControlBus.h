@@ -37,6 +37,18 @@ public:
 	UPROPERTY(EditAnywhere, Category = General, BlueprintReadWrite)
 	bool bBypass;
 
+	/** Default value of modulator when no mix is applied. Value that is also returned to when mix is released. */
+	UPROPERTY(EditAnywhere, Category = General, BlueprintReadWrite, meta = (UIMin = "0", UIMax = "1"))
+	float DefaultValue;
+
+	/** Minimum value the bus can achieve (applied post mix phase, pre patch output) */
+	UPROPERTY(EditAnywhere, Category = General, BlueprintReadWrite, meta = (UIMin = "0", UIMax = "1"))
+	float Min;
+
+	/** Maximum value the bus can achieve (applied post mix phase, pre patch output) */
+	UPROPERTY(EditAnywhere, Category = General, BlueprintReadWrite, meta = (UIMin = "0", UIMax = "1"))
+	float Max;
+
 #if WITH_EDITORONLY_DATA
 	/** If true, Address field is used in place of object name for address used when applying mix changes using filtering. */
 	UPROPERTY(EditAnywhere, Category = Mix, BlueprintReadWrite)
@@ -46,18 +58,6 @@ public:
 	/** Address to use when applying mix changes. */
 	UPROPERTY(EditAnywhere, Category = Mix, BlueprintReadWrite, meta = (EditCondition = "bOverrideAddress"))
 	FString Address;
-
-	/** Default value of modulator (when no mix is applied). */
-	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (UIMin = "0", UIMax = "1"))
-	float DefaultValue;
-
-	/** Minimum value the bus can achieve (applied post mix phase, pre patch output) */
-	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (UIMin = "0", UIMax = "1"))
-	float Min;
-
-	/** Maximum value the bus can achieve (applied post mix phase, pre patch output) */
-	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (UIMin = "0", UIMax = "1"))
-	float Max;
 
 	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite)
 	TArray<USoundBusModulatorBase*> Modulators;

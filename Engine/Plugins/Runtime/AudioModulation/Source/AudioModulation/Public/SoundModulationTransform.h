@@ -16,19 +16,19 @@ struct FSoundModulationInputTransform
 
 	FSoundModulationInputTransform();
 
-	/** Minimum value to clamp the input to. */
+	/** Minimum value to clamp the input to prior to transforming via linear interpolation. */
 	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (DisplayName = "Input Min", UIMin = "0", UIMax = "1"))
 	float InputMin;
 
-	/** Maximum value to clamp the input to. */
+	/** Maximum value to clamp the input to prior to transforming via linear interpolation. */
 	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (DisplayName = "Input Max", UIMin = "0", UIMax = "1"))
 	float InputMax;
 
-	/** Minimum value to clamp the output to. */
+	/** Minimum value to scale the output to. */
 	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (DisplayName = "Output Min", UIMin = "0", UIMax = "1"))
 	float OutputMin;
 
-	/** Maximum value to clamp the output to. */
+	/** Maximum value to scale the output to. */
 	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (DisplayName = "Output Max", UIMin = "0", UIMax = "1"))
 	float OutputMax;
 
