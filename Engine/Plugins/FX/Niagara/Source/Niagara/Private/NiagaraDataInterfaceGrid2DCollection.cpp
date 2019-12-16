@@ -705,9 +705,17 @@ void FNiagaraDataInterfaceProxyGrid2DCollection::ResetData(FRHICommandList& RHIC
 {	
 	Grid2DCollectionRWInstanceData* ProxyData = SystemInstancesToProxyData.Find(Context.SystemInstance);
 
+	if (!ProxyData)
+	{
+		return;
+	}
+
 	for (Grid2DBuffer* Buffer : ProxyData->Buffers)
 	{
-		ClearUAV(RHICmdList, Buffer->GridBuffer, FLinearColor(0, 0, 0, 0));
+		if (Buffer)
+		{
+			ClearUAV(RHICmdList, Buffer->GridBuffer, FLinearColor(0, 0, 0, 0));
+		}		
 	}	
 }
 #undef LOCTEXT_NAMESPACE
