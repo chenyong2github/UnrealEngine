@@ -191,7 +191,7 @@ private:
 		FString TypeName;
 	};
 
-	static FGlobalCueTypeTable Singleton;
+	NETWORKPREDICTION_API static FGlobalCueTypeTable Singleton;
 
 	TArray<TFunction<void()>> PostFinalizeCallbacks;
 	TArray<FTypeInfo> PendingCueTypes;
