@@ -55,7 +55,7 @@ struct GraphicsPipelineCreationArgs_POD;
 
 #include "D3D12PipelineState.h"
 
-static void SaveByteCode(D3D12_SHADER_BYTECODE& ByteCode);
+void SaveByteCode(D3D12_SHADER_BYTECODE& ByteCode);
 
 struct ComputePipelineCreationArgs_POD
 {
