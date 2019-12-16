@@ -306,11 +306,13 @@ class FGlobalIlluminationRGS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FGlobalIlluminationRGS, "/Engine/Private/RayTracing/RayTracingGlobalIlluminationRGS.usf", "GlobalIlluminationRGS", SF_RayGen);
 
-struct GatherPoints
+// Placeholder structure used to allocate gather points buffer
+// #dxr_todo: rework to minimal set, based on active samples-per-pixel
+struct FGatherPoints
 {
 	FVector CreationPoint[16];
 	FVector Position[16];
-	FVector Irradiance[16];
+	FIntPoint Irradiance[16];
 };
 
 class FRayTracingGlobalIlluminationCreateGatherPointsRGS : public FGlobalShader
@@ -586,7 +588,7 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 	if (GatherPointsResolution != LocalGatherPointsResolution)
 	{
 		GatherPointsResolution = LocalGatherPointsResolution;
-		FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateStructuredDesc(sizeof(GatherPoints), GatherPointsResolution.X * GatherPointsResolution.Y);
+		FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateStructuredDesc(sizeof(FGatherPoints), GatherPointsResolution.X * GatherPointsResolution.Y);
 		GatherPointsBuffer = GraphBuilder.CreateBuffer(BufferDesc, TEXT("GatherPointsBuffer"), ERDGResourceFlags::MultiFrame);
 	}
 	else
