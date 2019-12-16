@@ -272,7 +272,7 @@ public:
 
 	static const FName GetTypeName(const EImplicitObjectType InType);
 
-	virtual uint8 GetMaterialIndex(uint32 HintIndex) const { return 0; }
+	virtual uint16 GetMaterialIndex(uint32 HintIndex) const { return 0; }
 
 protected:
 	EImplicitObjectType Type;

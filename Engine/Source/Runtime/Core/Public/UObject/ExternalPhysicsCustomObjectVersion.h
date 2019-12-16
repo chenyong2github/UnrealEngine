@@ -65,6 +65,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 
 		// Added material manager to Chaos
 		AddedMaterialManager,
+
+		// Added material indices to trimesh collision data
+		AddTrimeshMaterialIndices,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

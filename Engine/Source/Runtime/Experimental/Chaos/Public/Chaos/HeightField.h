@@ -68,7 +68,7 @@ namespace Chaos
 		virtual int32 FindMostOpposingFace(const TVector<T, 3>& Position, const TVector<T, 3>& UnitDir, int32 HintFaceIndex, T SearchDist) const override;
 		virtual TVector<T, 3> FindGeometryOpposingNormal(const TVector<T, 3>& DenormDir, int32 FaceIndex, const TVector<T, 3>& OriginalNormal) const override;
 
-		virtual uint8 GetMaterialIndex(uint32 HintIndex) const override
+		virtual uint16 GetMaterialIndex(uint32 HintIndex) const override
 		{
 			ensure(GeomData.MaterialIndices.Num() > 0);
 

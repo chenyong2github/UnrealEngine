@@ -204,7 +204,7 @@ public:
 		return HashCombine(MObject->GetTypeHash(), ::GetTypeHash(MTransform));
 	}
 
-	virtual uint8 GetMaterialIndex(uint32 HintIndex) const override
+	virtual uint16 GetMaterialIndex(uint32 HintIndex) const override
 	{
 		return MObject->GetMaterialIndex(HintIndex);
 	}

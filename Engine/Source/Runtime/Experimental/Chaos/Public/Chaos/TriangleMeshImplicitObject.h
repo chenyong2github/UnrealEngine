@@ -29,7 +29,7 @@ namespace Chaos
 	public:
 		using FImplicitObject::GetTypeName;
 
-		TTriangleMeshImplicitObject(TParticles<T,3>&& Particles, TArray<TVector<int32, 3>>&& Elements);
+		TTriangleMeshImplicitObject(TParticles<T,3>&& Particles, TArray<TVector<int32, 3>>&& Elements, TArray<uint16>&& InMaterialIndices);
 		TTriangleMeshImplicitObject(const TTriangleMeshImplicitObject& Other) = delete;
 		TTriangleMeshImplicitObject(TTriangleMeshImplicitObject&& Other) = default;
 		virtual ~TTriangleMeshImplicitObject() {}
@@ -106,6 +106,11 @@ namespace Chaos
 				// Serialize acceleration
 				Ar << BVH;
 			}
+
+			if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddTrimeshMaterialIndices)
+			{
+				Ar << MaterialIndices;
+			}
 		}
 
 		virtual void Serialize(FChaosArchive& Ar) override
@@ -130,6 +135,17 @@ namespace Chaos
 
 		TVector<T, 3> GetFaceNormal(const int32 FaceIdx) const;
 
+		virtual uint16 GetMaterialIndex(uint32 HintIndex) const override
+		{
+			if (MaterialIndices.IsValidIndex(HintIndex))
+			{
+				return MaterialIndices[HintIndex];
+			}
+
+			// 0 should always be the default material for a shape
+			return 0;
+		}
+
 	private:
 
 		void RebuildBV();
@@ -137,6 +153,7 @@ namespace Chaos
 		TParticles<T, 3> MParticles;
 		TArray<TVector<int32, 3>> MElements;
 		TBox<T, 3> MLocalBoundingBox;
+		TArray<uint16> MaterialIndices;
 
 		//using BVHType = TBoundingVolume<int32, T, 3>;
 		using BVHType = TAABBTree<int32, TAABBTreeLeafArray<int32, T>, T>;
