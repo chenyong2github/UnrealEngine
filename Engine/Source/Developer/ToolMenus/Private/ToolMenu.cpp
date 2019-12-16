@@ -52,6 +52,7 @@ void UToolMenu::InitGeneratedCopy(const UToolMenu* Source, const FName InMenuNam
 
 	SubMenuParent = Source->SubMenuParent;
 	SubMenuSourceEntryName = Source->SubMenuSourceEntryName;
+	MaxHeight = Source->MaxHeight;
 	bExtendersEnabled = Source->bExtendersEnabled;
 
 	MaxHeight = Source->MaxHeight;
