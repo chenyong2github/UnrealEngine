@@ -107,7 +107,7 @@ UAnimInstance::UAnimInstance(const FObjectInitializer& ObjectInitializer)
 
 	// Default to using threaded animation update.
 	bUseMultiThreadedAnimationUpdate = true;
-
+	bCreatedByLinkedAnimGraph = false;
 	PendingDynamicResetTeleportType = ETeleportType::None;
 }
 

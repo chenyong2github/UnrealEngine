@@ -423,6 +423,9 @@ class ENGINE_API UAnimInstance : public UObject
 	/** Flag to check back on the game thread that indicates we need to run PostUpdateAnimation() in the post-eval call */
 	uint8 bNeedsUpdate : 1;
 
+	/** Flag to check if created by LinkedAnimGraph in ReinitializeLinkedAnimInstance */
+	uint8 bCreatedByLinkedAnimGraph : 1;
+
 private:
 	/** True when Montages are being ticked, and Montage Events should be queued. 
 	 * When Montage are being ticked, we queue AnimNotifies and Events. We trigger notifies first, then Montage events. */
