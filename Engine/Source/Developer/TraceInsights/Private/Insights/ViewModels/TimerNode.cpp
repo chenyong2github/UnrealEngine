@@ -10,12 +10,12 @@ const FName FTimerNode::TypeName(TEXT("FTimerNode"));
 
 void FTimerNode::ResetAggregatedStats()
 {
-	AggregatedStats = Trace::FAggregatedTimingStats();
+	AggregatedStats = Trace::FTimingProfilerAggregatedStats();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimerNode::SetAggregatedStats(const Trace::FAggregatedTimingStats& InAggregatedStats)
+void FTimerNode::SetAggregatedStats(const Trace::FTimingProfilerAggregatedStats& InAggregatedStats)
 {
 	AggregatedStats = InAggregatedStats;
 }

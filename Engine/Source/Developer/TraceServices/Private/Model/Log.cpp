@@ -17,7 +17,29 @@ FLogProvider::FLogProvider(IAnalysisSession& InSession)
 	, Messages(InSession.GetLinearAllocator(), 1024)
 	, MessagesTable(Messages)
 {
-
+	MessagesTable.EditLayout().
+		AddColumn(&FLogMessageInternal::Time, TEXT("Time")).
+		AddColumn<const TCHAR*>([](const FLogMessageInternal& Message)
+			{
+				return FOutputDeviceHelper::VerbosityToString(Message.Spec->Verbosity);
+			},
+			TEXT("Verbosity")).
+		AddColumn<const TCHAR*>([](const FLogMessageInternal& Message)
+			{
+				return Message.Spec->Category->Name;
+			},
+			TEXT("Category")).
+		AddColumn<const TCHAR*>([](const FLogMessageInternal& Message)
+			{
+				return Message.Spec->File;
+			},
+			TEXT("File")).
+		AddColumn<int32>([](const FLogMessageInternal& Message)
+			{
+				return Message.Spec->Line;
+			},
+			TEXT("Line")).
+		AddColumn(&FLogMessageInternal::Message, TEXT("Message"));
 }
 
 FLogCategory& FLogProvider::GetCategory(uint64 CategoryPointer)

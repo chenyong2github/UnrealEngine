@@ -13,12 +13,75 @@ FLoadTimeProfilerProvider::FLoadTimeProfilerProvider(IAnalysisSession& InSession
 	, ClassInfos(Session.GetLinearAllocator(), 4096)
 	, Requests(Session.GetLinearAllocator(), 4096)
 	, Packages(Session.GetLinearAllocator(), 4096)
-	, Exports(Session.GetLinearAllocator(), 4090)
+	, Exports(Session.GetLinearAllocator(), 4096)
 	, MainThreadCpuTimeline(MakeShared<CpuTimelineInternal>(Session.GetLinearAllocator()))
 	, AsyncLoadingThreadCpuTimeline(MakeShared<CpuTimelineInternal>(Session.GetLinearAllocator()))
 	, RequestsTable(Requests)
 {
-	
+	RequestsTable.EditLayout().
+		AddColumn(&FLoadRequest::Name, TEXT("Name")).
+		AddColumn(&FLoadRequest::ThreadId, TEXT("ThreadId")).
+		AddColumn(&FLoadRequest::StartTime, TEXT("StartTime")).
+		AddColumn(&FLoadRequest::EndTime, TEXT("EndTime")).
+		AddColumn<int32>(
+			[](const FLoadRequest& Row)
+			{
+				return Row.Packages.Num();
+			}, 
+			TEXT("PackageCount")).
+		AddColumn(&FLoadTimeProfilerProvider::PackageSizeSum, TEXT("Size")).
+		AddColumn<const TCHAR*>(
+			[](const FLoadRequest& Row)
+			{
+				return Row.Packages.Num() ? Row.Packages[0]->Name : TEXT("N/A");
+			},
+			TEXT("FirstPackage"));
+
+	AggregatedStatsTableLayout.
+		AddColumn(&FLoadTimeProfilerAggregatedStats::Name, TEXT("Name")).
+		AddColumn(&FLoadTimeProfilerAggregatedStats::Count, TEXT("Count")).
+		AddColumn(&FLoadTimeProfilerAggregatedStats::Total, TEXT("Total")).
+		AddColumn(&FLoadTimeProfilerAggregatedStats::Min, TEXT("Min")).
+		AddColumn(&FLoadTimeProfilerAggregatedStats::Max, TEXT("Max")).
+		AddColumn(&FLoadTimeProfilerAggregatedStats::Average, TEXT("Avg")).
+		AddColumn(&FLoadTimeProfilerAggregatedStats::Median, TEXT("Med"));
+
+	PackagesTableLayout.
+		AddColumn<const TCHAR*>([](const FPackagesTableRow& Row)
+			{
+				return Row.PackageInfo->Name;
+			},
+			TEXT("Package")).
+		AddColumn<const TCHAR*>([](const FPackagesTableRow& Row)
+			{
+				return GetLoadTimeProfilerPackageEventTypeString(Row.EventType);
+			},
+			TEXT("EventType")).
+		AddColumn(&FPackagesTableRow::SerializedHeaderSize, TEXT("SerializedHeaderSize")).
+		AddColumn(&FPackagesTableRow::SerializedExportsCount, TEXT("SerializedExportsCount")).
+		AddColumn(&FPackagesTableRow::SerializedExportsSize, TEXT("SerializedExportsSize")).
+		AddColumn(&FPackagesTableRow::MainThreadTime, TEXT("MainThreadTime")).
+		AddColumn(&FPackagesTableRow::AsyncLoadingThreadTime, TEXT("AsyncLoadingThreadTime"));
+
+	ExportsTableLayout.
+		AddColumn<const TCHAR*>([](const FExportsTableRow& Row)
+			{
+				return Row.ExportInfo->Package ? Row.ExportInfo->Package->Name : TEXT("[unknown]");
+			},
+			TEXT("Package")).
+		AddColumn<const TCHAR*>([](const FExportsTableRow& Row)
+			{
+				return Row.ExportInfo->Class ? Row.ExportInfo->Class->Name : TEXT("[unknown]");
+			},
+			TEXT("Class")).
+		AddColumn<const TCHAR*>([](const FExportsTableRow& Row)
+			{
+				return GetLoadTimeProfilerObjectEventTypeString(Row.EventType);
+			},
+			TEXT("EventType")).
+		AddColumn(&FExportsTableRow::SerializedSize, TEXT("SerializedSize")).
+		AddColumn(&FExportsTableRow::MainThreadTime, TEXT("MainThreadTime")).
+		AddColumn(&FExportsTableRow::AsyncLoadingThreadTime, TEXT("AsyncLoadingThreadTime"));
 }
 
 void FLoadTimeProfilerProvider::ReadMainThreadCpuTimeline(TFunctionRef<void(const CpuTimeline &)> Callback) const
@@ -45,7 +108,7 @@ ITable<FLoadTimeProfilerAggregatedStats>* FLoadTimeProfilerProvider::CreateEvent
 	};
 	TMap<ELoadTimeProfilerPackageEventType, FAggregatedTimingStats> Aggregation;
 	FTimelineStatistics::CreateAggregation(Timelines, BucketMapper, IntervalStart, IntervalEnd, Aggregation);
-	TTable<FAggregatedStatsTableLayout>* Table = new TTable<FAggregatedStatsTableLayout>();
+	TTable<FLoadTimeProfilerAggregatedStats>* Table = new TTable<FLoadTimeProfilerAggregatedStats>(AggregatedStatsTableLayout);
 	for (const auto& KV : Aggregation)
 	{
 		FLoadTimeProfilerAggregatedStats& Row = Table->AddRow();
@@ -73,7 +136,7 @@ ITable<FLoadTimeProfilerAggregatedStats>* FLoadTimeProfilerProvider::CreateObjec
 	};
 	TMap<const Trace::FClassInfo*, FAggregatedTimingStats> Aggregation;
 	FTimelineStatistics::CreateAggregation(Timelines, BucketMapper, IntervalStart, IntervalEnd, Aggregation);
-	TTable<FAggregatedStatsTableLayout>* Table = new TTable<FAggregatedStatsTableLayout>();
+	TTable<FLoadTimeProfilerAggregatedStats>* Table = new TTable<FLoadTimeProfilerAggregatedStats>(AggregatedStatsTableLayout);
 	for (const auto& KV : Aggregation)
 	{
 		const FClassInfo* ClassInfo = KV.Key;
@@ -95,7 +158,7 @@ ITable<FLoadTimeProfilerAggregatedStats>* FLoadTimeProfilerProvider::CreateObjec
 
 ITable<FPackagesTableRow>* FLoadTimeProfilerProvider::CreatePackageDetailsTable(double IntervalStart, double IntervalEnd) const
 {
-	TTable<FPackagesTableLayout>* Table = new TTable<FPackagesTableLayout>();
+	TTable<FPackagesTableRow>* Table = new TTable<FPackagesTableRow>(PackagesTableLayout);
 
 	TMap<TTuple<const FPackageInfo*, ELoadTimeProfilerPackageEventType>, FPackagesTableRow*> PackagesMap;
 
@@ -159,7 +222,7 @@ ITable<FPackagesTableRow>* FLoadTimeProfilerProvider::CreatePackageDetailsTable(
 
 ITable<FExportsTableRow>* FLoadTimeProfilerProvider::CreateExportDetailsTable(double IntervalStart, double IntervalEnd) const
 {
-	TTable<FExportsTableLayout>* Table = new TTable<FExportsTableLayout>();
+	TTable<FExportsTableRow>* Table = new TTable<FExportsTableRow>(ExportsTableLayout);
 
 	TMap<TTuple<const FPackageExportInfo*, ELoadTimeProfilerObjectEventType>, FExportsTableRow*> ExportsMap;
 
