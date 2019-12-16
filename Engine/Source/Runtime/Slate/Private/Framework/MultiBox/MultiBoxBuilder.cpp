@@ -25,6 +25,7 @@ FMultiBoxBuilder::FMultiBoxBuilder( const EMultiBoxType InType, FMultiBoxCustomi
 	, CommandListStack()
 	, TutorialHighlightName(InTutorialHighlightName)
 	, MenuName(InMenuName)
+	, bExtendersEnabled(true)
 {
 	CommandListStack.Push( InCommandList );
 	ExtenderStack.Push(InExtender);
