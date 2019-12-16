@@ -19,6 +19,8 @@ FValidationRHI::FValidationRHI(FDynamicRHI* InRHI)
 
 	Context = new FValidationContext(this);
 	AsyncComputeContext = new FValidationComputeContext(this);
+
+	UE_LOG(LogRHI, Warning, TEXT("FValidationRHI on, intercepting %s RHI!"), InRHI && InRHI->GetName() ? InRHI->GetName() : TEXT("<NULL>"));
 }
 
 FValidationRHI::~FValidationRHI()
