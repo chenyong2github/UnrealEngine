@@ -43,7 +43,7 @@
 // MockAbility Data structures
 // -------------------------------------------------------
 
-struct FMockAbilityInputCmd : public FlyingMovement::FInputCmd
+struct FMockAbilityInputCmd : public FFlyingMovementInputCmd
 {
 	bool bSprintPressed = false;
 	bool bDashPressed = false;
@@ -54,12 +54,12 @@ struct FMockAbilityInputCmd : public FlyingMovement::FInputCmd
 		P.Ar << bSprintPressed;
 		P.Ar << bDashPressed;
 		P.Ar << bBlinkPressed;
-		FlyingMovement::FInputCmd::NetSerialize(P);
+		FFlyingMovementInputCmd::NetSerialize(P);
 	}
 
 	void Log(FStandardLoggingParameters& P) const
 	{
-		FlyingMovement::FInputCmd::Log(P);
+		FFlyingMovementInputCmd::Log(P);
 		if (P.Context == EStandardLoggingContext::Full)
 		{
 			P.Ar->Logf(TEXT("bSprintPressed: %d"), bSprintPressed);
@@ -69,19 +69,19 @@ struct FMockAbilityInputCmd : public FlyingMovement::FInputCmd
 	}
 };
 
-struct FMockAbilitySyncState : public FlyingMovement::FMoveState
+struct FMockAbilitySyncState : public FFlyingMovementSyncState
 {
 	float Stamina = 0.f;
 	
 	void NetSerialize(const FNetSerializeParams& P)
 	{
 		P.Ar << Stamina;
-		FlyingMovement::FMoveState::NetSerialize(P);
+		FFlyingMovementSyncState::NetSerialize(P);
 	}
 
 	void Log(FStandardLoggingParameters& P) const
 	{
-		FlyingMovement::FMoveState::Log(P);
+		FFlyingMovementSyncState::Log(P);
 		if (P.Context == EStandardLoggingContext::Full)
 		{
 			P.Ar->Logf(TEXT("Stamina: %.2f"), Stamina);
@@ -89,7 +89,7 @@ struct FMockAbilitySyncState : public FlyingMovement::FMoveState
 	}
 };
 
-struct FMockAbilityAuxstate : public FlyingMovement::FAuxState
+struct FMockAbilityAuxstate : public FFlyingMovementAuxState
 {
 	float MaxStamina = 100.f;
 	float StaminaRegenRate = 20.f;
@@ -104,12 +104,12 @@ struct FMockAbilityAuxstate : public FlyingMovement::FAuxState
 		P.Ar << DashTimeLeft;
 		P.Ar << BlinkWarmupLeft;
 		P.Ar << bIsSprinting;
-		FlyingMovement::FAuxState::NetSerialize(P);
+		FFlyingMovementAuxState::NetSerialize(P);
 	}
 
 	void Log(FStandardLoggingParameters& P) const
 	{
-		FlyingMovement::FAuxState::Log(P);
+		FFlyingMovementAuxState::Log(P);
 		if (P.Context == EStandardLoggingContext::Full)
 		{
 			P.Ar->Logf(TEXT("MaxStamina: %.2f"), MaxStamina);
@@ -178,7 +178,7 @@ struct FMockAbilityCueSet
 
 using TMockAbilityBufferTypes = TNetworkSimBufferTypes<FMockAbilityInputCmd, FMockAbilitySyncState, FMockAbilityAuxstate>;
 
-class FMockAbilitySimulation : public FlyingMovement::FMovementSimulation
+class FMockAbilitySimulation : public FFlyingMovementSimulation
 {
 public:
 	/** Tick group the simulation maps to */

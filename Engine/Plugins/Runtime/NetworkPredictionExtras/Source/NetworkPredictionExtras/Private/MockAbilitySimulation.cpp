@@ -159,7 +159,7 @@ void FMockAbilitySimulation::SimulationTick(const FNetSimTimeStep& TimeStep, con
 		LocalCmd.bBlinkPressed = false;
 		LocalCmd.bSprintPressed = false;
 		
-		FlyingMovement::FMovementSimulation::SimulationTick(TimeStep, { LocalCmd, LocalSync, LocalAux }, { Output.Sync, Output.Aux, Output.CueDispatch });
+		FFlyingMovementSimulation::SimulationTick(TimeStep, { LocalCmd, LocalSync, LocalAux }, { Output.Sync, Output.Aux, Output.CueDispatch });
 
 		if (NewDashTimeLeft == 0)
 		{
@@ -215,7 +215,7 @@ void FMockAbilitySimulation::SimulationTick(const FNetSimTimeStep& TimeStep, con
 		Output.Aux.Get()->bIsSprinting = bIsSprinting;
 	}
 
-	FlyingMovement::FMovementSimulation::SimulationTick(TimeStep, { LocalCmd, LocalSync, LocalAux }, { Output.Sync, Output.Aux, Output.CueDispatch });
+	FFlyingMovementSimulation::SimulationTick(TimeStep, { LocalCmd, LocalSync, LocalAux }, { Output.Sync, Output.Aux, Output.CueDispatch });
 }
 
 // -------------------------------------------------------------------------------------------------------------
