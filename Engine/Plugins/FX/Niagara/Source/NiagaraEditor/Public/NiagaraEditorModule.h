@@ -161,4 +161,6 @@ private:
 	IConsoleCommand* DumpCompileIdDataForAssetCommand;
 
 	FOnCheckScriptToolkitsShouldFocusGraphElement OnCheckScriptToolkitsShouldFocusGraphElement;
+
+	bool bThumbnailRenderersRegistered;
 };
