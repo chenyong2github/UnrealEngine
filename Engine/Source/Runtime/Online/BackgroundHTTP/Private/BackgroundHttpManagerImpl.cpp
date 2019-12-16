@@ -248,17 +248,47 @@ void FBackgroundHttpManagerImpl::ActivatePendingRequests()
 					RemainingRequests.Reserve(PendingStartRequests.Num() - NumRequestsWeCanProcess);
 				}
 
-				for (int RequestIndex = 0; RequestIndex < PendingStartRequests.Num(); ++RequestIndex)
+				//First preload the first N spots of the list with the start of the pending list.
+				int RequestIndex = 0;
+				for (;RequestIndex < PendingStartRequests.Num();++RequestIndex)
 				{
 					FBackgroundHttpRequestPtr& PendingRequest = PendingStartRequests[RequestIndex];
+					
 					if (RequestIndex <= NumRequestsWeCanProcess)
 					{
 						RequestsStartingThisTick.Add(PendingRequest);
 					}
 					else
 					{
-						RemainingRequests.Add(PendingRequest);
+						break;
 					}
+				}
+				
+				//Now go through the rest of the elements, replacing any items found with things of higher priority if needed
+				for (; RequestIndex < PendingStartRequests.Num(); ++RequestIndex)
+				{
+					FBackgroundHttpRequestPtr PendingRequestToCheck = PendingStartRequests[RequestIndex];
+					EBackgroundHTTPPriority PendingRequestPriority = PendingRequestToCheck->GetRequestPriority();
+					
+					for (int AlreadyGrabbedRequestIndex = 0; AlreadyGrabbedRequestIndex < RequestsStartingThisTick.Num();++AlreadyGrabbedRequestIndex)
+					{
+						FBackgroundHttpRequestPtr& AlreadyGrabbedRequest = RequestsStartingThisTick[AlreadyGrabbedRequestIndex];
+						EBackgroundHTTPPriority AlreadyGrabbedRequestPriority = AlreadyGrabbedRequest->GetRequestPriority();
+						
+						//Found a higher priority request, swap it and go back through entire list again
+						if (PendingRequestPriority < AlreadyGrabbedRequestPriority)
+						{
+							FBackgroundHttpRequestPtr RequestPtrCopy = AlreadyGrabbedRequest;
+							AlreadyGrabbedRequest = PendingRequestToCheck;
+							PendingRequestToCheck = RequestPtrCopy;
+							
+							//-1 so that it increments to 0
+							AlreadyGrabbedRequestIndex = -1;
+						}
+					}
+					
+					//Whatever is left in PendingRequestToCheck was too low priority to end up in the correct list.
+					RemainingRequests.Add(PendingRequestToCheck);
 				}
 
 				PendingStartRequests = MoveTemp(RemainingRequests);
