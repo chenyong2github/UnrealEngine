@@ -31,12 +31,28 @@
 #include "/Engine/Private/LightmapCommon.ush"     
 
 /** Computes sky diffuse lighting, including precomputed shadowing. */
-void GetSkyLighting(FMaterialPixelParameters MaterialParameters, VTPageTableResult LightmapVTPageTableResult, float3 WorldNormal, float2 LightmapUV, uint LightmapDataIndex, float3 SkyOcclusionUV3D, uint ShadingModel, out float3 OutDiffuseLighting, out float3 OutSubsurfaceLighting)
+void GetSkyLighting(
+	FMaterialPixelParameters MaterialParameters,
+	VTPageTableResult LightmapVTPageTableResult,
+	float3 WorldNormal,
+	float2 LightmapUV,
+	uint LightmapDataIndex,
+	float3 SkyOcclusionUV3D,
+	uint ShadingModel,
+	bool bDisableSkyLightContribution,
+	out float3 OutDiffuseLighting,
+	out float3 OutSubsurfaceLighting)
 {
 	OutDiffuseLighting = 0;
 	OutSubsurfaceLighting = 0;
 
 #if ENABLE_SKY_LIGHT
+
+	// Check if the Sky Light contribution should be ignored
+	if (bDisableSkyLightContribution)
+	{
+		return;
+	}
 
 	float SkyVisibility = 1;
 	float GeometryTerm = 1;
@@ -114,6 +130,7 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 	float3 DiffuseDir,
 	float3 VolumetricLightmapBrickTextureUVs,
 	uint ShadingModel,
+	bool bDisableSkyLightContribution,
 	out float3 OutDiffuseLighting,
 	out float3 OutSubsurfaceLighting,
 	out float OutIndirectIrradiance)
@@ -167,7 +184,17 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 
 	float3 SkyDiffuseLighting;
 	float3 SkySubsurfaceLighting;
-	GetSkyLighting(MaterialParameters, LightmapVTPageTableResult, DiffuseDir, SkyOcclusionUV, SkyOcclusionDataIndex, VolumetricLightmapBrickTextureUVs, ShadingModel, SkyDiffuseLighting, SkySubsurfaceLighting);
+	GetSkyLighting(
+		MaterialParameters,
+		LightmapVTPageTableResult,
+		DiffuseDir,
+		SkyOcclusionUV,
+		SkyOcclusionDataIndex,
+		VolumetricLightmapBrickTextureUVs,
+		ShadingModel,
+		bDisableSkyLightContribution,
+		SkyDiffuseLighting,
+		SkySubsurfaceLighting);
 
 	OutSubsurfaceLighting += SkySubsurfaceLighting;
 
@@ -354,7 +381,17 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 #endif
 
 	VTPageTableResult LightmapVTPageTableResult = (VTPageTableResult)0.0f;
-	GetPrecomputedIndirectLightingAndSkyLight(MaterialParameters, Interpolants, LightmapVTPageTableResult, Payload.WorldNormal, VolumetricLightmapBrickTextureUVs, Payload.ShadingModelID, DiffuseIndirectLighting, SubsurfaceIndirectLighting, IndirectIrradiance);
+	GetPrecomputedIndirectLightingAndSkyLight(
+		MaterialParameters,
+		Interpolants,
+		LightmapVTPageTableResult,
+		Payload.WorldNormal,
+		VolumetricLightmapBrickTextureUVs,
+		Payload.ShadingModelID,
+		PackedPayload.IsDisableSkyLightContribution(),
+		DiffuseIndirectLighting,
+		SubsurfaceIndirectLighting,
+		IndirectIrradiance);
 	
 	Payload.DiffuseColor = BaseColor - BaseColor * Metallic;
 	Payload.SpecularColor = ComputeF0(Specular, BaseColor, Metallic);

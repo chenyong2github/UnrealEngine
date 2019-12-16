@@ -70,13 +70,15 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 		// Cast ray
 		const uint InitialRayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 		const uint InitialInstanceInclusionMask = RAY_TRACING_MASK_ALL;
+		const bool bInitialDisableSkyLightContribution = false;
 
 		FMaterialClosestHitPayload Payload = TraceMaterialRay(
 			TLAS,
 			InitialRayFlags,
 			InitialInstanceInclusionMask,
 			Ray,
-			RayCone);
+			RayCone,
+			bInitialDisableSkyLightContribution);
 		RayCounter++;
 
 		float MaterialPdf = 0.0;
@@ -267,6 +269,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 			// Trace again
 			const uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 			const uint InstanceInclusionMask = RAY_TRACING_MASK_ALL;
+			const bool bDisableSkyLightContribution = false;
 
 			PrevMaterialPayload = Payload;
 			Payload = TraceMaterialRay(
@@ -274,7 +277,8 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 				RayFlags,
 				InstanceInclusionMask,
 				Ray,
-				RayCone);
+				RayCone,
+				bDisableSkyLightContribution);
 			RayCounter++;
 		}
 
