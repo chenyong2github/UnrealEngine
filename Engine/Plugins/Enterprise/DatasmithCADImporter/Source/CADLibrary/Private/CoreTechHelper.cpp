@@ -647,7 +647,7 @@ TSharedPtr<IDatasmithUEPbrMaterialElement> CreateDefaultUEPbrMaterial()
 	ColorExpression->SetName(TEXT("Base Color"));
 	ColorExpression->GetColor() = LinearColor;
 	MaterialElement->GetBaseColor().SetExpression(ColorExpression);
-	MaterialElement->SetParentLabel(TEXT("M_CAD_Material"));
+	MaterialElement->SetParentLabel(TEXT("M_DatasmithCAD"));
 
 	return MaterialElement;
 }
@@ -678,11 +678,11 @@ TSharedPtr<IDatasmithUEPbrMaterialElement> CreateUEPbrMaterialFromColor(const FC
 		Scalar->SetName(TEXT("Opacity Level"));
 
 		MaterialElement->GetOpacity().SetExpression(Scalar);
-		MaterialElement->SetParentLabel(TEXT("M_CAD_Transparent_Material"));
+		MaterialElement->SetParentLabel(TEXT("M_DatasmithCADTransparent"));
 	}
 	else
 	{
-		MaterialElement->SetParentLabel(TEXT("M_CAD_Material"));
+		MaterialElement->SetParentLabel(TEXT("M_DatasmithCAD"));
 	}
 
 	return MaterialElement;
@@ -720,11 +720,11 @@ TSharedPtr<IDatasmithUEPbrMaterialElement> CreateUEPbrMaterialFromMaterial(FCADM
 		Scalar->GetScalar() = InMaterial.Transparency;
 		Scalar->SetName(TEXT("Opacity Level"));
 		MaterialElement->GetOpacity().SetExpression(Scalar);
-		MaterialElement->SetParentLabel(TEXT("M_CAD_Transparent_Material"));
+		MaterialElement->SetParentLabel(TEXT("M_DatasmithCADTransparent"));
 	}
 	else
 	{
-		MaterialElement->SetParentLabel(TEXT("M_CAD_Material"));
+		MaterialElement->SetParentLabel(TEXT("M_DatasmithCAD"));
 	}
 
 	return MaterialElement;
