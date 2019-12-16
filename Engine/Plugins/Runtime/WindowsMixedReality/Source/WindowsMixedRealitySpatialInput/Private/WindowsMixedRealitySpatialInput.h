@@ -111,6 +111,8 @@ namespace WindowsMixedReality
 
 		bool isLeftTouchpadTouched = false;
 		bool isRightTouchpadTouched = false;
+		FKey ThumbstickDirection[2] = { EKeys::Invalid, EKeys::Invalid };
+		FKey TouchpadDirection[2] = { EKeys::Invalid, EKeys::Invalid };
 
 		FThreadSafeBool IsInitialized = false;
 

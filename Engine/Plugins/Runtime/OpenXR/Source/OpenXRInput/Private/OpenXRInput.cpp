@@ -299,7 +299,7 @@ int32 FOpenXRInputPlugin::FOpenXRInput::SuggestBindings(XrInstance Instance, FOp
 	// Add suggested bindings for every mapping
 	for (const T& InputKey : Mappings)
 	{
-		// Key names that are parseable into an OpenXR path have exeactly 4 components
+		// Key names that are parseable into an OpenXR path have exactly 4 tokens
 		TArray<FString> Tokens;
 		if (InputKey.Key.ToString().ParseIntoArray(Tokens, TEXT("_")) != 4)
 		{
@@ -320,23 +320,35 @@ int32 FOpenXRInputPlugin::FOpenXRInput::SuggestBindings(XrInstance Instance, FOp
 			Action.KeyMap.Add(Key, InputKey.Key.GetFName());
 
 			// Add the input we want to query with grip being defined as "squeeze" in OpenXR
-			FString InputString = Tokens[2].ToLower();
-			if (InputString == "grip")
+			FString Identifier = Tokens[2].ToLower();
+			if (Identifier == "grip")
 			{
-				InputString = "squeeze";
+				Identifier = "squeeze";
 			}
-			Path += "/input/" + InputString;
+			Path += "/input/" + Identifier;
 
 			// Add the data we want to query, we'll skip this for trigger/squeeze "click" actions to allow
 			// certain profiles that don't have "click" data to threshold the "value" data instead
-			FString DataString = Tokens[3].ToLower();
-			if (DataString == "axis")
+			FString Component = Tokens[3].ToLower();
+			if (Component == "axis")
 			{
-				DataString = "value";
+				Path += "/value";
 			}
-			if ((InputString != "trigger" && InputString != "squeeze") || DataString != "click")
+			else if (Component == "click")
 			{
-				Path += "/" + DataString;
+				if (Identifier != "trigger" && Identifier != "squeeze")
+				{
+					Path += "/click";
+				}
+			}
+			else if (Component == "touch" || Component == "x" || Component == "y")
+			{
+				Path += "/" + Component;
+			}
+			else
+			{
+				// Unrecognized data
+				continue;
 			}
 
 			// Add the binding to the profile

@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "SteamVRInputDevice.h"
+#include "SteamVRInputSettings.h"
 #include "Runtime/ApplicationCore/Public/GenericPlatform/IInputInterface.h"
 #include "HAL/FileManagerGeneric.h"
 #include "Misc/FileHelper.h"
@@ -83,18 +84,22 @@ FSteamVRInputDevice::FSteamVRInputDevice(const TSharedRef<FGenericApplicationMes
 	GenerateActionManifest();
 
 	// Auto-enable SteamVR Input Developer Mode (reload hmd module)
-	if (VRSettings() != nullptr)
+	const USteamVRInputSettings* Settings = GetDefault<USteamVRInputSettings>();
+	if (Settings->bDeveloperMode && VRSettings() != nullptr)
 	{
 		EVRInitError SteamVRInitError = VRInitError_Driver_NotLoaded;
 		IVRSystem* SteamVRSystem = vr::VR_Init(&SteamVRInitError, vr::VRApplication_Overlay);
 
-		EVRSettingsError BindingFlagError = VRSettingsError_None;
-		VRSettings()->SetBool(k_pch_SteamVR_Section, k_pch_SteamVR_DebugInputBinding, true, &BindingFlagError);
-		UE_LOG(LogSteamVRInputDevice, Display, TEXT("[STEAMVR INPUT] Enable SteamVR Input Developer Mode: %s"), *FString(UTF8_TO_TCHAR(VRSettings()->GetSettingsErrorNameFromEnum(BindingFlagError))));
-		VRSettings()->SetBool(k_pch_SteamVR_Section, k_pch_SteamVR_DebugInput, true, &BindingFlagError);
-		UE_LOG(LogSteamVRInputDevice, Display, TEXT("[STEAMVR INPUT] Enable SteamVR Debug Input: %s"), *FString(UTF8_TO_TCHAR(VRSettings()->GetSettingsErrorNameFromEnum(BindingFlagError))));
+		if (SteamVRInitError == VRInitError_None)
+		{
+			EVRSettingsError BindingFlagError = VRSettingsError_None;
+			VRSettings()->SetBool(k_pch_SteamVR_Section, k_pch_SteamVR_DebugInputBinding, true, &BindingFlagError);
+			UE_LOG(LogSteamVRInputDevice, Display, TEXT("[STEAMVR INPUT] Enable SteamVR Input Developer Mode: %s"), *FString(UTF8_TO_TCHAR(VRSettings()->GetSettingsErrorNameFromEnum(BindingFlagError))));
+			VRSettings()->SetBool(k_pch_SteamVR_Section, k_pch_SteamVR_DebugInput, true, &BindingFlagError);
+			UE_LOG(LogSteamVRInputDevice, Display, TEXT("[STEAMVR INPUT] Enable SteamVR Debug Input: %s"), *FString(UTF8_TO_TCHAR(VRSettings()->GetSettingsErrorNameFromEnum(BindingFlagError))));
 
-		VR_Shutdown();
+			VR_Shutdown();
+		}
 	}
 #endif
 
@@ -1139,67 +1144,11 @@ void FSteamVRInputDevice::InitControllerKeys()
 #pragma endregion
 
 #pragma region INDEX CONTROLLER
-	EKeys::AddKey(FKeyDetails(IndexControllerKeys::ValveIndex_Left_Thumbstick_Up, LOCTEXT("ValveIndex_Left_Thumbstick_Up", "Valve Index (L) Thumbstick Up"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "ValveIndex"));
-	EKeys::AddKey(FKeyDetails(IndexControllerKeys::ValveIndex_Left_Thumbstick_Down, LOCTEXT("ValveIndex_Left_Thumbstick_Down", "Valve Index (L) Thumbstick Down"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "ValveIndex"));
-	EKeys::AddKey(FKeyDetails(IndexControllerKeys::ValveIndex_Left_Thumbstick_Left, LOCTEXT("ValveIndex_Left_Thumbstick_Left", "Valve Index (L) Thumbstick Left"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "ValveIndex"));
-	EKeys::AddKey(FKeyDetails(IndexControllerKeys::ValveIndex_Left_Thumbstick_Right, LOCTEXT("ValveIndex_Left_Thumbstick_Right", "Valve Index (L) Thumbstick Right"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "ValveIndex"));
-
-	EKeys::AddKey(FKeyDetails(IndexControllerKeys::ValveIndex_Right_Thumbstick_Up, LOCTEXT("ValveIndex_Right_Thumbstick_Up", "Valve Index (R) Thumbstick Up"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "ValveIndex"));
-	EKeys::AddKey(FKeyDetails(IndexControllerKeys::ValveIndex_Right_Thumbstick_Down, LOCTEXT("ValveIndex_Right_Thumbstick_Down", "Valve Index (R) Thumbstick Down"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "ValveIndex"));
-	EKeys::AddKey(FKeyDetails(IndexControllerKeys::ValveIndex_Right_Thumbstick_Left, LOCTEXT("ValveIndex_Right_Thumbstick_Left", "Valve Index (R) Thumbstick Left"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "ValveIndex"));
-	EKeys::AddKey(FKeyDetails(IndexControllerKeys::ValveIndex_Right_Thumbstick_Right, LOCTEXT("ValveIndex_Right_Thumbstick_Right", "Valve Index (R) Thumbstick Right"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "ValveIndex"));
-
-	EKeys::AddKey(FKeyDetails(IndexControllerKeys::ValveIndex_Left_Trackpad_Up, LOCTEXT("ValveIndex_Left_Trackpad_Up", "Valve Index (L) Trackpad Up"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "ValveIndex"));
-	EKeys::AddKey(FKeyDetails(IndexControllerKeys::ValveIndex_Left_Trackpad_Down, LOCTEXT("ValveIndex_Left_Trackpad_Down", "Valve Index (L) Trackpad Down"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "ValveIndex"));
-	EKeys::AddKey(FKeyDetails(IndexControllerKeys::ValveIndex_Left_Trackpad_Left, LOCTEXT("ValveIndex_Left_Trackpad_Left", "Valve Index (L) Trackpad Left"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "ValveIndex"));
-	EKeys::AddKey(FKeyDetails(IndexControllerKeys::ValveIndex_Left_Trackpad_Right, LOCTEXT("ValveIndex_Left_Trackpad_Right", "Valve Index (L) Trackpad Right"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "ValveIndex"));
-
-	EKeys::AddKey(FKeyDetails(IndexControllerKeys::ValveIndex_Right_Trackpad_Up, LOCTEXT("ValveIndex_Right_Trackpad_Up", "Valve Index (R) Trackpad Up"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "ValveIndex"));
-	EKeys::AddKey(FKeyDetails(IndexControllerKeys::ValveIndex_Right_Trackpad_Down, LOCTEXT("ValveIndex_Right_Trackpad_Down", "Valve Index (R) Trackpad Down"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "ValveIndex"));
-	EKeys::AddKey(FKeyDetails(IndexControllerKeys::ValveIndex_Right_Trackpad_Left, LOCTEXT("ValveIndex_Right_Trackpad_Left", "Valve Index (R) Trackpad Left"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "ValveIndex"));
-	EKeys::AddKey(FKeyDetails(IndexControllerKeys::ValveIndex_Right_Trackpad_Right, LOCTEXT("ValveIndex_Right_Trackpad_Right", "Valve Index (R) Trackpad Right"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "ValveIndex"));
-
 	EKeys::AddKey(FKeyDetails(IndexControllerKeys::ValveIndex_Left_Pinch_Grab, LOCTEXT("ValveIndex_Left_Pinch_Grab", "Valve Index (L) Pinch Grab"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "ValveIndex"));
 	EKeys::AddKey(FKeyDetails(IndexControllerKeys::ValveIndex_Right_Pinch_Grab, LOCTEXT("ValveIndex_Right_Pinch_Grab", "Valve Index (R) Pinch Grab"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "ValveIndex"));
 
 	EKeys::AddKey(FKeyDetails(IndexControllerKeys::ValveIndex_Left_Grip_Grab, LOCTEXT("ValveIndex_Left_Grip_Grab", "Valve Index (L) Grip Grab"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "ValveIndex"));
 	EKeys::AddKey(FKeyDetails(IndexControllerKeys::ValveIndex_Right_Grip_Grab, LOCTEXT("ValveIndex_Right_Grip_Grab", "Valve Index (R) Grip Grab"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "ValveIndex"));
-#pragma endregion
-
-#pragma region OCULUS TOUCH CONTROLLER
-	EKeys::AddKey(FKeyDetails(OculusTouchKeys::OculusTouch_Left_Thumbstick_Up, LOCTEXT("OculusTouch_Left_Thumbstick_Up", "Oculus Touch (L) Thumbstick Up"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "OculusTouch"));
-	EKeys::AddKey(FKeyDetails(OculusTouchKeys::OculusTouch_Left_Thumbstick_Down, LOCTEXT("OculusTouch_Left_Thumbstick_Down", "Oculus Touch (L) Thumbstick Down"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "OculusTouch"));
-	EKeys::AddKey(FKeyDetails(OculusTouchKeys::OculusTouch_Left_Thumbstick_Left, LOCTEXT("OculusTouch_Left_Thumbstick_Left", "Oculus Touch (L) Thumbstick Left"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "OculusTouch"));
-	EKeys::AddKey(FKeyDetails(OculusTouchKeys::OculusTouch_Left_Thumbstick_Right, LOCTEXT("OculusTouch_Left_Thumbstick_Right", "Oculus Touch (L) Thumbstick Right"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "OculusTouch"));
-
-	EKeys::AddKey(FKeyDetails(OculusTouchKeys::OculusTouch_Right_Thumbstick_Up, LOCTEXT("OculusTouch_Right_Thumbstick_Up", "Oculus Touch (R) Thumbstick Up"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "OculusTouch"));
-	EKeys::AddKey(FKeyDetails(OculusTouchKeys::OculusTouch_Right_Thumbstick_Down, LOCTEXT("OculusTouch_Right_Thumbstick_Down", "Oculus Touch (R) Thumbstick Down"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "OculusTouch"));
-	EKeys::AddKey(FKeyDetails(OculusTouchKeys::OculusTouch_Right_Thumbstick_Left, LOCTEXT("OculusTouch_Right_Thumbstick_Left", "Oculus Touch (R) Thumbstick Left"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "OculusTouch"));
-	EKeys::AddKey(FKeyDetails(OculusTouchKeys::OculusTouch_Right_Thumbstick_Right, LOCTEXT("OculusTouch_Right_Thumbstick_Right", "Oculus Touch (R) Thumbstick Right"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "OculusTouch"));
-#pragma endregion
-
-#pragma region VIVE CONTROLLER
-	EKeys::AddKey(FKeyDetails(ViveControllerKeys::Vive_Left_Trackpad_Up, LOCTEXT("Vive_Left_Trackpad_Up", "Vive (L) Trackpad Up"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Vive"));
-	EKeys::AddKey(FKeyDetails(ViveControllerKeys::Vive_Left_Trackpad_Down, LOCTEXT("Vive_Left_Trackpad_Down", "Vive (L) Trackpad Down"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Vive"));
-	EKeys::AddKey(FKeyDetails(ViveControllerKeys::Vive_Left_Trackpad_Left, LOCTEXT("Vive_Left_Trackpad_Left", "Vive (L) Trackpad Left"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Vive"));
-	EKeys::AddKey(FKeyDetails(ViveControllerKeys::Vive_Left_Trackpad_Right, LOCTEXT("Vive_Left_Trackpad_Right", "Vive (L) Trackpad Right"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Vive"));
-
-	EKeys::AddKey(FKeyDetails(ViveControllerKeys::Vive_Right_Trackpad_Up, LOCTEXT("Vive_Right_Trackpad_Up", "Vive (R) Trackpad Up"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Vive"));
-	EKeys::AddKey(FKeyDetails(ViveControllerKeys::Vive_Right_Trackpad_Down, LOCTEXT("Vive_Right_Trackpad_Down", "Vive (R) Trackpad Down"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Vive"));
-	EKeys::AddKey(FKeyDetails(ViveControllerKeys::Vive_Right_Trackpad_Left, LOCTEXT("Vive_Right_Trackpad_Left", "Vive (R) Trackpad Left"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Vive"));
-	EKeys::AddKey(FKeyDetails(ViveControllerKeys::Vive_Right_Trackpad_Right, LOCTEXT("Vive_Right_Trackpad_Right", "Vive (R) Trackpad Right"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Vive"));
-#pragma endregion
-
-#pragma region WINDOWS MIXEDREALITY
-	EKeys::AddKey(FKeyDetails(WindowsMRKeys::MixedReality_Left_Trackpad_Up, LOCTEXT("MixedReality_Left_Trackpad_Up", "Mixed Reality (L) Trackpad Up"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MixedReality"));
-	EKeys::AddKey(FKeyDetails(WindowsMRKeys::MixedReality_Left_Trackpad_Down, LOCTEXT("MixedReality_Left_Trackpad_Down", "Mixed Reality (L) Trackpad Down"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MixedReality"));
-	EKeys::AddKey(FKeyDetails(WindowsMRKeys::MixedReality_Left_Trackpad_Left, LOCTEXT("MixedReality_Left_Trackpad_Left", "Mixed Reality (L) Trackpad Left"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MixedReality"));
-	EKeys::AddKey(FKeyDetails(WindowsMRKeys::MixedReality_Left_Trackpad_Right, LOCTEXT("MixedReality_Left_Trackpad_Right", "Mixed Reality (L) Trackpad Right"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MixedReality"));
-
-	EKeys::AddKey(FKeyDetails(WindowsMRKeys::MixedReality_Right_Trackpad_Up, LOCTEXT("MixedReality_Right_Trackpad_Up", "Mixed Reality (R) Trackpad Up"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MixedReality"));
-	EKeys::AddKey(FKeyDetails(WindowsMRKeys::MixedReality_Right_Trackpad_Down, LOCTEXT("MixedReality_Right_Trackpad_Down", "Mixed Reality (R) Trackpad Down"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MixedReality"));
-	EKeys::AddKey(FKeyDetails(WindowsMRKeys::MixedReality_Right_Trackpad_Left, LOCTEXT("MixedReality_Right_Trackpad_Left", "Mixed Reality (R) Trackpad Left"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MixedReality"));
-	EKeys::AddKey(FKeyDetails(WindowsMRKeys::MixedReality_Right_Trackpad_Right, LOCTEXT("MixedReality_Right_Trackpad_Right", "Mixed Reality (R) Trackpad Right"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "MixedReality"));
 #pragma endregion
 
 #pragma region COSMOS KEYS
@@ -1259,6 +1208,15 @@ void FSteamVRInputDevice::RegenerateActionManifest()
 void FSteamVRInputDevice::RegenerateControllerBindings()
 {
 	this->GenerateActionManifest(false, true, true, true);
+}
+
+void FSteamVRInputDevice::OnActionMappingsChanged()
+{
+	const USteamVRInputSettings* Settings = GetDefault<USteamVRInputSettings>();
+	if (!Settings->bDeveloperMode)
+	{
+		this->GenerateActionManifest(true, true, true, true);
+	}
 }
 
 bool FSteamVRInputDevice::GenerateAppManifest(FString ManifestPath, FString ProjectName, FString& OutAppKey, FString& OutAppManifestPath)
@@ -1585,7 +1543,6 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping> &InInputM
 	// Process Key Input Mappings
 	for (FSteamVRInputKeyMapping SteamVRKeyInputMapping : SteamVRKeyInputMappings)
 	{
-
 		// Check if this is a generic UE motion controller key
 		bool bHasSteamVRInputs = false;
 		if (bIsGenericController)
@@ -1663,7 +1620,7 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping> &InInputM
 					CurrentInputKeyName.Contains(TEXT("_A_"));
 				InputState.bIsFaceButton2 = CurrentInputKeyName.Contains(TEXT("FaceButton2"), ESearchCase::CaseSensitive, ESearchDir::FromEnd) ||
 					CurrentInputKeyName.Contains(TEXT("_B_"));
-				InputState.bIsAppMenu = CurrentInputKeyName.Contains(TEXT("_System_"));
+				InputState.bIsAppMenu = CurrentInputKeyName.Contains(TEXT("_Menu_"));
 				InputState.bIsProximity = CurrentInputKeyName.Contains(TEXT("_HMD_Proximity"));
 				
 				// Only handle proximity sensor for headsets
@@ -1945,7 +1902,7 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping> &InInputM
 				{
 					CachePath = FString(TEXT(ACTION_PATH_HEAD_PROXIMITY));
 					CacheMode = FName(TEXT("button"));
-					CacheType = FString(TEXT("click"));;
+					CacheType = FString(TEXT("click"));
 				}
 
 				if (!CacheType.IsEmpty())
@@ -2512,8 +2469,8 @@ void FSteamVRInputDevice::GenerateActionManifest(bool GenerateActions, bool Gene
 
 				// Setup the action fields
 				TArray<FString> ActionFields = {
-												 TEXT("name"), Action.Path,
-												 TEXT("type"), Action.GetActionTypeName(),
+					TEXT("name"), Action.Path,
+					TEXT("type"), Action.GetActionTypeName(),
 				};
 
 				// Add hand if skeleton
@@ -2600,8 +2557,8 @@ void FSteamVRInputDevice::GenerateActionManifest(bool GenerateActions, bool Gene
 
 	// Create action set objects
 	TArray<FString> StringFields = {
-									 "name", TEXT(ACTION_SET),
-									 "usage", TEXT("leftright")
+		"name", TEXT(ACTION_SET),
+		"usage", TEXT("leftright")
 	};
 
 	BuildJsonObject(StringFields, ActionSetObject);
@@ -2616,14 +2573,6 @@ void FSteamVRInputDevice::GenerateActionManifest(bool GenerateActions, bool Gene
 #pragma endregion
 
 #pragma region DEFAULT CONTROLLER BINDINGST
-#if WITH_EDITOR
-	// If we're running in the editor, build the controller bindings if they don't exist yet
-	if (GenerateBindings)
-	{
-		GenerateControllerBindings(ControllerBindingsPath, ControllerTypes, ControllerBindings, Actions, InputMappings, DeleteIfExists);
-	}
-#endif
-
 	// Start search for controller bindings files
 	TArray<FString> ControllerBindingFiles;
 	FileManager.FindFiles(ControllerBindingFiles, *ControllerBindingsPath, TEXT("*.json"));
@@ -2679,6 +2628,14 @@ void FSteamVRInputDevice::GenerateActionManifest(bool GenerateActions, bool Gene
 			}
 		}
 	}
+
+#if WITH_EDITOR
+	// If we're running in the editor, build the controller bindings if they don't exist yet
+	if (GenerateBindings)
+	{
+		GenerateControllerBindings(ControllerBindingsPath, ControllerTypes, ControllerBindings, Actions, InputMappings, DeleteIfExists);
+	}
+#endif
 
 	// Add the default bindings object to the action manifest
 	if (ControllerBindings.Num() == 0)
@@ -3291,29 +3248,29 @@ void FSteamVRInputDevice::SanitizeActions()
 
 void FSteamVRInputDevice::RegisterApplication(FString ManifestPath)
 {
-
 	if (VRSystem() && VRInput())
 	{
 		// Get Project Name this plugin is used in
 		uint32 AppProcessId = FPlatformProcess::GetCurrentProcessId();
 		GameFileName = FPaths::GetCleanFilename(FPlatformProcess::GetApplicationName(AppProcessId));
-		GameProjectName = GameFileName;
+		FString ProjectName;
 		if (GConfig)
 		{
 			GConfig->GetString(
 				TEXT("/Script/EngineSettings.GeneralProjectSettings"),
 				TEXT("ProjectName"),
-				GameProjectName,
+				ProjectName,
 				GGameIni
 			);
-
 		}
 
 		// Check for empty project name
-		if (GameProjectName.IsEmpty())
+		if (ProjectName.IsEmpty())
 		{
-			GameProjectName = GameFileName;
+			ProjectName = FApp::GetProjectName();
 		}
+
+		GameProjectName = FString::Printf(TEXT("%s-%u"), *ProjectName, FEngineVersion::Current().GetChangelist());
 
 #if WITH_EDITOR
 		if (VRApplications())
