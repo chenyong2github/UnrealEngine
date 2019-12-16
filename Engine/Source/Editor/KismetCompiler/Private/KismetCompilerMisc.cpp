@@ -34,7 +34,6 @@
 #include "KismetCompiledFunctionContext.h"
 #include "KismetCompiler.h"
 
-#include "AnimGraphNode_Base.h"
 #include "K2Node_EnumLiteral.h"
 #include "Kismet2/KismetReinstanceUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -1815,11 +1814,6 @@ FString FNetNameMapping::MakeBaseName(const UEdGraphPin* Net)
 FString FNetNameMapping::MakeBaseName(const UEdGraphNode* Net)
 {
 	return FString::Printf(TEXT("%s"), *Net->GetDescriptiveCompiledName());
-}
-
-FString FNetNameMapping::MakeBaseName(const UAnimGraphNode_Base* Net)
-{
-	return FString::Printf(TEXT("%s_%s"), *Net->GetDescriptiveCompiledName(), *Net->NodeGuid.ToString());
 }
 
 //////////////////////////////////////////////////////////////////////////
