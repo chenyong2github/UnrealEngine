@@ -31,6 +31,8 @@
 #include "TickableAttributeSetInterface.h"
 #include "GameplayTagResponseTable.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 #define LOCTEXT_NAMESPACE "AbilitySystemComponent"
 
@@ -1351,6 +1353,22 @@ bool UAbilitySystemComponent::InternalTryActivateAbility(FGameplayAbilitySpecHan
 	}
 	else if (Ability->GetNetExecutionPolicy() == EGameplayAbilityNetExecutionPolicy::LocalPredicted)
 	{
+		// Flush server moves that occurred before this ability activation so that the server receives the RPCs in the correct order
+		// Necessary to prevent abilities that trigger animation root motion or impact movement from causing network corrections
+		AActor* const AvatarActor = ActorInfo->AvatarActor.Get();
+		if (AvatarActor && !ActorInfo->IsNetAuthority())
+		{
+			ACharacter* AvatarCharacter = Cast<ACharacter>(AvatarActor);
+			if (AvatarCharacter)
+			{
+				UCharacterMovementComponent* AvatarCharMoveComp = Cast<UCharacterMovementComponent>(AvatarCharacter->GetMovementComponent());
+				if (AvatarCharMoveComp)
+				{
+					AvatarCharMoveComp->FlushServerMoves();
+				}
+			}
+		}
+
 		// This execution is now officially EGameplayAbilityActivationMode:Predicting and has a PredictionKey
 		FScopedPredictionWindow ScopedPredictionWindow(this, true);
 
@@ -2729,7 +2747,7 @@ void UAbilitySystemComponent::ServerCurrentMontageSetNextSectionName_Implementat
 
 			int32 ClientSectionID = CurrentAnimMontage->GetSectionIndexFromPosition(ClientPosition);
 			FName ClientCurrentSectionName = CurrentAnimMontage->GetSectionName(ClientSectionID);
-			if ((CurrentSectionName != ClientCurrentSectionName) || (CurrentSectionName != SectionName) || (CurrentSectionName != NextSectionName))
+			if ((CurrentSectionName != ClientCurrentSectionName) || (CurrentSectionName != SectionName))
 			{
 				// We are in an invalid section, jump to client's position.
 				AnimInstance->Montage_SetPosition(CurrentAnimMontage, ClientPosition);
