@@ -36,7 +36,7 @@
 #elif QUALITY == 3
 	#define CONFIG_RAY_STEPS 8
 	#define CONFIG_RAY_COUNT 16
-	#define CONFIG_BACKFACE_MODULATION 1
+	#define CONFIG_BACKFACE_MODULATION 0
 
 	#define TILE_PIXEL_SIZE_X 4
 	#define TILE_PIXEL_SIZE_X_LOG 2
@@ -47,7 +47,7 @@
 #elif QUALITY == 4
 	#define CONFIG_RAY_STEPS 12
 	#define CONFIG_RAY_COUNT 32
-	#define CONFIG_BACKFACE_MODULATION 1
+	#define CONFIG_BACKFACE_MODULATION 0
 
 	#define TILE_PIXEL_SIZE_X 4
 	#define TILE_PIXEL_SIZE_X_LOG 2
@@ -99,9 +99,8 @@ SamplerState ColorTextureSampler;
 #endif
 
 float4 HZBUvFactorAndInvFactor;
+float4 ColorBufferScaleBias;
 
-float4 PrevScreenPositionScaleBias;
-float  PrevSceneColorPreExposureCorrection;
 float PixelPositionToFullResPixel;
 float2 FullResPixelOffset;
 
@@ -539,7 +538,12 @@ void MainCS(
 			BRANCH
 			if (bHit)
 			{
-				float4 SampleColor = ColorTexture.SampleLevel(ColorTextureSampler, HitUVz.xy, Level);
+				float2 ReducedColorUV =  HitUVz.xy * ColorBufferScaleBias.xy + ColorBufferScaleBias.zw;
+				Level = min(Level, View.GeneralPurposeTweak);
+
+
+
+				float4 SampleColor = ColorTexture.SampleLevel(ColorTextureSampler, ReducedColorUV, Level);
 				
 				float SampleColorWeight = 1.0;
 

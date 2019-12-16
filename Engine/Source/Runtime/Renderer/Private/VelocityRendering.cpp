@@ -388,7 +388,9 @@ bool FDeferredShadingSceneRenderer::ShouldRenderVelocities() const
 		bool bRayTracing = IsRayTracingEnabled();
 		bool bDenoise = bRayTracing;
 
-		bNeedsVelocity |= bMotionBlur || bTemporalAA || bDistanceFieldAO || bSSRTemporal || bDenoise;
+		bool bSSGI = ShouldRenderScreenSpaceDiffuseIndirect(View);
+		
+		bNeedsVelocity |= bMotionBlur || bTemporalAA || bDistanceFieldAO || bSSRTemporal || bDenoise || bSSGI;
 	}
 
 	return bNeedsVelocity;
