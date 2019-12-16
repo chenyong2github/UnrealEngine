@@ -205,6 +205,7 @@ struct CHAOS_API FLatentDrawCommand
 		Command.TestBaseActor = TestBaseActor;
 		Command.Color = Color;
 		Command.Duration = Duration;
+		Command.LifeTime = Duration;
 		Command.bDrawShadow = bDrawShadow;
 		Command.FontScale = FontScale;
 		Command.Type = EDrawType::String;
