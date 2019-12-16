@@ -19,8 +19,8 @@ namespace Chaos
 			return;
 		}
 
-		Constraint.Particle = Particle0;
-		Constraint.Levelset = Particle1;
+		Constraint.Particle[0] = Particle0;
+		Constraint.Particle[1] = Particle1;
 		Constraint.AddManifold(Implicit0, Implicit1);
 	}
 

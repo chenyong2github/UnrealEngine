@@ -1,11 +1,12 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/PBDRigidClusteredParticles.h"
-#include "Chaos/Transform.h"
-#include "Chaos/PBDCollisionTypes.h"
-#include "Chaos/TriangleMesh.h"
 #include "Chaos/ClusterCreationParameters.h"
+#include "Chaos/ExternalCollisionData.h"
+#include "Chaos/PBDRigidClusteredParticles.h"
+#include "Chaos/PBDCollisionTypes.h"
+#include "Chaos/Transform.h"
+#include "Chaos/TriangleMesh.h"
 #include "Framework/BufferedData.h"
 
 #define TODO_CONVERT_GEOMETRY_COLLECTION_PARTICLE_INDICES_TO_PARTICLE_POINTERS 0

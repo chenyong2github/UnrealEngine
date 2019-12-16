@@ -673,14 +673,14 @@ namespace Chaos
 				}
 			};
 
-			if (auto ChildrenPtr = MParentToChildren.Find(Contact.Particle))
+			if (auto ChildrenPtr = MParentToChildren.Find(Contact.Particle[0]))
 			{
-				ComputeStrainLambda(Contact.Particle->AsClustered(), *ChildrenPtr);
+				ComputeStrainLambda(Contact.Particle[0]->AsClustered(), *ChildrenPtr);
 			}
 
-			if (auto ChildrenPtr = MParentToChildren.Find(Contact.Levelset))
+			if (auto ChildrenPtr = MParentToChildren.Find(Contact.Particle[1]))
 			{
-				ComputeStrainLambda(Contact.Levelset->AsClustered(), *ChildrenPtr);
+				ComputeStrainLambda(Contact.Particle[1]->AsClustered(), *ChildrenPtr);
 			}
 
 			MCollisionImpulseArrayDirty = true;

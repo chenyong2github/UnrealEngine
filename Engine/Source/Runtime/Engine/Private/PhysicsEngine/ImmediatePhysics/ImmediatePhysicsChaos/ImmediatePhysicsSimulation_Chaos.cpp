@@ -147,7 +147,7 @@ namespace ImmediatePhysics_Chaos
 				Evolution->GetCollisionConstraints().ApplyCollisionModifier(
 					[this](TRigidBodyContactConstraint<float, 3>& Constraint)
 					{
-						if (ShouldIgnoreCollisionConstraint(Constraint.Particle, Constraint.Levelset, IgnoreCollisionParticlePairTable))
+						if (ShouldIgnoreCollisionConstraint(Constraint.Particle[0], Constraint.Particle[1], IgnoreCollisionParticlePairTable))
 						{
 							return ECollisionModifierResult::Disabled;
 						}
