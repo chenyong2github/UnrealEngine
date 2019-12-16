@@ -217,7 +217,7 @@ struct FSavedCue
 	template<typename TCue>
 	FSavedCue(FNetworkSimTime InTime, const TCue& SourceCue) : Time(InTime)
 	{
-		ID = TCue::ID;
+		ID = TCue::ID; //-V570
 		CueInstance.Reset(new TNetSimCueWrapper<TCue>(SourceCue)); // Fixme: can the copy be avoided with move semantics?
 	}
 
