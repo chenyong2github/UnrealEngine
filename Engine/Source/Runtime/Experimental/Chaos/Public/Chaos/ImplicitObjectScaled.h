@@ -419,7 +419,7 @@ public:
 		if (T UnscaledMargin = MObject->GetMargin())
 		{
 			ensure(MScale[0] == MScale[1] && MScale[1] == MScale[2]);
-			return UnscaledMargin * MScale[0];
+			return UnscaledMargin * FMath::Abs(MScale[0]);
 		}
 
 		return 0;
