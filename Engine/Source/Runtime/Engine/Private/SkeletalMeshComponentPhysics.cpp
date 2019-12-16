@@ -58,6 +58,8 @@
 
 DECLARE_CYCLE_STAT(TEXT("CreateClothing"), STAT_CreateClothing, STATGROUP_Physics);
 
+CSV_DECLARE_CATEGORY_EXTERN(Animation);
+
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
 TAutoConsoleVariable<int32> CVarEnableClothPhysics(TEXT("p.ClothPhysics"), 1, TEXT("If 1, physics cloth will be used for simulation."));
@@ -2327,6 +2329,8 @@ void USkeletalMeshComponent::AddClothingBounds(FBoxSphereBounds& InOutBounds, co
 
 void USkeletalMeshComponent::RecreateClothingActors()
 {
+	CSV_SCOPED_TIMING_STAT(Animation, ClothInit);
+
 	ReleaseAllClothingResources();
 
 	if(SkeletalMesh == nullptr || !IsRegistered())

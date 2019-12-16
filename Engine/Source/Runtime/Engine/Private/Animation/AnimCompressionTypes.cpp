@@ -10,7 +10,7 @@
 #include "AnimationRuntime.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 
-CSV_DEFINE_CATEGORY(Animation, false);
+CSV_DECLARE_CATEGORY_EXTERN(Animation);
 
 DECLARE_CYCLE_STAT(TEXT("Build Anim Track Pairs"), STAT_BuildAnimTrackPairs, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("Extract Pose From Anim Data"), STAT_ExtractPoseFromAnimData, STATGROUP_Anim);
