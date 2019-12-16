@@ -104,6 +104,8 @@ private:
 	FCocoaWindow* WindowHandle;
 
 	CGDirectDisplayID DisplayID;
+    
+    float CachedOpacity;
 
 	struct FWindowedModeSavedState
 	{
