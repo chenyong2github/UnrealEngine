@@ -39,7 +39,6 @@ namespace Chaos
 {
 	class AdvanceOneTimeStepTask;
 	class FPersistentPhysicsTask;
-	class FPhysicsCommand;
 	class FChaosArchive;
 	class FPBDRigidsSolver;
 
