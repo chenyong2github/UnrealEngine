@@ -1728,6 +1728,11 @@ static const auto CVarMaxFullPathLength =
 
 bool ContentBrowserUtils::IsValidObjectPathForCreate(const FString& ObjectPath, FText& OutErrorMessage, bool bAllowExistingAsset)
 {
+	return IsValidObjectPathForCreate(ObjectPath, nullptr, OutErrorMessage, bAllowExistingAsset);
+}
+
+bool ContentBrowserUtils::IsValidObjectPathForCreate(const FString& ObjectPath, const UClass* ObjectClass, FText& OutErrorMessage, bool bAllowExistingAsset)
+{
 	const FString ObjectName = FPackageName::ObjectPathToObjectName(ObjectPath);
 
 	// Make sure the name is not already a class or otherwise invalid for saving
@@ -1773,14 +1778,22 @@ bool ContentBrowserUtils::IsValidObjectPathForCreate(const FString& ObjectPath, 
 		return false;
 	}
 
-	// Check for an existing asset, unless it we were asked not to.
-	if ( !bAllowExistingAsset )
+	// Check for an existing asset
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	FAssetData ExistingAsset = AssetRegistryModule.Get().GetAssetByObjectPath(FName(*ObjectPath));
+	if (ExistingAsset.IsValid())
 	{
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-		FAssetData ExistingAsset = AssetRegistryModule.Get().GetAssetByObjectPath(FName(*ObjectPath));
-		if (ExistingAsset.IsValid())
+		// An asset of a different type already exists at this location, inform the user and continue
+		if (ObjectClass && !ExistingAsset.GetClass()->IsChildOf(ObjectClass))
 		{
-			// This asset already exists at this location, inform the user and continue
+			OutErrorMessage = FText::Format(LOCTEXT("RenameAssetOtherTypeAlreadyExists", "An asset of type '{0}' already exists at this location with the name '{1}'."), FText::FromName(ExistingAsset.AssetClass), FText::FromString(ObjectName));
+			
+			// Return false to indicate that the user should enter a new name
+			return false;
+		}
+        // This asset already exists at this location, warn user if asked to.
+		else if (!bAllowExistingAsset)
+		{
 			OutErrorMessage = FText::Format( LOCTEXT("RenameAssetAlreadyExists", "An asset already exists at this location with the name '{0}'."), FText::FromString( ObjectName ) );
 
 			// Return false to indicate that the user should enter a new name
