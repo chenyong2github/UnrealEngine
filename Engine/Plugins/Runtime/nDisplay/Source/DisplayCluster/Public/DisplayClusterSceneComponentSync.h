@@ -31,7 +31,9 @@ public:
 	// IDisplayClusterClusterSyncObject
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool IsActive() const override;
-	virtual FString GetSyncId() const override;
+	
+	virtual FString GetSyncId() const override
+	{ return SyncId; }
 	
 	virtual bool IsDirty() const override
 	{ return true; }
@@ -52,6 +54,8 @@ public:
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 
 protected:
+	virtual FString GenerateSyncId();
+
 	virtual FTransform GetSyncTransform() const
 	{ return FTransform(); }
 
