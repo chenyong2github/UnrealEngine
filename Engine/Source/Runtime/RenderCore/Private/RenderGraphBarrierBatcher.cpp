@@ -113,7 +113,6 @@ FRDGBarrierBatcher::FRDGBarrierBatcher(FRHICommandList& InRHICmdList, const FRDG
 {
 	if (Pass)
 	{
-		bIsGeneratingMips = Pass->IsGenerateMips();
 		Pipeline = Pass->IsCompute() ? FRDGResourceState::EPipeline::Compute : FRDGResourceState::EPipeline::Graphics;
 	}
 }
@@ -176,13 +175,6 @@ FRDGBarrierBatcher::~FRDGBarrierBatcher()
 void FRDGBarrierBatcher::QueueTransitionTexture(FRDGTexture* Texture, FRDGResourceState::EAccess AccessAfter)
 {
 	check(Texture);
-
-	// Texture transitions are ignored when generating mips, since the render target binding call or UAV will
-	// perform the subresource transition.
-	if (bIsGeneratingMips)
-	{
-		return;
-	}
 
 	const FRDGResourceState StateBefore = Texture->State;
 	const FRDGResourceState StateAfter(Pass, Pipeline, AccessAfter);
@@ -248,6 +240,7 @@ void FRDGBarrierBatcher::QueueTransitionUAV(
 	FRHIUnorderedAccessView* UAV,
 	FRDGParentResource* ParentResource,
 	FRDGResourceState::EAccess AccessAfter,
+	bool bIsGeneratingMips,
 	FRDGResourceState::EPipeline PipelineAfter)
 {
 	check(UAV);
@@ -270,7 +263,7 @@ void FRDGBarrierBatcher::QueueTransitionUAV(
 		// Add transition to the correct batch bucket.
 		{
 			FTransitionParameters TransitionParameters;
-			TransitionParameters.TransitionAccess = GetResourceTransitionAccessForUAV(StateBefore.Access, StateAfter.Access);
+			TransitionParameters.TransitionAccess = GetResourceTransitionAccessForUAV(StateBefore.Access, StateAfter.Access, bIsGeneratingMips);
 			TransitionParameters.TransitionPipeline = GetResourceTransitionPipeline(StateBefore.Pipeline, StateAfter.Pipeline);
 
 			FUAVBatch& UAVBatch = UAVBatchMap.FindOrAdd(TransitionParameters);
@@ -350,7 +343,7 @@ EResourceTransitionAccess FRDGBarrierBatcher::GetResourceTransitionAccess(FRDGRe
 	return AccessAfter == FRDGResourceState::EAccess::Write ? EResourceTransitionAccess::EWritable : EResourceTransitionAccess::EReadable;
 }
 
-EResourceTransitionAccess FRDGBarrierBatcher::GetResourceTransitionAccessForUAV(FRDGResourceState::EAccess AccessBefore, FRDGResourceState::EAccess AccessAfter) const
+EResourceTransitionAccess FRDGBarrierBatcher::GetResourceTransitionAccessForUAV(FRDGResourceState::EAccess AccessBefore, FRDGResourceState::EAccess AccessAfter, bool bIsGeneratingMips) const
 {
 	switch (AccessAfter)
 	{
