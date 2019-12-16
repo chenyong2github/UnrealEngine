@@ -1167,7 +1167,7 @@ void FControlRigParameterSection::BuildSectionContextMenu(FMenuBuilder& MenuBuil
 						}
 
 					}
-					return (FirstVal.GetValue()) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+					return (FirstVal.IsSet() && FirstVal.GetValue()) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 				}
 			})
 				);
