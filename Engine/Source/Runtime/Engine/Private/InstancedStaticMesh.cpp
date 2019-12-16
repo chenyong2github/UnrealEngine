@@ -262,11 +262,10 @@ void FStaticMeshInstanceBuffer::UpdateFromCommandBuffer_RenderThread(FInstanceUp
 	int32 NumCommands = CmdBuffer.NumInlineCommands();
 	int32 NumAdds = CmdBuffer.NumAdds;
 	int32 AddIndex = INDEX_NONE;
-	int32 NewNumInstances = InstanceData->GetNumInstances();
 	if (NumAdds > 0)
 	{
 		AddIndex = InstanceData->GetNumInstances();
-		NewNumInstances = NumAdds + InstanceData->GetNumInstances();
+		const int32 NewNumInstances = NumAdds + InstanceData->GetNumInstances();
 		InstanceData->AllocateInstances(NewNumInstances, GIsEditor ? EResizeBufferFlags::AllowSlackOnGrow | EResizeBufferFlags::AllowSlackOnReduce : EResizeBufferFlags::None, false); // In Editor always permit overallocation, to prevent too much realloc
 	}
 
@@ -279,28 +278,16 @@ void FStaticMeshInstanceBuffer::UpdateFromCommandBuffer_RenderThread(FInstanceUp
 			InstanceData->SetInstance(AddIndex++, Cmd.XForm, 0);
 			break;
 		case FInstanceUpdateCmdBuffer::Hide:
-			if (Cmd.InstanceIndex < NewNumInstances)
-			{
-				InstanceData->NullifyInstance(Cmd.InstanceIndex);
-			}
+			InstanceData->NullifyInstance(Cmd.InstanceIndex);
 			break;
 		case FInstanceUpdateCmdBuffer::Update:
-			if (Cmd.InstanceIndex < NewNumInstances)
-			{
-				InstanceData->SetInstance(Cmd.InstanceIndex, Cmd.XForm, 0);
-			}
+			InstanceData->SetInstance(Cmd.InstanceIndex, Cmd.XForm, 0);
 			break;
 		case FInstanceUpdateCmdBuffer::EditorData:
-			if (Cmd.InstanceIndex < NewNumInstances)
-			{
-				InstanceData->SetInstanceEditorData(Cmd.InstanceIndex, Cmd.HitProxyColor, Cmd.bSelected);
-			}
+			InstanceData->SetInstanceEditorData(Cmd.InstanceIndex, Cmd.HitProxyColor, Cmd.bSelected);
 			break;
 		case FInstanceUpdateCmdBuffer::LightmapData:
-			if (Cmd.InstanceIndex < NewNumInstances)
-			{
-				InstanceData->SetInstanceLightMapData(Cmd.InstanceIndex, Cmd.LightmapUVBias, Cmd.ShadowmapUVBias);
-			}
+			InstanceData->SetInstanceLightMapData(Cmd.InstanceIndex, Cmd.LightmapUVBias, Cmd.ShadowmapUVBias);
 			break;
 		default:
 			check(false);
@@ -1455,8 +1442,8 @@ void UInstancedStaticMeshComponent::BuildRenderData(FStaticMeshInstanceData& Out
 	
 	for (int32 Index = 0; Index < NumInstances; ++Index)
 	{
-		int32 RenderIndex = InstanceReorderTable.IsValidIndex(Index) ? InstanceReorderTable[Index] : Index;
-		if (RenderIndex == INDEX_NONE || !OutData.IsValidIndex(RenderIndex)) 
+		const int32 RenderIndex = GetRenderIndex(Index);
+		if (RenderIndex == INDEX_NONE) 
 		{
 			// could be skipped by density settings
 			continue;
@@ -1984,8 +1971,8 @@ void UInstancedStaticMeshComponent::SerializeRenderData(FArchive& Ar)
 					// Clear editor data for the cooked data
 					for (int32 Index = 0; Index < NumInstances; ++Index)
 					{
-						int32 RenderIndex = InstanceReorderTable.IsValidIndex(Index) ? InstanceReorderTable[Index] : Index;
-						if (RenderIndex == INDEX_NONE || RenderIndex >= NumInstances)
+						const int32 RenderIndex = GetRenderIndex(Index);
+						if (RenderIndex == INDEX_NONE)
 						{
 							// could be skipped by density settings
 							continue;
@@ -2003,8 +1990,8 @@ void UInstancedStaticMeshComponent::SerializeRenderData(FArchive& Ar)
 
 					for (int32 Index = 0; Index < NumInstances; ++Index)
 					{
-						int32 RenderIndex = InstanceReorderTable.IsValidIndex(Index) ? InstanceReorderTable[Index] : Index;
-						if (RenderIndex == INDEX_NONE || RenderIndex >= NumInstances)
+						const int32 RenderIndex = GetRenderIndex(Index);
+						if (RenderIndex == INDEX_NONE)
 						{
 							// could be skipped by density settings
 							continue;
@@ -2882,7 +2869,7 @@ void UInstancedStaticMeshComponent::SelectInstance(bool bInSelected, int32 InIns
 						HitProxyColor = PerInstanceRenderData->HitProxies[InstanceIndex]->Id.GetColor();
 					}
 
-					int32 RenderIndex = InstanceReorderTable.IsValidIndex(InstanceIndex) ? InstanceReorderTable[InstanceIndex] : InstanceIndex;
+					const int32 RenderIndex = GetRenderIndex(InstanceIndex);
 					if (RenderIndex != INDEX_NONE)
 					{
 						InstanceUpdateCmdBuffer.SetEditorData(RenderIndex, HitProxyColor, bSelected);
@@ -2914,7 +2901,7 @@ void UInstancedStaticMeshComponent::ClearInstanceSelection()
 					HitProxyColor = PerInstanceRenderData->HitProxies[InstanceIndex]->Id.GetColor();
 				}
 				
-				int32 RenderIndex = InstanceReorderTable.IsValidIndex(InstanceIndex) ? InstanceReorderTable[InstanceIndex] : InstanceIndex;
+				const int32 RenderIndex = GetRenderIndex(InstanceIndex);
 				if (RenderIndex != INDEX_NONE)
 				{
 					InstanceUpdateCmdBuffer.SetEditorData(RenderIndex, HitProxyColor, false);
