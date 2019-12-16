@@ -213,6 +213,7 @@ void FHierarchicalLODBuilder::BuildClusters(ULevel* InLevel)
 						}
 
 						ALODActor* LODActor = CreateLODActor(PreviousActorCluster, InLevel, LODId);
+						LODActor->SetLODActorTag(PreviousLODActor->GetLODActorTag());
 						LODLevelLODActors[LODId].Add(LODActor);
 
 						ValidStaticMeshActorsInLevel.RemoveAll([PreviousActorCluster](AActor* InActor) { return PreviousActorCluster.Actors.Contains(InActor); });
@@ -435,6 +436,7 @@ void FHierarchicalLODBuilder::GenerateAsSingleCluster(const int32 NumHLODLevels,
 		if (LevelCluster.IsValid())
 		{
 			ALODActor* LODActor = CreateLODActor(LevelCluster, InLevel, LODId);
+			LODActor->SetLODActorTag("SingleCluster");
 			PreviousLevelActor = LODActor;
 		}
 	}
@@ -812,14 +814,13 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 					checkf(AssetsOuter != nullptr, TEXT("Failed to created outer for generated HLOD assets"));
 					AssetsOuter->Modify();
 
-					int32 CurrentLODLevel = LODIndex;
 					int32 LODActorIndex = 0;
-					TArray<ALODActor*>& LODLevel = LODLevelActors[CurrentLODLevel];
+					TArray<ALODActor*>& LODLevel = LODLevelActors[LODIndex];
 					for (ALODActor* Actor : LODLevel)
 					{
-						SlowTask.EnterProgressFrame(100.0f / (float)NumLODActors, FText::Format(LOCTEXT("HierarchicalLOD_BuildLODActorMeshesProgress", "Building LODActor Mesh {1} of {2} (LOD Level {0})"), FText::AsNumber(LODIndex + 1), FText::AsNumber(LODActorIndex), FText::AsNumber(LODLevelActors[CurrentLODLevel].Num())));
+						SlowTask.EnterProgressFrame(100.0f / (float)NumLODActors, FText::Format(LOCTEXT("HierarchicalLOD_BuildLODActorMeshesProgress", "Building LODActor Mesh {0} of {1} (LOD Level {2})"), FText::AsNumber(LODActorIndex), FText::AsNumber(LODLevelActors[LODIndex].Num()), FText::AsNumber(LODIndex + 1)));
 
-						bool bBuildSuccessful = Utilities->BuildStaticMeshForLODActor(Actor, AssetsOuter, BuildLODLevelSettings[CurrentLODLevel], BaseMaterial);
+						bool bBuildSuccessful = Utilities->BuildStaticMeshForLODActor(Actor, AssetsOuter, BuildLODLevelSettings[LODIndex], BaseMaterial);
 
 						// Report an error if the build failed
 						if (!bBuildSuccessful)
@@ -1141,6 +1142,7 @@ void FHierarchicalLODBuilder::MergeClustersAndBuildActors(ULevel* InLevel, const
 							if (AHierarchicalLODVolume* const* Volume = HLODVolumeClusters.FindKey(Cluster))
 							{
 								HLODVolumeActors.Add(LODActor, *Volume);
+								LODActor->SetLODActorTag((*Volume)->GetName());
 							}
 						}
 
