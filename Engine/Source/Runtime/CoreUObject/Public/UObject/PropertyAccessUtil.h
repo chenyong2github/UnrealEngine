@@ -75,51 +75,55 @@ namespace PropertyAccessUtil
 	 * High-level function for getting the value of a property from an object.
 	 * @note This function calls CanGetPropertyValue internally.
 	 *
-	 * @param InProp Property to get the value of.
+	 * @param InObjectProp Property to get the value of.
 	 * @param InObject Object containing the property.
+	 * @param InDestProp Property of the value to set (must be compatible with the source property).
 	 * @param InDestValue Instance to fill with the property value (must be a valid and constructed block of memory that is compatible with the property).
 	 * @param InArrayIndex For fixed-size array properties denotes which index of the array to get, or INDEX_NONE to get the entire property.
 	 *
 	 * @return Flags describing whether the get was successful.
 	 */
-	COREUOBJECT_API EPropertyAccessResultFlags GetPropertyValue_Object(const FProperty* InProp, const UObject* InObject, void* InDestValue, const int32 InArrayIndex);
+	COREUOBJECT_API EPropertyAccessResultFlags GetPropertyValue_Object(const FProperty* InObjectProp, const UObject* InObject, const FProperty* InDestProp, void* InDestValue, const int32 InArrayIndex);
 
 	/**
 	 * High-level function for getting the value of a property from a property container (object or struct).
 	 * @note This function calls CanGetPropertyValue internally.
 	 *
-	 * @param InProp Property to get the value of.
+	 * @param InContainerProp Property to get the value of.
 	 * @param InContainerData The instance data containing the property.
+	 * @param InDestProp Property of the value to set (must be compatible with the source property).
 	 * @param InDestValue Instance to fill with the property value (must be a valid and constructed block of memory that is compatible with the property).
 	 * @param InArrayIndex For fixed-size array properties denotes which index of the array to get, or INDEX_NONE to get the entire property.
 	 *
 	 * @return Flags describing whether the get was successful.
 	 */
-	COREUOBJECT_API EPropertyAccessResultFlags GetPropertyValue_InContainer(const FProperty* InProp, const void* InContainerData, void* InDestValue, const int32 InArrayIndex);
+	COREUOBJECT_API EPropertyAccessResultFlags GetPropertyValue_InContainer(const FProperty* InContainerProp, const void* InContainerData, const FProperty* InDestProp, void* InDestValue, const int32 InArrayIndex);
 
 	/**
 	 * High-level function for getting the single-element value of a property from memory.
 	 * @note This function calls CanGetPropertyValue internally.
 	 *
-	 * @param InProp Property to get the value of.
+	 * @param InSrcProp Property to get the value of.
 	 * @param InSrcValue The property value to copy.
+	 * @param InDestProp Property of the value to set (must be compatible with the source property).
 	 * @param InDestValue Instance to fill with the property value (must be a valid and constructed block of memory that is compatible with the property).
 	 *
 	 * @return Flags describing whether the get was successful.
 	 */
-	COREUOBJECT_API EPropertyAccessResultFlags GetPropertyValue_DirectSingle(const FProperty* InProp, const void* InSrcValue, void* InDestValue);
+	COREUOBJECT_API EPropertyAccessResultFlags GetPropertyValue_DirectSingle(const FProperty* InSrcProp, const void* InSrcValue, const FProperty* InDestProp, void* InDestValue);
 
 	/**
 	 * High-level function for getting the multi-element value of a property from memory.
 	 * @note This function calls CanGetPropertyValue internally.
 	 *
-	 * @param InProp Property to get the value of.
+	 * @param InSrcProp Property to get the value of.
 	 * @param InSrcValue The property value to copy.
+	 * @param InDestProp Property of the value to set (must be compatible with the source property).
 	 * @param InDestValue Instance to fill with the property value (must be a valid and constructed block of memory that is compatible with the property).
 	 *
 	 * @return Flags describing whether the get was successful.
 	 */
-	COREUOBJECT_API EPropertyAccessResultFlags GetPropertyValue_DirectComplete(const FProperty* InProp, const void* InSrcValue, void* InDestValue);
+	COREUOBJECT_API EPropertyAccessResultFlags GetPropertyValue_DirectComplete(const FProperty* InSrcProp, const void* InSrcValue, const FProperty* InDestProp, void* InDestValue);
 
 	/**
 	 * Low-level function for getting the value of a property.
@@ -144,22 +148,24 @@ namespace PropertyAccessUtil
 	 * High-level function for setting the value of a property on an object.
 	 * @note This function calls CanSetPropertyValue internally, and will emit property change notifications for the object.
 	 *
-	 * @param InProp Property to set the value of.
+	 * @param InObjectProp Property to set the value of.
 	 * @param InObject Object containing the property.
+	 * @param InSrcProp Property of the value to set (must be compatible with the dest property).
 	 * @param InSrcValue The value to set on the property.
 	 * @param InArrayIndex For fixed-size array properties denotes which index of the array to set, or INDEX_NONE to set the entire property.
 	 * @param InReadOnlyFlags Flags controlling which properties are considered read-only.
 	 *
 	 * @return Flags describing whether the set was successful.
 	 */
-	COREUOBJECT_API EPropertyAccessResultFlags SetPropertyValue_Object(const FProperty* InProp, UObject* InObject, const void* InSrcValue, const int32 InArrayIndex, const uint64 InReadOnlyFlags);
+	COREUOBJECT_API EPropertyAccessResultFlags SetPropertyValue_Object(const FProperty* InObjectProp, UObject* InObject, const FProperty* InSrcProp, const void* InSrcValue, const int32 InArrayIndex, const uint64 InReadOnlyFlags);
 
 	/**
 	 * High-level function for setting the value of a property on a property container (object or struct).
 	 * @note This function calls CanSetPropertyValue internally.
 	 *
-	 * @param InProp Property to set the value of.
+	 * @param InContainerProp Property to set the value of.
 	 * @param InContainerData The instance data containing the property.
+	 * @param InSrcProp Property of the value to set (must be compatible with the dest property).
 	 * @param InSrcValue The value to set on the property.
 	 * @param InArrayIndex For fixed-size array properties denotes which index of the array to set, or INDEX_NONE to set the entire property.
 	 * @param InReadOnlyFlags Flags controlling which properties are considered read-only.
@@ -168,14 +174,15 @@ namespace PropertyAccessUtil
 	 *
 	 * @return Flags describing whether the set was successful.
 	 */
-	COREUOBJECT_API EPropertyAccessResultFlags SetPropertyValue_InContainer(const FProperty* InProp, void* InContainerData, const void* InSrcValue, const int32 InArrayIndex, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const FPropertyAccessBuildChangeNotifyFunc& InBuildChangeNotifyFunc);
+	COREUOBJECT_API EPropertyAccessResultFlags SetPropertyValue_InContainer(const FProperty* InContainerProp, void* InContainerData, const FProperty* InSrcProp, const void* InSrcValue, const int32 InArrayIndex, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const FPropertyAccessBuildChangeNotifyFunc& InBuildChangeNotifyFunc);
 	
 	/**
 	 * High-level function for setting the single-element value of a property in memory.
 	 * @note This function calls CanSetPropertyValue internally.
 	 *
-	 * @param InProp Property to set the value of.
+	 * @param InSrcProp Property to set the value of.
 	 * @param InSrcValue The value to set on the property.
+	 * @param InDestProp Property to get the value from (must be compatible with the source property).
 	 * @param InDestValue Instance to fill with the property value (must be a valid and constructed block of memory that is compatible with the property).
 	 * @param InReadOnlyFlags Flags controlling which properties are considered read-only.
 	 * @param InOwnerIsTemplate True if the owner object is considered a template (see IsObjectTemplate).
@@ -183,14 +190,15 @@ namespace PropertyAccessUtil
 	 *
 	 * @return Flags describing whether the set was successful.
 	 */
-	COREUOBJECT_API EPropertyAccessResultFlags SetPropertyValue_DirectSingle(const FProperty* InProp, const void* InSrcValue, void* InDestValue, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const FPropertyAccessBuildChangeNotifyFunc& InBuildChangeNotifyFunc);
+	COREUOBJECT_API EPropertyAccessResultFlags SetPropertyValue_DirectSingle(const FProperty* InSrcProp, const void* InSrcValue, const FProperty* InDestProp, void* InDestValue, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const FPropertyAccessBuildChangeNotifyFunc& InBuildChangeNotifyFunc);
 
 	/**
 	 * High-level function for setting the multi-element value of a property in memory.
 	 * @note This function calls CanSetPropertyValue internally.
 	 *
-	 * @param InProp Property to set the value of.
+	 * @param InSrcProp Property to set the value of.
 	 * @param InSrcValue The value to set on the property.
+	 * @param InDestProp Property to get the value from (must be compatible with the source property).
 	 * @param InDestValue Instance to fill with the property value (must be a valid and constructed block of memory that is compatible with the property).
 	 * @param InReadOnlyFlags Flags controlling which properties are considered read-only.
 	 * @param InOwnerIsTemplate True if the owner object is considered a template (see IsObjectTemplate).
@@ -198,7 +206,7 @@ namespace PropertyAccessUtil
 	 *
 	 * @return Flags describing whether the set was successful.
 	 */
-	COREUOBJECT_API EPropertyAccessResultFlags SetPropertyValue_DirectComplete(const FProperty* InProp, const void* InSrcValue, void* InDestValue, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const FPropertyAccessBuildChangeNotifyFunc& InBuildChangeNotifyFunc);
+	COREUOBJECT_API EPropertyAccessResultFlags SetPropertyValue_DirectComplete(const FProperty* InSrcProp, const void* InSrcValue, const FProperty* InDestProp, void* InDestValue, const uint64 InReadOnlyFlags, const bool InOwnerIsTemplate, const FPropertyAccessBuildChangeNotifyFunc& InBuildChangeNotifyFunc);
 
 	/**
 	 * Low-level function for setting the value of a property.
