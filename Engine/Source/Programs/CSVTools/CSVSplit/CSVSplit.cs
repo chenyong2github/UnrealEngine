@@ -98,7 +98,7 @@ namespace CSVTools
                     destStats.metaData = csvStats.metaData;
                     foreach (StatSamples stat in sourceStats)
                     {
-                        StatSamples newStat = new StatSamples(stat);
+                        StatSamples newStat = new StatSamples(stat,false);
                         destStats.AddStat(newStat);
                     }
                     switchValueToCsvIndex.Add(switchValue, csvStatsOutList.Count);

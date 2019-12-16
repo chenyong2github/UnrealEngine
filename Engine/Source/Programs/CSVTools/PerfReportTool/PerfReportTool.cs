@@ -19,7 +19,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "3.91";
+        private static string VersionString = "3.92";
 
         public static string Get() { return VersionString; }
     };
@@ -725,8 +725,16 @@ namespace PerfReportTool
 
             // Read the csv stats while we wait for the graphs to complete
             int numFramesStripped = 0;
-            CsvStats csvStats = ReadCsvStats(csvFile, minX, maxX, out numFramesStripped);
-            perfLog.LogTiming("    ReadCsvStats");
+            CsvStats csvStats = ReadCsvStats(csvFile, minX, maxX);
+			CsvStats unstrippedCsvStats = csvStats;
+
+			if (!GetBoolArg("noStripEvents"))
+			{
+				CsvStats strippedCsvStats = StripCsvStatsByEvents(unstrippedCsvStats, out numFramesStripped);
+				csvStats = strippedCsvStats;
+			}
+
+			perfLog.LogTiming("    ReadCsvStats");
 
             if ( writeDetailedReport )
             { 
@@ -755,6 +763,10 @@ namespace PerfReportTool
 					if (!statsToSummarise.Contains(ListOfKeys[i]))
 					{
 						csvStats.Stats.Remove(ListOfKeys[i]);
+						if (csvStats != unstrippedCsvStats)
+						{
+							unstrippedCsvStats.Stats.Remove(ListOfKeys[i]);
+						}
 					}
 				}
 			}
@@ -812,7 +824,7 @@ namespace PerfReportTool
             }
 
             // Write the report
-            WriteReport(htmlFilename, title, svgFilenames, reportTypeInfo, csvStats, numFramesStripped, minX, maxX, bBulkMode, summaryMetadata);
+            WriteReport(htmlFilename, title, svgFilenames, reportTypeInfo, csvStats, unstrippedCsvStats, numFramesStripped, minX, maxX, bBulkMode, summaryMetadata);
             perfLog.LogTiming("    WriteReport");
 
             // Delete the temp files
@@ -824,12 +836,12 @@ namespace PerfReportTool
 				}
             }
         }
-        CsvStats ReadCsvStats(CachedCsvFile csvFile, int minX, int maxX, out int numFramesStripped)
-        {
-            CsvStats csvStats = CsvStats.ReadCSVFromLines(csvFile.lines, null);
+		CsvStats ReadCsvStats(CachedCsvFile csvFile, int minX, int maxX)
+		{
+			CsvStats csvStats = CsvStats.ReadCSVFromLines(csvFile.lines, null);
 			reportXML.ApplyDerivedMetadata(csvStats.metaData);
 
-			if ( csvStats.metaData == null )
+			if (csvStats.metaData == null)
 			{
 				csvStats.metaData = new CsvMetadata();
 			}
@@ -849,8 +861,8 @@ namespace PerfReportTool
 				}
 			}
 			string endEventStr = GetArg("endEvent").ToLower();
-			if ( endEventStr != "")
-			{ 
+			if (endEventStr != "")
+			{
 				for (int i = csvStats.Events.Count - 1; i >= 0; i--)
 				{
 					CsvEvent ev = csvStats.Events[i];
@@ -862,35 +874,53 @@ namespace PerfReportTool
 				}
 			}
 
+			// Strip out all stats with a zero total
+			List<StatSamples> allStats = new List<StatSamples>();
+			foreach (StatSamples stat in csvStats.Stats.Values)
+			{
+				allStats.Add(stat);
+			}
+			csvStats.Stats.Clear();
+			foreach (StatSamples stat in allStats)
+			{
+				if (stat.total != 0.0f)
+				{
+					csvStats.AddStat(stat);
+				}
+			}
+
 			// Crop the stats to the range
 			csvStats.CropStats(minX, maxX);
+			return csvStats;
+		}
 
-            numFramesStripped = 0;
+		CsvStats StripCsvStatsByEvents(CsvStats csvStats, out int numFramesStripped)
+		{
+			numFramesStripped = 0;
             List<CsvEventStripInfo> eventsToStrip = reportXML.GetCsvEventsToStrip();
-            if (!GetBoolArg("noStripEvents"))
+			CsvStats strippedStats = csvStats;
+            if (eventsToStrip != null)
             {
-                if (eventsToStrip != null)
+				// This can have issues if we strip events and then subsequently strip overlapping events. We'd get better results if we did it in a single pass
+				foreach (CsvEventStripInfo eventStripInfo in eventsToStrip)
                 {
-                    // This can have issues if we strip events and then subsequently strip overlapping events. We'd get better results here if we did this in a single pass
-                    foreach (CsvEventStripInfo eventStripInfo in eventsToStrip)
-                    {
-                        numFramesStripped += csvStats.StripByEvents(eventStripInfo.beginName, eventStripInfo.endName);
-                    }
-                }
+					int numFramesStrippedThisStage = 0;
+					strippedStats = strippedStats.StripByEvents(eventStripInfo.beginName, eventStripInfo.endName, false, out numFramesStrippedThisStage);
+					numFramesStripped += numFramesStrippedThisStage;
+				}
             }
 
             if (numFramesStripped > 0 )
             {
                 Console.WriteLine("CSV frames excluded : " + numFramesStripped);
             }
-
-            return csvStats;
+            return strippedStats;
         }
 
       
 
 
-        void WriteReport(string htmlFilename, string title, List<string> svgFilenames, ReportTypeInfo reportTypeInfo, CsvStats csvStats, int numFramesStripped, int minX, int maxX, bool bBulkMode, SummaryMetadata summaryMetadata)
+        void WriteReport(string htmlFilename, string title, List<string> svgFilenames, ReportTypeInfo reportTypeInfo, CsvStats csvStats, CsvStats unstrippedCsvStats, int numFramesStripped, int minX, int maxX, bool bBulkMode, SummaryMetadata summaryMetadata)
         {
  
             ReportGraph[] graphs = reportTypeInfo.graphs.ToArray();
@@ -964,7 +994,7 @@ namespace PerfReportTool
             PeakSummary peakSummary = null;
             foreach (Summary summary in reportTypeInfo.summaries)
             {
-                summary.WriteSummaryData(htmlFile, csvStats, bIncludeSummaryCsv, summaryMetadata, htmlFilename);
+                summary.WriteSummaryData(htmlFile, summary.useUnstrippedCsvStats ? unstrippedCsvStats : csvStats, bIncludeSummaryCsv, summaryMetadata, htmlFilename);
                 if ( summary.GetType() == typeof(PeakSummary) )
                 {
                     peakSummary = (PeakSummary)summary;

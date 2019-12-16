@@ -24,7 +24,7 @@ namespace CSVTools
 {
     class Version
     {
-        private static string VersionString = "2.20";
+        private static string VersionString = "2.21";
         
         public static string Get() { return VersionString; }
     };
@@ -1123,7 +1123,7 @@ namespace CSVTools
             CsvStats smoothStats = new CsvStats();
             foreach( StatSamples srcStatSamples in stats.Stats.Values )
             {
-                StatSamples NewStatSamples = new StatSamples(srcStatSamples);
+                StatSamples NewStatSamples = new StatSamples(srcStatSamples,false);
                 smoothStats.AddStat(NewStatSamples);
             }
             StatSamples[] SmoothSamplesArray = smoothStats.Stats.Values.ToArray();
@@ -1255,7 +1255,7 @@ namespace CSVTools
                 StatSamplesSorted.Add(OtherStat);
                 foreach (float value in totalStat.samples)
                     OtherStat.samples.Add(value);
-                OtherUnstacked = new StatSamples(OtherStat);
+                OtherUnstacked = new StatSamples(OtherStat,false);
                 rangeEnd = Math.Min(OtherStat.samples.Count, (int)range.MaxX);
             }
 
@@ -1263,7 +1263,7 @@ namespace CSVTools
             List<StatSamples> StatSamplesList = new List<StatSamples>();
             foreach (StatSamples srcStatSamples in StatSamplesSorted)
             {
-                StatSamples destStatSamples = new StatSamples(srcStatSamples);
+                StatSamples destStatSamples = new StatSamples(srcStatSamples,false);
                 for (int j = 0; j < srcStatSamples.samples.Count; j++)
                 {
                     float value=srcStatSamples.samples[j]; 
@@ -2057,7 +2057,7 @@ namespace CSVTools
                     statInfo.jsTextElementId = "csvStatText__" + i + GetJSStatName(stat.Name) + "<UNIQUE>";
                     statInfo.jsGroupElementId = "csvStatGroup__" + i + GetJSStatName(stat.Name) + "<UNIQUE>";
                     statInfo.originalStatSamples = stat;
-                    statInfo.statSamples = new StatSamples(stat);
+                    statInfo.statSamples = new StatSamples(stat,false);
                     interactiveStats.Add(statInfo);
                 }
             }
