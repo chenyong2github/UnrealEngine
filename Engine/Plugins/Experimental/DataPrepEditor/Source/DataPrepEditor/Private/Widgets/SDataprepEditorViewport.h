@@ -165,6 +165,9 @@ public:
 	/** UpdateScene the viewport with the current content of the editor's preview world */
 	void UpdateScene();
 
+	/** Move the camera so that we can see the full scene */
+	void FocusViewportOnScene();
+
 	/** Delete all the rendering data created by the viewport for display */
 	void ClearScene();
 

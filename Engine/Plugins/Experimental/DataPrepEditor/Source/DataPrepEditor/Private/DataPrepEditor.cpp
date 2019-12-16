@@ -564,6 +564,8 @@ void FDataprepEditor::OnBuildWorld()
 	TakeSnapshot();
 
 	UpdatePreviewPanels();
+	SceneViewportView->FocusViewportOnScene();
+
 	bWorldBuilt = true;
 	bIsFirstRun = true;
 }

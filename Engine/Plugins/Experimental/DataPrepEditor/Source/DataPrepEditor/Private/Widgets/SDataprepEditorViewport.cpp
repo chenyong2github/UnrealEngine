@@ -480,11 +480,14 @@ void SDataprepEditorViewport::UpdateScene()
 
 	PreviewScene->SetFloorOffset(-SceneBounds.Min.Z );
 
-	EditorViewportClient->FocusViewportOnBox( SceneBounds );
-
 	UpdateOverlayText();
 
 	SceneViewport->Invalidate();
+}
+
+void SDataprepEditorViewport::FocusViewportOnScene()
+{
+	EditorViewportClient->FocusViewportOnBox( SceneBounds );
 }
 
 TSharedRef<SEditorViewport> SDataprepEditorViewport::GetViewportWidget()
