@@ -19,22 +19,20 @@
 // @todo platplug: Replace all of these includes with a call to COMPILED_PLATFORM_HEADER(OpenGLDrvPrivate.h)
 //TODO: Move these to OpenGLDrvPrivate.h
 #if PLATFORM_WINDOWS
-#include "Runtime/OpenGLDrv/Private/Windows/OpenGLWindows.h"
+	#include "Runtime/OpenGLDrv/Private/Windows/OpenGLWindows.h"
 #elif PLATFORM_LINUX
-#include "Runtime/OpenGLDrv/Private/Linux/OpenGLLinux.h"
+	#include "Runtime/OpenGLDrv/Private/Linux/OpenGLLinux.h"
 #elif PLATFORM_LUMIN
-// these guys will self-select
-#include "Lumin/LuminESDeferredOpenGL.h"
-#include "Lumin/LuminOpenGL.h"
-#include "Lumin/LuminGL4.h"
+	// these guys will self-select
+	#include "Lumin/LuminESDeferredOpenGL.h"
+	#include "Lumin/LuminOpenGL.h"
+	#include "Lumin/LuminGL4.h"
 #elif PLATFORM_ANDROIDESDEFERRED
-#include "Android/AndroidESDeferredOpenGL.h"
+	#include "Android/AndroidESDeferredOpenGL.h"
 #elif PLATFORM_ANDROID
-#include "Android/AndroidOpenGL.h"
-#elif defined(__EMSCRIPTEN__)
-#include "HTML5OpenGL.h"
-#elif PLATFORM_LINUX
-#include "Linux/OpenGLLinux.h"
+	#include "Android/AndroidOpenGL.h"
+#else
+#include COMPILED_PLATFORM_HEADER(OpenGLDrvPrivate.h)
 #endif
 
 // Define here so don't have to do platform filtering
