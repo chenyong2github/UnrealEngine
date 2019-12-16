@@ -365,6 +365,15 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 	}
 
 	{
+		FDelegateHandle OnObjectsReplacedHandle = GEditor->OnObjectsReplaced().AddLambda([&](const TMap<UObject*, UObject*>& ReplacementMap)
+		{
+			PreAnimatedState.OnObjectsReplaced(ReplacementMap);
+		});
+		AcquiredResources.Add([=] { GEditor->OnObjectsReplaced().Remove(OnObjectsReplacedHandle); });
+	}
+
+
+	{
 		ISequenceRecorder* Recorder = FModuleManager::Get().GetModulePtr<ISequenceRecorder>("SequenceRecorder");
 		
 		Recorder->OnRecordingStarted().AddSP(this, &FSequencer::HandleRecordingStarted);
