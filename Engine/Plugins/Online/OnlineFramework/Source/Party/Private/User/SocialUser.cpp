@@ -967,14 +967,7 @@ bool USocialUser::SendFriendInvite(ESocialSubsystem SubsystemType)
 
 bool USocialUser::AcceptFriendInvite(ESocialSubsystem SocialSubsystem) const
 {
-	if (GetFriendInviteStatus(SocialSubsystem) == EInviteStatus::PendingInbound)
-	{
-		IOnlineFriendsPtr FriendsInterface = GetOwningToolkit().GetSocialOss(SocialSubsystem)->GetFriendsInterface();
-		check(FriendsInterface.IsValid());
-
-		return FriendsInterface->AcceptInvite(GetOwningToolkit().GetLocalUserNum(), *GetUserId(SocialSubsystem), EFriendsLists::ToString(EFriendsLists::Default));
-	}
-	return false;
+	return GetOwningToolkit().AcceptFriendInvite(*this, SocialSubsystem);
 }
 
 bool USocialUser::RejectFriendInvite(ESocialSubsystem SocialSubsystem) const
