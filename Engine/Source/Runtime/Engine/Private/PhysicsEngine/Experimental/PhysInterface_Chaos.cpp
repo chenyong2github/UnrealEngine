@@ -1787,32 +1787,17 @@ bool Overlap_GeomInternal(const FBodyInstance* InInstance, const Chaos::FImplici
 
 		if (TargetInstance->IsShapeBoundToBody(ShapeRef))
 		{
-			//Chaos::TVector<float,3> POutDirection;
-			//float OutDistance;
-
 			if (OutOptResult)
 			{
-				ensure(false);	//todo: implement in Chaos
-				/*
-				PxTransform PTransform = U2PTransform(FPhysicsInterface::GetTransform(ShapeRef));
-				if (PxGeometryQuery::computePenetration(POutDirection, OutDistance, InPxGeom, ShapePose, PShape->getGeometry().any(), PTransform))
+				Chaos::FMTDInfo MTDInfo;
+				if (Chaos::CastHelper(InGeom, [&](const auto& Downcast) { return Chaos::OverlapQuery(*Shape->Geometry, ActorTM, Downcast, GeomTransform, /*Thickness=*/0, &MTDInfo); }))
 				{
-					//TODO: there are some edge cases that give us nan results. In these cases we skip
-					if (!POutDirection.isFinite())
-					{
-						POutDirection.x = 0.f;
-						POutDirection.y = 0.f;
-						POutDirection.z = 0.f;
-					}
-
-					OutOptResult->Direction = P2UVector(POutDirection);
-					OutOptResult->Distance = FMath::Abs(OutDistance);
-
-					return true;
-				}*/
-				OutOptResult->Distance = 0;
+					OutOptResult->Distance = MTDInfo.Penetration;
+					OutOptResult->Direction = MTDInfo.Normal;
+					return true;	//question: should we take most shallow penetration?
+				}
 			}
-			//else	//todo: don't bother with this once MTD is implemented
+			else	//question: why do we even allow user to not pass in MTD info?
 			{
 				if (Chaos::CastHelper(InGeom, [&](const auto& Downcast) { return Chaos::OverlapQuery(*Shape->Geometry, ActorTM, Downcast, GeomTransform); }))
 				{
