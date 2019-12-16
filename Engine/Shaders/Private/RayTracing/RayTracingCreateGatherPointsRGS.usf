@@ -17,6 +17,7 @@
 
 RaytracingAccelerationStructure TLAS;
 
+uint GatherSamplesPerPixel;
 uint SamplesPerPixel;
 uint SampleIndex;
 uint MaxBounces;
@@ -117,7 +118,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 
 	for (uint Index = 0; Index < SamplesPerPixel; ++Index)
 	{
-		uint SampleIndexOffset = (SampleIndex + Index) % MAXIMUM_GATHER_POINTS_PER_PIXEL;
+		uint SampleIndexOffset = (SampleIndex + Index) % GatherSamplesPerPixel;
 #if 0
 		// Adaptive rejection optimization
 		{

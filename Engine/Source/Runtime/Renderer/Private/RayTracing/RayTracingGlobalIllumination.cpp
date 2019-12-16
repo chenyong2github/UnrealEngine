@@ -309,13 +309,11 @@ IMPLEMENT_GLOBAL_SHADER(FGlobalIlluminationRGS, "/Engine/Private/RayTracing/RayT
 // Note: This constant must match the definition in RayTracingGatherPoints.ush
 constexpr int32 MAXIMUM_GATHER_POINTS_PER_PIXEL = 32;
 
-// Placeholder structure used to allocate gather points buffer
-// #dxr_todo: rework to minimal set, based on active samples-per-pixel
-struct FGatherPoints
+struct FGatherPoint
 {
-	FVector CreationPoint[MAXIMUM_GATHER_POINTS_PER_PIXEL];
-	FVector Position[MAXIMUM_GATHER_POINTS_PER_PIXEL];
-	FIntPoint Irradiance[MAXIMUM_GATHER_POINTS_PER_PIXEL];
+	FVector CreationPoint;
+	FVector Position;
+	FIntPoint Irradiance;
 };
 
 class FRayTracingGlobalIlluminationCreateGatherPointsRGS : public FGlobalShader
@@ -334,6 +332,7 @@ class FRayTracingGlobalIlluminationCreateGatherPointsRGS : public FGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, GatherSamplesPerPixel)
 		SHADER_PARAMETER(uint32, SamplesPerPixel)
 		SHADER_PARAMETER(uint32, SampleIndex)
 		SHADER_PARAMETER(uint32, MaxBounces)
@@ -513,7 +512,7 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 	FViewInfo& View,
 	int32 UpscaleFactor,
 	FRDGBufferRef& GatherPointsBuffer,
-	FIntPoint& GatherPointsResolution
+	FIntVector& GatherPointsResolution
 )
 #if RHI_RAYTRACING
 {
@@ -551,6 +550,7 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 
 	FRayTracingGlobalIlluminationCreateGatherPointsRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRayTracingGlobalIlluminationCreateGatherPointsRGS::FParameters>();
 	PassParameters->SampleIndex = (FrameIndex * SamplesPerPixel) % GatherSamples;
+	PassParameters->GatherSamplesPerPixel = GatherSamples;
 	PassParameters->SamplesPerPixel = SamplesPerPixel;
 	PassParameters->MaxBounces = 1;
 	PassParameters->MaxNormalBias = GetRaytracingMaxNormalBias();
@@ -587,18 +587,19 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 	PassParameters->TransmissionProfilesLinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	// Output
-	FIntPoint LocalGatherPointsResolution = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), UpscaleFactor);
+	FIntPoint DispatchResolution = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), UpscaleFactor);
+	FIntVector LocalGatherPointsResolution(DispatchResolution.X, DispatchResolution.Y, GatherSamples);
 	if (GatherPointsResolution != LocalGatherPointsResolution)
 	{
 		GatherPointsResolution = LocalGatherPointsResolution;
-		FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateStructuredDesc(sizeof(FGatherPoints), GatherPointsResolution.X * GatherPointsResolution.Y);
+		FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateStructuredDesc(sizeof(FGatherPoint), GatherPointsResolution.X * GatherPointsResolution.Y * GatherPointsResolution.Z);
 		GatherPointsBuffer = GraphBuilder.CreateBuffer(BufferDesc, TEXT("GatherPointsBuffer"), ERDGResourceFlags::MultiFrame);
 	}
 	else
 	{
 		GatherPointsBuffer = GraphBuilder.RegisterExternalBuffer(((FSceneViewState*)View.State)->GatherPointsBuffer, TEXT("GatherPointsBuffer"));
 	}
-	PassParameters->GatherPointsResolution = GatherPointsResolution;
+	PassParameters->GatherPointsResolution = FIntPoint(GatherPointsResolution.X, GatherPointsResolution.Y);
 	PassParameters->RWGatherPointsBuffer = GraphBuilder.CreateUAV(GatherPointsBuffer, EPixelFormat::PF_R32_UINT);
 
 	FRayTracingGlobalIlluminationCreateGatherPointsRGS::FPermutationDomain PermutationVector;
@@ -671,7 +672,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationFinalGathe
 	PassParameters->TransmissionProfilesLinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	// Gather points
-	PassParameters->GatherPointsResolution = SceneViewState->GatherPointsResolution;
+	PassParameters->GatherPointsResolution = FIntPoint(SceneViewState->GatherPointsResolution.X, SceneViewState->GatherPointsResolution.Y);
 	PassParameters->GatherPointsBuffer = GraphBuilder.CreateSRV(GatherPointsBuffer);
 
 	// Output
