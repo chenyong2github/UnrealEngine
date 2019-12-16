@@ -540,7 +540,7 @@ void TemporallyAccumulate(
 			SetBilateralPreset(CONFIG_HISTORY_BILATERAL_PRESET, /* inout */ KernelConfig);
 
 			// SGPR configuration of the kernel.
-			KernelConfig.BufferSizeAndInvSize = View.BufferSizeAndInvSize;
+			KernelConfig.BufferSizeAndInvSize = BufferSizeAndInvSize;
 			KernelConfig.BufferBilinearUVMinMax = BufferBilinearUVMinMax;
 			
 			#if CONFIG_CLAMP_UV_PER_SIGNAL
@@ -709,7 +709,7 @@ void TemporallyAccumulate(
 
 		// SGPR configuration of the kernel.
 		{
-			KernelConfig.BufferSizeAndInvSize = View.BufferSizeAndInvSize;
+			KernelConfig.BufferSizeAndInvSize = BufferSizeAndInvSize;
 			KernelConfig.BufferBilinearUVMinMax = BufferBilinearUVMinMax;
 		}
 

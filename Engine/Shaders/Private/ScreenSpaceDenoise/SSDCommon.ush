@@ -73,6 +73,7 @@
 uint2 ViewportMin;
 uint2 ViewportMax;
 float4 ThreadIdToBufferUV;
+float4 BufferSizeAndInvSize;
 float4 BufferBilinearUVMinMax;
 float2 BufferUVToOutputPixelPosition;
 float4 BufferUVToScreenPosition;
