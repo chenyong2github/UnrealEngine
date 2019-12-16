@@ -27,4 +27,7 @@ private:
 
 	FReply OnUpdateSplineMeshLevelsButtonClicked();
 	bool IsUpdateSplineMeshLevelsButtonEnabled() const;
+	
+	FReply OnFlipSegmentButtonClicked();
+	bool IsFlipSegmentButtonEnabled() const;
 };

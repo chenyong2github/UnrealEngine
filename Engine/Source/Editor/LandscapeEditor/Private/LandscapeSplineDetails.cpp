@@ -83,11 +83,44 @@ void FLandscapeSplineDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 			.IsEnabled(this, &FLandscapeSplineDetails::IsUpdateSplineMeshLevelsButtonEnabled)
 		]
 	];
+
+	IDetailCategoryBuilder& LandscapeSplineSegmentCategory = DetailBuilder.EditCategory("LandscapeSplineSegment", FText::GetEmpty(), ECategoryPriority::Default);
+	LandscapeSplineSegmentCategory.AddCustomRow(FText::GetEmpty())
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.Padding(0, 0, 2, 0)
+		.VAlign(VAlign_Center)
+		.FillWidth(1)
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("FlipSegment", "Flip Selected Segment(s)"))
+			.HAlign(HAlign_Center)
+			.OnClicked(this, &FLandscapeSplineDetails::OnFlipSegmentButtonClicked)
+			.IsEnabled(this, &FLandscapeSplineDetails::IsFlipSegmentButtonEnabled)
+		]
+	];
 }
 
 class FEdModeLandscape* FLandscapeSplineDetails::GetEditorMode() const
 {
 	return (FEdModeLandscape*)GLevelEditorModeTools().GetActiveMode(FBuiltinEditorModes::EM_Landscape);
+}
+
+FReply FLandscapeSplineDetails::OnFlipSegmentButtonClicked()
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	if (LandscapeEdMode)
+	{
+		LandscapeEdMode->FlipSelectedSplineSegments();
+	}
+	return FReply::Handled();
+}
+
+bool FLandscapeSplineDetails::IsFlipSegmentButtonEnabled() const
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	return LandscapeEdMode && LandscapeEdMode->HasSelectedSplineSegments();
 }
 
 FReply FLandscapeSplineDetails::OnSelectConnectedControlPointsButtonClicked()
