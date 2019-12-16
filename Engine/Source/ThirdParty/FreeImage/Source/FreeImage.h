@@ -155,7 +155,9 @@ FI_STRUCT (FIMULTIBITMAP) { void *data; };
 #ifndef _MSC_VER
 // define portable types for 32-bit / 64-bit OS
 #include <inttypes.h>
+#ifndef OBJC_BOOL_DEFINED // EpicGames edit: fix redefinition of BOOL on MacOS
 typedef int32_t BOOL;
+#endif // EpicGames
 typedef uint8_t BYTE;
 typedef uint16_t WORD;
 typedef uint32_t DWORD;

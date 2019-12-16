@@ -39,6 +39,20 @@ public class FreeImage : ModuleRules
 			PublicSystemLibraries.Add("stdc++");
 			bWithFreeImage = true;
 		}
+		else if (Target.Platform == UnrealTargetPlatform.Mac)
+		{
+			LibraryFileName = "libfreeimage-3.18.0.dylib";
+			string DynLibPath = Path.Combine(BinaryLibraryFolder, LibraryFileName);
+
+			PublicRuntimeLibraryPaths.Add(BinaryLibraryFolder);
+			PublicAdditionalLibraries.Add(DynLibPath);
+
+            PublicDelayLoadDLLs.Add(DynLibPath);   
+			RuntimeDependencies.Add(DynLibPath);
+
+			PublicSystemLibraries.Add("stdc++");
+			bWithFreeImage = true;
+		}
 
 		PublicDefinitions.Add("WITH_FREEIMAGE_LIB=" + (bWithFreeImage ? '1' : '0'));
 		if (LibraryFileName != "")
