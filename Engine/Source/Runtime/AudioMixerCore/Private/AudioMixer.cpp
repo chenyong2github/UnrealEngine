@@ -341,6 +341,33 @@ namespace Audio
 		bIsDeviceInitialized = true;
 	}
 
+	int32 IAudioMixerPlatformInterface::GetIndexForDevice(const FString& InDeviceName)
+	{
+		uint32 TotalNumDevices = 0;
+
+		if (!GetNumOutputDevices(TotalNumDevices))
+		{
+			return INDEX_NONE;
+		}
+
+		// Iterate through every device and see if
+		for (uint32 DeviceIndex = 0; DeviceIndex < TotalNumDevices; DeviceIndex++)
+		{
+			FAudioPlatformDeviceInfo DeviceInfo;
+			if (GetOutputDeviceInfo(DeviceIndex, DeviceInfo))
+			{
+				// check if the device name matches the input device name:
+				if (DeviceInfo.Name.Contains(InDeviceName))
+				{
+					return DeviceIndex;
+				}
+			}
+		}
+
+		// If we've made it here, we weren't able to find a matching device.
+		return INDEX_NONE;
+	}
+
 	template<typename BufferType>
 	void IAudioMixerPlatformInterface::ApplyAttenuationInternal(BufferType* BufferDataPtr, const int32 NumFrames)
 	{
