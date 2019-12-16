@@ -29,7 +29,7 @@ void ULandscapeInfoMap::Serialize(FArchive& Ar)
 
 void ULandscapeInfoMap::BeginDestroy()
 {
-	if (World != nullptr)
+	if (World.IsValid())
 	{
 		World->PerModuleDataObjects.Remove(this);
 	}
