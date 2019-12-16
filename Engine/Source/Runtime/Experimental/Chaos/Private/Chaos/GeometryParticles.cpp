@@ -8,7 +8,7 @@
 namespace Chaos
 {
 	template <typename T, int d>
-	void UpdateShapesArrayFromGeometry(TShapesArray<T, d>& ShapesArray, TSerializablePtr<FImplicitObject> Geometry)
+	void UpdateShapesArrayFromGeometry(TShapesArray<T, d>& ShapesArray, TSerializablePtr<FImplicitObject> Geometry, const FRigidTransform3& ActorTM)
 	{
 		if(Geometry)
 		{
@@ -28,6 +28,14 @@ namespace Chaos
 				ShapesArray.SetNum(1);
 				ShapesArray[0] = TPerShapeData<T, d>::CreatePerShapeData();
 				ShapesArray[0]->Geometry = Geometry;
+			}
+
+			if (Geometry->HasBoundingBox())
+			{
+				for (auto& Shape : ShapesArray)
+				{
+					Shape->WorldSpaceInflatedShapeBounds = Geometry->BoundingBox().GetAABB().TransformedAABB(ActorTM);
+				}
 			}
 		}
 		else
@@ -62,9 +70,21 @@ namespace Chaos
 	template <typename T, int d>
 	void TPerShapeData<T, d>::Serialize(FChaosArchive& Ar)
 	{
+		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+
 		Ar << Geometry;
 		Ar << QueryData;
 		Ar << SimData;
+
+		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializeShapeWorldSpaceBounds)
+		{
+			Ar << WorldSpaceInflatedShapeBounds;
+		}
+		else
+		{
+			// This should be set by particle serializing this TPerShapeData.
+			WorldSpaceInflatedShapeBounds = TAABB<FReal, 3>(FVec3(0.0f, 0.0f, 0.0f), FVec3(0.0f, 0.0f, 0.0f));
+		}
 	}
 
 
@@ -128,5 +148,5 @@ namespace Chaos
 	template class TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::RigidBodySim>;
 	template class TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::Other>;
 	template class TPerShapeData<float, 3>;
-	template void UpdateShapesArrayFromGeometry(TShapesArray<float, 3>& ShapesArray, TSerializablePtr<FImplicitObject> Geometry);
+	template void UpdateShapesArrayFromGeometry(TShapesArray<float, 3>& ShapesArray, TSerializablePtr<FImplicitObject> Geometry, const FRigidTransform3& ActorTM);
 }

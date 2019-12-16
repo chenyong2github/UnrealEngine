@@ -380,7 +380,10 @@ public:
 	void SetLocalBounds(const TBox<T, d>& NewBounds) { GeometryParticles->LocalBounds(ParticleIdx) = NewBounds; }
 
 	const TBox<T, d>& WorldSpaceInflatedBounds() const { return GeometryParticles->WorldSpaceInflatedBounds(ParticleIdx); }
-	void SetWorldSpaceInflatedBounds(const TBox<T,d>& WorldSpaceInflatedBounds) { GeometryParticles->WorldSpaceInflatedBounds(ParticleIdx) = WorldSpaceInflatedBounds; }
+	void SetWorldSpaceInflatedBounds(const TBox<T, d>& WorldSpaceInflatedBounds)
+	{
+		GeometryParticles->SetWorldSpaceInflatedBounds(ParticleIdx, WorldSpaceInflatedBounds);
+	}
 
 	bool HasBounds() const { return GeometryParticles->HasBounds(ParticleIdx); }
 	void SetHasBounds(bool bHasBounds) { GeometryParticles->HasBounds(ParticleIdx) = bHasBounds; }
@@ -997,6 +1000,18 @@ public:
 		Ar << MShapesArray;
 		Ar << Type;
 		//Ar << MDirtyFlags;
+
+		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::SerializeShapeWorldSpaceBounds)
+		{
+			if (MGeometry->HasBoundingBox())
+			{
+				for (auto& Shape : MShapesArray)
+				{
+					Shape->WorldSpaceInflatedShapeBounds = Shape->Geometry->BoundingBox().GetAABB().TransformedAABB(FRigidTransform3(MX, MR));
+				}
+			}
+		}
 	}
 
 	virtual bool IsParticleValid() const
@@ -1153,7 +1168,7 @@ protected:
 
 	void UpdateShapesArray()
 	{
-		UpdateShapesArrayFromGeometry<T, d>(MShapesArray, MakeSerializable(MGeometry));
+		UpdateShapesArrayFromGeometry<T, d>(MShapesArray, MakeSerializable(MGeometry), FRigidTransform3(X(), R()));
 	}
 };
 
