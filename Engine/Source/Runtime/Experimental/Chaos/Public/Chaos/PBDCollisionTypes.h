@@ -18,7 +18,7 @@ namespace Chaos
 	class TPBDCollisionConstraintHandle;
 
 	template<typename T, int d>
-	class TRigidBodyContactConstraint;
+	class TRigidBodySingleContactConstraint;
 
 	/** Specifies the type of work we should do*/
 	enum class CHAOS_API ECollisionUpdateType
@@ -68,7 +68,7 @@ namespace Chaos
 		enum class FType
 		{
 			None = 0,     // default value also indicates a invalid constraint
-			SinglePoint   // TRigidBodyContactConstraint
+			SinglePoint   // TRigidBodySingleContactConstraint
 		};
 
 		TCollisionConstraintBase() : Type(FType::None) {}
@@ -86,14 +86,14 @@ namespace Chaos
 	*
 	*/
 	template<class T, int d>
-	class CHAOS_API TRigidBodyContactConstraint : public TCollisionConstraintBase<T,d>
+	class CHAOS_API TRigidBodySingleContactConstraint : public TCollisionConstraintBase<T,d>
 	{
 	public:
 		using Base = TCollisionConstraintBase<T, d>;
 		using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
 		using FConvexManifold = TConvexManifold<T, d>;
 
-		TRigidBodyContactConstraint() : AccumulatedImpulse(0) {}
+		TRigidBodySingleContactConstraint() : AccumulatedImpulse(0) {}
 
 		//API
 		void ResetPhi(T InPhi) { SetPhi(InPhi); }
@@ -179,7 +179,7 @@ namespace Chaos
 		{
 			if (ConstraintType == FConstraintBase::FType::SinglePoint)
 			{
-				return GetContact<TRigidBodyContactConstraint<float, 3> >().GetLocation();
+				return GetContact<TRigidBodySingleContactConstraint<float, 3> >().GetLocation();
 			}
 			ensure(false);
 			return TVector<T, d>(0);
@@ -189,7 +189,7 @@ namespace Chaos
 		{
 			if (ConstraintType == FConstraintBase::FType::SinglePoint)
 			{
-				return GetContact<TRigidBodyContactConstraint<float, 3> >().AccumulatedImpulse;
+				return GetContact<TRigidBodySingleContactConstraint<float, 3> >().AccumulatedImpulse;
 			}
 			ensure(false);
 
@@ -201,7 +201,7 @@ namespace Chaos
 		{
 			if (ConstraintType == FConstraintBase::FType::SinglePoint)
 			{
-				const TRigidBodyContactConstraint<float, 3>& Contact = GetContact< TRigidBodyContactConstraint<float, 3> >();
+				const TRigidBodySingleContactConstraint<float, 3>& Contact = GetContact< TRigidBodySingleContactConstraint<float, 3> >();
 				return { Contact.Particle[0], Contact.Particle[1] };
 			}
 			ensure(false);
@@ -214,7 +214,7 @@ namespace Chaos
 		{
 			if (ConstraintType == FConstraintBase::FType::SinglePoint)
 			{
-				return { GetContact< TRigidBodyContactConstraint<float, 3> >().Particle[0], GetContact< TRigidBodyContactConstraint<float, 3> >().Particle[1] };
+				return { GetContact< TRigidBodySingleContactConstraint<float, 3> >().Particle[0], GetContact< TRigidBodySingleContactConstraint<float, 3> >().Particle[1] };
 			}
 			ensure(false);
 			return { nullptr,nullptr };
@@ -229,7 +229,7 @@ namespace Chaos
 
 	};
 
-	extern template TRigidBodyContactConstraint<float, 3>& TPBDCollisionConstraintHandle<float, 3>::GetContact<TRigidBodyContactConstraint<float, 3>>();
-	extern template const TRigidBodyContactConstraint<float, 3>& TPBDCollisionConstraintHandle<float, 3>::GetContact<TRigidBodyContactConstraint<float, 3>>() const;
+	extern template TRigidBodySingleContactConstraint<float, 3>& TPBDCollisionConstraintHandle<float, 3>::GetContact<TRigidBodySingleContactConstraint<float, 3>>();
+	extern template const TRigidBodySingleContactConstraint<float, 3>& TPBDCollisionConstraintHandle<float, 3>::GetContact<TRigidBodySingleContactConstraint<float, 3>>() const;
 
 }

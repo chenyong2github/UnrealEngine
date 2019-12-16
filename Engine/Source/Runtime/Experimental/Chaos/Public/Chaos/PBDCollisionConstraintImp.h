@@ -152,7 +152,7 @@ namespace Chaos
 			// Narrow phase
 			CHAOS_SCOPED_TIMER(ComputeConstraints_NP);
 
-			TQueue<TRigidBodyContactConstraint<T, d>, EQueueMode::Mpsc> Queue;	//todo(ocohen): use per thread buffer instead, need better support than ParallelFor for this
+			TQueue<TRigidBodySingleContactConstraint<T, d>, EQueueMode::Mpsc> Queue;	//todo(ocohen): use per thread buffer instead, need better support than ParallelFor for this
 			Particles.GetNonDisabledDynamicView().ParallelFor([&](auto& Particle1, int32 ActiveIdxIdx)
 			{
 #if !UE_BUILD_SHIPPING
@@ -253,7 +253,7 @@ namespace Chaos
 					const T UseThickness = FMath::Max(Box1Thickness, Box2Thickness.Size());// + MThickness
 
 
-					TRigidBodyContactConstraint<T, d> Constraint;
+					TRigidBodySingleContactConstraint<T, d> Constraint;
 					ConstructConstraints(Particle1.Handle(), Particle2.Handle(), UseThickness, Constraint);
 
 #if !UE_BUILD_SHIPPING
@@ -293,7 +293,7 @@ namespace Chaos
 				while (!Queue.IsEmpty())
 				{
 					int32 Idx = Constraints.AddUninitialized(1);
-					FConstraintContainerHandle* Handle = HandleAllocator.template AllocHandle< TRigidBodyContactConstraint<T,d> >(this, Idx );
+					FConstraintContainerHandle* Handle = HandleAllocator.template AllocHandle< TRigidBodySingleContactConstraint<T,d> >(this, Idx );
 
 					Handles.Add(Handle);
 					Queue.Dequeue(Constraints[Idx]);

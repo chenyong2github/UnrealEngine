@@ -17,7 +17,7 @@ class CHAOS_API CollisionResolutionConvexConvex
 public:
 	using FConvex = TConvex<T,d>;
 	using FRigidTransform = TRigidTransform<T,d>;
-	using FRigidBodyContactConstraint = TRigidBodyContactConstraint<T, d>;
+	using FRigidBodyContactConstraint = TRigidBodySingleContactConstraint<T, d>;
 	using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
 
 	/*

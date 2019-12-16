@@ -19,6 +19,6 @@ namespace Chaos
 	}
 
 	template class CHAOS_API TPBDCollisionConstraintHandle<float, 3>;
-	template CHAOS_API TRigidBodyContactConstraint<float, 3>& TPBDCollisionConstraintHandle<float, 3>::GetContact<TRigidBodyContactConstraint<float, 3>>();
-	template CHAOS_API const TRigidBodyContactConstraint<float, 3>& TPBDCollisionConstraintHandle<float, 3>::GetContact<TRigidBodyContactConstraint<float, 3>>() const;
+	template CHAOS_API TRigidBodySingleContactConstraint<float, 3>& TPBDCollisionConstraintHandle<float, 3>::GetContact<TRigidBodySingleContactConstraint<float, 3>>();
+	template CHAOS_API const TRigidBodySingleContactConstraint<float, 3>& TPBDCollisionConstraintHandle<float, 3>::GetContact<TRigidBodySingleContactConstraint<float, 3>>() const;
 };

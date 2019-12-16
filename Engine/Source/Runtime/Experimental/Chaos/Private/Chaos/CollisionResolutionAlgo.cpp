@@ -24,7 +24,7 @@
 namespace Chaos
 {
 	template<typename T, int d>
-	void ConstructLevelsetConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void ConstructLevelsetConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 
 		if (!Particle1->Geometry() || (Particle0->AsDynamic() && !Particle0->AsDynamic()->CollisionParticlesSize() && Particle0->Geometry() && !Particle0->Geometry()->IsUnderlyingUnion()))
@@ -42,7 +42,7 @@ namespace Chaos
 	}
 
 	template<typename T, int d>
-	void ConstructBoxConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void ConstructBoxConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		Constraint.Particle[0] = Particle0;
 		Constraint.Particle[1] = Particle1;
@@ -50,7 +50,7 @@ namespace Chaos
 	}
 
 	template<typename T, int d>
-	void ConstructBoxPlaneConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void ConstructBoxPlaneConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		Constraint.Particle[0] = Particle0;
 		Constraint.Particle[1] = Particle1;
@@ -58,7 +58,7 @@ namespace Chaos
 	}
 
 	template<typename T, int d>
-	void ConstructSphereConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void ConstructSphereConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		Constraint.Particle[0] = Particle0;
 		Constraint.Particle[1] = Particle1;
@@ -66,7 +66,7 @@ namespace Chaos
 	}
 
 	template<typename T, int d>
-	void ConstructSpherePlaneConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void ConstructSpherePlaneConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		Constraint.Particle[0] = Particle0;
 		Constraint.Particle[1] = Particle1;
@@ -74,7 +74,7 @@ namespace Chaos
 	}
 
 	template<typename T, int d>
-	void ConstructSphereBoxConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void ConstructSphereBoxConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		Constraint.Particle[0] = Particle0;
 		Constraint.Particle[1] = Particle1;
@@ -82,7 +82,7 @@ namespace Chaos
 	}
 
 	template<typename T, int d>
-	void ConstructCapsuleCapsuleConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void ConstructCapsuleCapsuleConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		Constraint.Particle[0] = Particle0;
 		Constraint.Particle[1] = Particle1;
@@ -90,7 +90,7 @@ namespace Chaos
 	}
 
 	template<typename T, int d>
-	void ConstructCapsuleBoxConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void ConstructCapsuleBoxConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		Constraint.Particle[0] = Particle0;
 		Constraint.Particle[1] = Particle1;
@@ -98,7 +98,7 @@ namespace Chaos
 	}
 
 	template<typename T, int d>
-	void ConstructSingleUnionConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void ConstructSingleUnionConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		Constraint.Particle[0] = Particle0;
 		Constraint.Particle[1] = Particle1;
@@ -108,7 +108,7 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::UpdateUnionUnionConstraint"), STAT_UpdateUnionUnionConstraint, STATGROUP_ChaosWide);
 
 	template<typename T, int d>
-	void ConstructUnionUnionConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void ConstructUnionUnionConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		//SCOPE_CYCLE_COUNTER(STAT_UpdateUnionUnionConstraint);
 
@@ -138,7 +138,7 @@ namespace Chaos
 	}
 
 	template<typename T, int d>
-	void ConstructPairConstraintImpl(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void ConstructPairConstraintImpl(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		// See if we already have a constraint for this shape pair
 		if (Constraint.ContainsManifold(Implicit0, Implicit1))
@@ -218,7 +218,7 @@ namespace Chaos
 	}
 
 	template <typename T, int d>
-	bool SampleObjectHelper2(const FImplicitObject& Object, const TRigidTransform<T, d>& ObjectTransform, const TRigidTransform<T, d>& SampleToObjectTransform, const TVector<T, d>& SampleParticle, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	bool SampleObjectHelper2(const FImplicitObject& Object, const TRigidTransform<T, d>& ObjectTransform, const TRigidTransform<T, d>& SampleToObjectTransform, const TVector<T, d>& SampleParticle, T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		TVector<T, d> LocalPoint = SampleToObjectTransform.TransformPositionNoScale(SampleParticle);
 		TVector<T, d> LocalNormal;
@@ -236,7 +236,7 @@ namespace Chaos
 	}
 
 	template <typename T, int d>
-	bool SampleObjectNoNormal2(const FImplicitObject& Object, const TRigidTransform<T, d>& ObjectTransform, const TRigidTransform<T, d>& SampleToObjectTransform, const TVector<T, d>& SampleParticle, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	bool SampleObjectNoNormal2(const FImplicitObject& Object, const TRigidTransform<T, d>& ObjectTransform, const TRigidTransform<T, d>& SampleToObjectTransform, const TVector<T, d>& SampleParticle, T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		TVector<T, d> LocalPoint = SampleToObjectTransform.TransformPositionNoScale(SampleParticle);
 		TVector<T, d> LocalNormal;
@@ -252,7 +252,7 @@ namespace Chaos
 	}
 
 	template <typename T, int d>
-	bool SampleObjectNormalAverageHelper2(const FImplicitObject& Object, const TRigidTransform<T, d>& ObjectTransform, const TRigidTransform<T, d>& SampleToObjectTransform, const TVector<T, d>& SampleParticle, T Thickness, T& TotalThickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	bool SampleObjectNormalAverageHelper2(const FImplicitObject& Object, const TRigidTransform<T, d>& ObjectTransform, const TRigidTransform<T, d>& SampleToObjectTransform, const TVector<T, d>& SampleParticle, T Thickness, T& TotalThickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		TVector<T, d> LocalPoint = SampleToObjectTransform.TransformPositionNoScale(SampleParticle);
 		TVector<T, d> LocalNormal;
@@ -284,10 +284,10 @@ namespace Chaos
 
 
 	template <ECollisionUpdateType UpdateType, typename T, int d>
-	void SampleObject2(const FImplicitObject& Object, const TRigidTransform<T, d>& ObjectTransform, const TBVHParticles<T, d>& SampleParticles, const TRigidTransform<T, d>& SampleParticlesTransform, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void SampleObject2(const FImplicitObject& Object, const TRigidTransform<T, d>& ObjectTransform, const TBVHParticles<T, d>& SampleParticles, const TRigidTransform<T, d>& SampleParticlesTransform, T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_SampleObject);
-		TRigidBodyContactConstraint<float, 3> AvgConstraint = Constraint;
+		TRigidBodySingleContactConstraint<float, 3> AvgConstraint = Constraint;
 
 		TConvexManifold<float, 3> & Contact = Constraint.ShapeManifold;
 		TConvexManifold<float, 3> & AvgContact = AvgConstraint.ShapeManifold;
@@ -394,10 +394,10 @@ namespace Chaos
 
 #if INTEL_ISPC
 	template<ECollisionUpdateType UpdateType>
-	void SampleObject2(const FImplicitObject& Object, const TRigidTransform<float, 3>& ObjectTransform, const TBVHParticles<float, 3>& SampleParticles, const TRigidTransform<float, 3>& SampleParticlesTransform, float Thickness, TRigidBodyContactConstraint<float, 3>& Constraint)
+	void SampleObject2(const FImplicitObject& Object, const TRigidTransform<float, 3>& ObjectTransform, const TBVHParticles<float, 3>& SampleParticles, const TRigidTransform<float, 3>& SampleParticlesTransform, float Thickness, TRigidBodySingleContactConstraint<float, 3>& Constraint)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_SampleObject);
-		TRigidBodyContactConstraint<float, 3> AvgConstraint = Constraint;
+		TRigidBodySingleContactConstraint<float, 3> AvgConstraint = Constraint;
 
 		TConvexManifold<float, 3> & Contact = Constraint.ShapeManifold;
 		TConvexManifold<float, 3> & AvgContact = AvgConstraint.ShapeManifold;
@@ -702,7 +702,7 @@ namespace Chaos
 #endif
 
 	template<ECollisionUpdateType UpdateType, typename T, int d>
-	void UpdateConstraintImp(const FImplicitObject& ParticleObject, const TRigidTransform<T, d>& ParticleTM, const FImplicitObject& LevelsetObject, const TRigidTransform<T, d>& LevelsetTM, const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void UpdateConstraintImp(const FImplicitObject& ParticleObject, const TRigidTransform<T, d>& ParticleTM, const FImplicitObject& LevelsetObject, const TRigidTransform<T, d>& LevelsetTM, const T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		if (ParticleObject.GetType() == TBox<T, d>::StaticType() && LevelsetObject.GetType() == TBox<T, d>::StaticType())
 		{
@@ -734,7 +734,7 @@ namespace Chaos
 		}
 		else if (ParticleObject.GetType() == TPlane<T, d>::StaticType() && LevelsetObject.GetType() == TBox<T, d>::StaticType())
 		{
-			TRigidBodyContactConstraint<T, d> TmpConstraint = Constraint;
+			TRigidBodySingleContactConstraint<T, d> TmpConstraint = Constraint;
 			UpdateBoxPlaneConstraint(*LevelsetObject.template GetObject<TBox<T, d>>(), LevelsetTM, *ParticleObject.template GetObject<TPlane<T, d>>(), ParticleTM, Thickness, TmpConstraint);
 			if (TmpConstraint.GetPhi() < Constraint.GetPhi())
 			{
@@ -744,7 +744,7 @@ namespace Chaos
 		}
 		else if (ParticleObject.GetType() == TPlane<T, d>::StaticType() && LevelsetObject.GetType() == TSphere<T, d>::StaticType())
 		{
-			TRigidBodyContactConstraint<T, d> TmpConstraint = Constraint;
+			TRigidBodySingleContactConstraint<T, d> TmpConstraint = Constraint;
 			UpdateSpherePlaneConstraint(*LevelsetObject.template GetObject<TSphere<T, d>>(), LevelsetTM, *ParticleObject.template GetObject<TPlane<T, d>>(), ParticleTM, Thickness, TmpConstraint);
 			if (TmpConstraint.GetPhi() < Constraint.GetPhi())
 			{
@@ -754,7 +754,7 @@ namespace Chaos
 		}
 		else if (ParticleObject.GetType() == TBox<T, d>::StaticType() && LevelsetObject.GetType() == TSphere<T, d>::StaticType())
 		{
-			TRigidBodyContactConstraint<T, d> TmpConstraint = Constraint;
+			TRigidBodySingleContactConstraint<T, d> TmpConstraint = Constraint;
 			UpdateSphereBoxConstraint(*LevelsetObject.template GetObject<TSphere<T, d>>(), LevelsetTM, *ParticleObject.template GetObject<TBox<T, d>>(), ParticleTM, Thickness, TmpConstraint);
 			if (TmpConstraint.GetPhi() < Constraint.GetPhi())
 			{
@@ -764,7 +764,7 @@ namespace Chaos
 		}
 		else if (ParticleObject.GetType() == TBox<T, d>::StaticType() && LevelsetObject.GetType() == TCapsule<T>::StaticType())
 		{
-			TRigidBodyContactConstraint<T, d> TmpConstraint = Constraint;
+			TRigidBodySingleContactConstraint<T, d> TmpConstraint = Constraint;
 			UpdateCapsuleBoxConstraint(*LevelsetObject.template GetObject<TCapsule<T>>(), LevelsetTM, *ParticleObject.template GetObject<TBox<T, d>>(), ParticleTM, Thickness, TmpConstraint);
 			if (TmpConstraint.GetPhi() < Constraint.GetPhi())
 			{
@@ -803,7 +803,7 @@ namespace Chaos
 	}
 
 	template<typename T, int d>
-	void ConstructConstraintsImpl(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodyContactConstraint<T, d> & Constraint)
+	void ConstructConstraintsImpl(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, TRigidBodySingleContactConstraint<T, d> & Constraint)
 	{
 		// TriangleMesh implicits are for scene query only.
 		if (Implicit0 && GetInnerType(Implicit0->GetType()) == ImplicitObjectType::TriangleMesh) return;
@@ -821,7 +821,7 @@ namespace Chaos
 	}
 
 	template <typename T, int d>
-	bool UpdateBoxPlaneConstraint(const TBox<T, d>& Box, const TRigidTransform<T, d>& BoxTransform, const TPlane<T, d>& Plane, const TRigidTransform<T, d>& PlaneTransform, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	bool UpdateBoxPlaneConstraint(const TBox<T, d>& Box, const TRigidTransform<T, d>& BoxTransform, const TPlane<T, d>& Plane, const TRigidTransform<T, d>& PlaneTransform, T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		TConvexManifold<T, d> & Contact = Constraint.ShapeManifold;
 
@@ -883,7 +883,7 @@ namespace Chaos
 	}
 
 	template <typename T, int d>
-	void UpdateSphereConstraint(const TSphere<T, d>& Sphere1, const TRigidTransform<T, d>& Sphere1Transform, const TSphere<T, d>& Sphere2, const TRigidTransform<T, d>& Sphere2Transform, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void UpdateSphereConstraint(const TSphere<T, d>& Sphere1, const TRigidTransform<T, d>& Sphere1Transform, const TSphere<T, d>& Sphere2, const TRigidTransform<T, d>& Sphere2Transform, T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		TConvexManifold<T, d> & Contact = Constraint.ShapeManifold;
 
@@ -901,7 +901,7 @@ namespace Chaos
 	}
 
 	template <typename T, int d>
-	void UpdateSpherePlaneConstraint(const TSphere<T, d>& Sphere, const TRigidTransform<T, d>& SphereTransform, const TPlane<T, d>& Plane, const TRigidTransform<T, d>& PlaneTransform, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void UpdateSpherePlaneConstraint(const TSphere<T, d>& Sphere, const TRigidTransform<T, d>& SphereTransform, const TPlane<T, d>& Plane, const TRigidTransform<T, d>& PlaneTransform, T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		TConvexManifold<T, d> & Contact = Constraint.ShapeManifold;
 
@@ -921,7 +921,7 @@ namespace Chaos
 	}
 
 	template <typename T, int d>
-	void UpdateSphereBoxConstraint(const TSphere<T, d>& Sphere, const TRigidTransform<T, d>& SphereTransform, const TBox<T, d>& Box, const TRigidTransform<T, d>& BoxTransform, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void UpdateSphereBoxConstraint(const TSphere<T, d>& Sphere, const TRigidTransform<T, d>& SphereTransform, const TBox<T, d>& Box, const TRigidTransform<T, d>& BoxTransform, T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		TConvexManifold<T, d> & Contact = Constraint.ShapeManifold;
 
@@ -941,7 +941,7 @@ namespace Chaos
 	}
 
 	template <typename T, int d>
-	void UpdateCapsuleCapsuleConstraint(const TCapsule<T>& A, const TRigidTransform<T, d>& ATransform, const TCapsule<T>& B, const TRigidTransform<T, d>& BTransform, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void UpdateCapsuleCapsuleConstraint(const TCapsule<T>& A, const TRigidTransform<T, d>& ATransform, const TCapsule<T>& B, const TRigidTransform<T, d>& BTransform, T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		TConvexManifold<T, d> & Contact = Constraint.ShapeManifold;
 
@@ -968,7 +968,7 @@ namespace Chaos
 	}
 
 	template <typename T, int d>
-	void UpdateCapsuleBoxConstraint(const TCapsule<T>& A, const TRigidTransform<T, d>& ATransform, const TBox<T, d>& B, const TRigidTransform<T, d>& BTransform, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void UpdateCapsuleBoxConstraint(const TCapsule<T>& A, const TRigidTransform<T, d>& ATransform, const TBox<T, d>& B, const TRigidTransform<T, d>& BTransform, T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		// @todo(ccaulfield): Add custom capsule-box collision
 		TConvexManifold<T, d> & Contact = Constraint.ShapeManifold;
@@ -1037,7 +1037,7 @@ namespace Chaos
 	}
 
 	template<ECollisionUpdateType UpdateType, typename T, int d>
-	void UpdateUnionUnionConstraint(const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void UpdateUnionUnionConstraint(const T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateUnionUnionConstraint);
 
@@ -1071,7 +1071,7 @@ namespace Chaos
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::UpdateSingleUnionConstraint"), STAT_UpdateSingleUnionConstraint, STATGROUP_ChaosWide);
 	template<ECollisionUpdateType UpdateType, typename T, int d>
-	void UpdateSingleUnionConstraint(const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void UpdateSingleUnionConstraint(const T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateSingleUnionConstraint);
 
@@ -1097,7 +1097,7 @@ namespace Chaos
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::UpdateUnionLevelsetConstraint"), STAT_UpdateUnionLevelsetConstraint, STATGROUP_ChaosWide);
 	template<ECollisionUpdateType UpdateType, typename T, int d>
-	void UpdateUnionLevelsetConstraint(const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void UpdateUnionLevelsetConstraint(const T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateUnionLevelsetConstraint);
 
@@ -1173,7 +1173,7 @@ namespace Chaos
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::UpdateLevelsetUnionConstraint"), STAT_UpdateLevelsetUnionConstraint, STATGROUP_ChaosWide);
 	template<ECollisionUpdateType UpdateType, typename T, int d>
-	void UpdateLevelsetUnionConstraint(const T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void UpdateLevelsetUnionConstraint(const T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetUnionConstraint);
 
@@ -1221,7 +1221,7 @@ namespace Chaos
 
 
 	template <typename T, int d>
-	void UpdateBoxConstraint(const TBox<T, d>& Box1, const TRigidTransform<T, d>& Box1Transform, const TBox<T, d>& Box2, const TRigidTransform<T, d>& Box2Transform, T Thickness, TRigidBodyContactConstraint<T, d>& Constraint)
+	void UpdateBoxConstraint(const TBox<T, d>& Box1, const TRigidTransform<T, d>& Box1Transform, const TBox<T, d>& Box2, const TRigidTransform<T, d>& Box2Transform, T Thickness, TRigidBodySingleContactConstraint<T, d>& Constraint)
 	{
 		TConvexManifold<T, d> & Contact = Constraint.ShapeManifold;
 
@@ -1274,7 +1274,7 @@ namespace Chaos
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::UpdateLevelsetConstraint"), STAT_UpdateLevelsetConstraint, STATGROUP_ChaosWide);
 	template<ECollisionUpdateType UpdateType, typename T, int d>
-	void UpdateLevelsetConstraint(const T Thickness, TRigidBodyContactConstraint<float, 3>& Constraint)
+	void UpdateLevelsetConstraint(const T Thickness, TRigidBodySingleContactConstraint<float, 3>& Constraint)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetConstraint);
 
@@ -1301,12 +1301,12 @@ namespace Chaos
 		}
 	}
 
-	template void ConstructConstraintsImpl<float,3>(TGeometryParticleHandle<float, 3>* Particle0, TGeometryParticleHandle<float, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const float Thickness, TRigidBodyContactConstraint<float, 3> & Constraint);
-	template void UpdateUnionLevelsetConstraint<ECollisionUpdateType::Any, float, 3>(const float Thickness, TRigidBodyContactConstraint<float, 3>& Constraint);
-	template void UpdateUnionLevelsetConstraint<ECollisionUpdateType::Deepest, float, 3>(const float Thickness, TRigidBodyContactConstraint<float, 3>& Constraint);
-	template void UpdateConstraintImp<ECollisionUpdateType::Any, float, 3>(const FImplicitObject& ParticleObject, const TRigidTransform<float, 3>& ParticleTM, const FImplicitObject& LevelsetObject, const TRigidTransform<float, 3>& LevelsetTM, const float Thickness, TRigidBodyContactConstraint<float, 3>& Constraints);
-	template void UpdateConstraintImp<ECollisionUpdateType::Deepest, float, 3>(const FImplicitObject& ParticleObject, const TRigidTransform<float, 3>& ParticleTM, const FImplicitObject& LevelsetObject, const TRigidTransform<float, 3>& LevelsetTM, const float Thickness, TRigidBodyContactConstraint<float, 3>& Constraint);
-	template void UpdateLevelsetConstraint<ECollisionUpdateType::Any, float, 3>(const float Thickness, TRigidBodyContactConstraint<float, 3>& Constraint);
-	template void UpdateLevelsetConstraint<ECollisionUpdateType::Deepest, float, 3>(const float Thickness, TRigidBodyContactConstraint<float, 3>& Constraint);
+	template void ConstructConstraintsImpl<float,3>(TGeometryParticleHandle<float, 3>* Particle0, TGeometryParticleHandle<float, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const float Thickness, TRigidBodySingleContactConstraint<float, 3> & Constraint);
+	template void UpdateUnionLevelsetConstraint<ECollisionUpdateType::Any, float, 3>(const float Thickness, TRigidBodySingleContactConstraint<float, 3>& Constraint);
+	template void UpdateUnionLevelsetConstraint<ECollisionUpdateType::Deepest, float, 3>(const float Thickness, TRigidBodySingleContactConstraint<float, 3>& Constraint);
+	template void UpdateConstraintImp<ECollisionUpdateType::Any, float, 3>(const FImplicitObject& ParticleObject, const TRigidTransform<float, 3>& ParticleTM, const FImplicitObject& LevelsetObject, const TRigidTransform<float, 3>& LevelsetTM, const float Thickness, TRigidBodySingleContactConstraint<float, 3>& Constraints);
+	template void UpdateConstraintImp<ECollisionUpdateType::Deepest, float, 3>(const FImplicitObject& ParticleObject, const TRigidTransform<float, 3>& ParticleTM, const FImplicitObject& LevelsetObject, const TRigidTransform<float, 3>& LevelsetTM, const float Thickness, TRigidBodySingleContactConstraint<float, 3>& Constraint);
+	template void UpdateLevelsetConstraint<ECollisionUpdateType::Any, float, 3>(const float Thickness, TRigidBodySingleContactConstraint<float, 3>& Constraint);
+	template void UpdateLevelsetConstraint<ECollisionUpdateType::Deepest, float, 3>(const float Thickness, TRigidBodySingleContactConstraint<float, 3>& Constraint);
 
 }

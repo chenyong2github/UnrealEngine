@@ -65,7 +65,7 @@ public:
 	using FConstraintHandleID = TPair<const TGeometryParticleHandle<T, d>*, const TGeometryParticleHandle<T, d>*>;
 	using FConstraintContainerHandle = TPBDCollisionConstraintHandle<T, d>; // @todo(brice) rename this to FCollisionConstraintHandle
 	using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDCollisionConstraint<T, d>>;
-	using FRigidBodyContactConstraint = TRigidBodyContactConstraint<T, d>;
+	using FRigidBodyContactConstraint = TRigidBodySingleContactConstraint<T, d>;
 	using FHandles = TArray<FConstraintContainerHandle*>;
 
 	TPBDCollisionConstraint(const TPBDRigidsSOAs<T,d>& InParticles, TArrayCollectionArray<bool>& Collided, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterials, const int32 ApplyPairIterations = 1, const int32 ApplyPushOutPairIterations = 1, const T Thickness = (T)0);
@@ -212,7 +212,7 @@ private:
 	template<ECollisionUpdateType>
 	void UpdateConstraint(const T Thickness, FRigidBodyContactConstraint& Constraint);
 
-	void ConstructConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const T Thickness, TRigidBodyContactConstraint<T, d> & Constraint);
+	void ConstructConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const T Thickness, TRigidBodySingleContactConstraint<T, d> & Constraint);
 
 
 	const TPBDRigidsSOAs<T,d>& Particles;

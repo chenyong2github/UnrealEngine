@@ -139,7 +139,7 @@ namespace Chaos
 		{
 			if (ConstraintHandle->GetType() == TCollisionConstraintBase<float,3>::FType::SinglePoint)
 			{
-				const TRigidBodyContactConstraint<FReal, 3>& Contact = ConstraintHandle->GetContact< TRigidBodyContactConstraint<float, 3> >();
+				const TRigidBodySingleContactConstraint<FReal, 3>& Contact = ConstraintHandle->GetContact< TRigidBodySingleContactConstraint<float, 3> >();
 				if (Contact.GetPhi() > 0)
 				{
 					ColorScale = ColorScale * (FReal)0.1;
