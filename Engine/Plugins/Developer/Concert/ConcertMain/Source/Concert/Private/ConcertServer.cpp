@@ -6,6 +6,7 @@
 #include "ConcertLogger.h"
 #include "ConcertSettings.h"
 #include "ConcertServerSession.h"
+#include "ConcertServerSessionRepositories.h"
 #include "ConcertLogGlobal.h"
 #include "IConcertServerEventSink.h"
 
@@ -14,7 +15,6 @@
 #include "Misc/Paths.h"
 
 #include "Runtime/Launch/Resources/Version.h"
-#include "ConcertServerInstanceInfo.h"
 #include "StructSerializer.h"
 #include "StructDeserializer.h"
 #include "Backends/JsonStructSerializerBackend.h"
@@ -44,17 +44,17 @@ FString GetArchiveName(const FString& SessionName, const FConcertSessionSettings
 	}
 }
 
-FString GetServerInstanceInfoPathname(const FString& Role)
+FString GetSessionRepositoryDatabasePathname(const FString& Role)
 {
-	return FPaths::ProjectSavedDir() / Role / TEXT("InstanceInfo.json");
+	return FPaths::ProjectSavedDir() / Role / TEXT("Repositories.json");
 }
 
-bool SaveServerInstanceInfo(const FString& Role, const FConcertServerInstanceInfo& InInstanceInfo)
+bool SaveSessionRepositoryDatabase(const FString& Role, const FConcertServerSessionRepositoryDatabase& RepositoryDb)
 {
-	if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*GetServerInstanceInfoPathname(Role))))
+	if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*GetSessionRepositoryDatabasePathname(Role))))
 	{
 		FJsonStructSerializerBackend Backend(*FileWriter, EStructSerializerBackendFlags::Default);
-		FStructSerializer::Serialize(InInstanceInfo, Backend);
+		FStructSerializer::Serialize(RepositoryDb, Backend);
 
 		FileWriter->Close();
 		return !FileWriter->IsError();
@@ -63,12 +63,12 @@ bool SaveServerInstanceInfo(const FString& Role, const FConcertServerInstanceInf
 	return false;
 }
 
-bool LoadServerInstanceInfo(const FString& Role, FConcertServerInstanceInfo& OutIntanceInfo)
+bool LoadSessionRepositoryDatabase(const FString& Role, FConcertServerSessionRepositoryDatabase& RepositoryDb)
 {
-	if (TUniquePtr<FArchive> FileReader = TUniquePtr<FArchive>(IFileManager::Get().CreateFileReader(*GetServerInstanceInfoPathname(Role))))
+	if (TUniquePtr<FArchive> FileReader = TUniquePtr<FArchive>(IFileManager::Get().CreateFileReader(*GetSessionRepositoryDatabasePathname(Role))))
 	{
 		FJsonStructDeserializerBackend Backend(*FileReader);
-		FStructDeserializer::Deserialize(OutIntanceInfo, Backend);
+		FStructDeserializer::Deserialize(RepositoryDb, Backend);
 
 		FileReader->Close();
 		return !FileReader->IsError();
@@ -77,38 +77,6 @@ bool LoadServerInstanceInfo(const FString& Role, FConcertServerInstanceInfo& Out
 	return false;
 }
 
-int32 RemoveInactiveServerInstances(FConcertServerInstanceInfo& InOutIntanceInfo)
-{
-	InOutIntanceInfo.Instances.RemoveAll([](const FConcertServerInstance& Instance)
-	{
-		if (FPlatformProcess::IsApplicationRunning(Instance.ProcessId))
-		{
-			// If the PID was reused by another application, remove it from the list.
-			return FPaths::GetPathLeaf(FPlatformProcess::GetApplicationName(Instance.ProcessId)) != FPaths::GetPathLeaf(FPlatformProcess::GetApplicationName(FPlatformProcess::GetCurrentProcessId()));
-		}
-		return true; // Not running, remove it.
-	});
-
-	return InOutIntanceInfo.Instances.Num(); // How many remains?
-}
-
-bool SharesDirectoriesWithOtherInstances(const FConcertServerPaths& Paths, FConcertServerInstanceInfo& InstanceInfo)
-{
-	return Algo::AnyOf(InstanceInfo.Instances, [&Paths](const FConcertServerInstance& Instance)
-	{
-		return Instance.ArchiveDirectory == Paths.GetSavedDir() || Instance.WorkingDirectory == Paths.GetWorkingDir();
-	});
-}
-
-}
-
-
-FConcertServerPaths::FConcertServerPaths(const FString& InRole, const FString& InWorkingDir, const FString& InSavedDir)
-	: WorkingDir(InWorkingDir.Len() ? InWorkingDir / InRole : (FPaths::ProjectIntermediateDir() / TEXT("Concert") / InRole))
-	, SavedDir(InSavedDir.Len() ? InSavedDir / InRole : (FPaths::ProjectSavedDir() / TEXT("Concert") / InRole))
-	, BaseWorkingDir(InWorkingDir.Len() ? InWorkingDir : FPaths::ProjectIntermediateDir())
-	, BaseSavedDir(InSavedDir.Len() ? InSavedDir : FPaths::ProjectSavedDir())
-{
 }
 
 FConcertServer::FConcertServer(const FString& InRole, const FConcertSessionFilter& InAutoArchiveSessionFilter, IConcertServerEventSink* InEventSink, const TSharedPtr<IConcertEndpointProvider>& InEndpointProvider)
@@ -133,11 +101,11 @@ const FString& FConcertServer::GetRole() const
 
 void FConcertServer::Configure(const UConcertServerConfig* InSettings)
 {
+	check(!Settings); // Server do not support reconfiguration.
+
 	ServerInfo.Initialize();
 	check(InSettings != nullptr);
 	Settings = TStrongObjectPtr<const UConcertServerConfig>(InSettings);
-
-	Paths = MakeUnique<FConcertServerPaths>(GetRole(), InSettings->WorkingDir, InSettings->ArchiveDir);
 
 	if (!InSettings->ServerName.IsEmpty())
 	{
@@ -147,6 +115,19 @@ void FConcertServer::Configure(const UConcertServerConfig* InSettings)
 	if (InSettings->ServerSettings.bIgnoreSessionSettingsRestriction)
 	{
 		ServerInfo.ServerFlags |= EConcertServerFlags::IgnoreSessionRequirement;
+	}
+
+	SessionRepositoryRootDir = FPaths::ProjectSavedDir() / Role / TEXT("Sessions"); // Server default session repository root dir.
+	if (!Settings->SessionRepositoryRootDir.IsEmpty())
+	{
+		if (IFileManager::Get().DirectoryExists(*Settings->SessionRepositoryRootDir) || IFileManager::Get().MakeDirectory(*Settings->SessionRepositoryRootDir, /*Tree*/true))
+		{
+			SessionRepositoryRootDir = Settings->SessionRepositoryRootDir; // Overwrite the default.
+		}
+		else
+		{
+			UE_LOG(LogConcert, Warning, TEXT("Invalid session repository root directory. Falling back on %s default."), *SessionRepositoryRootDir);
+		}
 	}
 }
 
@@ -174,7 +155,6 @@ bool FConcertServer::IsStarted() const
 void FConcertServer::Startup()
 {
 	check(IsConfigured());
-	check (Paths.IsValid());
 	if (!ServerAdminEndpoint.IsValid() && EndpointProvider.IsValid())
 	{
 		// Create the server administration endpoint
@@ -197,45 +177,65 @@ void FConcertServer::Startup()
 		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_GetArchivedSessionsRequest, FConcertAdmin_GetSessionsResponse>(this, &FConcertServer::HandleGetArchivedSessionsRequest);
 		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_GetSessionClientsRequest, FConcertAdmin_GetSessionClientsResponse>(this, &FConcertServer::HandleGetSessionClientsRequest);
 		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_GetSessionActivitiesRequest, FConcertAdmin_GetSessionActivitiesResponse>(this, &FConcertServer::HandleGetSessionActivitiesRequest);
+		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_MountSessionRepositoryRequest, FConcertAdmin_MountSessionRepositoryResponse>(this, &FConcertServer::HandleMountSessionRepositoryRequest);
+		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_GetSessionRepositoriesRequest, FConcertAdmin_GetSessionRepositoriesResponse>(this, &FConcertServer::HandleGetSessionRepositoriesRequest);
+		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_DropSessionRepositoriesRequest, FConcertAdmin_DropSessionRepositoriesResponse>(this, &FConcertServer::HandleDropSessionRepositoriesRequest);
 
-		// Concurrent server instances may fight to get ownership of the info file.
-		FSystemWideCriticalSection ScopedSystemWideMutex(ConcertServerUtil::GetServerSystemMutexName());
-
-		// Load the file containing the instance info.
-		FConcertServerInstanceInfo InstanceInfo;
-		ConcertServerUtil::LoadServerInstanceInfo(Role, InstanceInfo);
-
-		// Check if the server can scan/load/rotate the existing session files in the configured directories. (The existing session files are not sharable, they can only managed by one instance)
-		int32 ActiveInstanceCount = ConcertServerUtil::RemoveInactiveServerInstances(InstanceInfo);
-		bExclusiveAccessToExistingSessionsAtStartup = ActiveInstanceCount == 0 || !ConcertServerUtil::SharesDirectoriesWithOtherInstances(*Paths, InstanceInfo);
-		if (bExclusiveAccessToExistingSessionsAtStartup)
+		// Perform maintenance tasks on the session repositories database.
 		{
-			if (Settings->bCleanWorkingDir)
-			{
-				ConcertUtil::DeleteDirectoryTree(*Paths->GetWorkingDir(), *Paths->GetBaseWorkingDir());
-			}
-			else
-			{
-				if (Settings->bAutoArchiveOnReboot)
-				{
-					// Migrate live sessions files (session is not restored yet) to its archive form and directory.
-					ArchiveOfflineSessions();
-				}
+			FSystemWideCriticalSection ScopedSystemWideMutex(ConcertServerUtil::GetServerSystemMutexName());
 
-				// Build the list of archive/live sessions and rotate the list of archive to prevent having too many of them.
-				RecoverSessions();
+			// Load the file containing the repositories.
+			FConcertServerSessionRepositoryDatabase SessionRepositoryDb;
+			ConcertServerUtil::LoadSessionRepositoryDatabase(Role, SessionRepositoryDb);
+
+			// Walk the root directory containing the server managed repositories and find those that aren't mapped anymore.
+			TArray<FString> ExpiredDirectories;
+			IFileManager::Get().IterateDirectory(*GetSessionRepositoriesRootDir(), [this, &SessionRepositoryDb, &ExpiredDirectories](const TCHAR* Pathname, bool bIsDirectory)
+			{
+				if (bIsDirectory)
+				{
+					// Check if the repository is still mapped.
+					FString RootReposDir = GetSessionRepositoriesRootDir();
+					if (!SessionRepositoryDb.Repositories.ContainsByPredicate([&RootReposDir, Pathname](const FConcertServerSessionRepository& Repository) { return  RootReposDir / Repository.RepositoryId.ToString() == Pathname; }))
+					{
+						ExpiredDirectories.Emplace(Pathname); // The visited directory was not found in the list of repositories.
+					}
+				}
+				return true;
+			});
+
+			// Delete the directories that are not mapped anymore.
+			for (const FString& Dir : ExpiredDirectories)
+			{
+				FGuid Dummy;
+				if (FGuid::Parse(FPaths::GetPathLeaf(Dir), Dummy)) // Ensure the directory name is a GUID as the repositories base dir is the repository ID.
+				{
+					ConcertUtil::DeleteDirectoryTree(*Dir);
+				}
 			}
 		}
-		// else -> This instance will be able to create/rename/delete new sessions but will not see/expose the currently existing ones to avoid file conflict/corruption.
 
-		// Add this instance to the instance info file.
-		FConcertServerInstance& ThisInstance = InstanceInfo.Instances.AddDefaulted_GetRef();
-		ThisInstance.ServerName = Settings->ServerName;
-		ThisInstance.WorkingDirectory = Paths->GetWorkingDir();
-		ThisInstance.ArchiveDirectory = Paths->GetSavedDir();
-		ThisInstance.ProcessId = FPlatformProcess::GetCurrentProcessId();
-		ThisInstance.bEnclaved = !bExclusiveAccessToExistingSessionsAtStartup; // Enclaved means this instance did not scan and load existing sessions to avoid conflict with another running instance(s). It was restricted to work with its own sessions only.
-		ConcertServerUtil::SaveServerInstanceInfo(Role, InstanceInfo);
+		// If the server was configured to use a custom working/archive dir, create a corresponding repository and try to mount it.
+		if (!Settings->WorkingDir.IsEmpty() || !Settings->ArchiveDir.IsEmpty())
+		{
+			FConcertServerSessionRepository Repository(Role, FGuid::NewGuid(), Settings->WorkingDir, Settings->ArchiveDir);
+			if (MountSessionRepository(Repository, /*bCreateIfNotExist*/true, Settings->bCleanWorkingDir, /*bCleanupExpiredSession*/true, /*bSearchByPath*/true) == EConcertSessionRepositoryMountResponseCode::Mounted)
+			{
+				check(Repository.bMounted && Repository.ProcessId == FPlatformProcess::GetCurrentProcessId());
+				DefaultSessionRepository.Emplace(Repository);
+			}
+		}
+		// If the server was configured to mount a default server managed repository.
+		else if (Settings->bMountDefaultSessionRepository)
+		{
+			FConcertServerSessionRepository Repository(GetSessionRepositoriesRootDir(), FGuid()); // Invalid GUID is used for the default server repository.
+			if (MountSessionRepository(Repository, /*bCreateIfNotExist*/true, Settings->bCleanWorkingDir, /*bCleanupExpiredSession*/true, /*bSearchByPath*/false) == EConcertSessionRepositoryMountResponseCode::Mounted)
+			{
+				check(Repository.bMounted && Repository.ProcessId == FPlatformProcess::GetCurrentProcessId());
+				DefaultSessionRepository.Emplace(Repository);
+			}
+		}
 	}
 }
 
@@ -296,17 +296,26 @@ void FConcertServer::Shutdown()
 	FSystemWideCriticalSection ScopedSystemWideMutex(ConcertServerUtil::GetServerSystemMutexName());
 
 	// Load the file containing the instance info.
-	FConcertServerInstanceInfo InstanceInfo;
-	ConcertServerUtil::LoadServerInstanceInfo(Role, InstanceInfo);
+	FConcertServerSessionRepositoryDatabase SessionRepositoryDb;
+	ConcertServerUtil::LoadSessionRepositoryDatabase(Role, SessionRepositoryDb);
+	bool bSaveRepositoryDatabase = false;
 
-	// Remove this instance form the list of instances.
+	// Unmount all repositories mounted by this instance.
 	int32 ProcessId = FPlatformProcess::GetCurrentProcessId();
-	InstanceInfo.Instances.RemoveAll([ProcessId](const FConcertServerInstance& Instance)
+	for (FConcertServerSessionRepository& Repository : SessionRepositoryDb.Repositories)
 	{
-		return Instance.ProcessId == ProcessId;
-	});
+		if (Repository.bMounted && Repository.ProcessId == ProcessId)
+		{
+			Repository.bMounted = false;
+			Repository.ProcessId = 0;
+			bSaveRepositoryDatabase = true;
+		}
+	}
 
-	ConcertServerUtil::SaveServerInstanceInfo(Role, InstanceInfo);
+	if (bSaveRepositoryDatabase)
+	{
+		ConcertServerUtil::SaveSessionRepositoryDatabase(Role, SessionRepositoryDb);
+	}
 }
 
 FGuid FConcertServer::GetLiveSessionIdByName(const FString& InName) const
@@ -374,7 +383,14 @@ TSharedPtr<IConcertServerSession> FConcertServer::CreateSession(const FConcertSe
 		return nullptr;
 	}
 
-	return CreateLiveSession(SessionInfo);
+	if (!DefaultSessionRepository)
+	{
+		OutFailureReason = FText::Format(LOCTEXT("Error_CreateSession_NoRepository", "Session '{0}' could not be created, no session repository was mounted to store it"), FText::AsCultureInvariant(SessionInfo.SessionName));
+		UE_LOG(LogConcert, Error, TEXT("An attempt to create a session with name '%s' was made, but the server did not have any repository mounted to store it!"), *SessionInfo.SessionName);
+		return nullptr;
+	}
+
+	return CreateLiveSession(SessionInfo, DefaultSessionRepository.GetValue());
 }
 
 TSharedPtr<IConcertServerSession> FConcertServer::RestoreSession(const FGuid& SessionId, const FConcertSessionInfo& SessionInfo, const FConcertSessionFilter& SessionFilter, FText& OutFailureReason)
@@ -410,28 +426,26 @@ TSharedPtr<IConcertServerSession> FConcertServer::RestoreSession(const FGuid& Se
 	return RestoreArchivedSession(SessionId, SessionInfo, SessionFilter, OutFailureReason);
 }
 
-void FConcertServer::RecoverSessions()
+void FConcertServer::RecoverSessions(const FConcertServerSessionRepository& InRepository, bool bCleanupExpiredSessions)
 {
-	check(LiveSessions.Num() == 0 && ArchivedSessions.Num() == 0);
-
 	// Find any existing live sessions to automatically restore when recovering from an improper server shutdown
 	TArray<FConcertSessionInfo> LiveSessionInfos;
-	EventSink->GetSessionsFromPath(*this, Paths->GetWorkingDir(), LiveSessionInfos);
+	EventSink->GetSessionsFromPath(*this, InRepository.WorkingDir, LiveSessionInfos);
 
 	// Restore any existing live sessions
 	for (FConcertSessionInfo& LiveSessionInfo : LiveSessionInfos)
 	{
 		// Update the session info with new server info
 		LiveSessionInfo.ServerInstanceId = ServerInfo.InstanceInfo.InstanceId;
-		if (!LiveSessions.Contains(LiveSessionInfo.SessionId) && !GetLiveSessionIdByName(LiveSessionInfo.SessionName).IsValid() && CreateLiveSession(LiveSessionInfo))
+		if (!LiveSessions.Contains(LiveSessionInfo.SessionId) && !GetLiveSessionIdByName(LiveSessionInfo.SessionName).IsValid() && CreateLiveSession(LiveSessionInfo, InRepository))
 		{
 			UE_LOG(LogConcert, Display, TEXT("Live session '%s' (%s) was recovered."), *LiveSessionInfo.SessionName, *LiveSessionInfo.SessionId.ToString());
 		}
 	}
 
-	if (Settings->NumSessionsToKeep == 0)
+	if (bCleanupExpiredSessions && Settings->NumSessionsToKeep == 0)
 	{
-		ConcertUtil::DeleteDirectoryTree(*Paths->GetSavedDir(), *Paths->GetBaseSavedDir());
+		ConcertUtil::DeleteDirectoryTree(*InRepository.SavedDir);
 	}
 	else
 	{
@@ -440,11 +454,11 @@ void FConcertServer::RecoverSessions()
 		TArray<FDateTime> ArchivedSessionCreationTimes;
 
 		// In theory, archives are immutable, but the server will end up touching the files and change the 'modification time'. Ensure to look at 'creation time'.
-		EventSink->GetSessionsFromPath(*this, Paths->GetSavedDir(), ArchivedSessionInfos, &ArchivedSessionCreationTimes);
+		EventSink->GetSessionsFromPath(*this, InRepository.SavedDir, ArchivedSessionInfos, &ArchivedSessionCreationTimes);
 		check(ArchivedSessionInfos.Num() == ArchivedSessionCreationTimes.Num());
 
-		// Trim the oldest archived sessions
-		if (Settings->NumSessionsToKeep > 0 && ArchivedSessionInfos.Num() > Settings->NumSessionsToKeep)
+		// Trim the oldest archived sessions.
+		if (bCleanupExpiredSessions && Settings->NumSessionsToKeep > 0 && ArchivedSessionInfos.Num() > Settings->NumSessionsToKeep)
 		{
 			typedef TTuple<int32, FDateTime> FSavedSessionInfo;
 
@@ -473,7 +487,7 @@ void FConcertServer::RecoverSessions()
 			// Remove the oldest sessions
 			for (const FSavedSessionInfo& SortedSession : SortedSessions)
 			{
-				ConcertUtil::DeleteDirectoryTree(*Paths->GetSessionSavedDir(ArchivedSessionInfos[SortedSession.Key].SessionId), *Paths->GetBaseSavedDir());
+				ConcertUtil::DeleteDirectoryTree(*InRepository.GetSessionSavedDir(ArchivedSessionInfos[SortedSession.Key].SessionId));
 			}
 
 			// Update the list of sessions to restore
@@ -494,11 +508,11 @@ void FConcertServer::RecoverSessions()
 	}
 }
 
-void FConcertServer::ArchiveOfflineSessions()
+void FConcertServer::ArchiveOfflineSessions(const FConcertServerSessionRepository& InRepository)
 {
 	// Find existing live session files to automatically archive them when recovering from an improper server shutdown.
 	TArray<FConcertSessionInfo> LiveSessionInfos;
-	EventSink->GetSessionsFromPath(*this, Paths->GetWorkingDir(), LiveSessionInfos);
+	EventSink->GetSessionsFromPath(*this, InRepository.WorkingDir, LiveSessionInfos);
 
 	// Migrate the live sessions files into their archived form.
 	for (FConcertSessionInfo& LiveSessionInfo : LiveSessionInfos)
@@ -508,10 +522,10 @@ void FConcertServer::ArchiveOfflineSessions()
 		ArchivedSessionInfo.SessionId = FGuid::NewGuid();
 		ArchivedSessionInfo.SessionName = ConcertServerUtil::GetArchiveName(LiveSessionInfo.SessionName, LiveSessionInfo.Settings);
 
-		if (EventSink->ArchiveSession(*this, Paths->GetSessionWorkingDir(LiveSessionInfo.SessionId), Paths->GetSessionSavedDir(ArchivedSessionInfo.SessionId), ArchivedSessionInfo, AutoArchiveSessionFilter))
+		if (EventSink->ArchiveSession(*this, InRepository.GetSessionWorkingDir(LiveSessionInfo.SessionId), InRepository.GetSessionSavedDir(ArchivedSessionInfo.SessionId), ArchivedSessionInfo, AutoArchiveSessionFilter))
 		{
-			UE_LOG(LogConcert, Display, TEXT("Deleting %s"), *Paths->GetSessionWorkingDir(LiveSessionInfo.SessionId));
-			ConcertUtil::DeleteDirectoryTree(*Paths->GetSessionWorkingDir(LiveSessionInfo.SessionId), *Paths->GetBaseWorkingDir());
+			UE_LOG(LogConcert, Display, TEXT("Deleting %s"), *InRepository.GetSessionWorkingDir(LiveSessionInfo.SessionId));
+			ConcertUtil::DeleteDirectoryTree(*InRepository.GetSessionWorkingDir(LiveSessionInfo.SessionId));
 			UE_LOG(LogConcert, Display, TEXT("Live session '%s' (%s) was archived on reboot."), *LiveSessionInfo.SessionName, *LiveSessionInfo.SessionId.ToString());
 		}
 	}
@@ -610,6 +624,157 @@ TSharedPtr<IConcertServerSession> FConcertServer::GetSession(const FGuid& Sessio
 	return LiveSessions.FindRef(SessionId);
 }
 
+const FString& FConcertServer::GetSessionRepositoriesRootDir() const
+{
+	return SessionRepositoryRootDir;
+}
+
+const FConcertServerSessionRepository& FConcertServer::GetSessionRepository(const FGuid& SessionId) const
+{
+	const FConcertServerSessionRepository* SessionRepository = MountedSessionRepositories.FindByPredicate([SessionId](const FConcertServerSessionRepository& MountedRepository)
+	{
+		return IFileManager::Get().DirectoryExists(*MountedRepository.GetSessionWorkingDir(SessionId)) || IFileManager::Get().DirectoryExists(*MountedRepository.GetSessionSavedDir(SessionId));
+	});
+
+	check(SessionRepository); // If the session is in memory, its repository must be mounted.
+	return *SessionRepository;
+}
+
+FString FConcertServer::GetSessionSavedDir(const FGuid& SessionId) const
+{
+	return GetSessionRepository(SessionId).GetSessionSavedDir(SessionId);
+}
+
+FString FConcertServer::GetSessionWorkingDir(const FGuid& SessionId) const
+{
+	return GetSessionRepository(SessionId).GetSessionWorkingDir(SessionId);
+}
+
+EConcertSessionRepositoryMountResponseCode FConcertServer::MountSessionRepository(FConcertServerSessionRepository& Repository, bool bCreateIfNotExist, bool bCleanWorkingDir, bool bCleanExpiredSessions, bool bSearchByPaths)
+{
+	// Exclusive access scope to the session repository db.
+	{
+		// Load the file containing the instance/repository info.
+		FSystemWideCriticalSection ScopedSystemWideMutex(ConcertServerUtil::GetServerSystemMutexName());
+		FConcertServerSessionRepositoryDatabase SessionRepositoryDb;
+		ConcertServerUtil::LoadSessionRepositoryDatabase(Role, SessionRepositoryDb);
+
+		check(!Repository.bMounted && Repository.ProcessId == 0); // Should not be mounted.
+
+		// Check if the repository can be found in the database.
+		if (FConcertServerSessionRepository* ExistingRepository = SessionRepositoryDb.Repositories.FindByPredicate(
+			[&Repository, bSearchByPaths](const FConcertServerSessionRepository& Candidate){ return bSearchByPaths ? Candidate.WorkingDir == Repository.WorkingDir && Candidate.SavedDir == Repository.SavedDir : Candidate.RepositoryId == Repository.RepositoryId; }))
+		{
+			if (!ExistingRepository->bMounted || !FPlatformProcess::IsApplicationRunning(ExistingRepository->ProcessId))
+			{
+				check(Repository.RepositoryRootDir == ExistingRepository->RepositoryRootDir) // The client changed the root dir?
+				ExistingRepository->bMounted = true;
+				ExistingRepository->ProcessId = FPlatformProcess::GetCurrentProcessId();
+				Repository = *ExistingRepository;
+				MountedSessionRepositories.Add(Repository);
+				ConcertServerUtil::SaveSessionRepositoryDatabase(Role, SessionRepositoryDb);
+			}
+			else
+			{
+				return EConcertSessionRepositoryMountResponseCode::AlreadyMounted; // Already mounted by another process, cannot mount it.
+			}
+		}
+		else if (bCreateIfNotExist)
+		{
+			Repository.bMounted = true;
+			Repository.ProcessId = FPlatformProcess::GetCurrentProcessId();
+			MountedSessionRepositories.Add(Repository);
+			SessionRepositoryDb.Repositories.Add(Repository);
+			ConcertServerUtil::SaveSessionRepositoryDatabase(Role, SessionRepositoryDb);
+		}
+		else
+		{
+			return EConcertSessionRepositoryMountResponseCode::NotFound;
+		}
+	}
+
+	// Process the sessions in the repository.
+	if (bCleanWorkingDir)
+	{
+		ConcertUtil::DeleteDirectoryTree(*Repository.WorkingDir);
+	}
+	else if (Settings->bAutoArchiveOnReboot) // Honor the auto-archive settings when mounting a new repository.
+	{
+		// Migrate live sessions files (session is not restored yet) to its archive form and directory.
+		ArchiveOfflineSessions(Repository);
+	}
+
+	// Reload the archived/live sessions and possibly rotate the list of archives to prevent having too many of them.
+	RecoverSessions(Repository, bCleanExpiredSessions);
+
+	return EConcertSessionRepositoryMountResponseCode::Mounted;
+}
+
+bool FConcertServer::UnmountSessionRepository(FConcertServerSessionRepository& Repository, bool bDropped)
+{
+	check(Repository.bMounted && Repository.ProcessId == FPlatformProcess::GetCurrentProcessId());
+	check(MountedSessionRepositories.FindByPredicate([Repository](const FConcertServerSessionRepository& Candidate) { return Candidate.RepositoryId == Repository.RepositoryId; })); // Should be found in the list of mounted repositories.
+
+	// Unload the live sessions hosted in that repository.
+	TArray<FGuid> LiveSessionIds;
+	LiveSessions.GetKeys(LiveSessionIds);
+	for (const FGuid& LiveSessionId : LiveSessionIds)
+	{
+		const FConcertServerSessionRepository& SessionRepository = GetSessionRepository(LiveSessionId);
+		if (SessionRepository.RepositoryId == Repository.RepositoryId)
+		{
+			DestroyLiveSession(LiveSessionId, /*bDeleteSessionData*/false);
+		}
+	}
+
+	// Unload the archived sessions hosted in that repository.
+	TArray<FGuid> ArchivedSessionIds;
+	ArchivedSessions.GetKeys(ArchivedSessionIds);
+	for (const FGuid& ArchivedSessionId : ArchivedSessionIds)
+	{
+		const FConcertServerSessionRepository& SessionRepository = GetSessionRepository(ArchivedSessionId);
+		if (SessionRepository.RepositoryId == Repository.RepositoryId)
+		{
+			DestroyArchivedSession(ArchivedSessionId, /*bDeleteSessionData*/false);
+		}
+	}
+
+	if (DefaultSessionRepository && DefaultSessionRepository->RepositoryId == Repository.RepositoryId)
+	{
+		DefaultSessionRepository.Reset(); // Will not be able to create new sessions until a mounted repository is set as default.
+		UE_LOG(LogConcert, Warning, TEXT("Unmounted the default session repository. No session will be created until a mounted repository is set as default"));
+	}
+
+	// Mark the repository as unmounted.
+	Repository.bMounted = false;
+	Repository.ProcessId = 0;
+	MountedSessionRepositories.RemoveAll([Repository](const FConcertServerSessionRepository& CandidateRepository) { return Repository.RepositoryId == CandidateRepository.RepositoryId; });
+
+	// If the repository is being dropped, the file can go away if the repository is under a known root.
+	if (bDropped && !Repository.RepositoryRootDir.IsEmpty())
+	{
+		FString RepositoryDir = Repository.RepositoryRootDir / Repository.RepositoryId.ToString();
+		ConcertUtil::DeleteDirectoryTree(*RepositoryDir);
+	}
+
+	// Update the repository database file.
+	FSystemWideCriticalSection ScopedSystemWideMutex(ConcertServerUtil::GetServerSystemMutexName());
+	FConcertServerSessionRepositoryDatabase SessionRepositoryDb;
+	ConcertServerUtil::LoadSessionRepositoryDatabase(Role, SessionRepositoryDb);
+	if (bDropped)
+	{
+		SessionRepositoryDb.Repositories.RemoveAll([Repository](const FConcertServerSessionRepository& CandidateRepository) { return Repository.RepositoryId == CandidateRepository.RepositoryId; });
+	}
+	else if (FConcertServerSessionRepository* UnmountedRepo = SessionRepositoryDb.Repositories.FindByPredicate([Repository](const FConcertServerSessionRepository& CandidateRepository) { return Repository.RepositoryId == CandidateRepository.RepositoryId; }))
+	{
+		UnmountedRepo->bMounted = false;
+		UnmountedRepo->ProcessId = 0;
+	}
+	ConcertServerUtil::SaveSessionRepositoryDatabase(Role, SessionRepositoryDb);
+
+	return true;
+}
+
 void FConcertServer::HandleDiscoverServersEvent(const FConcertMessageContext& Context)
 {
 	const FConcertAdmin_DiscoverServersEvent* Message = Context.GetMessage<FConcertAdmin_DiscoverServersEvent>();
@@ -622,6 +787,126 @@ void FConcertServer::HandleDiscoverServersEvent(const FConcertMessageContext& Co
 		DiscoveryInfo.ServerFlags = ServerInfo.ServerFlags;
 		ServerAdminEndpoint->SendEvent(DiscoveryInfo, Context.SenderConcertEndpointId);
 	}
+}
+
+TFuture<FConcertAdmin_MountSessionRepositoryResponse> FConcertServer::HandleMountSessionRepositoryRequest(const FConcertMessageContext& Context)
+{
+	const FConcertAdmin_MountSessionRepositoryRequest* Message = Context.GetMessage<FConcertAdmin_MountSessionRepositoryRequest>();
+
+	FConcertAdmin_MountSessionRepositoryResponse ResponseData;
+	if (Message->RepositoryRootDir.IsEmpty()) // Use the server configured repository root dir?
+	{
+		FConcertServerSessionRepository Repository(GetSessionRepositoriesRootDir(), Message->RepositoryId);
+		ResponseData.MountStatus = MountSessionRepository(Repository, Message->bCreateIfNotExist, /*bCleanWorkingDir*/false, /*bCleanExpiredSessions*/false, /*bSearchByPaths*/false);
+	}
+	else // Use the client supplied repository root dir.
+	{
+		FConcertServerSessionRepository Repository(Message->RepositoryRootDir, Message->RepositoryId);
+		ResponseData.MountStatus = MountSessionRepository(Repository, Message->bCreateIfNotExist, /*bCleanWorkingDir*/false, /*bCleanExpiredSessions*/false, /*bSearchByPaths*/false);
+	}
+
+	// Should the mounted repository be used as default?
+	if (Message->bAsServerDefault && ResponseData.MountStatus == EConcertSessionRepositoryMountResponseCode::Mounted)
+	{
+		const FConcertServerSessionRepository* DefaultRepository = MountedSessionRepositories.FindByPredicate([RepositoryId = Message->RepositoryId](const FConcertServerSessionRepository& Repository)
+		{
+			return Repository.RepositoryId == RepositoryId;
+		});
+
+		if (DefaultRepository)
+		{
+			DefaultSessionRepository = *DefaultRepository;
+		}
+	}
+
+	return FConcertAdmin_MountSessionRepositoryResponse::AsFuture(MoveTemp(ResponseData));
+}
+
+TFuture<FConcertAdmin_GetSessionRepositoriesResponse> FConcertServer::HandleGetSessionRepositoriesRequest(const FConcertMessageContext& Context)
+{
+	// Prevent concurrent access to the instance file.
+	FSystemWideCriticalSection ScopedSystemWideMutex(ConcertServerUtil::GetServerSystemMutexName());
+
+	// Load the global database containing all known repositories.
+	FConcertServerSessionRepositoryDatabase SessionRepositoryDb;
+	ConcertServerUtil::LoadSessionRepositoryDatabase(Role, SessionRepositoryDb);
+	bool bDatabaseUpdated = false;
+
+	// Fill up the response.
+	FConcertAdmin_GetSessionRepositoriesResponse ResponseData;
+	for (FConcertServerSessionRepository& Repository : SessionRepositoryDb.Repositories)
+	{
+		if (Repository.bMounted && !FPlatformProcess::IsApplicationRunning(Repository.ProcessId)) // Check if the state still hold.
+		{
+			Repository.bMounted = false; // Update the state.
+			Repository.ProcessId = 0;
+			bDatabaseUpdated = true;
+		}
+		ResponseData.SessionRepositories.Add(FConcertSessionRepositoryInfo{Repository.RepositoryId, Repository.bMounted});
+	}
+
+	if (bDatabaseUpdated)
+	{
+		ConcertServerUtil::SaveSessionRepositoryDatabase(Role, SessionRepositoryDb);
+	}
+
+	return FConcertAdmin_GetSessionRepositoriesResponse::AsFuture(MoveTemp(ResponseData));
+}
+
+TFuture<FConcertAdmin_DropSessionRepositoriesResponse> FConcertServer::HandleDropSessionRepositoriesRequest(const FConcertMessageContext& Context)
+{
+	const FConcertAdmin_DropSessionRepositoriesRequest* Message = Context.GetMessage<FConcertAdmin_DropSessionRepositoriesRequest>();
+	FConcertAdmin_DropSessionRepositoriesResponse ResponseData;
+
+	// Drop the repository currently loaded in-memory by this process.
+	for (const FGuid& RepositoryId : Message->RepositoryIds)
+	{
+		if (FConcertServerSessionRepository* MountedRepo = MountedSessionRepositories.FindByPredicate([RepositoryId](const FConcertServerSessionRepository& Candidate) { return Candidate.RepositoryId == RepositoryId; }))
+		{
+			if (UnmountSessionRepository(*MountedRepo, /*bDropped*/true))
+			{
+				ResponseData.DroppedRepositoryIds.Add(RepositoryId);
+			}
+		}
+	}
+
+	// Drop the repository that aren't loaded by this process, but found in the global repository database.
+	{
+		FSystemWideCriticalSection ScopedSystemWideMutex(ConcertServerUtil::GetServerSystemMutexName());
+		FConcertServerSessionRepositoryDatabase SessionRepositoryDb;
+		ConcertServerUtil::LoadSessionRepositoryDatabase(Role, SessionRepositoryDb);
+		int32 DroppedRepositoryNum = 0;
+
+		// Drop the repositories.
+		for (const FGuid& RepositoryId : Message->RepositoryIds)
+		{
+			DroppedRepositoryNum += SessionRepositoryDb.Repositories.RemoveAll([this, &RepositoryId, &ResponseData](FConcertServerSessionRepository& Repository)
+			{
+				bool bDropped = false;
+				if (Repository.RepositoryId == RepositoryId)
+				{
+					if (!Repository.bMounted || !FPlatformProcess::IsApplicationRunning(Repository.ProcessId)) // Not mounted.
+					{
+						if (!Repository.RepositoryRootDir.IsEmpty()) // This is the standard repo form and the server know what should be deleted.
+						{
+							FString ReposDir = Repository.RepositoryRootDir / Repository.RepositoryId.ToString();
+							ConcertUtil::DeleteDirectoryTree(*ReposDir);
+						}
+						ResponseData.DroppedRepositoryIds.Add(RepositoryId);
+						return true;
+					}
+				}
+				return false;
+			});
+		}
+
+		if (DroppedRepositoryNum)
+		{
+			ConcertServerUtil::SaveSessionRepositoryDatabase(Role, SessionRepositoryDb);
+		}
+	}
+
+	return FConcertAdmin_DropSessionRepositoriesResponse::AsFuture(MoveTemp(ResponseData));
 }
 
 TFuture<FConcertAdmin_SessionInfoResponse> FConcertServer::HandleCreateSessionRequest(const FConcertMessageContext& Context)
@@ -808,7 +1093,7 @@ FConcertAdmin_RenameSessionResponse FConcertServer::RenameSessionInternal(const 
 		else
 		{
 			ArchivedSessionInfo->SessionName = Request.NewName;
-			EventSink->OnArchivedSessionRenamed(*this, Paths->GetSessionSavedDir(Request.SessionId), *ArchivedSessionInfo);
+			EventSink->OnArchivedSessionRenamed(*this, GetSessionSavedDir(Request.SessionId), *ArchivedSessionInfo);
 
 			ResponseData.ResponseCode = EConcertResponseCode::Success;
 			UE_LOG(LogConcert, Display, TEXT("User %s renamed archived session %s from %s to %s"), *Request.UserName, *ResponseData.SessionId.ToString(), *ResponseData.OldName, *Request.NewName);
@@ -889,7 +1174,6 @@ TFuture<FConcertAdmin_GetAllSessionsResponse> FConcertServer::HandleGetAllSessio
 
 	FConcertAdmin_GetAllSessionsResponse ResponseData;
 	ResponseData.LiveSessions = GetSessionsInfo();
-	ResponseData.bIncludesPreviousInstanceSessions = bExclusiveAccessToExistingSessionsAtStartup;
 	for (const auto& ArchivedSessionPair : ArchivedSessions)
 	{
 		ResponseData.ArchivedSessions.Add(ArchivedSessionPair.Value);
@@ -989,7 +1273,7 @@ bool FConcertServer::IsRequestFromSessionOwner(const TSharedPtr<IConcertServerSe
 	return false;
 }
 
-TSharedPtr<IConcertServerSession> FConcertServer::CreateLiveSession(const FConcertSessionInfo& SessionInfo)
+TSharedPtr<IConcertServerSession> FConcertServer::CreateLiveSession(const FConcertSessionInfo& SessionInfo, const FConcertServerSessionRepository& InRepository)
 {
 	check(SessionInfo.SessionId.IsValid() && !SessionInfo.SessionName.IsEmpty());
 	check(!LiveSessions.Contains(SessionInfo.SessionId) && !GetLiveSessionIdByName(SessionInfo.SessionName).IsValid());
@@ -1006,7 +1290,7 @@ TSharedPtr<IConcertServerSession> FConcertServer::CreateLiveSession(const FConce
 		LiveSessionInfo,
 		Settings->ServerSettings,
 		EndpointProvider->CreateLocalEndpoint(LiveSessionInfo.SessionName, Settings->EndpointSettings, &FConcertLogger::CreateLogger),
-		Paths->GetSessionWorkingDir(LiveSessionInfo.SessionId)
+		InRepository.GetSessionWorkingDir(LiveSessionInfo.SessionId)
 		);
 
 	LiveSessions.Add(LiveSessionInfo.SessionId, LiveSession);
@@ -1027,7 +1311,7 @@ bool FConcertServer::DestroyLiveSession(const FGuid& LiveSessionId, const bool b
 
 		if (bDeleteSessionData)
 		{
-			ConcertUtil::DeleteDirectoryTree(*Paths->GetSessionWorkingDir(LiveSessionId), *Paths->GetBaseWorkingDir());
+			ConcertUtil::DeleteDirectoryTree(*GetSessionWorkingDir(LiveSessionId));
 		}
 
 		return true;
@@ -1051,10 +1335,13 @@ FGuid FConcertServer::ArchiveLiveSession(const FGuid& LiveSessionId, const FStri
 			DestroyArchivedSession(ArchivedSessionId, /*bDeleteSessionData*/true);
 		}
 
+		// Find the live session repository to stored the archive in the same one.
+		const FConcertServerSessionRepository& SessionRepository = GetSessionRepository(LiveSession->GetSessionInfo().SessionId);
+
 		FConcertSessionInfo ArchivedSessionInfo = LiveSession->GetSessionInfo();
 		ArchivedSessionInfo.SessionId = FGuid::NewGuid();
 		ArchivedSessionInfo.SessionName = MoveTemp(ArchivedSessionName);
-		if (EventSink->ArchiveSession(*this, LiveSession.ToSharedRef(), Paths->GetSessionSavedDir(ArchivedSessionInfo.SessionId), ArchivedSessionInfo, SessionFilter))
+		if (EventSink->ArchiveSession(*this, LiveSession.ToSharedRef(), SessionRepository.GetSessionSavedDir(ArchivedSessionInfo.SessionId), ArchivedSessionInfo, SessionFilter))
 		{
 			UE_LOG(LogConcert, Display, TEXT("Live session '%s' (%s) was archived as '%s' (%s)"), *LiveSession->GetName(), *LiveSession->GetId().ToString(), *ArchivedSessionInfo.SessionName, *ArchivedSessionInfo.SessionId.ToString());
 			if (CreateArchivedSession(ArchivedSessionInfo))
@@ -1073,7 +1360,7 @@ bool FConcertServer::CreateArchivedSession(const FConcertSessionInfo& SessionInf
 	check(!ArchivedSessions.Contains(SessionInfo.SessionId) && !GetArchivedSessionIdByName(SessionInfo.SessionName).IsValid());
 
 	ArchivedSessions.Add(SessionInfo.SessionId, SessionInfo);
-	EventSink->OnArchivedSessionCreated(*this, Paths->GetSessionSavedDir(SessionInfo.SessionId), SessionInfo);
+	EventSink->OnArchivedSessionCreated(*this, GetSessionSavedDir(SessionInfo.SessionId), SessionInfo);
 
 	return true;
 }
@@ -1087,7 +1374,7 @@ bool FConcertServer::DestroyArchivedSession(const FGuid& ArchivedSessionId, cons
 
 		if (bDeleteSessionData)
 		{
-			ConcertUtil::DeleteDirectoryTree(*Paths->GetSessionSavedDir(ArchivedSessionId), *Paths->GetBaseSavedDir());
+			ConcertUtil::DeleteDirectoryTree(*GetSessionSavedDir(ArchivedSessionId));
 		}
 
 		return true;
@@ -1102,6 +1389,9 @@ TSharedPtr<IConcertServerSession> FConcertServer::RestoreArchivedSession(const F
 
 	if (const FConcertSessionInfo* ArchivedSessionInfo = ArchivedSessions.Find(ArchivedSessionId))
 	{
+		// Find the archived session repository to restore the session in the same one.
+		const FConcertServerSessionRepository& SessionRepository = GetSessionRepository(ArchivedSessionId);
+
 		FString LiveSessionName = NewSessionInfo.SessionName;
 		if (LiveSessionName.IsEmpty())
 		{
@@ -1147,10 +1437,10 @@ TSharedPtr<IConcertServerSession> FConcertServer::RestoreArchivedSession(const F
 			}
 		}
 
-		if (EventSink->RestoreSession(*this, ArchivedSessionId, Paths->GetSessionWorkingDir(LiveSessionInfo.SessionId), LiveSessionInfo, SessionFilter))
+		if (EventSink->RestoreSession(*this, ArchivedSessionId, SessionRepository.GetSessionWorkingDir(LiveSessionInfo.SessionId), LiveSessionInfo, SessionFilter))
 		{
 			UE_LOG(LogConcert, Display, TEXT("Archived session '%s' (%s) was restored as '%s' (%s)"), *ArchivedSessionInfo->SessionName, *ArchivedSessionInfo->SessionId.ToString(), *LiveSessionInfo.SessionName, *LiveSessionInfo.SessionId.ToString());
-			return CreateLiveSession(LiveSessionInfo);
+			return CreateLiveSession(LiveSessionInfo, SessionRepository);
 		}
 	}
 

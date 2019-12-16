@@ -8,21 +8,17 @@
 #include "Templates/Function.h"
 
 class IConcertSyncClient;
+class IDisasterRecoverySessionManager;
 
 namespace DisasterRecoveryUtil
 {
 /**
- * Function invoked by by the recovery system to pin/lock a given session to be recovered by this instance.
- */
-using PinSessionToRestoreFunc = TFunction<TPair<bool, const FConcertSessionInfo*>(const TArray<FConcertSessionInfo>& /*ArchivedSessions*/)>;
-
-/**
  * Start the recovery flow. This should be called when the previous instance of the editor exited unexpectedly.
  * @param SyncClient The client configured with the recovery server URL, the recovery session name and recovery archive name.
- * @param PinSessionToRestoreFn A function used by the process to take ownership for recovering a session.
+ * @param RecoverySessionManager The manager used to interact with the available recovery sessions.
  * @param bLiveDataOnly Filter the recovery data to only recover live transaction data. (Transaction that were not saved to disk yet)
  */
-void StartRecovery(TSharedRef<IConcertSyncClient> SyncClient, const PinSessionToRestoreFunc& PinSessionToRestoreFn, bool bLiveDataOnly);
+void StartRecovery(TSharedRef<IConcertSyncClient> SyncClient, IDisasterRecoverySessionManager& RecoverySessionManager, bool bLiveDataOnly);
 
 /**
  * End the recovery flow. This can be called to abort the recovery process.
