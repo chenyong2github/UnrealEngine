@@ -1972,19 +1972,15 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 		}
 		if (ImportSkeletalMeshArgs.ImportMeshSectionsData)
 		{
-			if (NewLODInfo.LODMaterialMap.Num() >= NumSections)
+			for (int32 SectionIndex = 0; SectionIndex < ImportedResource->LODModels[0].Sections.Num(); ++SectionIndex)
 			{
-				for (int32 SectionMaterialIndex : SkeletalMesh->GetLODInfo(0)->LODMaterialMap)
+				const FSkelMeshSection &SkelMeshSection = ImportedResource->LODModels[0].Sections[SectionIndex];
+				int32 MaterialIndex = SkelMeshSection.MaterialIndex;
+				if (SkeletalMesh->GetLODInfo(0)->LODMaterialMap.IsValidIndex(SectionIndex) && SkeletalMesh->GetLODInfo(0)->LODMaterialMap[SectionIndex] != INDEX_NONE)
 				{
-					ImportSkeletalMeshArgs.ImportMeshSectionsData->SectionOriginalMaterialName.Add(SkeletalMesh->Materials[SectionMaterialIndex].ImportedMaterialSlotName);
+					MaterialIndex = SkeletalMesh->GetLODInfo(0)->LODMaterialMap[SectionIndex];
 				}
-			}
-			else
-			{
-				for (const FSkelMeshSection &SkelMeshSection : ImportedResource->LODModels[0].Sections)
-				{
-					ImportSkeletalMeshArgs.ImportMeshSectionsData->SectionOriginalMaterialName.Add(SkeletalMesh->Materials[SkelMeshSection.MaterialIndex].ImportedMaterialSlotName);
-				}
+				ImportSkeletalMeshArgs.ImportMeshSectionsData->SectionOriginalMaterialName.Add(SkeletalMesh->Materials[MaterialIndex].ImportedMaterialSlotName);
 			}
 		}
 
@@ -2273,7 +2269,7 @@ void UnFbx::FFbxImporter::UpdateSkeletalMeshImportData(USkeletalMesh *SkeletalMe
 				{
 					int32 MaterialLodSectionIndex = LODModel.Sections[SectionIndex].MaterialIndex;
 					//Is this LOD use the LODMaterialMap override
-					if (LODInfo.LODMaterialMap.Num() > SectionIndex)
+					if (LODInfo.LODMaterialMap.IsValidIndex(SectionIndex) && LODInfo.LODMaterialMap[SectionIndex] != INDEX_NONE)
 					{
 						MaterialLodSectionIndex = LODInfo.LODMaterialMap[SectionIndex];
 					}
@@ -3819,6 +3815,12 @@ void UnFbx::FFbxImporter::InsertNewLODToBaseSkeletalMesh(USkeletalMesh* InSkelet
 				}
 				//Get the current skelmesh section slot import name
 				int32 ExistRemapMaterialIndex = ExistingSkelMeshLodInfo.LODMaterialMap[SectionIndex];
+				if (!BaseSkeletalMesh->Materials.IsValidIndex(ExistRemapMaterialIndex))
+				{
+					//LODMaterialMap can have INDEX_NONE value or an invalid index in the material array
+					continue;
+				}
+
 				ExistingMeshSectionSlotNames.Add(BaseSkeletalMesh->Materials[ExistRemapMaterialIndex].ImportedMaterialSlotName);
 
 				//Get the Last imported skelmesh section slot import name
@@ -3929,6 +3931,16 @@ void UnFbx::FFbxImporter::InsertNewLODToBaseSkeletalMesh(USkeletalMesh* InSkelet
 			FName ExistMeshSectionSlotName = ExistingMeshSectionSlotNames[SectionIndex];
 			//Get the new skelmesh section slot import name
 			int32 NewRemapMaterialIndex = NewSkelMeshLodInfo.LODMaterialMap[SectionIndex];
+			if (!BaseSkeletalMesh->Materials.IsValidIndex(NewRemapMaterialIndex))
+			{
+				int32 RematchMaterialIndex = NewSkelMeshLodInfo.LODMaterialMap[SectionIndex];
+				if (RematchMaterialIndex == INDEX_NONE)
+				{
+					RematchMaterialIndex = NewLODModel.Sections[SectionIndex].MaterialIndex;
+				}
+				NewSkelMeshLodInfo.LODMaterialMap[SectionIndex] = FMath::Clamp<int32>(RematchMaterialIndex, 0, BaseSkeletalMesh->Materials.Num()-1);
+				continue;
+			}
 			FName NewMeshSectionSlotName = BaseSkeletalMesh->Materials[NewRemapMaterialIndex].ImportedMaterialSlotName;
 			//Get the Last imported skelmesh section slot import name
 			FName OriginalImportMeshSectionSlotName = OriginalImportMeshSectionSlotNames[SectionIndex];
@@ -4140,11 +4152,11 @@ bool UnFbx::FFbxImporter::ImportSkeletalMeshLOD(USkeletalMesh* InSkeletalMesh, U
 		TArray<FSkelMeshSection>& ImportedSections = ImportedResource->LODModels[0].Sections;
 		const FSkeletalMeshLODInfo& ImportedInfo = *(InSkeletalMesh->GetLODInfo(0));
 		
-		auto GetImportMaterialSlotName = [](const USkeletalMesh* SkelMesh, const FSkelMeshSection& Section, const FSkeletalMeshLODInfo& Info, int32& OutMaterialIndex)->FName
+		auto GetImportMaterialSlotName = [](const USkeletalMesh* SkelMesh, const FSkelMeshSection& Section, int32 SectionIndex, const FSkeletalMeshLODInfo& Info, int32& OutMaterialIndex)->FName
 		{
 			check(SkelMesh->Materials.Num() > 0);
 			OutMaterialIndex = Section.MaterialIndex;
-			if (Info.LODMaterialMap.IsValidIndex(Section.MaterialIndex))
+			if (Info.LODMaterialMap.IsValidIndex(SectionIndex) && Info.LODMaterialMap[SectionIndex] != INDEX_NONE)
 			{
 				OutMaterialIndex = Info.LODMaterialMap[Section.MaterialIndex];
 			}
@@ -4161,15 +4173,17 @@ bool UnFbx::FFbxImporter::ImportSkeletalMeshLOD(USkeletalMesh* InSkeletalMesh, U
 			return ImportedMaterialSlotName;
 		};
 
-		for (const FSkelMeshSection& ExistingSection : ExistingSections)
+		for(int32 ExistingSectionIndex = 0; ExistingSectionIndex < ExistingSections.Num(); ++ExistingSectionIndex)
 		{
+			const FSkelMeshSection& ExistingSection = ExistingSections[ExistingSectionIndex];
 			int32 ExistingMaterialIndex = 0;
-			FName ExistingImportedMaterialSlotName = GetImportMaterialSlotName(BaseSkeletalMesh, ExistingSection, ExistingInfo, ExistingMaterialIndex);
+			FName ExistingImportedMaterialSlotName = GetImportMaterialSlotName(BaseSkeletalMesh, ExistingSection, ExistingSectionIndex, ExistingInfo, ExistingMaterialIndex);
 
-			for (FSkelMeshSection& ImportedSection : ImportedSections)
+			for(int32 ImportedSectionIndex = 0; ImportedSectionIndex < ImportedSections.Num(); ++ImportedSectionIndex)
 			{
+				FSkelMeshSection& ImportedSection = ImportedSections[ImportedSectionIndex];
 				int32 ImportedMaterialIndex = 0;
-				FName ImportedImportedMaterialSlotName = GetImportMaterialSlotName(InSkeletalMesh, ImportedSection, ImportedInfo, ImportedMaterialIndex);
+				FName ImportedImportedMaterialSlotName = GetImportMaterialSlotName(InSkeletalMesh, ImportedSection, ImportedSectionIndex, ImportedInfo, ImportedMaterialIndex);
 				if (ExistingImportedMaterialSlotName != NAME_None)
 				{
 					if (ImportedImportedMaterialSlotName == ExistingImportedMaterialSlotName)

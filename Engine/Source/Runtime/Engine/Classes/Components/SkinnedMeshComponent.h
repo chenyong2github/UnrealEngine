@@ -1428,7 +1428,7 @@ public:
 	 * @param LODIndex - Index of the LOD to modify material visibility within
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
-	void ShowMaterialSection(int32 MaterialID, bool bShow, int32 LODIndex);
+	void ShowMaterialSection(int32 MaterialID, int32 SectionIndex, bool bShow, int32 LODIndex);
 
 	/** Clear any material visibility modifications made by ShowMaterialSection */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")

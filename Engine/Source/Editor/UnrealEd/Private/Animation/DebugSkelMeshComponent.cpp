@@ -661,11 +661,11 @@ void UDebugSkelMeshComponent::ToggleClothSectionsVisibility(bool bShowOnlyClothS
 
 				if(Section.HasClothingData())
 				{
-					ShowMaterialSection(Section.MaterialIndex, bShowOnlyClothSections, LODIndex);
+					ShowMaterialSection(Section.MaterialIndex, SecIdx, bShowOnlyClothSections, LODIndex);
 				}
 				else
 				{
-					ShowMaterialSection(Section.MaterialIndex, !bShowOnlyClothSections, LODIndex);
+					ShowMaterialSection(Section.MaterialIndex, SecIdx, !bShowOnlyClothSections, LODIndex);
 				}
 			}
 		}
@@ -708,7 +708,7 @@ void UDebugSkelMeshComponent::SetMeshSectionVisibilityForCloth(FGuid InClothGuid
 				// disables cloth section and also corresponding original section for matching cloth asset
 				if(Section.HasClothingData() && Section.ClothingData.AssetGuid == InClothGuid)
 				{
-					ShowMaterialSection(Section.MaterialIndex, bVisibility, LODIndex);
+					ShowMaterialSection(Section.MaterialIndex, SecIdx, bVisibility, LODIndex);
 				}
 			}
 		}
