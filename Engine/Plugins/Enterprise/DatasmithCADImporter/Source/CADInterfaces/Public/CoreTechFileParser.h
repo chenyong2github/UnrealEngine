@@ -23,9 +23,21 @@
 
 struct FFileStatData;
 
-#ifdef CAD_INTERFACE
 namespace CADLibrary
 {
+
+enum class ECoretechParsingResult
+{
+	Unknown,
+	Running,
+	UnTreated,
+	ProcessOk,
+	ProcessFailed,
+	FileNotFound,
+};
+
+#ifdef CAD_INTERFACE
+
 CADINTERFACES_API void GetColor(uint32 ColorHash, FColor& OutMaterial);
 CADINTERFACES_API bool GetMaterial(uint32 MaterialID, FCADMaterial& OutMaterial);
 
@@ -52,15 +64,7 @@ uint32 GetSize(CT_TESS_DATA_TYPE type);
 class CADINTERFACES_API FCoreTechFileParser
 {
 public:
-	enum class EProcessResult
-	{
-		Unknown,
-		Running,
-		UnTreated,
-		ProcessOk,
-		ProcessFailed,
-		FileNotFound,
-	};
+	using EProcessResult = ECoretechParsingResult;
 
 	FCoreTechFileParser(const FString& InCTFullPath, const FString& InCachePath, const FImportParameters& ImportParams, bool bPreferBodyData, bool bScaleUVMap);
 
@@ -132,5 +136,6 @@ protected:
 	const FImportParameters& ImportParameters;
 };
 
-}
 #endif // CAD_INTERFACE
+
+} // ns CADLibrary

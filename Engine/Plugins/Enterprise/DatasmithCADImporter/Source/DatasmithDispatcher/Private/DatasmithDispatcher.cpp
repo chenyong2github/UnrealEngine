@@ -2,7 +2,6 @@
 
 #include "DatasmithDispatcher.h"
 
-#include "CoreTechFileParser.h"
 #include "DatasmithDispatcherConfig.h"
 #include "DatasmithDispatcherLog.h"
 #include "DatasmithDispatcherTask.h"
