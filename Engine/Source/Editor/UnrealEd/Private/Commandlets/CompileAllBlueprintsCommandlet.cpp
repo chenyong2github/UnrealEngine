@@ -304,6 +304,11 @@ void UCompileAllBlueprintsCommandlet::CompileBlueprint(UBlueprint* Blueprint)
 		MessageLog.SetSourcePath(Blueprint->GetPathName());
 		MessageLog.BeginEvent(TEXT("Compile"));
 
+		if (bCompileSkeletonOnly)
+		{
+			CompileOptions.CompileType = EKismetCompileType::SkeletonOnly;
+		}
+
 		FKismetEditorUtilities::CompileBlueprint(Blueprint, EBlueprintCompileOptions::SkipGarbageCollection, &MessageLog);
 
 		MessageLog.EndEvent();
