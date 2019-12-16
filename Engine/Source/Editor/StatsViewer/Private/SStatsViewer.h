@@ -44,7 +44,7 @@ public:
 	virtual void Refresh() override;
 	TSharedPtr< class IPropertyTable > GetPropertyTable() override;
 	int32 GetObjectSetIndex() const override;
-	void SwitchAndFilterPage(int32 Page, FString FilterValue, const FString& FilterProperty) override;
+	void SwitchAndFilterPage(int32 Page, const FString& FilterValue, const FString& FilterProperty) override;
 	/** End IStatsViewer interface */
 
 private:
