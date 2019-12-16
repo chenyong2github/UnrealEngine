@@ -20,6 +20,15 @@ typedef double AlMatrix4x4[4][4];
 
 using namespace CADLibrary;
 
+// Defined the reference in which the object has to be defined
+enum class EAliasObjectReference
+{
+	LocalReference,  
+	ParentReference, 
+	WorldReference, 
+};
+
+
 class FAliasCoretechWrapper : public CTSession
 {
 public:
@@ -36,7 +45,7 @@ public:
 	{
 	}
 
-	CT_IO_ERROR AddBRep(TArray<AlDagNode*>& DagNodeSet, bool bIsSymmetricBody);
+	CT_IO_ERROR AddBRep(TArray<AlDagNode*>& DagNodeSet, EAliasObjectReference ObjectReference);
 
 	static TSharedPtr<FAliasCoretechWrapper> GetSharedSession();
 
@@ -51,9 +60,9 @@ protected:
 	CT_OBJECT_ID AddTrimBoundary(AlTrimBoundary& TrimBoundary);
 	CT_OBJECT_ID Add3DCurve(AlCurve& Curve);
 
-	CT_OBJECT_ID AddTrimRegion(AlTrimRegion& TrimRegion, bool bIsSymmetricBody, bool bOrientation);
-	void AddFace(AlSurface& Surface, CT_LIST_IO& FaceLis, bool bIsSymmetricBodyt, bool bOrientation);
-	void AddShell(AlShell& Shell, CT_LIST_IO& FaceList, bool bIsSymmetricBody, bool bOrientation);
+	CT_OBJECT_ID AddTrimRegion(AlTrimRegion& InTrimRegion, EAliasObjectReference InObjectReference, AlMatrix4x4& InAlMatrix, bool bInOrientation);
+	void AddFace(AlSurface& InSurface, EAliasObjectReference InObjectReference, AlMatrix4x4& InAlMatrix, bool bInOrientation, CT_LIST_IO& OutFaceLis);
+	void AddShell(AlShell& InShell, EAliasObjectReference InObjectReference, AlMatrix4x4& InAlMatrix, bool bInOrientation, CT_LIST_IO& OutFaceLis);
 
 protected:
 	static TWeakPtr<FAliasCoretechWrapper> SharedSession;
