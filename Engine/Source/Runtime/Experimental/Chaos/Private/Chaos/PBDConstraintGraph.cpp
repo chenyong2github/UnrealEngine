@@ -9,6 +9,7 @@
 #include "Containers/Queue.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDRigidsSOAs.h"
+#include "ChaosLog.h"
 
 using namespace Chaos;
 
