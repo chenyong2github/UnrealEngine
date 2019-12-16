@@ -262,6 +262,7 @@ void FShaderParameterBindings::BindForLegacyShaderParameters(const FShader* Shad
 		/* MemberPrefix = */ TEXT(""),
 		/* ByteOffset = */ 0);
 
+	StructureLayoutHash = StructMetaData.GetLayoutHash();
 	RootParameterBufferIndex = kInvalidBufferIndex;
 
 	TArray<FString> AllParameterNames;
@@ -312,6 +313,8 @@ void FShaderParameterBindings::BindForRootShaderParameters(const FShader* Shader
 		StructMetaData,
 		/* MemberPrefix = */ TEXT(""),
 		/* ByteOffset = */ 0);
+
+	StructureLayoutHash = StructMetaData.GetLayoutHash();
 
 	// Binds the uniform buffer that contains the root shader parameters.
 	{
@@ -428,6 +431,12 @@ void EmitNullShaderParameterFatalError(const FShader* Shader, const FShaderParam
 void ValidateShaderParameters(const FShader* Shader, const FShaderParametersMetadata* ParametersMetadata, const void* Parameters)
 {
 	const FShaderParameterBindings& Bindings = Shader->Bindings;
+
+	checkf(
+		Bindings.StructureLayoutHash == ParametersMetadata->GetLayoutHash(),
+		TEXT("Seams shader %s's parameter structure has changed without recompilation of the shader"),
+		Shader->GetType()->GetName());
+
 	const uint8* Base = reinterpret_cast<const uint8*>(Parameters);
 
 	const TCHAR* ShaderClassName = Shader->GetType()->GetName();

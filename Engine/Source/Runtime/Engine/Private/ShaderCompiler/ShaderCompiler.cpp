@@ -4110,7 +4110,23 @@ void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile)
 		int32 PermutationCountToCompile = 0;
 		for (int32 PermutationId = 0; PermutationId < GlobalShaderType->GetPermutationCount(); PermutationId++)
 		{
-			if (GlobalShaderType->ShouldCompilePermutation(Platform, PermutationId) && !GlobalShaderMap->HasShader(GlobalShaderType, PermutationId))
+			if (!GlobalShaderType->ShouldCompilePermutation(Platform, PermutationId))
+			{
+				continue;
+			}
+
+			if (FShader* Shader = GlobalShaderMap->GetShader(GlobalShaderType, PermutationId))
+			{
+				// Validate the shader parameter structure early.
+				if (const FShaderParametersMetadata* ParameterStructMetadata = GlobalShaderType->GetRootParametersMetadata())
+				{
+					checkf(
+						Shader->Bindings.StructureLayoutHash == ParameterStructMetadata->GetLayoutHash(),
+						TEXT("Seams shader %s's parameter structure has changed without recompilation of the shader"),
+						GlobalShaderType->GetName());
+				}
+			}
+			else
 			{
 				if (bErrorOnMissing)
 				{
