@@ -135,6 +135,11 @@ namespace Chaos
 
 				EulerStepPositionRule.Apply(Particle, Dt);
 
+				Particle.F() = FVec3(0);
+				Particle.Torque() = FVec3(0);
+				Particle.ExternalForce() = FVec3(0);
+				Particle.ExternalTorque() = FVec3(0);
+
 				if (Particle.HasBounds())
 				{
 					const FReal BoundsThickness = 1.0f;
