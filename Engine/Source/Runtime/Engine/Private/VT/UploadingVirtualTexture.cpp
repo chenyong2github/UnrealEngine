@@ -38,6 +38,7 @@ FUploadingVirtualTexture::FUploadingVirtualTexture(FVirtualTextureBuiltData* InD
 	HandlePerChunk.AddDefaulted(InData->Chunks.Num());
 	CodecPerChunk.AddDefaulted(InData->Chunks.Num());
 	InvalidChunks.Init(false, InData->Chunks.Num());
+	StreamingManager = FVirtualTextureChunkStreamingManager::AddRef();
 
 	INC_MEMORY_STAT_BY(STAT_TotalHeaderSize, InData->GetMemoryFootprint());
 	INC_MEMORY_STAT_BY(STAT_TileHeaderSize, InData->GetTileMemoryFootprint());
@@ -55,7 +56,8 @@ FUploadingVirtualTexture::~FUploadingVirtualTexture()
 	DEC_DWORD_STAT_BY(STAT_NumTileHeaders, Data->GetNumTileHeaders());
 
 	// Complete all open transcode requests before deleting IFileCacheHandle objects
-	FVirtualTextureChunkStreamingManager::Get().WaitTasksFinished();
+	StreamingManager->WaitTasksFinished();
+	FVirtualTextureChunkStreamingManager::DecRef();
 
 	for (TUniquePtr<FVirtualTextureCodec>& Codec : CodecPerChunk)
 	{
@@ -97,7 +99,7 @@ uint32 FUploadingVirtualTexture::GetLocalMipBias(uint8 vLevel, uint32 vAddress) 
 
 FVTRequestPageResult FUploadingVirtualTexture::RequestPageData(const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerMask, uint8 vLevel, uint32 vAddress, EVTRequestPagePriority Priority)
 {
-	return FVirtualTextureChunkStreamingManager::Get().RequestTile(this, ProducerHandle, LayerMask, FirstMipOffset + vLevel, vAddress, Priority);
+	return StreamingManager->RequestTile(this, ProducerHandle, LayerMask, FirstMipOffset + vLevel, vAddress, Priority);
 }
 
 IVirtualTextureFinalizer* FUploadingVirtualTexture::ProducePageData(FRHICommandListImmediate& RHICmdList,
@@ -110,7 +112,7 @@ IVirtualTextureFinalizer* FUploadingVirtualTexture::ProducePageData(FRHICommandL
 	INC_DWORD_STAT(STAT_VTP_NumUploads);
 
 	const uint32 SkipBorderSize = (Flags & EVTProducePageFlags::SkipPageBorders) != EVTProducePageFlags::None ? Data->TileBorderSize : 0;
-	return FVirtualTextureChunkStreamingManager::Get().ProduceTile(RHICmdList, SkipBorderSize, Data->GetNumLayers(), LayerMask, RequestHandle, TargetLayers);
+	return StreamingManager->ProduceTile(RHICmdList, SkipBorderSize, Data->GetNumLayers(), LayerMask, RequestHandle, TargetLayers);
 }
 
 void FVirtualTextureCodec::RetireOldCodecs()
