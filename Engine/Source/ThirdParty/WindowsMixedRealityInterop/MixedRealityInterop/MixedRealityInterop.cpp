@@ -1505,7 +1505,7 @@ namespace WindowsMixedReality
 			{
 				if (p.second)
 				{
-					p.second->Init();
+					p.second->Init(m_isHL1Remoting);
 				}
 			}
 		}
@@ -3311,7 +3311,7 @@ namespace WindowsMixedReality
 			std::lock_guard<std::mutex> lock(gestureRecognizerLock);
 			for (auto&& p : gestureRecognizerMap)
 			{
-				p.second->Init();
+				p.second->Init(m_isHL1Remoting);
 			}
 		}
 	}
@@ -3469,17 +3469,7 @@ namespace WindowsMixedReality
 						->QueryInterface(winrt::guid_of<HolographicSpace>(),
 							reinterpret_cast<void**>(winrt::put_abi(holographicSpace))));
 
-					interactionManager = SpatialInteractionManager::GetForCurrentView();
-					{
-						std::lock_guard<std::mutex> lock(gestureRecognizerLock);
-						for (auto p : gestureRecognizerMap)
-						{
-							if (p.second)
-							{
-								p.second->Init();
-							}
-						}
-					}
+					CreateSpatialRecognizers();
 
 					CreateSpatialAnchorHelper(*this);
 				});
@@ -3627,7 +3617,7 @@ namespace WindowsMixedReality
 				{
 					if (p.second)
 					{
-						p.second->Init();
+						p.second->Init(m_isHL1Remoting);
 					}
 				}
 			}
@@ -3779,19 +3769,26 @@ namespace WindowsMixedReality
 		void(*FinishFunctionPointer)()
 	)
 	{
-		StartMeshObserver(
-			InTriangleDensity,
-			InVolumeSize,
-			StartFunctionPointer,
-			AllocFunctionPointer,
-			RemovedMeshPointer,
-			FinishFunctionPointer
-		);
+		// HL1 does not support spatial mapping.
+		if (!m_isHL1Remoting)
+		{
+			StartMeshObserver(
+				InTriangleDensity,
+				InVolumeSize,
+				StartFunctionPointer,
+				AllocFunctionPointer,
+				RemovedMeshPointer,
+				FinishFunctionPointer
+			);
+		}
 	}
 
 	void MixedRealityInterop::StopSpatialMapping()
 	{
-		StopMeshObserver();
+		if (!m_isHL1Remoting)
+		{
+			StopMeshObserver();
+		}
 	}
 
 	void MixedRealityInterop::StartSceneUnderstanding(
