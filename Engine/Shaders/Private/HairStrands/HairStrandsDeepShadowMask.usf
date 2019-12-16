@@ -355,7 +355,8 @@ void MainPS(
 			WorldPosition += DepthBias;
 		}
 
-		const float HairCount = ComputeHairCountVoxel(WorldPosition, L, Voxel_MinAABB, Voxel_MaxAABB, Voxel_Resolution, Voxel_DensityTexture, Voxel_DensityScale, 1);
+		const float DistanceThreshold = 100000;
+		const float HairCount = ComputeHairCountVoxel(WorldPosition, L, Voxel_MinAABB, Voxel_MaxAABB, Voxel_Resolution, Voxel_DensityTexture, Voxel_DensityScale, 1, DistanceThreshold);
 		Visibility = saturate(1 - HairCount);
 	}
 

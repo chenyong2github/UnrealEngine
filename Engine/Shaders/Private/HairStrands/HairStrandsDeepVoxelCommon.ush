@@ -29,7 +29,8 @@ float ComputeHairCountVoxel(
 	float InVoxelResolution, 
 	Texture3D<uint> InDensityTexture, 
 	float DensityScale, 
-	float CountThreshold)
+	float CountThreshold,
+	float DistanceThreshold)
 {
 	float OutHairCount = 0;
 
@@ -47,7 +48,7 @@ float ComputeHairCountVoxel(
 		// This assumes that the voxel volume is cubic (i.e. equal dimensions on all sides)
 		float3 O = lerp(WorldPosition, IntersectEndPoint, HitT.xxx);
 		float3 E = lerp(WorldPosition, IntersectEndPoint, HitT.yyy);
-		const float OELength = length(E - O);
+		const float OELength = min(length(E - O), DistanceThreshold);
 
 		// Step according to voxel size
 		const float StepCount = float(min(ceil(OELength / VoxelWorldSize), 256u));	// TO TRY: sample with fixed count budget and jitter temporally
@@ -77,6 +78,7 @@ float ComputeHairCountVoxelCone(
 	Texture3D<uint> InDensityTexture,
 	float InVoxelDensityScale,
 	float CountThreshold,
+	float DistanceThreshold,
 	float TanConeAngle)
 {
 	// Reverse-Z
@@ -101,7 +103,8 @@ float ComputeHairCountVoxelCone(
 		// Count the number of fibers which are within a cylinder defined by the voxel size, 
 		// and the distance between the origin and the extent of the volume
 		// This assumes that the voxel volume is cubic (i.e. equal dimensions on all sides)
-		const float Distance = length(HitT.y * D);
+		const float DistanceThreshold2 = DistanceThreshold * DistanceThreshold;
+		const float Distance = min(DistanceThreshold, length(HitT.y * D));
 		const uint MaxStepCount = min(ceil(Distance / VoxelSize), 256u);
 		float T = 0;
 		float MipLevel = 0;
@@ -110,8 +113,14 @@ float ComputeHairCountVoxelCone(
 		{
 			float3 StepOffset = 0;
 
-			const float3 HitP = O + T * LightDirection + StepOffset;
+			const float3 RaymarchOffset = T * LightDirection;
+			const float3 HitP = O + RaymarchOffset + StepOffset;
 			const float3 UVW = (HitP - InVoxelAABBMin) / (InVoxelAABBMax - InVoxelAABBMin);
+
+			const float Distance2 = dot(RaymarchOffset, RaymarchOffset);
+			if (Distance2 > DistanceThreshold2)
+				return OutHairCount;
+
 			if (!IsInVoxelBounds(UVW, 0, 1))
 				return OutHairCount;
 
