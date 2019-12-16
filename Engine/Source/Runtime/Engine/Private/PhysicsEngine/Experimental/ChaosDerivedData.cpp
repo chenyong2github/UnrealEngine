@@ -21,7 +21,7 @@ const TCHAR* FChaosDerivedDataCooker::GetPluginName() const
 
 const TCHAR* FChaosDerivedDataCooker::GetVersionString() const
 {
-	return TEXT("E138DCCB71AD4DBCA7AA0E469571F332");
+	return TEXT("53786FE2178C49A98EC62DD50313FE52");
 }
 
 FString FChaosDerivedDataCooker::GetPluginSpecificCacheKeySuffix() const
@@ -119,15 +119,16 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::FTria
 	// Build chaos triangle list. #BGTODO Just make the clean function take these types instead of double copying
 	const int32 NumTriangles = FinalIndices.Num() / 3;
 	bool bHasMaterials = InParams.TriangleMeshDesc.MaterialIndices.Num() > 0;
-	TArray<Chaos::TVector<int32, 3>> Triangles;
 	TArray<uint16> MaterialIndices;
-	Triangles.Reserve(NumTriangles);
 
+	auto LambdaHelper = [&](auto& Triangles)
+	{
 	if(bHasMaterials)
 	{
 		MaterialIndices.Reserve(NumTriangles);
 	}
 
+		Triangles.Reserve(NumTriangles);
 	for(int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
 	{
 		// Only add this triangle if it is valid
@@ -169,6 +170,18 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::FTria
 	}
 
 	OutTriangleMeshes.Emplace(new Chaos::FTriangleMeshImplicitObject(MoveTemp(TriMeshParticles), MoveTemp(Triangles), MoveTemp(MaterialIndices)));
+	};
+
+	if(FinalVerts.Num() < TNumericLimits<uint16>::Max())
+	{
+		TArray<Chaos::TVector<uint16, 3>> TrianglesSmallIdx;
+		LambdaHelper(TrianglesSmallIdx);
+	}
+	else
+	{
+		TArray<Chaos::TVector<int32, 3>> TrianglesLargeIdx;
+		LambdaHelper(TrianglesLargeIdx);
+	}	
 }
 
 void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<TUniquePtr<Chaos::FImplicitObject>>& OutConvexMeshes, const FCookBodySetupInfo& InParams)
