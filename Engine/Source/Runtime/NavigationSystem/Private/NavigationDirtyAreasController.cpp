@@ -15,6 +15,12 @@ FNavigationDirtyAreasController::FNavigationDirtyAreasController()
 
 }
 
+void FNavigationDirtyAreasController::ForceRebuildOnNextTick()
+{
+	float MinTimeForUpdate = (DirtyAreasUpdateFreq != 0.f ? (1.0f / DirtyAreasUpdateFreq) : 0.f);
+	DirtyAreasUpdateTime = FMath::Max(DirtyAreasUpdateTime, MinTimeForUpdate);
+}
+
 void FNavigationDirtyAreasController::Tick(const float DeltaSeconds, const TArray<ANavigationData*>& NavDataSet, bool bForceRebuilding)
 {
 	DirtyAreasUpdateTime += DeltaSeconds;
