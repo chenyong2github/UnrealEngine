@@ -26,6 +26,8 @@ float4 WorldSpaceBlurOriginAndRadius;
 
 float LightSourceRadius;
 
+float BloomMaxBrightness;
+
 /** Spot light direction. */
 float3 WorldSpaceSpotDirection;
 
@@ -120,9 +122,10 @@ void DownsampleLightShaftsPixelMain(
 	float EdgeMask = 1.0f - NormalizedCoordinates.x * (1.0f - NormalizedCoordinates.x) * NormalizedCoordinates.y * (1.0f - NormalizedCoordinates.y) * 8.0f;
 	EdgeMask = EdgeMask * EdgeMask * EdgeMask * EdgeMask;
 
-	// Only bloom colors over BloomThreshold
+	// Only bloom colors according if post exposure brightness is over BloomThreshold,
+	// and if brightness is greater than BloomMaxBrightness, scale it down to BloomMaxBrightness to avoid saturated artefacts.
 	float Luminance = max(dot(SceneColor, half3(.3f, .59f, .11f)), 6.10352e-5);
-	float AdjustedLuminance = max(Luminance - BloomTintAndThreshold.a, 0.0f);
+	float AdjustedLuminance = clamp(Luminance - BloomTintAndThreshold.a, 0.0f, BloomMaxBrightness);
 	float3 BloomColor = LightShaftParameters.y * SceneColor / Luminance * AdjustedLuminance * 2.0f;
 
 	#if POINT_LIGHT_SHAFTS
