@@ -15,6 +15,7 @@ class FVulkanCommandBufferManager;
 class FVulkanRenderTargetLayout;
 class FVulkanQueue;
 class FVulkanDescriptorPoolSetContainer;
+class FVulkanGPUTiming;
 
 namespace VulkanRHI
 {
