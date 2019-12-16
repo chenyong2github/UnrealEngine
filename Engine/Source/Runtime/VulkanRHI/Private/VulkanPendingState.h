@@ -7,7 +7,6 @@
 #pragma once
 
 // Dependencies
-#include "VulkanGlobals.h"
 #include "VulkanConfiguration.h"
 #include "VulkanState.h"
 #include "VulkanResources.h"

@@ -36,7 +36,6 @@
 	#endif
 #endif
 
-#include "VulkanGlobals.h"
 #include "VulkanState.h"
 #include "VulkanResources.h"
 #include "VulkanUtil.h"
@@ -906,6 +905,11 @@ namespace VulkanRHI
 	}
 }
 
+inline bool UseVulkanDescriptorCache()
+{
+	return (PLATFORM_ANDROID && !PLATFORM_LUMIN)|| GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1;
+}
+
 extern int32 GVulkanSubmitAfterEveryEndRenderPass;
 extern int32 GWaitForIdleOnSubmit;
 extern bool GGPUCrashDebuggingEnabled;
@@ -917,3 +921,9 @@ extern bool GRenderDocFound;
 const int GMaxCrashBufferEntries = 2048;
 
 extern class FVulkanDynamicRHI*	GVulkanRHI;
+
+extern TAtomic<uint64> GVulkanBufferHandleIdCounter;
+extern TAtomic<uint64> GVulkanBufferViewHandleIdCounter;
+extern TAtomic<uint64> GVulkanImageViewHandleIdCounter;
+extern TAtomic<uint64> GVulkanSamplerHandleIdCounter;
+extern TAtomic<uint64> GVulkanDSetLayoutHandleIdCounter;

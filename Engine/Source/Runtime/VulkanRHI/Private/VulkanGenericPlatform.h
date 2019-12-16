@@ -6,6 +6,8 @@
 #include "Containers/ArrayView.h"
 #include "RHI.h"	// for GShaderPlatformForFeatureLevel and its friends
 
+#include "../VulkanLoader.h"
+
 struct FOptionalVulkanDeviceExtensions;
 class FVulkanDevice;
 

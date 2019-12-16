@@ -23,8 +23,6 @@
 
 #define ENUM_VK_ENTRYPOINTS_OPTIONAL_PLATFORM_INSTANCE(EnumMacro)
 
-#include "../VulkanLoader.h"
-
 // and now, include the GenericPlatform class
 #include "../VulkanGenericPlatform.h"
 

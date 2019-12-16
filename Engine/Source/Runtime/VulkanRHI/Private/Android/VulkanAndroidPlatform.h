@@ -36,8 +36,6 @@
 	EnumMacro(PFN_vkGetRefreshCycleDurationGOOGLE, vkGetRefreshCycleDurationGOOGLE) \
 	EnumMacro(PFN_vkGetPastPresentationTimingGOOGLE, vkGetPastPresentationTimingGOOGLE)
 
-#include "../VulkanLoader.h"
-
 // and now, include the GenericPlatform class
 #include "../VulkanGenericPlatform.h"
 
