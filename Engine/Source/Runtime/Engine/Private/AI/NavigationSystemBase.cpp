@@ -12,6 +12,7 @@
 #include "AI/Navigation/NavigationDataChunk.h"
 
 DEFINE_LOG_CATEGORY(LogNavigation);
+DEFINE_LOG_CATEGORY(LogNavigationDataBuild);
 
 #if !UE_BUILD_SHIPPING
 #include "CoreGlobals.h"
