@@ -68,7 +68,8 @@ public:
 	using TRealTime = FNetworkSimTime::FRealTime;
 	
 	// Note: Ownership of TSimulation* is taken by this constructor
-	TNetworkedSimulationModel(TSimulation* InSimulation, TDriver* InDriver, const TSyncState& InitialSyncState = TSyncState(), const TAuxState& InitialAuxState = TAuxState())
+	template<typename TInDriver>
+	TNetworkedSimulationModel(TSimulation* InSimulation, TInDriver* InDriver, const TSyncState& InitialSyncState = TSyncState(), const TAuxState& InitialAuxState = TAuxState())
 		: Simulation(InSimulation)
 	{
 		check(Simulation.IsValid() && InDriver);
@@ -77,6 +78,11 @@ public:
 		*Buffers.Aux.WriteFrame(0) = InitialAuxState;
 		Ticker.SetTotalProcessedSimulationTime(FNetworkSimTime(), 0);
 		DO_NETSIM_MODEL_DEBUG(FNetworkSimulationModelDebuggerManager::Get().RegisterNetworkSimulationModel(this, Driver->GetVLogOwner()));
+
+		ProcessPendingNetSimCuesFunc = [this, InDriver]()
+		{ 
+			Buffers.CueDispatcher.template DispatchCueRecord<TInDriver>(*InDriver, Ticker.GetTotalProcessedSimulationTime()); 
+		};
 	}
 
 	virtual ~TNetworkedSimulationModel()
@@ -176,12 +182,13 @@ public:
 				check(OutSyncState);
 
 				{
-					TScopedSimulationTick UpdateScope(Ticker, OutputFrame, InputCmd->GetFrameDeltaTime());
+					ESimulationTickContext Context = Parameters.Role == ROLE_Authority ? ESimulationTickContext::Authority : ESimulationTickContext::Predict;
+					TScopedSimulationTick UpdateScope(Ticker, Buffers.CueDispatcher, Context, OutputFrame, InputCmd->GetFrameDeltaTime());
 					
 					Simulation->SimulationTick( 
 						{ InputCmd->GetFrameDeltaTime(), Ticker },
 						{ *InputCmd, *InSyncState, *InAuxState },
-						{ *OutSyncState, Buffers.Aux.LazyWriter(OutputFrame) } );
+						{ *OutSyncState, Buffers.Aux.LazyWriter(OutputFrame), Buffers.CueDispatcher } );
 													
 				}
 

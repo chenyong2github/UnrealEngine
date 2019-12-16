@@ -251,6 +251,11 @@ public:
 	// Called by parent sim on the dependent sim as it reconciles
 	virtual void BeginRollback(const struct FNetworkSimTime& RollbackDeltaTime, const int32 ParentFrame) = 0;
 	virtual void StepRollback(const struct FNetworkSimTime& Step, const int32 ParentFrame, const bool FinalStep) = 0;
+
+	void ProcessPendingNetSimCues() { ProcessPendingNetSimCuesFunc(); }
+
+protected:
+	TFunction<void()> ProcessPendingNetSimCuesFunc;
 };
 
 // -------------------------------------------------------------------------------------------------------------------------------

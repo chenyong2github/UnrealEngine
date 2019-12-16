@@ -4,6 +4,8 @@
 #include "DrawDebugHelpers.h"
 #include "VisualLogger/VisualLogger.h"
 
+const FName FMockAbilitySimulation::GroupName(TEXT("Ability"));
+
 namespace MockAbilityCVars
 {
 	NETSIM_DEVCVAR_SHIPCONST_FLOAT(DefaultMaxSpeed, 1200.f, "mockability.DefaultMaxSpeed", "Default Speed");
@@ -15,13 +17,14 @@ namespace MockAbilityCVars
 	NETSIM_DEVCVAR_SHIPCONST_FLOAT(DashAcceleration, 100000.f, "mockability.DashAcceleration", "Acceleration when dashing.");
 }
 
+NETSIMCUE_REGISTER(FMockAbilityBlinkCue, TEXT("MockAbilityBlink"));
+NETSIMCUESET_REGISTER(UMockFlyingAbilityComponent, FMockAbilityCueSet);
+
 // -------------------------------------------------------------------------------------------------------------
 //
 // -------------------------------------------------------------------------------------------------------------
 
-const FName FMockAbilitySimulation::GroupName(TEXT("Ability"));
-
-void FMockAbilitySimulation::SimulationTick(const TNetSimTimeStep& TimeStep, const TNetSimInput<TMockAbilityBufferTypes>& Input, const TNetSimOutput<TMockAbilityBufferTypes>& Output)
+void FMockAbilitySimulation::SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<TMockAbilityBufferTypes>& Input, const TNetSimOutput<TMockAbilityBufferTypes>& Output)
 {
 	// WIP NOTES:
 	//	-We are creating local copies of the input state that we can mutate and pass on to the parent simulation's tick (LocalCmd, LocalSync, LocalAux). This may seem weird but consider:
@@ -44,8 +47,7 @@ void FMockAbilitySimulation::SimulationTick(const TNetSimTimeStep& TimeStep, con
 	//			writing fragile code. Making code be explicit: "I am writing to the current value this frame AND next frames value" seems ok. Could possibly do everything in a local copy and then see if its changed
 	//			at the end up ::SimulationTick and then copy it into output aux. Probably should avoid comparison operator each frame so would need to wrap in some struct that could track a dirty flag... seems complicating.
 	//
-
-	check(EventHandler);
+	
 	const float DeltaSeconds = TimeStep.StepMS.ToRealTimeSeconds();
 
 	// Local copies of the const input that we will pass into the parent sim as input.
@@ -80,7 +82,6 @@ void FMockAbilitySimulation::SimulationTick(const TNetSimTimeStep& TimeStep, con
 	if (bBlinkActivate)
 	{
 		LocalAux.BlinkWarmupLeft = BlinkWarmupMS;
-		EventHandler->NotifyBlinkStartup();
 	}
 
 	if (LocalAux.BlinkWarmupLeft > 0)
@@ -116,7 +117,9 @@ void FMockAbilitySimulation::SimulationTick(const TNetSimTimeStep& TimeStep, con
 				LocalSync.Stamina = NewStamina;
 				Output.Sync.Stamina = NewStamina;
 
-				EventHandler->NotifyBlinkFinished();
+				// Invoke a NetCue for the blink. This is essentially capturing the start/end location so that all receivers of the event
+				// get the exact coordinates (maybe overkill in practice but key is that we have data that we want to pass out via an event)
+				Output.CueDispatch.Invoke<FMockAbilityBlinkCue>({Input.Sync.Location, DestLocation});
 			}
 		}
 	}
@@ -142,8 +145,6 @@ void FMockAbilitySimulation::SimulationTick(const TNetSimTimeStep& TimeStep, con
 		const float NewStamina = FMath::Max<float>(0.f, LocalSync.Stamina - DashCost);
 		LocalSync.Stamina = NewStamina;
 		Output.Sync.Stamina = NewStamina;
-
-		EventHandler->NotifyDash(true);
 	}
 
 	if (LocalAux.DashTimeLeft > 0)
@@ -158,13 +159,12 @@ void FMockAbilitySimulation::SimulationTick(const TNetSimTimeStep& TimeStep, con
 		LocalCmd.bBlinkPressed = false;
 		LocalCmd.bSprintPressed = false;
 		
-		FlyingMovement::FMovementSimulation::SimulationTick(TimeStep, { LocalCmd, LocalSync, LocalAux }, { Output.Sync, Output.Aux });
+		FlyingMovement::FMovementSimulation::SimulationTick(TimeStep, { LocalCmd, LocalSync, LocalAux }, { Output.Sync, Output.Aux, Output.CueDispatch });
 
 		if (NewDashTimeLeft == 0)
 		{
 			// Stop when dash is over
 			Output.Sync.Velocity.Set(0.f, 0.f, 0.f);
-			EventHandler->NotifyDash(false);
 		}
 
 		return;
@@ -212,11 +212,10 @@ void FMockAbilitySimulation::SimulationTick(const TNetSimTimeStep& TimeStep, con
 	// Update the out aux state and call notifies only if sprinting state as actually changed
 	if (bIsSprinting != Input.Aux.bIsSprinting)
 	{
-		EventHandler->NotifySprint(bIsSprinting);
 		Output.Aux.Get()->bIsSprinting = bIsSprinting;
 	}
 
-	FlyingMovement::FMovementSimulation::SimulationTick(TimeStep, { LocalCmd, LocalSync, LocalAux }, { Output.Sync, Output.Aux });
+	FlyingMovement::FMovementSimulation::SimulationTick(TimeStep, { LocalCmd, LocalSync, LocalAux }, { Output.Sync, Output.Aux, Output.CueDispatch });
 }
 
 // -------------------------------------------------------------------------------------------------------------
@@ -292,43 +291,16 @@ void UMockFlyingAbilityComponent::VisualLog(const FMockAbilityInputCmd* Input, c
 
 // ---------------------------------------------------------------------------------
 
-void UMockFlyingAbilityComponent::NotifySprint(bool bNewIsSprinting)
+static float BlinkCueDuration = 1.f;
+static FAutoConsoleVariableRef CVarBindAutomatically(TEXT("NetworkPredictionExtras.FlyingPawn.BlinkCueDuration"),
+	BlinkCueDuration, TEXT("Duration of BlinkCue"), ECVF_Default);
+
+void UMockFlyingAbilityComponent::HandleCue(FMockAbilityBlinkCue& BlinkCue, const FNetworkSimTime& ElapsedTime)
 {
-	if (GetNetMode() == NM_DedicatedServer)
-	{
-		return;
-	}
+	UE_LOG(LogTemp, Display, TEXT("BlinkCue! : <%f, %f, %f> - <%f, %f, %f>. ElapsedTime: %s"), BlinkCue.StartLocation.X, BlinkCue.StartLocation.Y, BlinkCue.StartLocation.Z,
+		BlinkCue.StopLocation.X, BlinkCue.StopLocation.Y, BlinkCue.StopLocation.Z, *ElapsedTime.ToString()); //*BlinkCue.StartLocation.ToString(), *BlinkCue.StopLocation.ToString());
 
-	//UE_LOG(LogTemp, Display, TEXT("Sprint: %d"), bNewIsSprinting);
+	// Crude compensation for cue firing in the past (note this is not necessary! Some cues not care and need to see the "full" effect regardless of when it happened)
+	float Duration = BlinkCueDuration - ElapsedTime.ToRealTimeSeconds();
+	DrawDebugLine(GetWorld(), BlinkCue.StartLocation, BlinkCue.StopLocation, FColor::Red, false, Duration);
 }
-
-void UMockFlyingAbilityComponent::NotifyDash(bool bNewIsDashing)
-{
-	if (GetNetMode() == NM_DedicatedServer)
-	{
-		return;
-	}
-
-	//UE_LOG(LogTemp, Display, TEXT("Dash: %d"), bNewIsDashing);
-}
-
-void UMockFlyingAbilityComponent::NotifyBlinkStartup()
-{
-	if (GetNetMode() == NM_DedicatedServer)
-	{
-		return;
-	}
-
-	//UE_LOG(LogTemp, Display, TEXT("Blink Startup"));
-}
-
-void UMockFlyingAbilityComponent::NotifyBlinkFinished()
-{
-	if (GetNetMode() == NM_DedicatedServer)
-	{
-		return;
-	}
-
-	//UE_LOG(LogTemp, Display, TEXT("Blink Finished"));
-}
-

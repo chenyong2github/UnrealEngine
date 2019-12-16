@@ -10,6 +10,11 @@
 UNetworkPredictionComponent::UNetworkPredictionComponent()
 {
 	SetIsReplicatedByDefault(true);
+	
+	// Tick in order to dispatch NetSimCues. FIXME: Might be useful to have this as an option. Some may want to dispatch cues from actor tick (avoid component ticking at all)
+	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bStartWithTickEnabled = true;
+	PrimaryComponentTick.TickGroup = TG_PrePhysics;
 }
 
 void UNetworkPredictionComponent::InitializeComponent()
@@ -206,4 +211,12 @@ void UNetworkPredictionComponent::UnregisterServerRPCDelegate()
 		NetworkSimGlobalManager->TickServerRPCDelegate.Remove(ServerRPCHandle);
 		ServerRPCHandle.Reset();
 	}
+}
+
+void UNetworkPredictionComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	// Handle all pending cues (dispatch them to their handler)
+	NetSimModel->ProcessPendingNetSimCues();
 }

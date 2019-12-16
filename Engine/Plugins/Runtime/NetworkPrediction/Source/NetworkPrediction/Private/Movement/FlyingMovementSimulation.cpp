@@ -150,7 +150,7 @@ namespace FlyingMovement
 		return 0.f;
 	}
 
-	void FMovementSimulation::SimulationTick(const TNetSimTimeStep& TimeStep, const TNetSimInput<TMovementBufferTypes>& Input, const TNetSimOutput<TMovementBufferTypes>& Output)
+	void FMovementSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<TMovementBufferTypes>& Input, const TNetSimOutput<TMovementBufferTypes>& Output)
 	{
 		Output.Sync = Input.Sync;
 

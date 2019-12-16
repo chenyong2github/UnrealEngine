@@ -39,6 +39,10 @@
 //
 // -------------------------------------------------------------------------------------------------------------------------------
 
+// -------------------------------------------------------
+// MockAbility Data structures
+// -------------------------------------------------------
+
 struct FMockAbilityInputCmd : public FlyingMovement::FInputCmd
 {
 	bool bSprintPressed = false;
@@ -117,19 +121,62 @@ struct FMockAbilityAuxstate : public FlyingMovement::FAuxState
 	}
 };
 
-using TMockAbilityBufferTypes = TNetworkSimBufferTypes<FMockAbilityInputCmd, FMockAbilitySyncState, FMockAbilityAuxstate>;
+// -------------------------------------------------------
+// MockAbility NetSimCues - events emitted by the sim
+// -------------------------------------------------------
 
-// A very hard coded event handling interface for events that are emitted in FMockAbilitySimulation::SimulationTick.
-// These events are for cosmetic, client side work. E.g, we are not implementing sprint/dash/blink here, we are doing
-// visual/audio effects based on those states changing within the core simulation update. These are effectively skipped on the server (in implementation).
-class IMockAbilityEventHandler
+// Cue for blink activation.
+struct FMockAbilityBlinkCue
 {
-public:
-	virtual void NotifySprint(bool bIsSprinting) = 0;
-	virtual void NotifyDash(bool bIsDashing) = 0;
-	virtual void NotifyBlinkStartup() = 0;
-	virtual void NotifyBlinkFinished() = 0;
+	NETSIMCUE_BODY();
+
+	FVector_NetQuantize10 StartLocation;
+	FVector_NetQuantize10 StopLocation;
+
+	void NetSerialize(FArchive& Ar)
+	{
+		bool b = false;
+		StartLocation.NetSerialize(Ar, nullptr, b);
+		StopLocation.NetSerialize(Ar, nullptr, b);
+	}
+
+	static bool Unique(const FMockAbilityBlinkCue& A, const FMockAbilityBlinkCue& B)
+	{
+		const float ErrorTolerance = 1.f;
+		return !A.StartLocation.Equals(B.StartLocation, ErrorTolerance) || !A.StopLocation.Equals(B.StopLocation, ErrorTolerance);
+	}
 };
+
+/*
+template<>
+struct TCueHandlerTraits<FMockAbilityBlinkCue> : public TNetSimCueTraitsBase//<FMockAbilityBlinkCue>
+{
+	static constexpr uint8 InvokeMask { (uint8)ESimulationTickContext::Authority };
+	static constexpr bool Replicate { false };
+};
+*/
+
+template<>
+struct TCueHandlerTraits<FMockAbilityBlinkCue> : public TNetSimCueTraits_ReplicatedNonPredicted { };
+
+
+
+// The set of Cues the MockAbility simulation will invoke
+struct FMockAbilityCueSet
+{
+	template<typename TDispatchTable>
+	static void RegisterNetSimCueTypes(TDispatchTable& DispatchTable)
+	{
+		DispatchTable.template RegisterType<FMockAbilityBlinkCue>();
+	}
+};
+
+
+// -------------------------------------------------------
+// MockAbilitySimulation definition
+// -------------------------------------------------------
+
+using TMockAbilityBufferTypes = TNetworkSimBufferTypes<FMockAbilityInputCmd, FMockAbilitySyncState, FMockAbilityAuxstate>;
 
 class FMockAbilitySimulation : public FlyingMovement::FMovementSimulation
 {
@@ -138,9 +185,7 @@ public:
 	static const FName GroupName;
 
 	/** Main update function */
-	void SimulationTick(const TNetSimTimeStep& TimeStep, const TNetSimInput<TMockAbilityBufferTypes>& Input, const TNetSimOutput<TMockAbilityBufferTypes>& Output);
-
-	IMockAbilityEventHandler* EventHandler = nullptr;
+	void SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<TMockAbilityBufferTypes>& Input, const TNetSimOutput<TMockAbilityBufferTypes>& Output);
 };
 
 template<int32 InFixedStepMS=0>
@@ -153,7 +198,7 @@ class IMockFlyingAbilitySystemDriver : public TNetworkedSimulationModelDriver<TM
 // -------------------------------------------------------------------------------------------------------------------------------
 
 UCLASS(BlueprintType, meta=(BlueprintSpawnableComponent))
-class NETWORKPREDICTIONEXTRAS_API UMockFlyingAbilityComponent : public UFlyingMovementComponent, public IMockFlyingAbilitySystemDriver, public IMockAbilityEventHandler
+class NETWORKPREDICTIONEXTRAS_API UMockFlyingAbilityComponent : public UFlyingMovementComponent, public IMockFlyingAbilitySystemDriver
 {
 	GENERATED_BODY()
 
@@ -180,11 +225,8 @@ public:
 	using UFlyingMovementComponent::ProduceInput;
 	using UFlyingMovementComponent::FinalizeFrame;
 
-	// IMockAbilityEventHandler
-	virtual void NotifySprint(bool bIsSprinting) override;
-	virtual void NotifyDash(bool bIsDashing) override;
-	virtual void NotifyBlinkStartup() override;
-	virtual void NotifyBlinkFinished() override;
+	// NetSimCues
+	void HandleCue(FMockAbilityBlinkCue& BlinkCue, const FNetworkSimTime& ElapsedTime);
 
 	// -------------------------------------------------------------------------------------
 	//	Ability State and Notifications
@@ -242,8 +284,7 @@ protected:
 	void InitMockAbilitySimulation(TSimulation* Simulation, FMockAbilitySyncState& InitialSyncState, FMockAbilityAuxstate& InitialAuxState)
 	{
 		check(MockAbilitySimulation == nullptr);
-		MockAbilitySimulation = Simulation;
-		MockAbilitySimulation->EventHandler = this;
+		MockAbilitySimulation = Simulation;		
 
 		InitFlyingMovementSimulation(Simulation, InitialSyncState, InitialAuxState);
 	}

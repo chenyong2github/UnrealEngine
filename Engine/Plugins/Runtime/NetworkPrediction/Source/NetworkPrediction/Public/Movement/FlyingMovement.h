@@ -155,7 +155,7 @@ namespace FlyingMovement
 		static bool ForceMispredict;
 
 		/** Main update function */
-		NETWORKPREDICTION_API void SimulationTick(const TNetSimTimeStep& TimeStep, const TNetSimInput<TMovementBufferTypes>& Input, const TNetSimOutput<TMovementBufferTypes>& Output);
+		NETWORKPREDICTION_API void SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<TMovementBufferTypes>& Input, const TNetSimOutput<TMovementBufferTypes>& Output);
 
 		// Called prior to running the sim to make sure to make sure the collision component is in the right place. 
 		// This is unfortunate and not good, but is needed to ensure our collision and world position have not been moved out from under us.
