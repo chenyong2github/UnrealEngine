@@ -113,6 +113,7 @@ protected:
 	TSharedRef<IDatasmithScene> DatasmithScene;
 	const FDatasmithSceneSource& Source;
 	const CADLibrary::FImportParameters& ImportParameters;
+	const uint32 ImportParametersHash;
 
 	TArray<CADLibrary::FArchiveMockUp> ArchiveMockUps;
 	TMap<FString, CADLibrary::FArchiveMockUp*> CADFileToArchiveMockUp;
