@@ -262,45 +262,40 @@ void FStaticMeshInstanceBuffer::UpdateFromCommandBuffer_RenderThread(FInstanceUp
 	int32 NumCommands = CmdBuffer.NumInlineCommands();
 	int32 NumAdds = CmdBuffer.NumAdds;
 	int32 AddIndex = INDEX_NONE;
-	int32 NewNumInstances = InstanceData->GetNumInstances();
+
 	if (NumAdds > 0)
 	{
 		AddIndex = InstanceData->GetNumInstances();
-		NewNumInstances = NumAdds + InstanceData->GetNumInstances();
+		int32 NewNumInstances = NumAdds + InstanceData->GetNumInstances();
 		InstanceData->AllocateInstances(NewNumInstances, GIsEditor ? EResizeBufferFlags::AllowSlackOnGrow | EResizeBufferFlags::AllowSlackOnReduce : EResizeBufferFlags::None, false); // In Editor always permit overallocation, to prevent too much realloc
 	}
 
 	for (int32 i = 0; i < NumCommands; ++i)
 	{
 		const auto& Cmd = CmdBuffer.Cmds[i];
+
+		int32 InstanceIndex = Cmd.Type != FInstanceUpdateCmdBuffer::Add ? Cmd.InstanceIndex : AddIndex++;
+		if (!ensure(InstanceData->IsValidIndex(InstanceIndex)))
+		{
+			continue;
+		}
+
 		switch (Cmd.Type)
 		{
 		case FInstanceUpdateCmdBuffer::Add:
-			InstanceData->SetInstance(AddIndex++, Cmd.XForm, 0);
+			InstanceData->SetInstance(InstanceIndex, Cmd.XForm, 0);
 			break;
 		case FInstanceUpdateCmdBuffer::Hide:
-			if (Cmd.InstanceIndex < NewNumInstances)
-			{
-				InstanceData->NullifyInstance(Cmd.InstanceIndex);
-			}
+			InstanceData->NullifyInstance(InstanceIndex);
 			break;
 		case FInstanceUpdateCmdBuffer::Update:
-			if (Cmd.InstanceIndex < NewNumInstances)
-			{
-				InstanceData->SetInstance(Cmd.InstanceIndex, Cmd.XForm, 0);
-			}
+			InstanceData->SetInstance(InstanceIndex, Cmd.XForm, 0);
 			break;
 		case FInstanceUpdateCmdBuffer::EditorData:
-			if (Cmd.InstanceIndex < NewNumInstances)
-			{
-				InstanceData->SetInstanceEditorData(Cmd.InstanceIndex, Cmd.HitProxyColor, Cmd.bSelected);
-			}
+			InstanceData->SetInstanceEditorData(InstanceIndex, Cmd.HitProxyColor, Cmd.bSelected);
 			break;
 		case FInstanceUpdateCmdBuffer::LightmapData:
-			if (Cmd.InstanceIndex < NewNumInstances)
-			{
-				InstanceData->SetInstanceLightMapData(Cmd.InstanceIndex, Cmd.LightmapUVBias, Cmd.ShadowmapUVBias);
-			}
+			InstanceData->SetInstanceLightMapData(InstanceIndex, Cmd.LightmapUVBias, Cmd.ShadowmapUVBias);
 			break;
 		default:
 			check(false);
