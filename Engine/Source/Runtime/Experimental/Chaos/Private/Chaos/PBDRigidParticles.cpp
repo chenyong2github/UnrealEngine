@@ -2,4 +2,10 @@
 
 #include "Chaos/PBDRigidParticles.h"
 
-template class Chaos::TPBDRigidParticles<float,3>;
+void Chaos::EnsureSleepingObjectState(EObjectStateType ObjectState)
+{
+	ensure(ObjectState != EObjectStateType::Kinematic);
+	ensure(ObjectState != EObjectStateType::Static);
+}
+
+template class Chaos::TPBDRigidParticles<float, 3>;

@@ -15,6 +15,8 @@ namespace Chaos
 template<class T, int d>
 class TPBDRigidsEvolution;
 
+CHAOS_API void EnsureSleepingObjectState(EObjectStateType ObjectState);
+
 template<class T, int d>
 class TPBDRigidParticles : public TRigidParticles<T, d>
 {
@@ -90,8 +92,7 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 
 		if (bSleeping)
 		{
-			ensure(this->ObjectState(Index) != EObjectStateType::Kinematic);
-			ensure(this->ObjectState(Index) != EObjectStateType::Static);
+			EnsureSleepingObjectState(this->ObjectState(Index));
 		}
 	}
 
