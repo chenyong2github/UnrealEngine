@@ -347,6 +347,9 @@ void FSequencerNodeTree::Update()
 	const bool bIncludeRootNode = false;
 	RootNode->Traverse_ParentFirst(Traverse_OnTreeRefreshed, bIncludeRootNode);
 
+	// Cache pinned state of nodes, needs to happen after OnTreeRefreshed
+	RootNode->UpdateCachedPinnedState();
+
 	// Ensure that the curve editor tree is up to date for our tree layout
 	UpdateCurveEditorTree();
 

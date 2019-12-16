@@ -444,6 +444,11 @@ public:
 	bool IsExpanded() const;
 
 	/**
+	 * Called by FSequencer to update the cached pinned state
+	 */
+	void UpdateCachedPinnedState(bool bParentIsPinned = false);
+
+	/**
 	 * @return Whether or not this node is pinned
 	 */
 	bool IsPinned() const;
@@ -572,6 +577,9 @@ protected:
 
 	/** Whether or not the node is pinned */
 	bool bPinned;
+
+	/** Cached value of whether this node or one of it's parents is pinned */
+	bool bInPinnedBranch;
 
 	/** Event that is triggered when rename is requested */
 	FRequestRenameEvent RenameRequestedEvent;

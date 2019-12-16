@@ -423,7 +423,8 @@ FSequencerDisplayNode::FSequencerDisplayNode( FName InNodeName, FSequencerNodeTr
 	, ParentTree( InParentTree )
 	, NodeName( InNodeName )
 	, bExpanded( false )
-	, bPinned(false)
+	, bPinned( false )
+	, bInPinnedBranch( false )
 	, bHasBeenInitialized( false )
 {
 	SortType = EDisplayNodeSortType::Undefined;
@@ -1223,9 +1224,19 @@ FSequencerDisplayNode* FSequencerDisplayNode::GetBaseNode() const
 	return GetParentOrRoot()->GetBaseNode();
 }
 
+void FSequencerDisplayNode::UpdateCachedPinnedState(bool bParentIsPinned)
+{
+	bInPinnedBranch = bPinned || bParentIsPinned;
+
+	for (TSharedPtr<FSequencerDisplayNode> Child : ChildNodes)
+	{
+		Child->UpdateCachedPinnedState(bInPinnedBranch);
+	}
+}
+
 bool FSequencerDisplayNode::IsPinned() const
 {
-	return GetBaseNode()->bPinned;
+	return bInPinnedBranch;
 }
 
 void FSequencerDisplayNode::TogglePinned()
