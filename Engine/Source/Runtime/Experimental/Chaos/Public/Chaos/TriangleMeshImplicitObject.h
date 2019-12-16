@@ -114,16 +114,7 @@ namespace Chaos
 
 		TVector<T, 3> GetFaceNormal(const int32 FaceIdx) const;
 
-		virtual uint16 GetMaterialIndex(uint32 HintIndex) const override
-		{
-			if (MaterialIndices.IsValidIndex(HintIndex))
-			{
-				return MaterialIndices[HintIndex];
-			}
-
-			// 0 should always be the default material for a shape
-			return 0;
-		}
+		virtual uint16 GetMaterialIndex(uint32 HintIndex) const override;
 
 	private:
 
