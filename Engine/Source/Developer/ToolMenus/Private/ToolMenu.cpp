@@ -19,6 +19,7 @@ UToolMenu::UToolMenu() :
 	, bToolBarForceSmallIcons(false)
 	, bRegistered(false)
 	, bIsRegistering(false)
+	, bExtendersEnabled(true)
 	, StyleSet(&FCoreStyle::Get())
 	, MaxHeight(INT_MAX)
 {
@@ -51,6 +52,8 @@ void UToolMenu::InitGeneratedCopy(const UToolMenu* Source, const FName InMenuNam
 
 	SubMenuParent = Source->SubMenuParent;
 	SubMenuSourceEntryName = Source->SubMenuSourceEntryName;
+	bExtendersEnabled = Source->bExtendersEnabled;
+
 	MaxHeight = Source->MaxHeight;
 	if (InContext)
 	{
@@ -451,4 +454,9 @@ FString UToolMenu::GetSubMenuNamePath() const
 	}
 
 	return SubMenuNamePath;
+}
+
+void UToolMenu::SetExtendersEnabled(bool bEnabled)
+{
+	bExtendersEnabled = bEnabled;
 }
