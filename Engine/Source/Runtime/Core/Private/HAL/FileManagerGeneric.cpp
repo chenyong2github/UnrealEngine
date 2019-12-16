@@ -406,10 +406,13 @@ void FFileManagerGeneric::FindFiles( TArray<FString>& Result, const TCHAR* InFil
 		}
 		virtual bool Visit( const TCHAR* FilenameOrDirectory, bool bIsDirectory )
 		{
-			if (((bIsDirectory && bDirectories) || (!bIsDirectory && bFiles))
-				&& FPaths::GetCleanFilename(FilenameOrDirectory).MatchesWildcard(WildCard))
+			if ((bIsDirectory && bDirectories) || (!bIsDirectory && bFiles))
 			{
-				new( Result ) FString( FPaths::GetCleanFilename(FilenameOrDirectory) );
+				const FString Filename = FPaths::GetCleanFilename(FilenameOrDirectory);
+				if (Filename.MatchesWildcard(WildCard))
+				{
+					new( Result ) FString(Filename);
+				}
 			}
 			return true;
 		}
