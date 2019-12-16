@@ -3362,6 +3362,7 @@ namespace UnrealBuildTool
 					if (!File.Exists(DestFileName) || File.GetLastWriteTimeUtc(DestFileName) < File.GetLastWriteTimeUtc(SrcFileName))
 					{
 						Log.TraceInformation("Copying {0} to {1}", SrcFileName, DestFileName);
+						SafeDeleteFile(DestFileName);
 						File.Copy(SrcFileName, DestFileName);
 					}
 				}
