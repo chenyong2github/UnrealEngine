@@ -208,8 +208,12 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 
 	// Activate our edit mode
 //	GetAssetEditorModeManager()->SetToolkitHost(GetToolkitHost());
-	GetAssetEditorModeManager()->SetDefaultMode(FControlRigEditorEditMode::ModeName);
-	GetAssetEditorModeManager()->ActivateMode(FControlRigEditorEditMode::ModeName);
+	if (GetAssetEditorModeManager() != nullptr)
+	{
+		GetAssetEditorModeManager()->SetDefaultMode(FControlRigEditorEditMode::ModeName);
+		GetAssetEditorModeManager()->ActivateMode(FControlRigEditorEditMode::ModeName);
+	}
+
 	if (FControlRigEditMode* EditMode = GetEditMode())
 	{
 		EditMode->OnGetRigElementTransform() = FOnGetRigElementTransform::CreateSP(this, &FControlRigEditor::GetRigElementTransform);
@@ -1984,6 +1988,16 @@ void FControlRigEditor::OnControlUISettingChanged(FRigHierarchyContainer* Contai
 {
 	OnHierarchyChanged();
 }
+
+FControlRigEditorEditMode* FControlRigEditor::GetEditMode() const
+{
+	if (GetAssetEditorModeManager() == nullptr)
+	{
+		return nullptr;
+	}
+	return static_cast<FControlRigEditorEditMode*>(GetAssetEditorModeManager()->GetActiveMode(FControlRigEditorEditMode::ModeName));
+}
+
 
 void FControlRigEditor::OnCurveContainerChanged()
 {
