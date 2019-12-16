@@ -623,7 +623,10 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 
 		BPGClass->bCookSlowConstructionWidgetTree = GetDefault<UUMGEditorProjectSettings>()->CompilerOption_CookSlowConstructionWidgetTree(WidgetBP);
 
-		BPGClass->WidgetTree = Cast<UWidgetTree>(StaticDuplicateObject(WidgetBP->WidgetTree, BPGClass, NAME_None, RF_AllFlags & ~RF_DefaultSubObject));
+		{
+			TGuardValue<uint32> DisableInitializeFromWidgetTree(UUserWidget::bInitializingFromWidgetTree, 0);
+			BPGClass->WidgetTree = Cast<UWidgetTree>(StaticDuplicateObject(WidgetBP->WidgetTree, BPGClass, NAME_None, RF_AllFlags & ~RF_DefaultSubObject));
+		}
 
 		for ( const UWidgetAnimation* Animation : WidgetBP->Animations )
 		{
