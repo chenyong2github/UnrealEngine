@@ -43,9 +43,9 @@ namespace Chaos
 	}
 
 	
-	void FPBDJointConstraintHandle::CalculateConstraintSpace(FVec3& OutXa, FMatrix33& OutRa, FVec3& OutXb, FMatrix33& OutRb, FVec3& OutCR) const
+	void FPBDJointConstraintHandle::CalculateConstraintSpace(FVec3& OutXa, FMatrix33& OutRa, FVec3& OutXb, FMatrix33& OutRb) const
 	{
-		ConstraintContainer->CalculateConstraintSpace(ConstraintIndex, OutXa, OutRa, OutXb, OutRb, OutCR);
+		ConstraintContainer->CalculateConstraintSpace(ConstraintIndex, OutXa, OutRa, OutXb, OutRb);
 	}
 
 	
@@ -96,6 +96,7 @@ namespace Chaos
 		, bAngularTwistDriveEnabled(false)
 		, bAngularSwingDriveEnabled(false)
 		, AngularDriveStiffness(0)
+		, AngularDriveDamping(0)
 	{
 	}
 
@@ -120,6 +121,7 @@ namespace Chaos
 		, bAngularTwistDriveEnabled(false)
 		, bAngularSwingDriveEnabled(false)
 		, AngularDriveStiffness(0)
+		, AngularDriveDamping(0)
 	{
 	}
 
@@ -176,6 +178,7 @@ namespace Chaos
 		, AngularProjection((FReal)0)
 		, Stiffness((FReal)0)
 		, DriveStiffness((FReal)0)
+		, DriveDamping((FReal)0)
 		, SoftLinearStiffness((FReal)0)
 		, SoftAngularStiffness((FReal)0)
 	{
@@ -419,10 +422,35 @@ namespace Chaos
 			SortConstraints();
 			bRequiresSort = false;
 		}
+
+		ConstraintSolvers.SetNum(NumConstraints());
+		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+		{
+			const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
+			FJointSolverGaussSeidel& Solver = ConstraintSolvers[ConstraintIndex];
+
+			int32 Index0, Index1;
+			GetConstrainedParticleIndices(ConstraintIndex, Index0, Index1);
+			TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
+			TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
+
+			Solver.Init(
+				Dt,
+				Settings,
+				JointSettings,
+				FParticleUtilitiesXR::GetCoMWorldRotation(Particle0),	// Prev rotation
+				FParticleUtilitiesXR::GetCoMWorldRotation(Particle1),	// Prev rotation
+				Particle0->InvM(),
+				Particle0->InvI(),
+				Particle1->InvM(),
+				Particle1->InvI(),
+				FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointSettings.ConstraintFrames[Index0]),
+				FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointSettings.ConstraintFrames[Index1]));
+		}
 	}
 
 	
-	void FPBDJointConstraints::CalculateConstraintSpace(int32 ConstraintIndex, FVec3& OutX0, FMatrix33& OutR0, FVec3& OutX1, FMatrix33& OutR1, FVec3& OutCR) const
+	void FPBDJointConstraints::CalculateConstraintSpace(int32 ConstraintIndex, FVec3& OutX0, FMatrix33& OutR0, FVec3& OutX1, FMatrix33& OutR1) const
 	{
 		int32 Index0, Index1;
 		GetConstrainedParticleIndices(ConstraintIndex, Index0, Index1);
@@ -436,16 +464,11 @@ namespace Chaos
 		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
 		const FRigidTransform3 XL0 = FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointSettings.ConstraintFrames[Index0]);
 		const FRigidTransform3 XL1 = FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointSettings.ConstraintFrames[Index1]);
-		EJointMotionType Swing1Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1];
-		EJointMotionType Swing2Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2];
-		if ((Swing1Motion == EJointMotionType::Limited) && (Swing2Motion == EJointMotionType::Limited))
-		{
-			FPBDJointUtilities::CalculateConeConstraintSpace(Settings, ConstraintSettings[ConstraintIndex], XL0, XL1, P0, Q0, P1, Q1, OutX0, OutR0, OutX1, OutR1, OutCR);
-		}
-		else
-		{
-			FPBDJointUtilities::CalculateSwingConstraintSpace(Settings, ConstraintSettings[ConstraintIndex], XL0, XL1, P0, Q0, P1, Q1, OutX0, OutR0, OutX1, OutR1, OutCR);
-		}
+
+		OutX0 = P0 + Q0 * XL0.GetTranslation();
+		OutX1 = P1 + Q1 * XL1.GetTranslation();
+		OutR0 = FRotation3(Q0 * XL0.GetRotation()).ToMatrix();
+		OutR1 = FRotation3(Q1 * XL1.GetRotation()).ToMatrix();
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -710,27 +733,23 @@ namespace Chaos
 		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Solve Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
 
 		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
+		FJointSolverGaussSeidel& Solver = ConstraintSolvers[ConstraintIndex];
 
 		int32 Index0, Index1;
 		GetConstrainedParticleIndices(ConstraintIndex, Index0, Index1);
 		TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
 		TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
 
-		FJointSolverGaussSeidel Solver;
-		Solver.InitConstraints(
+		Solver.Update(
 			Dt,
-			Settings,
-			JointSettings,
 			FParticleUtilities::GetCoMWorldPosition(Particle0),
 			FParticleUtilities::GetCoMWorldRotation(Particle0),
+			Particle0->V(),
+			Particle0->W(),
 			FParticleUtilities::GetCoMWorldPosition(Particle1),
 			FParticleUtilities::GetCoMWorldRotation(Particle1),
-			Particle0->InvM(),
-			Particle0->InvI(),
-			Particle1->InvM(),
-			Particle1->InvI(),
-			FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointSettings.ConstraintFrames[Index0]),
-			FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointSettings.ConstraintFrames[Index1]));
+			Particle1->V(),
+			Particle1->W());
 
 		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 		{
@@ -748,17 +767,15 @@ namespace Chaos
 		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Solve Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
 
 		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
+		FJointSolverGaussSeidel& Solver = ConstraintSolvers[ConstraintIndex];
 
 		int32 Index0, Index1;
 		GetConstrainedParticleIndices(ConstraintIndex, Index0, Index1);
 		TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
 		TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
 
-		FJointSolverGaussSeidel Solver;
-		Solver.InitProjection(
+		Solver.Update(
 			Dt,
-			Settings,
-			JointSettings,
 			FParticleUtilities::GetCoMWorldPosition(Particle0),
 			FParticleUtilities::GetCoMWorldRotation(Particle0),
 			Particle0->V(),
@@ -766,13 +783,7 @@ namespace Chaos
 			FParticleUtilities::GetCoMWorldPosition(Particle1),
 			FParticleUtilities::GetCoMWorldRotation(Particle1),
 			Particle1->V(),
-			Particle1->W(),
-			Particle0->InvM(),
-			Particle0->InvI(),
-			Particle1->InvM(),
-			Particle1->InvI(),
-			FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointSettings.ConstraintFrames[Index0]),
-			FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointSettings.ConstraintFrames[Index1]));
+			Particle1->W());
 
 		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 		{

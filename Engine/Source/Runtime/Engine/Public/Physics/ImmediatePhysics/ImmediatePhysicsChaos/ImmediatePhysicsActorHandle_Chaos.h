@@ -85,12 +85,14 @@ namespace ImmediatePhysics_Chaos
 
 		/** Get the inverse mass. */
 		float GetInverseMass() const;
+		float GetMass() const;
 
 		/** Set the inverse inertia. Mass-space inverse inertia diagonal vector */
 		void SetInverseInertia(const FVector& NewInverseInertia);
 
 		/** Get the inverse inertia. Mass-space inverse inertia diagonal vector */
 		FVector GetInverseInertia() const;
+		FVector GetInertia() const;
 
 		/** Set the max depenetration velocity*/
 		void SetMaxDepenetrationVelocity(float NewMaxDepenetrationVelocity);

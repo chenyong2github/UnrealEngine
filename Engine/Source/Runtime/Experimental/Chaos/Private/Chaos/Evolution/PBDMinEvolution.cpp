@@ -233,6 +233,10 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_DetectCollisions);
 
+		// @todo(ccaulfield): doesn't need to be every frame
+		PrioritizedConstraintRules = ConstraintRules;
+		PrioritizedConstraintRules.StableSort();
+
 		for (FSimpleConstraintRule* ConstraintRule : PrioritizedConstraintRules)
 		{
 			ConstraintRule->UpdatePositionBasedState(Dt);
@@ -244,10 +248,6 @@ namespace Chaos
 	void FPBDMinEvolution::ApplyConstraints(FReal Dt)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyConstraints);
-
-		// @todo(ccaulfield): doesn't need to be every frame
-		PrioritizedConstraintRules = ConstraintRules;
-		PrioritizedConstraintRules.StableSort();
 
 		// @todo(ccaulfield): track whether we are sufficiently solved and can early-out
 		for (int32 i = 0; i < NumApplyIterations; ++i)

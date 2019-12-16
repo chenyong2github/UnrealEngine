@@ -51,6 +51,7 @@ float ChaosImmediate_Joint_Stiffness = 1.0f;
 float ChaosImmediate_Joint_SoftLinearStiffness = 0.0f;
 float ChaosImmediate_Joint_SoftAngularStiffness = 0.0f;
 float ChaosImmediate_Joint_DriveStiffness = 0.0f;
+float ChaosImmediate_Joint_DriveDamping = 0.0f;
 float ChaosImmediate_Joint_MinParentMassRatio = 0.5f;
 float ChaosImmediate_Joint_MaxInertiaRatio = 5.0f;
 FAutoConsoleVariableRef CVarChaosImmPhysPairIterations(TEXT("p.Chaos.ImmPhys.Joint.PairIterations"), ChaosImmediate_Joint_PairIterations, TEXT("PairIterations."));
@@ -65,6 +66,7 @@ FAutoConsoleVariableRef CVarChaosImmPhysStiffness(TEXT("p.Chaos.ImmPhys.Joint.St
 FAutoConsoleVariableRef CVarChaosImmPhysSoftLinearStiffness(TEXT("p.Chaos.ImmPhys.Joint.SoftLinearStiffness"), ChaosImmediate_Joint_SoftLinearStiffness, TEXT("6Dof joint soft linear stiffness override (if > 0)."));
 FAutoConsoleVariableRef CVarChaosImmPhysSoftAngularStiffness(TEXT("p.Chaos.ImmPhys.Joint.SoftAngularStiffness"), ChaosImmediate_Joint_SoftAngularStiffness, TEXT("6Dof joint soft angular stiffness override (if > 0)."));
 FAutoConsoleVariableRef CVarChaosImmPhysDriveStiffness(TEXT("p.Chaos.ImmPhys.Joint.DriveStiffness"), ChaosImmediate_Joint_DriveStiffness, TEXT("6Dof joint drive stiffness override (if > 0)."));
+FAutoConsoleVariableRef CVarChaosImmPhysDriveDamping(TEXT("p.Chaos.ImmPhys.Joint.DriveDamping"), ChaosImmediate_Joint_DriveDamping, TEXT("6Dof joint drive damping override (if > 0)."));
 FAutoConsoleVariableRef CVarChaosImmPhysMinParentMassRatio(TEXT("p.Chaos.ImmPhys.Joint.MinParentMassRatio"), ChaosImmediate_Joint_MinParentMassRatio, TEXT("6Dof joint MinParentMassRatio (if > 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysMaxInertiaRatio(TEXT("p.Chaos.ImmPhys.Joint.MaxInertiaRatio"), ChaosImmediate_Joint_MaxInertiaRatio, TEXT("6Dof joint MaxInertiaRatio (if > 0)"));
 
@@ -496,6 +498,7 @@ namespace ImmediatePhysics_Chaos
 			JointsSettings.SoftLinearStiffness = ChaosImmediate_Joint_SoftLinearStiffness;
 			JointsSettings.SoftAngularStiffness = ChaosImmediate_Joint_SoftAngularStiffness;
 			JointsSettings.DriveStiffness = ChaosImmediate_Joint_DriveStiffness;
+			JointsSettings.DriveDamping = ChaosImmediate_Joint_DriveDamping;
 
 			Joints.SetSettings(JointsSettings);
 
