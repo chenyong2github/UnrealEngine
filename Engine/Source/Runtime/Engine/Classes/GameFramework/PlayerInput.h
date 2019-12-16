@@ -12,7 +12,6 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "InputCoreTypes.h"
-#include "Components/InputComponent.h"
 #include "UObject/ScriptMacros.h"
 #include "Framework/Commands/InputChord.h"
 #include "GestureRecognizer.h"
@@ -624,75 +623,9 @@ public:
 	static const TArray<FInputAxisKeyMapping>& GetEngineDefinedAxisMappings() { return EngineDefinedAxisMappings; }
 
 protected:
-	/** Runtime struct that gathers up the different kinds of delegates that might be issued */
-	struct FDelegateDispatchDetails
-	{
-		uint32 EventIndex;
-		uint32 FoundIndex;
+	TMap<FKey, FKeyState>& GetKeyStateMap()
+	{ return KeyStateMap; }
 
-		FInputActionUnifiedDelegate ActionDelegate;
-		const FInputActionBinding* SourceAction;
-		FInputChord Chord;
-		TEnumAsByte<EInputEvent> KeyEvent;
-
-		FInputTouchUnifiedDelegate TouchDelegate;
-		FVector TouchLocation;
-		ETouchIndex::Type FingerIndex;
-
-		FInputGestureUnifiedDelegate GestureDelegate;
-		float GestureValue;
-
-		FDelegateDispatchDetails(const uint32 InEventIndex, const uint32 InFoundIndex, const FInputChord& InChord, FInputActionUnifiedDelegate InDelegate, const EInputEvent InKeyEvent, const FInputActionBinding* InSourceAction = NULL)
-			: EventIndex(InEventIndex)
-			, FoundIndex(InFoundIndex)
-			, ActionDelegate(MoveTemp(InDelegate))
-			, SourceAction(InSourceAction)
-			, Chord(InChord)
-			, KeyEvent(InKeyEvent)
-		{}
-
-		FDelegateDispatchDetails(const uint32 InEventIndex, const uint32 InFoundIndex, FInputTouchUnifiedDelegate InDelegate, const FVector InLocation, const ETouchIndex::Type InFingerIndex)
-			: EventIndex(InEventIndex)
-			, FoundIndex(InFoundIndex)
-			, TouchDelegate(MoveTemp(InDelegate))
-			, TouchLocation(InLocation)
-			, FingerIndex(InFingerIndex)
-		{}
-
-		FDelegateDispatchDetails(const uint32 InEventIndex, const uint32 InFoundIndex, FInputGestureUnifiedDelegate InDelegate, const float InValue)
-			: EventIndex(InEventIndex)
-			, FoundIndex(InFoundIndex)
-			, GestureDelegate(MoveTemp(InDelegate))
-			, GestureValue(InValue)
-		{}
-	};
-
-	// We collect axis contributions by delegate, so we can sum up 
-	// contributions from multiple bindings.
-	struct FAxisDelegateDetails
-	{
-		FInputAxisUnifiedDelegate Delegate;
-		float Value;
-
-		FAxisDelegateDetails(FInputAxisUnifiedDelegate InDelegate, const float InValue)
-			: Delegate(MoveTemp(InDelegate))
-			, Value(InValue)
-		{
-		}
-	};
-	struct FVectorAxisDelegateDetails
-	{
-		FInputVectorAxisUnifiedDelegate Delegate;
-		FVector Value;
-
-		FVectorAxisDelegateDetails(FInputVectorAxisUnifiedDelegate InDelegate, const FVector InValue)
-			: Delegate(MoveTemp(InDelegate))
-			, Value(InValue)
-		{
-		}
-	};
-
-protected:
 	/**
 	* Given raw keystate value of a vector axis, returns the "massaged" value. Override for any custom behavior,
 	* such as input changes dependent on a particular game state.
@@ -704,9 +637,6 @@ protected:
 	* such as input changes dependent on a particular game state.
 	*/
 	virtual float MassageAxisInput(FKey Key, float RawValue);
-
-	virtual void ProcessDelegatesFilter(const TArray<UInputComponent*>& InputComponentStack, TArray<FAxisDelegateDetails>& AxisDelegates, TArray<FVectorAxisDelegateDetails>& VectorAxisDelegates, TArray<FDelegateDispatchDetails>& NonAxisDelegates)
-	{ }
 
 private:
 

@@ -82,7 +82,7 @@ public:
 	virtual void GetEventsData(FDisplayClusterMessage::DataType& EventsData) override
 	{ }
 
-	virtual void GetNativeInputData(FDisplayClusterMessage::DataType& EventsData) override
+	virtual void GetNativeInputData(FDisplayClusterMessage::DataType& NativeInputData) override
 	{ }
 
 public:
