@@ -3680,15 +3680,7 @@ void ALandscapeProxy::PostEditImport()
 		CreateLandscapeInfo();
 	}
 
-	for (int32 ComponentIndex = 0; ComponentIndex < LandscapeComponents.Num(); ++ComponentIndex)
-	{
-		ULandscapeComponent* Comp = LandscapeComponents[ComponentIndex];
-		if (Comp)
-		{
-			// Update the MIC
-			Comp->UpdateMaterialInstances();
-		}
-	}
+	UpdateAllComponentMaterialInstances();
 }
 
 void ALandscape::PostEditMove(bool bFinished)
@@ -3974,6 +3966,14 @@ void ULandscapeInfo::ClearDirtyData()
 			Landscape->ClearDirtyData(InLandscapeComponent);
 		});
 	}
+}
+
+void ULandscapeInfo::UpdateAllComponentMaterialInstances()
+{
+	ForAllLandscapeProxies([](ALandscapeProxy* Proxy)
+	{
+		Proxy->UpdateAllComponentMaterialInstances();
+	});
 }
 
 ALandscapeProxy* ULandscapeInfo::MoveComponentsToLevel(const TArray<ULandscapeComponent*>& InComponents, ULevel* TargetLevel)

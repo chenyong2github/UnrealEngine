@@ -1141,7 +1141,7 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnRebuildMICs(const TShared
 {
 	if (Target->LandscapeInfo.IsValid())
 	{
-		Target->LandscapeInfo.Get()->GetLandscapeProxy()->UpdateAllComponentMaterialInstances();
+		Target->LandscapeInfo.Get()->UpdateAllComponentMaterialInstances();
 	}
 }
 
