@@ -287,11 +287,6 @@ public:
 	}
 
 	/**
-	 * Transition depth resources. Does not really do anything in metal.
-	 */
-	virtual void RHITransitionResources(FExclusiveDepthStencil DepthStencilMode, FRHITexture* DepthTexture) final override;
-	
-	/**
 	 * Compute queue will wait for the fence to be written before continuing.
 	 */
 	virtual void RHIWaitComputeFence(FRHIComputeFence* InFence) final override;
