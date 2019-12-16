@@ -1,64 +1,50 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+/*
+Copyright 2019 Valve Corporation under https://opensource.org/licenses/BSD-3-Clause
+This code includes modifications by Epic Games.  Modifications (c) 2019 Epic Games, Inc.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+*/
 
 #include "SteamVRInput.h"
-#include "SteamVRInputSettings.h"
 #include "CoreMinimal.h"
 #include "Runtime/Core/Public/Misc/Paths.h"
 #include "openvr.h"
 #include "Modules/ModuleManager.h"
 #include "Interfaces/IPluginManager.h"
 
-#if WITH_EDITOR
-#include "Editor.h"
-#include "ISettingsModule.h"
-#include "ISettingsSection.h"
-#endif
-
 #define LOCTEXT_NAMESPACE "FSteamVRInputModule"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSteamInput, Log, All);
 
-#if WITH_EDITOR
-void FSteamVRInputModule::AddEditorSettings()
-{
-	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
-
-	// While this should usually be true, it's not guaranteed that the settings module will be loaded in the editor.
-	// UBT allows setting bBuildDeveloperTools to false while bBuildEditor can be true.
-	// The former option indirectly controls loading of the "Settings" module.
-	if (SettingsModule)
-	{
-		SettingsModule->RegisterSettings("Project", "Plugins", "SteamVR Input",
-			LOCTEXT("SteamVRInputSettingsName", "SteamVR Input"),
-			LOCTEXT("SteamVRInputSettingsDescription", "Configure SteamVR input support."),
-			GetMutableDefault<USteamVRInputSettings>()
-		);
-	}
-}
-
-void FSteamVRInputModule::RemoveEditorSettings()
-{
-	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
-	if (SettingsModule)
-	{
-		SettingsModule->UnregisterSettings("Project", "Plugins", "SteamVR Input");
-	}
-}
-#endif
-
 void FSteamVRInputModule::StartupModule()
 {
-#if WITH_EDITOR
-	// We don't quite have control of when the "Settings" module is loaded, so we'll wait until PostEngineInit to register settings.
-	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FSteamVRInputModule::AddEditorSettings);
-#endif // WITH_EDITOR
 }
 
 void FSteamVRInputModule::ShutdownModule()
 {
-#if WITH_EDITOR
-	RemoveEditorSettings();
-#endif
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -1,7 +1,34 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+/*
+Copyright 2019 Valve Corporation under https://opensource.org/licenses/BSD-3-Clause
+This code includes modifications by Epic Games.  Modifications (c) 2019 Epic Games, Inc.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+*/
 
 #include "SteamVRInputDevice.h"
-#include "SteamVRInputSettings.h"
 #include "Runtime/ApplicationCore/Public/GenericPlatform/IInputInterface.h"
 #include "HAL/FileManagerGeneric.h"
 #include "Misc/FileHelper.h"
@@ -16,6 +43,7 @@
 #include "SteamVRControllerKeys.h"
 #include "Runtime/HeadMountedDisplay/Public/IXRTrackingSystem.h"
 #include "SteamVRSkeletonDefinition.h"
+#include "Misc/MessageDialog.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"
@@ -83,9 +111,7 @@ FSteamVRInputDevice::FSteamVRInputDevice(const TSharedRef<FGenericApplicationMes
 #if WITH_EDITOR
 	GenerateActionManifest();
 
-	// Auto-enable SteamVR Input Developer Mode (reload hmd module)
-	const USteamVRInputSettings* Settings = GetDefault<USteamVRInputSettings>();
-	if (Settings->bDeveloperMode && VRSettings() != nullptr)
+	if (VRSettings() != nullptr)
 	{
 		EVRInitError SteamVRInitError = VRInitError_Driver_NotLoaded;
 		IVRSystem* SteamVRSystem = vr::VR_Init(&SteamVRInitError, vr::VRApplication_Overlay);
@@ -1212,11 +1238,7 @@ void FSteamVRInputDevice::RegenerateControllerBindings()
 
 void FSteamVRInputDevice::OnActionMappingsChanged()
 {
-	const USteamVRInputSettings* Settings = GetDefault<USteamVRInputSettings>();
-	if (!Settings->bDeveloperMode)
-	{
-		this->GenerateActionManifest(true, true, true, true);
-	}
+	this->GenerateActionManifest(true, true, true, true);
 }
 
 bool FSteamVRInputDevice::GenerateAppManifest(FString ManifestPath, FString ProjectName, FString& OutAppKey, FString& OutAppManifestPath)
@@ -1318,12 +1340,13 @@ void FSteamVRInputDevice::GenerateControllerBindings(const FString& BindingsPath
 	for (auto& SupportedController : InOutControllerTypes)
 	{
 		// If there is no user-defined controller binding or it hasn't been auto-generated yet, generate it
-		if (!SupportedController.bIsGenerated || bDeleteIfExists)
+		if (!SupportedController.bIsGenerated)
 		{
 			// Creating bindings file
 			TSharedRef<FJsonObject> BindingsObject = MakeShareable(new FJsonObject());
 			BindingsObject->SetStringField(TEXT("name"), TEXT("Default bindings for ") + SupportedController.Description);
 			BindingsObject->SetStringField(TEXT("controller_type"), SupportedController.Name.ToString());
+			BindingsObject->SetStringField(TEXT("last_edited_by"), FApp::GetEpicProductIdentifier());
 
 			// Create Action Bindings in JSON Format
 			TArray<TSharedPtr<FJsonValue>> JsonValuesArray;
@@ -2579,6 +2602,7 @@ void FSteamVRInputDevice::GenerateActionManifest(bool GenerateActions, bool Gene
 	UE_LOG(LogSteamVRInputDevice, Log, TEXT("Searching for Controller Bindings files at: %s"), *ControllerBindingsPath);
 
 	// Look for existing controller binding files
+	uint32 YesNoToAll = EAppReturnType::No;
 	for (FString& BindingFile : ControllerBindingFiles)
 	{
 		// Skip if manifest
@@ -2590,9 +2614,11 @@ void FSteamVRInputDevice::GenerateActionManifest(bool GenerateActions, bool Gene
 		// Setup cache
 		FString StringCache;
 		FString ControllerType;
+		FString LastEdited;
 		
 		// Load Binding File to a string
-		FFileHelper::LoadFileToString(StringCache, *(ControllerBindingsPath / BindingFile));
+		FString BindingPath = ControllerBindingsPath / BindingFile;
+		FFileHelper::LoadFileToString(StringCache, *BindingPath);
 
 		// Convert string to json object
 		TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(StringCache);
@@ -2610,6 +2636,40 @@ void FSteamVRInputDevice::GenerateActionManifest(bool GenerateActions, bool Gene
 		}
 		else
 		{
+			bool bIsGenerated = true;
+
+			if (DeleteIfExists)
+			{
+				// Set this binding as one we need to regenerate
+				bIsGenerated = false;
+
+				// Throw up a prompt if we did not edit the binding last so the user can abort
+				if (!JsonObject->TryGetStringField(TEXT("last_edited_by"), LastEdited) || LastEdited != FApp::GetEpicProductIdentifier())
+				{
+					if (LastEdited.IsEmpty())
+					{
+						LastEdited = TEXT("SteamVR");
+					}
+
+					if (YesNoToAll != EAppReturnType::NoAll && YesNoToAll != EAppReturnType::YesAll)
+					{
+						YesNoToAll = FMessageDialog::Open(EAppMsgType::YesNoYesAllNoAll, FText::Format(LOCTEXT("BindingFileAlreadyExists", "Your binding file ({0}) was last edited by {1} do you want to overwrite the changes? You will lose any changes you made outside of the editor!"), FText::FromString(BindingFile), FText::FromString(LastEdited)));
+					}
+
+					if (YesNoToAll == EAppReturnType::No || YesNoToAll == EAppReturnType::NoAll)
+					{
+						// Prevent this binding from being regenerated
+						bIsGenerated = true;
+					}
+					else
+					{
+						FString BackupPath = BindingPath + ".backup";
+						FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*BackupPath);
+						FPlatformFileManager::Get().GetPlatformFile().CopyFile(*BackupPath, *BindingPath);
+					}
+				}
+			}
+
 			// Create Controller Binding Object for this binding file
 			TSharedRef<FJsonObject> ControllerBindingObject = MakeShareable(new FJsonObject());
 			TArray<FString> ControllerStringFields = { "controller_type", *ControllerType,
@@ -2623,7 +2683,7 @@ void FSteamVRInputDevice::GenerateActionManifest(bool GenerateActions, bool Gene
 			{
 				if (DefaultControllerType.Name == FName(*ControllerType))
 				{
-					DefaultControllerType.bIsGenerated = true;
+					DefaultControllerType.bIsGenerated = bIsGenerated;
 				}
 			}
 		}
