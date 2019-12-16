@@ -170,7 +170,7 @@ void FRemoteTalkerDataImpl::Cleanup()
 }
 
 FVoiceEngineImpl ::FVoiceEngineImpl()
-	: OnlineInstanceName(NAME_None),
+	: OnlineInstanceName(NAME_None)
 	, VoiceCapture(nullptr)
 	, VoiceEncoder(nullptr)
 	, OwningUserIndex(INVALID_INDEX)
