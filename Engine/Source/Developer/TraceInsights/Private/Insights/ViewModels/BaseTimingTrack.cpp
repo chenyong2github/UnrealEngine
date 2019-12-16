@@ -5,6 +5,8 @@
 
 #define LOCTEXT_NAMESPACE "BaseTimingTrack"
 
+INSIGHTS_IMPLEMENT_RTTI(FBaseTimingTrack)
+
 void FBaseTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.BeginSection(TEXT("Empty"), FText::FromString(GetName()));

@@ -11,11 +11,10 @@
 
 #define LOCTEXT_NAMESPACE "ObjectEventsTrack"
 
-const FName FObjectEventsTrack::TypeName(TEXT("Events"));
-const FName FObjectEventsTrack::SubTypeName(TEXT("Gameplay.ObjectEvents"));
+INSIGHTS_IMPLEMENT_RTTI(FObjectEventsTrack)
 
 FObjectEventsTrack::FObjectEventsTrack(const FGameplaySharedData& InSharedData, uint64 InObjectID, const TCHAR* InName)
-	: TGameplayTrackMixin<FTimingEventsTrack>(InObjectID, TypeName, SubTypeName, MakeTrackName(InSharedData, InObjectID, InName))
+	: TGameplayTrackMixin<FTimingEventsTrack>(InObjectID, MakeTrackName(InSharedData, InObjectID, InName))
 	, SharedData(InSharedData)
 {
 }

@@ -378,18 +378,6 @@ void SFrameTrack::SelectFrameAtMousePosition(float X, float Y)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const TCHAR* FrameTypeToString(int32 FrameType)
-{
-	switch (FrameType)
-	{
-		case TraceFrameType_Game:      return TEXT("Game");
-		case TraceFrameType_Rendering: return TEXT("Rendering");
-		default:                       return TEXT("Misc");
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
 	const bool bEnabled = ShouldBeEnabled(bParentEnabled);
@@ -461,7 +449,7 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 			const FString Text = FString::Format(TEXT("{0} frame {1} ({2})"),
 				{
-					::FrameTypeToString(HoveredSample.Series->FrameType),
+					FFrameTrackDrawHelper::FrameTypeToString(HoveredSample.Series->FrameType),
 					FText::AsNumber(HoveredSample.Sample->LargestFrameIndex).ToString(),
 					TimeUtils::FormatTimeAuto(HoveredSample.Sample->LargestFrameDuration)
 				});

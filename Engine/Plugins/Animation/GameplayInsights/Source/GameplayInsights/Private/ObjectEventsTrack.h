@@ -11,10 +11,9 @@ class FTimingEventSearchParameters;
 
 class FObjectEventsTrack : public TGameplayTrackMixin<FTimingEventsTrack>
 {
-public:
-	static const FName TypeName;
-	static const FName SubTypeName;
+	INSIGHTS_DECLARE_RTTI(FObjectEventsTrack, TGameplayTrackMixin<FTimingEventsTrack>)
 
+public:
 	FObjectEventsTrack(const FGameplaySharedData& InSharedData, uint64 InObjectID, const TCHAR* InName);
 
 	virtual void BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;

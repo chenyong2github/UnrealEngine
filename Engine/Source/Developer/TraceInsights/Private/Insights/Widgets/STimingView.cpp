@@ -42,6 +42,7 @@
 #include "Insights/ViewModels/BaseTimingTrack.h"
 #include "Insights/ViewModels/DrawHelpers.h"
 #include "Insights/ViewModels/FileActivityTimingTrack.h"
+#include "Insights/ViewModels/FrameTimingTrack.h"
 #include "Insights/ViewModels/GraphSeries.h"
 #include "Insights/ViewModels/GraphTrack.h"
 #include "Insights/ViewModels/LoadingTimingTrack.h"
@@ -73,6 +74,7 @@ namespace Insights { const FName TimingViewExtenderFeatureName(TEXT("TimingViewE
 
 STimingView::STimingView()
 	: bScrollableTracksOrderIsDirty(false)
+	, FrameSharedState(MakeShared<FFrameSharedState>(this))
 	, ThreadTimingSharedState(MakeShared<FThreadTimingSharedState>(this))
 	, LoadingSharedState(MakeShared<FLoadingSharedState>(this))
 	, bAssetLoadingMode(false)
@@ -83,6 +85,7 @@ STimingView::STimingView()
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 	, MainFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
 {
+	IModularFeatures::Get().RegisterModularFeature(Insights::TimingViewExtenderFeatureName, FrameSharedState.Get());
 	IModularFeatures::Get().RegisterModularFeature(Insights::TimingViewExtenderFeatureName, ThreadTimingSharedState.Get());
 	IModularFeatures::Get().RegisterModularFeature(Insights::TimingViewExtenderFeatureName, LoadingSharedState.Get());
 	IModularFeatures::Get().RegisterModularFeature(Insights::TimingViewExtenderFeatureName, FileActivitySharedState.Get());
@@ -105,9 +108,10 @@ STimingView::~STimingView()
 		Extender->OnEndSession(*this);
 	}
 
-	IModularFeatures::Get().UnregisterModularFeature(Insights::TimingViewExtenderFeatureName, ThreadTimingSharedState.Get());
-	IModularFeatures::Get().UnregisterModularFeature(Insights::TimingViewExtenderFeatureName, LoadingSharedState.Get());
 	IModularFeatures::Get().UnregisterModularFeature(Insights::TimingViewExtenderFeatureName, FileActivitySharedState.Get());
+	IModularFeatures::Get().UnregisterModularFeature(Insights::TimingViewExtenderFeatureName, LoadingSharedState.Get());
+	IModularFeatures::Get().UnregisterModularFeature(Insights::TimingViewExtenderFeatureName, ThreadTimingSharedState.Get());
+	IModularFeatures::Get().UnregisterModularFeature(Insights::TimingViewExtenderFeatureName, FrameSharedState.Get());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1353,10 +1357,9 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 void STimingView::AddTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
 {
 	check(Track.IsValid());
-	UE_LOG(TimingProfiler, Log, TEXT("New Top Docked Track (%d) : %s - %s (\"%s\")"),
+	UE_LOG(TimingProfiler, Log, TEXT("New Top Docked Track (%d) : %s (\"%s\")"),
 		TopDockedTracks.Num() + 1,
-		*Track->GetType().ToString(),
-		*Track->GetSubType().ToString(),
+		*Track->GetTypeName().ToString(),
 		*Track->GetName());
 	check(!AllTracks.Contains(Track->GetId()));
 	AllTracks.Add(Track->GetId(), Track);
@@ -1369,10 +1372,9 @@ void STimingView::AddTopDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
 void STimingView::AddBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
 {
 	check(Track.IsValid());
-	UE_LOG(TimingProfiler, Log, TEXT("New Bottom Docked Track (%d) : %s - %s (\"%s\")"),
+	UE_LOG(TimingProfiler, Log, TEXT("New Bottom Docked Track (%d) : %s (\"%s\")"),
 		BottomDockedTracks.Num() + 1,
-		*Track->GetType().ToString(),
-		*Track->GetSubType().ToString(),
+		*Track->GetTypeName().ToString(),
 		*Track->GetName());
 	check(!AllTracks.Contains(Track->GetId()));
 	AllTracks.Add(Track->GetId(), Track);
@@ -1385,10 +1387,9 @@ void STimingView::AddBottomDockedTrack(TSharedPtr<FBaseTimingTrack> Track)
 void STimingView::AddScrollableTrack(TSharedPtr<FBaseTimingTrack> Track)
 {
 	check(Track.IsValid());
-	UE_LOG(TimingProfiler, Log, TEXT("New Scrollable Track (%d) : %s - %s (\"%s\")"),
+	UE_LOG(TimingProfiler, Log, TEXT("New Scrollable Track (%d) : %s (\"%s\")"),
 		ScrollableTracks.Num() + 1,
-		*Track->GetType().ToString(),
-		*Track->GetSubType().ToString(),
+		*Track->GetTypeName().ToString(),
 		*Track->GetName());
 	check(!AllTracks.Contains(Track->GetId()));
 	AllTracks.Add(Track->GetId(), Track);
@@ -1419,10 +1420,9 @@ void STimingView::UpdateScrollableTracksOrder()
 void STimingView::AddForegroundTrack(TSharedPtr<FBaseTimingTrack> Track)
 {
 	check(Track.IsValid());
-	UE_LOG(TimingProfiler, Log, TEXT("New Foreground Track (%d) : %s - %s (\"%s\")"),
+	UE_LOG(TimingProfiler, Log, TEXT("New Foreground Track (%d) : %s (\"%s\")"),
 		ForegroundTracks.Num() + 1,
-		*Track->GetType().ToString(),
-		*Track->GetSubType().ToString(),
+		*Track->GetTypeName().ToString(),
 		*Track->GetName());
 	check(!AllTracks.Contains(Track->GetId()));
 	AllTracks.Add(Track->GetId(), Track);
@@ -2091,6 +2091,11 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 	else if (InKeyEvent.GetKey() == EKeys::G) // debug: toggles Graph track on/off
 	{
 		ShowHideGraphTrack_Execute();
+		return FReply::Handled();
+	}
+	else if (InKeyEvent.GetKey() == EKeys::R) // debug: toggles Frame tracks on/off
+	{
+		FrameSharedState->ShowHideAllFrameTracks();
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::Y) // debug: toggles GPU track on/off

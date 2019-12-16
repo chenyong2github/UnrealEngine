@@ -42,10 +42,9 @@ public:
 
 class FAnimationTickRecordsTrack : public TGameplayTrackMixin<FGraphTrack>
 {
-public:
-	static const FName TypeName;
-	static const FName SubTypeName;
+	INSIGHTS_DECLARE_RTTI(FAnimationTickRecordsTrack, TGameplayTrackMixin<FGraphTrack>)
 
+public:
 	FAnimationTickRecordsTrack(const FAnimationSharedData& InSharedData, uint64 InObjectId, uint64 InAssetId, int32 InNodeId, const TCHAR* InName);
 
 	virtual void PreUpdate(const ITimingTrackUpdateContext& Context) override;

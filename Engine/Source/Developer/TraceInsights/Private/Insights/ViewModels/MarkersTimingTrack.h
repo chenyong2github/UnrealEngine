@@ -43,6 +43,8 @@ class FMarkersTimingTrack : public FBaseTimingTrack
 {
 	friend class FTimeMarkerTrackBuilder;
 
+	INSIGHTS_DECLARE_RTTI(FMarkersTimingTrack, FBaseTimingTrack)
+
 public:
 	FMarkersTimingTrack();
 	virtual ~FMarkersTimingTrack();

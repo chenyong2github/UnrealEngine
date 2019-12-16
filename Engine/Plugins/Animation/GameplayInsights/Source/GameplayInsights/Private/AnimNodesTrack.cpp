@@ -32,11 +32,10 @@
 
 #define LOCTEXT_NAMESPACE "AnimNodesTrack"
 
-const FName FAnimNodesTrack::TypeName(TEXT("Events"));
-const FName FAnimNodesTrack::SubTypeName(TEXT("Animation.AnimNodes"));
+INSIGHTS_IMPLEMENT_RTTI(FAnimNodesTrack)
 
 FAnimNodesTrack::FAnimNodesTrack(const FAnimationSharedData& InSharedData, uint64 InObjectID, const TCHAR* InName)
-	: TGameplayTrackMixin<FTimingEventsTrack>(InObjectID, FAnimNodesTrack::TypeName, FAnimNodesTrack::SubTypeName, FText::Format(LOCTEXT("TrackNameFormat", "Graph - {0}"), FText::FromString(FString(InName))))
+	: TGameplayTrackMixin<FTimingEventsTrack>(InObjectID, FText::Format(LOCTEXT("TrackNameFormat", "Graph - {0}"), FText::FromString(FString(InName))))
 	, SharedData(InSharedData)
 #if WITH_EDITOR
 	, InstanceClass(nullptr)

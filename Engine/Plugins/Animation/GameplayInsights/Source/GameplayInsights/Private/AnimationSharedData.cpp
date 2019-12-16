@@ -68,13 +68,7 @@ void FAnimationSharedData::Tick(Insights::ITimingViewSession& InTimingViewSessio
 
 				auto FindSkeletalMeshPoseTrack = [](const FBaseTimingTrack& InTrack)
 				{
-					if (InTrack.GetType() == FSkeletalMeshPoseTrack::TypeName &&
-						InTrack.GetSubType() == FSkeletalMeshPoseTrack::SubTypeName)
-					{
-						return true;
-					}
-
-					return false;
+					return InTrack.Is<FSkeletalMeshPoseTrack>();
 				};
 
 				TSharedPtr<FSkeletalMeshPoseTrack> ExistingSkeletalMeshPoseTrack = StaticCastSharedPtr<FSkeletalMeshPoseTrack>(ObjectEventsTrack->GetGameplayTrack().FindChildTrack(InObjectInfo.Id, FindSkeletalMeshPoseTrack));
@@ -97,10 +91,9 @@ void FAnimationSharedData::Tick(Insights::ITimingViewSession& InTimingViewSessio
 
 				auto FindTickRecordTrackWithAssetId = [&InAssetId](const FBaseTimingTrack& InTrack)
 				{
-					if (InTrack.GetType() == FAnimationTickRecordsTrack::TypeName &&
-						InTrack.GetSubType() == FAnimationTickRecordsTrack::SubTypeName)
+					if (InTrack.Is<FAnimationTickRecordsTrack>())
 					{
-						const FAnimationTickRecordsTrack& AnimationTickRecordsTrack = *static_cast<const FAnimationTickRecordsTrack*>(&InTrack);
+						const FAnimationTickRecordsTrack& AnimationTickRecordsTrack = InTrack.As<FAnimationTickRecordsTrack>();
 						return AnimationTickRecordsTrack.GetAssetId() == InAssetId;
 					}
 
@@ -129,13 +122,7 @@ void FAnimationSharedData::Tick(Insights::ITimingViewSession& InTimingViewSessio
 
 				auto FindAnimNodesTrack = [](const FBaseTimingTrack& InTrack)
 				{
-					if (InTrack.GetType() == FAnimNodesTrack::TypeName &&
-						InTrack.GetSubType() == FAnimNodesTrack::SubTypeName)
-					{
-						return true;
-					}
-
-					return false;
+					return InTrack.Is<FAnimNodesTrack>();
 				};
 
 				TSharedPtr<FAnimNodesTrack> ExistingAnimNodesTrack = StaticCastSharedPtr<FAnimNodesTrack>(ObjectEventsTrack->GetGameplayTrack().FindChildTrack(InObjectInfo.Id, FindAnimNodesTrack));

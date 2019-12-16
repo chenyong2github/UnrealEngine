@@ -20,6 +20,8 @@ class TRACEINSIGHTS_API FGraphTrack : public FBaseTimingTrack
 {
 	friend class FGraphTrackBuilder;
 
+	INSIGHTS_DECLARE_RTTI(FGraphTrack, FBaseTimingTrack)
+
 private:
 	// Visual size of points (in pixels).
 	static constexpr float PointVisualSize = 5.0f;
@@ -29,8 +31,8 @@ private:
 	static constexpr float PointSizeY = 3.0f;
 
 public:
-	explicit FGraphTrack(const FName& InSubType = NAME_None);
-	explicit FGraphTrack(const FName& InSubType, const FString& InName);
+	explicit FGraphTrack();
+	explicit FGraphTrack(const FString& InName);
 	virtual ~FGraphTrack();
 
 	//////////////////////////////////////////////////
@@ -133,6 +135,8 @@ protected:
 
 class TRACEINSIGHTS_API FRandomGraphTrack : public FGraphTrack
 {
+	INSIGHTS_DECLARE_RTTI(FRandomGraphTrack, FGraphTrack)
+
 public:
 	FRandomGraphTrack();
 	virtual ~FRandomGraphTrack();

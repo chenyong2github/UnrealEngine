@@ -19,14 +19,12 @@
 #include "GameFramework/Actor.h"
 #endif
 
-
 #define LOCTEXT_NAMESPACE "SkeletalMeshPoseTrack"
 
-const FName FSkeletalMeshPoseTrack::TypeName(TEXT("Events"));
-const FName FSkeletalMeshPoseTrack::SubTypeName(TEXT("Animation.SkeletalMeshPose"));
+INSIGHTS_IMPLEMENT_RTTI(FSkeletalMeshPoseTrack)
 
 FSkeletalMeshPoseTrack::FSkeletalMeshPoseTrack(const FAnimationSharedData& InSharedData, uint64 InObjectID, const TCHAR* InName)
-	: TGameplayTrackMixin<FTimingEventsTrack>(InObjectID, FSkeletalMeshPoseTrack::TypeName, FSkeletalMeshPoseTrack::SubTypeName, FText::Format(LOCTEXT("TrackNameFormat", "Pose - {0}"), FText::FromString(FString(InName))))
+	: TGameplayTrackMixin<FTimingEventsTrack>(InObjectID, FText::Format(LOCTEXT("TrackNameFormat", "Pose - {0}"), FText::FromString(FString(InName))))
 	, SharedData(InSharedData)
 	, Color(FLinearColor::MakeRandomColor())
 	, bDrawPose(false)

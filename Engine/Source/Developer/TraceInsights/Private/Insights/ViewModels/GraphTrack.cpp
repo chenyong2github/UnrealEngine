@@ -27,8 +27,12 @@
 // FGraphTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FGraphTrack::FGraphTrack(const FName& InSubType)
-	: FBaseTimingTrack(FName(TEXT("Graph")), InSubType)
+INSIGHTS_IMPLEMENT_RTTI(FGraphTrack)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FGraphTrack::FGraphTrack()
+	: FBaseTimingTrack()
 	//, AllSeries()
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 	, PointBrush(FEditorStyle::GetBrush("Graph.ExecutionBubble"))
@@ -51,8 +55,8 @@ FGraphTrack::FGraphTrack(const FName& InSubType)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FGraphTrack::FGraphTrack(const FName& InSubType, const FString& InName)
-	: FBaseTimingTrack(FName(TEXT("Graph")), InSubType, InName)
+FGraphTrack::FGraphTrack(const FString& InName)
+	: FBaseTimingTrack(InName)
 	//, AllSeries()
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 	, PointBrush(FEditorStyle::GetBrush("Graph.ExecutionBubble"))
@@ -505,9 +509,9 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 void FGraphTrack::DrawEvent(const ITimingTrackDrawContext& Context, const ITimingEvent& InTimingEvent, EDrawEventMode InDrawMode) const
 {
 	ensure(InTimingEvent.CheckTrack(this));
-	ensure(FGraphTrackEvent::CheckTypeName(InTimingEvent));
+	ensure(InTimingEvent.Is<FGraphTrackEvent>());
 
-	const FGraphTrackEvent& GraphEvent = static_cast<const FGraphTrackEvent&>(InTimingEvent);
+	const FGraphTrackEvent& GraphEvent = InTimingEvent.As<FGraphTrackEvent>();
 	const TSharedPtr<const FGraphSeries> Series = GraphEvent.GetSeries();
 
 	const FTimingTrackViewport& Viewport = Context.GetViewport();
@@ -572,9 +576,9 @@ void FGraphTrack::DrawEvent(const ITimingTrackDrawContext& Context, const ITimin
 
 void FGraphTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEvent& InTooltipEvent) const
 {
-	if (InTooltipEvent.CheckTrack(this) && FGraphTrackEvent::CheckTypeName(InTooltipEvent))
+	if (InTooltipEvent.CheckTrack(this) && InTooltipEvent.Is<FGraphTrackEvent>())
 	{
-		const FGraphTrackEvent& TooltipEvent = static_cast<const FGraphTrackEvent&>(InTooltipEvent);
+		const FGraphTrackEvent& TooltipEvent = InTooltipEvent.As<FGraphTrackEvent>();
 		const TSharedRef<const FGraphSeries> Series = TooltipEvent.GetSeries();
 
 		InOutTooltip.ResetContent();
@@ -928,8 +932,12 @@ bool FGraphTrack::ContextMenu_ShowSeries_IsChecked(FGraphSeries* Series)
 // FRandomGraphTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+INSIGHTS_IMPLEMENT_RTTI(FRandomGraphTrack)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FRandomGraphTrack::FRandomGraphTrack()
-	: FGraphTrack(FName(TEXT("Random")))
+	: FGraphTrack()
 {
 	bDrawPoints = true;
 	bDrawPointsWithBorder = true;

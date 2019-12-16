@@ -84,7 +84,7 @@ static void UpdateTrackOrderRecursive(TSharedRef<FObjectEventsTrack> InTrack, in
 
 	for(FGameplayTrack* ChildTrack : InTrack->GetGameplayTrack().GetChildTracks())
 	{
-		if(ChildTrack->GetTimingTrack()->GetType() == FObjectEventsTrack::TypeName)
+		if(ChildTrack->GetTimingTrack()->Is<FObjectEventsTrack>())
 		{
 			ChildTrack->SetIndent(InTrack->GetGameplayTrack().GetIndent() + 1);
 			UpdateTrackOrderRecursive(StaticCastSharedRef<FObjectEventsTrack>(ChildTrack->GetTimingTrack()), InOutOrder);
@@ -93,7 +93,7 @@ static void UpdateTrackOrderRecursive(TSharedRef<FObjectEventsTrack> InTrack, in
 
 	for(FGameplayTrack* ChildTrack : InTrack->GetGameplayTrack().GetChildTracks())
 	{
-		if(ChildTrack->GetTimingTrack()->GetType() != FObjectEventsTrack::TypeName)
+		if(!ChildTrack->GetTimingTrack()->Is<FObjectEventsTrack>())
 		{
 			ChildTrack->SetIndent(InTrack->GetGameplayTrack().GetIndent() + 1);
 			ChildTrack->GetTimingTrack()->SetOrder(InOutOrder++);

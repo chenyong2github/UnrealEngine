@@ -25,8 +25,7 @@
 
 #define LOCTEXT_NAMESPACE "AnimationTickRecordsTrack"
 
-const FName FAnimationTickRecordsTrack::TypeName(TEXT("Graph"));
-const FName FAnimationTickRecordsTrack::SubTypeName(TEXT("Animation.TickRecords"));
+INSIGHTS_IMPLEMENT_RTTI(FAnimationTickRecordsTrack)
 
 FString FTickRecordSeries::FormatValue(double Value) const
 {
@@ -68,7 +67,7 @@ static FLinearColor MakeSeriesColor(FTickRecordSeries::ESeriesType InSeed, bool 
 }
 
 FAnimationTickRecordsTrack::FAnimationTickRecordsTrack(const FAnimationSharedData& InSharedData, uint64 InObjectID, uint64 InAssetId, int32 InNodeId, const TCHAR* InName)
-	: TGameplayTrackMixin<FGraphTrack>(InObjectID, FAnimationTickRecordsTrack::SubTypeName, MakeTrackName(InSharedData.GetGameplaySharedData(), InAssetId, InName))
+	: TGameplayTrackMixin<FGraphTrack>(InObjectID, MakeTrackName(InSharedData.GetGameplaySharedData(), InAssetId, InName))
 	, SharedData(InSharedData)
 	, AssetId(InAssetId)
 	, NodeId(InNodeId)

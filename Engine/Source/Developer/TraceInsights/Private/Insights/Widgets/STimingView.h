@@ -23,6 +23,7 @@
 #include "Insights/ViewModels/TooltipDrawState.h"
 
 class FFileActivitySharedState;
+class FFrameSharedState;
 class FLoadingSharedState;
 class FMarkersTimingTrack;
 class FMenuBuilder;
@@ -383,6 +384,9 @@ protected:
 	bool bScrollableTracksOrderIsDirty;
 
 	////////////////////////////////////////////////////////////
+
+	// Shared state for Frame Thread tracks
+	TSharedPtr<FFrameSharedState> FrameSharedState;
 
 	// Shared state for Cpu/Gpu Thread tracks
 	TSharedPtr<FThreadTimingSharedState> ThreadTimingSharedState;

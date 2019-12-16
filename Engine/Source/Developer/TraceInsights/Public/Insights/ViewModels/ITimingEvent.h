@@ -4,13 +4,17 @@
 
 #include "CoreMinimal.h"
 
+#include "Insights/Common/SimpleRtti.h"
+
 class FBaseTimingTrack;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class TRACEINSIGHTS_API ITimingEvent
 {
-public:
-	virtual const FName& GetTypeName() const = 0;
+	INSIGHTS_DECLARE_RTTI_BASE(ITimingEvent)
 
+public:
 	virtual const TSharedRef<const FBaseTimingTrack> GetTrack() const = 0;
 
 	bool CheckTrack(const FBaseTimingTrack* TrackPtr) const { return &GetTrack().Get() == TrackPtr; }
@@ -34,13 +38,28 @@ public:
 	}
 };
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 class TRACEINSIGHTS_API ITimingEventFilter
 {
+	INSIGHTS_DECLARE_RTTI_BASE(ITimingEventFilter)
+
 public:
-	virtual const FName& GetTypeName() const = 0;
-
+	/**
+	 * Returns true if the track passes the filter.
+	 */
 	virtual bool FilterTrack(const FBaseTimingTrack& InTrack) const = 0;
-	virtual bool FilterEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName = nullptr, uint64 InEventType = 0, uint32 InEventColor = 0) const = 0;
 
+	/**
+	 * Returns true if the timing event passes the filter.
+	 */
+	virtual bool FilterEvent(const ITimingEvent& InEvent) const = 0;
+	virtual bool FilterEvent(double InEventStartTime, double InEventEndTime, uint32 InEventDepth, const TCHAR* InEventName, uint64 InEventType = 0, uint32 InEventColor = 0) const = 0;
+
+	/**
+	 * Returns a number that changes each time an attribute of this filter changes.
+	 */
 	virtual uint32 GetChangeNumber() const = 0;
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////

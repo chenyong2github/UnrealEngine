@@ -64,15 +64,11 @@ private:
 template <class Base>
 class TGameplayTrackMixin : public Base
 {
-public:
-	TGameplayTrackMixin(uint64 InObjectId, const FName& InSubType, const FText& InName)
-		: Base(InSubType, InName.ToString())
-		, GameplayTrack(*this, InObjectId)
-	{
-	}
+	//INSIGHTS_DECLARE_RTTI(TGameplayTrackMixin, Base) -- Commented to skip this class in the Simple RTTI class hierarchy. It will get same type name as its Base class.
 
-	TGameplayTrackMixin(uint64 InObjectId, const FName& InType, const FName& InSubType, const FText& InName)
-		: Base(InType, InSubType, InName.ToString())
+public:
+	TGameplayTrackMixin(uint64 InObjectId, const FText& InName)
+		: Base(InName.ToString())
 		, GameplayTrack(*this, InObjectId)
 	{
 	}
@@ -86,3 +82,6 @@ public:
 private:
 	FGameplayTrack GameplayTrack;
 };
+
+//template <class Base>
+//INSIGHTS_IMPLEMENT_RTTI(TGameplayTrackMixin<Base>) // Note: All templeted classes will return same type name as FName(TEXT"TGameplayTrackMixin<Base>") !!!

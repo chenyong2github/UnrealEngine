@@ -504,28 +504,38 @@ void FTimingViewDrawHelper::DrawTrackHeader(const FTimingEventsTrack& Track) con
 		if (TrackH > 4.0f)
 		{
 			const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-			float NameWidth = FontMeasureService->Measure(Track.GetName(), EventFont).X;
+			float TextWidth = FontMeasureService->Measure(Track.GetName(), EventFont).X;
 
-			float TextX = 2.0f;
+			constexpr float PinWidth = 8.0f;
 			if (Track.IsSelected())
 			{
-				NameWidth += 8.0f;
-				TextX += 8.0f;
+				TextWidth += PinWidth;
 			}
 
+			const float HeaderX = 0.0f;
+			const float HeaderW = TextWidth + 4.0f;
+
+			const float HeaderY = TrackY + 1.0f;
 			const float HeaderH = FMath::Min(12.0f, Track.GetHeight() - 1.0f);
-			DrawContext.DrawBox(HeaderLayerId, 0.0f, TrackY + 1.0f, NameWidth + 4.0f, HeaderH, WhiteBrush, EdgeColor);
 
-			const FLinearColor TextColor = GetTrackNameTextColor(Track);
-
-			const float TextY = TrackY + FMath::Min(0.0f, (Track.GetHeight() - 13.0f) / 2.0f);
-			const int32 HeaderTextLayerId = ReservedLayerId + ToInt32(EDrawLayer::HeaderText);
-			DrawContext.DrawText(HeaderTextLayerId, TextX, TextY, Track.GetName(), EventFont, TextColor);
-
-			if (Track.IsSelected())
+			if (HeaderH > 0)
 			{
-				// TODO: Use a "pin" image brush instead.
-				DrawContext.DrawText(HeaderTextLayerId, 2.0f, TextY, TEXT(">"), EventFont, TextColor);
+				DrawContext.DrawBox(HeaderLayerId, HeaderX, HeaderY, HeaderW, HeaderH, WhiteBrush, EdgeColor);
+
+				const FLinearColor TextColor = GetTrackNameTextColor(Track);
+
+				float TextX = HeaderX + 2.0f;
+				const float TextY = HeaderY + HeaderH / 2.0f - 7.0f;
+				const int32 HeaderTextLayerId = ReservedLayerId + ToInt32(EDrawLayer::HeaderText);
+
+				if (Track.IsSelected())
+				{
+					// TODO: Use a "pin" image brush instead.
+					DrawContext.DrawText(HeaderTextLayerId, TextX, TextY, TEXT(">"), EventFont, TextColor);
+					TextX += PinWidth;
+				}
+
+				DrawContext.DrawText(HeaderTextLayerId, TextX, TextY, Track.GetName(), EventFont, TextColor);
 			}
 		}
 	}
