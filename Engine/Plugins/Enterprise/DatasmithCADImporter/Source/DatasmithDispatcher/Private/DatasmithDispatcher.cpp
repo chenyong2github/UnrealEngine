@@ -207,7 +207,7 @@ void FDatasmithDispatcher::ProcessLocal()
 	{
 		FString FullPath = Task->FileName;
 
-		CADLibrary::FCoreTechFileParser FileParser(FullPath, ProcessCacheFolder, ImportParameters, true, true);
+		CADLibrary::FCoreTechFileParser FileParser(FullPath, ProcessCacheFolder, ImportParameters);
 		ETaskState ProcessResult = FileParser.ProcessFile();
 
 		ETaskState TaskState = ProcessResult;
@@ -224,7 +224,7 @@ void FDatasmithDispatcher::ProcessLocal()
 					AddTask(FPaths::Combine(CurrentPath, ExternalFile));
 				}
 			}
-			LinkCTFileToUnrealCacheFile(FileParser.GetFileName(), FileParser.GetSceneGraphFile(), FileParser.GetMeshFile());
+			LinkCTFileToUnrealCacheFile(FileParser.GetCADFileName(), FileParser.GetSceneGraphFile(), FileParser.GetMeshFileName());
 		}
 	}
 #endif // CAD_INTERFACE

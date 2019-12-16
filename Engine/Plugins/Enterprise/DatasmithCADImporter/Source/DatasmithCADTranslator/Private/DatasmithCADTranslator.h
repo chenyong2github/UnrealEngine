@@ -37,7 +37,6 @@ public:
 
 private:
 	TMap<FString, FString> CADFileToUE4GeomMap;
-	TMap< TSharedPtr< IDatasmithMeshElement >, uint32 > MeshElementToCADBRepUuidMap;
 
 	CADLibrary::FImportParameters ImportParameters;
 

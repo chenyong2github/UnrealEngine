@@ -50,8 +50,8 @@ namespace CADLibrary
 
 	uint32 GetSize(CT_TESS_DATA_TYPE type);
 
-	CADLIBRARY_API bool ConvertCTBodySetToMeshDescription(const FImportParameters& ImportParams, const FMeshParameters& MeshParameters, TArray<CT_OBJECT_ID>& BodySet, FMeshDescription& OutMeshDescription);
-	CADLIBRARY_API bool ConvertCTBodySetToMeshDescription(const FImportParameters& ImportParams, const FMeshParameters& MeshParameters, uint32 TriangleCount, TArray<FTessellationData>& FacePTessellationSet, TMap<uint32, uint32>& MaterialIdToMaterialHash, FMeshDescription& MeshDescription);
+	CADLIBRARY_API bool ConvertCTBodySetToMeshDescription(const FImportParameters& ImportParams, const FMeshParameters& MeshParameters, FBodyMesh& Body, FMeshDescription& MeshDescription);
+
 	CADLIBRARY_API CT_IO_ERROR Tessellate(CT_OBJECT_ID MainObjectId, const FImportParameters& ImportParams, FMeshDescription& Mesh, FMeshParameters& MeshParameters);
 
 	using TColorMap = TMap<uint32, uint32>;
