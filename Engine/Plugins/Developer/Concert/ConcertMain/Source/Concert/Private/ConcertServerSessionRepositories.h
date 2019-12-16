@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Core/Public/Misc/Paths.h"
 #include "ConcertServerSessionRepositories.generated.h"
 
 /** Keep the information about a the session repository. */
