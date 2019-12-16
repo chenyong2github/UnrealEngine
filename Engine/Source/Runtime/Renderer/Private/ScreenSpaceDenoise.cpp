@@ -712,6 +712,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSSDCommonParameters, )
 	SHADER_PARAMETER(float, WorldDepthToPixelWorldRadius)
 	SHADER_PARAMETER(FVector4, BufferUVToScreenPosition)
 	SHADER_PARAMETER(FMatrix, ScreenToView)
+	SHADER_PARAMETER(FVector2D, BufferUVBilinearCorrection)
 
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 
@@ -1441,6 +1442,9 @@ static void DenoiseSignalAtConstantPixelDensity(
 			FPlane(0, 0, View.ProjectionMatrixUnadjustedForRHI.M[2][2], 1),
 			FPlane(0, 0, View.ProjectionMatrixUnadjustedForRHI.M[3][2], 0))
 			* View.ViewMatrices.GetInvProjectionMatrix();
+
+		CommonParameters.BufferUVBilinearCorrection.X = (0.5f * PixelPositionToFullResPixel - FullResPixelOffset.X) / float(FullResBufferExtent.X);
+		CommonParameters.BufferUVBilinearCorrection.Y = (0.5f * PixelPositionToFullResPixel - FullResPixelOffset.Y) / float(FullResBufferExtent.Y);
 	}
 
 	#if RHI_RAYTRACING

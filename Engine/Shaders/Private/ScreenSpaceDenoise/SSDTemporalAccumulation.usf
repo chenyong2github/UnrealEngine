@@ -555,7 +555,7 @@ void TemporallyAccumulate(
 			#endif
 			
 			// VGPR configuration of the kernel.
-			KernelConfig.BufferUV = HistoryBufferUV;
+			KernelConfig.BufferUV = HistoryBufferUV + BufferUVBilinearCorrection;
 			{
 				KernelConfig.CompressedRefSceneMetadata = CompressedRefSceneMetadata;
 				KernelConfig.RefBufferUV = SceneBufferUV;

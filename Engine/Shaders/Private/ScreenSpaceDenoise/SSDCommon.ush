@@ -78,6 +78,7 @@ float4 BufferBilinearUVMinMax;
 float2 BufferUVToOutputPixelPosition;
 float4 BufferUVToScreenPosition;
 float4x4 ScreenToView;
+float2 BufferUVBilinearCorrection;
 
 float WorldDepthToPixelWorldRadius;
 
