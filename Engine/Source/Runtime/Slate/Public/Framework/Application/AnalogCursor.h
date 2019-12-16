@@ -7,6 +7,8 @@
 #include "Framework/Application/IInputProcessor.h"
 
 class FSlateApplication;
+class FSlateUser;
+struct FInputEvent;
 struct FAnalogInputEvent;
 struct FKeyEvent;
 struct FPointerEvent;
@@ -46,6 +48,8 @@ public:
 	virtual bool HandleAnalogInputEvent(FSlateApplication& SlateApp, const FAnalogInputEvent& InAnalogInputEvent) override;
 	virtual bool HandleMouseMoveEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent) override;
 
+	virtual int32 GetUserControllerId() const { return 0; };
+
 	void SetAcceleration(float NewAcceleration);
 	void SetMaxSpeed(float NewMaxSpeed);
 	void SetStickySlowdown(float NewStickySlowdown);
@@ -53,6 +57,8 @@ public:
 	void SetMode(AnalogCursorMode::Type NewMode);
 
 protected:
+
+	virtual bool IsRelevantInput(const FInputEvent& InputEvent) const;
 
 	/** Getter */
 	FORCEINLINE const FVector2D& GetAnalogValues( EAnalogStick Stick = EAnalogStick::Left ) const
@@ -64,7 +70,10 @@ protected:
 	void ClearAnalogValues();
 
 	/** Handles updating the cursor position and processing a Mouse Move Event */
+	UE_DEPRECATED(4.24, "FAnalogCursor now updates cursor position based on user, not the hardware cursor specifically.")
 	virtual void UpdateCursorPosition(FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor, const FVector2D& NewPosition, bool bForce = false);
+
+	virtual void UpdateCursorPosition(FSlateApplication& SlateApp, TSharedRef<FSlateUser> SlateUser, const FVector2D& NewPosition, bool bForce = false);
 
 	/** Current speed of the cursor */
 	FVector2D CurrentSpeed;
