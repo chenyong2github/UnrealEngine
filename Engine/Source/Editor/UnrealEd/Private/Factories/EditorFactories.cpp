@@ -214,6 +214,9 @@
 
 #include "Animation/DebugSkelMeshComponent.h"
 
+#include "VT/RuntimeVirtualTexture.h"
+#include "VT/RuntimeVirtualTextureStreamingProxy.h"
+
 #if PLATFORM_WINDOWS
 	// Needed for DDS support.
 	#include "Windows/WindowsHWrapper.h"
@@ -4741,32 +4744,54 @@ UTextureExporterBMP::UTextureExporterBMP(const FObjectInitializer& ObjectInitial
 
 }
 
+UTexture2D* UTextureExporterBMP::GetExportTexture(UObject* Object) const
+{
+	URuntimeVirtualTexture* RuntimeVirtualTexture = Cast<URuntimeVirtualTexture>(Object);
+	if (RuntimeVirtualTexture != nullptr && RuntimeVirtualTexture->GetStreamingTexture() != nullptr)
+	{
+		return RuntimeVirtualTexture->GetStreamingTexture();
+	}
+	return Cast<UTexture2D>(Object);
+}
+
 bool UTextureExporterBMP::SupportsObject(UObject* Object) const
 {
 	bool bSupportsObject = false;
 	if (Super::SupportsObject(Object))
 	{
-		UTexture2D* Texture = Cast<UTexture2D>(Object);
-
-		if (Texture)
-		{
-			bSupportsObject = Texture->Source.GetFormat() == TSF_BGRA8 || Texture->Source.GetFormat() == TSF_RGBA16 || Texture->Source.GetFormat() == TSF_G8;
-		}
+		UTexture2D* Texture = GetExportTexture(Object);
+		bSupportsObject = Texture != nullptr && (Texture->Source.GetFormat() == TSF_BGRA8 || Texture->Source.GetFormat() == TSF_RGBA16 || Texture->Source.GetFormat() == TSF_G8);
 	}
 	return bSupportsObject;
 }
 
+int32 UTextureExporterBMP::GetFileCount(UObject* Object) const
+{
+	UTexture2D* Texture = GetExportTexture(Object);
+	return (Texture != nullptr) ? Texture->Source.GetNumLayers() : 1;
+}
+
+FString UTextureExporterBMP::GetUniqueFilename(const TCHAR* Filename, int32 FileIndex, int32 FileCount)
+{
+	return (FileCount == 1) ? Filename : FString::Printf(TEXT("%s%d%s"), *FPaths::GetBaseFilename(Filename, false), FileIndex, *FPaths::GetExtension(Filename, true));
+}
+
 bool UTextureExporterBMP::ExportBinary( UObject* Object, const TCHAR* Type, FArchive& Ar, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags )
 {
-	UTexture2D* Texture = CastChecked<UTexture2D>( Object );
-
-	if( !Texture->Source.IsValid() || ( Texture->Source.GetFormat() != TSF_BGRA8 && Texture->Source.GetFormat() != TSF_RGBA16  && Texture->Source.GetFormat() != TSF_G8) )
+	UTexture2D* Texture = GetExportTexture(Object);
+	if(Texture == nullptr)
 	{
 		return false;
 	}
 
-	const bool bIsRGBA16 = Texture->Source.GetFormat() == TSF_RGBA16;
-	const bool bIsG8 = Texture->Source.GetFormat() == TSF_G8;
+	const int32 LayerIndex = FileIndex;
+	if( !Texture->Source.IsValid() || ( Texture->Source.GetFormat(LayerIndex) != TSF_BGRA8 && Texture->Source.GetFormat(LayerIndex) != TSF_RGBA16 && Texture->Source.GetFormat() != TSF_G8) )
+	{
+		return false;
+	}
+
+	const bool bIsRGBA16 = Texture->Source.GetFormat(LayerIndex) == TSF_RGBA16;
+	const bool bIsG8 = Texture->Source.GetFormat(LayerIndex) == TSF_G8;
 	const int32 SourceBytesPerPixel = bIsRGBA16 ? 8 : (bIsG8 ? 1 : 4);
 
 	if (bIsRGBA16)
@@ -4781,7 +4806,7 @@ bool UTextureExporterBMP::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 	int32 SizeX = Texture->Source.GetSizeX();
 	int32 SizeY = Texture->Source.GetSizeY();
 	TArray64<uint8> RawData;
-	Texture->Source.GetMipData(RawData, 0);
+	Texture->Source.GetMipData(RawData, LayerIndex, 0);
 
 	FBitmapFileHeader bmf;
 	FBitmapInfoHeader bmhdr;
@@ -4841,6 +4866,16 @@ bool UTextureExporterBMP::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 		}
 	}
 	return true;
+}
+
+URuntimeVirtualTextureExporterBMP::URuntimeVirtualTextureExporterBMP(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	SupportedClass = URuntimeVirtualTexture::StaticClass();
+	PreferredFormatIndex = 0;
+	FormatExtension.Add(TEXT("BMP"));
+	FormatDescription.Add(TEXT("Windows Bitmap"));
+
 }
 
 /*------------------------------------------------------------------------------
