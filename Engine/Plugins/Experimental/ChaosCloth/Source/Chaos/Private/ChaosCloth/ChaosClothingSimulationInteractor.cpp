@@ -40,11 +40,21 @@ void UChaosClothingSimulationInteractor::SetAnimDriveSpringStiffness(float InSti
 
 void UChaosClothingSimulationInteractor::EnableGravityOverride(const FVector& InVector)
 {
-	//TODO
+	Commands.Add(ChaosClothInteractorCommand::CreateLambda([InVector](Chaos::ClothingSimulation* InSimulation, Chaos::ClothingSimulationContext* InContext)
+	{
+		InSimulation->SetGravityOverride(InVector);
+	}));
+
+	MarkDirty();
 }
 
 void UChaosClothingSimulationInteractor::DisableGravityOverride()
 {
-	//TODO
+	Commands.Add(ChaosClothInteractorCommand::CreateLambda([](Chaos::ClothingSimulation* InSimulation, Chaos::ClothingSimulationContext* InContext)
+	{
+		InSimulation->DisableGravityOverride();
+	}));
+
+	MarkDirty();
 }
 
