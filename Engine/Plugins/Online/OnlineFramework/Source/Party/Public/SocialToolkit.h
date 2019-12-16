@@ -130,7 +130,7 @@ protected:
 	virtual void OnOwnerLoggedIn();
 	virtual void OnOwnerLoggedOut();
 	
-	virtual void OnSendFriendInviteComplete(const FUniqueNetId& InvitedUserId, bool bInviteSuceeded, const FString& InviteError) {}
+	virtual void OnSendFriendInviteComplete(const FUniqueNetId& InvitedUserId, const FString& InviteeName, bool bInviteSuceeded, const FString& InviteError) {}
 	virtual void OnAcceptFriendInviteComplete(const FUniqueNetId& InviterUserId, bool bInviteSucceeded, const FString& InviteError) {}
 
 	void QueryFriendsLists();
