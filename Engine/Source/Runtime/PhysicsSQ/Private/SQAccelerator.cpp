@@ -180,7 +180,11 @@ private:
 		TGeometryParticle<float, 3>* GeometryParticle = Payload.GetExternalGeometryParticle_ExternalThread();
 		const TShapesArray<float,3>& Shapes = GeometryParticle->ShapesArray();
 
-		const bool bTestShapeBounds = Shapes.Num() > 1;
+		//////////////////////////////////////////////////////////////////////////
+		// Temporarily disabled shape bounds checked due to conflicts with some shape unions
+		const bool bTestShapeBounds = false; // Shapes.Num() > 1;
+		//////////////////////////////////////////////////////////////////////////
+
 		const TRigidTransform<float, 3> ActorTM(GeometryParticle->X(), GeometryParticle->R());
 
 		for (const auto& Shape : Shapes)
