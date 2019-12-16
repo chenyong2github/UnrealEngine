@@ -31,6 +31,11 @@ namespace CADLibrary
 		return CTKIO_SaveFile(ObjectList, *FilePath, L"Ct");
 	}
 
+	CheckedCTError CTSession::CleanBRep()
+	{
+		return CTKIO_CleanBody(MainObjectId);
+	}
+
 	CheckedCTError CTSession::TopoFixes()
 	{
 		return CADLibrary::Repair(MainObjectId, ImportParams.StitchingTechnique);
