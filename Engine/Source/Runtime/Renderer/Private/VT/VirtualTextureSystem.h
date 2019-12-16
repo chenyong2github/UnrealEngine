@@ -95,6 +95,7 @@ private:
 
 	uint32	Frame;
 
+	static const uint32 MaxNumTasks = 16;
 	static const uint32 MaxSpaces = 16;
 	TUniquePtr<FVirtualTextureSpace> Spaces[MaxSpaces];
 	TArray<FVirtualTexturePhysicalSpace*> PhysicalSpaces;
