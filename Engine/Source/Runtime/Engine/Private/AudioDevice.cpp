@@ -6143,6 +6143,10 @@ void FAudioDevice::OnBeginPIE(const bool bIsSimulating)
 		USoundNode* SoundNode = *It;
 		SoundNode->OnBeginPIE(bIsSimulating);
 	}
+
+#if ENABLE_AUDIO_DEBUG
+	FAudioDebugger::OnBeginPIE();
+#endif // WITH_EDITOR
 }
 
 void FAudioDevice::OnEndPIE(const bool bIsSimulating)
@@ -6152,6 +6156,10 @@ void FAudioDevice::OnEndPIE(const bool bIsSimulating)
 		USoundNode* SoundNode = *It;
 		SoundNode->OnEndPIE(bIsSimulating);
 	}
+
+#if ENABLE_AUDIO_DEBUG
+	FAudioDebugger::OnEndPIE();
+#endif // WITH_EDITOR
 }
 #endif
 

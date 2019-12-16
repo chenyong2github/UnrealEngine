@@ -48,7 +48,6 @@ namespace Audio
 		virtual bool IsStopping() override { return bIsStopping; }
 		virtual void Pause() override;
 		virtual bool IsFinished() override;
-		virtual FString Describe(bool bUseLongName) override;
 		virtual float GetPlaybackPercent() const override;
 		virtual float GetEnvelopeValue() const override;
 		//~ End FSoundSource Interface

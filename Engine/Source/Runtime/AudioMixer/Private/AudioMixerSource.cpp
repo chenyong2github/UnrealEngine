@@ -716,11 +716,6 @@ namespace Audio
 		return true;
 	}
 
-	FString FMixerSource::Describe(bool bUseLongName)
-	{
-		return FString(TEXT("Stub"));
-	}
-
 	float FMixerSource::GetPlaybackPercent() const
 	{
 		if (InitializationState != EMixerSourceInitializationState::Initialized)
