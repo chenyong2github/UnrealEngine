@@ -1005,6 +1005,8 @@ void APlayerCameraManager::DoUpdateCamera(float DeltaTime)
 
 			// our camera is now viewing there
 			NewPOV = PendingViewTarget.POV;
+
+			OnBlendComplete().Broadcast();
 		}
 	}
 
