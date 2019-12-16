@@ -4301,23 +4301,14 @@ void FRecastNavMeshGenerator::SortPendingBuildTiles()
 		return;
 	}
 
-	TArray<FVector2D> SeedLocations;
 	UWorld* CurWorld = GetWorld();
 	if (CurWorld == nullptr)
 	{
 		return;
 	}
 
-	// Collect players positions
-	for (FConstPlayerControllerIterator PlayerIt = CurWorld->GetPlayerControllerIterator(); PlayerIt; ++PlayerIt)
-	{
-		APlayerController* PC = PlayerIt->Get();
-		if (PC && PC->GetPawn() != NULL)
-		{
-			const FVector2D SeedLoc(PC->GetPawn()->GetActorLocation());
-			SeedLocations.Add(SeedLoc);
-		}
-	}
+	TArray<FVector2D> SeedLocations;
+	GetSeedLocations(*CurWorld, SeedLocations);
 
 	if (SeedLocations.Num() == 0)
 	{
@@ -4342,6 +4333,20 @@ void FRecastNavMeshGenerator::SortPendingBuildTiles()
 
 		// nearest tiles should be at the end of the list
 		PendingDirtyTiles.Sort();
+	}
+}
+
+void FRecastNavMeshGenerator::GetSeedLocations(UWorld& World, TArray<FVector2D>& OutSeedLocations) const
+{
+	// Collect players positions
+	for (FConstPlayerControllerIterator PlayerIt = World.GetPlayerControllerIterator(); PlayerIt; ++PlayerIt)
+	{
+		APlayerController* PC = PlayerIt->Get();
+		if (PC && PC->GetPawn() != NULL)
+		{
+			const FVector2D SeedLoc(PC->GetPawn()->GetActorLocation());
+			OutSeedLocations.Add(SeedLoc);
+		}
 	}
 }
 
