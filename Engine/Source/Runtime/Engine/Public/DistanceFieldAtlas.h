@@ -121,6 +121,9 @@ private:
 	/** Allocations that have already been added, stored in case we need to realloc. */
 	TArray<FDistanceFieldVolumeTexture*> CurrentAllocations;
 
+	/** Allocations that have failed, stored in case they could fit next time a mesh is evicted from atlas. */
+	TArray<FDistanceFieldVolumeTexture*> FailedAllocations;
+		
 	/** Incremented when the atlas is reallocated, so dependencies know to update. */
 	int32 Generation;
 
@@ -128,6 +131,9 @@ private:
 
 	/** Number of pixel used in atlas distance field */
 	uint32 AllocatedPixels;
+	
+	/** Number of pixel that have failed to be allocated in atlas */
+	uint32 FailedAllocatedPixels;
 
 	/** Max position used in distance field */
 	uint32 MaxUsedAtlasX;
