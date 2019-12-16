@@ -760,6 +760,31 @@ void UToolMenus::PopulateSubMenu(FMenuBuilder& MenuBuilder, TWeakObjectPtr<UTool
 	}
 }
 
+void UToolMenus::PopulateSubMenuWithoutName(FMenuBuilder& MenuBuilder, TWeakObjectPtr<UToolMenu> InParent, const FNewToolMenuDelegate InNewToolMenuDelegate)
+{
+	const UToolMenu* InGeneratedParent = InParent.Get();
+	if (InGeneratedParent == nullptr)
+	{
+		return;
+	}
+
+	if (InNewToolMenuDelegate.IsBound())
+	{
+		UToolMenu* Menu = NewObject<UToolMenu>(this);
+		Menu->Context = InGeneratedParent->Context;
+		Menu->MenuName = NAME_None; // Menu does not have a name
+
+		// Submenu specific data
+		Menu->SubMenuParent = InGeneratedParent;
+		Menu->SubMenuSourceEntryName = NAME_None; // Entry does not have a name
+
+		InNewToolMenuDelegate.Execute(Menu);
+		Menu->MenuName = NAME_None; // Menu does not have a name
+
+		PopulateMenuBuilder(MenuBuilder, Menu);
+	}
+}
+
 TSharedRef<SWidget> UToolMenus::GenerateToolbarComboButtonMenu(TWeakObjectPtr<UToolMenu> InParent, const FName InBlockName)
 {
 	if (UToolMenu* GeneratedMenu = GenerateSubMenu(InParent.Get(), InBlockName))
@@ -854,6 +879,18 @@ void UToolMenus::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UToolMenu* MenuD
 					if (Block.SubMenuData.ConstructMenu.NewMenuDelegate.IsBound())
 					{
 						NewMenuDelegate = Block.SubMenuData.ConstructMenu.NewMenuDelegate;
+					}
+					else if (Block.Name == NAME_None)
+					{
+						if (Block.SubMenuData.ConstructMenu.NewToolMenuDelegate.IsBound())
+						{
+							// Blocks with no name cannot call PopulateSubMenu()
+							NewMenuDelegate = FNewMenuDelegate::CreateUObject(this, &UToolMenus::PopulateSubMenuWithoutName, TWeakObjectPtr<UToolMenu>(MenuData), Block.SubMenuData.ConstructMenu.NewToolMenuDelegate);
+						}
+						else
+						{
+							UE_LOG(LogToolMenus, Warning, TEXT("Submenu that has no name is missing required delegate: %s"), *MenuData->MenuName.ToString());
+						}
 					}
 					else
 					{
