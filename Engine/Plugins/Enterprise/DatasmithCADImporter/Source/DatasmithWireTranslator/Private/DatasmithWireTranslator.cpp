@@ -1849,7 +1849,6 @@ TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(T
 
 	Result = LocalSession->AddBRep(Body->ShellSet, MeshParameters.bIsSymmetric);
 
-	//const char*Name = DagNode->name();
 	FString Filename = Body->Label + TEXT(".ct");
 
 	FString FilePath = FPaths::Combine(OutputPath, Filename);
