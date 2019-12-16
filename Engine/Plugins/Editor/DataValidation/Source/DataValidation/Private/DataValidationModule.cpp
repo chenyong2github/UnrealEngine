@@ -22,6 +22,7 @@
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "EditorValidatorSubsystem.h"
+#include "ISettingsModule.h"
 
 #define LOCTEXT_NAMESPACE "DataValidationModule"
 
@@ -78,6 +79,13 @@ void FDataValidationModule::StartupModule()
 
 		// Add save callback
 		UPackage::PackageSavedEvent.AddRaw(this, &FDataValidationModule::OnPackageSaved);
+
+		ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
+		SettingsModule.RegisterSettings("Editor", "Advanced", "DataValidation",
+			LOCTEXT("DataValidationName", "Data Validation"),
+			LOCTEXT("DataValidationDescription", "Settings related to validating assets in the editor."),
+			GetMutableDefault<UDataValidationSettings>()
+		);
 	}
 }
 

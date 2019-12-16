@@ -19,11 +19,17 @@
 
 DEFINE_LOG_CATEGORY(LogContentValidation);
 
+
+UDataValidationSettings::UDataValidationSettings()
+	: bValidateOnSave(true)
+{
+
+}
+
 UEditorValidatorSubsystem::UEditorValidatorSubsystem()
 	: UEditorSubsystem()
 {
 	bAllowBlueprintValidators = true;
-	bValidateOnSave = true;
 }
 
 void UEditorValidatorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -289,7 +295,7 @@ int32 UEditorValidatorSubsystem::ValidateAssets(TArray<FAssetData> AssetDataList
 void UEditorValidatorSubsystem::ValidateOnSave(TArray<FAssetData> AssetDataList) const
 {
 	// Only validate if enabled and not auto saving
-	if (!bValidateOnSave || GEditor->IsAutosaving())
+	if (!GetDefault<UDataValidationSettings>()->bValidateOnSave || GEditor->IsAutosaving())
 	{
 		return;
 	}
@@ -314,7 +320,7 @@ void UEditorValidatorSubsystem::ValidateOnSave(TArray<FAssetData> AssetDataList)
 void UEditorValidatorSubsystem::ValidateSavedPackage(FName PackageName)
 {
 	// Only validate if enabled and not auto saving
-	if (!bValidateOnSave || GEditor->IsAutosaving())
+	if (!GetDefault<UDataValidationSettings>()->bValidateOnSave || GEditor->IsAutosaving())
 	{
 		return;
 	}
