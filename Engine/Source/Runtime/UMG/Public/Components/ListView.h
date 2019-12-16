@@ -47,6 +47,7 @@ public:
 	}
 
 	ESelectionMode::Type GetSelectionMode() const { return SelectionMode; }
+	EOrientation GetOrientation() const { return Orientation; }
 
 	template <typename RowWidgetT = UUserWidget>
 	RowWidgetT* GetEntryWidgetFromItem(const UObject* Item) const
@@ -158,7 +159,7 @@ protected:
 	 * Vertical will scroll vertically and arrange tiles into rows.
 	 * Horizontal will scroll horizontally and arrange tiles into columns.
 	 */
-	UPROPERTY(EditAnywhere, Category = ListView)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = ListView)
 	TEnumAsByte<EOrientation> Orientation;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = ListView)
