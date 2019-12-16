@@ -1554,12 +1554,16 @@ void FViewInfo::SetupUniformBufferParameters(
 			SkyLight->bCastShadows 
 			&& SkyLight->bWantsStaticShadowing;
 
-		ViewUniformShaderParameters.SkyLightParameters = bApplyPrecomputedBentNormalShadowing ? 1 : 0;
+		ViewUniformShaderParameters.SkyLightApplyPrecomputedBentNormalShadowingFlag = bApplyPrecomputedBentNormalShadowing ? 1.0f : 0.0f;
+		ViewUniformShaderParameters.SkyLightAffectReflectionFlag = SkyLight->bAffectReflection ? 1.0f : 0.0f;
+		ViewUniformShaderParameters.SkyLightAffectGlobalIlluminationFlag = SkyLight->bAffectGlobalIllumination ? 1.0f : 0.0f;
 	}
 	else
 	{
 		ViewUniformShaderParameters.SkyLightColor = FLinearColor::Black;
-		ViewUniformShaderParameters.SkyLightParameters = 0;
+		ViewUniformShaderParameters.SkyLightApplyPrecomputedBentNormalShadowingFlag = 0.0f;
+		ViewUniformShaderParameters.SkyLightAffectReflectionFlag = 0.0f;
+		ViewUniformShaderParameters.SkyLightAffectGlobalIlluminationFlag = 0.0f;
 	}
 
 	// Make sure there's no padding since we're going to cast to FVector4*

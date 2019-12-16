@@ -1068,6 +1068,8 @@ public:
 	uint8 bHasStaticLighting:1;
 	uint8 bCastVolumetricShadow:1;
 	uint8 bCastRayTracedShadow:1;
+	uint8 bAffectReflection:1;
+	uint8 bAffectGlobalIllumination:1;
 	TEnumAsByte<EOcclusionCombineMode> OcclusionCombineMode;
 	float AverageBrightness;
 	float IndirectLightingIntensity;
