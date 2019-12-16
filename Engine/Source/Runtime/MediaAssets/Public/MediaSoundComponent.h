@@ -194,6 +194,7 @@ public:
 	//~ UActorComponent interface
 
 	virtual void OnRegister() override;
+	virtual void OnUnregister() override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 
 public:
