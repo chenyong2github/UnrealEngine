@@ -214,7 +214,7 @@ public:
 	inline void FromString(const FStringView& Src)
 	{
 		check(Src.Len() == 40);
-		String::HexToBytes(Src, Hash);
+		UEString::HexToBytes(Src, Hash);
 	}
 
 	friend bool operator==(const FSHAHash& X, const FSHAHash& Y)
@@ -238,8 +238,8 @@ public:
 	friend CORE_API void LexFromString(FSHAHash& Hash, const TCHAR*);
 };
 
-inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FSHAHash& Hash) { String::BytesToHex(Hash.Hash, Builder); return Builder; }
-inline FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, const FSHAHash& Hash) { String::BytesToHex(Hash.Hash, Builder); return Builder; }
+inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FSHAHash& Hash) { UEString::BytesToHex(Hash.Hash, Builder); return Builder; }
+inline FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, const FSHAHash& Hash) { UEString::BytesToHex(Hash.Hash, Builder); return Builder; }
 
 class CORE_API FSHA1
 {

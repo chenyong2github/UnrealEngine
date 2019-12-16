@@ -15,11 +15,11 @@ bool StringParseTokensByStringTest::RunTest(const FString& Parameters)
 	auto RunParseTokensTest = [this](const FStringView& View, std::initializer_list<FStringView> Delimiters, std::initializer_list<FStringView> ExpectedTokens)
 	{
 		TArray<FStringView, TInlineAllocator<8>> ResultTokens;
-		String::ParseTokensMultiple(View, Delimiters, [&ResultTokens](FStringView Token) { ResultTokens.Add(Token); });
+		UEString::ParseTokensMultiple(View, Delimiters, [&ResultTokens](FStringView Token) { ResultTokens.Add(Token); });
 		if (!Algo::CompareByPredicate(ResultTokens, ExpectedTokens, TEqualTo<>()))
 		{
 			TStringBuilder<512> Error;
-			Error << TEXT("String::ParseTokensMultiple failed to parse \"") << View << TEXT("\" with delimiters {");
+			Error << TEXT("UEString::ParseTokensMultiple failed to parse \"") << View << TEXT("\" with delimiters {");
 			Error.JoinQuoted(Delimiters, TEXT(", "_SV), TEXT("\""_SV));
 			Error << TEXT("} result {");
 			Error.JoinQuoted(ResultTokens, TEXT(", "_SV), TEXT("\""_SV));
@@ -57,11 +57,11 @@ bool StringParseTokensByCharTest::RunTest(const FString& Parameters)
 	auto RunParseTokensTest = [this](const FStringView& View, std::initializer_list<TCHAR> Delimiters, std::initializer_list<FStringView> ExpectedTokens)
 	{
 		TArray<FStringView, TInlineAllocator<8>> ResultTokens;
-		String::ParseTokensMultiple(View, Delimiters, [&ResultTokens](FStringView Token) { ResultTokens.Add(Token); });
+		UEString::ParseTokensMultiple(View, Delimiters, [&ResultTokens](FStringView Token) { ResultTokens.Add(Token); });
 		if (!Algo::CompareByPredicate(ResultTokens, ExpectedTokens, TEqualTo<>()))
 		{
 			TStringBuilder<512> Error;
-			Error << TEXT("String::ParseTokensMultiple failed to parse \"") << View << TEXT("\" with delimiters {");
+			Error << TEXT("UEString::ParseTokensMultiple failed to parse \"") << View << TEXT("\" with delimiters {");
 			Error.JoinQuoted(Delimiters, TEXT(", "_SV), TEXT("'"_SV));
 			Error << TEXT("} result {");
 			Error.JoinQuoted(ResultTokens, TEXT(", "_SV), TEXT("\""_SV));

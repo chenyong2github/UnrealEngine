@@ -4,7 +4,7 @@
 
 #include "Containers/StringView.h"
 
-namespace String
+namespace UEString
 {
 	void ParseLines(const FStringView& View, const TFunctionRef<void(FStringView)>& Visitor)
 	{

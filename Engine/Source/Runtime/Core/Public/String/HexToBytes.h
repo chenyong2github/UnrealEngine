@@ -7,7 +7,7 @@
 class FStringView;
 class FAnsiStringView;
 
-namespace String
+namespace UEString
 {
 	/** 
 	 * Convert an array of hex digits into an array of bytes.

@@ -7,7 +7,7 @@
 
 class FStringView;
 
-namespace String
+namespace UEString
 {
 	/**
 	 * Visit every line in the input view as terminated by any of CRLF, CR, LF.

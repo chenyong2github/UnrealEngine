@@ -8,7 +8,7 @@
 class FStringBuilderBase;
 class FAnsiStringBuilderBase;
 
-namespace String
+namespace UEString
 {
 	/**
 	 * Convert an array of bytes to a non-null-terminated string of hex digits.

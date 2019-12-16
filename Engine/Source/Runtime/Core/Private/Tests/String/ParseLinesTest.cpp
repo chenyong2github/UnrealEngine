@@ -16,11 +16,11 @@ bool StringParseLinesTest::RunTest(const FString& Parameters)
 	auto RunParseLinesTest = [this](const FStringView& View, std::initializer_list<FStringView> ExpectedLines)
 	{
 		TArray<FStringView, TInlineAllocator<8>> ResultLines;
-		String::ParseLines(View, [&ResultLines](FStringView Line) { ResultLines.Add(Line); });
+		UEString::ParseLines(View, [&ResultLines](FStringView Line) { ResultLines.Add(Line); });
 		if (!Algo::CompareByPredicate(ResultLines, ExpectedLines, TEqualTo<>()))
 		{
 			TStringBuilder<512> Error;
-			Error << TEXT("String::ParseLines failed to parse \"") << FString(View).ReplaceCharWithEscapedChar() << TEXT("\" result {");
+			Error << TEXT("UEString::ParseLines failed to parse \"") << FString(View).ReplaceCharWithEscapedChar() << TEXT("\" result {");
 			Error.JoinQuoted(ResultLines, TEXT(", "_SV), TEXT("\""_SV));
 			Error << TEXT("} expected {");
 			Error.JoinQuoted(ExpectedLines, TEXT(", "_SV), TEXT("\""_SV));

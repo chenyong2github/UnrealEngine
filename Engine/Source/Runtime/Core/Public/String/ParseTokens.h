@@ -8,7 +8,7 @@
 
 class FStringView;
 
-namespace String
+namespace UEString
 {
 	/**
 	 * Visit every token in the input view as separated by any of the delimiters.

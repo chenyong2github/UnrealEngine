@@ -1482,7 +1482,7 @@ FArchive& operator<<( FArchive& Ar, FString& A )
 
 int32 HexToBytes(const FString& HexString, uint8* OutBytes)
 {
-	return String::HexToBytes(HexString, OutBytes);
+	return UEString::HexToBytes(HexString, OutBytes);
 }
 
 int32 FindMatchingClosingParenthesis(const FString& TargetString, const int32 StartSearch)

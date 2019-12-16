@@ -4,7 +4,7 @@
 
 #include "Misc/StringBuilder.h"
 
-namespace String
+namespace UEString
 {
 	template <typename CharType>
 	void BytesToHexImpl(TArrayView<const uint8> Bytes, CharType* OutHex)
