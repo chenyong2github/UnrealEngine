@@ -152,7 +152,7 @@ float Transmit(in RayDesc TransmissionRay, inout RandomSequence RandSequence, in
 	const uint RayFlags = 0;
 	const uint InstanceInclusionMask = RAY_TRACING_MASK_TRANSLUCENT;
 	FRayCone RayCone = (FRayCone)0;
-	bool bDisableSkyLightContribution = false;
+	bool bEnableSkyLightContribution = true;
 
 	FMaterialClosestHitPayload TransmPayload = TraceMaterialRay(
 		TLAS,
@@ -160,7 +160,7 @@ float Transmit(in RayDesc TransmissionRay, inout RandomSequence RandSequence, in
 		InstanceInclusionMask,
 		TransmissionRay,
 		RayCone,
-		bDisableSkyLightContribution);
+		bEnableSkyLightContribution);
 
 	const uint HitCountMax = 32;
 	uint HitCount = 0;
@@ -188,7 +188,7 @@ float Transmit(in RayDesc TransmissionRay, inout RandomSequence RandSequence, in
 			RAY_TRACING_MASK_TRANSLUCENT,
 			TransmissionRay,
 			RayCone,
-			bDisableSkyLightContribution);
+			bEnableSkyLightContribution);
 
 		bIsHit = TransmPayload.IsHit();
 	}
@@ -452,7 +452,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 				{
 					const uint RayFlags = 0;
 					const uint InstanceInclusionMask = RAY_TRACING_MASK_OPAQUE;
-					const bool bDisableSkyLightContribution = !bSkyLightAffectReflection;
+					const bool bEnableSkyLightContribution = bSkyLightAffectReflection;
 
 					TraceMaterialRayPacked(
 						Payload,
@@ -461,7 +461,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 						InstanceInclusionMask,
 						TopLayerRay,
 						RayCone,
-						bDisableSkyLightContribution);
+						bEnableSkyLightContribution);
 
 					// Trace separate ray for translucent objects
 					float Transmission = 1.0;
@@ -570,7 +570,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 					{
 						const uint RayFlags = 0;
 						const uint InstanceInclusionMask = RAY_TRACING_MASK_OPAQUE;
-						const bool bDisableSkyLightContribution = !bSkyLightAffectReflection;
+						const bool bEnableSkyLightContribution = bSkyLightAffectReflection;
 
 						FMaterialClosestHitPayload BottomLayerPayload = TraceRayAndAccumulateBottomLayerResults(
 							BottomLayerRay,
@@ -583,7 +583,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 							ShouldDoDirectLighting,
 							ShouldDoEmissiveAndIndirectLighting,
 							RayCone,
-							bDisableSkyLightContribution,
+							bEnableSkyLightContribution,
 							BottomLayerRadiance);
 
 						// Distance and sky: similar processing to main ray.
