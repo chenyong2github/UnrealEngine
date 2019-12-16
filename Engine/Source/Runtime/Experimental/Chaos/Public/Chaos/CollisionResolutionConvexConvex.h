@@ -16,23 +16,22 @@ template<class T, int d>
 class CHAOS_API CollisionResolutionConvexConvex
 {
 public:
-	typedef TConvex<T,d> FConvex;
-	typedef TRigidTransform<T,d> FRigidTransform;
-	typedef TRigidBodyContactConstraint<T,d> FRigidBodyContactConstraint;
-	typedef TCollisionResolutionManifold<T,d> FCollisionResolutionManifold;
-	typedef TGeometryParticleHandle<T,d> FGeometryParticleHandle;
+	using FConvex = TConvex<T,d>;
+	using FRigidTransform = TRigidTransform<T,d>;
+	using FRigidBodyContactConstraint = TRigidBodyContactConstraint<T, d>;
+	using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
 
 	/*
 	* Build a constraint manifold for the contact shape pair. 
 	*/
 	static void ConstructConvexConvexConstraints(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const float Thickness,
-		TArray<FRigidBodyContactConstraint>& ConstraintBuffer, FCollisionResolutionManifold* Manifold = nullptr, float ManifoldScale = 0.5, int32 ManifoldSamples = 4);
+		FRigidBodyContactConstraint& ConstraintBuffer);
 
 	/*
 	* Update the contact manifold.
 	*/
 	static void UpdateConvexConvexConstraint(const FImplicitObject& A, const FRigidTransform& ATM, const FImplicitObject& B, FRigidTransform BTM, float Thickness, 
-		FRigidBodyContactConstraint* Constraints, int32 NumConstraints, FCollisionResolutionManifold* Manifold, float ManifoldScale = 0.5, int32 ManifoldSamples = 4);
+		FRigidBodyContactConstraint& Constraints);
 
 
 };

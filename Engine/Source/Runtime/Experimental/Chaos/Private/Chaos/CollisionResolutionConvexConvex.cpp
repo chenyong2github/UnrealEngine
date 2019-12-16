@@ -12,25 +12,16 @@ namespace Chaos
 		FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1,
 		const FImplicitObject* Implicit0, const FImplicitObject* Implicit1,
 		const float Thickness,
-		TArray<FRigidBodyContactConstraint>& ConstraintBuffer,
-		FCollisionResolutionManifold* Manifold,
-		float ManifoldScale, int32 ManifoldSamples)
+		FRigidBodyContactConstraint& Constraint)
 	{
-		if (Manifold)
+		if (Constraint.ContainsManifold(Implicit0, Implicit1))
 		{
-			if (Manifold->ContainsShapeConnection(Implicit0, Implicit1))
-			{
-				return;
-			}
+			return;
 		}
 
-		TRigidBodyContactConstraint<T, d> Constraint;
 		Constraint.Particle = Particle0;
 		Constraint.Levelset = Particle1;
-		Constraint.Geometry[0] = Implicit0;
-		Constraint.Geometry[1] = Implicit1;
-
-		ConstraintBuffer.Add(Constraint);
+		Constraint.AddManifold(Implicit0, Implicit1);
 	}
 
 	template<class T, int d>
@@ -38,12 +29,8 @@ namespace Chaos
 		const FImplicitObject& A, const FRigidTransform& ATM,
 		const FImplicitObject& B, FRigidTransform BTM,
 		float Thickness,
-		FRigidBodyContactConstraint* Constraints, int32 NumConstraints,
-		FCollisionResolutionManifold* Manifold,
-		float ManifoldScale, int32 ManifoldSamples)
+		FRigidBodyContactConstraint& Constraint)
 	{
-		ensure(NumConstraints);
-
 		TRigidTransform<T, d> BToATM = BTM.GetRelativeTransform(ATM);
 
 		if (ensure(GetInnerType(A.GetType()) == ImplicitObjectType::Convex && GetInnerType(B.GetType()) == ImplicitObjectType::Convex))
@@ -66,10 +53,7 @@ namespace Chaos
 			{
 				const TParticles<T, d>& SurfaceParticles = AObject->GetSurfaceParticles();
 
-				for (int32 Idx = 0; Idx < NumConstraints; Idx++)
-				{
-					Constraints[Idx].bDisabled = true;
-				}
+				Constraint.SetDisabled(true);
 
 				if (GJKIntersection(*AObject, *BObject, BToATM, Thickness))
 				{
@@ -80,11 +64,11 @@ namespace Chaos
 					for (int32 Idx = 0; Idx < (int32)SurfaceParticles.Size(); Idx++)
 					{
 						Phi = BObject->PhiWithNormal(AToBTM.TransformPosition(SurfaceParticles.X(Idx)), Normal);
-						if (Phi < Constraints[0].Phi)
+						if (Phi < Constraint.GetPhi())
 						{
-							Constraints[0].Phi = Phi;
-							Constraints[0].Location = ATM.TransformPosition(SurfaceParticles.X(Idx));
-							Constraints[0].Normal = BTM.TransformVector(Normal);
+							Constraint.SetPhi(Phi);
+							Constraint.SetLocation(ATM.TransformPosition(SurfaceParticles.X(Idx)));
+							Constraint.SetNormal(BTM.TransformVector(Normal));
 						}
 					}
 					return;
