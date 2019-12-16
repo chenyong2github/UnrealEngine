@@ -20,6 +20,12 @@
 // Reserved material sorting key for rays that can fetch screen-space data instead of tracing rays in the shading pass.
 #define RAY_TRACING_DEFERRED_MATERIAL_KEY_SCREEN_SPACE 0x80000000
 
+// ESamplePhase
+#define SAMPLE_PHASE_MONOLITHIC 0 
+#define SAMPLE_PHASE_INIT       1
+#define SAMPLE_PHASE_ACCUM      2
+#define SAMPLE_PHASE_RESOLVE    3
+
 #include "../Common.ush"
 
 #define SUPPORT_CONTACT_SHADOWS		0
@@ -50,7 +56,7 @@
 #include "RayTracingSpotLight.ush"
 #include "RayTracingPointLight.ush"
 #include "RayTracingCommon.ush"
-#include "RayTracingLightingCommon.ush" 
+#include "RayTracingLightingCommon.ush"
 
 
 // Setup the reflection composite to sample the sky and reflection captures.
@@ -91,6 +97,8 @@ uint MaxUnderCoatBounces;
 uint RenderTileOffsetX;
 uint RenderTileOffsetY;
 uint EnableTranslucency;
+uint SampleMode;
+uint SampleOffset;
 
 float ReflectionMinRayDistance;
 float ReflectionMaxRayDistance;
@@ -121,7 +129,7 @@ float3 GenerateReflectionDirection(inout RandomSequence RandSequence, uint2 Disp
 		float2 E = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
 
 		// Sobol can only be used on the first sample of the first bounce
-		if (BounceIndex == 0 && SamplePerPixel == 1 && RetryCount == 0)
+		if (BounceIndex == 0 && SamplePerPixel == 1 && RetryCount == 0 && SampleMode == SAMPLE_PHASE_MONOLITHIC)
 		{
 			E = Rand1SPPDenoiserInput(DispatchThreadId);
 			E.y *= 1 - GGX_IMPORTANT_SAMPLE_BIAS;
@@ -225,7 +233,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 	uint LinearIndex = PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x; // TODO(Denoiser): PixelCoord or DispatchThreadId
 	
 	RandomSequence RandSequence;
-	RandomSequence_Initialize(RandSequence, LinearIndex, View.StateFrameIndex);
+	RandomSequence_Initialize(RandSequence, LinearIndex, View.StateFrameIndex + SampleOffset * 16);
 
 	float2 InvBufferSize = View.BufferSizeAndInvSize.zw;
 	float2 UV = (float2(PixelCoord) + 0.5) * InvBufferSize;
@@ -273,7 +281,6 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 
 	if (bIsValidPixel)
 	{
-		for (uint SampleIndex = 0; SampleIndex < LocalSamplesPerPixel; ++SampleIndex)
 		{
 			bool bIsValidSample = false;
 			bool bNeedsCapture = true;
@@ -369,7 +376,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 					FixSampleDirectionIfNeeded(GBufferData.WorldNormal, TopLayerRay.Direction);
 				}
 
-				if (BounceIndex == 0 && SampleIndex == 0)
+				if (BounceIndex == 0)
 				{
 					if (DIM_DEFERRED_MATERIAL_MODE == DEFERRED_MATERIAL_MODE_GATHER)
 					{
@@ -811,7 +818,41 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 	}
 	else
 	{
-		if (ReflectedWeight > 0)
+		if (SampleMode == SAMPLE_PHASE_ACCUM || SampleMode == SAMPLE_PHASE_RESOLVE)
+		{
+			// read last results
+			float4 PreviousColor = ColorOutput[DispatchThreadId];
+			float PreviousHitDistance = RayHitDistanceOutput[DispatchThreadId];
+
+#if USE_PREEXPOSURE
+			PreviousColor.xyz /= View.PreExposure;
+#endif
+
+			if (ReflectedWeight > 0)
+			{
+				// Accumulate with prior samples
+				ReflectedColor += PreviousColor;
+				ReflectedWeight += PreviousColor.a;
+
+				if (HitDistance > 0.0 && PreviousHitDistance > 0.0)
+				{
+					HitDistance = min(HitDistance, PreviousHitDistance);
+				}
+				else
+				{
+					HitDistance = max(HitDistance, PreviousHitDistance);
+				}
+			}
+			else
+			{
+				// no data this pass, use accumulated data
+				ReflectedColor = PreviousColor;
+				ReflectedWeight = PreviousColor.a;
+				HitDistance = PreviousHitDistance;
+			}
+		}
+
+		if (ReflectedWeight > 0 && (SampleMode == SAMPLE_PHASE_MONOLITHIC || SampleMode == SAMPLE_PHASE_RESOLVE))
 		{
 			float DistanceFadeRange = LocalMaxRayDistance * 0.1; // Fade out reflections over 10% of the total maximum ray length (arbitrarily chosen)
 			float DistanceFade = bAllowSkySampling ? 1.0 : saturate((LocalMaxRayDistance - HitDistance) * rcp(DistanceFadeRange));
@@ -819,7 +860,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 			ReflectedColor *= DistanceFade * max(RoughnessFade, ClearCoatRoughnessFade) * rcp(LocalSamplesPerPixel);
 		}
 
-		if (EnableTranslucency)
+		if (EnableTranslucency && (SampleMode == SAMPLE_PHASE_MONOLITHIC || SampleMode == SAMPLE_PHASE_RESOLVE))
 		{
 			float3 WorldPosition;
 			float3 CameraDirection;

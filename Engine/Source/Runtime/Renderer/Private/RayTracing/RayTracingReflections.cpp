@@ -154,6 +154,16 @@ static TAutoConsoleVariable<int32> CVarRayTracingReflectionsMaxUnderCoatBounces(
 	ECVF_RenderThreadSafe);
 
 
+
+// ESamplePhase
+enum class ESamplePhase
+{
+	Monlithic = 0, //single pass for all samples
+	Init = 1,      // First sample of the set initialize the accumulators
+	Accum = 2,     // Intermediate sample, accumulate results
+	Resolve = 3    // Final sample, apply weighting
+};
+
 static const int32 GReflectionLightCountMaximum = 64;
 
 class FRayTracingReflectionsRGS : public FGlobalShader
@@ -191,6 +201,8 @@ class FRayTracingReflectionsRGS : public FGlobalShader
 		SHADER_PARAMETER(uint32, RenderTileOffsetX)
 		SHADER_PARAMETER(uint32, RenderTileOffsetY)
 		SHADER_PARAMETER(uint32, EnableTranslucency)
+		SHADER_PARAMETER(int32, SampleMode)
+		SHADER_PARAMETER(int32, SampleOffset)
 
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColor)
@@ -345,7 +357,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	CommonParameters.MaxUnderCoatBounces = CVarRayTracingReflectionsMaxUnderCoatBounces.GetValueOnRenderThread();
 	CommonParameters.RenderTileOffsetX = 0;
 	CommonParameters.RenderTileOffsetY = 0;
-	CommonParameters.EnableTranslucency = EnableTranslucency;
+	CommonParameters.EnableTranslucency = EnableTranslucency; 
+	CommonParameters.SampleMode = (int32)ESamplePhase::Monlithic;
 
 	CommonParameters.TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 	CommonParameters.ViewUniformBuffer = View.ViewUniformBuffer;
@@ -377,117 +390,128 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	CommonParameters.ReflectionCapture = View.ReflectionCaptureUniformBuffer;
 	CommonParameters.Forward = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
 
-	for (uint32 PassIndex = 0; PassIndex < NumPasses; ++PassIndex)
+	for (int32 SamplePassIndex = 0; SamplePassIndex < SamplePerPixel; SamplePassIndex++)
 	{
-		FRayTracingReflectionsRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRayTracingReflectionsRGS::FParameters>();
-		*PassParameters = CommonParameters;
-
-		const EDeferredMaterialMode DeferredMaterialMode = DeferredMaterialModes[PassIndex];
-
-		if (DeferredMaterialMode != EDeferredMaterialMode::None)
+		if (SamplePerPixel > 1)
 		{
+			CommonParameters.SampleMode = (int32)ESamplePhase::Accum;
+			CommonParameters.SampleMode = SamplePassIndex == 0 ? (int32)ESamplePhase::Init : CommonParameters.SampleMode;
+			CommonParameters.SampleMode = SamplePassIndex == (SamplePerPixel - 1) ? (int32)ESamplePhase::Resolve : CommonParameters.SampleMode;
+		}
+		CommonParameters.SampleOffset = SamplePassIndex;
+
+		for (uint32 PassIndex = 0; PassIndex < NumPasses; ++PassIndex)
+		{
+			FRayTracingReflectionsRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRayTracingReflectionsRGS::FParameters>();
+			*PassParameters = CommonParameters;
+
+			const EDeferredMaterialMode DeferredMaterialMode = DeferredMaterialModes[PassIndex];
+
+			if (DeferredMaterialMode != EDeferredMaterialMode::None)
+			{
+				if (DeferredMaterialMode == EDeferredMaterialMode::Gather)
+				{
+					FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(sizeof(FDeferredMaterialPayload), DeferredMaterialBufferNumElements);
+					DeferredMaterialBuffer = GraphBuilder.CreateBuffer(Desc, TEXT("RayTracingReflectionsMaterialBuffer"));
+				}
+
+				PassParameters->MaterialBuffer = GraphBuilder.CreateUAV(DeferredMaterialBuffer);
+			}
+
+			FRayTracingReflectionsRGS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FRayTracingReflectionsRGS::FDeferredMaterialMode>(DeferredMaterialMode);
+			PermutationVector.Set<FRayTracingReflectionsRGS::FHybrid>(bHybridReflections);
+			PermutationVector.Set<FRayTracingReflectionsRGS::FEnableTwoSidedGeometryForShadowDim>(EnableRayTracingShadowTwoSidedGeometry());
+			auto RayGenShader = View.ShaderMap->GetShader<FRayTracingReflectionsRGS>(PermutationVector);
+
+			ClearUnusedGraphResources(RayGenShader, PassParameters);
+
 			if (DeferredMaterialMode == EDeferredMaterialMode::Gather)
 			{
-				FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(sizeof(FDeferredMaterialPayload), DeferredMaterialBufferNumElements);
-				DeferredMaterialBuffer = GraphBuilder.CreateBuffer(Desc, TEXT("RayTracingReflectionsMaterialBuffer"));
-			}
-
-			PassParameters->MaterialBuffer = GraphBuilder.CreateUAV(DeferredMaterialBuffer);
-		}
-
-		FRayTracingReflectionsRGS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FRayTracingReflectionsRGS::FDeferredMaterialMode>(DeferredMaterialMode);
-		PermutationVector.Set<FRayTracingReflectionsRGS::FHybrid>(bHybridReflections);
-		PermutationVector.Set<FRayTracingReflectionsRGS::FEnableTwoSidedGeometryForShadowDim>(EnableRayTracingShadowTwoSidedGeometry());
-		auto RayGenShader = View.ShaderMap->GetShader<FRayTracingReflectionsRGS>(PermutationVector);
-
-		ClearUnusedGraphResources(RayGenShader, PassParameters);
-
-		if (DeferredMaterialMode == EDeferredMaterialMode::Gather)
-		{
-			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("ReflectionRayTracingGatherMaterials %dx%d", TileAlignedResolution.X, TileAlignedResolution.Y),
-				PassParameters,
-				ERDGPassFlags::Compute,
-				[PassParameters, this, &View, RayGenShader, TileAlignedResolution](FRHICommandList& RHICmdList)
-			{
-				FRayTracingPipelineState* Pipeline = BindRayTracingDeferredMaterialGatherPipeline(RHICmdList, View, RayGenShader->GetRayTracingShader());
-
-				FRayTracingShaderBindingsWriter GlobalResources;
-				SetShaderParameters(GlobalResources, RayGenShader, *PassParameters);
-
-				FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
-				RHICmdList.RayTraceDispatch(Pipeline, RayGenShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, TileAlignedResolution.X, TileAlignedResolution.Y);
-			});
-
-			// A material sorting pass
-			const uint32 SortSize = CVarRayTracingReflectionsSortSize.GetValueOnRenderThread();
-			if (SortSize)
-			{
-				SortDeferredMaterials(GraphBuilder, View, SortSize, DeferredMaterialBufferNumElements, DeferredMaterialBuffer);
-			}
-		}
-		else
-		{
-			// Add optional tiling behavior to avoid TDR events in expensive passes
-			int32 RenderTileSize = CVarRayTracingReflectionsRenderTileSize.GetValueOnRenderThread();
-			if (NumPasses > 1 || RenderTileSize <= 0)
-			{
 				GraphBuilder.AddPass(
-					RDG_EVENT_NAME("ReflectionRayTracing(spp=%d) %dx%d", SamplePerPixel, RayTracingResolution.X, RayTracingResolution.Y),
+					RDG_EVENT_NAME("ReflectionRayTracingGatherMaterials %dx%d", TileAlignedResolution.X, TileAlignedResolution.Y),
 					PassParameters,
 					ERDGPassFlags::Compute,
-					[PassParameters, this, &View, RayGenShader, RayTracingResolution, DeferredMaterialBufferNumElements, DeferredMaterialMode](FRHICommandList& RHICmdList)
+					[PassParameters, this, &View, RayGenShader, TileAlignedResolution](FRHICommandList& RHICmdList)
 				{
+					FRayTracingPipelineState* Pipeline = BindRayTracingDeferredMaterialGatherPipeline(RHICmdList, View, RayGenShader->GetRayTracingShader());
+
 					FRayTracingShaderBindingsWriter GlobalResources;
 					SetShaderParameters(GlobalResources, RayGenShader, *PassParameters);
 
 					FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
-
-					if (DeferredMaterialMode == EDeferredMaterialMode::Shade)
-					{
-						// Shading pass for sorted materials uses 1D dispatch over all elements in the material buffer.
-						// This can be reduced to the number of output pixels if sorting pass guarantees that all invalid entries are moved to the end.
-						RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, DeferredMaterialBufferNumElements, 1);
-					}
-					else // EDeferredMaterialMode::None
-					{
-						RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, RayTracingResolution.X, RayTracingResolution.Y);
-					}
+					RHICmdList.RayTraceDispatch(Pipeline, RayGenShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, TileAlignedResolution.X, TileAlignedResolution.Y);
 				});
+
+				// A material sorting pass
+				const uint32 SortSize = CVarRayTracingReflectionsSortSize.GetValueOnRenderThread();
+				if (SortSize)
+				{
+					SortDeferredMaterials(GraphBuilder, View, SortSize, DeferredMaterialBufferNumElements, DeferredMaterialBuffer);
+				}
 			}
 			else
 			{
-				RenderTileSize = FMath::Max(RenderTileSize, 32);
-				int32 NumTilesX = FMath::DivideAndRoundUp(RayTracingResolution.X, RenderTileSize);
-				int32 NumTilesY = FMath::DivideAndRoundUp(RayTracingResolution.Y, RenderTileSize);
-				for (int32 Y = 0; Y < NumTilesY; ++Y)
+				// Add optional tiling behavior to avoid TDR events in expensive passes
+				int32 RenderTileSize = CVarRayTracingReflectionsRenderTileSize.GetValueOnRenderThread();
+				if (NumPasses > 1 || RenderTileSize <= 0)
 				{
-					FRayTracingReflectionsRGS::FParameters* TilePassParameters = PassParameters;
-					for (int32 X = 0; X < NumTilesX; ++X)
+					GraphBuilder.AddPass(
+						RDG_EVENT_NAME("ReflectionRayTracing(spp=%d) %dx%d", SamplePerPixel, RayTracingResolution.X, RayTracingResolution.Y),
+						PassParameters,
+						ERDGPassFlags::Compute,
+						[PassParameters, this, &View, RayGenShader, RayTracingResolution, DeferredMaterialBufferNumElements, DeferredMaterialMode](FRHICommandList& RHICmdList)
 					{
-						if (X > 0 || Y > 0)
+						FRayTracingShaderBindingsWriter GlobalResources;
+						SetShaderParameters(GlobalResources, RayGenShader, *PassParameters);
+
+						FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
+
+						if (DeferredMaterialMode == EDeferredMaterialMode::Shade)
 						{
-							TilePassParameters = GraphBuilder.AllocParameters<FRayTracingReflectionsRGS::FParameters>();
-							*TilePassParameters = *PassParameters;
-							TilePassParameters->RenderTileOffsetX = X * RenderTileSize;
-							TilePassParameters->RenderTileOffsetY = Y * RenderTileSize;
+							// Shading pass for sorted materials uses 1D dispatch over all elements in the material buffer.
+							// This can be reduced to the number of output pixels if sorting pass guarantees that all invalid entries are moved to the end.
+							RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, DeferredMaterialBufferNumElements, 1);
 						}
-
-						int32 DispatchSizeX = FMath::Min<int32>(RenderTileSize, RayTracingResolution.X - TilePassParameters->RenderTileOffsetX);
-						int32 DispatchSizeY = FMath::Min<int32>(RenderTileSize, RayTracingResolution.Y - TilePassParameters->RenderTileOffsetY);
-						GraphBuilder.AddPass(
-							RDG_EVENT_NAME("ReflectionRayTracing(spp=%d) %dx%d", SamplePerPixel, DispatchSizeX, DispatchSizeY),
-							TilePassParameters,
-							ERDGPassFlags::Compute,
-							[TilePassParameters, this, &View, RayGenShader, DispatchSizeX, DispatchSizeY, DeferredMaterialBufferNumElements, DeferredMaterialMode](FRHICommandList& RHICmdList)
+						else // EDeferredMaterialMode::None
 						{
-							FRayTracingShaderBindingsWriter GlobalResources;
-							SetShaderParameters(GlobalResources, RayGenShader, *TilePassParameters);
+							RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, RayTracingResolution.X, RayTracingResolution.Y);
+						}
+					});
+				}
+				else
+				{
+					RenderTileSize = FMath::Max(RenderTileSize, 32);
+					int32 NumTilesX = FMath::DivideAndRoundUp(RayTracingResolution.X, RenderTileSize);
+					int32 NumTilesY = FMath::DivideAndRoundUp(RayTracingResolution.Y, RenderTileSize);
+					for (int32 Y = 0; Y < NumTilesY; ++Y)
+					{
+						FRayTracingReflectionsRGS::FParameters* TilePassParameters = PassParameters;
+						for (int32 X = 0; X < NumTilesX; ++X)
+						{
+							if (X > 0 || Y > 0)
+							{
+								TilePassParameters = GraphBuilder.AllocParameters<FRayTracingReflectionsRGS::FParameters>();
+								*TilePassParameters = *PassParameters;
+								TilePassParameters->RenderTileOffsetX = X * RenderTileSize;
+								TilePassParameters->RenderTileOffsetY = Y * RenderTileSize;
+							}
 
-							FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
-							RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, DispatchSizeX, DispatchSizeY);
-						});
+							int32 DispatchSizeX = FMath::Min<int32>(RenderTileSize, RayTracingResolution.X - TilePassParameters->RenderTileOffsetX);
+							int32 DispatchSizeY = FMath::Min<int32>(RenderTileSize, RayTracingResolution.Y - TilePassParameters->RenderTileOffsetY);
+							GraphBuilder.AddPass(
+								RDG_EVENT_NAME("ReflectionRayTracing(spp=%d) %dx%d", SamplePerPixel, DispatchSizeX, DispatchSizeY),
+								TilePassParameters,
+								ERDGPassFlags::Compute,
+								[TilePassParameters, this, &View, RayGenShader, DispatchSizeX, DispatchSizeY, DeferredMaterialBufferNumElements, DeferredMaterialMode](FRHICommandList& RHICmdList)
+							{
+								FRayTracingShaderBindingsWriter GlobalResources;
+								SetShaderParameters(GlobalResources, RayGenShader, *TilePassParameters);
+
+								FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
+								RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, DispatchSizeX, DispatchSizeY);
+							});
+						}
 					}
 				}
 			}
