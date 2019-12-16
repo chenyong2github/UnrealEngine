@@ -146,6 +146,8 @@ void FRemoteTalkerDataImpl::Reset()
 		}
 
 		bIsActive = false;
+		
+		VoipSynthComponent = nullptr;
 	}
 
 	CurrentUncompressedDataQueueSize = 0;

@@ -1046,6 +1046,12 @@ bool FWaveInstance::ShouldStopDueToMaxConcurrency() const
 
 float FWaveInstance::GetVolumeWeightedPriority() const
 {
+	// If priority has been set via bAlwaysPlay, it will have a priority larger than MAX_SOUND_PRIORITY. If that's the case, we should ignore volume weighting.
+	if (Priority > MAX_SOUND_PRIORITY)
+	{
+		return Priority;
+	}
+
 	// This will result in zero-volume sounds still able to be sorted due to priority but give non-zero volumes higher priority than 0 volumes
 	float ActualVolume = GetVolumeWithDistanceAttenuation();
 	if (ActualVolume > 0.0f)
