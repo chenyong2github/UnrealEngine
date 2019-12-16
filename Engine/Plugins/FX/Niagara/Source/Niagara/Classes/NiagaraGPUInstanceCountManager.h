@@ -10,6 +10,7 @@ NiagaraGPUInstanceCountManager.h: GPU particle count handling
 #include "RHIUtilities.h"
 #include "NiagaraDrawIndirect.h"
 #include "RHIGPUReadback.h"
+#include "NiagaraRenderer.h"
 
 class FRHIGPUMemoryReadback;
 
@@ -58,8 +59,7 @@ public:
 	 * Called on the renderthread from FNiagaraRenderer::CreateRenderThreadResources()
 	 * or FNiagaraRenderer::ReleaseRenderThreadResources()
 	 */
-	void IncrementMaxDrawIndirectCount() { checkSlow(IsInRenderingThread()); ++MaxDrawIndirectArgs; }
-	void DecrementMaxDrawIndirectCount() { checkSlow(IsInRenderingThread()); --MaxDrawIndirectArgs; }
+	FORCEINLINE const TRefCountPtr<FNiagaraGPURendererCount>& GetGPURendererCount() { checkSlow(IsInRenderingThread()); return NumRegisteredGPURenderers; }
 
 	// Resize instance count and draw indirect buffers to ensure it is big enough to hold all draw indirect args.
 	void ResizeBuffers(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, int32 ReservedInstanceCounts);
@@ -83,8 +83,8 @@ protected:
 	FRHIGPUMemoryReadback* CountReadback = nullptr;
 	int32 CountReadbackSize = 0;
 
-	/** The max possible required draw indirect args count based on the number of GPU renderer current registered */
-	int32 MaxDrawIndirectArgs = 0;
+	/** The number of GPU renderer. It defines the max possible required draw indirect args count */
+	TRefCountPtr<FNiagaraGPURendererCount> NumRegisteredGPURenderers;
 	/** The allocated indirect args in DrawIndirectBuffer (each being 5 uint32) */
 	int32 AllocatedDrawIndirectArgs = 0;
 

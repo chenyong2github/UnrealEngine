@@ -126,9 +126,9 @@ FNiagaraRendererMeshes::~FNiagaraRendererMeshes()
 	VertexFactories.Empty();
 }
 
-void FNiagaraRendererMeshes::ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
+void FNiagaraRendererMeshes::ReleaseRenderThreadResources()
 {
-	FNiagaraRenderer::ReleaseRenderThreadResources(Batcher);
+	FNiagaraRenderer::ReleaseRenderThreadResources();
 	for (FNiagaraMeshVertexFactory* VertexFactory : VertexFactories)
 	{
 		VertexFactory->ReleaseResource();
