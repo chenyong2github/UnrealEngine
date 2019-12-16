@@ -62,9 +62,21 @@ namespace Chaos
 	template <typename T, int d>
 	void TPerShapeData<T, d>::Serialize(FChaosArchive& Ar)
 	{
+		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+
 		Ar << Geometry;
 		Ar << QueryData;
 		Ar << SimData;
+
+		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializeShapeWorldSpaceBounds)
+		{
+			Ar << WorldSpaceInflatedShapeBounds;
+		}
+		else
+		{
+			// This should be set by particle serializing this TPerShapeData.
+			WorldSpaceInflatedShapeBounds = TAABB<FReal, 3>(FVec3(0.0f, 0.0f, 0.0f), FVec3(0.0f, 0.0f, 0.0f));
+		}
 	}
 
 
