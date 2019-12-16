@@ -906,3 +906,35 @@ Audio::FPatchOutputStrongPtr FOnlineVoiceImpl::GetRemoteTalkerOutput()
 		return nullptr;
 	}
 }
+
+bool FOnlineVoiceImpl::PatchRemoteTalkerOutputToEndpoint(const FString& InDeviceName, bool bMuteInGameOutput /*= true*/)
+{
+	if (VoiceEngine.IsValid())
+	{
+		return VoiceEngine->PatchRemoteTalkerOutputToEndpoint(InDeviceName, bMuteInGameOutput);
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool FOnlineVoiceImpl::PatchLocalTalkerOutputToEndpoint(const FString& InDeviceName)
+{
+	if (VoiceEngine.IsValid())
+	{
+		return VoiceEngine->PatchLocalTalkerOutputToEndpoint(InDeviceName);
+	}
+	else
+	{
+		return false;
+	}
+}
+
+void FOnlineVoiceImpl::DisconnectAllEndpoints()
+{
+	if (VoiceEngine.IsValid())
+	{
+		return VoiceEngine->DisconnectAllEndpoints();
+	}
+}

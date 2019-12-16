@@ -39,6 +39,9 @@ namespace Audio
 		/** Sums the minimum of NumSamples or however many samples are available into OutBuffer. Returns the number of samples summed into OutBuffer. */
 		int32 MixInAudio(float* OutBuffer, int32 NumSamples, bool bUseLatestAudio);
 
+		/** Returns the current number of samples buffered on this output. */
+		int32 GetNumSamplesAvailable();
+
 		/** Returns true if the input for this patch has been destroyed. */
 		bool IsInputStale() const;
 
