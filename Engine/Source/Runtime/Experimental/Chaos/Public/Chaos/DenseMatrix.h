@@ -367,17 +367,6 @@ namespace Chaos
 			}
 		}
 
-		TDenseMatrix(const int32 InNRows, const int32 InNCols, std::initializer_list<FReal> InitList)
-			: NRows(InNRows)
-			, NCols(InNCols)
-		{
-			int32 N = FMath::Min<int32>(NumElements(), InitList.size());
-			for (int32 I = 0; I < N; ++I)
-			{
-				M[I] = InitList[I];
-			}
-		}
-
 		FReal M[MaxElements];
 		int32 NRows;
 		int32 NCols;
