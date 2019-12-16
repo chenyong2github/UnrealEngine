@@ -6,6 +6,7 @@
 
 #include "UObject/Object.h"
 #include "Features/IModularFeature.h"
+#include "Templates/SubclassOf.h"
 
 #include "ClothingSimulationFactory.generated.h"
 
@@ -25,7 +26,13 @@ public:
 	// Called by the engine to get the default clothing simulation factory to use
 	// for skeletal mesh components (see USkeletalMeshComponent constructor).
 	// Returns Factory class for simulations or nullptr to disable clothing simulation
-	virtual UClass* GetDefaultSimulationFactoryClass() = 0;
+	UE_DEPRECATED(4.25, "GetDefaultSimulationFactoryClass() has been deprecated. Use IClothingSimulationFactoryClassProvider::GetSimulationFactoryClass() or UClothingSimulationFactory::GetDefaultClothingSimulationFactoryClass() instead.")
+	virtual UClass* GetDefaultSimulationFactoryClass() { return nullptr; }
+
+	// Called by the engine to get the clothing simulation factory associated with this
+	// provider for skeletal mesh components (see USkeletalMeshComponent constructor).
+	// Returns Factory class for simulations or nullptr to disable clothing simulation
+	virtual TSubclassOf<class UClothingSimulationFactory> GetClothingSimulationFactoryClass() const = 0;
 };
 
 // Any clothing simulation factory should derive from this interface object to interact with the engine
@@ -35,6 +42,10 @@ class CLOTHINGSYSTEMRUNTIMEINTERFACE_API UClothingSimulationFactory : public UOb
 	GENERATED_BODY()
 
 public:
+	// Return the default clothing simulation factory class as set by the build or by
+	// the p.Cloth.DefaultClothingSimulationFactoryClass console variable if any available.
+	// Otherwise return the last registered factory.
+	static TSubclassOf<class UClothingSimulationFactory> GetDefaultClothingSimulationFactoryClass();
 
 	// Create a simulation object for a skeletal mesh to use (see IClothingSimulation)
 	virtual IClothingSimulation* CreateSimulation()

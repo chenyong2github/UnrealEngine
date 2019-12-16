@@ -233,16 +233,7 @@ USkeletalMeshComponent::USkeletalMeshComponent(const FObjectInitializer& ObjectI
 	CachedAnimCurveUidVersion = 0;
 	ResetRootBodyIndex();
 
-	TArray<IClothingSimulationFactoryClassProvider*> ClassProviders = IModularFeatures::Get().GetModularFeatureImplementations<IClothingSimulationFactoryClassProvider>(IClothingSimulationFactoryClassProvider::FeatureName);
-
-	ClothingSimulationFactory = nullptr;
-	for (int32 Index = ClassProviders.Num() - 1; Index >= 0 && !*ClothingSimulationFactory; --Index)  // We use the last provider in the list so plugins/modules can override ours
-	{
-		IClothingSimulationFactoryClassProvider* const Provider = ClassProviders[Index];
-		check(Provider);
-
-		ClothingSimulationFactory = Provider->GetDefaultSimulationFactoryClass();
-	}
+	ClothingSimulationFactory = UClothingSimulationFactory::GetDefaultClothingSimulationFactoryClass();
 
 	ClothingSimulation = nullptr;
 	ClothingSimulationContext = nullptr;
@@ -531,18 +522,10 @@ void USkeletalMeshComponent::OnRegister()
 	}
 
 #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
-	
 	// If we don't have a valid simulation factory - check to see if we have an available default to use instead
-	if(*ClothingSimulationFactory == nullptr)
+	if (*ClothingSimulationFactory == nullptr)
 	{
-		TArray<IClothingSimulationFactoryClassProvider*> ClassProviders = IModularFeatures::Get().GetModularFeatureImplementations<IClothingSimulationFactoryClassProvider>(IClothingSimulationFactoryClassProvider::FeatureName);
-		for (int32 Index = ClassProviders.Num() - 1; Index >= 0 && !*ClothingSimulationFactory; --Index)  // We use the last provider in the list so plugins/modules can override ours
-		{
-			IClothingSimulationFactoryClassProvider* const Provider = ClassProviders[Index];
-			check(Provider);
-
-			ClothingSimulationFactory = Provider->GetDefaultSimulationFactoryClass();
-		}
+		ClothingSimulationFactory = UClothingSimulationFactory::GetDefaultClothingSimulationFactoryClass();
 	}
 
 	RecreateClothingActors();
