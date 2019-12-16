@@ -154,7 +154,7 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 	//Evolution->SetCCD(true); // ryan!!!
 
 	UClothingAssetCommon* Asset = Cast<UClothingAssetCommon>(InAsset);
-	const UChaosClothConfig* const ChaosClothSimConfig = Cast<UChaosClothConfig>(Asset->ChaosClothSimConfig);
+	const UChaosClothConfig* const ChaosClothSimConfig = Cast<UChaosClothConfig>(Asset-ClothConfigs);
 	check(ChaosClothSimConfig);
 
 	ClothingSimulationContext Context;
@@ -1630,33 +1630,6 @@ void ClothingSimulation::DebugDrawMaxDistances(USkeletalMeshComponent* OwnerComp
 			else
 			{
 				PDI->DrawLine(AnimationPositions[ParticleIndex], AnimationPositions[ParticleIndex] + AnimationNormals[ParticleIndex] * Distance, FColor::White, SDPG_World, 0.0f, 0.001f);
-			}
-		}
-	}
-}
-
-void ClothingSimulation::DebugDrawSelfCollision(USkeletalMeshComponent* OwnerComponent, FPrimitiveDrawInterface* PDI) const
-{
-	const TPBDParticles<float, 3>& Particles = Evolution->Particles();
-	for (int32 i = 0; i < IndexToRangeMap.Num(); ++i)
-	{
-		if (const UClothingAssetCommon* const Asset = Assets[i])
-		{
-			const UChaosClothConfig* const ChaosClothSimConfig = Cast<UChaosClothConfig>(Asset->ChaosClothSimConfig);
-			if (ChaosClothSimConfig && ChaosClothSimConfig->bUseSelfCollisions)
-			{
-				const FTransform RootBoneTransform = OwnerComponent->GetComponentSpaceTransforms()[Asset->ReferenceBoneIndex];
-
-				const UClothLODDataBase* LodData = Asset->ClothLodData[0];
-				const UClothPhysicalMeshDataBase* PhysMesh = LodData->PhysicalMeshData;
-				const TArray<uint32>& SelfCollisionIndices = PhysMesh->SelfCollisionIndices;
-				for (int32 SelfColIdx = 0; SelfColIdx < SelfCollisionIndices.Num(); ++SelfColIdx)
-				{
-					const FVector ParticlePosition =
-						RootBoneTransform.TransformPosition(
-							Particles.X(PhysMesh->SelfCollisionIndices[SelfColIdx]));
-					DrawWireSphere(PDI, ParticlePosition, FColor::White, Evolution->GetSelfCollisionThickness(), 8, SDPG_World, 0.0f, 0.001f);
-				}
 			}
 		}
 	}
