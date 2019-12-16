@@ -37,6 +37,8 @@
 #include "NiagaraScriptVariable.h"
 #include "Widgets/SPanel.h"
 #include "Widgets/Layout/SBox.h"
+#include "NiagaraSystemEditorData.h"
+#include "ViewModels/Stack/NiagaraStackSystemSettingsGroup.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterMapView"
 
@@ -258,43 +260,49 @@ bool SNiagaraParameterMapView::ParameterAddEnabled() const
 
 void SNiagaraParameterMapView::AddParameter(FNiagaraVariable NewVariable)
 {
-	TSet<FName> Names;
-	for (auto& GraphWeakPtr : Graphs)
-	{
-		UNiagaraGraph* Graph = GraphWeakPtr.Get();
-		for (const auto& ParameterElement : Graph->GetParameterReferenceMap())
-		{
-			Names.Add(ParameterElement.Key.GetName());
-		}
-	}
-	const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(NewVariable.GetName(), Names);
-	NewVariable.SetName(NewUniqueName);
-
-	bool bAddedParameter = false;
-	// Check whether we have to add this parameter to the user exposed system parameters.
 	FNiagaraParameterHandle ParameterHandle;
+	bool bSuccess = false;
 	if (NiagaraParameterMapSectionID::OnGetSectionFromVariable(NewVariable, IsStaticSwitchParameter(NewVariable, Graphs), ParameterHandle) == NiagaraParameterMapSectionID::USER)
 	{
 		for (UObject* Object : SelectedScriptObjects->GetSelectedObjects())
 		{
 			if (UNiagaraSystem* System = Cast<UNiagaraSystem>(Object))
 			{
-				bAddedParameter = System->GetExposedParameters().AddParameter(NewVariable);
-				break;
+				UNiagaraSystemEditorData* SystemEditorData = CastChecked<UNiagaraSystemEditorData>(System->GetEditorData(), ECastCheckedType::NullChecked);
+				bSuccess = FNiagaraEditorUtilities::AddParameter(NewVariable, System->GetExposedParameters(), *System, SystemEditorData->GetStackEditorData());
 			}
 		}
 	}
-
-	if (!bAddedParameter && Graphs.Num() > 0)
+	else if (Graphs.Num() > 0)
 	{
+		TSet<FName> Names;
+		for (const TWeakObjectPtr<UNiagaraGraph>& GraphWeakPtr : Graphs)
+		{
+			if (GraphWeakPtr.IsValid())
+			{
+				UNiagaraGraph* Graph = GraphWeakPtr.Get();
+				for (const auto& ParameterElement : Graph->GetParameterReferenceMap())
+				{
+					Names.Add(ParameterElement.Key.GetName());
+				}
+			}
+		}
+		const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(NewVariable.GetName(), Names);
+		NewVariable.SetName(NewUniqueName);
+
 		for (const TWeakObjectPtr<UNiagaraGraph>& GraphWeakPtr : Graphs)
 		{
 			if (GraphWeakPtr.IsValid())
 			{
 				UNiagaraGraph* Graph = GraphWeakPtr.Get();
 				Graph->AddParameter(NewVariable);
+				bSuccess = true;
 			}
 		}
+	}
+
+	if (bSuccess)
+	{
 		GraphActionMenu->RefreshAllActions(true);
 		GraphActionMenu->SelectItemByName(NewVariable.GetName());
 		GraphActionMenu->OnRequestRenameOnActionNode();
