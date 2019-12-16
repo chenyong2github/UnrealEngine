@@ -341,6 +341,25 @@ namespace PerfSummaries
             return uniqueStats.ToArray();
         }
 
+		protected double [] ReadColourThresholdsXML(XElement colourThresholdEl)
+		{
+			if (colourThresholdEl != null)
+			{
+				string[] colourStrings = colourThresholdEl.Value.Split(',');
+				if (colourStrings.Length != 4)
+				{
+					throw new Exception("Incorrect number of colourthreshold entries. Should be 4.");
+				}
+				double [] colourThresholds = new double[4];
+				for (int i = 0; i < colourStrings.Length; i++)
+				{
+					colourThresholds[i] = Convert.ToDouble(colourStrings[i], System.Globalization.CultureInfo.InvariantCulture);
+				}
+				return colourThresholds;
+			}
+			return null;
+		}
+
         public string GetStatThresholdColour(string StatToUse, double value)
         {
 			ColourThresholdList Thresholds = GetStatColourThresholdList(StatToUse);
@@ -705,23 +724,7 @@ namespace PerfSummaries
             title = element.GetSafeAttibute("title","Events");
             metadataKey = element.Attribute("metadataKey").Value;
             events = element.Element("events").Value.Split(',');
-
-
-            XElement colourThresholdEl = element.Element("colourThresholds");
-            if (colourThresholdEl != null)
-            {
-                string[] colourStrings = colourThresholdEl.Value.Split(',');
-                if (colourStrings.Length != 4)
-                {
-                    throw new Exception("Incorrect number of colourthreshold entries. Should be 4.");
-                }
-                colourThresholds = new double[4];
-                for (int i = 0; i < colourStrings.Length; i++)
-                {
-                    colourThresholds[i] = Convert.ToDouble(colourStrings[i], System.Globalization.CultureInfo.InvariantCulture);
-                }
-            }
-
+			colourThresholds = ReadColourThresholdsXML(element.Element("colourThresholds"));
         }
 
         public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryMetadata metadata, string htmlFileName)
@@ -892,16 +895,8 @@ namespace PerfSummaries
         public HistogramSummary(XElement element)
         {
             ReadStatsFromXML(element);
-            string[] colourStrings = element.Element("colourThresholds").Value.Split(',');
-            if (colourStrings.Length != 4)
-            {
-                throw new Exception("Incorrect number of colourthreshold entries. Should be 4.");
-            }
-            ColourThresholds = new double[4];
-            for (int i = 0; i < colourStrings.Length; i++)
-            {
-                ColourThresholds[i] = Convert.ToDouble(colourStrings[i], System.Globalization.CultureInfo.InvariantCulture);
-            }
+
+			ColourThresholds = ReadColourThresholdsXML(element.Element("colourThresholds"));
 
             string[] histogramStrings = element.Element("histogramThresholds").Value.Split(',');
             HistogramThresholds = new double[histogramStrings.Length];
@@ -1297,7 +1292,277 @@ namespace PerfSummaries
         List<string> hidePrefixes;
     };
 
-    class SummaryMetadataValue
+	class BoundedStatValuesSummary : Summary
+	{
+		class Column
+		{
+			public string name;
+			public string formula;
+			public double value;
+			public string metadataKey;
+			public string statName;
+			public bool perSecond;
+			public bool filterOutZeros;
+			public bool applyEndOffset;
+			public double multiplier;
+			public double threshold;
+			public ColourThresholdList colourThresholdList;
+		};
+		public BoundedStatValuesSummary(XElement element)
+		{
+			ReadStatsFromXML(element);
+			if (stats.Count != 0)
+			{
+				throw new Exception("<stats> element is not supported");
+			}
+
+			title = element.GetSafeAttibute("title", "Events");
+			beginEvent = element.Attribute("beginevent").Value;
+			endEvent = element.Attribute("endevent").Value;
+
+			endOffsetPercentage = 0.0;
+			XAttribute endOffsetAtt = element.Attribute("endoffsetpercent");
+			if ( endOffsetAtt != null )
+			{
+				endOffsetPercentage = double.Parse(endOffsetAtt.Value);
+			}
+			columns = new List<Column>();
+
+			foreach (XElement columnEl in element.Elements("column"))
+			{
+				Column column = new Column();
+				double[] colourThresholds = ReadColourThresholdsXML(columnEl.Element("colourThresholds"));
+				if (colourThresholds != null)
+				{
+					column.colourThresholdList = new ColourThresholdList();
+					for (int i = 0; i < colourThresholds.Length; i++)
+					{
+						column.colourThresholdList.Add(new ThresholdInfo(colourThresholds[i], null));
+					}
+				}
+
+				XAttribute metadataKeyAtt = columnEl.Attribute("metadataKey");
+				if (metadataKeyAtt!=null)
+				{
+					column.metadataKey = metadataKeyAtt.Value;
+				}
+				column.statName = columnEl.Attribute("stat").Value.ToLower();
+				if ( !stats.Contains(column.statName) )
+				{
+					stats.Add(column.statName);
+				}
+
+				column.name = columnEl.Attribute("name").Value;
+				column.formula = columnEl.Attribute("formula").Value;
+				column.filterOutZeros= columnEl.GetSafeAttibute<bool>("filteroutzeros", false);
+				column.perSecond = columnEl.GetSafeAttibute<bool>("persecond", false);
+				column.multiplier = columnEl.GetSafeAttibute<double>("multiplier", 1.0);
+				column.threshold = columnEl.GetSafeAttibute<double>("threshold", 0.0);
+				column.applyEndOffset = columnEl.GetSafeAttibute<bool>("applyEndOffset", true);
+				columns.Add(column);
+			}
+		}
+
+		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryMetadata metadata, string htmlFileName)
+		{
+			int startFrame = -1;
+			int endFrame = int.MaxValue;
+
+			// Find the start and end frames based on the events
+			foreach (CsvEvent ev in csvStats.Events)
+			{
+				if (CsvStats.DoesSearchStringMatch(ev.Name, beginEvent))
+				{
+					startFrame = Math.Max(ev.Frame,startFrame);
+				}
+				if (CsvStats.DoesSearchStringMatch(ev.Name, endEvent))
+				{
+					endFrame = Math.Min(ev.Frame, endFrame);
+				}
+			}
+			if ( startFrame == -1 )
+			{
+				throw new Exception("BoundedStatValuesSummary: Begin event " + beginEvent+" was not found");
+			}
+			if (endFrame== -1)
+			{
+				throw new Exception("BoundedStatValuesSummary: End event " + endEvent + " was not found");
+			}
+			if ( startFrame >= endFrame )
+			{
+				throw new Exception("BoundedStatValuesSummary: end event appeared before the start event");
+			}
+
+			int endEventFrame = Math.Min(csvStats.SampleCount, endFrame + 1);
+			if (endOffsetPercentage > 0.0)
+			{
+				double multiplier = endOffsetPercentage / 100.0;
+				endFrame += (int)((double)(endFrame-startFrame)*multiplier);
+			}
+
+			endFrame = Math.Min(csvStats.SampleCount, endFrame + 1);
+			StatSamples frameTimeStat = csvStats.GetStat("frametime");
+			List<float> frameTimes = frameTimeStat.samples;
+
+			// Filter only columns with stats that exist in the CSV
+			List<Column> filteredColumns = new List<Column>();
+			foreach (Column col in columns)
+			{
+				if (csvStats.GetStat(col.statName) != null)
+				{
+					filteredColumns.Add(col);
+				}
+			}
+
+
+			// Process the column values
+			foreach (Column col in filteredColumns)
+			{
+				List<float> statValues = csvStats.GetStat(col.statName).samples;
+				double value = 0.0;
+				double totalFrameWeight = 0.0;
+				int colEndFrame = col.applyEndOffset ? endFrame : endEventFrame;
+
+				if ( col.formula == "average")
+				{
+					for (int i=startFrame; i< colEndFrame; i++)
+					{
+						if (col.filterOutZeros == false || statValues[i] > 0)
+						{
+							value += statValues[i] * frameTimes[i];
+							totalFrameWeight += frameTimes[i];
+						}
+					}
+				}
+				else if (col.formula == "percentoverthreshold")
+				{
+					for (int i = startFrame; i < colEndFrame; i++)
+					{
+						if (statValues[i] > col.threshold)
+						{
+							value += frameTimes[i];
+						}
+						totalFrameWeight += frameTimes[i];
+					}
+					value *= 100.0;
+				}
+				else if (col.formula == "percentunderthreshold")
+				{
+					for (int i = startFrame; i < colEndFrame; i++)
+					{
+						if (statValues[i] < col.threshold)
+						{
+							value += frameTimes[i];
+						}
+						totalFrameWeight += frameTimes[i];
+					}
+					value *= 100.0;
+				}
+				else if (col.formula == "sum")
+				{
+					for (int i = startFrame; i < colEndFrame; i++)
+					{
+						value += statValues[i];
+					}
+
+					if (col.perSecond)
+					{
+						double totalTimeMS = 0.0;
+						for (int i = startFrame; i < colEndFrame; i++)
+						{
+							if (col.filterOutZeros == false || statValues[i] > 0)
+							{
+								totalTimeMS += frameTimes[i];
+							}
+						}
+						value /= (totalTimeMS / 1000.0);
+					}
+					totalFrameWeight = 1.0;
+				}
+				else if (col.formula == "streamingstressmetric")
+				{
+					// Note: tInc is scaled such that it hits 1.0 on the event frame, regardless of the offset
+					double tInc = 1.0/(double)(endEventFrame - startFrame);
+					double t = tInc*0.5;
+					for (int i = startFrame; i < colEndFrame; i++)
+					{
+						if (col.filterOutZeros == false || statValues[i] > 0)
+						{
+							// Frame weighting is scaled to heavily favor final frames. Note that t can exceed 1 after the event frame if an offset percentage is specified, so we clamp it
+							double frameWeight = Math.Pow(Math.Min(t,1.0), 4.0) * frameTimes[i];
+
+							// If we're past the end event frame, apply a linear falloff to the weight
+							if (i >= endEventFrame)
+							{
+								double falloff = 1.0 - (double)(i - endEventFrame) / (colEndFrame - endEventFrame);
+								frameWeight *= falloff;
+							}
+
+							// The frame score takes into account the queue depth, but it's not massively significant
+							double frameScore = Math.Pow(statValues[i], 0.25);
+							value += frameScore * frameWeight;
+							totalFrameWeight += frameWeight;
+						}
+						t += tInc;
+					}
+				}
+				else
+				{
+					throw new Exception("BoundedStatValuesSummary: unexpected formula "+col.formula);
+				}
+				value *= col.multiplier;
+				col.value = value / totalFrameWeight;
+			}
+
+			// Output HTML
+			if (htmlFile != null)
+			{
+				htmlFile.WriteLine("  <br><h3>" + title + "</h3>");
+				htmlFile.WriteLine("  <table border='0' bgcolor='#000000' style='width:1400'>");
+				htmlFile.WriteLine("  <tr>");
+				foreach (Column col in filteredColumns)
+				{
+					htmlFile.WriteLine("<td bgcolor='#ffffff'><b>" + col.name + "</b></td>");
+				}
+				htmlFile.WriteLine("  </tr>");
+				htmlFile.WriteLine("  <tr>");
+				foreach (Column col in filteredColumns)
+				{
+					string bgcolor = "'#ffffff'";
+					if (col.colourThresholdList != null)
+					{
+						bgcolor = col.colourThresholdList.GetColourForValue(col.value);
+					}
+					htmlFile.WriteLine("<td bgcolor=" + bgcolor + ">" + col.value.ToString("0.00") + "</td>");
+				}
+				htmlFile.WriteLine("  </tr>");
+				htmlFile.WriteLine("  </table>");
+			}
+
+			// Output metadata
+			if (metadata != null)
+			{
+				foreach (Column col in filteredColumns)
+				{
+					if ( col.metadataKey != null )
+					{
+						metadata.Add(col.metadataKey, col.value.ToString("0.00"), col.colourThresholdList);
+					}
+				}
+			}
+		}
+		public override void PostInit(ReportTypeInfo reportTypeInfo, CsvStats csvStats)
+		{
+		}
+		string title;
+		string beginEvent;
+		string endEvent;
+		double endOffsetPercentage;
+		List<Column> columns;
+	};
+
+
+	class SummaryMetadataValue
     {
 		public SummaryMetadataValue(double inValue, ColourThresholdList inColorThresholdList, string inToolTip)
 		{

@@ -19,7 +19,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "3.88";
+        private static string VersionString = "3.90";
 
         public static string Get() { return VersionString; }
     };
@@ -748,6 +748,7 @@ namespace PerfReportTool
 
 			if (!GetBoolArg("readAllStats"))
 			{
+				// Strip out stats if they're not in the summary
 				List<string> ListOfKeys = new List<string>(csvStats.Stats.Keys);
 				for (int i = csvStats.Stats.Keys.Count - 1; i >= 0; i--)
 				{
@@ -986,7 +987,10 @@ namespace PerfReportTool
 				{
 					htmlFile.WriteLine("<ul>");
 					string currentCategory = sections[index];
-					htmlFile.WriteLine("<h4>" + currentCategory + " Graphs</h4>");
+					if (currentCategory.Length > 0)
+					{
+						htmlFile.WriteLine("<h4>" + currentCategory + " Graphs</h4>");
+					}
 					for (int i = 0; i < svgFilenames.Count(); i++)
 					{
 						string svgFilename = svgFilenames[i];
@@ -1130,8 +1134,13 @@ namespace PerfReportTool
             bool stacked = graphSettings.stacked.value;
             bool showAverages = graphSettings.showAverages.value;
             bool filterOutZeros = graphSettings.filterOutZeros.value;
+			bool snapToPeaks = false;
+			if (graphSettings.snapToPeaks.isSet)
+			{
+				snapToPeaks = graphSettings.snapToPeaks.value;
+			}
 
-            int maxHierarchyDepth = graphSettings.maxHierarchyDepth.value;
+			int maxHierarchyDepth = graphSettings.maxHierarchyDepth.value;
             string hideStatPrefix = graphSettings.hideStatPrefix.value;
             string showEvents = graphSettings.showEvents.value;
             double statMultiplier = graphSettings.statMultiplier.isSet ? graphSettings.statMultiplier.value : 1.0;
@@ -1189,7 +1198,7 @@ namespace PerfReportTool
 
 			string shortFileName = MakeShortFilename(csvFilename).Replace(" ", "_");
 
-			outFilename += "_" + shortFileName + svgName + ".svg";
+			outFilename += "_" + shortFileName + svgName.Replace("/", "_SLASH_").Replace("\\", "_BSLASH_") + ".svg";
             string args =
                 " -csvs \""  + csvFilename  + "\"" +
                 " -title \"" + title + "\"" +
@@ -1215,7 +1224,8 @@ namespace PerfReportTool
                 (interactive                  ? " -interactive" : "") +
                 (stacked                      ? " -stacked -forceLegendSort" : "") +
                 (showAverages                 ? " -showAverages" : "") +
-                (filterOutZeros               ? " -filterOutZeros" : "") +
+				(snapToPeaks                  ? "" : " -nosnap") +
+				(filterOutZeros               ? " -filterOutZeros" : "") +
                 (maxHierarchyDepth >=0        ? " -maxHierarchyDepth " + maxHierarchyDepth.ToString() : "") +
                 (hideStatPrefix.Length>0      ? " -hideStatPrefix " + hideStatPrefix : "") +
                 (graphSettings.mainStat.isSet ? " -stacktotalstat " + graphSettings.mainStat.value : "") +
@@ -1308,7 +1318,7 @@ namespace PerfReportTool
 
     class ReportTypeInfo
     {
-        public ReportTypeInfo(XElement element)
+        public ReportTypeInfo(XElement element, Dictionary<string,XElement> sharedSummaries)
         {
             graphs = new List<ReportGraph>();
             summaries = new List<Summary>();
@@ -1320,28 +1330,41 @@ namespace PerfReportTool
 					ReportGraph graph = new ReportGraph(child);
 					graphs.Add(graph);
 				}
-				else if (child.Name == "summary")
+				else if (child.Name == "summary" || child.Name=="summaryRef")
 				{
-					string summaryType = child.Attribute("type").Value;
+					XElement summaryElement = null;
+					if (child.Name == "summaryRef")
+					{
+						summaryElement = sharedSummaries[child.Attribute("name").Value];
+					}
+					else
+					{
+						summaryElement = child;
+					}
+					string summaryType = summaryElement.Attribute("type").Value;
 					if (summaryType == "histogram")
 					{
-						summaries.Add(new HistogramSummary(child));
+						summaries.Add(new HistogramSummary(summaryElement));
 					}
 					else if (summaryType == "peak")
 					{
-						summaries.Add(new PeakSummary(child));
+						summaries.Add(new PeakSummary(summaryElement));
 					}
 					else if (summaryType == "fpschart")
 					{
-						summaries.Add(new FPSChartSummary(child));
+						summaries.Add(new FPSChartSummary(summaryElement));
 					}
 					else if (summaryType == "hitches")
 					{
-						summaries.Add(new HitchSummary(child));
+						summaries.Add(new HitchSummary(summaryElement));
 					}
 					else if (summaryType == "event")
 					{
-						summaries.Add(new EventSummary(child));
+						summaries.Add(new EventSummary(summaryElement));
+					}
+					else if (summaryType == "boundedstatvalues")
+					{
+						summaries.Add(new BoundedStatValuesSummary(summaryElement));
 					}
 				}
 				else if (child.Name == "metadataToShow")
@@ -1410,6 +1433,7 @@ namespace PerfReportTool
             additionalArgs = new OptionalString(element, "additionalArgs", true);
             statMultiplier = new OptionalDouble(element, "statMultiplier");
 			legendAverageThreshold = new OptionalDouble(element, "legendAverageThreshold");
+			snapToPeaks = new OptionalBool(element, "snapToPeaks");
 		}
 		public void InheritFrom(GraphSettings baseSettings)
         {
@@ -1439,6 +1463,7 @@ namespace PerfReportTool
             statMultiplier.InheritFrom(baseSettings.statMultiplier);
             ignoreStats.InheritFrom(baseSettings.ignoreStats);
 			legendAverageThreshold.InheritFrom(baseSettings.legendAverageThreshold);
+			snapToPeaks.InheritFrom(baseSettings.snapToPeaks);
 
 		}
         public OptionalBool smooth;
@@ -1468,7 +1493,9 @@ namespace PerfReportTool
 		public OptionalDouble legendAverageThreshold;
 
 		public OptionalBool requiresDetailedStats;
-    };
+		public OptionalBool snapToPeaks;
+
+	};
 
 	static class Extensions
 	{
@@ -1730,6 +1757,17 @@ namespace PerfReportTool
 				}
 			}
 
+			// Add any shared summaries
+			XElement sharedSummariesElement = rootElement.Element("sharedSummaries");
+			sharedSummaries = new Dictionary<string, XElement>();
+			if (sharedSummariesElement != null)
+			{
+				foreach (XElement summaryElement in sharedSummariesElement.Elements("summary"))
+				{
+					sharedSummaries.Add(summaryElement.Attribute("refName").Value, summaryElement);
+				}
+			}
+
 		}
 
 		public ReportTypeInfo GetReportTypeInfo(string reportType, CachedCsvFile csvFile, bool bBulkMode, bool forceReportType )
@@ -1742,7 +1780,7 @@ namespace PerfReportTool
 				{
 					if (IsReportTypeXMLCompatibleWithStats(element, csvFile.dummyCsvStats))
 					{
-						reportTypeInfo = new ReportTypeInfo(element);
+						reportTypeInfo = new ReportTypeInfo(element, sharedSummaries);
 						break;
 					}
 				}
@@ -1753,20 +1791,20 @@ namespace PerfReportTool
 			}
 			else
 			{
-				XElement foundReporTypeElement = null;
+				XElement foundReportTypeElement = null;
 				foreach (XElement element in reportTypesElement.Elements("reporttype"))
 				{
 					if (element.Attribute("name").Value.ToLower() == reportType)
 					{
-						foundReporTypeElement = element;
+						foundReportTypeElement = element;
 					}
 				}
-				if (foundReporTypeElement == null)
+				if (foundReportTypeElement == null)
 				{
 					throw new Exception("Report type " + reportType + " not found in " + reportTypeXmlFilename);
 				}
 
-                if (!IsReportTypeXMLCompatibleWithStats(foundReporTypeElement, csvFile.dummyCsvStats))
+                if (!IsReportTypeXMLCompatibleWithStats(foundReportTypeElement, csvFile.dummyCsvStats))
                 {
                     if (forceReportType)
                     {
@@ -1777,7 +1815,7 @@ namespace PerfReportTool
                         throw new Exception("Report type " + reportType + " is not compatible with CSV " + csvFile.filename);
                     }
                 }
-                reportTypeInfo = new ReportTypeInfo(foundReporTypeElement);
+                reportTypeInfo = new ReportTypeInfo(foundReportTypeElement,sharedSummaries);
             }
 
             // Load the graphs
@@ -1901,6 +1939,7 @@ namespace PerfReportTool
 		XElement rootElement;
 		XElement graphGroupsElement;
 		XElement summaryTablesElement;
+		Dictionary<string,XElement> sharedSummaries;
 		Dictionary<string, GraphSettings> graphs;
 		Dictionary<string, string> statDisplayNameMapping;
 		DerivedMetadataMappings derivedMetadataMappings;
