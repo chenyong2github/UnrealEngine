@@ -55,15 +55,7 @@ struct GraphicsPipelineCreationArgs_POD;
 
 #include "D3D12PipelineState.h"
 
-static void SaveByteCode(D3D12_SHADER_BYTECODE& ByteCode)
-{
-	if (ByteCode.pShaderBytecode)
-	{
-		char* NewBytes = new char[ByteCode.BytecodeLength];
-		memcpy(NewBytes, ByteCode.pShaderBytecode, ByteCode.BytecodeLength);
-		ByteCode.pShaderBytecode = NewBytes;
-	}
-}
+static void SaveByteCode(D3D12_SHADER_BYTECODE& ByteCode);
 
 struct ComputePipelineCreationArgs_POD
 {
@@ -78,10 +70,7 @@ struct ComputePipelineCreationArgs_POD
 		SaveByteCode(Desc.Desc.CS);
 	}
 
-	void Destroy()
-	{
-		delete[] Desc.Desc.CS.pShaderBytecode;
-	}
+	void Destroy();
 };
 
 struct GraphicsPipelineCreationArgs_POD
@@ -101,14 +90,7 @@ struct GraphicsPipelineCreationArgs_POD
 		SaveByteCode(Desc.Desc.DS);
 	}
 
-	void Destroy()
-	{
-		delete[] Desc.Desc.VS.pShaderBytecode;
-		delete[] Desc.Desc.PS.pShaderBytecode;
-		delete[] Desc.Desc.GS.pShaderBytecode;
-		delete[] Desc.Desc.HS.pShaderBytecode;
-		delete[] Desc.Desc.DS.pShaderBytecode;
-	}
+	void Destroy();
 };
 
 struct ComputePipelineCreationArgs

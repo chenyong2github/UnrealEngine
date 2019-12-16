@@ -114,6 +114,30 @@ D3D12_COMPUTE_PIPELINE_STATE_DESC FD3D12_COMPUTE_PIPELINE_STATE_DESC::ComputeDes
 	return D;
 }
 
+void SaveByteCode(D3D12_SHADER_BYTECODE& ByteCode);
+{
+	if (ByteCode.pShaderBytecode)
+	{
+		void* NewBytes = FMemory::Malloc(ByteCode.BytecodeLength);
+		FMemory::Memcpy(NewBytes, ByteCode.pShaderBytecode, ByteCode.BytecodeLength);
+		ByteCode.pShaderBytecode = NewBytes;
+	}
+}
+
+void ComputePipelineCreationArgs_POD::Destroy()
+{
+	FMemory::Free((void*)Desc.Desc.CS.pShaderBytecode);
+}
+
+void GraphicsPipelineCreationArgs_POD::Destroy()
+{
+	FMemory::Free((void*)Desc.Desc.VS.pShaderBytecode);
+	FMemory::Free((void*)Desc.Desc.PS.pShaderBytecode);
+	FMemory::Free((void*)Desc.Desc.GS.pShaderBytecode);
+	FMemory::Free((void*)Desc.Desc.HS.pShaderBytecode);
+	FMemory::Free((void*)Desc.Desc.DS.pShaderBytecode);
+}
+
 void FD3D12PipelineStateCache::OnPSOCreated(FD3D12PipelineState* PipelineState, const FD3D12LowLevelGraphicsPipelineStateDesc& Desc)
 {
 	const bool bAsync = !Desc.bFromPSOFileCache;
