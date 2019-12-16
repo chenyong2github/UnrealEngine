@@ -21,8 +21,6 @@
 #include "NiagaraConstants.h"
 #include "NiagaraNodeStaticSwitch.h"
 
-#include "NiagaraScriptVariable.h"
-
 #define LOCTEXT_NAMESPACE "NiagaraEditor"
 
 
@@ -1205,21 +1203,6 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleVariableRead(int32 ParamMapIdx, 
 				Histories[ParamMapIdx].PerVariableWriteHistory.AddDefaulted(1);
 				Histories[ParamMapIdx].PerVariableReadHistory.AddDefaulted(1);
 
-				// Add the default binding as well, if used.
-				if (UNiagaraGraph* Graph = Cast<UNiagaraGraph>(InPin->GetOwningNode()->GetGraph()))
-				{
-					UNiagaraScriptVariable* Variable = Graph->GetScriptVariable(AliasedVar);
-					if (Variable && Variable->DefaultMode == ENiagaraDefaultMode::Binding && Variable->DefaultBinding.IsValid())
-					{
-						int FoundIdx2 = Histories[ParamMapIdx].Variables.Add(FNiagaraVariable(Var.GetType(), Variable->DefaultBinding.GetName()));
-						Histories[ParamMapIdx].VariablesWithOriginalAliasesIntact.Add(FNiagaraVariable(Var.GetType(), Variable->DefaultBinding.GetName()));
-						Histories[ParamMapIdx].PerVariableWarnings.AddDefaulted(1);
-						Histories[ParamMapIdx].PerVariableWriteHistory.AddDefaulted(1);
-						Histories[ParamMapIdx].PerVariableReadHistory.AddDefaulted(1);
-						
-						Histories[ParamMapIdx].PerVariableReadHistory[FoundIdx2].Add(TTuple<const UEdGraphPin*, const UEdGraphPin*>(InDefaultPin, nullptr));
-					}
-				}
 			}
 			Histories[ParamMapIdx].PerVariableReadHistory[FoundIdx].Add(TTuple<const UEdGraphPin*, const UEdGraphPin*>(InPin, nullptr));
 

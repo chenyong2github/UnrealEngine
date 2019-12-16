@@ -39,6 +39,7 @@ FNiagaraScriptVariableDetails::~FNiagaraScriptVariableDetails()
 	GEditor->UnregisterForUndo(this);
 }
 
+
 UEdGraphPin* FNiagaraScriptVariableDetails::GetDefaultPin()
 {
 	// TODO: We don't know the usage at this point, so we'll try each script type in order
@@ -91,27 +92,6 @@ void FNiagaraScriptVariableDetails::PostUndo(bool bSuccess)
 	}
 }
  
-void FNiagaraScriptVariableDetails::CustomizeDetails(const TSharedPtr<IDetailLayoutBuilder>& DetailBuilder)
-{
-	CachedDetailBuilder = DetailBuilder;
-	CustomizeDetails(*DetailBuilder);
-}
-
-void FNiagaraScriptVariableDetails::OnComboValueChanged()
-{
-	IDetailLayoutBuilder* DetailBuilderPtr = nullptr;
-	if (TSharedPtr<IDetailLayoutBuilder> LockedDetailBuilder = CachedDetailBuilder.Pin())
-	{
-		// WARNING: We do this because ForceRefresh will lock while pinning...
-		DetailBuilderPtr = LockedDetailBuilder.Get();
-	}
-	if (DetailBuilderPtr != nullptr)
-	{
-		TSharedRef<IPropertyUtilities> PropertyUtilities = DetailBuilderPtr->GetPropertyUtilities();
-		PropertyUtilities->ForceRefresh();
-	}
-}
-
 void FNiagaraScriptVariableDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	static const FName CategoryName = TEXT("Default Value");
@@ -136,16 +116,14 @@ void FNiagaraScriptVariableDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 	}
  
 	IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(CategoryName);		
- 	
- 	// NOTE: Automatically generated widgets from UProperties are placed below custom properties by default. 
-	//       In this case DefaultMode is just a built in combo box, while value widget is custom and added afterwards. 
-	//       This guarantees that the combo box always show above the value widget instead of at the bottom of the window. 
-	const TSharedPtr<IPropertyHandle> DefaultModeHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, DefaultMode));
-	DefaultModeHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FNiagaraScriptVariableDetails::OnComboValueChanged));
-
 	FNiagaraEditorModule& EditorModule = FNiagaraEditorModule::Get();
+ 
 	if (Variable->Metadata.bIsStaticSwitch)
 	{
+		// Hide metadata UProperties that isn't useful for static switches
+		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.EditCondition));
+		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.VisibleCondition));
+ 
 		TypeUtilityStaticSwitchValue = EditorModule.GetTypeUtilities(Variable->Variable.GetType());
 		if (TypeUtilityStaticSwitchValue && TypeUtilityStaticSwitchValue->CanCreateParameterEditor())
 		{
@@ -178,13 +156,10 @@ void FNiagaraScriptVariableDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 	}
 	else if (Variable->Variable.GetName().ToString().StartsWith("Module.")) 
 	{
-		DetailBuilder.HideProperty(DefaultModeHandle);
-		DetailBuilder.AddPropertyToCategory(DefaultModeHandle);
-
 		if (UEdGraphPin* Pin = GetDefaultPin())
 		{
 			TypeUtilityValue = EditorModule.GetTypeUtilities(Variable->Variable.GetType());
-			if (TypeUtilityValue && TypeUtilityValue->CanCreateParameterEditor() && Variable->DefaultMode == ENiagaraDefaultMode::Value)
+			if (TypeUtilityValue && TypeUtilityValue->CanCreateParameterEditor())
 			{
 				ParameterEditorValue = TypeUtilityValue->CreateParameterEditor(Variable->Variable.GetType());
 
@@ -216,42 +191,22 @@ void FNiagaraScriptVariableDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 			}
 		}
 	}
-	
-
-	if (Variable->Metadata.bIsStaticSwitch) {
-		// Hide metadata UProperties that aren't useful for static switch variables
-		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.EditCondition));
-		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.VisibleCondition));
-		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, DefaultBinding));
-		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, DefaultMode));
-		DetailBuilder.HideProperty(DefaultModeHandle); // TODO: Redundant?
-	}
 	else
 	{
-		if (!Variable->Variable.GetName().ToString().Contains("Module."))
-		{
-			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, DefaultMode));
-			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.CategoryName));
-			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.bAdvancedDisplay));
-			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.EditorSortPriority));
-			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.bInlineEditConditionToggle));
-			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.EditCondition));
-			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.VisibleCondition));
-			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.PropertyMetaData));
-			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, DefaultBinding));
-			DetailBuilder.HideProperty(DefaultModeHandle);
-		}
-		
-		if (Variable->DefaultMode != ENiagaraDefaultMode::Binding)
-		{
-			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, DefaultBinding));
-		}
-
-		// bInlineEditConditionToggle is only useful for bool types
-		if (Variable->Variable.GetType() != FNiagaraTypeDefinition::GetBoolDef())
-		{
-			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.bInlineEditConditionToggle));
-		}
+		// Hide metadata UProperties that isn't useful for non module and non static switch variables
+		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.CategoryName));
+		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.bAdvancedDisplay));
+		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.EditorSortPriority));
+		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.bInlineEditConditionToggle));
+		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.EditCondition));
+		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.VisibleCondition));
+		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.PropertyMetaData));
+	}
+ 
+	// bInlineEditConditionToggle is only useful for bool types
+	if (Variable->Variable.GetType() != FNiagaraTypeDefinition::GetBoolDef())
+	{
+		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.bInlineEditConditionToggle));
 	}
 }
  

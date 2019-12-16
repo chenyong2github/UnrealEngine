@@ -22,14 +22,12 @@ public:
  
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailBuilder ) override;
-	virtual void CustomizeDetails( const TSharedPtr<IDetailLayoutBuilder>& DetailBuilder ) override;
-
+	
 	//~ Begin FEditorUndoClient Interface
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
 	// End of FEditorUndoClient
  
-	void OnComboValueChanged();
 private:
 	void OnBeginValueChanged();
 	void OnEndValueChanged();
@@ -37,8 +35,6 @@ private:
 	void OnStaticSwitchValueChanged();
 
 	UEdGraphPin* GetDefaultPin();
-
-	TWeakPtr<class IDetailLayoutBuilder> CachedDetailBuilder;
 
 	TWeakObjectPtr<class UNiagaraScriptVariable> Variable;
 	TSharedPtr<class INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeUtilityValue;

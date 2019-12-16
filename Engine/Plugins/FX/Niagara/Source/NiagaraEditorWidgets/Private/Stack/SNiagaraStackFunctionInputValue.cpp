@@ -707,7 +707,7 @@ void SNiagaraStackFunctionInputValue::SetToLocalValue()
 		if (DefaultValueData.Num() == LocalValueStruct->GetStructureSize())
 		{
 			FMemory::Memcpy(LocalValue->GetStructMemory(), DefaultValueData.GetData(), DefaultValueData.Num());
-			FunctionInput->SetLocalValue(LocalValue, true);
+			FunctionInput->SetLocalValue(LocalValue);
 		}
 	}
 }
