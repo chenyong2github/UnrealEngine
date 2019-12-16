@@ -562,3 +562,32 @@ void FSetAlphaOnePS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FR
 	TUniformBufferRef<FSetAlphaOneUB> Data = TUniformBufferRef<FSetAlphaOneUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
 	SetUniformBufferParameter(CommandList, GetPixelShader(), GetUniformBufferParameter<FSetAlphaOneUB>(), Data);
 }
+
+
+/* FReadTextureExternalPS shader
+ *****************************************************************************/
+
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FReadTextureExternalUB, )
+SHADER_PARAMETER_TEXTURE(TextureExternal, Texture)
+SHADER_PARAMETER_SAMPLER(SamplerState, SamplerP)
+SHADER_PARAMETER(FLinearColor, ScaleRotation)
+SHADER_PARAMETER(FVector2D, Offset)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FReadTextureExternalUB, "ReadTextureExternalUB");
+IMPLEMENT_SHADER_TYPE(, FReadTextureExternalPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("ReadTextureExternalPS"), SF_Pixel);
+
+
+void FReadTextureExternalPS::SetParameters(FRHICommandList& CommandList, FTextureRHIRef TextureExt, FSamplerStateRHIRef SamplerState, const FLinearColor & ScaleRotation, const FLinearColor & Offset)
+{
+	FReadTextureExternalUB UB;
+	{
+		UB.SamplerP = SamplerState;
+		UB.Texture = TextureExt;
+		UB.ScaleRotation = ScaleRotation;
+		UB.Offset = FVector2D(Offset.R, Offset.G);
+	}
+
+	TUniformBufferRef<FReadTextureExternalUB> Data = TUniformBufferRef<FReadTextureExternalUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
+	SetUniformBufferParameter(CommandList, GetPixelShader(), GetUniformBufferParameter<FReadTextureExternalUB>(), Data);
+}

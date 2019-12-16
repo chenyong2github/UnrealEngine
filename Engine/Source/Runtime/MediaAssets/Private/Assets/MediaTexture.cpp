@@ -60,6 +60,7 @@ UMediaTexture::UMediaTexture(const FObjectInitializer& ObjectInitializer)
 	, AddressY(TA_Clamp)
 	, AutoClear(false)
 	, ClearColor(FLinearColor::Black)
+	, EnableGenMips(false)
 	, NumMips(1)
 	, DefaultGuid(FGuid::NewGuid())
 	, Dimensions(FIntPoint::ZeroValue)
@@ -141,15 +142,15 @@ FTextureResource* UMediaTexture::CreateResource()
 		}
 	}
 
-	Filter = (NumMips > 1) ? TF_Trilinear : TF_Bilinear;
+	Filter = (EnableGenMips && (NumMips > 1)) ? TF_Trilinear : TF_Bilinear;
 
-	return new FMediaTextureResource(*this, Dimensions, Size, ClearColor, CurrentGuid.IsValid() ? CurrentGuid : DefaultGuid, NumMips);
+	return new FMediaTextureResource(*this, Dimensions, Size, ClearColor, CurrentGuid.IsValid() ? CurrentGuid : DefaultGuid, EnableGenMips, NumMips);
 }
 
 
 EMaterialValueType UMediaTexture::GetMaterialType() const
 {
-	return MCT_TextureExternal;
+	return EnableGenMips ? MCT_Texture2D : MCT_TextureExternal;
 }
 
 
@@ -167,6 +168,10 @@ float UMediaTexture::GetSurfaceHeight() const
 
 FGuid UMediaTexture::GetExternalTextureGuid() const
 {
+	if (EnableGenMips)
+	{
+		return FGuid();
+	}
 	FScopeLock Lock(&CriticalSection);
 	return CurrentRenderedGuid;
 }
@@ -341,7 +346,7 @@ void UMediaTexture::TickResource(FTimespan Timecode)
 	}
 
 	// update filter state, responding to mips setting
-	Filter = (NumMips > 1) ? TF_Trilinear : TF_Bilinear;
+	Filter = (EnableGenMips && (NumMips > 1)) ? TF_Trilinear : TF_Bilinear;
 
 	// setup render parameters
 	RenderParams.CanClear = AutoClear;

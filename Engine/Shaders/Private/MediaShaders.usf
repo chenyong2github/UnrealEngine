@@ -369,3 +369,14 @@ void SetAlphaOnePS(
 	OutColor.xyzw = float4(Color.rgb, 1.0f);
 }
 
+
+// shader to read from TextureExternal source
+void ReadTextureExternalPS(
+	float4 InPosition : SV_POSITION,
+	float2 InUV : TEXCOORD0,
+	out float4 OutColor : SV_Target0)
+{
+    float2 UV = float2(dot(InUV, ReadTextureExternalUB.ScaleRotation.xy), dot(InUV, ReadTextureExternalUB.ScaleRotation.zw)) + ReadTextureExternalUB.Offset;
+	float4 InColor = ReadTextureExternalUB.Texture.Sample(ReadTextureExternalUB.SamplerP, UV);
+    OutColor = float4(sRGBToLinear(InColor.xyz), InColor.w);
+}
