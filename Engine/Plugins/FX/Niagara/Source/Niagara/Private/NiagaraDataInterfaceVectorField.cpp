@@ -360,7 +360,14 @@ struct FNiagaraDataInterfaceParametersCS_VectorField : public FNiagaraDataInterf
 		// Note: There is a flush in PreEditChange to make sure everything is synced up at this point 
 
 		// Get and set 3D texture handle from the currently bound vector field.
-		SetTextureParameter(RHICmdList, ComputeShaderRHI, VectorFieldTexture, VFDI->TextureRHI); 
+		if (VFDI->TextureRHI)
+		{
+			SetTextureParameter(RHICmdList, ComputeShaderRHI, VectorFieldTexture, VFDI->TextureRHI);
+		}
+		else
+		{
+			SetTextureParameter(RHICmdList, ComputeShaderRHI, VectorFieldTexture, GBlackVolumeTexture->TextureRHI);
+		}
 		
 		// Get and set sampler state
 		FRHISamplerState* SamplerState = SamplerStates[int(VFDI->bTileX) + 2 * int(VFDI->bTileY) + 4 * int(VFDI->bTileZ)];
