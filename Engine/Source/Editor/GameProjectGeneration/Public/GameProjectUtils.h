@@ -12,6 +12,7 @@ class UTemplateProjectDefs;
 class UTemplateCategories;
 struct FProjectDescriptor;
 enum class EClassDomain : uint8;
+struct FTemplateConfigValue;
 
 struct FProjectInformation
 {
@@ -281,7 +282,7 @@ public:
 
 private:
 
-	static FString GetHardwareConfigString(const FProjectInformation& InProjectInfo);
+	static void AddHardwareConfigValues(const FProjectInformation& InProjectInfo, TArray<FTemplateConfigValue>& ConfigValues);
 
 	/** Generates a new project without using a template project */
 	static bool GenerateProjectFromScratch(const FProjectInformation& InProjectInfo, FText& OutFailReason, FText& OutFailLog);
