@@ -109,14 +109,8 @@ namespace Audio
 		SDL_AudioSpec DesiredSpec;
 		DesiredSpec.freq = PlatformSettings.SampleRate;
 
-#if PLATFORM_UNIX
-		DesiredSpec.format = AUDIO_F32;
-		DesiredSpec.channels = 6;
-#else
-		// HTML5 supports s16 format only
-		DesiredSpec.format = AUDIO_S16;
-		DesiredSpec.channels = 2;
-#endif
+		DesiredSpec.format = GetPlatformAudioFormat();
+		DesiredSpec.channels = GetPlatformChannels();
 
 		DesiredSpec.samples = PlatformSettings.CallbackBufferFrameSize;
 		DesiredSpec.callback = OnBufferEnd;
@@ -151,12 +145,7 @@ namespace Audio
 		OutInfo.Name = OutInfo.DeviceId;
 		OutInfo.SampleRate = ActualSpec.freq;
 		
-#if PLATFORM_UNIX
-		OutInfo.Format = EAudioMixerStreamDataFormat::Float;
-#else
-		// HTML5 supports s16 format only
-		OutInfo.Format = EAudioMixerStreamDataFormat::Int16;
-#endif
+		OutInfo.Format = GetAudioStreamFormat();
 		OutInfo.NumChannels = ActualSpec.channels;
 
 		// Assume default channel map order, SDL doesn't support us querying it directly
@@ -198,12 +187,7 @@ namespace Audio
 			return false;
 		}
 
-#if PLATFORM_UNIX
-		AudioSpecPrefered.format = AUDIO_F32;
-#else
-		// HTML5 supports s16 format only
-		AudioSpecPrefered.format = AUDIO_S16;
-#endif
+		AudioSpecPrefered.format = GetPlatformAudioFormat();
 		AudioSpecPrefered.freq = Params.SampleRate;
 		AudioSpecPrefered.channels = AudioStreamInfo.DeviceInfo.NumChannels;
 		AudioSpecPrefered.samples = OpenStreamParams.NumFrames;
@@ -238,12 +222,7 @@ namespace Audio
 		check(AudioSpecReceived.samples == OpenStreamParams.NumFrames);
 
 		// Compute the expected output byte length
-#if PLATFORM_UNIX
-		OutputBufferByteLength = OpenStreamParams.NumFrames * AudioStreamInfo.DeviceInfo.NumChannels * sizeof(float);
-#else
-		// HTML5 supports s16 format only
-		OutputBufferByteLength = OpenStreamParams.NumFrames * AudioStreamInfo.DeviceInfo.NumChannels * sizeof(int16);
-#endif
+		OutputBufferByteLength = OpenStreamParams.NumFrames * AudioStreamInfo.DeviceInfo.NumChannels * GetAudioStreamChannelSize();
 		check(OutputBufferByteLength == AudioSpecReceived.size);
 
 		AudioStreamInfo.StreamState = EAudioOutputStreamState::Open;
@@ -429,7 +408,7 @@ namespace Audio
 #if PLATFORM_UNIX
 		return FAudioPlatformSettings::GetPlatformSettings(FPlatformProperties::GetRuntimeSettingsClassName());
 #else
-		// On HTML5 and Windows, use default parameters.
+		// On Windows, use default parameters.
 		return FAudioPlatformSettings();
 #endif
 	}

@@ -6,5 +6,12 @@
 
 namespace Audio
 {
-	using FAudioMixerPlatformSDL = FMixerPlatformSDL;
+	class FAudioMixerPlatformSDL : public FMixerPlatformSDL
+	{
+public:
+		SDL_AudioFormat GetPlatformAudioFormat() { return AUDIO_S16; }
+		Uint8 GetPlatformChannels() { return 2; }
+		EAudioMixerStreamDataFormat::Type GetAudioStreamFormat() { return EAudioMixerStreamDataFormat::Int16; }
+		int32 GetAudioStreamChannelSize() { return sizeof(int16); }
+	};
 }

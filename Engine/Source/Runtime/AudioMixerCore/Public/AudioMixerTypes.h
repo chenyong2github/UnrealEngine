@@ -14,7 +14,7 @@ namespace Audio {
 			AudioOut, 	// PS4
 			CoreAudio, 	// Mac
 			AudioUnit, 	// iOS
-			SDL2,		// Used on Linux, Html5
+			SDL2,		// Linux
 			OpenSLES, 	// Android
 			Switch, 	// Switch
 			Null		// Unknown/not Supported
