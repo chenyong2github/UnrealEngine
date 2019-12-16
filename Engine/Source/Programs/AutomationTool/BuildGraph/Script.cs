@@ -1279,7 +1279,7 @@ namespace AutomationTool
 					{
 						if(Arguments[Idx] == null)
 						{
-							LogWarning(Element, "Macro '{0}' is missing argument '{1}'", Macro.ArgumentNameToIndex.First(x => x.Value == Idx).Key);
+							LogWarning(Element, "Macro '{0}' is missing argument '{1}'", Macro.Name, Macro.ArgumentNameToIndex.First(x => x.Value == Idx).Key);
 							bHasMissingArguments = true;
 						}
 					}
