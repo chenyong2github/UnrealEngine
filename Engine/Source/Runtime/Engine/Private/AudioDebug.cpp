@@ -333,6 +333,7 @@ void FAudioDebugger::ToggleVisualizeDebug3dEnabled()
 	bVisualize3dDebug = !bVisualize3dDebug;
 }
 
+#if WITH_EDITOR
 void FAudioDebugger::OnBeginPIE()
 {
 	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
@@ -350,6 +351,7 @@ void FAudioDebugger::OnEndPIE()
 		DeviceManager->GetDebugger().ClearMutesAndSolos();
 	}
 }
+#endif // WITH_EDITOR
 
 void FAudioDebugger::QuerySoloMuteSoundClass(const FString& Name, bool& bOutIsSoloed, bool& bOutIsMuted, FString& OutReason) const
 {
