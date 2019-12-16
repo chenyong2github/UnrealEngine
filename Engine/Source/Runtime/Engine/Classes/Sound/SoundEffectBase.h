@@ -86,7 +86,7 @@ public:
 	USoundEffectPreset* GetPreset();
 
 	/** Removes the instance from the preset. */
-	void ClearPreset();
+	void ClearPreset(bool bRemoveFromPreset = true);
 
 	/** Queries if the given preset object is the uobject preset for this preset instance, i.e. the preset which spawned this effect instance. */
 	bool IsPreset(USoundEffectPreset* InPreset) const;
@@ -102,7 +102,7 @@ protected:
 	TArray<uint8> CurrentAudioThreadSettingsData;
 
 	FThreadSafeBool bChanged;
-	USoundEffectPreset* Preset;
+	TWeakObjectPtr<USoundEffectPreset> Preset;
 
 	FThreadSafeBool bIsRunning;
 	FThreadSafeBool bIsActive;
