@@ -31,6 +31,7 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "ComponentRecreateRenderStateContext.h"
+#include "Algo/AnyOf.h"
 
 static TAutoConsoleVariable<int32> CVarFoliageSplitFactor(
 	TEXT("foliage.SplitFactor"),
@@ -3045,6 +3046,13 @@ void UHierarchicalInstancedStaticMeshComponent::OnPostLoadPerInstanceData()
 				|| (PerInstanceSMData.Num() > 0 && PerInstanceSMData.Num() != InstanceReorderTable.Num()))
 			{
 				bForceTreeBuild = true;
+			}
+
+			
+			// If Reorder table contains invalid indices force a tree rebuild
+			if(!bForceTreeBuild)
+			{
+				bForceTreeBuild = Algo::AnyOf(InstanceReorderTable, [this](int32 ReorderIndex) { return ReorderIndex != INDEX_NONE && !PerInstanceSMData.IsValidIndex(ReorderIndex); });
 			}
 
 			if (!bForceTreeBuild)
