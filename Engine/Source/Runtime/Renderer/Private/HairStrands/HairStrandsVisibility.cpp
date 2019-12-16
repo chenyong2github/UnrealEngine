@@ -318,10 +318,6 @@ void FHairMaterialProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, 
 
 void FHairMaterialProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, int32 HairClusterId, int32 HairMaterialId)
 {
-	int32 PrimitiveId = 0;
-	int32 ScenePrimitiveId = 0;
-	GetDrawCommandPrimitiveId(PrimitiveSceneProxy->GetPrimitiveSceneInfo(), MeshBatch.Elements[0], PrimitiveId, ScenePrimitiveId);
-
 	static const FVertexFactoryType* CompatibleVF = FVertexFactoryType::GetVFByName(TEXT("FHairStrandsVertexFactory"));
 
 	// Determine the mesh's material and blend mode.
@@ -343,6 +339,10 @@ void FHairMaterialProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, 
 			MeshBatchCopy.Elements[ElementIt].NumPrimitives = 1;
 			MeshBatchCopy.Elements[ElementIt].NumInstances = 1;
 		}
+
+		int32 PrimitiveId = 0;
+		int32 ScenePrimitiveId = 0;
+		GetDrawCommandPrimitiveId(PrimitiveSceneProxy->GetPrimitiveSceneInfo(), MeshBatch.Elements[0], PrimitiveId, ScenePrimitiveId);
 
 		const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
 		Process(MeshBatchCopy, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, HairClusterId, HairMaterialId, PrimitiveId);
