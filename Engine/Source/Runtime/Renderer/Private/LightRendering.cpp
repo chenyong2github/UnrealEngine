@@ -1202,7 +1202,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 			} // if (RHI_RAYTRACING)
 
 			bool bDirectLighting = ViewFamily.EngineShowFlags.DirectLighting;
-
+			bool bShadowMaskReadable = false;
 			TRefCountPtr<IPooledRenderTarget> ScreenShadowMaskTexture;
 			TRefCountPtr<IPooledRenderTarget> ScreenShadowMaskSubPixelTexture;
 
@@ -1226,6 +1226,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 				if ((bDrawShadows || bDrawLightFunction || bDrawPreviewIndicator) && !ScreenShadowMaskTexture.IsValid())
 				{
 					SceneContext.AllocateScreenShadowMask(RHICmdList, ScreenShadowMaskTexture);
+					bShadowMaskReadable = false;
 					if (bUseHairLighting)
 						SceneContext.AllocateScreenShadowMask(RHICmdList, ScreenShadowMaskSubPixelTexture);
 				}
@@ -1772,6 +1773,12 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 					RHICmdList.CopyToResolveTarget(ScreenShadowMaskTexture->GetRenderTargetItem().TargetableTexture, ScreenShadowMaskTexture->GetRenderTargetItem().ShaderResourceTexture, FResolveParams(FResolveRect()));
 					if (ScreenShadowMaskSubPixelTexture)
 						RHICmdList.CopyToResolveTarget(ScreenShadowMaskSubPixelTexture->GetRenderTargetItem().TargetableTexture, ScreenShadowMaskSubPixelTexture->GetRenderTargetItem().ShaderResourceTexture, FResolveParams(FResolveRect()));
+				}
+
+				if(bUsedShadowMaskTexture || !bShadowMaskReadable)
+				{
+					RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ScreenShadowMaskTexture->GetRenderTargetItem().ShaderResourceTexture);
+					bShadowMaskReadable = true;
 				}
 
 				if(bDirectLighting && !bInjectedTranslucentVolume)

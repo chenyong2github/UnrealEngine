@@ -418,6 +418,11 @@ void FVulkanDevice::SetupDrawMarkers()
 			bDebugMarkersFound = true;
 		}
 	}
+	FVulkanDynamicRHI* RHI = GVulkanRHI;
+	if (RHI->SupportsDebugUtilsExt())
+	{
+		DebugMarkers.SetDebugName = (PFN_vkSetDebugUtilsObjectNameEXT)(void*)VulkanRHI::vkGetInstanceProcAddr(RHI->GetInstance(), "vkSetDebugUtilsObjectNameEXT");
+	}
 
 	if (bDebugMarkersFound)
 	{
@@ -1251,5 +1256,19 @@ void FVulkanDevice::ReleaseDeferredContext(FVulkanCommandListContext* InContext)
 	{
 		FScopeLock Lock(&GContextCS);
 		CommandContexts.Push(InContext);
+	}
+}
+
+void FVulkanDevice::VulkanSetObjectName(VkObjectType Type, uint64_t Handle, const TCHAR* Name)
+{
+	if(DebugMarkers.SetDebugName)
+	{
+		FTCHARToUTF8 Converter(Name);
+		VkDebugUtilsObjectNameInfoEXT Info;
+		ZeroVulkanStruct(Info, VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT);
+		Info.objectType = Type;
+		Info.objectHandle = Handle;
+		Info.pObjectName = Converter.Get();
+		DebugMarkers.SetDebugName(Device, &Info);
 	}
 }
