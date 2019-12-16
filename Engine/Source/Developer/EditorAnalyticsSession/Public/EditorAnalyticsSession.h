@@ -20,6 +20,7 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 
 	FDateTime StartupTimestamp;
 	FDateTime Timestamp;
+	int32 SessionDuration;
 	int32 Idle1Min;
 	int32 Idle5Min;
 	int32 Idle30Min;
