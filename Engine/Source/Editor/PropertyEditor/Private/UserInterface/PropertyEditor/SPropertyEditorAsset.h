@@ -327,6 +327,14 @@ private:
 	/** Check if the given class is allowed by the AllowedClasses and DisallowedClasses as defined in the property metadata. */
 	bool IsClassAllowed(const UClass* InClass) const;
 
+	/**
+	 * Initialize DisallowedAssetDataTags based on the property metadata.
+	 */
+	void InitializeAssetDataTags(const UProperty* Property);
+
+	/** @return Returns true if the asset is relevant for this property*/
+	bool IsAssetAllowed(const FAssetData& InAssetData);
+
 private:
 
 	/** Main combobutton */
@@ -355,6 +363,9 @@ private:
 
 	/** A list of the factories we can use to create new assets */
 	TArray<UFactory*> NewAssetFactories;
+
+	/** Tags (and eventually values) that can NOT be used with this property */
+	TSharedPtr<FAssetDataTagMap> DisallowedAssetDataTags;
 
 	/** Whether the asset can be 'None' in this case */
 	bool bAllowClear;
