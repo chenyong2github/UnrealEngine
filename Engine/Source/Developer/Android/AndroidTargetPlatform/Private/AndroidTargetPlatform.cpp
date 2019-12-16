@@ -668,10 +668,6 @@ namespace Android
 			OutOverrides.SoundCueCookQualityIndex = SoundCueQualityIndex;
 		}
 
-		int32 RetrievedChunkSizeKB = 256;
-		GConfig->GetInt(CategoryName, TEXT("ChunkSizeKB"), RetrievedChunkSizeKB, GEngineIni);
-		OutOverrides.StreamChunkSizeKB = RetrievedChunkSizeKB;
-
 		GConfig->GetBool(CategoryName, TEXT("bUseAudioStreamCaching"), OutOverrides.bUseStreamCaching, GEngineIni);
 
 		/** Memory Load On Demand Settings */

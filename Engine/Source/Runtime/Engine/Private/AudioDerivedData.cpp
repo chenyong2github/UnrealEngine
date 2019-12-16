@@ -330,12 +330,6 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 				// Set the ideal chunk size to be 256k to optimize for data reads on console.
 				int32 MaxChunkSize = 256 * 1024;
 				
-				// If there is a chunk size override, use that.
-				if (CompressionOverrides && (CompressionOverrides->StreamChunkSizeKB != 0))
-				{
-					MaxChunkSize = CompressionOverrides->StreamChunkSizeKB * 1024;
-				}
-
 				// By default, the first chunk's max size is the same as the other chunks.
 				int32 FirstChunkSize = MaxChunkSize;
 
@@ -358,8 +352,8 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 
 				if (bUseStreamCaching)
 				{
-					// Fix up chunk size if we have too small a cache size to safely play our sources.
-					MaxChunkSize = FPlatformCompressionUtilities::GetMaxChunkSizeForCookOverrides(CompressionOverrides, MaxChunkSize / 1024);
+					// Use the chunk size for this duration:
+					MaxChunkSize = FPlatformCompressionUtilities::GetMaxChunkSizeForCookOverrides(CompressionOverrides);
 					UE_LOG(LogAudio, Display, TEXT("Chunk size for %s: %d"), *SoundWave.GetFullName(), MaxChunkSize);
 				}
 				

@@ -59,8 +59,6 @@ struct FPlatformAudioCookOverrides
 	// If set, the cooker will keep only this level of quality
 	int32 SoundCueCookQualityIndex = INDEX_NONE;
 
-	int32 StreamChunkSizeKB;
-	
 	// When set to any platform > 0.0, this will automatically set any USoundWave beyond this value to be streamed from disk.
 	// If StreamCaching is set to true, this will be used 
 	float AutoStreamingThreshold;
@@ -74,7 +72,6 @@ struct FPlatformAudioCookOverrides
 	FPlatformAudioCookOverrides()
 		: bResampleForDevice(false)
 		, CompressionQualityModifier(1.0f)
-		, StreamChunkSizeKB(256)
 		, AutoStreamingThreshold(0.0f)
 		, bUseStreamCaching(false)
 	{
@@ -95,8 +92,6 @@ struct FPlatformAudioCookOverrides
 
 		int32 CompressionQualityHash = FMath::FloorToInt(InOverrides->CompressionQualityModifier * 100.0f);
 		OutSuffix.AppendInt(CompressionQualityHash);
-
-		OutSuffix.AppendInt(InOverrides->StreamChunkSizeKB);
 
 		int32 AutoStreamingThresholdHash = FMath::FloorToInt(InOverrides->AutoStreamingThreshold * 100.0f);
 		OutSuffix.AppendInt(AutoStreamingThresholdHash);

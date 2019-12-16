@@ -34,10 +34,6 @@ namespace Windows
 
 		GConfig->GetBool(CategoryName, TEXT("bUseAudioStreamCaching"), OutOverrides.bUseStreamCaching, GEngineIni);
 
-		int32 RetrievedChunkSizeKB = 256;
-		GConfig->GetInt(CategoryName, TEXT("ChunkSizeKB"), RetrievedChunkSizeKB, GEngineIni);
-		OutOverrides.StreamChunkSizeKB = RetrievedChunkSizeKB;
-
 		/** Memory Load On Demand Settings */
 		if (OutOverrides.bUseStreamCaching)
 		{
