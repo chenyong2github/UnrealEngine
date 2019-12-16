@@ -46,6 +46,8 @@ public:
 	 */
 	FVoicePacketImpl(const FVoicePacketImpl& Other);
 
+	virtual void ResetData();
+
 	//~ Begin FVoicePacket interface
 	virtual uint16 GetTotalPacketSize() override;
 	virtual uint16 GetBufferSize() override;
