@@ -5,7 +5,7 @@
 #include "Containers/Array.h"
 #include "Blueprint/BlueprintExtension.h"
 
-#include "MoviesceneEventBlueprintExtension.generated.h"
+#include "MovieSceneEventBlueprintExtension.generated.h"
 
 class UBlueprint;
 class FKismetCompilerContext;
