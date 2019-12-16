@@ -5,10 +5,9 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
-#include "Logging/TokenizedMessage.h
+#include "Logging/TokenizedMessage.h"
 
 #if WITH_EDITOR
-
 
 class IWidgetCompilerLog
 {
