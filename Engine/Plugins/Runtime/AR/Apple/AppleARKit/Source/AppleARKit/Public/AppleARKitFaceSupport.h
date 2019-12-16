@@ -63,7 +63,14 @@ public:
 	 */
 	virtual TArray<FARVideoFormat> ToARConfiguration() { return TArray<FARVideoFormat>(); }
 #endif
-
+	
+#if SUPPORTS_ARKIT_3_0
+	/**
+	 * @return If the desired frame semantics is supported by AR face tracking
+	 */
+	virtual bool IsARFrameSemanticsSupported(ARFrameSemantics InSemantics) const { return false; }
+#endif
+	
 	static FName GetModularFeatureName()
 	{
 		static FName FeatureName = FName(TEXT("AppleARKitFaceSupport"));
