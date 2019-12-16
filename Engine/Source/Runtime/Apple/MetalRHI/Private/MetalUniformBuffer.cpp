@@ -757,13 +757,17 @@ void FMetalUniformBuffer::Update(const void* Contents, TArray<TRefCountPtr<FRHIR
         
 		ns::AutoReleased<FMetalBuffer> Buf(Buffer);
 		
-        void* Data = Lock(true, RLM_WriteOnly, 0);
+		void* Data = Lock(true, RLM_WriteOnly, 0, 0, true);
         FMemory::Memcpy(Data, Contents, ConstantSize);
         Unlock();
 		
 		if (Buf != Buffer && FMetalCommandQueue::SupportsFeature(EMetalFeaturesIABs))
+		{
 			FPlatformAtomics::InterlockedIncrement(&UpdateNum);
-    }
+		}
+		
+		ConditionalSetUniformBufferFrameIndex();
+	}
 	
 	UpdateResourceTable(Resources, Validation);
 }
