@@ -17,8 +17,6 @@
 #define DEFAULT_VOICE_SAMPLE_RATE 16000
 /** Deprecated value, use DEFAULT_VOICE_SAMPLE_RATE */
 #define VOICE_SAMPLE_RATE DEFAULT_VOICE_SAMPLE_RATE
-/** Default voice chat number of channels (mono) */
-#define DEFAULT_NUM_VOICE_CHANNELS 1
 
 class IVoiceCapture;
 class IVoiceEncoder;
@@ -76,7 +74,7 @@ public:
 	 *
 	 * @return new voice capture object, possibly NULL
 	 */
-	virtual TSharedPtr<IVoiceCapture> CreateVoiceCapture(const FString& DeviceName = DEFAULT_DEVICE_NAME, int32 SampleRate = UVOIPStatics::GetVoiceSampleRate(), int32 NumChannels = DEFAULT_NUM_VOICE_CHANNELS);
+	virtual TSharedPtr<IVoiceCapture> CreateVoiceCapture(const FString& DeviceName = DEFAULT_DEVICE_NAME, int32 SampleRate = UVOIPStatics::GetVoiceSampleRate(), int32 NumChannels = UVOIPStatics::GetVoiceNumChannels());
 
 	/**
 	 * Instantiates a new voice encoder object
@@ -87,7 +85,7 @@ public:
 	 *
 	 * @return new voice encoder object, possibly NULL
 	 */
-	virtual TSharedPtr<IVoiceEncoder> CreateVoiceEncoder(int32 SampleRate = UVOIPStatics::GetVoiceSampleRate(), int32 NumChannels = DEFAULT_NUM_VOICE_CHANNELS, EAudioEncodeHint EncodeHint = UVOIPStatics::GetAudioEncodingHint());
+	virtual TSharedPtr<IVoiceEncoder> CreateVoiceEncoder(int32 SampleRate = UVOIPStatics::GetVoiceSampleRate(), int32 NumChannels = UVOIPStatics::GetVoiceNumChannels(), EAudioEncodeHint EncodeHint = UVOIPStatics::GetAudioEncodingHint());
 
 	/**
 	 * Instantiates a new voice decoder object
@@ -97,7 +95,7 @@ public:
 	 *
 	 * @return new voice decoder object, possibly NULL
 	 */
-	virtual TSharedPtr<IVoiceDecoder> CreateVoiceDecoder(int32 SampleRate = UVOIPStatics::GetVoiceSampleRate(), int32 NumChannels = DEFAULT_NUM_VOICE_CHANNELS);
+	virtual TSharedPtr<IVoiceDecoder> CreateVoiceDecoder(int32 SampleRate = UVOIPStatics::GetVoiceSampleRate(), int32 NumChannels = UVOIPStatics::GetVoiceNumChannels());
 
 	/**
 	* Checks to see if the current platform supports voice capture.
