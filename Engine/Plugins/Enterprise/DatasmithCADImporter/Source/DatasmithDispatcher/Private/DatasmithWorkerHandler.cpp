@@ -38,7 +38,7 @@ static FString GetWorkerExecutablePath()
 	return ProcessorPath;
 }
 
-FDatasmithWorkerHandler::FDatasmithWorkerHandler(FDatasmithDispatcher& InDispatcher, const FString& InCachePath, uint32 Id)
+FDatasmithWorkerHandler::FDatasmithWorkerHandler(FDatasmithDispatcher& InDispatcher, const CADLibrary::FImportParameters& InImportParameters, FString& InCachePath, uint32 Id)
 	: Dispatcher(InDispatcher)
 	, WorkerState(EWorkerState::Uninitialized)
 	, ErrorState(EWorkerErrorState::Ok)
@@ -47,6 +47,7 @@ FDatasmithWorkerHandler::FDatasmithWorkerHandler(FDatasmithDispatcher& InDispatc
 {
 	ThreadName = FString(TEXT("DatasmithWorkerHandler_")) + FString::FromInt(Id);
 	IOThread = FThread(*ThreadName, [this]() { Run(); } );
+	ImportParametersCommand.ImportParameters = InImportParameters;
 }
 
 FDatasmithWorkerHandler::~FDatasmithWorkerHandler()
@@ -141,6 +142,11 @@ void FDatasmithWorkerHandler::RunInternal()
 				{
 					WorkerState = EWorkerState::Closing;
 					break;
+				}
+
+				if (CommandIO.SendCommand(ImportParametersCommand, Config::SendCommandTimeout_s))
+				{
+					UE_LOG(LogDatasmithDispatcher, Verbose, TEXT("Import Parameters sent"));
 				}
 
 				WorkerState = EWorkerState::Idle;

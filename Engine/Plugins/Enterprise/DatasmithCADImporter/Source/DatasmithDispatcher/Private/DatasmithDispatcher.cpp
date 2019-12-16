@@ -118,7 +118,7 @@ void FDatasmithDispatcher::Process(bool bWithProcessor)
 					if (WorkerId < NumberOfWorkers + Config::MaxRestartAllowed)
 					{
 						Handler.~FDatasmithWorkerHandler();
-						new (&Handler) FDatasmithWorkerHandler(*this, ProcessCacheFolder, WorkerId);
+						new (&Handler) FDatasmithWorkerHandler(*this, ImportParameters, ProcessCacheFolder, WorkerId);
 						UE_LOG(LogDatasmithDispatcher, Warning, TEXT("Restarting worker (new worker: %d)"), WorkerId);
 					}
 					else if (bLogRestartError)
@@ -182,7 +182,7 @@ void FDatasmithDispatcher::SpawnHandlers()
 	WorkerHandlers.Reserve(NumberOfWorkers);
 	for (int32 Index = 0; Index < NumberOfWorkers; Index++)
 	{
-		WorkerHandlers.Emplace(*this, ProcessCacheFolder, GetNextWorkerId());
+		WorkerHandlers.Emplace(*this, ImportParameters, ProcessCacheFolder, GetNextWorkerId());
 	}
 }
 

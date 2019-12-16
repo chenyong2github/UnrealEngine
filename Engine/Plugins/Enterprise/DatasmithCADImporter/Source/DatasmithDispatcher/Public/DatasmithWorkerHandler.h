@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+#include "CADOptions.h"
 #include "DatasmithCommands.h"
 #include "DatasmithDispatcherNetworking.h"
 #include "DatasmithDispatcherTask.h"
@@ -41,7 +42,7 @@ class FDatasmithWorkerHandler
 	};
 
 public:
-	FDatasmithWorkerHandler(FDatasmithDispatcher& InDispatcher, const FString& InCachePath, uint32 Id);
+	FDatasmithWorkerHandler(FDatasmithDispatcher& InDispatcher, const CADLibrary::FImportParameters& InImportParameters, FString& InCachePath, uint32 Id);
 	~FDatasmithWorkerHandler();
 
 	void Run();
@@ -77,6 +78,7 @@ private:
 
 	// self
 	FString CachePath;
+	FImportParametersCommand ImportParametersCommand;
 	TOptional<FTask> CurrentTask;
 	bool bShouldTerminate;
 
