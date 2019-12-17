@@ -520,7 +520,7 @@ namespace Chaos
 
 	void FPBDJointConstraints::UpdateParticleState(TPBDRigidParticleHandle<FReal, 3>* Rigid, const FReal Dt, const FVec3& P, const FRotation3& Q)
 	{
-		if (Rigid)
+		if ((Rigid != nullptr) && (Rigid->ObjectState() == EObjectStateType::Dynamic))
 		{
 			if (Dt > SMALL_NUMBER)
 			{
@@ -593,16 +593,8 @@ namespace Chaos
 			}
 		}
 
-		TPBDRigidParticleHandle<FReal, 3>* Rigid0 = Particle0->CastToRigidParticle();
-		TPBDRigidParticleHandle<FReal, 3>* Rigid1 = Particle1->CastToRigidParticle();
-		if (Rigid0->ObjectState() == EObjectStateType::Dynamic)
-		{
-			UpdateParticleState(Rigid0, Dt, P0, Q0);
-		}
-		if (Rigid1->ObjectState() == EObjectStateType::Dynamic)
-		{
-			UpdateParticleState(Rigid1, Dt, P1, Q1);
-		}
+		UpdateParticleState(Particle0->CastToRigidParticle(), Dt, P0, Q0);
+		UpdateParticleState(Particle1->CastToRigidParticle(), Dt, P1, Q1);
 	}
 
 
@@ -656,16 +648,8 @@ namespace Chaos
 			Solver.ApplyConstraints(Dt, Settings, JointSettings, GetLinearStiffness(Settings, JointSettings));
 		}
 
-		TPBDRigidParticleHandle<FReal, 3>* Rigid0 = Particle0->CastToRigidParticle();
-		TPBDRigidParticleHandle<FReal, 3>* Rigid1 = Particle1->CastToRigidParticle();
-		if (Rigid0 && Rigid0->ObjectState() == EObjectStateType::Dynamic)
-		{
-			UpdateParticleState(Rigid0, Dt, Solver.GetP(0), Solver.GetQ(0));
-		}
-		if (Rigid1 && Rigid1->ObjectState() == EObjectStateType::Dynamic)
-		{
-			UpdateParticleState(Rigid1, Dt, Solver.GetP(1), Solver.GetQ(1));
-		}
+		UpdateParticleState(Particle0->CastToRigidParticle(), Dt, Solver.GetP(0), Solver.GetQ(0));
+		UpdateParticleState(Particle1->CastToRigidParticle(), Dt, Solver.GetP(1), Solver.GetQ(1));
 	}
 
 
@@ -766,17 +750,8 @@ namespace Chaos
 		}
 
 		// Update the particles
-		TPBDRigidParticleHandle<FReal, 3>* Rigid0 = ConstraintParticles[ConstraintIndex][Index0]->CastToRigidParticle();
-		TPBDRigidParticleHandle<FReal, 3>* Rigid1 = ConstraintParticles[ConstraintIndex][Index1]->CastToRigidParticle();
-
-		if (Rigid0->ObjectState() == EObjectStateType::Dynamic)
-		{
-			UpdateParticleState(Rigid0, Dt, P0, Q0);
-		}
-		if (Rigid1->ObjectState() == EObjectStateType::Dynamic)
-		{
-			UpdateParticleState(Rigid1, Dt, P1, Q1);
-		}
+		UpdateParticleState(Particle0->CastToRigidParticle(), Dt, P0, Q0);
+		UpdateParticleState(Particle1->CastToRigidParticle(), Dt, P1, Q1);
 	}
 
 	
@@ -875,18 +850,8 @@ namespace Chaos
 		}
 
 		// Update the particles
-		TPBDRigidParticleHandle<FReal, 3>* Rigid0 = ConstraintParticles[ConstraintIndex][Index0]->CastToRigidParticle();
-		TPBDRigidParticleHandle<FReal, 3>* Rigid1 = ConstraintParticles[ConstraintIndex][Index1]->CastToRigidParticle();
-
-		if (Rigid0->ObjectState() == EObjectStateType::Dynamic)
-		{
-			UpdateParticleState(Rigid0, Dt, P0, Q0);
-		}
-		if (Rigid1->ObjectState() == EObjectStateType::Dynamic)
-		{
-			UpdateParticleState(Rigid1, Dt, P1, Q1);
-		}
-
+		UpdateParticleState(Particle0->CastToRigidParticle(), Dt, P0, Q0);
+		UpdateParticleState(Particle1->CastToRigidParticle(), Dt, P1, Q1);
 	}
 
 

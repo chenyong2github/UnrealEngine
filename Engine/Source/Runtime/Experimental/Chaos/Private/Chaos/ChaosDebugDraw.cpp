@@ -23,13 +23,13 @@ namespace Chaos
 		float ContactWidth = 2.0f;
 		float ContactPhiWidth = 1.5f;
 		float ConstraintAxisLen = 5.0f;
-		float LineThickness = 0.25f;
-		int DrawPriority = 10.0f;
+		float LineThickness = 0.15f;
 		float DrawScale = 1.0f;
 		float FontHeight = 10.0f;
 		float FontScale = 1.0f;
 		float ShapeThicknesScale = 2.0f;
 		float PointSize = 2.0f;
+		int DrawPriority = 10.0f;
 
 		FAutoConsoleVariableRef CVarArrowSize(TEXT("p.Chaos.DebugDrawArrowSize"), ArrowSize, TEXT("ArrowSize."));
 		FAutoConsoleVariableRef CVarBodyAxisLen(TEXT("p.Chaos.DebugDrawBodyAxisLen"), BodyAxisLen, TEXT("BodyAxisLen."));
