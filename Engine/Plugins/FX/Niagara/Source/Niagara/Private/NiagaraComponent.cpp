@@ -979,6 +979,7 @@ void UNiagaraComponent::UnregisterWithScalabilityManager()
 			WorldMan->UnregisterWithScalabilityManager(this);
 		}
 	}
+	ScalabilityManagerHandle = INDEX_NONE;//Just to be sure our state is unregistered.
 }
 
 void UNiagaraComponent::OnSystemComplete()

@@ -20,6 +20,18 @@ FNiagaraScalabilityManager::FNiagaraScalabilityManager()
 
 }
 
+FNiagaraScalabilityManager::~FNiagaraScalabilityManager()
+{
+	for(UNiagaraComponent* Component : ManagedComponents)
+	{
+		if (Component)
+		{
+			Component->ScalabilityManagerHandle = INDEX_NONE;
+		}
+	}
+	ManagedComponents.Empty();
+}
+
 void FNiagaraScalabilityManager::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject(EffectType);
@@ -40,7 +52,6 @@ void FNiagaraScalabilityManager::Register(UNiagaraComponent* Component)
 void FNiagaraScalabilityManager::Unregister(UNiagaraComponent* Component)
 {
 	check(Component->ScalabilityManagerHandle != INDEX_NONE);
-	check(ManagedComponents.Num() == State.Num());
 
 	int32 IndexToRemove = Component->ScalabilityManagerHandle;
 	Component->ScalabilityManagerHandle = INDEX_NONE;
@@ -51,9 +62,18 @@ void FNiagaraScalabilityManager::UnregisterAt(int32 IndexToRemove)
 {
 	//UE_LOG(LogNiagara, Warning, TEXT("Unregistering Component %0xP at index %d (Replaced with %0xP)"), ManagedComponents[IndexToRemove], IndexToRemove, ManagedComponents.Num() > 1 ? ManagedComponents.Last() : nullptr);
 
-	ManagedComponents.RemoveAtSwap(IndexToRemove);
-	State.RemoveAtSwap(IndexToRemove);
+	check(ManagedComponents.Num() == State.Num());
+	if (ManagedComponents.IsValidIndex(IndexToRemove))
+	{
+		ManagedComponents.RemoveAtSwap(IndexToRemove);
+		State.RemoveAtSwap(IndexToRemove);
+	}
+	else
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("Attempting to unregister an invalid index from the Scalability Manager. Index: %d - Num: %d"), IndexToRemove, ManagedComponents.Num());
+	}
 
+	//Redirect the component that is now at IndexToRemove to the correct index.
 	if (ManagedComponents.IsValidIndex(IndexToRemove))
 	{
 		if ((ManagedComponents[IndexToRemove] != nullptr))//Possible this has been GCd. It will be removed later if so.
@@ -92,28 +112,22 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan)
 
 	//Belt and braces paranoia code to ensure we're safe if a component or System is GCd but the component isn't unregistered for whatever reason.
 	int32 CompIdx = 0;
+	check(State.Num() == ManagedComponents.Num());
 	while (CompIdx < ManagedComponents.Num())
 	{
 		UNiagaraComponent* Component = ManagedComponents[CompIdx];
 		if (Component)
 		{
-			if (Component->GetAsset())
-			{
-				++CompIdx;
-			}
-			else
+			if (Component->GetAsset() == nullptr)
 			{
 				UE_LOG(LogNiagara, Warning, TEXT("Niagara System has been destroyed with components still registered to the scalability manager. Unregistering this component.\nComponent: %0xP - %s\nEffectType: %0xP - %s"),
 					Component, *Component->GetName(), EffectType, *EffectType->GetName());
 				Unregister(Component);
+				continue;
 			}
 		}
-		else
-		{
-			UE_LOG(LogNiagara, Warning, TEXT("Niagara Component has been destroyed while still registered to the scalability manager. Unregistering this component.\nComponent: %0xP \nEffectType: %0xP - %s"),
-				Component, EffectType, *EffectType->GetName());
-			UnregisterAt(CompIdx);
-		}
+
+		++CompIdx;
 	}
 
 	bool bNeedSortedSignificanceCull = false;
@@ -125,6 +139,13 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan)
 	for (int32 i = 0; i < ManagedComponents.Num(); ++i)
 	{
 		UNiagaraComponent* Component = ManagedComponents[i];
+		
+		//The GC can pull this ref from underneath us before the component unregisters itself during BeginDestroy().
+		if(!Component)
+		{
+			continue;
+		}
+
 		FNiagaraScalabilityState& CompState = State[i];
 #if DEBUG_SCALABILITY_STATE
 		CompState.bCulledByInstanceCount = false;
