@@ -96,7 +96,7 @@ struct FEmitterCompiledScriptPair
 	bool bResultsReady;
 	UNiagaraEmitter* Emitter;
 	UNiagaraScript* CompiledScript;
-	uint32 PendingDDCID;
+	uint32 PendingJobID = INDEX_NONE; // this is the ID for any active shader compiler worker job
 	FNiagaraVMExecutableDataId CompileId;
 	TSharedPtr<FNiagaraVMExecutableData> CompileResults;
 };
@@ -221,7 +221,7 @@ public:
 	/** If we have a pending compile request, is it done with yet? */
 	bool PollForCompilationComplete();
 
-	/** */
+	/** Blocks until all active compile jobs have finished */
 	void WaitForCompilationComplete();
 
 	/** Delegate called when the system's dependencies have all been compiled.*/
@@ -319,7 +319,15 @@ public:
 
 private:
 #if WITH_EDITORONLY_DATA
+	/** Checks the ddc for vm execution data for the given script. Return true if the data was loaded from the ddc, false otherwise. */
+	bool GetFromDDC(FEmitterCompiledScriptPair& ScriptPair);
+
+	/** Since the shader compilation is done in another process, this is used to check if the result for any ongoing compilations is done.
+	*   If bWait is true then this *blocks* the game thread (and ui) until all running compilations are finished.
+	*/
 	bool QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotApply = false);
+
+	bool ProcessCompilationResult(FEmitterCompiledScriptPair& ScriptPair, bool bWait, bool bDoNotApply);
 
 	void InitEmitterCompiledData();
 

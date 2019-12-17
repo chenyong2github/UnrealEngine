@@ -46,6 +46,7 @@
 #include "MobileDistortionPass.h"
 #include "SceneTextureParameters.h"
 #include "PixelShaderUtils.h"
+#include "ScreenSpaceRayTracing.h"
 
 /** The global center for all post processing activities. */
 FPostProcessing GPostProcessing;
@@ -435,6 +436,17 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 				&SecondaryViewRect,
 				&HalfResolutionSceneColor.Texture,
 				&HalfResolutionSceneColor.ViewRect);
+		}
+		else if (ShouldRenderScreenSpaceReflections(View))
+		{
+			// If we need SSR, and TAA is enabled, then AddTemporalAAPass() has already handled the scene history.
+			// If we need SSR, and TAA is not enable, then we just need to extract the history.
+			if (!View.bStatePrevViewInfoIsReadOnly)
+			{
+				check(View.ViewState);
+				FTemporalAAHistory& OutputHistory = View.ViewState->PrevFrameViewInfo.TemporalAAHistory;
+				GraphBuilder.QueueTextureExtraction(SceneColor.Texture, &OutputHistory.RT[0]);
+			}
 		}
 
 		//! SceneColorTexture is now upsampled to the SecondaryViewRect. Use SecondaryViewRect for input / output.

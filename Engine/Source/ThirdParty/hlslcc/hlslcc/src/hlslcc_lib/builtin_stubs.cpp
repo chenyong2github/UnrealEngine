@@ -1526,7 +1526,7 @@ void _mesa_glsl_initialize_functions(exec_list *ir, _mesa_glsl_parse_state *stat
 	// Others.
 	make_intrinsic_genType(ir, state, "all", ir_unop_all, IR_INTRINSIC_BOOL | IR_INTRINSIC_RETURNS_BOOL | IR_INTRINSIC_SCALAR, 1, 2);
 	make_intrinsic_genType(ir, state, "any", ir_unop_any, IR_INTRINSIC_BOOL | IR_INTRINSIC_RETURNS_BOOL | IR_INTRINSIC_SCALAR, 1, 2);
-	make_intrinsic_genType(ir, state, "rcp", ir_unop_rcp, IR_INTRINSIC_ALL_FLOATING | IR_INTRINSIC_MATRIX, 1);
+	make_intrinsic_genType(ir, state, "rcp", ir_unop_rcp, IR_INTRINSIC_ALL_FLOATING | IR_INTRINSIC_MATRIX | IR_INTRINSIC_PROMOTE_ARG_FLOAT_RETURN_FLOAT, 1);
 	make_intrinsic_clip(ir, state);
 
 	make_intrinsic_emit_vertex(ir, state);

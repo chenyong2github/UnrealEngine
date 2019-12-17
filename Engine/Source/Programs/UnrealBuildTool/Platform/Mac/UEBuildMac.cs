@@ -290,6 +290,7 @@ namespace UnrealBuildTool
 					// Rules.DynamicallyLoadedModuleNames.Add("ShaderFormatD3D");
 					Rules.DynamicallyLoadedModuleNames.Add("ShaderFormatOpenGL");
 					Rules.DynamicallyLoadedModuleNames.Add("MetalShaderFormat");
+					Rules.DynamicallyLoadedModuleNames.Add("ShaderFormatVectorVM");
 
 					Rules.DynamicallyLoadedModuleNames.Remove("VulkanRHI");
 					Rules.DynamicallyLoadedModuleNames.Add("VulkanShaderFormat");

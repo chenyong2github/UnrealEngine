@@ -13,6 +13,7 @@
 #include "RHI/Public/PipelineStateCache.h"
 #include "RayTracing/RayTracingSkyLight.h"
 #include "RayTracing/RaytracingOptions.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 static int32 GPathTracingMaxBounces = -1;
 static FAutoConsoleVariableRef CVarPathTracingMaxBounces(
@@ -77,12 +78,19 @@ TAutoConsoleVariable<int32> CVarPathTracingRayCountFrequency(
 	ECVF_RenderThreadSafe
 );
 
-// r.PathTracing.GPUCount is ready only because ComputeViewGPUMasks results cannot change after UE has been launched
+// r.PathTracing.GPUCount is read only because ComputeViewGPUMasks results cannot change after UE has been launched
 TAutoConsoleVariable<int32> CVarPathTracingGPUCount(
 	TEXT("r.PathTracing.GPUCount"),
 	1,
 	TEXT("Sets the amount of GPUs used for computing the path tracing pass (default = 1 GPU)"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly
+);
+
+TAutoConsoleVariable<int32> CVarPathTracingWiperMode(
+	TEXT("r.PathTracing.WiperMode"),
+	0,
+	TEXT("Enables wiper mode to render using the path tracer only in a region of the screen for debugging purposes (default = 0, wiper mode disabled)"),
+	ECVF_RenderThreadSafe 
 );
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPathTracingData, "PathTracingData");
@@ -443,12 +451,6 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 	// The frame independent temporal seed, not reset at the beginning of each frame unlike SPPCount to allow for less temporal aliasing.
 	static uint32 FrameIndependentTemporalSeed = 0;
 
-	// Conditionally rebuild sky light CDFs
-	if (Scene->SkyLight && Scene->SkyLight->ShouldRebuildCdf())
-	{
-		BuildSkyLightCdfs(RHICmdList, Scene->SkyLight);
-	}
-
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 	auto ViewSize = View.ViewRect.Size();
 	FSceneViewState* ViewState = (FSceneViewState*)View.State;
@@ -471,10 +473,13 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, RayCountPerPixelRT, TEXT("RayCountPerPixelRT"));
 
 	// Clear render targets
-	ClearUAV(RHICmdList, RadianceRT->GetRenderTargetItem(), FLinearColor::Black);
-	ClearUAV(RHICmdList, SampleCountRT->GetRenderTargetItem(), FLinearColor::Black);
-	ClearUAV(RHICmdList, PixelPositionRT->GetRenderTargetItem(), FLinearColor::Black);
-	ClearUAV(RHICmdList, RayCountPerPixelRT->GetRenderTargetItem(), FLinearColor::Black);
+	FUintVector4 BlackColor(0, 0, 0, 1);
+	FVector4 BlackColorF(0, 0, 0, 1);
+
+	RHICmdList.ClearUAVFloat(RadianceRT->GetRenderTargetItem().UAV, BlackColorF);
+	RHICmdList.ClearUAVUint(SampleCountRT->GetRenderTargetItem().UAV, BlackColor);
+	RHICmdList.ClearUAVUint(PixelPositionRT->GetRenderTargetItem().UAV, BlackColor);
+	RHICmdList.ClearUAVUint(RayCountPerPixelRT->GetRenderTargetItem().UAV, BlackColor);
 
 	auto RayGenShader = GetGlobalShaderMap(FeatureLevel)->GetShader<FPathTracingRG>();
 
@@ -488,6 +493,11 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 	
 	int32 GPUCount = CVarPathTracingGPUCount.GetValueOnRenderThread();
 	uint32 MainGPUIndex = 0; // Default GPU for rendering
+	
+	float DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(View.CursorPos.X, View.CursorPos.Y);
+	const int32 bWiperMode = CVarPathTracingWiperMode.GetValueOnRenderThread();
+	const int32 WipeOffsetX = bWiperMode? View.CursorPos.X / DPIScale : 0;
+
 	bool bDoMGPUPathTracing = GNumExplicitGPUsForRendering > 1 && GPUCount > 1;
 
 	if (bDoMGPUPathTracing)
@@ -589,7 +599,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 	else
 	{
 		FIntVector TileOffset;
-		TileOffset.X = 0;
+		TileOffset.X = bWiperMode > 0 ? WipeOffsetX : 0;
 		TileOffset.Y = 0; 
 
 		RayGenShader->SetParameters(
@@ -607,10 +617,19 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 			RayCountPerPixelRT->GetRenderTargetItem().UAV
 		);
 	
-		RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, View.ViewRect.Size().X, View.ViewRect.Size().Y);
+		int32 ViewWidth = View.ViewRect.Size().X;
+
+		int32 DispatchSizeX = bWiperMode > 0 ? ViewWidth - WipeOffsetX : ViewWidth;
+		int32 DispatchSizeY = View.ViewRect.Size().Y;
+
+		RHICmdList.RayTraceDispatch(
+			View.RayTracingMaterialPipeline, 
+			RayGenShader->GetRayTracingShader(), 
+			RayTracingSceneRHI, GlobalResources, 
+			DispatchSizeX, DispatchSizeY 
+		);
 	}
 	
-
 
 	// Save RayTracingIndirect for compositing
 	RHICmdList.CopyToResolveTarget(RadianceRT->GetRenderTargetItem().TargetableTexture, RadianceRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
@@ -641,11 +660,11 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, RadianceSortedAlphaRT, TEXT("RadianceSortedAlphaRT"));
 	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SampleCountSortedRT, TEXT("SampleCountSortedRT"));
 
-	ClearUAV(RHICmdList, RadianceSortedRedRT->GetRenderTargetItem(), FLinearColor::Black);
-	ClearUAV(RHICmdList, RadianceSortedGreenRT->GetRenderTargetItem(), FLinearColor::Black);
-	ClearUAV(RHICmdList, RadianceSortedBlueRT->GetRenderTargetItem(), FLinearColor::Black);
-	ClearUAV(RHICmdList, RadianceSortedAlphaRT->GetRenderTargetItem(), FLinearColor::Black);
-	ClearUAV(RHICmdList, SampleCountSortedRT->GetRenderTargetItem(), FLinearColor::Black);	
+	RHICmdList.ClearUAVUint(RadianceSortedRedRT->GetRenderTargetItem().UAV, BlackColor);
+	RHICmdList.ClearUAVUint(RadianceSortedGreenRT->GetRenderTargetItem().UAV, BlackColor);
+	RHICmdList.ClearUAVUint(RadianceSortedBlueRT->GetRenderTargetItem().UAV, BlackColor);
+	RHICmdList.ClearUAVUint(RadianceSortedAlphaRT->GetRenderTargetItem().UAV, BlackColor);
+	RHICmdList.ClearUAVUint(SampleCountSortedRT->GetRenderTargetItem().UAV, BlackColor);
 
 	ComputePathCompaction(
 		RHICmdList,
@@ -677,8 +696,9 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 	Desc.Format = PF_R16_UINT;
 	//Desc.Format = PF_R32_UINT;
 	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, OutputSampleCountRT, TEXT("OutputSampleCountRT"));
-	ClearUAV(RHICmdList, OutputRadianceRT->GetRenderTargetItem(), FLinearColor::Black);
-	ClearUAV(RHICmdList, OutputSampleCountRT->GetRenderTargetItem(), FLinearColor::Black);
+	
+	RHICmdList.ClearUAVFloat(OutputRadianceRT->GetRenderTargetItem().UAV, BlackColorF);
+	RHICmdList.ClearUAVUint(OutputSampleCountRT->GetRenderTargetItem().UAV, BlackColor);
 
 	// Run compositing engine
 	const auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
@@ -734,12 +754,15 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 		++FrameIndependentTemporalSeed;
 
 		PixelShader->SetParameters(RHICmdList, View, RadianceRedTexture, RadianceGreenTexture, RadianceBlueTexture, RadianceAlphaTexture, SampleCountTexture, CumulativeRadianceTexture, CumulativeSampleCount);
+
+		int32 DispatchSizeX = View.ViewRect.Size().X;
+
 		DrawRectangle(
 			RHICmdList,
-			0, 0,
-			View.ViewRect.Width(), View.ViewRect.Height(),
-			View.ViewRect.Min.X, View.ViewRect.Min.Y,
-			View.ViewRect.Width(), View.ViewRect.Height(),
+			WipeOffsetX, 0,
+			DispatchSizeX, View.ViewRect.Height(),
+			WipeOffsetX, View.ViewRect.Min.Y,
+			DispatchSizeX, View.ViewRect.Height(),
 			FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()),
 			SceneContext.GetBufferSizeXY(),
 			*VertexShader);

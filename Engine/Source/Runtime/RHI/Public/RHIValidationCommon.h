@@ -18,6 +18,25 @@
 class FValidationRHIUtils
 {
 public:
+	static bool IsValidCopyFormat(EPixelFormat SourceFormat, EPixelFormat DestFormat)
+	{
+		if (SourceFormat == DestFormat)
+		{
+			return true;
+		}
+		// Acceptable conversions follow. Add more as required.
+		if (SourceFormat == PF_R32G32_UINT && (DestFormat == PF_DXT1 || DestFormat == PF_BC4))
+		{
+			return true;
+		}
+		if (SourceFormat == PF_R32G32B32A32_UINT && (DestFormat == PF_DXT3 || DestFormat == PF_DXT5 || DestFormat == PF_BC5 || DestFormat == PF_BC7))
+		{
+			return true;
+		}
+		// No valid conversion found
+		return false;
+	}
+
 	static void ValidateCopyTexture(
 		FRHITexture*	SourceTexture,
 		FRHITexture*	DestTexture,
@@ -27,7 +46,7 @@ public:
 	{
 		check(SourceTexture);
 		check(DestTexture);
-		checkf(SourceTexture->GetFormat() == DestTexture->GetFormat(), TEXT("Some RHIs do not allow format conversion by the GPU for transfer operations!"));
+		checkf(IsValidCopyFormat(SourceTexture->GetFormat(), DestTexture->GetFormat()), TEXT("Some RHIs do not allow format conversion by the GPU for transfer operations!"));
 
 		FIntVector SrcSize = SourceTexture->GetSizeXYZ();
 		FIntVector DestSize = DestTexture->GetSizeXYZ();

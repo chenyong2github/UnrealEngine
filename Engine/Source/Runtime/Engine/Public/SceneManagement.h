@@ -28,6 +28,7 @@
 #include "LightmapUniformShaderParameters.h"
 #include "DynamicBufferAllocator.h"
 #include "Rendering/SkyAtmosphereCommonData.h"
+#include "Rendering/SkyLightImportanceSampling.h"
 
 class FCanvas;
 class FLightMap;
@@ -1081,33 +1082,11 @@ public:
 	float MinOcclusion;
 	FLinearColor OcclusionTint;
 	int32 SamplesPerPixel;
+#if RHI_RAYTRACING
+	FSkyLightImportanceSamplingData* ImportanceSamplingData;
+#endif
 
 	bool IsMovable() { return bMovable; }
-
-#if RHI_RAYTRACING
-	bool IsDirtyImportanceSamplingData;
-	bool ShouldRebuildCdf() const;
-
-	FRWBuffer RowCdf;
-	FRWBuffer ColumnCdf;
-	FRWBuffer CubeFaceCdf;
-
-	FRWBuffer SkyLightMipTreePosX;
-	FRWBuffer SkyLightMipTreeNegX;
-	FRWBuffer SkyLightMipTreePosY;
-	FRWBuffer SkyLightMipTreeNegY;
-	FRWBuffer SkyLightMipTreePosZ;
-	FRWBuffer SkyLightMipTreeNegZ;
-	FIntVector SkyLightMipDimensions;
-
-	FRWBuffer SkyLightMipTreePdfPosX;
-	FRWBuffer SkyLightMipTreePdfNegX;
-	FRWBuffer SkyLightMipTreePdfPosY;
-	FRWBuffer SkyLightMipTreePdfNegY;
-	FRWBuffer SkyLightMipTreePdfPosZ;
-	FRWBuffer SkyLightMipTreePdfNegZ;
-	FRWBuffer SolidAnglePdf;
-#endif
 
 	void SetLightColor(const FLinearColor& InColor)
 	{
@@ -2796,10 +2775,10 @@ extern ENGINE_API bool IsRichView(const FSceneViewFamily& ViewFamily);
 	 * true if we debug material names with SCOPED_DRAW_EVENT.
 	 * Toggle with "r.ShowMaterialDrawEvents" cvar.
 	 */
-	extern ENGINE_API void BeginMeshDrawEvent_Inner(FRHICommandList& RHICmdList, const class FPrimitiveSceneProxy* PrimitiveSceneProxy, const struct FMeshBatch& Mesh, struct TDrawEvent<FRHICommandList>& DrawEvent);
+	extern ENGINE_API void BeginMeshDrawEvent_Inner(FRHICommandList& RHICmdList, const class FPrimitiveSceneProxy* PrimitiveSceneProxy, const struct FMeshBatch& Mesh, struct FDrawEvent& DrawEvent);
 #endif
 
-FORCEINLINE void BeginMeshDrawEvent(FRHICommandList& RHICmdList, const class FPrimitiveSceneProxy* PrimitiveSceneProxy, const struct FMeshBatch& Mesh, struct TDrawEvent<FRHICommandList>& DrawEvent, bool ShowMaterialDrawEvent)
+FORCEINLINE void BeginMeshDrawEvent(FRHICommandList& RHICmdList, const class FPrimitiveSceneProxy* PrimitiveSceneProxy, const struct FMeshBatch& Mesh, struct FDrawEvent& DrawEvent, bool ShowMaterialDrawEvent)
 {
 #if WANTS_DRAW_MESH_EVENTS
 	if (ShowMaterialDrawEvent)

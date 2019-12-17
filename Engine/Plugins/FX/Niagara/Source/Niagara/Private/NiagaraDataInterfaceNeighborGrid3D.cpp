@@ -487,8 +487,8 @@ void FNiagaraDataInterfaceProxyNeighborGrid3D::PreStage(FRHICommandList& RHICmdL
 	{
 		NeighborGrid3DRWInstanceData* ProxyData = SystemInstancesToProxyData.Find(Context.SystemInstance);
 
-		ClearUAV(RHICmdList, ProxyData->NeighborhoodBuffer, -1);
-		ClearUAV(RHICmdList, ProxyData->NeighborhoodCountBuffer, 0);
+		RHICmdList.ClearUAVUint(ProxyData->NeighborhoodBuffer.UAV, FUintVector4((uint32)-1, (uint32)-1, (uint32)-1, (uint32)-1));
+		RHICmdList.ClearUAVUint(ProxyData->NeighborhoodCountBuffer.UAV, FUintVector4(0, 0, 0 ,0));
 	}
 }
 

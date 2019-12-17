@@ -23,8 +23,9 @@ DECLARE_CYCLE_STAT(TEXT("All Command List Execute"), STAT_ImmedCmdListExecuteTim
 DECLARE_DWORD_COUNTER_STAT(TEXT("Immed. Command List memory"), STAT_ImmedCmdListMemory, STATGROUP_RHICMDLIST);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Immed. Command count"), STAT_ImmedCmdListCount, STATGROUP_RHICMDLIST);
 
-
-
+#if VALIDATE_UNIFORM_BUFFER_GLOBAL_BINDINGS
+bool FScopedUniformBufferGlobalBindings::bRecursionGuard = false;
+#endif
 
 #if !PLATFORM_USES_FIXED_RHI_CLASS
 #include "RHICommandListCommandExecutes.inl"
@@ -138,7 +139,6 @@ uint32 GWorkingRHIThreadStartCycles = 0;
 uint64 GInputLatencyTime = 0;
 
 RHI_API bool GEnableAsyncCompute = true;
-RHI_API bool GSupportAsyncComputeRaytracingBuildBVH = false;
 RHI_API FRHICommandListExecutor GRHICommandList;
 
 static FGraphEventArray AllOutstandingTasks;
@@ -184,18 +184,6 @@ void FRHICommandListImmediate::SetCurrentStat(TStatId Stat)
 	{
 		ALLOC_COMMAND(FRHICommandStat)(Stat);
 	}
-}
-
-void FRHICommandListBase::SetGPUMaskOnContext()
-{
-#if WITH_MGPU
-	if (Bypass())
-	{
-		GetContext().RHISetGPUMask(GPUMask);
-		return;
-	}
-	ALLOC_COMMAND(FRHICommandSetGPUMask)(GPUMask);
-#endif
 }
 
 DECLARE_CYCLE_STAT(TEXT("FNullGraphTask.RenderThreadTaskFence"), STAT_RenderThreadTaskFence, STATGROUP_TaskGraphTasks);
@@ -269,18 +257,6 @@ void FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(FRHIAsyncComputeCom
 			RHIImmCmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 		}
 	}
-}
-
-void FRHICommandListBase::SetGPUMaskOnComputeContext()
-{
-#if WITH_MGPU
-	if (Bypass())
-	{
-		GetComputeContext().RHISetGPUMask(GPUMask);
-		return;
-	}
-	ALLOC_COMMAND(FRHICommandSetGPUMask)(GPUMask);
-#endif
 }
 
 FRHICommandBase* GCurrentCommand = nullptr;
@@ -806,24 +782,24 @@ FGraphEventRef FRHICommandListImmediate::RHIThreadFence(bool bSetLockFence)
 	}
 
 	return nullptr;
-}		
+}
 
 DECLARE_CYCLE_STAT(TEXT("Async Compute CmdList Execute"), STAT_AsyncComputeExecute, STATGROUP_RHICMDLIST);
 FRHICOMMAND_MACRO(FRHIAsyncComputeSubmitList)
 {
-	FRHIAsyncComputeCommandList* RHICmdList;
-	FORCEINLINE_DEBUGGABLE FRHIAsyncComputeSubmitList(FRHIAsyncComputeCommandList* InRHICmdList)
+	FRHIComputeCommandList* RHICmdList;
+	FORCEINLINE_DEBUGGABLE FRHIAsyncComputeSubmitList(FRHIComputeCommandList* InRHICmdList)
 		: RHICmdList(InRHICmdList)
 	{
 	}
 	void Execute(FRHICommandListBase& CmdList)
-	{		
+	{
 		SCOPE_CYCLE_COUNTER(STAT_AsyncComputeExecute);
 		delete RHICmdList;
 	}
 };
 
-void FRHICommandListImmediate::QueueAsyncCompute(FRHIAsyncComputeCommandList& RHIComputeCmdList)
+void FRHICommandListImmediate::QueueAsyncCompute(FRHIComputeCommandList& RHIComputeCmdList)
 {
 	if (Bypass())
 	{
@@ -871,6 +847,12 @@ FRHICommandListBase::FRHICommandListBase(FRHIGPUMask InGPUMask)
 {
 	GRHICommandList.OutstandingCmdListCount.Increment();
 	Reset();
+
+	if (!bRecursive)
+	{
+		Context = GDynamicRHI ? RHIGetDefaultContext() : nullptr;
+		ComputeContext = Context;
+	}
 }
 
 FRHICommandListBase::~FRHICommandListBase()
@@ -892,20 +874,7 @@ void FRHICommandListBase::Reset()
 	NumCommands = 0;
 	Root = nullptr;
 	CommandLink = &Root;
-	if (!bRecursive)
-	{
-		Context = GDynamicRHI ? RHIGetDefaultContext() : nullptr;
 
-		if (GEnableAsyncCompute)
-		{
-			ComputeContext = GDynamicRHI ? RHIGetDefaultAsyncComputeContext() : nullptr;
-		}
-		else
-		{
-			ComputeContext = Context;
-		}
-	}
-	
 	UID = GRHICommandList.UIDCounter.Increment();
 	for (int32 Index = 0; ERenderThreadContext(Index) < ERenderThreadContext::Num; Index++)
 	{
@@ -1911,12 +1880,12 @@ void FRHICommandList::operator delete(void *RawMemory)
 	FMemory::Free(RawMemory);
 }
 
-void* FRHIAsyncComputeCommandList::operator new(size_t Size)
+void* FRHIComputeCommandList::operator new(size_t Size)
 {
 	return FMemory::Malloc(Size);
 }
 
-void FRHIAsyncComputeCommandList::operator delete(void *RawMemory)
+void FRHIComputeCommandList::operator delete(void *RawMemory)
 {
 	FMemory::Free(RawMemory);
 }
@@ -2228,7 +2197,7 @@ void FDynamicRHI::RHIUnlockStructuredBuffer(class FRHICommandListImmediate& RHIC
 }
 
 // @todo-mattc-staging Default implementation
-void* FDynamicRHI::RHILockStagingBuffer(FRHIStagingBuffer* StagingBuffer, uint32 Offset, uint32 SizeRHI)
+void* FDynamicRHI::RHILockStagingBuffer(FRHIStagingBuffer* StagingBuffer, FRHIGPUFence* Fence, uint32 Offset, uint32 SizeRHI)
 {
 	check(false);
 	return nullptr;
@@ -2240,19 +2209,41 @@ void FDynamicRHI::RHIUnlockStagingBuffer(FRHIStagingBuffer* StagingBuffer)
 	//GDynamicRHI->RHIUnlockVertexBuffer(StagingBuffer->GetSourceBuffer());
 }
 
-void* FDynamicRHI::LockStagingBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStagingBuffer* StagingBuffer, uint32 Offset, uint32 SizeRHI)
+void* FDynamicRHI::LockStagingBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStagingBuffer* StagingBuffer, FRHIGPUFence* Fence, uint32 Offset, uint32 SizeRHI)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FDynamicRHI_LockStagingBuffer_RenderThread);
 	check(IsInRenderingThread());
-	RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-	return GDynamicRHI->RHILockStagingBuffer(StagingBuffer, Offset, SizeRHI);
+	if (Fence == nullptr || !Fence->Poll())
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FDynamicRHI_LockStagingBuffer_Flush);
+		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+	}
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FDynamicRHI_LockStagingBuffer_RenderThread);
+		if (GRHISupportsMultithreading)
+		{
+			return GDynamicRHI->RHILockStagingBuffer(StagingBuffer, Fence, Offset, SizeRHI);
+		}
+		else
+		{
+			FScopedRHIThreadStaller StallRHIThread(RHICmdList);
+			return GDynamicRHI->RHILockStagingBuffer(StagingBuffer, Fence, Offset, SizeRHI);
+		}
+	}
 }
+
 void FDynamicRHI::UnlockStagingBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStagingBuffer* StagingBuffer)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FDynamicRHI_UnlockStagingBuffer_RenderThread);
 	check(IsInRenderingThread());
-	RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-	GDynamicRHI->RHIUnlockStagingBuffer(StagingBuffer);
+	if (GRHISupportsMultithreading)
+	{
+		GDynamicRHI->RHIUnlockStagingBuffer(StagingBuffer);
+	}
+	else
+	{
+		FScopedRHIThreadStaller StallRHIThread(RHICmdList);
+		GDynamicRHI->RHIUnlockStagingBuffer(StagingBuffer);
+	}
 }
 
 FTexture2DRHIRef FDynamicRHI::AsyncReallocateTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D, int32 NewMipCount, int32 NewSizeX, int32 NewSizeY, FThreadSafeCounter* RequestStatus)
@@ -2605,15 +2596,30 @@ void FDynamicRHI::RHIMapStagingSurface_RenderThread(class FRHICommandListImmedia
 		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 	}
 	{
-		FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-		GDynamicRHI->RHIMapStagingSurface(Texture, Fence, OutData, OutWidth, OutHeight, RHICmdList.GetGPUMask().ToIndex());
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_MapStagingSurface_RenderThread);
+		if (GRHISupportsMultithreading)
+		{
+			GDynamicRHI->RHIMapStagingSurface(Texture, Fence, OutData, OutWidth, OutHeight, RHICmdList.GetGPUMask().ToIndex());
+		}
+		else
+		{
+			FScopedRHIThreadStaller StallRHIThread(RHICmdList);
+			GDynamicRHI->RHIMapStagingSurface(Texture, Fence, OutData, OutWidth, OutHeight, RHICmdList.GetGPUMask().ToIndex());
+		}
 	}
 }
 
 void FDynamicRHI::RHIUnmapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture)
 {
-	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-	GDynamicRHI->RHIUnmapStagingSurface(Texture, RHICmdList.GetGPUMask().ToIndex());
+	if (GRHISupportsMultithreading)
+	{
+		GDynamicRHI->RHIUnmapStagingSurface(Texture, RHICmdList.GetGPUMask().ToIndex());
+	}
+	else
+	{
+		FScopedRHIThreadStaller StallRHIThread(RHICmdList);
+		GDynamicRHI->RHIUnmapStagingSurface(Texture, RHICmdList.GetGPUMask().ToIndex());
+	}
 }
 
 void FDynamicRHI::RHIReadSurfaceFloatData_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, FIntRect Rect, TArray<FFloat16Color>& OutData, ECubeFace CubeFace, int32 ArrayIndex, int32 MipIndex)

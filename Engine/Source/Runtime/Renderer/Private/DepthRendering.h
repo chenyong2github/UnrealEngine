@@ -161,6 +161,7 @@ public:
 	{
 		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		
+		OutEnvironment.SetDefine(TEXT("ALLOW_DEBUG_VIEW_MODES"), AllowDebugViewmodes(Parameters.Platform));
 		if (IsMobilePlatform(Parameters.Platform))
 		{
 			// No access to scene textures during depth rendering on mobile

@@ -268,7 +268,7 @@ struct FTextureSource
 	ENGINE_API bool GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, int32 LayerIndex, int32 MipIndex, class IImageWrapperModule* ImageWrapperModule = nullptr);
 
 	/** Computes the size of a single mip. */
-	ENGINE_API int32 CalcMipSize(int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const;
+	ENGINE_API int64 CalcMipSize(int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const;
 
 	/** Computes the number of bytes per-pixel. */
 	ENGINE_API int32 GetBytesPerPixel(int32 LayerIndex = 0) const;
@@ -301,7 +301,7 @@ struct FTextureSource
 	FORCEINLINE int32 GetNumBlocks() const { return Blocks.Num() + 1; }
 	FORCEINLINE ETextureSourceFormat GetFormat(int32 LayerIndex = 0) const { return (LayerIndex == 0) ? Format : LayerFormat[LayerIndex]; }
 	FORCEINLINE bool IsPNGCompressed() const { return bPNGCompressed; }
-	FORCEINLINE int32 GetSizeOnDisk() const { return BulkData.GetBulkDataSize(); }
+	FORCEINLINE int64 GetSizeOnDisk() const { return BulkData.GetBulkDataSize(); }
 	FORCEINLINE bool IsBulkDataLoaded() const { return BulkData.IsBulkDataLoaded(); }
 	FORCEINLINE bool LoadBulkDataWithFileReader() { return BulkData.LoadBulkDataWithFileReader(); }
 	FORCEINLINE void RemoveBulkData() { BulkData.RemoveBulkData(); }
@@ -315,7 +315,7 @@ struct FTextureSource
 		return GetMipData(OutMipData, 0, 0, MipIndex, ImageWrapperModule);
 	}
 
-	FORCEINLINE int32 CalcMipSize(int32 MipIndex) const { return CalcMipSize(0, 0, MipIndex); }
+	FORCEINLINE int64 CalcMipSize(int32 MipIndex) const { return CalcMipSize(0, 0, MipIndex); }
 	FORCEINLINE uint8* LockMip(int32 MipIndex) { return LockMip(0, 0, MipIndex); }
 	FORCEINLINE void UnlockMip(int32 MipIndex) { UnlockMip(0, 0, MipIndex); }
 
@@ -342,10 +342,10 @@ private:
 	/** Removes source data. */
 	void RemoveSourceData();
 	/** Retrieve the size and offset for a source mip. The size includes all slices. */
-	int32 CalcMipOffset(int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const;
+	int64 CalcMipOffset(int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const;
 
-	int32 CalcBlockSize(int32 BlockIndex) const;
-	int32 CalcLayerSize(int32 BlockIndex, int32 LayerIndex) const;
+	int64 CalcBlockSize(int32 BlockIndex) const;
+	int64 CalcLayerSize(int32 BlockIndex, int32 LayerIndex) const;
 
 	/** Uses a hash as the GUID, useful to prevent creating new GUIDs on load for legacy assets. */
 	void UseHashAsGuid();

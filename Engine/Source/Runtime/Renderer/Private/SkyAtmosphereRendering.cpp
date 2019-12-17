@@ -199,16 +199,10 @@ static TAutoConsoleVariable<int32> CVarSkyAtmosphereLUT32(
 	TEXT("Use full 32bit per-channel precision for all sky LUTs.\n"),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-TAutoConsoleVariable<int32> CVarSkyAtmosphereVisualize(
-	TEXT("r.SkyAtmosphere.Visualize"),
-	0,
-	TEXT("DRAW DEBUG"),
-	ECVF_RenderThreadSafe);
-
 DECLARE_GPU_STAT(SkyAtmosphereLUTs);
 DECLARE_GPU_STAT(SkyAtmosphere);
 DECLARE_GPU_STAT(SkyAtmosphereEditor);
-DECLARE_GPU_STAT(SkyAtmosphereDebugViz);
+DECLARE_GPU_STAT(SkyAtmosphereDebugVisualize);
 
 // Extra internal constants shared between all passes.
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyAtmosphereInternalCommonParameters, )
@@ -1493,17 +1487,17 @@ void FDeferredShadingSceneRenderer::RenderDebugSkyAtmosphere(FRHICommandListImme
 
 	//if (!RHISupportsComputeShaders()) return;	// TODO cannot render, add a ShouldRender function. Also should PipelineShouldCook ?
 
-	SCOPED_DRAW_EVENT(RHICmdList, SkyAtmosphereDebugViz);
-	SCOPED_GPU_STAT(RHICmdList, SkyAtmosphereDebugViz);
+	SCOPED_DRAW_EVENT(RHICmdList, SkyAtmosphereDebugVisualize);
+	SCOPED_GPU_STAT(RHICmdList, SkyAtmosphereDebugVisualize);
 
-	const int32 SkyAtmosphereVisualize = CVarSkyAtmosphereVisualize.GetValueOnRenderThread();
+	const bool bSkyAtmosphereVisualizeShowFlag = ViewFamily.EngineShowFlags.VisualizeSkyAtmosphere;
 	FSkyAtmosphereRenderSceneInfo& SkyInfo = *Scene->GetSkyAtmosphereSceneInfo();
 	const FSkyAtmosphereSceneProxy& SkyAtmosphereSceneProxy = SkyInfo.GetSkyAtmosphereSceneProxy();
 
 	const FAtmosphereSetup& Atmosphere = SkyAtmosphereSceneProxy.GetAtmosphereSetup();
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
-	if (SkyAtmosphereVisualize)
+	if (bSkyAtmosphereVisualizeShowFlag)
 	{
 		const bool bMultiScattering = SkyAtmosphereSceneProxy.IsMultiScatteringEnabled();
 		const bool bFastSky = CVarSkyAtmosphereFastSkyLUT.GetValueOnRenderThread() > 0;
@@ -1570,7 +1564,7 @@ void FDeferredShadingSceneRenderer::RenderDebugSkyAtmosphere(FRHICommandListImme
 		FLinearColor WarningColor(1.0f, 0.5f, 0.0f);
 		FString Text;
 
-		if (SkyAtmosphereVisualize)
+		if (bSkyAtmosphereVisualizeShowFlag)
 		{
 			const float ViewPlanetAltitude = (View.ViewLocation*0.00001f - FVector(0.0f, 0.0f, -Atmosphere.BottomRadius)).Size() - Atmosphere.BottomRadius;
 			const bool bViewUnderGroundLevel = ViewPlanetAltitude < 0.0f;

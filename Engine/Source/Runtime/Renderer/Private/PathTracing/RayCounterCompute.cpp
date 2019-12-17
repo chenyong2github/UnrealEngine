@@ -96,7 +96,7 @@ IMPLEMENT_SHADER_TYPE(, FRayCounterCS, TEXT("/Engine/Private/PathTracing/PathTra
 void FDeferredShadingSceneRenderer::ComputeRayCount(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FRHITexture* RayCountPerPixelTexture)
 {
 	FSceneViewState* ViewState = (FSceneViewState*)View.State;
-	ClearUAV(RHICmdList, *ViewState->TotalRayCountBuffer, 0);
+	RHICmdList.ClearUAVUint(ViewState->TotalRayCountBuffer->UAV, FUintVector4(0, 0, 0, 0));
 
 	const auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
 	TShaderMapRef<FRayCounterCS> RayCounterComputeShader(ShaderMap);

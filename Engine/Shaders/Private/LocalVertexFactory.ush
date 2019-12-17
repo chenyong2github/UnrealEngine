@@ -201,6 +201,9 @@ FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexI
 		Input.PrimitiveId = GetInstanceUserData();
 	#endif
 
+	// SV_InstanceId can be emulated like so:
+	// Input.InstanceId = InstanceIndex() - GetBaseInstanceIndex();
+
 	return Input;
 }
 #endif

@@ -2260,7 +2260,7 @@ void ComputeWholeSceneShadowCacheModes(
 					{
 						OutNumShadowMaps = 1;
 						OutCacheModes[0] = SDCM_Uncached;
-						CachedShadowMapData->ShadowMap.DepthTarget = NULL;
+						CachedShadowMapData->ShadowMap.Release();
 					}
 				}
 			}
@@ -2268,7 +2268,7 @@ void ComputeWholeSceneShadowCacheModes(
 			{
 				OutNumShadowMaps = 1;
 				OutCacheModes[0] = SDCM_Uncached;
-				CachedShadowMapData->ShadowMap.DepthTarget = NULL;
+				CachedShadowMapData->ShadowMap.Release();
 			}
 
 			CachedShadowMapData->Initializer = InOutProjectedShadowInitializer;
@@ -3634,7 +3634,7 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 	{
 		if (!Scene->PreShadowCacheDepthZ)
 		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(SceneContext.GetPreShadowCacheTextureResolution(), PF_ShadowDepth, FClearValueBinding::None, TexCreate_None, TexCreate_DepthStencilTargetable, false));
+			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(SceneContext.GetPreShadowCacheTextureResolution(), PF_ShadowDepth, FClearValueBinding::None, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false));
 			Desc.AutoWritable = false;
 			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, Scene->PreShadowCacheDepthZ, TEXT("PreShadowCacheDepthZ"), true, ERenderTargetTransience::NonTransient);
 		}
@@ -3704,7 +3704,7 @@ void FSceneRenderer::AllocatePerObjectShadowDepthTargets(FRHICommandListImmediat
 		int32 OriginalNumAtlases = SortedShadowsForShadowDepthPass.ShadowMapAtlases.Num();
 
 		FTextureLayout CurrentShadowLayout(1, 1, ShadowBufferResolution.X, ShadowBufferResolution.Y, false, ETextureLayoutAspectRatio::None, false);
-		FPooledRenderTargetDesc ShadowMapDesc2D = FPooledRenderTargetDesc::Create2DDesc(ShadowBufferResolution, PF_ShadowDepth, FClearValueBinding::DepthOne, TexCreate_None, TexCreate_DepthStencilTargetable, false);
+		FPooledRenderTargetDesc ShadowMapDesc2D = FPooledRenderTargetDesc::Create2DDesc(ShadowBufferResolution, PF_ShadowDepth, FClearValueBinding::DepthOne, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false);
 		ShadowMapDesc2D.Flags |= GFastVRamConfig.ShadowPerObject;
 
 		// Sort the projected shadows by resolution.
@@ -3724,7 +3724,7 @@ void FSceneRenderer::AllocatePerObjectShadowDepthTargets(FRHICommandListImmediat
 				ProjectedShadowInfo->X = ProjectedShadowInfo->Y = 0;
 				ProjectedShadowInfo->bAllocated = true;
 				// Skip the shadow depth pass since there are no movable primitives to composite, project from the cached shadowmap directly which contains static primitive depths
-				ProjectedShadowInfo->RenderTargets.DepthTarget = CachedShadowMapData.ShadowMap.DepthTarget;
+				ProjectedShadowInfo->RenderTargets.CopyReferencesFromRenderTargets(CachedShadowMapData.ShadowMap);
 			}
 			else
 			{
@@ -3763,12 +3763,12 @@ void FSceneRenderer::AllocatePerObjectShadowDepthTargets(FRHICommandListImmediat
 
 				FSortedShadowMapAtlas& ShadowMapAtlas = SortedShadowsForShadowDepthPass.ShadowMapAtlases.Last();
 
-				if (!ShadowMapAtlas.RenderTargets.DepthTarget || GFastVRamConfig.bDirty )
+				if (!ShadowMapAtlas.RenderTargets.IsValid() || GFastVRamConfig.bDirty)
 				{
 					GRenderTargetPool.FindFreeElement(RHICmdList, ShadowMapDesc2D, ShadowMapAtlas.RenderTargets.DepthTarget, TEXT("ShadowDepthAtlas"), true, ERenderTargetTransience::NonTransient);
 				}
 
-				ProjectedShadowInfo->RenderTargets.DepthTarget = ShadowMapAtlas.RenderTargets.DepthTarget.GetReference();
+				ProjectedShadowInfo->RenderTargets.CopyReferencesFromRenderTargets(ShadowMapAtlas.RenderTargets);
 				ProjectedShadowInfo->SetupShadowDepthView(RHICmdList, this);
 				ShadowMapAtlas.Shadows.Add(ProjectedShadowInfo);
 			}
@@ -3785,16 +3785,16 @@ void FSceneRenderer::AllocateCachedSpotlightShadowDepthTargets(FRHICommandListIm
 		FSortedShadowMapAtlas& ShadowMap = SortedShadowsForShadowDepthPass.ShadowMapAtlases.Last();
 
 		FIntPoint ShadowResolution(ProjectedShadowInfo->ResolutionX + ProjectedShadowInfo->BorderSize * 2, ProjectedShadowInfo->ResolutionY + ProjectedShadowInfo->BorderSize * 2);
-		FPooledRenderTargetDesc ShadowMapDesc2D = FPooledRenderTargetDesc::Create2DDesc(ShadowResolution, PF_ShadowDepth, FClearValueBinding::DepthOne, TexCreate_None, TexCreate_DepthStencilTargetable, false, 1, false);
+		FPooledRenderTargetDesc ShadowMapDesc2D = FPooledRenderTargetDesc::Create2DDesc(ShadowResolution, PF_ShadowDepth, FClearValueBinding::DepthOne, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false, 1, false);
 		GRenderTargetPool.FindFreeElement(RHICmdList, ShadowMapDesc2D, ShadowMap.RenderTargets.DepthTarget, TEXT("CachedShadowDepthMap"), true, ERenderTargetTransience::NonTransient);
 
 		check(ProjectedShadowInfo->CacheMode == SDCM_StaticPrimitivesOnly);
 		FCachedShadowMapData& CachedShadowMapData = Scene->CachedShadowMaps.FindChecked(ProjectedShadowInfo->GetLightSceneInfo().Id);
-		CachedShadowMapData.ShadowMap.DepthTarget = ShadowMap.RenderTargets.DepthTarget;
+		CachedShadowMapData.ShadowMap = ShadowMap.RenderTargets;
 
 		ProjectedShadowInfo->X = ProjectedShadowInfo->Y = 0;
 		ProjectedShadowInfo->bAllocated = true;
-		ProjectedShadowInfo->RenderTargets.DepthTarget = ShadowMap.RenderTargets.DepthTarget.GetReference();
+		ProjectedShadowInfo->RenderTargets.CopyReferencesFromRenderTargets(ShadowMap.RenderTargets);
 
 		ProjectedShadowInfo->SetupShadowDepthView(RHICmdList, this);
 		ShadowMap.Shadows.Add(ProjectedShadowInfo);
@@ -3876,7 +3876,7 @@ void FSceneRenderer::AllocateCSMDepthTargets(FRHICommandListImmediate& RHICmdLis
 			FSortedShadowMapAtlas& ShadowMapAtlas = SortedShadowsForShadowDepthPass.ShadowMapAtlases.Last();
 
 			FIntPoint WholeSceneAtlasSize(CurrentLayout.TextureLayout.GetSizeX(), CurrentLayout.TextureLayout.GetSizeY());
-			FPooledRenderTargetDesc WholeSceneShadowMapDesc2D(FPooledRenderTargetDesc::Create2DDesc(WholeSceneAtlasSize, PF_ShadowDepth, FClearValueBinding::DepthOne, TexCreate_None, TexCreate_DepthStencilTargetable, false));
+			FPooledRenderTargetDesc WholeSceneShadowMapDesc2D(FPooledRenderTargetDesc::Create2DDesc(WholeSceneAtlasSize, PF_ShadowDepth, FClearValueBinding::DepthOne, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false));
 			WholeSceneShadowMapDesc2D.Flags |= GFastVRamConfig.ShadowCSM;
 			GRenderTargetPool.FindFreeElement(RHICmdList, WholeSceneShadowMapDesc2D, ShadowMapAtlas.RenderTargets.DepthTarget, GetCSMRenderTargetName(LayoutIndex));
 
@@ -3886,7 +3886,7 @@ void FSceneRenderer::AllocateCSMDepthTargets(FRHICommandListImmediate& RHICmdLis
 
 				if (ProjectedShadowInfo->bAllocated)
 				{
-					ProjectedShadowInfo->RenderTargets.DepthTarget = ShadowMapAtlas.RenderTargets.DepthTarget.GetReference();
+					ProjectedShadowInfo->RenderTargets.CopyReferencesFromRenderTargets(ShadowMapAtlas.RenderTargets);
 					ProjectedShadowInfo->SetupShadowDepthView(RHICmdList, this);
 					ShadowMapAtlas.Shadows.Add(ProjectedShadowInfo);
 				}
@@ -3929,17 +3929,17 @@ void FSceneRenderer::AllocateRSMDepthTargets(FRHICommandListImmediate& RHICmdLis
 		FIntPoint WholeSceneAtlasSize(ShadowLayout.GetSizeX(), ShadowLayout.GetSizeY());
 
 		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(WholeSceneAtlasSize, PF_R8G8B8A8, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable, false));
+			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(WholeSceneAtlasSize, PF_R8G8B8A8, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
 			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ShadowMapAtlas.RenderTargets.ColorTargets[0], TEXT("RSMNormal"), true, ERenderTargetTransience::NonTransient );
 		}
 
 		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(WholeSceneAtlasSize, PF_FloatR11G11B10, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable, false));
+			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(WholeSceneAtlasSize, PF_FloatR11G11B10, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
 			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ShadowMapAtlas.RenderTargets.ColorTargets[1], TEXT("RSMDiffuse"), true, ERenderTargetTransience::NonTransient);
 		}
 
 		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(WholeSceneAtlasSize, PF_DepthStencil, FClearValueBinding::None, TexCreate_None, TexCreate_DepthStencilTargetable, false));
+			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(WholeSceneAtlasSize, PF_DepthStencil, FClearValueBinding::None, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false));
 			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ShadowMapAtlas.RenderTargets.DepthTarget, TEXT("RSMDepth"), true, ERenderTargetTransience::NonTransient);
 		}
 
@@ -3949,15 +3949,7 @@ void FSceneRenderer::AllocateRSMDepthTargets(FRHICommandListImmediate& RHICmdLis
 
 			if (ProjectedShadowInfo->bAllocated)
 			{
-				ProjectedShadowInfo->RenderTargets.ColorTargets.Empty(ShadowMapAtlas.RenderTargets.ColorTargets.Num());
-				ProjectedShadowInfo->RenderTargets.ColorTargets.AddDefaulted(ShadowMapAtlas.RenderTargets.ColorTargets.Num());
-
-				for (int32 TargetIndex = 0; TargetIndex < ShadowMapAtlas.RenderTargets.ColorTargets.Num(); TargetIndex++)
-				{
-					ProjectedShadowInfo->RenderTargets.ColorTargets[TargetIndex] = ShadowMapAtlas.RenderTargets.ColorTargets[TargetIndex].GetReference();
-				}
-
-				ProjectedShadowInfo->RenderTargets.DepthTarget = ShadowMapAtlas.RenderTargets.DepthTarget.GetReference();
+				ProjectedShadowInfo->RenderTargets.CopyReferencesFromRenderTargets(ShadowMapAtlas.RenderTargets);
 				ProjectedShadowInfo->SetupShadowDepthView(RHICmdList, this);
 				ShadowMapAtlas.Shadows.Add(ProjectedShadowInfo);
 			}
@@ -3981,26 +3973,26 @@ void FSceneRenderer::AllocateOnePassPointLightDepthTargets(FRHICommandListImmedi
 				ProjectedShadowInfo->bAllocated = true;
 				// Skip the shadow depth pass since there are no movable primitives to composite, project from the cached shadowmap directly which contains static primitive depths
 				check(CachedShadowMapData.ShadowMap.IsValid());
-				ProjectedShadowInfo->RenderTargets.DepthTarget = CachedShadowMapData.ShadowMap.DepthTarget;
+				ProjectedShadowInfo->RenderTargets.CopyReferencesFromRenderTargets(CachedShadowMapData.ShadowMap);
 			}
 			else
 			{
 				SortedShadowsForShadowDepthPass.ShadowMapCubemaps.AddDefaulted();
 				FSortedShadowMapAtlas& ShadowMapCubemap = SortedShadowsForShadowDepthPass.ShadowMapCubemaps.Last();
 
-				FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::CreateCubemapDesc(ProjectedShadowInfo->ResolutionX, PF_ShadowDepth, FClearValueBinding::DepthOne, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_NoFastClear, false, 1, 1, false));
+				FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::CreateCubemapDesc(ProjectedShadowInfo->ResolutionX, PF_ShadowDepth, FClearValueBinding::DepthOne, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_NoFastClear | TexCreate_ShaderResource, false, 1, 1, false));
 				Desc.Flags |= GFastVRamConfig.ShadowPointLight;
 				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ShadowMapCubemap.RenderTargets.DepthTarget, TEXT("CubeShadowDepthZ"), true, ERenderTargetTransience::NonTransient );
 
 				if (ProjectedShadowInfo->CacheMode == SDCM_StaticPrimitivesOnly)
 				{
 					FCachedShadowMapData& CachedShadowMapData = Scene->CachedShadowMaps.FindChecked(ProjectedShadowInfo->GetLightSceneInfo().Id);
-					CachedShadowMapData.ShadowMap.DepthTarget = ShadowMapCubemap.RenderTargets.DepthTarget;
+					CachedShadowMapData.ShadowMap = ShadowMapCubemap.RenderTargets;
 				}
 
 				ProjectedShadowInfo->X = ProjectedShadowInfo->Y = 0;
 				ProjectedShadowInfo->bAllocated = true;
-				ProjectedShadowInfo->RenderTargets.DepthTarget = ShadowMapCubemap.RenderTargets.DepthTarget.GetReference();
+				ProjectedShadowInfo->RenderTargets.CopyReferencesFromRenderTargets(ShadowMapCubemap.RenderTargets);
 
 				ProjectedShadowInfo->SetupShadowDepthView(RHICmdList, this);
 				ShadowMapCubemap.Shadows.Add(ProjectedShadowInfo);
@@ -4088,14 +4080,7 @@ void FSceneRenderer::AllocateTranslucentShadowDepthTargets(FRHICommandListImmedi
 				}
 			}
 
-			ProjectedShadowInfo->RenderTargets.ColorTargets.Empty(NumTranslucencyShadowSurfaces);
-			ProjectedShadowInfo->RenderTargets.ColorTargets.AddDefaulted(NumTranslucencyShadowSurfaces);
-
-			for (int32 TargetIndex = 0; TargetIndex < ShadowMapAtlas.RenderTargets.ColorTargets.Num(); TargetIndex++)
-			{
-				ProjectedShadowInfo->RenderTargets.ColorTargets[TargetIndex] = ShadowMapAtlas.RenderTargets.ColorTargets[TargetIndex].GetReference();
-			}
-
+			ProjectedShadowInfo->RenderTargets.CopyReferencesFromRenderTargets(ShadowMapAtlas.RenderTargets);
 			ProjectedShadowInfo->SetupShadowDepthView(RHICmdList, this);
 			ShadowMapAtlas.Shadows.Add(ProjectedShadowInfo);
 		}

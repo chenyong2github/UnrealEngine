@@ -579,6 +579,15 @@ public:
 
 	bool is_precision_statement;
 	unsigned precision : 2;
+
+	inline bool IsStructuredOrRWStructuredBuffer() const
+	{
+		check(type_name);
+		const bool bStructuredBuffer = !strcmp(this->type_name, "StructuredBuffer");
+		const bool bRWStructuredBuffer = !strcmp(this->type_name, "RWStructuredBuffer");
+		return bStructuredBuffer || bRWStructuredBuffer;
+	}
+
 };
 
 

@@ -353,28 +353,19 @@ static void RenderVoxelization(
 			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, VoxelResources.MaterialTexture, TEXT("MaterialTexture"));
 		}
 
-		uint32 ClearValues[4] = { 0, 0, 0, 0 };
-		RHICmdList.ClearTinyUAV(VoxelResources.DensityTexture->GetRenderTargetItem().UAV, ClearValues);
+		FUintVector4 ClearValues(0, 0, 0, 0);
+		RHICmdList.ClearUAVUint(VoxelResources.DensityTexture->GetRenderTargetItem().UAV, ClearValues);
 		if (bVoxelizeMaterial)
 		{
-			RHICmdList.ClearTinyUAV(VoxelResources.TangentXTexture->GetRenderTargetItem().UAV, ClearValues);
-			RHICmdList.ClearTinyUAV(VoxelResources.TangentYTexture->GetRenderTargetItem().UAV, ClearValues);
-			RHICmdList.ClearTinyUAV(VoxelResources.TangentZTexture->GetRenderTargetItem().UAV, ClearValues);
-			RHICmdList.ClearTinyUAV(VoxelResources.MaterialTexture->GetRenderTargetItem().UAV, ClearValues);
+			RHICmdList.ClearUAVUint(VoxelResources.TangentXTexture->GetRenderTargetItem().UAV, ClearValues);
+			RHICmdList.ClearUAVUint(VoxelResources.TangentYTexture->GetRenderTargetItem().UAV, ClearValues);
+			RHICmdList.ClearUAVUint(VoxelResources.TangentZTexture->GetRenderTargetItem().UAV, ClearValues);
+			RHICmdList.ClearUAVUint(VoxelResources.MaterialTexture->GetRenderTargetItem().UAV, ClearValues);
 		}
 	}
 
 	FRHIRenderPassInfo RPInfo(DummyTexture->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Load_Store);
-	RPInfo.UAVIndex = 0;
-	RPInfo.NumUAVs = bVoxelizeMaterial ? 5 : 1;
-	RPInfo.UAVs[0] = VoxelResources.DensityTexture->GetRenderTargetItem().UAV;
-	if (bVoxelizeMaterial)
-	{
-		RPInfo.UAVs[1] = VoxelResources.TangentXTexture->GetRenderTargetItem().UAV;
-		RPInfo.UAVs[2] = VoxelResources.TangentYTexture->GetRenderTargetItem().UAV;
-		RPInfo.UAVs[3] = VoxelResources.TangentZTexture->GetRenderTargetItem().UAV;
-		RPInfo.UAVs[4] = VoxelResources.MaterialTexture->GetRenderTargetItem().UAV;
-	}
+	checkNoEntry(); //todo: not yet implemented.
 
 	const FIntRect ViewportRect(0, 0, ResolutionDim, ResolutionDim);
 	const FVector LightDirection = FVector(1, 0, 0);

@@ -954,7 +954,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FClearUAVTextureParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, TextureUAV)
 END_SHADER_PARAMETER_STRUCT()
 
-void AddClearUAVPass(
+void AddClearUAVUintPass(
 	FRDGBuilder& GraphBuilder,
 	FRDGEventName&& PassName,
 	FRDGTextureRef Texture,
@@ -969,9 +969,9 @@ void AddClearUAVPass(
 		ERDGPassFlags::Compute,
 		[Parameters, Texture, Value](FRHICommandList& RHICmdList)
 	{
-		uint32 ClearValue[4] = { Value, Value, Value, Value };
+		FUintVector4 ClearValue(Value, Value, Value, Value);
 		FRHIUnorderedAccessView* GlobalCounterUAV = Parameters->TextureUAV->GetRHI();
-		RHICmdList.ClearTinyUAV(GlobalCounterUAV, ClearValue);
+		RHICmdList.ClearUAVUint(GlobalCounterUAV, ClearValue);
 	});
 }
 
@@ -1175,9 +1175,9 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 		OutCategorizationTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("CategorizationTexture"));
 	}
 	
-	AddClearUAVPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsClearCompactionCounter"), CompactCounter, 0);
-	AddClearUAVPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsClearCompactionOffsetAndCount"), OutCompactNodeIndex, 0);
-	AddClearUAVPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsClearCategorizationTexture"), OutCategorizationTexture, 0);
+	AddClearUAVUintPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsClearCompactionCounter"), CompactCounter, 0);
+	AddClearUAVUintPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsClearCompactionOffsetAndCount"), OutCompactNodeIndex, 0);
+	AddClearUAVUintPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsClearCategorizationTexture"), OutCategorizationTexture, 0);
 
 	// Select render node count according to current mode
 	const uint32 HairVisibilityMSAASampleCount = GetHairVisibilitySampleCount();
@@ -1665,8 +1665,8 @@ static void AddHairVisibilityPPLLPass(
 
 		OutVisibilityPPLLNodeData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(PPLLNodeData), PPLLMaxTotalListElementCount), TEXT("HairVisibilityPPLLNodeData"));
 	}
-	AddClearUAVPass(GraphBuilder, RDG_EVENT_NAME("ClearHairVisibilityPPLLCounter"), OutVisibilityPPLLNodeCounter, 0);
-	AddClearUAVPass(GraphBuilder, RDG_EVENT_NAME("ClearHairVisibilityPPLLNodeIndex"), OutVisibilityPPLLNodeIndex, 0xFFFFFFFF);
+	AddClearUAVUintPass(GraphBuilder, RDG_EVENT_NAME("ClearHairVisibilityPPLLCounter"), OutVisibilityPPLLNodeCounter, 0);
+	AddClearUAVUintPass(GraphBuilder, RDG_EVENT_NAME("ClearHairVisibilityPPLLNodeIndex"), OutVisibilityPPLLNodeIndex, 0xFFFFFFFF);
 
 	FVisibilityPassParameters* PassParameters = GraphBuilder.AllocParameters<FVisibilityPassParameters>();
 	PassParameters->PPLLCounter = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(OutVisibilityPPLLNodeCounter, 0));

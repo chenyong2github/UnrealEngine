@@ -7,16 +7,11 @@
 #include "../Common.ush"
 #include "../MonteCarlo.ush"
 #include "../QuasiRandom.ush"
-#include "SkyLightMipTreeCommon.ush"
 #include "RayTracingCommon.ush"
 #include "RayTracingSkyLightCommon.ush"
+#include "SkyLightVisibilityRaysData.ush"
 
-struct FSkyLightVisibilityRays
-{
-	float4 DirectionAndPdf;
-};
-
-uint3 Dimensions;
+uint3 SkyLightVisibilityRaysDimensions;
 RWStructuredBuffer<FSkyLightVisibilityRays> OutSkyLightVisibilityRays;
 
 [numthreads(TILE_SIZE, TILE_SIZE, 1)]
@@ -62,7 +57,10 @@ void MainCS(
 				MisWeight = RayPdf / ((1.0 - SkyLightSamplingStrategyPdf) * RayPdf + SkyLightSamplingStrategyPdf * PdfSkyLightOcclusionRay(FaceCdf, RayDirection));
 			}
 
-		uint LinearIndex = (PixelCoord.y * Dimensions.x + PixelCoord.x) * SkyLight.SamplesPerPixel + SampleIndex;
-		OutSkyLightVisibilityRays[LinearIndex].DirectionAndPdf = float4(RayDirection.xyz, MisWeight / RayPdf);
+		// Write out a new Sky Light Visibility Ray for this sample
+
+		const uint SkyLightVisibilityRayIndex = GetSkyLightVisibilityRayIndex(PixelCoord, SampleIndex, SkyLightVisibilityRaysDimensions.xy);
+
+		OutSkyLightVisibilityRays[SkyLightVisibilityRayIndex].DirectionAndPdf = float4(RayDirection.xyz, MisWeight / RayPdf);
 	}
 }

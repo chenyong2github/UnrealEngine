@@ -4,6 +4,9 @@
 #include "MetalRHIPrivate.h"
 #include "MetalCommandBuffer.h"
 #include "RenderUtils.h"
+#include "ClearReplacementShaders.h"
+
+static void ClearUAV(TRHICommandList_RecursiveHazardous<FMetalRHICommandContext>& RHICmdList, FMetalUnorderedAccessView* UnorderedAccessView, const void* ClearValue, bool bFloat);
 
 FMetalShaderResourceView::FMetalShaderResourceView()
 : TextureView(nullptr)
@@ -398,279 +401,73 @@ void FMetalDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRVRH
 	}
 }
 
-void FMetalRHICommandContext::RHIClearTinyUAV(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const uint32* Values)
+void FMetalRHICommandContext::RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4& Values)
+{
+	TRHICommandList_RecursiveHazardous<FMetalRHICommandContext> RHICmdList(this);
+	ClearUAV(RHICmdList, ResourceCast(UnorderedAccessViewRHI), &Values, true);
+}
+void FMetalRHICommandContext::RHIClearUAVUint(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FUintVector4& Values)
+{
+	TRHICommandList_RecursiveHazardous<FMetalRHICommandContext> RHICmdList(this);
+	ClearUAV(RHICmdList, ResourceCast(UnorderedAccessViewRHI), &Values, false);
+}
+
+void ClearUAV(TRHICommandList_RecursiveHazardous<FMetalRHICommandContext>& RHICmdList, FMetalUnorderedAccessView* UnorderedAccessView, const void* ClearValue, bool bFloat)
 {
 	@autoreleasepool {
-	FMetalUnorderedAccessView* UnorderedAccessView = ResourceCast(UnorderedAccessViewRHI);
-	FMetalSurface* Surface = UnorderedAccessView->SourceView->SourceTexture ? GetMetalSurfaceFromRHITexture(UnorderedAccessView->SourceView->SourceTexture) : nullptr;
-	if (UnorderedAccessView->SourceView->SourceStructuredBuffer || UnorderedAccessView->SourceView->SourceVertexBuffer || UnorderedAccessView->SourceView->SourceIndexBuffer || (Surface && Surface->Texture.GetBuffer()))
-	{
-		check(UnorderedAccessView->SourceView->SourceStructuredBuffer || UnorderedAccessView->SourceView->SourceVertexBuffer || UnorderedAccessView->SourceView->SourceIndexBuffer || (Surface && Surface->Texture.GetBuffer()));
-		
-		FMetalBuffer Buffer;
-		uint32 Size = 0;
+		EClearReplacementValueType ValueType = bFloat ? EClearReplacementValueType::Float : EClearReplacementValueType::Uint32;
+
+		// The Metal validation layer will complain about resources with a
+		// signed format bound against an unsigned data format type as the
+		// shader parameter.
+		switch (GPixelFormats[UnorderedAccessView->SourceView->Format].UnrealFormat)
+		{
+			case PF_R32_SINT:
+			case PF_R16_SINT:
+			case PF_R16G16B16A16_SINT:
+				ValueType = EClearReplacementValueType::Int32;
+				break;
+				
+			default:
+				break;
+		}
+
 		if (UnorderedAccessView->SourceView->SourceVertexBuffer)
 		{
-			Buffer = UnorderedAccessView->SourceView->SourceVertexBuffer->Buffer;
-			Size = UnorderedAccessView->SourceView->SourceVertexBuffer->GetSize();
+			uint32 NumElements = UnorderedAccessView->SourceView->SourceVertexBuffer->GetSize() / GPixelFormats[UnorderedAccessView->SourceView->Format].BlockBytes;
+			ClearUAVShader_T<EClearReplacementResourceType::Buffer, 4, false>(RHICmdList, UnorderedAccessView, NumElements, 1, 1, ClearValue, ValueType);
 		}
-		else if (UnorderedAccessView->SourceView->SourceStructuredBuffer)
+		else if (UnorderedAccessView->SourceView->SourceTexture)
 		{
-			Buffer = UnorderedAccessView->SourceView->SourceStructuredBuffer->Buffer;
-			Size = UnorderedAccessView->SourceView->SourceStructuredBuffer->GetSize();
-		}
-		else if (UnorderedAccessView->SourceView->SourceIndexBuffer)
-		{
-			Buffer = UnorderedAccessView->SourceView->SourceIndexBuffer->Buffer;
-			Size = UnorderedAccessView->SourceView->SourceIndexBuffer->GetSize();
-		}
-		else if (Surface && Surface->Texture.GetBuffer())
-		{
-			Buffer = FMetalBuffer(Surface->Texture.GetBuffer(), false);
-		}
-		
-		uint32 NumComponents = 1;
-		uint32 NumBytes = 1;
-		EPixelFormat Format = (EPixelFormat)UnorderedAccessView->SourceView->Format;
-		if (Format != 0)
-		{
-			NumComponents = GPixelFormats[Format].NumComponents;
-			NumBytes = GPixelFormats[Format].BlockBytes;
-		}
-		
-		// If all the values are the same then we can treat it as one component.
-		NumComponents = (Values[0] == Values[1] == Values[2] == Values[3]) ? 1 : NumComponents;
-		
-		
-		if (NumComponents > 1 || NumBytes > 1)
-		{
-			// get the pointer to send back for writing
-			uint32 AlignedSize = Align(Size, BufferOffsetAlignment);
-			uint32 Offset = 0;
-			FMetalBuffer Temp = nil;
-			bool bBufferPooled = false;
-			
-			FMetalPooledBufferArgs Args(GetMetalDeviceContext().GetDevice(), AlignedSize, BUF_Dynamic, mtlpp::StorageMode::Shared);
-			Temp = GetMetalDeviceContext().CreatePooledBuffer(Args);
-			bBufferPooled = true;
-			
-			// Construct a pattern that can be encoded into the temporary buffer (handles packing & 2-byte formats).
-			uint32 Pattern[4];
-			switch(Format)
+			FIntVector SizeXYZ = UnorderedAccessView->SourceView->SourceTexture->GetSizeXYZ();
+
+			if (FRHITexture2D* Texture2D = UnorderedAccessView->SourceView->SourceTexture->GetTexture2D())
 			{
-				case PF_Unknown:
-				case PF_R8_UINT:
-				case PF_G8:
-				case PF_A8:
-				{
-					Pattern[0] = Values[0];
-					break;
-				}
-				case PF_G16:
-				case PF_R16F:
-				case PF_R16F_FILTER:
-				case PF_R16_UINT:
-				case PF_R16_SINT:
-				{
-					Pattern[0] = Values[0];
-					break;
-				}
-				case PF_R32_FLOAT:
-				case PF_R32_UINT:
-				case PF_R32_SINT:
-				{
-					Pattern[0] = Values[0];
-					break;
-				}
-				case PF_R8G8:
-				case PF_V8U8:
-				{
-					UE_LOG(LogMetal, Warning, TEXT("UAV pattern fill for format: %d is untested"), Format);
-					Pattern[0] = Values[0];
-					Pattern[1] = Values[1];
-					break;
-				}
-				case PF_G16R16:
-				case PF_G16R16F:
-				case PF_R16G16_UINT:
-				case PF_G16R16F_FILTER:
-				{
-					UE_LOG(LogMetal, Warning, TEXT("UAV pattern fill for format: %d is untested"), Format);
-					Pattern[0] = Values[0];
-					Pattern[0] |= ((Values[1] & 0xffff) << 16);
-					break;
-				}
-				case PF_G32R32F:
-				case PF_R32G32_UINT:
-				{
-					UE_LOG(LogMetal, Warning, TEXT("UAV pattern fill for format: %d is untested"), Format);
-					Pattern[0] = Values[0];
-					Pattern[1] = Values[1];
-					break;
-				}
-				case PF_R5G6B5_UNORM:
-				{
-					UE_LOG(LogMetal, Warning, TEXT("UAV pattern fill for format: %d is untested"), Format);
-					Pattern[0] = Values[0] & 0x1f;
-					Pattern[0] |= (Values[1] & 0x3f) << 5;
-					Pattern[0] |= (Values[2] & 0x1f) << 11;
-					break;
-				}
-				case PF_FloatR11G11B10:
-				{
-					UE_LOG(LogMetal, Warning, TEXT("UAV pattern fill for format: %d is untested"), Format);
-					Pattern[0] = Values[0] & 0x7FF;
-					Pattern[0] |= ((Values[1] & 0x7FF) << 11);
-					Pattern[0] |= ((Values[2] & 0x3FF) << 22);
-					break;
-				}
-				case PF_B8G8R8A8:
-				case PF_R8G8B8A8:
-				case PF_A8R8G8B8:
-				{
-					UE_LOG(LogMetal, Warning, TEXT("UAV pattern fill for format: %d is untested"), Format);
-					Pattern[0] = Values[0];
-					Pattern[0] |= ((Values[1] & 0xff) << 8);
-					Pattern[0] |= ((Values[2] & 0xff) << 16);
-					Pattern[0] |= ((Values[3] & 0xff) << 24);
-					break;
-				}
-				case PF_A2B10G10R10:
-				{
-					UE_LOG(LogMetal, Warning, TEXT("UAV pattern fill for format: %d is untested"), Format);
-					Pattern[0] = Values[0] & 0x3;
-					Pattern[0] |= ((Values[1] & 0x3FF) << 2);
-					Pattern[0] |= ((Values[2] & 0x3FF) << 12);
-					Pattern[0] |= ((Values[3] & 0x3FF) << 22);
-					break;
-				}
-				case PF_A16B16G16R16:
-				case PF_R16G16B16A16_UINT:
-				case PF_R16G16B16A16_SINT:
-				case PF_R16G16B16A16_UNORM:
-				case PF_R16G16B16A16_SNORM:
-				{
-					UE_LOG(LogMetal, Warning, TEXT("UAV pattern fill for format: %d is untested"), Format);
-					Pattern[0] = Values[0];
-					Pattern[0] |= ((Values[1] & 0xffff) << 16);
-					Pattern[1] = Values[2];
-					Pattern[1] |= ((Values[3] & 0xffff) << 16);
-					break;
-				}
-				case PF_R32G32B32A32_UINT:
-				case PF_A32B32G32R32F:
-				{
-					UE_LOG(LogMetal, Warning, TEXT("UAV pattern fill for format: %d is untested"), Format);
-					Pattern[0] = Values[0];
-					Pattern[1] = Values[1];
-					Pattern[2] = Values[2];
-					Pattern[3] = Values[3];
-					break;
-				}
-				case PF_FloatRGB:
-				case PF_FloatRGBA:
-				{
-					METAL_FATAL_ERROR(TEXT("No UAV pattern fill for format: %d"), Format);
-					break;
-				}
-				case PF_DepthStencil:
-				case PF_ShadowDepth:
-				case PF_D24:
-				case PF_X24_G8:
-				case PF_A1:
-				case PF_ASTC_4x4:
-				case PF_ASTC_6x6:
-				case PF_ASTC_8x8:
-				case PF_ASTC_10x10:
-				case PF_ASTC_12x12:
-				case PF_BC6H:
-				case PF_BC7:
-				case PF_ETC1:
-				case PF_ETC2_RGB:
-				case PF_ETC2_RGBA:
-				case PF_ATC_RGB:
-				case PF_ATC_RGBA_E:
-				case PF_ATC_RGBA_I:
-				case PF_BC4:
-				case PF_PVRTC2:
-				case PF_PVRTC4:
-				case PF_BC5:
-				case PF_DXT1:
-				case PF_DXT3:
-				case PF_DXT5:
-				case PF_UYVY:
-				case PF_MAX:
-				default:
-				{
-					METAL_FATAL_ERROR(TEXT("No UAV support for format: %d"), Format);
-					break;
-				}
+				ClearUAVShader_T<EClearReplacementResourceType::Texture2D, 4, false>(RHICmdList, UnorderedAccessView, SizeXYZ.X, SizeXYZ.Y, SizeXYZ.Z, ClearValue, ValueType);
 			}
-			
-			// Pattern memset for varying blocksize (1/2/4/8/16 bytes)
-			switch(NumBytes)
+			else if (FRHITexture2DArray* Texture2DArray = UnorderedAccessView->SourceView->SourceTexture->GetTexture2DArray())
 			{
-				case 1:
-				{
-					memset(((uint8*)Temp.GetContents()) + Offset, Pattern[0], AlignedSize);
-					break;
-				}
-				case 2:
-				{
-					uint16* Dst = (uint16*)(((uint8*)Temp.GetContents()) + Offset);
-					for (uint32 i = 0; i < AlignedSize / 2; i++, Dst++)
-					{
-						*Dst = (uint16)Pattern[0];
-					}
-					break;
-				}
-				case 4:
-				{
-					memset_pattern4(((uint8*)Temp.GetContents()) + Offset, Values, AlignedSize);
-					break;
-				}
-				case 8:
-				{
-					memset_pattern8(((uint8*)Temp.GetContents()) + Offset, Values, AlignedSize);
-					break;
-				}
-				case 16:
-				{
-					memset_pattern16(((uint8*)Temp.GetContents()) + Offset, Values, AlignedSize);
-					break;
-				}
-				default:
-				{
-					METAL_FATAL_ERROR(TEXT("Invalid UAV pattern fill size (%d) for: %d"), NumBytes, Format);
-					break;
-				}
+				ClearUAVShader_T<EClearReplacementResourceType::Texture2DArray, 4, false>(RHICmdList, UnorderedAccessView, SizeXYZ.X, SizeXYZ.Y, SizeXYZ.Z, ClearValue, ValueType);
 			}
-			
-			Context->CopyFromBufferToBuffer(Temp, Offset, Buffer, 0, Size);
-			
-			if(bBufferPooled)
+			else if (FRHITexture3D* Texture3D = UnorderedAccessView->SourceView->SourceTexture->GetTexture3D())
 			{
-				GetMetalDeviceContext().ReleaseBuffer(Temp);
+				ClearUAVShader_T<EClearReplacementResourceType::Texture3D, 4, false>(RHICmdList, UnorderedAccessView, SizeXYZ.X, SizeXYZ.Y, SizeXYZ.Z, ClearValue, ValueType);
+			}
+			else if (FRHITextureCube* TextureCube = UnorderedAccessView->SourceView->SourceTexture->GetTextureCube())
+			{
+				ClearUAVShader_T<EClearReplacementResourceType::Texture2DArray, 4, false>(RHICmdList, UnorderedAccessView, SizeXYZ.X, SizeXYZ.Y, SizeXYZ.Z, ClearValue, ValueType);
+			}
+			else
+			{
+				ensure(0);
 			}
 		}
 		else
 		{
-			// Fill the buffer via a blit encoder - I hope that is sufficient.
-			Context->FillBuffer(Buffer, ns::Range(0, Size), Values[0]);
+			// TODO: ensure(0);
+			UE_LOG(LogRHI, Warning, TEXT("Metal RHI ClearUAV does not yet support clearing of a UAV without a SourceView."));
 		}
-		
-		// If there are problems you may need to add calls to restore the render command encoder at this point
-		// but we don't generally want to do that.
-	}
-	else if (UnorderedAccessView->SourceView->SourceTexture)
-	{
-		UE_LOG(LogRHI, Fatal,TEXT("Metal RHI doesn't support RHIClearTinyUAV with FRHITexture yet!"));
-	}
-	else
-	{
-		UE_LOG(LogRHI, Fatal,TEXT("Metal RHI doesn't support RHIClearUAV with this type yet!"));
-	}
-	}
+	} // @autoreleasepool
 }
 
 FComputeFenceRHIRef FMetalDynamicRHI::RHICreateComputeFence(const FName& Name)

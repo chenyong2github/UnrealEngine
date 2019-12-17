@@ -93,6 +93,12 @@ typedef FUnixPlatformTypes FPlatformTypes;
 	#define PLATFORM_ENABLE_VECTORINTRINSICS		0
 #endif // defined(_M_IX86) || defined(__i386__) || defined(_M_X64) || defined(__x86_64__) || defined (__amd64__) 
 
+#if PLATFORM_LINUXAARCH64
+	// Enable NEON intrinsics for ARM64 builds
+	#define PLATFORM_ENABLE_VECTORINTRINSICS_NEON	1
+#endif
+
+
 // Function type macros.
 #define VARARGS															/* Functions with variable arguments */
 #define CDECL															/* Standard C function */

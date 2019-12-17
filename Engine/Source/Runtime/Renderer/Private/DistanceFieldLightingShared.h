@@ -501,12 +501,12 @@ public:
 
 	void Initialize()
 	{
-		TileNumCulledObjects.Initialize(sizeof(uint32), TileDimensions.X * TileDimensions.Y, PF_R32_UINT, BUF_Static);
-		NextStartOffset.Initialize(sizeof(uint32), 1, PF_R32_UINT, BUF_Static);
-		TileStartOffsets.Initialize(sizeof(uint32), TileDimensions.X * TileDimensions.Y, PF_R32_UINT, BUF_Static);
+		TileNumCulledObjects.Initialize(sizeof(uint32), TileDimensions.X * TileDimensions.Y, PF_R32_UINT, BUF_Static, TEXT("FLightTileIntersectionResources::TileNumCulledObjects"));
+		NextStartOffset.Initialize(sizeof(uint32), 1, PF_R32_UINT, BUF_Static, TEXT("FLightTileIntersectionResources::NextStartOffset"));
+		TileStartOffsets.Initialize(sizeof(uint32), TileDimensions.X * TileDimensions.Y, PF_R32_UINT, BUF_Static, TEXT("FLightTileIntersectionResources::TileStartOffsets"));
 
 		//@todo - handle max exceeded
-		TileArrayData.Initialize(b16BitIndices ? sizeof(uint16) : sizeof(uint32), GAverageObjectsPerShadowCullTile * TileDimensions.X * TileDimensions.Y * LightTileDataStride, b16BitIndices ? PF_R16_UINT : PF_R32_UINT, BUF_Static);
+		TileArrayData.Initialize(b16BitIndices ? sizeof(uint16) : sizeof(uint32), GAverageObjectsPerShadowCullTile * TileDimensions.X * TileDimensions.Y * LightTileDataStride, b16BitIndices ? PF_R16_UINT : PF_R32_UINT, BUF_Static, TEXT("FLightTileIntersectionResources::TileArrayData"));
 	}
 
 	void Release()

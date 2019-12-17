@@ -49,13 +49,6 @@
 
 #include "ReflectionEnvironmentShared.ush"
 
-#if LIGHTMAP_VT_ENABLED || NUM_VIRTUALTEXTURE_SAMPLES
-#if COMPILER_HLSLCC
-	RWTexture2D<uint> VTFeedbackBuffer;
-#else
-	RWTexture2D<uint> VTFeedbackBuffer : register(VT_FEEDBACK_REGISTER);
-#endif
-#endif
 
 float NormalCurvatureToRoughness(float3 WorldNormal)
 {
@@ -1399,14 +1392,14 @@ ShadingModel);
 		MaterialParameters.SvPosition,
 		Opacity * DBufferOpacity,
 		View.FrameNumber,
-		VTFeedbackBuffer
+		View.VTFeedbackBuffer
 	);
 #endif
 }
 
 // If virtual texture is enabled then use early depth test so that UAV feedback buffer writes respect the depth test
 #if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED
-	#if COMPILER_SUPPORT_DEPTHSTENCIL_EARLYTEST_LATEWRITE
+	#if COMPILER_SUPPORTS_DEPTHSTENCIL_EARLYTEST_LATEWRITE
 		// If we support early depth test with late write behaviour then use it since we may be using discard, or modifying depth
 		#define PIXELSHADER_EARLYDEPTHSTENCIL DEPTHSTENCIL_EARLYTEST_LATEWRITE
 	#elif !OUTPUT_PIXEL_DEPTH_OFFSET

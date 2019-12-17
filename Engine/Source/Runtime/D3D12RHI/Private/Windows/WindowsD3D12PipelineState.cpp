@@ -699,7 +699,7 @@ static inline void FastHashName(wchar_t Name[17], uint64 Hash)
 }
 
 template <typename TDesc>
-static void CreatePipelineStateWrapper(ID3D12PipelineState** PSO, FD3D12Adapter* Adapter, const TDesc* CreationArgs)
+static void CreatePipelineStateWrapper(ID3D12PipelineState** PSO, FD3D12Adapter* Adapter, const TDesc* CreationArgs, bool bUseStream)
 {
 	// Get the pipeline state name, currently based on the hash.
 	wchar_t Name[17];
@@ -712,7 +712,7 @@ static void CreatePipelineStateWrapper(ID3D12PipelineState** PSO, FD3D12Adapter*
 
 	// Use pipeline streams if the system supports it.
 	ID3D12Device2* const pDevice2 = Adapter->GetD3DDevice2();
-	if (pDevice2)
+	if (pDevice2 && bUseStream)
 	{
 		typename TPSOStreamFunctionMap<TDesc>::D3D12PipelineStateStreamType Stream = CreationArgs->Desc.Desc.PipelineStateStream();
 		const D3D12_PIPELINE_STATE_STREAM_DESC StreamDesc = { sizeof(Stream), &Stream };
@@ -783,7 +783,10 @@ static void CreateGraphicsPipelineState(ID3D12PipelineState** PSO, FD3D12Adapter
 			}
 			else if (Extension.VendorId == 0x1002) // AMD
 			{
-				// TODO: https://github.com/GPUOpen-LibrariesAndSDKs/AGS_SDK/blob/master/ags_lib/hlsl/ags_shader_intrinsics_dx12.hlsl
+				// https://github.com/GPUOpen-LibrariesAndSDKs/AGS_SDK/blob/master/ags_lib/hlsl/ags_shader_intrinsics_dx12.hlsl
+				// No special create override needed, pass through to default:
+				CreatePipelineStateWrapper(PSO, Adapter, CreationArgs, false /* use stream */);
+				return;
 			}
 			else if (Extension.VendorId == 0x8086) // INTEL
 			{
@@ -795,7 +798,7 @@ static void CreateGraphicsPipelineState(ID3D12PipelineState** PSO, FD3D12Adapter
 	}
 	else
 	{
-		CreatePipelineStateWrapper(PSO, Adapter, CreationArgs);
+		CreatePipelineStateWrapper(PSO, Adapter, CreationArgs, true /* use stream */);
 	}
 }
 
@@ -823,7 +826,10 @@ static void CreateComputePipelineState(ID3D12PipelineState** PSO, FD3D12Adapter*
 			}
 			else if (Extension.VendorId == 0x1002) // AMD
 			{
-				// TODO: https://github.com/GPUOpen-LibrariesAndSDKs/AGS_SDK/blob/master/ags_lib/hlsl/ags_shader_intrinsics_dx12.hlsl
+				// https://github.com/GPUOpen-LibrariesAndSDKs/AGS_SDK/blob/master/ags_lib/hlsl/ags_shader_intrinsics_dx12.hlsl
+				// No special create override needed, pass through to default:
+				CreatePipelineStateWrapper(PSO, Adapter, CreationArgs, false /* use stream */);
+				return;
 			}
 			else if (Extension.VendorId == 0x8086) // INTEL
 			{
@@ -835,7 +841,7 @@ static void CreateComputePipelineState(ID3D12PipelineState** PSO, FD3D12Adapter*
 	}
 	else
 	{
-		CreatePipelineStateWrapper(PSO, Adapter, CreationArgs);
+		CreatePipelineStateWrapper(PSO, Adapter, CreationArgs, true /* use stream */);
 	}
 }
 #else

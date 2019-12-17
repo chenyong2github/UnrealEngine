@@ -329,7 +329,12 @@ void FSlateD3D11RenderingPolicy::DrawElements(const FMatrix& ViewProjectionMatri
 		{
 			GD3DDeviceContext->RSSetState( WireframeRasterState );
 		}
-		
+
+		if (EnumHasAllFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma))
+		{
+			PixelShader->SetGammaValues(FVector2D(1.0f, 1.0f));
+		}
+
 		const FSlateClippingState* ClippingState = RenderBatch.GetClippingState();
 		if (ClippingState != LastClippingState)
 		{

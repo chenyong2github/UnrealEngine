@@ -165,11 +165,11 @@ void FPngImageWrapper::Compress(int32 Quality)
 			png_set_IHDR(png_ptr, info_ptr, Width, Height, RawBitDepth, (RawFormat == ERGBFormat::Gray) ? PNG_COLOR_TYPE_GRAY : PNG_COLOR_TYPE_RGBA, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 			png_set_write_fn(png_ptr, this, FPngImageWrapper::user_write_compressed, FPngImageWrapper::user_flush_data);
 
-			const uint32 PixelChannels = (RawFormat == ERGBFormat::Gray) ? 1 : 4;
-			const uint32 BytesPerPixel = (RawBitDepth * PixelChannels) / 8;
-			const uint32 BytesPerRow = BytesPerPixel * Width;
+			const uint64 PixelChannels = (RawFormat == ERGBFormat::Gray) ? 1 : 4;
+			const uint64 BytesPerPixel = (RawBitDepth * PixelChannels) / 8;
+			const uint64 BytesPerRow = BytesPerPixel * Width;
 
-			for (int32 i = 0; i < Height; i++)
+			for (int64 i = 0; i < Height; i++)
 			{
 				row_pointers[i]= &RawData[i * BytesPerRow];
 			}
@@ -202,7 +202,7 @@ void FPngImageWrapper::Reset()
 }
 
 
-bool FPngImageWrapper::SetCompressed(const void* InCompressedData, int32 InCompressedSize)
+bool FPngImageWrapper::SetCompressed(const void* InCompressedData, int64 InCompressedSize)
 {
 	bool bResult = FImageWrapperBase::SetCompressed(InCompressedData, InCompressedSize);
 
@@ -301,15 +301,15 @@ void FPngImageWrapper::UncompressPNGData(const ERGBFormat InFormat, const int32 
 			}
 
 			// Calculate Pixel Depth
-			const uint32 PixelChannels = (InFormat == ERGBFormat::Gray) ? 1 : 4;
-			const uint32 BytesPerPixel = (InBitDepth * PixelChannels) / 8;
-			const uint32 BytesPerRow = BytesPerPixel * Width;
+			const uint64 PixelChannels = (InFormat == ERGBFormat::Gray) ? 1 : 4;
+			const uint64 BytesPerPixel = (InBitDepth * PixelChannels) / 8;
+			const uint64 BytesPerRow = BytesPerPixel * Width;
 			RawData.Empty(Height * BytesPerRow);
 			RawData.AddUninitialized(Height * BytesPerRow);
 
 			png_set_read_fn(png_ptr, this, FPngImageWrapper::user_read_compressed);
 
-			for (int32 i = 0; i < Height; i++)
+			for (int64 i = 0; i < Height; i++)
 			{
 				row_pointers[i]= &RawData[i * BytesPerRow];
 			}
@@ -454,7 +454,7 @@ bool FPngImageWrapper::LoadPNGHeader()
 void FPngImageWrapper::user_read_compressed(png_structp png_ptr, png_bytep data, png_size_t length)
 {
 	FPngImageWrapper* ctx = (FPngImageWrapper*)png_get_io_ptr(png_ptr);
-	if (ctx->ReadOffset + length <= (uint32)ctx->CompressedData.Num())
+	if (ctx->ReadOffset + (int64)length <= ctx->CompressedData.Num())
 	{
 		FMemory::Memcpy(data, &ctx->CompressedData[ctx->ReadOffset], length);
 		ctx->ReadOffset += length;
@@ -470,7 +470,7 @@ void FPngImageWrapper::user_write_compressed(png_structp png_ptr, png_bytep data
 {
 	FPngImageWrapper* ctx = (FPngImageWrapper*) png_get_io_ptr(png_ptr);
 
-	int32 Offset = ctx->CompressedData.AddUninitialized(length);
+	int64 Offset = ctx->CompressedData.AddUninitialized(length);
 	FMemory::Memcpy(&ctx->CompressedData[Offset], data, length);
 }
 

@@ -22,7 +22,6 @@
 
 
 #if WITH_EDITOR
-#include "NiagaraScriptDerivedData.h"
 #include "DerivedDataCacheInterface.h"
 #endif
 
@@ -804,43 +803,14 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 		// Check to see if ALL of the sub-requests have resolved. 
 		for (FEmitterCompiledScriptPair& EmitterCompiledScriptPair : ActiveCompilations[ActiveCompileIdx].EmitterCompiledScriptPairs)
 		{
-			if ((uint32)INDEX_NONE == EmitterCompiledScriptPair.PendingDDCID || EmitterCompiledScriptPair.bResultsReady)
+			if ((uint32)INDEX_NONE == EmitterCompiledScriptPair.PendingJobID || EmitterCompiledScriptPair.bResultsReady)
 			{
 				continue;
 			}
-			if (bWait)
+			EmitterCompiledScriptPair.bResultsReady = ProcessCompilationResult(EmitterCompiledScriptPair, bWait, bDoNotApply);
+			if (!EmitterCompiledScriptPair.bResultsReady)
 			{
-				GetDerivedDataCacheRef().WaitAsynchronousCompletion(EmitterCompiledScriptPair.PendingDDCID);
-				EmitterCompiledScriptPair.bResultsReady = true;
-			}
-			else
-			{
-				EmitterCompiledScriptPair.bResultsReady = GetDerivedDataCacheRef().PollAsynchronousCompletion(EmitterCompiledScriptPair.PendingDDCID);
-				if (!EmitterCompiledScriptPair.bResultsReady)
-				{
-					bAreWeWaitingForAnyResults = true;
-				}
-			}
-
-			// If the results are ready, go ahead and cache them so that the pending task isn't removed prematurely...
-			if (EmitterCompiledScriptPair.bResultsReady)
-			{
-				TArray<uint8> OutData;
-				bool bBuiltLocally = false;
-				if (GetDerivedDataCacheRef().GetAsynchronousResults(EmitterCompiledScriptPair.PendingDDCID, OutData, &bBuiltLocally))
-				{
-					if (bBuiltLocally)
-					{
-						UE_LOG(LogNiagara, Log, TEXT("UNiagraScript \'%s\' was built locally.."), *EmitterCompiledScriptPair.CompiledScript->GetFullName());
-					}
-
-					TSharedPtr<FNiagaraVMExecutableData> ExeData = MakeShared<FNiagaraVMExecutableData>();
-					EmitterCompiledScriptPair.CompileResults = ExeData;
-					if (!bDoNotApply)
-					{
-						FNiagaraScriptDerivedData::BinaryToExecData(OutData, *(ExeData.Get()));
-					}
-				}
+				bAreWeWaitingForAnyResults = true;
 			}
 		}
 
@@ -867,7 +837,7 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 		float CombinedCompileTime = 0.0f;
 		for (FEmitterCompiledScriptPair& EmitterCompiledScriptPair : ActiveCompilations[ActiveCompileIdx].EmitterCompiledScriptPairs)
 		{
-			if ((uint32)INDEX_NONE == EmitterCompiledScriptPair.PendingDDCID )
+			if ((uint32)INDEX_NONE == EmitterCompiledScriptPair.PendingJobID && !EmitterCompiledScriptPair.bResultsReady)
 			{
 				continue;
 			}
@@ -876,7 +846,7 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 
 			TSharedPtr<FNiagaraVMExecutableData> ExeData = EmitterCompiledScriptPair.CompileResults;
 			TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> PrecompData = ActiveCompilations[ActiveCompileIdx].MappedData.FindChecked(EmitterCompiledScriptPair.CompiledScript);
-			EmitterCompiledScriptPair.CompiledScript->SetVMCompilationResults(EmitterCompiledScriptPair.CompileId, *(ExeData.Get()), PrecompData.Get());	
+			EmitterCompiledScriptPair.CompiledScript->SetVMCompilationResults(EmitterCompiledScriptPair.CompileId, *ExeData, PrecompData.Get());
 		}
 
 		if (bDoPost)
@@ -923,7 +893,7 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 			{
 				Scripts.AddUnique(SystemUpdateScript);
 				ScriptDependencyMap.Add(CompiledScript, SystemUpdateScript);
-				ScriptToEmitterNameMap.Add(SystemSpawnScript, FString());
+				ScriptToEmitterNameMap.Add(SystemUpdateScript, FString());
 			}
 
 			if (UNiagaraScript::IsEquivalentUsage(CompiledScript->GetUsage(), ENiagaraScriptUsage::ParticleSpawnScript))
@@ -990,7 +960,7 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 
 		UpdatePostCompileDIInfo();
 
-		UE_LOG(LogNiagara, Verbose, TEXT("Compiling System %s took %f sec (wall time), %f sec (combined time)."), *GetFullName(), (float)(FPlatformTime::Seconds() - ActiveCompilations[ActiveCompileIdx].StartTime),
+		UE_LOG(LogNiagara, Log, TEXT("Compiling System %s took %f sec (overall compilation time), %f sec (combined shader worker time)."), *GetFullName(), (float)(FPlatformTime::Seconds() - ActiveCompilations[ActiveCompileIdx].StartTime),
 			CombinedCompileTime);
 
 		ActiveCompilations.RemoveAt(ActiveCompileIdx);
@@ -1005,6 +975,53 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 		return true;
 	}
 
+	return false;
+}
+
+bool UNiagaraSystem::ProcessCompilationResult(FEmitterCompiledScriptPair& ScriptPair, bool bWait, bool bDoNotApply)
+{
+	INiagaraModule& NiagaraModule = FModuleManager::Get().LoadModuleChecked<INiagaraModule>(TEXT("Niagara"));
+	TSharedPtr<FNiagaraVMExecutableData> ExeData = NiagaraModule.GetCompileJobResult(ScriptPair.PendingJobID, bWait);
+
+	if (!bWait && !ExeData.IsValid())
+	{
+		return false;
+	}
+	check(ExeData.IsValid());
+	if (!bDoNotApply)
+	{
+		ScriptPair.CompileResults = ExeData;
+	}
+	
+	// save result to the ddc
+	TArray<uint8> OutData;
+	if (UNiagaraScript::ExecToBinaryData(OutData, *ExeData))
+	{
+		GetDerivedDataCacheRef().Put(*ScriptPair.CompiledScript->GetNiagaraDDCKeyString(), OutData);
+		return true;
+	}
+	
+	return false;
+}
+
+bool UNiagaraSystem::GetFromDDC(FEmitterCompiledScriptPair& ScriptPair)
+{
+	FNiagaraVMExecutableDataId NewID;
+	ScriptPair.CompiledScript->ComputeVMCompilationId(NewID);
+	ScriptPair.CompileId = NewID;
+
+	TArray<uint8> Data;
+	if (GetDerivedDataCacheRef().GetSynchronous(*ScriptPair.CompiledScript->GetNiagaraDDCKeyString(), Data))
+	{
+		TSharedPtr<FNiagaraVMExecutableData> ExeData = MakeShared<FNiagaraVMExecutableData>();
+		if (ScriptPair.CompiledScript->BinaryToExecData(Data, *ExeData))
+		{
+			ExeData->CompileTime = 0; // since we didn't actually compile anything
+			ScriptPair.CompileResults = ExeData;
+			ScriptPair.bResultsReady = true;
+			return true;
+		}
+	}
 	return false;
 }
 
@@ -1102,10 +1119,13 @@ bool UNiagaraSystem::RequestCompile(bool bForce)
 				Pair.bResultsReady = false;
 				Pair.Emitter = Handle.GetInstance();
 				Pair.CompiledScript = EmitterScript;
-				if (EmitterScript->RequestExternallyManagedAsyncCompile(EmitterPrecompiledData, Pair.CompileId, Pair.PendingDDCID, bTrulyAsync))
+				if (!GetFromDDC(Pair))
 				{
-					bAnyUnsynchronized = true;
-				}
+					if (EmitterScript->RequestExternallyManagedAsyncCompile(EmitterPrecompiledData, Pair.CompileId, Pair.PendingJobID))
+					{
+						bAnyUnsynchronized = true;
+					}
+				}				
 				ActiveCompilations[ActiveCompileIdx].EmitterCompiledScriptPairs.Add(Pair);
 			}
 
@@ -1123,9 +1143,12 @@ bool UNiagaraSystem::RequestCompile(bool bForce)
 		Pair.bResultsReady = false;
 		Pair.Emitter = nullptr;
 		Pair.CompiledScript = SystemSpawnScript;
-		if (SystemSpawnScript->RequestExternallyManagedAsyncCompile(SystemPrecompiledData, Pair.CompileId, Pair.PendingDDCID, bTrulyAsync))
+		if (!GetFromDDC(Pair))
 		{
-			bAnyCompiled = true;
+			if (SystemSpawnScript->RequestExternallyManagedAsyncCompile(SystemPrecompiledData, Pair.CompileId, Pair.PendingJobID))
+			{
+				bAnyCompiled = true;
+			}
 		}
 		ActiveCompilations[ActiveCompileIdx].EmitterCompiledScriptPairs.Add(Pair);
 	}
@@ -1135,9 +1158,12 @@ bool UNiagaraSystem::RequestCompile(bool bForce)
 		Pair.bResultsReady = false;
 		Pair.Emitter = nullptr;
 		Pair.CompiledScript = SystemUpdateScript;
-		if (SystemUpdateScript->RequestExternallyManagedAsyncCompile(SystemPrecompiledData, Pair.CompileId, Pair.PendingDDCID, bTrulyAsync))
+		if (!GetFromDDC(Pair))
 		{
-			bAnyCompiled = true;
+			if (SystemUpdateScript->RequestExternallyManagedAsyncCompile(SystemPrecompiledData, Pair.CompileId, Pair.PendingJobID))
+			{
+				bAnyCompiled = true;
+			}
 		}
 		ActiveCompilations[ActiveCompileIdx].EmitterCompiledScriptPairs.Add(Pair);
 	}

@@ -727,37 +727,19 @@ void FSceneRenderTargets::FinishRenderingSceneColor(FRHICommandList& RHICmdList)
 	RHICmdList.EndRenderPass();
 }
 
-int32 FSceneRenderTargets::FillGBufferRenderPassInfo(ERenderTargetLoadAction ColorLoadAction, FRHIRenderPassInfo& OutRenderPassInfo, int32& OutVelocityRTIndex)
+int32 FSceneRenderTargets::GetGBufferRenderTargets(TRefCountPtr<IPooledRenderTarget>* OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex)
 {
 	int32 MRTCount = 0;
-	OutRenderPassInfo.ColorRenderTargets[MRTCount].Action = MakeRenderTargetActions(ColorLoadAction, ERenderTargetStoreAction::EStore);
-	OutRenderPassInfo.ColorRenderTargets[MRTCount].RenderTarget = GetSceneColorSurface();
-	OutRenderPassInfo.ColorRenderTargets[MRTCount].ArraySlice = -1;
-	OutRenderPassInfo.ColorRenderTargets[MRTCount].MipIndex = 0;
-	MRTCount++;
+	OutRenderTargets[MRTCount++] = &GetSceneColor();
 
 	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
 	const bool bUseGBuffer = IsUsingGBuffers(ShaderPlatform);
 
 	if (bUseGBuffer)
 	{
-		OutRenderPassInfo.ColorRenderTargets[MRTCount].Action = MakeRenderTargetActions(ColorLoadAction, ERenderTargetStoreAction::EStore);
-		OutRenderPassInfo.ColorRenderTargets[MRTCount].RenderTarget = GBufferA->GetRenderTargetItem().TargetableTexture;
-		OutRenderPassInfo.ColorRenderTargets[MRTCount].ArraySlice = -1;
-		OutRenderPassInfo.ColorRenderTargets[MRTCount].MipIndex = 0;
-		MRTCount++;
-
-		OutRenderPassInfo.ColorRenderTargets[MRTCount].Action = MakeRenderTargetActions(ColorLoadAction, ERenderTargetStoreAction::EStore);
-		OutRenderPassInfo.ColorRenderTargets[MRTCount].RenderTarget = GBufferB->GetRenderTargetItem().TargetableTexture;
-		OutRenderPassInfo.ColorRenderTargets[MRTCount].ArraySlice = -1;
-		OutRenderPassInfo.ColorRenderTargets[MRTCount].MipIndex = 0;
-		MRTCount++;
-
-		OutRenderPassInfo.ColorRenderTargets[MRTCount].Action = MakeRenderTargetActions(ColorLoadAction, ERenderTargetStoreAction::EStore);
-		OutRenderPassInfo.ColorRenderTargets[MRTCount].RenderTarget = GBufferC->GetRenderTargetItem().TargetableTexture;
-		OutRenderPassInfo.ColorRenderTargets[MRTCount].ArraySlice = -1;
-		OutRenderPassInfo.ColorRenderTargets[MRTCount].MipIndex = 0;
-		MRTCount++;
+		OutRenderTargets[MRTCount++] = &GBufferA;
+		OutRenderTargets[MRTCount++] = &GBufferB;
+		OutRenderTargets[MRTCount++] = &GBufferC;
 	}
 
 	// The velocity buffer needs to be bound before other optionnal rendertargets (when UseSelectiveBasePassOutputs() is true).
@@ -766,12 +748,7 @@ int32 FSceneRenderTargets::FillGBufferRenderPassInfo(ERenderTargetLoadAction Col
 	{
 		OutVelocityRTIndex = MRTCount;
 		check(OutVelocityRTIndex == 4 || (!bUseGBuffer && OutVelocityRTIndex == 1)); // As defined in BasePassPixelShader.usf
-		
-		OutRenderPassInfo.ColorRenderTargets[MRTCount].Action = MakeRenderTargetActions(ColorLoadAction, ERenderTargetStoreAction::EStore);
-		OutRenderPassInfo.ColorRenderTargets[MRTCount].RenderTarget = SceneVelocity->GetRenderTargetItem().TargetableTexture;
-		OutRenderPassInfo.ColorRenderTargets[MRTCount].ArraySlice = -1;
-		OutRenderPassInfo.ColorRenderTargets[MRTCount].MipIndex = 0;
-		MRTCount++;
+		OutRenderTargets[MRTCount++] = &SceneVelocity;
 	}
 	else
 	{
@@ -780,20 +757,12 @@ int32 FSceneRenderTargets::FillGBufferRenderPassInfo(ERenderTargetLoadAction Col
 
 	if (bUseGBuffer)
 	{
-		OutRenderPassInfo.ColorRenderTargets[MRTCount].Action = MakeRenderTargetActions(ColorLoadAction, ERenderTargetStoreAction::EStore);
-		OutRenderPassInfo.ColorRenderTargets[MRTCount].RenderTarget = GBufferD->GetRenderTargetItem().TargetableTexture;
-		OutRenderPassInfo.ColorRenderTargets[MRTCount].ArraySlice = -1;
-		OutRenderPassInfo.ColorRenderTargets[MRTCount].MipIndex = 0;
-		MRTCount++;
+		OutRenderTargets[MRTCount++] = &GBufferD;
 
 		if (bAllowStaticLighting)
 		{
 			check(MRTCount == (bAllocateVelocityGBuffer ? 6 : 5)); // As defined in BasePassPixelShader.usf
-			OutRenderPassInfo.ColorRenderTargets[MRTCount].Action = MakeRenderTargetActions(ColorLoadAction, ERenderTargetStoreAction::EStore);
-			OutRenderPassInfo.ColorRenderTargets[MRTCount].RenderTarget = GBufferE->GetRenderTargetItem().TargetableTexture;
-			OutRenderPassInfo.ColorRenderTargets[MRTCount].ArraySlice = -1;
-			OutRenderPassInfo.ColorRenderTargets[MRTCount].MipIndex = 0;
-			MRTCount++;
+			OutRenderTargets[MRTCount++] = &GBufferE;
 		}
 	}
 
@@ -801,45 +770,48 @@ int32 FSceneRenderTargets::FillGBufferRenderPassInfo(ERenderTargetLoadAction Col
 	return MRTCount;
 }
 
+int32 FSceneRenderTargets::FillGBufferRenderPassInfo(ERenderTargetLoadAction ColorLoadAction, FRHIRenderPassInfo& OutRenderPassInfo, int32& OutVelocityRTIndex)
+{
+	TRefCountPtr<IPooledRenderTarget>* RenderTargets[MaxSimultaneousRenderTargets];
+	int32 MRTCount = GetGBufferRenderTargets(RenderTargets, OutVelocityRTIndex);
+
+	for (int32 MRTIdx = 0; MRTIdx < MRTCount; ++MRTIdx)
+	{
+		OutRenderPassInfo.ColorRenderTargets[MRTIdx].Action = MakeRenderTargetActions(ColorLoadAction, ERenderTargetStoreAction::EStore);
+		OutRenderPassInfo.ColorRenderTargets[MRTIdx].RenderTarget = (*RenderTargets[MRTIdx])->GetRenderTargetItem().TargetableTexture;
+		OutRenderPassInfo.ColorRenderTargets[MRTIdx].ArraySlice = -1;
+		OutRenderPassInfo.ColorRenderTargets[MRTIdx].MipIndex = 0;
+	}
+
+	return MRTCount;
+}
+
 int32 FSceneRenderTargets::GetGBufferRenderTargets(ERenderTargetLoadAction ColorLoadAction, FRHIRenderTargetView OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex)
 {
-	int32 MRTCount = 0;
-	OutRenderTargets[MRTCount++] = FRHIRenderTargetView(GetSceneColorSurface(), 0, -1, ColorLoadAction, ERenderTargetStoreAction::EStore);
+	TRefCountPtr<IPooledRenderTarget>* RenderTargets[MaxSimultaneousRenderTargets];
+	int32 MRTCount = GetGBufferRenderTargets(RenderTargets, OutVelocityRTIndex);
 
-	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
-	const bool bUseGBuffer = IsUsingGBuffers(ShaderPlatform);
-	if (bUseGBuffer)
+	for (int32 MRTIdx = 0; MRTIdx < MRTCount; ++MRTIdx)
 	{
-		OutRenderTargets[MRTCount++] = FRHIRenderTargetView(GBufferA->GetRenderTargetItem().TargetableTexture, 0, -1, ColorLoadAction, ERenderTargetStoreAction::EStore);
-		OutRenderTargets[MRTCount++] = FRHIRenderTargetView(GBufferB->GetRenderTargetItem().TargetableTexture, 0, -1, ColorLoadAction, ERenderTargetStoreAction::EStore);
-		OutRenderTargets[MRTCount++] = FRHIRenderTargetView(GBufferC->GetRenderTargetItem().TargetableTexture, 0, -1, ColorLoadAction, ERenderTargetStoreAction::EStore);
+		OutRenderTargets[MRTIdx] = FRHIRenderTargetView((*RenderTargets[MRTIdx])->GetRenderTargetItem().TargetableTexture, 0, -1, ColorLoadAction, ERenderTargetStoreAction::EStore);
 	}
 
-	// The velocity buffer needs to be bound before other optionnal rendertargets (when UseSelectiveBasePassOutputs() is true).
-	// Otherwise there is an issue on some AMD hardware where the target does not get updated. Seems to be related to the velocity buffer format as it works fine with other targets.
-	if (bAllocateVelocityGBuffer && !IsSimpleForwardShadingEnabled(ShaderPlatform))
-	{
-		OutVelocityRTIndex = MRTCount;
-		check(OutVelocityRTIndex == 4 || (!bUseGBuffer && OutVelocityRTIndex == 1)); // As defined in BasePassPixelShader.usf
-		OutRenderTargets[MRTCount++] = FRHIRenderTargetView(SceneVelocity->GetRenderTargetItem().TargetableTexture, 0, -1, ColorLoadAction, ERenderTargetStoreAction::EStore);
-	}
-	else
-	{
-		OutVelocityRTIndex = -1;
-	}
+	return MRTCount;
+}
 
-	if (bUseGBuffer)
-	{
-		OutRenderTargets[MRTCount++] = FRHIRenderTargetView(GBufferD->GetRenderTargetItem().TargetableTexture, 0, -1, ColorLoadAction, ERenderTargetStoreAction::EStore);
+int32 FSceneRenderTargets::GetGBufferRenderTargets(FRDGBuilder& GraphBuilder, ERenderTargetLoadAction ColorLoadAction, FRenderTargetBinding OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex)
+{
+	TRefCountPtr<IPooledRenderTarget>* RenderTargets[MaxSimultaneousRenderTargets];
+	int32 MRTCount = GetGBufferRenderTargets(RenderTargets, OutVelocityRTIndex);
 
-		if (bAllowStaticLighting)
-		{
-			check(MRTCount == (bAllocateVelocityGBuffer ? 6 : 5)); // As defined in BasePassPixelShader.usf
-			OutRenderTargets[MRTCount++] = FRHIRenderTargetView(GBufferE->GetRenderTargetItem().TargetableTexture, 0, -1, ColorLoadAction, ERenderTargetStoreAction::EStore);
-		}
+	for (int32 MRTIdx = 0; MRTIdx < MRTCount; ++MRTIdx)
+	{
+		FPooledRenderTargetDesc Desc = (*RenderTargets[MRTIdx])->GetDesc();
+		FRDGTextureRef RDGTextureRef = GraphBuilder.RegisterExternalTexture(*RenderTargets[MRTIdx], Desc.DebugName);
+
+		OutRenderTargets[MRTIdx] = FRenderTargetBinding(RDGTextureRef, ColorLoadAction);
 	}
 
-	check(MRTCount <= MaxSimultaneousRenderTargets);
 	return MRTCount;
 }
 
@@ -870,33 +842,46 @@ void FSceneRenderTargets::SetQuadOverdrawUAV(FRHICommandList& RHICmdList, bool b
 		if (QuadOverdrawBuffer.IsValid() && QuadOverdrawBuffer->GetRenderTargetItem().UAV.IsValid())
 		{
 			QuadOverdrawIndex = GetQuadOverdrawUAVIndex(ShaderPlatform, CurrentFeatureLevel);
-
-			// Increase the rendertarget count in order to control the bound slot of the UAV.
-			check(OutInfo.GetNumColorRenderTargets() <= QuadOverdrawIndex);
-			OutInfo.UAVIndex = QuadOverdrawIndex;
-			OutInfo.UAVs[OutInfo.NumUAVs++] = QuadOverdrawBuffer->GetRenderTargetItem().UAV;
-
 			if (bClearQuadOverdrawBuffers)
 			{
 				// Clear to default value
-				const uint32 ClearValue[4] = { 0, 0, 0, 0 };
-				ClearUAV(RHICmdList, QuadOverdrawBuffer->GetRenderTargetItem(), ClearValue);
+				RHICmdList.ClearUAVUint(QuadOverdrawBuffer->GetRenderTargetItem().UAV, FUintVector4(0, 0, 0, 0));
 				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToGfx, QuadOverdrawBuffer->GetRenderTargetItem().UAV);
 			}
 		}
 	}
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 }
+FUnorderedAccessViewRHIRef FSceneRenderTargets::GetQuadOverdrawBufferUAV()
+{
+	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
+	bool bBindQuadOverdrawBuffers = true;
+	if (bBindQuadOverdrawBuffers && AllowDebugViewShaderMode(DVSM_QuadComplexity, ShaderPlatform, CurrentFeatureLevel))
+	{
+		if (QuadOverdrawBuffer.IsValid() && QuadOverdrawBuffer->GetRenderTargetItem().UAV.IsValid())
+		{
+			return QuadOverdrawBuffer->GetRenderTargetItem().UAV;
+		}
+	}
+	return GBlackTextureWithUAV->UnorderedAccessViewRHI;
+}
+
+
+
+FUnorderedAccessViewRHIRef FSceneRenderTargets::GetVirtualTextureFeedbackUAV()
+{
+	TRefCountPtr< IPooledRenderTarget > RenderTarget = VirtualTextureFeedback.FeedbackTextureGPU;
+	if(!RenderTarget)
+	{
+		return GBlackTextureWithUAV->UnorderedAccessViewRHI;
+	}
+	
+	return RenderTarget->GetRenderTargetItem().UAV;
+}
 
 void FSceneRenderTargets::BindVirtualTextureFeedbackUAV(FRHIRenderPassInfo& RPInfo)
 {
-	// must match VT_FEEDBACK_REGISTER in VirtualTextureCommon.ush
-	static const int32 VT_FEEDBACK_REGISTER = 7;
-
-	checkf(VirtualTextureFeedback.FeedbackTextureGPU, TEXT("Invalid attempt to render VT feedback after it has already been transferred to CPU, need to adjust location of TransferGPUToCPU"));
-	check(RPInfo.GetNumColorRenderTargets() <= VT_FEEDBACK_REGISTER);
-	RPInfo.UAVIndex = VT_FEEDBACK_REGISTER;
-	RPInfo.UAVs[RPInfo.NumUAVs++] = VirtualTextureFeedback.FeedbackTextureGPU->GetRenderTargetItem().UAV;
+	return;
 }
 
 void FSceneRenderTargets::BeginRenderingGBuffer(FRHICommandList& RHICmdList, ERenderTargetLoadAction ColorLoadAction, ERenderTargetLoadAction DepthLoadAction, FExclusiveDepthStencil DepthStencilAccess, bool bBindQuadOverdrawBuffers, bool bClearQuadOverdrawBuffers, const FLinearColor& ClearColor/*=(0,0,0,1)*/, bool bIsWireframe)
@@ -1191,29 +1176,55 @@ void FSceneRenderTargets::PreallocGBufferTargets()
 	bAllocateVelocityGBuffer = FVelocityRendering::BasePassCanOutputVelocity(CurrentFeatureLevel);
 }
 
-void FSceneRenderTargets::GetGBufferADesc(FPooledRenderTargetDesc& Desc) const
+EPixelFormat FSceneRenderTargets::GetGBufferAFormat() const
 {
 	// good to see the quality loss due to precision in the gbuffer
 	const bool bHighPrecisionGBuffers = (CurrentGBufferFormat >= EGBufferFormat::Force16BitsPerChannel);
 	// good to profile the impact of non 8 bit formats
 	const bool bEnforce8BitPerChannel = (CurrentGBufferFormat == EGBufferFormat::Force8BitsPerChannel);
 
-	// Create the world-space normal g-buffer.
+	EPixelFormat NormalGBufferFormat = bHighPrecisionGBuffers ? PF_FloatRGBA : PF_A2B10G10R10;
+
+	if (bEnforce8BitPerChannel)
 	{
-		EPixelFormat NormalGBufferFormat = bHighPrecisionGBuffers ? PF_FloatRGBA : PF_A2B10G10R10;
-
-		if (bEnforce8BitPerChannel)
-		{
-			NormalGBufferFormat = PF_B8G8R8A8;
-		}
-		else if (CurrentGBufferFormat == EGBufferFormat::HighPrecisionNormals)
-		{
-			NormalGBufferFormat = PF_FloatRGBA;
-		}
-
-		Desc = FPooledRenderTargetDesc::Create2DDesc(BufferSize, NormalGBufferFormat, FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false);
-		Desc.Flags |= GFastVRamConfig.GBufferA;
+		NormalGBufferFormat = PF_B8G8R8A8;
 	}
+	else if (CurrentGBufferFormat == EGBufferFormat::HighPrecisionNormals)
+	{
+		NormalGBufferFormat = PF_FloatRGBA;
+	}
+
+	return NormalGBufferFormat;
+}
+
+EPixelFormat FSceneRenderTargets::GetGBufferBFormat() const
+{
+	// good to see the quality loss due to precision in the gbuffer
+	const bool bHighPrecisionGBuffers = (CurrentGBufferFormat >= EGBufferFormat::Force16BitsPerChannel);
+
+	const EPixelFormat SpecularGBufferFormat = bHighPrecisionGBuffers ? PF_FloatRGBA : PF_B8G8R8A8;
+
+	return SpecularGBufferFormat;
+}
+
+EPixelFormat FSceneRenderTargets::GetGBufferCFormat() const
+{
+	// good to see the quality loss due to precision in the gbuffer
+	const bool bHighPrecisionGBuffers = (CurrentGBufferFormat >= EGBufferFormat::Force16BitsPerChannel);
+
+	const EPixelFormat DiffuseGBufferFormat = bHighPrecisionGBuffers ? PF_FloatRGBA : PF_B8G8R8A8;
+
+	return DiffuseGBufferFormat;
+}
+
+EPixelFormat FSceneRenderTargets::GetGBufferDFormat() const
+{
+	return PF_B8G8R8A8;
+}
+
+EPixelFormat FSceneRenderTargets::GetGBufferEFormat() const
+{
+	return PF_B8G8R8A8;
 }
 
 void FSceneRenderTargets::AllocGBufferTargets(FRHICommandList& RHICmdList)
@@ -1233,45 +1244,37 @@ void FSceneRenderTargets::AllocGBufferTargets(FRHICommandList& RHICmdList)
 	const bool bCanReadGBufferUniforms = (bUseGBuffer || IsSimpleForwardShadingEnabled(ShaderPlatform)) && CurrentFeatureLevel >= ERHIFeatureLevel::SM5;
 	if (bUseGBuffer)
 	{
-		// good to see the quality loss due to precision in the gbuffer
-		const bool bHighPrecisionGBuffers = (CurrentGBufferFormat >= EGBufferFormat::Force16BitsPerChannel);
-		// good to profile the impact of non 8 bit formats
-		const bool bEnforce8BitPerChannel = (CurrentGBufferFormat == EGBufferFormat::Force8BitsPerChannel);
-
 		// Create the world-space normal g-buffer.
 		{
-			FPooledRenderTargetDesc Desc;
-			GetGBufferADesc(Desc);
+			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, GetGBufferAFormat(), FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
+			Desc.Flags |= GFastVRamConfig.GBufferA;
 			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, GBufferA, TEXT("GBufferA"));
 		}
 
 		// Create the specular color and power g-buffer.
 		{
-			const EPixelFormat SpecularGBufferFormat = bHighPrecisionGBuffers ? PF_FloatRGBA : PF_B8G8R8A8;
-
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, SpecularGBufferFormat, FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
+			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, GetGBufferBFormat(), FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
 			Desc.Flags |= GFastVRamConfig.GBufferB;
 			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, GBufferB, TEXT("GBufferB"));
 		}
 
 		// Create the diffuse color g-buffer.
 		{
-			const EPixelFormat DiffuseGBufferFormat = bHighPrecisionGBuffers ? PF_FloatRGBA : PF_B8G8R8A8;
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, DiffuseGBufferFormat, FClearValueBinding::Transparent, TexCreate_SRGB, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
+			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, GetGBufferCFormat(), FClearValueBinding::Transparent, TexCreate_SRGB, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
 			Desc.Flags |= GFastVRamConfig.GBufferC;
 			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, GBufferC, TEXT("GBufferC"));
 		}
 
 		// Create the mask g-buffer (e.g. SSAO, subsurface scattering, wet surface mask, skylight mask, ...).
 		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_B8G8R8A8, FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
+			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, GetGBufferDFormat(), FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
 			Desc.Flags |= GFastVRamConfig.GBufferD;
 			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, GBufferD, TEXT("GBufferD"));
 		}
 
 		if (bAllowStaticLighting)
 		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_B8G8R8A8, FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
+			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, GetGBufferEFormat(), FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
 			Desc.Flags |= GFastVRamConfig.GBufferE;
 			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, GBufferE, TEXT("GBufferE"));
 		}
@@ -2318,7 +2321,7 @@ void FSceneRenderTargets::AllocateFoveationTexture(FRHICommandList& RHICmdList)
 
 void FSceneRenderTargets::AllocateScreenShadowMask(FRHICommandList& RHICmdList, TRefCountPtr<IPooledRenderTarget>& ScreenShadowMaskTexture)
 {
-	FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(GetBufferSizeXY(), PF_B8G8R8A8, FClearValueBinding::White, TexCreate_None, TexCreate_RenderTargetable, false));
+	FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(GetBufferSizeXY(), PF_B8G8R8A8, FClearValueBinding::White, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
 	Desc.Flags |= GFastVRamConfig.ScreenSpaceShadowMask;
 	Desc.NumSamples = GetNumSceneColorMSAASamples(GetCurrentFeatureLevel());
 	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ScreenShadowMaskTexture, TEXT("ScreenShadowMaskTexture"));

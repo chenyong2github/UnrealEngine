@@ -76,27 +76,21 @@ static FAutoConsoleVariableRef CVarMetalResourceDeferDeleteNumFrames(
 #if UE_BUILD_SHIPPING
 int32 GMetalRuntimeDebugLevel = 0;
 #else
-#if PLATFORM_MAC
-int32 GMetalRuntimeDebugLevel = 3;
-#else
 int32 GMetalRuntimeDebugLevel = 1;
-#endif
 #endif
 static FAutoConsoleVariableRef CVarMetalRuntimeDebugLevel(
 	TEXT("rhi.Metal.RuntimeDebugLevel"),
 	GMetalRuntimeDebugLevel,
 	TEXT("The level of debug validation performed by MetalRHI in addition to the underlying Metal API & validation layer.\n")
 	TEXT("Each subsequent level adds more tests and reporting in addition to the previous level.\n")
-	TEXT("*LEVELS >= 5 ARE IGNORED IN SHIPPING AND TEST BUILDS*. (Default: 3 (Debug, Development), 0 (Test, Shipping))\n")
+	TEXT("*LEVELS >= 3 ARE IGNORED IN SHIPPING AND TEST BUILDS*. (Default: 1 (Debug, Development), 0 (Test, Shipping))\n")
 	TEXT("\t0: Off,\n")
-	TEXT("\t1: Record the debug-groups issued into a command-buffer and report them on failure,\n")
-	TEXT("\t2: Enable light-weight validation of resource bindings & API usage,\n")
-	TEXT("\t3: Track resources and validate lifetime on command-buffer failure,\n")
-	TEXT("\t4: Reset resource bindings when binding a PSO/Compute-Shader to simplify GPU debugging,\n")
-	TEXT("\t5: Allow rhi.Metal.CommandBufferCommitThreshold to break command-encoders (except when MSAA is enabled),\n")
-	TEXT("\t6: Enable slower, more extensive validation checks for resource types & encoder usage,\n")
-    TEXT("\t7: Record the draw, blit & dispatch commands issued into a command-buffer and report them on failure,\n")
-    TEXT("\t8: Wait for each command-buffer to complete immediately after submission."));
+	TEXT("\t1: Enable light-weight validation of resource bindings & API usage,\n")
+	TEXT("\t2: Reset resource bindings when binding a PSO/Compute-Shader to simplify GPU debugging,\n")
+	TEXT("\t3: Allow rhi.Metal.CommandBufferCommitThreshold to break command-encoders (except when MSAA is enabled),\n")
+	TEXT("\t4: Enable slower, more extensive validation checks for resource types & encoder usage,\n")
+    TEXT("\t5: Record the draw, blit & dispatch commands issued into a command-buffer and report them on failure,\n")
+    TEXT("\t6: Wait for each command-buffer to complete immediately after submission."));
 
 float GMetalPresentFramePacing = 0.0f;
 #if !PLATFORM_MAC
@@ -1288,7 +1282,7 @@ bool FMetalContext::PrepareToDraw(uint32 PrimitiveType, EMetalIndexType IndexTyp
 	bool const bNeedsDepthStencilWrite = (IsValidRef(CurrentPSO->PixelShader) && (CurrentPSO->PixelShader->Bindings.InOutMask & 0x8000));
 	
 	// @todo Improve the way we handle binding a dummy depth/stencil so we can get pure UAV raster operations...
-	bool const bNeedsDepthStencilForUAVRaster = (StateCache.GetRenderPassInfo().GetNumColorRenderTargets() == 0 && StateCache.GetRenderPassInfo().NumUAVs > 0);
+	bool const bNeedsDepthStencilForUAVRaster = (StateCache.GetRenderPassInfo().GetNumColorRenderTargets() == 0);
 	
 	bool const bBindDepthStencilForWrite = bNeedsDepthStencilWrite && !StateCache.HasValidDepthStencilSurface();
 	bool const bBindDepthStencilForUAVRaster = bNeedsDepthStencilForUAVRaster && !StateCache.HasValidDepthStencilSurface();
@@ -1428,7 +1422,7 @@ void FMetalContext::SetRenderPassInfo(const FRHIRenderPassInfo& RenderTargetsInf
 	if (IsFeatureLevelSupported( GMaxRHIShaderPlatform, ERHIFeatureLevel::ES3_1 ))
 	{
 		// @todo Improve the way we handle binding a dummy depth/stencil so we can get pure UAV raster operations...
-		const bool bNeedsDepthStencilForUAVRaster = RenderTargetsInfo.GetNumColorRenderTargets() == 0 && RenderTargetsInfo.NumUAVs > 0 && !RenderTargetsInfo.DepthStencilRenderTarget.DepthStencilTarget;
+		const bool bNeedsDepthStencilForUAVRaster = RenderTargetsInfo.GetNumColorRenderTargets() == 0 && !RenderTargetsInfo.DepthStencilRenderTarget.DepthStencilTarget;
 
 		if (bNeedsDepthStencilForUAVRaster)
 		{

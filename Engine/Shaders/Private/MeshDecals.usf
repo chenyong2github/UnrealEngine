@@ -8,9 +8,6 @@
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
 
-#if NUM_VIRTUALTEXTURE_SAMPLES
-	RWTexture2D<uint> VTFeedbackBuffer REGISTER(VT_FEEDBACK_REGISTER); //MUST match FDecalRenderTargetManager::VirtualTextureFeedbackIndex
-#endif
 
 // Additional guard to remove all struct usage if empty to avoid platform conflicts.
 // This define can be removed if additional data is added to the interpolants struct
@@ -223,7 +220,7 @@ void FPixelShaderInOut_MainPS(
 		MaterialParameters.SvPosition,
 		Opacity,
 		View.FrameNumber,
-		VTFeedbackBuffer
+		View.VTFeedbackBuffer
 	);
 #endif
 }
@@ -232,7 +229,7 @@ void FPixelShaderInOut_MainPS(
 #define PIXELSHADEROUTPUT_MESHDECALPASS NEED_MESH_DECAL_INTERPOLATORS
 #define PIXELSHADEROUTPUT_INTERPOLANTS 1
 #define PIXELSHADEROUTPUT_MRT0 (DECAL_RENDERTARGET_COUNT > 0)
-#define PIXELSHADEROUTPUT_MRT1 (DECAL_RENDERTARGET_COUNT > 1 && (BIND_RENDERTARGET1 || COMPILER_SWITCH))
+#define PIXELSHADEROUTPUT_MRT1 (DECAL_RENDERTARGET_COUNT > 1)
 #define PIXELSHADEROUTPUT_MRT2 (DECAL_RENDERTARGET_COUNT > 2)
 #define PIXELSHADEROUTPUT_MRT3 (DECAL_RENDERTARGET_COUNT > 3)
 #define PIXELSHADEROUTPUT_MRT4 (DECAL_RENDERTARGET_COUNT > 4)

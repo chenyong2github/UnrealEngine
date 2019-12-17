@@ -30,9 +30,6 @@ float2 DecalParams;
 	#include "/Engine/Generated/Material.ush"
 #endif
 
-#if NUM_VIRTUALTEXTURE_SAMPLES
-	RWTexture2D<uint> VTFeedbackBuffer REGISTER(VT_FEEDBACK_REGISTER); //MUST match FDecalRenderTargetManager::VirtualTextureFeedbackIndex
-#endif
 
 // from component to clip space (for decal frustum)
 float4x4 FrustumComponentToClip;
@@ -246,7 +243,7 @@ void FPixelShaderInOut_MainPS(inout FPixelShaderIn In, inout FPixelShaderOut Out
 	FPixelMaterialInputs PixelMaterialInputs;
 	CalcPixelMaterialInputs(MaterialParameters, PixelMaterialInputs);
 	
-	float DecalFading = saturate(4 - 4 * abs(SwizzlePos.z * 2 - 1)) * DecalParams.x * DecalParams.y;
+	float DecalFading = saturate(4 - 4 * abs(SwizzlePos.z * 2 - 1)) * DecalParams.x;
 
 	#if DECAL_BLEND_MODE == DECALBLENDMODEID_AO
 	{
@@ -322,14 +319,14 @@ void FPixelShaderInOut_MainPS(inout FPixelShaderIn In, inout FPixelShaderOut Out
 		MaterialParameters.SvPosition,
 		Opacity,
 		View.FrameNumber,
-		VTFeedbackBuffer
+		View.VTFeedbackBuffer
 	);
 #endif
 }
 
 
 #define PIXELSHADEROUTPUT_MRT0 (DECAL_RENDERTARGET_COUNT > 0)
-#define PIXELSHADEROUTPUT_MRT1 (DECAL_RENDERTARGET_COUNT > 1 && (BIND_RENDERTARGET1 || COMPILER_SWITCH))
+#define PIXELSHADEROUTPUT_MRT1 (DECAL_RENDERTARGET_COUNT > 1)
 #define PIXELSHADEROUTPUT_MRT2 (DECAL_RENDERTARGET_COUNT > 2)
 #define PIXELSHADEROUTPUT_MRT3 (DECAL_RENDERTARGET_COUNT > 3)
 #define PIXELSHADEROUTPUT_MRT4 (DECAL_RENDERTARGET_COUNT > 4)

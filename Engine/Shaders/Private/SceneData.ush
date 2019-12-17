@@ -186,13 +186,13 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	// Note: layout must match FPrimitiveSceneShaderData in C++
 	// Relying on optimizer to remove unused loads
 
-	#if VF_GPU_SCENE_BUFFER
+	#if VF_GPU_SCENE_TEXTURE
 
-	return GetPrimitiveData_Buffer(PrimitiveId);
+	return GetPrimitiveData_Texture2D(PrimitiveId);
 	
 	#else
 	
-	return GetPrimitiveData_Texture2D(PrimitiveId);
+	return GetPrimitiveData_Buffer(PrimitiveId);
 	
 	#endif
 }

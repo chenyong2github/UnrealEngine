@@ -1965,7 +1965,7 @@ void ALandscape::CopyTexturePS(const FString& InSourceDebugName, FTextureResourc
 
 		PixelShader->SetParameters(RHICmdList, InSourceResource->TextureRHI);
 
-		RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, InDestResource->GetSizeX(), InDestResource->GetSizeY(), 1.0f);
+		RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, (float)InDestResource->GetSizeX(), (float)InDestResource->GetSizeY(), 1.0f);
 		RHICmdList.DrawIndexedPrimitive(GTwoTrianglesIndexBuffer.IndexBufferRHI, 0, 0, 4, 0, 2, 1);
 
 		RHICmdList.EndRenderPass();

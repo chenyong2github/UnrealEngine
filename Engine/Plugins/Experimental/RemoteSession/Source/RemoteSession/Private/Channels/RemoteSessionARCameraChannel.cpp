@@ -489,11 +489,10 @@ void FRemoteSessionARCameraChannel::ReceiveARCameraImage(FBackChannelOSCMessage&
 
 		ImageWrapper->SetCompressed(DecompressedImage->ImageData.GetData(), DecompressedImage->ImageData.Num());
 
-		const TArray<uint8>* RawData = nullptr;
+		TArray<uint8> RawData;
 		if (ImageWrapper->GetRaw(ERGBFormat::BGRA, 8, RawData))
 		{
-			check(RawData != nullptr);
-			DecompressedImage->ImageData = MoveTemp(*(TArray<uint8>*)RawData);
+			DecompressedImage->ImageData = MoveTemp(RawData);
 			{
 				FScopeLock sl(&DecompressionQueueLock);
 				DecompressionQueue.Add(DecompressedImage);

@@ -66,7 +66,7 @@ FDeferredLightData SetupLightDataForStandardDeferred()
 	LightData.Direction = DeferredLightUniforms.Direction;
 	LightData.Tangent = DeferredLightUniforms.Tangent;
 	LightData.SpotAngles = DeferredLightUniforms.SpotAngles;
-	LightData.SourceRadius = DeferredLightUniforms.SourceRadius,
+	LightData.SourceRadius = DeferredLightUniforms.SourceRadius;
 	LightData.SourceLength = DeferredLightUniforms.SourceLength;
     LightData.SoftSourceRadius = DeferredLightUniforms.SoftSourceRadius;
 	LightData.SpecularScale = DeferredLightUniforms.SpecularScale;
@@ -316,8 +316,11 @@ void DeferredLightPixelMain(
 		OutColor += (Radiance * Attenuation);
 #endif
 	}
-		
+
 #if USE_PREEXPOSURE
-		OutColor.rgb *= View.PreExposure;
+	// RGB:SceneColor Specular and Diffuse
+	// A:Non Specular SceneColor Luminance
+	// So we need PreExposure for both color and alpha
+	OutColor.rgba *= View.PreExposure;
 #endif
 }

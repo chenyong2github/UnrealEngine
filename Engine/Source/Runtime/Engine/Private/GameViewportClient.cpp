@@ -3845,13 +3845,13 @@ void* UGameViewportClient::LoadCursorFromPngs(ICursor& PlatformCursor, const FSt
 
 	if (PngImageWrapper.IsValid() && PngImageWrapper->SetCompressed(NearestCursor->FileData.GetData(), NearestCursor->FileData.Num()))
 	{
-		const TArray<uint8>* RawImageData = nullptr;
+		TArray64<uint8> RawImageData;
 		if (PngImageWrapper->GetRaw(ERGBFormat::RGBA, 8, RawImageData))
 		{
 			const int32 Width = PngImageWrapper->GetWidth();
 			const int32 Height = PngImageWrapper->GetHeight();
 
-			return PlatformCursor.CreateCursorFromRGBABuffer((FColor*) RawImageData->GetData(), Width, Height, InHotSpot);
+			return PlatformCursor.CreateCursorFromRGBABuffer((FColor*) RawImageData.GetData(), Width, Height, InHotSpot);
 		}
 	}
 

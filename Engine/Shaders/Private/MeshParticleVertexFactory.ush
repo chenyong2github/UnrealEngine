@@ -104,7 +104,7 @@ struct FVertexFactoryInterpolantsVSToPS
 #endif
 
 #if USE_DYNAMIC_PARAMETERS
-	float4 DynamicParameter : COLOR2;
+	nointerpolation float4 DynamicParameter : COLOR2;
 #endif
 	
 #if USE_PARTICLE_NODES

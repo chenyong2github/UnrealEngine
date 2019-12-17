@@ -252,7 +252,7 @@ TSharedPtr< FSlateDynamicImageBrush > SExternalImagePicker::LoadImageAsBrush( co
 	TSharedPtr< FSlateDynamicImageBrush > Brush;
 	bool bSucceeded = false;
 	
-	TArray<uint8> RawFileData;
+	TArray64<uint8> RawFileData;
 	if( FFileHelper::LoadFileToArray( RawFileData, *ImagePath ) )
 	{
 		IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>( FName("ImageWrapper") );
@@ -268,10 +268,10 @@ TSharedPtr< FSlateDynamicImageBrush > SExternalImagePicker::LoadImageAsBrush( co
 		{
 			if ( ImageWrapper.IsValid() && ImageWrapper->SetCompressed( RawFileData.GetData(), RawFileData.Num() ) )
 			{			
-				const TArray<uint8>* RawData = NULL;
+				TArray<uint8> RawData;
 				if (ImageWrapper->GetRaw( ERGBFormat::BGRA, 8, RawData))
 				{
-					if ( FSlateApplication::Get().GetRenderer()->GenerateDynamicImageResource( *ImagePath, ImageWrapper->GetWidth(), ImageWrapper->GetHeight(), *RawData ) )
+					if ( FSlateApplication::Get().GetRenderer()->GenerateDynamicImageResource( *ImagePath, ImageWrapper->GetWidth(), ImageWrapper->GetHeight(), RawData ) )
 					{
 						Brush = MakeShareable(new FSlateDynamicImageBrush( *ImagePath, FVector2D(ImageWrapper->GetWidth(), ImageWrapper->GetHeight()) ) );
 						bSucceeded = true;

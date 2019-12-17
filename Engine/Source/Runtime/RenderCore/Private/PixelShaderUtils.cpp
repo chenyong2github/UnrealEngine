@@ -8,6 +8,16 @@
 #include "CommonRenderResources.h"
 #include "RenderGraph.h"
 
+IMPLEMENT_SHADER_TYPE(, FPixelShaderUtils::FRasterizeToRectsVS, TEXT("/Engine/Private/RenderGraphUtilities.usf"), TEXT("RasterizeToRectsVS"), SF_Vertex);
+
+bool FPixelShaderUtils::FRasterizeToRectsVS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+{
+	return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+}
+
+BEGIN_SHADER_PARAMETER_STRUCT(FRasterizeToRectsUpload, )
+	SHADER_PARAMETER_RDG_BUFFER_UPLOAD(Buffer<uint4>, RectMinMaxBuffer)
+END_SHADER_PARAMETER_STRUCT()
 
 // static
 void FPixelShaderUtils::DrawFullscreenTriangle(FRHICommandList& RHICmdList, uint32 InstanceCount)
@@ -57,4 +67,26 @@ void FPixelShaderUtils::InitFullscreenPipelineState(
 	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
 	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(PixelShader);
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+}
+
+void FPixelShaderUtils::UploadRectMinMaxBuffer(FRDGBuilder& GraphBuilder,
+	const TArray<FUintVector4, SceneRenderingAllocator>& RectMinMaxArray,
+	FRDGBufferRef RectMinMaxBuffer)
+{
+	FRasterizeToRectsUpload* PassParameters = GraphBuilder.AllocParameters<FRasterizeToRectsUpload>();
+	PassParameters->RectMinMaxBuffer = RectMinMaxBuffer;
+
+	const uint32 RectMinMaxToRenderSizeInBytes = RectMinMaxArray.GetTypeSize() * RectMinMaxArray.Num();
+	const void* RectMinMaxToRenderDataPtr = RectMinMaxArray.GetData();
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("UploadRectMinMaxBuffer"),
+		PassParameters,
+		ERDGPassFlags::Copy,
+		[PassParameters, RectMinMaxToRenderSizeInBytes, RectMinMaxToRenderDataPtr](FRHICommandListImmediate& RHICmdList)
+	{
+		void* DestBVHQueryInfoPtr = RHILockVertexBuffer(PassParameters->RectMinMaxBuffer->GetRHIVertexBuffer(), 0, RectMinMaxToRenderSizeInBytes, RLM_WriteOnly);
+		FPlatformMemory::Memcpy(DestBVHQueryInfoPtr, RectMinMaxToRenderDataPtr, RectMinMaxToRenderSizeInBytes);
+		RHIUnlockVertexBuffer(PassParameters->RectMinMaxBuffer->GetRHIVertexBuffer());
+	});
 }

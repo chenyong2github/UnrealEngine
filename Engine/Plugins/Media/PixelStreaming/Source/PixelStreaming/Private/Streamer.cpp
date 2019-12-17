@@ -363,7 +363,7 @@ void FStreamer::SendPlayerMessage(PixelStreamingProtocol::EToPlayerMsg Type, con
 	}
 }
 
-void FStreamer::SendFreezeFrame(const TArray<uint8>& JpegBytes)
+void FStreamer::SendFreezeFrame(const TArray64<uint8>& JpegBytes)
 {
 	UE_LOG(PixelStreamer, Log, TEXT("Sending freeze frame to players: %d bytes"), JpegBytes.Num());
 	for (auto&& PlayerEntry : Players)

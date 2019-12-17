@@ -244,24 +244,10 @@ public:
 
 inline FMeshParticleVertexFactory* ConstructMeshParticleVertexFactory(ERHIFeatureLevel::Type InFeatureLevel)
 {
-	if (GRHISupportsInstancing)
-	{
-		return new FMeshParticleVertexFactory(InFeatureLevel);
-	}
-	else
-	{
-		return new FMeshParticleVertexFactoryEmulatedInstancing(InFeatureLevel);
-	}
+	return new FMeshParticleVertexFactory(InFeatureLevel);
 }
 
 inline FMeshParticleVertexFactory* ConstructMeshParticleVertexFactory(EParticleVertexFactoryType InType, ERHIFeatureLevel::Type InFeatureLevel, int32 InDynamicVertexStride, int32 InDynamicParameterVertexStride)
 {
-	if (GRHISupportsInstancing)
-	{
-		return new FMeshParticleVertexFactory(InType, InFeatureLevel, InDynamicVertexStride, InDynamicParameterVertexStride);
-	}
-	else
-	{
-		return new FMeshParticleVertexFactoryEmulatedInstancing(InType, InFeatureLevel, InDynamicVertexStride, InDynamicParameterVertexStride);
-	}
+	return new FMeshParticleVertexFactory(InType, InFeatureLevel, InDynamicVertexStride, InDynamicParameterVertexStride);
 }

@@ -59,6 +59,8 @@ extern bool CanOverlayRayTracingOutput(const FViewInfo& View);
 extern bool EnableRayTracingShadowTwoSidedGeometry();
 extern float GetRaytracingMaxNormalBias();
 
+extern bool CanUseRayTracingLightingMissShader(EShaderPlatform ShaderPlatform);
+
 #else
 
 FORCEINLINE bool AnyRayTracingPassEnabled(const FViewInfo& View)
@@ -114,6 +116,11 @@ FORCEINLINE bool ShouldRenderRayTracingStochasticRectLight(const FLightSceneInfo
 FORCEINLINE bool CanOverlayRayTracingOutput(const FViewInfo& View)
 {
 	return true;
+}
+
+FORCEINLINE bool CanUseRayTracingLightingMissShader(EShaderPlatform)
+{
+	return false;
 }
 
 #endif

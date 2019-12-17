@@ -1,8 +1,13 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================================
-	SkyLightMipTreeCommon.ush: Common utilities for MipTree-based SkyLight sampling
+	RayTracingSkyLightCommon.ush: Common functions for MipTree-based SkyLight visibility ray sampling
 ===============================================================================================*/
+
+#pragma once
+
+#include "../MonteCarlo.ush"
+#include "SkyLightMipTreeCommon.ush"
 
 #define USE_MIP_PDF_TEXTURE 1
 #define USE_SOLID_ANGLE_TEXTURE 1

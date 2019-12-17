@@ -254,7 +254,7 @@ FString FMacPlatformProcess::GetGameBundleId()
 	// Encode the data as a string
 	NSString* String = [[NSString alloc] initWithData:_PipeOutput encoding:NSUTF8StringEncoding];
 	
-	OutString = FString(String);
+	OutString += FString(String);
 	
 	[String release];
 }

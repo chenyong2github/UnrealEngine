@@ -2847,7 +2847,7 @@ bool DecompressTGA(
 		// is also the alpha value.
 		//
 		// We store the image as PF_G8, where it will be used as alpha in the Glyph shader.
-		OutImage.Init2D(
+		OutImage.Init2DWithOneMip(
 			TGA->Width,
 			TGA->Height,
 			TSF_G8);
@@ -2856,7 +2856,7 @@ bool DecompressTGA(
 	else if(TGA->ColorMapType == 0 && TGA->ImageTypeCode == 3 && TGA->BitsPerPixel == 8)
 	{
 		// standard grayscale images
-		OutImage.Init2D(
+		OutImage.Init2DWithOneMip(
 			TGA->Width,
 			TGA->Height,
 			TSF_G8);
@@ -2885,7 +2885,7 @@ bool DecompressTGA(
 			}
 		}
 
-		OutImage.Init2D(
+		OutImage.Init2DWithOneMip(
 			TGA->Width,
 			TGA->Height,
 			TSF_BGRA8);
@@ -3136,13 +3136,22 @@ void FillZeroAlphaPNGData( int32 SizeX, int32 SizeY, ETextureSourceFormat Source
 
 extern ENGINE_API bool GUseBilinearLightmaps;
 
-void FImportImage::Init2D(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, const void* InData)
+void FImportImage::Init2DWithParams(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, bool InSRGB)
 {
 	SizeX = InSizeX;
 	SizeY = InSizeY;
 	NumMips = 1;
 	Format = InFormat;
-	RawData.AddUninitialized(SizeX * SizeY * FTextureSource::GetBytesPerPixel(Format));
+	SRGB = InSRGB;
+}
+
+void FImportImage::Init2DWithOneMip(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, const void* InData)
+{
+	SizeX = InSizeX;
+	SizeY = InSizeY;
+	NumMips = 1;
+	Format = InFormat;
+	RawData.AddUninitialized((int64)SizeX * SizeY * FTextureSource::GetBytesPerPixel(Format));
 	if (InData)
 	{
 		FMemory::Memcpy(RawData.GetData(), InData, RawData.Num());
@@ -3156,7 +3165,7 @@ void FImportImage::Init2DWithMips(int32 InSizeX, int32 InSizeY, int32 InNumMips,
 	NumMips = InNumMips;
 	Format = InFormat;
 
-	int32 TotalSize = 0;
+	int64 TotalSize = 0;
 	for (int32 MipIndex = 0; MipIndex < InNumMips; ++MipIndex)
 	{
 		TotalSize += GetMipSize(MipIndex);
@@ -3169,18 +3178,18 @@ void FImportImage::Init2DWithMips(int32 InSizeX, int32 InSizeY, int32 InNumMips,
 	}
 }
 
-int32 FImportImage::GetMipSize(int32 InMipIndex) const
+int64 FImportImage::GetMipSize(int32 InMipIndex) const
 {
 	check(InMipIndex >= 0);
 	check(InMipIndex < NumMips);
 	const int32 MipSizeX = FMath::Max(SizeX >> InMipIndex, 1);
 	const int32 MipSizeY = FMath::Max(SizeY >> InMipIndex, 1);
-	return MipSizeX * MipSizeY * FTextureSource::GetBytesPerPixel(Format);
+	return (int64)MipSizeX * MipSizeY * FTextureSource::GetBytesPerPixel(Format);
 }
 
 void* FImportImage::GetMipData(int32 InMipIndex)
 {
-	int32 Offset = 0;
+	int64 Offset = 0;
 	for (int32 MipIndex = 0; MipIndex < InMipIndex; ++MipIndex)
 	{
 		Offset += GetMipSize(MipIndex);
@@ -3246,17 +3255,15 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 			return false;
 		}
 
-		const TArray<uint8>* RawPNG = nullptr;
-		if (PngImageWrapper->GetRaw(Format, BitDepth, RawPNG))
-		{
-			OutImage.Init2D(
-				PngImageWrapper->GetWidth(),
-				PngImageWrapper->GetHeight(),
-				TextureFormat,
-				RawPNG->GetData()
-			);
-			OutImage.SRGB = BitDepth < 16;
+		OutImage.Init2DWithParams(
+			PngImageWrapper->GetWidth(),
+			PngImageWrapper->GetHeight(),
+			TextureFormat,
+			BitDepth < 16
+		);
 
+		if (PngImageWrapper->GetRaw(Format, BitDepth, OutImage.RawData))
+		{
 			bool bFillPNGZeroAlpha = true;
 			GConfig->GetBool(TEXT("TextureImporter"), TEXT("FillPNGZeroAlpha"), bFillPNGZeroAlpha, GEditorIni);
 
@@ -3316,21 +3323,16 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 			return false;
 		}
 
-		const TArray<uint8>* RawJPEG = nullptr;
-		if (JpegImageWrapper->GetRaw(Format, BitDepth, RawJPEG))
-		{
-			OutImage.Init2D(
-				JpegImageWrapper->GetWidth(),
-				JpegImageWrapper->GetHeight(),
-				TextureFormat,
-				RawJPEG->GetData()
-			);
-			OutImage.SRGB = BitDepth < 16;
-		}
-		else
+		OutImage.Init2DWithParams(
+			JpegImageWrapper->GetWidth(),
+			JpegImageWrapper->GetHeight(),
+			TextureFormat,
+			BitDepth < 16
+		);
+		
+		if (!JpegImageWrapper->GetRaw(Format, BitDepth, OutImage.RawData))
 		{
 			Warn->Logf(ELogVerbosity::Error, TEXT("Failed to decode JPEG."));
-
 			return false;
 		}
 
@@ -3368,22 +3370,17 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 			return false;
 		}
 
-		const TArray<uint8>* Raw = nullptr;
-		if (ExrImageWrapper->GetRaw(Format, BitDepth, Raw))
-		{
-			OutImage.Init2D(
-				Width,
-				Height,
-				TextureFormat,
-				Raw->GetData()
-			);
-			OutImage.SRGB = false;
-			OutImage.CompressionSettings = TC_HDR;
-		}
-		else
+		OutImage.Init2DWithParams(
+			Width,
+			Height,
+			TextureFormat,
+			false
+		);
+		OutImage.CompressionSettings = TC_HDR;
+
+		if (!ExrImageWrapper->GetRaw(Format, BitDepth, OutImage.RawData))
 		{
 			Warn->Logf(ELogVerbosity::Error, TEXT("Failed to decode EXR."));
-
 			return false;
 		}
 
@@ -3402,20 +3399,14 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 			return false;
 		}
 
-		const TArray<uint8>* RawBMP = nullptr;
-		if (BmpImageWrapper->GetRaw(BmpImageWrapper->GetFormat(), BmpImageWrapper->GetBitDepth(), RawBMP))
-		{
-			// Set texture properties.
-			OutImage.Init2D(
-				BmpImageWrapper->GetWidth(),
-				BmpImageWrapper->GetHeight(),
-				TSF_BGRA8,
-				RawBMP->GetData()
-			);
-			return true;
-		}
+		OutImage.Init2DWithParams(
+			BmpImageWrapper->GetWidth(),
+			BmpImageWrapper->GetHeight(),
+			TSF_BGRA8,
+			false
+		);
 
-		return false;
+		return BmpImageWrapper->GetRaw(BmpImageWrapper->GetFormat(), BmpImageWrapper->GetBitDepth(), OutImage.RawData);
 	}
 
 	//
@@ -3436,7 +3427,7 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 		{
 
 			// Set texture properties.
-			OutImage.Init2D(
+			OutImage.Init2DWithOneMip(
 				NewU,
 				NewV,
 				TSF_BGRA8
@@ -3473,7 +3464,7 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 		else if (PCX->NumPlanes == 3 && PCX->BitsPerPixel == 8)
 		{
 			// Set texture properties.
-			OutImage.Init2D(
+			OutImage.Init2DWithOneMip(
 				NewU,
 				NewV,
 				TSF_BGRA8
@@ -3599,7 +3590,7 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 		}
 
 		// The psd is supported. Load it up.        
-		OutImage.Init2D(
+		OutImage.Init2DWithOneMip(
 			psdhdr.Width,
 			psdhdr.Height,
 			TextureFormat
@@ -3669,7 +3660,7 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 	{
 		if (TiffLoaderHelper.Load(Buffer, Length))
 		{
-			OutImage.Init2D(
+			OutImage.Init2DWithOneMip(
 				TiffLoaderHelper.Width,
 				TiffLoaderHelper.Height,
 				TiffLoaderHelper.TextureSourceFormat,
@@ -4111,20 +4102,29 @@ UObject* UTextureFactory::FactoryCreateBinary
 
 				FString PackageUDIMName;
 				const int32 PackageUDIMIndex = ParseUDIMName(PackageName, PackageUDIMName);
-				check(PackageUDIMIndex == BaseUDIMIndex);
-				check(PackageUDIMName.EndsWith(BaseUDIMName, ESearchCase::CaseSensitive));
-
-				// In normal case, higher level code would have already checked for duplicate package name
-				// But since we're changing package name here, check to see if package with the new name already exists...
-				// If it does, code later in this method will prompt user to overwrite the existing asset
-				UPackage* ExistingPackage = FindPackage(InParent->GetOuter(), *PackageUDIMName);
-				if (ExistingPackage)
+				if (PackageUDIMIndex == -1)
 				{
-					InParent = ExistingPackage;
+					// If we're re-importing UDIM texture, the package will already be correctly named after the UDIM base name
+					// In this case we'll fail to parse the UDIM name, but the package should already have the proper name
+					check(PackageName.EndsWith(BaseUDIMName, ESearchCase::CaseSensitive));
 				}
 				else
 				{
-					verify(InParent->Rename(*PackageUDIMName, nullptr, REN_DontCreateRedirectors));
+					check(PackageUDIMIndex == BaseUDIMIndex);
+					check(PackageUDIMName.EndsWith(BaseUDIMName, ESearchCase::CaseSensitive));
+
+					// In normal case, higher level code would have already checked for duplicate package name
+					// But since we're changing package name here, check to see if package with the new name already exists...
+					// If it does, code later in this method will prompt user to overwrite the existing asset
+					UPackage* ExistingPackage = FindPackage(InParent->GetOuter(), *PackageUDIMName);
+					if (ExistingPackage)
+					{
+						InParent = ExistingPackage;
+					}
+					else
+					{
+						verify(InParent->Rename(*PackageUDIMName, nullptr, REN_DontCreateRedirectors));
+					}
 				}
 			}
 		}

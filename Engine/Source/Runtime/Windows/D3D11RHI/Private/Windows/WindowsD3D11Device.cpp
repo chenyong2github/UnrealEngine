@@ -77,6 +77,22 @@ struct AmdAgsInfo
 static AmdAgsInfo AmdInfo;
 #endif
 
+#if INTEL_EXTENSIONS
+// Filled in during InitD3DDevice if IsRHIDeviceIntel
+struct IntelD3D11Extensions
+{
+	INTC::D3D11_EXTENSION_FUNCS_01000001 D3D11ExtensionFuncs;
+
+	INTC::ExtensionInfo ExtensionInfo;
+	INTC::ExtensionAppInfo ExtensionAppInfo;
+
+	INTC::PFNINTCDX11EXT_D3D11CREATEDEVICEEXTENSIONCONTEXT1 CreateDeviceExtensionContext;
+	INTC::PFNINTCDX11EXT_D3D11DESTROYDEVICEEXTENSIONCONTEXT DestroyDeviceExtensionContext;
+	INTC::PFNINTCDX11EXT_D3D11GETSUPPORTEDVERSIONS GetSupportedVersions;
+};
+static IntelD3D11Extensions IntelExtensions;
+#endif // INTEL_EXTENSIONS
+
 static TAutoConsoleVariable<int32> CVarAMDUseMultiThreadedDevice(
 	TEXT("r.AMDD3D11MultiThreadedDevice"),
 	0,
@@ -735,22 +751,29 @@ static bool IsDeviceOverclocked()
 }
 
 void FD3D11DynamicRHIModule::StartupModule()
-{	
+{
 #if NV_AFTERMATH
-	// Note - can't check device type here, we'll check for that before actually initializing Aftermath
-
-	FString AftermathBinariesRoot = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/NVIDIA/NVaftermath/Win64/");
-	if (LoadLibraryW(*(AftermathBinariesRoot + "GFSDK_Aftermath_Lib.x64.dll")) == nullptr)
+	const bool bAllowVendorDevice = !FParse::Param(FCommandLine::Get(), TEXT("novendordevice"));
+	if (bAllowVendorDevice)
 	{
-		UE_LOG(LogD3D11RHI, Warning, TEXT("Failed to load GFSDK_Aftermath_Lib.x64.dll"));
-		GNVAftermathModuleLoaded = false;
+		// Note - can't check device type here, we'll check for that before actually initializing Aftermath
+
+		FString AftermathBinariesRoot = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/NVIDIA/NVaftermath/Win64/");
+		if (LoadLibraryW(*(AftermathBinariesRoot + "GFSDK_Aftermath_Lib.x64.dll")) == nullptr)
+		{
+			UE_LOG(LogD3D11RHI, Warning, TEXT("Failed to load GFSDK_Aftermath_Lib.x64.dll"));
+			GNVAftermathModuleLoaded = false;
+		}
+		else
+		{
+			UE_LOG(LogD3D11RHI, Log, TEXT("Loaded GFSDK_Aftermath_Lib.x64.dll"));
+			GNVAftermathModuleLoaded = true;
+		}
 	}
 	else
 	{
-		UE_LOG(LogD3D11RHI, Log, TEXT("Loaded GFSDK_Aftermath_Lib.x64.dll"));
-		GNVAftermathModuleLoaded = true;
+		UE_LOG(LogD3D11RHI, Log, TEXT("-novendordevice enabled, so won't load GFSDK_Aftermath_Lib.x64.dll"));
 	}
-
 #endif
 }
 
@@ -1011,6 +1034,20 @@ void FD3D11DynamicRHI::Init()
 #endif
 }
 
+void FD3D11DynamicRHI::PostInit()
+{
+	if (!FPlatformProperties::RequiresCookedData())
+	{
+		// Make sure all global shaders are complete at this point
+		extern RENDERCORE_API const int32 GlobalShaderMapId;
+
+		TArray<int32> ShaderMapIds;
+		ShaderMapIds.Add(GlobalShaderMapId);
+
+		GShaderCompilingManager->FinishCompilation(TEXT("Global"), ShaderMapIds);
+	}
+}
+
 bool FD3D11DynamicRHI::IsQuadBufferStereoEnabled()
 {
 	return bIsQuadBufferStereoEnabled;
@@ -1089,7 +1126,8 @@ void FD3D11DynamicRHI::StartNVAftermath()
 	bool bShouldStart = GDX11NVAfterMathEnabled
 		&& Direct3DDevice
 		&& Direct3DDeviceIMContext
-		&& !NVAftermathIMContextHandle;
+		&& !NVAftermathIMContextHandle
+		&& bAllowVendorDevice;
 
 	if (bShouldStart)
 	{
@@ -1123,7 +1161,8 @@ void FD3D11DynamicRHI::StartNVAftermath()
 void FD3D11DynamicRHI::StopNVAftermath()
 {
 	bool bShouldStop = GDX11NVAfterMathEnabled
-		&& NVAftermathIMContextHandle;
+		&& NVAftermathIMContextHandle
+		&& bAllowVendorDevice;
 
 	if (bShouldStop)
 	{
@@ -1156,6 +1195,141 @@ void FD3D11DynamicRHI::StopNVAftermath()
 #define STOP_NV_AFTERMATH()
 
 #endif
+
+#if INTEL_EXTENSIONS
+void FD3D11DynamicRHI::StartIntelExtensions()
+{
+	if (!bAllowVendorDevice)
+	{
+		return;
+	}
+
+	HMODULE IntelDriverDLL = LoadLibraryA(ID3D11_UMD_DLL);
+
+	if (IntelDriverDLL)
+	{
+		HMODULE IntelExtensionDLL = INTC::D3D11LoadIntelExtensionsLibrary(true);
+
+		if (IntelExtensionDLL)
+		{
+#pragma warning(push)
+#pragma warning(disable: 4191) // disable the "unsafe conversion from 'FARPROC' to 'blah'" warning
+			IntelExtensions.CreateDeviceExtensionContext = (INTC::PFNINTCDX11EXT_D3D11CREATEDEVICEEXTENSIONCONTEXT1)(GetProcAddress(IntelExtensionDLL, "D3D11CreateDeviceExtensionContext1"));
+			IntelExtensions.DestroyDeviceExtensionContext = (INTC::PFNINTCDX11EXT_D3D11DESTROYDEVICEEXTENSIONCONTEXT)(GetProcAddress(IntelExtensionDLL, "D3D11DestroyDeviceExtensionContext"));
+			IntelExtensions.GetSupportedVersions = (INTC::PFNINTCDX11EXT_D3D11GETSUPPORTEDVERSIONS)(GetProcAddress(IntelExtensionDLL, "D3D11GetSupportedVersions"));
+#pragma warning(pop)
+
+			if (IntelExtensions.CreateDeviceExtensionContext && IntelExtensions.DestroyDeviceExtensionContext && IntelExtensions.GetSupportedVersions)
+			{
+				bool bRequiredVersionFound = false;
+				bool bEnabled = false;
+
+				uint32 SupportedVersionCount = 0;
+				uint32* SupportedVersions = nullptr;
+
+				IntelExtensions.ExtensionInfo.requestedExtensionVersion.Version.Major = 1;
+				IntelExtensions.ExtensionInfo.requestedExtensionVersion.Version.Minor = 0;
+				IntelExtensions.ExtensionInfo.requestedExtensionVersion.Version.Revision = 1;
+
+				if (SUCCEEDED(IntelExtensions.GetSupportedVersions(Direct3DDevice, &SupportedVersionCount, SupportedVersions)))
+				{
+					SupportedVersions = new uint32[SupportedVersionCount];
+					if (SUCCEEDED(IntelExtensions.GetSupportedVersions(Direct3DDevice, &SupportedVersionCount, SupportedVersions)))
+					{
+						for (uint32 i = 0; i < SupportedVersionCount; i++)
+						{
+							INTC::ExtensionVersion* SupportedVersion = (INTC::ExtensionVersion*)&SupportedVersions[i];
+
+							UE_LOG(LogD3D11RHI, Log, TEXT("Intel Extensions support version Full=%d, Major=%d, Minor=%d, Revision=%d"), SupportedVersion->FullVersion, SupportedVersion->Version.Major, SupportedVersion->Version.Minor, SupportedVersion->Version.Revision);
+
+							if (IntelExtensions.ExtensionInfo.requestedExtensionVersion.FullVersion == SupportedVersion->FullVersion)
+							{
+								bRequiredVersionFound = true;
+								break;
+							}
+						}
+					}
+				}
+
+				if (SupportedVersions)
+				{
+					delete[] SupportedVersions;
+				}
+
+				if (!bRequiredVersionFound)
+				{
+					UE_LOG(LogD3D11RHI, Log, TEXT("Intel Extensions Framework version required is not supported"));
+					return;
+				}
+
+				IntelExtensions.ExtensionAppInfo.pEngineName = L"Unreal Engine";
+				IntelExtensions.ExtensionAppInfo.engineVersion = 4;
+
+				FMemory::Memset(&IntelExtensions.D3D11ExtensionFuncs, 0, sizeof(INTC::D3D11_EXTENSION_FUNCS_01000001));
+				IntelD3D11ExtensionFuncs = &IntelExtensions.D3D11ExtensionFuncs;
+
+				HRESULT hr = IntelExtensions.CreateDeviceExtensionContext(
+					Direct3DDevice,
+					&IntelExtensionContext,
+					(void**)&IntelD3D11ExtensionFuncs,
+					sizeof(INTC::D3D11_EXTENSION_FUNCS_01000001),
+					&IntelExtensions.ExtensionInfo,
+					&IntelExtensions.ExtensionAppInfo);
+
+				if (hr == S_OK)
+				{
+					if (IntelExtensions.ExtensionInfo.returnedExtensionVersion.FullVersion == IntelExtensions.ExtensionInfo.requestedExtensionVersion.FullVersion)
+					{
+						bEnabled = true;
+						UE_LOG(LogD3D11RHI, Log, TEXT("Intel Extensions Framework enabled"));
+					}
+					else
+					{
+						UE_LOG(LogD3D11RHI, Log, TEXT("Intel Extensions Framework version required is not supported"));
+					}
+				}
+				else if (hr == E_OUTOFMEMORY)
+				{
+					UE_LOG(LogD3D11RHI, Log, TEXT("Intel Extensions Framework not supported by driver"));
+				}
+				else if (hr == E_INVALIDARG)
+				{
+					UE_LOG(LogD3D11RHI, Log, TEXT("Intel Extensions Framework passed invalid creation arguments"));
+				}
+
+				if (!bEnabled)
+				{
+					StopIntelExtensions();
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogD3D11RHI, Log, TEXT("Intel Extensions Framework not found"));
+		}
+	}
+}
+
+void FD3D11DynamicRHI::StopIntelExtensions()
+{
+	if(IntelExtensionContext && IntelExtensions.DestroyDeviceExtensionContext && bAllowVendorDevice)
+	{
+		HRESULT hr = IntelExtensions.DestroyDeviceExtensionContext(&IntelExtensionContext);
+
+		if (hr == S_OK)
+		{
+			UE_LOG(LogD3D11RHI, Log, TEXT("Intel Extensions Framework unloaded"));
+		}
+		else if (hr == E_INVALIDARG)
+		{
+			UE_LOG(LogD3D11RHI, Log, TEXT("Intel Extensions Framework error when unloading"));
+		}
+
+		IntelExtensionContext = nullptr;
+		IntelD3D11ExtensionFuncs = nullptr;
+	}
+}
+#endif // INTEL_EXTENSIONS
 
 #if INTEL_METRICSDISCOVERY
 static int32 GetIntelDriverBuildNumber(const FString& VerStr)
@@ -1453,7 +1627,6 @@ void FD3D11DynamicRHI::InitD3DDevice()
 		}
 
 #ifdef AMD_AGS_API
-		const bool bAllowVendorDevice = !FParse::Param(FCommandLine::Get(), TEXT("novendordevice"));
 		if (IsRHIDeviceAMD() && bAllowVendorDevice)
 		{
 			check(AmdAgsContext == NULL);
@@ -1467,7 +1640,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 				for (int32 DeviceIndex = 0; DeviceIndex < AmdInfo.AmdGpuInfo.numDevices; DeviceIndex++)
 				{
 					const AGSDeviceInfo& DeviceInfo = AmdInfo.AmdGpuInfo.devices[DeviceIndex];
-					GRHIDeviceIsAMDPreGCNArchitecture |= (ChosenDescription.VendorId == DeviceInfo.vendorId) && (ChosenDescription.DeviceId == DeviceInfo.deviceId) && (DeviceInfo.architectureVersion == AGSDeviceInfo::ArchitectureVersion_PreGCN);
+					GRHIDeviceIsAMDPreGCNArchitecture |= (ChosenDescription.VendorId == DeviceInfo.vendorId) && (ChosenDescription.DeviceId == DeviceInfo.deviceId) && (DeviceInfo.asicFamily == AGSDeviceInfo::AsicFamily_PreGCN);
 					bFoundMatchingDevice |= (ChosenDescription.VendorId == DeviceInfo.vendorId) && (ChosenDescription.DeviceId == DeviceInfo.deviceId);
 				}
 				check(bFoundMatchingDevice);
@@ -1501,7 +1674,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 		uint32 AmdSupportedExtensionFlags = 0;
 		bool bDeviceCreated = false;
 #ifdef AMD_AGS_API
-		if (IsRHIDeviceAMD() && AmdAgsContext)
+		if (IsRHIDeviceAMD() && AmdAgsContext && bAllowVendorDevice)
 		{
 			AGSDX11DeviceCreationParams DeviceCreationParams = 
 			{
@@ -1523,9 +1696,12 @@ void FD3D11DynamicRHI::InitD3DDevice()
 			const bool bDisableAppRegistration = bDisableEngineRegistration || !FApp::HasProjectName();
 
 			AGSDX11ExtensionParams AmdExtensionParams;
+			FMemory::Memzero(&AmdExtensionParams, sizeof(AmdExtensionParams));
 			// The AMD shader extensions are currently unused in UE4, but we have to set the associated UAV slot
 			// to something in the call below (default is 7, so just use that)
 			AmdExtensionParams.uavSlot = 7;
+			// Disable old-style, "automatic" alternate-frame rendering (AFR) MGPU driver behavior
+			AmdExtensionParams.crossfireMode = AGS_CROSSFIRE_MODE_DISABLE;
 
 			// Register the engine name with the AMD driver, e.g. "UnrealEngine4.19", unless disabled
 			// (note: to specify nothing for pEngineName below, you need to pass an empty string, not a null pointer)
@@ -1562,11 +1738,13 @@ void FD3D11DynamicRHI::InitD3DDevice()
 				FMemory::Memzero(&AmdInfo, sizeof(AmdInfo));
 				GRHIDeviceIsAMDPreGCNArchitecture = false;				
 			}
+
+			GRHISupportsAtomicUInt64 = (AmdSupportedExtensionFlags & AGS_DX11_EXTENSION_INTRINSIC_ATOMIC_U64) != 0;
 		}
 #endif //AMD_AGS_API
 
 #if INTEL_METRICSDISCOVERY
-		if (IsRHIDeviceIntel())
+		if (IsRHIDeviceIntel() && bAllowVendorDevice)
 		{
 			// Needs to be done before device creation
 			CreateIntelMetricsDiscovery();
@@ -1606,7 +1784,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 		GRHISupportsAsyncTextureCreation = !!ThreadingSupport.DriverConcurrentCreates
 			&& (DeviceFlags & D3D11_CREATE_DEVICE_SINGLETHREADED) == 0;
 
-		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2] = SP_PCD3D_ES2;
+		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2] = SP_NumPlatforms;
 		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_PCD3D_ES3_1;
 		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4_REMOVED] = SP_NumPlatforms;
 		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_PCD3D_SM5;
@@ -1732,8 +1910,15 @@ void FD3D11DynamicRHI::InitD3DDevice()
 		}
 #endif // WITH_SLI
 
+#if INTEL_EXTENSIONS
+		if (IsRHIDeviceIntel() && bAllowVendorDevice)
+		{
+			StartIntelExtensions();
+		}
+#endif // INTEL_EXTENSIONS
+
 #if INTEL_METRICSDISCOVERY
-		if (IsRHIDeviceIntel())
+		if (IsRHIDeviceIntel() && bAllowVendorDevice)
 		{
 			StartIntelMetricsDiscovery();
 

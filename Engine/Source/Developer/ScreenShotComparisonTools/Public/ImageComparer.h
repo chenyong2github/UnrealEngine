@@ -144,7 +144,7 @@ class FComparableImage
 public:
 	int32 Width;
 	int32 Height;
-	TArray<uint8> Bytes;
+	TArray64<uint8> Bytes;
 
 	FComparableImage()
 		: RedTotal(0)
@@ -167,8 +167,8 @@ public:
 
 	FORCEINLINE FColor GetPixel(int32 X, int32 Y)
 	{
-		int32 Offset = ( Y * Width + X ) * 4;
-		check(Offset < ( Width * Height * 4 ));
+		int64 Offset = ( (int64)Y * Width + X ) * 4;
+		check(Offset < ( (int64)Width * Height * 4 ));
 
 		return FColor(
 			Bytes[Offset],

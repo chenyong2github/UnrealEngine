@@ -483,8 +483,7 @@ static void GetShadowProjectionShaders(
 	check(*OutShadowProjPS);
 }
 
-void FProjectedShadowInfo::SetBlendStateForProjection(
-	FGraphicsPipelineStateInitializer& GraphicsPSOInit,
+FRHIBlendState* FProjectedShadowInfo::GetBlendStateForProjection(
 	int32 ShadowMapChannel, 
 	bool bIsWholeSceneDirectionalShadow,
 	bool bUseFadePlane,
@@ -496,10 +495,10 @@ void FProjectedShadowInfo::SetBlendStateForProjection(
 	//	* CSM and per-object shadows are kept in separate channels to allow fading CSM out to precomputed shadowing while keeping per-object shadows past the fade distance.
 	//	* Subsurface shadowing requires an extra channel for each
 
+	FRHIBlendState* BlendState = nullptr;
+
 	if (bProjectingForForwardShading)
 	{
-		FRHIBlendState* BlendState = nullptr;
-
 		if (bUseFadePlane)
 		{
 			if (ShadowMapChannel == 0)
@@ -541,7 +540,6 @@ void FProjectedShadowInfo::SetBlendStateForProjection(
 		}
 
 		checkf(BlendState, TEXT("Only shadows whose stationary lights have a valid ShadowMapChannel can be projected with forward shading"));
-		GraphicsPSOInit.BlendState = BlendState;
 	}
 	else
 	{
@@ -563,13 +561,13 @@ void FProjectedShadowInfo::SetBlendStateForProjection(
 			if (bUseFadePlane)
 			{
 				// alpha is used to fade between cascades, we don't don't need to do BO_Min as we leave B and A untouched which has translucency shadow
-				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RG, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha>::GetRHI();
+				BlendState = TStaticBlendState<CW_RG, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha>::GetRHI();
 			}
 			else
 			{
 				// first cascade rendered doesn't require fading (CO_Min is needed to combine multiple shadow passes)
 				// RTDF shadows: CO_Min is needed to combine with far shadows which overlap the same depth range
-				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RG, BO_Min, BF_One, BF_One>::GetRHI();
+				BlendState = TStaticBlendState<CW_RG, BO_Min, BF_One, BF_One>::GetRHI();
 			}
 		}
 		else
@@ -579,32 +577,33 @@ void FProjectedShadowInfo::SetBlendStateForProjection(
 				bool bEncodedHDR = GetMobileHDRMode() == EMobileHDRMode::EnabledRGBE;
 				if (bEncodedHDR)
 				{
-					GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+					BlendState = TStaticBlendState<>::GetRHI();
 				}
 				else
 				{
 					// Color modulate shadows, ignore alpha.
-					GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_Zero, BF_SourceColor, BO_Add, BF_Zero, BF_One>::GetRHI();
+					BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_Zero, BF_SourceColor, BO_Add, BF_Zero, BF_One>::GetRHI();
 				}
 			}
 			else
 			{
 				// use B and A in Light Attenuation
 				// CO_Min is needed to combine multiple shadow passes
-				GraphicsPSOInit.BlendState = TStaticBlendState<CW_BA, BO_Min, BF_One, BF_One, BO_Min, BF_One, BF_One>::GetRHI();
+				BlendState = TStaticBlendState<CW_BA, BO_Min, BF_One, BF_One, BO_Min, BF_One, BF_One>::GetRHI();
 			}
 		}
 	}
+
+	return BlendState;
 }
 
-void FProjectedShadowInfo::SetBlendStateForProjection(FGraphicsPipelineStateInitializer& GraphicsPSOInit, bool bProjectingForForwardShading, bool bMobileModulatedProjections) const
+FRHIBlendState* FProjectedShadowInfo::GetBlendStateForProjection(bool bProjectingForForwardShading, bool bMobileModulatedProjections) const
 {
-	SetBlendStateForProjection(
-		GraphicsPSOInit,
-		GetLightSceneInfo().GetDynamicShadowMapChannel(), 
+	return GetBlendStateForProjection(
+		GetLightSceneInfo().GetDynamicShadowMapChannel(),
 		IsWholeSceneDirectionalShadow(),
 		CascadeSettings.FadePlaneLength > 0 && !bRayTracedDistanceField,
-		bProjectingForForwardShading, 
+		bProjectingForForwardShading,
 		bMobileModulatedProjections);
 }
 
@@ -943,7 +942,7 @@ void FProjectedShadowInfo::RenderProjection(FRHICommandListImmediate& RHICmdList
 		}
 	}
 
-	SetBlendStateForProjection(GraphicsPSOInit, bProjectingForForwardShading, bMobileModulatedProjections);
+	GraphicsPSOInit.BlendState = GetBlendStateForProjection(bProjectingForForwardShading, bMobileModulatedProjections);
 
 	GraphicsPSOInit.PrimitiveType = IsWholeSceneDirectionalShadow() ? PT_TriangleStrip : PT_TriangleList;
 
@@ -1061,7 +1060,7 @@ void FProjectedShadowInfo::RenderOnePassPointLightProjection(FRHICommandListImme
 
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-	SetBlendStateForProjection(GraphicsPSOInit, bProjectingForForwardShading, false);
+	GraphicsPSOInit.BlendState = GetBlendStateForProjection(bProjectingForForwardShading, false);
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 	const bool bCameraInsideLightGeometry = ((FVector)View.ViewMatrices.GetViewOrigin() - LightBounds.Center).SizeSquared() < FMath::Square(LightBounds.W * 1.05f + View.NearClippingDistance * 2.0f);

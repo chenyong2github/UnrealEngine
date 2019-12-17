@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "D3D11RHIPrivate.h"
+#include "ClearReplacementShaders.h"
 
 FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView(FRHIStructuredBuffer* StructuredBufferRHI, bool bUseUAVCounter, bool bAppendBuffer)
 {
@@ -350,13 +351,114 @@ FShaderResourceViewRHIRef FD3D11DynamicRHI::CreateShaderResourceView_RenderThrea
 	return RHICreateShaderResourceView(Buffer);
 }
 
-void FD3D11DynamicRHI::RHIClearTinyUAV(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const uint32* Values)
+void FD3D11DynamicRHI::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D11DynamicRHI>& RHICmdList, FD3D11UnorderedAccessView* UnorderedAccessView, const void* ClearValues, bool bFloat)
 {
-	FD3D11UnorderedAccessView* UnorderedAccessView = ResourceCast(UnorderedAccessViewRHI);
-	
-	Direct3DDeviceIMContext->ClearUnorderedAccessViewUint(UnorderedAccessView->View, Values);
-	
-	GPUProfilingData.RegisterGPUWork(1);
+	D3D11_UNORDERED_ACCESS_VIEW_DESC UAVDesc;
+	UnorderedAccessView->View->GetDesc(&UAVDesc);
+
+	// Only structured buffers can have an unknown format
+	check(UAVDesc.ViewDimension == D3D11_UAV_DIMENSION_BUFFER || UAVDesc.Format != DXGI_FORMAT_UNKNOWN);
+
+	EClearReplacementValueType ValueType = EClearReplacementValueType::Float;
+	switch (UAVDesc.Format)
+	{
+	case DXGI_FORMAT_R32G32B32A32_SINT:
+	case DXGI_FORMAT_R32G32B32_SINT:
+	case DXGI_FORMAT_R16G16B16A16_SINT:
+	case DXGI_FORMAT_R32G32_SINT:
+	case DXGI_FORMAT_R8G8B8A8_SINT:
+	case DXGI_FORMAT_R16G16_SINT:
+	case DXGI_FORMAT_R32_SINT:
+	case DXGI_FORMAT_R8G8_SINT:
+	case DXGI_FORMAT_R16_SINT:
+	case DXGI_FORMAT_R8_SINT:
+		ValueType = EClearReplacementValueType::Int32;
+		break;
+
+	case DXGI_FORMAT_R32G32B32A32_UINT:
+	case DXGI_FORMAT_R32G32B32_UINT:
+	case DXGI_FORMAT_R16G16B16A16_UINT:
+	case DXGI_FORMAT_R32G32_UINT:
+	case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+	case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
+	case DXGI_FORMAT_R10G10B10A2_UINT:
+	case DXGI_FORMAT_R8G8B8A8_UINT:
+	case DXGI_FORMAT_R16G16_UINT:
+	case DXGI_FORMAT_R32_UINT:
+	case DXGI_FORMAT_D24_UNORM_S8_UINT:
+	case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
+	case DXGI_FORMAT_R8G8_UINT:
+	case DXGI_FORMAT_R16_UINT:
+	case DXGI_FORMAT_R8_UINT:
+		ValueType = EClearReplacementValueType::Uint32;
+		break;
+	}
+
+	ensureMsgf((UAVDesc.Format == DXGI_FORMAT_UNKNOWN) || (bFloat == (ValueType == EClearReplacementValueType::Float)), TEXT("Attempt to clear a UAV using the wrong RHIClearUAV function. Float vs Integer mismatch."));
+
+	if (UAVDesc.ViewDimension == D3D11_UAV_DIMENSION_BUFFER)
+	{
+		if (UAVDesc.Format == DXGI_FORMAT_UNKNOWN)
+		{
+			// Structured buffer. Use the clear function on the immediate context, since we can't use a general purpose shader for these.
+			RHICmdList.RunOnContext([UnorderedAccessView, ClearValues](auto& Context)
+			{
+				Context.Direct3DDeviceIMContext->ClearUnorderedAccessViewUint(UnorderedAccessView->View, *reinterpret_cast<const UINT(*)[4]>(ClearValues));
+				Context.GPUProfilingData.RegisterGPUWork(1);
+			});
+		}
+		else
+		{
+			ClearUAVShader_T<EClearReplacementResourceType::Buffer, 4, false>(RHICmdList, UnorderedAccessView, UAVDesc.Buffer.NumElements, 1, 1, ClearValues, ValueType);
+		}
+	}
+	else
+	{
+		if (UAVDesc.ViewDimension == D3D11_UAV_DIMENSION_TEXTURE2D)
+		{
+			FD3D11Texture2D* Texture2D = static_cast<FD3D11Texture2D*>(UnorderedAccessView->Resource.GetReference());
+			FIntVector Size = Texture2D->GetSizeXYZ();
+
+			uint32 Width  = Size.X >> UAVDesc.Texture2D.MipSlice;
+			uint32 Height = Size.Y >> UAVDesc.Texture2D.MipSlice;
+			ClearUAVShader_T<EClearReplacementResourceType::Texture2D, 4, false>(RHICmdList, UnorderedAccessView, Width, Height, 1, ClearValues, ValueType);
+		}
+		else if (UAVDesc.ViewDimension == D3D11_UAV_DIMENSION_TEXTURE2DARRAY)
+		{
+			FD3D11Texture2DArray* Texture2DArray = static_cast<FD3D11Texture2DArray*>(UnorderedAccessView->Resource.GetReference());
+			FIntVector Size = Texture2DArray->GetSizeXYZ();
+
+			uint32 Width = Size.X >> UAVDesc.Texture2DArray.MipSlice;
+			uint32 Height = Size.Y >> UAVDesc.Texture2DArray.MipSlice;
+			ClearUAVShader_T<EClearReplacementResourceType::Texture2DArray, 4, false>(RHICmdList, UnorderedAccessView, Width, Height, UAVDesc.Texture2DArray.ArraySize, ClearValues, ValueType);
+		}
+		else if (UAVDesc.ViewDimension == D3D11_UAV_DIMENSION_TEXTURE3D)
+		{
+			FD3D11Texture3D* Texture3D = static_cast<FD3D11Texture3D*>(UnorderedAccessView->Resource.GetReference());
+			FIntVector Size = Texture3D->GetSizeXYZ();
+
+			// @todo - is WSize / mip index handling here correct?
+			uint32 Width = Size.X >> UAVDesc.Texture2DArray.MipSlice;
+			uint32 Height = Size.Y >> UAVDesc.Texture2DArray.MipSlice;
+			ClearUAVShader_T<EClearReplacementResourceType::Texture3D, 4, false>(RHICmdList, UnorderedAccessView, Width, Height, UAVDesc.Texture3D.WSize, ClearValues, ValueType);
+		}
+		else
+		{
+			ensure(0);
+		}
+	}
+}
+
+void FD3D11DynamicRHI::RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4& Values)
+{
+	TRHICommandList_RecursiveHazardous<FD3D11DynamicRHI> RHICmdList(this);
+	ClearUAV(RHICmdList, ResourceCast(UnorderedAccessViewRHI), &Values, true);
+}
+
+void FD3D11DynamicRHI::RHIClearUAVUint(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FUintVector4& Values)
+{
+	TRHICommandList_RecursiveHazardous<FD3D11DynamicRHI> RHICmdList(this);
+	ClearUAV(RHICmdList, ResourceCast(UnorderedAccessViewRHI), &Values, false);
 }
 
 void FD3D11DynamicRHI::RHIBindDebugLabelName(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const TCHAR* Name)

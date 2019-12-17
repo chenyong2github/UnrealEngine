@@ -689,7 +689,6 @@ public:
 			bOpenGL3x = DeviceInfo->OpenGLVersionString.Contains(TEXT("OpenGL ES 3"));
 			if (bOpenGL3x)
 			{
-				DeviceSpecs.AndroidProperties.GLES31RHIState.SupportsInstancing = true;
 				DeviceSpecs.AndroidProperties.GLES31RHIState.MaxTextureDimensions = 4096;
 				DeviceSpecs.AndroidProperties.GLES31RHIState.MaxShadowDepthBufferSizeX = 2048;
 				DeviceSpecs.AndroidProperties.GLES31RHIState.MaxShadowDepthBufferSizeY = 2048;
@@ -700,8 +699,8 @@ public:
 			}
 
 			// OpenGL ES 2.0
+			UE_CLOG(!bOpenGL3x, LogCore, Fatal, TEXT("OpenGL ES 3 Required."));
 			{
-				DeviceSpecs.AndroidProperties.GLES2RHIState.SupportsInstancing = false;
 				DeviceSpecs.AndroidProperties.GLES2RHIState.MaxTextureDimensions = 2048;
 				DeviceSpecs.AndroidProperties.GLES2RHIState.MaxShadowDepthBufferSizeX = 1024;
 				DeviceSpecs.AndroidProperties.GLES2RHIState.MaxShadowDepthBufferSizeY = 1024;

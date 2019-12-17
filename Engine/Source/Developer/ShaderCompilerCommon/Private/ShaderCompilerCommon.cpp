@@ -119,13 +119,6 @@ bool BuildResourceTableMapping(
 
 			// How many resource tables max we'll use, and fill it with zeroes
 			MaxBoundResourceTable = FMath::Max<int32>(MaxBoundResourceTable, (int32)UniformBufferIndex);
-			while (OutSRT.ResourceTableLayoutHashes.Num() <= MaxBoundResourceTable)
-			{
-				OutSRT.ResourceTableLayoutHashes.Add(0);
-			}
-
-			// Save the current UB's layout hash
-			OutSRT.ResourceTableLayoutHashes[UniformBufferIndex] = ResourceTableLayoutHashes.FindChecked(Entry.UniformBufferName);
 
 			auto ResourceMap = FRHIResourceTableEntry::Create(UniformBufferIndex, Entry.ResourceIndex, BaseIndex);
 			switch( Entry.Type )
@@ -149,6 +142,24 @@ bool BuildResourceTableMapping(
 				break;
 			default:
 				return false;
+			}
+		}
+
+		// We have to do this separately from the resource table member check above. We want to include the hash even
+		// if the uniform buffer does not have any actual members used, because it will still be in the parameter map
+		// and certain platforms (like DX12) will pessimise and require them.
+		{
+			uint16 UniformBufferIndex = INDEX_NONE;
+			uint16 UBBaseIndex, UBSize;
+
+			if (ParameterMap.FindParameterAllocation(*Entry.UniformBufferName, UniformBufferIndex, UBBaseIndex, UBSize))
+			{
+				while (OutSRT.ResourceTableLayoutHashes.Num() <= UniformBufferIndex)
+				{
+					OutSRT.ResourceTableLayoutHashes.Add(0);
+				}
+
+				OutSRT.ResourceTableLayoutHashes[UniformBufferIndex] = ResourceTableLayoutHashes.FindChecked(Entry.UniformBufferName);
 			}
 		}
 	}
@@ -432,36 +443,146 @@ TCHAR* FindNextUniformBufferReference(TCHAR* SearchPtr, const TCHAR* SearchStrin
 	return nullptr;
 }
 
-
-void MoveShaderParametersToRootConstantBuffer(const FShaderCompilerInput& CompilerInput, FString& PreprocessedShaderSource, const FString& ConstantBufferType)
+bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
+	const FShaderCompilerInput& CompilerInput,
+	FShaderCompilerOutput& CompilerOutput,
+	FString& PreprocessedShaderSource,
+	const TCHAR* ConstantBufferType)
 {
-	check(CompilerInput.RootParameterBindings.Num());
-
-	TMap<FString, FString> ShaderParameterTypes;
-	ShaderParameterTypes.Reserve(CompilerInput.RootParameterBindings.Num());
-
-	// Prepare the set of parameter to look for.
-	for (const auto& Member : CompilerInput.RootParameterBindings)
+	// The shader doesn't have any parameter binding through shader structure, therefore don't do anything.
+	if (CompilerInput.RootParameterBindings.Num() == 0)
 	{
-		ShaderParameterTypes.Add(Member.Name, FString());
+		return true;
 	}
 
+	const bool bMoveToRootConstantBuffer = ConstantBufferType != nullptr;
+	OriginalParsedShader = PreprocessedShaderSource;
+	ParsedParameters.Reserve(CompilerInput.RootParameterBindings.Num());
+
+	// Prepare the set of parameter to look for during parsing.
+	for (const FShaderCompilerInput::FRootParameterBinding& Member : CompilerInput.RootParameterBindings)
+	{
+		ParsedParameters.Add(Member.Name, FParsedShaderParameter());
+	}
+
+	bool bSuccess = true;
 
 	// Browse the code for global shader parameter, Save their type and erase them white spaces.
 	{
+		enum class EState
+		{
+			// When to look for something to scan.
+			Scanning,
+
+			// When going to next ; in the global scope and reset.
+			GoToNextSemicolonAndReset,
+
+			// Parsing what might be a type of the parameter.
+			ParsingPotentialType,
+			FinishedPotentialType,
+
+			// Parsing what might be a name of the parameter.
+			ParsingPotentialName,
+			FinishedPotentialName,
+
+			// Parsing what looks like array of the parameter.
+			ParsingPotentialArraySize,
+			FinishedArraySize,
+
+			// Found a parameter, just finish to it's semi colon.
+			FoundParameter,
+		};
+
+		const int32 ShaderSourceLen = PreprocessedShaderSource.Len();
+
+		int32 CurrentPragamLineoffset = -1;
+		int32 CurrentLineoffset = 0;
+
 		int32 TypeStartPos = -1;
 		int32 TypeEndPos = -1;
 		int32 NameStartPos = -1;
 		int32 NameEndPos = -1;
 		int32 ScopeIndent = 0;
-		bool bGoToNextSemicolon = false;
+
+		EState State = EState::Scanning;
 		bool bGoToNextLine = false;
 
-		for (int32 Cursor = 0; Cursor < PreprocessedShaderSource.Len(); Cursor++)
+		auto ResetState = [&]()
 		{
-			TCHAR Char = PreprocessedShaderSource[Cursor];
+			TypeStartPos = -1;
+			TypeEndPos = -1;
+			NameStartPos = -1;
+			NameEndPos = -1;
+			State = EState::Scanning;
+		};
+
+		auto EmitError = [&](const FString& ErrorMessage)
+		{
+			FShaderCompilerError Error;
+			Error.StrippedErrorMessage = ErrorMessage;
+			ExtractFileAndLine(CurrentPragamLineoffset, CurrentLineoffset, Error.ErrorVirtualFilePath, Error.ErrorLineString);
+			CompilerOutput.Errors.Add(Error);
+			bSuccess = false;
+		};
+
+		auto EmitUnpextectedHLSLSyntaxError = [&]()
+		{
+			EmitError(TEXT("Unexpected syntax when parsing shader parameters from shader code."));
+			State = EState::GoToNextSemicolonAndReset;
+		};
+
+		for (int32 Cursor = 0; Cursor < ShaderSourceLen; Cursor++)
+		{
+			const TCHAR Char = PreprocessedShaderSource[Cursor];
+
+			auto FoundShaderParameter = [&]()
+			{
+				check(Char == ';');
+				check(TypeStartPos != -1);
+				check(TypeEndPos != -1);
+				check(NameStartPos != -1);
+				check(NameEndPos != -1);
+
+				FString Type = PreprocessedShaderSource.Mid(TypeStartPos, TypeEndPos - TypeStartPos + 1);
+				FString Name = PreprocessedShaderSource.Mid(NameStartPos, NameEndPos - NameStartPos + 1);
+
+				if (ParsedParameters.Contains(Name))
+				{
+					if (ParsedParameters.FindChecked(Name).IsFound())
+					{
+						// If it has already been found, it means it is duplicated. Do nothing and let the shader compiler throw the error.
+					}
+					else
+					{
+						FParsedShaderParameter ParsedParameter;
+						ParsedParameter.Type = Type;
+						ParsedParameter.PragamLineoffset = CurrentPragamLineoffset;
+						ParsedParameter.LineOffset = CurrentLineoffset;
+						ParsedParameters[Name] = ParsedParameter;
+
+						// Erases this shader parameter conserving the same line numbers.
+						if (bMoveToRootConstantBuffer)
+						{
+							for (int32 j = TypeStartPos; j <= Cursor; j++)
+							{
+								if (PreprocessedShaderSource[j] != '\r' && PreprocessedShaderSource[j] != '\n')
+									PreprocessedShaderSource[j] = ' ';
+							}
+						}
+					}
+				}
+
+				ResetState();
+			};
+
+			const bool bIsWhiteSpace = Char == ' ' || Char == '\t' || Char == '\r' || Char == '\n';
+			const bool bIsLetter = (Char >= 'a' && Char <= 'z') || (Char >= 'A' && Char <= 'Z');
+			const bool bIsNumber = Char >= '0' && Char <= '9';
 
 			const TCHAR* UpComing = (*PreprocessedShaderSource) + Cursor;
+			const int32 RemainingSize = ShaderSourceLen - Cursor;
+
+			CurrentLineoffset += Char == '\n';
 
 			// Go to the next line if this is a preprocessor macro.
 			if (bGoToNextLine)
@@ -474,6 +595,12 @@ void MoveShaderParametersToRootConstantBuffer(const FShaderCompilerInput& Compil
 			}
 			else if (Char == '#')
 			{
+				if (RemainingSize > 6 && FCString::Strncmp(UpComing, TEXT("#line "), 6) == 0)
+				{
+					CurrentPragamLineoffset = Cursor;
+					CurrentLineoffset = -1; // that will be incremented to 0 when reaching the \n at the end of the #line
+				}
+
 				bGoToNextLine = true;
 				continue;
 			}
@@ -490,189 +617,437 @@ void MoveShaderParametersToRootConstantBuffer(const FShaderCompilerInput& Compil
 					ScopeIndent--;
 					if (ScopeIndent == 0)
 					{
-						TypeStartPos = -1;
-						TypeEndPos = -1;
-						NameStartPos = -1;
-						NameEndPos = -1;
-						bGoToNextSemicolon = false;
+						ResetState();
 					}
 				}
 				continue;
 			}
 
-			// If need to go to next global semicolon and reach it. Resume browsing.
-			if (bGoToNextSemicolon)
+			if (State == EState::Scanning)
 			{
-				if (Char == ';')
+				if (bIsLetter)
 				{
-					bGoToNextSemicolon = false;
-				}
-				continue;
-			}
+					static const TCHAR* KeywordTable[] = {
+						TEXT("enum"),
+						TEXT("class"),
+						TEXT("const"),
+						TEXT("struct"),
+						TEXT("static"),
+					};
+					static int32 KeywordTableSize[] = {4, 5, 5, 6, 6};
 
-			// Found something interesting...
-			if ((Char >= 'a' && Char <= 'z') ||
-				(Char >= 'A' && Char <= 'Z') ||
-				(Char >= '0' && Char <= '9') ||
-				Char == '<' || Char == '>' || Char == '_')
-			{
-				if (TypeStartPos == -1)
-				{
-					TypeStartPos = Cursor;
-				}
-				else if (TypeEndPos != -1 && NameStartPos == -1)
-				{
-					NameStartPos = Cursor;
-				}
-				else if (NameEndPos != -1)
-				{
-					TypeStartPos = -1;
-					TypeEndPos = -1;
-					NameStartPos = -1;
-					NameEndPos = -1;
-					bGoToNextSemicolon = true;
-					continue;
-				}
+					int32 RecognisedKeywordId = -1;
+					for (int32 KeywordId = 0; KeywordId < UE_ARRAY_COUNT(KeywordTable); KeywordId++)
+					{
+						const TCHAR* Keyword = KeywordTable[KeywordId];
+						const int32 KeywordSize = KeywordTableSize[KeywordId];
 
-				continue;
-			}
+						if (RemainingSize > KeywordSize)
+						{
+							TCHAR KeywordEndTestChar = UpComing[KeywordSize];
 
-			// If this is white space, just carry on.
-			if (Char == ' ' || Char == '\t' || Char == '\r' || Char == '\n')
-			{
-				if (TypeStartPos != -1 && TypeEndPos == -1)
-				{
-					// Just finished browsing what might be a type.
-					TypeEndPos = Cursor - 1;
+							if ((KeywordEndTestChar == ' ' || KeywordEndTestChar == '\r' || KeywordEndTestChar == '\n' || KeywordEndTestChar == '\t') &&
+								FCString::Strncmp(UpComing, Keyword, KeywordSize) == 0)
+							{
+								RecognisedKeywordId = KeywordId;
+								break;
+							}
+						}
+					}
+
+					if (RecognisedKeywordId == -1)
+					{
+						// Might have found beginning of the type of a parameter.
+						State = EState::ParsingPotentialType;
+						TypeStartPos = Cursor;
+					}
+					else if (RecognisedKeywordId == 2)
+					{
+						// Ignore the const keywords, but still parse given it might still be a shader parameter.
+						Cursor += KeywordTableSize[RecognisedKeywordId];
+					}
+					else
+					{
+						// Purposefully ignore enum, class, struct, static
+						State = EState::GoToNextSemicolonAndReset;
+					}
 				}
-				else if (NameStartPos != -1 && NameEndPos == -1)
+				else if (bIsWhiteSpace)
 				{
-					// Just finished browsing what might be shader parameter name.
-					NameEndPos = Cursor - 1;
+					// Keep parsing void.
 				}
-				continue;
-			}
-			else if (Char == ';')
-			{
-				if (NameStartPos != -1 && NameEndPos == -1)
+				else if (Char == ';')
 				{
-					// Just finished browsing what is a shader parameter name.
-					NameEndPos = Cursor - 1;
-				}
-				else if (NameEndPos != -1)
-				{
-					// Greate we found something, so fall through.
+					// Looks like redundant semicolon, just ignore and keep scanning.
 				}
 				else
 				{
-					// No idea what it was, reset...
-					TypeStartPos = -1;
-					TypeEndPos = -1;
-					NameStartPos = -1;
-					NameEndPos = -1;
-					continue;
+					// No idea what this is, just go to next semi colon.
+					State = EState::GoToNextSemicolonAndReset;
 				}
 			}
-			else if (Char == ':' && NameStartPos != -1)
+			else if (State == EState::GoToNextSemicolonAndReset)
 			{
-				// Just finished browsing what might be shader parameter name.
-				if (NameEndPos != -1)
+				// If need to go to next global semicolon and reach it. Resume browsing.
+				if (Char == ';')
 				{
-					NameEndPos = Cursor - 1;
+					ResetState();
 				}
-				continue;
+			}
+			else if (State == EState::ParsingPotentialType)
+			{
+				// Found character legal for a type...
+				if (bIsLetter ||
+					bIsNumber ||
+					Char == '<' || Char == '>' || Char == '_')
+				{
+					// Keep browsing what might be type of the parameter.
+				}
+				else if (bIsWhiteSpace)
+				{
+					// Might have found a type.
+					State = EState::FinishedPotentialType;
+					TypeEndPos = Cursor - 1;
+				}
+				else
+				{
+					// Found unexpected character in the type.
+					State = EState::GoToNextSemicolonAndReset;
+				}
+			}
+			else if (State == EState::FinishedPotentialType)
+			{
+				if (bIsLetter)
+				{
+					// Might have found beginning of the name of a parameter.
+					State = EState::ParsingPotentialName;
+					NameStartPos = Cursor;
+				}
+				else if (bIsWhiteSpace)
+				{
+					// Keep parsing void.
+				}
+				else
+				{
+					// No idea what this is, just go to next semi colon.
+					State = EState::GoToNextSemicolonAndReset;
+				}
+			}
+			else if (State == EState::ParsingPotentialName)
+			{
+				// Found character legal for a name...
+				if (bIsLetter ||
+					bIsNumber ||
+					Char == '_')
+				{
+					// Keep browsing what might be name of the parameter.
+				}
+				else if (Char == ':' || Char == '=')
+				{
+					// Found a parameter with syntax:
+					// uint MyParameter : <whatever>;
+					// uint MyParameter = <DefaultValue>;
+					NameEndPos = Cursor - 1;
+					State = EState::FoundParameter;
+				}
+				else if (Char == ';')
+				{
+					// Found a parameter with syntax:
+					// uint MyParameter;
+					NameEndPos = Cursor - 1;
+					FoundShaderParameter();
+				}
+				else if (Char == '[')
+				{
+					// Syntax:
+					//  uint MyArray[
+					NameEndPos = Cursor - 1;
+					State = EState::ParsingPotentialArraySize;
+				}
+				else if (bIsWhiteSpace)
+				{
+					// Might have found a name.
+					// uint MyParameter <Still need to know what is after>;
+					NameEndPos = Cursor - 1;
+					State = EState::FinishedPotentialName;
+				}
+				else
+				{
+					// Found unexpected character in the name.
+					// syntax:
+					// uint MyFunction(<Don't care what is after>
+					State = EState::GoToNextSemicolonAndReset;
+				}
+			}
+			else if (
+				State == EState::FinishedPotentialName ||
+				State == EState::FinishedArraySize)
+			{
+				if (Char == ';')
+				{
+					// Found a parameter with syntax:
+					// uint MyParameter <a bit of OK stuf>;
+					FoundShaderParameter();
+				}
+				else if (Char == ':')
+				{
+					// Found a parameter with syntax:
+					// uint MyParameter <a bit of OK stuf> : <Ignore all this crap>;
+					State = EState::FoundParameter;
+				}
+				else if (Char == '=')
+				{
+					// Found syntax that doesn't make any sens:
+					// uint MyParameter <a bit of OK stuf> = <Ignore all this crap>;
+					State = EState::FoundParameter;
+					// TDOO: should error out that this is useless.
+				}
+				else if (Char == '[')
+				{
+					if (State == EState::FinishedPotentialName)
+					{
+						// Syntax:
+						//  uint MyArray [
+						State = EState::ParsingPotentialArraySize;
+					}
+					else
+					{
+						EmitError(TEXT("Shader parameters can only support one dimensional array"));
+					}
+				}
+				else if (bIsWhiteSpace)
+				{
+					// Keep parsing void.
+				}
+				else
+				{
+					// Found unexpected stuff.
+					State = EState::GoToNextSemicolonAndReset;
+				}
+			}
+			else if (State == EState::ParsingPotentialArraySize)
+			{
+				if (Char == ']')
+				{
+					State = EState::FinishedArraySize;
+				}
+				else if (Char == ';')
+				{
+					EmitUnpextectedHLSLSyntaxError();
+				}
+				else
+				{
+					// Keep going through the array size that might be a complex expression.
+				}
+			}
+			else if (State == EState::FoundParameter)
+			{
+				if (Char == ';')
+				{
+					FoundShaderParameter();
+				}
+				else
+				{
+					// Cary on skipping all crap we don't care about shader parameter until we find it's semi colon.
+				}
 			}
 			else
 			{
-				// No idea what it was, reset and go to next semicolon...
-				TypeStartPos = -1;
-				TypeEndPos = -1;
-				NameStartPos = -1;
-				NameEndPos = -1;
-				bGoToNextSemicolon = true;
-				continue;
+				unimplemented();
 			}
-
-			check(Char == ';');
-
-			// A shader parameter has been found.
-			{
-				FString Type = PreprocessedShaderSource.Mid(TypeStartPos, TypeEndPos - TypeStartPos + 1);
-				FString Name = PreprocessedShaderSource.Mid(NameStartPos, NameEndPos - NameStartPos + 1);
-
-				if (ShaderParameterTypes.Contains(Name))
-				{
-					ensureMsgf(ShaderParameterTypes.FindChecked(Name).IsEmpty(), TEXT("Looks %s like shader parameter was duplicated."), *Name);
-					ShaderParameterTypes[Name] = Type;
-
-					// Erases this shader parameter conserving the same line numbers.
-					for (int32 j = TypeStartPos; j <= Cursor; j++)
-					{
-						if (PreprocessedShaderSource[j] != '\r' && PreprocessedShaderSource[j] != '\n')
-							PreprocessedShaderSource[j] = ' ';
-					}
-				}
-
-				// And reset.
-				TypeStartPos = -1;
-				TypeEndPos = -1;
-				NameStartPos = -1;
-				NameEndPos = -1;
-				bGoToNextSemicolon = false;
-			}
-		}
+		} // for (int32 Cursor = 0; Cursor < PreprocessedShaderSource.Len(); Cursor++)
 	}
 
 	// Generate the root cbuffer content.
-	FString RootCBufferContent;
-	for (const auto& Member : CompilerInput.RootParameterBindings)
+	if (bMoveToRootConstantBuffer)
 	{
-		const FString& Type = ShaderParameterTypes[Member.Name];
-		if (Type.IsEmpty())
+		FString RootCBufferContent;
+		for (const auto& Member : CompilerInput.RootParameterBindings)
 		{
+			const FParsedShaderParameter& ParsedParameter = ParsedParameters[Member.Name];
+			if (!ParsedParameter.IsFound())
+			{
+				continue;
+			}
+
+			FString HLSLOffset;
+			{
+				int32 ByteOffset = int32(Member.ByteOffset);
+				HLSLOffset = FString::FromInt(ByteOffset / 16);
+			
+				switch (ByteOffset % 16)
+				{
+				case 0:
+					break;
+				case 4:
+					HLSLOffset.Append(TEXT(".y"));
+					break;
+				case 8:
+					HLSLOffset.Append(TEXT(".z"));
+					break;
+				case 12:
+					HLSLOffset.Append(TEXT(".w"));
+					break;
+				}
+			}
+
+			RootCBufferContent.Append(FString::Printf(
+				TEXT("%s %s : packoffset(c%s);\r\n"),
+				*ParsedParameter.Type,
+				*Member.Name,
+				*HLSLOffset));
+		}
+
+		FString NewShaderCode = FString::Printf(
+			TEXT("%s %s\r\n")
+			TEXT("{\r\n")
+			TEXT("%s")
+			TEXT("}\r\n\r\n%s"),
+			ConstantBufferType,
+			FShaderParametersMetadata::kRootUniformBufferBindingName,
+			*RootCBufferContent,
+			*PreprocessedShaderSource);
+
+		PreprocessedShaderSource = MoveTemp(NewShaderCode);
+	}
+
+	return bSuccess;
+}
+
+void FShaderParameterParser::ValidateShaderParameterTypes(
+	const FShaderCompilerInput& CompilerInput,
+	FShaderCompilerOutput& CompilerOutput) const
+{
+	// The shader doesn't have any parameter binding through shader structure, therefore don't do anything.
+	if (CompilerInput.RootParameterBindings.Num() == 0)
+	{
+		return;
+	}
+
+	if (!CompilerOutput.bSucceeded)
+	{
+		return;
+	}
+
+	const TMap<FString, FParameterAllocation>& ParametersFoundByCompiler = CompilerOutput.ParameterMap.GetParameterMap();
+
+	bool bSuccess = true;
+	for (const FShaderCompilerInput::FRootParameterBinding& Member : CompilerInput.RootParameterBindings)
+	{
+		const FParsedShaderParameter& ParsedParameter = ParsedParameters[Member.Name];
+
+		// Did not find shader parameter in code.
+		if (!ParsedParameter.IsFound())
+		{
+			// Verify the shader compiler also did not find this parameter to make sure there is no bug in the parser.
+			checkf(
+				!ParametersFoundByCompiler.Contains(Member.Name),
+				TEXT("Looks like there is a bug in FShaderParameterParser ParameterName=%s DumpDebugInfoPath=%s"),
+				*Member.Name,
+				*CompilerInput.DumpDebugInfoPath);
 			continue;
 		}
 
-		FString HLSLOffset;
+		const bool bShouldBeInt = Member.ExpectedShaderType.StartsWith(TEXT("int"));
+		const bool bShouldBeUint = Member.ExpectedShaderType.StartsWith(TEXT("uint"));
+
+		bool bIsTypeCorrect = ParsedParameter.Type == Member.ExpectedShaderType;
+
+		// Allow silent casting between signed and unsigned on shader bindings.
+		if (!bIsTypeCorrect && (bShouldBeInt || bShouldBeUint))
 		{
-			int32 ByteOffset = int32(Member.ByteOffset);
-			HLSLOffset = FString::FromInt(ByteOffset / 16);
-			
-			switch (ByteOffset % 16)
+			FString NewExpectedShaderType;
+			if (bShouldBeInt)
 			{
-			case 0:
-				break;
-			case 4:
-				HLSLOffset.Append(TEXT(".y"));
-				break;
-			case 8:
-				HLSLOffset.Append(TEXT(".z"));
-				break;
-			case 12:
-				HLSLOffset.Append(TEXT(".w"));
+				// tries up with an uint.
+				NewExpectedShaderType = TEXT("u") + Member.ExpectedShaderType;
+			}
+			else
+			{
+				// tries up with an int.
+				NewExpectedShaderType = Member.ExpectedShaderType;
+				NewExpectedShaderType.RemoveAt(0);
+			}
+
+			bIsTypeCorrect = ParsedParameter.Type == NewExpectedShaderType;
+		}
+
+		if (!bIsTypeCorrect)
+		{
+			FShaderCompilerError Error;
+			Error.StrippedErrorMessage = FString::Printf(
+				TEXT("Type %s of shader parameter %s in shader mismatch the shader parameter structure: it expects a %s"),
+				*ParsedParameter.Type,
+				*Member.Name,
+				*Member.ExpectedShaderType);
+			ExtractFileAndLine(ParsedParameter.PragamLineoffset, ParsedParameter.LineOffset, Error.ErrorVirtualFilePath, Error.ErrorLineString);
+
+			CompilerOutput.Errors.Add(Error);
+			bSuccess = false;
+		}
+	} // for (const auto& Member : CompilerInput.RootParameterBindings)
+
+	CompilerOutput.bSucceeded = bSuccess;
+}
+
+void FShaderParameterParser::ExtractFileAndLine(int32 PragamLineoffset, int32 LineOffset, FString& OutFile, FString& OutLine) const
+{
+	if (PragamLineoffset == -1)
+	{
+		return;
+	}
+
+	check(FCString::Strncmp((*OriginalParsedShader) + PragamLineoffset, TEXT("#line "), 6) == 0);
+
+	const int32 ShaderSourceLen = OriginalParsedShader.Len();
+
+	int32 StartFilePos = -1;
+	int32 EndFilePos = -1;
+	int32 StartLinePos = PragamLineoffset + 6;
+	int32 EndLinePos = -1;
+
+	for (int32 Cursor = StartLinePos; Cursor < ShaderSourceLen; Cursor++)
+	{
+		const TCHAR Char = OriginalParsedShader[Cursor];
+
+		if (Char == '\n')
+		{
+			break;
+		}
+
+		if (EndLinePos == -1)
+		{
+			if (Char > '9' || Char < '0')
+			{
+				EndLinePos = Cursor - 1;
+			}
+		}
+		else if (StartFilePos == -1)
+		{
+			if (Char == '"')
+			{
+				StartFilePos = Cursor + 1;
+			}
+		}
+		else if (EndFilePos == -1)
+		{
+			if (Char == '"')
+			{
+				EndFilePos = Cursor - 1;
 				break;
 			}
 		}
-
-		RootCBufferContent.Append(FString::Printf(
-			TEXT("%s %s : packoffset(c%s);\r\n"),
-			*Type,
-			*Member.Name,
-			*HLSLOffset));
-		ShaderParameterTypes.Add(Member.Name, FString());
 	}
 
-	FString NewShaderCode = FString::Printf(
-		TEXT("%s %s\r\n")
-		TEXT("{\r\n")
-		TEXT("%s")
-		TEXT("}\r\n\r\n%s"),
-		*ConstantBufferType,
-		FShaderParametersMetadata::kRootUniformBufferBindingName,
-		*RootCBufferContent,
-		*PreprocessedShaderSource);
+	check(StartFilePos != -1);
+	check(EndFilePos != -1);
+	check(EndLinePos != -1);
 
-	PreprocessedShaderSource = MoveTemp(NewShaderCode);
+	OutFile = OriginalParsedShader.Mid(StartFilePos, EndFilePos - StartFilePos + 1);
+	FString LineBasis = OriginalParsedShader.Mid(StartLinePos, EndLinePos - StartLinePos + 1);
+
+	int32 FinalLine = FCString::Atoi(*LineBasis) + LineOffset;
+	OutLine = FString::FromInt(FinalLine);
 }
 
 

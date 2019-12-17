@@ -760,6 +760,8 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	{
 		LightmapSceneData = GBlackTextureWithSRV->ShaderResourceViewRHI;
 	}
+	VTFeedbackBuffer = GBlackTextureWithUAV->UnorderedAccessViewRHI;
+	QuadOverdraw = GBlackTextureWithUAV->UnorderedAccessViewRHI;
 }
 
 FInstancedViewUniformShaderParameters::FInstancedViewUniformShaderParameters()

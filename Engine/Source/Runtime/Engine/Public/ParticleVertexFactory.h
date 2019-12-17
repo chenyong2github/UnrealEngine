@@ -179,7 +179,7 @@ public:
 	/**
 	 * Set the source vertex buffer that contains particle instance data.
 	 */
-	void SetInstanceBuffer(const FVertexBuffer* InInstanceBuffer, uint32 StreamOffset, uint32 Stride, bool bInstanced);
+	void SetInstanceBuffer(const FVertexBuffer* InInstanceBuffer, uint32 StreamOffset, uint32 Stride);
 
 	void SetTexCoordBuffer(const FVertexBuffer* InTexCoordBuffer);
 
@@ -191,7 +191,7 @@ public:
 	/**
 	 * Set the source vertex buffer that contains particle dynamic parameter data.
 	 */
-	void SetDynamicParameterBuffer(const FVertexBuffer* InDynamicParameterBuffer, uint32 StreamOffset, uint32 Stride, bool bInstanced);
+	void SetDynamicParameterBuffer(const FVertexBuffer* InDynamicParameterBuffer, uint32 StreamOffset, uint32 Stride);
 	inline void SetUsesDynamicParameter(bool bInUsesDynamicParameter, uint32 Stride)
 	{
 		bUsesDynamicParameter = bInUsesDynamicParameter;

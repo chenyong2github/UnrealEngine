@@ -18,6 +18,7 @@
 #include "../VT/VirtualTextureFeedback.h"
 
 class FViewInfo;
+class FRDGBuilder;
 
 /** Number of cube map shadow depth surfaces that will be created and used for rendering one pass point light shadows. */
 static const int32 NumCubeShadowDepthSurfaces = 5;
@@ -225,6 +226,8 @@ public:
 
 	void SetQuadOverdrawUAV(FRHICommandList& RHICmdList, bool bBindQuadOverdrawBuffers, bool bClearQuadOverdrawBuffers, FRHIRenderPassInfo& Info);
 
+	FUnorderedAccessViewRHIRef GetQuadOverdrawBufferUAV();
+	FUnorderedAccessViewRHIRef GetVirtualTextureFeedbackUAV();
 	void BindVirtualTextureFeedbackUAV(FRHIRenderPassInfo& RPInfo);
 
 	void BeginRenderingGBuffer(FRHICommandList& RHICmdList, ERenderTargetLoadAction ColorLoadAction, ERenderTargetLoadAction DepthLoadAction, FExclusiveDepthStencil DepthStencilAccess, bool bBindQuadOverdrawBuffers, bool bClearQuadOverdrawBuffers = false, const FLinearColor& ClearColor = FLinearColor(0, 0, 0, 1), bool bIsWireframe=false);
@@ -479,7 +482,11 @@ public:
 	void AdjustGBufferRefCount(FRHICommandList& RHICmdList, int Delta);
 
 	void PreallocGBufferTargets();
-	void GetGBufferADesc(FPooledRenderTargetDesc& Desc) const;
+	EPixelFormat GetGBufferAFormat() const;
+	EPixelFormat GetGBufferBFormat() const;
+	EPixelFormat GetGBufferCFormat() const;
+	EPixelFormat GetGBufferDFormat() const;
+	EPixelFormat GetGBufferEFormat() const;
 	void AllocGBufferTargets(FRHICommandList& RHICmdList);
 
 	void AllocLightAttenuation(FRHICommandList& RHICmdList);
@@ -641,6 +648,11 @@ public:
 
 	/** Fills the given FRenderPassInfo with the current GBuffer */
 	int32 FillGBufferRenderPassInfo(ERenderTargetLoadAction ColorLoadAction, FRHIRenderPassInfo& OutRenderPassInfo, int32& OutVelocityRTIndex);
+
+	/** Gets all GBuffers to use.  Returns the number actually used. */
+	int32 GetGBufferRenderTargets(ERenderTargetLoadAction ColorLoadAction, FRHIRenderTargetView OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex);
+	int32 GetGBufferRenderTargets(FRDGBuilder& GraphBuilder, ERenderTargetLoadAction ColorLoadAction, FRenderTargetBinding OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex);
+
 private:
 
 	/** Allocates render targets for use with the current shading path. */
@@ -688,8 +700,7 @@ private:
 			|| AreShadingPathRenderTargetsAllocated(ESceneColorFormatType::Mobile); 
 	}
 
-	/** Gets all GBuffers to use.  Returns the number actually used. */
-	int32 GetGBufferRenderTargets(ERenderTargetLoadAction ColorLoadAction, FRHIRenderTargetView OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex);
+	int32 GetGBufferRenderTargets(TRefCountPtr<IPooledRenderTarget>* OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex);
 
 	ESceneColorFormatType GetSceneColorFormatType() const
 	{

@@ -692,7 +692,7 @@ class FDiaphragmDOFSetupCS : public FDiaphragmDOFShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDOFCommonShaderParameters, CommonParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDOFCocModelShaderParameters, CocModel)
 
-		SHADER_PARAMETER(FVector4, ViewportRect)
+		SHADER_PARAMETER(FIntRect, ViewportRect)
 		SHADER_PARAMETER(FVector2D, CocRadiusBasis) // TODO: decompose
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
@@ -1561,7 +1561,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 		{
 			PassParameters->CommonParameters = CommonParameters;
 			SetCocModelParameters(&PassParameters->CocModel, CocModel, CocRadiusBasis);
-			PassParameters->ViewportRect = FVector4(0, 0, PassViewSize.X, PassViewSize.Y);
+			PassParameters->ViewportRect = FIntRect(FIntPoint::ZeroValue, PassViewSize);
 			PassParameters->CocRadiusBasis = FVector2D(GatheringViewSize.X, PreprocessViewSize.X);
 			PassParameters->SceneColorTexture = InputSceneColor;
 			PassParameters->SceneDepthTexture = SceneTextures.SceneDepthBuffer;
@@ -2412,8 +2412,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(
 				ConvolutionTextures->SceneColor, ERenderTargetLoadAction::ELoad);
 
-			ValidateShaderParameters(*VertexShader, *PassParameters);
-			ValidateShaderParameters(*PixelShader, *PassParameters);
+			ClearUnusedGraphResources(*VertexShader, *PixelShader, PassParameters);
 
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("DOF IndirectScatter(%s Bokeh=%s Occlusion=%s) %dx%d",

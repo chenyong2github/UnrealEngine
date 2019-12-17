@@ -462,6 +462,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 
 	FPostProcessMaterialVS* VertexShader = MaterialShaderMap->GetShader<FPostProcessMaterialVS>(PermutationVector);
 	FPostProcessMaterialPS* PixelShader = MaterialShaderMap->GetShader<FPostProcessMaterialPS>(PermutationVector);
+	ClearUnusedGraphResources(VertexShader, PixelShader, PostProcessMaterialParameters);
 
 	const uint32 MaterialStencilRef = Material->GetStencilRefValue();
 

@@ -16,6 +16,15 @@
 
 class Error;
 
+// this is for the protocol, not the data, bump if FShaderCompilerInput or ProcessInputFromArchive changes.
+const int32 ShaderCompileWorkerInputVersion = 12;
+// this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes.
+const int32 ShaderCompileWorkerOutputVersion = 5;
+// this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes.
+const int32 ShaderCompileWorkerSingleJobHeader = 'S';
+// this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes.
+const int32 ShaderCompileWorkerPipelineJobHeader = 'P';
+
 /**
  * Controls whether shader related logs are visible.
  * Note: The runtime verbosity is driven by the console variable 'r.ShaderDevelopmentMode'
@@ -193,6 +202,7 @@ enum ECompilerFlags
 	CFLAG_WaveOperations,
 	// Use DirectX Shader Compiler (DXC) to compile all shaders, intended for compatibility testing.
 	CFLAG_ForceDXC,
+	CFLAG_SkipOptimizations,
 };
 
 enum class EShaderParameterType : uint8
@@ -462,6 +472,7 @@ struct FShaderCompilerEnvironment : public FRefCountedObject
 	TMap<uint32,uint8> RenderTargetOutputFormatsMap;
 	TMap<FString,FResourceTableEntry> ResourceTableMap;
 	TMap<FString,uint32> ResourceTableLayoutHashes;
+	TMap<FString, FString> ResourceTableLayoutSlots;
 	TMap<FString, FString> RemoteServerData;
 	TMap<FString, FString> ShaderFormatCVars;
 
@@ -514,6 +525,7 @@ struct FShaderCompilerEnvironment : public FRefCountedObject
 		Ar << Environment.RenderTargetOutputFormatsMap;
 		Ar << Environment.ResourceTableMap;
 		Ar << Environment.ResourceTableLayoutHashes;
+		Ar << Environment.ResourceTableLayoutSlots;
 		Ar << Environment.RemoteServerData;
 		Ar << Environment.ShaderFormatCVars;
 
@@ -543,6 +555,7 @@ struct FShaderCompilerEnvironment : public FRefCountedObject
 		CompilerFlags.Append(Other.CompilerFlags);
 		ResourceTableMap.Append(Other.ResourceTableMap);
 		ResourceTableLayoutHashes.Append(Other.ResourceTableLayoutHashes);
+		ResourceTableLayoutSlots.Append(Other.ResourceTableLayoutSlots);
 		Definitions.Merge(Other.Definitions);
 		RenderTargetOutputFormatsMap.Append(Other.RenderTargetOutputFormatsMap);
 		RemoteServerData.Append(Other.RemoteServerData);
@@ -593,13 +606,16 @@ struct FShaderCompilerInput
 		/** Name of the constant buffer stored parameter. */
 		FString Name;
 
+		/** Type expected in the shader code to ensure the binding is bug free. */
+		FString ExpectedShaderType;
+
 		/** The offset of the parameter in the root shader parameter struct. */
 		uint16 ByteOffset;
-
 
 		friend FArchive& operator<<(FArchive& Ar, FRootParameterBinding& RootParameterBinding)
 		{
 			Ar << RootParameterBinding.Name;
+			Ar << RootParameterBinding.ExpectedShaderType;
 			Ar << RootParameterBinding.ByteOffset;
 			return Ar;
 		}
@@ -1235,3 +1251,33 @@ extern RENDERCORE_API void ResetAllShaderSourceDirectoryMappings();
  * @param RealShaderDirectory FPlatformProcess::BaseDir() relative path of the directory map.
  */
 extern RENDERCORE_API void AddShaderSourceDirectoryMapping(const FString& VirtualShaderDirectory, const FString& RealShaderDirectory);
+
+/** Validates that the uniform buffer at the requested static slot. */
+extern RENDERCORE_API void ValidateStaticUniformBuffer(FRHIUniformBuffer* UniformBuffer, FUniformBufferStaticSlot Slot, uint32 ExpectedHash);
+
+template <typename TRHIContext, typename TRHIShader>
+void ApplyGlobalUniformBuffers(
+	TRHIContext* CommandContext,
+	TRHIShader* Shader,
+	const TArray<FUniformBufferStaticSlot>& Slots,
+	const TArray<uint32>& LayoutHashes,
+	const TArray<FRHIUniformBuffer*>& UniformBuffers)
+{
+	check(LayoutHashes.Num() == Slots.Num());
+
+	for (int32 BufferIndex = 0; BufferIndex < Slots.Num(); ++BufferIndex)
+	{
+		const FUniformBufferStaticSlot Slot = Slots[BufferIndex];
+
+		if (IsUniformBufferStaticSlotValid(Slot))
+		{
+			FRHIUniformBuffer* Buffer = UniformBuffers[Slot];
+			ValidateStaticUniformBuffer(Buffer, Slot, LayoutHashes[BufferIndex]);
+
+			if (Buffer)
+			{
+				CommandContext->RHISetShaderUniformBuffer(Shader, BufferIndex, Buffer);
+			}
+		}
+	}
+}

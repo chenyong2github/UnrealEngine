@@ -147,12 +147,6 @@ bool APostProcessVolume::CanEditChange(const UProperty* InProperty) const
 				return Settings.AutoExposureMethod == EAutoExposureMethod::AEM_Histogram;
 			}
 
-			// Parameters supported by only the histogram AutoExposure
-			if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, AutoExposureCalibrationConstant))
-			{
-				return Settings.AutoExposureMethod == EAutoExposureMethod::AEM_Basic;
-			}
-
 			// Parameters that are only used for the Sum of Gaussian bloom / not the texture based fft bloom
 			if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, BloomThreshold) ||
 				PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, BloomIntensity) ||

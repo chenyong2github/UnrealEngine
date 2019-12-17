@@ -136,6 +136,8 @@ protected:
 	const VkShaderStageFlagBits		StageFlag;
 	EShaderFrequency				Frequency;
 
+	TArray<FUniformBufferStaticSlot> StaticSlots;
+
 	TArray<uint32>					Spirv;
 
 	FVulkanDevice*					Device;

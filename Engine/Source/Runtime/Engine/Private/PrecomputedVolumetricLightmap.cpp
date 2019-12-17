@@ -540,6 +540,7 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::AddToSceneData(FPrecomputedV
 			}
 
 			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, IndirectionTexture.Texture);
+			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, NewIndirectionTexture.UAV);
 		}
 		else
 		{
@@ -1019,6 +1020,21 @@ void FVolumetricLightmapBrickAtlas::Insert(int32 Index, FPrecomputedVolumetricLi
 	}
 
 	{
+		{
+			// Transition all the UAVs to writable
+			FRHIUnorderedAccessView* UAVs[UE_ARRAY_COUNT(NewTextureSet.SHCoefficients) + 3] =
+			{
+				NewTextureSet.AmbientVector.UAV,
+				NewTextureSet.SkyBentNormal.UAV,
+				NewTextureSet.DirectionalLightShadowing.UAV
+			};
+			for (int32 i = 0; i < UE_ARRAY_COUNT(NewTextureSet.SHCoefficients); i++)
+			{
+				UAVs[i + 3] = NewTextureSet.SHCoefficients[i].UAV;
+			}
+			RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, UAVs, UE_ARRAY_COUNT(UAVs), nullptr);
+		}
+
 		int32 BrickStartAllocation = 0;
 
 		// Copy old allocations
@@ -1053,6 +1069,21 @@ void FVolumetricLightmapBrickAtlas::Insert(int32 Index, FPrecomputedVolumetricLi
 				Allocations[AllocationIndex].Data->HandleDataMovementInAtlas(Allocations[AllocationIndex].StartOffset, BrickStartAllocation);
 			}
 			BrickStartAllocation += Allocations[AllocationIndex].Size;
+		}
+
+		{
+			// Transition all UAVs in the new set to readable
+			FRHIUnorderedAccessView* UAVs[UE_ARRAY_COUNT(NewTextureSet.SHCoefficients) + 3] =
+			{
+				NewTextureSet.AmbientVector.UAV,
+				NewTextureSet.SkyBentNormal.UAV,
+				NewTextureSet.DirectionalLightShadowing.UAV
+			};
+			for (int32 i = 0; i < UE_ARRAY_COUNT(NewTextureSet.SHCoefficients); i++)
+			{
+				UAVs[i + 3] = NewTextureSet.SHCoefficients[i].UAV;
+			}
+			RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, UAVs, UE_ARRAY_COUNT(UAVs), nullptr);
 		}
 	}
 
@@ -1117,6 +1148,21 @@ void FVolumetricLightmapBrickAtlas::Remove(FPrecomputedVolumetricLightmapData* D
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
 		{
+			{
+				// Transition all the UAVs to writable
+				FRHIUnorderedAccessView* UAVs[UE_ARRAY_COUNT(NewTextureSet.SHCoefficients) + 3] =
+				{
+					NewTextureSet.AmbientVector.UAV,
+					NewTextureSet.SkyBentNormal.UAV,
+					NewTextureSet.DirectionalLightShadowing.UAV
+				};
+				for (int32 i = 0; i < UE_ARRAY_COUNT(NewTextureSet.SHCoefficients); i++)
+				{
+					UAVs[i + 3] = NewTextureSet.SHCoefficients[i].UAV;
+				}
+				RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, UAVs, UE_ARRAY_COUNT(UAVs), nullptr);
+			}
+
 			int32 BrickStartAllocation = 0;
 
 			// Copy old allocations
@@ -1138,6 +1184,21 @@ void FVolumetricLightmapBrickAtlas::Remove(FPrecomputedVolumetricLightmapData* D
 				NewAllocations.Add(Allocation{ Allocations[AllocationIndex].Data, Allocations[AllocationIndex].Size, BrickStartAllocation });
 				Allocations[AllocationIndex].Data->HandleDataMovementInAtlas(Allocations[AllocationIndex].StartOffset, BrickStartAllocation);
 				BrickStartAllocation += Allocations[AllocationIndex].Size;
+			}
+
+			{
+				// Transition all UAVs in the new set to readable
+				FRHIUnorderedAccessView* UAVs[UE_ARRAY_COUNT(NewTextureSet.SHCoefficients) + 3] =
+				{
+					NewTextureSet.AmbientVector.UAV,
+					NewTextureSet.SkyBentNormal.UAV,
+					NewTextureSet.DirectionalLightShadowing.UAV
+				};
+				for (int32 i = 0; i < UE_ARRAY_COUNT(NewTextureSet.SHCoefficients); i++)
+				{
+					UAVs[i + 3] = NewTextureSet.SHCoefficients[i].UAV;
+				}
+				RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, UAVs, UE_ARRAY_COUNT(UAVs), nullptr);
 			}
 		}
 	}

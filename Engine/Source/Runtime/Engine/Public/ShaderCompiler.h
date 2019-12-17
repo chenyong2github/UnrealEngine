@@ -15,6 +15,7 @@
 #include "HAL/Runnable.h"
 #include "Templates/Atomic.h"
 #include "Templates/UniquePtr.h"
+#include "HAL/ThreadSafeCounter.h"
 
 class FShaderCompileJob;
 class FShaderPipelineCompileJob;
@@ -54,6 +55,14 @@ public:
 	virtual const FShaderCompileJob* GetSingleShaderJob() const { return nullptr; }
 	virtual FShaderPipelineCompileJob* GetShaderPipelineJob() { return nullptr; }
 	virtual const FShaderPipelineCompileJob* GetShaderPipelineJob() const { return nullptr; }
+
+	/** This returns a unique id for a shader compiler job */
+	ENGINE_API static uint32 GetNextJobId();
+
+private:
+
+	/** Value counter for job ids. */
+	static FThreadSafeCounter JobIdCounter;
 };
 
 
@@ -348,13 +357,15 @@ struct FShaderMapCompileResults
 	FShaderMapCompileResults() :
 		NumJobsQueued(0),
 		bAllJobsSucceeded(true),
-		bRecreateComponentRenderStateOnCompletion(false)
+		bRecreateComponentRenderStateOnCompletion(false),
+		bSkipResultProcessing(false)
 	{}
 
 	int32 NumJobsQueued;
 	bool bAllJobsSucceeded;
 	bool bRecreateComponentRenderStateOnCompletion;
 	TArray<FShaderCommonCompileJob*> FinishedJobs;
+	bool bSkipResultProcessing;
 };
 
 /** Results for a single compiled and finalized shader map. */
@@ -594,7 +605,7 @@ public:
 	 * Adds shader jobs to be asynchronously compiled. 
 	 * FinishCompilation or ProcessAsyncResults must be used to get the results.
 	 */
-	ENGINE_API void AddJobs(TArray<FShaderCommonCompileJob*>& NewJobs, bool bOptimizeForLowLatency, bool bRecreateComponentRenderStateOnCompletion, const FString MaterialBasePath, FString PermutationString = FString(""));
+	ENGINE_API void AddJobs(TArray<FShaderCommonCompileJob*>& NewJobs, bool bOptimizeForLowLatency, bool bRecreateComponentRenderStateOnCompletion, const FString MaterialBasePath, FString PermutationString = FString(""), bool bSkipResultProcessing = false);
 
 	/**
 	* Removes all outstanding compile jobs for the passed shader maps.
@@ -612,7 +623,6 @@ public:
 	 * This should be called before exit if the DDC needs to be made up to date. 
 	 */
 	ENGINE_API void FinishAllCompilation();
-
 
 	/** 
 	 * Shutdown the shader compiler manager, this will shutdown immediately and not process any more shader compile requests. 

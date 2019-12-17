@@ -731,7 +731,7 @@ void FDeferredShadingSceneRenderer::ComputeLightGrid(FRHICommandListImmediate& R
 					}
 					else
 					{
-						ClearUAV(RHICmdList, View.ForwardLightingResources->NumCulledLightsGrid, 0);
+						RHICmdList.ClearUAVUint(View.ForwardLightingResources->NumCulledLightsGrid.UAV, FUintVector4(0, 0, 0, 0));
 						FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("LightGridInject:NotLinkedList"), *ComputeShader, PassParameters, NumGroups);
 					}
 				}

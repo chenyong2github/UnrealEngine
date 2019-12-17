@@ -218,16 +218,11 @@ void FNiagaraSpriteVertexFactory::InitRHI()
 
 void FNiagaraSpriteVertexFactory::InitStreams()
 {
-	const bool bInstanced = GRHISupportsInstancing;
-
 	check(Streams.Num() == 0);
-	if(bInstanced) 
-	{
-		FVertexStream* TexCoordStream = new(Streams) FVertexStream;
-		TexCoordStream->VertexBuffer = VertexBufferOverride ? VertexBufferOverride : &GParticleTexCoordVertexBuffer;
-		TexCoordStream->Stride = sizeof(FVector2D);
-		TexCoordStream->Offset = 0;
-	}
+	FVertexStream* TexCoordStream = new(Streams) FVertexStream;
+	TexCoordStream->VertexBuffer = VertexBufferOverride ? VertexBufferOverride : &GParticleTexCoordVertexBuffer;
+	TexCoordStream->Stride = sizeof(FVector2D);
+	TexCoordStream->Offset = 0;
 }
 
 void FNiagaraSpriteVertexFactory::SetTexCoordBuffer(const FVertexBuffer* InTexCoordBuffer)

@@ -482,7 +482,7 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 
 	SizeText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_ResourceSize", "Resource Size: {0} Kb"), FText::AsNumber(Size, &SizeOptions)));
 
-	FText Method = Texture->VirtualTextureStreaming ? NSLOCTEXT("TextureEditor", "QuickInfo_MethodVirtualStreamed", "Virtual Streamed")
+	FText Method = Texture->IsCurrentlyVirtualTextured() ? NSLOCTEXT("TextureEditor", "QuickInfo_MethodVirtualStreamed", "Virtual Streamed")
 													: (!Texture->bIsStreamable ? NSLOCTEXT("TextureEditor", "QuickInfo_MethodNotStreamed", "Not Streamed") 
 																			: NSLOCTEXT("TextureEditor", "QuickInfo_MethodStreamed", "Streamed") );
 

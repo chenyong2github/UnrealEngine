@@ -737,42 +737,18 @@ public:
 		uint16* Indices = (uint16*)Buffer;
 		for (uint32 SpriteIndex = 0; SpriteIndex < NumTileQuadsInBuffer; ++SpriteIndex)
 		{
-			Indices[SpriteIndex*6 + 0] = SpriteIndex*4 + 0;
-			Indices[SpriteIndex*6 + 1] = SpriteIndex*4 + 1;
-			Indices[SpriteIndex*6 + 2] = SpriteIndex*4 + 2;
-			Indices[SpriteIndex*6 + 3] = SpriteIndex*4 + 0;
-			Indices[SpriteIndex*6 + 4] = SpriteIndex*4 + 2;
-			Indices[SpriteIndex*6 + 5] = SpriteIndex*4 + 3;
+			Indices[SpriteIndex * 6 + 0] = SpriteIndex * 4 + 0;
+			Indices[SpriteIndex * 6 + 1] = SpriteIndex * 4 + 1;
+			Indices[SpriteIndex * 6 + 2] = SpriteIndex * 4 + 2;
+			Indices[SpriteIndex * 6 + 3] = SpriteIndex * 4 + 0;
+			Indices[SpriteIndex * 6 + 4] = SpriteIndex * 4 + 2;
+			Indices[SpriteIndex * 6 + 5] = SpriteIndex * 4 + 3;
 		}
 		RHIUnlockIndexBuffer(IndexBufferRHI);
 	}
 };
 
 TGlobalResource<FTileIndexBuffer> GTileIndexBuffer;
-
-class FTileVertexDeclaration : public FRenderResource
-{
-public:
-	FVertexDeclarationRHIRef VertexDeclarationRHI;
-
-	/** Destructor. */
-	virtual ~FTileVertexDeclaration() {}
-
-	virtual void InitRHI()
-	{
-		FVertexDeclarationElementList Elements;
-		uint32 Stride = sizeof(FVector2D);
-		Elements.Add(FVertexElement(0,0,VET_Float2,0,Stride,false));
-		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
-	}
-
-	virtual void ReleaseRHI()
-	{
-		VertexDeclarationRHI.SafeRelease();
-	}
-};
-
-TGlobalResource<FTileVertexDeclaration> GTileVertexDeclaration;
 
 void AllocateCapsuleTileIntersectionCountsBuffer(FIntPoint GroupSize, FSceneViewState* ViewState)
 {
@@ -893,7 +869,8 @@ bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
 				
 				AllocateCapsuleTileIntersectionCountsBuffer(GroupSize, View.ViewState);
 
-				ClearUAV(RHICmdList, View.ViewState->CapsuleTileIntersectionCountsBuffer, 0);
+				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, View.ViewState->CapsuleTileIntersectionCountsBuffer.UAV);
+				RHICmdList.ClearUAVUint(View.ViewState->CapsuleTileIntersectionCountsBuffer.UAV, FUintVector4(0, 0, 0, 0));
 
 				{
 					SCOPED_DRAW_EVENT(RHICmdList, TiledCapsuleShadowing);
@@ -974,8 +951,7 @@ bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
 					GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
 					GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 				
-					FProjectedShadowInfo::SetBlendStateForProjection(
-						GraphicsPSOInit,
+					GraphicsPSOInit.BlendState = FProjectedShadowInfo::GetBlendStateForProjection(
 						LightSceneInfo.GetDynamicShadowMapChannel(),
 						false,
 						false,
@@ -1404,7 +1380,8 @@ void FDeferredShadingSceneRenderer::RenderIndirectCapsuleShadows(
 				
 						AllocateCapsuleTileIntersectionCountsBuffer(GroupSize, View.ViewState);
 
-						ClearUAV(RHICmdList, View.ViewState->CapsuleTileIntersectionCountsBuffer, 0);
+						RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, View.ViewState->CapsuleTileIntersectionCountsBuffer.UAV);
+						RHICmdList.ClearUAVUint(View.ViewState->CapsuleTileIntersectionCountsBuffer.UAV, FUintVector4(0, 0, 0, 0));
 
 						{
 							SCOPED_DRAW_EVENTF(RHICmdList, TiledCapsuleShadowing, TEXT("TiledCapsuleShadowing %u capsules among %u meshes"), NumCapsuleShapes, NumMeshesWithCapsules);

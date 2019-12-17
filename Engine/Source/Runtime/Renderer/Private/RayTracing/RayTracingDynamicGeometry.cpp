@@ -212,34 +212,10 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 	BuildParams.Add(Params);
 }
 
-
-template<typename C>
-struct TAutoCmdListType
+void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandList& RHICmdList)
 {
-	using Type = C;
-};
-
-template<>
-struct TAutoCmdListType<FRHIAsyncComputeCommandListImmediate>
-{
-	using Type = FRHIAsyncComputeCommandList;
-};
-
-template<>
-struct TAutoCmdListType<FRHICommandListImmediate>
-{
-	using Type = FRHICommandList;
-};
-
-
-
-template<typename CmdListType>
-void FRayTracingDynamicGeometryCollection::DispatchUpdates(CmdListType& RHICmdList)
-{
-	using BaseCmdListType = typename TAutoCmdListType<CmdListType>::Type;
-
 #if WANTS_DRAW_MESH_EVENTS
-#define SCOPED_DRAW_OR_COMPUTE_EVENT(RHICmdList, Name) TDrawEvent<BaseCmdListType> PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, FColor(0), TEXT(#Name));
+#define SCOPED_DRAW_OR_COMPUTE_EVENT(RHICmdList, Name) FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(RHICmdList, FColor(0), TEXT(#Name));
 #else
 #define SCOPED_DRAW_OR_COMPUTE_EVENT(...)
 #endif
@@ -268,7 +244,7 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(CmdListType& RHICmdLi
 
 					RHICmdList.SetComputeShader(Shader->GetComputeShader());
 
-					Cmd.ShaderBindings.SetOnCommandListForCompute(RHICmdList, Shader->GetComputeShader());
+					Cmd.ShaderBindings.SetOnCommandList(RHICmdList, Shader->GetComputeShader());
 					Shader->RWVertexPositions.SetBuffer(RHICmdList, Shader->GetComputeShader(), *Cmd.TargetBuffer);
 					SetShaderValue(RHICmdList, Shader->GetComputeShader(), Shader->VertexBufferSize, Cmd.TargetBuffer->NumBytes / sizeof(FVector));
 					SetShaderValue(RHICmdList, Shader->GetComputeShader(), Shader->NumVertices, Cmd.NumCPUVertices);
@@ -289,10 +265,6 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(CmdListType& RHICmdLi
 		Clear();
 	}
 }
-
-template void FRayTracingDynamicGeometryCollection::DispatchUpdates<FRHICommandListImmediate>(FRHICommandListImmediate& RHICmdList);
-
-template void FRayTracingDynamicGeometryCollection::DispatchUpdates<FRHIAsyncComputeCommandListImmediate>(FRHIAsyncComputeCommandListImmediate& RHICmdList);
 
 void FRayTracingDynamicGeometryCollection::Clear()
 {

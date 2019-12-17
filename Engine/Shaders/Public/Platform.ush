@@ -144,6 +144,10 @@
 #define MAC 0
 #endif
 
+#ifndef VECTORVM_PROFILE
+#define VECTORVM_PROFILE 0
+#endif
+
 // 'static' asserts
 #if COMPILER_GLSL || COMPILER_GLSL_ES2 || COMPILER_GLSL_ES3_1 || COMPILER_VULKAN || COMPILER_METAL
 #if !COMPILER_HLSLCC
@@ -233,39 +237,20 @@
 	#define FEATURE_LEVEL FEATURE_LEVEL_SM5
 	#define STENCIL_COMPONENT_SWIZZLE .x
 
-#elif GL3_PROFILE || GL4_PROFILE
-	#if GL3_PROFILE
-		#define FEATURE_LEVEL FEATURE_LEVEL_SM4
-	#elif GL4_PROFILE
-		#define FEATURE_LEVEL FEATURE_LEVEL_SM5
-	#endif
+#elif GL4_PROFILE
+	#define FEATURE_LEVEL FEATURE_LEVEL_SM5
 
 	// A8 textures when sampled have their component in R.
 	#define A8_SAMPLE_MASK .r
 
 	// hacks until the shader compiler supports those
-	#if GL4_PROFILE
-		#define class struct
-	#endif
+	#define class struct
 
 #elif METAL_PROFILE
 	#define FEATURE_LEVEL  FEATURE_LEVEL_ES3_1
 	// @todo metal: remove this and make sure all uses handle METAL_PROFILE
 	#undef ES3_1_PROFILE
 	#define ES3_1_PROFILE 1
-#if MAX_SHADER_LANGUAGE_VERSION >= 3
-	#define FCOLOR_COMPONENT_SWIZZLE .rgba
-#else
-	#define FCOLOR_COMPONENT_SWIZZLE .bgra
-#endif
-	#define FMANUALFETCH_COLOR_COMPONENT_SWIZZLE .bgra
-	#define STENCIL_COMPONENT_SWIZZLE .x
-
-#elif METAL_ES2_PROFILE
-	#define FEATURE_LEVEL  FEATURE_LEVEL_ES2
-	// @todo metal: remove this and make sure all uses handle METAL_ES2_PROFILE
-	#undef ES2_PROFILE
-	#define ES2_PROFILE 1
 #if MAX_SHADER_LANGUAGE_VERSION >= 3
 	#define FCOLOR_COMPONENT_SWIZZLE .rgba
 #else
@@ -316,6 +301,8 @@
 			#define A8_SAMPLE_MASK .r
 		#endif
 	#endif
+#elif VECTORVM_PROFILE
+	#define FEATURE_LEVEL FEATURE_LEVEL_SM5
 #endif
 
 #ifndef FEATURE_LEVEL
@@ -323,6 +310,12 @@
 
 	#define FEATURE_LEVEL FEATURE_LEVEL_MAX
 
+#endif
+
+#if COMPILER_METAL
+	// Metal does not allow writes to A8 textures so we are faking it by making them all R8.
+	// WARNING: If this changes or the type in MetalRHI changes both must be updated!
+	#define A8_SAMPLE_MASK .r
 #endif
 
 
@@ -367,7 +360,7 @@
 // Whether the platform supports a global clip plane through SV_ClipDistance
 // Ideally this would just be enabled for all SM4 and above feature level platforms, but not tested everywhere yet
 #ifndef PLATFORM_SUPPORTS_GLOBAL_CLIP_PLANE
-#define PLATFORM_SUPPORTS_GLOBAL_CLIP_PLANE (PS4_PROFILE || SM5_PROFILE || SM4_PROFILE || METAL_PROFILE || METAL_MRT_PROFILE || METAL_SM5_NOTESS_PROFILE || METAL_SM5_PROFILE || GL4_PROFILE || GL3_PROFILE || VULKAN_PROFILE_SM5)
+#define PLATFORM_SUPPORTS_GLOBAL_CLIP_PLANE (PS4_PROFILE || SM5_PROFILE || SM4_PROFILE || METAL_PROFILE || METAL_MRT_PROFILE || METAL_SM5_NOTESS_PROFILE || METAL_SM5_PROFILE || GL4_PROFILE || VULKAN_PROFILE_SM5)
 #endif
 
 // Whether the platform support pixel coverage on MSAA targets (SV_Coverage).

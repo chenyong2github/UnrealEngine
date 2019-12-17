@@ -135,7 +135,7 @@ void UKismetRenderingLibrary::DrawMaterialToRenderTarget(UObject* WorldContextOb
 		Canvas->Init(TextureRenderTarget->SizeX, TextureRenderTarget->SizeY, nullptr, &RenderCanvas);
 		Canvas->Update();
 
-		TDrawEvent<FRHICommandList>* DrawMaterialToTargetEvent = new TDrawEvent<FRHICommandList>();
+		FDrawEvent* DrawMaterialToTargetEvent = new FDrawEvent();
 
 		FName RTName = TextureRenderTarget->GetFName();
 		ENQUEUE_RENDER_COMMAND(BeginDrawEventCommand)(
@@ -576,10 +576,10 @@ void UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(UObject* WorldContex
 		Canvas->Init(TextureRenderTarget->SizeX, TextureRenderTarget->SizeY, nullptr, NewCanvas);
 		Canvas->Update();
 
-		Context.DrawEvent = new TDrawEvent<FRHICommandList>();
+		Context.DrawEvent = new FDrawEvent();
 
 		FName RTName = TextureRenderTarget->GetFName();
-		TDrawEvent<FRHICommandList>* DrawEvent = Context.DrawEvent;
+		FDrawEvent* DrawEvent = Context.DrawEvent;
 		ENQUEUE_RENDER_COMMAND(BeginDrawEventCommand)(
 			[RTName, DrawEvent, RenderTargetResource](FRHICommandListImmediate& RHICmdList)
 			{
@@ -612,7 +612,7 @@ void UKismetRenderingLibrary::EndDrawCanvasToRenderTarget(UObject* WorldContextO
 		if (Context.RenderTarget)
 		{
 			FTextureRenderTargetResource* RenderTargetResource = Context.RenderTarget->GameThread_GetRenderTargetResource();
-			TDrawEvent<FRHICommandList>* DrawEvent = Context.DrawEvent;
+			FDrawEvent* DrawEvent = Context.DrawEvent;
 			ENQUEUE_RENDER_COMMAND(CanvasRenderTargetResolveCommand)(
 				[RenderTargetResource, DrawEvent](FRHICommandList& RHICmdList)
 				{

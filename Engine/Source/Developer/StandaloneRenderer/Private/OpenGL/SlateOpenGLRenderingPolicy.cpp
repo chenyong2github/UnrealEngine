@@ -210,6 +210,11 @@ void FSlateOpenGLRenderingPolicy::DrawElements( const FMatrix& ViewProjectionMat
 		}
 #endif
 
+		if (EnumHasAllFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma))
+		{
+			ElementProgram.SetGammaValues(FVector2D(1.0f, 1.0f));
+		}
+
 		ElementProgram.SetShaderType( static_cast<uint8>(RenderBatch.GetShaderType()) );
 		ElementProgram.SetMarginUVs( RenderBatch.GetShaderParams().PixelParams );
 		ElementProgram.SetDrawEffects( RenderBatch.GetDrawEffects() );

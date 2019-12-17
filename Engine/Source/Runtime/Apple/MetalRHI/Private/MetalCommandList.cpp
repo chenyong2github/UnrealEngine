@@ -52,23 +52,8 @@ static void ReportMetalCommandBufferFailure(mtlpp::CommandBuffer const& Complete
 	FString FailureString = FailureDesc ? FString(FailureDesc) : FString(TEXT("Unknown"));
 	FString RecoveryString = RecoveryDesc ? FString(RecoveryDesc) : FString(TEXT("Unknown"));
 	
-	if (GetMetalDeviceContext().GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelLogDebugGroups)
-	{
-		NSMutableString* DescString = [NSMutableString new];
-		[DescString appendFormat:@"Command Buffer %p %@:", CompletedBuffer.GetPtr(), Label ? Label : @"Unknown"];
-
-		for (NSString* String in ((NSObject<MTLCommandBuffer>*)CompletedBuffer.GetPtr()).debugGroups)
-		{
-			[DescString appendFormat:@"\n\tDebugGroup: %@", String];
-		}
-		
-		UE_LOG(LogMetal, Warning, TEXT("Command Buffer %p %s:%s"), CompletedBuffer.GetPtr(), *LabelString, *FString(DescString));
-	}
-	else
-	{
-		NSString* Desc = CompletedBuffer.GetPtr().debugDescription;
-		UE_LOG(LogMetal, Warning, TEXT("%s"), *FString(Desc));
-	}
+	NSString* Desc = CompletedBuffer.GetPtr().debugDescription;
+	UE_LOG(LogMetal, Warning, TEXT("%s"), *FString(Desc));
 	
 #if PLATFORM_IOS
     if (bDoCheck && !GIsSuspended && !GIsRenderingThreadSuspended)
@@ -182,8 +167,6 @@ static void ReportMetalCommandBufferFailure(mtlpp::CommandBuffer const& Complete
                 }
 			}
 		}
-
-        FMetalCommandBufferDebugHelpers::DumpResources(CompletedBuffer.GetPtr());
 		
 #if PLATFORM_IOS
         UE_LOG(LogMetal, Warning, TEXT("Command Buffer %s Failed with %s Error! Error Domain: %s Code: %d Description %s %s %s"), *LabelString, ErrorType, *DomainString, Code, *ErrorString, *FailureString, *RecoveryString);

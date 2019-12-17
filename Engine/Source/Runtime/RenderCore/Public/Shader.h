@@ -1458,6 +1458,20 @@ protected:
 	);
 #endif
 
+#define IMPLEMENT_SHADER_TYPE4_WITH_TEMPLATE_PREFIX(TemplatePrefix,RequiredAPI,ShaderClass,Frequency) \
+	TemplatePrefix RequiredAPI \
+	ShaderClass::ShaderMetaType ShaderClass::StaticType( \
+	TEXT(#ShaderClass), \
+	ShaderClass::GetSourceFilename(), \
+	ShaderClass::GetFunctionName(), \
+	Frequency, \
+	1, \
+	ShaderClass::ConstructSerializedInstance, \
+	ShaderClass::ConstructCompiledInstance, \
+	ShaderClass::ModifyCompilationEnvironment, \
+	ShaderClass::ShouldCompilePermutation, \
+	ShaderClass::ValidateCompiledResult \
+	);
 
 // Binding of a set of shader stages in a single pipeline
 class RENDERCORE_API FShaderPipelineType

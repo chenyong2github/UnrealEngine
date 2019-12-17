@@ -217,7 +217,7 @@ void FGenerateMips::RenderMips(FRHICommandListImmediate& CommandList, FRHITextur
 		CommandList.BeginRenderPass(RPInfo, TEXT("GenMipsLevel"));
 		{
 			CommandList.ApplyCachedRenderTargets(GraphicsPSOInit);
-			CommandList.SetViewport(0, 0, 0.0f, Width, Height, 1.0f);
+			CommandList.SetViewport(0.0f, 0.0f, 0.0f, (float)Width, (float)Height, 1.0f);
 
 			SetGraphicsPipelineState(CommandList, GraphicsPSOInit);
 			CopyShader->SetParameters(CommandList, InTexture, CommandList.CreateSamplerState(GenMipsStruct->Sampler), FVector2D(0.5f / Width,  0.5f / Height), MipLevel - 1);

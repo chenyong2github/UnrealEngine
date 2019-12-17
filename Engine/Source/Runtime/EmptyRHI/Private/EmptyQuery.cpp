@@ -37,7 +37,7 @@ FRenderQueryRHIRef FEmptyDynamicRHI::RHICreateRenderQuery(ERenderQueryType Query
 	return new FEmptyRenderQuery(QueryType);
 }
 
-bool FEmptyDynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI,uint64& OutNumPixels,bool bWait)
+bool FEmptyDynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint64& OutNumPixels, bool bWait, uint32 GPUIndex)
 {
 	check(IsInRenderingThread());
 

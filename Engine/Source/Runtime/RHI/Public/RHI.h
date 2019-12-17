@@ -80,6 +80,9 @@ extern RHI_API EShaderPlatform GMaxRHIShaderPlatform;
 /** true if the RHI supports SRVs */
 extern RHI_API bool GSupportsResourceView;
 
+/** Whether the RHI can send commands to the device context from multiple threads. Used in the GPU readback to avoid stalling the RHI threads. */
+extern RHI_API bool GRHISupportsMultithreading;
+
 /** 
  * only set if RHI has the information (after init of the RHI and only if RHI has that information, never changes after that)
  * e.g. "NVIDIA GeForce GTX 670"
@@ -164,7 +167,7 @@ inline bool RHISupportsVolumeTextures(ERHIFeatureLevel::Type FeatureLevel)
 
 inline bool RHISupportsVertexShaderLayer(const EShaderPlatform Platform)
 {
-	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && IsMetalPlatform(Platform) && (IsPCPlatform(Platform) || (Platform == SP_METAL_MRT && RHIGetShaderLanguageVersion(Platform) >= 4));
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && IsMetalPlatform(Platform) && IsPCPlatform(Platform);
 }
 
 /** Return true if and only if the GPU support rendering to volume textures (2D Array, 3D) is guaranteed supported for a target platform.
@@ -496,9 +499,6 @@ extern RHI_API int32 GCurrentNumPrimitivesDrawnRHI;
 /** Whether or not the RHI can handle a non-zero BaseVertexIndex - extra SetStreamSource calls will be needed if this is false */
 extern RHI_API bool GRHISupportsBaseVertexIndex;
 
-/** True if the RHI supports hardware instancing */
-extern RHI_API TRHIGlobal<bool> GRHISupportsInstancing;
-
 /** True if the RHI supports copying cubemap faces using CopyToResolveTarget */
 extern RHI_API bool GRHISupportsResolveCubemapFaces;
 
@@ -510,6 +510,12 @@ extern RHI_API bool GRHISupportsDynamicResolution;
 
 /** Whether or not the RHI supports ray tracing on current hardware (acceleration structure building and new ray tracing-specific shader types). */
 extern RHI_API bool GRHISupportsRayTracing;
+
+/** Whether or not the RHI supports binding multiple miss shaders with local resources via RHISetRayTracingMissShader(). */
+extern RHI_API bool GRHISupportsRayTracingMissShaderBindings;
+
+/** Whether or not the RHI supports async building ray tracing acceleration structures. */
+extern RHI_API bool GRHISupportsRayTracingAsyncBuildAccelerationStructure;
 
 /** Whether or not the RHI supports shader wave operations (shader model 6.0). */
 extern RHI_API bool GRHISupportsWaveOperations;

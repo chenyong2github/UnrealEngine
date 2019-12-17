@@ -74,7 +74,7 @@ public:
 	 * @param InCompressedSize The size of the compressed data parsed.
 	 * @return true if data was the expected format.
 	 */
-	virtual bool SetCompressed(const void* InCompressedData, int32 InCompressedSize) = 0;
+	virtual bool SetCompressed(const void* InCompressedData, int64 InCompressedSize) = 0;
 
 	/**  
 	 * Sets the compressed data.
@@ -87,7 +87,7 @@ public:
 	 * @param InBitDepth the bit-depth per channel, normally 8.
 	 * @return true if data was the expected format.
 	 */
-	virtual bool SetRaw(const void* InRawData, int32 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth) = 0;
+	virtual bool SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth) = 0;
 
 	/**
 	 * Set information for animated formats
@@ -102,7 +102,7 @@ public:
 	 *
 	 * @return Array of the compressed data.
 	 */
-	virtual const TArray<uint8>& GetCompressed(int32 Quality = 0) = 0;
+	virtual const TArray64<uint8>& GetCompressed(int32 Quality = 0) = 0;
 
 	/**  
 	 * Gets the raw data.
@@ -112,9 +112,32 @@ public:
 	 * @param OutRawData Will contain the uncompressed raw data.
 	 * @return true on success, false otherwise.
 	 */
-	virtual bool GetRaw(const ERGBFormat InFormat, int32 InBitDepth, const TArray<uint8>*& OutRawData) = 0;
+	virtual bool GetRaw(const ERGBFormat InFormat, int32 InBitDepth, TArray64<uint8>& OutRawData) = 0;
 
-	/** 
+	/**
+	 * Gets the raw data in a TArray. Only use this if you're certain that the image is less than 2 GB in size.
+	 * Prefer using the overload which takes a TArray64 in general.
+	 *
+	 * @param InFormat How we want to manipulate the RGB data.
+	 * @param InBitDepth The output bit-depth per channel, normally 8.
+	 * @param OutRawData Will contain the uncompressed raw data.
+	 * @return true on success, false otherwise.
+	 */
+	bool GetRaw(const ERGBFormat InFormat, int32 InBitDepth, TArray<uint8>& OutRawData)
+	{
+		TArray64<uint8> TmpRawData;
+		if (GetRaw(InFormat, InBitDepth, TmpRawData) && ensureMsgf(TmpRawData.Num() == (int32)TmpRawData.Num(), TEXT("Tried to get %dx%d %dbpp image with format %d into 32-bit TArray (" INT64_FMT " bytes)"), GetWidth(), GetHeight(), InBitDepth, InFormat, (long long int)TmpRawData.Num()))
+		{
+			OutRawData = MoveTemp(TmpRawData);
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	/**
 	 * Gets the width of the image.
 	 *
 	 * @return Image width.

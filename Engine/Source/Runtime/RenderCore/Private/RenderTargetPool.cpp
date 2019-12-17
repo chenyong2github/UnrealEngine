@@ -549,6 +549,11 @@ Done:
 	// Transient RTs have to be targettable
 	check( ( Desc.Flags & TexCreate_Transient ) == 0 || Found->GetRenderTargetItem().TargetableTexture != nullptr );
 
+	if (Found->GetRenderTargetItem().TargetableTexture)
+	{
+		RHIBindDebugLabelName(Found->GetRenderTargetItem().TargetableTexture, InDebugName);
+	}
+
 	return false;
 }
 

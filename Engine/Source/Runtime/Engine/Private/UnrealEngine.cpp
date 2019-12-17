@@ -1019,10 +1019,8 @@ public:
 			{
 				check( ImageWrapper->GetWidth() == InWidth );
 				check( ImageWrapper->GetHeight() == InHeight );
-				const TArray<uint8>* RawData = NULL;
-				if ( ImageWrapper->GetRaw( ERGBFormat::RGBA, 8, RawData ) )	// @todo CB: Eliminate image copy here? (decompress straight to buffer)
+				if ( ImageWrapper->GetRaw( ERGBFormat::RGBA, 8, OutUncompressedData) )
 				{
-					OutUncompressedData = *RawData;
 					bSucceeded = true;
 				}
 			}

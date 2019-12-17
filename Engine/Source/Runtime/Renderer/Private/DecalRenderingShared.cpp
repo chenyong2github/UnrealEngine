@@ -472,8 +472,8 @@ void FDecalRendering::SetDecalCompilationEnvironment(EShaderPlatform Platform, c
 	FDecalRenderingCommon::ERenderTargetMode RenderTargetMode = FDecalRenderingCommon::ComputeRenderTargetMode(Platform, FinalDecalBlendMode, bHasNormalConnected);
 	uint32 RenderTargetCount = FDecalRenderingCommon::ComputeRenderTargetCount(Platform, RenderTargetMode);
 
-	uint32 BindTarget1 = (RenderTargetMode == FDecalRenderingCommon::RTM_SceneColorAndGBufferNoNormal || RenderTargetMode == FDecalRenderingCommon::RTM_SceneColorAndGBufferDepthWriteNoNormal) ? 0 : 1;
-	OutEnvironment.SetDefine(TEXT("BIND_RENDERTARGET1"), BindTarget1);
+	uint32 DecalOutputNormal = (RenderTargetMode == FDecalRenderingCommon::RTM_SceneColorAndGBufferNoNormal || RenderTargetMode == FDecalRenderingCommon::RTM_SceneColorAndGBufferDepthWriteNoNormal) ? 0 : 1;
+	OutEnvironment.SetDefine(TEXT("DECAL_OUTPUT_NORMAL"), DecalOutputNormal);
 
 	// avoid using the index directly, better use DECALBLENDMODEID_VOLUMETRIC, DECALBLENDMODEID_STAIN, ...
 	OutEnvironment.SetDefine(TEXT("DECAL_BLEND_MODE"), (uint32)FinalDecalBlendMode);
@@ -491,7 +491,7 @@ void FDecalRendering::SetDecalCompilationEnvironment(EShaderPlatform Platform, c
 
 void FDecalRendering::SetEmissiveDBufferDecalCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
 {
-	OutEnvironment.SetDefine(TEXT("BIND_RENDERTARGET1"), 0);
+	OutEnvironment.SetDefine(TEXT("DECAL_OUTPUT_NORMAL"), 0);
 	OutEnvironment.SetDefine(TEXT("DECAL_BLEND_MODE"), (uint32)DBM_DBuffer_Emissive);
 	OutEnvironment.SetDefine(TEXT("DECAL_RENDERTARGET_COUNT"), 1);
 	OutEnvironment.SetDefine(TEXT("DECAL_RENDERSTAGE"), (uint32)DRS_Emissive);

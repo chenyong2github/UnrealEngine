@@ -212,6 +212,12 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 			WorldNormal = LightDirection;
 			bApplyNormalCulling = false;
 		}
+			
+		// Fixes clipping of eye caustic normals in raytrace shadows
+		if (ShadingModelID == SHADINGMODELID_EYE)
+		{
+			bApplyNormalCulling = false;
+		}
 
 #if ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
 		LOOP for (uint SampleIndex = 0; SampleIndex < LocalSamplesPerPixel; ++SampleIndex)

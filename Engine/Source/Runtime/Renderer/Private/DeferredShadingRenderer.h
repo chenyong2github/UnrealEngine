@@ -16,17 +16,15 @@
 #include "DepthRendering.h"
 #include "ScreenSpaceDenoise.h"
 
-#if RHI_RAYTRACING
-enum class ERayTracingPrimaryRaysFlag : uint32;
-#endif
 
+enum class ERayTracingPrimaryRaysFlag : uint32;
 enum class EVelocityPass : uint32;
 
 class FSceneTextureParameters;
 class FDistanceFieldAOParameters;
 class UStaticMeshComponent;
 class FExponentialHeightFogSceneInfo;
-
+class FRaytracingLightDataPacked;
 struct FSingleLayerWaterPassData;
 struct FHeightFogRenderingParameters;
 
@@ -499,12 +497,15 @@ private:
 
 	void CopySceneCaptureComponentToTarget(FRHICommandListImmediate& RHICmdList);
 
+	void SetupImaginaryReflectionTextureParameters(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		FSceneTextureParameters* OutTextures);
 	void RenderRayTracingReflections(
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextureParameters& SceneTextures,
 		const FViewInfo& View,
 		int32 SamplePerPixel,
-		int32 HeightFog,
 		float ResolutionFraction,
 		IScreenSpaceDenoiser::FReflectionsInputs* OutDenoiserInputs);
 
@@ -565,25 +566,6 @@ private:
 	template <int TextureImportanceSampling> void RenderRayTracingRectLightInternal(FRHICommandListImmediate& RHICmdList, const TArray<FViewInfo>& Views, const FLightSceneInfo& RectLightSceneInfo, TRefCountPtr<IPooledRenderTarget>& ScreenShadowMaskTexture, TRefCountPtr<IPooledRenderTarget>& RayDistanceTexture);
 	void VisualizeRectLightMipTree(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const FRWBuffer& RectLightMipTree, const FIntVector& RectLightMipTreeDimensions);
 	
-	void BuildSkyLightCdfs(FRHICommandListImmediate& RHICmdList, FSkyLightSceneProxy* SkyLight);
-	void BuildSkyLightMipTree(FRHICommandListImmediate& RHICmdList, FTextureRHIRef SkyLightTexture, FRWBuffer& SkyLightMipTreePosX, FRWBuffer& SkyLightMipTreePosY, FRWBuffer& SkyLightMipTreePosZ, FRWBuffer& SkyLightMipTreeNegX, FRWBuffer& SkyLightMipTreeNegY, FRWBuffer& SkyLightMipTreeNegZ, FIntVector& SkyLightMipTreeDimensions);
-	void BuildSkyLightMipTreePdf(
-		FRHICommandListImmediate& RHICmdList,
-		const FRWBuffer& SkyLightMipTreePosX,
-		const FRWBuffer& SkyLightMipTreeNegX,
-		const FRWBuffer& SkyLightMipTreePosY,
-		const FRWBuffer& SkyLightMipTreeNegY,
-		const FRWBuffer& SkyLightMipTreePosZ,
-		const FRWBuffer& SkyLightMipTreeNegZ,
-		const FIntVector& SkyLightMipTreeDimensions,
-		FRWBuffer& SkyLightMipTreePdfPosX,
-		FRWBuffer& SkyLightMipTreePdfNegX,
-		FRWBuffer& SkyLightMipTreePdfPosY,
-		FRWBuffer& SkyLightMipTreePdfNegY,
-		FRWBuffer& SkyLightMipTreePdfPosZ,
-		FRWBuffer& SkyLightMipTreePdfNegZ
-	);
-	void BuildSolidAnglePdf(FRHICommandListImmediate& RHICmdList, const FIntVector& Dimensions, FRWBuffer& SolidAnglePdf);
 
 	void GenerateSkyLightVisibilityRays(FRDGBuilder& GraphBuilder, FRDGBufferRef& SkyLightVisibilityRays, FIntVector& Dimensions);
 	void VisualizeSkyLightMipTree(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FRWBuffer& SkyLightMipTreePosX, FRWBuffer& SkyLightMipTreePosY, FRWBuffer& SkyLightMipTreePosZ, FRWBuffer& SkyLightMipTreeNegX, FRWBuffer& SkyLightMipTreeNegY, FRWBuffer& SkyLightMipTreeNegZ, const FIntVector& SkyLightMipDimensions);
@@ -608,6 +590,9 @@ private:
 		int32 HeightFog,
 		float ResolutionFraction);
 
+	/** Lighting Evaluation shader setup (used by ray traced reflections and translucency) */
+	void SetupRayTracingLightingMissShader(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
+
 	/** Path tracing functions. */
 	void RenderPathTracing(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
 
@@ -619,9 +604,6 @@ private:
 	void ComputePathCompaction(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FRHITexture* RadianceTexture, FRHITexture* SampleCountTexture, FRHITexture* PixelPositionTexture,
 		FRHIUnorderedAccessView* RadianceSortedRedUAV, FRHIUnorderedAccessView* RadianceSortedGreenUAV, FRHIUnorderedAccessView* RadianceSortedBlueUAV, FRHIUnorderedAccessView* RadianceSortedAlphaUAV, FRHIUnorderedAccessView* SampleCountSortedUAV);
 
-	void BuildSkyLightCdf(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const FTexture& SkyLightTextureCube, FRWBuffer& RowCdf, FRWBuffer& ColumnCdf, FRWBuffer& CubeFaceCdf);
-	void VisualizeSkyLightCdf(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FIntVector Dimensions, const FRWBuffer& RowCdf, const FRWBuffer& ColumnCdf, const FRWBuffer& CubeFaceCdf);
-
 	void ComputeRayCount(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FRHITexture* RayCountPerPixelTexture);
 
 	void WaitForRayTracingScene(FRHICommandListImmediate& RHICmdList);
@@ -632,11 +614,11 @@ private:
 
 	bool GatherRayTracingWorldInstances(FRHICommandListImmediate& RHICmdList);
 	bool DispatchRayTracingWorldUpdates(FRHICommandListImmediate& RHICmdList);
-	FRayTracingPipelineState* BindRayTracingMaterialPipeline(FRHICommandList& RHICmdList, const FViewInfo& View, const TArrayView<FRHIRayTracingShader*>& RayGenShaderTable, FRHIRayTracingShader* DefaultClosestHitShader);
+	FRayTracingPipelineState* BindRayTracingMaterialPipeline(FRHICommandList& RHICmdList, FViewInfo& View, const TArrayView<FRHIRayTracingShader*>& RayGenShaderTable, FRHIRayTracingShader* DefaultClosestHitShader);
 	FRayTracingPipelineState* BindRayTracingDeferredMaterialGatherPipeline(FRHICommandList& RHICmdList, const FViewInfo& View, FRHIRayTracingShader* RayGenShader);
 
 	// #dxr_todo: UE-72565: refactor ray tracing effects to not be member functions of DeferredShadingRenderer. Register each effect at startup and just loop over them automatically
-	static void PrepareRayTracingReflections(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
+	static void PrepareRayTracingReflections(const FViewInfo& View, const FScene& Scene, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareRayTracingShadows(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareRayTracingAmbientOcclusion(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareRayTracingSkyLight(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
@@ -646,8 +628,11 @@ private:
 	static void PrepareRayTracingDebug(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PreparePathTracing(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 
-	FComputeFenceRHIRef RayTracingDynamicGeometryUpdateBeginFence; // Signalled when ray tracing AS can start building
-	FComputeFenceRHIRef RayTracingDynamicGeometryUpdateEndFence; // Signalled when all AS for this frame are built
+	/** Lighting evaluation shader registration */
+	static FRHIRayTracingShader* GetRayTracingLightingMissShader(FViewInfo& View);
+
+	FComputeFenceRHIRef RayTracingDynamicGeometryUpdateBeginFence; // Signaled when ray tracing AS can start building
+	FComputeFenceRHIRef RayTracingDynamicGeometryUpdateEndFence; // Signaled when all AS for this frame are built
 
 #endif // RHI_RAYTRACING
 

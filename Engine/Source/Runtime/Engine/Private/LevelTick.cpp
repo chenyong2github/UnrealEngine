@@ -929,7 +929,7 @@ struct FSendAllEndOfFrameUpdates
 {
 	FGPUSkinCache* GPUSkinCache;
 #if WANTS_DRAW_MESH_EVENTS
-	TDrawEvent<FRHICommandList> DrawEvent;
+	FDrawEvent DrawEvent;
 #endif
 };
 
@@ -1322,10 +1322,10 @@ DECLARE_CYCLE_STAT(TEXT("TG_LastDemotable"), STAT_TG_LastDemotable, STATGROUP_Ti
 
 #include "GameFramework/SpawnActorTimer.h"
 
-TDrawEvent<FRHICommandList>* BeginTickDrawEvent()
+FDrawEvent* BeginTickDrawEvent()
 {
-	TDrawEvent<FRHICommandList>* TickDrawEvent = new TDrawEvent<FRHICommandList>();
-	TDrawEvent<FRHICommandList>* InTickDrawEvent = TickDrawEvent;
+	FDrawEvent* TickDrawEvent = new FDrawEvent();
+	FDrawEvent* InTickDrawEvent = TickDrawEvent;
 	ENQUEUE_RENDER_COMMAND(BeginDrawEventCommand)(
 		[InTickDrawEvent](FRHICommandList& RHICmdList)
 		{
@@ -1339,9 +1339,9 @@ TDrawEvent<FRHICommandList>* BeginTickDrawEvent()
 	return TickDrawEvent;
 }
 
-void EndTickDrawEvent(TDrawEvent<FRHICommandList>* TickDrawEvent)
+void EndTickDrawEvent(FDrawEvent* TickDrawEvent)
 {
-	TDrawEvent<FRHICommandList>* InTickDrawEvent = TickDrawEvent;
+	FDrawEvent* InTickDrawEvent = TickDrawEvent;
 	ENQUEUE_RENDER_COMMAND(EndDrawEventCommand)(
 		[InTickDrawEvent](FRHICommandList& RHICmdList)
 		{
@@ -1366,7 +1366,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 		return;
 	}
 
-	TDrawEvent<FRHICommandList>* TickDrawEvent = BeginTickDrawEvent();
+	FDrawEvent* TickDrawEvent = BeginTickDrawEvent();
 
 	FWorldDelegates::OnWorldTickStart.Broadcast(this, TickType, DeltaSeconds);
 

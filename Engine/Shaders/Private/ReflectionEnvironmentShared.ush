@@ -3,7 +3,9 @@
 /*=============================================================================
 	ReflectionEnvironmentShared
 =============================================================================*/
-  
+
+#pragma once
+
 #define REFLECTION_CAPTURE_ROUGHEST_MIP 1
 #define REFLECTION_CAPTURE_ROUGHNESS_MIP_SCALE 1.2
 

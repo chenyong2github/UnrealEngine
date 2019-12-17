@@ -1343,7 +1343,6 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		LERP_PP(AutoExposureHighPercent);
 		LERP_PP(AutoExposureMinBrightness);
 		LERP_PP(AutoExposureMaxBrightness);
-		LERP_PP(AutoExposureCalibrationConstant);
 		LERP_PP(AutoExposureSpeedUp);
 		LERP_PP(AutoExposureSpeedDown);
 		LERP_PP(AutoExposureBias);
@@ -1546,6 +1545,12 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 			Dest.AutoExposureBiasCurve = Src.AutoExposureBiasCurve;
 		}
 
+		// Texture asset isn't blended
+		IF_PP(AutoExposureMeterMask)
+		{
+			Dest.AutoExposureMeterMask = Src.AutoExposureMeterMask;
+		}
+
 		// actual texture cannot be blended but the intensity can be blended
 		IF_PP(LensFlareBokehShape)
 		{
@@ -1578,6 +1583,11 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		if (Src.bOverride_MotionBlurTargetFPS)
 		{
 			Dest.MotionBlurTargetFPS = Src.MotionBlurTargetFPS;
+		}
+
+		if (Src.bOverride_AutoExposureApplyPhysicalCameraExposure)
+		{
+			Dest.AutoExposureApplyPhysicalCameraExposure = Src.AutoExposureApplyPhysicalCameraExposure;
 		}
 	}
 
@@ -2325,6 +2335,7 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 		InViewMatrices.GetTemporalAAJitter().X,		InViewMatrices.GetTemporalAAJitter().Y,
 		InPrevViewMatrices.GetTemporalAAJitter().X, InPrevViewMatrices.GetTemporalAAJitter().Y );
 
+	ViewUniformShaderParameters.DebugViewModeMask = Family->UseDebugViewPS() ? 1 : 0;
 	ViewUniformShaderParameters.UnlitViewmodeMask = !Family->EngineShowFlags.Lighting ? 1 : 0;
 	ViewUniformShaderParameters.OutOfBoundsMask = Family->EngineShowFlags.VisualizeOutOfBoundsPixels ? 1 : 0;
 

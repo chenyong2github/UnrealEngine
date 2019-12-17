@@ -34,9 +34,8 @@ FGpuDebugPrimitiveBuffers AllocateGpuDebugPrimitiveBuffers(FRHICommandListImmedi
 		}
 	}
 
-	uint32 ClearValues[4] = { 0, 0, 0, 0 };
-	RHICmdList.ClearTinyUAV(Output.DebugPrimitiveCountTexture->GetRenderTargetItem().UAV, ClearValues);
-	RHICmdList.ClearTinyUAV(Output.DebugPrimitiveTexture->GetRenderTargetItem().UAV, ClearValues);
+	RHICmdList.ClearUAVUint(Output.DebugPrimitiveCountTexture->GetRenderTargetItem().UAV, FUintVector4(0, 0, 0, 0));
+	RHICmdList.ClearUAVFloat(Output.DebugPrimitiveTexture->GetRenderTargetItem().UAV, FVector4(0, 0, 0, 0));
 
 	return Output;
 }
@@ -116,13 +115,7 @@ static FGpuDebugLineArray ReadGPUDebugPrimitives(FRHICommandListImmediate& RHICm
 
 void BindGpuDebugPrimitiveBuffers(FRHIRenderPassInfo& RPInfo, FGpuDebugPrimitiveBuffers& DebugPrimitiveBuffer, uint32 UAVIndex)
 {
-	// Currently this value is hardcoded into the shader. Once the index is configurable in the shader, this check should be remove
-	check(UAVIndex == 0); 
-
-	RPInfo.UAVIndex = UAVIndex;
-	RPInfo.NumUAVs = 2;
-	RPInfo.UAVs[UAVIndex+0] = DebugPrimitiveBuffer.DebugPrimitiveCountTexture->GetRenderTargetItem().UAV;
-	RPInfo.UAVs[UAVIndex+1] = DebugPrimitiveBuffer.DebugPrimitiveTexture->GetRenderTargetItem().UAV;
+	checkNoEntry();//not yet implemented
 }
 
 void DrawGpuDebugPrimitives(FRHICommandListImmediate& RHICmdList, TArray<FViewInfo>& Views, FGpuDebugPrimitiveBuffers& DebugPrimitiveBuffer)

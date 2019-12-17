@@ -2084,7 +2084,7 @@ TSharedRef<SWidget> FMeshSectionSettingsLayout::OnGenerateCustomSectionWidgetsFo
 					.Text(LOCTEXT("CastShadow", "Cast Shadow"))
 			]
 		]
-		+SHorizontalBox::Slot()
+		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.Padding(2,0,2,0)
 		[
@@ -2098,7 +2098,51 @@ TSharedRef<SWidget> FMeshSectionSettingsLayout::OnGenerateCustomSectionWidgetsFo
 					.Font(FEditorStyle::GetFontStyle("StaticMeshEditor.NormalFont"))
 					.Text(LOCTEXT("EnableCollision", "Enable Collision"))
 			]
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(2, 0, 2, 0)
+		[
+			SNew(SCheckBox)
+			.IsChecked(this, &FMeshSectionSettingsLayout::IsSectionOpaque, SectionIndex)
+			.OnCheckStateChanged(this, &FMeshSectionSettingsLayout::OnSectionForceOpaqueFlagChanged, SectionIndex)
+			[
+				SNew(STextBlock)
+					.Font(FEditorStyle::GetFontStyle("StaticMeshEditor.NormalFont"))
+					.Text(LOCTEXT("ForceOpaque", "Force Opaque"))
+			]
 		];
+}
+
+ECheckBoxState FMeshSectionSettingsLayout::IsSectionOpaque( int32 SectionIndex ) const
+{
+	UStaticMesh& StaticMesh = GetStaticMesh();
+	FMeshSectionInfo Info = StaticMesh.GetSectionInfoMap().Get(LODIndex, SectionIndex);
+	return Info.bForceOpaque ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void FMeshSectionSettingsLayout::OnSectionForceOpaqueFlagChanged( ECheckBoxState NewState, int32 SectionIndex )
+{
+	UStaticMesh& StaticMesh = GetStaticMesh();
+
+	FText TransactionTest = LOCTEXT("StaticMeshEditorSetForceOpaqueSectionFlag", "Staticmesh editor: Set Force Opaque For section, the section will be considered opaque in ray tracing effects");
+	if (NewState == ECheckBoxState::Unchecked)
+	{
+		TransactionTest = LOCTEXT("StaticMeshEditorClearShadowCastingSectionFlag", "Staticmesh editor: Clear Force Opaque For section");
+	}
+	FScopedTransaction Transaction(TransactionTest);
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		UProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+		StaticMesh.PreEditChange(Property);
+	StaticMesh.Modify();
+
+	FMeshSectionInfo Info = StaticMesh.GetSectionInfoMap().Get(LODIndex, SectionIndex);
+	Info.bForceOpaque = (NewState == ECheckBoxState::Checked) ? true : false;
+	StaticMesh.GetSectionInfoMap().Set(LODIndex, SectionIndex, Info);
+	CallPostEditChange();
 }
 
 ECheckBoxState FMeshSectionSettingsLayout::DoesSectionCastShadow(int32 SectionIndex) const

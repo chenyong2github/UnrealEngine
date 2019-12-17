@@ -7,6 +7,7 @@ SkyLight.usf: Light sampling functions for SkyLight implementation
 #pragma once
 
 #include "../../RayTracing/SkyLightMipTreeCommon.ush"
+#include "../../ReflectionEnvironmentShared.ush"
 
 #define USE_HIERARCHICAL_IMPORTANCE_SAMPLING
 
@@ -70,10 +71,11 @@ void SkyLight_EstimateLight(
 	out float OutIrradiance
 )
 {
-	uint Width, Height, NumberOfLevels;
-	SkyLight.Texture.GetDimensions(0, Width, Height, NumberOfLevels);
-	float LightPower = Luminance(GetColor(LightId) * TextureCubeSampleLevel(SkyLight.Texture, SkyLight.TextureSampler, float3(0.0, 1.0, 0.0), NumberOfLevels - 1).xyz);
-	OutIrradiance = LightPower * 2.0 * PI;
+	float3 WorldNormal = Payload.WorldNormal;
+	float3 SkyLightIrradiance = GetColor(LightId) * GetSkySHDiffuse(WorldNormal);
+	float SkyLightIlluminance = Luminance(SkyLightIrradiance);
+
+	OutIrradiance = SkyLightIlluminance * 2.0f * PI;
 }
 
 void SkyLight_SampleLight(

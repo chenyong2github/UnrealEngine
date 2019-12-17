@@ -12,6 +12,7 @@ RaytracingAccelerationStructure TLAS;
 
 uint VisualizationMode;
 uint ShouldUsePreExposure;
+uint OpaqueOnly;
 
 RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 {
@@ -24,7 +25,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 	RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 
 	const uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
-	const uint InstanceInclusionMask = RAY_TRACING_MASK_ALL;
+	const uint InstanceInclusionMask = OpaqueOnly ? RAY_TRACING_MASK_OPAQUE : RAY_TRACING_MASK_ALL;
 	const bool bEnableSkyLightContribution = true;
 
 	FMaterialClosestHitPayload Payload = TraceMaterialRay(

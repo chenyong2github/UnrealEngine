@@ -1412,7 +1412,8 @@ void UpdateGlobalDistanceFieldVolume(
 
 								// Cull the global objects to the volume being updated
 								{
-									ClearUAV(RHICmdList, GGlobalDistanceFieldCulledObjectBuffers.Buffers.ObjectIndirectArguments, 0);
+									RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, GGlobalDistanceFieldCulledObjectBuffers.Buffers.ObjectIndirectArguments.UAV);
+									RHICmdList.ClearUAVUint(GGlobalDistanceFieldCulledObjectBuffers.Buffers.ObjectIndirectArguments.UAV, FUintVector4(0, 0, 0, 0));
 
 									TShaderMapRef<FCullObjectsForVolumeCS> ComputeShader(View.ShaderMap);
 									RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());

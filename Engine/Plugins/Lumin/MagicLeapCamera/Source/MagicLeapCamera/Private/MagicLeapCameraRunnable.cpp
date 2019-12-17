@@ -253,15 +253,15 @@ bool FCameraRunnable::CaptureImageToTexture()
 	MLCameraPlaneInfo& ImageInfo = CameraOutput->planes[0];
 	if (ImageWrapper.IsValid() && ImageWrapper->SetCompressed(ImageInfo.data, ImageInfo.size))
 	{
-		const TArray<uint8>* RawData = NULL;
+		TArray64<uint8> RawData;
 		if (ImageWrapper->GetRaw(ImageWrapper->GetFormat(), 8, RawData))
 		{
-			Log(FString::Printf(TEXT("ImageWrapper width=%d height=%d size=%d"), ImageWrapper->GetWidth(), ImageWrapper->GetHeight(), RawData->Num()));
+			Log(FString::Printf(TEXT("ImageWrapper width=%d height=%d size=" INT64_FMT), ImageWrapper->GetWidth(), ImageWrapper->GetHeight(), RawData.Num()));
 			UTexture2D* CaptureTexture = UTexture2D::CreateTransient(ImageWrapper->GetWidth(), ImageWrapper->GetHeight(), EPixelFormat::PF_R8G8B8A8);
 			CaptureTexture->AddToRoot();
 			FTexture2DMipMap& Mip = CaptureTexture->PlatformData->Mips[0];
 			void* Data = Mip.BulkData.Lock(LOCK_READ_WRITE);
-			FMemory::Memcpy(Data, RawData->GetData(), Mip.BulkData.GetBulkDataSize());
+			FMemory::Memcpy(Data, RawData.GetData(), Mip.BulkData.GetBulkDataSize());
 			Mip.BulkData.Unlock();
 			CaptureTexture->UpdateResource();
 			CurrentTask.Texture = CaptureTexture;

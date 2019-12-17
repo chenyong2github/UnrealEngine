@@ -25,8 +25,8 @@ public:
 
 	//~ FImageWrapperBase interface
 
-	virtual bool SetCompressed(const void* InCompressedData, int32 InCompressedSize) override;
-	virtual bool SetRaw(const void* InRawData, int32 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth) override;
+	virtual bool SetCompressed(const void* InCompressedData, int64 InCompressedSize) override;
+	virtual bool SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth) override;
 	virtual void Uncompress(const ERGBFormat InFormat, int32 InBitDepth) override;
 	virtual void Compress(int32 Quality) override;
 

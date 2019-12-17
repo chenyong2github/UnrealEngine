@@ -12,6 +12,8 @@ PathTracingMaterialSampling.usf: Material sampling functions
 #include "PathTracingGlossy.ush"
 #include "PathTracingSpecularReflection.ush"
 #include "PathTracingSpecularTransmission.ush"
+#include "PathTracingDefaultLit.ush"
+#include "PathTracingClearCoat.ush"
 
 
 void SampleMaterialAsWorldNormal(
@@ -34,6 +36,14 @@ bool IsNeeValidMaterial(FMaterialClosestHitPayload Payload)
 	if (IsPureSpecularReflection(Payload))
 	{
 		return false;
+	}
+	else if (IsDefaultLitMaterial(Payload))
+	{
+		return true;
+	}
+	else if (IsClearCoatMaterial(Payload))
+	{
+		return true;
 	}
 	else if (IsPureSpecularTransmission(Payload))
 	{
@@ -67,6 +77,14 @@ void SampleMaterial(
 	{
 		SpecularRefraction_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutThroughput, OutPdf, OutPositionBiasSign);
 	}
+	else if (IsDefaultLitMaterial(Payload))
+	{
+		DefaultLit_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutThroughput, OutPdf);
+	}
+	else if (IsClearCoatMaterial(Payload))
+	{
+		ClearCoat_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutThroughput, OutPdf);
+	}
 	else if(IsLambert(Payload))
 	{
 		Lambert_SampleMaterial(Payload, RandSample, OutDirection, OutThroughput, OutPdf);
@@ -91,6 +109,14 @@ void PdfMaterial(
 	else if (IsPureSpecularTransmission(Payload))
 	{
 		OutPdf = SpecularTransmission_Pdf();
+	}
+	else if (IsDefaultLitMaterial(Payload))
+	{
+		OutPdf = DefaultLit_PdfMaterial(IncomingDirection, OutgoingDirection, Payload);
+	}
+	else if (IsClearCoatMaterial(Payload))
+	{
+		OutPdf = ClearCoat_PdfMaterial(IncomingDirection, OutgoingDirection, Payload);
 	}
 	else if (IsLambert(Payload))
 	{
@@ -117,6 +143,14 @@ void EvalMaterial(
 	else if (IsPureSpecularTransmission(Payload))
 	{
 		SpecularTransmission_EvalMaterial(OutThroughput, OutPdf);
+	}
+	else if (IsDefaultLitMaterial(Payload))
+	{
+		DefaultLit_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, OutThroughput, OutPdf);
+	}
+	else if (IsClearCoatMaterial(Payload))
+	{
+		ClearCoat_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, OutThroughput, OutPdf);
 	}
 	else if (IsLambert(Payload))
 	{

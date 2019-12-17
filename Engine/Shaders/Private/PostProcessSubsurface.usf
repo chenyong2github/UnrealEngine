@@ -363,7 +363,7 @@ SDiffuseAndSpecular ReconstructLighting(float2 UVSceneColor, uint ReconstructMet
 	  // If we're not doing checkerboard encoding, we just need to read a single pixel and decode (combined diffuse/spec in RGB)
 	  float4 CenterSample = SubsurfaceInput0_Texture.SampleLevel(SharedSubsurfaceSampler0, UVSceneColor, 0);
 	  float3 CombinedColor = CenterSample.rgb;
-	  float DiffuseLuminance = CenterSample.a * View.PreExposure;
+	  float DiffuseLuminance = CenterSample.a;
   
 	  float CombinedLuminance = Luminance(CombinedColor);
 	  float DiffuseFactor = saturate(DiffuseLuminance / CombinedLuminance);
@@ -550,7 +550,11 @@ void SetupIndirectCS(uint3 DT_ID : SV_DispatchThreadID,
 	{
 		bHasSubsurface = true;
 
-		OutColor.a = CalcSceneDepth(BufferUV);
+		float SourceDepth = CalcSceneDepth(BufferUV);
+
+		float Noise = InterleavedGradientNoise(float2(Pos.x,Pos.y), View.StateFrameIndexMod8);
+		// Divide by 1024 because the mantissa is 10 bits.
+		OutColor.a = SourceDepth + Noise * (SourceDepth / 1024.0f);
 
 		//@TODO: sparkling
 		//supress the edge color lighting information at edge.

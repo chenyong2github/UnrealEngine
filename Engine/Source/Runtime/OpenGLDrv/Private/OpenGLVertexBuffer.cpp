@@ -318,7 +318,7 @@ void FOpenGLStagingBuffer::Unlock()
 #endif
 }
 
-void* FOpenGLDynamicRHI::RHILockStagingBuffer(FRHIStagingBuffer* StagingBuffer, uint32 Offset, uint32 SizeRHI)
+void* FOpenGLDynamicRHI::RHILockStagingBuffer(FRHIStagingBuffer* StagingBuffer, FRHIGPUFence* Fence, uint32 Offset, uint32 SizeRHI)
 {
 	FOpenGLStagingBuffer* Buffer = ResourceCast(StagingBuffer);
 	return Buffer->Lock(Offset, SizeRHI);	
@@ -328,14 +328,4 @@ void FOpenGLDynamicRHI::RHIUnlockStagingBuffer(FRHIStagingBuffer* StagingBuffer)
 {
 	FOpenGLStagingBuffer* Buffer = ResourceCast(StagingBuffer);
 	Buffer->Unlock();
-}
-
-void* FOpenGLDynamicRHI::LockStagingBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStagingBuffer* StagingBuffer, uint32 Offset, uint32 SizeRHI)
-{
-	return RHILockStagingBuffer(StagingBuffer, Offset, SizeRHI);
-}
-
-void FOpenGLDynamicRHI::UnlockStagingBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStagingBuffer* StagingBuffer)
-{
-	RHIUnlockStagingBuffer(StagingBuffer);
 }

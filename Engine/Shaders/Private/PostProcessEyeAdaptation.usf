@@ -33,7 +33,7 @@ float ComputeWeightedTextureAverageAlpha(
 {
 	// The inverse of the Region of Interest size.
 	const float InvRectWidth = 1.0f / float(RectMax.x - RectMin.x);
-	const float InvRectHeight = 1.0f / float(RectMax.x - RectMin.y);
+	const float InvRectHeight = 1.0f / float(RectMax.y - RectMin.y);
 
 	// use product of linear weight in x and y.
 	float Average = 0.0f;
@@ -41,11 +41,11 @@ float ComputeWeightedTextureAverageAlpha(
 
 	for (uint i = RectMin.x; i < RectMax.x; ++i)
 	{
-		float IWeight = AdaptationWeight(i * InvRectWidth, Slope);
 		for (uint j = RectMin.y; j < RectMax.y; ++j)
 		{
-			float JWeight = AdaptationWeight(j * InvRectHeight, Slope);
-			float Weight = max(IWeight * JWeight, 0.05f);
+			float2 ScreenUV = float2(float(i)*InvRectWidth,float(j)*InvRectHeight);
+
+			float Weight = max(AdaptationWeightTexture(ScreenUV),0.05f);
 
 			WeightTotal += Weight;
 
@@ -73,36 +73,76 @@ float2 ComputeWeightedTextureAverageAlphaSubRegion(
 
 	// use product of linear weight in x and y.
 	float Value = 0.0f;
-	float WeightTotal = 0.0000000001f;
+	float WeightTotal = 0.0f;
 
 	for (uint i = SubRectMin.x; i < SubRectMax.x; ++i)
 	{
-		float IWeight = AdaptationWeight(i * InvRectWidth, Slope);
+		// for precision, accumulate in rows
+		float RowValue = 0.0;
+		float RowWeight = 0.0;
 		for (uint j = SubRectMin.y; j < SubRectMax.y; ++j)
 		{
-			float JWeight = AdaptationWeight(j * InvRectHeight, Slope);
-			float Weight = max(IWeight * JWeight, 0.05f);
+			float2 ScreenUV = float2(float(i)*InvRectWidth,float(j)*InvRectHeight);
 
-			WeightTotal += Weight;
+			float Weight = max(AdaptationWeightTexture(ScreenUV),0.05f);
+
+			RowWeight += Weight;
 
 			// Accumulate values from alpha channel.
 			float Sample = Texture.Load(int3(i, j, 0)).w;
-			Value += Weight * Sample;
+			RowValue += Weight * Sample;
 		}
+
+		Value += RowValue;
+		WeightTotal += RowWeight;
 	}
 
-	return float2(Value, WeightTotal);
+	return float2(Value, max(WeightTotal,0.0000000001f));
+}
+
+float ExponentialAdaption(float Current, float Target, float FrameTime, float AdaptionSpeed, float M)
+{
+	const float Factor = 1.0f - exp2(-FrameTime * AdaptionSpeed);
+	const float Value = Current + (Target - Current) * Factor * M;
+	return Value;
+}
+
+float LinearAdaption(float Current, float Target, float FrameTime, float AdaptionSpeed)
+{
+	const float Offset = FrameTime * AdaptionSpeed;
+
+	const float Value = (Current < Target) ? min(Target, Current + Offset) : max(Target, Current - Offset);
+
+	return Value;
 }
 
 float ComputeEyeAdaptation(float OldExposure, float TargetExposure, float FrameTime)
 {
-	const float Diff = TargetExposure - OldExposure;
+	const float LogTargetExposure = log2(TargetExposure);
+	const float LogOldExposure = log2(OldExposure);
 
-	const float AdaptionSpeed = (Diff > 0) ? EyeAdaptation_ExposureSpeedUp : EyeAdaptation_ExposureSpeedDown;
+	const float LogDiff = LogTargetExposure - LogOldExposure;
 
-	const float Factor = 1.0f - exp2(-FrameTime * AdaptionSpeed);
+	const float AdaptionSpeed = (LogDiff > 0) ? EyeAdaptation_ExposureSpeedUp : EyeAdaptation_ExposureSpeedDown;
+	const float M = (LogDiff > 0) ? EyeAdaptation_ExponentialUpM : EyeAdaptation_ExponentialDownM;
 
-	return clamp(OldExposure + Diff * Factor, EyeAdaptation_MinAverageLuminance, EyeAdaptation_MaxAverageLuminance);
+	const float AbsLogDiff = abs(LogDiff);
+
+	// blended exposure
+	const float LogAdaptedExposure_Exponential = ExponentialAdaption(LogOldExposure, LogTargetExposure, FrameTime, AdaptionSpeed, M);
+	const float LogAdaptedExposure_Linear = LinearAdaption(LogOldExposure, LogTargetExposure, FrameTime, AdaptionSpeed);
+
+	const float LogAdaptedExposure = AbsLogDiff > EyeAdaptation_StartDistance ? LogAdaptedExposure_Linear : LogAdaptedExposure_Exponential;
+
+	// Note: no clamping here. The target exposure should always be clamped so if we are below the min or above the max,
+	// instead of clamping, we will gradually transition to the target exposure. If were to clamp, the then we would have a harsh transition
+	// when going from postFX volumes with different min/max luminance values.
+	const float AdaptedExposure = exp2(LogAdaptedExposure);
+
+	// for manual mode or camera cuts, just lerp to the target
+	const float AdjustedExposure = lerp(AdaptedExposure,TargetExposure,EyeAdaptation_ForceTarget);
+	
+	return AdjustedExposure;
 }
 
 float4 EyeAdaptationCommon()
@@ -110,19 +150,27 @@ float4 EyeAdaptationCommon()
 	float4 OutColor = 0;
 
 	const float AverageSceneLuminance = ComputeEyeAdaptationExposure(HistogramTexture);
-	const float TargetExposure = clamp(AverageSceneLuminance, EyeAdaptation_MinAverageLuminance, EyeAdaptation_MaxAverageLuminance);
 
-	float OldExposureScale = HistogramTexture.Load(int3(0, 1, 0)).x;
-	float OldExposure = EyeAdaptation_ExposureCompensation / (OldExposureScale != 0 ? OldExposureScale : 1.0f);
+	const float TargetAverageLuminance = clamp(AverageSceneLuminance, EyeAdaptation_MinAverageLuminance, EyeAdaptation_MaxAverageLuminance);
+	
+	// White point luminace is target luminance dividec by 0.18 (18% grey).
+	const float TargetExposure = TargetAverageLuminance / 0.18;
+
+	const float OldExposureScale = HistogramTexture.Load(int3(0, 1, 0)).x;
+	const float MiddleGreyExposureCompensation = EyeAdaptation_ExposureCompensation; // we want the average luminance remapped to 0.18, not 1.0
+	const float OldExposure = MiddleGreyExposureCompensation / (OldExposureScale != 0 ? OldExposureScale : 1.0f);
 
 	// eye adaptation changes over time
-	float SmoothedExposure = ComputeEyeAdaptation(OldExposure, TargetExposure, EyeAdaptation_DeltaWorldTime);
+	const float EstimatedExposure = ComputeEyeAdaptation(OldExposure, TargetExposure, EyeAdaptation_DeltaWorldTime);
 
-	float SmoothedExposureScale = 1.0f / max(0.0001f, SmoothedExposure);
-	float TargetExposureScale =   1.0f / max(0.0001f, TargetExposure);
+	// maybe make this an option to avoid hard clamping when transitioning between different exposure volumes?
+	const float SmoothedExposure = clamp(EstimatedExposure, EyeAdaptation_MinAverageLuminance/.18f, EyeAdaptation_MaxAverageLuminance/.18f);
 
-	OutColor.x = EyeAdaptation_ExposureCompensation * SmoothedExposureScale;
-	OutColor.y = EyeAdaptation_ExposureCompensation * TargetExposureScale;
+	const float SmoothedExposureScale = 1.0f / max(0.0001f, SmoothedExposure);
+	const float TargetExposureScale =   1.0f / max(0.0001f, TargetExposure);
+
+	OutColor.x = MiddleGreyExposureCompensation * SmoothedExposureScale;
+	OutColor.y = MiddleGreyExposureCompensation * TargetExposureScale;
 	OutColor.z = AverageSceneLuminance;
 	OutColor.w = 0;
 
@@ -154,10 +202,12 @@ void BasicEyeAdaptationSetupPS(
 	OutColor = Texture2DSample(ColorTexture, ColorSampler, UV);
 
 	// Use max to ensure intensity is never zero (so the following log is well behaved)
-	float Intensity = max(dot(OutColor.xyz, float3(0.2126, 0.7152, 0.0722)), EyeAdaptation_LuminanceMin);
+	//float Intensity = max(dot(OutColor.xyz, float3(0.2126, 0.7152, 0.0722)), EyeAdaptation_LuminanceMin);
+	const float Intensity = max(dot(OutColor.xyz, float3(1.0f, 1.0f, 1.0f)/3.0f), EyeAdaptation_LuminanceMin);
+	const float LogIntensity = clamp(log2(Intensity),-10.0f,20.0f);
 
 	// Store log intensity in the alpha channel: scale to 0,1 range.
-	OutColor.w = EyeAdaptation_HistogramScale * log2(Intensity) + EyeAdaptation_HistogramBias; 
+	OutColor.w = EyeAdaptation_HistogramScale * LogIntensity + EyeAdaptation_HistogramBias; 
 }
 
 #if COMPUTESHADER
@@ -243,24 +293,30 @@ void BasicEyeAdaptationPS(in float4 UVAndScreenPos : TEXCOORD0, out float4 OutCo
 	
 	// Convert LogLuminanceAverage to Average Intensity
 	const float AverageSceneLuminance = OneOverPreExposure * exp2(LogLumAve);
-	const float LumAve = AverageSceneLuminance * EyeAdaptation_CalibrationConstantInverse;
+
+	const float MiddleGreyExposureCompensation = EyeAdaptation_ExposureCompensation * EyeAdaptation_GreyMult;// we want the average luminance remapped to 0.18, not 1.0
+
+	const float LumAve = AverageSceneLuminance; 
 
 	const float ClampedLumAve = clamp(LumAve, EyeAdaptation_MinAverageLuminance, EyeAdaptation_MaxAverageLuminance);
 	
 	// The Exposure Scale (and thus intensity) used in the previous frame
 	const float ExposureScaleOld = EyeAdaptationTexture.Load(int3(0, 0, 0)).x;
-	const float LuminanceAveOld = EyeAdaptation_ExposureCompensation / (ExposureScaleOld != 0 ? ExposureScaleOld : 1.0f);
+	const float LuminanceAveOld = MiddleGreyExposureCompensation / (ExposureScaleOld != 0 ? ExposureScaleOld : 1.0f);
 
 	// Time-based expoential blend of the intensity to allow the eye adaptation to ramp up over a few frames.
-	const float SmoothedLuminance = ComputeEyeAdaptation(LuminanceAveOld, ClampedLumAve, EyeAdaptation_DeltaWorldTime);
+	const float EstimatedLuminance = ComputeEyeAdaptation(LuminanceAveOld, ClampedLumAve, EyeAdaptation_DeltaWorldTime);
+
+	// maybe make this an option to avoid hard clamping when transitioning between different exposure volumes?
+	const float SmoothedLuminance = clamp(EstimatedLuminance, EyeAdaptation_MinAverageLuminance, EyeAdaptation_MaxAverageLuminance);
 
 	const float SmoothedExposureScale = 1.0f / max(0.0001f, SmoothedLuminance);
 	const float TargetExposureScale   = 1.0f / max(0.0001f, ClampedLumAve);
 	
 	// Output the number that will rescale the image intensity
-	OutColor.x = EyeAdaptation_ExposureCompensation * SmoothedExposureScale;
+	OutColor.x = MiddleGreyExposureCompensation * SmoothedExposureScale;
 	// Output the target value
-	OutColor.y = EyeAdaptation_ExposureCompensation * TargetExposureScale;
+	OutColor.y = MiddleGreyExposureCompensation * TargetExposureScale;
 	OutColor.z = AverageSceneLuminance;
 	OutColor.w = 0;
 

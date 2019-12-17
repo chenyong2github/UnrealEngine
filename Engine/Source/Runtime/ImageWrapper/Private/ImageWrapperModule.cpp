@@ -27,7 +27,7 @@ namespace
 	static const uint8 IMAGE_MAGIC_ICNS[] = {0x69, 0x63, 0x6E, 0x73};
 
 	/** Internal helper function to verify image signature. */
-	template <int32 MagicCount> bool StartsWith(const uint8* Content, int32 ContentSize, const uint8 (&Magic)[MagicCount])
+	template <int32 MagicCount> bool StartsWith(const uint8* Content, int64 ContentSize, const uint8 (&Magic)[MagicCount])
 	{
 		if (ContentSize < MagicCount)
 		{
@@ -104,7 +104,7 @@ public:
 		return MakeShareable(ImageWrapper);
 	}
 
-	virtual EImageFormat DetectImageFormat(const void* CompressedData, int32 CompressedSize) override
+	virtual EImageFormat DetectImageFormat(const void* CompressedData, int64 CompressedSize) override
 	{
 		EImageFormat Format = EImageFormat::Invalid;
 		if (StartsWith((uint8*) CompressedData, CompressedSize, IMAGE_MAGIC_PNG))

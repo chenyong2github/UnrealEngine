@@ -111,6 +111,20 @@ void FVulkanShader::Setup(const TArray<uint8>& InShaderHeaderAndCode, uint64 InS
 	}
 	check(CodeHeader.GlobalSpirvInfos.Num() == CodeHeader.Globals.Num());
 
+	StaticSlots.Reserve(CodeHeader.UniformBuffers.Num());
+
+	for (const FVulkanShaderHeader::FUniformBufferInfo& UBInfo : CodeHeader.UniformBuffers)
+	{
+		if (const FShaderParametersMetadata* Metadata = FindUniformBufferStructByLayoutHash(UBInfo.LayoutHash))
+		{
+			StaticSlots.Add(Metadata->GetLayout().StaticSlot);
+		}
+		else
+		{
+			StaticSlots.Add(MAX_UNIFORM_BUFFER_STATIC_SLOTS);
+		}
+	}
+
 #if VULKAN_ENABLE_SHADER_DEBUG_NAMES
 	// main_00000000_00000000
 	ANSICHAR EntryPoint[24];

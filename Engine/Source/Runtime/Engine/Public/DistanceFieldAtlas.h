@@ -94,6 +94,7 @@ public:
 
 	virtual void ReleaseRHI() override
 	{
+		VolumeTextureUAVRHI.SafeRelease();
 		VolumeTextureRHI.SafeRelease();
 	}
 
