@@ -588,7 +588,7 @@ void FDatasmithSceneGraphBuilder::AddChildren(TSharedPtr< IDatasmithActorElement
 	{
 		if (int32* ChildNodeIndex = CurrentMockUp->CADIdToInstanceIndex.Find(ChildId))
 		{
-			TSharedPtr< IDatasmithActorElement > ChildActor = BuildInstance(CurrentMockUp->InstanceSet[*ChildNodeIndex], ParentData);
+			TSharedPtr< IDatasmithActorElement > ChildActor = BuildInstance(CurrentMockUp->Instances[*ChildNodeIndex], ParentData);
 			if (ChildActor.IsValid() && DoesActorHaveChildrenOrIsAStaticMesh(ChildActor))
 			{
 				Actor->AddChild(ChildActor);

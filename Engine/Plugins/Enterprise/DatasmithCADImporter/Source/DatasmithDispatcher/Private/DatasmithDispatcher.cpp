@@ -218,13 +218,12 @@ void FDatasmithDispatcher::ProcessLocal()
 
 		if (TaskState == ETaskState::ProcessOk)
 		{
-			FString CurrentPath = FPaths::GetPath(FullPath);
 			const TSet<FString>& ExternalRefSet = FileParser.GetExternalRefSet();
 			if (ExternalRefSet.Num() > 0)
 			{
 				for (const FString& ExternalFile : ExternalRefSet)
 				{
-					AddTask(FPaths::Combine(CurrentPath, ExternalFile));
+					AddTask(ExternalFile);
 				}
 			}
 			LinkCTFileToUnrealCacheFile(FileParser.GetCADFileName(), FileParser.GetSceneGraphFile(), FileParser.GetMeshFileName());
