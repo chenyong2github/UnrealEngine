@@ -1215,18 +1215,6 @@ void FMetalBufferPoolPolicyData::FreeResource(FMetalBuffer& Resource)
 {
 	DEC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Resource.GetLength());
 	DEC_MEMORY_STAT_BY(STAT_MetalPooledBufferUnusedMemory, Resource.GetLength());
-#if METAL_DEBUG_OPTIONS // Helps to track down incorrect resource retain/release behaviour
-	if([Resource.GetPtr() retainCount] > 1)
-	{
-		UE_LOG(LogMetal, Warning, TEXT("Attempting to free an over-retained Buffer: %p: %s"), Resource.GetPtr(), *FString([Resource.GetPtr() debugDescription]));
-		void* Ptr = (void*)Resource.GetPtr();
-		objc_setAssociatedObject(Resource.GetPtr(), (void*)FMetalBufferPoolPolicyData::BucketSizes,
-			[[[FMetalDeallocHandler alloc] initWithBlock:^{
-			UE_LOG(LogMetal, Warning, TEXT("Released over-retained Buffer: %p"), Ptr);
-		}] autorelease],
-		OBJC_ASSOCIATION_RETAIN);
-	}
-#endif
 	Resource = nil;
 }
 
