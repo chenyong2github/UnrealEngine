@@ -8,6 +8,7 @@
 #include "NiagaraDataSet.h"
 #include "NiagaraScriptExecutionContext.h"
 
+class UNiagaraEffectType;
 class UWorld;
 class UNiagaraParameterCollection;
 class UNiagaraParameterCollectionInstance;
@@ -146,10 +147,16 @@ struct FNiagaraSystemSimulationTickContext
 };
 
 /** Simulation performing all system and emitter scripts for a instances of a UNiagaraSystem in a world. */
-class FNiagaraSystemSimulation : public TSharedFromThis<FNiagaraSystemSimulation, ESPMode::ThreadSafe>
+class FNiagaraSystemSimulation : public TSharedFromThis<FNiagaraSystemSimulation, ESPMode::ThreadSafe>, FGCObject
 {
 	friend FNiagaraSystemSimulationTickContext;
 public:
+
+	//FGCObject Interface
+	virtual void AddReferencedObjects(FReferenceCollector& Collector)override;
+	//FGCObject Interface END
+
+	FNiagaraSystemSimulation();
 	~FNiagaraSystemSimulation();
 	bool Init(UNiagaraSystem* InSystem, UWorld* InWorld, bool bInIsSolo, ETickingGroup TickGroup);
 	void Destroy();
@@ -223,6 +230,9 @@ protected:
 
 	/** System of instances being simulated.  We use a weak object ptr here because once the last referencing object goes away this system may be come invalid at runtime. */
 	TWeakObjectPtr<UNiagaraSystem> WeakSystem;
+
+	/** We cache off the effect type in the unlikely even that someone GCs the System from under us so that we can keep the effect types instance count etc accurate. */
+	UNiagaraEffectType* EffectType;
 
 	/** Which tick group we are in, only valid when not in Solo mode. */
 	ETickingGroup SystemTickGroup = TG_MAX;

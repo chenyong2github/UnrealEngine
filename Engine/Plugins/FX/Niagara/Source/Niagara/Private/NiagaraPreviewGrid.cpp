@@ -140,6 +140,9 @@ void ANiagaraPreviewGrid::ActivatePreviews(bool bReset)
 		GeneratePreviews();
 	}
 
+	FString XLabel;
+	FString YLabel;
+
 	for (int32 X = 0; X < NumX; ++X)
 	{
 		float XLocation = X / NumX - 1;
@@ -156,6 +159,9 @@ void ANiagaraPreviewGrid::ActivatePreviews(bool bReset)
 			PreviewActor->GetComponents<UNiagaraComponent>(NiagaraComponents);
 			for (UNiagaraComponent* Component : NiagaraComponents)
 			{
+				PreviewAxisX->ApplyToPreview(Component, X, true, XLabel);
+				PreviewAxisY->ApplyToPreview(Component, Y, false, YLabel);
+				
 				Component->Activate(true);
 			}
 		}
@@ -250,6 +256,13 @@ void ANiagaraPreviewGrid::GeneratePreviews()
 					PreviewActor->PrimaryActorTick.bCanEverTick = true;
 					PreviewActor->PrimaryActorTick.bStartWithTickEnabled = true;
 					PreviewActor->SetSystem(System);
+
+					TArray<UNiagaraComponent*, TInlineAllocator<4>> NiagaraComponents;
+					PreviewActor->GetComponents<UNiagaraComponent>(NiagaraComponents);
+					for (UNiagaraComponent* Component : NiagaraComponents)
+					{
+						Component->Activate(true);
+					}
 				}
 			}
 		}

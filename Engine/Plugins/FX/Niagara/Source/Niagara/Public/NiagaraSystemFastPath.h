@@ -396,6 +396,7 @@ namespace FNiagaraEmitterFastPath
 	struct FParamMap0_Engine_Owner
 	{
 		float LODDistance;
+		float MaxLODDistance;
 		FVector Velocity;
 	};
 

@@ -13,6 +13,8 @@
 #include "NiagaraParameterCollection.h"
 #include "NiagaraUserRedirectionParameterStore.h"
 #include "NiagaraSystemFastPath.h"
+#include "NiagaraEffectType.h"
+
 #include "NiagaraSystem.generated.h"
 
 #if WITH_EDITORONLY_DATA
@@ -124,6 +126,9 @@ public:
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSystemCompiled, UNiagaraSystem*);
 #endif
+	//TestChange
+
+	UNiagaraSystem(FVTableHelper& Helper);
 
 	//~ UObject interface
 	void PostInitProperties();
@@ -132,6 +137,7 @@ public:
 	virtual void BeginDestroy() override;
 	virtual void PreSave(const class ITargetPlatform * TargetPlatform) override;
 #if WITH_EDITOR
+	virtual void PreEditChange(UProperty* PropertyThatWillChange)override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override; 
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatform) override;
 #endif
@@ -288,6 +294,14 @@ public:
 
 	FBox GetFixedBounds() const;
 
+	FORCEINLINE int32* GetCycleCounter(bool bGameThread, bool bConcurrent);
+
+	UNiagaraEffectType* GetEffectType()const;
+	const FNiagaraScalabilitySettings& GetScalabilitySettings(int32 DetailLevel=INDEX_NONE);
+	
+	void ResolveScalabilityOverrides();
+	void OnDetailLevelChanges(int32 DetailLevel);
+
 	/** Whether or not fixed bounds are enabled. */
 	UPROPERTY(EditAnywhere, Category = "System", meta = (InlineEditConditionToggle))
 	uint32 bFixedBounds : 1;
@@ -322,7 +336,17 @@ private:
 #endif
 
 	void UpdatePostCompileDIInfo();
+
 protected:
+
+	UPROPERTY(EditAnywhere, Category = "System")
+	UNiagaraEffectType* EffectType;
+
+	UPROPERTY(EditAnywhere, Category = "System", meta=(InlineEditConditionToggle))
+	bool bOverrideScalabilitySettings;
+
+	UPROPERTY(EditAnywhere, Category = "System", meta = (EditCondition="bOverrideScalabilitySettings"))
+	TArray<FNiagaraScalabilityOverrides> ScalabilityOverrides;
 
 	/** Handles to the emitter this System will simulate. */
 	UPROPERTY()
@@ -404,4 +428,20 @@ protected:
 	mutable TStatId StatID_RT;
 	mutable TStatId StatID_RT_CNC;
 #endif
+
+	/** Resolved results of this system's overrides applied on top of it's effect type settings. */
+	UPROPERTY()
+	TArray<FNiagaraScalabilitySettings> ResolvedScalabilitySettings;
+
+	FNiagaraScalabilitySettings CurrentScalabilitySettings;
 };
+
+extern int32 GEnableNiagaraRuntimeCycleCounts;
+FORCEINLINE int32* UNiagaraSystem::GetCycleCounter(bool bGameThread, bool bConcurrent)
+{
+	if (GEnableNiagaraRuntimeCycleCounts && EffectType)
+	{
+		return EffectType->GetCycleCounter(bGameThread, bConcurrent);
+	}
+	return nullptr;
+}

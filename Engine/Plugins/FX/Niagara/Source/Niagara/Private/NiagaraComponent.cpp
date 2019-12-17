@@ -113,6 +113,7 @@ FAutoConsoleCommandWithWorld DumpNiagaraComponentsCommand(
 FNiagaraSceneProxy::FNiagaraSceneProxy(const UNiagaraComponent* InComponent)
 		: FPrimitiveSceneProxy(InComponent, InComponent->GetAsset() ? InComponent->GetAsset()->GetFName() : FName())
 		, bRenderingEnabled(true)
+		, RuntimeCycleCount(nullptr)
 {
 	// In this case only, update the System renderers on the game thread.
 	check(IsInGameThread());
@@ -129,6 +130,7 @@ FNiagaraSceneProxy::FNiagaraSceneProxy(const UNiagaraComponent* InComponent)
 		SystemStatID = InComponent->GetAsset()->GetStatID(false, false);
 #endif
 
+		RuntimeCycleCount = InComponent->GetAsset()->GetCycleCounter(false, false);
 	}
 }
 
@@ -319,6 +321,8 @@ void FNiagaraSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>&
 	FScopeCycleCounter SystemStatCounter(SystemStatID);
 #endif
 
+	FNiagaraScopedRuntimeCycleCounter RuntimeScope(RuntimeCycleCount);
+
 	for (int32 RendererIdx : RendererDrawOrder)
 	{
 		FNiagaraRenderer* Renderer = EmitterRenderers[RendererIdx];
@@ -347,6 +351,7 @@ void FNiagaraSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>&
 #if RHI_RAYTRACING
 void FNiagaraSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances)
 {
+	FNiagaraScopedRuntimeCycleCounter RuntimeScope(RuntimeCycleCount);
 	for (FNiagaraRenderer* Renderer : EmitterRenderers)
 	{
 		if (Renderer)
@@ -359,6 +364,7 @@ void FNiagaraSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGather
 
 void FNiagaraSceneProxy::GatherSimpleLights(const FSceneViewFamily& ViewFamily, FSimpleLightArray& OutParticleLights) const
 {
+	FNiagaraScopedRuntimeCycleCounter RuntimeScope(RuntimeCycleCount);
 	for (int32 Idx = 0; Idx < EmitterRenderers.Num(); Idx++)
 	{
 		FNiagaraRenderer *Renderer = EmitterRenderers[Idx];
@@ -391,7 +397,12 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	, bWaitForCompilationOnActivate(false)
 #endif
 	, bAwaitingActivationDueToNotReady(false)
+	, bActivateShouldResetWhenReady(false)
+	, bDidAutoAttach(false)
+	, bAllowScalability(true)
 	//, bIsChangingAutoAttachment(false)
+	, ScalabilityManagerHandle(INDEX_NONE)
+	, OwnerLOD(0)
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.TickGroup = GNiagaraSoloTickEarly ? TG_PrePhysics : TG_DuringPhysics;
@@ -702,6 +713,11 @@ bool UNiagaraComponent::InitializeSystem()
 
 void UNiagaraComponent::Activate(bool bReset /* = false */)
 {
+	ActivateInternal(bReset, false);
+}
+
+void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScalabilityCull)
+{
 	bAwaitingActivationDueToNotReady = false;
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -766,7 +782,24 @@ void UNiagaraComponent::Activate(bool bReset /* = false */)
 		return;
 	}
 
-	
+	if (bReset)
+	{
+		UnregisterWithScalabilityManager();
+	}
+
+	if (!bIsScalabilityCull && ScalabilityManagerHandle != INDEX_NONE)
+	{
+		//If this is a non scalability activate call and we're still registered with the manager.
+		//If we reach this point then we must have been previously culled by scalability so bail here.
+		return;
+	}
+
+	if (RegisterWithScalabilityManagerOrPreCull())
+	{
+		//We have decided to pre cull the system.
+		return;
+	}
+
 	Super::Activate(bReset);
 
 	// Early out if we're not forcing a reset, and both the component and system instance are already active.
@@ -830,6 +863,11 @@ void UNiagaraComponent::Activate(bool bReset /* = false */)
 
 void UNiagaraComponent::Deactivate()
 {
+	DeactivateInternal(false);
+}
+
+void UNiagaraComponent::DeactivateInternal(bool bIsScalabilityCull /* = false */)
+{
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentDeactivate);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 
@@ -842,6 +880,13 @@ void UNiagaraComponent::Deactivate()
 		if (SystemInstance->IsSolo() == false)
 		{
 			Super::Deactivate();
+		}
+
+		//Unregister with the scalability manager if this is a genuine deactivation from outside.
+		//The scalability manager itself can call this function when culling systems.
+		if (bIsScalabilityCull == false)
+		{
+			UnregisterWithScalabilityManager();
 		}
 
 		SystemInstance->Deactivate();
@@ -858,6 +903,11 @@ void UNiagaraComponent::Deactivate()
 
 void UNiagaraComponent::DeactivateImmediate()
 {
+	DeactivateImmediateInternal(false);
+}
+
+void UNiagaraComponent::DeactivateImmediateInternal(bool bIsScalabilityCull)
+{
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentDeactivate);
 	Super::Deactivate();
 
@@ -865,11 +915,56 @@ void UNiagaraComponent::DeactivateImmediate()
 
 	//UE_LOG(LogNiagara, Log, TEXT("Deactivate %s"), *GetName());
 
+	//Unregister with the scalability manager if this is a genuine deactivation from outside.
+	//The scalability manager itself can call this function when culling systems.
+	if (bIsScalabilityCull == false)
+	{
+		UnregisterWithScalabilityManager();
+	}
+
 	SetActiveFlag(false);
 
 	if (SystemInstance)
 	{
 		SystemInstance->Deactivate(true);
+	}
+}
+
+bool UNiagaraComponent::RegisterWithScalabilityManagerOrPreCull()
+{
+	if (ScalabilityManagerHandle == INDEX_NONE && bAllowScalability)
+	{
+		if (UNiagaraSystem* System = GetAsset())
+		{
+			if (UNiagaraEffectType* EffectType = System->GetEffectType())
+			{
+				if (FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(GetWorld()))
+				{
+					if (EffectType->UpdateFrequency == ENiagaraScalabilityUpdateFrequency::SpawnOnly)
+					{
+						//If we're just set to check on spawn then check for precull here.
+						return WorldMan->ShouldPreCull(GetAsset(), this);
+					}
+					else
+					{
+						WorldMan->RegisterWithScalabilityManager(this);
+					}
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+void UNiagaraComponent::UnregisterWithScalabilityManager()
+{
+	if (ScalabilityManagerHandle != INDEX_NONE)
+	{
+		if (FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(GetWorld()))
+		{
+			WorldMan->UnregisterWithScalabilityManager(this);
+		}
 	}
 }
 
@@ -1046,6 +1141,9 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 		TStatId SystemStatID = GetAsset() ? GetAsset()->GetStatID(true, true) : TStatId();
 		FScopeCycleCounter SystemStatCounter(SystemStatID);
 #endif
+
+		FNiagaraScopedRuntimeCycleCounter RuntimeScope(GetAsset(), true, false);
+
 		FNiagaraSceneProxy* NiagaraProxy = static_cast<FNiagaraSceneProxy*>(SceneProxy);
 		const TArray<FNiagaraRenderer*>& EmitterRenderers = NiagaraProxy->GetEmitterRenderers();
 
@@ -1625,6 +1723,7 @@ void UNiagaraComponent::SetMaxSimTime(float InMaxTime)
 	MaxSimTime = InMaxTime;
 }
 
+#if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
 void UNiagaraComponent::SetPreviewDetailLevel(bool bInEnablePreviewDetailLevel, int32 InPreviewDetailLevel)
 {
 	bool bReInit = bEnablePreviewDetailLevel != bInEnablePreviewDetailLevel || (bEnablePreviewDetailLevel && PreviewDetailLevel != InPreviewDetailLevel);
@@ -1641,6 +1740,15 @@ void UNiagaraComponent::SetPreviewLODDistance(bool bInEnablePreviewLODDistance, 
 {
 	bEnablePreviewLODDistance = bInEnablePreviewLODDistance;
 	PreviewLODDistance = InPreviewLODDistance;
+}
+#else
+void UNiagaraComponent::SetPreviewDetailLevel(bool bInEnablePreviewDetailLevel, int32 InPreviewDetailLevel){}
+void UNiagaraComponent::SetPreviewLODDistance(bool bInEnablePreviewLODDistance, float InPreviewLODDistance){}
+#endif
+
+void UNiagaraComponent::SetOwnerLOD(int32 InOwnerLOD)
+{
+	OwnerLOD = InOwnerLOD;  
 }
 
 #if WITH_EDITOR

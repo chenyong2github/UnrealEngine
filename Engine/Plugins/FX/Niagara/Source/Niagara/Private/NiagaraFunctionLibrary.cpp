@@ -70,7 +70,7 @@ UNiagaraComponent* CreateNiagaraSystem(UNiagaraSystem* SystemTemplate, UWorld* W
 * Spawns a Niagara System at the specified world location/rotation
 * @return			The spawned UNiagaraComponent
 */
-UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAtLocation(const UObject* WorldContextObject, UNiagaraSystem* SystemTemplate, FVector SpawnLocation, FRotator SpawnRotation, FVector Scale, bool bAutoDestroy, bool bAutoActivate, ENCPoolMethod PoolingMethod)
+UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAtLocation(const UObject* WorldContextObject, UNiagaraSystem* SystemTemplate, FVector SpawnLocation, FRotator SpawnRotation, FVector Scale, bool bAutoDestroy, bool bAutoActivate, ENCPoolMethod PoolingMethod, bool bPreCullCheck)
 {
 	UNiagaraComponent* PSC = NULL;
 	if (SystemTemplate)
@@ -78,18 +78,28 @@ UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAtLocation(const UObject*
 		UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 		if (World != nullptr)
 		{
-			PSC = CreateNiagaraSystem(SystemTemplate, World, World->GetWorldSettings(), bAutoDestroy, PoolingMethod);
-#if WITH_EDITORONLY_DATA
-			PSC->bWaitForCompilationOnActivate = true;
-#endif
-			PSC->RegisterComponentWithWorld(World);
-
-			PSC->SetAbsolute(true, true, true);
-			PSC->SetWorldLocationAndRotation(SpawnLocation, SpawnRotation);
-			PSC->SetRelativeScale3D(Scale);
-			if (bAutoActivate)
+			bool bShouldCull = false;
+			if (bPreCullCheck)
 			{
-				PSC->Activate(true);
+				FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World);
+				bShouldCull = WorldManager->ShouldPreCull(SystemTemplate, SpawnLocation);
+			}
+
+			if (!bShouldCull)
+			{
+				PSC = CreateNiagaraSystem(SystemTemplate, World, World->GetWorldSettings(), bAutoDestroy, PoolingMethod);
+#if WITH_EDITORONLY_DATA
+				PSC->bWaitForCompilationOnActivate = true;
+#endif
+				PSC->RegisterComponentWithWorld(World);
+
+				PSC->SetAbsolute(true, true, true);
+				PSC->SetWorldLocationAndRotation(SpawnLocation, SpawnRotation);
+				PSC->SetRelativeScale3D(Scale);
+				if (bAutoActivate)
+				{
+					PSC->Activate(true);
+				}
 			}
 		}
 	}
@@ -104,7 +114,7 @@ UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAtLocation(const UObject*
 * Spawns a Niagara System attached to a component
 * @return			The spawned UNiagaraComponent
 */
-UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAttached(UNiagaraSystem* SystemTemplate, USceneComponent* AttachToComponent, FName AttachPointName, FVector Location, FRotator Rotation, EAttachLocation::Type LocationType, bool bAutoDestroy, bool bAutoActivate, ENCPoolMethod PoolingMethod)
+UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAttached(UNiagaraSystem* SystemTemplate, USceneComponent* AttachToComponent, FName AttachPointName, FVector Location, FRotator Rotation, EAttachLocation::Type LocationType, bool bAutoDestroy, bool bAutoActivate, ENCPoolMethod PoolingMethod, bool bPreCullCheck)
 {
 	UNiagaraComponent* PSC = nullptr;
 	if (SystemTemplate)
@@ -115,29 +125,40 @@ UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAttached(UNiagaraSystem* 
 		}
 		else
 		{
-			PSC = CreateNiagaraSystem(SystemTemplate, AttachToComponent->GetWorld(), AttachToComponent->GetOwner(), bAutoDestroy, PoolingMethod);
+			bool bShouldCull = false;
+			if (bPreCullCheck)
+			{
+				FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(AttachToComponent->GetWorld());
+				//TODO: For now using the attach parent location and ignoring the emitters relative location which is clearly going to be a bit wrong in some cases.
+				bShouldCull = WorldManager->ShouldPreCull(SystemTemplate, AttachToComponent->GetComponentLocation());
+			}
+
+			if (!bShouldCull)
+			{
+				PSC = CreateNiagaraSystem(SystemTemplate, AttachToComponent->GetWorld(), AttachToComponent->GetOwner(), bAutoDestroy, PoolingMethod);
 #if WITH_EDITOR
-			if (GForceNiagaraSpawnAttachedSolo > 0)
-			{
-				PSC->SetForceSolo(true);
-			}
+				if (GForceNiagaraSpawnAttachedSolo > 0)
+				{
+					PSC->SetForceSolo(true);
+				}
 #endif
-			PSC->RegisterComponentWithWorld(AttachToComponent->GetWorld());
+				PSC->RegisterComponentWithWorld(AttachToComponent->GetWorld());
 
-			PSC->AttachToComponent(AttachToComponent, FAttachmentTransformRules::KeepRelativeTransform, AttachPointName);
-			if (LocationType == EAttachLocation::KeepWorldPosition)
-			{
-				PSC->SetWorldLocationAndRotation(Location, Rotation);
-			}
-			else
-			{
-				PSC->SetRelativeLocationAndRotation(Location, Rotation);
-			}
-			PSC->SetRelativeScale3D(FVector(1.f));
+				PSC->AttachToComponent(AttachToComponent, FAttachmentTransformRules::KeepRelativeTransform, AttachPointName);
+				if (LocationType == EAttachLocation::KeepWorldPosition)
+				{
+					PSC->SetWorldLocationAndRotation(Location, Rotation);
+				}
+				else
+				{
+					PSC->SetRelativeLocationAndRotation(Location, Rotation);
+				}
+				PSC->SetRelativeScale3D(FVector(1.f));
 
-			if (bAutoActivate)
-			{
-				PSC->Activate();
+				if (bAutoActivate)
+				{
+					PSC->Activate();
+				}
 			}
 		}
 	}
@@ -159,7 +180,8 @@ UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAttached(
 	EAttachLocation::Type LocationType,
 	bool bAutoDestroy,
 	ENCPoolMethod PoolingMethod,
-	bool bAutoActivate
+	bool bAutoActivate,
+	bool bPreCullCheck
 )
 {
 	UNiagaraComponent* PSC = nullptr;
@@ -174,7 +196,17 @@ UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAttached(
 			UWorld* const World = AttachToComponent->GetWorld();
 			if (World && !World->IsNetMode(NM_DedicatedServer))
 			{
-				PSC = CreateNiagaraSystem(SystemTemplate, World, AttachToComponent->GetOwner(), bAutoDestroy, PoolingMethod);
+				bool bShouldCull = false;
+				if (bPreCullCheck)
+				{
+					FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World);
+					//TODO: For now using the attach parent location and ignoring the emitters relative location which is clearly going to be a bit wrong in some cases.
+					bShouldCull = WorldManager->ShouldPreCull(SystemTemplate, AttachToComponent->GetComponentLocation());
+				}
+
+				if (!bShouldCull)
+				{
+					PSC = CreateNiagaraSystem(SystemTemplate, World, AttachToComponent->GetOwner(), bAutoDestroy, PoolingMethod);
 				if (PSC)
 				{
 #if WITH_EDITOR
@@ -220,6 +252,7 @@ UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAttached(
 
 					// Notify the texture streamer so that PSC gets managed as a dynamic component.
 					IStreamingManager::Get().NotifyPrimitiveUpdated(PSC);
+				}
 				}
 			}
 		}

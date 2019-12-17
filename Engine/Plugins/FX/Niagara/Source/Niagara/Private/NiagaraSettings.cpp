@@ -4,6 +4,7 @@
 
 UNiagaraSettings::UNiagaraSettings(const FObjectInitializer& ObjectInitlaizer)
 	: Super(ObjectInitlaizer)
+	, DefaultEffectTypePtr(nullptr)
 {
 
 }
@@ -20,6 +21,13 @@ FText UNiagaraSettings::GetSectionText() const
 }
 #endif
 
+void UNiagaraSettings::PostLoad()
+{
+	Super::PostLoad();
+
+	DefaultEffectTypePtr = Cast<UNiagaraEffectType>(DefaultEffectType.TryLoad());
+}
+
 #if WITH_EDITOR
 void UNiagaraSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -27,6 +35,8 @@ void UNiagaraSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 	{
 		SettingsChangedDelegate.Broadcast(PropertyChangedEvent.Property->GetName(), this);
 	}
+
+	DefaultEffectTypePtr = Cast<UNiagaraEffectType>(DefaultEffectType.TryLoad());
 }
 
 UNiagaraSettings::FOnNiagaraSettingsChanged& UNiagaraSettings::OnSettingsChanged()
@@ -37,4 +47,7 @@ UNiagaraSettings::FOnNiagaraSettingsChanged& UNiagaraSettings::OnSettingsChanged
 UNiagaraSettings::FOnNiagaraSettingsChanged UNiagaraSettings::SettingsChangedDelegate;
 #endif
 
-
+UNiagaraEffectType* UNiagaraSettings::GetDefaultEffectType()const
+{
+	return DefaultEffectTypePtr;
+}

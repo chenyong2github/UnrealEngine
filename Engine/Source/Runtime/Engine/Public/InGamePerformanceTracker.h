@@ -5,8 +5,16 @@
 #include "CoreMinimal.h"
 #include "HAL/PlatformTime.h"
 
-struct FInGameCycleHistory
+struct ENGINE_API FInGameCycleHistory
 {
+	FInGameCycleHistory()
+		: FrameIdx(0)
+		, TotalCycles(0)
+		, ValidFrames(0)
+		, CurrFrameCycles(0)
+	{
+	}
+
 	FInGameCycleHistory(int32 InNumSamples)
 	: FrameIdx(0)
 	, TotalCycles(0)
@@ -64,7 +72,7 @@ struct FInGameCycleHistory
 Helper class to track code timings.
 Similar to stats but much more minimal as they're intended to be used at InGame. Though it's still not free so use wisely.
 */
-class FInGamePerformanceTracker
+class ENGINE_API FInGamePerformanceTracker
 {
 private:
 
@@ -100,9 +108,9 @@ public:
 	/** Enters a timed section of code. Can be re-entrant and will take the final exit point time. Only callable from game thread. */
 	void ExitTimedSection();
 	
-	ENGINE_API static class IConsoleVariable* Enabled;
-	ENGINE_API static int32 CachedEnabled;
-	ENGINE_API static class IConsoleVariable* HistorySize;
+	static class IConsoleVariable* Enabled;
+	static int32 CachedEnabled;
+	static class IConsoleVariable* HistorySize;
 };
 
 class FInGameCycleCounter
