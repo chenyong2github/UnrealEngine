@@ -270,6 +270,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** This component should create a sprite component for visualization in the editor */
+	UPROPERTY()
 	uint8 bVisualizeComponent : 1;
 #endif
 
