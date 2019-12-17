@@ -71,19 +71,15 @@ Sc::ShapeInteraction::ShapeInteraction(ShapeSim& s1, ShapeSim& s2, ActorPair* aP
 	PX_COMPILE_TIME_ASSERT((PAIR_FLAGS_MASK & PxPairFlag::eCONTACT_EVENT_POSE) == PxPairFlag::eCONTACT_EVENT_POSE);
 	PX_COMPILE_TIME_ASSERT((PxPairFlag::eCONTACT_EVENT_POSE | PAIR_FLAGS_MASK) == PAIR_FLAGS_MASK);
 
+	setPairFlags(pairFlags);
+
 	//Add a fresh edge to the island manager.
 	Scene& scene = getScene();
 	Sc::BodySim* bs0 = getShape0().getBodySim();
 	Sc::BodySim* bs1 = getShape1().getBodySim();
 
-	if (bs0 == NULL)
-	{
-		return;
-	}
-
 	PX_ASSERT(bs0);  // The shapes have to be sorted such that the first shape belongs to a dynamic
 
-	setPairFlags(pairFlags);
 	updateFlags(scene, bs0, bs1, pairFlags);
 
 
@@ -124,11 +120,6 @@ Sc::ShapeInteraction::~ShapeInteraction()
 {
 	Sc::BodySim* body0 = getShape0().getBodySim();
 	Sc::BodySim* body1 = getShape1().getBodySim();
-
-	if (body0 == NULL)
-	{
-		return;
-	}
 	PX_ASSERT(body0);  // the first shape always belongs to a dynamic body
 
 	body0->unregisterCountedInteraction();
@@ -259,10 +250,6 @@ void Sc::ShapeInteraction::visualize(Cm::RenderOutput& out, PxsContactManagerOut
 
 PX_FORCE_INLINE	void Sc::ShapeInteraction::processReportPairOnActivate()
 {
-	if (!isReportPair())
-	{
-		return;
-	}
 	PX_ASSERT(isReportPair());
 	PX_ASSERT(mReportPairIndex == INVALID_REPORT_PAIR_ID);
 
@@ -276,10 +263,6 @@ PX_FORCE_INLINE	void Sc::ShapeInteraction::processReportPairOnActivate()
 
 PX_FORCE_INLINE	void Sc::ShapeInteraction::processReportPairOnDeactivate()
 {
-	if (!isReportPair())
-	{
-		return;
-	}
 	PX_ASSERT(isReportPair());
 	PX_ASSERT(mReportPairIndex != INVALID_REPORT_PAIR_ID);
 	PX_COMPILE_TIME_ASSERT(IS_IN_PERSISTENT_EVENT_LIST == (WAS_IN_PERSISTENT_EVENT_LIST >> 1));
@@ -323,10 +306,6 @@ void Sc::ShapeInteraction::resetManagerCachedState()	const
 */
 void Sc::ShapeInteraction::processUserNotification(PxU32 contactEvent, PxU16 infoFlags, bool touchLost, const PxU32 ccdPass, const bool useCurrentTransform, PxsContactManagerOutputIterator& outputs)
 {
-	if (!hasTouch())
-	{
-		return;
-	}
 	PX_ASSERT(hasTouch());
 
 	contactEvent = (!ccdPass) ? contactEvent : (contactEvent | PxPairFlag::eNOTIFY_TOUCH_CCD);
@@ -697,11 +676,6 @@ PxU32 Sc::ShapeInteraction::getContactPointData(const void*& contactPatches, con
 // Note that LL will not send end touch events for managers that are destroyed while having contact
 void Sc::ShapeInteraction::managerNewTouch(const PxU32 ccdPass, bool adjustCounters, PxsContactManagerOutputIterator& outputs, bool useAdaptiveForce)
 {
-	BodySim* body0 = getShape0().getBodySim();
-	if (body0 == NULL)
-	{
-		return;
-	}
 	if (readFlag(HAS_TOUCH))
 		return; // Do not count the touch twice (for instance when recreating a manager with touch)
 	// We have contact this frame
@@ -783,11 +757,6 @@ bool Sc::ShapeInteraction::managerLostTouch(const PxU32 ccdPass, bool adjustCoun
 
 	BodySim* body0 = getShape0().getBodySim();
 	BodySim* body1 = getShape1().getBodySim();
-
-	if (body0 == NULL)
-	{
-		return false;
-	}
 	PX_ASSERT(body0);  // the first shape always belongs to a dynamic body
 
 	if (adjustCounters)
@@ -804,10 +773,6 @@ bool Sc::ShapeInteraction::managerLostTouch(const PxU32 ccdPass, bool adjustCoun
 
 PX_FORCE_INLINE void Sc::ShapeInteraction::updateFlags(const Sc::Scene& scene, const Sc::BodySim* bs0, const Sc::BodySim* bs1, const PxU32 pairFlags)
 {
-	if (bs0 == NULL)
-	{
-		return;
-	}
 	PX_ASSERT(bs0);  // the first shape always belongs to a dynamic body
 
 	// Check if collision response is disabled
@@ -871,10 +836,6 @@ void Sc::ShapeInteraction::updateState(const PxU8 externalDirtyFlags)
 		{
 			Sc::BodySim* bs0 = shapeSim0.getBodySim();
 			Sc::BodySim* bs1 = shapeSim1.getBodySim();
-			if (bs0 == NULL)
-			{
-				return;
-			}
 			PX_ASSERT(bs0);  // the first shape always belongs to a dynamic body
 
 			// Static actors are in dominance group zero and must remain there
@@ -897,10 +858,6 @@ void Sc::ShapeInteraction::updateState(const PxU8 externalDirtyFlags)
 	}
 	else if (readInteractionFlag(InteractionFlag::eIS_ACTIVE))  // only re-create the manager if the pair is active
 	{
-		if (mManager == NULL)
-		{
-			return;
-		}
 		PX_ASSERT(mManager);  // if the pair is active, there has to be a manager
 		PX_ASSERT(activeManagerAllowed());
 
@@ -920,11 +877,6 @@ void Sc::ShapeInteraction::updateState(const PxU8 externalDirtyFlags)
 
 bool Sc::ShapeInteraction::onActivate(void* contactManager)
 {
-	Sc::BodySim* bs0 = getShape0().getBodySim();
-	if (bs0 == NULL)
-	{
-		return false;
-	}
 	if (isReportPair())// && !(infoFlag & ActorSim::AS_PART_OF_ISLAND_GEN_PASS_1))
 	{
 		// for pairs that go through a second island pass, there is the possibility that they get put to sleep again after the second pass.
@@ -948,11 +900,6 @@ bool Sc::ShapeInteraction::onDeactivate(PxU32 /*infoFlag*/)
 	
 	const BodySim* bodySim0 = getShape0().getBodySim();
 	const BodySim* bodySim1 = getShape1().getBodySim();
-
-	if (bodySim0 == NULL)
-	{
-		return false;
-	}
 	PX_ASSERT(bodySim0);  // the first shape always belongs to a dynamic body
 
 	PX_ASSERT(	(!bodySim0 && bodySim1 && !bodySim1->isActive()) || 
@@ -1020,11 +967,6 @@ void Sc::ShapeInteraction::createManager(void* contactManager)
 {
 	//PX_PROFILE_ZONE("ShapeInteraction.createManager", 0);
 
-	Sc::BodySim* body0 = getShape0().getBodySim();
-	if (body0 == NULL)
-	{
-		return;
-	}
 	Sc::Scene& scene = getScene();
 
 	const PxU32 pairFlags = getPairFlags();
@@ -1190,10 +1132,6 @@ void Sc::ShapeInteraction::onShapeChangeWhileSleeping(bool shapeOfDynamicChanged
 
 
 		BodySim* body0 = getShape0().getBodySim();
-		if (body0 == NULL)
-		{
-			return;
-		}
 		PX_ASSERT(body0);  // the first shape always belongs to a dynamic body
 
 		if (shapeOfDynamicChanged && !readFlag(TOUCH_KNOWN))
