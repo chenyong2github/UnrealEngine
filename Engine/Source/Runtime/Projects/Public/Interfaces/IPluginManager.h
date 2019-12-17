@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "PluginDescriptor.h"
 
+struct FProjectDescriptor;
+
 /**
  * Enum for where a plugin is loaded from
  */
@@ -293,6 +295,18 @@ public:
 	* Does a reverse lookup to try to figure out what the UObject package name is for a plugin
 	*/
 	virtual FName PackageNameFromModuleName(FName ModuleName) = 0;
+
+	/**
+	 * Determines if a content-only project requires a temporary target due to having a plugin enabled
+	 *
+	 * @param ProjectDescriptor The project being built
+	 * @param Platform The platform the target is being built for
+	 * @param Configuration The configuration being built
+	 * @param TargetType The type of target being built
+	 * @param OutReason If a temporary target is required, receives a message indicating why
+	 * @return True if the project requires a temp target to be generated
+	 */
+	virtual bool RequiresTempTargetForCodePlugin(const FProjectDescriptor* ProjectDescriptor, const FString& Platform, EBuildConfiguration Configuration, EBuildTargetType TargetType, FText& OutReason) = 0;
 
 public:
 
