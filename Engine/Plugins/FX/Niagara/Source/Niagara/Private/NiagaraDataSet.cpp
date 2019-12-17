@@ -99,7 +99,7 @@ void FNiagaraDataSet::Reset()
 
 void FNiagaraDataSet::ResetBuffers()
 {
-	checkSlow(CompiledData);
+	//checkSlow(CompiledData);
 	
 	if (GetSimTarget() == ENiagaraSimTarget::CPUSim)
 	{
