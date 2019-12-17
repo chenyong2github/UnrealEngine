@@ -29,9 +29,6 @@ namespace Chaos
 		template<ECollisionUpdateType UpdateType, typename T = float, int d = 3>
 		void Update(const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint);
 
-		template<ECollisionUpdateType UpdateType, typename T=float, int d=3>
-		void UpdateConstraint(const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint);
-			
 		template<typename T = float, int d = 3>
 		void Apply(TRigidBodyPointContactConstraint<T, d>& Constraint, T Thickness, 
 			TPointContactIterationParameters<T> & IterationParameters,

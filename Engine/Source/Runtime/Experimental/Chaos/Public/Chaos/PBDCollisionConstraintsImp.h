@@ -92,7 +92,7 @@ namespace Chaos
 			void IncrementSimulatedParticles() {}
 			void RecordBoundsData(const TBox <T, d>& Box1) {}
 			void RecordBroadphasePotentials(int32 Num) {}
-			void IncrementCountNP() {}
+			void IncrementCountNP(int32 Count = 1) {}
 			void IncrementRejectedNP() {}
 			void FinalizeData() {}
 			void Print() {}
@@ -121,9 +121,9 @@ namespace Chaos
 				BroadphasePotentials.Record(Num);
 			}
 
-			void IncrementCountNP()
+			void IncrementCountNP(int32 Count = 1)
 			{
-				++CountNP;
+				CountNP += Count;
 			}
 
 			void IncrementRejectedNP()
@@ -260,7 +260,7 @@ namespace Chaos
 		if (!EnableCollisions) return;
 
 		//todo(ocohen): use per thread buffer instead, need better support than ParallelFor for this
-		TQueue<TRigidBodyPointContactConstraint<T, d>, EQueueMode::Mpsc> Queue;
+		TQueue<FCollisionConstraintBase*, EQueueMode::Mpsc> Queue;
 
 		Particles.GetNonDisabledDynamicView().ParallelFor([&](auto& Particle1, int32 ActiveIdxIdx)
 		{
@@ -302,7 +302,8 @@ namespace Chaos
 			{
 				auto& Particle2 = *PotentialIntersections[i].GetGeometryParticleHandle_PhysicsThread();
 				const TGenericParticleHandle<T, d> Particle2Generic(&Particle2);
-				// Collision group culling...
+
+				// Broad Phase Culling 
 				// CollisionGroup == 0 : Collide_With_Everything
 				// CollisionGroup == INDEX_NONE : Disabled collisions
 				// CollisionGroup_A != CollisionGroup_B : Skip Check
@@ -330,57 +331,48 @@ namespace Chaos
 
 				if (bBody1Bounded == bBody2Bounded && Particle2.AsDynamic())
 				{
-#if CHAOS_DETERMINISTIC
-					//if both are dynamic, assume index order matters
+					//no bidirectional constraints. 
 					if (Particle2.ParticleID() > Particle1.ParticleID())
-#else
-					//not deterministic just use memory address to avoid pair duplication
-					if (Particle2.Handle() > Particle1.Handle())
-#endif
 					{
 						continue;
 					}
 				}
-				//				++TotalTested;
 
 				const TVector<T, d> Box2Thickness = Particle2.AsDynamic() ? ComputeThickness(*Particle2.AsDynamic(), Dt) : TVector<T, d>(0);
 				const T UseThickness = FMath::Max(Box1Thickness, Box2Thickness.Size());// + MThickness
 
-
-				TRigidBodyPointContactConstraint<T, d> Constraint;
-				ConstructConstraints(Particle1.Handle(), Particle2.Handle(), UseThickness, Constraint);
-
-				COLLISION_OPT_OUT(StatData.IncrementCountNP());
-
-				if (Constraint.ContainsManifold())
+				FCollisionConstraintsArray Constraints;
+				ConstructConstraints(Particle1.Handle(), Particle2.Handle(), UseThickness, Constraints);
+				for (TCollisionConstraintBase<T, d>* ConstraintBase : Constraints)
 				{
-					UpdateConstraint<ECollisionUpdateType::Any>(UseThickness, Constraint);
+					Queue.Enqueue(ConstraintBase);
 				}
 
-				if (Constraint.GetPhi() < UseThickness)
-				{
-					Queue.Enqueue(Constraint);
-				}
-				else
-				{
-					COLLISION_OPT_OUT(StatData.IncrementRejectedNP());
-				}
+				COLLISION_OPT_OUT(if (Constraints.Num()) { StatData.IncrementCountNP(Constraints.Num()); });
+				COLLISION_OPT_OUT(if (!Constraints.Num()) { StatData.IncrementRejectedNP(); });
 			}
 
 			COLLISION_OPT_OUT(StatData.FinalizeData());
 
-		}, bGatherStats || bDisableCollisionParallelFor);
+		}, bGatherStats || bDisableCollisionParallelFor || true); // todo(brice) remove true.
 
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ComputeConstraintsSU);
 
-			while (!Queue.IsEmpty())
+			
+			FCollisionConstraintBase* ConstraintBase = nullptr;
+			while ( Queue.Dequeue(ConstraintBase) )
 			{
-				int32 Idx = PointConstraints.AddUninitialized(1);
-				FConstraintContainerHandle* Handle = HandleAllocator.template AllocHandle< TRigidBodyPointContactConstraint<T, d> >(this, Idx);
+				if (ConstraintBase->GetType() == TRigidBodyPointContactConstraint<T, 3>::StaticType())
+				{
+					TRigidBodyPointContactConstraint<T, d>* PointConstraint = ConstraintBase->As< TRigidBodyPointContactConstraint<T, d> >();
 
-				Handles.Add(Handle);
-				Queue.Dequeue(PointConstraints[Idx]);
+					int32 Idx = PointConstraints.AddUninitialized(1);
+					PointConstraints[Idx] = *PointConstraint;
+					Handles.Add(HandleAllocator.template AllocHandle< TRigidBodyPointContactConstraint<T, d> >(this, Idx));
+
+					delete PointConstraint;
+				}
 			}
 			LifespanCounter++;
 		}

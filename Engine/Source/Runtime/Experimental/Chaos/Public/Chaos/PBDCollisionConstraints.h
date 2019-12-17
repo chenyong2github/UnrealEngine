@@ -62,6 +62,7 @@ public:
 	using Base = FPBDConstraintContainer;
 	using FHandles = TArray<TPBDCollisionConstraintHandle<T, d>*>;
 	using FConstraintContainerHandle = TPBDCollisionConstraintHandle<T, d>;
+	using FConstraintBase = TCollisionConstraintBase<T, d>;
  	using FPointContactConstraint = TRigidBodyPointContactConstraint<T, d>;
 	using FPlaneContactConstraint = TRigidBodyPlaneContactConstraint<T, d>;
 	using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDCollisionConstraints<T, d>>;
@@ -236,8 +237,7 @@ private:
 	/**
 	*  Build a constraint based on the two particle handles.
 	*/
-	void ConstructConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, 
-		const T Thickness, TRigidBodyPointContactConstraint<T, d> & Constraint);
+	void ConstructConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const T Thickness, FCollisionConstraintsArray&);
 
 
 

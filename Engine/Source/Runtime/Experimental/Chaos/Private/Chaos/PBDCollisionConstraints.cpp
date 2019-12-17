@@ -6,8 +6,8 @@
 #include "Chaos/Capsule.h"
 #include "Chaos/ChaosPerfTest.h"
 #include "Chaos/ChaosDebugDraw.h"
-#include "Chaos/CollisionResolutionAlgo.h"
-#include "Chaos/CollisionResolutionConvexConvex.h"
+#include "Chaos/CollisionResolutionUtil.h"
+#include "Chaos/CollisionResolution.h"
 #include "Chaos/Defines.h"
 #include "Chaos/GeometryQueries.h"
 #include "Chaos/ImplicitObjectUnion.h"
@@ -147,12 +147,13 @@ namespace Chaos
 	}
 
 	template<typename T, int d>
-	void TPBDCollisionConstraints<T, d>::ConstructConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const T Thickness, TRigidBodyPointContactConstraint<T, d> & Constraint)
+	void TPBDCollisionConstraints<T, d>::ConstructConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const T Thickness, FCollisionConstraintsArray& NewConstraints)
 	{
 		if (ensure(Particle0 && Particle1))
 		{
-			Collisions::ConstructConstraintsImpl<T, d>(Particle0, Particle1, Particle0->Geometry().Get(), Particle1->Geometry().Get(), Thickness, Constraint);
+			Collisions::ConstructConstraintsImpl<T, d>(Particle0, Particle1, Particle0->Geometry().Get(), Particle1->Geometry().Get(), Thickness, NewConstraints);
 		}
+
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraints::Reset"), STAT_CollisionConstraintsReset, STATGROUP_Chaos);
@@ -282,7 +283,7 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_UpdateConstraint);
 		//if (ConstraintHandle->GetType() == FPointContactConstraint::StaticType())
 		{
-			Collisions::UpdateConstraint<UpdateType>(Thickness, Constraint);
+			Collisions::Update<UpdateType>(Thickness, Constraint);
 		}
 	}
 
