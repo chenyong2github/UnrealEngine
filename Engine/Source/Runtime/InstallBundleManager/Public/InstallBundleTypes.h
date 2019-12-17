@@ -136,6 +136,8 @@ struct FInstallBundleSourceRequestResultInfo
 	// Currently, these just forward BPT Error info
 	FText OptionalErrorText;
 	FString OptionalErrorCode;
+
+	TArray<FString> ContentPaths;
 };
 
 enum class EInstallBundleCancelFlags : int32
