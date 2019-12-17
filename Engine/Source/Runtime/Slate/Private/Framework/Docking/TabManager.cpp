@@ -1021,7 +1021,10 @@ void FTabManager::PopulateTabSpawnerMenu( FMenuBuilder& PopulateMe, TSharedRef<F
 		const TSharedRef<FTabSpawnerEntry>& SpawnerEntry = SpawnerIterator.Value();
 		if ( SpawnerEntry->bAutoGenerateMenuEntry )
 		{
-			AllSpawners->AddUnique(SpawnerEntry);
+			if (SpawnerEntry->TabType == NAME_None || TabBlacklist.PassesFilter(SpawnerEntry->TabType))
+			{
+				AllSpawners->AddUnique(SpawnerEntry);
+			}
 		}
 	}
 
@@ -1031,7 +1034,10 @@ void FTabManager::PopulateTabSpawnerMenu( FMenuBuilder& PopulateMe, TSharedRef<F
 		const TSharedRef<FTabSpawnerEntry>& SpawnerEntry = SpawnerIterator.Value();
 		if ( SpawnerEntry->bAutoGenerateMenuEntry )
 		{
-			AllSpawners->AddUnique(SpawnerEntry);
+			if (SpawnerEntry->TabType == NAME_None || TabBlacklist.PassesFilter(SpawnerEntry->TabType))
+			{
+				AllSpawners->AddUnique(SpawnerEntry);
+			}
 		}
 	}
 
@@ -1616,6 +1622,11 @@ bool FTabManager::HasTabSpawner(FName TabId) const
 	}
 
 	return Spawner != nullptr;
+}
+
+FNamedBlacklist& FTabManager::GetTabBlacklist()
+{
+	return TabBlacklist;
 }
 
 bool FTabManager::IsValidTabForSpawning( const FTab& SomeTab ) const
