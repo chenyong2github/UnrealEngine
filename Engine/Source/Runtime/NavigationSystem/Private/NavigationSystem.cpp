@@ -2978,11 +2978,14 @@ void UNavigationSystemV1::GatherNavigationBounds()
 void UNavigationSystemV1::Build()
 {
 	UE_LOG(LogNavigationDataBuild, Log, TEXT("UNavigationSystemV1::Build started..."));
+#if PHYSICS_INTERFACE_PHYSX
+	UE_LOG(LogNavigationDataBuild, Log, TEXT("   Building navigation data using PHYSICS_INTERFACE_PHYSX."));
+#endif
 #if WITH_PHYSX
-	UE_LOG(LogNavigationDataBuild, Log, TEXT("   Building navigation data using PHYSX."));
+	UE_LOG(LogNavigationDataBuild, Log, TEXT("   Building navigation data using WITH_PHYSX."));
 #endif
 #if WITH_CHAOS
-	UE_LOG(LogNavigationDataBuild, Log, TEXT("   Building navigation data using CHAOS."));
+	UE_LOG(LogNavigationDataBuild, Log, TEXT("   Building navigation data using WITH_CHAOS."));
 #endif
 
 	UWorld* World = GetWorld();
