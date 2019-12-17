@@ -481,7 +481,7 @@ FActiveSound* FSoundConcurrencyManager::GetEvictableSoundStopFarthest(const FAct
 
 	check(AudioDevice);
 	float DistanceToStopSoundSq;
-	const bool bAllowAttenuationOverrides = false;
+	const bool bAllowAttenuationOverrides = true;
 	int32 ClosestListenerIndex = AudioDevice->FindClosestListenerIndex(NewActiveSound.Transform.GetTranslation(), DistanceToStopSoundSq, bAllowAttenuationOverrides);
 
 	FActiveSound* EvictableSound = nullptr;

@@ -4930,7 +4930,8 @@ float FAudioDevice::GetDistanceToNearestListener(const FVector& Location) const
 	check(bInAudioThread || bInGameThread);
 
 	float DistSquared;
-	if (FindClosestListenerIndex(Location, DistSquared, true) == INDEX_NONE)
+	const bool bAllowAttenuationOverrides = true;
+	if (FindClosestListenerIndex(Location, DistSquared, bAllowAttenuationOverrides) == INDEX_NONE)
 	{
 		return WORLD_MAX;
 	}
@@ -5119,7 +5120,7 @@ bool FAudioDevice::SoundIsAudible(const FActiveSound& NewActiveSound)
 int32 FAudioDevice::FindClosestListenerIndex(const FTransform& SoundTransform) const
 {
 	float UnusedDistSq;
-	const bool bAllowOverrides = false;
+	const bool bAllowOverrides = true;
 	return FindClosestListenerIndex(SoundTransform.GetTranslation(), UnusedDistSq, bAllowOverrides);
 }
 
