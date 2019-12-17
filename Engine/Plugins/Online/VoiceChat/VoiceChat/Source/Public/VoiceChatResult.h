@@ -11,6 +11,8 @@ enum class EVoiceChatResult
 	NotInitialized,
 	NotConnected,
 	NotLoggedIn,
+	NotPermitted,
+	Throttled,
 
 	// Common argument errors
 	InvalidArgument,
