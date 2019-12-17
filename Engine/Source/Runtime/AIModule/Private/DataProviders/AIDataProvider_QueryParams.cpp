@@ -9,8 +9,12 @@ void UAIDataProvider_QueryParams::BindData(const UObject& Owner, int32 RequestId
 	if (QueryManager)
 	{
 		FloatValue = QueryManager->FindNamedParam(RequestId, ParamName);
+
+		// int param was encoded directly in the float value
 		IntValue = *((int32*)&FloatValue);
-		BoolValue = *((bool*)&FloatValue);
+
+		// bool param was encoded as -1.0f (false) or 1.0f (true) in the float value
+		BoolValue = FloatValue > 0.f;
 	}
 	else
 	{
