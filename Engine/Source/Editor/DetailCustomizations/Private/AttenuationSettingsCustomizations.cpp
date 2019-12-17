@@ -338,10 +338,10 @@ void FSoundAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IPrope
 	// Get handle to layout builder so we can add properties to categories
 	IDetailLayoutBuilder& LayoutBuilder = ChildBuilder.GetParentCategory().GetParentLayout();
 
-	FBaseAttenuationSettingsCustomization::CustomizeChildren(StructPropertyHandle, ChildBuilder, StructCustomizationUtils);
-
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bAttenuate)))
 		.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
+
+	FBaseAttenuationSettingsCustomization::CustomizeChildren(StructPropertyHandle, ChildBuilder, StructCustomizationUtils);
 
 	LayoutBuilder.AddPropertyToCategory(bIsSpatializedHandle)
 		.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);

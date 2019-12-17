@@ -98,16 +98,7 @@ struct ENGINE_API FBaseAttenuationSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category= AttenuationDistance)
 	FRuntimeFloatCurve CustomAttenuationCurve;
 
-	FBaseAttenuationSettings()
-		: DistanceAlgorithm(EAttenuationDistanceModel::Linear)
-		, AttenuationShape(EAttenuationShape::Sphere)
-		, dBAttenuationAtMax(-60.f)
-		, FalloffMode(ENaturalSoundFalloffMode::Continues)
-		, AttenuationShapeExtents(400.f, 0.f, 0.f)
-		, ConeOffset(0.f)
-		, FalloffDistance(3600.f)
-	{
-	}
+	FBaseAttenuationSettings();
 
 	struct AttenuationShapeDetails
 	{
@@ -118,6 +109,9 @@ struct ENGINE_API FBaseAttenuationSettings
 
 	virtual void CollectAttenuationShapesForVisualization(TMultiMap<EAttenuationShape::Type, AttenuationShapeDetails>& ShapeDetailsMap) const;
 	float GetMaxDimension() const;
+
+	float GetMaxFalloffDistance() const;
+
 	float Evaluate(const FTransform& Origin, FVector Location, float DistanceScale = 1.f) const;
 
 	float AttenuationEval(float Distance, float Falloff, float DistanceScale = 1.f) const;
