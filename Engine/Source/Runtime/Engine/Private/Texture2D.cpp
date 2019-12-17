@@ -117,7 +117,7 @@ static bool CanCreateAsVirtualTexture(uint32 TexCreateFlags)
 	const uint32 iRequiredFlags =
 		TexCreate_OfflineProcessed;
 
-	return ((TexCreateFlags & (iDisableFlags | iRequiredFlags)) == iRequiredFlags) && CVarVirtualTextureEnabled.GetValueOnRenderThread();
+	return ((TexCreateFlags & (iDisableFlags | iRequiredFlags)) == iRequiredFlags) && CVarVirtualTextureEnabled.GetValueOnAnyThread();
 	
 #else
 	return false;
@@ -949,18 +949,30 @@ int32 UTexture2D::CalcTextureMemorySize( int32 MipCount ) const
 	int32 Size = 0;
 	if (PlatformData)
 	{
-		int32 SizeX = GetSizeX();
-		int32 SizeY = GetSizeY();
-		int32 NumMips = GetNumMips();
-		EPixelFormat Format = GetPixelFormat();
+		static TConsoleVariableData<int32>* CVarReducedMode = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextureReducedMemory"));
+		check(CVarReducedMode);
 
-		// Figure out what the first mip to use is.
-		int32 FirstMip	= FMath::Max( 0, NumMips - MipCount );		
-		FIntPoint MipExtents = CalcMipMapExtent(SizeX, SizeY, Format, FirstMip);
+		uint32 TexCreateFlags = (SRGB ? TexCreate_SRGB : 0) | (bNoTiling ? TexCreate_NoTiling : 0) | TexCreate_OfflineProcessed | TexCreate_Streamable;
+		const bool bCanBeVirtual = CanCreateAsVirtualTexture(TexCreateFlags);
 
-		uint32 TextureAlign = 0;
-		uint64 TextureSize = RHICalcTexture2DPlatformSize(MipExtents.X, MipExtents.Y, Format, MipCount, 1, 0, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign);
-		Size = (int32)TextureSize;
+		const int32 SizeX = GetSizeX();
+		const int32 SizeY = GetSizeY();
+		const int32 NumMips = GetNumMips();
+		const int32 FirstMip = FMath::Max(0, NumMips - MipCount);
+		const EPixelFormat Format = GetPixelFormat();
+		uint32 TextureAlign;
+
+		// Must be consistent with the logic in FTexture2DResource::InitRHI
+		if (bIsStreamable && bCanBeVirtual && (!CVarReducedMode->GetValueOnAnyThread() || MipCount > UTexture2D::GetMinTextureResidentMipCount()))
+		{
+			TexCreateFlags |= TexCreate_Virtual;
+			Size = (int32)RHICalcVMTexture2DPlatformSize(SizeX, SizeY, Format, NumMips, FirstMip, 1, TexCreateFlags, TextureAlign);
+		}
+		else
+		{
+			const FIntPoint MipExtents = CalcMipMapExtent(SizeX, SizeY, Format, FirstMip);
+			Size = (int32)RHICalcTexture2DPlatformSize(MipExtents.X, MipExtents.Y, Format, MipCount, 1, TexCreateFlags, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign);
+		}
 	}
 	return Size;
 }
