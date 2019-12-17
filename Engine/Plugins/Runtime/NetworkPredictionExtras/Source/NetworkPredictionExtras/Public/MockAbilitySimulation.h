@@ -136,7 +136,7 @@ struct FMockAbilityBlinkActivateCue
 
 	FVector_NetQuantize10 Destination;
 	uint8 RandomType; // Random value used to color code the effect. This is the test/prove out mispredictions
-
+	
 	void NetSerialize(FArchive& Ar)
 	{
 		bool b = false;
@@ -157,7 +157,7 @@ struct TCueHandlerTraits<FMockAbilityBlinkActivateCue> : public TNetSimCueTraits
 // ----------------------------------------------------------------------------------------------
 
 
-#define LOG_BLINK_CUE 1 // During development, its useful to sanity check that we aren't doing more construction or moves than we expect
+#define LOG_BLINK_CUE 0 // During development, its useful to sanity check that we aren't doing more construction or moves than we expect
 
 // Cue for blink (the moment the teleport happens)
 struct FMockAbilityBlinkCue
@@ -206,6 +206,7 @@ struct FMockAbilityBlinkCue
 		StopLocation.NetSerialize(Ar, nullptr, b);
 	}
 	
+	
 	bool NetIdentical(const FMockAbilityBlinkCue& Other) const
 	{
 		const float ErrorTolerance = 1.f;
@@ -223,6 +224,8 @@ struct TCueHandlerTraits<FMockAbilityBlinkCue> : public TNetSimCueTraits_Strong 
 #define DECLARE_BLINKCUE_SUBTYPE(TYPE, TRAITS) \
  struct TYPE : public FMockAbilityBlinkCue { \
  template <typename... ArgsType> TYPE(ArgsType&&... Args) : FMockAbilityBlinkCue(Forward<ArgsType>(Args)...) { } \
+ void NetSerialize(FArchive& Ar) { FMockAbilityBlinkCue::NetSerialize(Ar); } \
+ bool NetIdentical(const TYPE& Other) const { return FMockAbilityBlinkCue::NetIdentical(Other); } \
  NETSIMCUE_BODY(); }; \
  template<> struct TCueHandlerTraits<TYPE> : public TRAITS { };
 
