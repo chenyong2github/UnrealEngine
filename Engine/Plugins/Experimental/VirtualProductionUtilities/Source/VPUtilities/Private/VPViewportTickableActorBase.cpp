@@ -3,8 +3,9 @@
 #include "VPViewportTickableActorBase.h"
 
 
-AVPViewportTickableActorBase::AVPViewportTickableActorBase(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
-	: ViewportTickType(EVPViewportTickableFlags::Game | EVPViewportTickableFlags::Editor)
+AVPViewportTickableActorBase::AVPViewportTickableActorBase(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+	, ViewportTickType(EVPViewportTickableFlags::Game | EVPViewportTickableFlags::Editor)
 {
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = true;
