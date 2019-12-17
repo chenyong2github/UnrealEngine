@@ -3748,7 +3748,10 @@ Chaos::FParticleData* FGeometryCollectionPhysicsProxy::NewData()
 	// proxies get away with that because they're dealing with a low number of 
 	// bodies; which is not the case here. Rather, let's just use a triple buffer.
 
-	check(NumParticles != INDEX_NONE); // Make sure InitBodiesGT() has been called!
+	if (!ensure(NumParticles != INDEX_NONE)) // Make sure InitBodiesGT() has been called!
+	{
+		return nullptr;
+	}
 
 	FGeometryCollectionResults& Buffer = *GameToPhysInterchange->AccessProducerBuffer();
 	if (Buffer.NumParticlesAdded != NumParticles)
