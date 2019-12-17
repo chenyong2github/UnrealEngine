@@ -67,5 +67,10 @@ public class Slate : ModuleRules
 				RuntimeDependencies.Add("$(ProjectDir)/Content/SlateDebug/...", StagedFileType.DebugNonUFS);
 			}
 		}
+
+		if (Target.bBuildDeveloperTools)
+        {
+            DynamicallyLoadedModuleNames.Add("Settings");
+        }
 	}
 }
