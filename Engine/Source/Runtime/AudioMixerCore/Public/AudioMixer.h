@@ -606,6 +606,7 @@ namespace Audio
 
 		FThreadSafeBool bMoveAudioStreamToNewAudioDevice;
 		FThreadSafeBool bIsUsingNullDevice;
+		FThreadSafeBool bIsGeneratingAudio;
 
 	private:
 		TUniquePtr<FMixerNullCallback> NullDeviceCallback;
