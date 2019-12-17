@@ -1677,15 +1677,6 @@ public:
 	/** The number of frames to precache. */
 	int32 NumPrecacheFrames;
 
-	/** The amount of memory to reserve for always resident sounds */
-	int32 CommonAudioPoolSize;
-
-	/** Pointer to permanent memory allocation stack. */
-	void* CommonAudioPool;
-
-	/** Available size in permanent memory stack */
-	int32 CommonAudioPoolFreeBytes;
-
 	/** The handle for this audio device used in the audio device manager. */
 	Audio::FDeviceId DeviceHandle;
 

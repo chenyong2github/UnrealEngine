@@ -210,9 +210,6 @@ FAudioDevice::FAudioDevice()
 	: NumStoppingSources(32)
 	, SampleRate(0)
 	, NumPrecacheFrames(MONO_PCM_BUFFER_SAMPLES)
-	, CommonAudioPoolSize(0)
-	, CommonAudioPool(nullptr)
-	, CommonAudioPoolFreeBytes(0)
 	, DeviceHandle(static_cast<Audio::FDeviceId>(INDEX_NONE))
 	, SpatializationPluginInterface(nullptr)
 	, ReverbPluginInterface(nullptr)
@@ -321,8 +318,6 @@ bool FAudioDevice::Init(int32 InMaxSources)
 
 	// Mixed sample rate is set by the platform
 	SampleRate = PlatformSettings.SampleRate;
-
-	verify(GConfig->GetInt(TEXT("Audio"), TEXT("CommonAudioPoolSize"), CommonAudioPoolSize, GEngineIni));
 
 	// If this is true, skip the initial startup precache so we can do it later in the flow
 	GConfig->GetBool(TEXT("Audio"), TEXT("DeferStartupPrecache"), bDeferStartupPrecache, GEngineIni);
@@ -4269,20 +4264,6 @@ void FAudioDevice::Update(bool bGameTicking)
 
 	// send any needed information back to the game thread
 	SendUpdateResultsToGameThread(FirstActiveIndex);
-
-#if !UE_BUILD_SHIPPING
-	// Print statistics for first non initial load allocation.
-	static bool bFirstTime = true;
-	if (bFirstTime && CommonAudioPoolSize != 0)
-	{
-		bFirstTime = false;
-		if (CommonAudioPoolFreeBytes != 0)
-		{
-			UE_LOG(LogAudio, Log, TEXT("Audio pool size mismatch by %d bytes. Please update CommonAudioPoolSize ini setting to %d to avoid waste!"),
-				CommonAudioPoolFreeBytes, CommonAudioPoolSize - CommonAudioPoolFreeBytes);
-		}
-	}
-#endif
 }
 
 void FAudioDevice::SendUpdateResultsToGameThread(const int32 FirstActiveIndex)
