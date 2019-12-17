@@ -102,6 +102,9 @@ namespace Chaos
 			TArrayCollection::AddArray(&MHasBounds);
 			TArrayCollection::AddArray(&MSpatialIdx);
 			TArrayCollection::AddArray(&MHashResult);
+#if CHAOS_CHECKED
+			TArrayCollection::AddArray(&MDebugName);
+#endif
 
 			if (IsRigidBodySim())
 			{
@@ -143,6 +146,9 @@ namespace Chaos
 #if CHAOS_DETERMINISTIC
 			TArrayCollection::AddArray(&MParticleIDs);
 #endif
+#if CHAOS_CHECKED
+			TArrayCollection::AddArray(&MDebugName);
+#endif
 
 			if (IsRigidBodySim())
 			{
@@ -169,6 +175,9 @@ namespace Chaos
 			TArrayCollection::AddArray(&MHashResult);
 #if CHAOS_DETERMINISTIC
 			TArrayCollection::AddArray(&MParticleIDs);
+#endif
+#if CHAOS_CHECKED
+			TArrayCollection::AddArray(&MDebugName);
 #endif
 
 			if (IsRigidBodySim())
@@ -260,6 +269,18 @@ namespace Chaos
 		{
 			return MHashResult[Index];
 		}
+
+#if CHAOS_CHECKED
+		const FName& DebugName(const int32 Index) const
+		{
+			return MDebugName[Index];
+		}
+
+		FName& DebugName(const int32 Index)
+		{
+			return MDebugName[Index];
+		}
+#endif
 
 		CHAOS_API const TBox<T, d>& WorldSpaceInflatedBounds(const int32 Index) const
 		{
@@ -408,7 +429,9 @@ namespace Chaos
 #if CHAOS_DETERMINISTIC
 		TArrayCollectionArray<FParticleID> MParticleIDs;
 #endif
-
+#if CHAOS_CHECKED
+		TArrayCollectionArray<FName> MDebugName;
+#endif
 	};
 
 	template <typename T, int d, EGeometryParticlesSimType SimType>

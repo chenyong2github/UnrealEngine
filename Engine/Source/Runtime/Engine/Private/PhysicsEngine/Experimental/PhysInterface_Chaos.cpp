@@ -159,6 +159,9 @@ void FPhysInterface_Chaos::CreateActor(const FActorCreationParams& InParams, FPh
 	// the particle is added to the scene later.
 	Handle->SetX(InParams.InitialTM.GetLocation());
 	Handle->SetR(InParams.InitialTM.GetRotation());
+#if CHAOS_CHECKED
+	Handle->SetDebugName(InParams.DebugName);
+#endif
 }
 
 

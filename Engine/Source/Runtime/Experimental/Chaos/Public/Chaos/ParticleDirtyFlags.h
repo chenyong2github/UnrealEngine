@@ -32,6 +32,9 @@ namespace Chaos
 		GravityEnabled = 1 << 20,
 		SpatialIdx     = 1 << 21,
 		HashResult     = 1 << 22
+#if CHAOS_CHECKED
+		, DebugName    = 1 << 23
+#endif
 	};
 
 	class FParticleDirtyFlags
