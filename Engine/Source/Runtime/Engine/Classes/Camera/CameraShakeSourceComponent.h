@@ -27,11 +27,10 @@ public:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-#if WITH_EDITOR
 	virtual void OnRegister() override;
 
+private:
 	void UpdateEditorSpriteTexture();
-#endif
 
 public:
 	/** The attenuation profile for how camera shakes' intensity falls off with distance */
