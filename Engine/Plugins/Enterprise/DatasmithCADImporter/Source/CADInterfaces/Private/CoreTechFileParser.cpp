@@ -410,10 +410,10 @@ void FCoreTechFileParser::SetFaceMainMaterial(FObjectDisplayDataId& InFaceMateri
 		FaceTessellations.ColorName = Color.UEMaterialName;
 		BodyMesh.ColorSet.Add(Color.UEMaterialName);
 	}
-	else if(InFaceMaterial.DefaultMaterialName)
+	else if(InBodyMaterial.DefaultMaterialName)
 	{
-		FaceTessellations.ColorName = InFaceMaterial.DefaultMaterialName;
-		BodyMesh.ColorSet.Add(InFaceMaterial.DefaultMaterialName);
+		FaceTessellations.ColorName = InBodyMaterial.DefaultMaterialName;
+		BodyMesh.ColorSet.Add(InBodyMaterial.DefaultMaterialName);
 	}
 }
 
