@@ -19,7 +19,6 @@
 
 using namespace Chaos;
 
-
 void FPBDConstraintColor::ComputeIslandColoring(const int32 Island, const FPBDConstraintGraph& ConstraintGraph, uint32 ContainerId)
 {
 	const TArray<TGeometryParticleHandle<FReal, 3>*>& IslandParticles = ConstraintGraph.GetIslandParticles(Island);
@@ -267,13 +266,6 @@ void FPBDConstraintColor::ComputeContactGraph(const int32 Island, const FPBDCons
 
 void FPBDConstraintColor::InitializeColor(const FPBDConstraintGraph& ConstraintGraph)
 {
-	// Reset the existing Nodes - so colors are all reset to zero
-	ParallelFor(Nodes.Num(), [&](int32 Index)
-	{
-		Nodes[Index].NextColor = 0;
-		Nodes[Index].UsedColors.Empty();
-	});
-
 	// The Number of nodes is large and fairly constant so persist rather than resetting every frame
 	if (Nodes.Num() != ConstraintGraph.Nodes.Num())
 	{
@@ -281,14 +273,22 @@ void FPBDConstraintColor::InitializeColor(const FPBDConstraintGraph& ConstraintG
 		Nodes.AddDefaulted(ConstraintGraph.Nodes.Num() - Nodes.Num());
 	}
 	
+	// Reset the existing Nodes - so colors are all reset to zero
+	for (int32 UpdatedNode : UpdatedNodes)
+	{
+		Nodes[UpdatedNode].NextColor = 0;
+		Nodes[UpdatedNode].UsedColors.Empty();
+	}
+
 	// edges are not persistent right now so we still reset them
 	Edges.Reset();
 	IslandData.Reset();
 
 	Edges.SetNum(ConstraintGraph.Edges.Num());
 	IslandData.SetNum(ConstraintGraph.IslandToData.Num());
-}
 
+	UpdatedNodes = ConstraintGraph.GetUpdatedNodes();
+}
 
 void FPBDConstraintColor::ComputeColor(const int32 Island, const FPBDConstraintGraph& ConstraintGraph, uint32 ContainerId)
 {
@@ -297,7 +297,6 @@ void FPBDConstraintColor::ComputeColor(const int32 Island, const FPBDConstraintG
 #endif
 	ComputeIslandColoring(Island, ConstraintGraph, ContainerId);
 }
-
 
 const typename FPBDConstraintColor::FLevelToColorToConstraintListMap& FPBDConstraintColor::GetIslandLevelToColorToConstraintListMap(int32 Island) const
 {
@@ -308,7 +307,6 @@ const typename FPBDConstraintColor::FLevelToColorToConstraintListMap& FPBDConstr
 	return EmptyLevelToColorToConstraintListMap;
 }
 
-
 int FPBDConstraintColor::GetIslandMaxColor(int32 Island) const
 {
 	if (Island < IslandData.Num())
@@ -317,7 +315,6 @@ int FPBDConstraintColor::GetIslandMaxColor(int32 Island) const
 	}
 	return -1;
 }
-
 
 int FPBDConstraintColor::GetIslandMaxLevel(int32 Island) const
 {

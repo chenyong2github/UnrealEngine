@@ -4,6 +4,7 @@
 
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "ChaosStats.h"
+#include "ChaosLog.h"
 #include "Chaos/Framework/Parallel.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Containers/Queue.h"
