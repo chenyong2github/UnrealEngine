@@ -132,7 +132,7 @@ void FPBDConstraintGraph::InitializeGraph(const TParticleView<TGeometryParticles
 					Nodes[UpdatedNodes[Index]].Island = INDEX_NONE;
 					Nodes[UpdatedNodes[Index]].Edges.Empty();
 					auto* Particle = Nodes[UpdatedNodes[Index]].Particle;
-				    if (Particle)
+				    if (CHAOS_ENSURE(Particle))
 				    {
 					    if (TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->AsDynamic())
 					    {
