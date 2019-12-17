@@ -385,6 +385,8 @@ protected:
 
 	//~ Begin IDeviceChangedListener
 	virtual void OnDefaultDeviceChanged() override;
+
+	bool bDeviceChangeListenerRegistered;
 #else
 	virtual void OnDefaultDeviceChanged() override {}
 #endif

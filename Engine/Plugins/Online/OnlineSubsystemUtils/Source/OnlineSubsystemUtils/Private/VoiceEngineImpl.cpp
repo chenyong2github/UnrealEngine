@@ -188,6 +188,7 @@ FVoiceEngineImpl ::FVoiceEngineImpl()
 	, SerializeHelper(nullptr)
 #if PLATFORM_WINDOWS
 	, bAudioDeviceChanged(false)
+	, bDeviceChangeListenerRegistered(false)
 #endif
 {
 }
@@ -228,6 +229,13 @@ FVoiceEngineImpl::~FVoiceEngineImpl()
 	VoiceEncoder = nullptr;
 
 	delete SerializeHelper;
+
+#if PLATFORM_WINDOWS
+	if (bDeviceChangeListenerRegistered)
+	{
+		UnregisterDeviceChangedListener();
+	}
+#endif
 }
 
 void FVoiceEngineImpl::VoiceCaptureUpdate() const
@@ -955,6 +963,8 @@ void FVoiceEngineImpl::RegisterDeviceChangedListener()
 	}
 
 	NotificationClient::WindowsNotificationClient->RegisterDeviceChangedListener(this);
+
+	bDeviceChangeListenerRegistered = true;
 }
 
 void FVoiceEngineImpl::UnregisterDeviceChangedListener()
@@ -963,6 +973,8 @@ void FVoiceEngineImpl::UnregisterDeviceChangedListener()
 	{
 		NotificationClient::WindowsNotificationClient->UnRegisterDeviceDeviceChangedListener(this);
 	}
+
+	bDeviceChangeListenerRegistered = false;
 }
 
 void FVoiceEngineImpl::HandleDeviceChange()
