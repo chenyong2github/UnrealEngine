@@ -518,11 +518,11 @@ namespace Chaos
 	}
 
 
-	void FPBDJointConstraints::UpdateParticleState(TPBDRigidParticleHandle<FReal, 3>* Rigid, const FReal Dt, const FVec3& P, const FRotation3& Q)
+	void FPBDJointConstraints::UpdateParticleState(TPBDRigidParticleHandle<FReal, 3>* Rigid, const FReal Dt, const FVec3& P, const FRotation3& Q, const bool bUpdateVelocity)
 	{
 		if ((Rigid != nullptr) && (Rigid->ObjectState() == EObjectStateType::Dynamic))
 		{
-			if (Dt > SMALL_NUMBER)
+			if (bUpdateVelocity && (Dt > SMALL_NUMBER))
 			{
 				FVec3 DV = FVec3::CalculateVelocity(Rigid->P(), P, Dt);
 				FVec3 DW = FRotation3::CalculateAngularVelocity(Rigid->Q(), Q, Dt);
@@ -943,18 +943,8 @@ namespace Chaos
 		}
 
 		// Update the particles
-		TPBDRigidParticleHandle<FReal, 3>* Rigid0 = ConstraintParticles[ConstraintIndex][Index0]->CastToRigidParticle();
-		TPBDRigidParticleHandle<FReal, 3>* Rigid1 = ConstraintParticles[ConstraintIndex][Index1]->CastToRigidParticle();
-		if (Rigid0 && Rigid0->ObjectState() == EObjectStateType::Dynamic)
-		{
-			Rigid0->SetP(P0);
-			Rigid0->SetQ(Q0);
-		}
-		if (Rigid1 && Rigid1->ObjectState() == EObjectStateType::Dynamic)
-		{
-			Rigid1->SetP(P1);
-			Rigid1->SetQ(Q1);
-		}
+		UpdateParticleState(Particle0->CastToRigidParticle(), Dt, P0, Q0, false);
+		UpdateParticleState(Particle1->CastToRigidParticle(), Dt, P1, Q1, false);
 	}
 }
 
