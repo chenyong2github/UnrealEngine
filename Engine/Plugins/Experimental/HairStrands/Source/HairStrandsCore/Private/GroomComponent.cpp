@@ -1405,7 +1405,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 
 	if (bRecreateResources)
 	{
-		if (GroomAsset != InitializedResources)
+		//if (GroomAsset != InitializedResources)
 		{
 			if (GroomAsset)
 			{

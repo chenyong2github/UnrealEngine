@@ -85,6 +85,21 @@ float3 ToWorld(const float3 P, float3 B, const FHairMeshTriangle T)
 
 }
 
+float3 VectorToWorld(const float3 P, const FHairMeshTriangle T)
+{
+	const float3 Rotation = P.x * T.E0 + P.y * T.E1 + P.z * T.N;
+	return Rotation;
+}
+
+float3 VectorToTriangle(const float3 P, const FHairMeshTriangle T)
+{
+	float3 Out;
+	Out.x = dot(P, T.E0);
+	Out.y = dot(P, T.E1);
+	Out.z = dot(P, T.N);
+	return Out;
+}
+
 float3 TransformPoint(float3 P, float3 B, const FHairMeshTriangle RestTriangle, const FHairMeshTriangle DeformedTriangle)
 {
 	float3 LocalP = ToTriangle(P, B, RestTriangle);
