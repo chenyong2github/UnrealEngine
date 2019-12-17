@@ -180,7 +180,7 @@ private:
 
 	void UpdateRecordedState(float SolverTime, const TManagedArray<int32>& RigidBodyID, const TManagedArray<int32>& CollectionClusterID, const Chaos::TArrayCollectionArray<bool>& InternalCluster, const FParticlesType& Particles, const FCollisionConstraintsType& CollisionRule);
 
-	void AddCollisionToCollisionData(FRecordedFrame* ExistingFrame, const FParticlesType& Particles, const Chaos::TPBDCollisionConstraint<float, 3>::FRigidBodyContactConstraint& Constraint);
+	void AddCollisionToCollisionData(FRecordedFrame* ExistingFrame, const FParticlesType& Particles, const Chaos::TPBDCollisionConstraint<float, 3>::FPointContactConstraint& Constraint);
 
 	void UpdateCollisionData(const FParticlesType& Particles, const FCollisionConstraintsType& CollisionRule, FRecordedFrame* ExistingFrame);
 

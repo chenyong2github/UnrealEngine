@@ -17,20 +17,20 @@ class CHAOS_API CollisionResolutionConvexConvex
 public:
 	using FConvex = TConvex<T,d>;
 	using FRigidTransform = TRigidTransform<T,d>;
-	using FRigidBodyContactConstraint = TRigidBodySingleContactConstraint<T, d>;
+	using FPointContactConstraint = TRigidBodyPointContactConstraint<T, d>;
 	using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
 
 	/*
 	* Build a constraint manifold for the contact shape pair. 
 	*/
 	static void ConstructConvexConvexConstraints(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const float Thickness,
-		FRigidBodyContactConstraint& ConstraintBuffer);
+		FPointContactConstraint& ConstraintBuffer);
 
 	/*
 	* Update the contact manifold.
 	*/
 	static void UpdateConvexConvexConstraint(const FImplicitObject& A, const FRigidTransform& ATM, const FImplicitObject& B, FRigidTransform BTM, float Thickness, 
-		FRigidBodyContactConstraint& Constraints);
+		FPointContactConstraint& Constraints);
 
 
 };

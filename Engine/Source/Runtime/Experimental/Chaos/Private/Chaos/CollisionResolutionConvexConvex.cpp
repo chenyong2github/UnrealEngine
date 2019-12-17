@@ -12,7 +12,7 @@ namespace Chaos
 		FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1,
 		const FImplicitObject* Implicit0, const FImplicitObject* Implicit1,
 		const float Thickness,
-		FRigidBodyContactConstraint& Constraint)
+		FPointContactConstraint& Constraint)
 	{
 		if (Constraint.ContainsManifold(Implicit0, Implicit1))
 		{
@@ -29,7 +29,7 @@ namespace Chaos
 		const FImplicitObject& A, const FRigidTransform& ATM,
 		const FImplicitObject& B, FRigidTransform BTM,
 		float Thickness,
-		FRigidBodyContactConstraint& Constraint)
+		FPointContactConstraint& Constraint)
 	{
 		TRigidTransform<T, d> BToATM = BTM.GetRelativeTransform(ATM);
 

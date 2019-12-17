@@ -2672,7 +2672,7 @@ FRecordedFrame& FGeometryCollectionPhysicsProxy::InsertRecordedFrame(FRecordedTr
 	return InTrack.Records[NewRecordIndex];
 }
 
-void FGeometryCollectionPhysicsProxy::AddCollisionToCollisionData(FRecordedFrame* ExistingFrame, const FParticlesType& Particles, const Chaos::TPBDCollisionConstraint<float, 3>::FRigidBodyContactConstraint& Constraint)
+void FGeometryCollectionPhysicsProxy::AddCollisionToCollisionData(FRecordedFrame* ExistingFrame, const FParticlesType& Particles, const Chaos::TPBDCollisionConstraint<float, 3>::FPointContactConstraint& Constraint)
 {
 #if TODO_REIMPLEMENT_RIGID_CLUSTERING
 	const Chaos::TArrayCollectionArray<Chaos::ClusterId>& ClusterIdsArray = GetSolver()->GetRigidClustering().GetClusterIdsArray();

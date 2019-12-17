@@ -10,7 +10,7 @@ namespace Chaos
 	namespace Collisions
 	{
 		template<class T = float>
-		struct TSingleContactParticleParameters {
+		struct TPlainContactParticleParameters {
 			TArrayCollectionArray<bool>* Collided;
 			const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>* PhysicsMaterials;
 			T FrictionOverride;
@@ -18,7 +18,7 @@ namespace Chaos
 		};
 
 		template<class T = float>
-		struct TSingleContactIterationParameters {
+		struct TPlaneContactIterationParameters {
 			const T Dt; 
 			const int32 Iteration; 
 			const int32 NumIterations; 
@@ -26,6 +26,7 @@ namespace Chaos
 			bool* NeedsAnotherIteration;
 		};
 
+		/*
 		template<ECollisionUpdateType UpdateType, typename T = float, int d = 3>
 		void Update(const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint);
 
@@ -41,6 +42,7 @@ namespace Chaos
 		void ApplyPushOut(TRigidBodyPointContactConstraint<T, d>& Constraint, T Thickness, const TSet<const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic,
 			TSingleContactIterationParameters<T> & IterationParameters,
 			TSingleContactParticleParameters<T> & ParticleParameters);
+	*/
 	}
 
 }
