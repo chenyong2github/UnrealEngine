@@ -188,7 +188,7 @@ private:
 	struct FFrame
 	{
 		const FBufferId Id = 0;
-		TAtomic<EFrameState> State = EFrameState::Free;
+		TAtomic<EFrameState> State = { EFrameState::Free };
 		FInputFrame InputFrame;
 		FOutputFrame OutputFrame;
 		uint64 FrameIdx = 0;
