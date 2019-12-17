@@ -207,8 +207,6 @@ void FSteamVRHMD::D3D11Bridge::FinishRendering()
 		Texture.depth.vRange.v[1] = 0.0f;
 
 		Texture.depth.mProjection = ToHmdMatrix44(Plugin->GetStereoProjectionMatrix(eSSP_LEFT_EYE));
-		// Rescale the projection (our projection value is 10.0f here, since our units are cm, and SteamVR works in meters).
-		Texture.depth.mProjection.m[2][3] *= 0.01f;
 	}
 
 	vr::VRTextureBounds_t LeftBounds;
@@ -228,8 +226,6 @@ void FSteamVRHMD::D3D11Bridge::FinishRendering()
 	if (bSubmitDepth)
 	{
 		Texture.depth.mProjection = ToHmdMatrix44(Plugin->GetStereoProjectionMatrix(eSSP_RIGHT_EYE));
-		// Rescale the projection (our projection value is 10.0f here, since our units are cm, and SteamVR works in meters).
-		Texture.depth.mProjection.m[2][3] *= 0.01f;
 	}
 
 	Error = Plugin->VRCompositor->Submit(vr::Eye_Right, &Texture, &RightBounds, Flags);
