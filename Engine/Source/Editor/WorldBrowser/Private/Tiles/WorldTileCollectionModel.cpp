@@ -1956,7 +1956,7 @@ bool FWorldTileCollectionModel::GenerateLODLevels(FLevelModelList InLevelList, i
 				{
 					LandscapeActors.Add(LandscapeProxy);
 				}
-				else 
+				else if(!Actor->IsA<AInstancedFoliageActor>()) // Exclude Foliage from merged mesh
 				{
 					Actors.Add(Actor);
 				}
