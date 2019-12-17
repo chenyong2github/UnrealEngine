@@ -6,7 +6,7 @@
 #include "Chaos/Defines.h"
 #include "Chaos/ImplicitObjectUnion.h"
 #include "Chaos/ImplicitObjectScaled.h"
-#include "Chaos/ISpatialAccelerationCollection.h"
+#include "Chaos/SpatialAccelerationCollection.h"
 #include "Chaos/Levelset.h"
 #include "ChaosLog.h"
 #include "ChaosStats.h"

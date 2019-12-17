@@ -17,31 +17,29 @@
 namespace Chaos
 {
 
+// @todo(ccaulfield): COLLISION - get rid of these?
 extern float MinBoundsThickness;
 extern float BoundsThicknessMultiplier;
 
-template <typename T, int d>
-TVector<T, d> ComputeThickness(const TPBDRigidParticles<T, d>& InParticles, T Dt, int32 BodyIndex)
+inline FVec3 ComputeBoundsThickness(FVec3 Vel, FReal Dt, FReal BoundsThickness, FReal BoundsVelocityInflation)
 {
-	TVector<T, d> AbsVelocity = InParticles.V(BodyIndex).GetAbs();
-	for (int i = 0; i < d; ++i)
+	// @todo(ccaulfield): this expands the bounds in negative velocity direction as well...maybe we don't want that?
+	for (int i = 0; i < 3; ++i)
 	{
-		AbsVelocity[i] = FMath::Max(MinBoundsThickness, AbsVelocity[i] * Dt * BoundsThicknessMultiplier);//todo(ocohen): ignoring MThickness for now
+		Vel[i] = FMath::Max(MinBoundsThickness, BoundsThicknessMultiplier * (BoundsThickness + FMath::Abs(Vel[i]) * Dt * BoundsVelocityInflation));
 	}
-
-	return AbsVelocity;
+	return Vel;
 }
 
-template <typename THandle, typename T>
-TVector<T, THandle::D> ComputeThickness(const THandle& PBDRigid, T Dt)
+inline FVec3 ComputeBoundsThickness(const TPBDRigidParticles<FReal, 3>& InParticles, FReal Dt, int32 BodyIndex, FReal BoundsThickness, FReal BoundsVelocityInflation)
 {
-	auto AbsVelocity = PBDRigid.V().GetAbs();
-	for (int i = 0; i < THandle::D; ++i)
-	{
-		AbsVelocity[i] = FMath::Max(MinBoundsThickness, AbsVelocity[i] * Dt * BoundsThicknessMultiplier);//todo(ocohen): ignoring MThickness for now
-	}
+	return ComputeBoundsThickness(InParticles.V(BodyIndex), Dt, BoundsThickness, BoundsVelocityInflation);
+}
 
-	return AbsVelocity;
+template <typename THandle>
+FVec3 ComputeBoundsThickness(const THandle& PBDRigid, FReal Dt, FReal BoundsThickness, FReal BoundsVelocityInflation)
+{
+	return ComputeBoundsThickness(PBDRigid.V(), Dt, BoundsThickness, BoundsVelocityInflation);
 }
 
 template<class OBJECT_ARRAY>
@@ -153,7 +151,8 @@ TBox<T, d> ComputeWorldSpaceBoundingBox(const TPBDRigidParticles<T, d>& Objects,
 	
 	if (bUseVelocity)
 	{
-		WorldSpaceBox.ThickenSymmetrically(ComputeThickness(Objects, Dt, i));
+		// @todo(ccaulfield): COLLISION - thickness
+		WorldSpaceBox.ThickenSymmetrically(ComputeBoundsThickness(Objects, Dt, i, 0, 1));
 	}
 	return WorldSpaceBox;
 }
@@ -344,7 +343,8 @@ typename TEnableIf<TModels<CParticleView, ParticleView>::Value>::Type ComputeAll
 			{
 				if (const auto PBDRigid = Particle.AsDynamic())
 				{
-					WorldSpaceBoxes.Last().ThickenSymmetrically(ComputeThickness(*PBDRigid, Dt));
+					// @todo(ccaulfield): COLLISION - thickness
+					WorldSpaceBoxes.Last().ThickenSymmetrically(ComputeBoundsThickness(*PBDRigid, Dt, 0, 1));
 				}
 			}
 		}

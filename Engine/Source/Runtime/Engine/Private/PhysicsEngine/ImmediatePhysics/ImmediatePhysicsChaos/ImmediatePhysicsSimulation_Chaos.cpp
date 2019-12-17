@@ -167,7 +167,7 @@ namespace ImmediatePhysics_Chaos
 
 		// Filter collisions after detection
 		// @todo(ccaulfield): Eventually we will build lists of potentially colliding pairs and won't need this
-		Collisions.SetPostComputeCallback(
+		Evolution->SetPostDetectCollisionsCallback(
 			[this]()
 			{
 				Evolution->GetCollisionConstraints().ApplyCollisionModifier(
@@ -243,7 +243,7 @@ namespace ImmediatePhysics_Chaos
 	{
 		using namespace Chaos;
 
-		Evolution->GetCollisionConstraints().ClearPostComputeCallback();
+		//Evolution->ClearDetectCollisionsCallback();
 		Evolution->GetCollisionConstraints().ClearPostApplyCallback();
 		Evolution->GetCollisionConstraints().ClearPostApplyPushOutCallback();
 
@@ -349,6 +349,28 @@ namespace ImmediatePhysics_Chaos
 			IgnoreCollisionParticlePairTable.FindOrAdd(ParticleA).Add(ParticleB); 
 			IgnoreCollisionParticlePairTable.FindOrAdd(ParticleB).Add(ParticleA);
 		}
+
+		TArray<TVector<const TGeometryParticleHandle<FReal, Dimensions>*, 2>> BroadPhaseParticlePairs;
+		int NumActorHandles = ActorHandles.Num();
+		for (int ActorHandleIndex0 = 0; ActorHandleIndex0 < NumActorHandles; ++ActorHandleIndex0)
+		{
+			FActorHandle* ActorHandle0 = ActorHandles[ActorHandleIndex0];
+			const TGeometryParticleHandle<FReal, Dimensions>* Particle0 = ActorHandle0->GetParticle();
+
+			for (int ActorHandleIndex1 = ActorHandleIndex0 + 1; ActorHandleIndex1 < NumActorHandles; ++ActorHandleIndex1)
+			{
+				FActorHandle* ActorHandle1 = ActorHandles[ActorHandleIndex1];
+				const TGeometryParticleHandle<FReal, Dimensions>* Particle1 = ActorHandle1->GetParticle();
+
+				const TSet<const FParticleHandle*>* Particle0IgnoreSet = IgnoreCollisionParticlePairTable.Find(Particle0);
+				bool bIgnoreActorHandlePair = (Particle0IgnoreSet != nullptr)  && Particle0IgnoreSet->Contains(Particle1);
+				if (!bIgnoreActorHandlePair)
+				{
+					BroadPhaseParticlePairs.Emplace(TVector<const TGeometryParticleHandle<FReal, Dimensions>*, 2>(Particle0, Particle1));
+				}
+			}
+		}
+
 	}
 
 	void FSimulation::SetIgnoreCollisionActors(const TArray<FActorHandle*>& InIgnoreCollisionActors)

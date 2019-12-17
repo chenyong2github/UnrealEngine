@@ -12,7 +12,7 @@
 #include "Chaos/Framework/DebugSubstep.h"
 #include "HAL/Event.h"
 #include "Chaos/PBDRigidsSOAs.h"
-#include "Chaos/ISpatialAccelerationCollection.h"
+#include "Chaos/SpatialAccelerationCollection.h"
 
 
 // Declaring so it can be friended for tests.

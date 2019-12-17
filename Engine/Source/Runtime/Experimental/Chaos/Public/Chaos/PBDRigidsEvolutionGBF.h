@@ -4,6 +4,10 @@
 #include "Chaos/PBDRigidsEvolution.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/ChaosPerfTest.h"
+#include "Chaos/Collision/CollisionDetector.h"
+#include "Chaos/Collision/CollisionReceiver.h"
+#include "Chaos/Collision/NarrowPhase.h"
+#include "Chaos/Collision/SpatialAccelerationBroadPhase.h"
 #include "Chaos/PerParticleInitForce.h"
 #include "Chaos/PerParticleEulerStepVelocity.h"
 #include "Chaos/PerParticleEtherDrag.h"
@@ -48,10 +52,12 @@ public:
 	using typename Base::FForceRule;
 	using FGravityForces = TPerParticleGravity<T, d>;
 	using FCollisionConstraints = TPBDCollisionConstraints<T, d>;
-	using FExternalForces = TPerParticleExternalForces<T, d>;
 	using FCollisionConstraintRule = TPBDConstraintColorRule<FCollisionConstraints>;
+	using FCollisionDetector = TCollisionDetector<FSpatialAccelerationBroadPhase, FNarrowPhase, FAsyncCollisionReceiver, FCollisionConstraints>;
+	using FExternalForces = TPerParticleExternalForces<T, d>;
 
 	static constexpr int32 DefaultNumIterations = 1;
+	static constexpr int32 DefaultNumPairIterations = 1;
 	static constexpr int32 DefaultNumPushOutIterations = 5;
 	static constexpr int32 DefaultNumPushOutPairIterations = 2;
 
@@ -61,6 +67,11 @@ public:
 	void SetPostIntegrateCallback(const TPBDRigidsEvolutionCallback<T, d>& Cb)
 	{
 		PostIntegrateCallback = Cb;
+	}
+
+	void SetPostDetectCollisionsCallback(const TPBDRigidsEvolutionCallback<T, d>& Cb)
+	{
+		PostDetectCollisionsCallback = Cb;
 	}
 
 	void SetPreApplyCallback(const TPBDRigidsEvolutionCallback<T, d>& Cb)
@@ -89,6 +100,9 @@ public:
 
 	FCollisionConstraintRule& GetCollisionConstraintsRule() { return CollisionRule; }
 	const FCollisionConstraintRule& GetCollisionConstraintsRule() const { return CollisionRule; }
+
+	FCollisionDetector& GetCollisionDetector() { return CollisionDetector; }
+	const FCollisionDetector& GetCollisionDetector() const { return CollisionDetector; }
 
 	FExternalForces& GetExternalForces() { return ExternalForces; }
 	const FExternalForces& GetExternalForces() const { return ExternalForces; }
@@ -192,8 +206,11 @@ protected:
 	FExternalForces ExternalForces;
 	FCollisionConstraints CollisionConstraints;
 	FCollisionConstraintRule CollisionRule;
+	FSpatialAccelerationBroadPhase BroadPhase;
+	FCollisionDetector CollisionDetector;
 
 	TPBDRigidsEvolutionCallback<T, d> PostIntegrateCallback;
+	TPBDRigidsEvolutionCallback<T, d> PostDetectCollisionsCallback;
 	TPBDRigidsEvolutionCallback<T, d> PreApplyCallback;
 	TPBDRigidsEvolutionIslandCallback<T, d> PostApplyCallback;
 	TPBDRigidsEvolutionIslandCallback<T, d> PostApplyPushOutCallback;

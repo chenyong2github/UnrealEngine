@@ -23,6 +23,10 @@
 
 namespace Chaos
 {
+#if !UE_BUILD_SHIPPING
+	CHAOS_API bool bPendingHierarchyDump = false;
+#endif
+
 float HackMaxAngularVelocity = 1000.f;
 FAutoConsoleVariableRef CVarHackMaxAngularVelocity(TEXT("p.HackMaxAngularVelocity"), HackMaxAngularVelocity, TEXT("Max cap on angular velocity: rad/s. This is only a temp solution and should not be relied on as a feature. -1.f to disable"));
 
@@ -39,6 +43,11 @@ FAutoConsoleVariableRef CVarHackAngularDrag(TEXT("p.HackAngularDrag2"), HackAngu
 int DisableThreshold = 5;
 FAutoConsoleVariableRef CVarDisableThreshold(TEXT("p.DisableThreshold2"), DisableThreshold, TEXT("Disable threshold frames to transition to sleeping"));
 
+float BoundsThickness = 0;
+float BoundsThicknessVelocityMultiplier = 2.0f;
+FAutoConsoleVariableRef CVarBoundsThickness(TEXT("p.CollisionBoundsThickness"), BoundsThickness, TEXT("Collision inflation for speculative contact generation.[def:0.0]"));
+FAutoConsoleVariableRef CVarBoundsThicknessVelocityMultiplier(TEXT("p.CollisionBoundsVelocityInflation"), BoundsThicknessVelocityMultiplier, TEXT("Collision velocity inflation for speculatibe contact generation.[def:2.0]"));
+
 
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::AdvanceOneTimeStep"), STAT_Evolution_AdvanceOneTimeStep, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::Integrate"), STAT_Evolution_Integrate, STATGROUP_Chaos);
@@ -46,6 +55,7 @@ DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::KinematicTargets"), STAT_Evolut
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::ApplyConstraints"), STAT_Evolution_ApplyConstraints, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::UpdateVelocities"), STAT_Evolution_UpdateVelocites, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::ApplyPushOut"), STAT_Evolution_ApplyPushOut, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::DetectCollisions"), STAT_Evolution_DetectCollisions, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::UpdateConstraintPositionBasedState"), STAT_Evolution_UpdateConstraintPositionBasedState, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::CreateConstraintGraph"), STAT_Evolution_CreateConstraintGraph, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::CreateIslands"), STAT_Evolution_CreateIslands, STATGROUP_Chaos);
@@ -142,15 +152,31 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFr
 		PostIntegrateCallback();
 	}
 
-	{
-		Base::ComputeIntermediateSpatialAcceleration();
-		CollisionConstraints.SetSpatialAcceleration(InternalAcceleration.Get());
-	}
-
+	// @todo(ccaulfield): When we have persistent constraints we will want to run collision detection before
+	// UpdateConstraintPositionBasedState. For now it is after because we just delete all collisions there right now.
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_UpdateConstraintPositionBasedState);
 		UpdateConstraintPositionBasedState(Dt);
 	}
+	{
+		Base::ComputeIntermediateSpatialAcceleration();
+	}
+	{
+		SCOPE_CYCLE_COUNTER(STAT_Evolution_DetectCollisions);
+		CollisionDetector.GetBroadPhase().SetSpatialAcceleration(InternalAcceleration.Get());
+
+		CollisionStats::FStatData StatData(bPendingHierarchyDump);
+
+		CollisionDetector.DetectCollisions(Dt, StatData);
+
+		CHAOS_COLLISION_STAT(StatData.Print());
+	}
+
+	if (PostDetectCollisionsCallback != nullptr)
+	{
+		PostDetectCollisionsCallback();
+	}
+
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_CreateConstraintGraph);
 		CreateConstraintGraph();
@@ -261,8 +287,10 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFr
 template <typename T, int d>
 TPBDRigidsEvolutionGBF<T, d>::TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<T, d>& InParticles, int32 InNumIterations, bool InIsSingleThreaded)
 	: Base(InParticles, InNumIterations, 1, InIsSingleThreaded)
-	, CollisionConstraints(InParticles, Collided, PhysicsMaterials, DefaultNumPushOutPairIterations)
+	, CollisionConstraints(InParticles, Collided, PhysicsMaterials, DefaultNumPairIterations, DefaultNumPushOutPairIterations)
 	, CollisionRule(CollisionConstraints, DefaultNumPushOutIterations)
+	, BroadPhase(InParticles, BoundsThickness, BoundsThicknessVelocityMultiplier)
+	, CollisionDetector(BroadPhase, CollisionConstraints)
 	, PostIntegrateCallback(nullptr)
 	, PreApplyCallback(nullptr)
 	, PostApplyCallback(nullptr)
