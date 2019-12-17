@@ -331,7 +331,7 @@ void FRenderDocPluginModule::CaptureFrame()
 	{
 		// store all CVars at beginning of capture in case they change while the capture is occuring : 
 		CaptureFrameCount = CVarRenderDocCaptureFrameCount.GetValueOnAnyThread();
-		bCaptureDelayInSeconds = CVarRenderDocCaptureDelayInSeconds.GetValueOnAnyThread();
+		bCaptureDelayInSeconds = CVarRenderDocCaptureDelayInSeconds.GetValueOnAnyThread() > 0;
 
 		if (bCaptureDelayInSeconds)
 		{
