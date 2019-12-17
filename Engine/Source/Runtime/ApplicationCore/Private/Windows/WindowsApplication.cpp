@@ -2185,7 +2185,7 @@ int32 FWindowsApplication::ProcessDeferredMessage( const FDeferredWindowsMessage
 						break;
 					case SW_PARENTOPENING:
 						CurrentNativeEventWindowPtr->OnParentWindowRestored();
-						bMinimized = true;
+						bMinimized = false;
 						break;
 					default:
 						break;
