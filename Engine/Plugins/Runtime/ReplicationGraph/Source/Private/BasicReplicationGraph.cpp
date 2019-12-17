@@ -38,7 +38,7 @@ void UBasicReplicationGraph::InitGlobalActorClassSettings()
 		FClassReplicationInfo ClassInfo;
 
 		// Replication Graph is frame based. Convert NetUpdateFrequency to ReplicationPeriodFrame based on Server MaxTickRate.
-		ClassInfo.ReplicationPeriodFrame = FMath::Max<uint32>( (uint32)FMath::RoundToFloat(NetDriver->NetServerMaxTickRate / ActorCDO->NetUpdateFrequency), 1);
+		ClassInfo.ReplicationPeriodFrame = GetReplicationPeriodFrameForFrequency(ActorCDO->NetUpdateFrequency);
 		
 		if (ActorCDO->bAlwaysRelevant || ActorCDO->bOnlyRelevantToOwner)
 		{
