@@ -1144,9 +1144,16 @@ public:
 	}
 
 	/** Returns the left most given number of characters */
-	FORCEINLINE FString Left( int32 Count ) const
+	FORCEINLINE FString Left( int32 Count ) const &
 	{
 		return FString( FMath::Clamp(Count,0,Len()), **this );
+	}
+
+	FORCEINLINE FString Left(int32 Count) &&
+	{
+		FString Str(MoveTemp(*this));
+		Str.LeftInline(Count, false);
+		return Str;
 	}
 
 	/** Modifies the string such that it is now the left most given number of characters */
@@ -1158,10 +1165,17 @@ public:
 	}
 
 	/** Returns the left most characters from the string chopping the given number of characters from the end */
-	FORCEINLINE FString LeftChop( int32 Count ) const
+	FORCEINLINE FString LeftChop( int32 Count ) const &
 	{
 		const int32 Length = Len();
 		return FString( FMath::Clamp(Length-Count,0, Length), **this );
+	}
+
+	FORCEINLINE FString LeftChop(int32 Count)&&
+	{
+		FString Str(MoveTemp(*this));
+		Str.LeftChopInline(Count, false);
+		return Str;
 	}
 
 	/** Modifies the string such that it is now the left most characters chopping the given number of characters from the end */
@@ -1172,10 +1186,17 @@ public:
 	}
 
 	/** Returns the string to the right of the specified location, counting back from the right (end of the word). */
-	FORCEINLINE FString Right( int32 Count ) const
+	FORCEINLINE FString Right( int32 Count ) const &
 	{
 		const int32 Length = Len();
 		return FString( **this + Length-FMath::Clamp(Count,0,Length) );
+	}
+
+	FORCEINLINE FString Right(int32 Count) &&
+	{
+		FString Str(MoveTemp(*this));
+		Str.RightInline(Count, false);
+		return Str;
 	}
 
 	/** Modifies the string such that it is now the right most given number of characters */
@@ -1186,10 +1207,17 @@ public:
 	}
 
 	/** Returns the string to the right of the specified location, counting forward from the left (from the beginning of the word). */
-	FORCEINLINE FString RightChop( int32 Count ) const
+	FORCEINLINE FString RightChop( int32 Count ) const &
 	{
 		const int32 Length = Len();
 		return FString( **this + Length-FMath::Clamp(Length-Count,0, Length) );
+	}
+
+	FORCEINLINE FString RightChop(int32 Count) &&
+	{
+		FString Str(MoveTemp(*this));
+		Str.RightChopInline(Count, false);
+		return Str;
 	}
 
 	/** Modifies the string such that it is now the string to the right of the specified location, counting forward from the left (from the beginning of the word). */
@@ -1199,7 +1227,7 @@ public:
 	}
 
 	/** Returns the substring from Start position for Count characters. */
-	FORCEINLINE FString Mid( int32 Start, int32 Count=MAX_int32 ) const
+	FORCEINLINE FString Mid( int32 Start, int32 Count=MAX_int32 ) const &
 	{
 		FString Result;
 		if (Count >= 0)
@@ -1211,6 +1239,13 @@ public:
 			Result = FString(End-Start, **this + Start);
 		}
 		return Result;
+	}
+
+	FORCEINLINE FString Mid(int32 Start, int32 Count = MAX_int32) &&
+	{
+		FString Str(MoveTemp(*this));
+		Str.MidInline(Start, Count, false);
+		return Str;
 	}
 
 	/** Modifies the string such that it is now the substring from Start position for Count characters. */
@@ -1635,6 +1670,12 @@ public:
 	 * Trims the inner array after the null terminator.
 	 */
 	void TrimToNullTerminator();
+
+
+	/**
+	 * Trims wrapping quotation marks from this string.
+	 */
+	void TrimQuotesInline(bool* bQuotesRemoved = nullptr);
 
 	/**
 	 * Returns a copy of this string with wrapping quotation marks removed.
