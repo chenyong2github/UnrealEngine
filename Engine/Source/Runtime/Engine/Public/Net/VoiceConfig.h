@@ -164,6 +164,9 @@ public:
 	// Returns the amount of seconds to spend buffering specified by AudioSettings.
 	static float GetBufferingDelay();
 
+	// Returns the noise gate threshold we use for incoming audio.
+	static float GetVoiceNoiseGateLevel();
+
 	// returns the amount of packets to allocate memory for based on the buffering delay.
 	static int32 GetNumBufferedPackets();
 

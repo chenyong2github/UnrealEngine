@@ -174,6 +174,16 @@ private:
 	bool bIsMicActive;
 
 	/**
+	 * This linear ease is used to add attack fade in and release fadeout to the noise gate.
+	 */
+	Audio::FLinearEase NoiseGateAttenuator;
+
+	/**
+	 * This bool is used to track when we engage 
+	 */
+	bool bWasMicAboveNoiseGateThreshold;
+
+	/**
 	 * Create the D3D8 capture device
 	 *
 	 * @param DeviceName name of device to capture with, empty for default device

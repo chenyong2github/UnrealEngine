@@ -3,6 +3,7 @@
 #include "VoiceCaptureWindows.h"
 #include "VoicePrivate.h"
 #include "VoiceModule.h"
+#include "DSP/Dsp.h"
 
 #if PLATFORM_SUPPORTS_VOICE_CAPTURE
 
@@ -119,6 +120,8 @@ bool FVoiceCaptureWindows::Init(const FString& DeviceName, int32 SampleRate, int
 	const int32 AttackInSamples = SampleRate * SilenceDetectionAttackCVar->GetFloat() * 0.001f;
 	LookaheadBuffer.Init(AttackInSamples + 1);
 	LookaheadBuffer.SetDelay(AttackInSamples);
+
+	NoiseGateAttenuator.Init(SampleRate);
 
 	bIsMicActive = false;
 
@@ -419,7 +422,19 @@ void FVoiceCaptureWindows::ProcessData()
 			static IConsoleVariable* SilenceDetectionThresholdCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("voice.SilenceDetectionThreshold"));
 			check(SilenceDetectionThresholdCVar);			
 			const float MicSilenceThreshold = SilenceDetectionThresholdCVar->GetFloat();
+
+			static IConsoleVariable* NoiseGateThresholdCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("voice.MicNoiseGateThreshold"));
+			check(NoiseGateThresholdCVar);
+			const float MicNoiseGateThreshold = NoiseGateThresholdCVar->GetFloat();
 			
+			static IConsoleVariable* NoiseGateAttackTimeCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("voice.MicNoiseAttackTime"));
+			check(NoiseGateAttackTimeCVar);
+			const float MicNoiseGateAttackTime = NoiseGateAttackTimeCVar->GetFloat();
+
+			static IConsoleVariable* NoiseGateReleaseTimeCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("voice.MicNoiseReleaseTime"));
+			check(NoiseGateReleaseTimeCVar);
+			const float MicNoiseGateReleaseTime = NoiseGateReleaseTimeCVar->GetFloat();
+
 			bool bMicReleased = false;
 
 			CurrentSampleStart = CachedSampleStart;
@@ -440,11 +455,35 @@ void FVoiceCaptureWindows::ProcessData()
 
 				bIsMicActive = MicLevelDetector.GetCurrentValue() > MicSilenceThreshold;
 
+				// If we have just crossed the noise gate threshold, begin interpoloating to 1.0 or 0.0
+				const bool bIsMicAboveNoiseGateThreshold = MicLevelDetector.GetCurrentValue() > MicNoiseGateThreshold;
+
+				if (bIsMicAboveNoiseGateThreshold && !bWasMicAboveNoiseGateThreshold)
+				{
+					NoiseGateAttenuator.SetValue(1.0f, MicNoiseGateAttackTime);
+				}
+				else if (!bIsMicAboveNoiseGateThreshold && bWasMicAboveNoiseGateThreshold)
+				{
+					NoiseGateAttenuator.SetValue(0.0f, MicNoiseGateReleaseTime);
+				}
+
+				bWasMicAboveNoiseGateThreshold = bIsMicAboveNoiseGateThreshold;
+
 				if (bIsMicActive)
 				{
 					if (bMicReleased)
 					{
+						// Apply noise gate attenuation.
+						for (int32 ChannelIndex = 0; ChannelIndex < NumInputChannels; ChannelIndex++)
+						{
+							Audio::TSampleRef<int16> SampleRef(InputBuffer[FrameIndex + ChannelIndex]);
+							SampleRef = SampleRef * NoiseGateAttenuator.PeekCurrentValue();
+						}
+
+						NoiseGateAttenuator.GetNextValue();
+
 						ReleaseBuffer.PushFrame(&InputBuffer[FrameIndex], NumInputChannels);
+
 
 						if (!bSampleStartCached)
 						{
@@ -454,6 +493,15 @@ void FVoiceCaptureWindows::ProcessData()
 					}
 					else
 					{
+						// Apply noise gate attenuation.
+						for (int32 ChannelIndex = 0; ChannelIndex < NumInputChannels; ChannelIndex++)
+						{
+							Audio::TSampleRef<int16> SampleRef(InputBuffer[FrameIndex + ChannelIndex]);
+							SampleRef = SampleRef * NoiseGateAttenuator.PeekCurrentValue();
+						}
+
+						NoiseGateAttenuator.GetNextValue();
+
 						FMemory::Memcpy(&AudioBuffer[FrameIndex], &InputBuffer[FrameIndex], sizeof(int16) * NumInputChannels);
 						SamplesPushedToUncompressedAudioBuffer += NumInputChannels;
 					}
@@ -484,10 +532,33 @@ void FVoiceCaptureWindows::ProcessData()
 
 				bIsMicActive = MicLevelDetector.GetCurrentValue() > MicSilenceThreshold;
 
+				// If we have just crossed the noise gate threshold, begin interpoloating to 1.0 or 0.0
+				const bool bIsMicAboveNoiseGateThreshold = MicLevelDetector.GetCurrentValue() > MicNoiseGateThreshold;
+
+				if (bIsMicAboveNoiseGateThreshold && !bWasMicAboveNoiseGateThreshold)
+				{
+					NoiseGateAttenuator.SetValue(1.0f, MicNoiseGateAttackTime);
+				}
+				else if (!bIsMicAboveNoiseGateThreshold && bWasMicAboveNoiseGateThreshold)
+				{
+					NoiseGateAttenuator.SetValue(0.0f, MicNoiseGateReleaseTime);
+				}
+
+				bWasMicAboveNoiseGateThreshold = bIsMicAboveNoiseGateThreshold;
+
 				if (bIsMicActive)
 				{
 					if (bMicReleased)
 					{
+						// Apply noise gate attenuation.
+						for (int32 ChannelIndex = 0; ChannelIndex < NumInputChannels; ChannelIndex++)
+						{
+							Audio::TSampleRef<int16> SampleRef(InputBuffer[FrameIndex + ChannelIndex]);
+							SampleRef = SampleRef * NoiseGateAttenuator.PeekCurrentValue();
+						}
+
+						NoiseGateAttenuator.GetNextValue();
+
 						ReleaseBuffer.PushFrame(&InputBuffer[FrameIndex], NumInputChannels);
 
 						if (!bSampleStartCached)
@@ -498,6 +569,15 @@ void FVoiceCaptureWindows::ProcessData()
 					}
 					else
 					{
+						// Apply noise gate attenuation.
+						for (int32 ChannelIndex = 0; ChannelIndex < NumInputChannels; ChannelIndex++)
+						{
+							Audio::TSampleRef<int16> SampleRef(InputBuffer[FrameIndex + ChannelIndex]);
+							SampleRef = SampleRef * NoiseGateAttenuator.PeekCurrentValue();
+						}
+
+						NoiseGateAttenuator.GetNextValue();
+
 						FMemory::Memcpy(&AudioBuffer[FrameIndex], &InputBuffer[FrameIndex], sizeof(int16) * NumInputChannels);
 						SamplesPushedToUncompressedAudioBuffer += NumInputChannels;
 					}
