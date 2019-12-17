@@ -136,6 +136,9 @@ extern RENDERCORE_API class FTexture* GBlackVolumeTexture;
 /** A global black volume texture, with alpha=1. */
 extern RENDERCORE_API class FTexture* GBlackAlpha1VolumeTexture;
 
+/** A global black texture<uint> */
+extern RENDERCORE_API class FTexture* GBlackUintTexture;
+
 /** A global black volume texture<uint>  */
 extern RENDERCORE_API class FTexture* GBlackUintVolumeTexture;
 
