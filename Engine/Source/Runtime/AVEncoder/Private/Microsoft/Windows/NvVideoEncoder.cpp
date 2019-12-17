@@ -619,7 +619,7 @@ FVideoEncoderConfig FNvVideoEncoder::GetConfig() const
 
 bool FNvVideoEncoder::SetBitrate(uint32 Bitrate)
 {
-	Config.Bitrate;
+	Config.Bitrate = Bitrate;
 	return true;
 }
 
