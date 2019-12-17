@@ -266,6 +266,7 @@ int32 URuntimeVirtualTexture::GetLayerCount(ERuntimeVirtualTextureMaterialType I
 	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
 		return 2;
 	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
+	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Mask_YCoCg:
 		return 3;
 	default:
 		break;
@@ -291,6 +292,7 @@ EPixelFormat URuntimeVirtualTexture::GetLayerFormat(int32 LayerIndex) const
 			return bCompressTextures ? PF_DXT1 : PF_B8G8R8A8;
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
+		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Mask_YCoCg:
 			return bCompressTextures ? PF_DXT5 : PF_B8G8R8A8;
 		case ERuntimeVirtualTextureMaterialType::WorldHeight:
 			return PF_G16;
@@ -305,6 +307,7 @@ EPixelFormat URuntimeVirtualTexture::GetLayerFormat(int32 LayerIndex) const
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
 			return bCompressTextures ? PF_DXT5 : PF_B8G8R8A8;
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
+		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Mask_YCoCg:
 			return bCompressTextures ? PF_BC5 : PF_B8G8R8A8;
 		default:
 			break;
@@ -316,6 +319,8 @@ EPixelFormat URuntimeVirtualTexture::GetLayerFormat(int32 LayerIndex) const
 		{
 		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
 			return bCompressTextures ? PF_DXT1 : PF_B8G8R8A8;
+		case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Mask_YCoCg:
+			return bCompressTextures ? PF_DXT5 : PF_B8G8R8A8;
 		default:
 			break;
 		}
@@ -335,6 +340,7 @@ bool URuntimeVirtualTexture::IsLayerSRGB(int32 LayerIndex) const
 		// Only BaseColor layer is sRGB
 		return LayerIndex == 0;
 	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
+	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Mask_YCoCg:
 	case ERuntimeVirtualTextureMaterialType::WorldHeight:
 		return false;
 	default:
@@ -348,7 +354,15 @@ bool URuntimeVirtualTexture::IsLayerSRGB(int32 LayerIndex) const
 
 bool URuntimeVirtualTexture::IsLayerYCoCg(int32 LayerIndex) const
 {
-	return MaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg && LayerIndex == 0;
+	switch (MaterialType)
+	{
+	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
+	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Mask_YCoCg:
+		return LayerIndex == 0;
+	default:
+		break;
+	}
+	return false;
 }
 
 int32 URuntimeVirtualTexture::GetEstimatedPageTableTextureMemoryKb() const
