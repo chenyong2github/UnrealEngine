@@ -119,6 +119,7 @@ void FVisualLoggingHelpers::VisualLogActor(AActor* Owner, FTransform& Transform,
 	if (NetSimVLogCVars::UseVLogger)
 	{
 		UE_VLOG(Owner, LogNetworkSim, Log, TEXT("%s"), *Params.DebugString);
+		UE_VLOG(Owner, LogNetworkSim, Log, TEXT("%s"), *Params.StateString);
 	}
 }
 
