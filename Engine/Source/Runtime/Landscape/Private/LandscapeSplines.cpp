@@ -3233,6 +3233,11 @@ void ALandscapeProxy::CreateSplineComponent(const FVector& Scale3D)
 	SplineComponent->SetRelativeScale3D_Direct(Scale3D);
 	SplineComponent->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 	SplineComponent->ShowSplineEditorMesh(true);
+
+	if (RootComponent && RootComponent->IsRegistered())
+	{
+		SplineComponent->RegisterComponent();
+	}
 }
 
 void FindStartingControlPoints(ULandscapeSplineControlPoint* ControlPoint, TSet<ULandscapeSplineControlPoint*>& StartingControlPoints)

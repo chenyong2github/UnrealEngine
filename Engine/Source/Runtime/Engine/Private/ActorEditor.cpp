@@ -148,6 +148,11 @@ void AActor::PostEditMove(bool bFinished)
 		}
 	}
 
+	if (!FLevelUtils::IsMovingLevel())
+	{
+		GEngine->BroadcastOnActorMoving(this);
+	}
+
 	if ( bFinished )
 	{
 		UWorld* World = GetWorld();

@@ -1006,6 +1006,11 @@ void UAssetToolsImpl::FindSoftReferencesToObject(FSoftObjectPath TargetObject, T
 	AssetRenameManager->FindSoftReferencesToObject(TargetObject, ReferencingObjects);
 }
 
+void UAssetToolsImpl::FindSoftReferencesToObjects(const TArray<FSoftObjectPath>& TargetObjects, TMap<FSoftObjectPath, TArray<UObject*>>& ReferencingObjects)
+{
+	AssetRenameManager->FindSoftReferencesToObjects(TargetObjects, ReferencingObjects);
+}
+
 void UAssetToolsImpl::RenameReferencingSoftObjectPaths(const TArray<UPackage *> PackagesToCheck, const TMap<FSoftObjectPath, FSoftObjectPath>& AssetRedirectorMap)
 {
 	AssetRenameManager->RenameReferencingSoftObjectPaths(PackagesToCheck, AssetRedirectorMap);

@@ -1300,7 +1300,7 @@ void UUnrealEdEngine::RegisterComponentVisualizer(FName ComponentClassName, TSha
 void UUnrealEdEngine::UnregisterComponentVisualizer(FName ComponentClassName)
 {
 	TSharedPtr<FComponentVisualizer> Visualizer = FindComponentVisualizer(ComponentClassName);
-	VisualizersForSelection.RemoveAll([&Visualizer](const auto& CachedComponentVisualizer) { return CachedComponentVisualizer.Visualizer == Visualizer; });
+	SelectionVisualizers.RemoveAll([&Visualizer](const auto& CachedComponentVisualizer) { return CachedComponentVisualizer.Visualizer == Visualizer; });
 
 	ComponentVisualizerMap.Remove(ComponentClassName);
 }
@@ -1335,7 +1335,12 @@ TSharedPtr<class FComponentVisualizer> UUnrealEdEngine::FindComponentVisualizer(
 
 void UUnrealEdEngine::DrawComponentVisualizers(const FSceneView* View, FPrimitiveDrawInterface* PDI)
 {
-	for(FCachedComponentVisualizer& CachedVisualizer : VisualizersForSelection)
+	for(FCachedComponentVisualizer& CachedVisualizer : SelectionVisualizers)
+	{
+		CachedVisualizer.Visualizer->DrawVisualization(CachedVisualizer.ComponentPropertyPath.GetComponent(), View, PDI);
+	}
+
+	for(FCachedComponentVisualizer& CachedVisualizer : NonSelectionVisualizers)
 	{
 		CachedVisualizer.Visualizer->DrawVisualization(CachedVisualizer.ComponentPropertyPath.GetComponent(), View, PDI);
 	}
@@ -1344,9 +1349,34 @@ void UUnrealEdEngine::DrawComponentVisualizers(const FSceneView* View, FPrimitiv
 
 void UUnrealEdEngine::DrawComponentVisualizersHUD(const FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
 {
-	for(FCachedComponentVisualizer& CachedVisualizer : VisualizersForSelection)
+	for(FCachedComponentVisualizer& CachedVisualizer : SelectionVisualizers)
 	{
 		CachedVisualizer.Visualizer->DrawVisualizationHUD(CachedVisualizer.ComponentPropertyPath.GetComponent(), Viewport, View, Canvas);
+	}
+
+	for(FCachedComponentVisualizer& CachedVisualizer : NonSelectionVisualizers)
+	{
+		CachedVisualizer.Visualizer->DrawVisualizationHUD(CachedVisualizer.ComponentPropertyPath.GetComponent(), Viewport, View, Canvas);
+	}
+}
+
+void UUnrealEdEngine::AddVisualizers(AActor* Actor, TArray<FCachedComponentVisualizer>& Visualizers, TFunctionRef<bool(const TSharedPtr<FComponentVisualizer>&)> Condition)
+{
+	TInlineComponentArray<UActorComponent*> Components;
+	Actor->GetComponents(Components, true);
+
+	for(int32 CompIdx = 0; CompIdx < Components.Num(); CompIdx++)
+	{
+		UActorComponent* Comp = Components[CompIdx];
+		if(Comp->IsRegistered())
+		{
+			// Try and find a visualizer
+			TSharedPtr<FComponentVisualizer> Visualizer = FindComponentVisualizer(Comp->GetClass());
+			if(Visualizer.IsValid() && Condition(Visualizer))
+			{
+				Visualizers.Add(FCachedComponentVisualizer(Comp, Visualizer));
+			}
+		}
 	}
 }
 
@@ -1356,7 +1386,7 @@ void UUnrealEdEngine::OnEditorSelectionChanged(UObject* SelectionThatChanged)
 	{
 		// actor selection changed.  Update the list of component visualizers
 		// This is expensive so we do not search for visualizers each time they want to draw
-		VisualizersForSelection.Empty();
+		SelectionVisualizers.Empty();
 
 		// Iterate over all selected actors
 		for(FSelectionIterator It(GetSelectedActorIterator()); It; ++It)
@@ -1364,28 +1394,36 @@ void UUnrealEdEngine::OnEditorSelectionChanged(UObject* SelectionThatChanged)
 			AActor* Actor = Cast<AActor>(*It);
 			if(Actor != nullptr)
 			{
-				// Then iterate over components of that actor (and recurse through child components)
-				TInlineComponentArray<UActorComponent*> Components;
-				Actor->GetComponents(Components, true);
-
-				for(int32 CompIdx = 0; CompIdx < Components.Num(); CompIdx++)
-				{
-					UActorComponent* Comp = Components[CompIdx];
-					if(Comp->IsRegistered())
-					{
-						// Try and find a visualizer
-						TSharedPtr<FComponentVisualizer> Visualizer = FindComponentVisualizer(Comp->GetClass());
-						if(Visualizer.IsValid())
-						{
-							VisualizersForSelection.Add(FCachedComponentVisualizer(Comp, Visualizer));
-						}
-					}
-				}
+				AddVisualizers(Actor, SelectionVisualizers, [](const TSharedPtr<FComponentVisualizer>& Visualizer) { return Visualizer->ShowWhenSelected(); });
 			}
 		}
 	}
 }
 
+void UUnrealEdEngine::AddNonSelectionVisualizers(AActor* Actor)
+{
+	AddVisualizers(Actor, NonSelectionVisualizers, [](const TSharedPtr<FComponentVisualizer>& Visualizer) { return !Visualizer->ShowWhenSelected(); });
+}
+
+void UUnrealEdEngine::RemoveNonSelectionVisualizers(AActor* Actor)
+{
+	TInlineComponentArray<UActorComponent*> Components;
+	Actor->GetComponents(Components);
+
+	for (int32 CompIdx = 0; CompIdx < Components.Num(); CompIdx++)
+	{
+		UActorComponent* Comp = Components[CompIdx];
+		if (Comp->IsRegistered())
+		{
+			// Try and find a visualizer
+			TSharedPtr<FComponentVisualizer> Visualizer = FindComponentVisualizer(Comp->GetClass());
+			if (Visualizer.IsValid())
+			{
+				NonSelectionVisualizers.RemoveAll([&Visualizer, Actor](const auto& CachedComponentVisualizer) { return CachedComponentVisualizer.ComponentPropertyPath.GetComponent() && CachedComponentVisualizer.ComponentPropertyPath.GetComponent()->GetOwner() == Actor; });
+			}
+		}
+	}
+}
 
 EWriteDisallowedWarningState UUnrealEdEngine::GetWarningStateForWritePermission(const FString& PackageName) const
 {
