@@ -194,7 +194,7 @@ bool FAsyncIODelete::Delete(const FStringView& PathToDelete, EPathType ExpectedT
 		return SynchronousDelete(PathToDeleteSZ, ExpectedType);
 	}
 
-	const FString TempPath = FPaths::Combine(TempRoot, FString::Printf(TEXT("Delete%u"), DeleteCounter));
+	const FString TempPath = FPaths::Combine(TempRoot, FString::Printf(TEXT("%u"), DeleteCounter));
 	DeleteCounter++;
 
 	const bool bReplace = true;
