@@ -355,7 +355,7 @@ namespace Chaos
 
 			COLLISION_OPT_OUT(StatData.FinalizeData());
 
-		}, bGatherStats || bDisableCollisionParallelFor || true); // todo(brice) remove true.
+		}, bGatherStats || bDisableCollisionParallelFor);
 
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ComputeConstraintsSU);
