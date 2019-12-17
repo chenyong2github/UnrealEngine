@@ -8,7 +8,7 @@
 //////////////////////////////////////////////////////////////////////////
 // FPaperFlipbookSceneProxy
 
-class FPaperFlipbookSceneProxy final : public FPaperRenderSceneProxy
+class FPaperFlipbookSceneProxy final : public FPaperRenderSceneProxy_SpriteBase
 {
 public:
 	SIZE_T GetTypeHash() const override;
