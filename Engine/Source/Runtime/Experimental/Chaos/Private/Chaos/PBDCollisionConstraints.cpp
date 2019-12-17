@@ -30,37 +30,34 @@
 
 //#pragma optimize("", off)
 
-int32 CollisionParticlesBVHDepth = 4;
-FAutoConsoleVariableRef CVarCollisionParticlesBVHDepth(TEXT("p.CollisionParticlesBVHDepth"), CollisionParticlesBVHDepth, TEXT("The maximum depth for collision particles bvh"));
-
-int32 ConstraintBPBVHDepth = 2;
-FAutoConsoleVariableRef CVarConstraintBPBVHDepth(TEXT("p.ConstraintBPBVHDepth"), ConstraintBPBVHDepth, TEXT("The maximum depth for constraint bvh"));
-
-int32 BPTreeOfGrids = 1;
-FAutoConsoleVariableRef CVarBPTreeOfGrids(TEXT("p.BPTreeOfGrids"), BPTreeOfGrids, TEXT("Whether to use a seperate tree of grids for bp"));
-
-float CollisionVelocityInflationCVar = 2.0f;
-FAutoConsoleVariableRef CVarCollisionVelocityInflation(TEXT("p.CollisionVelocityInflation"), CollisionVelocityInflationCVar, TEXT("Collision velocity inflation.[def:2.0]"));
-
-float CollisionFrictionOverride = -1.0f;
-FAutoConsoleVariableRef CVarCollisionFrictionOverride(TEXT("p.CollisionFriction"), CollisionFrictionOverride, TEXT("Collision friction for all contacts if >= 0"));
-
-
-extern int32 UseLevelsetCollision;
-
-#if !UE_BUILD_SHIPPING
 namespace Chaos
 {
-	int32 CHAOS_API PendingHierarchyDump = 0;
-}
-#endif
+	extern int32 UseLevelsetCollision;
 
-namespace Chaos
-{
+	int32 CollisionParticlesBVHDepth = 4;
+	FAutoConsoleVariableRef CVarCollisionParticlesBVHDepth(TEXT("p.CollisionParticlesBVHDepth"), CollisionParticlesBVHDepth, TEXT("The maximum depth for collision particles bvh"));
+
+	int32 ConstraintBPBVHDepth = 2;
+	FAutoConsoleVariableRef CVarConstraintBPBVHDepth(TEXT("p.ConstraintBPBVHDepth"), ConstraintBPBVHDepth, TEXT("The maximum depth for constraint bvh"));
+
+	int32 BPTreeOfGrids = 1;
+	FAutoConsoleVariableRef CVarBPTreeOfGrids(TEXT("p.BPTreeOfGrids"), BPTreeOfGrids, TEXT("Whether to use a seperate tree of grids for bp"));
+
+	float CollisionVelocityInflationCVar = 2.0f;
+	FAutoConsoleVariableRef CVarCollisionVelocityInflation(TEXT("p.CollisionVelocityInflation"), CollisionVelocityInflationCVar, TEXT("Collision velocity inflation.[def:2.0]"));
+
+	float CollisionFrictionOverride = -1.0f;
+	FAutoConsoleVariableRef CVarCollisionFrictionOverride(TEXT("p.CollisionFriction"), CollisionFrictionOverride, TEXT("Collision friction for all contacts if >= 0"));
+
 	CHAOS_API int32 EnableCollisions = 1;
 	FAutoConsoleVariableRef CVarEnableCollisions(TEXT("p.EnableCollisions"), EnableCollisions, TEXT("Enable/Disable collisions on the Chaos solver."));
 
+#if !UE_BUILD_SHIPPING
+	int32 CHAOS_API PendingHierarchyDump = 0;
+#endif
 
+	DEFINE_STAT(STAT_ComputeConstraints);
+	DEFINE_STAT(STAT_ComputeConstraintsSU);
 
 	//
 	// Collision Constraint Container
@@ -127,11 +124,6 @@ namespace Chaos
 	{
 		PostApplyPushOutCallback = nullptr;
 	}
-
-	DEFINE_STAT(STAT_ComputeConstraints);
-	DEFINE_STAT(STAT_ComputeConstraintsNP);
-	DEFINE_STAT(STAT_ComputeConstraintsBP);
-	DEFINE_STAT(STAT_ComputeConstraintsSU);
 
 
 	template<typename T, int d>

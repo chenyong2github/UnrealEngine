@@ -5,10 +5,10 @@
 #include "ChaosArchive.h"
 #include "Chaos/ParticleHandleFwd.h"
 
-extern int32 CHAOS_API CollisionParticlesBVHDepth;
 
 namespace Chaos
 {
+	extern int32 CHAOS_API CollisionParticlesBVHDepth;
 
     template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
     class TBoundingVolumeHierarchy;
