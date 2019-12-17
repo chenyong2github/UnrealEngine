@@ -288,7 +288,7 @@ struct ENGINE_API FCompositeNavModifier : public FNavigationModifier
 		bHasMetaAreas |= Modifiers.bHasMetaAreas; 
 		bAdjustHeight |= Modifiers.HasAgentHeightAdjust();
 		bHasLowAreaModifiers |= Modifiers.HasLowAreaModifiers();
-		bModifierRejectNavmeshUnderneath |= Modifiers.GetRejectNavmeshUnderneath();
+		bModifierFillCollisionUnderneathForNavmesh |= Modifiers.GetFillCollisionUnderneathForNavmesh();
 	}
 
 	void CreateAreaModifiers(const UPrimitiveComponent* PrimComp, const TSubclassOf<UNavAreaBase> AreaClass);
