@@ -169,16 +169,16 @@ namespace Chaos
 
 		// Make a physics proxy, giving it our particle and particle handle
 		const EParticleType InParticleType = GTParticle->ObjectType();
-		if (InParticleType == EParticleType::Dynamic)
+		if (InParticleType == EParticleType::Rigid)
 		{
-			auto Proxy = new FRigidParticlePhysicsProxy(GTParticle->AsDynamic(), nullptr);
+			auto Proxy = new FRigidParticlePhysicsProxy(GTParticle->CastToRigidParticle(), nullptr);
 			RigidParticlePhysicsProxies.Add((FRigidParticlePhysicsProxy*)Proxy);
 			ProxyData = Proxy->NewData();
 			ProxyBase = Proxy;
 		}
 		else if (InParticleType == EParticleType::Kinematic)
 		{
-			auto Proxy = new FKinematicGeometryParticlePhysicsProxy(GTParticle->AsKinematic(), nullptr);
+			auto Proxy = new FKinematicGeometryParticlePhysicsProxy(GTParticle->CastToKinematicParticle(), nullptr);
 			KinematicGeometryParticlePhysicsProxies.Add((FKinematicGeometryParticlePhysicsProxy*)Proxy);
 			ProxyData = Proxy->NewData();
 			ProxyBase = Proxy;
@@ -210,18 +210,18 @@ namespace Chaos
 			//       Proxy should be able to map back to Particle.
 			//
 
-			if (InParticleType == EParticleType::Dynamic)
+			if (InParticleType == EParticleType::Rigid)
 			{
 				Handle = Solver->Particles.CreateDynamicParticles(1)[0];
 				auto Proxy = static_cast<FRigidParticlePhysicsProxy*>(ProxyBase);
-				Proxy->SetHandle(Handle->AsDynamic());
+				Proxy->SetHandle(Handle->CastToRigidParticle());
 				Proxy->PushToPhysicsState(ProxyData);
 			}
 			else if (InParticleType == EParticleType::Kinematic)
 			{
 				Handle = Solver->Particles.CreateKinematicParticles(1)[0];
 				auto Proxy = static_cast<FKinematicGeometryParticlePhysicsProxy*>(ProxyBase);
-				Proxy->SetHandle(Handle->AsKinematic());
+				Proxy->SetHandle(Handle->CastToKinematicParticle());
 				Proxy->PushToPhysicsState(ProxyData);
 			}
 			else // Assume it's a static (geometry) if it's not dynamic or kinematic
@@ -258,7 +258,7 @@ namespace Chaos
 		GTParticle->Proxy = nullptr;
 
 		// Remove the proxy from the GT proxy map
-		if (InParticleType == EParticleType::Dynamic)
+		if (InParticleType == EParticleType::Rigid)
 		{
 			RigidParticlePhysicsProxies.Remove((FRigidParticlePhysicsProxy*)InProxy);
 		}
@@ -287,7 +287,7 @@ namespace Chaos
 			// maybe that extra safety is not needed if we continue to contain all
 			// references to proxy instances entirely in Chaos?
 			TGeometryParticleHandle<float, 3>* Handle;
-			if (InParticleType == Chaos::EParticleType::Dynamic)
+			if (InParticleType == Chaos::EParticleType::Rigid)
 			{
 				auto Proxy = (FRigidParticlePhysicsProxy*)InProxy;
 				Handle = Proxy->GetHandle();
@@ -506,7 +506,7 @@ namespace Chaos
 		{
 			switch (ActiveObject.Type)
 			{
-			case Chaos::EParticleType::Dynamic:
+			case Chaos::EParticleType::Rigid:
 				((FRigidParticlePhysicsProxy*)(ActiveObject.GTGeometryParticle()->Proxy))->BufferPhysicsResults();
 				break;
 			case Chaos::EParticleType::Kinematic:
@@ -539,7 +539,7 @@ namespace Chaos
 		{
 			switch (ActiveObject.Type)
 			{
-			case Chaos::EParticleType::Dynamic:
+			case Chaos::EParticleType::Rigid:
 				((FRigidParticlePhysicsProxy*)(ActiveObject.GTGeometryParticle()->Proxy))->FlipBuffer();
 				break;
 			case Chaos::EParticleType::Kinematic:
@@ -572,7 +572,7 @@ namespace Chaos
 		{
 			switch (ActiveObject.Type)
 			{
-			case Chaos::EParticleType::Dynamic:
+			case Chaos::EParticleType::Rigid:
 				((FRigidParticlePhysicsProxy*)(ActiveObject.GTGeometryParticle()->Proxy))->PullFromPhysicsState();
 				break;
 			case Chaos::EParticleType::Kinematic:

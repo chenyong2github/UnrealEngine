@@ -676,12 +676,12 @@ namespace Chaos
 			TVector<const TGeometryParticleHandle<T, d>*, 2> ConstrainedParticles = ContactHandle->GetConstrainedParticles();
 			if (auto ChildrenPtr = MParentToChildren.Find(ConstrainedParticles[0]))
 			{
-				ComputeStrainLambda(ConstrainedParticles[0]->AsClustered(), *ChildrenPtr);
+				ComputeStrainLambda(ConstrainedParticles[0]->CastToClustered(), *ChildrenPtr);
 			}
 
 			if (auto ChildrenPtr = MParentToChildren.Find(ConstrainedParticles[1]))
 			{
-				ComputeStrainLambda(ConstrainedParticles[1]->AsClustered(), *ChildrenPtr);
+				ComputeStrainLambda(ConstrainedParticles[1]->CastToClustered(), *ChildrenPtr);
 			}
 
 			MCollisionImpulseArrayDirty = true;
@@ -712,7 +712,8 @@ namespace Chaos
 			auto Particles = Evolution.GetIslandParticles(Island); // copy
 			for (int32 ArrayIdx = Particles.Num() - 1; ArrayIdx >= 0; --ArrayIdx)
 			{
-				if (auto PBDRigid = Particles[ArrayIdx]->AsDynamic())
+				auto PBDRigid = Particles[ArrayIdx]->CastToRigidParticle();
+				if(PBDRigid && PBDRigid->ObjectState() == EObjectStateType::Dynamic)
 				{
 					if (!PBDRigid->Sleeping() && !PBDRigid->Disabled())
 					{
@@ -734,7 +735,8 @@ namespace Chaos
 			const auto& ParticleIndices = Evolution.GetIslandParticles(Island);
 			for (const auto Particle : ParticleIndices)
 			{
-				if (auto PBDRigid = Particle->AsDynamic())
+				auto PBDRigid = Particle->CastToRigidParticle();
+				if(PBDRigid && PBDRigid->ObjectState() == EObjectStateType::Dynamic)
 				{
 					bool bDisabled = PBDRigid->Disabled();
 

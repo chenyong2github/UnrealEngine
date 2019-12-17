@@ -121,7 +121,8 @@ public:
 		InParticles.ParallelFor([&](auto& GeomParticle, int32 Index)
 		{
 			//question: can we enforce this at the API layer? Right now islands contain non dynamic which makes this hard
-			if (auto PBDParticle = GeomParticle.AsDynamic())
+			auto PBDParticle = GeomParticle.CastToRigidParticle();
+			if(PBDParticle && PBDParticle->ObjectState() == EObjectStateType::Dynamic)
 			{
 				auto& Particle = *PBDParticle;
 

@@ -79,10 +79,10 @@ namespace Chaos
 							{
 								TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
 								TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
-								TKinematicGeometryParticleHandle<float, 3>* Body0 = Particle0->AsKinematic();
+								TKinematicGeometryParticleHandle<float, 3>* Body0 = Particle0->CastToKinematicParticle();
 
 								// presently when a rigidbody or kinematic hits static geometry then Body1 is null
-								TKinematicGeometryParticleHandle<float, 3>* Body1 = Particle1->AsKinematic();
+								TKinematicGeometryParticleHandle<float, 3>* Body1 = Particle1->CastToKinematicParticle();
 
 								if (!Constraint.AccumulatedImpulse.IsZero() && Body0)
 								{
@@ -122,14 +122,16 @@ namespace Chaos
 
 						// todo: do we need these anymore now we are storing the particles you can access all of this stuff from there
 						// do we still need these now we have pointers to particles returned?
-						if(TPBDRigidParticleHandle<float, 3>* PBDRigid0 = Particle0->AsDynamic())
+						TPBDRigidParticleHandle<float, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
+						if(PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic)
 						{
 							Data.Velocity1 = PBDRigid0->V();
 							Data.AngularVelocity1 = PBDRigid0->W();
 							Data.Mass1 = PBDRigid0->M();
 						}
 
-						if(TPBDRigidParticleHandle<float, 3>* PBDRigid1 = Particle1->AsDynamic())
+						TPBDRigidParticleHandle<float, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
+						if(PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic)
 						{
 							Data.Velocity2 = PBDRigid1->V();
 							Data.AngularVelocity2 = PBDRigid1->W();
@@ -290,7 +292,7 @@ namespace Chaos
 
 			for (auto& ActiveParticle : Evolution->GetParticles().GetActiveParticlesView())
 			{
-				TPBDRigidParticle<float, 3>* GTParticle = ActiveParticle.Handle()->GTGeometryParticle()->AsDynamic();
+				TPBDRigidParticle<float, 3>* GTParticle = ActiveParticle.Handle()->GTGeometryParticle()->CastToRigidParticle();
 				// Since Clustered GCs can be unioned the particleIndex representing the union 
 				// is not associated with a PhysicsProxy
 				if (GTParticle && GTParticle->Proxy != nullptr)

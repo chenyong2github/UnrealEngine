@@ -405,14 +405,14 @@ public:
 	TGeometryParticle<T, d>* GTGeometryParticle() const { return GeometryParticles->GTGeometryParticle(ParticleIdx); }
 	TGeometryParticle<T, d>*& GTGeometryParticle() { return GeometryParticles->GTGeometryParticle(ParticleIdx); }
 
-	const TKinematicGeometryParticleHandleImp<T, d, bPersistent>* AsKinematic() const;
-	TKinematicGeometryParticleHandleImp<T, d, bPersistent>* AsKinematic();
+	const TKinematicGeometryParticleHandleImp<T, d, bPersistent>* CastToKinematicParticle() const;
+	TKinematicGeometryParticleHandleImp<T, d, bPersistent>* CastToKinematicParticle();
 
-	const TPBDRigidParticleHandleImp<T, d, bPersistent>* AsDynamic() const;
-	TPBDRigidParticleHandleImp<T, d, bPersistent>* AsDynamic();
+	const TPBDRigidParticleHandleImp<T, d, bPersistent>* CastToRigidParticle() const;
+	TPBDRigidParticleHandleImp<T, d, bPersistent>* CastToRigidParticle();
 
-	const TPBDRigidClusteredParticleHandleImp<T, d, bPersistent>* AsClustered() const;
-	TPBDRigidClusteredParticleHandleImp<T, d, bPersistent>* AsClustered();
+	const TPBDRigidClusteredParticleHandleImp<T, d, bPersistent>* CastToClustered() const;
+	TPBDRigidClusteredParticleHandleImp<T, d, bPersistent>* CastToClustered();
 
 	const TGeometryParticleHandle<T, d>* Handle() const { return GetHandleHelper(this);}
 	TGeometryParticleHandle<T, d>* Handle() { return GetHandleHelper(this); }
@@ -500,7 +500,7 @@ public:
 	using TGeometryParticleHandleImp<T, d, bPersistent>::ParticleIdx;
 	using TGeometryParticleHandleImp<T, d, bPersistent>::KinematicGeometryParticles;
 	using TGeometryParticleHandleImp<T, d, bPersistent>::Type;
-	using TGeometryParticleHandleImp<T, d, bPersistent>::AsDynamic;
+	using TGeometryParticleHandleImp<T, d, bPersistent>::CastToRigidParticle;
 	using TTransientHandle = TTransientKinematicGeometryParticleHandle<T, d>;
 	using TSOAType = TKinematicGeometryParticles<T, d>;
 	
@@ -674,7 +674,7 @@ public:
 	const TPBDRigidParticleHandleImp<T, d, true>* Handle() const { return PBDRigidParticles->Handle(ParticleIdx); }
 	TPBDRigidParticleHandleImp<T, d, true>* Handle() { return PBDRigidParticles->Handle(ParticleIdx); }
 
-	static constexpr EParticleType StaticType() { return EParticleType::Dynamic; }
+	static constexpr EParticleType StaticType() { return EParticleType::Rigid; }
 };
 
 template <typename T, int d, bool bPersistent>
@@ -744,7 +744,7 @@ public:
 	const TPBDRigidClusteredParticleHandleImp<T, d, true>* Handle() const { return PBDRigidClusteredParticles->Handle(ParticleIdx); }
 	TPBDRigidClusteredParticleHandleImp<T, d, true>* Handle() { return PBDRigidClusteredParticles->Handle(ParticleIdx); }
 
-	static constexpr EParticleType StaticType() { return EParticleType::Dynamic; }
+	static constexpr EParticleType StaticType() { return EParticleType::Rigid; }
 
 	int32 TransientParticleIndex() const { return ParticleIdx; }
 };
@@ -801,31 +801,34 @@ public:
 };
 
 template <typename T, int d, bool bPersistent>
-const TKinematicGeometryParticleHandleImp<T, d, bPersistent>* TGeometryParticleHandleImp<T,d, bPersistent>::AsKinematic() const { return Type >= EParticleType::Kinematic ? static_cast<const TKinematicGeometryParticleHandleImp<T, d, bPersistent>*>(this) : nullptr; }
-template <typename T, int d, bool bPersistent>
-TKinematicGeometryParticleHandleImp<T, d, bPersistent>* TGeometryParticleHandleImp<T, d, bPersistent>::AsKinematic() { return Type >= EParticleType::Kinematic ? static_cast<TKinematicGeometryParticleHandleImp<T, d, bPersistent>*>(this) : nullptr; }
+TKinematicGeometryParticleHandleImp<T, d, bPersistent>* TGeometryParticleHandleImp<T, d, bPersistent>::CastToKinematicParticle() { return Type >= EParticleType::Kinematic ? static_cast<TKinematicGeometryParticleHandleImp<T, d, bPersistent>*>(this) : nullptr; }
 
 template <typename T, int d, bool bPersistent>
-const TPBDRigidParticleHandleImp<T, d, bPersistent>* TGeometryParticleHandleImp<T, d, bPersistent>::AsDynamic() const { return Type >= EParticleType::Dynamic ? static_cast<const TPBDRigidParticleHandleImp<T, d, bPersistent>*>(this) : nullptr; }
-template <typename T, int d, bool bPersistent>
-TPBDRigidParticleHandleImp<T, d, bPersistent>* TGeometryParticleHandleImp<T, d, bPersistent>::AsDynamic() { return Type >= EParticleType::Dynamic ? static_cast<TPBDRigidParticleHandleImp<T, d, bPersistent>*>(this) : nullptr; }
+const TKinematicGeometryParticleHandleImp<T, d, bPersistent>* TGeometryParticleHandleImp<T,d, bPersistent>::CastToKinematicParticle() const { return Type >= EParticleType::Kinematic ? static_cast<const TKinematicGeometryParticleHandleImp<T, d, bPersistent>*>(this) : nullptr; }
 
 template <typename T, int d, bool bPersistent>
-const TPBDRigidClusteredParticleHandleImp<T, d, bPersistent>* TGeometryParticleHandleImp<T, d, bPersistent>::AsClustered() const { return Type >= EParticleType::Clustered ? static_cast<const TPBDRigidClusteredParticleHandleImp<T, d, bPersistent>*>(this) : nullptr; }
+const TPBDRigidParticleHandleImp<T, d, bPersistent>* TGeometryParticleHandleImp<T, d, bPersistent>::CastToRigidParticle() const { return Type >= EParticleType::Rigid ? static_cast<const TPBDRigidParticleHandleImp<T, d, bPersistent>*>(this) : nullptr; }
+
 template <typename T, int d, bool bPersistent>
-TPBDRigidClusteredParticleHandleImp<T, d, bPersistent>* TGeometryParticleHandleImp<T, d, bPersistent>::AsClustered() { return Type >= EParticleType::Clustered ? static_cast<TPBDRigidClusteredParticleHandleImp<T, d, bPersistent>*>(this) : nullptr; }
+TPBDRigidParticleHandleImp<T, d, bPersistent>* TGeometryParticleHandleImp<T, d, bPersistent>::CastToRigidParticle() { return Type >= EParticleType::Rigid ? static_cast<TPBDRigidParticleHandleImp<T, d, bPersistent>*>(this) : nullptr; }
+
+template <typename T, int d, bool bPersistent>
+const TPBDRigidClusteredParticleHandleImp<T, d, bPersistent>* TGeometryParticleHandleImp<T, d, bPersistent>::CastToClustered() const { return Type >= EParticleType::Clustered ? static_cast<const TPBDRigidClusteredParticleHandleImp<T, d, bPersistent>*>(this) : nullptr; }
+
+template <typename T, int d, bool bPersistent>
+TPBDRigidClusteredParticleHandleImp<T, d, bPersistent>* TGeometryParticleHandleImp<T, d, bPersistent>::CastToClustered() { return Type >= EParticleType::Clustered ? static_cast<TPBDRigidClusteredParticleHandleImp<T, d, bPersistent>*>(this) : nullptr; }
 
 template <typename T, int d, bool bPersistent>
 EObjectStateType TGeometryParticleHandleImp<T,d, bPersistent>::ObjectState() const
 {
-	const TKinematicGeometryParticleHandleImp<T, d, bPersistent>* Kin = AsKinematic();
+	const TKinematicGeometryParticleHandleImp<T, d, bPersistent>* Kin = CastToKinematicParticle();
 	return Kin ? Kin->ObjectState() : EObjectStateType::Static;
 }
 
 template <typename T, int d, bool bPersistent>
 EObjectStateType TKinematicGeometryParticleHandleImp<T, d, bPersistent>::ObjectState() const
 {
-	const TPBDRigidParticleHandleImp<T, d, bPersistent>* Dyn = AsDynamic();
+	const TPBDRigidParticleHandleImp<T, d, bPersistent>* Dyn = CastToRigidParticle();
 	return Dyn ? Dyn->ObjectState() : EObjectStateType::Kinematic;
 }
 
@@ -840,9 +843,8 @@ FString TGeometryParticleHandleImp<T, d, bPersistent>::ToString() const
 	case EParticleType::Kinematic:
 		return FString::Printf(TEXT("Kinemmatic[%d]"), ParticleIdx);
 		break;
-	case EParticleType::Dynamic:
+	case EParticleType::Rigid:
 		return FString::Printf(TEXT("Dynamic[%d]"), ParticleIdx);
-		break;
 	case EParticleType::GeometryCollection:
 		return FString::Printf(TEXT("GeometryCollection[%d]"), ParticleIdx);
 		break;
@@ -882,10 +884,10 @@ public:
 		bool IsKinematic() const { return (Handle->ObjectState() == EObjectStateType::Kinematic); }
 		bool IsDynamic() const { return (Handle->ObjectState() == EObjectStateType::Dynamic) || (Handle->ObjectState() == EObjectStateType::Sleeping); }
 
-		const TKinematicGeometryParticleHandle<T, d>* AsKinematic() const { return Handle->AsKinematic(); }
-		TKinematicGeometryParticleHandle<T, d>* AsKinematic() { return Handle->AsKinematic(); }
-		const TPBDRigidParticleHandle<T, d>* AsDynamic() const { return Handle->AsDynamic(); }
-		TPBDRigidParticleHandle<T, d>* AsDynamic() { return Handle->AsDynamic(); }
+		const TKinematicGeometryParticleHandle<T, d>* CastToKinematicParticle() const { return Handle->CastToKinematicParticle(); }
+		TKinematicGeometryParticleHandle<T, d>* CastToKinematicParticle() { return Handle->CastToKinematicParticle(); }
+		const TPBDRigidParticleHandle<T, d>* CastToRigidParticle() const { return Handle->CastToRigidParticle(); }
+		TPBDRigidParticleHandle<T, d>* CastToRigidParticle() { return Handle->CastToRigidParticle(); }
 
 		// Static Particles
 		const TVector<T, d>& X() const { return Handle->X(); }
@@ -901,26 +903,172 @@ public:
 		auto& AuxilaryValue(Container& AuxContainer) { return Handle->AuxilaryValue(AuxContainer); }
 
 		// Kinematic Particles
-		const TVector<T, d>& V() const { return (Handle->AsKinematic()) ? Handle->AsKinematic()->V() : ZeroVector; }
-		const TVector<T, d>& W() const { return (Handle->AsKinematic()) ? Handle->AsKinematic()->W() : ZeroVector; }
+		const TVector<T, d>& V() const { return (Handle->CastToKinematicParticle()) ? Handle->CastToKinematicParticle()->V() : ZeroVector; }
+		const TVector<T, d>& W() const { return (Handle->CastToKinematicParticle()) ? Handle->CastToKinematicParticle()->W() : ZeroVector; }
 
 		// Dynamic Particles
-		int32 CollisionParticlesSize() const { return (Handle->AsDynamic()) ? Handle->AsDynamic()->CollisionParticlesSize() : 0; }
-		const TUniquePtr<TBVHParticles<T, d>>& CollisionParticles() const { return (Handle->AsDynamic()) ? Handle->AsDynamic()->CollisionParticles() : NullBVHParticles; }
-		int32 CollisionGroup() const { return (Handle->AsDynamic()) ? Handle->AsDynamic()->CollisionGroup() : 0; }
-		bool Disabled() const { return (Handle->AsDynamic()) ? Handle->AsDynamic()->Disabled() : false; }				// @todo(ccaulfield): should be available on all types?
-		const TVector<T, d>& PreV() const { return (Handle->AsDynamic()) ? Handle->AsDynamic()->PreV() : ZeroVector; }	// @todo(ccaulfield): should be available on kinematics?
-		const TVector<T, d>& PreW() const { return (Handle->AsDynamic()) ? Handle->AsDynamic()->PreW() : ZeroVector; }	// @todo(ccaulfield): should be available on kinematics?
-		const TVector<T, d>& P() const { return (Handle->AsDynamic()) ? Handle->AsDynamic()->P() : X(); }
-		const TRotation<T, d>& Q() const { return (Handle->AsDynamic()) ? Handle->AsDynamic()->Q() : R(); }
-		const TVector<T, d>& F() const { return (Handle->AsDynamic()) ? Handle->AsDynamic()->F() : ZeroVector; }
-		const TVector<T, d>& Torque() const { return (Handle->AsDynamic()) ? Handle->AsDynamic()->Torque() : ZeroVector; }
-		const PMatrix<T, d, d>& I() const { return (Handle->AsDynamic()) ? Handle->AsDynamic()->I() : ZeroMatrix; }
-		const PMatrix<T, d, d>& InvI() const { return (Handle->AsDynamic()) ? Handle->AsDynamic()->InvI() : ZeroMatrix; }
-		T M() const { return (Handle->AsDynamic()) ? Handle->AsDynamic()->M() : (T)0; }
-		T InvM() const { return (Handle->AsDynamic()) ? Handle->AsDynamic()->InvM() : (T)0; }
-		int32 Island() const { return (Handle->AsDynamic()) ? Handle->AsDynamic()->Island() : INDEX_NONE; }
-		bool ToBeRemovedOnFracture() const { return (Handle->AsDynamic()) ? Handle->AsDynamic()->ToBeRemovedOnFracture() : false; }
+
+		// TODO: Make all of these check ObjectState to maintain current functionality
+		int32 CollisionParticlesSize() const
+		{
+			if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+			{
+				return Handle->CastToRigidParticle()->CollisionParticlesSize();
+			}
+
+			return 0;
+		}
+
+		const TUniquePtr<TBVHParticles<T, d>>& CollisionParticles() const
+		{
+			if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+			{
+				return Handle->CastToRigidParticle()->CollisionParticles();
+			}
+
+			return NullBVHParticles;
+		}
+
+		int32 CollisionGroup() const
+		{
+			if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+			{
+				return Handle->CastToRigidParticle()->CollisionGroup();
+			}
+
+			return 0;
+		}
+
+		// @todo(ccaulfield): should be available on all types?
+		bool Disabled() const
+		{
+			if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+			{
+				return Handle->CastToRigidParticle()->Disabled();
+			}
+
+			return false;
+		}
+
+		// @todo(ccaulfield): should be available on kinematics?
+		const TVector<T, d>& PreV() const
+		{
+			if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+			{
+				return Handle->CastToRigidParticle()->PreV();
+			}
+
+			return ZeroVector;
+		}
+
+		// @todo(ccaulfield): should be available on kinematics?
+		const TVector<T, d>& PreW() const
+		{
+			if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+			{
+				return Handle->CastToRigidParticle()->PreW();
+			}
+			return ZeroVector;
+		}
+
+		const TVector<T, d>& P() const
+		{
+			if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+			{
+				return Handle->CastToRigidParticle()->P();
+			}
+
+			return X();
+		}
+
+		const TRotation<T, d>& Q() const
+		{
+			if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+			{
+				return Handle->CastToRigidParticle()->Q();
+			}
+
+			return R();
+		}
+
+		const TVector<T, d>& F() const 
+		{ 
+			if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+			{
+				return Handle->CastToRigidParticle()->F();
+			}
+
+			return ZeroVector;
+		}
+		const TVector<T, d>& Torque() const 
+		{ 
+			if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+			{
+				return Handle->CastToRigidParticle()->Torque();
+			}
+
+			return ZeroVector;
+		}
+
+		const PMatrix<T, d, d>& I() const 
+		{ 
+			if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+			{
+				return Handle->CastToRigidParticle()->I();
+			}
+
+			return ZeroMatrix;
+		}
+
+		const PMatrix<T, d, d>& InvI() const 
+		{ 
+			if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+			{
+				return Handle->CastToRigidParticle()->InvI();
+			}
+
+			return ZeroMatrix;
+		}
+
+		T M() const
+		{
+			if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+			{
+				return Handle->CastToRigidParticle()->M();
+			}
+
+			return (T)0;
+		}
+
+		T InvM() const
+		{
+			if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+			{
+				return Handle->CastToRigidParticle()->InvM();
+			}
+
+			return (T)0;
+		}
+
+		int32 Island() const
+		{
+			if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+			{
+				return Handle->CastToRigidParticle()->Island();
+			}
+
+			return INDEX_NONE;
+		}
+
+		bool ToBeRemovedOnFracture() const 
+		{
+			if (Handle->CastToRigidParticle() && Handle->ObjectState() == EObjectStateType::Dynamic)
+			{
+				return Handle->CastToRigidParticle()->ToBeRemovedOnFracture();
+			}
+
+			return false;
+		}
 
 	private:
 		TGeometryParticleHandle<T, d>* Handle;
@@ -1169,11 +1317,12 @@ public:
 		return Type;
 	}
 
-	const TKinematicGeometryParticle<T, d>* AsKinematic() const;
-	TKinematicGeometryParticle<T, d>* AsKinematic();
 
-	const TPBDRigidParticle<T, d>* AsDynamic() const;
-	TPBDRigidParticle<T, d>* AsDynamic();
+	const TKinematicGeometryParticle<T, d>* CastToKinematicParticle() const;
+	TKinematicGeometryParticle<T, d>* CastToKinematicParticle();
+
+	const TPBDRigidParticle<T, d>* CastToRigidParticle() const;
+	TPBDRigidParticle<T, d>* CastToRigidParticle();
 
 	FSpatialAccelerationIdx SpatialIdx() const { return MSpatialIdx; }
 	void SetSpatialIdx(FSpatialAccelerationIdx Idx)
@@ -1328,7 +1477,7 @@ public:
 	typedef TKinematicGeometryParticleHandle<T, d> FHandle;
 
 	using TGeometryParticle<T, d>::Type;
-	using TGeometryParticle<T, d>::AsDynamic;
+	using TGeometryParticle<T, d>::CastToRigidParticle;
 
 protected:
 	friend TGeometryParticle<T,d>* TGeometryParticle<T, d>::SerializationFactory(FChaosArchive& Ar, TGeometryParticle<T, d>* Serializable);
@@ -1424,7 +1573,7 @@ protected:
 	TPBDRigidParticle<T, d>(const TPBDRigidParticleParameters<T, d>& DynamicParams = TPBDRigidParticleParameters<T, d>())
 		: TKinematicGeometryParticle<T, d>(DynamicParams)
 	{
-		Type = EParticleType::Dynamic;
+		Type = EParticleType::Rigid;
 		MIsland = INDEX_NONE;
 		MToBeRemovedOnFracture = false;
 		PBDRigidParticleDefaultConstruct<T, d>(*this, DynamicParams);
@@ -1650,7 +1799,7 @@ public:
 
 	using TKinematicGeometryParticleData<T, d>::Type;
 
-	TPBDRigidParticleData(EParticleType InType = EParticleType::Dynamic)
+	TPBDRigidParticleData(EParticleType InType = EParticleType::Rigid)
 		: Base(InType)
 		, MQ(TRotation<T, d>())
 		, MPreV(TVector<T, d>(0))
@@ -1691,7 +1840,7 @@ public:
 		, MToBeRemovedOnFracture(InParticle.ToBeRemovedOnFracture())
 		, MGravityEnabled(InParticle.IsGravityEnabled())
 	{
-		Type = EParticleType::Dynamic;
+		Type = EParticleType::Rigid;
 	}
 
 
@@ -1715,7 +1864,7 @@ public:
 
 	void Reset() {
 		TKinematicGeometryParticleData<T, d>::Reset();
-		Type = EParticleType::Dynamic;
+		Type = EParticleType::Rigid;
 		MQ = TRotation<T, d>();
 		MPreV = TVector<T, d>(0);
 		MPreW = TVector<T, d>(0);
@@ -1738,26 +1887,62 @@ public:
 
 
 template <typename T, int d>
-const TKinematicGeometryParticle<T, d>* TGeometryParticle<T, d>::AsKinematic() const { return Type >= EParticleType::Kinematic ? static_cast<const TKinematicGeometryParticle<T, d>*>(this) : nullptr; }
-template <typename T, int d>
-TKinematicGeometryParticle<T, d>* TGeometryParticle<T, d>::AsKinematic() { return Type >= EParticleType::Kinematic ? static_cast<TKinematicGeometryParticle<T, d>*>(this) : nullptr; }
+const TKinematicGeometryParticle<T, d>* TGeometryParticle<T, d>::CastToKinematicParticle() const
+{
+	if (Type >= EParticleType::Kinematic)
+	{
+		return static_cast<const TKinematicGeometryParticle<T, d>*>(this);
+	}
+
+	return nullptr;
+}
 
 template <typename T, int d>
-const TPBDRigidParticle<T, d>* TGeometryParticle<T, d>::AsDynamic() const { return Type >= EParticleType::Dynamic ? static_cast<const TPBDRigidParticle<T, d>*>(this) : nullptr; }
+TKinematicGeometryParticle<T, d>* TGeometryParticle<T, d>::CastToKinematicParticle()
+{
+	if (Type >= EParticleType::Kinematic)
+	{
+		return static_cast<TKinematicGeometryParticle<T, d>*>(this);
+	}
+
+	return nullptr;
+}
+
 template <typename T, int d>
-TPBDRigidParticle<T, d>* TGeometryParticle<T, d>::AsDynamic() { return Type >= EParticleType::Dynamic ? static_cast<TPBDRigidParticle<T, d>*>(this) : nullptr; }
+TPBDRigidParticle<T, d>* TGeometryParticle<T, d>::CastToRigidParticle() 
+{
+	if (Type >= EParticleType::Rigid)
+	{
+		return static_cast<TPBDRigidParticle<T, d>*>(this);
+	}
+
+	return nullptr;
+}
+
+
+template <typename T, int d>
+const TPBDRigidParticle<T, d>* TGeometryParticle<T, d>::CastToRigidParticle()  const
+{
+	if (Type >= EParticleType::Rigid)
+	{
+		return static_cast<const TPBDRigidParticle<T, d>*>(this);
+	}
+
+	return nullptr;
+}
+
 
 template <typename T, int d>
 EObjectStateType TGeometryParticle<T, d>::ObjectState() const
 {
-	const TKinematicGeometryParticle<T, d>* Kin = AsKinematic();
+	const TKinematicGeometryParticle<T, d>* Kin = CastToKinematicParticle();
 	return Kin ? Kin->ObjectState() : EObjectStateType::Static;
 }
 
 template <typename T, int d>
 EObjectStateType TKinematicGeometryParticle<T, d>::ObjectState() const
 {
-	const TPBDRigidParticle<T, d>* Dyn = AsDynamic();
+	const TPBDRigidParticle<T, d>* Dyn = CastToRigidParticle();
 	return Dyn ? Dyn->ObjectState() : EObjectStateType::Kinematic;
 }
 
@@ -1770,7 +1955,7 @@ TGeometryParticle<T, d>* TGeometryParticle<T, d>::SerializationFactory(FChaosArc
 	{
 	case EParticleType::Static: if (Ar.IsLoading()) { return new TGeometryParticle<T, d>(); } break;
 	case EParticleType::Kinematic: if (Ar.IsLoading()) { return new TKinematicGeometryParticle<T, d>(); } break;
-	case EParticleType::Dynamic: if (Ar.IsLoading()) { return new TPBDRigidParticle<T, d>(); } break;
+	case EParticleType::Rigid: if (Ar.IsLoading()) { return new TPBDRigidParticle<T, d>(); } break;
 	case EParticleType::GeometryCollection: if (Ar.IsLoading()) { return new TPBDGeometryCollectionParticle<T, d>(); } break;
 	default:
 		check(false);

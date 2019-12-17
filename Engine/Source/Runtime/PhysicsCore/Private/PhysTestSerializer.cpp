@@ -269,13 +269,14 @@ void FPhysTestSerializer::CreateChaosData()
 			Particle->GTGeometryParticle()->SetX(Particle->X());
 			Particle->GTGeometryParticle()->SetR(Particle->R());
 
-			if (auto PBDRigid = Particle->AsDynamic())
+			auto PBDRigid = Particle->CastToRigidParticle();
+			if(PBDRigid && PBDRigid->ObjectState() == EObjectStateType::Dynamic)
 			{
 				PBDRigid->P() = Particle->X();
 				PBDRigid->Q() = Particle->R();
 
-				PBDRigid->GTGeometryParticle()->AsDynamic()->SetP(PBDRigid->P());
-				PBDRigid->GTGeometryParticle()->AsDynamic()->SetQ(PBDRigid->R());
+				PBDRigid->GTGeometryParticle()->CastToRigidParticle()->SetP(PBDRigid->P());
+				PBDRigid->GTGeometryParticle()->CastToRigidParticle()->SetQ(PBDRigid->R());
 			}
 
 			PxActorToChaosHandle.Add(Act, Particle.Get());

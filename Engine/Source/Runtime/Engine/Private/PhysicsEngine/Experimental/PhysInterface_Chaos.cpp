@@ -341,7 +341,7 @@ bool FPhysInterface_Chaos::CanSimulate_AssumesLocked(const FPhysicsActorHandle& 
 
 float FPhysInterface_Chaos::GetMass_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	if (const Chaos::TPBDRigidParticle<float,3>* RigidParticle = InActorReference->AsDynamic())
+	if (const Chaos::TPBDRigidParticle<float,3>* RigidParticle = InActorReference->CastToRigidParticle())
 	{
 		return RigidParticle->M();
 	}
@@ -356,7 +356,8 @@ void FPhysInterface_Chaos::SetSendsSleepNotifies_AssumesLocked(const FPhysicsAct
 
 void FPhysInterface_Chaos::PutToSleep_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	if (Chaos::TPBDRigidParticle<float, 3>* Particle = InActorReference->AsDynamic())
+	Chaos::TPBDRigidParticle<float, 3>* Particle = InActorReference->CastToRigidParticle();
+	if(Particle && Particle->ObjectState() == Chaos::EObjectStateType::Dynamic)
 	{
 		Particle->SetObjectState(Chaos::EObjectStateType::Sleeping);
 	}
@@ -365,7 +366,8 @@ void FPhysInterface_Chaos::PutToSleep_AssumesLocked(const FPhysicsActorHandle& I
 
 void FPhysInterface_Chaos::WakeUp_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	if (Chaos::TPBDRigidParticle<float, 3>* Particle = InActorReference->AsDynamic())
+	Chaos::TPBDRigidParticle<float, 3>* Particle = InActorReference->CastToRigidParticle();
+	if(Particle && Particle->ObjectState() == Chaos::EObjectStateType::Sleeping)
 	{
 		Particle->SetObjectState(Chaos::EObjectStateType::Dynamic);
 	}
@@ -373,7 +375,7 @@ void FPhysInterface_Chaos::WakeUp_AssumesLocked(const FPhysicsActorHandle& InAct
 
 void FPhysInterface_Chaos::SetIsKinematic_AssumesLocked(const FPhysicsActorHandle& InActorReference, bool bIsKinematic)
 {
-	if (Chaos::TPBDRigidParticle<float, 3>* Particle = InActorReference->AsDynamic())
+	if (Chaos::TPBDRigidParticle<float, 3>* Particle = InActorReference->CastToRigidParticle())
 	{
 		//#todo: what if object state has been previously set to sleeping?
 		const Chaos::EObjectStateType NewState
@@ -444,7 +446,7 @@ FVector FPhysInterface_Chaos::GetLinearVelocity_AssumesLocked(const FPhysicsActo
 {
 	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
 	{
-		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->AsKinematic();
+		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle();
 		if (ensure(Kinematic))
 		{
 			return Kinematic->V();
@@ -465,7 +467,7 @@ void FPhysInterface_Chaos::SetLinearVelocity_AssumesLocked(const FPhysicsActorHa
 
 	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
 	{
-		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->AsKinematic();
+		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle();
 		if (ensure(Kinematic))
 		{
 			return Kinematic->SetV(InNewVelocity);
@@ -477,7 +479,7 @@ FVector FPhysInterface_Chaos::GetAngularVelocity_AssumesLocked(const FPhysicsAct
 {
 	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
 	{
-		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->AsKinematic();
+		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle();
 		if (ensure(Kinematic))
 		{
 			return Kinematic->W();
@@ -494,7 +496,7 @@ void FPhysInterface_Chaos::SetAngularVelocity_AssumesLocked(const FPhysicsActorH
 
 	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
 	{
-		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->AsKinematic();
+		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle();
 		if (ensure(Kinematic))
 		{
 			return Kinematic->SetW(InNewAngularVelocity);
@@ -528,7 +530,7 @@ FVector FPhysInterface_Chaos::GetWorldVelocityAtPoint_AssumesLocked(const FPhysi
 {
 	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
 	{
-		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->AsKinematic();
+		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle();
 		if (ensure(Kinematic))
 		{
 			const Chaos::FVec3 COM = Kinematic->X(); // TODO: Fix once we have separate COM
@@ -557,7 +559,7 @@ FTransform FPhysInterface_Chaos::GetComTransformLocal_AssumesLocked(const FPhysi
 
 FVector FPhysInterface_Chaos::GetLocalInertiaTensor_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	if (Chaos::TPBDRigidParticle<float, 3 >* RigidParticle = InActorReference->AsDynamic())
+	if (Chaos::TPBDRigidParticle<float, 3 >* RigidParticle = InActorReference->CastToRigidParticle())
 	{
 		const Chaos::PMatrix<float, 3, 3> & Tensor = RigidParticle->I();
 		return FVector(Tensor.M[0][0], Tensor.M[1][1], Tensor.M[2][2]) ;
@@ -624,7 +626,7 @@ void FPhysInterface_Chaos::AddRadialImpulse_AssumesLocked(const FPhysicsActorHan
 
 bool FPhysInterface_Chaos::IsGravityEnabled_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	if (Chaos::TPBDRigidParticle<float, 3 >* RigidParticle = InActorReference->AsDynamic())
+	if (Chaos::TPBDRigidParticle<float, 3 >* RigidParticle = InActorReference->CastToRigidParticle())
 	{
 		return RigidParticle->IsGravityEnabled();
 	}
@@ -632,7 +634,7 @@ bool FPhysInterface_Chaos::IsGravityEnabled_AssumesLocked(const FPhysicsActorHan
 }
 void FPhysInterface_Chaos::SetGravityEnabled_AssumesLocked(const FPhysicsActorHandle& InActorReference, bool bEnabled)
 {
-	if (Chaos::TPBDRigidParticle<float, 3 >* RigidParticle = InActorReference->AsDynamic())
+	if (Chaos::TPBDRigidParticle<float, 3 >* RigidParticle = InActorReference->CastToRigidParticle())
 	{
 		RigidParticle->SetGravityEnabled(bEnabled);
 		FPhysicsCommand::ExecuteWrite(InActorReference, [&](const FPhysicsActorHandle& Actor)
@@ -655,7 +657,7 @@ void FPhysInterface_Chaos::SetSleepEnergyThreshold_AssumesLocked(const FPhysicsA
 
 void FPhysInterface_Chaos::SetMass_AssumesLocked(FPhysicsActorHandle& InActorReference, float InMass)
 {
-	if (Chaos::TPBDRigidParticle<float, 3 >* RigidParticle = InActorReference->AsDynamic())
+	if (Chaos::TPBDRigidParticle<float, 3 >* RigidParticle = InActorReference->CastToRigidParticle())
 	{
 		RigidParticle->SetM(InMass);
 		if (CHAOS_ENSURE(!FMath::IsNearlyZero(InMass)))
@@ -671,7 +673,7 @@ void FPhysInterface_Chaos::SetMass_AssumesLocked(FPhysicsActorHandle& InActorRef
 
 void FPhysInterface_Chaos::SetMassSpaceInertiaTensor_AssumesLocked(FPhysicsActorHandle& InActorReference, const FVector& InTensor)
 {
-	if (Chaos::TPBDRigidParticle<float, 3 >* RigidParticle = InActorReference->AsDynamic())
+	if (Chaos::TPBDRigidParticle<float, 3 >* RigidParticle = InActorReference->CastToRigidParticle())
 	{
 		if(CHAOS_ENSURE(!FMath::IsNearlyZero(InTensor.X)) && CHAOS_ENSURE(!FMath::IsNearlyZero(InTensor.Y)) && CHAOS_ENSURE(!FMath::IsNearlyZero(InTensor.Z)) )
 		{

@@ -28,7 +28,7 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 	CHAOS_API TPBDRigidParticles()
 	    : TRigidParticles<T, d>()
 	{
-		this->MParticleType = EParticleType::Dynamic;
+		this->MParticleType = EParticleType::Rigid;
 		TArrayCollection::AddArray(&MP);
 		TArrayCollection::AddArray(&MQ);
 		TArrayCollection::AddArray(&MPreV);
@@ -42,7 +42,7 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		, MPreV(MoveTemp(Other.MPreV))
 		, MPreW(MoveTemp(Other.MPreW))
 	{
-		this->MParticleType = EParticleType::Dynamic;
+		this->MParticleType = EParticleType::Rigid;
 		TArrayCollection::AddArray(&MP);
 		TArrayCollection::AddArray(&MQ);
 		TArrayCollection::AddArray(&MPreV);
@@ -125,6 +125,9 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 				1.f / this->I(Index).M[0][0], 0.f, 0.f,
 				0.f, 1.f / this->I(Index).M[1][1], 0.f,
 				0.f, 0.f, 1.f / this->I(Index).M[2][2]);
+
+			this->P(Index) = this->X(Index);
+			this->Q(Index) = this->R(Index);
 		}
 		else if (InObjectState == EObjectStateType::Sleeping)
 		{

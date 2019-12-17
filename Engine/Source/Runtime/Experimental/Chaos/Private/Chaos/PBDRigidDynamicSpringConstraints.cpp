@@ -19,8 +19,10 @@ void TPBDRigidDynamicSpringConstraints<T, d>::UpdatePositionBasedState(const T D
 	{
 		TGeometryParticleHandle<T, d>* Static0 = Constraints[ConstraintIndex][0];
 		TGeometryParticleHandle<T, d>* Static1 = Constraints[ConstraintIndex][1];
-		TPBDRigidParticleHandle<T, d>* PBDRigid0 = Static0->AsDynamic();
-		TPBDRigidParticleHandle<T, d>* PBDRigid1 = Static1->AsDynamic();
+		TPBDRigidParticleHandle<T, d>* PBDRigid0 = Static0->CastToRigidParticle();
+		TPBDRigidParticleHandle<T, d>* PBDRigid1 = Static1->CastToRigidParticle();
+		const bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
+		const bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
 
 		// Do not create springs between objects with no geometry
 		if (!Static0->Geometry() || !Static1->Geometry())
@@ -28,10 +30,10 @@ void TPBDRigidDynamicSpringConstraints<T, d>::UpdatePositionBasedState(const T D
 			continue;
 		}
 
-		const TRotation<T, d>& Q0 = PBDRigid0 ? PBDRigid0->Q() : Static0->R();
-		const TRotation<T, d>& Q1 = PBDRigid1 ? PBDRigid1->Q() : Static1->R();
-		const TVector<T, d>& P0 = PBDRigid0 ? PBDRigid0->P() : Static0->X();
-		const TVector<T, d>& P1 = PBDRigid1 ? PBDRigid1->P() : Static1->X();
+		const TRotation<T, d>& Q0 = bIsRigidDynamic0 ? PBDRigid0->Q() : Static0->R();
+		const TRotation<T, d>& Q1 = bIsRigidDynamic1 ? PBDRigid1->Q() : Static1->R();
+		const TVector<T, d>& P0 = bIsRigidDynamic0 ? PBDRigid0->P() : Static0->X();
+		const TVector<T, d>& P1 = bIsRigidDynamic1 ? PBDRigid1->P() : Static1->X();
 
 		// Delete constraints
 		const int32 NumSprings = SpringDistances[ConstraintIndex].Num();
@@ -95,10 +97,12 @@ void TPBDRigidDynamicSpringConstraints<T, d>::UpdatePositionBasedState(const T D
 template<class T, int d>
 TVector<T, d> TPBDRigidDynamicSpringConstraints<T, d>::GetDelta(const TVector<T, d>& WorldSpaceX1, const TVector<T, d>& WorldSpaceX2, const int32 ConstraintIndex, const int32 SpringIndex) const
 {
-	TPBDRigidParticleHandle<T, d>* PBDRigid0 = Constraints[ConstraintIndex][0]->AsDynamic();
-	TPBDRigidParticleHandle<T, d>* PBDRigid1 = Constraints[ConstraintIndex][1]->AsDynamic();
+	TPBDRigidParticleHandle<T, d>* PBDRigid0 = Constraints[ConstraintIndex][0]->CastToRigidParticle();
+	TPBDRigidParticleHandle<T, d>* PBDRigid1 = Constraints[ConstraintIndex][1]->CastToRigidParticle();
+	const bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
+	const bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
 
-	if (!PBDRigid0 && !PBDRigid1)
+	if (!bIsRigidDynamic0 && !bIsRigidDynamic1)
 	{
 		return TVector<T, d>(0);
 	}
@@ -107,8 +111,8 @@ TVector<T, d> TPBDRigidDynamicSpringConstraints<T, d>::GetDelta(const TVector<T,
 	float Distance = Difference.Size();
 	check(Distance > 1e-7);
 
-	const T InvM0 = PBDRigid0 ? PBDRigid0->InvM() : (T)0;
-	const T InvM1 = PBDRigid1 ? PBDRigid1->InvM() : (T)0;
+	const T InvM0 = bIsRigidDynamic0 ? PBDRigid0->InvM() : (T)0;
+	const T InvM1 = bIsRigidDynamic1 ? PBDRigid1->InvM() : (T)0;
 	const TVector<T, d> Direction = Difference / Distance;
 	const TVector<T, d> Delta = (Distance - SpringDistances[ConstraintIndex][SpringIndex]) * Direction;
 	return Stiffness * Delta / (InvM0 + InvM1);
@@ -119,19 +123,22 @@ void TPBDRigidDynamicSpringConstraints<T, d>::ApplySingle(const T Dt, int32 Cons
 {
 	TGeometryParticleHandle<T, d>* Static0 = Constraints[ConstraintIndex][0];
 	TGeometryParticleHandle<T, d>* Static1 = Constraints[ConstraintIndex][1];
-	TPBDRigidParticleHandle<T, d>* PBDRigid0 = Static0->AsDynamic();
-	TPBDRigidParticleHandle<T, d>* PBDRigid1 = Static1->AsDynamic();
-	check(PBDRigid0 || PBDRigid1);
-	check(!PBDRigid0 || !PBDRigid1 || (PBDRigid0->Island() == PBDRigid1->Island()));
+	TPBDRigidParticleHandle<T, d>* PBDRigid0 = Static0->CastToRigidParticle();
+	TPBDRigidParticleHandle<T, d>* PBDRigid1 = Static1->CastToRigidParticle();
+	const bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
+	const bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
 
-	TRotation<T, d>& Q0 = PBDRigid0 ? PBDRigid0->Q() : Static0->R();
-	TRotation<T, d>& Q1 = PBDRigid1 ? PBDRigid1->Q() : Static1->R();
-	TVector<T, d>& P0 = PBDRigid0 ? PBDRigid0->P() : Static0->X();
-	TVector<T, d>& P1 = PBDRigid1 ? PBDRigid1->P() : Static1->X();
+	check(bIsRigidDynamic0 || bIsRigidDynamic1);
+	check(!bIsRigidDynamic0|| !bIsRigidDynamic1|| (PBDRigid0->Island() == PBDRigid1->Island()));
+
+	TRotation<T, d>& Q0 = bIsRigidDynamic0 ? PBDRigid0->Q() : Static0->R();
+	TRotation<T, d>& Q1 = bIsRigidDynamic1 ? PBDRigid1->Q() : Static1->R();
+	TVector<T, d>& P0 = bIsRigidDynamic0 ? PBDRigid0->P() : Static0->X();
+	TVector<T, d>& P1 = bIsRigidDynamic1 ? PBDRigid1->P() : Static1->X();
 
 	const int32 NumSprings = SpringDistances[ConstraintIndex].Num();
-	const PMatrix<T, d, d> WorldSpaceInvI1 = PBDRigid0? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) : PMatrix<T, d, d>(0);
-	const PMatrix<T, d, d> WorldSpaceInvI2 = PBDRigid1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) : PMatrix<T, d, d>(0);;
+	const PMatrix<T, d, d> WorldSpaceInvI1 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) : PMatrix<T, d, d>(0);
+	const PMatrix<T, d, d> WorldSpaceInvI2 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) : PMatrix<T, d, d>(0);;
 	for (int32 SpringIndex = 0; SpringIndex < NumSprings; ++SpringIndex)
 	{
 		const TVector<T, d>& Distance0 = Distances[ConstraintIndex][SpringIndex][0];
@@ -140,7 +147,7 @@ void TPBDRigidDynamicSpringConstraints<T, d>::ApplySingle(const T Dt, int32 Cons
 		const TVector<T, d> WorldSpaceX2 = Q1.RotateVector(Distance1) + P1;
 		const TVector<T, d> Delta = GetDelta(WorldSpaceX1, WorldSpaceX2, ConstraintIndex, SpringIndex);
 
-		if (PBDRigid0)
+		if (bIsRigidDynamic0)
 		{
 			const TVector<T, d> Radius = WorldSpaceX1 - P0;
 			P0 += PBDRigid0->InvM() * Delta;
@@ -148,7 +155,7 @@ void TPBDRigidDynamicSpringConstraints<T, d>::ApplySingle(const T Dt, int32 Cons
 			Q0.Normalize();
 		}
 
-		if (PBDRigid1)
+		if (bIsRigidDynamic1)
 		{
 			const TVector<T, d> Radius = WorldSpaceX2 - P1;
 			P1 -= PBDRigid1->InvM() * Delta;
