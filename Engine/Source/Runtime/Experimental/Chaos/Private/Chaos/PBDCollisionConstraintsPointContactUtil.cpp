@@ -3,6 +3,7 @@
 #include "Chaos/PBDCollisionConstraintsPointContactUtil.h"
 #include "Chaos/CollisionResolutionAlgo.h"
 #include "Chaos/Defines.h"
+#include "Chaos/Utilities.h"
 
 namespace Chaos
 {
@@ -178,8 +179,8 @@ namespace Chaos
 
 				if (RelativeNormalVelocity < 0) // ignore separating constraints
 				{
-					PMatrix<T, d, d> WorldSpaceInvI1 = PBDRigid0 ? (Q0 * FMatrix::Identity).GetTransposed() * PBDRigid0->InvI() * (Q0 * FMatrix::Identity) : PMatrix<T, d, d>(0);
-					PMatrix<T, d, d> WorldSpaceInvI2 = PBDRigid1 ? (Q1 * FMatrix::Identity).GetTransposed() * PBDRigid1->InvI() * (Q1 * FMatrix::Identity) : PMatrix<T, d, d>(0);
+					PMatrix<T, d, d> WorldSpaceInvI1 = PBDRigid0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) : PMatrix<T, d, d>(0);
+					PMatrix<T, d, d> WorldSpaceInvI2 = PBDRigid1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) : PMatrix<T, d, d>(0);
 					PMatrix<T, d, d> Factor =
 						(PBDRigid0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, PBDRigid0->InvM()) : PMatrix<T, d, d>(0)) +
 						(PBDRigid1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, PBDRigid1->InvM()) : PMatrix<T, d, d>(0));
@@ -392,8 +393,8 @@ namespace Chaos
 				}
 
 				*IterationParameters.NeedsAnotherIteration = true;
-				PMatrix<T, d, d> WorldSpaceInvI1 = PBDRigid0 ? (Q0 * FMatrix::Identity).GetTransposed() * PBDRigid0->InvI() * (Q0 * FMatrix::Identity) : PMatrix<T, d, d>(0);
-				PMatrix<T, d, d> WorldSpaceInvI2 = PBDRigid1 ? (Q1 * FMatrix::Identity).GetTransposed() * PBDRigid1->InvI() * (Q1 * FMatrix::Identity) : PMatrix<T, d, d>(0);
+				PMatrix<T, d, d> WorldSpaceInvI1 = PBDRigid0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) : PMatrix<T, d, d>(0);
+				PMatrix<T, d, d> WorldSpaceInvI2 = PBDRigid1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) : PMatrix<T, d, d>(0);
 				TVector<T, d> VectorToPoint1 = Contact.Location - P0;
 				TVector<T, d> VectorToPoint2 = Contact.Location - P1;
 				PMatrix<T, d, d> Factor =

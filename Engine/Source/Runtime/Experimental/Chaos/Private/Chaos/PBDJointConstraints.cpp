@@ -3,6 +3,7 @@
 #include "Chaos/ChaosDebugDraw.h"
 #include "Chaos/DebugDrawQueue.h"
 #include "Chaos/ParticleHandle.h"
+#include "Chaos/PBDJointConstraintSolver.h"
 #include "Chaos/PBDJointConstraintUtilities.h"
 #include "Chaos/Utilities.h"
 #include "ChaosLog.h"
@@ -15,7 +16,10 @@
 namespace Chaos
 {
 	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::Apply"), STAT_ApplyJointConstraints, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::Apply"), STAT_ApplyPushOutJointConstraints, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::ApplyPushOut"), STAT_ApplyPushOutJointConstraints, STATGROUP_Chaos);
+
+	bool ChaosJoint_UseCholeskySolver = true;
+	FAutoConsoleVariableRef CVarChaosImmPhysDeltaTime(TEXT("p.Chaos.Joint.UseCholeskySolver"), ChaosJoint_UseCholeskySolver, TEXT("Whether to use the new solver"));
 
 	FReal GetLinearStiffness(
 		const FPBDJointSolverSettings& SolverSettings,
@@ -176,7 +180,8 @@ namespace Chaos
 		, bEnableTwistLimits(true)
 		, bEnableSwingLimits(true)
 		, bEnableDrives(true)
-		, ProjectionPhase(EJointProjectionPhase::None)
+		, DrivesPhase(EJointSolverPhase::None)
+		, ProjectionPhase(EJointSolverPhase::None)
 		, LinearProjection((FReal)0)
 		, AngularProjection((FReal)0)
 		, Stiffness((FReal)0)
@@ -394,8 +399,8 @@ namespace Chaos
 		TArray<FConstraintContainerHandle*> SortedConstraintHandles = InConstraintHandles;
 		SortedConstraintHandles.Sort([](const FConstraintContainerHandle& L, const FConstraintContainerHandle& R)
 			{
-				// Sort bodies from leaf to root
-				return L.GetConstraintLevel() > R.GetConstraintLevel();
+				// Sort bodies from root to leaf
+				return L.GetConstraintLevel() < R.GetConstraintLevel();
 			});
 
 		if (PreApplyCallback != nullptr)
@@ -403,19 +408,36 @@ namespace Chaos
 			PreApplyCallback(Dt, SortedConstraintHandles);
 		}
 
-		for (FConstraintContainerHandle* ConstraintHandle : SortedConstraintHandles)
+		// Apply joint drives
+		if (Settings.DrivesPhase == EJointSolverPhase::Apply)
 		{
-			if (Settings.bEnableVelocitySolve)
+			if (It == 0)
 			{
-				SolveVelocity(Dt, ConstraintHandle->GetConstraintIndex(), Settings.ApplyPairIterations, It, NumIts);
-			}
-			else
-			{
-				SolvePosition(Dt, ConstraintHandle->GetConstraintIndex(), Settings.ApplyPairIterations, It, NumIts);
+				for (FConstraintContainerHandle* ConstraintHandle : SortedConstraintHandles)
+				{
+					ApplyDrives(Dt, ConstraintHandle->GetConstraintIndex(), 1, 0, 1);
+				}
 			}
 		}
 
-		if (Settings.ProjectionPhase == EJointProjectionPhase::Apply)
+		// Solve for joint position or velocity, depending on settings
+		if (Settings.ApplyPairIterations > 0)
+		{
+			for (FConstraintContainerHandle* ConstraintHandle : SortedConstraintHandles)
+			{
+				if (Settings.bEnableVelocitySolve)
+				{
+					SolveVelocity(Dt, ConstraintHandle->GetConstraintIndex(), Settings.ApplyPairIterations, It, NumIts);
+				}
+				else
+				{
+					SolvePosition(Dt, ConstraintHandle->GetConstraintIndex(), Settings.ApplyPairIterations, It, NumIts);
+				}
+			}
+		}
+
+		// Correct remaining errors after last call to Solve if enabled in this phase
+		if (Settings.ProjectionPhase == EJointSolverPhase::Apply)
 		{
 			int32 ProjectionIt = NumIts - 1;
 			if (It == ProjectionIt)
@@ -438,22 +460,36 @@ namespace Chaos
 		// @todo(ccaulfield): track whether we are sufficiently solved
 		bool bNeedsAnotherIteration = true;
 
+		TArray<FConstraintContainerHandle*> SortedConstraintHandles = InConstraintHandles;
+		SortedConstraintHandles.Sort([](const FConstraintContainerHandle& L, const FConstraintContainerHandle& R)
+			{
+				// Sort bodies from root to leaf
+				return L.GetConstraintLevel() < R.GetConstraintLevel();
+			});
+
+		// Apply joint drives
+		if (Settings.DrivesPhase == EJointSolverPhase::ApplyPushOut)
+		{
+			if (It == 0)
+			{
+				for (FConstraintContainerHandle* ConstraintHandle : SortedConstraintHandles)
+				{
+					ApplyDrives(Dt, ConstraintHandle->GetConstraintIndex(), 1, 0, 1);
+				}
+			}
+		}
+
+		// Solve for positions
 		if (Settings.ApplyPushOutPairIterations > 0)
 		{
-			TArray<FConstraintContainerHandle*> SortedConstraintHandles = InConstraintHandles;
-			SortedConstraintHandles.Sort([](const FConstraintContainerHandle& L, const FConstraintContainerHandle& R)
-				{
-					// Sort bodies from root to leaf
-					return L.GetConstraintLevel() < R.GetConstraintLevel();
-				});
-
 			for (FConstraintContainerHandle* ConstraintHandle : SortedConstraintHandles)
 			{
 				SolvePosition(Dt, ConstraintHandle->GetConstraintIndex(), Settings.ApplyPushOutPairIterations, It, NumIts);
 			}
 		}
 
-		if (Settings.ProjectionPhase == EJointProjectionPhase::ApplyPushOut)
+		// Correct remaining errors after the last call to Solve (which depends on if PositionSolve is enabled in ApplyPushOut)
+		if (Settings.ProjectionPhase == EJointSolverPhase::ApplyPushOut)
 		{
 			int32 ProjectionIt = (Settings.ApplyPushOutPairIterations > 0) ? NumIts - 1 : 0;
 			if (It == ProjectionIt)
@@ -479,6 +515,245 @@ namespace Chaos
 		{
 			ProjectPosition(Dt, ConstraintHandle->GetConstraintIndex(), 0, 1);
 		}
+	}
+
+
+	void FPBDJointConstraints::UpdateParticleState(TPBDRigidParticleHandle<FReal, 3>* Rigid, const FReal Dt, const FVec3& P, const FRotation3& Q)
+	{
+		if (Rigid)
+		{
+			if (Dt > SMALL_NUMBER)
+			{
+				FVec3 DV = FVec3::CalculateVelocity(Rigid->P(), P, Dt);
+				FVec3 DW = FRotation3::CalculateAngularVelocity(Rigid->Q(), Q, Dt);
+				Rigid->SetV(Rigid->V() + DV);
+				Rigid->SetW(Rigid->W() + DW);
+			}
+			Rigid->SetP(P);
+			Rigid->SetQ(Q);
+		}
+	}
+
+
+	void FPBDJointConstraints::ApplyDrives(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
+	{
+		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
+
+		const int32 Index0 = 1;
+		const int32 Index1 = 0;
+		TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
+		TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
+
+		FVec3 P0 = Particle0->P();
+		FRotation3 Q0 = Particle0->Q();
+		FVec3 V0 = Particle0->V();
+		FVec3 W0 = Particle0->W();
+		FVec3 P1 = Particle1->P();
+		FRotation3 Q1 = Particle1->Q();
+		FVec3 V1 = Particle1->V();
+		FVec3 W1 = Particle1->W();
+		float InvM0 = Particle0->InvM();
+		float InvM1 = Particle1->InvM();
+		FMatrix33 InvIL0 = Particle0->InvI();
+		FMatrix33 InvIL1 = Particle1->InvI();
+
+		EJointMotionType TwistMotion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist];
+		EJointMotionType Swing1Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1];
+		EJointMotionType Swing2Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2];
+
+		// Apply angular drives (NOTE: modifies position, not velocity)
+		if (Settings.bEnableDrives)
+		{
+			bool bTwistLocked = TwistMotion == EJointMotionType::Locked;
+			bool bSwing1Locked = Swing1Motion == EJointMotionType::Locked;
+			bool bSwing2Locked = Swing2Motion == EJointMotionType::Locked;
+
+			// No SLerp drive if we have a locked rotation (it will be grayed out in the editor in this case, but could still have been set before the rotation was locked)
+			if (JointSettings.Motion.bAngularSLerpDriveEnabled && !bTwistLocked && !bSwing1Locked && !bSwing2Locked)
+			{
+				FPBDJointUtilities::ApplyJointSLerpDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+			}
+
+			if (JointSettings.Motion.bAngularTwistDriveEnabled && !bTwistLocked)
+			{
+				FPBDJointUtilities::ApplyJointTwistDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+			}
+
+			if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing1Locked && !bSwing2Locked)
+			{
+				FPBDJointUtilities::ApplyJointConeDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+			}
+			else if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing1Locked)
+			{
+				//FPBDJointUtilities::ApplyJointSwingDrive(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+			}
+			else if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing2Locked)
+			{
+				//FPBDJointUtilities::ApplyJointSwingDrive(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing2, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
+			}
+		}
+
+		UpdateParticleState(Particle0->AsDynamic(), Dt, P0, Q0);
+		UpdateParticleState(Particle1->AsDynamic(), Dt, P1, Q1);
+	}
+
+
+	void FPBDJointConstraints::SolvePosition(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
+	{
+		if (ChaosJoint_UseCholeskySolver)
+		{
+			SolvePosition_Cholesky(Dt, ConstraintIndex, NumPairIts, It, NumIts);
+		}
+		else
+		{
+			SolvePosition_GaussSiedel(Dt, ConstraintIndex, NumPairIts, It, NumIts);
+		}
+	}
+
+
+	// This position solver solves all (active) inner position and angular constraints simultaneously by building the Jacobian and solving [JMJt].DX = C
+	// where DX(6x1) are the unknown position and rotation corrections, C(Nx1) is the current constraint error, J(Nx6) the Jacobian, M(6x6) the inverse mass matrix, 
+	// and N the number of active constraints. "Active constraints" are all bilateral constraints plus any violated unilateral constraints.
+	void FPBDJointConstraints::SolvePosition_Cholesky(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
+	{
+		const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& Constraint = ConstraintParticles[ConstraintIndex];
+		UE_LOG(LogChaosJoint, Verbose, TEXT("Solve Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
+
+		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
+
+		// Switch particles - internally we assume the first body is the parent (i.e., the space in which constraint limits are specified)
+		const int32 Index0 = 1;
+		const int32 Index1 = 0;
+		TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
+		TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
+
+		FJointConstraintSolver Solver;
+		Solver.InitConstraints(
+			Dt, 
+			Settings, 
+			JointSettings, 
+			Particle0->P(), 
+			Particle0->Q(), 
+			Particle1->P(), 
+			Particle1->Q(), 
+			Particle0->InvM(), 
+			Particle0->InvI(), 
+			Particle1->InvM(), 
+			Particle1->InvI(), 
+			JointSettings.ConstraintFrames[Index0], 
+			JointSettings.ConstraintFrames[Index1]);
+		
+		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
+		{
+			Solver.ApplyConstraints(Dt, Settings, JointSettings, GetLinearStiffness(Settings, JointSettings));
+		}
+
+		UpdateParticleState(Particle0->AsDynamic(), Dt, Solver.GetP(0), Solver.GetQ(0));
+		UpdateParticleState(Particle1->AsDynamic(), Dt, Solver.GetP(1), Solver.GetQ(1));
+	}
+
+
+	// This position solver iterates over each of the inner constraints (position, twist, swing) and solves them independently.
+	// This will converge slowly in some cases, particularly where resolving angular constraints violates position constraints and vice versa.
+	void FPBDJointConstraints::SolvePosition_GaussSiedel(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
+	{
+		const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& Constraint = ConstraintParticles[ConstraintIndex];
+		UE_LOG(LogChaosJoint, Verbose, TEXT("Solve Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
+
+		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
+
+		// Switch particles - internally we assume the first body is the parent (i.e., the space in which constraint limits are specified)
+		const int32 Index0 = 1;
+		const int32 Index1 = 0;
+		TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
+		TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
+		TPBDRigidParticleHandle<FReal, 3>* Rigid0 = ConstraintParticles[ConstraintIndex][Index0]->AsDynamic();
+		TPBDRigidParticleHandle<FReal, 3>* Rigid1 = ConstraintParticles[ConstraintIndex][Index1]->AsDynamic();
+
+		FVec3 P0 = Particle0->P();
+		FRotation3 Q0 = Particle0->Q();
+		FVec3 V0 = Particle0->V();
+		FVec3 W0 = Particle0->W();
+		FVec3 P1 = Particle1->P();
+		FRotation3 Q1 = Particle1->Q();
+		FVec3 V1 = Particle1->V();
+		FVec3 W1 = Particle1->W();
+		float InvM0 = Particle0->InvM();
+		float InvM1 = Particle1->InvM();
+		FMatrix33 InvIL0 = Particle0->InvI();
+		FMatrix33 InvIL1 = Particle1->InvI();
+
+		Q1.EnforceShortestArcWith(Q0);
+
+		FReal LinearStiffness = GetLinearStiffness(Settings, JointSettings);
+		FReal TwistStiffness = GetTwistStiffness(Settings, JointSettings);
+		FReal SwingStiffness = GetSwingStiffness(Settings, JointSettings);
+
+		// Adjust mass for stability
+		const int32 Level0 = ConstraintStates[ConstraintIndex].ParticleLevels[Index0];
+		const int32 Level1 = ConstraintStates[ConstraintIndex].ParticleLevels[Index1];
+		if (Level0 < Level1)
+		{
+			FPBDJointUtilities::GetConditionedInverseMass(Particle0->M(), Particle0->I().GetDiagonal(), Particle1->M(), Particle1->I().GetDiagonal(), InvM0, InvM1, InvIL0, InvIL1, Settings.MinParentMassRatio, Settings.MaxInertiaRatio);
+		}
+		else if (Level0 > Level1)
+		{
+			FPBDJointUtilities::GetConditionedInverseMass(Particle1->M(), Particle1->I().GetDiagonal(), Particle0->M(), Particle0->I().GetDiagonal(), InvM1, InvM0, InvIL1, InvIL0, Settings.MinParentMassRatio, Settings.MaxInertiaRatio);
+		}
+		else
+		{
+			FPBDJointUtilities::GetConditionedInverseMass(Particle0->M(), Particle0->I().GetDiagonal(), Particle1->M(), Particle1->I().GetDiagonal(), InvM0, InvM1, InvIL0, InvIL1, (FReal)0, Settings.MaxInertiaRatio);
+		}
+
+		const TVector<EJointMotionType, 3>& LinearMotion = JointSettings.Motion.LinearMotionTypes;
+		EJointMotionType TwistMotion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist];
+		EJointMotionType Swing1Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1];
+		EJointMotionType Swing2Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2];
+
+		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
+		{
+			// Apply twist constraint
+			if (Settings.bEnableTwistLimits)
+			{
+				if (TwistMotion != EJointMotionType::Free)
+				{
+					FPBDJointUtilities::ApplyJointTwistConstraint(Dt, Settings, JointSettings, TwistStiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+				}
+			}
+
+			// Apply swing constraints
+			if (Settings.bEnableSwingLimits)
+			{
+				if ((Swing1Motion == EJointMotionType::Limited) && (Swing2Motion == EJointMotionType::Limited))
+				{
+					// Swing Cone
+					FPBDJointUtilities::ApplyJointConeConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+				}
+				else
+				{
+					if (Swing1Motion != EJointMotionType::Free)
+					{
+						// Swing Arc/Lock
+						FPBDJointUtilities::ApplyJointSwingConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, EJointAngularConstraintIndex::Swing1, EJointAngularAxisIndex::Swing1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+					}
+					if (Swing2Motion != EJointMotionType::Free)
+					{
+						// Swing Arc/Lock
+						FPBDJointUtilities::ApplyJointSwingConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+					}
+				}
+			}
+
+			// Apply linear constraints
+			if ((LinearMotion[0] != EJointMotionType::Free) || (LinearMotion[1] != EJointMotionType::Free) || (LinearMotion[2] != EJointMotionType::Free))
+			{
+				FPBDJointUtilities::ApplyJointPositionConstraint(Dt, Settings, JointSettings, LinearStiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
+			}
+		}
+
+		// Update the particles
+		UpdateParticleState(Rigid0, Dt, P0, Q0);
+		UpdateParticleState(Rigid1, Dt, P1, Q1);
 	}
 
 	
@@ -539,38 +814,6 @@ namespace Chaos
 
 		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 		{
-			// Apply angular drives (NOTE: modifies position, not velocity)
-			if (Settings.bEnableDrives)
-			{
-				bool bTwistLocked = TwistMotion == EJointMotionType::Locked;
-				bool bSwing1Locked = Swing1Motion == EJointMotionType::Locked;
-				bool bSwing2Locked = Swing2Motion == EJointMotionType::Locked;
-
-				// No SLerp drive if we have a locked rotation (it will be grayed out in the editor in this case, but could still have been set before the rotation was locked)
-				if (JointSettings.Motion.bAngularSLerpDriveEnabled && !bTwistLocked && !bSwing1Locked && !bSwing2Locked)
-				{
-					FPBDJointUtilities::ApplyJointSLerpDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
-				}
-
-				if (JointSettings.Motion.bAngularTwistDriveEnabled && !bTwistLocked)
-				{
-					FPBDJointUtilities::ApplyJointTwistDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
-				}
-
-				if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing1Locked && !bSwing2Locked)
-				{
-					FPBDJointUtilities::ApplyJointConeDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
-				}
-				else if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing1Locked)
-				{
-					//FPBDJointUtilities::ApplyJointSwingDrive(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
-				}
-				else if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing2Locked)
-				{
-					//FPBDJointUtilities::ApplyJointSwingDrive(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing2, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
-				}
-			}
-
 			// Apply twist velocity constraint
 			if (Settings.bEnableTwistLimits)
 			{
@@ -611,169 +854,11 @@ namespace Chaos
 		}
 
 		// Update the particles
-		if (Rigid0)
-		{
-			Rigid0->SetP(P0);
-			Rigid0->SetQ(Q0);
-			Rigid0->SetV(V0);
-			Rigid0->SetW(W0);
-		}
-		if (Rigid1)
-		{
-			Rigid1->SetP(P1);
-			Rigid1->SetQ(Q1);
-			Rigid1->SetV(V1);
-			Rigid1->SetW(W1);
-		}
+		UpdateParticleState(Rigid0, Dt, P0, Q0);
+		UpdateParticleState(Rigid1, Dt, P1, Q1);
 	}
 
-	
-	void FPBDJointConstraints::SolvePosition(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
-	{
-		const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& Constraint = ConstraintParticles[ConstraintIndex];
-		UE_LOG(LogChaosJoint, Verbose, TEXT("Solve Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
 
-		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
-
-		// Switch particles - internally we assume the first body is the parent (i.e., the space in which constraint limits are specified)
-		const int32 Index0 = 1;
-		const int32 Index1 = 0;
-		TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
-		TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
-		TPBDRigidParticleHandle<FReal, 3>* Rigid0 = ConstraintParticles[ConstraintIndex][Index0]->AsDynamic();
-		TPBDRigidParticleHandle<FReal, 3>* Rigid1 = ConstraintParticles[ConstraintIndex][Index1]->AsDynamic();
-
-		FVec3 P0 = Particle0->P();
-		FRotation3 Q0 = Particle0->Q();
-		FVec3 V0 = Particle0->V();
-		FVec3 W0 = Particle0->W();
-		FVec3 P1 = Particle1->P();
-		FRotation3 Q1 = Particle1->Q();
-		FVec3 V1 = Particle1->V();
-		FVec3 W1 = Particle1->W();
-		float InvM0 = Particle0->InvM();
-		float InvM1 = Particle1->InvM();
-		FMatrix33 InvIL0 = Particle0->InvI();
-		FMatrix33 InvIL1 = Particle1->InvI();
-
-		Q1.EnforceShortestArcWith(Q0);
-
-		FReal LinearStiffness = GetLinearStiffness(Settings, JointSettings);
-		FReal TwistStiffness = GetTwistStiffness(Settings, JointSettings);
-		FReal SwingStiffness = GetSwingStiffness(Settings, JointSettings);
-
-		// Adjust mass for stability
-		const int32 Level0 = ConstraintStates[ConstraintIndex].ParticleLevels[Index0];
-		const int32 Level1 = ConstraintStates[ConstraintIndex].ParticleLevels[Index1];
-		if (Level0 < Level1)
-		{
-			FPBDJointUtilities::GetConditionedInverseMass(Particle0->M(), Particle0->I().GetDiagonal(), Particle1->M(), Particle1->I().GetDiagonal(), InvM0, InvM1, InvIL0, InvIL1, Settings.MinParentMassRatio, Settings.MaxInertiaRatio);
-		}
-		else if (Level0 > Level1)
-		{
-			FPBDJointUtilities::GetConditionedInverseMass(Particle1->M(), Particle1->I().GetDiagonal(), Particle0->M(), Particle0->I().GetDiagonal(), InvM1, InvM0, InvIL1, InvIL0, Settings.MinParentMassRatio, Settings.MaxInertiaRatio);
-		}
-		else
-		{
-			FPBDJointUtilities::GetConditionedInverseMass(Particle0->M(), Particle0->I().GetDiagonal(), Particle1->M(), Particle1->I().GetDiagonal(), InvM0, InvM1, InvIL0, InvIL1, (FReal)0, Settings.MaxInertiaRatio);
-		}
-
-		const TVector<EJointMotionType, 3>& LinearMotion = JointSettings.Motion.LinearMotionTypes;
-		EJointMotionType TwistMotion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist];
-		EJointMotionType Swing1Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1];
-		EJointMotionType Swing2Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2];
-
-		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
-		{
-			// Apply angular drives (NOTE: modifies position, not velocity)
-			if (!Settings.bEnableVelocitySolve && Settings.bEnableDrives)
-			{
-				bool bTwistLocked = TwistMotion == EJointMotionType::Locked;
-				bool bSwing1Locked = Swing1Motion == EJointMotionType::Locked;
-				bool bSwing2Locked = Swing2Motion == EJointMotionType::Locked;
-
-				// No SLerp drive if we have a locked rotation (it will be grayed out in the editor in this case, but could still have been set before the rotation was locked)
-				if (JointSettings.Motion.bAngularSLerpDriveEnabled && !bTwistLocked && !bSwing1Locked && !bSwing2Locked)
-				{
-					FPBDJointUtilities::ApplyJointSLerpDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
-				}
-
-				if (JointSettings.Motion.bAngularTwistDriveEnabled && !bTwistLocked)
-				{
-					FPBDJointUtilities::ApplyJointTwistDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
-				}
-
-				if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing1Locked && !bSwing2Locked)
-				{
-					FPBDJointUtilities::ApplyJointConeDrive(Dt, Settings, JointSettings, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
-				}
-				else if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing1Locked)
-				{
-					//FPBDJointUtilities::ApplyJointSwingDrive(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing1, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
-				}
-				else if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing2Locked)
-				{
-					//FPBDJointUtilities::ApplyJointSwingDrive(Dt, Settings, JointSettings, Index0, Index1, EJointAngularConstraintIndex::Swing2, P0, Q0, P1, Q1, InvM0, InvIL0, InvM1, InvIL1);
-				}
-			}
-
-			// Apply twist constraint
-			if (Settings.bEnableTwistLimits)
-			{
-				if (TwistMotion != EJointMotionType::Free)
-				{
-					FPBDJointUtilities::ApplyJointTwistConstraint(Dt, Settings, JointSettings, TwistStiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
-				}
-			}
-
-			// Apply swing constraints
-			if (Settings.bEnableSwingLimits)
-			{
-				if ((Swing1Motion == EJointMotionType::Limited) && (Swing2Motion == EJointMotionType::Limited))
-				{
-					// Swing Cone
-					FPBDJointUtilities::ApplyJointConeConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
-				}
-				else
-				{
-					if (Swing1Motion != EJointMotionType::Free)
-					{
-						// Swing Arc/Lock
-						FPBDJointUtilities::ApplyJointSwingConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, EJointAngularConstraintIndex::Swing1, EJointAngularAxisIndex::Swing1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
-					}
-					if (Swing2Motion != EJointMotionType::Free)
-					{
-						// Swing Arc/Lock
-						FPBDJointUtilities::ApplyJointSwingConstraint(Dt, Settings, JointSettings, SwingStiffness, Index0, Index1, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
-					}
-				}
-			}
-
-			// Apply linear constraints
-			if ((LinearMotion[0] != EJointMotionType::Free) || (LinearMotion[1] != EJointMotionType::Free) || (LinearMotion[2] != EJointMotionType::Free))
-			{
-				FPBDJointUtilities::ApplyJointPositionConstraint(Dt, Settings, JointSettings, LinearStiffness, Index0, Index1, P0, Q0, V0, W0, P1, Q1, V1, W1, InvM0, InvIL0, InvM1, InvIL1);
-			}
-		}
-
-		// Update the particles
-		if (Rigid0)
-		{
-			Rigid0->SetP(P0);
-			Rigid0->SetQ(Q0);
-			Rigid0->SetV(V0);
-			Rigid0->SetW(W0);
-		}
-		if (Rigid1)
-		{
-			Rigid1->SetP(P1);
-			Rigid1->SetQ(Q1);
-			Rigid1->SetV(V1);
-			Rigid1->SetW(W1);
-		}
-	}
-
-	
 	void FPBDJointConstraints::ProjectPosition(const FReal Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts)
 	{
 		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];

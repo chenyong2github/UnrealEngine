@@ -45,7 +45,8 @@ int32 ChaosImmediate_Joint_EnableVelocitySolve = 0;
 int32 ChaosImmediate_Joint_EnableTwistLimits = 1;
 int32 ChaosImmediate_Joint_EnableSwingLimits = 1;
 int32 ChaosImmediate_Joint_EnableDrives = 1;
-int32 ChaosImmediate_Joint_ProjectionPhase = (int32)Chaos::EJointProjectionPhase::ApplyPushOut;
+int32 ChaosImmediate_Joint_DrivesPhase = (int32)Chaos::EJointSolverPhase::Apply;
+int32 ChaosImmediate_Joint_ProjectionPhase = (int32)Chaos::EJointSolverPhase::ApplyPushOut;
 float ChaosImmediate_Joint_LinearProjection = 0.0f;
 float ChaosImmediate_Joint_AngularProjection = 0.0f;
 float ChaosImmediate_Joint_Stiffness = 1.0f;
@@ -61,6 +62,7 @@ FAutoConsoleVariableRef CVarChaosImmPhysEnableVelocitySolve(TEXT("p.Chaos.ImmPhy
 FAutoConsoleVariableRef CVarChaosImmPhysEnableTwistLimits(TEXT("p.Chaos.ImmPhys.Joint.EnableTwistLimits"), ChaosImmediate_Joint_EnableTwistLimits, TEXT("EnableTwistLimits."));
 FAutoConsoleVariableRef CVarChaosImmPhysEnableSwingLimits(TEXT("p.Chaos.ImmPhys.Joint.EnableSwingLimits"), ChaosImmediate_Joint_EnableSwingLimits, TEXT("EnableSwingLimits."));
 FAutoConsoleVariableRef CVarChaosImmPhysEnableDrives(TEXT("p.Chaos.ImmPhys.Joint.EnableDrives"), ChaosImmediate_Joint_EnableDrives, TEXT("EnableDrives."));
+FAutoConsoleVariableRef CVarChaosImmPhysDrivesPhase(TEXT("p.Chaos.ImmPhys.Joint.DrivesPhase"), ChaosImmediate_Joint_DrivesPhase, TEXT("Drives Phase (0=Never; 1=Apply; 2=ApplyPushOut)."));
 FAutoConsoleVariableRef CVarChaosImmPhysProjectionPhase(TEXT("p.Chaos.ImmPhys.Joint.ProjectionPhase"), ChaosImmediate_Joint_ProjectionPhase, TEXT("Projection Phase (0=Never; 1=Apply; 2=ApplyPushOut)."));
 FAutoConsoleVariableRef CVarChaosImmPhysLinearProjection(TEXT("p.Chaos.ImmPhys.Joint.LinearProjection"), ChaosImmediate_Joint_LinearProjection, TEXT("6Dof joint projection amount override (if > 0)."));
 FAutoConsoleVariableRef CVarChaosImmPhysAngularProjection(TEXT("p.Chaos.ImmPhys.Joint.AngularProjection"), ChaosImmediate_Joint_AngularProjection, TEXT("6Dof joint projection amount override (if > 0)."));
@@ -103,19 +105,19 @@ FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawJointFeatures(TEXT("p.Chaos.Imm
 
 namespace ImmediatePhysics_Chaos
 {
-	Chaos::EJointProjectionPhase ToProjectionPhase(const int32 Index)
+	Chaos::EJointSolverPhase ToJointSolverPhase(const int32 Index)
 	{
 		using namespace Chaos;
 
 		if (Index == 1)
 		{
-			return EJointProjectionPhase::Apply;
+			return EJointSolverPhase::Apply;
 		}
 		else if (Index == 2)
 		{
-			return EJointProjectionPhase::ApplyPushOut;
+			return EJointSolverPhase::ApplyPushOut;
 		}
-		return EJointProjectionPhase::None;
+		return EJointSolverPhase::None;
 	}
 
 	template<typename T, int d>
@@ -450,7 +452,8 @@ namespace ImmediatePhysics_Chaos
 			JointsSettings.bEnableTwistLimits = ChaosImmediate_Joint_EnableTwistLimits != 0;
 			JointsSettings.bEnableSwingLimits = ChaosImmediate_Joint_EnableSwingLimits != 0;
 			JointsSettings.bEnableDrives = ChaosImmediate_Joint_EnableDrives != 0;
-			JointsSettings.ProjectionPhase = ToProjectionPhase(ChaosImmediate_Joint_ProjectionPhase);
+			JointsSettings.DrivesPhase = ToJointSolverPhase(ChaosImmediate_Joint_DrivesPhase);
+			JointsSettings.ProjectionPhase = ToJointSolverPhase(ChaosImmediate_Joint_ProjectionPhase);
 			JointsSettings.LinearProjection = ChaosImmediate_Joint_LinearProjection;
 			JointsSettings.AngularProjection = ChaosImmediate_Joint_AngularProjection;
 			JointsSettings.Stiffness = ChaosImmediate_Joint_Stiffness;
