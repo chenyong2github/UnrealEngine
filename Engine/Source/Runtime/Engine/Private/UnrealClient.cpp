@@ -1564,7 +1564,7 @@ void FViewport::Draw( bool bShouldPresent /*= true */)
 				Canvas.SetRenderTargetRect(FIntRect(0, 0, SizeX, SizeY));
 				{
 					// Make sure the Canvas is not rendered upside down
-					Canvas.SetAllowSwitchVerticalAxis(false);
+					Canvas.SetAllowSwitchVerticalAxis(true);
 					ViewportClient->Draw(this, &Canvas);
 				}
 				Canvas.Flush_GameThread();
