@@ -131,7 +131,8 @@ namespace Chaos
 			Rs[1] = Qs[1] * XLs[1].GetRotation();
 		}
 
-		void AddLinearConstraints_Locked(
+		// 3 constraints along principle axes
+		void AddLinearConstraints_Point(
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings)
 		{
@@ -149,6 +150,7 @@ namespace Chaos
 			LinearConstraintErrors[2] = ConstraintSeparation[2];
 		}
 
+		// up to 1 constraint limiting distance
 		void AddLinearConstraints_Sphere(
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings)
@@ -171,6 +173,7 @@ namespace Chaos
 			}
 		}
 
+		// up to 2 constraint: 1 limiting distance along the axis and another limiting lateral distance from the axis
 		void AddLinearConstraints_Cylinder(
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
@@ -204,6 +207,7 @@ namespace Chaos
 			}
 		}
 
+		// up to 1 constraint limiting distance along the axis (lateral motion unrestricted)
 		void AddLinearConstraints_Plane(
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
@@ -225,6 +229,7 @@ namespace Chaos
 			}
 		}
 
+		// up to 1 constraint limiting rotation about twist axes
 		void AddAngularConstraints_Twist(
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings)
@@ -270,6 +275,7 @@ namespace Chaos
 			}
 		}
 
+		// up to 1 constraint limiting angle between twist axes
 		void AddAngularConstraints_Cone(
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings)
@@ -317,6 +323,7 @@ namespace Chaos
 			}
 		}
 
+		// up to 1 constraint limiting rotation about swing axis (relative to body 0)
 		void AddAngularConstraints_Swing(
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
@@ -384,6 +391,7 @@ namespace Chaos
 			}
 		}
 
+		// Add linear constraints to solver
 		void AddLinearConstraints(
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings)
@@ -393,7 +401,7 @@ namespace Chaos
 			const TVector<EJointMotionType, 3>& Motion = JointSettings.Motion.LinearMotionTypes;
 			if ((Motion[0] == EJointMotionType::Locked) && (Motion[1] == EJointMotionType::Locked) && (Motion[2] == EJointMotionType::Locked))
 			{
-				AddLinearConstraints_Locked(SolverSettings, JointSettings);
+				AddLinearConstraints_Point(SolverSettings, JointSettings);
 			}
 			else if ((Motion[0] == EJointMotionType::Limited) && (Motion[1] == EJointMotionType::Limited) && (Motion[2] == EJointMotionType::Limited))
 			{
@@ -432,6 +440,7 @@ namespace Chaos
 			}
 		}
 
+		// Add angular constraints to solver
 		void AddAngularConstraints(
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings)

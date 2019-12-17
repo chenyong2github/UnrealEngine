@@ -14,10 +14,6 @@ namespace Chaos
 {
 	class FConstraintHandle;
 
-	class FPBD6DJointConstraintHandle;
-
-	class FPBD6DJointConstraints;
-
 	template<typename T, int d>
 	class TPBDCollisionConstraints;
 
