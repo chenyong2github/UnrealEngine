@@ -142,8 +142,6 @@ void UNiagaraOverviewNode::GetNodeContextMenuActions(class UToolMenu* Menu, clas
 	TSharedPtr<FNiagaraSystemViewModel> OwningSystemViewModel = NiagaraEditorModule.GetExistingViewModelForSystem(OwningSystem);
 	if (OwningSystemViewModel.IsValid())
 	{
-		FToolMenuSection& Section = Menu->AddSection("Emitter Actions");
-
 		bool bSingleSelection = OwningSystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds().Num() == 1;
 
 		TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModelPtr = OwningSystemViewModel->GetEmitterHandleViewModelById(EmitterHandleGuid);
@@ -151,82 +149,99 @@ void UNiagaraOverviewNode::GetNodeContextMenuActions(class UToolMenu* Menu, clas
 		{
 			TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelPtr.ToSharedRef();
 			TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel = EmitterHandleViewModel->GetEmitterViewModel();
+			
+			FToolMenuSection& Section = Menu->AddSection("Emitter Actions");
+
+			if (OwningSystemViewModel->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
 			{
-				if (OwningSystemViewModel->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
-				{
-					Section.AddMenuEntry(
-						"ToggleEmittersEnabled",
-						LOCTEXT("ToggleEmittersEnabled", "Enabled"),
-						LOCTEXT("ToggleEmittersEnabledToolTip", "Toggle whether or not the selected emitters are enabled."),
-						FSlateIcon(),
-						FUIAction(
-							FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::ToggleSelectedEmittersEnabled, OwningSystemViewModel.ToSharedRef()),
-							FCanExecuteAction(),
-							FGetActionCheckState::CreateStatic(&FNiagaraEditorUtilities::GetSelectedEmittersEnabledCheckState, OwningSystemViewModel.ToSharedRef())
-						),
-						EUserInterfaceActionType::ToggleButton
-					);
-
-					Section.AddMenuEntry(
-						"ToggleEmittersIsolated",
-						LOCTEXT("ToggleEmittersIsolated", "Isolated"),
-						LOCTEXT("ToggleEmittersIsolatedToolTip", "Toggle whether or not the selected emitters are isolated."),
-						FSlateIcon(),
-						FUIAction(
-							FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::ToggleSelectedEmittersIsolated, OwningSystemViewModel.ToSharedRef()),
-							FCanExecuteAction(),
-							FGetActionCheckState::CreateStatic(&FNiagaraEditorUtilities::GetSelectedEmittersIsolatedCheckState, OwningSystemViewModel.ToSharedRef())
-						),
-						EUserInterfaceActionType::ToggleButton
-					);
-
-					Section.AddMenuEntry(
-						"RenameEmitter",
-						LOCTEXT("RenameEmitter", "Rename Emitter"),
-						LOCTEXT("RenameEmitterToolTip", "Rename this local emitter copy."),
-						FSlateIcon(),
-						FUIAction(
-							FExecuteAction::CreateLambda([this]()
-							{
-								const_cast<UNiagaraOverviewNode*>(this)->RequestRename();
-							}),
-							FCanExecuteAction::CreateLambda([bSingleSelection]() { return bSingleSelection; })
-						)
-					);
-				}
-
 				Section.AddMenuEntry(
-					"RemoveParentEmitter",
-					LOCTEXT("RemoveParentEmitter", "Remove Parent Emitter"),
-					LOCTEXT("RemoveParentEmitterToolTip", "Removes this emitter's parent, preventing inheritance of any further changes."),
+					"ToggleEmittersEnabled",
+					LOCTEXT("ToggleEmittersEnabled", "Enabled"),
+					LOCTEXT("ToggleEmittersEnabledToolTip", "Toggle whether or not the selected emitters are enabled."),
 					FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateSP(EmitterViewModel, &FNiagaraEmitterViewModel::RemoveParentEmitter),
-						FCanExecuteAction::CreateLambda(
-							[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
-							{
-								return bSingleSelection && bHasParent;
-							}
-						)
-					)
+						FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::ToggleSelectedEmittersEnabled, OwningSystemViewModel.ToSharedRef()),
+						FCanExecuteAction(),
+						FGetActionCheckState::CreateStatic(&FNiagaraEditorUtilities::GetSelectedEmittersEnabledCheckState, OwningSystemViewModel.ToSharedRef())
+					),
+					EUserInterfaceActionType::ToggleButton
 				);
 
 				Section.AddMenuEntry(
-					"ShowEmitterInContentBrowser",
-					LOCTEXT("ShowEmitterInContentBrowser", "Show in Content Browser"),
-					LOCTEXT("ShowEmitterInContentBrowserToolTip", "Show the selected emitter in the Content Browser."),
+					"ToggleEmittersIsolated",
+					LOCTEXT("ToggleEmittersIsolated", "Isolated"),
+					LOCTEXT("ToggleEmittersIsolatedToolTip", "Toggle whether or not the selected emitters are isolated."),
 					FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::ShowParentEmitterInContentBrowser, EmitterViewModel),
-						FCanExecuteAction::CreateLambda(
-							[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
-							{
-								return bSingleSelection && bHasParent;
-							}
-						)
+						FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::ToggleSelectedEmittersIsolated, OwningSystemViewModel.ToSharedRef()),
+						FCanExecuteAction(),
+						FGetActionCheckState::CreateStatic(&FNiagaraEditorUtilities::GetSelectedEmittersIsolatedCheckState, OwningSystemViewModel.ToSharedRef())
+					),
+					EUserInterfaceActionType::ToggleButton
+				);
+
+				Section.AddMenuEntry(
+					"RenameEmitter",
+					LOCTEXT("RenameEmitter", "Rename Emitter"),
+					LOCTEXT("RenameEmitterToolTip", "Rename this local emitter copy."),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateLambda([this]()
+						{
+							const_cast<UNiagaraOverviewNode*>(this)->RequestRename();
+						}),
+						FCanExecuteAction::CreateLambda([bSingleSelection]() { return bSingleSelection; })
 					)
 				);
 			}
+
+			Section.AddMenuEntry(
+				"RemoveParentEmitter",
+				LOCTEXT("RemoveParentEmitter", "Remove Parent Emitter"),
+				LOCTEXT("RemoveParentEmitterToolTip", "Removes this emitter's parent, preventing inheritance of any further changes."),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(EmitterViewModel, &FNiagaraEmitterViewModel::RemoveParentEmitter),
+					FCanExecuteAction::CreateLambda(
+						[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
+						{
+							return bSingleSelection && bHasParent;
+						}
+					)
+				)
+			);
+
+			Section.AddMenuEntry(
+				"ShowEmitterInContentBrowser",
+				LOCTEXT("ShowEmitterInContentBrowser", "Show in Content Browser"),
+				LOCTEXT("ShowEmitterInContentBrowserToolTip", "Show the selected emitter in the Content Browser."),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::ShowParentEmitterInContentBrowser, EmitterViewModel),
+					FCanExecuteAction::CreateLambda(
+						[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
+						{
+							return bSingleSelection && bHasParent;
+						}
+					)
+				)
+			);
+
+			Section.AddMenuEntry(
+				"CreateAssetFromEmitter",
+				NSLOCTEXT("FNiagaraEditorUtilities", "CreateAssetFromEmitter", "Create Asset From This"),
+				NSLOCTEXT("FNiagaraEditorUtilities", "CreateAssetFromEmitterToolTip", "Create an emitter asset from this emitter."),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::CreateAssetFromEmitter, EmitterHandleViewModel),
+					FCanExecuteAction::CreateLambda(
+						[bSingleSelection, EmitterHandleViewModel]()
+						{
+							return bSingleSelection && EmitterHandleViewModel->GetOwningSystemEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset;
+						}
+					)
+				)
+			);
 		}
 	}
 
