@@ -65,7 +65,7 @@ struct GAMEPLAYTAGS_API FGameplayTag
 	 * @param ErrorIfNotfound: ensure() that tag exists.
 	 * @return Will return the corresponding FGameplayTag or an empty one if not found.
 	 */
-	static FGameplayTag RequestGameplayTag(FName TagName, bool ErrorIfNotFound=true);
+	static FGameplayTag RequestGameplayTag(const FName& TagName, bool ErrorIfNotFound=true);
 
 	/** 
 	 * Returns true if this is a valid gameplay tag string (foo.bar.baz). If false, it will fill 
@@ -246,7 +246,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 protected:
 
 	/** Intentionally private so only the tag manager can use */
-	explicit FGameplayTag(FName InTagName);
+	explicit FGameplayTag(const FName& InTagName);
 
 	/** This Tags Name */
 	UPROPERTY(VisibleAnywhere, Category = GameplayTags, SaveGame)
@@ -547,14 +547,14 @@ struct GAMEPLAYTAGS_API FGameplayTagContainer
 	 * @param TagToRemove		Tag to remove from the container
 	 * @param bDeferParentTags	Skip calling FillParentTags for performance (must be handled by calling code)
 	 */
-	bool RemoveTag(FGameplayTag TagToRemove, bool bDeferParentTags=false);
+	bool RemoveTag(const FGameplayTag& TagToRemove, bool bDeferParentTags=false);
 
 	/**
 	 * Removes all tags in TagsToRemove from this container
 	 *
 	 * @param TagsToRemove	Tags to remove from the container
 	 */
-	void RemoveTags(FGameplayTagContainer TagsToRemove);
+	void RemoveTags(const FGameplayTagContainer& TagsToRemove);
 
 	/** Remove all tags from the container. Will maintain slack by default */
 	void Reset(int32 Slack = 0);
@@ -575,7 +575,7 @@ struct GAMEPLAYTAGS_API FGameplayTagContainer
 	FString ToString() const;
 
 	/** Sets from a ImportText string, used in asset registry */
-	void FromExportString(FString ExportString);
+	void FromExportString(const FString& ExportString);
 
 	/** Returns abbreviated human readable Tag list without parens or property names. If bQuoted is true it will quote each tag */
 	FString ToStringSimple(bool bQuoted = false) const;
