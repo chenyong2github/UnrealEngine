@@ -105,6 +105,7 @@ void FMockAbilitySimulation::SimulationTick(const FNetSimTimeStep& TimeStep, con
 
 		// Invoke a cue to telegraph where the blink will land. This is making the assumption the handler wouldn't either want to or be able to derive the blink destination from the current state alone
 		// The randomValue being calculated here is purposefully to cause mis prediction of the cue, so that we can demonstrate rollback -> resimulate can do the correction seemlessly
+		
 		UE_LOG(LogTemp, Warning, TEXT("Invoking FMockAbilityBlinkActivateCue from sim"));
 		Output.CueDispatch.Invoke<FMockAbilityBlinkActivateCue>( GetBlinkDestination(), FMath::Rand() % 255 );
 	}
@@ -118,7 +119,8 @@ void FMockAbilitySimulation::SimulationTick(const FNetSimTimeStep& TimeStep, con
 		LocalCmd.MovementInput.Set(0.f, 0.f, 0.f);
 		LocalCmd.bDashPressed = false;
 		LocalCmd.bSprintPressed = false;
-
+		LocalCmd.RotationInput = FRotator::ZeroRotator;
+		//LocalSync.Rotation = Input.Sync.Rotation;
 		LocalSync.Velocity.Set(0.f, 0.f, 0.f);
 
 		if (NewBlinkWarmupLeft <= 0)
@@ -374,7 +376,7 @@ void UMockFlyingAbilityComponent::HandleCue(const FMockAbilityBlinkCue& BlinkCue
 
 	// Crude compensation for cue firing in the past (note this is not necessary! Some cues not care and need to see the "full" effect regardless of when it happened)
 	float Duration = FMath::Max<float>(0.1f, BlinkCueDuration - SystemParameters.TimeSinceInvocation.ToRealTimeSeconds());
-	DrawDebugLine(GetWorld(), BlinkCue.StartLocation, BlinkCue.StopLocation, FColor::Red, false, Duration);
+	DrawDebugLine(GetWorld(), BlinkCue.StartLocation, BlinkCue.StopLocation, (FMath::Rand() % 2) == 0 ? FColor::Red : FColor::Blue, false, Duration);
 
 	if (SystemParameters.Callbacks)
 	{
