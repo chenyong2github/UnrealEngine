@@ -535,6 +535,12 @@ public:
 	virtual TSharedRef<SWidget> CreatePropertyValueWidget( bool bDisplayDefaultPropertyButtons = true ) const = 0;
 
 	/**
+	 * Creates the default buttons which appear next to value widgets.  This is useful when creating customizations
+	 * which don't use CreatePropertyValueWidget but you still want array item behaviors and reset to default capabilities.
+	 */
+	virtual TSharedRef<SWidget> CreateDefaultPropertyButtonWidgets() const = 0;
+
+	/**
 	 * Adds a restriction to the possible values for this property.
 	 * @param Restriction	The restriction being added to this property.
 	 */
