@@ -27,31 +27,47 @@ void FAndroidErrorReport::ShutDown()
 	AndroidErrorReport::CrashHelperModule->ShutdownModule();
 }
 
-static void AddThreadContexts(const FString& ReportDirectory)
+ FAndroidErrorReport::FAndroidErrorReport(const FString& Directory)
+	: FGenericErrorReport(Directory)
+{
+	// Check for allthreads.txt, if it exists rename it.
+	// This way if anything goes wrong during processing it will not continue to cause issues on subsequent runs.
+
+	const FString StartingThreadContextsFileName(TEXT("AllThreads.txt"));
+	const FString StartingThreadContextsFilePath(ReportDirectory / StartingThreadContextsFileName);
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+	bool bHasFoundThreadsFile = PlatformFile.FileExists(*StartingThreadContextsFilePath);
+	if (bHasFoundThreadsFile)
+	{
+		FString ThreadContextsFileName(TEXT("AllThreads.tmp"));
+		ThreadContextsPathName = ReportDirectory / ThreadContextsFileName;
+		PlatformFile.MoveFile(*ThreadContextsPathName, *StartingThreadContextsFilePath);
+
+		// mirror the renaming in ReportFilenames.
+		ReportFilenames.Add(ThreadContextsFileName);
+		ReportFilenames.RemoveSingle(StartingThreadContextsFileName);
+	}
+}
+
+static void AddThreadContexts(const FString& ThreadContextsPathName)
 {
 	// Try to load the callstacks file.
-	const FString ThreadContextsFile(ReportDirectory / TEXT("AllThreads.txt"));
-	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-
-	if (PlatformFile.FileExists(*ThreadContextsFile))
+	if (!ThreadContextsPathName.IsEmpty())
 	{
-		// rename the threads file, if anything goes wrong during processing it will be skipped on the next run.
-		const FString ThreadContextsFileTemp(ReportDirectory / TEXT("AllThreads.tmp"));
-		PlatformFile.MoveFile(*ThreadContextsFileTemp, *ThreadContextsFile);
-
-		FXmlFile ThreadsNode(ThreadContextsFileTemp);
+		FXmlFile ThreadsNode(ThreadContextsPathName);
 		if (ThreadsNode.IsValid())
 		{			
 			FPrimaryCrashProperties::Get()->Threads = ThreadsNode.GetRootNode();
 			// delete the file as it has been added to the primary report.
-			PlatformFile.DeleteFile(*ThreadContextsFileTemp);
+			IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+			PlatformFile.DeleteFile(*ThreadContextsPathName);
 		}
 	}
 }
 
 FText FAndroidErrorReport::DiagnoseReport() const
 {
-	AddThreadContexts(ReportDirectory);
+	AddThreadContexts(ThreadContextsPathName);
 	return FText();
 }
 

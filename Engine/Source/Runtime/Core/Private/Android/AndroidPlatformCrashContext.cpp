@@ -75,7 +75,7 @@ void FAndroidCrashContext::GetCrashDirectoryName(char(&DirectoryNameOUT)[CrashRe
 	FCStringAnsi::Strncpy(DirectoryNameOUT, GAndroidCrashInfo.TargetDirectory, CrashReportMaxPathSize);
 }
 
-static ANSICHAR* ItoANSI(uint64 Val, uint64 Base, uint32 Len = 0)
+const ANSICHAR* FAndroidCrashContext::ItoANSI(uint64 Val, uint64 Base, uint32 Len)
 {
 	static ANSICHAR InternalBuffer[64] = { 0 };
 
@@ -167,6 +167,7 @@ void FAndroidCrashContext::DumpAllThreadCallstacks() const
 	int DestHandle = open(FilePath, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
 	if (DestHandle >= 0)
 	{
+		int32 CurrentThreadID = FPlatformTLS::GetCurrentThreadId();
 		auto Write = [](int FileHandle, const ANSICHAR* Buffer)
 		{
 			write(FileHandle, Buffer, FCStringAnsi::Strlen(Buffer));
@@ -177,22 +178,25 @@ void FAndroidCrashContext::DumpAllThreadCallstacks() const
 			write(FileHandle, "\n", 1);
 		};
 
-		// For each thread append it's info to the file.
-		FThreadManager::Get().ForEachThread([Writeln, Write, this, DestHandle, &CrashStackFrames, &CallstacksRecorded](uint32 ThreadID, FRunnableThread* Runnable)
+		auto WriteThreadEntry = [Writeln, Write, this, DestHandle, &CrashStackFrames, &CallstacksRecorded, CurrentThreadID](uint32 ThreadID, const char* ThreadName)
 		{
 			// Capture the stack trace
 			static const int StackTraceMaxDepth = 100;
 			uint64 StackTrace[StackTraceMaxDepth];
 			FMemory::Memzero(StackTrace);
-			uint32 Depth = FPlatformStackWalk::CaptureThreadStackBackTrace(ThreadID, StackTrace, StackTraceMaxDepth);
+			uint32 Depth = 0;
+			if (CurrentThreadID == ThreadID)
+			{
+				Depth = FPlatformStackWalk::CaptureStackBackTrace(StackTrace, StackTraceMaxDepth);
+			}
+			else
+			{
+				Depth = FPlatformStackWalk::CaptureThreadStackBackTrace(ThreadID, StackTrace, StackTraceMaxDepth);
+			}
 
 			if (Depth)
 			{
 				ANSICHAR Line[256];
-				if (CallstacksRecorded++ == 0)
-				{
-					Writeln(DestHandle, "<Threads>");
-				}
 				Writeln(DestHandle, "<Thread>");
 				Write(DestHandle, "<CallStack>");
 				// Write stack
@@ -217,18 +221,32 @@ void FAndroidCrashContext::DumpAllThreadCallstacks() const
 
 				// write Thread Name
 				Write(DestHandle, "<ThreadName>");
-				FCStringAnsi::Strncpy(Line, TCHAR_TO_UTF8(*Runnable->GetThreadName()), UE_ARRAY_COUNT(Line));
+				FCStringAnsi::Strncpy(Line, ThreadName, UE_ARRAY_COUNT(Line));
 				Write(DestHandle, Line);
 				Writeln(DestHandle, "</ThreadName>");
 
 				Writeln(DestHandle, "</Thread>");
+				CallstacksRecorded++;
 			}
-		});
-		if (CallstacksRecorded)
+		};
+
+		Writeln(DestHandle, "<Threads>");
+
+		if( GIsGameThreadIdInitialized )
 		{
-			Writeln(DestHandle, "</Threads>");
+			// On android the Game thread is that which calls android_main entry point. 
+			// Explicitly call it here as the thread manager is not aware of it.
+			WriteThreadEntry(GGameThreadId, "GameThread");
 		}
+		// For each thread append it's info to the file.
+		FThreadManager::Get().ForEachThread([WriteThreadEntry, this, DestHandle, &CrashStackFrames, &CallstacksRecorded](uint32 ThreadID, FRunnableThread* Runnable)
+		{
+			WriteThreadEntry(ThreadID, TCHAR_TO_UTF8(*Runnable->GetThreadName()));
+		});
+
+		Writeln(DestHandle, "</Threads>");
 		close(DestHandle);
+
 		if (CallstacksRecorded == 0)
 		{
 			unlink(FilePath); // remove the file if nothing was written.

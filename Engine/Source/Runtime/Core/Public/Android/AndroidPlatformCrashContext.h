@@ -55,6 +55,9 @@ struct CORE_API FAndroidCrashContext : public FGenericCrashContext
 
 	void DumpAllThreadCallstacks() const;
 
+	/** Async-safe ItoA */
+	static const ANSICHAR* ItoANSI(uint64 Val, uint64 Base, uint32 Len = 0);
+
 private:
 	TMap<FString, FString> AdditionalProperties;
 
