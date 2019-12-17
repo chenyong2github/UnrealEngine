@@ -119,7 +119,8 @@ void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::P
 		RigidHandle->SetSharedGeometry(Data->Geometry);
 		RigidHandle->SetV(Data->MV);
 		RigidHandle->SetW(Data->MW);
-
+		RigidHandle->SetCenterOfMass(Data->MCenterOfMass);
+		RigidHandle->SetRotationOfMass(Data->MRotationOfMass);
 		RigidHandle->SetSpatialIdx(Data->SpatialIdx);	//todo: this needs to only happen once during initialization
 		RigidHandle->SetHashResultLowLevel(Data->HashResult);	//todo: this needs to only happen once during initialization
 #if CHAOS_CHECKED
@@ -220,6 +221,8 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 			RigidHandle->SetW(Data->MW);
 		}
 
+		RigidHandle->SetCenterOfMass(Data->MCenterOfMass);
+		RigidHandle->SetRotationOfMass(Data->MRotationOfMass);
 		RigidHandle->SetM(Data->MM);
 		RigidHandle->SetInvM(Data->MInvM);
 		RigidHandle->SetI(Data->MI);
