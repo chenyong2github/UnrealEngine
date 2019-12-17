@@ -9,33 +9,34 @@ namespace Chaos
 	// but clean property values will get overridden with physics thread results.
 	enum EParticleFlags : int32
 	{
-		X =				 1 << 0,
-		R =				 1 << 1,
-		V =				 1 << 2,
-		W =				 1 << 3,
-		CenterOfMass =   1 << 4,
-		RotationOfMass = 1 << 5,
-		CollisionGroup = 1 << 6,
-		Disabled =		 1 << 7,
-		PreV =			 1 << 8,
-		PreW =			 1 << 9,
-		P =				 1 << 10,
-		Q =				 1 << 11,
-		F =				 1 << 12,
-		Torque =		 1 << 13,
-		I =				 1 << 14,
-		InvI =			 1 << 15,
-		M =				 1 << 16,
-		InvM =			 1 << 17,
-		ObjectState =	 1 << 18,
-		Geometry =		 1 << 19,
-		ExternalForce =  1 << 20,
-		ExternalTorque = 1 << 20,
-		GravityEnabled = 1 << 22,
-		SpatialIdx     = 1 << 23,
-		HashResult     = 1 << 24
+		X						= 1 << 0,
+		R						= 1 << 1,
+		V						= 1 << 2,
+		W						= 1 << 3,
+		CenterOfMass			= 1 << 4,
+		RotationOfMass			= 1 << 5,
+		CollisionGroup			= 1 << 6,
+		Disabled				= 1 << 7,
+		PreV					= 1 << 8,
+		PreW					= 1 << 9,
+		P						= 1 << 10,
+		Q						= 1 << 11,
+		F						= 1 << 12,
+		Torque					= 1 << 13,
+		I						= 1 << 14,
+		InvI					= 1 << 15,
+		M						= 1 << 16,
+		InvM					= 1 << 17,
+		ObjectState				= 1 << 18,
+		Geometry				= 1 << 19,
+		ExternalForce			= 1 << 20,
+		ExternalTorque			= 1 << 20,
+		GravityEnabled			= 1 << 22,
+		SpatialIdx				= 1 << 23,
+		HashResult				= 1 << 24,
+		ShapeDisableCollision	= 1 << 25
 #if CHAOS_CHECKED
-		, DebugName    = 1 << 25
+		, DebugName				= 1 << 26
 #endif
 	};
 

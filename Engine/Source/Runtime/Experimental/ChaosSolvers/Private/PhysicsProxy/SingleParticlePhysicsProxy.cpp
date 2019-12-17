@@ -260,6 +260,15 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 				//todo: compute bounds based on sample points
 			}
 		}
+
+		if(Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ShapeDisableCollision))
+		{
+			int32 CurrShape = 0;
+			for(const TUniquePtr<Chaos::TPerShapeData<Chaos::FReal, 3>>& Shape : RigidHandle->ShapesArray())
+			{
+				Shape->bDisable = Data->ShapeCollisionDisableFlags[CurrShape++];
+			}
+		}
 	}
 }
 

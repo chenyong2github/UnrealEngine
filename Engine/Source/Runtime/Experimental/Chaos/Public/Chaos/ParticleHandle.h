@@ -466,6 +466,11 @@ public:
 		GeometryParticles->SetHandle(ParticleIdx, this);
 	}
 
+	const TPerShapeData<T, d>* GetImplicitShape(const FImplicitObject* InObject)
+	{
+		return GeometryParticles->GetImplicitShape(ParticleIdx, InObject);
+	}
+
 protected:
 
 	friend TGeometryParticleHandles<T, d>;
@@ -1234,6 +1239,11 @@ public:
 				}
 			}
 		}
+
+		if(Ar.IsLoading())
+		{
+			MapImplicitShapes();
+		}
 	}
 
 	virtual bool IsParticleValid() const
@@ -1312,6 +1322,7 @@ public:
 	{
 		ensure(InShapesArray.Num() == MShapesArray.Num());
 		MShapesArray = MoveTemp(InShapesArray);
+		MapImplicitShapes();
 	}
 
 	TSerializablePtr<FImplicitObject> Geometry() const { return MakeSerializable(MGeometry); }
@@ -1337,6 +1348,16 @@ public:
 	{
 		MarkDirty(EParticleFlags::SpatialIdx);
 		MSpatialIdx = Idx;
+	}
+
+	void SetShapeCollisionDisable(int32 InShapeIndex, bool bInDisable)
+	{
+		const bool bCurrent = MShapesArray[InShapeIndex]->bDisable;
+		if(bCurrent != bInDisable)
+		{
+			MShapesArray[InShapeIndex]->bDisable = bInDisable;
+			MarkDirty(EParticleFlags::ShapeDisableCollision);
+		}
 	}
 
 	FParticleData* NewData() const { return new TGeometryParticleData<T, d>( *this ); }
@@ -1371,6 +1392,17 @@ public:
 		return nullptr;
 	}
 
+	const TPerShapeData<T, d>* GetImplicitShape(const FImplicitObject* InImplicit) const
+	{
+		const int32* ShapeIndex = ImplicitShapeMap.Find(InImplicit);
+		if(ShapeIndex)
+		{
+			return MShapesArray[*ShapeIndex].Get();
+		}
+
+		return nullptr;
+	}
+
 	// Pointer to any data that the solver wants to associate with this particle
 	// TODO: It's important to eventually hide this!
 	// Right now it's exposed to lubricate the creation of the whole proxy system.
@@ -1381,6 +1413,7 @@ private:
 	TRotation<T, d> MR;
 	TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> MGeometry;	//TODO: geometry should live in bodysetup
 	TShapesArray<T,d> MShapesArray;
+	TMap<const FImplicitObject*, int32> ImplicitShapeMap;
 	FSpatialAccelerationIdx MSpatialIdx;
 
 	// This value is generated and used in AccelerationStructureHandle for a hash, as that handle
@@ -1410,6 +1443,17 @@ protected:
 	void UpdateShapesArray()
 	{
 		UpdateShapesArrayFromGeometry<T, d>(MShapesArray, MakeSerializable(MGeometry), FRigidTransform3(X(), R()));
+		MapImplicitShapes();
+	}
+
+	void MapImplicitShapes()
+	{
+		ImplicitShapeMap.Reset();
+		int32 ShapeIndex = 0;
+		for(TUniquePtr<TPerShapeData<T, d>>& ShapeData : MShapesArray)
+		{
+			ImplicitShapeMap.Add(ShapeData->Geometry.Get(), ShapeIndex++);
+		}
 	}
 };
 
@@ -1874,6 +1918,13 @@ public:
 		, MGravityEnabled(InParticle.IsGravityEnabled())
 	{
 		Type = EParticleType::Rigid;
+
+		const TShapesArray<T, d>& Shapes = InParticle.ShapesArray();
+		ShapeCollisionDisableFlags.Empty(Shapes.Num());
+		for(const TUniquePtr<TPerShapeData<T, d>>& ShapePtr : Shapes)
+		{
+			ShapeCollisionDisableFlags.Add(ShapePtr->bDisable);
+		}
 	}
 
 
@@ -1894,6 +1945,7 @@ public:
 	bool MDisabled;
 	bool MToBeRemovedOnFracture;
 	bool MGravityEnabled;
+	TBitArray<> ShapeCollisionDisableFlags;
 
 	void Reset() {
 		TKinematicGeometryParticleData<T, d>::Reset();
@@ -1915,6 +1967,7 @@ public:
 		MDisabled = false;
 		MToBeRemovedOnFracture = false;
 		MGravityEnabled = false;
+		ShapeCollisionDisableFlags.Reset();
 	}
 };
 
