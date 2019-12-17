@@ -11,7 +11,7 @@
 
 namespace Chaos
 {
-	class FConvex final : public FImplicitObject
+	class CHAOS_API FConvex final : public FImplicitObject
 	{
 	public:
 		using FImplicitObject::GetTypeName;
@@ -139,29 +139,8 @@ namespace Chaos
 			return MakePair(FVec3(0), false);
 		}
 
-		virtual int32 FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const override
-		{
-			//todo: use hill climbing
-			int32 MostOpposingIdx = INDEX_NONE;
-			FReal MostOpposingDot = TNumericLimits<FReal>::Max();
-			for(int32 Idx = 0; Idx < Planes.Num(); ++Idx)
-			{
-				const TPlane<FReal, 3>& Plane = Planes[Idx];
-				const FReal Distance = Plane.SignedDistance(Position);
-				if (FMath::Abs(Distance) < SearchDist)
-				{
-					// TPlane has an override for Normal() that doesn't call PhiWithNormal().
-					const FReal Dot = FVec3::DotProduct(Plane.Normal(), UnitDir);
-					if (Dot < MostOpposingDot)
-					{
-						MostOpposingDot = Dot;
-						MostOpposingIdx = Idx;
-					}
-				}
-			}
-			ensure(MostOpposingIdx != INDEX_NONE);
-			return MostOpposingIdx;
-		}
+		virtual int32 FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const override;
+		
 
 		FVec3 FindGeometryOpposingNormal(const FVec3& DenormDir, int32 FaceIndex, const FVec3& OriginalNormal) const
 		{
