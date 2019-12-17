@@ -175,6 +175,7 @@ public:
 
 protected:
 	//~ Begin FLiveLinkClient_Base_DEPRECATED implementation
+	using FLiveLinkClient_Base_DEPRECATED::EvaluateFrameAtSceneTime_AnyThread;
 	virtual void AquireLock_Deprecation() override;
 	virtual void ReleaseLock_Deprecation() override;
 	virtual void ClearFrames_Deprecation(const FLiveLinkSubjectKey& SubjectKey) override;
