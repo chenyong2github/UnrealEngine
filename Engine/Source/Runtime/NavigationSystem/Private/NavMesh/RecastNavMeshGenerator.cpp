@@ -4193,7 +4193,7 @@ void FRecastNavMeshGenerator::CancelBuild()
 
 void FRecastNavMeshGenerator::TickAsyncBuild(float DeltaSeconds)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_TickAsyncBuilds);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_TickAsyncBuild);
 
 	bool bRequestDrawingUpdate = false;
 
@@ -4223,8 +4223,13 @@ void FRecastNavMeshGenerator::TickAsyncBuild(float DeltaSeconds)
 			
 	if (UpdatedTileIndices.Num() > 0)
 	{
-		// Invalidate active paths that go through regenerated tiles
-		DestNavMesh->OnNavMeshTilesUpdated(UpdatedTileIndices);
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_OnNavMeshTilesUpdated);
+
+			// Invalidate active paths that go through regenerated tiles
+			DestNavMesh->OnNavMeshTilesUpdated(UpdatedTileIndices);
+		}
+
 		bRequestDrawingUpdate = true;
 
 #if	WITH_EDITOR
@@ -4514,6 +4519,8 @@ TArray<uint32> FRecastNavMeshGenerator::RemoveTileLayers(const int32 TileX, cons
 
 void FRecastNavMeshGenerator::AddGeneratedTileLayer(int32 LayerIndex, FRecastTileGenerator& TileGenerator, const TMap<int32, dtPolyRef>& OldLayerTileIdMap, TArray<uint32>& OutResultTileIndices)
 {
+	SCOPE_CYCLE_COUNTER(STAT_Navigation_RecastAddGeneratedTileLayer);
+
 	struct FLayerIndexFinder
 	{
 		int32 LayerIndex;
@@ -5361,6 +5368,8 @@ TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasksSync(const int32 NumTask
 
 TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasks(const int32 NumTasksToProcess)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_ProcessTileTasks);
+
 	const bool bHasTasksAtStart = GetNumRemaningBuildTasks() > 0;
 	TArray<uint32> UpdatedTiles;
 
@@ -5394,7 +5403,7 @@ TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasks(const int32 NumTasksToP
 	const bool bHasTasksAtEnd = GetNumRemaningBuildTasks() > 0;
 	if (bHasTasksAtStart && !bHasTasksAtEnd)
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_TickAsyncBuilds);
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_OnNavMeshGenerationFinished);
 
 		DestNavMesh->OnNavMeshGenerationFinished();
 	}
@@ -5403,6 +5412,8 @@ TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasks(const int32 NumTasksToP
 	//only do this if framepro is recording as its an expensive operation
 	if (FFrameProProfiler::IsFrameProRecording())
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_GetCompressedTileCacheSize);
+
 		int32 TileCacheSize = DestNavMesh->GetCompressedTileCacheSize();
 
 		FPlatformMisc::CustomNamedStat("TotalTileCacheSize", static_cast<float>(TileCacheSize), "NavMesh", "Bytes");

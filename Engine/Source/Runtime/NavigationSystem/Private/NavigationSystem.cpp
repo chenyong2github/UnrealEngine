@@ -82,6 +82,7 @@ DEFINE_STAT(STAT_Navigation_RegisterNavOctreeElement);
 DEFINE_STAT(STAT_Navigation_UnregisterNavOctreeElement);
 DEFINE_STAT(STAT_Navigation_AddingActorsToNavOctree);
 DEFINE_STAT(STAT_Navigation_RecastAddGeneratedTiles);
+DEFINE_STAT(STAT_Navigation_RecastAddGeneratedTileLayer);
 DEFINE_STAT(STAT_Navigation_RecastTick);
 DEFINE_STAT(STAT_Navigation_RecastPathfinding);
 DEFINE_STAT(STAT_Navigation_RecastTestPath);
