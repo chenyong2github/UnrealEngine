@@ -28,6 +28,7 @@ public:
 	FDistanceFieldVolumeTexture(const class FDistanceFieldVolumeData& InVolumeData) :
 		VolumeData(InVolumeData),
 		AtlasAllocationMin(FIntVector(-1, -1, -1)),
+		SizeInAtlas(FIntVector::ZeroValue),
 		bReferencedByAtlas(false),
 		bThrottled(false),
 		StaticMesh(NULL)
@@ -44,6 +45,11 @@ public:
 	FIntVector GetAllocationMin() const
 	{
 		return AtlasAllocationMin;
+	}
+
+	FIntVector GetAllocationSizeInAtlas() const
+	{
+		return SizeInAtlas;
 	}
 
 	FIntVector GetAllocationSize() const;
@@ -68,6 +74,8 @@ public:
 private:
 	const FDistanceFieldVolumeData& VolumeData;
 	FIntVector AtlasAllocationMin;
+	FIntVector SizeInAtlas;
+
 	bool bReferencedByAtlas : 1;
 	/** bThrottled prevents any objects using the texture from being uploaded to the scene buffer until upload of the texture to distance field atlas is complete */
 	bool bThrottled         : 1;
@@ -104,12 +112,13 @@ public:
 	void RemoveAllocation(FDistanceFieldVolumeTexture* Texture);
 
 	/** Reallocates the volume texture if necessary and uploads new allocations. */
-	void UpdateAllocations();
+	void UpdateAllocations(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type InFeatureLevel);
 
 	int32 GetGeneration() const { return Generation; }
 
 	EPixelFormat Format;
 	FTexture3DRHIRef VolumeTextureRHI;
+	FUnorderedAccessViewRHIRef VolumeTextureUAVRHI;
 
 private:
 	/** Manages the atlas layout. */
