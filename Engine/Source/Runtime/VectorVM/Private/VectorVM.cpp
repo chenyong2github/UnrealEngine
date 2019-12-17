@@ -114,6 +114,14 @@ static FAutoConsoleVariableRef CVarbUseOptimizedVMByteCode(
 	ECVF_Default
 );
 
+static int32 GbSafeOptimizedKernels = 1;
+static FAutoConsoleVariableRef CVarbSafeOptimizedKernels(
+	TEXT("vm.SafeOptimizedKernels"),
+	GbSafeOptimizedKernels,
+	TEXT("If > 0 optimized vector VM byte code will use safe versions of the kernels.\n"),
+	ECVF_Default
+);
+
 //////////////////////////////////////////////////////////////////////////
 //  VM Code Optimizer Context
 
@@ -610,6 +618,14 @@ struct FVectorKernelDiv : public TBinaryVectorKernel<FVectorKernelDiv>
 	}
 };
 
+struct FVectorKernelDivSafe : public TBinaryVectorKernel<FVectorKernelDivSafe>
+{
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
+	{
+		VectorRegister ValidMask = VectorCompareGT(VectorAbs(Src1), GlobalVectorConstants::SmallNumber);
+		*Dst = VectorSelect(ValidMask, VectorDivide(Src0, Src1), GlobalVectorConstants::FloatZero);
+	}
+};
 
 struct FVectorKernelMad : public TTrinaryVectorKernel<FVectorKernelMad>
 {
@@ -637,11 +653,31 @@ struct FVectorKernelRcp : public TUnaryVectorKernel<FVectorKernelRcp>
 	}
 };
 
+// if the magnitude of the value is too small, then the result will be 0 (not NaN/Inf)
+struct FVectorKernelRcpSafe : public TUnaryVectorKernel<FVectorKernelRcpSafe>
+{
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	{
+		VectorRegister ValidMask = VectorCompareGT(VectorAbs(Src0), GlobalVectorConstants::SmallNumber);
+		*Dst = VectorSelect(ValidMask, VectorReciprocal(Src0), GlobalVectorConstants::FloatZero);
+	}
+};
+
 struct FVectorKernelRsq : public TUnaryVectorKernel<FVectorKernelRsq>
 {
 	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst,VectorRegister Src0)
 	{
 		*Dst = VectorReciprocalSqrt(Src0);
+	}
+};
+
+// if the value is very small or negative, then the result will be 0 (not NaN/Inf/imaginary)
+struct FVectorKernelRsqSafe : public TUnaryVectorKernel<FVectorKernelRsqSafe>
+{
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	{
+		VectorRegister ValidMask = VectorCompareGT(Src0, GlobalVectorConstants::SmallNumber);
+		*Dst = VectorSelect(ValidMask, VectorReciprocalSqrt(Src0), GlobalVectorConstants::FloatZero);
 	}
 };
 
@@ -651,6 +687,15 @@ struct FVectorKernelSqrt : public TUnaryVectorKernel<FVectorKernelSqrt>
 	{
 		// TODO: Need a SIMD sqrt!
 		*Dst = VectorReciprocal(VectorReciprocalSqrt(Src0));
+	}
+};
+
+struct FVectorKernelSqrtSafe : public TUnaryVectorKernel<FVectorKernelSqrtSafe>
+{
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	{
+		VectorRegister ValidMask = VectorCompareGT(Src0, GlobalVectorConstants::SmallNumber);
+		*Dst = VectorSelect(ValidMask, VectorReciprocal(VectorReciprocalSqrt(Src0)), GlobalVectorConstants::FloatZero);
 	}
 };
 
@@ -691,6 +736,16 @@ struct FVectorKernelLog : public TUnaryVectorKernel<FVectorKernelLog>
 	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
 	{
 		*Dst = VectorLog(Src0);
+	}
+};
+
+struct FVectorKernelLogSafe : public TUnaryVectorKernel<FVectorKernelLogSafe>
+{
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	{
+		VectorRegister ValidMask = VectorCompareGT(Src0, GlobalVectorConstants::FloatZero);
+
+		*Dst = VectorSelect(ValidMask, VectorLog(Src0), GlobalVectorConstants::FloatZero);
 	}
 };
 
@@ -1008,6 +1063,16 @@ struct FVectorKernelPow : public TBinaryVectorKernel<FVectorKernelPow>
 	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst,VectorRegister Src0,VectorRegister Src1)
 	{
 		*Dst = VectorPow(Src0, Src1);
+	}
+};
+
+// if the base is small, then the result will be 0
+struct FVectorKernelPowSafe : public TBinaryVectorKernel<FVectorKernelPowSafe>
+{
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
+	{
+		VectorRegister ValidMask = VectorCompareGT(Src0, GlobalVectorConstants::SmallNumber);
+		*Dst = VectorSelect(ValidMask, VectorPow(Src0, Src1), GlobalVectorConstants::FloatZero);
 	}
 };
 
@@ -2128,17 +2193,17 @@ void VectorVM::Exec(
 						case EVectorVMOp::add: FVectorKernelAdd::Exec(Context); break;
 						case EVectorVMOp::sub: FVectorKernelSub::Exec(Context); break;
 						case EVectorVMOp::mul: FVectorKernelMul::Exec(Context); break;
-						case EVectorVMOp::div: FVectorKernelDiv::Exec(Context); break;
+						case EVectorVMOp::div: FVectorKernelDivSafe::Exec(Context); break;
 						case EVectorVMOp::mad: FVectorKernelMad::Exec(Context); break;
 						case EVectorVMOp::lerp: FVectorKernelLerp::Exec(Context); break;
-						case EVectorVMOp::rcp: FVectorKernelRcp::Exec(Context); break;
-						case EVectorVMOp::rsq: FVectorKernelRsq::Exec(Context); break;
-						case EVectorVMOp::sqrt: FVectorKernelSqrt::Exec(Context); break;
+						case EVectorVMOp::rcp: FVectorKernelRcpSafe::Exec(Context); break;
+						case EVectorVMOp::rsq: FVectorKernelRsqSafe::Exec(Context); break;
+						case EVectorVMOp::sqrt: FVectorKernelSqrtSafe::Exec(Context); break;
 						case EVectorVMOp::neg: FVectorKernelNeg::Exec(Context); break;
 						case EVectorVMOp::abs: FVectorKernelAbs::Exec(Context); break;
 						case EVectorVMOp::exp: FVectorKernelExp::Exec(Context); break;
 						case EVectorVMOp::exp2: FVectorKernelExp2::Exec(Context); break;
-						case EVectorVMOp::log: FVectorKernelLog::Exec(Context); break;
+						case EVectorVMOp::log: FVectorKernelLogSafe::Exec(Context); break;
 						case EVectorVMOp::log2: FVectorKernelLog2::Exec(Context); break;
 						case EVectorVMOp::sin: FVectorKernelSin::Exec(Context); break;
 						case EVectorVMOp::cos: FVectorKernelCos::Exec(Context); break;
@@ -2156,7 +2221,7 @@ void VectorVM::Exec(
 						case EVectorVMOp::clamp: FVectorKernelClamp::Exec(Context); break;
 						case EVectorVMOp::min: FVectorKernelMin::Exec(Context); break;
 						case EVectorVMOp::max: FVectorKernelMax::Exec(Context); break;
-						case EVectorVMOp::pow: FVectorKernelPow::Exec(Context); break;
+						case EVectorVMOp::pow: FVectorKernelPowSafe::Exec(Context); break;
 						case EVectorVMOp::sign: FVectorKernelSign::Exec(Context); break;
 						case EVectorVMOp::step: FVectorKernelStep::Exec(Context); break;
 						case EVectorVMOp::random: FVectorKernelRandom::Exec(Context); break;
@@ -2300,17 +2365,17 @@ void VectorVM::OptimizeByteCode(const uint8* ByteCode, TArray<uint8>& OptimizedC
 			case EVectorVMOp::add: FVectorKernelAdd::Optimize(Context); break;
 			case EVectorVMOp::sub: FVectorKernelSub::Optimize(Context); break;
 			case EVectorVMOp::mul: FVectorKernelMul::Optimize(Context); break;
-			case EVectorVMOp::div: FVectorKernelDiv::Optimize(Context); break;
+			case EVectorVMOp::div: GbSafeOptimizedKernels ? FVectorKernelDivSafe::Optimize(Context) : FVectorKernelDiv::Optimize(Context); break;
 			case EVectorVMOp::mad: FVectorKernelMad::Optimize(Context); break;
 			case EVectorVMOp::lerp: FVectorKernelLerp::Optimize(Context); break;
-			case EVectorVMOp::rcp: FVectorKernelRcp::Optimize(Context); break;
-			case EVectorVMOp::rsq: FVectorKernelRsq::Optimize(Context); break;
-			case EVectorVMOp::sqrt: FVectorKernelSqrt::Optimize(Context); break;
+			case EVectorVMOp::rcp: GbSafeOptimizedKernels ? FVectorKernelRcpSafe::Optimize(Context) : FVectorKernelRcp::Optimize(Context); break;
+			case EVectorVMOp::rsq: GbSafeOptimizedKernels ? FVectorKernelRsqSafe::Optimize(Context) : FVectorKernelRsq::Optimize(Context); break;
+			case EVectorVMOp::sqrt: GbSafeOptimizedKernels ? FVectorKernelSqrtSafe::Optimize(Context) : FVectorKernelSqrt::Optimize(Context); break;
 			case EVectorVMOp::neg: FVectorKernelNeg::Optimize(Context); break;
 			case EVectorVMOp::abs: FVectorKernelAbs::Optimize(Context); break;
 			case EVectorVMOp::exp: FVectorKernelExp::Optimize(Context); break;
 			case EVectorVMOp::exp2: FVectorKernelExp2::Optimize(Context); break;
-			case EVectorVMOp::log: FVectorKernelLog::Optimize(Context); break;
+			case EVectorVMOp::log: GbSafeOptimizedKernels ? FVectorKernelLogSafe::Optimize(Context) : FVectorKernelLog::Optimize(Context); break;
 			case EVectorVMOp::log2: FVectorKernelLog2::Optimize(Context); break;
 			case EVectorVMOp::sin: FVectorKernelSin::Optimize(Context); break;
 			case EVectorVMOp::cos: FVectorKernelCos::Optimize(Context); break;
@@ -2328,7 +2393,7 @@ void VectorVM::OptimizeByteCode(const uint8* ByteCode, TArray<uint8>& OptimizedC
 			case EVectorVMOp::clamp: FVectorKernelClamp::Optimize(Context); break;
 			case EVectorVMOp::min: FVectorKernelMin::Optimize(Context); break;
 			case EVectorVMOp::max: FVectorKernelMax::Optimize(Context); break;
-			case EVectorVMOp::pow: FVectorKernelPow::Optimize(Context); break;
+			case EVectorVMOp::pow: GbSafeOptimizedKernels ? FVectorKernelPowSafe::Optimize(Context) : FVectorKernelPow::Optimize(Context); break;
 			case EVectorVMOp::sign: FVectorKernelSign::Optimize(Context); break;
 			case EVectorVMOp::step: FVectorKernelStep::Optimize(Context); break;
 			case EVectorVMOp::random: FVectorKernelRandom::Optimize(Context); break;
