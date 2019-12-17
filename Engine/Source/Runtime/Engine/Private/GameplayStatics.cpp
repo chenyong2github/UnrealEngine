@@ -1208,7 +1208,7 @@ bool UGameplayStatics::FindCollisionUV(const struct FHitResult& Hit, int32 UVCha
 	return bSuccess;
 }
 
-bool UGameplayStatics::AreAnyListenersWithinRange(const UObject* WorldContextObject, FVector Location, float MaximumRange)
+bool UGameplayStatics::AreAnyListenersWithinRange(const UObject* WorldContextObject, const FVector& Location, float MaximumRange)
 {
 	if (!GEngine || !GEngine->UseSound())
 	{
@@ -1228,6 +1228,36 @@ bool UGameplayStatics::AreAnyListenersWithinRange(const UObject* WorldContextObj
 	}	
 
 	return false;
+}
+
+bool UGameplayStatics::GetClosestListenerLocation(const UObject* WorldContextObject, const FVector& Location, float MaximumRange, const bool bAllowAttenuationOverride, FVector& ListenerPosition)
+{
+	if (!GEngine || !GEngine->UseSound())
+	{
+		return false;
+	}
+
+	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (!ThisWorld)
+	{
+		return false;
+	}
+
+	// If there is no valid world from the world context object then there certainly are no listeners
+	FAudioDevice* AudioDevice = ThisWorld->GetAudioDevice();
+	if (!AudioDevice)
+	{
+		return false;
+	}
+
+	float OutDistSq;
+	const int32 ClosestListenerIndex = AudioDevice->FindClosestListenerIndex(Location, OutDistSq, bAllowAttenuationOverride);
+	if (ClosestListenerIndex == INDEX_NONE || ((MaximumRange * MaximumRange) < OutDistSq))
+	{
+		return false;
+	}
+
+	return AudioDevice->GetListenerPosition(ClosestListenerIndex, ListenerPosition, bAllowAttenuationOverride);
 }
 
 void UGameplayStatics::SetGlobalPitchModulation(const UObject* WorldContextObject, float PitchModulation, float TimeSec)
