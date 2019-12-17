@@ -42,7 +42,6 @@ class FNullInstallBundleManager : public IInstallBundleManager
 	virtual void GetContentState(TArrayView<const FName> BundleNames, EInstallBundleGetContentStateFlags Flags, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag) override
 	{
 		FInstallBundleCombinedContentState State;
-		State.State = EInstallBundleContentState::UpToDate;
 		Callback.ExecuteIfBound(State);
 	}
 

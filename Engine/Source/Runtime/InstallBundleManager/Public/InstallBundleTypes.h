@@ -41,7 +41,6 @@ INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleManagerInitResul
 
 enum class EInstallBundleContentState : int
 {
-	InitializationError,
 	NotInstalled,
 	NeedsUpdate,
 	UpToDate,
@@ -51,20 +50,22 @@ INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleContentState Sta
 
 struct INSTALLBUNDLEMANAGER_API FInstallBundleContentState
 {
-	EInstallBundleContentState State = EInstallBundleContentState::InitializationError;
+	EInstallBundleContentState State = EInstallBundleContentState::NotInstalled;
 	float Weight = 0.0f;
 	TMap<EInstallBundleSourceType, FString> Version;
 };
 
 struct INSTALLBUNDLEMANAGER_API FInstallBundleCombinedContentState
 {
-	EInstallBundleContentState State = EInstallBundleContentState::InitializationError;
 	TMap<FName, FInstallBundleContentState> IndividualBundleStates;
 	TMap<EInstallBundleSourceType, FString> CurrentVersion;
 	uint64 DownloadSize = 0;
 	uint64 InstallSize = 0;
 	uint64 InstallOverheadSize = 0;
 	uint64 FreeSpace = 0;
+
+	bool GetAllBundlesHaveState(EInstallBundleContentState State, TArrayView<const FName> ExcludedBundles = TArrayView<const FName>()) const;	
+	bool GetAnyBundleHasState(EInstallBundleContentState State, TArrayView<const FName> ExcludedBundles = TArrayView<const FName>()) const;
 };
 
 enum class EInstallBundleGetContentStateFlags : uint32
