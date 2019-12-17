@@ -22,6 +22,7 @@ class UNiagaraEditorDataBase;
 struct FNiagaraDeferredDeletionFence
 {
 	FNiagaraDeferredDeletionFence();
+	~FNiagaraDeferredDeletionFence();
 	bool IsComplete();
 
 	/** Flag to signal that the instance batcher deferred deletion queues have been cleared. */
