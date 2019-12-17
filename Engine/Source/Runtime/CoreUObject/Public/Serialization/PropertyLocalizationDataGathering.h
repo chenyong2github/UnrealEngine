@@ -74,19 +74,20 @@ ENUM_CLASS_FLAGS(EPropertyLocalizationGathererResultFlags);
 class COREUOBJECT_API FPropertyLocalizationDataGatherer
 {
 public:
+	typedef TFunction<void(const UObject* const, FPropertyLocalizationDataGatherer&, const EPropertyLocalizationGathererTextFlags)> FLocalizationDataGatheringCallback;
+	typedef TMap<const UClass*, FLocalizationDataGatheringCallback> FLocalizationDataGatheringCallbackMap;
+
 	struct FGatherableFieldsForType
 	{
 		TArray<const FProperty*> Properties;
 		TArray<const UFunction*> Functions;
+		const FLocalizationDataGatheringCallback* CustomCallback = nullptr;
 
 		bool HasFields() const
 		{
 			return Properties.Num() > 0 || Functions.Num() > 0;
 		}
 	};
-
-	typedef TFunction<void(const UObject* const, FPropertyLocalizationDataGatherer&, const EPropertyLocalizationGathererTextFlags)> FLocalizationDataGatheringCallback;
-	typedef TMap<const UClass*, FLocalizationDataGatheringCallback> FLocalizationDataGatheringCallbackMap;
 
 	FPropertyLocalizationDataGatherer(TArray<FGatherableTextData>& InOutGatherableTextDataArray, const UPackage* const InPackage, EPropertyLocalizationGathererResultFlags& OutResultFlags);
 
