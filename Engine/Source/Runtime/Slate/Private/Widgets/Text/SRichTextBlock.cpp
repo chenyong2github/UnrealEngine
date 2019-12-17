@@ -194,4 +194,13 @@ bool SRichTextBlock::ComputeVolatility() const
 		|| MinDesiredWidth.IsBound();
 }
 
+void SRichTextBlock::SetFontSizeMultiplier(const float NewFontSizeMultiplier)
+{
+	if (Marshaller)
+	{
+		Marshaller->SetFontSizeMultiplier(NewFontSizeMultiplier);
+		Invalidate(EInvalidateWidget::Layout);
+	}
+}
+
 #endif //WITH_FANCY_TEXT

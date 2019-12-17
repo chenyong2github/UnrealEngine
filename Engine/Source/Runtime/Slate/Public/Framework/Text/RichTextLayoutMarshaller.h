@@ -35,6 +35,9 @@ public:
 	virtual void SetText(const FString& SourceString, FTextLayout& TargetTextLayout) override;
 	virtual void GetText(FString& TargetString, const FTextLayout& SourceTextLayout) override;
 
+	/** Set the Multiplier applied on the font size of the text*/
+	void SetFontSizeMultiplier(const float NewFontSizeMultiplier);
+
 	/**
 	 * Append an inline decorator to this marshaller
 	 */
@@ -83,6 +86,9 @@ protected:
 
 	/** The style set used for looking up styles used by decorators */
 	const ISlateStyle* DecoratorStyleSet;
+
+	/** Multiplier applied on font */
+	float FontSizeMultiplier = 1.0f;
 
 };
 
