@@ -30,7 +30,7 @@ public class ShaderConductor : ModuleRules
         else if (Target.Platform == UnrealTargetPlatform.Win64)
         {
             string[] DynamicLibraries = new string[] {
-                "/dxcompiler.dll",
+                "/dxcompiler_sc.dll",
                 "/ShaderConductor.dll",
             };
 
