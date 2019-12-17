@@ -5,6 +5,7 @@
 #include "PlayerSession.h"
 #include "Utils.h"
 #include "HUDStats.h"
+#include "Async/Async.h"
 
 TAutoConsoleVariable<int32> CVarPixelStreamingEncoderMaxBitrate(
 	TEXT("PixelStreaming.Encoder.MaxBitrate"),
