@@ -1895,9 +1895,9 @@ void UStaticMeshComponent::GetLocalBounds(FVector& Min, FVector& Max) const
 	}
 }
 
-void UStaticMeshComponent::SetCollisionProfileName(FName InCollisionProfileName)
+void UStaticMeshComponent::SetCollisionProfileName(FName InCollisionProfileName, bool bUpdateOverlaps)
 {
-	Super::SetCollisionProfileName(InCollisionProfileName);
+	Super::SetCollisionProfileName(InCollisionProfileName, bUpdateOverlaps);
 	bUseDefaultCollision = false;
 }
 
