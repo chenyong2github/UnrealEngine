@@ -11,6 +11,9 @@
 #include "RHIShaderFormatDefinitions.inl"
 #include "ShaderCookerStatsPage.h"
 #include "CoreGlobals.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/App.h"
+#include "Misc/CommandLine.h"
 
 #define LOCTEXT_NAMESPACE "Editor.StatsViewer.ShaderCookerStats"
 
