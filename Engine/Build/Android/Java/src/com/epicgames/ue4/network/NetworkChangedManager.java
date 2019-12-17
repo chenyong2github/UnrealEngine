@@ -35,7 +35,7 @@ public final class NetworkChangedManager implements NetworkConnectivityClient {
 	}
 
 	private static final int MAX_RETRY_SEC = 13;
-	private static final String HOST_RESOLUTION_ADDRESS = "http://example.com/";
+	private static final String HOST_RESOLUTION_ADDRESS = "https://example.com/";
 	private static final long HOSTNAME_RESOLUTION_TIMEOUT_MS = 2000;
 
 	private static final Logger Log = new Logger("UE4", "NetworkChangedManager");
