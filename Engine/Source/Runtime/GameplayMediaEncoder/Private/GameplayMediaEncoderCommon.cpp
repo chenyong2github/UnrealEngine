@@ -3,41 +3,6 @@
 #include "GameplayMediaEncoderCommon.h"
 #include "RHI.h"
 
-#if WMFMEDIA_SUPPORTED_PLATFORM
-	#pragma comment(lib, "mfplat")
-	#pragma comment(lib, "mfuuid")
-	#pragma comment(lib, "Mfreadwrite")
-#endif
-
-GAMEPLAYMEDIAENCODER_START
-
-//
-// Windows only code
-//
-#if PLATFORM_WINDOWS
-ID3D11Device* GetUE4DxDevice()
-{
-	auto Device = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
-	checkf(Device != nullptr, TEXT("Failed to get UE4's ID3D11Device"));
-	return Device;
-}
-#endif
-
-//
-// XboxOne only code
-// 
-#if PLATFORM_XBOXONE 
-ID3D12Device* GetUE4DxDevice()
-{
-	auto Device = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
-	checkf(Device != nullptr, TEXT("Failed to get UE4's ID3D12Device"));
-	return Device;
-}
-
-#endif
-
-
-// #RVF : Remove these once the code is production ready
 TArray<FMemoryCheckpoint> gMemoryCheckpoints;
 uint64 MemoryCheckpoint(const FString& Name)
 {
@@ -76,7 +41,4 @@ void LogMemoryCheckpoints(const FString& Name)
 			*a.Name, a.UsedPhysicalMB, a.DeltaMB, a.AccumulatedMB);
 	}
 }
-
-
-GAMEPLAYMEDIAENCODER_END
 

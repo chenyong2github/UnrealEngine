@@ -112,6 +112,7 @@ namespace UnrealBuildTool.Rules
 				"WebSockets",
 				"Sockets",
                 "MediaUtils",
+				"AVEncoder",
             });
 
             DynamicallyLoadedModuleNames.AddRange(new string[]
@@ -171,6 +172,7 @@ namespace UnrealBuildTool.Rules
             AddSignallingServer();
     	    AddMatchmakingServer();
         	AddWebRTCServers();
+
         }
     }
 }

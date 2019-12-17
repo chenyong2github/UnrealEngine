@@ -5,15 +5,26 @@
 #include "WmfPrivate.h"
 
 #include "Math/NumericLimits.h"
-#include "GameplayMediaEncoderSample.h"
+#include "AVEncoder.h"
+#include "Misc/Optional.h"
 
 class FWmfMp4Writer final
 {
 public:
 	bool Initialize(const TCHAR* Filename);
-	bool CreateStream(IMFMediaType* StreamType, DWORD& StreamIndex);
+
+	/**
+	 * Create an audio stream and return the its index on success
+	 */
+	TOptional<DWORD> CreateAudioStream(const FString& Codec, const AVEncoder::FAudioEncoderConfig& Config);
+
+	/**
+	 * Create a video stream and return the its index on success
+	 */
+	TOptional<DWORD> CreateVideoStream(const FString& Codec, const AVEncoder::FVideoEncoderConfig& Config);
+
 	bool Start();
-	bool Write(const FGameplayMediaEncoderSample& Sample, DWORD StreamIndex);
+	bool Write(const AVEncoder::FAVPacket& InSample, DWORD StreamIndex);
 	bool Finalize();
 
 private:

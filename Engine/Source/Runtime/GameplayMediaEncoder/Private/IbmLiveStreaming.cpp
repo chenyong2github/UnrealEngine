@@ -15,8 +15,6 @@
 
 DEFINE_LOG_CATEGORY(IbmLiveStreaming);
 
-GAMEPLAYMEDIAENCODER_START
-
 extern "C"
 {
 	// rtmp_c_static.lib needs us to define this symbol
@@ -1017,8 +1015,6 @@ void FIbmLiveStreaming::OnStreamBandwidthChanged(RTMPModuleBroadcaster* Module, 
 {
 	reinterpret_cast<FIbmLiveStreaming*>(Module->customData)->OnStreamBandwidthChangedImpl(Module, Bandwidth, QueueWasEmpty != 0 );
 }
-
-GAMEPLAYMEDIAENCODER_END
 
 #endif // WITH_IBMRTMPINGEST
 

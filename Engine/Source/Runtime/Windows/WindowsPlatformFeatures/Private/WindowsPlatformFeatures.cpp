@@ -11,8 +11,6 @@ WINDOWSPLATFORMFEATURES_START
 
 FWindowsPlatformFeaturesModule::FWindowsPlatformFeaturesModule()
 {
-	// load generic modules
-	StartupModules();
 }
 
 IVideoRecordingSystem* FWindowsPlatformFeaturesModule::GetVideoRecordingSystem()
@@ -21,10 +19,9 @@ IVideoRecordingSystem* FWindowsPlatformFeaturesModule::GetVideoRecordingSystem()
 	return &VideoRecordingSystem;
 }
 
-bool FWindowsPlatformFeaturesModule::StartupModules()
+void FWindowsPlatformFeaturesModule::StartupModule()
 {
 	FModuleManager::Get().LoadModule(TEXT("GameplayMediaEncoder"));
-	return true;
 }
 
 WINDOWSPLATFORMFEATURES_END
