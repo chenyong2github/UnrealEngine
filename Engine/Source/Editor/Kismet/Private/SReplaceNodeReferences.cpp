@@ -445,7 +445,10 @@ void SReplaceNodeReferences::OnSubmitSearchQuery(bool bFindAndReplace)
 		OnSearchComplete = FOnSearchComplete::CreateSP(this, &SReplaceNodeReferences::FindAllReplacementsComplete);
 	}
 
-	FindInBlueprints->MakeSearchQuery(SearchTerm, false, ESearchQueryFilter::NodesFilter, EFiBVersion::FIB_VER_VARIABLE_REFERENCE, OnSearchComplete);
+	FStreamSearchOptions SearchOptions;
+	SearchOptions.ImaginaryDataFilter = ESearchQueryFilter::NodesFilter;
+	SearchOptions.MinimiumVersionRequirement = EFiBVersion::FIB_VER_VARIABLE_REFERENCE;
+	FindInBlueprints->MakeSearchQuery(SearchTerm, false, SearchOptions, OnSearchComplete);
 }
 
 void SReplaceNodeReferences::FindAllReplacementsComplete(TArray<FImaginaryFiBDataSharedPtr>& InRawDataList)
@@ -486,7 +489,11 @@ void SReplaceNodeReferences::FindAllReplacementsComplete(TArray<FImaginaryFiBDat
 				FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 				FFindInBlueprintSearchManager::Get().AddOrUpdateBlueprintSearchMetadata(Blueprint);
 			}
-			FindInBlueprints->MakeSearchQuery(VariableReference.GetReferenceSearchString(SourceProperty->GetOwnerClass()), false, ESearchQueryFilter::NodesFilter, EFiBVersion::FIB_VER_VARIABLE_REFERENCE, FOnSearchComplete());
+
+			FStreamSearchOptions SearchOptions;
+			SearchOptions.ImaginaryDataFilter = ESearchQueryFilter::NodesFilter;
+			SearchOptions.MinimiumVersionRequirement = EFiBVersion::FIB_VER_VARIABLE_REFERENCE;
+			FindInBlueprints->MakeSearchQuery(VariableReference.GetReferenceSearchString(SourceProperty->GetOwnerClass()), false, SearchOptions);
 		}
 	}
 }

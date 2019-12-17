@@ -53,6 +53,9 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
+DEFINE_LOG_CATEGORY(LogFindInBlueprint);
+CSV_DEFINE_CATEGORY(FindInBlueprint, false);
+
 #define LOCTEXT_NAMESPACE "FindInBlueprintManager"
 
 FFindInBlueprintSearchManager* FFindInBlueprintSearchManager::Instance = NULL;
@@ -123,28 +126,20 @@ FSearchDataVersionInfo FSearchDataVersionInfo::Current =
 
 ////////////////////////////////////
 // FStreamSearch
-FStreamSearch::FStreamSearch(const FString& InSearchValue)
-	: SearchValue(InSearchValue)
-	, bThreadCompleted(false)
-	, StopTaskCounter(0)
-	, MinimiumVersionRequirement(EFiBVersion::FIB_VER_LATEST)
-	, BlueprintCountBelowVersion(0)
-	, ImaginaryDataFilter(ESearchQueryFilter::AllFilter)
-{
-	// Add on a Guid to the thread name to ensure the thread is uniquely named.
-	Thread = FRunnableThread::Create( this, *FString::Printf(TEXT("FStreamSearch%s"), *FGuid::NewGuid().ToString()), 0, TPri_BelowNormal );
-}
 
-FStreamSearch::FStreamSearch(const FString& InSearchValue, ESearchQueryFilter InImaginaryDataFilter, EFiBVersion InMinimiumVersionRequirement)
+FStreamSearch::FStreamSearch(const FString& InSearchValue, const FStreamSearchOptions& InSearchOptions)
 	: SearchValue(InSearchValue)
-	, bThreadCompleted(false)
+	, SearchOptions(InSearchOptions)
 	, StopTaskCounter(0)
-	, MinimiumVersionRequirement(InMinimiumVersionRequirement)
 	, BlueprintCountBelowVersion(0)
-	, ImaginaryDataFilter(InImaginaryDataFilter)
+	, bThreadCompleted(false)
 {
-	// Add on a Guid to the thread name to ensure the thread is uniquely named.
-	Thread = FRunnableThread::Create( this, *FString::Printf(TEXT("FStreamSearch%s"), *FGuid::NewGuid().ToString()), 0, TPri_BelowNormal );
+	// Unique identifier for this search, used to generate a unique label for profiling and debugging.
+	static int32 GlobalSearchCounter = 0;
+	SearchId = GlobalSearchCounter++;
+
+	// Create a uniquely-named thread to ensure disambiguation in the thread view and assist with debugging multiple instances running in parallel.
+	Thread = FRunnableThread::Create( this, *FString::Printf(TEXT("FStreamSearch_%d"), SearchId), 0, TPri_BelowNormal );
 }
 
 bool FStreamSearch::Init()
@@ -154,6 +149,9 @@ bool FStreamSearch::Init()
 
 uint32 FStreamSearch::Run()
 {
+	const double StartTime = FPlatformTime::Seconds();
+	CSV_EVENT(FindInBlueprint, TEXT("FStreamSearch_%d START"), SearchId);
+
 	FFindInBlueprintSearchManager::Get().BeginSearchQuery(this);
 
 	TFunction<void(const FSearchResult&)> OnResultReady = [this](const FSearchResult& Result) {
@@ -168,17 +166,17 @@ uint32 FStreamSearch::Run()
 		if (QueryResult.ImaginaryBlueprint.IsValid())
 		{
 			// If the Blueprint is below the version, add it to a list. The search will still proceed on this Blueprint
-			if (QueryResult.VersionInfo.FiBDataVersion < MinimiumVersionRequirement)
+			if (QueryResult.VersionInfo.FiBDataVersion < SearchOptions.MinimiumVersionRequirement)
 			{
 				++BlueprintCountBelowVersion;
 			}
 
 			TSharedPtr< FFiBSearchInstance > SearchInstance(new FFiBSearchInstance);
 			FSearchResult SearchResult;
-			if (ImaginaryDataFilter != ESearchQueryFilter::AllFilter)
+			if (SearchOptions.ImaginaryDataFilter != ESearchQueryFilter::AllFilter)
 			{
 				SearchInstance->MakeSearchQuery(*SearchValue, QueryResult.ImaginaryBlueprint);
-				SearchInstance->CreateFilteredResultsListFromTree(ImaginaryDataFilter, FilteredImaginaryResults);
+				SearchInstance->CreateFilteredResultsListFromTree(SearchOptions.ImaginaryDataFilter, FilteredImaginaryResults);
 				SearchResult = SearchInstance->GetSearchResults(QueryResult.ImaginaryBlueprint);
 			}
 			else
@@ -201,6 +199,9 @@ uint32 FStreamSearch::Run()
 	}
 
 	bThreadCompleted = true;
+
+	CSV_EVENT(FindInBlueprint, TEXT("FStreamSearch_%d END"), SearchId);
+	UE_LOG(LogFindInBlueprint, Log, TEXT("Search completed in %0.2f seconds."), FPlatformTime::Seconds() - StartTime);
 
 	return 0;
 }
@@ -378,6 +379,8 @@ namespace FiBSerializationHelpers
 	/** Helper function to validate and/or deserialize version info if necessary */
 	bool ValidateSearchDataVersionInfo(const FString& InAssetPath, const FString& InFiBData, FSearchDataVersionInfo& InOutVersionInfo)
 	{
+		CSV_SCOPED_TIMING_STAT(FindInBlueprint, ValidateSearchDataVersionInfo);
+
 		if (InOutVersionInfo.FiBDataVersion == EFiBVersion::FIB_VER_NONE)
 		{
 			// Deserialize the FiB data version
@@ -1485,11 +1488,12 @@ FFindInBlueprintSearchManager& FFindInBlueprintSearchManager::Get()
 }
 
 FFindInBlueprintSearchManager::FFindInBlueprintSearchManager()
-	: bEnableGatheringData(true)
-	, bDisableDeferredIndexing(false)
-	, bIsPausing(false)
-	, AssetRegistryModule(nullptr)
+	: AssetRegistryModule(nullptr)
 	, CachingObject(nullptr)
+	, bEnableGatheringData(true)
+	, bDisableDeferredIndexing(false)
+	, bEnableCSVStatsProfiling(false)
+	, bIsPausing(false)
 {
 	for (int32 TabIdx = 0; TabIdx < UE_ARRAY_COUNT(GlobalFindResultsTabIDs); TabIdx++)
 	{
@@ -1505,6 +1509,7 @@ FFindInBlueprintSearchManager::~FFindInBlueprintSearchManager()
 		AssetRegistryModule->Get().OnAssetAdded().RemoveAll(this);
 		AssetRegistryModule->Get().OnAssetRemoved().RemoveAll(this);
 		AssetRegistryModule->Get().OnAssetRenamed().RemoveAll(this);
+		AssetRegistryModule->Get().OnFilesLoaded().RemoveAll(this);
 	}
 	FKismetEditorUtilities::OnBlueprintUnloaded.RemoveAll(this);
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
@@ -1525,6 +1530,19 @@ void FFindInBlueprintSearchManager::Initialize()
 {
 	// Init configuration
 	GConfig->GetBool(TEXT("BlueprintSearchSettings"), TEXT("bDisableDeferredIndexing"), bDisableDeferredIndexing, GEditorIni);
+	GConfig->GetBool(TEXT("BlueprintSearchSettings"), TEXT("bEnableCsvStatsProfiling"), bEnableCSVStatsProfiling, GEditorIni);
+
+	// If profiling has been enabled, turn on the stat category and begin a capture.
+	if (bEnableCSVStatsProfiling)
+	{
+		FCsvProfiler::Get()->EnableCategoryByString(TEXT("FindInBlueprint"));
+		if (!FCsvProfiler::Get()->IsCapturing())
+		{
+			const FString CaptureFolder = FPaths::ProfilingDir() + TEXT("CSV/FindInBlueprint");
+			FCsvProfiler::Get()->BeginCapture(-1, CaptureFolder);
+		}
+	}
+
 
 	// Must ensure we do not attempt to load the AssetRegistry Module while saving a package, however, if it is loaded already we can safely obtain it
 	if (!GIsSavingPackage || (GIsSavingPackage && FModuleManager::Get().IsModuleLoaded(TEXT("AssetRegistry"))))
@@ -1533,6 +1551,7 @@ void FFindInBlueprintSearchManager::Initialize()
 		AssetRegistryModule->Get().OnAssetAdded().AddRaw(this, &FFindInBlueprintSearchManager::OnAssetAdded);
 		AssetRegistryModule->Get().OnAssetRemoved().AddRaw(this, &FFindInBlueprintSearchManager::OnAssetRemoved);
 		AssetRegistryModule->Get().OnAssetRenamed().AddRaw(this, &FFindInBlueprintSearchManager::OnAssetRenamed);
+		AssetRegistryModule->Get().OnFilesLoaded().AddRaw(this, &FFindInBlueprintSearchManager::OnAssetRegistryFilesLoaded);
 	}
 	else
 	{
@@ -1640,6 +1659,9 @@ void FFindInBlueprintSearchManager::OnAssetAdded(const FAssetData& InAssetData)
 
 void FFindInBlueprintSearchManager::ExtractUnloadedFiBData(const FAssetData& InAssetData, const FString& InFiBData, EFiBVersion InFiBDataVersion)
 {
+	CSV_SCOPED_TIMING_STAT(FindInBlueprint, ExtractUnloadedFiBData);
+	CSV_CUSTOM_STAT(FindInBlueprint, ExtractUnloadedCountThisFrame, 1, ECsvCustomStatOp::Accumulate);
+
 	if (SearchMap.Contains(InAssetData.ObjectPath))
 	{
 		return;
@@ -1744,6 +1766,11 @@ void FFindInBlueprintSearchManager::OnAssetRenamed(const struct FAssetData& InAs
 	}
 }
 
+void FFindInBlueprintSearchManager::OnAssetRegistryFilesLoaded()
+{
+	CSV_EVENT(FindInBlueprint, TEXT("OnAssetRegistryFilesLoaded"));
+}
+
 void FFindInBlueprintSearchManager::OnAssetLoaded(UObject* InAsset)
 {
 	const IBlueprintAssetHandler* Handler = FBlueprintAssetHandler::Get().FindHandler(InAsset->GetClass());
@@ -1782,7 +1809,9 @@ void FFindInBlueprintSearchManager::OnHotReload(bool bWasTriggeredAutomatically)
 }
 
 FString FFindInBlueprintSearchManager::GatherBlueprintSearchMetadata(const UBlueprint* Blueprint)
-{	
+{
+	CSV_SCOPED_TIMING_STAT(FindInBlueprint, GatherBlueprintSearchMetadata);
+
 	FTemporarilyUseFriendlyNodeTitles TemporarilyUseFriendlyNodeTitles;
 
 	FString SearchMetaData;
@@ -1874,6 +1903,9 @@ FString FFindInBlueprintSearchManager::GatherBlueprintSearchMetadata(const UBlue
 
 void FFindInBlueprintSearchManager::AddOrUpdateBlueprintSearchMetadata(UBlueprint* InBlueprint, bool bInForceReCache/* = false*/)
 {
+	CSV_SCOPED_TIMING_STAT(FindInBlueprint, AddOrUpdateBlueprintSearchMetadata);
+	CSV_CUSTOM_STAT(FindInBlueprint, AddOrUpdateCountThisFrame, 1, ECsvCustomStatOp::Accumulate);
+
 	// No need to update the cache in the following cases:
 	//	a) Indexing is disabled.
 	//	b) The Blueprint is not yet fully loaded. This ensures that we don't make attempts to re-index before load completion.
@@ -2548,6 +2580,8 @@ TSharedPtr< FJsonObject > FFindInBlueprintSearchManager::ConvertJsonStringToObje
 
 void FFindInBlueprintSearchManager::GlobalFindResultsClosed(const TSharedRef<SFindInBlueprints>& FindResults)
 {
+	CSV_EVENT(FindInBlueprint, TEXT("GlobalFindResultsClosed: %s"), *FindResults->GetHostTabId().ToString());
+
 	for (TWeakPtr<SFindInBlueprints> FindResultsPtr : GlobalFindResults)
 	{
 		if (FindResultsPtr.Pin() == FindResults)
@@ -2590,6 +2624,8 @@ FText FFindInBlueprintSearchManager::GetGlobalFindResultsTabLabel(int32 TabIdx)
 
 TSharedRef<SDockTab> FFindInBlueprintSearchManager::SpawnGlobalFindResultsTab(const FSpawnTabArgs& SpawnTabArgs, int32 TabIdx)
 {
+	CSV_EVENT(FindInBlueprint, TEXT("SpawnGlobalFindResultsTab: %d"), TabIdx);
+
 	TAttribute<FText> Label = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FFindInBlueprintSearchManager::GetGlobalFindResultsTabLabel, TabIdx));
 
 	TSharedRef<SDockTab> NewTab = SNew(SDockTab)
@@ -2746,6 +2782,8 @@ void FFindInBlueprintSearchManager::CloseOrphanedGlobalFindResultsTabs(TSharedPt
 
 void FFindInBlueprintSearchManager::Tick(float DeltaTime)
 {
+	CSV_SCOPED_TIMING_STAT(FindInBlueprint, Tick);
+
 	if(IsCacheInProgress())
 	{
 		check(CachingObject);
