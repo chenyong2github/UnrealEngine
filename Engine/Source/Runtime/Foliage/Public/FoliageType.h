@@ -445,7 +445,7 @@ public:
 	UPROPERTY(Category = Procedural, EditAnywhere, meta = (Subcategory = "Growth", XAxisName = "Normalized Age", YAxisName = "Scale Factor"))
 	FRuntimeFloatCurve ScaleCurve;
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	int32 ChangeCount;
 
 public:
