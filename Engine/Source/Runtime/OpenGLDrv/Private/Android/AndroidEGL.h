@@ -88,7 +88,6 @@ public:
 	GLuint GetResolveFrameBuffer();
 	bool IsCurrentContextValid();
 	EGLContext  GetCurrentContext(  );
-	void GenerateAndBindDefaultVAO(FPlatformOpenGLContext& InContext);
 	void SetCurrentSharedContext();
 	void SetCurrentRenderingContext();
 	uint32_t GetCurrentContextType();

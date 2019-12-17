@@ -63,14 +63,6 @@ PFNGLGETOBJECTPTRLABELKHRPROC			glGetObjectPtrLabelKHR = NULL;
 
 PFNGLDRAWELEMENTSINSTANCEDPROC			glDrawElementsInstanced = NULL;
 PFNGLDRAWARRAYSINSTANCEDPROC			glDrawArraysInstanced = NULL;
-
-PFNGLGENVERTEXARRAYSPROC 				glGenVertexArrays = NULL;
-PFNGLBINDVERTEXARRAYPROC 				glBindVertexArray = NULL;
-PFNGLMAPBUFFERRANGEPROC					glMapBufferRange = NULL;
-PFNGLCOPYBUFFERSUBDATAPROC				glCopyBufferSubData = NULL;
-PFNGLDRAWARRAYSINDIRECTPROC				glDrawArraysIndirect = NULL;
-PFNGLDRAWELEMENTSINDIRECTPROC			glDrawElementsIndirect = NULL;
-
 PFNGLVERTEXATTRIBDIVISORPROC			glVertexAttribDivisor = NULL;
 
 PFNGLUNIFORM4UIVPROC					glUniform4uiv = NULL;
@@ -1093,8 +1085,6 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 
 	if (bES30Support)
 	{
-		glMapBufferRange = (PFNGLMAPBUFFERRANGEPROC)((void*)eglGetProcAddress("glMapBufferRange"));
-		glCopyBufferSubData = (PFNGLCOPYBUFFERSUBDATAPROC)((void*)eglGetProcAddress("glCopyBufferSubData"));
 		glDrawElementsInstanced = (PFNGLDRAWELEMENTSINSTANCEDPROC)((void*)eglGetProcAddress("glDrawElementsInstanced"));
 		glDrawArraysInstanced = (PFNGLDRAWARRAYSINSTANCEDPROC)((void*)eglGetProcAddress("glDrawArraysInstanced"));
 		glVertexAttribDivisor = (PFNGLVERTEXATTRIBDIVISORPROC)((void*)eglGetProcAddress("glVertexAttribDivisor"));
@@ -1163,8 +1153,6 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 
 	if (bES31Support)
 	{
-		glDrawArraysIndirect = (PFNGLDRAWARRAYSINDIRECTPROC)((void*)eglGetProcAddress("glDrawArraysIndirect"));
-		glDrawElementsIndirect = (PFNGLDRAWELEMENTSINDIRECTPROC)((void*)eglGetProcAddress("glDrawElementsIndirect"));
 		bSupportsTextureBuffer = ExtensionsString.Contains(TEXT("GL_EXT_texture_buffer"));
 		if (bSupportsTextureBuffer)
 		{
