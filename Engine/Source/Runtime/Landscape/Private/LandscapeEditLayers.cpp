@@ -1842,8 +1842,7 @@ void ALandscape::CopyOldDataToDefaultLayer(ALandscapeProxy* InProxy)
 
 		for (FWeightmapLayerAllocationInfo& Allocation : ComponentLayerAllocations)
 		{
-			Allocation.WeightmapTextureChannel = 255;
-			Allocation.WeightmapTextureIndex = 255;
+			Allocation.Free();
 		}
 	}
 }
@@ -3343,7 +3342,7 @@ void ALandscape::PrepareComponentDataToExtractMaterialLayersCS(const TArray<ULan
 
 				for (const FWeightmapLayerAllocationInfo& WeightmapLayerAllocation : ComponentLayerData->WeightmapData.LayerAllocations)
 				{
-					if (WeightmapLayerAllocation.LayerInfo != nullptr && WeightmapLayerAllocation.WeightmapTextureIndex != 255 && ComponentLayerData->WeightmapData.Textures[WeightmapLayerAllocation.WeightmapTextureIndex] == LayerWeightmap)
+					if (WeightmapLayerAllocation.LayerInfo != nullptr && WeightmapLayerAllocation.IsAllocated() && ComponentLayerData->WeightmapData.Textures[WeightmapLayerAllocation.WeightmapTextureIndex] == LayerWeightmap)
 					{
 						FLandscapeLayerWeightmapExtractMaterialLayersComponentData Data;
 
@@ -3518,8 +3517,7 @@ void ALandscape::ReallocateLayersWeightmaps(const TArray<ULandscapeComponent*>& 
 
 		for (FWeightmapLayerAllocationInfo& BaseWeightmapAllocation : BaseLayerAllocations)
 		{
-			BaseWeightmapAllocation.WeightmapTextureChannel = 255;
-			BaseWeightmapAllocation.WeightmapTextureIndex = 255;
+			BaseWeightmapAllocation.Free();
 		}
 
 		TArray<ULandscapeWeightmapUsage*>& WeightmapTexturesUsage = Component->GetWeightmapTexturesUsage();
@@ -4449,7 +4447,7 @@ void ALandscape::ResolveLayersWeightmapTexture(const TArray<ULandscapeComponent*
 
 		for (const FWeightmapLayerAllocationInfo& AllocInfo : AllocInfos)
 		{
-			check(AllocInfo.WeightmapTextureIndex != 255 && AllocInfo.WeightmapTextureIndex < ComponentWeightmaps.Num());
+			check(AllocInfo.IsAllocated() && AllocInfo.WeightmapTextureIndex < ComponentWeightmaps.Num());
 			UTexture2D* Weightmap = ComponentWeightmaps[AllocInfo.WeightmapTextureIndex];
 			WeightmapsToResolve.FindOrAdd(Weightmap).Add(TPair<ULandscapeComponent*,const FWeightmapLayerAllocationInfo*>(Component, &AllocInfo));
 		}
@@ -5960,7 +5958,7 @@ uint32 ULandscapeComponent::ComputeLayerHash() const
 
 	for (const FWeightmapLayerAllocationInfo& AllocationInfo : AllocationInfos)
 	{
-		if (AllocationInfo.WeightmapTextureChannel != 255 && AllocationInfo.WeightmapTextureIndex != 255)
+		if (AllocationInfo.IsAllocated())
 		{
             // Compute hash of actual data of the texture that is owned by the component (per Texture Channel)
 			UTexture2D* Weightmap = Weightmaps[AllocationInfo.WeightmapTextureIndex];

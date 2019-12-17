@@ -1361,7 +1361,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	for (int32 Idx = 0; Idx < InComponent->WeightmapLayerAllocations.Num(); Idx++)
 	{
 		FWeightmapLayerAllocationInfo& Allocation = InComponent->WeightmapLayerAllocations[Idx];
-		if (Allocation.LayerInfo == ALandscapeProxy::VisibilityLayer)
+		if (Allocation.LayerInfo == ALandscapeProxy::VisibilityLayer && Allocation.IsAllocated())
 		{
 			VisibilityWeightmapTexture = WeightmapTextures[Allocation.WeightmapTextureIndex];
 			VisibilityWeightmapChannel = Allocation.WeightmapTextureChannel;

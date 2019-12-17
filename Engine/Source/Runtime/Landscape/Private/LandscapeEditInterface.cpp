@@ -1910,11 +1910,11 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 				Usage->ChannelUsage[Allocation.WeightmapTextureChannel] = nullptr;
 			}
 
-			Allocation.WeightmapTextureIndex = 255;
+			Allocation.Free();
 		}
 
 		ComponentWeightmapLayerAllocations.RemoveAll(
-			[](const FWeightmapLayerAllocationInfo& Allocation) { return Allocation.WeightmapTextureIndex == 255; });
+			[](const FWeightmapLayerAllocationInfo& Allocation) { return !Allocation.IsAllocated(); });
 
 		// remove any textures we're no longer using
 		for (int32 TextureIdx = 0; TextureIdx < ComponentWeightmapTextures.Num(); ++TextureIdx)
