@@ -51,6 +51,11 @@ TOptional<FKey> SGraphPinKey::GetCurrentKey() const
 
 void SGraphPinKey::OnKeyChanged(TSharedPtr<FKey> InSelectedKey)
 {
+	if(GraphPinObj->IsPendingKill())
+	{
+		return;
+	}
+
 	if(SelectedKey != *InSelectedKey.Get())
 	{
 		const FScopedTransaction Transaction( NSLOCTEXT("GraphEditor", "ChangeKeyPinValue", "Change Key Pin Value" ) );

@@ -107,6 +107,11 @@ TSharedRef<SWidget>	SGraphPinEnum::GetDefaultValueWidget()
 
 FText SGraphPinEnum::OnGetFriendlyName(int32 EnumIndex)
 {
+	if(GraphPinObj->IsPendingKill())
+	{
+		return FText();
+	}
+
 	UEnum* EnumPtr = Cast<UEnum>(GraphPinObj->PinType.PinSubCategoryObject.Get());
 
 	check(EnumPtr);

@@ -252,6 +252,11 @@ TSharedRef<SWidget> SGraphPinObject::GenerateAssetPicker()
 
 void SGraphPinObject::OnAssetSelectedFromPicker(const struct FAssetData& AssetData)
 {
+	if(GraphPinObj->IsPendingKill())
+	{
+		return;
+	}
+
 	const FAssetData& CurrentAssetData = GetAssetData(true);
 	if(CurrentAssetData != AssetData)
 	{
