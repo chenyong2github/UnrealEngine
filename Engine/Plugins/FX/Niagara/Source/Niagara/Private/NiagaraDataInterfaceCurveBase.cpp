@@ -29,6 +29,7 @@ void UNiagaraDataInterfaceCurveBase::PostLoad()
 {
 	Super::PostLoad();
 
+#if WITH_EDITORONLY_DATA
 	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
 
 	if (NiagaraVer < FNiagaraCustomVersion::LatestVersion)
@@ -47,6 +48,7 @@ void UNiagaraDataInterfaceCurveBase::PostLoad()
 			}
 		}
 	}
+#endif
 }
 
 bool UNiagaraDataInterfaceCurveBase::CopyToInternal(UNiagaraDataInterface* Destination) const
@@ -58,9 +60,12 @@ bool UNiagaraDataInterfaceCurveBase::CopyToInternal(UNiagaraDataInterface* Desti
 
 	UNiagaraDataInterfaceCurveBase* DestinationTyped = CastChecked<UNiagaraDataInterfaceCurveBase>(Destination);
 	DestinationTyped->bUseLUT = bUseLUT;
+	DestinationTyped->ShaderLUT = ShaderLUT;
+#if WITH_EDITORONLY_DATA
 	DestinationTyped->bOptimizeLUT = bOptimizeLUT;
 	DestinationTyped->bOverrideOptimizeThreshold = bOverrideOptimizeThreshold;
 	DestinationTyped->OptimizeThreshold = OptimizeThreshold;
+#endif
 
 	return true;
 }
@@ -89,6 +94,7 @@ bool UNiagaraDataInterfaceCurveBase::CompareLUTS(const TArray<float>& OtherLUT) 
 	}
 }
 
+#if WITH_EDITORONLY_DATA
 void UNiagaraDataInterfaceCurveBase::UpdateLUT()
 {
 	UpdateTimeRanges();
@@ -171,6 +177,7 @@ void UNiagaraDataInterfaceCurveBase::OptimizeLUT()
 		}
 	}
 }
+#endif
 
 bool UNiagaraDataInterfaceCurveBase::Equals(const UNiagaraDataInterface* Other) const
 {
@@ -181,12 +188,14 @@ bool UNiagaraDataInterfaceCurveBase::Equals(const UNiagaraDataInterface* Other) 
 
 	const UNiagaraDataInterfaceCurveBase* OtherTyped = CastChecked<UNiagaraDataInterfaceCurveBase>(Other);
 	bool bEqual = OtherTyped->bUseLUT == bUseLUT;
+#if WITH_EDITORONLY_DATA
 	bEqual &= OtherTyped->bOptimizeLUT == bOptimizeLUT;
 	bEqual &= OtherTyped->bOverrideOptimizeThreshold == bOverrideOptimizeThreshold;
 	if (bOverrideOptimizeThreshold)
 	{
 		bEqual &= OtherTyped->OptimizeThreshold == OptimizeThreshold;
 	}
+#endif
 
 	return bEqual;
 }
@@ -257,6 +266,8 @@ void UNiagaraDataInterfaceCurveBase::PushToRenderThread()
 		RT_Proxy->CurveLUTNumMinusOne = rtCurveLUTNumMinusOne;
 
 		RT_Proxy->CurveLUT.Release();
+
+		check(rtShaderLUT.Num());
 		RT_Proxy->CurveLUT.Initialize(sizeof(float), rtShaderLUT.Num(), EPixelFormat::PF_R32_FLOAT, BUF_Static);
 		uint32 BufferSize = rtShaderLUT.Num() * sizeof(float);
 		int32 *BufferData = static_cast<int32*>(RHILockVertexBuffer(RT_Proxy->CurveLUT.Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly));

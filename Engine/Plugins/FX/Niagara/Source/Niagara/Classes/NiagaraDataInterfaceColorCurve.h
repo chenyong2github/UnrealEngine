@@ -44,8 +44,10 @@ public:
 		CurveLUTNumElems = 4,
 	};
 
+#if WITH_EDITORONLY_DATA
 	virtual void UpdateTimeRanges() override;
 	virtual TArray<float> BuildLUT(int32 NumEntries) const override;
+#endif
 
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)override;
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;

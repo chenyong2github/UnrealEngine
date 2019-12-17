@@ -74,6 +74,7 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Curve")
 	uint32 bUseLUT : 1;
 
+#if WITH_EDITORONLY_DATA
 	/** Do we optimize the LUT, this saves memory but may introduce errors.  Errors can be reduced modifying the threshold. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Curve")
 	uint32 bOptimizeLUT : 1;
@@ -85,7 +86,6 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Curve", meta=(EditCondition="bOverrideOptimizeThreshold"))
 	float OptimizeThreshold;
 
-#if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Transient, Category = "Curve")
 	bool ShowInCurveEditor;
 #endif
@@ -96,10 +96,10 @@ public:
 		, LUTMaxTime(1.0f)
 		, LUTInvTimeRange(1.0f)
 		, bUseLUT(true)
+#if WITH_EDITORONLY_DATA
 		, bOptimizeLUT(true)
 		, bOverrideOptimizeThreshold(false)
 		, OptimizeThreshold(DefaultOptimizeThreshold)
-#if WITH_EDITORONLY_DATA
 		, ShowInCurveEditor(false)
 #endif
 	{
@@ -111,10 +111,10 @@ public:
 		, LUTMaxTime(1.0f)
 		, LUTInvTimeRange(1.0f)
 		, bUseLUT(true)
+#if WITH_EDITORONLY_DATA
 		, bOptimizeLUT(true)
 		, bOverrideOptimizeThreshold(false)
 		, OptimizeThreshold(DefaultOptimizeThreshold)
-#if WITH_EDITORONLY_DATA
 		, ShowInCurveEditor(false)
 #endif
 	{
@@ -153,8 +153,10 @@ public:
 	virtual void GetParameterDefinitionHLSL(FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual FNiagaraDataInterfaceParametersCS* ConstructComputeParameters() const override;
 
+#if WITH_EDITORONLY_DATA
 	void UpdateLUT();
 	void OptimizeLUT();
+#endif
 
 	//UNiagaraDataInterface interface
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;

@@ -18,7 +18,9 @@ const FName UNiagaraDataInterfaceColorCurve::SampleCurveName(TEXT("SampleColorCu
 UNiagaraDataInterfaceColorCurve::UNiagaraDataInterfaceColorCurve(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITORONLY_DATA
 	UpdateLUT();
+#endif
 }
 
 void UNiagaraDataInterfaceColorCurve::PostInitProperties()
@@ -31,7 +33,9 @@ void UNiagaraDataInterfaceColorCurve::PostInitProperties()
 		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), true, false, false);
 	}
 
+#if WITH_EDITORONLY_DATA
 	UpdateLUT();
+#endif
 }
 
 void UNiagaraDataInterfaceColorCurve::Serialize(FArchive& Ar)
@@ -61,9 +65,11 @@ void UNiagaraDataInterfaceColorCurve::Serialize(FArchive& Ar)
 #endif
 	{
 		Super::Serialize(Ar);
+		PushToRenderThread();
 	}
 }
 
+#if WITH_EDITORONLY_DATA
 void UNiagaraDataInterfaceColorCurve::UpdateTimeRanges()
 {
 	if ((RedCurve.GetNumKeys() > 0 || GreenCurve.GetNumKeys() > 0 || BlueCurve.GetNumKeys() > 0 || AlphaCurve.GetNumKeys() > 0))
@@ -106,6 +112,7 @@ TArray<float> UNiagaraDataInterfaceColorCurve::BuildLUT(int32 NumEntries) const
 	}
 	return OutputLUT;
 }
+#endif
 
 bool UNiagaraDataInterfaceColorCurve::CopyToInternal(UNiagaraDataInterface* Destination) const 
 {
@@ -118,12 +125,14 @@ bool UNiagaraDataInterfaceColorCurve::CopyToInternal(UNiagaraDataInterface* Dest
 	DestinationColorCurve->GreenCurve = GreenCurve;
 	DestinationColorCurve->BlueCurve = BlueCurve;
 	DestinationColorCurve->AlphaCurve = AlphaCurve;
+#if WITH_EDITORONLY_DATA
 	DestinationColorCurve->UpdateLUT();
 
 	if (!CompareLUTS(DestinationColorCurve->ShaderLUT))
 	{
 		UE_LOG(LogNiagara, Log, TEXT("CopyToInternal LUT generation is out of sync. Please investigate. %s to %s"), *GetPathName(), *DestinationColorCurve->GetPathName());
 	}
+#endif
 	return true;
 }
 
