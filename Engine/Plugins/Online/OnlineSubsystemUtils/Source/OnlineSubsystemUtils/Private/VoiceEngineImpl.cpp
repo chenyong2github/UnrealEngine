@@ -50,7 +50,8 @@ FRemoteTalkerDataImpl::FRemoteTalkerDataImpl() :
 	LastSeen(0.0),
 	NumFramesStarved(0),
 	VoipSynthComponent(nullptr),
-	VoiceDecoder(nullptr)
+	VoiceDecoder(nullptr),
+	MicrophoneAmplitude(0.0f)
 {
 	int32 SampleRate = UVOIPStatics::GetVoiceSampleRate();
 	int32 NumChannels = UVOIPStatics::GetVoiceNumChannels();
@@ -75,6 +76,7 @@ FRemoteTalkerDataImpl::FRemoteTalkerDataImpl(const FRemoteTalkerDataImpl& Other)
 	MaxUncompressedDataSize = Other.MaxUncompressedDataSize;
 	MaxUncompressedDataQueueSize = Other.MaxUncompressedDataQueueSize;
 	CurrentUncompressedDataQueueSize = Other.CurrentUncompressedDataQueueSize;
+	MicrophoneAmplitude = Other.MicrophoneAmplitude;
 
 	{
 		FScopeLock ScopeLock(&Other.QueueLock);
@@ -104,6 +106,9 @@ FRemoteTalkerDataImpl::FRemoteTalkerDataImpl(FRemoteTalkerDataImpl&& Other)
 
 	CurrentUncompressedDataQueueSize = Other.CurrentUncompressedDataQueueSize;
 	Other.CurrentUncompressedDataQueueSize = 0;
+
+	MicrophoneAmplitude = Other.MicrophoneAmplitude;
+	Other.MicrophoneAmplitude = 0.0f;
 
 	{
 		FScopeLock ScopeLock(&Other.QueueLock);
@@ -151,6 +156,7 @@ void FRemoteTalkerDataImpl::Reset()
 	}
 
 	CurrentUncompressedDataQueueSize = 0;
+	MicrophoneAmplitude = 0.0f;
 
 	{
 		FScopeLock ScopeLock(&QueueLock);
@@ -844,6 +850,47 @@ Audio::FPatchOutputStrongPtr FVoiceEngineImpl::GetMicrophoneOutput()
 Audio::FPatchOutputStrongPtr FVoiceEngineImpl::GetRemoteTalkerOutput()
 {
 	return AllRemoteTalkerAudio.AddNewOutput(4096 * 2, 1.0f);
+}
+
+float FVoiceEngineImpl::GetMicrophoneAmplitude(int32 LocalUserNum)
+{
+	if (VoiceCapture.IsValid())
+	{
+		return VoiceCapture->GetCurrentAmplitude();
+	}
+	else
+	{
+		return 0.0f;
+	}
+}
+
+float FVoiceEngineImpl::GetIncomingAudioAmplitude(const FUniqueNetIdWrapper& RemoteUserId)
+{
+	FRemoteTalkerDataImpl* RemoteTalker = RemoteTalkerBuffers.Find(RemoteUserId);
+
+	if (RemoteTalker != nullptr)
+	{
+		return RemoteTalker->MicrophoneAmplitude;
+	}
+	else
+	{
+		return -1.0f;
+	}
+}
+
+uint32 FVoiceEngineImpl::SetRemoteVoiceAmplitude(const FUniqueNetIdWrapper& RemoteTalkerId, float InAmplitude)
+{
+	FRemoteTalkerDataImpl* RemoteTalker = RemoteTalkerBuffers.Find(RemoteTalkerId);
+
+	if (RemoteTalker != nullptr)
+	{
+		RemoteTalker->MicrophoneAmplitude = InAmplitude;
+		return 0;
+	}
+	else
+	{
+		return INDEX_NONE;
+	}
 }
 
 bool FVoiceEngineImpl::PatchRemoteTalkerOutputToEndpoint(const FString& InDeviceName, bool bMuteInGameOutput /*= true*/)

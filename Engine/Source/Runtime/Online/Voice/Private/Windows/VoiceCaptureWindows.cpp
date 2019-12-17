@@ -680,6 +680,11 @@ bool FVoiceCaptureWindows::Tick(float DeltaTime)
 	return true;
 }
 
+float FVoiceCaptureWindows::GetCurrentAmplitude() const
+{
+	return MicLevelDetector.GetCurrentValue();
+}
+
 void FVoiceCaptureWindows::DumpState() const
 {
 #if !NO_LOGGING

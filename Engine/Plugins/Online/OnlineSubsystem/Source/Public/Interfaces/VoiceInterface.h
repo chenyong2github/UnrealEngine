@@ -221,6 +221,16 @@ public:
 	virtual uint32 SubmitRemoteVoiceData(const FUniqueNetIdWrapper& RemoteTalkerId, uint8* Data, uint32* Size, uint64& InSampleCount) { return SubmitRemoteVoiceData(*RemoteTalkerId, Data, Size); };
 
 	/**
+	 * Used when receiving remote voice data to set the amplitude of a remote talker's incoming audio.
+	 * 
+	 * @param RemoteTalkerId the remote talker that sent the audio we are tracking the amplitude of.
+	 * @param InAmplitude Current loudness of a given remote talker.
+	 * 
+	 * @return 0 upon success, an error code otherwise
+	 */
+	virtual uint32 SetRemoteVoiceAmplitude(const FUniqueNetIdWrapper& RemoteTalkerId, float InAmplitude) { return INDEX_NONE; }
+
+	/**
 	 * Allows for platform specific servicing of devices, etc.
 	 *
 	 * @param DeltaTime the amount of time that has elapsed since the last update
@@ -255,6 +265,25 @@ public:
 	};
 
 	/**
+>>>> ORIGINAL //Fortnite/Dev-EngineMerge/Engine/Plugins/Online/OnlineSubsystem/Source/Public/Interfaces/VoiceInterface.h#3
+==== THEIRS //Fortnite/Dev-EngineMerge/Engine/Plugins/Online/OnlineSubsystem/Source/Public/Interfaces/VoiceInterface.h#4
+	 * This can be used to get how loud the given microphone input is, typically on a scale between 0.0 and 1.0.
+	 * @return -1.0 if getting the mic amplitude is not supported on this platform or LocalUserNum was invalid, 0.0-1.0 otherwise.
+	 */
+	virtual float GetMicrophoneAmplitude(int32 LocalUserNum)
+	{
+		return -1.0f;
+	}
+
+	/**
+	 * This can be used to get how loud the given microphone input is, typically on a scale between 0.0 and 1.0.
+	 * @return -1.0 if getting the mic amplitude is not supported on this platform or RemoteUserId is invalid, 0.0-1.0 otherwise.
+	 */
+	virtual float GetIncomingAudioAmplitude(const FUniqueNetIdWrapper& RemoteUserId)
+	{
+		return -1.0f;
+	}
+==== YOURS //UE4_Main_Windows/Engine/Plugins/Online/OnlineSubsystem/Source/Public/Interfaces/VoiceInterface.h
 	 * This can be used to patch incoming audio to a different audio device.
 	 * @param InDeviceName- name of the device to patch to.
 	 * @param bMuteInGameOutput- if set to true, the audio going out to the game will be muted.
@@ -279,6 +308,7 @@ public:
 	virtual void DisconnectAllEndpoints()
 	{
 	}
+<<<<
 };
 
 typedef TSharedPtr<IVoiceEngine, ESPMode::ThreadSafe> IVoiceEnginePtr;
@@ -510,6 +540,16 @@ public:
 	};
 
 	/**
+>>>> ORIGINAL //Fortnite/Dev-EngineMerge/Engine/Plugins/Online/OnlineSubsystem/Source/Public/Interfaces/VoiceInterface.h#3
+==== THEIRS //Fortnite/Dev-EngineMerge/Engine/Plugins/Online/OnlineSubsystem/Source/Public/Interfaces/VoiceInterface.h#4
+	 * This returns the current amplitude of a given player's incoming audio.
+	 * @return -1.0 if the PlayerId was not found or if this isn't supported with the current Voice Interface, and a value from 0.0 to 1.0 otherwise.
+	 */
+	virtual float GetAmplitudeOfRemoteTalker(const FUniqueNetId& PlayerId)
+	{
+		return -1.0f;
+	}
+==== YOURS //UE4_Main_Windows/Engine/Plugins/Online/OnlineSubsystem/Source/Public/Interfaces/VoiceInterface.h
 	 * This can be used to patch incoming audio to a different audio device.
 	 * @param InDeviceName- name of the device to patch to.
 	 * @param bMuteInGameOutput- if set to true, the audio going out to the game will be muted.
@@ -535,6 +575,7 @@ public:
 	virtual void DisconnectAllEndpoints()
 	{
 	}
+<<<<
 };
 
 typedef TSharedPtr<IOnlineVoice, ESPMode::ThreadSafe> IOnlineVoicePtr;

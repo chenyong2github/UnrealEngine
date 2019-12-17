@@ -164,4 +164,12 @@ public:
 	{
 		return MicrophoneOutput.AddNewPatch(MaxExpectedLatencyInSamples, Gain);
 	}
+
+	/**
+	 * @return the current loudness of the microphone. Returns -1.0 if this function is not supported by the current platform.
+	 */
+	virtual float GetCurrentAmplitude() const
+	{
+		return -1.0f;
+	}
 };
