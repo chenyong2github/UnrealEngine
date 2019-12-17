@@ -2549,6 +2549,8 @@ public:
 private:
 	void* CreateSparseClassData();
 
+	void CleanupSparseClassData();
+
 #if WITH_EDITOR
 	/** Provides access to attributes of the underlying C++ class. Should never be unset. */
 	TOptional<FCppClassTypeInfo> CppTypeInfo;
