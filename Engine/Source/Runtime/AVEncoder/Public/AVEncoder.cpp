@@ -172,14 +172,15 @@ void RegisterDefaultFactories()
 	static FAmfVideoEncoderFactory AmfVideoEncoderFactory;
 	FAmfVideoEncoderFactory::RegisterFactory(AmfVideoEncoderFactory);
 
-	// Generic Windows/XBox Wmf
-	static FWmfAudioEncoderFactory WmfAudioEncoderFactory;
-	FAudioEncoderFactory::RegisterFactory(WmfAudioEncoderFactory);
+#else PLATFORM_XBOXONE
 
-#elif PLATFORM_XBOXONE
 	static FXboxOneVideoEncoderFactory XboxOneVideoEncoderFactory;
 	FVideoEncoderFactory::RegisterFactory(XboxOneVideoEncoderFactory);
 
+#endif
+
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+	// Generic Windows/XBox Wmf encoder
 	static FWmfAudioEncoderFactory WmfAudioEncoderFactory;
 	FAudioEncoderFactory::RegisterFactory(WmfAudioEncoderFactory);
 #endif

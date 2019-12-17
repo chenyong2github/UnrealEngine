@@ -5,6 +5,8 @@
 #include "AVEncoder.h"
 #include "Templates/RefCounting.h"
 
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+
 #if PLATFORM_WINDOWS
 
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -113,4 +115,6 @@ private:
 };
 
 }
+
+#endif // PLATFORM_WINDOWS || PLATFORM_XBOXONE
 

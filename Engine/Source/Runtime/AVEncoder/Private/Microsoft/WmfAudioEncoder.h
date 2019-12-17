@@ -5,6 +5,8 @@
 #include "AVEncoder.h"
 #include "AVEncoderCommon.h"
 
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+
 namespace AVEncoder
 {
 
@@ -21,4 +23,5 @@ private:
 
 }
 
+#endif
 
