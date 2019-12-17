@@ -736,7 +736,7 @@ void TemporallyAccumulate(
 				/* inout */ UnusedCompressedAccumulators,
 				KernelConfig.RefBufferUV,
 				RefSceneMetadata,
-				CurrentFrameSamples);
+				NormalizeToOneSampleArray(CurrentFrameSamples));
 		}
 
 		{
