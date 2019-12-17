@@ -6,7 +6,7 @@
 
 #include "MoviePlayer.h"
 #include "WebMAudioBackend.h"
-#include "WebMAudioBackendDefines.h"
+#include COMPILED_PLATFORM_HEADER(WebMAudioBackendDefines.h)
 #include "WebMMediaFrame.h"
 #include "Containers/Queue.h"
 #include "WebMSamplesSink.h"
