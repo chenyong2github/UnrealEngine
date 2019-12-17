@@ -83,16 +83,16 @@ uint32 UVOIPStatics::GetMaxVoiceDataSize()
 	{
 		case 24000:
 		{
-			return 14 * 1024;
+			return 14 * 1024 * GetVoiceNumChannels();
 		}
 		case 48000:
 		{
-			return 32 * 1024;
+			return 32 * 1024 * GetVoiceNumChannels();
 		}
 		default:
 		case 16000:
 		{
-			return 8 * 1024;
+			return 8 * 1024 * GetVoiceNumChannels();
 		}
 	}
 }
@@ -103,7 +103,7 @@ uint32 UVOIPStatics::GetMaxUncompressedVoiceDataSizePerChannel()
 	// This amounts to approximates a second of audio for the minimum voice engine tick frequency.
 	// At 48 kHz, DirectSound will occasionally have to load up to 256 samples into the overflow buffer.
 	// This is the reason for the added 1024 bytes.
-	return GetVoiceSampleRate() * sizeof(uint16) + 1024;
+	return GetVoiceSampleRate() * sizeof(uint16) * GetVoiceNumChannels() + 1024 * GetVoiceNumChannels();
 }
 
 uint32 UVOIPStatics::GetMaxCompressedVoiceDataSize()
@@ -115,16 +115,16 @@ uint32 UVOIPStatics::GetMaxCompressedVoiceDataSize()
 	{
 		case 24000:
 		{
-			return 2 * 1024;
+			return 2 * 1024 * GetVoiceNumChannels();
 		}
 		case 48000:
 		{
-			return 4 * 1024;
+			return 4 * 1024 * GetVoiceNumChannels();
 		}
 		default:
 		case 16000:
 		{
-			return 1 * 1024;
+			return 1 * 1024 * GetVoiceNumChannels();
 		}
 	}
 }
