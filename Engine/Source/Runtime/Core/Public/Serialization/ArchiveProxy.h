@@ -236,14 +236,28 @@ public:
 	}
 #endif
 
+	FORCEINLINE void SetSerializedProperty(UProperty* InProperty) override
+	{
+		FArchive::SetSerializedProperty(InProperty);
+		InnerArchive.SetSerializedProperty(InProperty);
+	}
+
+	void SetSerializedPropertyChain(const FArchiveSerializedPropertyChain* InSerializedPropertyChain, class UProperty* InSerializedPropertyOverride = nullptr) override
+	{
+		FArchive::SetSerializedPropertyChain(InSerializedPropertyChain, InSerializedPropertyOverride);
+		InnerArchive.SetSerializedPropertyChain(InSerializedPropertyChain, InSerializedPropertyOverride);
+	}
+
 	/** Pushes editor-only marker to the stack of currently serialized properties */
 	virtual FORCEINLINE void PushSerializedProperty(class UProperty* InProperty, const bool bIsEditorOnlyProperty)
 	{
+		FArchive::PushSerializedProperty(InProperty, bIsEditorOnlyProperty);
 		InnerArchive.PushSerializedProperty(InProperty, bIsEditorOnlyProperty);
 	}
 	/** Pops editor-only marker from the stack of currently serialized properties */
 	virtual FORCEINLINE void PopSerializedProperty(class UProperty* InProperty, const bool bIsEditorOnlyProperty)
 	{
+		FArchive::PopSerializedProperty(InProperty, bIsEditorOnlyProperty);
 		InnerArchive.PopSerializedProperty(InProperty, bIsEditorOnlyProperty);
 	}
 #if WITH_EDITORONLY_DATA
