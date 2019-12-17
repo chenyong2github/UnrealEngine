@@ -298,7 +298,9 @@ namespace Chaos
 			}
 		}
 
-		Collisions::Apply(Constraint,MThickness, Dt, It, NumIts, MApplyPairIterations, &MCollided, &MPhysicsMaterials, CollisionFrictionOverride, MAngularFriction);
+		Collisions::TSingleContParticleParameters<T> ParticleParameters = { &MCollided, &MPhysicsMaterials, CollisionFrictionOverride, MAngularFriction };
+		Collisions::TSingleContactIterationParameters<T> IterationParameters = { Dt, It, NumIts, MApplyPairIterations, nullptr };
+		Collisions::Apply(Constraint,MThickness, IterationParameters,  ParticleParameters);
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::Apply"), STAT_Apply, STATGROUP_Chaos);
@@ -347,7 +349,9 @@ namespace Chaos
 			}
 		}
 
-		Collisions::ApplyPushOut(Constraint, MThickness, IsTemporarilyStatic, Dt, Iteration, NumIterations, MApplyPushOutPairIterations, NeedsAnotherIteration, &MPhysicsMaterials);
+		Collisions::TSingleContParticleParameters<T> ParticleParameters = { &MCollided, &MPhysicsMaterials, CollisionFrictionOverride, MAngularFriction };
+		Collisions::TSingleContactIterationParameters<T> IterationParameters = { Dt, Iteration, NumIterations, MApplyPairIterations, &NeedsAnotherIteration };
+		Collisions::ApplyPushOut(Constraint, MThickness, IsTemporarilyStatic, IterationParameters, ParticleParameters);
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDCollisionConstraint::ApplyPushOut"), STAT_ApplyPushOut, STATGROUP_Chaos);
