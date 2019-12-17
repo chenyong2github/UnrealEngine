@@ -158,7 +158,7 @@ bool FTimespan::Parse(const FString& TimespanString, FTimespan& OutTimespan)
 
 		if (FractionalLen > 9)
 		{
-			Tokens[4] = Tokens[4].Left(9);
+			Tokens[4].LeftInline(9, false);
 		}
 		else if (FractionalLen < 9)
 		{

@@ -725,7 +725,7 @@ FString FPaths::GetBaseFilename( const FString& InPath, bool bRemovePath )
 
 	if (ExtPos != INDEX_NONE && (LeafPos == INDEX_NONE || ExtPos > LeafPos))
 	{
-		Wk = Wk.Left(ExtPos);
+		Wk.LeftInline(ExtPos);
 	}
 
 	return Wk;
@@ -903,11 +903,11 @@ bool FPaths::IsDrive(const FString& InPath)
 				int32 SlashIndex = CheckPath.Find(TEXT("\\"), ESearchCase::CaseSensitive);
 				if (SlashIndex != INDEX_NONE)
 				{
-					CheckPath = CheckPath.Right(CheckPath.Len() - SlashIndex  - 1);
+					CheckPath.RightInline(CheckPath.Len() - SlashIndex  - 1, false);
 				}
 				else
 				{
-					CheckPath = TEXT("");
+					CheckPath.Reset();
 				}
 			}
 		}
@@ -932,7 +932,7 @@ bool FPaths::IsDrive(const FString& InPath)
 					// It's a real folder, so add one to the count
 					CheckCount++;
 				}
-				CheckPath = CheckPath.Right(CheckPath.Len() - SlashIndex  - 1);
+				CheckPath.RightInline(CheckPath.Len() - SlashIndex  - 1, false);
 				SlashIndex = CheckPath.Find(TEXT("\\"), ESearchCase::CaseSensitive);
 			}
 
@@ -1308,7 +1308,7 @@ bool FPaths::ValidatePath( const FString& InPath, FText* OutReason )
 	// The loop below requires that the path not end with a /
 	if(Standardized.EndsWith(TEXT("/"), ESearchCase::CaseSensitive))
 	{
-		Standardized = Standardized.LeftChop(1);
+		Standardized.LeftChopInline(1, false);
 	}
 
 	// Walk each part of the path looking for name errors

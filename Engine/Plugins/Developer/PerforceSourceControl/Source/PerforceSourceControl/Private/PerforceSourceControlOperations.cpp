@@ -998,7 +998,7 @@ static void ParseOpenedResults(const FP4RecordSet& InRecords, const FString& Cli
 			{
 				// Null clients use the pattern in PathRoot: //Workspace/FileName
 				// Here we chop off the '//Workspace/' to return the workspace filename
-				FullPath = FullPath.RightChop(PathRoot.Len() + 1);
+				FullPath.RightChopInline(PathRoot.Len() + 1, false);
 			}
 			else
 			{

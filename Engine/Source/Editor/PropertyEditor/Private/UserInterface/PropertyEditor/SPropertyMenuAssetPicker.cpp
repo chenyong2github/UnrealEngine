@@ -239,10 +239,10 @@ bool SPropertyMenuAssetPicker::CanPaste()
 
 	FString Class;
 	FString PossibleObjectPath = ClipboardText;
-	if( ClipboardText.Split( TEXT("'"), &Class, &PossibleObjectPath ) )
+	if( ClipboardText.Split( TEXT("'"), &Class, &PossibleObjectPath, ESearchCase::CaseSensitive) )
 	{
 		// Remove the last item
-		PossibleObjectPath = PossibleObjectPath.LeftChop( 1 );
+		PossibleObjectPath.LeftChopInline( 1, false );
 	}
 
 	bool bCanPaste = false;

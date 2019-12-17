@@ -1282,7 +1282,7 @@ struct FReplicationGraphDebugInfo
 	void Log(const FString& Str) { Ar.Logf(TEXT("%s%s"), *CurrentIndentString, *Str); }
 
 	void PushIndent() { CurrentIndentString += IndentString; }
-	void PopIndent() { CurrentIndentString = CurrentIndentString.LeftChop(IndentString.Len()); }
+	void PopIndent() { CurrentIndentString.LeftChopInline(IndentString.Len(), false); }
 };
 
 REPLICATIONGRAPH_API void LogActorRepList(FReplicationGraphDebugInfo& DebugInfo, FString Prefix, const FActorRepListRefView& List);

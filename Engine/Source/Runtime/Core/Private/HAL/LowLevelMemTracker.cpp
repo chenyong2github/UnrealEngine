@@ -2082,14 +2082,14 @@ FString FLLMCsvWriter::GetTagName(int64 Tag, FLLMCustomTag* CustomTags, const in
 		FString Name = TagToFName(Tag).ToString();
 
 		// if it has a trible slash assume it is a Stat string and extract the descriptive name
-		int32 StartIndex = Name.Find(TEXT("///"));
+		int32 StartIndex = Name.Find(TEXT("///"), ESearchCase::CaseSensitive);
 		if (StartIndex != -1)
 		{
 			StartIndex += 3;
-			int32 EndIndex = Name.Find(TEXT("///"), ESearchCase::IgnoreCase, ESearchDir::FromStart, StartIndex);
+			int32 EndIndex = Name.Find(TEXT("///"), ESearchCase::CaseSensitive, ESearchDir::FromStart, StartIndex);
 			if (EndIndex != -1)
 			{
-				Name = Name.Mid(StartIndex, EndIndex - StartIndex);
+				Name.MidInline(StartIndex, EndIndex - StartIndex, false);
 			}
 		}
 

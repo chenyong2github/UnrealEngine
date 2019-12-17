@@ -1270,9 +1270,9 @@ bool UUnrealEdEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice&
 						FString CurrentWindowName = OpenWindows[WindowId]->GetTitle().ToString();
 
 						//Strip off the * from the end if it exists
-						if( CurrentWindowName.EndsWith(TEXT("*")) )
+						if( CurrentWindowName.EndsWith(TEXT("*"), ESearchCase::CaseSensitive) )
 						{
-							CurrentWindowName = CurrentWindowName.LeftChop(1);
+							CurrentWindowName.LeftChopInline(1, false);
 						}
 
 						if( CurrentWindowName == WindowNameStr )

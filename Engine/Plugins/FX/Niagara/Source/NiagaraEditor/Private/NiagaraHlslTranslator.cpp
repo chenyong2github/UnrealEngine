@@ -4554,7 +4554,7 @@ void FHlslNiagaraTranslator::FunctionCall(UNiagaraNodeFunctionCall* FunctionNode
 				FString VarStr = Var.GetName().ToString();
 				if (VarStr.StartsWith(*ModuleAlias))
 				{
-					VarStr = VarStr.Mid(ModuleAlias->Len() + 1);
+					VarStr.MidInline(ModuleAlias->Len() + 1, MAX_int32, false);
 					if (FunctionNode->FindStaticSwitchInputPin(*VarStr))
 					{
 						Error(FText::Format(LOCTEXT("SwitchPinFoundForSetPin", "A switch node pin exists but is being set directly using Set node! Please use the stack UI to resolve the conflict. Output Pin: {0}"), FText::FromName(Var.GetName())), FunctionNode, nullptr);

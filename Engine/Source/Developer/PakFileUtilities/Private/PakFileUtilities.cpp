@@ -319,7 +319,7 @@ public:
 				if (Lines[EntryIndex].FindLastChar('"', OpenOrderNumber))
 				{
 					FString ReadNum = Lines[EntryIndex].RightChop(OpenOrderNumber + 1);
-					Lines[EntryIndex] = Lines[EntryIndex].Left(OpenOrderNumber + 1);
+					Lines[EntryIndex].LeftInline(OpenOrderNumber + 1, false);
 					ReadNum.TrimStartInline();
 					if (ReadNum.IsNumeric())
 					{
@@ -726,7 +726,7 @@ FString GetCommonRootPath(TArray<FPakInputPair>& FilesToAdd)
 		}
 		if ((CommonSeparatorIndex + 1) < Root.Len())
 		{
-			Root = Root.Mid(0, CommonSeparatorIndex + 1);
+			Root.MidInline(0, CommonSeparatorIndex + 1, false);
 		}
 	}
 	return Root;
@@ -1744,7 +1744,7 @@ void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 			if (EncryptionKeyString.Len() > RequiredKeyLength)
 			{
 				UE_LOG(LogPakFile, Warning, TEXT("AES encryption key is more than %d characters long, so will be truncated!"), RequiredKeyLength);
-				EncryptionKeyString = EncryptionKeyString.Left(RequiredKeyLength);
+				EncryptionKeyString.LeftInline(RequiredKeyLength);
 			}
 
 			if (!FCString::IsPureAnsi(*EncryptionKeyString))
@@ -2610,7 +2610,7 @@ int32 GetPakPriorityFromFilename( const FString& PakFilename )
 		PakIndexFromFilename.FindLastChar('_', PakIndexStart);
 		if (PakIndexStart != INDEX_NONE)
 		{
-			PakIndexFromFilename = PakIndexFromFilename.RightChop(PakIndexStart + 1);
+			PakIndexFromFilename.RightChopInline(PakIndexStart + 1, false);
 			if (PakIndexFromFilename.IsNumeric())
 			{
 				PakPriority = FCString::Atoi(*PakIndexFromFilename);

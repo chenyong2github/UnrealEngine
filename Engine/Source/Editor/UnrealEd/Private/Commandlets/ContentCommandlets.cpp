@@ -134,7 +134,7 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 		else if (FParse::Value(*CurrentSwitch, TEXT("MAP="), Maps))
 		{
 			// Allow support for -MAP=Value1+Value2+Value3
-			for (int32 PlusIdx = Maps.Find(TEXT("+")); PlusIdx != INDEX_NONE; PlusIdx = Maps.Find(TEXT("+")))
+			for (int32 PlusIdx = Maps.Find(TEXT("+"), ESearchCase::CaseSensitive); PlusIdx != INDEX_NONE; PlusIdx = Maps.Find(TEXT("+"), ESearchCase::CaseSensitive))
 			{
 				const FString NextMap = Maps.Left(PlusIdx);
 				if (NextMap.Len() > 0)
@@ -145,7 +145,7 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 					bExplicitPackages = true;
 				}
 
-				Maps = Maps.Right(Maps.Len() - (PlusIdx + 1));
+				Maps.RightInline(Maps.Len() - (PlusIdx + 1), false);
 			}
 			FString MapFile;
 			FPackageName::SearchForPackageOnDisk(Maps, NULL, &MapFile);
@@ -160,7 +160,7 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 				TArray<FString> Lines;
 
 				// Remove all carriage return characters.
-				Text.ReplaceInline(TEXT("\r"), TEXT(""));
+				Text.ReplaceInline(TEXT("\r"), TEXT(""), ESearchCase::CaseSensitive);
 				// Read all lines
 				Text.ParseIntoArray(Lines, TEXT("\n"), true);
 
@@ -2503,11 +2503,11 @@ int32 UWrangleContentCommandlet::Main( const FString& Params )
 				FString ObjectPathName = It2.Key();
 
 				// skip over the class portion (the It2.Value() has the class pointer already)
-				int32 Space = ObjectPathName.Find(TEXT(" "));
+				int32 Space = ObjectPathName.Find(TEXT(" "), ESearchCase::CaseSensitive);
 				check(Space);
 
 				// get everything after the space
-				ObjectPathName = ObjectPathName.Right(ObjectPathName.Len() - (Space + 1));
+				ObjectPathName.RightInline(ObjectPathName.Len() - (Space + 1), false);
 
 				// load the referenced object
 
@@ -2627,11 +2627,11 @@ int32 UWrangleContentCommandlet::Main( const FString& Params )
 					FString ObjectPathName = ObjectIt.Key();
 
 					// skip over the class portion (the It2.Value() has the class pointer already)
-					int32 Space = ObjectPathName.Find(TEXT(" "));
+					int32 Space = ObjectPathName.Find(TEXT(" "), ESearchCase::CaseSensitive);
 					check(Space > 0);
 
 					// get everything after the space
-					ObjectPathName = ObjectPathName.Right(ObjectPathName.Len() - (Space + 1));
+					ObjectPathName.RightInline(ObjectPathName.Len() - (Space + 1), false);
 
 					// load the unnecessary object
 					UObject* Object = StaticLoadObject(ObjectIt.Value(), NULL, *ObjectPathName, NULL, LOAD_NoWarn, NULL);

@@ -136,7 +136,7 @@ bool NUTUtil::ParseEnum(const TCHAR* Stream, const TCHAR* Match, const TCHAR* En
 					PrefixIdx++;
 				}
 
-				Prefix = Prefix.Left(PrefixIdx);
+				Prefix.LeftInline(PrefixIdx);
 			}
 
 
@@ -144,7 +144,14 @@ bool NUTUtil::ParseEnum(const TCHAR* Stream, const TCHAR* Match, const TCHAR* En
 			{
 				int32 UnderscoreIdx = Prefix.Find(TEXT("_"), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 
-				Prefix = UnderscoreIdx != INDEX_NONE ? Prefix.Left(UnderscoreIdx+1) : TEXT("");
+				if (UnderscoreIdx != INDEX_NONE)
+				{
+					Prefix.LeftInline(UnderscoreIdx+1);
+				}
+				else
+				{
+					Prefix.Reset();
+				}
 
 				if (Prefix.Len() > 0 && !StrValue.StartsWith(Prefix))
 				{

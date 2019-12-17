@@ -1827,7 +1827,7 @@ FString FVivoxVoiceChat::GetChannelNameFromUri(const VivoxClientApi::Uri& Channe
 		int32 Channel3dParametersIndex = Channel.Find(TEXT("!p-"));
 		if (Channel3dParametersIndex != INDEX_NONE)
 		{
-			Channel = Channel.Left(Channel3dParametersIndex);
+			Channel.LeftInline(Channel3dParametersIndex);
 		}
 		return Channel;
 	}

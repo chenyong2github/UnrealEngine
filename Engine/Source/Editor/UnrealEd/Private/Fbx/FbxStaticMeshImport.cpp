@@ -2165,7 +2165,7 @@ static void FindMeshSockets( FbxNode* StartNode, TArray<FbxSocketNode>& OutFbxSo
 			if( SocketName.StartsWith( SocketPrefix ) )
 			{
 				// Remove the prefix from the name
-				SocketName = SocketName.RightChop( SocketPrefix.Len() );
+				SocketName.RightChopInline( SocketPrefix.Len(), false );
 
 				FbxSocketNode NewNode;
 				NewNode.Node = StartNode;

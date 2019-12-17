@@ -1346,7 +1346,7 @@ FString FOnlineSessionSteam::GetCustomDedicatedServerName() const
 		{
 			UE_LOG_ONLINE_SESSION(Warning, TEXT("SteamServerName overflows the maximum amount of characters %d allowed, truncating."), k_cbMaxGameServerName);
 			// Must have space for the null terminator
-			ServerName = ServerName.Left(k_cbMaxGameServerName - 1);
+			ServerName.LeftInline(k_cbMaxGameServerName - 1);
 		}
 
 		return ServerName;

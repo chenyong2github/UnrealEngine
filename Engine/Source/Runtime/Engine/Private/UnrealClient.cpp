@@ -2168,7 +2168,7 @@ ENGINE_API bool GetHighResScreenShotInput(const TCHAR* Cmd, FOutputDevice& Ar, u
 	while (CmdString.FindChar(TCHAR(' '), SeperatorPos))
 	{
 		Arguments.Add(CmdString.Mid(LastSeperatorPos, SeperatorPos));
-		CmdString = CmdString.Mid(SeperatorPos + 1);
+		CmdString.MidInline(SeperatorPos + 1, MAX_int32, false);
 	}
 
 	if (CmdString.Len() > 0)

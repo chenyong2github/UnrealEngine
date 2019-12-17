@@ -1605,22 +1605,24 @@ void UEditorEngine::HandleStageStarted(const FString& InStage, TWeakPtr<SNotific
 	FText NotificationText;
 	if (InStage.Contains(TEXT("Cooking")) || InStage.Contains(TEXT("Cook Task")))
 	{
-		FString PlatformName = PlayUsingLauncherDeviceId.Left(PlayUsingLauncherDeviceId.Find(TEXT("@")));
-		if (PlatformName.Contains(TEXT("NoEditor")))
+		FString PlatformName = PlayUsingLauncherDeviceId.Left(PlayUsingLauncherDeviceId.Find(TEXT("@"), ESearchCase::CaseSensitive));
+		const int32 NoEditorIdx = PlatformName.Find(TEXT("NoEditor"));
+		if (NoEditorIdx != INDEX_NONE)
 		{
-			PlatformName = PlatformName.Left(PlatformName.Find(TEXT("NoEditor")));
+			PlatformName.LeftInline(NoEditorIdx, false);
 		}
-		Arguments.Add(TEXT("PlatformName"), FText::FromString(PlatformName));
+		Arguments.Add(TEXT("PlatformName"), FText::FromString(MoveTemp(PlatformName)));
 		NotificationText = FText::Format(LOCTEXT("LauncherTaskProcessingNotification", "Processing Assets for {PlatformName}..."), Arguments);
 	}
 	else if (InStage.Contains(TEXT("Build Task")))
 	{
-		FString PlatformName = PlayUsingLauncherDeviceId.Left(PlayUsingLauncherDeviceId.Find(TEXT("@")));
-		if (PlatformName.Contains(TEXT("NoEditor")))
+		FString PlatformName = PlayUsingLauncherDeviceId.Left(PlayUsingLauncherDeviceId.Find(TEXT("@"), ESearchCase::CaseSensitive));
+		const int32 NoEditorIdx = PlatformName.Find(TEXT("NoEditor"));
+		if (NoEditorIdx != INDEX_NONE)
 		{
-			PlatformName = PlatformName.Left(PlatformName.Find(TEXT("NoEditor")));
+			PlatformName.LeftInline(NoEditorIdx, false);
 		}
-		Arguments.Add(TEXT("PlatformName"), FText::FromString(PlatformName));
+		Arguments.Add(TEXT("PlatformName"), FText::FromString(MoveTemp(PlatformName)));
 		if (!bPlayUsingLauncherBuild)
 		{
 			NotificationText = FText::Format(LOCTEXT("LauncherTaskValidateNotification", "Validating Executable for {PlatformName}..."), Arguments);

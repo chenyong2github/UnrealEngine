@@ -86,9 +86,9 @@ void FShaderCookerStats::Initialize(uint32 Index)
 		FString FormatName = ShaderPlatformToShaderFormatName((EShaderPlatform)Platform).ToString();
 		if (FormatName.StartsWith(TEXT("SF_")))
 		{
-			FormatName = FormatName.Mid(3);
+			FormatName.MidInline(3, MAX_int32, false);
 		}
-		PlatformNames.Add(FormatName);
+		PlatformNames.Add(MoveTemp(FormatName));
 	}
 	FShaderCookerStatsSet& Set = StatSets[Index];
 	FString CSVData;

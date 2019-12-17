@@ -1829,7 +1829,7 @@ void UK2Node::GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) con
 			if (LineCounter >= MaxArrayPinTooltipLineCount)
 			{
 				// truncate WatchText so it contains a finite number of lines
-				WatchText  = WatchText.Left(NewWatchTextLen);
+				WatchText.LeftInline(NewWatchTextLen, false);
 				WatchText += "..."; // WatchText should already have a trailing newline (no need to prepend this with one)
 				break;
 			}

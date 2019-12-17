@@ -131,7 +131,7 @@ FString UAISenseConfig::GetSenseName() const
 		const bool bHasSeparator = CachedSenseName.FindLastChar(TEXT('_'), SeparatorIdx);
 		if (bHasSeparator)
 		{
-			CachedSenseName = CachedSenseName.Mid(SeparatorIdx + 1);
+			CachedSenseName.MidInline(SeparatorIdx + 1, MAX_int32, false);
 		}
 	}
 

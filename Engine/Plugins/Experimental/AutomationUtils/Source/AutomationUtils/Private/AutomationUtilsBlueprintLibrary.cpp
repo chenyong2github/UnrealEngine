@@ -210,7 +210,7 @@ FAutomationUtilsGameplayAutomationScreenshotInstance::FAutomationUtilsGameplayAu
 		if (HardwareDetailsString.Len() > 0)
 		{
 			//remove leading "_"
-			HardwareDetailsString = HardwareDetailsString.RightChop(1);
+			HardwareDetailsString.RightChopInline(1, false);
 		}
 
 		//now plop that back onto the path we're building

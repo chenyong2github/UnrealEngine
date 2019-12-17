@@ -408,11 +408,11 @@ bool UEditorEngine::SafeExec( UWorld* InWorld, const TCHAR* InStr, FOutputDevice
 				{
 					break;
 				}
-				ObjectName = ObjectName.Mid( i+1 );
+				ObjectName.MidInline( i+1, MAX_int32, false );
 			}
 			if( ObjectName.Find(TEXT("."), ESearchCase::CaseSensitive)>=0 )
 			{
-				ObjectName = ObjectName.Left( ObjectName.Find(TEXT(".")) );
+				ObjectName.LeftInline( ObjectName.Find(TEXT("."), ESearchCase::CaseSensitive), false );
 			}
 		}
 
@@ -5440,10 +5440,10 @@ void ListMapPackageDependencies(const TCHAR* InStr)
 				{
 					// get package name of the import
 					FString ImportPackage = FPackageName::FilenameToLongPackageName(Linker->GetImportPathName(ImportIdx));
-					int32 PeriodIdx = ImportPackage.Find(TEXT("."));
+					int32 PeriodIdx = ImportPackage.Find(TEXT("."), ESearchCase::CaseSensitive);
 					if (PeriodIdx != INDEX_NONE)
 					{
-						ImportPackage = ImportPackage.Left(PeriodIdx);
+						ImportPackage.LeftInline(PeriodIdx, false);
 					}
 					ReferencedPackages.Add(ImportPackage, true);
 				}

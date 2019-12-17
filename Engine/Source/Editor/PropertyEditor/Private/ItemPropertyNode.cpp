@@ -573,7 +573,7 @@ FText FItemPropertyNode::GetDisplayName() const
 
 					if (EndIndex != -1)
 					{
-						TypeName = TypeName.Mid(0, EndIndex);
+						TypeName.MidInline(0, EndIndex, false);
 					}
 				}
 

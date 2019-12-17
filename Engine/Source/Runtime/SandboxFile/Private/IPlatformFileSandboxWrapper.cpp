@@ -72,7 +72,7 @@ bool FSandboxPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine
 			if( FPaths::IsDrive(DriveCheck) == false )
 			{
 				FString Command( CommandLineDirectory.Mid( CommandIndex + 1 ) );
-				CommandLineDirectory = CommandLineDirectory.Left( CommandIndex );
+				CommandLineDirectory.LeftInline( CommandIndex, false);
 		
 				if( Command == TEXT("wipe") )
 				{

@@ -42,10 +42,10 @@ void ULightingBuildInfo::UpdateNames()
 			LevelName = Object->GetOutermost()->GetName();
 		}
 
-		const int32 NameIndex = LevelName.Find( TEXT("/") );
+		const int32 NameIndex = LevelName.Find( TEXT("/"), ESearchCase::CaseSensitive);
 		if ( NameIndex != INDEX_NONE )
 		{
-			LevelName = LevelName.RightChop( NameIndex + 1 );
+			LevelName.RightChopInline( NameIndex + 1, false );
 		}
 	}
 }

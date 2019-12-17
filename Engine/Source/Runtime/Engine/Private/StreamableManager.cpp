@@ -927,10 +927,10 @@ FStreamable* FStreamableManager::StreamInternal(const FSoftObjectPath& InTargetN
 		{
 			// We always queue a new request in case the existing one gets cancelled
 			FString Package = TargetName.ToString();
-			int32 FirstDot = Package.Find(TEXT("."));
+			int32 FirstDot = Package.Find(TEXT("."), ESearchCase::CaseSensitive);
 			if (FirstDot != INDEX_NONE)
 			{
-				Package = Package.Left(FirstDot);
+				Package.LeftInline(FirstDot,false);
 			}
 
 			Existing->bAsyncLoadRequestOutstanding = true;

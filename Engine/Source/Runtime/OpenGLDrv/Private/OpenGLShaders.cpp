@@ -2899,9 +2899,9 @@ static void VerifyUniformLayout(const TCHAR* UniformName, const UniformData& GLS
 	*/
 	FString RequestedUniformName(UniformName);
 	RequestedUniformName = RequestedUniformName.Replace(*BlockName, TEXT(""));
-	if(RequestedUniformName.StartsWith(TEXT(".")))
+	if(RequestedUniformName.StartsWith(TEXT("."), ESearchCase::CaseSensitive))
 	{
-		RequestedUniformName = RequestedUniformName.RightChop(1);
+		RequestedUniformName.RightChopInline(1, false);
 	}
 #else
 	FString RequestedUniformName = UniformName;

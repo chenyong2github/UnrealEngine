@@ -1751,7 +1751,7 @@ ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance_Internal(UWorl
 
 	if (ShortPackageName.StartsWith(World->StreamingLevelsPrefix))
 	{
-		ShortPackageName = ShortPackageName.RightChop(World->StreamingLevelsPrefix.Len());
+		ShortPackageName.RightChopInline(World->StreamingLevelsPrefix.Len(), false);
 	}
 
 	// Remove PIE prefix if it's there before we actually load the level

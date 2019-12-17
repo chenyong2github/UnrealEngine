@@ -3980,9 +3980,9 @@ private:
 	void ClearTrailingWhitespace(FString& InStr)
 	{
 		const FString Endl(LINE_TERMINATOR);
-		while (InStr.EndsWith(LINE_TERMINATOR))
+		while (InStr.EndsWith(LINE_TERMINATOR, ESearchCase::CaseSensitive))
 		{
-			InStr = InStr.LeftChop(Endl.Len());
+			InStr.LeftChopInline(Endl.Len(), false);
 		}
 	}
 	

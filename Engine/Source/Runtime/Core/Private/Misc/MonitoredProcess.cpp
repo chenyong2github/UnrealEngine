@@ -121,7 +121,7 @@ void FMonitoredProcess::ProcessOutput( const FString& Output )
 	}
 
 	// Remove all the complete lines from the buffer
-	OutputBuffer = OutputBuffer.Mid(LineStartIdx);
+	OutputBuffer.MidInline(LineStartIdx, MAX_int32, false);
 }
 
 void FMonitoredProcess::TickInternal()
