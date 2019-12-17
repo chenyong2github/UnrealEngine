@@ -412,6 +412,7 @@ protected:
 	virtual void PostReplication() {}
 	virtual bool CanEditData() const { return false; }
 	virtual const USocialParty* GetOwnerParty() const { return nullptr; }
+	virtual const UPartyMember* GetOwningMember() const { return nullptr; }
 
 	void LogSetPropertyFailure(const TCHAR* OwningStructTypeName, const TCHAR* PropertyName) const;
 	void LogPropertyChanged(const TCHAR* OwningStructTypeName, const TCHAR* PropertyName, bool bFromReplication) const;

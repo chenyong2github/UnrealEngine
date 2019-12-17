@@ -999,7 +999,7 @@ void USocialManager::HandleCreatePartyComplete(const FUniqueNetId& LocalUserId, 
 
 void USocialManager::HandleJoinPartyComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EJoinPartyCompletionResult Result, int32 NotApprovedReasonCode, FOnlinePartyTypeId PartyTypeId)
 {
-	UE_LOG(LogParty, Log, TEXT("Attempt to join party of type [%d] completed with result [%s] and reason code [%d]"), PartyTypeId.GetValue(), ToString(Result), NotApprovedReasonCode);
+	UE_LOG(LogParty, Log, TEXT("Attempt to join party of type [%d] completed with result [%s] and reason code [%d] by user is [%s] "), PartyTypeId.GetValue(), ToString(Result), NotApprovedReasonCode, *LocalUserId.ToDebugString());
 
 	FJoinPartyResult JoinResult(Result, NotApprovedReasonCode);
 	FJoinPartyAttempt* JoinAttempt = JoinAttemptsByTypeId.Find(PartyTypeId);
