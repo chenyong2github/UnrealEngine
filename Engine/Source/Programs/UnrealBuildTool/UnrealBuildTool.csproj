@@ -336,16 +336,6 @@
     </When>
   </Choose>
   <Choose>
-    <When Condition="Exists('Platform\HTML5\UEBuildHTML5.cs')">
-      <ItemGroup>
-        <Compile Include="Platform\HTML5\HTML5ProjectGenerator.cs" />
-        <Compile Include="Platform\HTML5\HTML5ToolChain.cs" />
-        <Compile Include="Platform\HTML5\UEBuildHTML5.cs" />
-        <Compile Include="Platform\HTML5\HTML5SDKInfo.cs" />
-      </ItemGroup>
-    </When>
-  </Choose>
-  <Choose>
     <When Condition="Exists('Platform\Linux\UEBuildLinux.cs')">
       <ItemGroup>
         <Compile Include="Platform\Linux\LinuxCommon.cs" />
