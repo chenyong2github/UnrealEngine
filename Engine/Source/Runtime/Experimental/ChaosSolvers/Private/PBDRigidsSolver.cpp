@@ -4,7 +4,7 @@
 
 #include "Async/AsyncWork.h"
 #include "Chaos/ChaosArchive.h"
-#include "Chaos/PBDCollisionConstraintUtil.h"
+#include "Chaos/PBDCollisionConstraintsUtil.h"
 #include "Chaos/Utilities.h"
 #include "Chaos/ChaosDebugDraw.h"
 #include "ChaosStats.h"

@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "PBDCollisionConstraint.h"
+#include "PBDCollisionConstraints.h"
 #include "Chaos/ChaosPerfTest.h"
 
 namespace Chaos
@@ -130,7 +130,7 @@ namespace Chaos
 
 	template <typename T, int d>
 	template <bool bGatherStats, typename SPATIAL_ACCELERATION>
-	void TPBDCollisionConstraint<T, d>::ComputeConstraintsHelperLowLevel(const SPATIAL_ACCELERATION& InSpatialAcceleration, T Dt)
+	void TPBDCollisionConstraints<T, d>::ComputeConstraintsHelperLowLevel(const SPATIAL_ACCELERATION& InSpatialAcceleration, T Dt)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ComputeConstraints);
 		CHAOS_SCOPED_TIMER(ComputeConstraints);

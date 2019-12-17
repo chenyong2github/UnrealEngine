@@ -19,7 +19,7 @@ namespace Chaos
 	class FPBD6DJointConstraints;
 
 	template<typename T, int d>
-	class TPBDCollisionConstraint;
+	class TPBDCollisionConstraints;
 
 	template<typename T, int d>
 	class TPBDCollisionConstraintHandle;

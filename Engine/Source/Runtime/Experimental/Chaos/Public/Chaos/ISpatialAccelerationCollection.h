@@ -4,7 +4,7 @@
 #include "Chaos/Box.h"
 #include "GeometryParticlesfwd.h"
 #include <tuple>
-#include "PBDCollisionConstraintImp.h"
+#include "PBDCollisionConstraintsImp.h"
 
 namespace Chaos
 {
@@ -24,8 +24,8 @@ public:
 	virtual ISpatialAcceleration<TPayloadType, T, d>* GetSubstructure(FSpatialAccelerationIdx Idx) = 0;
 
 	/** This is kind of a hack to avoid virtuals. We simply route calls into templated functions */
-	virtual void PBDComputeConstraintsLowLevel_GatherStats(TPBDCollisionConstraint<T, d>& CollisionConstraint, T Dt) const = 0;
-	virtual void PBDComputeConstraintsLowLevel(TPBDCollisionConstraint<T, d>& CollisionConstraint, T Dt) const = 0;
+	virtual void PBDComputeConstraintsLowLevel_GatherStats(TPBDCollisionConstraints<T, d>& CollisionConstraint, T Dt) const = 0;
+	virtual void PBDComputeConstraintsLowLevel(TPBDCollisionConstraints<T, d>& CollisionConstraint, T Dt) const = 0;
 	virtual TArray<FSpatialAccelerationIdx> GetAllSpatialIndices() const = 0;
 
 	bool IsBucketActive(uint8 BucketIdx) const
@@ -326,13 +326,13 @@ struct TSpatialAccelerationCollectionHelper
 };
 
 template <bool bGatherStats, typename SpatialAccelerationCollection, typename T, int d>
-typename TEnableIf<TIsSame<typename SpatialAccelerationCollection::TPayloadType, TAccelerationStructureHandle<T,d>>::Value, void>::Type PBDComputeConstraintsLowLevel_Helper(TPBDCollisionConstraint<T, d>& CollisionConstraint, const SpatialAccelerationCollection& Accel, T Dt)
+typename TEnableIf<TIsSame<typename SpatialAccelerationCollection::TPayloadType, TAccelerationStructureHandle<T,d>>::Value, void>::Type PBDComputeConstraintsLowLevel_Helper(TPBDCollisionConstraints<T, d>& CollisionConstraint, const SpatialAccelerationCollection& Accel, T Dt)
 {
 	CollisionConstraint.template ComputeConstraintsHelperLowLevel<bGatherStats>(Accel, Dt);
 }
 
 template <bool bGatherStats, typename SpatialAccelerationCollection, typename T, int d>
-typename TEnableIf<!TIsSame<typename SpatialAccelerationCollection::TPayloadType, TAccelerationStructureHandle<T, d>>::Value, void>::Type PBDComputeConstraintsLowLevel_Helper(TPBDCollisionConstraint<T, d>& CollisionConstraint, const SpatialAccelerationCollection& Accel, T Dt)
+typename TEnableIf<!TIsSame<typename SpatialAccelerationCollection::TPayloadType, TAccelerationStructureHandle<T, d>>::Value, void>::Type PBDComputeConstraintsLowLevel_Helper(TPBDCollisionConstraints<T, d>& CollisionConstraint, const SpatialAccelerationCollection& Accel, T Dt)
 {
 }
 
@@ -501,12 +501,12 @@ public:
 		return TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>>(new TSpatialAccelerationCollection<TSpatialAccelerationTypes...>(*this));
 	}
 
-	virtual void PBDComputeConstraintsLowLevel_GatherStats(TPBDCollisionConstraint<T, d>& CollisionConstraint, T Dt) const override
+	virtual void PBDComputeConstraintsLowLevel_GatherStats(TPBDCollisionConstraints<T, d>& CollisionConstraint, T Dt) const override
 	{
 		PBDComputeConstraintsLowLevel_Helper<true>(CollisionConstraint, *this, Dt);
 	}
 
-	virtual void PBDComputeConstraintsLowLevel(TPBDCollisionConstraint<T,d>& CollisionConstraint, T Dt) const override
+	virtual void PBDComputeConstraintsLowLevel(TPBDCollisionConstraints<T,d>& CollisionConstraint, T Dt) const override
 	{
 		PBDComputeConstraintsLowLevel_Helper<false>(CollisionConstraint, *this, Dt);
 	}

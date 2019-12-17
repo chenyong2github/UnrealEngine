@@ -12,7 +12,7 @@ namespace Chaos
 {
 
 	template<typename T, int d>
-	class TPBDCollisionConstraint;
+	class TPBDCollisionConstraints;
 
 	template<typename  T, int d>
 	class TPBDCollisionConstraintHandle;
@@ -214,11 +214,11 @@ namespace Chaos
 
 
 	template<class T, int d>
-	class CHAOS_API TPBDCollisionConstraintHandle : public TContainerConstraintHandle<TPBDCollisionConstraint<T, d>>
+	class CHAOS_API TPBDCollisionConstraintHandle : public TContainerConstraintHandle<TPBDCollisionConstraints<T, d>>
 	{
 	public:
-		using Base = TContainerConstraintHandle<TPBDCollisionConstraint<T, d>>;
-		using FConstraintContainer = TPBDCollisionConstraint<T, d>;
+		using Base = TContainerConstraintHandle<TPBDCollisionConstraints<T, d>>;
+		using FConstraintContainer = TPBDCollisionConstraints<T, d>;
 		using FConstraintBase = TCollisionConstraintBase<T, d>;
 
 
@@ -227,7 +227,7 @@ namespace Chaos
 		{}
 
 		TPBDCollisionConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex, typename FConstraintBase::FType InType)
-			: TContainerConstraintHandle<TPBDCollisionConstraint<T, d>>(InConstraintContainer, InConstraintIndex)
+			: TContainerConstraintHandle<TPBDCollisionConstraints<T, d>>(InConstraintContainer, InConstraintIndex)
 			, ConstraintType(InType)
 		{
 		}

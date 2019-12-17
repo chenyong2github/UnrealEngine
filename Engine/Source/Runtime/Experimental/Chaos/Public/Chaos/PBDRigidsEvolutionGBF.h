@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Chaos/PBDRigidsEvolution.h"
-#include "Chaos/PBDCollisionConstraint.h"
+#include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/ChaosPerfTest.h"
 #include "Chaos/PerParticleInitForce.h"
 #include "Chaos/PerParticleEulerStepVelocity.h"
@@ -32,10 +32,10 @@ using TPBDRigidsEvolutionIslandCallback = TFunction<void(int32 Island)>;
 
 
 template<typename T, int d>
-class TPBDRigidsEvolutionGBF : public TPBDRigidsEvolutionBase<TPBDRigidsEvolutionGBF<T, d>, TPBDCollisionConstraint<T,d>, T, d>
+class TPBDRigidsEvolutionGBF : public TPBDRigidsEvolutionBase<TPBDRigidsEvolutionGBF<T, d>, TPBDCollisionConstraints<T,d>, T, d>
 {
 public:
-	using Base = TPBDRigidsEvolutionBase<TPBDRigidsEvolutionGBF<T, d>, TPBDCollisionConstraint<T, d>, T, d>;
+	using Base = TPBDRigidsEvolutionBase<TPBDRigidsEvolutionGBF<T, d>, TPBDCollisionConstraints<T, d>, T, d>;
 	using Base::Particles;
 	using Base::ForceRules;
 	using Base::ParticleUpdatePosition;
@@ -47,7 +47,7 @@ public:
 	using Base::Clustering;
 	using typename Base::FForceRule;
 	using FGravityForces = TPerParticleGravity<T, d>;
-	using FCollisionConstraints = TPBDCollisionConstraint<T, d>;
+	using FCollisionConstraints = TPBDCollisionConstraints<T, d>;
 	using FExternalForces = TPerParticleExternalForces<T, d>;
 	using FCollisionConstraintRule = TPBDConstraintColorRule<FCollisionConstraints>;
 

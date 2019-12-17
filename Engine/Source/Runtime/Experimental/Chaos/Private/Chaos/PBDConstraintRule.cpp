@@ -3,7 +3,7 @@
 #include "Chaos/PBDConstraintRule.h"
 
 #include "Chaos/PBD6DJointConstraints.h"
-#include "Chaos/PBDCollisionConstraint.h"
+#include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDJointConstraints.h"
 #include "Chaos/PBDPositionConstraints.h"
 #include "Chaos/PBDRigidDynamicSpringConstraints.h"
@@ -53,14 +53,14 @@ namespace Chaos
 		return Constraints.NumConstraints(); 
 	}
 
-	template class TPBDConstraintGraphRuleImpl< TPBDCollisionConstraint<float, 3> >;
+	template class TPBDConstraintGraphRuleImpl< TPBDCollisionConstraints<float, 3> >;
 	template class TPBDConstraintGraphRuleImpl< FPBD6DJointConstraints >;
 	template class TPBDConstraintGraphRuleImpl< FPBDJointConstraints >;
 	template class TPBDConstraintGraphRuleImpl< TPBDPositionConstraints<float, 3> >;
 	template class TPBDConstraintGraphRuleImpl< TPBDRigidDynamicSpringConstraints<float, 3> >;
 	template class TPBDConstraintGraphRuleImpl< TPBDRigidSpringConstraints<float, 3> >;
 
-	template class TPBDConstraintColorRule<TPBDCollisionConstraint<float, 3>>;
+	template class TPBDConstraintColorRule<TPBDCollisionConstraints<float, 3>>;
 	template class TPBDConstraintIslandRule<FPBD6DJointConstraints>;
 	template class TPBDConstraintIslandRule<FPBDJointConstraints>;
 	template class TPBDConstraintIslandRule<TPBDPositionConstraints<float, 3>>;

@@ -7,7 +7,7 @@
 #include "Chaos/Framework/PhysicsSolverBase.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
-#include "Chaos/PBDCollisionConstraint.h"
+#include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDRigidDynamicSpringConstraints.h"
 #include "Chaos/PBDPositionConstraints.h"
 #include "Chaos/PBDJointConstraints.h"
@@ -86,7 +86,7 @@ namespace Chaos
 		typedef Chaos::TGeometryParticle<float, 3> FParticle;
 		typedef Chaos::TGeometryParticleHandle<float, 3> FHandle;
 		typedef Chaos::TPBDRigidsEvolutionGBF<float, 3> FPBDRigidsEvolution;
-		typedef Chaos::TPBDCollisionConstraint<float, 3> FPBDCollisionConstraints;
+		typedef Chaos::TPBDCollisionConstraints<float, 3> FPBDCollisionConstraints;
 
 		typedef FPBDCollisionConstraints FCollisionConstraints;
 		typedef TPBDRigidDynamicSpringConstraints<float, 3> FRigidDynamicSpringConstraints;

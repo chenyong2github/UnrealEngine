@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Chaos/PBDCollisionConstraintPGS.h"
+#include "Chaos/PBDCollisionConstraintsPGS.h"
 
 #include "Chaos/BoundingVolume.h"
 #include "Chaos/BoundingVolumeHierarchy.h"
