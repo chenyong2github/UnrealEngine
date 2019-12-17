@@ -70,10 +70,10 @@ class CHAOS_API TLevelSet final : public FImplicitObject
 		Ar << MBandWidth;
 	}
 
-	//virtual void Serialize(FChaosArchive& Ar) override
-	//{
-	//	SerializeImp(Ar);
-	//}
+	virtual void Serialize(FChaosArchive& Ar) override
+	{
+		SerializeImp(Ar);
+	}
 
 	virtual void Serialize(FArchive& Ar) override
 	{
