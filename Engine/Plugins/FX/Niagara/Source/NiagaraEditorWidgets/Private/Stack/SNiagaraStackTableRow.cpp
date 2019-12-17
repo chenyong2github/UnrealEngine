@@ -414,7 +414,17 @@ EVisibility SNiagaraStackTableRow::GetExpanderVisibility() const
 
 FReply SNiagaraStackTableRow::ExpandButtonClicked()
 {
-	StackEntry->SetIsExpanded(!StackEntry->GetIsExpanded());
+	const bool bWillBeExpanded = !StackEntry->GetIsExpanded();
+	// Recurse the expansion if "shift" is being pressed
+	const FModifierKeysState ModKeyState = FSlateApplication::Get().GetModifierKeys();
+	if (ModKeyState.IsShiftDown())
+	{
+		StackEntry->SetIsExpanded_Recursive(bWillBeExpanded);
+	}
+	else
+	{
+		StackEntry->SetIsExpanded(bWillBeExpanded);
+	}
 	// Calling SetIsExpanded doesn't broadcast structure change automatically due to the expense of synchronizing
 	// expanded state with the tree to prevent items being expanded on tick, so we call this manually here.
 	StackEntry->OnStructureChanged().Broadcast();
