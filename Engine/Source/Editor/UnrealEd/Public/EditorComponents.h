@@ -28,6 +28,10 @@ public:
 	 * @param Ar	FArchive to serialize with
 	 */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return "FGridWidget";
+	}
 
 private:
 	// ALU based

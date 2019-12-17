@@ -173,6 +173,11 @@ public:
 		}
 	}
 
+	virtual FString GetReferencerName() const override
+	{
+		return "FUMGEditorModule";
+	}
+
 	virtual FWidgetBlueprintCompiler* GetRegisteredCompiler() override
 	{
 		return &WidgetBlueprintCompiler;
