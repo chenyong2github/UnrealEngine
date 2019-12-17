@@ -566,6 +566,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Montage")
 	void Montage_Stop(float InBlendOutTime, const UAnimMontage* Montage = NULL);
 
+	/** Stops all active montages belonging to a group. */
+	UFUNCTION(BlueprintCallable, Category = "Montage")
+	void Montage_StopGroupByName(float InBlendOutTime, FName GroupName);
+
 	/** Pauses the animation montage. If reference is NULL, it will pause ALL active montages. */
 	UFUNCTION(BlueprintCallable, Category = "Montage")
 	void Montage_Pause(const UAnimMontage* Montage = NULL);
