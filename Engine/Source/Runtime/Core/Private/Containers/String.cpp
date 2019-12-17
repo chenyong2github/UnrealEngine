@@ -537,9 +537,8 @@ FString FString::TrimStartAndEnd() const &
 
 FString FString::TrimStartAndEnd() &&
 {
-	FString Result(MoveTemp(*this));
-	Result.TrimStartAndEndInline();
-	return Result;
+	TrimStartAndEndInline();
+	return MoveTemp(*this);
 }
 
 void FString::TrimStartInline()
@@ -561,9 +560,8 @@ FString FString::TrimStart() const &
 
 FString FString::TrimStart() &&
 {
-	FString Result(MoveTemp(*this));
-	Result.TrimStartInline();
-	return Result;
+	TrimStartInline();
+	return MoveTemp(*this);
 }
 
 void FString::TrimEndInline()
@@ -585,9 +583,8 @@ FString FString::TrimEnd() const &
 
 FString FString::TrimEnd() &&
 {
-	FString Result(MoveTemp(*this));
-	Result.TrimEndInline();
-	return Result;
+	TrimEndInline();
+	return MoveTemp(*this);
 }
 
 void FString::TrimQuotesInline(bool* bQuotesRemoved)
@@ -617,11 +614,17 @@ void FString::TrimQuotesInline(bool* bQuotesRemoved)
 	MidInline(Start, Count, false);
 }
 
-FString FString::TrimQuotes(bool* bQuotesRemoved) const
+FString FString::TrimQuotes(bool* bQuotesRemoved) const &
 {
 	FString Result(*this);
 	Result.TrimQuotesInline(bQuotesRemoved);
 	return Result;
+}
+
+FString FString::TrimQuotes(bool* bQuotesRemoved) &&
+{
+	TrimQuotesInline(bQuotesRemoved);
+	return MoveTemp(*this);
 }
 
 int32 FString::CullArray( TArray<FString>* InArray )
