@@ -21,7 +21,8 @@ function build()
 }
 
 build RelWithDebInfo
-mv -v ../RelWithDebInfo/libvivoxclientapi.a ../Release/libvivoxclientapi.a
+rm -rf ../Release
+mv -v ../RelWithDebInfo ../Release
 build Debug
 cd "${SCRIPT_DIR}"
 rm -rf "${BUILD_DIR}"
