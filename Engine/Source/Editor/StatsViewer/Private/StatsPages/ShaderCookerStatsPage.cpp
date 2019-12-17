@@ -10,6 +10,7 @@
 #include "RHIDefinitions.h"
 #include "RHIShaderFormatDefinitions.inl"
 #include "ShaderCookerStatsPage.h"
+#include "CoreGlobals.h"
 
 #define LOCTEXT_NAMESPACE "Editor.StatsViewer.ShaderCookerStats"
 
