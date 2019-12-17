@@ -10,8 +10,8 @@ pushd ..\..\..\..\Intermediate\ShaderConductor
 
 	copy Bin\RelWithDebInfo\dxcompiler.dll ..\..\Engine\Binaries\ThirdParty\ShaderConductor\Win64\dxcompiler_sc.dll
 	copy Bin\RelWithDebInfo\ShaderConductor.dll ..\..\Engine\Binaries\ThirdParty\ShaderConductor\Win64
-	copy Bin\RelWithDebInfo\ShaderConductor.pdb ..\..\Engine\Binaries\ThirdParty\ShaderConductor\Win64
 	copy Lib\RelWithDebInfo\ShaderConductor.lib ..\..\Engine\Binaries\ThirdParty\ShaderConductor\Win64
+	copy Bin\RelWithDebInfo\ShaderConductor.pdb ..\..\Engine\Binaries\Win64
 	copy Bin\RelWithDebInfo\ShaderConductor.dll ..\..\Engine\Binaries\Win64
 	copy Bin\RelWithDebInfo\dxcompiler.dll ..\..\Engine\Binaries\Win64\dxcompiler_sc.dll
 	
