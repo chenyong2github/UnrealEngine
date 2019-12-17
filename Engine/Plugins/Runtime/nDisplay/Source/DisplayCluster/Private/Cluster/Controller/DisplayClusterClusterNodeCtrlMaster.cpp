@@ -25,17 +25,31 @@
 FDisplayClusterClusterNodeCtrlMaster::FDisplayClusterClusterNodeCtrlMaster(const FString& ctrlName, const FString& nodeName) :
 	FDisplayClusterClusterNodeCtrlSlave(ctrlName, nodeName)
 {
-	IsDataCached_GetSyncData.Emplace(EDisplayClusterSyncGroup::PreTick,  false);
-	IsDataCached_GetSyncData.Emplace(EDisplayClusterSyncGroup::Tick,     false);
-	IsDataCached_GetSyncData.Emplace(EDisplayClusterSyncGroup::PostTick, false);
+	CachedSyncData.Emplace(EDisplayClusterSyncGroup::PreTick);
+	CachedSyncData.Emplace(EDisplayClusterSyncGroup::Tick);
+	CachedSyncData.Emplace(EDisplayClusterSyncGroup::PostTick);
 
-	CachedSyncData_GetSyncData.Emplace(EDisplayClusterSyncGroup::PreTick);
-	CachedSyncData_GetSyncData.Emplace(EDisplayClusterSyncGroup::Tick);
-	CachedSyncData_GetSyncData.Emplace(EDisplayClusterSyncGroup::PostTick);
+	CachedSyncDataEvents.Emplace(EDisplayClusterSyncGroup::PreTick, FPlatformProcess::CreateSynchEvent(true));
+	CachedSyncDataEvents.Emplace(EDisplayClusterSyncGroup::Tick, FPlatformProcess::CreateSynchEvent(true));
+	CachedSyncDataEvents.Emplace(EDisplayClusterSyncGroup::PostTick, FPlatformProcess::CreateSynchEvent(true));
+
+	CachedInputDataEvent  = FPlatformProcess::CreateSynchEvent(true);
+	CachedDeltaTimeEvent  = FPlatformProcess::CreateSynchEvent(true);
+	CachedEventsDataEvent = FPlatformProcess::CreateSynchEvent(true);
+	CachedFrameTimeEvent  = FPlatformProcess::CreateSynchEvent(true);
 }
 
 FDisplayClusterClusterNodeCtrlMaster::~FDisplayClusterClusterNodeCtrlMaster()
 {
+	delete CachedInputDataEvent;
+	delete CachedDeltaTimeEvent;
+	delete CachedEventsDataEvent;
+	delete CachedFrameTimeEvent;
+
+	for (auto& it : CachedSyncDataEvents)
+	{
+		delete it.Value;
+	}
 }
 
 
@@ -44,62 +58,56 @@ FDisplayClusterClusterNodeCtrlMaster::~FDisplayClusterClusterNodeCtrlMaster()
 //////////////////////////////////////////////////////////////////////////////////////////////
 void FDisplayClusterClusterNodeCtrlMaster::GetDeltaTime(float& DeltaSeconds)
 {
-	FScopeLock lock(&InternalsSyncScope);
-
-	// Cache data so it will be the same for all requests within current frame
-	if (!bIsDataCached_GetDeltaTime)
+	if (IsInGameThread())
 	{
-		bIsDataCached_GetDeltaTime = true;
-
-		CachedDeltaTime_GetDeltaTime = FApp::GetDeltaTime();
-
-		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetDeltaTime cached values: DeltaSeconds %f"), CachedDeltaTime_GetDeltaTime);
+	// Cache data so it will be the same for all requests within current frame
+		CachedDeltaTime = FApp::GetDeltaTime();
+		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetDeltaTime cached values: DeltaSeconds %f"), CachedDeltaTime);
+		CachedDeltaTimeEvent->Trigger();
 	}
 
+	// Wait until data is available
+	CachedDeltaTimeEvent->Wait();
+
 	// Return cached value
-	DeltaSeconds = CachedDeltaTime_GetDeltaTime;
+	DeltaSeconds = CachedDeltaTime;
 }
 
 void FDisplayClusterClusterNodeCtrlMaster::GetFrameTime(TOptional<FQualifiedFrameTime>& FrameTime)
 {
-	FScopeLock lock(&InternalsSyncScope);
-
-	// Cache data so it will be the same for all requests within current frame
-	if (!bIsDataCached_GetFrameTime)
+	if (IsInGameThread())
 	{
-		bIsDataCached_GetFrameTime = true;
+		CachedFrameTime = FApp::GetCurrentFrameTime();
 
-		// This values are updated in UEngine::UpdateTimeAndHandleMaxTickRate (via UpdateTimecode).
-		CachedTimecode_GetFrameTime = FApp::GetCurrentFrameTime();
-
-		if (CachedTimecode_GetFrameTime.IsSet())
+		if (CachedFrameTime.IsSet())
 		{
-			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetFrameTime cached values: Seconds %f"), CachedTimecode_GetFrameTime.GetValue().AsSeconds());
+			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetFrameTime cached values: Seconds %f"), CachedFrameTime.GetValue().AsSeconds());
 		}
 		else
 		{
 			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetFrameTime cached values: [INVALID]"));
 		}
+
+		CachedFrameTimeEvent->Trigger();
 	}
 
+	// Wait until data is available
+	CachedFrameTimeEvent->Wait();
+
 	// Return cached value
-	FrameTime = CachedTimecode_GetFrameTime;
+	FrameTime = CachedFrameTime;
 }
 
 void FDisplayClusterClusterNodeCtrlMaster::GetSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup)
 {
-	FScopeLock lock(&InternalsSyncScope);
-
 	static IPDisplayClusterClusterManager* const ClusterMgr = GDisplayCluster->GetPrivateClusterMgr();
 
-	// Cache data so it will be the same for all requests within current frame
-	if (!IsDataCached_GetSyncData[SyncGroup])
+	if (IsInGameThread())
 	{
-		IsDataCached_GetSyncData[SyncGroup] = true;
-
+	// Cache data so it will be the same for all requests within current frame
 		FDisplayClusterMessage::DataType SyncDataToCache;
 		ClusterMgr->ExportSyncData(SyncDataToCache, SyncGroup);
-		CachedSyncData_GetSyncData.Emplace(SyncGroup, SyncDataToCache);
+		CachedSyncData.Emplace(SyncGroup, SyncDataToCache);
 
 		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetSyncData cached values amount: %d"), SyncDataToCache.Num());
 
@@ -108,68 +116,78 @@ void FDisplayClusterClusterNodeCtrlMaster::GetSyncData(FDisplayClusterMessage::D
 		{
 			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetSyncData cached value %d: %s - %s"), i++, *it->Key, *it->Value);
 		}
+
+		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("SyncData has %d records"), CachedSyncData[SyncGroup].Num());
+
+		// Notify data is available
+		CachedSyncDataEvents[SyncGroup]->Trigger();
 	}
 
-	UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("SyncData has %d records"), CachedSyncData_GetSyncData[SyncGroup].Num());
+	// Wait until data is available
+	CachedSyncDataEvents[SyncGroup]->Wait();
 
 	// Return cached value
-	SyncData = CachedSyncData_GetSyncData[SyncGroup];
+	SyncData = CachedSyncData[SyncGroup];
 }
 
 void FDisplayClusterClusterNodeCtrlMaster::GetInputData(FDisplayClusterMessage::DataType& InputData)
 {
-	FScopeLock lock(&InternalsSyncScope);
-
 	static IPDisplayClusterInputManager* const InputMgr = GDisplayCluster->GetPrivateInputMgr();
 
-	// Cache data so it will be the same for all requests within current frame
-	if (!bIsDataCached_GetInputData)
+	if (IsInGameThread())
 	{
-		bIsDataCached_GetInputData = true;
+	// Cache data so it will be the same for all requests within current frame
+		InputMgr->ExportInputData(CachedInputData);
 
-		InputMgr->ExportInputData(CachedInputData_GetInputData);
-
-		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetInputData cached values amount: %d"), CachedInputData_GetInputData.Num());
+		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetInputData cached values amount: %d"), CachedInputData.Num());
 
 		int i = 0;
-		for (auto it = CachedInputData_GetInputData.CreateConstIterator(); it; ++it)
+		for (auto it = CachedInputData.CreateConstIterator(); it; ++it)
 		{
 			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetInputData cached value %d: %s - %s"), i++, *it->Key, *it->Value);
 		}
+
+		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("InputData has %d records"), CachedInputData.Num());
+
+		// Notify data is available
+		CachedInputDataEvent->Trigger();
 	}
 
-	UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("InputData has %d records"), CachedInputData_GetInputData.Num());
+	// Wait until data is available
+	CachedInputDataEvent->Wait();
 
 	// Return cached value
-	InputData = CachedInputData_GetInputData;
+	InputData = CachedInputData;
 }
 
 void FDisplayClusterClusterNodeCtrlMaster::GetEventsData(FDisplayClusterMessage::DataType& EventsData)
 {
-	FScopeLock lock(&InternalsSyncScope);
-
 	static IPDisplayClusterClusterManager* const ClusterMgr = GDisplayCluster->GetPrivateClusterMgr();
 
-	// Cache data so it will be the same for all requests within current frame
-	if (!bIsDataCached_GetEventsData)
+	if (IsInGameThread())
 	{
-		bIsDataCached_GetEventsData = true;
+	// Cache data so it will be the same for all requests within current frame
+		ClusterMgr->ExportEventsData(CachedEventsData);
 
-		ClusterMgr->ExportEventsData(CachedEventsData_GetEventsData);
-
-		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetEventsData cached values amount: %d"), CachedEventsData_GetEventsData.Num());
+		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetEventsData cached values amount: %d"), CachedEventsData.Num());
 
 		int i = 0;
-		for (auto it = CachedEventsData_GetEventsData.CreateConstIterator(); it; ++it)
+		for (auto it = CachedEventsData.CreateConstIterator(); it; ++it)
 		{
 			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetEventsData cached value %d: %s - %s"), i++, *it->Key, *it->Value);
 		}
+
+		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("EventsData has %d records"), CachedEventsData.Num());
+
+		// Notify data is available
+		CachedEventsDataEvent->Trigger();
 	}
 
-	UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("EventsData has %d records"), CachedEventsData_GetEventsData.Num());
+	// Wait until data is available
+	CachedEventsDataEvent->Wait();
 
 	// Return cached value
-	EventsData = CachedEventsData_GetEventsData;
+	EventsData = CachedEventsData;
 }
 
 void FDisplayClusterClusterNodeCtrlMaster::GetNativeInputData(FDisplayClusterMessage::DataType& NativeInputData)
@@ -186,22 +204,22 @@ void FDisplayClusterClusterNodeCtrlMaster::ClearCache()
 {
 	FScopeLock lock(&InternalsSyncScope);
 
-	// Reset all cache flags
-	bIsDataCached_GetDeltaTime  = false;
-	bIsDataCached_GetFrameTime  = false;
-	bIsDataCached_GetInputData  = false;
-	bIsDataCached_GetEventsData = false;
+	// Reset all cache events
+	CachedDeltaTimeEvent->Reset();
+	CachedFrameTimeEvent->Reset();
+	CachedEventsDataEvent->Reset();
+	CachedInputDataEvent->Reset();
 
 	// Reset cache containers
-	CachedInputData_GetInputData.Reset();
-	CachedEventsData_GetEventsData.Reset();
+	CachedInputData.Reset();
+	CachedEventsData.Reset();
 
-	for (auto& it : IsDataCached_GetSyncData)
+	for (auto& it : CachedSyncDataEvents)
 	{
-		it.Value = false;
+		it.Value->Reset();
 	}
 
-	for (auto& it : CachedSyncData_GetSyncData)
+	for (auto& it : CachedSyncData)
 	{
 		it.Value.Reset();
 	}

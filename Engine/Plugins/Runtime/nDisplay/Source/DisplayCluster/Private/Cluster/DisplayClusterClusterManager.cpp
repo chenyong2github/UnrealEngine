@@ -207,6 +207,16 @@ void FDisplayClusterClusterManager::PreTick(float DeltaSeconds)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterCluster);
 
+	// Move cluster events from the primary pool to the output pool. These will be synchronized on the current frame.
+	{
+		FScopeLock lock(&ClusterEventsCritSec);
+
+		// Clear the output pool since we have all data cached already
+		ClusterEventsPoolOut.Empty(ClusterEventsPoolOut.Num() | 0x07);
+		ClusterEventsPoolOut = MoveTemp(ClusterEventsPoolMain);
+		ClusterEventsPoolMain.Empty(ClusterEventsPoolOut.Num() | 0x07);
+	}
+
 	// Update input state in the cluster
 	SyncInput();
 
@@ -215,15 +225,6 @@ void FDisplayClusterClusterManager::PreTick(float DeltaSeconds)
 
 	// Sync cluster events
 	SyncEvents();
-
-	// Move cluster events from the primary pool to the output pool. These will be synchronized on the current frame.
-	{
-		FScopeLock lock(& ClusterEventsCritSec);
-
-		ClusterEventsPoolOut = MoveTemp(ClusterEventsPoolMain);
-		ClusterEventsPoolMain.Empty(ClusterEventsPoolOut.Num() | 0x07);
-		ClusterEventsCacheOut.Empty(ClusterEventsPoolOut.Num() | 0x07);
-	}
 }
 
 void FDisplayClusterClusterManager::Tick(float DeltaSeconds)
@@ -463,16 +464,11 @@ void FDisplayClusterClusterManager::ExportEventsData(FDisplayClusterMessage::Dat
 					for (const auto& NamedEvent : TypeMap.Value)
 					{
 						UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Adding event to sync: %s::%s"), *NamedEvent.Value.Name, *NamedEvent.Value.Type);
-						ClusterEventsCacheOut.Add(FString::Printf(TEXT("EVENT_%d"), ObjID++), NamedEvent.Value.SerializeToString());
+						EventsData.Add(FString::Printf(TEXT("EVENT_%d"), ObjID++), NamedEvent.Value.SerializeToString());
 					}
 				}
 			}
-
-			// Clear the output pool since we have all data cached already
-			ClusterEventsPoolOut.Empty(ClusterEventsPoolOut.Num() | 0x07);
 		}
-
-		EventsData = ClusterEventsCacheOut;
 	}
 }
 
@@ -542,28 +538,15 @@ void FDisplayClusterClusterManager::SyncEvents()
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterCluster);
 
-	// No need to do the sync for master
-	if (IsSlave())
-	{
-		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading synchronization data (events)..."));
-		TMap<FString, FString> EventsData;
+	TMap<FString, FString> EventsData;
 
-		{
-			FScopeLock lock(&ClusterEventsCritSec);
-			Controller->GetEventsData(EventsData);
-		}
+	// Get events data from a provider
+	UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading synchronization data (events)..."));
+	Controller->GetEventsData(EventsData);
+	UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading finished. Available %d records (events)."), EventsData.Num());
 
-		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading finished. Available %d records (events)."), EventsData.Num());
-
-		// Perform data load (objects state update)
-		GDisplayCluster->GetPrivateClusterMgr()->ImportEventsData(EventsData);
-	}
-	else
-	{
-		TMap<FString, FString> EventsData;
-		ExportEventsData(EventsData);
-		ImportEventsData(EventsData);
-	}
+	// Import and process them
+	ImportEventsData(EventsData);
 }
 
 void FDisplayClusterClusterManager::ProvideNativeInputData(const TMap<FString, FString>& NativeInputData)

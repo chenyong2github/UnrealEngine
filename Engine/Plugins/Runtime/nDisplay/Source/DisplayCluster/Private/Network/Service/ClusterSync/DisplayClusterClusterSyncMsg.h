@@ -17,28 +17,28 @@ namespace FDisplayClusterClusterSyncMsg
 	namespace WaitForGameStart
 	{
 		constexpr static auto name = "WaitForGameStart";
-	};
+	}
 
 	namespace WaitForFrameStart
 	{
 		constexpr static auto name = "WaitForFrameStart";
-	};
+	}
 
 	namespace WaitForFrameEnd
 	{
 		constexpr static auto name = "WaitForFrameEnd";
-	};
+	}
 
 	namespace WaitForTickEnd
 	{
 		constexpr static auto name = "WaitForTickEnd";
-	};
+	}
 
 	namespace GetDeltaTime
 	{
 		constexpr static auto name            = "GetDeltaTime";
 		constexpr static auto argDeltaSeconds = "DeltaSeconds";
-	};
+	}
 
 	namespace GetFrameTime
 	{
@@ -51,7 +51,7 @@ namespace FDisplayClusterClusterSyncMsg
 	{
 		constexpr static auto name         = "GetSyncData";
 		constexpr static auto argSyncGroup = "SyncGroup";
-	};
+	}
 
 	namespace GetInputData
 	{
