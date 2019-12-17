@@ -573,7 +573,6 @@ public:
 	virtual void DisconnectAllEndpoints()
 	{
 	}
-<<<<
 };
 
 typedef TSharedPtr<IOnlineVoice, ESPMode::ThreadSafe> IOnlineVoicePtr;
