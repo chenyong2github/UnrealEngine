@@ -174,7 +174,7 @@ namespace Chaos
 		template<typename T, int d>
 		void ConstructBoxPlaneConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, FCollisionConstraintsArray& NewConstraints)
 		{
-
+			
 			const TBox<T, d> * Object0 = Implicit0->template GetObject<const TBox<T, d> >();
 			const TPlane<T, d> * Object1 = Implicit1->template GetObject<const TPlane<T, d> >();
 			if (ensure(Object0 && Object1))
@@ -222,7 +222,7 @@ namespace Chaos
 		template<typename T, int d>
 		void ConstructSphereSphereConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, FCollisionConstraintsArray& NewConstraints)
 		{
-
+			
 			const TSphere<T, d> * Object0 = Implicit0->template GetObject<const TSphere<T, d> >();
 			const TSphere<T, d> * Object1 = Implicit1->template GetObject<const TSphere<T, d> >();
 			if (ensure(Object0 && Object1))
@@ -272,7 +272,7 @@ namespace Chaos
 		template<typename T, int d>
 		void ConstructSpherePlaneConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, FCollisionConstraintsArray& NewConstraints)
 		{
-
+			
 			const TSphere<T, d> * Object0 = Implicit0->template GetObject<const TSphere<T, d> >();
 			const TPlane<T, d> * Object1 = Implicit1->template GetObject<const TPlane<T, d> >();
 			if (ensure(Object0 && Object1))
@@ -323,7 +323,7 @@ namespace Chaos
 		template<typename T, int d>
 		void ConstructSphereBoxConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, FCollisionConstraintsArray& NewConstraints)
 		{
-
+			
 			const TSphere<T, d> * Object0 = Implicit0->template GetObject<const TSphere<T, d> >();
 			const TBox<T, d> * Object1 = Implicit1->template GetObject<const TBox<T, d> >();
 			if (ensure(Object0 && Object1))
@@ -381,7 +381,7 @@ namespace Chaos
 		template<typename T, int d>
 		void ConstructCapsuleCapsuleConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, FCollisionConstraintsArray& NewConstraints)
 		{
-
+			
 			const TCapsule<T> * Object0 = Implicit0->template GetObject<const TCapsule<T> >();
 			const TCapsule<T> * Object1 = Implicit1->template GetObject<const TCapsule<T> >();
 			if (ensure(Object0 && Object1))
@@ -448,7 +448,7 @@ namespace Chaos
 		template<typename T, int d>
 		void ConstructCapsuleBoxConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, FCollisionConstraintsArray& NewConstraints)
 		{
-
+			
 			const TCapsule<T> * Object0 = Implicit0->template GetObject<const TCapsule<T> >();
 			const TBox<T, d> * Object1 = Implicit1->template GetObject<const TBox<T, d> >();
 			if (ensure(Object0 && Object1))
@@ -1029,7 +1029,7 @@ namespace Chaos
 			{
 				ConstructCapsuleBoxConstraints(Particle0, Particle1, Implicit0, Implicit1, Thickness, NewConstraints);
 			}
-			else if (Implicit0->GetType() == TBox<T, d>::StaticType() && Implicit1->GetType() == TCapsule<T>::StaticType())
+			else if (Implicit0->GetType() == TBox<T,d>::StaticType() && Implicit1->GetType() == TCapsule<T>::StaticType())
 			{
 				ConstructCapsuleBoxConstraints(Particle1, Particle0, Implicit1, Implicit0, Thickness, NewConstraints);
 			}
