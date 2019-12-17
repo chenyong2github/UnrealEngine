@@ -36,7 +36,6 @@ void UAudioSettings::AddDefaultSettings()
 	DefaultReverbSendLevel_DEPRECATED = 0.0f;
 	bEnableLegacyReverb = false;
 	VoiPSampleRate = EVoiceSampleRate::Low16000Hz;
-	VoipBufferingDelay = 0.2f;
 	NumStoppingSources = 8;
 }
 
