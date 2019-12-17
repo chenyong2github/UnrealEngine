@@ -648,6 +648,28 @@ const class UEdGraphSchema* UEdGraphPin::GetSchema() const
 #endif	//WITH_EDITOR
 }
 
+bool UEdGraphPin::HasAnyConnections() const
+{
+	bool bHasAnyConnections = false;
+	if(SubPins.Num() > 0)
+	{
+		// we have subpins, defer authority to them:
+		for(UEdGraphPin* Pin : SubPins)
+		{
+			bHasAnyConnections = Pin->HasAnyConnections();
+			if(bHasAnyConnections)
+			{
+				break;
+			}
+		}
+	}
+	else
+	{
+		bHasAnyConnections = LinkedTo.Num() > 0;
+	}
+	return bHasAnyConnections;
+}
+
 FString UEdGraphPin::GetDefaultAsString() const
 {
 	if(DefaultObject)
