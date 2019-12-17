@@ -32,10 +32,8 @@ private:
 	
 	FTargetDeviceId		DeviceId;
 	FOutputDevice*		Output;
-	
-	void*				DSReadPipe;
-	void*				DSWritePipe;
-	FTcpDSCommander*		DSCommander;
+	TQueue<FString>		OutputQueue;
+	FTcpDSCommander*	DSCommander;
 };
 
 /**
