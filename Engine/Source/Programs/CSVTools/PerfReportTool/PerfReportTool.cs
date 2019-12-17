@@ -19,7 +19,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.01";
+        private static string VersionString = "4.02";
 
         public static string Get() { return VersionString; }
     };
@@ -385,9 +385,6 @@ namespace PerfReportTool
 			reportXML = new ReportXML(GetArg("graphxml", false), GetArg("reportxml", false), GetArg("reportxmlbasedir", false));
 			statDisplaynameMapping = reportXML.GetDisplayNameMapping();
 
-            string metadataFilterString = "";
-            metadataFilterString = GetArg("metadataFilter");
-
             // Create the output directory if requested
             string outputDir = GetArg("o", false).ToLower();
             if (!string.IsNullOrEmpty(outputDir))
@@ -415,6 +412,8 @@ namespace PerfReportTool
 			}
 
 			perfLog.LogTiming("Initialization");
+
+			string metadataFilterString = GetArg("metadataFilter", "");
 
 			CsvFileCache csvFileCache = new CsvFileCache(csvFilenames, precacheCount, precacheThreads);
             SummaryMetadataTable metadataTable = new SummaryMetadataTable();
@@ -575,25 +574,7 @@ namespace PerfReportTool
                 Console.WriteLine("CSV " + csvFile.filename + " has no metadata");
                 return false;
             }
-            string[] keyValuePairStrs = metadataFilterString.Split(',');
-            foreach (string keyValuePairStr in keyValuePairStrs)
-            {
-                string[] keyValue = keyValuePairStr.Split('=');
-                if (keyValue.Length != 2)
-                {
-                    return false;
-                }
-                string key = keyValue[0].ToLower();
-                if (!metadata.Values.ContainsKey(key))
-                {
-                    return false;
-                }
-                if (metadata.Values[key].ToLower() != keyValue[1].ToLower())
-                {
-                    return false;
-                }
-            }
-            return true;
+			return CsvStats.DoesMetadataMatchFilter(metadata, metadataFilterString);
         }
         class PerfLog
         {

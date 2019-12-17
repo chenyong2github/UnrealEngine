@@ -14,7 +14,7 @@ namespace CSVTools
 {
     class Version
     {
-        private static string VersionString = "1.31";
+        private static string VersionString = "1.32";
 
         public static string Get() { return VersionString; }
     };
@@ -29,8 +29,8 @@ namespace CSVTools
 			"       [-recurse] - for use with -csvdir\n" +
 			"       [-filterOutlierStat <stat>] - discard CSVs if this stat has very high values\n" +
 			"       [-filterOutlierThreshold <value>] - threshold for outliers (default:1000)\n" +
+			"       [-metadataFilter <key=value,key=value...>] : filters based on CSV metadata\n" +
 			"       -o <csvFilename> \n";
-
 
 		void Run(string[] args)
         {
@@ -129,6 +129,7 @@ namespace CSVTools
 			CsvStats combinedCsvStats = new CsvStats();
 
 
+			string metadataFilterString = GetArg("metadataFilter", null);
 			List<int> frameCsvCounts=new List<int>();
 			List<string> allCsvFilenames = new List<string>();
 			int csvIndex = 0;
@@ -152,6 +153,14 @@ namespace CSVTools
 								break;
 							}
 						}
+					}
+				}
+				if (metadataFilterString != null)
+				{
+					if (srcCsvStats.metaData == null || !CsvStats.DoesMetadataMatchFilter(srcCsvStats.metaData, metadataFilterString))
+					{
+						WriteLine("Skipping CSV " + csvFilename + " due to metadata filter");
+						skip = true;
 					}
 				}
 				if ( skip )
