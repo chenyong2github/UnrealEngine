@@ -574,6 +574,12 @@ public:
 	/** Can generate native code for current blueprint */
 	bool CanGenerateNativeCode() const;
 
+	/** Dumps the current blueprint search index to a JSON file for debugging purposes */
+	void OnGenerateSearchIndexForDebugging();
+
+	/** Dumps the currently-cached index data for the blueprint to a file for debugging */
+	void OnDumpCachedIndexDataForBlueprint();
+
 	/**
 	 * Check to see if we can customize the SCS editor for the passed-in scene component
 	 * @param	InComponentToCustomize	The component to check to see if a customization exists

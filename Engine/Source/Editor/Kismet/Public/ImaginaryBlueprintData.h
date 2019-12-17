@@ -103,8 +103,7 @@ struct FComponentUniqueDisplay
 class FImaginaryFiBData : public ITextFilterExpressionContext, public TSharedFromThis<FImaginaryFiBData, ESPMode::ThreadSafe>
 {
 public:
-	FImaginaryFiBData(FImaginaryFiBDataWeakPtr InOuter);
-	FImaginaryFiBData(FImaginaryFiBDataWeakPtr InOuter, TSharedPtr< FJsonObject > InUnparsedJsonObject, TMap<int32, FText>* InLookupTablePtr);
+	FImaginaryFiBData(FImaginaryFiBDataWeakPtr InOuter, TSharedPtr< FJsonObject > InUnparsedJsonObject = TSharedPtr<FJsonObject>(), TMap<int32, FText>* InLookupTablePtr = nullptr);
 
 	/** ITextFilterExpressionContext Interface */
 	// We don't actually use these overrides, see FFiBContextHelper for how we call the alternate functions. These will assert if they are accidentally called.
@@ -116,7 +115,7 @@ public:
 	virtual bool IsCategory() const { return false; }
 
 	/** Returns TRUE if this item is considered a Tag and Value category, where it's contents should be considered no different than the parent owner */
-	virtual bool IsTagAndValueCategory() { return false; }
+	virtual bool IsTagAndValueCategory() const { return false; }
 
 	/** Checks if the filter is compatible with the current object, returns TRUE by default */
 	virtual bool IsCompatibleWithFilter(ESearchQueryFilter InSearchQueryFilter) const;
@@ -167,6 +166,9 @@ public:
 		return Outer;
 	}
 
+	/** Dumps the parsed object (including all children) to the given archive */
+	void DumpParsedObject(FArchive& Ar, int32 InTreeLevel = 0) const;
+
 	/** Builds a SearchTree ready to be displayed in the Find-in-Blueprints window */
 	static FSearchResult CreateSearchTree(FSearchResult InParentSearchResult, FImaginaryFiBDataWeakPtr InCurrentPointer, TArray< const FImaginaryFiBData* >& InValidSearchResults, TMultiMap< const FImaginaryFiBData*, FComponentUniqueDisplay >& InMatchingSearchComponents);
 
@@ -194,6 +196,9 @@ protected:
 
 	/** Internal version of the ParseAllChildData function, handles the bulk of the work */
 	virtual void ParseAllChildData_Internal(ESearchableValueStatus InSearchabilityOverride = ESearchableValueStatus::Searchable);
+
+	/** Internal helper function for dumping parsed object info */
+	virtual void DumpParsedObject_Internal(FArchive& Ar) const {}
 
 protected:
 	/** The unparsed Json object representing this item. Auto-cleared after parsing. Does not need to be declared as thread-safe because it's only accessed when parsing and that is already a critical section. */
@@ -262,7 +267,7 @@ public:
 	/** FImaginaryFiBData Interface */
 	virtual void ParseAllChildData_Internal(ESearchableValueStatus InSearchabilityOverride/* = ESearchableValueStatus::ESearchableValueStatus::Searchable*/) override;
 	virtual bool IsCategory() const override { return true; }
-	virtual bool IsTagAndValueCategory() override { return bIsTagAndValue; }
+	virtual bool IsTagAndValueCategory() const override { return bIsTagAndValue; }
 	/** End FImaginaryFiBData Interface */
 
 	/** Returns the category name prepared for checking as a function */
@@ -275,6 +280,7 @@ protected:
 	/** FImaginaryFiBData Interface */
 	virtual bool CanCallFilter(ESearchQueryFilter InSearchQueryFilter) const override;
 	virtual FSearchResult CreateSearchResult_Internal(FSearchResult InParent) const override;
+	virtual void DumpParsedObject_Internal(FArchive& Ar) const override;
 	/** End FImaginaryFiBData Interface */
 
 protected:
@@ -304,6 +310,7 @@ protected:
 	/** FImaginaryFiBData Interface */
 	virtual bool TrySpecialHandleJsonValue(FText InKey, TSharedPtr< FJsonValue > InJsonValue) override;
 	virtual FSearchResult CreateSearchResult_Internal(FSearchResult InParent) const override;
+	virtual void DumpParsedObject_Internal(FArchive& Ar) const override;
 	/** End FImaginaryFiBData Interface */
 
 	/** Helper function to parse an array of Json Object representing graphs */
@@ -342,6 +349,7 @@ protected:
 	virtual bool TrySpecialHandleJsonValue(FText InKey, TSharedPtr< FJsonValue > InJsonValue) override;
 	virtual ESearchableValueStatus GetSearchabilityStatus(FString InKey) override;
 	virtual FSearchResult CreateSearchResult_Internal(FSearchResult InParent) const override;
+	virtual void DumpParsedObject_Internal(FArchive& Ar) const override;
 	/** End FImaginaryFiBData Interface */
 
 protected:
@@ -359,6 +367,7 @@ public:
 	virtual bool IsCompatibleWithFilter(ESearchQueryFilter InSearchQueryFilter) const override;
 	virtual bool CanCallFilter(ESearchQueryFilter InSearchQueryFilter) const override;
 	virtual void ParseAllChildData_Internal(ESearchableValueStatus InSearchabilityOverride/* = ESearchableValueStatus::Searchable*/) override;
+	virtual void DumpParsedObject_Internal(FArchive& Ar) const override;
 	/** End FImaginaryFiBData Interface */
 
 protected:
@@ -387,6 +396,7 @@ protected:
 	/** FImaginaryFiBData Interface */
 	virtual ESearchableValueStatus GetSearchabilityStatus(FString InKey) override;
 	virtual FSearchResult CreateSearchResult_Internal(FSearchResult InParent) const override;
+	virtual void DumpParsedObject_Internal(FArchive& Ar) const override;
 	/** End FImaginaryFiBData Interface */
 };
 
@@ -416,6 +426,7 @@ protected:
 	virtual bool TrySpecialHandleJsonValue(FText InKey, TSharedPtr< FJsonValue > InJsonValue);
 	virtual ESearchableValueStatus GetSearchabilityStatus(FString InKey) override;
 	virtual FSearchResult CreateSearchResult_Internal(FSearchResult InParent) const override;
+	virtual void DumpParsedObject_Internal(FArchive& Ar) const override;
 	/** End FImaginaryFiBData Interface */
 
 protected:

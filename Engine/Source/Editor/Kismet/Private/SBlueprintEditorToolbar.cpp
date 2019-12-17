@@ -30,6 +30,7 @@
 #include "SBlueprintRevisionMenu.h"
 #include "ToolMenus.h"
 #include "BlueprintEditorContext.h"
+#include "FindInBlueprintManager.h"
 #include "ISourceCodeAccessor.h"
 #include "ISourceCodeAccessModule.h"
 
@@ -111,6 +112,16 @@ void FKismet2Menu::FillDeveloperMenu( FMenuBuilder& MenuBuilder )
 		MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().GenerateNativeCode);
 	}
 	MenuBuilder.EndSection();
+
+	if (FFindInBlueprintSearchManager::Get().ShouldEnableDeveloperMenuTools())
+	{
+		MenuBuilder.BeginSection("FileDeveloperSearchTools", LOCTEXT("SearchToolsHeading", "Search Tools"));
+		{
+			MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().GenerateSearchIndex);
+			MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().DumpCachedIndexData);
+		}
+		MenuBuilder.EndSection();
+	}
 
 	if (false)
 	{
