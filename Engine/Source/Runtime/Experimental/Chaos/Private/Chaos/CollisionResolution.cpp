@@ -976,11 +976,19 @@ namespace Chaos
 		void ConstructPairConstraintImpl(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, FCollisionConstraintsArray& NewConstraints)
 		{
 			// See if we already have a constraint for this shape pair
+			// todo(brice) : Not sure this actually prevents duplicate constraints.
 			for (int32 i = 0; i < NewConstraints.Num(); i++)
 			{
 				if (NewConstraints[i]->GetType() == TRigidBodyPointContactConstraint<T, d>::StaticType())
 				{
 					if (NewConstraints[i]->As< TRigidBodyPointContactConstraint<T, d> >()->ContainsManifold(Implicit0, Implicit1))
+					{
+						return;
+					}
+				}
+				else if (NewConstraints[i]->GetType() == TRigidBodyPlaneContactConstraint<T, d>::StaticType())
+				{
+					if (NewConstraints[i]->As< TRigidBodyPlaneContactConstraint<T, d> >()->ContainsManifold(Implicit0, Implicit1))
 					{
 						return;
 					}

@@ -161,7 +161,8 @@ namespace Chaos
 		bool bDisabled;
 		int32 Timestamp;
 
-		TPlane<T, d> Plane;
+		TVector<T, d> PlaneNormal;
+		TVector<T, d> PlanePosition;
 		TVector<T, d> ManifoldSamples[4]; // iterative plane samples
 
 		TVector<T, d> Location;

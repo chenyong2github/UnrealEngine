@@ -374,6 +374,16 @@ namespace Chaos
 
 					delete PointConstraint;
 				}
+				else if (ConstraintBase->GetType() == TRigidBodyPlaneContactConstraint<T, 3>::StaticType())
+				{
+					TRigidBodyPlaneContactConstraint<T, d>* PlaneConstraint = ConstraintBase->As< TRigidBodyPlaneContactConstraint<T, d> >();
+
+					int32 Idx = PlaneConstraints.AddUninitialized(1);
+					PlaneConstraints[Idx] = *PlaneConstraint;
+					Handles.Add(HandleAllocator.template AllocHandle< TRigidBodyPlaneContactConstraint<T, d> >(this, Idx));
+
+					delete PlaneConstraint;
+				}
 			}
 			LifespanCounter++;
 		}
