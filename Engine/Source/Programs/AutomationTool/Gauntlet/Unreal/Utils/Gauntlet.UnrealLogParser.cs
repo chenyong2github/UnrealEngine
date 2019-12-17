@@ -400,8 +400,9 @@ namespace Gauntlet
 					NewTrace.Position = TraceMatch.Index;
 					NewTrace.Message = TraceMatch.Groups[1].Value;
 
-					// Next there will be a message (in some cases), and a callstack..
-					string ErrorContent = Content.Substring(TraceMatch.Index + TraceMatch.Length + 1);
+					// If the regex matches the very end of the string, the substring will get an invalid range.
+					string ErrorContent = Content.Length <= TraceMatch.Index + TraceMatch.Length 
+						? string.Empty : Content.Substring(TraceMatch.Index + TraceMatch.Length + 1);
 
 					Match MsgMatch = Regex.Match(ErrorContent, @".+:\s*Error:\s*(.+)");
 
