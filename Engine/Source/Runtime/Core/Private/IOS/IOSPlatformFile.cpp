@@ -527,18 +527,14 @@ bool Initialize(IPlatformFile* Inner, const TCHAR* CommandLineParam)
 FString FIOSPlatformFile::NormalizeFilename(const TCHAR* Filename)
 {
 	FString Result(Filename);
-	Result.ReplaceInline(TEXT("\\"), TEXT("/"));
+	Result.ReplaceInline(TEXT("\\"), TEXT("/"), ESearchCase::CaseSensitive);
 	return Result;
 }
 
 FString FIOSPlatformFile::NormalizeDirectory(const TCHAR* Directory)
 {
 	FString Result(Directory);
-	Result.ReplaceInline(TEXT("\\"), TEXT("/"));
-	if (Result.EndsWith(TEXT("/")))
-	{
-		Result.LeftChop(1);
-	}
+	Result.ReplaceInline(TEXT("\\"), TEXT("/"), ESearchCase::CaseSensitive);
 	return Result;
 }
 
