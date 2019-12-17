@@ -16,6 +16,8 @@ public class Niagara : ModuleRules
                 "Engine",
                 "TimeManagement",
                 "Renderer",
+                "JsonUtilities",
+				"Json",
             }
         );
 

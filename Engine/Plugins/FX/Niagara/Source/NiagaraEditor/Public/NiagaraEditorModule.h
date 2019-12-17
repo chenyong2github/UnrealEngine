@@ -25,6 +25,7 @@ class UMovieSceneNiagaraParameterTrack;
 struct IConsoleCommand;
 class INiagaraEditorOnlyDataUtilities;
 class FNiagaraEditorCommands;
+struct FNiagaraScriptHighlight;
 
 DECLARE_STATS_GROUP(TEXT("Niagara Editor"), STATGROUP_NiagaraEditor, STATCAT_Advanced);
 
@@ -106,6 +107,12 @@ public:
 
 	NIAGARAEDITOR_API const FNiagaraEditorCommands& GetCommands() const;
 
+	void InvalidateCachedScriptAssetData();
+
+	const TArray<FNiagaraScriptHighlight>& GetCachedScriptAssetHighlights() const;
+
+	void GetScriptAssetsMatchingHighlight(const FNiagaraScriptHighlight& InHighlight, TArray<FAssetData>& OutMatchingScriptAssets) const;
+
 private:
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action);
 	void OnNiagaraSettingsChangedEvent(const FString& PropertyName, const UNiagaraSettings* Settings);
@@ -161,6 +168,8 @@ private:
 	IConsoleCommand* DumpCompileIdDataForAssetCommand;
 
 	FOnCheckScriptToolkitsShouldFocusGraphElement OnCheckScriptToolkitsShouldFocusGraphElement;
+
+	mutable TOptional<TArray<FNiagaraScriptHighlight>> CachedScriptAssetHighlights;
 
 	bool bThumbnailRenderersRegistered;
 };

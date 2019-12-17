@@ -25,6 +25,8 @@
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraScriptMergeManager.h"
 
+#include "Styling/SlateIconFinder.h"
+
 #define LOCTEXT_NAMESPACE "UNiagaraStackRendererItem"
 
 UNiagaraStackRendererItem::UNiagaraStackRendererItem()
@@ -228,6 +230,11 @@ void UNiagaraStackRendererItem::SetIsEnabledInternal(bool bInIsEnabled)
 	RendererProperties->SetIsEnabled(bInIsEnabled);
 	OnDataObjectModified().Broadcast(RendererProperties.Get());
 	RefreshChildren();
+}
+
+const FSlateBrush* UNiagaraStackRendererItem::GetIconBrush() const
+{
+	return FSlateIconFinder::FindIconBrushForClass(RendererProperties->GetClass());
 }
 
 void UNiagaraStackRendererItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)

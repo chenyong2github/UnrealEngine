@@ -814,6 +814,8 @@ void UNiagaraScript::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 			Source->MarkNotSynchronized(TEXT("Deprecation changed."));
 		}
 	}
+
+	CustomAssetRegistryTagCache.Reset();
 }
 
 #endif
@@ -1284,15 +1286,48 @@ void UNiagaraScript::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) co
 {
 	Super::GetAssetRegistryTags(OutTags);
 #if WITH_EDITORONLY_DATA
-	FName TagName = GET_MEMBER_NAME_CHECKED(UNiagaraScript, ProvidedDependencies);
-	FString DependenciesProvidedString;
-	for (FName DependencyProvided : ProvidedDependencies)
-	{
-		DependenciesProvidedString.Append(DependencyProvided.ToString() + ",");
-	}
+
 	if (ProvidedDependencies.Num() > 0)
 	{
-		OutTags.Add(FAssetRegistryTag(TagName, DependenciesProvidedString, UObject::FAssetRegistryTag::TT_Hidden));
+		FName ProvidedDependenciesName = GET_MEMBER_NAME_CHECKED(UNiagaraScript, ProvidedDependencies);
+		FString* ProvidedDependenciesTags;
+
+		if (CustomAssetRegistryTagCache.IsSet() == false)
+		{
+			CustomAssetRegistryTagCache = TMap<FName, FString>();
+		}
+
+		ProvidedDependenciesTags = CustomAssetRegistryTagCache->Find(ProvidedDependenciesName);
+		if(ProvidedDependenciesTags == nullptr)
+		{
+			ProvidedDependenciesTags = &CustomAssetRegistryTagCache->Add(ProvidedDependenciesName);
+			for (FName ProvidedDependency : ProvidedDependencies)
+			{
+				ProvidedDependenciesTags->Append(ProvidedDependency.ToString() + ",");
+			}
+		}
+
+		OutTags.Add(FAssetRegistryTag(ProvidedDependenciesName, *ProvidedDependenciesTags, UObject::FAssetRegistryTag::TT_Hidden));
+	}
+
+	if (Highlights.Num() > 0)
+	{
+		FName HighlightsName = GET_MEMBER_NAME_CHECKED(UNiagaraScript, Highlights);
+		FString* HighlightsTags;
+
+		if (CustomAssetRegistryTagCache.IsSet() == false)
+		{
+			CustomAssetRegistryTagCache = TMap<FName, FString>();
+		}
+
+		HighlightsTags = CustomAssetRegistryTagCache->Find(HighlightsName);
+		if (HighlightsTags == nullptr)
+		{
+			HighlightsTags = &CustomAssetRegistryTagCache->Add(HighlightsName);
+			FNiagaraScriptHighlight::ArrayToJson(Highlights, *HighlightsTags);
+		}
+
+		OutTags.Add(FAssetRegistryTag(HighlightsName, *HighlightsTags, UObject::FAssetRegistryTag::TT_Hidden));
 	}
 #endif
 }

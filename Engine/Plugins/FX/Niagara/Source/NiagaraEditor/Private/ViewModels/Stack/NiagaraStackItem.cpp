@@ -9,6 +9,8 @@
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "NiagaraStackEditorData.h"
 
+#include "EditorStyleSet.h"
+
 void UNiagaraStackItem::Initialize(FRequiredEntryData InRequiredEntryData, FString InStackEditorDataKey)
 {
 	Super::Initialize(InRequiredEntryData, InStackEditorDataKey);
@@ -41,6 +43,17 @@ void UNiagaraStackItem::Delete()
 		GetSystemViewModel()->GetSelectionViewModel()->RemoveEntryFromSelectionByDisplayedObject(GetDisplayedObject());
 	}
 	DeleteInternal();
+}
+
+const TArray<FNiagaraScriptHighlight>& UNiagaraStackItem::GetHighlights() const
+{
+	static TArray<FNiagaraScriptHighlight> Empty;
+	return Empty;
+}
+
+const FSlateBrush* UNiagaraStackItem::GetIconBrush() const
+{
+	return FEditorStyle::GetBrush("NoBrush");
 }
 
 void UNiagaraStackItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)

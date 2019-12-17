@@ -42,6 +42,9 @@ public:
 	virtual bool SupportsDelete() const override { return true; }
 	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const override;
 
+	virtual bool SupportsHighlights() const override;
+	virtual const TArray<FNiagaraScriptHighlight>& GetHighlights() const override;
+
 	int32 GetModuleIndex() const;
 	
 	UObject* GetExternalAsset() const override;
