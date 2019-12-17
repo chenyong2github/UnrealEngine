@@ -52,6 +52,9 @@ inline const TCHAR* LexToString(EBackgroundHTTPPriority InType)
 		return TEXT("Normal");
 	case EBackgroundHTTPPriority::Low:
 		return TEXT("Low");
+	case EBackgroundHTTPPriority::Num:
+		return TEXT("INVALID(Num)");
+
 	default:
 		break;
 	}
