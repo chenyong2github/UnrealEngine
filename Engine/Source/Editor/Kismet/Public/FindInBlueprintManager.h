@@ -253,13 +253,11 @@ struct FFindInBlueprintCachingOptions
 class FFindInBlueprintsResult : public TSharedFromThis< FFindInBlueprintsResult >
 {
 public:
+	FFindInBlueprintsResult() = default;
+	virtual ~FFindInBlueprintsResult() = default;
+
 	/* Create a root */
-	FFindInBlueprintsResult(const FText& InDisplayText);
-
-	/* Create a listing for a search result*/
-	FFindInBlueprintsResult(const FText& InDisplayText, TSharedPtr<FFindInBlueprintsResult> InParent);
-
-	virtual ~FFindInBlueprintsResult() {}
+	explicit FFindInBlueprintsResult(const FText& InDisplayText);
 
 	/* Called when user clicks on the search item */
 	virtual FReply OnClick();
@@ -291,15 +289,6 @@ public:
 
 	/** Returns the Object represented by this search information give the Blueprint it can be found in */
 	virtual UObject* GetObject(UBlueprint* InBlueprint) const;
-
-	/**
-	* Adds extra search info, anything that does not have a predestined place in the search result. Adds a sub-item to the searches and formats its description so the tag displays
-	*
-	* @param	InKey			This is the tag for the data, describing what it is so special handling can occur if needed
-	* @param	InValue			Compared against search query to see if it passes the filter, sometimes data is rejected because it is deemed unsearchable
-	* @param	InParent		The parent search result
-	*/
-	void AddExtraSearchInfo(FText InKey, FText InValue, TSharedPtr< FFindInBlueprintsResult > InParent);
 
 	/** Returns the display string for the row */
 	FText GetDisplayString() const;
@@ -561,7 +550,11 @@ public:
 
 	bool IsGatheringDataEnabled() const { return bEnableGatheringData; }
 
+	/** If TRUE, the developer menu tool commands will be shown in the 'Developer' section of the Blueprint Editor's menu bar */
 	bool ShouldEnableDeveloperMenuTools() const { return bEnableDeveloperMenuTools; }
+
+	/** If TRUE, search result meta will be gathered once and stored in a template. Avoids doing this work redundantly at search time. */
+	bool ShouldEnableSearchResultTemplates() const { return !bDisableSearchResultTemplates; }
 
 	/** Find or create the global find results widget */
 	TSharedPtr<SFindInBlueprints> GetGlobalFindResults();
@@ -716,6 +709,9 @@ protected:
 
 	/** Whether to enable Blueprint editor developer menu tools */
 	bool bEnableDeveloperMenuTools;
+
+	/** Disable the use of search result templates. Setting this to TRUE will slightly decrease overall memory usage, but will also increase global search times */
+	bool bDisableSearchResultTemplates;
 
 	/** TRUE when the the FiB manager wants to pause all searches, helps manage the pausing procedure */
 	volatile bool bIsPausing;

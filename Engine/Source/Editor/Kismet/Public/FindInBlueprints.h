@@ -90,22 +90,24 @@ class FFindInBlueprintsNoResult : public FFindInBlueprintsResult
 {
 public:
 	FFindInBlueprintsNoResult(const FText& InDisplayText)
-		:FFindInBlueprintsResult(InDisplayText, nullptr)
+		:FFindInBlueprintsResult(InDisplayText)
 	{
 	}
 
+	/** FFindInBlueprintsResult Interface */
 	virtual FReply OnClick() override
 	{
 		// Do nothing on click.
 		return FReply::Handled();
 	}
+	/** End FFindInBlueprintsResult Interface */
 };
 
 /** Graph nodes use this class to store their data */
 class FFindInBlueprintsGraphNode : public FFindInBlueprintsResult
 {
 public:
-	FFindInBlueprintsGraphNode(const FText& InValue, TSharedPtr<FFindInBlueprintsResult> InParent);
+	FFindInBlueprintsGraphNode();
 	virtual ~FFindInBlueprintsGraphNode() {}
 
 	/** FFindInBlueprintsResult Interface */
@@ -138,7 +140,7 @@ private:
 class FFindInBlueprintsPin : public FFindInBlueprintsResult
 {
 public:
-	FFindInBlueprintsPin(const FText& InValue, TSharedPtr<FFindInBlueprintsResult> InParent, FString InSchemaName);
+	FFindInBlueprintsPin(FString InSchemaName);
 	virtual ~FFindInBlueprintsPin() {}
 
 	/** FFindInBlueprintsResult Interface */
@@ -147,7 +149,8 @@ public:
 	virtual FText GetCategory() const override;
 	virtual void FinalizeSearchData() override;
 	/** End FFindInBlueprintsResult Interface */
-protected:
+
+private:
 	/** The name of the schema this pin exists under */
 	FString SchemaName;
 
@@ -162,7 +165,7 @@ protected:
 class FFindInBlueprintsProperty : public FFindInBlueprintsResult
 {
 public:
-	FFindInBlueprintsProperty(const FText& InValue, TSharedPtr<FFindInBlueprintsResult> InParent);
+	FFindInBlueprintsProperty();
 	virtual ~FFindInBlueprintsProperty() {}
 
 	/** FFindInBlueprintsResult Interface */
@@ -172,7 +175,8 @@ public:
 	virtual FText GetCategory() const override;
 	virtual void FinalizeSearchData() override;
 	/** End FFindInBlueprintsResult Interface */
-protected:
+
+private:
 	/** The pin that this search result refers to */
 	FEdGraphPinType PinType;
 
@@ -187,7 +191,7 @@ protected:
 class FFindInBlueprintsGraph : public FFindInBlueprintsResult
 {
 public:
-	FFindInBlueprintsGraph(const FText& InValue, TSharedPtr<FFindInBlueprintsResult> InParent, EGraphType InGraphType);
+	FFindInBlueprintsGraph(EGraphType InGraphType);
 	virtual ~FFindInBlueprintsGraph() {}
 
 	/** FFindInBlueprintsResult Interface */
@@ -196,8 +200,8 @@ public:
 	virtual void ParseSearchInfo(FText InKey, FText InValue) override;
 	virtual FText GetCategory() const override;
 	/** End FFindInBlueprintsResult Interface */
-protected:
 
+private:
 	/** The type of graph this represents */
 	EGraphType GraphType;
 };
