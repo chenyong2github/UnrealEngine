@@ -42,8 +42,6 @@ void FSlowTask::Initialize()
 	if (bEnabled)
 	{
 		Context.ScopeStack.Push(this);
-
-		Context.RequestUpdateUI();
 	}
 }
 
