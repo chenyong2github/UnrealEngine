@@ -184,6 +184,36 @@ bool FPathTests::RunTest( const FString& Parameters )
 		RunIsUnderDirectoryTest(TEXT("C:/Folder/Subdir/"),	TEXT("C:/Folder/"), true);
 	}
 
+	// RemoveDuplicateSlashes
+	{
+		auto RunRemoveDuplicateSlashesTest = [this](const TCHAR* InPath, const TCHAR* InExpectedResult)
+		{
+			FString ReplacementPath(InPath);
+			const FString ExpectedResult(InExpectedResult);
+			FPaths::RemoveDuplicateSlashes(ReplacementPath);
+			if (!ReplacementPath.Equals(ExpectedResult, ESearchCase::CaseSensitive))
+			{
+				AddError(FString::Printf(TEXT("FPaths::RemoveDuplicateSlashes('%s') != '%s'."), InPath, InExpectedResult));
+			}
+			else if (ReplacementPath.GetCharArray().Num() != ExpectedResult.Len())
+			{
+				AddError(FString::Printf(TEXT("FPaths::RemoveDuplicateSlashes('%s') returned a result with extra space still allocated after the null terminator."), InPath));
+			}
+		};
+
+		RunRemoveDuplicateSlashesTest(TEXT(""), TEXT(""));
+		RunRemoveDuplicateSlashesTest(TEXT("C:/Folder/File.txt"), TEXT("C:/Folder/File.txt"));
+		RunRemoveDuplicateSlashesTest(TEXT("C:/Folder/File/"), TEXT("C:/Folder/File/"));
+		RunRemoveDuplicateSlashesTest(TEXT("/"), TEXT("/"));
+		RunRemoveDuplicateSlashesTest(TEXT("//"), TEXT("/"));
+		RunRemoveDuplicateSlashesTest(TEXT("////"), TEXT("/"));
+		RunRemoveDuplicateSlashesTest(TEXT("/Folder/File"), TEXT("/Folder/File"));
+		RunRemoveDuplicateSlashesTest(TEXT("//Folder/File"), TEXT("/Folder/File")); // Don't use on //UNC paths; it will be stripped!
+		RunRemoveDuplicateSlashesTest(TEXT("/////Folder//////File/////"), TEXT("/Folder/File/"));
+		RunRemoveDuplicateSlashesTest(TEXT("\\\\Folder\\\\File\\\\"), TEXT("\\\\Folder\\\\File\\\\")); // It doesn't strip backslash, and we rely on that in some places
+		RunRemoveDuplicateSlashesTest(TEXT("//\\\\//Folder//\\\\//File//\\\\//"), TEXT("/\\\\/Folder/\\\\/File/\\\\/"));
+	}
+
 	return true;
 }
 
