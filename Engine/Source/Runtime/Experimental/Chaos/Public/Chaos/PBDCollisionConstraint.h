@@ -41,10 +41,10 @@ template<typename T, int d>
 using TRigidBodyContactConstraintsPostComputeCallback = TFunction<void()>;
 
 template<typename T, int d>
-using TRigidBodyContactConstraintsPostApplyCallback = TFunction<void(const T Dt, const TArray<TPBDCollisionConstraintHandle<T, d>*>& InConstraintHandles)>;
+using TRigidBodyContactConstraintsPostApplyCallback = TFunction<void(const T Dt, const TArray<TPBDCollisionConstraintHandle<T, d>*>&)>;
 
 template<typename T, int d>
-using TRigidBodyContactConstraintsPostApplyPushOutCallback = TFunction<void(const T Dt, const TArray<TPBDCollisionConstraintHandle<T, d>*>& InConstraintHandles, bool bRequiresAnotherIteration)>;
+using TRigidBodyContactConstraintsPostApplyPushOutCallback = TFunction<void(const T Dt, const TArray<TPBDCollisionConstraintHandle<T, d>*>&, bool)>;
 
 /**
  * Manages a set of contact constraints:
@@ -52,7 +52,6 @@ using TRigidBodyContactConstraintsPostApplyPushOutCallback = TFunction<void(cons
  *	- Responsible for applying corrections to particles affected by the constraints.
  * @todo(ccaulfield): rename to TPBDCollisionConstraints
  * @todo(ccaulfield): remove TPBDCollisionConstraintAccessor
- * @todo(ccaulfield): separate collision detection from constraint container
  */
 template<typename T, int d>
 class CHAOS_API TPBDCollisionConstraint : public FPBDConstraintContainer
@@ -62,19 +61,121 @@ public:
 	friend class TPBDCollisionConstraintHandle<T, d>;
 
 	using Base = FPBDConstraintContainer;
-	using FConstraintHandleID = TPair<const TGeometryParticleHandle<T, d>*, const TGeometryParticleHandle<T, d>*>;
-	using FConstraintContainerHandle = TPBDCollisionConstraintHandle<T, d>; // @todo(brice) rename this to FCollisionConstraintHandle
-	using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDCollisionConstraint<T, d>>;
+	using FHandles = TArray<TPBDCollisionConstraintHandle<T, d>*>;
+	using FConstraintContainerHandle = TPBDCollisionConstraintHandle<T, d>;
  	using FPointContactConstraint = TRigidBodyPointContactConstraint<T, d>;
 	using FPlaneContactConstraint = TRigidBodyPlaneContactConstraint<T, d>;
-	using FHandles = TArray<FConstraintContainerHandle*>;
+	using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDCollisionConstraint<T, d>>;
+	using FConstraintHandleID = TPair<const TGeometryParticleHandle<T, d>*, const TGeometryParticleHandle<T, d>*>;
 
-	TPBDCollisionConstraint(const TPBDRigidsSOAs<T,d>& InParticles, TArrayCollectionArray<bool>& Collided, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterials, const int32 ApplyPairIterations = 1, const int32 ApplyPushOutPairIterations = 1, const T Thickness = (T)0);
+
+	TPBDCollisionConstraint(const TPBDRigidsSOAs<T,d>& InParticles, 
+		TArrayCollectionArray<bool>& Collided, 
+		const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterials, 
+		const int32 ApplyPairIterations = 1, const int32 ApplyPushOutPairIterations = 1, const T Thickness = (T)0);
+
 	virtual ~TPBDCollisionConstraint() {}
 
+
+	/**
+	 * Generate all contact constraints.
+	 */
+	void UpdatePositionBasedState(const T Dt);
+
+
+	/**
+	*  Reset the constraint frame. 
+	*/
+	void Reset();
+
+	/**
+	 * Apply a modifier to the constraints and specify which constraints should be disabled.
+	 * You would probably call this in the PostComputeCallback. Prefer this to calling RemoveConstraints in a loop,
+	 * so you don't have to worry about constraint iterator/indices changing.
+	 */
+	void ApplyCollisionModifier(const TFunction<ECollisionModifierResult(const FConstraintContainerHandle* Handle)>& CollisionModifier);
+
+
+	/**
+	* Remove the constraints associated with the ParticleHandle.
+	*/
+	void RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>&  ParticleHandle);
+
+
+	/**
+	* Remove the constraint, update the handle, and any maps. 
+	*/
+	void RemoveConstraint(FConstraintContainerHandle*);
+
+
+	/**
+	*  Process constraints acceleration structures. 
+	*/
+	//using FAccelerationStructure = TBoundingVolume<TAccelerationStructureHandle<T, d>, T, d>;
+	//using FAccelerationStructure = TAABBTree<TAccelerationStructureHandle<T, d>, TAABBTreeLeafArray<TAccelerationStructureHandle<T, d>, T>, T>;
+	using FAccelerationStructure = ISpatialAcceleration< TAccelerationStructureHandle<T, d>, T, d>;
+	void SetSpatialAcceleration(const FAccelerationStructure* InSpatialAcceleration) { SpatialAcceleration = InSpatialAcceleration; }
+
+	template <bool bGatherStats = false>
+	void ComputeConstraints(const FAccelerationStructure& AccelerationStructure, T Dt);
+
+	//NOTE: this should not be called by anyone other than ISpatialAccelerationCollection and CollisionConstraints - todo: make private with friends?
+	template <bool bGatherStats, typename SPATIAL_ACCELERATION>
+	void ComputeConstraintsHelperLowLevel(const SPATIAL_ACCELERATION& SpatialAcceleration, T Dt);
+
+
+	/**
+	 * Update all constraint values
+	 */
+	void UpdateConstraints(T Dt, const TSet<TGeometryParticleHandle<T, d>*>& AddedParticles);
+
+
+
+	/**
+	 * Apply corrections for the specified list of constraints. (Runs Wide!)
+	 *
+	 * @todo(ccaulfield): this runs wide. The serial/parallel decision should be in the ConstraintRule
+	 *
+	 */
+	void Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
+
+
+	/**
+	 * Apply push out for the specified list of constraints.
+	 *  Return true if we need another iteration 
+	 *
+	 * @todo(ccaulfield): this runs wide. The serial/parallel decision should be in the ConstraintRule
+	 *
+	 */
+	bool ApplyPushOut(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, 
+		const TSet<const TGeometryParticleHandle<T,d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations);
+
+
+	/**
+	*
+	*  Callbacks
+	*
+	 * Set the callback used just after contacts are generated at the start of a frame tick.
+	 * This can be used to modify or disable constraints (via ApplyCollisionModifier).
+	 */
+	void SetPostComputeCallback(const TRigidBodyContactConstraintsPostComputeCallback<T, d>& Callback);
+	void ClearPostComputeCallback();
+
+	void SetPostApplyCallback(const TRigidBodyContactConstraintsPostApplyCallback<T, d>& Callback);
+	void ClearPostApplyCallback();
+
+	void SetPostApplyPushOutCallback(const TRigidBodyContactConstraintsPostApplyPushOutCallback<T, d>& Callback);
+	void ClearPostApplyPushOutCallback();
+
+
 	//
-	// Constraint Container API
+	// Member Access
 	//
+
+	const TArray<FConstraintContainerHandle*>& GetAllConstraintHandles() const 
+	{ 
+		return Handles; 
+	}
 
 	void SetThickness(T InThickness)
 	{
@@ -108,7 +209,7 @@ public:
 
 	FConstraintHandleID GetConstraintHandleID(const FPointContactConstraint & Constraint) const
 	{
-		return  FConstraintHandleID( Constraint.Particle[0], Constraint.Particle[1] );
+		return  FConstraintHandleID(Constraint.Particle[0], Constraint.Particle[1]);
 	}
 
 	FHandles& GetConstraintHandles()
@@ -120,76 +221,6 @@ public:
 		return Handles;
 	}
 
-	void RemoveConstraint(FConstraintContainerHandle*);
-
-	/**
-	* Remove the constraints associated with the ParticleHandle.
-	*/
-	void RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>&  ParticleHandle);
-
-	/**
-	 * Apply a modifier to the constraints and specify which constraints should be disabled.
-	 * You would probably call this in the PostComputeCallback. Prefer this to calling RemoveConstraints in a loop, 
-	 * so you don't have to worry about constraint iterator/indices changing.
-	 */
-	void ApplyCollisionModifier(const TFunction<ECollisionModifierResult(const FConstraintContainerHandle* Handle)>& CollisionModifier);
-
-	/**
-	 * Set the callback used just after contacts are generated at the start of a frame tick.
-	 * This can be used to modify or disable constraints (via ApplyCollisionModifier).
-	 */
-	void SetPostComputeCallback(const TRigidBodyContactConstraintsPostComputeCallback<T, d>& Callback);
-	void ClearPostComputeCallback();
-
-	void SetPostApplyCallback(const TRigidBodyContactConstraintsPostApplyCallback<T, d>& Callback);
-	void ClearPostApplyCallback();
-
-	void SetPostApplyPushOutCallback(const TRigidBodyContactConstraintsPostApplyPushOutCallback<T, d>& Callback);
-	void ClearPostApplyPushOutCallback();
-
-	//
-	// Island Rule API
-	//
-
-	/**
-	 * Apply corrections for the specified list of constraints. (Runs Wide!)
-	 *
-	 * @todo(ccaulfield): this runs wide. The serial/parallel decision should be in the ConstraintRule
-	 *
-	 */
-	void Apply(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
-
-	/**
-	 * Generate all contact constraints.
-	 */
-	void UpdatePositionBasedState(const T Dt);
-
-	/**
-	 * Update all constraint values
-	 */
-	void UpdateConstraints(T Dt, const TSet<TGeometryParticleHandle<T, d>*>& AddedParticles);
-
-	/**
-	 * Apply push out for the specified list of constraints.
-	 *  Return true if we need another iteration 
-	 *
-	 * @todo(ccaulfield): this runs wide. The serial/parallel decision should be in the ConstraintRule
-	 *
-	 */
-	bool ApplyPushOut(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const TSet<const TGeometryParticleHandle<T,d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations);
-
-
-	const TArray<FConstraintContainerHandle*>& GetAllConstraintHandles() const { return Handles; }
-
-	//using FAccelerationStructure = TBoundingVolume<TAccelerationStructureHandle<T, d>, T, d>;
-	//using FAccelerationStructure = TAABBTree<TAccelerationStructureHandle<T, d>, TAABBTreeLeafArray<TAccelerationStructureHandle<T, d>, T>, T>;
-	using FAccelerationStructure = ISpatialAcceleration< TAccelerationStructureHandle<T, d>, T, d>;
-	void SetSpatialAcceleration(const FAccelerationStructure* InSpatialAcceleration) { SpatialAcceleration = InSpatialAcceleration; }
-
-	//NOTE: this should not be called by anyone other than ISpatialAccelerationCollection and CollisionConstraints - todo: make private with friends?
-	template <bool bGatherStats, typename SPATIAL_ACCELERATION>
-	void ComputeConstraintsHelperLowLevel(const SPATIAL_ACCELERATION& SpatialAcceleration, T Dt);
-	
 
 protected:
 		using Base::GetConstraintIndex;
@@ -197,23 +228,18 @@ protected:
 
 private:
 
-	/*
-	* Reset the constraints. 
+	/**
+	* Update the individual constraints.
 	*/
-	void Reset( );
-
-	void Apply(const T Dt, FPointContactConstraint& Constraint, const int32 It, const int32 NumIts);
-
-
-	void ApplyPushOut(const T Dt, FPointContactConstraint& Constraint, const TSet<const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations, bool &NeedsAnotherIteration);
-
-	template <bool bGatherStats = false>
-	void ComputeConstraints(const FAccelerationStructure& AccelerationStructure, T Dt);
-
 	template<ECollisionUpdateType>
-	void UpdateConstraint(const T Thickness, FPointContactConstraint& Constraint);
+	void UpdateConstraint(const T Thickness, TRigidBodyPointContactConstraint<T, d> & Constraint);
 
-	void ConstructConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const T Thickness, TRigidBodyPointContactConstraint<T, d> & Constraint);
+	/**
+	*  Build a constraint based on the two particle handles.
+	*/
+	void ConstructConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, 
+		const T Thickness, TRigidBodyPointContactConstraint<T, d> & Constraint);
+
 
 
 	const TPBDRigidsSOAs<T,d>& Particles;
@@ -245,8 +271,8 @@ private:
 	const FAccelerationStructure* SpatialAcceleration;
 };
 
-extern template void TPBDCollisionConstraint<float, 3>::UpdateConstraint<ECollisionUpdateType::Any>(const float Thickness, FPointContactConstraint& Constraint);
-extern template void TPBDCollisionConstraint<float, 3>::UpdateConstraint<ECollisionUpdateType::Deepest>(const float Thickness, FPointContactConstraint& Constraint);
+extern template void TPBDCollisionConstraint<float, 3>::UpdateConstraint<ECollisionUpdateType::Any>(const float Thickness, TRigidBodyPointContactConstraint<float,3> & Constraint);
+extern template void TPBDCollisionConstraint<float, 3>::UpdateConstraint<ECollisionUpdateType::Deepest>(const float Thickness, TRigidBodyPointContactConstraint<float, 3> & Constraint);
 extern template void TPBDCollisionConstraint<float, 3>::ComputeConstraints<false>(const TPBDCollisionConstraint<float, 3>::FAccelerationStructure&, float Dt);
 extern template void TPBDCollisionConstraint<float, 3>::ComputeConstraints<true>(const TPBDCollisionConstraint<float, 3>::FAccelerationStructure&, float Dt);
 }
