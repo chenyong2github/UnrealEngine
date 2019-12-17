@@ -270,7 +270,11 @@ void FDatasmithImporterUtils::DeleteNonImportedDatasmithElementFromSceneActor(AD
 					// Removed the non imported components
 					for ( UActorComponent* ComponentToRemove : ComponentsToRemove )
 					{
-						ComponentToRemove->DestroyComponent( true );
+						// Some components can destroy other components when being destroyed
+						if ( !ComponentToRemove->IsBeingDestroyed() )
+						{
+							ComponentToRemove->DestroyComponent( true );
+						}
 					}
 				}
 				else
