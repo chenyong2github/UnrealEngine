@@ -787,8 +787,12 @@ private:
 
 	/** Creates the row header context menu allowing for hiding individually clicked columns*/
 	TSharedRef<SWidget> CreateRowHeaderMenuContent(const FString ColumnName);
+
 	/** Will compute the max row size from all its children for the specified column id*/
 	FVector2D GetMaxRowSizeForColumn(const FName& ColumnId);
+
+	/** Append the current effective backend filter (intersection of BackendFilter and SupportedFilter) to the given filter. */
+	void AppendBackendFilter(FARFilter& FilterToAppendTo) const;
 
 public:
 	/** Delegate that handles if any folder paths changed as a result of a move, rename, etc. in the asset view*/
