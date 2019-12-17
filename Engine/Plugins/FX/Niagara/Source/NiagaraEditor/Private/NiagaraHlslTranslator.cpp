@@ -1754,7 +1754,7 @@ void FHlslNiagaraTranslator::DefineDataInterfaceHLSL(FString &InHlslOutput)
 					FString DefStr = GetFunctionSignatureSymbol(Sig);
 
 					const bool HlslOK = CDO->GetFunctionHLSL(Sig.Name, DefStr, DIParamInfo[NewIdx], InterfaceFunctionHLSL);
-					if (HlslOK == false)
+					if (OriginalSig.bSupportsGPU == false || HlslOK == false)
 					{
 						Error(FText::Format(LOCTEXT("GPUDataInterfaceFunctionNotSupported", "DataInterface {0} function {1} cannot run on the GPU or is not implemented."), FText::FromName(Info.Type.GetFName()), FText::FromName(Sig.Name))
 							, nullptr, nullptr);

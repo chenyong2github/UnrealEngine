@@ -565,6 +565,11 @@ void FNiagaraWorldManager::DumpDetails(FOutputDevice& Ar)
 	}
 }
 
+UWorld* FNiagaraWorldManager::GetWorld()
+{
+	return World;
+}
+
 void FNiagaraWorldManager::EnqueueDeferredDeletionFences(TArray<FNiagaraDeferredDeletionFence>& OutFences)
 {
 	OutFences.Reserve(WorldManagers.Num());
