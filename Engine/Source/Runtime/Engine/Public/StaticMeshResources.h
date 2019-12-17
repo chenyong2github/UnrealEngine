@@ -802,6 +802,8 @@ public:
 	virtual int32 CollectOccluderElements(class FOccluderElementsCollector& Collector) const override;
 
 	virtual void CreateRenderThreadResources() override;
+		
+	virtual void DestroyRenderThreadResources() override;
 
 	/** Sets up a wireframe FMeshBatch for a specific LOD. */
 	virtual bool GetWireframeMeshElement(int32 LODIndex, int32 BatchIndex, const FMaterialRenderProxy* WireframeRenderProxy, uint8 InDepthPriorityGroup, bool bAllowPreCulledIndices, FMeshBatch& OutMeshBatch) const;
