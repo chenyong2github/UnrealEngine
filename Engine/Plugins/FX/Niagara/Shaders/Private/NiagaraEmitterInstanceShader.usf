@@ -397,6 +397,21 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 			if(ShaderStageIndex == 0)
 			{
 				int PrevIdx = GSpawnStartInstance + SpawnedInstances;	// scratch instance as default; write to that for dead particles
+
+#if PS4_PROFILE || XBOXONE_PROFILE
+				uint NumCounters = WaveActiveCountBits(bDoAcquire);
+				if(NumCounters)
+				{
+					if(WaveIsFirstLane())
+					{
+						uint RetPrevIdx;
+						InterlockedAdd(RWInstanceCounts[WriteInstanceCountOffset], NumCounters, RetPrevIdx);
+						PrevIdx = (int)RetPrevIdx;
+					}
+					PrevIdx = WaveReadFirstLane(PrevIdx);
+					PrevIdx += WavePrefixCountBits(bDoAcquire);
+				}		
+#else
 				if(bDoAcquire == true)
 				{
 					// Have to use uint's here to avoid PS4 compiler warnings about InterlockedAdd, cannot propagate uint due to CPU VM limitations...
@@ -405,6 +420,7 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 					InterlockedAdd(RWInstanceCounts[WriteInstanceCountOffset], (uint)1U, RetPrevIdx);
 					PrevIdx = (int)RetPrevIdx;
 				}
+#endif
 				return PrevIdx;
 			}
 			else
@@ -413,6 +429,21 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 			}
 		#else
 			int PrevIdx = GSpawnStartInstance + SpawnedInstances;	// scratch instance as default; write to that for dead particles
+
+#if PS4_PROFILE || XBOXONE_PROFILE
+			uint NumCounters = WaveActiveCountBits(bDoAcquire);
+			if(NumCounters)
+			{
+				if(WaveIsFirstLane())
+				{
+					uint RetPrevIdx;
+					InterlockedAdd(RWInstanceCounts[WriteInstanceCountOffset], NumCounters, RetPrevIdx);
+					PrevIdx = (int)RetPrevIdx;
+				}
+				PrevIdx = WaveReadFirstLane(PrevIdx);
+				PrevIdx += WavePrefixCountBits(bDoAcquire);
+			}	
+#else
 			if(bDoAcquire == true)
 			{
 				// Have to use uint's here to avoid PS4 compiler warnings about InterlockedAdd, cannot propagate uint due to CPU VM limitations...
@@ -421,6 +452,7 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 				InterlockedAdd(RWInstanceCounts[WriteInstanceCountOffset], (uint)1U, RetPrevIdx);
 				PrevIdx = (int)RetPrevIdx;
 			}
+#endif
 			return PrevIdx;
 		#endif
 	}
