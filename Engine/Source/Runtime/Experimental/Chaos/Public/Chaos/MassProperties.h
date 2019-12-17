@@ -34,17 +34,17 @@ namespace Chaos
 	template<class T, int d>
 	TRotation<T, d> TransformToLocalSpace(PMatrix<T, d, d>& Inertia);
 
-	template<typename T, int d>
-	void CalculateVolumeAndCenterOfMass(const TParticles<T, d>& Vertices, const TTriangleMesh<T>& Surface, T& OutVolume, TVector<T, d>& OutCenterOfMass);
+	template<typename T, int d, typename TSurfaces>
+	void CalculateVolumeAndCenterOfMass(const TParticles<T, d>& Vertices, const TSurfaces& Surfaces, T& OutVolume, TVector<T, d>& OutCenterOfMass);
 
-	template<class T, int d>
+	template<class T, int d, typename TSurfaces>
 	TMassProperties<T, d> CalculateMassProperties(
 	    const TParticles<T, d>& Vertices,
-	    const TTriangleMesh<T>& Surface,
+		const TSurfaces& Surfaces,
 	    const T Mass);
 
-	template<typename T, int d>
-	void CalculateInertiaAndRotationOfMass(const TParticles<T, d>& Vertices, const TTriangleMesh<T>& Surface, const T Density, const TVector<T, d>& CenterOfMass,
+	template<typename T, int d, typename TSurfaces>
+	void CalculateInertiaAndRotationOfMass(const TParticles<T, d>& Vertices, const TSurfaces& Surfaces, const T Density, const TVector<T, d>& CenterOfMass,
 	    PMatrix<T, d, d>& OutInertiaTensor, TRotation<T, d>& OutRotationOfMass);
 
 	template<class T, int d>
