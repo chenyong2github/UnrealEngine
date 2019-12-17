@@ -72,7 +72,7 @@ void UChaosDestructionListener::UpdateEvents()
 				{
 					if (const FGeometryCollectionPhysicsProxy* GeometryCollectionPhysicsObject = GeometryCollectionComponent->GetPhysicsProxy())
 					{
-						RegisterChaosEvents(GeometryCollectionComponent->GetPhysicsScene());
+						RegisterChaosEvents(GeometryCollectionComponent->GetWorld()->GetPhysicsScene());
 					}
 				}
 			}
@@ -310,7 +310,7 @@ void UChaosDestructionListener::AddGeometryCollectionActor(AGeometryCollectionAc
 		{
 			if (const FGeometryCollectionPhysicsProxy* GeometryCollectionPhysicsObject = GeometryCollectionComponent->GetPhysicsProxy())
 			{
-				RegisterChaosEvents(GeometryCollectionComponent->GetPhysicsScene());
+				RegisterChaosEvents(GeometryCollectionComponent->GetWorld()->GetPhysicsScene());
 			}
 		}
 	}
