@@ -112,8 +112,8 @@ namespace Chaos
 		void UnregisterObject(Chaos::TGeometryParticle<float, 3>* GTParticle);
 
 		// TODO: Set up an interface for registering fields and geometry collections
-		//void RegisterObject(FGeometryCollectionPhysicsProxy* InProxy);
-		//int UnregisterObject(FGeometryCollectionPhysicsProxy* InProxy);
+		void RegisterObject(FGeometryCollectionPhysicsProxy* InProxy);
+		bool UnregisterObject(FGeometryCollectionPhysicsProxy* InProxy);
 		//void RegisterObject(FFieldSystemPhysicsProxy* InProxy);
 		//int UnregisterObject(FFieldSystemPhysicsProxy* InProxy);
 

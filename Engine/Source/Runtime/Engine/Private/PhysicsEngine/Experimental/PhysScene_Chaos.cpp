@@ -536,13 +536,10 @@ void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FGeometryCollec
 {
 	AddToComponentMaps(Component, InObject);
 
-	check(false);
-#if 0
 	Chaos::FPhysicsSolver* Solver = GetSolver();
 	Solver->RegisterObject(InObject);
 
 	AddPhysicsProxy(InObject, Solver, GetDispatcher());
-#endif
 }
 
 void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FFieldSystemPhysicsProxy* InObject)
@@ -680,21 +677,13 @@ void FPhysScene_Chaos::RemoveObject(FGeometryParticlePhysicsProxy* InObject)
 
 void FPhysScene_Chaos::RemoveObject(FGeometryCollectionPhysicsProxy* InObject)
 {
-	check(false);
-#if 0
 	Chaos::FPhysicsSolver* Solver = InObject->GetSolver();
-
-	const int32 NumRemoved = Solver->UnregisterObject(InObject);
-
-	if(NumRemoved == 0)
+	if(Solver && !Solver->UnregisterObject(InObject))
 	{
 		UE_LOG(LogChaos, Warning, TEXT("Attempted to remove an object that wasn't found in its solver's gamethread storage - it's likely the solver has been mistakenly changed."));
 	}
-
 	RemoveFromComponentMaps(InObject);
-
 	RemovePhysicsProxy(InObject, Solver, ChaosModule);
-#endif
 }
 
 void FPhysScene_Chaos::RemoveObject(FFieldSystemPhysicsProxy* InObject)
