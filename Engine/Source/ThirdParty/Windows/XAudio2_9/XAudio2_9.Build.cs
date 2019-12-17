@@ -12,13 +12,13 @@ public class XAudio2_9 : ModuleRules
 		PublicSystemIncludePaths.Add(XAudio2_9Dir + "/Include");
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			PublicLibraryPaths.Add(XAudio2_9Dir + "/Lib/x64");
+		{		
+			PublicAdditionalLibraries.Add(XAudio2_9Dir + "/Lib/x64/xaudio2_9redist.lib");
             RuntimeDependencies.Add("$(TargetOutputDir)/XAudio2_9redist.dll", XAudio2_9Dir + "/Bin/x64/XAudio2_9redist.dll");
         }
         else if (Target.Platform == UnrealTargetPlatform.Win32)
 		{
-			PublicLibraryPaths.Add(XAudio2_9Dir + "/Lib/x86");
+			PublicAdditionalLibraries.Add(XAudio2_9Dir + "/Lib/x86/xaudio2_9redist.lib");
             RuntimeDependencies.Add("$(TargetOutputDir)/XAudio2_9redist.dll", XAudio2_9Dir + "/Bin/x86/XAudio2_9redist.dll");
         }
 
