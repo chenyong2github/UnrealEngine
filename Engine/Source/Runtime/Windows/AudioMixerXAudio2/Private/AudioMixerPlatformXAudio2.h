@@ -92,8 +92,6 @@ namespace Audio
 
 	private:
 
-		bool GetOutputDeviceInfoInternal(const uint32 InDeviceIndex, FAudioPlatformDeviceInfo& OutInfo);
-
 		bool AllowDeviceSwap();
 
 		// Used to teardown and reinitialize XAudio2.
