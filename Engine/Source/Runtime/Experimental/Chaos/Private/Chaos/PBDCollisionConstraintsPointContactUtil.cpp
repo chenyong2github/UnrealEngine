@@ -3,6 +3,7 @@
 #include "Chaos/PBDCollisionConstraintsPointContactUtil.h"
 #include "Chaos/CollisionResolution.h"
 #include "Chaos/Defines.h"
+#include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/Utilities.h"
 
 namespace Chaos
@@ -68,23 +69,18 @@ namespace Chaos
 					PhysicsMaterial1 = Particle1->AuxilaryValue(*ParticleParameters.PhysicsMaterials);
 				}
 
-				// @todo(ccaulfield): CHAOS_PARTICLEHANDLE_TODO split function to avoid ifs
 				const TVector<T, d> ZeroVector = TVector<T, d>(0);
-				const TRotation<T, d>& Q0 = Particle0->Q();
-				const TRotation<T, d>& Q1 = Particle1->Q();
-				const TVector<T, d>& P0 = Particle0->P();
-				const TVector<T, d>& P1 = Particle1->P();
-				const TVector<T, d>& V0 = Particle0->V();
-				const TVector<T, d>& V1 = Particle1->V();
-				const TVector<T, d>& W0 = Particle0->W();
-				const TVector<T, d>& W1 = Particle1->W();
+				TVector<T, d> P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
+				TVector<T, d> P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
+				TRotation<T, d> Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
+				TRotation<T, d> Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
 
 				typename TRigidBodyPointContactConstraint<T, d>::FManifold & Contact = Constraint.Manifold;
 
 				TVector<T, d> VectorToPoint1 = Contact.Location - P0;
 				TVector<T, d> VectorToPoint2 = Contact.Location - P1;
-				TVector<T, d> Body1Velocity = V0 + TVector<T, d>::CrossProduct(W0, VectorToPoint1);
-				TVector<T, d> Body2Velocity = V1 + TVector<T, d>::CrossProduct(W1, VectorToPoint2);
+				TVector<T, d> Body1Velocity = FParticleUtilities::GetVelocityAtCoMRelativePosition(Particle0, VectorToPoint1);
+				TVector<T, d> Body2Velocity = FParticleUtilities::GetVelocityAtCoMRelativePosition(Particle1, VectorToPoint2);
 				TVector<T, d> RelativeVelocity = Body1Velocity - Body2Velocity;
 				T RelativeNormalVelocity = TVector<T, d>::DotProduct(RelativeVelocity, Contact.Normal);
 
@@ -155,7 +151,7 @@ namespace Chaos
 							Impulse = MinimalImpulse;
 							if (AngularFriction)
 							{
-								TVector<T, d> RelativeAngularVelocity = W0 - W1;
+								TVector<T, d> RelativeAngularVelocity = Particle0->W() - Particle1->W();
 								T AngularNormal = TVector<T, d>::DotProduct(RelativeAngularVelocity, Contact.Normal);
 								TVector<T, d> AngularTangent = RelativeAngularVelocity - AngularNormal * Contact.Normal;
 								TVector<T, d> FinalAngularVelocity = FMath::Sign(AngularNormal) * FMath::Max((T)0, FMath::Abs(AngularNormal) - AngularFriction * NormalVelocityChange) * Contact.Normal + FMath::Max((T)0, AngularTangent.Size() - AngularFriction * NormalVelocityChange) * AngularTangent.GetSafeNormal();
@@ -237,9 +233,10 @@ namespace Chaos
 						PBDRigid0->V() += DV;
 						PBDRigid0->W() += DW;
 						// Position update as part of pbd
-						PBDRigid0->P() += DV * IterationParameters.Dt;
-						PBDRigid0->Q() += FRotation3::FromElements(DW, 0.f) * Q0 * IterationParameters.Dt * T(0.5);
-						PBDRigid0->Q().Normalize();
+						P0 += (DV * IterationParameters.Dt);
+						Q0 += FRotation3::FromElements(DW, 0.f) * Q0 * IterationParameters.Dt * T(0.5);
+						Q0.Normalize();
+						FParticleUtilities::SetCoMWorldTransform(PBDRigid0, P0, Q0);
 					}
 					if (bIsRigidDynamic1)
 					{
@@ -250,36 +247,34 @@ namespace Chaos
 						PBDRigid1->V() += DV;
 						PBDRigid1->W() += DW;
 						// Position update as part of pbd
-						PBDRigid1->P() += DV * IterationParameters.Dt;
-						PBDRigid1->Q() += FRotation3::FromElements(DW, 0.f) * Q1 * IterationParameters.Dt * T(0.5);
-						PBDRigid1->Q().Normalize();
+						P1 += (DV * IterationParameters.Dt);
+						Q1 += FRotation3::FromElements(DW, 0.f) * Q1 * IterationParameters.Dt * T(0.5);
+						Q1.Normalize();
+						FParticleUtilities::SetCoMWorldTransform(PBDRigid1, P1, Q1);
 					}
 				}
 			}
 		}
 
+		// @todo(ccaulfield): Kinematic-Dynamic optimized version
 		template<typename T, int d>
 		void ApplyPushOut(TRigidBodyPointContactConstraint<T, d>& Constraint, T Thickness, const TSet<const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic,
 			TPointContactIterationParameters<T> & IterationParameters, TPointContactParticleParameters<T> & ParticleParameters)
 		{
-			TGeometryParticleHandle<T, d>* Particle0 = Constraint.Particle[0];
-			TGeometryParticleHandle<T, d>* Particle1 = Constraint.Particle[1];
+			TGenericParticleHandle<T, d> Particle0 = TGenericParticleHandle<T, d>(Constraint.Particle[0]);
+			TGenericParticleHandle<T, d> Particle1 = TGenericParticleHandle<T, d>(Constraint.Particle[1]);
 			TPBDRigidParticleHandle<T, d>* PBDRigid0 = Particle0->CastToRigidParticle();
 			TPBDRigidParticleHandle<T, d>* PBDRigid1 = Particle1->CastToRigidParticle();
 			const bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
 			const bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
 
 			const TVector<T, d> ZeroVector = TVector<T, d>(0);
-			const TRotation<T, d>& Q0 = bIsRigidDynamic0 ? PBDRigid0->Q() : Particle0->R();
-			const TRotation<T, d>& Q1 = bIsRigidDynamic1 ? PBDRigid1->Q() : Particle1->R();
-			const TVector<T, d>& P0 = bIsRigidDynamic0 ? PBDRigid0->P() : Particle0->X();
-			const TVector<T, d>& P1 = bIsRigidDynamic1 ? PBDRigid1->P() : Particle1->X();
-			const TVector<T, d>& V0 = bIsRigidDynamic0 ? PBDRigid0->V() : ZeroVector;
-			const TVector<T, d>& V1 = bIsRigidDynamic1 ? PBDRigid1->V() : ZeroVector;
-			const TVector<T, d>& W0 = bIsRigidDynamic0 ? PBDRigid0->W() : ZeroVector;
-			const TVector<T, d>& W1 = bIsRigidDynamic1 ? PBDRigid1->W() : ZeroVector;
-			const bool IsTemporarilyStatic0 = IsTemporarilyStatic.Contains(Particle0);
-			const bool IsTemporarilyStatic1 = IsTemporarilyStatic.Contains(Particle1);
+			TVector<T, d> P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
+			TVector<T, d> P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
+			TRotation<T, d> Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
+			TRotation<T, d> Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
+			const bool IsTemporarilyStatic0 = IsTemporarilyStatic.Contains(Constraint.Particle[0]);
+			const bool IsTemporarilyStatic1 = IsTemporarilyStatic.Contains(Constraint.Particle[1]);
 	
 			TSerializablePtr<FChaosPhysicsMaterial> PhysicsMaterial0, PhysicsMaterial1;
 			if (ParticleParameters.PhysicsMaterials)
@@ -316,8 +311,8 @@ namespace Chaos
 				T ScalingFactor = Numerator / (T)IterationParameters.NumIterations;
 
 				//if pushout is needed we better fix relative velocity along normal. Treat it as if 0 restitution
-				TVector<T, d> Body1Velocity = V0 + TVector<T, d>::CrossProduct(W0, VectorToPoint1);
-				TVector<T, d> Body2Velocity = V1 + TVector<T, d>::CrossProduct(W1, VectorToPoint2);
+				TVector<T, d> Body1Velocity = FParticleUtilities::GetVelocityAtCoMRelativePosition(Particle0, VectorToPoint1);
+				TVector<T, d> Body2Velocity = FParticleUtilities::GetVelocityAtCoMRelativePosition(Particle1, VectorToPoint2);
 				TVector<T, d> RelativeVelocity = Body1Velocity - Body2Velocity;
 				const T RelativeVelocityDotNormal = TVector<T, d>::DotProduct(RelativeVelocity, Contact.Normal);
 				if (RelativeVelocityDotNormal < 0)
@@ -359,15 +354,17 @@ namespace Chaos
 				TVector<T, d> AngularImpulse2 = TVector<T, d>::CrossProduct(VectorToPoint2, -Impulse);
 				if (!IsTemporarilyStatic0 && bIsRigidDynamic0)
 				{
-					PBDRigid0->P() += PBDRigid0->InvM() * Impulse;
-					PBDRigid0->Q() = TRotation<T, d>::FromVector(WorldSpaceInvI1 * AngularImpulse1) * Q0;
-					PBDRigid0->Q().Normalize();
+					P0 += PBDRigid0->InvM() * Impulse;
+					Q0 = TRotation<T, d>::FromVector(WorldSpaceInvI1 * AngularImpulse1) * Q0;
+					Q0.Normalize();
+					FParticleUtilities::SetCoMWorldTransform(Particle0, P0, Q0);
 				}
 				if (!IsTemporarilyStatic1 && bIsRigidDynamic1)
 				{
-					PBDRigid1->P() -= PBDRigid1->InvM() * Impulse;
-					PBDRigid1->Q() = TRotation<T, d>::FromVector(WorldSpaceInvI2 * AngularImpulse2) * Q1;
-					PBDRigid1->Q().Normalize();
+					P1 -= PBDRigid1->InvM() * Impulse;
+					Q1 = TRotation<T, d>::FromVector(WorldSpaceInvI2 * AngularImpulse2) * Q1;
+					Q1.Normalize();
+					FParticleUtilities::SetCoMWorldTransform(Particle1, P1, Q1);
 				}
 			}
 		}

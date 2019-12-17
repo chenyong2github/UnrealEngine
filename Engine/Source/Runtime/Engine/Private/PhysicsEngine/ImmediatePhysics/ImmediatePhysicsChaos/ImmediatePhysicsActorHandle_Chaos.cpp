@@ -5,6 +5,7 @@
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/MassProperties.h"
+#include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
@@ -166,7 +167,11 @@ namespace ImmediatePhysics_Chaos
 		AddParams.Scale = Scale;
 		//AddParams.SimpleMaterial = SimpleMaterial;
 		//AddParams.ComplexMaterials = TArrayView<UPhysicalMaterial*>(ComplexMaterials);
+#if CHAOS_PARTICLE_ACTORTRANSFORM
+		AddParams.LocalTransform = FTransform::Identity;
+#else
 		AddParams.LocalTransform = Chaos::TRigidTransform<float, 3>(OutCoMTransform.GetRotation().Inverse() * -OutCoMTransform.GetTranslation(), OutCoMTransform.GetRotation().Inverse());
+#endif
 		AddParams.WorldTransform = BodyInstance->GetUnrealWorldTransform();
 		AddParams.Geometry = &BodySetup->AggGeom;
 #if WITH_PHYSX
@@ -218,8 +223,6 @@ namespace ImmediatePhysics_Chaos
 		TRigidTransform<float, 3> CoMTransform = TRigidTransform<float, 3>::Identity;
 		if (CreateGeometry(BodyInstance, FVector::OneVector, Mass, Inertia, CoMTransform, Geometry, Shapes))
 		{
-			ActorToCoMTransform = CoMTransform;
-
 			switch (ActorType)
 			{
 			case EActorType::StaticActor:
@@ -243,6 +246,8 @@ namespace ImmediatePhysics_Chaos
 				{
 					Kinematic->SetV(FVector::ZeroVector);
 					Kinematic->SetW(FVector::ZeroVector);
+					Kinematic->SetCenterOfMass(CoMTransform.GetTranslation());
+					Kinematic->SetRotationOfMass(CoMTransform.GetRotation());
 				}
 
 				auto* Dynamic = ParticleHandle->CastToRigidParticle();
@@ -296,16 +301,15 @@ namespace ImmediatePhysics_Chaos
 
 	void FActorHandle::SetWorldTransform(const FTransform& WorldTM)
 	{
-		FTransform ParticleTransform = ActorToCoMTransform * WorldTM;
+		using namespace Chaos;
 
-		ParticleHandle->SetX(ParticleTransform.GetTranslation());
-		ParticleHandle->SetR(ParticleTransform.GetRotation());
+		FParticleUtilities::SetActorWorldTransform(TGenericParticleHandle<FReal, 3>(ParticleHandle), WorldTM);
 
 		auto* Dynamic = ParticleHandle->CastToRigidParticle();
 		if(Dynamic && Dynamic->ObjectState() == Chaos::EObjectStateType::Dynamic)
 		{
-			Dynamic->SetP(Dynamic->X());
-			Dynamic->SetQ(Dynamic->R());
+			Dynamic->X() = Dynamic->P();
+			Dynamic->R() = Dynamic->Q();
 		}
 	}
 
@@ -335,9 +339,11 @@ namespace ImmediatePhysics_Chaos
 
 	void FActorHandle::SetKinematicTarget(const FTransform& WorldTM)
 	{
+		using namespace Chaos;
+
 		if (ensure(GetIsKinematic()))
 		{
-			FTransform ParticleTransform = ActorToCoMTransform * WorldTM;
+			FTransform ParticleTransform = FParticleUtilities::ActorWorldToParticleWorld(TGenericParticleHandle<FReal, 3>(ParticleHandle), WorldTM);
 			GetKinematicTarget().SetTargetMode(ParticleTransform);
 		}
 
@@ -359,8 +365,9 @@ namespace ImmediatePhysics_Chaos
 
 	FTransform FActorHandle::GetWorldTransform() const
 	{
-		FTransform ParticleTransform = FTransform(Handle()->R(), Handle()->X());
-		return ActorToCoMTransform.GetRelativeTransformReverse(ParticleTransform);
+		using namespace Chaos;
+
+		return FParticleUtilities::GetActorWorldTransform(TGenericParticleHandle<FReal, 3>(ParticleHandle));
 	}
 
 	void FActorHandle::SetLinearVelocity(const FVector& NewLinearVelocity)
@@ -526,9 +533,9 @@ namespace ImmediatePhysics_Chaos
 		return FLT_MAX;
 	}
 
-	const FTransform& FActorHandle::GetLocalCoMTransform() const
+	FTransform FActorHandle::GetLocalCoMTransform() const
 	{
-		return ActorToCoMTransform;
+		return FTransform(Handle()->RotationOfMass(), Handle()->CenterOfMass());
 	}
 
 	int32 FActorHandle::GetLevel() const
