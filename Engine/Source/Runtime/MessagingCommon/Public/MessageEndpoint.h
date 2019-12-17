@@ -17,6 +17,7 @@
 #include "Misc/Guid.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
+#include "Misc/ScopeLock.h"
 
 
 /**
