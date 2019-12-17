@@ -251,7 +251,17 @@ void FVoicePacketBuffer::PushPacket(const void* InBuffer, int32 NumBytes, uint64
 	}
 	else
 	{
-		UE_LOG(LogAudio, Warning, TEXT("Voice packet buffer filled to capacity of %d packets; packet dropped."), PacketBuffer.Num());
+		// In order to prevent log spam, we only call log this every 128 times it happens.
+		static const int32 NumPacketsDroppedPerLog = 128;
+		static int32 PacketDropCounter = 0;
+
+		if (PacketDropCounter == 0)
+		{
+			UE_LOG(LogAudio, Warning, TEXT("Voice packet buffer filled to capacity of %d packets; packet dropped."), PacketBuffer.Num());
+		}
+
+		PacketDropCounter = (PacketDropCounter + 1) % NumPacketsDroppedPerLog;
+		
 		return;
 	}
 
