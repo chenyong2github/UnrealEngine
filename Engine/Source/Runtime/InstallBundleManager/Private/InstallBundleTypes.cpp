@@ -37,19 +37,6 @@ const TCHAR* LexToString(EInstallBundleManagerInitResult Result)
 	return Strings[InstallBundleUtil::CastToUnderlying(Result)];
 }
 
-const TCHAR* LexToString(EBundleState Val)
-{
-	static const TCHAR* Strings[] =
-	{
-		TEXT("NotInstalled"),
-		TEXT("NeedsUpdate"),
-		TEXT("NeedsMount"),
-		TEXT("Mounted"),
-	};
-	static_assert(InstallBundleUtil::CastToUnderlying(EBundleState::Count) == UE_ARRAY_COUNT(Strings), "");
-	return Strings[InstallBundleUtil::CastToUnderlying(Val)];
-}
-
 const TCHAR* LexToString(EInstallBundleContentState State)
 {
 	static const TCHAR* Strings[] =

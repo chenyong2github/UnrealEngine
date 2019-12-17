@@ -19,16 +19,6 @@ namespace InstallBundleUtil
 			&& ConnectionType != ENetworkConnectionType::None;
 	}
 
-	bool StateSignifiesNeedsInstall(EBundleState StateIn)
-	{
-		return (StateIn == EBundleState::NotInstalled || StateIn == EBundleState::NeedsUpdate);
-	}
-
-	bool StateSignifiesNeedsInstall(EInstallBundleContentState StateIn)
-	{
-		return (StateIn == EInstallBundleContentState::NotInstalled || StateIn == EInstallBundleContentState::NeedsUpdate);
-	}
-
 	const TCHAR* GetInstallBundlePauseReason(EInstallBundlePauseFlags Flags)
 	{
 		// Return the most appropriate reason given the flags

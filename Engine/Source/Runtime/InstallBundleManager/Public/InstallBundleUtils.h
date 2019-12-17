@@ -14,10 +14,6 @@ namespace InstallBundleUtil
 
 	INSTALLBUNDLEMANAGER_API bool HasInternetConnection(ENetworkConnectionType ConnectionType);
 
-	INSTALLBUNDLEMANAGER_API bool StateSignifiesNeedsInstall(EBundleState StateIn);
-
-	INSTALLBUNDLEMANAGER_API bool StateSignifiesNeedsInstall(EInstallBundleContentState StateIn);
-
 	INSTALLBUNDLEMANAGER_API const TCHAR* GetInstallBundlePauseReason(EInstallBundlePauseFlags Flags);
 
 	// It would really be nice to have these in core
@@ -171,4 +167,21 @@ namespace InstallBundleUtil
 
 		const TMap<FName, InstallBundleUtil::FContentRequestStats>& GetMap() { return StatsMap; }
 	};
+
+	struct INSTALLBUNDLEMANAGER_API IBundleSourceContentRequestSharedContext
+	{
+		virtual ~IBundleSourceContentRequestSharedContext() {}
+	};
+
+	struct INSTALLBUNDLEMANAGER_API FContentRequestSharedContext
+	{
+		FContentRequestSharedContext() = default;
+		FContentRequestSharedContext(const FContentRequestSharedContext& Other) = delete;
+		FContentRequestSharedContext(FContentRequestSharedContext&& Other) = default;
+		FContentRequestSharedContext& operator=(const FContentRequestSharedContext& Other) = delete;
+		FContentRequestSharedContext& operator=(FContentRequestSharedContext&& Other) = default;
+
+		TMap<EInstallBundleSourceType, TUniquePtr<IBundleSourceContentRequestSharedContext>> BundleSourceSharedContext;
+	};
+	using FContentRequestSharedContextPtr = TSharedPtr<FContentRequestSharedContext>;
 }
