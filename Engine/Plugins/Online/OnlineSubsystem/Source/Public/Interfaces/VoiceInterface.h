@@ -265,8 +265,6 @@ public:
 	};
 
 	/**
->>>> ORIGINAL //Fortnite/Dev-EngineMerge/Engine/Plugins/Online/OnlineSubsystem/Source/Public/Interfaces/VoiceInterface.h#3
-==== THEIRS //Fortnite/Dev-EngineMerge/Engine/Plugins/Online/OnlineSubsystem/Source/Public/Interfaces/VoiceInterface.h#4
 	 * This can be used to get how loud the given microphone input is, typically on a scale between 0.0 and 1.0.
 	 * @return -1.0 if getting the mic amplitude is not supported on this platform or LocalUserNum was invalid, 0.0-1.0 otherwise.
 	 */
@@ -283,7 +281,8 @@ public:
 	{
 		return -1.0f;
 	}
-==== YOURS //UE4_Main_Windows/Engine/Plugins/Online/OnlineSubsystem/Source/Public/Interfaces/VoiceInterface.h
+
+	/**
 	 * This can be used to patch incoming audio to a different audio device.
 	 * @param InDeviceName- name of the device to patch to.
 	 * @param bMuteInGameOutput- if set to true, the audio going out to the game will be muted.
@@ -308,7 +307,7 @@ public:
 	virtual void DisconnectAllEndpoints()
 	{
 	}
-<<<<
+
 };
 
 typedef TSharedPtr<IVoiceEngine, ESPMode::ThreadSafe> IVoiceEnginePtr;
