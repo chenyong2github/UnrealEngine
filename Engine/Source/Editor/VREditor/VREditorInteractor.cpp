@@ -165,7 +165,7 @@ void UVREditorInteractor::Init_Implementation( UVREditorMode* InVRMode )
 		AddKeyAction( EKeys::MotionController_Left_Grip1, FViewportActionKeyInput( ViewportWorldActionTypes::WorldMovement ) );
 		AddKeyAction( UVREditorInteractor::MotionController_Left_FullyPressedTriggerAxis, FViewportActionKeyInput( ViewportWorldActionTypes::SelectAndMove_FullyPressed ) );
 		AddKeyAction( UVREditorInteractor::MotionController_Left_PressedTriggerAxis, FViewportActionKeyInput( ViewportWorldActionTypes::SelectAndMove ) );
-		AddKeyAction( SteamVRControllerKeyNames::Touch0, FViewportActionKeyInput( VRActionTypes::Touch ) );
+		AddKeyAction( EKeys::Vive_Left_Trackpad_Touch, FViewportActionKeyInput( VRActionTypes::Touch ) );
 		AddKeyAction( EKeys::MotionController_Left_TriggerAxis, FViewportActionKeyInput( UVREditorInteractor::TriggerAxis ) );
 		AddKeyAction( EKeys::MotionController_Left_Thumbstick_X, FViewportActionKeyInput( UVREditorInteractor::TrackpadPositionX ) );
 		AddKeyAction( EKeys::MotionController_Left_Thumbstick_Y, FViewportActionKeyInput( UVREditorInteractor::TrackpadPositionY ) );
@@ -173,12 +173,12 @@ void UVREditorInteractor::Init_Implementation( UVREditorMode* InVRMode )
 
 		if (HMDDeviceType == SteamVRDeviceType)
 		{
-			AddKeyAction( EKeys::MotionController_Left_Shoulder, FViewportActionKeyInput( VRActionTypes::Modifier ) );
+			AddKeyAction( EKeys::Vive_Left_Menu_Click, FViewportActionKeyInput( VRActionTypes::Modifier ) );
 
-			AddKeyAction( EKeys::MotionController_Left_FaceButton3, FViewportActionKeyInput( VRActionTypes::TrackpadDown ) ); // down
-			AddKeyAction( EKeys::MotionController_Left_FaceButton4, FViewportActionKeyInput( VRActionTypes::TrackpadLeft ) );
-			AddKeyAction( EKeys::MotionController_Left_FaceButton2, FViewportActionKeyInput( VRActionTypes::TrackpadRight ) );
-			AddKeyAction( EKeys::MotionController_Left_FaceButton1, FViewportActionKeyInput( VRActionTypes::TrackpadUp ) );
+			AddKeyAction( EKeys::Vive_Left_Trackpad_Down, FViewportActionKeyInput( VRActionTypes::TrackpadDown ) ); // down
+			AddKeyAction( EKeys::Vive_Left_Trackpad_Left, FViewportActionKeyInput( VRActionTypes::TrackpadLeft ) );
+			AddKeyAction( EKeys::Vive_Left_Trackpad_Right, FViewportActionKeyInput( VRActionTypes::TrackpadRight ) );
+			AddKeyAction( EKeys::Vive_Left_Trackpad_Up, FViewportActionKeyInput( VRActionTypes::TrackpadUp ) );
 		}
 		else if (HMDDeviceType == OculusDeviceType)
 		{
@@ -197,7 +197,7 @@ void UVREditorInteractor::Init_Implementation( UVREditorMode* InVRMode )
 		AddKeyAction( EKeys::MotionController_Right_Grip1, FViewportActionKeyInput( ViewportWorldActionTypes::WorldMovement ) );
 		AddKeyAction( UVREditorInteractor::MotionController_Right_FullyPressedTriggerAxis, FViewportActionKeyInput( ViewportWorldActionTypes::SelectAndMove_FullyPressed ) );
 		AddKeyAction( UVREditorInteractor::MotionController_Right_PressedTriggerAxis, FViewportActionKeyInput( ViewportWorldActionTypes::SelectAndMove ) );
-		AddKeyAction( SteamVRControllerKeyNames::Touch1, FViewportActionKeyInput( VRActionTypes::Touch ) );
+		AddKeyAction( EKeys::Vive_Right_Trackpad_Touch, FViewportActionKeyInput( VRActionTypes::Touch ) );
 		AddKeyAction( EKeys::MotionController_Right_TriggerAxis, FViewportActionKeyInput( UVREditorInteractor::TriggerAxis ) );
 		AddKeyAction( EKeys::MotionController_Right_Thumbstick_X, FViewportActionKeyInput( UVREditorInteractor::TrackpadPositionX ) );
 		AddKeyAction( EKeys::MotionController_Right_Thumbstick_Y, FViewportActionKeyInput( UVREditorInteractor::TrackpadPositionY ) );
@@ -205,12 +205,12 @@ void UVREditorInteractor::Init_Implementation( UVREditorMode* InVRMode )
 
 		if (HMDDeviceType == SteamVRDeviceType)
 		{
-			AddKeyAction( EKeys::MotionController_Right_Shoulder, FViewportActionKeyInput( VRActionTypes::Modifier ) );
+			AddKeyAction( EKeys::Vive_Right_Menu_Click, FViewportActionKeyInput( VRActionTypes::Modifier ) );
 
-			AddKeyAction( EKeys::MotionController_Right_FaceButton3, FViewportActionKeyInput( VRActionTypes::TrackpadDown ) ); // down
-			AddKeyAction( EKeys::MotionController_Right_FaceButton4, FViewportActionKeyInput( VRActionTypes::TrackpadLeft ) );
-			AddKeyAction( EKeys::MotionController_Right_FaceButton2, FViewportActionKeyInput( VRActionTypes::TrackpadRight ) );
-			AddKeyAction( EKeys::MotionController_Right_FaceButton1, FViewportActionKeyInput( VRActionTypes::TrackpadUp ) );
+			AddKeyAction( EKeys::Vive_Right_Trackpad_Down, FViewportActionKeyInput( VRActionTypes::TrackpadDown ) ); // down
+			AddKeyAction( EKeys::Vive_Right_Trackpad_Left, FViewportActionKeyInput( VRActionTypes::TrackpadLeft ) );
+			AddKeyAction( EKeys::Vive_Right_Trackpad_Right, FViewportActionKeyInput( VRActionTypes::TrackpadRight ) );
+			AddKeyAction( EKeys::Vive_Right_Trackpad_Up, FViewportActionKeyInput( VRActionTypes::TrackpadUp ) );
 		}
 		else if (HMDDeviceType == OculusDeviceType)
 		{
