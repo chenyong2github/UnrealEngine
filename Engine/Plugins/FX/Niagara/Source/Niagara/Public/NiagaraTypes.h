@@ -258,8 +258,7 @@ private:
 class NIAGARA_API FNiagaraTypeHelper
 {
 public:
-	static FString ToString(const uint8* ValueData, const UScriptStruct* Struct);
-
+	static FString ToString(const uint8* ValueData, const UObject* StructOrEnum);
 };
 
 /** Defines different modes for selecting the output numeric type of a function or operation based on the types of the inputs. */
@@ -626,7 +625,7 @@ public:
 		{
 			return TEXT("(null)");
 		}
-		return FNiagaraTypeHelper::ToString(ValueData, CastChecked<UScriptStruct>(ClassStructOrEnum));
+		return FNiagaraTypeHelper::ToString(ValueData, ClassStructOrEnum);
 	}
 
 	static bool TypesAreAssignable(const FNiagaraTypeDefinition& TypeA, const FNiagaraTypeDefinition& TypeB);
