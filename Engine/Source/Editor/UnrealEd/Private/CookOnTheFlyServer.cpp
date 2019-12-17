@@ -5454,6 +5454,24 @@ void UCookOnTheFlyServer::GenerateAssetRegistry()
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	AssetRegistry = &AssetRegistryModule.Get();
 
+	// Mark package as dirty for the last ones saved
+	if(PackageNameCache != nullptr)
+	{
+		for (FName AssetFilename : ModifiedAssetFilenames)
+		{
+			const FString AssetPathOnDisk = AssetFilename.ToString();
+			if(FPaths::FileExists(AssetPathOnDisk))
+			{
+				const FString PackageName = FPackageName::FilenameToLongPackageName(AssetPathOnDisk);
+				FSoftObjectPath SoftPackage(PackageName);
+				if(UPackage* Package = Cast<UPackage>(SoftPackage.ResolveObject()))
+				{
+					MarkPackageDirtyForCooker( Package );
+				}
+			}
+		}
+	}
+
 	if (!!(CookFlags & ECookInitializationFlags::GeneratedAssetRegistry))
 	{
 		// Force a rescan of modified package files
@@ -5466,8 +5484,6 @@ void UCookOnTheFlyServer::GenerateAssetRegistry()
 
 		AssetRegistry->ScanModifiedAssetFiles(ModifiedPackageFileList);
 
-		ModifiedAssetFilenames.Reset();
-
 		// This is cook in the editor on a second pass, so refresh the generators
 		for (TPair<FName, FAssetRegistryGenerator*>& Pair : RegistryGenerators)
 		{
@@ -5476,6 +5492,8 @@ void UCookOnTheFlyServer::GenerateAssetRegistry()
 		return;
 	}
 	CookFlags |= ECookInitializationFlags::GeneratedAssetRegistry;
+
+	ModifiedAssetFilenames.Reset();
 
 	double GenerateAssetRegistryTime = 0.0;
 	{
