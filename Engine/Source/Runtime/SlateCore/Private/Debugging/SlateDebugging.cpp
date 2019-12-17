@@ -12,6 +12,9 @@
 #include "Styling/CoreStyle.h"
 #include "Widgets/SWidget.h"
 #include "Application/SlateApplicationBase.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+
+CSV_DEFINE_CATEGORY_MODULE(SLATECORE_API, Slate, true);
 
 #define LOCTEXT_NAMESPACE "SlateDebugger"
 

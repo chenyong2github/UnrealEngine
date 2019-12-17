@@ -5,11 +5,16 @@
 #include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
 #include "Input/Reply.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 #include "SlateDebugging.generated.h"
 
 #ifndef WITH_SLATE_DEBUGGING
 	#define WITH_SLATE_DEBUGGING !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif
+
+#ifndef SLATE_CSV_TRACKER
+	#define SLATE_CSV_TRACKER CSV_PROFILER
 #endif
 
 class SWindow;

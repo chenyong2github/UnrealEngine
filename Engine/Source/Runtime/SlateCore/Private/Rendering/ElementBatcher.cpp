@@ -8,6 +8,9 @@
 #include "Widgets/SWindow.h"
 #include "HAL/IConsoleManager.h"
 #include "ProfilingDebugging/ScopedTimers.h"
+#include "Debugging/SlateDebugging.h"
+
+CSV_DECLARE_CATEGORY_EXTERN(Slate);
 
 DECLARE_CYCLE_STAT(TEXT("Slate RT: Create Batches"), STAT_SlateRTCreateBatches, STATGROUP_Slate);
 
@@ -549,6 +552,12 @@ void FSlateElementBatcher::AddElementsInternal(const FSlateDrawElementArray& Dra
 
 void FSlateElementBatcher::AddCachedElements(FSlateCachedElementData& CachedElementData, const FVector2D& ViewportSize)
 {
+	CSV_SCOPED_TIMING_STAT(Slate, AddCachedElements);
+
+#if SLATE_CSV_TRACKER
+	FCsvProfiler::RecordCustomStat("Paint/CachedElementLists", CSV_CATEGORY_INDEX(Slate), CachedElementData.CachedElementLists.Num(), ECsvCustomStatOp::Set);
+#endif
+
 #define ALLOW_CACHED_RENDER_BATCHES 1
 	SCOPED_NAMED_EVENT_TEXT("Slate::AddCachedBatches", FColor::Magenta);
 	for ( FSlateCachedElementList& LocalCachedElementList : CachedElementData.CachedElementLists)
@@ -578,6 +587,10 @@ void FSlateElementBatcher::AddCachedElements(FSlateCachedElementData& CachedElem
 #endif
 	}
 	CachedElementData.CleanupUnusedClipStates();
+
+#if SLATE_CSV_TRACKER
+	FCsvProfiler::RecordCustomStat("Paint/CachedElements", CSV_CATEGORY_INDEX(Slate), ElementStat_CachedElements, ECsvCustomStatOp::Set);
+#endif
 }
 
 template<ESlateVertexRounding Rounding>
