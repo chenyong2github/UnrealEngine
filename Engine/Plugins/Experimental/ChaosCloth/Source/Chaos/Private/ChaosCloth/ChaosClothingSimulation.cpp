@@ -1199,14 +1199,15 @@ void ClothingSimulation::SetAnimDriveSpringStiffness(float InStiffness)
 	}
 }
 
-void ClothingSimulation::SetGravityOverride(const TVector<float, 3>& InGravityOverride) 
+void ClothingSimulation::SetGravityOverride(const FVector& InGravityOverride) 
 {
 	Evolution->GetGravityForces().SetAcceleration(InGravityOverride);
 }
 
 void ClothingSimulation::DisableGravityOverride()
 {
-	Evolution->GetGravityForces().SetAcceleration(ClothSharedSimConfig->Gravity);
+	static const FVector DefaultGravity(0.f, 0.f, -980.665f);
+	Evolution->GetGravityForces().SetAcceleration(!ClothSharedSimConfig ? DefaultGravity : ClothSharedSimConfig->Gravity);
 }
 
 #if WITH_EDITOR
