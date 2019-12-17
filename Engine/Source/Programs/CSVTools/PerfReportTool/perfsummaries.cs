@@ -1377,7 +1377,8 @@ namespace PerfSummaries
 				{
 					if (CsvStats.DoesSearchStringMatch(ev.Name, beginEvent))
 					{
-						startFrame = Math.Max(ev.Frame, startFrame);
+						startFrame = ev.Frame;
+						break;
 					}
 				}
 				if (startFrame == -1)
@@ -1392,7 +1393,11 @@ namespace PerfSummaries
 				{
 					if (CsvStats.DoesSearchStringMatch(ev.Name, endEvent))
 					{
-						endFrame = Math.Min(ev.Frame, endFrame);
+						endFrame = ev.Frame;
+						if ( endFrame > startFrame )
+						{
+							break;
+						}
 					}
 				}
 				if (endFrame == int.MaxValue)
