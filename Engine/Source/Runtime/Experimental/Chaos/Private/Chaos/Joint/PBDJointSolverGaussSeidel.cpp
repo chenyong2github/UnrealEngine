@@ -62,6 +62,7 @@ namespace Chaos
 		bEnableTwistLimits = SolverSettings.bEnableTwistLimits;
 		bEnableSwingLimits = SolverSettings.bEnableSwingLimits;
 		bEnableDrives = SolverSettings.bEnableDrives;
+		bAccelerationDriveMode = true;
 	}
 
 
@@ -275,43 +276,45 @@ namespace Chaos
 		const FReal IM1 = FVec3::DotProduct(Axis1, IA1);
 		const FReal IM = (IM0 + IM1);
 
-		FReal JV = 0;
+		// Damping angular velocity
+		FReal JW = 0;
 		if (Damping > KINDA_SMALL_NUMBER)
 		{
 			const FVec3 W0 = FRotation3::CalculateAngularVelocity(PrevQs[0], Qs[0], Dt);
 			const FVec3 W1 = FRotation3::CalculateAngularVelocity(PrevQs[1], Qs[1], Dt);
-			JV = FVec3::DotProduct(Axis0, W0) - FVec3::DotProduct(Axis1, W1);
+			JW = FVec3::DotProduct(Axis0, W0) - FVec3::DotProduct(Axis1, W1);
 		}
 
-		//const FReal MassScale = (FReal)1;	// For force springs. Make this an option...
-		const FReal MassScale = IM;			// For acceleration springs. Make this an option...
+		// Cancel out the mass for acceleration drives
+		const FReal MassScale = (bAccelerationDriveMode)? IM : (FReal)1.0;
+
 		FReal DLambda = 0;
 		if (Stiffness > KINDA_SMALL_NUMBER)
 		{
 			const FReal Alpha = MassScale / (Stiffness * Dt * Dt);
 			const FReal AlphaBeta = Damping / Stiffness;
-			const FReal DLambdaNumerator = (Angle - Alpha * Lambda - AlphaBeta * JV);
+			const FReal DLambdaNumerator = (Angle - Alpha * Lambda - AlphaBeta * JW);
 			const FReal DLambdaDenominator = (((FReal)1 + AlphaBeta / Dt) * IM + Alpha);
 			DLambda = DLambdaNumerator / DLambdaDenominator;
 		}
 		else
 		{
 			const FReal Beta = Damping / (MassScale * Dt * Dt);
-			const FReal DLambdaNumerator = -Beta * JV;
+			const FReal DLambdaNumerator = -Beta * JW;
 			const FReal DLambdaDenominator = IM;
 			DLambda = DLambdaNumerator / DLambdaDenominator;
 		}
 
-		const FVec3 DR0 = IA0 * DLambda;
-		const FVec3 DR1 = IA1 * -DLambda;
-		//const FVec3 DR0 = Axis0 * (DLambda * IM0);
-		//const FVec3 DR1 = Axis1 * -(DLambda * IM1);
-
+		//const FVec3 DR0 = IA0 * DLambda;
+		//const FVec3 DR1 = IA1 * -DLambda;
+		const FVec3 DR0 = Axis0 * (DLambda * IM0);
+		const FVec3 DR1 = Axis1 * -(DLambda * IM1);
 		const FRotation3 DQ0 = (FRotation3::FromElements(DR0, 0) * Qs[0]) * (FReal)0.5;
 		const FRotation3 DQ1 = (FRotation3::FromElements(DR1, 0) * Qs[1]) * (FReal)0.5;
 		Qs[0] = (Qs[0] + DQ0).GetNormalized();
 		Qs[1] = (Qs[1] + DQ1).GetNormalized();
 		Qs[1].EnforceShortestArcWith(Qs[0]);
+
 		Lambda += DLambda;
 	}
 
