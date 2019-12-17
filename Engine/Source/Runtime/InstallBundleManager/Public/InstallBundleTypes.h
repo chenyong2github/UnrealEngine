@@ -135,6 +135,7 @@ struct FInstallBundleSourceRequestResultInfo
 	FString OptionalErrorCode;
 
 	TArray<FString> ContentPaths;
+	TArray<FString> AdditionalRootDirs;
 	// Support platforms that need shaderlibs in the physical FS
 	TSet<FString> NonUFSShaderLibPaths;
 
