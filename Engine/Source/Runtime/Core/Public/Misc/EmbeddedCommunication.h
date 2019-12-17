@@ -83,6 +83,7 @@ public:
 	
 	static void UELogError(const TCHAR* String);
 	static void UELogWarning(const TCHAR* String);
+	static void UELogDisplay(const TCHAR* String);
 	static void UELogLog(const TCHAR* String);
 	static void UELogVerbose(const TCHAR* String);
 

@@ -233,6 +233,16 @@ void FEmbeddedCommunication::UELogWarning(const TCHAR* String)
 #endif
 }
 
+void FEmbeddedCommunication::UELogDisplay(const TCHAR* String)
+{
+#if BUILD_EMBEDDED_APP
+	if (GLog && UE_LOG_ACTIVE(LogBridge, Display))
+	{
+		GLog->Log("LogBridge", ELogVerbosity::Display, String);
+	}
+#endif
+}
+
 void FEmbeddedCommunication::UELogLog(const TCHAR* String)
 {
 #if BUILD_EMBEDDED_APP
