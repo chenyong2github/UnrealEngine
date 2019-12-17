@@ -113,6 +113,29 @@ namespace UE4_NetConnectionPrivate
 
 		return Result;
 	}
+
+
+	/** Number of bits to use in the packet header for sending the milliseconds on the clock when the packet is sent */
+	constexpr int32 NumBitsForJitterClockTimeInHeader = 10;
+
+	/** Maximum possible clock time value with available bits. If that value is sent than the jitter clock time is ignored */
+	constexpr int32 MaxJitterClockTimeValue = (1 << NumBitsForJitterClockTimeInHeader) - 1;
+
+	/** Maximum possible precision of the jitter stat. Set to 1 second since we only send the milliseconds of the local clock time */
+	constexpr int32 MaxJitterPrecisionInMS = 1000;
+
+	/** Used to reduce the impact on the average jitter of a divergent value */
+	constexpr double JitterNoiseReduction = 16.0;
+
+	/**
+	 * Return the milliseconds of a ClockTime
+	 * Ex: 3.45 seconds => 450 milliseconds
+	 */
+	int32 GetClockTimeMilliseconds(double ClockTimeInSeconds)
+	{
+		return FMath::TruncToInt((ClockTimeInSeconds - FMath::FloorToDouble(ClockTimeInSeconds)) * 1000.0);
+	}
+	
 }
 
 // ChannelRecord Implementation
@@ -168,7 +191,8 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,	ConnectTime			( 0.0 )
 ,	LastOSReceiveTime	()
 ,	bIsOSReceiveTimeLocal(false)
-
+,   PreviousJitterTimeDelta(0)
+,	PreviousPacketSendTimeInS(0.0)
 ,	AllowMerge			( false )
 ,	TimeSensitive		( false )
 ,	LastOutBunch		( nullptr )
@@ -185,6 +209,7 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,	CumulativeTime		( 0 )
 ,	AverageFrameTime	( 0 )
 ,	CountedFrames		( 0 )
+,   AverageJitterInMS   (0.0f)
 ,	InBytes				( 0 )
 ,	OutBytes			( 0 )
 ,	InTotalBytes		( 0 )
@@ -1111,6 +1136,8 @@ void UNetConnection::InitSendBuffer()
 		SendBuffer = FBitWriter(FinalBufferSize);
 	}
 
+	HeaderMarkForPacketInfo.Reset();
+
 	ResetPacketBitCounts();
 
 	ValidateSendBuffer();
@@ -1364,6 +1391,7 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 			Handler->OutgoingHigh(SendBuffer);
 		}
 
+		const double PacketSentTimeInS = FPlatformTime::Seconds();
 
 		// Write the UNetConnection-level termination bit
 		SendBuffer.WriteBit(1);
@@ -1374,6 +1402,8 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 			// if we update ack, we also update received ack associated with outgoing seq
 			// so we know how many ack bits we need to write (which is updated in received packet)
 			WritePacketHeader(SendBuffer);
+
+			WriteFinalPacketInfo(SendBuffer, PacketSentTimeInS);
 		}
 
 		ValidateSendBuffer();
@@ -1425,7 +1455,7 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 
 		// Remember the actual time this packet was sent out, so we can compute ping when the ack comes back
 		OutLagPacketId[Index]			= OutPacketId;
-		OutLagTime[Index]				= FPlatformTime::Seconds();
+		OutLagTime[Index]				= PacketSentTimeInS;
 	
 		OutBytesPerSecondHistory[Index]	= FMath::Min(OutBytesPerSecond / 1024, 255);
 
@@ -1445,9 +1475,12 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 		Driver->OutPackets++;
 		Driver->OutTotalPackets++;
 
-		//Record the packet time to the histogram
+		//Record the first packet time in the histogram
+		if (bSentPacketInfoThisFrame == false)
+		{
 		double LastPacketTimeDiffInMs = (Driver->Time - LastSendTime) * 1000.0;
 		NetConnectionHistogram.AddMeasurement(LastPacketTimeDiffInMs);
+		}
 
 		LastSendTime = Driver->Time;
 
@@ -1462,6 +1495,9 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 		GNetOutBytes += PacketBytes;
 
 		AnalyticsVars.OutAckOnlyCount += (NumAckBits > 0 && NumBunchBits == 0);
+
+		// Make sure subsequent packets won't have the packet info payload
+		bSentPacketInfoThisFrame = true;
 
 		InitSendBuffer();
 	}
@@ -1494,6 +1530,30 @@ bool UNetConnection::CheckOutgoingPacketEmulation(FOutPacketTraits& Traits)
 		}
 
 		return true;
+	}
+	else if (PacketSimulationSettings.PktJitter != 0)
+	{
+		bSendDelayedPacketsOutofOrder = true;
+
+		FDelayedPacket& B = *(new(Delayed)FDelayedPacket(SendBuffer.GetData(), SendBuffer.GetNumBits(), Traits));
+
+		// In order to cause jitter, send one packet at min latency and the next packet at high latency
+		bool bIsLowLatency = (OutPacketId % 2) == 0;
+
+		if (bIsLowLatency)
+		{
+			// ExtraLag goes from [PktLagMin, PktLagMin+PktLagVariance]
+			const double LagVariance = 2.0f * (FMath::FRand() - 0.5f) * double(PacketSimulationSettings.PktLagVariance);
+			const double ExtraLag = (double(PacketSimulationSettings.PktLagMin) + LagVariance) / 1000.f;
+			B.SendTime = FPlatformTime::Seconds() + ExtraLag;
+		}
+		else
+		{
+			// ExtraLag goes from [PktLagMin+PktJitter, PktLagMin+PktJitter+PktLagVariance]
+			const double LagVariance = 2.0f * (FMath::FRand() - 0.5f) * double(PacketSimulationSettings.PktLagVariance);
+			const double ExtraLag = (double(PacketSimulationSettings.PktLagMin + PacketSimulationSettings.PktJitter) + LagVariance) / 1000.f;
+			B.SendTime = FPlatformTime::Seconds() + ExtraLag;
+		}
 	}
 	else if (PacketSimulationSettings.PktLag)
 	{
@@ -1669,25 +1729,96 @@ void UNetConnection::WritePacketHeader(FBitWriter& Writer)
 	}
 }
 
-void UNetConnection::WritePacketInfo(FBitWriter& Writer) const
+void UNetConnection::WriteDummyPacketInfo(FBitWriter& Writer)
 {
-	const uint8 bHasServerFrameTime = Driver->IsServer() ? bLastHasServerFrameTime : ( CVarPingExcludeFrameTime.GetValueOnGameThread() > 0 ? 1u : 0u );
+	// The first packet of a frame will contain the packet info payload
+	const bool bHasPacketInfoPayload = bSentPacketInfoThisFrame == false;
+	Writer.WriteBit(bHasPacketInfoPayload);
 
-	// Write data used to calculate link latency
+	if (bHasPacketInfoPayload)
+{
+		// Pre-insert the bits since the final time values will be calculated and inserted right before LowLevelSend
+
+		HeaderMarkForPacketInfo.Init(Writer);
+		int32 DummyJitterClockTime(UE4_NetConnectionPrivate::MaxJitterClockTimeValue);
+		Writer.SerializeBits(&DummyJitterClockTime, UE4_NetConnectionPrivate::NumBitsForJitterClockTimeInHeader);
+
+	const uint8 bHasServerFrameTime = Driver->IsServer() ? bLastHasServerFrameTime : ( CVarPingExcludeFrameTime.GetValueOnGameThread() > 0 ? 1u : 0u );
+		Writer.WriteBit(bHasServerFrameTime);
+
+		if (bHasServerFrameTime && Driver->IsServer())
+		{
+			uint8 DummyFrameTimeByte(0);
+			Writer << DummyFrameTimeByte;
+		}
+	}
+}
+
+void UNetConnection::WriteFinalPacketInfo(FBitWriter& Writer, const double PacketSentTimeInS)
+{
+	const bool bHasPacketInfoPayload = bSentPacketInfoThisFrame == false;
+
+	if (bHasPacketInfoPayload == false)
+	{
+		// PacketInfo payload was already sent, nothing to do here
+		return;
+	}
+
+	FBitWriterMark CurrentMark(Writer);
+
+	// Go back to write over the dummy bits
+	HeaderMarkForPacketInfo.PopWithoutClear(Writer);
+
+	// Write Jitter clock time
+	{
+		const double DeltaSendTimeInMS = (PacketSentTimeInS - PreviousPacketSendTimeInS) * 1000.0;
+
+		// If the delta is over our max precision, we send MAX value and jitter will be ignored by the receiver.
+		if (DeltaSendTimeInMS >= UE4_NetConnectionPrivate::MaxJitterPrecisionInMS)
+		{
+			int32 MaxClockTime = UE4_NetConnectionPrivate::MaxJitterClockTimeValue;
+			Writer.SerializeBits(&MaxClockTime, UE4_NetConnectionPrivate::NumBitsForJitterClockTimeInHeader);
+		}
+		else
+		{
+			// Get the fractional part (milliseconds) of the clock time
+			int32 ClockTimeMilliseconds = UE4_NetConnectionPrivate::GetClockTimeMilliseconds(PacketSentTimeInS);
+
+			// Ensure we don't overflow
+			ClockTimeMilliseconds &= UE4_NetConnectionPrivate::MaxJitterClockTimeValue;
+
+			Writer.SerializeBits(&ClockTimeMilliseconds, UE4_NetConnectionPrivate::NumBitsForJitterClockTimeInHeader);
+		}
+
+		PreviousPacketSendTimeInS = PacketSentTimeInS;
+	}
+
+	// Write server frame time
+	{
+		const uint8 bHasServerFrameTime = Driver->IsServer() ? bLastHasServerFrameTime : (CVarPingExcludeFrameTime.GetValueOnGameThread() > 0 ? 1u : 0u);
 	Writer.WriteBit(bHasServerFrameTime);
+
 	if (bHasServerFrameTime && Driver->IsServer())
 	{
+			// Write data used to calculate link latency
 		uint8 FrameTimeByte = FMath::Min( FMath::FloorToInt( FrameTime * 1000 ), 255 );
 		Writer << FrameTimeByte;
 	}
+	}
 
-	// Notify server of our current rate per second at this time
-	uint8 InKBytesPerSecondByte = FMath::Min(InBytesPerSecond / 1024, 255);
-	Writer << InKBytesPerSecondByte;
+	// Revert to the correct bit writing place
+	CurrentMark.PopWithoutClear(Writer);
 }
 
-bool UNetConnection::ReadPacketInfo(FBitReader& Reader)
+bool UNetConnection::ReadPacketInfo(FBitReader& Reader, bool bHasPacketInfoPayload)
 {
+	// If this packet did not contain any packet info, nothing else to read
+	if (bHasPacketInfoPayload == false)
+	{
+		const bool bCanContinueReading = Reader.IsError() == false;
+		return bCanContinueReading;
+	}
+
 	const bool bHasServerFrameTime = Reader.ReadBit() == 1u;
 	double ServerFrameTime = 0;
 
@@ -1706,10 +1837,13 @@ bool UNetConnection::ReadPacketInfo(FBitReader& Reader)
 		bLastHasServerFrameTime = bHasServerFrameTime;
 	}
 
-	// limit to known size to know the size of the packet header
+	if (Reader.EngineNetVer() < HISTORY_JITTER_IN_HEADER)
+	{
 	uint8 RemoteInKBytesPerSecondByte = 0;
 	Reader << RemoteInKBytesPerSecondByte;
+	}
 
+	// limit to known size to know the size of the packet header
 	if ( Reader.IsError() )
 	{
 		return false;
@@ -1751,15 +1885,6 @@ bool UNetConnection::ReadPacketInfo(FBitReader& Reader)
 		const double GameTime	 = ServerFrameTime;
 		const double RTT		 = (CurrentTime - OutLagTime[Index] ) - ( CVarPingExcludeFrameTime.GetValueOnAnyThread() ? GameTime : 0.0 );
 		const double NewLag		 = FMath::Max( RTT, 0.0 );
-
-		if ( OutBytesPerSecondHistory[Index] > 0 )
-		{
-			RemoteSaturation = ( 1.0f - FMath::Min( ( float )RemoteInKBytesPerSecondByte / ( float )OutBytesPerSecondHistory[Index], 1.0f ) ) * 100.0f;
-		}
-		else
-		{
-			RemoteSaturation = 0.0f;
-		}
 
 		//UE_LOG( LogNet, Warning, TEXT( "Out: %i, InRemote: %i, Saturation: %f" ), OutBytesPerSecondHistory[Index], RemoteInKBytesPerSecond, RemoteSaturation );
 
@@ -1803,7 +1928,7 @@ FNetworkGUID UNetConnection::GetActorGUIDFromOpenBunch(FInBunch& Bunch)
 	return ActorGUID;
 }
 
-void UNetConnection::ReceivedPacket( FBitReader& Reader )
+void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacket)
 {
 	SCOPED_NAMED_EVENT(UNetConnection_ReceivedPacket, FColor::Green);
 	AssertValid();
@@ -1851,12 +1976,16 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader )
 	ValidateSendBuffer();
 
 	//Record the packet time to the histogram
-	double LastPacketTimeDiffInMs = (FPlatformTime::Seconds() - LastReceiveRealtime) * 1000.0;
+	if (!bIsReinjectedPacket)
+	{
+		const double CurrentReceiveTimeInS = FPlatformTime::Seconds();
+		const double LastPacketTimeDiffInMs = (CurrentReceiveTimeInS - LastReceiveRealtime) * 1000.0;
 	NetConnectionHistogram.AddMeasurement(LastPacketTimeDiffInMs);
 
 	// Update receive time to avoid timeout.
 	LastReceiveTime		= Driver->Time;
-	LastReceiveRealtime = FPlatformTime::Seconds();
+		LastReceiveRealtime = CurrentReceiveTimeInS;
+	}
 
 	if (InternalAck)
 	{
@@ -1872,15 +2001,34 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader )
 			return;
 		}
 
+		bool bHasPacketInfoPayload = true;
 
-		bool bPacketOrderCacheActive = !bFlushingPacketOrderCache && PacketOrderCache.IsSet();
-		bool bCheckForMissingSequence = bPacketOrderCacheActive && PacketOrderCacheCount == 0;
-		bool bFillingPacketOrderCache = bPacketOrderCacheActive && PacketOrderCacheCount > 0;
-		int32 MaxMissingPackets = (bCheckForMissingSequence ? CVarNetPacketOrderMaxMissingPackets.GetValueOnAnyThread() : 0);
-		int32 PacketSequenceDelta = PacketNotify.GetSequenceDelta(Header);
+		if (Reader.EngineNetVer() >= HISTORY_JITTER_IN_HEADER)
+		{
+			bHasPacketInfoPayload = Reader.ReadBit() == 1u;
+
+			if (bHasPacketInfoPayload)
+			{
+				// Read jitter clock time from the packet header
+				int32 PacketJitterClockTimeMS = 0;
+				Reader.SerializeBits(&PacketJitterClockTimeMS, UE4_NetConnectionPrivate::NumBitsForJitterClockTimeInHeader);
+
+				if (!bIsReinjectedPacket)
+				{
+					ProcessJitter(PacketJitterClockTimeMS);
+				}
+			}			
+		}
+
+		const int32 PacketSequenceDelta = PacketNotify.GetSequenceDelta(Header);
 
 		if (PacketSequenceDelta > 0)
 		{
+			const bool bPacketOrderCacheActive = !bFlushingPacketOrderCache && PacketOrderCache.IsSet();
+			const bool bCheckForMissingSequence = bPacketOrderCacheActive && PacketOrderCacheCount == 0;
+			const bool bFillingPacketOrderCache = bPacketOrderCacheActive && PacketOrderCacheCount > 0;
+			const int32 MaxMissingPackets = (bCheckForMissingSequence ? CVarNetPacketOrderMaxMissingPackets.GetValueOnAnyThread() : 0);
+
 			const int32 MissingPacketCount = PacketSequenceDelta - 1;
 
 			// Cache the packet if we are already caching, and begin caching if we just encountered a missing sequence, within range
@@ -1893,14 +2041,14 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader )
 				// The last cache entry is only set, when we've reached capacity or when we receive a sequence which is out of bounds of the cache
 				LinearCacheIdx = bLastCacheEntry ? (CacheCapacity - 1) : LinearCacheIdx;
 
-				int32 CiruclarCacheIdx = PacketOrderCacheStartIdx;
+				int32 CircularCacheIdx = PacketOrderCacheStartIdx;
 
 				for (int32 LinearDec=LinearCacheIdx; LinearDec > 0; LinearDec--)
 				{
-					CiruclarCacheIdx = PacketOrderCache->GetNextIndex(CiruclarCacheIdx);
+					CircularCacheIdx = PacketOrderCache->GetNextIndex(CircularCacheIdx);
 				}
 
-				TUniquePtr<FBitReader>& CurCachePacket = PacketOrderCache.GetValue()[CiruclarCacheIdx];
+				TUniquePtr<FBitReader>& CurCachePacket = PacketOrderCache.GetValue()[CircularCacheIdx];
 
 				// Reset the reader to its initial position, and cache the packet
 				if (!CurCachePacket.IsValid())
@@ -1992,7 +2140,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader )
 		PacketNotify.Update(Header, HandlePacketNotification);
 
 		// Extra information associated with the header (read only after acks have been processed)
-		if (PacketSequenceDelta > 0 && !ReadPacketInfo(Reader))
+		if (PacketSequenceDelta > 0 && !ReadPacketInfo(Reader, bHasPacketInfoPayload))
 		{
 			CLOSE_CONNECTION_DUE_TO_SECURITY_VIOLATION(this, ESecurityEvent::Malformed_Packet, TEXT("Failed to read PacketHeader"));
 			return;
@@ -2547,8 +2695,8 @@ int32 UNetConnection::WriteBitsToSendBuffer(
 		// Write Packet Header, before sending the packet we will go back and rewrite the data
 		WritePacketHeader(SendBuffer);
 
-		// Also write server RTT and Received rate
-		WritePacketInfo(SendBuffer);
+		// Pre-write the bits for the packet info
+		WriteDummyPacketInfo(SendBuffer);
 
 		// We do not allow the first bunch to merge with the ack data as this will "revert" the ack data.
 		AllowMerge = false;
@@ -2844,6 +2992,23 @@ void UNetConnection::Tick()
 #if DO_ENABLE_NET_TEST
 	if (Delayed.Num() > 0)
 	{
+		if (bSendDelayedPacketsOutofOrder)
+		{
+			for (int Idx=0; Idx < Delayed.Num(); ++Idx)
+			{
+				if (CurrentRealtimeSeconds > Delayed[Idx].SendTime)
+				{
+					LowLevelSend((char*)&(Delayed[Idx].Data[0]), Delayed[Idx].SizeBits, Delayed[Idx].Traits);
+				}
+			}
+
+			Delayed.RemoveAll([&CurrentRealtimeSeconds](const FDelayedPacket& rhs)
+			{
+				return CurrentRealtimeSeconds > rhs.SendTime;
+			});
+		}
+		else
+		{
 		uint32 NbPacketsSent(0);
 		for( FDelayedPacket& DelayedPacket : Delayed )
 		{
@@ -2860,6 +3025,7 @@ void UNetConnection::Tick()
 		}
 
 		Delayed.RemoveAt(0, NbPacketsSent, false);
+	}
 	}
 #endif
 
@@ -3180,6 +3346,8 @@ void UNetConnection::Tick()
 	{
 		QueuedBits = FMath::TruncToInt(-AllowedLag);
 	}
+
+	bSentPacketInfoThisFrame = false;
 }
 
 void UNetConnection::HandleClientPlayer( APlayerController *PC, UNetConnection* NetConnection )
@@ -3725,6 +3893,39 @@ void UNetConnection::TrackReplicationForAnalytics(const bool bWasSaturated)
 {
 	++TickCount;
 	SaturationAnalytics.TrackReplication(bWasSaturated);
+}
+
+void UNetConnection::ProcessJitter(int32 PacketJitterClockTimeMS)
+{
+	if (PacketJitterClockTimeMS >= UE4_NetConnectionPrivate::MaxJitterClockTimeValue)
+	{
+		// Ignore this packet for jitter calculations
+		return;
+	}
+
+	const int32 CurrentClockTimeMilliseconds = UE4_NetConnectionPrivate::GetClockTimeMilliseconds(LastReceiveRealtime);
+
+	// Get the delta between the sent and receive clock time.
+	int32 CurrentJitterTimeDelta = CurrentClockTimeMilliseconds - PacketJitterClockTimeMS;
+	
+	if (CurrentJitterTimeDelta < 0)
+	{
+		// Account for wrap-around
+		CurrentJitterTimeDelta += UE4_NetConnectionPrivate::MaxJitterPrecisionInMS;
+	}
+
+	// Get the difference between the last two deltas
+	const float CurrentJitter = FMath::Abs(CurrentJitterTimeDelta - PreviousJitterTimeDelta);
+	
+
+	// Add the value to the average and smooth it out to reduce divergences
+	const float PreviousJitterInMS = AverageJitterInMS;
+	AverageJitterInMS = PreviousJitterInMS + ((CurrentJitter - PreviousJitterInMS) / UE4_NetConnectionPrivate::JitterNoiseReduction);
+
+	//UE_LOG(LogNetTraffic, Verbose, TEXT("Avg Jitter: %f | CurrentJitter: %f | CurrentTimeDelta: %d | PreviousTimeDelta: %d | ReceivedClockMilli %d | LocalClockMilli %d"), AverageJitterInMS, CurrentJitter, CurrentJitterTimeDelta, PreviousJitterTimeDelta, PacketJitterClockTimeMS, CurrentClockTimeMilliseconds);
+
+	// Store for next process
+	PreviousJitterTimeDelta = CurrentJitterTimeDelta;
 }
 
 void UNetConnection::SendChallengeControlMessage()

@@ -380,6 +380,15 @@ private:
 	FPacketTimestamp	LastOSReceiveTime;		// Last time a packet was received at the OS/NIC layer
 	bool				bIsOSReceiveTimeLocal;	// Whether LastOSReceiveTime uses the same clock as the game, or needs translating
 
+	/** Stores the bit number where we wrote the dummy packet info in the packet header */
+	FBitWriterMark HeaderMarkForPacketInfo;
+
+	/** The difference between the send and receive clock time of the last received packet */
+	int32 PreviousJitterTimeDelta;
+
+	/** Timestamp of the last packet sent*/
+	double PreviousPacketSendTimeInS;
+
 public:
 	// Merge info.
 	FBitWriterMark  LastStart;				// Most recently sent bunch start.
@@ -422,6 +431,9 @@ public:
 	/** The average frame delta time over the last 1 second period.*/
 	double			AverageFrameTime;
 
+	/** Current jitter for this connection in milliseconds */
+	float			GetAverageJitterInMS() const { return AverageJitterInMS; }
+
 	/** Nb of stats accumulated in CumulativeTime */
 	int32			CountedFrames;
 
@@ -458,6 +470,14 @@ private:
 	/** Counts the number of stat samples taken */
 	int32 StatPeriodCount;
 
+	/**
+	* Jitter represents the average time divergence of all sent packets.
+	* Ex:
+	* If the time between the sending and the reception of packets is always 100ms; the jitter will be 0.
+	* If the time difference is either 150ms or 100ms, the jitter will tend towards 50ms.
+	*/
+	float AverageJitterInMS;
+
 public:
 
 	/** Net Analytics */
@@ -473,6 +493,7 @@ public:
 	double			OutLagTime[256];				// For lag measuring.
 	int32			OutLagPacketId[256];			// For lag measuring.
 	uint8			OutBytesPerSecondHistory[256];	// For saturation measuring.
+	UE_DEPRECATED(4.25, TEXT("RemoteSaturation is not calculated anymore and is now deprecated"))
 	float			RemoteSaturation;
 	int32			InPacketId;						// Full incoming packet index.
 	int32			OutPacketId;					// Most recently sent packet.
@@ -670,8 +691,11 @@ private:
 	/** delayed incoming packet array */
 	TArray<FDelayedIncomingPacket> DelayedIncomingPackets;
 
+	/** Allow emulated packets to be sent out of order. This causes packet loss on the receiving end */
+	bool bSendDelayedPacketsOutofOrder = false;
+
 	/** set to true when already delayed packets are reinjected */
-	bool bIsReinjectingDelayedPackets;
+	bool bIsReinjectingDelayedPackets = false;
 
 	/** Process incoming packets that have been delayed for long enough */
 	void ReinjectDelayedPackets();
@@ -1013,8 +1037,11 @@ public:
 	/** Create a channel. */
 	ENGINE_API UChannel* CreateChannelByName( const FName& ChName, EChannelCreateFlags CreateFlags, int32 ChannelIndex=INDEX_NONE );
 
-	/** Handle a packet we just received. */
-	void ReceivedPacket( FBitReader& Reader );
+	/** 
+	* Handle a packet we just received. 
+	* bIsReinjectedPacket is true if a packet is reprocessed after getting cached 
+	*/
+	void ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacket=false );
 
 	/** Packet was negatively acknowledged. */
 	void ReceivedNak( int32 NakPacketId );
@@ -1202,6 +1229,11 @@ public:
 
 protected:
 
+	bool GetPendingCloseDueToSocketSendFailure() const
+	{
+		return bConnectionPendingCloseDueToSocketSendFailure;
+	}
+
 	ENGINE_API void SetPendingCloseDueToSocketSendFailure();
 
 	void CleanupDormantActorState();
@@ -1250,14 +1282,20 @@ private:
 	/** Write packetHeader */
 	void WritePacketHeader(FBitWriter& Writer);
 
-	/** Write extended packet header information (ServerFrameTime, SaturationData) */
-	void WritePacketInfo(FBitWriter& Writer) const;
+	/** Write placeholder bits for data filled before the real send (ServerFrameTime, JitterClockTime) */
+	void WriteDummyPacketInfo(FBitWriter& Writer);
+
+	/** Overwrite the dummy packet info values with real values before sending */
+	void WriteFinalPacketInfo(FBitWriter& Writer, double PacketSentTimeInS);
 	
-	/** Read extended packet header information (ServerFrameTime, SaturationData) */
-	bool ReadPacketInfo(FBitReader& Reader);
+	/** Read extended packet header information (ServerFrameTime) */
+	bool ReadPacketInfo(FBitReader& Reader, bool bHasPacketInfoPayload);
 
 	/** Packet was acknowledged as delivered */
 	void ReceivedAck(int32 AckPacketId);
+
+	/** Calculate the average jitter while adding the new packet's jitter value */
+	void ProcessJitter(int32 PacketJitterClockTimeMS);
 
 	/**
 	 * on the server, the world the client has told us it has loaded
@@ -1325,6 +1363,12 @@ private:
 
 	/** Whether or not PacketOrderCache is presently being flushed */
 	bool bFlushingPacketOrderCache;
+
+	/** 
+	* Set to true after the first packet is sent on a Tick. 
+	* Subsequent packets sent on the same frame will not contain the PacketInfo payload
+	*/
+	bool bSentPacketInfoThisFrame = false;
 };
 
 /** Help structs for temporarily setting network settings */

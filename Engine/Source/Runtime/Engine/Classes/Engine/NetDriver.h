@@ -476,6 +476,13 @@ struct ENGINE_API FPacketSimulationSettings
 	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
 	int32	PktIncomingLoss = 0;
 
+	/**
+	 * Causes sent packets to have a variable latency that fluctuates from [PktLagMin] to [PktLagMin+PktJitter]
+	 * Note that this will cause packet loss on the receiving end.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
+	int32	PktJitter = 0;
+
 	/** reads in settings from the .ini file 
 	 * @note: overwrites all previous settings
 	 */
