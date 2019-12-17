@@ -41,6 +41,14 @@ private:
 
 	void ZoomToFitAll();
 
+	void OnAlignTop();
+	void OnAlignMiddle();
+	void OnAlignBottom();
+
+	void OnDistributeNodesH();
+	void OnDistributeNodesV();
+
+
 private:
 	TSharedPtr<FNiagaraOverviewGraphViewModel> ViewModel;
 	TSharedPtr<SGraphEditor> GraphEditor;
