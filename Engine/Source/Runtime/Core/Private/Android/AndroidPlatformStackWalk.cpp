@@ -18,6 +18,11 @@
 #define UNW_LOCAL_ONLY
 #include "libunwind.h"
 #endif
+#if ANDROID_HAS_THREADBACKTRACE
+#include <syscall.h>
+#include "HAL/PlatformTime.h"
+#endif
+#include "HAL/IConsoleManager.h"
 
 void FAndroidPlatformStackWalk::ProgramCounterToSymbolInfo(uint64 ProgramCounter, FProgramCounterSymbolInfo& out_SymbolInfo)
 {
@@ -252,3 +257,67 @@ bool FAndroidPlatformStackWalk::SymbolInfoToHumanReadableString(const FProgramCo
 	}
 	return false;
 }
+
+static TAutoConsoleVariable<float> CVarAndroidPlatformThreadCallStackMaxWait(
+	TEXT("AndroidPlatformThreadStackWalk.MaxWait"),
+	60.0f,
+	TEXT("The number of seconds allowed to spin before killing the process, with the assumption the signal handler has hung."));
+
+#if ANDROID_HAS_THREADBACKTRACE
+uint32 FAndroidPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, uint64* BackTrace, uint32 MaxDepth)
+{
+	auto GatherCallstackFromThread = [](ThreadStackUserData& ThreadStack, uint64 TargetThreadId)
+	{
+		auto WaitForSignalHandlerToFinishOrCrash = [](ThreadStackUserData& WaitThreadStack)
+		{
+			float EndWaitTimestamp = FPlatformTime::Seconds() + CVarAndroidPlatformThreadCallStackMaxWait.AsVariable()->GetFloat();
+			float CurrentTimestamp = FPlatformTime::Seconds();
+
+			while (!WaitThreadStack.bDone)
+			{
+				if (CurrentTimestamp > EndWaitTimestamp)
+				{
+					// We have waited for as long as we should for the signal handler to finish. Assume it has hang and we need to kill our selfs
+					*(int*)0x10 = 0x0;
+				}
+
+				CurrentTimestamp = FPlatformTime::Seconds();
+			}
+		};
+
+		sigval UserData;
+		UserData.sival_ptr = &ThreadStack;
+
+		siginfo_t info;
+		memset(&info, 0, sizeof(siginfo_t));
+		info.si_signo = THREAD_CALLSTACK_GENERATOR;
+		info.si_code = SI_QUEUE;
+		info.si_pid = syscall(SYS_getpid);
+		info.si_uid = syscall(SYS_getuid);
+		info.si_value = UserData;
+
+		// Avoid using sigqueue here as if the ThreadId is already blocked and in a signal handler
+		// sigqueue will try a different thread signal handler and report the wrong callstack
+		if (syscall(SYS_rt_tgsigqueueinfo, info.si_pid, TargetThreadId, THREAD_CALLSTACK_GENERATOR, &info) == 0)
+		{
+			WaitForSignalHandlerToFinishOrCrash(ThreadStack);
+		}
+	};
+
+	ThreadStackUserData ThreadBackTrace;
+	ThreadBackTrace.CallStackSize = MaxDepth;
+	ThreadBackTrace.BackTrace = BackTrace;
+	ThreadBackTrace.BackTraceCount = 0;
+	ThreadBackTrace.bDone = false;
+
+	GatherCallstackFromThread(ThreadBackTrace, ThreadId);
+
+	// The signal handler will set this value, we just have to make sure we wait for the signal handler we raised to finish
+	return ThreadBackTrace.BackTraceCount;
+}
+#else
+uint32 FAndroidPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, uint64* BackTrace, uint32 MaxDepth)
+{
+	return 0;
+}
+#endif //ANDROID_HAS_THREADBACKTRACE

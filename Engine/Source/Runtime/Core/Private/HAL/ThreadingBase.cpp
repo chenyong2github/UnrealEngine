@@ -267,6 +267,15 @@ void FThreadManager::GetAllThreadStackBackTraces(TArray<FThreadStackBackTrace>& 
 }
 #endif
 
+void FThreadManager::ForEachThread(TFunction<void(uint32, class FRunnableThread*)> Func)
+{
+	FScopeLock Lock(&ThreadsCritical);
+	for (const TPair<uint32, FRunnableThread*>& Pair : Threads)
+	{
+		Func(Pair.Key, Pair.Value);
+	}
+}
+
 FThreadManager& FThreadManager::Get()
 {
 	static FThreadManager Singleton;
