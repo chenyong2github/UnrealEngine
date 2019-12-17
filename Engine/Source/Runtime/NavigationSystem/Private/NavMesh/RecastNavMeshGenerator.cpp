@@ -1814,6 +1814,8 @@ bool FRecastTileGenerator::DoAsyncGeometryGathering()
 			NavOctree->DemandLazyDataGathering(*ElementData);
 		}
 
+		const FCompositeNavModifier ModifierInstance = ElementData->Modifiers.HasMetaAreas() ? ElementData->Modifiers.GetInstantiatedMetaModifier(&NavDataConfig, ElementData->SourceObject) : ElementData->Modifiers;
+
 		const bool bExportGeometry = bUpdateGeometry && ElementData->HasGeometry();
 		if (bExportGeometry)
 		{
@@ -1828,7 +1830,7 @@ bool FRecastTileGenerator::DoAsyncGeometryGathering()
 				if (!HasVoxelCache(ElementData->VoxelData, CachedVoxels, NumCachedVoxels))
 				{
 					// rasterize
-					PrepareVoxelCache(ElementData->CollisionData, SpanData);
+					PrepareVoxelCache(ElementData->CollisionData, ModifierInstance, SpanData);
 					CachedVoxels = SpanData.GetData();
 					NumCachedVoxels = SpanData.Num();
 
@@ -1844,7 +1846,7 @@ bool FRecastTileGenerator::DoAsyncGeometryGathering()
 			}
 			else
 			{
-				ValidateAndAppendGeometry(ElementData);
+				ValidateAndAppendGeometry(ElementData, ModifierInstance);
 			}
 
 			if (bDumpGeometryData)
@@ -1853,7 +1855,6 @@ bool FRecastTileGenerator::DoAsyncGeometryGathering()
 			}
 		}
 
-		const FCompositeNavModifier ModifierInstance = ElementData->Modifiers.HasMetaAreas() ? ElementData->Modifiers.GetInstantiatedMetaModifier(&NavDataConfig, ElementData->SourceObject) : ElementData->Modifiers;
 		if (ModifierInstance.IsEmpty() == false)
 		{
 			AppendModifier(ModifierInstance, ElementData->NavDataPerInstanceTransformDelegate);
@@ -1946,6 +1947,8 @@ void FRecastTileGenerator::GatherGeometry(const FRecastNavMeshGenerator& ParentG
 				}
 			}
 
+			const FCompositeNavModifier ModifierInstance = Element.GetModifierForAgent(&OwnerNavDataConfig);
+
 			const bool bExportGeometry = bGeometryChanged && Element.Data->HasGeometry();
 			if (bExportGeometry)
 			{
@@ -1960,7 +1963,7 @@ void FRecastTileGenerator::GatherGeometry(const FRecastNavMeshGenerator& ParentG
 					if (!HasVoxelCache(Element.Data->VoxelData, CachedVoxels, NumCachedVoxels))
 					{
 						// rasterize
-						PrepareVoxelCache(Element.Data->CollisionData, SpanData);
+						PrepareVoxelCache(Element.Data->CollisionData, ModifierInstance, SpanData);
 						CachedVoxels = SpanData.GetData();
 						NumCachedVoxels = SpanData.Num();
 
@@ -1976,7 +1979,7 @@ void FRecastTileGenerator::GatherGeometry(const FRecastNavMeshGenerator& ParentG
 				}
 				else
 				{
-					ValidateAndAppendGeometry(Element.Data);
+					ValidateAndAppendGeometry(Element.Data, ModifierInstance);
 				}
 
 				if (bDumpGeometryData)
@@ -1985,7 +1988,6 @@ void FRecastTileGenerator::GatherGeometry(const FRecastNavMeshGenerator& ParentG
 				}
 			}
 						
-			const FCompositeNavModifier ModifierInstance = Element.GetModifierForAgent(&OwnerNavDataConfig);
 			if (ModifierInstance.IsEmpty() == false)
 			{
 				AppendModifier(ModifierInstance, Element.Data->NavDataPerInstanceTransformDelegate);
@@ -2103,7 +2105,7 @@ void FRecastTileGenerator::ApplyVoxelFilter(rcHeightfield* HF, float WalkableRad
 	}
 }
 
-void FRecastTileGenerator::PrepareVoxelCache(const TNavStatArray<uint8>& RawCollisionCache, TNavStatArray<rcSpanCache>& SpanData)
+void FRecastTileGenerator::PrepareVoxelCache(const TNavStatArray<uint8>& RawCollisionCache, const FCompositeNavModifier& InModifier, TNavStatArray<rcSpanCache>& SpanData)
 {
 	// tile's geometry: voxel cache (only for synchronous rebuilds)
 	const int32 WalkableClimbVX = TileConfig.walkableClimb;
@@ -2126,9 +2128,13 @@ void FRecastTileGenerator::PrepareVoxelCache(const TNavStatArray<uint8>& RawColl
 		CachedCollisions.Indices, CachedCollisions.Header.NumFaces,
 		TriAreas.GetData());
 
+	// To prevent navmesh generation under the triangles, set the RC_PROJECT_TO_BOTTOM flag to true.
+	// This rasterize triangles as filled columns down to the HF lower bound.
+	const rcRasterizationFlags Flags = InModifier.GetRejectNavmeshUnderneath() ? RC_PROJECT_TO_BOTTOM : rcRasterizationFlags(0);
+
 	rcRasterizeTriangles(0, CachedCollisions.Verts, CachedCollisions.Header.NumVerts,
 		CachedCollisions.Indices, TriAreas.GetData(), CachedCollisions.Header.NumFaces,
-		*VoxelCacheContext.RasterizeHF, WalkableClimbVX);
+		*VoxelCacheContext.RasterizeHF, WalkableClimbVX, Flags);
 
 	const int32 NumSpans = rcCountSpans(0, *VoxelCacheContext.RasterizeHF);
 	if (NumSpans > 0)
@@ -2215,16 +2221,16 @@ void FRecastTileGenerator::AppendModifier(const FCompositeNavModifier& Modifier,
 	Modifiers.Add(MoveTemp(ModifierElement));
 }
 
-void FRecastTileGenerator::ValidateAndAppendGeometry(TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe> ElementData)
+void FRecastTileGenerator::ValidateAndAppendGeometry(TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe> ElementData, const FCompositeNavModifier& InModifier)
 {
 	const FNavigationRelevantData& DataRef = ElementData.Get();
 	if (DataRef.IsCollisionDataValid())
 	{
-		AppendGeometry(DataRef.CollisionData, DataRef.NavDataPerInstanceTransformDelegate);
+		AppendGeometry(DataRef.CollisionData, InModifier, DataRef.NavDataPerInstanceTransformDelegate);
 	}
 }
 
-void FRecastTileGenerator::AppendGeometry(const TNavStatArray<uint8>& RawCollisionCache, const FNavDataPerInstanceTransformDelegate& InTransformsDelegate)
+void FRecastTileGenerator::AppendGeometry(const TNavStatArray<uint8>& RawCollisionCache, const FCompositeNavModifier& InModifier, const FNavDataPerInstanceTransformDelegate& InTransformsDelegate)
 {	
 	if (RawCollisionCache.Num() == 0)
 	{
@@ -2232,6 +2238,11 @@ void FRecastTileGenerator::AppendGeometry(const TNavStatArray<uint8>& RawCollisi
 	}
 	
 	FRecastRawGeometryElement GeometryElement;
+
+	// To prevent navmesh generation under the geometry, set the RC_PROJECT_TO_BOTTOM flag to true.
+	// This rasterize triangles as filled columns down to the HF lower bound.
+	GeometryElement.RasterizationFlags = InModifier.GetRejectNavmeshUnderneath() ? RC_PROJECT_TO_BOTTOM : rcRasterizationFlags(0);
+
 	FRecastGeometryCache CollisionCache(RawCollisionCache.GetData());
 	
 	// Gather per instance transforms
@@ -2350,7 +2361,7 @@ bool FRecastTileGenerator::GenerateTile()
 
 struct FTileRasterizationContext
 {
-	FTileRasterizationContext() : SolidHF(0), LayerSet(0), CompactHF(0)
+	FTileRasterizationContext() : SolidHF(0), LayerSet(0), CompactHF(0), RasterizationFlags(rcRasterizationFlags(0))
 	{
 	}
 
@@ -2361,10 +2372,16 @@ struct FTileRasterizationContext
 		rcFreeCompactHeightfield(CompactHF);
 	}
 
+	rcRasterizationFlags GetRasterizationFlags() const { return RasterizationFlags; }
+	void SetRasterizationFlags(rcRasterizationFlags Value) { RasterizationFlags = Value; }
+
 	struct rcHeightfield* SolidHF;
 	struct rcHeightfieldLayerSet* LayerSet;
 	struct rcCompactHeightfield* CompactHF;
 	TArray<FNavMeshTileData> Layers;
+
+private:
+	rcRasterizationFlags RasterizationFlags;
 };
 
 bool FRecastTileGenerator::CreateHeightField(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext)
@@ -2403,7 +2420,7 @@ bool FRecastTileGenerator::CreateHeightField(FNavMeshBuildContext& BuildContext,
 	return true;
 }
 
-ETimeSliceWorkResult FRecastTileGenerator::RasterizeGeometryRecastTimeSliced(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, FTileRasterizationContext& RasterContext)
+ETimeSliceWorkResult FRecastTileGenerator::RasterizeGeometryRecastTimeSliced(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_Navigation_RasterizeGeometryRecast);
 
@@ -2436,7 +2453,7 @@ ETimeSliceWorkResult FRecastTileGenerator::RasterizeGeometryRecastTimeSliced(FNa
 		rcRasterizeTriangles(&BuildContext,
 			Coords.GetData(), NumVerts,
 			Indices.GetData(), RasterizeGeomRecastTriAreas.GetData(), NumFaces,
-			*RasterContext.SolidHF, TileConfig.walkableClimb);
+			*RasterContext.SolidHF, TileConfig.walkableClimb, RasterizationFlags);
 
 		RasterizeGeomRecastTriAreas.Reset();
 
@@ -2456,7 +2473,7 @@ ETimeSliceWorkResult FRecastTileGenerator::RasterizeGeometryRecastTimeSliced(FNa
 }
 
 
-void FRecastTileGenerator::RasterizeGeometryRecast(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, FTileRasterizationContext& RasterContext)
+void FRecastTileGenerator::RasterizeGeometryRecast(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_Navigation_RasterizeGeometryRecast);
 
@@ -2479,7 +2496,7 @@ void FRecastTileGenerator::RasterizeGeometryRecast(FNavMeshBuildContext& BuildCo
 		rcRasterizeTriangles(&BuildContext,
 			Coords.GetData(), NumVerts,
 			Indices.GetData(), RasterizeGeomRecastTriAreas.GetData(), NumFaces,
-			*RasterContext.SolidHF, TileConfig.walkableClimb);
+			*RasterContext.SolidHF, TileConfig.walkableClimb, RasterizationFlags);
 	}
 
 	RasterizeGeomRecastTriAreas.Reset();
@@ -2505,7 +2522,7 @@ void FRecastTileGenerator::RasterizeGeometryTransformCoords(const TArray<float>&
 	}
 }
 
-ETimeSliceWorkResult FRecastTileGenerator::RasterizeGeometryTimeSliced(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, FTileRasterizationContext& RasterContext)
+ETimeSliceWorkResult FRecastTileGenerator::RasterizeGeometryTimeSliced(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_Navigation_RasterizeGeometry);
 	ETimeSliceWorkResult WorkResult = ETimeSliceWorkResult::Succeeded;
@@ -2525,7 +2542,7 @@ ETimeSliceWorkResult FRecastTileGenerator::RasterizeGeometryTimeSliced(FNavMeshB
 	}// fall through to next state
 	case ERasterizeGeomTimeSlicedState::RasterizeGeometryRecast:
 	{
-		WorkResult = RasterizeGeometryRecastTimeSliced(BuildContext, RasterizeGeometryWorldRecastCoords, Indices, RasterContext);
+		WorkResult = RasterizeGeometryRecastTimeSliced(BuildContext, RasterizeGeometryWorldRecastCoords, Indices, RasterizationFlags, RasterContext);
 
 		if (WorkResult != ETimeSliceWorkResult::CallAgainNextTimeSlice)
 		{
@@ -2543,12 +2560,12 @@ ETimeSliceWorkResult FRecastTileGenerator::RasterizeGeometryTimeSliced(FNavMeshB
 	return WorkResult;
 }
 
-void FRecastTileGenerator::RasterizeGeometry(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, FTileRasterizationContext& RasterContext)
+void FRecastTileGenerator::RasterizeGeometry(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_Navigation_RasterizeGeometry);
 
 	RasterizeGeometryTransformCoords(Coords, LocalToWorld);
-	RasterizeGeometryRecast(BuildContext, RasterizeGeometryWorldRecastCoords, Indices, RasterContext);
+	RasterizeGeometryRecast(BuildContext, RasterizeGeometryWorldRecastCoords, Indices, RasterizationFlags, RasterContext);
 }
 
 ETimeSliceWorkResult FRecastTileGenerator::RasterizeTrianglesTimeSliced(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext)
@@ -2564,8 +2581,8 @@ ETimeSliceWorkResult FRecastTileGenerator::RasterizeTrianglesTimeSliced(FNavMesh
 			while (RasterizeTrianglesTimeSlicedInstTransformIdx < Element.PerInstanceTransform.Num())
 			{
 				const FTransform& InstanceTransform = Element.PerInstanceTransform[RasterizeTrianglesTimeSlicedInstTransformIdx];
-				const ETimeSliceWorkResult WorkResult = RasterizeGeometryTimeSliced(BuildContext, Element.GeomCoords, Element.GeomIndices, InstanceTransform, RasterContext);
-
+				const ETimeSliceWorkResult WorkResult = RasterizeGeometryTimeSliced(BuildContext, Element.GeomCoords, Element.GeomIndices, InstanceTransform, Element.RasterizationFlags, RasterContext);
+			
 				//the original code just kept calling the RasterizeGeometry() functions and had no return type, 
 				//so we will process the next layer (if we are not needing to process this layer again next time slice) 
 				if (TimeSlicer.IsTimeSliceFinishedCached())
@@ -2585,8 +2602,8 @@ ETimeSliceWorkResult FRecastTileGenerator::RasterizeTrianglesTimeSliced(FNavMesh
 		}
 		else
 		{
-			const ETimeSliceWorkResult WorkResult = RasterizeGeometryRecastTimeSliced(BuildContext, Element.GeomCoords, Element.GeomIndices, RasterContext);
-
+			const ETimeSliceWorkResult WorkResult = RasterizeGeometryRecastTimeSliced(BuildContext, Element.GeomCoords, Element.GeomIndices, Element.RasterizationFlags, RasterContext);
+	
 			if (TimeSlicer.IsTimeSliceFinishedCached())
 			{
 				if (WorkResult != ETimeSliceWorkResult::CallAgainNextTimeSlice)
@@ -2615,12 +2632,12 @@ void FRecastTileGenerator::RasterizeTriangles(FNavMeshBuildContext& BuildContext
 		{
 			for (const FTransform& InstanceTransform : Element.PerInstanceTransform)
 			{
-				RasterizeGeometry(BuildContext, Element.GeomCoords, Element.GeomIndices, InstanceTransform, RasterContext);
+				RasterizeGeometry(BuildContext, Element.GeomCoords, Element.GeomIndices, InstanceTransform, Element.RasterizationFlags, RasterContext);
 			}
 		}
 		else
 		{
-			RasterizeGeometryRecast(BuildContext, Element.GeomCoords, Element.GeomIndices, RasterContext);
+			RasterizeGeometryRecast(BuildContext, Element.GeomCoords, Element.GeomIndices, Element.RasterizationFlags, RasterContext);
 		}
 	}
 }
