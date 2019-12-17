@@ -193,7 +193,7 @@ public:
 	 *
 	 * @return saved directory
 	 */
-	static FString ProjectSavedDir();
+	static const FString& ProjectSavedDir();
 
 	UE_DEPRECATED(4.18, "FPaths::GameSavedDir() has been superseded by FPaths::ProjectSavedDir().")
 	static FORCEINLINE FString GameSavedDir() { return ProjectSavedDir(); }

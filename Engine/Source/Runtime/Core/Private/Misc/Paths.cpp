@@ -267,7 +267,7 @@ FString FPaths::ProjectConfigDir()
 	return FPaths::ProjectDir() + TEXT("Config/");
 }
 
-FString FPaths::ProjectSavedDir()
+const FString& FPaths::ProjectSavedDir()
 {
 	FStaticData& StaticData = TLazySingleton<FStaticData>::Get();
 	if (!StaticData.bGameSavedDirInitialized)
@@ -1099,9 +1099,8 @@ void FPaths::MakePlatformFilename( FString& InPath )
 bool FPaths::MakePathRelativeTo( FString& InPath, const TCHAR* InRelativeTo )
 {
 	FString Target = FPaths::ConvertRelativePathToFull(InPath);
-	FString Source = FPaths::ConvertRelativePathToFull(InRelativeTo);
-	
-	Source = FPaths::GetPath(Source);
+	FString Source = FPaths::GetPath(FPaths::ConvertRelativePathToFull(InRelativeTo));
+
 	Source.ReplaceInline(TEXT("\\"), TEXT("/"), ESearchCase::CaseSensitive);
 	Target.ReplaceInline(TEXT("\\"), TEXT("/"), ESearchCase::CaseSensitive);
 
@@ -1142,7 +1141,7 @@ bool FPaths::MakePathRelativeTo( FString& InPath, const TCHAR* InRelativeTo )
 		}
 	}
 	
-	InPath = Result;
+	InPath = MoveTemp(Result);
 	return true;
 }
 
