@@ -82,7 +82,7 @@ struct FMockHealingCue
 	int32 SourceID;
 	int32 HealingAmount;
 
-	using Traits = TNetSimCueTraitsExplicit<(uint8)ESimulationTickContext::Authority, ENetSimCueReplicationTarget::All>; // Sets our traits explicitly
+	using Traits = TNetSimCueTraitsExplicit<ENetSimCueInvoker::All, ENetSimCueReplicationTarget::All, true>; // Sets our traits explicitly
 	
 	void NetSerialize(FArchive& Ar)
 	{
@@ -97,7 +97,7 @@ struct FMockHealingCue
 	}
 };
 NETSIMCUE_REGISTER(FMockHealingCue, TEXT("Healing")); // Must go in .cpp
-static_assert(TNetSimCueTraits<FMockHealingCue>::InvokeMask == (uint8)ESimulationTickContext::Authority, "Traits Errors"); // Not required: just asserting what this classes traits are
+static_assert(TNetSimCueTraits<FMockHealingCue>::InvokeMask == ENetSimCueInvoker::All, "Traits Errors"); // Not required: just asserting what this classes traits are
 
 // ---------------------------------------------------------------------
 // (2) Cue Sets: just a collection of cue types that a simulation emits.
