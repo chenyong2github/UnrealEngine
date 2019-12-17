@@ -17,10 +17,13 @@ namespace MockAbilityCVars
 	NETSIM_DEVCVAR_SHIPCONST_FLOAT(DashAcceleration, 100000.f, "mockability.DashAcceleration", "Acceleration when dashing.");
 
 
-	NETSIM_DEVCVAR_SHIPCONST_INT(BlinkCueType, 0, "mockability.BlinkCueType", "0=default. 1=weak. 2=");
+	NETSIM_DEVCVAR_SHIPCONST_INT(BlinkCueType, 4, "mockability.BlinkCueType", "0=Skip. 1=weak. 2=ReplicatedNonPredicted, 3=ReplicatedXOrPredicted, 4=Strong");
+	NETSIM_DEVCVAR_SHIPCONST_INT(BlinkWarmupMS, 750, "mockability.BlinkWarmupMS", "Duration in MS of blink warmup period");
 }
 
+NETSIMCUE_REGISTER(FMockAbilityBlinkActivateCue, TEXT("MockAbilityBlinkActivate"));
 NETSIMCUE_REGISTER(FMockAbilityBlinkCue, TEXT("MockAbilityBlink"));
+
 NETSIMCUE_REGISTER(FMockAbilityBlinkCue_Weak, TEXT("MockAbilityBlink_Weak"));
 NETSIMCUE_REGISTER(FMockAbilityBlinkCue_ReplicatedNonPredicted, TEXT("MockAbilityBlink_RepNonPredicted"));
 NETSIMCUE_REGISTER(FMockAbilityBlinkCue_ReplicatedXOrPredicted, TEXT("MockAbilityBlink_RepXOrPredicted"));
@@ -84,12 +87,26 @@ void FMockAbilitySimulation::SimulationTick(const FNetSimTimeStep& TimeStep, con
 	// -------------------------------------------------------------------------
 
 	static float BlinkCost = 25.f;
-	static int16 BlinkWarmupMS = 750; 
+	const int16 BlinkWarmupMS = MockAbilityCVars::BlinkWarmupMS();
+
+	auto GetBlinkDestination = [&LocalSync]()
+	{
+		static float BlinkDist = 1000.f;
+		const FVector DestLocation = LocalSync.Location + LocalSync.Rotation.RotateVector( FVector(BlinkDist, 0.f, 0.f) );
+		return DestLocation;
+	};
 
 	const bool bBlinkActivate = (Input.Cmd.bBlinkPressed && Input.Sync.Stamina > BlinkCost && bAllowNewActivations);
 	if (bBlinkActivate)
 	{
+
+
 		LocalAux.BlinkWarmupLeft = BlinkWarmupMS;
+
+		// Invoke a cue to telegraph where the blink will land. This is making the assumption the handler wouldn't either want to or be able to derive the blink destination from the current state alone
+		// The randomValue being calculated here is purposefully to cause mis prediction of the cue, so that we can demonstrate rollback -> resimulate can do the correction seemlessly
+		UE_LOG(LogTemp, Warning, TEXT("Invoking FMockAbilityBlinkActivateCue from sim"));
+		Output.CueDispatch.Invoke<FMockAbilityBlinkActivateCue>( GetBlinkDestination(), FMath::Rand() % 255 );
 	}
 
 	if (LocalAux.BlinkWarmupLeft > 0)
@@ -106,8 +123,7 @@ void FMockAbilitySimulation::SimulationTick(const FNetSimTimeStep& TimeStep, con
 
 		if (NewBlinkWarmupLeft <= 0)
 		{
-			static float BlinkDist = 1000.f;
-			FVector DestLocation = LocalSync.Location + LocalSync.Rotation.RotateVector( FVector(BlinkDist, 0.f, 0.f) );
+			const FVector DestLocation = GetBlinkDestination();
 			AActor* OwningActor = UpdatedComponent->GetOwner();
 			check(OwningActor);
 
@@ -127,12 +143,11 @@ void FMockAbilitySimulation::SimulationTick(const FNetSimTimeStep& TimeStep, con
 
 				// Invoke a NetCue for the blink. This is essentially capturing the start/end location so that all receivers of the event
 				// get the exact coordinates (maybe overkill in practice but key is that we have data that we want to pass out via an event)
-
-				UE_LOG(LogTemp, Warning, TEXT("INVOKING CUE EMPLACE"));
+				
 				switch(MockAbilityCVars::BlinkCueType()) // Only for dev/testing. Not a normal setup.
 				{
 				case 0:
-					Output.CueDispatch.Invoke<FMockAbilityBlinkCue>( Input.Sync.Location, DestLocation );
+					// Skip o purpose
 					break;
 				case 1:
 					Output.CueDispatch.Invoke<FMockAbilityBlinkCue_Weak>( Input.Sync.Location, DestLocation );
@@ -318,13 +333,37 @@ void UMockFlyingAbilityComponent::VisualLog(const FMockAbilityInputCmd* Input, c
 	Super::VisualLog(Input, Sync, Aux, SystemParameters);
 }
 
+float UMockFlyingAbilityComponent::GetBlinkWarmupTimeSeconds() const
+{
+	return FNetworkSimTime::FromRealTimeMS( MockAbilityCVars::BlinkWarmupMS() ).ToRealTimeSeconds();
+}
+
 // ---------------------------------------------------------------------------------
+
+void UMockFlyingAbilityComponent::HandleCue(const FMockAbilityBlinkActivateCue& BlinkCue, const FNetSimCueSystemParamemters& SystemParameters)
+{
+	FString RoleStr = GetOwnerRole() == ROLE_Authority ? TEXT("Server") : TEXT("Client");
+	UE_LOG(LogTemp, Display, TEXT("[%s] BlinkActivatedCue!"), *RoleStr);
+
+	this->OnBlinkActivateEvent.Broadcast(BlinkCue.Destination, BlinkCue.RandomType, SystemParameters.TimeSinceInvocation.ToRealTimeSeconds());
+	
+	if (SystemParameters.Callbacks)
+	{
+		UE_LOG(LogTemp, Display, TEXT("  System Callbacks available!"));
+
+		SystemParameters.Callbacks->OnRollback.AddLambda([RoleStr, this]()
+		{
+			UE_LOG(LogTemp, Display, TEXT("  %s BlinkActivatedCue Rollback!"), *RoleStr);
+			this->OnBlinkActivateEventRollback.Broadcast();
+		});
+	}
+}
 
 static float BlinkCueDuration = 1.f;
 static FAutoConsoleVariableRef CVarBindAutomatically(TEXT("NetworkPredictionExtras.FlyingPawn.BlinkCueDuration"),
 	BlinkCueDuration, TEXT("Duration of BlinkCue"), ECVF_Default);
 
-void UMockFlyingAbilityComponent::HandleCue(FMockAbilityBlinkCue& BlinkCue, const FNetSimCueSystemParamemters& SystemParameters)
+void UMockFlyingAbilityComponent::HandleCue(const FMockAbilityBlinkCue& BlinkCue, const FNetSimCueSystemParamemters& SystemParameters)
 {
 	FString RoleStr = GetOwnerRole() == ROLE_Authority ? TEXT("Server") : TEXT("Client");
 
@@ -337,20 +376,14 @@ void UMockFlyingAbilityComponent::HandleCue(FMockAbilityBlinkCue& BlinkCue, cons
 	float Duration = FMath::Max<float>(0.1f, BlinkCueDuration - SystemParameters.TimeSinceInvocation.ToRealTimeSeconds());
 	DrawDebugLine(GetWorld(), BlinkCue.StartLocation, BlinkCue.StopLocation, FColor::Red, false, Duration);
 
-
 	if (SystemParameters.Callbacks)
 	{
 		UE_LOG(LogTemp, Display, TEXT("  System Callbacks available!"));
 
-		SystemParameters.Callbacks->OnRollback.AddLambda([RoleStr]()
+		SystemParameters.Callbacks->OnRollback.AddLambda([RoleStr, this]()
 		{
 			UE_LOG(LogTemp, Display, TEXT("  %s BlinkCue Rollback!"), *RoleStr);
 		});
-
-		SystemParameters.Callbacks->OnConfirmed.AddLambda([RoleStr]()
-		{
-			UE_LOG(LogTemp, Display, TEXT("  %s BlinkCue Confirmed!"), *RoleStr);
-		});
-
 	}
 }
+

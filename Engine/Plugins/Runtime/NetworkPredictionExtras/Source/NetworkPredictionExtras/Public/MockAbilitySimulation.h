@@ -125,9 +125,41 @@ struct FMockAbilityAuxState : public FFlyingMovementAuxState
 // MockAbility NetSimCues - events emitted by the sim
 // -------------------------------------------------------
 
+// Cue for blink activation (the moment the ability starts)
+struct FMockAbilityBlinkActivateCue
+{
+	FMockAbilityBlinkActivateCue() = default;
+	FMockAbilityBlinkActivateCue(const FVector& InDestination, uint8 InRandomType)
+		: Destination(InDestination), RandomType(InRandomType) { }
+
+	NETSIMCUE_BODY();
+
+	FVector_NetQuantize10 Destination;
+	uint8 RandomType; // Random value used to color code the effect. This is the test/prove out mispredictions
+
+	void NetSerialize(FArchive& Ar)
+	{
+		bool b = false;
+		Destination.NetSerialize(Ar, nullptr, b);
+		Ar << RandomType;
+	}
+	
+	bool NetUnique(const FMockAbilityBlinkActivateCue& Other) const
+	{
+		const float ErrorTolerance = 1.f;
+		return !Destination.Equals(Other.Destination, ErrorTolerance) || RandomType != Other.RandomType;
+	}
+};
+
+template<>
+struct TCueHandlerTraits<FMockAbilityBlinkActivateCue> : public TNetSimCueTraits_Strong { };
+
+// ----------------------------------------------------------------------------------------------
+
+
 #define LOG_BLINK_CUE 1 // During development, its useful to sanity check that we aren't doing more construction or moves than we expect
 
-// Cue for blink activation.
+// Cue for blink (the moment the teleport happens)
 struct FMockAbilityBlinkCue
 {
 	FMockAbilityBlinkCue()
@@ -135,7 +167,7 @@ struct FMockAbilityBlinkCue
 		UE_CLOG(LOG_BLINK_CUE, LogTemp, Warning, TEXT("  Default Constructor 0x%X"), this);
 	}
 
-	FMockAbilityBlinkCue(FVector Start, FVector Stop) : StartLocation(Start), StopLocation(Stop)
+	FMockAbilityBlinkCue(const FVector& Start, const FVector& Stop) : StartLocation(Start), StopLocation(Stop)
 	{ 
 		UE_CLOG(LOG_BLINK_CUE, LogTemp, Warning, TEXT("  Custom Constructor 0x%X"), this);
 	}
@@ -205,6 +237,7 @@ struct FMockAbilityCueSet
 	template<typename TDispatchTable>
 	static void RegisterNetSimCueTypes(TDispatchTable& DispatchTable)
 	{
+		DispatchTable.template RegisterType<FMockAbilityBlinkActivateCue>();
 		DispatchTable.template RegisterType<FMockAbilityBlinkCue>();
 
 		// (Again, not a normal setup, just for debugging/testing purposes)
@@ -214,6 +247,8 @@ struct FMockAbilityCueSet
 		DispatchTable.template RegisterType<FMockAbilityBlinkCue_Strong>();
 	}
 };
+
+
 
 
 // -------------------------------------------------------
@@ -294,7 +329,8 @@ public:
 	using UFlyingMovementComponent::FinalizeFrame;
 
 	// NetSimCues
-	void HandleCue(FMockAbilityBlinkCue& BlinkCue, const FNetSimCueSystemParamemters& SystemParameters);
+	void HandleCue(const FMockAbilityBlinkActivateCue& BlinkCue, const FNetSimCueSystemParamemters& SystemParameters);
+	void HandleCue(const FMockAbilityBlinkCue& BlinkCue, const FNetSimCueSystemParamemters& SystemParameters);
 
 	// -------------------------------------------------------------------------------------
 	//	Ability State and Notifications
@@ -331,6 +367,18 @@ public:
 	// Are we currently in the blinking (startup) state
 	UFUNCTION(BlueprintCallable, Category="Mock AbilitySystem")
 	bool IsBlinking() const { return bIsBlinking; }
+	
+	// Blueprint assignable events for blinking. THis allows the user/blueprint to implement rollback-able events
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FMockAbilityBlinkCueEvent, FVector, DestinationLocation, int32, RandomValue, float, ElapsedTimeSeconds);
+	UPROPERTY(BlueprintAssignable, Category="Mock AbilitySystem")
+	FMockAbilityBlinkCueEvent OnBlinkActivateEvent;
+
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE(FMockAbilityBlinkCueRollback);
+	UPROPERTY(BlueprintAssignable, Category="Mock AbilitySystem")
+	FMockAbilityBlinkCueRollback OnBlinkActivateEventRollback;
+
+	UFUNCTION(BlueprintCallable, Category="Mock AbilitySystem")
+	float GetBlinkWarmupTimeSeconds() const;
 
 private:
 	
