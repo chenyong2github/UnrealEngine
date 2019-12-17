@@ -31,6 +31,12 @@ struct FNiagaraWorldManagerDeferredDeletionFence
 	FNiagaraDeferredDeletionFence* Fence;
 	FNiagaraWorldManagerDeferredDeletionFence(FNiagaraDeferredDeletionFence* InFence);
 	~FNiagaraWorldManagerDeferredDeletionFence();
+
+	FNiagaraWorldManagerDeferredDeletionFence(FNiagaraWorldManagerDeferredDeletionFence&& Other);
+	FNiagaraWorldManagerDeferredDeletionFence& operator=(FNiagaraWorldManagerDeferredDeletionFence&& Other);
+
+	FNiagaraWorldManagerDeferredDeletionFence(const FNiagaraWorldManagerDeferredDeletionFence& Other) = delete;
+	FNiagaraWorldManagerDeferredDeletionFence& operator=(const FNiagaraWorldManagerDeferredDeletionFence& Other) = delete;
 };
 
 class FNiagaraViewDataMgr : public FRenderResource
