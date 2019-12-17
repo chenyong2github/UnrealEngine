@@ -127,7 +127,7 @@ FString AndroidRelativeToAbsolutePath(bool bUseInternalBasePath, FString RelPath
 		
 		do {
 			RelPath.RightChopInline(3, false);
-		} while (RelPath.StartsWith(TEXT("../")))
+		} while (RelPath.StartsWith(TEXT("../"), ESearchCase::CaseSensitive));
 
 		return (bUseInternalBasePath ? GInternalFilePath : GetFileBasePath()) / RelPath;
 	}
