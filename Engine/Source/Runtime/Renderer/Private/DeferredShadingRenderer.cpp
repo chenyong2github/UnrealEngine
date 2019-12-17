@@ -1630,14 +1630,16 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		}
 		else
 		{
-		bIsGBufferCurrent = true;
+			bIsGBufferCurrent = true;
 		}
 		ServiceLocalQueue();
-	}
 
-	if (bRenderSkyAtmosphereEditorNotifications)
-	{
-		RenderSkyAtmosphereEditorNotifications(RHICmdList);
+		if (bRenderSkyAtmosphereEditorNotifications)
+		{
+			// We only render this warning text when bRequiresRHIClear==true to make sure the scene color buffer is allocated at this stage.
+			// When false, the option specifies that all pixels must be written to by a sky dome anyway.
+			RenderSkyAtmosphereEditorNotifications(RHICmdList);
+		}
 	}
 
 	// Wireframe mode requires bRequiresRHIClear to be true. 
