@@ -313,6 +313,7 @@ void FNiagaraWorldManager::OnBatcherDestroyed_Internal(NiagaraEmitterInstanceBat
 		{
 			DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.Wait();
 			DeferredDeletionQueue[i].Queue.Empty();
+			DeferredDeletionQueue[i].DeletionFences.Empty();
 		}
 	}
 }
@@ -335,6 +336,7 @@ void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResou
 	{
 		DeferredDeletionQueue[i].Fence.Wait();
 		DeferredDeletionQueue[i].Queue.Empty();
+		DeferredDeletionQueue[i].DeletionFences.Empty();
 	}
 }
 
@@ -453,6 +455,7 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 			DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.Wait();
 		}
 		DeferredDeletionQueue[DeferredDeletionQueueIndex].Queue.Empty();
+		DeferredDeletionQueue[DeferredDeletionQueueIndex].DeletionFences.Empty();
 	}
 
 	// Update tick groups
@@ -558,6 +561,43 @@ void FNiagaraWorldManager::DumpDetails(FOutputDevice& Ar)
 
 			Ar.Logf(TEXT("\tSimulation %s"), *Sim->GetSystem()->GetFullName());
 			Sim->DumpTickInfo(Ar);
+		}
+	}
+}
+
+void FNiagaraWorldManager::EnqueueDeferredDeletionFences(TArray<FNiagaraDeferredDeletionFence>& OutFences)
+{
+	for (auto& Pair : WorldManagers)
+	{
+		UWorld* World = Pair.Key;
+		FNiagaraWorldManager* Manager = Pair.Value;
+
+		if (World && Manager)
+		{
+			FNiagaraDeferredDeletionFence* Fence = &OutFences.AddDefaulted_GetRef();
+			//Add the fence to the deferred deletion queue.
+			Manager->DeferredDeletionQueue[Manager->DeferredDeletionQueueIndex].DeletionFences.Emplace(Fence);
+
+			//Add the fence to the instance batcher
+			if (World->Scene)
+			{
+				FFXSystemInterface*  FXSystemInterface = World->Scene->GetFXSystem();
+				if (FXSystemInterface)
+				{
+					if (NiagaraEmitterInstanceBatcher* Batcher = static_cast<NiagaraEmitterInstanceBatcher*>(FXSystemInterface->GetInterface(NiagaraEmitterInstanceBatcher::Name)))
+					{
+						ENQUEUE_RENDER_COMMAND(FDeletionFenceCommand)(
+							[Batcher, Fence](FRHICommandListImmediate& RHICmdList)
+						{
+							if (ensure(Batcher))
+							{
+								Batcher->AddFence_RenderThread(Fence);
+							}
+						}
+						);
+					}
+				}
+			}
 		}
 	}
 }

@@ -16,6 +16,7 @@
 #include "NiagaraStats.h"
 #include "NiagaraEditorDataBase.h"
 #include "INiagaraEditorOnlyDataUtlities.h"
+#include "NiagaraWorldManager.h"
 
 #if WITH_EDITOR
 #include "NiagaraScriptDerivedData.h"
@@ -62,12 +63,30 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 void UNiagaraSystem::BeginDestroy()
 {
 	Super::BeginDestroy();
+
+	DeletionFences.Reset();
+	FNiagaraWorldManager::EnqueueDeferredDeletionFences(DeletionFences);
+
 #if WITH_EDITORONLY_DATA
 	while (ActiveCompilations.Num() > 0)
 	{
 		QueryCompileComplete(true, false, true);
 	}
 #endif
+}
+
+bool UNiagaraSystem::IsReadyForFinishDestroy()
+{
+ 	bool bAllComplete = true;
+	
+	//We have to wait until the existing items in the deferred deletion queue are cleared as they have direct refs to the layout info in our System and Emitter compiled data.
+	//We have to do this for each world.
+	for (FNiagaraDeferredDeletionFence& Fence : DeletionFences)
+	{
+		bAllComplete &= Fence.IsComplete();
+	}
+	
+	return Super::IsReadyForFinishDestroy() && bAllComplete;
 }
 
 void UNiagaraSystem::PreSave(const class ITargetPlatform * TargetPlatform)
@@ -1318,3 +1337,53 @@ FNiagaraEmitterCompiledData::FNiagaraEmitterCompiledData()
 	EmitterRandomSeedVar = SYS_PARAM_EMITTER_RANDOM_SEED;
 	EmitterTotalSpawnedParticlesVar = SYS_PARAM_ENGINE_EMITTER_TOTAL_SPAWNED_PARTICLES;
 }
+
+
+//////////////////////////////////////////////////////////////////////////
+
+FNiagaraDeferredDeletionFence::FNiagaraDeferredDeletionFence()
+{
+	bInstanceBatcherComplete = false;
+	bWorldManagerComplete = false;
+}
+
+bool FNiagaraDeferredDeletionFence::IsComplete()
+{
+	return bInstanceBatcherComplete.Load() && bWorldManagerComplete.Load();
+}
+
+FNiagaraWorldManagerDeferredDeletionFence::FNiagaraWorldManagerDeferredDeletionFence(FNiagaraDeferredDeletionFence* InFence)
+	: Fence(InFence)
+{
+	if (Fence)
+	{
+		Fence->bWorldManagerComplete = false;
+	}
+}
+
+FNiagaraWorldManagerDeferredDeletionFence::~FNiagaraWorldManagerDeferredDeletionFence()
+{
+	if (Fence)
+	{
+		Fence->bWorldManagerComplete = true;
+	}
+}
+
+FNiagaraInstanceBatcherDeferredDeletionFence::FNiagaraInstanceBatcherDeferredDeletionFence(FNiagaraDeferredDeletionFence* InFence)
+	: Fence(InFence)
+{
+	if (Fence)
+	{
+		Fence->bInstanceBatcherComplete = false;
+	}
+}
+FNiagaraInstanceBatcherDeferredDeletionFence::~FNiagaraInstanceBatcherDeferredDeletionFence()
+{
+	if (Fence)
+	{
+		Fence->bInstanceBatcherComplete = true;
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
