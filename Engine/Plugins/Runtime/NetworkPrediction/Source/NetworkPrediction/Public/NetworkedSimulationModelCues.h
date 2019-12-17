@@ -3,6 +3,37 @@
 
 #include "Engine/EngineTypes.h"
 #include "NetworkedSimulationModelTime.h"
+#include "NetworkedSimulationModelCueTraits.h"
+
+/*=============================================================================
+Networked Simulation Cues
+
+Cues are events that are outputted by a Networked Simulation. They have the following properties:
+-Cues are defined by a user struct (custom data payload). They are *invoked* during a SimulationTick and are *dispatched* to a *handler*.
+-They are dispatched *after* the simulation is done ticking (via TNetSimCueDispatcher::DispatchCueRecord which is called during the owning component's tick).
+-They should not affect the simulation. Or rather, if they do affect the simulation, it will be during the actor tick, effectively the same as any "out of band" modifications.
+-They provide automatic replication and invocation settings (traits). They will not "double play" during resimulates.
+-They are time aware. When dispatched, the receiver is given how much time has passed (relative to local "head" time) since the invocation.
+-They are rollback aware. When dispatched, the receiver is given a callback that will be invoked if the cue needs to rollback (undo itself). 
+-The callback is not given in contexts when a rollback is impossible: e.g, on the authority.
+
+Notes on reliability:
+-Cues are unreliable in nature. If you join a game in progress, an actor driving the sim suddenly becomes relevant: you will not get all past events.
+-If network becomes saturated or drops, you may miss events too.
+-Order of received cues is guaranteed, but we can't promise there won't be gaps/missing cues!
+-In other words: do not use cues in stateful ways! Cues should be used for transient events ("NotifyExplosion") not state ("NotifySetDestroyed(true)")
+-For state transitions, just use FinalizeFrame to detect these changes. "State transitions" are 100% reliable, but (obviously) cannot use data that is not in the Sync/Aux buffer.
+
+Notes on "simulation affect events" (E.g, *not* NetSimCues)
+-If you have an event that needs to affect the simulation during the simulation - that is seen as an extension of the simulation and is "up to the user" to implement.
+-In other words, handle the event yourself inline with the simulation. That means directly broadcasting/calling other functions/into other classes/etc inside your simulation.
+-If your event has state mutation on the handler side, that is a hazard (e.g, state that the network sim is not aware of, but is used in the event code which is an extension of the simulation)
+-In these cases I would recommend: A) on the handler side, don't write to any non-networked-sim state if non authority or B) just don't handle the event on non authority. (Expect corrections)
+-If the handler side doesn't have state hazards, say a teleporting volume that always does the same thing: there is no reason everyone can't run the event. Its an extension of the simulation.
+
+See "Mock Cue Example" in NetworkedSimulationModelCues.cpp for minimal example of implementing the Cue types and Handler classes.
+
+=============================================================================*/
 
 NETWORKPREDICTION_API DECLARE_LOG_CATEGORY_EXTERN(LogNetSimCues, Log, All);
 
@@ -12,146 +43,8 @@ NETWORKPREDICTION_API DECLARE_LOG_CATEGORY_EXTERN(LogNetSimCues, Log, All);
 
 using FNetSimCueTypeId = NETSIMCUE_TYPEID_TYPE;
 
-enum class ESimulationTickContext : uint8
-{
-	None			= 0,
-	Authority		= 1 << 0,
-	Predict			= 1 << 1,
-	Resimulate		= 1 << 2,
-
-	AuthorityPredict	= Authority | Predict,
-	PredictResimulate	= Predict | Resimulate,
-
-	All				= (Authority | Predict | Resimulate),
-};
-
-enum class ENetSimCueReplicationTarget : uint8
-{
-	None,			// Do not replicate cue to anyone
-	Interpolators,	// Only replicate to / accept on clients that are interpolating (not running the simulation themselves)
-	All,			// Replicate to everyone
-};
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-//	NetSimCue Traits: how to configure how a NetSimCue will dispatch within the NetworkedSimulationModel
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-struct TNetSimCueTraitsBase
-{
-	// Who can Invoke this Cue in their simulation (if this test fails, the Invoke call is supressed locally)
-	static constexpr uint8 InvokeMask { (uint8)ESimulationTickContext::All };
-
-	// Does the cue replicate? (from authority). This will also determine if the cue needs to be saved locally for NetIdentical tests (to avoid double playing)
-	static constexpr ENetSimCueReplicationTarget ReplicationTarget { ENetSimCueReplicationTarget::All };
-};
-
-// Preset: non replicated cue that only plays during "latest" simulate. Will not be played during rewind/resimulate.
-// Lightest weight cue. Best used for cosmetic, non critical events. Footsteps, impact effects, etc.
-struct TNetSimCueTraits_Weak
-{
-	static constexpr uint8 InvokeMask { (uint8)ESimulationTickContext::Authority | (uint8)ESimulationTickContext::Predict };
-	static constexpr ENetSimCueReplicationTarget ReplicationTarget { ENetSimCueReplicationTarget::None };
-};
-
-// Preset: Replicated, non predicted. Only invoked on authority and will replicate to everyone else.
-// Best for events that are critical that cannot be rolled back/undown and do not need to be predicted.
-struct TNetSimCueTraits_ReplicatedNonPredicted
-{
-	static constexpr uint8 InvokeMask { (uint8)ESimulationTickContext::Authority };
-	static constexpr ENetSimCueReplicationTarget ReplicationTarget { ENetSimCueReplicationTarget::All };
-};
-
-// Preset: Replicated to interpolating proxies, predicted by autonomous proxy
-// Best for events you want everyone to see but don't need to get perfect in the predicting cases: doesn't need to rollback and cheap on cpu (no unique tests on predicted path)
-struct TNetSimCueTraits_ReplicatedXOrPredicted
-{
-	static constexpr uint8 InvokeMask { (uint8)ESimulationTickContext::Authority | (uint8)ESimulationTickContext::Predict };
-	static constexpr ENetSimCueReplicationTarget ReplicationTarget { ENetSimCueReplicationTarget::Interpolators };
-};
-
-// Preset: Invoked and replicated to all. Uniqueness testing to avoid double playing, rollbackable so that it can (re)play during resimulates
-// Most expensive (bandwidth and CPU for uniqueness testing) and requires rollback callbacks to be implemented to be correct
-struct TNetSimCueTraits_Strong
-{
-	static constexpr uint8 InvokeMask { (uint8)ESimulationTickContext::All };
-	static constexpr ENetSimCueReplicationTarget ReplicationTarget { ENetSimCueReplicationTarget::All };
-};
-
-// Preset: Non replicated but if a resimulate happens, the cue is undone and replayed.
-// This is not common and doesn't really have a clear use case. But the system can support it.
-struct TNetSimCueTraits_NonReplicatedResimulated
-{
-	static constexpr uint8 InvokeMask { (uint8)ESimulationTickContext::All };
-	static constexpr ENetSimCueReplicationTarget ReplicationTarget { ENetSimCueReplicationTarget::None };
-};
-
-// Actual trait struct that we use to look up traits. User cues must specialize this
-template<typename TCue>
-struct TCueHandlerTraits : public TNetSimCueTraitsBase
-{
-};
-
-
-// Type requirements: helper to determine if NetSerialize/NetIdentical functions need to be defined for user types based on traits
-template <typename TCue>
-struct TNetSimCueTypeRequirements
-{
-	enum {
-		// NetSerialize is required if we ever need to replicate
-		RequiresNetSerialize = (TCueHandlerTraits<TCue>::ReplicationTarget != ENetSimCueReplicationTarget::None),
-		// Likewise for NetIdentical, but also if we plan to invoke during Resimulate too (even if non replicated, we use NetIdentical for comparisons. though this is probably a non practical use case).
-		RequiresNetIdentical = (TCueHandlerTraits<TCue>::ReplicationTarget != ENetSimCueReplicationTarget::None) || (TCueHandlerTraits<TCue>::InvokeMask & (uint8)ESimulationTickContext::Resimulate)
-	};
-};
-
-// Helper to compile time check if NetSerialize exists
-GENERATE_MEMBER_FUNCTION_CHECK(NetSerialize, void,, FArchive&);
-
-// Helper to compile time check if NetIdentical exists (since argument is template type, must be wrapped in helper struct)
-template<typename TCue>
-struct THasNetIdenticalHelper
-{
-	GENERATE_MEMBER_FUNCTION_CHECK(NetIdentical, bool, const, const TCue&);
-	enum { Value = THasMemberFunction_NetIdentical<TCue>::Value };
-};
-
-// Helper to call NetIdentical if type defines it
-template<typename TCue, bool Enabled=THasNetIdenticalHelper<TCue>::Value>
-struct TNetCueNetIdenticalHelper
-{
-	static bool CallNetIdenticalOrNot(const TCue& Cue, const TCue& Other) { ensure(false); return false; } // This should never be hit by cue types that don't need to NetIdentical
-};
-
-template<typename TCue>
-struct TNetCueNetIdenticalHelper<TCue, true>
-{
-	static bool CallNetIdenticalOrNot(const TCue& Cue, const TCue& Other) { return Cue.NetIdentical(Other); }
-};
-
-// Helper to call NetSerialize if type defines it
-template<typename TCue, bool Enabled=THasMemberFunction_NetSerialize<TCue>::Value>
-struct TNetCueNetSerializeHelper
-{
-	static void CallNetSerializeOrNot(TCue& Cue, FArchive& Ar) { ensure(false); } // This should never be hit by cue types that don't need to NetSerialize
-};
-
-template<typename TCue>
-struct TNetCueNetSerializeHelper<TCue, true>
-{
-	static void CallNetSerializeOrNot(TCue& Cue, FArchive& Ar) { Cue.NetSerialize(Ar); }
-};
-
-// Traits for TNetSimCueDispatcher
-struct NETWORKPREDICTION_API FCueDispatcherTraitsBase
-{
-	// Window for replicating a NetSimCue. That is, after a cue is invoked, it has ReplicationWindow time before it will be pruned.
-	// If a client does not get a net update for the sim in this window, they will miss the event.
-	static constexpr FNetworkSimTime ReplicationWindow = FNetworkSimTime::FromRealTimeMS(200);
-};
-template<typename T> struct TCueDispatcherTraits : public FCueDispatcherTraitsBase { };
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-//	Wrapper
+//	Wrapper: wraps the actual user NetSimCue. We want to avoid virtualizing functions on the actual user types.
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 struct FNetSimCueWrapperBase
@@ -189,7 +82,7 @@ struct TNetSimCueWrapper : FNetSimCueWrapperBase
 
 	ENetSimCueReplicationTarget GetReplicationTarget() const override final
 	{
-		return TCueHandlerTraits<TCue>::ReplicationTarget;
+		return TNetSimCueTraits<TCue>::ReplicationTarget;
 	}
 
 	TCue Instance;
@@ -204,6 +97,8 @@ struct FNetSimCueCallbacks
 	/** Callback to rollback any side effects of the cue. */
 	DECLARE_MULTICAST_DELEGATE(FOnRollback)
 	FOnRollback	OnRollback;
+
+	// It may make sense to add an "OnConfirmed" that will let the user know a rollback will no longer be possible
 };
 
 /** System parameters for NetSimCue events */
@@ -441,6 +336,15 @@ TCueDispatchTable<TCueHandler> TCueDispatchTable<TCueHandler>::Singleton;
 //	-Holds recorded cue state for replication
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+// Traits for TNetSimCueDispatcher
+struct NETWORKPREDICTION_API FCueDispatcherTraitsBase
+{
+	// Window for replicating a NetSimCue. That is, after a cue is invoked, it has ReplicationWindow time before it will be pruned.
+	// If a client does not get a net update for the sim in this window, they will miss the event.
+	static constexpr FNetworkSimTime ReplicationWindow = FNetworkSimTime::FromRealTimeMS(200);
+};
+template<typename T> struct TCueDispatcherTraits : public FCueDispatcherTraitsBase { };
+
 // Non-templated, "networking model independent" base: this is what the pure simulation code gets to invoke cues. 
 struct FNetSimCueDispatcher
 {
@@ -458,38 +362,9 @@ struct FNetSimCueDispatcher
 	{
 		if (EnsureValidContext())
 		{
-			if ((TCueHandlerTraits<T>::InvokeMask & (uint8)Context.TickContext) > 0)
+			if ((TNetSimCueTraits<T>::InvokeMask & (uint8)Context.TickContext) > 0)
 			{
-				/*
-				{
-					// Whether we go in the transient list. Transient cues are dumped after dispatching (not saved over multiple frames for uniqueness comparisons during Invoke or NetSerialize)
-					const bool bTransient = (Context.TickContext == ESimulationTickContext::Authority && TCueHandlerTraits<T>::ReplicationTarget == ENetSimCueReplicationTarget::None)	  // Transient on authority if it doesn't replicate
-						|| ((TCueHandlerTraits<T>::InvokeMask & (uint8)ESimulationTickContext::Resimulate) == 0 && TCueHandlerTraits<T>::ReplicationTarget != ENetSimCueReplicationTarget::All); // Transient elsewhere if it won't replicate to us and it won't be invoked during resimulates
-
-					// Whether this cue should be dispatched with rollback callbacks. This is a trait of the cue type + context (e.g, authority will never rollback)
-					const bool bAllowRollback = TCueHandlerTraits<T>::Rollbackable && !bTransient && Context.TickContext != ESimulationTickContext::Authority;
-
-					// Is this already confirmed? (it is if we can't roll it back, or if it won't be replicated to us)
-					const bool bNetConfirmed = !bAllowRollback || TCueHandlerTraits<T>::ReplicationTarget != ENetSimCueReplicationTarget::All;
-				}
-
-
-				{
-					// Whether this cue should be dispatched with rollback callbacks. Authority never rolls back, clients rollback if they plan to invoke during resims or if the cue is replicated to everyone
-					const bool bRequiresRollbackForReplication = Context.TickContext != ESimulationTickContext::Authority && (TCueHandlerTraits<T>::ReplicationTarget == ENetSimCueReplicationTarget::All);
-					const bool bRequiresRollbackForResimulate = Context.TickContext != ESimulationTickContext::Authority && (TCueHandlerTraits<T>::InvokeMask & (uint8)ESimulationTickContext::Resimulate);
-					const bool bAllowRollback = bRequiresRollbackForReplication || bRequiresRollbackForResimulate;
-
-					// Whether we go in the transient list. Transient cues are dumped after dispatching (not saved over multiple frames for uniqueness comparisons during Invoke or NetSerialize)
-					const bool bTransient = !bAllowRollback &&
-						(Context.TickContext == ESimulationTickContext::Authority && (TCueHandlerTraits<T>::ReplicationTarget == ENetSimCueReplicationTarget::None)) ||
-						(Context.TickContext != ESimulationTickContext::Authority && (TCueHandlerTraits<T>::ReplicationTarget != ENetSimCueReplicationTarget::All));
-
-					const bool bNetConfirmed = !bAllowRollback || TCueHandlerTraits<T>::ReplicationTarget != ENetSimCueReplicationTarget::All;
-				}
-				*/
-
-				const bool bSupportsResimulate = (TCueHandlerTraits<T>::InvokeMask & (uint8)ESimulationTickContext::Resimulate) > 0;
+				const bool bSupportsResimulate = (TNetSimCueTraits<T>::InvokeMask & (uint8)ESimulationTickContext::Resimulate) > 0;
 
 				bool bAllowRollback = false;	// Whether this cue should be dispatched with rollback callbacks.
 				bool bTransient = false;		// Whether we go in the transient list. Transient cues are dumped after dispatching (not saved over multiple frames for uniqueness comparisons during Invoke or NetSerialize)
@@ -498,14 +373,14 @@ struct FNetSimCueDispatcher
 				{
 					// Authority: never rolls back, is already confirmed, and can treat cue as transient if it doesn't have to replicate it
 					bAllowRollback = false;
-					bTransient = TCueHandlerTraits<T>::ReplicationTarget == ENetSimCueReplicationTarget::None;
+					bTransient = TNetSimCueTraits<T>::ReplicationTarget == ENetSimCueReplicationTarget::None;
 					bNetConfirmed = true;
 				}
 				else
 				{
 					// Everyone else that is running the simulation (since this in ::Invoke which is called from within the simulation)
 					// Rollback if it will replicate to us or if we plan to invoke this cue during resimulates. Transient and confirmed follow directly from this in the non authority case.
-					bAllowRollback = (TCueHandlerTraits<T>::ReplicationTarget == ENetSimCueReplicationTarget::All) || bSupportsResimulate;
+					bAllowRollback = (TNetSimCueTraits<T>::ReplicationTarget == ENetSimCueReplicationTarget::All) || bSupportsResimulate;
 					bTransient = !bAllowRollback;
 					bNetConfirmed = !bAllowRollback;
 				}
@@ -547,7 +422,7 @@ struct FNetSimCueDispatcher
 			}
 			else
 			{
-				UE_LOG(LogNetSimCues, Log, TEXT("%s .Suppressing Cue Invocation %s. Mask: %d. TickContext: %d"), *GetDebugName(), *FGlobalCueTypeTable::Get().GetTypeName(T::ID), TCueHandlerTraits<T>::InvokeMask, (int32)Context.TickContext);
+				UE_LOG(LogNetSimCues, Log, TEXT("%s .Suppressing Cue Invocation %s. Mask: %d. TickContext: %d"), *GetDebugName(), *FGlobalCueTypeTable::Get().GetTypeName(T::ID), TNetSimCueTraits<T>::InvokeMask, (int32)Context.TickContext);
 			}
 		}
 	}

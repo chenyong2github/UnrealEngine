@@ -136,6 +136,8 @@ struct FMockAbilityBlinkActivateCue
 
 	FVector_NetQuantize10 Destination;
 	uint8 RandomType; // Random value used to color code the effect. This is the test/prove out mispredictions
+
+	using Traits = NetSimCueTraits::Strong;
 	
 	void NetSerialize(FArchive& Ar)
 	{
@@ -151,8 +153,11 @@ struct FMockAbilityBlinkActivateCue
 	}
 };
 
-template<>
-struct TCueHandlerTraits<FMockAbilityBlinkActivateCue> : public TNetSimCueTraits_Strong { };
+// This way works too but is less concise:
+//template<>
+//struct TNetSimCueTraits<FMockAbilityBlinkActivateCue> : public TNetSimCueTraits_Strong { };
+
+static_assert( TNetSimCueTraits<FMockAbilityBlinkActivateCue>::ReplicationTarget == NetSimCueTraits::Strong::ReplicationTarget, "Traits error" );
 
 // ----------------------------------------------------------------------------------------------
 
@@ -198,6 +203,8 @@ struct FMockAbilityBlinkCue
 
 	FVector_NetQuantize10 StartLocation;
 	FVector_NetQuantize10 StopLocation;
+
+	using Traits = NetSimCueTraits::Strong;
 	
 	void NetSerialize(FArchive& Ar)
 	{
@@ -214,9 +221,6 @@ struct FMockAbilityBlinkCue
 	}
 };
 
-template<>
-struct TCueHandlerTraits<FMockAbilityBlinkCue> : public TNetSimCueTraits_Strong { };
-
 // -----------------------------------------------------------------------------------------------------
 // Subtypes of the BlinkCue - this is not an expected setup! This is done for testing/debugging so we can 
 // see the differences between the cue type traits in a controlled setup. See FMockAbilitySimulation::SimulationTick
@@ -224,15 +228,16 @@ struct TCueHandlerTraits<FMockAbilityBlinkCue> : public TNetSimCueTraits_Strong 
 #define DECLARE_BLINKCUE_SUBTYPE(TYPE, TRAITS) \
  struct TYPE : public FMockAbilityBlinkCue { \
  template <typename... ArgsType> TYPE(ArgsType&&... Args) : FMockAbilityBlinkCue(Forward<ArgsType>(Args)...) { } \
+ using Traits = TRAITS; \
  void NetSerialize(FArchive& Ar) { FMockAbilityBlinkCue::NetSerialize(Ar); } \
  bool NetIdentical(const TYPE& Other) const { return FMockAbilityBlinkCue::NetIdentical(Other); } \
- NETSIMCUE_BODY(); }; \
- template<> struct TCueHandlerTraits<TYPE> : public TRAITS { };
+ NETSIMCUE_BODY(); };
+ 
 
-DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_Weak, TNetSimCueTraits_Weak);
-DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_ReplicatedNonPredicted, TNetSimCueTraits_ReplicatedNonPredicted);
-DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_ReplicatedXOrPredicted, TNetSimCueTraits_ReplicatedXOrPredicted);
-DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_Strong, TNetSimCueTraits_Strong);
+DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_Weak, NetSimCueTraits::Weak);
+DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_ReplicatedNonPredicted, NetSimCueTraits::ReplicatedNonPredicted);
+DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_ReplicatedXOrPredicted, NetSimCueTraits::ReplicatedXOrPredicted);
+DECLARE_BLINKCUE_SUBTYPE(FMockAbilityBlinkCue_Strong, NetSimCueTraits::Strong);
 
 // The set of Cues the MockAbility simulation will invoke
 struct FMockAbilityCueSet
