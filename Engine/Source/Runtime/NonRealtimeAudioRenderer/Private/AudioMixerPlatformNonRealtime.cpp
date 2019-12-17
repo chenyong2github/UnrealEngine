@@ -66,6 +66,10 @@ namespace Audio
 		double SecondsRendered = TotalDurationRendered;
 		TotalDurationRendered += NumSecondsToRender;
 
+		CurrentBufferWriteIndex = 0;
+		CurrentBufferReadIndex = 0;
+
+
 		while (SecondsRendered < TotalDurationRendered)
 		{
 			// RenderTimeAnalysis.Start();
@@ -75,6 +79,9 @@ namespace Audio
 			ReadNextBuffer();
 			SecondsRendered += TimePerCallback;
 		}
+
+		CurrentBufferReadIndex = INDEX_NONE;
+		CurrentBufferWriteIndex = INDEX_NONE;
 	}
 
 	void FMixerPlatformNonRealtime::OpenFileToWriteAudioTo(const FString& OutPath)
