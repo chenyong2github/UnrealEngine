@@ -5571,15 +5571,15 @@ void FEngineLoop::AppPreExit( )
 		GShaderCompilerStats = nullptr;
 	}
 #endif
+
+#if !(IS_PROGRAM || WITH_EDITOR)
+	FIoDispatcher::Shutdown();
+#endif
 }
 
 
 void FEngineLoop::AppExit( )
 {
-#if !(IS_PROGRAM || WITH_EDITOR)
-	FIoDispatcher::Shutdown();
-#endif
-
 #if !WITH_ENGINE
 	// when compiled WITH_ENGINE, this will happen in FEngineLoop::Exit()
 	FTaskGraphInterface::Shutdown();

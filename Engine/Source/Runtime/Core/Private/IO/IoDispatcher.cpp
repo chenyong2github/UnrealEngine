@@ -146,6 +146,7 @@ public:
 
 	~FIoDispatcherImpl()
 	{
+		delete Thread;
 		IPlatformChunkInstall* ChunkInstall = FPlatformMisc::GetPlatformChunkInstall();
 		if (ChunkInstall && ChunkDownloadedDelegateHandle.IsValid())
 		{
@@ -442,7 +443,7 @@ private:
 
 	virtual uint32 Run()
 	{
-		while (true)
+		while (!bStopRequested)
 		{
 			EventQueue.ProcessEvents();
 
@@ -455,6 +456,8 @@ private:
 
 	virtual void Stop()
 	{
+		bStopRequested = true;
+		EventQueue.Notify();
 	}
 
 	using FRequestAllocator = TBlockAllocator<FIoRequestImpl, 4096>;
@@ -475,6 +478,7 @@ private:
 	FIoRequestImpl* SubmittedRequestsTail = nullptr;
 	FDelegateHandle ChunkDownloadedDelegateHandle;
 	TArray<TTuple<int32, FIoStoreEnvironment>> PendingInstallChunks;
+	TAtomic<bool> bStopRequested { false };
 };
 
 FIoDispatcher::FIoDispatcher()
