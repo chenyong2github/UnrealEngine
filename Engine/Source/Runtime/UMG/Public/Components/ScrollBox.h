@@ -163,7 +163,7 @@ public:
 
 	/** Scrolls the ScrollBox to the widget during the next layout pass. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	void ScrollWidgetIntoView(UWidget* WidgetToFind, bool AnimateScroll = true, EDescendantScrollDestination ScrollDestination = EDescendantScrollDestination::IntoView );
+	void ScrollWidgetIntoView(UWidget* WidgetToFind, bool AnimateScroll = true, EDescendantScrollDestination ScrollDestination = EDescendantScrollDestination::IntoView, float Padding = 0);
 
 	//~ Begin UWidget Interface
 	virtual void SynchronizeProperties() override;
