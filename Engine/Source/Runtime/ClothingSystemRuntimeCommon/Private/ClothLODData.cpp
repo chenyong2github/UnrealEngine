@@ -3,15 +3,15 @@
 #include "ClothLODData.h"
 
 
-UClothLODDataBase::UClothLODDataBase(const FObjectInitializer& Init)
+UClothLODDataCommon::UClothLODDataCommon(const FObjectInitializer& Init)
 	: PhysicalMeshData(nullptr)
 {}
 
-UClothLODDataBase::~UClothLODDataBase()
+UClothLODDataCommon::~UClothLODDataCommon()
 {}
 
 #if WITH_EDITORONLY_DATA
-void UClothLODDataBase::GetParameterMasksForTarget(
+void UClothLODDataCommon::GetParameterMasksForTarget(
 	const uint8 InTarget, 
 	TArray<FPointWeightMap*>& OutMasks)
 {
@@ -25,7 +25,7 @@ void UClothLODDataBase::GetParameterMasksForTarget(
 }
 #endif // WITH_EDITORONLY_DATA
 
-void UClothLODDataBase::Serialize(FArchive& Ar)
+void UClothLODDataCommon::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
@@ -46,7 +46,7 @@ void UClothLODDataBase::Serialize(FArchive& Ar)
 }
 
 #if WITH_EDITOR
-void UClothLODDataBase::PushWeightsToMesh()
+void UClothLODDataCommon::PushWeightsToMesh()
 {
 	if (PhysicalMeshData)
 	{
