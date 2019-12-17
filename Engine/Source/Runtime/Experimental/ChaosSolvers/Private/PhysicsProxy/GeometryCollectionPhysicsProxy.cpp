@@ -3829,7 +3829,7 @@ void FGeometryCollectionPhysicsProxy::PushToPhysicsState(const Chaos::FParticleD
 		// probably a bug, as the interface code is assuming it needs to lock
 		// to prevent stomping on a double buffer.  We should look into doing 
 		// away with that lock, but for the time being, we'll assert:
-		check(false);
+		ensure(false);
 		return;
 	}
 	
@@ -3925,11 +3925,19 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults()
 		{
 			if(!SolverParticleHandles[Idx])
 			{
-				TargetResults.DisabledStates[Idx] = false;
+				TargetResults.DisabledStates[Idx] = true;
 				continue;
 			}
 
-			TargetResults.DisabledStates[Idx] = SolverParticleHandles[Idx]->Disabled();
+			if(SolverParticleHandles[Idx]->Disabled())
+			{
+				TargetResults.DisabledStates[Idx] = true;
+			}
+			else
+			{
+				TargetResults.DisabledStates[Idx] = false;
+				IsObjectDynamic = true;
+			}
 		}
 		//TargetResults.DisabledStates.Append(&Particles.DisabledRef(BaseParticleIndex), NumParticles);
 	}

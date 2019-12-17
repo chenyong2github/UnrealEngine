@@ -1993,8 +1993,8 @@ void UGeometryCollectionComponent::CalculateGlobalMatrices()
 	SCOPE_CYCLE_COUNTER(STAT_GCCUGlobalMatrices);
 	FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 	Module->LockResultsRead();
-
-	const FGeometryCollectionResults* Results = PhysicsProxy ? &PhysicsProxy->GetPhysicsResults().GetGameDataForRead() : nullptr;
+	
+	const FGeometryCollectionResults* Results = PhysicsProxy ? PhysicsProxy->GetConsumerResultsGT() : nullptr;
 
 	const int32 NumTransforms = Results ? Results->GlobalTransforms.Num() : 0;
 	if(NumTransforms > 0)

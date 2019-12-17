@@ -195,6 +195,8 @@ public:
 	//
 	void SetCollisionParticlesPerObjectFraction(float CollisionParticlesPerObjectFractionIn) {CollisionParticlesPerObjectFraction = CollisionParticlesPerObjectFractionIn;}
 
+	const FGeometryCollectionResults* GetConsumerResultsGT() { return PhysToGameInterchange->GetConsumerBuffer(); }
+
 	/*
 	* For Testing ONLY!
 	*/
