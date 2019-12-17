@@ -520,10 +520,6 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 		return;
 	}
 
-	// splitscreen support:
-	// we always pass the 'primary' listener (viewport 0) to the sound nodes and the underlying audio system
-	// then move the AudioComponent's CurrentLocation so that its position relative to that Listener is the same as its real position is relative to the closest Listener
-
 	{
 		SCOPE_CYCLE_COUNTER( STAT_AudioFindNearestLocation );
 		ClosestListenerIndex = AudioDevice->FindClosestListenerIndex(Transform);
@@ -601,18 +597,6 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 		}
 
 		ParseParams.ModulationPluginSettings = FindModulationSettings();
-
-		// if the closest listener is not the primary one, transform the sound transform so it's panned relative to primary listener position
-		if (ClosestListenerIndex != 0)
-		{
-			FTransform FirstListenerTransform;
-			FTransform ClosestListenerTransform;
-			AudioDevice->GetListenerTransform(0, FirstListenerTransform);
-			AudioDevice->GetListenerTransform(ClosestListenerIndex, ClosestListenerTransform);
-
-			ParseParams.Transform = ParseParams.Transform * ClosestListenerTransform.Inverse() * FirstListenerTransform;
-		}
-
 		Sound->Parse(AudioDevice, 0, *this, ParseParams, ThisSoundsWaveInstances);
 
 		// Track this active sound's min pitch value. This is used to scale it's possible duration value.

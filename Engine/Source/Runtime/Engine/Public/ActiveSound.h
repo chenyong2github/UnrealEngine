@@ -313,6 +313,8 @@ public:
 		AudioDevice = InAudioDevice;
 	}
 
+	int32 GetClosestListenerIndex() const { return ClosestListenerIndex; }
+
 	/** Returns whether or not the active sound can be deleted. */
 	bool CanDelete() const { return !bAsyncOcclusionPending; }
 

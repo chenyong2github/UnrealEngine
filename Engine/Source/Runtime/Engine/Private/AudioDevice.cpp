@@ -4922,13 +4922,30 @@ float FAudioDevice::GetDistanceToNearestListener(const FVector& Location) const
 
 float FAudioDevice::GetDistanceSquaredToListener(const FVector& Location, int32 ListenerIndex) const
 {
+	float OutSqDistance;
+	GetSquaredDistanceToListener(Location, ListenerIndex, OutSqDistance);
+	return OutSqDistance;
+}
+
+bool FAudioDevice::GetSquaredDistanceToListener(const FVector& Location, int32 ListenerIndex, float& OutSqDistance) const
+{
+	OutSqDistance = TNumericLimits<float>::Max();
+	const int32 ListenerCount = IsInAudioThread() ? Listeners.Num() : ListenerProxies.Num();
+
+	if (ListenerIndex >= ListenerCount)
+	{
+		return false;
+	}
+
 	FVector ListenerTranslation;
 	const bool bAllowOverride = true;
 	if (!GetListenerPosition(ListenerIndex, ListenerTranslation, bAllowOverride))
 	{
-		return WORLD_MAX;
+		return false;
 	}
-	return (ListenerTranslation - Location).SizeSquared();
+
+	OutSqDistance = (ListenerTranslation - Location).SizeSquared();
+	return true;
 }
 
 bool FAudioDevice::GetListenerPosition(int32 ListenerIndex, FVector& OutPosition, bool bAllowOverride) const
@@ -5107,30 +5124,30 @@ int32 FAudioDevice::FindClosestListenerIndex(const FTransform& SoundTransform) c
 
 int32 FAudioDevice::FindClosestListenerIndex(const FVector& Position, float& OutDistanceSq, bool bAllowAttenuationOverrides) const
 {
-	int32 ClosestListenerIndex = INDEX_NONE;
-	OutDistanceSq = WORLD_MAX;
-
+	int32 ClosestListenerIndex = 0;
+	OutDistanceSq = 0.f;
 	FVector ListenerPosition;
-	const int32 ListenerCount = IsInAudioThread() ? Listeners.Num() : ListenerProxies.Num();
 
-	if (GetListenerPosition(0, ListenerPosition, bAllowAttenuationOverrides))
+	if (!GetListenerPosition(0, ListenerPosition, bAllowAttenuationOverrides))
 	{
-		OutDistanceSq = FVector::DistSquared(Position, ListenerPosition);
-		ClosestListenerIndex = 0;
+		return INDEX_NONE;
+	}
 
-		for (int32 i = 1; i < ListenerCount; ++i)
+	OutDistanceSq = FVector::DistSquared(Position, ListenerPosition);
+
+	const int32 ListenerCount = IsInAudioThread() ? Listeners.Num() : ListenerProxies.Num();
+	for (int32 i = 1; i < ListenerCount; ++i)
+	{
+		if (!GetListenerPosition(i, ListenerPosition, bAllowAttenuationOverrides))
 		{
-			if (!GetListenerPosition(i, ListenerPosition, bAllowAttenuationOverrides))
-			{
-				continue;
-			}
+			continue;
+		}
 
-			const float DistSq = FVector::DistSquared(Position, ListenerPosition);
-			if (DistSq < OutDistanceSq)
-			{
-				OutDistanceSq = DistSq;
-				ClosestListenerIndex = i;
-			}
+		const float DistSq = FVector::DistSquared(Position, ListenerPosition);
+		if (DistSq < OutDistanceSq)
+		{
+			OutDistanceSq = DistSq;
+			ClosestListenerIndex = i;
 		}
 	}
 
