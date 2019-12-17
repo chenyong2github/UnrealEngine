@@ -49,7 +49,8 @@ void FApplePlatformBackgroundHttpRequest::CompleteRequest_Internal(bool bWasRequ
 {
     UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Marking Request Complete -- RequestDebugID:%s | bWasRequestSuccess:%d | CompletedTempDownloadLocation:%s"), *GetRequestDebugID(), (int)bWasRequestSuccess, *CompletedTempDownloadLocationIn);
     
-    FPlatformAtomics::InterlockedExchange(&bIsTaskActive, false);
+	//Purposefully avoid setting bIsTaskActive to false here as we still expect that to be set until the request is deleted.
+	
 	FPlatformAtomics::InterlockedExchange(&bIsCompleted, true);
 	FPlatformAtomics::InterlockedExchange(&bIsFailed, !bWasRequestSuccess);
     FPlatformAtomics::InterlockedExchange(&bIsPendingCancel, false);
