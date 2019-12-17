@@ -4,7 +4,7 @@
 #include "DrawDebugHelpers.h"
 #include "VisualLogger/VisualLogger.h"
 
-const FName FMockAbilitySimulation::GroupName(TEXT("Ability"));
+const FName FMockAbilityNetSimModelDef::GroupName(TEXT("Ability"));
 
 namespace MockAbilityCVars
 {
@@ -53,7 +53,7 @@ void FMockAbilitySimulation::SimulationTick(const FNetSimTimeStep& TimeStep, con
 	// Local copies of the const input that we will pass into the parent sim as input.
 	FMockAbilityInputCmd LocalCmd = Input.Cmd;
 	FMockAbilitySyncState LocalSync = Input.Sync;
-	FMockAbilityAuxstate LocalAux = Input.Aux;
+	FMockAbilityAuxState LocalAux = Input.Aux;
 
 	const bool bAlreadyBlinking = Input.Aux.BlinkWarmupLeft > 0;
 	const bool bAlreadyDashing = Input.Aux.DashTimeLeft > 0;
@@ -233,13 +233,12 @@ INetworkedSimulationModel* UMockFlyingAbilityComponent::InstantiateNetworkedSimu
 
 	// Simulation
 	FMockAbilitySyncState InitialSyncState;
-	FMockAbilityAuxstate InitialAuxState;
+	FMockAbilityAuxState InitialAuxState;
 	InitMockAbilitySimulation(new FMockAbilitySimulation(), InitialSyncState, InitialAuxState);
 
 	// Model
-	auto NewModel = new FMockAbilitySystem<0>( MockAbilitySimulation, this, InitialSyncState, InitialAuxState);
+	auto* NewModel = new TNetworkedSimulationModel<FMockAbilityNetSimModelDef>( MockAbilitySimulation, this, InitialSyncState, InitialAuxState);
 	InitMockAbilityNetSimModel(NewModel);
-
 	return NewModel;
 }
 
@@ -249,7 +248,7 @@ void UMockFlyingAbilityComponent::ProduceInput(const FNetworkSimTime SimTime, FM
 	ProduceInputDelegate.ExecuteIfBound(SimTime, Cmd);
 }
 
-void UMockFlyingAbilityComponent::FinalizeFrame(const FMockAbilitySyncState& SyncState, const FMockAbilityAuxstate& AuxState)
+void UMockFlyingAbilityComponent::FinalizeFrame(const FMockAbilitySyncState& SyncState, const FMockAbilityAuxState& AuxState)
 {
 	Super::FinalizeFrame(SyncState, AuxState);
 
@@ -284,7 +283,7 @@ const AActor* UMockFlyingAbilityComponent::GetVLogOwner() const
 	return GetOwner();
 }
 
-void UMockFlyingAbilityComponent::VisualLog(const FMockAbilityInputCmd* Input, const FMockAbilitySyncState* Sync, const FMockAbilityAuxstate* Aux, const FVisualLoggingParameters& SystemParameters) const
+void UMockFlyingAbilityComponent::VisualLog(const FMockAbilityInputCmd* Input, const FMockAbilitySyncState* Sync, const FMockAbilityAuxState* Aux, const FVisualLoggingParameters& SystemParameters) const
 {
 	Super::VisualLog(Input, Sync, Aux, SystemParameters);
 }
