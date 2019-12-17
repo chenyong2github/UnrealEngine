@@ -20,7 +20,7 @@
 static TAutoConsoleVariable<int32> CVarSupportMaterialLayers(
 	TEXT("r.SupportMaterialLayers"),
 	0,
-	TEXT("Support new material layering in 4.19. Disabling it reduces some overhead in place to support the experimental feature."),
+	TEXT("Support new material layering"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 // Temporary flag for toggling experimental material layers functionality
