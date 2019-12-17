@@ -25,11 +25,17 @@ private:
 	void CacheBlackboardData();
 	const class UBlackboardData* FindBlackboardAsset(UObject* InObj);
 
+	void OnBlackboardDataChanged(UBlackboardData* Asset);
+	void OnBlackboardOwnerChanged(UObject* Owner, UBlackboardData* Asset);
+
 	void InitKeyFromProperty();
 	void OnKeyComboChange(int32 Index);
 	TSharedRef<SWidget> OnGetKeyContent() const;
 	FText GetCurrentKeyDesc() const;
 	bool IsEditingEnabled() const;
+
+	FDelegateHandle	OnBlackboardDataChangedHandle;
+	FDelegateHandle	OnBlackboardOwnerChangedHandle;
 
 	TSharedPtr<IPropertyHandle> MyStructProperty;
 	TSharedPtr<IPropertyHandle> MyKeyNameProperty;
@@ -43,6 +49,7 @@ private:
 
 	/** cached blackboard asset */
 	TWeakObjectPtr<class UBlackboardData> CachedBlackboardAsset;
+	TWeakObjectPtr<class UObject> CachedBlackboardAssetOwner;
 
 	/** property utils */
 	class IPropertyUtilities* PropUtils;
