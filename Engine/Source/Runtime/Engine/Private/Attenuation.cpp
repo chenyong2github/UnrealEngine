@@ -107,7 +107,7 @@ float FBaseAttenuationSettings::GetMaxFalloffDistance() const
 
 				case ENaturalSoundFalloffMode::Continues:
 				{
-					MaxFalloffDistance = FalloffDistance * MinAttenuationValueDb / FMath::Max(dBAttenuationAtMax, KINDA_SMALL_NUMBER);
+					MaxFalloffDistance = FalloffDistance * MinAttenuationValueDb / FMath::Min(dBAttenuationAtMax, -KINDA_SMALL_NUMBER);
 				}
 				break;
 
