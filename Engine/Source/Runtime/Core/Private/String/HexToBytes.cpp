@@ -5,7 +5,9 @@
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
 
-namespace UEString
+namespace UE
+{
+namespace String
 {
 	template <typename CharType>
 	int32 HexToBytesImpl(const TStringView<CharType>& Hex, uint8* const OutBytes)
@@ -35,4 +37,5 @@ namespace UEString
 	{
 		return HexToBytesImpl<ANSICHAR>(Hex, OutBytes);
 	}
+}
 }

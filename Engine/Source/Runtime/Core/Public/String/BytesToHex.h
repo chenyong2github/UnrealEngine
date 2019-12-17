@@ -8,7 +8,9 @@
 class FStringBuilderBase;
 class FAnsiStringBuilderBase;
 
-namespace UEString
+namespace UE
+{
+namespace String
 {
 	/**
 	 * Convert an array of bytes to a non-null-terminated string of hex digits.
@@ -27,4 +29,5 @@ namespace UEString
 	 */
 	CORE_API void BytesToHex(TArrayView<const uint8> Bytes, FStringBuilderBase& Builder);
 	CORE_API void BytesToHex(TArrayView<const uint8> Bytes, FAnsiStringBuilderBase& Builder);
+}
 }

@@ -7,7 +7,9 @@
 
 class FStringView;
 
-namespace UEString
+namespace UE
+{
+namespace String
 {
 	/**
 	 * Visit every line in the input view as terminated by any of CRLF, CR, LF.
@@ -18,4 +20,5 @@ namespace UEString
 	 * @param Visitor A function that is called for each line.
 	 */
 	CORE_API void ParseLines(const FStringView& View, const TFunctionRef<void(FStringView)>& Visitor);
+}
 }

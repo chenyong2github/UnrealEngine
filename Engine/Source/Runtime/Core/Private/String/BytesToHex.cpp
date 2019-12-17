@@ -4,7 +4,9 @@
 
 #include "Misc/StringBuilder.h"
 
-namespace UEString
+namespace UE
+{
+namespace String
 {
 	template <typename CharType>
 	void BytesToHexImpl(TArrayView<const uint8> Bytes, CharType* OutHex)
@@ -40,4 +42,5 @@ namespace UEString
 		const int32 Offset = Builder.AddUninitialized(Bytes.Num() * 2);
 		BytesToHexImpl(Bytes, GetData(Builder) + Offset);
 	}
+}
 }

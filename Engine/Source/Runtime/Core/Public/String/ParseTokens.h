@@ -8,7 +8,9 @@
 
 class FStringView;
 
-namespace UEString
+namespace UE
+{
+namespace String
 {
 	/**
 	 * Visit every token in the input view as separated by any of the delimiters.
@@ -61,4 +63,5 @@ namespace UEString
 	{
 		return ParseTokensMultiple(View, MakeArrayView(&Delimiter, 1), Visitor);
 	}
+}
 }

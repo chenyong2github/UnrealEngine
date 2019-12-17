@@ -6,7 +6,9 @@
 #include "Algo/NoneOf.h"
 #include "Containers/StringView.h"
 
-namespace UEString
+namespace UE
+{
+namespace String
 {
 	template <typename DelimiterType>
 	inline static void ParseTokensMultipleImpl(const FStringView& View, TArrayView<const DelimiterType> Delimiters, TFunctionRef<void(FStringView)> Visitor)
@@ -55,4 +57,5 @@ namespace UEString
 	{
 		ParseTokensMultipleImpl(View, Delimiters, Visitor);
 	}
+}
 }

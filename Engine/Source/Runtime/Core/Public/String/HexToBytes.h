@@ -7,7 +7,9 @@
 class FStringView;
 class FAnsiStringView;
 
-namespace UEString
+namespace UE
+{
+namespace String
 {
 	/** 
 	 * Convert an array of hex digits into an array of bytes.
@@ -19,4 +21,5 @@ namespace UEString
 	 */
 	CORE_API int32 HexToBytes(const FStringView& Hex, uint8* OutBytes);
 	CORE_API int32 HexToBytes(const FAnsiStringView& Hex, uint8* OutBytes);
+}
 }
