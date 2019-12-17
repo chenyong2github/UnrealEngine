@@ -316,7 +316,7 @@ void FStaticLightingSystem::RadiositySetupTextureMapping(FStaticLightingTextureM
 						UniformSampledIncomingRadiance = IncomingRadianceAdaptive<FFinalGatherSample>(
 							TextureMapping, 
 							Vertex, 
-							TexelToVertex.TexelRadius, 
+							TexelToVertex.SampleRadius, 
 							false,
 							TexelToVertex.ElementIndex, 
 							2,  /** BounceNumber */
@@ -340,7 +340,7 @@ void FStaticLightingSystem::RadiositySetupTextureMapping(FStaticLightingTextureM
 							Vertex,
 							TexelToVertex.ElementIndex,
 							GatherInfo,
-							TexelToVertex.TexelRadius,
+							TexelToVertex.SampleRadius,
 							OverrideRadius,
 							IrradianceCachingSettings,
 							GeneralSettings,
@@ -628,7 +628,7 @@ void FStaticLightingSystem::RadiosityIterationTextureMapping(FStaticLightingText
 						UniformSampledIncomingRadiance = IncomingRadianceAdaptive<FFinalGatherSample>(
 							TextureMapping, 
 							Vertex, 
-							TexelToVertex.TexelRadius, 
+							TexelToVertex.SampleRadius, 
 							false,
 							TexelToVertex.ElementIndex, 
 							PassIndex + 3, /** BounceNumber */
@@ -652,7 +652,7 @@ void FStaticLightingSystem::RadiosityIterationTextureMapping(FStaticLightingText
 							Vertex,
 							TexelToVertex.ElementIndex,
 							GatherInfo,
-							TexelToVertex.TexelRadius,
+							TexelToVertex.SampleRadius,
 							OverrideRadius,
 							IrradianceCachingSettings,
 							GeneralSettings,

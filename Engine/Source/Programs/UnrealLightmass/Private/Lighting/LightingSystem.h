@@ -2384,6 +2384,7 @@ private:
 		const FStaticLightingMapping* Mapping,
 		const FFullStaticLightingVertex& Vertex,
 		int32 ElementIndex,
+		float TexelRadius,
 		float SampleRadius,
 		bool bIntersectingSurface,
 		FStaticLightingMappingContext& MappingContext,

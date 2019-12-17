@@ -486,6 +486,7 @@ void FStaticLightingSystem::AdjustRepresentativeSurfelForTexelsTextureMapping(
 					MinDistanceSquared = SceneConstants.SmallestTexelRadius;
 				}
 				TexelToVertex.TexelRadius = FMath::Max(FMath::Sqrt(MinDistanceSquared), SceneConstants.SmallestTexelRadius);
+				TexelToVertex.SampleRadius = TexelToVertex.TexelRadius;
 				MappingContext.Stats.NumMappedTexels++;
 
 				{
@@ -554,7 +555,7 @@ void FStaticLightingSystem::AdjustRepresentativeSurfelForTexelsTextureMapping(
 					{
 						checkSlow(Intersections[ClosestIntersectionIndex].bIntersects);
 
-						TexelToVertex.TexelRadius = FMath::Min(TexelToVertex.TexelRadius, FMath::Sqrt(ClosestIntersectionDistanceSq / 2.0f));
+						TexelToVertex.SampleRadius = FMath::Min(TexelToVertex.TexelRadius, FMath::Sqrt(ClosestIntersectionDistanceSq / 2.0f));
 					}
 
 					// Give preference to moving the shading position outside of backfaces
@@ -579,10 +580,10 @@ void FStaticLightingSystem::AdjustRepresentativeSurfelForTexelsTextureMapping(
 						// Project back onto plane of texel to avoid incorrect self occlusion
 						TexelToVertex.WorldPosition = OffsetShadingPosition + TexelToVertex.TriangleNormal * Dot3(TexelToVertex.TriangleNormal, TexelToVertex.WorldPosition - OffsetShadingPosition);
 
-						TexelToVertex.TexelRadius = (OffsetShadingPosition - Intersections[IntersectionIndexForShadingPositionMovement].IntersectionVertex.WorldPosition).Size3() / FMath::Sqrt(2.0f);
+						TexelToVertex.SampleRadius = (OffsetShadingPosition - Intersections[IntersectionIndexForShadingPositionMovement].IntersectionVertex.WorldPosition).Size3() / FMath::Sqrt(2.0f);
 					}
 
-					TexelToVertex.TexelRadius = FMath::Max(TexelToVertex.TexelRadius, SceneConstants.SmallestTexelRadius);
+					TexelToVertex.SampleRadius = FMath::Max(TexelToVertex.SampleRadius, SceneConstants.SmallestTexelRadius);
 				}
 			}
 			else
@@ -2907,6 +2908,7 @@ void FStaticLightingSystem::ProcessCacheIndirectLightingTask(FCacheIndirectTaskD
 					TexelVertex, 
 					TexelToVertex.ElementIndex,
 					TexelToVertex.TexelRadius, 
+					TexelToVertex.SampleRadius, 
 					TexelToVertex.bIntersectingSurface,
 					Task->MappingContext, 
 					SampleGenerator, 
@@ -2924,6 +2926,7 @@ void FStaticLightingSystem::ProcessCacheIndirectLightingTask(FCacheIndirectTaskD
 						TexelVertex, 
 						TexelToVertex.ElementIndex,
 						TexelToVertex.TexelRadius, 
+						TexelToVertex.SampleRadius, 
 						TexelToVertex.bIntersectingSurface,
 						Task->MappingContext, 
 						SampleGenerator, 
