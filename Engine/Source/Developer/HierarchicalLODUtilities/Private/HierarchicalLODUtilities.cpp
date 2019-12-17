@@ -136,15 +136,17 @@ UHLODProxy* FHierarchicalLODUtilities::CreateOrRetrieveLevelHLODProxy(const ULev
 {
 	UPackage* HLODPackage = CreateOrRetrieveLevelHLODPackage(InLevel, HLODLevelIndex);
 
-	// check if our asset exists
+	// Check if our asset exists
 	const FString HLODProxyName = GetHLODProxyName(InLevel, HLODLevelIndex);
 	UHLODProxy* Proxy = FindObject<UHLODProxy>(HLODPackage, *HLODProxyName);
-	if(Proxy == nullptr)
+
+	// If proxy doesn't exist or is pointing to another world (could happen if package is duplicated)
+	if(Proxy == nullptr || Proxy->GetMap() != InLevel->GetWorld())
 	{
-		// make sure that the package doesnt have any standalone meshes etc. (i.e. this is an old style package)
+		// Make sure that the package doesnt have any standalone meshes etc. (i.e. this is an old style package)
 		CleanStandaloneAssetsInPackage(HLODPackage);
 
-		// create the new asset
+		// Create the new asset
 		Proxy = NewObject<UHLODProxy>(HLODPackage, *HLODProxyName, RF_Public | RF_Standalone);
 		Proxy->SetMap(UWorld::FindWorldInPackage(InLevel->GetOutermost()));
 	}
