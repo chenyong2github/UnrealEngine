@@ -1964,11 +1964,11 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 	// Update the shaders for this component
 	if (!Component->GetLandscapeProxy()->HasLayersContent())
 	{
+		Component->InvalidateLightingCache();
 		Component->UpdateMaterialInstances();
 		Component->EditToolRenderData.UpdateDebugColorMaterial(Component);
 		Component->UpdateEditToolRenderData();
 	}
-	Component->InvalidateLightingCache();
 	Component->RequestWeightmapUpdate();
 
 	// Update dominant layer info stored in collision component
@@ -5677,16 +5677,32 @@ bool FLandscapeTextureDataInfo::UpdateTextureData()
 	{
 		if (MipInfo[i].MipData && MipInfo[i].MipUpdateRegions.Num() > 0)
 		{
-			bNeedToWaitForUpdate = true;
 			if (bCompressed)
 			{
+				bNeedToWaitForUpdate = true;
 				// Cannot update regions on compressed textures so we will update the whole texture below.
 				break;
 			}
-			Texture->UpdateTextureRegions(i, MipInfo[i].MipUpdateRegions.Num(), &MipInfo[i].MipUpdateRegions[0], ((Texture->Source.GetSizeX()) >> i)*DataSize, DataSize, (uint8*)MipInfo[i].MipData);
+
+			const uint32 SrcSize = (Texture->Source.GetSizeX()) >> i;
+			const uint32 SrcPitch = (SrcSize * DataSize);
+			const uint32 BufferSize = SrcSize * SrcSize * DataSize;
+
+			// Copy Mip update data so we can avoid waiting for Render thread in calling method
+			FMipInfo* CopyMipInfo = new FMipInfo();
+			CopyMipInfo->MipUpdateRegions = MipInfo[i].MipUpdateRegions;
+			CopyMipInfo->MipData = FMemory::Malloc(BufferSize);
+			FMemory::Memcpy(CopyMipInfo->MipData, MipInfo[i].MipData, BufferSize);
+
+			Texture->UpdateTextureRegions(i, CopyMipInfo->MipUpdateRegions.Num(), &CopyMipInfo->MipUpdateRegions[0], SrcPitch, DataSize, (uint8*)CopyMipInfo->MipData, 
+				[CopyMipInfo](uint8* SrcData, const FUpdateTextureRegion2D*) 
+				{ 
+					FMemory::Free(CopyMipInfo->MipData);
+					delete CopyMipInfo; 
+				});
 		}
 	}
-	if (bCompressed && bNeedToWaitForUpdate)
+	if (bNeedToWaitForUpdate)
 	{
 		Texture->UpdateResource();
 	}

@@ -3757,12 +3757,16 @@ void ALandscapeProxy::UpdateBakedTextures()
 #endif
 
 template<class ContainerType>
-void InvalidateGeneratedComponentDataImpl(const ContainerType& Components)
+void InvalidateGeneratedComponentDataImpl(const ContainerType& Components, bool bInvalidateLightingCache)
 {
 	TMap<ALandscapeProxy*, TSet<ULandscapeComponent*>> ByProxy;
 	for (auto Iter = Components.CreateConstIterator(); Iter; ++Iter)
 	{
 		ULandscapeComponent* Component = *Iter;
+		if (bInvalidateLightingCache)
+		{
+			Component->InvalidateLightingCache();
+		}
 		Component->BakedTextureMaterialGuid.Invalidate();
 		ByProxy.FindOrAdd(Component->GetLandscapeProxy()).Add(Component);
 	}
@@ -3773,19 +3777,19 @@ void InvalidateGeneratedComponentDataImpl(const ContainerType& Components)
 	}
 }
 
-void ALandscapeProxy::InvalidateGeneratedComponentData()
+void ALandscapeProxy::InvalidateGeneratedComponentData(bool bInvalidateLightingCache)
 {
-	InvalidateGeneratedComponentDataImpl(LandscapeComponents);
+	InvalidateGeneratedComponentDataImpl(LandscapeComponents, bInvalidateLightingCache);
 }
 
-void ALandscapeProxy::InvalidateGeneratedComponentData(const TArray<ULandscapeComponent*>& Components)
+void ALandscapeProxy::InvalidateGeneratedComponentData(const TArray<ULandscapeComponent*>& Components, bool bInvalidateLightingCache)
 {
-	InvalidateGeneratedComponentDataImpl(Components);
+	InvalidateGeneratedComponentDataImpl(Components, bInvalidateLightingCache);
 }
 
-void ALandscapeProxy::InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components)
+void ALandscapeProxy::InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components, bool bInvalidateLightingCache)
 {
-	InvalidateGeneratedComponentDataImpl(Components);
+	InvalidateGeneratedComponentDataImpl(Components, bInvalidateLightingCache);
 }
 
 #undef LOCTEXT_NAMESPACE

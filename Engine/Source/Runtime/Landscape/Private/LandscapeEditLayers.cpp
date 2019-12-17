@@ -3150,7 +3150,8 @@ void ALandscape::ResolveLayersHeightmapTexture(const TArray<ULandscapeComponent*
 		}
 	}
 		
-	InvalidateGeneratedComponentData(ChangedComponents);
+	const bool bInvalidateLightingCache = true;
+	InvalidateGeneratedComponentData(ChangedComponents, bInvalidateLightingCache);
 }
 
 void ALandscape::ClearDirtyData(ULandscapeComponent* InLandscapeComponent)
@@ -4500,7 +4501,9 @@ void ALandscape::ResolveLayersWeightmapTexture(const TArray<ULandscapeComponent*
 		}
 	}
 		
-	InvalidateGeneratedComponentData(ChangedComponents.Array());	
+	// Weightmaps shouldn't invalidate lighting
+	const bool bInvalidateLightingCache = false;
+	InvalidateGeneratedComponentData(ChangedComponents, bInvalidateLightingCache);	
 }
 
 bool ALandscape::HasLayersContent() const
