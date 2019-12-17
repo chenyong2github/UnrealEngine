@@ -297,9 +297,4 @@ struct FGenericPlatformProperties
 	{
 		return nullptr;
 	}
-
-	static FORCEINLINE bool RequiresOptTextureData()
-	{
-		return false;
-	}
 };

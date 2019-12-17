@@ -322,11 +322,6 @@ public:
 		return TPlatformProperties::GetMemoryMappingAlignment();
 	}
 
-	virtual bool RequiresOptTextureData() const override
-	{
-		return TPlatformProperties::RequiresOptTextureData();
-	}
-
 
 #if WITH_ENGINE
 	virtual FName GetPhysicsFormat( class UBodySetup* Body ) const override
