@@ -4003,6 +4003,11 @@ void AInstancedFoliageActor::OnLevelActorMoved(AActor* InActor)
 
 void AInstancedFoliageActor::OnLevelActorOuterChanged(AActor* InActor, UObject* OldOuter)
 {
+	if (GIsTransacting)
+	{
+		return;
+	}
+
 	ULevel* OldLevel = Cast<ULevel>(OldOuter);
 
 	if (InActor->GetLevel() == OldLevel)
