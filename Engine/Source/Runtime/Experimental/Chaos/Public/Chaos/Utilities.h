@@ -146,6 +146,16 @@ namespace Chaos
 		}
 
 		/**
+		 * Calculate the world-space inertia (or inverse inertia) for a body with rotation "Q" and local-space inertia/inverse-inertia "I".
+		 */
+		static FMatrix33 ComputeWorldSpaceInertia(const FRotation3& Q, const FMatrix33& I)
+		{
+			FMatrix33 QM = Q.ToMatrix();
+			//return QM * I * QM.GetTransposed();
+			return MultiplyAB(QM, MultiplyABt(I, QM));
+		}
+
+		/**
 		 * Calculate the matrix that maps a constraint position error to constraint position and rotation corrections.
 		 */
 		template<class T>
