@@ -84,6 +84,13 @@ void UPhysicsSettings::PostInitProperties()
 	{
 		DefaultShapeComplexity = bDefaultHasComplexCollision_DEPRECATED ? CTF_UseSimpleAndComplex : CTF_UseSimpleAsComplex;
 	}
+
+	// Temporarily override dedicated thread to taskgraph. The enum selection for dedicated
+	// thread is hidden until that threading mode is made to work with the world physics system overall
+	if(ChaosSettings.DefaultThreadingModel == EChaosThreadingMode::DedicatedThread)
+	{
+		ChaosSettings.DefaultThreadingModel = EChaosThreadingMode::TaskGraph;
+	}
 }
 
 #if WITH_EDITOR
