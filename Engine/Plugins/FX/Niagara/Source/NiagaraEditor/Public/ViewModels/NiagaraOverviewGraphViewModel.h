@@ -62,6 +62,8 @@ private:
 	bool CanPasteNodes() const;
 	void DuplicateNodes();
 	bool CanDuplicateNodes() const;
+	void RenameNode();
+	bool CanRenameNode() const;
 
 	FText GetDisplayNameInternal() const;
 

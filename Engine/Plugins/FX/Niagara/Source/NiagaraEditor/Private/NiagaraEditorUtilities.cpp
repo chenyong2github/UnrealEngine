@@ -50,6 +50,7 @@
 #include "Modules/ModuleManager.h"
 #include "AssetToolsModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Framework/Commands/GenericCommands.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 
@@ -1542,6 +1543,15 @@ bool FNiagaraEditorUtilities::AddEmitterContextMenuActions(FMenuBuilder& MenuBui
 				)
 			);
 		}
+		MenuBuilder.EndSection();
+
+		MenuBuilder.BeginSection("EmitterEditSection", LOCTEXT("Edit", "Edit"));
+
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Cut);
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Copy);
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete);
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Rename);
+
 		MenuBuilder.EndSection();
 
 		return true;
