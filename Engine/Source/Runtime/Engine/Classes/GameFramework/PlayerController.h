@@ -1677,10 +1677,10 @@ public:
 	virtual void SpawnPlayerCameraManager();
 
 	/** get audio listener position and orientation */
-	virtual void GetAudioListenerPosition(FVector& OutLocation, FVector& OutFrontDir, FVector& OutRightDir);
+	virtual void GetAudioListenerPosition(FVector& OutLocation, FVector& OutFrontDir, FVector& OutRightDir) const;
 
 	/** Gets the attenuation position override. */
-	virtual bool GetAudioListenerAttenuationOverridePosition(FVector& OutLocation);
+	virtual bool GetAudioListenerAttenuationOverridePosition(FVector& OutLocation) const;
 
 	/**
 	 * Used to override the default positioning of the audio listener
