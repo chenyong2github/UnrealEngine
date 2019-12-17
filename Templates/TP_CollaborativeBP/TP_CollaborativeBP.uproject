@@ -5,19 +5,16 @@
 	"Description": "",
 	"Plugins": [
 		{
+			"Name": "SunPosition",
+			"Enabled": true
+		},
+		{
 			"Name": "DataPrepEditor",
 			"Enabled": true
 		},
 		{
 			"Name": "DatasmithImporter",
 			"Enabled": true
-		},
-		{
-			"Name": "DatasmithCADImporter",
-			"Enabled": true,
-			"SupportedTargetPlatforms": [
-				"Win64"
-			]
 		},
 		{
 			"Name": "VariantManager",
@@ -36,8 +33,33 @@
 			"Enabled": false
 		},
 		{
+			"Name": "DatasmithCADImporter",
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "DatasmithIFCImporter",
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64"
+			]
+		},
+		{
 			"Name": "StaticMeshEditorExtension",
 			"Enabled": true
+		},
+		{
+			"Name": "DatasmithGLTFImporter",
+			"Enabled": true
+		},
+		{
+			"Name": "AxFImporter",
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64"
+			]
 		}
 	]
 }
