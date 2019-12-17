@@ -377,7 +377,7 @@ namespace Chaos
 			Objects.Add(MakeUnique<Chaos::TSphere<float, 3>>(X1, MRadius));
 			Objects.Add(MakeUnique<Chaos::TSphere<float, 3>>(X2, MRadius));
 
-			MUnionedObjects.Reset(new Chaos::TImplicitObjectUnion<float, 3>(std::move(Objects)));
+			MUnionedObjects.Reset(new Chaos::FImplicitObjectUnion(std::move(Objects)));
 		}
 
 		virtual Pair<TVector<T, 3>, bool> FindClosestIntersectionImp(const TVector<T, 3>& StartPoint, const TVector<T, 3>& EndPoint, const T Thickness) const override
@@ -388,7 +388,7 @@ namespace Chaos
 		TSegment<T> MSegment;
 		T MRadius;
 		TAABB<T, 3> MLocalBoundingBox;
-		TUniquePtr<TImplicitObjectUnion<T, 3>> MUnionedObjects;
+		TUniquePtr<FImplicitObjectUnion> MUnionedObjects;
 	};
 
 	template<typename T>

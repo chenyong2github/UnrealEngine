@@ -158,7 +158,7 @@ void TGeometryCollectionParticlesData<T, d>::FData::Copy(EGeometryCollectionPart
 			else if (ImplicitObject->template GetObject<Chaos::TAABB                      <T, d>>()) { return Chaos::ImplicitObjectType::Box        ; }
 			else if (ImplicitObject->template GetObject<Chaos::TPlane                    <T, d>>()) { return Chaos::ImplicitObjectType::Plane      ; }
 			else if (ImplicitObject->template GetObject<Chaos::TImplicitObjectTransformed<T, d>>()) { return Chaos::ImplicitObjectType::Transformed; }
-			else if (ImplicitObject->template GetObject<Chaos::TImplicitObjectUnion      <T, d>>()) { return Chaos::ImplicitObjectType::Union      ; }
+			else if (ImplicitObject->template GetObject<Chaos::FImplicitObjectUnion>()) { return Chaos::ImplicitObjectType::Union      ; }
 			else if (ImplicitObject->template GetObject<Chaos::TLevelSet                 <T, d>>()) { return Chaos::ImplicitObjectType::LevelSet   ; }
 		}
 		return Chaos::ImplicitObjectType::Unknown;
