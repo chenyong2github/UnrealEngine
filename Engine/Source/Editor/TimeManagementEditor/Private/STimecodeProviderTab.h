@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/FrameRate.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
@@ -23,6 +24,10 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
+
+private:
+	int32 GetFrameDelay() const;
+	void SetFrameDelay(int32, ETextCommit::Type);
 
 private:
 	TSharedRef<SWidget> OnGetMenuContent();

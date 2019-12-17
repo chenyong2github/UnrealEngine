@@ -1371,6 +1371,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Timecode, meta=(EditCondition="bGenerateDefaultTimecode"))
 	FFrameRate GenerateDefaultTimecodeFrameRate;
 
+	/** Number of frames to subtract from generated default timecode. */
+	UPROPERTY(AdvancedDisplay, config, EditAnywhere, Category=Timecode, meta=(EditCondition="bGenerateDefaultTimecode"))
+	int32 GenerateDefaultTimecodeFrameDelay;
+
 public:
 	/** 
 	 * Whether we should check for more than N pawns spawning in a single frame.

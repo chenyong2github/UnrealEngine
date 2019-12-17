@@ -723,7 +723,8 @@ UEngine::UEngine(const FObjectInitializer& ObjectInitializer)
 	bIsVanillaProduct = false;
 
 	bGenerateDefaultTimecode = true;
-	GenerateDefaultTimecodeFrameRate = FFrameRate(1, 24);
+	GenerateDefaultTimecodeFrameRate = FFrameRate(24, 1);
+	GenerateDefaultTimecodeFrameDelay = 0;
 
 	GameScreenshotSaveDirectory.Path = FPaths::ScreenShotDir();
 
