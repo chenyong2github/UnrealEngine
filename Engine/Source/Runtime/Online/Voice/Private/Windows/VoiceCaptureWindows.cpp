@@ -418,7 +418,6 @@ void FVoiceCaptureWindows::ProcessData()
 			int32 SamplesPushedToUncompressedAudioBuffer = ReleaseBuffer.PopBufferedAudio(AudioBuffer, ReleaseBuffer.GetBufferCount());
 			AudioBuffer += SamplesPushedToUncompressedAudioBuffer;
 
-			// get threshold
 			static IConsoleVariable* SilenceDetectionThresholdCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("voice.SilenceDetectionThreshold"));
 			check(SilenceDetectionThresholdCVar);			
 			const float MicSilenceThreshold = SilenceDetectionThresholdCVar->GetFloat();
@@ -434,6 +433,24 @@ void FVoiceCaptureWindows::ProcessData()
 			static IConsoleVariable* NoiseGateReleaseTimeCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("voice.MicNoiseReleaseTime"));
 			check(NoiseGateReleaseTimeCVar);
 			const float MicNoiseGateReleaseTime = NoiseGateReleaseTimeCVar->GetFloat();
+
+			static IConsoleVariable* MicInputGainCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("voice.MicInputGain"));
+			check(MicInputGainCVar);
+			const float MicInputGain = MicInputGainCVar->GetFloat();
+
+			static IConsoleVariable* MicStereoBiasCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("voice.MicStereoBias"));
+			check(MicStereoBiasCVar);
+			const float MicStereoBias = FMath::Clamp(MicStereoBiasCVar->GetFloat(), -1.0f, 1.0f);
+
+			float LeftGain = 1.0f;
+			float RightGain = 1.0f;
+
+			Audio::GetStereoPan(MicStereoBias, LeftGain, RightGain);
+
+			// Since we don't interpolate the pan here, we normalize stereo gains.
+			const float StereoGainMax = FMath::Max(LeftGain, RightGain);
+			LeftGain /= StereoGainMax;
+			RightGain /= StereoGainMax;
 
 			bool bMicReleased = false;
 
@@ -474,13 +491,14 @@ void FVoiceCaptureWindows::ProcessData()
 					if (bMicReleased)
 					{
 						// Apply noise gate attenuation.
+						const float TotalMicGain = MicInputGain * NoiseGateAttenuator.GetNextValue();
 						for (int32 ChannelIndex = 0; ChannelIndex < NumInputChannels; ChannelIndex++)
 						{
-							Audio::TSampleRef<int16> SampleRef(InputBuffer[FrameIndex + ChannelIndex]);
-							SampleRef = SampleRef * NoiseGateAttenuator.PeekCurrentValue();
-						}
+							const float BiasedMicGain = (ChannelIndex % 2 == 0) ? (TotalMicGain * LeftGain) : (TotalMicGain * RightGain);
 
-						NoiseGateAttenuator.GetNextValue();
+							Audio::TSampleRef<int16> SampleRef(InputBuffer[FrameIndex + ChannelIndex]);
+							SampleRef = SampleRef * BiasedMicGain;
+						}
 
 						ReleaseBuffer.PushFrame(&InputBuffer[FrameIndex], NumInputChannels);
 
@@ -494,13 +512,14 @@ void FVoiceCaptureWindows::ProcessData()
 					else
 					{
 						// Apply noise gate attenuation.
+						const float TotalMicGain = MicInputGain * NoiseGateAttenuator.GetNextValue();
 						for (int32 ChannelIndex = 0; ChannelIndex < NumInputChannels; ChannelIndex++)
 						{
-							Audio::TSampleRef<int16> SampleRef(InputBuffer[FrameIndex + ChannelIndex]);
-							SampleRef = SampleRef * NoiseGateAttenuator.PeekCurrentValue();
-						}
+							const float BiasedMicGain = (ChannelIndex % 2 == 0) ? (TotalMicGain * LeftGain) : (TotalMicGain * RightGain);
 
-						NoiseGateAttenuator.GetNextValue();
+							Audio::TSampleRef<int16> SampleRef(InputBuffer[FrameIndex + ChannelIndex]);
+							SampleRef = SampleRef * BiasedMicGain;
+						}
 
 						FMemory::Memcpy(&AudioBuffer[FrameIndex], &InputBuffer[FrameIndex], sizeof(int16) * NumInputChannels);
 						SamplesPushedToUncompressedAudioBuffer += NumInputChannels;
@@ -551,13 +570,14 @@ void FVoiceCaptureWindows::ProcessData()
 					if (bMicReleased)
 					{
 						// Apply noise gate attenuation.
+						const float TotalMicGain = MicInputGain * NoiseGateAttenuator.GetNextValue();
 						for (int32 ChannelIndex = 0; ChannelIndex < NumInputChannels; ChannelIndex++)
 						{
-							Audio::TSampleRef<int16> SampleRef(InputBuffer[FrameIndex + ChannelIndex]);
-							SampleRef = SampleRef * NoiseGateAttenuator.PeekCurrentValue();
-						}
+							const float BiasedMicGain = (ChannelIndex % 2 == 0) ? (TotalMicGain * LeftGain) : (TotalMicGain * RightGain);
 
-						NoiseGateAttenuator.GetNextValue();
+							Audio::TSampleRef<int16> SampleRef(InputBuffer[FrameIndex + ChannelIndex]);
+							SampleRef = SampleRef * BiasedMicGain;
+						}
 
 						ReleaseBuffer.PushFrame(&InputBuffer[FrameIndex], NumInputChannels);
 
@@ -570,13 +590,14 @@ void FVoiceCaptureWindows::ProcessData()
 					else
 					{
 						// Apply noise gate attenuation.
+						const float TotalMicGain = MicInputGain * NoiseGateAttenuator.GetNextValue();
 						for (int32 ChannelIndex = 0; ChannelIndex < NumInputChannels; ChannelIndex++)
 						{
-							Audio::TSampleRef<int16> SampleRef(InputBuffer[FrameIndex + ChannelIndex]);
-							SampleRef = SampleRef * NoiseGateAttenuator.PeekCurrentValue();
-						}
+							const float BiasedMicGain = (ChannelIndex % 2 == 0) ? (TotalMicGain * LeftGain) : (TotalMicGain * RightGain);
 
-						NoiseGateAttenuator.GetNextValue();
+							Audio::TSampleRef<int16> SampleRef(InputBuffer[FrameIndex + ChannelIndex]);
+							SampleRef = SampleRef * BiasedMicGain;
+						}
 
 						FMemory::Memcpy(&AudioBuffer[FrameIndex], &InputBuffer[FrameIndex], sizeof(int16) * NumInputChannels);
 						SamplesPushedToUncompressedAudioBuffer += NumInputChannels;
