@@ -311,6 +311,16 @@ USignificanceManager::FManagedObjectInfo* USignificanceManager::GetManagedObject
 	return nullptr;
 }
 
+const USignificanceManager::USignificanceManager::FManagedObjectInfo* USignificanceManager::GetManagedObject(const UObject* Object) const
+{
+	if (FManagedObjectInfo* const* Info = ManagedObjects.Find(Object))
+	{
+		return (*Info);
+	}
+
+	return nullptr;
+}
+
 void USignificanceManager::GetManagedObjects(TArray<USignificanceManager::FManagedObjectInfo*>& OutManagedObjects, bool bInSignificanceOrder) const
 {
 	OutManagedObjects.Reserve(ManagedObjects.Num());
