@@ -1339,9 +1339,9 @@ const Chaos::TCapsule<float>&  FPhysicsGeometryCollection_Chaos::GetCapsuleGeome
 	return Geom.GetObjectChecked<Chaos::TCapsule<float>>();
 }
 
-const Chaos::TConvex<float, 3>& FPhysicsGeometryCollection_Chaos::GetConvexGeometry() const
+const Chaos::FConvex& FPhysicsGeometryCollection_Chaos::GetConvexGeometry() const
 {
-	return Geom.GetObjectChecked<Chaos::TConvex<float, 3>>();
+	return Geom.GetObjectChecked<Chaos::FConvex>();
 }
 
 const Chaos::TTriangleMeshImplicitObject<float>& FPhysicsGeometryCollection_Chaos::GetTriMeshGeometry() const

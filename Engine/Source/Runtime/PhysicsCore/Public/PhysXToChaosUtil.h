@@ -63,7 +63,7 @@ inline TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> PxShapeToChaosGeo
 			Particles.X(Idx) = P2UVector(Vertices[Idx]);
 		}
 
-		TUniquePtr<TConvex<float, 3>> ConvexObj = MakeUnique<TConvex<float, 3>>(Particles);
+		TUniquePtr<FConvex> ConvexObj = MakeUnique<FConvex>(Particles);
 		if (ConvexMeshGeom.scale.isIdentity())
 		{
 			InnerObj = MoveTemp(ConvexObj);
@@ -71,7 +71,7 @@ inline TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> PxShapeToChaosGeo
 		else
 		{
 			ensure(ConvexMeshGeom.scale.rotation == PxQuat(PxIdentity));
-			InnerObj = MakeUnique<TImplicitObjectScaled<TConvex<float, 3>, /*bInstanced=*/false>>(MoveTemp(ConvexObj), P2UVector(ConvexMeshGeom.scale.scale));	//todo: make instanced
+			InnerObj = MakeUnique<TImplicitObjectScaled<FConvex, /*bInstanced=*/false>>(MoveTemp(ConvexObj), P2UVector(ConvexMeshGeom.scale.scale));	//todo: make instanced
 		}
 		break;
 	}
