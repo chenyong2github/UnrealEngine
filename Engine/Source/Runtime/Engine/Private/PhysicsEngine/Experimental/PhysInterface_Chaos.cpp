@@ -467,6 +467,7 @@ void FPhysInterface_Chaos::SetGlobalPose_AssumesLocked(const FPhysicsActorHandle
 {
 	InActorReference->SetX(InNewPose.GetLocation());
 	InActorReference->SetR(InNewPose.GetRotation());
+	InActorReference->UpdateShapeBounds();
 
 	FPhysScene* Scene = GetCurrentScene(InActorReference);
 	Scene->GetScene().UpdateActorInAccelerationStructure(InActorReference);
