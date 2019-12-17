@@ -51,6 +51,28 @@ void UNiagaraDataInterfaceCurveBase::PostLoad()
 #endif
 }
 
+void UNiagaraDataInterfaceCurveBase::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	// Push to render thread if loading
+	if (Ar.IsLoading())
+	{
+#if WITH_EDITORONLY_DATA
+		// Sometimes curves are out of date which needs to be tracked down
+		// Temporarily we will make sure they are up to date in editor builds
+		if (GetClass() != UNiagaraDataInterfaceCurveBase::StaticClass())
+		{
+			UpdateLUT();
+		}
+		else
+#endif
+		{
+			PushToRenderThread();
+		}
+	}
+}
+
 bool UNiagaraDataInterfaceCurveBase::CopyToInternal(UNiagaraDataInterface* Destination) const
 {
 	if (!Super::CopyToInternal(Destination))
@@ -94,6 +116,13 @@ bool UNiagaraDataInterfaceCurveBase::CompareLUTS(const TArray<float>& OtherLUT) 
 	}
 }
 
+void UNiagaraDataInterfaceCurveBase::SetDefaultLUT()
+{
+	ShaderLUT.Empty(GetCurveNumElems());
+	ShaderLUT.AddDefaulted(GetCurveNumElems());
+	LUTNumSamplesMinusOne = 0;
+}
+
 #if WITH_EDITORONLY_DATA
 void UNiagaraDataInterfaceCurveBase::UpdateLUT()
 {
@@ -107,9 +136,7 @@ void UNiagaraDataInterfaceCurveBase::UpdateLUT()
 
 	if (!bUseLUT || (ShaderLUT.Num() == 0))
 	{
-		ShaderLUT.Empty(GetCurveNumElems());
-		ShaderLUT.AddDefaulted(GetCurveNumElems());
-		LUTNumSamplesMinusOne = 0;
+		SetDefaultLUT();
 	}
 
 	PushToRenderThread();
@@ -196,6 +223,10 @@ bool UNiagaraDataInterfaceCurveBase::Equals(const UNiagaraDataInterface* Other) 
 		bEqual &= OtherTyped->OptimizeThreshold == OptimizeThreshold;
 	}
 #endif
+	if ( bEqual && bUseLUT )
+	{
+		bEqual &= OtherTyped->ShaderLUT == ShaderLUT;
+	}
 
 	return bEqual;
 }

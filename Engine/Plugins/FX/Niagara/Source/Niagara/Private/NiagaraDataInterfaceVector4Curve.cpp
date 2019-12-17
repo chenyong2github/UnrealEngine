@@ -18,9 +18,7 @@ const FName UNiagaraDataInterfaceVector4Curve::SampleCurveName(TEXT("SampleColor
 UNiagaraDataInterfaceVector4Curve::UNiagaraDataInterfaceVector4Curve(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-#if WITH_EDITORONLY_DATA
-	UpdateLUT();
-#endif
+	SetDefaultLUT();
 }
 
 void UNiagaraDataInterfaceVector4Curve::PostInitProperties()
@@ -65,7 +63,6 @@ void UNiagaraDataInterfaceVector4Curve::Serialize(FArchive& Ar)
 #endif
 	{
 		Super::Serialize(Ar);
-		PushToRenderThread();
 	}
 }
 
