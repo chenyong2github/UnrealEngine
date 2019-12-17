@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "CameraShakeSourceComponent.h"
-#include "CameraShake.h"
+#include "Camera/CameraShakeSourceComponent.h"
+#include "Camera/CameraShake.h"
 #include "Camera/CameraModifier_CameraShake.h"
 #include "CinematicCameraModule.h"
 #include "Components/BillboardComponent.h"

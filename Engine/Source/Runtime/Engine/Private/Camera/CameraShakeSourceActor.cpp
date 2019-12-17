@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "CameraShakeSourceActor.h"
-#include "CameraShakeSourceComponent.h"
+#include "Camera/CameraShakeSourceActor.h"
+#include "Camera/CameraShakeSourceComponent.h"
 
 
 ACameraShakeSourceActor::ACameraShakeSourceActor(const FObjectInitializer& ObjectInitializer)
