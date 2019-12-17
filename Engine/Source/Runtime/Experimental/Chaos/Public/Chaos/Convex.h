@@ -30,7 +30,7 @@ namespace Chaos
 			, Volume(MoveTemp(Other.MoveTemp))
 			, CenterOfMass(MoveTemp(Other.CenterOfMass))
 		{}
-		TConvex(TArray<TPlane<T, d>>&& InPlanes, TArray<TArray<int32>>&& InFaceIndices, TParticles<T, d>&& InSurfaceParticles)
+		TConvex(TArray<TPlane<T, d>>&& InPlanes, TParticles<T, d>&& InSurfaceParticles, const TArray<TArray<int32>>& InFaceIndices)
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 			, Planes(MoveTemp(InPlanes))
 		    , SurfaceParticles(MoveTemp(InSurfaceParticles))
@@ -41,8 +41,7 @@ namespace Chaos
 				LocalBoundingBox.GrowToInclude(SurfaceParticles.X(ParticleIndex));
 			}
 
-			TArray<TArray<int32>> FaceIndices;
-			CalculateVolumeAndCenterOfMass(SurfaceParticles, FaceIndices, Volume, CenterOfMass);
+			CalculateVolumeAndCenterOfMass(SurfaceParticles, InFaceIndices, Volume, CenterOfMass);
 		}
 		TConvex(const TParticles<T, 3>& InParticles)
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
