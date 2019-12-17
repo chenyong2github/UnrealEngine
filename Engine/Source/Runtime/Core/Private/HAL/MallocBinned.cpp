@@ -45,6 +45,8 @@ struct FMallocBinned::FFreeMem
 	FFreeMem*	Next;
 	/** Number of consecutive free blocks here, at least 1. */
 	uint32		NumFreeBlocks;
+	/** make the struct 16 bytes for better alignment */
+	uint32		Padding;
 };
 
 // Memory pool info. 32 bytes.
