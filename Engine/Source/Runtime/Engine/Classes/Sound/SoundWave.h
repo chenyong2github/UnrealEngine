@@ -282,12 +282,21 @@ enum class ESoundWaveFFTSize : uint8
 	VeryLarge_2048,
 };
 
+struct ISoundWaveClient
+{
+	ISoundWaveClient() {}
+	virtual ~ISoundWaveClient() {}
+	
+	virtual void OnBeginDestroy(class USoundWave* Wave) = 0;
+	virtual bool OnIsReadyForFinishDestroy(class USoundWave* Wave) const = 0;
+	virtual void OnFinishDestroy(class USoundWave* Wave) = 0;
+};
 
 UCLASS(hidecategories=Object, editinlinenew, BlueprintType)
 class ENGINE_API USoundWave : public USoundBase
 {
 	GENERATED_UCLASS_BODY()
-
+public:
 	/** Platform agnostic compression quality. 1..100 with 1 being best compression and 100 being best quality. */
 	UPROPERTY(EditAnywhere, Category="Format|Quality", meta=(DisplayName = "Compression", ClampMin = "1", ClampMax = "100"), AssetRegistrySearchable)
 	int32 CompressionQuality;
@@ -485,7 +494,11 @@ private:
 	FThreadSafeCounter PrecacheState;
 
 	/** the number of sounds currently playing this sound wave. */
-	FThreadSafeCounter NumSourcesPlaying;
+	mutable FCriticalSection SourcesPlayingCs;
+
+	using FSoundWaveClientPtr = ISoundWaveClient*;
+
+	TArray<FSoundWaveClientPtr> SourcesPlaying;
 
 	// This is the sample rate retrieved from platform settings.
 	float CachedSampleRateOverride;
@@ -679,20 +692,16 @@ public:
 	// Called when the procedural sound wave is done generating on the render thread. Only used in the audio mixer and when bProcedural is true..
 	virtual void OnEndGenerate() {};
 
-	void AddPlayingSource()
-	{
-		NumSourcesPlaying.Increment();
-	}
-
-	void RemovePlayingSource()
-	{
-		check(NumSourcesPlaying.GetValue() > 0);
-		NumSourcesPlaying.Decrement();
-	}
+	void AddPlayingSource(const FSoundWaveClientPtr& Source);
+	void RemovePlayingSource(const FSoundWaveClientPtr& Source);
 
 	bool IsGeneratingAudio() const
-	{
-		return NumSourcesPlaying.GetValue() > 0;
+	{		
+		bool bIsGeneratingAudio = false;
+		FScopeLock Lock(&SourcesPlayingCs);
+		bIsGeneratingAudio = SourcesPlaying.Num() > 0;
+		
+		return bIsGeneratingAudio;
 	}
 
 	/**

@@ -948,6 +948,14 @@ uint32 USoundWave::GetSizeOfChunk(uint32 ChunkIndex)
 void USoundWave::BeginDestroy()
 {
 	Super::BeginDestroy();
+	
+	{
+		FScopeLock Lock(&SourcesPlayingCs);
+		for (ISoundWaveClient* i: SourcesPlaying)
+		{
+			i->OnBeginDestroy(this);
+		}
+	}
 
 #if WITH_EDITOR
 	// Flush any async results so we dont leak them in the DDC
@@ -1608,6 +1616,15 @@ FWaveInstance& USoundWave::HandleStart( FActiveSound& ActiveSound, const UPTRINT
 
 bool USoundWave::IsReadyForFinishDestroy()
 {
+	{
+		FScopeLock Lock(&SourcesPlayingCs);
+		
+		for (ISoundWaveClient* i : SourcesPlaying)
+		{
+			i->OnIsReadyForFinishDestroy(this);
+		}
+	}
+
 	const bool bIsStreamingInProgress = IStreamingManager::Get().GetAudioStreamingManager().IsStreamingInProgress(this);
 
 	check(GetPrecacheState() != ESoundWavePrecacheState::InProgress);
@@ -2015,6 +2032,28 @@ bool USoundWave::HasCookedFFTData() const
 bool USoundWave::HasCookedAmplitudeEnvelopeData() const
 {
 	return CookedEnvelopeTimeData.Num() > 0;
+}
+
+void USoundWave::AddPlayingSource(const FSoundWaveClientPtr& Source)
+{
+	check(Source);
+	check(IsInAudioThread() || IsInGameThread());   // Don't allow incrementing on other threads as it's not safe (for GCing of this wave).
+	if (Source)
+	{
+		FScopeLock Lock(&SourcesPlayingCs);
+		check(!SourcesPlaying.Contains(Source));
+		SourcesPlaying.Add(Source);
+	}
+}
+
+void USoundWave::RemovePlayingSource(const FSoundWaveClientPtr& Source)
+{
+	if (Source)
+	{
+		FScopeLock Lock(&SourcesPlayingCs);
+		check(SourcesPlaying.Contains(Source));
+		SourcesPlaying.RemoveSwap(Source);
+	}
 }
 
 void USoundWave::UpdatePlatformData()

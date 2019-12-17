@@ -90,7 +90,7 @@ namespace Audio
 		, bProcedural(InWave.bProcedural)
 		, bIsBus(InWave.bIsBus)
 	{
-		InWave.AddPlayingSource();
+		InWave.AddPlayingSource(this);
 
 		const uint32 TotalSamples = MONO_PCM_BUFFER_SAMPLES * NumChannels;
 		for (int32 BufferIndex = 0; BufferIndex < Audio::MAX_BUFFERS_QUEUED; ++BufferIndex)
@@ -130,7 +130,7 @@ namespace Audio
 
 		if (SoundWave)
 		{
-			SoundWave->RemovePlayingSource();
+			SoundWave->RemovePlayingSource(this);
 		}
 	}
 
@@ -445,6 +445,21 @@ namespace Audio
 	{
 		NumBuffersQeueued++;
 		BufferQueue.Enqueue(InSourceVoiceBuffer);
+	}
+
+	void FMixerSourceBuffer::OnBeginDestroy(USoundWave * /*Wave*/)
+	{
+		SoundWave = nullptr;
+	}
+
+	bool FMixerSourceBuffer::OnIsReadyForFinishDestroy(USoundWave * /*Wave*/) const
+	{
+		return false;
+	}
+
+	void FMixerSourceBuffer::OnFinishDestroy(USoundWave * /*Wave*/)
+	{
+		SoundWave = nullptr;
 	}
 
 	bool FMixerSourceBuffer::IsAsyncTaskInProgress() const
