@@ -458,6 +458,11 @@ bool FGenericPlatformMemory::IsExtraDevelopmentMemoryAvailable()
 	return false;
 }
 
+uint64 FGenericPlatformMemory::GetExtraDevelopmentMemorySize()
+{
+	return 0;
+}
+
 bool FGenericPlatformMemory::GetLLMAllocFunctions(void*(*&OutAllocFunction)(size_t), void(*&OutFreeFunction)(void*, size_t), int32& OutAlignment)
 {
 	return false;

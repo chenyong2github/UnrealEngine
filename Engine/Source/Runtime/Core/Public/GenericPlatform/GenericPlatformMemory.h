@@ -629,9 +629,15 @@ public:
 
 	/**
 	* Returns true if debug memory has been assigned to the title for general use.
-	* Only applies to consoles with fixed memory and no paging.
+	* Only applies to platforms with fixed memory and no paging.
 	*/
 	static bool IsExtraDevelopmentMemoryAvailable();
+
+	/**
+	* Returns >0 if debug memory has been assigned to the title for general use.
+	* Only applies to platforms with fixed memory and no paging.
+	*/
+	static uint64 GetExtraDevelopmentMemorySize();
 
 	/**
 	* This function sets AllocFunction and FreeFunction and returns true, or just returns false.

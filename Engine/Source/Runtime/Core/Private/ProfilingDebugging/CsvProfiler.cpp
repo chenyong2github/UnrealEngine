@@ -89,6 +89,16 @@ TAutoConsoleVariable<int32> CVarCsvShippingContinuousWrites(
 );
 #endif
 
+#if !UE_BUILD_SHIPPING
+TAutoConsoleVariable<int32> CVarCsvAdjustPhysicalFreeForExtraDevMemory(
+	TEXT("csv.AdjustPhysicalFreeForExtraDevMemory"),
+	1,
+	TEXT("If 1, extra development memory is subtracted from the physicalFreeMB stat before writing.\r\n")
+	TEXT("This can result in negative values in cases which would have crashed OOM"),
+	ECVF_Default
+);
+#endif
+
 TAutoConsoleVariable<int32> CVarCsvCompressionMode(
 	TEXT("csv.CompressionMode"),
 	-1,
@@ -2586,6 +2596,11 @@ void FCsvProfiler::BeginFrame()
 					}
 					SetMetadata(TEXT("TargetFramerate"), *FString::FromInt(TargetFPS));
 
+#if !UE_BUILD_SHIPPING
+					uint64 ExtraDevelopmentMemoryMB = FPlatformMemory::GetExtraDevelopmentMemorySize()/1024ull/1024ull;
+					SetMetadata(TEXT("ExtraDevelopmentMemoryMB"), *FString::FromInt(ExtraDevelopmentMemoryMB)); 
+#endif
+
 					GCsvStatCounts = !!CVarCsvStatCounts.GetValueOnGameThread();
 
 					// Initialize tls before setting the capturing flag to true.
@@ -2639,6 +2654,13 @@ void FCsvProfiler::EndFrame()
 
 		FPlatformMemoryStats MemoryStats = FPlatformMemory::GetStats();
 		float PhysicalMBFree = float(MemoryStats.AvailablePhysical) / (1024.0f * 1024.0f);
+
+#if !UE_BUILD_SHIPPING
+		if (CVarCsvAdjustPhysicalFreeForExtraDevMemory.GetValueOnGameThread())
+		{
+			PhysicalMBFree -= float(FPlatformMemory::GetExtraDevelopmentMemorySize() / 1024ull / 1024ull);
+		}
+#endif
 		float PhysicalMBUsed = float(MemoryStats.UsedPhysical) / (1024.0f * 1024.0f);
 		float VirtualMBUsed  = float(MemoryStats.UsedVirtual) / (1024.0f * 1024.0f);
 		CSV_CUSTOM_STAT_GLOBAL(MemoryFreeMB, PhysicalMBFree, ECsvCustomStatOp::Set);

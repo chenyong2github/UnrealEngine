@@ -1718,6 +1718,10 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 
 	// Record the analytics for any attached HMD devices
 	RecordHMDAnalytics();
+
+#if !UE_BUILD_SHIPPING
+	UE_CLOG(FPlatformMemory::IsExtraDevelopmentMemoryAvailable(), LogInit, Warning, TEXT("Running with %dMB of extra development memory!"),FPlatformMemory::GetExtraDevelopmentMemorySize()/1024ull/1024ull);
+#endif
 }
 
 void UEngine::Start()
