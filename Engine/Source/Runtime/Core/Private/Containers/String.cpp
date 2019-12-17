@@ -1248,36 +1248,32 @@ FString FString::ReplaceEscapedCharWithChar( const TArray<TCHAR>* Chars/*=nullpt
  * Replaces all instances of '\t' with TabWidth number of spaces
  * @param InSpacesPerTab - Number of spaces that a tab represents
  */
-FString FString::ConvertTabsToSpaces (const int32 InSpacesPerTab)
+void FString::ConvertTabsToSpacesInline(const int32 InSpacesPerTab)
 {
 	//must call this with at least 1 space so the modulus operation works
 	check(InSpacesPerTab > 0);
 
-	FString FinalString = *this;
 	int32 TabIndex;
-	while ((TabIndex = FinalString.Find(TEXT("\t"))) != INDEX_NONE )
+	while ((TabIndex = Find(TEXT("\t"), ESearchCase::CaseSensitive)) != INDEX_NONE )
 	{
-		FString LeftSide = FinalString.Left(TabIndex);
-		FString RightSide = FinalString.Mid(TabIndex+1);
+		FString RightSide = Mid(TabIndex+1);
+		LeftInline(TabIndex, false);
 
-		FinalString = LeftSide;
 		//for a tab size of 4, 
-		int32 LineBegin = LeftSide.Find(TEXT("\n"), ESearchCase::IgnoreCase, ESearchDir::FromEnd, TabIndex);
+		int32 LineBegin = Find(TEXT("\n"), ESearchCase::CaseSensitive, ESearchDir::FromEnd, TabIndex);
 		if (LineBegin == INDEX_NONE)
 		{
 			LineBegin = 0;
 		}
-		int32 CharactersOnLine = (LeftSide.Len()-LineBegin);
+		const int32 CharactersOnLine = (Len()-LineBegin);
 
 		int32 NumSpacesForTab = InSpacesPerTab - (CharactersOnLine % InSpacesPerTab);
 		for (int32 i = 0; i < NumSpacesForTab; ++i)
 		{
-			FinalString.AppendChar(' ');
+			AppendChar(' ');
 		}
-		FinalString += RightSide;
+		Append(RightSide);
 	}
-
-	return FinalString;
 }
 
 // This starting size catches 99.97% of printf calls - there are about 700k printf calls per level

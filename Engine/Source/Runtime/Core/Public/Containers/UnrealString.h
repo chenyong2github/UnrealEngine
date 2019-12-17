@@ -481,7 +481,7 @@ public:
 	 */
 	FORCEINLINE void RemoveAt(int32 Index, int32 Count = 1, bool bAllowShrinking = true)
 	{
-		Data.RemoveAt(Index, Count, bAllowShrinking);
+		Data.RemoveAt(Index, FMath::Clamp(Count, 0, Len()-Index), bAllowShrinking);
 	}
 
 	FORCEINLINE void InsertAt(int32 Index, TCHAR Character)
@@ -1147,33 +1147,75 @@ public:
 		return FString( FMath::Clamp(Count,0,Len()), **this );
 	}
 
+	/** Modifies the string such that it is now the left most given number of characters */
+	FORCEINLINE void LeftInline(int32 Count, bool bAllowShrinking = true)
+	{
+		const int32 Length = Len();
+		Count = FMath::Clamp(Count, 0, Length);
+		RemoveAt(Count, Length-Count, bAllowShrinking);
+	}
+
 	/** Returns the left most characters from the string chopping the given number of characters from the end */
 	FORCEINLINE FString LeftChop( int32 Count ) const
 	{
-		return FString( FMath::Clamp(Len()-Count,0,Len()), **this );
+		const int32 Length = Len();
+		return FString( FMath::Clamp(Length-Count,0, Length), **this );
+	}
+
+	/** Modifies the string such that it is now the left most characters chopping the given number of characters from the end */
+	FORCEINLINE void LeftChopInline(int32 Count, bool bAllowShrinking = true)
+	{
+		const int32 Length = Len();
+		RemoveAt(FMath::Clamp(Length-Count, 0, Length), Count, bAllowShrinking);
 	}
 
 	/** Returns the string to the right of the specified location, counting back from the right (end of the word). */
 	FORCEINLINE FString Right( int32 Count ) const
 	{
-		return FString( **this + Len()-FMath::Clamp(Count,0,Len()) );
+		const int32 Length = Len();
+		return FString( **this + Length-FMath::Clamp(Count,0,Length) );
+	}
+
+	/** Modifies the string such that it is now the right most given number of characters */
+	FORCEINLINE void RightInline(int32 Count, bool bAllowShrinking = true)
+	{
+		const int32 Length = Len();
+		RemoveAt(0, Length-FMath::Clamp(Count,0,Length), bAllowShrinking);
 	}
 
 	/** Returns the string to the right of the specified location, counting forward from the left (from the beginning of the word). */
 	FORCEINLINE FString RightChop( int32 Count ) const
 	{
-		return FString( **this + Len()-FMath::Clamp(Len()-Count,0,Len()) );
+		const int32 Length = Len();
+		return FString( **this + Length-FMath::Clamp(Length-Count,0, Length) );
+	}
+
+	/** Modifies the string such that it is now the string to the right of the specified location, counting forward from the left (from the beginning of the word). */
+	FORCEINLINE void RightChopInline(int32 Count, bool bAllowShrinking = true)
+	{
+		RemoveAt(0, Count, bAllowShrinking);
 	}
 
 	/** Returns the substring from Start position for Count characters. */
 	FORCEINLINE FString Mid( int32 Start, int32 Count=MAX_int32 ) const
 	{
-		check(Count >= 0);
-		uint32 End = Count;
-		End += Start;
-		Start    = FMath::Clamp( (uint32)Start, (uint32)0,     (uint32)Len() );
-		End      = FMath::Clamp( (uint32)End,   (uint32)Start, (uint32)Len() );
-		return FString( End-Start, **this + Start );
+		FString Result;
+		if (Count >= 0)
+		{
+			const int32 Length = Len();
+			const int32 RequestedStart = Start;
+			Start = FMath::Clamp(Start, 0, Length);
+			const int32 End = (int32)FMath::Clamp((int64)Count + RequestedStart, (int64)Start, (int64)Length);
+			Result = FString(End-Start, **this + Start);
+		}
+		return Result;
+	}
+
+	/** Modifies the string such that it is now the substring from Start position for Count characters. */
+	FORCEINLINE void MidInline(int32 Start, int32 Count = MAX_int32, bool bAllowShrinking = true)
+	{
+		LeftInline((int32)FMath::Min((int64)Count+Start, (int64)MAX_int32), false);
+		RightChopInline(Start, bAllowShrinking);
 	}
 
 	/**
@@ -1183,7 +1225,7 @@ public:
 	 * @param SubStr			The string array of TCHAR to search for
 	 * @param StartPosition		The start character position to search from
 	 * @param SearchCase		Indicates whether the search is case sensitive or not
-	 * @param SearchDir			Indicates whether the search starts at the begining or at the end.
+	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end.
 	 */
 	int32 Find( const TCHAR* SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, 
 				ESearchDir::Type SearchDir = ESearchDir::FromStart, int32 StartPosition=INDEX_NONE ) const;
@@ -1195,7 +1237,7 @@ public:
 	 * @param SubStr			The string to search for
 	 * @param StartPosition		The start character position to search from
 	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
-	 * @param SearchDir			Indicates whether the search starts at the begining or at the end ( defaults to ESearchDir::FromStart )
+	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end ( defaults to ESearchDir::FromStart )
 	 */
 	FORCEINLINE int32 Find( const FString& SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, 
 							ESearchDir::Type SearchDir = ESearchDir::FromStart, int32 StartPosition=INDEX_NONE ) const
@@ -1208,7 +1250,7 @@ public:
 	 *
 	 * @param SubStr			Find to search for
 	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
-	 * @param SearchDir			Indicates whether the search starts at the begining or at the end ( defaults to ESearchDir::FromStart )
+	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end ( defaults to ESearchDir::FromStart )
 	 * @return					Returns whether the string contains the substring
 	 **/
 	FORCEINLINE bool Contains(const TCHAR* SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, 
@@ -1222,7 +1264,7 @@ public:
 	 *
 	 * @param SubStr			Find to search for
 	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
-	 * @param SearchDir			Indicates whether the search starts at the begining or at the end ( defaults to ESearchDir::FromStart )
+	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end ( defaults to ESearchDir::FromStart )
 	 * @return					Returns whether the string contains the substring
 	 **/
 	FORCEINLINE bool Contains(const FString& SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, 
@@ -1329,7 +1371,7 @@ public:
 	 * @param LeftS out the string to the left of InStr, not updated if return is false
 	 * @param RightS out the string to the right of InStr, not updated if return is false
 	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
-	 * @param SearchDir			Indicates whether the search starts at the begining or at the end ( defaults to ESearchDir::FromStart )
+	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end ( defaults to ESearchDir::FromStart )
 	 * @return true if string is split, otherwise false
 	 */
 	bool Split(const FString& InS, FString* LeftS, FString* RightS, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase,
@@ -1730,12 +1772,23 @@ public:
 	 */
 	FString ReplaceEscapedCharWithChar( const TArray<TCHAR>* Chars = nullptr ) const;
 
+	/**
+	 * Replaces all instances of '\t' with TabWidth number of spaces
+	 * @param InSpacesPerTab - Number of spaces that a tab represents
+	 */
+	void ConvertTabsToSpacesInline(const int32 InSpacesPerTab);
+
 	/** 
 	 * Replaces all instances of '\t' with TabWidth number of spaces
 	 * @param InSpacesPerTab - Number of spaces that a tab represents
 	 * @return copy of this string with replacement made
 	 */
-	FString ConvertTabsToSpaces(const int32 InSpacesPerTab);
+	FString ConvertTabsToSpaces(const int32 InSpacesPerTab) const
+	{
+		FString FinalString(*this);
+		FinalString.ConvertTabsToSpacesInline(InSpacesPerTab);
+		return FinalString;
+	}
 
 	// Takes the number passed in and formats the string in comma format ( 12345 becomes "12,345")
 	static FString FormatAsNumber( int32 InNumber );
