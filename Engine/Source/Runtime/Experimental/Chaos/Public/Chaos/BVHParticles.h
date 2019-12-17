@@ -13,6 +13,10 @@ namespace Chaos
     template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
     class TBoundingVolumeHierarchy;
 
+
+    template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
+    class TBoundingVolumeHierarchy;
+
     template<class T, int d>
     class TBox;
 
