@@ -155,16 +155,94 @@ namespace
 		return false;
 	}
 
+	static void ExportNetData(FOutputDevice& Out, UClass* Class, UClass* ParentRepClass)
+	{
+		const TArray<FRepRecord>& ClassReps = Class->ClassReps;
+		
+		const FString ClassName = FString::Printf(TEXT("%s%s"), Class->GetPrefixCPP(), *Class->GetName());
+		const FString ParentClassName = ParentRepClass ? FString::Printf(TEXT("%s%s"), ParentRepClass->GetPrefixCPP(), *ParentRepClass->GetName()) : FString();
+		const FString NetfieldStart = ParentRepClass ? FString::Printf(TEXT("(uint16)%s::ENetFields_Private::NETFIELD_REP_END + (uint16)1"), *ParentClassName, *ParentClassName) : FString(TEXT("0"));
+
+		FUHTStringBuilder NetFieldBuilder;
+		NetFieldBuilder.Logf(TEXT(""
+		"\tenum class ENetFields_Private : uint16\r\n"
+		"\t{\r\n"
+		"\t\tNETFIELD_REP_START=%s,\r\n"), *NetfieldStart);
+
+		FUHTStringBuilder ArrayDimBuilder;
+
+		bool bAnyStaticArrays = false;
+		bool bIsFirst = true;
+		for (int32 ClassRepIndex = ClassReps.Num() - Class->NetFields.Num(); ClassRepIndex < ClassReps.Num(); ++ClassRepIndex)
+		{
+			const FRepRecord& ClassRep = ClassReps[ClassRepIndex];
+			const FString& PropertyName = ClassRep.Property->GetName();
+
+			if (ClassRep.Property->ArrayDim == 1)
+			{
+				if (UNLIKELY(bIsFirst))
+				{
+					NetFieldBuilder.Logf(TEXT("\t\t%s=NETFIELD_REP_START,\r\n"), *PropertyName);
+					bIsFirst = false;
+				}
+				else
+				{
+					NetFieldBuilder.Logf(TEXT("\t\t%s,\r\n"), *PropertyName);
+				}
+			}
+			else
+			{
+				bAnyStaticArrays = true;
+				ArrayDimBuilder.Logf(TEXT("\t\t%s=%s,\r\n"), *PropertyName, *GArrayDimensions.FindChecked(ClassReps[ClassRepIndex].Property));
+
+				if (UNLIKELY(bIsFirst))
+				{
+					NetFieldBuilder.Logf(TEXT("\t\t%s_STATIC_ARRAY=NETFIELD_REP_START,\r\n"), *PropertyName);
+					bIsFirst = false;
+				}
+				else
+				{
+					NetFieldBuilder.Logf(TEXT("\t\t%s_STATIC_ARRAY,\r\n"), *PropertyName);
+				}
+
+				NetFieldBuilder.Logf(TEXT("\t\t%s_STATIC_ARRAY_END=((uint16)%s_STATIC_ARRAY + (uint16)EArrayDims_Private::%s - (uint16)1),\r\n"), *PropertyName, *PropertyName, *PropertyName);
+			}
+		}
+
+		const UProperty* LastProperty = ClassReps.Last().Property;
+		const FString NetfieldEnd = LastProperty->ArrayDim > 1 ?
+			FString::Printf(TEXT("\t\tNETFIELD_REP_END=%s_STATIC_ARRAY_END,\r\n"), *LastProperty->GetName()) :
+			FString::Printf(TEXT("\t\tNETFIELD_REP_END=%s,\r\n"), *LastProperty->GetName());
+
+		NetFieldBuilder.Log(*NetfieldEnd);
+
+		NetFieldBuilder.Log(TEXT("\t};"));
+
+		if (bAnyStaticArrays)
+		{
+			Out.Logf(TEXT(""
+				"\tenum class EArrayDims_Private : uint16\r\n"
+				"\t{\r\n"
+				"%s"
+				"\t};\r\n"), *ArrayDimBuilder);
+		}
+
+		Out.Logf(TEXT(""
+			"%s\r\n" // NetFields
+			"\tvirtual void ValidateGeneratedRepEnums(const TArray<struct FRepRecord>& ClassReps) const override;\r\n"),
+			*NetFieldBuilder);
+	}
+
 	static void WriteReplicatedMacroData(
-		const ClassDefinitionRange&	ClassRange,
-		const TCHAR*				ClassCPPName,
-		FClass*						Class,
-		FClass*						SuperClass,
-		FOutputDevice&				Writer,
-		const FUnrealSourceFile&	SourceFile)
+		const ClassDefinitionRange& ClassRange,
+		const TCHAR* ClassCPPName,
+		FClass* Class,
+		FClass* SuperClass,
+		FOutputDevice& Writer,
+		const FUnrealSourceFile& SourceFile)
 	{
 		const bool bHasGetLifetimeReplicatedProps = HasIdentifierExactMatch(ClassRange.Start, ClassRange.End, TEXT("GetLifetimeReplicatedProps"));
-	
+
 		if (!bHasGetLifetimeReplicatedProps)
 		{
 			// Default version autogenerates declarations.
@@ -176,89 +254,12 @@ namespace
 			{
 				FError::Throwf(TEXT("Class %s has Net flagged properties and should declare member function: void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override"), ClassCPPName);
 			}
-		}	
-	}
-
-	static void ExportNetData(FOutputDevice& Out, UClass* Class)
-	{
-		if (ClassHasReplicatedProperties(Class))
-		{
-			Class->SetUpRuntimeReplicationData();
-
-			int32 StartingClassRep = 0;
-			if (UClass * SuperClass = Class->GetSuperClass())
-			{
-				StartingClassRep = SuperClass->ClassReps.Num();
-			}
-
-			// If we don't have any Replicated Properties, then don't do anything.
-			if (Class->ClassReps.Num() == StartingClassRep)
-			{
-				return;
-			}
-
-			FUHTStringBuilder NetFieldBuilder;
-			NetFieldBuilder.Logf(TEXT(""
-			"\t\tenum NetFields\r\n"
-			"\t\t{\r\n"
-			"\t\t\tNETFIELD_REP_START=%d,\r\n"), StartingClassRep);
-
-			FUHTStringBuilder ArrayDimBuilder;
-			ArrayDimBuilder.Log(TEXT(""
-			"\t\tenum ArrayDims\r\n"
-			"\t\t{\r\n"));
-
-			Out.Logf(TEXT("namespace NetworkingPrivate\r\n"
-				"{\r\n"
-				"\tnamespace Net_%s%s\r\n"
-				"\t{\r\n"), Class->GetPrefixCPP(), *Class->GetName());
-
-			TArray<const FRepRecord*> StaticArrayRecords;
-			const TArray<FRepRecord>& ClassReps = Class->ClassReps;
-			const int32 NumClassReps = ClassReps.Num();
-			for (int32 ClassRepIndex = StartingClassRep; ClassRepIndex < ClassReps.Num(); ++ClassRepIndex)
-			{
-				const FRepRecord& ClassRep = ClassReps[ClassRepIndex];
-				const FString& PropertyName = ClassRep.Property->GetName();
-
-				if (ClassRep.Property->ArrayDim == 1)
-				{
-					
-					NetFieldBuilder.Logf(TEXT("\t\t\tNETFIELD_%s=%d,\r\n"), *PropertyName, ClassRepIndex);
-					ArrayDimBuilder.Logf(TEXT("\t\t\tARRAYDIM_%s=1,\r\n"), *PropertyName);
-				}
-				else
-				{
-					const int32 NumClassRepArrayElements = ClassRep.Property->ArrayDim;
-					const int32 ClassRepArrayStart = ClassRepIndex;
-				
-					// -1 because we want this to be the last valid RepIndex.
-					const int32 ClassRepArrayEnd = ClassRepArrayStart + NumClassRepArrayElements - 1;
-
-					for (int32 i = 0; i < NumClassRepArrayElements; ++i)
-					{
-						NetFieldBuilder.Logf(TEXT("\t\t\tNETFIELD_%s_%d=%d,\r\n"), *PropertyName, i, ClassRepIndex + i);
-					}
-				
-					ClassRepIndex += NumClassRepArrayElements - 1;
-					
-					ArrayDimBuilder.Logf(TEXT("\t\t\tARRAYDIM_%s=%d,\r\n"), *PropertyName, NumClassRepArrayElements);
-				}
-			}
-
-			NetFieldBuilder.Logf(TEXT("\t\t\tNETFIELD_REP_END=%d,\r\n"), ClassReps.Num() - 1);
-
-			NetFieldBuilder.Log(TEXT("\t\t};"));
-			ArrayDimBuilder.Log(TEXT("\t\t};"));
-
-			Out.Logf(TEXT(""
-				"%s\r\n" // NetFields
-				"%s\r\n" // ArrayDims
-				"\t}\r\n"
-				"}\r\n"),
-				*NetFieldBuilder,
-				*ArrayDimBuilder);
 		}
+
+		UClass* ParentRepClass = nullptr;
+		Class->SetUpUhtReplicationData(&ParentRepClass);
+
+		ExportNetData(Writer, Class, ParentRepClass);
 	}
 }
 
@@ -2382,6 +2383,49 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 		bIsDynamic ? *AsTEXT(FClass::GetTypePackageName(Class)) : TEXT("nullptr"),
 		bIsDynamic ? *AsTEXT(FNativeClassHeaderGenerator::GetOverriddenPathName(Class)) : TEXT("nullptr"),
 		*InitSearchableValuesFunctionParam);
+
+
+	if (ClassHasReplicatedProperties(Class))
+	{
+		Class->SetUpUhtReplicationData(nullptr);
+
+		Out.Logf(TEXT(
+			"\r\n"
+			"\tvoid %s::ValidateGeneratedRepEnums(const TArray<struct FRepRecord>& ClassReps) const\r\n"
+			"\t{\r\n"
+		), ClassNameCPP, ClassNameCPP);
+
+		FUHTStringBuilder NameBuilder;
+
+		FUHTStringBuilder ValidationBuilder;
+		ValidationBuilder.Log(TEXT("\t\tconst bool bIsValid = true"));
+
+		for (int32 i = Class->ClassReps.Num() - Class->NetFields.Num(); i < Class->ClassReps.Num(); ++i)
+		{
+			const UProperty* const Property = Class->ClassReps[i].Property;
+			const FString& PropertyName = Property->GetName();
+
+			NameBuilder.Logf(TEXT("\t\tstatic const FName Name_%s(TEXT(\"%s\"));\r\n"), *PropertyName, *PropertyName);
+
+			if (Property->ArrayDim == 1)
+			{
+				ValidationBuilder.Logf(TEXT("\r\n\t\t\t&& Name_%s == ClassReps[(int32)ENetFields_Private::%s].Property->GetFName()"), *PropertyName, *PropertyName);
+			}
+			else
+			{
+				ValidationBuilder.Logf(TEXT("\r\n\t\t\t&& Name_%s == ClassReps[(int32)ENetFields_Private::%s_STATIC_ARRAY].Property->GetFName()"), *PropertyName, *PropertyName);
+			}
+		}
+
+		ValidationBuilder.Log(TEXT(";\r\n"));
+
+		Out.Logf(TEXT(
+			"%s\r\n" // NameBuilder
+			"%s\r\n" // ValidationBuilder
+			"\t\tcheckf(bIsValid, TEXT(\"UHT Generated Rep Indices do not match runtime populated Rep Indices for properties in %s\"));\r\n"
+			"\t}\r\n"
+		), *NameBuilder, *ValidationBuilder, ClassNameCPP);
+	}
 }
 
 void FNativeClassHeaderGenerator::ExportFunction(FOutputDevice& Out, const FUnrealSourceFile& SourceFile, UFunction* Function, bool bIsNoExport)
@@ -5568,11 +5612,6 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 		for (UEnum* Enum : Enums)
 		{
 			ExportEnum(GeneratedHeaderText, Enum);
-		}
-
-		for (UClass* Class : DefinedClasses)
-		{
-			ExportNetData(GeneratedHeaderText, Class);
 		}
 
 		FString HeaderPath = BaseSourceFilename + TEXT(".generated.h");
