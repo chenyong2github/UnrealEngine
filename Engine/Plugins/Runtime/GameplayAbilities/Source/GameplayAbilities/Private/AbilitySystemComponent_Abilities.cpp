@@ -257,7 +257,7 @@ FGameplayAbilitySpecHandle UAbilitySystemComponent::GiveAbility(const FGameplayA
 	return OwnedSpec.Handle;
 }
 
-FGameplayAbilitySpecHandle UAbilitySystemComponent::GiveAbilityAndActivateOnce(const FGameplayAbilitySpec& Spec)
+FGameplayAbilitySpecHandle UAbilitySystemComponent::GiveAbilityAndActivateOnce(FGameplayAbilitySpec& Spec)
 {
 	check(Spec.Ability);
 
@@ -274,6 +274,8 @@ FGameplayAbilitySpecHandle UAbilitySystemComponent::GiveAbilityAndActivateOnce(c
 
 		return FGameplayAbilitySpecHandle();
 	}
+
+	Spec.bActivateOnce = true;
 
 	FGameplayAbilitySpecHandle AddedAbilityHandle = GiveAbility(Spec);
 
@@ -584,7 +586,14 @@ void UAbilitySystemComponent::DecrementAbilityListLock()
 		TArray<FGameplayAbilitySpec, TInlineAllocator<2> > LocalPendingAdds(MoveTemp(AbilityPendingAdds));
 		for (FGameplayAbilitySpec& Spec : LocalPendingAdds)
 		{
-			GiveAbility(Spec);
+			if (Spec.bActivateOnce)
+			{
+				GiveAbilityAndActivateOnce(Spec);
+			}
+			else
+			{
+				GiveAbility(Spec);
+			}
 		}
 
 		TArray<FGameplayAbilitySpecHandle, TInlineAllocator<2> > LocalPendingRemoves(MoveTemp(AbilityPendingRemoves));

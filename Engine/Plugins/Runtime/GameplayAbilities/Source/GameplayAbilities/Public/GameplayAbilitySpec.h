@@ -266,6 +266,10 @@ struct GAMEPLAYABILITIES_API FGameplayAbilitySpec : public FFastArraySerializerI
 	UPROPERTY(NotReplicated)
 	uint8 PendingRemove:1;
 
+	/** This ability should be activated once when it is granted. */
+	UPROPERTY(NotReplicated)
+	uint8 bActivateOnce : 1;
+
 	/** Activation state of this ability. This is not replicated since it needs to be overwritten locally on clients during prediction. */
 	UPROPERTY(NotReplicated)
 	FGameplayAbilityActivationInfo	ActivationInfo;
