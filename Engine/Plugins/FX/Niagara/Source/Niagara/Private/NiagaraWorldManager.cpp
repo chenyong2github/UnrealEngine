@@ -353,6 +353,8 @@ void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResou
 		DeferredDeletionQueue[i].Fence.Wait();
 		DeferredDeletionQueue[i].Queue.Empty();
 	}
+
+	ScalabilityManagers.Empty();
 }
 
 void FNiagaraWorldManager::PostGarbageCollect()
