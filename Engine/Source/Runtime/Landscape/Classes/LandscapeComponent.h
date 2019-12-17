@@ -937,6 +937,9 @@ public:
 
 	/** Updates navigation properties to match landscape's master switch */
 	void UpdateNavigationRelevance();
+
+	/** Updates the reject navmesh underneath flag in the collision component */
+	void UpdateRejectNavmeshUnderneath();
 	
 	/** Updates the values of component-level properties exposed by the Landscape Actor */
 	LANDSCAPE_API void UpdatedSharedPropertiesFromActor();
