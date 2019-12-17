@@ -585,7 +585,7 @@ namespace Gauntlet
                     {
                         Flags |= BuildFlags.Bulk;
                     }
-					else
+					else if(Globals.Params.ParseParam("notbulk"))
 					{
 						Flags |= BuildFlags.NotBulk;
 					}
