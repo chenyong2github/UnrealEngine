@@ -7,6 +7,7 @@
 class FExtender;
 class FUICommandList;
 class FLevelEditorViewportClient;
+class FSpawnTabArgs;
 class SDockTab;
 class SWidget;
 
