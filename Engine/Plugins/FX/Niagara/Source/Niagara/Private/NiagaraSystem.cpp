@@ -65,29 +65,12 @@ void UNiagaraSystem::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-	DeletionFences.Reset();
-	FNiagaraWorldManager::EnqueueDeferredDeletionFences(DeletionFences);
-
 #if WITH_EDITORONLY_DATA
 	while (ActiveCompilations.Num() > 0)
 	{
 		QueryCompileComplete(true, false, true);
 	}
 #endif
-}
-
-bool UNiagaraSystem::IsReadyForFinishDestroy()
-{
- 	bool bAllComplete = true;
-	
-	//We have to wait until the existing items in the deferred deletion queue are cleared as they have direct refs to the layout info in our System and Emitter compiled data.
-	//We have to do this for each world.
-	for (FNiagaraDeferredDeletionFence& Fence : DeletionFences)
-	{
-		bAllComplete &= Fence.IsComplete();
-	}
-	
-	return Super::IsReadyForFinishDestroy() && bAllComplete;
 }
 
 void UNiagaraSystem::PreSave(const class ITargetPlatform * TargetPlatform)
@@ -1338,103 +1321,3 @@ FNiagaraEmitterCompiledData::FNiagaraEmitterCompiledData()
 	EmitterRandomSeedVar = SYS_PARAM_EMITTER_RANDOM_SEED;
 	EmitterTotalSpawnedParticlesVar = SYS_PARAM_ENGINE_EMITTER_TOTAL_SPAWNED_PARTICLES;
 }
-
-
-//////////////////////////////////////////////////////////////////////////
-
-FNiagaraDeferredDeletionFence::FNiagaraDeferredDeletionFence()
-{
-	bInstanceBatcherComplete = true;
-	bWorldManagerComplete = true;
-}
-
-FNiagaraDeferredDeletionFence::~FNiagaraDeferredDeletionFence()
-{
-	check(IsComplete());
-}
-
-bool FNiagaraDeferredDeletionFence::IsComplete()
-{
-	return bInstanceBatcherComplete.Load() && bWorldManagerComplete.Load();
-}
-
-FNiagaraWorldManagerDeferredDeletionFence::FNiagaraWorldManagerDeferredDeletionFence(FNiagaraDeferredDeletionFence* InFence)
-	: Fence(InFence)
-{
-	if (Fence)
-	{
-		//UE_LOG(LogNiagara, Display, TEXT("%0xP - Create WorldManFence"), Fence);
-		check(Fence->bWorldManagerComplete == true);
-		Fence->bWorldManagerComplete = false;
-	}
-}
-
-FNiagaraWorldManagerDeferredDeletionFence::~FNiagaraWorldManagerDeferredDeletionFence()
-{
-	if (Fence)
-	{
-		//UE_LOG(LogNiagara, Display, TEXT("%0xP - Destroy WorldManFence"), Fence);
-		check(Fence->bWorldManagerComplete == false);
-		Fence->bWorldManagerComplete = true;
-	}
-}
-
-FNiagaraWorldManagerDeferredDeletionFence::FNiagaraWorldManagerDeferredDeletionFence(FNiagaraWorldManagerDeferredDeletionFence&& Other)
-	: Fence(Other.Fence)
-{
-	check(Fence->bWorldManagerComplete == false);
-	Other.Fence = nullptr;
-	//UE_LOG(LogNiagara, Display, TEXT("%0xP - MoveCtor WorldManFence"), Fence);
-}
-
-FNiagaraWorldManagerDeferredDeletionFence& FNiagaraWorldManagerDeferredDeletionFence::operator=(FNiagaraWorldManagerDeferredDeletionFence&& Other)
-{
-	check(Fence->bWorldManagerComplete == false);
-	Fence = Other.Fence;
-	Other.Fence = nullptr;
-	//UE_LOG(LogNiagara, Display, TEXT("%0xP - Move WorldManFence"), Fence);
-	return *this;
-}
-
-
-FNiagaraInstanceBatcherDeferredDeletionFence::FNiagaraInstanceBatcherDeferredDeletionFence(FNiagaraDeferredDeletionFence* InFence)
-	: Fence(InFence)
-{
-	if (Fence)
-	{
-		UE_LOG(LogNiagara, Display, TEXT("%0xP - Create BatcherFence"), Fence);
-		check(Fence->bInstanceBatcherComplete == true);
-		Fence->bInstanceBatcherComplete = false;
-	}
-}
-
-FNiagaraInstanceBatcherDeferredDeletionFence::~FNiagaraInstanceBatcherDeferredDeletionFence()
-{
-	if (Fence)
-	{
-		UE_LOG(LogNiagara, Display, TEXT("%0xP - Destroy BatcherFence"), Fence);
-		check(Fence->bInstanceBatcherComplete == false);
-		Fence->bInstanceBatcherComplete = true;
-	}
-}
-
-FNiagaraInstanceBatcherDeferredDeletionFence::FNiagaraInstanceBatcherDeferredDeletionFence(FNiagaraInstanceBatcherDeferredDeletionFence&& Other)
-	: Fence(Other.Fence)
-{
-	check(Fence->bInstanceBatcherComplete == false);
-	Other.Fence = nullptr;
-	UE_LOG(LogNiagara, Display, TEXT("%0xP - MoveCTor BatcherFence"), Fence);
-}
-
-FNiagaraInstanceBatcherDeferredDeletionFence& FNiagaraInstanceBatcherDeferredDeletionFence::operator=(FNiagaraInstanceBatcherDeferredDeletionFence&& Other)
-{
-	check(Fence->bInstanceBatcherComplete == false);
-	Fence = Other.Fence;
-	Other.Fence = nullptr;
-	UE_LOG(LogNiagara, Display, TEXT("%0xP - Move BatcherFence"), Fence);
-	return *this;
-}
-
-
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
