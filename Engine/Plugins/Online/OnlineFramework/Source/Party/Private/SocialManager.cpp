@@ -272,6 +272,18 @@ USocialToolkit* USocialManager::GetSocialToolkit(int32 LocalPlayerNum) const
 	return nullptr;
 }
 
+USocialToolkit* USocialManager::GetSocialToolkit(FUniqueNetIdRepl LocalUserId) const
+{
+	for (USocialToolkit* Toolkit : SocialToolkits)
+	{
+		if (Toolkit->GetOwningLocalPlayer().GetPreferredUniqueNetId() == LocalUserId)
+		{
+			return Toolkit;
+		}
+	}
+	return nullptr;
+}
+
 void USocialManager::HandlePlatformSessionInviteAccepted(const TSharedRef<const FUniqueNetId>& LocalUserId, const FOnlineSessionSearchResult& InviteResult)
 {
 	UE_LOG(LogParty, Log, TEXT("LocalUser w/ ID [%s] has accepted platform party session invite. Attempting to join persistent party."), *LocalUserId->ToDebugString());
