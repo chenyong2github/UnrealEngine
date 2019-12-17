@@ -672,14 +672,15 @@ void FSlateUser::QueryCursor()
 			const bool bHasHardwareCursor = SlateApp.GetPlatformCursor() == Cursor;
 			const FVector2D CurrentCursorPosition = GetCursorPosition();
 			const FVector2D LastCursorPosition = GetPreviousCursorPosition();
-
+			
+			const TSet<FKey> EmptySet;
 			const FPointerEvent CursorEvent(
 				SlateApp.GetUserIndexForMouse(),
 				FSlateApplication::CursorPointerIndex,
 				CurrentCursorPosition,
 				LastCursorPosition,
 				CurrentCursorPosition - LastCursorPosition,
-				bHasHardwareCursor ? SlateApp.GetPressedMouseButtons() : TSet<FKey>(),
+				bHasHardwareCursor ? SlateApp.GetPressedMouseButtons() : EmptySet,
 				bHasHardwareCursor ? SlateApp.GetModifierKeys() : FModifierKeysState());
 
 			FWidgetPath WidgetsToQueryForCursor;
