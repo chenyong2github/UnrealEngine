@@ -564,7 +564,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesGT()
 		GeometryCollectionAlgo::GlobalMatrices(DynamicCollection->Transform, DynamicCollection->Parent, Transform);
 		check(DynamicCollection->Transform.Num() == Transform.Num());
 
-		NumParticles = SimulatableParticles.Count(true);
+		NumParticles = SimulatableParticles.Num();
 		BaseParticleIndex = 0; // Are we always zero indexed now?
 
 		// Create game thread particles...
@@ -3923,6 +3923,12 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults()
 		TargetResults.DisabledStates.SetNumUninitialized(NumParticles);
 		for (int32 Idx = 0; Idx < NumParticles; Idx++)
 		{
+			if(!SolverParticleHandles[Idx])
+			{
+				TargetResults.DisabledStates[Idx] = false;
+				continue;
+			}
+
 			TargetResults.DisabledStates[Idx] = SolverParticleHandles[Idx]->Disabled();
 		}
 		//TargetResults.DisabledStates.Append(&Particles.DisabledRef(BaseParticleIndex), NumParticles);
@@ -3954,6 +3960,11 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults()
 			//only update roots and first children
 			const int32 ParticleIndex = BaseParticleIndex + TransformIndex;
 //			const int32 ParentIndex = ClusterID[ParticleIndex].Id;
+
+			if(!SolverParticleHandles[ParticleIndex])
+			{
+				continue;
+			}
 
 			Chaos::TPBDRigidParticleHandle<float, 3>& Handle = *SolverParticleHandles[ParticleIndex];
 
