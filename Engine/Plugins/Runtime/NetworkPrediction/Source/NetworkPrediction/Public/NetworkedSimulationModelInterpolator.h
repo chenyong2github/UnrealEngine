@@ -67,7 +67,7 @@ struct TNetSimInterpolator
 	bool bEnableVisualLog = true;
 
 	template<typename TSystemDriver>
-	void PostSimTick(TSystemDriver* Driver, const TNetworkSimBufferContainer<TBufferTypes>& Buffers, const FSimulationTickState& TickInfo, const FNetSimTickParameters& TickParameters)
+	FRealTime PostSimTick(TSystemDriver* Driver, const TNetworkSimBufferContainer<Model>& Buffers, const FSimulationTickState& TickInfo, const FNetSimTickParameters& TickParameters)
 	{
 		const bool bDoVLog = NetworkInterpolationDebugCVars::VLog() && bEnableVisualLog;
 		const float DeltaSeconds = TickParameters.LocalDeltaTimeSeconds;
@@ -84,13 +84,13 @@ struct TNetSimInterpolator
 
 				Driver->FinalizeFrame(*HeadState, *AuxState);
 			}
-			return;
+			return TickInfo.GetTotalProcessedSimulationTime().ToRealTimeSeconds();
 		}
 		
 		if (TickInfo.SimulationTimeBuffer.Num() <= 1)
 		{
 			// Cant interpolate yet	
-			return;
+			return 0.f;
 		}
 
 		auto& SimulationTimeBuffer = TickInfo.SimulationTimeBuffer;
@@ -126,7 +126,7 @@ struct TNetSimInterpolator
 					FVector2D LocalTimeVsInterpolationTime(LogOwner->GetWorld()->GetTimeSeconds(), (int32)(InterpolationTime * 1000.f));
 					UE_VLOG_HISTOGRAM(LogOwner, LogNetInterpolation, Log, "ServerSimulationTimeGraph", LocalInterpolationTimeName, LocalTimeVsInterpolationTime);
 				}
-				return;
+				return InterpolationTime;
 			}
 		}
 
@@ -263,6 +263,8 @@ struct TNetSimInterpolator
 				InternalIdx ^= 1;
 			}
 		}
+
+		return InterpolationTime;
 	}
 
 private:

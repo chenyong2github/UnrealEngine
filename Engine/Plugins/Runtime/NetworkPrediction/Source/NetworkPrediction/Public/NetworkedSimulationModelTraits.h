@@ -1,30 +1,30 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
+#include "NetworkedSimulationModelBufferTypes.h"
 
-// Base for Network Simulation Model Defs (defines types used by the model)
-class FNetSimModelDefBase
+/** This is the "system driver", it has functions that the TNetworkedSimulationModel needs to call internally, that are specific to the types but not specific to the simulation itself. */
+template<typename TBufferTypes>
+class TNetworkedSimulationModelDriver
 {
 public:
+	using TInputCmd = typename TBufferTypes::TInputCmd;
+	using TSyncState = typename TBufferTypes::TSyncState;
+	using TAuxState= typename TBufferTypes::TAuxState;
 
-	// -----------------------------------------------------------------------------------------------
-	//	Must be set by user to compile:
-	// -----------------------------------------------------------------------------------------------
+	// Debug string that can be used in internal warning/error logs
+	virtual FString GetDebugName() const = 0;
 
-	// The simulation class. This encompasses all state and functions for running the simulation but none of the networking/bookkeeping etc.
-	using Simulation = void;
+	// Owning object for Visual Logs so that the system can emit them internally
+	virtual const AActor* GetVLogOwner() const = 0;
 
-	// Buffer types: defines your Input/Sync/Aux state (and optional debug state)
-	using BufferTypes = void;	
-
-	// -----------------------------------------------------------------------------------------------
-	//	Optional customization/overrides 
-	// -----------------------------------------------------------------------------------------------
-
-	// Model base class. E.g, common interface all NetworkedSimulationModels can be communicated with
-	using Base = INetworkedSimulationModel;
+	// Call to visual log the given states. Note that not all 3 will always be present and you should check for nullptrs.
+	virtual void VisualLog(const TInputCmd* Input, const TSyncState* Sync, const TAuxState* Aux, const FVisualLoggingParameters& SystemParameters) const = 0;
 	
-	// Tick settings: defines variable vs fix step tick, etc
-	using TickSettings = TNetworkSimTickSettings<>;
+	// Called whenever the sim is ready to process new local input.
+	virtual void ProduceInput(const FNetworkSimTime SimTime, TInputCmd&) = 0;
+	
+	// Called from the Network Sim at the end of the sim frame when there is new sync data.
+	virtual void FinalizeFrame(const typename TBufferTypes::TSyncState& SyncState, const typename TBufferTypes::TAuxState& AuxState) = 0;
 };
 
 // Internal traits that are derived from the user settings (E.g, these can't go in FNetSimModelDefBase because they are dependent on the user types)

@@ -6,6 +6,8 @@ DEFINE_LOG_CATEGORY(LogNetSimCues);
 
 FGlobalCueTypeTable FGlobalCueTypeTable::Singleton;
 
+constexpr FNetworkSimTime FCueDispatcherTraitsBase::ReplicationWindow;
+
 // ------------------------------------------------------------------------------------------------------------------------------------------
 //	Mock Cue example
 // ------------------------------------------------------------------------------------------------------------------------------------------
@@ -139,7 +141,7 @@ void TestCues()
 
 	struct FBaseSimulation
 	{
-		static void TickSimulation(FCueDispatcher& Dispatcher)
+		static void TickSimulation(TNetSimCueDispatcher& Dispatcher)
 		{
 			Dispatcher.Invoke<FMockImpactCue>( { FVector(1.f, 2.f, 3.f) } );
 		}
@@ -147,7 +149,7 @@ void TestCues()
 
 	struct FChildSimulation
 	{
-		static void TickSimulation(FCueDispatcher& Dispatcher)
+		static void TickSimulation(TNetSimCueDispatcher& Dispatcher)
 		{
 			FBaseSimulation::TickSimulation(Dispatcher);
 
@@ -156,7 +158,7 @@ void TestCues()
 		}
 	};
 
-	FCueDispatcher ServerDispatcher;
+	TNetSimCueDispatcher ServerDispatcher;
 	FChildSimulation::TickSimulation(ServerDispatcher);
 
 	// -------------------------------------
@@ -171,7 +173,7 @@ void TestCues()
 	// -------------------------------------
 
 	FNetBitReader TempReader(nullptr, TempWriter.GetData(), TempWriter.GetNumBits());
-	FCueDispatcher ClientDispatcher;
+	TNetSimCueDispatcher ClientDispatcher;
 	ClientDispatcher.NetSerializeSavedCues(TempReader, false);
 
 	TestHandlerChild MyObject;

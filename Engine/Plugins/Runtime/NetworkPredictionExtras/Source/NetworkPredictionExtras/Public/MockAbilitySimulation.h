@@ -192,6 +192,9 @@ public:
 
 	static void Interpolate(const TInterpolatorParameters<FMockAbilitySyncState, FMockAbilityAuxState>& Params)
 	{
+		Params.Out.Sync = Params.To.Sync;
+		Params.Out.Aux = Params.To.Aux;
+
 		FFlyingMovementNetSimModelDef::Interpolate(Params.Cast<FFlyingMovementSyncState, FFlyingMovementAuxState>());
 	}
 };
