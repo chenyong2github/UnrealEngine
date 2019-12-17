@@ -45,8 +45,8 @@ void FMediaProfileSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& 
 	const UMediaProfileSettings* MediaProfileSettings = GetDefault<UMediaProfileSettings>();
 	check(MediaProfileSettings);
 
-	const TArray<UProxyMediaOutput*> OutputProxies = MediaProfileSettings->GetAllMediaOutputProxy();
-	const TArray<UProxyMediaSource*> SourceProxies = MediaProfileSettings->GetAllMediaSourceProxy();
+	const TArray<UProxyMediaOutput*> OutputProxies = MediaProfileSettings->LoadMediaOutputProxies();
+	const TArray<UProxyMediaSource*> SourceProxies = MediaProfileSettings->LoadMediaSourceProxies();
 
 	bNotConfigured = OutputProxies.Num() == 0 && SourceProxies.Num() == 0;
 	bNeedFixup = false;
