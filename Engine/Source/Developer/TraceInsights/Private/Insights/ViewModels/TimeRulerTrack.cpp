@@ -7,6 +7,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Rendering/DrawElements.h"
 #include "Styling/CoreStyle.h"
+#include <limits>
 
 // Insights
 #include "Insights/Common/PaintUtils.h"
@@ -19,10 +20,12 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTimeRulerTrack::FTimeRulerTrack(uint64 InTrackId)
-	: FBaseTimingTrack(InTrackId)
+FTimeRulerTrack::FTimeRulerTrack()
+	: FBaseTimingTrack(FName(TEXT("TimeRuler")))
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 	, Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+	, CrtMousePosTextWidth(0.0f)
+	, CrtTimeMarkerTextWidth(0.0f)
 {
 }
 
@@ -38,20 +41,46 @@ void FTimeRulerTrack::Reset()
 {
 	FBaseTimingTrack::Reset();
 
-	constexpr float TimeRulerHeight = 22.0f;
+	bIsSelecting = false;
+	SelectionStartTime = 0.0;
+	SelectionEndTime = 0.0;
+
+	bIsDragging = false;
+	TimeMarker = std::numeric_limits<double>::infinity();
+
+	constexpr float TimeRulerHeight = 24.0f;
 	SetHeight(TimeRulerHeight);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimeRulerTrack::UpdateHoveredState(float MouseX, float MouseY, const FTimingTrackViewport& Viewport)
+void FTimeRulerTrack::SetSelection(const bool bInIsSelecting, const double InSelectionStartTime, const double InSelectionEndTime)
+{
+	bIsSelecting = bInIsSelecting;
+	SelectionStartTime = InSelectionStartTime;
+	SelectionEndTime = InSelectionEndTime;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimeRulerTrack::SetTimeMarker(const bool bInIsDragging, const double InTimeMarker)
+{
+	bIsDragging = bInIsDragging;
+	TimeMarker = InTimeMarker;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimeRulerTrack::PostUpdate(const ITimingTrackUpdateContext& Context)
 {
 	//constexpr float HeaderWidth = 100.0f;
 	//constexpr float HeaderHeight = 14.0f;
 
+	const float MouseY = Context.GetMousePosition().Y;
 	if (MouseY >= GetPosY() && MouseY < GetPosY() + GetHeight())
 	{
 		SetHoveredState(true);
+		//const float MouseX = Context.GetMousePosition().X;
 		//SetHeaderHoveredState(MouseX < HeaderWidth && MouseY < GetPosY() + HeaderHeight);
 	}
 	else
@@ -62,20 +91,16 @@ void FTimeRulerTrack::UpdateHoveredState(float MouseX, float MouseY, const FTimi
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimeRulerTrack::DrawBackground(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const
+void FTimeRulerTrack::Draw(const ITimingTrackDrawContext& Context) const
 {
-	FDrawHelpers::DrawBackground(DrawContext, WhiteBrush, Viewport, GetPosY(), GetHeight());
-}
+	FDrawContext& DrawContext = Context.GetDrawContext();
+	const FTimingTrackViewport& Viewport = Context.GetViewport();
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FTimeRulerTrack::Draw(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const FVector2D& MousePosition, const bool bIsSelecting, const double SelectionStartTime, const double SelectionEndTime) const
-{
 	const float MinorTickMark = 5.0f;
 	const float MajorTickMark = 20 * MinorTickMark;
 
 	const float MinorTickMarkHeight = 5.0f;
-	const float MajorTickMarkHeight = 9.0f;
+	const float MajorTickMarkHeight = 11.0f;
 
 	const float TextY = GetPosY() + MajorTickMarkHeight;
 
@@ -89,7 +114,7 @@ void FTimeRulerTrack::Draw(FDrawContext& DrawContext, const FTimingTrackViewport
 	float MajorOX = static_cast<float>(FMath::RoundToDouble(MajorN * static_cast<double>(MajorTickMark) - VX));
 
 	// Draw the time ruler's background.
-	DrawBackground(DrawContext, Viewport);
+	FDrawHelpers::DrawBackground(DrawContext, WhiteBrush, Viewport, GetPosY(), GetHeight());
 
 	// Draw the minor tick marks.
 	for (float X = MinorOX; X < Viewport.GetWidth(); X += MinorTickMark)
@@ -121,10 +146,21 @@ void FTimeRulerTrack::Draw(FDrawContext& DrawContext, const FTimingTrackViewport
 			(T < Viewport.GetMinValidTime() || T >= Viewport.GetMaxValidTime()) ? FLinearColor(0.7f, 0.5f, 0.5f, 1.0f) : FLinearColor(0.8f, 0.8f, 0.8f, 1.0f));
 	}
 	DrawContext.LayerId++;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimeRulerTrack::PostDraw(const ITimingTrackDrawContext& Context) const
+{
+	FDrawContext& DrawContext = Context.GetDrawContext();
+	const FTimingTrackViewport& Viewport = Context.GetViewport();
+	const FVector2D& MousePosition = Context.GetMousePosition();
 
 	bool bShowMousePos = !MousePosition.IsZero();
 	if (bShowMousePos)
 	{
+		const double DT = 100.0 / Viewport.GetScaleX();
+
 		const FLinearColor MousePosLineColor(0.9f, 0.9f, 0.9f, 0.1f);
 		const FLinearColor MousePosTextBackgroundColor(0.9f, 0.9f, 0.9f, 1.0f);
 		FLinearColor MousePosTextForegroundColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -145,14 +181,17 @@ void FTimeRulerTrack::Draw(FDrawContext& DrawContext, const FTimingTrackViewport
 			MousePosText = TimeUtils::FormatTime(MousePosTime, MousePosPrecision);
 		}
 
+		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+
 		const float MousePosTextWidth = FMath::RoundToFloat(FontMeasureService->Measure(MousePosText, Font).X);
-		static float CrtMousePosTextWidth = 0.0f;
 
 		if (!FMath::IsNearlyEqual(CrtMousePosTextWidth, MousePosTextWidth))
 		{
 			// Animate the box's width (to avoid flickering).
 			CrtMousePosTextWidth = CrtMousePosTextWidth * 0.6f + MousePosTextWidth * 0.4f;
 		}
+
+		const float TextY = GetPosY() + 11.0f;
 
 		float X = MousePosition.X;
 		float W = CrtMousePosTextWidth + 4.0f;
@@ -189,6 +228,57 @@ void FTimeRulerTrack::Draw(FDrawContext& DrawContext, const FTimingTrackViewport
 
 		// Draw current time text.
 		DrawContext.DrawText(X - MousePosTextWidth / 2, TextY, MousePosText, Font, MousePosTextForegroundColor);
+		DrawContext.LayerId++;
+	}
+
+	// Draw the time marker.
+	const float TimeMarkerX = Viewport.TimeToSlateUnitsRounded(TimeMarker);
+	if (TimeMarkerX >= 0.0f && TimeMarkerX < Viewport.GetWidth())
+	{
+		const FLinearColor TimeMarkerColor(0.85f, 0.5f, 0.03f, 0.5f);
+		const FLinearColor TimeMarkerTextBackgroundColor(TimeMarkerColor.CopyWithNewOpacity(1.0f));
+		const FLinearColor TimeMarkerTextForegroundColor(0.1f, 0.1f, 0.1f, 1.0f);
+
+		// Draw the orange vertical line.
+		DrawContext.DrawBox(TimeMarkerX, 0.0f, 1.0f, Viewport.GetHeight(), WhiteBrush, TimeMarkerColor);
+		DrawContext.LayerId++;
+
+		// Time at current marker
+		FString TimeMarkerText;
+
+		const double DT = 100.0 / Viewport.GetScaleX();
+
+		const double MousePosPrecision = FMath::Max(DT / 100.0, TimeUtils::Nanosecond);
+		if (!MousePosition.IsZero() && MousePosition.Y >= GetPosY() && MousePosition.Y < GetPosY() + GetHeight())
+		{
+			// If mouse is hovering the time ruler, format time with a better precision (split seconds in ms, us, ns and ps).
+			TimeMarkerText = TimeUtils::FormatTimeSplit(TimeMarker, MousePosPrecision);
+		}
+		else
+		{
+			// Format current time with one more digit than the time at major tick marks.
+			TimeMarkerText = TimeUtils::FormatTime(TimeMarker, MousePosPrecision);
+		}
+
+		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+
+		const float TimeMarkerTextWidth = FMath::RoundToFloat(FontMeasureService->Measure(TimeMarkerText, Font).X);
+
+		if (!FMath::IsNearlyEqual(CrtTimeMarkerTextWidth, TimeMarkerTextWidth))
+		{
+			// Animate the box's width (to avoid flickering).
+			CrtTimeMarkerTextWidth = CrtTimeMarkerTextWidth * 0.6f + TimeMarkerTextWidth * 0.4f;
+		}
+
+		float X = TimeMarkerX;
+		float W = CrtTimeMarkerTextWidth + 4.0f;
+
+		// Fill the time marker box.
+		DrawContext.DrawBox(X - W / 2, 0.0f, W, 12.0f, WhiteBrush, TimeMarkerTextBackgroundColor);
+		DrawContext.LayerId++;
+
+		// Draw time marker text.
+		DrawContext.DrawText(X - TimeMarkerTextWidth / 2, 0.0f, TimeMarkerText, Font, TimeMarkerTextForegroundColor);
 		DrawContext.LayerId++;
 	}
 }

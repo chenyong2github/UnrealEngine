@@ -3,12 +3,13 @@
 #pragma once
 
 #include "Containers/Array.h"
-#include "DataStream.h"
 #include "Trace/Analysis.h"
 #include "Trace/Analyzer.h"
 
 namespace Trace
 {
+
+class FStreamReader;
 
 ////////////////////////////////////////////////////////////////////////////////
 class FAnalysisEngine
@@ -19,9 +20,11 @@ public:
 	struct				FEventDataInfo;
 						FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers);
 						~FAnalysisEngine();
-	bool				OnData(FStreamReader::FData& Data);
+	bool				OnData(FStreamReader& Reader);
 
 private:
+	typedef bool (FAnalysisEngine::*ProtocolHandlerType)();
+
 	struct FRoute
 	{
 		uint32			Hash;
@@ -31,21 +34,32 @@ private:
 		uint16			_Unused0;
 	};
 
+	class				FDispatchBuilder;
 	virtual bool		OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
-
-	bool				EstablishTransport(FStreamReader::FData& Data);
-	FDispatch*			AddDispatch(uint16 Uid, uint16 FieldCount=0, uint16 ExtraData=0);
-	void				AddRoute(uint16 AnalyzerIndex, uint16 Id, const ANSICHAR* Logger, const ANSICHAR* Event);
-	void				AddRoute(uint16 AnalyzerIndex, uint16 Id, uint32 Hash);
 	void				OnNewTrace(const FOnEventContext& Context);
 	void				OnTiming(const FOnEventContext& Context);
 	void				OnNewEventInternal(const FOnEventContext& Context);
-	void				RetireAnalyzer(uint32 AnalyzerIndex);
+	void				OnNewEventProtocol0(FDispatchBuilder& Builder, const void* EventData);
+	void				OnNewEventProtocol1(FDispatchBuilder& Builder, const void* EventData);
+
+	bool				EstablishTransport(FStreamReader& Reader);
+	bool				OnDataProtocol0();
+	bool				OnDataProtocol1();
+	int32				OnDataProtocol1(FStreamReader& Reader);
+	bool				AddDispatch(FDispatch* Dispatch);
+	template <typename ImplType>
+	void				ForEachRoute(const FDispatch* Dispatch, ImplType&& Impl);
+	void				AddRoute(uint16 AnalyzerIndex, uint16 Id, const ANSICHAR* Logger, const ANSICHAR* Event);
+	void				AddRoute(uint16 AnalyzerIndex, uint16 Id, uint32 Hash);
+	void				RetireAnalyzer(IAnalyzer* Analyzer);
 	FSessionContext		SessionContext;
 	TArray<FRoute>		Routes;
 	TArray<IAnalyzer*>	Analyzers;
 	TArray<FDispatch*>	Dispatches;
 	class FTransport*	Transport = nullptr;
+	ProtocolHandlerType	ProtocolHandler = nullptr;
+	uint16				NextLogSerial = 0;
+	uint8				ProtocolVersion = 0;
 };
 
 } // namespace Trace

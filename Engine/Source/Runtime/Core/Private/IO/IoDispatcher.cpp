@@ -1,478 +1,148 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "IO/IoDispatcher.h"
-#include "HAL/FileManager.h"
+#include "IO/IoStore.h"
 #include "Async/MappedFileHandle.h"
-#include "Containers/ChunkedArray.h"
 #include "HAL/CriticalSection.h"
-#include "Logging/LogMacros.h"
+#include "HAL/FileManager.h"
+#include "HAL/PlatformFilemanager.h"
+#include "HAL/Runnable.h"
+#include "HAL/RunnableThread.h"
 #include "Misc/CString.h"
 #include "Misc/EventPool.h"
 #include "Misc/ScopeRWLock.h"
+#include "Misc/ScopeLock.h"
 #include "Misc/SecureHash.h"
 #include "Misc/StringBuilder.h"
-#include "Memory/MemoryArena.h"
 #include "Misc/LazySingleton.h"
+#include "Misc/CoreDelegates.h"
+#include "Trace/Trace.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogIoDispatch, Log, All);
+#define IODISPATCHER_TRACE_ENABLED !UE_BUILD_SHIPPING
 
-const TCHAR* GetIoErrorText(EIoErrorCode ErrorCode)
-{
-	static constexpr const TCHAR* ErrorCodeText[]
-	{
-		TEXT("OK"),
-		TEXT("Unknown Status"),
-		TEXT("Invalid Code"),
-		TEXT("Cancelled"),
-		TEXT("FileOpen Failed"),
-		TEXT("File Not Open"),
-		TEXT("Write Error"),
-		TEXT("Not Found"),
-		TEXT("Corrupt Toc"),
-	};
+DEFINE_LOG_CATEGORY(LogIoDispatcher);
 
-	return ErrorCodeText[static_cast<uint32>(ErrorCode)];
-}
+const FIoChunkId FIoChunkId::InvalidChunkId = FIoChunkId::CreateEmptyId();
 
-const FIoStatus FIoStatus::Ok		{ EIoErrorCode::Ok,				TEXT("OK")				};
-const FIoStatus FIoStatus::Unknown	{ EIoErrorCode::Unknown,		TEXT("Unknown Status")	};
-const FIoStatus FIoStatus::Invalid	{ EIoErrorCode::InvalidCode,	TEXT("Invalid Code")	};
-
-FIoStatus::FIoStatus(EIoErrorCode Code)
-:	ErrorCode(Code)
-,	ErrorMessage(GetIoErrorText(Code))
-{
-}
-
-FIoStatus::FIoStatus(EIoErrorCode Code, const FStringView& InErrorMessage)
-: ErrorCode(Code)
-, ErrorMessage(InErrorMessage.Data(), InErrorMessage.Len())
-{
-}
-
-FIoStatus& 
-FIoStatus::operator=(const FIoStatus& Other)
-{
-	ErrorCode = Other.ErrorCode;
-	ErrorMessage = Other.ErrorMessage;
-
-	return *this;
-}
-
-bool		
-FIoStatus::operator==(const FIoStatus& Other) const
-{
-	return ErrorCode == Other.ErrorCode
-		&& ErrorMessage == Other.ErrorMessage;
-}
-
-FString	
-FIoStatus::ToString() const
-{
-	return ErrorMessage;
-}
-
+#if !defined(PLATFORM_IMPLEMENTS_IO)
 //////////////////////////////////////////////////////////////////////////
 
-FIoStatusBuilder::FIoStatusBuilder(EIoErrorCode InStatusCode)
-:	StatusCode(InStatusCode)
-{
-}
+TUniquePtr<FIoDispatcher> GIoDispatcher;
+FIoStoreEnvironment GIoStoreEnvironment;
 
-FIoStatusBuilder::FIoStatusBuilder(const FIoStatus& InStatus, FStringView String)
-:	StatusCode(InStatus.ErrorCode)
-{
-	Message.Append(String.Data(), String.Len());
-}
+UE_TRACE_EVENT_BEGIN(IoDispatcher, BatchIssued, Always)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint64, BatchId)
+UE_TRACE_EVENT_END()
 
-FIoStatusBuilder::~FIoStatusBuilder()
-{
-}
+UE_TRACE_EVENT_BEGIN(IoDispatcher, BatchResolved, Always)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint64, BatchId)
+	UE_TRACE_EVENT_FIELD(uint64, TotalSize)
+UE_TRACE_EVENT_END()
 
-FIoStatusBuilder::operator FIoStatus()
-{
-	return FIoStatus(StatusCode, Message);
-}
-
-FIoStatusBuilder& 
-FIoStatusBuilder::operator<<(FStringView String)
-{
-	Message.Append(String.Data(), String.Len());
-
-	return *this;
-}
-
-FIoStatusBuilder operator<<(const FIoStatus& Status, FStringView String)
-{ 
-	return FIoStatusBuilder(Status, String);
-}
-
-//////////////////////////////////////////////////////////////////////////
-
-void StatusOrCrash(const FIoStatus& Status)
-{
-	// TODO
-}
-
-//////////////////////////////////////////////////////////////////////////
-
-void FIoChunkId::GenerateFromData(const void* InData, SIZE_T InDataSize)
-{
-	FSHA1 Sha1;
-	Sha1.Update(reinterpret_cast<const uint8*>(InData), InDataSize);
-	Sha1.Final();
-	
-	uint8 Sha1Hash[20];
-	Sha1.GetHash(Sha1Hash);
-
-	memcpy(Id, Sha1Hash, sizeof Id);
-}
-
-//////////////////////////////////////////////////////////////////////////
-
-class FIoBufferManager
+template <typename T, uint32 BlockSize = 128>
+class TBlockAllocator
 {
 public:
-	TChunkedArray<FIoBuffer::BufCore, 65536> BufCores;
-
-	void AllocBufCore()
+	~TBlockAllocator()
 	{
-		new(BufCores) FIoBuffer::BufCore;
-	}
-};
-
-
-//////////////////////////////////////////////////////////////////////////
-
-class FIoBufferPool
-{
-public:
-	FIoBufferPool();
-	~FIoBufferPool();
-
-	TIoStatusOr<FIoBuffer>	Alloc(uint64 RequiredCapacity);
-	void					Free(FIoBuffer InBuffer);
-};
-
-FIoBufferPool::FIoBufferPool()
-{
-}
-
-FIoBufferPool::~FIoBufferPool()
-{
-}
-
-TIoStatusOr<FIoBuffer> FIoBufferPool::Alloc(uint64 RequiredCapacity)
-{
-	return FIoBuffer(RequiredCapacity);
-}
-
-void FIoBufferPool::Free(FIoBuffer InBuffer)
-{
-	auto Destroyer = MoveTemp(InBuffer);
-}
-
-//////////////////////////////////////////////////////////////////////////
-
-FIoBuffer::BufCore::BufCore()
-{
-}
-
-FIoBuffer::BufCore::~BufCore()
-{
-	if (IsMemoryOwned())
-	{
-		FMemory::Free(Data());
-	}
-}
-
-FIoBuffer::BufCore::BufCore(const uint8* InData, uint64 InSize, bool InOwnsMemory)
-{
-	SetDataAndSize(InData, InSize);
-
-	SetIsOwned(InOwnsMemory);
-}
-
-FIoBuffer::BufCore::BufCore(const uint8* InData, uint64 InSize, const BufCore* InOuter)
-:	OuterCore(InOuter)
-{
-	SetDataAndSize(InData, InSize);
-}
-
-FIoBuffer::BufCore::BufCore(uint64 InSize)
-{
-	uint8* NewBuffer = reinterpret_cast<uint8*>(FMemory::Malloc(InSize));
-
-	SetDataAndSize(NewBuffer, InSize);
-
-	SetIsOwned(true);
-}
-
-FIoBuffer::BufCore::BufCore(ECloneTag, uint8* InData, uint64 InSize)
-:	FIoBuffer::BufCore(InSize)
-{
-	FMemory::Memcpy(Data(), InData, InSize);
-}
-
-void
-FIoBuffer::BufCore::CheckRefCount() const
-{
-	// Verify that Release() is not being called on an object which is already at a zero refcount
-	check(NumRefs != 0);
-}
-
-void
-FIoBuffer::BufCore::SetDataAndSize(const uint8* InData, uint64 InSize)
-{
-	// This is intentionally not split into SetData and SetSize to enable different storage
-	// strategies for flags in the future (in unused pointer bits)
-
-	DataPtr			= const_cast<uint8*>(InData);
-	DataSizeLow		= uint32(InSize & 0xffffffffu);
-	DataSizeHigh	= (InSize >> 32) & 0xffu;
-}
-
-void
-FIoBuffer::BufCore::SetSize(uint64 InSize)
-{
-	SetDataAndSize(Data(), InSize);
-}
-
-void
-FIoBuffer::BufCore::MakeOwned()
-{
-	if (IsMemoryOwned())
-		return;
-
-	const uint64 BufferSize = DataSize();
-	uint8* NewBuffer		= reinterpret_cast<uint8*>(FMemory::Malloc(BufferSize));
-
-	FMemory::Memcpy(NewBuffer, Data(), BufferSize);
-
-	SetDataAndSize(NewBuffer, BufferSize);
-
-	SetIsOwned(true);
-}
-
-//////////////////////////////////////////////////////////////////////////
-
-FIoBuffer::FIoBuffer()
-:	CorePtr(new BufCore)
-{
-}
-
-FIoBuffer::FIoBuffer(uint64 InSize)
-:	CorePtr(new BufCore(InSize))
-{
-}
-
-FIoBuffer::FIoBuffer(const void* Data, uint64 InSize, const FIoBuffer& OuterBuffer)
-:	CorePtr(new BufCore((uint8*) Data, InSize, OuterBuffer.CorePtr))
-{
-}
-
-FIoBuffer::FIoBuffer(FIoBuffer::EWrapTag, const void* Data, uint64 InSize)
-:	CorePtr(new BufCore((uint8*)Data, InSize, /* ownership */ false))
-{
-}
-
-FIoBuffer::FIoBuffer(FIoBuffer::EAssumeOwnershipTag, const void* Data, uint64 InSize)
-:	CorePtr(new BufCore((uint8*)Data, InSize, /* ownership */ true))
-{
-}
-
-FIoBuffer::FIoBuffer(FIoBuffer::ECloneTag, const void* Data, uint64 InSize)
-:	CorePtr(new BufCore(Clone, (uint8*)Data, InSize))
-{
-}
-
-void		
-FIoBuffer::MakeOwned() const
-{
-	CorePtr->MakeOwned();
-}
-
-//////////////////////////////////////////////////////////////////////////
-
-static const char TocMagicImg[] = "-==--==--==--==-";
-
-struct FIoStoreTocHeader
-{
-	uint8	TocMagic[16];
-	uint32	TocHeaderSize;
-	uint32	TocEntryCount;
-	uint32	TocEntrySize;	// For sanity checking
-	uint32	TocPad[25];
-
-	void MakeMagic()
-	{
-		FMemory::Memcpy(TocMagic, TocMagicImg, sizeof TocMagic);
+		FreeBlocks();
 	}
 
-	bool CheckMagic()
+	FORCEINLINE T* Alloc()
 	{
-		return FMemory::Memcmp(TocMagic, TocMagicImg, sizeof TocMagic) == 0;
-	}
-};
+		FScopeLock _(&CriticalSection);
 
-struct FIoStoreTocEntry
-{
-	// We use 5 bytes for offset and size, this is enough to represent 
-	// an offset and size of 1PB
-	uint8		OffsetAndLength[5 + 5];
+		if (!NextFree)
+		{
+			//TODO: Virtual alloc
+			FBlock* Block = new FBlock;
+			
+			for (int32 ElementIndex = 0; ElementIndex < BlockSize; ++ElementIndex)
+			{
+				FElement* Element	= &Block->Elements[ElementIndex];
+				Element->Next		= NextFree;
+				NextFree			= Element;
+			}
 
-	// TBD: should the chunk ID use content addressing, or names, or a
-	//      mix of both?
-	FIoChunkId	ChunkId;
+			Block->Next	= Blocks;
+			Blocks		= Block;
+		}
 
-	inline uint64 GetOffset() const
-	{
-		return OffsetAndLength[4]
-			| (uint64(OffsetAndLength[3]) << 8)
-			| (uint64(OffsetAndLength[2]) << 16)
-			| (uint64(OffsetAndLength[1]) << 24)
-			| (uint64(OffsetAndLength[0]) << 32)
-			;
-	}
+		FElement* Element	= NextFree;
+		NextFree			= Element->Next;
+		
+		++NumElements;
 
-	inline uint64 GetLength() const
-	{
-		return OffsetAndLength[9]
-			| (uint64(OffsetAndLength[8]) << 8)
-			| (uint64(OffsetAndLength[7]) << 16)
-			| (uint64(OffsetAndLength[6]) << 24)
-			| (uint64(OffsetAndLength[5]) << 32)
-			;
+		return Element->Buffer.GetTypedPtr();
 	}
 
-	inline void SetOffset(uint64 Offset)
+	FORCEINLINE void Free(T* Ptr)
 	{
-		OffsetAndLength[0] = uint8(Offset >> 32);
-		OffsetAndLength[1] = uint8(Offset >> 24);
-		OffsetAndLength[2] = uint8(Offset >> 16);
-		OffsetAndLength[3] = uint8(Offset >>  8);
-		OffsetAndLength[4] = uint8(Offset >>  0);
+		FScopeLock _(&CriticalSection);
+
+		FElement* Element	= reinterpret_cast<FElement*>(Ptr);
+		Element->Next		= NextFree;
+		NextFree			= Element;
+
+		--NumElements;
 	}
 
-	inline void SetLength(uint64 Length)
+	template <typename... ArgsType>
+	T* Construct(ArgsType&&... Args)
 	{
-		OffsetAndLength[5] = uint8(Length >> 32);
-		OffsetAndLength[6] = uint8(Length >> 24);
-		OffsetAndLength[7] = uint8(Length >> 16);
-		OffsetAndLength[8] = uint8(Length >> 8);
-		OffsetAndLength[9] = uint8(Length >> 0);
+		return new(Alloc()) T(Forward<ArgsType>(Args)...);
 	}
-};
 
-//////////////////////////////////////////////////////////////////////////
+	void Destroy(T* Ptr)
+	{
+		Ptr->~T();
+		Free(Ptr);
+	}
 
-FIoStoreEnvironment::FIoStoreEnvironment()
-{
-}
-
-FIoStoreEnvironment::~FIoStoreEnvironment()
-{
-}
-
-void FIoStoreEnvironment::InitializeFileEnvironment(FStringView InRootPath)
-{
-	RootPath = InRootPath.ToString();
-}
-
-//////////////////////////////////////////////////////////////////////////
-
-/** Very simple string class
-
-	The backing memory is 
-  */
-class FCompactString
-{
-	typedef TCHAR CharT;
-
-public:
-						FCompactString();
-	explicit			FCompactString(FStringView InString);
-						FCompactString(const FCompactString& InString);
-						FCompactString(FCompactString&& InString);
-						~FCompactString();
-
-	inline const CharT* operator*() const						{ return Chars; }
-
-	inline FCompactString& operator=(FStringView Rhs)			{ Assign(Rhs.Data(), Rhs.Len()); return *this; }
-	inline FCompactString& operator=(const FCompactString& Rhs) { Assign(*Rhs); return *this; }
-	inline FCompactString& operator=(FCompactString&& Rhs)		{ /* swap guts */ auto Temp = Chars; Chars = Rhs.Chars; Rhs.Chars = Temp; return *this; }
+	void Trim()
+	{
+		FScopeLock _(&CriticalSection);
+		if (!NumElements)
+		{
+			FreeBlocks();
+		}
+	}
 
 private:
-	void Initialize(const CharT* InChars, SIZE_T InCharCount);
-	void Initialize(const CharT* InChars);
-	void Assign(const CharT* InChars, SIZE_T InCharCount);
-	void Assign(const CharT* InChars);
-
-	TArenaPointer<CharT>	Chars;
-};
-
-FCompactString::FCompactString()
-{
-}
-
-FCompactString::~FCompactString()
-{
-}
-
-FCompactString::FCompactString(FCompactString&& InString)
-{
-	Chars = InString.Chars;
-	InString.Chars = nullptr;
-}
-
-FCompactString::FCompactString(const FCompactString& InString)
-{
-	Initialize(*InString);
-}
-
-FCompactString::FCompactString(FStringView InString)
-{
-	Initialize(InString.Data(), InString.Len());
-}
-
-void 
-FCompactString::Initialize(const CharT* InChars, SIZE_T InCharCount)
-{
-	// The count does not include the NUL terminator
-	++InCharCount;
-
-	Chars = reinterpret_cast<CharT*>(FMemory::Malloc(InCharCount * sizeof(CharT)));
-
-	FMemory::Memcpy(Chars, InChars, InCharCount * sizeof(CharT));
-}
-
-void
-FCompactString::Initialize(const CharT* InChars)
-{
-	Initialize(InChars, TCString<CharT>::Strlen(InChars));
-}
-
-void
-FCompactString::Assign(const CharT* InChars, SIZE_T InCharCount)
-{
-	// The count does not include the NUL terminator
-	++InCharCount;
-
-	if (Chars)
+	void FreeBlocks()
 	{
-		FMemory::Free(Chars);
+		FBlock* Block = Blocks;
+		while (Block)
+		{
+			FBlock* Tmp = Block;
+			Block = Block->Next;
+			delete Tmp;
+		}
+
+		Blocks		= nullptr;
+		NextFree	= nullptr;
+		NumElements = 0;
 	}
 
-	Chars = reinterpret_cast<CharT*>(FMemory::Malloc(InCharCount * sizeof(CharT)));
+	struct FElement
+	{
+		TTypeCompatibleBytes<T> Buffer;
+		FElement* Next;
+	};
 
-	FMemory::Memcpy(Chars, InChars, InCharCount * sizeof(CharT));
-}
+	struct FBlock
+	{
+		FElement Elements[BlockSize];
+		FBlock* Next = nullptr;
+	};
 
-void
-FCompactString::Assign(const CharT* InChars)
-{
-	Assign(InChars, TCString<CharT>::Strlen(InChars));
-}
+	FBlock*				Blocks		= nullptr;
+	FElement*			NextFree	= nullptr;
+	int32				NumElements = 0;
+	FCriticalSection	CriticalSection;
+};
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -484,32 +154,49 @@ public:
 	{
 	}
 
-	FIoStatus Open(FStringView UniqueId);
+	FIoStatus Initialize(FStringView UniqueId);
 
-	TIoStatusOr<FIoBuffer> Lookup(const FIoChunkId& ChunkId)
+	TIoStatusOr<FIoBuffer> Lookup(const FIoChunkId& ChunkId, FIoReadOptions Options)
+	{
+		if (const FIoStoreTocEntry* Entry = Toc.Find(ChunkId))
+		{
+			return FIoBuffer(FIoBuffer::Wrap, MappedRegion->GetMappedPtr() + Entry->GetOffset(), Entry->GetLength());
+		}
+
+		return FIoStatus(EIoErrorCode::NotFound);
+	}
+
+	bool DoesChunkExist(const FIoChunkId& ChunkId) const
+	{
+		return Toc.Find(ChunkId) != nullptr;
+	}
+
+	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const
 	{
 		const FIoStoreTocEntry* Entry = Toc.Find(ChunkId);
 
-		if (!Entry)
+		if (Entry != nullptr)
+		{
+			return Entry->GetLength();
+		}
+		else
 		{
 			return FIoStatus(EIoErrorCode::NotFound);
 		}
-
-		return FIoBuffer(FIoBuffer::Wrap, MappedRegion->GetMappedPtr() + Entry->GetOffset(), Entry->GetLength());
 	}
 
 private:
 	FIoStoreEnvironment&				Environment;
-	FCompactString						UniqueId;
+	FString								UniqueId;
 	TMap<FIoChunkId, FIoStoreTocEntry>	Toc;
 	TUniquePtr<IFileHandle>				ContainerFileHandle;
 	TUniquePtr<IMappedFileHandle>		ContainerMappedFileHandle;
 	TUniquePtr<IMappedFileRegion>		MappedRegion;
 };
 
-FIoStatus FIoStoreReaderImpl::Open(FStringView InUniqueId)
+FIoStatus FIoStoreReaderImpl::Initialize(FStringView InUniqueId)
 {
-	IPlatformFile& Ipf = IPlatformFile::GetPlatformPhysical();
+	IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
 
 	UniqueId = InUniqueId;
 
@@ -523,14 +210,6 @@ FIoStatus FIoStoreReaderImpl::Open(FStringView InUniqueId)
 	TStringBuilder<256> TocFilePath;
 	TocFilePath.Append(ContainerFilePath);
 	TocFilePath.Append(TEXT("Container.utoc"));
-
-	TUniquePtr<IFileHandle>	TocFileHandle;
-	TocFileHandle.Reset(Ipf.OpenRead(*TocFilePath, /* allowwrite */ false));
-
-	if (!TocFileHandle)
-	{
-		return FIoStatusBuilder(EIoErrorCode::FileOpenFailed) << TEXT("Failed to open IoStore TOC file '") << *TocFilePath << TEXT("'");
-	}
 
 	ContainerFilePath.Append(TEXT("Container.ucas"));
 	ContainerFileHandle.Reset(Ipf.OpenRead(*ContainerFilePath, /* allowwrite */ false));
@@ -550,52 +229,60 @@ FIoStatus FIoStoreReaderImpl::Open(FStringView InUniqueId)
 		return FIoStatusBuilder(EIoErrorCode::FileOpenFailed) << TEXT("Failed to memory map IoStore container file '") << *ContainerFilePath << TEXT("'");
 	}
 
-	// Parse TOC
-	//
-	// This should ultimately be a read-in-place operation but it looks like this for now
+	TUniquePtr<uint8[]> TocBuffer;
+	bool bTocReadOk = false;
 
-	FIoStoreTocHeader Header;
-	TocFileHandle->Read(reinterpret_cast<uint8*>(&Header), sizeof Header);
+	{
+		TUniquePtr<IFileHandle>	TocFileHandle(Ipf.OpenRead(*TocFilePath, /* allowwrite */ false));
 
-	if (!Header.CheckMagic())
+		if (!TocFileHandle)
+		{
+			return FIoStatusBuilder(EIoErrorCode::FileOpenFailed) << TEXT("Failed to open IoStore TOC file '") << *TocFilePath << TEXT("'");
+		}
+
+		const int64 TocSize = TocFileHandle->Size();
+		TocBuffer = MakeUnique<uint8[]>(TocSize);
+		bTocReadOk = TocFileHandle->Read(TocBuffer.Get(), TocSize);
+	}
+
+	if (!bTocReadOk)
+	{
+		return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("Failed to read IoStore TOC file '") << *TocFilePath << TEXT("'");
+	}
+
+	const FIoStoreTocHeader* Header = reinterpret_cast<const FIoStoreTocHeader*>(TocBuffer.Get());
+
+	if (!Header->CheckMagic())
 	{
 		return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC header magic mismatch while reading '") << *TocFilePath << TEXT("'");
 	}
 
-	if (Header.TocHeaderSize != sizeof Header)
+	if (Header->TocHeaderSize != sizeof(FIoStoreTocHeader))
 	{
 		return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC header size mismatch while reading '") << *TocFilePath << TEXT("'");
 	}
 
-	if (Header.TocEntrySize != sizeof(FIoStoreTocEntry))
+	if (Header->TocEntrySize != sizeof(FIoStoreTocEntry))
 	{
 		return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC entry size mismatch while reading '") << *TocFilePath << TEXT("'");
 	}
 
-	uint32 EntryCount = Header.TocEntryCount;
+	const FIoStoreTocEntry* Entry = reinterpret_cast<const FIoStoreTocEntry*>(TocBuffer.Get() + sizeof(FIoStoreTocHeader));
+	uint32 EntryCount = Header->TocEntryCount;
+
+	Toc.Reserve(EntryCount);
 
 	while(EntryCount--)
 	{
-		FIoStoreTocEntry Entry;
-		bool Success = TocFileHandle->Read(reinterpret_cast<uint8*>(&Entry), sizeof Entry);
-
-		if (!Success)
-		{
-			return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("failed to read TOC entry while reading '") << *TocFilePath << TEXT("'");
-		}
-
-		if ((Entry.GetOffset() + Entry.GetLength()) > ContainerSize)
+		if ((Entry->GetOffset() + Entry->GetLength()) > ContainerSize)
 		{
 			// TODO: add details
 			return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC entry out of container bounds while reading '") << *TocFilePath << TEXT("'");
 		}
 
-		Toc.Add(Entry.ChunkId, Entry);
-	}
+		Toc.Add(Entry->ChunkId, *Entry);
 
-	if (TocFileHandle->Tell() != TocFileHandle->Size())
-	{
-		return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC file contains trailing garbage '") << *TocFilePath << TEXT("'");
+		++Entry;
 	}
 
 	return FIoStatus::Ok;
@@ -614,145 +301,7 @@ FIoStoreReader::~FIoStoreReader()
 FIoStatus 
 FIoStoreReader::Initialize(FStringView UniqueId)
 {
-	return Impl->Open(UniqueId);
-}
-
-//////////////////////////////////////////////////////////////////////////
-
-class FIoStoreWriterImpl
-{
-public:
-	FIoStoreWriterImpl(FIoStoreEnvironment& InEnvironment)
-	:	Environment(InEnvironment)
-	{
-	}
-
-	FIoStatus Open()
-	{
-		IPlatformFile& Ipf = IPlatformFile::GetPlatformPhysical();
-
-		const FString& RootPath = Environment.GetRootPath();
-		Ipf.CreateDirectoryTree(*RootPath);
-
-		TStringBuilder<256> ContainerFilePath;
-		ContainerFilePath.Append(RootPath);
-		if (ContainerFilePath.LastChar() != '/')
-			ContainerFilePath.Append(TEXT('/'));
-
-		TStringBuilder<256> TocFilePath;
-		TocFilePath.Append(ContainerFilePath);
-
-		ContainerFilePath.Append(TEXT("Container.ucas"));
-		TocFilePath.Append(TEXT("Container.utoc"));
-
-		ContainerFileHandle.Reset(Ipf.OpenWrite(*ContainerFilePath, /* append */ false, /* allowread */ true));
-
-		if (!ContainerFileHandle)
-		{ 
-			return FIoStatusBuilder(EIoErrorCode::FileOpenFailed) << TEXT("Failed to open IoStore container file '") << *ContainerFilePath << TEXT("'");
-		}
-
-		TocFileHandle.Reset(Ipf.OpenWrite(*TocFilePath, /* append */ false, /* allowread */ true));
-
-		if (!TocFileHandle)
-		{
-			return FIoStatusBuilder(EIoErrorCode::FileOpenFailed) << TEXT("Failed to open IoStore TOC file '") << *TocFilePath << TEXT("'");
-		}
-
-		return FIoStatus::Ok;
-	}
-
-	UE_NODISCARD FIoStatus Append(FIoChunkId ChunkId, FIoBuffer Chunk)
-	{
-		if (!ContainerFileHandle)
-		{
-			return FIoStatus(EIoErrorCode::FileNotOpen, TEXT("No container file to append to"));
-		}
-
-		FIoStoreTocEntry TocEntry;
-
-		TocEntry.SetOffset(ContainerFileHandle->Tell());
-		TocEntry.SetLength(Chunk.DataSize());
-		TocEntry.ChunkId = ChunkId;
-
-		IsMetadataDirty = true;
-
-		const bool Success = ContainerFileHandle->Write(Chunk.Data(), Chunk.DataSize());
-
-		if (Success)
-		{
-			Toc.Add(ChunkId, TocEntry);
-
-			return FIoStatus::Ok;
-		}
-		else
-		{
-			return FIoStatus(EIoErrorCode::WriteError, TEXT("Append failed"));
-		}
-	}
-
-	UE_NODISCARD FIoStatus FlushMetadata()
-	{
-		TocFileHandle->Seek(0);
-
-		FIoStoreTocHeader TocHeader;
-		FMemory::Memset(TocHeader, 0);
-
-		TocHeader.MakeMagic();
-		TocHeader.TocHeaderSize = sizeof TocHeader;
-		TocHeader.TocEntryCount = Toc.Num();
-		TocHeader.TocEntrySize = sizeof(FIoStoreTocEntry);
-
-		const bool Success = TocFileHandle->Write(reinterpret_cast<const uint8*>(&TocHeader), sizeof TocHeader);
-
-		if (!Success)
-		{
-			return FIoStatus(EIoErrorCode::WriteError, TEXT("TOC write failed"));
-		}
-
-		for (auto& _: Toc)
-		{
-			FIoStoreTocEntry& TocEntry = _.Value;
-			
-			TocFileHandle->Write(reinterpret_cast<const uint8*>(&TocEntry), sizeof TocEntry);
-		}
-
-		return FIoStatus::Ok;
-	}
-
-private:
-	FIoStoreEnvironment&				Environment;
-	TMap<FIoChunkId, FIoStoreTocEntry>	Toc;
-	TUniquePtr<IFileHandle>				ContainerFileHandle;
-	TUniquePtr<IFileHandle>				TocFileHandle;
-	bool								IsMetadataDirty = true;
-};
-
-FIoStoreWriter::FIoStoreWriter(FIoStoreEnvironment& InEnvironment)
-:	Impl(new FIoStoreWriterImpl(InEnvironment))
-{
-}
-
-FIoStoreWriter::~FIoStoreWriter()
-{
-	Impl->FlushMetadata();
-
-	delete Impl;
-}
-
-FIoStatus FIoStoreWriter::Initialize()
-{
-	return Impl->Open();
-}
-
-void FIoStoreWriter::Append(FIoChunkId ChunkId, FIoBuffer Chunk)
-{
-	Impl->Append(ChunkId, Chunk);
-}
-
-void FIoStoreWriter::FlushMetadata()
-{
-	Impl->FlushMetadata();
+	return Impl->Initialize(UniqueId);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -760,25 +309,18 @@ void FIoStoreWriter::FlushMetadata()
 class FIoBatchImpl
 {
 public:
-	uint32			FirstRequest = ~uint32(0);
+	FIoRequestImpl* FirstRequest	= nullptr;
+	FIoBatchImpl*	NextBatch		= nullptr;
 	TAtomic<uint32>	OutstandingRequests { 0 };
-
-	void Reset() 
-	{
-		// TODO: need to release IO requests back to pool
-
-		FirstRequest		= ~uint32(0);
-		OutstandingRequests = 0;
-	}
 };
 
 class FIoRequestImpl
 {
 public:
+	FIoChunkId				ChunkId;
 	FIoReadOptions			Options;
 	TIoStatusOr<FIoBuffer>	Result;
-	uint32					NextRequestId = ~uint32(0);
-	FIoChunkId				ChunkId;
+	FIoRequestImpl*			NextRequest = nullptr;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -799,11 +341,39 @@ public:
 		IoStores.Remove(IoStore);
 	}
 
-	TIoStatusOr<FIoBuffer> Resolve(FIoChunkId& ChunkId)
+	TIoStatusOr<FIoBuffer> Resolve(FIoChunkId& ChunkId, FIoReadOptions Options)
 	{
-		for (const auto& IoStore : IoStores)
+		for (const FIoStoreReader* IoStore : IoStores)
 		{
-			TIoStatusOr<FIoBuffer> Result = IoStore->Impl->Lookup(ChunkId);
+			TIoStatusOr<FIoBuffer> Result = IoStore->Impl->Lookup(ChunkId, Options);
+
+			if (Result.IsOk())
+			{
+				return Result;
+			}
+		}
+
+		return FIoStatus(EIoErrorCode::NotFound);
+	}
+
+	bool DoesChunkExist(const FIoChunkId& ChunkId) const
+	{
+		for (const FIoStoreReader* IoStore : IoStores)
+		{
+			if (IoStore->Impl->DoesChunkExist(ChunkId))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const
+	{
+		for (const FIoStoreReader* IoStore : IoStores)
+		{
+			TIoStatusOr<uint64> Result = IoStore->Impl->GetSizeForChunk(ChunkId);
 
 			if (Result.IsOk())
 			{
@@ -821,221 +391,149 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 
-class FIoWorker : FRefCountBase
-{
-public:
-					FIoWorker(FIoStoreImpl* InIoStore);
-	virtual			~FIoWorker();
-
-	virtual void	IssueBatch(FIoBatchImpl& Batch) = 0;
-
-private:
-	TRefCountPtr<FIoStoreImpl> IoStore;
-};
-
-FIoWorker::FIoWorker(FIoStoreImpl* InIoStore)
-:	IoStore(InIoStore)
-{
-}
-
-FIoWorker::~FIoWorker()
-{
-}
-
-class FIoWorkerFile : FIoWorker
-{
-public:
-	FIoWorkerFile(FIoStoreImpl* InIoStore)
-	:	FIoWorker(InIoStore)
-	{
-	}
-
-	~FIoWorkerFile()
-	{
-	}
-
-	virtual void IssueBatch(FIoBatchImpl& Batch) override
-	{
-	}
-};
-
-//////////////////////////////////////////////////////////////////////////
-
 class FIoDispatcherImpl
 {
-	FIoDispatcher* Owner;
-
-	// Batch allocation - could use something more lightweight but I'm not sure this
-	// is a sufficiently high frequency operation to warrant something lock-free
-
-	FRWLock	RwLockBatchId;
-	uint32	FirstFreeBatchId = 0;
-
-	// Request allocation - could use something more lightweight but I'm not sure this
-	// is a sufficiently high frequency operation to warrant something lock-free
-
-	FRWLock	RwLockRequestId;
-	uint32	FirstFreeRequestId = ~0u;
-
 public:
-	FIoDispatcherImpl(FIoDispatcher* InOwner)
-	:	Owner(InOwner)
+	FIoDispatcherImpl()
 	{
-		for (int i = 0; i < (MaxBatches - 1); ++i)
-		{
-			Batches[i].FirstRequest = i + 1;
-		}
-
-		Batches[MaxBatches - 1].FirstRequest = ~uint32(0);
-
-		for (int i = 0; i < InitialIoRequests; ++i)
-		{
-			ReserveNewRequest();
-		}
-
-		Batches[MaxBatches - 1].FirstRequest = ~uint32(0);
-
 		IoStore = new FIoStoreImpl;
+
+		FCoreDelegates::GetMemoryTrimDelegate().AddLambda([this]()
+		{
+			RequestAllocator.Trim();
+			BatchAllocator.Trim();
+		});
 	}
 
-	static const int	MaxBatches = 65536;
-	FIoBatchImpl		Batches[MaxBatches];
-	int32				NumBatches = 0;
-
-	static const int	MaxIoRequests = 65536;
-	static const int	InitialIoRequests = 1;
-
-	TChunkedArray<FIoRequestImpl, MaxIoRequests> Requests;
-
-	FIoBatchImpl& MapBatch(uint32 BatchId)
+	FIoRequestImpl* AllocRequest(const FIoChunkId& ChunkId, FIoReadOptions Options)
 	{
-		return Batches[BatchId];
-	}
+		FIoRequestImpl* Request = RequestAllocator.Construct();
 
-	void ReserveNewRequest()
-	{
-		// NOTE: RwLockRequestId must be held while this is called
-
-		FIoRequestImpl& NewRequest = *new(Requests) FIoRequestImpl;
-		NewRequest.NextRequestId = FirstFreeRequestId;
-		FirstFreeRequestId = Requests.Num() - 1;
-	}
-
-	FIoRequestImpl& AllocRequest(const FIoChunkId& Chunk, FIoReadOptions Options, uint32 BatchId)
-	{
-		const uint32 RequestId = AllocRequestId();
-
-		FIoRequestImpl& Request = Requests[RequestId];
-		FIoBatchImpl& Batch		= MapBatch(BatchId);
-
-		Request.ChunkId			= Chunk;
-		Request.Options			= Options;
-		Request.NextRequestId	= Batch.FirstRequest;
-		Request.Result			= FIoStatus::Unknown;
-
-		Batch.FirstRequest		= RequestId;
+		Request->ChunkId		= ChunkId;
+		Request->Options		= Options;
+		Request->Result			= FIoStatus::Unknown;
+		Request->NextRequest	= nullptr;
 
 		return Request;
 	}
 
-	uint32 AllocRequestId()
+	FIoRequestImpl* AllocRequest(FIoBatchImpl* Batch, const FIoChunkId& ChunkId, FIoReadOptions Options)
 	{
-		FWriteScopeLock _(RwLockRequestId);
+		FIoRequestImpl* Request	= AllocRequest(ChunkId, Options);
 
-		if (FirstFreeRequestId == ~uint32(0))
-		{
-			ReserveNewRequest();
-		}
+		Request->NextRequest	= Batch->FirstRequest;
+		Batch->FirstRequest		= Request;
 
-		const uint32 RequestId	= FirstFreeRequestId;
-
-		FIoRequestImpl& Request	= Requests[RequestId];
-		FirstFreeRequestId		= Request.NextRequestId;
-		Request.NextRequestId	= ~uint32(0);
-
-		return RequestId;
+		return Request;
 	}
 
-	uint32 FreeRequestId(const uint32 RequestId)
+	void FreeRequest(FIoRequestImpl* Request)
 	{
-		FWriteScopeLock _(RwLockRequestId);
-
-		uint32 NextRequestId				= Requests[RequestId].NextRequestId;
-		Requests[RequestId].NextRequestId	= FirstFreeRequestId;
-		FirstFreeRequestId					= RequestId;
-
-		return NextRequestId;
+		RequestAllocator.Destroy(Request);
 	}
 
-	uint32 AllocBatchId()
+	FIoBatchImpl* AllocBatch(FIoRequestImpl* FirstRequest = nullptr)
 	{
-		check(NumBatches < MaxBatches);
+		FIoBatchImpl* Batch			= BatchAllocator.Construct();
 
-		FWriteScopeLock _(RwLockBatchId);
-
-		const uint32 BatchId	= FirstFreeBatchId;
-		FIoBatchImpl& Batch		= Batches[BatchId];
-		FirstFreeBatchId		= Batch.FirstRequest;
-		Batch.FirstRequest		= ~uint32(0);
-
-		NumBatches++;
-
-		return BatchId;
-	}
-
-	void FreeBatchId(const uint32 BatchId)
-	{
-		FIoBatchImpl& Batch = Batches[BatchId];
-
-		uint32 RequestId = Batch.FirstRequest; 
-		while (RequestId != ~uint32(0))
-		{
-			RequestId = FreeRequestId(RequestId);
-		}
+		Batch->FirstRequest			= FirstRequest;
+		Batch->OutstandingRequests	= 0;
 	
-		FWriteScopeLock _(RwLockBatchId);
+		return Batch;
+	}
 
-		Batches[BatchId].FirstRequest	= FirstFreeBatchId;
-		FirstFreeBatchId				= BatchId;
+	void FreeBatch(FIoBatchImpl* Batch)
+	{
+		FIoRequestImpl* Request = Batch->FirstRequest;
 
-		NumBatches--;
-		check(NumBatches >= 0);
+		while (Request)
+		{
+			FIoRequestImpl* Tmp = Request;	
+			Request = Request->NextRequest;
+			FreeRequest(Tmp);
+		}
+
+		BatchAllocator.Destroy(Batch);
+	}
+
+	void ReadWithCallback(const FIoChunkId& Chunk, const FIoReadOptions& Options, TFunction<void(TIoStatusOr<FIoBuffer>)>&& Callback)
+	{
+		FIoRequestImpl* Request = AllocRequest(Chunk, Options);
+		Request->Result = IoStore->Resolve(Request->ChunkId, Request->Options);
+		if (Request->Result.IsOk())
+		{
+			Callback(Request->Result.ConsumeValueOrDie());
+		}
+		else
+		{
+			Callback(TIoStatusOr<FIoBuffer>(Request->Result.Status()));
+		}
+		FreeRequest(Request);
+	}
+
+	bool DoesChunkExist(const FIoChunkId& ChunkId) const
+	{
+		return IoStore->DoesChunkExist(ChunkId);
+	}
+
+	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const
+	{
+		return IoStore->GetSizeForChunk(ChunkId);
 	}
 
 	template<typename Func>
-	void IterateBatch(const uint32 BatchId, Func&& InCallbackFunction)
+	void IterateBatch(const FIoBatchImpl* Batch, Func&& InCallbackFunction)
 	{
-		FIoBatchImpl& Batch = Batches[BatchId];
+		FIoRequestImpl* Request = Batch->FirstRequest;
 
-		uint32 RequestId = Batch.FirstRequest;
-
-		while (RequestId != ~uint32(0))
+		while (Request)
 		{
-			FIoRequestImpl& Request = Requests[RequestId];
+			const bool bDoContinue = InCallbackFunction(Request);
 
-			const bool DoContinue = InCallbackFunction(Request);
-
-			if (!DoContinue)
-			{
-				return;
-			}
-
-			RequestId = Request.NextRequestId;
+			Request = bDoContinue ? Request->NextRequest : nullptr;
 		}
 	}
 
-	void IssueBatch(const uint32 BatchId)
+	void IssueBatch(const FIoBatchImpl* Batch)
 	{
 		// At this point the batch is immutable and we should start
 		// doing the work.
 
-		IterateBatch(BatchId, [this](FIoRequestImpl& Request) {
-			TIoStatusOr<FIoBuffer> Resolved = IoStore->Resolve(Request.ChunkId);
+#if IODISPATCHER_TRACE_ENABLED
+		UE_TRACE_LOG(IoDispatcher, BatchIssued)
+			<< BatchIssued.Cycle(FPlatformTime::Cycles64())
+			<< BatchIssued.BatchId(uint64(Batch));
+#endif
+		uint64 TotalBatchSize = 0;
+		IterateBatch(Batch, [this, &TotalBatchSize](FIoRequestImpl* Request)
+		{
+			Request->Result = IoStore->Resolve(Request->ChunkId, Request->Options);
 
-			Request.Result = Resolved;
-
+#if IODISPATCHER_TRACE_ENABLED
+			TotalBatchSize += Request->Result.ValueOrDie().DataSize();
+#endif
 			return true;
 		});
+
+#if IODISPATCHER_TRACE_ENABLED
+		UE_TRACE_LOG(IoDispatcher, BatchResolved)
+			<< BatchResolved.Cycle(FPlatformTime::Cycles64())
+			<< BatchResolved.BatchId(uint64(Batch))
+			<< BatchResolved.TotalSize(TotalBatchSize);
+#endif
+	}
+
+	bool IsBatchReady(const FIoBatchImpl* Batch)
+	{
+		bool bIsReady = true;
+
+		IterateBatch(Batch, [&bIsReady](FIoRequestImpl* Request)
+		{
+			bIsReady &= Request->Result.Status().IsCompleted();
+			return bIsReady;
+		});
+
+		return bIsReady;
 	}
 
 	void Mount(FIoStoreReader* IoStoreReader)
@@ -1049,18 +547,24 @@ public:
 	}
 
 private:
+	using FRequestAllocator		= TBlockAllocator<FIoRequestImpl, 4096>;
+	using FBatchAllocator		= TBlockAllocator<FIoBatchImpl, 4096>;
+
 	TRefCountPtr<FIoStoreImpl>	IoStore;
+	FRequestAllocator			RequestAllocator;
+	FBatchAllocator				BatchAllocator;
 };
 
 //////////////////////////////////////////////////////////////////////////
 
 FIoDispatcher::FIoDispatcher()
-:	Impl(new FIoDispatcherImpl(this))
+:	Impl(new FIoDispatcherImpl())
 {
 }
 
 FIoDispatcher::~FIoDispatcher()
 {
+	delete Impl;
 }
 
 void		
@@ -1078,34 +582,86 @@ FIoDispatcher::Unmount(FIoStoreReader* IoStore)
 FIoBatch
 FIoDispatcher::NewBatch()
 {
-	return FIoBatch(Impl, Impl->AllocBatchId());
+	return FIoBatch(Impl, Impl->AllocBatch());
 }
 
 void
 FIoDispatcher::FreeBatch(FIoBatch Batch)
 {
-	Impl->FreeBatchId(Batch.BatchId);
+	Impl->FreeBatch(Batch.Impl);
+}
+
+void
+FIoDispatcher::ReadWithCallback(const FIoChunkId& Chunk, const FIoReadOptions& Options, TFunction<void(TIoStatusOr<FIoBuffer>)>&& Callback)
+{
+	Impl->ReadWithCallback(Chunk, Options, MoveTemp(Callback));
+}
+
+// Polling methods
+bool 
+FIoDispatcher::DoesChunkExist(const FIoChunkId& ChunkId) const
+{
+	return Impl->DoesChunkExist(ChunkId);
+}
+
+TIoStatusOr<uint64>	
+FIoDispatcher::GetSizeForChunk(const FIoChunkId& ChunkId) const
+{
+	return Impl->GetSizeForChunk(ChunkId);
+}
+
+bool
+FIoDispatcher::IsInitialized()
+{
+	return GIoDispatcher.IsValid();
+}
+
+FIoStatus
+FIoDispatcher::Initialize(const FString& Directory)
+{
+	GIoStoreEnvironment.InitializeFileEnvironment(Directory);
+	GIoDispatcher = MakeUnique<FIoDispatcher>();
+
+	return EIoErrorCode::Ok;
+}
+
+void
+FIoDispatcher::Shutdown()
+{
+	GIoDispatcher.Reset();
+}
+
+FIoDispatcher&
+FIoDispatcher::Get()
+{
+	return *GIoDispatcher;
+}
+
+FIoStoreEnvironment&
+FIoDispatcher::GetEnvironment()
+{
+	return GIoStoreEnvironment;
 }
 
 //////////////////////////////////////////////////////////////////////////
 
-FIoBatch::FIoBatch(FIoDispatcherImpl* OwningIoDispatcher, uint32 InBatchId)
-:	Dispatcher(OwningIoDispatcher)
-,	BatchId(InBatchId)
-,	CompletionEvent(TLazySingleton<FEventPool<EEventPoolTypes::ManualReset>>::Get().GetEventFromPool())
+FIoBatch::FIoBatch(FIoDispatcherImpl* InDispatcher, FIoBatchImpl* InImpl)
+:	Dispatcher(InDispatcher)
+,	Impl(InImpl)
+,	CompletionEvent()
 {
 }
 
 FIoRequest
-FIoBatch::Read(const FIoChunkId& Chunk, FIoReadOptions Options)
+FIoBatch::Read(const FIoChunkId& ChunkId, FIoReadOptions Options)
 {
-	return FIoRequest(Dispatcher->AllocRequest(Chunk, Options, BatchId));
+	return FIoRequest(Dispatcher->AllocRequest(Impl, ChunkId, Options));
 }
 
 void 
-FIoBatch::ForEachRequest(TFunction<bool(FIoRequest&)> Callback)
+FIoBatch::ForEachRequest(TFunction<bool(FIoRequest&)>&& Callback)
 {
-	Dispatcher->IterateBatch(BatchId, [&](FIoRequestImpl& InRequest) {
+	Dispatcher->IterateBatch(Impl, [&](FIoRequestImpl* InRequest) {
 		FIoRequest Request(InRequest);
 		return Callback(Request);
 	});
@@ -1114,12 +670,13 @@ FIoBatch::ForEachRequest(TFunction<bool(FIoRequest&)> Callback)
 void 
 FIoBatch::Issue()
 {
-	Dispatcher->IssueBatch(BatchId);
+	Dispatcher->IssueBatch(Impl);
 }
 
 void 
 FIoBatch::Wait()
 {
+	//TODO: Create synchronization event here when it's actually needed
 	unimplemented();
 }
 
@@ -1143,14 +700,16 @@ FIoRequest::Status() const
 	return Impl->Result.Status();
 }
 
-FIoBuffer	
-FIoRequest::GetChunk()
-{
-	return Impl->Result.ValueOrDie();
-}
-
 const FIoChunkId&
 FIoRequest::GetChunkId() const
 {
 	return Impl->ChunkId;
 }
+
+TIoStatusOr<FIoBuffer>
+FIoRequest::GetResult() const
+{
+	return Impl->Result;
+}
+
+#endif // PLATFORM_IMPLEMENTS_IO

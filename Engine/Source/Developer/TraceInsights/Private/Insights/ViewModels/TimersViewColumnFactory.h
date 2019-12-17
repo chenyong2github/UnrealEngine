@@ -47,8 +47,8 @@ namespace Insights
 struct FTimersViewColumnFactory
 {
 public:
-	static void CreateTimersViewColumns(TArray<TSharedPtr<Insights::FTableColumn>>& Columns);
-	static void CreateTimerTreeViewColumns(TArray<TSharedPtr<Insights::FTableColumn>>& Columns);
+	static void CreateTimersViewColumns(TArray<TSharedRef<Insights::FTableColumn>>& Columns);
+	static void CreateTimerTreeViewColumns(TArray<TSharedRef<Insights::FTableColumn>>& Columns);
 
 	static TSharedRef<Insights::FTableColumn> CreateNameColumn();
 	static TSharedRef<Insights::FTableColumn> CreateMetaGroupNameColumn();

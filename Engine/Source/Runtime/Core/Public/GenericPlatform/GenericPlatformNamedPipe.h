@@ -20,6 +20,9 @@ public:
 	/** Virtual destructor. */
 	virtual ~FGenericPlatformNamedPipe();
 
+	FGenericPlatformNamedPipe(const FGenericPlatformNamedPipe&) = delete;
+	FGenericPlatformNamedPipe& operator=(const FGenericPlatformNamedPipe&) = delete;
+
 public:
 
 	/** Create a named pipe as a server or client, using overlapped IO if bAsync=1. */

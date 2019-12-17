@@ -10,7 +10,6 @@
 #include "Insights/InsightsManager.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/Widgets/SFrameTrack.h"
-#include "Insights/Widgets/SGraphTrack.h"
 #include "Insights/Widgets/SLogView.h"
 #include "Insights/Widgets/SStatsView.h"
 #include "Insights/Widgets/STimersView.h"
@@ -68,7 +67,6 @@ void FTimingProfilerManager::PostConstructor()
 void FTimingProfilerManager::BindCommands()
 {
 	ActionManager.Map_ToggleFramesTrackVisibility_Global();
-	ActionManager.Map_ToggleGraphTrackVisibility_Global();
 	ActionManager.Map_ToggleTimingViewVisibility_Global();
 	ActionManager.Map_ToggleTimersViewVisibility_Global();
 	ActionManager.Map_ToggleCallersTreeViewVisibility_Global();
@@ -134,19 +132,6 @@ void FTimingProfilerManager::ShowHideFramesTrack(const bool bIsVisible)
 	if (Wnd.IsValid())
 	{
 		Wnd->ShowHideTab(FTimingProfilerTabs::FramesTrackID, bIsFramesTrackVisible);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FTimingProfilerManager::ShowHideGraphTrack(const bool bIsVisible)
-{
-	bIsGraphTrackVisible = bIsVisible;
-
-	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
-	if (Wnd.IsValid())
-	{
-		Wnd->ShowHideTab(FTimingProfilerTabs::GraphTrackID, bIsGraphTrackVisible);
 	}
 }
 

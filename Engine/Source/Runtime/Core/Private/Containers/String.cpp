@@ -1,16 +1,18 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#include "Containers/UnrealString.h"
+
+#include "CoreGlobals.h"
 #include "CoreTypes.h"
-#include "Misc/AssertionMacros.h"
-#include "Misc/VarArgs.h"
+#include "HAL/UnrealMemory.h"
+#include "Logging/LogMacros.h"
 #include "Math/NumericLimits.h"
 #include "Math/UnrealMathUtility.h"
-#include "HAL/UnrealMemory.h"
-#include "Templates/UnrealTemplate.h"
-#include "Containers/UnrealString.h"
-#include "Logging/LogMacros.h"
-#include "CoreGlobals.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/ByteSwap.h"
+#include "Misc/StringView.h"
+#include "Misc/VarArgs.h"
+#include "Templates/UnrealTemplate.h"
 
 /* FString implementation
  *****************************************************************************/
@@ -114,6 +116,44 @@ namespace UE4String_Private
 		}
 		return false;
 	}
+}
+
+FString::FString(const FStringView& Other)
+{
+	if (const FStringView::SizeType OtherLen = Other.Len())
+	{
+		Reserve(OtherLen);
+		Append(Other.GetData(), OtherLen);
+		AppendChar(TEXT('\0'));
+	}
+}
+
+FString& FString::operator=(const FStringView& Other)
+{
+	const TCHAR* const OtherData = Other.GetData();
+	const FStringView::SizeType OtherLen = Other.Len();
+	if (OtherLen == 0)
+	{
+		Data.Empty();
+	}
+	else if (OtherData < Data.GetData() + Data.Num() && Data.GetData() < OtherData + OtherLen)
+	{
+		*this = FString(Other);
+	}
+	else
+	{
+		Data.Empty(OtherLen + 1);
+		Data.AddUninitialized(OtherLen + 1);
+		TCHAR* DataPtr = Data.GetData();
+		CopyAssignItems(DataPtr, OtherData, OtherLen);
+		DataPtr[OtherLen] = TEXT('\0');
+	}
+	return *this;
+}
+
+FString::operator FStringView() const
+{
+	return FStringView(Data.GetData(), Len());
 }
 
 void FString::TrimToNullTerminator()

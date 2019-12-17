@@ -22,7 +22,7 @@ struct FEDLBootObjectState
 
 struct FEDLBootWaitingPackage
 {
-	FGCObject* Package;
+	void* Package;
 	FPackageIndex Import;
 };
 
@@ -37,7 +37,7 @@ struct FEDLBootNotificationManager
 	FCriticalSection EDLBootNotificationManagerLock;
 
 	// return true if you are waiting for this compiled in object
-	bool AddWaitingPackage(FGCObject* Pkg, FName PackageName, FName ObjectName, FPackageIndex Import) override
+	bool AddWaitingPackage(void* Pkg, FName PackageName, FName ObjectName, FPackageIndex Import) override
 	{
 		if (PackageName == GLongCoreUObjectPackageName)
 		{
@@ -419,7 +419,7 @@ bool IsEventDrivenLoaderEnabledInCookedBuilds()
 
 #if WITH_EDITOR	
 	// when building from the UE4 Editor, s.EventDrivenLoaderEnabled can be changed from Project Settings, so we need to test it at every call
-	if (GIsEditor)
+	if (GIsEditor && !IsRunningCommandlet())
 	{
 		EventDrivenLoaderEnabledInCookedBuilds.SetEventDrivenLoaderEnabled();
 	}

@@ -685,7 +685,8 @@ void SerializeInlineShaderMaps(
 
 		if (OutOffsetToFirstResource)
 		{
-			int64 Tmp = Ar.Tell() - Ar.GetLinker()->Summary.TotalHeaderSize;
+			const FLinker* Linker = Ar.GetLinker();
+			int64 Tmp = Ar.Tell() - (Linker ? Linker->Summary.TotalHeaderSize : 0);
 			check(Tmp >= 0 && Tmp <= 0xffffffffLL);
 			*OutOffsetToFirstResource = uint32(Tmp);
 		}

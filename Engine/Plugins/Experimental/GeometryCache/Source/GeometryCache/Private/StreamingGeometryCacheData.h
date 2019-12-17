@@ -8,7 +8,7 @@
 #include "Containers/Queue.h"
 
 class IAsyncReadRequest;
-struct FBulkDataIORequest;
+class IBulkDataIORequest;
 class UGeometryCacheTrackStreamable;
 class UGeometryCacheComponent;
 struct FStreamedGeometryCacheChunk;
@@ -21,7 +21,7 @@ struct FResidentChunk
 	void* Memory;
 	int32 DataSize;
 	int32 Refcount;
-	FBulkDataIORequest* IORequest; //null when resident, nonnull when being loaded
+	IBulkDataIORequest* IORequest; //null when resident, nonnull when being loaded
 };
 
 /**

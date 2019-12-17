@@ -147,6 +147,14 @@ COREUOBJECT_API void LogHashStatistics(FOutputDevice& Ar, const bool bShowHashBu
 COREUOBJECT_API void LogHashOuterStatistics(FOutputDevice& Ar, const bool bShowHashBucketCollisionInfo);
 
 /**
+ * Logs out information about the total object hash memory usage for debug purposes
+ *
+ * @param Ar the archive to write the log data to
+ * @param bShowIndividualStats whether to log each hash/map memory usage separately
+ */
+COREUOBJECT_API void LogHashMemoryOverheadStatistics(FOutputDevice& Ar, const bool bShowIndividualStats);
+
+/**
  * Adds a uobject to the global array which is used for uobject iteration
  *
  * @param	Object Object to allocate an index for

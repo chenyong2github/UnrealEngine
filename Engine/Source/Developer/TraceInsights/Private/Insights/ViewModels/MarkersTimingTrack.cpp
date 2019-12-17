@@ -22,8 +22,8 @@
 // FMarkersTimingTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FMarkersTimingTrack::FMarkersTimingTrack(uint64 InTrackId)
-	: FBaseTimingTrack(InTrackId)
+FMarkersTimingTrack::FMarkersTimingTrack()
+	: FBaseTimingTrack(FName("Markers"))
 	//, TimeMarkerBoxes()
 	//, TimeMarkerTexts()
 	, bIsCollapsed(false)
@@ -85,14 +85,16 @@ void FMarkersTimingTrack::UpdateHeight()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FMarkersTimingTrack::UpdateHoveredState(float MouseX, float MouseY, const FTimingTrackViewport& Viewport)
+void FMarkersTimingTrack::PostUpdate(const ITimingTrackUpdateContext& Context)
 {
 	constexpr float HeaderWidth = 80.0f;
 	constexpr float HeaderHeight = 14.0f;
 
+	const float MouseY = Context.GetMousePosition().Y;
 	if (MouseY >= GetPosY() && MouseY < GetPosY() + GetHeight())
 	{
 		SetHoveredState(true);
+		const float MouseX = Context.GetMousePosition().X;
 		SetHeaderHoveredState(MouseX < HeaderWidth && MouseY < GetPosY() + HeaderHeight);
 		TargetHoveredAnimPercent = 1.0f;
 	}
@@ -105,13 +107,13 @@ void FMarkersTimingTrack::UpdateHoveredState(float MouseX, float MouseY, const F
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FMarkersTimingTrack::Tick(const double InCurrentTime, const float InDeltaTime)
+void FMarkersTimingTrack::Update(const ITimingTrackUpdateContext& InContext)
 {
 	if (CurrentHoveredAnimPercent != TargetHoveredAnimPercent)
 	{
 		if (CurrentHoveredAnimPercent < TargetHoveredAnimPercent)
 		{
-			const float ShowAnimSpeed = 2 * InDeltaTime;
+			const float ShowAnimSpeed = 2 * InContext.GetDeltaTime();
 			CurrentHoveredAnimPercent += ShowAnimSpeed;
 			if (CurrentHoveredAnimPercent > TargetHoveredAnimPercent)
 			{
@@ -120,7 +122,7 @@ void FMarkersTimingTrack::Tick(const double InCurrentTime, const float InDeltaTi
 		}
 		else
 		{
-			const float HideAnimSpeed = 3 * InDeltaTime;
+			const float HideAnimSpeed = 3 * InContext.GetDeltaTime();
 			CurrentHoveredAnimPercent -= HideAnimSpeed;
 			if (CurrentHoveredAnimPercent < TargetHoveredAnimPercent)
 			{
@@ -128,11 +130,19 @@ void FMarkersTimingTrack::Tick(const double InCurrentTime, const float InDeltaTi
 			}
 		}
 	}
+
+	const FTimingTrackViewport& Viewport = InContext.GetViewport();
+	if (IsDirty() || Viewport.IsHorizontalViewportDirty())
+	{
+		ClearDirtyFlag();
+
+		UpdateDrawState(Viewport);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FMarkersTimingTrack::Update(const FTimingTrackViewport& InViewport)
+void FMarkersTimingTrack::UpdateDrawState(const FTimingTrackViewport& InViewport)
 {
 	FTimeMarkerTrackBuilder Builder(*this, InViewport);
 
@@ -155,19 +165,29 @@ void FMarkersTimingTrack::Update(const FTimingTrackViewport& InViewport)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FMarkersTimingTrack::Draw(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const
+void FMarkersTimingTrack::Draw(const ITimingTrackDrawContext& Context) const
 {
-	const FLinearColor BackgroundColor(0.04f, 0.04f, 0.04f, 1.0f);
+	FDrawContext& DrawContext = Context.GetDrawContext();
+	const FTimingTrackViewport& Viewport = Context.GetViewport();
 
 	// Draw background.
+	const FLinearColor BackgroundColor(0.04f, 0.04f, 0.04f, 1.0f);
 	DrawContext.DrawBox(0.0f, GetPosY(), Viewport.GetWidth(), GetHeight(), WhiteBrush, BackgroundColor);
 	DrawContext.LayerId++;
 
 	// Draw the track's header, in background.
-	if (!IsHovered() || CurrentHoveredAnimPercent < 1.0)
+	if (!IsHovered() || CurrentHoveredAnimPercent < 1.0f)
 	{
 		DrawHeader(DrawContext, true);
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FMarkersTimingTrack::PostDraw(const ITimingTrackDrawContext& Context) const
+{
+	FDrawContext& DrawContext = Context.GetDrawContext();
+	const FTimingTrackViewport& Viewport = Context.GetViewport();
 
 	//////////////////////////////////////////////////
 	// Draw vertical lines.
@@ -222,7 +242,7 @@ void FMarkersTimingTrack::Draw(FDrawContext& DrawContext, const FTimingTrackView
 	//////////////////////////////////////////////////
 
 	// When hovered, the track's header is draw on top.
-	if (IsHovered() || CurrentHoveredAnimPercent > 0.0)
+	if (IsHovered() || CurrentHoveredAnimPercent > 0.0f)
 	{
 		DrawHeader(DrawContext, false);
 	}
@@ -232,7 +252,7 @@ void FMarkersTimingTrack::Draw(FDrawContext& DrawContext, const FTimingTrackView
 
 void FMarkersTimingTrack::DrawHeader(FDrawContext& DrawContext, bool bFirstDraw) const
 {
-	const FString Name = IsBookmarksTrack() ? TEXT("Bookmarks") : TEXT("Logs");
+	const FString NameString = IsBookmarksTrack() ? TEXT("Bookmarks") : TEXT("Logs");
 	//const float ArrowSize = 6.0f;
 	const float ArrowSizeX = 4.0f;
 	const float ArrowSizeY = 8.0f;
@@ -262,7 +282,7 @@ void FMarkersTimingTrack::DrawHeader(FDrawContext& DrawContext, bool bFirstDraw)
 	}
 
 	// Draw "Bookmarks" or "Logs" text.
-	DrawContext.DrawText(2.0f, GetPosY() + 1.0f, Name, Font, Color);
+	DrawContext.DrawText(2.0f, GetPosY() + 1.0f, NameString, Font, Color);
 
 	if (IsCollapsed())
 	{

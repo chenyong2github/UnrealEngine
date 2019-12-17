@@ -56,7 +56,6 @@ public:
 struct FPackageSummaryInfo
 {
 	uint32 TotalHeaderSize = 0;
-	uint32 NameCount = 0;
 	uint32 ImportCount = 0;
 	uint32 ExportCount = 0;
 };
@@ -72,10 +71,8 @@ struct FPackageExportInfo
 {
 	uint32 Id;
 	const FClassInfo* Class = nullptr;
-	uint64 SerialOffset = 0;
 	uint64 SerialSize = 0;
 	const FPackageInfo* Package = nullptr;
-	bool IsAsset = false;
 };
 
 struct FPackageInfo
@@ -84,6 +81,7 @@ struct FPackageInfo
 	const TCHAR* Name = nullptr;
 	FPackageSummaryInfo Summary;
 	TArray<const FPackageExportInfo*> Exports;
+	uint64 TotalExportsSerialSize = 0;
 };
 
 struct FLoadRequest
@@ -93,6 +91,14 @@ struct FLoadRequest
 	double StartTime = 0.0;
 	double EndTime = 0.0;
 	TArray<const FPackageInfo*> Packages;
+};
+
+enum ELoadTimeProfilerObjectEventType
+{
+	LoadTimeProfilerObjectEventType_Create,
+	LoadTimeProfilerObjectEventType_Serialize,
+	LoadTimeProfilerObjectEventType_PostLoad,
+	LoadTimeProfilerObjectEventType_None
 };
 
 struct FExportsTableRow
@@ -112,15 +118,13 @@ struct FPackagesTableRow
 	uint64 SerializedExportsSize = 0;
 	double MainThreadTime = 0.0;
 	double AsyncLoadingThreadTime = 0.0;
-	ELoadTimeProfilerPackageEventType EventType = LoadTimeProfilerPackageEventType_None;
 };
 
 struct FLoadTimeProfilerCpuEvent
 {
 	const FPackageInfo* Package = nullptr;
 	const FPackageExportInfo* Export = nullptr;
-	ELoadTimeProfilerPackageEventType PackageEventType = LoadTimeProfilerPackageEventType_None;
-	ELoadTimeProfilerObjectEventType ExportEventType = LoadTimeProfilerObjectEventType_None;
+	ELoadTimeProfilerObjectEventType EventType = LoadTimeProfilerObjectEventType_None;
 };
 
 struct FLoadTimeProfilerAggregatedStats
@@ -134,7 +138,6 @@ struct FLoadTimeProfilerAggregatedStats
 	double Median;
 };
 
-TRACESERVICES_API const TCHAR* GetLoadTimeProfilerPackageEventTypeString(ELoadTimeProfilerPackageEventType EventType);
 TRACESERVICES_API const TCHAR* GetLoadTimeProfilerObjectEventTypeString(ELoadTimeProfilerObjectEventType EventType);
 
 class ILoadTimeProfilerProvider
@@ -144,10 +147,9 @@ public:
 	typedef ITimeline<FLoadTimeProfilerCpuEvent> CpuTimeline;
 
 	virtual ~ILoadTimeProfilerProvider() = default;
-	virtual uint32 GetMainThreadId() const = 0;
-	virtual void ReadMainThreadCpuTimeline(TFunctionRef<void(const CpuTimeline&)> Callback) const = 0;
-	virtual uint32 GetAsyncLoadingThreadId() const = 0;
-	virtual void ReadAsyncLoadingThreadCpuTimeline(TFunctionRef<void(const CpuTimeline&)> Callback) const = 0;
+	virtual uint64 GetTimelineCount() const = 0;
+	virtual bool GetCpuThreadTimelineIndex(uint32 ThreadId, uint32& OutTimelineIndex) const = 0;
+	virtual bool ReadTimeline(uint32 Index, TFunctionRef<void(const CpuTimeline&)> Callback) const = 0;
 	virtual ITable<FLoadTimeProfilerAggregatedStats>* CreateEventAggregation(double IntervalStart, double IntervalEnd) const = 0;
 	virtual ITable<FLoadTimeProfilerAggregatedStats>* CreateObjectTypeAggregation(double IntervalStart, double IntervalEnd) const = 0;
 	virtual ITable<FPackagesTableRow>* CreatePackageDetailsTable(double IntervalStart, double IntervalEnd) const = 0;

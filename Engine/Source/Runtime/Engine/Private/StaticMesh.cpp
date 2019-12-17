@@ -601,9 +601,9 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FStaticMeshLODResources::Serialize"), STAT_StaticMeshLODResources_Serialize, STATGROUP_LoadTime);
 
-	bool bUsingCookedData = false;
+	bool bUsingCookedEditorData = false;
 #if WITH_EDITORONLY_DATA
-	bUsingCookedData = Owner->GetOutermost()->bIsCookedForEditor;
+	bUsingCookedEditorData = Owner->GetOutermost()->bIsCookedForEditor;
 #endif
 
 	UStaticMesh* OwnerStaticMesh = Cast<UStaticMesh>(Owner);
@@ -633,7 +633,7 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 			Ar << TmpBuffersSize;
 			BuffersSize = TmpBuffersSize.CalcBuffersSize();
 		}
-		else if (FPlatformProperties::RequiresCookedData() || Ar.IsCooking() || bUsingCookedData)
+		else if (FPlatformProperties::RequiresCookedData() || Ar.IsCooking() || bUsingCookedEditorData)
 		{
 			uint32 BulkDataSize = 0;
 #if WITH_EDITOR
@@ -674,24 +674,25 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 #if USE_BULKDATA_STREAMING_TOKEN
 				FByteBulkData TmpBulkData;
 				TmpBulkData.Serialize(Ar, Owner, Index, false);
-				bIsOptionalLOD = !!(TmpBulkData.GetBulkDataFlags() & BULKDATA_OptionalPayload);
+				bIsOptionalLOD = TmpBulkData.IsOptional();
 
-				BulkDataStreamingToken = TmpBulkData.CreateStreamingToken();			
-				BulkDataSize = BulkDataStreamingToken.GetSize();
+				StreamingBulkData = TmpBulkData.CreateStreamingToken();			
 #else
 				StreamingBulkData.Serialize(Ar, Owner, Index, false);
-				bIsOptionalLOD = !!(StreamingBulkData.GetBulkDataFlags() & BULKDATA_OptionalPayload);
-				BulkDataSize = (uint32)StreamingBulkData.GetBulkDataSize();
+				bIsOptionalLOD = StreamingBulkData.IsOptional();
 #endif
+				BulkDataSize = (uint32)StreamingBulkData.GetBulkDataSize();
 
+#if WITH_EDITORONLY_DATA
 				// Streaming CPU data in editor build isn't supported yet because tools and utils need access
-				if (bUsingCookedData && BulkDataSize > 0)
+				if (bUsingCookedEditorData && BulkDataSize > 0)
 				{
 					TmpBuff.Empty(BulkDataSize);
 					TmpBuff.AddUninitialized(BulkDataSize);
 					void* Dest = TmpBuff.GetData();
 					TmpBulkData.GetCopy(&Dest);
 				}
+#endif
 			}
 
 			SerializeAvailabilityInfo(Ar);
@@ -704,13 +705,15 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 				ClearAvailabilityInfo();
 			}
 
-			if (Ar.IsLoading() && bUsingCookedData && BulkDataSize > 0)
+#if WITH_EDITORONLY_DATA
+			if (Ar.IsLoading() && bUsingCookedEditorData && BulkDataSize > 0)
 			{
 				ClearAvailabilityInfo();
 				FMemoryReader MemReader(TmpBuff, true);
 				MemReader.SetByteSwapping(Ar.IsByteSwapping());
 				SerializeBuffers(MemReader, OwnerStaticMesh, ClassDataStripFlags, TmpBuffersSize);
 			}
+#endif
 		}
 	}
 }

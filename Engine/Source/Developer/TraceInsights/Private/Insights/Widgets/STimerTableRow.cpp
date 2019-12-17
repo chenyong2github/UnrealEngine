@@ -34,7 +34,7 @@ void STimerTableRow::Construct(const FArguments& InArgs, const TSharedRef<STable
 	TablePtr = InArgs._TablePtr;
 	TimerNodePtr = InArgs._TimerNodePtr;
 
-	RowToolTip = MakeShareable(new STimerTableRowToolTip(TimerNodePtr));
+	RowToolTip = MakeShared<STimerTableRowToolTip>(TimerNodePtr);
 
 	SetEnabled(TAttribute<bool>(this, &STimerTableRow::HandleShouldBeEnabled));
 
@@ -170,7 +170,7 @@ const FSlateBrush* STimerTableRow::GetOutlineBrush(const FName ColumnId) const
 	{
 		Brush = FEditorStyle::GetBrush("Profiler.EventGraph.Border.L");
 	}
-	else if(Result == HAlign_Right)
+	else if (Result == HAlign_Right)
 	{
 		Brush = FEditorStyle::GetBrush("Profiler.EventGraph.Border.R");
 	}

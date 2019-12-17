@@ -61,17 +61,6 @@ void FFileStream::OpenFileInternal()
 	}
 }
 
-FStreamReader::FStreamReader(IInDataStream& InDataStream)
-	: DataStream(InDataStream)
-{
-	Buffer = new uint8[BufferSize];
-}
-
-FStreamReader::~FStreamReader()
-{
-	delete[] Buffer;
-}
-
 IInDataStream* DataStream_ReadFile(const TCHAR* FilePath)
 {
 	IPlatformFile& FileSystem = IPlatformFile::GetPlatformPhysical();

@@ -2,6 +2,7 @@
 #include "ProfilingDebugging/CountersTrace.h"
 #include "HAL/PlatformTime.h"
 #include "Misc/Parse.h"
+#include "Trace/Trace.h"
 
 #if COUNTERSTRACE_ENABLED
 

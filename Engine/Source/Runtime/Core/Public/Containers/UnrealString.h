@@ -25,34 +25,20 @@
 #include "Templates/TypeHash.h"
 #include "Templates/IsFloatingPoint.h"
 
+class FString;
+class FStringView;
 struct FStringFormatArg;
 template<typename KeyType,typename ValueType,typename SetAllocator ,typename KeyFuncs > class TMap;
 
-/** Determines case sensitivity options for string comparisons. */
-namespace ESearchCase
+template <>
+struct TIsContiguousContainer<FString>
 {
-	enum Type
-	{
-		/** Case sensitive. Upper/lower casing must match for strings to be considered equal. */
-		CaseSensitive,
-
-		/** Ignore case. Upper/lower casing does not matter when making a comparison. */
-		IgnoreCase,
-	};
+	enum { Value = true };
 };
 
-/** Determines search direction for string operations. */
-namespace ESearchDir
-{
-	enum Type
-	{
-		/** Search from the start, moving forward through the string. */
-		FromStart,
-
-		/** Search from the end, moving backward through the string. */
-		FromEnd,
-	};
-}
+TCHAR* GetData(FString& String);
+const TCHAR* GetData(const FString& String);
+SIZE_T GetNum(const FString& String);
 
 /**
  * A dynamically sizeable string.
@@ -146,6 +132,8 @@ public:
 		}
 	}
 
+	explicit FString(const FStringView& Other);
+
 #ifdef __OBJC__
 	/** Convert Objective-C NSString* to FString */
 	FORCEINLINE FString(const NSString* In)
@@ -194,6 +182,16 @@ public:
 		}
 		return *this;
 	}
+
+	/**
+	 * Copy assignment from a string view
+	 */
+	FString& operator=(const FStringView& Other);
+
+	/**
+	 * Implicit conversion to a string view
+	 */
+	operator FStringView() const;
 
 	/**
 	 * Return specific character from this string
@@ -1960,12 +1958,6 @@ struct TContainerTraits<FString> : public TContainerTraitsBase<FString>
 
 template<> struct TIsZeroConstructType<FString> { enum { Value = true }; };
 Expose_TNameOf(FString)
-
-template <>
-struct TIsContiguousContainer<FString>
-{
-	enum { Value = true };
-};
 
 inline TCHAR* GetData(FString& String)
 {

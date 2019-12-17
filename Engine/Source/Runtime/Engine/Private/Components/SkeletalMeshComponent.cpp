@@ -39,6 +39,7 @@
 #include "UObject/AnimPhysObjectVersion.h"
 #include "SkeletalRenderPublic.h"
 #include "ContentStreaming.h"
+#include "Animation/AnimTrace.h"
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshComponent"
 
@@ -826,6 +827,10 @@ void USkeletalMeshComponent::InitializeComponent()
 void USkeletalMeshComponent::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Trace the 'first frame' markers
+	TRACE_SKELETAL_MESH_COMPONENT(this);
+
 	if (AnimScriptInstance)
 	{
 		AnimScriptInstance->NativeBeginPlay();
@@ -3723,6 +3728,8 @@ void USkeletalMeshComponent::FinalizeBoneTransform()
 	ConditionallyDispatchQueuedAnimEvents();
 
 	OnBoneTransformsFinalized.Broadcast();
+
+	TRACE_SKELETAL_MESH_COMPONENT(this);
 }
 
 void USkeletalMeshComponent::GetCurrentRefToLocalMatrices(TArray<FMatrix>& OutRefToLocals, int32 InLodIdx)

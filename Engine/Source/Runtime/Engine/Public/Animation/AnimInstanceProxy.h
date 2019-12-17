@@ -463,6 +463,7 @@ public:
 	friend class USkeletalMeshComponent;
 	friend struct FAnimNode_LinkedAnimGraph;
 	friend struct FAnimationBaseContext;
+	friend struct FAnimTrace;
 
 protected:
 	/** Called when our anim instance is being initialized */

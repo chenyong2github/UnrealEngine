@@ -192,7 +192,7 @@ protected:
 	/** Called by FAsyncCancelIORequestsTask to cancel inflight IO request if any */
 	void CancelIORequest();
 
-	struct FBulkDataIORequest* IORequest;
+	class IBulkDataIORequest* IORequest;
 	FAsyncFileCallBack AsyncFileCallback;
 	bool bHighPrioIORequest;
 };

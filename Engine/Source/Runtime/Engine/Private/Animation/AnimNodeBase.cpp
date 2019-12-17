@@ -3,6 +3,7 @@
 #include "Animation/AnimNodeBase.h"
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimTrace.h"
 
 void* FExposedValueCopyRecord::GetDestAddr(FAnimInstanceProxy* Proxy, const UProperty* NodeProperty) const
 {
@@ -57,17 +58,29 @@ const void* FExposedValueCopyRecord::GetSourceAddr(FAnimInstanceProxy* Proxy) co
 
 FAnimationBaseContext::FAnimationBaseContext()
 	: AnimInstanceProxy(nullptr)
+#if ANIM_TRACE_ENABLED
+	, CurrentNodeId(INDEX_NONE)
+	, PreviousNodeId(INDEX_NONE)
+#endif
 {
 }
 
 FAnimationBaseContext::FAnimationBaseContext(FAnimInstanceProxy* InAnimInstanceProxy)
 	: AnimInstanceProxy(InAnimInstanceProxy)
+#if ANIM_TRACE_ENABLED
+	, CurrentNodeId(INDEX_NONE)
+	, PreviousNodeId(INDEX_NONE)
+#endif
 {
 }
 
 FAnimationBaseContext::FAnimationBaseContext(const FAnimationBaseContext& InContext)
+	: AnimInstanceProxy(InContext.AnimInstanceProxy)
+#if ANIM_TRACE_ENABLED
+	, CurrentNodeId(INDEX_NONE)
+	, PreviousNodeId(INDEX_NONE)
+#endif
 {
-	AnimInstanceProxy = InContext.AnimInstanceProxy;
 }
 
 IAnimClassInterface* FAnimationBaseContext::GetAnimClass() const
@@ -329,7 +342,13 @@ void FPoseLinkBase::Update(const FAnimationUpdateContext& Context)
 
 	if (LinkedNode != NULL)
 	{
+#if ANIM_TRACE_ENABLED
+		FAnimationUpdateContext LinkContext(Context.WithNodeId(LinkID));
+		TRACE_POSE_LINK(LinkContext);
+		LinkedNode->Update_AnyThread(LinkContext);
+#else
 		LinkedNode->Update_AnyThread(Context);
+#endif
 	}
 }
 

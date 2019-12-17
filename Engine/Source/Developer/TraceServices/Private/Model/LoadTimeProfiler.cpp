@@ -8,15 +8,96 @@
 namespace Trace
 {
 
-FLoadTimeProfilerProvider::FLoadTimeProfilerProvider(IAnalysisSession& InSession)
+FLoadTimeProfilerProvider::FLoaderFrameCounter::FLoaderFrameCounter(ELoaderFrameCounterType InType, const TPagedArray<FLoaderFrame>& InFrames)
+	: Frames(InFrames)
+	, Type(InType)
+{
+
+}
+
+const TCHAR* FLoadTimeProfilerProvider::FLoaderFrameCounter::GetName() const
+{
+	switch (Type)
+	{
+	case LoaderFrameCounterType_IoDispatcherThroughput:
+		return TEXT("AssetLoading/IoDispatcher/Throughput");
+	case LoaderFrameCounterType_LoaderThroughput:
+		return TEXT("AssetLoading/AsyncLoading/Throughput");
+	}
+	check(false);
+	return TEXT("");
+}
+
+const TCHAR* FLoadTimeProfilerProvider::FLoaderFrameCounter::GetDescription() const
+{
+	return TEXT("N/A");
+}
+
+bool FLoadTimeProfilerProvider::FLoaderFrameCounter::IsFloatingPoint() const
+{
+	switch (Type)
+	{
+	case LoaderFrameCounterType_IoDispatcherThroughput:
+	case LoaderFrameCounterType_LoaderThroughput:
+		return true;
+	}
+	return false;
+}
+
+ECounterDisplayHint FLoadTimeProfilerProvider::FLoaderFrameCounter::GetDisplayHint() const
+{
+	switch (Type)
+	{
+	case LoaderFrameCounterType_IoDispatcherThroughput:
+	case LoaderFrameCounterType_LoaderThroughput:
+		return CounterDisplayHint_Memory;
+	}
+	return CounterDisplayHint_None;
+}
+
+void FLoadTimeProfilerProvider::FLoaderFrameCounter::EnumerateValues(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, int64)> Callback) const
+{
+	
+}
+
+void FLoadTimeProfilerProvider::FLoaderFrameCounter::EnumerateFloatValues(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, double)> Callback) const
+{
+	if (Frames.Num() == 0)
+	{
+		return;
+	}
+	int32 FirstFrameIndex = FMath::Max(0, int32(FMath::RoundToZero(IntervalStart / FLoadTimeProfilerProvider::LoaderFrameLength)) - 1);
+	int32 LastFrameIndex = FMath::Min(int32(Frames.Num()) - 1, int32(FMath::RoundToZero(IntervalEnd / FLoadTimeProfilerProvider::LoaderFrameLength)) + 1);
+	for (int32 FrameIndex = FirstFrameIndex; FrameIndex <= LastFrameIndex; ++FrameIndex)
+	{
+		double Time = (FrameIndex + 0.5) * FLoadTimeProfilerProvider::LoaderFrameLength;
+		if (bIncludeExternalBounds || (IntervalStart <= Time && Time <= IntervalEnd))
+		{
+			const FLoaderFrame& Frame = Frames[FrameIndex];
+			switch (Type)
+			{
+			case LoaderFrameCounterType_LoaderThroughput:
+				Callback(Time, double(Frame.HeaderLoadedBytes + Frame.ExportLoadedBytes) / FLoadTimeProfilerProvider::LoaderFrameLength);
+				break;
+			case LoaderFrameCounterType_IoDispatcherThroughput:
+				Callback(Time, double(Frame.IoDispatcherReadBytes) / FLoadTimeProfilerProvider::LoaderFrameLength);
+				break;
+			}
+		}
+	}
+}
+
+FLoadTimeProfilerProvider::FLoadTimeProfilerProvider(IAnalysisSession& InSession, ICounterProvider& InCounterProvider)
 	: Session(InSession)
-	, ClassInfos(Session.GetLinearAllocator(), 4096)
-	, Requests(Session.GetLinearAllocator(), 4096)
-	, Packages(Session.GetLinearAllocator(), 4096)
-	, Exports(Session.GetLinearAllocator(), 4096)
-	, MainThreadCpuTimeline(MakeShared<CpuTimelineInternal>(Session.GetLinearAllocator()))
-	, AsyncLoadingThreadCpuTimeline(MakeShared<CpuTimelineInternal>(Session.GetLinearAllocator()))
+	, CounterProvider(InCounterProvider)
+	, ClassInfos(Session.GetLinearAllocator(), 16384)
+	, Requests(Session.GetLinearAllocator(), 16384)
+	, Packages(Session.GetLinearAllocator(), 16384)
+	, PackageLoads(Session.GetLinearAllocator(), 16384)
+	, IoDispatcherBatches(Session.GetLinearAllocator(), 16384)
+	, Exports(Session.GetLinearAllocator(), 16384)
 	, RequestsTable(Requests)
+	, Frames(Session.GetLinearAllocator(), 4096)
 {
 	RequestsTable.EditLayout().
 		AddColumn(&FLoadRequest::Name, TEXT("Name")).
@@ -52,11 +133,6 @@ FLoadTimeProfilerProvider::FLoadTimeProfilerProvider(IAnalysisSession& InSession
 				return Row.PackageInfo->Name;
 			},
 			TEXT("Package")).
-		AddColumn<const TCHAR*>([](const FPackagesTableRow& Row)
-			{
-				return GetLoadTimeProfilerPackageEventTypeString(Row.EventType);
-			},
-			TEXT("EventType")).
 		AddColumn(&FPackagesTableRow::SerializedHeaderSize, TEXT("SerializedHeaderSize")).
 		AddColumn(&FPackagesTableRow::SerializedExportsCount, TEXT("SerializedExportsCount")).
 		AddColumn(&FPackagesTableRow::SerializedExportsSize, TEXT("SerializedExportsSize")).
@@ -84,35 +160,50 @@ FLoadTimeProfilerProvider::FLoadTimeProfilerProvider(IAnalysisSession& InSession
 		AddColumn(&FExportsTableRow::AsyncLoadingThreadTime, TEXT("AsyncLoadingThreadTime"));
 }
 
-void FLoadTimeProfilerProvider::ReadMainThreadCpuTimeline(TFunctionRef<void(const CpuTimeline &)> Callback) const
+bool FLoadTimeProfilerProvider::GetCpuThreadTimelineIndex(uint32 ThreadId, uint32& OutTimelineIndex) const
 {
-	Session.ReadAccessCheck();
-	Callback(*MainThreadCpuTimeline);
+	const uint32* FindTimelineIndex = CpuTimelinesThreadMap.Find(ThreadId);
+	if (FindTimelineIndex)
+	{
+		OutTimelineIndex = *FindTimelineIndex;
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
-void FLoadTimeProfilerProvider::ReadAsyncLoadingThreadCpuTimeline(TFunctionRef<void(const CpuTimeline &)> Callback) const
+bool FLoadTimeProfilerProvider::ReadTimeline(uint32 Index, TFunctionRef<void(const CpuTimeline &)> Callback) const
 {
 	Session.ReadAccessCheck();
-	Callback(*AsyncLoadingThreadCpuTimeline);
+	if (Index >= uint32(CpuTimelines.Num()))
+	{
+		return false;
+	}
+	Callback(*CpuTimelines[Index]);
+	return true;
 }
 
 ITable<FLoadTimeProfilerAggregatedStats>* FLoadTimeProfilerProvider::CreateEventAggregation(double IntervalStart, double IntervalEnd) const
 {
 	TArray<const CpuTimelineInternal*> Timelines;
-	Timelines.Add(&MainThreadCpuTimeline.Get());
-	Timelines.Add(&AsyncLoadingThreadCpuTimeline.Get());
+	for (const TSharedRef<CpuTimelineInternal>& Timeline : CpuTimelines)
+	{
+		Timelines.Add(&Timeline.Get());
+	}
 
 	auto BucketMapper = [](const FLoadTimeProfilerCpuEvent& Event)
 	{
-		return Event.PackageEventType;
+		return Event.Package;
 	};
-	TMap<ELoadTimeProfilerPackageEventType, FAggregatedTimingStats> Aggregation;
+	TMap<const FPackageInfo*, FAggregatedTimingStats> Aggregation;
 	FTimelineStatistics::CreateAggregation(Timelines, BucketMapper, IntervalStart, IntervalEnd, Aggregation);
 	TTable<FLoadTimeProfilerAggregatedStats>* Table = new TTable<FLoadTimeProfilerAggregatedStats>(AggregatedStatsTableLayout);
 	for (const auto& KV : Aggregation)
 	{
 		FLoadTimeProfilerAggregatedStats& Row = Table->AddRow();
-		Row.Name = GetLoadTimeProfilerPackageEventTypeString(KV.Key);
+		Row.Name = KV.Key ? KV.Key->Name : TEXT("[unknown]");
 		const FAggregatedTimingStats& Stats = KV.Value;
 		Row.Count = Stats.InstanceCount;
 		Row.Total = Stats.TotalExclusiveTime;
@@ -127,8 +218,10 @@ ITable<FLoadTimeProfilerAggregatedStats>* FLoadTimeProfilerProvider::CreateEvent
 ITable<FLoadTimeProfilerAggregatedStats>* FLoadTimeProfilerProvider::CreateObjectTypeAggregation(double IntervalStart, double IntervalEnd) const
 {
 	TArray<const CpuTimelineInternal*> Timelines;
-	Timelines.Add(&MainThreadCpuTimeline.Get());
-	Timelines.Add(&AsyncLoadingThreadCpuTimeline.Get());
+	for (const TSharedRef<CpuTimelineInternal>& Timeline : CpuTimelines)
+	{
+		Timelines.Add(&Timeline.Get());
+	}
 
 	auto BucketMapper = [](const FLoadTimeProfilerCpuEvent& Event) -> const FClassInfo*
 	{
@@ -160,37 +253,32 @@ ITable<FPackagesTableRow>* FLoadTimeProfilerProvider::CreatePackageDetailsTable(
 {
 	TTable<FPackagesTableRow>* Table = new TTable<FPackagesTableRow>(PackagesTableLayout);
 
-	TMap<TTuple<const FPackageInfo*, ELoadTimeProfilerPackageEventType>, FPackagesTableRow*> PackagesMap;
+	TMap<const FPackageInfo*, FPackagesTableRow*> PackagesMap;
 
 	auto FindRow = [Table, &PackagesMap](const FLoadTimeProfilerCpuEvent& Event) -> FPackagesTableRow*
 	{
 		if (Event.Package)
 		{
-			auto Key = MakeTuple(Event.Package, Event.PackageEventType);
-			FPackagesTableRow** FindIt = PackagesMap.Find(Key);
+			FPackagesTableRow** FindIt = PackagesMap.Find(Event.Package);
 			FPackagesTableRow* Row = nullptr;
 			if (!FindIt)
 			{
 				Row = &Table->AddRow();
 				Row->PackageInfo = Event.Package;
-				Row->EventType = Event.PackageEventType;
-				PackagesMap.Add(Key, Row);
+				PackagesMap.Add(Event.Package, Row);
 			}
 			else
 			{
 				Row = *FindIt;
 			}
 
-			if (Event.Export && Event.ExportEventType == LoadTimeProfilerObjectEventType_Serialize)
+			if (Event.Export && Event.EventType == LoadTimeProfilerObjectEventType_Serialize)
 			{
 				++Row->SerializedExportsCount;
 				Row->SerializedExportsSize += Event.Export->SerialSize;
 			}
 
-			if (!Event.Export && Event.PackageEventType == LoadTimeProfilerPackageEventType_CreateLinker)
-			{
-				Row->SerializedHeaderSize += Event.Package->Summary.TotalHeaderSize;
-			}
+			Row->SerializedHeaderSize = Event.Package->Summary.TotalHeaderSize;
 
 			return Row;
 		}
@@ -200,23 +288,25 @@ ITable<FPackagesTableRow>* FLoadTimeProfilerProvider::CreatePackageDetailsTable(
 		}
 	};
 
-	AsyncLoadingThreadCpuTimeline->EnumerateEvents(IntervalStart, IntervalEnd, [Table, &PackagesMap, FindRow](double StartTime, double EndTime, uint32, const FLoadTimeProfilerCpuEvent& Event)
+	for (int32 TimelineIndex = 0, TimelineCount = CpuTimelines.Num(); TimelineIndex < TimelineCount; ++TimelineIndex)
 	{
-		FPackagesTableRow* Row = FindRow(Event);
-		if (Row)
+		CpuTimelines[TimelineIndex]->EnumerateEvents(IntervalStart, IntervalEnd, [Table, &PackagesMap, FindRow, TimelineIndex](double StartTime, double EndTime, uint32, const FLoadTimeProfilerCpuEvent& Event)
 		{
-			Row->AsyncLoadingThreadTime += EndTime - StartTime; // TODO: Should be exclusive time
-		}
-	});
-	MainThreadCpuTimeline->EnumerateEvents(IntervalStart, IntervalEnd, [Table, &PackagesMap, FindRow](double StartTime, double EndTime, uint32, const FLoadTimeProfilerCpuEvent& Event)
-	{
-		FPackagesTableRow* Row = FindRow(Event);
-		if (Row)
-		{
-			Row->MainThreadTime += EndTime - StartTime; // TODO: Should be exclusive time
-		}
-	});
-
+			FPackagesTableRow* Row = FindRow(Event);
+			if (Row)
+			{
+				if (TimelineIndex == 0)
+				{
+					Row->MainThreadTime += EndTime - StartTime; // TODO: Should be exclusive time
+				}
+				else
+				{
+					Row->AsyncLoadingThreadTime += EndTime - StartTime; // TODO: Should be exclusive time
+				}
+			}
+		});
+	}
+	
 	return Table;
 }
 
@@ -230,14 +320,14 @@ ITable<FExportsTableRow>* FLoadTimeProfilerProvider::CreateExportDetailsTable(do
 	{
 		if (Event.Export)
 		{
-			auto Key = MakeTuple(Event.Export, Event.ExportEventType);
+			auto Key = MakeTuple(Event.Export, Event.EventType);
 			FExportsTableRow** FindIt = ExportsMap.Find(Key);
 			FExportsTableRow* Row = nullptr;
 			if (!FindIt)
 			{
 				Row = &Table->AddRow();
 				Row->ExportInfo = Event.Export;
-				Row->EventType = Event.ExportEventType;
+				Row->EventType = Event.EventType;
 				ExportsMap.Add(Key, Row);
 			}
 			else
@@ -245,7 +335,7 @@ ITable<FExportsTableRow>* FLoadTimeProfilerProvider::CreateExportDetailsTable(do
 				Row = *FindIt;
 			}
 
-			if (Event.ExportEventType == LoadTimeProfilerObjectEventType_Serialize)
+			if (Event.EventType == LoadTimeProfilerObjectEventType_Serialize)
 			{
 				Row->SerializedSize += Event.Export->SerialSize;
 			}
@@ -258,23 +348,24 @@ ITable<FExportsTableRow>* FLoadTimeProfilerProvider::CreateExportDetailsTable(do
 		}
 	};
 
-	AsyncLoadingThreadCpuTimeline->EnumerateEvents(IntervalStart, IntervalEnd, [Table, &ExportsMap, FindRow](double StartTime, double EndTime, uint32, const FLoadTimeProfilerCpuEvent& Event)
+	for (int32 TimelineIndex = 0, TimelineCount = CpuTimelines.Num(); TimelineIndex < TimelineCount; ++TimelineIndex)
 	{
-		FExportsTableRow* Row = FindRow(Event);
-		if (Row)
+		CpuTimelines[TimelineIndex]->EnumerateEvents(IntervalStart, IntervalEnd, [Table, &ExportsMap, FindRow, TimelineIndex](double StartTime, double EndTime, uint32, const FLoadTimeProfilerCpuEvent& Event)
 		{
-			Row->AsyncLoadingThreadTime += EndTime - StartTime; // TODO: Should be exclusive time
-		}
-	});
-	MainThreadCpuTimeline->EnumerateEvents(IntervalStart, IntervalEnd, [Table, &ExportsMap, FindRow](double StartTime, double EndTime, uint32, const FLoadTimeProfilerCpuEvent& Event)
-	{
-		FExportsTableRow* Row = FindRow(Event);
-		if (Row)
-		{
-			Row->MainThreadTime += EndTime - StartTime; // TODO: Should be exclusive time
-		}
-	});
-
+			FExportsTableRow* Row = FindRow(Event);
+			if (Row)
+			{
+				if (TimelineIndex == 0)
+				{
+					Row->MainThreadTime += EndTime - StartTime; // TODO: Should be exclusive time
+				}
+				else
+				{
+					Row->AsyncLoadingThreadTime += EndTime - StartTime; // TODO: Should be exclusive time
+				}
+			}
+		});
+	}
 	return Table;
 }
 
@@ -295,7 +386,7 @@ Trace::FLoadRequest& FLoadTimeProfilerProvider::CreateRequest()
 	return RequestInfo;
 }
 
-Trace::FPackageInfo& FLoadTimeProfilerProvider::CreatePackage(const TCHAR* PackageName)
+Trace::FPackageInfo& FLoadTimeProfilerProvider::EditPackageInfo(const TCHAR* PackageName)
 {
 	Session.WriteAccessCheck();
 
@@ -304,6 +395,120 @@ Trace::FPackageInfo& FLoadTimeProfilerProvider::CreatePackage(const TCHAR* Packa
 	Package.Id = PackageId;
 	Package.Name = Session.StoreString(PackageName);
 	return Package;
+}
+
+void FLoadTimeProfilerProvider::DistributeBytesAcrossFrames(uint64 ByteCount, double StartTime, double EndTime, uint64 FLoaderFrame::* FrameVariable)
+{
+	uint64 OriginalByteCount = ByteCount;
+
+	int32 BeginFrameIndex = int32(FMath::RoundToZero(StartTime / LoaderFrameLength));
+	int32 EndFrameIndex = int32(FMath::RoundToZero(EndTime / LoaderFrameLength));
+	while (Frames.Num() <= EndFrameIndex + 1)
+	{
+		Frames.PushBack();
+	}
+
+	if (BeginFrameIndex == EndFrameIndex)
+	{
+		FLoaderFrame& Frame = Frames[BeginFrameIndex];
+		Frame.*FrameVariable += ByteCount;
+		return;
+	}
+	
+	double TotalTime = EndTime - StartTime;
+	double TimeInFirstFrame = (BeginFrameIndex + 1) * LoaderFrameLength - StartTime;
+	check(TimeInFirstFrame >= 0.0);
+	uint64 BytesInFirstFrame = uint64(FMath::RoundToZero(TimeInFirstFrame / TotalTime * ByteCount));
+	Frames[BeginFrameIndex].*FrameVariable += BytesInFirstFrame;
+
+	uint64 TotalDistributed = BytesInFirstFrame;
+
+	double TimeInLastFrame = EndTime - EndFrameIndex * LoaderFrameLength;
+	check(TimeInLastFrame >= 0.0);
+	uint64 BytesInLastFrame = uint64(FMath::RoundToZero(TimeInLastFrame / TotalTime * ByteCount));
+
+	check(BytesInFirstFrame + BytesInLastFrame <= ByteCount);
+	ByteCount -= BytesInFirstFrame + BytesInLastFrame;
+
+	int32 FullFramesLeft = EndFrameIndex - BeginFrameIndex - 1;
+	for (int32 FrameIndex = BeginFrameIndex + 1; FrameIndex < EndFrameIndex; ++FrameIndex)
+	{
+		uint64 BytesInFrame = ByteCount / FullFramesLeft;
+		Frames[FrameIndex].*FrameVariable += BytesInFrame;
+
+		TotalDistributed += BytesInFrame;
+
+		ByteCount -= BytesInFrame;
+		--FullFramesLeft;
+	}
+
+	BytesInLastFrame += ByteCount;
+	Frames[EndFrameIndex].*FrameVariable += BytesInLastFrame;
+	TotalDistributed += BytesInLastFrame;
+	
+	check(TotalDistributed == OriginalByteCount);
+}
+
+uint64 FLoadTimeProfilerProvider::BeginLoadPackage(const FPackageInfo& PackageInfo, double Time)
+{
+	Session.WriteAccessCheck();
+
+	CreateCounters();
+
+	LoadingPackagesCounter->AddValue(Time, int64(1));
+
+	uint64 LoadHandle = PackageLoads.Num();
+	FPackageLoad& PackageLoad = PackageLoads.PushBack();
+	PackageLoad.Package = &PackageInfo;
+	PackageLoad.StartTime = Time;
+	return LoadHandle;
+}
+
+void FLoadTimeProfilerProvider::EndLoadPackage(uint64 LoadHandle, double Time)
+{
+	Session.WriteAccessCheck();
+
+	FPackageLoad& PackageLoad = PackageLoads[LoadHandle];
+	PackageLoad.EndTime = Time;
+	check(PackageLoad.EndTime >= PackageLoad.StartTime);
+	
+	DistributeBytesAcrossFrames(PackageLoad.Package->Summary.TotalHeaderSize, PackageLoad.StartTime, PackageLoad.EndTime, &FLoaderFrame::HeaderLoadedBytes);
+	DistributeBytesAcrossFrames(PackageLoad.Package->TotalExportsSerialSize, PackageLoad.StartTime, PackageLoad.EndTime, &FLoaderFrame::ExportLoadedBytes);
+
+	TotalLoaderBytesLoadedCounter->AddValue(Time, int64(PackageLoad.Package->Summary.TotalHeaderSize + PackageLoad.Package->TotalExportsSerialSize));
+	LoadingPackagesCounter->AddValue(Time, int64(-1));
+}
+
+uint64 FLoadTimeProfilerProvider::BeginIoDispatcherBatch(uint64 BatchId, double Time)
+{
+	Session.WriteAccessCheck();
+
+	CreateCounters();
+
+	ActiveIoDispatcherBatchesCounter->AddValue(Time, int64(1));
+
+	uint64 BatchHandle = IoDispatcherBatches.Num();
+
+	FIoDispatcherBatch& Batch = IoDispatcherBatches.PushBack();
+	Batch.StartTime = Time;
+
+	return BatchHandle;
+}
+
+void FLoadTimeProfilerProvider::EndIoDispatcherBatch(uint64 BatchHandle, double Time, uint64 TotalSize)
+{
+	Session.WriteAccessCheck();
+
+	FIoDispatcherBatch& Batch = IoDispatcherBatches[BatchHandle];
+	Batch.EndTime = Time;
+	Batch.TotalSize = TotalSize;
+
+	check(Batch.EndTime >= Batch.StartTime);
+
+	DistributeBytesAcrossFrames(Batch.TotalSize, Batch.StartTime, Batch.EndTime, &FLoaderFrame::IoDispatcherReadBytes);
+
+	TotalIoDispatcherBytesReadCounter->AddValue(Time, int64(Batch.TotalSize));
+	ActiveIoDispatcherBatchesCounter->AddValue(Time, int64(-1));
 }
 
 Trace::FPackageExportInfo& FLoadTimeProfilerProvider::CreateExport()
@@ -316,16 +521,19 @@ Trace::FPackageExportInfo& FLoadTimeProfilerProvider::CreateExport()
 	return Export;
 }
 
-FLoadTimeProfilerProvider::CpuTimelineInternal& FLoadTimeProfilerProvider::EditAdditionalCpuTimeline(uint32 ThreadId)
+FLoadTimeProfilerProvider::CpuTimelineInternal& FLoadTimeProfilerProvider::EditCpuTimeline(uint32 ThreadId)
 {
-	if (AdditionalCpuTimelinesMap.Contains(ThreadId))
+	uint32* FindTimelineIndex = CpuTimelinesThreadMap.Find(ThreadId);
+	if (FindTimelineIndex)
 	{
-		return AdditionalCpuTimelinesMap[ThreadId].Get();
+		return CpuTimelines[*FindTimelineIndex].Get();
 	}
 	else
 	{
 		TSharedRef<CpuTimelineInternal> Timeline = MakeShared<CpuTimelineInternal>(Session.GetLinearAllocator());
-		AdditionalCpuTimelinesMap.Add(ThreadId, Timeline);
+		uint32 TimelineIndex = CpuTimelines.Num();
+		CpuTimelinesThreadMap.Add(ThreadId, TimelineIndex);
+		CpuTimelines.Add(Timeline);
 		return Timeline.Get();
 	}
 }
@@ -344,38 +552,31 @@ uint64 FLoadTimeProfilerProvider::PackageSizeSum(const FLoadRequest& Row)
 	return Sum;
 }
 
-const TCHAR* GetLoadTimeProfilerPackageEventTypeString(ELoadTimeProfilerPackageEventType EventType)
+void FLoadTimeProfilerProvider::CreateCounters()
 {
-	switch (EventType)
+	if (!bHasCreatedCounters)
 	{
-	case LoadTimeProfilerPackageEventType_CreateLinker:
-		return TEXT("CreateLinker");
-	case LoadTimeProfilerPackageEventType_FinishLinker:
-		return TEXT("FinishLinker");
-	case LoadTimeProfilerPackageEventType_StartImportPackages:
-		return TEXT("StartImportPackages");
-	case LoadTimeProfilerPackageEventType_SetupImports:
-		return TEXT("SetupImports");
-	case LoadTimeProfilerPackageEventType_SetupExports:
-		return TEXT("SetupExports");
-	case LoadTimeProfilerPackageEventType_ProcessImportsAndExports:
-		return TEXT("ProcessImportsAndExports");
-	case LoadTimeProfilerPackageEventType_ExportsDone:
-		return TEXT("ExportsDone");
-	case LoadTimeProfilerPackageEventType_PostLoadWait:
-		return TEXT("PostLoadWait");
-	case LoadTimeProfilerPackageEventType_StartPostLoad:
-		return TEXT("StartPostLoad");
-	case LoadTimeProfilerPackageEventType_Tick:
-		return TEXT("Tick");
-	case LoadTimeProfilerPackageEventType_DeferredPostLoad:
-		return TEXT("DeferredPostLoad");
-	case LoadTimeProfilerPackageEventType_Finish:
-		return TEXT("Finish");
-	case LoadTimeProfilerPackageEventType_None:
-		return TEXT("None");
+		for (int32 CounterType = 0; CounterType < FLoaderFrameCounter::LoaderFrameCounterType_Count; ++CounterType)
+		{
+			CounterProvider.AddCounter(new FLoaderFrameCounter(FLoaderFrameCounter::ELoaderFrameCounterType(CounterType), Frames));
+		}
+	
+		ActiveIoDispatcherBatchesCounter = CounterProvider.CreateCounter();
+		ActiveIoDispatcherBatchesCounter->SetName(TEXT("AssetLoading/IoDispatcher/ActiveBatches"));
+
+		TotalIoDispatcherBytesReadCounter = CounterProvider.CreateCounter();
+		TotalIoDispatcherBytesReadCounter->SetName(TEXT("AssetLoading/IoDispatcher/TotalBytesRead"));
+		TotalIoDispatcherBytesReadCounter->SetDisplayHint(CounterDisplayHint_Memory);
+
+		LoadingPackagesCounter = CounterProvider.CreateCounter();
+		LoadingPackagesCounter->SetName(TEXT("AssetLoading/AsyncLoading/ActiveLoadingPackages"));
+
+		TotalLoaderBytesLoadedCounter = CounterProvider.CreateCounter();
+		TotalLoaderBytesLoadedCounter->SetName(TEXT("AssetLoading/AsyncLoading/TotalBytesLoaded"));
+		TotalLoaderBytesLoadedCounter->SetDisplayHint(CounterDisplayHint_Memory);
+
+		bHasCreatedCounters = true;
 	}
-	return TEXT("[invalid]");
 }
 
 const TCHAR* GetLoadTimeProfilerObjectEventTypeString(ELoadTimeProfilerObjectEventType EventType)

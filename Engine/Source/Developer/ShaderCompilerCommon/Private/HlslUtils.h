@@ -172,6 +172,11 @@ namespace CrossCompiler
 				return !!Data;
 			}
 
+			SizeType GetInitialCapacity() const
+			{
+				return 0;
+			}
+
 			FLinearAllocator* LinearAllocator;
 
 		private:

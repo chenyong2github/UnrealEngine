@@ -3,13 +3,15 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Trace/Trace.h"
+#include "Trace/Config.h"
 
 #if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING
 #define CSVPROFILERTRACE_ENABLED WITH_ENGINE
 #else
 #define CSVPROFILERTRACE_ENABLED 0
 #endif
+
+class FName;
 
 #if CSVPROFILERTRACE_ENABLED
 

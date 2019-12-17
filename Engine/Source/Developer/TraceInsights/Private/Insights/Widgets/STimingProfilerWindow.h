@@ -21,7 +21,6 @@ class FActiveTimerHandle;
 class FMenuBuilder;
 
 class SFrameTrack;
-class SGraphTrack;
 class SLogView;
 class SStatsView;
 class STimersView;
@@ -36,7 +35,6 @@ struct FTimingProfilerTabs
 	// Tab identifiers
 	static const FName ToolbarID;
 	static const FName FramesTrackID;
-	static const FName GraphTrackID;
 	static const FName TimingViewID;
 	static const FName TimersID;
 	static const FName CallersID;
@@ -84,9 +82,6 @@ private:
 
 	TSharedRef<SDockTab> SpawnTab_FramesTrack(const FSpawnTabArgs& Args);
 	void OnFramesTrackTabClosed(TSharedRef<SDockTab> TabBeingClosed);
-
-	TSharedRef<SDockTab> SpawnTab_GraphTrack(const FSpawnTabArgs& Args);
-	void OnGraphTrackTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 
 	TSharedRef<SDockTab> SpawnTab_TimingView(const FSpawnTabArgs& Args);
 	void OnTimingViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
@@ -180,9 +175,6 @@ private:
 private:
 	/** The Frame track widget */
 	TSharedPtr<SFrameTrack> FrameTrack;
-
-	/** The graph track widget */
-	TSharedPtr<SGraphTrack> GraphTrack;
 
 	/** The Timing view (multi-track) widget */
 	TSharedPtr<STimingView> TimingView;

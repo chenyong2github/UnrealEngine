@@ -48,7 +48,7 @@ public:
 
 	void Reset();
 
-	SLATE_BEGIN_ARGS(SLogView){}
+	SLATE_BEGIN_ARGS(SLogView) {}
 	SLATE_END_ARGS()
 
 	/**

@@ -81,7 +81,7 @@ public:
 	/** Virtual destructor. */
 	virtual ~SStartPageWindow();
 
-	SLATE_BEGIN_ARGS(SStartPageWindow){}
+	SLATE_BEGIN_ARGS(SStartPageWindow) {}
 	SLATE_END_ARGS()
 
 	/** Constructs this widget. */

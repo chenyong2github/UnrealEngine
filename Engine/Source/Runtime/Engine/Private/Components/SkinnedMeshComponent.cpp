@@ -365,6 +365,10 @@ USkinnedMeshComponent::USkinnedMeshComponent(const FObjectInitializer& ObjectIni
 	bExternalEvaluationRateLimited = false;
 	bExternalTickRateControlled = false;
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	bDrawDebugSkeleton = false;
+#endif
+
 	CurrentSkinWeightProfileName = NAME_None;
 }
 

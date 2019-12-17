@@ -729,7 +729,7 @@ FByteBulkData* USoundWave::GetCompressedData(FName Format, const FPlatformAudioC
 void USoundWave::InvalidateCompressedData(bool bFreeResources, bool bRebuildStreamingChunks)
 {
 	CompressedDataGuid = FGuid::NewGuid();
-	ZerothChunkData.Reset();
+	ZerothChunkData.Empty();
 	CompressedFormatData.FlushData();
 
 	if (bFreeResources)
@@ -877,7 +877,7 @@ void USoundWave::PostLoad()
 void USoundWave::EnsureZerothChunkIsLoaded()
 {
 	// If the zeroth chunk is already loaded, early exit.
-	if (ZerothChunkData.Num() > 0 || !ShouldUseStreamCaching())
+	if (ZerothChunkData.GetView().Num() > 0 || !ShouldUseStreamCaching())
 	{
 		return;
 	}
@@ -897,24 +897,16 @@ void USoundWave::EnsureZerothChunkIsLoaded()
 		return;
 	}
 
-	// TODO: Support passing a TArray by ref into FStreamedAudioPlatformData::GetChunkFromDDC.
-	// Currently not feasible unless FUntypedBulkData::GetCopy API was changed.
-	// For now in editor, we have an extra allocated buffer in this scope.
-	ZerothChunkData.Reset();
-	ZerothChunkData.AddUninitialized(ChunkSizeInBytes);
-	FMemory::Memcpy(ZerothChunkData.GetData(), TempChunkBuffer, ChunkSizeInBytes);
-	FMemory::Free(TempChunkBuffer);
+	ZerothChunkData.Reset(TempChunkBuffer, ChunkSizeInBytes);
+
 #else // WITH_EDITOR
 	// Otherwise, the zeroth chunk is cooked out to RunningPlatformData, and we just need to retrieve it.
 	check(RunningPlatformData && RunningPlatformData->Chunks.Num() > 0);
 	FStreamedAudioChunk& ZerothChunk = RunningPlatformData->Chunks[0];
 	// Some sanity checks to ensure that the bulk size set up
-	check(ZerothChunk.BulkData.GetBulkDataSize() == ZerothChunk.DataSize && ZerothChunk.DataSize >= ZerothChunk.AudioDataSize);
+	check(ZerothChunk.BulkData.GetBulkDataSize() == ZerothChunk.DataSize);
 
-	ZerothChunkData.Reset();
-	ZerothChunkData.AddUninitialized(ZerothChunk.AudioDataSize);
-	uint8* Destination = ZerothChunkData.GetData();
-	ZerothChunk.BulkData.GetCopy((void**)&Destination, true);
+	ZerothChunkData = ZerothChunk.BulkData.GetCopyAsBuffer(ZerothChunk.AudioDataSize, true);
 #endif // WITH_EDITOR
 }
 
@@ -1992,7 +1984,7 @@ TArrayView<const uint8> USoundWave::GetZerothChunk()
 			EnsureZerothChunkIsLoaded();
 		}
 
-		check(ZerothChunkData.Num() > 0);
+		check(ZerothChunkData.GetView().Num() > 0);
 
 		if (GetNumChunks() > 1)
 		{
@@ -2000,7 +1992,7 @@ TArrayView<const uint8> USoundWave::GetZerothChunk()
 			IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(this, 1, [](EAudioChunkLoadResult InResult) {});
 		}
 
-		return TArrayView<const uint8>(ZerothChunkData);
+		return ZerothChunkData.GetView();
 	}
 	else
 	{

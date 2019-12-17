@@ -56,7 +56,7 @@ public:
 	/** Virtual destructor. */
 	virtual ~SNetStatsView();
 
-	SLATE_BEGIN_ARGS(SNetStatsView){}
+	SLATE_BEGIN_ARGS(SNetStatsView) {}
 	SLATE_END_ARGS()
 
 	/**

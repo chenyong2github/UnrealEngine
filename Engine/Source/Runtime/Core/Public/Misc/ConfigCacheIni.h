@@ -223,6 +223,8 @@ public:
 	// process the '+' and '.' commands, takingf into account ArrayOfStruct unique keys
 	void CORE_API HandleAddCommand(FName Key, FString&& Value, bool bAppendValueIfNotArrayOfStructsKeyUsed);
 
+	bool HandleArrayOfKeyedStructsCommand(FName Key, FString&& Value);
+
 	template<typename Allocator> 
 	void MultiFind(const FName Key, TArray<FConfigValue, Allocator>& OutValues, const bool bMaintainOrder = false) const
 	{

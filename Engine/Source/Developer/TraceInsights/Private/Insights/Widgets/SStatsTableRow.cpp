@@ -31,7 +31,7 @@ void SStatsTableRow::Construct(const FArguments& InArgs, const TSharedRef<STable
 
 	StatsNodePtr = InArgs._StatsNodePtr;
 
-	RowToolTip = MakeShareable(new SStatsCounterTableRowToolTip(StatsNodePtr));
+	RowToolTip = MakeShared<SStatsCounterTableRowToolTip>(StatsNodePtr);
 
 	SetEnabled(TAttribute<bool>(this, &SStatsTableRow::HandleShouldBeEnabled));
 
@@ -140,7 +140,7 @@ const FSlateBrush* SStatsTableRow::GetOutlineBrush(const FName ColumnId) const
 	{
 		Brush = FEditorStyle::GetBrush("Profiler.EventGraph.Border.L");
 	}
-	else if(Result == HAlign_Right)
+	else if (Result == HAlign_Right)
 	{
 		Brush = FEditorStyle::GetBrush("Profiler.EventGraph.Border.R");
 	}

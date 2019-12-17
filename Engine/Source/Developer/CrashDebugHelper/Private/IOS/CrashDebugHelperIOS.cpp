@@ -599,14 +599,6 @@ bool FCrashDebugHelperIOS::ParseCrashDump(const FString& InCrashDumpName, FCrash
 bool FCrashDebugHelperIOS::CreateMinidumpDiagnosticReport( const FString& InCrashDumpName )
 {
 	bool bOK = false;
-	const bool bSyncSymbols = FParse::Param( FCommandLine::Get(), TEXT( "SyncSymbols" ) );
-	const bool bAnnotate = FParse::Param( FCommandLine::Get(), TEXT( "Annotate" ) );
-	const bool bUseSCC = bSyncSymbols || bAnnotate;
-	
-	if( bUseSCC )
-	{
-		InitSourceControl( false );
-	}
 	
 	FString CrashDump;
 	if ( FFileHelper::LoadFileToString( CrashDump, *InCrashDumpName ) )
@@ -645,14 +637,6 @@ bool FCrashDebugHelperIOS::CreateMinidumpDiagnosticReport( const FString& InCras
 			if(Result == 5 && Branch.Len() > 0)
 			{
 				CrashInfo.LabelName = Branch;
-				
-				if( bSyncSymbols )
-				{
-					FindSymbolsAndBinariesStorage();
-					
-					bool bPDBCacheEntryValid = false;
-					SyncModules(bPDBCacheEntryValid);
-				}
 			}
 			
 			Result = ParseOS(*CrashDump, CrashInfo.SystemInfo.OSMajor, CrashInfo.SystemInfo.OSMinor, CrashInfo.SystemInfo.OSBuild, CrashInfo.SystemInfo.OSRevision);
@@ -767,24 +751,8 @@ bool FCrashDebugHelperIOS::CreateMinidumpDiagnosticReport( const FString& InCras
 								CrashInfo.SourceFile = ExtractRelativePath( TEXT( "source" ), *FileName );
 								CrashInfo.SourceLineNumber = LineNumber;
 								
-								if( bSyncSymbols && CrashInfo.BuiltFromCL > 0 )
-								{
-									UE_LOG( LogCrashDebugHelper, Log, TEXT( "Using CL %i to sync crash source file" ), CrashInfo.BuiltFromCL );
-									SyncSourceFile();
-								}
-								
-								// Try to annotate the file if requested
-								bool bAnnotationSuccessful = false;
-								if( bAnnotate )
-								{
-									bAnnotationSuccessful = AddAnnotatedSourceToReport();
-								}
-								
-								// If annotation is not requested, or failed, add the standard source context
-								if( !bAnnotationSuccessful )
-								{
-									AddSourceToReport();
-								}
+								// Add the standard source context
+								AddSourceToReport();
 							}
 						}
 						
@@ -809,11 +777,6 @@ bool FCrashDebugHelperIOS::CreateMinidumpDiagnosticReport( const FString& InCras
 			
 			bOK = true;
 		}
-	}
-	
-	if( bUseSCC )
-	{
-		ShutdownSourceControl();
 	}
 	
 	return bOK;

@@ -21,8 +21,7 @@ public:
 	/** Virtual destructor. */
 	virtual ~SLoadingProfilerToolbar();
 
-	SLATE_BEGIN_ARGS( SLoadingProfilerToolbar )
-		{}
+	SLATE_BEGIN_ARGS(SLoadingProfilerToolbar) {}
 	SLATE_END_ARGS()
 
 	/**

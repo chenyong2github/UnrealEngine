@@ -676,7 +676,7 @@ bool FTextHistory::GetHistoricNumericData(const FText& InText, FHistoricTextNume
 
 void FTextHistory::SerializeForDisplayString(FStructuredArchive::FRecord Record, FTextDisplayStringPtr& InOutDisplayString)
 {
-	if(Record.GetUnderlyingArchive().IsLoading())
+	if(Record.GetArchiveState().IsLoading())
 	{
 		PrepareDisplayStringForRebuild(InOutDisplayString);
 	}
@@ -2489,7 +2489,7 @@ void FTextHistory_StringTableEntry::Serialize(FStructuredArchive::FRecord Record
 
 void FTextHistory_StringTableEntry::SerializeForDisplayString(FStructuredArchive::FRecord Record, FTextDisplayStringPtr& InOutDisplayString)
 {
-	if (Record.GetUnderlyingArchive().IsLoading())
+	if (Record.GetArchiveState().IsLoading())
 	{
 		// We will definitely need to do a rebuild later
 		Revision = 0;

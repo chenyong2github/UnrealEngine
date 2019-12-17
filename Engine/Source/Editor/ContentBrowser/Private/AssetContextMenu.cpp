@@ -881,7 +881,7 @@ void FAssetContextMenu::DoTextFormatRoundtrip()
 	Args.bIncludeEngineContent = true;
 	Args.bVerifyJson = true;
 	Args.CSVFilename = TEXT("");
-	Args.ProcessingMode = UTextAssetCommandlet::EProcessingMode::RoundTrip;
+	Args.ProcessingMode = ETextAssetCommandletMode::RoundTrip;
 	Args.bFilenameIsFilter = false;
 
 	for (const FAssetData& Asset : SelectedAssets)

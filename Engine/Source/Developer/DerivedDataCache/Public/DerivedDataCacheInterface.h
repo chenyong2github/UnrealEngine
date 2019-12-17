@@ -9,17 +9,6 @@
 class FDerivedDataCacheUsageStats;
 
 /** 
- * Opaque class for rollup handling
-**/
-class IDerivedDataRollup
-{
-public:
-	virtual ~IDerivedDataRollup()
-	{
-	}
-};
-
-/** 
  * Interface for the derived data cache
  * This API is fully threadsafe (with the possible exception of the system interface: NotfiyBootComplete, etc).
 **/
@@ -136,18 +125,6 @@ public:
 	//--------------------
 
 	/** 
-	 * Starts a rollup. Use this for GetAsynchronous calls, then call close on it
-	 * @return	a pointer to a rollup
-	**/
-	virtual IDerivedDataRollup* StartRollup() = 0;
-
-	/** 
-	 * Ends a rollup. Use this for GetAsynchronous calls, then call close on it
-	 * @param Rollup	reference to a pointer to the rollup to close...also sets the pointer to NULL
-	**/
-	virtual void EndRollup(IDerivedDataRollup*& Rollup) = 0;
-
-	/** 
 	 * Synchronously checks the cache and if the item is present, it returns the cached results, otherwise it returns false
 	 * @param	CacheKey	Key to identify the data
 	 * @return	true if the data was retrieved from the cache
@@ -157,10 +134,9 @@ public:
 	/** 
 	 * Starts the async process of checking the cache and if the item is present, retrieving the cached results
 	 * @param	CacheKey	Key to identify the data
-	 * @param	Rollup		Rollup pointer, if this is part of a rollup
 	 * @return	a handle that can be used for PollAsynchronousCompletion, WaitAsynchronousCompletion and GetAsynchronousResults
 	**/
-	virtual uint32 GetAsynchronous(const TCHAR* CacheKey, IDerivedDataRollup* Rollup = NULL) = 0;
+	virtual uint32 GetAsynchronous(const TCHAR* CacheKey) = 0;
 
 	/** 
 	 * Puts data into the cache. This is fire-and-forget and typically asynchronous.
