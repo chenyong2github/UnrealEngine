@@ -484,7 +484,7 @@ FMallocCrashPool* FGenericPlatformMallocCrash::FindPoolFromSize( uint32 Allocati
 		FMallocCrashPool* Pool = &FMallocCrashPool::GetPool(Index);
 
 		// If we have used up this pools allocation limit lets try the next one
-		if ( Pool->TotalNumUsed >= Pool->MaxNumAllocations )
+		if ( Pool->NumUsed >= Pool->MaxNumAllocations )
 		{
 			continue;
 		}
