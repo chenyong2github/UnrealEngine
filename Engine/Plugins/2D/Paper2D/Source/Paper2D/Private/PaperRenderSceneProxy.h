@@ -13,12 +13,14 @@
 #include "LocalVertexFactory.h"
 #include "Paper2DModule.h"
 #include "DynamicMeshBuilder.h"
+#include "PaperSpriteVertexBuffer.h"
 
 class FMeshElementCollector;
 class UBodySetup;
 class UPrimitiveComponent;
 class FSpriteTextureOverrideRenderProxy;
 class UMeshComponent;
+class FMaterialRenderProxy;
 
 #if WITH_EDITOR
 typedef TMap<const UTexture*, const UTexture*> FPaperRenderSceneProxyTextureOverrideMap;
@@ -134,6 +136,7 @@ public:
 	virtual uint32 GetMemoryFootprint() const override;
 	virtual bool CanBeOccluded() const override;
 	virtual bool IsUsingDistanceCullFade() const override;
+	virtual void CreateRenderThreadResources() override;
 	// End of FPrimitiveSceneProxy interface.
 
 	void SetBodySetup_RenderThread(UBodySetup* NewSetup);
@@ -145,7 +148,10 @@ public:
 protected:
 	virtual void GetDynamicMeshElementsForView(const FSceneView* View, int32 ViewIndex, FMeshElementCollector& Collector) const;
 
+	bool GetMeshElement(int32 SectionIndex, uint8 DepthPriorityGroup, bool bIsSelected, FMeshBatch& OutMeshBatch) const;
+
 	void GetNewBatchMeshes(const FSceneView* View, int32 ViewIndex, FMeshElementCollector& Collector) const;
+	void GetNewBatchMeshesPrebuilt(const FSceneView* View, int32 ViewIndex, FMeshElementCollector& Collector) const;
 
 	bool IsCollisionView(const FEngineShowFlags& EngineShowFlags, bool& bDrawSimpleCollision, bool& bDrawComplexCollision) const;
 
@@ -154,17 +160,24 @@ protected:
 
 	// Call this if you modify BatchedSections or Vertices after the proxy has already been created
 	void RecreateCachedRenderData();
+
+	FSpriteTextureOverrideRenderProxy* GetCachedMaterialProxyForSection(int32 SectionIndex, FMaterialRenderProxy* ParentMaterialProxy) const;
+
 protected:
 	TArray<FSpriteRenderSection> BatchedSections;
 	TArray<FDynamicMeshVertex> Vertices;
 	mutable TArray<FSpriteTextureOverrideRenderProxy*> MaterialTextureOverrideProxies;
 
+	FPaperSpriteVertexBuffer VertexBuffer;
+	FPaperSpriteVertexFactory VertexFactory;
+
 	//
 	AActor* Owner;
 	UBodySetup* MyBodySetup;
 
-	bool bDrawTwoSided;
-	bool bCastShadow;
+	uint8 bDrawTwoSided:1;
+	uint8 bCastShadow:1;
+	uint8 bSpritesUseVertexBufferPath:1;
 
 	// The view relevance for the associated material
 	FMaterialRelevance MaterialRelevance;
