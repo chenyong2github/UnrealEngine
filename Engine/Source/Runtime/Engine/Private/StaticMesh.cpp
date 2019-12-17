@@ -5202,6 +5202,7 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 	// Set up
 
 	bIsBuiltAtRuntime = true;
+	NeverStream = true;
 
 	TOptional<FStaticMeshComponentRecreateRenderStateContext> RecreateRenderStateContext;
 	
