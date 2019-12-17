@@ -12,6 +12,8 @@
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 
+#include "AssetTypeActions/AssetTypeActions_MediaOutput.h"
+
 #include "Customizations/MediaIODeviceCustomization.h"
 #include "Customizations/MediaIOConfigurationCustomization.h"
 #include "Customizations/MediaIOInputConfigurationCustomization.h"
@@ -26,6 +28,7 @@ class FMediaIOEditorModule : public IModuleInterface
 
 	virtual void StartupModule() override
 	{
+		RegisterAssetTools();
 		RegisterCustomizations();
 		RegisterStyle();
 	}
@@ -36,10 +39,45 @@ class FMediaIOEditorModule : public IModuleInterface
 		{
 			UnregisterStyle();
 			UnregisterCustomizations();
+			UnregisterAssetTools();
 		}
 	}
 
 private:
+	/** Registers asset tool actions. */
+	void RegisterAssetTools()
+	{
+		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+		RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_MediaOutput));
+	}
+
+	/**
+	 * Registers a single asset type action.
+	 */
+	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)
+	{
+		AssetTools.RegisterAssetTypeActions(Action);
+		RegisteredAssetTypeActions.Add(Action);
+	}
+
+	/** Unregisters asset tool actions. */
+	void UnregisterAssetTools()
+	{
+		FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
+
+		if (AssetToolsModule != nullptr)
+		{
+			IAssetTools& AssetTools = AssetToolsModule->Get();
+
+			for (const TSharedRef<IAssetTypeActions>& Action : RegisteredAssetTypeActions)
+			{
+				AssetTools.UnregisterAssetTypeActions(Action);
+			}
+		}
+
+		RegisteredAssetTypeActions.Reset();
+	}
+
 	/** Register details view customizations. */
 	void RegisterCustomizations()
 	{
@@ -81,6 +119,10 @@ private:
 	{
 		FSlateStyleRegistry::UnRegisterSlateStyle(*StyleInstance.Get());
 	}
+
+private:
+	/** The collection of registered asset type actions. */
+	TArray<TSharedRef<IAssetTypeActions>> RegisteredAssetTypeActions;
 };
 
 IMPLEMENT_MODULE(FMediaIOEditorModule, MediaIOEditor)
