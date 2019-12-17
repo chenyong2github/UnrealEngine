@@ -23,9 +23,6 @@ public class WebMMoviePlayer : ModuleRules
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			string PlatformName = Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) ?
-				"Linux" : Target.Platform.ToString();
-
 			PrivateDependencyModuleNames.Add("SDL2");
 
 			PrivateIncludePaths.Add("WebMMoviePlayer/Private/Audio/Unix");
