@@ -19,7 +19,7 @@ struct FImportParameters;
 class FDatasmithCADWorkerImpl
 {
 public:
-	FDatasmithCADWorkerImpl(int32 InServerPID, int32 InServerPort, const FString& InCachePath);
+	FDatasmithCADWorkerImpl(int32 InServerPID, int32 InServerPort, const FString& KernelIOPath, const FString& InCachePath);
 	bool Run();
 
 private:
@@ -36,6 +36,7 @@ private:
 
 	int32 ServerPID;
 	int32 ServerPort;
+	FString KernelIOPath;
 	FString CachePath;
 	CADLibrary::FImportParameters ImportParameters;
 	uint64 PingStartCycle;
