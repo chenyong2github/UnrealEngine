@@ -12,6 +12,9 @@ public:
 	/** Fix up references to the specified redirectors */
 	void FixupReferencers(const TArray<UObjectRedirector*>& Objects) const;
 
+	/** Returns whether redirectors are being fixed up. */
+	bool IsFixupReferencersInProgress() const { return bIsFixupReferencersInProgress; }
+
 private:
 
 	/** The core code of the fixup operation */
@@ -56,4 +59,8 @@ private:
 
 	/** Report any failures that may have happened during the rename */
 	void ReportFailures(const TArray<FRedirectorRefs>& RedirectorsToFix) const;
+
+private:
+
+	mutable bool bIsFixupReferencersInProgress = false;
 };

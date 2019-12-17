@@ -2924,6 +2924,11 @@ void UAssetToolsImpl::FixupReferencers(const TArray<UObjectRedirector*>& Objects
 	AssetFixUpRedirectors->FixupReferencers(Objects);
 }
 
+bool UAssetToolsImpl::IsFixupReferencersInProgress() const
+{
+	return AssetFixUpRedirectors->IsFixupReferencersInProgress();
+}
+
 void UAssetToolsImpl::OpenEditorForAssets(const TArray<UObject*>& Assets)
 {
 #if WITH_EDITOR
