@@ -10,9 +10,16 @@ NiagaraGPUInstanceCountManager.h: GPU particle count handling
 #include "RHIUtilities.h"
 #include "NiagaraDrawIndirect.h"
 #include "RHIGPUReadback.h"
-#include "NiagaraRenderer.h"
 
 class FRHIGPUMemoryReadback;
+
+// The number of GPU renderers registered in the instance count manager.
+// Shared between the manager and the renderers.
+class FNiagaraGPURendererCount : public FRefCountedObject
+{
+public:
+	int32 Value = 0;
+};
 
 FORCEINLINE uint32 GetTypeHash(const FNiagaraDrawIndirectArgsGenCS::FArgGenTaskInfo& Info)
 {
