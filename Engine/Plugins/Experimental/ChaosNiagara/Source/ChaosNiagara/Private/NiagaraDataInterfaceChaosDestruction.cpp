@@ -175,9 +175,12 @@ void UNiagaraDataInterfaceChaosDestruction::PostLoad()
 	{
 		FPhysScene* Scene = GetWorld()->GetPhysicsScene();
 		Chaos::FEventManager* EventManager = Scene->GetScene().GetSolver()->GetEventManager();
-		EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UNiagaraDataInterfaceChaosDestruction::HandleCollisionEvents);
-		EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UNiagaraDataInterfaceChaosDestruction::HandleBreakingEvents);
-		EventManager->RegisterHandler<Chaos::FTrailingEventData>(Chaos::EEventType::Trailing, this, &UNiagaraDataInterfaceChaosDestruction::HandleTrailingEvents);
+		if (EventManager)
+		{
+			EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UNiagaraDataInterfaceChaosDestruction::HandleCollisionEvents);
+			EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UNiagaraDataInterfaceChaosDestruction::HandleBreakingEvents);
+			EventManager->RegisterHandler<Chaos::FTrailingEventData>(Chaos::EEventType::Trailing, this, &UNiagaraDataInterfaceChaosDestruction::HandleTrailingEvents);
+		}
 	}
 #endif
 
@@ -193,9 +196,12 @@ void UNiagaraDataInterfaceChaosDestruction::BeginDestroy()
 	{
 		FPhysScene* Scene = GetWorld()->GetPhysicsScene();
 		Chaos::FEventManager* EventManager = Scene->GetScene().GetSolver()->GetEventManager();
-		EventManager->UnregisterHandler(Chaos::EEventType::Collision, this);
-		EventManager->UnregisterHandler(Chaos::EEventType::Breaking, this);
-		EventManager->UnregisterHandler(Chaos::EEventType::Trailing, this);
+		if (EventManager)
+		{
+			EventManager->UnregisterHandler(Chaos::EEventType::Collision, this);
+			EventManager->UnregisterHandler(Chaos::EEventType::Breaking, this);
+			EventManager->UnregisterHandler(Chaos::EEventType::Trailing, this);
+		}
 	}
 #endif
 }

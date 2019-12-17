@@ -19,11 +19,12 @@
 namespace GeometryCollectionExample
 {
 #define RUN_EXAMPLE(X) X<float>();
+#define RUN_EXAMPLE_NO_TEMPLATE(X) X();
 
-#if TODO_REIMPLEMENT_RIGID_CLUSTERING
 	template<class RESPONSE>
 	void ExecuteExamples()
 	{
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
 		RUN_EXAMPLE(BasicGlobalMatrices);
 		RUN_EXAMPLE(TransformMatrixElement);
 		RUN_EXAMPLE(ReparentingMatrices);
@@ -39,23 +40,25 @@ namespace GeometryCollectionExample
 		RUN_EXAMPLE(DeleteBranch);
 		RUN_EXAMPLE(DeleteRootLeafMiddle);
 		RUN_EXAMPLE(DeleteEverything);
-		RUN_EXAMPLE(Fields_NoiseSample);
-		RUN_EXAMPLE(Fields_RadialIntMask);
-		RUN_EXAMPLE(Fields_RadialFalloff);
-		RUN_EXAMPLE(Fields_PlaneFalloff);
-		RUN_EXAMPLE(Fields_UniformVector);
-		RUN_EXAMPLE(Fields_RaidalVector);
-		RUN_EXAMPLE(Fields_SumVectorFullMult);
-		RUN_EXAMPLE(Fields_SumVectorFullDiv);
-		RUN_EXAMPLE(Fields_SumVectorFullAdd);
-		RUN_EXAMPLE(Fields_SumVectorFullSub);
-		RUN_EXAMPLE(Fields_SumVectorLeftSide);
-		RUN_EXAMPLE(Fields_SumVectorRightSide);
-		RUN_EXAMPLE(Fields_SumScalar);
-		RUN_EXAMPLE(Fields_SumScalarRightSide);
-		RUN_EXAMPLE(Fields_SumScalarLeftSide);
-		RUN_EXAMPLE(Fields_Culling);
-		RUN_EXAMPLE(Fields_SerializeAPI);
+#endif //TODO_REIMPLEMENT_RIGID_CLUSTERING
+		RUN_EXAMPLE_NO_TEMPLATE(Fields_NoiseSample);
+		RUN_EXAMPLE_NO_TEMPLATE(Fields_RadialIntMask);
+		RUN_EXAMPLE_NO_TEMPLATE(Fields_RadialFalloff);
+		RUN_EXAMPLE_NO_TEMPLATE(Fields_PlaneFalloff);
+		RUN_EXAMPLE_NO_TEMPLATE(Fields_UniformVector);
+		RUN_EXAMPLE_NO_TEMPLATE(Fields_RaidalVector);
+		RUN_EXAMPLE_NO_TEMPLATE(Fields_SumVectorFullMult);
+		RUN_EXAMPLE_NO_TEMPLATE(Fields_SumVectorFullDiv);
+		RUN_EXAMPLE_NO_TEMPLATE(Fields_SumVectorFullAdd);
+		RUN_EXAMPLE_NO_TEMPLATE(Fields_SumVectorFullSub);
+		RUN_EXAMPLE_NO_TEMPLATE(Fields_SumVectorLeftSide);
+		RUN_EXAMPLE_NO_TEMPLATE(Fields_SumVectorRightSide);
+		RUN_EXAMPLE_NO_TEMPLATE(Fields_SumScalar);
+		RUN_EXAMPLE_NO_TEMPLATE(Fields_SumScalarRightSide);
+		RUN_EXAMPLE_NO_TEMPLATE(Fields_SumScalarLeftSide);
+		RUN_EXAMPLE_NO_TEMPLATE(Fields_Culling);
+		RUN_EXAMPLE_NO_TEMPLATE(Fields_SerializeAPI);
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
 		RUN_EXAMPLE(Solver_AdvanceNoObjects);
 		RUN_EXAMPLE(Solver_AdvanceDisabledObjects);
 		RUN_EXAMPLE(Solver_AdvanceDisabledClusteredObjects);
@@ -80,6 +83,7 @@ namespace GeometryCollectionExample
 		RUN_EXAMPLE(RigidBodies_ClusterTest_ReleaseClusterParticle_ClusteredKinematicNode);
 		RUN_EXAMPLE(RigidBodies_ClusterTest_ReleaseClusterParticles_AllLeafNodes);
 		RUN_EXAMPLE(RigidBodies_ClusterTest_ReleaseClusterParticles_ClusterNodeAndSubClusterNode);
+#endif // TODO_REIMPLEMENT_RIGID_CLUSTERING
 		RUN_EXAMPLE(RigidBodies_Field_KinematicActivation);
 		RUN_EXAMPLE(RigidBodies_Field_InitialLinearVelocity);
 		RUN_EXAMPLE(RigidBodies_Field_StayDynamic);
@@ -91,6 +95,7 @@ namespace GeometryCollectionExample
 		RUN_EXAMPLE(RigidBodies_Field_ClusterBreak_StrainModel_Test1);
 		RUN_EXAMPLE(RigidBodies_Field_ClusterBreak_StrainModel_Test2);
 		RUN_EXAMPLE(RigidBodies_Field_ClusterBreak_StrainModel_Test3);
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
 		RUN_EXAMPLE(RigidBodies_Streaming_StartSolverEmpty);
 		RUN_EXAMPLE(RigidBodies_Streaming_BulkInitialization);
 		RUN_EXAMPLE(RigidBodies_Streaming_DeferedClusteringInitialization);
@@ -115,8 +120,7 @@ namespace GeometryCollectionExample
 		RUN_EXAMPLE(HashTableUpdateTest);
 		RUN_EXAMPLE(HashTablePressureTest);
 		RUN_EXAMPLE(TestGeometryDecimation);
-		
+#endif
 	}
 	template void ExecuteExamples<ExampleResponse>();
-#endif
 }

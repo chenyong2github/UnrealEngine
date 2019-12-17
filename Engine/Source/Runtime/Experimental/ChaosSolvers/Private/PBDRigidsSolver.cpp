@@ -53,8 +53,17 @@ namespace Chaos
 			UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("AdvanceOneTimeStepTask::DoWork()"));
 
 			{
-				//SCOPE_CYCLE_COUNTER(STAT_UpdateParams);
-				//MSolver->ParameterUpdateCallback(MSolver->GetSolverTime());
+				SCOPE_CYCLE_COUNTER(STAT_UpdateParams);
+				Chaos::TPBDPositionConstraints<float, 3> PositionTarget; // Dummy for now
+				TMap<int32, int32> PositionTargetedParticles;
+				//TArray<FKinematicProxy> AnimatedPositions;
+				Chaos::TArrayCollectionArray<float> Strains;
+				for (FFieldSystemPhysicsProxy* Obj : MSolver->GetFieldSystemPhysicsProxies())
+				{
+					auto& GeomCollectionParticles = MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles();
+					Obj->FieldParameterUpdateCallback(MSolver, GeomCollectionParticles, Strains, 
+						PositionTarget, PositionTargetedParticles, /*AnimatedPositions,*/ MSolver->GetSolverTime());
+				}
 			}
 
 			{
@@ -66,13 +75,25 @@ namespace Chaos
 				SCOPE_CYCLE_COUNTER(STAT_EvolutionAndKinematicUpdate);
 				while (MDeltaTime > MSolver->GetMaxDeltaTime())
 				{
+					Chaos::TArrayCollectionArray<FVector> Forces, Torques;
 					//MSolver->ForceUpdateCallback(MSolver->GetSolverTime());
+					for (FFieldSystemPhysicsProxy* Obj : MSolver->GetFieldSystemPhysicsProxies())
+					{
+						auto& GeomCollectionParticles = MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles();
+						Obj->FieldForcesUpdateCallback(MSolver, GeomCollectionParticles, Forces, Torques, MSolver->GetSolverTime());
+					}
 					//MSolver->GetEvolution()->ReconcileIslands();
 					//MSolver->KinematicUpdateCallback(MSolver->GetMaxDeltaTime(), MSolver->GetSolverTime());
 					MSolver->GetEvolution()->AdvanceOneTimeStep(MSolver->GetMaxDeltaTime());
 					MDeltaTime -= MSolver->GetMaxDeltaTime();
 				}
 				//MSolver->ForceUpdateCallback(MSolver->GetSolverTime());
+				Chaos::TArrayCollectionArray<FVector> Forces, Torques;
+				for (FFieldSystemPhysicsProxy* Obj : MSolver->GetFieldSystemPhysicsProxies())
+				{
+					auto& GeomCollectionParticles = MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles();
+					Obj->FieldForcesUpdateCallback(MSolver, GeomCollectionParticles, Forces, Torques, MSolver->GetSolverTime());
+				}
 				//MSolver->GetEvolution()->ReconcileIslands();
 				//MSolver->KinematicUpdateCallback(MDeltaTime, MSolver->GetSolverTime());
 				MSolver->GetEvolution()->AdvanceOneTimeStep(MDeltaTime);
@@ -337,6 +358,31 @@ namespace Chaos
 		return GeometryCollectionPhysicsProxies.Remove(InProxy) != 0;
 	}
 
+	void FPBDRigidsSolver::RegisterObject(FFieldSystemPhysicsProxy* InProxy)
+	{
+		UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("FPBDRigidsSolver::RegisterObject(FFieldSystemPhysicsProxy*)"));
+		FieldSystemPhysicsProxies.AddUnique(InProxy);
+		InProxy->SetSolver(this);
+		InProxy->Initialize();
+		Chaos::FParticleData* ProxyData = InProxy->NewData();
+
+		FChaosSolversModule::GetModule()->GetDispatcher()->EnqueueCommandImmediate(
+			this,
+			[this, InProxy, ProxyData](FPBDRigidsSolver* Solver)
+			{
+				UE_LOG(LogPBDRigidsSolverSolver, Verbose,
+					TEXT("FPBDRigidsSolver::RegisterObject(FFieldSystemPhysicsProxy*)"));
+				//InProxy->ActivateBodies();
+				InProxy->PushToPhysicsState(ProxyData);
+			});
+	}
+
+	bool FPBDRigidsSolver::UnregisterObject(FFieldSystemPhysicsProxy* InProxy)
+	{
+		InProxy->SetSolver(static_cast<FPBDRigidsSolver*>(nullptr));
+		return FieldSystemPhysicsProxies.Remove(InProxy) != 0;
+	}
+
 	bool FPBDRigidsSolver::IsSimulating() const
 	{
 		for (FGeometryParticlePhysicsProxy* Obj : GeometryParticlePhysicsProxies)
@@ -467,9 +513,27 @@ namespace Chaos
 		Proxy->ClearAccumulatedData();
 	}
 
+	void PushPhysicsStateExec(FPBDRigidsSolver* Solver, FFieldSystemPhysicsProxy* Proxy, Chaos::IDispatcher* Dispatcher)
+	{
+		Chaos::FParticleData* ProxyData = Proxy->NewData();
+		auto Cmd = [Proxy, Solver, ProxyData](Chaos::FPersistentPhysicsTask* PhysThread)
+		{
+			Proxy->PushToPhysicsState(nullptr);
+		};
+
+		if (Dispatcher)
+			Dispatcher->EnqueueCommandImmediate(Cmd);
+		else
+			Cmd(nullptr);
+		Solver->RemoveDirtyProxy(Proxy);
+		Proxy->ClearAccumulatedData();
+	}
+
 	void FPBDRigidsSolver::PushPhysicsState(IDispatcher* Dispatcher)
 	{
-		TArray< IPhysicsProxyBase *> DirtyProxiesArray = DirtyProxiesSet.Array();
+		if (DirtyProxiesSet.Num() == 0)
+			return;
+		TArray<IPhysicsProxyBase*> DirtyProxiesArray = DirtyProxiesSet.Array();
 		for (auto & Proxy : DirtyProxiesArray)
 		{
 			switch (Proxy->GetType())
@@ -479,7 +543,9 @@ namespace Chaos
 			case EPhysicsProxyType::GeometryCollectionType: // 2
 				PushPhysicsStateExec(this, static_cast<FGeometryCollectionPhysicsProxy*>(Proxy), Dispatcher);
 				break;
-			//case EPhysicsProxyType::FieldType: // 3
+			case EPhysicsProxyType::FieldType: // 3
+				PushPhysicsStateExec(this, static_cast<FFieldSystemPhysicsProxy*>(Proxy), Dispatcher);
+				break;
 			//case EPhysicsProxyType::SkeletalMeshType: // 4
 			case EPhysicsProxyType::SingleRigidParticleType: // 7
 				PushPhysicsStateExec(this, static_cast<FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >*>(Proxy), Dispatcher);

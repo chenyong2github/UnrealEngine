@@ -30,8 +30,8 @@ public:
 		ClusteredParticles = MakeUnique< TPBDRigidClusteredParticles<T, d>>();
 		ClusteredParticles->RemoveParticleBehavior() = ERemoveParticleBehavior::Remove;	//clustered particles maintain relative ordering
 
-		GeometryCollectionDisabledParticles = MakeUnique<TPBDGeometryCollectionParticles<T, d>>();
 		GeometryCollectionParticles = MakeUnique<TPBDGeometryCollectionParticles<T, d>>();
+		GeometryCollectionParticles->RemoveParticleBehavior() = ERemoveParticleBehavior::Remove;	//clustered particles maintain relative ordering
 		
 		UpdateViews();
 	}
@@ -70,13 +70,13 @@ public:
 	TArray<TPBDGeometryCollectionParticleHandle<T, d>*> CreateGeometryCollectionParticles(int32 NumParticles, const TPBDRigidParticleParameters<T, d>& Params = TPBDRigidParticleParameters<T, d>())
 	{
 		TArray<TPBDGeometryCollectionParticleHandle<T, d>*> Results = CreateParticlesHelper<TPBDGeometryCollectionParticleHandle<T, d>>(
-			NumParticles, Params.bDisabled ? GeometryCollectionDisabledParticles : GeometryCollectionParticles, Params);
+			NumParticles, GeometryCollectionParticles, Params);
 		//TArray<TPBDRigidParticleHandle<T, d>*>& RigidHandles = (TArray<TPBDRigidParticleHandle<T, d>*>*)&Results;//*static_cast<TArray<TPBDRigidParticleHandle<T, d>*>*>(&Results);
 		if (!Params.bStartSleeping)
 		{
-			InsertToMapAndArray(Results, ActiveParticlesToIndex, ActiveParticlesArray);
 			InsertToMapAndArray(Results, ActiveGeometryCollectionToIndex, ActiveGeometryCollectionArray);
 		}
+		UpdateGeometryCollectionViews();
 		UpdateViews();
 		return Results;
 	}
@@ -288,7 +288,6 @@ public:
 		ensure(ClusteredParticles->Size() == 0);	//not supported yet
 		//Ar << ClusteredParticles;
 		Ar << GeometryCollectionParticles;
-		Ar << GeometryCollectionDisabledParticles;
 
 		SerializeMapAndArray(Ar, ActiveParticlesToIndex, ActiveParticlesArray);
 		//SerializeMapAndArray(Ar, ActiveClusteredToIndex, ActiveClusteredArray);
@@ -326,6 +325,115 @@ public:
 
 	const TParticleView<TPBDGeometryCollectionParticles<T, d>>& GetActiveGeometryCollectionParticlesView() const { return ActiveGeometryCollectionParticlesView; }
 	TParticleView<TPBDGeometryCollectionParticles<T, d>>& GetActiveGeometryCollectionParticlesView() { return ActiveGeometryCollectionParticlesView; }
+
+	/**
+	 * Update which particle arrays geometry collection particles are in based on 
+	 * their object state (static, kinematic, dynamic, sleeping) and their disabled 
+	 * state.
+	 */
+	void UpdateGeometryCollectionViews()
+	{
+		int32 AIdx = 0, SIdx = 0, KIdx = 0, DIdx = 0;
+
+		for (TPBDGeometryCollectionParticleHandle<T, d>* Handle : ActiveGeometryCollectionArray)
+		{
+			// If the particle is disabled we treat it as static, but for no reason 
+			// other than immediate convenience.
+			const Chaos::EObjectStateType State = Handle->Disabled() ? Chaos::EObjectStateType::Static : Handle->ObjectState();
+
+			switch (State)
+			{
+			case Chaos::EObjectStateType::Static:
+				SIdx++;
+				AIdx += (int32)(!Handle->Disabled());
+				break;
+
+			case Chaos::EObjectStateType::Kinematic:
+				KIdx++;
+				AIdx += (int32)(!Handle->Disabled());
+				break;
+
+			case Chaos::EObjectStateType::Sleeping: // Sleeping is a modified dynamic state
+				DIdx++;
+				break;
+
+			case Chaos::EObjectStateType::Dynamic:
+				DIdx++;
+				AIdx += (int32)(!Handle->Disabled());
+				break;
+
+			default:
+				break;
+			};
+		}
+
+		bool Changed = 
+			ActiveGeometryCollectionArray.Num() != AIdx ||
+			StaticGeometryCollectionArray.Num() != SIdx || 
+			KinematicGeometryCollectionArray.Num() != KIdx || 
+			DynamicGeometryCollectionArray.Num() != DIdx;
+
+		if (Changed)
+		{
+			ActiveGeometryCollectionArray.SetNumUninitialized(AIdx);
+			StaticGeometryCollectionArray.SetNumUninitialized(SIdx);
+			KinematicGeometryCollectionArray.SetNumUninitialized(KIdx);
+			DynamicGeometryCollectionArray.SetNumUninitialized(DIdx);
+		}
+
+		AIdx = SIdx = KIdx = DIdx = 0;
+
+		for (TPBDGeometryCollectionParticleHandle<T, d>* Handle : ActiveGeometryCollectionArray)
+		{
+			const Chaos::EObjectStateType State = 
+				Handle->Disabled() ? Chaos::EObjectStateType::Static : Handle->ObjectState();
+			switch (State)
+			{
+			case Chaos::EObjectStateType::Static:
+				Changed |= StaticGeometryCollectionArray[SIdx] != Handle;
+				StaticGeometryCollectionArray[SIdx++] = Handle;
+				if (!Handle->Disabled())
+				{
+					Changed |= ActiveGeometryCollectionArray[AIdx] != Handle;
+					ActiveGeometryCollectionArray[AIdx++] = Handle;
+				}
+				break;
+
+			case Chaos::EObjectStateType::Kinematic:
+				Changed |= KinematicGeometryCollectionArray[KIdx] != Handle;
+				KinematicGeometryCollectionArray[KIdx++] = Handle;
+				if (!Handle->Disabled())
+				{
+					Changed |= ActiveGeometryCollectionArray[AIdx] != Handle;
+					ActiveGeometryCollectionArray[AIdx++] = Handle;
+				}
+				break;
+
+			case Chaos::EObjectStateType::Sleeping: // Sleeping is a modified dynamic state
+				Changed |= DynamicGeometryCollectionArray[DIdx] != Handle;
+				DynamicGeometryCollectionArray[DIdx++] = Handle;
+				break;
+
+			case Chaos::EObjectStateType::Dynamic:
+				Changed |= DynamicGeometryCollectionArray[DIdx] != Handle;
+				DynamicGeometryCollectionArray[DIdx++] = Handle;
+				if (!Handle->Disabled())
+				{
+					Changed |= ActiveGeometryCollectionArray[AIdx] != Handle;
+					ActiveGeometryCollectionArray[AIdx++] = Handle;
+				}
+				break;
+
+			default:
+				break;
+			};
+		}
+
+		if(Changed)
+		{
+			UpdateViews();
+		}
+	}
 
 	//TEMP: only needed while clustering code continues to use direct indices
 	const auto& GetActiveClusteredArray() const { return ActiveClusteredArray; }
@@ -418,15 +526,34 @@ private:
 	{
 		//build various views. Group SOA types together for better branch prediction
 		{
-			TArray<TSOAView<TGeometryParticles<T, d>>> TmpArray = { StaticParticles.Get(), KinematicParticles.Get(), DynamicParticles.Get(), DynamicKinematicParticles.Get(), {&NonDisabledClusteredArray}, GeometryCollectionParticles.Get() };
+			TArray<TSOAView<TGeometryParticles<T, d>>> TmpArray = 
+			{ 
+				StaticParticles.Get(), 
+				KinematicParticles.Get(), 
+				DynamicParticles.Get(),
+				DynamicKinematicParticles.Get(),
+				{&NonDisabledClusteredArray}, 
+				{&StaticGeometryCollectionArray},
+				{&KinematicGeometryCollectionArray},
+				{&DynamicGeometryCollectionArray}
+			};
 			NonDisabledView = MakeParticleView(MoveTemp(TmpArray));
 		}
 		{
-			TArray<TSOAView<TPBDRigidParticles<T, d>>> TmpArray = { DynamicParticles.Get(), {&NonDisabledClusteredArray}, GeometryCollectionParticles.Get() };
+			TArray<TSOAView<TPBDRigidParticles<T, d>>> TmpArray = 
+			{ 
+				DynamicParticles.Get(), 
+				{&NonDisabledClusteredArray}, 
+				{&DynamicGeometryCollectionArray}
+			};
 			NonDisabledDynamicView = MakeParticleView(MoveTemp(TmpArray));
 		}
 		{
-			TArray<TSOAView<TPBDRigidParticles<T, d>>> TmpArray = { {&ActiveParticlesArray} };
+			TArray<TSOAView<TPBDRigidParticles<T, d>>> TmpArray = 
+			{ 
+				{&ActiveParticlesArray},
+				{&ActiveGeometryCollectionArray}
+			};
 			ActiveParticlesView = MakeParticleView(MoveTemp(TmpArray));
 		}
 		{
@@ -435,11 +562,16 @@ private:
 			AllParticlesView = MakeParticleView(MoveTemp(TmpArray));
 		}
 		{
-			TArray<TSOAView<TKinematicGeometryParticles<T, d>>> TmpArray = { KinematicParticles.Get(), DynamicKinematicParticles.Get() };
+			TArray<TSOAView<TKinematicGeometryParticles<T, d>>> TmpArray = 
+			{ 
+				KinematicParticles.Get(),
+				DynamicKinematicParticles.Get(),
+				{&KinematicGeometryCollectionArray}
+			};
 			ActiveKinematicParticlesView = MakeParticleView(MoveTemp(TmpArray));
 		}
 		{
-			TArray<TSOAView<TPBDGeometryCollectionParticles<T, d>>> TmpArray = { GeometryCollectionParticles.Get()};
+			TArray<TSOAView<TPBDGeometryCollectionParticles<T, d>>> TmpArray = { {&ActiveGeometryCollectionArray} };
 			ActiveGeometryCollectionParticlesView = MakeParticleView(MoveTemp(TmpArray));
 		}
 	}
@@ -458,9 +590,13 @@ private:
 	TUniquePtr<TPBDRigidClusteredParticles<T, d>> ClusteredParticles;
 
 	TUniquePtr<TPBDGeometryCollectionParticles<T, d>> GeometryCollectionParticles;
-	TUniquePtr<TPBDGeometryCollectionParticles<T, d>> GeometryCollectionDisabledParticles;
+
 	TMap<TPBDGeometryCollectionParticleHandle<T, d>*, int32> ActiveGeometryCollectionToIndex;
 	TArray<TPBDGeometryCollectionParticleHandle<T, d>*> ActiveGeometryCollectionArray;
+
+	TArray<TPBDGeometryCollectionParticleHandle<T, d>*> StaticGeometryCollectionArray;
+	TArray<TPBDGeometryCollectionParticleHandle<T, d>*> KinematicGeometryCollectionArray;
+	TArray<TPBDGeometryCollectionParticleHandle<T, d>*> DynamicGeometryCollectionArray;
 
 	//Utility structures for maintaining an Active particles view
 	TMap<TPBDRigidParticleHandle<T, d>*, int32> ActiveParticlesToIndex;

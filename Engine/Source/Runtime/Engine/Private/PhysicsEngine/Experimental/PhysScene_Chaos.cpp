@@ -546,37 +546,30 @@ void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FFieldSystemPhy
 {
 	AddToComponentMaps(Component, InObject);
 
-	ensure(false);
-#if 0
 	Chaos::FPhysicsSolver* CurrSceneSolver = GetSolver();
 
-	check(IsInGameThread() && CurrSceneSolver);
-	//const bool bDedicatedThread = ChaosModule->IsPersistentTaskEnabled();
-
 	InObject->SetSolver(CurrSceneSolver);
-	
-	Chaos::IDispatcher* Dispatcher = GetDispatcher();
+	InObject->Initialize();
 
-	const TArray<Chaos::FPhysicsSolver*>& Solvers = ChaosModule->GetSolvers();
-	for(Chaos::FPhysicsSolver* Solver : Solvers)
+	if (Chaos::IDispatcher* Dispatcher = GetDispatcher())
 	{
-		if(true || Solver->HasActiveParticles())
+		for (Chaos::FPhysicsSolver* Solver : ChaosModule->GetSolvers())
 		{
-			Solver->RegisterObject(InObject);
-
-			if(/*bDedicatedThread && */Dispatcher)
+			if (true || Solver->HasActiveParticles())
 			{
-				// Pass the proxy off to the physics thread
-				Dispatcher->EnqueueCommand([InObject, InSolver = Solver](Chaos::FPersistentPhysicsTask* PhysThread)
+				Solver->RegisterObject(InObject);
+
+				if (/*bDedicatedThread && */Dispatcher)
 				{
-#if CHAOS_PARTICLEHANDLE_TODO
-					InSolver->RegisterObject(InObject);
-#endif
-				});
+					// Pass the proxy off to the physics thread
+					Dispatcher->EnqueueCommandImmediate([InObject, InSolver = Solver](Chaos::FPersistentPhysicsTask* PhysThread)
+					{
+						InSolver->RegisterObject(InObject);
+					});
+				}
 			}
 		}
 	}
-#endif
 }
 
 void FPhysScene_Chaos::RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor)
@@ -688,48 +681,32 @@ void FPhysScene_Chaos::RemoveObject(FGeometryCollectionPhysicsProxy* InObject)
 
 void FPhysScene_Chaos::RemoveObject(FFieldSystemPhysicsProxy* InObject)
 {
-	ensure(false);
-#if 0
-	if(!InObject)
+	Chaos::FPhysicsSolver* CurrSceneSolver = InObject->GetSolver();
+	if(CurrSceneSolver && !CurrSceneSolver->UnregisterObject(InObject))
 	{
-		return;
+		UE_LOG(LogChaos, Warning, TEXT("Attempted to remove an object that wasn't found in its solver's gamethread storage - it's likely the solver has been mistakenly changed."));
 	}
+	RemoveFromComponentMaps(InObject);
 
-	Chaos::FPhysicsSolver* CurrSceneSolver = GetSolver();
-
-	CurrSceneSolver->UnregisterObject(InObject);
-
-	check(IsInGameThread());
-
-	Chaos::IDispatcher* Dispatcher = GetDispatcher();
-	const bool bDedicatedThread = Dispatcher->GetMode() == Chaos::EThreadingMode::DedicatedThread;
-
-	const TArray<Chaos::FPhysicsSolver*>& Solvers = ChaosModule->GetSolvers();
-	for(Chaos::FPhysicsSolver* Solver : Solvers)
+	if (Chaos::IDispatcher* Dispatcher = GetDispatcher())
 	{
-		if(true || Solver->HasActiveParticles())
+		for (Chaos::FPhysicsSolver* Solver : ChaosModule->GetSolvers())
 		{
-			// @todo(question) : Is the RegisterObject a bug? Seems like it should be removing. [brice->benn]
-			Solver->RegisterObject(InObject);
-
-			if(/*bDedicatedThread && */Dispatcher)
+			if (true || Solver->HasActiveParticles())
 			{
-				// Pass the proxy off to the physics thread
-				Dispatcher->EnqueueCommand([InObject, InSolver = Solver](Chaos::FPersistentPhysicsTask* PhysThread)
+				Solver->RegisterObject(InObject);
+
+				if (/*bDedicatedThread && */Dispatcher)
 				{
-					InSolver->UnregisterObject(InObject);
-				});
+					// Pass the proxy off to the physics thread
+					Dispatcher->EnqueueCommandImmediate([InObject, InSolver = Solver](Chaos::FPersistentPhysicsTask* PhysThread)
+					{
+						InSolver->UnregisterObject(InObject);
+					});
+				}
 			}
 		}
 	}
-
-	RemoveFromComponentMaps(InObject);
-
-	if(!bDedicatedThread)
-	{
-		delete InObject;
-	}
-#endif
 }
 
 #if XGE_FIXED

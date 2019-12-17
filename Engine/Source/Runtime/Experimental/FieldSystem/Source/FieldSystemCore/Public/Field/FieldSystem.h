@@ -79,10 +79,13 @@ struct FIELDSYSTEMCORE_API ContextIndex
 {
 	ContextIndex(int32 InSample=INDEX_NONE, int32 InResult=INDEX_NONE)
 		: Sample(InSample)
-		, Result(InResult) {}
+		, Result(InResult) 
+	{}
 
-
-	static void ContiguousIndices(TArray<ContextIndex>& Array, int NumParticles, bool bForce = true)
+	static void ContiguousIndices(
+		TArray<ContextIndex>& Array, 
+		const int NumParticles, 
+		const bool bForce = true)
 	{
 		if (bForce)
 		{
@@ -95,11 +98,9 @@ struct FIELDSYSTEMCORE_API ContextIndex
 		}
 	}
 
-
 	int32 Sample;
 	int32 Result;
 };
-
 
 struct FIELDSYSTEMCORE_API FFieldContext
 {
@@ -124,7 +125,15 @@ struct FIELDSYSTEMCORE_API FFieldContext
 		, MetaData(MetaDataIn)
 	{}
 
-	const TArrayView< ContextIndex >& SampleIndices;
+	//
+	// Ryan - TODO: This concept of having discreet sample data needs to change.  
+	// I think we'd be better off supplying lambda accessors which can be specialized 
+	// for each respective use case.  That means the method by which this data is 
+	// traversed also needs to change; possibly to some load balanced threaded iterator 
+	// or task based paradigm.
+
+	//const TArrayView<THandle::TTransientHandle*>& Handles;
+	const TArrayView<ContextIndex>& SampleIndices;
 	const TArrayView<FVector>& Samples;
 	PointerMap MetaData;
 };
@@ -234,17 +243,43 @@ public:
 		, RootNode(RootNodeIn)
 	{}
 
-
 	// Commands are copied when moved from the one thread to 
 	// another. This requires a full copy of all associated data. 
-	FFieldSystemCommand(const FFieldSystemCommand & CommandIn)
-		: TargetAttribute(CommandIn.RootNode ? CommandIn.TargetAttribute:"")
-		, RootNode(CommandIn.RootNode?CommandIn.RootNode->NewCopy():nullptr)
+	FFieldSystemCommand(const FFieldSystemCommand & Other)
+		: TargetAttribute(Other.RootNode ? Other.TargetAttribute:"")
+		, RootNode(Other.RootNode?Other.RootNode->NewCopy():nullptr)
 	{
-		for (const TPair<FFieldSystemMetaData::EMetaType, TUniquePtr<FFieldSystemMetaData>>& Meta : CommandIn.MetaData)
+		for (const TPair<FFieldSystemMetaData::EMetaType, TUniquePtr<FFieldSystemMetaData>>& Meta : Other.MetaData)
 		{
 			MetaData.Add(Meta.Key).Reset(Meta.Value->NewCopy());
 		}
+	}
+
+	bool HasMetaData(const FFieldSystemMetaData::EMetaType Key) const
+	{
+		return MetaData.Contains(Key) && GetMetaData(Key) != nullptr;
+	}
+
+	const TUniquePtr<FFieldSystemMetaData>& GetMetaData(
+		const FFieldSystemMetaData::EMetaType Key) const
+	{
+		return MetaData[Key];
+	}
+
+	template <class TMetaData>
+	const TMetaData* GetMetaDataAs(const FFieldSystemMetaData::EMetaType Key) const
+	{
+		return static_cast<const TMetaData*>(GetMetaData(Key).Get());
+	}
+
+	void SetMetaData(const FFieldSystemMetaData::EMetaType Key, TUniquePtr<FFieldSystemMetaData>&& Value)
+	{
+		MetaData.Add(Key, MoveTemp(Value));
+	}
+
+	void SetMetaData(const FFieldSystemMetaData::EMetaType Key, FFieldSystemMetaData* Value)
+	{
+		MetaData[Key].Reset(Value);
 	}
 
 	void Serialize(FArchive& Ar);
