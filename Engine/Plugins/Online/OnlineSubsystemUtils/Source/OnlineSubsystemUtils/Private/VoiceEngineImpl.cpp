@@ -587,7 +587,14 @@ uint32 FVoiceEngineImpl::SubmitRemoteVoiceData(const FUniqueNetIdWrapper& Remote
 	{
 		CreateSerializeHelper();
 
-		QueuedData.VoipSynthComponent = CreateVoiceSynthComponent(UVOIPStatics::GetVoiceSampleRate());
+		if (GetOnlineSubSystem())
+		{
+			if (UWorld* World = GetWorldForOnline(GetOnlineSubSystem()->GetInstanceName()))
+			{
+				QueuedData.VoipSynthComponent = CreateVoiceSynthComponent(World, UVOIPStatics::GetVoiceSampleRate());
+			}
+		}
+
 		if (QueuedData.VoipSynthComponent)
 		{
 			//TODO, make buffer size and buffering delay runtime-controllable parameters.
