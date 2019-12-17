@@ -278,10 +278,22 @@ bool ShouldRenderRayTracingGlobalIllumination(const FViewInfo& View)
 	{
 		return (CVarRayTracingGlobalIlluminationValue > 0);
 	}
-	else 
+	else
 	{
-		return View.FinalPostProcessSettings.RayTracingGI > 0;
+		return View.FinalPostProcessSettings.RayTracingGIType > ERayTracingGlobalIlluminationType::Disabled;
 	}
+}
+
+bool IsFinalGatherEnabled(const FViewInfo& View)
+{
+
+	int32 bEnableFinalGather = CVarRayTracingGlobalIlluminationEnableFinalGather.GetValueOnRenderThread();
+	if (bEnableFinalGather >= 0)
+	{
+		return bEnableFinalGather > 0;
+	}
+
+	return View.FinalPostProcessSettings.RayTracingGIType == ERayTracingGlobalIlluminationType::FinalGather;
 }
 
 class FGlobalIlluminationRGS : public FGlobalShader
@@ -513,7 +525,7 @@ bool FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 	}
 
 	// Ray generation pass
-	if (CVarRayTracingGlobalIlluminationEnableFinalGather.GetValueOnRenderThread() != 0)
+	if (IsFinalGatherEnabled(View))
 	{
 		RenderRayTracingGlobalIlluminationFinalGather(GraphBuilder, SceneTextures, View, *OutRayTracingConfig, UpscaleFactor, OutDenoiserInputs);
 	}
