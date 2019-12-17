@@ -136,7 +136,7 @@ namespace Chaos
 			//
 
 			template<ECollisionUpdateType UpdateType, typename T, int d>
-			void CHAOS_API UpdateUnionUnionConstraint(const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint);
+			void CHAOS_API UpdateUnionUnionConstraint(const T Thickness, TCollisionConstraintBase<T, d>& Constraint);
 
 			template<typename T, int d>
 			void CHAOS_API ConstructUnionUnionConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, FCollisionConstraintsArray& NewConstraints);
@@ -146,7 +146,7 @@ namespace Chaos
 			//
 
 			template<ECollisionUpdateType UpdateType, typename T, int d>
-			void CHAOS_API UpdateSingleUnionConstraint(const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint);
+			void CHAOS_API UpdateSingleUnionConstraint(const T Thickness, TCollisionConstraintBase<T, d>& Constraint);
 
 			template<typename T, int d>
 			void CHAOS_API ConstructSingleUnionConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, FCollisionConstraintsArray& NewConstraints);
@@ -157,7 +157,7 @@ namespace Chaos
 			//
 
 			template<ECollisionUpdateType UpdateType, typename T, int d>
-			void CHAOS_API UpdateConstraintImp(const FImplicitObject& ParticleObject, const TRigidTransform<T, d>& ParticleTM, const FImplicitObject& LevelsetObject, const TRigidTransform<T, d>& LevelsetTM, const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint);
+			void CHAOS_API UpdateConstraintImp(const FImplicitObject& ParticleObject, const TRigidTransform<T, d>& ParticleTM, const FImplicitObject& LevelsetObject, const TRigidTransform<T, d>& LevelsetTM, const T Thickness, TCollisionConstraintBase<T, d>& Constraint);
 
 			template<typename T, int d>
 			void CHAOS_API ConstructPairConstraintImpl(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const T Thickness, FCollisionConstraintsArray& NewConstraints);
