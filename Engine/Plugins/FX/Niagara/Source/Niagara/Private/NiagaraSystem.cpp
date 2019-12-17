@@ -17,6 +17,7 @@
 #include "NiagaraEditorDataBase.h"
 #include "INiagaraEditorOnlyDataUtlities.h"
 #include "NiagaraWorldManager.h"
+#include "NiagaraEmitterInstanceBatcher.h"
 
 #if WITH_EDITOR
 #include "NiagaraScriptDerivedData.h"
