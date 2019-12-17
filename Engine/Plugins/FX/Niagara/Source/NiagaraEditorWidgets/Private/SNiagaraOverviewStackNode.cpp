@@ -81,6 +81,7 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleWidget(TSharedPtr<SNod
 		// Name
 		+ SHorizontalBox::Slot()
 		.Padding(4, 0, 0, 0)
+		.FillWidth(1.0f)
 		[
 			DefaultTitle
 		]
@@ -88,6 +89,7 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleWidget(TSharedPtr<SNod
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Right)
 		.Padding(5, 0, 0, 0)
 		[
 			SNew(SNiagaraStackIssueIcon, StackViewModel, StackViewModel->GetRootEntry())

@@ -332,36 +332,49 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 				DynamicInputEntry->Initialize(CreateDefaultChildRequiredData(), *OwningModuleNode, *InputValues.DynamicNode.Get(), GetOwnerStackItemEditorDataKey());
 				DynamicInputEntry->SetShouldShowInStack(false);
 			}
-			if (InputValues.DynamicNode->FunctionScript != nullptr && InputValues.DynamicNode->FunctionScript->bDeprecated)
+
+			if (InputValues.DynamicNode->FunctionScript != nullptr)
 			{
-				FText LongMessage = InputValues.DynamicNode->FunctionScript->DeprecationRecommendation != nullptr ?
-					FText::Format(LOCTEXT("ModuleScriptDeprecationLong", "The script asset for the assigned module {0} has been deprecated. Suggested replacement: {1}"), FText::FromString(InputValues.DynamicNode->GetName()), FText::FromString(InputValues.DynamicNode->FunctionScript->DeprecationRecommendation->GetPathName())) :
-					FText::Format(LOCTEXT("ModuleScriptDeprecationUnknownLong", "The script asset for the assigned module {0} has been deprecated."), FText::FromString(InputValues.DynamicNode->GetName()));
-
-				int32 AddIdx = NewIssues.Add(FStackIssue(
-					EStackIssueSeverity::Warning,
-					LOCTEXT("ModuleScriptDeprecationShort", "Deprecated module"),
-					LongMessage,
-					GetStackEditorDataKey(),
-					false,
-					{
-						FStackIssueFix(
-							LOCTEXT("SelectNewDynamicInputScriptFix", "Select a new dynamic input script"),
-							FStackIssueFixDelegate::CreateLambda([this]() { this->bIsDynamicInputScriptReassignmentPending = true; })),
-						FStackIssueFix(
-							LOCTEXT("ResetFix", "Reset this input to it's default value"),
-							FStackIssueFixDelegate::CreateLambda([this]() { this->Reset(); }))
-					}));
-
-				if (InputValues.DynamicNode->FunctionScript->DeprecationRecommendation != nullptr)
+				if (InputValues.DynamicNode->FunctionScript->bDeprecated)
 				{
-					NewIssues[AddIdx].InsertFix(0,
-						FStackIssueFix(
+					FText LongMessage = InputValues.DynamicNode->FunctionScript->DeprecationRecommendation != nullptr ?
+						FText::Format(LOCTEXT("ModuleScriptDeprecationLong", "The script asset for the assigned module {0} has been deprecated. Suggested replacement: {1}"), FText::FromString(InputValues.DynamicNode->GetName()), FText::FromString(InputValues.DynamicNode->FunctionScript->DeprecationRecommendation->GetPathName())) :
+						FText::Format(LOCTEXT("ModuleScriptDeprecationUnknownLong", "The script asset for the assigned module {0} has been deprecated."), FText::FromString(InputValues.DynamicNode->GetName()));
+
+					int32 AddIdx = NewIssues.Add(FStackIssue(
+						EStackIssueSeverity::Warning,
+						LOCTEXT("ModuleScriptDeprecationShort", "Deprecated module"),
+						LongMessage,
+						GetStackEditorDataKey(),
+						false,
+						{
+							FStackIssueFix(
+								LOCTEXT("SelectNewDynamicInputScriptFix", "Select a new dynamic input script"),
+								FStackIssueFixDelegate::CreateLambda([this]() { this->bIsDynamicInputScriptReassignmentPending = true; })),
+							FStackIssueFix(
+								LOCTEXT("ResetFix", "Reset this input to it's default value"),
+								FStackIssueFixDelegate::CreateLambda([this]() { this->Reset(); }))
+						}));
+
+					if (InputValues.DynamicNode->FunctionScript->DeprecationRecommendation != nullptr)
+					{
+						NewIssues[AddIdx].InsertFix(0,
+							FStackIssueFix(
 							LOCTEXT("SelectNewModuleScriptFixUseRecommended", "Use recommended replacement"),
 							FStackIssueFixDelegate::CreateLambda([this]() { ReassignDynamicInputScript(InputValues.DynamicNode->FunctionScript->DeprecationRecommendation); })));
+					}
+				}
+
+				if (InputValues.DynamicNode->FunctionScript->bExperimental)
+				{
+					NewIssues.Add(FStackIssue(
+						EStackIssueSeverity::Info,
+						LOCTEXT("ModuleScriptExperimentalShort", "Experimental module"),
+						FText::Format(LOCTEXT("ModuleScriptExperimental", "The script asset for the assigned module {0} is experimental, use with care!"), FText::FromString(InputValues.DynamicNode->GetName())),
+						GetStackEditorDataKey(),
+						true));
 				}
 			}
-
 
 			NewChildren.Add(DynamicInputEntry);
 		}

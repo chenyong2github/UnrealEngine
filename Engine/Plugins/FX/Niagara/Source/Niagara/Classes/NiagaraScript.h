@@ -375,6 +375,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Script, meta = (EditCondition = "bDeprecated"))
 	UNiagaraScript* DeprecationRecommendation;
 
+	UPROPERTY(EditAnywhere, Category = Script)
+	uint32 bExperimental : 1;
+
 	/* If this script is exposed to the library. */
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
 	uint32 bExposeToLibrary : 1;

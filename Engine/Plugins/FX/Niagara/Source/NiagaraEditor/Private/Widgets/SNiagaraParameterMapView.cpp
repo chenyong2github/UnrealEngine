@@ -39,6 +39,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "NiagaraSystemEditorData.h"
 #include "ViewModels/Stack/NiagaraStackSystemSettingsGroup.h"
+#include "SNiagaraGraphActionWidget.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterMapView"
 
@@ -838,6 +839,10 @@ void SNiagaraAddParameterMenu::Construct(const FArguments& InArgs, TArray<TWeakO
 				.AutoExpandActionMenu(AutoExpandMenu.Get())
 				.ShowFilterTextBox(true)
 				.OnCreateCustomRowExpander_Static(&SNiagaraParameterMapView::CreateCustomActionExpander)
+				.OnCreateWidgetForAction_Lambda([](const FCreateWidgetForActionData* InData)
+				{
+					return SNew(SNiagaraGraphActionWidget, InData);
+				})
 			]
 		]
 	];
@@ -1053,12 +1058,27 @@ void SNiagaraAddParameterMenu::AddParameterGroup(FGraphActionListBuilderBase& Ou
 		Variables.Sort([](const FNiagaraVariable& A, const FNiagaraVariable& B) { return A.GetName().LexicalLess(B.GetName()); });
 	}
 
-	for (FNiagaraVariable& Variable : Variables)
+	for (const FNiagaraVariable& Variable : Variables)
 	{
 		const FText DisplayName = FText::FromName(Variable.GetName());
-		const FText Tooltip = FText::GetEmpty();
+		FText Tooltip = FText::GetEmpty();
+
+		if (const UStruct* VariableStruct = Variable.GetType().GetStruct())
+		{
+			Tooltip = VariableStruct->GetToolTipText(true);
+		}
+
 		TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(Category, DisplayName, Tooltip, 0, FText(),
 			FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraAddParameterMenu::AddParameterSelected, Variable, bCustomName, InSection)));
+
+		if (Variable.IsDataInterface())
+		{
+			if (const UClass* DataInterfaceClass = Variable.GetType().GetClass())
+			{
+				Action->IsExperimental = DataInterfaceClass->GetMetaData("DevelopmentStatus") == TEXT("Experimental");
+			}
+		}
+
 		OutActions.AddAction(Action, RootCategory);
 	}
 }
