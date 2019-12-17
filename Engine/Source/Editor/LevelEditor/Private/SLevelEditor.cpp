@@ -67,7 +67,7 @@ namespace LevelEditorConstants
 }
 
 SLevelEditor::SLevelEditor()
-	: World(NULL)
+	: World(NULL), bNeedsRefresh(false)
 {
 	const bool bAreRealTimeThumbnailsAllowed = false;
 	ThumbnailPool = MakeShareable(new FAssetThumbnailPool(LevelEditorConstants::ThumbnailPoolSize, bAreRealTimeThumbnailsAllowed));
@@ -177,6 +177,8 @@ void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
 	// Set the initial preview feature level.
 	UEditorEngine* Editor = (UEditorEngine*)GEngine;
 	World->ChangeFeatureLevel(Editor->GetActiveFeatureLevelPreviewType());
+
+	LevelActorOuterChangedHandle = GEditor->OnLevelActorOuterChanged().AddSP(this, &SLevelEditor::OnLevelActorOuterChanged);
 
 	// Patch into the OnPreviewFeatureLevelChanged() delegate to swap out the current feature level with a user selection.
 	PreviewFeatureLevelChangedHandle = Editor->OnPreviewFeatureLevelChanged().AddLambda([this](ERHIFeatureLevel::Type NewFeatureLevel)
@@ -317,6 +319,7 @@ SLevelEditor::~SLevelEditor()
 
 	if (GEditor)
 	{
+		GEditor->OnLevelActorOuterChanged().Remove(LevelActorOuterChangedHandle);
 		GEditor->GetEditorWorldContext(true).RemoveRef(World);
 	}
 }
@@ -1581,15 +1584,20 @@ void SLevelEditor::OnActorSelectionChanged(const TArray<UObject*>& NewSelection,
 		TSharedPtr<SActorDetails> ActorDetails = It->Pin();
 		if( ActorDetails.IsValid() )
 		{
-			ActorDetails->SetObjects(NewSelection, bForceRefresh);
+			ActorDetails->SetObjects(NewSelection, bForceRefresh || bNeedsRefresh);
 		}
 		else
 		{
 			// remove stray entries here
 		}
 	}
+	bNeedsRefresh = false;
 }
 
+void SLevelEditor::OnLevelActorOuterChanged(AActor* InActor, UObject* InOldOuter)
+{
+	bNeedsRefresh = true;
+}
 
 void SLevelEditor::AddStandaloneLevelViewport( const TSharedRef<SLevelViewport>& LevelViewport )
 {

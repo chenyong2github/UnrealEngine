@@ -1624,6 +1624,7 @@ public:
 	virtual void PreEditUndo() override;
 	virtual void PostEditUndo() override;
 	virtual void PostEditImport() override;
+	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 	virtual bool IsSelectedInEditor() const override;
 
 	/** When selected can this actor be deleted? */

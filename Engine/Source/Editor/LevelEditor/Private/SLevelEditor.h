@@ -212,6 +212,9 @@ private:
 
 	/** Called when actors are selected or unselected */
 	void OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh = false);
+
+	/** Called when an actor changes outer */
+	void OnLevelActorOuterChanged(AActor* InActor = nullptr, UObject* InOldOuter = nullptr);
 private:
 
 	// Tracking the active viewports in this level editor.
@@ -263,4 +266,10 @@ private:
 
 	/** Handle to the registered OnPreviewFeatureLevelChanged delegate. */
 	FDelegateHandle PreviewFeatureLevelChangedHandle;
+
+	/** Handle to the registered OnLevelActorOuterChanged delegate */
+	FDelegateHandle LevelActorOuterChangedHandle;
+		
+	/** If this flag is raised we will force refresh on next selection update. */
+	bool bNeedsRefresh : 1;
 };

@@ -564,6 +564,15 @@ bool AActor::InternalPostEditUndo()
 	return true;
 }
 
+void AActor::PostTransacted(const FTransactionObjectEvent& TransactionEvent)
+{
+	Super::PostTransacted(TransactionEvent);
+	if (TransactionEvent.HasOuterChange())
+	{
+		GEngine->BroadcastLevelActorOuterChanged(this, StaticFindObject(ULevel::StaticClass(), nullptr, *TransactionEvent.GetOriginalObjectOuterPathName().ToString()));
+	}
+}
+
 void AActor::PostEditUndo()
 {
 	if (InternalPostEditUndo())
