@@ -930,8 +930,9 @@ void FChaosSolversModule::OnCreateMaterial(Chaos::FMaterialHandle InHandle)
 
 void FChaosSolversModule::OnDestroyMaterial(Chaos::FMaterialHandle InHandle)
 {
+	// @todo(bgallagher)
 	//check(Dispatcher);
-	if (!Dispatcher)
+	if (!ensure(Dispatcher))
 	{
 		return;
 	}
