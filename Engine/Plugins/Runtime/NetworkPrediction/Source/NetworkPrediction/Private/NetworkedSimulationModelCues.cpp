@@ -24,6 +24,9 @@ struct FMockImpactCue
 {
 	NETSIMCUE_BODY();
 
+	FMockImpactCue() = default;
+	FMockImpactCue(const FVector& InImpact) : ImpactLocation(InImpact) { }
+
 	FVector ImpactLocation;
 
 	void NetSerialize(FArchive& Ar)
@@ -31,10 +34,10 @@ struct FMockImpactCue
 		Ar << ImpactLocation;
 	}
 
-	static bool Unique(const FMockImpactCue& A, const FMockImpactCue& B)
+	bool NetUnique(const FMockImpactCue& Other) const
 	{
 		const float ErrorTolerance = 1.f;
-		return !A.ImpactLocation.Equals(B.ImpactLocation, ErrorTolerance);
+		return !ImpactLocation.Equals(Other.ImpactLocation, ErrorTolerance);
 	}
 
 };
@@ -45,6 +48,10 @@ NETSIMCUE_REGISTER(FMockImpactCue, TEXT("Impact"));
 struct FMockDamageCue
 {
 	NETSIMCUE_BODY();
+
+	FMockDamageCue() = default;
+	FMockDamageCue(const int32 InSourceID, const int32 InDamageType, const FVector& InHitLocation) 
+		: SourceID(InSourceID), DamageType(InDamageType), HitLocation(InHitLocation) { }
 
 	int32 SourceID;
 	int32 DamageType;
@@ -57,10 +64,10 @@ struct FMockDamageCue
 		Ar << HitLocation;
 	}
 
-	static bool Unique(const FMockDamageCue& A, const FMockDamageCue& B)
+	bool NetUnique(const FMockDamageCue& Other) const
 	{
 		const float ErrorTolerance = 1.f;
-		return A.SourceID != B.SourceID || A.DamageType != B.DamageType || !A.HitLocation.Equals(B.HitLocation, ErrorTolerance);
+		return SourceID != Other.SourceID || DamageType != Other.DamageType || !HitLocation.Equals(Other.HitLocation, ErrorTolerance);
 	}
 };
 NETSIMCUE_REGISTER(FMockDamageCue, TEXT("Damage"));
@@ -68,6 +75,10 @@ NETSIMCUE_REGISTER(FMockDamageCue, TEXT("Damage"));
 struct FMockHealingCue
 {
 	NETSIMCUE_BODY();
+	
+	FMockHealingCue() = default;
+	FMockHealingCue(const int32 InSourceID, const int32 InHealingAmount) 
+		: SourceID(InSourceID), HealingAmount(InHealingAmount) { }
 
 	int32 SourceID;
 	int32 HealingAmount;
@@ -78,10 +89,10 @@ struct FMockHealingCue
 		Ar << HealingAmount;
 	}
 
-	static bool Unique(const FMockHealingCue& A, const FMockHealingCue& B)
+	bool NetUnique(const FMockHealingCue& Other) const
 	{
 		const float ErrorTolerance = 1.f;
-		return A.SourceID != B.SourceID || A.HealingAmount != B.HealingAmount;
+		return SourceID != Other.SourceID || HealingAmount != Other.HealingAmount;
 	}
 };
 NETSIMCUE_REGISTER(FMockHealingCue, TEXT("Healing"));
@@ -100,7 +111,7 @@ public:
 		DispatchTable.template RegisterType<FMockImpactCue>();
 	}
 
-	void HandleCue(FMockImpactCue& ImpactCue, const FNetworkSimTime& ElapsedTime)
+	void HandleCue(FMockImpactCue& ImpactCue, const FNetSimCueSystemParamemters& SystemParameters)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Impact!"));
 	}
@@ -120,12 +131,12 @@ public:
 
 	using TestHandlerBase::HandleCue; // Required for us to "use" the HandleCue methods in our parent class
 
-	void HandleCue(FMockDamageCue& DamageCue, const FNetworkSimTime& ElapsedTime)
+	void HandleCue(FMockDamageCue& DamageCue, const FNetSimCueSystemParamemters& SystemParameters)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("HandleCue: Damage. SourceID: %d DamageType: %d HitLocation: %s"), DamageCue.SourceID, DamageCue.DamageType, *DamageCue.HitLocation.ToString());
 	}
 
-	void HandleCue(FMockHealingCue& HealingCue, const FNetworkSimTime& ElapsedTime)
+	void HandleCue(FMockHealingCue& HealingCue, const FNetSimCueSystemParamemters& SystemParameters)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("HandleCue: Healing. SourceID: %d Healing Amount: %d"), HealingCue.SourceID, HealingCue.HealingAmount);
 	}
@@ -141,24 +152,24 @@ void TestCues()
 
 	struct FBaseSimulation
 	{
-		static void TickSimulation(TNetSimCueDispatcher& Dispatcher)
+		static void TickSimulation(FNetSimCueDispatcher& Dispatcher)
 		{
-			Dispatcher.Invoke<FMockImpactCue>( { FVector(1.f, 2.f, 3.f) } );
+			Dispatcher.Invoke<FMockImpactCue>(FVector(1.f, 2.f, 3.f));
 		}
 	};
 
 	struct FChildSimulation
 	{
-		static void TickSimulation(TNetSimCueDispatcher& Dispatcher)
+		static void TickSimulation(FNetSimCueDispatcher& Dispatcher)
 		{
 			FBaseSimulation::TickSimulation(Dispatcher);
 
-			Dispatcher.Invoke<FMockDamageCue>( { 1, 2, FVector(1.f, 2.f, 3.f) } );
-			Dispatcher.Invoke<FMockHealingCue>( { 10, 32 } );
+			Dispatcher.Invoke<FMockDamageCue>(1, 2, FVector(1.f, 2.f, 3.f));
+			Dispatcher.Invoke<FMockHealingCue>(10, 32);
 		}
 	};
 
-	TNetSimCueDispatcher ServerDispatcher;
+	TNetSimCueDispatcher<void> ServerDispatcher;
 	FChildSimulation::TickSimulation(ServerDispatcher);
 
 	// -------------------------------------
@@ -173,7 +184,7 @@ void TestCues()
 	// -------------------------------------
 
 	FNetBitReader TempReader(nullptr, TempWriter.GetData(), TempWriter.GetNumBits());
-	TNetSimCueDispatcher ClientDispatcher;
+	TNetSimCueDispatcher<void> ClientDispatcher;
 	ClientDispatcher.NetSerializeSavedCues(TempReader, false);
 
 	TestHandlerChild MyObject;
