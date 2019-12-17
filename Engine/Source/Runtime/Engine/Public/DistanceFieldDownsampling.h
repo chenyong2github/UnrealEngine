@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "RHI.h"
+
 class FRHICommandListImmediate;
 
 struct FDistanceFieldDownsamplingDataTask

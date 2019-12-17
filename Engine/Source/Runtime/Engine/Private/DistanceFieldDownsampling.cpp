@@ -5,8 +5,7 @@
 =============================================================================*/
 
 #include "DistanceFieldDownsampling.h"
-#include "CoreMinimal.h"
-#include "RHI.h"
+#include "RHIStaticStates.h"
 #include "RenderGraph.h"
 #include "GlobalShader.h"
 #include "DistanceFieldAtlas.h"
