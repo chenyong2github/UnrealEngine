@@ -200,6 +200,24 @@ namespace Chaos
 			return Planes;
 		}
 
+		const FReal GetVolume() const
+		{
+			// TODO: More precise volume!
+			return LocalBoundingBox.GetVolume();
+		}
+
+		const FMatrix33 GetInertiaTensor(const FReal Mass) const
+		{
+			// TODO: More precise inertia!
+			return LocalBoundingBox.GetInertiaTensor(Mass);
+		}
+
+		const FVec3 GetCenterOfMass() const
+		{
+			// TODO: Actually compute this!
+			return FVec3(0.f);
+		}
+
 		virtual uint32 GetTypeHash() const override
 		{
 			uint32 Result = LocalBoundingBox.GetTypeHash();
