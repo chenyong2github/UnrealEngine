@@ -2,11 +2,37 @@
 
 #include "Engine/Attenuation.h"
 
+#include "DSP/Dsp.h"
+#include "EngineDefines.h"
+
+
 float FBaseAttenuationSettings::GetMaxDimension() const
 {
-	float MaxDimension = FalloffDistance;
+	static const float WorldMax = static_cast<float>(WORLD_MAX);
+	if (FalloffDistance > WorldMax)
+	{
+		return WorldMax;
+	}
 
-	switch(AttenuationShape)
+	float MaxDimension = FalloffDistance;
+	if (DistanceAlgorithm == EAttenuationDistanceModel::NaturalSound)
+	{
+		switch (FalloffMode)
+		{
+		case ENaturalSoundFalloffMode::Hold:
+			return WorldMax;
+
+		case ENaturalSoundFalloffMode::Continues:
+			MaxDimension = (FalloffDistance / dBAttenuationAtMax) * -60.f;
+			break;
+
+		case ENaturalSoundFalloffMode::Silent:
+		default:
+			break;
+		}
+	}
+
+	switch (AttenuationShape)
 	{
 	case EAttenuationShape::Sphere:
 	case EAttenuationShape::Cone:
@@ -20,7 +46,7 @@ float FBaseAttenuationSettings::GetMaxDimension() const
 		break;
 
 	case EAttenuationShape::Capsule:
-		
+
 		MaxDimension += FMath::Max(AttenuationShapeExtents.X, AttenuationShapeExtents.Y);
 		break;
 
@@ -28,7 +54,7 @@ float FBaseAttenuationSettings::GetMaxDimension() const
 		check(false);
 	}
 
-	return MaxDimension;
+	return FMath::Clamp(MaxDimension, 0.0f, WorldMax);
 }
 
 float FBaseAttenuationSettings::Evaluate(const FTransform& Origin, const FVector Location, const float DistanceScale) const
@@ -113,7 +139,28 @@ float FBaseAttenuationSettings::AttenuationEval(const float Distance, const floa
 		case EAttenuationDistanceModel::NaturalSound:
 		{
 			check(dBAttenuationAtMax <= 0.0f);
-			Result = FMath::Pow(10.0f, ((DistanceCopy / FalloffCopy) * dBAttenuationAtMax) / 20.0f);
+			float Alpha = DistanceCopy / FalloffCopy;
+			if (FalloffMode == ENaturalSoundFalloffMode::Hold)
+			{
+				Alpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
+				Result = Audio::ConvertToLinear(Alpha * dBAttenuationAtMax);
+			}
+			else if (FalloffMode == ENaturalSoundFalloffMode::Silent)
+			{
+				Alpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
+				if (Alpha < 1.0f)
+				{
+					Result = Audio::ConvertToLinear(Alpha * dBAttenuationAtMax);
+				}
+				else
+				{
+					Result = 0.0f;
+				}
+			}
+			else
+			{
+				Result = Audio::ConvertToLinear(Alpha * dBAttenuationAtMax);
+			}
 			break;
 		}
 
@@ -123,8 +170,8 @@ float FBaseAttenuationSettings::AttenuationEval(const float Distance, const floa
 			break;
 
 		default:
-			checkf(false, TEXT("Uknown attenuation distance algorithm!"))
-				break;
+			checkf(false, TEXT("Unknown attenuation distance algorithm!"))
+			break;
 	}
 
 	// Make sure the output is clamped between 0.0 and 1.0f. Some of the algorithms above can
