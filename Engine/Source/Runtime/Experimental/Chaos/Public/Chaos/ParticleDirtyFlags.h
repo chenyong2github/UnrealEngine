@@ -13,28 +13,27 @@ namespace Chaos
 		R =				 1 << 1,
 		V =				 1 << 2,
 		W =				 1 << 3,
-		CenterOfMass =   1 << 4,
-		CollisionGroup = 1 << 5,
-		Disabled =		 1 << 6,
-		PreV =			 1 << 7,
-		PreW =			 1 << 8,
-		P =				 1 << 9,
-		Q =				 1 << 10,
-		F =				 1 << 11,
-		Torque =		 1 << 12,
-		I =				 1 << 13,
-		InvI =			 1 << 14,
-		M =				 1 << 15,
-		InvM =			 1 << 16,
-		ObjectState =	 1 << 17,
-		Geometry =		 1 << 18,
-		ExternalForce =  1 << 19,
-		ExternalTorque = 1 << 20,
-		GravityEnabled = 1 << 21,
-		SpatialIdx     = 1 << 22,
-		HashResult     = 1 << 23
+		CollisionGroup = 1 << 4,
+		Disabled =		 1 << 5,
+		PreV =			 1 << 6,
+		PreW =			 1 << 7,
+		P =				 1 << 8,
+		Q =				 1 << 9,
+		F =				 1 << 10,
+		Torque =		 1 << 11,
+		I =				 1 << 12,
+		InvI =			 1 << 13,
+		M =				 1 << 14,
+		InvM =			 1 << 15,
+		ObjectState =	 1 << 16,
+		Geometry =		 1 << 17,
+		ExternalForce =  1 << 18,
+		ExternalTorque = 1 << 19,
+		GravityEnabled = 1 << 20,
+		SpatialIdx     = 1 << 21,
+		HashResult     = 1 << 22
 #if CHAOS_CHECKED
-		, DebugName    = 1 << 24
+		, DebugName    = 1 << 23
 #endif
 	};
 

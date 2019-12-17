@@ -70,7 +70,6 @@ class TKinematicGeometryParticlesImp : public TGeometryParticlesImp<T, d, SimTyp
 		TArrayCollection::AddArray(&MV);
 		TArrayCollection::AddArray(&MW);
 		TArrayCollection::AddArray(&KinematicTargets);
-		TArrayCollection::AddArray(&MCenterOfMass);
 	}
 	TKinematicGeometryParticlesImp(const TKinematicGeometryParticlesImp<T, d, SimType>& Other) = delete;
 	CHAOS_API TKinematicGeometryParticlesImp(TKinematicGeometryParticlesImp<T, d, SimType>&& Other)
@@ -80,7 +79,6 @@ class TKinematicGeometryParticlesImp : public TGeometryParticlesImp<T, d, SimTyp
 		TArrayCollection::AddArray(&MV);
 		TArrayCollection::AddArray(&MW);
 		TArrayCollection::AddArray(&KinematicTargets);
-		TArrayCollection::AddArray(&MCenterOfMass);
 	}
 	CHAOS_API virtual ~TKinematicGeometryParticlesImp();
 
@@ -92,9 +90,6 @@ class TKinematicGeometryParticlesImp : public TGeometryParticlesImp<T, d, SimTyp
 
 	const TKinematicTarget<T, d>& KinematicTarget(const int32 Index) const { return KinematicTargets[Index]; }
 	TKinematicTarget<T, d>& KinematicTarget(const int32 Index) { return KinematicTargets[Index]; }
-
-	const TVector<T, d>& CenterOfMass(const int32 Index) const { return MCenterOfMass[Index]; }
-	TVector<T, d>& CenterOfMass(const int32 Index) { return MCenterOfMass[Index]; }
 
 	FString ToString(int32 index) const
 	{
@@ -118,17 +113,12 @@ class TKinematicGeometryParticlesImp : public TGeometryParticlesImp<T, d, SimTyp
 		{
 			Ar << KinematicTargets;
 		}
-		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::KinematicCentersOfMass)
-		{
-			Ar << MCenterOfMass;
-		}
 	}
 
   private:
 	TArrayCollectionArray<TVector<T, d>> MV;
 	TArrayCollectionArray<TVector<T, d>> MW;
 	TArrayCollectionArray<TKinematicTarget<T, d>> KinematicTargets;
-	TArrayCollectionArray<TVector<T, d>> MCenterOfMass;
 };
 
 template <typename T, int d, EGeometryParticlesSimType SimType>
