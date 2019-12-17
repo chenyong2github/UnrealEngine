@@ -271,18 +271,18 @@ void FDistanceFieldVolumeTextureAtlas::RemoveAllocation(FDistanceFieldVolumeText
 	InitializeIfNeeded();
 	PendingAllocations.Remove(Texture);
 
-	FIntVector Size = Texture->VolumeData.Size;
-	int PixelAreaSize = Size.X * Size.Y * Size.Z;
-
 	if (FailedAllocations.Remove(Texture) > 0)
 	{
-		FailedAllocatedPixels -= PixelAreaSize;
+		FailedAllocatedPixels -= Texture->VolumeData.Size.X * Texture->VolumeData.Size.Y * Texture->VolumeData.Size.Z;;
 	}
 
 	if (!CurrentAllocations.Contains(Texture))
 	{
 		return;
 	}
+
+	FIntVector Size = Texture->VolumeData.Size;
+	int PixelAreaSize = Size.X * Size.Y * Size.Z;
 
 	const FIntVector Min = Texture->GetAllocationMin();
 	verify(BlockAllocator.RemoveElement(Min.X, Min.Y, Min.Z, Size.X, Size.Y, Size.Z));
