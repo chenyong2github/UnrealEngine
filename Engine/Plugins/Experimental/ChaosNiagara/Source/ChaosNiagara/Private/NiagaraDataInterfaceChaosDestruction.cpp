@@ -9,7 +9,7 @@
 #include "Niagara/Private/NiagaraStats.h"
 #include "Chaos/PBDCollisionConstraintUtil.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
-#include "Chaos/PBDCollisionTypes.h"
+#include "Chaos/CollisionResolutionTypes.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "NiagaraComponent.h"
 #include "NiagaraEmitterInstanceBatcher.h"

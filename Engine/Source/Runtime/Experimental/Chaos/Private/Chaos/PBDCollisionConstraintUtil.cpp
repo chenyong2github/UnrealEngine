@@ -11,7 +11,7 @@
 #include "ChaosLog.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Chaos/ImplicitObjectUnion.h"
-#include "Chaos/PBDCollisionTypes.h"
+#include "Chaos/CollisionResolutionTypes.h"
 
 namespace Chaos
 {
