@@ -387,28 +387,43 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 		TSharedPtr<SWidget> IndentContent;
 		if (StackItem->SupportsHighlights())
 		{
-			TArray<FNiagaraScriptHighlight> ScriptHighlights = StackItem->GetHighlights();
-			Algo::Sort(ScriptHighlights, [](const FNiagaraScriptHighlight& A, const FNiagaraScriptHighlight& B)
-			{
-				return A.DisplayName.CompareTo(B.DisplayName) < 0;
-			});
 
-			FText HighlightToolTip;
+			TArray<FNiagaraScriptHighlight> ScriptHighlights;
+			for (const FNiagaraScriptHighlight& ScriptHighlight : StackItem->GetHighlights())
+			{
+				if (ScriptHighlight.IsValid())
+				{
+					ScriptHighlights.Add(ScriptHighlight);
+				}
+			}
+
+			TSharedRef<SHorizontalBox> ToolTipBox = SNew(SHorizontalBox);
 			if (ScriptHighlights.Num() > 0)
 			{
-				TArray<FText> DisplayNames;
 				for (const FNiagaraScriptHighlight& ScriptHighlight : ScriptHighlights)
 				{
-					if (ScriptHighlight.IsValid())
-					{
-						DisplayNames.Add(ScriptHighlight.DisplayName);
-					}
+					ToolTipBox->AddSlot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(0, 0, 5, 0)
+						[
+							SNew(SImage)
+							.Image(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.ModuleHighlightLarge"))
+							.ColorAndOpacity(ScriptHighlight.Color)
+						];
+					ToolTipBox->AddSlot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(0, 0, 10, 0)
+						[
+							SNew(STextBlock)
+							.Text(ScriptHighlight.DisplayName)
+						];
 				}
-				HighlightToolTip = FText::Join(LOCTEXT("HighlightDelimiter", ", "), DisplayNames);
 			}
 
 			TSharedRef<SBox> IndentBox = SNew(SBox)
-				.ToolTipText(HighlightToolTip)
+				.ToolTip(SNew(SToolTip) [ ToolTipBox ])
 				.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
 				.Visibility(EVisibility::Visible)
 				.WidthOverride(IconSize.X)
@@ -416,25 +431,38 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 			
 			if (ScriptHighlights.Num() > 0)
 			{
+				IndentBox->SetHAlign(HAlign_Left);
+				IndentBox->SetVAlign(VAlign_Top);
+
 				TSharedPtr<SGridPanel> HighlightsGrid;
-				IndentBox->SetContent(SAssignNew(HighlightsGrid, SGridPanel)
-					.FillRow(0, .5f)
-					.FillRow(1, .5f)
-					.FillColumn(0, .5f)
-					.FillColumn(1, .5f));
+				IndentBox->SetContent(SAssignNew(HighlightsGrid, SGridPanel));
+
 				int32 HighlightsAdded = 0;
 				for (int32 HighlightIndex = 0; HighlightIndex < ScriptHighlights.Num() && HighlightsAdded < 4; HighlightIndex++)
 				{
 					if (ScriptHighlights[HighlightIndex].IsValid())
 					{
-						int32 Column = HighlightIndex / 2;
-						int32 Row = HighlightIndex % 2;
+						FName HighlightImageBrushName;
+						FLinearColor HighlightImageColor;
+						if (HighlightIndex < 3)
+						{
+							HighlightImageBrushName = "NiagaraEditor.Stack.ModuleHighlight";
+							HighlightImageColor = ScriptHighlights[HighlightIndex].Color;
+						}
+						else
+						{
+							HighlightImageBrushName = "NiagaraEditor.Stack.ModuleHighlightMore";
+							HighlightImageColor = FLinearColor::White;
+						}
+
+						int32 Column = HighlightIndex % 2;
+						int32 Row = HighlightIndex / 2;
 						HighlightsGrid->AddSlot(Column, Row)
 							.Padding(Column, Row, 1 - Column, 1 - Row)
 							[
 								SNew(SImage)
-								.Image(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.ModuleHighlight"))
-								.ColorAndOpacity(ScriptHighlights[HighlightIndex].Color)
+								.Image(FNiagaraEditorWidgetsStyle::Get().GetBrush(HighlightImageBrushName))
+								.ColorAndOpacity(HighlightImageColor)
 							];
 						HighlightsAdded++;
 					}
@@ -474,7 +502,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 			// Name
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
-			.Padding(2, 3, 0, 3)
+			.Padding(3, 3, 0, 3)
 			[
 				SNew(STextBlock)
 				.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.SystemOverview.ItemText")
@@ -500,7 +528,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 		TSharedRef<SHorizontalBox> ContentBox = SNew(SHorizontalBox)
 			// Execution category icon
 			+ SHorizontalBox::Slot()
-			.Padding(0, 0, 4, 0)
+			.Padding(0, 0, 2, 0)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
 			[
@@ -519,7 +547,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 			// Name
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
-			.Padding(0, 2, 0, 2)
+			.Padding(3, 2, 0, 2)
 			[
 				SNew(STextBlock)
 				.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.SystemOverview.GroupHeaderText")
