@@ -597,7 +597,7 @@ namespace nDisplayLauncher.Cluster
 				NetworkStream networkStream = nodeClient.GetStream();
 
 				byte[] OutData = ASCIIEncoding.ASCII.GetBytes(cmd);
-				byte[] OutSize = BitConverter.GetBytes((short)OutData.Length);
+				byte[] OutSize = BitConverter.GetBytes((Int32)OutData.Length);
 
 				networkStream.Write(OutSize, 0, OutSize.Length);
 				networkStream.Write(OutData, 0, OutData.Length);

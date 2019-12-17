@@ -67,9 +67,9 @@ void FDisplayClusterClient::Disconnect()
 	}
 }
 
-FSocket* FDisplayClusterClient::CreateSocket(const FString& InName, const int32 BuffSize)
+FSocket* FDisplayClusterClient::CreateSocket(const FString& InName)
 {
-	FSocket* pSock = FTcpSocketBuilder(*InName).AsBlocking().WithReceiveBufferSize(BuffSize).WithSendBufferSize(BuffSize);
+	FSocket* pSock = FTcpSocketBuilder(*InName).AsBlocking();
 	check(pSock);
 	return pSock;
 }
