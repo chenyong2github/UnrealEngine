@@ -31,6 +31,9 @@ public:
 	{
 		return JsonObject.IsValid();
 	}
+
+	bool JsonObjectToString(FString& Str) const;
+	bool JsonObjectFromString(const FString& Str);
 };
 
 template<>
