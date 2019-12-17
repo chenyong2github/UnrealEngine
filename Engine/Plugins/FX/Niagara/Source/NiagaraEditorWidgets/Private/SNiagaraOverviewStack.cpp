@@ -23,6 +23,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Widgets/SToolTip.h"
 #include "EditorStyleSet.h"
 #include "Styling/CoreStyle.h"
 #include "Framework/Application/SlateApplication.h"
