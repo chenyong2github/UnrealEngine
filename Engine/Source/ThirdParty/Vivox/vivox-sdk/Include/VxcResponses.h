@@ -1690,22 +1690,22 @@ typedef struct vx_resp_aux_get_render_devices {
     vx_device_t **render_devices;
 
     /**
-     * The render device currently in use by the Vivox SDK.
+     * The render device currently in use by the Vivox SDK for the requested user
      */
     vx_device_t *current_render_device;
 
     /**
-     * The effective render device
+     * The effective render device of the requested user
      */
     vx_device_t *effective_render_device;
 
     /**
-     * The default system render device
+     * The default system render device of the requested user
      */
     vx_device_t *default_render_device;
 
     /**
-     * The default communication render device
+     * The default communication render device of the requested user
      */
     vx_device_t *default_communication_render_device;
 } vx_resp_aux_get_render_devices_t;
@@ -1735,22 +1735,22 @@ typedef struct vx_resp_aux_get_capture_devices {
     vx_device_t **capture_devices;
 
     /**
-     * The current capture device
+     * The current capture device of the requested user
      */
     vx_device_t *current_capture_device;
 
     /**
-     * The effective capture device
+     * The effective capture device of the requested user
      */
     vx_device_t *effective_capture_device;
 
     /**
-     * The default system capture device
+     * The default system capture device of the requested user
      */
     vx_device_t *default_capture_device;
 
     /**
-     * The default communication capture device
+     * The default communication capture device of the requested user
      */
     vx_device_t *default_communication_capture_device;
 } vx_resp_aux_get_capture_devices_t;
