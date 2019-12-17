@@ -504,11 +504,14 @@ public:
 		return   (GetBulkDataFlags() & BULKDATA_PayloadAtEndOfFile) == 0;
 	}
 
+	UE_DEPRECATED(4.25, "Use ::IsInSeperateFile() instead")
+	FORCEINLINE bool InSeperateFile() const { return IsInSeperateFile(); }
+
 	/**
 	* Returns whether this bulk data is currently stored in it's own file or not
 	* @return true if BULKDATA_PayloadInSeperateFile is not set
 	*/
-	bool InSeperateFile() const
+	bool IsInSeperateFile() const
 	{
 		return	(GetBulkDataFlags() & BULKDATA_PayloadInSeperateFile) != 0;
 	}

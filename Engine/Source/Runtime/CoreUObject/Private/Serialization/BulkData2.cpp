@@ -886,7 +886,7 @@ bool FBulkDataBase::IsInlined() const
 	return	(GetBulkDataFlags() & BULKDATA_PayloadAtEndOfFile) == 0;
 }
 
-bool FBulkDataBase::InSeperateFile() const
+bool FBulkDataBase::IsInSeperateFile() const
 {
 	return	(GetBulkDataFlags() & BULKDATA_PayloadInSeperateFile) != 0;
 }
@@ -1175,7 +1175,7 @@ void FBulkDataBase::FreeData()
 
 FString FBulkDataBase::ConvertFilenameFromFlags(const FString& Filename) const
 {
-	if (!InSeperateFile())
+	if (!IsInSeperateFile())
 	{
 		return Filename;
 	}

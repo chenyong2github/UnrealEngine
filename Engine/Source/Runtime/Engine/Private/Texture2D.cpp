@@ -540,7 +540,7 @@ bool UTexture2D::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFi
 #else
 			OutBulkDataFilename = PlatformData->CachedPackageFileName;
 
-			if (PlatformData->Mips[MipIndex].BulkData.InSeperateFile())
+			if (PlatformData->Mips[MipIndex].BulkData.IsInSeperateFile())
 			{	
 				const bool UseOptionalBulkDataFileName = PlatformData->Mips[MipIndex].BulkData.IsOptional();
 				OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, UseOptionalBulkDataFileName ? TEXT(".uptnl") : TEXT(".ubulk"));
