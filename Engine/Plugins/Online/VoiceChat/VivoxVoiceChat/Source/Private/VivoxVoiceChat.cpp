@@ -2794,7 +2794,7 @@ void FVivoxVoiceChat::DispatchUsingAccountName(const TFn& Fn, const VivoxClientA
 {
 	for (FVivoxVoiceChatUser* User : VoiceChatUsers)
 	{
-		if (User->LoginSession.AccountName == AccountName)
+		if (User->LoginSession.AccountName.IsValid() && User->LoginSession.AccountName == AccountName)
 		{
 			(User->*Fn)(AccountName, Forward<TArgs>(Args)...);
 		}
