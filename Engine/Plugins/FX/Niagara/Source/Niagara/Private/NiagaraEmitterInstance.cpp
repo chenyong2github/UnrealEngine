@@ -1209,7 +1209,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		int32 Estimations = CachedEmitter->AddRuntimeAllocation((uint64)this, MaxAllocationCount);
 		if (GbNiagaraShowAllocationWarnings && Estimations >= 5 && ReallocationCount == 3)
 		{
-			FString SystemName = this->GetParentSystemInstance()->GetSystem()->GetName();
+			FString SystemName = System->GetName();
 			FString FullName = SystemName + "::" + this->GetEmitterHandle().GetName().ToString();
 			UE_LOG(LogNiagara, Warning, TEXT("The emitter %s required many memory reallocation due to changing particle counts. Consider setting the emitter's AllocationMode property to 'manual' to improve runtime performance."), *FullName);
 		}
