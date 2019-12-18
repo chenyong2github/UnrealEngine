@@ -129,7 +129,7 @@ ULandscapeMeshCollisionComponent::FPhysXMeshRef::~FPhysXMeshRef()
 }
 
 // Generate a new guid to force a recache of landscape collison derived data
-#define LANDSCAPE_COLLISION_DERIVEDDATA_VER	TEXT("1ECE4BBBBC7146DA8C6ADAD75BA52C77")
+#define LANDSCAPE_COLLISION_DERIVEDDATA_VER	TEXT("6DEB0A7F1BC546FAADB3D367E9C38467")
 
 static FString GetHFDDCKeyString(const FName& Format, bool bDefMaterial, const FGuid& StateId, const TArray<UPhysicalMaterial*>& PhysicalMaterials)
 {
