@@ -7000,8 +7000,6 @@ void FParticleSystemSceneProxy::GetDynamicMeshElements(const TArray<const FScene
 				}
 				FScopeCycleCounter AdditionalScope(Data->StatID);
 
-				FParticleVertexFactoryBase *VertexFactory = EmitterVertexFactoryArray[Data->EmitterIndex];
-
 				//hold on to the emitter index in case we need to access any of its properties
 				DynamicData->EmitterIndex = Index;
 
@@ -7009,6 +7007,17 @@ void FParticleSystemSceneProxy::GetDynamicMeshElements(const TArray<const FScene
 				{
 					if (VisibilityMap & (1 << ViewIndex))
 					{
+						if ((ViewIndex >= EmitterVertexFactoryArray.Num()) || (Data->EmitterIndex >= EmitterVertexFactoryArray[ViewIndex].Num()))
+						{
+							AddEmitterVertexFactory(Data, ViewIndex);
+						}
+						FParticleVertexFactoryBase* VertexFactory = EmitterVertexFactoryArray[ViewIndex][Data->EmitterIndex];
+						if (VertexFactory == nullptr)
+						{
+							AddEmitterVertexFactory(Data, ViewIndex);
+							VertexFactory = EmitterVertexFactoryArray[ViewIndex][Data->EmitterIndex];
+						}
+
 						const FSceneView* View = Views[ViewIndex];
 						Data->GetDynamicMeshElementsEmitter(this, View, ViewFamily, ViewIndex, Collector, VertexFactory);
 						NumDraws++;
