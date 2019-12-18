@@ -25,7 +25,7 @@ public:
 #if WITH_EDITOR
 	virtual void InvalidateCachedData() override;
 	virtual int32 AddNewLod() override;
-	virtual void PostPropertyChangeCb(const FPropertyChangedEvent& Event) override;
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& ChainEvent) override;
 #endif // WITH_EDITOR
 
 	/** 
