@@ -87,6 +87,12 @@ private:
 	/** Tracks whether or not our actor has been seen as pending kill. */
 	uint32 bActorIsPendingKill : 1;
 
+	/**
+	 * Whether or not our NetDriver detected a hitch somewhere else in the engine.
+	 * This is used by ProcessQueuedBunches to prevent erroneous log spam.
+	 */
+	uint32 bSuppressQueuedBunchWarningsDueToHitches : 1;
+
 public:
 	bool GetSkipRoleSwap() const { return !!bSkipRoleSwap; }
 	void SetSkipRoleSwap(const bool bShouldSkip) { bSkipRoleSwap = bShouldSkip; }
