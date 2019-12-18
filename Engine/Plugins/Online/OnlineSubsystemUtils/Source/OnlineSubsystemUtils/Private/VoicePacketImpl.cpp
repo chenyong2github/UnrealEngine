@@ -105,4 +105,5 @@ void FVoicePacketImpl::Serialize(class FArchive& Ar)
 void FVoicePacketImpl::ResetData()
 {
 	Length = 0;
+	MicrophoneAmplitude = 0;
 }
