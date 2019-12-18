@@ -126,6 +126,7 @@ public:
 	void RemoveObject(FFieldSystemPhysicsProxy* InObject);	
 
 	void RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor);
+	void UpdateActorInAccelerationStructure(FPhysicsActorHandle& Actor);
 
 #if XGE_FIXED
 	template<typename PayloadType>
