@@ -133,7 +133,6 @@ namespace Chaos
 		bool bEnableTwistLimits;
 		bool bEnableSwingLimits;
 		bool bEnableDrives;
-		EJointSolverPhase ProjectionPhase;
 		FReal LinearProjection;
 		FReal AngularProjection;
 		FReal Stiffness;

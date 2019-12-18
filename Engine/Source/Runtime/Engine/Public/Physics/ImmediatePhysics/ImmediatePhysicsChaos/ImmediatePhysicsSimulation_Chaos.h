@@ -119,7 +119,7 @@ namespace ImmediatePhysics_Chaos
 		/** Mapping from entity index to handle */
 		// @todo(ccaulfield): we now have handles pointing to handles which is inefficient - we can do better than this, but don't want to change API yet
 		TArray<FActorHandle*> ActorHandles;
-		int NumActiveActorHandles;
+		int32 NumActiveDynamicActorHandles;
 
 		/** Mapping from constraint index to handle */
 		TArray<FJointHandle*> JointHandles;

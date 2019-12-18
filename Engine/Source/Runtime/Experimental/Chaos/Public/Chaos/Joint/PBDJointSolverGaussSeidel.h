@@ -22,18 +22,30 @@ namespace Chaos
 	class FJointSolverGaussSeidel
 	{
 	public:
-		static const int32 MaxConstraintedBodies = 2;
+		static const int32 MaxConstrainedBodies = 2;
 
 		FORCEINLINE const FVec3& GetP(const int32 Index) const
 		{
-			checkSlow(Index < MaxConstraintedBodies);
+			checkSlow(Index < MaxConstrainedBodies);
 			return Ps[Index];
 		}
 
 		FORCEINLINE const FRotation3& GetQ(const int32 Index) const
 		{
-			checkSlow(Index < MaxConstraintedBodies);
+			checkSlow(Index < MaxConstrainedBodies);
 			return Qs[Index];
+		}
+
+		FORCEINLINE const FVec3& GetV(const int32 Index) const
+		{
+			checkSlow(Index < MaxConstrainedBodies);
+			return Vs[Index];
+		}
+
+		FORCEINLINE const FVec3& GetW(const int32 Index) const
+		{
+			checkSlow(Index < MaxConstrainedBodies);
+			return Ws[Index];
 		}
 
 		FJointSolverGaussSeidel();
@@ -53,11 +65,34 @@ namespace Chaos
 			const FRigidTransform3& XL0,
 			const FRigidTransform3& XL1);
 
+		void InitProjection(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const FVec3& P0,
+			const FRotation3& Q0,
+			const FVec3& V0,
+			const FVec3& W0,
+			const FVec3& P1,
+			const FRotation3& Q1,
+			const FVec3& V1,
+			const FVec3& W1,
+			const FReal InvM0,
+			const FMatrix33& InvIL0,
+			const FReal InvM1,
+			const FMatrix33& InvIL1,
+			const FRigidTransform3& XL0,
+			const FRigidTransform3& XL1);
+
 		void ApplyConstraints(
 			const FReal Dt,
 			const FPBDJointSettings& JointSettings);
 
 		void ApplyDrives(
+			const FReal Dt,
+			const FPBDJointSettings& JointSettings);
+
+		void ApplyProjections(
 			const FReal Dt,
 			const FPBDJointSettings& JointSettings);
 
@@ -94,6 +129,13 @@ namespace Chaos
 			const FReal Angle0,
 			const FVec3& Axis1,
 			const FReal Angle1);
+
+		void ApplyVelocityDelta(
+			const FReal Stiffness,
+			const FVec3& DV0,
+			const FVec3& DW0,
+			const FVec3& DV1,
+			const FVec3& DW1);
 
 
 		void ApplyTwistConstraint(
@@ -132,25 +174,33 @@ namespace Chaos
 			const FReal Dt,
 			const FPBDJointSettings& JointSettings);
 
+		void ApplyPositionProjection(
+			const FReal Dt,
+			const FPBDJointSettings& JointSettings);
+
 
 		// Local-space constraint settings
-		FRigidTransform3 XLs[MaxConstraintedBodies];	// Local-space joint connector transforms
-		FMatrix33 InvILs[MaxConstraintedBodies];		// Local-space inverse inertias
-		FReal InvMs[MaxConstraintedBodies];				// Inverse masses
+		FRigidTransform3 XLs[MaxConstrainedBodies];	// Local-space joint connector transforms
+		FMatrix33 InvILs[MaxConstrainedBodies];		// Local-space inverse inertias
+		FReal InvMs[MaxConstrainedBodies];			// Inverse masses
 
 		// World-space constraint state
-		FVec3 Xs[MaxConstraintedBodies];				// World-space joint connector positions
-		FRotation3 Rs[MaxConstraintedBodies];			// World-space joint connector rotations
+		FVec3 Xs[MaxConstrainedBodies];				// World-space joint connector positions
+		FRotation3 Rs[MaxConstrainedBodies];		// World-space joint connector rotations
 
 		// World-space body state
-		FVec3 Ps[MaxConstraintedBodies];				// World-space particle CoM positions
-		FRotation3 Qs[MaxConstraintedBodies];			// World-space particle CoM rotations
+		FVec3 Ps[MaxConstrainedBodies];				// World-space particle CoM positions
+		FRotation3 Qs[MaxConstrainedBodies];		// World-space particle CoM rotations
+		FVec3 Vs[MaxConstrainedBodies];				// World-space particle CoM velocities
+		FVec3 Ws[MaxConstrainedBodies];				// World-space particle CoM angular velocities
 
 		// Settings
 		FReal LinearStiffness;
 		FReal TwistStiffness;
 		FReal SwingStiffness;
 		FReal AngularDriveStiffness;
+		FReal LinearProjection;
+		FReal AngularProjection;
 		FReal SwingTwistAngleTolerance;
 		bool bEnableTwistLimits;
 		bool bEnableSwingLimits;
