@@ -367,7 +367,7 @@ EConvertFromTypeResult UEnumProperty::ConvertFromType(const FPropertyTag& Tag, F
 
 	if (Tag.Type == NAME_ByteProperty)
 	{
-		uint8 PreviousValue;
+		uint8 PreviousValue = 0;
 		if (Tag.EnumName == NAME_None)
 		{
 			// If we're a nested property the EnumName tag got lost. Handle this case for backward compatibility reasons
