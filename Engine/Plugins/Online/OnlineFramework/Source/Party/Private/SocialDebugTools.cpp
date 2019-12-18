@@ -662,7 +662,7 @@ void USocialDebugTools::FInstanceContext::Init()
 		if (OnlineParty.IsValid())
 		{
 			PartyInviteReceivedDelegateHandle = OnlineParty->AddOnPartyInviteReceivedDelegate_Handle(FOnPartyInviteReceivedDelegate::CreateUObject(&Owner, &USocialDebugTools::HandlePartyInviteReceived));
-			PartyJoinRequestReceivedDelegateHandle = OnlineParty->AddOnPartyJoinRequestReceivedDelegate_Handle(FOnPartyJoinRequestReceivedDelegate::CreateUObject(&Owner, &USocialDebugTools::HandlePartyJoinRequestReceived));
+			PartyJoinRequestReceivedDelegateHandle = OnlineParty->AddOnPartyJoinRequestReceivedDelegate_Handle(FOnPartyGroupJoinRequestReceivedDelegate::CreateUObject(&Owner, &USocialDebugTools::HandlePartyJoinRequestReceived));
 		}
 	}
 }
@@ -749,7 +749,7 @@ void USocialDebugTools::HandlePartyInviteReceived(const FUniqueNetId& LocalUserI
 	}
 }
 
-void USocialDebugTools::HandlePartyJoinRequestReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& SenderId, const FString& Platform, const FOnlinePartyData& PartyData)
+void USocialDebugTools::HandlePartyJoinRequestReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const IOnlinePartyPendingJoinRequestInfo& JoinRequestInfo)
 {
 	FInstanceContext* Context = GetContextForUser(LocalUserId);
 	if (Context)
@@ -757,7 +757,10 @@ void USocialDebugTools::HandlePartyJoinRequestReceived(const FUniqueNetId& Local
 		IOnlinePartyPtr OnlineParty = Context->GetOSS()->GetPartyInterface();
 		if (OnlineParty.IsValid())
 		{
-			OnlineParty->ApproveJoinRequest(LocalUserId, PartyId, SenderId, true);
+			TArray<IOnlinePartyUserPendingJoinRequestInfoConstRef> JoiningUsers;
+			JoinRequestInfo.GetUsers(JoiningUsers);
+			check(JoiningUsers.IsValidIndex(0));
+			OnlineParty->ApproveJoinRequest(LocalUserId, PartyId, *JoiningUsers[0]->GetUserId(), true);
 			return;
 		}
 	}
