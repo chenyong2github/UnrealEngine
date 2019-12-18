@@ -671,5 +671,12 @@ const TArray<FString>& TextLocalizationResourceUtil::GetDisabledLocalizationTarg
 	return DisabledLocalizationTargets;
 }
 
+FString TextLocalizationResourceUtil::GetLocalizationTargetNameForChunkId(const FString& InLocalizationTargetName, const int32 InChunkId)
+{
+	return InChunkId == INDEX_NONE || InChunkId == 0
+		? InLocalizationTargetName
+		: FString::Printf(TEXT("%s_locchunk%d"), *InLocalizationTargetName, InChunkId);
+}
+
 #undef PRELOAD_LOCMETA_FILES
 #undef PRELOAD_LOCRES_FILES

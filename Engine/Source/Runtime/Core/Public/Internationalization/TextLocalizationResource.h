@@ -158,4 +158,9 @@ CORE_API TArray<FString> GetLocalizedCultureNames(const TArray<FString>& InLocal
  */
 CORE_API const TArray<FString>& GetDisabledLocalizationTargets();
 
+/**
+ * Get the name that the given localization target should have for the given chunk ID.
+ */
+CORE_API FString GetLocalizationTargetNameForChunkId(const FString& InLocalizationTargetName, const int32 InChunkId);
+
 }
