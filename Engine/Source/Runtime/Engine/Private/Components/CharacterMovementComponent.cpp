@@ -10712,6 +10712,7 @@ void FSavedMove_Character::PostUpdate(ACharacter* Character, FSavedMove_Characte
 		if( Character->SavedRootMotion.HasActiveRootMotionSources() )
 		{
 			SavedRootMotion = Character->SavedRootMotion;
+			bForceNoCombine = true;
 		}
 
 		// Don't want to combine moves that trigger overlaps, because by moving back and replaying the move we could retrigger overlaps.
@@ -11100,7 +11101,7 @@ void FSavedMove_Character::PrepMoveFor(ACharacter* Character)
 	}
 
 	// Resimulate Root Motion Sources if we need to - occurs after server RPCs over a correction during root motion sources.
-	if( SavedRootMotion.HasActiveRootMotionSources() )
+	if( SavedRootMotion.HasActiveRootMotionSources() || Character->SavedRootMotion.HasActiveRootMotionSources() )
 	{
 		if( Character->bClientResimulateRootMotionSources )
 		{
@@ -11113,6 +11114,18 @@ void FSavedMove_Character::PrepMoveFor(ACharacter* Character)
 			SavedRootMotion.UpdateStateFrom(Character->SavedRootMotion);
 			SavedRootMotion.CleanUpInvalidRootMotion(DeltaTime, *Character, *Character->GetCharacterMovement());
 			SavedRootMotion.PrepareRootMotion(DeltaTime, *Character, *Character->GetCharacterMovement());
+		}
+		else
+		{
+			// If this is not the first SavedMove we are replaying, clean up any currently applied root motion sources so that if they have
+			// SetVelocity/ClampVelocity finish settings they get applied correctly before CurrentRootMotion gets stomped below
+			if (FNetworkPredictionData_Client_Character* ClientData = Character->GetCharacterMovement()->GetPredictionData_Client_Character())
+			{
+				if (ClientData->SavedMoves[0].Get() != this)
+				{
+					Character->GetCharacterMovement()->CurrentRootMotion.CleanUpInvalidRootMotion(DeltaTime, *Character, *Character->GetCharacterMovement());
+				}
+			}
 		}
 
 		// Restore root motion to that of this SavedMove to be used during replaying the Move
