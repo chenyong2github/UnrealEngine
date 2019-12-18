@@ -492,11 +492,10 @@ namespace Chaos
 	template<typename T>
 	bool Chaos::THeightField<T>::GetCellBounds2D(const TVector<int32, 2> InCoord, FBounds2D& OutBounds, const TVector<T, 2>& InInflate /*= {0}*/) const
 	{
-		if(FlatGrid.IsValid(InCoord))
+		if (FlatGrid.IsValid(InCoord))
 		{
-			const TBox<T, 3>& Bound = GeomData.CellBounds[InCoord[1] * (GeomData.NumCols - 1) + InCoord[0]];
-			OutBounds.Min = {Bound.Min()[0], Bound.Min()[1]};
-			OutBounds.Max = {Bound.Max()[0], Bound.Max()[1]};
+			OutBounds.Min = TVector<T, 2>(InCoord[0], InCoord[1]);
+			OutBounds.Max = TVector<T, 2>(InCoord[0] + 1, InCoord[1] + 1);
 			OutBounds.Min -= InInflate;
 			OutBounds.Max += InInflate;
 
@@ -509,11 +508,12 @@ namespace Chaos
 	template<typename T>
 	bool Chaos::THeightField<T>::GetCellBounds3D(const TVector<int32, 2> InCoord, TVector<T, 3>& OutMin, TVector<T, 3>& OutMax, const TVector<T, 3>& InInflate /*= {0}*/) const
 	{
-		if(FlatGrid.IsValid(InCoord))
+		if (FlatGrid.IsValid(InCoord))
 		{
-			const TBox<T, 3>& Bound = GeomData.CellBounds[InCoord[1] * (GeomData.NumCols - 1) + InCoord[0]];
-			OutMin = Bound.Min() - InInflate;
-			OutMax = Bound.Max() + InInflate;
+			OutMin = TVec3<T>(InCoord[0], InCoord[1], 0);
+			OutMax = TVec3<T>(InCoord[0] + 1, InCoord[1] + 1, GeomData.CellHeights[InCoord[1] * (GeomData.NumCols - 1) + InCoord[0]]);
+			OutMin = OutMin - InInflate;
+			OutMax = OutMax + InInflate;
 
 			return true;
 		}
@@ -524,11 +524,10 @@ namespace Chaos
 	template<typename T>
 	bool Chaos::THeightField<T>::GetCellBounds2DScaled(const TVector<int32, 2> InCoord, FBounds2D& OutBounds, const TVector<T, 2>& InInflate /*= {0}*/) const
 	{
-		if(FlatGrid.IsValid(InCoord))
+		if (FlatGrid.IsValid(InCoord))
 		{
-			const TBox<T, 3>& Bound = GeomData.CellBounds[InCoord[1] * (GeomData.NumCols - 1) + InCoord[0]];
-			OutBounds.Min = {Bound.Min()[0], Bound.Min()[1]};
-			OutBounds.Max = {Bound.Max()[0], Bound.Max()[1]};
+			OutBounds.Min = TVector<T, 2>(InCoord[0], InCoord[1]);
+			OutBounds.Max = TVector<T, 2>(InCoord[0] + 1, InCoord[1] + 1);
 			OutBounds.Min -= InInflate;
 			OutBounds.Max += InInflate;
 			const TVector<float, 2> Scale2D = TVector<T, 2>(GeomData.Scale[0], GeomData.Scale[1]);
@@ -543,11 +542,10 @@ namespace Chaos
 	template<typename T>
 	bool Chaos::THeightField<T>::GetCellBounds3DScaled(const TVector<int32, 2> InCoord, TVector<T, 3>& OutMin, TVector<T, 3>& OutMax, const TVector<T, 3>& InInflate /*= {0}*/) const
 	{
-		if(FlatGrid.IsValid(InCoord))
+		if (FlatGrid.IsValid(InCoord))
 		{
-			const TBox<T, 3>& Bound = GeomData.CellBounds[InCoord[1] * (GeomData.NumCols - 1) + InCoord[0]];
-			OutMin = Bound.Min();
-			OutMax = Bound.Max();
+			OutMin = TVec3<T>(InCoord[0], InCoord[1], 0);
+			OutMax = TVec3<T>(InCoord[0] + 1, InCoord[1] + 1, GeomData.CellHeights[InCoord[1] * (GeomData.NumCols - 1) + InCoord[0]]);
 			OutMin = OutMin * GeomData.Scale - InInflate;
 			OutMax = OutMax * GeomData.Scale + InInflate;
 			return true;
@@ -1350,7 +1348,8 @@ namespace Chaos
 		// Cache per-cell bounds
 		const int32 NumX = GeomData.NumCols - 1;
 		const int32 NumY = GeomData.NumRows - 1;
-		GeomData.CellBounds.SetNum(NumX * NumY);
+		//GeomData.CellBounds.SetNum(NumX * NumY);
+		GeomData.CellHeights.SetNum(NumX*NumY);
 		for(int32 XIndex = 0; XIndex < NumX; ++XIndex)
 		{
 			for(int32 YIndex = 0; YIndex < NumY; ++YIndex)
@@ -1358,7 +1357,8 @@ namespace Chaos
 				const TVector<int32, 2> Cell(XIndex, YIndex);
 				TVector<T, 3> Min, Max;
 				CalcCellBounds3D(Cell, Min, Max);
-				GeomData.CellBounds[YIndex * NumX + XIndex] = TBox<T, 3>(Min, Max);
+				//GeomData.CellBounds[YIndex * NumX + XIndex] = TBox<T, 3>(Min, Max);
+				GeomData.CellHeights[YIndex * NumX + XIndex] = Max.Z;
 			}
 		}
 	}

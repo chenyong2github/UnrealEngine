@@ -183,7 +183,7 @@ namespace Chaos
 			uint16 NumCols;
 			RealType Range;
 			RealType HeightPerUnit;
-			TArray<TBox<RealType, 3>> CellBounds;
+			TArray<RealType> CellHeights; //todo: remove this and use heights directly
 
 			constexpr float GetCellWidth() const
 			{
@@ -247,7 +247,20 @@ namespace Chaos
 				{
 					Ar << Range;
 					Ar << HeightPerUnit;
-					Ar << CellBounds;
+
+					if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::HeightfieldImplicitBounds)
+					{
+						TArray<TBox<RealType, 3>> CellBounds;
+						Ar << CellBounds;
+						for (const TBox<RealType, 3>& Box : CellBounds)
+						{
+							CellHeights.Add(Box.Extents().Z);
+						}
+					}
+					else
+					{
+						Ar << CellHeights;
+					}
 				}
 
 				if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddedMaterialManager)
