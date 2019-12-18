@@ -314,11 +314,6 @@ TPBDRigidsEvolutionGBF<T, d>::TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<T, d>& InPar
 		});
 	});
 
-	AddForceFunction([this](TTransientPBDRigidParticleHandle<T, d>& HandleIn, const T Dt) 
-	{
-		ExternalForces.Apply(HandleIn, Dt);
-	});
-
 	AddForceFunction([this](TTransientPBDRigidParticleHandle<T, d>& HandleIn, const T Dt)
 	{
 		GravityForces.Apply(HandleIn, Dt);

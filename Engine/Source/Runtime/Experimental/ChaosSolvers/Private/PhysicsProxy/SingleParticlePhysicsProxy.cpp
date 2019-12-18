@@ -230,13 +230,13 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 		RigidHandle->SetLinearEtherDrag(Data->MLinearEtherDrag);
 		RigidHandle->SetAngularEtherDrag(Data->MAngularEtherDrag);
 
-		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ExternalForce))
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::F))
 		{
-			RigidHandle->SetExternalForce(Data->MExternalForce);
+			RigidHandle->SetF(Data->MF);
 		}
-		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ExternalTorque))
+		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::Torque))
 		{
-			RigidHandle->SetExternalTorque(Data->MExternalTorque);
+			RigidHandle->SetTorque(Data->MTorque);
 		}
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ObjectState))
 		{
@@ -277,8 +277,8 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 template< >
 void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::ClearAccumulatedData()
 {
-	Particle->SetExternalForce(Chaos::TVector<float, 3>(0),false);
-	Particle->SetExternalTorque(Chaos::TVector<float, 3>(0),false);
+	Particle->SetF(Chaos::TVector<float, 3>(0));
+	Particle->SetTorque(Chaos::TVector<float, 3>(0));
 	Particle->ClearDirtyFlags();
 }
 

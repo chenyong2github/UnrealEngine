@@ -433,7 +433,7 @@ namespace ImmediatePhysics_Chaos
 
 		if (TPBDRigidParticleHandle<FReal, 3>* Rigid = Handle()->CastToRigidParticle())
 		{
-			Rigid->ExternalForce() += Force;
+			Rigid->F() += Force;
 		}
 	}
 
