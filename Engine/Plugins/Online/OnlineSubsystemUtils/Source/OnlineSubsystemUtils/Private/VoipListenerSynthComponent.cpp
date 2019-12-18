@@ -116,6 +116,7 @@ void UVoipListenerSynthComponent::OpenPacketStream(uint64 BeginningSampleCount, 
 
 void UVoipListenerSynthComponent::ClosePacketStream()
 {
+	FScopeLock ScopeLock(&PacketBufferCriticalSection);
 	PacketBuffer.Reset();
 }
 
@@ -182,7 +183,6 @@ void UVoipListenerSynthComponent::BeginDestroy()
 {
 	Super::BeginDestroy();
 	
-	FScopeLock ScopeLock(&PacketBufferCriticalSection);
 	ClosePacketStream();
 }
 

@@ -484,11 +484,6 @@ void USynthComponent::Start()
 		AudioComponent->SetSound(Synth);
 		AudioComponent->Play(0);
 
-		// Copy sound base data to the sound
-		Synth->SourceEffectChain = SourceEffectChain;
-		Synth->SoundSubmixObject = SoundSubmix;
-		Synth->SoundSubmixSends = SoundSubmixSends;
-
 		SetActiveFlag(AudioComponent->IsActive());
 
 		if (IsActive())
@@ -507,6 +502,12 @@ void USynthComponent::Stop()
 		if (AudioComponent)
 		{
 			AudioComponent->Stop();
+
+			FAudioDevice* AudioDevice = AudioComponent->GetAudioDevice();
+			if (AudioDevice)
+			{
+				AudioDevice->StopSoundsUsingResource(Synth);
+			}
 		}
 
 		SetActiveFlag(false);

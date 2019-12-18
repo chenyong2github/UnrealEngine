@@ -65,6 +65,9 @@ namespace Audio
 			UE_LOG(LogAudioMixer, Warning,
 				TEXT("Procedural USoundWave is reinitializing even though it is actively "
 				"generating audio. Sound must be stopped before playing again."));
+
+			// Need to set the procedural sound wave as not looping to allow it to get stopped during sound wave parsing
+			InWave.bLooping = false;
 			return nullptr;
 		}
 

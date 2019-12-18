@@ -481,6 +481,14 @@ namespace Audio
 		if (!MixerSourceBuffer.IsValid())
 		{
 			FreeResources();
+
+			// Guarantee that this wave instance does not try to replay by disabling looping.
+			WaveInstance->LoopingMode = LOOP_Never;
+
+			if (ensure(WaveInstance->ActiveSound))
+			{
+				WaveInstance->ActiveSound->bShouldRemainActiveIfDropped = false;
+			}
 		}
 		
 		return MixerSourceBuffer.IsValid();
@@ -594,6 +602,13 @@ namespace Audio
 		}
 
 		if (!MixerSourceVoice)
+		{
+			StopNow();
+			return;
+		}
+
+		// Always stop procedural sounds immediately.
+		if (WaveInstance && WaveInstance->WaveData && WaveInstance->WaveData->bProcedural)
 		{
 			StopNow();
 			return;
