@@ -396,7 +396,7 @@ public:
 		, Struct_DEPRECATED(nullptr), Enum_DEPRECATED(nullptr)
 #endif
 	{
-		checkSlow(ClassDef != nullptr);
+		checkSlow(ClassStructOrEnum != nullptr);
 	}
 
 	FORCEINLINE FNiagaraTypeDefinition(UEnum *EnumDef)
@@ -405,7 +405,7 @@ public:
 		, Struct_DEPRECATED(nullptr), Enum_DEPRECATED(nullptr)
 #endif
 	{
-		checkSlow(ClassDef != nullptr);
+		checkSlow(ClassStructOrEnum != nullptr);
 	}
 
 	FORCEINLINE FNiagaraTypeDefinition(UScriptStruct *StructDef)
@@ -414,7 +414,7 @@ public:
 		, Struct_DEPRECATED(nullptr), Enum_DEPRECATED(nullptr)
 #endif
 	{
-		checkSlow(ClassDef != nullptr);
+		checkSlow(ClassStructOrEnum != nullptr);
 	}
 
 	FORCEINLINE FNiagaraTypeDefinition(const FNiagaraTypeDefinition &Other)
