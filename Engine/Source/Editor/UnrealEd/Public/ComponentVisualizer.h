@@ -108,8 +108,6 @@ public:
 
 	/** */
 	virtual void OnRegister() {}
-	/** Only show this visualizer if the actor is selected */
-	virtual bool ShowWhenSelected() { return true; }
 	/** Draw visualization for the supplied component */
 	virtual void DrawVisualization(const UActorComponent* Component, const FSceneView* View, FPrimitiveDrawInterface* PDI) {}
 	/** Draw HUD on viewport for the supplied component */
