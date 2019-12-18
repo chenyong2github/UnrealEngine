@@ -201,6 +201,13 @@ struct TTriangleMeshRaycastVisitor
 };
 
 template <typename T>
+T TTriangleMeshImplicitObject<T>::PhiWithNormal(const TVector<T, 3>& x, TVector<T, 3>& Normal) const
+{
+	ensure(false);	//not supported yet - might support it in the future or we may change the interface
+	return (T)0;
+}
+
+template <typename T>
 bool TTriangleMeshImplicitObject<T>::Raycast(const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex) const
 {
 	TTriangleMeshRaycastVisitor<T> SQVisitor(StartPoint, Dir, Thickness, MParticles, MElements);
