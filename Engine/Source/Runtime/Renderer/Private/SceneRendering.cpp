@@ -3465,6 +3465,8 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 			SceneRenderer->Render(RHICmdList);
 		}
 
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PostRenderCleanUp);
+
 		// Only reset per-frame scene state once all views have processed their frame, including those in planar reflections
 		for (int32 CacheType = 0; CacheType < UE_ARRAY_COUNT(SceneRenderer->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds); CacheType++)
 		{
