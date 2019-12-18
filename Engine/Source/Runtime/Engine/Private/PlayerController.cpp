@@ -104,6 +104,7 @@ const float ForceRetryClientRestartTime = -100.0f;
 
 FUpdateLevelVisibilityLevelInfo::FUpdateLevelVisibilityLevelInfo(const ULevel* const Level, const bool bInIsVisible)
 	: bIsVisible(bInIsVisible)
+	, bSkipCloseOnError(false)
 {
 	const UPackage* const LevelPackage = Level->GetOutermost();
 	PackageName = LevelPackage->GetFName();
