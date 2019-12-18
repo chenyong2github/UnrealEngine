@@ -105,10 +105,15 @@ public:
 	 * Update all constraint values
 	 */
 
-	/**
-	* Update all constraint values
-	*/
+	 /**
+	 * Update all constraint values
+	 */
 	void UpdateConstraints(T Dt);
+
+	/**
+	* Update all contact manifolds
+	*/
+	void UpdateManifolds(T Dt);
 
 	//
 	// General Rule API

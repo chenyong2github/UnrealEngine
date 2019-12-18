@@ -30,6 +30,9 @@ namespace Chaos
 		void Update(const T Thickness, TCollisionConstraintBase<T, d>& Constraint);
 
 		template<typename T, int d>
+		void UpdateManifold(const T Thickness, TCollisionConstraintBase<T, d>& Constraint);
+
+		template<typename T, int d>
 		void Apply(TCollisionConstraintBase<T, d>& Constraint, T Thickness, TContactIterationParameters<T> & IterationParameters, TContactParticleParameters<T> & ParticleParameters);
 
 		template<typename T, int d>

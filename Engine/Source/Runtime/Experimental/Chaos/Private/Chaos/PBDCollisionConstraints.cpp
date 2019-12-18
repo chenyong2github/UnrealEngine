@@ -251,6 +251,19 @@ namespace Chaos
 	}
 
 	template<typename T, int d>
+	void TPBDCollisionConstraints<T, d>::UpdateManifolds(T Dt)
+	{
+		PhysicsParallelFor(PlaneConstraints.Num(), [&](int32 ConstraintIndex)
+		{
+			FConstraintBase& ConstraintBase = PlaneConstraints[ConstraintIndex];
+			if (ConstraintBase.GetType() == FCollisionConstraintBase::FType::Plane)
+			{
+				Collisions::UpdateManifold<float, 3>(MThickness, ConstraintBase);
+			}
+		}, bDisableCollisionParallelFor);
+	}
+
+	template<typename T, int d>
 	void TPBDCollisionConstraints<T, d>::Apply(const T Dt, const int32 Iterations, const int32 NumIterations)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_Apply);
