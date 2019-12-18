@@ -587,7 +587,7 @@ void FPhysScene_Chaos::RemoveActorFromAccelerationStructure(FPhysicsActorHandle&
 #endif
 }
 
-void FPhysScene_Chaos::UpdateActorInAccelerationStructure(FPhysicsActorHandle& Actor)
+void FPhysScene_Chaos::UpdateActorInAccelerationStructure(const FPhysicsActorHandle& Actor)
 {
 #if WITH_CHAOS
 	using namespace Chaos;
