@@ -1981,7 +1981,7 @@ void ULandscapeComponent::UpdateDataMips(int32 InNumSubsections, int32 InSubsect
 	UpdateMipsTempl<uint8>(InNumSubsections, InSubsectionSizeQuads, Texture, TextureMipData, ComponentX1, ComponentY1, ComponentX2, ComponentY2, TextureDataInfo);
 }
 
-float ULandscapeComponent::GetLayerWeightAtLocation(const FVector& InLocation, ULandscapeLayerInfoObject* LayerInfo, TArray<uint8>* LayerCache)
+float ULandscapeComponent::GetLayerWeightAtLocation(const FVector& InLocation, ULandscapeLayerInfoObject* LayerInfo, TArray<uint8>* LayerCache, bool bUseEditingWeightmap)
 {
 	// Allocate and discard locally if no external cache is passed in.
 	TArray<uint8> LocalCache;
@@ -1994,7 +1994,7 @@ float ULandscapeComponent::GetLayerWeightAtLocation(const FVector& InLocation, U
 	if (LayerCache->Num() == 0)
 	{
 		FLandscapeComponentDataInterface CDI(this);
-		if (!CDI.GetWeightmapTextureData(LayerInfo, *LayerCache))
+		if (!CDI.GetWeightmapTextureData(LayerInfo, *LayerCache, bUseEditingWeightmap))
 		{
 			// no data for this layer for this component.
 			return 0.0f;

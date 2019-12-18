@@ -743,7 +743,7 @@ public:
 	LANDSCAPE_API float EditorGetPaintLayerWeightByNameAtLocation(const FVector& InLocation, const FName InPaintLayerName);
 		
 	/** Get the landscape actor associated with this component. */
-	ALandscape* GetLandscapeActor() const;
+	LANDSCAPE_API ALandscape* GetLandscapeActor() const;
 
 	/** Get the level in which the owning actor resides */
 	ULevel* GetLevel() const;
@@ -930,7 +930,7 @@ public:
 	LANDSCAPE_API void InitWeightmapData(TArray<ULandscapeLayerInfoObject*>& LayerInfos, TArray<TArray<uint8> >& Weights);
 
 	/** @todo document */
-	LANDSCAPE_API float GetLayerWeightAtLocation( const FVector& InLocation, ULandscapeLayerInfoObject* LayerInfo, TArray<uint8>* LayerCache=NULL );
+	LANDSCAPE_API float GetLayerWeightAtLocation( const FVector& InLocation, ULandscapeLayerInfoObject* LayerInfo, TArray<uint8>* LayerCache = NULL, bool bUseEditingWeightmap = false);
 
 	/** Extends passed region with this component section size */
 	LANDSCAPE_API void GetComponentExtent(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY) const;
