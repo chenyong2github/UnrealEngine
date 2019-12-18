@@ -350,26 +350,52 @@ TSharedRef<SWidget> SNiagaraStack::ConstructHeaderWidget()
 			.AutoWidth()
 			.Padding(4, 0, 0, 0)
 			[
-				SNew(SComboButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ForegroundColor(FSlateColor::UseForeground())
-				.ToolTipText(LOCTEXT("ViewOptionsToolTip", "View Options"))
-				.OnGetMenuContent(this, &SNiagaraStack::GetViewOptionsMenu)
-				.ContentPadding(0)
-				.MenuPlacement(MenuPlacement_BelowRightAnchor)
-				.ButtonContent()
+				SNew(SBorder)
+				.Padding(0)
+				.BorderImage(this, &SNiagaraStack::GetViewOptionsIconBrush)
 				[
-					SNew(SBox)
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
+					SNew(SComboButton)
+					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.ForegroundColor(FSlateColor::UseForeground())
+					.ToolTipText(LOCTEXT("ViewOptionsToolTip", "View Options"))
+					.OnGetMenuContent(this, &SNiagaraStack::GetViewOptionsMenu)
+					.ContentPadding(1)
+					.MenuPlacement(MenuPlacement_BelowRightAnchor)
+					.ButtonContent()
 					[
-						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("GenericViewButton"))
-						.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.FlatButtonColor"))
+						SNew(SOverlay)
+						// drop shadow
+						+ SOverlay::Slot()
+						.VAlign(VAlign_Top)
+						.Padding(0, 1, 0, 0)
+						[
+							SNew(SImage)
+							.Image(FEditorStyle::GetBrush("GenericViewButton"))
+							.ColorAndOpacity(FLinearColor::Black)
+						]
+						+ SOverlay::Slot()
+						.VAlign(VAlign_Top)
+						[
+							SNew(SImage)
+							.Image(FEditorStyle::GetBrush("GenericViewButton"))
+							.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.FlatButtonColor"))
+						]
 					]
 				]
 			]
 		];
+}
+
+const FSlateBrush* SNiagaraStack::GetViewOptionsIconBrush() const
+{
+	bool bIsDefault = StackViewModel->GetShowAllAdvanced() == false &&
+		StackViewModel->GetShowLinkedInputs() == false &&
+		StackViewModel->GetShowOutputs() == false &&
+		StackViewModel->GetShowOnlyIssues() == false;
+
+	return bIsDefault ? 
+		FCoreStyle::Get().GetBrush("NoBrush") :
+		FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.HighlightedButtonBrush");
 }
 
 void SNiagaraStack::OnSearchTextChanged(const FText& SearchText)
