@@ -122,8 +122,7 @@ public:
 
 	virtual ~IInstallBundleManager() {}
 
-	// TODO: should query if we are using the BPT source
-	virtual bool HasBuildMetaData() const = 0;
+	virtual bool HasBundleSource(EInstallBundleSourceType SourceType) const = 0;
 
 	virtual FDelegateHandle PushInitErrorCallback(FInstallBundleManagerInitErrorHandler Callback) = 0;
 	virtual void PopInitErrorCallback() = 0;

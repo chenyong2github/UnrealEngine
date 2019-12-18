@@ -6,7 +6,7 @@
 
 class FNullInstallBundleManager : public IInstallBundleManager
 {
-	virtual bool HasBuildMetaData() const override
+	virtual bool HasBundleSource(EInstallBundleSourceType SourceType) const override
 	{
 		return false;
 	}
