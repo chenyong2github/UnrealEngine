@@ -3,7 +3,7 @@
 
 #include "Chaos/ParticleHandle.h"
 
-#define CHAOS_PARTICLE_ACTORTRANSFORM 0
+#define CHAOS_PARTICLE_ACTORTRANSFORM 1
 
 namespace Chaos
 {
