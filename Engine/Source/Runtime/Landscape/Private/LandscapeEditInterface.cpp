@@ -4628,7 +4628,7 @@ void FLandscapeEditDataInterface::SetDirtyData(int32 X1, int32 Y1, int32 X2, int
 		check(Component);
 		return Component->EditToolRenderData.DirtyTexture;
 	};
-	SetEditToolTextureData(X1, Y1, X2, Y2, Data, Stride, ReturnComponentTexture);
+	SetEditToolTextureData(X1, Y1, X2, Y2, Data, Stride, ReturnComponentTexture, TEXTUREGROUP_8BitData);
 }
 
 template<typename TStoreData>
@@ -4714,7 +4714,7 @@ void FLandscapeEditDataInterface::GetEditToolTextureData(const int32 X1, const i
 	}
 }
 
-void FLandscapeEditDataInterface::SetEditToolTextureData(int32 X1, int32 Y1, int32 X2, int32 Y2, const uint8* Data, int32 Stride, TFunctionRef<UTexture2D*&(ULandscapeComponent*)> GetComponentTexture)
+void FLandscapeEditDataInterface::SetEditToolTextureData(int32 X1, int32 Y1, int32 X2, int32 Y2, const uint8* Data, int32 Stride, TFunctionRef<UTexture2D*&(ULandscapeComponent*)> GetComponentTexture, TextureGroup InTextureGroup)
 {
 	if( Stride==0 )
 	{
@@ -4741,26 +4741,12 @@ void FLandscapeEditDataInterface::SetEditToolTextureData(int32 X1, int32 Y1, int
 			// if NULL, it was painted away
 			if (EditToolTexture == NULL)
 			{
-				//FlushRenderingCommands();
 				// Construct Texture...
 				int32 WeightmapSize = (Component->SubsectionSizeQuads+1) * Component->NumSubsections;
-				EditToolTexture = Component->GetLandscapeProxy()->CreateLandscapeTexture(WeightmapSize, WeightmapSize, TEXTUREGROUP_Terrain_Weightmap, TSF_G8);
-				// Alloc dummy mips
-				ULandscapeComponent::CreateEmptyTextureMips(EditToolTexture, true);
+				EditToolTexture = Component->GetLandscapeProxy()->CreateLandscapeToolTexture(WeightmapSize, WeightmapSize, InTextureGroup, TSF_G8);
 				EditToolTexture->PostEditChange();
 
-				//FlushRenderingCommands();
 				ZeroTexture(EditToolTexture);
-				FLandscapeTextureDataInfo* TexDataInfo = GetTextureDataInfo(EditToolTexture);
-				int32 NumMips = EditToolTexture->Source.GetNumMips();
-				TArray<uint8*> TextureMipData;
-				TextureMipData.AddUninitialized(NumMips);
-				for( int32 MipIdx=0;MipIdx<NumMips;MipIdx++ )
-				{
-					TextureMipData[MipIdx] = (uint8*)TexDataInfo->GetMipData(MipIdx);
-				}
-				ULandscapeComponent::UpdateDataMips(ComponentNumSubsections, SubsectionSizeQuads, EditToolTexture, TextureMipData, 0, 0, MAX_int32, MAX_int32, TexDataInfo);
-
 				Component->UpdateEditToolRenderData();
 			}
 
@@ -4825,15 +4811,6 @@ void FLandscapeEditDataInterface::SetEditToolTextureData(int32 X1, int32 Y1, int
 					TexDataInfo->AddMipUpdateRegion(0,TexX1,TexY1,TexX2,TexY2);
 				}
 			}
-			// Update mipmaps
-			int32 NumMips = EditToolTexture->Source.GetNumMips();
-			TArray<uint8*> TextureMipData;
-			TextureMipData.AddUninitialized(NumMips);
-			for( int32 MipIdx=0;MipIdx<NumMips;MipIdx++ )
-			{
-				TextureMipData[MipIdx] = (uint8*)TexDataInfo->GetMipData(MipIdx);
-			}
-			ULandscapeComponent::UpdateDataMips(ComponentNumSubsections, SubsectionSizeQuads, EditToolTexture, TextureMipData, ComponentX1, ComponentY1, ComponentX2, ComponentY2, TexDataInfo);
 		}
 	}
 }

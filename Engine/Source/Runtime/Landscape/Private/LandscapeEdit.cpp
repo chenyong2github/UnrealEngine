@@ -6481,6 +6481,21 @@ UTexture2D* ALandscapeProxy::CreateLandscapeTexture(int32 InSizeX, int32 InSizeY
 	return NewTexture;
 }
 
+UTexture2D* ALandscapeProxy::CreateLandscapeToolTexture(int32 InSizeX, int32 InSizeY, TextureGroup InLODGroup, ETextureSourceFormat InFormat) const
+{
+	UObject* TexOuter = const_cast<ALandscapeProxy*>(this);
+	UTexture2D* NewTexture = NewObject<UTexture2D>(TexOuter);
+	NewTexture->Source.Init(InSizeX, InSizeY, 1, 1, InFormat);
+	NewTexture->SRGB = false;
+	NewTexture->CompressionNone = true;
+	NewTexture->MipGenSettings = TMGS_NoMipmaps;
+	NewTexture->AddressX = TA_Clamp;
+	NewTexture->AddressY = TA_Clamp;
+	NewTexture->LODGroup = InLODGroup;
+
+	return NewTexture;
+}
+
 ULandscapeWeightmapUsage* ALandscapeProxy::CreateWeightmapUsage()
 {
 	return NewObject<ULandscapeWeightmapUsage>(this, ULandscapeWeightmapUsage::StaticClass(), NAME_None, RF_Transactional);

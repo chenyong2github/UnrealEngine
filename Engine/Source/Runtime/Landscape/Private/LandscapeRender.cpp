@@ -5174,12 +5174,31 @@ void ULandscapeComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCont
 	}
 
 #if WITH_EDITOR
-	if (GIsEditor && EditToolRenderData.DataTexture)
+	if (GIsEditor)
 	{
-		FStreamingRenderAssetPrimitiveInfo& StreamingDatamap = *new(OutStreamingRenderAssets)FStreamingRenderAssetPrimitiveInfo;
-		StreamingDatamap.Bounds = BoundingSphere;
-		StreamingDatamap.TexelFactor = TexelFactor;
-		StreamingDatamap.RenderAsset = EditToolRenderData.DataTexture;
+		if (EditToolRenderData.DataTexture)
+		{
+			FStreamingRenderAssetPrimitiveInfo& StreamingDatamap = *new(OutStreamingRenderAssets)FStreamingRenderAssetPrimitiveInfo;
+			StreamingDatamap.Bounds = BoundingSphere;
+			StreamingDatamap.TexelFactor = TexelFactor;
+			StreamingDatamap.RenderAsset = EditToolRenderData.DataTexture;
+		}
+
+		if (EditToolRenderData.LayerContributionTexture)
+		{
+			FStreamingRenderAssetPrimitiveInfo& StreamingDatamap = *new(OutStreamingRenderAssets)FStreamingRenderAssetPrimitiveInfo;
+			StreamingDatamap.Bounds = BoundingSphere;
+			StreamingDatamap.TexelFactor = TexelFactor;
+			StreamingDatamap.RenderAsset = EditToolRenderData.LayerContributionTexture;
+		}
+
+		if (EditToolRenderData.DirtyTexture)
+		{
+			FStreamingRenderAssetPrimitiveInfo& StreamingDatamap = *new(OutStreamingRenderAssets)FStreamingRenderAssetPrimitiveInfo;
+			StreamingDatamap.Bounds = BoundingSphere;
+			StreamingDatamap.TexelFactor = TexelFactor;
+			StreamingDatamap.RenderAsset = EditToolRenderData.DirtyTexture;
+		}
 	}
 #endif
 }

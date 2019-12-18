@@ -31,6 +31,15 @@ struct CORE_API FFileHelper
 		ForceUTF8WithoutBOM
 	};
 
+	enum class EChannelMask
+	{
+		R = STRUCT_OFFSET(FColor, R),
+		G = STRUCT_OFFSET(FColor, G),
+		B = STRUCT_OFFSET(FColor, B),
+		A = STRUCT_OFFSET(FColor, A),
+		All = R|G|B|A
+	};
+
 	/**
 	 * Load a text file to an FString.
 	 * Supports all combination of ANSI/Unicode files and platforms.
@@ -121,10 +130,11 @@ struct CORE_API FFileHelper
 	 * @param FileManager must not be 0
 	 * @param OutFilename optional, if specified filename will be output
 	 * @param bInWriteAlpha optional, specifies whether to write out the alpha channel. Will force BMP V4 format.
+	 * @param ChannelMask optional, specifies a specific channel to write out (will be written out to all channels gray scale).
 	 *
 	 * @return true if success
 	 */
-	static bool CreateBitmap( const TCHAR* Pattern, int32 DataWidth, int32 DataHeight, const struct FColor* Data, struct FIntRect* SubRectangle = NULL, IFileManager* FileManager = &IFileManager::Get(), FString* OutFilename = NULL, bool bInWriteAlpha = false );
+	static bool CreateBitmap( const TCHAR* Pattern, int32 DataWidth, int32 DataHeight, const struct FColor* Data, struct FIntRect* SubRectangle = NULL, IFileManager* FileManager = &IFileManager::Get(), FString* OutFilename = NULL, bool bInWriteAlpha = false, EChannelMask ChannelMask = EChannelMask::All );
 
 	/**
 	 * Generates the next unique bitmap filename with a specified extension
