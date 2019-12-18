@@ -86,27 +86,21 @@ namespace Chaos
 			const FVec3& Axis1,
 			const FReal Angle1);
 
-		void ApplyJointTwistConstraint(
+		void ApplyTwistConstraint(
 			const FReal Dt,
-			const FPBDJointSettings& JointSettings,
-			const FRotation3& R01Twist,
-			const FRotation3& R01Swing);
+			const FPBDJointSettings& JointSettings);
 
-		void ApplyJointConeConstraint(
+		void ApplyConeConstraint(
 			const FReal Dt,
-			const FPBDJointSettings& JointSettings,
-			const FRotation3& R01Twist,
-			const FRotation3& R01Swing);
+			const FPBDJointSettings& JointSettings);
 
-		void ApplyJointSwingConstraint(
+		void ApplySwingConstraint(
 			const FReal Dt,
 			const FPBDJointSettings& JointSettings,
-			const FRotation3& R01Twist,
-			const FRotation3& R01Swing,
 			const EJointAngularConstraintIndex SwingConstraintIndex,
 			const EJointAngularAxisIndex SwingAxisIndex);
 
-		void ApplyJointPositionConstraint(
+		void ApplyPositionConstraint(
 			const FReal Dt,
 			const FPBDJointSettings& JointSettings);
 
