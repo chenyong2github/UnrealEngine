@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include <expat.h>
 
@@ -181,6 +182,16 @@ static void _characters(void *userdata, const XML_Char *s, int len)
     xmpp_stanza_release(stanza);
 }
 
+const xmpp_mem_t* GXmppMem = NULL;
+static void UpdateMemCtx(parser_t* parser)
+{
+    assert(parser);
+    assert(parser->ctx);
+    assert(parser->ctx->mem);
+
+    GXmppMem = parser->ctx->mem;
+}
+
 parser_t *parser_new(xmpp_ctx_t *ctx,
                      parser_start_callback startcb,
                      parser_end_callback endcb,
@@ -214,13 +225,14 @@ char* parser_attr_name(xmpp_ctx_t *ctx, char *nsname)
 /* free a parser */
 void parser_free(parser_t *parser)
 {
+    UpdateMemCtx(parser);
+
     if (parser->expat)
         XML_ParserFree(parser->expat);
 
     xmpp_free(parser->ctx, parser);
 }
 
-const xmpp_mem_t* GXmppMem = NULL;
 void* malloc_fcn(size_t size)
 {
 	return GXmppMem->alloc(size, GXmppMem->userdata);
@@ -239,21 +251,21 @@ void free_fcn(void *ptr)
 /* shuts down and restarts XML parser.  true on success */
 int parser_reset(parser_t *parser, int depth)
 {
-	GXmppMem = parser->ctx->mem;
+    UpdateMemCtx(parser);
 
     if (parser->expat)
         XML_ParserReset(parser->expat, NULL);
-	else
-	{
-		XML_Memory_Handling_Suite mem;
-		mem.malloc_fcn = malloc_fcn;
-		mem.realloc_fcn = realloc_fcn;
-		mem.free_fcn = free_fcn;
+    else
+    {
+        XML_Memory_Handling_Suite mem;
+        mem.malloc_fcn = malloc_fcn;
+        mem.realloc_fcn = realloc_fcn;
+        mem.free_fcn = free_fcn;
 
-		XML_Char sep = NAMESPACE_SEP;
+        XML_Char sep = NAMESPACE_SEP;
 
-		parser->expat = XML_ParserCreate_MM(NULL, &mem, &sep);
-	}
+        parser->expat = XML_ParserCreate_MM(NULL, &mem, &sep);
+    }
 
     if (parser->stanza) 
     xmpp_stanza_release(parser->stanza);
@@ -272,5 +284,7 @@ int parser_reset(parser_t *parser, int depth)
 
 int parser_feed(parser_t *parser, char *chunk, int len)
 {
+    UpdateMemCtx(parser);
+
     return XML_Parse(parser->expat, chunk, len, 0);
 }
