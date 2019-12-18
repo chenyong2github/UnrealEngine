@@ -408,7 +408,7 @@ private:
 	TArray<int32> InflightRenderAssets;
 
 	TMap<FString, bool> CachedFileExistsChecks;
-	void OnPakFileMounted(const TCHAR* PakFilename);
+	void OnPakFileMounted(const TCHAR* PakFilename, const int32 ChunkId);
 
 	// A critical section use around code that could be called in parallel with NotifyPrimitiveUpdated() or NotifyPrimitiveUpdated_Concurrent().
 	FCriticalSection CriticalSection;
