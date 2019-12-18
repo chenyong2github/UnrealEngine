@@ -488,7 +488,7 @@ FIOSPlatformMisc::EIOSDevice FIOSPlatformMisc::GetIOSDeviceType()
 			{
 				DeviceType = IOS_IPad6;
 			}
-			else if (Minor == 7 || Minor == 8)
+			else if (Minor == 11 || Minor == 12)
 			{
 				DeviceType = IOS_IPad7;
 			}
