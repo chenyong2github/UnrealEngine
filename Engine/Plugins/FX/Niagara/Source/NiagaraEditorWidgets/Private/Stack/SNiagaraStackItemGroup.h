@@ -19,7 +19,9 @@ public:
 private:
 	TSharedRef<SWidget> ConstructAddButton();
 
-	EVisibility GetDeleteButtonVisibility() const;
+	FText GetDeleteButtonToolTip() const;
+
+	bool GetDeleteButtonIsEnabled() const;
 
 	FReply DeleteClicked();
 

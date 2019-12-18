@@ -48,6 +48,8 @@ public:
 
 	void EmptySelection();
 
+	void RemoveEntriesFromSelection(const TArray<UNiagaraStackEntry*>& InEntriesToRemove);
+
 	void RemoveEntryFromSelectionByDisplayedObject(const UObject* InObject);
 
 	void AddEntriesToSelectionByDisplayedObjectsDeferred(const TArray<const UObject*>& InObjects);

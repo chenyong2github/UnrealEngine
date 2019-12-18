@@ -72,13 +72,14 @@ public:
 
 	void SetOnModifiedEventHandlers(FOnModifiedEventHandlers OnModifiedEventHandlers);
 
+	virtual bool SupportsDelete() const override { return true; }
+	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const override;
+	virtual void Delete() override;
+
 protected:
 	FOnModifiedEventHandlers OnModifiedEventHandlersDelegate;
 
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
-
-	virtual bool CanDelete() const override;
-	virtual bool Delete() override;
 
 private:
 	bool HasBaseEventHandler() const;
