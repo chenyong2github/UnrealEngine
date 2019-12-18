@@ -126,6 +126,13 @@ bool FSocialInteraction_LeaveParty::CanExecute(const USocialUser& User)
 {
 	if (User.IsLocalUser())
 	{
+		USocialToolkit& OwningToolkit = User.GetOwningToolkit();
+		ULocalPlayer& LocalPlayer = OwningToolkit.GetOwningLocalPlayer();
+		if (!LocalPlayer.IsPrimaryPlayer())
+		{
+			return false;
+		}
+
 		const UPartyMember* LocalMember = User.GetPartyMember(IOnlinePartySystem::GetPrimaryPartyTypeId());
 		return LocalMember && LocalMember->GetParty().GetNumPartyMembers() > 1;
 	}
