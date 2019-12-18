@@ -600,6 +600,12 @@ namespace UnrealBuildTool
 		/// <returns>The build target object for the specified build rules source file</returns>
 		public static UEBuildTarget Create(TargetDescriptor Descriptor, bool bSkipRulesCompile, bool bUsePrecompiled)
 		{
+			// make sure we are allowed to build this platform
+			if (!UEBuildPlatform.IsPlatformAvailable(Descriptor.Platform))
+			{
+				throw new BuildException("Platform {0} is not a valid platform to build. Check that the SDK is installed properly.", Descriptor.Platform);
+			}
+
 			RulesAssembly RulesAssembly;
 			using(Timeline.ScopeEvent("RulesCompiler.CreateTargetRulesAssembly()"))
 			{

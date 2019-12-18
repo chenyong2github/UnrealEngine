@@ -2222,12 +2222,10 @@ namespace UnrealBuildTool
 			SDK.ManageAndValidateSDK();
 
 			// Register this build platform for both Win64 and Win32
-			Log.TraceVerbose("        Registering for {0}", UnrealTargetPlatform.Win64.ToString());
 			UEBuildPlatform.RegisterBuildPlatform(new WindowsPlatform(UnrealTargetPlatform.Win64, SDK));
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Win64, UnrealPlatformGroup.Windows);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Win64, UnrealPlatformGroup.Microsoft);
 
-			Log.TraceVerbose("        Registering for {0}", UnrealTargetPlatform.Win32.ToString());
 			UEBuildPlatform.RegisterBuildPlatform(new WindowsPlatform(UnrealTargetPlatform.Win32, SDK));
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Win32, UnrealPlatformGroup.Windows);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Win32, UnrealPlatformGroup.Microsoft);

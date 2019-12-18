@@ -388,7 +388,6 @@ namespace UnrealBuildTool
 			SDK.ManageAndValidateSDK();
 
 			// Register this build platform for Mac
-			Log.TraceVerbose("        Registering for {0}", UnrealTargetPlatform.Mac.ToString());
 			UEBuildPlatform.RegisterBuildPlatform(new MacPlatform(SDK));
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Mac, UnrealPlatformGroup.Apple);
 		}
