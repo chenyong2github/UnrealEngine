@@ -1,5 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-#include "Chaos/PBDJointConstraintSolver.h"
+#include "Chaos/Joint/PBDJointSolverCholesky.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDJointConstraintUtilities.h"
 #include "Chaos/Utilities.h"
@@ -16,19 +16,25 @@ namespace Chaos
 #if CHAOS_JOINTSOLVER_STATSENABLED
 	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::Apply"), STAT_JointSolver_Apply, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::ApplyPushOut"), STAT_JointSolver_Jacobian, STATGROUP_Chaos);
-	#define CHAOS_JOINTSOLVER_SCOPE_CYCLE_STAT SCOPE_CYCLE_COUNTER(X)
+#define CHAOS_JOINTSOLVER_SCOPE_CYCLE_STAT SCOPE_CYCLE_COUNTER(X)
 #else
-	#define CHAOS_JOINTSOLVER_SCOPE_CYCLE_STAT(X)
+#define CHAOS_JOINTSOLVER_SCOPE_CYCLE_STAT(X)
 #endif
 
-	void FJointConstraintSolver::DecomposeSwingTwistLocal(const FRotation3& R0, const FRotation3& R1, FRotation3& R01Twist, FRotation3& R01Swing)
+	FJointSolverCholesky::FJointSolverCholesky()
 	{
-		const FRotation3 R01 = R0.Inverse() * R1;
-		R01.ToSwingTwistX(FJointConstants::TwistAxis(), R01Swing, R01Twist);
+	}
+
+	void FJointSolverCholesky::UpdateDerivedState()
+	{
+		Xs[0] = Ps[0] + Qs[0] * XLs[0].GetTranslation();
+		Xs[1] = Ps[1] + Qs[1] * XLs[1].GetTranslation();
+		Rs[0] = Qs[0] * XLs[0].GetRotation();
+		Rs[1] = Qs[1] * XLs[1].GetRotation();
 	}
 
 
-	void FJointConstraintSolver::InitConstraints(
+	void FJointSolverCholesky::InitConstraints(
 		const FReal Dt,
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings,
@@ -56,14 +62,17 @@ namespace Chaos
 		Qs[1] = Q1;
 		Qs[1].EnforceShortestArcWith(Qs[0]);
 
+		Stiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
+		SwingTwistAngleTolerance = SolverSettings.SwingTwistAngleTolerance;
+		bEnableTwistLimits = SolverSettings.bEnableTwistLimits;
+		bEnableTwistLimits = SolverSettings.bEnableSwingLimits;
+
 		UpdateDerivedState();
 	}
 
-	void FJointConstraintSolver::ApplyConstraints(
+	void FJointSolverCholesky::ApplyConstraints(
 		const FReal Dt,
-		const FPBDJointSolverSettings& SolverSettings,
-		const FPBDJointSettings& JointSettings,
-		const FReal Stiffness)
+		const FPBDJointSettings& JointSettings)
 	{
 		CHAOS_JOINTSOLVER_SCOPE_CYCLE_STAT(STAT_JointSolver_Apply);
 
@@ -94,7 +103,7 @@ namespace Chaos
 		//
 		FDenseMatrix61 C;
 		FDenseMatrix66 J0, J1;
-		BuildJacobianAndResidual(SolverSettings, JointSettings, J0, J1, C);
+		BuildJacobianAndResidual(JointSettings, J0, J1, C);
 
 		// InvM(6x6) = inverse mass matrix
 		const FMassMatrix InvM0 = FMassMatrix::Make(InvMs[0], Qs[0], InvILs[0]);
@@ -133,8 +142,7 @@ namespace Chaos
 		}
 	}
 
-	void FJointConstraintSolver::BuildJacobianAndResidual(
-		const FPBDJointSolverSettings& SolverSettings,
+	void FJointSolverCholesky::BuildJacobianAndResidual(
 		const FPBDJointSettings& JointSettings,
 		FDenseMatrix66& J0,
 		FDenseMatrix66& J1,
@@ -147,21 +155,12 @@ namespace Chaos
 		J1.SetDimensions(0, 6);
 		C.SetDimensions(0, 1);
 
-		AddLinearConstraints(SolverSettings, JointSettings, J0, J1, C);
-		AddAngularConstraints(SolverSettings, JointSettings, J0, J1, C);
-	}
-
-	void FJointConstraintSolver::UpdateDerivedState()
-	{
-		Xs[0] = Ps[0] + Qs[0] * XLs[0].GetTranslation();
-		Xs[1] = Ps[1] + Qs[1] * XLs[1].GetTranslation();
-		Rs[0] = Qs[0] * XLs[0].GetRotation();
-		Rs[1] = Qs[1] * XLs[1].GetRotation();
+		AddLinearConstraints(JointSettings, J0, J1, C);
+		AddAngularConstraints(JointSettings, J0, J1, C);
 	}
 
 	// 3 constraints along principle axes
-	void FJointConstraintSolver::AddLinearConstraints_Point(
-		const FPBDJointSolverSettings& SolverSettings,
+	void FJointSolverCholesky::AddLinearConstraints_Point(
 		const FPBDJointSettings& JointSettings,
 		FDenseMatrix66& J0,
 		FDenseMatrix66& J1,
@@ -196,8 +195,7 @@ namespace Chaos
 	}
 
 	// up to 1 constraint limiting distance
-	void FJointConstraintSolver::AddLinearConstraints_Sphere(
-		const FPBDJointSolverSettings& SolverSettings,
+	void FJointSolverCholesky::AddLinearConstraints_Sphere(
 		const FPBDJointSettings& JointSettings,
 		FDenseMatrix66& J0,
 		FDenseMatrix66& J1,
@@ -230,8 +228,7 @@ namespace Chaos
 	}
 
 	// up to 2 constraint: 1 limiting distance along the axis and another limiting lateral distance from the axis
-	void FJointConstraintSolver::AddLinearConstraints_Cylinder(
-		const FPBDJointSolverSettings& SolverSettings,
+	void FJointSolverCholesky::AddLinearConstraints_Cylinder(
 		const FPBDJointSettings& JointSettings,
 		const EJointMotionType AxisMotion,
 		const FVec3& Axis,
@@ -287,8 +284,7 @@ namespace Chaos
 	}
 
 	// up to 1 constraint limiting distance along the axis (lateral motion unrestricted)
-	void FJointConstraintSolver::AddLinearConstraints_Plane(
-		const FPBDJointSolverSettings& SolverSettings,
+	void FJointSolverCholesky::AddLinearConstraints_Plane(
 		const FPBDJointSettings& JointSettings,
 		const EJointMotionType AxisMotion,
 		const FVec3& Axis,
@@ -323,8 +319,7 @@ namespace Chaos
 	}
 
 	// up to 1 constraint limiting rotation about twist axes
-	void FJointConstraintSolver::AddAngularConstraints_Twist(
-		const FPBDJointSolverSettings& SolverSettings,
+	void FJointSolverCholesky::AddAngularConstraints_Twist(
 		const FPBDJointSettings& JointSettings,
 		const FRotation3& R01Twist,
 		const FRotation3& R01Swing,
@@ -334,12 +329,10 @@ namespace Chaos
 	{
 		FVec3 TwistAxis01 = FJointConstants::TwistAxis();
 		FReal TwistAngle = R01Twist.GetAngle();
-		//R01Twist.ToAxisAndAngleSafe(TwistAxis01, TwistAngle, FJointConstants::TwistAxis(), SolverSettings.SwingTwistAngleTolerance);
 		if (TwistAngle > PI)
 		{
 			TwistAngle = TwistAngle - (FReal)2 * PI;
 		}
-		//if (FVec3::DotProduct(TwistAxis01, FJointConstants::TwistAxis()) < 0)
 		if (R01Twist.X < 0)
 		{
 			TwistAngle = -TwistAngle;
@@ -370,8 +363,7 @@ namespace Chaos
 	}
 
 	// up to 1 constraint limiting angle between twist axes
-	void FJointConstraintSolver::AddAngularConstraints_Cone(
-		const FPBDJointSolverSettings& SolverSettings,
+	void FJointSolverCholesky::AddAngularConstraints_Cone(
 		const FPBDJointSettings& JointSettings,
 		const FRotation3& R01Twist,
 		const FRotation3& R01Swing,
@@ -381,7 +373,7 @@ namespace Chaos
 	{
 		FVec3 SwingAxis01;
 		FReal SwingAngle;
-		R01Swing.ToAxisAndAngleSafe(SwingAxis01, SwingAngle, FJointConstants::Swing1Axis(), SolverSettings.SwingTwistAngleTolerance);
+		R01Swing.ToAxisAndAngleSafe(SwingAxis01, SwingAngle, FJointConstants::Swing1Axis(), SwingTwistAngleTolerance);
 		if (SwingAngle > PI)
 		{
 			SwingAngle = SwingAngle - (FReal)2 * PI;
@@ -427,8 +419,7 @@ namespace Chaos
 	}
 
 	// up to 1 constraint limiting rotation about swing axis (relative to body 0)
-	void FJointConstraintSolver::AddAngularConstraints_Swing(
-		const FPBDJointSolverSettings& SolverSettings,
+	void FJointSolverCholesky::AddAngularConstraints_Swing(
 		const FPBDJointSettings& JointSettings,
 		const EJointAngularConstraintIndex SwingConstraintIndex,
 		const EJointAngularAxisIndex SwingAxisIndex,
@@ -440,7 +431,7 @@ namespace Chaos
 	{
 		FVec3 TwistAxis01;
 		FReal TwistAngle;
-		R01Twist.ToAxisAndAngleSafe(TwistAxis01, TwistAngle, FJointConstants::TwistAxis(), SolverSettings.SwingTwistAngleTolerance);
+		R01Twist.ToAxisAndAngleSafe(TwistAxis01, TwistAngle, FJointConstants::TwistAxis(), SwingTwistAngleTolerance);
 		if (TwistAngle > PI)
 		{
 			TwistAngle = TwistAngle - (FReal)2 * PI;
@@ -492,8 +483,7 @@ namespace Chaos
 	}
 
 	// Add linear constraints to solver
-	void FJointConstraintSolver::AddLinearConstraints(
-		const FPBDJointSolverSettings& SolverSettings,
+	void FJointSolverCholesky::AddLinearConstraints(
 		const FPBDJointSettings& JointSettings,
 		FDenseMatrix66& J0,
 		FDenseMatrix66& J1,
@@ -502,48 +492,47 @@ namespace Chaos
 		const TVector<EJointMotionType, 3>& Motion = JointSettings.Motion.LinearMotionTypes;
 		if ((Motion[0] == EJointMotionType::Locked) && (Motion[1] == EJointMotionType::Locked) && (Motion[2] == EJointMotionType::Locked))
 		{
-			AddLinearConstraints_Point(SolverSettings, JointSettings, J0, J1, C);
+			AddLinearConstraints_Point(JointSettings, J0, J1, C);
 		}
 		else if ((Motion[0] == EJointMotionType::Limited) && (Motion[1] == EJointMotionType::Limited) && (Motion[2] == EJointMotionType::Limited))
 		{
-			AddLinearConstraints_Sphere(SolverSettings, JointSettings, J0, J1, C);
+			AddLinearConstraints_Sphere(JointSettings, J0, J1, C);
 		}
 		else if ((Motion[1] == EJointMotionType::Limited) && (Motion[2] == EJointMotionType::Limited))
 		{
 			// Circular Limit (X Axis)
-			AddLinearConstraints_Cylinder(SolverSettings, JointSettings, Motion[0], Rs[0] * FVec3(1, 0, 0), J0, J1, C);
+			AddLinearConstraints_Cylinder(JointSettings, Motion[0], Rs[0] * FVec3(1, 0, 0), J0, J1, C);
 		}
 		else if ((Motion[0] == EJointMotionType::Limited) && (Motion[2] == EJointMotionType::Limited))
 		{
 			// Circular Limit (Y Axis)
-			AddLinearConstraints_Cylinder(SolverSettings, JointSettings, Motion[1], Rs[0] * FVec3(0, 1, 0), J0, J1, C);
+			AddLinearConstraints_Cylinder(JointSettings, Motion[1], Rs[0] * FVec3(0, 1, 0), J0, J1, C);
 		}
 		else if ((Motion[0] == EJointMotionType::Limited) && (Motion[1] == EJointMotionType::Limited))
 		{
 			// Circular Limit (Z Axis)
-			AddLinearConstraints_Cylinder(SolverSettings, JointSettings, Motion[2], Rs[0] * FVec3(0, 0, 1), J0, J1, C);
+			AddLinearConstraints_Cylinder(JointSettings, Motion[2], Rs[0] * FVec3(0, 0, 1), J0, J1, C);
 		}
 		else
 		{
 			// Plane/Square/Cube Limits (no way to author square or cube limits, but would work if we wanted it)
 			if (Motion[0] != EJointMotionType::Free)
 			{
-				AddLinearConstraints_Plane(SolverSettings, JointSettings, Motion[0], Rs[0] * FVec3(1, 0, 0), J0, J1, C);
+				AddLinearConstraints_Plane(JointSettings, Motion[0], Rs[0] * FVec3(1, 0, 0), J0, J1, C);
 			}
 			if (Motion[1] != EJointMotionType::Free)
 			{
-				AddLinearConstraints_Plane(SolverSettings, JointSettings, Motion[1], Rs[0] * FVec3(0, 1, 0), J0, J1, C);
+				AddLinearConstraints_Plane(JointSettings, Motion[1], Rs[0] * FVec3(0, 1, 0), J0, J1, C);
 			}
 			if (Motion[2] != EJointMotionType::Free)
 			{
-				AddLinearConstraints_Plane(SolverSettings, JointSettings, Motion[2], Rs[0] * FVec3(0, 0, 1), J0, J1, C);
+				AddLinearConstraints_Plane(JointSettings, Motion[2], Rs[0] * FVec3(0, 0, 1), J0, J1, C);
 			}
 		}
 	}
 
 	// Add angular constraints to solver
-	void FJointConstraintSolver::AddAngularConstraints(
-		const FPBDJointSolverSettings& SolverSettings,
+	void FJointSolverCholesky::AddAngularConstraints(
 		const FPBDJointSettings& JointSettings,
 		FDenseMatrix66& J0,
 		FDenseMatrix66& J1,
@@ -553,19 +542,19 @@ namespace Chaos
 		EJointMotionType Swing1Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1];
 		EJointMotionType Swing2Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2];
 
-		bool bAddTwist = SolverSettings.bEnableTwistLimits && (TwistMotion != EJointMotionType::Free);
-		bool bAddConeOrSwing = SolverSettings.bEnableSwingLimits && ((Swing1Motion != EJointMotionType::Free) || (Swing2Motion != EJointMotionType::Free));
+		bool bAddTwist = bEnableTwistLimits && (TwistMotion != EJointMotionType::Free);
+		bool bAddConeOrSwing = bEnableSwingLimits && ((Swing1Motion != EJointMotionType::Free) || (Swing2Motion != EJointMotionType::Free));
 
 		if (bAddTwist || bAddConeOrSwing)
 		{
-			// Calculate axes for each body
+			// Decompose rotation of body 1 relative to body 0 into swing and twist rotations, assuming twist is X axis
 			FRotation3 R01Twist, R01Swing;
-			DecomposeSwingTwistLocal(Rs[0], Rs[1], R01Twist, R01Swing);
+			FPBDJointUtilities::DecomposeSwingTwistLocal(Rs[0], Rs[1], R01Swing, R01Twist);
 
 			// Add twist constraint
 			if (bAddTwist)
 			{
-				AddAngularConstraints_Twist(SolverSettings, JointSettings, R01Twist, R01Swing, J0, J1, C);
+				AddAngularConstraints_Twist(JointSettings, R01Twist, R01Swing, J0, J1, C);
 			}
 
 			// Add swing constraints
@@ -573,17 +562,17 @@ namespace Chaos
 			{
 				if ((Swing1Motion == EJointMotionType::Limited) && (Swing2Motion == EJointMotionType::Limited))
 				{
-					AddAngularConstraints_Cone(SolverSettings, JointSettings, R01Twist, R01Swing, J0, J1, C);
+					AddAngularConstraints_Cone(JointSettings, R01Twist, R01Swing, J0, J1, C);
 				}
 				else
 				{
 					if (Swing1Motion != EJointMotionType::Free)
 					{
-						AddAngularConstraints_Swing(SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing1, EJointAngularAxisIndex::Swing1, R01Twist, R01Swing, J0, J1, C);
+						AddAngularConstraints_Swing(JointSettings, EJointAngularConstraintIndex::Swing1, EJointAngularAxisIndex::Swing1, R01Twist, R01Swing, J0, J1, C);
 					}
 					if (Swing2Motion != EJointMotionType::Free)
 					{
-						AddAngularConstraints_Swing(SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2, R01Twist, R01Swing, J0, J1, C);
+						AddAngularConstraints_Swing(JointSettings, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2, R01Twist, R01Swing, J0, J1, C);
 					}
 				}
 			}

@@ -106,7 +106,7 @@ namespace Chaos
 		 * Extract the Swing and Twist rotations, assuming that the Twist Axis is (1,0,0).
 		 * /see ToSwingTwist
 		 */
-		void ToSwingTwistX(const FVector& InTwistAxis, FQuat& OutSwing, FQuat& OutTwist) const
+		void ToSwingTwistX(FQuat& OutSwing, FQuat& OutTwist) const
 		{
 			OutTwist = (X != 0.0f)? FQuat(X, 0, 0, W).GetNormalized() : FQuat::Identity;
 			OutSwing = *this * OutTwist.Inverse();
