@@ -2644,12 +2644,15 @@ public:
 	{
 		for (TArray<FParticleVertexFactoryBase*>& PerViewEmitterVFs : EmitterVertexFactoryArray)
 		{
-			FParticleVertexFactoryBase *VertexFactory = PerViewEmitterVFs[EmitterIndex];
-			if (VertexFactory && VertexFactory->IsDirty())
+			if (PerViewEmitterVFs.IsValidIndex(EmitterIndex))
 			{
-				VertexFactory->ReleaseResource();
-				delete VertexFactory;
-				PerViewEmitterVFs[EmitterIndex] = nullptr;
+				FParticleVertexFactoryBase *VertexFactory = PerViewEmitterVFs[EmitterIndex];
+				if (VertexFactory && VertexFactory->IsDirty())
+				{
+					VertexFactory->ReleaseResource();
+					delete VertexFactory;
+					PerViewEmitterVFs[EmitterIndex] = nullptr;
+				}
 			}
 		}
 	}
