@@ -908,7 +908,7 @@ void* FD3D12DynamicHeapAllocator::AllocUploadResource(uint32 Size, uint32 Alignm
 	//clean up as we go as it can even run out of memory before the first frame.
 	if (Adapter->GetDeferredDeletionQueue().QueueSize() > 128)
 	{
-		Adapter->GetDeferredDeletionQueue().ReleaseResources(true);
+		Adapter->GetDeferredDeletionQueue().ReleaseResources(true, false);
 		Allocator.CleanUpAllocations();
 	}
 	

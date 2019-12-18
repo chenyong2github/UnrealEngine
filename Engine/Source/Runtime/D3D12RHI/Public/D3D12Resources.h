@@ -605,12 +605,7 @@ public:
 	void EnqueueResource(FD3D12Resource* pResource, FD3D12Fence* Fence);
 	void EnqueueResource(ID3D12Object* pResource, FD3D12Fence* Fence);
 
-	bool ReleaseResources(bool DeleteImmediately = false);
-
-	void Clear()
-	{
-		ReleaseResources(true);
-	}
+	bool ReleaseResources(bool bDeleteImmediately, bool bIsShutDown);
 
 	FD3D12DeferredDeletionQueue(FD3D12Adapter* InParent);
 	~FD3D12DeferredDeletionQueue();
