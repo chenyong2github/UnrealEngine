@@ -203,7 +203,7 @@ namespace Chaos
 			if (EPA(VertsA, VertsB, SupportAFunc, SupportBFunc, Penetration, MTD, ClosestA, ClosestBInA) != EPAResult::BadInitialSimplex)
 			{
 				OutNormal = MTD;
-				OutPenetration = Penetration + Inflation;
+				OutPenetration = Penetration + ThicknessA + ThicknessB;
 				OutClosestA = ClosestA + OutNormal * ThicknessA;
 				OutClosestB = ClosestBInA - OutNormal * ThicknessB;
 			}
@@ -220,7 +220,7 @@ namespace Chaos
 					ClosestBInA += Bs[i] * Barycentric[i];
 				}
 
-				OutPenetration = Inflation;
+				OutPenetration = ThicknessA + ThicknessB;
 				OutNormal = { 0,0,1 };
 				OutClosestA = ClosestA + OutNormal * ThicknessA;
 				OutClosestB = ClosestBInA - OutNormal * ThicknessB;
@@ -642,7 +642,12 @@ namespace Chaos
 	template <typename T, typename TGeometryA, typename TGeometryB>
 	TVector<T, 3> GJKDistanceInitialV(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM)
 	{
-		return A.GetCenter() - (B.GetCenter() + BToATM.GetTranslation());
+		const TVec3<T> V(1, 0, 0);
+		const TVector<T, 3> SupportA = A.Support(-V, 0);
+		const TVector<T, 3> VInB = BToATM.GetRotation().Inverse() * V;
+		const TVector<T, 3> SupportBLocal = B.Support(VInB, 0);
+		const TVector<T, 3> SupportB = BToATM.TransformPositionNoScale(SupportBLocal);
+		return SupportA - SupportB;
 	}
 
 	/**
