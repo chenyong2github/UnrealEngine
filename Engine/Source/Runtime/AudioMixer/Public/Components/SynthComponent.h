@@ -216,6 +216,9 @@ public:
 	void AddAudioBufferListener(IAudioBufferListener* InAudioBufferListener);
 	void RemoveAudioBufferListener(IAudioBufferListener* InAudioBufferListener);
 
+
+	virtual void BeginDestroy() override;
+
 protected:
 
 	// Method to execute parameter changes on game thread in audio render thread

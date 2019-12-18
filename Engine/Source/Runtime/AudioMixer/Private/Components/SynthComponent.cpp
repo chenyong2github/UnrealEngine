@@ -44,8 +44,10 @@ void USynthSound::StartOnAudioDevice(FAudioDevice* InAudioDevice)
 
 void USynthSound::OnBeginGenerate()
 {
-	check(OwningSynthComponent);
-	OwningSynthComponent->OnBeginGenerate();
+	if (ensure(OwningSynthComponent))
+	{
+		OwningSynthComponent->OnBeginGenerate();
+	}
 }
 
 int32 USynthSound::OnGeneratePCMAudio(TArray<uint8>& OutAudio, int32 NumSamples)
@@ -146,6 +148,12 @@ void USynthComponent::OnAudioComponentEnvelopeValue(const UAudioComponent* InAud
 	{
 		OnAudioEnvelopeValueNative.Broadcast(InAudioComponent, EnvelopeValue);
 	}
+}
+
+void USynthComponent::BeginDestroy()
+{
+	Super::BeginDestroy();
+	Stop();
 }
 
 void USynthComponent::Activate(bool bReset)
