@@ -377,8 +377,32 @@ bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMod
 }
 
 
-bool UAssetEditorSubsystem::OpenEditorForAssets_Advanced(const TArray <UObject* >& Assets, const EToolkitMode::Type ToolkitMode, TSharedPtr< IToolkitHost > OpenedFromLevelEditor)
+bool UAssetEditorSubsystem::OpenEditorForAssets_Advanced(const TArray <UObject* >& InAssets, const EToolkitMode::Type ToolkitMode, TSharedPtr< IToolkitHost > OpenedFromLevelEditor)
 {
+	TArray<UObject*> Assets;
+	Assets.Reserve(InAssets.Num());
+	int32 NumNullAssets = 0;
+	for (UObject* Asset : InAssets)
+	{
+		if (Asset)
+		{
+			Assets.AddUnique(Asset);
+		}
+		else
+		{
+			++NumNullAssets;
+		}
+	}
+
+	if (NumNullAssets > 1)
+	{
+		UE_LOG(LogAssetEditorSubsystem, Error, TEXT("Opening Asset editors failed because of null assets"));
+	}
+	else if (NumNullAssets > 0)
+	{
+		UE_LOG(LogAssetEditorSubsystem, Error, TEXT("Opening Asset editor failed because of null asset"));
+	}
+
 	if (Assets.Num() == 1)
 	{
 		return OpenEditorForAsset(Assets[0], ToolkitMode, OpenedFromLevelEditor);
