@@ -5704,9 +5704,9 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				if( Success == true )
 				{
 					{
-						// ResetLoaders on the Package so that we drop the handle to the file on disk and can write to it
+						// If we're writing to the existing file call ResetLoaders on the Package so that we drop the handle to the file on disk and can write to it
 						COOK_STAT(FScopedDurationTimer SaveTimer(SavePackageStats::ResetLoadersTimeSec));
-						ResetLoaders(InOuter);
+						ResetLoadersForSave(InOuter, Filename);
 					}
 
 					if (bSaveAsync)

@@ -808,18 +808,15 @@ FLinkerLoad* LoadPackageLinker(UPackage* InOuter, const TCHAR* InLongPackageName
 	return LoadPackageLinker(InOuter, InLongPackageName, LoadFlags, Sandbox, CompatibleGuid, InReaderOverride, [](FLinkerLoad* InLinker) {});
 }
 
-/**
- * 
- * Ensure thumbnails are loaded and then reset the loader in preparation for a package save
- *
- * @param	InOuter			The outer for the package we are saving
- * @param	Filename		The filename we are saving too
- */
-void ResetLoadersForSave(UObject* InOuter, const TCHAR *Filename)
+
+void ResetLoadersForSave(UObject* InOuter, const TCHAR* Filename)
 {
 	UPackage* Package = dynamic_cast<UPackage*>(InOuter);
-	EnsureLoadingComplete(Package);
+	ResetLoadersForSave(Package, Filename);
+}
 
+void ResetLoadersForSave(UPackage* Package, const TCHAR* Filename)
+{
 	FLinkerLoad* Loader = FLinkerLoad::FindExistingLinkerForPackage(Package);
 	if( Loader )
 	{
