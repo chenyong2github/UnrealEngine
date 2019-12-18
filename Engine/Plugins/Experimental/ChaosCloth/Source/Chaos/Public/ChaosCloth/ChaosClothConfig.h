@@ -2,18 +2,18 @@
 #pragma once
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
-#include "ClothConfigBase.h"
+#include "ClothConfig.h"
 #include "CoreMinimal.h"
 #include "ChaosClothConfig.generated.h"
 
 /** Holds initial, asset level config for clothing actors. */
 // Hiding categories that will be used in the future
 UCLASS(HideCategories = (Collision))
-class CHAOSCLOTH_API UChaosClothConfig : public UClothConfigBase
+class CHAOSCLOTH_API UChaosClothConfig : public UClothConfigCommon
 {
 	GENERATED_BODY()
 public:
-	UChaosClothConfig() {};
+	UChaosClothConfig() {}
 
 	/**
 	 * How cloth particle mass is determined
@@ -99,16 +99,19 @@ public:
 	bool bUseContinuousCollisionDetection = false;
 };
 
-/*
-These settings are shared between all instances on a skeletal mesh
-*/
+/**
+ * Chaos config settings shared between all instances of a skeletal mesh.
+ * Unlike UChaosClothConfig, these settings contain common cloth simulation
+ * parameters that cannot change between the various clothing assets assigned
+ * to a specific skeletal mesh. @seealso UChaosClothConfig.
+ */
 UCLASS()
-class CHAOSCLOTH_API UChaosClothSharedSimConfig : public UClothSharedSimConfigBase
+class CHAOSCLOTH_API UChaosClothSharedSimConfig : public UClothConfigBase
 {
 	GENERATED_BODY()
 public:
-	UChaosClothSharedSimConfig() : Gravity(FVector(0.0f, 0.0f, -490)) {};
-	virtual ~UChaosClothSharedSimConfig() {};
+	UChaosClothSharedSimConfig() : Gravity(FVector(0.0f, 0.0f, -490)) {}
+	virtual ~UChaosClothSharedSimConfig() {}
 
 	// The number of solver iterations
 	// This will increase the stiffness of all constraints but will increase the CPU cost

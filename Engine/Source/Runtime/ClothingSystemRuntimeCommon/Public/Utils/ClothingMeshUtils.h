@@ -6,7 +6,7 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogClothingMeshUtils, Log, All);
 
-class UClothPhysicalMeshDataBase;
+struct FClothPhysicalMeshData;
 
 namespace ClothingMeshUtils
 {
@@ -35,7 +35,7 @@ namespace ClothingMeshUtils
 	void CLOTHINGSYSTEMRUNTIMECOMMON_API
 	SkinPhysicsMesh(
 		const TArray<int32>& BoneMap, // UClothingAssetCommon::UsedBoneIndices
-		const UClothPhysicalMeshDataBase& InMesh, 
+		const FClothPhysicalMeshData& InMesh, 
 		const FTransform& PostTransform, // Final transform to apply to component space positions and normals
 		const FMatrix* InBoneMatrices, 
 		const int32 InNumBoneMatrices, 

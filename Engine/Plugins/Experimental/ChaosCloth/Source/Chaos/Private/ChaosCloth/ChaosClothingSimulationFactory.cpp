@@ -3,6 +3,7 @@
 #include "ChaosCloth/ChaosClothingSimulationFactory.h"
 #include "ChaosCloth/ChaosClothConfig.h"
 #include "ChaosCloth/ChaosClothingSimulation.h"
+#include "ChaosCloth/ChaosWeightMapTarget.h"
 #include "ChaosCloth/ChaosClothingSimulationInteractor.h"
 
 IClothingSimulation* UChaosClothingSimulationFactory::CreateSimulation()
@@ -31,7 +32,12 @@ UClothingSimulationInteractor* UChaosClothingSimulationFactory::CreateInteractor
 	return NewObject<UChaosClothingSimulationInteractor>(GetTransientPackage());
 }
 
-UClothConfigBase* UChaosClothingSimulationFactory::CreateDefaultClothConfig(const FObjectInitializer& ObjectInitializer, UObject* Outer)
+TSubclassOf<UClothConfigBase> UChaosClothingSimulationFactory::GetClothConfigClass() const
 {
-	return ObjectInitializer.CreateDefaultSubobject<UChaosClothConfig>(Outer, UChaosClothConfig::StaticClass()->GetFName());
+	return TSubclassOf<UClothConfigBase>(UChaosClothConfig::StaticClass());
+}
+
+const UEnum* UChaosClothingSimulationFactory::GetWeightMapTargetEnum() const
+{
+	return StaticEnum<EChaosWeightMapTarget>();
 }

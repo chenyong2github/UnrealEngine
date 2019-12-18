@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "ClothingSimulation.h"
 #include "ClothingSimulationFactory.h"
 
 #include "ClothingSimulationFactoryNv.generated.h"
@@ -19,4 +18,7 @@ public:
 
 	virtual bool SupportsRuntimeInteraction() override;
 	virtual UClothingSimulationInteractor* CreateInteractor() override;
+
+	virtual TSubclassOf<UClothConfigBase> GetClothConfigClass() const override;
+	virtual const UEnum* GetWeightMapTargetEnum() const override;
 };
