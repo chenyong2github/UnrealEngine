@@ -4226,8 +4226,7 @@ INavigationDataInterface* UNavigationSystemV1::GetNavDataForActor(const AActor& 
 		NavData = NavSys->GetDefaultNavDataInstance(FNavigationSystem::DontCreate);
 	}
 
-	//  Only RecastNavMesh supported
-	return (INavigationDataInterface*)(Cast<ARecastNavMesh>(NavData));
+	return NavData;
 }
 
 int UNavigationSystemV1::GetNavigationBoundsForNavData(const ANavigationData& NavData, TArray<FBox>& OutBounds, ULevel* InLevel) const
