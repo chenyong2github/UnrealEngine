@@ -19,14 +19,14 @@ public:
 
 	void Construct(const FArguments& InArgs, TSharedRef<FNiagaraOverviewGraphViewModel> InViewModel);
 
-	~SNiagaraOverviewGraph();
-
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
 	void ViewModelSelectionChanged();
 
 	void GraphSelectionChanged(const TSet<UObject*>& SelectedNodes);
+
+	void PreClose();
 
 	/** Called to create context menu when right-clicking on graph */
 	FActionMenuContent OnCreateGraphActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed);

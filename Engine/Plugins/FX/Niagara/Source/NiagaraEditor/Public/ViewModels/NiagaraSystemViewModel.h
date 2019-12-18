@@ -100,6 +100,8 @@ public:
 
 	DECLARE_MULTICAST_DELEGATE(FOnPinnedCurvesChanged);
 
+	DECLARE_MULTICAST_DELEGATE(FOnPreClose);
+
 public:
 	struct FEmitterHandleToDuplicate
 	{
@@ -268,8 +270,11 @@ public:
 	/** Checks whether or not an emitter is pinned in the stack UI*/
 	NIAGARAEDITOR_API bool GetIsEmitterPinned(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleModel);
 
-	NIAGARAEDITOR_API void OnPreSave();
-	NIAGARAEDITOR_API void OnPreClose();
+	NIAGARAEDITOR_API void NotifyPreSave();
+
+	NIAGARAEDITOR_API void NotifyPreClose();
+
+	NIAGARAEDITOR_API FOnPreClose& OnPreClose();
 	
 	/** Gets the system toolkit command list. */
 	NIAGARAEDITOR_API TSharedPtr<FUICommandList> GetToolkitCommands();
@@ -479,6 +484,9 @@ private:
 
 	/** A multicast delegate which is called whenever the system has been compiled. */
 	FOnSystemCompiled OnSystemCompiledDelegate;
+
+	/** A multicast delegate which is called whenever this has been notified it's owner will be closing. */
+	FOnPreClose OnPreCloseDelegate;
 
 	/** A flag for preventing reentrancy when syncrhonizing sequencer data. */
 	bool bUpdatingEmittersFromSequencerDataChange;
