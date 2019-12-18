@@ -11,6 +11,9 @@ TextureMipDataProvider.h: Base class for providing the mip data used by FTexture
 #include "PixelFormat.h"
 #include "RHIDefinitions.h"
 
+class UTexture;
+class UStreamableRenderAsset;
+
 // Describes a mip that gets updated through FTextureStreamIn.
 struct FTextureMipInfo
 {
