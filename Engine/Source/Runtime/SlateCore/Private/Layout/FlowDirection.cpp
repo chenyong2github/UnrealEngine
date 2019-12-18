@@ -35,8 +35,7 @@ EFlowDirection FLayoutLocalization::GetLocalizedLayoutDirection()
 	static TFrameValue<EFlowDirection> FrameCoherentDirection;
 	if (!FrameCoherentDirection.IsSet())
 	{
-		//HACK: Normally we'd get this from the culture, but our cultures don't tell us if they're RightToLeft.  Newer versions of ICU tell you, but we need to upgrade.
-		FrameCoherentDirection = FInternationalization::Get().GetCurrentCulture()->GetTwoLetterISOLanguageName().StartsWith(TEXT("ar")) ? EFlowDirection::RightToLeft : EFlowDirection::LeftToRight;
+		FrameCoherentDirection = FInternationalization::Get().GetCurrentCulture()->IsRightToLeft() ? EFlowDirection::RightToLeft : EFlowDirection::LeftToRight;
 	}
 
 	return FrameCoherentDirection.GetValue();
