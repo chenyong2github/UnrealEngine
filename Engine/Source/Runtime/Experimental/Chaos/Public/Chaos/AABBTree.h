@@ -443,7 +443,6 @@ public:
 			{
 				DirtyElements[PayloadInfo->DirtyPayloadIdx].Bounds = NewBounds;
 			}
-			PayloadInfo->GlobalPayloadIdx = INDEX_NONE;
 
 			// Handle something that previously did not have bounds that may be in global elements.
 			if (PayloadInfo->GlobalPayloadIdx != INDEX_NONE)
