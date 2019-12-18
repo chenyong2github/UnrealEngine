@@ -311,7 +311,7 @@ class BuildPlugin : BuildCommand
 					UnrealTargetPlatform TargetPlatform;
 					if (!UnrealTargetPlatform.TryParse(TargetPlatformName, out TargetPlatform))
 					{
-						throw new AutomationException("Unknown target platform '{0}' specified on command line");
+						throw new AutomationException("Unknown target platform '{0}' specified on command line", TargetPlatformName);
 					}
 					if(TargetPlatforms.Contains(TargetPlatform))
 					{
