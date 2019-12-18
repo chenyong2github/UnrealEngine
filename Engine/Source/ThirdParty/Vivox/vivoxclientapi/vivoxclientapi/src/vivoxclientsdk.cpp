@@ -46,6 +46,10 @@
 #define USE_LOGIN_SESSION_AUDIO_DEVICE_QUERY 0
 #endif
 
+#ifndef VALIDATE_AUDIO_DEVICE_SELECTION
+#define VALIDATE_AUDIO_DEVICE_SELECTION 0
+#endif
+
 namespace VivoxClientApi {
 	// overrides for using custom allocators
 
@@ -1933,6 +1937,73 @@ namespace VivoxClientApi {
 			m_app->onSessionGroupCreated(m_name, resp->sessiongroup_handle);
         }
 
+#if USE_LOGIN_SESSION_AUDIO_SETTINGS
+		void HandleResponse(vx_resp_aux_set_capture_device *resp)
+		{
+			vx_req_aux_set_capture_device_t *req = reinterpret_cast<vx_req_aux_set_capture_device_t *>(resp->base.request);
+			AudioDevicePolicy *requestedDevicePolicy = (AudioDevicePolicy *)req->base.vcookie;
+			if (resp->base.return_code != 0) {
+				// setting "use system device" should never fail
+				CHECK_RET(requestedDevicePolicy->GetAudioDevicePolicy() != AudioDevicePolicy::vx_audio_device_policy_default_system);
+				// if we do fail, set the desired to the current
+				m_desiredAudioInputDevicePolicy = m_currentAudioInputDevicePolicy;
+				m_app->onSetApplicationChosenAudioOutputDeviceFailed(GetAccountNameFromResponse(resp), requestedDevicePolicy->GetSpecificAudioDevice(), VCSStatus(resp->base.status_code, resp->base.status_string));
+			}
+			else {
+				m_currentAudioInputDevicePolicy = *requestedDevicePolicy;
+				if (requestedDevicePolicy->GetAudioDevicePolicy() == AudioDevicePolicy::vx_audio_device_policy_default_system) {
+				}
+				else {
+					m_app->onSetApplicationChosenAudioInputDeviceCompleted(GetAccountNameFromResponse(resp), requestedDevicePolicy->GetSpecificAudioDevice());
+				}
+			}
+			NextState();
+		}
+
+		void HandleResponse(vx_resp_aux_set_render_device *resp)
+		{
+			vx_req_aux_set_render_device_t *req = reinterpret_cast<vx_req_aux_set_render_device_t *>(resp->base.request);
+			AudioDevicePolicy *requestedDevicePolicy = (AudioDevicePolicy *)req->base.vcookie;
+			if (resp->base.return_code != 0) {
+				// setting "use system device" should never fail
+				CHECK_RET(requestedDevicePolicy->GetAudioDevicePolicy() != AudioDevicePolicy::vx_audio_device_policy_default_system);
+				// if we do fail, set the desired to the current
+				m_desiredAudioOutputDevicePolicy = m_currentAudioOutputDevicePolicy;
+				m_app->onSetApplicationChosenAudioOutputDeviceFailed(GetAccountNameFromResponse(resp), requestedDevicePolicy->GetSpecificAudioDevice(), VCSStatus(resp->base.status_code, resp->base.status_string));
+			}
+			else {
+				m_currentAudioOutputDevicePolicy = *requestedDevicePolicy;
+				if (requestedDevicePolicy->GetAudioDevicePolicy() == AudioDevicePolicy::vx_audio_device_policy_default_system) {
+				}
+				else {
+					m_app->onSetApplicationChosenAudioOutputDeviceCompleted(GetAccountNameFromResponse(resp), m_currentAudioOutputDevicePolicy.GetSpecificAudioDevice());
+				}
+			}
+			NextState();
+		}
+
+		void HandleResponse(vx_resp_aux_set_vad_properties *resp)
+		{
+			CHECK(resp->base.return_code == 0);
+			m_masterVoiceActivateDetectionRequestInProgress = false;
+			NextState();
+		}
+
+		void HandleResponse(vx_resp_connector_set_local_mic_volume *resp)
+		{
+			CHECK(resp->base.return_code == 0);
+			m_masterAudioInputDeviceVolumeRequestInProgress = false;
+			NextState();
+		}
+
+		void HandleResponse(vx_resp_connector_set_local_speaker_volume *resp)
+		{
+			CHECK(resp->base.return_code == 0);
+			m_masterAudioOutputDeviceVolumeRequestInProgress = false;
+			NextState();
+		}
+#endif
+
         void HandleResponse(vx_resp_session_set_local_speaker_volume *resp)
         {
             return m_sg.HandleResponse(resp);
@@ -2482,7 +2553,7 @@ namespace VivoxClientApi {
 
         VCSStatus SetApplicationChosenAudioInputDevice(const AccountName &accountName, const AudioDeviceId &deviceName)
         {
-#if !(_XBOX_ONE)
+#if VALIDATE_AUDIO_DEVICE_SELECTION
             CHECK_RET1(deviceName.IsValid(), VCSStatus(VX_E_INVALID_ARGUMENT));
             /// find in vector or return device not found
             AudioDeviceId validDevice;
@@ -2593,7 +2664,7 @@ namespace VivoxClientApi {
 
         VCSStatus SetApplicationChosenAudioOutputDevice(const AccountName &accountName, const AudioDeviceId &deviceName)
         {
-#if !(_XBOX_ONE)
+#if VALIDATE_AUDIO_DEVICE_SELECTION
             CHECK_RET1(deviceName.IsValid(), VCSStatus(VX_E_INVALID_ARGUMENT));
             /// find in vector or return device not found
             AudioDeviceId validDevice;
@@ -3351,8 +3422,15 @@ namespace VivoxClientApi {
 
         void HandleResponse(vx_resp_aux_set_capture_device *resp)
         {
-            vx_req_aux_set_capture_device_t *req = reinterpret_cast<vx_req_aux_set_capture_device_t *>(resp->base.request);
-            AudioDevicePolicy *requestedDevicePolicy = (AudioDevicePolicy *)req->base.vcookie;
+			vx_req_aux_set_capture_device_t *req = reinterpret_cast<vx_req_aux_set_capture_device_t *>(resp->base.request);
+			AudioDevicePolicy *requestedDevicePolicy = (AudioDevicePolicy *)req->base.vcookie;
+
+#if USE_LOGIN_SESSION_AUDIO_SETTINGS
+			SingleLoginMultiChannelManager *s = FindLogin(req->account_handle);
+			if (s) {
+				s->HandleResponse(resp);
+			}
+#else
             if (resp->base.return_code != 0) {
                 // setting "use system device" should never fail
                 CHECK_RET(requestedDevicePolicy->GetAudioDevicePolicy() != AudioDevicePolicy::vx_audio_device_policy_default_system);
@@ -3368,6 +3446,7 @@ namespace VivoxClientApi {
                 }
             }
             NextState();
+#endif
             custom_delete(requestedDevicePolicy);
         }
 
@@ -3375,6 +3454,13 @@ namespace VivoxClientApi {
         {
             vx_req_aux_set_render_device_t *req = reinterpret_cast<vx_req_aux_set_render_device_t *>(resp->base.request);
             AudioDevicePolicy *requestedDevicePolicy = (AudioDevicePolicy *)req->base.vcookie;
+
+#if USE_LOGIN_SESSION_AUDIO_SETTINGS
+			SingleLoginMultiChannelManager *s = FindLogin(req->account_handle);
+			if (s) {
+				s->HandleResponse(resp);
+			}
+#else
             if (resp->base.return_code != 0) {
                 // setting "use system device" should never fail
                 CHECK_RET(requestedDevicePolicy->GetAudioDevicePolicy() != AudioDevicePolicy::vx_audio_device_policy_default_system);
@@ -3390,28 +3476,53 @@ namespace VivoxClientApi {
                 }
             }
             NextState();
+#endif
             custom_delete(requestedDevicePolicy);
         }
 
 		void HandleResponse(vx_resp_aux_set_vad_properties *resp)
 		{
+#if USE_LOGIN_SESSION_AUDIO_SETTINGS
+			vx_req_aux_set_vad_properties_t *req = reinterpret_cast<vx_req_aux_set_vad_properties_t*>(resp->base.request);
+			SingleLoginMultiChannelManager *s = FindLogin(req->account_handle);
+			if (s) {
+				s->HandleResponse(resp);
+			}
+#else
 			CHECK(resp->base.return_code == 0);
 			m_masterVoiceActivateDetectionRequestInProgress = false;
 			NextState();
+#endif
 		}
 
         void HandleResponse(vx_resp_connector_set_local_mic_volume *resp)
         {
+#if USE_LOGIN_SESSION_AUDIO_SETTINGS
+			vx_req_aux_set_vad_properties_t *req = reinterpret_cast<vx_req_aux_set_vad_properties_t*>(resp->base.request);
+			SingleLoginMultiChannelManager *s = FindLogin(req->account_handle);
+			if (s) {
+				s->HandleResponse(resp);
+			}
+#else
             CHECK(resp->base.return_code == 0);
             m_masterAudioInputDeviceVolumeRequestInProgress = false;
             NextState();
+#endif
         }
 
         void HandleResponse(vx_resp_connector_set_local_speaker_volume *resp)
         {
+#if USE_LOGIN_SESSION_AUDIO_SETTINGS
+			vx_req_aux_set_vad_properties_t *req = reinterpret_cast<vx_req_aux_set_vad_properties_t*>(resp->base.request);
+			SingleLoginMultiChannelManager *s = FindLogin(req->account_handle);
+			if (s) {
+				s->HandleResponse(resp);
+			}
+#else
             CHECK(resp->base.return_code == 0);
             m_masterAudioOutputDeviceVolumeRequestInProgress = false;
             NextState();
+#endif
         }
 
         void HandleResponse(vx_resp_session_set_local_speaker_volume *resp)

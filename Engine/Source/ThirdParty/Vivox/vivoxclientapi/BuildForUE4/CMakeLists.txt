@@ -10,10 +10,15 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../")
 set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../")
 set(CMAKE_PDB_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../")
 
-option(USE_LOGIN_SESSION_AUDIO_SETTINGS "use per-login session audio settings. Requires sdk support" OFF)
+option(USE_LOGIN_SESSION_AUDIO_SETTINGS "Use per-login session audio settings. Requires sdk support" OFF)
 if (USE_LOGIN_SESSION_AUDIO_SETTINGS)
 	add_definitions(-DUSE_LOGIN_SESSION_AUDIO_SETTINGS=1)
 endif (USE_LOGIN_SESSION_AUDIO_SETTINGS)
+
+option(VALIDATE_AUDIO_DEVICE_SELECTION "Validate that audio devices exist before setting them" ON)
+if (VALIDATE_AUDIO_DEVICE_SELECTION)
+	add_definitions(-VALIDATE_AUDIO_DEVICE_SELECTION=1)
+endif (VALIDATE_AUDIO_DEVICE_SELECTION)
 
 set(VIVOXSDK_PATH "" CACHE STRING "Path to Vivox sdk headers")
 

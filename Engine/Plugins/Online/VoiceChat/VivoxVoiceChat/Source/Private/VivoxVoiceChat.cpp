@@ -215,12 +215,12 @@ void FVivoxVoiceChatUser::SetAudioOutputDeviceMuted(bool bIsMuted)
 
 bool FVivoxVoiceChatUser::GetAudioInputDeviceMuted() const
 {
-	return VivoxClientConnection.GetAudioInputDeviceMuted(LoginSession.AccountName);
+	return AudioInputOptions.bMuted;
 }
 
 bool FVivoxVoiceChatUser::GetAudioOutputDeviceMuted() const
 {
-	return VivoxClientConnection.GetAudioOutputDeviceMuted(LoginSession.AccountName);
+	return AudioOutputOptions.bMuted;
 }
 
 TArray<FString> FVivoxVoiceChatUser::GetAvailableInputDevices() const
@@ -261,6 +261,7 @@ void FVivoxVoiceChatUser::SetInputDevice(const FString& InputDevice)
 {
 	UE_LOG(LogVivoxVoiceChat, Verbose, TEXT("SetInputDevice %s"), *InputDevice);
 
+	bool bDeviceFound = false;
 	if (!InputDevice.IsEmpty())
 	{
 		const VivoxClientApi::AudioDeviceId* AudioDevices = nullptr;
@@ -273,20 +274,28 @@ void FVivoxVoiceChatUser::SetInputDevice(const FString& InputDevice)
 				const VivoxClientApi::AudioDeviceId& DeviceId = AudioDevices[DeviceIndex];
 				if (InputDevice == UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName()))
 				{
-					VivoxClientConnection.SetApplicationChosenAudioInputDevice(LoginSession.AccountName, DeviceId);
-					return;
+
+					AudioInputOptions.DevicePolicy.SetSpecificAudioDevice(DeviceId);
+					bDeviceFound = true;
+					break;
 				}
 			}
 		}
 	}
 
-	VivoxClientConnection.UseOperatingSystemChosenAudioInputDevice(LoginSession.AccountName);
+	if (!bDeviceFound)
+	{
+		AudioInputOptions.DevicePolicy.SetUseDefaultAudioDevice();
+	}
+
+	ApplyAudioInputDevicePolicy();
 }
 
 void FVivoxVoiceChatUser::SetOutputDevice(const FString& OutputDevice)
 {
 	UE_LOG(LogVivoxVoiceChat, Verbose, TEXT("SetOutputDevice %s"), *OutputDevice);
 
+	bool bDeviceFound = false;
 	if (!OutputDevice.IsEmpty())
 	{
 		const VivoxClientApi::AudioDeviceId* AudioDevices = nullptr;
@@ -299,41 +308,43 @@ void FVivoxVoiceChatUser::SetOutputDevice(const FString& OutputDevice)
 				const VivoxClientApi::AudioDeviceId& DeviceId = AudioDevices[DeviceIndex];
 				if (OutputDevice == UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName()))
 				{
-					VivoxClientConnection.SetApplicationChosenAudioOutputDevice(LoginSession.AccountName, DeviceId);
-					return;
+					AudioOutputOptions.DevicePolicy.SetSpecificAudioDevice(DeviceId);
+					bDeviceFound = true;
+					break;
 				}
 			}
 		}
 	}
 
-	VivoxClientConnection.UseOperatingSystemChosenAudioOutputDevice(LoginSession.AccountName);
+	if (!bDeviceFound)
+	{
+		AudioOutputOptions.DevicePolicy.SetUseDefaultAudioDevice();
+	}
+
+	ApplyAudioOutputDevicePolicy();
 }
 
 FString FVivoxVoiceChatUser::GetInputDevice() const
 {
-	if (VivoxClientConnection.IsUsingOperatingSystemChosenAudioInputDevice(LoginSession.AccountName))
+	if (AudioInputOptions.DevicePolicy.GetAudioDevicePolicy() == VivoxClientApi::AudioDevicePolicy::vx_audio_device_policy_specific_device)
 	{
-		VivoxClientApi::AudioDeviceId DeviceId = VivoxClientConnection.GetOperatingSystemChosenAudioInputDevice(LoginSession.AccountName);
-		return UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName());
+		return UTF8_TO_TCHAR(AudioInputOptions.DevicePolicy.GetSpecificAudioDevice().GetAudioDeviceDisplayName());
 	}
 	else
 	{
-		VivoxClientApi::AudioDeviceId DeviceId = VivoxClientConnection.GetApplicationChosenAudioInputDevice(LoginSession.AccountName);
-		return UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName());
+		return GetDefaultInputDevice();
 	}
 }
 
 FString FVivoxVoiceChatUser::GetOutputDevice() const
 {
-	if (VivoxClientConnection.IsUsingOperatingSystemChosenAudioOutputDevice(LoginSession.AccountName))
+	if (AudioOutputOptions.DevicePolicy.GetAudioDevicePolicy() == VivoxClientApi::AudioDevicePolicy::vx_audio_device_policy_specific_device)
 	{
-		VivoxClientApi::AudioDeviceId DeviceId = VivoxClientConnection.GetOperatingSystemChosenAudioOutputDevice(LoginSession.AccountName);
-		return UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName());
+		return UTF8_TO_TCHAR(AudioOutputOptions.DevicePolicy.GetSpecificAudioDevice().GetAudioDeviceDisplayName());
 	}
 	else
 	{
-		VivoxClientApi::AudioDeviceId DeviceId = VivoxClientConnection.GetApplicationChosenAudioOutputDevice(LoginSession.AccountName);
-		return UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName());
+		return GetDefaultOutputDevice();
 	}
 }
 
@@ -1357,6 +1368,11 @@ void FVivoxVoiceChatUser::onLoginCompleted(const VivoxClientApi::AccountName& Ac
 	TriggerCompletionDelegate(OnVoiceChatLoginCompleteDelegate, PlayerName, FVoiceChatResult::CreateSuccess());
 
 	OnVoiceChatLoggedInDelegate.Broadcast(PlayerName);
+
+	ApplyAudioInputOptions();
+	ApplyAudioInputDevicePolicy();
+	ApplyAudioOutputOptions();
+	ApplyAudioOutputDevicePolicy();
 }
 
 void FVivoxVoiceChatUser::onInvalidLoginCredentials(const VivoxClientApi::AccountName& AccountName)
@@ -2182,18 +2198,54 @@ void FVivoxVoiceChatUser::ClearLoginSession()
 
 void FVivoxVoiceChatUser::ApplyAudioInputOptions()
 {
-	VivoxClientConnection.SetMasterAudioInputDeviceVolume(LoginSession.AccountName, FMath::Lerp(VIVOX_MIN_VOL, VIVOX_MAX_VOL, AudioInputOptions.Volume));
+	if (LoginSession.AccountName.IsValid())
+	{
+		VivoxClientConnection.SetMasterAudioInputDeviceVolume(LoginSession.AccountName, FMath::Lerp(VIVOX_MIN_VOL, VIVOX_MAX_VOL, AudioInputOptions.Volume));
 
-	const bool bVolumeMuted = AudioInputOptions.Volume < SMALL_NUMBER;
-	VivoxClientConnection.SetAudioInputDeviceMuted(LoginSession.AccountName, AudioInputOptions.bMuted || bVolumeMuted);
+		const bool bVolumeMuted = AudioInputOptions.Volume < SMALL_NUMBER;
+		VivoxClientConnection.SetAudioInputDeviceMuted(LoginSession.AccountName, AudioInputOptions.bMuted || bVolumeMuted);
+	}
+}
+
+void FVivoxVoiceChatUser::ApplyAudioInputDevicePolicy()
+{
+	if (LoginSession.AccountName.IsValid())
+	{
+		if (AudioInputOptions.DevicePolicy.GetAudioDevicePolicy() == VivoxClientApi::AudioDevicePolicy::vx_audio_device_policy_specific_device)
+		{
+			VivoxClientConnection.SetApplicationChosenAudioInputDevice(LoginSession.AccountName, AudioInputOptions.DevicePolicy.GetSpecificAudioDevice());
+		}
+		else
+		{
+			VivoxClientConnection.UseOperatingSystemChosenAudioInputDevice(LoginSession.AccountName);
+		}
+	}
 }
 
 void FVivoxVoiceChatUser::ApplyAudioOutputOptions()
 {
-	VivoxClientConnection.SetMasterAudioOutputDeviceVolume(LoginSession.AccountName, FMath::Lerp(VIVOX_MIN_VOL, VIVOX_MAX_VOL, AudioOutputOptions.Volume));
+	if (LoginSession.AccountName.IsValid())
+	{
+		VivoxClientConnection.SetMasterAudioOutputDeviceVolume(LoginSession.AccountName, FMath::Lerp(VIVOX_MIN_VOL, VIVOX_MAX_VOL, AudioOutputOptions.Volume));
 
-	const bool bVolumeMuted = AudioOutputOptions.Volume < SMALL_NUMBER;
-	VivoxClientConnection.SetAudioOutputDeviceMuted(LoginSession.AccountName, AudioOutputOptions.bMuted || bVolumeMuted);
+		const bool bVolumeMuted = AudioOutputOptions.Volume < SMALL_NUMBER;
+		VivoxClientConnection.SetAudioOutputDeviceMuted(LoginSession.AccountName, AudioOutputOptions.bMuted || bVolumeMuted);
+	}
+}
+
+void FVivoxVoiceChatUser::ApplyAudioOutputDevicePolicy()
+{
+	if (LoginSession.AccountName.IsValid())
+	{
+		if (AudioOutputOptions.DevicePolicy.GetAudioDevicePolicy() == VivoxClientApi::AudioDevicePolicy::vx_audio_device_policy_specific_device)
+		{
+			VivoxClientConnection.SetApplicationChosenAudioOutputDevice(LoginSession.AccountName, AudioOutputOptions.DevicePolicy.GetSpecificAudioDevice());
+		}
+		else
+		{
+			VivoxClientConnection.UseOperatingSystemChosenAudioOutputDevice(LoginSession.AccountName); 
+		}
+	}
 }
 
 bool FVivoxVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
