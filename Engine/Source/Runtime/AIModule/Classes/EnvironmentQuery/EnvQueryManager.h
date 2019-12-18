@@ -307,7 +307,8 @@ private:
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	static bool bAllowEQSTimeSlicing;
-
+#endif
+#if !(UE_BUILD_SHIPPING)
 	mutable double LastQueryCountWarningThresholdTime;
 
 	void CheckQueryCount() const;
