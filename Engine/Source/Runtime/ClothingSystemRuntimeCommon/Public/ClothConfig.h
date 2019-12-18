@@ -17,4 +17,11 @@ public:
 
 	/** Migrate from the legacy FClothConfig structure. */
 	virtual void MigrateFrom(const FClothConfig_Legacy&) {}
+
+	/**
+	 * Migrate to the legacy FClothConfig structure.
+	 * Useful for converting configs that are compatible with this legacy structure.
+	 * @return true when the migration is possible, false otherwise.
+	 */
+	virtual bool MigrateTo(FClothConfig_Legacy&) const { return false; }
 };
