@@ -4523,14 +4523,10 @@ void UWorld::SetPhysicsScene(FPhysScene* InScene)
 	// Assign pointer
 	PhysicsScene = InScene;
 
+	// Set pointer in scene to know which world its coming from
 	if(PhysicsScene != NULL)
 	{
-		// Set pointer in scene to know which world its coming from
 		PhysicsScene->SetOwningWorld(this);
-
-#if WITH_CHAOS
-		FPhysInterface_Chaos::FlushScene(PhysicsScene);
-#endif
 	}
 }
 
