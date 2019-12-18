@@ -86,6 +86,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 
 		//Replace TBox with TAABB in many places
 		TBoxReplacedWithTAABB,
+
+		// Serialize bSimulate on PerShapeData
+		SerializePerShapeDataSimulateFlag,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
