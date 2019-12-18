@@ -21,7 +21,7 @@ struct FPyWrapperSet : public FPyWrapperBase
 	FPyWrapperOwnerContext OwnerContext;
 
 	/** Property describing the set */
-	const FSetProperty* SetProp;
+	PyUtil::FConstSetPropOnScope SetProp;
 
 	/** Wrapped set instance */
 	void* SetInstance;

@@ -21,7 +21,7 @@ struct FPyWrapperArray : public FPyWrapperBase
 	FPyWrapperOwnerContext OwnerContext;
 
 	/** Property describing the array */
-	const FArrayProperty* ArrayProp;
+	PyUtil::FConstArrayPropOnScope ArrayProp;
 
 	/** Wrapped array instance */
 	void* ArrayInstance;

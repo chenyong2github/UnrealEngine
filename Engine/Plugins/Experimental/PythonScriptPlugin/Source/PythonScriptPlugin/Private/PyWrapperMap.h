@@ -21,7 +21,7 @@ struct FPyWrapperMap : public FPyWrapperBase
 	FPyWrapperOwnerContext OwnerContext;
 
 	/** Property describing the map */
-	const FMapProperty* MapProp;
+	PyUtil::FConstMapPropOnScope MapProp;
 
 	/** Wrapped map instance */
 	void* MapInstance;

@@ -36,6 +36,8 @@ DEFINE_LOG_CATEGORY(LogPython);
 namespace PyUtil
 {
 
+const FName DefaultPythonPropertyName = "TransientPythonProperty";
+
 FPyApiBuffer TCHARToPyApiBuffer(const TCHAR* InStr)
 {
 	auto PyCharToPyBuffer = [](const FPyApiChar* InPyChar)
@@ -100,9 +102,8 @@ FString PyObjectToUEStringRepr(PyObject* InPyObj)
 	return PyObjectToUEString(InPyObj);
 }
 
-FPropValueOnScope::FPropValueOnScope(const FProperty* InProp)
-	: Prop(InProp)
-	, Value(nullptr)
+FPropValueOnScope::FPropValueOnScope(FConstPropOnScope&& InProp)
+	: Prop(MoveTemp(InProp))
 {
 	check(Prop);
 
@@ -149,27 +150,27 @@ void* FPropValueOnScope::GetValue(const int32 InArrayIndex) const
 }
 
 FFixedArrayElementOnScope::FFixedArrayElementOnScope(const FProperty* InProp)
-	: FPropValueOnScope(PyUtil::CreateProperty(InProp)) // We have to create a new temporary property with an ArrayDim of 1
+	: FPropValueOnScope(FConstPropOnScope::OwnedReference(PyUtil::CreateProperty(InProp))) // We have to create a new temporary property with an ArrayDim of 1
 {
 }
 
 FArrayElementOnScope::FArrayElementOnScope(const FArrayProperty* InProp)
-	: FPropValueOnScope(InProp->Inner)
+	: FPropValueOnScope(FConstPropOnScope::ExternalReference(InProp->Inner))
 {
 }
 
 FSetElementOnScope::FSetElementOnScope(const FSetProperty* InProp)
-	: FPropValueOnScope(InProp->ElementProp)
+	: FPropValueOnScope(FConstPropOnScope::ExternalReference(InProp->ElementProp))
 {
 }
 
 FMapKeyOnScope::FMapKeyOnScope(const FMapProperty* InProp)
-	: FPropValueOnScope(InProp->KeyProp)
+	: FPropValueOnScope(FConstPropOnScope::ExternalReference(InProp->KeyProp))
 {
 }
 
 FMapValueOnScope::FMapValueOnScope(const FMapProperty* InProp)
-	: FPropValueOnScope(InProp->ValueProp)
+	: FPropValueOnScope(FConstPropOnScope::ExternalReference(InProp->ValueProp))
 {
 }
 
@@ -365,8 +366,7 @@ bool CalculatePropertyDef(PyObject* InPyObj, FPropertyDef& OutPropertyDef)
 FProperty* CreateProperty(const FPropertyDef& InPropertyDef, const int32 InArrayDim, UObject* InOuter, const FName InName)
 {
 	check(InArrayDim > 0);
-	UObject* PropOuter = InOuter ? InOuter : GetPythonPropertyContainer();
-	FProperty* Prop = CastFieldChecked<FProperty>(InPropertyDef.PropertyClass->Construct(PropOuter, InName, RF_NoFlags));
+	FProperty* Prop = CastFieldChecked<FProperty>(InPropertyDef.PropertyClass->Construct(InOuter, InName, RF_NoFlags));
 	if (Prop)
 	{
 		Prop->ArrayDim = InArrayDim;
