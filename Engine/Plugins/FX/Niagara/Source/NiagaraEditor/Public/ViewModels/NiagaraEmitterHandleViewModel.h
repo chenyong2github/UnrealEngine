@@ -132,7 +132,7 @@ public:
 
 	void Cleanup();
 
-	NIAGARAEDITOR_API void GetRendererPreviewData(TArray<FRendererPreviewData>& InRendererPreviewData);
+	NIAGARAEDITOR_API void GetRendererPreviewData(TArray<FRendererPreviewData*>& InRendererPreviewData);
 private:
 	TSharedRef<FNiagaraSystemViewModel> GetOwningSystemViewModel() const;
 

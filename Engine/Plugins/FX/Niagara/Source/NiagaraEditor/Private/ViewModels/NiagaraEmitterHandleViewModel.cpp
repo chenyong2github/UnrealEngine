@@ -48,7 +48,7 @@ void FNiagaraEmitterHandleViewModel::Cleanup()
 	}
 }
 
-void FNiagaraEmitterHandleViewModel::GetRendererPreviewData(TArray<FRendererPreviewData>& InRendererPreviewData)
+void FNiagaraEmitterHandleViewModel::GetRendererPreviewData(TArray<FRendererPreviewData*>& InRendererPreviewData)
 {
 	InRendererPreviewData.Empty();
 	UNiagaraEmitter* Emitter = GetEmitterHandle()->GetInstance();
@@ -66,7 +66,7 @@ void FNiagaraEmitterHandleViewModel::GetRendererPreviewData(TArray<FRendererPrev
 				RendererItem->GetRendererProperties()->GetUsedMaterials(InInstance, Materials);
 				for (UMaterialInterface* Material : Materials)
 				{
-					InRendererPreviewData.Add(FRendererPreviewData(Child, Material));
+					InRendererPreviewData.Add(new FRendererPreviewData(Child, Material));
 				}
 			}
 		}

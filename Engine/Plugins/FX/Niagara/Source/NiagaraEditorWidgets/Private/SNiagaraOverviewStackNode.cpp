@@ -129,11 +129,11 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleWidget(TSharedPtr<SNod
 		];
 }
 
-TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateThumbnailWidget(float InThumbnailSize, FRendererPreviewData InData)
+TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateThumbnailWidget(float InThumbnailSize, FRendererPreviewData* InData)
 {
-	TSharedPtr<FAssetThumbnail> AssetThumbnail = MakeShareable(new FAssetThumbnail(InData.RenderingObject, InThumbnailSize, InThumbnailSize, ThumbnailPool));
+	TSharedPtr<FAssetThumbnail> AssetThumbnail = MakeShareable(new FAssetThumbnail(InData->RenderingObject, InThumbnailSize, InThumbnailSize, ThumbnailPool));
 	TSharedRef<SWidget> ThumbnailWidget = AssetThumbnail->MakeThumbnailWidget();
-	TSharedPtr<FAssetThumbnail> TooltipThumbnail = MakeShareable(new FAssetThumbnail(InData.RenderingObject, 64.0f, 64.0f, ThumbnailPool));
+	TSharedPtr<FAssetThumbnail> TooltipThumbnail = MakeShareable(new FAssetThumbnail(InData->RenderingObject, 64.0f, 64.0f, ThumbnailPool));
 	TSharedRef<SToolTip> ThumbnailTooltipWidget = SNew(SToolTip)
 		.Content()
 		[
@@ -146,7 +146,7 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateThumbnailWidget(float InThu
 				TooltipThumbnail->MakeThumbnailWidget()
 			]
 		];
-	ThumbnailWidget->SetOnMouseButtonDown(FPointerEventHandler::CreateSP(this, &SNiagaraOverviewStackNode::OnClickedRenderingPreview, InData.RenderingEntry));
+	ThumbnailWidget->SetOnMouseButtonDown(FPointerEventHandler::CreateSP(this, &SNiagaraOverviewStackNode::OnClickedRenderingPreview, InData->RenderingEntry));
 	ThumbnailWidget->SetToolTip(ThumbnailTooltipWidget);
 	return ThumbnailWidget;
 }
@@ -251,9 +251,9 @@ void SNiagaraOverviewStackNode::FillThumbnailBar(UObject* ChangedObject, const b
 		{
 			EmitterHandleViewModelWeak.Pin()->GetRendererPreviewData(PreviewData);
 
-			for (FRendererPreviewData Preview : PreviewData)
+			for (FRendererPreviewData* Preview : PreviewData)
 			{
-				if (Preview.RenderingObject)
+				if (Preview->RenderingObject)
 				{
 					ThumbnailBar->AddSlot()
 						.AutoWidth()
