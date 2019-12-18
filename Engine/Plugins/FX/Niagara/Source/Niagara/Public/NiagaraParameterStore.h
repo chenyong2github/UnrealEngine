@@ -6,7 +6,8 @@
 #include "NiagaraDataInterface.h"
 #include "NiagaraParameterStore.generated.h"
 
-#define NIAGARA_VARIABLE_LEXICAL_SORTING 0
+// When not cooked, sort by actual name to ensure deterministic cooked data
+#define NIAGARA_VARIABLE_LEXICAL_SORTING WITH_EDITORONLY_DATA
 
 struct FNiagaraVariableSearch
 {
