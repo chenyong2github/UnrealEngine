@@ -48,7 +48,7 @@ public:
 	virtual bool HandleAnalogInputEvent(FSlateApplication& SlateApp, const FAnalogInputEvent& InAnalogInputEvent) override;
 	virtual bool HandleMouseMoveEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent) override;
 
-	virtual int32 GetUserControllerId() const { return 0; };
+	virtual int32 GetOwnerUserIndex() const { return 0; };
 
 	void SetAcceleration(float NewAcceleration);
 	void SetMaxSpeed(float NewMaxSpeed);

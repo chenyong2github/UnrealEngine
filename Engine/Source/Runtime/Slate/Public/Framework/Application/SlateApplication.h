@@ -117,7 +117,8 @@ class SLATE_API ISlateInputManager
 public:
 	virtual int32 GetUserIndexForMouse() const = 0;
 	virtual int32 GetUserIndexForKeyboard() const = 0;
-	virtual int32 GetUserIndexForController(int32 ControllerId) const = 0;
+	virtual int32 GetUserIndexForController(int32 ControllerId) const { return ControllerId; }
+	virtual TOptional<int32> GetUserIndexForController(int32 ControllerId, FKey InKey) const = 0;
 };
 
 class SLATE_API FSlateDefaultInputMapping : public ISlateInputManager
@@ -126,6 +127,7 @@ public:
 	virtual int32 GetUserIndexForMouse() const override { return 0; }
 	virtual int32 GetUserIndexForKeyboard() const override { return 0; }
 	virtual int32 GetUserIndexForController(int32 ControllerId) const override { return ControllerId; }
+	virtual TOptional<int32> GetUserIndexForController(int32 ControllerId, FKey InKey) const override { return GetUserIndexForController(ControllerId); }
 };
 
 enum class ESlateTickType : uint8
@@ -1450,6 +1452,7 @@ public:
 
 	/** @return int user index that this controller is mapped to. */
 	int32 GetUserIndexForController(int32 ControllerId) const;
+	TOptional<int32> GetUserIndexForController(int32 ControllerId, FKey InKey) const;
 
 	/** Establishes the input mapping object used to map input sources to SlateUser indices */
 	void SetInputManager(TSharedRef<ISlateInputManager> InputManager);

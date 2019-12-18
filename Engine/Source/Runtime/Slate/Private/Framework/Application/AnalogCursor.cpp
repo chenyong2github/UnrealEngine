@@ -25,7 +25,7 @@ FAnalogCursor::FAnalogCursor()
 
 void FAnalogCursor::Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor>)
 {
-	if (TSharedPtr<FSlateUser> SlateUser = SlateApp.GetUser(GetUserControllerId()))
+	if (TSharedPtr<FSlateUser> SlateUser = SlateApp.GetUser(GetOwnerUserIndex()))
 	{
 		const FVector2D OldPosition = SlateUser->GetCursorPosition();
 
@@ -274,7 +274,7 @@ void FAnalogCursor::SetMode(AnalogCursorMode::Type NewMode)
 
 bool FAnalogCursor::IsRelevantInput(const FInputEvent& InputEvent) const
 {
-	return GetUserControllerId() == InputEvent.GetUserIndex();
+	return GetOwnerUserIndex() == InputEvent.GetUserIndex();
 }
 
 void FAnalogCursor::ClearAnalogValues()
@@ -300,7 +300,7 @@ void FAnalogCursor::UpdateCursorPosition(FSlateApplication& SlateApp, TSharedRef
 
 		// Since the cursor may have been locked and its location clamped, get the actual new position
 		const FVector2D UpdatedPosition = Cursor->GetPosition();
-		if (TSharedPtr<FSlateUser> SlateUser = SlateApp.GetUser(GetUserControllerId()))
+		if (TSharedPtr<FSlateUser> SlateUser = SlateApp.GetUser(GetOwnerUserIndex()))
 		{
 			//create a new mouse event
 			const bool bIsPrimaryUser = FSlateApplication::CursorUserIndex == SlateUser->GetUserIndex();
