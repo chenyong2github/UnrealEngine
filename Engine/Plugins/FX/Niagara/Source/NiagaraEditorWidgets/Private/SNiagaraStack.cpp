@@ -314,6 +314,8 @@ void SNiagaraStack::SynchronizeTreeExpansion()
 
 TSharedRef<SWidget> SNiagaraStack::ConstructHeaderWidget()
 {
+	const FVector2D ViewOptionsShadowOffset = FNiagaraEditorWidgetsStyle::Get().GetVector("NiagaraEditor.Stack.ViewOptionsShadowOffset");
+
 	return SNew(SVerticalBox)
 		//~ Top level object list view
 		+ SVerticalBox::Slot()
@@ -355,7 +357,7 @@ TSharedRef<SWidget> SNiagaraStack::ConstructHeaderWidget()
 				.BorderImage(this, &SNiagaraStack::GetViewOptionsIconBrush)
 				[
 					SNew(SComboButton)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.ComboButtonStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.ViewOptionsButton")
 					.ForegroundColor(FSlateColor::UseForeground())
 					.ToolTipText(LOCTEXT("ViewOptionsToolTip", "View Options"))
 					.OnGetMenuContent(this, &SNiagaraStack::GetViewOptionsMenu)
@@ -367,11 +369,11 @@ TSharedRef<SWidget> SNiagaraStack::ConstructHeaderWidget()
 						// drop shadow
 						+ SOverlay::Slot()
 						.VAlign(VAlign_Top)
-						.Padding(0, 1, 0, 0)
+						.Padding(ViewOptionsShadowOffset.X, ViewOptionsShadowOffset.Y, 0, 0)
 						[
 							SNew(SImage)
 							.Image(FEditorStyle::GetBrush("GenericViewButton"))
-							.ColorAndOpacity(FLinearColor::Black)
+							.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.ViewOptionsShadowColor"))
 						]
 						+ SOverlay::Slot()
 						.VAlign(VAlign_Top)
