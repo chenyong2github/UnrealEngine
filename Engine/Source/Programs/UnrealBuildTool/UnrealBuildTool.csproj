@@ -308,7 +308,7 @@
           <Compile Include="System\NotForLicensees\FASTBuild.cs" />
       </ItemGroup>
       <PropertyGroup>
-        <DefineConstants>__FASTBUILD_AVAILABLE__</DefineConstants>
+        <DefineConstants>$(DefineConstants);__FASTBUILD_AVAILABLE__</DefineConstants>
       </PropertyGroup>
     </When>
   </Choose>
