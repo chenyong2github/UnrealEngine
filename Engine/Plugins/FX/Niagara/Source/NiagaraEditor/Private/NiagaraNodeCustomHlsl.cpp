@@ -31,7 +31,12 @@ void UNiagaraNodeCustomHlsl::SetCustomHlsl(const FString& InCustomHlsl)
 	Modify();
 	CustomHlsl = InCustomHlsl;
 	RefreshFromExternalChanges();
-	MarkNodeRequiresSynchronization(__FUNCTION__, true);
+	if (GetOuter()->IsA<UNiagaraGraph>())
+	{
+		// This is needed to guard against a crash when setting this value before the node has actually been
+		// added to a graph.
+		MarkNodeRequiresSynchronization(__FUNCTION__, true);
+	}
 }
 
 TSharedPtr<SGraphNode> UNiagaraNodeCustomHlsl::CreateVisualWidget()
