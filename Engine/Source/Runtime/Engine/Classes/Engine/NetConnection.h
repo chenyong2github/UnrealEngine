@@ -1306,7 +1306,7 @@ private:
 	void ReceivedAck(int32 AckPacketId);
 
 	/** Calculate the average jitter while adding the new packet's jitter value */
-	void ProcessJitter(int32 PacketJitterClockTimeMS);
+	void ProcessJitter(uint32 PacketJitterClockTimeMS);
 
 	/**
 	 * on the server, the world the client has told us it has loaded
