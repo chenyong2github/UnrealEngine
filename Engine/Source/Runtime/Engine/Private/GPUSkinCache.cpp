@@ -931,7 +931,7 @@ void FGPUSkinCache::DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdL
 			SET_MEMORY_STAT(STAT_GPUSkinCache_TangentsIntermediateMemUsed, MemSize);
 
 			// The UAV must be zero-filled. We leave it zeroed after each round (see RecomputeTangentsPerVertexPass.usf), so this is only needed on when the buffer is first created.
-			ClearUAV(RHICmdList, StagingBuffer.UAV, MemSize, 0);
+			RHICmdList.ClearUAVUint(StagingBuffer.UAV, FUintVector4(0, 0, 0, 0));
 		}
 
 		// This code can be optimized by batched up and doing it with less Dispatch calls (costs more memory)

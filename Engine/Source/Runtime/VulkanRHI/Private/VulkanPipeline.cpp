@@ -1610,6 +1610,18 @@ FVulkanRHIGraphicsPipelineState::FVulkanRHIGraphicsPipelineState(FVulkanDevice* 
 #if !UE_BUILD_SHIPPING
 	SGraphicsRHICount++;
 #endif
+
+	FMemory::Memset(VulkanShaders, 0, sizeof(VulkanShaders));
+	VulkanShaders[ShaderStage::Vertex] = static_cast<FVulkanVertexShader*>(PSOInitializer_.BoundShaderState.VertexShaderRHI);
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+	VulkanShaders[ShaderStage::Hull] = static_cast<FVulkanHullShader*>(PSOInitializer_.BoundShaderState.HullShaderRHI);
+	VulkanShaders[ShaderStage::Domain] = static_cast<FVulkanDomainShader*>(PSOInitializer_.BoundShaderState.DomainShaderRHI);
+#endif
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+	VulkanShaders[ShaderStage::Geometry] = static_cast<FVulkanGeometryShader*>(PSOInitializer_.BoundShaderState.GeometryShaderRHI);
+#endif
+	VulkanShaders[ShaderStage::Pixel] = static_cast<FVulkanPixelShader*>(PSOInitializer_.BoundShaderState.PixelShaderRHI);
+
 #if VULKAN_PSO_CACHE_DEBUG
 	PixelShaderRHI = PSOInitializer_.BoundShaderState.PixelShaderRHI;
 	VertexShaderRHI = PSOInitializer_.BoundShaderState.VertexShaderRHI;

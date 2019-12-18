@@ -198,21 +198,100 @@ public:
 	FString ShaderName;
 #endif
 
+	enum class EType : uint8
+	{
+		Vertex,
+		Hull,
+		Domain,
+		Pixel,
+		Geometry,
+		RayTracing,
+		Compute,
+	};
+
+	FRHIShader(EType InType)
+		: Type(InType)
+	{
+	}
+
+	inline EType GetType() const
+	{
+		return Type;
+	}
+
+	static inline EShaderFrequency ConvertTypeToShaderFrequency(EType Type)
+	{
+		switch (Type)
+		{
+		case EType::Vertex:		return SF_Vertex;
+		case EType::Hull:		return SF_Hull;
+		case EType::Domain:		return SF_Domain;
+		case EType::Pixel:		return SF_Pixel;
+		case EType::Geometry:	return SF_Geometry;
+		case EType::RayTracing:	return SF_RayGen;	// Not really supported in this API...
+		case EType::Compute:	return SF_Compute;
+		default: break;
+		}
+
+		return SF_NumFrequencies;
+	}
+
+	inline EShaderFrequency GetShaderFrequency() const
+	{
+		return ConvertTypeToShaderFrequency(Type);
+	}
+
 private:
 	FSHAHash Hash;
+	EType Type;
 };
 
-class RHI_VTABLE FRHIVertexShader : public FRHIShader {};
-class RHI_VTABLE FRHIHullShader : public FRHIShader {};
-class RHI_VTABLE FRHIDomainShader : public FRHIShader {};
-class RHI_VTABLE FRHIPixelShader : public FRHIShader {};
-class RHI_VTABLE FRHIGeometryShader : public FRHIShader {};
-class RHI_VTABLE FRHIRayTracingShader : public FRHIShader {};
+class RHI_VTABLE FRHIGraphicsShader : public FRHIShader
+{
+public:
+	FRHIGraphicsShader(FRHIShader::EType InType) : FRHIShader(InType) {}
+};
+
+class RHI_VTABLE FRHIVertexShader : public FRHIGraphicsShader
+{
+public:
+	FRHIVertexShader() : FRHIGraphicsShader(FRHIShader::EType::Vertex) {}
+};
+
+class RHI_VTABLE FRHIHullShader : public FRHIGraphicsShader
+{
+public:
+	FRHIHullShader() : FRHIGraphicsShader(FRHIShader::EType::Hull) {}
+};
+
+class RHI_VTABLE FRHIDomainShader : public FRHIGraphicsShader
+{
+public:
+	FRHIDomainShader() : FRHIGraphicsShader(FRHIShader::EType::Domain) {}
+};
+
+class RHI_VTABLE FRHIPixelShader : public FRHIGraphicsShader
+{
+public:
+	FRHIPixelShader() : FRHIGraphicsShader(FRHIShader::EType::Pixel) {}
+};
+
+class RHI_VTABLE FRHIGeometryShader : public FRHIGraphicsShader
+{
+public:
+	FRHIGeometryShader() : FRHIGraphicsShader(FRHIShader::EType::Geometry) {}
+};
+
+class RHI_VTABLE FRHIRayTracingShader : public FRHIShader
+{
+public:
+	FRHIRayTracingShader() : FRHIShader(FRHIShader::EType::RayTracing) {}
+};
 
 class RHI_API FRHIComputeShader : public FRHIShader
 {
 public:
-	FRHIComputeShader() : Stats(nullptr) {}
+	FRHIComputeShader() : FRHIShader(FRHIShader::EType::Compute), Stats(nullptr) {}
 	
 	inline void SetStats(struct FPipelineStateStats* Ptr) { Stats = Ptr; }
 	void UpdateStats();
@@ -256,6 +335,9 @@ struct FRHIUniformBufferLayout
 	/** The size of the constant buffer in bytes. */
 	uint32 ConstantBufferSize;
 
+	/** The static slot (if applicable). */
+	FUniformBufferStaticSlot StaticSlot = MAX_UNIFORM_BUFFER_STATIC_SLOTS;
+
 	/** The list of all resource inlined into the shader parameter structure. */
 	TArray<FResourceParameter> Resources;
 
@@ -271,8 +353,8 @@ struct FRHIUniformBufferLayout
 
 	void ComputeHash()
 	{
-		uint32 TmpHash = ConstantBufferSize << 16;
-			
+		uint32 TmpHash = ConstantBufferSize << 16 | static_cast<uint32>(StaticSlot);
+
 		for (int32 ResourceIndex = 0; ResourceIndex < Resources.Num(); ResourceIndex++)
 		{
 			// Offset and therefore hash must be the same regardless of pointer size
@@ -328,6 +410,7 @@ struct FRHIUniformBufferLayout
 	void CopyFrom(const FRHIUniformBufferLayout& Source)
 	{
 		ConstantBufferSize = Source.ConstantBufferSize;
+		StaticSlot = Source.StaticSlot;
 		Resources = Source.Resources;
 		Name = Source.Name;
 		Hash = Source.Hash;
@@ -357,6 +440,7 @@ inline bool operator==(const FRHIUniformBufferLayout::FResourceParameter& A, con
 inline bool operator==(const FRHIUniformBufferLayout& A, const FRHIUniformBufferLayout& B)
 {
 	return A.ConstantBufferSize == B.ConstantBufferSize
+		&& A.StaticSlot == B.StaticSlot
 		&& A.Resources == B.Resources;
 }
 
@@ -412,6 +496,11 @@ public:
 		return LayoutConstantBufferSize;
 	}
 	const FRHIUniformBufferLayout& GetLayout() const { return *Layout; }
+
+	bool HasStaticSlot() const
+	{
+		return IsUniformBufferStaticSlotValid(Layout->StaticSlot);
+	}
 
 #if VALIDATE_UNIFORM_BUFFER_LIFETIME
 	mutable int32 NumMeshCommandReferencesForDebugging = 0;
@@ -1569,18 +1658,12 @@ public:
 
 	FRHITexture* FoveationTexture;
 
-	// UAVs info.
-	FUnorderedAccessViewRHIRef UnorderedAccessView[MaxSimultaneousUAVs];
-	int32 NumUAVs;
-
 	FRHISetRenderTargetsInfo() :
 		NumColorRenderTargets(0),
 		bClearColor(false),
 		bHasResolveAttachments(false),
 		bClearDepth(false),
-		bClearStencil(false),
-		FoveationTexture(nullptr),
-		NumUAVs(0)
+		FoveationTexture(nullptr)
 	{}
 
 	FRHISetRenderTargetsInfo(int32 InNumColorRenderTargets, const FRHIRenderTargetView* InColorRenderTargets, const FRHIDepthRenderTargetView& InDepthStencilRenderTarget) :
@@ -1589,9 +1672,7 @@ public:
 		bHasResolveAttachments(false),
 		DepthStencilRenderTarget(InDepthStencilRenderTarget),		
 		bClearDepth(InDepthStencilRenderTarget.Texture && InDepthStencilRenderTarget.DepthLoadAction == ERenderTargetLoadAction::EClear),
-		bClearStencil(InDepthStencilRenderTarget.Texture && InDepthStencilRenderTarget.StencilLoadAction == ERenderTargetLoadAction::EClear),
-		FoveationTexture(nullptr),
-		NumUAVs(0)
+		FoveationTexture(nullptr)
 	{
 		check(InNumColorRenderTargets <= 0 || InColorRenderTargets);
 		for (int32 Index = 0; Index < InNumColorRenderTargets; ++Index)
@@ -1664,10 +1745,6 @@ public:
 				bClearColor = RTInfo.bClearColor;
 				bHasResolveAttachments = RTInfo.bHasResolveAttachments;
 
-				for (int32 Index = 0; Index < MaxSimultaneousUAVs; ++Index)
-				{
-					UnorderedAccessView[Index] = RTInfo.UnorderedAccessView[Index];
-				}
 			}
 		};
 
@@ -2494,10 +2571,6 @@ struct FRHIRenderPassInfo
 	// TODO: Remove once FORT-162640 is solved
 	bool bTooManyUAVs = false;
 
-	//#RenderPasses
-	int32 UAVIndex = -1;
-	int32 NumUAVs = 0;
-	FUnorderedAccessViewRHIRef UAVs[MaxSimultaneousUAVs];
 
 	// Color, no depth, optional resolve, optional mip, optional array slice
 	explicit FRHIRenderPassInfo(FRHITexture* ColorRT, ERenderTargetActions ColorAction, FRHITexture* ResolveRT = nullptr, uint32 InMipIndex = 0, int32 InArraySlice = -1)
@@ -2696,20 +2769,14 @@ struct FRHIRenderPassInfo
 		FMemory::Memzero(&ColorRenderTargets[1], sizeof(FColorEntry) * (MaxSimultaneousRenderTargets - 1));
 	}
 
-	explicit FRHIRenderPassInfo(int32 InNumUAVs, FRHIUnorderedAccessView** InUAVs)
+	enum ENoRenderTargets
 	{
-		if (InNumUAVs > MaxSimultaneousUAVs)
-		{
-			OnVerifyNumUAVsFailed(InNumUAVs);
-			InNumUAVs = MaxSimultaneousUAVs;
-		}
-
+		NoRenderTargets,
+	};
+	explicit FRHIRenderPassInfo(ENoRenderTargets Dummy)
+	{
+		(void)Dummy;
 		FMemory::Memzero(*this);
-		NumUAVs = InNumUAVs;
-		for (int32 Index = 0; Index < InNumUAVs; Index++)
-		{
-			UAVs[Index] = InUAVs[Index];
-		}
 	}
 
 	inline int32 GetNumColorRenderTargets() const

@@ -79,16 +79,49 @@ namespace CrossCompiler
 			Writer << Pragma << TEXT("\n");
 		}
 
+		FExpression::FExpression(FLinearAllocator* InAllocator, EOperators InOperator, const FSourceInfo& InInfo) :
+			FNode(InAllocator, InInfo),
+			Operator(InOperator),
+			Identifier(nullptr),
+			Expressions(InAllocator)
+		{
+			TypeSpecifier = nullptr;
+		}
+
+		FExpression::FExpression(FLinearAllocator* InAllocator, EOperators InOperator, FExpression* E0, const FSourceInfo& InInfo) :
+			FNode(InAllocator, InInfo),
+			Operator(InOperator),
+			Identifier(nullptr),
+			Expressions(InAllocator)
+		{
+			Expressions.SetNumUninitialized(1);
+			Expressions[0] = E0;
+			TypeSpecifier = nullptr;
+		}
+
+		FExpression::FExpression(FLinearAllocator* InAllocator, EOperators InOperator, FExpression* E0, FExpression* E1, const FSourceInfo& InInfo) :
+			FNode(InAllocator, InInfo),
+			Operator(InOperator),
+			Identifier(nullptr),
+			Expressions(InAllocator)
+		{
+			Expressions.SetNumUninitialized(2);
+			Expressions[0] = E0;
+			Expressions[1] = E1;
+			TypeSpecifier = nullptr;
+		}
+
 		FExpression::FExpression(FLinearAllocator* InAllocator, EOperators InOperator, FExpression* E0, FExpression* E1, FExpression* E2, const FSourceInfo& InInfo) :
 			FNode(InAllocator, InInfo),
 			Operator(InOperator),
 			Identifier(nullptr),
 			Expressions(InAllocator)
 		{
-			SubExpressions[0] = E0;
-			SubExpressions[1] = E1;
-			SubExpressions[2] = E2;
-			TypeSpecifier = 0;
+			Expressions.SetNumUninitialized(3);
+			Expressions[0] = E0;
+			Expressions[1] = E1;
+			Expressions[2] = E2;
+			TypeSpecifier = nullptr;
 		}
 
 		void FExpression::WriteOperator(FASTWriter& Writer) const
@@ -239,31 +272,10 @@ namespace CrossCompiler
 				Writer << TEXT("--");
 				break;
 
-			case EOperators::Identifier:
-				Writer << Identifier;
-				break;
-
-			case EOperators::UintConstant:
-			case EOperators::BoolConstant:
-				Writer << UintConstant;
-				break;
-
-			case EOperators::FloatConstant:
-				Writer << Identifier;
-				break;
-
-			case EOperators::InitializerList:
-				// Nothing...
-				break;
-
 			case EOperators::PostInc:
 			case EOperators::PostDec:
 			case EOperators::FieldSelection:
 			case EOperators::ArrayIndex:
-				break;
-
-			case EOperators::Sequence:
-				Writer << TEXT(",");
 				break;
 
 			case EOperators::TypeCast:
@@ -287,12 +299,20 @@ namespace CrossCompiler
 			{
 			case EOperators::Conditional:
 				Writer << (TCHAR)'(';
-				SubExpressions[0]->Write(Writer);
+				Expressions[0]->Write(Writer);
 				Writer << TEXT(" ? ");
-				SubExpressions[1]->Write(Writer);
+				Expressions[1]->Write(Writer);
 				Writer << TEXT(" : ");
-				SubExpressions[2]->Write(Writer);
+				Expressions[2]->Write(Writer);
 				Writer << TEXT(")");
+				break;
+
+			case EOperators::Literal:
+				Writer << Identifier;
+				break;
+
+			case EOperators::Identifier:
+				Writer << Identifier;
 				break;
 
 			default:
@@ -302,6 +322,18 @@ namespace CrossCompiler
 				checkf(0, TEXT("Unhandled AST Operator %d!"), (int32)Operator);
 				break;
 			}
+		}
+
+		bool FExpression::GetConstantIntValue(int32& OutValue) const
+		{
+			if (IsConstant())
+			{
+				checkf(Identifier, TEXT("Null identifier, literaltype %d"), (int32)LiteralType);
+				OutValue = (int32)FCString::Atoi(Identifier);
+				return true;
+			}
+
+			return false;
 		}
 
 		FExpression::~FExpression()
@@ -314,11 +346,11 @@ namespace CrossCompiler
 				}
 			}
 
-			for (int32 Index = 0; Index < 3; ++Index)
+			for (int32 Index = 0; Index < Expressions.Num(); ++Index)
 			{
-				if (SubExpressions[Index])
+				if (Expressions[Index])
 				{
-					delete SubExpressions[Index];
+					delete Expressions[Index];
 				}
 				else
 				{
@@ -328,26 +360,24 @@ namespace CrossCompiler
 		}
 
 		FUnaryExpression::FUnaryExpression(FLinearAllocator* InAllocator, EOperators InOperator, FExpression* Expr, const FSourceInfo& InInfo) :
-			FExpression(InAllocator, InOperator, Expr, nullptr, nullptr, InInfo)
+			FExpression(InAllocator, InOperator, Expr, InInfo)
 		{
 		}
 
 		void FUnaryExpression::Write(FASTWriter& Writer) const
 		{
 			WriteOperator(Writer);
-			if (SubExpressions[0])
+
+			if (Writer.ExpressionScope != 0 && Operator != EOperators::FieldSelection)
 			{
-				if (Writer.ExpressionScope != 0)
-				{
-					Writer << (TCHAR)'(';
-				}
+				Writer << (TCHAR)'(';
+			}
+
+			if (Expressions.Num() != 0)
+			{
 				++Writer.ExpressionScope;
-				SubExpressions[0]->Write(Writer);
+				Expressions[0]->Write(Writer);
 				--Writer.ExpressionScope;
-				if (Writer.ExpressionScope != 0)
-				{
-					Writer << (TCHAR)')';
-				}
 			}
 
 			// Suffix
@@ -369,21 +399,15 @@ namespace CrossCompiler
 			default:
 				break;
 			}
-		}
 
-		bool FUnaryExpression::GetConstantIntValue(int32& OutValue) const
-		{
-			if (IsConstant())
+			if (Writer.ExpressionScope != 0 && Operator != EOperators::FieldSelection)
 			{
-				OutValue = (int32)GetUintConstantValue();
-				return true;
+				Writer << (TCHAR)')';
 			}
-
-			return false;
 		}
 
 		FBinaryExpression::FBinaryExpression(FLinearAllocator* InAllocator, EOperators InOperator, FExpression* E0, FExpression* E1, const FSourceInfo& InInfo) :
-			FExpression(InAllocator, InOperator, E0, E1, nullptr, InInfo)
+			FExpression(InAllocator, InOperator, E0, E1, InInfo)
 		{
 		}
 
@@ -392,18 +416,18 @@ namespace CrossCompiler
 			switch (Operator)
 			{
 			case EOperators::ArrayIndex:
-				if (SubExpressions[0]->AsUnaryExpression() && SubExpressions[0]->Operator == EOperators::Identifier)
+				if (Expressions[0]->AsUnaryExpression() && Expressions[0]->Operator == EOperators::Identifier)
 				{
-					SubExpressions[0]->Write(Writer);
+					Expressions[0]->Write(Writer);
 				}
 				else
 				{
 					Writer << (TCHAR)'(';
-					SubExpressions[0]->Write(Writer);
+					Expressions[0]->Write(Writer);
 					Writer << (TCHAR)')';
 				}
 				Writer << (TCHAR)'[';
-				SubExpressions[1]->Write(Writer);
+				Expressions[1]->Write(Writer);
 				Writer << (TCHAR)']';
 				break;
 
@@ -413,11 +437,11 @@ namespace CrossCompiler
 					Writer << (TCHAR)'(';
 				}
 				++Writer.ExpressionScope;
-				SubExpressions[0]->Write(Writer);
+				Expressions[0]->Write(Writer);
 				Writer << (TCHAR)' ';
 				WriteOperator(Writer);
 				Writer << (TCHAR)' ';
-				SubExpressions[1]->Write(Writer);
+				Expressions[1]->Write(Writer);
 				--Writer.ExpressionScope;
 				if (Writer.ExpressionScope != 0 && !IsAssignmentOperator(Operator))
 				{
@@ -431,7 +455,7 @@ namespace CrossCompiler
 		{
 			int32 LHS = 0;
 			int32 RHS = 0;
-			if (!SubExpressions[0]->GetConstantIntValue(LHS) || !SubExpressions[1]->GetConstantIntValue(RHS))
+			if (!Expressions[0]->GetConstantIntValue(LHS) || !Expressions[1]->GetConstantIntValue(RHS))
 			{
 				return false;
 			}
@@ -555,41 +579,27 @@ namespace CrossCompiler
 			Writer << Identifier;
 			Writer << (TCHAR)'(';
 			bool bFirst = true;
-			if (Parameters.Num() > 2)
+			const int32 ParamsPerLine = 6;
+			for (int32 Index = 0; Index < Parameters.Num(); ++Index)
 			{
-				for (auto* Param : Parameters)
+				if (Index > 0)
 				{
-					if (bFirst)
+					if ((Index % ParamsPerLine) == 0)
 					{
-						bFirst = false;
-					}
-					else
-					{
-						Writer << TEXT(",\n\t");
-					}
-					Param->Write(Writer);
-				}
-			}
-			else
-			{
-				for (auto* Param : Parameters)
-				{
-					if (bFirst)
-					{
-						bFirst = false;
+						Writer << TEXT(",\n\t\t");
 					}
 					else
 					{
 						Writer << TEXT(", ");
 					}
-					Param->Write(Writer);
 				}
+				Parameters[Index]->Write(Writer);
 			}
 
 			Writer << TEXT(")");
-			if (ReturnSemantic && *ReturnSemantic)
+			if (ReturnSemantic)
 			{
-				Writer << TEXT(" : ") << ReturnSemantic;
+				ReturnSemantic->Write(Writer);
 			}
 			if (bIsDefinition)
 			{
@@ -879,13 +889,23 @@ namespace CrossCompiler
 			delete Specifier;
 		}
 
-		FRegisterSpecifier::FRegisterSpecifier(FLinearAllocator* InAllocator, const FSourceInfo& InInfo) :
+		FSemanticSpecifier::FSemanticSpecifier(FLinearAllocator* InAllocator, FSemanticSpecifier::ESpecType InType, const FSourceInfo& InInfo) :
 			FNode(InAllocator, InInfo),
-			Arguments(InAllocator)
+			Arguments(InAllocator),
+			Type(InType),
+			Semantic(nullptr)
 		{
 		}
 
-		FRegisterSpecifier::~FRegisterSpecifier()
+		FSemanticSpecifier::FSemanticSpecifier(FLinearAllocator* InAllocator, const TCHAR* InSemantic, const FSourceInfo& InInfo) :
+			FNode(InAllocator, InInfo),
+			Arguments(InAllocator),
+			Type(FSemanticSpecifier::ESpecType::Semantic)
+		{
+			Semantic = InAllocator->Strdup(InSemantic);
+		}
+
+		FSemanticSpecifier::~FSemanticSpecifier()
 		{
 			for (FExpression* Expr : Arguments)
 			{
@@ -893,18 +913,37 @@ namespace CrossCompiler
 			}
 		}
 
-		void FRegisterSpecifier::Write(FASTWriter& Writer) const
+		void FSemanticSpecifier::Write(FASTWriter& Writer) const
 		{
-			Writer << TEXT("register(");
-			for (int32 Index = 0, Num = Arguments.Num(); Index < Num; ++Index)
+			Writer << TEXT(" : ");
+			switch (Type)
 			{
-				Arguments[Index]->Write(Writer);
-				if (Index + 1 < Num)
-				{
-					Writer << TEXT(", ");
-				}
+			case ESpecType::Semantic:
+				Writer << Semantic;
+				Writer << TEXT(" ");
+				break;
+			case ESpecType::Register:
+				Writer << TEXT("register");
+				break;
+			case ESpecType::PackOffset:
+				Writer << TEXT("packoffset");
+				break;
+			default:
+				Writer << *FString::Printf(TEXT("<Unknown Type value %d!>"), (int32)Type);
 			}
-			Writer << TEXT(")");
+			if (Arguments.Num() > 0)
+			{
+				Writer << TEXT("(");
+				for (int32 Index = 0, Num = Arguments.Num(); Index < Num; ++Index)
+				{
+					Arguments[Index]->Write(Writer);
+					if (Index + 1 < Num)
+					{
+						Writer << TEXT(", ");
+					}
+				}
+				Writer << TEXT(")");
+			}
 		}
 
 		FDeclaration::FDeclaration(FLinearAllocator* InAllocator, const FSourceInfo& InInfo) :
@@ -913,7 +952,6 @@ namespace CrossCompiler
 			Semantic(nullptr),
 			bIsArray(false),
 			ArraySize(InAllocator),
-			Register(nullptr),
 			Initializer(nullptr)
 		{
 		}
@@ -925,21 +963,15 @@ namespace CrossCompiler
 
 			WriteOptionArraySize(Writer, bIsArray, ArraySize);
 
-			if (Register)
-			{
-				Writer << TEXT(" : ");
-				Register->Write(Writer);
-			}
-
 			if (Initializer)
 			{
 				Writer << TEXT(" = ");
 				Initializer->Write(Writer);
 			}
 
-			if (Semantic && *Semantic)
+			if (Semantic)
 			{
-				Writer << TEXT(" : ") << Semantic;
+				Semantic->Write(Writer);
 			}
 		}
 
@@ -963,9 +995,8 @@ namespace CrossCompiler
 		{
 		}
 
-		void FDeclaratorList::Write(FASTWriter& Writer) const
+		void FDeclaratorList::WriteNoEOL(FASTWriter& Writer) const
 		{
-			Writer.DoIndent();
 			WriteAttributes(Writer);
 			if (bTypedef)
 			{
@@ -993,7 +1024,16 @@ namespace CrossCompiler
 				Decl->Write(Writer);
 			}
 
-			Writer << TEXT(";\n");
+			Writer << TEXT(";");
+		}
+
+		void FDeclaratorList::Write(FASTWriter& Writer) const
+		{
+			Writer.DoIndent();
+
+			WriteNoEOL(Writer);
+
+			Writer << TEXT("\n");
 		}
 
 		FDeclaratorList::~FDeclaratorList()
@@ -1006,14 +1046,20 @@ namespace CrossCompiler
 			}
 		}
 
-		FInitializerListExpression::FInitializerListExpression(FLinearAllocator* InAllocator, const FSourceInfo& InInfo) :
-			FExpression(InAllocator, EOperators::InitializerList, nullptr, nullptr, nullptr, InInfo)
+		FExpressionList::FExpressionList(FLinearAllocator* InAllocator, FExpressionList::EType InType, const FSourceInfo& InInfo) :
+			FExpression(InAllocator, EOperators::ExpressionList, InInfo),
+			Type(InType)
 		{
 		}
 
-		void FInitializerListExpression::Write(FASTWriter& Writer) const
+		void FExpressionList::Write(FASTWriter& Writer) const
 		{
-			Writer << TEXT("{");
+			switch (Type)
+			{
+			case EType::Braced:			Writer << TEXT("{"); break;
+			case EType::Parenthesized:	Writer << TEXT("("); break;
+			default: break;
+			}
 			bool bFirst = true;
 			for (auto* Expr : Expressions)
 			{
@@ -1028,7 +1074,12 @@ namespace CrossCompiler
 
 				Expr->Write(Writer);
 			}
-			Writer << TEXT("}");
+			switch (Type)
+			{
+			case EType::Braced:			Writer << TEXT("}"); break;
+			case EType::Parenthesized:	Writer << TEXT(")"); break;
+			default: break;
+			}
 		}
 
 		FParameterDeclarator::FParameterDeclarator(FLinearAllocator* InAllocator, const FSourceInfo& InInfo) :
@@ -1050,9 +1101,9 @@ namespace CrossCompiler
 
 			WriteOptionArraySize(Writer, bIsArray, ArraySize);
 
-			if (Semantic && *Semantic)
+			if (Semantic)
 			{
-				Writer << TEXT(" : ") << Semantic;
+				Semantic->Write(Writer);
 			}
 
 			if (DefaultValue)
@@ -1113,25 +1164,32 @@ namespace CrossCompiler
 				Writer << TEXT("for (");
 				if (InitStatement)
 				{
-					InitStatement->Write(Writer);
+					auto* DeclList = InitStatement->AsDeclaratorList();
+					if (DeclList)
 					{
-						FASTWriterIncrementScope Scope(Writer);
-						Writer.DoIndent();
+						DeclList->WriteNoEOL(Writer);
+					}
+					else
+					{
+						InitStatement->Write(Writer);
+						Writer << TEXT(";");
 					}
 				}
 				else
 				{
-					Writer << TEXT("; ");
+					Writer << TEXT(" ;");
 				}
+				Writer << TEXT(" ");
 				if (Condition)
 				{
 					Condition->Write(Writer);
 				}
-				Writer << TEXT(";");
+				Writer << TEXT("; ");
 				if (RestExpression)
 				{
 					RestExpression->Write(Writer);
 				}
+
 				Writer << TEXT(")\n");
 				if (Body)
 				{
@@ -1206,14 +1264,15 @@ namespace CrossCompiler
 			}
 		}
 
-		FFunctionExpression::FFunctionExpression(FLinearAllocator* InAllocator, const FSourceInfo& InInfo, FExpression* Callee) :
-			FExpression(InAllocator, EOperators::FunctionCall, Callee, nullptr, nullptr, InInfo)
+		FFunctionExpression::FFunctionExpression(FLinearAllocator* InAllocator, const FSourceInfo& InInfo, FExpression* InCallee) :
+			FExpression(InAllocator, EOperators::FunctionCall, InInfo)
+			, Callee(InCallee)
 		{
 		}
 
 		void FFunctionExpression::Write(FASTWriter& Writer) const
 		{
-			SubExpressions[0]->Write(Writer);
+			Callee->Write(Writer);
 			Writer << (TCHAR)'(';
 			bool bFirst = true;
 			for (auto* Expr : Expressions)
@@ -1397,7 +1456,7 @@ namespace CrossCompiler
 			FNode(InAllocator, InInfo),
 			Name(nullptr),
 			ParentName(nullptr),
-			Declarations(InAllocator)
+			Members(InAllocator)
 		{
 		}
 
@@ -1414,10 +1473,10 @@ namespace CrossCompiler
 			Writer.DoIndent();
 			Writer << TEXT("{\n");
 
-			for (auto* Decl : Declarations)
+			for (auto* Member : Members)
 			{
 				FASTWriterIncrementScope Scope(Writer);
-				Decl->Write(Writer);
+				Member->Write(Writer);
 			}
 
 			Writer.DoIndent();
@@ -1426,9 +1485,9 @@ namespace CrossCompiler
 
 		FStructSpecifier::~FStructSpecifier()
 		{
-			for (auto* Decl : Declarations)
+			for (auto* Member : Members)
 			{
-				delete Decl;
+				delete Member;
 			}
 		}
 

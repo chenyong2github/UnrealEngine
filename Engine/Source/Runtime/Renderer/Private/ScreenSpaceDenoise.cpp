@@ -1183,6 +1183,56 @@ IMPLEMENT_GLOBAL_SHADER(FSSDComposeHarmonicsCS, "/Engine/Private/ScreenSpaceDeno
 } // namespace
 
 
+/** PrevViewInfo and PrevFrameViewInfo pooled render targets to use for temporal storage of scene textures. */
+struct FViewInfoPooledRenderTargets
+{
+	TRefCountPtr<IPooledRenderTarget> PrevDepthBuffer;
+	TRefCountPtr<IPooledRenderTarget> PrevGBufferA;
+	TRefCountPtr<IPooledRenderTarget> PrevGBufferB;
+	TRefCountPtr<IPooledRenderTarget> PrevCompressedDepthViewNormal;
+
+	TRefCountPtr<IPooledRenderTarget>* NextDepthBuffer;
+	TRefCountPtr<IPooledRenderTarget>* NextGBufferA;
+	TRefCountPtr<IPooledRenderTarget>* NextGBufferB;
+	TRefCountPtr<IPooledRenderTarget>* NextCompressedDepthViewNormal;
+};
+
+void SetupSceneViewInfoPooledRenderTargets(
+	const FViewInfo& View,
+	FViewInfoPooledRenderTargets* OutViewInfoPooledRenderTargets)
+{
+	auto&& PrevViewInfo = View.PrevViewInfo;
+	auto&& PrevFrameViewInfo = View.ViewState->PrevFrameViewInfo;
+
+	OutViewInfoPooledRenderTargets->PrevDepthBuffer = PrevViewInfo.DepthBuffer;
+	OutViewInfoPooledRenderTargets->PrevGBufferA = PrevViewInfo.GBufferA;
+	OutViewInfoPooledRenderTargets->PrevGBufferB = PrevViewInfo.GBufferB;
+	OutViewInfoPooledRenderTargets->PrevCompressedDepthViewNormal = PrevViewInfo.CompressedDepthViewNormal;
+
+	OutViewInfoPooledRenderTargets->NextDepthBuffer = &PrevFrameViewInfo.DepthBuffer;
+	OutViewInfoPooledRenderTargets->NextGBufferA = &PrevFrameViewInfo.GBufferA;
+	OutViewInfoPooledRenderTargets->NextGBufferB = &PrevFrameViewInfo.GBufferB;
+	OutViewInfoPooledRenderTargets->NextCompressedDepthViewNormal = &PrevFrameViewInfo.CompressedDepthViewNormal;
+}
+
+void SetupImaginaryReflectionViewInfoPooledRenderTargets(
+	const FViewInfo& View,
+	FViewInfoPooledRenderTargets* OutViewInfoPooledRenderTargets)
+{
+	auto&& PrevViewInfo = View.PrevViewInfo;
+	auto&& PrevFrameViewInfo = View.ViewState->PrevFrameViewInfo;
+
+	OutViewInfoPooledRenderTargets->PrevDepthBuffer = PrevViewInfo.ImaginaryReflectionDepthBuffer;
+	OutViewInfoPooledRenderTargets->PrevGBufferA = PrevViewInfo.ImaginaryReflectionGBufferA;
+	OutViewInfoPooledRenderTargets->PrevGBufferB = nullptr; // GBufferB not used
+	OutViewInfoPooledRenderTargets->PrevCompressedDepthViewNormal = PrevViewInfo.ImaginaryReflectionCompressedDepthViewNormal;
+
+	OutViewInfoPooledRenderTargets->NextDepthBuffer = &PrevFrameViewInfo.ImaginaryReflectionDepthBuffer;
+	OutViewInfoPooledRenderTargets->NextGBufferA = &PrevFrameViewInfo.ImaginaryReflectionGBufferA;
+	OutViewInfoPooledRenderTargets->NextGBufferB = nullptr; // GBufferB not used
+	OutViewInfoPooledRenderTargets->NextCompressedDepthViewNormal = &PrevFrameViewInfo.ImaginaryReflectionCompressedDepthViewNormal;
+}
+
 /** Generic settings to denoise signal at constant pixel density across the viewport. */
 struct FSSDConstantPixelDensitySettings
 {
@@ -1208,6 +1258,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FSceneTextureParameters& SceneTextures,
+	const FViewInfoPooledRenderTargets& ViewInfoPooledRenderTargets,
 	const FSSDSignalTextures& InputSignal,
 	FSSDConstantPixelDensitySettings Settings,
 	TStaticArray<FScreenSpaceDenoiserHistory*, IScreenSpaceDenoiser::kMaxBatchSize> PrevFilteringHistory,
@@ -1791,14 +1842,14 @@ static void DenoiseSignalAtConstantPixelDensity(
 		PassParameters->SignalHistoryOutput = CreateMultiplexedUAVs(GraphBuilder, SignalOutput);
 		
 		// Setup common previous frame data.
-		PassParameters->PrevDepthBuffer = RegisterExternalTextureWithFallback(GraphBuilder, View.PrevViewInfo.DepthBuffer, GSystemTextures.BlackDummy);
-		PassParameters->PrevGBufferA = RegisterExternalTextureWithFallback(GraphBuilder, View.PrevViewInfo.GBufferA, GSystemTextures.BlackDummy);
-		PassParameters->PrevGBufferB = RegisterExternalTextureWithFallback(GraphBuilder, View.PrevViewInfo.GBufferB, GSystemTextures.BlackDummy);
+		PassParameters->PrevDepthBuffer = RegisterExternalTextureWithFallback(GraphBuilder, ViewInfoPooledRenderTargets.PrevDepthBuffer, GSystemTextures.BlackDummy);
+		PassParameters->PrevGBufferA = RegisterExternalTextureWithFallback(GraphBuilder, ViewInfoPooledRenderTargets.PrevGBufferA, GSystemTextures.BlackDummy);
+		PassParameters->PrevGBufferB = RegisterExternalTextureWithFallback(GraphBuilder, ViewInfoPooledRenderTargets.PrevGBufferB, GSystemTextures.BlackDummy);
 
 		if (CompressedMetadataLayout == ECompressedMetadataLayout::DepthAndViewNormal)
 		{
 			PassParameters->PrevCompressedMetadata[0] = RegisterExternalTextureWithFallback(
-				GraphBuilder, View.PrevViewInfo.CompressedDepthViewNormal, GSystemTextures.BlackDummy);
+				GraphBuilder, ViewInfoPooledRenderTargets.PrevCompressedDepthViewNormal, GSystemTextures.BlackDummy);
 		}
 
 		FScreenSpaceDenoiserHistory DummyPrevFrameHistory;
@@ -1901,19 +1952,19 @@ static void DenoiseSignalAtConstantPixelDensity(
 			// Might requires the depth.
 			if (bExtractSceneDepth)
 			{
-				GraphBuilder.QueueTextureExtraction(SceneTextures.SceneDepthBuffer, &View.ViewState->PrevFrameViewInfo.DepthBuffer);
+				GraphBuilder.QueueTextureExtraction(SceneTextures.SceneDepthBuffer, ViewInfoPooledRenderTargets.NextDepthBuffer);
 			}
 
 			// Might requires the world normal that are in GBuffer A.
 			if (bExtractSceneGBufferA)
 			{
-				GraphBuilder.QueueTextureExtraction(SceneTextures.SceneGBufferA, &View.ViewState->PrevFrameViewInfo.GBufferA);
+				GraphBuilder.QueueTextureExtraction(SceneTextures.SceneGBufferA, ViewInfoPooledRenderTargets.NextGBufferA);
 			}
 
 			// Might need the roughness that is in GBuffer B.
 			if (bExtractSceneGBufferB)
 			{
-				GraphBuilder.QueueTextureExtraction(SceneTextures.SceneGBufferB, &View.ViewState->PrevFrameViewInfo.GBufferB);
+				GraphBuilder.QueueTextureExtraction(SceneTextures.SceneGBufferB, ViewInfoPooledRenderTargets.NextGBufferB);
 			}
 
 			// Extract the compressed scene texture to make te history re-projection faster.
@@ -1925,7 +1976,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 				{
 					// if (i == 0)
 					{
-						Dest = &View.ViewState->PrevFrameViewInfo.CompressedDepthViewNormal;
+						Dest = ViewInfoPooledRenderTargets.NextCompressedDepthViewNormal;
 					}
 				}
 
@@ -2076,6 +2127,9 @@ public:
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, ShadowsDenoiser);
 
+		FViewInfoPooledRenderTargets ViewInfoPooledRenderTargets;
+		SetupSceneViewInfoPooledRenderTargets(View, &ViewInfoPooledRenderTargets);
+
 		FSSDSignalTextures InputSignal;
 
 		FSSDConstantPixelDensitySettings Settings;
@@ -2146,7 +2200,7 @@ public:
 
 		FSSDSignalTextures SignalOutput;
 		DenoiseSignalAtConstantPixelDensity(
-			GraphBuilder, View, SceneTextures,
+			GraphBuilder, View, SceneTextures, ViewInfoPooledRenderTargets,
 			InputSignal, Settings,
 			PrevHistories,
 			NewHistories,
@@ -2186,6 +2240,9 @@ public:
 		{
 			int32 Periode = 1 << HarmonicId;
 
+			FViewInfoPooledRenderTargets ViewInfoPooledRenderTargets;
+			SetupSceneViewInfoPooledRenderTargets(View, &ViewInfoPooledRenderTargets);
+
 			FSSDConstantPixelDensitySettings Settings;
 			Settings.FullResViewport = View.ViewRect;
 			Settings.SignalProcessing = ESignalProcessing::PolychromaticPenumbraHarmonic;
@@ -2206,7 +2263,7 @@ public:
 
 			FSSDSignalTextures SignalOutput;
 			DenoiseSignalAtConstantPixelDensity(
-				GraphBuilder, View, SceneTextures,
+				GraphBuilder, View, SceneTextures, ViewInfoPooledRenderTargets,
 				InputSignal, Settings,
 				PrevHistories, NewHistories,
 				/* out */ &SignalOutput);
@@ -2221,6 +2278,9 @@ public:
 			const int32 HarmonicId = IScreenSpaceDenoiser::kMultiPolychromaticPenumbraHarmonics - 1;
 
 			int32 Periode = 1 << HarmonicId;
+
+			FViewInfoPooledRenderTargets ViewInfoPooledRenderTargets;
+			SetupSceneViewInfoPooledRenderTargets(View, &ViewInfoPooledRenderTargets);
 
 			FSSDConstantPixelDensitySettings Settings;
 			Settings.FullResViewport = View.ViewRect;
@@ -2242,7 +2302,7 @@ public:
 			InputSignal.Textures[3] = BlackDummy;
 
 			DenoiseSignalAtConstantPixelDensity(
-				GraphBuilder, View, SceneTextures,
+				GraphBuilder, View, SceneTextures, ViewInfoPooledRenderTargets,
 				InputSignal, Settings,
 				PrevHistories, NewHistories,
 				/* out */ &ComposePassParameters->SignalIntegrand);
@@ -2308,6 +2368,9 @@ public:
 
 		FPolychromaticPenumbraOutputs Outputs;
 		{
+			FViewInfoPooledRenderTargets ViewInfoPooledRenderTargets;
+			SetupSceneViewInfoPooledRenderTargets(View, &ViewInfoPooledRenderTargets);
+
 			FSSDConstantPixelDensitySettings Settings;
 			Settings.FullResViewport = View.ViewRect;
 			Settings.SignalProcessing = ESignalProcessing::PolychromaticPenumbraHarmonic;
@@ -2321,7 +2384,7 @@ public:
 
 			FSSDSignalTextures SignalOutput;
 			DenoiseSignalAtConstantPixelDensity(
-				GraphBuilder, View, SceneTextures,
+				GraphBuilder, View, SceneTextures, ViewInfoPooledRenderTargets,
 				ComposedHarmonics, Settings,
 				PrevHistories, NewHistories,
 				/* out */ &SignalOutput);
@@ -2348,6 +2411,9 @@ public:
 		if (ReflectionInputs.RayImaginaryDepth)
 			GraphBuilder.RemoveUnusedTextureWarning(ReflectionInputs.RayImaginaryDepth);
 
+		FViewInfoPooledRenderTargets ViewInfoPooledRenderTargets;
+		SetupSceneViewInfoPooledRenderTargets(View, &ViewInfoPooledRenderTargets);
+
 		FSSDSignalTextures InputSignal;
 		InputSignal.Textures[0] = ReflectionInputs.Color;
 		InputSignal.Textures[1] = ReflectionInputs.RayHitDistance;
@@ -2368,7 +2434,7 @@ public:
 
 		FSSDSignalTextures SignalOutput;
 		DenoiseSignalAtConstantPixelDensity(
-			GraphBuilder, View, SceneTextures,
+			GraphBuilder, View, SceneTextures, ViewInfoPooledRenderTargets,
 			InputSignal, Settings,
 			PrevHistories,
 			NewHistories,
@@ -2388,6 +2454,9 @@ public:
 		const FAmbientOcclusionRayTracingConfig RayTracingConfig) const override
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, AmbientOcclusionDenoiser);
+
+		FViewInfoPooledRenderTargets ViewInfoPooledRenderTargets;
+		SetupSceneViewInfoPooledRenderTargets(View, &ViewInfoPooledRenderTargets);
 
 		FSSDSignalTextures InputSignal;
 		InputSignal.Textures[0] = ReflectionInputs.Mask;
@@ -2410,7 +2479,7 @@ public:
 
 		FSSDSignalTextures SignalOutput;
 		DenoiseSignalAtConstantPixelDensity(
-			GraphBuilder, View, SceneTextures,
+			GraphBuilder, View, SceneTextures, ViewInfoPooledRenderTargets,
 			InputSignal, Settings,
 			PrevHistories,
 			NewHistories,
@@ -2430,6 +2499,9 @@ public:
 		const FAmbientOcclusionRayTracingConfig Config) const override
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, DiffuseIndirectDenoiser);
+
+		FViewInfoPooledRenderTargets ViewInfoPooledRenderTargets;
+		SetupSceneViewInfoPooledRenderTargets(View, &ViewInfoPooledRenderTargets);
 
 		FSSDSignalTextures InputSignal;
 		InputSignal.Textures[0] = Inputs.Color;
@@ -2453,7 +2525,7 @@ public:
 
 		FSSDSignalTextures SignalOutput;
 		DenoiseSignalAtConstantPixelDensity(
-			GraphBuilder, View, SceneTextures,
+			GraphBuilder, View, SceneTextures, ViewInfoPooledRenderTargets,
 			InputSignal, Settings,
 			PrevHistories,
 			NewHistories,
@@ -2473,6 +2545,9 @@ public:
 		const FAmbientOcclusionRayTracingConfig Config) const override
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, DiffuseIndirectDenoiser);
+
+		FViewInfoPooledRenderTargets ViewInfoPooledRenderTargets;
+		SetupSceneViewInfoPooledRenderTargets(View, &ViewInfoPooledRenderTargets);
 
 		FSSDSignalTextures InputSignal;
 		InputSignal.Textures[0] = Inputs.Color;
@@ -2496,7 +2571,53 @@ public:
 
 		FSSDSignalTextures SignalOutput;
 		DenoiseSignalAtConstantPixelDensity(
-			GraphBuilder, View, SceneTextures,
+			GraphBuilder, View, SceneTextures, ViewInfoPooledRenderTargets,
+			InputSignal, Settings,
+			PrevHistories,
+			NewHistories,
+			&SignalOutput);
+
+		FDiffuseIndirectOutputs GlobalIlluminationOutputs;
+		GlobalIlluminationOutputs.Color = SignalOutput.Textures[0];
+		return GlobalIlluminationOutputs;
+	}
+
+	FDiffuseIndirectOutputs DenoiseReflectedSkyLight(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		FPreviousViewInfo* PreviousViewInfos,
+		const FSceneTextureParameters& SceneTextures,
+		const FDiffuseIndirectInputs& Inputs,
+		const FAmbientOcclusionRayTracingConfig Config) const override
+	{
+		RDG_GPU_STAT_SCOPE(GraphBuilder, DiffuseIndirectDenoiser);
+
+		FViewInfoPooledRenderTargets ViewInfoPooledRenderTargets;
+		SetupImaginaryReflectionViewInfoPooledRenderTargets(View, &ViewInfoPooledRenderTargets);
+
+		FSSDSignalTextures InputSignal;
+		InputSignal.Textures[0] = Inputs.Color;
+		InputSignal.Textures[1] = Inputs.RayHitDistance;
+
+		FSSDConstantPixelDensitySettings Settings;
+		Settings.FullResViewport = View.ViewRect;
+		Settings.SignalProcessing = ESignalProcessing::DiffuseAndAmbientOcclusion;
+		Settings.InputResolutionFraction = Config.ResolutionFraction;
+		Settings.ReconstructionSamples = CVarGIReconstructionSampleCount.GetValueOnRenderThread();
+		Settings.PreConvolutionCount = CVarGIPreConvolutionCount.GetValueOnRenderThread();
+		Settings.bUseTemporalAccumulation = CVarGITemporalAccumulation.GetValueOnRenderThread() != 0;
+		Settings.HistoryConvolutionSampleCount = CVarGIHistoryConvolutionSampleCount.GetValueOnRenderThread();
+		Settings.HistoryConvolutionKernelSpreadFactor = CVarGIHistoryConvolutionKernelSpreadFactor.GetValueOnRenderThread();
+		Settings.MaxInputSPP = Config.RayCountPerPixel;
+
+		TStaticArray<FScreenSpaceDenoiserHistory*, IScreenSpaceDenoiser::kMaxBatchSize> PrevHistories;
+		TStaticArray<FScreenSpaceDenoiserHistory*, IScreenSpaceDenoiser::kMaxBatchSize> NewHistories;
+		PrevHistories[0] = &PreviousViewInfos->ReflectedSkyLightHistory;
+		NewHistories[0] = View.ViewState ? &View.ViewState->PrevFrameViewInfo.ReflectedSkyLightHistory : nullptr;
+
+		FSSDSignalTextures SignalOutput;
+		DenoiseSignalAtConstantPixelDensity(
+			GraphBuilder, View, SceneTextures, ViewInfoPooledRenderTargets,
 			InputSignal, Settings,
 			PrevHistories,
 			NewHistories,
@@ -2517,6 +2638,9 @@ public:
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, DiffuseIndirectDenoiser);
 
+		FViewInfoPooledRenderTargets ViewInfoPooledRenderTargets;
+		SetupSceneViewInfoPooledRenderTargets(View, &ViewInfoPooledRenderTargets);
+
 		FSSDSignalTextures InputSignal;
 		for (int32 i = 0; i < IScreenSpaceDenoiser::kSphericalHarmonicTextureCount; i++)
 			InputSignal.Textures[i] = Inputs.SphericalHarmonic[i];
@@ -2536,7 +2660,7 @@ public:
 
 		FSSDSignalTextures SignalOutput;
 		DenoiseSignalAtConstantPixelDensity(
-			GraphBuilder, View, SceneTextures,
+			GraphBuilder, View, SceneTextures, ViewInfoPooledRenderTargets,
 			InputSignal, Settings,
 			PrevHistories,
 			NewHistories,
@@ -2563,6 +2687,9 @@ public:
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, DiffuseIndirectDenoiser);
 
+		FViewInfoPooledRenderTargets ViewInfoPooledRenderTargets;
+		SetupSceneViewInfoPooledRenderTargets(View, &ViewInfoPooledRenderTargets);
+
 		FSSDSignalTextures InputSignal;
 		InputSignal.Textures[0] = Inputs.Color;
 		InputSignal.Textures[1] = Inputs.AmbientOcclusionMask;
@@ -2583,7 +2710,7 @@ public:
 
 		FSSDSignalTextures SignalOutput;
 		DenoiseSignalAtConstantPixelDensity(
-			GraphBuilder, View, SceneTextures,
+			GraphBuilder, View, SceneTextures, ViewInfoPooledRenderTargets,
 			InputSignal, Settings,
 			PrevHistories,
 			NewHistories,

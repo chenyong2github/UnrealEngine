@@ -239,6 +239,13 @@ void FD3D11DynamicRHI::InternalSetShaderResourceView(FD3D11BaseShaderResource* R
 	StateCache.SetShaderResourceView<ShaderFrequency>(SRV, ResourceIndex, SrvType);
 }
 
+template void FD3D11DynamicRHI::InternalSetShaderResourceView<SF_Vertex>(FD3D11BaseShaderResource* Resource, ID3D11ShaderResourceView* SRV, int32 ResourceIndex, FName SRVName, FD3D11StateCache::ESRV_Type SrvType);
+template void FD3D11DynamicRHI::InternalSetShaderResourceView<SF_Hull>(FD3D11BaseShaderResource* Resource, ID3D11ShaderResourceView* SRV, int32 ResourceIndex, FName SRVName, FD3D11StateCache::ESRV_Type SrvType);
+template void FD3D11DynamicRHI::InternalSetShaderResourceView<SF_Domain>(FD3D11BaseShaderResource* Resource, ID3D11ShaderResourceView* SRV, int32 ResourceIndex, FName SRVName, FD3D11StateCache::ESRV_Type SrvType);
+template void FD3D11DynamicRHI::InternalSetShaderResourceView<SF_Pixel>(FD3D11BaseShaderResource* Resource, ID3D11ShaderResourceView* SRV, int32 ResourceIndex, FName SRVName, FD3D11StateCache::ESRV_Type SrvType);
+template void FD3D11DynamicRHI::InternalSetShaderResourceView<SF_Geometry>(FD3D11BaseShaderResource* Resource, ID3D11ShaderResourceView* SRV, int32 ResourceIndex, FName SRVName, FD3D11StateCache::ESRV_Type SrvType);
+template void FD3D11DynamicRHI::InternalSetShaderResourceView<SF_Compute>(FD3D11BaseShaderResource* Resource, ID3D11ShaderResourceView* SRV, int32 ResourceIndex, FName SRVName, FD3D11StateCache::ESRV_Type SrvType);
+
 void FD3D11DynamicRHI::TrackResourceBoundAsVB(FD3D11BaseShaderResource* Resource, int32 StreamIndex)
 {
 	check(StreamIndex >= 0 && StreamIndex < D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT);

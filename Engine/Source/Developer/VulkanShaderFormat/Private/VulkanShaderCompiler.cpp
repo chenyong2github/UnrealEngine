@@ -433,7 +433,10 @@ static int32 AddGlobal(FOLDVulkanCodeHeader& OLDHeader,
 		Entry = CombinedAliasIndex == UINT16_MAX ? Spirv.GetEntryByBindingIndex(BaseIndex) : Spirv.GetEntry(GlobalNames[CombinedAliasIndex]);
 		check(Entry);
 		check(Entry->Binding != -1);
-		bIsCombinedSampler = true;
+		if (!Entry->Name.EndsWith(TEXT("_BUFFER")))
+		{
+			bIsCombinedSampler = true;
+		}
 	}
 
 	VkDescriptorType DescriptorType = bIsCombinedSampler ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER : OLDHeader.NEWDescriptorInfo.DescriptorTypes[Entry->Binding];
@@ -1964,6 +1967,14 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 		StripInstancedStereo(PreprocessedShaderSource);
 	}
 
+	FShaderParameterParser ShaderParameterParser;
+	if (!ShaderParameterParser.ParseAndMoveShaderParametersToRootConstantBuffer(
+		Input, Output, PreprocessedShaderSource, /* ConstantBufferType = */ nullptr))
+	{
+		// The FShaderParameterParser will add any relevant errors.
+		return;
+	}
+
 	FString EntryPointName = Input.EntryPointName;
 
 	RemoveUniformBuffersFromSource(Input.Environment, PreprocessedShaderSource);
@@ -2054,6 +2065,8 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 			}
 		}
 	}
+
+	ShaderParameterParser.ValidateShaderParameterTypes(Input, Output);
 	
 	if (bDirectCompile)
 	{

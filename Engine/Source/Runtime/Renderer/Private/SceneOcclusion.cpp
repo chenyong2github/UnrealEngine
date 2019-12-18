@@ -693,6 +693,7 @@ void FHZBOcclusionTester::InitDynamicRHI()
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 		FPooledRenderTargetDesc Desc( FPooledRenderTargetDesc::Create2DDesc( FIntPoint( SizeX, SizeY ), PF_B8G8R8A8, FClearValueBinding::None, TexCreate_CPUReadback | TexCreate_HideInVisualizeTexture, TexCreate_None, false ) );
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ResultsTextureCPU, TEXT("HZBResultsCPU"), true, ERenderTargetTransience::NonTransient );
+		Fence = RHICreateGPUFence(TEXT("HZBGPUFence"));
 	}
 }
 
@@ -701,6 +702,7 @@ void FHZBOcclusionTester::ReleaseDynamicRHI()
 	if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 	{
 		GRenderTargetPool.FreeUnusedResource( ResultsTextureCPU );
+		Fence.SafeRelease();
 	}
 }
 
@@ -717,14 +719,14 @@ void FHZBOcclusionTester::MapResults(FRHICommandListImmediate& RHICmdList)
 {
 	check( !ResultsBuffer );
 
-	if( !IsInvalidFrame() )
+	if (!IsInvalidFrame() )
 	{
 		uint32 IdleStart = FPlatformTime::Cycles();
 
 		int32 Width = 0;
 		int32 Height = 0;
 
-		RHICmdList.MapStagingSurface(ResultsTextureCPU->GetRenderTargetItem().ShaderResourceTexture, *(void**)&ResultsBuffer, Width, Height);
+		RHICmdList.MapStagingSurface(ResultsTextureCPU->GetRenderTargetItem().ShaderResourceTexture, Fence.GetReference(), *(void**)&ResultsBuffer, Width, Height);
 
 		// RHIMapStagingSurface will block until the results are ready (from the previous frame) so we need to consider this RT idle time
 		GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUQuery] += FPlatformTime::Cycles() - IdleStart;
@@ -890,7 +892,7 @@ void FHZBOcclusionTester::Submit(FRHICommandListImmediate& RHICmdList, const FVi
 
 	TRefCountPtr< IPooledRenderTarget >	ResultsTextureGPU;
 	{
-		FPooledRenderTargetDesc Desc( FPooledRenderTargetDesc::Create2DDesc( FIntPoint( SizeX, SizeY ), PF_B8G8R8A8, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable, false ) );
+		FPooledRenderTargetDesc Desc( FPooledRenderTargetDesc::Create2DDesc( FIntPoint( SizeX, SizeY ), PF_B8G8R8A8, FClearValueBinding::None, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable, false ) );
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ResultsTextureGPU, TEXT("HZBResultsGPU") );
 	}
 
@@ -1050,6 +1052,7 @@ void FHZBOcclusionTester::Submit(FRHICommandListImmediate& RHICmdList, const FVi
 
 	// Transfer memory GPU -> CPU
 	RHICmdList.CopyToResolveTarget(ResultsTextureGPU->GetRenderTargetItem().TargetableTexture, ResultsTextureCPU->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
+	RHICmdList.WriteGPUFence(Fence);
 }
 
 struct FViewOcclusionQueries

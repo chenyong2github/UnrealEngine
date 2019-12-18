@@ -44,13 +44,14 @@ struct FOptionalVulkanDeviceExtensions
 			uint32 HasMemoryPriority : 1;
 			uint32 HasDriverProperties : 1;
 			uint32 HasEXTFragmentDensityMap : 1;
+			uint32 HasEXTFullscreenExclusive : 1;
 		};
 		uint32 Packed;
 	};
 
 	FOptionalVulkanDeviceExtensions()
 	{
-		static_assert(sizeof(Packed) == sizeof(FOptionalVulkanDeviceExtensions), "More bits needed!");
+		static_assert(sizeof(Packed) == sizeof(FOptionalVulkanDeviceExtensions), "More bits needed for Packed!");
 		Packed = 0;
 	}
 

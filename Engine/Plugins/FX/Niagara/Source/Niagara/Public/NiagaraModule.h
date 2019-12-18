@@ -29,7 +29,8 @@ class NIAGARA_API INiagaraModule : public IModuleInterface
 public:
 #if WITH_EDITOR
 	typedef TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> CompileRequestPtr;
-	DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<FNiagaraVMExecutableData>, FScriptCompiler,const FNiagaraCompileRequestDataBase*, const FNiagaraCompileOptions&);
+	DECLARE_DELEGATE_RetVal_TwoParams(int32, FScriptCompiler, const FNiagaraCompileRequestDataBase*, const FNiagaraCompileOptions&);
+	DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<FNiagaraVMExecutableData>, FCheckCompilationResult, int32, bool);
 	DECLARE_DELEGATE_RetVal_OneParam(CompileRequestPtr, FOnPrecompile, UObject*);
 #endif
 	DECLARE_DELEGATE_RetVal(void, FOnProcessQueue);
@@ -56,9 +57,14 @@ public:
 
 	void UnregisterEditorOnlyDataUtilities(TSharedRef<INiagaraEditorOnlyDataUtilities> InEditorOnlyDataUtilities);
 
-	TSharedPtr<FNiagaraVMExecutableData> CompileScript(const FNiagaraCompileRequestDataBase* InCompileData, const FNiagaraCompileOptions& InCompileOptions);
+	int32 StartScriptCompileJob(const FNiagaraCompileRequestDataBase* InCompileData, const FNiagaraCompileOptions& InCompileOptions);
+	TSharedPtr<FNiagaraVMExecutableData> GetCompileJobResult(int32 JobID, bool bWait);
+
 	FDelegateHandle RegisterScriptCompiler(FScriptCompiler ScriptCompiler);
 	void UnregisterScriptCompiler(FDelegateHandle DelegateHandle);
+
+	FDelegateHandle RegisterCompileResultDelegate(FCheckCompilationResult ResultDelegate);
+	void UnregisterCompileResultDelegate(FDelegateHandle DelegateHandle);
 
 	TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> Precompile(UObject* InObj);
 	FDelegateHandle RegisterPrecompiler(FOnPrecompile PreCompiler);
@@ -175,6 +181,7 @@ private:
 	TSharedPtr<INiagaraEditorOnlyDataUtilities> EditorOnlyDataUtilities;
 
 	FScriptCompiler ScriptCompilerDelegate;
+	FCheckCompilationResult CompilationResultDelegate;
 	FOnPrecompile ObjectPrecompilerDelegate;
 #endif
 

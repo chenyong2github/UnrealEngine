@@ -786,7 +786,7 @@ void FMetalDynamicRHI::RHITransferVertexBufferUnderlyingResource(FRHIVertexBuffe
 	}
 }
 
-void* FMetalDynamicRHI::RHILockStagingBuffer(FRHIStagingBuffer* StagingBuffer, uint32 Offset, uint32 SizeRHI)
+void* FMetalDynamicRHI::RHILockStagingBuffer(FRHIStagingBuffer* StagingBuffer, FRHIGPUFence* Fence, uint32 Offset, uint32 SizeRHI)
 {
 	FMetalStagingBuffer* Buffer = ResourceCast(StagingBuffer);
 	return Buffer->Lock(Offset, SizeRHI);
@@ -795,21 +795,6 @@ void FMetalDynamicRHI::RHIUnlockStagingBuffer(FRHIStagingBuffer* StagingBuffer)
 {
 	FMetalStagingBuffer* Buffer = ResourceCast(StagingBuffer);
 	Buffer->Unlock();
-}
-
-void* FMetalDynamicRHI::LockStagingBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStagingBuffer* StagingBuffer, uint32 Offset, uint32 SizeRHI)
-{
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMetalDynamicRHI_LockStagingBuffer_RenderThread);
-	check(IsInRenderingThread());
-	
-	return RHILockStagingBuffer(StagingBuffer, Offset, SizeRHI);
-}
-void FMetalDynamicRHI::UnlockStagingBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIStagingBuffer* StagingBuffer)
-{
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMetalDynamicRHI_UnlockStagingBuffer_RenderThread);
-	check(IsInRenderingThread());
-	
-	return RHIUnlockStagingBuffer(StagingBuffer);
 }
 
 FStagingBufferRHIRef FMetalDynamicRHI::RHICreateStagingBuffer()

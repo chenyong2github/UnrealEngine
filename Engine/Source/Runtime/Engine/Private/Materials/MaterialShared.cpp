@@ -1266,11 +1266,6 @@ bool FMaterialResource::IsUsingPlanarForwardReflections() const
 	return Material->bUsePlanarForwardReflections;
 }
 
-bool FMaterialResource::OutputsVelocityOnBasePass() const
-{
-	return Material->bOutputVelocityOnBasePass && !IsUIMaterial();
-}
-
 bool FMaterialResource::IsNonmetal() const
 {
 	return !Material->bUseMaterialAttributes ?

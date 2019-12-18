@@ -112,7 +112,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 			OutCompressedImage.SizeZ = (BuildSettings.bVolume || BuildSettings.bTextureArray) ? Image.NumSlices : 1;
 			OutCompressedImage.PixelFormat = PF_V8U8;
 
-			uint32 NumTexels = Image.SizeX * Image.SizeY * Image.NumSlices;
+			uint64 NumTexels = (uint64)Image.SizeX * Image.SizeY * Image.NumSlices;
 			OutCompressedImage.RawData.Empty(NumTexels * 2);
 			OutCompressedImage.RawData.AddUninitialized(NumTexels * 2);
 			const FColor* FirstColor = Image.AsBGRA8();
@@ -151,7 +151,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 			OutCompressedImage.PixelFormat = PF_B8G8R8A8;
 
 			// swizzle each texel
-			uint32 NumTexels = Image.SizeX * Image.SizeY * Image.NumSlices;
+			uint64 NumTexels = (uint64)Image.SizeX * Image.SizeY * Image.NumSlices;
 			OutCompressedImage.RawData.Empty(NumTexels * 4);
 			OutCompressedImage.RawData.AddUninitialized(NumTexels * 4);
 			const FColor* FirstColor = Image.AsBGRA8();
@@ -179,7 +179,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 			OutCompressedImage.PixelFormat = PF_B8G8R8A8;
 
 			// swizzle each texel
-			uint32 NumTexels = Image.SizeX * Image.SizeY * Image.NumSlices;
+			uint64 NumTexels = (uint64)Image.SizeX * Image.SizeY * Image.NumSlices;
 			OutCompressedImage.RawData.Empty(NumTexels * 4);
 			OutCompressedImage.RawData.AddUninitialized(NumTexels * 4);
 			const FColor* FirstColor = Image.AsBGRA8();
@@ -212,7 +212,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 		else if (BuildSettings.TextureFormatName == GTextureFormatNamePOTERROR)
 		{
 			// load the error image data we will just repeat into the texture
-			TArray<uint8> ErrorData;
+			TArray64<uint8> ErrorData;
 			FFileHelper::LoadFileToArray(ErrorData, *(FPaths::EngineDir() / TEXT("Content/MobileResources/PowerOfTwoError64x64.raw")));
 			check(ErrorData.Num() == 16384);
 
@@ -224,7 +224,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 
 			// allocate output memory
 			check(InImage.NumSlices == 1);
-			uint32 NumTexels = InImage.SizeX * InImage.SizeY;
+			uint64 NumTexels = (uint64)InImage.SizeX * InImage.SizeY;
 			OutCompressedImage.RawData.Empty(NumTexels * 4);
 			OutCompressedImage.RawData.AddUninitialized(NumTexels * 4);
 
@@ -237,7 +237,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 				{
 					int32 SrcX = X & (64 * 4 - 1);
 					int32 SrcY = Y & 63;
-					Dest[Y * InImage.SizeX * 4 + X] = Src[SrcY * 64 * 4 + SrcX];
+					Dest[(uint64)Y * InImage.SizeX * 4 + X] = Src[(uint64)SrcY * 64 * 4 + SrcX];
 				}
 			}
 

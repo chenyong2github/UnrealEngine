@@ -254,7 +254,7 @@ void ComputeDiffuseIrradiance(FRHICommandListImmediate& RHICmdList, ERHIFeatureL
 				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
 				const FIntRect ViewRect(0, 0, MipSize, MipSize);
-				RHICmdList.SetViewport(0, 0, 0.0f, MipSize, MipSize, 1.0f);
+				RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, (float)MipSize, (float)MipSize, 1.0f);
 				TShaderMapRef<FCopyDiffuseIrradiancePS> PixelShader(ShaderMap);
 					
 				TShaderMapRef<FScreenVS> VertexShader(GetGlobalShaderMap(FeatureLevel));
@@ -306,7 +306,7 @@ void ComputeDiffuseIrradiance(FRHICommandListImmediate& RHICmdList, ERHIFeatureL
 					RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
 					const FIntRect ViewRect(0, 0, MipSize, MipSize);
-					RHICmdList.SetViewport(0, 0, 0.0f, MipSize, MipSize, 1.0f);
+					RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, (float)MipSize, (float)MipSize, 1.0f);
 					TShaderMapRef<FAccumulateDiffuseIrradiancePS> PixelShader(ShaderMap);
 						
 					TShaderMapRef<FScreenVS> VertexShader(GetGlobalShaderMap(FeatureLevel));
@@ -348,7 +348,7 @@ void ComputeDiffuseIrradiance(FRHICommandListImmediate& RHICmdList, ERHIFeatureL
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
 			const FIntRect ViewRect(CoefficientIndex, 0, CoefficientIndex + 1, 1);
-			RHICmdList.SetViewport(0, 0, 0.0f, FSHVector3::MaxSHBasis, 1, 1.0f);
+			RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, (float)FSHVector3::MaxSHBasis, 1.0f, 1.0f);
 
 			TShaderMapRef<FScreenVS> VertexShader(ShaderMap);
 			TShaderMapRef<FAccumulateCubeFacesPS> PixelShader(ShaderMap);

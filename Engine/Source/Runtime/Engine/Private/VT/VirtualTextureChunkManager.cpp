@@ -39,6 +39,7 @@ FVirtualTextureChunkStreamingManager::FVirtualTextureChunkStreamingManager()
 #if WITH_EDITOR
 	GetVirtualTextureChunkDDCCache()->Initialize();
 #endif
+	BeginInitResource(&UploadCache);
 }
 
 FVirtualTextureChunkStreamingManager::~FVirtualTextureChunkStreamingManager()

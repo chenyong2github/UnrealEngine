@@ -73,10 +73,10 @@ struct FWrapLayer
 	static void CreateBufferView(VkResult Result, VkDevice Device, const VkBufferViewCreateInfo* CreateInfo, VkBufferView* BufferView) VULKAN_LAYER_BODY
 	static void DestroyBufferView(VkResult Result, VkDevice Device, VkBufferView BufferView) VULKAN_LAYER_BODY
 	VULKAN_EXTERN_EXPORT static void CreateImage(VkResult Result, VkDevice Device, const VkImageCreateInfo* CreateInfo, VkImage* Image) VULKAN_LAYER_BODY
-	static void DestroyImage(VkResult Result, VkDevice Device, VkImage Image) VULKAN_LAYER_BODY
+	VULKAN_EXTERN_EXPORT static void DestroyImage(VkResult Result, VkDevice Device, VkImage Image) VULKAN_LAYER_BODY
 	static void GetImageSubresourceLayout(VkResult Result, VkDevice Device, VkImage Image, const VkImageSubresource* Subresource, VkSubresourceLayout* Layout) VULKAN_LAYER_BODY
-	static void CreateImageView(VkResult Result, VkDevice Device, const VkImageViewCreateInfo* CreateInfo, VkImageView* ImageView) VULKAN_LAYER_BODY
-	static void DestroyImageView(VkResult Result, VkDevice Device, VkImageView ImageView) VULKAN_LAYER_BODY
+	VULKAN_EXTERN_EXPORT static void CreateImageView(VkResult Result, VkDevice Device, const VkImageViewCreateInfo* CreateInfo, VkImageView* ImageView) VULKAN_LAYER_BODY
+	VULKAN_EXTERN_EXPORT static void DestroyImageView(VkResult Result, VkDevice Device, VkImageView ImageView) VULKAN_LAYER_BODY
 	static void CreateShaderModule(VkResult Result, VkDevice Device, const VkShaderModuleCreateInfo* CreateInfo, VkShaderModule* ShaderModule) VULKAN_LAYER_BODY
 	static void DestroyShaderModule(VkResult Result, VkDevice Device, VkShaderModule ShaderModule) VULKAN_LAYER_BODY
 	static void CreatePipelineCache(VkResult Result, VkDevice Device, const VkPipelineCacheCreateInfo* CreateInfo, VkPipelineCache* PipelineCache) VULKAN_LAYER_BODY
@@ -88,8 +88,8 @@ struct FWrapLayer
 	static void DestroyPipeline(VkResult Result, VkDevice Device, VkPipeline Pipeline) VULKAN_LAYER_BODY
 	static void CreatePipelineLayout(VkResult Result, VkDevice Device, const VkPipelineLayoutCreateInfo* CreateInfo, VkPipelineLayout* PipelineLayout) VULKAN_LAYER_BODY
 	static void DestroyPipelineLayout(VkResult Result, VkDevice Device, VkPipelineLayout PipelineLayout) VULKAN_LAYER_BODY
-	static void CreateSampler(VkResult Result, VkDevice Device, const VkSamplerCreateInfo* CreateInfo, VkSampler* Sampler) VULKAN_LAYER_BODY
-	static void DestroySampler(VkResult Result, VkDevice Device, VkSampler Sampler) VULKAN_LAYER_BODY
+	VULKAN_EXTERN_EXPORT static void CreateSampler(VkResult Result, VkDevice Device, const VkSamplerCreateInfo* CreateInfo, VkSampler* Sampler) VULKAN_LAYER_BODY  
+	VULKAN_EXTERN_EXPORT static void DestroySampler(VkResult Result, VkDevice Device, VkSampler Sampler) VULKAN_LAYER_BODY
 	static void CreateDescriptorSetLayout(VkResult Result, VkDevice Device, const VkDescriptorSetLayoutCreateInfo* CreateInfo, VkDescriptorSetLayout* SetLayout) VULKAN_LAYER_BODY
 	static void DestroyDescriptorSetLayout(VkResult Result, VkDevice Device, VkDescriptorSetLayout DescriptorSetLayout) VULKAN_LAYER_BODY
 	static void CreateDescriptorPool(VkResult Result, VkDevice Device, const VkDescriptorPoolCreateInfo* CreateInfo, VkDescriptorPool* DescriptorPool) VULKAN_LAYER_BODY

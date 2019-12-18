@@ -42,7 +42,6 @@ FAllDesktopTargetPlatform::~FAllDesktopTargetPlatform()
 void FAllDesktopTargetPlatform::GetAllPossibleShaderFormats( TArray<FName>& OutFormats ) const
 {
 	static FName NAME_PCD3D_SM5(TEXT("PCD3D_SM5"));
-	static FName NAME_GLSL_150(TEXT("GLSL_150"));
 	static FName NAME_GLSL_430(TEXT("GLSL_430"));
 
 #if PLATFORM_WINDOWS
@@ -50,7 +49,6 @@ void FAllDesktopTargetPlatform::GetAllPossibleShaderFormats( TArray<FName>& OutF
 	// make it so that packages cooked on Mac/Linux will only run on Windows with -opengl)
 	OutFormats.AddUnique(NAME_PCD3D_SM5);
 #endif
-	OutFormats.AddUnique(NAME_GLSL_150);
 	OutFormats.AddUnique(NAME_GLSL_430);
 }
 

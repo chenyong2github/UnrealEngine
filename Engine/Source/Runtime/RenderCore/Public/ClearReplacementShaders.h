@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "ShaderParameters.h"
+#include "ShaderParameterUtils.h"
 #include "Shader.h"
 #include "GlobalShader.h"
 
@@ -16,12 +17,22 @@ enum class EClearReplacementResourceType
 	Texture3D = 3
 };
 
-template <typename ValueType, uint32 NumChannels, bool bZeroOutput = false, bool bEnableBounds = false>
+enum class EClearReplacementValueType
+{
+	Float,
+	Int32,
+	Uint32
+};
+
+template <EClearReplacementValueType Type> struct TClearReplacementTypeSelector {};
+template <> struct TClearReplacementTypeSelector<EClearReplacementValueType::Float> { typedef float Type; };
+template <> struct TClearReplacementTypeSelector<EClearReplacementValueType::Int32> { typedef int32 Type; };
+template <> struct TClearReplacementTypeSelector<EClearReplacementValueType::Uint32> { typedef uint32 Type; };
+
+template <EClearReplacementValueType ValueType, uint32 NumChannels, bool bZeroOutput = false, bool bEnableBounds = false>
 struct TClearReplacementBase : public FGlobalShader
 {
 	static_assert(NumChannels >= 1 && NumChannels <= 4, "Only 1 to 4 channels are supported.");
-	static_assert(TIsSame<ValueType, float>::Value || TIsSame<ValueType, uint32>::Value, "Type must be float or uint32.");
-	static const bool bIsFloat = TIsSame<ValueType, float>::Value;
 
 protected:
 	TClearReplacementBase() {}
@@ -49,12 +60,37 @@ public:
 		OutEnvironment.SetDefine(TEXT("ENABLE_CLEAR_VALUE"), !bZeroOutput);
 		OutEnvironment.SetDefine(TEXT("ENABLE_BOUNDS"), bEnableBounds);
 
-		switch (NumChannels)
+		switch (ValueType)
 		{
-		case 1: OutEnvironment.SetDefine(TEXT("VALUE_TYPE"), bIsFloat ? TEXT("float")  : TEXT("uint"));  break;
-		case 2: OutEnvironment.SetDefine(TEXT("VALUE_TYPE"), bIsFloat ? TEXT("float2") : TEXT("uint2")); break;
-		case 3: OutEnvironment.SetDefine(TEXT("VALUE_TYPE"), bIsFloat ? TEXT("float3") : TEXT("uint3")); break;
-		case 4: OutEnvironment.SetDefine(TEXT("VALUE_TYPE"), bIsFloat ? TEXT("float4") : TEXT("uint4")); break;
+		case EClearReplacementValueType::Float:
+			switch (NumChannels)
+			{
+			case 1: OutEnvironment.SetDefine(TEXT("VALUE_TYPE"), TEXT("float")); break;
+			case 2: OutEnvironment.SetDefine(TEXT("VALUE_TYPE"), TEXT("float2")); break;
+			case 3: OutEnvironment.SetDefine(TEXT("VALUE_TYPE"), TEXT("float3")); break;
+			case 4: OutEnvironment.SetDefine(TEXT("VALUE_TYPE"), TEXT("float4")); break;
+			}
+			break;
+
+		case EClearReplacementValueType::Int32:
+			switch (NumChannels)
+			{
+			case 1: OutEnvironment.SetDefine(TEXT("VALUE_TYPE"), TEXT("int")); break;
+			case 2: OutEnvironment.SetDefine(TEXT("VALUE_TYPE"), TEXT("int2")); break;
+			case 3: OutEnvironment.SetDefine(TEXT("VALUE_TYPE"), TEXT("int3")); break;
+			case 4: OutEnvironment.SetDefine(TEXT("VALUE_TYPE"), TEXT("int4")); break;
+			}
+			break;
+
+		case EClearReplacementValueType::Uint32:
+			switch (NumChannels)
+			{
+			case 1: OutEnvironment.SetDefine(TEXT("VALUE_TYPE"), TEXT("uint")); break;
+			case 2: OutEnvironment.SetDefine(TEXT("VALUE_TYPE"), TEXT("uint2")); break;
+			case 3: OutEnvironment.SetDefine(TEXT("VALUE_TYPE"), TEXT("uint3")); break;
+			case 4: OutEnvironment.SetDefine(TEXT("VALUE_TYPE"), TEXT("uint4")); break;
+			}
+			break;
 		}
 	}
 
@@ -137,18 +173,21 @@ public:
 		return bShaderHasOutdatedParameters;
 	}
 
+	UE_DEPRECATED(4.25, "TClearReplacementCS::SetResource is deprecated. Call GetClearResourceParam() and bind the UAV manually instead. Be sure to handle any necessary resource transitions.")
 	inline void SetResource(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UAV)
 	{
 		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, UAV);
 		SetUAVParameter(RHICmdList, BaseType::GetComputeShader(), ClearResourceParam, UAV);
 	}
 
+	UE_DEPRECATED(4.25, "TClearReplacementCS::FinalizeResource is deprecated. Call GetClearResourceParam() and bind the UAV manually instead. Be sure to handle any necessary resource transitions.")
 	inline void FinalizeResource(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UAV)
 	{
 		SetUAVParameter(RHICmdList, BaseType::GetComputeShader(), ClearResourceParam, nullptr);
 		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, UAV);
 	}
 
+	inline const FShaderResourceParameter& GetClearResourceParam() const { return ClearResourceParam; }
 	inline uint32 GetResourceParamIndex() const { return ClearResourceParam.GetBaseIndex(); }
 
 private:
@@ -239,14 +278,16 @@ public:
 
 // Not all combinations are defined here. Add more if required.
 //                             Type  NC  Zero   Bounds
-typedef TClearReplacementBase<uint32, 1, false, false> FClearReplacementBase_Uint;
-typedef TClearReplacementBase<uint32, 4, false, false> FClearReplacementBase_Uint4;
-typedef TClearReplacementBase<float , 4, false, false> FClearReplacementBase_Float4;
-typedef TClearReplacementBase<uint32, 1, true , false> FClearReplacementBase_Uint_Zero;
-typedef TClearReplacementBase<float , 4, true , false> FClearReplacementBase_Float4_Zero;
-typedef TClearReplacementBase<float , 4, true , true > FClearReplacementBase_Float4_Zero_Bounds;
-typedef TClearReplacementBase<uint32, 1, false, true > FClearReplacementBase_Uint_Bounds;
-typedef TClearReplacementBase<float , 4, false, true > FClearReplacementBase_Float4_Bounds;
+typedef TClearReplacementBase<EClearReplacementValueType::Uint32, 1, false, false> FClearReplacementBase_Uint;
+typedef TClearReplacementBase<EClearReplacementValueType::Uint32, 4, false, false> FClearReplacementBase_Uint4;
+typedef TClearReplacementBase<EClearReplacementValueType::Float , 4, false, false> FClearReplacementBase_Float4;
+typedef TClearReplacementBase<EClearReplacementValueType::Uint32, 1, true , false> FClearReplacementBase_Uint_Zero;
+typedef TClearReplacementBase<EClearReplacementValueType::Float , 4, true , false> FClearReplacementBase_Float4_Zero;
+typedef TClearReplacementBase<EClearReplacementValueType::Float , 4, true , true > FClearReplacementBase_Float4_Zero_Bounds;
+typedef TClearReplacementBase<EClearReplacementValueType::Uint32, 1, false, true > FClearReplacementBase_Uint_Bounds;
+typedef TClearReplacementBase<EClearReplacementValueType::Uint32, 4, false, true > FClearReplacementBase_Uint4_Bounds;
+typedef TClearReplacementBase<EClearReplacementValueType:: Int32, 4, false, true > FClearReplacementBase_Sint4_Bounds;
+typedef TClearReplacementBase<EClearReplacementValueType::Float , 4, false, true > FClearReplacementBase_Float4_Bounds;
 
 // Simple vertex shaders for generating screen quads. Optionally with a min/max bounds in NDC space, and depth value.
 typedef TClearReplacementVS<false, FClearReplacementBase_Float4_Zero       > FClearReplacementVS;
@@ -261,7 +302,10 @@ typedef TClearReplacementPS<false, FClearReplacementBase_Float4_Zero>        FCl
 
 // Compute shaders for clearing each resource type, with a min/max bounds enabled.
 typedef TClearReplacementCS<EClearReplacementResourceType::Buffer,         FClearReplacementBase_Uint_Bounds>   FClearReplacementCS_Buffer_Uint_Bounds;
+typedef TClearReplacementCS<EClearReplacementResourceType::Buffer,         FClearReplacementBase_Float4_Bounds> FClearReplacementCS_Buffer_Float4_Bounds;
+typedef TClearReplacementCS<EClearReplacementResourceType::Texture3D,      FClearReplacementBase_Float4_Bounds> FClearReplacementCS_Texture3D_Float4_Bounds;
 typedef TClearReplacementCS<EClearReplacementResourceType::Texture2D,      FClearReplacementBase_Float4_Bounds> FClearReplacementCS_Texture2D_Float4_Bounds;
+typedef TClearReplacementCS<EClearReplacementResourceType::Texture2DArray, FClearReplacementBase_Float4_Bounds> FClearReplacementCS_Texture2DArray_Float4_Bounds;
 
 // Compute shaders for clearing each resource type. No bounds checks enabled.
 typedef TClearReplacementCS<EClearReplacementResourceType::Buffer,         FClearReplacementBase_Uint_Zero>     FClearReplacementCS_Buffer_Uint_Zero;
@@ -278,3 +322,84 @@ typedef TClearReplacementCS<EClearReplacementResourceType::Texture3D,      FClea
 typedef TClearReplacementCS<EClearReplacementResourceType::Texture2D,      FClearReplacementBase_Uint4>         FClearReplacementCS_Texture2D_Uint4;
 typedef TClearReplacementCS<EClearReplacementResourceType::Texture2DArray, FClearReplacementBase_Uint4>         FClearReplacementCS_Texture2DArray_Uint4;
 typedef TClearReplacementCS<EClearReplacementResourceType::Buffer,         FClearReplacementBase_Uint4>         FClearReplacementCS_Buffer_Uint4;
+
+typedef TClearReplacementCS<EClearReplacementResourceType::Buffer,         FClearReplacementBase_Uint4_Bounds>  FClearReplacementCS_Buffer_Uint4_Bounds;
+typedef TClearReplacementCS<EClearReplacementResourceType::Texture3D,      FClearReplacementBase_Uint4_Bounds>  FClearReplacementCS_Texture3D_Uint4_Bounds;
+typedef TClearReplacementCS<EClearReplacementResourceType::Texture2D,      FClearReplacementBase_Uint4_Bounds>  FClearReplacementCS_Texture2D_Uint4_Bounds;
+typedef TClearReplacementCS<EClearReplacementResourceType::Texture2DArray, FClearReplacementBase_Uint4_Bounds>  FClearReplacementCS_Texture2DArray_Uint4_Bounds;
+
+typedef TClearReplacementCS<EClearReplacementResourceType::Buffer,         FClearReplacementBase_Sint4_Bounds>  FClearReplacementCS_Buffer_Sint4_Bounds;
+typedef TClearReplacementCS<EClearReplacementResourceType::Texture3D,      FClearReplacementBase_Sint4_Bounds>  FClearReplacementCS_Texture3D_Sint4_Bounds;
+typedef TClearReplacementCS<EClearReplacementResourceType::Texture2D,      FClearReplacementBase_Sint4_Bounds>  FClearReplacementCS_Texture2D_Sint4_Bounds;
+typedef TClearReplacementCS<EClearReplacementResourceType::Texture2DArray, FClearReplacementBase_Sint4_Bounds>  FClearReplacementCS_Texture2DArray_Sint4_Bounds;
+
+/**
+ * Helper functions for running the clear replacement shader for specific resource types, values types and number of channels.
+ * Can be used from inside RHIs via FRHICommandList_RecursiveHazardous. ResourceBindCallback is provided to allow the RHI to override
+ * how the UAV resource is bound to the underlying platform context..
+ */
+template <EClearReplacementResourceType ResourceType, EClearReplacementValueType ValueType, uint32 NumChannels, bool bBarriers>
+inline void ClearUAVShader_T(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UAV, uint32 SizeX, uint32 SizeY, uint32 SizeZ, const typename TClearReplacementTypeSelector<ValueType>::Type(&ClearValues)[NumChannels], TFunctionRef<void(FRHIComputeShader*, const FShaderResourceParameter&, bool)> ResourceBindCallback)
+{
+	typedef TClearReplacementCS<ResourceType, TClearReplacementBase<ValueType, NumChannels, false, true>> FClearShader;
+
+	TShaderMapRef<FClearShader> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+	FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
+	RHICmdList.SetComputeShader(ShaderRHI);
+
+	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->GetClearValueParam(), ClearValues);
+	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->GetMinBoundsParam(), FUintVector4(0, 0, 0, 0));
+	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->GetMaxBoundsParam(), FUintVector4(SizeX, SizeY, SizeZ, 0));
+
+	if (bBarriers)
+	{
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToGfx, UAV);
+	}
+
+	ResourceBindCallback(ShaderRHI, ComputeShader->GetClearResourceParam(), true);
+
+	RHICmdList.DispatchComputeShader(
+		FMath::DivideAndRoundUp(SizeX, ComputeShader->ThreadGroupSizeX),
+		FMath::DivideAndRoundUp(SizeY, ComputeShader->ThreadGroupSizeY),
+		FMath::DivideAndRoundUp(SizeZ, ComputeShader->ThreadGroupSizeZ)
+	);
+
+	ResourceBindCallback(ShaderRHI, ComputeShader->GetClearResourceParam(), false);
+
+	if (bBarriers)
+	{
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EGfxToCompute, UAV);
+	}
+}
+
+// Default implementation of ClearUAVShader_T which simply binds the UAV to the compute shader via RHICmdList.SetUAVParameter
+template <EClearReplacementResourceType ResourceType, EClearReplacementValueType ValueType, uint32 NumChannels, bool bBarriers>
+inline void ClearUAVShader_T(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UAV, uint32 SizeX, uint32 SizeY, uint32 SizeZ, const typename TClearReplacementTypeSelector<ValueType>::Type(&ClearValues)[NumChannels])
+{
+	ClearUAVShader_T<ResourceType, ValueType, NumChannels, bBarriers>(RHICmdList, UAV, SizeX, SizeY, SizeZ, ClearValues, 
+		[&RHICmdList, UAV](FRHIComputeShader* ShaderRHI, const FShaderResourceParameter& Param, bool bSet)
+		{
+			SetUAVParameter(RHICmdList, ShaderRHI, Param, bSet ? UAV : nullptr);
+		}
+	);
+}
+
+// Helper version of ClearUAVShader_T for determining float vs uint32 at runtime. Uses the above default implementation.
+template <EClearReplacementResourceType ResourceType, uint32 NumChannels, bool bBarriers>
+inline void ClearUAVShader_T(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UAV, uint32 SizeX, uint32 SizeY, uint32 SizeZ, const void* ClearValues, EClearReplacementValueType ValueType)
+{
+	switch (ValueType)
+	{
+	case EClearReplacementValueType::Float:
+		ClearUAVShader_T<ResourceType, EClearReplacementValueType::Float, NumChannels, bBarriers>(RHICmdList, UAV, SizeX, SizeY, SizeZ, *reinterpret_cast<const float(*)[NumChannels]>(ClearValues));
+		break;
+
+	case EClearReplacementValueType::Uint32:
+		ClearUAVShader_T<ResourceType, EClearReplacementValueType::Uint32, NumChannels, bBarriers>(RHICmdList, UAV, SizeX, SizeY, SizeZ, *reinterpret_cast<const uint32(*)[NumChannels]>(ClearValues));
+		break;
+
+	case EClearReplacementValueType::Int32:
+		ClearUAVShader_T<ResourceType, EClearReplacementValueType::Int32, NumChannels, bBarriers>(RHICmdList, UAV, SizeX, SizeY, SizeZ, *reinterpret_cast<const int32(*)[NumChannels]>(ClearValues));
+		break;
+	}
+}

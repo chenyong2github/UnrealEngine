@@ -734,26 +734,6 @@ enum EFoldedMathOperation
 	FMO_Cross
 };
 
-/** Converts an arbitrary number into a safe divisor. i.e. FMath::Abs(Number) >= DELTA */
-static float GetSafeDivisor(float Number)
-{
-	if(FMath::Abs(Number) < DELTA)
-	{
-		if(Number < 0.0f)
-		{
-			return -DELTA;
-		}
-		else
-		{
-			return +DELTA;
-		}
-	}
-	else
-	{
-		return Number;
-	}
-}
-
 class FMaterialUniformExpressionFoldedMath: public FMaterialUniformExpression
 {
 	DECLARE_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionFoldedMath);
@@ -778,60 +758,8 @@ public:
 			Ar << ValueType;
 		}	
 	}
-	virtual void GetNumberValue(const FMaterialRenderContext& Context,FLinearColor& OutValue) const
-	{
-		FLinearColor ValueA = FLinearColor::Black;
-		FLinearColor ValueB = FLinearColor::Black;
-		A->GetNumberValue(Context, ValueA);
-		B->GetNumberValue(Context, ValueB);
+	virtual void GetNumberValue(const FMaterialRenderContext& Context, FLinearColor& OutValue) const;
 
-		switch(Op)
-		{
-			case FMO_Add: OutValue = ValueA + ValueB; break;
-			case FMO_Sub: OutValue = ValueA - ValueB; break;
-			case FMO_Mul: OutValue = ValueA * ValueB; break;
-			case FMO_Div: 
-				OutValue.R = ValueA.R / GetSafeDivisor(ValueB.R);
-				OutValue.G = ValueA.G / GetSafeDivisor(ValueB.G);
-				OutValue.B = ValueA.B / GetSafeDivisor(ValueB.B);
-				OutValue.A = ValueA.A / GetSafeDivisor(ValueB.A);
-				break;
-			case FMO_Dot: 
-				{
-					check(ValueType & MCT_Float);
-					float DotProduct = ValueA.R * ValueB.R;
-					DotProduct += (ValueType >= MCT_Float2) ? ValueA.G * ValueB.G : 0;
-					DotProduct += (ValueType >= MCT_Float3) ? ValueA.B * ValueB.B : 0;
-					DotProduct += (ValueType >= MCT_Float4) ? ValueA.A * ValueB.A : 0;
-					OutValue.R = OutValue.G = OutValue.B = OutValue.A = DotProduct;
-				}
-				break;
-			case FMO_Cross: 
-				{
-					// Must be Float3, replicate CoerceParameter behavior
-					switch (ValueType)
-					{
-					case MCT_Float:
-						ValueA.B = ValueA.G = ValueA.R;
-						ValueB.B = ValueB.G = ValueB.R;
-						break;
-					case MCT_Float1:
-						ValueA.B = ValueA.G = 0.f;
-						ValueB.B = ValueB.G = 0.f;
-						break;
-					case MCT_Float2:
-						ValueA.B = 0.f;
-						ValueB.B = 0.f;
-						break;
-					};
-					FVector Cross = FVector::CrossProduct(FVector(ValueA), FVector(ValueB));
-					OutValue.R = Cross.X; OutValue.G = Cross.Y; OutValue.B = Cross.Z;
-					OutValue.A = 0.f;
-				}
-				break;
-			default: UE_LOG(LogMaterial, Fatal,TEXT("Unknown folded math operation: %08x"),(int32)Op);
-		};
-	}
 	virtual bool IsConstant() const
 	{
 		return A->IsConstant() && B->IsConstant();

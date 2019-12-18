@@ -499,7 +499,7 @@ void FDeferredShadingSceneRenderer::RenderAtmosphere(FRHICommandListImmediate& R
 			SCOPED_GPU_STAT(RHICmdList, Atmosphere);
 
 			// Set the device viewport for the view.
-			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+			RHICmdList.SetViewport((float)View.ViewRect.Min.X, (float)View.ViewRect.Min.Y, 0.0f, (float)View.ViewRect.Max.X, (float)View.ViewRect.Max.Y, 1.0f);
 
 			SetAtmosphericFogShaders(RHICmdList, GraphicsPSOInit, Scene, View, LightShaftsOutput.LightShaftOcclusion);
 
@@ -1663,7 +1663,7 @@ void FAtmosphericFogSceneInfo::PrecomputeAtmosphereData(FRHICommandListImmediate
 	// turn off depth reads/writes
 	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 
-	RHICmdList.SetViewport(0, 0, 0.0f, TexSize.X, TexSize.Y, 0.0f);
+	RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, (float)TexSize.X, (float)TexSize.Y, 0.0f);
 
 	RenderAtmosphereShaders(RHICmdList, GraphicsPSOInit, *View, ViewRect);
 }

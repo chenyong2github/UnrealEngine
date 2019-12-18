@@ -1,5 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-// .
+// ..
 
 #include "CoreMinimal.h"
 #include "HAL/FileManager.h"
@@ -77,12 +77,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogOpenGLShaderCompiler, Log, All);
 
 static FORCEINLINE bool IsES2Platform(GLSLVersion Version)
 {
-	return (Version == GLSL_ES2 || Version == GLSL_150_ES2 || Version == GLSL_ES2_WEBGL || Version == GLSL_150_ES2_NOUB);
+	return (Version == GLSL_ES2 || Version == GLSL_ES2_WEBGL);
 }
 
-static FORCEINLINE bool IsPCES2Platform(GLSLVersion Version)
+static FORCEINLINE bool IsPCESPlatform(GLSLVersion Version)
 {
-	return (Version == GLSL_150_ES2 || Version == GLSL_150_ES2_NOUB || Version == GLSL_150_ES3_1);
+	return (Version == GLSL_150_ES3_1);
 }
 
 // This function should match OpenGLShaderPlatformSeparable
@@ -91,7 +91,7 @@ bool FOpenGLFrontend::SupportsSeparateShaderObjects(GLSLVersion Version)
 	// Only desktop shader platforms can use separable shaders for now,
 	// the generated code relies on macros supplied at runtime to determine whether
 	// shaders may be separable and/or linked.
-	return Version == GLSL_150 || Version == GLSL_150_ES2 || Version == GLSL_150_ES2_NOUB || Version == GLSL_150_ES3_1 || Version == GLSL_430;
+	return Version == GLSL_150_ES3_1 || Version == GLSL_430;
 }
 
 /*------------------------------------------------------------------------------
@@ -1027,17 +1027,11 @@ void FOpenGLFrontend::ConvertOpenGLVersionFromGLSLVersion(GLSLVersion InVersion,
 {
 	switch(InVersion)
 	{
-		case GLSL_150:
-			OutMajorVersion = 3;
-			OutMinorVersion = 2;
-			break;
 		case GLSL_310_ES_EXT:
 		case GLSL_430:
 			OutMajorVersion = 4;
 			OutMinorVersion = 3;
 			break;
-		case GLSL_150_ES2:
-		case GLSL_150_ES2_NOUB:
 		case GLSL_150_ES3_1:
 			OutMajorVersion = 3;
 			OutMinorVersion = 2;
@@ -1322,12 +1316,6 @@ void FOpenGLFrontend::SetupPerVersionCompilationEnvironment(GLSLVersion Version,
 			HlslCompilerTarget = HCT_FeatureLevelSM5;
 			break;
 
-		case GLSL_150:
-			AdditionalDefines.SetDefine(TEXT("COMPILER_GLSL"), 1);
-			AdditionalDefines.SetDefine(TEXT("GL3_PROFILE"), 1);
-			HlslCompilerTarget = HCT_FeatureLevelSM4;
-			break;
-
 		case GLSL_ES2_WEBGL:
 			AdditionalDefines.SetDefine(TEXT("WEBGL"), 1);
 			AdditionalDefines.SetDefine(TEXT("COMPILER_GLSL_ES2"), 1);
@@ -1340,14 +1328,6 @@ void FOpenGLFrontend::SetupPerVersionCompilationEnvironment(GLSLVersion Version,
 			AdditionalDefines.SetDefine(TEXT("COMPILER_GLSL_ES2"), 1);
 			AdditionalDefines.SetDefine(TEXT("ES2_PROFILE"), 1);
 			HlslCompilerTarget = HCT_FeatureLevelES2;
-			AdditionalDefines.SetDefine(TEXT("row_major"), TEXT(""));
-			break;
-
-		case GLSL_150_ES2:
-		case GLSL_150_ES2_NOUB:
-			AdditionalDefines.SetDefine(TEXT("COMPILER_GLSL"), 1);
-			AdditionalDefines.SetDefine(TEXT("ES2_PROFILE"), 1);
-			HlslCompilerTarget = HCT_FeatureLevelSM4;
 			AdditionalDefines.SetDefine(TEXT("row_major"), TEXT(""));
 			break;
 
@@ -1375,8 +1355,6 @@ uint32 FOpenGLFrontend::GetMaxSamplers(GLSLVersion Version)
 
 		// mimicing the old GetFeatureLevelMaxTextureSamplers for the rest
 		case GLSL_ES2:
-		case GLSL_150_ES2:
-		case GLSL_150_ES2_NOUB:
 			return 8;
 
 		case GLSL_ES2_WEBGL:
@@ -1392,7 +1370,7 @@ uint32 FOpenGLFrontend::GetMaxSamplers(GLSLVersion Version)
 uint32 FOpenGLFrontend::CalculateCrossCompilerFlags(GLSLVersion Version, const TArray<uint32>& CompilerFlags)
 {
 	uint32  CCFlags = HLSLCC_NoPreprocess | HLSLCC_PackUniforms | HLSLCC_DX11ClipSpace | HLSLCC_RetainSizes;
-	if (IsES2Platform(Version) && !IsPCES2Platform(Version))
+	if (IsES2Platform(Version) && !IsPCESPlatform(Version))
 	{
 		CCFlags |= HLSLCC_FlattenUniformBuffers | HLSLCC_FlattenUniformBufferStructures;
 		// Currently only enabled for ES2, as there are still features to implement for SM4+ (atomics, global store, UAVs, etc)
@@ -1405,8 +1383,7 @@ uint32 FOpenGLFrontend::CalculateCrossCompilerFlags(GLSLVersion Version, const T
 		CCFlags |= HLSLCC_UseFullPrecisionInPS;
 	}
 
-	if (Version == GLSL_150_ES2_NOUB ||
-		CompilerFlags.Contains(CFLAG_FeatureLevelES31) ||
+	if (CompilerFlags.Contains(CFLAG_FeatureLevelES31) ||
 		CompilerFlags.Contains(CFLAG_UseEmulatedUB))
 	{
 		CCFlags |= HLSLCC_FlattenUniformBuffers | HLSLCC_FlattenUniformBufferStructures;
@@ -1435,7 +1412,7 @@ FGlslCodeBackend* FOpenGLFrontend::CreateBackend(GLSLVersion Version, uint32 CCF
 
 FGlslLanguageSpec* FOpenGLFrontend::CreateLanguageSpec(GLSLVersion Version)
 {
-	bool bIsES2 = (IsES2Platform(Version) && !IsPCES2Platform(Version));
+	bool bIsES2 = (IsES2Platform(Version) && !IsPCESPlatform(Version));
 	bool bIsWebGL = (Version == GLSL_ES2_WEBGL);
 					// For backwards compatibility when targeting WebGL 2 shaders,
 					// generate GLES2/WebGL 1 style shaders but with GLES3/WebGL 2
@@ -2251,10 +2228,7 @@ static void CompileShaderDXC(FShaderCompilerInput const& Input, FShaderCompilerO
 
 		switch (Version)
 		{
-		case GLSL_150_ES2:	// ES2 Emulation
-		case GLSL_150_ES2_NOUB:	// ES2 Emulation with NoUBs
 		case GLSL_150_ES3_1:	// ES3.1 Emulation
-		case GLSL_150:
 			TargetDesc.version = "330";
 			TargetDesc.language = ShaderConductor::ShadingLanguage::Glsl;
 			break;
@@ -2652,6 +2626,14 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input,FShaderCom
 		return;
 	}
 
+	FShaderParameterParser ShaderParameterParser;
+	if (!ShaderParameterParser.ParseAndMoveShaderParametersToRootConstantBuffer(
+		Input, Output, PreprocessedShader, /* ConstantBufferType = */ nullptr))
+	{
+		// The FShaderParameterParser will add any relevant errors.
+		return;
+	}
+
 	// This requires removing the HLSLCC_NoPreprocess flag later on!
 	RemoveUniformBuffersFromSource(Input.Environment, PreprocessedShader);
 
@@ -2716,6 +2698,12 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input,FShaderCom
 
 	if (Result != 0)
 	{
+		static const bool bDirectCompile = FParse::Param(FCommandLine::Get(), TEXT("directcompile"));
+		if (bDirectCompile)
+		{
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("%s\n"), ANSI_TO_TCHAR(GlslShaderSource));
+		}
+
 		int32 GlslSourceLen = GlslShaderSource ? FCStringAnsi::Strlen(GlslShaderSource) : 0;
 		if (bDumpDebugInfo)
 		{
@@ -2790,6 +2778,9 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input,FShaderCom
 	{
 		free(ErrorLog);
 	}
+
+	// Do not validate as global halfN != UB's halfN
+	//ShaderParameterParser.ValidateShaderParameterTypes(Input, Output);
 }
 
 enum class EPlatformType
@@ -2888,10 +2879,6 @@ static bool OpenGLShaderPlatformNeedsBindLocation(const GLSLVersion InShaderPlat
 		case GLSL_150_ES3_1:
 			return false;
 
-		case GLSL_150:
-		case GLSL_150_ES2:
-		case GLSL_ES2:
-		case GLSL_150_ES2_NOUB:
 		case GLSL_ES2_WEBGL:
 			return true;
 
@@ -2906,9 +2893,6 @@ inline bool OpenGLShaderPlatformSeparable(const GLSLVersion InShaderPlatform)
 	switch (InShaderPlatform)
 	{
 		case GLSL_430:
-		case GLSL_150:
-		case GLSL_150_ES2:
-		case GLSL_150_ES2_NOUB:
 		case GLSL_150_ES3_1:
 			return true;
 
@@ -3143,10 +3127,7 @@ bool FOpenGLFrontend::PlatformSupportsOfflineCompilation(const GLSLVersion Shade
 	switch (ShaderVersion)
 	{
 		// desktop
-		case GLSL_150:
 		case GLSL_430:
-		case GLSL_150_ES2:
-		case GLSL_150_ES2_NOUB:
 		case GLSL_150_ES3_1:
 		case GLSL_310_ES_EXT:
 		// web

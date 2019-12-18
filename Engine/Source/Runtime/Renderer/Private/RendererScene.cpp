@@ -1065,6 +1065,10 @@ FScene::~FScene()
 	}
 #endif
 
+	checkf(RemovedPrimitiveSceneInfos.Num() == 0, TEXT("All pending primitive removal operations are expected to be flushed when the scene is destroyed. Remaining operations are likely to cause a memory leak."));
+	checkf(AddedPrimitiveSceneInfos.Num() == 0, TEXT("All pending primitive addition operations are expected to be flushed when the scene is destroyed. Remaining operations are likely to cause a memory leak."));
+	checkf(Primitives.Num() == 0, TEXT("All primitives are expected to be removed before the scene is destroyed. Remaining primitives are likely to cause a memory leak."));
+
 	ReflectionSceneData.CubemapArray.ReleaseResource();
 	IndirectLightingCache.ReleaseResource();
 	DistanceFieldSceneData.Release();
@@ -3083,7 +3087,7 @@ void FScene::Release()
 	ENQUEUE_RENDER_COMMAND(FReleaseCommand)(
 		[Scene](FRHICommandListImmediate& RHICmdList)
 		{
-			// Update one more time to clear RemovedPrimitiveSceneInfos and prevent leaking FPrimitiveSceneInfo instances.
+			// Flush any remaining batched primitive update commands before deleting the scene.
 			Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
 			delete Scene;
 		});

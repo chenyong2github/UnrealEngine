@@ -120,8 +120,6 @@ return TSuper::SupportsFeature(Feature);
 			OutFormats.AddUnique(NAME_SF_METAL_SM5);
 			static FName NAME_SF_METAL_MACES3_1(TEXT("SF_METAL_MACES3_1"));
 			OutFormats.AddUnique(NAME_SF_METAL_MACES3_1);
-			static FName NAME_SF_METAL_MACES2(TEXT("SF_METAL_MACES2"));
-			OutFormats.AddUnique(NAME_SF_METAL_MACES2);
 			static FName NAME_SF_METAL_MRT_MAC(TEXT("SF_METAL_MRT_MAC"));
 			OutFormats.AddUnique(NAME_SF_METAL_MRT_MAC);
 		}

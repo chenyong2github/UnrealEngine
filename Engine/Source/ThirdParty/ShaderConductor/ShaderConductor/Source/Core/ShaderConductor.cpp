@@ -821,6 +821,9 @@ namespace ShaderConductor
 				}
 			}
 			mslOpts.swizzle_texture_samples = false;
+			/* UE Change Begin: Ensure base vertex and instance indices start with zero if source language is HLSL */
+			mslOpts.enable_base_index_zero = true;
+			/* UE Change End: Ensure base vertex and instance indices start with zero if source language is HLSL */
             for (unsigned i = 0; i < target.numOptions; i++)
 			{
                 auto& Define = target.options[i];

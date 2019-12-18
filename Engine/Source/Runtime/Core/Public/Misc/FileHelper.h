@@ -47,6 +47,15 @@ struct CORE_API FFileHelper
 	static bool LoadFileToArray( TArray<uint8>& Result, const TCHAR* Filename, uint32 Flags = 0 );
 
 	/**
+	 * Load a binary file to a dynamic array with two uninitialized bytes at end as padding.
+	 *
+	 * @param Result    Receives the contents of the file
+	 * @param Filename  The file to read
+	 * @param Flags     Flags to pass to IFileManager::CreateFileReader
+	*/
+	static bool LoadFileToArray( TArray64<uint8>& Result, const TCHAR* Filename, uint32 Flags = 0 );
+
+	/**
 	 * Load a text file to an FString. Supports all combination of ANSI/Unicode files and platforms.
 	 *
 	 * @param Result       String representation of the loaded file
@@ -97,6 +106,11 @@ struct CORE_API FFileHelper
 	 * Save a binary array to a file.
 	 */
 	static bool SaveArrayToFile(TArrayView<const uint8> Array, const TCHAR* Filename, IFileManager* FileManager=&IFileManager::Get(), uint32 WriteFlags = 0);
+
+	/**
+	 * Save a binary array to a file.
+	 */
+	static bool SaveArrayToFile( const TArray64<uint8>& Array, const TCHAR* Filename, IFileManager* FileManager = &IFileManager::Get(), uint32 WriteFlags = 0 );
 
 	/**
 	 * Write the FString to a file.

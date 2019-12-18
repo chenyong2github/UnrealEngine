@@ -471,9 +471,6 @@ private:
 	/** Shader compilation output */
 	FNiagaraComputeShaderCompilationOutput NiagaraCompilationOutput;
 
-	/** Next value for CompilingId. */
-	static uint32 NextCompilingId;
-
 	/** Tracks resources and their shader maps that need to be compiled but whose compilation is being deferred. */
 	static TMap<TRefCountPtr<FNiagaraShaderMap>, TArray<FNiagaraShaderScript*> > NiagaraShaderMapsBeingCompiled;
 

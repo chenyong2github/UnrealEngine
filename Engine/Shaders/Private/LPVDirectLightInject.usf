@@ -17,6 +17,7 @@
 
 #define SUPPORT_CONTACT_SHADOWS 0
 
+#include "LPVListEntry.ush"
 #include "Common.ush"
 #include "LPVWriteVplCommon.ush"
 #include "LPVGeometryVolumeCommon.ush"

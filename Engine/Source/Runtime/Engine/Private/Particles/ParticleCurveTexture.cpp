@@ -203,7 +203,7 @@ static void InjectCurves(
 		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
 		RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
-		RHICmdList.SetViewport(0, 0, 0.0f, GParticleCurveTextureSizeX, GParticleCurveTextureSizeY, 1.0f);
+		RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, (float)GParticleCurveTextureSizeX, (float)GParticleCurveTextureSizeY, 1.0f);
 		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
 		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();

@@ -67,8 +67,6 @@ public:
 	bool SupportsRenderTargetFormat_PF_FloatRGBA;
 	UPROPERTY()
 	bool SupportsMultipleRenderTargets;
-	UPROPERTY()
-	bool SupportsInstancing;
 };
 
 USTRUCT()

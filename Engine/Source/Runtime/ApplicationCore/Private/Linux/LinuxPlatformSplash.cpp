@@ -411,7 +411,7 @@ SDL_Surface* FLinuxSplashState::LoadImage(const FString &ImagePath)
 
 		if (ImageWrapper.IsValid() && ImageWrapper->SetCompressed(RawFileData.GetData(), RawFileData.Num()))
 		{
-			const TArray<uint8>* RawData = nullptr;
+			TArray<uint8> RawData;
 			if (ImageWrapper->GetRaw(ERGBFormat::BGRA, 8, RawData))
 			{
 				SDL_Surface *Surface = SDL_CreateRGBSurfaceWithFormat(0, ImageWrapper->GetWidth(), ImageWrapper->GetHeight(), 32, SDL_PIXELFORMAT_BGRA32);
@@ -420,7 +420,7 @@ SDL_Surface* FLinuxSplashState::LoadImage(const FString &ImagePath)
 					const int Width = Surface->w;
 					const int Height =  Surface->h;
 					const int BytesPerPixel = Surface->format->BytesPerPixel;
-					FMemory::Memcpy(Surface->pixels, (void*)RawData->GetData(), Width * Height * BytesPerPixel);
+					FMemory::Memcpy(Surface->pixels, (void*)RawData.GetData(), Width * Height * BytesPerPixel);
 					return Surface;
 				}
 			}

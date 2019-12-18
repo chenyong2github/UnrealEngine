@@ -43,6 +43,14 @@ static TAutoConsoleVariable<int32> CVarRHICmdVelocityPassDeferredContexts(
 	1,
 	TEXT("True to use deferred contexts to parallelize velocity pass command list execution."));
 
+static TAutoConsoleVariable<int32> CVarVertexDeformationOutputsVelocity(
+	TEXT("r.VertexDeformationOutputsVelocity"),
+	0,
+	TEXT(
+		"Enables materials with World Position Offset and/or World Displacement to output velocities during velocity pass even when the actor has not moved. "
+		"This incurs a performance cost and can be quite significant if many objects are using WPO, such as a forest of trees - in that case consider r.BasePassOutputsVelocity and disabling this option."
+		));
+
 DECLARE_GPU_STAT_NAMED(RenderVelocities, TEXT("Render Velocities"));
 
 bool IsParallelVelocity()
@@ -141,7 +149,7 @@ public:
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetRenderTargetOutputFormat(0, PF_G16R16);
+		OutEnvironment.SetRenderTargetOutputFormat(0, FVelocityRendering::GetFormat());
 	}
 
 	FVelocityPS() = default;
@@ -458,16 +466,21 @@ void FDeferredShadingSceneRenderer::RenderVelocities(FRHICommandListImmediate& R
 	GVisualizeTexture.SetCheckPoint(RHICmdList, VelocityRT);
 }
 
+EPixelFormat FVelocityRendering::GetFormat()
+{
+	return PF_G16R16;
+}
+
 FPooledRenderTargetDesc FVelocityRendering::GetRenderTargetDesc()
 {
 	const FIntPoint BufferSize = FSceneRenderTargets::Get_FrameConstantsOnly().GetBufferSizeXY();
 	const FIntPoint VelocityBufferSize = BufferSize;		// full resolution so we can reuse the existing full res z buffer
-	return FPooledRenderTargetDesc(FPooledRenderTargetDesc::Create2DDesc(VelocityBufferSize, PF_G16R16, FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_ShaderResource, false));
+	return FPooledRenderTargetDesc(FPooledRenderTargetDesc::Create2DDesc(VelocityBufferSize, GetFormat(), FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_ShaderResource, false));
 }
 
 bool FVelocityRendering::IsSeparateVelocityPassSupported()
 {
-	return GPixelFormats[PF_G16R16].Supported;
+	return GPixelFormats[GetFormat()].Supported;
 }
 
 bool FVelocityRendering::BasePassCanOutputVelocity(EShaderPlatform ShaderPlatform)

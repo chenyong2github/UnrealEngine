@@ -39,6 +39,8 @@ struct FILCUpdatePrimTaskData;
 class FPostprocessContext;
 struct FILCUpdatePrimTaskData;
 template<typename ShaderMetaType> class TShaderMap;
+class FRaytracingLightDataPacked;
+class FRayTracingLocalShaderBindingWriter;
 
 DECLARE_STATS_GROUP(TEXT("Command List Markers"), STATGROUP_CommandListMarkers, STATCAT_Advanced);
 
@@ -377,21 +379,21 @@ private:
 class FHZBOcclusionTester : public FRenderResource
 {
 public:
-					FHZBOcclusionTester();
-					~FHZBOcclusionTester() {}
+	FHZBOcclusionTester();
+	~FHZBOcclusionTester() {}
 
 	// FRenderResource interface
-					virtual void	InitDynamicRHI() override;
-					virtual void	ReleaseDynamicRHI() override;
+	virtual void InitDynamicRHI() override;
+	virtual void ReleaseDynamicRHI() override;
 	
-	uint32			GetNum() const { return Primitives.Num(); }
+	uint32 GetNum() const { return Primitives.Num(); }
 
-	uint32			AddBounds( const FVector& BoundsOrigin, const FVector& BoundsExtent );
-	void			Submit(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
+	uint32 AddBounds( const FVector& BoundsOrigin, const FVector& BoundsExtent );
+	void Submit(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
 
-	void			MapResults(FRHICommandListImmediate& RHICmdList);
-	void			UnmapResults(FRHICommandListImmediate& RHICmdList);
-	bool			IsVisible( uint32 Index ) const;
+	void MapResults(FRHICommandListImmediate& RHICmdList);
+	void UnmapResults(FRHICommandListImmediate& RHICmdList);
+	bool IsVisible( uint32 Index ) const;
 
 	bool IsValidFrame(uint32 FrameNumber) const;
 
@@ -415,6 +417,7 @@ private:
 	void SetInvalidFrameNumber();
 
 	uint32 ValidFrameNumber;
+	FGPUFenceRHIRef Fence;
 };
 
 DECLARE_STATS_GROUP(TEXT("Parallel Command List Markers"), STATGROUP_ParallelCommandListMarkers, STATCAT_Advanced);
@@ -781,10 +784,13 @@ struct FPreviousViewInfo
 	TRefCountPtr<IPooledRenderTarget> GBufferA;
 	TRefCountPtr<IPooledRenderTarget> GBufferB;
 	TRefCountPtr<IPooledRenderTarget> GBufferC;
+	TRefCountPtr<IPooledRenderTarget> ImaginaryReflectionDepthBuffer;
+	TRefCountPtr<IPooledRenderTarget> ImaginaryReflectionGBufferA;
 
 	// Compressed scene textures for bandwidth efficient bilateral kernel rejection.
 	// DeviceZ as float16, and normal in view space.
 	TRefCountPtr<IPooledRenderTarget> CompressedDepthViewNormal;
+	TRefCountPtr<IPooledRenderTarget> ImaginaryReflectionCompressedDepthViewNormal;
 
 	// Bleed free scene color to use for screen space ray tracing.
 	TRefCountPtr<IPooledRenderTarget> ScreenSpaceRayTracingInput;
@@ -819,6 +825,9 @@ struct FPreviousViewInfo
 
 	// History for sky light
 	FScreenSpaceDenoiserHistory SkyLightHistory;
+
+	// History for reflected sky light
+	FScreenSpaceDenoiserHistory ReflectedSkyLightHistory;
 
 	// History for shadow denoising.
 	TMap<const ULightComponent*, FScreenSpaceDenoiserHistory> ShadowHistories;
@@ -1159,6 +1168,17 @@ public:
 	// Primary pipeline state object to be used with the ray tracing scene for this view.
 	// Material shaders are only available when using this pipeline.
 	FRayTracingPipelineState* RayTracingMaterialPipeline = nullptr;
+
+	TArray<FRayTracingLocalShaderBindingWriter*>	RayTracingMaterialBindings; // One per binding task
+	FGraphEventRef									RayTracingMaterialBindingsTask;
+
+	// Common resources used for lighting in ray tracing effects
+	TRefCountPtr<IPooledRenderTarget>				RayTracingSubSurfaceProfileTexture;
+	FShaderResourceViewRHIRef						RayTracingSubSurfaceProfileSRV;
+	FStructuredBufferRHIRef							RayTracingLightingDataBuffer;
+	TUniformBufferRef<FRaytracingLightDataPacked>	RayTracingLightingDataUniformBuffer;
+	FShaderResourceViewRHIRef						RayTracingLightingDataSRV;
+
 #endif // RHI_RAYTRACING
 
 	/** 
@@ -1357,7 +1377,8 @@ typedef TArray<uint8, SceneRenderingAllocator> FPrimitiveViewMasks;
 class FShadowMapRenderTargetsRefCounted
 {
 public:
-	TArray<TRefCountPtr<IPooledRenderTarget>, SceneRenderingAllocator> ColorTargets;
+	// This structure gets included in FCachedShadowMapData, so avoid SceneRenderingAllocator use!
+	TArray<TRefCountPtr<IPooledRenderTarget>, TInlineAllocator<4>> ColorTargets;
 	TRefCountPtr<IPooledRenderTarget> DepthTarget;
 
 	bool IsValid() const

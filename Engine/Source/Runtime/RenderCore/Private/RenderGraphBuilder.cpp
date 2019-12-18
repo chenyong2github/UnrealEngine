@@ -596,6 +596,19 @@ void FRDGBuilder::AllocateRHIBufferIfNeeded(FRDGBuffer* Buffer)
 	GRenderGraphResourcePool.FindFreeBuffer(RHICmdList, Buffer->Desc, AllocatedBuffer, Buffer->Name);
 	check(AllocatedBuffer);
 	Buffer->PooledBuffer = AllocatedBuffer;
+
+	switch (Buffer->Desc.UnderlyingType)
+	{
+	case FRDGBufferDesc::EUnderlyingType::VertexBuffer:
+		Buffer->ResourceRHI = AllocatedBuffer->VertexBuffer;
+		break;
+	case FRDGBufferDesc::EUnderlyingType::IndexBuffer:
+		Buffer->ResourceRHI = AllocatedBuffer->IndexBuffer;
+		break;
+	case FRDGBufferDesc::EUnderlyingType::StructuredBuffer:
+		Buffer->ResourceRHI = AllocatedBuffer->StructuredBuffer;
+		break;
+	}
 }
 
 void FRDGBuilder::AllocateRHIBufferSRVIfNeeded(FRDGBufferSRV* SRV)
@@ -683,17 +696,14 @@ void FRDGBuilder::ExecutePass(const FRDGPass* Pass)
 	IF_RDG_ENABLE_DEBUG(Validation.ValidateExecutePassBegin(Pass));
 
 	FRHIRenderPassInfo RPInfo;
-	bool bOutHasGraphicsOutputs = false;
-
-	PrepareResourcesForExecute(Pass, &RPInfo, &bOutHasGraphicsOutputs);
+	PrepareResourcesForExecute(Pass, &RPInfo);
 	
 	EventScopeStack.BeginExecutePass(Pass);
 	StatScopeStack.BeginExecutePass(Pass);
 
 	if (Pass->IsRaster())
 	{
-		check(bOutHasGraphicsOutputs);
-		RHICmdList.BeginRenderPass( RPInfo, Pass->GetName() );
+		RHICmdList.BeginRenderPass(RPInfo, Pass->GetName());
 	}
 	else
 	{
@@ -718,12 +728,9 @@ void FRDGBuilder::ExecutePass(const FRDGPass* Pass)
 	}
 }
 
-void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRenderPassInfo* OutRPInfo, bool* bOutHasGraphicsOutputs)
+void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRenderPassInfo* OutRPInfo)
 {
 	check(Pass);
-
-	OutRPInfo->NumUAVs = 0;
-	OutRPInfo->UAVIndex = 0;
 
 	const bool bIsCompute = Pass->IsCompute();
 
@@ -856,11 +863,6 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 
 				FRHIUnorderedAccessView* UAVRHI = UAV->GetRHI();
 
-				if (!bIsCompute)
-				{
-					OutRPInfo->UAVs[OutRPInfo->NumUAVs++] = UAVRHI;	// Bind UAVs in declaration order
-				}
-
 				bool bGeneratingMips = ReadTextures.Contains(Texture);
 
 				BarrierBatcher.QueueTransitionUAV(UAVRHI, Texture, FRDGResourceState::EAccess::Write, bGeneratingMips);
@@ -921,11 +923,6 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 				AllocateRHIBufferUAVIfNeeded(UAV);
 
 				FRHIUnorderedAccessView* UAVRHI = UAV->GetRHI();
-
-				if (!bIsCompute)
-				{
-					OutRPInfo->UAVs[OutRPInfo->NumUAVs++] = UAVRHI;	// Bind UAVs in declaration order
-				}
 
 				BarrierBatcher.QueueTransitionUAV(UAVRHI, Buffer, FRDGResourceState::EAccess::Write);
 			}
@@ -999,8 +996,6 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 				}
 			}
 
-			OutRPInfo->UAVIndex = ValidRenderTargetCount;
-
 			if (FRDGTextureRef Texture = DepthStencil.GetTexture())
 			{
 				AllocateRHITextureIfNeeded(Texture);
@@ -1029,9 +1024,6 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 			}
 
 			OutRPInfo->bIsMSAA = SampleCount > 1;
-
-			// Note: relying on UBMT_RENDER_TARGET_BINDING_SLOTS case being handled last here by reading from OutRPInfo->NumUAVs
-			*bOutHasGraphicsOutputs = ValidRenderTargetCount + ValidDepthStencilCount + OutRPInfo->NumUAVs > 0;
 		}
 		break;
 		default:

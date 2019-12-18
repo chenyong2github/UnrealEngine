@@ -42,6 +42,11 @@ float2 ComputeBufferUVDistortion(
 	float Ratio = DistortionParameters.y;
 #endif
 
+	// InvTanHalfFov only apply a correction for the distortion to be the same in screen space space whatever the FoV is (to make it consistent accross player setup).
+	// However without taking depth into account, the distortion will actually be stronger the further away the camera is from the distortion surface.
+	// So when zoomed-in the distortion will be higher than expected.
+	// To fix this, a scale of 100/SurfaceDepth would be a good approximation to make the distortion properly scaled when the surface is zoomed in and/or further away (with distortion authored at 1meter being the reference strength)
+
 	// Fix for Fov and aspect.
 	float2 FovFix = float2(InvTanHalfFov, Ratio*InvTanHalfFov);
 	//A fudge factor scale to bring values close to what they would have been under usual circumstances prior to this change.

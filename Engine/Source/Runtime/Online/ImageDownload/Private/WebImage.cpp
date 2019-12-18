@@ -138,8 +138,8 @@ bool FWebImage::ProcessHttpResponse(const FString& RequestUrl, FHttpResponsePtr 
 	}
 
 	// get the raw image data
-	const TArray<uint8>* RawImageData = nullptr;
-	if (!ImageWrapper->GetRaw(ERGBFormat::RGBA, 8, RawImageData) || RawImageData == nullptr)
+	TArray<uint8> RawImageData;
+	if (!ImageWrapper->GetRaw(ERGBFormat::RGBA, 8, RawImageData))
 	{
 		UE_LOG(LogImageDownload, Error, TEXT("Image Download: Unable to convert image format %d to BGRA 8"), (int32)ImageFormat);
 		return false;
@@ -147,7 +147,7 @@ bool FWebImage::ProcessHttpResponse(const FString& RequestUrl, FHttpResponsePtr 
 
 	// make a dynamic image
 	FName ResourceName(*RequestUrl);
-	DownloadedBrush = FSlateDynamicImageBrush::CreateWithImageData(ResourceName, FVector2D(ImageWrapper->GetWidth(), ImageWrapper->GetHeight()), *RawImageData);
+	DownloadedBrush = FSlateDynamicImageBrush::CreateWithImageData(ResourceName, FVector2D(ImageWrapper->GetWidth(), ImageWrapper->GetHeight()), RawImageData);
 	return DownloadedBrush.IsValid();
 }
 

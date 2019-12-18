@@ -92,7 +92,7 @@ public:
 		{
 			if ( ImageWriter->SetRaw(Image.GetData(), Image.Num(), Width, Height, ERGBFormat::RGBA, 8) )
 			{
-				const TArray<uint8>& PngData = ImageWriter->GetCompressed();
+				const TArray64<uint8>& PngData = ImageWriter->GetCompressed();
 
 				if ( FFileHelper::SaveArrayToFile(PngData, *TempDeltaFile) )
 				{
@@ -243,7 +243,7 @@ TSharedPtr<FComparableImage> FImageComparer::Open(const FString& ImagePath, FTex
 		return nullptr;
 	}
 
-	TArray<uint8> PngData;
+	TArray64<uint8> PngData;
 	const bool OpenSuccess = FFileHelper::LoadFileToArray(PngData, *ImagePath);
 
 	if ( !OpenSuccess )
@@ -260,9 +260,7 @@ TSharedPtr<FComparableImage> FImageComparer::Open(const FString& ImagePath, FTex
 
 	TSharedPtr<FComparableImage> Image = MakeShareable(new FComparableImage());
 	
-	const TArray<uint8>* RawData = nullptr;
-
-	if ( !ImageReader->GetRaw(ERGBFormat::RGBA, 8, RawData) )
+	if ( !ImageReader->GetRaw(ERGBFormat::RGBA, 8, Image->Bytes) )
 	{
 		OutError = LOCTEXT("ErrorReadingRawDataA", "Unable decompress ImageA");
 		return nullptr;
@@ -271,7 +269,6 @@ TSharedPtr<FComparableImage> FImageComparer::Open(const FString& ImagePath, FTex
 	{
 		Image->Width = ImageReader->GetWidth();
 		Image->Height = ImageReader->GetHeight();
-		Image->Bytes = *RawData;
 	}
 
 	return Image;

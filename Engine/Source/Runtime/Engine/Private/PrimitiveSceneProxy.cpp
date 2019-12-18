@@ -258,6 +258,39 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 	const bool bGetDebugMaterials = true;
 	InComponent->GetUsedMaterials(UsedMaterialsForVerification, bGetDebugMaterials);
 #endif
+
+	static const auto CVarVertexDeformationOutputsVelocity = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VertexDeformationOutputsVelocity"));
+
+	if (!bAlwaysHasVelocity && IsMovable() && CVarVertexDeformationOutputsVelocity && CVarVertexDeformationOutputsVelocity->GetInt())
+	{
+		ERHIFeatureLevel::Type FeatureLevel = GetScene().GetFeatureLevel();
+
+		TArray<UMaterialInterface*> UsedMaterials;
+		InComponent->GetUsedMaterials(UsedMaterials);
+
+		for (auto& MaterialInterface : UsedMaterials)
+		{
+			if (MaterialInterface)
+			{
+				UMaterial* Material = MaterialInterface->GetMaterial();
+				const FMaterialResource* MaterialResource = Material->GetMaterialResource(FeatureLevel);
+
+				if (IsInGameThread())
+				{
+					bAlwaysHasVelocity = MaterialResource->MaterialModifiesMeshPosition_GameThread();
+				}
+				else
+				{
+					bAlwaysHasVelocity = MaterialResource->MaterialModifiesMeshPosition_RenderThread();
+				}
+
+				if (bAlwaysHasVelocity)
+				{
+					break;
+				}
+			}
+		}
+	}
 }
 
 #if WITH_EDITOR

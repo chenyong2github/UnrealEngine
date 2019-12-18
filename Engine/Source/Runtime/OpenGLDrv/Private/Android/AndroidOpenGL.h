@@ -401,13 +401,11 @@ struct FAndroidOpenGL : public FOpenGLES2
 
 	static FORCEINLINE void DrawArraysInstanced(GLenum Mode, GLint First, GLsizei Count, GLsizei InstanceCount)
 	{
-		check(SupportsInstancing());
 		glDrawArraysInstanced(Mode, First, Count, InstanceCount);
 	}
 
 	static FORCEINLINE void DrawElementsInstanced(GLenum Mode, GLsizei Count, GLenum Type, const GLvoid* Indices, GLsizei InstanceCount)
 	{
-		check(SupportsInstancing());
 		glDrawElementsInstanced(Mode, Count, Type, Indices, InstanceCount);
 	}
 
@@ -428,10 +426,7 @@ struct FAndroidOpenGL : public FOpenGLES2
 
 	static FORCEINLINE void VertexAttribDivisor(GLuint Index, GLuint Divisor)
 	{
-		if (SupportsInstancing())
-		{
-			glVertexAttribDivisor(Index, Divisor);
-		}
+		glVertexAttribDivisor(Index, Divisor);
 	}
 	
 	static FORCEINLINE void TexStorage3D(GLenum Target, GLint Levels, GLint InternalFormat, GLsizei Width, GLsizei Height, GLsizei Depth, GLenum Format, GLenum Type)
@@ -696,7 +691,6 @@ struct FAndroidOpenGL : public FOpenGLES2
 
 	static FORCEINLINE bool SupportsSRGB()								{ return IsES31Usable(); }		// only with enabled EFeatureLevelSupport::ES31
 	static FORCEINLINE bool SupportsTextureSwizzle()					{ return bES30Support; }
-	static FORCEINLINE bool SupportsInstancing()						{ return bSupportsInstancing; }
 	static FORCEINLINE bool SupportsDrawBuffers()						{ return bES30Support; }
 	static FORCEINLINE bool SupportsMultipleRenderTargets()				{ return bES30Support; }
 	static FORCEINLINE bool SupportsWideMRT()							{ return bES31Support; }
@@ -772,9 +766,6 @@ struct FAndroidOpenGL : public FOpenGLES2
 
 	// whether device supports ES 3.1
 	static bool bES31Support;
-
-	// whether device supports hardware instancing
-	static bool bSupportsInstancing;
 
 	/** Whether device supports Hidden Surface Removal */
 	static bool bHasHardwareHiddenSurfaceRemoval;

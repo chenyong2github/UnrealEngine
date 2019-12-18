@@ -174,6 +174,8 @@ public:
 		return FRDGPassParameter(MemberType, Contents + MemberOffset);
 	}
 
+	RENDERCORE_API FUniformBufferStaticBindings GetGlobalUniformBuffers() const;
+
 	const void* GetContents() const
 	{
 		return Contents;

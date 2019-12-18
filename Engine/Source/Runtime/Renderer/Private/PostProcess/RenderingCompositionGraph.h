@@ -114,7 +114,7 @@ struct FRenderingCompositePassContext
 	{
 		ViewPortRect = InViewPortRect;
 
-		RHICmdList.SetViewport(ViewPortRect.Min.X, ViewPortRect.Min.Y, InMinZ, ViewPortRect.Max.X, ViewPortRect.Max.Y, InMaxZ);
+		RHICmdList.SetViewport((float)ViewPortRect.Min.X, (float)ViewPortRect.Min.Y, InMinZ, (float)ViewPortRect.Max.X, (float)ViewPortRect.Max.Y, InMaxZ);
 	}
 
 	// call this method instead of RHISetViewport() so we can cache the values and use them to map beteen ScreenPos and pixels

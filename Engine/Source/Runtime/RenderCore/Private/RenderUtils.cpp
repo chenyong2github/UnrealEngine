@@ -33,6 +33,7 @@ const uint16 GCubeIndices[12*3] =
 TGlobalResource<FCubeIndexBuffer> GCubeIndexBuffer;
 TGlobalResource<FTwoTrianglesIndexBuffer> GTwoTrianglesIndexBuffer;
 TGlobalResource<FScreenSpaceVertexBuffer> GScreenSpaceVertexBuffer;
+TGlobalResource<FTileVertexDeclaration> GTileVertexDeclaration;
 
 //
 // FPackedNormal serializer
@@ -194,7 +195,7 @@ SIZE_T CalculateImageBytes(uint32 SizeX,uint32 SizeY,uint32 SizeZ,uint8 Format)
 /**
  * A solid-colored 1x1 texture.
  */
-template <int32 R, int32 G, int32 B, int32 A>
+template <int32 R, int32 G, int32 B, int32 A, bool bWithUAV = false>
 class FColoredTexture : public FTextureWithSRV
 {
 public:
@@ -203,7 +204,13 @@ public:
 	{
 		// Create the texture RHI.  		
 		FRHIResourceCreateInfo CreateInfo(TEXT("ColoredTexture"));
-		FTexture2DRHIRef Texture2D = RHICreateTexture2D(1, 1, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
+		uint32 CreateFlags = TexCreate_ShaderResource;
+		if(bWithUAV)
+		{
+			CreateFlags |= TexCreate_UAV;
+		}
+		// BGRA typed UAV is unsupported per D3D spec, use RGBA here.
+		FTexture2DRHIRef Texture2D = RHICreateTexture2D(1, 1, PF_R8G8B8A8, 1, 1, CreateFlags, CreateInfo);
 		TextureRHI = Texture2D;
 
 		// Write the contents of the texture.
@@ -218,6 +225,10 @@ public:
 
 		// Create a view of the texture
 		ShaderResourceViewRHI = RHICreateShaderResourceView(TextureRHI, 0u);
+		if(bWithUAV)
+		{
+			UnorderedAccessViewRHI = RHICreateUnorderedAccessView(TextureRHI, 0u);
+		}
 	}
 
 	/** Returns the width of the texture in pixels. */
@@ -237,6 +248,7 @@ FTextureWithSRV* GWhiteTextureWithSRV = new TGlobalResource<FColoredTexture<255,
 FTextureWithSRV* GBlackTextureWithSRV = new TGlobalResource<FColoredTexture<0,0,0,255> >;
 FTexture* GWhiteTexture = GWhiteTextureWithSRV;
 FTexture* GBlackTexture = GBlackTextureWithSRV;
+FTextureWithSRV* GBlackTextureWithUAV = new TGlobalResource<FColoredTexture<0,0,0,0,1> >;
 
 /**
  * Bulk data interface for providing a single black color used to initialize a
@@ -1273,12 +1285,6 @@ RENDERCORE_API bool UseVirtualTexturing(ERHIFeatureLevel::Type InFeatureLevel, c
 		}
 #endif
 
-		// Remove this when UE-80097 is implemented
-		static bool bIsVulkanRHI = FCString::Strcmp(GDynamicRHI->GetName(), TEXT("Vulkan")) == 0;
-		if (bIsVulkanRHI)
-		{
-			return false;
-		}
 
 		// does the project has it enabled ?
 		static const auto CVarVirtualTexture = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures"));

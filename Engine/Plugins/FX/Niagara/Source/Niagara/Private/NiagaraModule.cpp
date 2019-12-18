@@ -362,10 +362,16 @@ void INiagaraModule::UnregisterEditorOnlyDataUtilities(TSharedRef<INiagaraEditor
 	EditorOnlyDataUtilities.Reset();
 }
 
-TSharedPtr<FNiagaraVMExecutableData> INiagaraModule::CompileScript(const FNiagaraCompileRequestDataBase* InCompileData, const FNiagaraCompileOptions& InCompileOptions)
+int32 INiagaraModule::StartScriptCompileJob(const FNiagaraCompileRequestDataBase* InCompileData, const FNiagaraCompileOptions& InCompileOptions)
 {
 	checkf(ScriptCompilerDelegate.IsBound(), TEXT("Create default script compiler delegate not bound."));
 	return ScriptCompilerDelegate.Execute(InCompileData, InCompileOptions);
+}
+
+TSharedPtr<FNiagaraVMExecutableData> INiagaraModule::GetCompileJobResult(int32 JobID, bool bWait)
+{
+	checkf(ScriptCompilerDelegate.IsBound(), TEXT("Script compilation result delegate not bound."));
+	return CompilationResultDelegate.Execute(JobID, bWait);
 }
 
 FDelegateHandle INiagaraModule::RegisterScriptCompiler(FScriptCompiler ScriptCompiler)
@@ -382,6 +388,20 @@ void INiagaraModule::UnregisterScriptCompiler(FDelegateHandle DelegateHandle)
 	ScriptCompilerDelegate.Unbind();
 }
 
+
+FDelegateHandle INiagaraModule::RegisterCompileResultDelegate(FCheckCompilationResult ResultDelegate)
+{
+	checkf(CompilationResultDelegate.IsBound() == false, TEXT("Only one handler is allowed for the CompilationResultDelegate"));
+	CompilationResultDelegate = ResultDelegate;
+	return CompilationResultDelegate.GetHandle();
+}
+
+void INiagaraModule::UnregisterCompileResultDelegate(FDelegateHandle DelegateHandle)
+{
+	checkf(CompilationResultDelegate.IsBound(), TEXT("CompilationResultDelegate is not registered"));
+	checkf(CompilationResultDelegate.GetHandle() == DelegateHandle, TEXT("Can only unregister the CompilationResultDelegate with the handle it was registered with."));
+	CompilationResultDelegate.Unbind();
+}
 
 TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> INiagaraModule::Precompile(UObject* Obj)
 {

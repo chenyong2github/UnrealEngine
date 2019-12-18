@@ -701,7 +701,7 @@ bool FImageUtils::ExportRenderTarget2DAsPNG(UTextureRenderTarget2D* TexRT, FArch
 
 		PNGImageWrapper->SetRaw(RawData.GetData(), RawData.GetAllocatedSize(), Size.X, Size.Y, ERGBFormat::BGRA, 8);
 
-		const TArray<uint8>& PNGData = PNGImageWrapper->GetCompressed(100);
+		const TArray64<uint8>& PNGData = PNGImageWrapper->GetCompressed(100);
 
 		Ar.Serialize((void*)PNGData.GetData(), PNGData.GetAllocatedSize());
 	}
@@ -730,7 +730,7 @@ ENGINE_API bool FImageUtils::ExportRenderTarget2DAsEXR(UTextureRenderTarget2D* T
 
 		EXRImageWrapper->SetRaw(RawData.GetData(), RawData.GetAllocatedSize(), Size.X, Size.Y, RGBFormat, BitsPerPixel);
 
-		const TArray<uint8>& Data = EXRImageWrapper->GetCompressed(100);
+		const TArray64<uint8>& Data = EXRImageWrapper->GetCompressed(100);
 
 		Ar.Serialize((void*)Data.GetData(), Data.GetAllocatedSize());
 
@@ -854,7 +854,7 @@ UTexture2D* FImageUtils::ImportBufferAsTexture2D(const TArray<uint8>& Buffer)
 				return nullptr;
 			}
 			
-			const TArray<uint8>* UncompressedData = nullptr;
+			TArray64<uint8> UncompressedData;
 			ImageWrapper->GetRaw(RGBFormat, BitDepth, UncompressedData);
 			
 			NewTexture = UTexture2D::CreateTransient(Width, Height, PixelFormat);
@@ -863,7 +863,7 @@ UTexture2D* FImageUtils::ImportBufferAsTexture2D(const TArray<uint8>& Buffer)
 				uint8* MipData = static_cast<uint8*>(NewTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE));
 				
 				// Bulk data was already allocated for the correct size when we called CreateTransient above
-				FMemory::Memcpy(MipData, UncompressedData->GetData(), NewTexture->PlatformData->Mips[0].BulkData.GetBulkDataSize());
+				FMemory::Memcpy(MipData, UncompressedData.GetData(), NewTexture->PlatformData->Mips[0].BulkData.GetBulkDataSize());
 				
 				NewTexture->PlatformData->Mips[0].BulkData.Unlock();
 

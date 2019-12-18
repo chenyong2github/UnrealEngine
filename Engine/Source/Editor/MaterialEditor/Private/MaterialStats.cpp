@@ -427,6 +427,26 @@ void FMaterialStats::BuildShaderPlatformDB()
 	AddShaderPlatform(EPlatformCategoryType::Desktop, SP_METAL_SM5, TEXT("Metal SM5"), false, true, TEXT("macOS, Metal, Shader Model 5"));
 	AddShaderPlatform(EPlatformCategoryType::IOS, SP_METAL, TEXT("Metal"), false, true, TEXT("iOS, Metal, Mobile"));
 	AddShaderPlatform(EPlatformCategoryType::IOS, SP_METAL_MRT, TEXT("Metal MRT"), false, true, TEXT("iOS, Metal, Shader Model 5"));
+
+	// Look to see what console platforms we have
+	static const EShaderPlatform ConsolePlatforms[] =
+	{
+		SP_PS4,
+		SP_XBOXONE_D3D12,
+		SP_SWITCH,
+		SP_SWITCH_FORWARD,
+	};
+
+	ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
+	for (EShaderPlatform ShaderPlatform : ConsolePlatforms)
+	{
+		const FName ShaderFormat = LegacyShaderPlatformToShaderFormat(ShaderPlatform);
+		if (TPM.FindShaderFormat(ShaderFormat) != nullptr )
+		{
+			FString PlatformName = FMaterialStatsUtils::ShaderPlatformTypeName(ShaderPlatform);
+			AddShaderPlatform(EPlatformCategoryType::Console, ShaderPlatform, FName(*PlatformName), true, true, PlatformName);
+		}
+	}
 }
 
 TSharedPtr<FShaderPlatformSettings> FMaterialStats::AddShaderPlatform(const EPlatformCategoryType PlatformType, const EShaderPlatform PlatformID, const FName PlatformName,

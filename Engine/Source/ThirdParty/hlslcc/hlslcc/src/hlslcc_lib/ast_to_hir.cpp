@@ -1823,7 +1823,7 @@ ir_rvalue* ast_expression::hir(exec_list *instructions, struct _mesa_glsl_parse_
 			error_emitted = true;
 		}
 
-		if (!op[1]->type->is_integer())
+		if (!(op[1]->type->is_integer() || op[1]->type->is_boolean()))
 		{
 			_mesa_glsl_error(&index_loc, state,
 				"array index must be integer type");
@@ -1986,6 +1986,10 @@ ir_rvalue* ast_expression::hir(exec_list *instructions, struct _mesa_glsl_parse_
 		}
 		else
 		{
+			if (op[1]->type->is_boolean())
+			{
+				apply_type_conversion(glsl_type::get_instance(GLSL_TYPE_INT, 1, 1), op[1], instructions, state, false, &loc);
+			}
 			if (array->type->is_array())
 			{
 				/* whole_variable_referenced can return NULL if the array is a
@@ -2313,13 +2317,12 @@ static const glsl_type * process_array_type(YYLTYPE *loc, const glsl_type *base,
 const glsl_type* ast_type_specifier::glsl_type(const char **name, _mesa_glsl_parse_state *state) const
 {
 	const struct glsl_type *type = nullptr;
-	const bool bStructuredBuffer = !strcmp(this->type_name, "StructuredBuffer");
-	const bool bRWStructuredBuffer = !strcmp(this->type_name + 2, "StructuredBuffer");
 
 	YYLTYPE loc = this->get_location();
 
-	if (bStructuredBuffer || bRWStructuredBuffer)
+	if (IsStructuredOrRWStructuredBuffer())
 	{
+		const bool bRWStructuredBuffer = !strcmp(this->type_name + 2, "StructuredBuffer");
 		const struct glsl_type* InnerType = nullptr;
 		if (this->InnerStructure)
 		{
@@ -2330,27 +2333,8 @@ const glsl_type* ast_type_specifier::glsl_type(const char **name, _mesa_glsl_par
 			InnerType = state->symbols->get_type(this->inner_type);
 		}
 
-		// Emulate structured buffer with a typed buffer if platform does not properly support them. Only for vec4 atm
-		// Android devices with MALI GPUs do not support SSBO in vertex shaders (OpenGL)
-		if (state->LanguageSpec->EmulateStructuredWithTypedBuffers())
-		{
-			if (InnerType == glsl_type::vec4_type)
-			{
-				const char* emulated_type_name = bRWStructuredBuffer ? "RWBuffer" : "Buffer";
-				type = glsl_type::get_templated_instance(InnerType, emulated_type_name, this->texture_ms_num_samples, this->patch_size);
-				check(type != NULL);
-				*name = emulated_type_name;
-			}
-			else
-			{
-				_mesa_glsl_error(&loc, state, "structured buffers support only vec4 type");
-			}
-		}
-		else
-		{
-			type = glsl_type::GetStructuredBufferInstance(this->type_name, InnerType);
-			*name = type->name;
-		}
+		type = glsl_type::GetStructuredBufferInstance(this->type_name, InnerType);
+		*name = type->name;
 	}
 	else if (!strcmp(this->type_name, "ByteAddressBuffer") || !strcmp(this->type_name + 2, "ByteAddressBuffer"))
 	{
@@ -3037,7 +3021,7 @@ ir_rvalue* ast_declarator_list::hir(exec_list *instructions, struct _mesa_glsl_p
 	}
 
 	// Handle row/column major qualifiers for matrices.
-	if (decl_type->is_matrix())
+	if (decl_type && decl_type->is_matrix())
 	{
 		// If the matrix was declared without a layout qualifer, it is row_major.
 		if (this->type->qualifier.flags.q.row_major == 0
@@ -3065,6 +3049,12 @@ ir_rvalue* ast_declarator_list::hir(exec_list *instructions, struct _mesa_glsl_p
 	{
 		const struct glsl_type *var_type;
 		ir_variable *var;
+
+		if (decl_type == nullptr && type->specifier->IsStructuredOrRWStructuredBuffer())
+		{
+			// Ignore for now
+			continue;
+		}
 
 		/* FINISHME: Emit a warning if a variable declaration shadows a
 		* FINISHME: declaration at a higher scope.
@@ -4376,11 +4366,13 @@ ir_rvalue* ast_jump_statement::hir(exec_list *instructions, struct _mesa_glsl_pa
 	}
 
 	case ast_discard:
+/*
 		if (state->target != fragment_shader)
 		{
 			YYLTYPE loc = this->get_location();
 			_mesa_glsl_error(&loc, state, "'discard' may only appear in a fragment shader");
 		}
+*/
 		instructions->push_tail(new(ctx)ir_discard);
 		break;
 

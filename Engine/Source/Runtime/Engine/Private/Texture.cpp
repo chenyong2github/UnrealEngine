@@ -194,11 +194,15 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 				{
 					CompressionSettings = TC_VectorDisplacementmap;
 					SRGB = false;
+					Filter = TF_Default;
+					MipGenSettings = TMGS_FromTextureGroup;
 				}
 				else if (LODGroup == TEXTUREGROUP_16BitData)
 				{
 					CompressionSettings = TC_HDR;
 					SRGB = false;
+					Filter = TF_Default;
+					MipGenSettings = TMGS_FromTextureGroup;
 				}
 			}
 		}
@@ -705,7 +709,7 @@ void FTextureSource::InitBlocked(const ETextureSourceFormat* InLayerFormats,
 		LayerFormat[i] = InLayerFormats[i];
 	}
 
-	int32 TotalBytes = 0;
+	int64 TotalBytes = 0;
 	for (int i = 0; i < InNumBlocks; ++i)
 	{
 		TotalBytes += CalcBlockSize(i);
@@ -717,7 +721,7 @@ void FTextureSource::InitBlocked(const ETextureSourceFormat* InLayerFormats,
 	{
 		for (int i = 0; i < InNumBlocks; ++i)
 		{
-			const int32 BlockSize = CalcBlockSize(i);
+			const int64 BlockSize = CalcBlockSize(i);
 			if (InDataPerBlock[i])
 			{
 				FMemory::Memcpy(DestData, InDataPerBlock[i], BlockSize);
@@ -750,7 +754,7 @@ void FTextureSource::InitLayered(
 		LayerFormat[i] = NewLayerFormat[i];
 	}
 
-	int32 TotalBytes = 0;
+	int64 TotalBytes = 0;
 	for (int i = 0; i < NewNumLayers; ++i)
 	{
 		TotalBytes += CalcLayerSize(0, i);
@@ -818,7 +822,7 @@ void FTextureSource::Compress()
 		ERGBFormat RawFormat = (Format == TSF_G8 || Format == TSF_G16) ? ERGBFormat::Gray : ERGBFormat::RGBA;
 		if ( ImageWrapper.IsValid() && ImageWrapper->SetRaw( BulkDataPtr, BulkData.GetBulkDataSize(), SizeX, SizeY, RawFormat, (Format == TSF_G16 || Format == TSF_RGBA16) ? 16 : 8 ) )
 		{
-			const TArray<uint8>& CompressedData = ImageWrapper->GetCompressed();
+			const TArray64<uint8>& CompressedData = ImageWrapper->GetCompressed();
 			if ( CompressedData.Num() > 0 )
 			{
 				BulkDataPtr = (uint8*)BulkData.Realloc(CompressedData.Num());
@@ -860,20 +864,15 @@ uint8* FTextureSource::LockMip(int32 BlockIndex, int32 LayerIndex, int32 MipInde
 				{
 					check( ImageWrapper->GetWidth() == SizeX );
 					check( ImageWrapper->GetHeight() == SizeY );
-					const TArray<uint8>* RawData = NULL;
+					TArray64<uint8> RawData;
 					// TODO: TSF_BGRA8 is stored as RGBA, so the R and B channels are swapped in the internal png. Should we fix this?
 					ERGBFormat RawFormat = (Format == TSF_G8 || Format == TSF_G16) ? ERGBFormat::Gray : ERGBFormat::RGBA;
-					if (ImageWrapper->GetRaw( RawFormat, (Format == TSF_G16 || Format == TSF_RGBA16) ? 16 : 8, RawData ))
+					if (ImageWrapper->GetRaw( RawFormat, (Format == TSF_G16 || Format == TSF_RGBA16) ? 16 : 8, RawData ) && RawData.Num() > 0)
 					{
-						if (RawData->Num() > 0)
-						{
-							LockedMipData = (uint8*)FMemory::Malloc(RawData->Num());
-							// PVS-Studio does not understand that IImageWrapper::GetRaw's return value validates the pointer, so we disable
-							// the warning that we are using the RawData pointer before checking for null:
-							FMemory::Memcpy(LockedMipData, RawData->GetData(), RawData->Num()); //-V595
-						}
+						LockedMipData = (uint8*)FMemory::Malloc(RawData.Num());
+						FMemory::Memcpy(LockedMipData, RawData.GetData(), RawData.Num());
 					}
-					if (RawData == NULL || RawData->Num() == 0)
+					else
 					{
 						UE_LOG(LogTexture, Warning, TEXT("PNG decompression of source art failed"));
 					}
@@ -941,12 +940,10 @@ bool FTextureSource::GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, i
 					if (ImageWrapper->GetWidth() == SizeX
 						&& ImageWrapper->GetHeight() == SizeY)
 					{
-						const TArray<uint8>* RawData = NULL;
 						// TODO: TSF_BGRA8 is stored as RGBA, so the R and B channels are swapped in the internal png. Should we fix this?
 						ERGBFormat RawFormat = (Format == TSF_G8 || Format == TSF_G16) ? ERGBFormat::Gray : ERGBFormat::RGBA;
-						if (ImageWrapper->GetRaw( RawFormat, (Format == TSF_G16 || Format == TSF_RGBA16) ? 16 : 8, RawData ))
+						if (ImageWrapper->GetRaw( RawFormat, (Format == TSF_G16 || Format == TSF_RGBA16) ? 16 : 8, OutMipData ))
 						{
-							OutMipData = *RawData;
 							bSuccess = true;
 						}
 						else
@@ -973,8 +970,8 @@ bool FTextureSource::GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, i
 		}
 		else
 		{
-			int32 MipOffset = CalcMipOffset(BlockIndex, LayerIndex, MipIndex);
-			int32 MipSize = CalcMipSize(BlockIndex, LayerIndex, MipIndex);
+			int64 MipOffset = CalcMipOffset(BlockIndex, LayerIndex, MipIndex);
+			int64 MipSize = CalcMipSize(BlockIndex, LayerIndex, MipIndex);
 			if (BulkData.GetBulkDataSize() >= MipOffset + MipSize)
 			{
 				OutMipData.Empty(MipSize);
@@ -992,15 +989,15 @@ bool FTextureSource::GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, i
 	return bSuccess;
 }
 
-int32 FTextureSource::CalcMipSize(int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const
+int64 FTextureSource::CalcMipSize(int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const
 {
 	FTextureSourceBlock Block;
 	GetBlock(BlockIndex, Block);
 	check(MipIndex < Block.NumMips);
 
-	const int32 MipSizeX = FMath::Max(Block.SizeX >> MipIndex, 1);
-	const int32 MipSizeY = FMath::Max(Block.SizeY >> MipIndex, 1);
-	const int32 BytesPerPixel = GetBytesPerPixel(LayerIndex);
+	const int64 MipSizeX = FMath::Max(Block.SizeX >> MipIndex, 1);
+	const int64 MipSizeY = FMath::Max(Block.SizeY >> MipIndex, 1);
+	const int64 BytesPerPixel = GetBytesPerPixel(LayerIndex);
 	return MipSizeX * MipSizeY * Block.NumSlices * BytesPerPixel;
 }
 
@@ -1156,9 +1153,9 @@ void FTextureSource::RemoveSourceData()
 	ForceGenerateGuid();
 }
 
-int32 FTextureSource::CalcBlockSize(int32 BlockIndex) const
+int64 FTextureSource::CalcBlockSize(int32 BlockIndex) const
 {
-	int32 TotalSize = 0;
+	int64 TotalSize = 0;
 	for (int32 LayerIndex = 0; LayerIndex < GetNumLayers(); ++LayerIndex)
 	{
 		TotalSize += CalcLayerSize(BlockIndex, LayerIndex);
@@ -1166,28 +1163,28 @@ int32 FTextureSource::CalcBlockSize(int32 BlockIndex) const
 	return TotalSize;
 }
 
-int32 FTextureSource::CalcLayerSize(int32 BlockIndex, int32 LayerIndex) const
+int64 FTextureSource::CalcLayerSize(int32 BlockIndex, int32 LayerIndex) const
 {
 	FTextureSourceBlock Block;
 	GetBlock(BlockIndex, Block);
 
-	int32 BytesPerPixel = GetBytesPerPixel(LayerIndex);
-	int32 MipSizeX = Block.SizeX;
-	int32 MipSizeY = Block.SizeY;
+	int64 BytesPerPixel = GetBytesPerPixel(LayerIndex);
+	int64 MipSizeX = Block.SizeX;
+	int64 MipSizeY = Block.SizeY;
 
-	int32 TotalSize = 0;
+	int64 TotalSize = 0;
 	for(int32 MipIndex = 0; MipIndex < Block.NumMips; ++MipIndex)
 	{
 		TotalSize += MipSizeX * MipSizeY * BytesPerPixel * Block.NumSlices;
-		MipSizeX = FMath::Max(MipSizeX >> 1, 1);
-		MipSizeY = FMath::Max(MipSizeY >> 1, 1);
+		MipSizeX = FMath::Max<int64>(MipSizeX >> 1, 1);
+		MipSizeY = FMath::Max<int64>(MipSizeY >> 1, 1);
 	}
 	return TotalSize;
 }
 
-int32 FTextureSource::CalcMipOffset(int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const
+int64 FTextureSource::CalcMipOffset(int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const
 {
-	int32 MipOffset = 0;
+	int64 MipOffset = 0;
 
 	// Skip over the initial tiles
 	for (int i = 0; i < BlockIndex; ++i)
@@ -1205,15 +1202,15 @@ int32 FTextureSource::CalcMipOffset(int32 BlockIndex, int32 LayerIndex, int32 Mi
 	GetBlock(BlockIndex, Block);
 	check(MipIndex < Block.NumMips);
 	
-	int32 BytesPerPixel = GetBytesPerPixel(LayerIndex);
-	int32 MipSizeX = Block.SizeX;
-	int32 MipSizeY = Block.SizeY;
+	int64 BytesPerPixel = GetBytesPerPixel(LayerIndex);
+	int64 MipSizeX = Block.SizeX;
+	int64 MipSizeY = Block.SizeY;
 
 	while (MipIndex-- > 0)
 	{
 		MipOffset += MipSizeX * MipSizeY * BytesPerPixel * Block.NumSlices;
-		MipSizeX = FMath::Max(MipSizeX >> 1, 1);
-		MipSizeY = FMath::Max(MipSizeY >> 1, 1);
+		MipSizeX = FMath::Max<int64>(MipSizeX >> 1, 1);
+		MipSizeY = FMath::Max<int64>(MipSizeY >> 1, 1);
 	}
 
 	return MipOffset;

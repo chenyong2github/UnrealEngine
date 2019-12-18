@@ -99,7 +99,6 @@ struct FOpenGLES2 : public FOpenGLBase
 	static FORCEINLINE bool SupportsTextureCompare()					{ return false; }
 	static FORCEINLINE bool SupportsTextureBaseLevel()					{ return false; }
 	static FORCEINLINE bool SupportsTextureMaxLevel()					{ return false; }
-	static FORCEINLINE bool SupportsInstancing()						{ return false; }
 	static FORCEINLINE bool SupportsVertexAttribInteger()				{ return false; }
 	static FORCEINLINE bool SupportsVertexAttribShort()					{ return false; }
 	static FORCEINLINE bool SupportsVertexAttribByte()					{ return false; }

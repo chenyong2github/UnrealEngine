@@ -43,7 +43,7 @@ struct FVertexFactoryInterpolantsVSToPS
 #endif
 
 #if USE_DYNAMIC_PARAMETERS
-	float4 DynamicParameter	: TEXCOORD1;
+	nointerpolation float4 DynamicParameter	: TEXCOORD1;
 #endif	//USE_DYNAMIC_PARAMETERS
 
 #if NEEDS_PARTICLE_COLOR

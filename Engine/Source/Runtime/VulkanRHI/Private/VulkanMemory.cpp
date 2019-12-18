@@ -1415,13 +1415,10 @@ namespace VulkanRHI
 
 		bool bIsTexelBuffer = (BufferUsageFlags & (VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT)) != 0;
 		bool bIsStorageBuffer = (BufferUsageFlags & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) != 0;
-		if (bIsTexelBuffer)
+		if (bIsTexelBuffer || bIsStorageBuffer)
 		{
-			Alignment = FMath::Max(Alignment, (uint32)Limits.minTexelBufferOffsetAlignment);
-		}
-		else if (bIsStorageBuffer)
-		{
-			Alignment = FMath::Max(Alignment, (uint32)Limits.minStorageBufferOffsetAlignment);
+			Alignment = FMath::Max(Alignment, bIsTexelBuffer ? (uint32)Limits.minTexelBufferOffsetAlignment : 0);
+			Alignment = FMath::Max(Alignment, bIsStorageBuffer ? (uint32)Limits.minStorageBufferOffsetAlignment : 0);
 		}
 		else
 		{
@@ -2298,7 +2295,9 @@ namespace VulkanRHI
 		Size = InSize;
 		PeakUsed = 0;
 		BufferSuballocation = InDevice->GetResourceHeapManager().AllocateBuffer(InSize,
-			VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT,
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | 
+			VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | 
+			VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			__FILE__, __LINE__);
 		MappedData = (uint8*)BufferSuballocation->GetMappedPointer();

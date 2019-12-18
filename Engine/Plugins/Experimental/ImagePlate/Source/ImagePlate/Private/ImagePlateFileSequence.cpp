@@ -58,7 +58,7 @@ FImagePlateSourceFrame::FImagePlateSourceFrame()
 	: Width(0), Height(0), BitDepth(0), Pitch(0)
 {}
 
-FImagePlateSourceFrame::FImagePlateSourceFrame(const TArray<uint8>& InData, uint32 InWidth, uint32 InHeight, uint32 InBitDepth)
+FImagePlateSourceFrame::FImagePlateSourceFrame(const TArray64<uint8>& InData, uint32 InWidth, uint32 InHeight, uint32 InBitDepth)
 	: Width(InWidth), Height(InHeight), BitDepth(InBitDepth), Pitch(Width * BitDepth / 8 * 4)
 {
 	if (InData.Num())
@@ -552,7 +552,7 @@ namespace ImagePlateFrameCache
 	FImagePlateSourceFrame LoadFileData(FString FilenameToLoad, int32 FrameNumber)
 	{
 		// Start at 100k
-		TArray<uint8> SourceFileData;
+		TArray64<uint8> SourceFileData;
 		SourceFileData.Reserve(1024*100);
 		if (!FFileHelper::LoadFileToArray(SourceFileData, *FilenameToLoad))
 		{
@@ -574,14 +574,14 @@ namespace ImagePlateFrameCache
 		ImageWrapper->SetCompressed(SourceFileData.GetData(), SourceFileData.Num());
 
 		int32 SourceBitDepth = ImageWrapper->GetBitDepth();
-		const TArray<uint8>* RawImageData = nullptr;
-		if (ImageWrapper->GetRaw(ERGBFormat::RGBA, SourceBitDepth, RawImageData) && RawImageData)
+		TArray64<uint8> RawImageData;
+		if (ImageWrapper->GetRaw(ERGBFormat::RGBA, SourceBitDepth, RawImageData))
 		{
 			// BMP image wrappers supply the bitdepth per pixel, rather than per-channel
 			SourceBitDepth = ImageType == EImageFormat::BMP ? ImageWrapper->GetBitDepth() / 4 : ImageWrapper->GetBitDepth();
 
 			return FImagePlateSourceFrame(
-				*RawImageData,
+				RawImageData,
 				ImageWrapper->GetWidth(),
 				ImageWrapper->GetHeight(),
 				SourceBitDepth

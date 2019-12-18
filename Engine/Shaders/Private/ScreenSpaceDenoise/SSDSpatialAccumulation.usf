@@ -984,6 +984,7 @@ void MainCS(
 				float MaxPixelDiameter = sqrt(rcp(TargetSamplePerPixel) * MaxSampleCount / AspectRatio);
 				float MaxPixelRadius = 0.5 * MaxPixelDiameter;
 
+
 				KernelConfig.MajorPixelRadius = clamp(KernelConfig.MajorPixelRadius, 0, MaxPixelRadius);
 				KernelConfig.MinorPixelRadius = AspectRatio * KernelConfig.MajorPixelRadius;
 
@@ -992,11 +993,6 @@ void MainCS(
 
 				KernelConfig.SampleCount = clamp(ConvolutionArea * TargetSamplePerPixel, 0, MaxSampleCount);
 			
-				//DebugOutput[DispatchThreadId] = float4(
-				//	NormalizedScreenMajorAxis,
-				//	KernelConfig.MinorPixelRadius,
-				//	OutOfFocus);
-
 				// DebugOutput[DispatchThreadId] = float4(
 				// 	KernelConfig.SampleCount,
 				// 	KernelConfig.MajorPixelRadius,

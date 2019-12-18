@@ -32,23 +32,52 @@ extern RENDERCORE_API void ClearUnusedGraphResourcesImpl(
 	const FShaderParameterBindings& ShaderBindings,
 	const FShaderParametersMetadata* ParametersMetadata,
 	void* InoutParameters,
-	std::initializer_list< FRDGResourceRef > ExcludeList);
+	std::initializer_list<FRDGResourceRef> ExcludeList);
 
-template<typename TShaderClass>
+/** Similar to the function above, but takes a list of shader bindings and only clears if none of the shaders contain the resource. */
+extern RENDERCORE_API void ClearUnusedGraphResourcesImpl(
+	TArrayView<const FShaderParameterBindings*> ShaderBindingsList,
+	const FShaderParametersMetadata* ParametersMetadata,
+	void* InoutParameters,
+	std::initializer_list<FRDGResourceRef> ExcludeList);
+
+template <typename TShaderClass>
 void ClearUnusedGraphResources(
 	const TShaderClass* Shader,
 	typename TShaderClass::FParameters* InoutParameters,
-	std::initializer_list< FRDGResourceRef > ExcludeList = {})
+	std::initializer_list<FRDGResourceRef> ExcludeList = {})
 {
 	const FShaderParametersMetadata* ParametersMetadata = TShaderClass::FParameters::FTypeInfo::GetStructMetadata();
 
 	// Verify the shader have all the parameters it needs. This is done before the
-	// ClearUnusedGraphResourcesImpl() to not misslead user on why some resource are misseing
+	// ClearUnusedGraphResourcesImpl() to not mislead user on why some resource are missing
 	// when debugging a validation failure.
 	ValidateShaderParameters(Shader, ParametersMetadata, InoutParameters);
 
 	// Clear the resources the shader won't need.
 	return ClearUnusedGraphResourcesImpl(Shader->Bindings, ParametersMetadata, InoutParameters, ExcludeList);
+}
+
+template <typename TShaderClassA, typename TShaderClassB, typename TPassParameterStruct>
+void ClearUnusedGraphResources(
+	const TShaderClassA* ShaderA,
+	const TShaderClassB* ShaderB,
+	TPassParameterStruct* InoutParameters,
+	std::initializer_list<FRDGResourceRef> ExcludeList = {})
+{
+	static_assert(TIsSame<typename TShaderClassA::FParameters, TPassParameterStruct>::Value, "First shader FParameter type must match pass parameters.");
+	static_assert(TIsSame<typename TShaderClassB::FParameters, TPassParameterStruct>::Value, "Second shader FParameter type must match pass parameters.");
+	const FShaderParametersMetadata* ParametersMetadata = TPassParameterStruct::FTypeInfo::GetStructMetadata();
+
+	// Verify the shader have all the parameters it needs. This is done before the
+	// ClearUnusedGraphResourcesImpl() to not mislead user on why some resource are missing
+	// when debugging a validation failure.
+	ValidateShaderParameters(ShaderA, ParametersMetadata, InoutParameters);
+	ValidateShaderParameters(ShaderB, ParametersMetadata, InoutParameters);
+
+	// Clear the resources the shader won't need.
+	const FShaderParameterBindings* ShaderBindings[] = { &ShaderA->Bindings, &ShaderB->Bindings };
+	return ClearUnusedGraphResourcesImpl(ShaderBindings, ParametersMetadata, InoutParameters, ExcludeList);
 }
 
 /**
@@ -128,6 +157,22 @@ struct RENDERCORE_API FComputeShaderUtils
 		UnsetShaderUAVs(RHICmdList, ComputeShader, ShaderRHI);
 	}
 
+	/** Dispatch a compute shader to rhi command list with its parameters and indirect args. */
+	template<typename TShaderClass>
+	static FORCEINLINE_DEBUGGABLE void DispatchIndirect(
+		FRHICommandList& RHICmdList,
+		const TShaderClass* ComputeShader,
+		const typename TShaderClass::FParameters& Parameters,
+		FRDGBufferRef IndirectArgsBuffer,
+		uint32 IndirectArgOffset)
+	{
+		FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
+		RHICmdList.SetComputeShader(ShaderRHI);
+		SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, Parameters);
+		RHICmdList.DispatchIndirectComputeShader(IndirectArgsBuffer->GetIndirectRHICallBuffer(), IndirectArgOffset);
+		UnsetShaderUAVs(RHICmdList, ComputeShader, ShaderRHI);
+	}
+
 	/** Dispatch a compute shader to render graph builder with its parameters. */
 	template<typename TShaderClass>
 	static void AddPass(
@@ -176,6 +221,9 @@ struct RENDERCORE_API FComputeShaderUtils
 			FComputeShaderUtils::DispatchIndirect(RHICmdList, ComputeShader, *Parameters, IndirectArgsBuffer->GetIndirectRHICallBuffer(), IndirectArgOffset);
 		});
 	}
+
+	static void ClearUAV(FRDGBuilder& GraphBuilder, TShaderMap<FGlobalShaderType>* ShaderMap, FRDGBufferUAVRef UAV, uint32 ClearValue);
+	static void ClearUAV(FRDGBuilder& GraphBuilder, TShaderMap<FGlobalShaderType>* ShaderMap, FRDGBufferUAVRef UAV, FVector4 ClearValue);
 };
 
 /** Adds a render graph pass to copy a region from one texture to another. Uses RHICopyTexture under the hood.
@@ -231,6 +279,9 @@ RENDERCORE_API void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef
 
 RENDERCORE_API void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FLinearColor& ClearColor);
 
+/** Clears parts of UAV specified by an array of screen rects. If no rects are specific, then it falls back to a standard UAV clear. */
+RENDERCORE_API void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const uint32(&ClearValues)[4], FRDGBufferSRVRef RectMinMaxBufferSRV, uint32 NumRects);
+
 /** Adds a render graph pass to clear a render target. Prefer to use clear actions if possible. */
 RENDERCORE_API void AddClearRenderTargetPass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, const FLinearColor& ClearColor);
 
@@ -242,3 +293,38 @@ RENDERCORE_API void AddClearDepthStencilPass(
 	float Depth,
 	bool bClearStencil,
 	uint8 Stencil);
+
+enum class ERDGInitialDataFlags : uint8
+{
+	/** Specifies the default behavior, which is to make a copy of the initial data for replay when
+	 *  the graph is executed. The user does not need to preserve lifetime of the data pointer.
+	 */
+	None = 0,
+
+	/** Specifies that the user will maintain ownership of the data until the graph is executed. The
+	 *  upload pass will only use a reference to store the data. Use caution with this flag since graph
+	 *  execution is deferred! Useful to avoid the copy if the initial data lifetime is guaranteed to
+	 *  outlive the graph.
+	 */
+	NoCopy = 0x1
+};
+ENUM_CLASS_FLAGS(ERDGInitialDataFlags)
+
+/** Creates a structured buffer with initial data by creating an upload pass. */
+RENDERCORE_API FRDGBufferRef CreateStructuredBuffer(
+	FRDGBuilder& GraphBuilder,
+	const TCHAR* Name,
+	uint32 BytesPerElement,
+	uint32 NumElements,
+	const void* InitialData,
+	uint64 InitialDataSize,
+	ERDGInitialDataFlags InitialDataFlags = ERDGInitialDataFlags::None);
+
+/** Creates a vertex buffer with initial data by creating an upload pass. */
+RENDERCORE_API FRDGBufferRef CreateVertexBuffer(
+	FRDGBuilder& GraphBuilder,
+	const TCHAR* Name,
+	const FRDGBufferDesc& Desc,
+	const void* InitialData,
+	uint64 InitialDataSize,
+	ERDGInitialDataFlags InitialDataFlags = ERDGInitialDataFlags::None);

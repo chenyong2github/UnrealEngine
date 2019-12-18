@@ -236,6 +236,15 @@ public:
 		const FDiffuseIndirectInputs& Inputs,
 		const FAmbientOcclusionRayTracingConfig Config) const = 0;
 
+	/** Entry point to denoise reflected SkyLight diffuse indirect. */
+	virtual FDiffuseIndirectOutputs DenoiseReflectedSkyLight(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		FPreviousViewInfo* PreviousViewInfos,
+		const FSceneTextureParameters& SceneTextures,
+		const FDiffuseIndirectInputs& Inputs,
+		const FAmbientOcclusionRayTracingConfig Config) const = 0;
+
 	/** Entry point to denoise spherical harmonic for diffuse indirect. */
 	virtual FDiffuseIndirectHarmonic DenoiseDiffuseIndirectHarmonic(
 		FRDGBuilder& GraphBuilder,

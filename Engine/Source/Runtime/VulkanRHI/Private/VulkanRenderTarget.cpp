@@ -512,7 +512,7 @@ void FTransitionAndLayoutManager::TransitionResource(FVulkanCmdBuffer* CmdBuffer
 	}
 }
 
-void FVulkanCommandListContext::RHISetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets, const FRHIDepthRenderTargetView* NewDepthStencilTarget, uint32 NumUAVs, FRHIUnorderedAccessView* const* UAVs)
+void FVulkanCommandListContext::RHISetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets, const FRHIDepthRenderTargetView* NewDepthStencilTarget)
 {
 	FRHIDepthRenderTargetView DepthView;
 	if (NewDepthStencilTarget)
@@ -530,16 +530,7 @@ void FVulkanCommandListContext::RHISetRenderTargets(uint32 NumSimultaneousRender
 	}
 
 	FRHISetRenderTargetsInfo RenderTargetsInfo(NumSimultaneousRenderTargets, NewRenderTargets, DepthView);
-
-	if (NumUAVs)
-	{
-		RenderTargetsInfo.NumUAVs = NumUAVs;
-		for (uint32 Index = 0; Index < NumUAVs; Index++)
-		{
-			RenderTargetsInfo.UnorderedAccessView[Index] = UAVs[Index];
-		}
-	}
-
+	
 	RHISetRenderTargetsAndClear(RenderTargetsInfo);
 }
 
@@ -643,19 +634,6 @@ void FVulkanCommandListContext::RHISetRenderTargetsAndClear(const FRHISetRenderT
 		}
 	}
 
-	// Yuck - Bind pending pixel shader UAVs from SetRenderTargets
-	{
-		PendingPixelUAVs.Reset();
-		uint32 NumUAVs = RenderTargetsInfo.NumUAVs;
-		for (uint32 UAVIndex = 0; UAVIndex < NumUAVs; ++UAVIndex)
-		{
-			FVulkanUnorderedAccessView* UAV = ResourceCast(RenderTargetsInfo.UnorderedAccessView[UAVIndex].GetReference());
-			if (UAV)
-			{
-				PendingPixelUAVs.Add({ UAV, UAVIndex });
-			}
-		}
-	}
 }
 
 void FVulkanCommandListContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI, const FResolveParams& InResolveParams)
@@ -959,19 +937,6 @@ void FVulkanDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFen
 	OutData = Texture2D->Surface.GetMappedPointer();
 	Texture2D->Surface.InvalidateMappedMemory();
 }
-
-
-void FVulkanDynamicRHI::RHIMapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight)
-{
-	RHIMapStagingSurface(Texture, Fence, OutData, OutWidth, OutHeight, RHICmdList.GetGPUMask().ToIndex());
-}
-
-void FVulkanDynamicRHI::RHIUnmapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture)
-{
-	RHIUnmapStagingSurface(Texture, RHICmdList.GetGPUMask().ToIndex());
-}
-
-
 
 void FVulkanDynamicRHI::RHIUnmapStagingSurface(FRHITexture* TextureRHI, uint32 GPUIndex)
 {
@@ -1720,20 +1685,6 @@ void FVulkanCommandListContext::RHIBeginRenderPass(const FRHIRenderPassInfo& InI
 	FVulkanRenderPass* RenderPass = TransitionAndLayoutManager.GetOrCreateRenderPass(*Device, RTLayout);
 	FRHISetRenderTargetsInfo RTInfo;
 	InInfo.ConvertToRenderTargetsInfo(RTInfo);
-
-	// yuck. bind UAVs.
-	{
-		PendingPixelUAVs.Reset();
-		uint32 NumUAVs = InInfo.NumUAVs;
-		for (uint32 UAVIndex = 0; UAVIndex < NumUAVs; ++UAVIndex)
-		{
-			FVulkanUnorderedAccessView* UAV = ResourceCast(InInfo.UAVs[UAVIndex].GetReference());
-			if (UAV)
-			{
-				PendingPixelUAVs.Add({ UAV, UAVIndex });
-			}
-		}
-	}
 
 	FVulkanFramebuffer* Framebuffer = TransitionAndLayoutManager.GetOrCreateFramebuffer(*Device, RTInfo, RTLayout, RenderPass);
 	checkf(RenderPass != nullptr && Framebuffer != nullptr, TEXT("RenderPass not started! Bad combination of values? Depth %p #Color %d Color0 %p"), (void*)InInfo.DepthStencilRenderTarget.DepthStencilTarget, InInfo.GetNumColorRenderTargets(), (void*)InInfo.ColorRenderTargets[0].RenderTarget);

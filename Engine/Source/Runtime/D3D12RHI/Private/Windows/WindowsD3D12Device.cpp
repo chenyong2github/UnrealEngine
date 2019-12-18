@@ -448,13 +448,9 @@ FDynamicRHI* FD3D12DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedF
 	{
 		check(PreviewFeatureLevel == ERHIFeatureLevel::ES2 || PreviewFeatureLevel == ERHIFeatureLevel::ES3_1);
 
-		// ES2/3.1 feature level emulation in D3D
+		// ES3.1 feature level emulation in D3D
 		GMaxRHIFeatureLevel = PreviewFeatureLevel;
-		if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES2)
-		{
-			GMaxRHIShaderPlatform = SP_PCD3D_ES2;
-		}
-		else if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1)
+		if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1)
 		{
 			GMaxRHIShaderPlatform = SP_PCD3D_ES3_1;
 		}
@@ -550,13 +546,13 @@ void FD3D12DynamicRHI::Init()
 	// Need to set GRHIVendorId before calling IsRHIDevice* functions
 	GRHIVendorId = AdapterDesc.VendorId;
 
-	const bool bAllowVendorDevice = !FParse::Param(FCommandLine::Get(), TEXT("novendordevice"));
-
 #if !PLATFORM_CPU_ARM_FAMILY
 	// Initialize the AMD AGS utility library, when running on an AMD device
-	if (IsRHIDeviceAMD())
+	if (IsRHIDeviceAMD() && bAllowVendorDevice)
 	{
 		check(AmdAgsContext == nullptr);
+		check(AmdSupportedExtensionFlags == 0);
+
 		// agsInit should be called before D3D device creation
 		agsInit(&AmdAgsContext, nullptr, nullptr);
 	}
@@ -570,15 +566,7 @@ void FD3D12DynamicRHI::Init()
 		Adapter->InitializeDevices();
 	}
 
-	uint32 AmdSupportedExtensionFlags = 0;
-
 #if !PLATFORM_CPU_ARM_FAMILY
-	if (AmdAgsContext)
-	{
-		// Initialize AMD driver extensions
-		agsDriverExtensionsDX12_Init(AmdAgsContext, GetAdapter().GetD3DDevice(), &AmdSupportedExtensionFlags);
-	}
-
 	// Warn if we are trying to use RGP frame markers but are either running on a non-AMD device
 	// or using an older AMD driver without RGP marker support
 	if (GEmitRgpFrameMarkers && !IsRHIDeviceAMD())
@@ -588,6 +576,12 @@ void FD3D12DynamicRHI::Init()
 	else if (GEmitRgpFrameMarkers && (AmdSupportedExtensionFlags & AGS_DX12_EXTENSION_USER_MARKERS) == 0)
 	{
 		UE_LOG(LogD3D12RHI, Warning, TEXT("Attempting to use RGP frame markers without driver support. Update AMD driver."));
+	}
+
+	if (IsRHIDeviceAMD() && bAllowVendorDevice)
+	{
+		GRHISupportsAtomicUInt64 = (AmdSupportedExtensionFlags & AGS_DX12_EXTENSION_INTRINSIC_ATOMIC_U64) != 0;
+		GRHISupportsAtomicUInt64 = GRHISupportsAtomicUInt64 && (AmdSupportedExtensionFlags & AGS_DX12_EXTENSION_INTRINSIC_UAV_BIND_SLOT) != 0;
 	}
 #endif
 
@@ -700,7 +694,7 @@ void FD3D12DynamicRHI::Init()
 		UE_LOG(LogD3D12RHI, Log, TEXT("RHI does not have support for 64 bit atomics"));
 	}
 
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2] = SP_PCD3D_ES2;
+	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2] = SP_NumPlatforms;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_PCD3D_ES3_1;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4_REMOVED] = SP_NumPlatforms;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_PCD3D_SM5;
@@ -759,6 +753,7 @@ void FD3D12DynamicRHI::Init()
 
 #if D3D12_RHI_RAYTRACING
 	GRHISupportsRayTracing = GetAdapter().GetD3DRayTracingDevice() != nullptr;
+	GRHISupportsRayTracingMissShaderBindings = true;
 #endif
 
 	// Set the RHI initialized flag.

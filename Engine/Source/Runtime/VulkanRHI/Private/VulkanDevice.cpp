@@ -175,6 +175,11 @@ FVulkanDevice::FVulkanDevice(FVulkanDynamicRHI* InRHI, VkPhysicalDevice InGpu)
 	FMemory::Memzero(PhysicalFeatures);
 	FMemory::Memzero(FormatProperties);
 	FMemory::Memzero(PixelFormatComponentMapping);
+
+	// First get the VendorId. We'll have to get properties again after finding out which extensions we want to use
+	VulkanRHI::vkGetPhysicalDeviceProperties(Gpu, &GpuProps);
+	VendorId = RHIConvertToGpuVendorId(GpuProps.vendorID);
+	ensure(VendorId != EGpuVendorId::Unknown);
 }
 
 FVulkanDevice::~FVulkanDevice()
@@ -830,8 +835,6 @@ bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
 	UE_LOG(LogVulkanRHI, Display, TEXT("- API %d.%d.%d(0x%x) Driver 0x%x VendorId 0x%x"), VK_VERSION_MAJOR(GpuProps.apiVersion), VK_VERSION_MINOR(GpuProps.apiVersion), VK_VERSION_PATCH(GpuProps.apiVersion), GpuProps.apiVersion, GpuProps.driverVersion, GpuProps.vendorID);
 	UE_LOG(LogVulkanRHI, Display, TEXT("- DeviceID 0x%x Type %s"), GpuProps.deviceID, *GetDeviceTypeString());
 	UE_LOG(LogVulkanRHI, Display, TEXT("- Max Descriptor Sets Bound %d Timestamps %d"), GpuProps.limits.maxBoundDescriptorSets, GpuProps.limits.timestampComputeAndGraphics);
-
-	VendorId = RHIConvertToGpuVendorId(GpuProps.vendorID);
 
 #if VULKAN_SUPPORTS_DRIVER_PROPERTIES
 	if (OptionalDeviceExtensions.HasDriverProperties)

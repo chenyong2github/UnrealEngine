@@ -88,6 +88,11 @@ FVertexBufferRHIRef FD3D11DynamicRHI::RHICreateVertexBuffer(uint32 Size,uint32 I
 		VERIFYD3D11RESULT_EX(Result, Direct3DDevice);
 	}
 
+	if (CreateInfo.DebugName)
+	{
+		VertexBufferResource->SetPrivateData(WKPDID_D3DDebugObjectName, FCString::Strlen(CreateInfo.DebugName) + 1, TCHAR_TO_ANSI(CreateInfo.DebugName));
+	}
+
 	UpdateBufferStats(VertexBufferResource, true);
 
 	if(CreateInfo.ResourceArray)

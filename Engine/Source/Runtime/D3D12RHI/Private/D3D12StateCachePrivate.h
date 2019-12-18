@@ -930,6 +930,9 @@ public:
 
 	template <EShaderFrequency ShaderStage>
 	void SetUAVs(uint32 UAVStartSlot, uint32 NumSimultaneousUAVs, FD3D12UnorderedAccessView** UAVArray, uint32* UAVInitialCountArray);
+	template <EShaderFrequency ShaderStage>
+	void ClearUAVs();
+
 
 	void SetDepthBounds(float MinDepth, float MaxDepth)
 	{

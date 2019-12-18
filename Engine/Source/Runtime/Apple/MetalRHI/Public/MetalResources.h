@@ -140,6 +140,9 @@ public:
 	/* Tier1 Argument buffer bitmasks */
 	TMap<uint32, TBitArray<>> ArgumentBitmasks;
 	
+	/* Uniform buffer static slots */
+	TArray<FUniformBufferStaticSlot> StaticSlots;
+
 	/** The binding for the buffer side-table if present */
 	int32 SideTableBinding;
 

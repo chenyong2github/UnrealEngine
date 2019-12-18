@@ -55,7 +55,6 @@ FD3D12CommandContext::FD3D12CommandContext(FD3D12Device* InParent, FD3D12SubAllo
 	CurrentDepthStencilTarget(nullptr),
 	CurrentDepthTexture(nullptr),
 	NumSimultaneousRenderTargets(0),
-	NumUAVs(0),
 	CurrentDSVAccessType(FExclusiveDepthStencil::DepthWrite_StencilWrite),
 	bOuterOcclusionQuerySubmitted(false),
 	bDiscardSharedConstants(false),
@@ -81,8 +80,8 @@ FD3D12CommandContext::FD3D12CommandContext(FD3D12Device* InParent, FD3D12SubAllo
 		}
 	}
 	FMemory::Memzero(CurrentRenderTargets);
-	FMemory::Memzero(CurrentUAVs);
 	StateCache.Init(GetParentDevice(), this, nullptr, SubHeapDesc);
+	GlobalUniformBuffers.AddZeroed(FUniformBufferStaticSlotRegistry::Get().GetSlotCount());
 }
 
 FD3D12CommandContext::~FD3D12CommandContext()
@@ -336,9 +335,6 @@ void FD3D12CommandContext::ClearState()
 			BoundUniformBufferRefs[i][j] = NULL;
 		}
 	}
-
-	FMemory::Memzero(CurrentUAVs, sizeof(CurrentUAVs));
-	NumUAVs = 0;
 
 	if (!bIsAsyncComputeContext)
 	{

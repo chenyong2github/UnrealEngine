@@ -203,7 +203,7 @@ void FLocalVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryType*
 	}
 
 	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), Type->SupportsPrimitiveIdStream() && UseGPUScene(Platform, GetMaxSupportedFeatureLevel(Platform)));
-	OutEnvironment.SetDefine(TEXT("VF_GPU_SCENE_BUFFER"), Type->SupportsPrimitiveIdStream() && UseGPUScene(Platform, GetMaxSupportedFeatureLevel(Platform)) && !GPUSceneUseTexture2D(Platform));
+	OutEnvironment.SetDefine(TEXT("VF_GPU_SCENE_TEXTURE"), Type->SupportsPrimitiveIdStream() && UseGPUScene(Platform, GetMaxSupportedFeatureLevel(Platform)) && GPUSceneUseTexture2D(Platform));
 }
 
 void FLocalVertexFactory::ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors)

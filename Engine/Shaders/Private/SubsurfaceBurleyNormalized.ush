@@ -190,15 +190,11 @@ FBurleyParameter GetBurleyParameters(FGBufferData GBuffer)
 	BurleyParameter.DiffuseMeanFreePath = DecodeDiffuseMeanFreePath(DiffuseMeanFreePath);
 	float WorldUnitScale = DecodeWorldUnitScale(GetSubsurfaceProfileWorldUnitScale(GBuffer))*BURLEY_CM_2_MM;
 	BurleyParameter.WorldUnitScale = WorldUnitScale;
-	BRANCH if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE)
-	{
-		// scale with opacity stored in CustomData.a
-		BurleyParameter.DiffuseMeanFreePath *= GBuffer.CustomData.a;
-	}
-	else if (GBuffer.ShadingModelID == SHADINGMODELID_EYE)
-	{
-		//eye 
-	}
+
+	// Mask should always be true, we can probably ignore it?
+	float Mask = UseSubsurfaceProfile(GBuffer.ShadingModelID) ? 1.0f : 0.0f;
+	BurleyParameter.DiffuseMeanFreePath *= Mask * GBuffer.CustomData.a;
+
 	return BurleyParameter;
 }
 
@@ -766,9 +762,6 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 	// account for Screen Percentage/Dyanmic Resolution Scaling
 	BurleyScale *= (SubsurfaceInput0_ViewportSize.x * SubsurfaceInput0_ExtentInverse.x);
 	BurleyScale.y *= (SubsurfaceInput0_Extent.x * SubsurfaceInput0_ExtentInverse.y);
-
-	// account for the mask
-	BurleyScale *= GetSubsurfaceStrength(BufferUV);
 
 	LOOP for (int i = 0; i < NumOfSamples; ++i)
 	{

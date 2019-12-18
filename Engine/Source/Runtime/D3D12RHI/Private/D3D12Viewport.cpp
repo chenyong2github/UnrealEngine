@@ -161,6 +161,7 @@ void FD3D12FramePacing::PrePresentQueued(ID3D12CommandQueue* Queue)
 	const float Alpha = FMath::Clamp(Delta / 1000.0f / FramePacingAvgTimePeriod, 0.0f, 1.0f);
 
 	/** Number of milliseconds the GPU was busy last frame. */
+	// Multi-GPU support : Should be updated to use GPUIndex for AFR.
 	const uint32 GPUCycles = RHIGetGPUFrameCycles();
 	const float GPUMsForFrame = FPlatformTime::ToMilliseconds(GPUCycles);
 
@@ -370,11 +371,10 @@ void FD3D12Viewport::CalculateSwapChainDepth(int32 DefaultSwapChainDepth)
 		{
 			BackbufferMultiGPUBinding = FMath::Clamp<int32>(BackbufferMultiGPUBinding, INDEX_NONE, (int32)GNumExplicitGPUsForRendering - 1) ;
 		}
-		else if (FParse::Param(FCommandLine::Get(), TEXT("AFR")))
+		else if (GNumAlternateFrameRenderingGroups > 1)
 		{
 			BackbufferMultiGPUBinding = INDEX_NONE;
 			NumBackBuffers = GNumExplicitGPUsForRendering > 2 ? GNumExplicitGPUsForRendering : 4;
-			check(GNumAlternateFrameRenderingGroups == GNumExplicitGPUsForRendering);
 		}
 	}
 #endif // WITH_MGPU
@@ -886,7 +886,7 @@ void FD3D12CommandContextBase::RHIBeginDrawingViewport(FRHIViewport* ViewportRHI
 
 	// Set the render target.
 	const FRHIRenderTargetView RTView(RenderTargetRHI, ERenderTargetLoadAction::ELoad);
-	RHISetRenderTargets(1, &RTView, nullptr, 0, nullptr);
+	RHISetRenderTargets(1, &RTView, nullptr);
 }
 
 void FD3D12CommandContextBase::RHIEndDrawingViewport(FRHIViewport* ViewportRHI, bool bPresent, bool bLockToVsync)

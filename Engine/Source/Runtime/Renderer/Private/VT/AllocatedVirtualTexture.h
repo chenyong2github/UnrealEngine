@@ -20,7 +20,6 @@ public:
 	FAllocatedVirtualTexture(FVirtualTextureSystem* InSystem,
 		uint32 InFrame,
 		const FAllocatedVTDescription& InDesc,
-		FVirtualTextureSpace* InSpace,
 		FVirtualTextureProducer* const* InProducers,
 		uint32 InBlockWidthInTiles,
 		uint32 InBlockHeightInTiles,

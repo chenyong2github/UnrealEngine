@@ -599,7 +599,7 @@ struct FWindowsOpenGL : public FOpenGLESDeferred
 {
 	static FORCEINLINE EShaderPlatform GetShaderPlatform()
 	{
-		return bES2Fallback ? SP_OPENGL_PCES2 : SP_OPENGL_PCES3_1;
+		return SP_OPENGL_PCES3_1;
 	}
 
 	static FORCEINLINE void InitDebugContext()

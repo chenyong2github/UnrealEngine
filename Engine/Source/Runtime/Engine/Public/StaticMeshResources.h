@@ -194,7 +194,8 @@ struct FStaticMeshSection
 	bool bEnableCollision;
 	/** If true, this section will cast a shadow. */
 	bool bCastShadow;
-
+	/** If true, this section will be considered opaque in ray tracing effects. */
+	bool bForceOpaque;
 #if WITH_EDITORONLY_DATA
 	/** The UV channel density in LocalSpaceUnit / UV Unit. */
 	float UVDensities[MAX_STATIC_TEXCOORDS];
@@ -211,6 +212,7 @@ struct FStaticMeshSection
 		, MaxVertexIndex(0)
 		, bEnableCollision(false)
 		, bCastShadow(true)
+		, bForceOpaque(false)
 	{
 #if WITH_EDITORONLY_DATA
 		FMemory::Memzero(UVDensities);

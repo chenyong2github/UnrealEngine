@@ -798,7 +798,10 @@ bool FHLSLMaterialTranslator::Translate()
 		bUsesPixelDepthOffset = (AllowPixelDepthOffset(Platform) && IsMaterialPropertyUsed(MP_PixelDepthOffset, Chunk[MP_PixelDepthOffset], FLinearColor(0, 0, 0, 0), 1))
 			|| (Domain == MD_DeferredDecal && Material->GetDecalBlendMode() == DBM_Volumetric_DistanceFunction);
 
-		bUsesWorldPositionOffset = IsMaterialPropertyUsed(MP_WorldPositionOffset, Chunk[MP_WorldPositionOffset], FLinearColor(0, 0, 0, 0), 3);
+		bool bUsesWorldPositionOffsetCurrent = IsMaterialPropertyUsed(MP_WorldPositionOffset, Chunk[MP_WorldPositionOffset], FLinearColor(0, 0, 0, 0), 3);
+		bool bUsesWorldPositionOffsetPrevious = IsMaterialPropertyUsed(MP_WorldPositionOffset, Chunk[CompiledMP_PrevWorldPositionOffset], FLinearColor(0, 0, 0, 0), 3);
+		bUsesWorldPositionOffset = bUsesWorldPositionOffsetCurrent || bUsesWorldPositionOffsetPrevious;
+
 		MaterialCompilationOutput.bModifiesMeshPosition = bUsesPixelDepthOffset || bUsesWorldPositionOffset;
 		MaterialCompilationOutput.bUsesWorldPositionOffset = bUsesWorldPositionOffset;
 		MaterialCompilationOutput.bUsesPixelDepthOffset = bUsesPixelDepthOffset;
@@ -5230,24 +5233,23 @@ int32 FHLSLMaterialTranslator::VertexInterpolator(uint32 InterpolatorIndex)
 	check(CurrentCustomVertexInterpolatorOffset != INDEX_NONE && Interpolator->InterpolatorOffset < CurrentCustomVertexInterpolatorOffset);
 
 	// Copy interpolated data from pixel parameters to local
-	const EMaterialValueType Type = Interpolator->InterpolatedType == MCT_Float ? MCT_Float1 : Interpolator->InterpolatedType;
-	const TCHAR* TypeName = HLSLTypeString(Type);
+	const TCHAR* TypeName = HLSLTypeString(Interpolator->InterpolatedType);
 	const TCHAR* Swizzle[2] = { TEXT("x"), TEXT("y") };
 	const int32 Offset = Interpolator->InterpolatorOffset;
 	
 	// Note: We reference the UV define directly to avoid having to pre-accumulate UV counts before property translation
 	FString GetValueCode = FString::Printf(TEXT("%s(Parameters.TexCoords[VERTEX_INTERPOLATOR_%i_TEXCOORDS_X].%s"), TypeName, InterpolatorIndex, Swizzle[Offset%2]);
-
-	if (Type >= MCT_Float2)
+	if (InterpolatorSize >= 2)
 	{
 		GetValueCode += FString::Printf(TEXT(", Parameters.TexCoords[VERTEX_INTERPOLATOR_%i_TEXCOORDS_Y].%s"), InterpolatorIndex, Swizzle[(Offset+1)%2]);
 
-		if (Type >= MCT_Float3)
+		if (InterpolatorSize >= 3)
 		{
 			GetValueCode += FString::Printf(TEXT(", Parameters.TexCoords[VERTEX_INTERPOLATOR_%i_TEXCOORDS_Z].%s"), InterpolatorIndex, Swizzle[(Offset+2)%2]);
 
-			if (Type == MCT_Float4)
+			if (InterpolatorSize >= 4)
 			{
+				check(InterpolatorSize == 4);
 				GetValueCode += FString::Printf(TEXT(", Parameters.TexCoords[VERTEX_INTERPOLATOR_%i_TEXCOORDS_W].%s"), InterpolatorIndex, Swizzle[(Offset+3)%2]);
 			}
 		}
@@ -5255,7 +5257,7 @@ int32 FHLSLMaterialTranslator::VertexInterpolator(uint32 InterpolatorIndex)
 
 	GetValueCode.Append(TEXT(")"));
 
-	int32 RetCode = AddCodeChunk(Type, *GetValueCode);
+	int32 RetCode = AddCodeChunk(Interpolator->InterpolatedType, *GetValueCode);
 	return RetCode;
 }
 

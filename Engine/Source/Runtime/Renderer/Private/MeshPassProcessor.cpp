@@ -13,6 +13,7 @@
 #include "SceneInterface.h"
 #include "MeshPassProcessor.inl"
 #include "PipelineStateCache.h"
+#include "RayTracing/RayTracingMaterialHitShaders.h"
 
 TSet<FRefCountedGraphicsMinimalPipelineStateInitializer, RefCountedGraphicsMinimalPipelineStateInitializerKeyFuncs> FGraphicsMinimalPipelineStateId::PersistentIdTable;
 int32 FGraphicsMinimalPipelineStateId::LocalPipelineIdTableSize = 0;
@@ -267,45 +268,40 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 }
 
 #if RHI_RAYTRACING
+
 void FMeshDrawShaderBindings::SetRayTracingShaderBindingsForHitGroup(
-	FRHICommandList& RHICmdList, 
-	FRHIRayTracingScene* Scene,
-	uint32 InstanceIndex, 
+	FRayTracingLocalShaderBindingWriter* BindingWriter,
+	uint32 InstanceIndex,
 	uint32 SegmentIndex,
-	FRayTracingPipelineState* PipelineState,
 	uint32 HitGroupIndex,
 	uint32 ShaderSlot) const
 {
 	check(ShaderLayouts.Num() == 1);
+	check(SegmentIndex < 0xFF);
 
 	FReadOnlyMeshDrawSingleShaderBindings SingleShaderBindings(ShaderLayouts[0], GetData());
 
-	const FRHIUniformBuffer* LocalUniformBuffers[MAX_UNIFORM_BUFFERS_PER_SHADER_STAGE] = {};
-
 	FRHIUniformBuffer* const* RESTRICT UniformBufferBindings = SingleShaderBindings.GetUniformBufferStart();
 	const FShaderParameterInfo* RESTRICT UniformBufferParameters = SingleShaderBindings.ParameterMapInfo.UniformBuffers.GetData();
-	const int32 NumUniformBuffers = SingleShaderBindings.ParameterMapInfo.UniformBuffers.Num();
-
-	int32 MaxUniformBufferUsed = -1;
-	for (int32 UniformBufferIndex = 0; UniformBufferIndex < NumUniformBuffers; UniformBufferIndex++)
-	{
-		FShaderParameterInfo Parameter = UniformBufferParameters[UniformBufferIndex];
-		checkSlow(Parameter.BaseIndex < UE_ARRAY_COUNT(LocalUniformBuffers));
-		const FRHIUniformBuffer* UniformBuffer = UniformBufferBindings[UniformBufferIndex];
-		if (Parameter.BaseIndex < UE_ARRAY_COUNT(LocalUniformBuffers))
-		{
-			LocalUniformBuffers[Parameter.BaseIndex] = UniformBuffer;
-			MaxUniformBufferUsed = FMath::Max((int32)Parameter.BaseIndex, MaxUniformBufferUsed);
-		}
-	}
+	const int32 NumUniformBufferParameters = SingleShaderBindings.ParameterMapInfo.UniformBuffers.Num();
 
 	checkf(SingleShaderBindings.ParameterMapInfo.TextureSamplers.Num() == 0, TEXT("Texture sampler parameters are not supported for ray tracing. UniformBuffers must be used for all resource binding."));
 	checkf(SingleShaderBindings.ParameterMapInfo.SRVs.Num() == 0, TEXT("SRV parameters are not supported for ray tracing. UniformBuffers must be used for all resource binding."));
 
-	const TArray<FShaderLooseParameterBufferInfo>& LooseParameterBuffers = SingleShaderBindings.ParameterMapInfo.LooseParameterBuffers;	
+	// Measure parameter memory requirements
 
-	// This array must be alive until RHICmdList.SetRayTracingHitGroup() finishes
-	TArray<uint8> ReorderedLooseParameters;
+	int32 MaxUniformBufferUsed = -1;
+	for (int32 UniformBufferIndex = 0; UniformBufferIndex < NumUniformBufferParameters; UniformBufferIndex++)
+	{
+		FShaderParameterInfo Parameter = UniformBufferParameters[UniformBufferIndex];
+		const FRHIUniformBuffer* UniformBuffer = UniformBufferBindings[UniformBufferIndex];
+		MaxUniformBufferUsed = FMath::Max((int32)Parameter.BaseIndex, MaxUniformBufferUsed);
+	}
+
+	const uint32 NumUniformBuffersToSet = MaxUniformBufferUsed + 1;
+
+	const TArray<FShaderLooseParameterBufferInfo>& LooseParameterBuffers = SingleShaderBindings.ParameterMapInfo.LooseParameterBuffers;
+	uint32 LooseParameterDataSize = 0;
 
 	if (LooseParameterBuffers.Num())
 	{
@@ -314,35 +310,45 @@ void FMeshDrawShaderBindings::SetRayTracingShaderBindingsForHitGroup(
 		const FShaderLooseParameterBufferInfo& LooseParameterBuffer = SingleShaderBindings.ParameterMapInfo.LooseParameterBuffers[0];
 		check(LooseParameterBuffer.BufferIndex == 0);
 
-		uint32 LooseParameterDataSize = 0;
-
 		for (int32 LooseParameterIndex = 0; LooseParameterIndex < LooseParameterBuffer.Parameters.Num(); LooseParameterIndex++)
 		{
 			FShaderParameterInfo LooseParameter = LooseParameterBuffer.Parameters[LooseParameterIndex];
 			LooseParameterDataSize = FMath::Max<uint32>(LooseParameterDataSize, LooseParameter.BaseIndex + LooseParameter.Size);
 		}
+	}
 
-		ReorderedLooseParameters.AddZeroed(LooseParameterDataSize);
+	// Allocate and fill bindings
 
+	const uint32 UserData = 0; // UserData could be used to store material ID or any other kind of per-material constant. This can be retrieved in hit shaders via GetHitGroupUserData().
+
+	FRayTracingLocalShaderBindings& Bindings = BindingWriter->AddWithInlineParameters(NumUniformBuffersToSet, LooseParameterDataSize);
+
+	Bindings.InstanceIndex = InstanceIndex;
+	Bindings.SegmentIndex = SegmentIndex;
+	Bindings.ShaderSlot = ShaderSlot;
+	Bindings.ShaderIndexInPipeline = HitGroupIndex;
+	Bindings.UserData = UserData;
+
+	for (int32 UniformBufferIndex = 0; UniformBufferIndex < NumUniformBufferParameters; UniformBufferIndex++)
+	{
+		FShaderParameterInfo Parameter = UniformBufferParameters[UniformBufferIndex];
+		const FRHIUniformBuffer* UniformBuffer = UniformBufferBindings[UniformBufferIndex];
+		Bindings.UniformBuffers[Parameter.BaseIndex] = const_cast<FRHIUniformBuffer*>(UniformBuffer);
+	}
+
+	if (LooseParameterBuffers.Num())
+	{
+		const FShaderLooseParameterBufferInfo& LooseParameterBuffer = SingleShaderBindings.ParameterMapInfo.LooseParameterBuffers[0];
 		const uint8* LooseDataOffset = SingleShaderBindings.GetLooseDataStart();
-
 		for (int32 LooseParameterIndex = 0; LooseParameterIndex < LooseParameterBuffer.Parameters.Num(); LooseParameterIndex++)
 		{
 			FShaderParameterInfo LooseParameter = LooseParameterBuffer.Parameters[LooseParameterIndex];
-			FMemory::Memcpy(ReorderedLooseParameters.GetData() + LooseParameter.BaseIndex, LooseDataOffset, LooseParameter.Size);
-
+			FMemory::Memcpy(Bindings.LooseParameterData + LooseParameter.BaseIndex, LooseDataOffset, LooseParameter.Size);
 			LooseDataOffset += LooseParameter.Size;
 		}
 	}
-
-	check(SegmentIndex < 0xFF);
-	uint32 NumUniformBuffersToSet = MaxUniformBufferUsed + 1;
-	const uint32 UserData = 0; // UserData could be used to store material ID or any other kind of per-material constant. This can be retrieved in hit shaders via GetHitGroupUserData().
-	RHICmdList.SetRayTracingHitGroup(Scene, InstanceIndex, SegmentIndex, ShaderSlot, PipelineState, HitGroupIndex, 
-		NumUniformBuffersToSet, (FRHIUniformBuffer**)LocalUniformBuffers,
-		ReorderedLooseParameters.Num(), ReorderedLooseParameters.GetData(),
-		UserData);
 }
+
 #endif // RHI_RAYTRACING
 
 FGraphicsMinimalPipelineStateId FGraphicsMinimalPipelineStateId::GetPersistentId(const FGraphicsMinimalPipelineStateInitializer& InPipelineState)
@@ -811,16 +817,7 @@ void FMeshDrawShaderBindings::SetOnCommandList(FRHICommandList& RHICmdList, FBou
 	}
 }
 
-void FMeshDrawShaderBindings::SetOnCommandListForCompute(FRHICommandList& RHICmdList, FRHIComputeShader* Shader) const
-{
-	check(ShaderLayouts.Num() == 1);
-	FReadOnlyMeshDrawSingleShaderBindings SingleShaderBindings(ShaderLayouts[0], GetData());
-	check(SingleShaderBindings.Frequency == SF_Compute);
-
-	SetShaderBindings(RHICmdList, Shader, SingleShaderBindings);
-}
-
-void FMeshDrawShaderBindings::SetOnCommandListForCompute(FRHIAsyncComputeCommandList& RHICmdList, FRHIComputeShader* Shader) const
+void FMeshDrawShaderBindings::SetOnCommandList(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* Shader) const
 {
 	check(ShaderLayouts.Num() == 1);
 	FReadOnlyMeshDrawSingleShaderBindings SingleShaderBindings(ShaderLayouts[0], GetData());
@@ -919,7 +916,7 @@ void FMeshDrawCommand::SubmitDraw(
 	checkSlow(MeshDrawCommand.CachedPipelineId.IsValid());
 		
 #if WANTS_DRAW_MESH_EVENTS
-	TDrawEvent<FRHICommandList> MeshEvent;
+	FDrawEvent MeshEvent;
 
 	if (GShowMaterialDrawEvents)
 	{

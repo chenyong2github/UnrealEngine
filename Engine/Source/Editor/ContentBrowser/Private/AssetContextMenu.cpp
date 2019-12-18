@@ -1874,18 +1874,15 @@ void FAssetContextMenu::ExecuteReimportWithNewFile(int32 SourceFileIndex /*= IND
 
 	int32 SourceFileIndexToReplace = SourceFileIndex;
 	//Check if the data is valid
-	if (SourceFileIndex == INDEX_NONE)
+	if (SourceFileIndexToReplace == INDEX_NONE)
 	{
-		check(AssetSourcePaths.Num() <= 1);
-		//Ask for a new file for the index 0
+		// Ask for a new file for the index 0
+		// TODO(?) need to do anything for multiple source paths here?
+		// UDIM textures will have multiple source paths for example, but they come through this path
 		SourceFileIndexToReplace = 0;
 	}
-	else
-	{
-		check(AssetSourcePaths.IsValidIndex(SourceFileIndex));
-	}
 	check(SourceFileIndexToReplace >= 0);
-	
+	check(AssetSourcePaths.IsValidIndex(SourceFileIndexToReplace));
 
 	FReimportManager::Instance()->ValidateAllSourceFileAndReimport(CopyOfSelectedAssets, true, SourceFileIndexToReplace, true);
 }

@@ -138,6 +138,7 @@ namespace UnrealBuildTool.Rules
             });
             // required by D3D11RHI
             AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
             AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
 
             {   // WebRTC stuff

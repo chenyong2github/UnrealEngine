@@ -544,6 +544,14 @@ public:
 	NIAGARA_API void InvalidateCompileResults();
 	FText GetDescription() { return Description.IsEmpty() ? FText::FromString(GetName()) : Description; }
 
+	/** Helper to convert the struct from its binary data out of the DDC to it's actual in-memory version.
+		Do not call this on anything other than the game thread as it depends on the FObjectAndNameAsStringProxyArchive,
+		which calls FindStaticObject which can fail when used in any other thread!*/
+	static bool BinaryToExecData(const TArray<uint8>& InBinaryData, FNiagaraVMExecutableData& OutExecData);
+
+	/** Reverse of the BinaryToExecData() function */
+	static bool ExecToBinaryData(TArray<uint8>& OutBinaryData, FNiagaraVMExecutableData& InExecData);
+
 	/** Makes a deep copy of any script dependencies, including itself.*/
 	NIAGARA_API virtual UNiagaraScript* MakeRecursiveDeepCopy(UObject* DestOuter, TMap<const UObject*, UObject*>& ExistingConversions) const;
 
@@ -560,9 +568,11 @@ public:
 	NIAGARA_API void RequestCompile(bool bForceCompile = false);
 
 	/** Request an asynchronous compile for the script, possibly forcing it to compile. The output values are the compilation id of the data as well as the async handle to 
-		gather up the results with. bTrulyAsync tells the system whether or not the compile task must be completed on the main thread (mostly used for debugging). The
-		overall function returns whether or not any compiles were actually issued. They will be skipped if none of the data is dirty.*/
-	NIAGARA_API bool RequestExternallyManagedAsyncCompile(const TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe>& RequestData, FNiagaraVMExecutableDataId& OutCompileId, uint32& OutAsyncHandle, bool bTrulyAsync);
+		gather up the results with. The function returns whether or not any compiles were actually issued. */
+	NIAGARA_API bool RequestExternallyManagedAsyncCompile(const TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe>& RequestData, FNiagaraVMExecutableDataId& OutCompileId, uint32& OutAsyncHandle);
+
+	/** Creates a string key for the derived data cache */
+	FString GetNiagaraDDCKeyString();
 
 	/** Callback issued whenever a compilation successfully happened (even if the results are a script that cannot be executed due to errors)*/
 	NIAGARA_API FOnScriptCompiled& OnVMScriptCompiled();

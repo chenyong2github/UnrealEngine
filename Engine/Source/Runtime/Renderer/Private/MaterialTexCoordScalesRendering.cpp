@@ -51,7 +51,7 @@ void FMaterialTexCoordScalePS::GetDebugViewModeShaderBindings(
 void FOutputMaterialTexCoordScaleInterface::SetDrawRenderState(EBlendMode BlendMode, FRenderState& DrawRenderState, bool bHasDepthPrepassForMaskedMaterial) const
 {
 	DrawRenderState.BlendState = TStaticBlendState<>::GetRHI();
-	DrawRenderState.DepthStencilState = TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI();
+	DrawRenderState.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 }
 
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

@@ -276,6 +276,7 @@ void FSlateOpenGLElementProgram::CreateProgram( const FSlateOpenGLVS& VertexShad
 	IgnoreTextureAlphaParam = glGetUniformLocation( ProgramID, "IgnoreTextureAlpha" );
 	ShaderTypeParam = glGetUniformLocation( ProgramID, "ShaderType" );
 	MarginUVsParam = glGetUniformLocation( ProgramID, "MarginUVs" );
+	GammaValuesParam = glGetUniformLocation(ProgramID, "GammaValues");
 
 	CHECK_GL_ERRORS;
 }
@@ -327,5 +328,11 @@ void FSlateOpenGLElementProgram::SetMarginUVs( const FVector4& InMarginUVs )
 {
 	const GLfloat* Params = (GLfloat*)&InMarginUVs;
 	glUniform4fv( MarginUVsParam, 1, Params );
+	CHECK_GL_ERRORS;
+}
+
+void FSlateOpenGLElementProgram::SetGammaValues(const FVector2D& InGammaValues)
+{
+	glUniform2f(GammaValuesParam, InGammaValues.X, InGammaValues.Y);
 	CHECK_GL_ERRORS;
 }

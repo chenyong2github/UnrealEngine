@@ -49,7 +49,9 @@ void SetupShadowDepthPassUniformBuffer(
 	const FProjectedShadowInfo* ShadowInfo,
 	FRHICommandListImmediate& RHICmdList,
 	const FViewInfo& View,
-	FShadowDepthPassUniformParameters& ShadowDepthPassParameters)
+	FShadowDepthPassUniformParameters& ShadowDepthPassParameters,
+	FLightPropagationVolume* LPV = nullptr
+)
 {
 	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
 	SetupSceneTextureUniformParameters(SceneRenderTargets, View.FeatureLevel, ESceneTextureSetupMode::None, ShadowDepthPassParameters.SceneTextures);
@@ -75,6 +77,12 @@ void SetupShadowDepthPassUniformBuffer(
 		}
 	}
 
+
+	ShadowDepthPassParameters.RWGvListBuffer = GBlackTextureWithUAV->UnorderedAccessViewRHI;
+	ShadowDepthPassParameters.RWGvListHeadBuffer = GBlackTextureWithUAV->UnorderedAccessViewRHI;
+	ShadowDepthPassParameters.RWVplListBuffer = GBlackTextureWithUAV->UnorderedAccessViewRHI;
+	ShadowDepthPassParameters.RWVplListHeadBuffer = GBlackTextureWithUAV->UnorderedAccessViewRHI;
+
 	if (ShadowInfo->bReflectiveShadowmap)
 	{
 		const FSceneViewState* ViewState = (const FSceneViewState*)View.State;
@@ -87,6 +95,11 @@ void SetupShadowDepthPassUniformBuffer(
 			{
 				ShadowDepthPassParameters.LPV = Lpv->GetWriteUniformBufferParams();
 			}
+
+			ShadowDepthPassParameters.RWGvListBuffer = LPV->GetGvListBufferUav();
+			ShadowDepthPassParameters.RWGvListHeadBuffer = LPV->GetGvListHeadBufferUav();
+			ShadowDepthPassParameters.RWVplListBuffer = LPV->GetVplListBufferUav();
+			ShadowDepthPassParameters.RWVplListHeadBuffer = LPV->GetVplListHeadBufferUav();
 		}
 	}
 }
@@ -1091,13 +1104,13 @@ void FProjectedShadowInfo::CopyCachedShadowMap(FRHICommandList& RHICmdList, cons
 }
 
 
-void FProjectedShadowInfo::SetupShadowUniformBuffers(FRHICommandListImmediate& RHICmdList, FScene* Scene)
+void FProjectedShadowInfo::SetupShadowUniformBuffers(FRHICommandListImmediate& RHICmdList, FScene* Scene, FLightPropagationVolume* LPV)
 {
 	const ERHIFeatureLevel::Type FeatureLevel = ShadowDepthView->FeatureLevel;
 	if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Deferred)
 	{
 		FShadowDepthPassUniformParameters ShadowDepthPassParameters;
-		SetupShadowDepthPassUniformBuffer(this, RHICmdList, *ShadowDepthView, ShadowDepthPassParameters);
+		SetupShadowDepthPassUniformBuffer(this, RHICmdList, *ShadowDepthView, ShadowDepthPassParameters, LPV);
 
 		if (IsWholeSceneDirectionalShadow() && !bReflectiveShadowmap)
 		{
@@ -1462,7 +1475,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 		FLightSceneProxy* CurrentLightForDrawEvent = NULL;
 
 #if WANTS_DRAW_MESH_EVENTS
-		TDrawEvent<FRHICommandList> LightEvent;
+		FDrawEvent LightEvent;
 #endif
 
 		if (ParallelShadowPasses.Num() > 0)
@@ -1783,7 +1796,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 			FSceneViewState* ViewState = (FSceneViewState*)ProjectedShadowInfo->DependentView->State;
 			FLightPropagationVolume* LightPropagationVolume = ViewState->GetLightPropagationVolume(FeatureLevel);
 
-			ProjectedShadowInfo->SetupShadowUniformBuffers(RHICmdList, Scene);
+			ProjectedShadowInfo->SetupShadowUniformBuffers(RHICmdList, Scene, LightPropagationVolume);
 
 			auto BeginShadowRenderPass = [this, LightPropagationVolume, ProjectedShadowInfo, &ColorTarget0, &ColorTarget1, &DepthTarget](FRHICommandList& InRHICmdList, bool bPerformClear)
 			{
@@ -1803,13 +1816,6 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 				RPInfo.DepthStencilRenderTarget.DepthStencilTarget = DepthTarget.TargetableTexture;
 				RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthWrite_StencilWrite;
 
-				// Set starting UAV bind index
-				RPInfo.UAVIndex = UE_ARRAY_COUNT(RenderTargets);
-				RPInfo.NumUAVs = UE_ARRAY_COUNT(Uavs);
-				for (int32 Index = 0; Index < RPInfo.NumUAVs; Index++)
-				{
-					RPInfo.UAVs[Index] = Uavs[Index];
-				}
 
 				InRHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToGfx, Uavs, UE_ARRAY_COUNT(Uavs));
 				InRHICmdList.BeginRenderPass(RPInfo, TEXT("ShadowAtlas"));

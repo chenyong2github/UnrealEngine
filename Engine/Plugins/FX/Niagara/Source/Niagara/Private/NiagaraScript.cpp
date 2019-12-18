@@ -21,13 +21,19 @@
 #include "NiagaraDataInterfaceSkeletalMesh.h"
 #include "NiagaraDataInterfaceStaticMesh.h"
 #if WITH_EDITOR
-	#include "NiagaraScriptDerivedData.h"
 	#include "DerivedDataCacheInterface.h"
 	#include "Interfaces/ITargetPlatform.h"
+
+
+	// This is a version string that mimics the old versioning scheme. In case of merge conflicts with DDC versions,
+	// you MUST generate a new GUID and set this new version. If you want to bump this version, generate a new guid
+	// using VS->Tools->Create GUID
+	#define NIAGARASCRIPT_DERIVEDDATA_VER		TEXT("179023FDDDD444DE97F61296909C2990")
 #endif
 
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/RenderingObjectVersion.h"
+#include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 
 #include "NiagaraFunctionLibrary.h"
 #include "VectorVM.h"
@@ -249,6 +255,17 @@ class UNiagaraSystem* UNiagaraScript::FindRootSystem()
 	}
 
 	return nullptr;
+}
+
+FString UNiagaraScript::GetNiagaraDDCKeyString()
+{
+	enum { UE_NIAGARA_COMPILATION_DERIVEDDATA_VER = 2 };
+
+	FString KeyString = FString::Printf(TEXT("%i_%i"),
+		(int32)UE_NIAGARA_COMPILATION_DERIVEDDATA_VER, GNiagaraSkipVectorVMBackendOptimizations);
+
+	LastGeneratedVMId.AppendKeyString(KeyString);
+	return FDerivedDataCacheInterface::BuildCacheKey(TEXT("NiagaraScriptDerivedData"), NIAGARASCRIPT_DERIVEDDATA_VER, *KeyString);
 }
 
 void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) const
@@ -962,6 +979,31 @@ bool UNiagaraScript::HandleVariableRenames(const TMap<FNiagaraVariable, FNiagara
 	return bConvertedAnything;
 }
 
+bool UNiagaraScript::BinaryToExecData(const TArray<uint8>& InBinaryData, FNiagaraVMExecutableData& OutExecData)
+{
+	check(IsInGameThread());
+	if (InBinaryData.Num() == 0)
+	{
+		return false;
+	}
+
+	FMemoryReader Ar(InBinaryData, true);
+	FObjectAndNameAsStringProxyArchive SafeAr(Ar, false);
+	OutExecData.SerializeData(SafeAr, true);
+
+	return !SafeAr.IsError();
+}
+
+bool UNiagaraScript::ExecToBinaryData(TArray<uint8>& OutBinaryData, FNiagaraVMExecutableData& InExecData)
+{
+	check(IsInGameThread());
+	FMemoryWriter Ar(OutBinaryData, true);
+	FObjectAndNameAsStringProxyArchive SafeAr(Ar, false);
+	InExecData.SerializeData(SafeAr, true);
+
+	return OutBinaryData.Num() != 0 && !SafeAr.IsError();
+}
+
 UNiagaraScript* UNiagaraScript::MakeRecursiveDeepCopy(UObject* DestOuter, TMap<const UObject*, UObject*>& ExistingConversions) const
 {
 	check(GetOuter() != DestOuter);
@@ -1191,48 +1233,32 @@ void UNiagaraScript::RequestCompile(bool bForceCompile)
 		INiagaraModule& NiagaraModule = FModuleManager::Get().LoadModuleChecked<INiagaraModule>(TEXT("Niagara"));
 		TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> RequestData = NiagaraModule.Precompile(this);
 
+		// check the ddc first
+		if (!GetDerivedDataCacheRef().GetSynchronous(*GetNiagaraDDCKeyString(), OutData))
+		{
+			FNiagaraVMExecutableData ExeData;
+			if (BinaryToExecData(OutData, ExeData))
+			{
+				SetVMCompilationResults(LastGeneratedVMId, ExeData, RequestData.Get());
+				return;
+			}
+		}
+
 		ActiveCompileRoots.Empty();
 		RequestData->GetReferencedObjects(ActiveCompileRoots);
 
 		FNiagaraCompileOptions Options(GetUsage(), GetUsageId(), ModuleUsageBitmask, GetPathName(), GetFullName(), GetName());
-
-		FNiagaraScriptDerivedData* CompileTask = new FNiagaraScriptDerivedData(GetFullName(), RequestData, Options, LastGeneratedVMId, false);
-
-		// For debugging DDC/Compression issues		
-		const bool bSkipDDC = false;
-		if (bSkipDDC)
+		int32 JobHandle = NiagaraModule.StartScriptCompileJob(RequestData.Get(), Options);
+		TSharedPtr<FNiagaraVMExecutableData> ExeData = NiagaraModule.GetCompileJobResult(JobHandle, true);
+		if (ExeData)
 		{
-			CompileTask->Build(OutData);
-
-			delete CompileTask;
-			CompileTask = nullptr;
-		}
-		else
-		{
-			if (CompileTask->CanBuild())
+			SetVMCompilationResults(LastGeneratedVMId, *ExeData, RequestData.Get());
+			// save result to the ddc
+			if (ExecToBinaryData(OutData, *ExeData))
 			{
-				GetDerivedDataCacheRef().GetSynchronous(CompileTask, OutData);
-				// Assume that once given over to the derived cache, the compile task is going to be killed by it.
-				CompileTask = nullptr;
-			}
-			else
-			{
-				delete CompileTask;
-				CompileTask = nullptr;
+				GetDerivedDataCacheRef().Put(*GetNiagaraDDCKeyString(), OutData);
 			}
 		}
-
-		if (OutData.Num() > 0)
-		{
-			FNiagaraVMExecutableData ExeData;
-			FNiagaraScriptDerivedData::BinaryToExecData(OutData, ExeData);
-			SetVMCompilationResults(LastGeneratedVMId, ExeData, RequestData.Get());
-		}
-		else
-		{
-			check(false);
-		}
-
 		ActiveCompileRoots.Empty();
 	}
 	else
@@ -1241,33 +1267,29 @@ void UNiagaraScript::RequestCompile(bool bForceCompile)
 	}
 }
 
-bool UNiagaraScript::RequestExternallyManagedAsyncCompile(const TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe>& RequestData, FNiagaraVMExecutableDataId& OutCompileId, uint32& OutAsyncHandle, bool bTrulyAsync)
+bool UNiagaraScript::RequestExternallyManagedAsyncCompile(const TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe>& RequestData, FNiagaraVMExecutableDataId& OutCompileId, uint32& OutAsyncHandle)
 {
+	OutCompileId = LastGeneratedVMId;
+
 	if (!AreScriptAndSourceSynchronized())
 	{
 		if (IsCompilable() == false)
 		{
-			OutCompileId = LastGeneratedVMId;
 			OutAsyncHandle = (uint32)INDEX_NONE;
 			CachedScriptVM.LastCompileStatus = ENiagaraScriptCompileStatus::NCS_Unknown;
 			CachedScriptVMId = LastGeneratedVMId;
 			return false;
 		}
-
+		INiagaraModule& NiagaraModule = FModuleManager::Get().LoadModuleChecked<INiagaraModule>(TEXT("Niagara"));
 		CachedScriptVM.LastCompileStatus = ENiagaraScriptCompileStatus::NCS_BeingCreated;
 
-		OutCompileId = LastGeneratedVMId;
 		FNiagaraCompileOptions Options(GetUsage(), GetUsageId(), ModuleUsageBitmask, GetPathName(), GetFullName(), GetName());
-		FNiagaraScriptDerivedData* CompileTask = new FNiagaraScriptDerivedData(GetFullName(), RequestData, Options, LastGeneratedVMId, bTrulyAsync);
-	
-		check(CompileTask->CanBuild());
-		OutAsyncHandle = GetDerivedDataCacheRef().GetAsynchronous(CompileTask);
-
+		Options.AdditionalDefines = LastGeneratedVMId.AdditionalDefines;
+		OutAsyncHandle = NiagaraModule.StartScriptCompileJob(RequestData.Get(), Options);
 		return true;
 	}
 	else
 	{
-		OutCompileId = LastGeneratedVMId;
 		OutAsyncHandle = (uint32)INDEX_NONE;
 		UE_LOG(LogNiagara, Verbose, TEXT("Script '%s' is in-sync skipping compile.."), *GetFullName());
 		return false;

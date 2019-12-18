@@ -53,6 +53,33 @@ bool FFileHelper::LoadFileToArray( TArray<uint8>& Result, const TCHAR* Filename,
 }
 
 /**
+ * Load a binary file to a dynamic array with two uninitialized bytes at end as padding.
+ * TArray64 version.
+ */
+bool FFileHelper::LoadFileToArray(TArray64<uint8>& Result, const TCHAR* Filename, uint32 Flags)
+{
+	FScopedLoadingState ScopedLoadingState(Filename);
+
+	FArchive* Reader = IFileManager::Get().CreateFileReader(Filename, Flags);
+	if (!Reader)
+	{
+		if (!(Flags & FILEREAD_Silent))
+		{
+			UE_LOG(LogStreaming, Warning, TEXT("Failed to read file '%s' error."), Filename);
+		}
+		return false;
+	}
+	int64 TotalSize = Reader->TotalSize();
+	// Allocate slightly larger than file size to avoid re-allocation when caller null terminates file buffer
+	Result.Reset(TotalSize + 2);
+	Result.AddUninitialized(TotalSize);
+	Reader->Serialize(Result.GetData(), Result.Num());
+	bool Success = Reader->Close();
+	delete Reader;
+	return Success;
+}
+
+/**
  * Converts an arbitrary text buffer to an FString.
  * Supports all combination of ANSI/Unicode files and platforms.
  */
@@ -279,6 +306,20 @@ bool FFileHelper::SaveArrayToFile(TArrayView<const uint8> Array, const TCHAR* Fi
 	// Always explicitly close to catch errors from flush/close
 	Ar->Close();
 
+	return !Ar->IsError() && !Ar->IsCriticalError();
+}
+
+/**
+ * Save a binary array to a file.
+ */
+bool FFileHelper::SaveArrayToFile(const TArray64<uint8>& Array, const TCHAR* Filename, IFileManager* FileManager /*= &IFileManager::Get()*/, uint32 WriteFlags /*= 0*/)
+{
+	TUniquePtr<FArchive> Ar = TUniquePtr<FArchive>(FileManager->CreateFileWriter(Filename, WriteFlags));
+	if (!Ar)
+	{
+		return false;
+	}
+	Ar->Serialize(const_cast<uint8*>(Array.GetData()), Array.Num());
 	return !Ar->IsError() && !Ar->IsCriticalError();
 }
 

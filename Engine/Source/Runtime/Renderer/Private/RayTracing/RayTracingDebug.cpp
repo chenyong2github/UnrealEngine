@@ -25,6 +25,13 @@ static TAutoConsoleVariable<FString> CVarRayTracingDebugMode(
 	TEXT("Sets the ray tracing debug visualization mode (default = None - Driven by viewport menu) .\n")
 	);
 
+TAutoConsoleVariable<int32> CVarRayTracingDebugModeOpaqueOnly(
+	TEXT("r.RayTracing.DebugVisualizationMode.OpaqueOnly"),
+	1,
+	TEXT("Sets whether the view mode rendes opaque objects only (default = 1, render only opaque objects, 0 = render all objects)"),
+	ECVF_RenderThreadSafe
+);
+
 class FRayTracingDebugRGS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FRayTracingDebugRGS)
@@ -33,6 +40,7 @@ class FRayTracingDebugRGS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, VisualizationMode)
 		SHADER_PARAMETER(int32, ShouldUsePreExposure)
+		SHADER_PARAMETER(int32, OpaqueOnly)
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, Output)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
@@ -123,7 +131,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRHICommandListImmedia
 	}
 
 
-
 	TShaderMap<FGlobalShaderType>* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
 	auto RayGenShader = ShaderMap->GetShader<FRayTracingDebugRGS>();
@@ -136,6 +143,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRHICommandListImmedia
 
 	RayGenParameters->VisualizationMode = DebugVisualizationMode;
 	RayGenParameters->ShouldUsePreExposure = View.Family->EngineShowFlags.Tonemapper;
+	RayGenParameters->OpaqueOnly = CVarRayTracingDebugModeOpaqueOnly.GetValueOnRenderThread();
 	RayGenParameters->TLAS = RayTracingSceneRHI->GetShaderResourceView();
 	RayGenParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	RayGenParameters->Output = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor()));

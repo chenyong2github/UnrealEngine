@@ -126,8 +126,8 @@ static uint32 GetAutoBindingSpace(const FShaderTarget& Target)
 	switch (Target.Frequency)
 	{
 	case SF_RayGen:
-	case SF_RayMiss:
 		return RAY_TRACING_REGISTER_SPACE_GLOBAL;
+	case SF_RayMiss:
 	case SF_RayHitGroup:
 	case SF_RayCallable:
 		return RAY_TRACING_REGISTER_SPACE_LOCAL;
@@ -166,7 +166,7 @@ static const TCHAR* GetShaderProfileName(FShaderTarget Target, bool bForceSM6)
 			return TEXT("lib_6_3");
 		}
 	}
-	else if (Target.Platform == SP_PCD3D_ES2 || Target.Platform == SP_PCD3D_ES3_1)
+	else if (Target.Platform == SP_PCD3D_ES3_1)
 	{
 		checkSlow(Target.Frequency == SF_Vertex ||
 			Target.Frequency == SF_Pixel ||
@@ -481,8 +481,23 @@ static dxc::DxcDllSupport& GetDxcDllHelper()
 	return DxcDllSupport;
 }
 
-static HRESULT D3DCompileToDxil(const char* SourceText, LPCWSTR EntryPoint, LPCWSTR TargetProfile, LPCWSTR* Arguments, uint32 NumArguments,
-	TRefCountPtr<ID3DBlob>& OutDxilBlob, TRefCountPtr<IDxcBlobEncoding>& OutErrorBlob)
+static FString DxcBlobEncodingToFString(TRefCountPtr<IDxcBlobEncoding> DxcBlob)
+{
+	FString OutString;
+	if (DxcBlob && DxcBlob->GetBufferSize())
+	{
+		ANSICHAR* ErrorChars = new ANSICHAR[DxcBlob->GetBufferSize() + 1];
+		FMemory::Memcpy(ErrorChars, DxcBlob->GetBufferPointer(), DxcBlob->GetBufferSize());
+		ErrorChars[DxcBlob->GetBufferSize()] = 0;
+		OutString = ErrorChars;
+		delete[] ErrorChars;
+	}
+
+	return OutString;
+}
+
+static HRESULT D3DCompileToDxil(const char* SourceText, LPCWSTR EntryPoint, LPCWSTR TargetProfile, LPCWSTR* Arguments, uint32 NumArguments, 
+	const FString& DisasmFilename, TRefCountPtr<ID3DBlob>& OutDxilBlob, TRefCountPtr<IDxcBlobEncoding>& OutErrorBlob)
 {
 	dxc::DxcDllSupport& DxcDllHelper = GetDxcDllHelper();
 
@@ -517,6 +532,16 @@ static HRESULT D3DCompileToDxil(const char* SourceText, LPCWSTR EntryPoint, LPCW
 	{
 		// NOTE: IDxcBlob is an alias of ID3D10Blob and ID3DBlob.
 		VERIFYHRESULT(CompileResult->GetResult((IDxcBlob**)OutDxilBlob.GetInitReference()));
+
+		if (DisasmFilename.Len() > 0)
+		{
+			TRefCountPtr<IDxcBlobEncoding> DisasmBlob;
+			if (SUCCEEDED(Compiler->Disassemble((IDxcBlob*)OutDxilBlob.GetReference(), DisasmBlob.GetInitReference())))
+			{
+				FString String = DxcBlobEncodingToFString(DisasmBlob);
+				FFileHelper::SaveStringToFile(String, *DisasmFilename);
+			}
+		}
 	}
 
 	CompileResult->GetErrorBuffer(OutErrorBlob.GetInitReference());
@@ -830,9 +855,12 @@ static void ExtractParameterMapFromD3DShader(
 			const bool bIsIntelExtension = (FCStringAnsi::Strcmp(BindDesc.Name, "g_IntelExt") == 0);
 
 			// https://github.com/GPUOpen-LibrariesAndSDKs/AGS_SDK/blob/master/ags_lib/hlsl/ags_shader_intrinsics_dx11.hlsl
-			const bool bIsAMDExtension = (FCStringAnsi::Strcmp(BindDesc.Name, "AmdDxExtShaderIntrinsicsUAV") == 0);
+			const bool bIsAMDExtensionDX11 = (FCStringAnsi::Strcmp(BindDesc.Name, "AmdDxExtShaderIntrinsicsUAV") == 0);
 
-			const bool bIsVendorParameter = bIsNVExtension || bIsIntelExtension || bIsAMDExtension;
+			// https://github.com/GPUOpen-LibrariesAndSDKs/AGS_SDK/blob/master/ags_lib/hlsl/ags_shader_intrinsics_dx12.hlsl
+			const bool bIsAMDExtensionDX12 = (FCStringAnsi::Strcmp(BindDesc.Name, "AmdExtD3DShaderIntrinsicsUAV") == 0);
+
+			const bool bIsVendorParameter = bIsNVExtension || bIsIntelExtension || bIsAMDExtensionDX11 || bIsAMDExtensionDX12;
 
 			TCHAR OfficialName[1024];
 			FCString::Strcpy(OfficialName, ANSI_TO_TCHAR(BindDesc.Name));
@@ -845,7 +873,7 @@ static void ExtractParameterMapFromD3DShader(
 				{
 					VendorExtension.VendorId = 0x10DE; // NVIDIA
 				}
-				else if (bIsAMDExtension)
+				else if (bIsAMDExtensionDX11 || bIsAMDExtensionDX12)
 				{
 					VendorExtension.VendorId = 0x1002; // AMD
 				}
@@ -1022,6 +1050,7 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 
 	// Write out the preprocessed file and a batch file to compile it if requested (DumpDebugInfoPath is valid)
 	bool bDumpDebugInfo = DumpDebugShaderUSF(PreprocessedShaderSource, Input);
+	FString DisasmFilename;
 	if (bDumpDebugInfo)
 	{
 		FString BatchFileContents;
@@ -1048,6 +1077,8 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 			FFileHelper::SaveStringToFile(CreateShaderCompilerWorkerDirectCommandLine(Input), *(Input.DumpDebugInfoPath / TEXT("DirectCompile.txt")));
 			FFileHelper::SaveStringToFile(Input.DebugDescription, *(Input.DumpDebugInfoPath / TEXT("permutation_info.txt")));
 		}
+
+		DisasmFilename = *(Input.DumpDebugInfoPath / TEXT("Output.d3dasm"));
 	}
 
 	TRefCountPtr<ID3DBlob> Shader;
@@ -1074,16 +1105,12 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 			bIsRayTracingShader ? L"" : *EntryPointName, // dummy entry point for ray tracing shaders
 			TCHAR_TO_WCHAR(ShaderProfile),
 			Args.GetData(), Args.Num(),
+			DisasmFilename,
 			Shader, DxcErrorBlob);
 
 		if (DxcErrorBlob && DxcErrorBlob->GetBufferSize())
 		{
-			ANSICHAR* ErrorChars = new ANSICHAR[DxcErrorBlob->GetBufferSize() + 1];
-			FMemory::Memcpy(ErrorChars, DxcErrorBlob->GetBufferPointer(), DxcErrorBlob->GetBufferSize());
-			ErrorChars[DxcErrorBlob->GetBufferSize()] = 0;
-			FString ErrorString(ErrorChars);
-			delete[] ErrorChars;
-
+			FString ErrorString = DxcBlobEncodingToFString(DxcErrorBlob);
 			DXCFilterShaderCompileWarnings(ErrorString, FilteredErrors);
 		}
 
@@ -1602,33 +1629,6 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 		}
 	}
 
-	if (SUCCEEDED(Result))
-	{
-		if (Input.Target.Platform == SP_PCD3D_ES2)
-		{
-			if (Output.NumTextureSamplers > 8)
-			{
-				FilteredErrors.Add(FString::Printf(TEXT("Shader uses more than 8 texture samplers which is not supported by ES2!  Used: %u"), Output.NumTextureSamplers));
-				Result = E_FAIL;
-				Output.bSucceeded = false;
-			}
-			// Disabled for now while we work out some issues with it. A compiler bug is causing 
-			// Landscape to require a 9th interpolant even though the pixel shader never reads from
-			// it. Search for LANDSCAPE_BUG_WORKAROUND.
-			else if (false && NumInterpolants > 8)
-			{
-				FString InterpolantsStr;
-				for (int32 i = 0; i < InterpolantNames.Num(); ++i)
-				{
-					InterpolantsStr += FString::Printf(TEXT("\n\t%s"), *InterpolantNames[i]);
-				}
-				FilteredErrors.Add(FString::Printf(TEXT("Shader uses more than 8 interpolants which is not supported by ES2!  Used: %u%s"), NumInterpolants, *InterpolantsStr));
-				Result = E_FAIL;
-				Output.bSucceeded = false;
-			}
-		}
-	}
-
 	if (FAILED(Result))
 	{
 		++GBreakpoint;
@@ -1729,10 +1729,15 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 		}
 	}
 
-	if (Input.RootParameterBindings.Num())
+	FShaderParameterParser ShaderParameterParser;
+	if (!ShaderParameterParser.ParseAndMoveShaderParametersToRootConstantBuffer(
+		Input, Output, PreprocessedShaderSource,
+		IsRayTracingShader(Input.Target) ? TEXT("cbuffer") : nullptr))
 	{
-		MoveShaderParametersToRootConstantBuffer(Input, PreprocessedShaderSource, TEXT("cbuffer"));
+		// The FShaderParameterParser will add any relevant errors.
+		return;
 	}
+
 	RemoveUniformBuffersFromSource(Input.Environment, PreprocessedShaderSource);
 
 	// Override default compiler path to newer dll
@@ -1855,6 +1860,8 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 		}
 	}
 
+	ShaderParameterParser.ValidateShaderParameterTypes(Input, Output);
+
 	if (Input.ExtraSettings.bExtractShaderSource)
 	{
 		Output.OptionalFinalShaderSource = PreprocessedShaderSource;
@@ -1867,15 +1874,6 @@ void CompileShader_Windows_SM5(const FShaderCompilerInput& Input,FShaderCompiler
 
 	FShaderCompilerDefinitions AdditionalDefines;
 	AdditionalDefines.SetDefine(TEXT("SM5_PROFILE"), 1);
-	CompileD3DShader(Input, Output, AdditionalDefines, WorkingDirectory);
-}
-
-void CompileShader_Windows_ES2(const FShaderCompilerInput& Input,FShaderCompilerOutput& Output,const FString& WorkingDirectory)
-{
-	check(Input.Target.Platform == SP_PCD3D_ES2);
-
-	FShaderCompilerDefinitions AdditionalDefines;
-	AdditionalDefines.SetDefine(TEXT("ES2_PROFILE"), 1);
 	CompileD3DShader(Input, Output, AdditionalDefines, WorkingDirectory);
 }
 

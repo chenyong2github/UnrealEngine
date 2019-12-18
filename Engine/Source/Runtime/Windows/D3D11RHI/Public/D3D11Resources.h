@@ -42,6 +42,7 @@ struct FD3D11ShaderData
 {
 	FD3D11ShaderResourceTable			ShaderResourceTable;
 	TArray<FName>						UniformBuffers;
+	TArray<FUniformBufferStaticSlot>	StaticSlots;
 	TArray<FShaderCodeVendorExtension>	VendorExtensions;
 	bool								bShaderNeedsGlobalConstantBuffer;
 };

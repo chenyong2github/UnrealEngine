@@ -73,6 +73,7 @@ FMetalRHICommandContext::FMetalRHICommandContext(class FMetalProfiler* InProfile
 , PendingNumPrimitives(0)
 {
 	check(Context);
+	GlobalUniformBuffers.AddZeroed(FUniformBufferStaticSlotRegistry::Get().GetSlotCount());
 }
 
 FMetalRHICommandContext::~FMetalRHICommandContext()
@@ -141,7 +142,7 @@ FMetalRHIImmediateCommandContext::FMetalRHIImmediateCommandContext(class FMetalP
 void FMetalRHICommandContext::RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, const TCHAR* InName)
 {
 	@autoreleasepool {
-	bool bHasTarget = (InInfo.DepthStencilRenderTarget.DepthStencilTarget != nullptr || InInfo.GetNumColorRenderTargets() > 0 || InInfo.NumUAVs > 0);
+	bool bHasTarget = (InInfo.DepthStencilRenderTarget.DepthStencilTarget != nullptr || InInfo.GetNumColorRenderTargets() > 0);
 	
 	if (InInfo.bGeneratingMips)
 	{
@@ -185,7 +186,7 @@ void FMetalRHICommandContext::RHIBeginRenderPass(const FRHIRenderPassInfo& InInf
 			uint32 Width = FMath::Max((uint32)(RenderTarget->Texture.GetWidth() >> RenderTargetView.MipIndex), (uint32)1);
 			uint32 Height = FMath::Max((uint32)(RenderTarget->Texture.GetHeight() >> RenderTargetView.MipIndex), (uint32)1);
 
-			RHISetViewport(0, 0, 0.0f, Width, Height, 1.0f);
+			RHISetViewport(0.0f, 0.0f, 0.0f, (float)Width, (float)Height, 1.0f);
 		}
 	}
 	}
@@ -224,7 +225,7 @@ void FMetalRHICommandContext::RHIEndRenderPass()
 
 void FMetalRHICommandContext::RHIBeginComputePass(const TCHAR* InName)
 {
-	RHISetRenderTargets(0, nullptr, nullptr, 0, nullptr);
+	RHISetRenderTargets(0, nullptr, nullptr);
 }
 
 void FMetalRHICommandContext::RHIEndComputePass()

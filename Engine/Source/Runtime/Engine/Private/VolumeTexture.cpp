@@ -247,7 +247,7 @@ uint32 UVolumeTexture::CalcTextureMemorySize(int32 MipCount) const
 		CalcMipMapExtent3D(GetSizeX(), GetSizeY(), GetSizeZ(), Format, FMath::Max<int32>(0, GetNumMips() - MipCount), SizeX, SizeY, SizeZ);
 
 		uint32 TextureAlign = 0;
-		Size = (uint32)RHICalcTexture3DPlatformSize(SizeX, SizeY, SizeZ, Format, MipCount, Flags, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign);
+		Size = (uint32)RHICalcTexture3DPlatformSize(SizeX, SizeY, SizeZ, Format, FMath::Max(1, MipCount), Flags, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign);
 	}
 	return Size;
 }

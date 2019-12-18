@@ -13,6 +13,7 @@
 #include "HAL/FileManager.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Engine/GameViewportClient.h"
+#include "RenderCaptureInterface.h"
 
 #if WITH_EDITOR
 #include "UnrealClient.h"
@@ -229,6 +230,8 @@ void FRenderDocPluginModule::StartupModule()
 		TEXT("renderdoc.CaptureFrame"),
 		TEXT("Captures the rendering commands of the next frame and launches RenderDoc"),
 		FConsoleCommandDelegate::CreateRaw(this, &FRenderDocPluginModule::CaptureFrame));
+
+	BindCaptureCallbacks();
 
 	UE_LOG(RenderDocPlugin, Log, TEXT("RenderDoc plugin is ready!"));
 #endif
@@ -492,6 +495,8 @@ void FRenderDocPluginModule::ShutdownModule()
 	if (GUsingNullRHI)
 		return;
 
+	UnBindCaptureCallbacks();
+
 #if WITH_EDITOR
 	delete EditorExtensions;
 #endif
@@ -499,6 +504,50 @@ void FRenderDocPluginModule::ShutdownModule()
 	Loader.Release();
 
 	RenderDocAPI = nullptr;
+}
+
+void FRenderDocPluginModule::BeginCaptureBracket(FRHICommandListImmediate* RHICommandList)
+{
+	RENDERDOC_DevicePointer Device = FRenderDocFrameCapturer::GetRenderdocDevicePointer();
+	RHICommandList->EnqueueLambda([this, Device](FRHICommandListImmediate& CmdList)
+	{
+		RenderDocAPI->StartFrameCapture(Device, NULL);
+	});
+}
+
+void FRenderDocPluginModule::EndCaptureBracket(FRHICommandListImmediate* RHICommandList)
+{
+	RENDERDOC_DevicePointer Device = FRenderDocFrameCapturer::GetRenderdocDevicePointer();
+	RHICommandList->EnqueueLambda([this, Device](FRHICommandListImmediate& CmdList)
+	{
+		uint32 result = RenderDocAPI->EndFrameCapture(Device, NULL);
+		if (result == 1)
+		{
+			TGraphTask<FRenderDocAsyncGraphTask>::CreateTask().ConstructAndDispatchWhenReady(ENamedThreads::GameThread, [this]()
+			{
+				StartRenderDoc(FPaths::Combine(*FPaths::ProjectSavedDir(), *FString("RenderDocCaptures")));
+			});
+		}
+	});
+}
+
+void FRenderDocPluginModule::BindCaptureCallbacks()
+{
+	RenderCaptureInterface::RegisterCallbacks(
+		RenderCaptureInterface::FOnBeginCaptureDelegate::CreateLambda([this](FRHICommandListImmediate* RHICommandList, TCHAR const* Name)
+		{
+			BeginCaptureBracket(RHICommandList);
+		}),
+		RenderCaptureInterface::FOnEndCaptureDelegate::CreateLambda([this](FRHICommandListImmediate* RHICommandList)
+		{
+			EndCaptureBracket(RHICommandList);
+		})
+	);
+}
+
+void FRenderDocPluginModule::UnBindCaptureCallbacks()
+{
+	RenderCaptureInterface::UnregisterCallbacks();
 }
 
 #undef LOCTEXT_NAMESPACE

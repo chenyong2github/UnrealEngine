@@ -373,7 +373,6 @@ bool FLuminOpenGL::bSupportsTextureBuffer = false;
 bool FLuminOpenGL::bUseES30ShadingLanguage = false;
 bool FLuminOpenGL::bES30Support = false;
 bool FLuminOpenGL::bES31Support = false;
-bool FLuminOpenGL::bSupportsInstancing = false;
 bool FLuminOpenGL::bHasHardwareHiddenSurfaceRemoval = false;
 bool FLuminOpenGL::bSupportsMobileMultiView = false;
 bool FLuminOpenGL::bSupportsImageExternal = false;
@@ -514,7 +513,6 @@ void FLuminOpenGL::ProcessExtensions(const FString& ExtensionsString)
 		glFramebufferTextureLayer = (PFNGLFRAMEBUFFERTEXTURELAYERPROC)((void*)eglGetProcAddress("glFramebufferTextureLayer"));
 
 		// Required by the ES3 spec
-		bSupportsInstancing = true;
 		bSupportsTextureFloat = true;
 		bSupportsTextureHalfFloat = true;
 	}

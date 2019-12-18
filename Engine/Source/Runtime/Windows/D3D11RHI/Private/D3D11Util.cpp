@@ -461,5 +461,7 @@ DEFINE_STAT(STAT_D3D11FreeUniformBufferMemory);
 DEFINE_STAT(STAT_D3D11NumFreeUniformBuffers);
 DEFINE_STAT(STAT_D3D11NumImmutableUniformBuffers);
 DEFINE_STAT(STAT_D3D11NumBoundShaderState);
+DEFINE_STAT(STAT_D3D11RenderTargetCommits);
+DEFINE_STAT(STAT_D3D11RenderTargetCommitsUAV);
 
 #undef LOCTEXT_NAMESPACE

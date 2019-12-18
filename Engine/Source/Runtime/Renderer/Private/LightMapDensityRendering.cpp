@@ -155,11 +155,8 @@ void FLightmapDensityMeshProcessor::Process(
 				IAllocatedVirtualTexture* AllocatedVT = MeshBatch.LCI->GetResourceCluster()->AllocatedVT;
 				if (AllocatedVT)
 				{
-					// We use the total Space size here as the Lightmap Scale/Bias is transformed to VT space
-					// TODO - what should we do about multiple layers, as physical texture backing each layer may be different size
-					const uint32 PhysicalTextureSize = AllocatedVT->GetPhysicalTextureSize(0u);
-					ShaderElementData.LightMapResolutionScale.X = PhysicalTextureSize;
-					ShaderElementData.LightMapResolutionScale.Y = PhysicalTextureSize * 2.0f; // Compensates the VT specific math in GetLightMapCoordinates (used to pack more coefficients per texture)
+					ShaderElementData.LightMapResolutionScale.X = AllocatedVT->GetWidthInPixels();
+					ShaderElementData.LightMapResolutionScale.Y = AllocatedVT->GetHeightInPixels() * 2.0f; // Compensates the VT specific math in GetLightMapCoordinates (used to pack more coefficients per texture)
 				}
 			}
 			else

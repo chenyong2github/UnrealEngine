@@ -148,13 +148,25 @@ public:
 	}
 
 	/*
-	*	Write a TArray of type T to our arguments. This is a helper that write an int
+	*	Write a TArray of type T to our arguments. This is a helper that writes an int32
 	*	for the size, then a blob of sizeof(t) * NumItems
 	*/
 	template<typename T>
 	void Write(const TArray<T>& Value)
 	{
 		Write(Value.Num());
+		Write(Value.GetData(), Value.Num() * sizeof(T));
+	}
+
+	/*
+	*	Write a TArray64 of type T to our arguments. This is a helper that writes an int32
+	*	for the size, then a blob of sizeof(t) * NumItems
+	*/
+	template<typename T>
+	void Write(const TArray64<T>& Value)
+	{
+		ensureMsgf(Value.Num() == (int32)Value.Num(), TEXT("Tried to write array with " INT64_FMT " elements, which would overflow because the element count is 32-bit"), Value.Num());
+		Write((int32)Value.Num());
 		Write(Value.GetData(), Value.Num() * sizeof(T));
 	}
 

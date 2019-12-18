@@ -765,22 +765,23 @@ public:
 	/** Returns the buffer to use for indirect RHI calls. */
 	FRHIVertexBuffer* GetIndirectRHICallBuffer() const
 	{
-		ValidateRHIAccess();
-		check(PooledBuffer);
-		checkf(Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer, TEXT("Indirect buffers needs to be underlying vertex buffer."));
-		checkf(Desc.Usage & BUF_DrawIndirect, TEXT("The buffer %s was not flagged for indirect draw call"), Name);
-		check(PooledBuffer->VertexBuffer.IsValid());
-		return PooledBuffer->VertexBuffer;
+		checkf(Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer, TEXT("Buffer %s is not an underlying vertex buffer."), Name);
+		checkf(Desc.Usage & BUF_DrawIndirect, TEXT("Buffer %s was not flagged for indirect draw usage."), Name);
+		return static_cast<FRHIVertexBuffer*>(GetRHI());
 	}
 
 	/** Returns the buffer to use for RHI calls, eg RHILockVertexBuffer. */
 	FRHIVertexBuffer* GetRHIVertexBuffer() const
 	{
-		ValidateRHIAccess();
-		checkf(PooledBuffer, TEXT("RDG buffer had null PooledBuffer.  Make sure your pass's shader parameter table has a SHADER_PARAMETER_RDG_BUFFER_UPLOAD() entry for this buffer so the graph knows to allocate it."));
-		checkf(Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer, TEXT("This function only works on underlying vertex buffer."));
-		check(PooledBuffer->VertexBuffer.IsValid());
-		return PooledBuffer->VertexBuffer;
+		checkf(Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer, TEXT("Buffer %s is not an underlying vertex buffer."), Name);
+		return static_cast<FRHIVertexBuffer*>(GetRHI());
+	}
+
+	/** Returns the buffer to use for structured buffer calls. */
+	FRHIStructuredBuffer* GetRHIStructuredBuffer() const
+	{
+		checkf(Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer, TEXT("Buffer %s is not an underlying structured buffer."), Name);
+		return static_cast<FRHIStructuredBuffer*>(GetRHI());
 	}
 
 	//////////////////////////////////////////////////////////////////////////

@@ -342,6 +342,8 @@ SHOWFLAG_FIXED_IN_SHIPPING(0, PathTracing, SFG_Developer, NSLOCTEXT("UnrealEd", 
 SHOWFLAG_FIXED_IN_SHIPPING(0, RayTracingDebug, SFG_Developer, NSLOCTEXT("UnrealEd", "RayTracingDebug", "Ray tracing debug"))
 // RHI_RAYTRACING end
 
+/** Enable the SkyAtmosphere visualization to be drawn on screen */
+SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeSkyAtmosphere, SFG_Visualize, NSLOCTEXT("UnrealEd", "VisualizeSkyAtmosphereSF", "Sky Atmosphere"))
 
 #undef SHOWFLAG_ALWAYS_ACCESSIBLE
 #undef SHOWFLAG_FIXED_IN_SHIPPING

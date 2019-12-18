@@ -70,9 +70,6 @@ MaterialFloat StoreAvailableVTLevel(in out FTexCoordScalesParams Params, float L
 #include "/Engine/Generated/Material.ush"
 #include "DebugViewModeCommon.ush"
 
-#if LIGHTMAP_VT_ENABLED || NUM_VIRTUALTEXTURE_SAMPLES
-	RWTexture2D<uint> VTFeedbackBuffer : register(VT_FEEDBACK_REGISTER);
-#endif
 
 #if LIGHTMAP_VT_ENABLED || NUM_VIRTUALTEXTURE_SAMPLES
 EARLYDEPTHSTENCIL
@@ -151,7 +148,7 @@ void Main(
 		MaterialParameters.SvPosition,
 		1.0,
 		View.FrameNumber,
-		VTFeedbackBuffer
+		View.VTFeedbackBuffer
 	);
 #endif	
 }

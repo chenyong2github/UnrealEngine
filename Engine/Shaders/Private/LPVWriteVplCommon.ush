@@ -27,6 +27,8 @@
 // Bind UAVs to specific indices for materials with the following flags to ensure the UAVs set match
 // up with what the shader is expecting. Only do this for these materials as it causes other compute
 // shaders which include this file to fail to compile.
+
+#if COMPUTESHADER
 #if MATERIAL_INJECT_EMISSIVE_INTO_LPV || MATERIAL_BLOCK_GI
 RWStructuredBuffer<VplListEntry>				RWGvListBuffer : register (u2);		// 0
 RWByteAddressBuffer								RWGvListHeadBuffer : register (u3);	// 1
@@ -39,6 +41,15 @@ RWByteAddressBuffer								RWGvListHeadBuffer;	// 1
 
 RWStructuredBuffer<VplListEntry>				RWVplListBuffer;		// 2
 RWByteAddressBuffer								RWVplListHeadBuffer;	// 3
+#endif
+#else
+
+#define RWGvListBuffer ShadowDepthPass.RWGvListBuffer
+#define RWGvListHeadBuffer ShadowDepthPass.RWGvListHeadBuffer
+#define RWVplListBuffer ShadowDepthPass.RWVplListBuffer
+#define RWVplListHeadBuffer ShadowDepthPass.RWVplListHeadBuffer
+
+
 #endif
 
 //-------------------------------------------------------------------------------------------------
@@ -73,7 +84,7 @@ int AddToVplList( float3 worldPos, float3 flux, float3 direction, const bool emi
 		}
 
 		// Fill in the new list node 
-		Vpl vpl;
+		VplData vpl;
 		vpl.normal = direction;
 		vpl.flux = flux;
 
@@ -112,7 +123,7 @@ int AddToGvList( float3 worldPos, float3 flux, float3 direction )
 		RWGvListHeadBuffer.InterlockedExchange( (StoreIndexOffset+gridIndex)*4, newHeadIndex+1, oldHeadIndex );
 #endif
 		// Fill in the new list node
-		Vpl vpl;
+		VplData vpl;
 		vpl.normal = direction;
 		vpl.flux = flux;
 

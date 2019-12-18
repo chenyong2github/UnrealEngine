@@ -70,6 +70,7 @@ public:
 	void SetDrawEffects(ESlateDrawEffect InDrawEffects );
 	void SetShaderType( uint32 InShaderType );
 	void SetMarginUVs( const FVector4& InMarginUVs );
+	void SetGammaValues(const FVector2D& InGammaValues);
 private:
 	GLint ViewProjectionMatrixParam;
 	GLint VertexShaderParam;
@@ -78,5 +79,5 @@ private:
 	GLint IgnoreTextureAlphaParam;
 	GLint ShaderTypeParam;
 	GLint MarginUVsParam;
-
+	GLint GammaValuesParam;
 };

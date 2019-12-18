@@ -9,7 +9,7 @@
 
 // Change this to force recompilation of all ray tracing shaders (use https://www.random.org/cgi-bin/randbyte?nbytes=4&format=h)
 // This avoids changing the global ShaderVersion.ush and forcing recompilation of all shaders in the engine (only RT shaders will be affected)
-#define RAY_TRACING_SHADER_VERSION 0xe601594e
+#define RAY_TRACING_SHADER_VERSION 0xaa8a1c7d 
 
 #define RAY_TRACING_REGISTER_SPACE_LOCAL  0 // default register space for hit group (closest hit, any hit, intersection) shader resources
 #define RAY_TRACING_REGISTER_SPACE_GLOBAL 1 // register space for ray generation and miss shaders 
@@ -24,5 +24,9 @@
 #define RAY_TRACING_SHADER_SLOT_MATERIAL	0
 #define RAY_TRACING_SHADER_SLOT_SHADOW		1
 #define RAY_TRACING_NUM_SHADER_SLOTS		2
+
+#define RAY_TRACING_MISS_SHADER_SLOT_DEFAULT	0 // Main miss shader that simply sets HitT to a "miss" value (see FMinimalPayload::SetMiss())
+#define RAY_TRACING_MISS_SHADER_SLOT_LIGHTING	1 // Miss shader that may be used to evaluate light source radiance in ray traced reflections and translucency
+#define RAY_TRACING_NUM_MISS_SHADER_SLOTS		2
 
 #define RAY_TRACING_LIGHT_COUNT_MAXIMUM		256

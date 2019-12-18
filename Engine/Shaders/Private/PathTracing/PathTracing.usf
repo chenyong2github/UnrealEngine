@@ -4,6 +4,8 @@
 PathTracingRayGenShader.usf: Reference path tracing
 ===============================================================================================*/
 
+#define PATH_TRACING
+
 #include "../Common.ush"
 #include "../PostProcessCommon.ush"
 #include "../RectLight.ush"
@@ -12,6 +14,7 @@ PathTracingRayGenShader.usf: Reference path tracing
 #include "PathTracingCommon.ush"
 #include "../RayTracing/RayTracingHitGroupCommon.ush"
 
+#include "../ShadingModels.ush"
 #include "./Utilities/PathTracingRandomSequence.ush"
 #include "./Light/PathTracingLightSampling.ush"
 #include "./Material/PathTracingMaterialSampling.ush"
@@ -68,7 +71,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 		RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 
 		// Cast ray
-		const uint InitialRayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+		const uint InitialRayFlags = 0;
 		const uint InitialInstanceInclusionMask = RAY_TRACING_MASK_ALL;
 		const bool bInitialDisableSkyLightContribution = false;
 
@@ -106,7 +109,6 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 							float3 LightUV = GetLightUV(SkyLightId, Ray, Payload);
 							PdfLight(Ray, PrevMaterialPayload, SkyLightId, LightUV, NeePdf);
 
-							// Note: MaterialPdf will need to be stored on the ray for an iterative solution
 							MisWeight = MaterialPdf / (MaterialPdf + NeePdf);
 						}
 						Irradiance += EnvironmentRadiance * RayThroughput * MisWeight / RayPdf;
@@ -172,7 +174,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 					GenerateLightRay(Ray, LightId, LightUV, LightRay);
 					ApplyPositionBias(LightRay, Payload.WorldNormal, AdaptiveSamplingData.MaxNormalBias);
 
-					const uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER | RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+					const uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
 					const uint InstanceInclusionMask = RAY_TRACING_MASK_SHADOW;
 
 					FMinimalPayload NeePayload = TraceVisibilityRay(
@@ -232,17 +234,23 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 			float3 Throughput;
 			float4 RandSample = RandomSequence_GenerateSample4D(RandSequence, SampleIndex);
 			float SignedPositionBias;
-			SampleMaterial(Ray.Direction, RayHitInfo, RandSample, Direction, Throughput, MaterialPdf, SignedPositionBias);
-			if (MaterialPdf == 0.0)
+			float SamplePdf;
+			SampleMaterial(Ray.Direction, RayHitInfo, RandSample, Direction, Throughput, SamplePdf, SignedPositionBias);
+			if (SamplePdf == 0.0)
 			{
 				break;
 			}
+
+			PdfMaterial(Ray.Direction, Direction, Payload, MaterialPdf);
+			// Debug: Evaluation of a candidate sample direction should maintain energy balance with pathspace MIS
+			// EvalMaterial(Ray.Direction, Direction, RayHitInfo, Throughput, MaterialPdf);
+			// SamplePdf = MaterialPdf;
 
 			// Update ray
 			Ray.Direction = Direction;
 			ApplyPositionBias(Ray, SignedPositionBias * Payload.WorldNormal, AdaptiveSamplingData.MaxNormalBias);
 			RayThroughput *= Throughput;
-			RayPdf *= MaterialPdf;
+			RayPdf *= SamplePdf;
 
 			// Russian roulette
 			float PathEnergy = max(max(RayThroughput.x, RayThroughput.y), RayThroughput.z);
@@ -267,7 +275,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 			}
 
 			// Trace again
-			const uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+			const uint RayFlags = 0;
 			const uint InstanceInclusionMask = RAY_TRACING_MASK_ALL;
 			const bool bDisableSkyLightContribution = false;
 

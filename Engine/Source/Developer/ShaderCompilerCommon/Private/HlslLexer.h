@@ -227,6 +227,7 @@ namespace CrossCompiler
 		RWTexture2DArray,
 		RWTexture3D,
 		StructuredBuffer,
+		ConstantBuffer,
 		RaytracingAccelerationStructure,
 
 		// Modifiers
@@ -251,26 +252,68 @@ namespace CrossCompiler
 		Register,
 		Inline,
 		Typedef,
+		PackOffset,
 
 		Identifier,
-		UnsignedIntegerConstant,
-		FloatConstant,
+		Literal,
 		BoolConstant,
 		StringConstant,	// C-style "string"
 	};
 
+	enum class ELiteralType
+	{
+		Unknown = -1,
+
+		Float,			// All variations
+		FloatSuffix,	// All variations, ends with 'f'
+		Integer,		// Just digits
+		IntegerSuffix,	// has a 'u|U|l|L' suffix
+		Hex,			// has '0x' or '0X' prefix
+		HexSuffix,		// Hex + has a 'u|U|l|L' suffix
+		Octal,			// 0[0..7]+
+		Bool,			// true or false
+	};
+
+	static inline bool IsIntegerType(ELiteralType Type)
+	{
+		switch (Type)
+		{
+		case ELiteralType::Integer:
+		case ELiteralType::IntegerSuffix:
+		case ELiteralType::Hex:
+		case ELiteralType::HexSuffix:
+		case ELiteralType::Octal:
+			return true;
+		default:
+			break;
+		}
+
+		return false;
+	}
+
 	struct FHlslToken
 	{
 		EHlslToken Token;
+		ELiteralType LiteralType = ELiteralType::Unknown;
 		FString String;
-		uint32 UnsignedInteger;
-
 		FSourceInfo SourceInfo;
 
-		explicit FHlslToken(const FString& Identifier) : Token(EHlslToken::Identifier), String(Identifier), UnsignedInteger(0) { }
-		explicit FHlslToken(EHlslToken InToken, const FString& Identifier) : Token(InToken), String(Identifier), UnsignedInteger(0) { }
-		explicit FHlslToken(uint32 InUnsignedInteger) : Token(EHlslToken::UnsignedIntegerConstant), UnsignedInteger(InUnsignedInteger) { }
-		explicit FHlslToken(bool bInValue) : Token(EHlslToken::BoolConstant), UnsignedInteger(bInValue ? 1 : 0) { }
+		explicit FHlslToken(const FString& Identifier) : Token(EHlslToken::Identifier), String(Identifier) { DebugId(); }
+		explicit FHlslToken(EHlslToken InToken, const FString& Identifier) : Token(InToken), String(Identifier) { DebugId(); }
+		explicit FHlslToken(const FString& InLiteral, ELiteralType InLiteralType) :
+			Token(EHlslToken::Literal),
+			LiteralType(InLiteralType),
+			String(InLiteral)
+			{ DebugId(); }
+
+		void DebugId()
+		{
+#if UE_BUILD_DEBUG
+			static int32 DebugID = 0;
+			//ensure(DebugID != 4787);
+			++DebugID;
+#endif
+		}
 	};
 
 	class FHlslScanner
@@ -293,6 +336,7 @@ namespace CrossCompiler
 
 		bool HasMoreTokens() const;
 		bool MatchToken(EHlslToken InToken);
+		bool MatchIntegerLiteral();
 		const FHlslToken* PeekToken(uint32 LookAhead = 0) const;
 		const FHlslToken* GetCurrentToken() const;
 		const FHlslToken* GetCurrentTokenAndAdvance();

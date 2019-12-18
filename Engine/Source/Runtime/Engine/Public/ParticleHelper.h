@@ -1684,8 +1684,7 @@ struct FDynamicSpriteEmitterData : public FDynamicSpriteEmitterDataBase
 	 */
 	virtual int32 GetDynamicVertexStride(ERHIFeatureLevel::Type InFeatureLevel) const override
 	{
-		const bool bInstanced = GRHISupportsInstancing;
-		return bInstanced ? sizeof(FParticleSpriteVertex) : sizeof(FParticleSpriteVertexNonInstanced);
+		return sizeof(FParticleSpriteVertex);
 	}
 
 	/**
@@ -1732,6 +1731,7 @@ struct FDynamicSpriteEmitterData : public FDynamicSpriteEmitterDataBase
 	 *
 	 *	@return	bool			true if successful, false if failed
 	 */
+	UE_DEPRECATED(4.25, "Non-instanced path is being removed")
 	bool GetVertexAndIndexDataNonInstanced(void* VertexData, void* DynamicParameterVertexData, void* FillIndexData, FParticleOrder* ParticleOrder, const FVector& InCameraPosition, const FMatrix& InLocalToWorld, int32 NumVerticesPerParticle) const;
 
 	/** Gathers simple lights for this emitter. */

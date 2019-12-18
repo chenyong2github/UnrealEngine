@@ -52,8 +52,7 @@ static TAutoConsoleVariable<int> CVarGPUStatsChildTimesIncluded(
 
 #if WANTS_DRAW_MESH_EVENTS
 
-template<typename TRHICmdList>
-void TDrawEvent<TRHICmdList>::Start(TRHICmdList& InRHICmdList, FColor Color, const TCHAR* Fmt, ...)
+void FDrawEvent::Start(FRHIComputeCommandList& InRHICmdList, FColor Color, const TCHAR* Fmt, ...)
 {
 	check(IsInParallelRenderingThread() || IsInRHIThread());
 	{
@@ -68,8 +67,7 @@ void TDrawEvent<TRHICmdList>::Start(TRHICmdList& InRHICmdList, FColor Color, con
 	}
 }
 
-template<typename TRHICmdList>
-void TDrawEvent<TRHICmdList>::Stop()
+void FDrawEvent::Stop()
 {
 	if (RHICmdList)
 	{
@@ -77,9 +75,6 @@ void TDrawEvent<TRHICmdList>::Stop()
 		RHICmdList = NULL;
 	}
 }
-template struct TDrawEvent<FRHICommandList>;
-template struct TDrawEvent<FRHIAsyncComputeCommandList>;
-template struct TDrawEvent<FRHIAsyncComputeCommandListImmediate>;
 
 void FDrawEventRHIExecute::Start(IRHIComputeContext& InRHICommandContext, FColor Color, const TCHAR* Fmt, ...)
 {

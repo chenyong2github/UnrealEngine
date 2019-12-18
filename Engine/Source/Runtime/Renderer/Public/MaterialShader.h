@@ -195,11 +195,6 @@ private:
 	FRHIUniformBufferLayout		DebugUniformExpressionUBLayout;
 	FString						DebugDescription;
 #endif
-
-	// Only needed to avoid unbound parameter error
-	// This texture is bound as an UAV (RWTexture) and so it must be bound together with any RT. So it actually bound but not as part of the material
-	FShaderResourceParameter VTFeedbackBuffer;
-
 	/** If true, cached uniform expressions are allowed. */
 	static int32 bAllowCachedUniformExpressions;
 	/** Console variable ref to toggle cached uniform expressions. */

@@ -6,6 +6,7 @@
 #include "RHI.h"
 
 #define VULKAN_DYNAMICALLYLOADED					1
+#define VULKAN_ENABLE_DUMP_LAYER					0
 #define VULKAN_SHOULD_DEBUG_IN_DEVELOPMENT			1
 #define VULKAN_SHOULD_ENABLE_DRAW_MARKERS			(UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT)
 #define VULKAN_SIGNAL_UNIMPLEMENTED()				checkf(false, TEXT("Unimplemented vulkan functionality: %s"), __PRETTY_FUNCTION__)

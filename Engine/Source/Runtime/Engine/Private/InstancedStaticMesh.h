@@ -291,38 +291,6 @@ private:
 	FDataType Data;
 };
 
-
-struct FEmulatedInstancedStaticMeshVertexFactory : public FInstancedStaticMeshVertexFactory
-{
-	DECLARE_VERTEX_FACTORY_TYPE(FEmulatedInstancedStaticMeshVertexFactory);
-public:
-	FEmulatedInstancedStaticMeshVertexFactory(ERHIFeatureLevel::Type InFeatureLevel)
-		: FInstancedStaticMeshVertexFactory(InFeatureLevel)
-	{
-	}
-
-	/**
-	 * Should we cache the material's shadertype on this platform with this vertex factory? 
-	 */
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
-	{
-		// Android may not support on old devices
-		return	(Platform == SP_OPENGL_ES2_ANDROID)
-				&& (Material->IsUsedWithInstancedStaticMeshes() || Material->IsSpecialEngineMaterial())
-				&& FLocalVertexFactory::ShouldCompilePermutation(Platform, Material, ShaderType);
-	}
-
-	/**
-	 * Modify compile environment to enable instancing
-	 * @param OutEnvironment - shader compile environment to modify
-	 */
-	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FInstancedStaticMeshVertexFactory::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("USE_INSTANCING_EMULATED"), TEXT("1"));
-	}
-};
-
 class FInstancedStaticMeshVertexFactoryShaderParameters : public FLocalVertexFactoryShaderParametersBase
 {
 	virtual void Bind(const FShaderParameterMap& ParameterMap) override
@@ -567,7 +535,10 @@ public:
 	virtual void GetLightRelevance(const FLightSceneProxy* LightSceneProxy, bool& bDynamic, bool& bRelevant, bool& bLightMapped, bool& bShadowMapped) const override;
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
 
-	virtual int32 GetNumMeshBatches() const override;
+	virtual int32 GetNumMeshBatches() const override
+	{
+		return 1;
+	}
 
 	/** Sets up a shadow FMeshBatch for a specific LOD. */
 	virtual bool GetShadowMeshElement(int32 LODIndex, int32 BatchIndex, uint8 InDepthPriorityGroup, FMeshBatch& OutMeshBatch, bool bDitheredLODTransition) const override;

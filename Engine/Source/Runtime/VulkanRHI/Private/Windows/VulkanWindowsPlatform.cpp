@@ -141,11 +141,18 @@ void FVulkanWindowsPlatform::GetInstanceExtensions(TArray<const ANSICHAR*>& OutE
 	// windows surface extension
 	OutExtensions.Add(VK_KHR_SURFACE_EXTENSION_NAME);
 	OutExtensions.Add(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+
+#if VULKAN_SUPPORTS_FULLSCREEN_EXCLUSIVE
+	// Required by Fullscreen
+	OutExtensions.Add(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
+#endif
 }
 
 
 void FVulkanWindowsPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<const ANSICHAR*>& OutExtensions)
 {
+	const bool bAllowVendorDevice = !FParse::Param(FCommandLine::Get(), TEXT("novendordevice"));
+
 #if VULKAN_SUPPORTS_DRIVER_PROPERTIES
 	OutExtensions.Add(VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME);
 #endif
@@ -157,13 +164,13 @@ void FVulkanWindowsPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<c
 	if (GGPUCrashDebuggingEnabled)
 	{
 #if VULKAN_SUPPORTS_AMD_BUFFER_MARKER
-		if (VendorId == EGpuVendorId::Amd)
+		if (VendorId == EGpuVendorId::Amd && bAllowVendorDevice)
 		{
 			OutExtensions.Add(VK_AMD_BUFFER_MARKER_EXTENSION_NAME);
 		}
 #endif
 #if VULKAN_SUPPORTS_NV_DIAGNOSTIC_CHECKPOINT
-		if (VendorId == EGpuVendorId::Nvidia)
+		if (VendorId == EGpuVendorId::Nvidia && bAllowVendorDevice)
 		{
 			OutExtensions.Add(VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME);
 		}
@@ -175,6 +182,11 @@ void FVulkanWindowsPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<c
 	OutExtensions.Add(VK_KHR_BIND_MEMORY_2_EXTENSION_NAME);
 	OutExtensions.Add(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
 	OutExtensions.Add(VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME);
+#endif
+
+#if VULKAN_SUPPORTS_FULLSCREEN_EXCLUSIVE
+	// Fullscreen requires Instance capabilities2
+	OutExtensions.Add(VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME);
 #endif
 }
 
@@ -233,8 +245,8 @@ void FVulkanWindowsPlatform::CheckDeviceDriver(uint32 DeviceIndex, EGpuVendorId 
 			if (DeviceIndex < (uint32)AmdGpuInfo.numDevices && Version && *Version)
 			{
 				auto& DeviceInfo = AmdGpuInfo.devices[DeviceIndex];
-				bool bIsPreGCN = DeviceInfo.architectureVersion == AGSDeviceInfo::ArchitectureVersion_PreGCN;
-				if (DeviceInfo.architectureVersion == AGSDeviceInfo::ArchitectureVersion_GCN || bIsPreGCN)
+				bool bIsPreGCN = DeviceInfo.asicFamily == AGSDeviceInfo::AsicFamily_PreGCN;
+				if (DeviceInfo.asicFamily != AGSDeviceInfo::AsicFamily_Unknown)
 				{
 					// "Major.Minor.Revision"
 					do

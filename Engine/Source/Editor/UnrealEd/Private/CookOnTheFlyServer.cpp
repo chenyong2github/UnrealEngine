@@ -4031,7 +4031,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UPackage* Package, uint32 SaveFlags,
 						}
 						else
 						{
-							FSavePackageContext* const SavePackageContext = SavePackageContexts.Num() > 0 ? SavePackageContexts[PlatformIndex] : nullptr;
+							FSavePackageContext* const SavePackageContext = (IsCookByTheBookMode() && IsUsingPackageStore()) ? SavePackageContexts[PlatformIndex] : nullptr;
 
 							Result = GEditor->Save(	Package, World, FlagsToCook, *PlatFilename, 
 													GError, nullptr, bSwap, false, SaveFlags, Target, 

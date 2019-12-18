@@ -100,10 +100,10 @@ FSlateTextureDataPtr SAsyncImage::LoadScreenshot(FString ImagePath)
 		{
 			if ( ImageWrapper.IsValid() && ImageWrapper->SetCompressed(RawFileData.GetData(), RawFileData.Num()) )
 			{
-				const TArray<uint8>* RawData = nullptr;
+				TArray<uint8> RawData;
 				if ( ImageWrapper->GetRaw(ERGBFormat::BGRA, 8, RawData) )
 				{
-					return MakeShareable(new FSlateTextureData(ImageWrapper->GetWidth(), ImageWrapper->GetHeight(), 4, *RawData));
+					return MakeShareable(new FSlateTextureData(ImageWrapper->GetWidth(), ImageWrapper->GetHeight(), 4, RawData));
 				}
 			}
 		}

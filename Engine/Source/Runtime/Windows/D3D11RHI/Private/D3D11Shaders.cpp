@@ -93,6 +93,26 @@ static void ResetVendorExtensions(ID3D11Device* Direct3DDevice, EShaderFrequency
 #endif
 }
 
+template <typename TShaderType>
+static inline void InitUniformBufferStaticSlots(TShaderType* Shader)
+{
+	const FBaseShaderResourceTable& SRT = Shader->ShaderResourceTable;
+
+	Shader->StaticSlots.Reserve(SRT.ResourceTableLayoutHashes.Num());
+
+	for (uint32 LayoutHash : SRT.ResourceTableLayoutHashes)
+	{
+		if (const FShaderParametersMetadata* Metadata = FindUniformBufferStructByLayoutHash(LayoutHash))
+		{
+			Shader->StaticSlots.Add(Metadata->GetLayout().StaticSlot);
+		}
+		else
+		{
+			Shader->StaticSlots.Add(MAX_UNIFORM_BUFFER_STATIC_SLOTS);
+		}
+	}
+}
+
 FVertexShaderRHIRef FD3D11DynamicRHI::RHICreateVertexShader(const TArray<uint8>& Code)
 {
 	FShaderCodeReader ShaderCode(Code);
@@ -109,6 +129,7 @@ FVertexShaderRHIRef FD3D11DynamicRHI::RHICreateVertexShader(const TArray<uint8>&
 	ApplyVendorExtensions(Direct3DDevice, SF_Vertex, Shader->VendorExtensions);
 	VERIFYD3D11SHADERRESULT(Direct3DDevice->CreateVertexShader((void*)CodePtr, CodeSize, nullptr, Shader->Resource.GetInitReference()), Shader, Direct3DDevice);
 	ResetVendorExtensions(Direct3DDevice, SF_Vertex, Shader->VendorExtensions);
+	InitUniformBufferStaticSlots(Shader);
 	
 	// TEMP
 	Shader->Code = Code;
@@ -140,6 +161,7 @@ FGeometryShaderRHIRef FD3D11DynamicRHI::RHICreateGeometryShader(const TArray<uin
 	ApplyVendorExtensions(Direct3DDevice, SF_Geometry, Shader->VendorExtensions);
 	VERIFYD3D11SHADERRESULT(Direct3DDevice->CreateGeometryShader((void*)CodePtr, CodeSize, nullptr, Shader->Resource.GetInitReference()), Shader, Direct3DDevice);
 	ResetVendorExtensions(Direct3DDevice, SF_Geometry, Shader->VendorExtensions);
+	InitUniformBufferStaticSlots(Shader);
 
 	return Shader;
 }
@@ -167,6 +189,7 @@ FHullShaderRHIRef FD3D11DynamicRHI::RHICreateHullShader(const TArray<uint8>& Cod
 	ApplyVendorExtensions(Direct3DDevice, SF_Hull, Shader->VendorExtensions);
 	VERIFYD3D11SHADERRESULT(Direct3DDevice->CreateHullShader((void*)CodePtr, CodeSize, nullptr, Shader->Resource.GetInitReference()), Shader, Direct3DDevice);
 	ResetVendorExtensions(Direct3DDevice, SF_Hull, Shader->VendorExtensions);
+	InitUniformBufferStaticSlots(Shader);
 
 	return Shader;
 }
@@ -194,6 +217,7 @@ FDomainShaderRHIRef FD3D11DynamicRHI::RHICreateDomainShader(const TArray<uint8>&
 	ApplyVendorExtensions(Direct3DDevice, SF_Domain, Shader->VendorExtensions);
 	VERIFYD3D11SHADERRESULT(Direct3DDevice->CreateDomainShader((void*)CodePtr, CodeSize, nullptr, Shader->Resource.GetInitReference()), Shader, Direct3DDevice);
 	ResetVendorExtensions(Direct3DDevice, SF_Domain, Shader->VendorExtensions);
+	InitUniformBufferStaticSlots(Shader);
 
 	return Shader;
 }
@@ -221,6 +245,7 @@ FPixelShaderRHIRef FD3D11DynamicRHI::RHICreatePixelShader(const TArray<uint8>& C
 	ApplyVendorExtensions(Direct3DDevice, SF_Pixel, Shader->VendorExtensions);
 	VERIFYD3D11SHADERRESULT(Direct3DDevice->CreatePixelShader((void*)CodePtr, CodeSize, nullptr, Shader->Resource.GetInitReference()), Shader, Direct3DDevice);
 	ResetVendorExtensions(Direct3DDevice, SF_Pixel, Shader->VendorExtensions);
+	InitUniformBufferStaticSlots(Shader);
 
 	return Shader;
 }
@@ -248,6 +273,7 @@ FComputeShaderRHIRef FD3D11DynamicRHI::RHICreateComputeShader(const TArray<uint8
 	ApplyVendorExtensions(Direct3DDevice, SF_Compute, Shader->VendorExtensions);
 	VERIFYD3D11SHADERRESULT(Direct3DDevice->CreateComputeShader((void*)CodePtr, CodeSize, nullptr, Shader->Resource.GetInitReference()), Shader, Direct3DDevice);
 	ResetVendorExtensions(Direct3DDevice, SF_Compute, Shader->VendorExtensions);
+	InitUniformBufferStaticSlots(Shader);
 
 	return Shader;
 }

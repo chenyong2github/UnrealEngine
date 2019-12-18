@@ -122,7 +122,7 @@ void UTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 W
 			TextItem.Draw(Canvas);
 		}
 
-		if (Texture2D && Texture2D->VirtualTextureStreaming)
+		if (Texture2D && Texture2D->IsCurrentlyVirtualTextured())
 		{
 			auto VTChars = TEXT("VT");
 			int32 VTWidth = 0;

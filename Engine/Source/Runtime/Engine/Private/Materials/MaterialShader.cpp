@@ -40,8 +40,7 @@ TMap<FMaterialShaderMapId,FMaterialShaderMap*> FMaterialShaderMap::GIdToMaterial
 #if ALLOW_SHADERMAP_DEBUG_DATA
 TArray<FMaterialShaderMap*> FMaterialShaderMap::AllMaterialShaderMaps;
 #endif
-// The Id of 0 is reserved for global shaders
-uint32 FMaterialShaderMap::NextCompilingId = 2;
+
 /** 
  * Tracks material resources and their shader maps that are being compiled.
  * Uses a TRefCountPtr as this will be the only reference to a shader map while it is being compiled.
@@ -1354,9 +1353,7 @@ void FMaterialShaderMap::Compile(
 		else
 		{
 			// Assign a unique identifier so that shaders from this shader map can be associated with it after a deferred compile
-			CompilingId = NextCompilingId;
-			check(NextCompilingId < UINT_MAX);
-			NextCompilingId++;
+			CompilingId = FShaderCommonCompileJob::GetNextJobId();
   
 			TArray<FMaterial*> NewCorrespondingMaterials;
 			NewCorrespondingMaterials.Add(Material);

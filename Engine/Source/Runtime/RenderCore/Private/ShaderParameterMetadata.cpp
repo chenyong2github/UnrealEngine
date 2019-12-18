@@ -8,6 +8,28 @@
 #include "RenderCore.h"
 #include "ShaderCore.h"
 
+FUniformBufferStaticSlotRegistrar::FUniformBufferStaticSlotRegistrar(const TCHAR* InName)
+{
+	FUniformBufferStaticSlotRegistry::Get().RegisterSlot(InName);
+}
+
+FUniformBufferStaticSlotRegistry& FUniformBufferStaticSlotRegistry::Get()
+{
+	static FUniformBufferStaticSlotRegistry Registry;
+	return Registry;
+}
+
+void FUniformBufferStaticSlotRegistry::RegisterSlot(FName SlotName)
+{
+	// Multiple definitions with the same name resolve to the same slot.
+	const FUniformBufferStaticSlot Slot = FindSlotByName(SlotName);
+
+	if (!IsUniformBufferStaticSlotValid(Slot))
+	{
+		SlotNames.Emplace(SlotName);
+	}
+}
+
 #define VALIDATE_UNIFORM_BUFFER_UNIQUE_NAME (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
 
 #if VALIDATE_UNIFORM_BUFFER_UNIQUE_NAME
@@ -15,6 +37,7 @@ static TMap<FName, FName> GlobalShaderVariableToStructMap;
 #endif
 
 static TLinkedList<FShaderParametersMetadata*>* GUniformStructList = nullptr;
+static TMap<uint32, FShaderParametersMetadata*> GLayoutHashStructMap;
 
 TLinkedList<FShaderParametersMetadata*>*& FShaderParametersMetadata::GetStructList()
 {
@@ -23,20 +46,23 @@ TLinkedList<FShaderParametersMetadata*>*& FShaderParametersMetadata::GetStructLi
 
 TMap<FName, FShaderParametersMetadata*>& FShaderParametersMetadata::GetNameStructMap()
 {
-	static TMap<FName, FShaderParametersMetadata*> GlobalNameStructMap;
-	return GlobalNameStructMap;
+	static TMap<FName, FShaderParametersMetadata*> NameStructMap;
+	return NameStructMap;
 }
 
 FShaderParametersMetadata* FindUniformBufferStructByName(const TCHAR* StructName)
 {
-	FName FindByName(StructName, FNAME_Find);
-	FShaderParametersMetadata* FoundStruct = FShaderParametersMetadata::GetNameStructMap().FindRef(FindByName);
-	return FoundStruct;
+	return FindUniformBufferStructByFName(FName(StructName, FNAME_Find));
 }
 
 FShaderParametersMetadata* FindUniformBufferStructByFName(FName StructName)
 {
 	return FShaderParametersMetadata::GetNameStructMap().FindRef(StructName);
+}
+
+FShaderParametersMetadata* FindUniformBufferStructByLayoutHash(uint32 Hash)
+{
+	return GLayoutHashStructMap.FindRef(Hash);
 }
 
 class FUniformBufferMemberAndOffset
@@ -58,10 +84,12 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 	const FName& InLayoutName,
 	const TCHAR* InStructTypeName,
 	const TCHAR* InShaderVariableName,
+	const TCHAR* InStaticSlotName,
 	uint32 InSize,
 	const TArray<FMember>& InMembers)
 	: StructTypeName(InStructTypeName)
 	, ShaderVariableName(InShaderVariableName)
+	, StaticSlotName(InStaticSlotName)
 	, Size(InSize)
 	, UseCase(InUseCase)
 	, Layout(InLayoutName)
@@ -72,6 +100,8 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 	check(StructTypeName);
 	if (UseCase == EUseCase::ShaderParameterStruct)
 	{
+		checkf(!StaticSlotName, TEXT("Only uniform buffers can be tagged with a static slot."));
+
 		check(ShaderVariableName == nullptr);
 	}
 	else
@@ -79,7 +109,7 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 		check(ShaderVariableName);
 	}
 
-	if (UseCase == EUseCase::GlobalShaderParameterStruct)
+	if (UseCase == EUseCase::UniformBuffer)
 	{
 		// Register this uniform buffer struct in global list.
 		GlobalListLink.LinkHead(GetStructList());
@@ -119,7 +149,7 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 
 FShaderParametersMetadata::~FShaderParametersMetadata()
 {
-	if (UseCase == EUseCase::GlobalShaderParameterStruct)
+	if (UseCase == EUseCase::UniformBuffer)
 	{
 		GlobalListLink.Unlink();
 		GetNameStructMap().Remove(FName(StructTypeName, FNAME_Find));
@@ -127,11 +157,16 @@ FShaderParametersMetadata::~FShaderParametersMetadata()
 #if VALIDATE_UNIFORM_BUFFER_UNIQUE_NAME
 		GlobalShaderVariableToStructMap.Remove(FName(ShaderVariableName, FNAME_Find));
 #endif
+
+		if (bLayoutInitialized)
+		{
+			GLayoutHashStructMap.Remove(GetLayout().GetHash());
+		}
 	}
 }
 
 
-void FShaderParametersMetadata::InitializeAllGlobalStructs()
+void FShaderParametersMetadata::InitializeAllUniformBufferStructs()
 {
 	for (TLinkedList<FShaderParametersMetadata*>::TIterator StructIt(FShaderParametersMetadata::GetStructList()); StructIt; StructIt.Next())
 	{
@@ -147,6 +182,21 @@ void FShaderParametersMetadata::InitializeLayout()
 	check(!bLayoutInitialized);
 	Layout.ConstantBufferSize = Size;
 
+	if (StaticSlotName)
+	{
+		checkf(UseCase == EUseCase::UniformBuffer,
+			TEXT("Attempted to assign static slot %s to uniform buffer %s. Static slots are only supported for compile-time uniform buffers."),
+			ShaderVariableName, StaticSlotName);
+
+		const FUniformBufferStaticSlot StaticSlot = FUniformBufferStaticSlotRegistry::Get().FindSlotByName(StaticSlotName);
+
+		checkf(IsUniformBufferStaticSlotValid(StaticSlot),
+			TEXT("Uniform buffer of type '%s' and shader name '%s' attempted to reference static slot '%s', but the slot could not be found in the registry."),
+			StructTypeName, ShaderVariableName, StaticSlotName);
+
+		Layout.StaticSlot = StaticSlot;
+	}
+
 	TArray<FUniformBufferMemberAndOffset> MemberStack;
 	MemberStack.Reserve(Members.Num());
 	for (int32 MemberIndex = 0; MemberIndex < Members.Num(); MemberIndex++)
@@ -158,18 +208,18 @@ void FShaderParametersMetadata::InitializeLayout()
 	 * but there is a risk where it create more resource dependency than necessary on passes that reference this deferred
 	 * uniform buffers. Therefore only allow graph resources in shader parameter structures.
 	 */
-	bool bAllowGraphResources = UseCase == EUseCase::ShaderParameterStruct;
+	const bool bAllowGraphResources = UseCase == EUseCase::ShaderParameterStruct;
 
 	/** Uniform buffer references are only allowed in shader parameter structures that may be used as a root shader parameter
 	 * structure.
 	 */
-	bool bAllowUniformBufferReferences = UseCase == EUseCase::ShaderParameterStruct;
+	const bool bAllowUniformBufferReferences = UseCase == EUseCase::ShaderParameterStruct;
 
 	/** Resource array are currently only supported for shader parameter structures. */
-	bool bAllowResourceArrays = UseCase == EUseCase::ShaderParameterStruct;
+	const bool bAllowResourceArrays = UseCase == EUseCase::ShaderParameterStruct;
 
 	/** White list all use cases that inline a structure within another. Data driven are not known to inline structures. */
-	bool bAllowStructureInlining = UseCase == EUseCase::ShaderParameterStruct || UseCase == EUseCase::GlobalShaderParameterStruct;
+	const bool bAllowStructureInlining = UseCase == EUseCase::ShaderParameterStruct || UseCase == EUseCase::UniformBuffer;
 
 	for (int32 i = 0; i < MemberStack.Num(); ++i)
 	{
@@ -325,6 +375,12 @@ void FShaderParametersMetadata::InitializeLayout()
 
 		LayoutHash = RootStructureHash;
 	}
+
+	if (UseCase == EUseCase::UniformBuffer)
+	{
+		GLayoutHashStructMap.Emplace(Layout.GetHash(), this);
+	}
+
 	bLayoutInitialized = true;
 }
 
@@ -344,12 +400,17 @@ void FShaderParametersMetadata::GetNestedStructs(TArray<const FShaderParametersM
 	}
 }
 
-void FShaderParametersMetadata::AddResourceTableEntries(TMap<FString, FResourceTableEntry>& ResourceTableMap, TMap<FString, uint32>& ResourceTableLayoutHashes) const
+void FShaderParametersMetadata::AddResourceTableEntries(TMap<FString, FResourceTableEntry>& ResourceTableMap, TMap<FString, uint32>& ResourceTableLayoutHashes, TMap<FString, FString>& UniformBufferStaticSlots) const
 {
 	uint16 ResourceIndex = 0;
 	FString Prefix = FString::Printf(TEXT("%s_"), ShaderVariableName);
 	AddResourceTableEntriesRecursive(ShaderVariableName, *Prefix, ResourceIndex, ResourceTableMap);
-	ResourceTableLayoutHashes.Add(ShaderVariableName, GetLayout().GetHash());
+	ResourceTableLayoutHashes.Add(ShaderVariableName, Layout.GetHash());
+
+	if (StaticSlotName)
+	{
+		UniformBufferStaticSlots.Add(ShaderVariableName, StaticSlotName);
+	}
 }
 
 void FShaderParametersMetadata::AddResourceTableEntriesRecursive(const TCHAR* UniformBufferName, const TCHAR* Prefix, uint16& ResourceIndex, TMap<FString, FResourceTableEntry>& ResourceTableMap) const

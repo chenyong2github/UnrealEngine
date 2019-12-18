@@ -232,8 +232,6 @@ public:
 		UpdateRHI();
 	}
 
-	virtual uint64 GetStaticBatchElementVisibility(const FSceneView& InView, const FMeshBatch* InBatch, const void* InViewCustomData = nullptr) const override;
-
 	/** stream component data bound to this vertex factory */
 	FDataType Data;
 };
@@ -786,49 +784,6 @@ class FLandscapeComponentSceneProxy : public FPrimitiveSceneProxy, public FLands
 public:
 	static const int8 MAX_SUBSECTION_COUNT = 2*2;
 
-	// NOTE: CustomData is added in a FMemStack of the render thread, so no destructor will be called on any of the elements
-	struct FViewCustomDataSubSectionLOD
-	{
-		FViewCustomDataSubSectionLOD()
-			: StaticBatchElementIndexToRender(INDEX_NONE)
-			, fBatchElementCurrentLOD(-1.0f)
-			, BatchElementCurrentLOD(INDEX_NONE)
-			, ScreenSizeSquared(-1.0f)
-			, ShaderCurrentNeighborLOD(FVector4(-1.0f, -1.0f, -1.0f, -1.0f))
-		{}
-
-		int8 StaticBatchElementIndexToRender;
-		float fBatchElementCurrentLOD;
-		int8 BatchElementCurrentLOD;
-		float ScreenSizeSquared;
-		FVector4 ShaderCurrentNeighborLOD;
-	};
-
-	// NOTE: CustomData is added in a FMemStack of the render thread, so no destructor will be called on any of the elements
-	struct FViewCustomDataLOD
-	{
-		FViewCustomDataLOD()
-			: StaticMeshBatchLOD(INDEX_NONE)
-			, UseCombinedMeshBatch(true)
-			, IsShadowOnly(false)
-			, ComponentScreenSize(0.0f)
-			, ShaderCurrentLOD(ForceInitToZero)
-			, LodBias(ForceInitToZero)
-			, LodTessellationParams(ForceInitToZero)
-		{}
-
-		int8 StaticMeshBatchLOD;
-		bool UseCombinedMeshBatch;
-		bool IsShadowOnly;
-		float ComponentScreenSize;
-		TStaticArray<FViewCustomDataSubSectionLOD, MAX_SUBSECTION_COUNT> SubSections; // We always have at least 1 subsections
-
-		// Shaders pre calculated params
-		FVector4 ShaderCurrentLOD;
-		FVector4 LodBias;
-		FVector4 LodTessellationParams;
-	};
-
 #if RHI_RAYTRACING
 	struct FLandscapeSectionRayTracingState
 	{
@@ -986,26 +941,13 @@ protected:
 	virtual ~FLandscapeComponentSceneProxy();
 	
 	virtual const ULandscapeComponent* GetLandscapeComponent() const { return LandscapeComponent; }
-	FORCEINLINE void ComputeTessellationFalloffShaderValues(const FViewCustomDataLOD& InLODData, const FMatrix& InViewProjectionMatrix, float& OutC, float& OutK) const;
-	bool CanUseMeshBatchForShadowCascade(int8 InLODIndex, float InShadowMapTextureResolution, float InShadowMapCascadeSize) const;
-	FORCEINLINE int32 ConvertBatchElementLODToBatchElementIndex(int8 InBatchElementLOD, bool InUseCombinedMeshBatch) const;
-	float GetNeighborLOD(const FSceneView& InView, float InBatchElementCurrentLOD, int8 InNeighborIndex, int8 InSubSectionX, int8 InSubSectionY, int8 InCurrentSubSectionIndex) const;
-	void CalculateBatchElementLOD(const FSceneView& InView, float InMeshScreenSizeSquared, float InViewLODScale, FViewCustomDataLOD& InOutLODData, bool InForceCombined) const;
-	void CalculateLODFromScreenSize(const FSceneView& InView, float InMeshScreenSizeSquared, float InViewLODScale, int32 InSubSectionIndex, FViewCustomDataLOD& InOutLODData) const;
-	FORCEINLINE void ComputeStaticBatchIndexToRender(FViewCustomDataLOD& OutLODData, int32 InSubSectionIndex);
 	int8 GetLODFromScreenSize(float InScreenSizeSquared, float InViewLODScale) const;
-	FORCEINLINE_DEBUGGABLE float ComputeBatchElementCurrentLOD(int32 InSelectedLODIndex, float InComponentScreenSize, float InViewLODScale) const;
-	
-	FORCEINLINE void GetShaderCurrentNeighborLOD(const FSceneView& InView, float InBatchElementCurrentLOD, int8 InSubSectionX, int8 InSubSectionY, int8 InCurrentSubSectionIndex, FVector4& OutShaderCurrentNeighborLOD) const;
+
 	FORCEINLINE FVector4 GetShaderLODBias() const;
 	FORCEINLINE FVector4 GetShaderLODValues(int8 BatchElementCurrentLOD) const;
 
-	bool GetMeshElement(bool UseSeperateBatchForShadow, bool ShadowOnly, bool HasTessellation, int8 InLODIndex, UMaterialInterface* InMaterialInterface, FMeshBatch& OutMeshBatch, TArray<FLandscapeBatchElementParams>& OutStaticBatchParamArray) const;
 	bool GetMeshElementForVirtualTexture(int32 InLodIndex, ERuntimeVirtualTextureMaterialType MaterialType, UMaterialInterface* InMaterialInterface, FMeshBatch& OutMeshBatch, TArray<FLandscapeBatchElementParams>& OutStaticBatchParamArray) const;
 	template<class ArrayType> bool GetStaticMeshElement(int32 LODIndex, bool bForToolMesh, bool bForcedLOD, FMeshBatch& MeshBatch, ArrayType& OutStaticBatchParamArray) const;
-	void BuildDynamicMeshElement(const FViewCustomDataLOD* InPrimitiveCustomData, bool InToolMesh, bool InHasTessellation, bool InDisableTessellation, FMeshBatch& OutMeshBatch, TArray<FLandscapeBatchElementParams, SceneRenderingAllocator>& OutStaticBatchParamArray) const;
-
-	float GetComponentScreenSize(const class FSceneView* View, const FVector& Origin,  float MaxExtend, float ElementRadius) const;
 
 public:
 	// constructor
@@ -1024,11 +966,7 @@ public:
 	virtual void CreateRenderThreadResources() override;
 	virtual void DestroyRenderThreadResources() override;
 	virtual void OnLevelAddedToWorld() override;
-	virtual void* InitViewCustomData(const FSceneView& InView, float InViewLODScale, FMemStackBase& InCustomDataMemStack, bool InIsStaticRelevant, bool InIsShadowOnly, const FLODMask* InVisiblePrimitiveLODMask = nullptr, float InMeshScreenSizeSquared = -1.0f) override;
-	void PostInitViewCustomData(const FSceneView& InView, void* InViewCustomData) const;
-	virtual FLODMask GetCustomLOD(const FSceneView& InView, float InViewLODScale, int32 InForcedLODLevel, float& OutScreenSizeSquared) const override;
-	virtual FLODMask GetCustomWholeSceneShadowLOD(const FSceneView& InView, float InViewLODScale, int32 InForcedLODLevel, const struct FLODMask& InVisibilePrimitiveLODMask, float InShadowMapTextureResolution, float InShadowMapCascadeSize, int8 InShadowCascadeId, bool InHasSelfShadow) const override;
-	
+
 	friend class ULandscapeComponent;
 	friend class FLandscapeVertexFactoryVertexShaderParameters;
 	friend class FLandscapeXYOffsetVertexFactoryVertexShaderParameters;
@@ -1038,8 +976,6 @@ public:
 	friend class FLandscapeVertexFactoryMobilePixelShaderParameters;
 	friend class FLandscapeFixedGridVertexFactoryVertexShaderParameters;
 
-	// FLandscapeComponentSceneProxy interface.
-	uint64 GetStaticBatchElementVisibility(const FSceneView& InView, const FMeshBatch* InBatch, const void* InViewCustomData) const;
 #if WITH_EDITOR
 	const FMeshBatch& GetGrassMeshBatch() const { return GrassMeshBatch; }
 #endif

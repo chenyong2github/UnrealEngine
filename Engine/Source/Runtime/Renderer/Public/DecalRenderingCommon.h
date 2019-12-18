@@ -240,9 +240,9 @@ struct FDecalRenderingCommon
 		switch(RenderTargetMode)
 		{
 			case RTM_SceneColorAndGBufferWithNormal:				return 4;
-			case RTM_SceneColorAndGBufferNoNormal:					return 4;
+			case RTM_SceneColorAndGBufferNoNormal:					return 3;
 			case RTM_SceneColorAndGBufferDepthWriteWithNormal:		return 5;
-			case RTM_SceneColorAndGBufferDepthWriteNoNormal:		return 5;
+			case RTM_SceneColorAndGBufferDepthWriteNoNormal:		return 4;
 			case RTM_DBuffer:										return IsUsingPerPixelDBufferMask(Platform) ? 4 : 3;
 			case RTM_GBufferNormal:									return 1;
 			case RTM_SceneColor:									return 1;

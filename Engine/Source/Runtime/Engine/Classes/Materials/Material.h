@@ -806,10 +806,6 @@ public:
 	UPROPERTY(EditAnywhere, Category=Material, AdvancedDisplay)
 	uint8 Wireframe : 1;
 
-	/** Skips outputting velocity during the base pass. */
-	UPROPERTY(EditAnywhere, Category=Material, AdvancedDisplay, meta=(DisplayName = "Support accurate velocities from Vertex Deformation"))
-	uint8 bOutputVelocityOnBasePass : 1;
-
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	int32 EditorX;
