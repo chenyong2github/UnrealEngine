@@ -121,6 +121,9 @@ struct ENGINE_API FCookBodySetupInfo
 	/** Whether to support UV from hit results */
 	bool bSupportUVFromHitResults;
 
+	/** Whether to support face remap, needed for physical material masks */
+	bool bSupportFaceRemap;
+
 	/** Error generating cook info for trimesh*/
 	bool bTriMeshError;
 };
@@ -268,6 +271,9 @@ public:
 
 	/** Additional UV info, if available. Used for determining UV for a line trace impact. */
 	FBodySetupUVInfo UVInfo;
+
+	/** Additional face remap table, if available. Used for determining face index mapping from collision mesh to static mesh, for use with physical material masks */
+	TArray<int32> FaceRemap;
 
 	/** Default properties of the body instance, copied into objects on instantiation, was URB_BodyInstance */
 	UPROPERTY(EditAnywhere, Category=Collision, meta=(FullyExpand = "true"))
