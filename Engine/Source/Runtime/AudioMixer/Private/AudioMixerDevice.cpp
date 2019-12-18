@@ -286,7 +286,6 @@ namespace Audio
 	{
 		AUDIO_MIXER_CHECK_GAME_THREAD(this);
 
-		// Make sure all submixes are registered but not initialized
 		for (TObjectIterator<USoundSubmix> It; It; ++It)
 		{
 			UnregisterSoundSubmix(*It);
@@ -741,7 +740,7 @@ namespace Audio
 		// Make sure all submixes are registered but not initialized
 		for (TObjectIterator<USoundSubmix> It; It; ++It)
 		{
-			RegisterSoundSubmix(*It, false);
+			RegisterSoundSubmix(*It, false /* bInit */);
 		}
 
 		// Now setup the graph for all the submixes
@@ -790,49 +789,6 @@ namespace Audio
 			// Perform any other initialization on the submix instance
 			SubmixInstance->Init(SoundSubmix);
 		}
-
-		TArray<EAudioMixerChannel::Type> StereoChannelTypes;
-		StereoChannelTypes.Add(EAudioMixerChannel::FrontLeft);
-		StereoChannelTypes.Add(EAudioMixerChannel::FrontRight);
-		ChannelArrays.Add(ESubmixChannelFormat::Stereo, StereoChannelTypes);
-
-		TArray<EAudioMixerChannel::Type> QuadChannelTypes;
-		QuadChannelTypes.Add(EAudioMixerChannel::FrontLeft);
-		QuadChannelTypes.Add(EAudioMixerChannel::FrontRight);
-		QuadChannelTypes.Add(EAudioMixerChannel::SideLeft);
-		QuadChannelTypes.Add(EAudioMixerChannel::SideRight);
-		ChannelArrays.Add(ESubmixChannelFormat::Quad, QuadChannelTypes);
-
-		TArray<EAudioMixerChannel::Type> FiveDotOneTypes;
-		FiveDotOneTypes.Add(EAudioMixerChannel::FrontLeft);
-		FiveDotOneTypes.Add(EAudioMixerChannel::FrontRight);
-		FiveDotOneTypes.Add(EAudioMixerChannel::FrontCenter);
-		FiveDotOneTypes.Add(EAudioMixerChannel::LowFrequency);
-		FiveDotOneTypes.Add(EAudioMixerChannel::SideLeft);
-		FiveDotOneTypes.Add(EAudioMixerChannel::SideRight);
-		ChannelArrays.Add(ESubmixChannelFormat::FiveDotOne, FiveDotOneTypes);
-
-		TArray<EAudioMixerChannel::Type> SevenDotOneTypes;
-		SevenDotOneTypes.Add(EAudioMixerChannel::FrontLeft);
-		SevenDotOneTypes.Add(EAudioMixerChannel::FrontRight);
-		SevenDotOneTypes.Add(EAudioMixerChannel::FrontCenter);
-		SevenDotOneTypes.Add(EAudioMixerChannel::LowFrequency);
-		SevenDotOneTypes.Add(EAudioMixerChannel::BackLeft);
-		SevenDotOneTypes.Add(EAudioMixerChannel::BackRight);
-		SevenDotOneTypes.Add(EAudioMixerChannel::SideLeft);
-		SevenDotOneTypes.Add(EAudioMixerChannel::SideRight);
-		ChannelArrays.Add(ESubmixChannelFormat::SevenDotOne, SevenDotOneTypes);
-
-		TArray<EAudioMixerChannel::Type> FirstOrderAmbisonicsTypes;
-		FirstOrderAmbisonicsTypes.Add(EAudioMixerChannel::FrontLeft);
-		FirstOrderAmbisonicsTypes.Add(EAudioMixerChannel::FrontRight);
-		FirstOrderAmbisonicsTypes.Add(EAudioMixerChannel::FrontCenter);
-		FirstOrderAmbisonicsTypes.Add(EAudioMixerChannel::LowFrequency);
-		FirstOrderAmbisonicsTypes.Add(EAudioMixerChannel::BackLeft);
-		FirstOrderAmbisonicsTypes.Add(EAudioMixerChannel::BackRight);
-		FirstOrderAmbisonicsTypes.Add(EAudioMixerChannel::SideLeft);
-		FirstOrderAmbisonicsTypes.Add(EAudioMixerChannel::SideRight);
-		ChannelArrays.Add(ESubmixChannelFormat::Ambisonics, FirstOrderAmbisonicsTypes);
 	}
 	
  	FAudioPlatformSettings FMixerDevice::GetPlatformSettings() const
@@ -926,13 +882,13 @@ namespace Audio
 #if WITH_EDITOR
 		check(IsInAudioThread());
 
-		FMixerSubmixPtr* MixerSubmix = Submixes.Find(InSoundSubmix);
-		if (MixerSubmix)
+		const FMixerSubmixPtr MixerSubmix = Submixes.FindRef(InSoundSubmix);
+		if (MixerSubmix.IsValid())
 		{
-			float NewVolume = InSoundSubmix->OutputVolume;
+			const float NewVolume = InSoundSubmix->OutputVolume;
 			AudioRenderThreadCommand([MixerSubmix, NewVolume]()
 			{
-				(*MixerSubmix)->SetOutputVolume(NewVolume);
+				MixerSubmix->SetOutputVolume(NewVolume);
 			});
 		}
 #endif // WITH_EDITOR
@@ -953,12 +909,12 @@ namespace Audio
 			return;
 		}
 
-		FMixerSubmixPtr* MixerSubmix = Submixes.Find(InSoundSubmix);
-		if (MixerSubmix)
+		const FMixerSubmixPtr MixerSubmix = Submixes.FindRef(InSoundSubmix);
+		if (MixerSubmix.IsValid())
 		{
 			AudioRenderThreadCommand([MixerSubmix, NewVolume]()
 			{
-				(*MixerSubmix)->SetDynamicOutputVolume(NewVolume);
+				MixerSubmix->SetDynamicOutputVolume(NewVolume);
 			});
 		}
 	}
@@ -1187,7 +1143,7 @@ namespace Audio
 		if (InWaveInstance->bCenterChannelOnly)
 		{
 			int32 NumOutputChannels = GetNumChannelsForSubmixFormat(InSubmixType);
-			const TArray<EAudioMixerChannel::Type>& ChannelArray = GetChannelArrayForSubmixChannelType(InSubmixType);
+			const TArray<EAudioMixerChannel::Type>& ChannelArray = GetChannelArrayForSubmixChannelFormat(InSubmixType);
 
 			// If we are only spatializing to stereo output
 			if (NumOutputChannels == 2)
@@ -1298,7 +1254,7 @@ namespace Audio
 		float OmniPanFactor = 1.0f / NumSpatialChannels;
 
 		float DefaultEffectivePan = !OmniAmount ? 0.0f : FMath::Lerp(0.0f, OmniPanFactor, OmniAmount);
-		const TArray<EAudioMixerChannel::Type>& ChannelArray = GetChannelArrayForSubmixChannelType(InSubmixType);
+		const TArray<EAudioMixerChannel::Type>& ChannelArray = GetChannelArrayForSubmixChannelFormat(InSubmixType);
 
 		for (EAudioMixerChannel::Type Channel : ChannelArray)
 		{

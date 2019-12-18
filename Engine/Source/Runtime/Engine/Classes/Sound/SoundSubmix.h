@@ -44,7 +44,7 @@ enum class ESubmixChannelFormat : uint8
 	// Sets the submix to mix audio to 7.1 (FL, FR, FC, LF, BL, BR, SL, SR)
 	SevenDotOne UMETA(DisplayName = "7.1"),
 
-	// Sets the submix to render audio as an ambisonics bed.
+	// Sets the submix to render audio to first-order ambisonics.
 	Ambisonics UMETA(DisplayName = "Ambisonics"),
 
 	Count UMETA(Hidden)
