@@ -195,7 +195,6 @@ public:
 	void GetScriptHash(FSHAHash& OutHash) const;
 #endif
 
-#if WITH_EDITORONLY_DATA
 	/**
 	* Tests this set against another for equality, disregarding override settings.
 	*
@@ -209,6 +208,7 @@ public:
 		return !(*this == ReferenceSet);
 	}
 
+#if WITH_EDITORONLY_DATA
 	/** Appends string representations of this Id to a key string. */
 	void AppendKeyString(FString& KeyString) const;
 #endif
@@ -605,6 +605,9 @@ private:
 
 	/** Return the expected SimTarget for this script. Only returns a valid target if there is valid data to run with. */
 	TOptional<ENiagaraSimTarget> GetSimTarget() const;
+
+	/** Kicks off an async job to convert the ByteCode into an optimized version for the platform we are running on. */
+	void AsyncOptimizeByteCode();
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient)

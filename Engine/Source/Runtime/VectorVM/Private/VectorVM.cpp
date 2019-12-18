@@ -182,6 +182,14 @@ static FAutoConsoleVariableRef CVarbOptimizeVMByteCode(
 	ECVF_Default
 );
 
+static int32 GbFreeUnoptimizedVMByteCode = 0;
+static FAutoConsoleVariableRef CVarbFreeUnoptimizedVMByteCode(
+	TEXT("vm.FreeUnoptimizedByteCode"),
+	GbFreeUnoptimizedVMByteCode,
+	TEXT("When we have optimized the VM byte code should we free the original unoptimized byte code?"),
+	ECVF_Default
+);
+
 static int32 GbUseOptimizedVMByteCode = 0;
 static FAutoConsoleVariableRef CVarbUseOptimizedVMByteCode(
 	TEXT("vm.UseOptimizedVMByteCode"),
