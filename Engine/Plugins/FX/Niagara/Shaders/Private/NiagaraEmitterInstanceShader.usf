@@ -655,8 +655,6 @@ void SimulateMainComputeCS(
 		GCurrentPhase = 0;
 
 		GetEmitterSpawnInfoForParticle(ExecIndex());
-		// Part of InitConstants() but updated by the previous statement
-		// Context.MapSpawn.Emitter.SpawnGroup = Emitter_SpawnGroup;
 
 		InitSpawnVariables(Context);
 		ReadDataSets(Context);
