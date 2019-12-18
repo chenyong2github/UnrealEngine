@@ -38,6 +38,13 @@ class UChildConnection;
 
 typedef TMap<TWeakObjectPtr<AActor>, UActorChannel*, FDefaultSetAllocator, TWeakObjectPtrMapKeyFuncs<TWeakObjectPtr<AActor>, UActorChannel*>> FActorChannelMap;
 
+namespace NetConnectionHelper
+{
+	/** Number of bits to use in the packet header for sending the milliseconds on the clock when the packet is sent */
+	constexpr int32 NumBitsForJitterClockTimeInHeader = 10;
+}
+
+
 /*-----------------------------------------------------------------------------
 	Types.
 -----------------------------------------------------------------------------*/
@@ -45,8 +52,9 @@ enum { RELIABLE_BUFFER = 256 }; // Power of 2 >= 1.
 enum { MAX_PACKETID = FNetPacketNotify::SequenceNumberT::SeqNumberCount };  // Power of 2 >= 1, covering guaranteed loss/misorder time.
 enum { MAX_CHSEQUENCE = 1024 }; // Power of 2 >RELIABLE_BUFFER, covering loss/misorder time.
 enum { MAX_BUNCH_HEADER_BITS = 256 };
-enum { UE_PACKET_MAX_SEQUENCE_HISTORY_BITS = FNetPacketNotify::MaxSequenceHistoryLength };
-enum { MAX_PACKET_HEADER_BITS = 49 + UE_PACKET_MAX_SEQUENCE_HISTORY_BITS }; // = [(Header)32 + (SeqHistory)32-MaxSequenceHistoryLength|(bool)1|?(ServerTime)8|(ReceviedRateByte)8]
+enum { MAX_PACKET_RELIABLE_SEQUENCE_HEADER_BITS = 32 /*PackedHeader*/ + FNetPacketNotify::SequenceHistoryT::MaxSizeInBits };
+enum { MAX_PACKET_INFO_HEADER_BITS = 1 /*bHasPacketInfo*/ + NetConnectionHelper::NumBitsForJitterClockTimeInHeader + 1 /*bHasServerFrameTime*/ + 8 /*ServerFrameTime*/};
+enum { MAX_PACKET_HEADER_BITS = MAX_PACKET_RELIABLE_SEQUENCE_HEADER_BITS + MAX_PACKET_INFO_HEADER_BITS  };
 enum { MAX_PACKET_TRAILER_BITS = 1 };
 
 // 

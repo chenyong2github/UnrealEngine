@@ -16,9 +16,10 @@ class TSequenceHistory
 public:	
 	typedef uint32 WordT;
 	
-	static const SIZE_T BitsPerWord = sizeof(WordT) * 8;
-	static const SIZE_T WordCount = HistorySize / BitsPerWord;
-	static const SIZE_T Size = HistorySize;
+	static constexpr SIZE_T BitsPerWord = sizeof(WordT) * 8;
+	static constexpr SIZE_T WordCount = HistorySize / BitsPerWord;
+	static constexpr SIZE_T MaxSizeInBits = WordCount * BitsPerWord;
+	static constexpr SIZE_T Size = HistorySize;
 
 	static_assert(HistorySize > 0, "HistorySize must be > 0");
 	static_assert(HistorySize % BitsPerWord == 0, "InMaxHistorySize must be a modulo of the wordsize");
