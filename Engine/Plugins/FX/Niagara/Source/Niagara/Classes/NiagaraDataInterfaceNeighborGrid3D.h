@@ -22,8 +22,7 @@ public:
 	FIntVector NumVoxels;
 	float VoxelSize;
 	bool SetGridFromVoxelSize;
-	uint32 MaxNeighborsPerVoxel;
-	FVector WorldBBoxMin;
+	uint32 MaxNeighborsPerVoxel;	
 	FVector WorldBBoxSize;
 
 	FRWBuffer NeighborhoodBuffer;
@@ -88,6 +87,8 @@ public:
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override { return false;  }
 	virtual int32 PerInstanceDataSize()const override { return sizeof(NeighborGrid3DRWInstanceData); }
 	//~ UNiagaraDataInterface interface END
+
+	void GetWorldBBoxSize(FVectorVMContext& Context);
 
 protected:
 	//~ UNiagaraDataInterface interface
