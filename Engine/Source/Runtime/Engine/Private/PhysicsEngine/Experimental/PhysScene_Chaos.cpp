@@ -417,7 +417,7 @@ FPhysScene_Chaos::~FPhysScene_Chaos()
 #endif
 }
 
-#if WITH_EDITOR
+#if WITH_EDITOR && WITH_CHAOS
 bool FPhysScene_ChaosInterface::IsOwningWorldEditor() const
 {
 	const UWorld* WorldPtr = GetOwningWorld();
