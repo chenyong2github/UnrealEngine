@@ -2237,5 +2237,14 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TAccelerationStructureHandle<T, d>&
 	return Ar;
 }
 
+#if PLATFORM_MAC || PLATFORM_LINUX
+extern template class CHAOS_API TGeometryParticle<float, 3>;
+extern template class CHAOS_API TKinematicGeometryParticle<float, 3>;
+extern template class CHAOS_API TPBDRigidParticle<float, 3>;
+#else
+extern template class TGeometryParticle<float, 3>;
+extern template class TKinematicGeometryParticle<float, 3>;
+extern template class TPBDRigidParticle<float, 3>;
+#endif
 } // namespace Chaos
 
