@@ -26,7 +26,11 @@
 // Make certain warnings always be warnings, even despite -Werror.
 // Rationale: we don't want to suppress those as there are plans to address them (e.g. UE-12341), but breaking builds due to these warnings is very expensive
 // since they cannot be caught by all compilers that we support. They are deemed to be relatively safe to be ignored, at least until all SDKs/toolchains start supporting them.
-#pragma clang diagnostic warning "-Wparentheses-equality"
+#ifdef __BUILDING_WITH_FASTBUILD__
+	#pragma clang diagnostic ignored "-Wparentheses-equality"
+#else
+	#pragma clang diagnostic warning "-Wparentheses-equality"
+#endif
 #pragma clang diagnostic ignored "-Winconsistent-missing-override"
 #pragma clang diagnostic ignored "-Wundefined-bool-conversion"
 #pragma clang diagnostic ignored "-Wunused-local-typedef"
