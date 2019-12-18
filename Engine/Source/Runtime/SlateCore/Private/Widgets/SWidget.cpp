@@ -799,7 +799,7 @@ void SWidget::UpdateFastPathVisibility(bool bParentVisible, bool bWidgetRemoved,
 
 	if (PersistentState.CachedElementListNode)
 	{
-		PersistentState.CachedElementListNode->GetValue().GetOwningData()->RemoveCache(PersistentState.CachedElementListNode);
+		PersistentState.CachedElementListNode->GetValue().Reset();
 	}
 
 	FChildren* MyChildren = GetAllChildren();
