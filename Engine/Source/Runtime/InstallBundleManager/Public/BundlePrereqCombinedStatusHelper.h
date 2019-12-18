@@ -62,6 +62,7 @@ private:
 	
 	//Called so we can track when a bundle is finished
 	void OnBundleInstallComplete(FInstallBundleRequestResultInfo CompletedBundleInfo);
+	void OnBundleInstallPauseChanged(FInstallBundlePauseInfo PauseInfo);
 	
 	float GetCombinedProgressPercent() const;
 	float GetIndividualWeightedProgressPercent(const FInstallBundleStatus& Bundle) const;
