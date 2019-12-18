@@ -914,15 +914,15 @@ namespace Chaos
 		template<class T, int d>
 		void UpdateConvexConvexManifold(TCollisionConstraintBase<T, d>&  ConstraintBase, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T Thickness)
 		{
-			if (ensure(ConstraintBase.GetType() == FRigidBodyMultiPointContactConstraint::StaticType()))
+			if (TRigidBodyMultiPointContactConstraint<T,d>* Constraint = ConstraintBase.template As<TRigidBodyMultiPointContactConstraint<T, d>>())
 			{
 				if (GetInnerType(ConstraintBase.Manifold.Implicit[0]->GetType()) == ImplicitObjectType::Convex)
 				{
-					UpdateSingleShotManifold(*ConstraintBase.template As<TRigidBodyMultiPointContactConstraint<T, d>>(), Transform0, Transform1, Thickness);
+					UpdateSingleShotManifold(*Constraint, Transform0, Transform1, Thickness);
 				}
 				else
 				{
-					UpdateIterativeManifold(*ConstraintBase.template As<TRigidBodyMultiPointContactConstraint<T, d>>(), Transform0, Transform1, Thickness);
+					UpdateIterativeManifold(*Constraint, Transform0, Transform1, Thickness);
 				}
 			}
 		}
@@ -1124,10 +1124,113 @@ namespace Chaos
 			EImplicitObjectType Implicit0Type = Implicit0.GetType();
 			EImplicitObjectType Implicit1Type = Implicit1.GetType();
 
-			// TConvex
-			if (Implicit0.IsConvex() && Implicit1.IsConvex())
+			if (Implicit0Type == TImplicitObjectTransformed<T, d>::StaticType())
+			{
+				ensure(false);//should not be possible to get this type, it should already be resolved by the constraint. (see ConstructConstraints)
+			}
+			else if (Implicit1Type == TImplicitObjectTransformed<T, d>::StaticType())
+			{
+				ensure(false);//should not be possible to get this type, it should already be resolved by the constraint. (see ConstructConstraints)
+			}
+			else if (Implicit0Type != FImplicitObjectUnion::StaticType() && Implicit1Type == FImplicitObjectUnion::StaticType())
+			{
+				ensure(false);//should not be possible to get this type, it should already be resolved by the constraint. (see ConstructConstraints)
+			}
+			else if (Implicit0Type == FImplicitObjectUnion::StaticType() && Implicit1Type != FImplicitObjectUnion::StaticType())
+			{
+				ensure(false);//should not be possible to get this type, it should already be resolved by the constraint. (see ConstructConstraints)
+			}
+			else if (Implicit0Type == FImplicitObjectUnion::StaticType() && Implicit1Type == FImplicitObjectUnion::StaticType())
+			{
+				ensure(false);//should not be possible to get this type, it should already be resolved by the constraint. (see ConstructConstraints)
+			}
+			else if (Implicit0Type == TBox<T, d>::StaticType() && Implicit1Type == TBox<T, d>::StaticType())
+			{
+				UpdateBoxBoxManifold(ConstraintBase, Transform0, Transform1, Thickness);
+			}
+			else if (Implicit0Type == TBox<T, d>::StaticType() && Implicit1Type == THeightField<T>::StaticType())
+			{
+				UpdateBoxHeightFieldManifold(ConstraintBase, Transform0, Transform1, Thickness);
+			}
+			else if (Implicit0Type == TSphere<T, d>::StaticType() && Implicit1Type == TSphere<T, d>::StaticType())
+			{
+				UpdateSphereSphereManifold(ConstraintBase, Transform0, Transform1, Thickness);
+			}
+			else if (Implicit0Type == TSphere<T, d>::StaticType() && Implicit1Type == THeightField<T>::StaticType())
+			{
+				UpdateSphereHeightFieldManifold(ConstraintBase, Transform0, Transform1, Thickness);
+			}
+			else if (Implicit0Type == TBox<T, d>::StaticType() && Implicit1Type == TPlane<T, d>::StaticType())
+			{
+				UpdateBoxPlaneManifold(ConstraintBase, Transform0, Transform1, Thickness);
+			}
+			else if (Implicit0Type == TSphere<T, d>::StaticType() && Implicit1Type == TPlane<T, d>::StaticType())
+			{
+				UpdateSpherePlaneManifold(ConstraintBase, Transform0, Transform1, Thickness);
+			}
+			else if (Implicit0Type == TSphere<T, d>::StaticType() && Implicit1Type == TBox<T, d>::StaticType())
+			{
+				UpdateSphereBoxManifold(ConstraintBase, Transform0, Transform1, Thickness);
+			}
+			else if (Implicit0Type == TSphere<T, d>::StaticType() && Implicit1Type == TCapsule<T>::StaticType())
+			{
+				UpdateSphereCapsuleManifold(ConstraintBase, Transform0, Transform1, Thickness);
+			}
+			else if (Implicit0Type == TCapsule<T>::StaticType() && Implicit1Type == TCapsule<T>::StaticType())
+			{
+				UpdateCapsuleCapsuleManifold(ConstraintBase, Transform0, Transform1, Thickness);
+			}
+			else if (Implicit0Type == TCapsule<T>::StaticType() && Implicit1Type == TBox<T, d>::StaticType())
+			{
+				UpdateCapsuleBoxManifold(ConstraintBase, Transform0, Transform1, Thickness);
+			}
+			else if (Implicit0Type == TCapsule<T>::StaticType() && Implicit1Type == THeightField<T>::StaticType())
+			{
+				UpdateCapsuleHeightFieldManifold(ConstraintBase, Transform0, Transform1, Thickness);
+			}
+			else if (Implicit0Type == THeightField<T>::StaticType() && Implicit1Type == TBox<T, d>::StaticType())
+			{
+				ensure(false);
+			}
+			else if (Implicit0Type == TPlane<T, d>::StaticType() && Implicit1Type == TBox<T, d>::StaticType())
+			{
+				//UpdatePlaneBoxManifold(ConstraintBase, Transform0, Transform1, Thickness);
+			}
+			else if (Implicit0Type == THeightField<T>::StaticType() && Implicit1Type == TSphere<T, d>::StaticType())
+			{
+				ensure(false);
+			}
+			else if (Implicit0Type == TPlane<T, d>::StaticType() && Implicit1Type == TSphere<T, d>::StaticType())
+			{
+				//UpdatePlaneSphereManifold(ConstraintBase, Transform0, Transform1, Thickness);
+			}
+			else if (Implicit0Type == TBox<T, d>::StaticType() && Implicit1Type == TSphere<T, d>::StaticType())
+			{
+				//UpdateBoxSphereManifold(ConstraintBase, Transform0, Transform1, Thickness);
+			}
+			else if (Implicit0Type == TBox<T, d>::StaticType() && Implicit1Type == TCapsule<T>::StaticType())
+			{
+				//UpdateBoxSphereManifold(ConstraintBase, Transform0, Transform1, Thickness);
+			}
+			else if (Implicit0Type == TCapsule<T>::StaticType() && Implicit1Type == TSphere<T, d>::StaticType())
+			{
+				//UpdateCapsuleSphereManifold(ConstraintBase, Transform0, Transform1, Thickness);
+			}
+			else if (Implicit0Type == THeightField<T>::StaticType() && Implicit1.IsConvex())
+			{
+				ensure(false);
+			}
+			else if (Implicit0.IsConvex() && Implicit1Type == THeightField<T>::StaticType())
+			{
+				UpdateConvexHeightFieldManifold(ConstraintBase, Transform0, Transform1, Thickness);
+			}
+			else if (Implicit0.IsConvex() && Implicit1.IsConvex())
 			{
 				UpdateConvexConvexManifold(ConstraintBase, Transform0, Transform1, Thickness);
+			}
+			else
+			{
+				UpdateLevelsetLevelsetManifold(ConstraintBase, Transform0, Transform1, Thickness);
 			}
 		}
 
