@@ -719,6 +719,16 @@ TVector<T, 3> TTriangleMeshImplicitObject<T>::GetFaceNormal(const int32 FaceIdx)
 	return TVector<T, 3>(0, 0, 1);
 }
 
+uint16 TTriangleMeshImplicitObject<T>::GetMaterialIndex(uint32 HintIndex) const
+{
+	if (MaterialIndices.IsValidIndex(HintIndex))
+	{
+		return MaterialIndices[HintIndex];
+	}
+
+	// 0 should always be the default material for a shape
+	return 0;
+}
 
 template<typename T>
 void Chaos::TTriangleMeshImplicitObject<T>::RebuildBV()
