@@ -208,6 +208,14 @@ public:
 
 						ConvexElem.VertexData.Add(V);
 					}
+
+					const uint32 NumIndexEntries = Hull.m_nTriangles * 3;
+					ConvexElem.IndexData.Reset(Hull.m_nTriangles * 3);
+					for(uint32 Index = 0; Index < NumIndexEntries; ++Index)
+					{
+						ConvexElem.IndexData.Add(Hull.m_triangles[Index]);
+					}
+
 					ConvexElem.UpdateElemBox();
 					InBodySetup->AggGeom.ConvexElems.Add(ConvexElem);
 				}
