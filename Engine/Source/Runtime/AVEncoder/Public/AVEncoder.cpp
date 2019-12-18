@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AVEncoder.h"
+#include "AVEncoderCommon.h"
 
 #if PLATFORM_WINDOWS
 	#include "Microsoft/Windows/NvVideoEncoder.h"
