@@ -74,8 +74,8 @@ namespace Chaos
 		enum class FType
 		{
 			None = 0,     // default value also indicates a invalid constraint
-			SinglePoint,   // TRigidBodyPointContactConstraint
-			Plane         // TRigidBodyPlaneContactConstraint
+			SinglePoint,  //   TRigidBodyPointContactConstraint
+			MultiPoint    //   TRigidBodyIterativeContactConstraint
 		};
 
 		TCollisionConstraintBase(int32 InTimestamp = -INT_MAX) 
@@ -157,21 +157,21 @@ namespace Chaos
 	*
 	*/
 	template<class T, int d>
-	class CHAOS_API TRigidBodyPlaneContactConstraint : public TCollisionConstraintBase<T, d>
+	class CHAOS_API TRigidBodyIterativeContactConstraint : public TCollisionConstraintBase<T, d>
 	{
 	public:
 		using Base = TCollisionConstraintBase<T, d>;
 		using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
 		using Base::Particle;
 
-		TRigidBodyPlaneContactConstraint() : Base(Base::FType::Plane), PlaneNormal(0), PlanePosition(0) {}
-		static typename Base::FType StaticType() { return Base::FType::Plane; };
+		TRigidBodyIterativeContactConstraint() : Base(Base::FType::MultiPoint), WorldNormal(0), LocalPosition(0) {}
+		static typename Base::FType StaticType() { return Base::FType::MultiPoint; };
 
-		TVector<T, d> PlaneNormal;
-		TVector<T, d> PlanePosition;
-		TArray<TVector<T, d>> PlaneSamples; // iterative plane samples
+		TVector<T, d> WorldNormal; // sampled normal
+		TVector<T, d> LocalPosition; // averaged position
+		TArray<TVector<T, d>> LocalSamples; // iterative samples
 	};
-	typedef TRigidBodyPlaneContactConstraint<float, 3> FRigidBodyPlaneContactConstraint;
+	typedef TRigidBodyIterativeContactConstraint<float, 3> FRigidBodyIterativeContactConstraint;
 
 
 	//
@@ -240,7 +240,7 @@ namespace Chaos
 			{
 				return ConstraintContainer->PointConstraints[ConstraintIndex];
 			}
-			check(GetType() == FConstraintBase::FType::Plane);
+			check(GetType() == FConstraintBase::FType::MultiPoint);
 			return ConstraintContainer->PlaneConstraints[ConstraintIndex];
 		}
 
@@ -250,7 +250,7 @@ namespace Chaos
 			{
 				return ConstraintContainer->PointConstraints[ConstraintIndex];
 			}
-			check(GetType() == FConstraintBase::FType::Plane);
+			check(GetType() == FConstraintBase::FType::MultiPoint);
 			return ConstraintContainer->PlaneConstraints[ConstraintIndex];
 		}
 
@@ -259,8 +259,8 @@ namespace Chaos
 		const TRigidBodyPointContactConstraint<T, d>& GetPointContact() const { check(GetType() == FConstraintBase::FType::SinglePoint); return ConstraintContainer->PointConstraints[ConstraintIndex]; }
 		TRigidBodyPointContactConstraint<T, d>& GetPointContact() { check(GetType() == FConstraintBase::FType::SinglePoint); return ConstraintContainer->PointConstraints[ConstraintIndex]; }
 
-		const TRigidBodyPlaneContactConstraint<T, d>& GetPlaneContact() const { check(GetType() == FConstraintBase::FType::Plane); return ConstraintContainer->PlaneConstraints[ConstraintIndex]; }
-		TRigidBodyPlaneContactConstraint<T, d>& GetPlaneContact() { check(GetType() == FConstraintBase::FType::Plane); return ConstraintContainer->PlaneConstraints[ConstraintIndex]; }
+		const TRigidBodyIterativeContactConstraint<T, d>& GetPlaneContact() const { check(GetType() == FConstraintBase::FType::MultiPoint); return ConstraintContainer->PlaneConstraints[ConstraintIndex]; }
+		TRigidBodyIterativeContactConstraint<T, d>& GetPlaneContact() { check(GetType() == FConstraintBase::FType::MultiPoint); return ConstraintContainer->PlaneConstraints[ConstraintIndex]; }
 
 		typename FConstraintBase::FType GetType() const { return ConstraintType; }
 

@@ -39,7 +39,7 @@ namespace Chaos
 					UpdateConstraintImp<UpdateType>(*Constraint.Particle[0]->Geometry(), ParticleTM, *Constraint.Particle[1]->Geometry(), LevelsetTM, Thickness, Constraint);
 				}
 			}
-			else if(Constraint.GetType() == TCollisionConstraintBase<T, d>::FType::Plane)
+			else if(Constraint.GetType() == TCollisionConstraintBase<T, d>::FType::MultiPoint)
 			{
 				UpdateConstraintImp<UpdateType>(*Constraint.Particle[0]->Geometry(), ParticleTM, *Constraint.Particle[1]->Geometry(), LevelsetTM, Thickness, Constraint);
 			}
@@ -48,7 +48,7 @@ namespace Chaos
 		template<typename T, int d>
 		void UpdateManifold(const T Thickness, TCollisionConstraintBase<T, d>& Constraint)
 		{
-			if (Constraint.GetType() == TCollisionConstraintBase<T, d>::FType::Plane)
+			if (Constraint.GetType() == TCollisionConstraintBase<T, d>::FType::MultiPoint)
 			{
 				const TRigidTransform<T, d> Transform0 = GetTransform(Constraint.Particle[0]);
 				const TRigidTransform<T, d> Transform1 = GetTransform(Constraint.Particle[1]);
@@ -58,7 +58,7 @@ namespace Chaos
 
 				if (Implicit0.IsConvex() && Implicit1.IsConvex())
 				{
-					UpdateConvexConvexManifold( *Constraint.template As<TRigidBodyPlaneContactConstraint<T, d>>(), Transform0, Transform1, Thickness);
+					UpdateConvexConvexManifold( *Constraint.template As<TRigidBodyIterativeContactConstraint<T, d>>(), Transform0, Transform1, Thickness);
 				}
 			}
 		}

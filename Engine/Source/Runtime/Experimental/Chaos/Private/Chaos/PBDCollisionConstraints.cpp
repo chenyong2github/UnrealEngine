@@ -121,12 +121,12 @@ namespace Chaos
 
 			delete PointConstraint;
 		}
-		else if (ConstraintBase->GetType() == TRigidBodyPlaneContactConstraint<T, 3>::StaticType())
+		else if (ConstraintBase->GetType() == TRigidBodyIterativeContactConstraint<T, 3>::StaticType())
 		{
-			TRigidBodyPlaneContactConstraint<T, d>* PlaneConstraint = ConstraintBase->template As< TRigidBodyPlaneContactConstraint<T, d> >();
+			TRigidBodyIterativeContactConstraint<T, d>* PlaneConstraint = ConstraintBase->template As< TRigidBodyIterativeContactConstraint<T, d> >();
 
 			int32 Idx = PlaneConstraints.Add(*PlaneConstraint);
-			Handle = HandleAllocator.template AllocHandle< TRigidBodyPlaneContactConstraint<T, d> >(this, Idx);
+			Handle = HandleAllocator.template AllocHandle< TRigidBodyIterativeContactConstraint<T, d> >(this, Idx);
 			Handle->GetContact().Timestamp = LifespanCounter;
 
 			delete PlaneConstraint;
@@ -218,7 +218,7 @@ namespace Chaos
 			PointConstraints.RemoveAtSwap(Idx);
 
 		}
-		else if (ConstraintType == FCollisionConstraintBase::FType::Plane)
+		else if (ConstraintType == FCollisionConstraintBase::FType::MultiPoint)
 		{
 			if (Idx < PlaneConstraints.Num() - 1)
 			{
@@ -270,7 +270,7 @@ namespace Chaos
 		PhysicsParallelFor(PlaneConstraints.Num(), [&](int32 ConstraintIndex)
 		{
 			FConstraintBase& ConstraintBase = PlaneConstraints[ConstraintIndex];
-			if (ConstraintBase.GetType() == FCollisionConstraintBase::FType::Plane)
+			if (ConstraintBase.GetType() == FCollisionConstraintBase::FType::MultiPoint)
 			{
 				Collisions::UpdateManifold<float, 3>(MThickness, ConstraintBase);
 			}
