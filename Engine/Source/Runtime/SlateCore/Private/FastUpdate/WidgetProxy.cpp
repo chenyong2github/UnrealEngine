@@ -6,6 +6,7 @@
 #include "Widgets/SWindow.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Types/ReflectionMetadata.h"
+#include "Input/HittestGrid.h"
 
 const FSlateWidgetPersistentState FSlateWidgetPersistentState::NoState;
 
@@ -174,7 +175,10 @@ int32 FWidgetProxy::Repaint(const FPaintArgs& PaintArgs, int32 MyIndex, FSlateWi
 	{
 		OutDrawElements.GetClippingManager().PushClippingState(MyState.InitialClipState.GetValue());
 	}
+	
+	const int32 PrevUserIndex = PaintArgs.GetHittestGrid().GetUserIndex();
 
+	PaintArgs.GetHittestGrid().SetUserIndex(MyState.IncomingUserIndex);
 	GSlateFlowDirection = MyState.IncomingFlowDirection;
 	
 	FPaintArgs UpdatedArgs = PaintArgs.WithNewParent(MyState.PaintParent.Pin().Get());
@@ -194,6 +198,8 @@ int32 FWidgetProxy::Repaint(const FPaintArgs& PaintArgs, int32 MyIndex, FSlateWi
 		}
 	}
 	const int32 NewLayerId = Widget->Paint(UpdatedArgs, MyState.AllottedGeometry, MyState.CullingBounds, OutDrawElements, MyState.LayerId, MyState.WidgetStyle, MyState.bParentEnabled);
+
+	PaintArgs.GetHittestGrid().SetUserIndex(PrevUserIndex);
 
 	if (bNeedsNewClipState)
 	{

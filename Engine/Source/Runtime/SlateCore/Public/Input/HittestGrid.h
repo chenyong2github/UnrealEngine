@@ -34,7 +34,7 @@ public:
 	 * Given a Slate Units coordinate in virtual desktop space, perform a hittest
 	 * and return the path along which the corresponding event would be bubbled.
 	 */
-	TArray<FWidgetAndPointer> GetBubblePath(FVector2D DesktopSpaceCoordinate, float CursorRadius, bool bIgnoreEnabledStatus);
+	TArray<FWidgetAndPointer> GetBubblePath(FVector2D DesktopSpaceCoordinate, float CursorRadius, bool bIgnoreEnabledStatus, int32 UserIndex);
 
 	/**
 	 * Set the position and size of the hittest area in desktop coordinates
@@ -58,6 +58,12 @@ public:
 	/** Insert custom hit test data for a widget already in the grid */
 	void InsertCustomHitTestPath(const TSharedRef<SWidget> InWidget, TSharedRef<ICustomHitTestPath> CustomHitTestPath);
 
+	/** Sets the current slate user index that should be associated with any added widgets */
+	void SetUserIndex(int32 UserIndex) { CurrentUserIndex = UserIndex; }
+
+	/** Gets current slate user index that should be associated with any added widgets */
+	int32 GetUserIndex() const { return CurrentUserIndex; }
+
 	/**
 	 * Finds the next focusable widget by searching through the hit test grid
 	 *
@@ -66,7 +72,7 @@ public:
 	 * @param NavigationReply The Navigation Reply to specify a boundary rule for the search.
 	 * @param RuleWidget      The Widget that is applying the boundary rule, used to get the bounds of the Rule.
 	 */
-	TSharedPtr<SWidget> FindNextFocusableWidget(const FArrangedWidget& StartingWidget, const EUINavigation Direction, const FNavigationReply& NavigationReply, const FArrangedWidget& RuleWidget);
+	TSharedPtr<SWidget> FindNextFocusableWidget(const FArrangedWidget& StartingWidget, const EUINavigation Direction, const FNavigationReply& NavigationReply, const FArrangedWidget& RuleWidget, int32 UserIndex);
 
 	void AppendGrid(FHittestGrid& OtherGrid);
 
@@ -87,12 +93,13 @@ private:
 	 */
 	struct FWidgetData
 	{
-		FWidgetData(TSharedRef<SWidget> InWidget, const FIntPoint& InUpperLeftCell, const FIntPoint& InLowerRightCell, int64 InPrimarySort, int32 InSecondarySort)
+		FWidgetData(TSharedRef<SWidget> InWidget, const FIntPoint& InUpperLeftCell, const FIntPoint& InLowerRightCell, int64 InPrimarySort, int32 InSecondarySort, int32 InUserIndex)
 			: WeakWidget(InWidget)
 			, UpperLeftCell(InUpperLeftCell)
 			, LowerRightCell(InLowerRightCell)
 			, PrimarySort(InPrimarySort)
 			, SecondarySort(InSecondarySort)
+			, UserIndex(InUserIndex)
 		{}
 		TWeakPtr<SWidget> WeakWidget;
 		TWeakPtr<ICustomHitTestPath> CustomPath;
@@ -100,6 +107,7 @@ private:
 		FIntPoint LowerRightCell;
 		int64 PrimarySort;
 		int32 SecondarySort;
+		int32 UserIndex;
 
 		TSharedPtr<SWidget> GetWidget() const { return WeakWidget.Pin(); }
 	};
@@ -148,7 +156,7 @@ private:
 
 	/** Utility function for searching for the next focusable widget. */
 	template<typename TCompareFunc, typename TSourceSideFunc, typename TDestSideFunc>
-	TSharedPtr<SWidget> FindFocusableWidget(const FSlateRect WidgetRect, const FSlateRect SweptRect, int32 AxisIndex, int32 Increment, const EUINavigation Direction, const FNavigationReply& NavigationReply, TCompareFunc CompareFunc, TSourceSideFunc SourceSideFunc, TDestSideFunc DestSideFunc);
+	TSharedPtr<SWidget> FindFocusableWidget(const FSlateRect WidgetRect, const FSlateRect SweptRect, int32 AxisIndex, int32 Increment, const EUINavigation Direction, const FNavigationReply& NavigationReply, TCompareFunc CompareFunc, TSourceSideFunc SourceSideFunc, TDestSideFunc DestSideFunc, int32 UserIndex);
 
 	/** Constrains a float position into the grid coordinate. */
 	FIntPoint GetCellCoordinate(FVector2D Position);
@@ -188,5 +196,6 @@ private:
 	/** The Size of the current grid. */
 	FVector2D GridSize;
 
-	//friend class SWidgetReflector;
+	/** The current slate user index that should be associated with any added widgets */
+	int32 CurrentUserIndex;
 };

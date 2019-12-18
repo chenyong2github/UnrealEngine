@@ -16,6 +16,12 @@ DECLARE_CYCLE_STAT(TEXT("HitTestGrid Clear"), STAT_SlateHTG_Clear, STATGROUP_Sla
 int32 SlateVerifyHitTestVisibility = 0;
 static FAutoConsoleVariableRef CVarSlateVerifyHitTestVisibility(TEXT("Slate.VerifyHitTestVisibility"), SlateVerifyHitTestVisibility, TEXT("Should we double check the visibility of widgets during hit testing, in case previously resolved hit tests that same frame may have changed state?"), ECVF_Default);
 
+constexpr bool IsCompatibleUserIndex(int32 RequestedUserIndex, int32 TestUserIndex)
+{
+	// INDEX_NONE means the user index is compatible with all
+	return RequestedUserIndex == INDEX_NONE || TestUserIndex == INDEX_NONE|| RequestedUserIndex == TestUserIndex;
+}
+
 //
 // Helper Functions
 //
@@ -158,6 +164,7 @@ FHittestGrid::FHittestGrid()
 	, NumCells(0, 0)
 	, GridOrigin(0, 0)
 	, GridSize(0, 0)
+	, CurrentUserIndex(INDEX_NONE)
 {
 }
 
@@ -165,7 +172,7 @@ FHittestGrid::~FHittestGrid()
 {
 }
 
-TArray<FWidgetAndPointer> FHittestGrid::GetBubblePath(FVector2D DesktopSpaceCoordinate, float CursorRadius, bool bIgnoreEnabledStatus)
+TArray<FWidgetAndPointer> FHittestGrid::GetBubblePath(FVector2D DesktopSpaceCoordinate, float CursorRadius, bool bIgnoreEnabledStatus, int32 UserIndex)
 {
 	checkSlow(IsInGameThread());
 
@@ -220,7 +227,8 @@ TArray<FWidgetAndPointer> FHittestGrid::GetBubblePath(FVector2D DesktopSpaceCoor
 			const FWidgetData& BestHitWidgetData = WidgetArray[BestHit.WidgetIndex];
 
 			const TSharedPtr<SWidget> FirstHitWidget = BestHitWidgetData.GetWidget();
-			if (FirstHitWidget.IsValid()) // Make Sure we landed on a valid widget
+			// Make Sure we landed on a valid widget
+			if (FirstHitWidget.IsValid() && IsCompatibleUserIndex(UserIndex, BestHitWidgetData.UserIndex))
 			{
 				TArray<FWidgetAndPointer> Path;
 
@@ -333,7 +341,7 @@ bool FHittestGrid::IsDescendantOf(const TSharedRef<SWidget> Parent, const FWidge
 }
 
 template<typename TCompareFunc, typename TSourceSideFunc, typename TDestSideFunc>
-TSharedPtr<SWidget> FHittestGrid::FindFocusableWidget(FSlateRect WidgetRect, const FSlateRect SweptRect, int32 AxisIndex, int32 Increment, const EUINavigation Direction, const FNavigationReply& NavigationReply, TCompareFunc CompareFunc, TSourceSideFunc SourceSideFunc, TDestSideFunc DestSideFunc)
+TSharedPtr<SWidget> FHittestGrid::FindFocusableWidget(FSlateRect WidgetRect, const FSlateRect SweptRect, int32 AxisIndex, int32 Increment, const EUINavigation Direction, const FNavigationReply& NavigationReply, TCompareFunc CompareFunc, TSourceSideFunc SourceSideFunc, TDestSideFunc DestSideFunc, int32 UserIndex)
 {
 	FIntPoint CurrentCellPoint = GetCellCoordinate(WidgetRect.GetCenter());
 
@@ -386,7 +394,7 @@ TSharedPtr<SWidget> FHittestGrid::FindFocusableWidget(FSlateRect WidgetRect, con
 
 				const FWidgetData& TestCandidate = WidgetArray[CurrentIndex];
 				const TSharedPtr<SWidget> TestWidget = TestCandidate.GetWidget();
-				if (TestWidget.IsValid())
+				if (TestWidget.IsValid() && IsCompatibleUserIndex(UserIndex, TestCandidate.UserIndex))
 				{
 					FGeometry TestCandidateGeo = TestWidget->GetPaintSpaceGeometry();
 					TestCandidateGeo.AppendTransform(FSlateLayoutTransform(-GridWindowOrigin));
@@ -485,7 +493,7 @@ TSharedPtr<SWidget> FHittestGrid::FindFocusableWidget(FSlateRect WidgetRect, con
 	return TSharedPtr<SWidget>();
 }
 
-TSharedPtr<SWidget> FHittestGrid::FindNextFocusableWidget(const FArrangedWidget& StartingWidget, const EUINavigation Direction, const FNavigationReply& NavigationReply, const FArrangedWidget& RuleWidget)
+TSharedPtr<SWidget> FHittestGrid::FindNextFocusableWidget(const FArrangedWidget& StartingWidget, const EUINavigation Direction, const FNavigationReply& NavigationReply, const FArrangedWidget& RuleWidget, int32 UserIndex)
 {
 	FGeometry StartingWidgetGeo = StartingWidget.Widget->GetPaintSpaceGeometry();
 	StartingWidgetGeo.AppendTransform(FSlateLayoutTransform(-GridWindowOrigin));
@@ -509,7 +517,7 @@ TSharedPtr<SWidget> FHittestGrid::FindNextFocusableWidget(const FArrangedWidget&
 		Widget = FindFocusableWidget(WidgetRect, SweptWidgetRect, 0, -1, Direction, NavigationReply,
 			[](float A, float B) { return A - 0.1f < B; }, // Compare function
 			[](FSlateRect SourceRect) { return SourceRect.Left; }, // Source side function
-			[](FSlateRect DestRect) { return DestRect.Right; }); // Dest side function
+			[](FSlateRect DestRect) { return DestRect.Right; }, UserIndex); // Dest side function
 		break;
 	case EUINavigation::Right:
 		SweptWidgetRect.Left = BoundingRuleRect.Left;
@@ -519,7 +527,7 @@ TSharedPtr<SWidget> FHittestGrid::FindNextFocusableWidget(const FArrangedWidget&
 		Widget = FindFocusableWidget(WidgetRect, SweptWidgetRect, 0, 1, Direction, NavigationReply,
 			[](float A, float B) { return A + 0.1f > B; }, // Compare function
 			[](FSlateRect SourceRect) { return SourceRect.Right; }, // Source side function
-			[](FSlateRect DestRect) { return DestRect.Left; }); // Dest side function
+			[](FSlateRect DestRect) { return DestRect.Left; }, UserIndex); // Dest side function
 		break;
 	case EUINavigation::Up:
 		SweptWidgetRect.Top = BoundingRuleRect.Top;
@@ -529,7 +537,7 @@ TSharedPtr<SWidget> FHittestGrid::FindNextFocusableWidget(const FArrangedWidget&
 		Widget = FindFocusableWidget(WidgetRect, SweptWidgetRect, 1, -1, Direction, NavigationReply,
 			[](float A, float B) { return A - 0.1f < B; }, // Compare function
 			[](FSlateRect SourceRect) { return SourceRect.Top; }, // Source side function
-			[](FSlateRect DestRect) { return DestRect.Bottom; }); // Dest side function
+			[](FSlateRect DestRect) { return DestRect.Bottom; }, UserIndex); // Dest side function
 		break;
 	case EUINavigation::Down:
 		SweptWidgetRect.Top = BoundingRuleRect.Top;
@@ -539,7 +547,7 @@ TSharedPtr<SWidget> FHittestGrid::FindNextFocusableWidget(const FArrangedWidget&
 		Widget = FindFocusableWidget(WidgetRect, SweptWidgetRect, 1, 1, Direction, NavigationReply,
 			[](float A, float B) { return A + 0.1f > B; }, // Compare function
 			[](FSlateRect SourceRect) { return SourceRect.Bottom; }, // Source side function
-			[](FSlateRect DestRect) { return DestRect.Top; }); // Dest side function
+			[](FSlateRect DestRect) { return DestRect.Top; }, UserIndex); // Dest side function
 		break;
 
 	default:
@@ -626,10 +634,28 @@ void FHittestGrid::LogGrid() const
 		UE_LOG(LogHittestDebug, Warning, TEXT("  [%d][%d][%d] => %s @ %s"),
 			It.GetIndex(),
 			CurWidgetData.PrimarySort,
-			CachedWidget.IsValid() ? *CachedWidget->ToString() : TEXT("Invalid WIdget"),
-			CachedWidget.IsValid() ? *CachedWidget->GetPaintSpaceGeometry().ToString() : TEXT("Invalid WIdget"));
+			CachedWidget.IsValid() ? *CachedWidget->ToString() : TEXT("Invalid Widget"),
+			CachedWidget.IsValid() ? *CachedWidget->GetPaintSpaceGeometry().ToString() : TEXT("Invalid Widget"));
 	}
 }
+
+constexpr FLinearColor GetUserColorFromIndex(int32 Index)
+{
+	switch (Index)
+	{
+	case 0:
+		return FLinearColor::Red;
+	case 1:
+		return FLinearColor::Green;
+	case 2:
+		return FLinearColor::Blue;
+	case 3:
+		return FLinearColor::Yellow;
+	default:
+		return FLinearColor::White;
+	}
+};
+
 
 void FHittestGrid::DisplayGrid(int32 InLayer, const FGeometry& AllottedGeometry, FSlateWindowElementList& WindowElementList) const
 {
@@ -646,7 +672,9 @@ void FHittestGrid::DisplayGrid(int32 InLayer, const FGeometry& AllottedGeometry,
 				WindowElementList,
 				InLayer,
 				CachedWidget->GetPaintSpaceGeometry().ToPaintGeometry(),
-				WhiteBrush
+				WhiteBrush,
+				ESlateDrawEffect::None,
+				GetUserColorFromIndex(CurWidgetData.UserIndex)
 			);
 		}
 	}
@@ -686,7 +714,7 @@ void FHittestGrid::AddWidget(const TSharedRef<SWidget>& InWidget, int32 InBatchP
 	const FIntPoint LowerRightCell = GetCellCoordinate(BoundingRect.GetBottomRight());
 
 	int32& WidgetIndex = WidgetMap.Add(&*InWidget);
-	FWidgetData Data(InWidget, UpperLeftCell, LowerRightCell, PrimarySort, InSecondarySort);
+	FWidgetData Data(InWidget, UpperLeftCell, LowerRightCell, PrimarySort, InSecondarySort, CurrentUserIndex);
 	WidgetIndex = WidgetArray.Add(Data); // Bleh why doesn't Sparse Array have an emplace.
 
 	for (int32 XIndex = UpperLeftCell.X; XIndex <= LowerRightCell.X; ++XIndex)

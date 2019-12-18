@@ -138,6 +138,7 @@ struct FSlateWidgetPersistentState
 		: CachedElementListNode(nullptr)
 		, LayerId(0)
 		, OutgoingLayerId(0)
+		, IncomingUserIndex(INDEX_NONE)
 		, IncomingFlowDirection(EFlowDirection::LeftToRight)
 		, bParentEnabled(true)
 		, bInheritedHittestability(false)
@@ -153,6 +154,7 @@ struct FSlateWidgetPersistentState
 	/** Starting layer id for drawing children **/
 	int32 LayerId;
 	int32 OutgoingLayerId;
+	int8 IncomingUserIndex;
 	EFlowDirection IncomingFlowDirection;
 	uint8 bParentEnabled : 1;
 	uint8 bInheritedHittestability : 1;

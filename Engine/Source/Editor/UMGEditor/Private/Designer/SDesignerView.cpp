@@ -1660,7 +1660,7 @@ bool SDesignerView::FindWidgetUnderCursor(const FGeometry& MyGeometry, const FPo
 	//@TODO UMG Make it so you can request dropable widgets only, to find the first parentable.
 
 	// Query the hit test grid we create for the design surface, and determine what widgets we hit.
-	TArray<FWidgetAndPointer> BubblePath = DesignerHittestGrid->GetBubblePath(MouseEvent.GetScreenSpacePosition(), 0.0f, true);
+	TArray<FWidgetAndPointer> BubblePath = DesignerHittestGrid->GetBubblePath(MouseEvent.GetScreenSpacePosition(), 0.0f, true, INDEX_NONE);
 
 	HitResult.Widget = FWidgetReference();
 	HitResult.NamedSlot = NAME_None;

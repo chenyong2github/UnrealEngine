@@ -478,6 +478,9 @@ int32 SRetainerWidget::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 		}
 		FPaintArgs NewArgs = Args.WithNewHitTestGrid(HittestGrid);
 
+		// Copy the current user index into the new grid since nested hittest grids should inherit their parents user id
+		NewArgs.GetHittestGrid().SetUserIndex(Args.RootGrid.GetUserIndex());
+
 		FSlateInvalidationContext Context(OutDrawElements, InWidgetStyle);
 		Context.bParentEnabled = bParentEnabled;
 		Context.bAllowFastPathUpdate = true;
