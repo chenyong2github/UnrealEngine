@@ -610,6 +610,9 @@ public:
 	FParticleCollisionSignature OnParticleCollide;
 
 	UPROPERTY()
+	bool bOldPositionValid;
+
+	UPROPERTY()
 	FVector OldPosition;
 
 	UPROPERTY()
