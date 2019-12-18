@@ -131,8 +131,8 @@ public:
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Top)
-				.Padding(0, 4, 2, 0)
+				.VAlign(VAlign_Center)
+				.Padding(0, 0, 2, 0)
 				[
 					SNew(SNiagaraStackIssueIcon, StackViewModel, InRootEntry)
 					.Visibility(InArgs._IssueIconVisibility)
@@ -143,7 +143,7 @@ public:
 				.AutoWidth()
 				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Center)
-				.Padding(0, 4, 2, 0)
+				.Padding(0, 0, 2, 0)
 				[
 					SNew(SButton)
 					.IsFocusable(false)
