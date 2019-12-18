@@ -15,6 +15,7 @@
 #include "UObject/UObjectIterator.h"
 #include "GameFramework/OnlineReplStructs.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerState.h"
 #include "Engine/SkeletalMesh.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "UnrealEngine.h"
@@ -28,13 +29,13 @@
 #include "Physics/PhysicsInterfaceCore.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Framework/Application/SlateApplication.h"
 
 #include "IHeadMountedDisplay.h"
 #include "IXRTrackingSystem.h"
 #include "IXRCamera.h"
 #include "SceneViewExtension.h"
 #include "Net/DataChannel.h"
-#include "GameFramework/PlayerState.h"
 
 #include "GameDelegates.h"
 
@@ -1620,6 +1621,16 @@ bool ULocalPlayer::IsCachedUniqueNetIdPairedWithControllerId() const
 	// Get the UniqueNetId that is paired with the controller
 	FUniqueNetIdRepl UniqueIdFromController = GetUniqueNetIdFromCachedControllerId();
 	return (CachedUniqueNetId == UniqueIdFromController);
+}
+
+TSharedPtr<FSlateUser> ULocalPlayer::GetSlateUser()
+{
+	return FSlateApplication::Get().GetUserFromControllerId(ControllerId);
+}
+
+TSharedPtr<const FSlateUser> ULocalPlayer::GetSlateUser() const
+{
+	return FSlateApplication::Get().GetUserFromControllerId(ControllerId);
 }
 
 UWorld* ULocalPlayer::GetWorld() const
