@@ -330,7 +330,7 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<TPBDRigidParticles<
 			for (TGeometryParticleHandle<FReal, 3>* Particle : NewIslandParticles[Island])
 			{
 				TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle();
-				if(PBDRigid && PBDRigid->ObjectState() == EObjectStateType::Dynamic)
+				if (PBDRigid && PBDRigid->ObjectState() != EObjectStateType::Kinematic)
 				{
 					PBDRigid->Island() = Island;
 				}
@@ -392,7 +392,7 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<TPBDRigidParticles<
 			for (TGeometryParticleHandle<FReal, 3>* Particle : IslandToParticles[Island])
 			{
 				TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle();
-				const bool bIsDynamic = PBDRigid && PBDRigid->ObjectState() == EObjectStateType::Dynamic;
+				const bool bIsDynamic = PBDRigid && PBDRigid->ObjectState() != EObjectStateType::Kinematic;
 				int32 TmpIsland = bIsDynamic ? PBDRigid->Island() : INDEX_NONE; //question: should we even store non dynamics in this array?
 
 				if (OtherIsland == INDEX_NONE && TmpIsland >= 0)
@@ -425,7 +425,7 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<TPBDRigidParticles<
 				for (TGeometryParticleHandle<FReal, 3>* Particle : IslandToParticles[Island])
 				{
 					TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle();
-					if(PBDRigid && PBDRigid->ObjectState() == EObjectStateType::Dynamic)
+					if (PBDRigid && PBDRigid->ObjectState() != EObjectStateType::Kinematic)
 					{
 						if (!PBDRigid->Disabled())	// todo: why is this needed? [we aren't handling enable/disable state changes properly so disabled particles end up in the graph.]
 						{
@@ -482,7 +482,7 @@ void FPBDConstraintGraph::ComputeIsland(const int32 InNode, const int32 Island, 
 		}
 
 		TPBDRigidParticleHandle<FReal, 3>* RigidHandle = Node.Particle->CastToRigidParticle();
-		const bool isRigidDynamic = RigidHandle && RigidHandle->ObjectState() == EObjectStateType::Dynamic;
+		const bool isRigidDynamic = RigidHandle && RigidHandle->ObjectState() != EObjectStateType::Kinematic;  //??
 
 		if (isRigidDynamic == false)
 		{
@@ -538,19 +538,23 @@ bool FPBDConstraintGraph::SleepInactive(const int32 Island, const TArrayCollecti
 
 	int32& IslandSleepCount = IslandToSleepCount[Island];
 
-	TVector<FReal, 3> X(0);
 	TVector<FReal, 3> V(0);
 	TVector<FReal, 3> W(0);
 	FReal M = 0;
 	FReal LinearSleepingThreshold = FLT_MAX;
 	FReal AngularSleepingThreshold = FLT_MAX;
+	FReal DefaultLinearSleepingThreshold = (FReal)1;
+	FReal DefaultAngularSleepingThreshold = (FReal)1;
+
+	int32 NumDynamicParticles = 0;
 
 	for (const TGeometryParticleHandle<FReal, 3>* Particle : IslandToParticles[Island])
 	{
 		const TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle();
 		if(PBDRigid && (PBDRigid->ObjectState() == EObjectStateType::Dynamic))
 		{
-			X += PBDRigid->X() * PBDRigid->M();
+			NumDynamicParticles++;
+
 			M += PBDRigid->M();
 			V += PBDRigid->V() * PBDRigid->M();
 
@@ -561,13 +565,18 @@ bool FPBDConstraintGraph::SleepInactive(const int32 Island, const TArrayCollecti
 			}
 			else
 			{
-				LinearSleepingThreshold = (FReal)0;
-				LinearSleepingThreshold = (FReal)0;
+				LinearSleepingThreshold = DefaultLinearSleepingThreshold;
+				AngularSleepingThreshold = DefaultAngularSleepingThreshold;
 			}
 		}
 	}
 
-	X /= M;
+	if (NumDynamicParticles == 0)
+	{
+		// prevent divide by zero - all particles much be sleeping/disabled already
+		return false;
+	}
+
 	V /= M;
 
 	for (const TGeometryParticleHandle<FReal, 3>* Particle: IslandParticles)
@@ -583,7 +592,6 @@ bool FPBDConstraintGraph::SleepInactive(const int32 Island, const TArrayCollecti
 
 	const FReal VSize = V.SizeSquared();
 	const FReal WSize = W.SizeSquared();
-
 	if (VSize < LinearSleepingThreshold && WSize < AngularSleepingThreshold)
 	{
 		if (IslandSleepCount > SleepCountThreshold)

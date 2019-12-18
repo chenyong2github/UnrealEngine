@@ -147,7 +147,14 @@ void FPhysInterface_Chaos::CreateActor(const FActorCreationParams& InParams, FPh
 		RigidHandle->SetGravityEnabled(InParams.bEnableGravity);
 		if (InParams.BodyInstance && InParams.BodyInstance->ShouldInstanceSimulatingPhysics())
 		{
-			RigidHandle->SetObjectState(Chaos::EObjectStateType::Dynamic);
+			if (InParams.BodyInstance->bStartAwake)
+			{
+				RigidHandle->SetObjectState(Chaos::EObjectStateType::Dynamic);
+			}
+			else
+			{
+				RigidHandle->SetObjectState(Chaos::EObjectStateType::Sleeping);
+			}
 		}
 		else
 		{
@@ -396,12 +403,40 @@ void FPhysInterface_Chaos::SetIsKinematic_AssumesLocked(const FPhysicsActorHandl
 {
 	if (Chaos::TPBDRigidParticle<float, 3>* Particle = InActorReference->CastToRigidParticle())
 	{
-		//#todo: what if object state has been previously set to sleeping?
 		const Chaos::EObjectStateType NewState
 			= bIsKinematic
 			? Chaos::EObjectStateType::Kinematic
 			: Chaos::EObjectStateType::Dynamic;
-		Particle->SetObjectState(NewState);
+
+		bool AllowedToChangeToNewState = false;
+
+		switch (Particle->ObjectState())
+		{
+		case Chaos::EObjectStateType::Kinematic:
+			// from kinematic we can only go dynamic
+			if (NewState == Chaos::EObjectStateType::Dynamic)
+			{
+				AllowedToChangeToNewState = true;
+			}
+			break;
+
+		case Chaos::EObjectStateType::Dynamic:
+			// from dynamic we can go to sleeping or to kinematic
+			if (NewState == Chaos::EObjectStateType::Kinematic)
+			{
+				AllowedToChangeToNewState = true;
+			}
+			break;
+
+		case Chaos::EObjectStateType::Sleeping:
+			// from sleeping we can't change state without waking first
+			break;
+		}
+		
+		if (AllowedToChangeToNewState)
+		{
+			Particle->SetObjectState(NewState);
+		}
 	}
 	else
 	{
