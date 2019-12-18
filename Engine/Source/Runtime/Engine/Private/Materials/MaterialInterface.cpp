@@ -109,6 +109,47 @@ void UMaterialInterface::GetUsedTexturesAndIndices(TArray<UTexture*>& OutTexture
 	OutIndices.AddDefaulted(OutTextures.Num());
 }
 
+bool UMaterialInterface::GetStaticSwitchParameterValue(const FMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid, bool bOveriddenOnly /*= false*/, bool bCheckParent /*= true*/) const
+{
+	TBitArray<> Output(false, 1); // Relying on the default allocator to be inline to avoid allocation here.
+	FStaticParamEvaluationContext EvalContext(1, &ParameterInfo);
+	if (!GetStaticSwitchParameterValues(EvalContext, Output, &OutExpressionGuid, bCheckParent))
+	{
+		return false;
+	}
+
+	if (bOveriddenOnly && !EvalContext.IsResolvedByOverride(0))
+	{
+		return false;
+	}
+
+	OutValue = Output[0];
+
+	return true;
+}
+
+bool UMaterialInterface::GetStaticComponentMaskParameterValue(const FMaterialParameterInfo& ParameterInfo, bool& R, bool& G, bool& B, bool& A, FGuid& OutExpressionGuid, bool bOveriddenOnly /*= false*/, bool bCheckParent /*= true*/) const
+{
+	TBitArray<> Output(false, 4); // Relying on the default allocator to be inline to avoid allocation here.
+	FStaticParamEvaluationContext EvalContext(1, &ParameterInfo);
+	if (!GetStaticComponentMaskParameterValues(EvalContext, Output, &OutExpressionGuid, bCheckParent))
+	{
+		return false;
+	}
+	
+	if (bOveriddenOnly && !EvalContext.IsResolvedByOverride(0))
+	{
+		return false;
+	}
+
+	R = Output[0];
+	G = Output[1];
+	B = Output[2];
+	A = Output[3];
+
+	return true;
+}
+
 FMaterialRelevance UMaterialInterface::GetRelevance_Internal(const UMaterial* Material, ERHIFeatureLevel::Type InFeatureLevel) const
 {
 	if(Material)
@@ -762,6 +803,27 @@ void UMaterialInterface::RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUse
 		{
 			AssetUserData.RemoveAt(DataIdx);
 			return;
+		}
+	}
+}
+
+void UMaterialInterface::FStaticParamEvaluationContext::MarkParameterResolved(int32 ParamIndex, bool bIsOverride)
+{
+	FBitReference BitRef = PendingParameters[ParamIndex];
+	check(BitRef);
+	BitRef = false;
+	ResolvedByOverride[ParamIndex] = bIsOverride;
+	--PendingParameterNum;
+}
+
+void UMaterialInterface::FStaticParamEvaluationContext::ForEachPendingParameter(TFunctionRef<bool(int32, const FMaterialParameterInfo&)> Op)
+{
+	for (TConstSetBitIterator<> It(PendingParameters); It; ++It)
+	{
+		int32 ParamIndex = It.GetIndex();
+		if (!Op(ParamIndex, ParameterInfos[ParamIndex]))
+		{
+			break;
 		}
 	}
 }

@@ -425,6 +425,31 @@ public:
 	 */
 	virtual const FMaterialResource* GetMaterialResource(ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel = EMaterialQualityLevel::Num) const { return NULL; }
 
+	struct FStaticParamEvaluationContext
+	{
+	public:
+		FStaticParamEvaluationContext(int32 InParameterNum, const FMaterialParameterInfo* InParameterInfos) : PendingParameterNum(InParameterNum), ParameterInfos(InParameterInfos) { PendingParameters.Add(true, PendingParameterNum); ResolvedByOverride.Add(false, PendingParameterNum); }
+
+		const FMaterialParameterInfo* GetParameterInfo(int32 ParamIndex) const { check(ParamIndex >= 0 && ParamIndex < PendingParameters.Num()); return ParameterInfos + ParamIndex; }
+		bool AllResolved() const { return PendingParameterNum == 0; }
+		bool IsResolved(int32 ParamIndex) const { return !PendingParameters[ParamIndex]; }
+		bool IsResolvedByOverride(int32 ParamIndex) const { return ResolvedByOverride[ParamIndex]; }
+		void MarkParameterResolved(int32 ParamIndex, bool bIsOverride);
+		int32 GetPendingParameterNum() const { return PendingParameterNum; }
+		int32 GetTotalParameterNum() const { return PendingParameters.Num(); }
+
+		/**
+		 * Perform an operation on the pending parameters until performed on all pending parameters, or until the operation asks to stop iterating by returning false.
+	 	 * @param Op - The operation to perform on each pending parameter.  Accepts the index for the parameter and the parameter info associated with it.  If the Op returns true, we keep iterating if there are more pending parameters, if it returns false, we stop immediately after this Op.
+		 */
+		void ForEachPendingParameter(TFunctionRef<bool(int32 ParamIndex, const FMaterialParameterInfo& ParamInfo)> Op);
+	private:
+		TBitArray<> PendingParameters;
+		TBitArray<> ResolvedByOverride;
+		int32 PendingParameterNum;
+		const FMaterialParameterInfo* ParameterInfos;
+	};
+
 	/**
 	* Get the value of the given static switch parameter
 	*
@@ -432,8 +457,18 @@ public:
 	* @param	OutValue		Will contain the value of the parameter if successful
 	* @return					True if successful
 	*/
-	virtual bool GetStaticSwitchParameterValue(const FMaterialParameterInfo& ParameterInfo,bool &OutValue,FGuid &OutExpressionGuid, bool bOveriddenOnly = false, bool bCheckParent = true) const
-		PURE_VIRTUAL(UMaterialInterface::GetStaticSwitchParameterValue,return false;);
+	ENGINE_API bool GetStaticSwitchParameterValue(const FMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid, bool bOveriddenOnly = false, bool bCheckParent = true) const;
+
+	/**
+	* Get the values of the given set of static switch parameters.
+	*
+	* @param	EvalContext			The evaluation context used while determining parameter values.
+	* @param	OutValues			If successful, will contain the value of the requested parameters.  Must be pre-sized to fit at least all parameter values in the evaluation.  If unsuccessful, may still be written to with intermediate values.
+	* @param	OutExpressionGuids	If successful, will contain the identifier of the owning expression of the requested parameter values.  Must be non null and pre-sized to fit at least all parameter values in the evaluation.  If unsuccessful, may still be written to with intermediate values.
+	* @return						True if successfully obtained ALL parameter values requested
+	*/
+	virtual bool GetStaticSwitchParameterValues(FStaticParamEvaluationContext& EvalContext, TBitArray<>& OutValues, FGuid* OutExpressionGuids, bool bCheckParent = true) const
+		PURE_VIRTUAL(UMaterialInterface::GetStaticSwitchParameterValues,return false;);
 
 	/**
 	* Get the value of the given static component mask parameter
@@ -442,8 +477,18 @@ public:
 	* @param	R, G, B, A		Will contain the values of the parameter if successful
 	* @return					True if successful
 	*/
-	virtual bool GetStaticComponentMaskParameterValue(const FMaterialParameterInfo& ParameterInfo, bool &R, bool &G, bool &B, bool &A, FGuid &OutExpressionGuid, bool bOveriddenOnly = false, bool bCheckParent = true) const
-		PURE_VIRTUAL(UMaterialInterface::GetStaticComponentMaskParameterValue,return false;);
+	ENGINE_API bool GetStaticComponentMaskParameterValue(const FMaterialParameterInfo& ParameterInfo, bool& R, bool& G, bool& B, bool& A, FGuid& OutExpressionGuid, bool bOveriddenOnly = false, bool bCheckParent = true) const;
+
+	/**
+	* Get the values of the given set of static component mask parameters
+	*
+	* @param	EvalContext				The evaluation context used while determining parameter values
+	* @param	OutRGBAOrderedValues	If successful, will contain the value of the requested parameters.  Must be pre-sized to fit at least four bits for all parameter values in the evaluation.  If unsuccessful, may still be written to with intermediate values.
+	* @param	OutExpressionGuids		If successful, will contain the identifier of the owning expression of the requested parameter values.  Must be non null and pre-sized to fit at least all parameter values in the evaluation.  If unsuccessful, may still be written to with intermediate values.
+	* @return							True if successfully obtained ALL parameter values requested
+	*/
+	virtual bool GetStaticComponentMaskParameterValues(FStaticParamEvaluationContext& EvalContext, TBitArray<>& OutRGBAOrderedValues, FGuid* OutExpressionGuids, bool bCheckParent = true) const
+		PURE_VIRTUAL(UMaterialInterface::GetStaticComponentMaskParameterValues,return false;);
 
 	/**
 	* Get the weightmap index of the given terrain layer weight parameter

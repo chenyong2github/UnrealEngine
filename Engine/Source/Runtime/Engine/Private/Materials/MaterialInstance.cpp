@@ -37,6 +37,7 @@
 #include "Curves/CurveLinearColorAtlas.h"
 #include "HAL/ThreadHeartBeat.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Materials/MaterialStaticParameterValueResolver.h"
 
 DECLARE_CYCLE_STAT(TEXT("MaterialInstance CopyMatInstParams"), STAT_MaterialInstance_CopyMatInstParams, STATGROUP_Shaders);
 DECLARE_CYCLE_STAT(TEXT("MaterialInstance Serialize"), STAT_MaterialInstance_Serialize, STATGROUP_Shaders);
@@ -2004,17 +2005,19 @@ void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticP
 		GetAllStaticSwitchParameterInfo(OutParameterInfo, Guids);
 		OutStaticParameters.StaticSwitchParameters.AddZeroed(OutParameterInfo.Num());
 
+		FStaticParamEvaluationContext SwitchEvalContext(OutParameterInfo.Num(), OutParameterInfo.GetData());
+		TBitArray<> StaticSwitchValues(false, OutParameterInfo.Num());
+		ensure(GetStaticSwitchParameterValues(SwitchEvalContext, StaticSwitchValues, Guids.GetData()));
 		for(int32 ParameterIdx=0; ParameterIdx<OutParameterInfo.Num(); ParameterIdx++)
 		{
 			FStaticSwitchParameter& ParentParameter = OutStaticParameters.StaticSwitchParameters[ParameterIdx];
 			FMaterialParameterInfo& ParameterInfo = OutParameterInfo[ParameterIdx];
-			FGuid ExpressionId = Guids[ParameterIdx];
 
 			ParentParameter.bOverride = false;
 			ParentParameter.ParameterInfo = ParameterInfo;
 
-			GetStaticSwitchParameterValue(ParameterInfo, ParentParameter.Value, ExpressionId);
-			ParentParameter.ExpressionGUID = ExpressionId;
+			ParentParameter.Value = StaticSwitchValues[ParameterIdx];
+			ParentParameter.ExpressionGUID = Guids[ParameterIdx];
 
 			// If the SourceInstance is overriding this parameter, use its settings
 			for(int32 SwitchParamIdx = 0; SwitchParamIdx < StaticParameters.StaticSwitchParameters.Num(); SwitchParamIdx++)
@@ -2035,17 +2038,24 @@ void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticP
 		// Static Component Mask Parameters
 		GetAllStaticComponentMaskParameterInfo(OutParameterInfo, Guids);
 		OutStaticParameters.StaticComponentMaskParameters.AddZeroed(OutParameterInfo.Num());
+
+		FStaticParamEvaluationContext ComponentMaskEvalContext(OutParameterInfo.Num(), OutParameterInfo.GetData());
+		TBitArray<> StaticComponentMaskValues(false, OutParameterInfo.Num()*4);
+		ensure(GetStaticComponentMaskParameterValues(ComponentMaskEvalContext, StaticComponentMaskValues, Guids.GetData()));
 		for(int32 ParameterIdx=0; ParameterIdx<OutParameterInfo.Num(); ParameterIdx++)
 		{
 			FStaticComponentMaskParameter& ParentParameter = OutStaticParameters.StaticComponentMaskParameters[ParameterIdx];
 			FMaterialParameterInfo& ParameterInfo = OutParameterInfo[ParameterIdx];
-			FGuid ExpressionId = Guids[ParameterIdx];
 
 			ParentParameter.bOverride = false;
 			ParentParameter.ParameterInfo = ParameterInfo;
 			
-			GetStaticComponentMaskParameterValue(ParameterInfo, ParentParameter.R, ParentParameter.G, ParentParameter.B, ParentParameter.A, ExpressionId);
-			ParentParameter.ExpressionGUID = ExpressionId;
+			int32 ParamRGBAIndex = ParameterIdx * 4;
+			ParentParameter.R = StaticComponentMaskValues[ParamRGBAIndex + 0];
+			ParentParameter.G = StaticComponentMaskValues[ParamRGBAIndex + 1];
+			ParentParameter.B = StaticComponentMaskValues[ParamRGBAIndex + 2];
+			ParentParameter.A = StaticComponentMaskValues[ParamRGBAIndex + 3];
+			ParentParameter.ExpressionGUID = Guids[ParameterIdx];
 			
 			// If the SourceInstance is overriding this parameter, use its settings
 			for(int32 MaskParamIdx = 0; MaskParamIdx < StaticParameters.StaticComponentMaskParameters.Num(); MaskParamIdx++)
@@ -3063,124 +3073,164 @@ void UMaterialInstance::CacheShadersForResources(EShaderPlatform ShaderPlatform,
 	}
 }
 
-bool UMaterialInstance::GetStaticSwitchParameterValue(const FMaterialParameterInfo& ParameterInfo, bool &OutValue,FGuid &OutExpressionGuid, bool bOveriddenOnly, bool bCheckParent /*= true*/) const
+bool UMaterialInstance::GetStaticSwitchParameterValues(FStaticParamEvaluationContext& EvalContext, TBitArray<>& OutValues, FGuid* OutExpressionGuids, bool bCheckParent /*= true*/) const
 {
+	if (EvalContext.AllResolved())
+	{
+		return true;
+	}
+
 	if (GetReentrantFlag())
 	{
 		return false;
 	}
 
+	check(OutValues.Num() >= EvalContext.GetTotalParameterNum());
+	check(OutExpressionGuids);
+
 	// Instance override
-	for (int32 ValueIndex = 0;ValueIndex < StaticParameters.StaticSwitchParameters.Num();ValueIndex++)
+	for (int32 ValueIndex = 0; ValueIndex < StaticParameters.StaticSwitchParameters.Num(); ValueIndex++)
 	{
 		const FStaticSwitchParameter& Param = StaticParameters.StaticSwitchParameters[ValueIndex];
-		if (Param.bOverride && Param.ParameterInfo == ParameterInfo)
+		if (Param.bOverride)
 		{
-			OutValue = Param.Value;
-			OutExpressionGuid = Param.ExpressionGUID;
-			return true;
-		}
-	}
-	
-	// Instance-included default
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
-	{
-		UMaterialExpressionStaticBoolParameter* Parameter = nullptr;
-		for (const FStaticMaterialLayersParameter& LayersParam : StaticParameters.MaterialLayersParameters)
-		{
-			if (LayersParam.bOverride)
-			{
-				UMaterialFunctionInterface* Function = LayersParam.GetParameterAssociatedFunction(ParameterInfo);
-				UMaterialFunctionInterface* ParameterOwner = nullptr;
-
-				if (Function && Function->OverrideNamedStaticSwitchParameter(ParameterInfo, OutValue, OutExpressionGuid))
+			EvalContext.ForEachPendingParameter([&EvalContext, &Param, &OutValues, &OutExpressionGuids](int32 ParamIndex, const FMaterialParameterInfo& ParameterInfo) -> bool
 				{
-					return true;
-				}
-
-				if (Function && Function->GetNamedParameterOfType(ParameterInfo, Parameter, &ParameterOwner))
-				{
-					if (ParameterOwner->OverrideNamedStaticSwitchParameter(ParameterInfo, OutValue, OutExpressionGuid))
+					if (Param.ParameterInfo == ParameterInfo)
 					{
-						return true;
-						
+						OutValues[ParamIndex] = Param.Value;
+						OutExpressionGuids[ParamIndex] = Param.ExpressionGUID;
+						EvalContext.MarkParameterResolved(ParamIndex, true);
+						return !EvalContext.AllResolved();
 					}
-					Parameter->IsNamedParameter(ParameterInfo, OutValue, OutExpressionGuid);
-					return !bOveriddenOnly;
-				}
+					return true;
+				});
+
+			if (EvalContext.AllResolved())
+			{
+				return true;
 			}
 		}
 	}
-	
+
+	// Instance-included default
+	UMaterialExpressionStaticBoolParameter* Parameter = nullptr;
+	for (const FStaticMaterialLayersParameter& LayersParam : StaticParameters.MaterialLayersParameters)
+	{
+		if (LayersParam.bOverride)
+		{
+			TMaterialStaticParameterValueResolver<UMaterialExpressionStaticBoolParameter, TBitArray<>> ValueResolver(EvalContext, OutValues, OutExpressionGuids);
+
+			EvalContext.ForEachPendingParameter([&EvalContext, &LayersParam, &ValueResolver, &OutValues, &OutExpressionGuids](int32 ParamIndex, const FMaterialParameterInfo& ParameterInfo) -> bool
+				{
+					if (ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter)
+					{
+						return true;
+					}
+
+					ValueResolver.AttemptResolve(ParamIndex, ParameterInfo, LayersParam.GetParameterAssociatedFunction(ParameterInfo));
+					return !EvalContext.AllResolved();
+				});
+
+			ValueResolver.ResolveQueued();
+
+			if (EvalContext.AllResolved())
+			{
+				return true;
+			}
+		}
+	}
+
 	// Next material in hierarchy
 	if (Parent && bCheckParent)
 	{
 		FMICReentranceGuard	Guard(this);
-		return Parent->GetStaticSwitchParameterValue(ParameterInfo, OutValue, OutExpressionGuid, bOveriddenOnly);
+		return Parent->GetStaticSwitchParameterValues(EvalContext, OutValues, OutExpressionGuids);
 	}
-	
-	return false;
+
+	return EvalContext.AllResolved();
 }
 
-bool UMaterialInstance::GetStaticComponentMaskParameterValue(const FMaterialParameterInfo& ParameterInfo, bool &OutR, bool &OutG, bool &OutB, bool &OutA, FGuid &OutExpressionGuid, bool bOveriddenOnly, bool bCheckParent /*= true*/) const
+bool UMaterialInstance::GetStaticComponentMaskParameterValues(FStaticParamEvaluationContext& EvalContext, TBitArray<>& OutRGBAOrderedValues, FGuid* OutExpressionGuids, bool bCheckParent /*= true*/) const
 {
+	if (EvalContext.AllResolved())
+	{
+		return true;
+	}
+
 	if (GetReentrantFlag())
 	{
 		return false;
 	}
 
+	check(OutRGBAOrderedValues.Num() >= (EvalContext.GetTotalParameterNum()*4));
+	check(OutExpressionGuids);
+
 	// Instance override
-	for (int32 ValueIndex = 0;ValueIndex < StaticParameters.StaticComponentMaskParameters.Num();ValueIndex++)
+	for (int32 ValueIndex = 0; ValueIndex < StaticParameters.StaticComponentMaskParameters.Num(); ValueIndex++)
 	{
 		const FStaticComponentMaskParameter& Param = StaticParameters.StaticComponentMaskParameters[ValueIndex];
-		if (Param.bOverride && Param.ParameterInfo == ParameterInfo)
+		if (Param.bOverride)
 		{
-			OutR = Param.R;
-			OutG = Param.G;
-			OutB = Param.B;
-			OutA = Param.A;
-			OutExpressionGuid = Param.ExpressionGUID;
-			return true;
-		}
-	}
-	
-	// Instance-included default
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
-	{
-		UMaterialExpressionStaticComponentMaskParameter* Parameter = nullptr;
-		for (const FStaticMaterialLayersParameter& LayersParam : StaticParameters.MaterialLayersParameters)
-		{
-			if (LayersParam.bOverride)
-			{
-				UMaterialFunctionInterface* Function = LayersParam.GetParameterAssociatedFunction(ParameterInfo);
-				UMaterialFunctionInterface* ParameterOwner = nullptr;
-
-				if (Function && Function->OverrideNamedStaticComponentMaskParameter(ParameterInfo, OutR, OutG, OutB, OutA, OutExpressionGuid))
+			EvalContext.ForEachPendingParameter([&EvalContext, &Param, &OutRGBAOrderedValues, &OutExpressionGuids](int32 ParamIndex, const FMaterialParameterInfo& ParameterInfo) -> bool
 				{
-					return true;
-				}
-
-				if (Function && Function->GetNamedParameterOfType(ParameterInfo, Parameter, &ParameterOwner))
-				{
-					if (ParameterOwner->OverrideNamedStaticComponentMaskParameter(ParameterInfo, OutR, OutG, OutB, OutA, OutExpressionGuid))
+					if (Param.ParameterInfo == ParameterInfo)
 					{
-						return true;
+						int32 ParamRGBAIndex = ParamIndex * 4;
+						OutRGBAOrderedValues[ParamRGBAIndex + 0] = Param.R;
+						OutRGBAOrderedValues[ParamRGBAIndex + 1] = Param.G;
+						OutRGBAOrderedValues[ParamRGBAIndex + 2] = Param.B;
+						OutRGBAOrderedValues[ParamRGBAIndex + 3] = Param.A;
+						OutExpressionGuids[ParamIndex] = Param.ExpressionGUID;
+						EvalContext.MarkParameterResolved(ParamIndex, true);
+						return !EvalContext.AllResolved();
 					}
-					Parameter->IsNamedParameter(ParameterInfo, OutR, OutG, OutB, OutA, OutExpressionGuid);
-					return !bOveriddenOnly;
-				}
+					return true;
+				});
+
+			if (EvalContext.AllResolved())
+			{
+				return true;
 			}
 		}
 	}
-	
+
+	// Instance-included default
+	UMaterialExpressionStaticBoolParameter* Parameter = nullptr;
+	for (const FStaticMaterialLayersParameter& LayersParam : StaticParameters.MaterialLayersParameters)
+	{
+		if (LayersParam.bOverride)
+		{
+			TMaterialStaticParameterValueResolver<UMaterialExpressionStaticComponentMaskParameter, TBitArray<>> ValueResolver(EvalContext, OutRGBAOrderedValues, OutExpressionGuids);
+
+			EvalContext.ForEachPendingParameter([&EvalContext, &LayersParam, &ValueResolver, &OutRGBAOrderedValues, &OutExpressionGuids](int32 ParamIndex, const FMaterialParameterInfo& ParameterInfo) -> bool
+				{
+					if (ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter)
+					{
+						return true;
+					}
+
+					ValueResolver.AttemptResolve(ParamIndex, ParameterInfo, LayersParam.GetParameterAssociatedFunction(ParameterInfo));
+					return !EvalContext.AllResolved();
+				});
+
+			ValueResolver.ResolveQueued();
+
+			if (EvalContext.AllResolved())
+			{
+				return true;
+			}
+		}
+	}
+
 	// Next material in hierarchy
 	if (Parent && bCheckParent)
 	{
 		FMICReentranceGuard	Guard(this);
-		return Parent->GetStaticComponentMaskParameterValue(ParameterInfo, OutR, OutG, OutB, OutA, OutExpressionGuid, bOveriddenOnly);
+		return Parent->GetStaticComponentMaskParameterValues(EvalContext, OutRGBAOrderedValues, OutExpressionGuids);
 	}
-	
-	return false;
+
+	return EvalContext.AllResolved();
 }
 
 bool UMaterialInstance::GetTerrainLayerWeightParameterValue(const FMaterialParameterInfo& ParameterInfo, int32& OutWeightmapIndex, FGuid &OutExpressionGuid) const
