@@ -100,6 +100,23 @@ bool SetResourceLimit(int Resource, rlim_t DesiredLimit, bool bIncreaseOnly)
 }
 
 /**
+ * Sets (hard) limit on a specific resource
+ *
+ * @param Resource - one of RLIMIT_* values
+ */
+static bool SetResourceMaxHardLimit(int Resource)
+{
+	rlimit Limit;
+	if (getrlimit(Resource, &Limit) != 0)
+	{
+		fprintf(stderr, "getrlimit() failed with error %d (%s)\n", errno, strerror(errno));
+		return false;
+	}
+
+	return SetResourceLimit(Resource, Limit.rlim_max, true);
+}
+
+/**
  * Expects GSavedCommandLine to be set up. Increases limit on
  *  - number of open files to be no less than desired (if specified on command line, otherwise left alone)
  *  - size of core file, so core gets dumped and we can debug crashed builds (unless overridden with -nocore)
@@ -107,7 +124,7 @@ bool SetResourceLimit(int Resource, rlim_t DesiredLimit, bool bIncreaseOnly)
  */
 static bool IncreasePerProcessLimits()
 {
-	// honor the parameter if given, but don't change limits if not
+	// honor the parameter if given, else change the limit of open files to the max hard limit allowed
 	int32 FileHandlesToReserve = -1;
 	if (FParse::Value(*GSavedCommandLine, TEXT("numopenfiles="), FileHandlesToReserve) && FileHandlesToReserve > 0)
 	{
@@ -121,6 +138,11 @@ static bool IncreasePerProcessLimits()
 			fprintf(stderr, "Could not adjust number of file handles, consider changing \"nofile\" in /etc/security/limits.conf and relogin.\nerror(%d): %s\n", errno, strerror(errno));
 			return false;
 		}
+	}
+	else
+	{
+		// Set the highest value we can for number of files open
+		SetResourceMaxHardLimit(RLIMIT_NOFILE);
 	}
 
 	// core dump policy:
