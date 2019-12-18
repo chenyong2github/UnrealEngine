@@ -145,7 +145,7 @@ FNiagaraWorldManager::~FNiagaraWorldManager()
 	OnWorldCleanup(true, true);
 }
 
-FNiagaraWorldManager* FNiagaraWorldManager::Get(UWorld* World)
+FNiagaraWorldManager* FNiagaraWorldManager::Get(const UWorld* World)
 {
 	FNiagaraWorldManager** OutWorld = WorldManagers.Find(World);
 	if (OutWorld == nullptr)
