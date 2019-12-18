@@ -45,6 +45,8 @@
 
 #define TEXT_WEAKOBJ_NAME(obj) (obj.IsValid(false) ? *obj->GetName() : (obj.IsValid(false, true)) ? TEXT("MT-Unreachable") : TEXT("INVALID"))
 
+CSV_DEFINE_CATEGORY(NAVREGEN, false);
+
 struct dtTileCacheAlloc;
 
 FORCEINLINE bool DoesBoxContainOrOverlapVector(const FBox& BigBox, const FVector& In)
@@ -1540,10 +1542,15 @@ void FTimeSlicer::SetTimeSliceDuration(double SliceDuration)
 	TimeSliceDuration = SliceDuration;
 }
 
-void FTimeSlicer::ResetStartTime()
+void FTimeSlicer::StartTimeSlice()
 {
 	TimeSliceStartTime = FPlatformTime::Seconds();
 	bTimeSliceFinishedCached = false;
+}
+
+double FTimeSlicer::GetStartTime() const
+{
+	return TimeSliceStartTime;
 }
 
 bool FTimeSlicer::TestTimeSliceFinished() const
@@ -3820,20 +3827,7 @@ FRecastNavMeshGenerator::FRecastNavMeshGenerator(ARecastNavMesh& InDestNavMesh)
 	, bRestrictBuildingToActiveTiles(false)
 	, bSortTilesWithSeedLocations(true)
 	, Version(0)
-	, TimeSlicer(0.0025)
-#if TIME_SLICE_NAV_REGEN
-	, bTimeSliceRegenActive(true)
-	, bNextTimeSliceRegenActive(true)
-#else
-	, bTimeSliceRegenActive(false)
-	, bNextTimeSliceRegenActive(false)
-#endif
 {
-	ProcessTileTasksSyncTimeSlicedState = EProcessTileTasksSyncTimeSlicedState::Init;
-
-	AddGeneratedTilesTimeSlicedState = EAddGeneratedTilesTimeSlicedState::Init;
-	AddGenTilesTimeSlicedLayerIndex = 0;
-
 	INC_DWORD_STAT_BY(STAT_NavigationMemory, sizeof(*this));
 }
 
@@ -4365,15 +4359,15 @@ bool FRecastNavMeshGenerator::IsInActiveSet(const FIntPoint& Tile) const
 
 void FRecastNavMeshGenerator::ResetTimeSlicedTileGeneratorSync()
 {
-	TimeSlicedTileGeneratorSync.Reset();
+	SyncTimeSlicedData.TileGeneratorSync.Reset();
 
 	//reset variables used for timeslicing TileGenratorSync
-	ProcessTileTasksSyncTimeSlicedState = EProcessTileTasksSyncTimeSlicedState::Init;
-	ProcessTileTasksSyncTimeSlicedUpdatedTilesCache.Reset();
-	AddGenTilesTimeSlicedOldLayerTileIdMap.Reset();
-	AddGenTilesTimeSlicedResultTileIndices.Reset();
-	AddGeneratedTilesTimeSlicedState = EAddGeneratedTilesTimeSlicedState::Init;
-	AddGenTilesTimeSlicedLayerIndex = 0;
+	SyncTimeSlicedData.ProcessTileTasksSyncState = EProcessTileTasksSyncTimeSlicedState::Init;
+	SyncTimeSlicedData.UpdatedTilesCache.Reset();
+	SyncTimeSlicedData.OldLayerTileIdMapCached.Reset();
+	SyncTimeSlicedData.ResultTileIndicesCached.Reset();
+	SyncTimeSlicedData.AddGeneratedTilesState = EAddGeneratedTilesTimeSlicedState::Init;
+	SyncTimeSlicedData.AddGenTilesLayerIndex = 0;
 }
 
 //@TODO Investigate removing from RunningDirtyTiles here too (or atleast not using the results in any way)
@@ -4390,9 +4384,9 @@ void FRecastNavMeshGenerator::RemoveTiles(const TArray<FIntPoint>& Tiles)
 			PendingDirtyTiles.Remove(DirtyTile);
 		}
 
-		if (TimeSlicedTileGeneratorSync.Get())
+		if (SyncTimeSlicedData.TileGeneratorSync.Get())
 		{
-			if (TimeSlicedTileGeneratorSync->GetTileX() == TileXY.X && TimeSlicedTileGeneratorSync->GetTileY() == TileXY.Y)
+			if (SyncTimeSlicedData.TileGeneratorSync->GetTileX() == TileXY.X && SyncTimeSlicedData.TileGeneratorSync->GetTileY() == TileXY.Y)
 			{
 				ResetTimeSlicedTileGeneratorSync();
 			}
@@ -4534,6 +4528,26 @@ TArray<uint32> FRecastNavMeshGenerator::RemoveTileLayers(const int32 TileX, cons
 	return UpdatedIndices;
 }
 
+FRecastNavMeshGenerator::FSyncTimeSlicedData::FSyncTimeSlicedData()
+	: CurrentTileRegenDuration(0.)
+	, MinTimeSliceDuration(0.00075)
+	, MaxTimeSliceDuration(0.004)
+	, RealTimeSecsLastCall(-1.f)
+	, MaxDesiredTileRegenDuration(0.7f)
+#if TIME_SLICE_NAV_REGEN
+	, bTimeSliceRegenActive(true)
+	, bNextTimeSliceRegenActive(true)
+#else
+	, bTimeSliceRegenActive(false)
+	, bNextTimeSliceRegenActive(false)
+#endif
+	, ProcessTileTasksSyncState(EProcessTileTasksSyncTimeSlicedState::Init)
+	, AddGeneratedTilesState(EAddGeneratedTilesTimeSlicedState::Init)
+	, AddGenTilesLayerIndex(0)
+	, TimeSlicer(0.0025)
+{
+}
+
 void FRecastNavMeshGenerator::AddGeneratedTileLayer(int32 LayerIndex, FRecastTileGenerator& TileGenerator, const TMap<int32, dtPolyRef>& OldLayerTileIdMap, TArray<uint32>& OutResultTileIndices)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_RecastAddGeneratedTileLayer);
@@ -4636,22 +4650,22 @@ ETimeSliceWorkResult FRecastNavMeshGenerator::AddGeneratedTilesTimeSliced(FRecas
 	ETimeSliceWorkResult WorkResult = ETimeSliceWorkResult::Succeeded;
 	bool bIteratedThroughDirtyLayers = true;
 
-	switch (AddGeneratedTilesTimeSlicedState)
+	switch (SyncTimeSlicedData.AddGeneratedTilesState)
 	{
 	case EAddGeneratedTilesTimeSlicedState::Init:
 	{
-		AddGenTilesTimeSlicedResultTileIndices.Reset();
-		AddGenTilesTimeSlicedResultTileIndices.Reserve(TileLayers.Num());
-		AddGenTilesTimeSlicedOldLayerTileIdMap.Reset();
-		AddGenTilesTimeSlicedOldLayerTileIdMap.Reserve(TileLayers.Num());
-		AddGenTilesTimeSlicedLayerIndex = TileGenerator.GetDirtyLayersMask().Find(true);
+		SyncTimeSlicedData.ResultTileIndicesCached.Reset();
+		SyncTimeSlicedData.ResultTileIndicesCached.Reserve(TileLayers.Num());
+		SyncTimeSlicedData.OldLayerTileIdMapCached.Reset();
+		SyncTimeSlicedData.OldLayerTileIdMapCached.Reserve(TileLayers.Num());
+		SyncTimeSlicedData.AddGenTilesLayerIndex = TileGenerator.GetDirtyLayersMask().Find(true);
 		if (TileGenerator.IsFullyRegenerated())
 		{
 			// remove all layers
-			AddGenTilesTimeSlicedResultTileIndices = RemoveTileLayers(TileX, TileY, &AddGenTilesTimeSlicedOldLayerTileIdMap);
+			SyncTimeSlicedData.ResultTileIndicesCached = RemoveTileLayers(TileX, TileY, &SyncTimeSlicedData.OldLayerTileIdMapCached);
 		}
 
-		AddGeneratedTilesTimeSlicedState = EAddGeneratedTilesTimeSlicedState::AddTiles;
+		SyncTimeSlicedData.AddGeneratedTilesState = EAddGeneratedTilesTimeSlicedState::AddTiles;
 	}//fall through to next state
 	case EAddGeneratedTilesTimeSlicedState::AddTiles:
 	{
@@ -4660,21 +4674,21 @@ ETimeSliceWorkResult FRecastNavMeshGenerator::AddGeneratedTilesTimeSliced(FRecas
 			// and there. It will be removed the next time around the invokers get
 			// updated 
 			// && IsInActiveSet(FIntPoint(TileX, TileY))
-			&& AddGenTilesTimeSlicedLayerIndex != INDEX_NONE)
+			&& SyncTimeSlicedData.AddGenTilesLayerIndex != INDEX_NONE)
 		{
-			for (; AddGenTilesTimeSlicedLayerIndex < TileGenerator.GetDirtyLayersMask().Num(); ++AddGenTilesTimeSlicedLayerIndex)
+			for (; SyncTimeSlicedData.AddGenTilesLayerIndex < TileGenerator.GetDirtyLayersMask().Num(); ++SyncTimeSlicedData.AddGenTilesLayerIndex)
 			{
-				if (TileGenerator.IsLayerChanged(AddGenTilesTimeSlicedLayerIndex))
+				if (TileGenerator.IsLayerChanged(SyncTimeSlicedData.AddGenTilesLayerIndex))
 				{
-					if (TimeSlicer.IsTimeSliceFinishedCached())
+					if (SyncTimeSlicedData.TimeSlicer.IsTimeSliceFinishedCached())
 					{
 						WorkResult = ETimeSliceWorkResult::CallAgainNextTimeSlice;
 						break;
 					}
 
-					AddGeneratedTileLayer(AddGenTilesTimeSlicedLayerIndex, TileGenerator, AddGenTilesTimeSlicedOldLayerTileIdMap, AddGenTilesTimeSlicedResultTileIndices);
+					AddGeneratedTileLayer(SyncTimeSlicedData.AddGenTilesLayerIndex, TileGenerator, SyncTimeSlicedData.OldLayerTileIdMapCached, SyncTimeSlicedData.ResultTileIndicesCached);
 
-					TimeSlicer.TestTimeSliceFinished();
+					SyncTimeSlicedData.TimeSlicer.TestTimeSliceFinished();
 				}
 			}
 		}
@@ -4693,12 +4707,12 @@ ETimeSliceWorkResult FRecastNavMeshGenerator::AddGeneratedTilesTimeSliced(FRecas
 	}
 	}
 
-	if (AddGenTilesTimeSlicedLayerIndex == TileGenerator.GetDirtyLayersMask().Num() || !bIteratedThroughDirtyLayers)
+	if (SyncTimeSlicedData.AddGenTilesLayerIndex == TileGenerator.GetDirtyLayersMask().Num() || !bIteratedThroughDirtyLayers)
 	{
-		AddGenTilesTimeSlicedLayerIndex = 0;
-		AddGeneratedTilesTimeSlicedState = EAddGeneratedTilesTimeSlicedState::Init;
+		SyncTimeSlicedData.AddGenTilesLayerIndex = 0;
+		SyncTimeSlicedData.AddGeneratedTilesState = EAddGeneratedTilesTimeSlicedState::Init;
 
-		OutResultTileIndices = MoveTemp(AddGenTilesTimeSlicedResultTileIndices);
+		OutResultTileIndices = MoveTemp(SyncTimeSlicedData.ResultTileIndicesCached);
 	}
 
 	return WorkResult;
@@ -4767,7 +4781,7 @@ bool FRecastNavMeshGenerator::HasDirtyTiles() const
 {
 	return (PendingDirtyTiles.Num() > 0 
 		|| RunningDirtyTiles.Num() > 0
-		|| TimeSlicedTileGeneratorSync.Get() != nullptr
+		|| SyncTimeSlicedData.TileGeneratorSync.Get() != nullptr
 		);
 }
 
@@ -5139,7 +5153,7 @@ TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasksAsync(const int32 NumTas
 	// Release memory, list could be quite big after map load
 	if (NumProcessedTasks > 0 && PendingDirtyTiles.Num() == 0)
 	{
-		PendingDirtyTiles.Empty(32);
+		PendingDirtyTiles.Empty(64);
 	}
 	
 	// Collect completed tasks and apply generated data to navmesh
@@ -5195,146 +5209,217 @@ TSharedRef<FRecastTileGenerator> FRecastNavMeshGenerator::CreateTileGeneratorFro
 	return TileGenerator;
 }
 
-TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSliced(const int32 NumTasksToProcess)
+TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSliced()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_ProcessTileTasksSyncTimeSliced);
-
-	const bool bGameStaticNavMesh = IsGameStaticNavMesh(DestNavMesh);
-
-	TimeSlicer.ResetStartTime();
-
-	int32 NumProcessedTasks = 0;
+	CSV_SCOPED_TIMING_STAT(NAVREGEN, ProcessTileTasksSyncTimeSliced);
 
 	TArray<uint32> UpdatedTiles;
+	const UWorld* World = GetWorld();
+	double TimeStartProcessingTileThisFrame = 0.;
 
-	// Submit pending tile elements
-	while ((PendingDirtyTiles.Num() > 0
-		&& NumProcessedTasks < NumTasksToProcess)
-		|| TimeSlicedTileGeneratorSync.IsValid()
-		)
+	auto HasWorkToDo = [this]()
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_ProcessTileTasks_NewTasks);
+		return (PendingDirtyTiles.Num() > 0) || SyncTimeSlicedData.TileGeneratorSync.IsValid();
+	};
 
-		FIntPoint TileLocation;
 
-		if (TimeSlicedTileGeneratorSync.IsValid())
+	auto EndFunction = [&, this](bool bCalcTileRegenDuration) {
+		// Release memory, list could be quite big after map load
+		if (PendingDirtyTiles.Num() == 0)
 		{
-			TileLocation.X = TimeSlicedTileGeneratorSync->GetTileX();
-			TileLocation.Y = TimeSlicedTileGeneratorSync->GetTileY();
-		}
-		else
-		{
-			//if the next time slice regen state is false, we want to go to non time sliced tile regen so break here and switch
-			//next frame (as we've finished time slice processing the last tile)
-			if (!bNextTimeSliceRegenActive)
-			{
-				return UpdatedTiles;
-			}
-
-			TimeSlicedTileGeneratorSync = CreateTileGeneratorFromPendingElement(TileLocation);
-
-			if (TimeSlicer.TestTimeSliceFinished())
-			{
-				return UpdatedTiles;
-			}
+			PendingDirtyTiles.Empty(64);
 		}
 
-		FRecastTileGenerator& TileGeneratorRef = *TimeSlicedTileGeneratorSync;
-
-		if (ProcessTileTasksSyncTimeSlicedState == EProcessTileTasksSyncTimeSlicedState::Init)
+		if (World)
 		{
-			if (TileGeneratorRef.HasDataToBuild())
+			SyncTimeSlicedData.RealTimeSecsLastCall = World->GetRealTimeSeconds();
+		}
+
+		//this will only be true when we haven't finished generating this tile but are ending
+		//the function and need to record the TileRegenDuration so far for the tile
+		//being currently processed
+		if (bCalcTileRegenDuration)
+		{
+			SyncTimeSlicedData.CurrentTileRegenDuration += (FPlatformTime::Seconds() - TimeStartProcessingTileThisFrame);
+		}
+
+		return UpdatedTiles;
+	};
+
+	//Calculate the time slice duration
+	//Calc the MovingWindowDeltaTimeAverage this accounts for all scenarios we could be tile regening including unbounded frame rates or dropping frames as well as keeping
+	//calculation to an average which is fairly local temporally
+	if (World && SyncTimeSlicedData.RealTimeSecsLastCall >= 0.f)
+	{
+		const float DeltaTime = World->GetRealTimeSeconds() - SyncTimeSlicedData.RealTimeSecsLastCall;
+		SyncTimeSlicedData.MovingWindowDeltaTime.PushValue(DeltaTime);
+	}	
+	
+	//only calculate the time slice and process tiles if we have work to do
+	if (HasWorkToDo())
+	{
+		CSV_SCOPED_TIMING_STAT(NAVREGEN, ProcessTileTasksSyncTimeSlicedDoWork);
+
+		const bool bGameStaticNavMesh = IsGameStaticNavMesh(DestNavMesh);
+
+		SyncTimeSlicedData.TimeSlicer.StartTimeSlice();
+
+		const float DeltaTimesAverage = (SyncTimeSlicedData.MovingWindowDeltaTime.GetAverage() > 0.f) ? SyncTimeSlicedData.MovingWindowDeltaTime.GetAverage() : (1.f / 30.f); //use default 33 ms
+
+		const double TileRegenTimesAverage = (SyncTimeSlicedData.MovingWindowTileRegenTime.GetAverage() > 0.) ? SyncTimeSlicedData.MovingWindowTileRegenTime.GetAverage() : 0.0025; //use default of 2.5 milli secs to regen a full tile
+
+		//calculate the max desired frames to regen all the tiles in PendingDirtyTiles
+		const float MaxDesiredFramesToRegen = FMath::FloorToFloat(SyncTimeSlicedData.MaxDesiredTileRegenDuration / DeltaTimesAverage);
+
+		//tiles to add to PendingDirtyTiles if the current tile is taking longer than average to regen
+		//we add 1 tile for however many times longer the current tile is taking compared with the moving window average
+		const int32 TilesToAddForLongCurrentTileRegen = (SyncTimeSlicedData.CurrentTileRegenDuration > 0.) ? (static_cast<int32>(SyncTimeSlicedData.CurrentTileRegenDuration/ TileRegenTimesAverage)) : 0;
+
+		const int32 TotalTilesToRegen = PendingDirtyTiles.Num() + (SyncTimeSlicedData.TileGeneratorSync.IsValid() ? 1 : 0);
+
+		//calculate the total processing time to regen all the tiles based on the moving window average
+		const double TotalRegenTime = TileRegenTimesAverage * static_cast<double>(TotalTilesToRegen + TilesToAddForLongCurrentTileRegen);
+
+		//calculate the time slice per frame required to regen all the tiles clamped between MinTimeSliceDuration and MaxTimeSliceDuration
+		const double NextRegenTimeSliceTime = FMath::Clamp(TotalRegenTime / static_cast<double>(MaxDesiredFramesToRegen), SyncTimeSlicedData.MinTimeSliceDuration, SyncTimeSlicedData.MaxTimeSliceDuration);
+		SyncTimeSlicedData.TimeSlicer.SetTimeSliceDuration(NextRegenTimeSliceTime);
+
+#if !UE_BUILD_SHIPPING
+		CSV_CUSTOM_STAT(NAVREGEN, NavTileRegenTimeSliceTime, static_cast<float>(NextRegenTimeSliceTime), ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(NAVREGEN, NavTileRegenQueueLength, TotalTilesToRegen, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(NAVREGEN, TilesToAddForLongCurrentTileRegen, TilesToAddForLongCurrentTileRegen, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(NAVREGEN, NavTileAvRegenTime, static_cast<float>(SyncTimeSlicedData.MovingWindowTileRegenTime.GetAverage()), ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(NAVREGEN, NavTileAvRegenDeltaTime, static_cast<float>(SyncTimeSlicedData.MovingWindowDeltaTime.GetAverage()), ECsvCustomStatOp::Set);
+#endif
+
+		// Submit pending tile elements
+		do
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_ProcessTileTasks_NewTasks);
+
+			FIntPoint TileLocation;
+			TimeStartProcessingTileThisFrame = FPlatformTime::Seconds();
+
+			if (SyncTimeSlicedData.ProcessTileTasksSyncState == EProcessTileTasksSyncTimeSlicedState::Init)
 			{
-				ProcessTileTasksSyncTimeSlicedState = EProcessTileTasksSyncTimeSlicedState::DoWork;
+				//if the next time slice regen state is false, we want to go to non time sliced tile regen so break here and switch
+				//next frame (as we've finished time slice processing the last tile)
+				if (!SyncTimeSlicedData.bNextTimeSliceRegenActive)
+				{
+					return EndFunction(false);
+				}
+
+				SyncTimeSlicedData.TileGeneratorSync = CreateTileGeneratorFromPendingElement(TileLocation);
+
+				SyncTimeSlicedData.CurrentTileRegenDuration = 0.;
+
+				if (SyncTimeSlicedData.TileGeneratorSync->HasDataToBuild())
+				{
+					SyncTimeSlicedData.ProcessTileTasksSyncState = EProcessTileTasksSyncTimeSlicedState::DoWork;
+				}
+				else
+				{
+					SyncTimeSlicedData.ProcessTileTasksSyncState = EProcessTileTasksSyncTimeSlicedState::Finish;
+
+					if (!bGameStaticNavMesh)
+					{
+						RemoveLayers(TileLocation, UpdatedTiles);
+					}
+				}
+
+				if (SyncTimeSlicedData.TimeSlicer.TestTimeSliceFinished())
+				{
+					return EndFunction(true);
+				}
 			}
 			else
 			{
-				ProcessTileTasksSyncTimeSlicedState = EProcessTileTasksSyncTimeSlicedState::Finish;
+				TileLocation.X = SyncTimeSlicedData.TileGeneratorSync->GetTileX();
+				TileLocation.Y = SyncTimeSlicedData.TileGeneratorSync->GetTileY();
+			}
 
-				if (!bGameStaticNavMesh)
+			FRecastTileGenerator& TileGeneratorRef = *SyncTimeSlicedData.TileGeneratorSync;
+
+			switch (SyncTimeSlicedData.ProcessTileTasksSyncState)
+			{
+			case EProcessTileTasksSyncTimeSlicedState::Init:
+			{
+				//do nothing 
+				ensureMsgf(false, TEXT("This State should not be used here!"));
+			}
+			break;
+
+			case EProcessTileTasksSyncTimeSlicedState::DoWork:
+			{
+				const ETimeSliceWorkResult WorkResult = TileGeneratorRef.DoWorkTimeSliced();
+
+				if (WorkResult != ETimeSliceWorkResult::CallAgainNextTimeSlice)
 				{
-					RemoveLayers(TileLocation, UpdatedTiles);
+					SyncTimeSlicedData.ProcessTileTasksSyncState = EProcessTileTasksSyncTimeSlicedState::AddGeneratedTiles;
 				}
-			}
-		}
 
-
-		switch (ProcessTileTasksSyncTimeSlicedState)
-		{
-		case EProcessTileTasksSyncTimeSlicedState::Init:
-		{
-			//do nothing 
-			ensureMsgf(false, TEXT("This State should not be used here!"));
-		}
-		break;
-
-		case EProcessTileTasksSyncTimeSlicedState::DoWork:
-		{
-			const ETimeSliceWorkResult WorkResult = TileGeneratorRef.DoWorkTimeSliced();
-
-			if (WorkResult != ETimeSliceWorkResult::CallAgainNextTimeSlice)
+				if (SyncTimeSlicedData.TimeSlicer.IsTimeSliceFinishedCached())
+				{
+					return EndFunction(true);
+				}
+			}//fall through to next state
+			case EProcessTileTasksSyncTimeSlicedState::AddGeneratedTiles:
 			{
-				ProcessTileTasksSyncTimeSlicedState = EProcessTileTasksSyncTimeSlicedState::AddGeneratedTiles;
-			}
+				const ETimeSliceWorkResult WorkResult = AddGeneratedTilesTimeSliced(TileGeneratorRef, SyncTimeSlicedData.UpdatedTilesCache);
 
-			if (TimeSlicer.IsTimeSliceFinishedCached())
+				if (WorkResult != ETimeSliceWorkResult::CallAgainNextTimeSlice)
+				{
+					SyncTimeSlicedData.ProcessTileTasksSyncState = EProcessTileTasksSyncTimeSlicedState::StoreCompessedTileCacheLayers;
+				}
+
+				if (SyncTimeSlicedData.TimeSlicer.IsTimeSliceFinishedCached())
+				{
+					return EndFunction(true);
+				}
+			}//fall through to next state
+			case EProcessTileTasksSyncTimeSlicedState::StoreCompessedTileCacheLayers:
 			{
-				return UpdatedTiles;
-			}
-		}//fall through to next state
-		case EProcessTileTasksSyncTimeSlicedState::AddGeneratedTiles:
-		{
-			const ETimeSliceWorkResult WorkResult = AddGeneratedTilesTimeSliced(TileGeneratorRef, ProcessTileTasksSyncTimeSlicedUpdatedTilesCache);
+				StoreCompressedTileCacheLayers(TileGeneratorRef, TileLocation.X, TileLocation.Y);
 
-			if (WorkResult != ETimeSliceWorkResult::CallAgainNextTimeSlice)
+				//no need to check time slicing as not much work done
+				SyncTimeSlicedData.ProcessTileTasksSyncState = EProcessTileTasksSyncTimeSlicedState::AppendUpdateTiles;
+			}//fall through to next state
+			case EProcessTileTasksSyncTimeSlicedState::AppendUpdateTiles: //this state was added purely to separate the functionality and allow the code to be more easily changed in future.
 			{
-				ProcessTileTasksSyncTimeSlicedState = EProcessTileTasksSyncTimeSlicedState::StoreCompessedTileCacheLayers;
-			}
+				UpdatedTiles.Append(SyncTimeSlicedData.UpdatedTilesCache);
+				SyncTimeSlicedData.UpdatedTilesCache.Empty();
 
-			if (TimeSlicer.IsTimeSliceFinishedCached())
+				//no need to check time slicing as not much work done
+				SyncTimeSlicedData.ProcessTileTasksSyncState = EProcessTileTasksSyncTimeSlicedState::Finish;
+			}//fall through to next state
+			case EProcessTileTasksSyncTimeSlicedState::Finish:
 			{
-				return UpdatedTiles;
+				//no need to check time slicing as not much work done
+				//reset state to Init for next tile to be processed
+				SyncTimeSlicedData.ProcessTileTasksSyncState = EProcessTileTasksSyncTimeSlicedState::Init;
+				SyncTimeSlicedData.TileGeneratorSync.Reset();
+
+				SyncTimeSlicedData.CurrentTileRegenDuration += (FPlatformTime::Seconds() - TimeStartProcessingTileThisFrame);
+
+				SyncTimeSlicedData.MovingWindowTileRegenTime.PushValue(SyncTimeSlicedData.CurrentTileRegenDuration);
+
+				SyncTimeSlicedData.CurrentTileRegenDuration = 0.;
 			}
-		}//fall through to next state
-		case EProcessTileTasksSyncTimeSlicedState::StoreCompessedTileCacheLayers:
-		{
-			StoreCompressedTileCacheLayers(TileGeneratorRef, TileLocation.X, TileLocation.Y);
-
-			//no need to check time slicing as not much work done
-			ProcessTileTasksSyncTimeSlicedState = EProcessTileTasksSyncTimeSlicedState::AppendUpdateTiles;
-		}//fall through to next state
-		case EProcessTileTasksSyncTimeSlicedState::AppendUpdateTiles: //this state was added purely to separate the functionality and allow the code to be more easily changed in future.
-		{
-			UpdatedTiles.Append(ProcessTileTasksSyncTimeSlicedUpdatedTilesCache);
-			ProcessTileTasksSyncTimeSlicedUpdatedTilesCache.Empty();
-
-			//no need to check time slicing as not much work done
-			ProcessTileTasksSyncTimeSlicedState = EProcessTileTasksSyncTimeSlicedState::Finish;
-		}//fall through to next state
-		case EProcessTileTasksSyncTimeSlicedState::Finish:
-		{
-			//no need to check time slicing as not much work done
-			//reset state to Init for next tile to be processed
-			ProcessTileTasksSyncTimeSlicedState = EProcessTileTasksSyncTimeSlicedState::Init;
-			TimeSlicedTileGeneratorSync.Reset();
-
-			NumProcessedTasks++;
+			break;
+			default:
+			{
+				ensureMsgf(false, TEXT("unhandled EProcessTileTasksSyncTimeSlicedState"));
+			}
+			}
 		}
-		break;
-		default:
-		{
-			ensureMsgf(false, TEXT("unhandled EProcessTileTasksSyncTimeSlicedState"));
-		}
-		}
+		while (HasWorkToDo());
 	}
 
-	// Release memory, list could be quite big after map load
-	if (PendingDirtyTiles.Num() == 0)
-	{
-		PendingDirtyTiles.Empty(32);
-	}
-
-	return UpdatedTiles;
+	// we only hit this if we have processed too many tiles in a frame and we will already
+	// have calculated the tile regen duration, or if we have processed no tiles and we also
+	// don't need to calcualte the tile regen duration
+	return EndFunction(false);
 }
 
 //this code path is approx 10% faster than ProcessTileTasksSyncTimeSliced, however it spikes far worse for most use cases.
@@ -5376,7 +5461,7 @@ TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasksSync(const int32 NumTask
 	// Release memory, list could be quite big after map load
 	if (PendingDirtyTiles.Num() == 0)
 	{
-		PendingDirtyTiles.Empty(32);
+		PendingDirtyTiles.Empty(64);
 	}
 
 	return UpdatedTiles;
@@ -5394,21 +5479,21 @@ TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasks(const int32 NumTasksToP
 	UpdatedTiles = ProcessTileTasksAsync(NumTasksToProcess);
 #else
 	//only switch bTimeSliceRegen state if we are not time slicing or if we are but aren't part way through time slicing a tile
-	if (bTimeSliceRegenActive != bNextTimeSliceRegenActive)
+	if (SyncTimeSlicedData.bTimeSliceRegenActive != SyncTimeSlicedData.bNextTimeSliceRegenActive)
 	{
-		if (!bTimeSliceRegenActive)
+		if (!SyncTimeSlicedData.bTimeSliceRegenActive)
 		{
-			bTimeSliceRegenActive = bNextTimeSliceRegenActive;
+			SyncTimeSlicedData.bTimeSliceRegenActive = SyncTimeSlicedData.bNextTimeSliceRegenActive;
 		}
-		else if (!TimeSlicedTileGeneratorSync.IsValid())//test if we have finished processing a tile
+		else if (!SyncTimeSlicedData.TileGeneratorSync.IsValid())//test if we have finished processing a tile
 		{
-			bTimeSliceRegenActive = bNextTimeSliceRegenActive;
+			SyncTimeSlicedData.bTimeSliceRegenActive = SyncTimeSlicedData.bNextTimeSliceRegenActive;
 		}
 	}
 
-	if (bTimeSliceRegenActive)
+	if (SyncTimeSlicedData.bTimeSliceRegenActive)
 	{
-		UpdatedTiles = ProcessTileTasksSyncTimeSliced(NumTasksToProcess);
+		UpdatedTiles = ProcessTileTasksSyncTimeSliced();
 	}
 	else
 	{
@@ -5558,20 +5643,20 @@ bool FRecastNavMeshGenerator::IsBuildInProgress(bool bCheckDirtyToo) const
 {
 	return RunningDirtyTiles.Num()
 		|| (bCheckDirtyToo && PendingDirtyTiles.Num())
-		|| TimeSlicedTileGeneratorSync.Get();
+		|| SyncTimeSlicedData.TileGeneratorSync.Get();
 }
 
 int32 FRecastNavMeshGenerator::GetNumRemaningBuildTasks() const
 {
 	return RunningDirtyTiles.Num() 
 		+ PendingDirtyTiles.Num()
-		+ (TimeSlicedTileGeneratorSync.Get() ? 1 : 0);
+		+ (SyncTimeSlicedData.TileGeneratorSync.Get() ? 1 : 0);
 }
 
 int32 FRecastNavMeshGenerator::GetNumRunningBuildTasks() const
 {
 	return RunningDirtyTiles.Num()
-		+ (TimeSlicedTileGeneratorSync.Get() ? 1 : 0);
+		+ (SyncTimeSlicedData.TileGeneratorSync.Get() ? 1 : 0);
 }
 
 bool FRecastNavMeshGenerator::GatherGeometryOnGameThread() const 
@@ -5605,9 +5690,9 @@ uint32 FRecastNavMeshGenerator::LogMemUsed() const
 	for (const FRunningTileElement& Element : RunningDirtyTiles)
 	{
 		GeneratorsMem += Element.AsyncTask->GetTask().TileGenerator->UsedMemoryOnStartup;
-		if (TimeSlicedTileGeneratorSync.IsValid())
+		if (SyncTimeSlicedData.TileGeneratorSync.IsValid())
 		{
-			GeneratorsMem += TimeSlicedTileGeneratorSync->UsedMemoryOnStartup;
+			GeneratorsMem += SyncTimeSlicedData.TileGeneratorSync->UsedMemoryOnStartup;
 		}
 	}
 
