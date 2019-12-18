@@ -101,6 +101,12 @@ namespace ImmediatePhysics_Chaos
 		using FParticleHandle = Chaos::TGeometryParticleHandle<FReal, Dimensions>;
 		using FParticlePair = Chaos::TVector<Chaos::TGeometryParticleHandle<Chaos::FReal, 3>*, 2>;
 
+		// @todo(ccaulfield): Look into these...
+		TArray<FParticlePair> PotentiallyCollidingPairs;
+		Chaos::TArrayCollectionArray<bool> CollidedParticles;
+		Chaos::TArrayCollectionArray<Chaos::TSerializablePtr<Chaos::FChaosPhysicsMaterial>> ParticleMaterials;
+		Chaos::TArrayCollectionArray<TUniquePtr<Chaos::FChaosPhysicsMaterial>> PerParticleMaterials;
+
 		FRigidParticleSOAs Particles;
 		Chaos::FPBDJointConstraints Joints;
 		FCollisionConstraints Collisions;
@@ -110,11 +116,6 @@ namespace ImmediatePhysics_Chaos
 		Chaos::TSimpleConstraintRule<FCollisionConstraints> CollisionsRule;
 		Chaos::FPBDMinEvolution Evolution;
 
-		// @todo(ccaulfield): Look into these...
-		TArray<FParticlePair> PotentiallyCollidingPairs;
-		Chaos::TArrayCollectionArray<bool> CollidedParticles;
-		Chaos::TArrayCollectionArray<Chaos::TSerializablePtr<Chaos::FChaosPhysicsMaterial>> ParticleMaterials;
-		Chaos::TArrayCollectionArray<TUniquePtr<Chaos::FChaosPhysicsMaterial>> PerParticleMaterials;
 
 		/** Mapping from entity index to handle */
 		// @todo(ccaulfield): we now have handles pointing to handles which is inefficient - we can do better than this, but don't want to change API yet
