@@ -222,6 +222,10 @@ class UNREALED_API ULevelEditorViewportSettings
 	UPROPERTY(EditAnywhere, config, Category=Controls)
 	TEnumAsByte<EWASDType> FlightCameraControlType;
 
+	/** Enable the use of the experimental navigation in the flight camera controls. */
+	UPROPERTY(EditAnywhere, config, Category=Controls)
+	bool FlightCameraControlExperimentalNavigation;
+
 	/** Choose the control scheme for landscape tools (ignored for pen input) */
 	UPROPERTY(EditAnywhere, config, Category=Controls)
 	ELandscapeFoliageEditorControlType LandscapeEditorControlType;
