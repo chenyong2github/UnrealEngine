@@ -124,16 +124,27 @@ namespace Chaos
 		void SetParticleLevels(int32 ConstraintIndex, const TVector<int32, 2>& ParticleLevels);
 
 		//
-		// Island Rule API
+		// General Rule API
 		//
 
 		void UpdatePositionBasedState(const FReal Dt);
 
+		//
+		// Simple Rule API
+		//
+
+		void Apply(const FReal Dt, const int32 It, const int32 NumIts);
+		bool ApplyPushOut(const FReal Dt, const int32 It, const int32 NumIts);
+		void ApplyProjection(const FReal Dt);
+
+		//
+		// Island Rule API
+		//
+
 		void Apply(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
-
 		bool ApplyPushOut(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
-
 		void ApplyProjection(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles);
+
 
 	protected:
 		using Base::GetConstraintIndex;

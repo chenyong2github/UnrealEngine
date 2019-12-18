@@ -123,7 +123,7 @@ namespace Chaos
 	}
 
 	template<typename T, int d>
-	void TPBDCollisionConstraints<T, d>::UpdatePositionBasedState(/*const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices,*/ const T Dt)
+	void TPBDCollisionConstraints<T, d>::UpdatePositionBasedState(const T Dt)
 	{
 		Reset();
 	
@@ -224,6 +224,21 @@ namespace Chaos
 	void TPBDCollisionConstraints<T, d>::UpdateConstraints(T Dt, const TSet<TGeometryParticleHandle<T, d>*>& ParticlesSet)
 	{
 		// Clustering uses update constraints to force a re-evaluation. 
+	}
+
+
+	template<typename T, int d>
+	void TPBDCollisionConstraints<T, d>::Apply(const T Dt, const int32 It, const int32 NumIts)
+	{
+		Apply(Dt, Handles, It, NumIts);
+	}
+
+
+	template<typename T, int d>
+	bool TPBDCollisionConstraints<T, d>::ApplyPushOut(const T Dt, const int32 It, const int32 NumIts)
+	{
+		TSet<const TGeometryParticleHandle<T, d>*> TempStatic;
+		return ApplyPushOut(Dt, Handles, TempStatic, It, NumIts);
 	}
 
 

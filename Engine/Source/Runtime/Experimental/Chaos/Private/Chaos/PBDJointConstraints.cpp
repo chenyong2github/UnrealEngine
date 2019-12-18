@@ -391,7 +391,23 @@ namespace Chaos
 		}
 	}
 
-	
+
+	void FPBDJointConstraints::Apply(const FReal Dt, const int32 It, const int32 NumIts)
+	{
+		Apply(Dt, Handles, It, NumIts);
+	}
+
+	bool FPBDJointConstraints::ApplyPushOut(const FReal Dt, const int32 It, const int32 NumIts)
+	{
+		return ApplyPushOut(Dt, Handles, It, NumIts);
+	}
+
+	void FPBDJointConstraints::ApplyProjection(const FReal Dt)
+	{
+		ApplyProjection(Dt, Handles);
+	}
+
+
 	void FPBDJointConstraints::Apply(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Joints_Apply);

@@ -121,6 +121,17 @@ namespace Chaos
 			DrawShapesImpl(FRigidTransform3(P, Q), Particle->Geometry().Get(), Color);
 		}
 
+		void DrawParticleBoundsImpl(const FRigidTransform3& SpaceTransform, const TGeometryParticleHandle<FReal, 3>* InParticle, FReal ColorScale)
+		{
+			FColor Color = (ColorScale * FColor::White).ToFColor(false);
+
+			TBox<FReal, 3> Box = InParticle->WorldSpaceInflatedBounds();
+			FVec3 P = SpaceTransform.TransformPosition(Box.GetCenter());
+			FRotation3 Q = SpaceTransform.GetRotation();
+			FMatrix33 Qm = Q.ToMatrix();
+			FDebugDrawQueue::GetInstance().DrawDebugBox(P, 0.5f * Box.Extents(), Q, Color, false, KINDA_SMALL_NUMBER, DrawPriority, LineThickness);
+		}
+
 		void DrawParticleTransformImpl(const FRigidTransform3& SpaceTransform, const TGeometryParticleHandle<FReal, 3>* InParticle, FReal ColorScale)
 		{
 			FColor Red = (ColorScale * FColor::Red).ToFColor(false);
@@ -258,6 +269,38 @@ namespace Chaos
 					if ((bDrawKinemtatic && Particle->ObjectState() != EObjectStateType::Dynamic) || (bDrawDynamic && Particle->ObjectState() == EObjectStateType::Dynamic))
 					{
 						DrawParticleShapesImpl(SpaceTransform, Particle, ColorScale);
+					}
+				}
+			}
+#endif
+		}
+
+		void DrawParticleBounds(const FRigidTransform3& SpaceTransform, const TParticleView<TGeometryParticles<float, 3>>& ParticlesView, float ColorScale, bool bDrawKinemtatic, bool bDrawDynamic)
+		{
+#if CHAOS_DEBUG_DRAW
+			if (FDebugDrawQueue::IsDebugDrawingEnabled())
+			{
+				for (auto& Particle : ParticlesView)
+				{
+					if ((bDrawKinemtatic && Particle.ObjectState() != EObjectStateType::Dynamic) || (bDrawDynamic && Particle.ObjectState() == EObjectStateType::Dynamic))
+					{
+						DrawParticleBoundsImpl(SpaceTransform, GetHandleHelper(&Particle), ColorScale);
+					}
+				}
+			}
+#endif
+		}
+
+		void DrawParticleBounds(const FRigidTransform3& SpaceTransform, const TArray<TGeometryParticleHandle<float, 3>*>& Particles, float ColorScale, bool bDrawKinemtatic, bool bDrawDynamic)
+		{
+#if CHAOS_DEBUG_DRAW
+			if (FDebugDrawQueue::IsDebugDrawingEnabled())
+			{
+				for (auto& Particle : Particles)
+				{
+					if ((bDrawKinemtatic && Particle->ObjectState() != EObjectStateType::Dynamic) || (bDrawDynamic && Particle->ObjectState() == EObjectStateType::Dynamic))
+					{
+						DrawParticleBoundsImpl(SpaceTransform, Particle, ColorScale);
 					}
 				}
 			}

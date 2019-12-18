@@ -32,6 +32,12 @@ namespace Chaos
 		FBroadPhase& GetBroadPhase() { return BroadPhase; }
 		FContainer& GetCollisionContainer() { return CollisionContainer; }
 
+		void DetectCollisions(const FReal Dt)
+		{
+			CollisionStats::FStatData StatData(false);
+			DetectCollisions(Dt, StatData);
+		}
+
 		void DetectCollisions(const FReal Dt, CollisionStats::FStatData& StatData)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_DetectCollisions);

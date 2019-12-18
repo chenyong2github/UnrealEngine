@@ -100,6 +100,16 @@ namespace Chaos
 			return TBox<T, d>(AABB.TransformedAABB(SpaceTransform));
 		}
 
+		static FORCEINLINE bool Intersects(const TBox<T, d>& A, const TBox<T, d>& B)
+		{
+			return A.AABB.Intersects(B.AABB);
+		}
+
+		static FORCEINLINE TBox<T, d> Intersection(const TBox<T, d>& A, const TBox<T, d>& B)
+		{
+			return TBox<T, d>(A.AABB.GetIntersection(B.AABB));
+		}
+
 		FORCEINLINE bool Intersects(const TBox<T, d>& Other) const
 		{
 			return AABB.Intersects(Other.AABB);
