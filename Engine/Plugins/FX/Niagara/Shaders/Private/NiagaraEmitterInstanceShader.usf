@@ -37,13 +37,12 @@ float Reciprocal(float x){ return 1.0f/x; }
  */
 #if GPU_SIMULATION
 
-	#define THREADGROUP_SIZE 64
-
 	static uint3 GDispatchThreadId;
 	static uint3 GGroupThreadId;
 	static uint GCurrentPhase;
 	static uint GEmitterTickCounter;
 	static uint GSimStart;
+	static uint GRandomSeedOffset = 0;
 
 	// To be removed as well but don't know who is using it
 	#include "/Engine/Private/SceneTexturesCommon.ush"
@@ -382,6 +381,22 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 		}
 	}
 
+#define USE_WAVE_INTRISICS (PS4_PROFILE || XBOXONE_PROFILE)
+#define USE_GROUP_SHARED ((THREADGROUP_SIZE == 64 || THREADGROUP_SIZE == 32)  && !USE_WAVE_INTRISICS)
+
+#if USE_GROUP_SHARED
+	#if THREADGROUP_SIZE == 64
+		groupshared uint GroupSharedIndex[64];
+		groupshared uint GroupSharedIndex4[16];
+		groupshared uint GroupSharedIndex16[4];
+		groupshared uint GroupSharedIndex64;
+	#elif THREADGROUP_SIZE == 32
+		groupshared uint GroupSharedIndex[32];
+		groupshared uint GroupSharedIndex4[8];
+		groupshared uint GroupSharedIndex16[2];
+		groupshared uint GroupSharedIndex64;
+	#endif
+#endif // USE_GROUP_SHARED
 
 	/* Acquire an output index - the default index is the scratch instance; one additional instance is allocated 
 	 *	at the end of the buffer, so no branching on -1 is necessary during OutputData operations
@@ -394,48 +409,16 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 		// End static assert
 
 		#if USE_SHADER_STAGES
-			if(ShaderStageIndex == 0)
+			if(ShaderStageIndex != 0)
 			{
-				int PrevIdx = GSpawnStartInstance + SpawnedInstances;	// scratch instance as default; write to that for dead particles
-
-#if PS4_PROFILE || XBOXONE_PROFILE
-				uint NumCounters = WaveActiveCountBits(bDoAcquire);
-				uint PrefixCounts = WavePrefixCountBits(bDoAcquire);
-				if(NumCounters)
-				{
-					if(WaveIsFirstLane())
-					{
-						uint RetPrevIdx;
-						InterlockedAdd(RWInstanceCounts[WriteInstanceCountOffset], NumCounters, RetPrevIdx);
-						PrevIdx = (int)RetPrevIdx;
-					}
-
-					if(bDoAcquire)
-					{
-						PrevIdx = WaveReadFirstLane(PrevIdx);
-						PrevIdx += PrefixCounts;
-					}
-				}		
-#else
-				if(bDoAcquire == true)
-				{
-					// Have to use uint's here to avoid PS4 compiler warnings about InterlockedAdd, cannot propagate uint due to CPU VM limitations...
-					uint RetPrevIdx;
-					// @TODO : add some TLS logic to avoid thread group for doing atomic for each thread. (gathering the actual required count)
-					InterlockedAdd(RWInstanceCounts[WriteInstanceCountOffset], (uint)1U, RetPrevIdx);
-					PrevIdx = (int)RetPrevIdx;
-				}
-#endif
-				return PrevIdx;
+				bDoAcquire = false; // Prevent any change to the atomic
 			}
-			else
-			{
-				return ExecIndex();
-			}
-		#else
-			int PrevIdx = GSpawnStartInstance + SpawnedInstances;	// scratch instance as default; write to that for dead particles
+		#endif // USE_SHADER_STAGES
 
-#if PS4_PROFILE || XBOXONE_PROFILE
+		int PrevIdx = GSpawnStartInstance + SpawnedInstances;	// scratch instance as default; write to that for dead particles
+
+		#if USE_WAVE_INTRISICS
+
 			uint NumCounters = WaveActiveCountBits(bDoAcquire);
 			uint PrefixCounts = WavePrefixCountBits(bDoAcquire);
 			if(NumCounters)
@@ -453,7 +436,77 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 					PrevIdx += PrefixCounts;
 				}
 			}	
-#else
+
+		#elif USE_GROUP_SHARED
+
+			GroupSharedIndex[GGroupThreadId.x] = bDoAcquire ? 1 : 0;
+			GroupMemoryBarrierWithGroupSync(); 
+
+			// Group by 4
+			if ((GGroupThreadId.x & 0x3) == 0)
+			{
+				const uint Index = GGroupThreadId.x;
+
+				const uint ActiveCount1 = GroupSharedIndex[Index];
+				const uint ActiveCount2 = ActiveCount1 + GroupSharedIndex[Index + 1];
+				const uint ActiveCount3 = ActiveCount2 + GroupSharedIndex[Index + 2];
+				const uint ActiveCount4 = ActiveCount3 + GroupSharedIndex[Index + 3];
+				
+				GroupSharedIndex[Index] = 0;
+				GroupSharedIndex[Index + 1] = ActiveCount1;
+				GroupSharedIndex[Index + 2] = ActiveCount2;
+				GroupSharedIndex[Index + 3] = ActiveCount3;
+				GroupSharedIndex4[Index / 4] = ActiveCount4;
+			}
+			GroupMemoryBarrierWithGroupSync(); 
+
+			// Group by 16
+			if ((GGroupThreadId.x & 0xF) == 0)
+			{
+				const uint Index = GGroupThreadId.x / 4;
+
+				const uint ActiveCount1 = GroupSharedIndex4[Index];
+				const uint ActiveCount2 = ActiveCount1 + GroupSharedIndex4[Index + 1];
+				const uint ActiveCount3 = ActiveCount2 + GroupSharedIndex4[Index + 2];
+				const uint ActiveCount4 = ActiveCount3 + GroupSharedIndex4[Index + 3];
+
+				GroupSharedIndex4[Index] = 0;
+				GroupSharedIndex4[Index + 1] = ActiveCount1;
+				GroupSharedIndex4[Index + 2] = ActiveCount2;
+				GroupSharedIndex4[Index + 3] = ActiveCount3;
+				GroupSharedIndex16[Index / 4] = ActiveCount4;
+			}
+			GroupMemoryBarrierWithGroupSync(); 
+
+			// Group by 64
+			if (GGroupThreadId.x == 0)
+			{
+				const uint ActiveCount1 = GroupSharedIndex16[0];
+				const uint ActiveCount2 = ActiveCount1 + GroupSharedIndex16[1];
+		#if THREADGROUP_SIZE == 64
+				const uint ActiveCount3 = ActiveCount2 + GroupSharedIndex16[2];
+				const uint ActiveCount4 = ActiveCount3 + GroupSharedIndex16[3];
+		#endif
+				GroupSharedIndex16[0] = 0;
+				GroupSharedIndex16[1] = ActiveCount1;
+		#if THREADGROUP_SIZE == 64
+				GroupSharedIndex16[2] = ActiveCount2;
+				GroupSharedIndex16[3] = ActiveCount3;
+		#endif
+				uint RetPrevIdx = 0;
+		#if THREADGROUP_SIZE == 64
+				InterlockedAdd(RWInstanceCounts[WriteInstanceCountOffset], ActiveCount4, RetPrevIdx);
+		#elif THREADGROUP_SIZE == 32
+				InterlockedAdd(RWInstanceCounts[WriteInstanceCountOffset], ActiveCount2, RetPrevIdx);
+		#endif
+				GroupSharedIndex64 = RetPrevIdx;
+			}
+			GroupMemoryBarrierWithGroupSync(); 
+
+			PrevIdx = GroupSharedIndex64 + GroupSharedIndex16[GGroupThreadId.x / 16] + GroupSharedIndex4[GGroupThreadId.x / 4] + GroupSharedIndex[GGroupThreadId.x];
+
+		#else // !USE_WAVE_INTRISICS && !USE_GROUP_SHARED
+
 			if(bDoAcquire == true)
 			{
 				// Have to use uint's here to avoid PS4 compiler warnings about InterlockedAdd, cannot propagate uint due to CPU VM limitations...
@@ -462,9 +515,17 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 				InterlockedAdd(RWInstanceCounts[WriteInstanceCountOffset], (uint)1U, RetPrevIdx);
 				PrevIdx = (int)RetPrevIdx;
 			}
-#endif
-			return PrevIdx;
-		#endif
+
+		#endif // USE_WAVE_INTRISICS || USE_GROUP_SHARED
+
+		#if USE_SHADER_STAGES
+			if(ShaderStageIndex != 0)
+			{
+				return ExecIndex();
+			}
+		#endif // USE_SHADER_STAGES
+
+		return PrevIdx;
 	}
 
 	/* ---------------------------------------------------------------------
@@ -508,7 +569,7 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 
 	void EnterStatScope(int ID)	{}
 	void ExitStatScope()	{}
-#endif
+#endif // GPU_SIMULATION
 
 	/* 
 	 * Get the index to write onto the output buffer
@@ -521,7 +582,7 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 			return (bIsPersistent && (DenseIndex != SparseIndex) ) ? SparseIndex : DenseIndex;
 		#else
 			return AcquireIndex(DataSetID,bIsValid);
-		#endif
+		#endif // USE_SHADER_STAGES
 	}
 
 //Include the simulation shader code generated by the node graph.
@@ -542,9 +603,11 @@ void SimulateMainComputeCS(
 {
 	GDispatchThreadId = DispatchThreadId;
 	GGroupThreadId = GroupThreadId;
+	GCurrentPhase = -1;
 	GEmitterTickCounter = EmitterTickCounter;
 	GSimStart = SimStart;
 	GRandomSeedOffset = 0;
+
 	/*
 	if(CopyInstancesBeforeStart == 1)
 	{
@@ -552,7 +615,7 @@ void SimulateMainComputeCS(
 	}
 	*/
 
-	uint InstanceID = UpdateStartInstance + DispatchThreadId.x;
+	const uint InstanceID = UpdateStartInstance + DispatchThreadId.x;
 	if (ReadInstanceCountOffset == 0xFFFFFFFF)
 	{
 		GSpawnStartInstance = 0;
@@ -561,59 +624,59 @@ void SimulateMainComputeCS(
 	{
 		GSpawnStartInstance = RWInstanceCounts[ReadInstanceCountOffset];				// needed by ExecIndex()
 	}
-	int MaxInstances = GSpawnStartInstance + SpawnedInstances;
+	const int MaxInstances = GSpawnStartInstance + SpawnedInstances;
 
-	bool UseInterface = false;
+	bool bRunPhase1 = InstanceID < GSpawnStartInstance && InstanceID < UpdateStartInstance + MaxInstances;
+	bool bRunPhase0 = InstanceID >= GSpawnStartInstance && InstanceID < UpdateStartInstance + MaxInstances;
+	
 	#if USE_SHADER_STAGES
 	if (IterationInterfaceCount > 0)
 	{
-		if (InstanceID < IterationInterfaceCount)
-		{
-			if (GSimStart == 1)
-			{
-				SimulateMain(InstanceID, 0, 0);
-			}
-			else
-			{
-				SimulateMain(InstanceID, 0, 1);
-			}
-		}
-		UseInterface = true;
+		bRunPhase1 = InstanceID < IterationInterfaceCount && GSimStart != 1;
+		bRunPhase0 = InstanceID < IterationInterfaceCount && GSimStart == 1;
 	}
-	#endif
-	if( !UseInterface && InstanceID < UpdateStartInstance + MaxInstances )
+	#endif // USE_SHADER_STAGES
+
+	const float RandomSeedInitialisation = NiagaraInternalNoise(InstanceID*16384, 0 * 8196, (bRunPhase1 ? 4096 : 0) + EmitterTickCounter);	// initialise the random state seed
+
+	FSimulationContext Context = (FSimulationContext)0;
+	InitConstants(Context);
+
+	BRANCH
+	if (bRunPhase1)
 	{
-		// calculate event index for the current instance; this is primarily for spawn events, where we do a single read from a secondary DataSet for a subset of particles
-		//  for all-particle events, this will always end up being 0 because NumParticlesPerEvent = total particles in the set
-		uint EventIndex = 0; //(InstanceID-SimulateStartInstance) / NumParticlesPerEvent;
+		GCurrentPhase = 1;
 
-		// before the simulation start - either update or copy
-		//
-		if(InstanceID < GSpawnStartInstance)
-		{
-			// copy instances before simulation start inst (e.g. for event spawns)
-			/*
-			if(CopyInstancesBeforeStart)
-			{
-				CopyInstance(InstanceID);
-			}
-			else
-			*/
-			{
-				GCurrentPhase = 1;
-				SimulateMain(InstanceID, EventIndex, 1);
-			}
+		LoadUpdateVariables(Context, InstanceID);
+		ReadDataSets(Context);
 
-		}
-
-		// after simulation start - spawn phase
-		//
-		else if(InstanceID >= GSpawnStartInstance)
-		{
-			GCurrentPhase = 0;
-			SimulateMain(InstanceID, EventIndex, 0);		// SimulateMain spawn phase
-		}
+		SimulateMapUpdate(Context);
+		WriteDataSets(Context);
 	}
+	else if (bRunPhase0)
+	{
+		GCurrentPhase = 0;
+
+		GetEmitterSpawnInfoForParticle(ExecIndex());
+		// Part of InitConstants() but updated by the previous statement
+		Context.MapSpawn.Emitter.SpawnGroup = Emitter_SpawnGroup;
+
+		InitSpawnVariables(Context);
+		ReadDataSets(Context);
+
+		Context.MapSpawn.Particles.UniqueID = Engine_Emitter_TotalSpawnedParticles + ExecIndex();
+		ConditionalInterpolateParameters(Context);
+		SimulateMapSpawn(Context);
+
+		GCurrentPhase = 1;
+
+		TransferAttributes(Context);
+
+		SimulateMapUpdate(Context);
+		WriteDataSets(Context);
+	}
+
+	StoreUpdateVariables(Context);
 }
 
 #endif//GPU_SIMULATION
