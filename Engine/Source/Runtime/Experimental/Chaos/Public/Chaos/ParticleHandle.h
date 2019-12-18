@@ -888,6 +888,8 @@ public:
 	TKinematicGeometryParticleHandle<T, d>* CastToKinematicParticle() { return Handle->CastToKinematicParticle(); }
 	const TPBDRigidParticleHandle<T, d>* CastToRigidParticle() const { return Handle->CastToRigidParticle(); }
 	TPBDRigidParticleHandle<T, d>* CastToRigidParticle() { return Handle->CastToRigidParticle(); }
+	const TGeometryParticleHandle<T, d>* GeometryParticleHandle() const { return Handle; }
+	TGeometryParticleHandle<T, d>* GeometryParticleHandle() { return Handle; }
 
 	// Static Particles
 	TVector<T, d>& X() { return Handle->X(); }

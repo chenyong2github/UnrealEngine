@@ -57,6 +57,12 @@ namespace Chaos
 		TVector<T, d> Location;
 		T Phi;
 
+
+		FString ToString() const
+		{
+			return FString::Printf(TEXT("Location:%s, Normal:%s, Phi:%s"), *Location.ToString(), *Normal.ToString(), Phi);
+		}
+
 		const FImplicitObject* Implicit[2]; // {Of Particle[0], Of Particle[1]}
 	};
 
@@ -162,14 +168,18 @@ namespace Chaos
 	public:
 		using Base = TCollisionConstraintBase<T, d>;
 		using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
+		using FManifold = TCollisionContact<T, d>;
 		using Base::Particle;
+		struct FSampleData { TVector<T,d> X; float Delta; FManifold Manifold; };
 
-		TRigidBodyIterativeContactConstraint() : Base(Base::FType::MultiPoint), WorldNormal(0), LocalPosition(0) {}
+		TRigidBodyIterativeContactConstraint() : Base(Base::FType::MultiPoint), PlaneNormal(0), PlanePosition(0), LocalPosition(0) {}
 		static typename Base::FType StaticType() { return Base::FType::MultiPoint; };
 
-		TVector<T, d> WorldNormal; // sampled normal
+		TVector<T, d> PlaneNormal; // local space contact normal on Particle1
+		TVector<T, d> PlanePosition; // local space surface position on Particle1
+
 		TVector<T, d> LocalPosition; // averaged position
-		TArray<TVector<T, d>> LocalSamples; // iterative samples
+		TArray< FSampleData > LocalSamples; // iterative samples
 	};
 	typedef TRigidBodyIterativeContactConstraint<float, 3> FRigidBodyIterativeContactConstraint;
 

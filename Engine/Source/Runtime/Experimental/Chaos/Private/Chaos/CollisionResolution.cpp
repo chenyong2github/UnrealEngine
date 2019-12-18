@@ -547,13 +547,12 @@ namespace Chaos
 			});
 		}
 
-		template<class TYPE>
-		TYPE SumArray(TArray<TYPE>& Array)
+		TVector<float, 3> SumSampleData(TArray<FRigidBodyIterativeContactConstraint::FSampleData>& Array)
 		{
-			TYPE ReturnValue(0);
+			TVector<float,3> ReturnValue(0);
 			for (int i = 0; i < Array.Num(); i++)
 			{
-				ReturnValue += Array[i];
+				ReturnValue += Array[i].X;
 			}
 			return ReturnValue;
 		}
@@ -562,18 +561,18 @@ namespace Chaos
 		void UpdateConvexConvexConstraint(const FImplicitObject& Implicit0, const TRigidTransform<T, d>& Transform0, const FImplicitObject& Implicit1, const TRigidTransform<T, d>& Transform1, const T Thickness, TRigidBodyIterativeContactConstraint<T,d>& Constraint)
 		{
 			TContactPoint<T> ContactPoint = ConvexConvexContactPoint(Implicit0, Transform0, Implicit1, Transform1, Thickness);
-
 			/*
 			TContactPoint<T> ContactPoint;
 
 			const TRigidTransform<T, d> AToBTM = Transform0.GetRelativeTransform(Transform1);
-			ContactPoint.Location = AToBTM.TransformPosition(Constraint.LocalPosition);
 
-			ContactPoint.Phi = Implicit1.PhiWithNormal(ContactPoint.Location, ContactPoint.Normal);
-			ContactPoint.Normal = Constraint.WorldNormal;
-			ContactPoint.Location = Transform0.TransformPosition(Constraint.LocalPosition);
+			for (int32 Idx = 0; Idx < Constraint.LocalSamples.Num(); Idx++)
+			{
+				Constraint.LocalSamples[Idx].Manifold.Phi = Implicit1.PhiWithNormal(Constraint.LocalSamples[Idx].X, Constraint.LocalSamples[Idx].Manifold.Normal);
+				Constraint.LocalSamples[Idx].Manifold.Normal = Transform1.TransformVector(Constraint.PlaneNormal);
+				Constraint.LocalSamples[Idx].Manifold.Location = Transform0.TransformPosition(Constraint.LocalSamples[Idx].X);
+			}
 			*/
-
 			UpdateContactPoint(Constraint.Manifold, ContactPoint);
 		}
 
@@ -585,18 +584,41 @@ namespace Chaos
 
 			FRigidBodyIterativeContactConstraint::FManifold& Manifold = Constraint.Manifold;
 
-			if (!ContactPoint.Normal.Equals(Constraint.WorldNormal) || !Constraint.LocalSamples.Num())
+			if (!ContactPoint.Normal.Equals(Constraint.PlaneNormal) || !Constraint.LocalSamples.Num())
 			{
 				Constraint.LocalSamples.Reset();
-				Constraint.WorldNormal = ContactPoint.Normal;
+				Constraint.PlaneNormal = Transform1.InverseTransformVector(ContactPoint.Normal);
+				Constraint.PlanePosition = Transform1.InverseTransformPosition(ContactPoint.Location - ContactPoint.Phi*ContactPoint.Normal);
 			}
 
+			TVector<T, d> SurfaceSample = Transform0.InverseTransformPosition(ContactPoint.Location);
 			if (Constraint.LocalSamples.Num() < 4)
 			{
-				TVector<T, d> SurfaceSample = Transform0.InverseTransformPosition(ContactPoint.Location);
-				Constraint.LocalSamples.Add(SurfaceSample);
-				Constraint.LocalPosition = SumArray(Constraint.LocalSamples) / Constraint.LocalSamples.Num();
+				Constraint.LocalSamples.Add({ SurfaceSample,0.f });
 			}
+			else 
+			{
+				TVector<T,d> Center = SumSampleData(Constraint.LocalSamples) / 5.f;
+				T Delta = (Center - SurfaceSample).SizeSquared();
+				Constraint.LocalPosition = SumSampleData(Constraint.LocalSamples) / Constraint.LocalSamples.Num();
+
+				// todo(chaos) : maximize area instead
+				T SmallestDelta = FLT_MAX;
+				int32 SmallestIndex = 0;
+				for (int32 idx=0;idx<Constraint.LocalSamples.Num();idx++)
+					if (Constraint.LocalSamples[idx].Delta < SmallestDelta) {
+						SmallestDelta = Constraint.LocalSamples[idx].Delta;
+						SmallestIndex = idx;
+					}
+
+				if (Delta > SmallestDelta) {
+					Constraint.LocalSamples[SmallestIndex] = { SurfaceSample,Delta };
+				}
+			}
+
+			typedef FRigidBodyIterativeContactConstraint::FSampleData FSampleData;
+			Constraint.LocalPosition = SumSampleData(Constraint.LocalSamples) / Constraint.LocalSamples.Num();
+			for (FSampleData& Data : Constraint.LocalSamples) Data.Delta = (Constraint.LocalPosition - Data.X).SizeSquared();
 			*/
 		}
 
