@@ -146,6 +146,20 @@ namespace Chaos
 				}
 			}
 		}
+
+		for (TTransientGeometryParticleHandle<FReal, 3>& Particle : Particles.GetActiveKinematicParticlesView())
+		{
+			if (Particle.HasBounds())
+			{
+				const FReal BoundsThickness = 1.0f;
+				const FReal BoundsThicknessVelocityInflation = 2.0f;
+				const TAABB<FReal, 3>& LocalBounds = Particle.LocalBounds();
+				TAABB<FReal, 3> WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.X(), Particle.R()));
+				const FVec3 VAbs = (Particle.CastToKinematicParticle()) ? Particle.CastToKinematicParticle()->V().GetAbs() : FVec3(0);
+				WorldSpaceBounds.ThickenSymmetrically(FVec3(BoundsThickness) + BoundsThicknessVelocityInflation * VAbs.GetAbs() * Dt);
+				Particle.SetWorldSpaceInflatedBounds(WorldSpaceBounds);
+			}
+		}
 	}
 
 	// @todo(ccaulfield): dedupe (PBDRigidsEvolutionGBF)

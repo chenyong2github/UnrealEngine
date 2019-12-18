@@ -21,14 +21,14 @@
 // @todo(ccaulfield): remove when finished
 //
 float ChaosImmediate_Evolution_DeltaTime = 0.03f;
-int32 ChaosImmediate_Evolution_Iterations = 2;
-int32 ChaosImmediate_Evolution_PushOutIterations = 10;
+int32 ChaosImmediate_Evolution_Iterations = 4;
+int32 ChaosImmediate_Evolution_PushOutIterations = 2;
 FAutoConsoleVariableRef CVarChaosImmPhysDeltaTime(TEXT("p.Chaos.ImmPhys.DeltaTime"), ChaosImmediate_Evolution_DeltaTime, TEXT("Override chaos immediate physics delta time if non-zero"));
 FAutoConsoleVariableRef CVarChaosImmPhysIterations(TEXT("p.Chaos.ImmPhys.Iterations"), ChaosImmediate_Evolution_Iterations, TEXT("Number of constraint solver loops in immediate physics"));
 FAutoConsoleVariableRef CVarChaosImmPhysPushOutIterations(TEXT("p.Chaos.ImmPhys.PushOutIterations"), ChaosImmediate_Evolution_PushOutIterations, TEXT("Set the ApplyPushOut() (position correction) iteration count"));
 
 int32 ChaosImmediate_Collision_Enabled = 1;
-int32 ChaosImmediate_Collision_PairIterations = 0;
+int32 ChaosImmediate_Collision_PairIterations = 2;
 int32 ChaosImmediate_Collision_PushOutPairIterations = 2;
 int32 ChaosImmediate_Collision_Priority = 1;
 float ChaosImmediate_Collision_Thickness = 0;
@@ -38,14 +38,14 @@ FAutoConsoleVariableRef CVarChaosImmPhysCollisionPushOutPairIterations(TEXT("p.C
 FAutoConsoleVariableRef CVarChaosImmPhysCollisionPriority(TEXT("p.Chaos.ImmPhys.Collision.Priority"), ChaosImmediate_Collision_Priority, TEXT("Set the Collision constraint sort order (Joints have priority 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysThickness(TEXT("p.Chaos.ImmPhys.Collision.Thickness"), ChaosImmediate_Collision_Thickness, TEXT("ChaosImmediateThickness"));
 
-int32 ChaosImmediate_Joint_PairIterations = 0;
-int32 ChaosImmediate_Joint_PushOutPairIterations = 2;
+int32 ChaosImmediate_Joint_PairIterations = 2;
+int32 ChaosImmediate_Joint_PushOutPairIterations = 0;
 float ChaosImmediate_Joint_SwingTwistAngleTolerance = 1.0e-6f;
 int32 ChaosImmediate_Joint_EnableTwistLimits = 1;
 int32 ChaosImmediate_Joint_EnableSwingLimits = 1;
 int32 ChaosImmediate_Joint_EnableDrives = 1;
 int32 ChaosImmediate_Joint_DrivesPhase = (int32)Chaos::EJointSolverPhase::Apply;
-int32 ChaosImmediate_Joint_ProjectionPhase = (int32)Chaos::EJointSolverPhase::ApplyPushOut;
+int32 ChaosImmediate_Joint_ProjectionPhase = (int32)Chaos::EJointSolverPhase::Apply;
 float ChaosImmediate_Joint_LinearProjection = 0.0f;
 float ChaosImmediate_Joint_AngularProjection = 0.0f;
 float ChaosImmediate_Joint_Stiffness = 1.0f;
@@ -70,6 +70,10 @@ FAutoConsoleVariableRef CVarChaosImmPhysSoftAngularStiffness(TEXT("p.Chaos.ImmPh
 FAutoConsoleVariableRef CVarChaosImmPhysDriveStiffness(TEXT("p.Chaos.ImmPhys.Joint.DriveStiffness"), ChaosImmediate_Joint_DriveStiffness, TEXT("6Dof joint drive stiffness override (if > 0)."));
 FAutoConsoleVariableRef CVarChaosImmPhysMinParentMassRatio(TEXT("p.Chaos.ImmPhys.Joint.MinParentMassRatio"), ChaosImmediate_Joint_MinParentMassRatio, TEXT("6Dof joint MinParentMassRatio (if > 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysMaxInertiaRatio(TEXT("p.Chaos.ImmPhys.Joint.MaxInertiaRatio"), ChaosImmediate_Joint_MaxInertiaRatio, TEXT("6Dof joint MaxInertiaRatio (if > 0)"));
+
+int32 ChaosImmediate_Material_Resitution = 0.0f;
+int32 ChaosImmediate_Material_Friction = 0.5f;
+
 //
 // end remove when finished
 //
@@ -176,22 +180,19 @@ namespace ImmediatePhysics_Chaos
 		Evolution.SetPostIntegrateCallback(
 			[this]()
 			{
-				// Dynamic only - Kinematics get drawn once at the end of frame
-				DebugDrawParticles(3, 3, 0.3f, false, true);
+				DebugDrawDynamicParticles(3, 3, FColor(32, 32, 0));
 				DebugDrawConstraints(3, 3, 0.3f);
 			});
 		Evolution.SetPostApplyCallback(
 			[this]()
 			{
-				// Dynamic only - Kinematics get drawn once at the end of frame
-				DebugDrawParticles(3, 3, 0.6f, false, true);
+				DebugDrawDynamicParticles(3, 3, FColor(128, 128, 0));
 				DebugDrawConstraints(3, 3, 0.6f);
 			});
 		Evolution.SetPostApplyPushOutCallback(
 			[this]()
 			{
-				// Dynamic only - Kinematics get drawn once at the end of frame
-				DebugDrawParticles(3, 3, 1.0f, false, true);
+				DebugDrawDynamicParticles(3, 3, FColor(255, 255, 0));
 				DebugDrawConstraints(3, 3, 1.0f);
 			});
 		Collisions.SetPostApplyCallback(
@@ -201,6 +202,7 @@ namespace ImmediatePhysics_Chaos
 				{
 					DebugDraw::DrawCollisions(SimulationSpaceTransform, InConstraintHandles, 0.3f);
 				}
+				DebugDrawDynamicParticles(4, 4, FColor(128, 0, 0));
 			});
 		Collisions.SetPostApplyPushOutCallback(
 			[this](const float Dt, const TArray<TPBDCollisionConstraintHandle<float, 3>*>& InConstraintHandles, bool bRequiresAnotherIteration)
@@ -225,6 +227,16 @@ namespace ImmediatePhysics_Chaos
 				{
 					DebugDraw::DrawJointConstraints(SimulationSpaceTransform, InConstraintHandles, 0.6f);
 				}
+				DebugDrawDynamicParticles(4, 4, FColor(0, 128, 0));
+			});
+		Joints.SetPostProjectCallback(
+			[this](const float Dt, const TArray<FPBDJointConstraintHandle*>& InConstraintHandles)
+			{
+				if (ChaosImmediate_DebugDrawJoints == 4)
+				{
+					DebugDraw::DrawJointConstraints(SimulationSpaceTransform, InConstraintHandles, 0.6f);
+				}
+				DebugDrawDynamicParticles(4, 4, FColor(0, 0, 128));
 			});
 #endif
 	}
@@ -270,6 +282,16 @@ namespace ImmediatePhysics_Chaos
 
 		// @todo(ccaulfield): add materials
 		TUniquePtr<FChaosPhysicsMaterial> Material = MakeUnique<FChaosPhysicsMaterial>();
+		if (ChaosImmediate_Material_Resitution >= 0.0f)
+		{
+			Material->Restitution = ChaosImmediate_Material_Resitution;
+		}
+		if (ChaosImmediate_Material_Friction >= 0.0f)
+		{
+			Material->Friction = ChaosImmediate_Material_Friction;
+		}
+
+
 		ParticleMaterials.Add(MakeSerializable(Material));
 		PerParticleMaterials.Add(MoveTemp(Material));
 		CollidedParticles.Add(false);
@@ -348,17 +370,20 @@ namespace ImmediatePhysics_Chaos
 		{
 			FActorHandle* ActorHandle0 = ActorHandles[ActorHandleIndex0];
 			TGeometryParticleHandle<FReal, Dimensions>* Particle0 = ActorHandle0->GetParticle();
-
-			for (int ActorHandleIndex1 = ActorHandleIndex0 + 1; ActorHandleIndex1 < NumActorHandles; ++ActorHandleIndex1)
+			//TPBDRigidParticleHandle<FReal, Dimensions>* Rigid0 = Particle0->CastToRigidParticle();
+			//if (Rigid0 && (Rigid0->ObjectState() == EObjectStateType::Dynamic))
 			{
-				FActorHandle* ActorHandle1 = ActorHandles[ActorHandleIndex1];
-				TGeometryParticleHandle<FReal, Dimensions>* Particle1 = ActorHandle1->GetParticle();
-
-				const TSet<const FParticleHandle*>* Particle0IgnoreSet = IgnoreCollisionParticlePairTable.Find(Particle0);
-				bool bIgnoreActorHandlePair = (Particle0IgnoreSet != nullptr)  && Particle0IgnoreSet->Contains(Particle1);
-				if (!bIgnoreActorHandlePair)
+				for (int ActorHandleIndex1 = ActorHandleIndex0 + 1; ActorHandleIndex1 < NumActorHandles; ++ActorHandleIndex1)
 				{
-					PotentiallyCollidingPairs.Emplace(FParticlePair(Particle0, Particle1));
+					FActorHandle* ActorHandle1 = ActorHandles[ActorHandleIndex1];
+					TGeometryParticleHandle<FReal, Dimensions>* Particle1 = ActorHandle1->GetParticle();
+
+					const TSet<const FParticleHandle*>* Particle0IgnoreSet = IgnoreCollisionParticlePairTable.Find(Particle0);
+					bool bIgnoreActorHandlePair = (Particle0IgnoreSet != nullptr) && Particle0IgnoreSet->Contains(Particle1);
+					if (!bIgnoreActorHandlePair)
+					{
+						PotentiallyCollidingPairs.Emplace(FParticlePair(Particle0, Particle1));
+					}
 				}
 			}
 		}
@@ -488,7 +513,8 @@ namespace ImmediatePhysics_Chaos
 			Collisions.SetCollisionsEnabled(ChaosImmediate_Collision_Enabled != 0);
 		}
 
-		DebugDrawParticles(2, 2, 0.7f, true, true);
+		DebugDrawKinematicParticles(2, 2, FColor(128, 0, 0));
+		DebugDrawDynamicParticles(2, 2, FColor(192, 192, 0));
 		DebugDrawConstraints(2, 2, 0.7f);
 
 		ConditionConstraints();
@@ -499,12 +525,12 @@ namespace ImmediatePhysics_Chaos
 		
 		//Evolution.EndFrame(DeltaTime);
 
-		DebugDrawParticles(1, 2, 1.0f, true, true);
+		DebugDrawKinematicParticles(1, 4, FColor(128, 0, 0));
+		DebugDrawDynamicParticles(1, 4, FColor(255, 255, 0));
 		DebugDrawConstraints(1, 2, 1.0f);
-		DebugDrawParticles(3, 3, 1.0f, true, false);	// Kinematics only
 	}
 
-	void FSimulation::DebugDrawParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const float ColorScale, bool bDrawKinematic, bool bDrawDynamic)
+	void FSimulation::DebugDrawKinematicParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const FColor& Color)
 	{
 #if CHAOS_DEBUG_DRAW
 		using namespace Chaos;
@@ -512,15 +538,38 @@ namespace ImmediatePhysics_Chaos
 		{
 			if ((ChaosImmediate_DebugDrawParticles >= MinDebugLevel) && (ChaosImmediate_DebugDrawParticles <= MaxDebugLevel))
 			{
-				DebugDraw::DrawParticleTransforms(SimulationSpaceTransform, Particles.GetAllParticlesView(), ColorScale, bDrawKinematic, bDrawDynamic);
+				DebugDraw::DrawParticleTransforms(SimulationSpaceTransform, Particles.GetActiveKinematicParticlesView());
 			}
 			if ((ChaosImmediate_DebugDrawShapes >= MinDebugLevel) && (ChaosImmediate_DebugDrawShapes <= MaxDebugLevel))
 			{
-				DebugDraw::DrawParticleShapes(SimulationSpaceTransform, Particles.GetAllParticlesView(), ColorScale, bDrawKinematic, bDrawDynamic);
+				DebugDraw::DrawParticleShapes(SimulationSpaceTransform, Particles.GetActiveKinematicParticlesView(), Color);
 			}
 			if ((ChaosImmediate_DebugDrawBounds >= MinDebugLevel) && (ChaosImmediate_DebugDrawBounds <= MaxDebugLevel))
 			{
-				DebugDraw::DrawParticleBounds(SimulationSpaceTransform, Particles.GetAllParticlesView(), ColorScale, bDrawKinematic, bDrawDynamic);
+				DebugDraw::DrawParticleBounds(SimulationSpaceTransform, Particles.GetActiveKinematicParticlesView(), Color);
+			}
+		}
+#endif
+	}
+
+
+	void FSimulation::DebugDrawDynamicParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const FColor& Color)
+	{
+#if CHAOS_DEBUG_DRAW
+		using namespace Chaos;
+		if (FDebugDrawQueue::IsDebugDrawingEnabled())
+		{
+			if ((ChaosImmediate_DebugDrawParticles >= MinDebugLevel) && (ChaosImmediate_DebugDrawParticles <= MaxDebugLevel))
+			{
+				DebugDraw::DrawParticleTransforms(SimulationSpaceTransform, Particles.GetActiveParticlesView());
+			}
+			if ((ChaosImmediate_DebugDrawShapes >= MinDebugLevel) && (ChaosImmediate_DebugDrawShapes <= MaxDebugLevel))
+			{
+				DebugDraw::DrawParticleShapes(SimulationSpaceTransform, Particles.GetActiveParticlesView(), Color);
+			}
+			if ((ChaosImmediate_DebugDrawBounds >= MinDebugLevel) && (ChaosImmediate_DebugDrawBounds <= MaxDebugLevel))
+			{
+				DebugDraw::DrawParticleBounds(SimulationSpaceTransform, Particles.GetActiveParticlesView(), Color);
 			}
 		}
 #endif

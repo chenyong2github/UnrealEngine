@@ -342,10 +342,7 @@ namespace Chaos
 		bool bConstraintActive = (TwistAngle <= -TwistAngleMax) || (TwistAngle >= TwistAngleMax);
 		if (bConstraintActive)
 		{
-			const FVec3 Axis0 = Rs[0] * TwistAxis01;
-			const FVec3 Axis1 = Rs[1] * TwistAxis01;
-			const FVec3 XP0 = Xs[0] - Ps[0];
-			const FVec3 XP1 = Xs[1] - Ps[1];
+			const FVec3 Axis = Rs[0] * TwistAxis01;
 
 			const int32 RowIndex = J0.NumRows();
 			J0.AddRows(1);
@@ -353,10 +350,10 @@ namespace Chaos
 			C.AddRows(1);
 
 			J0.SetRowAt(RowIndex + 0, 0, 0, 0, 0);
-			J0.SetRowAt(RowIndex + 0, 3, Axis0);
+			J0.SetRowAt(RowIndex + 0, 3, Axis);
 
 			J1.SetRowAt(RowIndex + 0, 0, 0, 0, 0);
-			J1.SetRowAt(RowIndex + 0, 3, -Axis1);
+			J1.SetRowAt(RowIndex + 0, 3, -Axis);
 
 			C.SetAt(RowIndex, 0, (TwistAngle >= TwistAngleMax) ? TwistAngle - TwistAngleMax : TwistAngle + TwistAngleMax);
 		}
@@ -399,8 +396,6 @@ namespace Chaos
 		bool bConstraintActive = (SwingAngle <= -SwingAngleMax) || (SwingAngle >= SwingAngleMax);
 		if (bConstraintActive)
 		{
-			const FVec3 XP0 = Xs[0] - Ps[0];
-			const FVec3 XP1 = Xs[1] - Ps[1];
 			const FVec3 Axis = Rs[0] * SwingAxis01;
 
 			const int32 RowIndex = J0.NumRows();
@@ -462,8 +457,6 @@ namespace Chaos
 			bool bConstraintActive = (SwingAngle <= -SwingAngleMax) || (SwingAngle >= SwingAngleMax);
 			if (bConstraintActive)
 			{
-				const FVec3 XP0 = Xs[0] - Ps[0];
-				const FVec3 XP1 = Xs[1] - Ps[1];
 				const FVec3 Axis = SwingCross / SwingCrossLen;
 
 				const int32 RowIndex = J0.NumRows();
