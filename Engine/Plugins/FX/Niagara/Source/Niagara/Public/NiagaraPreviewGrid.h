@@ -203,6 +203,13 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category=Preview)
 	void DeactivatePreviews();
+
+	UFUNCTION(BlueprintCallable, Category = Preview)
+	void SetPaused(bool bPaused);
+
+	UFUNCTION(BlueprintCallable, Category = Preview)
+	void GetPreviews(TArray<UNiagaraComponent*>& OutPreviews);
+
 private:
 
 	void DestroyPreviews();
