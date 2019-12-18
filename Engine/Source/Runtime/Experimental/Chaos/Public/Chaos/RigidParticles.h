@@ -10,6 +10,7 @@
 #include "Chaos/Matrix.h"
 #include "Chaos/Particles.h"
 #include "Chaos/Rotation.h"
+#include "HAL/LowLevelMemTracker.h"
 
 namespace Chaos
 {
