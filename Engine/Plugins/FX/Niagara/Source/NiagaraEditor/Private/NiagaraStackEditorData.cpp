@@ -85,6 +85,16 @@ void UNiagaraStackEditorData::SetShowLinkedInputs(bool bInShowLinkedInputs)
 	bShowLinkedInputs = bInShowLinkedInputs;
 }
 
+bool UNiagaraStackEditorData::GetShowOnlyIssues() const
+{
+	return bShowOnlyIssues;
+}
+
+void UNiagaraStackEditorData::SetShowOnlyIssues(bool bInShowOnlyIssues)
+{
+	bShowOnlyIssues = bInShowOnlyIssues;
+}
+
 double UNiagaraStackEditorData::GetLastScrollPosition() const
 {
 	return LastScrollPosition;
