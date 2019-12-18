@@ -243,7 +243,7 @@ public:
 	virtual void ProgressAsyncTimeSlicing(bool ForceBuildCompletion) override
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AABBTreeProgressTimeSlice);
-
+		LLM_SCOPE(ELLMTag::ChaosAcceleration);
 		// force is to stop time slicing and complete the rest of the build now
 		if (ForceBuildCompletion)
 		{
@@ -377,6 +377,7 @@ public:
 
 	virtual void RemoveElement(const TPayloadType& Payload)
 	{
+		LLM_SCOPE(ELLMTag::ChaosAcceleration);
 		if (FAABBTreePayloadInfo* PayloadInfo = PayloadToInfo.Find(Payload))
 		{
 			if (PayloadInfo->GlobalPayloadIdx != INDEX_NONE)
@@ -410,6 +411,7 @@ public:
 
 	virtual void UpdateElement(const TPayloadType& Payload, const TAABB<T, 3>& NewBounds, bool bHasBounds) override
 	{
+		LLM_SCOPE(ELLMTag::ChaosAcceleration);
 		FAABBTreePayloadInfo* PayloadInfo = PayloadToInfo.Find(Payload);
 		if (PayloadInfo)
 		{
@@ -492,6 +494,7 @@ public:
 
 	virtual void Serialize(FChaosArchive& Ar) override
 	{
+		LLM_SCOPE(ELLMTag::ChaosAcceleration);
 		TBox<FReal, 3>::SerializeAsAABB(Ar, FullBounds);
 		Ar << Nodes;
 		Ar << Leaves;
@@ -637,6 +640,7 @@ private:
 	void GenerateTree(const TParticles& Particles)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AABBTreeGenerateTree);
+		LLM_SCOPE(ELLMTag::ChaosAcceleration);
 		this->SetAsyncTimeSlicingComplete(false);
 
 		TArray<FElement> ElemsWithBounds;
