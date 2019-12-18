@@ -129,7 +129,6 @@ void FApplePlatformBackgroundHttpRequest::PauseUnderlyingTask()
             
             UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Pausing Task for Request -- RequestDebugID:%s | TaskIdentifier:%d | TaskURL:%s"), *GetRequestDebugID(), TaskIdentifier, *TaskURL);
             
-            FPlatformAtomics::InterlockedExchange(&bIsTaskActive, false);
             FPlatformAtomics::InterlockedExchange(&bIsPendingCancel, false);
             FPlatformAtomics::InterlockedExchange(&bIsTaskPaused, true);
             
@@ -213,7 +212,18 @@ void FApplePlatformBackgroundHttpRequest::PauseRequest()
 
 void FApplePlatformBackgroundHttpRequest::ResumeRequest()
 {
-    ActivateUnderlyingTask();
+	FPlatformAtomics::InterlockedExchange(&bIsTaskPaused, false);
+	
+	//We only want to re-activate tasks that have already been flagged as active.
+	//Otherwise let our BackgroundHTTP Manager handle activating us on a tick now that we aren't paused.
+	if (IsUnderlyingTaskActive())
+	{
+		ActivateUnderlyingTask();
+	}
+	else
+	{
+		UE_LOG(LogBackgroundHttpRequest, Display, TEXT("ResumeRequest called on a task that wasn't active -- RequestDebugID:%s"), *GetRequestDebugID());
+	}
 }
 
 void FApplePlatformBackgroundHttpRequest::CancelActiveTask()
