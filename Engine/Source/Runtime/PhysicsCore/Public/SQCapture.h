@@ -14,9 +14,13 @@
 
 
 class FPhysTestSerializer;
-struct FSweepHit;
-struct FRaycastHit;
-struct FOverlapHit;
+
+namespace ChaosInterface
+{
+	struct FSweepHit;
+	struct FRaycastHit;
+	struct FOverlapHit;
+}
 
 namespace Chaos
 {
