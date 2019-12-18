@@ -668,7 +668,7 @@ bool FPluginManager::ConfigureEnabledPlugins()
 		for(const TPair<FString, TSharedRef<FPlugin>>& PluginPair: AllPlugins)
 		{
 			const FPlugin& Plugin = *PluginPair.Value;
-			if (Plugin.bEnabled)
+			if (Plugin.bEnabled && !Plugin.Descriptor.bExplicitlyLoaded)
 			{
 				UE_LOG(LogPluginManager, Log, TEXT("Mounting plugin %s"), *Plugin.GetName());
 
@@ -744,6 +744,11 @@ bool FPluginManager::ConfigureEnabledPlugins()
 		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 		for (TSharedRef<IPlugin> Plugin: GetEnabledPluginsWithContent())
 		{
+			if (Plugin->GetDescriptor().bExplicitlyLoaded)
+			{
+				continue;
+			}
+
 			if (NewPluginMountedEvent.IsBound())
 			{
 				NewPluginMountedEvent.Broadcast(*Plugin);
@@ -1189,7 +1194,7 @@ bool FPluginManager::LoadModulesForEnabledPlugins( const ELoadingPhase::Type Loa
 		const TSharedRef<FPlugin> &Plugin = PluginPair.Value;
 		SlowTask.EnterProgressFrame(1);
 
-		if ( Plugin->bEnabled )
+		if ( Plugin->bEnabled && !Plugin->Descriptor.bExplicitlyLoaded )
 		{
 			if (!TryLoadModulesForPlugin(Plugin.Get(), LoadingPhase))
 			{
@@ -1366,53 +1371,63 @@ IPluginManager::FNewPluginMountedEvent& FPluginManager::OnNewPluginMounted()
 
 void FPluginManager::MountNewlyCreatedPlugin(const FString& PluginName)
 {
-	for(TMap<FString, TSharedRef<FPlugin>>::TIterator Iter(AllPlugins); Iter; ++Iter)
+	TSharedPtr<FPlugin> Plugin = FindPluginInstance(PluginName);
+	if (Plugin.IsValid())
 	{
-		const TSharedRef<FPlugin>& Plugin = Iter.Value();
-		if (Plugin->Name == PluginName)
+		MountPluginFromExternalSource(Plugin.ToSharedRef());
+
+		// Notify any listeners that a new plugin has been mounted
+		if (NewPluginCreatedEvent.IsBound())
 		{
-			// Mark the plugin as enabled
-			Plugin->bEnabled = true;
+			NewPluginCreatedEvent.Broadcast(*Plugin);
+		}
+	}
+}
 
-			// Mount the plugin content directory
-			if (Plugin->CanContainContent() && ensure(RegisterMountPointDelegate.IsBound()))
+void FPluginManager::MountExplicitlyLoadedPlugin(const FString& PluginName)
+{
+	TSharedPtr<FPlugin> Plugin = FindPluginInstance(PluginName);
+	if (Plugin.IsValid() && Plugin->Descriptor.bExplicitlyLoaded)
+	{
+		MountPluginFromExternalSource(Plugin.ToSharedRef());
+	}
+}
+
+void FPluginManager::MountPluginFromExternalSource(const TSharedRef<FPlugin>& Plugin)
+{
+	// Mark the plugin as enabled
+	Plugin->bEnabled = true;
+
+	// Mount the plugin content directory
+	if (Plugin->CanContainContent() && ensure(RegisterMountPointDelegate.IsBound()))
+	{
+		FString ContentDir = Plugin->GetContentDir();
+		RegisterMountPointDelegate.Execute(Plugin->GetMountedAssetPath(), ContentDir);
+
+		// Register this plugin's path with the list of content directories that the editor will search
+		if (FConfigFile* EngineConfigFile = GConfig->Find(GEngineIni, false))
+		{
+			if (FConfigSection* CoreSystemSection = EngineConfigFile->Find(TEXT("Core.System")))
 			{
-				FString ContentDir = Plugin->GetContentDir();
-				RegisterMountPointDelegate.Execute(Plugin->GetMountedAssetPath(), ContentDir);
-
-				// Register this plugin's path with the list of content directories that the editor will search
-				if (FConfigFile* EngineConfigFile = GConfig->Find(GEngineIni, false))
-				{
-					if (FConfigSection* CoreSystemSection = EngineConfigFile->Find(TEXT("Core.System")))
-					{
-						CoreSystemSection->AddUnique("Paths", MoveTemp(ContentDir));
-					}
-				}
+				CoreSystemSection->AddUnique("Paths", MoveTemp(ContentDir));
 			}
+		}
+	}
 
-			// If it's a code module, also load the modules for it
-			if (Plugin->Descriptor.Modules.Num() > 0)
+	// If it's a code module, also load the modules for it
+	if (Plugin->Descriptor.Modules.Num() > 0)
+	{
+		// Add the plugin binaries directory
+		const FString PluginBinariesPath = FPaths::Combine(*FPaths::GetPath(Plugin->FileName), TEXT("Binaries"), FPlatformProcess::GetBinariesSubdirectory());
+		FModuleManager::Get().AddBinariesDirectory(*PluginBinariesPath, Plugin->GetLoadedFrom() == EPluginLoadedFrom::Project);
+
+		// Load all the plugin modules
+		for (ELoadingPhase::Type LoadingPhase = (ELoadingPhase::Type)0; LoadingPhase < ELoadingPhase::Max; LoadingPhase = (ELoadingPhase::Type)(LoadingPhase + 1))
+		{
+			if (LoadingPhase != ELoadingPhase::None)
 			{
-				// Add the plugin binaries directory
-				const FString PluginBinariesPath = FPaths::Combine(*FPaths::GetPath(Plugin->FileName), TEXT("Binaries"), FPlatformProcess::GetBinariesSubdirectory());
-				FModuleManager::Get().AddBinariesDirectory(*PluginBinariesPath, Plugin->GetLoadedFrom() == EPluginLoadedFrom::Project);
-
-				// Load all the plugin modules
-				for (ELoadingPhase::Type LoadingPhase = (ELoadingPhase::Type)0; LoadingPhase < ELoadingPhase::Max; LoadingPhase = (ELoadingPhase::Type)(LoadingPhase + 1))
-				{
-					if (LoadingPhase != ELoadingPhase::None)
-					{
-						TryLoadModulesForPlugin(Plugin.Get(), LoadingPhase);
-					}
-				}
+				TryLoadModulesForPlugin(Plugin.Get(), LoadingPhase);
 			}
-
-			// Notify any listeners that a new plugin has been mounted
-			if (NewPluginCreatedEvent.IsBound())
-			{
-				NewPluginCreatedEvent.Broadcast(*Plugin);
-			}
-			break;
 		}
 	}
 }
