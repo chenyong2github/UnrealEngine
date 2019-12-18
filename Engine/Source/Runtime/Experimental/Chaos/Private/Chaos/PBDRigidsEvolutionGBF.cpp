@@ -139,65 +139,71 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFr
 	}
 #endif
 
+	if (Dt > 0.0f)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_Evolution_Integrate);
-		Integrate(Particles.GetActiveParticlesView(), Dt);
+		{
+			SCOPE_CYCLE_COUNTER(STAT_Evolution_Integrate);
+			Integrate(Particles.GetActiveParticlesView(), Dt);
+		}
+
+		{
+			SCOPE_CYCLE_COUNTER(STAT_Evolution_KinematicTargets);
+			ApplyKinematicTargets(Dt, StepFraction);
+		}
+
+		if (PostIntegrateCallback != nullptr)
+		{
+			PostIntegrateCallback();
+		}
+
+		{
+			SCOPE_CYCLE_COUNTER(STAT_Evolution_UpdateConstraintPositionBasedState);
+			UpdateConstraintPositionBasedState(Dt);
+		}
 	}
 
-	{
-		SCOPE_CYCLE_COUNTER(STAT_Evolution_KinematicTargets);
-		ApplyKinematicTargets(Dt, StepFraction);
-	}
-
-	if (PostIntegrateCallback != nullptr)
-	{
-		PostIntegrateCallback();
-	}
-
-	{
-		SCOPE_CYCLE_COUNTER(STAT_Evolution_UpdateConstraintPositionBasedState);
-		UpdateConstraintPositionBasedState(Dt);
-	}
 	{
 		Base::ComputeIntermediateSpatialAcceleration();
 	}
+
+	if (Dt > 0.0f)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_Evolution_DetectCollisions);
-		CollisionDetector.GetBroadPhase().SetSpatialAcceleration(InternalAcceleration.Get());
+		{
+			SCOPE_CYCLE_COUNTER(STAT_Evolution_DetectCollisions);
+			CollisionDetector.GetBroadPhase().SetSpatialAcceleration(InternalAcceleration.Get());
 
-		CollisionStats::FStatData StatData(bPendingHierarchyDump);
+			CollisionStats::FStatData StatData(bPendingHierarchyDump);
 
-		CollisionDetector.DetectCollisions(Dt, StatData);
+			CollisionDetector.DetectCollisions(Dt, StatData);
 
-		CHAOS_COLLISION_STAT(StatData.Print());
-	}
+			CHAOS_COLLISION_STAT(StatData.Print());
+		}
 
-	if (PostDetectCollisionsCallback != nullptr)
-	{
-		PostDetectCollisionsCallback();
-	}
+		if (PostDetectCollisionsCallback != nullptr)
+		{
+			PostDetectCollisionsCallback();
+		}
 
-	{
-		SCOPE_CYCLE_COUNTER(STAT_Evolution_CreateConstraintGraph);
-		CreateConstraintGraph();
-	}
-	{
-		SCOPE_CYCLE_COUNTER(STAT_Evolution_CreateIslands);
-		CreateIslands();
-	}
+		{
+			SCOPE_CYCLE_COUNTER(STAT_Evolution_CreateConstraintGraph);
+			CreateConstraintGraph();
+		}
+		{
+			SCOPE_CYCLE_COUNTER(STAT_Evolution_CreateIslands);
+			CreateIslands();
+		}
 
-	if (PreApplyCallback != nullptr)
-	{
-		PreApplyCallback();
-	}
+		if (PreApplyCallback != nullptr)
+		{
+			PreApplyCallback();
+		}
 
-	TArray<bool> SleepedIslands;
-	SleepedIslands.SetNum(GetConstraintGraph().NumIslands());
-	TArray<TArray<TPBDRigidParticleHandle<T,d>*>> DisabledParticles;
-	DisabledParticles.SetNum(GetConstraintGraph().NumIslands());
-	SleepedIslands.SetNum(GetConstraintGraph().NumIslands());
-	if(Dt > 0)
-	{
+		TArray<bool> SleepedIslands;
+		SleepedIslands.SetNum(GetConstraintGraph().NumIslands());
+		TArray<TArray<TPBDRigidParticleHandle<T, d>*>> DisabledParticles;
+		DisabledParticles.SetNum(GetConstraintGraph().NumIslands());
+		SleepedIslands.SetNum(GetConstraintGraph().NumIslands());
+
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_ParallelSolve);
 		PhysicsParallelFor(GetConstraintGraph().NumIslands(), [&](int32 Island) {
 			const TArray<TGeometryParticleHandle<T, d>*>& IslandParticles = GetConstraintGraph().GetIslandParticles(Island);
@@ -262,26 +268,27 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt, const T StepFr
 
 			// Turn off if not moving
 			SleepedIslands[Island] = GetConstraintGraph().SleepInactive(Island, PhysicsMaterials);
-		});
-	}
-	{
-		SCOPE_CYCLE_COUNTER(STAT_Evolution_DeactivateSleep);
-		for (int32 Island = 0; Island < GetConstraintGraph().NumIslands(); ++Island)
+			});
+
 		{
-			if (SleepedIslands[Island])
+			SCOPE_CYCLE_COUNTER(STAT_Evolution_DeactivateSleep);
+			for (int32 Island = 0; Island < GetConstraintGraph().NumIslands(); ++Island)
 			{
-				Particles.DeactivateParticles(GetConstraintGraph().GetIslandParticles(Island));
-			}
-			for (const auto Particle : DisabledParticles[Island])
-			{
-				Particles.DisableParticle(Particle);
+				if (SleepedIslands[Island])
+				{
+					Particles.DeactivateParticles(GetConstraintGraph().GetIslandParticles(Island));
+				}
+				for (const auto Particle : DisabledParticles[Island])
+				{
+					Particles.DisableParticle(Particle);
+				}
 			}
 		}
+
+		Clustering.AdvanceClustering(Dt, GetCollisionConstraints());
+
+		ParticleUpdatePosition(Particles.GetActiveParticlesView(), Dt);
 	}
-
-	Clustering.AdvanceClustering(Dt, GetCollisionConstraints());
-
-	ParticleUpdatePosition(Particles.GetActiveParticlesView(), Dt);
 }
 
 template <typename T, int d>
