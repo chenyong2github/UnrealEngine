@@ -245,6 +245,7 @@ void AWorldSettings::NotifyBeginPlay()
 			const bool bFromLevelLoad = true;
 			It->DispatchBeginPlay(bFromLevelLoad);
 		}
+
 		World->bBegunPlay = true;
 	}
 }
