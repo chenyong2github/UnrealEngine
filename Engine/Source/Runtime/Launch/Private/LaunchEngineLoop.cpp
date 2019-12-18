@@ -4140,13 +4140,16 @@ void FEngineLoop::ProcessLocalPlayerSlateOperations() const
 						APlayerController* PlayerController = Iterator->Get();
 						if (PlayerController)
 						{
-							ULocalPlayer* LocalPlayer = Cast< ULocalPlayer >(PlayerController->Player);
-							if (LocalPlayer)
+							if (ULocalPlayer* LocalPlayer = Cast<ULocalPlayer>(PlayerController->Player))
 							{
-								FReply& TheReply = LocalPlayer->GetSlateOperations();
-								SlateApp.ProcessExternalReply(PathToWidget, TheReply, LocalPlayer->GetControllerId());
+								TOptional<int32> UserIndex = SlateApp.GetUserIndexForController(LocalPlayer->GetControllerId());
+								if (UserIndex.IsSet())
+								{
+									FReply& TheReply = LocalPlayer->GetSlateOperations();
+									SlateApp.ProcessExternalReply(PathToWidget, TheReply, UserIndex.GetValue());
 
-								TheReply = FReply::Unhandled();
+									TheReply = FReply::Unhandled();
+								}
 							}
 						}
 					}
