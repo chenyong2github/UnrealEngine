@@ -298,6 +298,10 @@ void FXAudio2Device::TeardownHardware()
 
 void FXAudio2Device::UpdateHardware()
 {
+#if WITH_XMA2
+	FXMAAudioInfo::Tick();
+#endif //WITH_XMA2
+
 	// If the audio device changed, we need to tear down and restart the audio engine state
 	if (DeviceProperties && DeviceProperties->DidAudioDeviceChange())
 	{
