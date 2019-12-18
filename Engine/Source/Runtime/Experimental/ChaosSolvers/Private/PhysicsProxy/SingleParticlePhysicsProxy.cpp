@@ -227,6 +227,8 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PushToPhys
 		RigidHandle->SetInvM(Data->MInvM);
 		RigidHandle->SetI(Data->MI);
 		RigidHandle->SetInvI(Data->MInvI);
+		RigidHandle->SetLinearDamping(Data->MLinearDamping);
+		RigidHandle->SetAngularDamping(Data->MAngularDamping);
 
 		if (Data->DirtyFlags.IsDirty(Chaos::EParticleFlags::ExternalForce))
 		{

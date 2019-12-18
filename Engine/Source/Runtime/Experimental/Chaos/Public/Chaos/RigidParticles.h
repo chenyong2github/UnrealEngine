@@ -58,6 +58,8 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		TArrayCollection::AddArray(&MInvI);
 		TArrayCollection::AddArray(&MM);
 		TArrayCollection::AddArray(&MInvM);
+		TArrayCollection::AddArray(&MLinearDamping);
+		TArrayCollection::AddArray(&MAngularDamping);
 		TArrayCollection::AddArray(&MCollisionParticles);
 		TArrayCollection::AddArray(&MCollisionGroup);
 		TArrayCollection::AddArray(&MDisabled);
@@ -77,6 +79,8 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		TArrayCollection::AddArray(&MInvI);
 		TArrayCollection::AddArray(&MM);
 		TArrayCollection::AddArray(&MInvM);
+		TArrayCollection::AddArray(&MLinearDamping);
+		TArrayCollection::AddArray(&MAngularDamping);
 		TArrayCollection::AddArray(&MCollisionParticles);
 		TArrayCollection::AddArray(&MCollisionGroup);
 		TArrayCollection::AddArray(&MDisabled);
@@ -112,7 +116,15 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	FORCEINLINE const T InvM(const int32 Index) const { return MInvM[Index]; }
 	FORCEINLINE T& InvM(const int32 Index) { return MInvM[Index]; }
 
+const T& LinearDamping(const int32 index) const { return MLinearDamping[index]; }
+	T& LinearDamping(const int32 index) { return MLinearDamping[index]; }
+
+	const T& AngularDamping(const int32 index) const { return MAngularDamping[index]; }
+	T& AngularDamping(const int32 index) { return MAngularDamping[index]; }
+
+	int32 CollisionParticlesSize(int32 Index) const { return MCollisionParticles[Index] == nullptr ? 0 : MCollisionParticles[Index]->Size(); }
 	FORCEINLINE int32 CollisionParticlesSize(int32 Index) const { return MCollisionParticles[Index] == nullptr ? 0 : MCollisionParticles[Index]->Size(); }
+
 	void CHAOS_API CollisionParticlesInitIfNeeded(const int32 Index);
 	void CHAOS_API SetCollisionParticles(const int32 Index, TParticles<T, d>&& Particles);
 	
@@ -158,6 +170,13 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	{
 		TKinematicGeometryParticles<T,d>::Serialize(Ar);
 		Ar << MF << MT << MExternalForce << MExternalTorque << MI << MInvI << MM << MInvM;
+
+		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddDampingToRigids)
+		{
+			Ar << MLinearDamping << MAngularDamping;
+		}
+
 		Ar << MCollisionParticles << MCollisionGroup << MIsland << MDisabled << MObjectState;
 	}
 
@@ -170,6 +189,8 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	TArrayCollectionArray<PMatrix<T, d, d>> MInvI;
 	TArrayCollectionArray<T> MM;
 	TArrayCollectionArray<T> MInvM;
+	TArrayCollectionArray<T> MLinearDamping;
+	TArrayCollectionArray<T> MAngularDamping;
 	TArrayCollectionArray<TUniquePtr<TBVHParticles<T, d>>> MCollisionParticles;
 	TArrayCollectionArray<int32> MCollisionGroup;
 	TArrayCollectionArray<int32> MIsland;
