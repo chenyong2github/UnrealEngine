@@ -1371,7 +1371,11 @@ void UNiagaraSystem::ResolveScalabilityOverrides()
 	ResolvedScalabilitySettings.Empty();
 
 	UNiagaraEffectType* ActualEffectType = GetEffectType();
-	int32 NumEffectTypeSettings = ActualEffectType ? ActualEffectType->GetScalabilitySettings().Num() : 0;
+	int32 NumEffectTypeSettings = 0;
+	if (ActualEffectType)
+	{
+		ActualEffectType->GetScalabilitySettings().Num();
+	}
 	int32 NumOverrides = ScalabilityOverrides.Num();
 
 	int32 ResolvedCount = FMath::Max(NumEffectTypeSettings, NumOverrides);
