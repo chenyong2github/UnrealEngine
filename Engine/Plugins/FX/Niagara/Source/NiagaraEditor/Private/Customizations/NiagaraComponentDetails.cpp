@@ -222,6 +222,8 @@ public:
 				TSharedPtr<SWidget> DefaultNameWidget;
 				TSharedPtr<SWidget> DefaultValueWidget;
 
+				Row->DisplayName(FText::FromName(Parameter.GetName()));
+
 				TSharedPtr<IPropertyHandle> PropertyHandle = Row->GetPropertyHandle();
 
 				FDetailWidgetRow& CustomWidget = Row->CustomWidget(true);
