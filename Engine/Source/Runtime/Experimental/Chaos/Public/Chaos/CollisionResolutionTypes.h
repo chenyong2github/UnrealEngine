@@ -46,7 +46,7 @@ namespace Chaos
 	{
 	public:
 		TCollisionContact(int32 InTimestamp = -INT_MAX, const FImplicitObject* InImplicit0 = nullptr, const FImplicitObject* InImplicit1 = nullptr)
-			: bDisabled(true), Timestamp(InTimestamp), Normal(0), Phi(FLT_MAX)
+			: bDisabled(true), Timestamp(InTimestamp), Normal(0), Location(0), Phi(FLT_MAX)
 		{
 			Implicit[0] = InImplicit0;
 			Implicit[1] = InImplicit1;
@@ -81,8 +81,8 @@ namespace Chaos
 			Plane         // TRigidBodyPlaneContactConstraint
 		};
 
-		TCollisionConstraintBase() : AccumulatedImpulse(0), Type(FType::None) {}
-		TCollisionConstraintBase(FType InType) : AccumulatedImpulse(0), Type(InType) {}
+		TCollisionConstraintBase() : AccumulatedImpulse(0), Type(FType::None) { Particle[0] = nullptr; Particle[1] = nullptr; }
+		TCollisionConstraintBase(FType InType) : AccumulatedImpulse(0), Type(InType) { Particle[0] = nullptr; Particle[1] = nullptr; }
 		FType GetType() const { return Type; }
 
 		template<class AS_T> AS_T * As() { return static_cast<AS_T*>(this); }
@@ -155,9 +155,8 @@ namespace Chaos
 		using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
 		using Base::Particle;
 
-		TRigidBodyPlaneContactConstraint() : Base(Base::FType::Plane) {}
+		TRigidBodyPlaneContactConstraint() : Base(Base::FType::Plane), PlaneNormal(0), PlanePosition(0) {}
 		static typename Base::FType StaticType() { return Base::FType::Plane; };
-
 
 		TVector<T, d> PlaneNormal;
 		TVector<T, d> PlanePosition;
@@ -244,47 +243,22 @@ namespace Chaos
 
 		TVector<T, d> GetContactLocation() const
 		{
-			if (ConstraintType == FConstraintBase::FType::SinglePoint)
-			{
-				return GetPointContact().GetLocation();
-			}
-			ensure(false);
-			return TVector<T, d>(0);
+			return GetContact().GetLocation();
 		}
 
 		TVector<T, d> GetAccumulatedImpulse() const
 		{
-			if (ConstraintType == FConstraintBase::FType::SinglePoint)
-			{
-				return GetPointContact().AccumulatedImpulse;
-			}
-			ensure(false);
-
-			return TVector<T, d>(0);
+			return GetContact().AccumulatedImpulse;
 		}
-
 
 		TVector<const TGeometryParticleHandle<T, d>*, 2> GetConstrainedParticles() const
 		{
-			if (ConstraintType == FConstraintBase::FType::SinglePoint)
-			{
-				const TRigidBodyPointContactConstraint<float, 3>& Contact = GetPointContact();
-				return { Contact.Particle[0], Contact.Particle[1] };
-			}
-			ensure(false);
-			return { nullptr,nullptr };
+			return { GetContact().Particle[0], GetContact().Particle[1] };
 		}
-
-
 
 		TVector<TGeometryParticleHandle<T, d>*, 2> GetConstrainedParticles()
 		{
-			if (ConstraintType == FConstraintBase::FType::SinglePoint)
-			{
-				return { GetPointContact().Particle[0], GetPointContact().Particle[1] };
-			}
-			ensure(false);
-			return { nullptr,nullptr };
+			return { GetContact().Particle[0], GetContact().Particle[1] };
 		}
 
 
