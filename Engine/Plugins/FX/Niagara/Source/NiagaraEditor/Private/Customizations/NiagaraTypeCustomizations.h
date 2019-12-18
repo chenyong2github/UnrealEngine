@@ -156,3 +156,36 @@ private:
 	struct FNiagaraUserParameterBinding* TargetUserParameterBinding;
 
 };
+
+
+/** The primary goal of this class is to search through type matched and defined Niagara variables 
+    in the UNiagaraScriptVariable customization panel to provide a default binding for module inputs. */
+class FNiagaraScriptVariableBindingCustomization : public IPropertyTypeCustomization
+{
+public:
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
+	{
+		return MakeShared<FNiagaraScriptVariableBindingCustomization>();
+	}
+
+	/** IPropertyTypeCustomization interface begin */
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override {};
+	/** IPropertyTypeCustomization interface end */
+private:
+   /** Helpers */
+	FText GetCurrentText() const;
+	FText GetTooltipText() const;
+	TSharedRef<SWidget> OnGetMenuContent() const;
+	TArray<FName> GetNames() const;
+	void ChangeSource(FName InVarName);
+	void CollectAllActions(FGraphActionListBuilderBase& OutAllActions);
+	TSharedRef<SWidget> OnCreateWidgetForAction(struct FCreateWidgetForActionData* const InCreateData);
+	void OnActionSelected(const TArray< TSharedPtr<FEdGraphSchemaAction> >& SelectedActions, ESelectInfo::Type InSelectionType);
+
+	/** State */
+	TSharedPtr<IPropertyHandle> PropertyHandle;
+	class UNiagaraGraph* BaseGraph;
+	class UNiagaraScriptVariable* BaseScriptVariable;
+	struct FNiagaraScriptVariableBinding* TargetVariableBinding;
+};
