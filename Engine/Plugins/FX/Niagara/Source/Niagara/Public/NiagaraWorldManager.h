@@ -7,6 +7,7 @@
 #include "Engine/EngineTypes.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Engine/World.h"
+#include "Particles/ParticlePerfStats.h"
 #include "NiagaraParameterCollection.h"
 #include "UObject/GCObject.h"
 #include "NiagaraDataSet.h"

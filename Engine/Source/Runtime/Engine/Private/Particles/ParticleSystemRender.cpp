@@ -6910,6 +6910,9 @@ FParticleSystemSceneProxy::FParticleSystemSceneProxy(const UParticleSystemCompon
 	, VisualizeLODIndex(Component->GetCurrentLODIndex())
 	, LastFramePreRendered(-1)
 	, FirstFreeMeshBatch(0)
+#if WITH_PARTICLE_PERF_STATS
+	, PerfAsset(Component->Template)
+#endif
 {
 	SetWireframeColor(FLinearColor(3.0f, 0.0f, 0.0f));
 	SetLevelColor(FLinearColor(1.0f, 1.0f, 0.0f));
@@ -6967,6 +6970,7 @@ void FParticleSystemSceneProxy::GetDynamicMeshElements(const TArray<const FScene
 
 	SCOPE_CYCLE_COUNTER(STAT_FParticleSystemSceneProxy_GetMeshElements);
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesOverview_RT);
+	PARTICLE_PERF_STAT_CYCLES(PerfAsset, GetDynamicMeshElements);
 
 	if ((GIsEditor == true) || (GbEnableGameThreadLODCalculation == false))
 	{
@@ -7100,6 +7104,7 @@ void FParticleSystemSceneProxy::UpdateData(FParticleDynamicData* NewDynamicData)
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(ParticleUpdate);
 			SCOPE_CYCLE_COUNTER(STAT_ParticleUpdateRTTime);
 			STAT(FScopeCycleCounter Context(Proxy->GetStatId());)
+				PARTICLE_PERF_STAT_CYCLES(Proxy->PerfAsset, RenderUpdate);
 			if (NewDynamicData)
 			{
 				for (int32 Index = 0; Index < NewDynamicData->DynamicEmitterDataArray.Num(); Index++)

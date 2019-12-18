@@ -10,6 +10,7 @@
 #include "NiagaraSystemInstance.h"
 #include "Scalability.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreDelegates.h"
 #include "NiagaraDataInterfaceSkeletalMesh.h"
 #include "GameFramework/PlayerController.h"
 #include "EngineModule.h"

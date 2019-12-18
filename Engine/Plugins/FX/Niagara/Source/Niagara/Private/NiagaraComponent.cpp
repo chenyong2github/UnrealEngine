@@ -114,6 +114,9 @@ FNiagaraSceneProxy::FNiagaraSceneProxy(const UNiagaraComponent* InComponent)
 		: FPrimitiveSceneProxy(InComponent, InComponent->GetAsset() ? InComponent->GetAsset()->GetFName() : FName())
 		, bRenderingEnabled(true)
 		, RuntimeCycleCount(nullptr)
+#if WITH_PARTICLE_PERF_STATS
+		, PerfAsset(InComponent->GetAsset())
+#endif
 {
 	// In this case only, update the System renderers on the game thread.
 	check(IsInGameThread());
@@ -1142,6 +1145,7 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 	LLM_SCOPE(ELLMTag::Niagara);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentSendRenderData);
+	PARTICLE_PERF_STAT_CYCLES(Asset, EndOfFrame);
 
 	Super::SendRenderDynamicData_Concurrent();
 
@@ -1206,9 +1210,10 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 #endif
 		
 		ENQUEUE_RENDER_COMMAND(NiagaraSetDynamicData)(
-			[NiagaraProxy, DynamicData = MoveTemp(NewDynamicData)](FRHICommandListImmediate& RHICmdList)
+			[NiagaraProxy, DynamicData = MoveTemp(NewDynamicData), PerfAsset=Asset](FRHICommandListImmediate& RHICmdList)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_NiagaraSetDynamicData);
+			PARTICLE_PERF_STAT_CYCLES(PerfAsset, RenderUpdate);
 
 			const TArray<FNiagaraRenderer*>& EmitterRenderers_RT = NiagaraProxy->GetEmitterRenderers();
 			for (int32 i = 0; i < EmitterRenderers_RT.Num(); ++i)

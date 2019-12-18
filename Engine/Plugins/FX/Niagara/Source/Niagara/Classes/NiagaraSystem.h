@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Particles/ParticleSystem.h"
+#include "Particles/ParticlePerfStats.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDataSet.h"
 #include "NiagaraEmitterInstance.h"
@@ -338,7 +339,6 @@ private:
 	void UpdatePostCompileDIInfo();
 
 protected:
-
 	UPROPERTY(EditAnywhere, Category = "System")
 	UNiagaraEffectType* EffectType;
 

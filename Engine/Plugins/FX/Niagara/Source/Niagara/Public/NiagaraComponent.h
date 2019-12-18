@@ -11,6 +11,7 @@
 #include "NiagaraUserRedirectionParameterStore.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraComponentPool.h"
+#include "Particles/ParticlePerfStats.h"
 
 #include "NiagaraComponent.generated.h"
 
@@ -647,6 +648,10 @@ private:
 
 #if STATS
 	TStatId SystemStatID;
+#endif
+#if WITH_PARTICLE_PERF_STATS
+public:
+	class UNiagaraSystem* PerfAsset;
 #endif
 };
 
