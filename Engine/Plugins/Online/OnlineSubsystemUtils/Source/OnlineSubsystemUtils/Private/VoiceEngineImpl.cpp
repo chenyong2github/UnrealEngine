@@ -120,12 +120,7 @@ FRemoteTalkerDataImpl::~FRemoteTalkerDataImpl()
 {
 	VoiceDecoder = nullptr;
 
-	CurrentUncompressedDataQueueSize = 0;
-
-	{
-		FScopeLock ScopeLock(&QueueLock);
-		UncompressedDataQueue.Empty();
-	}
+	Reset();
 }
 
 void FRemoteTalkerDataImpl::Reset()
@@ -139,7 +134,7 @@ void FRemoteTalkerDataImpl::Reset()
 		VoipSynthComponent->Stop();
 
 		UAudioComponent* AudioComponent = VoipSynthComponent->GetAudioComponent();
-		if (AudioComponent->IsRegistered())
+		if (AudioComponent && AudioComponent->IsRegistered())
 		{
 			AudioComponent->UnregisterComponent();
 		}
