@@ -68,7 +68,14 @@ public:
 
 	virtual ~TPBDCollisionConstraints() {}
 
-
+	/**
+	*  Add the constraint to the container. 
+	*
+	*  @todo(chaos) : Update to use a custom allocator. 
+	*  The InConstraint should be a point to unmanaged, raw memory. 
+	*  This function will make a deep copy of the constraint and 
+	*  then delete the InConstraint. 
+	*/
 	void AddConstraint(FConstraintBase* InConstraint);
 
 	/**

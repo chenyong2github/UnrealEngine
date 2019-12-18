@@ -107,6 +107,8 @@ namespace Chaos
 	template<typename T, int d>
 	void TPBDCollisionConstraints<T, d>::AddConstraint(FConstraintBase* ConstraintBase)
 	{
+		// WARNING : ConstraintBase is about to be deleted!
+
 		FConstraintContainerHandle* Handle = nullptr;
 
 		if (ConstraintBase->GetType() == TRigidBodyPointContactConstraint<T, 3>::StaticType())
@@ -131,6 +133,7 @@ namespace Chaos
 		check(Handle != nullptr);
 		Handles.Add(Handle);
 		Manifolds.Add(Handle->GetKey(), Handle);
+		Handle->GetContact().Timestamp = LifespanCounter;
 	}
 
 	template<typename T, int d>
@@ -147,11 +150,11 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_Reset);
 
 		TArray<FConstraintContainerHandle*> CopyOfHandles = Handles;
-		int LifespanWindow = LifespanCounter + 5;
 
+		int32 LifespanWindow = LifespanCounter - 1;
 		for (FConstraintContainerHandle* ContactHandle : CopyOfHandles)
 		{
-			//if (!bEnableCollisions && ContactHandle->GetContact().Timestamp<LifespanWindow)
+			if (!bEnableCollisions || ContactHandle->GetContact().Timestamp< LifespanWindow)
 			{
 				RemoveConstraint(ContactHandle);
 			}
@@ -253,6 +256,10 @@ namespace Chaos
 			check(ConstraintHandle != nullptr);
 			Collisions::Update<ECollisionUpdateType::Deepest, float, 3>(MThickness, ConstraintHandle->GetContact());
 
+			if (ConstraintHandle->GetContact().GetPhi() < MThickness) 
+			{
+				ConstraintHandle->GetContact().Timestamp = LifespanCounter;
+			}
 		}, bDisableCollisionParallelFor);
 	}
 

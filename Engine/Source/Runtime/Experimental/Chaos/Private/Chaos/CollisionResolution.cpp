@@ -565,24 +565,23 @@ namespace Chaos
 		{
 			TContactPoint<T> ContactPoint = ConvexConvexContactPoint(Implicit0, Transform0, Implicit1, Transform1, Thickness);
 
-#ifdef USE_CONTACT_MANIFOLD
+			/*
 			if (ContactPoint.Phi < Thickness)
-			{asdf
+			{
 				ContactPoint.Location = Constraint.PlanePosition + Constraint.PlaneNormal * ContactPoint.Phi;
-			}
-#endif
+			}/**/
 			UpdateContactPoint(Constraint.Manifold, ContactPoint);
 		}
 
 		template<class T, int d>
 		void UpdateConvexConvexManifold(TRigidBodyPlaneContactConstraint<T, d>& Constraint, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T Thickness)
 		{
-#ifdef USE_CONTACT_MANIFOLD
 
 			const FImplicitObject& Implicit0 = *Constraint.Manifold.Implicit[0];
 			const FImplicitObject& Implicit1 = *Constraint.Manifold.Implicit[1];
 			TContactPoint<T> ContactPoint = ConvexConvexContactPoint(Implicit0, Transform0, Implicit1, Transform1, Thickness);
 
+			/*
 			if (ContactPoint.Phi < Thickness)
 			{
 				FRigidBodyPlaneContactConstraint::FManifold& Manifold = Constraint.Manifold;
@@ -602,8 +601,8 @@ namespace Chaos
 
 				ContactPoint.Location = Constraint.PlanePosition;
 				ContactPoint.Normal = Constraint.PlaneNormal;
-			}
-#endif
+			}/**/
+
 		}
 
 
