@@ -207,6 +207,7 @@ public:
 				this->ScrollBar->SetDragFocusCause(InArgs._ScrollbarDragFocusCause);
 				this->ScrollBar->SetUserVisibility(InArgs._ScrollbarVisibility);
 			}
+			this->AddMetadata(MakeShared<TTableViewMetadata<ItemType>>(SharedThis(this)));
 		}
 	}
 
