@@ -647,14 +647,14 @@ FBox FPhysInterface_Chaos::GetBounds_AssumesLocked(const FPhysicsActorHandle& In
     return FBox(FVector(-0.5), FVector(0.5));
 }
 
-void FPhysInterface_Chaos::SetLinearDamping_AssumesLocked(const FPhysicsActorHandle& InActorReference, float InDamping)
+void FPhysInterface_Chaos::SetLinearDamping_AssumesLocked(const FPhysicsActorHandle& InActorReference, float InDrag)
 {
 	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
 	{
 		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
 		if (ensure(Rigid))
 		{
-			Rigid->SetLinearDamping(InDamping);
+			Rigid->SetLinearEtherDrag(InDrag);
 		}
 	}
 }
@@ -666,7 +666,7 @@ void FPhysInterface_Chaos::SetAngularDamping_AssumesLocked(const FPhysicsActorHa
 		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
 		if (ensure(Rigid))
 		{
-			Rigid->SetAngularDamping(InDamping);
+			Rigid->SetAngularEtherDrag(InDamping);
 		}
 	}
 }
