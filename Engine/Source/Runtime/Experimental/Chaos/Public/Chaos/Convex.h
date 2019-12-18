@@ -147,7 +147,7 @@ namespace Chaos
 			// For convexes, this function must be called with a face index.
 			// If this ensure is getting hit, fix the caller so that it
 			// passes in a valid face index.
-			if (ensure(FaceIndex != INDEX_NONE))
+			if (CHAOS_ENSURE(FaceIndex != INDEX_NONE))
 			{
 				const TPlane<FReal, 3>& OpposingFace = GetFaces()[FaceIndex];
 				return OpposingFace.Normal();

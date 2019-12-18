@@ -26,7 +26,7 @@ namespace Chaos
 				}
 			}
 		}
-		ensure(MostOpposingIdx != INDEX_NONE);
+		CHAOS_ENSURE(MostOpposingIdx != INDEX_NONE);
 		return MostOpposingIdx;
 	}
 }
