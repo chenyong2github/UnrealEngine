@@ -6,7 +6,6 @@
 #include "Containers/Union.h"
 #include "Physics/PhysicsInterfaceTypes.h"
 #include "PhysicsInterfaceUtilsCore.h"
-#include "PhysicsEngine/ConstraintInstance.h"
 
 class FPhysScene_PhysX;
 
