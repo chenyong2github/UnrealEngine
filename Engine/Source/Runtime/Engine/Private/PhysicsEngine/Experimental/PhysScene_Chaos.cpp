@@ -1110,11 +1110,11 @@ void FPhysScene_ChaosInterface::AddForceAtPosition_AssumesLocked(FBodyInstance* 
 			{
 				const Chaos::FVec3& CurrentForce = Rigid->ExternalForce();
 				const Chaos::FVec3& CurrentTorque = Rigid->ExternalTorque();
-				const Chaos::FVec3& CurrentPosition = Rigid->X();
-				const Chaos::FVec3 WorldCOM = Rigid->X(); // TODO: Remember to fix this once we add COM to particles!
+				const Chaos::FVec3 WorldCOM = FParticleUtilitiesGT::GetCoMWorldPosition(Rigid);
+
 				if (bIsLocalForce)
 				{
-					const Chaos::FRigidTransform3 CurrentTransform(Rigid->X(), Rigid->R());
+					const Chaos::FRigidTransform3 CurrentTransform = FParticleUtilitiesGT::GetActorWorldTransform(Rigid);
 					const Chaos::FVec3 WorldPosition = CurrentTransform.TransformPosition(Position);
 					const Chaos::FVec3 WorldForce = CurrentTransform.TransformVector(Force);
 					const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(WorldPosition - WorldCOM, WorldForce);

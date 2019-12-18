@@ -29,7 +29,7 @@
 #include "Chaos/GeometryQueries.h"
 #include "Chaos/Plane.h"
 #include "ChaosCheck.h"
-
+#include "Chaos/Particle/ParticleUtilities.h"
 #include "Async/ParallelFor.h"
 #include "Components/PrimitiveComponent.h"
 #include "Physics/PhysicsFiltering.h"
@@ -552,7 +552,7 @@ FVector FPhysInterface_Chaos::GetWorldVelocityAtPoint_AssumesLocked(const FPhysi
 		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle();
 		if (ensure(Kinematic))
 		{
-			const Chaos::FVec3 COM = Kinematic->X(); // TODO: Fix once we have separate COM
+			const Chaos::FVec3 COM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(Kinematic);
 			const Chaos::FVec3 Diff = InPoint - COM;
 			return Kinematic->V() + Chaos::FVec3::CrossProduct(Diff, Kinematic->W());
 		}
@@ -562,14 +562,11 @@ FVector FPhysInterface_Chaos::GetWorldVelocityAtPoint_AssumesLocked(const FPhysi
 
 FTransform FPhysInterface_Chaos::GetComTransform_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	// NOTE: This might need to change after we add separate COM transforms.
 	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
 	{
-		if (Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle())
+		if (const Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle())
 		{
-			const FTransform WorldTransform(Kinematic->R(), Kinematic->X());
-			const FTransform COMTransform = FTransform(Kinematic->RotationOfMass(), Kinematic->CenterOfMass());
-			return WorldTransform * COMTransform;
+			return Chaos::FParticleUtilitiesGT::GetCoMWorldTransform(Kinematic);
 		}
 	}
 	return FTransform();
@@ -577,7 +574,6 @@ FTransform FPhysInterface_Chaos::GetComTransform_AssumesLocked(const FPhysicsAct
 
 FTransform FPhysInterface_Chaos::GetComTransformLocal_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	// #todo : Implement
 	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
 	{
 		if (Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = InActorReference->CastToKinematicParticle())
