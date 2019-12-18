@@ -6,6 +6,7 @@
 #include "Chaos/Box.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/EPA.h"
+#include "ChaosCheck.h"
 
 namespace Chaos
 {
