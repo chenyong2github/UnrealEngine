@@ -58,8 +58,10 @@ static FAutoConsoleVariableRef CVarBindAutomatically(TEXT("mns.BindAutomatically
 // ============================================================================================
 
 static bool ForceMispredict = false;
-
 const FName FMockNetworkModelDef::GroupName(TEXT("Mock"));
+
+NETSIMCUE_REGISTER(FMockCue, TEXT("MockCue"));
+NETSIMCUESET_REGISTER(UMockNetworkSimulationComponent, FMockCueSet);
 
 void FMockNetworkSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<TMockNetworkSimulationBufferTypes>& Input, const TNetSimOutput<TMockNetworkSimulationBufferTypes>& Output)
 {
@@ -73,6 +75,13 @@ void FMockNetworkSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, con
 		UE_LOG(LogMockNetworkSim, Warning, TEXT("ForcingMispredict via CVar. Fudge=%.2f. NewTotal: %.2f"), Fudge, Output.Sync.Total);
 		
 		ForceMispredict = false;
+	}
+	
+	if ((int32)(Input.Sync.Total/10.f) < (int32)(Output.Sync.Total/10.f))
+	{
+		// Emit a cue for crossing this threshold. Note this could mostly be accomplished with a state transition (by detecting this in FinalizeFrame)
+		// But to illustrate Cues, we are adding a random number to the cue's payload. The point being cues can transmit data that is not part of the sync/aux state.
+		Output.CueDispatch.Invoke<FMockCue>( FMath::Rand() % 1024 );
 	}
 }
 
@@ -120,6 +129,8 @@ INetworkedSimulationModel* UMockNetworkSimulationComponent::InstantiateNetworked
 
 void UMockNetworkSimulationComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
 	const ENetRole OwnerRole = GetOwnerRole();
 
 	// Check if we should trip a mispredict. (Note how its not possible to do this inside the Update function!)
@@ -169,6 +180,11 @@ void UMockNetworkSimulationComponent::VisualLog(const FMockInputCmd* Input, cons
 	LocalParameters.DebugString += FString::Printf(TEXT(" [%d] Total: %.4f"), SystemParameters.Frame, Sync->Total);
 
 	FVisualLoggingHelpers::VisualLogActor(Owner, Transform, LocalParameters);
+}
+
+void UMockNetworkSimulationComponent::HandleCue(const FMockCue& MockCue, const FNetSimCueSystemParamemters& SystemParameters)
+{
+	UE_LOG(LogMockNetworkSim, Display, TEXT("MockCue Handled! Value: %d"), MockCue.RandomData);
 }
 
 // ------------------------------------------------------------------------------------------------------------------------
