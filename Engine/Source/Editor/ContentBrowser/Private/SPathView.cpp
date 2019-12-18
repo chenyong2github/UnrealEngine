@@ -24,6 +24,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "NativeClassHierarchy.h"
 #include "EmptyFolderVisibilityManager.h"
+#include "ContentBrowserModule.h"
 
 #include "Application/SlateApplicationBase.h"
 
@@ -73,6 +74,8 @@ void SPathView::Construct( const FArguments& InArgs )
 	{
 		RegisterActiveTimer( 0.f, FWidgetActiveTimerDelegate::CreateSP( this, &SPathView::SetFocusPostConstruct ) );
 	}
+
+	ContentBrowserSingleton = &FContentBrowserSingleton::Get();
 
 	// Listen for when view settings are changed
 	UContentBrowserSettings::OnSettingChanged().AddSP(this, &SPathView::HandleSettingChanged);
@@ -332,6 +335,11 @@ TSharedPtr<FTreeItem> SPathView::AddPath(const FString& Path, bool bUserNamed)
 	if ( !ensure(TreeViewPtr.IsValid()) )
 	{
 		// No tree view for some reason
+		return TSharedPtr<FTreeItem>();
+	}
+
+	if (!ContentBrowserSingleton->PathViewPathPassesFilter(Path))
+	{
 		return TSharedPtr<FTreeItem>();
 	}
 
@@ -1852,6 +1860,11 @@ TSharedPtr<FTreeItem> SFavoritePathView::AddPath(const FString& Path, bool bUser
 	if (!ensure(TreeViewPtr.IsValid()))
 	{
 		// No tree view for some reason
+		return TSharedPtr<FTreeItem>();
+	}
+
+	if (!ContentBrowserSingleton->PathViewPathPassesFilter(Path))
+	{
 		return TSharedPtr<FTreeItem>();
 	}
 

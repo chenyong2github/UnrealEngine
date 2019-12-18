@@ -19,6 +19,7 @@
 class FSourcesSearch;
 struct FHistoryData;
 struct FTreeItem;
+class FContentBrowserSingleton;
 
 typedef TTextFilter< const FString& > FolderTextFilter;
 
@@ -325,6 +326,9 @@ protected:
 	TArray<FString> PendingInitialPaths;
 
 	TSharedPtr<SWidget> PathViewWidget;
+
+	/** Cached pointer to content browser singleton */
+	FContentBrowserSingleton* ContentBrowserSingleton;
 
 private:
 

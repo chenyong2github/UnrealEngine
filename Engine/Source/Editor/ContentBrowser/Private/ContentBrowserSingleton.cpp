@@ -721,6 +721,20 @@ void FContentBrowserSingleton::ForceShowPluginContent(bool bEnginePlugin)
 	}
 }
 
+bool FContentBrowserSingleton::PathViewPathPassesFilter(const FString& InPath) const
+{
+	static FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+	for (const auto& It : ContentBrowserModule.GetDirectoryPathFilteredDelegates())
+	{
+		if (It.IsBound() && It.Execute(InPath))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 void FContentBrowserSingleton::PopulateConfigValues()
 {
 	const FString ContentBrowserSection = TEXT("ContentBrowser");
