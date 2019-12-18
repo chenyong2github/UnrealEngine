@@ -65,6 +65,7 @@ public:
 	UPROPERTY(EditAnywhere, Config, Meta = (DisplayName = "Cascade shadow mapping quality"), Category = "Quality")
 	EMobileCSMQuality MobileCSMQuality;
 
+	MATERIALSHADERQUALITYSETTINGS_API bool CanOverride(enum EShaderPlatform ShaderPlatform) const;
 	bool HasAnyOverridesSet() const;
 };
 

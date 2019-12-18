@@ -3608,15 +3608,19 @@ void UMaterial::GetQualityLevelUsage(TArray<bool, TInlineAllocator<EMaterialQual
 
 	if (ShaderPlatform != SP_NumPlatforms)
 	{
-		// OR in the quality overrides if we're a valid shader platform
 		const UShaderPlatformQualitySettings* MaterialQualitySettings = UMaterialShaderQualitySettings::Get()->GetShaderPlatformQualitySettings(ShaderPlatform);
-		OutQualityLevelsUsed[EMaterialQualityLevel::Low] |= MaterialQualitySettings->GetQualityOverrides(EMaterialQualityLevel::Low).bEnableOverride;
-		OutQualityLevelsUsed[EMaterialQualityLevel::Medium] |= MaterialQualitySettings->GetQualityOverrides(EMaterialQualityLevel::Medium).bEnableOverride;
 
+		// OR in the quality overrides if possible on this shader platform, then
 		// AND in the quality allowances
 		bool bAnyQualityEnabled = false;
 		for (int32 Quality = 0; Quality < EMaterialQualityLevel::Num; ++Quality)
 		{
+			const FMaterialQualityOverrides& QualityOverrides = MaterialQualitySettings->GetQualityOverrides((EMaterialQualityLevel::Type)Quality);			
+			if (Quality != EMaterialQualityLevel::High && QualityOverrides.CanOverride(ShaderPlatform))
+			{
+				OutQualityLevelsUsed[Quality] |= QualityOverrides.bEnableOverride;
+			}
+
 			OutQualityLevelsUsed[Quality] &= !MaterialQualitySettings->GetQualityOverrides((EMaterialQualityLevel::Type)Quality).bDiscardQualityDuringCook;
 			bAnyQualityEnabled |= OutQualityLevelsUsed[Quality];
 		}
