@@ -1174,17 +1174,17 @@ void FBulkDataBase::FreeData()
 }
 
 FString FBulkDataBase::ConvertFilenameFromFlags(const FString& Filename) const
-{
-	if (!IsInSeperateFile())
-	{
-		return Filename;
-	}
-	else if (IsOptional())
+{	
+	if (IsOptional())
 	{
 		// Optional data should be tested for first as we in theory can have data that would
 		// be marked as inline, also marked as optional and in this case we should treat it as
 		// optional data first.
 		return FPaths::ChangeExtension(Filename, OptionalExt);
+	}
+	else if (!IsInSeperateFile())
+	{
+		return Filename;
 	}
 	else if (IsInlined())
 	{
