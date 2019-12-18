@@ -533,6 +533,18 @@ bool UMediaPlayer::Play()
 	return PlayerFacade->SetRate(1.0f);
 }
 
+void UMediaPlayer::PlayAndSeek()
+{
+	PlayOnNext = false;
+	if (Play())
+	{
+		if (PlayerFacade->ActivePlayerOptions.IsSet() && !PlayerFacade->ActivePlayerOptions->SeekTime.IsZero() && SupportsSeeking())
+		{
+			Seek(PlayerFacade->ActivePlayerOptions->SeekTime);
+		}
+	}
+}
+
 
 bool UMediaPlayer::Previous()
 {
@@ -891,14 +903,7 @@ void UMediaPlayer::HandlePlayerMediaEvent(EMediaEvent Event)
 
 		if (bPlayOnOpen)
 		{
-			PlayOnNext = false;
-			if (Play())
-			{
-				if (PlayerFacade->ActivePlayerOptions.IsSet() && !PlayerFacade->ActivePlayerOptions->SeekTime.IsZero() && SupportsSeeking())
-				{
-					Seek(PlayerFacade->ActivePlayerOptions->SeekTime);
-				}
-			}
+			PlayAndSeek();
 		}
 		break;
 

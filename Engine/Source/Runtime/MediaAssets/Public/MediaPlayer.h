@@ -646,6 +646,12 @@ public:
 	bool Play();
 
 	/**
+	 * Starts playback from the media opened event, but can be used elsewhere.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
+	void PlayAndSeek();
+
+	/**
 	 * Open the previous item in the current play list.
 	 *
 	 * The player will start playing the new media source if it was playing
