@@ -20,7 +20,7 @@ COREUOBJECT_API FUObjectAllocator GUObjectAllocator;
 void FUObjectAllocator::AllocatePermanentObjectPool(int32 InPermanentObjectPoolSize)
 {
 	PermanentObjectPoolSize	= InPermanentObjectPoolSize;
-	PermanentObjectPool		= (uint8*) FMemory::Malloc( PermanentObjectPoolSize );
+	PermanentObjectPool		= (uint8*) FMemory::MallocPersistentAuxiliary( PermanentObjectPoolSize );
 	PermanentObjectPoolTail	= PermanentObjectPool;
 	PermanentObjectPoolExceededTail = PermanentObjectPoolTail;
 }
