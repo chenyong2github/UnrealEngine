@@ -1,7 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraOverviewStack.h"
+#include "NiagaraSystem.h"
 #include "NiagaraSystemEditorData.h"
+#include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
@@ -64,7 +66,16 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 			BackgroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.SystemOverview.Group.BackgroundColor");
 			ContentPadding = FMargin(0, 5, 0, 5);
 		}
+
 		DisabledBackgroundColor = BackgroundColor + FLinearColor(.02f, .02f, .02f, 0.0f);
+		IsolatedBackgroundColor = BackgroundColor - FLinearColor(.03f, .03f, .03f, 0.0f);
+
+		TSharedRef<FNiagaraSystemViewModel> SystemViewModel = StackEntry->GetSystemViewModel();
+		TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel = StackEntry->GetEmitterViewModel();
+		if (EmitterViewModel.IsValid())
+		{
+			EmitterHandleViewModel = SystemViewModel->GetEmitterHandleViewModelForEmitter(EmitterViewModel->GetEmitter());
+		}
 
 		STableRow<UNiagaraStackEntry*>::Construct(STableRow<UNiagaraStackEntry*>::FArguments()
 			.Style(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.SystemOverview.TableViewRow")
@@ -78,7 +89,7 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 			[
 				SNew(SBorder)
 				.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
-				.BorderBackgroundColor(this, &SNiagaraSystemOverviewEntryListRow::GetBackgroundColor, StackEntry)
+				.BorderBackgroundColor(this, &SNiagaraSystemOverviewEntryListRow::GetBackgroundColor)
 				.ToolTipText_UObject(StackEntry, &UNiagaraStackEntry::GetTooltipText)
 				.Padding(FMargin(0))
 				[
@@ -139,9 +150,19 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 	}
 
 private:
-	FSlateColor GetBackgroundColor(UNiagaraStackEntry* Entry) const
+	FSlateColor GetBackgroundColor() const
 	{
-		return Entry->GetIsEnabled() && Entry->GetOwnerIsEnabled() ? BackgroundColor : DisabledBackgroundColor;
+		TSharedRef<FNiagaraSystemViewModel> SystemViewModel = StackEntry->GetSystemViewModel();
+		if (SystemViewModel->GetSystem().GetIsolateEnabled())
+		{
+			TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModelPtr = EmitterHandleViewModel.Pin();
+			if (EmitterHandleViewModelPtr.IsValid() && !EmitterHandleViewModelPtr->GetIsIsolated())
+			{
+				return IsolatedBackgroundColor;
+			}
+		}
+
+		return StackEntry->GetIsEnabledAndOwnerIsEnabled() ? BackgroundColor : DisabledBackgroundColor;
 	}
 
 	FMargin GetInnerContentPadding() const
@@ -161,7 +182,9 @@ private:
 	UNiagaraStackEntry* StackEntry;
 	FLinearColor BackgroundColor;
 	FLinearColor DisabledBackgroundColor;
+	FLinearColor IsolatedBackgroundColor;
 	TAttribute<EVisibility> IssueIconVisibility;
+	TWeakPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel;
 };
 
 class SNiagaraSystemOverviewEnabledCheckBox : public SCompoundWidget

@@ -28,6 +28,11 @@ private:
 	ECheckBoxState GetEnabledCheckState() const;
 	void OnEnabledCheckStateChanged(ECheckBoxState InCheckState);
 
+	FText GetToggleIsolateToolTip() const;
+	FReply OnToggleIsolateButtonClicked();
+	EVisibility GetToggleIsolateVisibility() const;
+	FSlateColor GetToggleIsolateImageColor() const;
+
 private:
 	UNiagaraOverviewNode* OverviewStackNode;
 	UNiagaraStackViewModel* StackViewModel;
