@@ -110,7 +110,7 @@ struct FFrameCaptureViewExtension : public FSceneViewExtensionBase
 				: FinalPostProcessSettings(InFinalPostProcessSettings), RenderPasses(InRenderPasses)
 			{}
 
-			void ProcessValue(const FString& InName, UMaterial* Material, const FText& InText)
+			void ProcessValue(const FString& InName, UMaterialInterface* Material, const FText& InText)
 			{
 				if (!RenderPasses.Num() || RenderPasses.Contains(InName) || RenderPasses.Contains(InText.ToString()))
 				{

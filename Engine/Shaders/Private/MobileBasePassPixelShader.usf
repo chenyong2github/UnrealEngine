@@ -9,6 +9,18 @@
 // Reroute MobileSceneTextures uniform buffer references to the base pass uniform buffer
 #define MobileSceneTextures MobileBasePass.SceneTextures
 
+#ifndef MOBILE_QL_FORCE_DISABLE_PREINTEGRATEDGF
+#define MOBILE_QL_FORCE_DISABLE_PREINTEGRATEDGF 0
+#endif
+
+#define FORWARDSHADING_USE_HQ_ENV_BRDF (MATERIAL_USE_PREINTEGRATED_GF && !MOBILE_QL_FORCE_DISABLE_PREINTEGRATEDGF)
+
+//use preintegrated GF lut for simple IBL
+#if FORWARDSHADING_USE_HQ_ENV_BRDF
+#define PreIntegratedGF			MobileBasePass.PreIntegratedGFTexture
+#define PreIntegratedGFSampler	MobileBasePass.PreIntegratedGFSampler
+#endif
+
 #include "SHCommon.ush"
 #include "MobileBasePassCommon.ush"
 #include "/Engine/Generated/Material.ush"
@@ -463,7 +475,11 @@ void Main(
 	// so this define is safe.
 	SpecularColor = EnvBRDFApproxNonmetal( Roughness, NoV );
 #else
+#if FORWARDSHADING_USE_HQ_ENV_BRDF
+	SpecularColor = EnvBRDF(SpecularColor, Roughness, NoV);
+#else
 	SpecularColor = EnvBRDFApprox( SpecularColor, Roughness, NoV );
+#endif
 #endif
 #endif
 
@@ -634,7 +650,7 @@ void Main(
 		#if ENABLE_SKY_LIGHT
 			//@mw todo
 			// TODO: Also need to do specular.
-#if MATERIAL_TWO_SIDED && LQ_TEXTURE_LIGHTMAP
+#if MATERIAL_TWOSIDED && LQ_TEXTURE_LIGHTMAP
 			if (NoL == 0)
 			{
 #endif
@@ -644,7 +660,7 @@ void Main(
 			WaterDiffuseIndirectLuminance += SkyDiffuseLighting;
 		#endif
 			Color += SkyDiffuseLighting * half3(ResolvedView.SkyLightColor.rgb) * DiffuseColor * MaterialAO;
-#if MATERIAL_TWO_SIDED && LQ_TEXTURE_LIGHTMAP
+#if MATERIAL_TWOSIDED && LQ_TEXTURE_LIGHTMAP
 			
 			}
 #endif
@@ -717,10 +733,10 @@ void Main(
 
 #if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	{
-		const bool CameraIsUnderWater = false;												// Fade out the material contribution over to water contribution according to material opacity.
+		const bool CameraIsUnderWater = false;	// Fade out the material contribution over to water contribution according to material opacity.
 		const float3 SunIlluminance = ResolvedView.DirectionalLightColor.rgb * PI;			// times PI because it is divided by PI on CPU (=luminance) and we want illuminance here. 
 		const float3 WaterDiffuseIndirectIlluminance = WaterDiffuseIndirectLuminance * PI;	// DiffuseIndirectLighting is luminance. So we need to multiply by PI to get illuminance.
-		const float3 EnvBrdf = SpecularColor;												// SpecularColor is not F0 as in BasePassPixelShader, it is EnvBRDF.
+		const float3 EnvBrdf = SpecularColor; // SpecularColor is not F0 as in BasePassPixelShader, it is EnvBRDF.
 		const uint EyeIndex = 0;
 
 		const float4 NullDistortionParams = 1.0f;

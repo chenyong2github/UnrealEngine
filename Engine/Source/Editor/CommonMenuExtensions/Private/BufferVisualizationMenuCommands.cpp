@@ -16,7 +16,7 @@ namespace
 {
 	struct FMaterialIteratorWithLambda
 	{
-		typedef TFunction<void(const FString&, const UMaterial*, const FText&)> LambdaFunctionType;
+		typedef TFunction<void(const FString&, const UMaterialInterface*, const FText&)> LambdaFunctionType;
 		LambdaFunctionType Lambda;
 
 		inline FMaterialIteratorWithLambda(const LambdaFunctionType& InLambda)
@@ -24,7 +24,7 @@ namespace
 		{
 		}
 
-		inline void ProcessValue(const FString& InMaterialName, const UMaterial* InMaterial, const FText& InDisplayName)
+		inline void ProcessValue(const FString& InMaterialName, const UMaterialInterface* InMaterial, const FText& InDisplayName)
 		{
 			Lambda(InMaterialName, InMaterial, InDisplayName);
 		}
@@ -74,7 +74,7 @@ void FBufferVisualizationMenuCommands::CreateOverviewCommand()
 
 void FBufferVisualizationMenuCommands::CreateVisualizationCommands()
 {
-	FMaterialIteratorWithLambda Iterator([this](const FString& InMaterialName, const UMaterial* InMaterial, const FText& InDisplayName)
+	FMaterialIteratorWithLambda Iterator([this](const FString& InMaterialName, const UMaterialInterface* InMaterial, const FText& InDisplayName)
 	{
 		const FName CommandName = NameFromMaterial(InMaterialName);
 
@@ -115,7 +115,7 @@ void FBufferVisualizationMenuCommands::AddVisualizationCommandsToMenu(FMenuBuild
 
 	const TBufferVisualizationModeCommandMap& Commands = CommandMap;
 
-	FMaterialIteratorWithLambda Iterator([&Menu, &Commands](const FString& InMaterialName, const UMaterial* InMaterial, const FText& InDisplayName)
+	FMaterialIteratorWithLambda Iterator([&Menu, &Commands](const FString& InMaterialName, const UMaterialInterface* InMaterial, const FText& InDisplayName)
 	{
 		const FName CommandName = NameFromMaterial(InMaterialName);
 

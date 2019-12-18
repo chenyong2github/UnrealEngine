@@ -574,7 +574,8 @@ FPostProcessMaterialChain GetPostProcessMaterialChain(const FViewInfo& View, EBl
 
 	if (ViewFamily.EngineShowFlags.VisualizeBuffer)
 	{
-		UMaterial* Material = GetBufferVisualizationData().GetMaterial(View.CurrentBufferVisualizationMode);
+		UMaterialInterface* VisMaterial = GetBufferVisualizationData().GetMaterial(View.CurrentBufferVisualizationMode);
+		UMaterial* Material = VisMaterial ? VisMaterial->GetMaterial() : nullptr;
 
 		if (Material && Material->BlendableLocation == Location)
 		{

@@ -39,7 +39,7 @@ void FBufferVisualizationData::Initialize()
 					FString MaterialName;
 					if( FParse::Value( *It.Value().GetValue(), TEXT("Material="), MaterialName, true ) )
 					{
-						UMaterial* Material = LoadObject<UMaterial>(NULL, *MaterialName);
+						UMaterialInterface* Material = LoadObject<UMaterialInterface>(NULL, *MaterialName);
 			
 						if (Material)
 						{
@@ -73,7 +73,7 @@ void FBufferVisualizationData::ConfigureConsoleCommand()
 		{
 		}
 
-		void ProcessValue(const FString& InMaterialName, const UMaterial* InMaterial, const FText& InDisplayName)
+		void ProcessValue(const FString& InMaterialName, const UMaterialInterface* InMaterial, const FText& InDisplayName)
 		{
 			Message += FString(TEXT("\n  "));
 			Message += InMaterialName;
@@ -102,7 +102,7 @@ void FBufferVisualizationData::ConfigureConsoleCommand()
 		ECVF_Default);
 }
 
-UMaterial* FBufferVisualizationData::GetMaterial(FName InMaterialName)
+UMaterialInterface* FBufferVisualizationData::GetMaterial(FName InMaterialName)
 {
 	Record* Result = MaterialMap.Find(InMaterialName);
 	if (Result)
@@ -125,7 +125,7 @@ bool FBufferVisualizationData::IsDifferentToCurrentOverviewMaterialNames(const F
 	return InNameList != CurrentOverviewMaterialNames;
 }
 
-TArray<UMaterial*>& FBufferVisualizationData::GetOverviewMaterials()
+TArray<UMaterialInterface*>& FBufferVisualizationData::GetOverviewMaterials()
 {
 	return OverviewMaterials;
 }

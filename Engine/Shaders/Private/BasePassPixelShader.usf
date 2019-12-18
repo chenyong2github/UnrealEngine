@@ -14,7 +14,8 @@
 	#define EyeAdaptationStruct OpaqueBasePass
 #endif
 
-#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+// Material setting to allow forward shading (including mobile) to use preintegrated GF lut for simple IBL.
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER || (FORWARD_SHADING && MATERIAL_USE_PREINTEGRATED_GF)
 #define PreIntegratedGF			OpaqueBasePass.PreIntegratedGFTexture
 #if SUPPORTS_INDEPENDENT_SAMPLERS
 #define PreIntegratedGFSampler	View.SharedBilinearClampedSampler

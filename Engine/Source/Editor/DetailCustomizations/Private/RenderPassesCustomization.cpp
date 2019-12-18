@@ -83,7 +83,7 @@ public:
 
 			FIterator(TMap<FString, FText>& InRenderPasses) : RenderPasses(InRenderPasses) {}
 
-			void ProcessValue(const FString& InName, UMaterial* Material, const FText& InText)
+			void ProcessValue(const FString& InName, UMaterialInterface* Material, const FText& InText)
 			{
 				RenderPasses.Add(InName, InText);
 			}
