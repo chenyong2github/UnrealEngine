@@ -25,7 +25,7 @@ struct CHAOS_API FQueryFastData
 	FReal CurrentLength;
 	FReal InvCurrentLength;
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 	#pragma warning (push)
 	#pragma warning(disable:4723)
 #endif
@@ -42,7 +42,7 @@ struct CHAOS_API FQueryFastData
 		}
 	}
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 	#pragma warning(pop)
 #endif
 
