@@ -5,6 +5,7 @@
 #include "Chaos/Core.h"
 #include "Chaos/Vector.h"
 #include "Chaos/Matrix.h"
+#include "Chaos/Utilities.h"
 
 namespace Chaos
 {
@@ -37,6 +38,11 @@ namespace Chaos
 			return FMassMatrix(InM, MoveTemp(InI));
 		}
 
+		static FMassMatrix Make(const FReal InM, const FRotation3& Q, const FMatrix33& InI)
+		{
+			return FMassMatrix(InM, Q, InI);
+		}
+
 	private:
 		FMassMatrix(const FReal InM, const FMatrix33& InI)
 			: Mass(InM)
@@ -47,6 +53,12 @@ namespace Chaos
 		FMassMatrix(const FReal InM, FMatrix33&& InI)
 			: Mass(InM)
 			, Inertia(MoveTemp(InI))
+		{
+		}
+
+		FMassMatrix(const FReal InM, const FRotation3& Q, const FMatrix33& InI)
+			: Mass(InM)
+			, Inertia(Utilities::ComputeWorldSpaceInertia(Q, InI))
 		{
 		}
 
@@ -225,19 +237,26 @@ namespace Chaos
 		{
 			check(RowIndex + NumV < NumRows());
 			check(ColumnIndex < NumColumns());
+			FReal* Row = &At(RowIndex, ColumnIndex);
 			for (int32 II = 0; II < NumV; ++II)
 			{
-				At(RowIndex, ColumnIndex + II) = V[II];
+				*Row++ = *V++;
 			}
 		}
 
 		void SetRowAt(const int32 RowIndex, const int32 ColumnIndex, const FVec3& V)
 		{
+			SetRowAt(RowIndex, ColumnIndex, V[0], V[1], V[2]);
+		}
+
+		void SetRowAt(const int32 RowIndex, const int32 ColumnIndex, const FReal V0, const FReal V1, const FReal V2)
+		{
 			check(RowIndex + 1 <= NumRows());
 			check(ColumnIndex + 3 <= NumColumns());
-			At(RowIndex, ColumnIndex + 0) = V[0];
-			At(RowIndex, ColumnIndex + 1) = V[1];
-			At(RowIndex, ColumnIndex + 2) = V[2];
+			FReal* Row = &At(RowIndex, ColumnIndex);
+			*Row++ = V0;
+			*Row++ = V1;
+			*Row++ = V2;
 		}
 
 		/**
@@ -293,6 +312,27 @@ namespace Chaos
 					At(II + RowOffset, JJ + ColumnOffset) = V.M[JJ][II];
 				}
 			}
+		}
+
+		/**
+		 * Set the specified 3x3 block to a diagonal matrix with the specified diagonal and off-diagonal values.
+		 */
+		void SetBlockAtDiagonal33(const int32 RowOffset, const int32 ColumnOffset, const FReal VDiag, const FReal VOffDiag)
+		{
+			check(RowOffset + 3 <= NumRows());
+			check(ColumnOffset + 3 <= NumColumns());
+			FReal* Row0 = &At(RowOffset + 0, ColumnOffset);
+			*Row0++ = VDiag;
+			*Row0++ = VOffDiag;
+			*Row0++ = VOffDiag;
+			FReal* Row1 = &At(RowOffset + 1, ColumnOffset);
+			*Row1++ = VOffDiag;
+			*Row1++ = VDiag;
+			*Row1++ = VOffDiag;
+			FReal* Row2 = &At(RowOffset + 2, ColumnOffset);
+			*Row2++ = VOffDiag;
+			*Row2++ = VOffDiag;
+			*Row2++ = VDiag;
 		}
 
 		//
@@ -439,6 +479,28 @@ namespace Chaos
 		}
 
 		/**
+		 * Return C = A + B, where A and B are symetric.
+		 */
+		template<int32 T_EA, int32 T_EB>
+		static TDenseMatrix<MaxElements> Add_Symmetric(const TDenseMatrix<T_EA>& A, const TDenseMatrix<T_EB>& B)
+		{
+			// @todo(ccaulfield): optimize
+			check(A.NumColumns() == B.NumColumns());
+			check(A.NumRows() == B.NumRows());
+			TDenseMatrix<T_MAXELEMENTS> Result(A.NumRows(), A.NumColumns());
+			for (int32 IRow = 0; IRow < Result.NumRows(); ++IRow)
+			{
+				for (int32 ICol = IRow; ICol < Result.NumColumns(); ++ICol)
+				{
+					FReal V = A.At(IRow, ICol) + B.At(IRow, ICol);
+					Result.At(IRow, ICol) = V;
+					Result.At(ICol, IRow) = V;
+				}
+			}
+			return Result;
+		}
+
+		/**
 		 * Return C = A - B
 		 */
 		template<int32 T_EA, int32 T_EB>
@@ -553,6 +615,61 @@ namespace Chaos
 						V += A.At(II, IRow) * B.At(ICol, II);
 					}
 					Result.At(IRow, ICol) = V;
+				}
+			}
+			return Result;
+		}
+
+		/**
+		 * Return C = A x B, where the results is known to be symmetric.
+		 * /see MultiplyAtB.
+		 */
+		template<int32 T_EA, int32 T_EB>
+		static TDenseMatrix<MaxElements> MultiplyAB_Symmetric(const TDenseMatrix<T_EA>& A, const TDenseMatrix<T_EB>& B)
+		{
+			// @todo(ccaulfield): optimize
+			check(A.NumColumns() == B.NumRows());
+			TDenseMatrix<T_MAXELEMENTS> Result(A.NumRows(), B.NumColumns());
+			for (int32 IRow = 0; IRow < Result.NumRows(); ++IRow)
+			{
+				for (int32 ICol = IRow; ICol < Result.NumColumns(); ++ICol)
+				{
+					FReal V = 0;
+					for (int32 II = 0; II < A.NumColumns(); ++II)
+					{
+						V += A.At(IRow, II) * B.At(II, ICol);
+					}
+					Result.At(IRow, ICol) = V;
+					Result.At(ICol, IRow) = V;
+				}
+			}
+			return Result;
+		}
+
+		/**
+		 * Return C = A + B x C, where the A and (B x C) are known to be symmetric.
+		 * /see MultiplyAtB, Add_Symmetric.
+		 */
+		template<int32 T_EA, int32 T_EB, int32 T_EC>
+		static TDenseMatrix<MaxElements> MultiplyBCAddA_Symmetric(const TDenseMatrix<T_EA>& A, const TDenseMatrix<T_EB>& B, const TDenseMatrix<T_EC>& C)
+		{
+			// @todo(ccaulfield): optimize
+			check(B.NumColumns() == C.NumRows());
+			check(A.NumRows() == B.NumRows());
+			check(A.NumRows() == C.NumColumns());
+			TDenseMatrix<T_MAXELEMENTS> Result(A.NumRows(), A.NumColumns());
+			for (int32 IRow = 0; IRow < Result.NumRows(); ++IRow)
+			{
+				for (int32 ICol = IRow; ICol < Result.NumColumns(); ++ICol)
+				{
+					FReal V = 0;
+					for (int32 II = 0; II < B.NumColumns(); ++II)
+					{
+						V += B.At(IRow, II) * C.At(II, ICol);
+					}
+					FReal VA = A.At(IRow, ICol);
+					Result.At(IRow, ICol) = VA + V;
+					Result.At(ICol, IRow) = VA + V;
 				}
 			}
 			return Result;

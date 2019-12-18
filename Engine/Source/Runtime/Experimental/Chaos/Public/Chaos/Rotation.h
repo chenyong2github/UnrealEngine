@@ -103,6 +103,16 @@ namespace Chaos
 		}
 
 		/**
+		 * Extract the Swing and Twist rotations, assuming that the Twist Axis is (1,0,0).
+		 * /see ToSwingTwist
+		 */
+		void ToSwingTwistX(const FVector& InTwistAxis, FQuat& OutSwing, FQuat& OutTwist) const
+		{
+			OutTwist = (X != 0.0f)? FQuat(X, 0, 0, W).GetNormalized() : FQuat::Identity;
+			OutSwing = *this * OutTwist.Inverse();
+		}
+
+		/**
 		 * Return the complex conjugate of the rotation
 		 */
 		static TRotation<float, 3> Conjugate(const ::Chaos::TRotation<float, 3>& InR)

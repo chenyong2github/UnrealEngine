@@ -20,6 +20,8 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::ApplyPushOut"), STAT_Joints_ApplyPushOut, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::Drives"), STAT_Joints_Drives, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::Solve"), STAT_Joints_Solve, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::SolveCholesky"), STAT_Joints_Solve_Cholesky, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::SolveGaussSeidel"), STAT_Joints_Solve_GaussSeidel, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("TPBDJointConstraints::Project"), STAT_Joints_Project, STATGROUP_Chaos);
 
 	bool ChaosJoint_UseCholeskySolver = true;
@@ -156,6 +158,28 @@ namespace Chaos
 	{
 	}
 
+	void FPBDJointMotionSettings::Sanitize()
+	{
+		// Reset limits if they won;t be used (means we don't have to check if limited/locked in a few cases).
+		// A side effect: if we enable a constraint, we need to reset the value of the limit.
+		if ((LinearMotionTypes[0] != EJointMotionType::Limited) && (LinearMotionTypes[1] != EJointMotionType::Limited) && (LinearMotionTypes[2] != EJointMotionType::Limited))
+		{
+			LinearLimit = 0;
+		}
+		if (AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] != EJointMotionType::Limited)
+		{
+			AngularLimits[(int32)EJointAngularConstraintIndex::Twist] = 0;
+		}
+		if (AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1] != EJointMotionType::Limited)
+		{
+			AngularLimits[(int32)EJointAngularConstraintIndex::Swing1] = 0;
+		}
+		if (AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2] != EJointMotionType::Limited)
+		{
+			AngularLimits[(int32)EJointAngularConstraintIndex::Swing2] = 0;
+		}
+	}
+
 	
 	FPBDJointSettings::FPBDJointSettings()
 		: ConstraintFrames({ FTransform::Identity, FTransform::Identity })
@@ -224,7 +248,7 @@ namespace Chaos
 		Settings = InSettings;
 	}
 
-	
+
 	int32 FPBDJointConstraints::NumConstraints() const
 	{
 		return ConstraintParticles.Num();
@@ -404,37 +428,18 @@ namespace Chaos
 		// Apply joint drives
 		if (Settings.DrivesPhase == EJointSolverPhase::Apply)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_Joints_Drives);
-			if (It == 0)
-			{
-				for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
-				{
-					ApplyDrives(Dt, ConstraintIndex, 1, 0, 1);
-				}
-			}
+			ApplyDrives(Dt, It, NumIts);
 		}
 
 		// Solve for joint position or velocity, depending on settings
 		if (Settings.ApplyPairIterations > 0)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_Joints_Solve);
-			for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
-			{
-				if (Settings.bEnableVelocitySolve)
-				{
-					SolveVelocity(Dt, ConstraintIndex, Settings.ApplyPairIterations, It, NumIts);
-				}
-				else
-				{
-					SolvePosition(Dt, ConstraintIndex, Settings.ApplyPairIterations, It, NumIts);
-				}
-			}
+			SolvePosition(Dt, Settings.ApplyPairIterations, It, NumIts);
 		}
 
 		// Correct remaining errors after last call to Solve if enabled in this phase
 		if (Settings.ProjectionPhase == EJointSolverPhase::Apply)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_Joints_Project);
 			int32 ProjectionIt = NumIts - 1;
 			if (It == ProjectionIt)
 			{
@@ -458,31 +463,18 @@ namespace Chaos
 		// Apply joint drives
 		if (Settings.DrivesPhase == EJointSolverPhase::ApplyPushOut)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_Joints_Drives);
-			if (It == 0)
-			{
-				for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
-				{
-					ApplyDrives(Dt, ConstraintIndex, 1, 0, 1);
-				}
-			}
+			ApplyDrives(Dt, It, NumIts);
 		}
 
 		// Solve for positions
 		if (Settings.ApplyPushOutPairIterations > 0)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_Joints_Solve);
-
-			for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
-			{
-				SolvePosition(Dt, ConstraintIndex, Settings.ApplyPushOutPairIterations, It, NumIts);
-			}
+			SolvePosition(Dt, Settings.ApplyPushOutPairIterations, It, NumIts);
 		}
 
 		// Correct remaining errors after the last call to Solve (which depends on if PositionSolve is enabled in ApplyPushOut)
 		if (Settings.ProjectionPhase == EJointSolverPhase::ApplyPushOut)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_Joints_Project);
 			int32 ProjectionIt = (Settings.ApplyPushOutPairIterations > 0) ? NumIts - 1 : 0;
 			if (It == ProjectionIt)
 			{
@@ -493,8 +485,42 @@ namespace Chaos
 		return bNeedsAnotherIteration;
 	}
 
+	void FPBDJointConstraints::ApplyDrives(const FReal Dt, const int32 It, const int32 NumIts)
+	{
+		if (It == 0)
+		{
+			SCOPE_CYCLE_COUNTER(STAT_Joints_Drives);
+			for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+			{
+				ApplyDrives(Dt, ConstraintIndex, 0, 1);
+			}
+		}
+	}
+
+	void FPBDJointConstraints::SolvePosition(const FReal Dt, const int32 NumPairIts, const int32 It, const int32 NumIts)
+	{
+		if (ChaosJoint_UseCholeskySolver)
+		{
+			SCOPE_CYCLE_COUNTER(STAT_Joints_Solve_Cholesky);
+			for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+			{
+				SolvePosition_Cholesky(Dt, ConstraintIndex, NumPairIts, It, NumIts);
+			}
+		}
+		else
+		{
+			SCOPE_CYCLE_COUNTER(STAT_Joints_Solve_GaussSeidel);
+			for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+			{
+				SolvePosition_GaussSiedel(Dt, ConstraintIndex, NumPairIts, It, NumIts);
+			}
+		}
+	}
+
 	void FPBDJointConstraints::ApplyProjection(const FReal Dt)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_Joints_Project);
+
 		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 		{
 			ProjectPosition(Dt, ConstraintIndex, 0, 1);
@@ -532,7 +558,7 @@ namespace Chaos
 			{
 				for (FConstraintContainerHandle* ConstraintHandle : SortedConstraintHandles)
 				{
-					ApplyDrives(Dt, ConstraintHandle->GetConstraintIndex(), 1, 0, 1);
+					ApplyDrives(Dt, ConstraintHandle->GetConstraintIndex(), 0, 1);
 				}
 			}
 		}
@@ -594,7 +620,7 @@ namespace Chaos
 			{
 				for (FConstraintContainerHandle* ConstraintHandle : SortedConstraintHandles)
 				{
-					ApplyDrives(Dt, ConstraintHandle->GetConstraintIndex(), 1, 0, 1);
+					ApplyDrives(Dt, ConstraintHandle->GetConstraintIndex(), 0, 1);
 				}
 			}
 		}
@@ -659,7 +685,7 @@ namespace Chaos
 	}
 
 
-	void FPBDJointConstraints::ApplyDrives(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
+	void FPBDJointConstraints::ApplyDrives(const FReal Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts)
 	{
 		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
 
