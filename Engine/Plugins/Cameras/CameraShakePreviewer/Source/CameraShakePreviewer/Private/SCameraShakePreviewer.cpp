@@ -10,6 +10,7 @@
 #include "LevelEditorViewport.h"
 #include "Modules/ModuleManager.h"
 #include "Slate/SceneViewport.h"
+#include "TickableEditorObject.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SBox.h"
@@ -39,6 +40,35 @@ struct FCameraShakeData
 		Collector.AddReferencedObject(ShakeInstance);
 	}
 };
+
+FCameraShakePreviewUpdater::FCameraShakePreviewUpdater()
+	: PreviewCameraShake(NewObject<UCameraModifier_CameraShake>())
+	, LastLocationModifier(FVector::ZeroVector)
+	, LastRotationModifier(FRotator::ZeroRotator)
+	, LastFOVModifier(0.f)
+{}
+
+void FCameraShakePreviewUpdater::ModifyCamera(FMinimalViewInfo& InOutPOV)
+{
+	const float DeltaTime = LastDeltaTime.Get(-1.f);
+	if (DeltaTime > 0.f)
+	{
+		FMinimalViewInfo InPOV(InOutPOV);
+		PreviewCameraShake->ModifyCamera(DeltaTime, InOutPOV);
+
+		LastLocationModifier = InOutPOV.Location - InPOV.Location;
+		LastRotationModifier = InOutPOV.Rotation - InPOV.Rotation;
+		LastFOVModifier = InOutPOV.FOV - InPOV.FOV;
+
+		LastDeltaTime.Reset();
+	}
+	else
+	{
+		InOutPOV.Location += LastLocationModifier;
+		InOutPOV.Rotation += LastRotationModifier;
+		InOutPOV.FOV += LastFOVModifier;
+	}
+}
 
 /**
  * The UI for each entry in the panel's main list.
@@ -239,7 +269,7 @@ void SCameraShakePreviewer::Construct(const FArguments& InArgs)
 	}
 
 	// Create our camera shake manager.
-	PreviewCameraShake = NewObject<UCameraModifier_CameraShake>();
+	CameraShakePreviewUpdater = TUniquePtr<FCameraShakePreviewUpdater>(new FCameraShakePreviewUpdater());
 	ActiveViewportClient = nullptr;
 
 	// Populate the main list based on the current level.
@@ -249,7 +279,7 @@ void SCameraShakePreviewer::Construct(const FArguments& InArgs)
 
 SCameraShakePreviewer::~SCameraShakePreviewer()
 {
-	PreviewCameraShake = nullptr;
+	CameraShakePreviewUpdater = nullptr;
 
 	if (ActiveViewportClient != nullptr)
 	{
@@ -356,7 +386,7 @@ void SCameraShakePreviewer::Populate()
 	{
 		if (RemovedShake->SourceComponent.IsValid())
 		{
-			PreviewCameraShake->RemoveAllCameraShakesFromSource(RemovedShake->SourceComponent.Get());
+			CameraShakePreviewUpdater->ShakeModifier().RemoveAllCameraShakesFromSource(RemovedShake->SourceComponent.Get());
 		}
 		CameraShakes.Remove(RemovedShake);
 	}
@@ -404,7 +434,7 @@ void SCameraShakePreviewer::Tick(const FGeometry& AllottedGeometry, const double
 				CameraShake->bIsHidden = bIsHidden;
 				if (bIsHidden && CameraShake->bIsPlaying)
 				{
-					PreviewCameraShake->RemoveAllCameraShakesFromSource(ShakeSourceComponent);
+					CameraShakePreviewUpdater->ShakeModifier().RemoveAllCameraShakesFromSource(ShakeSourceComponent);
 					CameraShake->bIsPlaying = false;
 				}
 			}
@@ -418,7 +448,7 @@ void SCameraShakePreviewer::Tick(const FGeometry& AllottedGeometry, const double
 				CameraShake->ShakeClass = ShakeSourceComponent->CameraShake;
 				CameraShake->ShakeInstance = nullptr;
 
-				PreviewCameraShake->RemoveAllCameraShakesFromSource(ShakeSourceComponent);
+				CameraShakePreviewUpdater->ShakeModifier().RemoveAllCameraShakesFromSource(ShakeSourceComponent);
 
 				if (CameraShake->bIsPlaying)
 				{
@@ -549,11 +579,11 @@ FText SCameraShakePreviewer::GetActiveViewportWarnings() const
 FReply SCameraShakePreviewer::OnPlayStopAllShakes()
 {
 	TArray<FActiveCameraShakeInfo> ActiveCameraShakes;
-	PreviewCameraShake->GetActiveCameraShakes(ActiveCameraShakes);
+	CameraShakePreviewUpdater->ShakeModifier().GetActiveCameraShakes(ActiveCameraShakes);
 	if (ActiveCameraShakes.Num() > 0)
 	{
 		// If we have at least 1 shake still playing, stop it.
-		PreviewCameraShake->RemoveAllCameraShakes();
+		CameraShakePreviewUpdater->ShakeModifier().RemoveAllCameraShakes();
 
 		for (TSharedPtr<FCameraShakeData> CameraShake : CameraShakes)
 		{
@@ -587,7 +617,7 @@ FReply SCameraShakePreviewer::OnPlayStopSelectedShake()
 		}
 		else if (SelectedItem->bIsPlaying && SelectedItem->ShakeInstance != nullptr)
 		{
-			PreviewCameraShake->RemoveCameraShake(SelectedItem->ShakeInstance);
+			CameraShakePreviewUpdater->ShakeModifier().RemoveCameraShake(SelectedItem->ShakeInstance);
 			SelectedItem->ShakeInstance = nullptr;
 			SelectedItem->bIsPlaying = false;
 		}
@@ -599,7 +629,7 @@ void SCameraShakePreviewer::PlayCameraShake(TSharedPtr<FCameraShakeData> CameraS
 {
 	FAddCameraShakeParams Params;
 	Params.SourceComponent = CameraShake->SourceComponent.Get();
-	UCameraShake* ShakeInstance = PreviewCameraShake->AddCameraShake(CameraShake->ShakeClass, Params);
+	UCameraShake* ShakeInstance = CameraShakePreviewUpdater->ShakeModifier().AddCameraShake(CameraShake->ShakeClass, Params);
 	CameraShake->ShakeInstance = ShakeInstance;
 	CameraShake->bIsPlaying = true;
 }
@@ -665,19 +695,9 @@ void SCameraShakePreviewer::PostUndo(bool bSuccess)
 	Refresh();
 }
 
-void SCameraShakePreviewer::OnModifyView(const FEditorViewportViewModifierParams& Params, FMinimalViewInfo& InOutPOV)
+void SCameraShakePreviewer::OnModifyView(FMinimalViewInfo& InOutPOV)
 {
-	PreviewCameraShake->ModifyCamera(Params.DeltaTime, InOutPOV);
-}
-
-void SCameraShakePreviewer::AddReferencedObjects(FReferenceCollector& Collector)
-{
-	Collector.AddReferencedObject(PreviewCameraShake);
-}
-
-FString SCameraShakePreviewer::GetReferencerName() const
-{
-	return TEXT("SCameraShakePreviewer");
+	CameraShakePreviewUpdater->ModifyCamera(InOutPOV);
 }
 
 #undef LOCTEXT_NAMESPACE

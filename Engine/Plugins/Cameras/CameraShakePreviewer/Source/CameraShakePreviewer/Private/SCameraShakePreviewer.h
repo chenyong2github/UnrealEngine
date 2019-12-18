@@ -13,6 +13,7 @@
 class AActor;
 class FCameraShakePreviewerLevelEditorViewportClient;
 class FCameraShakePreviewerModule;
+class FCameraShakePreviewUpdater;
 class FLevelEditorViewportClient;
 class FSceneView;
 class ITableRow;
@@ -22,14 +23,41 @@ class UCameraModifier_CameraShake;
 class UCameraShakeSourceComponent;
 class UWorld;
 struct FCameraShakeData;
-struct FEditorViewportViewModifierParams;
 struct FMinimalViewInfo;
 struct FTogglePreviewCameraShakesParams;
+
+class FCameraShakePreviewUpdater : public FTickableEditorObject, public FGCObject
+{
+public:
+	FCameraShakePreviewUpdater();
+
+	// FTickableObject Interface
+	virtual ETickableTickType GetTickableTickType() const { return ETickableTickType::Always; }
+	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(FCameraShakePreviewUpdater, STATGROUP_Tickables); }
+	virtual void Tick(float DeltaTime) override { LastDeltaTime = DeltaTime; }
+
+	// FGCObject interface
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override { Collector.AddReferencedObject(PreviewCameraShake); }
+	virtual FString GetReferencerName() const override { return TEXT("SCameraShakePreviewer"); }
+
+	UCameraModifier_CameraShake& ShakeModifier() const { return *PreviewCameraShake; }
+
+	void ModifyCamera(FMinimalViewInfo& InOutPOV);
+
+private:
+	UCameraModifier_CameraShake* PreviewCameraShake;
+
+	TOptional<float> LastDeltaTime;
+
+	FVector LastLocationModifier;
+	FRotator LastRotationModifier;
+	float LastFOVModifier;
+};
 
 /**
  * Camera shake preview panel.
  */
-class SCameraShakePreviewer : public SCompoundWidget, public FEditorUndoClient, public FGCObject
+class SCameraShakePreviewer : public SCompoundWidget, public FEditorUndoClient
 {
 public:
 	SLATE_BEGIN_ARGS(SCameraShakePreviewer) {}
@@ -44,10 +72,6 @@ public:
 	// FEditorUndoClient Interface
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
-
-	// FGCObject interface
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	virtual FString GetReferencerName() const override;
 
 private:
 	void Populate();
@@ -75,11 +99,11 @@ private:
 	void OnNewCurrentLevel();
 	void OnMapLoaded(const FString&  Filename, bool bAsTemplate);
 
-	void OnModifyView(const FEditorViewportViewModifierParams& Params, FMinimalViewInfo& InOutPOV);
+	void OnModifyView(FMinimalViewInfo& InOutPOV);
 
 private:
 	TArray<TSharedPtr<FCameraShakeData>> CameraShakes;
-	UCameraModifier_CameraShake* PreviewCameraShake;
+	TUniquePtr<FCameraShakePreviewUpdater> CameraShakePreviewUpdater;
 
 	TSharedPtr<SListView<TSharedPtr<FCameraShakeData>>> CameraShakesListView;
 	TSharedPtr<SButton> PlayStopSelectedButton;

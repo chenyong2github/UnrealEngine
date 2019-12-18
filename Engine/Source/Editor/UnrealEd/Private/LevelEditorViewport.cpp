@@ -1741,7 +1741,6 @@ FLevelEditorViewportClient::FLevelEditorViewportClient(const TSharedPtr<SLevelVi
 	, bLockedCameraView(true)
 	, bReceivedFocusRecently(false)
 	, bAlwaysShowModeWidgetAfterSelectionChanges(true)
-	, bShouldApplyViewModifiers(true)
 	, SpriteCategoryVisibility()
 	, World(nullptr)
 	, TrackingTransaction()
@@ -2290,37 +2289,7 @@ void FLevelEditorViewportClient::Tick(float DeltaTime)
 
 	UpdateViewForLockedActor(DeltaTime);
 
-	if (bShouldApplyViewModifiers)
-	{
-		FViewportCameraTransform& ViewTransform = GetViewTransform();
-		if (!ViewTransform.IsPlaying())
-		{
-			ApplyViewModifiers(DeltaTime);
-		}
-	}
-
 	UserIsControllingAtmosphericLightTimer = FMath::Max(UserIsControllingAtmosphericLightTimer - DeltaTime, 0.0f);
-}
-
-void FLevelEditorViewportClient::ApplyViewModifiers(float DeltaTime)
-{
-	if (ViewModifiers.IsBound())
-	{
-		FEditorViewportViewModifierParams Params;
-		Params.DeltaTime = DeltaTime;
-		Params.ViewportClient = this;
-
-		FMinimalViewInfo InOutPOV;
-		InOutPOV.Location = GetViewLocation();
-		InOutPOV.Rotation = GetViewRotation();
-		InOutPOV.FOV = ViewFOV;
-
-		ViewModifiers.Broadcast(Params, InOutPOV);
-
-		SetViewLocation(InOutPOV.Location);
-		SetViewRotation(InOutPOV.Rotation);
-		ViewFOV = InOutPOV.FOV;
-	}
 }
 
 void FLevelEditorViewportClient::UpdateViewForLockedActor(float DeltaTime)
