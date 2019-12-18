@@ -27,9 +27,6 @@ struct FSortedVoicePacketNode
 	// The actual resulting audio data. allocated ahead of time to minimize memory churn.
 	TArray<float> AudioBufferMem;
 
-	// Cached pointer to AudioBufferMem's internal memory to avoid TArray bounds checks on dereferences.
-	float* AudioBuffer;
-
 	// Number of samples.
 	int32 BufferNumSamples;
 
@@ -56,21 +53,6 @@ struct FSortedVoicePacketNode
 		, IndexInPacketBuffer(INDEX_NONE)
 		, StartSample(0)
 	{
-		AudioBufferMem.Init(0.0f, UVOIPStatics::GetMaxUncompressedVoiceDataSizePerChannel() / sizeof(int16));
-		AudioBuffer = AudioBufferMem.GetData();
-	}
-
-	// Copy constructor.
-	FSortedVoicePacketNode(const FSortedVoicePacketNode& OtherNode)
-		: BufferNumSamples(OtherNode.BufferNumSamples)
-		, SamplesLeft(OtherNode.SamplesLeft)
-		, NextPacket(OtherNode.NextPacket)
-		, IndexInPacketBuffer(OtherNode.IndexInPacketBuffer)
-		, StartSample(OtherNode.StartSample)
-	{
-		AudioBufferMem.Init(0.0f, UVOIPStatics::GetMaxUncompressedVoiceDataSizePerChannel() / sizeof(int16));
-		AudioBuffer = AudioBufferMem.GetData();
-		FMemory::Memcpy(AudioBuffer, OtherNode.AudioBuffer, BufferNumSamples * sizeof(float));
 	}
 
 	// This function is called when a new packet is pushed to avoid reallocating memory.
@@ -81,12 +63,26 @@ struct FSortedVoicePacketNode
 		IndexInPacketBuffer = INDEX_NONE;
 		StartSample = InStartSample;
 
+		if (InFormat == EVoipStreamDataFormat::Int16)
+		{
+			BufferNumSamples = NumBytes / sizeof(int16);
+		}
+		else if (InFormat == EVoipStreamDataFormat::Float)
+		{
+			BufferNumSamples = NumBytes / sizeof(float);
+		}
+		
+
+		AudioBufferMem.Reset();
+		AudioBufferMem.AddUninitialized(BufferNumSamples);
+
+		float* AudioBuffer = AudioBufferMem.GetData();
+
 		// Handle whatever data format the packet is in.
 		switch (InFormat)
 		{
 			case EVoipStreamDataFormat::Float:
 			{
-				BufferNumSamples = NumBytes / sizeof(float);
 				SamplesLeft = BufferNumSamples;
 				FMemory::Memcpy(AudioBuffer, InBuffer, NumBytes);
 				break;
@@ -94,7 +90,6 @@ struct FSortedVoicePacketNode
 
 			case EVoipStreamDataFormat::Int16:
 			{
-				BufferNumSamples = NumBytes / sizeof(int16);
 				SamplesLeft = BufferNumSamples;
 				//Convert to float.
 				int16* BufferPtr = (int16*)InBuffer;
