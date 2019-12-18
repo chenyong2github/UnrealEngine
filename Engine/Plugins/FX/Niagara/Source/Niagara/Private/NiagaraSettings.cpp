@@ -49,5 +49,9 @@ UNiagaraSettings::FOnNiagaraSettingsChanged UNiagaraSettings::SettingsChangedDel
 
 UNiagaraEffectType* UNiagaraSettings::GetDefaultEffectType()const
 {
+	if (DefaultEffectTypePtr == nullptr && DefaultEffectType.IsValid())
+	{
+		DefaultEffectTypePtr = Cast<UNiagaraEffectType>(DefaultEffectType.TryLoad());
+	}
 	return DefaultEffectTypePtr;
 }

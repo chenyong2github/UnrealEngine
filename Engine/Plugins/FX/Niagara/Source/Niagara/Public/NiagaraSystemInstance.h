@@ -104,7 +104,7 @@ public:
 	/** Perform per-tick updates on data interfaces that need it. This can cause systems to complete so cannot be parallelized. */
 	void TickDataInterfaces(float DeltaSeconds, bool bPostSimulate);
 
-	ENiagaraExecutionState GetRequestedExecutionState() { return RequestedExecutionState; }
+	ENiagaraExecutionState GetRequestedExecutionState()const { return RequestedExecutionState; }
 	void SetRequestedExecutionState(ENiagaraExecutionState InState);
 
 	ENiagaraExecutionState GetActualExecutionState() { return ActualExecutionState; }

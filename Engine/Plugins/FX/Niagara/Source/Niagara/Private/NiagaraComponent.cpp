@@ -996,7 +996,7 @@ void UNiagaraComponent::OnSystemComplete()
 		DestroyComponent();
 		//UE_LOG(LogNiagara, Log, TEXT("OnSystemComplete DestroyComponent();: } %p - %s"), SystemInstance.Get(), *Asset->GetName());
 	}
-	else if (bAutoManageAttachment)
+	else if (bAutoManageAttachment && ScalabilityManagerHandle == INDEX_NONE)//Do not detach from our parent if we were deactivated by scalability and we need to be considered for reactivation.
 	{
 		CancelAutoAttachment(/*bDetachFromParent=*/ true);
 	}
@@ -1749,6 +1749,15 @@ void UNiagaraComponent::SetPreviewLODDistance(bool bInEnablePreviewLODDistance, 
 void UNiagaraComponent::SetOwnerLOD(int32 InOwnerLOD)
 {
 	OwnerLOD = InOwnerLOD;  
+}
+
+void UNiagaraComponent::SetAllowScalability(bool bAllow)
+{
+	bAllowScalability = bAllow; 
+	if (!bAllow)
+	{
+		UnregisterWithScalabilityManager();
+	}
 }
 
 #if WITH_EDITOR

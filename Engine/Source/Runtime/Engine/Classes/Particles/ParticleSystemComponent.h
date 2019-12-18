@@ -406,6 +406,9 @@ public:
 
 	/** Returns an approximate memory usage value for this component. */
 	virtual uint32 GetApproxMemoryUsage() const { return 0; }
+
+	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "LOD scalability"))
+	virtual void SetOwnerLOD(int32 LOD) {}
 };
 
 

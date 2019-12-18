@@ -54,5 +54,5 @@ protected:
 
 private:
 	UPROPERTY(transient)
-	UNiagaraEffectType* DefaultEffectTypePtr;
+	mutable UNiagaraEffectType* DefaultEffectTypePtr;
 };
