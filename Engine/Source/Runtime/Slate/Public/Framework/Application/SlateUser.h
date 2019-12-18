@@ -84,6 +84,8 @@ public:
 	TSharedPtr<SWidget> GetCursorCaptor() const;
 	TSharedPtr<SWidget> GetPointerCaptor(uint32 PointerIndex) const;
 
+	void SetCursorVisibility(bool bDrawCursor);
+
 	void SetCursorPosition(int32 PosX, int32 PosY);
 	void SetCursorPosition(const FVector2D& NewCursorPos);
 	void SetPointerPosition(uint32 PointerIndex, int32 PosX, int32 PosY);
@@ -192,6 +194,9 @@ private:
 
 	/** The cursor this user is in control of. Guaranteed to be valid for all real users, absence implies this is a virtual user. */
 	TSharedPtr<ICursor> Cursor;
+
+	/** Whether this user is currently drawing the cursor onscreen each frame */
+	bool bCanDrawCursor = true;
 
 	/** The OS or actions taken by the user may require we refresh the current state of the cursor. */
 	bool bQueryCursorRequested = false;
