@@ -248,17 +248,63 @@ namespace Chaos
 	}
 
 	template<typename T, int d>
-	void TPBDCollisionConstraints<T, d>::Apply(const T Dt, const int32 It, const int32 NumIts)
+	void TPBDCollisionConstraints<T, d>::Apply(const T Dt, const int32 Iterations, const int32 NumIterations)
 	{
-		Apply(Dt, Handles, It, NumIts);
+		SCOPE_CYCLE_COUNTER(STAT_Collisions_Apply);
+
+		if (MApplyPairIterations > 0)
+		{
+			for (FPointContactConstraint& Contact : PointConstraints)
+			{
+				Collisions::TContactParticleParameters<T> ParticleParameters = { &MCollided, &MPhysicsMaterials, CollisionFrictionOverride, MAngularFriction };
+				Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, nullptr };
+				Collisions::Apply(Contact, MThickness, IterationParameters, ParticleParameters);
+			}
+
+			for (FPlaneContactConstraint& Contact : PlaneConstraints)
+			{
+				Collisions::TContactParticleParameters<T> ParticleParameters = { &MCollided, &MPhysicsMaterials, CollisionFrictionOverride, MAngularFriction };
+				Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, nullptr };
+				Collisions::Apply(Contact, MThickness, IterationParameters, ParticleParameters);
+			}
+		}
+
+		if (PostApplyCallback != nullptr)
+		{
+			PostApplyCallback(Dt, Handles);
+		}
 	}
 
-
 	template<typename T, int d>
-	bool TPBDCollisionConstraints<T, d>::ApplyPushOut(const T Dt, const int32 It, const int32 NumIts)
+	bool TPBDCollisionConstraints<T, d>::ApplyPushOut(const T Dt, const int32 Iterations, const int32 NumIterations)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_Collisions_ApplyPushOut);
+
 		TSet<const TGeometryParticleHandle<T, d>*> TempStatic;
-		return ApplyPushOut(Dt, Handles, TempStatic, It, NumIts);
+		bool bNeedsAnotherIteration = false;
+		if (MApplyPushOutPairIterations > 0)
+		{
+			for (FPointContactConstraint& Contact : PointConstraints)
+			{
+				Collisions::TContactParticleParameters<T> ParticleParameters = { &MCollided, &MPhysicsMaterials, CollisionFrictionOverride, MAngularFriction };
+				Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPushOutPairIterations, &bNeedsAnotherIteration };
+				Collisions::ApplyPushOut(Contact, MThickness, TempStatic, IterationParameters, ParticleParameters);
+			}
+
+			for (FPlaneContactConstraint& Contact : PlaneConstraints)
+			{
+				Collisions::TContactParticleParameters<T> ParticleParameters = { &MCollided, &MPhysicsMaterials, CollisionFrictionOverride, MAngularFriction };
+				Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPushOutPairIterations, &bNeedsAnotherIteration };
+				Collisions::ApplyPushOut(Contact, MThickness, TempStatic, IterationParameters, ParticleParameters);
+			}
+		}
+
+		if (PostApplyPushOutCallback != nullptr)
+		{
+			PostApplyPushOutCallback(Dt, Handles, bNeedsAnotherIteration);
+		}
+
+		return bNeedsAnotherIteration;
 	}
 
 
@@ -293,7 +339,7 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_ApplyPushOut);
 
-		bool NeedsAnotherIteration = false;
+		bool bNeedsAnotherIteration = false;
 		if (MApplyPushOutPairIterations > 0)
 		{
 			PhysicsParallelFor(InConstraintHandles.Num(), [&](int32 ConstraintHandleIndex)
@@ -302,7 +348,7 @@ namespace Chaos
 				check(ConstraintHandle != nullptr);
 
 				Collisions::TContactParticleParameters<T> ParticleParameters = { &MCollided, &MPhysicsMaterials, CollisionFrictionOverride, MAngularFriction };
-				Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iteration, NumIterations, MApplyPushOutPairIterations, &NeedsAnotherIteration };
+				Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iteration, NumIterations, MApplyPushOutPairIterations, &bNeedsAnotherIteration };
 				Collisions::ApplyPushOut(ConstraintHandle->GetContact(), MThickness, IsTemporarilyStatic, IterationParameters, ParticleParameters);
 
 			}, bDisableCollisionParallelFor);
@@ -310,9 +356,10 @@ namespace Chaos
 
 		if (PostApplyPushOutCallback != nullptr)
 		{
-			PostApplyPushOutCallback(Dt, InConstraintHandles, NeedsAnotherIteration);
+			PostApplyPushOutCallback(Dt, InConstraintHandles, bNeedsAnotherIteration);
 		}
-		return NeedsAnotherIteration;
+
+		return bNeedsAnotherIteration;
 	}
 
 
