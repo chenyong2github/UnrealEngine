@@ -116,6 +116,18 @@ public:
 		return DisplayFavorites;
 	}
 
+	/** Sets whether we should dock the collections view under the paths view */
+	void SetDockCollections(bool bInDockCollections)
+	{
+		DockCollections = bInDockCollections;
+	}
+
+	/** Gets whether we should dock the collections view under the paths view */
+	bool GetDockCollections() const
+	{
+		return DockCollections;
+	}
+
 	/** Sets whether we are allowed to display C++ folders or not */
 	void SetDisplayCppFolders(bool bDisplay)
 	{
@@ -206,6 +218,9 @@ private:
 
 	UPROPERTY(config)
 	bool DisplayFavorites;
+
+	UPROPERTY(config)
+	bool DockCollections;
 
 	UPROPERTY(config)
 	bool DisplayCppFolders;

@@ -22,6 +22,7 @@ class FCollectionContextMenu;
 class FCollectionDragDropOp;
 class FSourcesSearch;
 class FUICommandList;
+class SHorizontalBox;
 struct FHistoryData;
 
 /**
@@ -68,6 +69,9 @@ public:
 
 	/** Constructs this widget with InArgs */
 	void Construct( const FArguments& InArgs );
+
+	/** Set whether we're using an external search or not */
+	void SetAllowExternalSearch(const bool InAllowExternalSearch);
 
 	/** Selects the specified collections */
 	void SetSelectedCollections(const TArray<FCollectionNameType>& CollectionsToSelect, const bool bEnsureVisible = true);
@@ -296,6 +300,12 @@ private:
 	/** The collection search interface */
 	TSharedPtr<FSourcesSearch> SearchPtr;
 
+	/** The collection external search interface (if any) */
+	TSharedPtr<FSourcesSearch> ExternalSearchPtr;
+
+	/** The collection title content */
+	TSharedPtr<SHorizontalBox> TitleContent;
+
 	/** The collection tree widget */
 	TSharedPtr< STreeView< TSharedPtr<FCollectionItem> > > CollectionTreePtr;
 
@@ -330,6 +340,9 @@ private:
 
 	/** If true, the user will be able to drag collections from this view */
 	bool bAllowCollectionDrag;
+
+	/** If true, we will use the external search if provided during construction */
+	bool bAllowExternalSearch;
 
 	/** True when a drag is over this view with a valid operation for drop */
 	bool bDraggedOver;
