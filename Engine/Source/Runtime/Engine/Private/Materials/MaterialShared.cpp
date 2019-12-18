@@ -2527,7 +2527,7 @@ void FMaterialRenderProxy::UpdateUniformExpressionCacheIfNeeded(ERHIFeatureLevel
 
 		// Don't cache uniform expressions if an entirely different FMaterialRenderProxy is going to be used for rendering
 		if (!FallbackMaterialRenderProxy)
-{
+		{
 			FMaterialRenderContext MaterialRenderContext(this, Material, nullptr);
 			MaterialRenderContext.bShowSelection = GIsEditor;
 			EvaluateUniformExpressions(UniformExpressionCache[InFeatureLevel], MaterialRenderContext);

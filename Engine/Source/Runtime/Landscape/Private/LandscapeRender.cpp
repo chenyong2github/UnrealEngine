@@ -813,7 +813,7 @@ void FLandscapeRenderSystem::BeginRenderView(const FSceneView* View)
 		PerViewParametersTasks.Remove(View);
 	}
 
-{
+	{
 		FScopeLock Lock(&CachedValuesCS);
 
 		SectionLODValues = CachedSectionLODValues[View];
@@ -835,8 +835,8 @@ void FLandscapeRenderSystem::ComputeSectionPerViewParameters(
 	FVector ViewOrigin,
 	FMatrix ViewProjectionMarix
 )
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeRenderSystem::ComputeSectionPerViewParameters());
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeRenderSystem::ComputeSectionPerViewParameters());
 
 	TResourceArray<float> NewSectionLODValues;
 	TResourceArray<float> NewSectionTessellationFalloffC;
@@ -845,36 +845,36 @@ void FLandscapeRenderSystem::ComputeSectionPerViewParameters(
 	NewSectionLODValues.AddZeroed(SectionLODSettings.Num());
 
 	if (TessellationFalloffSettings.UseTessellationComponentScreenSizeFalloff && NumEntitiesWithTessellation > 0)
-		{
+	{
 		NewSectionTessellationFalloffC.AddZeroed(SectionLODSettings.Num());
 		NewSectionTessellationFalloffK.AddZeroed(SectionLODSettings.Num());
-		}
+	}
 
 	int32 ForcedLODLevel = ViewEngineShowFlagLOD ? GetCVarForceLOD() : -1;
 	float LODScale = ViewLODDistanceFactor * CVarStaticMeshLODDistanceScale.GetValueOnRenderThread();
 
-		for (int32 EntityIndex = 0; EntityIndex < SectionLODSettings.Num(); EntityIndex++)
-		{
+	for (int32 EntityIndex = 0; EntityIndex < SectionLODSettings.Num(); EntityIndex++)
+	{
 		float MeshScreenSizeSquared = ComputeBoundsScreenRadiusSquared(FVector(SectionOriginAndRadius[EntityIndex]), SectionOriginAndRadius[EntityIndex].W, ViewOrigin, ViewProjectionMarix);
 
-			float FractionalLOD;
-			GetLODFromScreenSize(SectionLODSettings[EntityIndex], MeshScreenSizeSquared, LODScale * LODScale, FractionalLOD);
+		float FractionalLOD;
+		GetLODFromScreenSize(SectionLODSettings[EntityIndex], MeshScreenSizeSquared, LODScale * LODScale, FractionalLOD);
 
 		NewSectionLODValues[EntityIndex] = ForcedLODLevel >= 0 ? ForcedLODLevel : FractionalLOD;
 
 		if (TessellationFalloffSettings.UseTessellationComponentScreenSizeFalloff && NumEntitiesWithTessellation > 0)
-			{
+		{
 			float MaxTesselationDistance = ComputeBoundsDrawDistance(FMath::Sqrt(TessellationFalloffSettings.TessellationComponentSquaredScreenSize), SectionOriginAndRadius[EntityIndex].W / 2.0f, ViewProjectionMarix);
-				float FallOffStartingDistance = FMath::Min(
-					ComputeBoundsDrawDistance(FMath::Sqrt(FMath::Min(
-						FMath::Square(TessellationFalloffSettings.TessellationComponentScreenSizeFalloff), 
+			float FallOffStartingDistance = FMath::Min(
+				ComputeBoundsDrawDistance(FMath::Sqrt(FMath::Min(
+					FMath::Square(TessellationFalloffSettings.TessellationComponentScreenSizeFalloff),
 					TessellationFalloffSettings.TessellationComponentSquaredScreenSize)), SectionOriginAndRadius[EntityIndex].W / 2.0f, ViewProjectionMarix) - MaxTesselationDistance, MaxTesselationDistance);
 
-				// Calculate the falloff using a = C - K * d by sending C & K into the shader
+			// Calculate the falloff using a = C - K * d by sending C & K into the shader
 			NewSectionTessellationFalloffC[EntityIndex] = MaxTesselationDistance / (MaxTesselationDistance - FallOffStartingDistance);
 			NewSectionTessellationFalloffK[EntityIndex] = -(1 / (-MaxTesselationDistance + FallOffStartingDistance));
-			}
 		}
+	}
 
 	{
 		FScopeLock Lock(&CachedValuesCS);
@@ -979,22 +979,22 @@ void FLandscapeRenderSystem::RecreateBuffers(const FSceneView* InView /* = nullp
 				}
 			}
 
-		FLandscapeSectionLODUniformParameters Parameters;
-		Parameters.Min = Min;
-		Parameters.Size = Size;
-		Parameters.SectionLOD = SectionLODSRV;
-		Parameters.SectionLODBias = SectionLODBiasSRV;
-		Parameters.SectionTessellationFalloffC = SectionTessellationFalloffCSRV;
-		Parameters.SectionTessellationFalloffK = SectionTessellationFalloffKSRV;
+			FLandscapeSectionLODUniformParameters Parameters;
+			Parameters.Min = Min;
+			Parameters.Size = Size;
+			Parameters.SectionLOD = SectionLODSRV;
+			Parameters.SectionLODBias = SectionLODBiasSRV;
+			Parameters.SectionTessellationFalloffC = SectionTessellationFalloffCSRV;
+			Parameters.SectionTessellationFalloffK = SectionTessellationFalloffKSRV;
 
-		if (UniformBuffer.IsValid())
-		{
-			UniformBuffer.UpdateUniformBufferImmediate(Parameters);
-		}
-		else
-		{
-			UniformBuffer = TUniformBufferRef<FLandscapeSectionLODUniformParameters>::CreateUniformBufferImmediate(Parameters, UniformBuffer_SingleFrame);
-		}
+			if (UniformBuffer.IsValid())
+			{
+				UniformBuffer.UpdateUniformBufferImmediate(Parameters);
+			}
+			else
+			{
+				UniformBuffer = TUniformBufferRef<FLandscapeSectionLODUniformParameters>::CreateUniformBufferImmediate(Parameters, UniformBuffer_SingleFrame);
+			}
 		}
 
 		CachedView = InView;
@@ -3039,20 +3039,20 @@ void FLandscapeSharedBuffers::CreateOccluderIndexBuffer(int32 NumOccluderVertice
 		{
 			QuadOffset = (SubY*NumSubsections + SubX) * NumLineVtx * NumLineVtx;
 
-	for (int32 y = 0; y < NumLineQuads; y++)
-	{
-		for (int32 x = 0; x < NumLineQuads; x++)
-		{
-			for (int32 i = 0; i < 2; i++)
-			{
-				OcclusionIndices[Index++] = QuadIndices[i][0] + QuadOffset;
-				OcclusionIndices[Index++] = QuadIndices[i][1] + QuadOffset;
-				OcclusionIndices[Index++] = QuadIndices[i][2] + QuadOffset;
-			}
-			QuadOffset++;
-		}
-		QuadOffset++;
-	}
+	        for (int32 y = 0; y < NumLineQuads; y++)
+	        {
+		        for (int32 x = 0; x < NumLineQuads; x++)
+		        {
+			        for (int32 i = 0; i < 2; i++)
+			        {
+				        OcclusionIndices[Index++] = QuadIndices[i][0] + QuadOffset;
+				        OcclusionIndices[Index++] = QuadIndices[i][1] + QuadOffset;
+				        OcclusionIndices[Index++] = QuadIndices[i][2] + QuadOffset;
+			        }
+			        QuadOffset++;
+		        }
+		        QuadOffset++;
+	        }
 		}
 	}
 
