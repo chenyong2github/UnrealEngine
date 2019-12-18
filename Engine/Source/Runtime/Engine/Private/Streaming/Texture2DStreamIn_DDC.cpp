@@ -28,77 +28,70 @@ static FAutoConsoleVariableRef CVarStreamingAbandonedDDCHandlePurgeFrequency(
 	ECVF_Default
 );
 
-namespace
+// ******************************************
+// ******* FAbandonedDDCHandleManager *******
+// ******************************************
+
+FAbandonedDDCHandleManager GAbandonedDDCHandleManager;
+
+void FAbandonedDDCHandleManager::Add(uint32 InHandle)
 {
-	class FAbandonedDDCHandleManager
+	check(InHandle);
+
+	bool bPurge = false;
 	{
-	public:
-		void Add(uint32 InHandle);
-		void Purge();
-	private:
-		TArray<uint32> Handles;	
-		FCriticalSection CS;
-		uint32 TotalAdd = 0;
-	};
+		FScopeLock ScopeLock(&CS);
+		Handles.Add(InHandle);
 
+		++TotalAdd;
+		bPurge = (TotalAdd % GStreamingAbandonedDDCHandlePurgeFrequency == 0);
+	}
 
-	void FAbandonedDDCHandleManager::Add(uint32 InHandle)
+	if (bPurge)
 	{
-		check(InHandle);
+		Purge();
+	}
+}
 
-		bool bPurge = false;
+void FAbandonedDDCHandleManager::Purge()
+{
+	TArray<uint32> TempHandles;	
+	{
+		FScopeLock ScopeLock(&CS);
+		FMemory::Memswap(&TempHandles, &Handles, sizeof(TempHandles));
+	}
+
+	FDerivedDataCacheInterface& DDCInterface = GetDerivedDataCacheRef();
+	TArray<uint8> Data;
+
+	for (int32 Index = 0; Index < TempHandles.Num(); ++Index)
+	{
+		uint32 Handle = TempHandles[Index];
+		if (DDCInterface.PollAsynchronousCompletion(Handle))
 		{
-			FScopeLock ScopeLock(&CS);
-			Handles.Add(InHandle);
+			DDCInterface.GetAsynchronousResults(Handle, Data);
+			Data.Reset();
 
-			++TotalAdd;
-			bPurge = (TotalAdd % GStreamingAbandonedDDCHandlePurgeFrequency == 0);
-		}
-
-		if (bPurge)
-		{
-			Purge();
+			TempHandles.RemoveAtSwap(Index);
+			--Index;
 		}
 	}
 
-	void FAbandonedDDCHandleManager::Purge()
+	if (TempHandles.Num())
 	{
-		TArray<uint32> TempHandles;	
-		{
-			FScopeLock ScopeLock(&CS);
-			FMemory::Memswap(&TempHandles, &Handles, sizeof(TempHandles));
-		}
-
-		FDerivedDataCacheInterface& DDCInterface = GetDerivedDataCacheRef();
-		TArray<uint8> Data;
-
-		for (int32 Index = 0; Index < TempHandles.Num(); ++Index)
-		{
-			uint32 Handle = TempHandles[Index];
-			if (DDCInterface.PollAsynchronousCompletion(Handle))
-			{
-				DDCInterface.GetAsynchronousResults(Handle, Data);
-				Data.Reset();
-
-				TempHandles.RemoveAtSwap(Index);
-				--Index;
-			}
-		}
-
-		if (TempHandles.Num())
-		{
-			FScopeLock ScopeLock(&CS);
-			Handles.Append(TempHandles);
-		}
+		FScopeLock ScopeLock(&CS);
+		Handles.Append(TempHandles);
 	}
-
-	FAbandonedDDCHandleManager GAbandonedDDCHandleManager;
 }
 
 void PurgeAbandonedDDCHandles()
 {
 	GAbandonedDDCHandleManager.Purge();
 }
+
+// ******************************************
+// ********* FTexture2DStreamIn_DDC *********
+// ******************************************
 
 FTexture2DStreamIn_DDC::FTexture2DStreamIn_DDC(UTexture2D* InTexture, int32 InRequestedMips)
 	: FTexture2DStreamIn(InTexture, InRequestedMips)

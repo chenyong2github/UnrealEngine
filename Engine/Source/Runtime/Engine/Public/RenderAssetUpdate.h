@@ -249,6 +249,8 @@ protected:
 		CancelationThread = TT_None;
 		CancelationCallback = nullptr;
 	}
+
+	virtual void InitContext(FContext& Context) const {}
 };
 
 void SuspendRenderAssetStreaming();

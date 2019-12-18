@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-RenderAssetUpdate.h: Base class of helpers to stream in and out texture/mesh LODs
+RenderAssetUpdate.inl: Base class of helpers to stream in and out texture/mesh LODs
 =============================================================================*/
 
 #pragma once
@@ -71,7 +71,9 @@ FRenderAssetUpdate::ETaskState TRenderAssetUpdate<TContext>::TickInternal(EThrea
 	else if (RelevantThread == InCurrentThread)
 	{
 		ClearCallbacks();
-		RelevantCallback(FContext(RelevantAsset, InCurrentThread));
+		FContext Context(RelevantAsset, InCurrentThread);
+		InitContext(Context);
+		RelevantCallback(Context);
 		return TS_Locked;
 	} 
 	else if (RelevantThread == FRenderAssetUpdate::TT_GameThread && !ScheduledGTTasks)

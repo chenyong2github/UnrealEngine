@@ -1,0 +1,169 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+Texture2DStreamIn_AsyncReallocate.cpp: Load texture 2D mips using ITextureMipDataProvider
+=============================================================================*/
+
+#include "Texture2DMipAllocator_AsyncReallocate.h"
+#include "RenderUtils.h"
+#include "Containers/ResourceArray.h"
+
+extern TAutoConsoleVariable<int32> CVarFlushRHIThreadOnSTreamingTextureLocks;
+
+FTexture2DMipAllocator_AsyncReallocate::FTexture2DMipAllocator_AsyncReallocate()
+	: FTextureMipAllocator(ETickState::AllocateMips, ETickThread::Render)
+{
+}
+
+FTexture2DMipAllocator_AsyncReallocate::~FTexture2DMipAllocator_AsyncReallocate()
+{
+	check(!LockedMipIndices.Num());
+}
+
+// ********************************************************
+// ********* FTextureMipAllocator implementation **********
+// ********************************************************
+
+bool FTexture2DMipAllocator_AsyncReallocate::AllocateMips(
+	const FTextureUpdateContext& Context, 
+	FTextureMipInfoArray& OutMipInfos, 
+	const FTextureUpdateSyncOptions& SyncOptions)
+{
+	check(Context.PendingFirstMipIndex < Context.CurrentFirstMipIndex);
+
+	UTexture2D* Texture2D = CastChecked<UTexture2D>(Context.Texture, ECastCheckedType::NullChecked);
+	FTexture2DResource* Resource = static_cast<FTexture2DResource*>(Texture2D->Resource);
+	FTexture2DRHIRef Texture2DRHI = Resource ? Resource->GetTexture2DRHI() : FTexture2DRHIRef();
+	if (!Texture2DRHI)
+	{
+		return false;
+	}
+
+	// Step (1) : Create the texture on the renderthread using RHIAsyncReallocateTexture2D. Wait for the RHI to signal the operation is completed through the FThreadSafeCounter.
+	if (!IntermediateTextureRHI)
+	{
+		const TIndirectArray<FTexture2DMipMap>& OwnerMips = Texture2D->GetPlatformMips();
+		const FTexture2DMipMap& OwnerMip = OwnerMips[Context.PendingFirstMipIndex];
+		check(SyncOptions.Counter);
+
+		SyncOptions.Counter->Increment();
+
+		IntermediateTextureRHI = RHIAsyncReallocateTexture2D(
+			Texture2DRHI,
+			Context.NumRequestedMips,
+			OwnerMip.SizeX,
+			OwnerMip.SizeY,
+			SyncOptions.Counter);
+
+		// Run the next step, when IntermediateTextureRHI will be somewhat valid (after synchronization).
+		AdvanceTo(ETickState::AllocateMips, ETickThread::Render);
+		return true;
+	}
+	// Step (2) : Finalize the texture state through RHIFinalizeAsyncReallocateTexture2D and lock the new mips.
+	else
+	{
+		const bool bFlushRHIThread = CVarFlushRHIThreadOnSTreamingTextureLocks.GetValueOnAnyThread() > 0;
+
+		RHIFinalizeAsyncReallocateTexture2D(IntermediateTextureRHI, true);
+
+		OutMipInfos.AddDefaulted(Context.CurrentFirstMipIndex);
+
+		const TIndirectArray<FTexture2DMipMap>& OwnerMips = Texture2D->GetPlatformMips();
+		for (int32 MipIndex = Context.PendingFirstMipIndex; MipIndex < Context.CurrentFirstMipIndex; ++MipIndex)
+		{
+			const FTexture2DMipMap& OwnerMip = OwnerMips[MipIndex];
+			FTextureMipInfo& MipInfo = OutMipInfos[MipIndex];
+
+			MipInfo.Format = Texture2DRHI->GetFormat();
+			MipInfo.SizeX = OwnerMip.SizeX;
+			MipInfo.SizeY = OwnerMip.SizeY;
+#if WITH_EDITORONLY_DATA
+			MipInfo.DataSize = CalcTextureMipMapSize(MipInfo.SizeX, MipInfo.SizeY, MipInfo.Format, 0);
+#else // Hasn't really been used on console. To investigate!
+			MipInfo.DataSize = 0;
+#endif
+			MipInfo.DestData = RHILockTexture2D(IntermediateTextureRHI, MipIndex - Context.PendingFirstMipIndex, RLM_WriteOnly, MipInfo.RowPitch, false, bFlushRHIThread);
+
+			// Add this mip in the locked list of mips so that it can safely be unlocked when needed.
+			LockedMipIndices.Add(MipIndex - Context.PendingFirstMipIndex);
+		}
+
+		// New mips are ready to be unlocked by the FTextureMipDataProvider implementation.
+		AdvanceTo(ETickState::FinalizeMips, ETickThread::Render);
+		return true;
+	}
+}
+
+bool FTexture2DMipAllocator_AsyncReallocate::FinalizeMips(const FTextureUpdateContext& Context, const FTextureUpdateSyncOptions& SyncOptions)
+{
+	UTexture2D* Texture2D = CastChecked<UTexture2D>(Context.Texture, ECastCheckedType::NullChecked);
+	FTexture2DResource* Resource = static_cast<FTexture2DResource*>(Texture2D->Resource);
+	FTexture2DRHIRef Texture2DRHI = Resource ? Resource->GetTexture2DRHI() : FTexture2DRHIRef();
+	if (!Texture2DRHI)
+	{
+		return false;
+	}
+
+	if (!IntermediateTextureRHI)
+	{
+		return false;
+	}
+
+	// Unlock the mips so that the texture can be updated.
+	UnlockNewMips();
+	// Use the new texture resource for the texture asset, must run on the renderthread.
+	Resource->UpdateTexture(IntermediateTextureRHI, Context.PendingFirstMipIndex);
+	// No need for the intermediate texture anymore.
+	IntermediateTextureRHI.SafeRelease();
+
+	// Update complete, nothing more to do.
+	AdvanceTo(ETickState::Done, ETickThread::None);
+	return true;
+}
+
+void FTexture2DMipAllocator_AsyncReallocate::Cancel(const FTextureUpdateSyncOptions& SyncOptions)
+{
+	// Unlock any locked mips.
+	UnlockNewMips();
+	// Release the intermediate texture.
+	IntermediateTextureRHI.SafeRelease();
+}
+
+FTextureMipAllocator::ETickThread FTexture2DMipAllocator_AsyncReallocate::GetCancelThread() const
+{
+	// If there is an intermediate texture and possibly locked mips. Unlock them and release it on the renderthread.
+	if (IntermediateTextureRHI)
+	{
+		return ETickThread::Render;
+	}
+	// Nothing to do.
+	else
+	{
+		return ETickThread::None;
+	}
+}
+
+int32 FTexture2DMipAllocator_AsyncReallocate::GetCurrentFirstMip(UTexture* Texture) const
+{
+	UTexture2D* Texture2D = CastChecked<UTexture2D>(Texture, ECastCheckedType::NullChecked);
+	FTexture2DResource* Resource = static_cast<FTexture2DResource*>(Texture2D->Resource);
+	return Resource ? Resource->GetCurrentFirstMip() : INDEX_NONE;
+}
+
+// ****************************
+// ********* Helpers **********
+// ****************************
+
+void FTexture2DMipAllocator_AsyncReallocate::UnlockNewMips()
+{
+	// Unlock any locked mips.
+	if (IntermediateTextureRHI)
+	{
+		const bool bFlushRHIThread = CVarFlushRHIThreadOnSTreamingTextureLocks.GetValueOnAnyThread() > 0;
+		for (int32 MipIndex : LockedMipIndices)
+		{
+			RHIUnlockTexture2D(IntermediateTextureRHI, MipIndex, false, CVarFlushRHIThreadOnSTreamingTextureLocks.GetValueOnAnyThread() > 0 );
+		}
+		LockedMipIndices.Empty();
+	}
+}
