@@ -16,6 +16,26 @@ class FTimingTrackViewport;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Various available options for display
+enum class EGraphOptions
+{
+	None					= 0,
+
+	ShowDebugInfo			= (1 << 0),
+	ShowPoints				= (1 << 1),
+	ShowPointsWithBorder	= (1 << 2),
+	ShowLines				= (1 << 3),
+	ShowPolygon				= (1 << 4),
+	UseEventDuration		= (1 << 5),
+	ShowBars				= (1 << 6),
+
+	All						= ShowPoints | ShowPointsWithBorder | ShowLines | ShowPolygon | UseEventDuration | ShowBars,
+};
+
+ENUM_CLASS_FLAGS(EGraphOptions);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 class TRACEINSIGHTS_API FGraphTrack : public FBaseTimingTrack
 {
 	friend class FGraphTrackBuilder;
@@ -69,14 +89,6 @@ protected:
 
 	void DrawSeries(const FGraphSeries& Series, FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
 
-	virtual bool ContextMenu_ShowPoints_CanExecute();
-	virtual bool ContextMenu_ShowPointsWithBorder_CanExecute();
-	virtual bool ContextMenu_ShowLines_CanExecute();
-	virtual bool ContextMenu_ShowPolygon_CanExecute();
-	virtual bool ContextMenu_UseEventDuration_CanExecute();
-	virtual bool ContextMenu_ShowBars_CanExecute();
-	virtual bool ContextMenu_ShowSeries_CanExecute(FGraphSeries* Series);
-
 	// Get the Y value that is used to provide a clipping border between adjacent graph tracks.
 	virtual float GetBorderY() const { return 0.0f; }
 
@@ -85,26 +97,29 @@ private:
 	void ContextMenu_ShowDebugInfo_Execute();
 	bool ContextMenu_ShowDebugInfo_IsChecked();
 
+	bool ContextMenu_ShowPoints_CanExecute();
 	void ContextMenu_ShowPoints_Execute();
 	bool ContextMenu_ShowPoints_IsChecked();
 
+	bool ContextMenu_ShowPointsWithBorder_CanExecute();
 	void ContextMenu_ShowPointsWithBorder_Execute();
 	bool ContextMenu_ShowPointsWithBorder_IsChecked();
 
+	bool ContextMenu_ShowLines_CanExecute();
 	void ContextMenu_ShowLines_Execute();
 	bool ContextMenu_ShowLines_IsChecked();
 
+	bool ContextMenu_ShowPolygon_CanExecute();
 	void ContextMenu_ShowPolygon_Execute();
 	bool ContextMenu_ShowPolygon_IsChecked();
 
+	bool ContextMenu_UseEventDuration_CanExecute();
 	void ContextMenu_UseEventDuration_Execute();
 	bool ContextMenu_UseEventDuration_IsChecked();
 
+	bool ContextMenu_ShowBars_CanExecute();
 	void ContextMenu_ShowBars_Execute();
 	bool ContextMenu_ShowBars_IsChecked();
-
-	void ContextMenu_ShowSeries_Execute(FGraphSeries* Series);
-	bool ContextMenu_ShowSeries_IsChecked(FGraphSeries* Series);
 
 protected:
 	TArray<TSharedPtr<FGraphSeries>> AllSeries;
@@ -123,6 +138,10 @@ protected:
 	bool bUseEventDuration;
 	bool bDrawBoxes;
 	bool bDrawBaseline;
+
+	// Flags controlling whether menu items are available
+	EGraphOptions VisibleOptions;
+	EGraphOptions EditableOptions;
 
 	// Stats
 	int32 NumAddedEvents; // total event count

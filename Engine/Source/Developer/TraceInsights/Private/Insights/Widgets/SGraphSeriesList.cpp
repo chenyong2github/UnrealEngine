@@ -24,6 +24,8 @@ public:
 
 	SLATE_ARGUMENT(TSharedPtr<FGraphSeries>, GraphSeries)
 
+	SLATE_ARGUMENT(TSharedPtr<FGraphTrack>, GraphTrack)
+
 	SLATE_ATTRIBUTE(FText, SearchText)
 
 	SLATE_END_ARGS()
@@ -31,6 +33,7 @@ public:
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTable)
 	{
 		GraphSeries = InArgs._GraphSeries;
+		GraphTrack = InArgs._GraphTrack;
 		SearchText = InArgs._SearchText;
 
 		STableRow<TSharedPtr<FGraphSeries>>::Construct(STableRow<TSharedPtr<FGraphSeries>>::FArguments(), InOwnerTable);
@@ -49,7 +52,7 @@ public:
 			[
 				SNew(SCheckBox)
 				.IsChecked_Lambda([this](){ return GraphSeries.Pin()->IsVisible() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-				.OnCheckStateChanged_Lambda([this](ECheckBoxState InCheckBoxState) { GraphSeries.Pin()->SetVisibility(InCheckBoxState == ECheckBoxState::Checked); })
+				.OnCheckStateChanged_Lambda([this](ECheckBoxState InCheckBoxState) { GraphSeries.Pin()->SetVisibility(InCheckBoxState == ECheckBoxState::Checked); GraphTrack.Pin()->SetDirtyFlag(); })
 				.Content()
 				[
 					SNew(STextBlock)
@@ -70,6 +73,9 @@ public:
 			]
 		];
 	}
+
+	// The track containing the series we represent
+	TWeakPtr<FGraphTrack> GraphTrack;
 
 	// The series we represent
 	TWeakPtr<FGraphSeries> GraphSeries;
@@ -161,6 +167,7 @@ void SGraphSeriesList::Construct(const FArguments& InArgs, const TSharedRef<FGra
 TSharedRef<ITableRow> SGraphSeriesList::OnGenerateRow(TSharedPtr<FGraphSeries> Item, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	return SNew(SGraphSeriesListEntry, OwnerTable)
+		.GraphTrack(GraphTrack.Pin())
 		.GraphSeries(Item)
 		.SearchText_Lambda([this](){ return SearchText; });
 }
