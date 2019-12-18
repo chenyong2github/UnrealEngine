@@ -1,7 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Chaos/PBDCollisionConstraintsPointContactUtil.h"
+#include "Chaos/PBDCollisionConstraintsContact.h"
 #include "Chaos/CollisionResolution.h"
+#include "Chaos/CollisionResolutionUtil.h"
 #include "Chaos/Defines.h"
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/Utilities.h"
@@ -11,34 +12,42 @@ namespace Chaos
 	namespace Collisions
 	{
 		template<ECollisionUpdateType UpdateType, typename T, int d>
-		void Update(const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint)
+		void Update(const T Thickness, TCollisionConstraintBase<T, d>& Constraint)
 		{
 			Constraint.ResetPhi(Thickness);
 			const TRigidTransform<T, d> ParticleTM = GetTransform(Constraint.Particle[0]);
 			const TRigidTransform<T, d> LevelsetTM = GetTransform(Constraint.Particle[1]);
 
-			if (!Constraint.Particle[0]->Geometry())
+			if (Constraint.GetType() == TCollisionConstraintBase<T, d>::FType::SinglePoint)
 			{
-				if (Constraint.Particle[1]->Geometry())
+				if (!Constraint.Particle[0]->Geometry())
 				{
-					if (!Constraint.Particle[1]->Geometry()->IsUnderlyingUnion())
+					if (Constraint.Particle[1]->Geometry())
 					{
-						UpdateLevelsetLevelsetConstraint<UpdateType>(Thickness, Constraint);
-					}
-					else
-					{
-						UpdateUnionLevelsetConstraint<UpdateType>(Thickness, Constraint);
+						if (!Constraint.Particle[1]->Geometry()->IsUnderlyingUnion())
+						{
+							UpdateLevelsetLevelsetConstraint<UpdateType>(Thickness, *Constraint.template As<TRigidBodyPointContactConstraint<T, d>>());
+						}
+						else
+						{
+							UpdateUnionLevelsetConstraint<UpdateType>(Thickness, *Constraint.template As<TRigidBodyPointContactConstraint<T, d>>());
+						}
 					}
 				}
+				else
+				{
+					UpdateConstraintImp<UpdateType>(*Constraint.Particle[0]->Geometry(), ParticleTM, *Constraint.Particle[1]->Geometry(), LevelsetTM, Thickness, Constraint);
+				}
 			}
-			else
+			else if(Constraint.GetType() == TCollisionConstraintBase<T, d>::FType::Plane)
 			{
 				UpdateConstraintImp<UpdateType>(*Constraint.Particle[0]->Geometry(), ParticleTM, *Constraint.Particle[1]->Geometry(), LevelsetTM, Thickness, Constraint);
 			}
 		}
 
+
 		template<typename T, int d>
-		void Apply(TRigidBodyPointContactConstraint<T, d>& Constraint, T Thickness, TPointContactIterationParameters<T> & IterationParameters, TPointContactParticleParameters<T> & ParticleParameters)
+		void Apply(TCollisionConstraintBase<T, d>& Constraint, T Thickness, TContactIterationParameters<T> & IterationParameters, TContactParticleParameters<T> & ParticleParameters)
 		{
 			TGenericParticleHandle<T, d> Particle0 = TGenericParticleHandle<T, d>(Constraint.Particle[0]);
 			TGenericParticleHandle<T, d> Particle1 = TGenericParticleHandle<T, d>(Constraint.Particle[1]);
@@ -256,10 +265,9 @@ namespace Chaos
 			}
 		}
 
-		// @todo(ccaulfield): Kinematic-Dynamic optimized version
 		template<typename T, int d>
-		void ApplyPushOut(TRigidBodyPointContactConstraint<T, d>& Constraint, T Thickness, const TSet<const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic,
-			TPointContactIterationParameters<T> & IterationParameters, TPointContactParticleParameters<T> & ParticleParameters)
+		void ApplyPushOut(TCollisionConstraintBase<T, d>& Constraint, T Thickness, const TSet<const TGeometryParticleHandle<T, d>*>& IsTemporarilyStatic,
+			TContactIterationParameters<T> & IterationParameters, TContactParticleParameters<T> & ParticleParameters)
 		{
 			TGenericParticleHandle<T, d> Particle0 = TGenericParticleHandle<T, d>(Constraint.Particle[0]);
 			TGenericParticleHandle<T, d> Particle1 = TGenericParticleHandle<T, d>(Constraint.Particle[1]);
@@ -275,7 +283,7 @@ namespace Chaos
 			TRotation<T, d> Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
 			const bool IsTemporarilyStatic0 = IsTemporarilyStatic.Contains(Constraint.Particle[0]);
 			const bool IsTemporarilyStatic1 = IsTemporarilyStatic.Contains(Constraint.Particle[1]);
-	
+
 			TSerializablePtr<FChaosPhysicsMaterial> PhysicsMaterial0, PhysicsMaterial1;
 			if (ParticleParameters.PhysicsMaterials)
 			{
@@ -295,7 +303,7 @@ namespace Chaos
 				}
 
 				if ((!bIsRigidDynamic0 || IsTemporarilyStatic0) && (!bIsRigidDynamic1 || IsTemporarilyStatic1))
-				{	
+				{
 					break;
 				}
 
@@ -340,7 +348,7 @@ namespace Chaos
 					}
 
 					if (!IsTemporarilyStatic1 && bIsRigidDynamic1)
-					{	
+					{
 						TVector<T, d> AngularImpulse = TVector<T, d>::CrossProduct(VectorToPoint2, -VelocityFixImpulse);
 						PBDRigid1->V() -= PBDRigid1->InvM() * VelocityFixImpulse;
 						PBDRigid1->W() += WorldSpaceInvI2 * AngularImpulse;
@@ -369,11 +377,12 @@ namespace Chaos
 			}
 		}
 
-		template void Update<ECollisionUpdateType::Any, float, 3>(const float, TRigidBodyPointContactConstraint<float, 3>&);
-		template void Update<ECollisionUpdateType::Deepest, float, 3>(const float, TRigidBodyPointContactConstraint<float, 3>&);
-		template void Apply<float, 3>(TRigidBodyPointContactConstraint<float, 3>&, float, TPointContactIterationParameters<float> &, TPointContactParticleParameters<float> &);
-		template void ApplyPushOut<float, 3>(TRigidBodyPointContactConstraint<float,3>&, float , const TSet<const TGeometryParticleHandle<float,3>*>&,
-			TPointContactIterationParameters<float> & IterationParameters, TPointContactParticleParameters<float> & ParticleParameters);
+
+		template void Update<ECollisionUpdateType::Any, float, 3>(const float, TCollisionConstraintBase<float, 3>&);
+		template void Update<ECollisionUpdateType::Deepest, float, 3>(const float, TCollisionConstraintBase<float, 3>&);
+		template void Apply<float, 3>(TCollisionConstraintBase<float, 3>&, float, TContactIterationParameters<float> &, TContactParticleParameters<float> &);
+		template void ApplyPushOut<float, 3>(TCollisionConstraintBase<float,3>&, float , const TSet<const TGeometryParticleHandle<float,3>*>&,
+			TContactIterationParameters<float> & IterationParameters, TContactParticleParameters<float> & ParticleParameters);
 
 	} // Collisions
 

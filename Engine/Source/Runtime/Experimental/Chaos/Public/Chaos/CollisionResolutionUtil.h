@@ -30,7 +30,7 @@ namespace Chaos
 
 		template<typename T, int d>
 		TVector<T, d> 
-		GetEnergyClampedImpulse(const TRigidBodyPointContactConstraint<T, d>& Constraint, const TVector<T, d>& Impulse, const TVector<T, d>& VectorToPoint1, const TVector<T, d>& VectorToPoint2, const TVector<T, d>& Velocity1, const TVector<T, d>& Velocity2);
+		GetEnergyClampedImpulse(const TCollisionConstraintBase<T, d>& Constraint, const TVector<T, d>& Impulse, const TVector<T, d>& VectorToPoint1, const TVector<T, d>& VectorToPoint2, const TVector<T, d>& Velocity1, const TVector<T, d>& Velocity2);
 
 		template <typename T, int d>
 		bool 

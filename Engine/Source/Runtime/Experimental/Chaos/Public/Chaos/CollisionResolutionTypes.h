@@ -38,39 +38,6 @@ namespace Chaos
 	};
 
 
-
-	/*
-	*
-	*/
-	template<class T = float, int d = 3>
-	class CHAOS_API TCollisionConstraintBase
-	{
-	public:
-		using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
-
-		enum class FType
-		{
-			None = 0,     // default value also indicates a invalid constraint
-			SinglePoint,   // TRigidBodyPointContactConstraint
-			Plane         // TRigidBodyPlaneContactConstraint
-		};
-
-		TCollisionConstraintBase() : Type(FType::None) {}
-		TCollisionConstraintBase(FType InType) : Type(InType) {}
-		FType GetType() const { return Type; }
-
-		template<class AS_T> AS_T * As() { return static_cast<AS_T*>(this); }
-		template<class AS_T> const AS_T * As() const { return static_cast<AS_T*>(this); }
-
-		FGeometryParticleHandle* Particle[2]; // { Point, Volume } 
-
-	private:
-		FType Type;
-	};
-	typedef TCollisionConstraintBase<float, 3> FCollisionConstraintBase;
-	typedef TArray<TCollisionConstraintBase<float, 3>*> FCollisionConstraintsArray;
-
-
 	/*
 	*
 	*/
@@ -94,6 +61,67 @@ namespace Chaos
 		const FImplicitObject* Implicit[2]; // {Of Particle[0], Of Particle[1]}
 	};
 
+
+
+
+	/*
+	*
+	*/
+	template<class T = float, int d = 3>
+	class CHAOS_API TCollisionConstraintBase
+	{
+	public:
+		using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
+		using FManifold = TPointContactManifold<T, d>;
+
+		enum class FType
+		{
+			None = 0,     // default value also indicates a invalid constraint
+			SinglePoint,   // TRigidBodyPointContactConstraint
+			Plane         // TRigidBodyPlaneContactConstraint
+		};
+
+		TCollisionConstraintBase() : AccumulatedImpulse(0), Type(FType::None) {}
+		TCollisionConstraintBase(FType InType) : AccumulatedImpulse(0), Type(InType) {}
+		FType GetType() const { return Type; }
+
+		template<class AS_T> AS_T * As() { return static_cast<AS_T*>(this); }
+		template<class AS_T> const AS_T * As() const { return static_cast<AS_T*>(this); }
+
+		FString ToString() const
+		{
+			return FString::Printf(TEXT("Particle:%s, Levelset:%s, AccumulatedImpulse:%s"), *Particle[0]->ToString(), *Particle[1]->ToString(), *AccumulatedImpulse.ToString());
+		}
+
+		//
+		// API
+		//
+
+		void ResetPhi(T InPhi) { SetPhi(InPhi); }
+
+		void SetPhi(T InPhi) { Manifold.Phi = InPhi; }
+		T GetPhi() const { return Manifold.Phi; }
+
+		void SetDisabled(bool bInDisabled) { Manifold.bDisabled = bInDisabled; }
+		TVector<T, d> GetDisabled() const { return Manifold.bDisabled; }
+
+		void SetNormal(const TVector<T, d> & InNormal) { Manifold.Normal = InNormal; }
+		TVector<T, d> GetNormal() const { return Manifold.Normal; }
+
+		void SetLocation(const TVector<T, d> & InLocation) { Manifold.Location = InLocation; }
+		TVector<T, d> GetLocation() const { return Manifold.Location; }
+
+		FGeometryParticleHandle* Particle[2]; // { Point, Volume }
+		TVector<T, d> AccumulatedImpulse;
+		FManifold Manifold;
+
+	private:
+		FType Type;
+	};
+	typedef TCollisionConstraintBase<float, 3> FCollisionConstraintBase;
+	typedef TArray<TCollisionConstraintBase<float, 3>*> FCollisionConstraintsArray;
+
+
 	/*
 	*
 	*/
@@ -103,77 +131,24 @@ namespace Chaos
 	public:
 		using Base = TCollisionConstraintBase<T, d>;
 		using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
-		using FManifold = TPointContactManifold<T, d>;
 		using Base::Particle;
 
-		TRigidBodyPointContactConstraint() : Base(Base::FType::SinglePoint), AccumulatedImpulse(0) {}
+		TRigidBodyPointContactConstraint() : Base(Base::FType::SinglePoint) {}
 		static typename Base::FType StaticType() { return Base::FType::SinglePoint; };
-
 
 		//
 		// Manidfold management
 		//
-		bool ContainsManifold(const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) const { return (A == nullptr&&B == nullptr) ? (Manifold.Implicit[0] != nullptr && Manifold.Implicit[1] != nullptr) : (Manifold.Implicit[0] == A && Manifold.Implicit[1] == B); }
-		void AddManifold(const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) { Manifold.Implicit[0] = A; Manifold.Implicit[1] = B; }
-
-
-		//
-		// API
-		//
-		void ResetPhi(T InPhi) { SetPhi(InPhi); }
-
-		void SetPhi(T InPhi, const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr, int32 Index = 0) { Manifold.Phi = InPhi; }
-		T GetPhi(const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) const { return Manifold.Phi; }
-
-		void SetDisabled(bool bInDisabled, const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) { Manifold.bDisabled = bInDisabled; }
-		TVector<T, d> GetDisabled(const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) const { return Manifold.bDisabled; }
-
-		void SetNormal(const TVector<T, d> & InNormal, const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) { Manifold.Normal = InNormal; }
-		TVector<T, d> GetNormal(const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) const { return Manifold.Normal; }
-
-		void SetLocation(const TVector<T, d> & InLocation, const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr, int32 Index = 0) { Manifold.Location = InLocation; }
-		TVector<T, d> GetLocation(const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) const { return Manifold.Location; }
+		bool ContainsManifold(const FImplicitObject* B, const FImplicitObject* A) const { return A == Manifold.Implicit[0] && Manifold.Implicit[1] == B; }
+		void AddManifold(const FImplicitObject* B, const FImplicitObject* A) { Manifold.Implicit[0] = A; Manifold.Implicit[1] = B; }
 
 		FString ToString() const
 		{
 			return FString::Printf(TEXT("Particle:%s, Levelset:%s, AccumulatedImpulse:%s"), *Particle[0]->ToString(), *Particle[1]->ToString(), *AccumulatedImpulse.ToString());
 		}
 
-
-		FManifold Manifold;
-		TVector<T, d> AccumulatedImpulse;
-
 	};
 	typedef TRigidBodyPointContactConstraint<float, 3> FRigidBodyPointContactConstraint;
-
-
-	/*
-	*
-	*/
-	template<class T, int d>
-	class CHAOS_API TPlaneContactManifold
-	{
-	public:
-		TPlaneContactManifold(int32 InTimestamp = -INT_MAX, const FImplicitObject* InImplicit0 = nullptr, const FImplicitObject* InImplicit1 = nullptr)
-			: bDisabled(true), Timestamp(InTimestamp), Phi(FLT_MAX)
-		{
-			Implicit[0] = InImplicit0;
-			Implicit[1] = InImplicit1;
-		}
-
-		bool bDisabled;
-		int32 Timestamp;
-
-		TVector<T, d> PlaneNormal;
-		TVector<T, d> PlanePosition;
-		TVector<T, d> ManifoldSamples[4]; // iterative plane samples
-
-		TVector<T, d> Location;
-		T Phi;
-
-		const FImplicitObject* Implicit[2]; // {Of Particle[0], Of Particle[1]}
-	};
-
 
 
 	/*
@@ -185,29 +160,28 @@ namespace Chaos
 	public:
 		using Base = TCollisionConstraintBase<T, d>;
 		using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
-		using FManifold = TPlaneContactManifold<T, d>;
 		using Base::Particle;
 
-		TRigidBodyPlaneContactConstraint() : Base(Base::FType::Plane), AccumulatedImpulse(0) {}
+		TRigidBodyPlaneContactConstraint() : Base(Base::FType::Plane) {}
 		static typename Base::FType StaticType() { return Base::FType::Plane; };
 
-
-		bool ContainsManifold(const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) const { return (A == nullptr&&B == nullptr) ? (Manifold.Implicit[0] != nullptr && Manifold.Implicit[1] != nullptr) : (Manifold.Implicit[0] == A && Manifold.Implicit[1] == B); }
-		void AddManifold(const FImplicitObject* B = nullptr, const FImplicitObject* A = nullptr) { Manifold.Implicit[0] = A; Manifold.Implicit[1] = B; }
-
+		bool ContainsManifold(const FImplicitObject* B, const FImplicitObject* A) const { return A == Manifold.Implicit[0] && Manifold.Implicit[1] == B; }
 
 		FString ToString() const
 		{
 			return FString::Printf(TEXT("Particle:%s, Levelset:%s, AccumulatedImpulse:%s"), *Particle[0]->ToString(), *Particle[1]->ToString(), *AccumulatedImpulse.ToString());
 		}
 
-
-		FManifold Manifold;
-		TVector<T, d> AccumulatedImpulse;
-
+		TVector<T, d> PlaneNormal;
+		TVector<T, d> PlanePosition;
+		TArray<TVector<T, d>> PlaneSamples; // iterative plane samples
 	};
 	typedef TRigidBodyPlaneContactConstraint<float, 3> FRigidBodyPlaneContactConstraint;
 
+
+	//
+	//
+	//
 
 	template<class T, int d>
 	struct CHAOS_API TRigidBodyContactConstraintPGS
@@ -243,12 +217,33 @@ namespace Chaos
 
 		// Handle API
 
+		const TCollisionConstraintBase<T, d>& GetContact() const 
+		{ 
+			if (GetType() == FConstraintBase::FType::SinglePoint)
+			{
+				return ConstraintContainer->PointConstraints[ConstraintIndex];
+			}
+			check(GetType() == FConstraintBase::FType::Plane);
+			return ConstraintContainer->PlaneConstraints[ConstraintIndex];
+		}
+
+		TCollisionConstraintBase<T, d>& GetContact()
+		{
+			if (GetType() == FConstraintBase::FType::SinglePoint)
+			{
+				return ConstraintContainer->PointConstraints[ConstraintIndex];
+			}
+			check(GetType() == FConstraintBase::FType::Plane);
+			return ConstraintContainer->PlaneConstraints[ConstraintIndex];
+		}
+
+
+
 		const TRigidBodyPointContactConstraint<T, d>& GetPointContact() const { check(GetType() == FConstraintBase::FType::SinglePoint); return ConstraintContainer->PointConstraints[ConstraintIndex]; }
 		TRigidBodyPointContactConstraint<T, d>& GetPointContact() { check(GetType() == FConstraintBase::FType::SinglePoint); return ConstraintContainer->PointConstraints[ConstraintIndex]; }
 
 		const TRigidBodyPlaneContactConstraint<T, d>& GetPlaneContact() const { check(GetType() == FConstraintBase::FType::Plane); return ConstraintContainer->PlaneConstraints[ConstraintIndex]; }
 		TRigidBodyPlaneContactConstraint<T, d>& GetPlaneContact() { check(GetType() == FConstraintBase::FType::Plane); return ConstraintContainer->PlaneConstraints[ConstraintIndex]; }
-
 
 		typename FConstraintBase::FType GetType() const { return ConstraintType; }
 
