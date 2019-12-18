@@ -687,6 +687,20 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// End of scene color rendering
 	RHICmdList.EndRenderPass();
 
+	if (Scene->FXSystem && Views.IsValidIndex(0))
+	{
+		check(RHICmdList.IsOutsideRenderPass());
+
+		Scene->FXSystem->PostRenderOpaque(
+			RHICmdList,
+			Views[0].ViewUniformBuffer,
+			nullptr,
+			nullptr,
+			Views[0].AllowGPUParticleUpdate()
+		);
+		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	}
+
 	// Flush / submit cmdbuffer
 	if (bSubmitOffscreenRendering)
 	{

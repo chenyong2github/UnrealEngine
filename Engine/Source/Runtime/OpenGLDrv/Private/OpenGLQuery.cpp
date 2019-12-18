@@ -1146,7 +1146,7 @@ void FOpenGLDisjointTimeStampQuery::ReleaseResources()
 
 FGPUFenceRHIRef FOpenGLDynamicRHI::RHICreateGPUFence(const FName &Name)
 {
-#if OPENGL_GL3
+#if OPENGL_GL3 || USE_ANDROID_OPENGL
 	return new FOpenGLGPUFence(Name);
 #else
 	UE_LOG(LogRHI, Fatal, TEXT("Fences are only available in OpenGL3 or later"));
@@ -1156,7 +1156,7 @@ FGPUFenceRHIRef FOpenGLDynamicRHI::RHICreateGPUFence(const FName &Name)
 
 FOpenGLGPUFence::~FOpenGLGPUFence()
 {
-#if OPENGL_GL3
+#if OPENGL_GL3 || USE_ANDROID_OPENGL
 	if (bValidSync)
 	{
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
@@ -1172,7 +1172,7 @@ FOpenGLGPUFence::~FOpenGLGPUFence()
 
 void FOpenGLGPUFence::Clear()
 {
-#if OPENGL_GL3
+#if OPENGL_GL3 || USE_ANDROID_OPENGL
 
 	if (bValidSync)
 	{
@@ -1189,7 +1189,7 @@ void FOpenGLGPUFence::Clear()
 }
 bool FOpenGLGPUFence::Poll() const
 {
-#if OPENGL_GL3
+#if OPENGL_GL3 || USE_ANDROID_OPENGL
 	if (!bValidSync)
 	{
 		return false;
@@ -1211,7 +1211,7 @@ bool FOpenGLGPUFence::Poll() const
 
 void FOpenGLGPUFence::WriteInternal()
 {
-#if OPENGL_GL3
+#if OPENGL_GL3 || USE_ANDROID_OPENGL
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	RHITHREAD_GLCOMMAND_PROLOGUE();
 	VERIFY_GL_SCOPE();

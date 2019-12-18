@@ -101,9 +101,6 @@ typedef FAndroidTypes FPlatformTypes;
 #ifndef USE_ANDROID_EVENTS
 	#define USE_ANDROID_EVENTS						1
 #endif
-#ifndef USE_ANDROID_OPENGL
-	#define USE_ANDROID_OPENGL						1
-#endif
 
 // Function type macros.
 #define VARARGS													/* Functions with variable arguments */

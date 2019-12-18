@@ -1608,9 +1608,21 @@ uint32_t AndroidEGL::GetCurrentContextType()
 
 FPlatformOpenGLContext* AndroidEGL::GetRenderingContext()
 {
-	if(GUseThreadedRendering)
+	if (GUseThreadedRendering)
 	{
 		return &PImplData->RenderingContext;
+	}
+	else
+	{
+		return &PImplData->SingleThreadedContext;
+	}
+}
+
+FPlatformOpenGLContext* AndroidEGL::GetSharedContext()
+{
+	if (GUseThreadedRendering)
+	{
+		return &PImplData->SharedContext;
 	}
 	else
 	{
