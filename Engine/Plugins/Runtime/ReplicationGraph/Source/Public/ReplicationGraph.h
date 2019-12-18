@@ -911,6 +911,8 @@ public:
 
 	void NotifyConnectionSaturated(class UNetReplicationGraphConnection& Connection);
 
+	void SetActorDestructionInfoToIgnoreDistanceCulling(AActor* DestroyedActor);
+
 	uint16 GetReplicationPeriodFrameForFrequency(float NetUpdateFrequency) const
 	{
 		check(NetDriver);

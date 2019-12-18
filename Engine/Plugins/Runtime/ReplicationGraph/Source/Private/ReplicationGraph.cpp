@@ -2194,6 +2194,29 @@ void UReplicationGraph::NotifyConnectionSaturated(UNetReplicationGraphConnection
 	++GNumSaturatedConnections;
 }
 
+void UReplicationGraph::SetActorDestructionInfoToIgnoreDistanceCulling(AActor* DestroyedActor)
+{
+	if (!DestroyedActor)
+	{
+		return;
+	}
+
+	check(NetDriver);
+	FNetworkGUID NetGUID = NetDriver->GuidCache->GetNetGUID(DestroyedActor);
+			
+	if (NetGUID.IsDefault())
+	{
+		UE_CLOG(CVar_RepGraph_LogNetDormancyDetails > 0, LogReplicationGraph, Warning, TEXT("SetActorDestructionInfoToIgnoreDistanceCulling ignored for %s. No NetGUID assigned to the actor"), *GetNameSafe(DestroyedActor));
+		return;
+	}
+
+	// See if a destruction info exists for this actor
+	if (const TUniquePtr<FActorDestructionInfo>* DestructionInfoPtr = NetDriver->DestroyedStartupOrDormantActors.Find(NetGUID))
+	{
+		(*DestructionInfoPtr)->bIgnoreDistanceCulling = true;
+	}
+}
+
 // --------------------------------------------------------------------------------------------------------------------------------------------
 // --------------------------------------------------------------------------------------------------------------------------------------------
 // --------------------------------------------------------------------------------------------------------------------------------------------
@@ -2509,23 +2532,24 @@ int64 UNetReplicationGraphConnection::ReplicateDestructionInfos(const FNetViewer
 	{
 		const FCachedDestructInfo& Info = PendingDestructInfoList[idx];
 		FActorDestructionInfo* DestructInfo = Info.DestructionInfo;
-		bool bStillInRelevency = false;
+		bool bSendDestructionInfo = false;
 
-		// Find if anyone is close to this object.
-		for (const FNetViewer& CurViewer : Viewers)
+		if (!DestructInfo->bIgnoreDistanceCulling)
 		{
-			float DistSquared = FMath::Square(Info.CachedPosition.X - CurViewer.ViewLocation.X) + FMath::Square(Info.CachedPosition.Y - CurViewer.ViewLocation.Y);
-
-			// Someone is nearby this object, do not remove it.
-			if (!(DistSquared < DestructInfoMaxDistanceSquared))
+			// Only send destruction info if the viewers are close enough to the destroyed actor
+			for (const FNetViewer& CurViewer : Viewers)
 			{
-				bStillInRelevency = true;
-				break;
+				const float DistSquared = FVector::DistSquared2D(Info.CachedPosition, CurViewer.ViewLocation);
+
+				if (DistSquared < DestructInfoMaxDistanceSquared)
+				{
+					bSendDestructionInfo = true;
+					break;
+				}
 			}
 		}
 
-		// Essentially, if no one can see this object, mark it for destruction.
-		if (!bStillInRelevency)
+		if (bSendDestructionInfo || DestructInfo->bIgnoreDistanceCulling)
 		{
 			UActorChannel* Channel = (UActorChannel*)NetConnection->CreateChannelByName(NAME_Actor, EChannelCreateFlags::OpenedLocally);
 			if (Channel)

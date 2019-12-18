@@ -110,6 +110,7 @@ void UBasicReplicationGraph::RouteRemoveNetworkActorToNodes(const FNewReplicated
 	if (ActorInfo.Actor->bAlwaysRelevant)
 	{
 		AlwaysRelevantNode->NotifyRemoveNetworkActor(ActorInfo);
+		SetActorDestructionInfoToIgnoreDistanceCulling(ActorInfo.GetActor());
 	}
 	else if (ActorInfo.Actor->bOnlyRelevantToOwner)
 	{
