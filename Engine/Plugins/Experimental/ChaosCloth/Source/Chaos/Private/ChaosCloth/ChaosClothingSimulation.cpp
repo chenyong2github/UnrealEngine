@@ -18,6 +18,7 @@
 #include "Chaos/PBDAnimDriveConstraint.h"
 #include "Chaos/PBDAxialSpringConstraints.h"
 #include "Chaos/PBDBendingConstraints.h"
+#include "Chaos/PBDLongRangeConstraints.h"
 #include "Chaos/PBDParticles.h"
 #include "Chaos/PBDSphericalConstraint.h"
 #include "Chaos/PBDSpringConstraints.h"
@@ -33,6 +34,7 @@
 #include "Chaos/Utilities.h"
 #include "Chaos/Vector.h"
 #include "ChaosCloth/ChaosClothConfig.h"
+#include "ChaosCloth/ChaosClothPrivate.h"
 
 #if WITH_PHYSX && !PLATFORM_LUMIN && !PLATFORM_ANDROID
 #include "PhysXIncludes.h"
@@ -44,6 +46,10 @@
 #include "Chaos/ErrorReporter.h"
 
 using namespace Chaos;
+
+DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Simulate"), STAT_ChaosClothSimulate, STATGROUP_ChaosCloth);
+DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Get Animation Data"), STAT_ChaosClothGetAnimationData, STATGROUP_ChaosCloth);
+DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Update Collision Transforms"), STAT_ChaosClothUpdateCollisionTransforms, STATGROUP_ChaosCloth);
 
 ClothingSimulation::ClothingSimulation()
 	: ClothSharedSimConfig(nullptr)
@@ -86,7 +92,7 @@ void ClothingSimulation::Initialize()
     Evolution->GetGravityForces().SetAcceleration(Chaos::TVector<float, 3>(0.f, 0.f, -1.f)*GravityMagnitude);
 
     Evolution->SetKinematicUpdateFunction(
-		[&](Chaos::TPBDParticles<float, 3>& ParticlesInput, const float Dt, const float LocalTime, const int32 Index)
+		[this](Chaos::TPBDParticles<float, 3>& ParticlesInput, const float Dt, const float LocalTime, const int32 Index)
 		{
 			if (!OldAnimationPositions.IsValidIndex(Index) || ParticlesInput.InvM(Index) > 0)
 				return;
@@ -96,7 +102,7 @@ void ClothingSimulation::Initialize()
 
 	Evolution->SetCollisionKinematicUpdateFunction(
 //		[&](Chaos::TKinematicGeometryParticles<float, 3>& ParticlesInput, const float Dt, const float LocalTime, const int32 Index)
-		[&](Chaos::TKinematicGeometryClothParticles<float, 3>& ParticlesInput, const float Dt, const float LocalTime, const int32 Index)
+		[this](Chaos::TKinematicGeometryClothParticles<float, 3>& ParticlesInput, const float Dt, const float LocalTime, const int32 Index)
 		{
 			checkSlow(Dt > SMALL_NUMBER && DeltaTime > SMALL_NUMBER);
 			const float Alpha = (LocalTime - Time) / DeltaTime;
@@ -179,25 +185,18 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 	TArray<Chaos::TVector<float, 3>> TempAnimationPositions;
 	TArray<Chaos::TVector<float, 3>> TempAnimationNormals;
 
+	TempAnimationPositions.SetNumUninitialized(PhysMesh->Vertices.Num());
+	TempAnimationNormals.SetNumUninitialized(PhysMesh->Vertices.Num());
+
 	FTransform RootBoneTransform = Context.BoneTransforms[Asset->ReferenceBoneIndex];
-	ClothingMeshUtils::SkinPhysicsMesh(
+	ClothingMeshUtils::SkinPhysicsMesh<true, false>(
 		Asset->UsedBoneIndices,
 		*PhysMesh, // curr pos and norm
-		RootBoneTransform,
+		Context.ComponentToWorld,
 		Context.RefToLocals.GetData(),
 		Context.RefToLocals.Num(),
 		reinterpret_cast<TArray<FVector>&>(TempAnimationPositions),
 		reinterpret_cast<TArray<FVector>&>(TempAnimationNormals));
-
-	// Transform points & normals to world space
-	RootBoneTransform.SetScale3D(FVector(1.0f));
-	const FTransform RootBoneWorldTransform = RootBoneTransform * Context.ComponentToWorld;
-	ParallelFor(TempAnimationPositions.Num(),
-		[&](int32 Index)
-	{
-		TempAnimationPositions[Index] = RootBoneWorldTransform.TransformPosition(TempAnimationPositions[Index]);
-		TempAnimationNormals[Index] = RootBoneWorldTransform.TransformVector(TempAnimationNormals[Index]);
-	});
 
 	// Add particles
 	TPBDParticles<float, 3>& Particles = Evolution->Particles();
@@ -394,15 +393,17 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 	if (ChaosClothSimConfig->StrainLimitingStiffness)
 	{
 		check(Mesh->GetNumElements() > 0);
-		Chaos::TPerParticlePBDLongRangeConstraints<float, 3> PerParticlePBDLongRangeConstraints(
+		// PerFormance note: The Per constraint version of this function is quite a bit faster for smaller assets
+		// There might be a cross-over point where the PerParticle version is faster: To be determined
+		Chaos::TPBDLongRangeConstraints<float, 3> PBDLongRangeConstraints(
 			Evolution->Particles(),
 			Mesh->GetPointToNeighborsMap(),
 			10, // The max number of connected neighbors per particle.  ryan - What should this be?  Was k...
 			ChaosClothSimConfig->StrainLimitingStiffness);
 
-		Evolution->AddPBDConstraintFunction([PerParticlePBDLongRangeConstraints = MoveTemp(PerParticlePBDLongRangeConstraints)](TPBDParticles<float, 3>& InParticles, const float Dt)
+		Evolution->AddPBDConstraintFunction([PBDLongRangeConstraints = MoveTemp(PBDLongRangeConstraints)](TPBDParticles<float, 3>& InParticles, const float Dt)
 		{
-			PerParticlePBDLongRangeConstraints.Apply(InParticles, Dt);
+			PBDLongRangeConstraints.Apply(InParticles, Dt);
 		});
 	}
 
@@ -514,10 +515,16 @@ void ClothingSimulation::PostActorCreationInitialize()
 
 void ClothingSimulation::UpdateCollisionTransforms(const ClothingSimulationContext& Context)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ChaosClothUpdateCollisionTransforms);
+
+	// Save collision transforms into the OldCollision transforms
+	// before overwriting it in this function
+	Swap(OldCollisionTransforms, CollisionTransforms);
+
 	TGeometryClothParticles<float, 3>& CollisionParticles = Evolution->CollisionParticles();
 
 	// Resize the transform arrays
-	const int32 PrevNumCollisions = CollisionTransforms.Num();
+	const int32 PrevNumCollisions = OldCollisionTransforms.Num();
 	const int32 NumCollisions = BaseTransforms.Num();
 	check(NumCollisions == int32(CollisionParticles.Size()));  // BaseTransforms should always automatically grow with the number of collision particles (collection array)
 
@@ -1026,54 +1033,50 @@ void ClothingSimulation::FillContext(USkeletalMeshComponent* InComponent, float 
 
 void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ChaosClothSimulate);
 	ClothingSimulationContext* Context = static_cast<ClothingSimulationContext*>(InContext);
 	if (Context->DeltaTime == 0)
 		return;
 
 	// Get New Animation Positions and Normals
-	OldCollisionTransforms = CollisionTransforms;
-	OldAnimationPositions = AnimationPositions;
-
-	for (int32 Index = 0; Index < IndexToRangeMap.Num(); ++Index)
 	{
-		const UClothingAssetCommon* const Asset = Assets[Index];
-		if (!Asset)
-			continue;
+		SCOPE_CYCLE_COUNTER(STAT_ChaosClothGetAnimationData);
 
-		const UClothLODDataCommon* AssetLodData = Asset->ClothLodData[0];
-		check(AssetLodData->PhysicalMeshData);
-		const UClothPhysicalMeshDataBase* PhysMesh = AssetLodData->PhysicalMeshData;
-
-		TArray<Chaos::TVector<float, 3>> TempAnimationPositions;
-		TArray<Chaos::TVector<float, 3>> TempAnimationNormals;
-
-		FTransform RootBoneTransform = Context->BoneTransforms[Asset->ReferenceBoneIndex];
-		ClothingMeshUtils::SkinPhysicsMesh(
-			Asset->UsedBoneIndices,
-			*PhysMesh,
-			RootBoneTransform,
-			Context->RefToLocals.GetData(),
-			Context->RefToLocals.Num(),
-			reinterpret_cast<TArray<FVector>&>(TempAnimationPositions),
-			reinterpret_cast<TArray<FVector>&>(TempAnimationNormals));
-
-		RootBoneTransform.SetScale3D(FVector(1.0f));
-
-		// Removing Context->ComponentToWorld means the sim doesn't see updates to the component level xf
-		const FTransform RootBoneWorldTransform = RootBoneTransform * Context->ComponentToWorld;
-
-		const int32 Offset = IndexToRangeMap[Index][0];
-		check(TempAnimationPositions.Num() == IndexToRangeMap[Index][1] - IndexToRangeMap[Index][0]);
-
-		ParallelFor(TempAnimationPositions.Num(),
-		[&](int32 AnimationElementIndex)
+		Swap(OldAnimationPositions, AnimationPositions);
+		check(OldAnimationPositions.Num() == AnimationPositions.Num());
+		
+		for (int32 Index = 0; Index < IndexToRangeMap.Num(); ++Index)
 		{
-			AnimationPositions[Offset + AnimationElementIndex] = RootBoneWorldTransform.TransformPosition(TempAnimationPositions[AnimationElementIndex]);
-			AnimationNormals[Offset + AnimationElementIndex] = RootBoneWorldTransform.TransformVector(TempAnimationNormals[AnimationElementIndex]);
-		});
+			const UClothingAssetCommon* const Asset = Assets[Index];
+			if (!Asset)
+			{
+				continue;
+			}
+
+			const UClothLODDataCommon* AssetLodData = Asset->ClothLodData[0];
+			check(AssetLodData->PhysicalMeshData);
+			const UClothPhysicalMeshDataBase* PhysMesh = AssetLodData->PhysicalMeshData;
+			const uint32 PointCount = IndexToRangeMap[Index][1] - IndexToRangeMap[Index][0];
+
+			// Optimization note:
+			// This function usually receives the RootBoneTransform in order to transform the result from Component space to RootBone space.
+			// (So the mesh vectors and positions (Mesh is in component space) is multiplied by Inv(RootBoneTransform) at the end of the function)
+			// We actually require world space coordinates so will instead pass Inv(ComponentToWorld)
+			// This saves a lot of Matrix multiplication work later
+			const int32 Offset = IndexToRangeMap[Index][0];
+
+			ClothingMeshUtils::SkinPhysicsMesh<true, false>(
+				Asset->UsedBoneIndices,
+				*PhysMesh,
+				Context->ComponentToWorld,
+				Context->RefToLocals.GetData(),
+				Context->RefToLocals.Num(),
+				reinterpret_cast<TArray<FVector>&>(AnimationPositions),
+				reinterpret_cast<TArray<FVector>&>(AnimationNormals), Offset);
+		}
 	}
 
-	// Update collision tranforms
+	// Update collision transforms
 	UpdateCollisionTransforms(*Context);
 
 	// Advance Sim
@@ -1199,7 +1202,7 @@ void ClothingSimulation::SetAnimDriveSpringStiffness(float InStiffness)
 	}
 }
 
-void ClothingSimulation::SetGravityOverride(const FVector& InGravityOverride) 
+void ClothingSimulation::SetGravityOverride(const FVector& InGravityOverride)
 {
 	Evolution->GetGravityForces().SetAcceleration(InGravityOverride);
 }

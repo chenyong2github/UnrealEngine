@@ -5,9 +5,11 @@
 #include "Chaos/PBDAxialSpringConstraintsBase.h"
 #include "Chaos/PBDParticles.h"
 #include "Chaos/PerParticleRule.h"
+#include "ChaosStats.h"
 
 #include <algorithm>
 
+DECLARE_CYCLE_STAT(TEXT("Chaos PBD Axial Spring Constraint"), STAT_PBD_AxialSpring, STATGROUP_Chaos);
 namespace Chaos
 {
 template<class T, int d>
@@ -24,6 +26,7 @@ class TPBDAxialSpringConstraints : public TParticleRule<T, d>, public TPBDAxialS
 
 	void Apply(TPBDParticles<T, d>& InParticles, const T Dt) const override //-V762
 	{
+		SCOPE_CYCLE_COUNTER(STAT_PBD_AxialSpring);
 		for (int32 i = 0; i < MConstraints.Num(); ++i)
 		{
 			const auto& constraint = MConstraints[i];

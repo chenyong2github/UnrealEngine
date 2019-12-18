@@ -2,6 +2,9 @@
 #pragma once
 
 #include "ParticleRule.h"
+#include "ChaosStats.h"
+
+DECLARE_CYCLE_STAT(TEXT("Chaos PBD Spherical Constraints"), STAT_PBD_Spherical, STATGROUP_Chaos);
 
 namespace Chaos
 {
@@ -33,6 +36,7 @@ public:
 
 	inline void Apply(TPBDParticles<T, d>& InParticles, const T Dt) const override
 	{
+		SCOPE_CYCLE_COUNTER(STAT_PBD_Spherical);
 		const T CenterDeadZoneRadius = KINDA_SMALL_NUMBER; // We will not push the particle away in the dead zone
 
 		PhysicsParallelFor(ParticleCount, [&](int32 Index)
