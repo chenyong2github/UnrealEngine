@@ -65,7 +65,7 @@ namespace Chaos
 
 		const FImplicitObject* Implicit[2]; // {Of Particle[0], Of Particle[1]}
 	};
-
+	typedef TCollisionContact<float, 3> FCollisionContact;
 
 	/*
 	*
