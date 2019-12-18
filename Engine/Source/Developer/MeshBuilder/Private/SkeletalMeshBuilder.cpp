@@ -50,6 +50,37 @@ struct FSkeletalMeshVertInstanceIDAndZ
 	float Z;
 };
 
+//TODO: move that in a public header and use it everywhere we call FSkeletalMeshImportData::CopyLODImportData
+//or simply add parameter to FSkeletalMeshImportData::CopyLODImportData to do the job inside the function.
+namespace SkeletalMeshBuilderHelperNS
+{
+	void FixFaceMaterial(USkeletalMesh* SkeletalMesh, TArray<SkeletalMeshImportData::FMaterial>& RawMeshMaterials, TArray<SkeletalMeshImportData::FMeshFace>& LODFaces)
+	{
+		//Fix the material for the faces
+		TArray<int32> MaterialRemap;
+		MaterialRemap.Reserve(RawMeshMaterials.Num());
+		for (int32 MaterialIndex = 0; MaterialIndex < RawMeshMaterials.Num(); ++MaterialIndex)
+		{
+			MaterialRemap.Add(MaterialIndex);
+			FName MaterialImportName = *(RawMeshMaterials[MaterialIndex].MaterialImportName);
+			for (int32 MeshMaterialIndex = 0; MeshMaterialIndex < SkeletalMesh->Materials.Num(); ++MeshMaterialIndex)
+			{
+				FName MeshMaterialName = SkeletalMesh->Materials[MeshMaterialIndex].ImportedMaterialSlotName;
+				if (MaterialImportName == MeshMaterialName)
+				{
+					MaterialRemap[MaterialIndex] = MeshMaterialIndex;
+					break;
+				}
+			}
+		}
+		//Update all the faces
+		for (int32 FaceIndex = 0; FaceIndex < LODFaces.Num(); ++FaceIndex)
+		{
+			LODFaces[FaceIndex].MeshMaterialIndex = MaterialRemap[LODFaces[FaceIndex].MeshMaterialIndex];
+		}
+	}
+}
+
 FSkeletalMeshBuilder::FSkeletalMeshBuilder()
 {
 
@@ -93,6 +124,7 @@ bool FSkeletalMeshBuilder::Build(USkeletalMesh* SkeletalMesh, const int32 LODInd
 		TArray<int32> LODPointToRawMap;
 		SkeletalMeshImportData.CopyLODImportData(LODPoints, LODWedges, LODFaces, LODInfluences, LODPointToRawMap);
 
+		SkeletalMeshBuilderHelperNS::FixFaceMaterial(SkeletalMesh, SkeletalMeshImportData.Materials, LODFaces);
 
 		//Build the skeletalmesh using mesh utilities module
 		IMeshUtilities::MeshBuildOptions Options;
