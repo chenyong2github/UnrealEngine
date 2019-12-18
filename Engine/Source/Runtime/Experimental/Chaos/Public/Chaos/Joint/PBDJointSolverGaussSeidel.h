@@ -57,6 +57,10 @@ namespace Chaos
 			const FReal Dt,
 			const FPBDJointSettings& JointSettings);
 
+		void ApplyDrives(
+			const FReal Dt,
+			const FPBDJointSettings& JointSettings);
+
 	private:
 
 		void UpdateDerivedState();
@@ -68,6 +72,11 @@ namespace Chaos
 		void ApplyRotationConstraints(
 			const FReal Dt,
 			const FPBDJointSettings& JointSettings);
+
+		void ApplyRotationDrives(
+			const FReal Dt,
+			const FPBDJointSettings& JointSettings);
+
 
 		void ApplyPositionDelta(
 			const FReal Stiffness,
@@ -86,11 +95,20 @@ namespace Chaos
 			const FVec3& Axis1,
 			const FReal Angle1);
 
+
 		void ApplyTwistConstraint(
 			const FReal Dt,
 			const FPBDJointSettings& JointSettings);
 
+		void ApplyTwistDrive(
+			const FReal Dt,
+			const FPBDJointSettings& JointSettings);
+
 		void ApplyConeConstraint(
+			const FReal Dt,
+			const FPBDJointSettings& JointSettings);
+
+		void ApplyConeDrive(
 			const FReal Dt,
 			const FPBDJointSettings& JointSettings);
 
@@ -100,9 +118,20 @@ namespace Chaos
 			const EJointAngularConstraintIndex SwingConstraintIndex,
 			const EJointAngularAxisIndex SwingAxisIndex);
 
+		void ApplySwingDrive(
+			const FReal Dt,
+			const FPBDJointSettings& JointSettings,
+			const EJointAngularConstraintIndex SwingConstraintIndex,
+			const EJointAngularAxisIndex SwingAxisIndex);
+
+		void ApplySLerpDrive(
+			const FReal Dt,
+			const FPBDJointSettings& JointSettings);
+
 		void ApplyPositionConstraint(
 			const FReal Dt,
 			const FPBDJointSettings& JointSettings);
+
 
 		// Local-space constraint settings
 		FRigidTransform3 XLs[MaxConstraintedBodies];	// Local-space joint connector transforms
@@ -121,9 +150,11 @@ namespace Chaos
 		FReal LinearStiffness;
 		FReal TwistStiffness;
 		FReal SwingStiffness;
+		FReal AngularDriveStiffness;
 		FReal SwingTwistAngleTolerance;
 		bool bEnableTwistLimits;
 		bool bEnableSwingLimits;
+		bool bEnableDrives;
 	};
 
 }

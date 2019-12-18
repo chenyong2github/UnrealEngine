@@ -54,9 +54,11 @@ namespace Chaos
 		LinearStiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
 		TwistStiffness = FPBDJointUtilities::GetTwistStiffness(SolverSettings, JointSettings);
 		SwingStiffness = FPBDJointUtilities::GetSwingStiffness(SolverSettings, JointSettings);
+		AngularDriveStiffness = FPBDJointUtilities::GetAngularDriveStiffness(SolverSettings, JointSettings);
 		SwingTwistAngleTolerance = SolverSettings.SwingTwistAngleTolerance;
 		bEnableTwistLimits = SolverSettings.bEnableTwistLimits;
-		bEnableTwistLimits = SolverSettings.bEnableTwistLimits;
+		bEnableSwingLimits = SolverSettings.bEnableSwingLimits;
+		bEnableDrives = SolverSettings.bEnableDrives;
 
 		UpdateDerivedState();
 	}
@@ -69,6 +71,14 @@ namespace Chaos
 		ApplyPositionConstraints(Dt, JointSettings);
 	}
 
+
+	void FJointSolverGaussSeidel::ApplyDrives(
+		const FReal Dt,
+		const FPBDJointSettings& JointSettings)
+	{
+		// @todo(ccaulfield): linear and velocity drives
+		ApplyRotationDrives(Dt, JointSettings);
+	}
 
 	void FJointSolverGaussSeidel::ApplyRotationConstraints(
 		const FReal Dt,
@@ -107,6 +117,47 @@ namespace Chaos
 					// Swing Arc/Lock
 					ApplySwingConstraint(Dt, JointSettings, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2);
 				}
+			}
+		}
+	}
+
+
+	void FJointSolverGaussSeidel::ApplyRotationDrives(
+		const FReal Dt,
+		const FPBDJointSettings& JointSettings)
+	{
+		EJointMotionType TwistMotion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist];
+		EJointMotionType Swing1Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1];
+		EJointMotionType Swing2Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2];
+
+		if (bEnableDrives)
+		{
+			bool bTwistLocked = TwistMotion == EJointMotionType::Locked;
+			bool bSwing1Locked = Swing1Motion == EJointMotionType::Locked;
+			bool bSwing2Locked = Swing2Motion == EJointMotionType::Locked;
+
+			// No SLerp drive if we have a locked rotation (it will be grayed out in the editor in this case, but could still have been set before the rotation was locked)
+			if (JointSettings.Motion.bAngularSLerpDriveEnabled && !bTwistLocked && !bSwing1Locked && !bSwing2Locked)
+			{
+				ApplySLerpDrive(Dt, JointSettings);
+			}
+
+			if (JointSettings.Motion.bAngularTwistDriveEnabled && !bTwistLocked)
+			{
+				ApplyTwistDrive(Dt, JointSettings);
+			}
+
+			if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing1Locked && !bSwing2Locked)
+			{
+				ApplyConeDrive(Dt, JointSettings);
+			}
+			else if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing1Locked)
+			{
+				ApplySwingDrive(Dt, JointSettings, EJointAngularConstraintIndex::Swing1, EJointAngularAxisIndex::Swing1);
+			}
+			else if (JointSettings.Motion.bAngularSwingDriveEnabled && !bSwing2Locked)
+			{
+				ApplySwingDrive(Dt, JointSettings, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2);
 			}
 		}
 	}
@@ -178,7 +229,7 @@ namespace Chaos
 		{
 			TwistAngle = TwistAngle - (FReal)2 * PI;
 		}
-		if (FVec3::DotProduct(TwistAxis01, FJointConstants::TwistAxis()) < 0)
+		if (TwistAxis01.X < 0)
 		{
 			TwistAxis01 = -TwistAxis01;
 			TwistAngle = -TwistAngle;
@@ -206,11 +257,41 @@ namespace Chaos
 		{
 			DTwistAngle = TwistAngle + TwistAngleMax;
 		}
-		const FReal DTwistAngle0 = DTwistAngle;
-		const FReal DTwistAngle1 = -DTwistAngle;
 
 		// Apply twist correction
-		ApplyRotationDelta(TwistStiffness, TwistAxis0, DTwistAngle0, TwistAxis1, DTwistAngle1);
+		ApplyRotationDelta(TwistStiffness, TwistAxis0, DTwistAngle, TwistAxis1, -DTwistAngle);
+		UpdateDerivedState();
+	}
+
+
+	void FJointSolverGaussSeidel::ApplyTwistDrive(
+		const FReal Dt,
+		const FPBDJointSettings& JointSettings)
+	{
+		// Decompose rotation of body 1 relative to body 0 into swing and twist rotations, assuming twist is X axis
+		FRotation3 R01Twist, R01Swing;
+		FPBDJointUtilities::DecomposeSwingTwistLocal(Rs[0], Rs[1], R01Swing, R01Twist);
+
+		FVec3 TwistAxis01;
+		FReal TwistAngle;
+		R01Twist.ToAxisAndAngleSafe(TwistAxis01, TwistAngle, FJointConstants::TwistAxis(), SwingTwistAngleTolerance);
+		if (TwistAngle > PI)
+		{
+			TwistAngle = TwistAngle - (FReal)2 * PI;
+		}
+		if (TwistAxis01.X < 0)
+		{
+			TwistAxis01 = -TwistAxis01;
+			TwistAngle = -TwistAngle;
+		}
+
+		const FVec3 TwistAxis0 = Rs[0] * TwistAxis01;
+		const FVec3 TwistAxis1 = Rs[1] * TwistAxis01;
+		const FReal TwistAngleTarget = JointSettings.Motion.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Twist];
+		const FReal DTwistAngle = TwistAngle - TwistAngleTarget;
+
+		// Apply twist correction
+		ApplyRotationDelta(AngularDriveStiffness, TwistAxis0, DTwistAngle, TwistAxis1, -DTwistAngle);
 		UpdateDerivedState();
 	}
 
@@ -263,6 +344,37 @@ namespace Chaos
 
 		// Apply swing correction
 		ApplyRotationDelta(SwingStiffness, SwingAxis, DSwingAngle, SwingAxis, -DSwingAngle);
+		UpdateDerivedState();
+	}
+
+
+	void FJointSolverGaussSeidel::ApplyConeDrive(
+		const FReal Dt,
+		const FPBDJointSettings& JointSettings)
+	{
+		// Decompose rotation of body 1 relative to body 0 into swing and twist rotations, assuming twist is X axis
+		FRotation3 R01Twist, R01Swing;
+		FPBDJointUtilities::DecomposeSwingTwistLocal(Rs[0], Rs[1], R01Swing, R01Twist);
+
+		FVec3 SwingAxis01;
+		FReal SwingAngle;
+		R01Swing.ToAxisAndAngleSafe(SwingAxis01, SwingAngle, FJointConstants::Swing1Axis(), SwingTwistAngleTolerance);
+		if (SwingAngle > PI)
+		{
+			SwingAngle = SwingAngle - (FReal)2 * PI;
+		}
+
+		const FVec3 SwingAxis = Rs[0] * SwingAxis01;
+
+		// Circular swing target (max of Swing1, Swing2 targets)
+		// @todo(ccaulfield): what should cone target really do?
+		FReal Swing1Target = JointSettings.Motion.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Swing1];
+		FReal Swing2Target = JointSettings.Motion.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Swing2];
+		FReal SwingAngleTarget = FMath::Max(Swing1Target, Swing2Target);
+		FReal DSwingAngle = SwingAngle - SwingAngleTarget;
+
+		// Apply swing correction
+		ApplyRotationDelta(AngularDriveStiffness, SwingAxis, DSwingAngle, SwingAxis, -DSwingAngle);
 		UpdateDerivedState();
 	}
 
@@ -335,6 +447,48 @@ namespace Chaos
 			UpdateDerivedState();
 		}
 	}
+
+
+	void FJointSolverGaussSeidel::ApplySwingDrive(
+		const FReal Dt,
+		const FPBDJointSettings& JointSettings,
+		const EJointAngularConstraintIndex SwingConstraintIndex,
+		const EJointAngularAxisIndex SwingAxisIndex)
+	{
+		// @todo(ccaulfield): implement swing drive
+	}
+
+
+	void FJointSolverGaussSeidel::ApplySLerpDrive(
+		const FReal Dt,
+		const FPBDJointSettings& JointSettings)
+	{
+		// @todo(ccaulfield): I think this can be done in a simpler way, reusing ApplyRotationDelta...
+
+		// Calculate the rotation we need to apply to resolve the rotation delta
+		const FRotation3 TargetR1 = Rs[0] * JointSettings.Motion.AngularDriveTarget;
+		const FRotation3 DR1 = TargetR1 * Rs[1].Inverse();
+		const FRotation3 TargetQ0 = DR1.Inverse() * Qs[0];
+		const FRotation3 TargetQ1 = DR1 * Qs[1];
+
+		FVec3 SLerpAxis;
+		FReal SLerpAngle;
+		if (DR1.ToAxisAndAngleSafe(SLerpAxis, SLerpAngle, FVec3(1, 0, 0)))
+		{
+			const FMatrix33 InvI0 = Utilities::ComputeWorldSpaceInertia(Qs[0], InvILs[0]);
+			const FMatrix33 InvI1 = Utilities::ComputeWorldSpaceInertia(Qs[1], InvILs[1]);
+			const FReal I0 = FVec3::DotProduct(SLerpAxis, Utilities::Multiply(InvI0, SLerpAxis));
+			const FReal I1 = FVec3::DotProduct(SLerpAxis, Utilities::Multiply(InvI1, SLerpAxis));
+			const FReal F0 = AngularDriveStiffness * I0 / (I0 + I1);
+			const FReal F1 = AngularDriveStiffness * I1 / (I0 + I1);
+
+			// Apply the rotation delta about the connector
+			Qs[0] = FRotation3::Slerp(Qs[0], TargetQ0, F0);
+			Qs[1] = FRotation3::Slerp(Qs[1], TargetQ1, F1);
+			Qs[1].EnforceShortestArcWith(Qs[0]);
+		}
+	}
+
 
 	void FJointSolverGaussSeidel::ApplyPositionConstraint(
 		const FReal Dt,

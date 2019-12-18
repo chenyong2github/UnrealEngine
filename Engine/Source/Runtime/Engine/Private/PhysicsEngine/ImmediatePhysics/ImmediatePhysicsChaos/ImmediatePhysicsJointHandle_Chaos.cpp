@@ -103,6 +103,7 @@ namespace ImmediatePhysics_Chaos
 			FParticleUtilities::ActorLocalToParticleLocal(TGenericParticleHandle<FReal, 3>(Actor2->GetParticle()), ConstraintFrame2),
 		};
 		ConstraintSettings.Motion.Stiffness = ChaosImmediate_JointStiffness;
+
 		ConstraintSettings.Motion.LinearMotionTypes = 
 		{
 			static_cast<EJointMotionType>(ConstraintInstance->GetLinearXMotion()),
@@ -110,20 +111,17 @@ namespace ImmediatePhysics_Chaos
 			static_cast<EJointMotionType>(ConstraintInstance->GetLinearZMotion()),
 		};
 		ConstraintSettings.Motion.LinearLimit = ConstraintInstance->GetLinearLimit();
-		ConstraintSettings.Motion.AngularMotionTypes =
-		{
-			static_cast<EJointMotionType>(ConstraintInstance->GetAngularTwistMotion()),
-			static_cast<EJointMotionType>(ConstraintInstance->GetAngularSwing1Motion()),
-			static_cast<EJointMotionType>(ConstraintInstance->GetAngularSwing2Motion())
-		};
-		ConstraintSettings.Motion.AngularLimits =
-		{
-			FMath::DegreesToRadians(ConstraintInstance->GetAngularTwistLimit()),
-			FMath::DegreesToRadians(ConstraintInstance->GetAngularSwing1Limit()),
-			FMath::DegreesToRadians(ConstraintInstance->GetAngularSwing2Limit())
-		};
+
+		ConstraintSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] = static_cast<EJointMotionType>(ConstraintInstance->GetAngularTwistMotion());
+		ConstraintSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1] = static_cast<EJointMotionType>(ConstraintInstance->GetAngularSwing1Motion());
+		ConstraintSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2] = static_cast<EJointMotionType>(ConstraintInstance->GetAngularSwing2Motion());
+		ConstraintSettings.Motion.AngularLimits[(int32)EJointAngularConstraintIndex::Twist] = FMath::DegreesToRadians(ConstraintInstance->GetAngularTwistLimit());
+		ConstraintSettings.Motion.AngularLimits[(int32)EJointAngularConstraintIndex::Swing1] = FMath::DegreesToRadians(ConstraintInstance->GetAngularSwing1Limit());
+		ConstraintSettings.Motion.AngularLimits[(int32)EJointAngularConstraintIndex::Swing2] = FMath::DegreesToRadians(ConstraintInstance->GetAngularSwing2Limit());
+
 		ConstraintSettings.Motion.LinearProjection = ConstraintInstance->IsProjectionEnabled() ? ChaosImmediate_JointMaxProjection : ChaosImmediate_JointMinProjection;
 		ConstraintSettings.Motion.AngularProjection = ConstraintInstance->IsProjectionEnabled() ? ChaosImmediate_JointMaxProjection : ChaosImmediate_JointMinProjection;
+
 		ConstraintSettings.Motion.bSoftLinearLimitsEnabled = ConstraintInstance->GetIsSoftLinearLimit();
 		ConstraintSettings.Motion.bSoftTwistLimitsEnabled = ConstraintInstance->GetIsSoftTwistLimit();
 		ConstraintSettings.Motion.bSoftSwingLimitsEnabled = ConstraintInstance->GetIsSoftSwingLimit();
@@ -131,12 +129,11 @@ namespace ImmediatePhysics_Chaos
 		ConstraintSettings.Motion.SoftTwistStiffness = ConvertSoftAngularStiffness(ConstraintInstance->GetSoftTwistLimitStiffness(), Actor1->GetInverseInertia(), Actor2->GetInverseInertia());
 		ConstraintSettings.Motion.SoftSwingStiffness = ConvertSoftAngularStiffness(ConstraintInstance->GetSoftSwingLimitStiffness(), Actor1->GetInverseInertia(), Actor2->GetInverseInertia());
 		 
-		// @todo(ccaulfield): Remove one of these
 		ConstraintSettings.Motion.AngularDriveTarget = FQuat(ConstraintInstance->ProfileInstance.AngularDrive.OrientationTarget);
-		ConstraintSettings.Motion.AngularDriveTargetAngles = TVector<float, 3>(
-			FMath::DegreesToRadians(ConstraintInstance->ProfileInstance.AngularDrive.OrientationTarget.Roll), 
-			FMath::DegreesToRadians(ConstraintInstance->ProfileInstance.AngularDrive.OrientationTarget.Pitch),
-			FMath::DegreesToRadians(ConstraintInstance->ProfileInstance.AngularDrive.OrientationTarget.Yaw));
+		// NOTE: Hard dependence on EJointAngularConstraintIndex - the following will break if we change the order
+		ConstraintSettings.Motion.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Twist] = FMath::DegreesToRadians(ConstraintInstance->ProfileInstance.AngularDrive.OrientationTarget.Roll);
+		ConstraintSettings.Motion.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Swing1] = FMath::DegreesToRadians(ConstraintInstance->ProfileInstance.AngularDrive.OrientationTarget.Yaw);
+		ConstraintSettings.Motion.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Swing2] = FMath::DegreesToRadians(ConstraintInstance->ProfileInstance.AngularDrive.OrientationTarget.Pitch);
 
 		if (ConstraintInstance->ProfileInstance.AngularDrive.AngularDriveMode == EAngularDriveMode::SLERP)
 		{

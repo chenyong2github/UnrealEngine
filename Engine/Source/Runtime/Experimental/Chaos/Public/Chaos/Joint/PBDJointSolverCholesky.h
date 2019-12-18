@@ -60,9 +60,30 @@ namespace Chaos
 			const FReal Dt,
 			const FPBDJointSettings& JointSettings);
 
+		void ApplyDrives(
+			const FReal Dt,
+			const FPBDJointSettings& JointSettings);
+
 	private:
 
 		void UpdateDerivedState();
+
+		void AddLinearRow(
+			const FVec3& Axis,
+			const FVec3& Connector0,
+			const FVec3& Connector1,
+			const FReal Error,
+			FDenseMatrix66& J0,
+			FDenseMatrix66& J1,
+			FDenseMatrix61& C);
+
+		void AddAngularRow(
+			const FVec3& Axis0,
+			const FVec3& Axis1,
+			const FReal Error,
+			FDenseMatrix66& J0,
+			FDenseMatrix66& J1,
+			FDenseMatrix61& C);
 
 		void AddLinearConstraints_Point(
 			const FPBDJointSettings& JointSettings,
@@ -118,6 +139,20 @@ namespace Chaos
 			FDenseMatrix66& J1,
 			FDenseMatrix61& C);
 
+		void AddAngularDrive_SLerp(
+			const FPBDJointSettings& JointSettings,
+			FDenseMatrix66& J0,
+			FDenseMatrix66& J1,
+			FDenseMatrix61& C);
+
+		void AddAngularDrive_Swing(
+			const FPBDJointSettings& JointSettings,
+			const EJointAngularConstraintIndex SwingConstraintIndex,
+			const EJointAngularAxisIndex SwingAxisIndex,
+			FDenseMatrix66& J0,
+			FDenseMatrix66& J1,
+			FDenseMatrix61& C);
+
 		void AddLinearConstraints(
 			const FPBDJointSettings& JointSettings,
 			FDenseMatrix66& J0,
@@ -130,11 +165,29 @@ namespace Chaos
 			FDenseMatrix66& J1,
 			FDenseMatrix61& C);
 
-		void BuildJacobianAndResidual(
+		void AddAngularDrives(
 			const FPBDJointSettings& JointSettings,
 			FDenseMatrix66& J0,
 			FDenseMatrix66& J1,
 			FDenseMatrix61& C);
+
+		void BuildJacobianAndResidual_Constraints(
+			const FPBDJointSettings& JointSettings,
+			FDenseMatrix66& J0,
+			FDenseMatrix66& J1,
+			FDenseMatrix61& C);
+
+		void BuildJacobianAndResidual_Drives(
+			const FPBDJointSettings& JointSettings,
+			FDenseMatrix66& J0,
+			FDenseMatrix66& J1,
+			FDenseMatrix61& C);
+
+		void SolveAndApply(
+			const FPBDJointSettings& JointSettings,
+			const FDenseMatrix66& J0,
+			const FDenseMatrix66& J1,
+			const FDenseMatrix61& C);
 
 		// Local-space constraint settings
 		FRigidTransform3 XLs[MaxConstraintedBodies];	// Local-space joint connector transforms
@@ -151,9 +204,11 @@ namespace Chaos
 
 		// Settings
 		FReal Stiffness;
+		FReal AngularDriveStiffness;
 		FReal SwingTwistAngleTolerance;
 		bool bEnableTwistLimits;
 		bool bEnableSwingLimits;
+		bool bEnableDrives;
 	};
 
 }
