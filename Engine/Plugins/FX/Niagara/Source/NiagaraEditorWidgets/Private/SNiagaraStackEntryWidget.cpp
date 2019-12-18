@@ -10,11 +10,9 @@
 
 void SNiagaraStackDisplayName::Construct(const FArguments& InArgs, UNiagaraStackEntry& InStackEntry, UNiagaraStackViewModel& InStackViewModel, FName InTextStyleName)
 {
-	StackEntry = &InStackEntry;
+	StackEntryItem = &InStackEntry;
 	StackViewModel = &InStackViewModel;
 	TextStyleName = InTextStyleName;
-
-	ColorAndOpacity = InArgs._ColorAndOpacity;
 
 	StackViewModel->OnStructureChanged().AddSP(this, &SNiagaraStackDisplayName::StackViewModelStructureChanged);
 
@@ -36,10 +34,10 @@ TSharedRef<SWidget> SNiagaraStackDisplayName::ConstructChildren()
 {
 	TSharedRef<STextBlock> BaseNameWidget = SNew(STextBlock)
 		.TextStyle(FNiagaraEditorWidgetsStyle::Get(), TextStyleName)
-		.ToolTipText_UObject(StackEntry, &UNiagaraStackEntry::GetTooltipText)
-		.Text_UObject(StackEntry, &UNiagaraStackEntry::GetDisplayName)
+		.ToolTipText_UObject(StackEntryItem, &UNiagaraStackEntry::GetTooltipText)
+		.Text_UObject(StackEntryItem, &UNiagaraStackEntry::GetDisplayName)
 		.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
-		.ColorAndOpacity(ColorAndOpacity)
+		.ColorAndOpacity(this, &SNiagaraStackDisplayName::GetTextColorForSearch, FSlateColor::UseForeground())
 		.IsEnabled(this, &SNiagaraStackDisplayName::GetIsEnabled);
 
 	int32 NumTopLevelEmitters = 0;
@@ -59,7 +57,7 @@ TSharedRef<SWidget> SNiagaraStackDisplayName::ConstructChildren()
 	else
 	{
 		TopLevelViewModelCountAtLastConstruction = StackViewModel->GetTopLevelViewModels().Num();
-		TSharedPtr<UNiagaraStackViewModel::FTopLevelViewModel> TopLevelViewModel = StackViewModel->GetTopLevelViewModelForEntry(*StackEntry);
+		TSharedPtr<UNiagaraStackViewModel::FTopLevelViewModel> TopLevelViewModel = StackViewModel->GetTopLevelViewModelForEntry(*StackEntryItem);
 		if(TopLevelViewModel.IsValid())
 		{
 			return SNew(SWrapBox)
@@ -69,10 +67,10 @@ TSharedRef<SWidget> SNiagaraStackDisplayName::ConstructChildren()
 				[
 					SNew(STextBlock)
 					.TextStyle(FNiagaraEditorWidgetsStyle::Get(), TextStyleName)
-					.ToolTipText_UObject(StackEntry, &UNiagaraStackEntry::GetTooltipText)
+					.ToolTipText_UObject(StackEntryItem, &UNiagaraStackEntry::GetTooltipText)
 					.Text(this, &SNiagaraStackDisplayName::GetTopLevelDisplayName, TWeakPtr<UNiagaraStackViewModel::FTopLevelViewModel>(TopLevelViewModel))
 					.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
-					.ColorAndOpacity(ColorAndOpacity)
+					.ColorAndOpacity(this, &SNiagaraStackDisplayName::GetTextColorForSearch, FSlateColor::UseForeground())
 					.IsEnabled(this, &SNiagaraStackDisplayName::GetIsEnabled)
 				]
 				+ SWrapBox::Slot()
@@ -105,7 +103,7 @@ FText SNiagaraStackDisplayName::GetTopLevelDisplayName(TWeakPtr<UNiagaraStackVie
 
 void SNiagaraStackDisplayName::StackViewModelStructureChanged()
 {
-	if (StackEntry->IsFinalized() == false && StackViewModel->GetTopLevelViewModels().Num() != TopLevelViewModelCountAtLastConstruction)
+	if (StackEntryItem->IsFinalized() == false && StackViewModel->GetTopLevelViewModels().Num() != TopLevelViewModelCountAtLastConstruction)
 	{
 		Container->SetContent(ConstructChildren());
 	}
@@ -113,17 +111,17 @@ void SNiagaraStackDisplayName::StackViewModelStructureChanged()
 
 bool SNiagaraStackDisplayName::GetIsEnabled() const
 {
-	return StackEntry->GetOwnerIsEnabled() && StackEntry->GetIsEnabled();
+	return StackEntryItem->GetOwnerIsEnabled() && StackEntryItem->GetIsEnabled();
 }
 
-FSlateColor SNiagaraStackEntryWidget::GetTextColorForSearch() const
+FSlateColor SNiagaraStackEntryWidget::GetTextColorForSearch(FSlateColor DefaultColor) const
 {
 	if (IsCurrentSearchMatch())
 	{
 		return FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.SearchHighlightColor");
 	} 
 	
-	return FSlateColor::UseForeground();
+	return DefaultColor;
 }
 
 bool SNiagaraStackEntryWidget::IsCurrentSearchMatch() const

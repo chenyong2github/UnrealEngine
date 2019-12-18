@@ -26,7 +26,6 @@ void SNiagaraStackEmitterPropertiesItem::Construct(const FArguments& InArgs, UNi
 		.Padding(0)
 		[
 			SNew(SNiagaraStackDisplayName, InEmitterPropertiesItem, *InStackViewModel, "NiagaraEditor.Stack.ItemText")
-			.ColorAndOpacity(this, &SNiagaraStackEntryWidget::GetTextColorForSearch)
 		]
 		// Reset to base Button
 		+ SHorizontalBox::Slot()
