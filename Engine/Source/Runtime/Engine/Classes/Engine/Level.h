@@ -41,9 +41,38 @@ class ILevelPartitionInterface
 {
 	GENERATED_BODY()
 
+#if WITH_EDITOR
+	friend class FLevelPartitionOperationScope;
+#endif
+
 public:
 	virtual ULevel* GetSubLevel(const FVector& Coords) const = 0;
+
+private:
+#if WITH_EDITOR
+	virtual void BeginOperation(FLevelPartitionOperationScope* Scope) = 0;
+	virtual void EndOperation() = 0;
+#endif
 };
+
+#if WITH_EDITOR
+class ENGINE_API FLevelPartitionOperationScope
+{
+public:
+	FLevelPartitionOperationScope(ULevel* Level);
+	~FLevelPartitionOperationScope();
+		
+	TArray<AActor*> GetActors() const;
+	ULevel* GetLevel() const;
+
+private:
+	static ULevel* CreateTransientLevel(UWorld* InWorld);
+	static void DestroyTransientLevel(ULevel* InLevel);
+
+	ILevelPartitionInterface* InterfacePtr = nullptr;
+	ULevel* Level = nullptr;
+};
+#endif
 
 /**
  * Structure containing all information needed for determining the screen space
