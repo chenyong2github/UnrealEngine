@@ -117,10 +117,10 @@ private:
 	/** Game controller objects (per user)*/
 	struct FUserController
 	{
-		GCGamepadSnapshot* PreviousGamepad;
-		GCExtendedGamepadSnapshot* PreviousExtendedGamepad;
+        GCController* Controller;
+		GCExtendedGamepad* PreviousExtendedGamepad;
 #if PLATFORM_TVOS
-		GCMicroGamepadSnapshot* PreviousMicroGamepad;
+		GCMicroGamepad* PreviousMicroGamepad;
 #endif
 		FQuat ReferenceAttitude;
 		bool bNeedsReferenceAttitude;
@@ -128,6 +128,9 @@ private:
 		bool bIsGamepadConnected;
 		bool bIsRemoteConnected;
 		bool bPauseWasPressed;
+        // Tracked outside the gamepads to allow us to support thumbsticks on more devices.
+        bool bRightThumbstickWasPressed;
+        bool bLeftThumbstickWasPressed;
 	};
 	// there is a hardcoded limit of 4 controllers in the API
 	FUserController Controllers[4];
