@@ -1583,7 +1583,7 @@ FRecastTileGenerator::FRecastTileGenerator(FRecastNavMeshGenerator& ParentGenera
 	Version = ParentGenerator.GetVersion();
 	AdditionalCachedData = ParentGenerator.GetAdditionalCachedData();
 
-	ParentGeneratorWeakPtr = ParentGenerator.AsShared();
+	ParentGeneratorWeakPtr = ((FNavDataGenerator&)ParentGenerator).AsShared();
 
 	RasterizeGeomRecastState = ERasterizeGeomRecastTimeSlicedState::MarkWalkableTriangles;
 	RasterizeGeomState = ERasterizeGeomTimeSlicedState::RasterizeGeometryTransformCoords;
