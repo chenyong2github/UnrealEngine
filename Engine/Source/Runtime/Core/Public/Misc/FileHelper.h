@@ -7,6 +7,7 @@
 #include "HAL/FileManager.h"
 #include "Containers/ArrayView.h"
 #include "Misc/EnumClassFlags.h"
+#include "Math/Color.h"
 
 /*-----------------------------------------------------------------------------
 	FFileHelper
