@@ -59,6 +59,7 @@ namespace Chaos
 		, WorldSpaceInflatedShapeBounds(TAABB<FReal, 3>(FVec3(0), FVec3(0)))
 		, Materials()
 		, bDisable(false)
+		, bSimulate(true)
 	{
 	}
 

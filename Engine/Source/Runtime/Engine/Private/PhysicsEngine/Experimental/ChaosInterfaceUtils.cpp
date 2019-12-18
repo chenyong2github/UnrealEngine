@@ -149,6 +149,7 @@ namespace ChaosInterface
 			NewShape->SimData = InParams.CollisionData.CollisionFilterData.SimFilter;
 			NewShape->UpdateShapeBounds(InParams.WorldTransform);
 			NewShape->UserData = UserData;
+			NewShape->bSimulate = bComplexShape ? InParams.CollisionData.CollisionFlags.bEnableSimCollisionComplex : InParams.CollisionData.CollisionFlags.bEnableSimCollisionSimple;
 			return NewShape;
 		};
 
