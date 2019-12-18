@@ -5,6 +5,7 @@
 #include "Chaos/Capsule.h"
 #include "Chaos/ChaosPerfTest.h"
 #include "Chaos/ChaosDebugDraw.h"
+#include "Chaos/PBDCollisionConstraintsContact.h"
 #include "Chaos/CollisionResolutionUtil.h"
 #include "Chaos/CollisionResolution.h"
 #include "Chaos/Defines.h"
@@ -102,12 +103,14 @@ namespace Chaos
 	template<typename T, int d>
 	void TPBDCollisionConstraints<T, d>::AddConstraint(FConstraintBase* ConstraintBase)
 	{
+		FConstraintContainerHandle* Handle = nullptr;
+
 		if (ConstraintBase->GetType() == TRigidBodyPointContactConstraint<T, 3>::StaticType())
 		{
 			TRigidBodyPointContactConstraint<T, d>* PointConstraint = ConstraintBase->template As< TRigidBodyPointContactConstraint<T, d> >();
 
 			int32 Idx = PointConstraints.Add(*PointConstraint);
-			Handles.Add(HandleAllocator.template AllocHandle< TRigidBodyPointContactConstraint<T, d> >(this, Idx));
+			Handle = HandleAllocator.template AllocHandle< TRigidBodyPointContactConstraint<T, d> >(this, Idx);
 
 			delete PointConstraint;
 		}
@@ -116,10 +119,14 @@ namespace Chaos
 			TRigidBodyPlaneContactConstraint<T, d>* PlaneConstraint = ConstraintBase->template As< TRigidBodyPlaneContactConstraint<T, d> >();
 
 			int32 Idx = PlaneConstraints.Add(*PlaneConstraint);
-			Handles.Add(HandleAllocator.template AllocHandle< TRigidBodyPlaneContactConstraint<T, d> >(this, Idx));
+			Handle = HandleAllocator.template AllocHandle< TRigidBodyPlaneContactConstraint<T, d> >(this, Idx);
 
 			delete PlaneConstraint;
 		}
+
+		check(Handle != nullptr);
+		Handles.Add(Handle);
+		Manifolds.Add(Handle->GetKey(), Handle);
 	}
 
 	template<typename T, int d>
@@ -137,10 +144,11 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_Reset);
 
 		TArray<FConstraintContainerHandle*> CopyOfHandles = Handles;
+		int LifespanWindow = LifespanCounter + 5;
 
 		for (FConstraintContainerHandle* ContactHandle : CopyOfHandles)
 		{
-			//if (!bEnableCollisions)
+			//if (!bEnableCollisions && ContactHandle->GetContact().Timestamp<LifespanWindow)
 			{
 				RemoveConstraint(ContactHandle);
 			}
@@ -192,6 +200,7 @@ namespace Chaos
 		typename FCollisionConstraintBase::FType ConstraintType = Handle->GetType();
 
 		Handles.RemoveAtSwap(Idx);
+		Manifolds.Remove(Handle->GetKey());
 
 		if (ConstraintType == FCollisionConstraintBase::FType::SinglePoint)
 		{
@@ -226,6 +235,17 @@ namespace Chaos
 		// Clustering uses update constraints to force a re-evaluation. 
 	}
 
+	template<typename T, int d>
+	void TPBDCollisionConstraints<T, d>::UpdateConstraints(T Dt)
+	{
+		PhysicsParallelFor(Handles.Num(), [&](int32 ConstraintHandleIndex)
+		{
+			FConstraintContainerHandle* ConstraintHandle = Handles[ConstraintHandleIndex];
+			check(ConstraintHandle != nullptr);
+			Collisions::Update<ECollisionUpdateType::Deepest, float, 3>(MThickness, ConstraintHandle->GetContact());
+
+		}, bDisableCollisionParallelFor);
+	}
 
 	template<typename T, int d>
 	void TPBDCollisionConstraints<T, d>::Apply(const T Dt, const int32 It, const int32 NumIts)

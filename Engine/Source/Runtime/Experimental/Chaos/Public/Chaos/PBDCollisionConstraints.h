@@ -59,8 +59,7 @@ public:
  	using FPointContactConstraint = TRigidBodyPointContactConstraint<T, d>;
 	using FPlaneContactConstraint = TRigidBodyPlaneContactConstraint<T, d>;
 	using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDCollisionConstraints<T, d>>;
-	using FConstraintHandleID = TPair<const TGeometryParticleHandle<T, d>*, const TGeometryParticleHandle<T, d>*>;
-
+	using FConstraintContainerHandleKey = typename TPBDCollisionConstraintHandle<T, d>::FHandleKey;
 
 	TPBDCollisionConstraints(const TPBDRigidsSOAs<T,d>& InParticles, 
 		TArrayCollectionArray<bool>& Collided, 
@@ -98,10 +97,18 @@ public:
 
 
 	/**
-	 * Update all constraint values
+	 * Update all constraint values within the set
 	 */
 	void UpdateConstraints(T Dt, const TSet<TGeometryParticleHandle<T, d>*>& AddedParticles);
 
+	/**
+	 * Update all constraint values
+	 */
+
+	/**
+	* Update all constraint values
+	*/
+	void UpdateConstraints(T Dt);
 
 	//
 	// General Rule API
@@ -148,6 +155,11 @@ public:
 		return Handles; 
 	}
 
+	bool Contains(const FConstraintBase* Base) const 
+	{
+		return Manifolds.Contains(FConstraintContainerHandle::MakeKey(Base));
+	}
+
 	void SetThickness(T InThickness)
 	{
 		MThickness = InThickness;
@@ -178,11 +190,6 @@ public:
 		return Handles.Num();
 	}
 
-	FConstraintHandleID GetConstraintHandleID(const FPointContactConstraint & Constraint) const
-	{
-		return  FConstraintHandleID(Constraint.Particle[0], Constraint.Particle[1]);
-	}
-
 	FHandles& GetConstraintHandles()
 	{
 		return Handles;
@@ -204,7 +211,7 @@ private:
 	TArray<FPointContactConstraint> PointConstraints;
 	TArray<FPlaneContactConstraint> PlaneConstraints;
 
-	TMap< FConstraintHandleID, FConstraintContainerHandle* > Manifolds;
+	TMap< FConstraintContainerHandleKey, FConstraintContainerHandle* > Manifolds;
 	TArray<FConstraintContainerHandle*> Handles;
 	FConstraintHandleAllocator HandleAllocator;
 

@@ -40,7 +40,14 @@ namespace Chaos
 			FCollisionConstraintBase* ConstraintBase = nullptr;
 			while (Queue.Dequeue(ConstraintBase))
 			{
-				CollisionConstraints.AddConstraint(ConstraintBase);
+				// todo(brice) : This needs to be moved within the MidPhase (which does not exist yet). The 
+				//               NarrowPhase is creating temporary constraints for all interacting bodies 
+				//               even though we might already have those bodies within the constraint.
+				//               So there is a bunch of wasted computation when the CreateConstraints is called. 
+				if (!CollisionConstraints.Contains(ConstraintBase))
+				{
+					CollisionConstraints.AddConstraint(ConstraintBase);
+				}
 			}
 		}
 
