@@ -348,7 +348,11 @@ bool GetActorRefs(FBodyInstance* Body1, FBodyInstance* Body2, FPhysicsActorHandl
 
 bool FConstraintInstance::CreateJoint_AssumesLocked(const FPhysicsActorHandle& InActorRef1, const FPhysicsActorHandle& InActorRef2)
 {
+#if WITH_CHAOS
+	LLM_SCOPE(ELLMTag::Chaos);
+#else
 	LLM_SCOPE(ELLMTag::PhysX);
+#endif
 
 	FTransform Local1 = GetRefFrame(EConstraintFrame::Frame1);
 	if(FPhysicsInterface::IsValid(InActorRef1))

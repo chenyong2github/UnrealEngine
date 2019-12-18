@@ -50,6 +50,7 @@ namespace Chaos
 
 		void DoWork()
 		{
+			LLM_SCOPE(ELLMTag::Chaos);
 			UE_LOG(LogPBDRigidsSolverSolver, Verbose, TEXT("AdvanceOneTimeStepTask::DoWork()"));
 
 			{
