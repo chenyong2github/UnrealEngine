@@ -2062,6 +2062,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SingleLayerWaterPassData.ViewData.SetNum(Views.Num());
 		CopySingleLayerWaterTextures(RHICmdList, SingleLayerWaterPassData);
 
+		// Render heightfog over the color buffer if it is allocated, e.g. SingleLayerWaterUsesSimpleShading is true which is not the case on Switch.
+		if (bCanOverlayRayTracingOutput && ShouldRenderFog(ViewFamily) && SingleLayerWaterPassData.SceneColorWithoutSingleLayerWater.IsValid())
+		{
+			RenderUnderWaterFog(RHICmdList, SingleLayerWaterPassData);
+		}
+
 		// Make the Depth texture writable since the water GBuffer pass will update it
 		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable,  SceneContext.GetSceneDepthSurface());
 

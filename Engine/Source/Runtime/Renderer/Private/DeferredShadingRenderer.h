@@ -28,6 +28,7 @@ class UStaticMeshComponent;
 class FExponentialHeightFogSceneInfo;
 
 struct FSingleLayerWaterPassData;
+struct FHeightFogRenderingParameters;
 
 class FLightShaftsOutput
 {
@@ -214,9 +215,10 @@ private:
 
 	/** Renders the scene's fogging. */
 	bool RenderFog(FRHICommandListImmediate& RHICmdList, const FLightShaftsOutput& LightShaftsOutput);
+	void RenderUnderWaterFog(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& PassData);
 	
 	/** Renders the scene's fogging for a view. */
-	void RenderViewFog(FRHICommandList& RHICmdList, const FViewInfo& View, const FLightShaftsOutput& LightShaftsOutput);
+	void RenderViewFog(FRHICommandList& RHICmdList, const FViewInfo& View, const FHeightFogRenderingParameters& Params);
 
 	/** Renders the scene's atmosphere. */
 	void RenderAtmosphere(FRHICommandListImmediate& RHICmdList, const FLightShaftsOutput& LightShaftsOutput);
