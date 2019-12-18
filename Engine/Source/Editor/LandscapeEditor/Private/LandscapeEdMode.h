@@ -317,6 +317,8 @@ public:
 	// UI callbacks for splines tool
 	FLandscapeToolSplines* SplinesTool;
 	void ShowSplineProperties();
+	bool HasSelectedSplineSegments() const;
+	void FlipSelectedSplineSegments();
 	virtual void SelectAllConnectedSplineControlPoints();
 	virtual void SelectAllConnectedSplineSegments();
 	virtual void SplineMoveToCurrentLevel();
