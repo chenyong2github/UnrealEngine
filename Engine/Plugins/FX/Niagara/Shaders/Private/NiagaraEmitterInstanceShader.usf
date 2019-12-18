@@ -400,6 +400,7 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 
 #if PS4_PROFILE || XBOXONE_PROFILE
 				uint NumCounters = WaveActiveCountBits(bDoAcquire);
+				uint PrefixCounts = WavePrefixCountBits(bDoAcquire);
 				if(NumCounters)
 				{
 					if(WaveIsFirstLane())
@@ -408,8 +409,12 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 						InterlockedAdd(RWInstanceCounts[WriteInstanceCountOffset], NumCounters, RetPrevIdx);
 						PrevIdx = (int)RetPrevIdx;
 					}
-					PrevIdx = WaveReadFirstLane(PrevIdx);
-					PrevIdx += WavePrefixCountBits(bDoAcquire);
+
+					if(bDoAcquire)
+					{
+						PrevIdx = WaveReadFirstLane(PrevIdx);
+						PrevIdx += PrefixCounts;
+					}
 				}		
 #else
 				if(bDoAcquire == true)
@@ -432,6 +437,7 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 
 #if PS4_PROFILE || XBOXONE_PROFILE
 			uint NumCounters = WaveActiveCountBits(bDoAcquire);
+			uint PrefixCounts = WavePrefixCountBits(bDoAcquire);
 			if(NumCounters)
 			{
 				if(WaveIsFirstLane())
@@ -440,8 +446,12 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 					InterlockedAdd(RWInstanceCounts[WriteInstanceCountOffset], NumCounters, RetPrevIdx);
 					PrevIdx = (int)RetPrevIdx;
 				}
-				PrevIdx = WaveReadFirstLane(PrevIdx);
-				PrevIdx += WavePrefixCountBits(bDoAcquire);
+
+				if(bDoAcquire)
+				{
+					PrevIdx = WaveReadFirstLane(PrevIdx);
+					PrevIdx += PrefixCounts;
+				}
 			}	
 #else
 			if(bDoAcquire == true)
