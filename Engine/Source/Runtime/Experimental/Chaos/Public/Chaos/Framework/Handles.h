@@ -4,6 +4,7 @@
 
 #include "Chaos/Core.h"
 #include "../ChaosArchive.h"
+#include "ChaosCheck.h"
 
 namespace Chaos
 {
@@ -238,7 +239,7 @@ namespace Chaos
 				}
 				else
 				{
-					ensureMsgf(false, TEXT("Failed to access handle (%u, %u). NumEntries = %d, NumFlags = %d"), InHandle.Index, InHandle.Generation, HandleEntries.Num(), Validity.Num());
+					CHAOS_ENSURE_MSG(false, TEXT("Failed to access handle (%u, %u). NumEntries = %d, NumFlags = %d"), InHandle.Index, InHandle.Generation, HandleEntries.Num(), Validity.Num());
 				}
 			}
 			return nullptr;
