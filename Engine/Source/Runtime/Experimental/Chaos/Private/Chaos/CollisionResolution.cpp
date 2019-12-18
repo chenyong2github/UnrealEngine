@@ -569,7 +569,7 @@ namespace Chaos
 			if (ContactPoint.Phi < Thickness)
 			{
 				ContactPoint.Location = Constraint.PlanePosition + Constraint.PlaneNormal * ContactPoint.Phi;
-			}/**/
+			}*/
 			UpdateContactPoint(Constraint.Manifold, ContactPoint);
 		}
 
