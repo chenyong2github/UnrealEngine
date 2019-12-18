@@ -10,7 +10,7 @@
 namespace Chaos
 {
 template<class T, int d>
-class TBox;
+class TAABB;
 template<class T>
 class TCylinder;
 template<class T, int d>
@@ -170,7 +170,7 @@ public:
 	// Explicitly non-virtual.  Must cast to derived types to target their implementation.
 	FVec3 Normal(const FVec3& x) const;
 	virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const = 0;
-	virtual const class TBox<FReal, 3>& BoundingBox() const;
+	virtual const class TAABB<FReal, 3>& BoundingBox() const;
 	bool HasBoundingBox() const { return bHasBoundingBox; }
 	bool IsConvex() const { return bIsConvex; }
 	void IgnoreAnalyticCollisions(const bool Ignore = true) { bIgnoreAnalyticCollisions = Ignore; }
@@ -243,7 +243,7 @@ public:
 		Out.Add(MakePair(This, ParentTM));
 	}
 
-	virtual void FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, FRigidTransform3>>& Out, const TBox<FReal, 3>& LocalBounds) const;
+	virtual void FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, FRigidTransform3>>& Out, const TAABB<FReal, 3>& LocalBounds) const;
 
 	virtual FString ToString() const
 	{

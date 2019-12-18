@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Chaos/Array.h"
-#include "Chaos/Box.h"
+#include "Chaos/AABB.h"
 #include "Chaos/Defines.h"
 #include "Chaos/GeometryParticles.h"
 #include "Chaos/ParticleHandleFwd.h"
@@ -114,7 +114,7 @@ class TBoundingVolumeHierarchy final : public ISpatialAcceleration<int32, T,d>
 	}
 
 	// Begin ISpatialAcceleration interface
-	CHAOS_API TArray<int32> FindAllIntersections(const TBox<T, d>& Box) const { return FindAllIntersectionsImp(Box); }
+	CHAOS_API TArray<int32> FindAllIntersections(const TAABB<T, d>& Box) const { return FindAllIntersectionsImp(Box); }
 	CHAOS_API TArray<int32> FindAllIntersections(const TSpatialRay<T,d>& Ray) const { return FindAllIntersectionsImp(Ray); }
 	CHAOS_API TArray<int32> FindAllIntersections(const TVector<T, d>& Point) const { return FindAllIntersectionsImp(Point); }
 	CHAOS_API TArray<int32> FindAllIntersections(const TGeometryParticles<T, d>& InParticles, const int32 i) const;
@@ -126,7 +126,7 @@ class TBoundingVolumeHierarchy final : public ISpatialAcceleration<int32, T,d>
 	}
 
 	// TODO(mlentine): Need to move this elsewhere; probably on CollisionConstraint
-	CHAOS_API const TBox<T, d>& GetWorldSpaceBoundingBox(const TGeometryParticles<T, d>& InParticles, const int32 Index);
+	CHAOS_API const TAABB<T, d>& GetWorldSpaceBoundingBox(const TGeometryParticles<T, d>& InParticles, const int32 Index);
 
 #if !UE_BUILD_SHIPPING
 	CHAOS_API virtual void DebugDraw(ISpacialDebugDrawInterface<T>* InInterface) const override;
@@ -150,7 +150,7 @@ class TBoundingVolumeHierarchy final : public ISpatialAcceleration<int32, T,d>
 	}
 
 	CHAOS_API TArray<int32> FindAllIntersectionsHelper(const TBVHNode<T,d>& MyNode, const TVector<T, d>& Point) const;
-	CHAOS_API TArray<int32> FindAllIntersectionsHelper(const TBVHNode<T,d>& MyNode, const TBox<T, d>& ObjectBox) const;
+	CHAOS_API TArray<int32> FindAllIntersectionsHelper(const TBVHNode<T,d>& MyNode, const TAABB<T, d>& ObjectBox) const;
 	CHAOS_API TArray<int32> FindAllIntersectionsHelper(const TBVHNode<T, d>& MyNode, const TSpatialRay<T, d>& Ray) const;
 
 	template <typename QUERY_OBJECT>
@@ -162,7 +162,7 @@ class TBoundingVolumeHierarchy final : public ISpatialAcceleration<int32, T,d>
 
 	OBJECT_ARRAY const* MObjects;
 	TArray<int32> MGlobalObjects;
-	TMap<int32, TBox<T, d>> MWorldSpaceBoxes;
+	TMap<int32, TAABB<T, d>> MWorldSpaceBoxes;
 	TArray<int32> MScratchAllObjects;
 	int32 MMaxLevels;
 	TArray<TBVHNode<T,d>> Elements;

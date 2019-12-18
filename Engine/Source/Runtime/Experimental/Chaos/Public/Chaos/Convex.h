@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Chaos/ImplicitObject.h"
-#include "Chaos/Box.h"
+#include "Chaos/AABB.h"
 #include "Chaos/MassProperties.h"
 #include "CollisionConvexMesh.h"
 #include "ChaosArchive.h"
@@ -40,7 +40,7 @@ namespace Chaos
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 			, Planes(MoveTemp(InPlanes))
 		    , SurfaceParticles(MoveTemp(InSurfaceParticles))
-		    , LocalBoundingBox(TBox<FReal, 3>::EmptyBox())
+		    , LocalBoundingBox(TAABB<FReal, 3>::EmptyAABB())
 		{
 			for (uint32 ParticleIndex = 0; ParticleIndex < SurfaceParticles.Size(); ++ParticleIndex)
 			{
@@ -72,7 +72,7 @@ namespace Chaos
 			return ImplicitObjectType::Convex;
 		}
 
-		virtual const TBox<FReal, 3>& BoundingBox() const override
+		virtual const TAABB<FReal, 3>& BoundingBox() const override
 		{
 			return LocalBoundingBox;
 		}
@@ -231,7 +231,8 @@ namespace Chaos
 		FORCEINLINE void SerializeImp(FArchive& Ar)
 		{
 			FImplicitObject::SerializeImp(Ar);
-			Ar << Planes << SurfaceParticles << LocalBoundingBox;
+			Ar << Planes << SurfaceParticles;
+			TBox<FReal,3>::SerializeAsAABB(Ar, LocalBoundingBox);
 
 			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddConvexCenterOfMassAndVolume)
@@ -298,7 +299,7 @@ namespace Chaos
 	private:
 		TArray<TPlane<FReal, 3>> Planes;
 		TParticles<FReal, 3> SurfaceParticles;	//copy of the vertices that are just on the convex hull boundary
-		TBox<FReal, 3> LocalBoundingBox;
+		TAABB<FReal, 3> LocalBoundingBox;
 		float Volume;
 		FVec3 CenterOfMass;
 	};

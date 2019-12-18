@@ -442,7 +442,7 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 
 		Chaos::TCapsule<float> Capsule;
 		Chaos::TSphere<float, 3> Sphere;
-		Chaos::TBox<float, 3> Box;
+		Chaos::TAABB<float, 3> Box;
 	};
 	FLocalImplicitStorage ImplicitStorage;
 	Chaos::FImplicitObject* Implicit = nullptr;
@@ -510,7 +510,7 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 		Chaos::TVector<float, 3> x1(-P2UVector(PxBox.halfExtents));
 		Chaos::TVector<float, 3> x2(-x1);
 
-		Chaos::TBox<float, 3> Box(x1, x2);
+		Chaos::TAABB<float, 3> Box(x1, x2);
 		ImplicitStorage.Box = MoveTemp(Box);
 		Implicit = &ImplicitStorage.Box;
 
@@ -716,7 +716,7 @@ void FGeometryCollectionSQAccelerator::Overlap(const Chaos::FImplicitObject& Que
 
 		Chaos::TCapsule<float> Capsule;
 		Chaos::TSphere<float, 3> Sphere;
-		Chaos::TBox<float, 3> Box;
+		Chaos::TAABB<float, 3> Box;
 	};
 	FLocalImplicitStorage ImplicitStorage;
 
@@ -749,7 +749,7 @@ void FGeometryCollectionSQAccelerator::Overlap(const Chaos::FImplicitObject& Que
 		physx::PxBoxGeometry& PxBox = Holder.box();
 		Chaos::TVector<float, 3> x1(-P2UVector(PxBox.halfExtents));
 		Chaos::TVector<float, 3> x2(-x1);
-		Chaos::TBox<float, 3> Box(x1, x2);
+		Chaos::TAABB<float, 3> Box(x1, x2);
 		ImplicitStorage.Box = MoveTemp(Box);
 		Implicit = &ImplicitStorage.Box;
 	}

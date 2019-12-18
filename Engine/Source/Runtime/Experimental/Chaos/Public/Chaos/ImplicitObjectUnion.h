@@ -63,7 +63,7 @@ class TImplicitObjectUnion : public FImplicitObject
 		return Phi;
 	}
 
-	virtual const TBox<T, d>& BoundingBox() const override { return MLocalBoundingBox; }
+	virtual const TAABB<T, d>& BoundingBox() const override { return MLocalBoundingBox; }
 
 	virtual void AccumulateAllImplicitObjects(TArray<Pair<const FImplicitObject*, TRigidTransform<T, d>>>& Out, const TRigidTransform<T, d>& ParentTM) const
 	{
@@ -86,8 +86,8 @@ class TImplicitObjectUnion : public FImplicitObject
 		}
 	}
 
-	virtual void FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, TRigidTransform<T, d>>>& Out, const TBox<T, d>& LocalBounds) const;
-	TArray<int32> FindAllIntersectingChildren(const TBox<T, d>& LocalBounds) const;
+	virtual void FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, TRigidTransform<T, d>>>& Out, const TAABB<T, d>& LocalBounds) const;
+	TArray<int32> FindAllIntersectingChildren(const TAABB<T, d>& LocalBounds) const;
 	TArray<int32> FindAllIntersectingChildren(const TSpatialRay<T, d>& LocalRay) const;
 	virtual void CacheAllImplicitObjects();
 
@@ -181,7 +181,7 @@ private:
 	TArray<TUniquePtr<FImplicitObject>> MObjects;
 	TGeometryParticles<T, d> GeomParticles;
 	TBoundingVolumeHierarchy<TGeometryParticles<T, d>, TArray<int32>, T, d>* Hierarchy;
-	TBox<T, d> MLocalBoundingBox;
+	TAABB<T, d> MLocalBoundingBox;
 	bool bHierarchyBuilt;
 	TArray<int32> MOriginalParticleLookupHack;	//temp hack for finding original particles
 

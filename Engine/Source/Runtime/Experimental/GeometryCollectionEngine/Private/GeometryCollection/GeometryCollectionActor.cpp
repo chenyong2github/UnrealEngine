@@ -77,7 +77,7 @@ bool LowLevelRaycastImp(const Chaos::TVector<float, 3>& Start, const Chaos::TVec
 	{
 #if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
 		const TPBDRigidParticles<float, 3>& Particles = Solver->GetRigidParticles();	//todo(ocohen): should these just get passed in instead of hopping through scene?
-		TBox<float, 3> RayBox(Start, Start);
+		TAABB<float, 3> RayBox(Start, Start);
 		RayBox.Thicken(Dir * DeltaMag);
 		const auto& PotentialIntersections = Solver->GetSpatialAcceleration()->FindAllIntersections(RayBox);
 		Solver->ReleaseSpatialAcceleration();

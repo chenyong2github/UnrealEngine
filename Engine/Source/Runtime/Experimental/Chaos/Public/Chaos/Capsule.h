@@ -31,7 +31,7 @@ namespace Chaos
 		    , MUnionedObjects(nullptr)
 		{
 			MLocalBoundingBox.GrowToInclude(x2);
-			MLocalBoundingBox = TBox<T, 3>(MLocalBoundingBox.Min() - TVector<T, 3>(MRadius), MLocalBoundingBox.Max() + TVector<T, 3>(MRadius));
+			MLocalBoundingBox = TAABB<T, 3>(MLocalBoundingBox.Min() - TVector<T, 3>(MRadius), MLocalBoundingBox.Max() + TVector<T, 3>(MRadius));
 			InitUnionedObjects();
 		}
 
@@ -131,7 +131,7 @@ namespace Chaos
 			return Normal.SafeNormalize() - MRadius;
 		}
 
-		virtual const TBox<T, 3>& BoundingBox() const override { return MLocalBoundingBox; }
+		virtual const TAABB<T, 3>& BoundingBox() const override { return MLocalBoundingBox; }
 
 		static bool RaycastFast(T MRadius, T MHeight, const TVector<T,3>& MVector, const TVector<T,3>& X1, const TVector<T,3>& X2, const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex)
 		{
@@ -303,7 +303,8 @@ namespace Chaos
 		{
 			FImplicitObject::SerializeImp(Ar);
 			MSegment.Serialize(Ar);
-			Ar << MRadius << MLocalBoundingBox;
+			Ar << MRadius;
+			TBox<FReal, 3>::SerializeAsAABB(Ar, MLocalBoundingBox);
 		}
 
 		virtual void Serialize(FChaosArchive& Ar) override
@@ -386,7 +387,7 @@ namespace Chaos
 
 		TSegment<T> MSegment;
 		T MRadius;
-		TBox<T, 3> MLocalBoundingBox;
+		TAABB<T, 3> MLocalBoundingBox;
 		TUniquePtr<TImplicitObjectUnion<T, 3>> MUnionedObjects;
 	};
 

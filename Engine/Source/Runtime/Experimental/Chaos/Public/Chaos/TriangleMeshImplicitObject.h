@@ -64,7 +64,7 @@ namespace Chaos
 		virtual int32 FindMostOpposingFace(const TVector<T, 3>& Position, const TVector<T, 3>& UnitDir, int32 HintFaceIndex, T SearchDistance) const override;
 		virtual TVector<T, 3> FindGeometryOpposingNormal(const TVector<T, 3>& DenormDir, int32 FaceIndex, const TVector<T, 3>& OriginalNormal) const override;
 
-		virtual const TBox<T, 3>& BoundingBox() const
+		virtual const TAABB<T, 3>& BoundingBox() const
 		{
 			return MLocalBoundingBox;
 		}
@@ -81,7 +81,7 @@ namespace Chaos
 			FImplicitObject::SerializeImp(Ar);
 			Ar << MParticles;
 			Ar << MElements;
-			Ar << MLocalBoundingBox;
+			TBox<T, 3>::SerializeAsAABB(Ar, MLocalBoundingBox);
 
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::RemovedConvexHullsFromTriangleMeshImplicitObject)
 			{
@@ -151,7 +151,7 @@ namespace Chaos
 
 		TParticles<T, 3> MParticles;
 		TArray<TVector<int32, 3>> MElements;
-		TBox<T, 3> MLocalBoundingBox;
+		TAABB<T, 3> MLocalBoundingBox;
 		TArray<uint16> MaterialIndices;
 
 		//using BVHType = TBoundingVolume<int32, T, 3>;
@@ -167,9 +167,9 @@ namespace Chaos
 
 			bool HasBoundingBox() const { return true; }
 
-			TBox<T, 3> BoundingBox() const
+			TAABB<T, 3> BoundingBox() const
 			{
-				TBox<T, 3> Bounds(TmData->MParticles.X(TmData->MElements[Index][0]), TmData->MParticles.X(TmData->MElements[Index][0]));
+				TAABB<T, 3> Bounds(TmData->MParticles.X(TmData->MElements[Index][0]), TmData->MParticles.X(TmData->MElements[Index][0]));
 
 				Bounds.GrowToInclude(TmData->MParticles.X(TmData->MElements[Index][1]));
 				Bounds.GrowToInclude(TmData->MParticles.X(TmData->MElements[Index][2]));

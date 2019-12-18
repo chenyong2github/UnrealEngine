@@ -314,7 +314,7 @@ void UpdateClusterMassProperties(TPBDRigidClusteredParticles<T, d>& Particles, c
 	const TArrayCollectionArray<FMultiChildProxyId>* MMultiChildProxyId = nullptr);
 
 template<typename T, int d>
-TArray<TVector<T, d>> CleanCollisionParticles(const TArray<TVector<T, d>>& Vertices, TBox<T, d> BBox, const float SnapDistance=0.01)
+TArray<TVector<T, d>> CleanCollisionParticles(const TArray<TVector<T, d>>& Vertices, TAABB<T, d> BBox, const float SnapDistance=0.01)
 {
 	const int32 NumPoints = Vertices.Num();
 	if (NumPoints <= 1)
@@ -384,7 +384,7 @@ TArray<TVector<T, d>> CleanCollisionParticles(const TArray<TVector<T, d>>& Verti
 	{
 		return TArray<TVector<T, d>>();
 	}
-	TBox<T, d> BBox(TBox<T, d>::EmptyBox());
+	TAABB<T, d> BBox(TAABB<T, d>::EmptyAABB());
 	for (const TVector<T, d>& Pt : Vertices)
 	{
 		BBox.GrowToInclude(Pt);

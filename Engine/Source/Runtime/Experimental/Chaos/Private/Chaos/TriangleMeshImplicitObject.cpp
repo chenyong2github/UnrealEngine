@@ -231,7 +231,7 @@ bool TTriangleMeshImplicitObject<T>::Raycast(const TVector<T, 3>& StartPoint, co
 template <typename T>
 bool TTriangleMeshImplicitObject<T>::Overlap(const TVector<T, 3>& Point, const T Thickness) const
 {
-	TBox<T, 3> QueryBounds(Point, Point);
+	TAABB<T, 3> QueryBounds(Point, Point);
 	QueryBounds.Thicken(Thickness);
 	const TArray<int32> PotentialIntersections = BVH.FindAllIntersections(QueryBounds);
 
@@ -337,9 +337,9 @@ template <typename QueryGeomType>
 bool TTriangleMeshImplicitObject<T>::OverlapGeomImp(const QueryGeomType& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
 {
 	bool bResult = false;
-	TBox<T, 3> QueryBounds = QueryGeom.BoundingBox();
+	TAABB<T, 3> QueryBounds = QueryGeom.BoundingBox();
 	QueryBounds.Thicken(Thickness);
-	QueryBounds = QueryBounds.TransformedBox(QueryTM);
+	QueryBounds = QueryBounds.TransformedAABB(QueryTM);
 	const TArray<int32> PotentialIntersections = BVH.FindAllIntersections(QueryBounds);
 
 	const auto& InnerQueryGeom = GetGeomHelper(QueryGeom);
@@ -553,7 +553,7 @@ bool TTriangleMeshImplicitObject<T>::SweepGeomImp(const QueryGeomType& QueryGeom
 	TTriangleMeshSweepVisitor<QueryGeomType, T> SQVisitor(*this, QueryGeom, StartTM, Dir, ScaledDirNormalized, LengthScale, ScaledStartTM, Thickness, bComputeMTD);
 
 
-	const TBox<T, 3> QueryBounds = QueryGeom.BoundingBox();
+	const TAABB<T, 3> QueryBounds = QueryGeom.BoundingBox();
 	const TVector<T, 3> StartPoint = StartTM.TransformPositionNoScale(QueryBounds.Center());
 	const TVector<T, 3> Inflation = QueryBounds.Extents() * 0.5 + TVector<T, 3>(Thickness);
 	BVH.template Sweep<TTriangleMeshSweepVisitor<QueryGeomType, T>>(StartPoint, Dir, Length, Inflation, SQVisitor);
@@ -623,7 +623,7 @@ int32 TTriangleMeshImplicitObject<T>::FindMostOpposingFace(const TVector<T, 3>& 
 	//todo: this is horribly slow, need adjacency information
 	const T SearchDist2 = SearchDist * SearchDist;
 	
-	TBox<T, 3> QueryBounds(Position - TVector<T,3>(SearchDist), Position + TVector<T,3>(SearchDist));
+	TAABB<T, 3> QueryBounds(Position - TVector<T,3>(SearchDist), Position + TVector<T,3>(SearchDist));
 
 	const TArray<int32> PotentialIntersections = BVH.FindAllIntersections(QueryBounds);
 	const T Epsilon = 1e-4;

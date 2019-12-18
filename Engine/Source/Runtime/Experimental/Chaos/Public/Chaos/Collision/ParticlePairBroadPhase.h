@@ -42,9 +42,9 @@ namespace Chaos
 				TGeometryParticleHandle<FReal, 3>* Particle0 = const_cast<TGeometryParticleHandle<FReal, 3>*>(ParticlePair[0]);
 				TGeometryParticleHandle<FReal, 3>* Particle1 = const_cast<TGeometryParticleHandle<FReal, 3>*>(ParticlePair[1]);
 
-				const TBox<FReal, 3>& Box0 = Particle0->WorldSpaceInflatedBounds();
-				const TBox<FReal, 3>& Box1 = Particle1->WorldSpaceInflatedBounds();
-				if (TBox<FReal, 3>::Intersects(Box0, Box1))
+				const TAABB<FReal, 3>& Box0 = Particle0->WorldSpaceInflatedBounds();
+				const TAABB<FReal, 3>& Box1 = Particle1->WorldSpaceInflatedBounds();
+				if (Box0.Intersects(Box1))
 				{
 					NarrowPhase.GenerateCollisions(Dt, Receiver, Particle0, Particle1, BoundsThickness, StatData);
 				}

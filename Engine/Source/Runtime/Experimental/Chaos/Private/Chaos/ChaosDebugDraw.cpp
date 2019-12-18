@@ -125,7 +125,7 @@ namespace Chaos
 		{
 			FColor Color = (ColorScale * FColor::White).ToFColor(false);
 
-			TBox<FReal, 3> Box = InParticle->WorldSpaceInflatedBounds();
+			TAABB<FReal, 3> Box = InParticle->WorldSpaceInflatedBounds();
 			FVec3 P = SpaceTransform.TransformPosition(Box.GetCenter());
 			FRotation3 Q = SpaceTransform.GetRotation();
 			FMatrix33 Qm = Q.ToMatrix();

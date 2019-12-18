@@ -66,7 +66,7 @@ private:
 private:
 	TArray<TVector<T, 3>> MParticles;
 	T MCellSize;
-	TBox<T, 3> MBoundingBox;
+	TAABB<T, 3> MBoundingBox;
 	int32 MNumberOfCellsX, MNumberOfCellsY, MNumberOfCellsZ;
 	TMap<int32, TArray<int32>> MHashTable;
 };

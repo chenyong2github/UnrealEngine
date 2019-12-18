@@ -55,6 +55,9 @@ namespace Chaos
 	class TCapsule;
 
 	template <typename T, int>
+	class TAABB;
+
+	template <typename T, int>
 	class TBox;
 
 	template <typename T, int>

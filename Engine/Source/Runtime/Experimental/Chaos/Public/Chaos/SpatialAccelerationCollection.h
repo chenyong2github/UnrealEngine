@@ -223,7 +223,7 @@ struct TSpatialAccelerationCollectionHelper
 	}
 
 	template <typename SQVisitor>
-	static bool OverlapFast(const Tuple& Types, const TBox<T, d> QueryBounds, SQVisitor& Visitor)
+	static bool OverlapFast(const Tuple& Types, const TAABB<T, d> QueryBounds, SQVisitor& Visitor)
 	{
 		const auto& Accelerations = GetAccelerationsPerType<TypeIdx>(Types).Objects;
 		for (const auto& Accelerator : Accelerations)
@@ -415,14 +415,14 @@ public:
 		TSpatialAccelerationCollectionHelper<0, NumTypes, decltype(Types), TPayloadType, T, d>::SweepFast(Types, Start, QueryFastData, QueryHalfExtents, Visitor);
 	}
 
-	virtual void Overlap(const TBox<T, d>& QueryBounds, ISpatialVisitor<TPayloadType, T>& Visitor) const override
+	virtual void Overlap(const TAABB<T, d>& QueryBounds, ISpatialVisitor<TPayloadType, T>& Visitor) const override
 	{
 		TSpatialVisitor<TPayloadType, T> ProxyVisitor(Visitor);
 		Overlap(QueryBounds, ProxyVisitor);
 	}
 
 	template <typename SQVisitor>
-	void Overlap(const TBox<T, 3>& QueryBounds, SQVisitor& Visitor) const
+	void Overlap(const TAABB<T, 3>& QueryBounds, SQVisitor& Visitor) const
 	{
 		TSpatialAccelerationCollectionHelper<0, NumTypes, decltype(Types), TPayloadType, T, d>::OverlapFast(Types, QueryBounds, Visitor);
 	}
@@ -460,7 +460,7 @@ public:
 		Buckets[UseBucket].Objects[SpatialIdx.InnerIdx].Acceleration->RemoveElement(Payload);
 	}
 
-	virtual void UpdateElementIn(const TPayloadType& Payload, const TBox<T, d>& NewBounds, bool bHasBounds, FSpatialAccelerationIdx SpatialIdx)
+	virtual void UpdateElementIn(const TPayloadType& Payload, const TAABB<T, d>& NewBounds, bool bHasBounds, FSpatialAccelerationIdx SpatialIdx)
 	{
 		const uint16 UseBucket = ((1 << SpatialIdx.Bucket) & this->ActiveBucketsMask) ? SpatialIdx.Bucket : 0;
 		Buckets[UseBucket].Objects[SpatialIdx.InnerIdx].Acceleration->UpdateElement(Payload, NewBounds, bHasBounds);

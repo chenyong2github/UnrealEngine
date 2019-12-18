@@ -177,8 +177,8 @@ public:
 
 				if (Particle.HasBounds())
 				{
-					const TBox<T, d>& LocalBounds = Particle.LocalBounds();
-					TBox<T, d> WorldSpaceBounds = LocalBounds.TransformedBox(TRigidTransform<T, d>(Particle.P(), Particle.Q()));
+					const TAABB<T, d>& LocalBounds = Particle.LocalBounds();
+					TAABB<T, d> WorldSpaceBounds = LocalBounds.TransformedAABB(TRigidTransform<T, d>(Particle.P(), Particle.Q()));
 					WorldSpaceBounds.ThickenSymmetrically(Particle.V());
 					Particle.SetWorldSpaceInflatedBounds(WorldSpaceBounds);
 				}

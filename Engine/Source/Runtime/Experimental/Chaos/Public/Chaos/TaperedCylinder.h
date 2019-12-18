@@ -32,7 +32,7 @@ namespace Chaos
 			T MaxRadius = MRadius1;
 			if (MaxRadius < MRadius2)
 				MaxRadius = MRadius2;
-			MLocalBoundingBox = TBox<T, 3>(MLocalBoundingBox.Min() - TVector<T, 3>(MaxRadius), MLocalBoundingBox.Max() + TVector<T, 3>(MaxRadius));
+			MLocalBoundingBox = TAABB<T, 3>(MLocalBoundingBox.Min() - TVector<T, 3>(MaxRadius), MLocalBoundingBox.Max() + TVector<T, 3>(MaxRadius));
 		}
 		TTaperedCylinder(const TTaperedCylinder<T>& Other)
 		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::TaperedCylinder)
@@ -112,7 +112,7 @@ namespace Chaos
 		TArray<TVector<T, 3>> ComputeSamplePoints(const T PointsPerUnitArea, const bool IncludeEndCaps = true, const int32 MinPoints = 0, const int32 MaxPoints = 1000) const
 		{ return ComputeSamplePoints(FMath::Clamp(static_cast<int32>(ceil(PointsPerUnitArea * GetArea(IncludeEndCaps))), MinPoints, MaxPoints), IncludeEndCaps); }
 
-		virtual const TBox<T, 3>& BoundingBox() const override { return MLocalBoundingBox; }
+		virtual const TAABB<T, 3>& BoundingBox() const override { return MLocalBoundingBox; }
 
 		T PhiWithNormal(const TVector<T, 3>& x, TVector<T, 3>& Normal) const
 		{
@@ -348,7 +348,7 @@ namespace Chaos
 
 		TPlane<T, 3> MPlane1, MPlane2;
 		T MHeight, MRadius1, MRadius2;
-		TBox<T, 3> MLocalBoundingBox;
+		TAABB<T, 3> MLocalBoundingBox;
 	};
 
 	template<typename T>
