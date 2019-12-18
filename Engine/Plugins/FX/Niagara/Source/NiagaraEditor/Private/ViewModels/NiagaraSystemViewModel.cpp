@@ -858,6 +858,16 @@ void FNiagaraSystemViewModel::RefreshEmitterHandleViewModels()
 		ViewModel->Reset();
 	}
 
+	bool bAnyEmitterIsolated = false;
+	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandle : EmitterHandleViewModels)
+	{
+		if (EmitterHandle->GetIsIsolated())
+		{
+			bAnyEmitterIsolated = true;
+		}
+	}
+	GetSystem().SetIsolateEnabled(bAnyEmitterIsolated);
+
 	if (SelectionViewModel != nullptr)
 	{
 		SelectionViewModel->Refresh();
