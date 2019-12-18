@@ -140,6 +140,8 @@ public:
 	 */
 	void Construct( const typename STileView<ItemType>::FArguments& InArgs )
 	{
+		this->Clipping = InArgs._Clipping;
+
 		this->OnGenerateRow = InArgs._OnGenerateTile;
 		this->OnRowReleased = InArgs._OnTileReleased;
 		this->OnItemScrolledIntoView = InArgs._OnItemScrolledIntoView;

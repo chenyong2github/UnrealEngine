@@ -212,6 +212,8 @@ public:
 	 */
 	void Construct( const FArguments& InArgs )
 	{
+		this->Clipping = InArgs._Clipping;
+
 		this->OnGenerateRow = InArgs._OnGenerateRow;
 		this->OnRowReleased = InArgs._OnRowReleased;
 		this->OnItemScrolledIntoView = InArgs._OnItemScrolledIntoView;
