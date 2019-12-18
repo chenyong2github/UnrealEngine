@@ -514,6 +514,11 @@ UNiagaraStackViewModel::FOnSearchCompleted& UNiagaraStackViewModel::OnSearchComp
 	return SearchCompletedDelegate;
 }
 
+UNiagaraStackViewModel::FOnDataObjectChanged& UNiagaraStackViewModel::OnDataObjectChanged()
+{
+	return DataObjectChangedDelegate;
+}
+
 bool UNiagaraStackViewModel::GetShowAllAdvanced() const
 {
 	for (TSharedRef<FTopLevelViewModel> TopLevelViewModel : TopLevelViewModels)
@@ -642,6 +647,7 @@ void UNiagaraStackViewModel::EntryDataObjectModified(UObject* ChangedObject)
 		SystemViewModel.Pin()->NotifyDataObjectChanged(ChangedObject);
 	}
 	OnSearchTextChanged(CurrentSearchText);
+	DataObjectChangedDelegate.Broadcast(ChangedObject);
 }
 
 void UNiagaraStackViewModel::EntryRequestFullRefresh()

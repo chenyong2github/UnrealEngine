@@ -14,8 +14,16 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "AssetThumbnail.h"
+#include "ViewModels/NiagaraEmitterViewModel.h"
+#include "Widgets/SToolTip.h"
+#include "Widgets/SBoxPanel.h"
+#include "NiagaraRendererProperties.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewStackNode"
+
+const float ThumbnailSize = 24.0f;
 
 void SNiagaraOverviewStackNode::Construct(const FArguments& InArgs, UNiagaraOverviewNode* InNode)
 {
@@ -24,7 +32,6 @@ void SNiagaraOverviewStackNode::Construct(const FArguments& InArgs, UNiagaraOver
 	StackViewModel = nullptr;
 	OverviewSelectionViewModel = nullptr;
 	EmitterHandleViewModelWeak.Reset();
-
 	if (OverviewStackNode->GetOwningSystem() != nullptr)
 	{
 		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::Get().LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
@@ -43,10 +50,13 @@ void SNiagaraOverviewStackNode::Construct(const FArguments& InArgs, UNiagaraOver
 					StackViewModel = EmitterHandleViewModelWeak.Pin()->GetEmitterStackViewModel();
 				}
 			}
+			if (StackViewModel)
+			{
+				StackViewModel->OnDataObjectChanged().AddRaw(this, &SNiagaraOverviewStackNode::FillThumbnailBar, true);
+			}
 			OverviewSelectionViewModel = OwningSystemViewModel->GetSelectionViewModel();
 		}
 	}
-
 	UpdateGraphNode();
 }
 
@@ -119,6 +129,41 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleWidget(TSharedPtr<SNod
 		];
 }
 
+TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateThumbnailWidget(float InThumbnailSize, FRendererPreviewData InData)
+{
+	TSharedPtr<FAssetThumbnail> AssetThumbnail = MakeShareable(new FAssetThumbnail(InData.RenderingObject, InThumbnailSize, InThumbnailSize, ThumbnailPool));
+	TSharedRef<SWidget> ThumbnailWidget = AssetThumbnail->MakeThumbnailWidget();
+	TSharedPtr<FAssetThumbnail> TooltipThumbnail = MakeShareable(new FAssetThumbnail(InData.RenderingObject, 64.0f, 64.0f, ThumbnailPool));
+	TSharedRef<SToolTip> ThumbnailTooltipWidget = SNew(SToolTip)
+		.Content()
+		[
+			SNew(SBox)
+			.MinDesiredHeight(64.0f)
+			.MaxDesiredHeight(64.0f)
+			.MinDesiredWidth(64.0f)
+			.MaxDesiredWidth(64.0f)
+			[
+				TooltipThumbnail->MakeThumbnailWidget()
+			]
+		];
+	ThumbnailWidget->SetOnMouseButtonDown(FPointerEventHandler::CreateSP(this, &SNiagaraOverviewStackNode::OnClickedRenderingPreview, InData.RenderingEntry));
+	ThumbnailWidget->SetToolTip(ThumbnailTooltipWidget);
+	return ThumbnailWidget;
+}
+
+FReply SNiagaraOverviewStackNode::OnClickedRenderingPreview(const FGeometry& InGeometry, const FPointerEvent& InEvent, UNiagaraStackEntry* InEntry)
+{
+	if (InEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		TArray<UNiagaraStackEntry*> SelectedEntries;
+		SelectedEntries.Add(InEntry);
+		TArray<UNiagaraStackEntry*> DeselectedEntries;
+		OverviewSelectionViewModel->UpdateSelectedEntries(SelectedEntries, DeselectedEntries, true);
+		return FReply::Handled();
+	}
+	return FReply::Unhandled();
+}
+
 TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 {
 	TSharedPtr<SWidget> ContentWidget;
@@ -135,41 +180,109 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 		ContentWidget = SNullWidget::NullWidget;
 	}
 
+	ThumbnailBar = SNew(SHorizontalBox);
+	FillThumbnailBar(nullptr, false);
+
 	// NODE CONTENT AREA
-	return SNew(SBorder)
+	TSharedRef<SWidget> NodeWidget = SNew(SBorder)
 		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
 		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Fill)
 		.Padding(FMargin(2, 2, 2, 4))
 		[
-			SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.HAlign(HAlign_Left)
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Center)
+			.Padding(2.0f, 2.0f)
 			[
-				// LEFT
-				SAssignNew(LeftNodeBox, SVerticalBox)
+				ThumbnailBar.ToSharedRef()
 			]
-			+SHorizontalBox::Slot()
+			+ SVerticalBox::Slot()
+			.FillHeight(1.0f)
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Center)
+			.Padding(0.0f)
 			[
-				SNew(SBorder)
-				.BorderImage(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.SystemOverview.NodeBackgroundBorder"))
-				.BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.SystemOverview.NodeBackgroundColor"))
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Fill)
-				.Padding(FMargin(0, 0, 0, 4))
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Left)
 				[
-					ContentWidget.ToSharedRef()
+					// LEFT
+					SAssignNew(LeftNodeBox, SVerticalBox)
+				]
+				+SHorizontalBox::Slot()
+				[
+					SNew(SBorder)
+					.BorderImage(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.SystemOverview.NodeBackgroundBorder"))
+					.BorderBackgroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.SystemOverview.NodeBackgroundColor"))
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Fill)
+					.Padding(FMargin(0, 0, 0, 4))
+					[
+						ContentWidget.ToSharedRef()
+					]
+				]
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Right)
+				[
+					// RIGHT
+					SAssignNew(RightNodeBox, SVerticalBox)
 				]
 			]
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.HAlign(HAlign_Right)
-			[
-				// RIGHT
-				SAssignNew(RightNodeBox, SVerticalBox)
-			]
 		];
+
+
+	return NodeWidget;
+
+}
+
+void SNiagaraOverviewStackNode::FillThumbnailBar(UObject* ChangedObject, const bool bIsTriggeredByObjectUpdate)
+{
+	UNiagaraRendererProperties* RendererProperties = Cast< UNiagaraRendererProperties>(ChangedObject);
+	if (!bIsTriggeredByObjectUpdate || RendererProperties != nullptr)
+	{
+		ThumbnailBar->ClearChildren();
+		ThumbnailPool = MakeShared<FAssetThumbnailPool>(100, /*InAreRealTileThumbnailsAllowed=*/true);
+		if (EmitterHandleViewModelWeak.IsValid())
+		{
+			EmitterHandleViewModelWeak.Pin()->GetRendererPreviewData(PreviewData);
+
+			for (FRendererPreviewData Preview : PreviewData)
+			{
+				if (Preview.RenderingObject)
+				{
+					ThumbnailBar->AddSlot()
+						.AutoWidth()
+						.HAlign(HAlign_Left)
+						.VAlign(VAlign_Center)
+						.Padding(2.0f, 2.0f, 4.0f, 4.0f)
+						.MaxWidth(ThumbnailSize)
+						[
+							SNew(SBox)
+							.MinDesiredHeight(ThumbnailSize)
+							.MaxDesiredHeight(ThumbnailSize)
+							.MinDesiredWidth(ThumbnailSize)
+							.Visibility(this, &SNiagaraOverviewStackNode::GetEnabledCheckBoxVisibility)
+							[
+								CreateThumbnailWidget(ThumbnailSize, Preview)
+							]
+						];
+				}
+			}
+		}
+
+		ThumbnailBar->AddSlot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Center)
+			.FillWidth(1.0f)
+			[
+				SNullWidget::NullWidget
+			];
+	}
 }
 
 EVisibility SNiagaraOverviewStackNode::GetIssueIconVisibility() const

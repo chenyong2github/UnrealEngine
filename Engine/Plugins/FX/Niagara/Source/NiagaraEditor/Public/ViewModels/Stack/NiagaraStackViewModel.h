@@ -43,6 +43,7 @@ class NIAGARAEDITOR_API UNiagaraStackViewModel : public UObject, public FEditorU
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnStructureChanged);
 	DECLARE_MULTICAST_DELEGATE(FOnSearchCompleted);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnDataObjectChanged, UObject* /** Changed Object */);
 public:
 	struct FSearchResult
 	{
@@ -89,6 +90,7 @@ public:
 
 	FOnStructureChanged& OnStructureChanged();
 	FOnSearchCompleted& OnSearchCompleted();
+	FOnDataObjectChanged& OnDataObjectChanged();
 
 	bool GetShowAllAdvanced() const;
 	void SetShowAllAdvanced(bool bInShowAllAdvanced);
@@ -178,6 +180,7 @@ private:
 	bool bExternalRootEntry;
 
 	FOnStructureChanged StructureChangedDelegate;
+	FOnDataObjectChanged DataObjectChangedDelegate;
 
 	// ~Search stuff
 	FText CurrentSearchText;

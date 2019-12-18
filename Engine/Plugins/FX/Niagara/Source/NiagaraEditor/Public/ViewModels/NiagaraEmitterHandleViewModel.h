@@ -14,7 +14,22 @@ struct FNiagaraEmitterHandle;
 class FNiagaraEmitterInstance;
 class FNiagaraEmitterViewModel;
 class UNiagaraStackViewModel;
+class UNiagaraStackEntry;
 enum class ENiagaraSystemViewModelEditMode;
+
+struct FRendererPreviewData
+{
+	UNiagaraStackEntry* RenderingEntry;
+	UObject* RenderingObject;
+
+
+	FRendererPreviewData(UNiagaraStackEntry* InRenderingEntry, UObject* InRenderingObject)
+		: RenderingEntry(InRenderingEntry)
+		, RenderingObject(InRenderingObject)
+	{
+
+	};
+};
 
 /** The view model for the FNiagaraEmitterEditorWidget. */
 class FNiagaraEmitterHandleViewModel : public TSharedFromThis<FNiagaraEmitterHandleViewModel>, public FGCObject
@@ -117,6 +132,7 @@ public:
 
 	void Cleanup();
 
+	NIAGARAEDITOR_API void GetRendererPreviewData(TArray<FRendererPreviewData>& InRendererPreviewData);
 private:
 	TSharedRef<FNiagaraSystemViewModel> GetOwningSystemViewModel() const;
 
