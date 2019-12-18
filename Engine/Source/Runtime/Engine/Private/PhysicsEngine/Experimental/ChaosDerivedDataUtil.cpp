@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 
 #include "ChaosLog.h"
+#include "ChaosCheck.h"
 
 namespace Chaos
 {
