@@ -1663,27 +1663,6 @@ FORCEINLINE VectorRegisterInt VectorIntLoad1(const void* Ptr)
 }
 
 /**
- * Shuffles a VectorInt using a provided shuffle mask
- *
- * @param Vec		Source vector
- * @param Mask		Shuffle vector
- */
-FORCEINLINE VectorRegisterInt VectorIntShuffle(const VectorRegisterInt& Vec, const VectorRegisterInt& Mask)
-{
-	VectorRegisterInt Result;
-	const int8* VecBytes = reinterpret_cast<const int8*>(&Vec);
-	const int8* MaskBytes = reinterpret_cast<const int8*>(&Mask);
-	int8* ResultBytes = reinterpret_cast<int8*>(&Result);
-
-	for (int32 i = 0; i < sizeof(VectorRegisterInt); ++i)
-	{
-		ResultBytes[i] = (MaskBytes[i] < 0) ? 0 : VecBytes[MaskBytes[i] % 16];
-	}
-
-	return Result;
-}
-
-/**
  * These functions return a vector mask to indicate which components pass the comparison.
  * Each component is 0xffffffff if it passes, 0x00000000 if it fails.
  *

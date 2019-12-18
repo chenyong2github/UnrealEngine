@@ -262,9 +262,6 @@ struct FVectorVMContext : TThreadSingleton<FVectorVMContext>
 private:
 	/** Pointer to the next element in the byte code. */
 	uint8 const* RESTRICT Code;
-
-	friend struct FVectorVMCodeOptimizerContext;
-
 public:
 	/** Pointer to the constant table. */
 	uint8 const* RESTRICT ConstantTable;
@@ -305,10 +302,6 @@ public:
 
 	bool bIsParallelExecution;
 
-	int32 ValidInstanceIndexStart = INDEX_NONE;
-	int32 ValidInstanceCount = 0;
-	bool ValidInstanceUniform = false;
-
 	FVectorVMContext();
 
 	void PrepareForExec(
@@ -318,11 +311,11 @@ public:
 		void** InUserPtrTable,
 		TArrayView<FDataSetMeta> InDataSetMetaTable,
 		int32 MaxNumInstances,
-		bool bInParallelExecution);
-
+		bool bInParallelExecution
 #if STATS
-	void SetStatScopes(const TArray<TStatId>* InStatScopes);
+		, const TArray<TStatId>* InStatScopes
 #endif
+	);
 
 	void FinishExec();
 
@@ -332,10 +325,6 @@ public:
 		NumInstances = InNumInstances;
 		NumInstancesVectorFloats = (NumInstances + VECTOR_WIDTH_FLOATS - 1) / VECTOR_WIDTH_FLOATS;
 		StartInstance = InStartInstance;
-
-		ValidInstanceCount = 0;
-		ValidInstanceIndexStart = INDEX_NONE;
-		ValidInstanceUniform = false;
 
 		RandCounters.Reset();
 		RandCounters.SetNumZeroed(InNumInstances);
