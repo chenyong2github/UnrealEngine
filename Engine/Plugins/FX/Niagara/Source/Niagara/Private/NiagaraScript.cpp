@@ -103,12 +103,12 @@ void FNiagaraVMExecutableDataId::Invalidate()
 
 bool FNiagaraVMExecutableDataId::HasInterpolatedParameters() const
 {
-	return AdditionalDefines.Contains("InterpolatedSpawn");
+	return bInterpolatedSpawn;
 }
 
 bool FNiagaraVMExecutableDataId::RequiresPersistentIDs() const
 {
-	return AdditionalDefines.Contains("RequiresPersistentIDs");
+	return bRequiresPersistentIDs;
 }
 
 /**
@@ -127,7 +127,9 @@ bool FNiagaraVMExecutableDataId::operator==(const FNiagaraVMExecutableDataId& Re
 		BaseScriptCompileHash != ReferenceSet.BaseScriptCompileHash ||
 #endif
 		DetailLevelMask != ReferenceSet.DetailLevelMask ||
-		bUsesRapidIterationParams != ReferenceSet.bUsesRapidIterationParams)
+		bUsesRapidIterationParams != ReferenceSet.bUsesRapidIterationParams ||
+		bInterpolatedSpawn != ReferenceSet.bInterpolatedSpawn ||
+		bRequiresPersistentIDs != ReferenceSet.bRequiresPersistentIDs )
 	{
 		return false;
 	}
@@ -145,7 +147,6 @@ bool FNiagaraVMExecutableDataId::operator==(const FNiagaraVMExecutableDataId& Re
 			return false;
 		}
 	}
-#endif
 
 	if (AdditionalDefines.Num() != ReferenceSet.AdditionalDefines.Num())
 	{
@@ -161,6 +162,7 @@ bool FNiagaraVMExecutableDataId::operator==(const FNiagaraVMExecutableDataId& Re
 			return false;
 		}
 	}
+#endif
 
 
 	return true;
@@ -262,6 +264,8 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 	Id = FNiagaraVMExecutableDataId();
 
 	Id.bUsesRapidIterationParams = true;
+	Id.bInterpolatedSpawn = false;
+	Id.bRequiresPersistentIDs = false;
 	Id.DetailLevelMask = 0xFFFFFFFF; // Unused for now.
 	
 	// Ideally we wouldn't want to do this but rather than push the data down
@@ -279,10 +283,12 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 			(Emitter->bInterpolatedSpawning && Usage == ENiagaraScriptUsage::ParticleSpawnScript) ||
 			Usage == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated)
 		{
+			Id.bInterpolatedSpawn = true;
 			Id.AdditionalDefines.Add(TEXT("InterpolatedSpawn"));
 		}
 		if (Emitter->RequiresPersistantIDs())
 		{
+			Id.bRequiresPersistentIDs = true;
 			Id.AdditionalDefines.Add(TEXT("RequiresPersistentIDs"));
 		}
 		if (Emitter->bLocalSpace)
@@ -1693,7 +1699,7 @@ NIAGARA_API bool UNiagaraScript::IsScriptCompilationPending(bool bGPUScript) con
 	{
 		if (CachedScriptVM.IsValid())
 		{
-			return CachedScriptVM.ByteCode.Num() == 0 && (CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_BeingCreated || CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_Unknown);
+			return (CachedScriptVM.ByteCode.Num() == 0) && (CachedScriptVM.OptimizedByteCode.Num() == 0) && (CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_BeingCreated || CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_Unknown);
 		}
 		return false;
 	}
@@ -1719,7 +1725,7 @@ NIAGARA_API bool UNiagaraScript::DidScriptCompilationSucceed(bool bGPUScript) co
 	{
 		if (CachedScriptVM.IsValid())
 		{
-			return CachedScriptVM.ByteCode.Num() != 0;
+			return (CachedScriptVM.ByteCode.Num() != 0) || (CachedScriptVM.OptimizedByteCode.Num() != 0);
 		}
 	}
 

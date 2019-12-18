@@ -555,7 +555,7 @@ TArray<FNiagaraTypeDefinition> FNiagaraTypeRegistry::RegisteredNumericTypes;
 
 bool FNiagaraTypeDefinition::IsDataInterface()const
 {
-	return Struct->IsChildOf(UNiagaraDataInterface::StaticClass());
+	return GetStruct()->IsChildOf(UNiagaraDataInterface::StaticClass());
 }
 
 void FNiagaraTypeDefinition::Init()
@@ -876,6 +876,35 @@ FNiagaraTypeDefinition FNiagaraTypeDefinition::GetNumericOutputType(const TArray
 	return FNiagaraTypeDefinition::GetGenericNumericDef();
 }
 
+bool FNiagaraTypeDefinition::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
+	return false;
+}
+
+void FNiagaraTypeDefinition::PostSerialize(const FArchive& Ar)
+{
+#if WITH_EDITORONLY_DATA
+	if (Ar.IsLoading() && Ar.CustomVer(FNiagaraCustomVersion::GUID) < FNiagaraCustomVersion::MemorySaving)
+	{
+		if (Enum_DEPRECATED != nullptr)
+		{
+			UnderlyingType = UT_Enum;
+			ClassStructOrEnum = Enum_DEPRECATED;
+		}
+		else if (Struct_DEPRECATED != nullptr)
+		{
+			UnderlyingType = Struct_DEPRECATED->IsA<UClass>() ? UT_Class : UT_Struct;
+			ClassStructOrEnum = Struct_DEPRECATED;
+		}
+		else
+		{
+			UnderlyingType = UT_None;
+			ClassStructOrEnum = nullptr;
+		}
+	}
+#endif
+}
 
 //////////////////////////////////////////////////////////////////////////
 

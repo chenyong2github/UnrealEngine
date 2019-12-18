@@ -295,8 +295,8 @@ void FNiagaraScriptExecutionParameterStore::CopyParameterDataToPaddedBuffer(uint
 	const uint8* SrcData = GetParameterDataArray().GetData();
 	for (int32 i = 0; i < PaddingInfo.Num(); i++)
 	{
-		check((PaddingInfo[i].DestOffset + PaddingInfo[i].DestSize) <= InTargetBufferSizeInBytes);
-		check((PaddingInfo[i].SrcOffset + PaddingInfo[i].SrcSize) <= (uint32)GetParameterDataArray().Num());
+		check(uint32(PaddingInfo[i].DestOffset + PaddingInfo[i].DestSize) <= InTargetBufferSizeInBytes);
+		check(uint32(PaddingInfo[i].SrcOffset + PaddingInfo[i].SrcSize) <= (uint32)GetParameterDataArray().Num());
 		FMemory::Memcpy(InTargetBuffer + PaddingInfo[i].DestOffset, SrcData + PaddingInfo[i].SrcOffset, PaddingInfo[i].SrcSize);
 	}
 }

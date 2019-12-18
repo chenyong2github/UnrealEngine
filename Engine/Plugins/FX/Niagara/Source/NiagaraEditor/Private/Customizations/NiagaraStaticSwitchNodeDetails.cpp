@@ -361,7 +361,7 @@ void FNiagaraStaticSwitchNodeDetails::OnSelectionChanged(TSharedPtr<ConstantDrop
 	// in case of an enum constant we also need the enum type
 	if (SelectedDropdownItem == DropdownOptions[4])
 	{
-		Node->SwitchTypeData.Enum = NewValue->Constant.GetType().Enum;
+		Node->SwitchTypeData.Enum = NewValue->Constant.GetType().GetEnum();
 	}
 	else
 	{

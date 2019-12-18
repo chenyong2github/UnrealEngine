@@ -9,32 +9,6 @@
 // When not cooked, sort by actual name to ensure deterministic cooked data
 #define NIAGARA_VARIABLE_LEXICAL_SORTING WITH_EDITORONLY_DATA
 
-struct FNiagaraVariableSearch
-{
-	static FORCEINLINE int32 Compare(const FNiagaraVariable& A, const FNiagaraVariable& B)
-	{
-#if NIAGARA_VARIABLE_LEXICAL_SORTING
-		int32 ComparisonDiff = A.GetName().Compare(B.GetName());
-#else
-		int32 ComparisonDiff = A.GetName().CompareIndexes(B.GetName());
-#endif
-		if (ComparisonDiff != 0)
-		{
-			return ComparisonDiff;
-		}
-		else
-		{
-#if NIAGARA_VARIABLE_LEXICAL_SORTING
-			return ComparisonDiff = A.GetType().GetFName().Compare(B.GetType().GetFName());
-#else
-			return ComparisonDiff = A.GetType().GetFName().CompareIndexes(B.GetType().GetFName());
-#endif
-		}
-	}
-
-	static bool Find(const struct FNiagaraVariableWithOffset* Variables, const FNiagaraVariable& Ref, int32 Start, int32 Num, int32& CheckIndex);
-};
-
 struct FNiagaraParameterStore;
 
 USTRUCT()
@@ -140,14 +114,14 @@ private:
 
 
 USTRUCT()
-struct FNiagaraVariableWithOffset : public FNiagaraVariable
+struct FNiagaraVariableWithOffset : public FNiagaraVariableBase
 {
 	GENERATED_USTRUCT_BODY()
 
 	// Those constructor enforce that there are no data allocated.
 	FORCEINLINE FNiagaraVariableWithOffset() : Offset(INDEX_NONE) {}
-	FORCEINLINE FNiagaraVariableWithOffset(const FNiagaraVariableWithOffset& InRef) : FNiagaraVariable(InRef.GetType(), InRef.GetName()), Offset(InRef.Offset) {}
-	FORCEINLINE FNiagaraVariableWithOffset(const FNiagaraVariable& InVariable, int32 InOffset) : FNiagaraVariable(InVariable.GetType(), InVariable.GetName()), Offset(InOffset) {}
+	FORCEINLINE FNiagaraVariableWithOffset(const FNiagaraVariableWithOffset& InRef) : FNiagaraVariableBase(InRef.GetType(), InRef.GetName()), Offset(InRef.Offset) {}
+	FORCEINLINE FNiagaraVariableWithOffset(const FNiagaraVariableBase& InVariable, int32 InOffset) : FNiagaraVariableBase(InVariable.GetType(), InVariable.GetName()), Offset(InOffset) {}
 
 	UPROPERTY()
 	int32 Offset;
@@ -367,7 +341,7 @@ public:
 	}
 
 	/** Returns the associated FNiagaraVariable for the passed data interface if it exists in the store. Null if not.*/
-	const FNiagaraVariable* FindVariable(UNiagaraDataInterface* Interface)const;
+	const FNiagaraVariableBase* FindVariable(UNiagaraDataInterface* Interface)const;
 
 	virtual const int32* FindParameterOffset(const FNiagaraVariable& Parameter) const;
 
