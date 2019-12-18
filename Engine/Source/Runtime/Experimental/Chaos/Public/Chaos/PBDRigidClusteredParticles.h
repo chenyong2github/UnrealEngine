@@ -7,7 +7,7 @@
 
 namespace Chaos
 {
-	class FImplicitObjectUnion;
+	class FImplicitObjectUnionClustered;
 
 // ClusterId 
 //    Used within the clustering system to describe the clustering hierarchy. The ID will
@@ -159,7 +159,7 @@ class TPBDRigidClusteredParticles : public TPBDRigidParticles<T, d>
 	  TArrayCollectionArray<TRigidTransform<T, d>> MChildToParent;
 	  TArrayCollectionArray<int32> MClusterGroupIndex;
 	  TArrayCollectionArray<bool> MInternalCluster;
-	  TArrayCollectionArray<TUniquePtr<FImplicitObjectUnion>> MChildrenSpatial;
+	  TArrayCollectionArray<TUniquePtr<FImplicitObjectUnionClustered>> MChildrenSpatial;
 	  TArrayCollectionArray<FMultiChildProxyId> MMultiChildProxyId;
 	  TArrayCollectionArray<TUniquePtr<TMultiChildProxyData<T, d>>> MMultiChildProxyData;
 

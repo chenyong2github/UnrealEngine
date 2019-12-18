@@ -95,6 +95,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 
 		// Trimeshes can now use small indices
 		TrimeshCanUseSmallIndices,
+
+		// Union objects can avoid allocating a full hierarchy
+		UnionObjectsCanAvoidHierarchy,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
