@@ -126,6 +126,7 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 			}
 
 			bMenuItemsAdded |= FNiagaraStackEditorWidgetsUtilities::AddStackEntryAssetContextMenuActions(MenuBuilder, *StackEntry);
+			bMenuItemsAdded |= FNiagaraStackEditorWidgetsUtilities::AddStackEntryContextMenuActions(MenuBuilder, *StackEntry);
 		
 			if (bMenuItemsAdded)
 			{

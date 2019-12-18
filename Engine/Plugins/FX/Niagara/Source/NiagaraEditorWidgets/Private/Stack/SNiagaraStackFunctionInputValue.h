@@ -53,8 +53,6 @@ private:
 
 	FText GetDynamicValueToolTip() const;
 
-	FText GetExpressionValueText() const;
-
 	void OnExpressionTextCommitted(const FText& Name, ETextCommit::Type CommitInfo);
 
 	FText GetInvalidValueText() const;

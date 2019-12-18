@@ -293,6 +293,7 @@ FReply SNiagaraStackTableRow::OnMouseButtonUp(const FGeometry& MyGeometry, const
 		}
 
 		FNiagaraStackEditorWidgetsUtilities::AddStackEntryAssetContextMenuActions(MenuBuilder, *StackEntry);
+		FNiagaraStackEditorWidgetsUtilities::AddStackEntryContextMenuActions(MenuBuilder, *StackEntry);
 
 		TArray<UNiagaraStackEntry*> EntriesToProcess;
 		TArray<UNiagaraStackEntry*> NavigationEntries;
@@ -301,25 +302,27 @@ FReply SNiagaraStackTableRow::OnMouseButtonUp(const FGeometry& MyGeometry, const
 		{
 			UNiagaraStackItemGroup* GroupParent = Cast<UNiagaraStackItemGroup>(Parent);
 			UNiagaraStackItem* ItemParent = Cast<UNiagaraStackItem>(Parent);
-			if (GroupParent != nullptr)
+			if (GroupParent != nullptr || ItemParent != nullptr)
 			{
-				MenuBuilder.BeginSection("StackRowNavigateTo", LOCTEXT("NavigateToSection", "Navigate to:"));
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("TopOfSection", "Top of Section"),
-					FText::Format(LOCTEXT("NavigateToFormatted", "Navigate to {0}"), Parent->GetDisplayName()),
-					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateSP(this, &SNiagaraStackTableRow::NavigateTo, Parent)));
-			}
-			if (ItemParent != nullptr)
-			{
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("TopOfModule", "Top of Module"),
-					FText::Format(LOCTEXT("NavigateToFormatted", "Navigate to {0}"), Parent->GetDisplayName()),
-					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateSP(this, &SNiagaraStackTableRow::NavigateTo, Parent)));
-			}
-			if (GroupParent != nullptr)
-			{
+				MenuBuilder.BeginSection("StackRowNavigation", LOCTEXT("NavigationMenuSection", "Navigation"));
+				{
+					if (GroupParent != nullptr)
+					{
+						MenuBuilder.AddMenuEntry(
+							LOCTEXT("TopOfSection", "Top of Section"),
+							FText::Format(LOCTEXT("NavigateToFormatted", "Navigate to {0}"), Parent->GetDisplayName()),
+							FSlateIcon(),
+							FUIAction(FExecuteAction::CreateSP(this, &SNiagaraStackTableRow::NavigateTo, Parent)));
+					}
+					if (ItemParent != nullptr)
+					{
+						MenuBuilder.AddMenuEntry(
+							LOCTEXT("TopOfModule", "Top of Module"),
+							FText::Format(LOCTEXT("NavigateToFormatted", "Navigate to {0}"), Parent->GetDisplayName()),
+							FSlateIcon(),
+							FUIAction(FExecuteAction::CreateSP(this, &SNiagaraStackTableRow::NavigateTo, Parent)));
+					}
+				}
 				MenuBuilder.EndSection();
 			}
 		}

@@ -26,6 +26,7 @@ struct IConsoleCommand;
 class INiagaraEditorOnlyDataUtilities;
 class FNiagaraEditorCommands;
 struct FNiagaraScriptHighlight;
+class FNiagaraClipboard;
 
 DECLARE_STATS_GROUP(TEXT("Niagara Editor"), STATGROUP_NiagaraEditor, STATCAT_Advanced);
 
@@ -113,6 +114,8 @@ public:
 
 	void GetScriptAssetsMatchingHighlight(const FNiagaraScriptHighlight& InHighlight, TArray<FAssetData>& OutMatchingScriptAssets) const;
 
+	FNiagaraClipboard& GetClipboard() const;
+
 private:
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action);
 	void OnNiagaraSettingsChangedEvent(const FString& PropertyName, const UNiagaraSettings* Settings);
@@ -176,4 +179,6 @@ private:
 	mutable TOptional<TArray<FNiagaraScriptHighlight>> CachedScriptAssetHighlights;
 
 	bool bThumbnailRenderersRegistered;
+
+	TSharedRef<FNiagaraClipboard> Clipboard;
 };

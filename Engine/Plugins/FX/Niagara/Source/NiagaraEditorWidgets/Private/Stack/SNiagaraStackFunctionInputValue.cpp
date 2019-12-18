@@ -145,15 +145,9 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 					.Visibility(this, &SNiagaraStackFunctionInputValue::GetValueWidgetVisibility, UNiagaraStackFunctionInput::EValueMode::Expression)
 					.VAlign(VAlign_Center)
 					[
-						//SNew(SInlineEditableTextBlock)
-						//.Style(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterInlineEditableText")
-						//.Text(this, &SNiagaraStackFunctionInputValue::GetExpressionValueText)
-						//.OnTextCommitted(this, &SNiagaraStackFunctionInputValue::OnExpressionTextCommitted)
-						// SNew(SMultiLineEditableTextBox)
-						//.AutoWrapText(false)
 						SNew(SEditableTextBox)
 						.IsReadOnly(false)
-						.Text(this, &SNiagaraStackFunctionInputValue::GetExpressionValueText)
+						.Text_UObject(FunctionInput, &UNiagaraStackFunctionInput::GetCustomExpressionText)
 						.OnTextCommitted(this, &SNiagaraStackFunctionInputValue::OnExpressionTextCommitted)
 					]
 				]
@@ -391,24 +385,9 @@ FText SNiagaraStackFunctionInputValue::GetDynamicValueToolTip() const
 	}
 }
 
-FText SNiagaraStackFunctionInputValue::GetExpressionValueText() const
-{
-	if (FunctionInput->GetExpressionNode() != nullptr)
-	{
-		return FunctionInput->GetExpressionNode()->GetHlslText();
-	}
-	else
-	{
-		return LOCTEXT("InvalidDynamicDisplayName", "(Invalid)");
-	}
-}
-
 void SNiagaraStackFunctionInputValue::OnExpressionTextCommitted(const FText& Name, ETextCommit::Type CommitInfo)
 {
-	if (FunctionInput->GetExpressionNode() != nullptr)
-	{
-		FunctionInput->GetExpressionNode()->OnCustomHlslTextCommitted(Name, CommitInfo);
-	}
+	FunctionInput->SetCustomExpression(Name.ToString());
 }
 
 FText SNiagaraStackFunctionInputValue::GetInvalidValueText() const

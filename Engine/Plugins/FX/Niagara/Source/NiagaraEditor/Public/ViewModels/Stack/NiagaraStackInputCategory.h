@@ -8,6 +8,7 @@
 
 class UNiagaraStackFunctionInput;
 class UNiagaraNodeFunctionCall;
+class UNiagaraClipboardFunctionInput;
 
 UENUM()
 enum class EStackParameterBehavior
@@ -41,6 +42,10 @@ public:
 	virtual bool GetIsEnabled() const override;
 
 	void SetShouldShowInStack(bool bInShouldShowInStack);
+
+	void ToClipboardFunctionInputs(UObject* InOuter, TArray<const UNiagaraClipboardFunctionInput*>& OutClipboardFunctionInputs) const;
+
+	void SetValuesFromClipboardFunctionInputs(const TArray<const UNiagaraClipboardFunctionInput*>& ClipboardFunctionInputs);
 
 protected:
 	//~ UNiagaraStackEntry interface

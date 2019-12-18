@@ -4726,7 +4726,7 @@ void FHlslNiagaraTranslator::HandleCustomHlslNode(UNiagaraNodeCustomHlsl* Custom
 	OutFullName = CustomFunctionHlsl->GetFullName();
 	OutSignature.Name = *OutName; // Force the name to be set to include the node guid for safety...
 	bOutCustomHlsl = true;
-	OutCustomHlsl = CustomFunctionHlsl->CustomHlsl;
+	OutCustomHlsl = CustomFunctionHlsl->GetCustomHlsl();
 
 	// Split up the hlsl into constituent tokens
 	TArray<FString> Tokens;
