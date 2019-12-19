@@ -170,7 +170,7 @@ bool UDataTableFunctionLibrary::FillDataTableFromJSONString(UDataTable* DataTabl
 	return Result != nullptr && !bWasCancelled;
 }
 
-bool UDataTableFunctionLibrary::FillDataTableFromJSONFile(UDataTable* DataTable, const FString& InFilePath)
+bool UDataTableFunctionLibrary::FillDataTableFromJSONFile(UDataTable* DataTable, const FString& InFilePath, UScriptStruct* ImportRowStruct)
 {
 	if (!DataTable)
 	{
@@ -192,6 +192,7 @@ bool UDataTableFunctionLibrary::FillDataTableFromJSONFile(UDataTable* DataTable,
 
 	DataTable->AssetImportData->Update(InFilePath);
 	UCSVImportFactory* ImportFactory = NewObject<UCSVImportFactory>();
+	ImportFactory->AutomatedImportSettings.ImportRowStruct = ImportRowStruct;
 	return ImportFactory->ReimportCSV(DataTable) == EReimportResult::Succeeded;
 }
 #endif //WITH_EDITOR

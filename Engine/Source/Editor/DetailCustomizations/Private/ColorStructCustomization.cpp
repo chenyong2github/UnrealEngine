@@ -27,7 +27,7 @@ void FColorStructCustomization::CustomizeHeader(TSharedRef<class IPropertyHandle
 {
 	StructPropertyHandle = InStructPropertyHandle;
 
-	bIsLinearColor = CastChecked<UStructProperty>(StructPropertyHandle->GetProperty())->Struct->GetFName() == NAME_LinearColor;
+	bIsLinearColor = CastFieldChecked<FStructProperty>(StructPropertyHandle->GetProperty())->Struct->GetFName() == NAME_LinearColor;
 	bIgnoreAlpha = StructPropertyHandle->GetProperty()->HasMetaData(TEXT("HideAlphaChannel"));
 	
 	if (StructPropertyHandle->GetProperty()->HasMetaData(TEXT("sRGB")))

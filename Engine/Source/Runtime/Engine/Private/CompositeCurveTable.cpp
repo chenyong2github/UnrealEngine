@@ -193,7 +193,7 @@ void UCompositeCurveTable::PostEditChangeProperty(FPropertyChangedEvent& Propert
 {
 	static FName Name_ParentTables = GET_MEMBER_NAME_CHECKED(UCompositeCurveTable, ParentTables);
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	const FName PropertyName = PropertyThatChanged != nullptr ? PropertyThatChanged->GetFName() : NAME_None;
 
 	if (PropertyName == Name_ParentTables)

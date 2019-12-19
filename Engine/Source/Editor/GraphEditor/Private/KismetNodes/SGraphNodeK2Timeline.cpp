@@ -21,10 +21,10 @@ void SGraphNodeK2Timeline::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<F
  	// Display the timeline status bubble
  	if (UObject* ActiveObject = K2Context->ActiveObjectBeingDebugged)
  	{
- 		UProperty* NodeProperty = FKismetDebugUtilities::FindClassPropertyForNode(K2Context->SourceBlueprint, GraphNode);
- 		if (UObjectProperty* TimelineProperty = Cast<UObjectProperty>(NodeProperty))
+ 		FProperty* NodeProperty = FKismetDebugUtilities::FindClassPropertyForNode(K2Context->SourceBlueprint, GraphNode);
+ 		if (FObjectProperty* TimelineProperty = CastField<FObjectProperty>(NodeProperty))
  		{
-			UClass* ContainingClass = TimelineProperty->GetTypedOuter<UClass>();
+			UClass* ContainingClass = TimelineProperty->GetTypedOwner<UClass>();
 			if (!ActiveObject->IsA(ContainingClass))
 			{
 				const FString ErrorText = FText::Format(LOCTEXT("StaleDebugDataFmt", "Stale debug data\nProperty is on {0}\nDebugging a {1}"), FText::FromString(ContainingClass->GetName()), FText::FromString(ActiveObject->GetClass()->GetName())).ToString();

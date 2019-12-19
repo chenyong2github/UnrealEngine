@@ -25,10 +25,10 @@ void FGameplayEffectModifierMagnitudeDetails::CustomizeChildren(TSharedRef<IProp
 {
 	// Set up acceleration map
 	PropertyToCalcEnumMap.Empty();
-	PropertyToCalcEnumMap.Add(FindFieldChecked<UProperty>(FGameplayEffectModifierMagnitude::StaticStruct(), GET_MEMBER_NAME_CHECKED(FGameplayEffectModifierMagnitude, ScalableFloatMagnitude)), EGameplayEffectMagnitudeCalculation::ScalableFloat);
-	PropertyToCalcEnumMap.Add(FindFieldChecked<UProperty>(FGameplayEffectModifierMagnitude::StaticStruct(), GET_MEMBER_NAME_CHECKED(FGameplayEffectModifierMagnitude, AttributeBasedMagnitude)), EGameplayEffectMagnitudeCalculation::AttributeBased);
-	PropertyToCalcEnumMap.Add(FindFieldChecked<UProperty>(FGameplayEffectModifierMagnitude::StaticStruct(), GET_MEMBER_NAME_CHECKED(FGameplayEffectModifierMagnitude, CustomMagnitude)), EGameplayEffectMagnitudeCalculation::CustomCalculationClass);
-	PropertyToCalcEnumMap.Add(FindFieldChecked<UProperty>(FGameplayEffectModifierMagnitude::StaticStruct(), GET_MEMBER_NAME_CHECKED(FGameplayEffectModifierMagnitude, SetByCallerMagnitude)), EGameplayEffectMagnitudeCalculation::SetByCaller);
+	PropertyToCalcEnumMap.Add(FindFieldChecked<FProperty>(FGameplayEffectModifierMagnitude::StaticStruct(), GET_MEMBER_NAME_CHECKED(FGameplayEffectModifierMagnitude, ScalableFloatMagnitude)), EGameplayEffectMagnitudeCalculation::ScalableFloat);
+	PropertyToCalcEnumMap.Add(FindFieldChecked<FProperty>(FGameplayEffectModifierMagnitude::StaticStruct(), GET_MEMBER_NAME_CHECKED(FGameplayEffectModifierMagnitude, AttributeBasedMagnitude)), EGameplayEffectMagnitudeCalculation::AttributeBased);
+	PropertyToCalcEnumMap.Add(FindFieldChecked<FProperty>(FGameplayEffectModifierMagnitude::StaticStruct(), GET_MEMBER_NAME_CHECKED(FGameplayEffectModifierMagnitude, CustomMagnitude)), EGameplayEffectMagnitudeCalculation::CustomCalculationClass);
+	PropertyToCalcEnumMap.Add(FindFieldChecked<FProperty>(FGameplayEffectModifierMagnitude::StaticStruct(), GET_MEMBER_NAME_CHECKED(FGameplayEffectModifierMagnitude, SetByCallerMagnitude)), EGameplayEffectMagnitudeCalculation::SetByCaller);
 
 	// Hook into calculation type changes
 	MagnitudeCalculationTypePropertyHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FGameplayEffectModifierMagnitude, MagnitudeCalculationType));
@@ -76,7 +76,7 @@ void FGameplayEffectModifierMagnitudeDetails::OnCalculationTypeChanged()
 	VisibleCalculationType = static_cast<EGameplayEffectMagnitudeCalculation>(EnumVal);
 }
 
-EVisibility FGameplayEffectModifierMagnitudeDetails::GetMagnitudeCalculationPropertyVisibility(UProperty* InProperty) const
+EVisibility FGameplayEffectModifierMagnitudeDetails::GetMagnitudeCalculationPropertyVisibility(FProperty* InProperty) const
 {
 	const EGameplayEffectMagnitudeCalculation* EnumVal = PropertyToCalcEnumMap.Find(InProperty);
 	return ((EnumVal && (*EnumVal == VisibleCalculationType)) ? EVisibility::Visible : EVisibility::Collapsed);

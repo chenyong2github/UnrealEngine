@@ -215,7 +215,7 @@ public:
 		const FRepLayout& RepLayout,
 		FReceivingRepState* ReceivingRepState,
 		FNetDeltaSerializeInfo& Params,
-		UStructProperty* ReplicatedProp)
+		FStructProperty* ReplicatedProp)
 	{
 		return RepLayout.ReceiveCustomDeltaProperty(ReceivingRepState, Params, ReplicatedProp);
 	}
@@ -245,7 +245,7 @@ public:
 		return RepLayout.GetNumLifetimeCustomDeltaProperties();
 	}
 
-	static UProperty* GetLifetimeCustomDeltaProperty(const FRepLayout& RepLayout, const uint16 CustomDeltaPropertyIndex)
+	static FProperty* GetLifetimeCustomDeltaProperty(const FRepLayout& RepLayout, const uint16 CustomDeltaPropertyIndex)
 	{
 		return RepLayout.GetLifetimeCustomDeltaProperty(CustomDeltaPropertyIndex);
 	}
@@ -293,7 +293,7 @@ FObjectReplicator::~FObjectReplicator()
 	CleanUp();
 }
 
-bool FObjectReplicator::SendCustomDeltaProperty(UObject* InObject, UProperty* Property, uint32 ArrayIndex, FNetBitWriter& OutBunch, TSharedPtr<INetDeltaBaseState>& NewFullState, TSharedPtr<INetDeltaBaseState>& OldState)
+bool FObjectReplicator::SendCustomDeltaProperty(UObject* InObject, FProperty* Property, uint32 ArrayIndex, FNetBitWriter& OutBunch, TSharedPtr<INetDeltaBaseState>& NewFullState, TSharedPtr<INetDeltaBaseState>& OldState)
 {
 	return SendCustomDeltaProperty(InObject, Property->RepIndex + ArrayIndex, OutBunch, NewFullState, OldState);
 }
@@ -962,12 +962,12 @@ bool FObjectReplicator::ReceivedBunch(FNetBitReader& Bunch, const FReplicationFl
 		else if (UNLIKELY(FieldCache->bIncompatible))
 		{
 			// We've already warned about this property once, so no need to continue to do so
-			UE_LOG(LogNet, Verbose, TEXT( "ReceivedBunch: FieldCache->bIncompatible == true. Object: %s, Field: %s" ), *Object->GetFullName(), *FieldCache->Field->GetFName().ToString());
+			UE_LOG(LogNet, Verbose, TEXT( "ReceivedBunch: FieldCache->bIncompatible == true. Object: %s, Field: %s" ), *Object->GetFullName(), *FieldCache->Field.GetFName().ToString());
 			continue;
 		}
 
 		// Handle property
-		if (UStructProperty* ReplicatedProp = Cast<UStructProperty>(FieldCache->Field))
+		if (FStructProperty* ReplicatedProp = CastField<FStructProperty>(FieldCache->Field.ToField()))
 		{
 			// Server shouldn't receive properties.
 			if (bIsServer)
@@ -1028,7 +1028,7 @@ bool FObjectReplicator::ReceivedBunch(FNetBitReader& Bunch, const FReplicationFl
 			UE_LOG(LogRepTraffic, Log, TEXT(" %s - %s"), *Object->GetName(), *Parms.DebugName);
 		}
 		// Handle function call
-		else if ( Cast< UFunction >( FieldCache->Field ) )
+		else if ( Cast< UFunction >( FieldCache->Field.ToUObject() ) )
 		{
 			bool bDelayFunction = false;
 			TSet<FNetworkGUID> UnmappedGuids;
@@ -1107,7 +1107,7 @@ bool FObjectReplicator::ReceivedRPC(FNetBitReader& Reader, const FReplicationFla
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(HandleRPC);
 	const bool bIsServer = Connection->Driver->IsServer();
 	UObject* Object = GetObject();
-	FName FunctionName = FieldCache->Field->GetFName();
+	FName FunctionName = FieldCache->Field.GetFName();
 	UFunction* Function = Object->FindFunction(FunctionName);
 
 	FScopedRPCTimingTracker ScopedTracker(Function, Connection);
@@ -1201,7 +1201,7 @@ bool FObjectReplicator::ReceivedRPC(FNetBitReader& Reader, const FReplicationFla
 
 		// Destroy the parameters.
 		// warning: highly dependent on UObject::ProcessEvent freeing of parms!
-		for (TFieldIterator<UProperty> It(Function); It && (It->PropertyFlags & (CPF_Parm | CPF_ReturnParm)) == CPF_Parm; ++It)
+		for (TFieldIterator<FProperty> It(Function); It && (It->PropertyFlags & (CPF_Parm | CPF_ReturnParm)) == CPF_Parm; ++It)
 		{
 			It->DestroyValue_InContainer(Parms);
 		}
@@ -1422,7 +1422,7 @@ void FObjectReplicator::ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, F
 			continue;
 		}
 
-		UProperty* Property = FNetSerializeCB::GetLifetimeCustomDeltaProperty(LocalRepLayout, CustomDeltaProperty);
+		FProperty* Property = FNetSerializeCB::GetLifetimeCustomDeltaProperty(LocalRepLayout, CustomDeltaProperty);
 
 		// If this is a dynamic array, we do the delta here
 		TSharedPtr<INetDeltaBaseState> NewState;
@@ -2029,7 +2029,7 @@ void FObjectReplicator::UpdateUnmappedObjects(bool & bOutHasMoreUnmapped)
 			}
 			else
 			{
-				FunctionName = FieldCache->Field->GetName();
+				FunctionName = FieldCache->Field.GetName();
 				bSuccess = ReceivedRPC(Reader, Pending.RepFlags, FieldCache, bCanDelayRPCs, bFunctionWasUnmapped, UnmappedGuids);
 			}
 
@@ -2075,7 +2075,7 @@ void FObjectReplicator::UpdateUnmappedObjects(bool & bOutHasMoreUnmapped)
 
 void FObjectReplicator::QueuePropertyRepNotify(
 	UObject* Object,
-	UProperty * Property,
+	FProperty * Property,
 	const int32 ElementIndex,
 	TArray<uint8>& MetaData)
 {
@@ -2125,7 +2125,7 @@ void FObjectReplicator::QueuePropertyRepNotify(
 
 void FObjectReplicator::WritePropertyHeaderAndPayload(
 	UObject* Object,
-	UProperty* Property,
+	FProperty*				Property,
 	FNetFieldExportGroup* NetFieldExportGroup,
 	FNetBitWriter& Bunch,
 	FNetBitWriter& Payload) const

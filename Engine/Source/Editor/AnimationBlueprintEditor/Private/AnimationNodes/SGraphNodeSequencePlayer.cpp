@@ -104,7 +104,7 @@ EVisibility SGraphNodeSequencePlayer::GetSliderVisibility() const
 {
 	if (UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(GraphNode))
 	{
-		if (UProperty* Property = FKismetDebugUtilities::FindClassPropertyForNode(Blueprint, GraphNode))
+		if (FProperty* Property = FKismetDebugUtilities::FindClassPropertyForNode(Blueprint, GraphNode))
 		{
 			if (UObject* ActiveObject = Blueprint->GetObjectBeingDebugged())
 			{
@@ -118,15 +118,31 @@ EVisibility SGraphNodeSequencePlayer::GetSliderVisibility() const
 
 bool SGraphNodeSequencePlayer::GetSequencePositionInfo(float& Out_Position, float& Out_Length, int32& Out_FrameCount) const
 {
-	if(FAnimNode_SequencePlayer* SequencePlayer = GetSequencePlayer())
+	if (UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(GraphNode))
 	{
-		if (UAnimSequenceBase* BoundSequence = SequencePlayer->Sequence)
+		if (UObject* ActiveObject = Blueprint->GetObjectBeingDebugged())
 		{
-			Out_Position = SequencePlayer->GetAccumulatedTime();
-			Out_Length = BoundSequence->SequenceLength;
-			Out_FrameCount = BoundSequence->GetNumberOfFrames();
+			if (UAnimGraphNode_SequencePlayer* VisualSequencePlayer = Cast<UAnimGraphNode_SequencePlayer>(GraphNode))
+			{
+				if (UAnimBlueprintGeneratedClass* Class = Cast<UAnimBlueprintGeneratedClass>((UObject*)ActiveObject->GetClass()))
+				{
+					if(int32* NodeIndexPtr = Class->GetAnimBlueprintDebugData().NodePropertyToIndexMap.Find(TWeakObjectPtr<UAnimGraphNode_Base>(Cast<UAnimGraphNode_Base>(GraphNode))))
+					{
+						int32 AnimNodeIndex = *NodeIndexPtr;
+						// reverse node index temporarily because of a bug in NodeGuidToIndexMap
+						AnimNodeIndex = Class->AnimNodeProperties.Num() - AnimNodeIndex - 1;
 
-			return true;
+						if (FAnimBlueprintDebugData::FSequencePlayerRecord* DebugInfo = Class->GetAnimBlueprintDebugData().SequencePlayerRecordsThisFrame.FindByPredicate([AnimNodeIndex](const FAnimBlueprintDebugData::FSequencePlayerRecord& InRecord){ return InRecord.NodeID == AnimNodeIndex; }))
+						{
+							Out_Position = DebugInfo->Position;
+							Out_Length = DebugInfo->Length;
+							Out_FrameCount = DebugInfo->FrameCount;
+
+							return true;
+						}
+					}
+				}
+			}
 		}
 	}
 

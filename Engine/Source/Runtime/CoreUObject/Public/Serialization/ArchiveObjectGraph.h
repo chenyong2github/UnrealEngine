@@ -9,21 +9,21 @@
 struct FTraceRouteRecord
 {
 	struct FObjectGraphNode*	GraphNode;
-	TArray<UProperty*>			ReferencerProperties;
+	TArray<FProperty*>			ReferencerProperties;
 
-	FTraceRouteRecord( struct FObjectGraphNode* InGraphNode, UProperty* InReferencerProperty)
+	FTraceRouteRecord( struct FObjectGraphNode* InGraphNode, FProperty* InReferencerProperty)
 	: GraphNode(InGraphNode)
 	{
 		ReferencerProperties.Add(InReferencerProperty);
 	}
 
-	FTraceRouteRecord( struct FObjectGraphNode* InGraphNode, const TArray<UProperty*>&	InReferencerProperties )
+	FTraceRouteRecord( struct FObjectGraphNode* InGraphNode, const TArray<FProperty*>&	InReferencerProperties )
 		: GraphNode(InGraphNode)
 	{
 		ReferencerProperties = InReferencerProperties;
 	}
 
-	void Add(UProperty* InReferencerProperty)
+	void Add(FProperty* InReferencerProperty)
 	{
 		ReferencerProperties.Add(InReferencerProperty);
 	}
@@ -50,7 +50,7 @@ struct FObjectGraphNode
 	 * The property that references NodeObject; only set on nodes which are part
 	 * of the calculated shortest route
 	 */
-	TArray<UProperty*>							ReferencerProperties;
+	TArray<FProperty*>							ReferencerProperties;
 
 	/** Default constructor */
 	FObjectGraphNode( UObject* InNodeObject=NULL )

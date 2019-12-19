@@ -81,16 +81,6 @@ void FPacketContentViewDrawStateBuilder::AddEvent(const Trace::FNetProfilerConte
 		LastBox.AddDefaulted(Depth + 1 - LastBox.Num());
 	}
 
-	constexpr float Y0 = 0.0f;
-	constexpr float EventH = 14.0f;
-	constexpr float EventDY = 2.0f;
-
-	const float EventY = Y0 + (EventH + EventDY) * Depth;
-	//if (EventY < -EventH || EventY > Viewport.GetHeight())
-	//{
-	//	return;
-	//}
-
 	// Ensure we have enough slots in array. See LastEventX2[Depth] usage.
 	while (LastEventX2.Num() <= Depth)
 	{
@@ -130,38 +120,33 @@ void FPacketContentViewDrawStateBuilder::AddEvent(const Trace::FNetProfilerConte
 
 	//////////////////////////////////////////////////
 
-	if (EventW > 2.0f && EventH > 2.0f)
-	{
-		// Fill inside of the event box.
-		DrawState.Boxes.AddUninitialized();
-		FPacketContentViewDrawState::FBox& DrawBox = DrawState.Boxes.Last();
-		DrawBox.X = EventX1 + 1.0f;
-		DrawBox.Y = EventY + 1.0f;
-		DrawBox.W = EventW - 2.0f;
-		DrawBox.H = EventH - 2.0f;
-		DrawBox.Color = EventColorFill;
-	}
-
 	// Save X2, for current depth.
 	LastEventX2[Depth] = EventX2;
 
-	// Add border around the event box.
 	if (EventW > 2.0f)
 	{
 		FBoxData& Box = LastBox[Depth];
 		if (Box.X1 < Box.X2)
 		{
-			FlushBox(Box, EventY, EventH);
+			FlushBox(Box, Depth);
 			Box.Reset();
 		}
 
+		// Fill inside of the event box.
+		DrawState.InsideBoxes.AddUninitialized();
+		FPacketContentViewDrawState::FBoxPrimitive& InsideBox = DrawState.InsideBoxes.Last();
+		InsideBox.Depth = Depth;
+		InsideBox.X = EventX1 + 1.0f;
+		InsideBox.W = EventW - 2.0f;
+		InsideBox.Color = EventColorFill;
+
+		// Add border around the event box.
 		DrawState.Borders.AddUninitialized();
-		FPacketContentViewDrawState::FBox& DrawBox = DrawState.Borders.Last();
-		DrawBox.X = EventX1;
-		DrawBox.Y = EventY;
-		DrawBox.W = EventW;
-		DrawBox.H = EventH;
-		DrawBox.Color = FLinearColor(EventColorFill.R * BorderColorFactor, EventColorFill.G * BorderColorFactor, EventColorFill.B * BorderColorFactor, EventColorFill.A);
+		FPacketContentViewDrawState::FBoxPrimitive& BorderBox = DrawState.Borders.Last();
+		BorderBox.Depth = Depth;
+		BorderBox.X = EventX1;
+		BorderBox.W = EventW;
+		BorderBox.Color = FLinearColor(EventColorFill.R * BorderColorFactor, EventColorFill.G * BorderColorFactor, EventColorFill.B * BorderColorFactor, EventColorFill.A);
 	}
 	else // 1px or 2px boxes
 	{
@@ -181,7 +166,7 @@ void FPacketContentViewDrawStateBuilder::AddEvent(const Trace::FNetProfilerConte
 			// Flush previous box, if any.
 			if (Box.X1 < Box.X2)
 			{
-				FlushBox(Box, EventY, EventH);
+				FlushBox(Box, Depth);
 			}
 
 			// Start new "merge box".
@@ -231,9 +216,9 @@ void FPacketContentViewDrawStateBuilder::AddEvent(const Trace::FNetProfilerConte
 			const bool bIsDarkColor = (EventColorFill.ComputeLuminance() < 0.4f);
 
 			DrawState.Texts.AddDefaulted();
-			FPacketContentViewDrawState::FText& DrawText = DrawState.Texts.Last();
+			FPacketContentViewDrawState::FTextPrimitive& DrawText = DrawState.Texts.Last();
+			DrawText.Depth = Depth;
 			DrawText.X = EventX1 + 2.0f;
-			DrawText.Y = EventY + 1.0f;
 			DrawText.Text = Name.Left(LastWholeCharacterIndex + 1);
 			DrawText.bWhite = bIsDarkColor;
 		}
@@ -242,14 +227,13 @@ void FPacketContentViewDrawStateBuilder::AddEvent(const Trace::FNetProfilerConte
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FPacketContentViewDrawStateBuilder::FlushBox(const FBoxData& Box, const float EventY, const float EventH)
+void FPacketContentViewDrawStateBuilder::FlushBox(const FBoxData& Box, const int32 Depth)
 {
 	DrawState.Boxes.AddUninitialized();
-	FPacketContentViewDrawState::FBox& DrawBox = DrawState.Boxes.Last();
+	FPacketContentViewDrawState::FBoxPrimitive& DrawBox = DrawState.Boxes.Last();
+	DrawBox.Depth = Depth;
 	DrawBox.X = Box.X1;
 	DrawBox.W = Box.X2 - Box.X1;
-	DrawBox.Y = EventY;
-	DrawBox.H = EventH;
 	DrawBox.Color = Box.LinearColor;
 }
 
@@ -257,18 +241,13 @@ void FPacketContentViewDrawStateBuilder::FlushBox(const FBoxData& Box, const flo
 
 void FPacketContentViewDrawStateBuilder::Flush()
 {
-	constexpr float Y0 = 0.0f;
-	constexpr float EventH = 14.0f;
-	constexpr float EventDY = 2.0f;
-
 	// Flush merged boxes.
 	for (int32 Depth = 0; Depth <= MaxDepth; ++Depth)
 	{
 		const FBoxData& Box = LastBox[Depth];
 		if (Box.X1 < Box.X2)
 		{
-			const float EventY = Y0 + (EventH + EventDY) * Depth;
-			FlushBox(Box, EventY, EventH);
+			FlushBox(Box, Depth);
 		}
 	}
 }
@@ -285,6 +264,9 @@ FPacketContentViewDrawHelper::FPacketContentViewDrawHelper(const FDrawContext& I
 	, HoveredEventBorderBrush(FInsightsStyle::Get().GetBrush("HoveredEventBorder"))
 	, SelectedEventBorderBrush(FInsightsStyle::Get().GetBrush("SelectedEventBorder"))
 	, EventFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+	, LayoutPosY(0.0f)
+	, LayoutEventH(14.0f)
+	, LayoutEventDY(2.0f)
 {
 }
 
@@ -343,28 +325,54 @@ FLinearColor FPacketContentViewDrawHelper::GetColorByType(int32 Type)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FPacketContentViewDrawHelper::Draw(const FPacketContentViewDrawState& DrawState) const
+void FPacketContentViewDrawHelper::Draw(const FPacketContentViewDrawState& DrawState, const float Opacity) const
 {
-	// Draw filled boxes.
-	for (const FPacketContentViewDrawState::FBox& Box : DrawState.Boxes)
+	// Draw filled boxes (merged borders).
+	//if (LayoutEventH > 0.0f)
 	{
-		DrawContext.DrawBox(Box.X, Box.Y, Box.W, Box.H, WhiteBrush, Box.Color);
+		const float EventFillH = LayoutEventH;
+		for (const FPacketContentViewDrawState::FBoxPrimitive& Box : DrawState.Boxes)
+		{
+			const float Y = LayoutPosY + (LayoutEventH + LayoutEventDY) * Box.Depth;
+			DrawContext.DrawBox(Box.X, Y, Box.W, EventFillH, WhiteBrush, Box.Color.CopyWithNewOpacity(Opacity));
+		}
+		DrawContext.LayerId++;
 	}
-	DrawContext.LayerId++;
+
+	// Draw filled boxes (event inside area).
+	if (LayoutEventH > 2.0f)
+	{
+		const float EventFillH = LayoutEventH - 2.0f;
+		for (const FPacketContentViewDrawState::FBoxPrimitive& Box : DrawState.InsideBoxes)
+		{
+			const float Y = LayoutPosY + (LayoutEventH + LayoutEventDY) * Box.Depth + 1.0f;
+			DrawContext.DrawBox(Box.X, Y, Box.W, EventFillH, WhiteBrush, Box.Color.CopyWithNewOpacity(Opacity));
+		}
+		DrawContext.LayerId++;
+	}
 
 	// Draw borders.
-	for (const FPacketContentViewDrawState::FBox& Box : DrawState.Borders)
+	//if (LayoutEventH > 0.0f)
 	{
-		DrawContext.DrawBox(Box.X, Box.Y, Box.W, Box.H, EventBorderBrush, Box.Color);
+		const float EventBorderH = LayoutEventH;
+		for (const FPacketContentViewDrawState::FBoxPrimitive& Box : DrawState.Borders)
+		{
+			const float Y = LayoutPosY + (LayoutEventH + LayoutEventDY) * Box.Depth;
+			DrawContext.DrawBox(Box.X, Y, Box.W, EventBorderH, EventBorderBrush, Box.Color.CopyWithNewOpacity(Opacity));
+		}
+		DrawContext.LayerId++;
 	}
-	DrawContext.LayerId++;
 
 	// Draw texts.
-	//if (EventH > 10.0f)
+	if (LayoutEventH > 10.0f)
 	{
-		for (const FPacketContentViewDrawState::FText& Text : DrawState.Texts)
+		const FLinearColor WhiteColor(1.0f, 1.0f, 1.0f, Opacity);
+		const FLinearColor BlackColor(0.0f, 0.0f, 0.0f, Opacity);
+
+		for (const FPacketContentViewDrawState::FTextPrimitive& Text : DrawState.Texts)
 		{
-			DrawContext.DrawText(Text.X, Text.Y, Text.Text, EventFont, Text.bWhite ? FLinearColor::White : FLinearColor::Black);
+			const float Y = LayoutPosY + (LayoutEventH + LayoutEventDY) * Text.Depth + 1.0f;
+			DrawContext.DrawText(Text.X, Y, Text.Text, EventFont, Text.bWhite ? WhiteColor : BlackColor);
 		}
 		DrawContext.LayerId++;
 	}
@@ -409,19 +417,14 @@ void FPacketContentViewDrawHelper::DrawEventHighlight(const FNetworkPacketEvent&
 	}
 
 	const float EventW = EventX2 - EventX1;
-
-	constexpr float Y0 = 0.0f;
-	constexpr float EventH = 14.0f;
-	constexpr float EventDY = 2.0f;
-
-	const float EventY = Y0 + (EventH + EventDY) * Event.Level;
+	const float EventY = LayoutPosY + (LayoutEventH + LayoutEventDY) * Event.Level;
 
 	if (Mode == EHighlightMode::Hovered)
 	{
 		const FLinearColor Color(1.0f, 1.0f, 0.0f, 1.0f); // yellow
 
 		// Draw border around the timing event box.
-		DrawContext.DrawBox(EventX1 - 2.0f, EventY - 2.0f, EventW + 4.0f, EventH + 4.0f, HoveredEventBorderBrush, Color);
+		DrawContext.DrawBox(EventX1 - 2.0f, EventY - 2.0f, EventW + 4.0f, LayoutEventH + 4.0f, HoveredEventBorderBrush, Color);
 	}
 	else // EHighlightMode::Selected or EHighlightMode::SelectedAndHovered
 	{
@@ -433,7 +436,7 @@ void FPacketContentViewDrawHelper::DrawEventHighlight(const FNetworkPacketEvent&
 		const FLinearColor Color(S, S, Blue, 1.0f);
 
 		// Draw border around the timing event box.
-		DrawContext.DrawBox(EventX1 - 2.0f, EventY - 2.0f, EventW + 4.0f, EventH + 4.0f, SelectedEventBorderBrush, Color);
+		DrawContext.DrawBox(EventX1 - 2.0f, EventY - 2.0f, EventW + 4.0f, LayoutEventH + 4.0f, SelectedEventBorderBrush, Color);
 	}
 	DrawContext.LayerId++;
 }

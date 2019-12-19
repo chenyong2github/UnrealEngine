@@ -293,58 +293,59 @@ enum EClassCastFlags : uint64
 {
 	CASTCLASS_None = 0x0000000000000000,
 
-	CASTCLASS_UField							= 0x0000000000000001,
-	CASTCLASS_UInt8Property						= 0x0000000000000002,
-	CASTCLASS_UEnum								= 0x0000000000000004,
-	CASTCLASS_UStruct							= 0x0000000000000008,
-	CASTCLASS_UScriptStruct						= 0x0000000000000010,
-	CASTCLASS_UClass							= 0x0000000000000020,
-	CASTCLASS_UByteProperty						= 0x0000000000000040,
-	CASTCLASS_UIntProperty						= 0x0000000000000080,
-	CASTCLASS_UFloatProperty					= 0x0000000000000100,
-	CASTCLASS_UUInt64Property					= 0x0000000000000200,
-	CASTCLASS_UClassProperty					= 0x0000000000000400,
-	CASTCLASS_UUInt32Property					= 0x0000000000000800,
-	CASTCLASS_UInterfaceProperty				= 0x0000000000001000,
-	CASTCLASS_UNameProperty						= 0x0000000000002000,
-	CASTCLASS_UStrProperty						= 0x0000000000004000,
-	CASTCLASS_UProperty							= 0x0000000000008000,
-	CASTCLASS_UObjectProperty					= 0x0000000000010000,
-	CASTCLASS_UBoolProperty						= 0x0000000000020000,
-	CASTCLASS_UUInt16Property					= 0x0000000000040000,
-	CASTCLASS_UFunction							= 0x0000000000080000,
-	CASTCLASS_UStructProperty					= 0x0000000000100000,
-	CASTCLASS_UArrayProperty					= 0x0000000000200000,
-	CASTCLASS_UInt64Property					= 0x0000000000400000,
-	CASTCLASS_UDelegateProperty					= 0x0000000000800000,
-	CASTCLASS_UNumericProperty					= 0x0000000001000000,
-	CASTCLASS_UMulticastDelegateProperty		= 0x0000000002000000,
-	CASTCLASS_UObjectPropertyBase				= 0x0000000004000000,
-	CASTCLASS_UWeakObjectProperty				= 0x0000000008000000,
-	CASTCLASS_ULazyObjectProperty				= 0x0000000010000000,
-	CASTCLASS_USoftObjectProperty				= 0x0000000020000000,
-	CASTCLASS_UTextProperty						= 0x0000000040000000,
-	CASTCLASS_UInt16Property					= 0x0000000080000000,
-	CASTCLASS_UDoubleProperty					= 0x0000000100000000,
-	CASTCLASS_USoftClassProperty				= 0x0000000200000000,
-	CASTCLASS_UPackage							= 0x0000000400000000,
-	CASTCLASS_ULevel							= 0x0000000800000000,
-	CASTCLASS_AActor							= 0x0000001000000000,
-	CASTCLASS_APlayerController					= 0x0000002000000000,
-	CASTCLASS_APawn								= 0x0000004000000000,
-	CASTCLASS_USceneComponent					= 0x0000008000000000,
-	CASTCLASS_UPrimitiveComponent				= 0x0000010000000000,
-	CASTCLASS_USkinnedMeshComponent				= 0x0000020000000000,
-	CASTCLASS_USkeletalMeshComponent			= 0x0000040000000000,
-	CASTCLASS_UBlueprint						= 0x0000080000000000,
-	CASTCLASS_UDelegateFunction					= 0x0000100000000000,
-	CASTCLASS_UStaticMeshComponent				= 0x0000200000000000,
-	CASTCLASS_UMapProperty						= 0x0000400000000000,
-	CASTCLASS_USetProperty						= 0x0000800000000000,
-	CASTCLASS_UEnumProperty						= 0x0001000000000000,
+	CASTCLASS_UField						= 0x0000000000000001,
+	CASTCLASS_FInt8Property					= 0x0000000000000002,
+	CASTCLASS_UEnum							= 0x0000000000000004,
+	CASTCLASS_UStruct						= 0x0000000000000008,
+	CASTCLASS_UScriptStruct					= 0x0000000000000010,
+	CASTCLASS_UClass						= 0x0000000000000020,
+	CASTCLASS_FByteProperty					= 0x0000000000000040,
+	CASTCLASS_FIntProperty					= 0x0000000000000080,
+	CASTCLASS_FFloatProperty				= 0x0000000000000100,
+	CASTCLASS_FUInt64Property				= 0x0000000000000200,
+	CASTCLASS_FClassProperty				= 0x0000000000000400,
+	CASTCLASS_FUInt32Property				= 0x0000000000000800,
+	CASTCLASS_FInterfaceProperty			= 0x0000000000001000,
+	CASTCLASS_FNameProperty					= 0x0000000000002000,
+	CASTCLASS_FStrProperty					= 0x0000000000004000,
+	CASTCLASS_FProperty						= 0x0000000000008000,
+	CASTCLASS_FObjectProperty				= 0x0000000000010000,
+	CASTCLASS_FBoolProperty					= 0x0000000000020000,
+	CASTCLASS_FUInt16Property				= 0x0000000000040000,
+	CASTCLASS_UFunction						= 0x0000000000080000,
+	CASTCLASS_FStructProperty				= 0x0000000000100000,
+	CASTCLASS_FArrayProperty				= 0x0000000000200000,
+	CASTCLASS_FInt64Property				= 0x0000000000400000,
+	CASTCLASS_FDelegateProperty				= 0x0000000000800000,
+	CASTCLASS_FNumericProperty				= 0x0000000001000000,
+	CASTCLASS_FMulticastDelegateProperty	= 0x0000000002000000,
+	CASTCLASS_FObjectPropertyBase			= 0x0000000004000000,
+	CASTCLASS_FWeakObjectProperty			= 0x0000000008000000,
+	CASTCLASS_FLazyObjectProperty			= 0x0000000010000000,
+	CASTCLASS_FSoftObjectProperty			= 0x0000000020000000,
+	CASTCLASS_FTextProperty					= 0x0000000040000000,
+	CASTCLASS_FInt16Property				= 0x0000000080000000,
+	CASTCLASS_FDoubleProperty				= 0x0000000100000000,
+	CASTCLASS_FSoftClassProperty			= 0x0000000200000000,
+	CASTCLASS_UPackage						= 0x0000000400000000,
+	CASTCLASS_ULevel						= 0x0000000800000000,
+	CASTCLASS_AActor						= 0x0000001000000000,
+	CASTCLASS_APlayerController				= 0x0000002000000000,
+	CASTCLASS_APawn							= 0x0000004000000000,
+	CASTCLASS_USceneComponent				= 0x0000008000000000,
+	CASTCLASS_UPrimitiveComponent			= 0x0000010000000000,
+	CASTCLASS_USkinnedMeshComponent			= 0x0000020000000000,
+	CASTCLASS_USkeletalMeshComponent		= 0x0000040000000000,
+	CASTCLASS_UBlueprint					= 0x0000080000000000,
+	CASTCLASS_UDelegateFunction				= 0x0000100000000000,
+	CASTCLASS_UStaticMeshComponent			= 0x0000200000000000,
+	CASTCLASS_FMapProperty					= 0x0000400000000000,
+	CASTCLASS_FSetProperty					= 0x0000800000000000,
+	CASTCLASS_FEnumProperty					= 0x0001000000000000,
 	CASTCLASS_USparseDelegateFunction			= 0x0002000000000000,
-	CASTCLASS_UMulticastInlineDelegateProperty	= 0x0004000000000000,
-	CASTCLASS_UMulticastSparseDelegateProperty	= 0x0008000000000000,
+	CASTCLASS_FMulticastInlineDelegateProperty	= 0x0004000000000000,
+	CASTCLASS_FMulticastSparseDelegateProperty	= 0x0008000000000000,
+	CASTCLASS_FFieldPathProperty			= 0x0010000000000000,
 };
 
 #define CASTCLASS_AllFlags ((EClassCastFlags)0xFFFFFFFFFFFFFFFF)
@@ -452,20 +453,20 @@ enum EObjectFlags
 {
 	// Do not add new flags unless they truly belong here. There are alternatives.
 	// if you change any the bit of any of the RF_Load flags, then you will need legacy serialization
-	RF_NoFlags					= 0x00000000,	///< No flags, used to avoid a cast
+	RF_NoFlags						= 0x00000000,	///< No flags, used to avoid a cast
 
 	// This first group of flags mostly has to do with what kind of object it is. Other than transient, these are the persistent object flags.
 	// The garbage collector also tends to look at these.
 	RF_Public					=0x00000001,	///< Object is visible outside its package.
 	RF_Standalone				=0x00000002,	///< Keep object around for editing even if unreferenced.
-	RF_MarkAsNative				=0x00000004,	///< Object (UField) will be marked as native on construction (DO NOT USE THIS FLAG in HasAnyFlags() etc)
+	RF_MarkAsNative					=0x00000004,	///< Object (UField) will be marked as native on construction (DO NOT USE THIS FLAG in HasAnyFlags() etc)
 	RF_Transactional			=0x00000008,	///< Object is transactional.
 	RF_ClassDefaultObject		=0x00000010,	///< This object is its class's default object
 	RF_ArchetypeObject			=0x00000020,	///< This object is a template for another object - treat like a class default object
 	RF_Transient				=0x00000040,	///< Don't save object.
 
 	// This group of flags is primarily concerned with garbage collection.
-	RF_MarkAsRootSet			=0x00000080,	///< Object will be marked as root set on construction and not be garbage collected, even if unreferenced (DO NOT USE THIS FLAG in HasAnyFlags() etc)
+	RF_MarkAsRootSet					=0x00000080,	///< Object will be marked as root set on construction and not be garbage collected, even if unreferenced (DO NOT USE THIS FLAG in HasAnyFlags() etc)
 	RF_TagGarbageTemp			=0x00000100,	///< This is a temp user flag for various utilities that need to use the garbage collector. The garbage collector itself does not interpret it.
 
 	// The group of flags tracks the stages of the lifetime of a uobject
@@ -531,7 +532,7 @@ ENUM_CLASS_FLAGS(EInternalObjectFlags);
 ----------------------------------------------------------------------------*/
 
 class UObject;
-class UProperty;
+class FProperty;
 class FObjectInitializer; 
 
 struct COREUOBJECT_API FReferencerInformation 
@@ -543,10 +544,10 @@ struct COREUOBJECT_API FReferencerInformation
 	int32						TotalReferences;
 
 	/** the array of UProperties in Referencer which hold references to target */
-	TArray<const UProperty*>		ReferencingProperties;
+	TArray<const FProperty*>		ReferencingProperties;
 
 	FReferencerInformation( UObject* inReferencer );
-	FReferencerInformation( UObject* inReferencer, int32 InReferences, const TArray<const UProperty*>& InProperties );
+	FReferencerInformation( UObject* inReferencer, int32 InReferences, const TArray<const FProperty*>& InProperties );
 };
 
 struct COREUOBJECT_API FReferencerInformationList
@@ -1680,7 +1681,7 @@ public: \
 typedef uint32 ERenameFlags;
 
 /** Default rename behavior */
-#define REN_None					(0x0000)
+#define REN_None				(0x0000)
 /** Rename won't call ResetLoaders or flush async loading. You should pass this if you are renaming a deep subobject and do not need to reset loading for the outer package */
 #define REN_ForceNoResetLoaders		(0x0001) 
 /** Just test to make sure that the rename is guaranteed to succeed if an non test rename immediately follows */

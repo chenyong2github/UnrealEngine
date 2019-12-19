@@ -12,9 +12,9 @@
 
 /** Generic (struct) implementation */
 template<typename T>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl(FProperty* Property)
 {
-	if ( UStructProperty* StructProperty = Cast<UStructProperty>(Property) )
+	if ( FStructProperty* StructProperty = CastField<FStructProperty>(Property) )
 	{
 		return StructProperty->Struct == T::StaticStruct();
 	}
@@ -23,151 +23,151 @@ inline bool IsConcreteTypeCompatibleWithReflectedType_Impl(UProperty* Property)
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<bool>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<bool>(FProperty* Property)
 {
-	return Property->GetClass() == UBoolProperty::StaticClass();
+	return Property->GetClass() == FBoolProperty::StaticClass();
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<int8>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<int8>(FProperty* Property)
 {
-	if (UEnumProperty* EnumProperty = Cast<UEnumProperty>(Property))
+	if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
 	{
 		Property = EnumProperty->GetUnderlyingProperty();
 	}
 
-	return Property->GetClass() == UInt8Property::StaticClass();
+	return Property->GetClass() == FInt8Property::StaticClass();
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<uint8>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<uint8>(FProperty* Property)
 {
-	if (UEnumProperty* EnumProperty = Cast<UEnumProperty>(Property))
+	if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
 	{
 		Property = EnumProperty->GetUnderlyingProperty();
 	}
-	else if(UBoolProperty* BoolProperty = Cast<UBoolProperty>(Property))
+	else if(FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
 	{
 		return !BoolProperty->IsNativeBool();
 	}
 
-	return Property->GetClass() == UByteProperty::StaticClass();
+	return Property->GetClass() == FByteProperty::StaticClass();
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<int16>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<int16>(FProperty* Property)
 {
-	if (UEnumProperty* EnumProperty = Cast<UEnumProperty>(Property))
+	if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
 	{
 		Property = EnumProperty->GetUnderlyingProperty();
 	}
 
-	return Property->GetClass() == UInt16Property::StaticClass();
+	return Property->GetClass() == FInt16Property::StaticClass();
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<uint16>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<uint16>(FProperty* Property)
 {
-	if (UEnumProperty* EnumProperty = Cast<UEnumProperty>(Property))
+	if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
 	{
 		Property = EnumProperty->GetUnderlyingProperty();
 	}
-	else if(UBoolProperty* BoolProperty = Cast<UBoolProperty>(Property))
+	else if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
 	{
 		return !BoolProperty->IsNativeBool();
 	}
 
-	return Property->GetClass() == UUInt16Property::StaticClass();
+	return Property->GetClass() == FUInt16Property::StaticClass();
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<int32>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<int32>(FProperty* Property)
 {
-	if (UEnumProperty* EnumProperty = Cast<UEnumProperty>(Property))
+	if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
 	{
 		Property = EnumProperty->GetUnderlyingProperty();
 	}
 
-	return Property->GetClass() == UIntProperty::StaticClass();
+	return Property->GetClass() == FIntProperty::StaticClass();
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<uint32>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<uint32>(FProperty* Property)
 {
-	if (UEnumProperty* EnumProperty = Cast<UEnumProperty>(Property))
+	if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
 	{
 		Property = EnumProperty->GetUnderlyingProperty();
 	}
-	else if(UBoolProperty* BoolProperty = Cast<UBoolProperty>(Property))
+	else if(FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
 	{
 		return !BoolProperty->IsNativeBool();
 	}
 
-	return Property->GetClass() == UUInt32Property::StaticClass();
+	return Property->GetClass() == FUInt32Property::StaticClass();
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<int64>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<int64>(FProperty* Property)
 {
-	if (UEnumProperty* EnumProperty = Cast<UEnumProperty>(Property))
+	if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
 	{
 		Property = EnumProperty->GetUnderlyingProperty();
 	}
 
-	return Property->GetClass() == UInt64Property::StaticClass();
+	return Property->GetClass() == FInt64Property::StaticClass();
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<uint64>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<uint64>(FProperty* Property)
 {
-	if (UEnumProperty* EnumProperty = Cast<UEnumProperty>(Property))
+	if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
 	{
 		Property = EnumProperty->GetUnderlyingProperty();
 	}
-	else if(UBoolProperty* BoolProperty = Cast<UBoolProperty>(Property))
+	else if(FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
 	{
 		return !BoolProperty->IsNativeBool();
 	}
 
-	return Property->GetClass() == UUInt64Property::StaticClass();
+	return Property->GetClass() == FUInt64Property::StaticClass();
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<float>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<float>(FProperty* Property)
 {
-	return Property->GetClass() == UFloatProperty::StaticClass();
+	return Property->GetClass() == FFloatProperty::StaticClass();
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<double>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<double>(FProperty* Property)
 {
-	return Property->GetClass() == UDoubleProperty::StaticClass();
+	return Property->GetClass() == FDoubleProperty::StaticClass();
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FText>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FText>(FProperty* Property)
 {
-	return Property->GetClass() == UTextProperty::StaticClass();
+	return Property->GetClass() == FTextProperty::StaticClass();
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FString>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FString>(FProperty* Property)
 {
-	return Property->GetClass() == UStrProperty::StaticClass();
+	return Property->GetClass() == FStrProperty::StaticClass();
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FName>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FName>(FProperty* Property)
 {
-	return Property->GetClass() == UNameProperty::StaticClass();
+	return Property->GetClass() == FNameProperty::StaticClass();
 }
 
 template<typename T>
-inline bool IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct(FProperty* Property)
 {
 	static const UScriptStruct* BuiltInStruct = TBaseStructure<T>::Get();
 	
-	if ( UStructProperty* StructProperty = Cast<UStructProperty>(Property) )
+	if ( FStructProperty* StructProperty = CastField<FStructProperty>(Property) )
 	{
 		return StructProperty->Struct == BuiltInStruct;
 	}
@@ -176,111 +176,111 @@ inline bool IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct(UProperty* P
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FColor>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FColor>(FProperty* Property)
 {
 	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FColor>(Property);
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FLinearColor>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FLinearColor>(FProperty* Property)
 {
 	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FLinearColor>(Property);
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FVector2D>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FVector2D>(FProperty* Property)
 {
 	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FVector2D>(Property);
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FVector>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FVector>(FProperty* Property)
 {
 	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FVector>(Property);
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FRotator>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FRotator>(FProperty* Property)
 {
 	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FRotator>(Property);
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FQuat>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FQuat>(FProperty* Property)
 {
 	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FQuat>(Property);
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FTransform>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FTransform>(FProperty* Property)
 {
 	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FTransform>(Property);
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FBox2D>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FBox2D>(FProperty* Property)
 {
 	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FBox2D>(Property);
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FGuid>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FGuid>(FProperty* Property)
 {
 	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FGuid>(Property);
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FFloatRangeBound>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FFloatRangeBound>(FProperty* Property)
 {
 	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FFloatRangeBound>(Property);
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FFloatRange>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FFloatRange>(FProperty* Property)
 {
 	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FFloatRange>(Property);
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FInt32RangeBound>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FInt32RangeBound>(FProperty* Property)
 {
 	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FInt32RangeBound>(Property);
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FInt32Range>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FInt32Range>(FProperty* Property)
 {
 	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FInt32Range>(Property);
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FFloatInterval>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FFloatInterval>(FProperty* Property)
 {
 	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FFloatInterval>(Property);
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FInt32Interval>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FInt32Interval>(FProperty* Property)
 {
 	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FInt32Interval>(Property);
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FSoftObjectPath>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FSoftObjectPath>(FProperty* Property)
 {
 	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FSoftObjectPath>(Property);
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FSoftClassPath>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<FSoftClassPath>(FProperty* Property)
 {
 	return IsConcreteTypeCompatibleWithReflectedType_BuiltInStruct<FSoftClassPath>(Property);
 }
 
 template<>
-inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<UObject*>(UProperty* Property)
+inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<UObject*>(FProperty* Property)
 {
-	if ( UObjectProperty* ObjectProperty = Cast<UObjectProperty>(Property) )
+	if ( FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property) )
 	{
 		return true;
 		//return ObjectProperty->PropertyClass->IsChildOf(T::StaticClass());
@@ -293,7 +293,7 @@ inline bool IsConcreteTypeCompatibleWithReflectedType_Impl<UObject*>(UProperty* 
 template<typename T> 
 struct FConcreteTypeCompatibleWithReflectedTypeHelper
 {
-	static bool IsConcreteTypeCompatibleWithReflectedType(UProperty* Property) 
+	static bool IsConcreteTypeCompatibleWithReflectedType(FProperty* Property) 
 	{
 		return IsConcreteTypeCompatibleWithReflectedType_Impl<T>(Property);
 	}
@@ -303,9 +303,9 @@ struct FConcreteTypeCompatibleWithReflectedTypeHelper
 template<typename T>
 struct FConcreteTypeCompatibleWithReflectedTypeHelper<TArray<T>>
 {
-	static bool IsConcreteTypeCompatibleWithReflectedType(UProperty* Property) 
+	static bool IsConcreteTypeCompatibleWithReflectedType(FProperty* Property) 
 	{
-		if( UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Property) )
+		if( FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property) )
 		{
 			return IsConcreteTypeCompatibleWithReflectedType_Impl<T>(ArrayProperty->Inner);
 		}
@@ -318,7 +318,7 @@ struct FConcreteTypeCompatibleWithReflectedTypeHelper<TArray<T>>
 template<typename T, int32 N>
 struct FConcreteTypeCompatibleWithReflectedTypeHelper<T[N]>
 {
-	static bool IsConcreteTypeCompatibleWithReflectedType(UProperty* Property) 
+	static bool IsConcreteTypeCompatibleWithReflectedType(FProperty* Property) 
 	{
 		return Property->ArrayDim == N && IsConcreteTypeCompatibleWithReflectedType_Impl<T>(Property);
 	}
@@ -328,9 +328,9 @@ struct FConcreteTypeCompatibleWithReflectedTypeHelper<T[N]>
 template<typename T>
 struct FConcreteTypeCompatibleWithReflectedTypeHelper<TWeakObjectPtr<T>>
 {
-	static bool IsConcreteTypeCompatibleWithReflectedType(UProperty* Property) 
+	static bool IsConcreteTypeCompatibleWithReflectedType(FProperty* Property) 
 	{
-		return Property->GetClass() == UWeakObjectProperty::StaticClass();
+		return Property->GetClass() == FWeakObjectProperty::StaticClass();
 	}
 };
 
@@ -338,40 +338,40 @@ struct FConcreteTypeCompatibleWithReflectedTypeHelper<TWeakObjectPtr<T>>
 template<typename T>
 struct FConcreteTypeCompatibleWithReflectedTypeHelper<TLazyObjectPtr<T>>
 {
-	static bool IsConcreteTypeCompatibleWithReflectedType(UProperty* Property) 
+	static bool IsConcreteTypeCompatibleWithReflectedType(FProperty* Property) 
 	{
-		return Property->GetClass() == ULazyObjectProperty::StaticClass();
+		return Property->GetClass() == FLazyObjectProperty::StaticClass();
 	}
 };
 
 /** 
- * Check whether the concrete type T is compatible with the reflected type of a UProperty for 
+ * Check whether the concrete type T is compatible with the reflected type of a FProperty for 
  * the purposes of CopysingleValue()
  * Non-enum implementation.
  */
 template<typename T>
-static inline typename TEnableIf<!TIsEnum<T>::Value, bool>::Type IsConcreteTypeCompatibleWithReflectedType(UProperty* Property)
+static inline typename TEnableIf<!TIsEnum<T>::Value, bool>::Type IsConcreteTypeCompatibleWithReflectedType(FProperty* Property)
 {
 	return FConcreteTypeCompatibleWithReflectedTypeHelper<T>::IsConcreteTypeCompatibleWithReflectedType(Property);
 }
 
 /** Enum implementation. @see IsConcreteTypeCompatibleWithReflectedType */
 template<typename T>
-static inline typename TEnableIf<TIsEnum<T>::Value, bool>::Type IsConcreteTypeCompatibleWithReflectedType(UProperty* Property)
+static inline typename TEnableIf<TIsEnum<T>::Value, bool>::Type IsConcreteTypeCompatibleWithReflectedType(FProperty* Property)
 {
 	return FConcreteTypeCompatibleWithReflectedTypeHelper<uint8>::IsConcreteTypeCompatibleWithReflectedType(Property);
 }
 
 template<typename T>
-inline bool PropertySizesMatch_Impl(UProperty* InProperty)
+inline bool PropertySizesMatch_Impl(FProperty* InProperty)
 {
 	return InProperty->ElementSize == sizeof(T);
 }
 
 template<>
-inline bool PropertySizesMatch_Impl<uint8>(UProperty* InProperty)
+inline bool PropertySizesMatch_Impl<uint8>(FProperty* InProperty)
 {
-	if(UBoolProperty* BoolProperty = Cast<UBoolProperty>(InProperty))
+	if(FBoolProperty* BoolProperty = CastField<FBoolProperty>(InProperty))
 	{
 		return !BoolProperty->IsNativeBool();
 	}
@@ -380,9 +380,9 @@ inline bool PropertySizesMatch_Impl<uint8>(UProperty* InProperty)
 }
 
 template<>
-inline bool PropertySizesMatch_Impl<uint16>(UProperty* InProperty)
+inline bool PropertySizesMatch_Impl<uint16>(FProperty* InProperty)
 {
-	if(UBoolProperty* BoolProperty = Cast<UBoolProperty>(InProperty))
+	if(FBoolProperty* BoolProperty = CastField<FBoolProperty>(InProperty))
 	{
 		return !BoolProperty->IsNativeBool();
 	}
@@ -391,9 +391,9 @@ inline bool PropertySizesMatch_Impl<uint16>(UProperty* InProperty)
 }
 
 template<>
-inline bool PropertySizesMatch_Impl<uint32>(UProperty* InProperty)
+inline bool PropertySizesMatch_Impl<uint32>(FProperty* InProperty)
 {
-	if(UBoolProperty* BoolProperty = Cast<UBoolProperty>(InProperty))
+	if(FBoolProperty* BoolProperty = CastField<FBoolProperty>(InProperty))
 	{
 		return !BoolProperty->IsNativeBool();
 	}
@@ -402,9 +402,9 @@ inline bool PropertySizesMatch_Impl<uint32>(UProperty* InProperty)
 }
 
 template<>
-inline bool PropertySizesMatch_Impl<uint64>(UProperty* InProperty)
+inline bool PropertySizesMatch_Impl<uint64>(FProperty* InProperty)
 {
-	if(UBoolProperty* BoolProperty = Cast<UBoolProperty>(InProperty))
+	if(FBoolProperty* BoolProperty = CastField<FBoolProperty>(InProperty))
 	{
 		return !BoolProperty->IsNativeBool();
 	}
@@ -415,7 +415,7 @@ inline bool PropertySizesMatch_Impl<uint64>(UProperty* InProperty)
 template<typename T>
 struct FPropertySizesMatchHelper
 {
-	static bool PropertySizesMatch(UProperty* InProperty)
+	static bool PropertySizesMatch(FProperty* InProperty)
 	{
 		return PropertySizesMatch_Impl<T>(InProperty);
 	}
@@ -424,14 +424,14 @@ struct FPropertySizesMatchHelper
 template<typename T, int32 N>
 struct FPropertySizesMatchHelper<T[N]>
 {
-	static bool PropertySizesMatch(UProperty* InProperty)
+	static bool PropertySizesMatch(FProperty* InProperty)
 	{
 		return PropertySizesMatch_Impl<T>(InProperty);
 	}
 };
 
 template<typename T>
-inline bool PropertySizesMatch(UProperty* InProperty)
+inline bool PropertySizesMatch(FProperty* InProperty)
 {
 	return FPropertySizesMatchHelper<T>::PropertySizesMatch(InProperty);
 }

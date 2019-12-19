@@ -142,7 +142,7 @@ public:
 	void InvokeJSErrorResult(FGuid FunctionId, const FString& Error) override;
 
 private:
-	bool ConvertStructArgImpl(uint8* Args, UProperty* Param, CefRefPtr<CefListValue> List, int32 Index);
+	bool ConvertStructArgImpl(uint8* Args, FProperty* Param, CefRefPtr<CefListValue> List, int32 Index);
 
 	bool IsValid()
 	{

@@ -30,16 +30,22 @@ class SBlendSpaceGridWidget : public SCompoundWidget, public FNotifyHook
 public:
 	friend class FBlendSampleDetails;
 public:
-	SLATE_BEGIN_ARGS(SBlendSpaceGridWidget)
-		: _BlendSpaceBase(nullptr)
+	SLATE_BEGIN_ARGS(SBlendSpaceGridWidget) 
+		: _ReadOnly(false)
+		, _ShowAxisLabels(true)
+		, _ShowSettingsButtons(true)
 	{}
-	SLATE_ARGUMENT(const UBlendSpaceBase*, BlendSpaceBase)
+		SLATE_ATTRIBUTE(const UBlendSpaceBase*, BlendSpaceBase)
+		SLATE_ATTRIBUTE(FVector, Position)
 		SLATE_ARGUMENT(FNotifyHook*, NotifyHook)
+		SLATE_ARGUMENT(bool, ReadOnly)
+		SLATE_ARGUMENT(bool, ShowAxisLabels)
+		SLATE_ARGUMENT(bool, ShowSettingsButtons)
 		SLATE_EVENT(FOnSampleMoved, OnSampleMoved)
 		SLATE_EVENT(FOnSampleRemoved, OnSampleRemoved)
 		SLATE_EVENT(FOnSampleAdded, OnSampleAdded)
 		SLATE_EVENT(FOnSampleAnimationChanged, OnSampleAnimationChanged)
-		SLATE_END_ARGS()
+	SLATE_END_ARGS()
 
 protected:
 	enum class EGridType
@@ -133,11 +139,13 @@ protected:
 	FReply ProcessClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 	/** Toggle for drawing the triangulation (only available for 2D blendspace) */
 	FReply ToggleTriangulationVisibility();
-	/** Returns whether or not the triangulation button should be visibile, see above*/
+	/** Returns whether or not the triangulation button should be visible, see above*/
 	EVisibility GetTriangulationButtonVisibility() const;
-
+	/** Returns whether or not the animation names button should be visible */
+	EVisibility GetAnimationNamesButtonVisibility() const;
 	/** Toggle for how the grid area is determined (only available for 2D blendspace) */
 	FReply ToggleFittingType();
+	/** Returns whether or not the fitting button should be visible */
 	EVisibility GetFittingButtonVisibility() const;
 	/** Calcaultes a margin offset according to whether or not we should take into account the largest axis when creating the grid area*/
 	void UpdateGridRationMargin(const FVector2D& GeometrySize);
@@ -188,7 +196,11 @@ protected:
 	void UpdateCachedBlendParameterData();
 private:
 	/** Currently visualized blendspace (const to ensure changes to it are only made within SAnimationBlendSpace */
-	const UBlendSpaceBase* BlendSpace;
+	TAttribute<const UBlendSpaceBase*> BlendSpaceBase;
+	/** Previous blendspace, cached here to allow us to update cached data when it changes. */
+	TWeakObjectPtr<const UBlendSpaceBase> PreviousBlendSpaceBase;
+	/** Current position (driven from outside the widget) */
+	TAttribute<FVector> Position;
 	/** Notfiy hook (ptr to SAnimationBlendSpace instance), which is required for transacting FBlendSample object when edited using the context-menu/structure details panel */
 	FNotifyHook* NotifyHook;
 	/** Number of Blend Parameters to draw */
@@ -303,4 +315,10 @@ private:
 	FMargin GridRatioMargin;
 
 	bool bPreviewToolTipHidden;
+
+	bool bReadOnly;
+
+	bool bShowAxisLabels;
+
+	bool bShowSettingsButtons;
 };

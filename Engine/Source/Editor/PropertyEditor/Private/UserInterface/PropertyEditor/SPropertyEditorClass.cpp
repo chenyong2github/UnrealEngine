@@ -83,10 +83,10 @@ bool SPropertyEditorClass::Supports(const TSharedRef< class FPropertyEditor >& I
 	}
 
 	const TSharedRef< FPropertyNode > PropertyNode = InPropertyEditor->GetPropertyNode();
-	const UProperty* Property = InPropertyEditor->GetProperty();
+	const FProperty* Property = InPropertyEditor->GetProperty();
 	int32 ArrayIndex = PropertyNode->GetArrayIndex();
 
-	if ((Property->IsA(UClassProperty::StaticClass()) || Property->IsA(USoftClassProperty::StaticClass())) 
+	if ((Property->IsA(FClassProperty::StaticClass()) || Property->IsA(FSoftClassProperty::StaticClass())) 
 		&& ((ArrayIndex == -1 && Property->ArrayDim == 1) || (ArrayIndex > -1 && Property->ArrayDim > 0)))
 	{
 		return true;
@@ -102,12 +102,12 @@ void SPropertyEditorClass::Construct(const FArguments& InArgs, const TSharedPtr<
 	if (PropertyEditor.IsValid())
 	{
 		const TSharedRef<FPropertyNode> PropertyNode = PropertyEditor->GetPropertyNode();
-		UProperty* const Property = PropertyNode->GetProperty();
-		if (UClassProperty* const ClassProp = Cast<UClassProperty>(Property))
+		FProperty* const Property = PropertyNode->GetProperty();
+		if (FClassProperty* const ClassProp = CastField<FClassProperty>(Property))
 		{
 			MetaClass = ClassProp->MetaClass;
 		}
-		else if (USoftClassProperty* const SoftClassProperty = Cast<USoftClassProperty>(Property))
+		else if (FSoftClassProperty* const SoftClassProperty = CastField<FSoftClassProperty>(Property))
 		{
 			MetaClass = SoftClassProperty->MetaClass;
 		}

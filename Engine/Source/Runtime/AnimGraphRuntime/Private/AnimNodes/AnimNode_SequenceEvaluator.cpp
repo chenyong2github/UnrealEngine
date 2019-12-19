@@ -2,6 +2,7 @@
 
 #include "AnimNodes/AnimNode_SequenceEvaluator.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimTrace.h"
 
 float FAnimNode_SequenceEvaluator::GetCurrentAssetTime()
 {
@@ -68,10 +69,10 @@ void FAnimNode_SequenceEvaluator::UpdateAssetPlayer(const FAnimationUpdateContex
 
 			// if you jump from front to end or end to front, your time jump is 0.f, so nothing moves
 			// to prevent that from happening, we set current accumulator to explicit time
- 			if (TimeJump == 0.f)
- 			{
- 				InternalTimeAccumulator = ExplicitTime;
- 			}
+			if (TimeJump == 0.f)
+			{
+				InternalTimeAccumulator = ExplicitTime;
+			}
 			
 			const float DeltaTime = Context.GetDeltaTime();
 			const float RateScale = Sequence->RateScale;
@@ -85,6 +86,10 @@ void FAnimNode_SequenceEvaluator::UpdateAssetPlayer(const FAnimationUpdateContex
 	}
 
 	bReinitialized = false;
+
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Sequence"), Sequence != nullptr ? Sequence->GetFName() : NAME_None);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("InputTime"), ExplicitTime);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Time"), InternalTimeAccumulator);
 }
 
 void FAnimNode_SequenceEvaluator::Evaluate_AnyThread(FPoseContext& Output)

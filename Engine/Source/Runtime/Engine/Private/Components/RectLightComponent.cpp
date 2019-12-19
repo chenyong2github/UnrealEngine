@@ -183,7 +183,7 @@ void URectLightComponent::BeginDestroy()
 /**
  * Called after property has changed via e.g. property window or set command.
  *
- * @param	PropertyThatChanged	UProperty that has been changed, NULL if unknown
+ * @param	PropertyThatChanged	FProperty that has been changed, NULL if unknown
  */
 void URectLightComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {

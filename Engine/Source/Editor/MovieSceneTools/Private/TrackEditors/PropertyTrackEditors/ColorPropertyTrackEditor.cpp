@@ -31,13 +31,13 @@ TSharedRef<ISequencerSection> FColorPropertyTrackEditor::MakeSectionInterface(UM
 
 void FColorPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, FGeneratedTrackKeys& OutGeneratedKeys )
 {
-	UProperty* Property = PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get();
+	FProperty* Property = PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get();
 	if (!Property)
 	{
 		return;
 	}
 
-	const UStructProperty* StructProp = Cast<const UStructProperty>( Property );
+	const FStructProperty* StructProp = CastField<const FStructProperty>( Property );
 	if (!StructProp)
 	{
 		return;

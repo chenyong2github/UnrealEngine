@@ -878,7 +878,7 @@ UDirectionalLightComponent::UDirectionalLightComponent(const FObjectInitializer&
 /**
  * Called after property has changed via e.g. property window or set command.
  *
- * @param	PropertyThatChanged	UProperty that has been changed, NULL if unknown
+ * @param	PropertyThatChanged	FProperty that has been changed, NULL if unknown
  */
 void UDirectionalLightComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -903,7 +903,7 @@ void UDirectionalLightComponent::PostEditChangeProperty(FPropertyChangedEvent& P
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
-bool UDirectionalLightComponent::CanEditChange(const UProperty* InProperty) const
+bool UDirectionalLightComponent::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{

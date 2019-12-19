@@ -32,7 +32,7 @@ public:
 	UObject* GetObject();
 
 	//~ FNotifyHook interface
-	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged) override;
+	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 
 	//~ UNiagaraStackEntry interface
 	virtual bool GetIsEnabled() const override;

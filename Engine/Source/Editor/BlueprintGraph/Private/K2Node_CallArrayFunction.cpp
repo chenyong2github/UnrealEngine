@@ -222,7 +222,7 @@ void UK2Node_CallArrayFunction::GetArrayPins(TArray< FArrayPropertyPinCombo >& O
 	}
 }
 
-bool UK2Node_CallArrayFunction::IsWildcardProperty(UFunction* InArrayFunction, const UProperty* InProperty)
+bool UK2Node_CallArrayFunction::IsWildcardProperty(UFunction* InArrayFunction, const FProperty* InProperty)
 {
 	if(InArrayFunction && InProperty)
 	{

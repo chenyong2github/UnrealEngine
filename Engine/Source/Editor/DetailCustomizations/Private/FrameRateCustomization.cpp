@@ -68,7 +68,7 @@ FFrameRate FFrameRateCustomization::GetFirstFrameRate() const
 
 void FFrameRateCustomization::SetFrameRate(FFrameRate NewFrameRate)
 {
-	if (UStructProperty* StructProperty = Cast<UStructProperty>(StructPropertyHandle->GetProperty()))
+	if (FStructProperty* StructProperty = CastField<FStructProperty>(StructPropertyHandle->GetProperty()))
 	{
 		TArray<void*> RawData;
 		StructPropertyHandle->AccessRawData(RawData);

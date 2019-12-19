@@ -46,6 +46,6 @@ class ENGINE_API UComponentDelegateBinding
 	//~ Begin DynamicBlueprintBinding Interface
 	virtual void BindDynamicDelegates(UObject* InInstance) const override;
 	virtual void UnbindDynamicDelegates(UObject* InInstance) const override;
-	virtual void UnbindDynamicDelegatesForProperty(UObject* InInstance, const UObjectProperty* InObjectProperty) const override;
+	virtual void UnbindDynamicDelegatesForProperty(UObject* InInstance, const FObjectProperty* InObjectProperty) const override;
 	//~ End DynamicBlueprintBinding Interface
 };

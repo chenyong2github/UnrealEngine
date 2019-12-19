@@ -260,7 +260,7 @@ void UPlaneCutTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 }
 #endif
 
-void UPlaneCutTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UPlaneCutTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPlaneCutToolProperties, bShowPreview)))
 	{

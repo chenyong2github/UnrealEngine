@@ -177,7 +177,7 @@ public:
 	//~ Begin UWidget Interface
 	virtual const FText GetPaletteCategory() override;
 	virtual void OnCreationFromPalette() override;
-	virtual bool CanEditChange(const UProperty* InProperty) const override;
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	//~ End UWidget Interface
 
 	virtual FString GetLabelMetadata() const override;

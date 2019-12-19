@@ -78,7 +78,7 @@ public:
 	UMediaFrameworkWorldSettingsAssetUserData* FindOrAddMediaFrameworkAssetUserData();
 
 private:
-	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged) override;
+	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 	bool IsPropertyReadOnly(const FPropertyAndParent& PropertyAndParent) const;
 
 	void OnMapChange(uint32 InMapFlags);

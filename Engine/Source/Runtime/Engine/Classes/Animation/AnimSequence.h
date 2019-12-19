@@ -724,7 +724,7 @@ public:
 	virtual bool IsValidToPlay() const override;
 
 	// Get a pointer to the data for a given Anim Notify
-	uint8* FindSyncMarkerPropertyData(int32 SyncMarkerIndex, UArrayProperty*& ArrayProperty);
+	uint8* FindSyncMarkerPropertyData(int32 SyncMarkerIndex, FArrayProperty*& ArrayProperty);
 
 	virtual int32 GetMarkerUpdateCounter() const { return MarkerDataUpdateCounter; }
 #endif

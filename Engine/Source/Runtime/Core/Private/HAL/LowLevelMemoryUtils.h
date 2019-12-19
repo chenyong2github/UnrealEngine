@@ -57,7 +57,7 @@ public:
 			uint32 NewCapacity = DefaultCapacity;
 			if (Capacity)
 			{
-				NewCapacity = (15U * Capacity) / 10U;
+				NewCapacity = Capacity + (Capacity / 2);
 				ensureMsgf(NewCapacity > Capacity, TEXT("Unsigned integer overflow."));
 			}
 			Reserve(NewCapacity);
@@ -145,10 +145,11 @@ public:
 
 	void Trim()
 	{
-		if (Array != StaticArray && (Count * 128) / Capacity < 100)
+		// Trim if usage has dropped below 3/4 of the total capacity
+		if (Array != StaticArray && Count < (Capacity - (Capacity / 4)))
 		{
 			Reserve(Count);
-		}
+		} 
 	}
 
 private:

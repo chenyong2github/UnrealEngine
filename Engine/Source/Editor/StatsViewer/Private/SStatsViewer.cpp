@@ -478,7 +478,7 @@ FReply SStatsViewer::OnExportClicked()
 				{
 					TSharedPtr< FPropertyPath > PropertyPath = Column->GetDataSource()->AsPropertyPath();
 					const FPropertyInfo& PropertyInfo = PropertyPath->GetRootProperty();
-					const TWeakObjectPtr< UProperty > Property = PropertyInfo.Property;
+					const TWeakFieldPtr< FProperty > Property = PropertyInfo.Property;
 					FString Name = UEditorEngine::GetFriendlyName(Property.Get());
 					Name.ReplaceInline( *Delimiter, TEXT(" ") );
 					HeaderRow += Name + Delimiter;
@@ -602,9 +602,9 @@ void SStatsViewer::SwitchAndFilterPage(int32 Page, const FString& FilterValue, c
 		if(FilterProperty.Len())
 		{
 			int32 ColumnIndex = 0;
-			for (TFieldIterator<UProperty> PropertyIter( CurrentStats->GetEntryClass(), EFieldIteratorFlags::IncludeSuper ); PropertyIter; ++PropertyIter )
+			for (TFieldIterator<FProperty> PropertyIter( CurrentStats->GetEntryClass(), EFieldIteratorFlags::IncludeSuper ); PropertyIter; ++PropertyIter )
 			{
-				UProperty* Property = *PropertyIter;
+				FProperty* Property = *PropertyIter;
 				if( Property->HasAnyPropertyFlags(CPF_AssetRegistrySearchable) )
 				{
 					FString FilterName = Property->GetDisplayNameText().ToString();
@@ -713,9 +713,9 @@ TSharedRef<SWidget> SStatsViewer::OnGetFilterMenuContent() const
 	if( CurrentStats.IsValid() )
 	{
 		int32 ColumnIndex = 0;
-		for (TFieldIterator<UProperty> PropertyIter( CurrentStats->GetEntryClass(), EFieldIteratorFlags::IncludeSuper ); PropertyIter; ++PropertyIter )
+		for (TFieldIterator<FProperty> PropertyIter( CurrentStats->GetEntryClass(), EFieldIteratorFlags::IncludeSuper ); PropertyIter; ++PropertyIter )
 		{
-			TWeakObjectPtr< UProperty > Property = *PropertyIter;
+			TWeakFieldPtr< FProperty > Property = *PropertyIter;
 			if( Property->HasAnyPropertyFlags(CPF_AssetRegistrySearchable) )
 			{
 				FString FilterName = Property->GetDisplayNameText().ToString();
@@ -831,7 +831,7 @@ FText SStatsViewer::OnGetFilterComboButtonLabel() const
 	if( CurrentStats.IsValid() )
 	{
 		int32 ColumnIndex = 0;
-		for (TFieldIterator<UProperty> PropertyIter( CurrentStats->GetEntryClass(), EFieldIteratorFlags::IncludeSuper ); PropertyIter; ++PropertyIter )
+		for (TFieldIterator<FProperty> PropertyIter( CurrentStats->GetEntryClass(), EFieldIteratorFlags::IncludeSuper ); PropertyIter; ++PropertyIter )
 		{
 			if( PropertyIter->HasAnyPropertyFlags(CPF_AssetRegistrySearchable) )
 			{

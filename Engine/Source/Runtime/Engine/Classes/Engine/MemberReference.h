@@ -104,7 +104,7 @@ public:
 
 	/** Set up this reference from a supplied field */
 	template<class TFieldType>
-	void SetFromField(const UField* InField, const bool bIsConsideredSelfContext, UClass* OwnerClass=nullptr)
+	void SetFromField(const typename TFieldType::BaseFieldClass* InField, const bool bIsConsideredSelfContext, UClass* OwnerClass=nullptr)
 	{
 		// if we didn't get an owner passed in try to figure out what it should be based on the field
 		if (!OwnerClass)
@@ -141,7 +141,7 @@ public:
 	}
 
 	template<class TFieldType>
-	void SetFromField(const UField* InField, UClass* SelfScope)
+	void SetFromField(const typename TFieldType::BaseFieldClass* InField, UClass* SelfScope)
 	{
 		UClass* OwnerClass = InField->GetOwnerClass();
 
@@ -276,6 +276,29 @@ protected:
 	/** Only intended for backwards compat! */
 	ENGINE_API void SetGivenSelfScope(const FName InMemberName, const FGuid InMemberGuid, TSubclassOf<class UObject> InMemberParentClass, TSubclassOf<class UObject> SelfScope) const;
 
+	template<class TFieldType>
+	TFieldType* ResolveUFunction() const
+	{
+		return nullptr;
+	}
+
+	template<class TFieldType>
+	TFieldType* ResolveUField(FFieldClass* InClass, UPackage* TargetPackage) const
+	{
+		return nullptr;
+	}
+	template<class TFieldType>
+	TFieldType* ResolveUField(UClass* InClass, UPackage* TargetPackage) const
+	{
+		return FindObject<TFieldType>(TargetPackage, *MemberName.ToString());;
+	}
+
+	template<class TFieldType>
+	UObject* GetFieldOuter(TFieldType Field) const
+	{
+		return Field->GetOuter();
+	}
+
 public:
 
 	/** Get the class that owns this member */
@@ -320,9 +343,14 @@ public:
 		return bSelfContext ? SelfScope : GetMemberParentClass();
 	}
 	
+	template <class TFieldClassA, class TFieldClassB>
+	bool CompareClassesHelper(const TFieldClassA* ClassA, const TFieldClassB* ClassB) const
+	{
+		return ClassA == ClassB;
+	}
 
 	/** 
-	 *	Returns the member UProperty/UFunction this reference is pointing to, or NULL if it no longer exists 
+	 *	Returns the member FProperty/UFunction this reference is pointing to, or NULL if it no longer exists 
 	 *	Derives 'self' scope from supplied Blueprint node if required
 	 *	Will check for redirects and fix itself up if one is found.
 	 */
@@ -372,7 +400,7 @@ public:
 			{
 				// Fix up this struct, we found a redirect
 				MemberName = ReturnField->GetFName();
-				MemberParent = Cast<UClass>(ReturnField->GetOuter());
+				MemberParent = Cast<UClass>(GetFieldOuter(static_cast<typename TFieldType::BaseFieldClass*>(ReturnField)));
 
 				MemberGuid.Invalidate();
 				UBlueprint::GetGuidFromClassByFieldName<TFieldType>(TargetScope, MemberName, MemberGuid);
@@ -384,7 +412,7 @@ public:
 
 					// Re-evaluate self-ness against the redirect if we were given a valid SelfScope
 					// For functions and multicast delegates we don't want to go from not-self to self as the target pin type should remain consistent
-					if (SelfScope != nullptr && (bSelfContext || (TFieldType::StaticClass() != UFunction::StaticClass() && TFieldType::StaticClass() != UMulticastDelegateProperty::StaticClass())))
+					if (SelfScope != nullptr && (bSelfContext || (!CompareClassesHelper(TFieldType::StaticClass(), UFunction::StaticClass()) && !CompareClassesHelper(TFieldType::StaticClass(), FMulticastDelegateProperty::StaticClass()))))
 					{
 						SetGivenSelfScope(MemberName, MemberGuid, ParentAsClass, SelfScope);
 					}
@@ -430,38 +458,26 @@ public:
 			}
 			else if (UPackage* TargetPackage = GetMemberParentPackage())
 			{
-				ReturnField = FindObject<TFieldType>(TargetPackage, *MemberName.ToString());
+				ReturnField = ResolveUField<TFieldType>(TFieldType::StaticClass(), TargetPackage);
 			}
 			// For backwards compatibility: as of CL 2412156, delegate signatures 
 			// could have had a null MemberParentClass (for those natively 
 			// declared outside of a class), we used to rely on the following 
 			// FindObject<>; however this was not reliable (hence the addition 
 			// of GetMemberParentPackage(), etc.)
-			else if ((TFieldType::StaticClass() == UFunction::StaticClass()) && MemberName.ToString().EndsWith(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX))
-			{			
-				FString const StringName = MemberName.ToString();
-				for (TObjectIterator<UPackage> PackageIt; PackageIt && (ReturnField == nullptr); ++PackageIt)
-				{
-					if (PackageIt->HasAnyPackageFlags(PKG_CompiledIn) == false)
+			else if (MemberName.ToString().EndsWith(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX))
 					{
-						continue;
-					}
-
-					// NOTE: this could return the wrong field (if there are 
-					//       two like-named delegates defined in separate packages)
-					ReturnField = FindObject<TFieldType>(*PackageIt, *StringName);
-				}
-
+				ReturnField = ResolveUFunction<TFieldType>();
 				if (ReturnField != nullptr)
 				{
-					UE_LOG(LogBlueprint, Display, TEXT("Generic delegate signature ref (%s). Explicitly setting it to: '%s'. Make sure this is correct (there could be multiple native delegate types with this name)."), *StringName, *ReturnField->GetPathName());
+					UE_LOG(LogBlueprint, Display, TEXT("Generic delegate signature ref (%s). Explicitly setting it to: '%s'. Make sure this is correct (there could be multiple native delegate types with this name)."), *MemberName.ToString(), *ReturnField->GetPathName());
 					MemberParent = ReturnField->GetOutermost();
 				}
 			}
 		}
 
 		// Check to see if the member has been deprecated
-		if (UProperty* Property = Cast<UProperty>(ReturnField))
+		if (FProperty* Property = FFieldVariant(ReturnField).Get<FProperty>())
 		{
 			bWasDeprecated = Property->HasAnyPropertyFlags(CPF_Deprecated);
 		}
@@ -486,21 +502,22 @@ public:
 	 * @return	The remapped field, if one exists
 	 */
 	ENGINE_API static UField* FindRemappedField(UClass *FieldClass, UClass* InitialScope, FName InitialName, bool bInitialScopeMustBeOwnerOfField = false);
+	ENGINE_API static FField* FindRemappedField(FFieldClass* FieldClass, UClass* InitialScope, FName InitialName, bool bInitialScopeMustBeOwnerOfField = false);
 
 	/** Templated version of above, extracts FieldClass and Casts result */
 	template<class TFieldType>
 	static TFieldType* FindRemappedField(UClass* InitialScope, FName InitialName, bool bInitialScopeMustBeOwnerOfField = false)
 	{
-		return Cast<TFieldType>(FindRemappedField(TFieldType::StaticClass(), InitialScope, InitialName, bInitialScopeMustBeOwnerOfField));
+		return FFieldVariant(FindRemappedField(TFieldType::StaticClass(), InitialScope, InitialName, bInitialScopeMustBeOwnerOfField)).Get<TFieldType>();
 	}
+
+	/** Init the field redirect map (if not already done) from .ini file entries */
+	ENGINE_API static void InitFieldRedirectMap();
 
 protected:
 
 	/** Has the field map been initialized this run */
 	static bool bFieldRedirectMapInitialized;
-
-	/** Init the field redirect map (if not already done) from .ini file entries */
-	ENGINE_API static void InitFieldRedirectMap();
 	
 	/** @return the 'real' generated class for blueprint classes, but only if we're already passed through CompileClassLayout */
 	ENGINE_API static UClass* GetClassToUse(UClass* InClass, bool bUseUpToDateClass);
@@ -508,7 +525,7 @@ protected:
 
 public:
 	template<class TFieldType>
-	static void FillSimpleMemberReference(const UField* InField, FSimpleMemberReference& OutReference)
+	static void FillSimpleMemberReference(const TFieldType* InField, FSimpleMemberReference& OutReference)
 	{
 		OutReference.Reset();
 
@@ -543,3 +560,40 @@ public:
 		return Result;
 	}
 };
+
+
+template<>
+inline UFunction* FMemberReference::ResolveUFunction() const
+{
+	UFunction* ReturnField = nullptr;
+	FString const StringName = MemberName.ToString();
+	for (TObjectIterator<UPackage> PackageIt; PackageIt && (ReturnField == nullptr); ++PackageIt)
+	{
+		if (PackageIt->HasAnyPackageFlags(PKG_CompiledIn) == false)
+		{
+			continue;
+		}
+
+		// NOTE: this could return the wrong field (if there are 
+		//       two like-named delegates defined in separate packages)
+		ReturnField = FindObject<UFunction>(*PackageIt, *StringName);
+	}
+	return ReturnField;
+}
+
+template<>
+inline UObject* FMemberReference::GetFieldOuter(FField* Field) const
+{
+	return Field->GetOwner<UObject>();
+}
+
+template <>
+inline bool FMemberReference::CompareClassesHelper(const UClass* ClassA, const FFieldClass* ClassB) const
+{
+	return false;
+}
+template <>
+inline bool FMemberReference::CompareClassesHelper(const FFieldClass* ClassA, const UClass* ClassB) const
+{
+	return false;
+}

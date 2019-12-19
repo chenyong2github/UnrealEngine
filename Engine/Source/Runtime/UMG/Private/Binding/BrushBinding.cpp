@@ -11,16 +11,16 @@ UBrushBinding::UBrushBinding()
 {
 }
 
-bool UBrushBinding::IsSupportedDestination(UProperty* Property) const
+bool UBrushBinding::IsSupportedDestination(FProperty* Property) const
 {
 	return IsConcreteTypeCompatibleWithReflectedType<FSlateBrush>(Property);
 }
 
-bool UBrushBinding::IsSupportedSource(UProperty* Property) const
+bool UBrushBinding::IsSupportedSource(FProperty* Property) const
 {
 	if ( IsConcreteTypeCompatibleWithReflectedType<UObject*>(Property) )
 	{
-		if ( UObjectProperty* ObjectProperty = Cast<UObjectProperty>(Property) )
+		if ( FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property) )
 		{
 			return ObjectProperty->PropertyClass->IsChildOf(UTexture2D::StaticClass());
 		}

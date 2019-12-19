@@ -176,7 +176,7 @@ public:
 
 	/**
 	 * Registers a property type customization
-	 * A property type is a specific UProperty type, a struct, or enum type
+	 * A property type is a specific FProperty type, a struct, or enum type
 	 *
 	 * @param PropertyTypeName		The name of the property type to customize.  For structs and enums this is the name of the struct class or enum	(not StructProperty or ByteProperty) 
 	 * @param PropertyTypeLayoutDelegate	The delegate to call when querying for a custom layout of the property type
@@ -261,7 +261,7 @@ public:
 	 * @param StructOnScope		The struct to register
 	 * @return The struct property that may may be associated with the details panel
  	 */
-	virtual UStructProperty* RegisterStructOnScopeProperty(TSharedRef<FStructOnScope> StructOnScope);
+	virtual FStructProperty* RegisterStructOnScopeProperty(TSharedRef<FStructOnScope> StructOnScope);
 
 	/**
 	 *
@@ -270,7 +270,7 @@ public:
 	virtual TSharedRef< FAssetEditorToolkit > CreatePropertyEditorToolkit( const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, const TArray< UObject* >& ObjectsToEdit );
 	virtual TSharedRef< FAssetEditorToolkit > CreatePropertyEditorToolkit( const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, const TArray< TWeakObjectPtr< UObject > >& ObjectsToEdit );
 
-	FPropertyTypeLayoutCallback GetPropertyTypeCustomization(const UProperty* InProperty,const IPropertyHandle& PropertyHandle, const FCustomPropertyTypeLayoutMap& InstancedPropertyTypeLayoutMap);
+	FPropertyTypeLayoutCallback GetPropertyTypeCustomization(const FProperty* InProperty,const IPropertyHandle& PropertyHandle, const FCustomPropertyTypeLayoutMap& InstancedPropertyTypeLayoutMap);
 	FPropertyTypeLayoutCallback FindPropertyTypeLayoutCallback(FName PropertyTypeName, const IPropertyHandle& PropertyHandle, const FCustomPropertyTypeLayoutMap& InstancedPropertyTypeLayoutMapp);
 	bool IsCustomizedStruct(const UStruct* Struct, const FCustomPropertyTypeLayoutMap& InstancePropertyTypeLayoutMap) const;
 
@@ -308,7 +308,7 @@ private:
 	/** Event to be called when a property editor is opened */
 	FPropertyEditorOpenedEvent PropertyEditorOpened;
 	/** Mapping of registered floating UStructs to their struct proxy so they show correctly in the details panel */
-	TMap<FName, UStructProperty*> RegisteredStructToProxyMap;
+	TMap<FName, FStructProperty*> RegisteredStructToProxyMap;
 	/** Shared thumbnail pool used by property row generators */
 	TSharedPtr<class FAssetThumbnailPool> GlobalThumbnailPool;
 

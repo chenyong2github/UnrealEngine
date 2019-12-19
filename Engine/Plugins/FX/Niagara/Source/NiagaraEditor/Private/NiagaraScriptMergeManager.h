@@ -238,7 +238,7 @@ struct FNiagaraModifiedEventHandlerDiffResults
 {
 	TSharedPtr<FNiagaraEventHandlerMergeAdapter> BaseAdapter;
 	TSharedPtr<FNiagaraEventHandlerMergeAdapter> OtherAdapter;
-	TArray<UProperty*> ChangedProperties;
+	TArray<FProperty*> ChangedProperties;
 	FNiagaraScriptStackDiffResults ScriptDiffResults;
 };
 
@@ -256,7 +256,7 @@ struct FNiagaraEmitterDiffResults
 
 	FString GetErrorMessagesString() const;
 
-	TArray<UProperty*> DifferentEmitterProperties;
+	TArray<FProperty*> DifferentEmitterProperties;
 
 	FNiagaraScriptStackDiffResults EmitterSpawnDiffResults;
 	FNiagaraScriptStackDiffResults EmitterUpdateDiffResults;
@@ -332,9 +332,9 @@ public:
 
 	void DiffFunctionInputs(TSharedRef<FNiagaraStackFunctionMergeAdapter> BaseFunctionAdapter, TSharedRef<FNiagaraStackFunctionMergeAdapter> OtherFunctionAdapter, FNiagaraScriptStackDiffResults& DiffResults) const;
 
-	virtual void DiffEditableProperties(const void* BaseDataAddress, const void* OtherDataAddress, UStruct& Struct, TArray<UProperty*>& OutDifferentProperties) const override;
+	virtual void DiffEditableProperties(const void* BaseDataAddress, const void* OtherDataAddress, UStruct& Struct, TArray<FProperty*>& OutDifferentProperties) const override;
 
-	virtual void CopyPropertiesToBase(void* BaseDataAddress, const void* OtherDataAddress, TArray<UProperty*> PropertiesToCopy) const override;
+	virtual void CopyPropertiesToBase(void* BaseDataAddress, const void* OtherDataAddress, TArray<FProperty*> PropertiesToCopy) const override;
 
 private:
 	TOptional<bool> DoFunctionInputOverridesMatch(TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter> BaseFunctionInputAdapter, TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter> OtherFunctionInputAdapter) const;

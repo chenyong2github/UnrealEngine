@@ -954,7 +954,7 @@ void UNiagaraEmitter::UpdateFromMergedCopy(const INiagaraMergeManager& MergeMana
 	}
 
 	// Copy base editable emitter properties.
-	TArray<UProperty*> DifferentProperties;
+	TArray<FProperty*> DifferentProperties;
 	MergeManager.DiffEditableProperties(this, MergedEmitter, *UNiagaraEmitter::StaticClass(), DifferentProperties);
 	MergeManager.CopyPropertiesToBase(this, MergedEmitter, DifferentProperties);
 

@@ -282,24 +282,24 @@ void ALODActor::PostLoad()
 #if !WITH_EDITOR
 	// Invalid runtime LOD actor with null static mesh is invalid, look for a possible way to patch this up
 	if (GetStaticMeshComponent() && GetStaticMeshComponent()->GetStaticMesh() == nullptr && GetStaticMeshComponent()->GetLODParentPrimitive())
-	{
- 		if (ALODActor* ParentLODActor = Cast<ALODActor>(GetStaticMeshComponent()->GetLODParentPrimitive()->GetOwner()))
 		{
-			// Make the parent HLOD
-			ParentLODActor->SubActors.Remove(this);
-			ParentLODActor->SubActors.Append(SubActors);
-			for (AActor* Actor : SubActors)
+ 			if (ALODActor* ParentLODActor = Cast<ALODActor>(GetStaticMeshComponent()->GetLODParentPrimitive()->GetOwner()))
 			{
-				if (Actor)
-				{
-					Actor->SetLODParent(ParentLODActor->GetStaticMeshComponent(), ParentLODActor->GetDrawDistance());
+			// Make the parent HLOD
+					ParentLODActor->SubActors.Remove(this);
+			ParentLODActor->SubActors.Append(SubActors);
+					for (AActor* Actor : SubActors)
+					{
+						if (Actor)
+						{
+							Actor->SetLODParent(ParentLODActor->GetStaticMeshComponent(), ParentLODActor->GetDrawDistance());
+						}
+					}
+  
+					SubActors.Empty();
+					bHasPatchedUpParent = true;
 				}
 			}
-  
-			SubActors.Empty();
-			bHasPatchedUpParent = true;
-		}
-	}
 #endif // !WITH_EDITOR
 
 	ParseOverrideDistancesCVar();
@@ -656,7 +656,7 @@ void ALODActor::ForceUnbuilt()
 #endif
 }
 
-void ALODActor::PreEditChange(UProperty* PropertyThatWillChange)
+void ALODActor::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);
 
@@ -666,7 +666,7 @@ void ALODActor::PreEditChange(UProperty* PropertyThatWillChange)
 
 void ALODActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	FName PropertyName = PropertyThatChanged != NULL ? PropertyThatChanged->GetFName() : NAME_None;
 	
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(ALODActor, bOverrideTransitionScreenSize) || PropertyName == GET_MEMBER_NAME_CHECKED(ALODActor, TransitionScreenSize))
@@ -902,7 +902,7 @@ const bool ALODActor::HasValidSubActors() const
 	UHLODProxy::ExtractStaticMeshComponentsFromLODActor(this, Components);
 
 	UStaticMeshComponent** ValidComponent = Components.FindByPredicate([&](const UStaticMeshComponent* Component)
-	{
+				{
 #if WITH_EDITOR
 		return !Component->bHiddenInGame && Component->GetStaticMesh() != nullptr && Component->ShouldGenerateAutoLOD(LODLevel - 1);
 #else

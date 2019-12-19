@@ -92,12 +92,12 @@ void FNavigationLinkBase::DescribeCustomFlags(const TArray<FString>& EditableFla
 	const int32 MaxFlags = FMath::Min(8, EditableFlagNames.Num());
 	const FString CustomNameMeta = TEXT("DisplayName");
 
-	for (TFieldIterator<UProperty> PropertyIt(NavLinkPropertiesOwnerClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<FProperty> PropertyIt(NavLinkPropertiesOwnerClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 	{
-		UProperty* Prop = *PropertyIt;
+		FProperty* Prop = *PropertyIt;
 
-		UArrayProperty* ArrayProp = Cast<UArrayProperty>(Prop);
-		UStructProperty* StructProp = Cast<UStructProperty>(ArrayProp ? ArrayProp->Inner : Prop);
+		FArrayProperty* ArrayProp = CastField<FArrayProperty>(Prop);
+		FStructProperty* StructProp = CastField<FStructProperty>(ArrayProp ? ArrayProp->Inner : Prop);
 
 		if (StructProp)
 		{
@@ -110,7 +110,7 @@ void FNavigationLinkBase::DescribeCustomFlags(const TArray<FString>& EditableFla
 						FString PropName(TEXT("bCustomFlag"));
 						PropName += TTypeToString<int32>::ToString(Idx);
 
-						UProperty* FlagProp = FindField<UProperty>(StructIt, *PropName);
+						FProperty* FlagProp = FindField<FProperty>(StructIt, *PropName);
 						if (FlagProp)
 						{
 							if (Idx < MaxFlags)

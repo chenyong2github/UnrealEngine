@@ -189,7 +189,7 @@ public:
 	ENGINE_API static UCollisionProfile* Get();
 
 	/** Begin UObject interface */
-	virtual void PostReloadConfig(class UProperty* PropertyThatWasLoaded) override;
+	virtual void PostReloadConfig(class FProperty* PropertyThatWasLoaded) override;
 	/** End UObject interface */
 
 	/** Fill up the array with the profile names **/

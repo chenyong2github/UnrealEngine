@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "PropertyHelpers.h"
 
-class UProperty;
+class FProperty;
 class UStruct;
 class FUsdAttribute;
 class AActor;
@@ -21,7 +21,7 @@ PXR_NAMESPACE_OPEN_SCOPE
 	class UsdPrim;
 PXR_NAMESPACE_CLOSE_SCOPE
 
-typedef TFunction<void(void*, const pxr::UsdAttribute&, UProperty*, int32)> FStructSetterFunction;
+typedef TFunction<void(void*, const pxr::UsdAttribute&, FProperty*, int32)> FStructSetterFunction;
 
 class FUSDPropertySetter
 {
@@ -56,7 +56,7 @@ private:
 	/**
 	 * Verifies the result of trying to set a given usd attribute with a given usd property.  Will produce an error if the types are incompatible
 	 */
-	bool VerifyResult(bool bResult, const pxr::UsdAttribute& Attribute, UProperty* Property);
+	bool VerifyResult(bool bResult, const pxr::UsdAttribute& Attribute, FProperty* Property);
 
 	/**
 	 * Combines two property paths into a single "." delimited property path

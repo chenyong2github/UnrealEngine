@@ -96,7 +96,7 @@ static FName DeveloperSettingsConsoleVariableMetaFName(TEXT("ConsoleVariable"));
 
 void UDeveloperSettings::ImportConsoleVariableValues()
 {
-	for (UProperty* Property = GetClass()->PropertyLink; Property; Property = Property->PropertyLinkNext)
+	for (FProperty* Property = GetClass()->PropertyLink; Property; Property = Property->PropertyLinkNext)
 	{
 		if (!Property->HasAnyPropertyFlags(CPF_Config))
 		{
@@ -122,7 +122,7 @@ void UDeveloperSettings::ImportConsoleVariableValues()
 	}
 }
 
-void UDeveloperSettings::ExportValuesToConsoleVariables(UProperty* PropertyThatChanged)
+void UDeveloperSettings::ExportValuesToConsoleVariables(FProperty* PropertyThatChanged)
 {
 	if(PropertyThatChanged)
 	{
@@ -132,34 +132,34 @@ void UDeveloperSettings::ExportValuesToConsoleVariables(UProperty* PropertyThatC
 			IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*CVarName);
 			if (CVar && (CVar->GetFlags() & ECVF_ReadOnly) == 0)
 			{
-				UByteProperty* ByteProperty = Cast<UByteProperty>(PropertyThatChanged);
+				FByteProperty* ByteProperty = CastField<FByteProperty>(PropertyThatChanged);
 				if (ByteProperty != NULL && ByteProperty->Enum != NULL)
 				{
 					CVar->Set(ByteProperty->GetPropertyValue_InContainer(this), ECVF_SetByProjectSetting);
 				}
-				else if (UEnumProperty* EnumProperty = Cast<UEnumProperty>(PropertyThatChanged))
+				else if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(PropertyThatChanged))
 				{
-					UNumericProperty* UnderlyingProp = EnumProperty->GetUnderlyingProperty();
+					FNumericProperty* UnderlyingProp = EnumProperty->GetUnderlyingProperty();
 					void* PropertyAddress = EnumProperty->ContainerPtrToValuePtr<void>(this);
 					CVar->Set((int32)UnderlyingProp->GetSignedIntPropertyValue(PropertyAddress), ECVF_SetByProjectSetting);
 				}
-				else if (UBoolProperty* BoolProperty = Cast<UBoolProperty>(PropertyThatChanged))
+				else if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(PropertyThatChanged))
 				{
 					CVar->Set((int32)BoolProperty->GetPropertyValue_InContainer(this), ECVF_SetByProjectSetting);
 				}
-				else if (UIntProperty* IntProperty = Cast<UIntProperty>(PropertyThatChanged))
+				else if (FIntProperty* IntProperty = CastField<FIntProperty>(PropertyThatChanged))
 				{
 					CVar->Set(IntProperty->GetPropertyValue_InContainer(this), ECVF_SetByProjectSetting);
 				}
-				else if (UFloatProperty* FloatProperty = Cast<UFloatProperty>(PropertyThatChanged))
+				else if (FFloatProperty* FloatProperty = CastField<FFloatProperty>(PropertyThatChanged))
 				{
 					CVar->Set(FloatProperty->GetPropertyValue_InContainer(this), ECVF_SetByProjectSetting);
 				}
-				else if (UStrProperty* StringProperty = Cast<UStrProperty>(PropertyThatChanged))
+				else if (FStrProperty* StringProperty = CastField<FStrProperty>(PropertyThatChanged))
 				{
 					CVar->Set(*StringProperty->GetPropertyValue_InContainer(this), ECVF_SetByProjectSetting);
 				}
-				else if (UNameProperty* NameProperty = Cast<UNameProperty>(PropertyThatChanged))
+				else if (FNameProperty* NameProperty = CastField<FNameProperty>(PropertyThatChanged))
 				{
 					CVar->Set(*NameProperty->GetPropertyValue_InContainer(this).ToString(), ECVF_SetByProjectSetting);
 				}

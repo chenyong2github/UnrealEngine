@@ -8,19 +8,19 @@ UColorBinding::UColorBinding()
 {
 }
 
-bool UColorBinding::IsSupportedDestination(UProperty* Property) const
+bool UColorBinding::IsSupportedDestination(FProperty* Property) const
 {
 	return IsSupportedSource(Property);
 }
 
-bool UColorBinding::IsSupportedSource(UProperty* Property) const
+bool UColorBinding::IsSupportedSource(FProperty* Property) const
 {
 	return
 		IsConcreteTypeCompatibleWithReflectedType<FSlateColor>(Property) ||
 		IsConcreteTypeCompatibleWithReflectedType<FLinearColor>(Property);
 }
 
-void UColorBinding::Bind(UProperty* Property, FScriptDelegate* Delegate)
+void UColorBinding::Bind(FProperty* Property, FScriptDelegate* Delegate)
 {
 	if ( IsConcreteTypeCompatibleWithReflectedType<FSlateColor>(Property) )
 	{

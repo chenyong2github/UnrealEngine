@@ -113,12 +113,12 @@ class COREUOBJECT_API FArchiveStackTrace : public FLargeMemoryWriter
 		/** Full name of the currently serialized object */
 		FString SerializedObjectName;
 		/** The currently serialized property */
-		UProperty* SerializedProp;
+		FProperty* SerializedProp;
 		/** Name of the currently serialized property */
 		FString SerializedPropertyName;
 
 		FCallstackData();
-		FCallstackData(ANSICHAR* InCallstack, UObject* InSerializedObject, UProperty* InSerializedProperty);
+		FCallstackData(ANSICHAR* InCallstack, UObject* InSerializedObject, FProperty* InSerializedProperty);
 
 		/** Converts the callstack and associated data to human readable string */
 		FString ToString(const TCHAR* CallstackCutoffText) const;
@@ -157,7 +157,7 @@ class COREUOBJECT_API FArchiveStackTrace : public FLargeMemoryWriter
 #endif
 
 	/** Adds a unique callstack to UniqueCallstacks map */
-	ANSICHAR* AddUniqueCallstack(UObject* InSerializedObject, UProperty* InSerializedProperty, uint32& OutCallstackCRC);
+	ANSICHAR* AddUniqueCallstack(UObject* InSerializedObject, FProperty* InSerializedProperty, uint32& OutCallstackCRC);
 
 	/** Finds a callstack associated with data at the specified offset */
 	int32 GetCallstackAtOffset(int64 InOffset, int32 MinOffsetIndex);
@@ -254,32 +254,21 @@ public:
 			, Size(0)
 			, Count(0)
 			, Object(nullptr)
-			, Property(nullptr)
+			, PropertyName(NAME_None)
 		{}
-		FSerializeData(int64 InOffset, int64 InSize, UObject* InObject, UProperty* InProperty)
-			: Offset(InOffset)
-			, Size(InSize)
-			, Count(1)
-			, Object(InObject)
-			, Property(InProperty)
-		{}
+		FSerializeData(int64 InOffset, int64 InSize, UObject* InObject, FProperty* InProperty);
 		int64 Offset;
 		int64 Size;
 		int64 Count;
 		UObject* Object;
-		UProperty* Property;
-		bool IsIdentical(const FSerializeData& Other) const
+		FName PropertyName;
+		FString FullPropertyName;
+
+		bool IsContiguousSerialization(const FSerializeData& Other) const
 		{
-			return Object == Other.Object && Property == Other.Property &&
+			// Return whether this and other are neighboring bits of data for the serialization of the same instance of an object\property
+			return Object == Other.Object && PropertyName == Other.PropertyName &&
 				(Offset == Other.Offset || (Offset + Size) == Other.Offset); // This is to merge contiguous blocks
-		}
-		bool operator==(const FSerializeData& Other) const
-		{
-			return IsIdentical(Other);
-		}
-		bool operator!=(const FSerializeData& Other) const
-		{
-			return !IsIdentical(Other);
 		}
 	};
 private:

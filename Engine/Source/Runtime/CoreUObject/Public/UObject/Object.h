@@ -21,6 +21,7 @@ class FTransactionObjectEvent;
 struct FFrame;
 struct FObjectInstancingGraph;
 struct FPropertyChangedChainEvent;
+class UClass;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogObj, Log, All);
 
@@ -288,7 +289,7 @@ public:
 
 	/** 
 	 * Handles reading, writing, and reference collecting using FArchive.
-	 * This implementation handles all UProperty serialization, but can be overridden for native variables.
+	 * This implementation handles all FProperty serialization, but can be overridden for native variables.
 	 */
 	virtual void Serialize(FArchive& Ar);
 	virtual void Serialize(FStructuredArchive::FRecord Record);
@@ -301,7 +302,7 @@ public:
 	 *
 	 * @param PropertyThatChanged	Property that changed
 	 */
-	virtual void PostInterpChange(UProperty* PropertyThatChanged) {}
+	virtual void PostInterpChange(FProperty* PropertyThatChanged) {}
 
 #if WITH_EDITOR
 	/** 
@@ -309,11 +310,11 @@ public:
 	 *
 	 * @param PropertyThatWillChange	Property that will be changed
 	 */
-	virtual void PreEditChange(UProperty* PropertyAboutToChange);
+	virtual void PreEditChange(FProperty* PropertyAboutToChange);
 
 	/**
 	 * This alternate version of PreEditChange is called when properties inside structs are modified.  The property that was actually modified
-	 * is located at the tail of the list.  The head of the list of the UStructProperty member variable that contains the property that was modified.
+	 * is located at the tail of the list.  The head of the list of the FStructProperty member variable that contains the property that was modified.
 	 *
 	 * @param PropertyAboutToChange the property that is about to be modified
 	 */
@@ -328,7 +329,7 @@ public:
 	 *
 	 * @return	true if the property can be modified in the editor, otherwise false
 	 */
-	virtual bool CanEditChange( const UProperty* InProperty ) const;
+	virtual bool CanEditChange( const FProperty* InProperty ) const;
 
 	/** 
 	 * Intentionally non-virtual as it calls the FPropertyChangedEvent version
@@ -344,7 +345,7 @@ public:
 
 	/**
 	 * This alternate version of PostEditChange is called when properties inside structs are modified.  The property that was actually modified
-	 * is located at the tail of the list.  The head of the list of the UStructProperty member variable that contains the property that was modified.
+	 * is located at the tail of the list.  The head of the list of the FStructProperty member variable that contains the property that was modified.
 	 */
 	virtual void PostEditChangeChainProperty( struct FPropertyChangedChainEvent& PropertyChangedEvent );
 
@@ -526,7 +527,7 @@ public:
 	/**
 	 * Called from ReloadConfig after the object has reloaded its configuration data.
 	 */
-	virtual void PostReloadConfig( class UProperty* PropertyThatWasLoaded ) {}
+	virtual void PostReloadConfig( class FProperty* PropertyThatWasLoaded ) {}
 
 	/** 
 	 * Rename this object to a unique name, or change its outer.
@@ -568,7 +569,7 @@ public:
 	 *
 	 * @param	out_PropertyValues	receives the property names and values which should be reported for this object.  The map's key should be the name of
 	 *								the property and the map's value should be the textual representation of the property's value.  The property value should
-	 *								be formatted the same way that UProperty::ExportText formats property values (i.e. for arrays, wrap in quotes and use a comma
+	 *								be formatted the same way that FProperty::ExportText formats property values (i.e. for arrays, wrap in quotes and use a comma
 	 *								as the delimiter between elements, etc.)
 	 * @param	ExportFlags			bitmask of EPropertyPortFlags used for modifying the format of the property values
 	 *
@@ -1042,7 +1043,7 @@ public:
 	/**
 	 * Saves just the property into the global user ini file for the class (with just the changes from base)
 	 */
-	void UpdateSinglePropertyInConfigFile(const UProperty* InProperty, const FString& InConfigIniName);
+	void UpdateSinglePropertyInConfigFile(const FProperty* InProperty, const FString& InConfigIniName);
 
 private:
 	/**
@@ -1085,7 +1086,7 @@ public:
 	 * @param	PropagationFlags	indicates how this call to LoadConfig should be propagated; expects a bitmask of UE4::ELoadConfigPropagationFlags values.
 	 * @param	PropertyToLoad		if specified, only the ini value for the specified property will be imported.
 	 */
-	void LoadConfig( UClass* ConfigClass=NULL, const TCHAR* Filename=NULL, uint32 PropagationFlags=UE4::LCPF_None, class UProperty* PropertyToLoad=NULL );
+	void LoadConfig( UClass* ConfigClass=NULL, const TCHAR* Filename=NULL, uint32 PropagationFlags=UE4::LCPF_None, class FProperty* PropertyToLoad=NULL );
 
 	/**
 	 * Wrapper method for LoadConfig that is used when reloading the config data for objects at runtime which have already loaded their config data at least once.
@@ -1096,7 +1097,7 @@ public:
 	 * @param	PropagationFlags	indicates how this call to LoadConfig should be propagated; expects a bitmask of UE4::ELoadConfigPropagationFlags values.
 	 * @param	PropertyToLoad		if specified, only the ini value for the specified property will be imported
 	 */
-	void ReloadConfig( UClass* ConfigClass=NULL, const TCHAR* Filename=NULL, uint32 PropagationFlags=UE4::LCPF_None, class UProperty* PropertyToLoad=NULL );
+	void ReloadConfig( UClass* ConfigClass=NULL, const TCHAR* Filename=NULL, uint32 PropagationFlags=UE4::LCPF_None, class FProperty* PropertyToLoad=NULL );
 
 	/** Import an object from a file. */
 	void ParseParms( const TCHAR* Parms );
@@ -1349,6 +1350,7 @@ public:
 	DECLARE_FUNCTION(execTextConst);
 	DECLARE_FUNCTION(execObjectConst);
 	DECLARE_FUNCTION(execSoftObjectConst);
+	DECLARE_FUNCTION(execFieldPathConst);
 
 	DECLARE_FUNCTION(execInstanceDelegate);
 	DECLARE_FUNCTION(execNameConst);

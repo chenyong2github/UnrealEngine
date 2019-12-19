@@ -5,11 +5,6 @@
 #include "UObject/UnrealType.h"
 
 /*-----------------------------------------------------------------------------
-	UDoubleProperty.
+	FDoubleProperty.
 -----------------------------------------------------------------------------*/
-
-IMPLEMENT_CORE_INTRINSIC_CLASS(UDoubleProperty, UNumericProperty,
-	{
-	}
-);
 

@@ -16,6 +16,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
+#include "UObject/WeakFieldPtr.h"
 
 class IDetailsView;
 class SDataprepAssetView;
@@ -93,7 +94,7 @@ private:
 	void UpdateFromObjects(const TArray<UObject*>& PropertyObjects);
 
 	/** Add this property and all its child properties to SelectedObjectProperties */
-	void AddPropertiesRecursive(UProperty* Property);
+	void AddPropertiesRecursive(FProperty* Property);
 
 private:
 	/** Property viewing widget */
@@ -106,7 +107,7 @@ private:
 	TArray< TWeakObjectPtr<UObject> > SelectedObjects;
 
 	/** Set of object properties that should be visible */
-	TSet<TWeakObjectPtr<UProperty> > SelectedObjectProperties;
+	TSet<TWeakFieldPtr<FProperty> > SelectedObjectProperties;
 
 	/** When TRUE, the SGraphNodeDetailsWidget needs to refresh the details view on Tick */
 	bool bRefreshOnTick;

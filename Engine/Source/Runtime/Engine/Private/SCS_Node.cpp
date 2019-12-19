@@ -161,7 +161,7 @@ UActorComponent* USCS_Node::ExecuteNodeOnActor(AActor* Actor, USceneComponent* P
 		if (VarName != NAME_None)
 		{
 			UClass* ActorClass = Actor->GetClass();
-			if (UObjectPropertyBase* Prop = FindField<UObjectPropertyBase>(ActorClass, VarName))
+			if (FObjectPropertyBase* Prop = FindField<FObjectPropertyBase>(ActorClass, VarName))
 			{
 				// If it is null we don't really know what's going on, but make it behave as it did before the bug fix
 				if (Prop->PropertyClass == nullptr || NewActorComp->IsA(Prop->PropertyClass))

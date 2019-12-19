@@ -90,7 +90,7 @@ class UFbxMeshImportData : public UFbxAssetImportData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, AdvancedDisplay, Category = Material, meta = (OBJRestrict = "true"))
 	bool bReorderMaterialToFbxOrder;
 
-	bool CanEditChange( const UProperty* InProperty ) const override;
+	bool CanEditChange( const FProperty* InProperty ) const override;
 
 	//////////////////////////////////////////////////////////////////////////
 	//Original import section/material data

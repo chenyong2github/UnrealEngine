@@ -106,7 +106,7 @@ void UMaterialGraphNode_Comment::PostPlacedNewNode()
 void UMaterialGraphNode_Comment::OnRenameNode(const FString& NewName)
 {
 	// send property changed events
-	UProperty* NodeCommentProperty = FindField<UProperty>(GetClass(), "NodeComment");
+	FProperty* NodeCommentProperty = FindField<FProperty>(GetClass(), "NodeComment");
 	if(NodeCommentProperty != NULL)
 	{
 		PreEditChange(NodeCommentProperty);

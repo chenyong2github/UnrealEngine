@@ -36,7 +36,7 @@ public:
 	 * @param  Outer			Optional outer for the new spawner (if left null, the transient package will be used).
 	 * @return A newly allocated instance of this class.
 	 */
-	static UBlueprintBoundEventNodeSpawner* Create(TSubclassOf<UK2Node_Event> NodeClass, UMulticastDelegateProperty* EventDelegate, UObject* Outer = nullptr);
+	static UBlueprintBoundEventNodeSpawner* Create(TSubclassOf<UK2Node_Event> NodeClass, FMulticastDelegateProperty* EventDelegate, UObject* Outer = nullptr);
 
 	// UBlueprintNodeSpawner interface
 	virtual FBlueprintNodeSignature GetSpawnerSignature() const override;
@@ -48,15 +48,15 @@ public:
 	// End UBlueprintEventNodeSpawner interface
 
 	// IBlueprintNodeBinder interface
-	virtual bool IsBindingCompatible(UObject const* BindingCandidate) const override;
-	virtual bool BindToNode(UEdGraphNode* Node, UObject* Binding) const override;
+	virtual bool IsBindingCompatible(FBindingObject BindingCandidate) const override;
+	virtual bool BindToNode(UEdGraphNode* Node, FBindingObject Binding) const override;
 	// End IBlueprintNodeBinder interface
 
 	/** @return  */
-	UMulticastDelegateProperty const* GetEventDelegate() const;
+	FMulticastDelegateProperty const* GetEventDelegate() const;
 
 private:
 	/** */
 	UPROPERTY()
-	UMulticastDelegateProperty* EventDelegate;
+	TFieldPath<FMulticastDelegateProperty> EventDelegate;
 };

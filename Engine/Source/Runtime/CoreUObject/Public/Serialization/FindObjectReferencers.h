@@ -68,5 +68,5 @@ private:
 	 *
 	 * @todo - not yet implemented
 	 */
-//	TMap< T*, TMultiMap<UObject*, UProperty*> >		ReferenceProperties;
+//	TMap< T*, TMultiMap<UObject*, FProperty*> >		ReferenceProperties;
 };

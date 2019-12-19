@@ -168,7 +168,7 @@ void UAnimGraphNode_BlendListByEnum::RemovePinFromBlendList(UEdGraphPin* Pin)
 		VisibleEnumEntries.RemoveAt(ExposedEnumIndex);
 
 		// Remove the pose from the node
-		UProperty* AssociatedProperty;
+		FProperty* AssociatedProperty;
 		int32 ArrayIndex;
 		GetPinAssociatedProperty(GetFNodeType(), Pin, /*out*/ AssociatedProperty, /*out*/ ArrayIndex);
 

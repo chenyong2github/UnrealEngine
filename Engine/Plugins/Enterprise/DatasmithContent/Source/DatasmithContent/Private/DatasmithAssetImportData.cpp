@@ -15,7 +15,7 @@
 #if WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
-bool UDatasmithSceneImportData::CanEditChange(const UProperty* InProperty) const
+bool UDatasmithSceneImportData::CanEditChange(const FProperty* InProperty) const
 {
 	if (!Super::CanEditChange(InProperty))
 	{

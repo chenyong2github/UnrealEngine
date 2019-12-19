@@ -90,59 +90,59 @@ bool FCborStructDeserializerBackend::GetNextToken(EStructDeserializerBackendToke
 	return true;
 }
 
-bool FCborStructDeserializerBackend::ReadProperty(UProperty* Property, UProperty* Outer, void* Data, int32 ArrayIndex)
+bool FCborStructDeserializerBackend::ReadProperty(FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex)
 {
 	switch (LastContext.MajorType())
 	{
 	// Unsigned Integers
 	case ECborCode::Uint:
 	{
-		if (UByteProperty* ByteProperty = Cast<UByteProperty>(Property))
+		if (FByteProperty* ByteProperty = CastField<FByteProperty>(Property))
 		{
 			return StructDeserializerBackendUtilities::SetPropertyValue(ByteProperty, Outer, Data, ArrayIndex, (uint8)LastContext.AsUInt());
 		}
 
-		if (UUInt16Property* UInt16Property = Cast<UUInt16Property>(Property))
+		if (FUInt16Property* FInt16Property = CastField<FUInt16Property>(Property))
 		{
-			return StructDeserializerBackendUtilities::SetPropertyValue(UInt16Property, Outer, Data, ArrayIndex, (uint16)LastContext.AsUInt());
+			return StructDeserializerBackendUtilities::SetPropertyValue(FInt16Property, Outer, Data, ArrayIndex, (uint16)LastContext.AsUInt());
 		}
 
-		if (UUInt32Property* UInt32Property = Cast<UUInt32Property>(Property))
+		if (FUInt32Property* UInt32Property = CastField<FUInt32Property>(Property))
 		{
 			return StructDeserializerBackendUtilities::SetPropertyValue(UInt32Property, Outer, Data, ArrayIndex, (uint32)LastContext.AsUInt());
 		}
 
-		if (UUInt64Property* UInt64Property = Cast<UUInt64Property>(Property))
+		if (FUInt64Property* FInt64Property = CastField<FUInt64Property>(Property))
 		{
-			return StructDeserializerBackendUtilities::SetPropertyValue(UInt64Property, Outer, Data, ArrayIndex, (uint64)LastContext.AsUInt());
+			return StructDeserializerBackendUtilities::SetPropertyValue(FInt64Property, Outer, Data, ArrayIndex, (uint64)LastContext.AsUInt());
 		}
 	}
 	// Fall through - cbor can encode positive signed integers as unsigned
 	// Signed Integers
 	case ECborCode::Int:
 	{
-		if (UInt8Property* Int8Property = Cast<UInt8Property>(Property))
+		if (FInt8Property* Int8Property = CastField<FInt8Property>(Property))
 		{
 			return StructDeserializerBackendUtilities::SetPropertyValue(Int8Property, Outer, Data, ArrayIndex, (int8)LastContext.AsInt());
 		}
 
-		if (UInt16Property* Int16Property = Cast<UInt16Property>(Property))
+		if (FInt16Property* Int16Property = CastField<FInt16Property>(Property))
 		{
 			return StructDeserializerBackendUtilities::SetPropertyValue(Int16Property, Outer, Data, ArrayIndex, (int16)LastContext.AsInt());
 		}
 
-		if (UIntProperty* IntProperty = Cast<UIntProperty>(Property))
+		if (FIntProperty* IntProperty = CastField<FIntProperty>(Property))
 		{
 			return StructDeserializerBackendUtilities::SetPropertyValue(IntProperty, Outer, Data, ArrayIndex, (int32)LastContext.AsInt());
 		}
 
-		if (UInt64Property* Int64Property = Cast<UInt64Property>(Property))
+		if (FInt64Property* Int64Property = CastField<FInt64Property>(Property))
 		{
 			return StructDeserializerBackendUtilities::SetPropertyValue(Int64Property, Outer, Data, ArrayIndex, (int64)LastContext.AsInt());
 		}
 
 
-		UE_LOG(LogSerialization, Verbose, TEXT("Integer field %s with value '%d' is not supported in UProperty type %s (%s)"), *Property->GetFName().ToString(), LastContext.AsUInt(), *Property->GetClass()->GetName(), *GetDebugString());
+		UE_LOG(LogSerialization, Verbose, TEXT("Integer field %s with value '%d' is not supported in FProperty type %s (%s)"), *Property->GetFName().ToString(), LastContext.AsUInt(), *Property->GetClass()->GetName(), *GetDebugString());
 
 		return false;
 	}
@@ -153,17 +153,17 @@ bool FCborStructDeserializerBackend::ReadProperty(UProperty* Property, UProperty
 	{
 		FString StringValue = LastContext.AsString();
 
-		if (UStrProperty* StrProperty = Cast<UStrProperty>(Property))
+		if (FStrProperty* StrProperty = CastField<FStrProperty>(Property))
 		{
 			return StructDeserializerBackendUtilities::SetPropertyValue(StrProperty, Outer, Data, ArrayIndex, StringValue);
 		}
 
-		if (UNameProperty* NameProperty = Cast<UNameProperty>(Property))
+		if (FNameProperty* NameProperty = CastField<FNameProperty>(Property))
 		{
 			return StructDeserializerBackendUtilities::SetPropertyValue(NameProperty, Outer, Data, ArrayIndex, FName(*StringValue));
 		}
 
-		if (UTextProperty* TextProperty = Cast<UTextProperty>(Property))
+		if (FTextProperty* TextProperty = CastField<FTextProperty>(Property))
 		{
 			FText TextValue;
 			if (!FTextStringHelper::ReadFromBuffer(*StringValue, TextValue))
@@ -173,7 +173,7 @@ bool FCborStructDeserializerBackend::ReadProperty(UProperty* Property, UProperty
 			return StructDeserializerBackendUtilities::SetPropertyValue(TextProperty, Outer, Data, ArrayIndex, TextValue);
 		}
 
-		if (UByteProperty* ByteProperty = Cast<UByteProperty>(Property))
+		if (FByteProperty* ByteProperty = CastField<FByteProperty>(Property))
 		{
 			if (!ByteProperty->Enum)
 			{
@@ -189,7 +189,7 @@ bool FCborStructDeserializerBackend::ReadProperty(UProperty* Property, UProperty
 			return StructDeserializerBackendUtilities::SetPropertyValue(ByteProperty, Outer, Data, ArrayIndex, (uint8)Value);
 		}
 
-		if (UEnumProperty* EnumProperty = Cast<UEnumProperty>(Property))
+		if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
 		{
 			int64 Value = EnumProperty->GetEnum()->GetValueByName(*StringValue);
 			if (Value == INDEX_NONE)
@@ -206,32 +206,32 @@ bool FCborStructDeserializerBackend::ReadProperty(UProperty* Property, UProperty
 			return false;
 		}
 
-		if (UClassProperty* ClassProperty = Cast<UClassProperty>(Property))
+		if (FClassProperty* ClassProperty = CastField<FClassProperty>(Property))
 		{
 			return StructDeserializerBackendUtilities::SetPropertyValue(ClassProperty, Outer, Data, ArrayIndex, LoadObject<UClass>(NULL, *StringValue, NULL, LOAD_NoWarn));
 		}
 
-		if (USoftClassProperty* SoftClassProperty = Cast<USoftClassProperty>(Property))
+		if (FSoftClassProperty* SoftClassProperty = CastField<FSoftClassProperty>(Property))
 		{
 			return StructDeserializerBackendUtilities::SetPropertyValue(SoftClassProperty, Outer, Data, ArrayIndex, FSoftObjectPtr(LoadObject<UClass>(nullptr, *StringValue, nullptr, LOAD_NoWarn)));
 		}
 
-		if (UObjectProperty* ObjectProperty = Cast<UObjectProperty>(Property))
+		if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
 		{
 			return StructDeserializerBackendUtilities::SetPropertyValue(ObjectProperty, Outer, Data, ArrayIndex, StaticFindObject(ObjectProperty->PropertyClass, nullptr, *StringValue));
 		}
 
-		if (UWeakObjectProperty* WeakObjectProperty = Cast<UWeakObjectProperty>(Property))
+		if (FWeakObjectProperty* WeakObjectProperty = CastField<FWeakObjectProperty>(Property))
 		{
 			return StructDeserializerBackendUtilities::SetPropertyValue(WeakObjectProperty, Outer, Data, ArrayIndex, FWeakObjectPtr(StaticFindObject(WeakObjectProperty->PropertyClass, nullptr, *StringValue)));
 		}
 
-		if (USoftObjectProperty* SoftObjectProperty = Cast<USoftObjectProperty>(Property))
+		if (FSoftObjectProperty* SoftObjectProperty = CastField<FSoftObjectProperty>(Property))
 		{
 			return StructDeserializerBackendUtilities::SetPropertyValue(SoftObjectProperty, Outer, Data, ArrayIndex, FSoftObjectPtr(FSoftObjectPath(StringValue)));
 		}
 
-		UE_LOG(LogSerialization, Verbose, TEXT("String field %s with value '%s' is not supported in UProperty type %s (%s)"), *Property->GetFName().ToString(), *StringValue, *Property->GetClass()->GetName(), *GetDebugString());
+		UE_LOG(LogSerialization, Verbose, TEXT("String field %s with value '%s' is not supported in FProperty type %s (%s)"), *Property->GetFName().ToString(), *StringValue, *Property->GetClass()->GetName(), *GetDebugString());
 
 		return false;
 	}
@@ -249,11 +249,11 @@ bool FCborStructDeserializerBackend::ReadProperty(UProperty* Property, UProperty
 		{
 			const FCoreTexts& CoreTexts = FCoreTexts::Get();
 
-			if (UBoolProperty* BoolProperty = Cast<UBoolProperty>(Property))
+			if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
 			{
 				return StructDeserializerBackendUtilities::SetPropertyValue(BoolProperty, Outer, Data, ArrayIndex, LastContext.AsBool());
 			}
-			UE_LOG(LogSerialization, Verbose, TEXT("Boolean field %s with value '%s' is not supported in UProperty type %s (%s)"), *Property->GetFName().ToString(), LastContext.AsBool() ? *(CoreTexts.True.ToString()) : *(CoreTexts.False.ToString()), *Property->GetClass()->GetName(), *GetDebugString());
+			UE_LOG(LogSerialization, Verbose, TEXT("Boolean field %s with value '%s' is not supported in FProperty type %s (%s)"), *Property->GetFName().ToString(), LastContext.AsBool() ? *(CoreTexts.True.ToString()) : *(CoreTexts.False.ToString()), *Property->GetClass()->GetName(), *GetDebugString());
 			return false;
 		}
 			// Null
@@ -261,22 +261,22 @@ bool FCborStructDeserializerBackend::ReadProperty(UProperty* Property, UProperty
 			return StructDeserializerBackendUtilities::ClearPropertyValue(Property, Outer, Data, ArrayIndex);
 			// Float
 		case ECborCode::Value_4Bytes:
-			if (UFloatProperty* FloatProperty = Cast<UFloatProperty>(Property))
+			if (FFloatProperty* FloatProperty = CastField<FFloatProperty>(Property))
 			{
 				return StructDeserializerBackendUtilities::SetPropertyValue(FloatProperty, Outer, Data, ArrayIndex, LastContext.AsFloat());
 			}
-			UE_LOG(LogSerialization, Verbose, TEXT("Float field %s with value '%f' is not supported in UProperty type %s (%s)"), *Property->GetFName().ToString(), LastContext.AsFloat(), *Property->GetClass()->GetName(), *GetDebugString());
+			UE_LOG(LogSerialization, Verbose, TEXT("Float field %s with value '%f' is not supported in FProperty type %s (%s)"), *Property->GetFName().ToString(), LastContext.AsFloat(), *Property->GetClass()->GetName(), *GetDebugString());
 			return false;
 			// Double
 		case ECborCode::Value_8Bytes:
-			if (UDoubleProperty* DoubleProperty = Cast<UDoubleProperty>(Property))
+			if (FDoubleProperty* DoubleProperty = CastField<FDoubleProperty>(Property))
 			{
 				return StructDeserializerBackendUtilities::SetPropertyValue(DoubleProperty, Outer, Data, ArrayIndex, LastContext.AsDouble());
 			}
-			UE_LOG(LogSerialization, Verbose, TEXT("Double field %s with value '%f' is not supported in UProperty type %s (%s)"), *Property->GetFName().ToString(), LastContext.AsDouble(), *Property->GetClass()->GetName(), *GetDebugString());
+			UE_LOG(LogSerialization, Verbose, TEXT("Double field %s with value '%f' is not supported in FProperty type %s (%s)"), *Property->GetFName().ToString(), LastContext.AsDouble(), *Property->GetClass()->GetName(), *GetDebugString());
 			return false;
 		default:
-			UE_LOG(LogSerialization, Verbose, TEXT("Unsupported primitive type for %s in UProperty type %s (%s)"), *Property->GetFName().ToString(), LastContext.AsDouble(), *Property->GetClass()->GetName(), *GetDebugString());
+			UE_LOG(LogSerialization, Verbose, TEXT("Unsupported primitive type for %s in FProperty type %s (%s)"), *Property->GetFName().ToString(), LastContext.AsDouble(), *Property->GetClass()->GetName(), *GetDebugString());
 			return false;
 		}
 	}

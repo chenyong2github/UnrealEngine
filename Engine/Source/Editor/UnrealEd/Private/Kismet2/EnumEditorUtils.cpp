@@ -16,6 +16,7 @@
 #include "Internationalization/TextNamespaceUtil.h"
 #include "Internationalization/TextPackageNamespaceUtil.h"
 #include "ScopedTransaction.h"
+#include "UObject/PropertyIterator.h"
 
 #define LOCTEXT_NAMESPACE "Enum"
 
@@ -281,8 +282,9 @@ void FEnumEditorUtils::BroadcastChanges(const UUserDefinedEnum* Enum, const TArr
 		FArchiveEnumeratorResolver EnumeratorResolver(Enum, OldNames);
 
 		TArray<UClass*> ClassesToCheck;
-		for (const UByteProperty* ByteProperty : TObjectRange<UByteProperty>())
+		for (TPropertyIterator<FByteProperty> It; It; ++It)
 		{
+			const FByteProperty* ByteProperty = *It;
 			if (ByteProperty && (Enum == ByteProperty->GetIntPropertyEnum()))
 			{
 				UClass* OwnerClass = ByteProperty->GetOwnerClass();
@@ -292,8 +294,9 @@ void FEnumEditorUtils::BroadcastChanges(const UUserDefinedEnum* Enum, const TArr
 				}
 			}
 		}
-		for (const UEnumProperty* EnumProperty : TObjectRange<UEnumProperty>())
+		for (TPropertyIterator<FEnumProperty> It; It; ++It)
 		{
+			const FEnumProperty* EnumProperty = *It;
 			if (EnumProperty && (Enum == EnumProperty->GetEnum()))
 			{
 				UClass* OwnerClass = EnumProperty->GetOwnerClass();
@@ -383,9 +386,9 @@ void FEnumEditorUtils::BroadcastChanges(const UUserDefinedEnum* Enum, const TArr
 	}
 
 	// Modify any properties that are using the enum as a bitflags type for bitmask values inside a Blueprint class.
-	for (TObjectIterator<UIntProperty> PropertyIter; PropertyIter; ++PropertyIter)
+	for (TPropertyIterator<FIntProperty> PropertyIter; PropertyIter; ++PropertyIter)
 	{
-		const UIntProperty* IntProperty = *PropertyIter;
+		const FIntProperty* IntProperty = *PropertyIter;
 		if (IntProperty && IntProperty->HasMetaData(*FBlueprintMetadata::MD_Bitmask.ToString()))
 		{
 			UClass* OwnerClass = IntProperty->GetOwnerClass();
@@ -404,7 +407,7 @@ void FEnumEditorUtils::BroadcastChanges(const UUserDefinedEnum* Enum, const TArr
 						FBlueprintEditorUtils::RemoveBlueprintVariableMetaData(Blueprint, VarName, nullptr, FBlueprintMetadata::MD_BitmaskEnum);
 
 						// Need to reassign the property since the skeleton class will have been regenerated at this point.
-						IntProperty = FindFieldChecked<UIntProperty>(Blueprint->SkeletonGeneratedClass, VarName);
+						IntProperty = FindFieldChecked<FIntProperty>(Blueprint->SkeletonGeneratedClass, VarName);
 
 						// Reconstruct any nodes that reference the variable that was just modified.
 						for (TObjectIterator<UK2Node_Variable> VarNodeIt; VarNodeIt; ++VarNodeIt)

@@ -23,6 +23,11 @@ void FEdGraphToken::Create(const TCHAR* String, FCompilerResultsLog* Log, FToken
 	OutMessage.AddToken( FTextToken::Create(FText::FromString(FString(String))) );
 }
 
+void FEdGraphToken::Create(const FField* InField, FCompilerResultsLog* Log, FTokenizedMessage &OutMessage, TArray<UEdGraphNode*>& OutSourceNodes)
+{
+	Create(*InField->GetPathName(), Log, OutMessage, OutSourceNodes);
+}
+
 const UEdGraphPin* FEdGraphToken::GetPin() const
 {
 	return PinBeingReferenced.Get();

@@ -1450,7 +1450,7 @@ void SProjectBrowser::OnAutoloadLastProjectChanged(ECheckBoxState NewState)
 	UEditorSettings *Settings = GetMutableDefault<UEditorSettings>();
 	Settings->bLoadTheMostRecentlyLoadedProjectAtStartup = (NewState == ECheckBoxState::Checked);
 
-	UProperty* AutoloadProjectProperty = FindField<UProperty>(Settings->GetClass(), "bLoadTheMostRecentlyLoadedProjectAtStartup");
+	FProperty* AutoloadProjectProperty = FindField<FProperty>(Settings->GetClass(), "bLoadTheMostRecentlyLoadedProjectAtStartup");
 	if (AutoloadProjectProperty != NULL)
 	{
 		FPropertyChangedEvent PropertyUpdateStruct(AutoloadProjectProperty);

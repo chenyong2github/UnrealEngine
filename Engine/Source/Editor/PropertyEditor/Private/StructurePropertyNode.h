@@ -43,7 +43,7 @@ public:
 			return false;
 		}
 
-		UProperty* InItemProperty = InPropertyNode.GetProperty();
+		FProperty* InItemProperty = InPropertyNode.GetProperty();
 		if (!InItemProperty)
 		{
 			return false;
@@ -122,7 +122,7 @@ public:
 		check(0 == Index);
 		return HasValidStructData() ? StructData->GetStructMemory() : NULL;
 	}
-	virtual uint8* GetValuePtrOfInstance(int32 Index, const UProperty* InProperty, FPropertyNode* InParentNode) override
+	virtual uint8* GetValuePtrOfInstance(int32 Index, const FProperty* InProperty, FPropertyNode* InParentNode) override
 	{ 
 		check(0 == Index);
 		uint8* StructBaseAddress = HasValidStructData() ? StructData->GetStructMemory() : nullptr;

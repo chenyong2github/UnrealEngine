@@ -14,7 +14,7 @@ UK2Node_StructMemberSet::UK2Node_StructMemberSet(const FObjectInitializer& Objec
 {
 }
 
-void UK2Node_StructMemberSet::PreEditChange(UProperty* PropertyThatWillChange)
+void UK2Node_StructMemberSet::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);
 

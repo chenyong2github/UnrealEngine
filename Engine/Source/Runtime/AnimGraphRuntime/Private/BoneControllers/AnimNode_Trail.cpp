@@ -3,6 +3,7 @@
 #include "BoneControllers/AnimNode_Trail.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "AngularLimit.h"
+#include "Animation/AnimTrace.h"
 /////////////////////////////////////////////////////
 // FAnimNode_Trail
 
@@ -47,6 +48,8 @@ void FAnimNode_Trail::UpdateInternal(const FAnimationUpdateContext& Context)
 	FAnimNode_SkeletalControlBase::UpdateInternal(Context);
 
 	ThisTimstep += Context.GetDeltaTime();
+
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Active Bone"), TrailBone.BoneName);
 }
 
 void FAnimNode_Trail::GatherDebugData(FNodeDebugData& DebugData)

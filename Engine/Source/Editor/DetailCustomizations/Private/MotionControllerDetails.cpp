@@ -45,7 +45,7 @@ void FMotionControllerDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayo
 	{
 		IDetailPropertyRow& PropertyRow = VisualizationDetails.AddProperty(VisProp);
 
-		UProperty* RawProperty = VisProp->GetProperty();
+		FProperty* RawProperty = VisProp->GetProperty();
 		if (RawProperty == ModelSrcProperty->GetProperty())
 		{
 			CustomizeModelSourceRow(ModelSrcProperty, PropertyRow);

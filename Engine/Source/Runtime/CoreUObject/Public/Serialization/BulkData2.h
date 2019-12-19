@@ -21,8 +21,6 @@ struct FOwnedBulkDataPtr;
  *
  * It functions pretty much the same as IAsyncReadRequest expect that it also holds
  * the file handle as well.
- *
- *
  */
 class COREUOBJECT_API IBulkDataIORequest
 {
@@ -37,6 +35,11 @@ public:
 
 	virtual void Cancel() = 0;
 };
+
+/**
+ * Callback to use when making streaming requests
+ */
+typedef TFunction<void(bool bWasCancelled, IBulkDataIORequest*)> FBulkDataIORequestCallBack;
 
 /**
  * @documentation @todo documentation
@@ -74,7 +77,7 @@ public:
 	void Unlock();
 	bool IsLocked() const;
 
-	void* Realloc(int64 InElementCount);
+	void* Realloc(int64 SizeInBytes);
 
 	/**
 	 * Retrieves a copy of the bulk data.
@@ -92,6 +95,11 @@ public:
 	uint32 GetBulkDataFlags() const { return BulkDataFlags; }
 
 	bool CanLoadFromDisk() const { return IsUsingIODispatcher() || Fallback.Token != InvalidToken; }
+	
+	/**
+	 * Returns true if the data references a file that currently exists and can be referenced by the file system.
+	 */
+	bool DoesExist() const;
 
 	bool IsStoredCompressedOnDisk() const;
 	FName GetDecompressionFormat() const;
@@ -108,10 +116,10 @@ public:
 	bool IsMemoryMapped() const;
 	bool IsUsingIODispatcher() const;
 
-	IBulkDataIORequest* CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
-	IBulkDataIORequest* CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
+	IBulkDataIORequest* CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
+	IBulkDataIORequest* CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
 	
-	static IBulkDataIORequest* CreateStreamingRequestForRange(const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* CompleteCallback);
+	static IBulkDataIORequest* CreateStreamingRequestForRange(const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback);
 
 	void RemoveBulkData();
 
@@ -129,7 +137,7 @@ public:
 private:
 	void LoadDataDirectly(void** DstBuffer);
 
-	void SerializeDuplicateData(FArchive& Ar, const FLinkerLoad* Linker, uint32& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile);
+	void SerializeDuplicateData(FArchive& Ar, uint32& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile);
 	void SerializeBulkData(FArchive& Ar, void* DstBuffer, int64 DataLength);
 
 	void AllocateData(SIZE_T SizeInBytes);
@@ -171,9 +179,26 @@ class COREUOBJECT_API FUntypedBulkData2 : public FBulkDataBase
 	// used or not.
 	static_assert(TIsPODType<ElementType>::Value, "FUntypedBulkData2 is limited to POD types!");
 public:
+	FORCEINLINE FUntypedBulkData2() {}
+
 	void Serialize(FArchive& Ar, UObject* Owner, int32 Index, bool bAttemptFileMapping)
 	{
 		FBulkDataBase::Serialize(Ar, Owner, Index, bAttemptFileMapping, sizeof(ElementType));
+	}
+	
+	// @TODO: The following two ::Serialize methods are a work around for the default parameters in the old 
+	// BulkData api that are not used anywhere and to avoid causing code compilation issues for licensee code.
+	// At some point in the future we should remove Index and bAttemptFileMapping from both the old and new 
+	// BulkData api implementations of ::Serialize and then use UE_DEPRECATE to update existing code properly.
+	FORCEINLINE void Serialize(FArchive& Ar, UObject* Owner)
+	{	
+		Serialize(Ar, Owner, INDEX_NONE, false);
+	}
+
+	// @TODO: See above
+	FORCEINLINE void Serialize(FArchive& Ar, UObject* Owner, int32 Index)
+	{
+		Serialize(Ar, Owner, Index, false);
 	}
 
 	/**
@@ -208,7 +233,7 @@ public:
 
 	ElementType* Realloc(int64 InElementCount)
 	{
-		return (ElementType*)FBulkDataBase::Realloc(InElementCount);
+		return (ElementType*)FBulkDataBase::Realloc(InElementCount * sizeof(ElementType));
 	}
 
 	/**
@@ -220,7 +245,7 @@ public:
 	 *
 	 * @return A FBulkDataBuffer that owns a copy of the BulkData, this might be a subset of the data depending on the value of RequestedSize.
 	 */
-	FBulkDataBuffer<ElementType> GetCopyAsBuffer(int64 RequestedElementCount, bool bDiscardInternalCopy)
+	FORCEINLINE FBulkDataBuffer<ElementType> GetCopyAsBuffer(int64 RequestedElementCount, bool bDiscardInternalCopy)
 	{
 		const int64 MaxElementCount = GetElementCount();
 

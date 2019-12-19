@@ -86,7 +86,7 @@ public:
 	 * @param ArrayIndex An index into the property array (for static arrays).
 	 * @return true on success, false otherwise.
 	 */
-	virtual bool ReadProperty( UProperty* Property, UProperty* Outer, void* Data, int32 ArrayIndex ) = 0;
+	virtual bool ReadProperty( FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex ) = 0;
 
 	/** Skips the array that is currently being read from the stream. */
 	virtual void SkipArray() = 0;

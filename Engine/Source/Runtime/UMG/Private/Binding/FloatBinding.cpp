@@ -8,12 +8,12 @@ UFloatBinding::UFloatBinding()
 {
 }
 
-bool UFloatBinding::IsSupportedDestination(UProperty* Property) const
+bool UFloatBinding::IsSupportedDestination(FProperty* Property) const
 {
 	return IsSupportedSource(Property);
 }
 
-bool UFloatBinding::IsSupportedSource(UProperty* Property) const
+bool UFloatBinding::IsSupportedSource(FProperty* Property) const
 {
 	return IsConcreteTypeCompatibleWithReflectedType<float>(Property);
 }

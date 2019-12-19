@@ -10,17 +10,17 @@ UPropertyBinding::UPropertyBinding()
 {
 }
 
-bool UPropertyBinding::IsSupportedSource(UProperty* Property) const
+bool UPropertyBinding::IsSupportedSource(FProperty* Property) const
 {
 	return false;
 }
 
-bool UPropertyBinding::IsSupportedDestination(UProperty* Property) const
+bool UPropertyBinding::IsSupportedDestination(FProperty* Property) const
 {
 	return false;
 }
 
-void UPropertyBinding::Bind(UProperty* Property, FScriptDelegate* Delegate)
+void UPropertyBinding::Bind(FProperty* Property, FScriptDelegate* Delegate)
 {
 	static const FName BinderFunction(TEXT("GetValue"));
 	Delegate->BindUFunction(this, BinderFunction);

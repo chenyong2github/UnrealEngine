@@ -590,6 +590,13 @@ public:
 			// Update where we are in the file
 			FilePos += NumRead;
 			UpdateOverlappedPos();
+			
+			// Early out as a failure case if we did not read all of the bytes that we expected to read
+			if (BytesToRead32 != NumRead)
+			{
+				return false; 
+			}	
+					
 		} while (BytesToRead > 0);
 		TRACE_PLATFORMFILE_END_READ(&OverlappedIO, TotalNumRead);
 		return true;
@@ -624,6 +631,7 @@ public:
 					return false;
 				}
 			}
+	
 			BytesToWrite -= BytesToWrite32;
 			Source += BytesToWrite32;
 			TotalNumWritten += NumWritten;
@@ -631,6 +639,13 @@ public:
 			FilePos += NumWritten;
 			UpdateOverlappedPos();
 			FileSize = FMath::Max(FilePos, FileSize);
+			
+			// Early out as a failure case if we didn't write all of the data we expected
+			if (BytesToWrite32 != NumWritten)
+			{
+				return false;
+			}
+			
 		} while (BytesToWrite > 0);
 
 		TRACE_PLATFORMFILE_END_WRITE(this, TotalNumWritten);
@@ -1036,7 +1051,13 @@ public:
 	virtual bool DeleteDirectory(const TCHAR* Directory) override
 	{
 		RemoveDirectoryW(*NormalizeDirectory(Directory));
-		return !DirectoryExists(Directory);
+		uint32 LastError = GetLastError();
+		const bool bSucceeded = !DirectoryExists(Directory);
+		if (!bSucceeded)
+		{
+			SetLastError(LastError);
+		}
+		return bSucceeded;
 	}
 	virtual FFileStatData GetStatData(const TCHAR* FilenameOrDirectory) override
 	{

@@ -18,10 +18,10 @@ public:
 
 	bool WriteTable(const UDataTable& InDataTable);
 
-	bool WriteRow(const UScriptStruct* InRowStruct, const void* InRowData, const UProperty* SkipProperty = nullptr);
+	bool WriteRow(const UScriptStruct* InRowStruct, const void* InRowData, const FProperty* SkipProperty = nullptr);
 
 private:
-	bool WriteStructEntry(const void* InRowData, UProperty* InProperty, const void* InPropertyData);
+	bool WriteStructEntry(const void* InRowData, FProperty* InProperty, const void* InPropertyData);
 
 	EDataTableExportFlags DTExportFlags;
 	FString& ExportedText;

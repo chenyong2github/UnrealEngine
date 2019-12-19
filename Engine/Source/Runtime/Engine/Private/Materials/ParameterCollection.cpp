@@ -160,7 +160,7 @@ void SanitizeParameters(TArray<ParameterType>& Parameters)
 int32 PreviousNumScalarParameters = 0;
 int32 PreviousNumVectorParameters = 0;
 
-void UMaterialParameterCollection::PreEditChange(UProperty* PropertyThatWillChange)
+void UMaterialParameterCollection::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);
 

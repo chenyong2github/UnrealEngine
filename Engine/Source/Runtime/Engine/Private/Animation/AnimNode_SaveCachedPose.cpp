@@ -2,6 +2,7 @@
 
 #include "Animation/AnimNode_SaveCachedPose.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_SaveCachedPose
@@ -52,6 +53,8 @@ void FAnimNode_SaveCachedPose::Update_AnyThread(const FAnimationUpdateContext& C
 
 	// Store this context for the post update
 	CachedUpdate.Context = Context.WithOtherSharedContext(CachedUpdate.SharedContext.Get());
+
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Cached Pose Name"), CachePoseName);
 }
 
 void FAnimNode_SaveCachedPose::Evaluate_AnyThread(FPoseContext& Output)

@@ -8,7 +8,7 @@ UFbxTextureImportData::UFbxTextureImportData(const FObjectInitializer& ObjectIni
 	
 }
 
-bool UFbxTextureImportData::CanEditChange(const UProperty* InProperty) const
+bool UFbxTextureImportData::CanEditChange(const FProperty* InProperty) const
 {
 	bool bMutable = Super::CanEditChange(InProperty);
 	UObject* Outer = GetOuter();

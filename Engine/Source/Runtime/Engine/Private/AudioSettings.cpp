@@ -40,7 +40,7 @@ void UAudioSettings::AddDefaultSettings()
 }
 
 #if WITH_EDITOR
-void UAudioSettings::PreEditChange(UProperty* PropertyAboutToChange)
+void UAudioSettings::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	// Cache at least the first entry in case someone tries to clear the array
 	CachedQualityLevels = QualityLevels;

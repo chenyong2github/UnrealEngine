@@ -555,7 +555,7 @@ UMediaFrameworkWorldSettingsAssetUserData* SMediaFrameworkCapture::FindOrAddMedi
 	return Result;
 }
 
-void SMediaFrameworkCapture::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged)
+void SMediaFrameworkCapture::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
 	if (GetDefault<UMediaFrameworkEditorCaptureSettings>()->bSaveCaptureSetingsInWorld)
 	{

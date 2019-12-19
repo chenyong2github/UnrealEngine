@@ -13,7 +13,7 @@ class CORE_API FEngineVersion : public FEngineVersionBase
 public:
 
 	/** Empty constructor. Initializes the version to 0.0.0-0. */
-	FEngineVersion();
+	FEngineVersion() = default;
 
 	/** Constructs a version from the given components. */
 	FEngineVersion(uint16 InMajor, uint16 InMinor, uint16 InPatch, uint32 InChangelist, const FString &InBranch);

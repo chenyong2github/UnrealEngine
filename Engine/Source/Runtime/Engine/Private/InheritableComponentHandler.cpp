@@ -316,7 +316,7 @@ struct FComponentComparisonHelper
 		}
 
 		bool Result = true;
-		for (UProperty* Prop = ObjectA->GetClass()->PropertyLink; Prop && Result; Prop = Prop->PropertyLinkNext)
+		for (FProperty* Prop = ObjectA->GetClass()->PropertyLink; Prop && Result; Prop = Prop->PropertyLinkNext)
 		{
 			bool bConsiderProperty = Prop->ShouldDuplicateValue(); //Should the property be compared at all?
 			if (bConsiderProperty)

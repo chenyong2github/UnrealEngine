@@ -6,10 +6,11 @@
 #include "UObject/UnrealType.h"
 
 /*-----------------------------------------------------------------------------
-	UNameProperty.
+	FNameProperty.
 -----------------------------------------------------------------------------*/
+IMPLEMENT_FIELD(FNameProperty)
 
-void UNameProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
+void FNameProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
 {
 	FName Temp = *(FName*)PropertyValue;
 	if (0 != (PortFlags & PPF_ExportCpp))
@@ -31,7 +32,7 @@ void UNameProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue
 		ValueStr += TEXT("\"\"");
 	}
 }
-const TCHAR* UNameProperty::ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const
+const TCHAR* FNameProperty::ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const
 {
 	if (!(PortFlags & PPF_Delimited))
 	{
@@ -43,7 +44,7 @@ const TCHAR* UNameProperty::ImportText_Internal( const TCHAR* Buffer, void* Data
 	else
 	{
 		FString Temp;
-		Buffer = UPropertyHelpers::ReadToken(Buffer, Temp, true);
+		Buffer = FPropertyHelpers::ReadToken(Buffer, Temp, true);
 		if (!Buffer)
 			return NULL;
 
@@ -52,7 +53,7 @@ const TCHAR* UNameProperty::ImportText_Internal( const TCHAR* Buffer, void* Data
 	return Buffer;
 }
 
-EConvertFromTypeResult UNameProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct)
+EConvertFromTypeResult FNameProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct)
 {
 	if (Tag.Type == NAME_StrProperty)
 	{
@@ -75,18 +76,12 @@ EConvertFromTypeResult UNameProperty::ConvertFromType(const FPropertyTag& Tag, F
 	return EConvertFromTypeResult::UseSerializeItem;
 }
 
-FString UNameProperty::GetCPPTypeForwardDeclaration() const
+FString FNameProperty::GetCPPTypeForwardDeclaration() const
 {
 	return FString();
 }
 
-uint32 UNameProperty::GetValueTypeHashInternal(const void* Src) const
+uint32 FNameProperty::GetValueTypeHashInternal(const void* Src) const
 {
 	return GetTypeHash(*(const FName*)Src);
 }
-
-IMPLEMENT_CORE_INTRINSIC_CLASS(UNameProperty, UProperty,
-	{
-	}
-);
-

@@ -11,11 +11,11 @@
 
 #define LOCTEXT_NAMESPACE "ObjectEventsTrack"
 
-const FName FObjectEventsTrack::TypeName(TEXT("Gameplay"));
-const FName FObjectEventsTrack::SubTypeName(TEXT("ObjectEvents"));
+const FName FObjectEventsTrack::TypeName(TEXT("Events"));
+const FName FObjectEventsTrack::SubTypeName(TEXT("Gameplay.ObjectEvents"));
 
 FObjectEventsTrack::FObjectEventsTrack(const FGameplaySharedData& InSharedData, uint64 InObjectID, const TCHAR* InName)
-	: TGameplayTrackMixin<FTimingEventsTrack>(InObjectID, TypeName, SubTypeName, FText::Format(LOCTEXT("ObjectEventsTrackName", "{0}"), FText::FromString(FString(InName))))
+	: TGameplayTrackMixin<FTimingEventsTrack>(InObjectID, TypeName, SubTypeName, MakeTrackName(InSharedData, InObjectID, InName))
 	, SharedData(InSharedData)
 {
 }
@@ -42,7 +42,7 @@ void FObjectEventsTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Buil
 void FObjectEventsTrack::Draw(const ITimingTrackDrawContext& Context) const
 {
 	DrawEvents(Context);
-	GetGameplayTrack().DrawHeaderForTimingTrack(Context, *this);
+	GetGameplayTrack().DrawHeaderForTimingTrack(Context, *this, false);
 }
 
 void FObjectEventsTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEvent& HoveredTimingEvent) const
@@ -101,6 +101,25 @@ void FObjectEventsTrack::FindObjectEvent(const FTimingEventSearchParameters& InP
 		{
 			InFoundPredicate(InFoundStartTime, InFoundEndTime, InFoundDepth, InEvent);
 		});
+}
+
+FText FObjectEventsTrack::MakeTrackName(const FGameplaySharedData& InSharedData, uint64 InObjectID, const TCHAR* InName) const
+{
+	FText ClassName = LOCTEXT("UnknownClass", "Unknown");
+
+	const FGameplayProvider* GameplayProvider = InSharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
+	if(GameplayProvider)	
+	{
+		if(const FObjectInfo* ObjectInfo = GameplayProvider->FindObjectInfo(InObjectID))
+		{
+			if(const FClassInfo* ClassInfo = GameplayProvider->FindClassInfo(ObjectInfo->ClassId))
+			{
+				ClassName = FText::FromString(ClassInfo->Name);
+			}
+		}
+	}
+
+	return FText::Format(LOCTEXT("ObjectEventsTrackName", "{0} - {1}"), ClassName, FText::FromString(InName));
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -721,7 +721,7 @@ private:
 	Audio::FSpectrumAnalyzerSettings SpectrumAnalyzerSettings;
 	FThreadSafeCounter SpectrumAnalysisCounter;
 
-	// Array of spectrum data, maps to FrequenciesToAnalyze UProperty
+	// Array of spectrum data, maps to FrequenciesToAnalyze FProperty
 	TArray<FTimeSynthSpectralData> SpectralData;
 
 	// Using a state variable filter

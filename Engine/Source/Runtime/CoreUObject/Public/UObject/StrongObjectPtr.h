@@ -81,7 +81,7 @@ public:
 
 	template <
 		typename OtherObjectType,
-		typename = typename TEnableIf<TPointerIsConvertibleFromTo<OtherObjectType, ObjectType>::Value>::Type
+		typename = decltype(ImplicitConv<ObjectType*>((OtherObjectType*)nullptr))
 	>
 	FORCEINLINE_DEBUGGABLE TStrongObjectPtr(const TStrongObjectPtr<OtherObjectType>& InOther)
 		: ReferenceCollector(InOther.Get())
@@ -95,11 +95,11 @@ public:
 		return *this;
 	}
 
-	template <typename OtherObjectType>
-	FORCEINLINE_DEBUGGABLE typename TEnableIf<
-		TPointerIsConvertibleFromTo<OtherObjectType, ObjectType>::Value,
-		TStrongObjectPtr&
-	>::Type operator=(const TStrongObjectPtr<OtherObjectType>& InOther)
+	template <
+		typename OtherObjectType,
+		typename = decltype(ImplicitConv<ObjectType*>((OtherObjectType*)nullptr))
+	>
+	FORCEINLINE_DEBUGGABLE TStrongObjectPtr& operator=(const TStrongObjectPtr<OtherObjectType>& InOther)
 	{
 		ReferenceCollector->Set(InOther.Get());
 		return *this;

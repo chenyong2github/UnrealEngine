@@ -53,6 +53,29 @@ FAutoConsoleVariableRef CVarDeferUniformExpressionCaching(
 	ECVF_RenderThreadSafe
 	);
 
+struct FAllowCachingStaticParameterValues
+{
+	FAllowCachingStaticParameterValues(FMaterial& InMaterial)
+#if WITH_EDITOR
+		: Material(InMaterial)
+#endif // WITH_EDITOR
+	{
+#if WITH_EDITOR
+		Material.BeginAllowCachingStaticParameterValues();
+#endif // WITH_EDITOR
+	};
+
+#if WITH_EDITOR
+	~FAllowCachingStaticParameterValues()
+	{
+		Material.EndAllowCachingStaticParameterValues();
+	}
+
+private:
+	FMaterial& Material;
+#endif // WITH_EDITOR
+};
+
 static FAutoConsoleCommand GFlushMaterialUniforms(
 	TEXT("r.FlushMaterialUniforms"),
 	TEXT(""),
@@ -1761,6 +1784,7 @@ void FMaterial::SetupMaterialEnvironment(
  */
 bool FMaterial::CacheShaders(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform)
 {
+	FAllowCachingStaticParameterValues AllowCachingStaticParameterValues(*this);
 	FMaterialShaderMapId NoStaticParametersId;
 	GetShaderMapId(Platform, NoStaticParametersId);
 	FStaticParameterSet StaticParameterSet;

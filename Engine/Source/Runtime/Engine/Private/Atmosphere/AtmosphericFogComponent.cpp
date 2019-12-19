@@ -515,7 +515,7 @@ void UAtmosphericFogComponent::PostEditChangeProperty(FPropertyChangedEvent& Pro
 }
 #endif // WITH_EDITOR
 
-void UAtmosphericFogComponent::PostInterpChange(UProperty* PropertyThatChanged)
+void UAtmosphericFogComponent::PostInterpChange(FProperty* PropertyThatChanged)
 {
 	Super::PostInterpChange(PropertyThatChanged);
 

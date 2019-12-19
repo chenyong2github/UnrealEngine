@@ -330,7 +330,7 @@ FString UExportDialogueScriptCommandlet::GenerateCSVHeader()
 {
 	FString CSVHeader;
 	
-	for (TFieldIterator<const UProperty> PropertyIt(FDialogueScriptEntry::StaticStruct(), EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::IncludeInterfaces); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<const FProperty> PropertyIt(FDialogueScriptEntry::StaticStruct(), EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::IncludeInterfaces); PropertyIt; ++PropertyIt)
 	{
 		if (!CSVHeader.IsEmpty())
 		{
@@ -351,7 +351,7 @@ FString UExportDialogueScriptCommandlet::GenerateCSVRow(const FDialogueScriptEnt
 {
 	FString CSVRow;
 
-	for (TFieldIterator<const UProperty> PropertyIt(FDialogueScriptEntry::StaticStruct(), EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::IncludeInterfaces); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<const FProperty> PropertyIt(FDialogueScriptEntry::StaticStruct(), EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::IncludeInterfaces); PropertyIt; ++PropertyIt)
 	{
 		if (!CSVRow.IsEmpty())
 		{

@@ -72,6 +72,6 @@ private:
 	FString IOFilename;
 #endif
 
-	FAsyncFileCallBack AsyncFileCallBack;
+	FBulkDataIORequestCallBack AsyncFileCallBack;
 };
 

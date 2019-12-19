@@ -7,7 +7,7 @@
 
 class FUnrealSourceFile;
 class UPackage;
-class UProperty;
+class FProperty;
 class UFunction;
 class UStruct;
 class UField;
@@ -65,15 +65,17 @@ enum class EExportCallbackType
 
 struct FPropertyNamePointerPair
 {
-	FPropertyNamePointerPair(FString InName, UProperty* InProp)
+	FPropertyNamePointerPair(FString InName, FProperty* InProp)
 		: Name(MoveTemp(InName))
 		, Prop(InProp)
 	{
 	}
 
 	FString Name;
-	UProperty* Prop;
+	FProperty* Prop;
 };
+
+FString CreateUTF8LiteralString(const FString& Str);
 
 struct FNativeClassHeaderGenerator
 {
@@ -133,12 +135,30 @@ private:
 	/**
 	 * Returns the name (overridden if marked up) with TEXT("") or "" wrappers for use in a string literal.
 	 */
-	static FString GetOverriddenNameForLiteral(const UField* Item);
+	template <typename T>
+	static FString GetOverriddenNameForLiteral(const T* Item)
+	{
+		const FString& OverriddenName = Item->GetMetaData(TEXT("OverrideNativeName"));
+		if (!OverriddenName.IsEmpty())
+		{
+			return TEXT("TEXT(\"") + OverriddenName + TEXT("\")");
+		}
+		return TEXT("\"") + Item->GetName() + TEXT("\"");
+	}
 
 	/**
 	 * Returns the name (overridden if marked up) or "" wrappers for use in a string literal.
 	 */
-	static FString GetUTF8OverriddenNameForLiteral(const UField* Item);
+	template <typename T>
+	static FString GetUTF8OverriddenNameForLiteral(const T* Item)
+	{
+		const FString& OverriddenName = Item->GetMetaData(TEXT("OverrideNativeName"));
+		if (!OverriddenName.IsEmpty())
+		{
+			return CreateUTF8LiteralString(OverriddenName);
+		}
+		return CreateUTF8LiteralString(Item->GetName());
+	}
 
 	/**
 	 * Export functions used to find and call C++ or script implementation of a script function in the interface 
@@ -272,7 +292,7 @@ private:
 	 *
 	 * @return	the intrinsic null value for the property (0 for ints, TEXT("") for strings, etc.)
 	 */
-	static FString GetNullParameterValue( UProperty* Prop, bool bInitializer = false );
+	static FString GetNullParameterValue( FProperty* Prop, bool bInitializer = false );
 
 	/**
 	 * Exports a native function prototype
@@ -322,7 +342,7 @@ private:
 	 * @param Parameters list of parameters in the function
 	 * @param Return return parameter for the function
 	 */
-	void ExportFunctionThunk(FUHTStringBuilder& RPCWrappers, UFunction* Function, const FFuncInfo& FunctionData, const TArray<UProperty*>& Parameters, UProperty* Return);
+	void ExportFunctionThunk(FUHTStringBuilder& RPCWrappers, UFunction* Function, const FFuncInfo& FunctionData, const TArray<FProperty*>& Parameters, FProperty* Return);
 
 	/** Exports the native function registration code for the given class. */
 	static void ExportNatives(FOutputDevice& Out, FClass* Class);
@@ -366,7 +386,7 @@ private:
 	 *
 	 * @return      A pair of strings which represents the pointer and a count of the emitted properties.
 	 */
-	TTuple<FString, FString> OutputProperties(FOutputDevice& DeclOut, FOutputDevice& Out, const TCHAR* Scope, const TArray<UProperty*>& Properties, const TCHAR* DeclSpaces, const TCHAR* Spaces);
+	TTuple<FString, FString> OutputProperties(FOutputDevice& DeclOut, FOutputDevice& Out, const TCHAR* Scope, const TArray<FProperty*>& Properties, const TCHAR* DeclSpaces, const TCHAR* Spaces);
 
 	/**
 	 * Function to output the C++ code necessary to set up a property
@@ -378,7 +398,7 @@ private:
 	 * @param	DeclSpaces		String of spaces to use as an indent for the declaration
 	 * @param	Spaces			String of spaces to use as an indent
 	**/
-	void OutputProperty(FOutputDevice& DeclOut, FOutputDevice& Out, const TCHAR* Scope, TArray<FPropertyNamePointerPair>& PropertyNamesAndPointers, UProperty* Prop, const TCHAR* DeclSpaces, const TCHAR* Spaces);
+	void OutputProperty(FOutputDevice& DeclOut, FOutputDevice& Out, const TCHAR* Scope, TArray<FPropertyNamePointerPair>& PropertyNamesAndPointers, FProperty* Prop, const TCHAR* DeclSpaces, const TCHAR* Spaces);
 
 	/**
 	 * Function to output the C++ code necessary to set up a property, including an array property and its inner, array dimensions, etc.
@@ -392,7 +412,7 @@ private:
 	 * @param	Spaces			String of spaces to use as an indent
 	 * @param	SourceStruct	Structure that the property offset is relative to
 	**/
-	void PropertyNew(FOutputDevice& DeclOut, FOutputDevice& Out, UProperty* Prop, const TCHAR* OffsetStr, const TCHAR* Name, const TCHAR* DeclSpaces, const TCHAR* Spaces, const TCHAR* SourceStruct = NULL);
+	void PropertyNew(FOutputDevice& DeclOut, FOutputDevice& Out, FProperty* Prop, const TCHAR* OffsetStr, const TCHAR* Name, const TCHAR* DeclSpaces, const TCHAR* Spaces, const TCHAR* SourceStruct = NULL);
 
 	/**
 	 * Exports the proxy definitions for the list of enums specified
@@ -417,7 +437,7 @@ private:
 	 * @param	Prop			the property that is being exported
 	 * @param	PropertyText	the string containing the text exported from ExportCppDeclaration
 	 */
-	static void ApplyAlternatePropertyExportText(UProperty* Prop, FUHTStringBuilder& PropertyText, EExportingState ExportingState);
+	static void ApplyAlternatePropertyExportText(FProperty* Prop, FUHTStringBuilder& PropertyText, EExportingState ExportingState);
 
 	/**
 	* Create a temp header file name from the header name
@@ -460,9 +480,33 @@ public:
 	 * Properties in source files generated from blueprint assets have a symbol name that differs from the source asset.
 	 * This function returns the original name of the field (rather than the native, symbol name).
 	 */
-	static FString GetOverriddenName(const UField* Item);
-	static FName GetOverriddenFName(const UField* Item);
-	static FString GetOverriddenPathName(const UField* Item);
+	template <typename T>
+	static FString GetOverriddenName(const T* Item)
+	{
+		const FString& OverriddenName = Item->GetMetaData(TEXT("OverrideNativeName"));
+		if (!OverriddenName.IsEmpty())
+		{
+			return OverriddenName.ReplaceCharWithEscapedChar();
+		}
+		return Item->GetName();
+	}
+
+	template <typename T>
+	static FName GetOverriddenFName(const T* Item)
+	{
+		FString OverriddenName = Item->GetMetaData(TEXT("OverrideNativeName"));
+		if (!OverriddenName.IsEmpty())
+		{
+			return FName(*OverriddenName);
+		}
+		return Item->GetFName();
+	}
+
+	template <typename T>
+	static FString GetOverriddenPathName(const T* Item)
+	{
+		return FString::Printf(TEXT("%s.%s"), *FClass::GetTypePackageName(Item), *GetOverriddenName(Item));
+	}
 
 	// Constructor
 	FNativeClassHeaderGenerator(

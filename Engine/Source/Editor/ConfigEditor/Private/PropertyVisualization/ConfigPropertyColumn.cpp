@@ -21,7 +21,7 @@ bool FConfigPropertyCustomColumn::Supports(const TSharedRef< IPropertyTableColum
 		if (PropertyPath.IsValid() && PropertyPath->GetNumProperties() > 0)
 		{
 			const FPropertyInfo& PropertyInfo = PropertyPath->GetRootProperty();
-			UProperty* Property = PropertyInfo.Property.Get();
+			FProperty* Property = PropertyInfo.Property.Get();
 			IsSupported = Property->GetFName() == TEXT("ExternalProperty");
 		}
 	}

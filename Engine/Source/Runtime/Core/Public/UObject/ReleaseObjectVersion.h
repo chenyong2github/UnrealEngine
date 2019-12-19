@@ -26,7 +26,7 @@ struct CORE_API FReleaseObjectVersion
 		// Add Component node templates now use their own unique naming scheme to ensure more reliable archetype lookups.
 		AddComponentNodeTemplateUniqueNames,
 
-		// Fix a serialization issue with static mesh FMeshSectionInfoMap UProperty
+		// Fix a serialization issue with static mesh FMeshSectionInfoMap FProperty
 		UPropertryForMeshSectionSerialize,
 
 		// Existing HLOD settings screen size to screen area conversion

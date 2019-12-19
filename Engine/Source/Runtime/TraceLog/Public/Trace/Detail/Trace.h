@@ -27,7 +27,8 @@
 			{ \
 				const uint32 Always = Trace::FEventDef::Flag_Always; \
 				const uint32 Important = Trace::FEventDef::Flag_Important; \
-				const uint32 Flags = (0, ##__VA_ARGS__); \
+				uint32 Flags = decltype(EventProps_Private)::MaybeHasAux ? Trace::FEventDef::Flag_MaybeHasAux : 0; \
+				Flags |= (0, ##__VA_ARGS__); \
 				F##LoggerName##EventName##Fields Fields; \
 				const auto* Descs = (Trace::FFieldDesc*)(&Fields); \
 				uint32 DescCount = uint32(sizeof(Fields) / sizeof(*Descs)); \
@@ -46,8 +47,8 @@
 			decltype(FieldName)::Offset + decltype(FieldName)::Size,
 
 #define TRACE_PRIVATE_EVENT_END() \
-		Trace::EndOfFields> const EventSize_Private = {}; \
-		Trace::TField<0, decltype(EventSize_Private)::Value, Trace::Attachment> const Attachment = {}; \
+		Trace::EventProps> const EventProps_Private = {}; \
+		Trace::TField<0, decltype(EventProps_Private)::Size, Trace::Attachment> const Attachment = {}; \
 		explicit operator bool () const { return true; } \
 	};
 
@@ -58,12 +59,17 @@
 	)
 
 #define TRACE_PRIVATE_EVENT_SIZE(LoggerName, EventName) \
-	decltype(F##LoggerName##EventName##Fields::EventSize_Private)::Value
+	decltype(F##LoggerName##EventName##Fields::EventProps_Private)::Size
 
 #define TRACE_PRIVATE_LOG(LoggerName, EventName, ...) \
 	if (TRACE_PRIVATE_EVENT_IS_ENABLED(LoggerName, EventName)) \
 		if (const auto& __restrict EventName = (F##LoggerName##EventName##Fields&)LoggerName##EventName##Event) \
-			Trace::FEventDef::FLogScope(LoggerName##EventName##Event.Uid, TRACE_PRIVATE_EVENT_SIZE(LoggerName, EventName), ##__VA_ARGS__)
+			if (auto LogScope = Trace::FEventDef::FLogScope( \
+				LoggerName##EventName##Event.Uid, \
+				TRACE_PRIVATE_EVENT_SIZE(LoggerName, EventName), \
+				bool(decltype(F##LoggerName##EventName##Fields::EventProps_Private)::MaybeHasAux), \
+				##__VA_ARGS__)) \
+					LogScope
 
 #else
 

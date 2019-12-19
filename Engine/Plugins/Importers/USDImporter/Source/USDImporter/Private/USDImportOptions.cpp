@@ -37,7 +37,7 @@ void UUSDSceneImportOptions::PostEditChangeProperty(struct FPropertyChangedEvent
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
-bool UUSDSceneImportOptions::CanEditChange(const UProperty* InProperty) const
+bool UUSDSceneImportOptions::CanEditChange(const FProperty* InProperty) const
 {
 	bool bCanEdit = Super::CanEditChange(InProperty);
 
@@ -68,7 +68,7 @@ void UUSDBatchImportOptions::PostEditChangeProperty(struct FPropertyChangedEvent
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
-bool UUSDBatchImportOptions::CanEditChange(const UProperty* InProperty) const
+bool UUSDBatchImportOptions::CanEditChange(const FProperty* InProperty) const
 {
 	bool bCanEdit = Super::CanEditChange(InProperty);
 

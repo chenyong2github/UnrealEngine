@@ -10,6 +10,7 @@
 #include "LiveLinkRemapAsset.h"
 #include "Roles/LiveLinkAnimationRole.h"
 #include "Roles/LiveLinkAnimationTypes.h"
+#include "Animation/AnimTrace.h"
 
 FAnimNode_LiveLinkPose::FAnimNode_LiveLinkPose() 
 	: RetargetAsset(ULiveLinkRemapAsset::StaticClass())
@@ -58,6 +59,8 @@ void FAnimNode_LiveLinkPose::Update_AnyThread(const FAnimationUpdateContext & Co
 
 	// Accumulate Delta time from update
 	CachedDeltaTime += Context.GetDeltaTime();
+
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("SubjectName"), LiveLinkSubjectName.Name);
 }
 
 void FAnimNode_LiveLinkPose::Evaluate_AnyThread(FPoseContext& Output)

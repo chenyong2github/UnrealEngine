@@ -38,9 +38,9 @@ void FLiveLinkVirtualSubjectDetailCustomization::CustomizeDetails(IDetailLayoutB
 	SubjectsPropertyHandle = DetailBuilder.GetProperty(TEXT("Subjects"));
 
 	{
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(SubjectsPropertyHandle->GetProperty());
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(SubjectsPropertyHandle->GetProperty());
 		check(ArrayProperty);
-		UStructProperty* StructProperty = Cast<UStructProperty>(ArrayProperty->Inner);
+		FStructProperty* StructProperty = CastField<FStructProperty>(ArrayProperty->Inner);
 		check(StructProperty);
 		check(StructProperty->Struct == FLiveLinkSubjectName::StaticStruct());
 	}

@@ -92,7 +92,7 @@ FArchiveStackTrace::FCallstackData::FCallstackData()
 {
 }
 
-FArchiveStackTrace::FCallstackData::FCallstackData(ANSICHAR* InCallstack, UObject* InSerializedObject, UProperty* InSerializedProperty)
+FArchiveStackTrace::FCallstackData::FCallstackData(ANSICHAR* InCallstack, UObject* InSerializedObject, FProperty* InSerializedProperty)
 	: Callstack(InCallstack)
 	, SerializedProp(InSerializedProperty)
 {
@@ -196,7 +196,7 @@ FArchiveStackTrace::~FArchiveStackTrace()
 	}
 }
 
-ANSICHAR* FArchiveStackTrace::AddUniqueCallstack(UObject* InSerializedObject, UProperty* InSerializedProperty, uint32& OutCallstackCRC)
+ANSICHAR* FArchiveStackTrace::AddUniqueCallstack(UObject* InSerializedObject, FProperty* InSerializedProperty, uint32& OutCallstackCRC)
 {
 	ANSICHAR* Callstack = nullptr;
 	if (bCollectCallstacks)
@@ -465,32 +465,32 @@ bool FArchiveStackTrace::LoadPackageIntoMemory(const TCHAR* InFilename, FPackage
 
 namespace
 {
-	bool ShouldDumpPropertyValueState(UProperty* Prop)
+	bool ShouldDumpPropertyValueState(FProperty* Prop)
 	{
-		if (Prop->IsA<UNumericProperty>()
-			|| Prop->IsA<UStrProperty>()
-			|| Prop->IsA<UBoolProperty>()
-			|| Prop->IsA<UNameProperty>())
+		if (Prop->IsA<FNumericProperty>()
+			|| Prop->IsA<FStrProperty>()
+			|| Prop->IsA<FBoolProperty>()
+			|| Prop->IsA<FNameProperty>())
 		{
 			return true;
 		}
 
-		if (UArrayProperty* ArrayProp = Cast<UArrayProperty>(Prop))
+		if (FArrayProperty* ArrayProp = CastField<FArrayProperty>(Prop))
 		{
 			return ShouldDumpPropertyValueState(ArrayProp->Inner);
 		}
 
-		if (UMapProperty* MapProp = Cast<UMapProperty>(Prop))
+		if (FMapProperty* MapProp = CastField<FMapProperty>(Prop))
 		{
 			return ShouldDumpPropertyValueState(MapProp->KeyProp) && ShouldDumpPropertyValueState(MapProp->ValueProp);
 		}
 
-		if (USetProperty* SetProp = Cast<USetProperty>(Prop))
+		if (FSetProperty* SetProp = CastField<FSetProperty>(Prop))
 		{
 			return ShouldDumpPropertyValueState(SetProp->ElementProp);
 		}
 
-		if (UStructProperty* StructProp = Cast<UStructProperty>(Prop))
+		if (FStructProperty* StructProp = CastField<FStructProperty>(Prop))
 		{
 			if (StructProp->Struct == TBaseStructure<FVector>::Get()
 				|| StructProp->Struct == TBaseStructure<FGuid>::Get())
@@ -546,7 +546,7 @@ void FArchiveStackTrace::CompareWithInternal(const FPackageData& SourcePackage, 
 						{
 							FString BeforePropertyVal;
 							FString AfterPropertyVal;
-							if (UProperty* SerProp = DifferenceCallstackData.SerializedProp)
+							if (FProperty* SerProp = DifferenceCallstackData.SerializedProp)
 							{
 								if (SourceSize == DestSize && ShouldDumpPropertyValueState(SerProp))
 								{
@@ -1360,6 +1360,15 @@ void FArchiveStackTrace::DumpPackageHeaderDiffs(const FPackageData& SourcePackag
 #endif // !NO_LOGGING
 }
 
+FArchiveStackTraceReader::FSerializeData::FSerializeData(int64 InOffset, int64 InSize, UObject* InObject, FProperty* InProperty)
+: Offset(InOffset)
+, Size(InSize)
+, Count(1)
+, Object(InObject)
+, PropertyName(InProperty->GetFName())
+, FullPropertyName(GetFullNameSafe(InProperty))
+{}
+
 FArchiveStackTraceReader::FArchiveStackTraceReader(const TCHAR* InFilename, const uint8* InData, const int64 Num)
 	: FLargeMemoryReader(InData, Num, ELargeMemoryReaderFlags::TakeOwnership, InFilename)
 	, ThreadContext(FUObjectThreadContext::Get())
@@ -1374,7 +1383,7 @@ void FArchiveStackTraceReader::Serialize(void* OutData, int64 Num)
 	if (SerializeTrace.Num())
 	{
 		FSerializeData& Last = SerializeTrace.Last();
-		if (Last != NewData)
+		if (NewData.IsContiguousSerialization(Last))
 		{
 			SerializeTrace.Add(NewData);
 		}

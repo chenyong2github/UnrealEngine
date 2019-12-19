@@ -52,11 +52,11 @@ public:
 		PropertyEditor = InPropertyEditor;
 
 		const TSharedRef< FPropertyNode > PropertyNode = InPropertyEditor->GetPropertyNode();
-		const UProperty* Property = InPropertyEditor->GetProperty();
+		const FProperty* Property = InPropertyEditor->GetProperty();
 
-		if(!Property->IsA(UFloatProperty::StaticClass()) && !Property->IsA(UDoubleProperty::StaticClass()) && Property->HasMetaData(PropertyEditorConstants::MD_Bitmask))
+		if(!Property->IsA(FFloatProperty::StaticClass()) && !Property->IsA(FDoubleProperty::StaticClass()) && Property->HasMetaData(PropertyEditorConstants::MD_Bitmask))
 		{
-			auto CreateBitmaskFlagsArray = [](const UProperty* Prop)
+			auto CreateBitmaskFlagsArray = [](const FProperty* Prop)
 			{
 				const int32 BitmaskBitCount = sizeof(NumericType) << 3;
 
@@ -67,7 +67,7 @@ public:
 				const FString& BitmaskEnumName = Prop->GetMetaData(PropertyEditorConstants::MD_BitmaskEnum);
 				if (!BitmaskEnumName.IsEmpty())
 				{
-					// @TODO: Potentially replace this with a parameter passed in from a member variable on the UProperty (e.g. UByteProperty::Enum)
+					// @TODO: Potentially replace this with a parameter passed in from a member variable on the FProperty (e.g. FByteProperty::Enum)
 					BitmaskEnum = FindObject<UEnum>(ANY_PACKAGE, *BitmaskEnumName);
 				}
 
@@ -364,9 +364,9 @@ public:
 	
 	void GetDesiredWidth( float& OutMinDesiredWidth, float& OutMaxDesiredWidth )
 	{
-		const UProperty* Property = PropertyEditor->GetProperty();
-		const bool bIsBitmask = (!Property->IsA(UFloatProperty::StaticClass()) && Property->HasMetaData(PropertyEditorConstants::MD_Bitmask));
-		const bool bIsNonEnumByte = (Property->IsA(UByteProperty::StaticClass()) && Cast<const UByteProperty>(Property)->Enum == NULL);
+		const FProperty* Property = PropertyEditor->GetProperty();
+		const bool bIsBitmask = (!Property->IsA(FFloatProperty::StaticClass()) && Property->HasMetaData(PropertyEditorConstants::MD_Bitmask));
+		const bool bIsNonEnumByte = (Property->IsA(FByteProperty::StaticClass()) && CastField<const FByteProperty>(Property)->Enum == NULL);
 
 		if( bIsNonEnumByte && !bIsBitmask )
 		{
@@ -394,72 +394,72 @@ public:
 
 private:
 	/**
-	 *	Helper to provide mapping for a given UProperty object to a property editor type
+	 *	Helper to provide mapping for a given FProperty object to a property editor type
 	 */ 
 	template<typename T, typename U = void> 
 	struct TTypeToProperty 
 	{ 
-		static bool Match(const UProperty* InProperty) { return false; } 
+		static bool Match(const FProperty* InProperty) { return false; } 
 	};
 	
 	template<typename U> 
 	struct TTypeToProperty<float, U> 
 	{	
-		static bool Match(const UProperty* InProperty) { return InProperty->IsA(UFloatProperty::StaticClass()); } 
+		static bool Match(const FProperty* InProperty) { return InProperty->IsA(FFloatProperty::StaticClass()); } 
 	};
 
 	template<typename U>
 	struct TTypeToProperty<double, U>
 	{
-		static bool Match(const UProperty* InProperty) { return InProperty->IsA(UDoubleProperty::StaticClass()); }
+		static bool Match(const FProperty* InProperty) { return InProperty->IsA(FDoubleProperty::StaticClass()); }
 	};
 
 	template<typename U>
 	struct TTypeToProperty<int8, U>
 	{
-		static bool Match(const UProperty* InProperty) { return InProperty->IsA(UInt8Property::StaticClass()); }
+		static bool Match(const FProperty* InProperty) { return InProperty->IsA(FInt8Property::StaticClass()); }
 	};
 
 	template<typename U>
 	struct TTypeToProperty<int16, U>
 	{
-		static bool Match(const UProperty* InProperty) { return InProperty->IsA(UInt16Property::StaticClass()); }
+		static bool Match(const FProperty* InProperty) { return InProperty->IsA(FInt16Property::StaticClass()); }
 	};
 
 	template<typename U>
 	struct TTypeToProperty<int32, U>
 	{
-		static bool Match(const UProperty* InProperty) { return InProperty->IsA(UIntProperty::StaticClass()); }
+		static bool Match(const FProperty* InProperty) { return InProperty->IsA(FIntProperty::StaticClass()); }
 	};
 
 	template<typename U>
 	struct TTypeToProperty<int64, U>
 	{
-		static bool Match(const UProperty* InProperty) { return InProperty->IsA(UInt64Property::StaticClass()); }
+		static bool Match(const FProperty* InProperty) { return InProperty->IsA(FInt64Property::StaticClass()); }
 	};
 
 	template<typename U>
 	struct TTypeToProperty<uint8, U>
 	{
-		static bool Match(const UProperty* InProperty) { return (InProperty->IsA(UByteProperty::StaticClass()) && Cast<const UByteProperty>(InProperty)->Enum == NULL); }
+		static bool Match(const FProperty* InProperty) { return (InProperty->IsA(FByteProperty::StaticClass()) && CastField<const FByteProperty>(InProperty)->Enum == NULL); }
 	};
 
 	template<typename U>
 	struct TTypeToProperty<uint16, U>
 	{
-		static bool Match(const UProperty* InProperty) { return InProperty->IsA(UUInt16Property::StaticClass()); }
+		static bool Match(const FProperty* InProperty) { return InProperty->IsA(FUInt16Property::StaticClass()); }
 	};
 
 	template<typename U>
 	struct TTypeToProperty<uint32, U>
 	{
-		static bool Match(const UProperty* InProperty) { return InProperty->IsA(UUInt32Property::StaticClass()); }
+		static bool Match(const FProperty* InProperty) { return InProperty->IsA(FUInt32Property::StaticClass()); }
 	};
 
 	template<typename U>
 	struct TTypeToProperty<uint64, U>
 	{
-		static bool Match(const UProperty* InProperty) { return InProperty->IsA(UUInt64Property::StaticClass()); }
+		static bool Match(const FProperty* InProperty) { return InProperty->IsA(FUInt64Property::StaticClass()); }
 	};
 		
 	
@@ -546,8 +546,8 @@ private:
 	void OnBeginSliderMovement()
 	{
 		bIsUsingSlider = true;
-
-		GEditor->BeginTransaction( TEXT("PropertyEditor"), FText::Format( NSLOCTEXT("PropertyEditor", "SetNumericPropertyTransaction", "Edit {0}"), PropertyEditor->GetDisplayName() ), PropertyEditor->GetPropertyHandle()->GetProperty() );
+		
+		GEditor->BeginTransaction(TEXT("PropertyEditor"), FText::Format(NSLOCTEXT("PropertyEditor", "SetNumericPropertyTransaction", "Edit {0}"), PropertyEditor->GetDisplayName()), nullptr /** PropertyEditor->GetPropertyHandle()->GetProperty() */ );
 	}
 
 

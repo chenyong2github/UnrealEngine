@@ -295,7 +295,7 @@ FArchive& FLinkerSave::operator<<( FName& InName )
 		*InName.ToString(),
 		*GetArchiveName(),
 		*GetSerializeContext()->SerializedObject->GetFullName(),
-		*GetSerializedProperty()->GetFullName());
+		*GetFullNameSafe(GetSerializedProperty()));
 
 	int32 Number = InName.GetNumber();
 	FArchive& Ar = *this;

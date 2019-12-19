@@ -1476,7 +1476,7 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
 		// Regenerate on save any compressed sound formats or if analysis needs to be re-done
-		if (UProperty* PropertyThatChanged = PropertyChangedEvent.Property)
+		if (FProperty* PropertyThatChanged = PropertyChangedEvent.Property)
 		{
 			const FName& Name = PropertyThatChanged->GetFName();
 			if (Name == CompressionQualityFName || Name == StreamingFName || Name == SeekableStreamingFName)
@@ -1830,7 +1830,7 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 
 		// Apply stereo normalization to wave instances if enabled
 		if (ParseParams.bApplyNormalizationToStereoSounds && NumChannels == 2)
-		{
+	{
 			float WaveInstanceVolume = WaveInstance->GetVolume();
 			WaveInstance->SetVolume(WaveInstanceVolume * 0.5f);
 		}

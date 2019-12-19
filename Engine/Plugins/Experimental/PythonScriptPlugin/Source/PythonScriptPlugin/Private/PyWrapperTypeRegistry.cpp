@@ -244,7 +244,7 @@ FPyWrapperArray* FPyWrapperArrayFactory::FindInstance(void* InUnrealInstance) co
 	return FindInstanceInternal(InUnrealInstance, &PyWrapperArrayType);
 }
 
-FPyWrapperArray* FPyWrapperArrayFactory::CreateInstance(void* InUnrealInstance, const UArrayProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod)
+FPyWrapperArray* FPyWrapperArrayFactory::CreateInstance(void* InUnrealInstance, const FArrayProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod)
 {
 	if (!InUnrealInstance)
 	{
@@ -274,7 +274,7 @@ FPyWrapperFixedArray* FPyWrapperFixedArrayFactory::FindInstance(void* InUnrealIn
 	return FindInstanceInternal(InUnrealInstance, &PyWrapperFixedArrayType);
 }
 
-FPyWrapperFixedArray* FPyWrapperFixedArrayFactory::CreateInstance(void* InUnrealInstance, const UProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod)
+FPyWrapperFixedArray* FPyWrapperFixedArrayFactory::CreateInstance(void* InUnrealInstance, const FProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod)
 {
 	if (!InUnrealInstance)
 	{
@@ -304,7 +304,7 @@ FPyWrapperSet* FPyWrapperSetFactory::FindInstance(void* InUnrealInstance) const
 	return FindInstanceInternal(InUnrealInstance, &PyWrapperSetType);
 }
 
-FPyWrapperSet* FPyWrapperSetFactory::CreateInstance(void* InUnrealInstance, const USetProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod)
+FPyWrapperSet* FPyWrapperSetFactory::CreateInstance(void* InUnrealInstance, const FSetProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod)
 {
 	if (!InUnrealInstance)
 	{
@@ -334,7 +334,7 @@ FPyWrapperMap* FPyWrapperMapFactory::FindInstance(void* InUnrealInstance) const
 	return FindInstanceInternal(InUnrealInstance, &PyWrapperMapType);
 }
 
-FPyWrapperMap* FPyWrapperMapFactory::CreateInstance(void* InUnrealInstance, const UMapProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod)
+FPyWrapperMap* FPyWrapperMapFactory::CreateInstance(void* InUnrealInstance, const FMapProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod)
 {
 	if (!InUnrealInstance)
 	{
@@ -631,7 +631,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 	TMap<FName, FName> PythonMethods;
 	TMap<FName, FString> PythonDeprecatedMethods;
 
-	auto GenerateWrappedProperty = [this, InClass, &PythonProperties, &PythonDeprecatedProperties, &GeneratedWrappedType, &OutGeneratedWrappedTypeReferences](const UProperty* InProp)
+	auto GenerateWrappedProperty = [this, InClass, &PythonProperties, &PythonDeprecatedProperties, &GeneratedWrappedType, &OutGeneratedWrappedTypeReferences](const FProperty* InProp)
 	{
 		const bool bExportPropertyToScript = PyGenUtil::ShouldExportProperty(InProp);
 		const bool bExportPropertyToEditor = PyGenUtil::ShouldExportEditorOnlyProperty(InProp);
@@ -709,7 +709,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 			return;
 		}
 
-		static auto IsStructOrObjectProperty = [](const UProperty* InProp) { return InProp && (InProp->IsA<UStructProperty>() || InProp->IsA<UObjectPropertyBase>()); };
+		static auto IsStructOrObjectProperty = [](const FProperty* InProp) { return InProp && (InProp->IsA<FStructProperty>() || InProp->IsA<FObjectPropertyBase>()); };
 
 		// Get the type to hoist this method to (this should be the first parameter)
 		PyGenUtil::FGeneratedWrappedMethodParameter SelfParam;
@@ -720,10 +720,10 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 		if (!SelfParam.ParamProp)
 		{
 			// Hint that UPRAM(ref) may be missing on first parameter
-			const UProperty* PropertyPossiblyMissingMacro = nullptr;
-			for (TFieldIterator<const UProperty> ParamIt(InFunc); ParamIt; ++ParamIt)
+			const FProperty* PropertyPossiblyMissingMacro = nullptr;
+			for (TFieldIterator<const FProperty> ParamIt(InFunc); ParamIt; ++ParamIt)
 			{
-				const UProperty* Param = *ParamIt;
+				const FProperty* Param = *ParamIt;
 				if (PyUtil::IsOutputParameter(Param) && !PyUtil::IsInputParameter(Param) && !Param->HasAnyPropertyFlags(CPF_ReturnParm) && IsStructOrObjectProperty(Param))
 				{
 					PropertyPossiblyMissingMacro = Param;
@@ -734,7 +734,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 			REPORT_PYTHON_GENERATION_ISSUE(Error, TEXT("Function '%s.%s' is marked as 'ScriptMethod' but doesn't contain a valid struct or object as its first argument.%s"), *InFunc->GetOwnerClass()->GetName(), *InFunc->GetName(), PropertyPossiblyMissingMacro ? TEXT(" UPARAM(ref) may be missing on the first argument.") : TEXT(""));
 			return;
 		}
-		if (const UObjectPropertyBase* SelfPropObj = Cast<UObjectPropertyBase>(SelfParam.ParamProp))
+		if (const FObjectPropertyBase* SelfPropObj = CastField<FObjectPropertyBase>(SelfParam.ParamProp))
 		{
 			if (SelfPropObj->PropertyClass->IsChildOf(InFunc->GetOwnerClass()))
 			{
@@ -785,17 +785,17 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 				REPORT_PYTHON_GENERATION_ISSUE(Error, TEXT("Function '%s.%s' is marked as 'ScriptMethodSelfReturn' but has no return value."), *InFunc->GetOwnerClass()->GetName(), *InFunc->GetName());
 				return;
 			}
-			else if (!SelfParam.ParamProp->IsA<UStructProperty>())
+			else if (!SelfParam.ParamProp->IsA<FStructProperty>())
 			{
 				REPORT_PYTHON_GENERATION_ISSUE(Error, TEXT("Function '%s.%s' is marked as 'ScriptMethodSelfReturn' but the 'self' argument is not a struct."), *InFunc->GetOwnerClass()->GetName(), *InFunc->GetName());
 				return;
 			}
-			else if (!GeneratedWrappedDynamicMethod.MethodFunc.OutputParams[0].ParamProp->IsA<UStructProperty>())
+			else if (!GeneratedWrappedDynamicMethod.MethodFunc.OutputParams[0].ParamProp->IsA<FStructProperty>())
 			{
 				REPORT_PYTHON_GENERATION_ISSUE(Error, TEXT("Function '%s.%s' is marked as 'ScriptMethodSelfReturn' but the return value is not a struct."), *InFunc->GetOwnerClass()->GetName(), *InFunc->GetName());
 				return;
 			}
-			else if (CastChecked<UStructProperty>(GeneratedWrappedDynamicMethod.MethodFunc.OutputParams[0].ParamProp)->Struct != CastChecked<UStructProperty>(SelfParam.ParamProp)->Struct)
+			else if (CastFieldChecked<const FStructProperty>(GeneratedWrappedDynamicMethod.MethodFunc.OutputParams[0].ParamProp)->Struct != CastFieldChecked<const FStructProperty>(SelfParam.ParamProp)->Struct)
 			{
 				REPORT_PYTHON_GENERATION_ISSUE(Error, TEXT("Function '%s.%s' is marked as 'ScriptMethodSelfReturn' but the return value is not the same type as the 'self' argument."), *InFunc->GetOwnerClass()->GetName(), *InFunc->GetName());
 				return;
@@ -823,11 +823,11 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 
 		// Set the correct function pointer for calling this function and inject the 'self' argument
 		GeneratedWrappedDynamicMethod.MethodCallback = nullptr;
-		if (SelfParam.ParamProp->IsA<UObjectPropertyBase>())
+		if (SelfParam.ParamProp->IsA<FObjectPropertyBase>())
 		{
 			GeneratedWrappedDynamicMethod.MethodCallback = GeneratedWrappedDynamicMethod.MethodFunc.InputParams.Num() > 0 ? PyCFunctionWithClosureCast(&FPyWrapperObject::CallDynamicMethodWithArgs_Impl) : PyCFunctionWithClosureCast(&FPyWrapperObject::CallDynamicMethodNoArgs_Impl);
 		}
-		else if (SelfParam.ParamProp->IsA<UStructProperty>())
+		else if (SelfParam.ParamProp->IsA<FStructProperty>())
 		{
 			GeneratedWrappedDynamicMethod.MethodCallback = GeneratedWrappedDynamicMethod.MethodFunc.InputParams.Num() > 0 ? PyCFunctionWithClosureCast(&FPyWrapperStruct::CallDynamicMethodWithArgs_Impl) : PyCFunctionWithClosureCast(&FPyWrapperStruct::CallDynamicMethodNoArgs_Impl);
 		}
@@ -846,10 +846,10 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 		}
 
 		// Add the dynamic method to either the owner type
-		if (SelfParam.ParamProp->IsA<UObjectPropertyBase>())
+		if (SelfParam.ParamProp->IsA<FObjectPropertyBase>())
 		{
 			// Ensure that we've generated a finalized Python type for this class since we'll be adding this function as a dynamic method on that type
-			const UClass* HostedClass = CastChecked<UObjectPropertyBase>(SelfParam.ParamProp)->PropertyClass;
+			const UClass* HostedClass = CastFieldChecked<const FObjectPropertyBase>(SelfParam.ParamProp)->PropertyClass;
 			if (!GenerateWrappedClassType(HostedClass, OutGeneratedWrappedTypeReferences, OutDirtyModules, true))
 			{
 				return;
@@ -866,10 +866,10 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 				HostedClassGeneratedWrappedType->AddDynamicMethod(MoveTemp(GeneratedWrappedDynamicMethodToAdd.Get()));
 			}
 		}
-		else if (SelfParam.ParamProp->IsA<UStructProperty>())
+		else if (SelfParam.ParamProp->IsA<FStructProperty>())
 		{
 			// Ensure that we've generated a finalized Python type for this struct since we'll be adding this function as a dynamic method on that type
-			const UScriptStruct* HostedStruct = CastChecked<UStructProperty>(SelfParam.ParamProp)->Struct;
+			const UScriptStruct* HostedStruct = CastFieldChecked<const FStructProperty>(SelfParam.ParamProp)->Struct;
 			if (!GenerateWrappedStructType(HostedStruct, OutGeneratedWrappedTypeReferences, OutDirtyModules, true))
 			{
 				return;
@@ -929,7 +929,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 			}
 
 			// Ensure that we've generated a finalized Python type for this struct since we'll be adding this function as a operator on that type
-			const UScriptStruct* HostedStruct = CastChecked<UStructProperty>(OpFunc.SelfParam.ParamProp)->Struct;
+			const UScriptStruct* HostedStruct = CastFieldChecked<const FStructProperty>(OpFunc.SelfParam.ParamProp)->Struct;
 			if (GenerateWrappedStructType(HostedStruct, OutGeneratedWrappedTypeReferences, OutDirtyModules, true))
 			{
 				// Find the wrapped type for the struct as that's what we'll actually add the operator to (via its meta-data)
@@ -1072,9 +1072,9 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 			return;
 		}
 
-		for (TFieldIterator<const UProperty> ParamIt(InFunc); ParamIt; ++ParamIt)
+		for (TFieldIterator<const FProperty> ParamIt(InFunc); ParamIt; ++ParamIt)
 		{
-			const UProperty* Param = *ParamIt;
+			const FProperty* Param = *ParamIt;
 			GatherWrappedTypesForPropertyReferences(Param, OutGeneratedWrappedTypeReferences);
 		}
 
@@ -1151,14 +1151,16 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 	const FString PythonClassName = PyGenUtil::GetClassPythonName(InClass);
 	GeneratedWrappedType->TypeName = PyGenUtil::TCHARToUTF8Buffer(*PythonClassName);
 
-	for (TFieldIterator<const UField> FieldIt(InClass, EFieldIteratorFlags::ExcludeSuper); FieldIt; ++FieldIt)
+	for (TFieldIterator<const FField> FieldIt(InClass, EFieldIteratorFlags::ExcludeSuper); FieldIt; ++FieldIt)
 	{
-		if (const UProperty* Prop = Cast<const UProperty>(*FieldIt))
+		if (const FProperty* Prop = CastField<const FProperty>(*FieldIt))
 		{
 			GenerateWrappedProperty(Prop);
 			continue;
 		}
-
+	}
+	for (TFieldIterator<const UField> FieldIt(InClass, EFieldIteratorFlags::ExcludeSuper); FieldIt; ++FieldIt)
+	{
 		if (const UFunction* Func = Cast<const UFunction>(*FieldIt))
 		{
 			GenerateWrappedMethod(Func);
@@ -1272,7 +1274,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 void FPyWrapperTypeRegistry::RegisterWrappedClassType(const FName ClassName, PyTypeObject* PyType, const bool InDetectNameConflicts)
 {
 	if (InDetectNameConflicts)
-	{
+{
 		RegisterPythonTypeName(UTF8_TO_TCHAR(PyType->tp_name), ClassName);
 	}
 	PythonWrappedClasses.Add(ClassName, PyType);
@@ -1361,7 +1363,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedStructType(const UScriptStr
 	TMap<FName, FName> PythonProperties;
 	TMap<FName, FString> PythonDeprecatedProperties;
 
-	auto GenerateWrappedProperty = [this, &PythonProperties, &PythonDeprecatedProperties, &GeneratedWrappedType, &OutGeneratedWrappedTypeReferences](const UProperty* InProp)
+	auto GenerateWrappedProperty = [this, &PythonProperties, &PythonDeprecatedProperties, &GeneratedWrappedType, &OutGeneratedWrappedTypeReferences](const FProperty* InProp)
 	{
 		const bool bExportPropertyToScript = PyGenUtil::ShouldExportProperty(InProp);
 		const bool bExportPropertyToEditor = PyGenUtil::ShouldExportEditorOnlyProperty(InProp);
@@ -1416,9 +1418,9 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedStructType(const UScriptStr
 	const FString PythonStructName = PyGenUtil::GetStructPythonName(InStruct);
 	GeneratedWrappedType->TypeName = PyGenUtil::TCHARToUTF8Buffer(*PythonStructName);
 
-	for (TFieldIterator<const UProperty> PropIt(InStruct, EFieldIteratorFlags::ExcludeSuper); PropIt; ++PropIt)
+	for (TFieldIterator<const FProperty> PropIt(InStruct, EFieldIteratorFlags::ExcludeSuper); PropIt; ++PropIt)
 	{
-		const UProperty* Prop = *PropIt;
+		const FProperty* Prop = *PropIt;
 		GenerateWrappedProperty(Prop);
 	}
 
@@ -1468,7 +1470,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedStructType(const UScriptStr
 		MakeFunc.SetFunction(FindMakeBreakFunction(PyGenUtil::HasNativeMakeMetaDataKey));
 		if (MakeFunc.Func)
 		{
-			const bool bHasValidReturn = MakeFunc.OutputParams.Num() == 1 && MakeFunc.OutputParams[0].ParamProp->IsA<UStructProperty>() && CastChecked<UStructProperty>(MakeFunc.OutputParams[0].ParamProp)->Struct == InStruct;
+			const bool bHasValidReturn = MakeFunc.OutputParams.Num() == 1 && MakeFunc.OutputParams[0].ParamProp->IsA<FStructProperty>() && CastFieldChecked<const FStructProperty>(MakeFunc.OutputParams[0].ParamProp)->Struct == InStruct;
 			if (!bHasValidReturn)
 			{
 				REPORT_PYTHON_GENERATION_ISSUE(Error, TEXT("Struct '%s' is marked as 'HasNativeMake' but the function '%s' does not return the struct type."), *InStruct->GetName(), *MakeFunc.Func->GetPathName());
@@ -1492,7 +1494,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedStructType(const UScriptStr
 		BreakFunc.SetFunction(FindMakeBreakFunction(PyGenUtil::HasNativeBreakMetaDataKey));
 		if (BreakFunc.Func)
 		{
-			const bool bHasValidInput = BreakFunc.InputParams.Num() == 1 && BreakFunc.InputParams[0].ParamProp->IsA<UStructProperty>() && CastChecked<UStructProperty>(BreakFunc.InputParams[0].ParamProp)->Struct == InStruct;
+			const bool bHasValidInput = BreakFunc.InputParams.Num() == 1 && BreakFunc.InputParams[0].ParamProp->IsA<FStructProperty>() && CastFieldChecked<const FStructProperty>(BreakFunc.InputParams[0].ParamProp)->Struct == InStruct;
 			if (!bHasValidInput)
 			{
 				REPORT_PYTHON_GENERATION_ISSUE(Error, TEXT("Struct '%s' is marked as 'HasNativeBreak' but the function '%s' does not have the struct type as its only input argument."), *InStruct->GetName(), *BreakFunc.Func->GetPathName());
@@ -1754,7 +1756,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedEnumType(const UEnum* InEnu
 void FPyWrapperTypeRegistry::RegisterWrappedEnumType(const FName EnumName, PyTypeObject* PyType, const bool InDetectNameConflicts)
 {
 	if (InDetectNameConflicts)
-	{
+{
 		RegisterPythonTypeName(UTF8_TO_TCHAR(PyType->tp_name), EnumName);
 	}
 	PythonWrappedEnums.Add(EnumName, PyType);
@@ -1806,9 +1808,9 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedDelegateType(const UFunctio
 	TSharedRef<PyGenUtil::FGeneratedWrappedType> GeneratedWrappedType = MakeShared<PyGenUtil::FGeneratedWrappedType>();
 	GeneratedWrappedTypes.Add(InDelegateSignature->GetFName(), GeneratedWrappedType);
 
-	for (TFieldIterator<const UProperty> ParamIt(InDelegateSignature); ParamIt; ++ParamIt)
+	for (TFieldIterator<const FProperty> ParamIt(InDelegateSignature); ParamIt; ++ParamIt)
 	{
-		const UProperty* Param = *ParamIt;
+		const FProperty* Param = *ParamIt;
 		GatherWrappedTypesForPropertyReferences(Param, OutGeneratedWrappedTypeReferences);
 	}
 
@@ -1921,9 +1923,9 @@ PyTypeObject* FPyWrapperTypeRegistry::GetWrappedDelegateType(const UFunction* In
 	return PyType;
 }
 
-void FPyWrapperTypeRegistry::GatherWrappedTypesForPropertyReferences(const UProperty* InProp, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences) const
+void FPyWrapperTypeRegistry::GatherWrappedTypesForPropertyReferences(const FProperty* InProp, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences) const
 {
-	if (const UObjectProperty* ObjProp = Cast<const UObjectProperty>(InProp))
+	if (const FObjectProperty* ObjProp = CastField<const FObjectProperty>(InProp))
 	{
 		if (ObjProp->PropertyClass && !PythonWrappedClasses.Contains(ObjProp->PropertyClass->GetFName()))
 		{
@@ -1932,7 +1934,7 @@ void FPyWrapperTypeRegistry::GatherWrappedTypesForPropertyReferences(const UProp
 		return;
 	}
 
-	if (const UStructProperty* StructProp = Cast<const UStructProperty>(InProp))
+	if (const FStructProperty* StructProp = CastField<const FStructProperty>(InProp))
 	{
 		if (!PythonWrappedStructs.Contains(StructProp->Struct->GetFName()))
 		{
@@ -1941,7 +1943,7 @@ void FPyWrapperTypeRegistry::GatherWrappedTypesForPropertyReferences(const UProp
 		return;
 	}
 
-	if (const UEnumProperty* EnumProp = Cast<const UEnumProperty>(InProp))
+	if (const FEnumProperty* EnumProp = CastField<const FEnumProperty>(InProp))
 	{
 		if (!PythonWrappedStructs.Contains(EnumProp->GetEnum()->GetFName()))
 		{
@@ -1950,7 +1952,7 @@ void FPyWrapperTypeRegistry::GatherWrappedTypesForPropertyReferences(const UProp
 		return;
 	}
 
-	if (const UByteProperty* ByteProp = Cast<const UByteProperty>(InProp))
+	if (const FByteProperty* ByteProp = CastField<const FByteProperty>(InProp))
 	{
 		if (ByteProp->Enum)
 		{
@@ -1962,7 +1964,7 @@ void FPyWrapperTypeRegistry::GatherWrappedTypesForPropertyReferences(const UProp
 		return;
 	}
 
-	if (const UDelegateProperty* DelegateProp = Cast<const UDelegateProperty>(InProp))
+	if (const FDelegateProperty* DelegateProp = CastField<const FDelegateProperty>(InProp))
 	{
 		if (!PythonWrappedStructs.Contains(DelegateProp->SignatureFunction->GetFName()))
 		{
@@ -1971,7 +1973,7 @@ void FPyWrapperTypeRegistry::GatherWrappedTypesForPropertyReferences(const UProp
 		return;
 	}
 
-	if (const UMulticastDelegateProperty* DelegateProp = Cast<const UMulticastDelegateProperty>(InProp))
+	if (const FMulticastDelegateProperty* DelegateProp = CastField<const FMulticastDelegateProperty>(InProp))
 	{
 		if (!PythonWrappedStructs.Contains(DelegateProp->SignatureFunction->GetFName()))
 		{
@@ -1980,19 +1982,19 @@ void FPyWrapperTypeRegistry::GatherWrappedTypesForPropertyReferences(const UProp
 		return;
 	}
 
-	if (const UArrayProperty* ArrayProp = Cast<const UArrayProperty>(InProp))
+	if (const FArrayProperty* ArrayProp = CastField<const FArrayProperty>(InProp))
 	{
 		GatherWrappedTypesForPropertyReferences(ArrayProp->Inner, OutGeneratedWrappedTypeReferences);
 		return;
 	}
 
-	if (const USetProperty* SetProp = Cast<const USetProperty>(InProp))
+	if (const FSetProperty* SetProp = CastField<const FSetProperty>(InProp))
 	{
 		GatherWrappedTypesForPropertyReferences(SetProp->ElementProp, OutGeneratedWrappedTypeReferences);
 		return;
 	}
 
-	if (const UMapProperty* MapProp = Cast<const UMapProperty>(InProp))
+	if (const FMapProperty* MapProp = CastField<const FMapProperty>(InProp))
 	{
 		GatherWrappedTypesForPropertyReferences(MapProp->KeyProp, OutGeneratedWrappedTypeReferences);
 		GatherWrappedTypesForPropertyReferences(MapProp->ValueProp, OutGeneratedWrappedTypeReferences);
@@ -2273,7 +2275,7 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 
 		// If we have multiple return values and the main return value is a bool, skip it (to mimic PyGenUtils::PackReturnValues)
 		int32 ReturnPropIndex = 0;
-		if (InOutputParams.Num() > 1 && InOutputParams[0].ParamProp->HasAnyPropertyFlags(CPF_ReturnParm) && InOutputParams[0].ParamProp->IsA<UBoolProperty>())
+		if (InOutputParams.Num() > 1 && InOutputParams[0].ParamProp->HasAnyPropertyFlags(CPF_ReturnParm) && InOutputParams[0].ParamProp->IsA<FBoolProperty>())
 		{
 			ReturnPropIndex = 1; // Start packing at the 1st out value
 		}

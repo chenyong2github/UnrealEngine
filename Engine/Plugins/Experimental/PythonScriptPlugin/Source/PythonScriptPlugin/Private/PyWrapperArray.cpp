@@ -145,14 +145,14 @@ int FPyWrapperArray::Init(FPyWrapperArray* InSelf, const PyUtil::FPropertyDef& I
 		return BaseInit;
 	}
 
-	UProperty* ArrayElementProp = PyUtil::CreateProperty(InElementDef, 1);
+	FProperty* ArrayElementProp = PyUtil::CreateProperty(InElementDef, 1);
 	if (!ArrayElementProp)
 	{
 		PyUtil::SetPythonError(PyExc_Exception, InSelf, TEXT("Array element property was null during init"));
 		return -1;
 	}
 
-	UArrayProperty* ArrayProp = NewObject<UArrayProperty>(GetPythonPropertyContainer());
+	FArrayProperty* ArrayProp = new FArrayProperty(GetPythonPropertyContainer(), FField::GenerateFFieldName(GetPythonPropertyContainer(), FArrayProperty::StaticClass()), RF_NoFlags);
 	ArrayProp->Inner = ArrayElementProp;
 
 	// Need to manually call Link to fix-up some data (such as the C++ property flags) that are only set during Link
@@ -171,7 +171,7 @@ int FPyWrapperArray::Init(FPyWrapperArray* InSelf, const PyUtil::FPropertyDef& I
 	return 0;
 }
 
-int FPyWrapperArray::Init(FPyWrapperArray* InSelf, const FPyWrapperOwnerContext& InOwnerContext, const UArrayProperty* InProp, void* InValue, const EPyConversionMethod InConversionMethod)
+int FPyWrapperArray::Init(FPyWrapperArray* InSelf, const FPyWrapperOwnerContext& InOwnerContext, const FArrayProperty* InProp, void* InValue, const EPyConversionMethod InConversionMethod)
 {
 	InOwnerContext.AssertValidConversionMethod(InConversionMethod);
 
@@ -185,21 +185,21 @@ int FPyWrapperArray::Init(FPyWrapperArray* InSelf, const FPyWrapperOwnerContext&
 
 	check(InProp && InValue);
 
-	const UArrayProperty* PropToUse = nullptr;
+	const FArrayProperty* PropToUse = nullptr;
 	void* ArrayInstanceToUse = nullptr;
 	switch (InConversionMethod)
 	{
 	case EPyConversionMethod::Copy:
 	case EPyConversionMethod::Steal:
 		{
-			UProperty* ArrayElementProp = PyUtil::CreateProperty(InProp->Inner);
+			FProperty* ArrayElementProp = PyUtil::CreateProperty(InProp->Inner);
 			if (!ArrayElementProp)
 			{
 				PyUtil::SetPythonError(PyExc_TypeError, InSelf, *FString::Printf(TEXT("Failed to create element property from '%s' (%s)"), *InProp->Inner->GetName(), *InProp->Inner->GetClass()->GetName()));
 				return -1;
 			}
 
-			UArrayProperty* ArrayProp = NewObject<UArrayProperty>(GetPythonPropertyContainer());
+			FArrayProperty* ArrayProp = new FArrayProperty(GetPythonPropertyContainer(), FField::GenerateFFieldName(GetPythonPropertyContainer(), FArrayProperty::StaticClass()), RF_NoFlags);
 			ArrayProp->Inner = ArrayElementProp;
 			PropToUse = ArrayProp;
 
@@ -1535,7 +1535,7 @@ void FPyWrapperArrayMetaData::AddReferencedObjects(FPyWrapperBase* Instance, FRe
 	FPyWrapperArray* Self = static_cast<FPyWrapperArray*>(Instance);
 	if (Self->ArrayProp && Self->ArrayInstance && !Self->OwnerContext.HasOwner())
 	{
-		Collector.AddReferencedObject(Self->ArrayProp);
+		const_cast<FArrayProperty*>(Self->ArrayProp)->AddReferencedObjects(Collector);
 		FPyReferenceCollector::AddReferencedObjectsFromProperty(Collector, Self->ArrayProp, Self->ArrayInstance);
 	}
 }

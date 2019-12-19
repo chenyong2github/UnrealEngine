@@ -163,16 +163,16 @@ namespace EditorAnimUtils
 	}
 
 	template<class AssetType>
-	void GetAssetsFromProperties(TArray<UProperty*> InProperties, UObject* Scope, TArray<AssetType*>& OutAssets)
+	void GetAssetsFromProperties(TArray<FProperty*> InProperties, UObject* Scope, TArray<AssetType*>& OutAssets)
 	{
 		check(Scope);
 
 		OutAssets.Empty();
-		for(UProperty* Prop : InProperties)
+		for(FProperty* Prop : InProperties)
 		{
 			if(Prop)
 			{
-				if(UArrayProperty* ArrayProp = Cast<UArrayProperty>(Prop))
+				if(FArrayProperty* ArrayProp = CastField<FArrayProperty>(Prop))
 				{
 					// Blueprint array
 					FScriptArrayHelper Helper(ArrayProp, Prop->ContainerPtrToValuePtr<uint8>(Scope));

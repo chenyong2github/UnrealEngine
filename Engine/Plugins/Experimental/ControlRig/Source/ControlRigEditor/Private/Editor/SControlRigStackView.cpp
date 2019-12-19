@@ -264,7 +264,7 @@ void SControlRigStackView::RefreshTreeView(UControlRig* ControlRig)
 						FName UnitPath = *Operator.CachedPropertyPath1.ToString();
 						FString OperatorLabel;
 
-						UStructProperty * StructProperty = Cast<UStructProperty>(GeneratedClass->FindPropertyByName(UnitPath));
+						FStructProperty * StructProperty = CastField<FStructProperty>(GeneratedClass->FindPropertyByName(UnitPath));
 						if (StructProperty)
 						{
 							if (StructProperty->Struct->IsChildOf(FRigUnit::StaticStruct()))

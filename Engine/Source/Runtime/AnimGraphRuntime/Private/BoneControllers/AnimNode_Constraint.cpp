@@ -5,6 +5,8 @@
 #include "AnimationRuntime.h"
 #include "SceneManagement.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimTrace.h"
+
 /////////////////////////////////////////////////////
 // FAnimNode_Constraint
 
@@ -69,6 +71,13 @@ void FAnimNode_Constraint::EvaluateSkeletalControl_AnyThread(FComponentSpacePose
 		CachedConstrainedTransform = ConstrainedTransform;
 #endif // WITH_EDITOR
 	}
+
+#if ANIM_TRACE_ENABLED
+	for (int32 ConstraintIndex = 0; ConstraintIndex < ConstraintNum; ++ConstraintIndex)
+	{
+		TRACE_ANIM_NODE_VALUE(Output, *ConstraintSetup[ConstraintIndex].TargetBone.BoneName.ToString(), ConstraintWeights[ConstraintIndex]);
+	}
+#endif
 }
 
 bool FAnimNode_Constraint::IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) 

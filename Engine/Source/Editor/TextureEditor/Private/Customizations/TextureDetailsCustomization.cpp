@@ -202,7 +202,7 @@ void FTextureDetails::OnBeginSliderMovement()
 
 	bIsUsingSlider = true;
 
-	GEditor->BeginTransaction(TEXT("TextureDetails"), LOCTEXT("SetMaximumTextureSize", "Edit Maximum Texture Size"), MaxTextureSizePropertyHandle->GetProperty());
+	GEditor->BeginTransaction(TEXT("TextureDetails"), LOCTEXT("SetMaximumTextureSize", "Edit Maximum Texture Size"), nullptr /* MaxTextureSizePropertyHandle->GetProperty() */ );
 }
 
 

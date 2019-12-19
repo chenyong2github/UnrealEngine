@@ -5,11 +5,5 @@
 #include "UObject/UnrealType.h"
 
 /*-----------------------------------------------------------------------------
-	UInt16Property.
+	FInt16Property.
 -----------------------------------------------------------------------------*/
-
-
-IMPLEMENT_CORE_INTRINSIC_CLASS(UInt16Property, UNumericProperty,
-	{
-	}
-);

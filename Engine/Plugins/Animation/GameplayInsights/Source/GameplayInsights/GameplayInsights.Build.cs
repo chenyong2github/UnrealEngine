@@ -16,6 +16,7 @@ namespace UnrealBuildTool.Rules
 				"TraceAnalysis",
 				"TraceServices",
 				"TraceInsights",
+				"AssetRegistry",
 			});
 
 			if (Target.bCompileAgainstEngine)
@@ -28,11 +29,13 @@ namespace UnrealBuildTool.Rules
 				});
 			}
 
-			if (Target.bBuildEditor)
+			if (Target.Type == TargetType.Editor)
 			{
 				PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"AnimationBlueprintEditor",
+					"Persona",
 					"UnrealEd",
 				});
 			}
