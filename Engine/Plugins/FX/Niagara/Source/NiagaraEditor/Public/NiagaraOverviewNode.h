@@ -31,6 +31,8 @@ public:
 
 	virtual void OnRenameNode(const FString& NewName) override;
 
+	virtual bool GetCanRenameNode() const override;
+
 	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	//~ End UEdGraphNode Interface
 
