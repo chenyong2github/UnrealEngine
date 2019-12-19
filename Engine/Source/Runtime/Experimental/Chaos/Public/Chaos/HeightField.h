@@ -38,6 +38,11 @@ namespace Chaos
 		/** Support for editing a subsection of the heightfield */
 		void EditHeights(TArrayView<T> InHeights, int32 InBeginRow, int32 InBeginCol, int32 InNumRows, int32 InNumCols);
 		void EditHeights(TArrayView<const uint16> InHeights, int32 InBeginRow, int32 InBeginCol, int32 InNumRows, int32 InNumCols);
+		T GetHeight(int32 InIndex) const;
+		T GetHeight(int32 InX, int32 InY) const;
+		T GetHeightAt(const TVector<T, 2>& InGridLocation) const;
+		int32 GetNumRows() const { return GeomData.NumRows; }
+		int32 GetNumCols() const { return GeomData.NumCols; }
 
 		virtual T PhiWithNormal(const TVector<T, 3>& x, TVector<T, 3>& Normal) const
 		{
@@ -193,6 +198,21 @@ namespace Chaos
 			constexpr float GetCellHeight() const
 			{
 				return Scale[1];
+			}
+
+			FORCEINLINE TVector<T, 3> GetPoint(int32 Index) const
+			{
+				const typename FDataType::RealType Height = MinValue + Heights[Index] * HeightPerUnit;
+
+				const int32 X = Index % (NumCols);
+				const int32 Y = Index / (NumCols);
+
+				return {(typename FDataType::RealType)X, (typename FDataType::RealType)Y, Height};
+			}
+
+			FORCEINLINE TVector<T, 3> GetPointScaled(int32 Index) const
+			{
+				return GetPoint(Index) * Scale;
 			}
 
 			FORCEINLINE void GetPoints(int32 Index, TVector<T, 3> OutPts[4]) const
