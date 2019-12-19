@@ -21,6 +21,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogNetworkSimDebug, Log, All);
 
 namespace NetworkSimulationModelDebugCVars
 {
+	NETSIM_DEVCVAR_SHIPCONST_INT(DrawCanvas, 1, "nsm.debug.DrawCanvas", "Draws Canvas Debug HUD");
 	NETSIM_DEVCVAR_SHIPCONST_INT(DrawFrames, 1, "nsm.debug.DrawFrames", "Draws frame data (text) in debug graphs");
 	NETSIM_DEVCVAR_SHIPCONST_INT(DrawNetworkSendLines, 1, "nsm.debug.DrawNetworkSendLines", "Draws lines representing network traffic in debugger");
 	NETSIM_DEVCVAR_SHIPCONST_INT(GatherServerSidePIE, 1, "nsm.debug.GatherServerSide", "Whenever we gather debug info from a client side actor, also gather server side equivelent. Only works in PIE.");
@@ -117,6 +118,11 @@ struct NETWORKPREDICTION_API FNetworkSimulationModelDebuggerManager: public FTic
 		
 		FDisplayDebugManager& DisplayDebugManager = C->DisplayDebugManager;
 		DisplayDebugManager.Initialize(C, GEngine->GetSmallFont(), FVector2D(4.0f, 150.0f));
+
+		if (!NetworkSimulationModelDebugCVars::DrawCanvas())
+		{
+			return;
+		}
 
 		if (Lines.Num() > 0)
 		{
