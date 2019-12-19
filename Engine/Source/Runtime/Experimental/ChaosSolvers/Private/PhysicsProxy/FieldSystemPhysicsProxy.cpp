@@ -117,7 +117,7 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 					TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
 
 					FFieldContext Context(
-						SampleIndicesView, // @todo(brice) important: an empty index array should evaluate everything
+						SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
 						SamplePointsView,
 						Command.MetaData);
 
@@ -251,7 +251,7 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 					TArrayView<FVector> SamplesView(tptr, int32(Particles.Size()));
 
 					FFieldContext Context{
-						IndexView, // @todo(brice) important: an empty index array should evaluate everything
+						IndexView, // @todo(chaos) important: an empty index array should evaluate everything
 						SamplesView,
 						Command.MetaData
 					};
