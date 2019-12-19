@@ -108,6 +108,7 @@ enum class EInstallBundleRequestFlags : uint32
 	UseBackgroundDownloads = (1 << 1),
 	SendNotificationIfDownloadCompletesInBackground = (1 << 2),
 	ForceNoPatching = (1 << 3),
+	TrackPersistentBundleStats = (1 << 4),
 	Defaults = UseBackgroundDownloads,
 };
 ENUM_CLASS_FLAGS(EInstallBundleRequestFlags)
