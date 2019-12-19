@@ -107,6 +107,7 @@ void FVisualLoggingHelpers::VisualLogActor(AActor* Owner, FTransform& Transform,
 				LocalSpaceBox.GetCenterAndExtents(ActorOrigin, ActorExtent);
 				ActorExtent *= Transform.GetScale3D();
 				DrawDebugBox(World, Transform.GetLocation(), ActorExtent, Transform.GetRotation(), DrawColor, false, LifetimeSeconds, 0, Thickness);
+				DrawDebugString(World, Transform.GetLocation(), Params.DebugString, nullptr, DrawColor, PersistentLines ? NetSimVLogCVars::DrawDebugDefaultLifeTime : 0.f, false);
 			}
 
 			if (NetSimVLogCVars::UseVLogger)

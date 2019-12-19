@@ -20,9 +20,14 @@ namespace NetworkInterpolationDebugCVars
 
 	NETSIM_DEVCVAR_SHIPCONST_FLOAT(WaitSlack, 0.05, "ni.WaitSlack", "How much slack to wait for when waiting");
 
+	// Catchup means "interpolate faster than realtime"
 	NETSIM_DEVCVAR_SHIPCONST_FLOAT(CatchUpThreshold, 0.300, "ni.CatchUpThreshold", "When we start catching up (seconds from head)");
-	NETSIM_DEVCVAR_SHIPCONST_FLOAT(CatchUpGoal, 0.010, "ni.CatchUpGoal", "When we stop cathcing up (seconds from head)");
+	NETSIM_DEVCVAR_SHIPCONST_FLOAT(CatchUpGoal, 0.010, "ni.CatchUpGoal", "When we stop catching up (seconds from head)");
 	NETSIM_DEVCVAR_SHIPCONST_FLOAT(CatchUpFactor, 1.50, "ni.CatchUpFactor", "Factor we use to catch up");
+
+	// Snap means "we are too far behind, just jump to a specific point"
+	NETSIM_DEVCVAR_SHIPCONST_FLOAT(SnapThreshold, 0.500, "ni.SnapThreshold", "If we are < this, we will snap");
+	NETSIM_DEVCVAR_SHIPCONST_FLOAT(SnapGoal, 0.010, "ni.SnapGoal", "Where we snap to");
 }
 
 template<typename TSync, typename TAux>
@@ -136,23 +141,30 @@ struct TNetSimInterpolator
 		FRealTime NewInterpolationTime = InterpolationTime;
 		{
 			FRealTime Step = DeltaSeconds;
+
+			// Snap if way far behind
+			FRealTime SnapThreshold = SimulationTimeBuffer.HeadElement()->ToRealTimeSeconds() - NetworkInterpolationDebugCVars::SnapThreshold();
+			if (NewInterpolationTime < SnapThreshold)
+			{
+				NewInterpolationTime = SimulationTimeBuffer.HeadElement()->ToRealTimeSeconds() - NetworkInterpolationDebugCVars::SnapGoal();
+				UE_VLOG(LogOwner, LogNetInterpolation, Log, TEXT("Snapping to %s"), *LexToString(NewInterpolationTime));
+			}
 			
 			// Speed up if we are too far behind
 			FRealTime CatchUpThreshold = SimulationTimeBuffer.HeadElement()->ToRealTimeSeconds() - NetworkInterpolationDebugCVars::CatchUpThreshold();
-			if (CatchUpUntilTime <= 0.f && InterpolationTime < CatchUpThreshold)
+			if (CatchUpUntilTime <= 0.f && NewInterpolationTime < CatchUpThreshold)
 			{
 				CatchUpUntilTime = SimulationTimeBuffer.HeadElement()->ToRealTimeSeconds() - NetworkInterpolationDebugCVars::CatchUpGoal();
 			}
 
 			if (CatchUpUntilTime > 0.f)
 			{
-				if (InterpolationTime  < CatchUpUntilTime)
+				if (NewInterpolationTime  < CatchUpUntilTime)
 				{
 					Step *= NetworkInterpolationDebugCVars::CatchUpFactor();
 					LoggingContext = EVisualLoggingContext::InterpolationSpeedUp;
 
-					UE_VLOG(LogOwner, LogNetInterpolation, Log, TEXT("Catching up! %s < %s"), *LexToString(InterpolationTime), *LexToString(CatchUpUntilTime));
-					//!UE_LOG(LogNetInterpolation, Warning, TEXT("Catching up! %s < %s"), *LexToString(InterpolationTime), *LexToString(CatchUpUntilTime));
+					UE_VLOG(LogOwner, LogNetInterpolation, Log, TEXT("Catching up! %s < %s"), *LexToString(NewInterpolationTime), *LexToString(CatchUpUntilTime));
 				}
 				else
 				{
@@ -234,27 +246,27 @@ struct TNetSimInterpolator
 					const TSyncState* DebugTail = Buffers.Sync.TailElement();
 					const TSyncState* DebugHead = Buffers.Sync.HeadElement();
 
-					auto VLogHelper = [&](int32 Frame, EVisualLoggingContext Context)
+					auto VLogHelper = [&](int32 Frame, EVisualLoggingContext Context, const FString& DebugStr)
 					{
-						FVisualLoggingParameters VLogParams(Context, Frame, EVisualLoggingLifetime::Transient);
+						FVisualLoggingParameters VLogParams(Context, Frame, EVisualLoggingLifetime::Transient, DebugStr);
 						Driver->InvokeVisualLog(Buffers.Input[Frame], Buffers.Sync[Frame], Buffers.Aux[Frame], VLogParams);
 					};
 
-					VLogHelper(Buffers.Sync.TailFrame(), EVisualLoggingContext::InterpolationBufferTail);
-					VLogHelper(Buffers.Sync.HeadFrame(), EVisualLoggingContext::InterpolationBufferHead);
+					VLogHelper(Buffers.Sync.TailFrame(), EVisualLoggingContext::InterpolationBufferTail, LexToString(TickInfo.SimulationTimeBuffer.HeadElement()->ToRealTimeMS()));
+					VLogHelper(Buffers.Sync.HeadFrame(), EVisualLoggingContext::InterpolationBufferHead, LexToString(TickInfo.SimulationTimeBuffer.TailElement()->ToRealTimeMS()));
 
 					{
-						FVisualLoggingParameters VLogParams(EVisualLoggingContext::InterpolationFrom, InterpolationFrame-1, EVisualLoggingLifetime::Transient);
+						FVisualLoggingParameters VLogParams(EVisualLoggingContext::InterpolationFrom, InterpolationFrame-1, EVisualLoggingLifetime::Transient, LexToString(FromRealTime));
 						Driver->InvokeVisualLog(Buffers.Input[InterpolationFrame-1], &FromState.Sync, &FromState.Aux, VLogParams);
 					}
 
 					{
-						FVisualLoggingParameters VLogParams(EVisualLoggingContext::InterpolationTo, InterpolationFrame, EVisualLoggingLifetime::Transient);
+						FVisualLoggingParameters VLogParams(EVisualLoggingContext::InterpolationTo, InterpolationFrame, EVisualLoggingLifetime::Transient, LexToString(ToRealTime));
 						Driver->InvokeVisualLog(Buffers.Input[InterpolationFrame], ToState, ToAuxState, VLogParams);
 					}
 
 					{
-						FVisualLoggingParameters VLogParams(LoggingContext, InterpolationFrame, EVisualLoggingLifetime::Transient);
+						FVisualLoggingParameters VLogParams(LoggingContext, InterpolationFrame, EVisualLoggingLifetime::Transient, LexToString(NewInterpolationTime));
 						Driver->InvokeVisualLog(Buffers.Input[InterpolationFrame], &OutputState.Sync, &OutputState.Aux, VLogParams);
 					}
 				}
