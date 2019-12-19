@@ -917,7 +917,7 @@ void FMediaPlayerFacade::ProcessEvent(EMediaEvent Event)
 			// Yes, this also means: if we still have a player, it's still the one this event originated from
 
 			// If player allows: close it down all the way right now
-			if (Player.IsValid() && Player->GetPlayerFeatureFlag(IMediaPlayer::FeatureFlag::AllowShutdownOnClose))
+			if(Player.IsValid() && Player->GetPlayerFeatureFlag(IMediaPlayer::FeatureFlag::AllowShutdownOnClose))
 			{
 				FScopeLock Lock(&CriticalSection);
 				Player.Reset();
