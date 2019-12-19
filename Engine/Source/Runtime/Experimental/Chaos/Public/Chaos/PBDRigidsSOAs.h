@@ -112,7 +112,25 @@ public:
 			RemoveFromMapAndArray(PBDRigid, ActiveParticlesToIndex, ActiveParticlesArray);
 		}
 
+
+		if (PBDRigid)
+		{
+			// Check for sleep events referencing this particle
+			// TODO think about this case more
+			auto& SleepData = GetDynamicParticles().GetSleepData();
+			for (int32 Idx = 0; Idx < SleepData.Num(); ++Idx)
+			{
+				if (SleepData[Idx].Particle == Particle)
+				{
+					SleepData.RemoveAtSwap(Idx);
+					break;
+				}
+			}
+		}
+
 		ParticleHandles.DestroyHandleSwap(Particle);
+
+		
 		UpdateViews();
 	}
 
