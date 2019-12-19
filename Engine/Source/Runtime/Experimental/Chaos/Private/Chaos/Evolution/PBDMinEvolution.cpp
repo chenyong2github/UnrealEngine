@@ -117,7 +117,7 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_Integrate);
 
 		TPerParticleEulerStepVelocity<FReal, 3> EulerStepVelocityRule;
-		//TPerParticleEtherDrag<FReal, 3> EtherDragRule(HackLinearDrag, HackAngularDrag);
+		TPerParticleEtherDrag<FReal, 3> EtherDragRule;
 		TPerParticlePBDEulerStep<FReal, 3> EulerStepPositionRule;
 
 		for (TTransientPBDRigidParticleHandle<FReal, 3>& Particle : Particles.GetActiveParticlesView())
@@ -131,7 +131,7 @@ namespace Chaos
 				Particle.Torque() = Particle.ExternalTorque();
 
 				EulerStepVelocityRule.Apply(Particle, Dt);
-				//EtherDragRule.Apply(Particle, Dt);
+				EtherDragRule.Apply(Particle, Dt);
 
 				EulerStepPositionRule.Apply(Particle, Dt);
 
