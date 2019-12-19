@@ -700,6 +700,16 @@ uint16 FTriangleMeshImplicitObject::GetMaterialIndex(uint32 HintIndex) const
 	return 0;
 }
 
+const TParticles<FReal, 3>& FTriangleMeshImplicitObject::Particles() const
+{
+	return MParticles;
+}
+
+const TArray<TVector<int32, 3>> FTriangleMeshImplicitObject::Elements() const
+{
+	return MElements;
+}
+
 void Chaos::FTriangleMeshImplicitObject::RebuildBV()
 {
 	const int32 NumTris = MElements.Num();
