@@ -9,6 +9,7 @@
 #include "CrunchCompression.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Async/ParallelFor.h"
+#include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "Misc/ScopedSlowTask.h"
 #include "TextureCompressorModule.h"
 #include "TextureDerivedDataTask.h"
@@ -785,17 +786,13 @@ int32 FVirtualTextureDataBuilder::FindSourceBlockIndex(int32 MipIndex, int32 Blo
 static const FName RemovePlatformPrefixFromName(FName const& InName)
 {
 	FString NameString = InName.ToString();
-	if (NameString.StartsWith(TEXT("PS4_")))
+
+	for (const auto& PlatformInfo : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
 	{
-		return *NameString.Replace(TEXT("PS4_"), TEXT(""));
-	}
-	else if (NameString.StartsWith("XBOXONE_"))
-	{
-		return *NameString.Replace(TEXT("XBOXONE_"), TEXT(""));
-	}
-	else if (NameString.StartsWith("SWITCH_"))
-	{
-		return *NameString.Replace(TEXT("SWITCH_"), TEXT(""));
+		if (NameString.StartsWith(PlatformInfo.Key, ESearchCase::IgnoreCase))
+		{
+			return *NameString.RightChop(PlatformInfo.Key.Len() + 1); // Platform name followed by `_`
+		}
 	}
 
 	return InName;
