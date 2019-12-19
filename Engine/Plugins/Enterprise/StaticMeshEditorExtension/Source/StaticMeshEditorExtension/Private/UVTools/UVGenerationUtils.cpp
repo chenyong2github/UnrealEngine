@@ -12,6 +12,11 @@
 
 int32 UVGenerationUtils::GetNextOpenUVChannel(UStaticMesh* StaticMesh, int32 LODIndex)
 {
+	if (!StaticMesh->IsMeshDescriptionValid(LODIndex))
+	{
+		return -1;
+	}
+
 	FMeshDescription* Mesh = StaticMesh->GetMeshDescription(LODIndex);
 	int32 NumberOfUVs = StaticMesh->GetNumUVChannels(LODIndex);
 	int32 FirstEmptyUVs = 0;
@@ -42,6 +47,11 @@ int32 UVGenerationUtils::GetNextOpenUVChannel(UStaticMesh* StaticMesh, int32 LOD
 
 void UVGenerationUtils::SetupGeneratedLightmapUVResolution(UStaticMesh* StaticMesh, int32 LODIndex)
 {
+	if (!StaticMesh->IsMeshDescriptionValid(LODIndex))
+	{
+		return;
+	}
+
 	FMeshBuildSettings& BuildSettings = StaticMesh->GetSourceModel(LODIndex).BuildSettings;
 	FMeshDescription& Mesh = *StaticMesh->GetMeshDescription(LODIndex);
 
