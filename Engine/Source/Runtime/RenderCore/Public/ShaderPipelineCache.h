@@ -267,4 +267,6 @@ private:
 	int32 LastAutoSaveNum;
 	
 	TSet<uint64> CompletedMasks;
+	float TotalPrecompileWallTime;
+	int64 TotalPrecompileTasks;
 };
