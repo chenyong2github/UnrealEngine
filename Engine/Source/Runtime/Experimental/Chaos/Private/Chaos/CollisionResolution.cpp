@@ -582,8 +582,7 @@ namespace Chaos
 					Constraint[Idx].Manifold.Normal = Transform1.TransformVector(Constraint.PlaneNormal);
 					Constraint[Idx].Manifold.Location = Transform0.TransformPosition(Constraint[Idx].X);
 
-					// save the best point for collision processing
-					// @todo(chaos) : Consider appling all constraint in ::Apply at each iteration, right now it just takes the deepest.
+					// save the best point for collision processing	
 					if (ContactPoint.Phi > Constraint[Idx].Manifold.Phi)
 					{
 						ContactPoint.Phi = Constraint[Idx].Manifold.Phi;
@@ -608,6 +607,13 @@ namespace Chaos
 					// single shot manifolds for TConvex implicit object in the constraints implicit[0] position. 
 
 					TArray<FVec3> CollisionSamples;
+					//
+					//  @todo(chaos) : Collision Manifold
+					//   Remove the dependency on the virtual calls on the Implicit. Don't use FindClosestFaceAndVertices
+					//   this relies on virtual calls on the ImplicitObject. Instead pass a parameters structures into 
+					//   ConvexConvexContactPoint that can collect the face indices during evaluation of the support functions. 
+					//   This can be implemented without virtual calls. 
+					//
 					int32 FaceIndex = Constraint.Manifold.Implicit[0]->FindClosestFaceAndVertices(Transform0.InverseTransformPosition(ContactPoint.Location), CollisionSamples, 1.f);
 
 					if (!ContactPoint.Normal.Equals(Constraint.PlaneNormal)
@@ -622,7 +628,11 @@ namespace Chaos
 
 					if (Constraint.NumSamples() == 0)
 					{
-						// @todo(chaos) : Only save the four best samples and hard-code the size of Constraint.Samples to [len:4]
+						//
+						// @todo(chaos) : Collision Manifold
+						//   Only save the four best samples and hard-code the size of Constraint.Samples to [len:4].
+						//   Currently this just grabs all points and uses the deepest point for resolution. 
+						//
 						Constraint.SourceNormalIndex = FaceIndex;
 						for (FVec3 Sample : CollisionSamples)
 						{
@@ -651,7 +661,11 @@ namespace Chaos
 						TVector<T, d> Center = SumSampleData(Constraint) / Constraint.NumSamples();
 						T Delta = (Center - SurfaceSample).SizeSquared();
 
-						// todo(chaos) : maximize for area instead
+						//
+						// @todo(chaos) : Collision Manifold
+						//    The iterative manifold need to be maximized for area instead of largest 
+						//    distance from center.
+						//
 						T SmallestDelta = FLT_MAX;
 						int32 SmallestIndex = 0;
 						for (int32 idx = 0; idx < Constraint.NumSamples(); idx++)
