@@ -138,8 +138,7 @@ namespace ResonanceAudio
 			ReverbSubmixEffect->SetResonanceAudioReverbPlugin(this);
 
 			ReverbSubmixEffect->SetEnabled(true);
-			SubmixEffect = MakeShareable(ReverbSubmixEffect);
-
+			SubmixEffect = MakeShareable(static_cast<FSoundEffectSubmix*>(ReverbSubmixEffect));
 		}
 		else
 		{
