@@ -257,8 +257,8 @@ FD3D12PipelineStateCacheBase::~FD3D12PipelineStateCacheBase()
 FD3D12PipelineState::FD3D12PipelineState(FD3D12Adapter* Parent)
 	: FD3D12AdapterChild(Parent)
 	, FD3D12MultiNodeGPUObject(FRHIGPUMask::All(), FRHIGPUMask::All()) //Create on all, visible on all
+	, CachedPipelineState(nullptr)
 	, Worker(nullptr)
-	, bInitialized(false)
 {
 	INC_DWORD_STAT(STAT_D3D12NumPSOs);
 }
@@ -283,40 +283,34 @@ ID3D12PipelineState* FD3D12PipelineState::InternalGetPipelineState()
 
 	if (Worker)
 	{
-		check(!bInitialized);
-
 		Worker->EnsureCompletion(true);
 		check(Worker->IsWorkDone());
 
 		PipelineState = Worker->GetTask().PSO.GetReference();
+		CachedPipelineState = PipelineState.GetReference();
 
 		// Cleanup the worker.
 		delete Worker;
 		Worker = nullptr;
-
-		bInitialized = true;
 	}
-	else
-	{
-		// Busy-wait for the PSO. This avoids giving up our time slice.
-		if (!bInitialized)
-		{
-			const double StartTime = FPlatformTime::Seconds();
-			static const float BusyWaitTimeoutInMs = CVarPSOStallTimeoutInMs.GetValueOnAnyThread();
-			while (!bInitialized)
-			{
-				const double Time = (FPlatformTime::Seconds() - StartTime) * 1000.0;
 
-				if (Time > BusyWaitTimeoutInMs)
-				{
-					UE_LOG(LogD3D12RHI, Fatal, TEXT("Waiting for PSO creation failed to complete within the timeout interval (%.3f ms)."), BusyWaitTimeoutInMs);
-					break;
-				}
+	// Busy-wait for the PSO. This avoids giving up our time slice.
+	if (CachedPipelineState == nullptr)
+	{
+		const double StartTime = FPlatformTime::Seconds();
+		static const float BusyWaitTimeoutInMs = CVarPSOStallTimeoutInMs.GetValueOnAnyThread();
+		while (PipelineState.GetReference() == nullptr)
+		{
+			if (((FPlatformTime::Seconds() - StartTime) * 1000) > BusyWaitTimeoutInMs)
+			{
+				UE_LOG(LogD3D12RHI, Fatal, TEXT("Waiting for PSO creation failed to complete within the timeout interval (%.3f ms)."), BusyWaitTimeoutInMs);
 			}
 		}
+
+		CachedPipelineState = PipelineState.GetReference();
 	}
 
-	return PipelineState.GetReference();
+	return CachedPipelineState;
 }
 
 FD3D12GraphicsPipelineState::FD3D12GraphicsPipelineState(
@@ -614,12 +608,14 @@ FD3D12GraphicsPipelineState* FD3D12PipelineStateCacheBase::FindInLoadedCache(
 
 	return nullptr;
 #else
-	if (PipelineState && PipelineState->IsValid())
+	if (PipelineState)
 	{
 		return new FD3D12GraphicsPipelineState(Initializer, RootSignature, PipelineState);
 	}
-
-	return nullptr;
+	else
+	{
+		return nullptr;
+	}
 #endif
 }
 
@@ -641,12 +637,14 @@ FD3D12GraphicsPipelineState* FD3D12PipelineStateCacheBase::CreateAndAdd(
 	// Add the PSO to the runtime cache for better performance next time.
 	return AddToRuntimeCache(Initializer, InitializerHash, RootSignature, PipelineState);
 #else
-	if (PipelineState && PipelineState->IsValid())
+	if (PipelineState)
 	{
 		return new FD3D12GraphicsPipelineState(Initializer, RootSignature, PipelineState);
 	}
-
-	return nullptr;
+	else
+	{
+		return nullptr;
+	}
 #endif
 }
 
@@ -688,12 +686,14 @@ FD3D12ComputePipelineState* FD3D12PipelineStateCacheBase::FindInLoadedCache(FD3D
 
 	return nullptr;
 #else
-	if (PipelineState && PipelineState->IsValid())
+	if (PipelineState)
 	{
 		return new FD3D12ComputePipelineState(ComputeShader, PipelineState);
 	}
-
-	return nullptr;
+	else
+	{
+		return nullptr;
+	}
 #endif
 }
 
@@ -704,11 +704,13 @@ FD3D12ComputePipelineState* FD3D12PipelineStateCacheBase::CreateAndAdd(FD3D12Com
 	// Add the PSO to the runtime cache for better performance next time.
 	return AddToRuntimeCache(ComputeShader, PipelineState);
 #else
-	if (PipelineState && PipelineState->IsValid())
+	if (PipelineState)
 	{
 		return new FD3D12ComputePipelineState(ComputeShader, PipelineState);
 	}
-
-	return nullptr;
+	else
+	{
+		return nullptr;
+	}
 #endif
 }

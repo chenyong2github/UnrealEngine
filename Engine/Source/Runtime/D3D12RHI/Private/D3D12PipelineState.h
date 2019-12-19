@@ -306,16 +306,11 @@ public:
 	void Create(const GraphicsPipelineCreationArgs& InCreationArgs);
 	void CreateAsync(const GraphicsPipelineCreationArgs& InCreationArgs);
 
-	FORCEINLINE bool IsValid()
-	{
-		return (GetPipelineState() != nullptr);
-	}
-
 	FORCEINLINE ID3D12PipelineState* GetPipelineState()
 	{
-		if (bInitialized)
+		if (CachedPipelineState)
 		{
-			return PipelineState.GetReference();
+			return CachedPipelineState;
 		}
 		else
 		{
@@ -323,16 +318,24 @@ public:
 		}
 	}
 
-	FD3D12PipelineState& operator=(const FD3D12PipelineState& other) = delete;
+	FD3D12PipelineState& operator=(const FD3D12PipelineState& other)
+	{
+		checkSlow(GPUMask == other.GPUMask);
+		checkSlow(VisibilityMask == other.VisibilityMask);
+
+		PipelineState = other.PipelineState;
+		Worker = other.Worker;
+		return *this;
+	}
 
 private:
 	ID3D12PipelineState* InternalGetPipelineState();
 
 protected:
+	ID3D12PipelineState* CachedPipelineState;
 	TRefCountPtr<ID3D12PipelineState> PipelineState;
 	FAsyncTask<FD3D12PipelineStateWorker>* Worker;
 	FRWLock GetPipelineStateMutex;
-	volatile bool bInitialized;
 };
 
 struct FD3D12GraphicsPipelineState : public FRHIGraphicsPipelineState
