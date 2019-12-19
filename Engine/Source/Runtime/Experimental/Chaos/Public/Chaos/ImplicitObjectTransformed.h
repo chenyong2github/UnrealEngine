@@ -153,6 +153,20 @@ public:
 		return ClosestIntersection;
 	}
 
+	virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01) const override
+	{
+		const FVec3 LocalPoint = MTransform.InverseTransformPosition(Position);
+		int32 FaceIndex = MObject->FindClosestFaceAndVertices(LocalPoint, FaceVertices, SearchDist);
+		if (FaceIndex != INDEX_NONE)
+		{
+			for (FVec3& Vec : FaceVertices)
+			{
+				Vec = MTransform.TransformPosition(Vec);
+			}
+		}
+		return FaceIndex;
+	}
+
 	const TRigidTransform<T, d>& GetTransform() const { return MTransform; }
 	void SetTransform(const TRigidTransform<T, d>& InTransform)
 	{

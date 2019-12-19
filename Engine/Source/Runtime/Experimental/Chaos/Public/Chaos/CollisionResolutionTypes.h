@@ -172,22 +172,22 @@ namespace Chaos
 		using Base::Particle;
 		struct FSampleData { TVector<T,d> X; float Delta; FManifold Manifold; };
 
-		TRigidBodyIterativeContactConstraint() : Base(Base::FType::MultiPoint), PlaneNormal(0), PlanePosition(0), NumberSamples(0) {}
+		TRigidBodyIterativeContactConstraint() : Base(Base::FType::MultiPoint), SourceNormalIndex(INDEX_NONE), PlaneNormal(0), PlanePosition(0) {}
 		static typename Base::FType StaticType() { return Base::FType::MultiPoint; };
 
+		int SourceNormalIndex; // index of normal on particle[0] body;
 		TVector<T, d> PlaneNormal; // local space contact normal on Particle1
 		TVector<T, d> PlanePosition; // local space surface position on Particle1
 
 		// Samples
-		int32               NumSamples()                   { return NumberSamples; }
-		void                AddSample(FSampleData && Data) {Samples[NumberSamples] = Data; NumberSamples++; };
-		void                ResetSamples()                 { NumberSamples=0; }
-		FSampleData &       operator[](int32 Index)        { return Samples[Index]; }
-		const FSampleData & operator[](int32 Index) const  { return Samples[Index]; }
+		int32               NumSamples()                   { return Samples.Num(); }
+		void                AddSample(FSampleData && Data) { Samples.Add(Data); };
+		void                ResetSamples()                 { Samples.Reset(); }
+		FSampleData &       operator[](int32 Index) { ensure(0 <= Index && Index < NumSamples()); return Samples[Index]; }
+		const FSampleData & operator[](int32 Index) const  { ensure(0 <= Index && Index < NumSamples()); return Samples[Index]; }
 
 	private:
-		int NumberSamples;
-		FSampleData Samples[4]; // iterative samples
+		TArray<FSampleData> Samples; // iterative samples
 	};
 	typedef TRigidBodyIterativeContactConstraint<float, 3> FRigidBodyIterativeContactConstraint;
 

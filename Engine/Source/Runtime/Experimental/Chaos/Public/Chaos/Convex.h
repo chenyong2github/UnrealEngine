@@ -140,7 +140,6 @@ namespace Chaos
 		}
 
 		virtual int32 FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const override;
-		
 
 		FVec3 FindGeometryOpposingNormal(const FVec3& DenormDir, int32 FaceIndex, const FVec3& OriginalNormal) const
 		{
@@ -154,6 +153,9 @@ namespace Chaos
 			}
 			return FVec3(0.f, 0.f, 1.f);
 		}
+
+	
+		virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01) const override;
 
 		FORCEINLINE FReal GetMargin() const { return 0; }
 
