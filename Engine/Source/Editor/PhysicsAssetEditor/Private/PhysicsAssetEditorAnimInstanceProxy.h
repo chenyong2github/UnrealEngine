@@ -3,9 +3,10 @@
 #pragma once
 
 #include "AnimPreviewInstance.h"
-//#include "AnimNode_RigidBody.h"
-#include "Animation/AnimNodeSpaceConversions.h"
+#include "Animation/AnimNode_LinkedInputPose.h"
 #include "Animation/AnimNode_SequencePlayer.h"
+#include "Animation/AnimNodeSpaceConversions.h"
+#include "BoneControllers/AnimNode_RigidBody.h"
 #include "PhysicsAssetEditorAnimInstanceProxy.generated.h"
 
 class UAnimSequence;
@@ -29,15 +30,15 @@ public:
 	virtual ~FPhysicsAssetEditorAnimInstanceProxy();
 
 	virtual void Initialize(UAnimInstance* InAnimInstance) override;
+	virtual FAnimNode_Base* GetCustomRootNode() override;
 	virtual void GetCustomNodes(TArray<FAnimNode_Base*>& OutNodes) override;
+
+	virtual void UpdateAnimationNode(const FAnimationUpdateContext& InContext) override;
+	virtual bool Evaluate_WithRoot(FPoseContext& Output, FAnimNode_Base* InRootNode) override;
+
 private:
 	void ConstructNodes();
 
-	//FAnimNode_RigidBody RagdollNode;
-// 	FAnimNode_ConvertComponentToLocalSpace ComponentToLocalSpace;
-// 	FAnimNode_SequencePlayer SequencePlayerNode;
-// 	FAnimNode_ConvertLocalToComponentSpace LocalToComponentSpace;
-	
-	void InitAnimTrack(UAnimSequenceBase* InAnimSequence, int32 SequenceId);
-	void EnsureAnimTrack(UAnimSequenceBase* InAnimSequence, int32 SequenceId);
+	FAnimNode_RigidBody RagdollNode;
+ 	FAnimNode_ConvertComponentToLocalSpace ComponentToLocalSpace;
 };

@@ -2,7 +2,6 @@
 
 #include "PhysicsAssetEditorAnimInstanceProxy.h"
 #include "PhysicsAssetEditorAnimInstance.h"
-//#include "AnimNode_RigidBody.h"
 
 void FPhysicsAssetEditorAnimInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 {
@@ -12,17 +11,46 @@ void FPhysicsAssetEditorAnimInstanceProxy::Initialize(UAnimInstance* InAnimInsta
 
 void FPhysicsAssetEditorAnimInstanceProxy::ConstructNodes()
 {
-	//LocalToComponentSpace.LocalPose.SetLinkNode(&SequencePlayerNode);
-	//RagdollNode.ComponentPose.SetLinkNode(&LocalToComponentSpace);
-	//ComponentToLocalSpace.ComponentPose.SetLinkNode(&RagdollNode);
-	//ComponentToLocalSpace.ComponentPose.SetLinkNode(&LocalToComponentSpace);
+	ComponentToLocalSpace.ComponentPose.SetLinkNode(&RagdollNode);
 	
-	//RagdollNode.SimulationSpace = ESimulationSpace::WorldSpace;
+	RagdollNode.SimulationSpace = ESimulationSpace::WorldSpace;
+	RagdollNode.ActualAlpha = 1.0f;
+}
+
+FAnimNode_Base* FPhysicsAssetEditorAnimInstanceProxy::GetCustomRootNode()
+{
+	return &ComponentToLocalSpace;
 }
 
 void FPhysicsAssetEditorAnimInstanceProxy::GetCustomNodes(TArray<FAnimNode_Base*>& OutNodes)
 {
-	//OutNodes.Add(&RagdollNode);
+	OutNodes.Add(&RagdollNode);
+	OutNodes.Add(&ComponentToLocalSpace);
+}
+
+void FPhysicsAssetEditorAnimInstanceProxy::UpdateAnimationNode(const FAnimationUpdateContext& InContext)
+{
+	if (CurrentAsset != nullptr)
+	{
+		FAnimPreviewInstanceProxy::UpdateAnimationNode(InContext);
+	}
+	else
+	{
+		ComponentToLocalSpace.Update_AnyThread(InContext);
+	}
+}
+
+bool FPhysicsAssetEditorAnimInstanceProxy::Evaluate_WithRoot(FPoseContext& Output, FAnimNode_Base* InRootNode)
+{
+	if (CurrentAsset != nullptr)
+	{
+		return FAnimPreviewInstanceProxy::Evaluate_WithRoot(Output, InRootNode);
+	}
+	else
+	{
+		InRootNode->Evaluate_AnyThread(Output);
+		return true;
+	}
 }
 
 FPhysicsAssetEditorAnimInstanceProxy::~FPhysicsAssetEditorAnimInstanceProxy()
