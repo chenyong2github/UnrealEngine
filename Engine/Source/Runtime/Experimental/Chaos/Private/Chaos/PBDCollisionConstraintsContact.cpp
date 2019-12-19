@@ -18,31 +18,7 @@ namespace Chaos
 			const TRigidTransform<T, d> ParticleTM = GetTransform(Constraint.Particle[0]);
 			const TRigidTransform<T, d> LevelsetTM = GetTransform(Constraint.Particle[1]);
 
-			if (Constraint.GetType() == TCollisionConstraintBase<T, d>::FType::SinglePoint)
-			{
-				if (!Constraint.Particle[0]->Geometry())
-				{
-					if (Constraint.Particle[1]->Geometry())
-					{
-						if (!Constraint.Particle[1]->Geometry()->IsUnderlyingUnion())
-						{
-							UpdateLevelsetLevelsetConstraint<UpdateType>(Thickness, *Constraint.template As<TRigidBodyPointContactConstraint<T, d>>());
-						}
-						else
-						{
-							UpdateUnionLevelsetConstraint<UpdateType>(Thickness, *Constraint.template As<TRigidBodyPointContactConstraint<T, d>>());
-						}
-					}
-				}
-				else
-				{
-					UpdateConstraintImp<UpdateType>(*Constraint.Particle[0]->Geometry(), ParticleTM, *Constraint.Particle[1]->Geometry(), LevelsetTM, Thickness, Constraint);
-				}
-			}
-			else if(Constraint.GetType() == TCollisionConstraintBase<T, d>::FType::MultiPoint)
-			{
-				UpdateConstraintImp<UpdateType>(*Constraint.Particle[0]->Geometry(), ParticleTM, *Constraint.Particle[1]->Geometry(), LevelsetTM, Thickness, Constraint);
-			}
+			UpdateConstraint<UpdateType>(Constraint, ParticleTM, LevelsetTM, Thickness);
 		}
 
 		template<typename T, int d>
