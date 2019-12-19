@@ -79,6 +79,22 @@ namespace Chaos
 		// End of IClothingSimulation interface
 
 	private:
+
+		void BuildMesh(TUniquePtr<Chaos::TTriangleMesh<float>>& OutChaosMesh, const FClothPhysicalMeshData& InPhysMesh, uint32 Offset) const;
+
+		void SetParticleMasses(
+			const UChaosClothConfig* ChaosClothSimConfig,
+			TPBDParticles<float, 3>& Particles,
+			uint32 Offset, // Offset into Particles array
+			uint32 ParticlesCount, // Number of particles
+			Chaos::TTriangleMesh<float>& Mesh, // Mesh with indices into Particles with offset already taken into account
+			const FPointWeightMap& MaxDistances
+			) const;
+
+		void AddConstraints(const UChaosClothConfig* ChaosClothSimConfig, const FClothPhysicalMeshData& PhysMesh, const Chaos::TTriangleMesh<float>& Mesh, uint32 Offset, int32 InSimDataIndex);
+
+		void AddSelfCollisions(const TUniquePtr<Chaos::TTriangleMesh<float>>& Mesh, const TPBDParticles<float, 3>& Particles, int32 Offset);
+
 		// Extract the collisions from the physics asset referenced by the specified clothing asset
 		void ExtractPhysicsAssetCollisions(UClothingAssetCommon* Asset);
 		// Extract the collisions from the specified clothing asset 
