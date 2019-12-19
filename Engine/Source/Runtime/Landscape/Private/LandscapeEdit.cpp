@@ -5229,7 +5229,7 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 	{
 		for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
 		{
-			if (ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureIndex == 255)
+			if (!ComponentWeightmapLayerAllocations[LayerIdx].IsAllocated())
 			{
 				NeededNewChannels++;
 			}
@@ -5288,14 +5288,14 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 						{
 							FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[CurrentAlloc];
 
-							if (AllocInfo.WeightmapTextureIndex == 255)
+							if (!AllocInfo.IsAllocated())
 							{
 								break;
 							}
 						}
 
 						FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[CurrentAlloc];
-						check(AllocInfo.WeightmapTextureIndex == 255);
+						check(!AllocInfo.IsAllocated());
 
 						// Zero out the data for this texture channel
 						if (DataInterface)
@@ -5433,7 +5433,7 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 				// Use this allocation
 				FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[CurrentLayer];
 
-				if (AllocInfo.WeightmapTextureIndex == 255)
+				if (!AllocInfo.IsAllocated())
 				{
 					// New layer - zero out the data for this texture channel
 					if (DataInterface)

@@ -205,6 +205,14 @@ struct FWeightmapLayerAllocationInfo
 	FName GetLayerName() const;
 
 	uint32 GetHash() const;
+
+	void Free()
+	{
+		WeightmapTextureChannel = 255;
+		WeightmapTextureIndex = 255;
+	}
+
+	bool IsAllocated() const { return (WeightmapTextureChannel != 255 && WeightmapTextureIndex != 255); }
 };
 
 struct FLandscapeComponentGrassData
