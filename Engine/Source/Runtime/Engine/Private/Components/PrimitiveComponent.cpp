@@ -3107,6 +3107,7 @@ bool UPrimitiveComponent::UpdateOverlapsImpl(const TOverlapArrayView* NewPending
 				}
 				else
 				{
+					SCOPE_CYCLE_COUNTER(STAT_PerformOverlapQuery);
 					UE_LOG(LogPrimitiveComponent, VeryVerbose, TEXT("%s->%s Performing overlaps!"), *GetNameSafe(GetOwner()), *GetName());
 					UWorld* const MyWorld = GetWorld();
 					TArray<FOverlapResult> Overlaps;
