@@ -3,7 +3,10 @@
 #include "SNiagaraOverviewStackNode.h"
 #include "NiagaraOverviewNode.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
+#include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "SNiagaraOverviewStack.h"
 #include "NiagaraEditorModule.h"
@@ -15,11 +18,9 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "AssetThumbnail.h"
-#include "ViewModels/NiagaraEmitterViewModel.h"
 #include "Widgets/SToolTip.h"
 #include "Widgets/SBoxPanel.h"
 #include "NiagaraRendererProperties.h"
-#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "Widgets/SWidget.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewStackNode"
@@ -32,6 +33,8 @@ void SNiagaraOverviewStackNode::Construct(const FArguments& InArgs, UNiagaraOver
 	OverviewStackNode = InNode;
 	StackViewModel = nullptr;
 	OverviewSelectionViewModel = nullptr;
+	CurrentIssueIndex = -1;
+
 	EmitterHandleViewModelWeak.Reset();
 	ThumbnailPool = MakeShared<FAssetThumbnailPool>(100, TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SNiagaraOverviewStackNode::IsHoveringThumbnail)));
 	ThumbnailBar = SNew(SHorizontalBox);
@@ -120,17 +123,56 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleWidget(TSharedPtr<SNod
 		.FillWidth(1.0f)
 		[
 			DefaultTitle
-		]
-		// Stack issues icon
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Right)
-		.Padding(5, 0, 0, 0)
+		];
+}
+
+TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleRightWidget()
+{
+	return SNew(SBox)
+		.Content()
 		[
 			SNew(SNiagaraStackIssueIcon, StackViewModel, StackViewModel->GetRootEntry())
 			.Visibility(this, &SNiagaraOverviewStackNode::GetIssueIconVisibility)
+			.OnClicked(this, &SNiagaraOverviewStackNode::OnCycleThroughIssues)
 		];
+}
+
+FReply SNiagaraOverviewStackNode::OnCycleThroughIssues()
+{
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelWeak.Pin();
+	if (EmitterHandleViewModel.IsValid())
+	{
+		const TArray<UNiagaraStackEntry*>& ChildrenWithIssues = StackViewModel->GetRootEntry()->GetAllChildrenWithIssues();
+		if (ChildrenWithIssues.Num() > 0)
+		{
+			++CurrentIssueIndex;
+
+			if (CurrentIssueIndex >= ChildrenWithIssues.Num())
+			{
+				CurrentIssueIndex = 0;
+			}
+
+			if (ChildrenWithIssues.IsValidIndex(CurrentIssueIndex))
+			{
+				UNiagaraStackEntry* ChildToSelect = ChildrenWithIssues[CurrentIssueIndex];
+				UNiagaraStackModuleItem* ModuleToSelect = Cast<UNiagaraStackModuleItem>(ChildToSelect);
+				if (ModuleToSelect == nullptr)
+				{
+					ModuleToSelect = ChildToSelect->GetTypedOuter<UNiagaraStackModuleItem>();
+				}
+
+				if (ModuleToSelect != nullptr)
+				{
+					OverviewSelectionViewModel->UpdateSelectedEntries(TArray<UNiagaraStackEntry*> { ModuleToSelect },
+						TArray<UNiagaraStackEntry*>(), true /* bClearCurrentSelection */ );
+				}
+			}
+		}
+
+		return FReply::Handled();
+	}
+
+	return FReply::Unhandled();
 }
 
 TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateThumbnailWidget(float InThumbnailSize, FRendererPreviewData* InData)
@@ -169,6 +211,8 @@ FReply SNiagaraOverviewStackNode::OnClickedRenderingPreview(const FGeometry& InG
 		SelectedEntries.Add(InEntry);
 		TArray<UNiagaraStackEntry*> DeselectedEntries;
 		OverviewSelectionViewModel->UpdateSelectedEntries(SelectedEntries, DeselectedEntries, true);
+
+		CurrentIssueIndex = -1;
 		return FReply::Handled();
 	}
 	return FReply::Unhandled();
