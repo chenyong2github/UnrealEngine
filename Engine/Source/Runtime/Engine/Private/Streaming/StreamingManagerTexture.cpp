@@ -1794,10 +1794,14 @@ bool FRenderAssetStreamingManager::HandleDumpTextureStreamingStatsCommand( const
 	float StreamingPoolMB = DisplayedStats.StreamingPool / 1024.f / 1024.f;
 
 	// uses csv stats for access in test builds
-	Ar.Logf(TEXT("Current Texture Streaming Stats") );
-	Ar.Logf(TEXT("  Streaming Assets, Current/Pool = %.2f / %.2f MB (%d%%)"), DisplayedStats.WantedMips / 1024.f / 1024.f, StreamingPoolMB, FMath::RoundToInt(CurrentOccupancyPct));
-	Ar.Logf(TEXT("  Streaming Assets, Target/Pool =  %.2f / %.2f MB (%d%%)"), DisplayedStats.RequiredPool / 1024.f / 1024.f, StreamingPoolMB, FMath::RoundToInt(TargetOccupancyPct));
-	Ar.Logf(TEXT("  Non-Streaming Mips = %.2f MB"), DisplayedStats.NonStreamingMips / 1024.f / 1024.f);
+	Ar.Logf(TEXT("--------------------------------------------------------"));
+	Ar.Logf(TEXT("Texture Streaming Stats:") );
+	Ar.Logf(TEXT("Total Pool Size (aka RenderAssetPool) = %.2f MB"), DisplayedStats.RenderAssetPool / 1024.f / 1024.f);
+	Ar.Logf(TEXT("Non-Streaming Mips = %.2f MB"), DisplayedStats.NonStreamingMips / 1024.f / 1024.f);
+	Ar.Logf(TEXT("Remaining Streaming Pool Size = %.2f MB"), StreamingPoolMB);
+	Ar.Logf(TEXT("Streaming Assets, Current/Pool = %.2f / %.2f MB (%d%%)"), DisplayedStats.WantedMips / 1024.f / 1024.f, StreamingPoolMB, FMath::RoundToInt(CurrentOccupancyPct));
+	Ar.Logf(TEXT("Streaming Assets, Target/Pool =  %.2f / %.2f MB (%d%%)"), DisplayedStats.RequiredPool / 1024.f / 1024.f, StreamingPoolMB, FMath::RoundToInt(TargetOccupancyPct));
+	Ar.Logf(TEXT("--------------------------------------------------------"));
 
 	return true;
 }
