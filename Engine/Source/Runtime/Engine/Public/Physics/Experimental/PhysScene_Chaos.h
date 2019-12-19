@@ -27,6 +27,7 @@
 class UPrimitiveComponent;
 
 class AdvanceOneTimeStepTask;
+class FPhysicsReplication;
 class FPhysInterface_Chaos;
 class FChaosSolversModule;
 struct FForceFieldProxy;
@@ -140,6 +141,9 @@ public:
 
 	void Shutdown();
 
+	FPhysicsReplication* GetPhysicsReplication();
+	void SetPhysicsReplication(FPhysicsReplication* InPhysicsReplication);
+
 #if WITH_EDITOR
 	void AddPieModifiedObject(UObject* InObj);
 #endif
@@ -174,6 +178,9 @@ public:
 
 private:
 	TUniquePtr<Chaos::ISpatialAccelerationCollection<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>> SolverAccelerationStructure;
+
+	/** Replication manager that updates physics bodies towards replicated physics state */
+	FPhysicsReplication* PhysicsReplication;
 
 #if CHAOS_WITH_PAUSABLE_SOLVER
 	/** Callback that checks the status of the world settings for this scene before pausing/unpausing its solver. */
@@ -266,7 +273,6 @@ void FPhysScene_Chaos::RegisterEventHandler(const Chaos::EEventType& EventID, Ha
 
 class UWorld;
 class AWorldSettings;
-class FPhysicsReplication;
 class FPhysicsReplicationFactory;
 class FContactModifyCallbackFactory;
 
