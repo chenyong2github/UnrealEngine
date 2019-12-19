@@ -61,7 +61,7 @@ namespace SkeletalMeshBuilderHelperNS
 			//Nothing to fix if we have 1 or less material
 			return;
 		}
-		
+
 		//Fix the material for the faces
 		TArray<int32> MaterialRemap;
 		MaterialRemap.Reserve(RawMeshMaterials.Num());
