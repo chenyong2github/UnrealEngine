@@ -80,21 +80,10 @@ void ApplyMetaData(PyObject* InMetaData, const TFunctionRef<void(const FString&,
 
 } // namespace PyCoreUtil
 
-TStrongObjectPtr<UStruct>& GetPythonPropertyContainerSingleton()
-{
-	static TStrongObjectPtr<UStruct> PythonPropertyContainer;
-	return PythonPropertyContainer;
-}
-
 TStrongObjectPtr<UPackage>& GetPythonTypeContainerSingleton()
 {
 	static TStrongObjectPtr<UPackage> PythonTypeContainer;
 	return PythonTypeContainer;
-}
-
-UObject* GetPythonPropertyContainer()
-{
-	return GetPythonPropertyContainerSingleton().Get();
 }
 
 UObject* GetPythonTypeContainer()
@@ -1692,8 +1681,6 @@ PyMethodDef PyCoreMethods[] = {
 
 void InitializeModule()
 {
-	GetPythonPropertyContainerSingleton().Reset(NewObject<UStruct>(GetTransientPackage(), TEXT("PythonProperties"), RF_Transient));
-
 	GetPythonTypeContainerSingleton().Reset(NewObject<UPackage>(nullptr, TEXT("/Engine/PythonTypes"), RF_Public | RF_Transient));
 	GetPythonTypeContainerSingleton()->SetPackageFlags(PKG_ContainsScript);
 

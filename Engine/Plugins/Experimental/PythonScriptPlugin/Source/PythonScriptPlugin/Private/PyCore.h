@@ -18,9 +18,6 @@ enum class EPythonLogOutputType : uint8;
 
 struct FSlowTask;
 
-/** Get the object that Python created transient properties should be outered to */
-UObject* GetPythonPropertyContainer();
-
 /** Get the object that Python created types should be outered to */
 UObject* GetPythonTypeContainer();
 

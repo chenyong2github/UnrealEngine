@@ -1460,7 +1460,7 @@ public:
 			if (FuncArgDefaults.IsValidIndex(InputArgIndex) && FuncArgDefaults[InputArgIndex])
 			{
 				// Convert the default value to the given property...
-				PyUtil::FPropValueOnScope DefaultValue(Param);
+				PyUtil::FPropValueOnScope DefaultValue(PyUtil::FConstPropOnScope::ExternalReference(Param));
 				if (!DefaultValue.IsValid() || !DefaultValue.SetValue(FuncArgDefaults[InputArgIndex], *PyUtil::GetErrorContext(PyType)))
 				{
 					PyUtil::SetPythonError(PyExc_Exception, PyType, *FString::Printf(TEXT("Failed to convert default value for function '%s' argument '%s' (%s)"), *InFieldName, *FuncArgNames[InputArgIndex], *Param->GetClass()->GetName()));
