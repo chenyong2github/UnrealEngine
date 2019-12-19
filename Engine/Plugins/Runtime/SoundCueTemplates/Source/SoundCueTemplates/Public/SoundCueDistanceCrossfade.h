@@ -3,10 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
-#include "Sound/SoundCueTemplate.h"
+#include "SoundCueTemplate.h"
 #include "Sound/SoundNodeDistanceCrossFade.h"
-
 #include "Misc/Attribute.h"
 #include "UObject/ObjectMacros.h"
 

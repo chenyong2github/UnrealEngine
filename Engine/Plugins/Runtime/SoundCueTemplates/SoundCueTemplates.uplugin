@@ -6,7 +6,7 @@
 	"Description": "Collection of SoundCue Templates, which provide rapid design of common audio design workflows.",
 	"Category": "Audio",
 	"CreatedBy": "Epic Games, Inc.",
-	"CreatedByURL": "",
+	"CreatedByURL": "http://epicgames.com",
 	"DocsURL": "",
 	"MarketplaceURL": "",
 	"SupportURL": "",
@@ -18,6 +18,12 @@
 			"Name": "SoundCueTemplates",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name" : "SoundCueTemplatesEditor",
+			"Type" : "Editor",
+			"LoadingPhase" : "PostDefault"
 		}
+		
 	]
 }

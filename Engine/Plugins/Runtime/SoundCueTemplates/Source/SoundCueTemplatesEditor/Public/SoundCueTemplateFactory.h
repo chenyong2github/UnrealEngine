@@ -3,14 +3,10 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "SoundCueTemplate.h"
 #include "Factories/Factory.h"
 
 #include "SoundCueTemplateFactory.generated.h"
-
-// Forward Declarations
-class USoundCue;
-class USoundCueTemplate;
-class USoundWave;
 
 UCLASS(hidecategories = Object, MinimalAPI)
 class USoundCueTemplateCopyFactory : public UFactory
@@ -19,7 +15,7 @@ class USoundCueTemplateCopyFactory : public UFactory
 
 	//~ Begin UFactory Interface
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
-	//~ Begin UFactory Interface
+	//~ End UFactory Interface
 
 public:
 	UPROPERTY()
@@ -31,7 +27,11 @@ class USoundCueTemplateFactory : public UFactory
 {
 	GENERATED_UCLASS_BODY()
 
+	UPROPERTY(EditAnywhere, Category = SoundCueTemplateFacotry)
+	TSubclassOf<USoundCueTemplate> SoundCueTemplateClass;
+
 	//~ Begin UFactory Interface
+	virtual bool ConfigureProperties() override;
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
-	//~ Begin UFactory Interface
+	//~ End UFactory Interface
 };
