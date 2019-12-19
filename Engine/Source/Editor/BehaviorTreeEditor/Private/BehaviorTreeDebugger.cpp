@@ -5,6 +5,7 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/Controller.h"
 #include "EngineGlobals.h"
+#include "EdGraph/EdGraph.h"
 #include "Editor/EditorEngine.h"
 #include "Editor.h"
 #include "BehaviorTree/BTNode.h"
