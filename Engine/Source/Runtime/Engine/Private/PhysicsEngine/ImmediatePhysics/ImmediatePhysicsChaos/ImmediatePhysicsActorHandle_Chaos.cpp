@@ -157,17 +157,22 @@ namespace ImmediatePhysics_Chaos
 		UBodySetup* BodySetup = BodyInstance->BodySetup.Get();
 
 #if WITH_CHAOS && !PHYSICS_INTERFACE_PHYSX
-		float Density = 1.e-3f;	// 1g/cm3
 		Chaos::TMassProperties<float, 3> MassProperties;
 		CalculateMassProperties<float, 3>(Scale, FTransform::Identity, BodySetup->AggGeom, MassProperties);
-		OutMass = Density * MassProperties.Volume;
-		OutInertia = Density * Chaos::TVector<float, 3>(MassProperties.InertiaTensor.M[0][0], MassProperties.InertiaTensor.M[1][1], MassProperties.InertiaTensor.M[2][2]);
-		OutCoMTransform = FTransform(MassProperties.RotationOfMass, MassProperties.CenterOfMass);
+		float Density = 1.e-3f;	// 1g/cm3	@todo(ccaulfield): should come from material
+		if (BodyInstance->bOverrideMass)
+		{
+			Density = BodyInstance->GetMassOverride() / MassProperties.Volume;
+		}
+		OutMass = Density * (BodyInstance->MassScale * MassProperties.Volume);
+		OutInertia = Density * (BodyInstance->InertiaTensorScale * Chaos::TVector<float, 3>(MassProperties.InertiaTensor.M[0][0], MassProperties.InertiaTensor.M[1][1], MassProperties.InertiaTensor.M[2][2]));
+		OutCoMTransform = FTransform(MassProperties.RotationOfMass, MassProperties.CenterOfMass + BodyInstance->COMNudge);
 #else
 		OutMass = BodyInstance->GetBodyMass();
 		OutInertia = BodyInstance->GetBodyInertiaTensor();
 		OutCoMTransform = BodyInstance->GetMassSpaceLocal();
 #endif
+
 
 		FBodyCollisionData BodyCollisionData;
 		BodyInstance->BuildBodyFilterData(BodyCollisionData.CollisionFilterData);
@@ -502,6 +507,11 @@ namespace ImmediatePhysics_Chaos
 		return Handle()->InvM();
 	}
 
+	float FActorHandle::GetMass() const
+	{
+		return Handle()->M();
+	}
+
 	void FActorHandle::SetInverseInertia(const FVector& NewInverseInertia)
 	{
 		using namespace Chaos;
@@ -523,8 +533,16 @@ namespace ImmediatePhysics_Chaos
 	{
 		using namespace Chaos;
 
-		PMatrix<float, 3, 3> InvI = Handle()->InvI();
+		const PMatrix<float, 3, 3>& InvI = Handle()->InvI();
 		return { InvI.M[0][0], InvI.M[1][1], InvI.M[2][2] };
+	}
+
+	FVector FActorHandle::GetInertia() const
+	{
+		using namespace Chaos;
+
+		const PMatrix<float, 3, 3>& I = Handle()->I();
+		return { I.M[0][0], I.M[1][1], I.M[2][2] };
 	}
 
 	void FActorHandle::SetMaxDepenetrationVelocity(float NewMaxDepenetrationVelocity)
