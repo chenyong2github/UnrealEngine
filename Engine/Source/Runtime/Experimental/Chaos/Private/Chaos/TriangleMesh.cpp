@@ -108,7 +108,7 @@ void TTriangleMesh<T>::GetVertexSet(TSet<int32>& VertexSet) const
 }
 
 template<class T>
-const TMap<int32, TSet<uint32>>& TTriangleMesh<T>::GetPointToNeighborsMap()
+const TMap<int32, TSet<uint32>>& TTriangleMesh<T>::GetPointToNeighborsMap() const
 {
 	if (MPointToNeighborsMap.Num())
 	{
@@ -136,7 +136,7 @@ const TMap<int32, TSet<uint32>>& TTriangleMesh<T>::GetPointToNeighborsMap()
 }
 
 template<class T>
-const TMap<int32, TArray<int32>>& TTriangleMesh<T>::GetPointToTriangleMap()
+const TMap<int32, TArray<int32>>& TTriangleMesh<T>::GetPointToTriangleMap() const
 {
 	if (MPointToTriangleMap.Num())
 	{
@@ -154,7 +154,7 @@ const TMap<int32, TArray<int32>>& TTriangleMesh<T>::GetPointToTriangleMap()
 }
 
 template<class T>
-TArray<TVector<int32, 2>> TTriangleMesh<T>::GetUniqueAdjacentPoints()
+TArray<TVector<int32, 2>> TTriangleMesh<T>::GetUniqueAdjacentPoints() const
 {
 	TArray<TVector<int32, 2>> BendingConstraints;
 	auto BendingElements = GetUniqueAdjacentElements();
@@ -166,7 +166,7 @@ TArray<TVector<int32, 2>> TTriangleMesh<T>::GetUniqueAdjacentPoints()
 }
 
 template<class T>
-TArray<TVector<int32, 4>> TTriangleMesh<T>::GetUniqueAdjacentElements()
+TArray<TVector<int32, 4>> TTriangleMesh<T>::GetUniqueAdjacentElements() const
 {
 	TArray<TVector<int32, 4>> BendingConstraints;
 	TSet<TArray<int32>> BendingElements;
