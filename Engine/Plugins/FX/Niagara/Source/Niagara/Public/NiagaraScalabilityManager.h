@@ -125,6 +125,7 @@ struct FNiagaraScalabilityManager
 	float LastUpdateTime;
 
 	FNiagaraScalabilityManager();
+	~FNiagaraScalabilityManager();
 	void Update(FNiagaraWorldManager* Owner);
 	void Register(UNiagaraComponent* Component);
 	void Unregister(UNiagaraComponent* Component);
