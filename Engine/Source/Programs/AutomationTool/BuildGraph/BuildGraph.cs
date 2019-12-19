@@ -219,7 +219,7 @@ namespace AutomationTool
 
 			// Read the script from disk
 			Graph Graph;
-			if(!ScriptReader.TryRead(new FileReference(ScriptFileName), Arguments, DefaultProperties, PreprocessedFileName != null, Schema, out Graph))
+			if(!ScriptReader.TryRead(new FileReference(ScriptFileName), Arguments, DefaultProperties, PreprocessedFileName != null, Schema, out Graph, SingleNodeName))
 			{
 				return ExitCode.Error_Unknown;
 			}
@@ -255,7 +255,20 @@ namespace AutomationTool
 			}
 			else
 			{
-				foreach(string TargetName in TargetNames.Split(new char[]{ '+', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()))
+				IEnumerable<string> NodesToResolve = null;
+
+				// If we're only building a single node and using a preprocessed reference we only need to try to resolve the references
+				// for that node.
+				if (SingleNodeName != null && PreprocessedFileName != null)
+				{
+					NodesToResolve = new List<string> { SingleNodeName };
+				}
+				else
+				{
+					NodesToResolve = TargetNames.Split(new char[] { '+', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim());
+				}
+
+				foreach (string TargetName in NodesToResolve)
 				{
 					Node[] Nodes;
 					if(!Graph.TryResolveReference(TargetName, out Nodes))
@@ -658,7 +671,7 @@ namespace AutomationTool
 				if(!Storage.IsComplete(NodeToExecute.Name))
 				{
 					LogInformation("");
-					if(!BuildNode(Job, Graph, NodeToExecute, Storage, false))
+					if(!BuildNode(Job, Graph, NodeToExecute, Storage, bWithBanner: false))
 					{
 						return false;
 					} 

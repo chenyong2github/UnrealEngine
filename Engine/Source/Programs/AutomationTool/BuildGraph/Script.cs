@@ -247,6 +247,11 @@ namespace AutomationTool
 		int NumErrors;
 
 		/// <summary>
+		/// The name of the node if only a single node is going to be built, otherwise null.
+		/// </summary>
+		string SingleNodeName;
+
+		/// <summary>
 		/// Private constructor. Use ScriptReader.TryRead() to read a script file.
 		/// </summary>
 		/// <param name="DefaultProperties">Default properties available to the script</param>
@@ -274,8 +279,9 @@ namespace AutomationTool
 		/// <param name="bPreprocessOnly">Preprocess the file, but do not expand any values that are not portable (eg. paths on the local machine)</param>
 		/// <param name="Schema">Schema for the script</param>
 		/// <param name="Graph">If successful, the graph constructed from the given script</param>
+		/// <param name="SingleNodeName">If a single node will be processed, the name of that node.</param>
 		/// <returns>True if the graph was read, false if there were errors</returns>
-		public static bool TryRead(FileReference File, Dictionary<string, string> Arguments, Dictionary<string, string> DefaultProperties, bool bPreprocessOnly, ScriptSchema Schema, out Graph Graph)
+		public static bool TryRead(FileReference File, Dictionary<string, string> Arguments, Dictionary<string, string> DefaultProperties, bool bPreprocessOnly, ScriptSchema Schema, out Graph Graph, string SingleNodeName = null)
 		{
 			// Check the file exists before doing anything.
 			if (!FileReference.Exists(File))
@@ -287,7 +293,7 @@ namespace AutomationTool
 
 			// Read the file and build the graph
 			ScriptReader Reader = new ScriptReader(DefaultProperties, bPreprocessOnly, Schema);
-			if (!Reader.TryRead(File, Arguments) || Reader.NumErrors > 0)
+			if (!Reader.TryRead(File, Arguments, SingleNodeName) || Reader.NumErrors > 0)
 			{
 				Graph = null;
 				return false;
@@ -316,7 +322,8 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="File">File to read from</param>
 		/// <param name="Arguments">Arguments passed in to the graph on the command line</param>
-		bool TryRead(FileReference File, Dictionary<string, string> Arguments)
+		/// <param name="SingleNodeName">The name of the node if only a single node is going to be built, otherwise null.</param>
+		bool TryRead(FileReference File, Dictionary<string, string> Arguments, string SingleNodeName = null)
 		{
 			// Read the document and validate it against the schema
 			ScriptDocument Document;
@@ -327,6 +334,7 @@ namespace AutomationTool
 			}
 
 			// Read the root BuildGraph element
+			this.SingleNodeName = SingleNodeName;
 			ReadGraphBody(Document.DocumentElement, File.Directory, Arguments);
 			return true;
 		}
@@ -1306,6 +1314,12 @@ namespace AutomationTool
 		/// <param name="ParentNode">The node which owns this task</param>
 		void ReadTask(ScriptElement Element, Node ParentNode)
 		{
+			// If we're running a single node and this element's parent isn't the single node to run, ignore the error and return.
+			if (!string.IsNullOrWhiteSpace(SingleNodeName) && ParentNode.Name != SingleNodeName)
+			{
+				return;
+			}
+
 			if (EvaluateCondition(Element))
 			{
 				// Get the reflection info for this element
