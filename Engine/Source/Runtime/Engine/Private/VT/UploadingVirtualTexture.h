@@ -86,4 +86,6 @@ private:
 	TArray< TUniquePtr<FVirtualTextureCodec> > CodecPerChunk;
 	TBitArray<> InvalidChunks; // marks chunks that failed to load
 	int32 FirstMipOffset;
+
+	struct FVirtualTextureChunkStreamingManager* StreamingManager;
 };
