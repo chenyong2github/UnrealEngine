@@ -53,6 +53,8 @@
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(SLATECORE_API, Slate);
+
 //////////////////////////////////////////////////////////////////////////
 
 /** 
@@ -1117,6 +1119,7 @@ static void PrepassWindowAndChildren( TSharedRef<SWindow> WindowToPrepass )
 void FSlateApplication::DrawPrepass( TSharedPtr<SWindow> DrawOnlyThisWindow )
 {
 	SCOPED_NAMED_EVENT_TEXT("Slate::Prepass", FColor::Magenta);
+	CSV_SCOPED_TIMING_STAT(Slate, Prepass);
 
 	TSharedPtr<SWindow> ActiveModalWindow = GetActiveModalWindow();
 
@@ -1337,6 +1340,7 @@ void FSlateApplication::Tick(ESlateTickType TickType)
 	FScopeLock SlateTickAccess(&SlateTickCriticalSection);
 
 	SCOPED_NAMED_EVENT_TEXT("Slate::Tick", FColor::Magenta);
+	CSV_SCOPED_TIMING_STAT(Slate, Tick);
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_SlateTickTime);
