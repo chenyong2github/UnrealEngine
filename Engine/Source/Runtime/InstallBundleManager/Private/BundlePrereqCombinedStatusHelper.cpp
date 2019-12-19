@@ -4,18 +4,7 @@
 #include "Containers/Ticker.h"
 #include "InstallBundleManagerPrivatePCH.h"
 
-//PRAGMA_DISABLE_OPTIMIZATION
-
 FBundlePrereqCombinedStatusHelper::FBundlePrereqCombinedStatusHelper()
-: DownloadWeight(1.f)
-, InstallWeight(1.f)
-, RequiredBundleNames()
-, BundleStatusCache()
-, CachedBundleWeights()
-, CurrentCombinedStatus()
-, bBundleNeedsUpdate(false)
-, InstallBundleManager(nullptr)
-, TickHandle()
 {
 	SetupDelegates();
 }
@@ -40,8 +29,6 @@ FBundlePrereqCombinedStatusHelper& FBundlePrereqCombinedStatusHelper::operator=(
 	if (this != &Other)
 	{
 		//Just copy all this data
-		DownloadWeight = Other.DownloadWeight;
-		InstallWeight = Other.InstallWeight;
 		RequiredBundleNames = Other.RequiredBundleNames;
 		BundleStatusCache = Other.BundleStatusCache;
 		CachedBundleWeights = Other.CachedBundleWeights;
@@ -61,8 +48,6 @@ FBundlePrereqCombinedStatusHelper& FBundlePrereqCombinedStatusHelper::operator=(
 	if (this != &Other)
 	{
 		//Just copy small data
-		DownloadWeight = Other.DownloadWeight;
-		InstallWeight = Other.InstallWeight;
 		CurrentCombinedStatus = Other.CurrentCombinedStatus;
 		bBundleNeedsUpdate = Other.bBundleNeedsUpdate;
 		InstallBundleManager = Other.InstallBundleManager;
@@ -191,7 +176,7 @@ void FBundlePrereqCombinedStatusHelper::UpdateCombinedStatus()
 	if ((BundleStatusCache.Num() < RequiredBundleNames.Num())
 		&& (BundleStatusCache.Num() > 0))
 	{
-		EarliestBundleState = EInstallBundleStatus::Downloading;
+		EarliestBundleState = EInstallBundleStatus::Installing;
 	}
 	
 	float EarliestFinishingPercent = 1.0f;
@@ -272,64 +257,12 @@ float FBundlePrereqCombinedStatusHelper::GetCombinedProgressPercent() const
 		const float* FoundWeight = CachedBundleWeights.Find(BundleStatusPair.Key);
 		if (ensureAlwaysMsgf((nullptr != FoundWeight), TEXT("Found missing entry for BundleWeight! Bundle %s does not have a weight entry!"), *(BundleStatusPair.Key.ToString())))
 		{
-			AllBundleProgressPercent += ((*FoundWeight) * GetIndividualWeightedProgressPercent(BundleStatusPair.Value));
+			AllBundleProgressPercent += ((*FoundWeight) * BundleStatusPair.Value.Install_Percent);
 		}
 	}
 	
 	FMath::Clamp(AllBundleProgressPercent, 0.f, 1.0f);
 	return AllBundleProgressPercent;
-}
-
-float FBundlePrereqCombinedStatusHelper::GetIndividualWeightedProgressPercent(const FInstallBundleStatus& BundleStatus) const
-{
-	const float TotalWeight = DownloadWeight + InstallWeight;
-	float CombinedOverallProgressPercent = 0.f;
-	
-	//If we are done installing then lets just coung our progress as 1.0f. Finishing progress is handled in UpdateCombinedStatus
-	if (BundleStatus.Status > EInstallBundleStatus::Installing)
-	{
-		CombinedOverallProgressPercent = 1.0f;
-	}
-	else
-	{
-		if (ensureAlwaysMsgf((TotalWeight > 0), TEXT("Invalid Weights for FBundleStatusTracker! Need to have weights > 0.f!")))
-		{
-			float DownloadWeightedPercent = 0.f;
-			bool bDidHaveBackgroundDownloadProgress = false;
-			
-			if (DownloadWeight > 0.f)
-			{
-				//Skip background downloads from contributing to progress if they aren't in use
-				bDidHaveBackgroundDownloadProgress = (BundleStatus.BackgroundDownloadProgress.IsSet() && (BundleStatus.BackgroundDownloadProgress->BytesDownloaded > 0));
-				if (bDidHaveBackgroundDownloadProgress)
-				{
-					const float AppliedDownloadWeight = DownloadWeight / TotalWeight;
-					
-					if (BundleStatus.Status > EInstallBundleStatus::Downloading)
-					{
-						//if we have moved past the download phase, just consider these
-						//downloads as having finished
-						DownloadWeightedPercent = 1.0f * AppliedDownloadWeight;
-					}
-					else
-					{
-						DownloadWeightedPercent = BundleStatus.BackgroundDownloadProgress->PercentComplete * AppliedDownloadWeight;
-					}
-				}
-			}
-			
-			float InstallWeightedPercent = 0.f;
-			
-			//If we didn't have background download progress, just use our InstallWeight as we don't have Download Progress to use
-			const float AppliedInstallWeight = bDidHaveBackgroundDownloadProgress ? (InstallWeight / TotalWeight) : 1.0f;
-			InstallWeightedPercent = BundleStatus.Install_Percent * AppliedInstallWeight;
-			
-			CombinedOverallProgressPercent = DownloadWeightedPercent + InstallWeightedPercent;
-			FMath::Clamp(CombinedOverallProgressPercent, 0.f, 1.0f);
-		}
-	}
-	
-	return CombinedOverallProgressPercent;
 }
 
 bool FBundlePrereqCombinedStatusHelper::Tick(float dt)
@@ -377,5 +310,3 @@ void FBundlePrereqCombinedStatusHelper::OnBundleInstallPauseChanged(FInstallBund
 		BundleCacheInfo.PauseFlags = PauseInfo.PauseFlags;
 	}
 }
-
-//PRAGMA_ENABLE_OPTIMIZATION
