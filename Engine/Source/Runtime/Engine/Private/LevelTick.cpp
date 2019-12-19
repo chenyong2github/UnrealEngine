@@ -98,6 +98,7 @@ DEFINE_STAT(STAT_TeleportToTime);
 DEFINE_STAT(STAT_MoveComponentTime);
 DEFINE_STAT(STAT_MoveComponentSceneComponentTime);
 DEFINE_STAT(STAT_UpdateOverlaps);
+DEFINE_STAT(STAT_PerformOverlapQuery);
 DEFINE_STAT(STAT_UpdatePhysicsVolume);
 DEFINE_STAT(STAT_EndScopedMovementUpdate);
 
