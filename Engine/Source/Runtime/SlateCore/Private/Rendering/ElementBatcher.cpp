@@ -10,7 +10,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Debugging/SlateDebugging.h"
 
-CSV_DECLARE_CATEGORY_EXTERN(Slate);
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(SLATECORE_API, Slate);
 
 DECLARE_CYCLE_STAT(TEXT("Slate RT: Create Batches"), STAT_SlateRTCreateBatches, STATGROUP_Slate);
 

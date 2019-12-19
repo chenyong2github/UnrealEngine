@@ -8,7 +8,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Types/ReflectionMetadata.h"
 
-CSV_DECLARE_CATEGORY_EXTERN(Slate);
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(SLATECORE_API, Slate);
 
 #if WITH_SLATE_DEBUGGING
 bool GDumpUpdateList = false;
