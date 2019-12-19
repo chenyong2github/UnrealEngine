@@ -260,6 +260,29 @@ public partial class Project : CommandUtils
 		return CulturesToStage;
 	}
 
+	private static bool ShouldStageLocalizationTarget(DeploymentContext SC, ConfigHierarchy PlatformGameConfig, string LocalizationTarget)
+	{
+		if (SC.BlacklistLocalizationTargets.Contains(LocalizationTarget))
+		{
+			return false;
+		}
+
+		// Chunked targets can be added to the manifest during cook, so skip them during staging otherwise we'll overwrite the chunk 0 data with the non-chunked version
+		if (PlatformGameConfig != null)
+		{
+			List<string> LocalizationTargetsToChunk = null;
+			PlatformGameConfig.GetArray("/Script/UnrealEd.ProjectPackagingSettings", "LocalizationTargetsToChunk", out LocalizationTargetsToChunk);
+
+			if (LocalizationTargetsToChunk != null && LocalizationTargetsToChunk.Contains(LocalizationTarget))
+			{
+				var CookedLocalizationTargetDirectory = DirectoryReference.Combine(SC.PlatformCookDir, SC.ShortProjectName, "Content", "Localization", LocalizationTarget);
+				return !DirectoryReference.Exists(CookedLocalizationTargetDirectory);
+			}
+		}
+
+		return true;
+	}
+
 	private static void StageLocalizationDataForPlugin(DeploymentContext SC, List<string> CulturesToStage, FileReference Plugin)
 	{
 		PluginDescriptor Descriptor = PluginDescriptor.FromFile(Plugin);
@@ -270,7 +293,7 @@ public partial class Project : CommandUtils
 				if (LocalizationTarget.LoadingPolicy == LocalizationTargetDescriptorLoadingPolicy.Always || LocalizationTarget.LoadingPolicy == LocalizationTargetDescriptorLoadingPolicy.Game)
 				{
 					DirectoryReference PluginLocTargetDirectory = DirectoryReference.Combine(Plugin.Directory, "Content", "Localization", LocalizationTarget.Name);
-					if (!SC.BlacklistLocalizationTargets.Contains(LocalizationTarget.Name) && DirectoryReference.Exists(PluginLocTargetDirectory))
+					if (ShouldStageLocalizationTarget(SC, null, LocalizationTarget.Name) && DirectoryReference.Exists(PluginLocTargetDirectory))
 					{
 						StageLocalizationDataForTarget(SC, CulturesToStage, PluginLocTargetDirectory);
 					}
@@ -303,13 +326,13 @@ public partial class Project : CommandUtils
 		}
 	}
 
-	private static void StageLocalizationDataForTargetsInDirectory(DeploymentContext SC, List<string> CulturesToStage, DirectoryReference RootDirectory)
+	private static void StageLocalizationDataForTargetsInDirectory(DeploymentContext SC, ConfigHierarchy PlatformGameConfig, List<string> CulturesToStage, DirectoryReference RootDirectory)
 	{
 		if (DirectoryReference.Exists(RootDirectory))
 		{
 			foreach (DirectoryReference LocTargetDirectory in DirectoryReference.EnumerateDirectories(RootDirectory))
 			{
-				if (!SC.BlacklistLocalizationTargets.Contains(LocTargetDirectory.MakeRelativeTo(RootDirectory)))
+				if (ShouldStageLocalizationTarget(SC, PlatformGameConfig, LocTargetDirectory.MakeRelativeTo(RootDirectory)))
 				{
 					StageLocalizationDataForTarget(SC, CulturesToStage, LocTargetDirectory);
 				}
@@ -420,6 +443,13 @@ public partial class Project : CommandUtils
 			// Making a plugin
 			DirectoryReference DLCRoot = Params.DLCFile.Directory;
 
+			// Put all of the cooked dir into the staged dir
+			SC.PlatformCookDir = String.IsNullOrEmpty(Params.CookOutputDir) ? DirectoryReference.Combine(DLCRoot, "Saved", "Cooked", SC.CookPlatform) : DirectoryReference.Combine(new DirectoryReference(Params.CookOutputDir), SC.CookPlatform);
+			DirectoryReference PlatformEngineDir = DirectoryReference.Combine(SC.PlatformCookDir, "Engine");
+			DirectoryReference ProjectMetadataDir = DirectoryReference.Combine(SC.PlatformCookDir, SC.ShortProjectName, "Metadata");
+			string RelativeDLCRootPath = DLCRoot.MakeRelativeTo(SC.LocalRoot);
+			SC.MetadataDir = DirectoryReference.Combine(SC.PlatformCookDir, RelativeDLCRootPath, "Metadata");
+
 			// The .uplugin file is staged differently for different DLC
 			// The .uplugin file doesn't actually exist for mobile DLC
 			if (FileReference.Exists(Params.DLCFile))
@@ -451,20 +481,12 @@ public partial class Project : CommandUtils
 				SC.StageFiles(StagedFileType.NonUFS, BinariesDir, "UE4Server-*.dll", StageFilesSearch.AllDirectories);
 			}
 
-			// Put all of the cooked dir into the staged dir
-			SC.PlatformCookDir = String.IsNullOrEmpty(Params.CookOutputDir) ? DirectoryReference.Combine(DLCRoot, "Saved", "Cooked", SC.CookPlatform) : DirectoryReference.Combine(new DirectoryReference(Params.CookOutputDir), SC.CookPlatform);
-			DirectoryReference PlatformEngineDir = DirectoryReference.Combine(SC.PlatformCookDir, "Engine");
-			DirectoryReference ProjectMetadataDir = DirectoryReference.Combine(SC.PlatformCookDir, SC.ShortProjectName, "Metadata");
-			string RelativeDLCRootPath = DLCRoot.MakeRelativeTo(SC.LocalRoot);
-			SC.MetadataDir = DirectoryReference.Combine(SC.PlatformCookDir, RelativeDLCRootPath, "Metadata");
-
 			// Put the config files into the staged dir
 			DirectoryReference ConfigDir = DirectoryReference.Combine(DLCRoot, "Config");
 			if (DirectoryReference.Exists(ConfigDir))
 			{
 				SC.StageFiles(StagedFileType.UFS, ConfigDir, "*.ini", StageFilesSearch.AllDirectories);
 			}
-
 
 			if (Params.DLCActLikePatch)
 			{
@@ -566,6 +588,24 @@ public partial class Project : CommandUtils
 
 			if (!Params.CookOnTheFly && !Params.SkipCookOnTheFly) // only stage the UFS files if we are not using cook on the fly
 			{
+				// Get the final output directory for cooked data
+				DirectoryReference CookOutputDir;
+				if (!String.IsNullOrEmpty(Params.CookOutputDir))
+				{
+					CookOutputDir = DirectoryReference.Combine(new DirectoryReference(Params.CookOutputDir), SC.CookPlatform);
+				}
+				else if (Params.CookInEditor)
+				{
+					CookOutputDir = DirectoryReference.Combine(SC.ProjectRoot, "Saved", "EditorCooked", SC.CookPlatform);
+				}
+				else
+				{
+					CookOutputDir = DirectoryReference.Combine(SC.ProjectRoot, "Saved", "Cooked", SC.CookPlatform);
+				}
+
+				SC.PlatformCookDir = CookOutputDir;
+				SC.MetadataDir = DirectoryReference.Combine(CookOutputDir, SC.ShortProjectName, "Metadata");
+
 				// Work out which ICU data version we use for this platform
 				var ICUDataVersion = "icudt64l";
 				if (SC.StageTargetPlatform.PlatformType == UnrealTargetPlatform.HoloLens || SC.StageTargetPlatform.PlatformType == UnrealTargetPlatform.TVOS)
@@ -586,7 +626,7 @@ public partial class Project : CommandUtils
 				StageConfigFiles(SC, DirectoryReference.Combine(SC.LocalRoot, "Engine", "Config"), null);
 
 				// Stage the engine localization target
-				if (!SC.BlacklistLocalizationTargets.Contains("Engine"))
+				if (ShouldStageLocalizationTarget(SC, null, "Engine"))
 				{
 					StageLocalizationDataForTarget(SC, CulturesToStage, DirectoryReference.Combine(SC.LocalRoot, "Engine", "Content", "Localization", "Engine"));
 				}
@@ -627,7 +667,7 @@ public partial class Project : CommandUtils
 				}
 
 				// Stage all project localization targets
-				StageLocalizationDataForTargetsInDirectory(SC, CulturesToStage, DirectoryReference.Combine(SC.ProjectRoot, "Content", "Localization"));
+				StageLocalizationDataForTargetsInDirectory(SC, PlatformGameConfig, CulturesToStage, DirectoryReference.Combine(SC.ProjectRoot, "Content", "Localization"));
 
 				// Stage all plugin localization targets
 				foreach (KeyValuePair<StagedFileReference, FileReference> StagedPlugin in StagedPlugins)
@@ -638,8 +678,8 @@ public partial class Project : CommandUtils
 				// Stage any platform extension localization targets
 				{
 					string PlatformExtensionName = SC.StageTargetPlatform.PlatformType.ToString();
-					StageLocalizationDataForTargetsInDirectory(SC, CulturesToStage, DirectoryReference.Combine(SC.LocalRoot, "Engine", "Platforms", PlatformExtensionName, "Content", "Localization"));
-					StageLocalizationDataForTargetsInDirectory(SC, CulturesToStage, DirectoryReference.Combine(SC.ProjectRoot, "Platforms", PlatformExtensionName, "Content", "Localization"));
+					StageLocalizationDataForTargetsInDirectory(SC, null, CulturesToStage, DirectoryReference.Combine(SC.LocalRoot, "Engine", "Platforms", PlatformExtensionName, "Content", "Localization"));
+					StageLocalizationDataForTargetsInDirectory(SC, PlatformGameConfig, CulturesToStage, DirectoryReference.Combine(SC.ProjectRoot, "Platforms", PlatformExtensionName, "Content", "Localization"));
 				}
 
 				// Stage any additional UFS and NonUFS paths specified in the project ini files; these dirs are relative to the game content directory
@@ -740,24 +780,6 @@ public partial class Project : CommandUtils
 						SC.StageFiles(StagedFileType.UFS, ShaderCacheFiles);
 					}
 				}
-
-				// Get the final output directory for cooked data
-				DirectoryReference CookOutputDir;
-				if (!String.IsNullOrEmpty(Params.CookOutputDir))
-				{
-					CookOutputDir = DirectoryReference.Combine(new DirectoryReference(Params.CookOutputDir), SC.CookPlatform);
-				}
-				else if (Params.CookInEditor)
-				{
-					CookOutputDir = DirectoryReference.Combine(SC.ProjectRoot, "Saved", "EditorCooked", SC.CookPlatform);
-				}
-				else
-				{
-					CookOutputDir = DirectoryReference.Combine(SC.ProjectRoot, "Saved", "Cooked", SC.CookPlatform);
-				}
-
-				SC.PlatformCookDir = CookOutputDir;
-				SC.MetadataDir = DirectoryReference.Combine(CookOutputDir, SC.ShortProjectName, "Metadata");
 
 				// Stage all the cooked data. Currently not filtering this by restricted folders, since we shouldn't mask invalid references by filtering them out.
 				if (DirectoryReference.Exists(CookOutputDir))

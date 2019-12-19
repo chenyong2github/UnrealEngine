@@ -48,6 +48,7 @@
 #include "Editor.h"
 #include "UnrealEdGlobals.h"
 #include "FileServerMessages.h"
+#include "LocalizationChunkDataGenerator.h"
 #include "Internationalization/Culture.h"
 #include "Serialization/ArrayReader.h"
 #include "Serialization/ArrayWriter.h"
@@ -6968,6 +6969,8 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 		FCoreUObjectDelegates::PackageCreatedForLoad.AddUObject(this, &UCookOnTheFlyServer::MaybeMarkPackageAsAlreadyLoaded);
 	}
 
+	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
+
 	// Find all the localized packages and map them back to their source package
 	{
 		UE_LOG(LogCook, Display, TEXT("Discovering localized assets"));
@@ -7010,9 +7013,29 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 			TArray<FName>& LocalizedPackageNames = CookByTheBookOptions->SourceToLocalizedPackageVariants.FindOrAdd(SourcePackageName);
 			LocalizedPackageNames.AddUnique(LocalizedPackageName);
 		}
-	}
 
-	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
+		// Get the list of localization targets to chunk, and remove any targets that we've been asked not to stage
+		TArray<FString> LocalizationTargetsToChunk = PackagingSettings->LocalizationTargetsToChunk;
+		{
+			TArray<FString> BlacklistLocalizationTargets;
+			GConfig->GetArray(TEXT("Staging"), TEXT("BlacklistLocalizationTargets"), BlacklistLocalizationTargets, GGameIni);
+			if (BlacklistLocalizationTargets.Num() > 0)
+			{
+				LocalizationTargetsToChunk.RemoveAll([&BlacklistLocalizationTargets](const FString& InLocalizationTarget)
+				{
+					return BlacklistLocalizationTargets.Contains(InLocalizationTarget);
+				});
+			}
+		}
+
+		if (LocalizationTargetsToChunk.Num() > 0 && AllCulturesToCook.Num() > 0)
+		{
+			for (TPair<FName, FAssetRegistryGenerator*>& Pair : RegistryGenerators)
+			{
+				Pair.Value->RegisterChunkDataGenerator(MakeShared<FLocalizationChunkDataGenerator>(MoveTemp(LocalizationTargetsToChunk), MoveTemp(AllCulturesToCook)));
+			}
+		}
+	}
 
 	PackageTracker->NeverCookPackageList.Empty();
 	{
