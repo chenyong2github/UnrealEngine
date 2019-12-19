@@ -30,8 +30,7 @@ namespace Chaos
 	template<typename T>
 	class THeightField;
 
-	template<typename T>
-	class TTriangleMeshImplicitObject;
+	class FTriangleMeshImplicitObject;
 }
 #endif
 
