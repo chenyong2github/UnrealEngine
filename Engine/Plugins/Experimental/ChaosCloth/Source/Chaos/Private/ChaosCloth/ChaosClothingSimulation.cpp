@@ -177,35 +177,28 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 		AnimDriveSpringStiffness.SetNumZeroed(InSimDataIndex + 1);
 	}
 	Assets[InSimDataIndex] = Asset;
-	AnimDriveSpringStiffness[InSimDataIndex] = ChaosClothSimConfig->AnimDriveSpringStiffness;
+
+	if (Meshes.Num() <= InSimDataIndex)
+	{
+		Meshes.SetNum(InSimDataIndex + 1);
+		FaceNormals.SetNum(InSimDataIndex + 1);
+		PointNormals.SetNum(InSimDataIndex + 1);
+	}
 
 	check(Asset->GetNumLods() == 1);
 	const UClothLODDataCommon* const AssetLodData = Asset->ClothLodData[0];
 	const FClothPhysicalMeshData& PhysMesh = AssetLodData->ClothPhysicalMeshData;
 
-	// SkinPhysicsMesh() strips scale from RootBoneTransform ("Ignore any user scale.
-	// It's already accounted for in our skinning matrices."), and returns all points
-	// in that space.
-	TArray<Chaos::TVector<float, 3>> TempAnimationPositions;
-	TArray<Chaos::TVector<float, 3>> TempAnimationNormals;
-
-	TempAnimationPositions.SetNumUninitialized(PhysMesh.Vertices.Num());
-	TempAnimationNormals.SetNumUninitialized(PhysMesh.Vertices.Num());
-
-	FTransform RootBoneTransform = Context.BoneTransforms[Asset->ReferenceBoneIndex];
-	ClothingMeshUtils::SkinPhysicsMesh<true, false>(
-		Asset->UsedBoneIndices,
-		PhysMesh, // curr pos and norm
-		Context.ComponentToWorld,
-		Context.RefToLocals.GetData(),
-		Context.RefToLocals.Num(),
-		reinterpret_cast<TArray<FVector>&>(TempAnimationPositions),
-		reinterpret_cast<TArray<FVector>&>(TempAnimationNormals));
-
 	// Add particles
 	TPBDParticles<float, 3>& Particles = Evolution->Particles();
 	const uint32 Offset = Particles.Size();
 	Particles.AddParticles(PhysMesh.Vertices.Num());
+
+	if (IndexToRangeMap.Num() <= InSimDataIndex)
+	{
+		IndexToRangeMap.SetNum(InSimDataIndex + 1);
+	}
+	IndexToRangeMap[InSimDataIndex] = Chaos::TVector<uint32, 2>(Offset, Particles.Size());
 
 	// ClothSharedSimConfig should either be a nullptr, or point to an object common to the whole skeletal mesh
 	UChaosClothSharedSimConfig* const AssetClothConfigShared = Asset->GetClothConfig<UChaosClothSharedSimConfig>();
@@ -216,7 +209,7 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 	else if (!AssetClothConfigShared || AssetClothConfigShared != ClothSharedSimConfig)
 	{
 		UE_CLOG(AssetClothConfigShared,
-			LogChaosCloth, Warning, 
+			LogChaosCloth, Warning,
 			TEXT("Found a different Chaos Cloth shared config in the Cloth LOD asset being added to %s in sim slot %d. ")
 			TEXT("The asset's shared config will have to be replaced."),
 			InOwnerComponent->GetOwner() ? *InOwnerComponent->GetOwner()->GetName() : TEXT("None"), InSimDataIndex);
@@ -227,14 +220,18 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 	AnimationPositions.SetNum(Particles.Size());
 	AnimationNormals.SetNum(Particles.Size());
 
-	if (IndexToRangeMap.Num() <= InSimDataIndex)
-		IndexToRangeMap.SetNum(InSimDataIndex + 1);
-	IndexToRangeMap[InSimDataIndex] = Chaos::TVector<uint32, 2>(Offset, Particles.Size());
+	ClothingMeshUtils::SkinPhysicsMesh<true, false>(
+		Asset->UsedBoneIndices,
+		PhysMesh, // curr pos and norm
+		Context.ComponentToWorld,
+		Context.RefToLocals.GetData(),
+		Context.RefToLocals.Num(),
+		reinterpret_cast<TArray<FVector>&>(AnimationPositions),
+		reinterpret_cast<TArray<FVector>&>(AnimationNormals),
+		Offset);
 
 	for (uint32 i = Offset; i < Particles.Size(); ++i)
 	{
-		AnimationPositions[i] = TempAnimationPositions[i - Offset];
-		AnimationNormals[i] = TempAnimationNormals[i - Offset];
 		Particles.X(i) = AnimationPositions[i];
 		Particles.V(i) = Chaos::TVector<float, 3>(0.f, 0.f, 0.f);
 		// Initialize mass to 0, to be overridden later
@@ -243,243 +240,19 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 
 	OldAnimationPositions = AnimationPositions;  // Also update the old positions array to avoid any interpolation issues
 
-	const int32 NumTriangles = PhysMesh.Indices.Num() / 3;
-	TArray<Chaos::TVector<int32, 3>> InputSurfaceElements;
-	InputSurfaceElements.Reserve(NumTriangles);
-	for (int i = 0; i < NumTriangles; ++i)
-	{
-		const int32 Index = 3 * i;
-		InputSurfaceElements.Add(
-			{ static_cast<int32>(Offset + PhysMesh.Indices[Index]),
-			 static_cast<int32>(Offset + PhysMesh.Indices[Index + 1]),
-			 static_cast<int32>(Offset + PhysMesh.Indices[Index + 2]) });
-	}
-	check(InputSurfaceElements.Num() == NumTriangles);
-	if (Meshes.Num() <= InSimDataIndex)
-	{
-		Meshes.SetNum(InSimDataIndex + 1);
-		FaceNormals.SetNum(InSimDataIndex + 1);
-		PointNormals.SetNum(InSimDataIndex + 1);
-	}
 	TUniquePtr<Chaos::TTriangleMesh<float>>& Mesh = Meshes[InSimDataIndex];
-	Mesh.Reset(new Chaos::TTriangleMesh<float>(MoveTemp(InputSurfaceElements)));
-	check(Mesh->GetNumElements() == NumTriangles);
-	const auto& SurfaceElements = Mesh->GetSurfaceElements();
-	Mesh->GetPointToTriangleMap(); // Builds map for later use by GetPointNormals().
+	BuildMesh(Mesh, PhysMesh, Offset);
 
-	// Assign per particle mass proportional to connected area.
-	float TotalArea = 0.0;
-	for (const Chaos::TVector<int32, 3>& Tri : SurfaceElements)
-	{
-		const float TriArea = 0.5 * Chaos::TVector<float, 3>::CrossProduct(
-			Particles.X(Tri[1]) - Particles.X(Tri[0]),
-			Particles.X(Tri[2]) - Particles.X(Tri[0])).Size();
-		TotalArea += TriArea;
-		const float ThirdTriArea = TriArea / 3.0;
-		Particles.M(Tri[0]) += ThirdTriArea;
-		Particles.M(Tri[1]) += ThirdTriArea;
-		Particles.M(Tri[2]) += ThirdTriArea;
-	}
-	const TSet<int32> Vertices = Mesh->GetVertices();
-	switch (ChaosClothSimConfig->MassMode)
-	{
-	case EClothMassMode::UniformMass:
-		for (const int32 Vertex : Vertices)
-		{
-			Particles.M(Vertex) = ChaosClothSimConfig->UniformMass;
-		}
-		break;
-	case EClothMassMode::TotalMass:
-	{
-		const float MassPerUnitArea = TotalArea > 0.0 ? ChaosClothSimConfig->TotalMass / TotalArea : 1.0;
-		for (const int32 Vertex : Vertices)
-		{
-			Particles.M(Vertex) *= MassPerUnitArea;
-		}
-		break;
-	}
-	case EClothMassMode::Density:
-		for (const int32 Vertex : Vertices)
-		{
-			Particles.M(Vertex) *= ChaosClothSimConfig->Density;
-		}
-		break;
-	};
-	// Clamp and enslave
 	const FPointWeightMap& MaxDistances = PhysMesh.GetWeightMap(EChaosWeightMapTarget::MaxDistance);
-	for (uint32 i = Offset; i < Particles.Size(); i++)
-	{
-		Particles.M(i) = FMath::Max(Particles.M(i), ChaosClothSimConfig->MinPerParticleMass);
-		Particles.InvM(i) = MaxDistances.IsBelowThreshold(i - Offset) ? 0.f : 1.f / Particles.M(i);
-	}
+	SetParticleMasses(ChaosClothSimConfig, Particles, Offset, PhysMesh.Vertices.Num(), *Mesh, MaxDistances);
 
-	// Add Model
-	if (ChaosClothSimConfig->ShapeTargetStiffness)
-	{
-		check(ChaosClothSimConfig->ShapeTargetStiffness > 0.f && ChaosClothSimConfig->ShapeTargetStiffness <= 1.f);
-		Evolution->AddPBDConstraintFunction([ShapeConstraints = Chaos::TPerParticlePBDShapeConstraints<float, 3>(Evolution->Particles(), AnimationPositions, ChaosClothSimConfig->ShapeTargetStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
-			ShapeConstraints.Apply(InParticles, Dt);
-		});
-	}
-	if (ChaosClothSimConfig->EdgeStiffness)
-	{
-		check(ChaosClothSimConfig->EdgeStiffness > 0.f && ChaosClothSimConfig->EdgeStiffness <= 1.f);
-		Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::TPBDSpringConstraints<float, 3>(Evolution->Particles(), SurfaceElements, ChaosClothSimConfig->EdgeStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
-			SpringConstraints.Apply(InParticles, Dt);
-		});
-	}
-	if (ChaosClothSimConfig->BendingStiffness)
-	{
-		check(ChaosClothSimConfig->BendingStiffness > 0.f && ChaosClothSimConfig->BendingStiffness <= 1.f);
-		if (ChaosClothSimConfig->bUseBendingElements)
-		{
-			TArray<Chaos::TVector<int32, 4>> BendingConstraints = Mesh->GetUniqueAdjacentElements();
-			Evolution->AddPBDConstraintFunction([BendConstraints = Chaos::TPBDBendingConstraints<float>(Evolution->Particles(), MoveTemp(BendingConstraints))](TPBDParticles<float, 3>& InParticles, const float Dt) {
-				BendConstraints.Apply(InParticles, Dt);
-			});
-		}
-		else
-		{
-			TArray<Chaos::TVector<int32, 2>> BendingConstraints = Mesh->GetUniqueAdjacentPoints();
-			Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::TPBDSpringConstraints<float, 3>(Evolution->Particles(), MoveTemp(BendingConstraints), ChaosClothSimConfig->BendingStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
-				SpringConstraints.Apply(InParticles, Dt);
-			});
-		}
-	}
-	if (ChaosClothSimConfig->AreaStiffness)
-	{
-		TArray<Chaos::TVector<int32, 3>> SurfaceConstraints = SurfaceElements;
-		Evolution->AddPBDConstraintFunction([SurfConstraints = Chaos::TPBDAxialSpringConstraints<float, 3>(Evolution->Particles(), MoveTemp(SurfaceConstraints), ChaosClothSimConfig->AreaStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
-			SurfConstraints.Apply(InParticles, Dt);
-		});
-	}
-	if (ChaosClothSimConfig->VolumeStiffness)
-	{
-		check(ChaosClothSimConfig->VolumeStiffness > 0.f && ChaosClothSimConfig->VolumeStiffness <= 1.f);
-		if (ChaosClothSimConfig->bUseTetrahedralConstraints)
-		{
-			// TODO(mlentine): Need to tetrahedralize surface to support this
-			check(false);
-		}
-		else if (ChaosClothSimConfig->bUseThinShellVolumeConstraints)
-		{
-			TArray<Chaos::TVector<int32, 2>> BendingConstraints = Mesh->GetUniqueAdjacentPoints();
-			TArray<Chaos::TVector<int32, 2>> DoubleBendingConstraints;
-			{
-				TMap<int32, TArray<int32>> BendingHash;
-				for (int32 i = 0; i < BendingConstraints.Num(); ++i)
-				{
-					BendingHash.FindOrAdd(BendingConstraints[i][0]).Add(BendingConstraints[i][1]);
-					BendingHash.FindOrAdd(BendingConstraints[i][1]).Add(BendingConstraints[i][0]);
-				}
-				TSet<Chaos::TVector<int32, 2>> Visited;
-				for (auto Elem : BendingHash)
-				{
-					for (int32 i = 0; i < Elem.Value.Num(); ++i)
-					{
-						for (int32 j = i + 1; j < Elem.Value.Num(); ++j)
-						{
-							if (Elem.Value[i] == Elem.Value[j])
-								continue;
-							auto NewElem = Chaos::TVector<int32, 2>(Elem.Value[i], Elem.Value[j]);
-							if (!Visited.Contains(NewElem))
-							{
-								DoubleBendingConstraints.Add(NewElem);
-								Visited.Add(NewElem);
-								Visited.Add(Chaos::TVector<int32, 2>(Elem.Value[j], Elem.Value[i]));
-							}
-						}
-					}
-				}
-			}
-			Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::TPBDSpringConstraints<float, 3>(Evolution->Particles(), MoveTemp(DoubleBendingConstraints), ChaosClothSimConfig->VolumeStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
-				SpringConstraints.Apply(InParticles, Dt);
-			});
-		}
-		else
-		{
-			TArray<Chaos::TVector<int32, 3>> SurfaceConstraints = SurfaceElements;
-			Chaos::TPBDVolumeConstraint<float> PBDVolumeConstraint(Evolution->Particles(), MoveTemp(SurfaceConstraints));
-			Evolution->AddPBDConstraintFunction([PBDVolumeConstraint = MoveTemp(PBDVolumeConstraint)](TPBDParticles<float, 3>& InParticles, const float Dt)
-			{
-				PBDVolumeConstraint.Apply(InParticles, Dt);
-			});
-		}
-	}
-	if (ChaosClothSimConfig->StrainLimitingStiffness)
-	{
-		check(Mesh->GetNumElements() > 0);
-		// PerFormance note: The Per constraint version of this function is quite a bit faster for smaller assets
-		// There might be a cross-over point where the PerParticle version is faster: To be determined
-		Chaos::TPBDLongRangeConstraints<float, 3> PBDLongRangeConstraints(
-			Evolution->Particles(),
-			Mesh->GetPointToNeighborsMap(),
-			10, // The max number of connected neighbors per particle.  ryan - What should this be?  Was k...
-			ChaosClothSimConfig->StrainLimitingStiffness);
+	AddConstraints(ChaosClothSimConfig, PhysMesh, *Mesh, Offset, InSimDataIndex);
 
-		Evolution->AddPBDConstraintFunction([PBDLongRangeConstraints = MoveTemp(PBDLongRangeConstraints)](TPBDParticles<float, 3>& InParticles, const float Dt)
-		{
-			PBDLongRangeConstraints.Apply(InParticles, Dt);
-		});
-	}
-
-	// Maximum Distance Constraints
-	if (MaxDistances.Num() > 0)
+	// Add Self Collisions
+	if (ChaosClothSimConfig->bUseSelfCollisions)
 	{
-		check(Mesh->GetNumElements() > 0);
-		Chaos::PBDSphericalConstraint<float, 3> SphericalContraint(Offset, MaxDistances.Num(), true, &AnimationPositions, &MaxDistances.Values);
-		Evolution->AddPBDConstraintFunction([SphericalContraint = MoveTemp(SphericalContraint)](TPBDParticles<float, 3>& InParticles, const float Dt)
-		{
-			SphericalContraint.Apply(InParticles, Dt);
-		});
+		AddSelfCollisions(Mesh, Particles, Offset);
 	}
-
-	// Backstop Constraints
-	const FPointWeightMap& BackstopRadiuses = PhysMesh.GetWeightMap(EChaosWeightMapTarget::BackstopRadius);
-	const FPointWeightMap& BackstopDistances = PhysMesh.GetWeightMap(EChaosWeightMapTarget::BackstopDistance);
-	if (BackstopRadiuses.Num() > 0 && BackstopDistances.Num() > 0)
-	{
-		check(Mesh->GetNumElements() > 0);
-		check(BackstopRadiuses.Num() == BackstopDistances.Num());
-
-		Chaos::PBDSphericalConstraint<float, 3> SphericalContraint(Offset, BackstopRadiuses.Num(), false, &AnimationPositions,
-			&BackstopRadiuses.Values, &BackstopDistances.Values, &AnimationNormals);
-		Evolution->AddPBDConstraintFunction([SphericalContraint = MoveTemp(SphericalContraint)](TPBDParticles<float, 3>& InParticles, const float Dt)
-		{
-			SphericalContraint.Apply(InParticles, Dt);
-		});
-	}
-
-	// Animation Drive Constraints
-	const FPointWeightMap& AnimDriveMultipliers = PhysMesh.GetWeightMap(EChaosWeightMapTarget::AnimDriveMultiplier);
-	if (AnimDriveMultipliers.Num() > 0)
-	{
-		check(Mesh->GetNumElements() > 0);
-		TPBDAnimDriveConstraint<float, 3> PBDAnimDriveConstraint(Offset, &AnimationPositions, &AnimDriveMultipliers.Values, AnimDriveSpringStiffness[InSimDataIndex]);
-		Evolution->AddPBDConstraintFunction(
-			[PBDAnimDriveConstraint = MoveTemp(PBDAnimDriveConstraint), &Stiffness = AnimDriveSpringStiffness[InSimDataIndex]](TPBDParticles<float, 3>& InParticles, const float Dt) mutable
-		{
-			PBDAnimDriveConstraint.SetSpringStiffness(Stiffness);
-			PBDAnimDriveConstraint.Apply(InParticles, Dt);
-		});
-	}
-
-    // Add Self Collisions
-    if (ChaosClothSimConfig->bUseSelfCollisions)
-    {
-        // TODO(mlentine): Parallelize these for multiple meshes
-        Evolution->CollisionTriangles().Append(SurfaceElements);
-        for (uint32 i = Offset; i < Particles.Size(); ++i)
-        {
-            auto Neighbors = Mesh->GetNRing(i, 5);
-            for (const auto& Element : Neighbors)
-            {
-                check(i != Element);
-                Evolution->DisabledCollisionElements().Add(Chaos::TVector<int32, 2>(i, Element));
-                Evolution->DisabledCollisionElements().Add(Chaos::TVector<int32, 2>(Element, i));
-            }
-        }
-    }
 
 	// Collision particles
 	TGeometryClothParticles<float, 3>& CollisionParticles = Evolution->CollisionParticles();
@@ -538,6 +311,257 @@ void ClothingSimulation::PostActorCreationInitialize()
 		Evolution->SetCollisionThickness(ClothSharedSimConfig->CollisionThickness);
 		Evolution->SetDamping(ClothSharedSimConfig->Damping);
 		Evolution->GetGravityForces().SetAcceleration(Chaos::TVector<float, 3>(ClothSharedSimConfig->Gravity));
+	}
+}
+
+void ClothingSimulation::BuildMesh(TUniquePtr<Chaos::TTriangleMesh<float>>& OutChaosMesh, const FClothPhysicalMeshData& InPhysMesh, uint32 Offset) const
+{
+	const int32 NumTriangles = InPhysMesh.Indices.Num() / 3;
+	TArray<Chaos::TVector<int32, 3>> InputSurfaceElements;
+	InputSurfaceElements.Reserve(NumTriangles);
+	for (int i = 0; i < NumTriangles; ++i)
+	{
+		const int32 Index = 3 * i;
+		InputSurfaceElements.Add(
+			{ static_cast<int32>(Offset + InPhysMesh.Indices[Index]),
+			 static_cast<int32>(Offset + InPhysMesh.Indices[Index + 1]),
+			 static_cast<int32>(Offset + InPhysMesh.Indices[Index + 2]) });
+	}
+	check(InputSurfaceElements.Num() == NumTriangles);
+	OutChaosMesh.Reset(new Chaos::TTriangleMesh<float>(MoveTemp(InputSurfaceElements)));
+	check(OutChaosMesh->GetNumElements() == NumTriangles);
+	OutChaosMesh->GetPointToTriangleMap(); // Builds map for later use by GetPointNormals()
+}
+
+void ClothingSimulation::SetParticleMasses(
+	const UChaosClothConfig* ChaosClothSimConfig,
+	TPBDParticles<float, 3>& Particles,
+	uint32 Offset, // Offset into Particles array
+	uint32 ParticlesCount, // Number of particles
+	Chaos::TTriangleMesh<float>& Mesh, // Mesh with indices into Particles with offset already taken into account
+	const FPointWeightMap& MaxDistances
+	) const
+{
+	// Assign per particle mass proportional to connected area.
+	const TArray<TVector<int32, 3>>& SurfaceElements = Mesh.GetSurfaceElements();
+	float TotalArea = 0.0;
+	for (const Chaos::TVector<int32, 3>& Tri : SurfaceElements)
+	{
+		const float TriArea = 0.5 * Chaos::TVector<float, 3>::CrossProduct(
+			Particles.X(Tri[1]) - Particles.X(Tri[0]),
+			Particles.X(Tri[2]) - Particles.X(Tri[0])).Size();
+		TotalArea += TriArea;
+		const float ThirdTriArea = TriArea / 3.0;
+		Particles.M(Tri[0]) += ThirdTriArea;
+		Particles.M(Tri[1]) += ThirdTriArea;
+		Particles.M(Tri[2]) += ThirdTriArea;
+	}
+	const TSet<int32> Vertices = Mesh.GetVertices();
+	switch (ChaosClothSimConfig->MassMode)
+	{
+	case EClothMassMode::UniformMass:
+		for (const int32 Vertex : Vertices)
+		{
+			Particles.M(Vertex) = ChaosClothSimConfig->UniformMass;
+		}
+		break;
+	case EClothMassMode::TotalMass:
+	{
+		const float MassPerUnitArea = TotalArea > 0.0 ? ChaosClothSimConfig->TotalMass / TotalArea : 1.0;
+		for (const int32 Vertex : Vertices)
+		{
+			Particles.M(Vertex) *= MassPerUnitArea;
+		}
+		break;
+	}
+	case EClothMassMode::Density:
+		for (const int32 Vertex : Vertices)
+		{
+			Particles.M(Vertex) *= ChaosClothSimConfig->Density;
+		}
+		break;
+	};
+
+	// Clamp and enslave
+	check(Particles.Size() >= Offset + ParticlesCount);
+	for (uint32 i = Offset; i < Offset + ParticlesCount; i++)
+	{
+		Particles.M(i) = FMath::Max(Particles.M(i), ChaosClothSimConfig->MinPerParticleMass);
+		Particles.InvM(i) = MaxDistances.IsBelowThreshold(i - Offset) ? 0.f : 1.f / Particles.M(i);
+	}
+}
+
+void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimConfig, const FClothPhysicalMeshData& PhysMesh, const Chaos::TTriangleMesh<float>& Mesh, uint32 Offset, int32 InSimDataIndex)
+{
+	const TArray<TVector<int32, 3>>& SurfaceElements = Mesh.GetSurfaceElements();
+
+	if (ChaosClothSimConfig->ShapeTargetStiffness)
+	{
+		check(ChaosClothSimConfig->ShapeTargetStiffness > 0.f && ChaosClothSimConfig->ShapeTargetStiffness <= 1.f);
+		Evolution->AddPBDConstraintFunction([ShapeConstraints = Chaos::TPerParticlePBDShapeConstraints<float, 3>(Evolution->Particles(), AnimationPositions, ChaosClothSimConfig->ShapeTargetStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
+			ShapeConstraints.Apply(InParticles, Dt);
+		});
+	}
+	if (ChaosClothSimConfig->EdgeStiffness)
+	{
+		check(ChaosClothSimConfig->EdgeStiffness > 0.f && ChaosClothSimConfig->EdgeStiffness <= 1.f);
+		Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::TPBDSpringConstraints<float, 3>(Evolution->Particles(), SurfaceElements, ChaosClothSimConfig->EdgeStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
+			SpringConstraints.Apply(InParticles, Dt);
+		});
+	}
+	if (ChaosClothSimConfig->BendingStiffness)
+	{
+		check(ChaosClothSimConfig->BendingStiffness > 0.f && ChaosClothSimConfig->BendingStiffness <= 1.f);
+		if (ChaosClothSimConfig->bUseBendingElements)
+		{
+			TArray<Chaos::TVector<int32, 4>> BendingConstraints = Mesh.GetUniqueAdjacentElements();
+			Evolution->AddPBDConstraintFunction([BendConstraints = Chaos::TPBDBendingConstraints<float>(Evolution->Particles(), MoveTemp(BendingConstraints))](TPBDParticles<float, 3>& InParticles, const float Dt) {
+				BendConstraints.Apply(InParticles, Dt);
+			});
+		}
+		else
+		{
+			TArray<Chaos::TVector<int32, 2>> BendingConstraints = Mesh.GetUniqueAdjacentPoints();
+			Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::TPBDSpringConstraints<float, 3>(Evolution->Particles(), MoveTemp(BendingConstraints), ChaosClothSimConfig->BendingStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
+				SpringConstraints.Apply(InParticles, Dt);
+			});
+		}
+	}
+	if (ChaosClothSimConfig->AreaStiffness)
+	{
+		TArray<Chaos::TVector<int32, 3>> SurfaceConstraints = SurfaceElements;
+		Evolution->AddPBDConstraintFunction([SurfConstraints = Chaos::TPBDAxialSpringConstraints<float, 3>(Evolution->Particles(), MoveTemp(SurfaceConstraints), ChaosClothSimConfig->AreaStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
+			SurfConstraints.Apply(InParticles, Dt);
+		});
+	}
+	if (ChaosClothSimConfig->VolumeStiffness)
+	{
+		check(ChaosClothSimConfig->VolumeStiffness > 0.f && ChaosClothSimConfig->VolumeStiffness <= 1.f);
+		if (ChaosClothSimConfig->bUseTetrahedralConstraints)
+		{
+			// TODO(mlentine): Need to tetrahedralize surface to support this
+			check(false);
+		}
+		else if (ChaosClothSimConfig->bUseThinShellVolumeConstraints)
+		{
+			TArray<Chaos::TVector<int32, 2>> BendingConstraints = Mesh.GetUniqueAdjacentPoints();
+			TArray<Chaos::TVector<int32, 2>> DoubleBendingConstraints;
+			{
+				TMap<int32, TArray<int32>> BendingHash;
+				for (int32 i = 0; i < BendingConstraints.Num(); ++i)
+				{
+					BendingHash.FindOrAdd(BendingConstraints[i][0]).Add(BendingConstraints[i][1]);
+					BendingHash.FindOrAdd(BendingConstraints[i][1]).Add(BendingConstraints[i][0]);
+				}
+				TSet<Chaos::TVector<int32, 2>> Visited;
+				for (auto Elem : BendingHash)
+				{
+					for (int32 i = 0; i < Elem.Value.Num(); ++i)
+					{
+						for (int32 j = i + 1; j < Elem.Value.Num(); ++j)
+						{
+							if (Elem.Value[i] == Elem.Value[j])
+								continue;
+							auto NewElem = Chaos::TVector<int32, 2>(Elem.Value[i], Elem.Value[j]);
+							if (!Visited.Contains(NewElem))
+							{
+								DoubleBendingConstraints.Add(NewElem);
+								Visited.Add(NewElem);
+								Visited.Add(Chaos::TVector<int32, 2>(Elem.Value[j], Elem.Value[i]));
+							}
+						}
+					}
+				}
+			}
+			Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::TPBDSpringConstraints<float, 3>(Evolution->Particles(), MoveTemp(DoubleBendingConstraints), ChaosClothSimConfig->VolumeStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
+				SpringConstraints.Apply(InParticles, Dt);
+			});
+		}
+		else
+		{
+			TArray<Chaos::TVector<int32, 3>> SurfaceConstraints = SurfaceElements;
+			Chaos::TPBDVolumeConstraint<float> PBDVolumeConstraint(Evolution->Particles(), MoveTemp(SurfaceConstraints));
+			Evolution->AddPBDConstraintFunction([PBDVolumeConstraint = MoveTemp(PBDVolumeConstraint)](TPBDParticles<float, 3>& InParticles, const float Dt)
+			{
+				PBDVolumeConstraint.Apply(InParticles, Dt);
+			});
+		}
+	}
+	if (ChaosClothSimConfig->StrainLimitingStiffness)
+	{
+		check(Mesh.GetNumElements() > 0);
+		// PerFormance note: The Per constraint version of this function is quite a bit faster for smaller assets
+		// There might be a cross-over point where the PerParticle version is faster: To be determined
+		Chaos::TPBDLongRangeConstraints<float, 3> PBDLongRangeConstraints(
+			Evolution->Particles(),
+			Mesh.GetPointToNeighborsMap(),
+			10, // The max number of connected neighbors per particle.  ryan - What should this be?  Was k...
+			ChaosClothSimConfig->StrainLimitingStiffness);
+
+		Evolution->AddPBDConstraintFunction([PBDLongRangeConstraints = MoveTemp(PBDLongRangeConstraints)](TPBDParticles<float, 3>& InParticles, const float Dt)
+		{
+			PBDLongRangeConstraints.Apply(InParticles, Dt);
+		});
+	}
+
+	// Maximum Distance Constraints
+	const FPointWeightMap& MaxDistances = PhysMesh.GetWeightMap(EChaosWeightMapTarget::MaxDistance);
+	if (MaxDistances.Num() > 0)
+	{
+		check(Mesh.GetNumElements() > 0);
+		Chaos::PBDSphericalConstraint<float, 3> SphericalContraint(Offset, MaxDistances.Num(), true, &AnimationPositions, &MaxDistances.Values);
+		Evolution->AddPBDConstraintFunction([SphericalContraint = MoveTemp(SphericalContraint)](TPBDParticles<float, 3>& InParticles, const float Dt)
+		{
+			SphericalContraint.Apply(InParticles, Dt);
+		});
+	}
+
+	// Backstop Constraints
+	const FPointWeightMap& BackstopRadiuses = PhysMesh.GetWeightMap(EChaosWeightMapTarget::BackstopRadius);
+	const FPointWeightMap& BackstopDistances = PhysMesh.GetWeightMap(EChaosWeightMapTarget::BackstopDistance);
+	if (BackstopRadiuses.Num() > 0 && BackstopDistances.Num() > 0)
+	{
+		check(Mesh.GetNumElements() > 0);
+		check(BackstopRadiuses.Num() == BackstopDistances.Num());
+
+		Chaos::PBDSphericalConstraint<float, 3> SphericalContraint(Offset, BackstopRadiuses.Num(), false, &AnimationPositions,
+			&BackstopRadiuses.Values, &BackstopDistances.Values, &AnimationNormals);
+		Evolution->AddPBDConstraintFunction([SphericalContraint = MoveTemp(SphericalContraint)](TPBDParticles<float, 3>& InParticles, const float Dt)
+		{
+			SphericalContraint.Apply(InParticles, Dt);
+		});
+	}
+
+	// Animation Drive Constraints
+	AnimDriveSpringStiffness[InSimDataIndex] = ChaosClothSimConfig->AnimDriveSpringStiffness;
+	const FPointWeightMap& AnimDriveMultipliers = PhysMesh.GetWeightMap(EChaosWeightMapTarget::AnimDriveMultiplier);
+	if (AnimDriveMultipliers.Num() > 0)
+	{
+		check(Mesh.GetNumElements() > 0);
+		TPBDAnimDriveConstraint<float, 3> PBDAnimDriveConstraint(Offset, &AnimationPositions, &AnimDriveMultipliers.Values, AnimDriveSpringStiffness[InSimDataIndex]);
+		Evolution->AddPBDConstraintFunction(
+			[PBDAnimDriveConstraint = MoveTemp(PBDAnimDriveConstraint), &Stiffness = AnimDriveSpringStiffness[InSimDataIndex]](TPBDParticles<float, 3>& InParticles, const float Dt) mutable
+		{
+			PBDAnimDriveConstraint.SetSpringStiffness(Stiffness);
+			PBDAnimDriveConstraint.Apply(InParticles, Dt);
+		});
+	}
+}
+
+void ClothingSimulation::AddSelfCollisions(const TUniquePtr<Chaos::TTriangleMesh<float>>& Mesh, const TPBDParticles<float, 3>& Particles, int32 Offset)
+{
+	// TODO(mlentine): Parallelize these for multiple meshes
+	const TArray<TVector<int32, 3>>& SurfaceElements = Mesh->GetSurfaceElements();
+	Evolution->CollisionTriangles().Append(SurfaceElements);
+	for (uint32 i = Offset; i < Particles.Size(); ++i)
+	{
+		TSet<int32> Neighbors = Mesh->GetNRing(i, 5);
+		for (int32 Element : Neighbors)
+		{
+			check(i != Element);
+			Evolution->DisabledCollisionElements().Add(Chaos::TVector<int32, 2>(i, Element));
+			Evolution->DisabledCollisionElements().Add(Chaos::TVector<int32, 2>(Element, i));
+		}
 	}
 }
 
