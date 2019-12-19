@@ -1189,16 +1189,16 @@ void FPhysScene_ChaosInterface::AddForce_AssumesLocked(FBodyInstance* BodyInstan
 			{
 				Rigid->SetObjectState(EObjectStateType::Dynamic);
 
-				const Chaos::TVector<float, 3> CurrentForce = Rigid->ExternalForce();
+				const Chaos::TVector<float, 3> CurrentForce = Rigid->F();
 				if (bAccelChange)
 				{
 					const float Mass = Rigid->M();
 					const Chaos::TVector<float, 3> TotalAcceleration = CurrentForce + (Force * Mass);
-					Rigid->SetExternalForce(TotalAcceleration);
+					Rigid->SetF(TotalAcceleration);
 				}
 				else
 				{
-					Rigid->SetExternalForce(CurrentForce + Force);
+					Rigid->SetF(CurrentForce + Force);
 				}
 
 			}
@@ -1220,8 +1220,8 @@ void FPhysScene_ChaosInterface::AddForceAtPosition_AssumesLocked(FBodyInstance* 
 			EObjectStateType ObjectState = Rigid->ObjectState();
 			if (CHAOS_ENSURE(ObjectState == EObjectStateType::Dynamic || ObjectState == EObjectStateType::Sleeping))
 			{
-				const Chaos::FVec3& CurrentForce = Rigid->ExternalForce();
-				const Chaos::FVec3& CurrentTorque = Rigid->ExternalTorque();
+				const Chaos::FVec3& CurrentForce = Rigid->F();
+				const Chaos::FVec3& CurrentTorque = Rigid->Torque();
 				const Chaos::FVec3 WorldCOM = FParticleUtilitiesGT::GetCoMWorldPosition(Rigid);
 
 				Rigid->SetObjectState(EObjectStateType::Dynamic);
@@ -1232,14 +1232,14 @@ void FPhysScene_ChaosInterface::AddForceAtPosition_AssumesLocked(FBodyInstance* 
 					const Chaos::FVec3 WorldPosition = CurrentTransform.TransformPosition(Position);
 					const Chaos::FVec3 WorldForce = CurrentTransform.TransformVector(Force);
 					const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(WorldPosition - WorldCOM, WorldForce);
-					Rigid->SetExternalForce(CurrentForce + WorldForce);
-					Rigid->SetExternalTorque(CurrentTorque + WorldTorque);
+					Rigid->SetF(CurrentForce + WorldForce);
+					Rigid->SetTorque(CurrentTorque + WorldTorque);
 				}
 				else
 				{
 					const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(Position - WorldCOM, Force);
-					Rigid->SetExternalForce(CurrentForce + Force);
-					Rigid->SetExternalTorque(CurrentTorque + WorldTorque);
+					Rigid->SetF(CurrentForce + Force);
+					Rigid->SetTorque(CurrentTorque + WorldTorque);
 				}
 
 			}
@@ -1296,14 +1296,14 @@ void FPhysScene_ChaosInterface::AddTorque_AssumesLocked(FBodyInstance* BodyInsta
 			EObjectStateType ObjectState = Rigid->ObjectState();
 			if (CHAOS_ENSURE(ObjectState == EObjectStateType::Dynamic || ObjectState == EObjectStateType::Sleeping))
 			{
-				const Chaos::TVector<float, 3> CurrentTorque = Rigid->ExternalTorque();
+				const Chaos::TVector<float, 3> CurrentTorque = Rigid->Torque();
 				if (bAccelChange)
 				{
-					Rigid->SetExternalTorque(CurrentTorque + (Rigid->I() * Torque));
+					Rigid->SetTorque(CurrentTorque + (Rigid->I() * Torque));
 				}
 				else
 				{
-					Rigid->SetExternalTorque(CurrentTorque + Torque);
+					Rigid->SetTorque(CurrentTorque + Torque);
 				}
 			}
 		}
