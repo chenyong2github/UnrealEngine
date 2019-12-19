@@ -249,7 +249,9 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 	CA_ASSUME(InSystemInstance != nullptr);
 	ensure(!InSystemInstance->IsComplete());
 	SystemInstanceID = InSystemInstance->GetId();
-	bRequiredDistanceFieldData = InSystemInstance->RequiresDistanceFieldData();
+	bRequiresDistanceFieldData = InSystemInstance->RequiresDistanceFieldData();
+	bRequiresDepthBuffer = InSystemInstance->RequiresDepthBuffer();
+	bRequiresEarlyViewData = InSystemInstance->RequiresEarlyViewData();
 	uint32 DataSizeForGPU = InSystemInstance->GPUDataInterfaceInstanceDataSize;
 
 	if (DataSizeForGPU > 0)
