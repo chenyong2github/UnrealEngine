@@ -24,6 +24,7 @@
 #include "HistoryManager.h"
 
 class FMenuBuilder;
+class FBlacklistPaths;
 class FWeakWidgetPath;
 class FWidgetPath;
 class SAssetColumnView;
@@ -442,6 +443,9 @@ private:
 	/** Removes asset data items from the given array that don't pass all applied backend (asset registry) filters */
 	void RunAssetsThroughBackendFilter(TArray<FAssetData>& InOutAssetDataList) const;
 
+	/** Removes asset data items from the given array that don't pass all blacklist filters */
+	void RunAssetsThroughBlacklists(TArray<FAssetData>& InOutAssetDataList) const;
+
 	/** Returns true if the current filters deem that the asset view should be filtered recursively (overriding folder view) */
 	bool ShouldFilterRecursively() const;
 
@@ -843,6 +847,7 @@ private:
 	FSourcesData SourcesData;
 	FARFilter BackendFilter;
 	FARFilter SupportedFilter;
+	TSharedPtr<FBlacklistPaths> FolderBlacklist;
 	TSharedPtr<FAssetFilterCollectionType> FrontendFilters;
 
 	/** If true, the source items will be refreshed next frame. Very slow. */
