@@ -63,32 +63,15 @@ namespace ImmediatePhysics_Chaos
 		/** Set bodies that require no collision */
 		void SetIgnoreCollisionActors(const TArray<FActorHandle*>& InIgnoreCollisionActors);
 
-		///** Get/Set whether the body is kinematic or not, kinematics do not simulate and move where they're told. They also act as if they have infinite mass */
-		//bool GetIsKinematic(int32 ActorDataIndex);
-		//void SetIsKinematic(int32 ActorDataIndex, bool bKinematic);
-
 		/** Advance the simulation by DeltaTime */
-		void Simulate(float DeltaTime, float MaxDeltaTime, int32 MaxSubSteps, const FVector& InGravity);
-		void Simulate_AssumesLocked(float DeltaTime, float MaxDeltaTime, int32 MaxSubSteps, const FVector& InGravity) { Simulate(DeltaTime, MaxDeltaTime, MaxSubSteps, InGravity); }
-
-		///** Whether or not an entity is simulated */
-		//bool IsSimulated(int32 ActorDataIndex) const;
-
-
-		///** Add a radial impulse to the given actor */
-		//void AddRadialForce(int32 ActorDataIndex, const FVector& Origin, float Strength, float Radius, ERadialImpulseFalloff Falloff, EForceType ForceType);
-
-		///** Add a force to the given actor */
-		//void AddForce(int32 ActorDataIndex, const FVector& Force);
-
-		///* Set solver iteration counts per step */
-		//void SetPositionIterationCount(int32 InIterationCount);
-		//void SetVelocityIterationCount(int32 InIterationCount);
+		void Simulate(float DeltaTime, float MaxStepTime, int32 MaxSubSteps, const FVector& InGravity);
+		void Simulate_AssumesLocked(float DeltaTime, float MaxStepTime, int32 MaxSubSteps, const FVector& InGravity) { Simulate(DeltaTime, MaxStepTime, MaxSubSteps, InGravity); }
 
 		void SetSimulationSpaceTransform(const FTransform& Transform) { SimulationSpaceTransform = Transform; }
 
 	private:
 		void ConditionConstraints();
+		FReal UpdateStepTime(const FReal DeltaTime, const FReal MaxStepTime);
 
 		void DebugDrawKinematicParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const FColor& Color);
 		void DebugDrawDynamicParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const FColor& Color);
@@ -129,6 +112,10 @@ namespace ImmediatePhysics_Chaos
 		TMap<const FParticleHandle*, TSet<const FParticleHandle*>> IgnoreCollisionParticlePairTable;
 
 		FTransform SimulationSpaceTransform;
+
+		FReal RollingAverageStepTime;
+		int32 NumRollingAverageStepTimes;
+		int32 MaxNumRollingAverageStepTimes;
 	};
 
 }
