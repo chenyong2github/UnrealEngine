@@ -570,6 +570,9 @@ public:
 	FName			StreamingLevelName;
 	EChannelCloseReason Reason;
 
+	/** When true the destruction info data will be sent even if the viewers are not close to the actor */
+	bool bIgnoreDistanceCulling = false;
+
 	void CountBytes(FArchive& Ar)
 	{
 		PathName.CountBytes(Ar);

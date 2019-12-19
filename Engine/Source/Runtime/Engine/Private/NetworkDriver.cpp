@@ -2890,11 +2890,12 @@ void UNetDriver::NotifyActorDestroyed( AActor* ThisActor, bool IsSeamlessTravel 
 	// Remove the actor from the property tracker map
 	RepChangedPropertyTrackerMap.Remove(ThisActor);
 
-	FActorDestructionInfo* DestructionInfo = nullptr;
 	const bool bIsServer = IsServer();
 	
 	if (bIsServer)
 	{
+		FActorDestructionInfo* DestructionInfo = nullptr;
+
 		const bool bIsActorStatic = !GuidCache->IsDynamicObject( ThisActor );
 		const bool bActorHasRole = ThisActor->GetRemoteRole() != ROLE_None;
 		const bool bShouldCreateDestructionInfo = bIsServer && bIsActorStatic && bActorHasRole && !IsSeamlessTravel;
