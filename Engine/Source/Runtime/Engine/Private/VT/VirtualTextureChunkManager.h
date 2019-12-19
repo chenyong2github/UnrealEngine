@@ -33,7 +33,9 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("Num uploads"), STAT_VTP_NumUploads, STATGROUP_V
 
 struct FVirtualTextureChunkStreamingManager final  : public IStreamingManager
 {
-	static struct FVirtualTextureChunkStreamingManager& Get();
+	static FVirtualTextureChunkStreamingManager* AddRef();
+	static void DecRef();
+
 private:
 	FVirtualTextureChunkStreamingManager();
 	virtual ~FVirtualTextureChunkStreamingManager();

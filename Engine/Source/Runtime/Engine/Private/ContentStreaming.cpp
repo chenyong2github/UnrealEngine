@@ -741,11 +741,10 @@ void IRenderAssetStreamingManager::PauseTextureStreaming(bool bInShouldPause)
 -----------------------------------------------------------------------------*/
 
 FStreamingManagerCollection::FStreamingManagerCollection()
-:	NumIterations(1)
-,	DisableResourceStreamingCount(0)
-,	LoadMapTimeLimit( 5.0f )
-,   TextureStreamingManager(nullptr)
-, VirtualTextureChunkStreamingManager(nullptr)
+	: NumIterations(1)
+	, DisableResourceStreamingCount(0)
+	, LoadMapTimeLimit(5.0f)
+	, TextureStreamingManager(nullptr)
 {
 #if PLATFORM_SUPPORTS_TEXTURE_STREAMING
 	// Disable texture streaming if that was requested (needs to happen before the call to ProcessNewlyLoadedUObjects, as that can load textures)
@@ -786,10 +785,6 @@ FStreamingManagerCollection::~FStreamingManagerCollection()
 	RemoveStreamingManager(TextureStreamingManager);
 	delete TextureStreamingManager;
 	TextureStreamingManager = nullptr;
-
-	RemoveStreamingManager(VirtualTextureChunkStreamingManager);
-	delete VirtualTextureChunkStreamingManager;
-	VirtualTextureChunkStreamingManager = nullptr;
 
 	UE_CLOG(StreamingManagers.Num() > 0, LogContentStreaming, Display, TEXT("There are %d unreleased StreamingManagers"), StreamingManagers.Num());
 }
