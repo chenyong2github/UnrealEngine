@@ -118,7 +118,7 @@ namespace Chaos
 		}
 
 		template <typename T, int d>
-		void UpdateSingleShotManifold(TRigidBodyIterativeContactConstraint<T, d>&  Constraint, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T Thickness)
+		void UpdateSingleShotManifold(TRigidBodyMultiPointContactConstraint<T, d>&  Constraint, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T Thickness)
 		{
 			// single shot manifolds for TConvex implicit object in the constraints implicit[0] position. 
 			TContactPoint<T> ContactPoint = ConvexConvexContactPoint(*Constraint.Manifold.Implicit[0], Transform0, *Constraint.Manifold.Implicit[1], Transform1, Thickness);
@@ -158,9 +158,9 @@ namespace Chaos
 		}
 
 		template <typename T, int d>
-		void UpdateIterativeManifold(TRigidBodyIterativeContactConstraint<T, d>&  Constraint, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T Thickness)
+		void UpdateIterativeManifold(TRigidBodyMultiPointContactConstraint<T, d>&  Constraint, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T Thickness)
 		{
-			auto SumSampleData = [&](FRigidBodyIterativeContactConstraint& Constraint) -> TVector<float,3>
+			auto SumSampleData = [&](TRigidBodyMultiPointContactConstraint<T, d>& Constraint) -> TVector<float,3>
 			{
 				TVector<float, 3> ReturnValue(0);
 				for (int i = 0; i < Constraint.NumSamples(); i++)
@@ -212,7 +212,7 @@ namespace Chaos
 				ensure(false); // max of 4 points
 			}
 
-			typedef FRigidBodyIterativeContactConstraint::FSampleData FSampleData;
+			typedef FRigidBodyMultiPointContactConstraint::FSampleData FSampleData;
 			TVector<T, d> Center = SumSampleData(Constraint) / Constraint.NumSamples();
 			for (int32 Index = 0; Index < Constraint.NumSamples(); Index++) { Constraint[Index].Delta = (Center - Constraint[Index].X).SizeSquared(); }
 		}
@@ -811,9 +811,9 @@ namespace Chaos
 			{
 				ContactPoint = ConvexConvexContactPoint(Implicit0, Transform0, Implicit1, Transform1, Thickness);
 			}
-			else if (ConstraintBase.GetType() == FRigidBodyIterativeContactConstraint::StaticType())
+			else if (ConstraintBase.GetType() == FRigidBodyMultiPointContactConstraint::StaticType())
 			{
-				TRigidBodyIterativeContactConstraint<T, d>& Constraint = *ConstraintBase.template As<TRigidBodyIterativeContactConstraint<T, d>>();
+				TRigidBodyMultiPointContactConstraint<T, d>& Constraint = *ConstraintBase.template As<TRigidBodyMultiPointContactConstraint<T, d>>();
 				ContactPoint.Phi = FLT_MAX;
 
 				const TRigidTransform<T, d> AToBTM = Transform0.GetRelativeTransform(Transform1);
@@ -843,15 +843,15 @@ namespace Chaos
 		template<class T, int d>
 		void UpdateConvexConvexManifold(TCollisionConstraintBase<T, d>&  ConstraintBase, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T Thickness)
 		{
-			if (ensure(ConstraintBase.GetType() == FRigidBodyIterativeContactConstraint::StaticType()))
+			if (ensure(ConstraintBase.GetType() == FRigidBodyMultiPointContactConstraint::StaticType()))
 			{
 				if (GetInnerType(ConstraintBase.Manifold.Implicit[0]->GetType()) == ImplicitObjectType::Convex)
 				{
-					UpdateSingleShotManifold(*ConstraintBase.template As<TRigidBodyIterativeContactConstraint<T, d>>(), Transform0, Transform1, Thickness);
+					UpdateSingleShotManifold(*ConstraintBase.template As<TRigidBodyMultiPointContactConstraint<T, d>>(), Transform0, Transform1, Thickness);
 				}
 				else
 				{
-					UpdateIterativeManifold(*ConstraintBase.template As<TRigidBodyIterativeContactConstraint<T, d>>(), Transform0, Transform1, Thickness);
+					UpdateIterativeManifold(*ConstraintBase.template As<TRigidBodyMultiPointContactConstraint<T, d>>(), Transform0, Transform1, Thickness);
 				}
 			}
 		}
@@ -862,7 +862,7 @@ namespace Chaos
 		{
 			TRigidTransform<T, d> ParticleImplicit0TM  = Transform0.GetRelativeTransform(Collisions::GetTransform(Particle0));
 			TRigidTransform<T, d> ParticleImplicit1TM = Transform1.GetRelativeTransform(Collisions::GetTransform(Particle1));
-			FRigidBodyIterativeContactConstraint* Constraint = new FRigidBodyIterativeContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
+			FRigidBodyMultiPointContactConstraint* Constraint = new FRigidBodyMultiPointContactConstraint(Particle0, Implicit0, ParticleImplicit0TM, Particle1, Implicit1, ParticleImplicit1TM);
 
 			UpdateConvexConvexManifold(*Constraint, Transform0, Transform1, Thickness);
 			UpdateConvexConvexConstraint(*Implicit0, Transform0, *Implicit1, Transform1, Thickness, *Constraint);
@@ -1439,8 +1439,8 @@ namespace Chaos
 
 		template void ConstructUnionUnionConstraints<float, 3>(TGeometryParticleHandle<float, 3>* Particle0, TGeometryParticleHandle<float, 3>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const TRigidTransform<float, 3>& Transform0, const TRigidTransform<float, 3>& Transform1, const float Thickness, FCollisionConstraintsArray& NewConstraints);
 
-		template void UpdateSingleShotManifold<float, 3>(TRigidBodyIterativeContactConstraint<float, 3>&  Constraint, const TRigidTransform<float, 3>& Transform0, const TRigidTransform<float, 3>& Transform1, const float Thickness);
-		template void UpdateIterativeManifold<float, 3>(TRigidBodyIterativeContactConstraint<float, 3>&  Constraint, const TRigidTransform<float, 3>& Transform0, const TRigidTransform<float, 3>& Transform1, const float Thickness);
+		template void UpdateSingleShotManifold<float, 3>(TRigidBodyMultiPointContactConstraint<float, 3>&  Constraint, const TRigidTransform<float, 3>& Transform0, const TRigidTransform<float, 3>& Transform1, const float Thickness);
+		template void UpdateIterativeManifold<float, 3>(TRigidBodyMultiPointContactConstraint<float, 3>&  Constraint, const TRigidTransform<float, 3>& Transform0, const TRigidTransform<float, 3>& Transform1, const float Thickness);
 		template void UpdateManifold<float, 3>(TCollisionConstraintBase<float, 3>& ConstraintBase, const TRigidTransform<float, 3>& ATM, const TRigidTransform<float, 3>& BTM, const float Thickness);
 		template void UpdateConstraint<ECollisionUpdateType::Any, float, 3>(TCollisionConstraintBase<float,3>& ConstraintBase, const TRigidTransform<float,3>& Transform0, const TRigidTransform<float,3>& Transform1, const float Thickness);
 		template void UpdateConstraint<ECollisionUpdateType::Deepest, float, 3>(TCollisionConstraintBase<float, 3>& ConstraintBase, const TRigidTransform<float, 3>& Transform0, const TRigidTransform<float, 3>& Transform1, const float Thickness);
