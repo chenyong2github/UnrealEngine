@@ -108,6 +108,8 @@ struct FGameInstancePIEParameters
 
 #endif
 
+DECLARE_EVENT_OneParam(UGameInstance, FOnLocalPlayerEvent, ULocalPlayer*);
+
 /**
  * GameInstance: high-level manager object for an instance of the running game.
  * Spawned at game creation and not destroyed until game instance is shut down.
@@ -232,6 +234,9 @@ public:
 
 	/** Local player access */
 
+	FOnLocalPlayerEvent OnLocalPlayerAddedEvent;
+	FOnLocalPlayerEvent OnLocalPlayerRemovedEvent;
+
 	/**
 	 * Debug console command to create a player.
 	 * @param ControllerId - The controller ID the player should accept input from.
@@ -264,7 +269,6 @@ public:
 	 * @param	ControllerId id of the controller associated with the player
 	 */
 	virtual int32			AddLocalPlayer(ULocalPlayer* NewPlayer, int32 ControllerId);
-
 
 	/**
 	 * Removes a player.
