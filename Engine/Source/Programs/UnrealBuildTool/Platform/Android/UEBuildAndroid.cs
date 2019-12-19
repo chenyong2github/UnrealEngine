@@ -105,6 +105,7 @@ namespace UnrealBuildTool
 			Target.bCompileNvCloth = false;
 
 			Target.bCompileRecast = true;
+			Target.bCompileISPC = true;
 		}
 
 		public override bool CanUseXGE()

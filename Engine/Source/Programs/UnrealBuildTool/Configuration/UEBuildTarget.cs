@@ -231,6 +231,10 @@ namespace UnrealBuildTool
 		public static UnrealTargetPlatform Android = FindOrAddByName("Android");
 
 		/// <summary>
+		/// </summary>
+		public static UnrealTargetPlatform HTML5 = FindOrAddByName("HTML5");
+
+		/// <summary>
 		/// Linux
 		/// </summary>
 		public static UnrealTargetPlatform Linux = FindOrAddByName("Linux");
@@ -3346,6 +3350,7 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.bPrintTimingInfo = Rules.bPrintToolChainTimingInfo;
 			GlobalCompileEnvironment.bUseRTTI = Rules.bForceEnableRTTI;
 			GlobalCompileEnvironment.bUseInlining = Rules.bUseInlining;
+			GlobalCompileEnvironment.bCompileISPC = Rules.bCompileISPC;
 			GlobalCompileEnvironment.bHideSymbolsByDefault = !Rules.bPublicSymbolsByDefault;
 			GlobalCompileEnvironment.CppStandard = Rules.CppStandard;
 			GlobalCompileEnvironment.AdditionalArguments = Rules.AdditionalCompilerArguments;

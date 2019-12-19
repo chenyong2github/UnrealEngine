@@ -442,7 +442,11 @@ namespace IncludeTool
 			}
 			if(NormalizedPath.IndexOf("/intermediate/") != -1)
 			{
-				if(NormalizedPath.EndsWith(".generated.h"))
+				if (NormalizedPath.EndsWith("ispc.generated.h"))
+				{
+					Flags |= SourceFileFlags.GeneratedHeader | SourceFileFlags.Public;
+				}
+				else if (NormalizedPath.EndsWith(".generated.h"))
 				{
 					Flags |= SourceFileFlags.GeneratedHeader | SourceFileFlags.Inline | SourceFileFlags.Public;
 				}
