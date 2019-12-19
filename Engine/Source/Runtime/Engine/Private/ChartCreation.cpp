@@ -661,7 +661,7 @@ void FPerformanceTrackingChart::Reset(const FDateTime& InStartTime)
 
 	StartBatteryLevel = -1;
 	StopBatteryLevel = -1;
-	DeviceProfileName = UDeviceProfileManager::Get().GetActiveDeviceProfileName();
+	DeviceProfileName = UDeviceProfileManager::GetActiveProfileName();
 	bIsChartingPaused = false;
 }
 
@@ -712,7 +712,7 @@ void FPerformanceTrackingChart::StartCharting()
 {
 	StartTemperatureLevel = FPlatformMisc::GetDeviceTemperatureLevel();
 	StartBatteryLevel = FPlatformMisc::GetBatteryLevel();
-	DeviceProfileName = UDeviceProfileManager::Get().GetActiveDeviceProfileName();
+	DeviceProfileName = UDeviceProfileManager::GetActiveProfileName();
 	bIsChartingPaused = false;
 }
 
@@ -734,7 +734,7 @@ void FPerformanceTrackingChart::ResumeCharting()
 
 void FPerformanceTrackingChart::OnDeviceProfileManagerUpdated()
 {
-	FString CurrentDeviceProfileName = UDeviceProfileManager::Get().GetActiveDeviceProfileName();
+	FString CurrentDeviceProfileName = UDeviceProfileManager::GetActiveProfileName();
 	if (CurrentDeviceProfileName != DeviceProfileName)
 	{
 		DeviceProfileName = TEXT("Mixed");
