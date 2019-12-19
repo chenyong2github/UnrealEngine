@@ -270,13 +270,11 @@ namespace Chaos
 	template<typename T, int d>
 	void TPBDCollisionConstraints<T, d>::UpdateManifolds(T Dt)
 	{
-		PhysicsParallelFor(IterativeConstraints.Num(), [&](int32 ConstraintIndex)
+		PhysicsParallelFor(Handles.Num(), [&](int32 ConstraintHandleIndex)
 		{
-			FConstraintBase& ConstraintBase = IterativeConstraints[ConstraintIndex];
-			if (ConstraintBase.GetType() == FCollisionConstraintBase::FType::MultiPoint)
-			{
-				Collisions::UpdateManifold<float, 3>(MThickness, ConstraintBase);
-			}
+			FConstraintContainerHandle* ConstraintHandle = Handles[ConstraintHandleIndex];
+			check(ConstraintHandle != nullptr);
+			Collisions::UpdateManifold<float, 3>(MThickness, ConstraintHandle->GetContact());
 		}, bDisableCollisionParallelFor);
 	}
 

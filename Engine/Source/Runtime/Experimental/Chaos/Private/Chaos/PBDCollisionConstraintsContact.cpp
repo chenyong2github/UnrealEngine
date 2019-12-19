@@ -24,13 +24,10 @@ namespace Chaos
 		template<typename T, int d>
 		void UpdateManifold(const T Thickness, TCollisionConstraintBase<T, d>& Constraint)
 		{
-			if (Constraint.GetType() == TCollisionConstraintBase<T, d>::FType::MultiPoint)
-			{
-				const TRigidTransform<T, d> Transform0 = GetTransform(Constraint.Particle[0]);
-				const TRigidTransform<T, d> Transform1 = GetTransform(Constraint.Particle[1]);
+			const TRigidTransform<T, d> Transform0 = GetTransform(Constraint.Particle[0]);
+			const TRigidTransform<T, d> Transform1 = GetTransform(Constraint.Particle[1]);
 
-				UpdateManifold(Constraint, Transform0, Transform1, Thickness);
-			}
+			UpdateManifold(Constraint, Transform0, Transform1, Thickness);
 		}
 
 
