@@ -2,8 +2,6 @@
 
 #include "Debugging/SlateDebugging.h"
 
-#if WITH_SLATE_DEBUGGING
-
 #include "SlateGlobals.h"
 #include "FastUpdate/WidgetProxy.h"
 #include "Animation/CurveSequence.h"
@@ -15,6 +13,8 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 
 CSV_DEFINE_CATEGORY_MODULE(SLATECORE_API, Slate, true);
+
+#if WITH_SLATE_DEBUGGING
 
 #define LOCTEXT_NAMESPACE "SlateDebugger"
 
