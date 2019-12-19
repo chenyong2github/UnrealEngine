@@ -19,6 +19,7 @@ void FMovieSceneTemplateGenerationLedger::AddTrack(const FGuid& InSignature, FMo
 	TrackSignatureToTrackIdentifier.Add(InSignature, Identifier);
 }
 
+#if WITH_EDITORONLY_DATA
 void FMovieSceneEvaluationTemplate::PostSerialize(const FArchive& Ar)
 {
 	if (Ar.IsLoading())
@@ -34,6 +35,7 @@ void FMovieSceneEvaluationTemplate::PostSerialize(const FArchive& Ar)
 		}
 	}
 }
+#endif
 
 void FMovieSceneEvaluationTemplate::ResetFieldData()
 {
