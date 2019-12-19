@@ -877,6 +877,25 @@ public:
 	}
 	FORCEINLINE TSharedPtr<const FSlateUser> GetUser(const FInputEvent& InputEvent) const { return GetUser(InputEvent.GetUserIndex()); }
 	FORCEINLINE TSharedPtr<FSlateUser> GetUser(const FInputEvent& InputEvent) { return GetUser(InputEvent.GetUserIndex()); }
+	
+	FORCEINLINE TSharedPtr<FSlateUser> GetUserFromControllerId(int32 ControllerId)
+	{
+		TOptional<int32> UserIndex = GetUserIndexForController(ControllerId);
+		if (UserIndex.IsSet())
+		{
+			return GetUser(UserIndex.GetValue());
+		}
+		return nullptr;
+	}
+	FORCEINLINE TSharedPtr<const FSlateUser> GetUserFromControllerId(int32 ControllerId) const
+	{
+		TOptional<int32> UserIndex = GetUserIndexForController(ControllerId);
+		if (UserIndex.IsSet())
+		{
+			return GetUser(UserIndex.GetValue());
+		}
+		return nullptr;
+	}
 
 	/** Get the standard 'default' user (there's always guaranteed to be at least one). */
 	FORCEINLINE TSharedPtr<const FSlateUser> GetCursorUser() const
