@@ -281,6 +281,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Packaging, AdvancedDisplay, meta=(DisplayName="Localizations to Package"))
 	TArray<FString> CulturesToStage;
 
+	/** List of localization targets that should be chunked during cooking (if using chunks) */
+	UPROPERTY(config, EditAnywhere, Category=Packaging, AdvancedDisplay)
+	TArray<FString> LocalizationTargetsToChunk;
+
 	/**
 	 * Cook all things in the project content directory
 	 */

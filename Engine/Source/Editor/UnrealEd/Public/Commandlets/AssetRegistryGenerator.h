@@ -12,6 +12,7 @@
 class FSandboxPlatformFile;
 class IAssetRegistry;
 class ITargetPlatform;
+class IChunkDataGenerator;
 class UChunkDependencyInfo;
 struct FChunkDependencyTreeNode;
 
@@ -72,6 +73,12 @@ public:
 	 * @param bGenerateStreamingInstallManifest should we build a streaming install manifest 
 	 */
 	void BuildChunkManifest(const TSet<FName>& CookedPackages, const TSet<FName>& DevelopmentOnlyPackages, FSandboxPlatformFile* InSandboxFile, bool bGenerateStreamingInstallManifest);
+
+	/**
+	 * Register a chunk data generator with this generator.
+	 * @note Should be called prior to SaveManifests.
+	 */
+	void RegisterChunkDataGenerator(TSharedRef<IChunkDataGenerator> InChunkDataGenerator);
 
 	/**
 	* PreSave
@@ -194,6 +201,8 @@ private:
 	FChunkPackageSet				AllCookedPackageSet;
 	/** Array of Maps with chunks<->packages assignments. This version contains all dependent packages */
 	TArray<FChunkPackageSet*>		FinalChunkManifests;
+	/** Additional data generators used when creating chunks */
+	TArray<TSharedRef<IChunkDataGenerator>> ChunkDataGenerators;
 	/** Lookup table of used package names used when searching references. */
 	TSet<FName>						InspectedNames;
 	/** */

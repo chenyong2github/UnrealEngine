@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Containers/ContainersFwd.h"
 #include "Containers/ArrayView.h"
+#include "Internationalization/TextKey.h"
 #include "Internationalization/LocalizedTextSourceTypes.h"
 #include "CoreGlobals.h"
 
@@ -42,6 +43,14 @@ public:
 	 * Load the localized resources from this localized text source for the given cultures into the given maps (ELocalizationLoadFlags controls which resources should be loaded).
 	 */
 	virtual void LoadLocalizedResources(const ELocalizationLoadFlags InLoadFlags, TArrayView<const FString> InPrioritizedCultures, FTextLocalizationResource& InOutNativeResource, FTextLocalizationResource& InOutLocalizedResource) = 0;
+
+	/**
+	 * Query a localized resource from this localized text source for the given cultures and ID into the given maps (ELocalizationLoadFlags controls which resources should be queried).
+	 */
+	virtual EQueryLocalizedResourceResult QueryLocalizedResource(const ELocalizationLoadFlags InLoadFlags, TArrayView<const FString> InPrioritizedCultures, const FTextId InTextId, FTextLocalizationResource& InOutNativeResource, FTextLocalizationResource& InOutLocalizedResource)
+	{
+		return EQueryLocalizedResourceResult::NotImplemented;
+	}
 
 	/** Should we load native data based on the given load flags and environment? */
 	static FORCEINLINE bool ShouldLoadNative(const ELocalizationLoadFlags InLoadFlags)
