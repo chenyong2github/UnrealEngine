@@ -593,6 +593,17 @@ UMaterialInterface* ULandscapeComponent::GetLandscapeHoleMaterial() const
 	return nullptr;
 }
 
+bool ULandscapeComponent::IsLandscapeHoleMaterialValid() const
+{
+	UMaterialInterface* HoleMaterial = GetLandscapeHoleMaterial();
+	if (!HoleMaterial)
+	{
+		return false;
+	}
+
+	return HoleMaterial->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionLandscapeVisibilityMask>();
+}
+
 bool ULandscapeComponent::ComponentHasVisibilityPainted() const
 {
 	for (const FWeightmapLayerAllocationInfo& Allocation : WeightmapLayerAllocations)
