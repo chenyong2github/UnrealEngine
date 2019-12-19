@@ -47,12 +47,16 @@ UClothingSimulationInteractor* UClothingSimulationFactoryNv::CreateInteractor()
 #endif
 }
 
-TSubclassOf<UClothConfigBase> UClothingSimulationFactoryNv::GetClothConfigClass() const
+TArrayView<const TSubclassOf<UClothConfigBase>> UClothingSimulationFactoryNv::GetClothConfigClasses() const
 {
 #if WITH_NVCLOTH
-	return TSubclassOf<UClothConfigBase>(UClothConfigNv::StaticClass());
+	static const TArray<TSubclassOf<UClothConfigBase>> ClothConfigClasses(
+		{
+			TSubclassOf<UClothConfigBase>(UClothConfigNv::StaticClass())
+		});
+	return ClothConfigClasses;
 #else
-	return nullptr;
+	return TArrayView<const TSubclassOf<UClothConfigBase>>();
 #endif
 }
 

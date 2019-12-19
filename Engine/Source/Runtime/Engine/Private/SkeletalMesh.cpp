@@ -529,6 +529,9 @@ void USkeletalMesh::AddClothingAsset(UClothingAssetBase* InNewAsset)
 		// Ok this should be a correctly created asset, we can add it
 		MeshClothingAssets.AddUnique(InNewAsset);
 
+		// Consolidate the shared cloth configs
+		InNewAsset->PostUpdateAllAssets();
+
 #if WITH_EDITOR
 		OnClothingChange.Broadcast();
 #endif
@@ -2052,6 +2055,12 @@ void USkeletalMesh::PostLoad()
 {
 	LLM_SCOPE(ELLMTag::SkeletalMesh);
 	Super::PostLoad();
+
+	// Consolidate the shared cloth configs once all cloth assets are loaded
+	for (UClothingAssetBase* MeshClothingAsset : MeshClothingAssets)
+	{
+		MeshClothingAsset->PostUpdateAllAssets();
+	}
 
 #if WITH_EDITOR
 	if (!GetOutermost()->bIsCookedForEditor)
