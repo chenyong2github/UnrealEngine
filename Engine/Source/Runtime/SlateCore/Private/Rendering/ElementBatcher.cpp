@@ -9,6 +9,7 @@
 #include "HAL/IConsoleManager.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Debugging/SlateDebugging.h"
+#include "Widgets/SWidgetUtils.h"
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(SLATECORE_API, Slate);
 
@@ -579,7 +580,7 @@ void FSlateElementBatcher::AddCachedElements(FSlateCachedElementData& CachedElem
 		{
 			CachedElementList = &LocalCachedElementList;
 			{
-				SCOPED_NAMED_EVENT_TEXT("Slate::RecacheElements", FColor::Magenta);
+				SCOPE_CYCLE_SWIDGET(WidgetScope, LocalCachedElementList.Widget);
 				AddElementsInternal(LocalCachedElementList.DrawElements, ViewportSize);
 			}
 
