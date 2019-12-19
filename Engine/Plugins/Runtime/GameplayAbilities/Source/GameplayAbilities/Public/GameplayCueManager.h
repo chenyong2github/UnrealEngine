@@ -370,4 +370,9 @@ protected:
 	TArray<FPreallocationInfo>	PreallocationInfoList_Internal;
 
 	FOnRouteGameplayCue OnRouteGameplayCue;
+
+private:
+
+	void AddPendingCueExecuteInternal(FGameplayCuePendingExecute& PendingCue);
+
 };
