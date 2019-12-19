@@ -303,9 +303,9 @@
     </When>
   </Choose>
   <Choose>
-    <When Condition="Exists('Executors\NotForLicensees\FASTBuild.cs')">
+    <When Condition="Exists('System\NotForLicensees\FASTBuild.cs')">
       <ItemGroup>
-          <Compile Include="Executors\NotForLicensees\FASTBuild.cs" />
+          <Compile Include="System\NotForLicensees\FASTBuild.cs" />
       </ItemGroup>
       <PropertyGroup>
         <DefineConstants>$(DefineConstants);__FASTBUILD_AVAILABLE__</DefineConstants>
