@@ -70,7 +70,7 @@ struct FAnimNodeTracker
 	NodeType* Top() const
 	{
 		const FNodeStack* Stack = Map.Find(GetKey<NodeType>());
-		return Stack ? static_cast<NodeType*>(Stack->Top()) : nullptr;
+		return (Stack && Stack->Num() != 0) ? static_cast<NodeType*>(Stack->Top()) : nullptr;
 	}
 
 	void CopyTopsOnly(const FAnimNodeTracker& Source)
