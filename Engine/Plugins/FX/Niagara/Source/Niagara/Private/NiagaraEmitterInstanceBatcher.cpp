@@ -283,6 +283,7 @@ void NiagaraEmitterInstanceBatcher::DispatchMultipleStages(const FNiagaraGPUSyst
 
 		const uint32 NumStages = Instance->Context->MaxUpdateIterations;
 		const uint32 DefaultShaderStageIndex = Instance->Context->DefaultShaderStageIndex;
+		bool bTransitionCurrentBuffer = false;
 
 		for (uint32 ShaderStageIndex = 0; ShaderStageIndex < NumStages; ++ShaderStageIndex)
 		{
@@ -298,16 +299,35 @@ void NiagaraEmitterInstanceBatcher::DispatchMultipleStages(const FNiagaraGPUSyst
 
 			PreStageInterface(Tick, Instance, RHICmdList, ComputeShader, ShaderStageIndex);
 
+			// If we are reading from current data we need to transition the resource if it was previously written to
+			if (bTransitionCurrentBuffer && (ComputeShader->FloatInputBufferParam.IsBound() || ComputeShader->IntInputBufferParam.IsBound()))
+			{
+				bTransitionCurrentBuffer = false;
+
+				TArray<FRHIUnorderedAccessView*, TInlineAllocator<2>> Resources;
+				if (Instance->CurrentData->GetGPUBufferFloat().UAV.IsValid())
+				{
+					Resources.Add(Instance->CurrentData->GetGPUBufferFloat().UAV);
+				}
+				if (Instance->CurrentData->GetGPUBufferInt().UAV.IsValid())
+				{
+					Resources.Add(Instance->CurrentData->GetGPUBufferInt().UAV);
+				}
+				if (Resources.Num() > 0)
+				{
+					RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, Resources.GetData(), Resources.Num());
+				}
+			}
+
 			if (!IterationInterface)
 			{
-				if (HasRunParticleStage)
-				{
-					FNiagaraDataBuffer* StoreData = Instance->CurrentData;
-					Instance->CurrentData = Instance->DestinationData;
-					Instance->DestinationData = StoreData;
-				}
 				Run(Tick, Instance, 0, Instance->DestinationData->GetNumInstances(), ComputeShader, RHICmdList, ViewUniformBuffer, Instance->SpawnInfo, false, DefaultShaderStageIndex, ShaderStageIndex,  nullptr, HasRunParticleStage);
 				HasRunParticleStage = true;
+				bTransitionCurrentBuffer = true;
+
+				FNiagaraDataBuffer* StoreData = Instance->CurrentData;
+				Instance->CurrentData = Instance->DestinationData;
+				Instance->DestinationData = StoreData;
 			}
 			else
 			{
