@@ -85,8 +85,10 @@ namespace Chaos
 			return TAABBSpecializeSamplingHelper<T, d>::ComputeSamplePoints(*this);
 		}
 
-		template<class TTRANSFORM>
-		CHAOS_API TAABB<T, d> TransformedAABB(const TTRANSFORM& SpaceTransform) const;
+		CHAOS_API TAABB<T, d> TransformedAABB(const FTransform&) const;
+		CHAOS_API TAABB<T, d> TransformedAABB(const Chaos::TRigidTransform<FReal, 3>&) const;
+		CHAOS_API TAABB<T, d> TransformedAABB(const FMatrix&) const;
+		CHAOS_API TAABB<T, d> TransformedAABB(const Chaos::PMatrix<FReal, 4, 4>&) const;
 
 		FORCEINLINE bool Intersects(const TAABB<T, d>& Other) const
 		{
@@ -597,9 +599,4 @@ namespace Chaos
 			return SamplePoints;
 		}
 	};
-
-	extern template CHAOS_API Chaos::TAABB<float, 3> Chaos::TAABB<float, 3>::TransformedAABB(const FTransform&) const;
-	extern template CHAOS_API Chaos::TAABB<float, 3> Chaos::TAABB<float, 3>::TransformedAABB(const Chaos::TRigidTransform<float, 3>&) const;
-	extern template CHAOS_API Chaos::TAABB<float, 3> Chaos::TAABB<float, 3>::TransformedAABB(const FMatrix&) const;
-	extern template CHAOS_API Chaos::TAABB<float, 3> Chaos::TAABB<float, 3>::TransformedAABB(const Chaos::PMatrix<float, 4, 4>&) const;
 }
