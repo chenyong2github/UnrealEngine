@@ -11,11 +11,38 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "Sound/SoundMix.h"
+
 #if WITH_EDITOR
 #include "SoundClassGraph/SoundClassGraph.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#endif
+#endif // WITH_EDITOR
+
+FSoundClassProperties::FSoundClassProperties()
+	: Volume(1.0f)
+	, Pitch(1.0f)
+	, LowPassFilterFrequency(MAX_FILTER_FREQUENCY)
+	, AttenuationDistanceScale(1.0f)
+	, StereoBleed(0.25f)
+	, LFEBleed(0.5f)
+	, VoiceCenterChannelVolume(0.0f)
+	, RadioFilterVolume(0.0f)
+	, RadioFilterVolumeThreshold(0.0f)
+	, bApplyEffects(false)
+	, bAlwaysPlay(false)
+	, bIsUISound(false)
+	, bIsMusic(false)
+	, bCenterChannelOnly(false)
+	, bApplyAmbientVolumes(false)
+	, bReverb(true)
+	, Default2DReverbSendAmount(0.0f)
+	, OutputTarget(EAudioOutputTarget::Speaker)
+	, LoadingBehavior(ESoundWaveLoadingBehavior::Inherited)
+	, DefaultSubmix(nullptr)
+	, AttenuationScaleParam(AttenuationDistanceScale)
+	, ParentAttenuationScale(1.0f)
+{
+}
 
 void FSoundClassProperties::SetAttenuationDistanceScale(float InAttenuationScale, float InTime)
 {
