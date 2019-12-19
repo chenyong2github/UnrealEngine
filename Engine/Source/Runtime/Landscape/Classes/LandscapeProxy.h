@@ -838,11 +838,11 @@ public:
 	TArray<ULandscapeGrassType*> GetGrassTypes() const;
 
 	/* Invalidate the precomputed grass and baked texture data for the specified components */
-	LANDSCAPE_API static void InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components);
-	LANDSCAPE_API static void InvalidateGeneratedComponentData(const TArray<ULandscapeComponent*>& Components);
+	LANDSCAPE_API static void InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components, bool bInvalidateLightingCache = false);
+	LANDSCAPE_API static void InvalidateGeneratedComponentData(const TArray<ULandscapeComponent*>& Components, bool bInvalidateLightingCache = false);
 
 	/* Invalidate the precomputed grass and baked texture data on all components */
-	LANDSCAPE_API void InvalidateGeneratedComponentData();
+	LANDSCAPE_API void InvalidateGeneratedComponentData(bool bInvalidateLightingCache = false);
 
 #if WITH_EDITOR
 	/** Update Grass maps */
