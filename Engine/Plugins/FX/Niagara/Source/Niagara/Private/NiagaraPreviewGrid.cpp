@@ -192,6 +192,56 @@ void ANiagaraPreviewGrid::DeactivatePreviews()
 	}
 }
 
+void ANiagaraPreviewGrid::SetPaused(bool bPaused)
+{
+	for (int32 X = 0; X < NumX; ++X)
+	{
+		float XLocation = X / NumX - 1;
+
+		for (int32 Y = 0; Y < NumY; ++Y)
+		{
+			float YLocation = Y / NumY - 1;
+
+			int32 PreviewIdx = PreviewIndex(X, Y);
+			UChildActorComponent* PreviewComp = PreviewComponents[PreviewIdx];
+			ANiagaraPreviewBase* PreviewActor = CastChecked<ANiagaraPreviewBase>(PreviewComp->GetChildActor());
+
+			TArray<UNiagaraComponent*, TInlineAllocator<4>> NiagaraComponents;
+			PreviewActor->GetComponents<UNiagaraComponent>(NiagaraComponents);
+			for (UNiagaraComponent* Component : NiagaraComponents)
+			{
+				Component->SetPaused(bPaused);
+			}
+		}
+	}
+
+	SetActorTickEnabled(!bPaused);
+}
+
+void ANiagaraPreviewGrid::GetPreviews(TArray<UNiagaraComponent*>& OutPreviews)
+{
+	for (int32 X = 0; X < NumX; ++X)
+	{
+		float XLocation = X / NumX - 1;
+
+		for (int32 Y = 0; Y < NumY; ++Y)
+		{
+			float YLocation = Y / NumY - 1;
+
+			int32 PreviewIdx = PreviewIndex(X, Y);
+			UChildActorComponent* PreviewComp = PreviewComponents[PreviewIdx];
+			ANiagaraPreviewBase* PreviewActor = CastChecked<ANiagaraPreviewBase>(PreviewComp->GetChildActor());
+
+			TArray<UNiagaraComponent*, TInlineAllocator<4>> NiagaraComponents;
+			PreviewActor->GetComponents<UNiagaraComponent>(NiagaraComponents);
+			for (UNiagaraComponent* Component : NiagaraComponents)
+			{
+				OutPreviews.Add(Component);
+			}
+		}
+	}
+}
+
 void ANiagaraPreviewGrid::TickActor(float DeltaTime, enum ELevelTick TickType, FActorTickFunction& ThisTickFunction)
 {
 	Super::TickActor(DeltaTime, TickType, ThisTickFunction);
