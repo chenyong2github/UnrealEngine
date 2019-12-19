@@ -430,7 +430,12 @@ struct FPrimaryCrashProperties
 	 * Whether we were in the background when the crash happened
 	 */
 	bool bInBackground;
-	
+
+	/**
+	 * Whether we crashed during shutdown
+	 */
+	bool bIsRequestingExit;
+
 protected:
 	/** Default constructor. */
 	FPrimaryCrashProperties();
