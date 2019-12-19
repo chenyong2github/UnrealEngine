@@ -1360,7 +1360,7 @@ namespace Chaos
 
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(SpatialBVH);
-			MParticles.ChildrenSpatial(NewIndex) = Objects2.Num() ? MakeUnique<FImplicitObjectUnion>(MoveTemp(Objects2), GeomToOriginalParticlesHack) : nullptr;
+			MParticles.ChildrenSpatial(NewIndex) = Objects2.Num() ? MakeUnique<FImplicitObjectUnionClustered>(MoveTemp(Objects2), GeomToOriginalParticlesHack) : nullptr;
 		}
 
 		TArray<TVector<T, d>> CleanedPoints;
@@ -1444,7 +1444,7 @@ namespace Chaos
 					QUICK_SCOPE_CYCLE_COUNTER(UnionBVH);
 					// @coverage : { confidence tests}
 					//ensureMsgf(false, TEXT("Checking no proxy, not levelset, and multiple objects"));
-					MParticles.SetDynamicGeometry(NewIndex, MakeUnique<FImplicitObjectUnion>(MoveTemp(Objects), GeomToOriginalParticlesHack));
+					MParticles.SetDynamicGeometry(NewIndex, MakeUnique<FImplicitObjectUnionClustered>(MoveTemp(Objects), GeomToOriginalParticlesHack));
 				}
 			}
 		}
