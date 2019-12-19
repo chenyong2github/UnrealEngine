@@ -1,5 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-#include "Factories/SoundCueTemplateFactory.h"
+#include "SoundCueTemplateFactory.h"
+#include "SoundCueTemplateClassFilter.h"
 
 #include "ClassViewerModule.h"
 #include "EdGraph/EdGraphPin.h"
@@ -7,10 +8,9 @@
 #include "Kismet2/SClassPickerDialog.h"
 #include "SoundCueGraph/SoundCueGraphNode.h"
 #include "Sound/SoundCue.h"
-#include "Sound/SoundCueTemplate.h"
-#include "SoundFactoryUtility.h"
 #include "UObject/Class.h"
 
+#define LOCTEXT_NAMESPACE "SoundCueTemplatesEditor"
 
 USoundCueTemplateCopyFactory::USoundCueTemplateCopyFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -44,13 +44,17 @@ USoundCueTemplateFactory::USoundCueTemplateFactory(const FObjectInitializer& Obj
 	bCreateNew = true;
 	bEditorImport = false;
 	bEditAfterNew = true;
+	SoundCueTemplateClass = nullptr;
 }
 
-UObject* USoundCueTemplateFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
+bool USoundCueTemplateFactory::ConfigureProperties()
 {
+	SoundCueTemplateClass = nullptr;
+
+	// Load the classviewer module to display a class picker
 	FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
 
-	TSharedPtr<FAssetClassParentFilter> Filter = MakeShareable(new FAssetClassParentFilter);
+	TSharedPtr<FSoundCueTemplateAssetParentFilter> Filter = MakeShareable(new FSoundCueTemplateAssetParentFilter);
 	Filter->DisallowedClassFlags = CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists | CLASS_HideDropDown;
 	Filter->AllowedChildrenOfClasses.Add(USoundCueTemplate::StaticClass());
 
@@ -58,14 +62,26 @@ UObject* USoundCueTemplateFactory::FactoryCreateNew(UClass* Class, UObject* InPa
 	Options.Mode = EClassViewerMode::ClassPicker;
 	Options.ClassFilter = Filter;
 
-	const FText TitleText = FText::FromString(TEXT("Pick Sound Cue Template"));
+	const FText TitleText = LOCTEXT("CreateSoundCueTemplateOfType", "Pick Type of SoundCueTemplate");
 	UClass* ChosenClass = nullptr;
-	if (SClassPickerDialog::PickClass(TitleText, Options, ChosenClass, USoundCueTemplate::StaticClass()))
+
+	const bool bPressedOk = SClassPickerDialog::PickClass(TitleText, Options, ChosenClass, USoundCueTemplate::StaticClass());
+
+	if (bPressedOk)
 	{
-		if (USoundCueTemplate* SoundCueTemplate = NewObject<USoundCueTemplate>(InParent, ChosenClass, Name, Flags))
+		SoundCueTemplateClass = ChosenClass;
+	}
+	return bPressedOk;
+}
+
+UObject* USoundCueTemplateFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
+{
+	if (SoundCueTemplateClass != nullptr)
+	{
+		if (USoundCueTemplate* NewSoundCueTemplate = NewObject<USoundCueTemplate>(InParent, SoundCueTemplateClass, Name, Flags))
 		{
-			SoundCueTemplate->RebuildGraph(*SoundCueTemplate);
-			return SoundCueTemplate;
+			NewSoundCueTemplate->RebuildGraph(*NewSoundCueTemplate);
+			return NewSoundCueTemplate;
 		}
 	}
 
