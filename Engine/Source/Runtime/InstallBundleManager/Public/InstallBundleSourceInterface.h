@@ -28,7 +28,8 @@ public:
 	virtual void Init(
 		TSharedRef<FConfigFile> InstallBundleConfig, 
 		TSharedRef<InstallBundleUtil::FContentRequestStatsMap> InRequestStats,
-		TSharedPtr<IAnalyticsProviderET> AnalyticsProvider) = 0;
+		TSharedPtr<IAnalyticsProviderET> AnalyticsProvider,
+		TSharedPtr<InstallBundleUtil::PersistentStats::FPersistentStatContainerBase> PersistentStatsContainer) = 0;
 	// Bundle manager will not call AsyncInit again until the bundle source calls back that it is complete
 	// It will be retried indefinitely until init is successful.  
 	virtual void AsyncInit(FInstallBundleSourceInitDelegate Callback) = 0;
