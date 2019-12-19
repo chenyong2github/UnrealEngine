@@ -152,24 +152,6 @@ void FLinkerManager::ResetLoaders(UObject* InPkg)
 	}
 }
 
-void FLinkerManager::EnsureLoadingComplete(UPackage* Package)
-{
-	if (!Package)
-	{
-		return;
-	}
-	FLinkerLoad* Linker = FLinkerLoad::FindExistingLinkerForPackage(Package);
-	if (!Linker)
-	{
-		return;
-	}
-	if (!Package->HasAnyPackageFlags(PKG_FilterEditorOnly))
-	{
-		Linker->SerializeThumbnails();
-	}
-	Linker->LoadAndDetachAllBulkData();
-}
-
 void FLinkerManager::DissociateImportsAndForcedExports()
 {
 	{

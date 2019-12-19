@@ -605,10 +605,3 @@ COREUOBJECT_API FString GetPrestreamPackageLinkerName(const TCHAR* InLongPackage
  * @param	Filename		The filename we are saving too
  */
 COREUOBJECT_API void ResetLoadersForSave(UObject* InOuter, const TCHAR *Filename);
-
-/*
- * Ensure all data that can be loaded from the linker (thumbnails, bulk data) is loaded, in preparation for saving out the given package
- *
- * @param Package	The the package for which the linker should be fully loaded
- */
-COREUOBJECT_API void EnsureLoadingComplete(UPackage* Package);
