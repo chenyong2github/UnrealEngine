@@ -20,7 +20,8 @@
 static TAutoConsoleVariable<float> CVarLODTemporalLag(
 	TEXT("lod.TemporalLag"),
 	0.5f,
-	TEXT("This controls the the time lag for temporal LOD, in seconds."));
+	TEXT("This controls the the time lag for temporal LOD, in seconds."),
+	ECVF_Scalability | ECVF_Default);
 
 void FTemporalLODState::UpdateTemporalLODTransition(const FViewInfo& View, float LastRenderTime)
 {
