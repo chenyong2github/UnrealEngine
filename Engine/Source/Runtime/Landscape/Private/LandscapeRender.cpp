@@ -821,7 +821,7 @@ void FLandscapeRenderSystem::BeginRenderView(const FSceneView* View)
 		if (TessellationFalloffSettings.UseTessellationComponentScreenSizeFalloff && NumEntitiesWithTessellation > 0)
 		{
 			SectionTessellationFalloffC = CachedSectionTessellationFalloffC[View];
-			SectionTessellationFalloffC = CachedSectionTessellationFalloffK[View];
+			SectionTessellationFalloffK = CachedSectionTessellationFalloffK[View];
 		}
 	}
 
