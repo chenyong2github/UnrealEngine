@@ -15,8 +15,6 @@
 #include "IOS/IOSPlatformWebAuth.h"
 #elif PLATFORM_ANDROID
 #include "Android/AndroidPlatformWebAuth.h"
-#elif PLATFORM_HTML5
-#include "NullPlatformWebAuth.h"
 #elif PLATFORM_UNIX
 #include "NullPlatformWebAuth.h"
 #elif PLATFORM_SWITCH
