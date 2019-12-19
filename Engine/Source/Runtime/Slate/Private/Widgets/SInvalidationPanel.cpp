@@ -46,6 +46,8 @@ SInvalidationPanel::SInvalidationPanel()
 	SetInvalidationRootHittestGrid(HittestGrid);
 	SetCanTick(false);
 
+	LastIncomingColorAndOpacity = FLinearColor::White;
+
 	FSlateApplicationBase::Get().OnGlobalInvalidationToggled().AddRaw(this, &SInvalidationPanel::OnGlobalInvalidationToggled);
 }
 
@@ -104,7 +106,7 @@ void SInvalidationPanel::OnGlobalInvalidationToggled(bool bGlobalInvalidationEna
 	ClearAllFastPathData(false);
 }
 
-bool SInvalidationPanel::UpdateCachePrequisites(FSlateWindowElementList& OutDrawElements, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, int32 LayerId) const
+bool SInvalidationPanel::UpdateCachePrequisites(FSlateWindowElementList& OutDrawElements, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, int32 LayerId, const FWidgetStyle& InWidgetStyle) const
 {
 	bool bNeedsRecache = false;
 #if WITH_SLATE_DEBUGGING
@@ -141,6 +143,12 @@ bool SInvalidationPanel::UpdateCachePrequisites(FSlateWindowElementList& OutDraw
 	if (LastClippingState != ClippingState)
 	{
 		LastClippingState = ClippingState;
+		bNeedsRecache = true;
+	}
+
+	if (LastIncomingColorAndOpacity != InWidgetStyle.GetColorAndOpacityTint())
+	{
+		LastIncomingColorAndOpacity = InWidgetStyle.GetColorAndOpacityTint();
 		bNeedsRecache = true;
 	}
 	
@@ -198,7 +206,7 @@ int32 SInvalidationPanel::OnPaint( const FPaintArgs& Args, const FGeometry& Allo
 		NewArgs.GetHittestGrid().SetUserIndex(Args.RootGrid.GetUserIndex());
 		check(!GSlateEnableGlobalInvalidation);
 
-		const bool bRequiresRecache = UpdateCachePrequisites(OutDrawElements, AllottedGeometry, MyCullingRect, LayerId);
+		const bool bRequiresRecache = UpdateCachePrequisites(OutDrawElements, AllottedGeometry, MyCullingRect, LayerId, InWidgetStyle);
 		if (bHittestCleared || bRequiresRecache)
 		{
 			// @todo: Overly aggressive?
