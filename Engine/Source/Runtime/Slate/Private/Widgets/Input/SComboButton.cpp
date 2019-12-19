@@ -21,6 +21,8 @@ void SComboButton::Construct( const FArguments& InArgs )
 	ContentWidgetPtr = InArgs._MenuContent.Widget;
 	bIsFocusable = InArgs._IsFocusable;
 
+	const bool bHasDownArrowShadow = !InArgs._ComboButtonStyle->ShadowOffset.IsZero();
+
 	TSharedPtr<SHorizontalBox> HBox;
 
 	SMenuAnchor::Construct( SMenuAnchor::FArguments()
@@ -62,12 +64,12 @@ void SComboButton::Construct( const FArguments& InArgs )
 					// drop shadow
 					+ SOverlay::Slot()
 					.VAlign(VAlign_Top)
-					.Padding(0, 1, 0, 0)
+					.Padding(FMargin(InArgs._ComboButtonStyle->ShadowOffset.X, InArgs._ComboButtonStyle->ShadowOffset.Y, 0, 0))
 					[
 						SNew(SImage)
-						.Visibility( InArgs._HasDownArrow && InArgs._HasDownArrowDropShadow ? EVisibility::Visible : EVisibility::Collapsed )
+						.Visibility( InArgs._HasDownArrow && bHasDownArrowShadow ? EVisibility::Visible : EVisibility::Collapsed )
 						.Image( &InArgs._ComboButtonStyle->DownArrowImage )
-						.ColorAndOpacity( FLinearColor::Black )
+						.ColorAndOpacity( InArgs._ComboButtonStyle->ShadowColorAndOpacity )
 					]
 					+ SOverlay::Slot()
 					.VAlign(VAlign_Top)
