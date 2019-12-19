@@ -117,6 +117,7 @@ public:
 	virtual void ConvertVirtualTextures(const TArray<UTexture2D*>& Textures, bool bConvertBackToNonVirtual, const TArray<UMaterial*>* RelatedMaterials = nullptr) const override;
 	virtual bool IsAssetClassSupported(const UClass* AssetClass) const override;
 	virtual TArray<UFactory*> GetNewAssetFactories() const override;
+	virtual TSharedRef<FBlacklistNames>& GetAssetClassBlacklist() override;
 	virtual TSharedRef<FBlacklistPaths>& GetFolderBlacklist() override;
 
 public:
@@ -171,6 +172,9 @@ private:
 
 	UObject* PerformDuplicateAsset(const FString& AssetName, const FString& PackagePath, UObject* OriginalObject, bool bWithDialog);
 
+	/** Internal method that performs actions when asset class blacklist filter changes */
+	void AssetClassBlacklistChanged();
+
 private:
 	/** The list of all registered AssetTypeActions */
 	TArray<TSharedRef<IAssetTypeActions>> AssetTypeActionsList;
@@ -181,10 +185,11 @@ private:
 	/** The categories that have been allocated already */
 	TMap<FName, FAdvancedAssetCategory> AllocatedCategoryBits;
 	
-	TSet<FName> SupportedAssetTypes;
-	
 	/** The next user category bit to allocate (set to 0 when there are no more bits left) */
 	uint32 NextUserCategoryBit;
+
+	/** Blacklist of assets by class name */
+	TSharedRef<FBlacklistNames> AssetClassBlacklist;
 
 	/** Blacklist of folder paths */
 	TSharedRef<FBlacklistPaths> FolderBlacklist;
