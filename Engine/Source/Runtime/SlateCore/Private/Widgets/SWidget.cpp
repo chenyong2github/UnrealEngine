@@ -17,6 +17,8 @@
 #include "Debugging/SlateDebugging.h"
 #include "Widgets/SWindow.h"
 #include "Types/ReflectionMetadata.h"
+#include "Stats/Stats.h"
+#include "Containers/StringConv.h"
 #include "Misc/ScopeRWLock.h"
 #include "HAL/CriticalSection.h"
 
@@ -25,7 +27,6 @@
 #include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
 #endif
 
-DEFINE_STAT(STAT_SlateVeryVerboseStatGroupTester);
 DEFINE_STAT(STAT_SlateTotalWidgetsPerFrame);
 DEFINE_STAT(STAT_SlateNumPaintedWidgets);
 DEFINE_STAT(STAT_SlateNumTickedWidgets);
@@ -34,6 +35,8 @@ DEFINE_STAT(STAT_SlateTickWidgets);
 DEFINE_STAT(STAT_SlatePrepass);
 DEFINE_STAT(STAT_SlateTotalWidgets);
 DEFINE_STAT(STAT_SlateSWidgetAllocSize);
+
+DECLARE_CYCLE_STAT(TEXT("SWidget::CreateStatID"), STAT_Slate_CreateStatID, STATGROUP_Slate);
 
 template <typename AnnotationType>
 class TWidgetSparseAnnotation
@@ -100,55 +103,33 @@ static FAutoConsoleVariableRef CVarSlateEnsureAllVisibleWidgetsPaint(TEXT("Slate
 
 #endif
 
-#if STATS
-
-struct FScopeCycleCounterSWidget : public FCycleCounter
-{
-	/**
-	 * Constructor, starts timing
-	 */
-	FORCEINLINE_STATS FScopeCycleCounterSWidget(const SWidget* Widget)
-	{
-		if (Widget)
-		{
-			TStatId WidgetStatId = Widget->GetStatID();
-			if (FThreadStats::IsCollectingData(WidgetStatId))
-			{
-				Start(WidgetStatId);
-			}
-		}
-	}
-
-	/**
-	 * Updates the stat with the time spent
-	 */
-	FORCEINLINE_STATS ~FScopeCycleCounterSWidget()
-	{
-		Stop();
-	}
-};
-
-#else
-
-struct FScopeCycleCounterSWidget
-{
-	FScopeCycleCounterSWidget(const SWidget* Widget)
-	{
-	}
-	~FScopeCycleCounterSWidget()
-	{
-	}
-};
-
-#endif
-
+#if STATS || ENABLE_STATNAMEDEVENTS
 
 void SWidget::CreateStatID() const
 {
+	SCOPE_CYCLE_COUNTER(STAT_Slate_CreateStatID);
+
+	const FString LongName = FReflectionMetaData::GetWidgetDebugInfo(this);
+
 #if STATS
-	StatID = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_SlateVeryVerbose>( ToString() );
+	StatID = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_Slate>(LongName);
+#else // ENABLE_STATNAMEDEVENTS
+	const auto& ConversionData = StringCast<PROFILER_CHAR>(*LongName);
+	const int32 NumStorageChars = (ConversionData.Length() + 1);	//length doesn't include null terminator
+
+	PROFILER_CHAR* StoragePtr = new PROFILER_CHAR[NumStorageChars];
+	FMemory::Memcpy(StoragePtr, ConversionData.Get(), NumStorageChars * sizeof(PROFILER_CHAR));
+
+	if (FPlatformAtomics::InterlockedCompareExchangePointer((void**)&StatIDStringStorage, StoragePtr, nullptr) != nullptr)
+	{
+		delete[] StoragePtr;
+	}
+	
+	StatID = TStatId(StatIDStringStorage);
 #endif
 }
+
+#endif
 
 void SWidget::UpdateWidgetProxy(int32 NewLayerId, FSlateCachedElementListNode* CacheNode)
 {
@@ -222,6 +203,9 @@ SWidget::SWidget()
 	, RenderTransformPivot(FVector2D::ZeroVector)
 	, Cursor( TOptional<EMouseCursor::Type>() )
 	, ToolTip()
+#if ENABLE_STATNAMEDEVENTS
+	, StatIDStringStorage(nullptr)
+#endif
 {
 	if (GIsRunning)
 	{
@@ -261,6 +245,11 @@ SWidget::~SWidget()
 		// Only clear if initialized because SNullWidget's destructor may be called after annotations are deleted
 		ClearSparseAnnotationsForWidget(this);
 	}
+
+#if ENABLE_STATNAMEDEVENTS
+	delete[] StatIDStringStorage;
+	StatIDStringStorage = nullptr;
+#endif
 
 	DEC_DWORD_STAT(STAT_SlateTotalWidgets);
 	DEC_MEMORY_STAT_BY(STAT_SlateSWidgetAllocSize, AllocSize);
