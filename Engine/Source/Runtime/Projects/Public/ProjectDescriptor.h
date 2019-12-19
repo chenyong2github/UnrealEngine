@@ -94,6 +94,9 @@ struct PROJECTS_API FProjectDescriptor
 	/** Indicates if this project is an Enterprise project */
 	bool bIsEnterpriseProject;
 
+	/** Indicates that enabled by default engine plugins should not be enabled unless explicitly enabled by the project or target files. */
+	bool bDisableEnginePluginsByDefault;
+
 	/** Constructor. */
 	FProjectDescriptor();
 

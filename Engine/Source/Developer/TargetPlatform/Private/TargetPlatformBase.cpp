@@ -54,7 +54,8 @@ static bool IsPluginEnabledForTarget(const IPlugin& Plugin, const FProjectDescri
 		return false;
 	}
 
-	bool bEnabledForProject = Plugin.IsEnabledByDefault();
+	const bool bAllowEnginePluginsEnabledByDefault = (Project == nullptr || !Project->bDisableEnginePluginsByDefault);
+	bool bEnabledForProject = Plugin.IsEnabledByDefault(bAllowEnginePluginsEnabledByDefault);
 	if (Project != nullptr)
 	{
 		for(const FPluginReferenceDescriptor& PluginReference : Project->Plugins)

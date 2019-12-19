@@ -275,21 +275,27 @@ namespace AutomationTool
 			// Keep a set of all the plugin names that have been configured. We read configuration data from different places, but only configure a plugin from the first place that it's referenced.
 			HashSet<string> ConfiguredPluginNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+			bool bAllowEnginePluginsEnabledByDefault = true;
+
 			// Find all the plugin references in the project file
-			if (ProjectDescriptor != null && ProjectDescriptor.Plugins != null)
+			if (ProjectDescriptor != null)
 			{
-				// Copy the plugin references, since we may modify the project if any plugins are missing
-				foreach (PluginReferenceDescriptor PluginReference in ProjectDescriptor.Plugins)
+				bAllowEnginePluginsEnabledByDefault = !ProjectDescriptor.DisableEnginePluginsByDefault;
+				if (ProjectDescriptor.Plugins != null)
 				{
-					if(!ConfiguredPluginNames.Contains(PluginReference.Name))
+					// Copy the plugin references, since we may modify the project if any plugins are missing
+					foreach (PluginReferenceDescriptor PluginReference in ProjectDescriptor.Plugins)
 					{
-						PluginReferenceDescriptor MissingPlugin;
-						if (!ConfigureEnabledPluginForTarget(PluginReference, ProjectDescriptor, null, Platform, Configuration, TargetType, bLoadPluginsForTargetPlatforms, AllPlugins, EnabledPlugins, out MissingPlugin))
+						if (!ConfiguredPluginNames.Contains(PluginReference.Name))
 						{
-							OutMissingPlugin = MissingPlugin;
-							return false;
+							PluginReferenceDescriptor MissingPlugin;
+							if (!ConfigureEnabledPluginForTarget(PluginReference, ProjectDescriptor, null, Platform, Configuration, TargetType, bLoadPluginsForTargetPlatforms, AllPlugins, EnabledPlugins, out MissingPlugin))
+							{
+								OutMissingPlugin = MissingPlugin;
+								return false;
+							}
+							ConfiguredPluginNames.Add(PluginReference.Name);
 						}
-						ConfiguredPluginNames.Add(PluginReference.Name);
 					}
 				}
 			}
@@ -297,7 +303,7 @@ namespace AutomationTool
 			// Add the plugins which are enabled by default
 			foreach (KeyValuePair<string, PluginInfo> PluginPair in AllPlugins)
 			{
-				if(PluginPair.Value.EnabledByDefault && !ConfiguredPluginNames.Contains(PluginPair.Key))
+				if (PluginPair.Value.IsEnabledByDefault(bAllowEnginePluginsEnabledByDefault) && !ConfiguredPluginNames.Contains(PluginPair.Key))
 				{
 					PluginReferenceDescriptor MissingPlugin;
 					if (!ConfigureEnabledPluginForTarget(new PluginReferenceDescriptor(PluginPair.Key, null, true), ProjectDescriptor, null, Platform, Configuration, TargetType, bLoadPluginsForTargetPlatforms, AllPlugins, EnabledPlugins, out MissingPlugin))
