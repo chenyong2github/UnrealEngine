@@ -419,6 +419,12 @@ namespace UnrealBuildTool
 		public bool bCompileCEF3 = true;
 
 		/// <summary>
+		/// Whether to compile using ISPC.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bCompileISPC = false;
+
+		/// <summary>
 		/// Whether to compile the editor or not. Only desktop platforms (Windows or Mac) will use this, other platforms force this to false.
 		/// </summary>
 		public bool bBuildEditor
@@ -1943,6 +1949,11 @@ namespace UnrealBuildTool
 		public bool bCompileCEF3
 		{
 			get { return Inner.bCompileCEF3; }
+		}
+
+		public bool bCompileISPC
+		{
+			get { return Inner.bCompileISPC; }
 		}
 
 		public bool bBuildEditor
