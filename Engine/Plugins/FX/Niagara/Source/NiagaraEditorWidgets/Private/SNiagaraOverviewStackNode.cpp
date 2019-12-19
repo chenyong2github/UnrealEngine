@@ -12,6 +12,7 @@
 #include "NiagaraEditorModule.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraEditorWidgetsStyle.h"
+#include "NiagaraEmitter.h"
 #include "Stack/SNiagaraStackIssueIcon.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Layout/SBox.h"
@@ -22,6 +23,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "NiagaraRendererProperties.h"
 #include "Widgets/SWidget.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewStackNode"
 
@@ -97,26 +99,6 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleWidget(TSharedPtr<SNod
 			.IsChecked(this, &SNiagaraOverviewStackNode::GetEnabledCheckState)
 			.OnCheckStateChanged(this, &SNiagaraOverviewStackNode::OnEnabledCheckStateChanged)
 		]
-		// Isolate toggle
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		.Padding(3, 0, 0, 0)
-		[
-			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-			.HAlign(HAlign_Center)
-			.ContentPadding(1)
-			.ToolTipText(this, &SNiagaraOverviewStackNode::GetToggleIsolateToolTip)
-			.OnClicked(this, &SNiagaraOverviewStackNode::OnToggleIsolateButtonClicked)
-			.Visibility(this, &SNiagaraOverviewStackNode::GetToggleIsolateVisibility)
-			.Content()
-			[
-				SNew(SImage)
-				.Image(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Isolate"))
-				.ColorAndOpacity(this, &SNiagaraOverviewStackNode::GetToggleIsolateImageColor)
-			]
-		]
 		// Name
 		+ SHorizontalBox::Slot()
 		.Padding(3, 0, 0, 0)
@@ -128,8 +110,34 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleWidget(TSharedPtr<SNod
 
 TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleRightWidget()
 {
-	return SNew(SBox)
-		.Content()
+	return SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Center)
+		.Padding(0, 0, 1, 0)
+		[
+			SNew(SButton)
+			.IsFocusable(false)
+			.ToolTipText(LOCTEXT("OpenAndFocusParentEmitterToolTip", "Open and Focus Parent Emitter"))
+			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ForegroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.ForegroundColor"))
+			.ContentPadding(2)
+			.OnClicked(this, &SNiagaraOverviewStackNode::OpenParentEmitter)
+			.Visibility(this, &SNiagaraOverviewStackNode::GetOpenParentEmitterVisibility)
+			.DesiredSizeScale(FVector2D(14.0f / 30.0f, 14.0f / 30.0f)) // GoToSourceIcon is 30x30, scale down
+			.Content()
+			[
+				SNew(SImage)
+				.Image(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.GoToSourceIcon"))
+				.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.FlatButtonColor"))
+			]
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Center)
+		.Padding(0, 0, 1, 0)
 		[
 			SNew(SNiagaraStackIssueIcon, StackViewModel, StackViewModel->GetRootEntry())
 			.Visibility(this, &SNiagaraOverviewStackNode::GetIssueIconVisibility)
@@ -318,6 +326,28 @@ void SNiagaraOverviewStackNode::FillThumbnailBar(UObject* ChangedObject, const b
 		{
 			EmitterHandleViewModelWeak.Pin()->GetRendererPreviewData(PreviewData);
 
+			// Isolate toggle button
+			ThumbnailBar->AddSlot()
+				.AutoWidth()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(2, 0, 0, 0)
+				[
+					SNew(SButton)
+					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+					.HAlign(HAlign_Center)
+					.ContentPadding(1)
+					.ToolTipText(this, &SNiagaraOverviewStackNode::GetToggleIsolateToolTip)
+					.OnClicked(this, &SNiagaraOverviewStackNode::OnToggleIsolateButtonClicked)
+					.Visibility(this, &SNiagaraOverviewStackNode::GetToggleIsolateVisibility)
+					.Content()
+					[
+						SNew(SImage)
+						.Image(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Isolate"))
+						.ColorAndOpacity(this, &SNiagaraOverviewStackNode::GetToggleIsolateImageColor)
+					]
+				];
+
 			for (FRendererPreviewData* Preview : PreviewData)
 			{
 				if (Preview->RenderingObject)
@@ -411,6 +441,30 @@ FSlateColor SNiagaraOverviewStackNode::GetToggleIsolateImageColor() const
 		EmitterHandleViewModel->GetIsIsolated()
 		? FEditorStyle::GetSlateColor("SelectionColor")
 		: FLinearColor::Gray;
+}
+
+FReply SNiagaraOverviewStackNode::OpenParentEmitter()
+{
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelWeak.Pin();
+
+	if (EmitterHandleViewModel.IsValid())
+	{
+		UNiagaraEmitter* ParentEmitter = const_cast<UNiagaraEmitter*>(EmitterHandleViewModel->GetEmitterViewModel()->GetParentEmitter());
+		if (ParentEmitter != nullptr)
+		{
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ParentEmitter);
+		}
+	}
+	return FReply::Handled();
+}
+
+EVisibility SNiagaraOverviewStackNode::GetOpenParentEmitterVisibility() const
+{
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelWeak.Pin();
+	return EmitterHandleViewModel.IsValid() && 
+		EmitterHandleViewModel->GetEmitterViewModel()->GetParentEmitter() != nullptr
+		? EVisibility::Visible 
+		: EVisibility::Collapsed;
 }
 
 #undef LOCTEXT_NAMESPACE
