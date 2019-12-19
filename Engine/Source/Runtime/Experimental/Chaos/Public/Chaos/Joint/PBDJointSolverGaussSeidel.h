@@ -211,6 +211,7 @@ namespace Chaos
 		bool bEnableTwistLimits;
 		bool bEnableSwingLimits;
 		bool bEnableDrives;
+		bool bAccelerationDriveMode;
 	};
 
 }
