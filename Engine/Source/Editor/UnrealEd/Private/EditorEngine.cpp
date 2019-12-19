@@ -4514,6 +4514,8 @@ void UEditorEngine::OnPreSaveWorld(uint32 SaveFlags, UWorld* World)
 		return;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(UEditorEngine_OnPreSaveWorld);
+
 	check(World->PersistentLevel);
 
 	// Pre save world event
