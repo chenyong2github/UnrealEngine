@@ -66,7 +66,7 @@ namespace Audio
 		}
 	}
 
-	void FMixerSubmix::Init(USoundSubmix* InSoundSubmix)
+	void FMixerSubmix::Init(USoundSubmix* InSoundSubmix, bool bAllowReInit)
 	{
 		check(IsInAudioThread());
 		if (InSoundSubmix != nullptr)
@@ -77,9 +77,9 @@ namespace Audio
 				OwningSubmixObject = InSoundSubmix;
 				InitInternal();
 			}
-			else
+			// This is a re-init and needs to be thread safe
+			else if (bAllowReInit)
 			{
-				// This is a re-init and needs to be thread safe
 				check(OwningSubmixObject == InSoundSubmix);
 				SubmixCommand([this]()
 				{
@@ -120,10 +120,10 @@ namespace Audio
 
 				FSubmixEffectInfo EffectInfo;
 				EffectInfo.PresetId = EffectPreset->GetUniqueID();
-				EffectInfo.EffectInstance = SubmixEffect;
+				EffectInfo.EffectInstance = MakeShareable(SubmixEffect);
 
 				// Add the effect to this submix's chain
-				EffectSubmixChain.Add(EffectInfo);
+				EffectSubmixChain.Add(MoveTemp(EffectInfo));
 			}
 		}
 
@@ -137,14 +137,15 @@ namespace Audio
 			//If we do have a valid ambisonics decoder, lets use it. Otherwise, treat this submix like a device submix.
 			if (AmbisonicsMixer.IsValid())
 			{
-				if (!OwningSubmixObject->AmbisonicsPluginSettings)
+				UAmbisonicsSubmixSettingsBase* AmbisonicSubmixSettings = OwningSubmixObject->AmbisonicsPluginSettings;
+				if (!AmbisonicSubmixSettings)
 				{
-					OwningSubmixObject->AmbisonicsPluginSettings = AmbisonicsMixer->GetDefaultSettings();
+					AmbisonicSubmixSettings = AmbisonicsMixer->GetDefaultSettings();
 				}
 
-				if (OwningSubmixObject->AmbisonicsPluginSettings != nullptr)
+				if (AmbisonicSubmixSettings)
 				{
-					OnAmbisonicsSettingsChanged(OwningSubmixObject->AmbisonicsPluginSettings);
+					OnAmbisonicsSettingsChanged(AmbisonicSubmixSettings);
 				}
 				else
 				{
@@ -207,6 +208,28 @@ namespace Audio
 				{
 					UpdateAmbisonicsEncoderForChildren();
 				}
+			}
+		});
+	}
+
+	void FMixerSubmix::RemoveChildSubmix(TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> SubmixWeakPtr)
+	{
+		TSharedPtr<FMixerSubmix, ESPMode::ThreadSafe> SubmixStrongPtr  = SubmixWeakPtr.Pin();
+		if (!SubmixStrongPtr.IsValid())
+		{
+			return;
+		}
+
+		const uint32 OldIdToRemove = SubmixStrongPtr->GetId();
+		SubmixCommand([this, OldIdToRemove]()
+		{
+			AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
+
+			ChildSubmixes.Remove(OldIdToRemove);
+
+			if (ChannelFormat == ESubmixChannelFormat::Ambisonics && AmbisonicsMixer.IsValid())
+			{
+				UpdateAmbisonicsEncoderForChildren();
 			}
 		});
 	}
@@ -283,7 +306,7 @@ namespace Audio
 		}
 	}
 
-	void FMixerSubmix::AddSoundEffectSubmix(uint32 SubmixPresetId, FSoundEffectSubmix* InSoundEffectSubmix)
+	void FMixerSubmix::AddSoundEffectSubmix(uint32 SubmixPresetId, FSoundEffectSubmixPtr InSoundEffectSubmix)
 	{
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
@@ -292,7 +315,7 @@ namespace Audio
 		{
 			if (EffectSubmixChain[i].PresetId == SubmixPresetId)
 			{
-				// Already added. 
+				// Already added.
 				return;
 			}
 		}
@@ -309,18 +332,14 @@ namespace Audio
 	{
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
-		for (int32 i = 0; i < EffectSubmixChain.Num(); ++i)
+		for (FSubmixEffectInfo& Effect : EffectSubmixChain)
 		{
 			// If the ID's match, delete and remove the effect instance but don't modify the effect submix chain array itself
-			if (EffectSubmixChain[i].PresetId == SubmixPresetId)
+			if (Effect.PresetId == SubmixPresetId)
 			{
-				// Delete the reference to the effect instance
-				if (EffectSubmixChain[i].EffectInstance)
-				{
-					delete EffectSubmixChain[i].EffectInstance;
-					EffectSubmixChain[i].EffectInstance = nullptr;
-				}
-				EffectSubmixChain[i].PresetId = INDEX_NONE;
+				// Reset reference to the effect
+				Effect.EffectInstance.Reset();
+				Effect.PresetId = INDEX_NONE;
 				return;
 			}
 		}
@@ -331,12 +350,10 @@ namespace Audio
 	{
 		for (FSubmixEffectInfo& Info : EffectSubmixChain)
 		{
-			if (Info.EffectInstance)
+			if (Info.EffectInstance.IsValid())
 			{
 				Info.EffectInstance->ClearPreset();
-
-				delete Info.EffectInstance;
-				Info.EffectInstance = nullptr;
+				Info.EffectInstance.Reset();
 			}
 		}
 
@@ -500,12 +517,12 @@ namespace Audio
 
 			TSharedPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe> SubmixPtr = ChildSubmix.SubmixPtr.Pin();
 
-			//Check to see if this child is an ambisonics submix.
+			// Check to see if this child is an ambisonics submix.
 			if (SubmixPtr.IsValid() && SubmixPtr->GetSubmixChannels() == ESubmixChannelFormat::Ambisonics)
 			{
 				UAmbisonicsSubmixSettingsBase* ChildAmbisonicsSettings = SubmixPtr->AmbisonicsSettings;
 
-				//Check if this child submix needs to be reencoded.
+				// Check if this child submix needs to be re-encoded.
 				if (!ChildAmbisonicsSettings || AmbisonicsMixer->ShouldReencodeBetween(ChildAmbisonicsSettings, AmbisonicsSettings))
 				{
 					ChildSubmix.bNeedsAmbisonicsEncoding = false;
@@ -697,10 +714,10 @@ namespace Audio
 
 			for (FSubmixEffectInfo& SubmixEffectInfo : EffectSubmixChain)
 			{
-				FSoundEffectSubmix* SubmixEffect = SubmixEffectInfo.EffectInstance;
+				FSoundEffectSubmixPtr SubmixEffect = SubmixEffectInfo.EffectInstance;
 
 				// SubmixEffectInfo.EffectInstance will be null if FMixerSubmix::RemoveSoundEffectSubmix was called earlier.
-				if (!SubmixEffect)
+				if (!SubmixEffect.IsValid())
 				{
 					continue;
 				}
@@ -858,7 +875,7 @@ namespace Audio
 		return EffectSubmixChain.Num();
 	}
 
-	FSoundEffectSubmix* FMixerSubmix::GetSubmixEffect(const int32 InIndex)
+	FSoundEffectSubmixPtr FMixerSubmix::GetSubmixEffect(const int32 InIndex)
 	{
 		if (InIndex < EffectSubmixChain.Num())
 		{

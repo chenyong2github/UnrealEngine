@@ -80,8 +80,6 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	DECLARE_EVENT(UAudioSettings, FAudioSettingsChanged)
 #endif // WITH_EDITOR
 
-	virtual void Serialize(FArchive& Ar) override;
-
 	/** The SoundClass assigned to newly created sounds */
 	UPROPERTY(config, EditAnywhere, Category="Audio", meta=(AllowedClasses="SoundClass", DisplayName="Default Sound Class"))
 	FSoftObjectPath DefaultSoundClassName;
@@ -102,6 +100,22 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category="Audio", meta=(AllowedClasses="SoundClass", DisplayName = "VOIP Sound Class"))
 	FSoftObjectPath VoiPSoundClass;
 
+	/** The Master submix through which all sounds are routed */
+	UPROPERTY(config, EditAnywhere, Category="Mix", meta=(AllowedClasses="SoundSubmix"))
+	FSoftObjectPath MasterSubmix;
+
+	/** The submix through which all sounds set to use reverb are routed */
+	UPROPERTY(config, EditAnywhere, Category="Mix", meta=(AllowedClasses="SoundSubmix"))
+	FSoftObjectPath ReverbSubmix;
+
+	/** The submix through which all sounds set to use legacy EQ system are routed */
+	UPROPERTY(config, EditAnywhere, Category="Mix", meta=(AllowedClasses="SoundSubmix", DisplayName = "EQ Submix (Legacy)"), AdvancedDisplay)
+	FSoftObjectPath EQSubmix;
+
+	/** The submix through which sounds spatialized using ambisonics are routed */
+	UPROPERTY(config, EditAnywhere, Category="Mix", meta=(AllowedClasses="SoundSubmix"))
+	FSoftObjectPath AmbisonicSubmix;
+
 	/** Sample rate used for voice over IP. VOIP audio is resampled to the application's sample rate on the receiver side. */
 	UPROPERTY(config, EditAnywhere, Category = "Audio", meta = (DisplayName = "VOIP Sample Rate"))
 	EVoiceSampleRate VoiPSampleRate;
@@ -109,10 +123,6 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	/** The amount of audio to send to reverb submixes if no reverb send is setup for the source through attenuation settings. Only used in audio mixer. */
 	UPROPERTY(config)
 	float DefaultReverbSendLevel_DEPRECATED;
-
-	/** Enables legacy version of reverb. The legacy reverb runs more slowly, but by most other measures is functionally equivalent. It has a slight perceptual difference. */
-	UPROPERTY(config, EditAnywhere, Category = "Audio", AdvancedDisplay)
-	uint32 bEnableLegacyReverb: 1;
 
 	/** How many streaming sounds can be played at the same time (if more are played they will be sorted by priority) */
 	UPROPERTY(config, EditAnywhere, Category="Audio", meta=(ClampMin=0))
@@ -203,6 +213,7 @@ public:
 private:
 #if WITH_EDITOR
 	TArray<FAudioQualitySettings> CachedQualityLevels;
+	FSoftObjectPath CachedAmbisonicSubmix;
 #endif // WITH_EDITOR
 
 	void AddDefaultSettings();
