@@ -152,7 +152,7 @@ private:
 protected:
 	TArray<FGraphSeriesEvent> Events; // reduced list of events; used to identify an event at a certain screen position (ex.: the event hovered by mouse)
 	TArray<FVector2D> Points; // reduced list of points; for drawing points
-	TArray<TArray<FVector2D>> LinePoints;	// reduced list of points; for drawing the connected line and filled polygon, split into disconnected batches
+	TArray<TArray<FVector2D>> LinePoints; // reduced list of points; for drawing the connected line and filled polygon, split into disconnected batches
 	TArray<FBox> Boxes; // reduced list of boxes; for drawing boxes
 };
 

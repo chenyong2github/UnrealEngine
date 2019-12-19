@@ -171,6 +171,18 @@ INSIGHTS_IMPLEMENT_RTTI(FFrameTimingTrack)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FFrameTimingTrack::Reset()
+{
+	FTimingEventsTrack::Reset();
+
+	Header.Reset();
+	Header.SetCanBeCollapsed(true);
+	Header.SetIsCollapsed(true);
+	Header.UpdateSize();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FFrameTimingTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context)
 {
 	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
@@ -233,8 +245,41 @@ void FFrameTimingTrack::BuildFilteredDrawState(ITimingEventsTrackDrawStateBuilde
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FFrameTimingTrack::Update(const ITimingTrackUpdateContext& Context)
+{
+	FTimingEventsTrack::Update(Context);
+
+	Header.UpdateSize();
+	Header.Update(Context);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FFrameTimingTrack::PostUpdate(const ITimingTrackUpdateContext& Context)
+{
+	FTimingEventsTrack::PostUpdate(Context);
+
+	Header.PostUpdate(Context);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FFrameTimingTrack::Draw(const ITimingTrackDrawContext& Context) const
+{
+	DrawEvents(Context, 1.0f);
+	Header.Draw(Context);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FFrameTimingTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 {
+	if (!Header.IsCollapsed())
+	{
+		const FTimingTrackViewport& Viewport = Context.GetViewport();
+		DrawMarkers(Context, 0.0f, Viewport.GetHeight());
+	}
+
 	const TSharedPtr<const ITimingEvent> SelectedEventPtr = Context.GetSelectedEvent();
 	if (SelectedEventPtr.IsValid() &&
 		SelectedEventPtr->CheckTrack(this) &&
@@ -244,6 +289,8 @@ void FFrameTimingTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 		const ITimingViewDrawHelper& Helper = Context.GetHelper();
 		DrawSelectedEventInfo(SelectedEvent, Context.GetViewport(), Context.GetDrawContext(), Helper.GetWhiteBrush(), Helper.GetEventFont());
 	}
+
+	Header.PostDraw(Context);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -270,6 +317,31 @@ void FFrameTimingTrack::DrawSelectedEventInfo(const FTimingEvent& SelectedEvent,
 		DrawContext.DrawText(X, Y, Str, Font, TextColor);
 		DrawContext.LayerId++;
 	});
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply FFrameTimingTrack::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	FReply Reply = FReply::Unhandled();
+
+	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		if (IsVisible() && IsHeaderHovered())
+		{
+			ToggleCollapsed();
+			Reply = FReply::Handled();
+		}
+	}
+
+	return Reply;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply FFrameTimingTrack::OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	return OnMouseButtonDown(MyGeometry, MouseEvent);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -362,7 +434,7 @@ void FFrameTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 bool FFrameTimingTrack::FindFrame(const FTimingEvent& InTimingEvent, TFunctionRef<void(double, double, uint32, const Trace::FFrame&)> InFoundPredicate) const
 {
 	auto MatchEvent = [&InTimingEvent](double InStartTime, double InEndTime, uint32 InDepth)
-	{ 
+	{
 		return InDepth == InTimingEvent.GetDepth()
 			&& InStartTime == InTimingEvent.GetStartTime()
 			&& InEndTime == InTimingEvent.GetEndTime();
@@ -407,7 +479,7 @@ bool FFrameTimingTrack::FindFrame(const FTimingEventSearchParameters& InParamete
 		{
 			InFoundPredicate(InFoundStartTime, InFoundEndTime, InFoundDepth, InEvent);
 		},
-		
+
 		SearchCache);
 }
 
@@ -431,7 +503,7 @@ const FString FFrameTimingTrack::GetCompleteFrameName(const uint64 InFrameIndex,
 {
 	return FString::Printf(TEXT("%s Frame %d (%s)"), FFrameTrackDrawHelper::FrameTypeToString(FrameType), InFrameIndex, *TimeUtils::FormatTimeAuto(InFrameDuration));
 }
- 
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE

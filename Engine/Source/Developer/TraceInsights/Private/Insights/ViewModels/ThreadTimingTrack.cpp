@@ -808,7 +808,7 @@ void FThreadTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 bool FThreadTimingTrack::FindTimingProfilerEvent(const FTimingEvent& InTimingEvent, TFunctionRef<void(double, double, uint32, const Trace::FTimingProfilerEvent&)> InFoundPredicate) const
 {
 	auto MatchEvent = [&InTimingEvent](double InStartTime, double InEndTime, uint32 InDepth)
-	{ 
+	{
 		return InDepth == InTimingEvent.GetDepth()
 			&& InStartTime == InTimingEvent.GetStartTime()
 			&& InEndTime == InTimingEvent.GetEndTime();
@@ -852,7 +852,7 @@ bool FThreadTimingTrack::FindTimingProfilerEvent(const FTimingEventSearchParamet
 		{
 			InFoundPredicate(InFoundStartTime, InFoundEndTime, InFoundDepth, InEvent);
 		},
-		
+
 		SearchCache);
 }
 

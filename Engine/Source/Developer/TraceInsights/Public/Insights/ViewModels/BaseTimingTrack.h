@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Input/Events.h"
+#include "Input/Reply.h"
 #include "Misc/EnumClassFlags.h"
 
 #include "Insights/Common/SimpleRtti.h"
@@ -181,6 +183,10 @@ public:
 	virtual void PostDraw(const ITimingTrackDrawContext& Context) const {}
 
 	//////////////////////////////////////////////////
+
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) { return FReply::Unhandled(); }
+	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) { return FReply::Unhandled(); }
+	virtual FReply OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) { return FReply::Unhandled(); }
 
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder);
 

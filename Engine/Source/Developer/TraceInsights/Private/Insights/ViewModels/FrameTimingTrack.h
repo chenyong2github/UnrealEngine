@@ -10,6 +10,7 @@
 #include "Insights/ITimingViewExtender.h"
 #include "Insights/ViewModels/TimingEventSearch.h" // for TTimingEventSearchCache
 #include "Insights/ViewModels/TimingEventsTrack.h"
+#include "Insights/ViewModels/TrackHeader.h"
 
 class FTimingEvent;
 class FTimingEventSearchParameters;
@@ -65,7 +66,9 @@ public:
 		: FTimingEventsTrack(InName)
 		, SharedState(InSharedState)
 		, FrameType(InFrameType)
+		, Header(*this)
 	{
+		Reset();
 	}
 
 	virtual ~FFrameTimingTrack() {}
@@ -75,10 +78,29 @@ public:
 	uint32 GetFrameType() const { return FrameType; }
 	//void SetFrameType(uint32 InFrameType) { FrameType = InFrameType; }
 
+	bool IsCollapsed() const { return Header.IsCollapsed(); }
+	void ToggleCollapsed() { Header.ToggleCollapsed(); }
+
+	const FString GetShortFrameName(const uint64 FrameIndex) const;
+	const FString GetFrameName(const uint64 FrameIndex) const;
+	const FString GetCompleteFrameName(const uint64 FrameIndex, const double FrameDuration) const;
+
+	//////////////////////////////////////////////////
+	// FBaseTimingTrack/FTimingEventsTrack overrides
+
+	virtual void Reset() override;
+
 	virtual void BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
 	virtual void BuildFilteredDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
 
+	virtual void Update(const ITimingTrackUpdateContext& Context) override;
+	virtual void PostUpdate(const ITimingTrackUpdateContext& Context) override;
+
+	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
 	virtual void PostDraw(const ITimingTrackDrawContext& Context) const override;
+
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual FReply OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
 	virtual void InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEvent& InTooltipEvent) const override;
 
@@ -88,9 +110,7 @@ public:
 	virtual void OnClipboardCopyEvent(const ITimingEvent& InSelectedEvent) const override;
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
 
-	const FString GetShortFrameName(const uint64 FrameIndex) const;
-	const FString GetFrameName(const uint64 FrameIndex) const;
-	const FString GetCompleteFrameName(const uint64 FrameIndex, const double FrameDuration) const;
+	//////////////////////////////////////////////////
 
 private:
 	void DrawSelectedEventInfo(const FTimingEvent& SelectedEvent, const FTimingTrackViewport& Viewport, const FDrawContext& DrawContext, const FSlateBrush* WhiteBrush, const FSlateFontInfo& Font) const;
@@ -102,6 +122,8 @@ private:
 	FFrameSharedState& SharedState;
 
 	uint32 FrameType; // ETraceFrameType
+
+	FTrackHeader Header;
 
 	// Search cache
 	mutable TTimingEventSearchCache<Trace::FFrame> SearchCache;

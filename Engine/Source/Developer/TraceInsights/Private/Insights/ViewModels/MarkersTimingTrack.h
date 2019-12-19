@@ -7,6 +7,7 @@
 
 // Insights
 #include "Insights/ViewModels/BaseTimingTrack.h"
+#include "Insights/ViewModels/TrackHeader.h"
 
 namespace Trace
 {
@@ -51,14 +52,14 @@ public:
 
 	virtual void Reset() override;
 
-	bool IsCollapsed() const { return bIsCollapsed; }
-	void ToggleCollapsed() { bIsCollapsed = !bIsCollapsed; }
+	bool IsCollapsed() const { return Header.IsCollapsed(); }
+	void ToggleCollapsed() { Header.ToggleCollapsed(); }
 
 	bool IsBookmarksTrack() const { return bUseOnlyBookmarks; }
 	void SetBookmarksTrackFlag(bool bInUseOnlyBookmarks)
 	{
 		bUseOnlyBookmarks = bInUseOnlyBookmarks;
-		UpdateHeight();
+		UpdateTrackNameAndHeight();
 	}
 
 	// Stats
@@ -71,6 +72,8 @@ public:
 	virtual void PostUpdate(const ITimingTrackUpdateContext& Context) override;
 	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
 	virtual void PostDraw(const ITimingTrackDrawContext& Context) const override;
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual FReply OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
 private:
 	void ResetCache()
@@ -79,20 +82,16 @@ private:
 		TimeMarkerTexts.Reset();
 	}
 
-	void UpdateHeight();
+	void UpdateTrackNameAndHeight();
 	void UpdateDrawState(const FTimingTrackViewport& Viewport);
-
-	void DrawHeader(FDrawContext& DrawContext, bool bFirstDraw) const;
 
 private:
 	TArray<FTimeMarkerBoxInfo> TimeMarkerBoxes;
 	TArray<FTimeMarkerTextInfo> TimeMarkerTexts;
 
-	bool bIsCollapsed; // If false, the vertical lines will extend to entire viewport height; otherwise will be limited to this track's height.
 	bool bUseOnlyBookmarks; // If true, uses only bookmarks; otherwise it uses all log messages.
 
-	float TargetHoveredAnimPercent; // [0.0 .. 1.0], 0.0 = hidden, 1.0 = visible
-	float CurrentHoveredAnimPercent;
+	FTrackHeader Header;
 
 	// Stats
 	int32 NumLogMessages;

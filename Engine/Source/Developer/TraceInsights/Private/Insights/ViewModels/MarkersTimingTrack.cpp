@@ -19,8 +19,6 @@
 #define LOCTEXT_NAMESPACE "MarkersTimingTrack"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// FMarkersTimingTrack
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
 INSIGHTS_IMPLEMENT_RTTI(FMarkersTimingTrack)
 
@@ -30,10 +28,8 @@ FMarkersTimingTrack::FMarkersTimingTrack()
 	: FBaseTimingTrack()
 	//, TimeMarkerBoxes()
 	//, TimeMarkerTexts()
-	, bIsCollapsed(false)
 	, bUseOnlyBookmarks(true)
-	, TargetHoveredAnimPercent(0.0f)
-	, CurrentHoveredAnimPercent(0.0f)
+	, Header(*this)
 	, NumLogMessages(0)
 	, NumDrawBoxes(0)
 	, NumDrawTexts(0)
@@ -57,33 +53,51 @@ void FMarkersTimingTrack::Reset()
 	TimeMarkerBoxes.Reset();
 	TimeMarkerTexts.Reset();
 
-	bIsCollapsed = false;
 	bUseOnlyBookmarks = true;
 
-	TargetHoveredAnimPercent = 0.0f;
-	CurrentHoveredAnimPercent = 0.0f;
+	Header.Reset();
+	Header.SetIsInBackground(true);
+	Header.SetCanBeCollapsed(true);
 
 	NumLogMessages = 0;
 	NumDrawBoxes = 0;
 	NumDrawTexts = 0;
 
-	UpdateHeight();
+	UpdateTrackNameAndHeight();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FMarkersTimingTrack::UpdateHeight()
+void FMarkersTimingTrack::UpdateTrackNameAndHeight()
 {
-	constexpr float BookmarksTrackHeight = 14.0f;
-	constexpr float TimeMarkersTrackHeight = 28.0f;
-
 	if (bUseOnlyBookmarks)
 	{
-		SetHeight(BookmarksTrackHeight);
+		const FString NameString = TEXT("Bookmarks");
+		SetName(NameString);
+		SetHeight(14.0f);
 	}
 	else
 	{
-		SetHeight(TimeMarkersTrackHeight);
+		const FString NameString = TEXT("Logs");
+		SetName(NameString);
+		SetHeight(28.0f);
+	}
+
+	Header.UpdateSize();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FMarkersTimingTrack::Update(const ITimingTrackUpdateContext& Context)
+{
+	Header.Update(Context);
+
+	const FTimingTrackViewport& Viewport = Context.GetViewport();
+	if (IsDirty() || Viewport.IsHorizontalViewportDirty())
+	{
+		ClearDirtyFlag();
+
+		UpdateDrawState(Viewport);
 	}
 }
 
@@ -91,57 +105,10 @@ void FMarkersTimingTrack::UpdateHeight()
 
 void FMarkersTimingTrack::PostUpdate(const ITimingTrackUpdateContext& Context)
 {
-	constexpr float HeaderWidth = 80.0f;
-	constexpr float HeaderHeight = 14.0f;
-
 	const float MouseY = Context.GetMousePosition().Y;
-	if (MouseY >= GetPosY() && MouseY < GetPosY() + GetHeight())
-	{
-		SetHoveredState(true);
-		const float MouseX = Context.GetMousePosition().X;
-		SetHeaderHoveredState(MouseX < HeaderWidth && MouseY < GetPosY() + HeaderHeight);
-		TargetHoveredAnimPercent = 1.0f;
-	}
-	else
-	{
-		SetHoveredState(false);
-		TargetHoveredAnimPercent = 0.0f;
-	}
-}
+	SetHoveredState(MouseY >= GetPosY() && MouseY < GetPosY() + GetHeight());
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FMarkersTimingTrack::Update(const ITimingTrackUpdateContext& InContext)
-{
-	if (CurrentHoveredAnimPercent != TargetHoveredAnimPercent)
-	{
-		if (CurrentHoveredAnimPercent < TargetHoveredAnimPercent)
-		{
-			const float ShowAnimSpeed = 2 * InContext.GetDeltaTime();
-			CurrentHoveredAnimPercent += ShowAnimSpeed;
-			if (CurrentHoveredAnimPercent > TargetHoveredAnimPercent)
-			{
-				CurrentHoveredAnimPercent = TargetHoveredAnimPercent;
-			}
-		}
-		else
-		{
-			const float HideAnimSpeed = 3 * InContext.GetDeltaTime();
-			CurrentHoveredAnimPercent -= HideAnimSpeed;
-			if (CurrentHoveredAnimPercent < TargetHoveredAnimPercent)
-			{
-				CurrentHoveredAnimPercent = TargetHoveredAnimPercent;
-			}
-		}
-	}
-
-	const FTimingTrackViewport& Viewport = InContext.GetViewport();
-	if (IsDirty() || Viewport.IsHorizontalViewportDirty())
-	{
-		ClearDirtyFlag();
-
-		UpdateDrawState(Viewport);
-	}
+	Header.PostUpdate(Context);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -179,11 +146,7 @@ void FMarkersTimingTrack::Draw(const ITimingTrackDrawContext& Context) const
 	DrawContext.DrawBox(0.0f, GetPosY(), Viewport.GetWidth(), GetHeight(), WhiteBrush, BackgroundColor);
 	DrawContext.LayerId++;
 
-	// Draw the track's header, in background.
-	if (!IsHovered() || CurrentHoveredAnimPercent < 1.0f)
-	{
-		DrawHeader(DrawContext, true);
-	}
+	Header.Draw(Context);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -245,71 +208,32 @@ void FMarkersTimingTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 
 	//////////////////////////////////////////////////
 
-	// When hovered, the track's header is draw on top.
-	if (IsHovered() || CurrentHoveredAnimPercent > 0.0f)
-	{
-		DrawHeader(DrawContext, false);
-	}
+	Header.PostDraw(Context);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FMarkersTimingTrack::DrawHeader(FDrawContext& DrawContext, bool bFirstDraw) const
+FReply FMarkersTimingTrack::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	const FString NameString = IsBookmarksTrack() ? TEXT("Bookmarks") : TEXT("Logs");
-	//const float ArrowSize = 6.0f;
-	const float ArrowSizeX = 4.0f;
-	const float ArrowSizeY = 8.0f;
-	const float ArrowX = IsBookmarksTrack() ? 64.0f : 31.0f;
-	const float ArrowY = GetPosY() + 3.0f;
-	const float HeaderW = ArrowX + ArrowSizeX + 4.0f;
-	const float HeaderH = 14.0f;
+	FReply Reply = FReply::Unhandled();
 
-	if (!bFirstDraw)
+	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
-		DrawContext.DrawBox(0.0f, GetPosY(), HeaderW, HeaderH, WhiteBrush, FLinearColor(0.04f, 0.04f, 0.04f, CurrentHoveredAnimPercent));
-		DrawContext.LayerId++;
-	}
-
-	FLinearColor Color;
-	if (bFirstDraw || CurrentHoveredAnimPercent == 0.0)
-	{
-		Color = FLinearColor(0.07f, 0.07f, 0.07f, 1.0f);
-	}
-	else if (IsHeaderHovered())
-	{
-		Color = FLinearColor(1.0f, 1.0f, 0.0f, CurrentHoveredAnimPercent);
-	}
-	else
-	{
-		Color = FLinearColor(1.0f, 1.0f, 1.0f, CurrentHoveredAnimPercent);
-	}
-
-	// Draw "Bookmarks" or "Logs" text.
-	DrawContext.DrawText(2.0f, GetPosY() + 1.0f, NameString, Font, Color);
-
-	if (IsCollapsed())
-	{
-		// Draw "right empty arrow".
-		TArray<FVector2D> Points =
+		if (IsVisible() && IsHeaderHovered())
 		{
-			FVector2D(ArrowX, ArrowY),
-			FVector2D(ArrowX, ArrowY + ArrowSizeY),
-			FVector2D(ArrowX + ArrowSizeX, ArrowY + ArrowSizeY / 2.0f),
-			FVector2D(ArrowX, ArrowY)
-		};
-		FSlateDrawElement::MakeLines(DrawContext.ElementList, DrawContext.LayerId, DrawContext.Geometry.ToPaintGeometry(), Points, DrawContext.DrawEffects, Color, false, 1.0f);
-	}
-	else
-	{
-		// Draw "down-right filled arrow".
-		for (float A = 1.0f; A < ArrowSizeY; A += 1.0f)
-		{
-			DrawContext.DrawBox(ArrowX - 3.0 + ArrowSizeY - A, ArrowY + A - 1.0f, A, 1.0f, WhiteBrush, Color);
+			ToggleCollapsed();
+			Reply = FReply::Handled();
 		}
 	}
 
-	DrawContext.LayerId++;
+	return Reply;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply FMarkersTimingTrack::OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	return OnMouseButtonDown(MyGeometry, MouseEvent);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

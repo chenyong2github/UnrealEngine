@@ -57,6 +57,8 @@ protected:
 	void DrawEvents(const ITimingTrackDrawContext& Context, const float OffsetY = 1.0f) const;
 	void DrawHeader(const ITimingTrackDrawContext& Context) const;
 
+	void DrawMarkers(const ITimingTrackDrawContext& Context, float LineY, float LineH) const;
+
 	int32 GetHeaderBackgroundLayerId(const ITimingTrackDrawContext& Context) const;
 	int32 GetHeaderTextLayerId(const ITimingTrackDrawContext& Context) const;
 

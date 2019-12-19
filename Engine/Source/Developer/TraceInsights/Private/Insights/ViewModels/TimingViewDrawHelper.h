@@ -181,6 +181,8 @@ public:
 
 	void DrawFadedEvents(const FTimingEventsTrackDrawState& DrawState, const FTimingEventsTrack& Track, const float OffsetY = 1.0f, const float Opacity = 0.1f) const;
 
+	void DrawMarkers(const FTimingEventsTrackDrawState& DrawState, float LineY, float LineH, float Opacity) const;
+
 	void DrawTrackHeader(const FTimingEventsTrack& Track) const;
 
 	void EndDrawTracks() const;

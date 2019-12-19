@@ -245,6 +245,23 @@ void FTimingEventsTrack::DrawEvents(const ITimingTrackDrawContext& Context, cons
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FTimingEventsTrack::DrawMarkers(const ITimingTrackDrawContext& Context, float LineY, float LineH) const
+{
+	const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
+
+	if (Context.GetEventFilter().IsValid())
+	{
+		Helper.DrawMarkers(*DrawState, LineY, LineH, 0.2f);
+		Helper.DrawMarkers(*FilteredDrawState, LineY, LineH, 0.75f * FilteredDrawStateInfo.Opacity);
+	}
+	else
+	{
+		Helper.DrawMarkers(*DrawState, LineY, LineH, 0.2f);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 int32 FTimingEventsTrack::GetHeaderBackgroundLayerId(const ITimingTrackDrawContext& Context) const
 {
 	const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());

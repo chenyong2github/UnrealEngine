@@ -341,28 +341,9 @@ protected:
 	// Get all the plugin extenders we care about
 	TArray<Insights::ITimingViewExtender*> GetExtenders() const;
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////
-	// FrameSelectionChanged Event
-
-public:
-	/**
-	 * The event to execute when the selected frames have been changed.
-	 *
-	 * @param FrameStartIndex	- The index of the first frame selected.
-	 * @param FrameEndIndex		- The index of the last frame selected.
-	 *
-	 */
-	DECLARE_EVENT_TwoParams(STimingView, FFrameSelectionChangedEvent, int32 /*FrameStartIndex*/, int32 /*FrameEndIndex*/);
-	FFrameSelectionChangedEvent& OnFrameSelectionChanged()
-	{
-		return FrameSelectionChangedEvent;
-	}
-
-protected:
-	/** The event to execute when the selected frames have been changed. */
-	FFrameSelectionChangedEvent FrameSelectionChangedEvent;
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////
+	FReply AllowTracksToProcessOnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+	FReply AllowTracksToProcessOnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+	FReply AllowTracksToProcessOnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 
 protected:
 	/** The track's viewport. Encapsulates info about position and scale. */
