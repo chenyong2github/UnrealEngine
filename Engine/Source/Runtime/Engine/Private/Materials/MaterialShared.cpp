@@ -1809,8 +1809,9 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, const FSta
 		// See FMaterialShaderMap::ProcessCompilationResults().
 		if  (GetMaterialShaderMapUsage() != EMaterialShaderMapUsage::DebugViewMode)
 		{
-			// Attempt to load from the derived data cache if we are uncooked
-			if ((!ShaderMap || !ShaderMap->IsComplete(this, true)) && !FPlatformProperties::RequiresCookedData())
+			// Attempt to load from the derived data cache if we are uncooked and don't have any shadermap.
+			// If we have an incomplete shadermap, continue with it to prevent creation of duplicate shadermaps for the same ShaderMapId
+			if (!ShaderMap && !FPlatformProperties::RequiresCookedData()) 
 			{
 				TRefCountPtr<FMaterialShaderMap> LoadedShaderMap;
 				FMaterialShaderMap::LoadFromDerivedDataCache(this, ShaderMapId, Platform, LoadedShaderMap);
