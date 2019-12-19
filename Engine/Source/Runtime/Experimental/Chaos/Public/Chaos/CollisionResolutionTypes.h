@@ -84,17 +84,28 @@ namespace Chaos
 			MultiPoint    //   TRigidBodyIterativeContactConstraint
 		};
 
-		TCollisionConstraintBase(int32 InTimestamp = -INT_MAX) 
+		TCollisionConstraintBase(FType InType = FType::None)
 			: AccumulatedImpulse(0)
-			, Timestamp(InTimestamp)
-			, Type(FType::None)
-		{ Particle[0] = nullptr; Particle[1] = nullptr; }
+			, Timestamp(-INT_MAX)
+			, Type(InType)
+		{ 
+			ImplicitTransform[0] = TRigidTransform<T, d>::Identity; ImplicitTransform[1] = TRigidTransform<T,d>::Identity;
+			Manifold.Implicit[0] = nullptr; Manifold.Implicit[1] = nullptr;
+			Particle[0] = nullptr; Particle[1] = nullptr; 
+		}
 		
-		TCollisionConstraintBase(FType InType, int32 InTimestamp = -INT_MAX) 
+		TCollisionConstraintBase(
+			FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const TRigidTransform<T, d>& Transform0,
+			FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform1,
+			FType InType, int32 InTimestamp = -INT_MAX)
 			: AccumulatedImpulse(0)
 			, Timestamp(InTimestamp)
 			, Type(InType)
-		{ Particle[0] = nullptr; Particle[1] = nullptr; }
+		{
+			ImplicitTransform[0] = Transform0; ImplicitTransform[1] = Transform1;
+			Manifold.Implicit[0] = Implicit0; Manifold.Implicit[1] = Implicit1;
+			Particle[0] = Particle0; Particle[1] = Particle1; 
+		}
 
 		FType GetType() const { return Type; }
 
@@ -129,6 +140,7 @@ namespace Chaos
 		}
 
 
+		TRigidTransform<T, d> ImplicitTransform[2]; // { Point, Volume }
 		FGeometryParticleHandle* Particle[2]; // { Point, Volume }
 		TVector<T, d> AccumulatedImpulse;
 		FManifold Manifold;
@@ -154,6 +166,11 @@ namespace Chaos
 		using Base::Particle;
 
 		TRigidBodyPointContactConstraint() : Base(Base::FType::SinglePoint) {}
+		TRigidBodyPointContactConstraint(
+			FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const TRigidTransform<T, d>& Transform0,
+			FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform1)
+			: Base(Particle0, Implicit0, Transform0, Particle1, Implicit1, Transform1, Base::FType::SinglePoint) {}
+
 		static typename Base::FType StaticType() { return Base::FType::SinglePoint; };
 	};
 	typedef TRigidBodyPointContactConstraint<float, 3> FRigidBodyPointContactConstraint;
@@ -173,6 +190,13 @@ namespace Chaos
 		struct FSampleData { TVector<T,d> X; float Delta; FManifold Manifold; };
 
 		TRigidBodyIterativeContactConstraint() : Base(Base::FType::MultiPoint), SourceNormalIndex(INDEX_NONE), PlaneNormal(0), PlanePosition(0) {}
+		TRigidBodyIterativeContactConstraint(
+			FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const TRigidTransform<T, d>& Transform0,
+			FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform1)
+			: Base(Particle0, Implicit0, Transform0, Particle1, Implicit1, Transform1, Base::FType::MultiPoint)
+			, SourceNormalIndex(INDEX_NONE), PlaneNormal(0), PlanePosition(0) 
+		{}
+
 		static typename Base::FType StaticType() { return Base::FType::MultiPoint; };
 
 		int SourceNormalIndex; // index of normal on particle[0] body;
