@@ -307,6 +307,7 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PullFromPh
 		Particle->SetR(Buffer->R, false);
 		Particle->SetV(Buffer->MV, false);
 		Particle->SetW(Buffer->MW, false);
+		Particle->UpdateShapeBounds();
 	}
 }
 
