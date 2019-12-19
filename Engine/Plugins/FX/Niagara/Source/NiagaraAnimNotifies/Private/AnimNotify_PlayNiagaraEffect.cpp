@@ -112,7 +112,10 @@ UFXSystemComponent* UAnimNotify_PlayNiagaraEffect::SpawnEffect(USkeletalMeshComp
 			ReturnComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(MeshComp->GetWorld(), Template, MeshTransform.TransformPosition(LocationOffset), (MeshTransform.GetRotation() * RotationOffsetQuat).Rotator(), FVector(1.0f),true);
 		}
 
-		ReturnComp->SetRelativeScale3D_Direct(Scale);
+		if (ReturnComp != nullptr)
+		{
+			ReturnComp->SetRelativeScale3D_Direct(Scale);
+		}
 	}
 
 	return ReturnComp;
