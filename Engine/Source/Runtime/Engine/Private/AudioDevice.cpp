@@ -2230,12 +2230,12 @@ void FAudioDevice::RecursiveApplyAdjuster(const FSoundClassAdjuster& InAdjuster,
 	}
 }
 
-void FAudioDevice::StopQuietSoundsDueToMaxConcurrency(TArray<FWaveInstance*>& WaveInstances, TArray<FActiveSound *>& ActiveSoundsCopy)
+void FAudioDevice::CullSoundsDueToMaxConcurrency(TArray<FWaveInstance*>& WaveInstances, TArray<FActiveSound *>& ActiveSoundsCopy)
 {
 	// Now stop any sounds that are active that are in concurrency resolution groups that resolve by stopping quietest
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AudioEvaluateConcurrency);
-		ConcurrencyManager.UpdateQuietSoundsToStop();
+		ConcurrencyManager.UpdateSoundsToCull();
 	}
 
 	for (int32 i = ActiveSoundsCopy.Num() - 1; i >= 0; --i)
@@ -3659,7 +3659,7 @@ int32 FAudioDevice::GetSortedActiveWaveInstances(TArray<FWaveInstance*>& WaveIns
 
 	if (GetType != ESortedActiveWaveGetType::QueryOnly)
 	{
-		StopQuietSoundsDueToMaxConcurrency(WaveInstances, ActiveSoundsCopy);
+		CullSoundsDueToMaxConcurrency(WaveInstances, ActiveSoundsCopy);
 	}
 
 	// Must be completed after StopQuietSoundsDueToMaxConcurrency as it avoids an issue
