@@ -223,6 +223,18 @@ namespace Audio
 		return SourceManager->NeedsSpeakerMap(SourceId);
 	}
 
+	bool FMixerSourceVoice::IsUsingHRTFSpatializer(bool bDefaultValue) const
+	{
+		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
+
+		if (SourceId != INDEX_NONE)
+		{
+			return SourceManager->IsUsingHRTFSpatializer(SourceId);
+		}
+
+		return bDefaultValue;
+	}
+
 	int64 FMixerSourceVoice::GetNumFramesPlayed() const
 	{
 		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
