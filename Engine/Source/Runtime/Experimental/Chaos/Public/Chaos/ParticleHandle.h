@@ -1301,13 +1301,7 @@ public:
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::SerializeShapeWorldSpaceBounds)
 		{
-			if (MGeometry->HasBoundingBox())
-			{
-				for (auto& Shape : MShapesArray)
-				{
-					Shape->UpdateShapeBounds(FRigidTransform3(MX, MR));
-				}
-			}
+			UpdateShapeBounds();
 		}
 
 		if(Ar.IsLoading())
@@ -1368,6 +1362,17 @@ public:
 	void SetUserData(void* InUserData)
 	{
 		this->MUserData = InUserData;
+	}
+
+	void UpdateShapeBounds()
+	{
+		if (MGeometry->HasBoundingBox())
+		{
+			for (auto& Shape : MShapesArray)
+			{
+				Shape->UpdateShapeBounds(FRigidTransform3(MX, MR));
+			}
+		}
 	}
 
 #if CHAOS_CHECKED
