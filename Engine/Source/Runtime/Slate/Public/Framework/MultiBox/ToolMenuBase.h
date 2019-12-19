@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/NamedBlacklist.h"
+#include "Misc/BlacklistNames.h"
 
 #include "ToolMenuBase.generated.h"
 
