@@ -71,19 +71,37 @@ FString FNiagaraTypeHelper::ToString(const uint8* ValueData, const UScriptStruct
 
 FNiagaraSystemUpdateContext::~FNiagaraSystemUpdateContext()
 {
+	CommitUpdate();
+}
+
+void FNiagaraSystemUpdateContext::CommitUpdate()
+{
 	for (UNiagaraSystem* Sys : SystemSimsToDestroy)
 	{
-		FNiagaraWorldManager::DestroyAllSystemSimulations(Sys);
+		if(Sys)
+		{
+			FNiagaraWorldManager::DestroyAllSystemSimulations(Sys);
+		}		
 	}
+	SystemSimsToDestroy.Empty();
 
 	for (UNiagaraComponent* Comp : ComponentsToReInit)
 	{
-		Comp->ReinitializeSystem();
+		if (Comp)
+		{
+			Comp->ReinitializeSystem();
+		}
 	}
+	ComponentsToReInit.Empty();
+
 	for (UNiagaraComponent* Comp : ComponentsToReset)
 	{
-		Comp->ResetSystem();
+		if (Comp)
+		{
+			Comp->ResetSystem();
+		}
 	}
+	ComponentsToReset.Empty();
 }
 
 void FNiagaraSystemUpdateContext::AddAll(bool bReInit)
