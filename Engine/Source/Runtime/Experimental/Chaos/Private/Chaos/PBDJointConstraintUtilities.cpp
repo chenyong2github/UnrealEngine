@@ -57,6 +57,14 @@ namespace Chaos
 		return (SolverSettings.DriveStiffness > 0.0f) ? SolverSettings.DriveStiffness : JointSettings.Motion.AngularDriveStiffness;
 	}
 
+
+	FReal FPBDJointUtilities::GetAngularDriveDamping(
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings)
+	{
+		return (SolverSettings.DriveDamping > 0.0f) ? SolverSettings.DriveDamping: JointSettings.Motion.AngularDriveDamping;
+	}
+
 	FReal FPBDJointUtilities::GetLinearProjection(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)

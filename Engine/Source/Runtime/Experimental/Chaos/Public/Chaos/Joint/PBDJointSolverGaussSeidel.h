@@ -50,14 +50,12 @@ namespace Chaos
 
 		FJointSolverGaussSeidel();
 
-		void InitConstraints(
+		void Init(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
-			const FVec3& P0,
-			const FRotation3& Q0,
-			const FVec3& P1,
-			const FRotation3& Q1,
+			const FRotation3& PrevQ0,
+			const FRotation3& PrevQ1,
 			const FReal InvM0,
 			const FMatrix33& InvIL0,
 			const FReal InvM1,
@@ -65,10 +63,8 @@ namespace Chaos
 			const FRigidTransform3& XL0,
 			const FRigidTransform3& XL1);
 
-		void InitProjection(
+		void Update(
 			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
 			const FVec3& P0,
 			const FRotation3& Q0,
 			const FVec3& V0,
@@ -76,13 +72,7 @@ namespace Chaos
 			const FVec3& P1,
 			const FRotation3& Q1,
 			const FVec3& V1,
-			const FVec3& W1,
-			const FReal InvM0,
-			const FMatrix33& InvIL0,
-			const FReal InvM1,
-			const FMatrix33& InvIL1,
-			const FRigidTransform3& XL0,
-			const FRigidTransform3& XL1);
+			const FVec3& W1);
 
 		void ApplyConstraints(
 			const FReal Dt,
@@ -126,9 +116,17 @@ namespace Chaos
 		void ApplyRotationDelta(
 			const FReal Stiffness,
 			const FVec3& Axis0,
-			const FReal Angle0,
 			const FVec3& Axis1,
-			const FReal Angle1);
+			const FReal Angle);
+
+		void ApplyDriveRotationDelta(
+			const FReal Dt,
+			const FReal Stiffness,
+			const FReal Damping,
+			const FVec3& Axis0,
+			const FVec3& Axis1,
+			const FReal Angle,
+			FReal& Lambda);
 
 		void ApplyVelocityDelta(
 			const FReal Stiffness,
@@ -194,11 +192,19 @@ namespace Chaos
 		FVec3 Vs[MaxConstrainedBodies];				// World-space particle CoM velocities
 		FVec3 Ws[MaxConstrainedBodies];				// World-space particle CoM angular velocities
 
+		// XPBD Previous iteration world-space body state
+		FRotation3 PrevQs[MaxConstrainedBodies];	// World-space particle CoM rotations
+
+		// XPBD joint drive constraint multipliers
+		FReal TwistLambda;
+		FReal SwingLambda;
+
 		// Settings
 		FReal LinearStiffness;
 		FReal TwistStiffness;
 		FReal SwingStiffness;
 		FReal AngularDriveStiffness;
+		FReal AngularDriveDamping;
 		FReal LinearProjection;
 		FReal AngularProjection;
 		FReal SwingTwistAngleTolerance;
