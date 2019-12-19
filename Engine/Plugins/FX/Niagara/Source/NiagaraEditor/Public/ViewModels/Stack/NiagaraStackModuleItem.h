@@ -13,6 +13,7 @@ class UNiagaraStackModuleItemOutputCollection;
 class UNiagaraScript;
 class INiagaraStackItemGroupAddUtilities;
 struct FAssetData;
+class UNiagaraClipboardFunctionInput;
 
 UCLASS()
 class NIAGARAEDITOR_API UNiagaraStackModuleItem : public UNiagaraStackItem
@@ -39,9 +40,6 @@ public:
 	virtual bool SupportsChangeEnabled() const override { return true; }
 	virtual bool GetIsEnabled() const override;
 
-	virtual bool SupportsDelete() const override { return true; }
-	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const override;
-
 	virtual bool SupportsHighlights() const override;
 	virtual const TArray<FNiagaraScriptHighlight>& GetHighlights() const override;
 
@@ -67,9 +65,30 @@ public:
 	/** Reassigns the function script for the module without resetting the inputs. */
 	void ReassignModuleScript(UNiagaraScript* ModuleScript);
 
+	void SetInputValuesFromClipboardFunctionInputs(const TArray<const UNiagaraClipboardFunctionInput*>& ClipboardFunctionInputs);
+
+	virtual bool SupportsCut() const override { return true; }
+	virtual bool TestCanCutWithMessage(FText& OutMessage) const override;
+	virtual FText GetCutTransactionText() const override;
+	virtual void CopyForCut(UNiagaraClipboardContent* ClipboardContent) const override;
+	virtual void RemoveForCut() override;
+
+	virtual bool SupportsCopy() const override { return true; }
+	virtual bool TestCanCopyWithMessage(FText& OutMessage) const override;
+	virtual void Copy(UNiagaraClipboardContent* ClipboardContent) const override;
+
+	virtual bool SupportsPaste() const override { return true; }
+	virtual bool TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const override;
+	virtual FText GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const override;
+	virtual void Paste(const UNiagaraClipboardContent* ClipboardContent) override;
+
+	virtual bool SupportsDelete() const override { return true; }
+	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const override;
+	virtual FText GetDeleteTransactionText() const override;
+	virtual void Delete() override;
+
 protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
-	virtual void DeleteInternal() override;
 	virtual void SetIsEnabledInternal(bool bInIsEnabled) override;
 
 	virtual TOptional<FDropRequestResponse> CanDropInternal(const FDropRequest& DropRequest) override;

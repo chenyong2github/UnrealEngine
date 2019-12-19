@@ -24,8 +24,25 @@ public:
 
 	virtual FText GetDisplayName() const override;
 
+	virtual bool SupportsCut() const override { return true; }
+	virtual bool TestCanCutWithMessage(FText& OutMessage) const override;
+	virtual FText GetCutTransactionText() const override;
+	virtual void CopyForCut(UNiagaraClipboardContent* ClipboardContent) const override;
+	virtual void RemoveForCut() override;
+
+	virtual bool SupportsCopy() const override { return true; }
+	virtual bool TestCanCopyWithMessage(FText& OutMessage) const override;
+	virtual void Copy(UNiagaraClipboardContent* ClipboardContent) const override;
+
+	virtual bool SupportsPaste() const { return true; }
+	virtual bool TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const override;
+	virtual FText GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const override;
+	virtual void Paste(const UNiagaraClipboardContent* ClipboardContent) override;
+
 	virtual bool SupportsDelete() const override { return true; }
 	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const;
+	virtual FText GetDeleteTransactionText() const override;
+	virtual void Delete();
 
 	bool HasBaseRenderer() const;
 
@@ -48,7 +65,6 @@ protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
 	virtual void SetIsEnabledInternal(bool bInIsEnabled) override;
-	virtual void DeleteInternal() override;
 
 private:
 	void RendererChanged();

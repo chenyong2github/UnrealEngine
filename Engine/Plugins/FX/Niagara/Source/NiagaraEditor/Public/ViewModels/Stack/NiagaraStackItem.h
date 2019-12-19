@@ -9,6 +9,7 @@
 
 class UNiagaraStackItemFooter;
 class UNiagaraNode;
+class UNiagaraClipboardContent;
 
 UCLASS()
 class NIAGARAEDITOR_API UNiagaraStackItem : public UNiagaraStackEntry
@@ -17,6 +18,7 @@ class NIAGARAEDITOR_API UNiagaraStackItem : public UNiagaraStackEntry
 
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnModifiedGroupItems);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRequestPaste, const UNiagaraClipboardContent* /* ClipboardContent */, int32 /* PasteIndex */);
 
 public:
 	void Initialize(FRequiredEntryData InRequiredEntryData, FString InStackEditorDataKey);
@@ -24,13 +26,10 @@ public:
 	virtual EStackRowStyle GetStackRowStyle() const override;
 
 	FOnModifiedGroupItems& OnModifiedGroupItems();
+	FOnRequestPaste& OnRequestPaste();
 
 	virtual bool SupportsChangeEnabled() const { return false; }
 	void SetIsEnabled(bool bInIsEnabled);
-
-	virtual bool SupportsDelete() const { return false; }
-	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const { return false; }
-	void Delete();
 
 	virtual bool SupportsHighlights() const { return false; }
 	virtual const TArray<FNiagaraScriptHighlight>& GetHighlights() const;
@@ -46,7 +45,6 @@ protected:
 	virtual int32 GetChildIndentLevel() const override;
 
 	virtual void SetIsEnabledInternal(bool bInIsEnabled) { }
-	virtual void DeleteInternal() { }
 
 private:
 	bool FilterAdvancedChildren(const UNiagaraStackEntry& Child) const;
@@ -55,6 +53,7 @@ private:
 
 protected:
 	FOnModifiedGroupItems ModifiedGroupItemsDelegate;
+	FOnRequestPaste RequestPasteDelegate;
 
 private:
 	UPROPERTY()

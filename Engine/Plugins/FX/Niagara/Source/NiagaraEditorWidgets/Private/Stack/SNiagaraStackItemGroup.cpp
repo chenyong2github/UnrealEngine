@@ -35,12 +35,12 @@ void SNiagaraStackItemGroup::Construct(const FArguments& InArgs, UNiagaraStackIt
 		.AutoWidth()
 		[
 			SNew(SButton)
-			.Visibility(this, &SNiagaraStackItemGroup::GetDeleteButtonVisibility)
 			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 			.IsFocusable(false)
 			.ForegroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.ForegroundColor"))
-			.ToolTipText(LOCTEXT("DeleteGroupToolTip", "Delete this group"))
+			.ToolTipText(this, &SNiagaraStackItemGroup::GetDeleteButtonToolTip)
 			.OnClicked(this, &SNiagaraStackItemGroup::DeleteClicked)
+			.IsEnabled(this, &SNiagaraStackItemGroup::GetDeleteButtonIsEnabled)
 			.Content()
 			[
 				SNew(STextBlock)
@@ -68,16 +68,17 @@ TSharedRef<SWidget> SNiagaraStackItemGroup::ConstructAddButton()
 	return SNullWidget::NullWidget;
 }
 
-EVisibility SNiagaraStackItemGroup::GetDeleteButtonVisibility() const
+FText SNiagaraStackItemGroup::GetDeleteButtonToolTip() const
 {
-	if (Group->CanDelete())
-	{
-		return EVisibility::Visible;
-	}
-	else
-	{
-		return EVisibility::Collapsed;
-	}
+	FText Message;
+	Group->TestCanDeleteWithMessage(Message);
+	return Message;
+}
+
+bool SNiagaraStackItemGroup::GetDeleteButtonIsEnabled() const
+{
+	FText UnusedMessage;
+	return Group->TestCanDeleteWithMessage(UnusedMessage);
 }
 
 FReply SNiagaraStackItemGroup::DeleteClicked()

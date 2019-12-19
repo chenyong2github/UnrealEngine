@@ -225,12 +225,21 @@ void UNiagaraStackEventScriptItemGroup::RefreshChildrenInternal(const TArray<UNi
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
 }
 
-bool UNiagaraStackEventScriptItemGroup::CanDelete() const
+bool UNiagaraStackEventScriptItemGroup::TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const
 {
-	return HasBaseEventHandler() == false;
+	if (HasBaseEventHandler())
+	{
+		OutCanDeleteMessage = LOCTEXT("CantDeleteInherited", "Can not delete this event handler because it's inherited.");
+		return false;
+	}
+	else
+	{
+		OutCanDeleteMessage = LOCTEXT("CanDelete", "Delete this event handler.");
+		return true;
+	}
 }
 
-bool UNiagaraStackEventScriptItemGroup::Delete()
+void UNiagaraStackEventScriptItemGroup::Delete()
 {
 	TSharedPtr<FNiagaraScriptViewModel> ScriptViewModelPinned = ScriptViewModel.Pin();
 	checkf(ScriptViewModelPinned.IsValid(), TEXT("Can not delete when the script view model has been deleted."));
@@ -240,7 +249,7 @@ bool UNiagaraStackEventScriptItemGroup::Delete()
 
 	if (!Source || !Source->NodeGraph)
 	{
-		return false;
+		return;
 	}
 
 	FScopedTransaction Transaction(FText::Format(LOCTEXT("DeleteEventHandler", "Deleted {0}"), GetDisplayName()));
@@ -267,8 +276,6 @@ bool UNiagaraStackEventScriptItemGroup::Delete()
 	ScriptViewModelPinned->SetScripts(Emitter);
 	
 	OnModifiedEventHandlersDelegate.ExecuteIfBound();
-
-	return true;
 }
 
 bool UNiagaraStackEventScriptItemGroup::HasBaseEventHandler() const

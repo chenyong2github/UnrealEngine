@@ -97,7 +97,11 @@ void UNiagaraStackInputCategory::ToClipboardFunctionInputs(UObject* InOuter, TAr
 	GetUnfilteredChildrenOfType(ChildInputs);
 	for (UNiagaraStackFunctionInput* ChildInput : ChildInputs)
 	{
-		OutClipboardFunctionInputs.Add(ChildInput->ToClipboardFunctionInput(InOuter));
+		const UNiagaraClipboardFunctionInput* FunctionInput = ChildInput->ToClipboardFunctionInput(InOuter);
+		if (FunctionInput != nullptr)
+		{
+			OutClipboardFunctionInputs.Add(FunctionInput);
+		}
 	}
 }
 

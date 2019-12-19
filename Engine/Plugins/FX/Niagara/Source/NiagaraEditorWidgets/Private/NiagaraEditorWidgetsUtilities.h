@@ -22,8 +22,6 @@ namespace FNiagaraStackEditorWidgetsUtilities
 	
 	bool AddStackEntryAssetContextMenuActions(FMenuBuilder& MenuBuilder, UNiagaraStackEntry& StackEntry);
 
-	bool AddStackEntryContextMenuActions(FMenuBuilder& MenuBuilder, UNiagaraStackEntry& StackEntry);
-
 	bool AddStackItemContextMenuActions(FMenuBuilder& MenuBuilder, UNiagaraStackItem& StackItem);
 
 	bool AddStackModuleItemContextMenuActions(FMenuBuilder& MenuBuilder, UNiagaraStackModuleItem& StackItem, TSharedRef<SWidget> TargetWidget);
