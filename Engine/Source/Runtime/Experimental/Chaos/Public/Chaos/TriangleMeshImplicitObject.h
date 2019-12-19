@@ -148,7 +148,7 @@ namespace Chaos
 			}
 
 			template <typename TPayloadType>
-			uint16 GetPayload(uint16 Idx) const
+			int32 GetPayload(int32 Idx) const
 			{
 				return Idx;
 			}
