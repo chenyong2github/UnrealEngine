@@ -505,7 +505,7 @@ void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRHICommandListImmediate& R
 	if (bAllowGPUParticleUpdate)
 	{
 		// Setup new readback since if there is no pending request, there is no risk of having invalid data read (offset being allocated after the readback was sent).
-		ExecuteAll(RHICmdList, ViewUniformBuffer, !GPUInstanceCounterManager.HasPendingGPUReadback());
+		ExecuteAll(RHICmdList, ViewUniformBuffer, !GPUInstanceCounterManager.HasPendingGPUReadback(), ETickStage::PostOpaqueRender);
 
 		FinishDispatches();
 	}
@@ -516,7 +516,27 @@ void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRHICommandListImmediate& R
 	}
 }
 
-void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList &RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, bool bSetReadback)
+bool NiagaraEmitterInstanceBatcher::ShouldTickForStage(const FNiagaraGPUSystemTick& Tick, ETickStage TickStage) const
+{
+	if (!GNiagaraAllowTickBeforeRender || Tick.bRequiresDistanceFieldData || Tick.bRequiresDepthBuffer)
+	{
+		return TickStage == ETickStage::PostOpaqueRender;
+	}
+
+	if (Tick.bRequiresEarlyViewData)
+	{
+		return TickStage == ETickStage::PostInitViews;
+	}
+
+	FNiagaraShader* ComputeShader = Tick.GetInstanceData()->Context->GPUScript_RT->GetShader();
+	if (ComputeShader->ViewUniformBufferParam.IsBound())
+	{
+		return TickStage == ETickStage::PostOpaqueRender;
+	}
+	return TickStage == ETickStage::PreInitViews;
+}
+
+void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList &RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, bool bSetReadback, ETickStage TickStage)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraGPUSimTick_RT);
 
@@ -539,12 +559,8 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList &RHICmdList, FRHI
 			FNiagaraComputeExecutionContext* Context = Data->Context;
 			// This assumes all emitters fallback to the same FNiagaraShaderScript*.
 			FNiagaraShader* ComputeShader = Context->GPUScript_RT->GetShader();
-			if (!ComputeShader)
+			if (!ComputeShader || !ShouldTickForStage(Tick, TickStage))
 			{
-				continue;
-			}
-			else if (GNiagaraAllowTickBeforeRender && (ComputeShader->ViewUniformBufferParam.IsBound() || Tick.bRequiredDistanceFieldData) != (ViewUniformBuffer != nullptr))
-			{   // When allowing tick before render, skip this emitter if it is not in the right pass.
 				continue;
 			}
 
@@ -705,7 +721,7 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 
 		if (GNiagaraAllowTickBeforeRender)
 		{
-			ExecuteAll(RHICmdList, nullptr, !GPUInstanceCounterManager.HasPendingGPUReadback());
+			ExecuteAll(RHICmdList, nullptr, !GPUInstanceCounterManager.HasPendingGPUReadback(), ETickStage::PreInitViews);
 		}
 	}
 	else
@@ -714,11 +730,47 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 	}
 }
 
+void NiagaraEmitterInstanceBatcher::PostInitViews(FRHICommandListImmediate& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, bool bAllowGPUParticleUpdate)
+{
+	LLM_SCOPE(ELLMTag::Niagara);
+
+	if (bAllowGPUParticleUpdate)
+	{
+		ExecuteAll(RHICmdList, ViewUniformBuffer, false, ETickStage::PostInitViews);
+	}
+}
+
 bool NiagaraEmitterInstanceBatcher::UsesGlobalDistanceField() const
 {
 	for (const FNiagaraGPUSystemTick& Tick : Ticks_RT)
 	{
-		if (Tick.bRequiredDistanceFieldData)
+		if (Tick.bRequiresDistanceFieldData)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool NiagaraEmitterInstanceBatcher::UsesDepthBuffer() const
+{
+	for (const FNiagaraGPUSystemTick& Tick : Ticks_RT)
+	{
+		if (Tick.bRequiresDepthBuffer)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool NiagaraEmitterInstanceBatcher::RequiresEarlyViewUniformBuffer() const
+{
+	for (const FNiagaraGPUSystemTick& Tick : Ticks_RT)
+	{
+		if (Tick.bRequiresEarlyViewData)
 		{
 			return true;
 		}
