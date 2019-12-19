@@ -1743,13 +1743,13 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	/** Read the value of a named property on the given object to the given value pointer */
     UFUNCTION(BlueprintCallable, CustomThunk, Category = "Properties", meta=(CustomStructureParam="ValuePtr", BlueprintInternalUseOnly="true"))
     static bool GetEditorProperty(UObject* Object, const FName PropertyName, int32& ValuePtr);
-	static bool Generic_GetEditorProperty(const UObject* Object, const FProperty* Property, void* ValuePtr);
+	static bool Generic_GetEditorProperty(const UObject* Object, const FProperty* ObjectProp, void* ValuePtr, const FProperty* ValueProp);
 	DECLARE_FUNCTION(execGetEditorProperty);
 
 	/** Write the value of the given value pointer to a named property on the given object */
     UFUNCTION(BlueprintCallable, CustomThunk, Category = "Properties", meta=(CustomStructureParam="ValuePtr", BlueprintInternalUseOnly="true"))
     static bool SetEditorProperty(UObject* Object, const FName PropertyName, const int32& ValuePtr);
-	static bool Generic_SetEditorProperty(UObject* Object, const FProperty* Property, const void* ValuePtr);
+	static bool Generic_SetEditorProperty(UObject* Object, const FProperty* ObjectProp, const void* ValuePtr, const FProperty* ValueProp);
 	DECLARE_FUNCTION(execSetEditorProperty);
 #endif
 
