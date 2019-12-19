@@ -129,7 +129,7 @@ public:
 	const FGraphSeriesEvent* GetEvent(const float PosX, const float PosY, const FTimingTrackViewport& Viewport, bool bCheckLine, bool bCheckBox) const;
 
 	/** Update the track's auto-zoom. Does nothing if IsAutoZoomEnabled() is false. */
-	void UpdateAutoZoom(const float InTopY, const float InBottomY, const double InMinEventValue, const double InMaxEventValue);
+	void UpdateAutoZoom(const float InTopY, const float InBottomY, const double InMinEventValue, const double InMaxEventValue, const bool bIsAutoZoomAnimated = true);
 
 	virtual FString FormatValue(double Value) const;
 
