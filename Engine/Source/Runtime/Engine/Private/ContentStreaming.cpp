@@ -744,7 +744,8 @@ FStreamingManagerCollection::FStreamingManagerCollection()
 :	NumIterations(1)
 ,	DisableResourceStreamingCount(0)
 ,	LoadMapTimeLimit( 5.0f )
-,   TextureStreamingManager( NULL )
+,   TextureStreamingManager(nullptr)
+, VirtualTextureChunkStreamingManager(nullptr)
 {
 #if PLATFORM_SUPPORTS_TEXTURE_STREAMING
 	// Disable texture streaming if that was requested (needs to happen before the call to ProcessNewlyLoadedUObjects, as that can load textures)
@@ -770,6 +771,27 @@ FStreamingManagerCollection::FStreamingManagerCollection()
 
 	AnimationStreamingManager = new FAnimationStreamingManager();
 	AddStreamingManager(AnimationStreamingManager);
+}
+
+FStreamingManagerCollection::~FStreamingManagerCollection()
+{
+	RemoveStreamingManager(AnimationStreamingManager);
+	delete AnimationStreamingManager;
+	AnimationStreamingManager = nullptr;
+
+	RemoveStreamingManager(AudioStreamingManager);
+	delete AudioStreamingManager;
+	AudioStreamingManager = nullptr;
+
+	RemoveStreamingManager(TextureStreamingManager);
+	delete TextureStreamingManager;
+	TextureStreamingManager = nullptr;
+
+	RemoveStreamingManager(VirtualTextureChunkStreamingManager);
+	delete VirtualTextureChunkStreamingManager;
+	VirtualTextureChunkStreamingManager = nullptr;
+
+	check(StreamingManagers.Num() == 0);
 }
 
 /**
