@@ -72,5 +72,5 @@ public:
 	}
 private:
 	ovrAudioContext* Context;
-	TSharedPtr<FSubmixEffectOculusReverbPlugin> Submix;
+	FSoundEffectSubmixPtr SubmixEffect;
 };
