@@ -8,7 +8,6 @@
 #include "NiagaraNodeParameterMapSet.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraComponent.h"
-#include "Modules/ModuleManager.h"
 #include "UObject/StructOnScope.h"
 #include "NiagaraGraph.h"
 #include "NiagaraSystem.h"
@@ -16,6 +15,7 @@
 #include "NiagaraScriptSource.h"
 #include "NiagaraScript.h"
 #include "NiagaraNodeOutput.h"
+#include "NiagaraOverviewNode.h"
 #include "EdGraphUtilities.h"
 #include "NiagaraConstants.h"
 #include "Widgets/SWidget.h"
@@ -28,6 +28,8 @@
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/NiagaraOverviewGraphViewModel.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "AssetRegistryModule.h"
 #include "Misc/FeedbackContext.h"
@@ -45,9 +47,9 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
-#include "Toolkits/AssetEditorManager.h"
 #include "Modules/ModuleManager.h"
-#include "ViewModels/NiagaraSystemSelectionViewModel.h"
+#include "AssetToolsModule.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 
@@ -1376,6 +1378,74 @@ void FNiagaraEditorUtilities::ToggleSelectedEmittersIsolated(TSharedRef<FNiagara
 	SystemViewModel->IsolateEmitters(EmittersToIsolate);
 }
 
+
+void FNiagaraEditorUtilities::CreateAssetFromEmitter(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel)
+{
+	TSharedRef<FNiagaraSystemViewModel> SystemViewModel = EmitterHandleViewModel->GetOwningSystemViewModel();
+	if (SystemViewModel->GetEditMode() != ENiagaraSystemViewModelEditMode::SystemAsset)
+	{
+		return;
+	}
+
+	UNiagaraEmitter* EmitterToCopy = EmitterHandleViewModel->GetEmitterViewModel()->GetEmitter();
+	const FString PackagePath = FPackageName::GetLongPackagePath(EmitterToCopy->GetOutermost()->GetName());
+	const FName EmitterName = EmitterToCopy->GetFName();
+	
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	UNiagaraEmitter* CreatedAsset = Cast<UNiagaraEmitter>(AssetToolsModule.Get().DuplicateAssetWithDialogAndTitle(EmitterName.GetPlainNameString(), PackagePath, EmitterToCopy, LOCTEXT("CreateEmitterAssetDialogTitle", "Create Emitter As")));
+	if (CreatedAsset != nullptr)
+	{
+		CreatedAsset->SetFlags(RF_Standalone | RF_Public);
+
+		CreatedAsset->SetUniqueEmitterName(CreatedAsset->GetName());
+
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(CreatedAsset);
+
+		// find the existing overview node to store the position
+		UEdGraph* OverviewGraph = SystemViewModel->GetOverviewGraphViewModel()->GetGraph();
+		
+		TArray<UNiagaraOverviewNode*> OverviewNodes;
+		OverviewGraph->GetNodesOfClass<UNiagaraOverviewNode>(OverviewNodes);
+
+		const UNiagaraOverviewNode* CurrentNode = *OverviewNodes.FindByPredicate(
+			[Guid = EmitterHandleViewModel->GetId()](const UNiagaraOverviewNode* Node)
+			{
+				return Node->GetEmitterHandleGuid() == Guid;
+			});
+
+		int32 CurrentX = CurrentNode->NodePosX;
+		int32 CurrentY = CurrentNode->NodePosY;
+		FString CurrentComment = CurrentNode->NodeComment;
+		bool bCommentBubbleVisible = CurrentNode->bCommentBubbleVisible;
+		bool bCommentBubblePinned = CurrentNode->bCommentBubblePinned;
+
+		CurrentNode = nullptr;
+
+		FScopedTransaction ScopedTransaction(LOCTEXT("CreateAssetFromEmitter", "Create asset from emitter"));
+		SystemViewModel->GetSystem().Modify();
+
+		// Replace existing emitter
+		SystemViewModel->DeleteEmitters(TSet<FGuid> { EmitterHandleViewModel->GetId() });
+		TSharedPtr<FNiagaraEmitterHandleViewModel> NewEmitterHandleViewModel = SystemViewModel->AddEmitter(*CreatedAsset);
+
+		NewEmitterHandleViewModel->SetName(EmitterName);
+
+		OverviewGraph->GetNodesOfClass<UNiagaraOverviewNode>(OverviewNodes);
+
+		UNiagaraOverviewNode* NewNode = *OverviewNodes.FindByPredicate(
+			[Guid = NewEmitterHandleViewModel->GetId()](const UNiagaraOverviewNode* Node)
+			{
+				return Node->GetEmitterHandleGuid() == Guid;
+			});
+
+		NewNode->NodePosX = CurrentX;
+		NewNode->NodePosY = CurrentY;
+		NewNode->NodeComment = CurrentComment;
+		NewNode->bCommentBubbleVisible = bCommentBubbleVisible;
+		NewNode->bCommentBubblePinned = bCommentBubblePinned;
+	}
+}
+
 bool FNiagaraEditorUtilities::AddEmitterContextMenuActions(FMenuBuilder& MenuBuilder, const TSharedPtr<FNiagaraEmitterHandleViewModel>& EmitterHandleViewModelPtr)
 {
 	if (EmitterHandleViewModelPtr.IsValid())
@@ -1452,6 +1522,21 @@ bool FNiagaraEditorUtilities::AddEmitterContextMenuActions(FMenuBuilder& MenuBui
 						[bSingleSelection, bHasParent = EmitterViewModel->HasParentEmitter()]()
 						{
 							return bSingleSelection && bHasParent;
+						}
+					)
+				)
+			);
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("CreateAssetFromEmitter", "Create Asset From This"),
+				LOCTEXT("CreateAssetFromEmitterToolTip", "Create an emitter asset from this emitter."),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::CreateAssetFromEmitter, EmitterHandleViewModel),
+					FCanExecuteAction::CreateLambda(
+						[bSingleSelection, EmitterHandleViewModel]()
+						{
+							return bSingleSelection && EmitterHandleViewModel->GetOwningSystemEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset;
 						}
 					)
 				)

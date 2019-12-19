@@ -278,16 +278,18 @@ ENiagaraSystemViewModelEditMode FNiagaraSystemViewModel::GetEditMode() const
 	return EditMode;
 }
 
-void FNiagaraSystemViewModel::AddEmitterFromAssetData(const FAssetData& AssetData)
+TSharedPtr<FNiagaraEmitterHandleViewModel> FNiagaraSystemViewModel::AddEmitterFromAssetData(const FAssetData& AssetData)
 {
 	UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(AssetData.GetAsset());
 	if (Emitter != nullptr)
 	{
-		AddEmitter(*Emitter);
+		return AddEmitter(*Emitter);
 	}
+
+	return nullptr;
 }
 
-void FNiagaraSystemViewModel::AddEmitter(UNiagaraEmitter& Emitter)
+TSharedPtr<FNiagaraEmitterHandleViewModel> FNiagaraSystemViewModel::AddEmitter(UNiagaraEmitter& Emitter)
 {
 	// Reset view models before modifying the emitter handle list to prevent accessing deleted data.
 	ResetEmitterHandleViewModelsAndTracks();
@@ -335,6 +337,8 @@ void FNiagaraSystemViewModel::AddEmitter(UNiagaraEmitter& Emitter)
 	SelectionViewModel->UpdateSelectedEntries(SelectedStackEntries, TArray<UNiagaraStackEntry*>(), true);
 
 	bForceAutoCompileOnce = true;
+
+	return NewEmitterHandleViewModel;
 }
 
 void FNiagaraSystemViewModel::DuplicateEmitters(TArray<FEmitterHandleToDuplicate> EmitterHandlesToDuplicate)
