@@ -57,6 +57,7 @@ public:
 		, ParticleSortBuffers(true)
 		// @todo REMOVE THIS HACK
 		, LastFrameThatDrainedData(GFrameNumberRenderThread)
+		, NumAllocatedFreeIDListSizes(0)
 	{
 	}
 
@@ -140,7 +141,7 @@ public:
 				uint32 ShaderStageIndex = 0,
 				FNiagaraDataInterfaceProxy *IterationInterface = nullptr,
 				bool HasRunParticleStage = false
-			) const;
+			);
 
 	void ResizeCurrentBuffer(FRHICommandList &RHICmdList, FNiagaraComputeExecutionContext *Context, uint32 NewNumInstances, uint32 PrevNumInstances) const;
 
@@ -162,12 +163,12 @@ public:
 	void PostStageInterface(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData *Instance, FRHICommandList &RHICmdList, FNiagaraShader* ComputeShader, const uint32 ShaderStageIndex) const;
 
 	/** Run the dispatch over multiple stages */
-	void DispatchMultipleStages(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData *Instance, FRHICommandList &RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, FNiagaraShader* ComputeShader) const;
+	void DispatchMultipleStages(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData *Instance, FRHICommandList &RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, FNiagaraShader* ComputeShader);
 
 private:
-	void ExecuteAll(FRHICommandList &RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, bool bSetReadback, ETickStage TickStage);
-	void ResizeBuffersAndGatherResources(FOverlappableTicks& OverlappableTick, FRHICommandList& RHICmdList, FNiagaraBufferArray& DestDataBuffers, FNiagaraBufferArray& CurrDataBuffers, FNiagaraBufferArray& DestBufferIntFloat, FNiagaraBufferArray& CurrBufferIntFloat);
-	void DispatchAllOnCompute(FOverlappableTicks& OverlappableTick, FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, FNiagaraBufferArray& DestDataBuffers, FNiagaraBufferArray& CurrDataBuffers, FNiagaraBufferArray& DestBufferIntFloat, FNiagaraBufferArray& CurrBufferIntFloat, bool bSetReadback);
+	void ExecuteAll(FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, bool bSetReadback, ETickStage TickStage);
+	void ResizeBuffersAndGatherResources(FOverlappableTicks& OverlappableTick, FRHICommandList& RHICmdList, FNiagaraBufferArray& ReadBuffers, FNiagaraBufferArray& WriteBuffers);
+	void DispatchAllOnCompute(FOverlappableTicks& OverlappableTick, FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, FNiagaraBufferArray& ReadBuffers, FNiagaraBufferArray& WriteBuffers, bool bSetReadback);
 
 	bool ShouldTickForStage(const FNiagaraGPUSystemTick& Tick, ETickStage TickStage) const;
 
@@ -198,7 +199,7 @@ private:
 	FParticleSortBuffers ParticleSortBuffers;
 
 	// GPU emitter instance count buffer. Contains the actual particle / instance count generate in the GPU tick.
-	mutable FNiagaraGPUInstanceCountManager GPUInstanceCounterManager;
+	FNiagaraGPUInstanceCountManager GPUInstanceCounterManager;
 
 	// @todo REMOVE THIS HACK
 	uint32 LastFrameThatDrainedData;
@@ -215,4 +216,9 @@ private:
 	TSet<FNiagaraDataSet*> DataSetsToDestroy_RT;
 
 	TSet<TSharedPtr<FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe>> DIProxyDeferredDeletes_RT;
+
+	/** A buffer used by the compute shader which determines the list of free particle IDs for each emitter. */
+	FRWBuffer FreeIDListSizesBuffer;
+	uint32 NumAllocatedFreeIDListSizes;
+	uint32 CurrentFreeIDListIndex;
 };
