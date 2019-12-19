@@ -7516,7 +7516,7 @@ static void DoPostProcessVolume(IInterface_PostProcessVolume* Volume, FVector Vi
 
 void UWorld::AddPostProcessingSettings(FVector ViewLocation, FSceneView* SceneView)
 {
-	OnBeginPostProcessSettings.Broadcast(ViewLocation);
+	OnBeginPostProcessSettings.Broadcast(ViewLocation, SceneView);
 
 	for (IInterface_PostProcessVolume* PPVolume : PostProcessVolumes)
 	{
