@@ -325,7 +325,7 @@ struct FEventTriggerExecutionToken
 				FScriptInterface Interface;
 				Interface.SetObject(BoundObject);
 				Interface.SetInterface(BoundObject->GetInterfaceAddress(InterfaceParameter->InterfaceClass));
-				InterfaceParameter->SetPropertyValue_InContainer(Parameters, BoundObject);
+				InterfaceParameter->SetPropertyValue_InContainer(Parameters, Interface);
 				return true;
 			}
 
