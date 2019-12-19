@@ -115,6 +115,9 @@ namespace Chaos
 
 		virtual uint16 GetMaterialIndex(uint32 HintIndex) const override;
 
+		const TParticles<FReal, 3>& Particles() const;
+		const TArray<TVector<int32, 3>> Elements() const;
+
 	private:
 
 		void RebuildBV();
