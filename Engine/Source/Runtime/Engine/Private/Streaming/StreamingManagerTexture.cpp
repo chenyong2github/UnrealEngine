@@ -134,7 +134,7 @@ FRenderAssetStreamingManager::FRenderAssetStreamingManager()
 
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FRenderAssetStreamingManager::OnPreGarbageCollect);
 
-	FCoreDelegates::PakFileMountedCallback.AddRaw(this, &FRenderAssetStreamingManager::OnPakFileMounted);
+	FCoreDelegates::OnPakFileMounted.AddRaw(this, &FRenderAssetStreamingManager::OnPakFileMounted);
 }
 
 FRenderAssetStreamingManager::~FRenderAssetStreamingManager()
@@ -189,7 +189,7 @@ void FRenderAssetStreamingManager::OnPreGarbageCollect()
 
 
 
-void FRenderAssetStreamingManager::OnPakFileMounted(const TCHAR* PakFilename)
+void FRenderAssetStreamingManager::OnPakFileMounted(const TCHAR* PakFilename, const int32 ChunkId)
 {
 	// clear the cached file exists checks which failed as they may now be loaded
 	bNewFilesLoaded = true;
