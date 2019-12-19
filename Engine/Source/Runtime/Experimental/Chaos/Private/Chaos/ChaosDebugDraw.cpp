@@ -87,7 +87,7 @@ namespace Chaos
 			}
 			case ImplicitObjectType::Union:
 			{
-				const TImplicitObjectUnion<FReal, 3>* Union = Shape->template GetObject<TImplicitObjectUnion<FReal, 3>>();
+				const FImplicitObjectUnion* Union = Shape->template GetObject<FImplicitObjectUnion>();
 				for (auto& UnionShape : Union->GetObjects())
 				{
 					DrawShapesImpl(ShapeTransform, UnionShape.Get(), Color);

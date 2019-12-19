@@ -483,7 +483,7 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 				}
 				else
 				{
-					PhysHandle->SetGeometry(MakeUnique<Chaos::TImplicitObjectUnion<float, 3>>(MoveTemp(Geoms)));
+					PhysHandle->SetGeometry(MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(Geoms)));
 				}
 
 				// Construct Shape Bounds

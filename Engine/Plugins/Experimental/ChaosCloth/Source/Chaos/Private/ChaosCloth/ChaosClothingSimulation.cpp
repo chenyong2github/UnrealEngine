@@ -904,7 +904,7 @@ void ClothingSimulation::AddCollisions(const FClothCollisionData& ClothCollision
 					new Chaos::TSphere<float, 3>(X1, Radius1)));
 				CollisionParticles.SetDynamicGeometry(
 					i,
-					MakeUnique<Chaos::TImplicitObjectUnion<float, 3>>(MoveTemp(Objects)));  // TODO(Kriss.Gossart): Replace this once a TTaperedCapsule implicit type is implemented (note: this tapered cylinder with spheres is an approximation of a real tapered capsule)
+					MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(Objects)));  // TODO(Kriss.Gossart): Replace this once a TTaperedCapsule implicit type is implemented (note: this tapered cylinder with spheres is an approximation of a real tapered capsule)
 			}
 
 			// Skip spheres added as end caps for the capsule.
@@ -1579,7 +1579,7 @@ void ClothingSimulation::DebugDrawCollision(USkeletalMeshComponent* OwnerCompone
 				break;
 
 			case Chaos::ImplicitObjectType::Union:  // Union only used as collision tappered capsules
-				for (const TUniquePtr<Chaos::FImplicitObject>& SubObjectPtr : Object->GetObjectChecked<Chaos::TImplicitObjectUnion<float, 3>>().GetObjects())
+				for (const TUniquePtr<Chaos::FImplicitObject>& SubObjectPtr : Object->GetObjectChecked<Chaos::FImplicitObjectUnion>().GetObjects())
 				{
 					if (const Chaos::FImplicitObject* const SubObject = SubObjectPtr.Get())
 					{

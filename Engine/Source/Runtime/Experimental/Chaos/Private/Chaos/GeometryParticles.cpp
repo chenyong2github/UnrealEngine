@@ -12,7 +12,7 @@ namespace Chaos
 	{
 		if(Geometry)
 		{
-			if(const auto* Union = Geometry->template GetObject<TImplicitObjectUnion<T, d>>())
+			if(const auto* Union = Geometry->template GetObject<FImplicitObjectUnion>())
 			{
 				const int32 OldShapeNum = ShapesArray.Num();
 

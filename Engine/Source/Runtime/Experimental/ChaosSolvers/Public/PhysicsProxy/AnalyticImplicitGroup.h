@@ -457,7 +457,7 @@ public:
 								Chaos::TRigidTransform<float, 3>(Xf))));
 				}
 			}
-			return new Chaos::TImplicitObjectUnion<float, 3>(MoveTemp(ImplicitObjects));
+			return new Chaos::FImplicitObjectUnion(MoveTemp(ImplicitObjects));
 		}
 	}
 
