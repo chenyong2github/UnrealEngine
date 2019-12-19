@@ -110,23 +110,6 @@ FSteamVRInputDevice::FSteamVRInputDevice(const TSharedRef<FGenericApplicationMes
 
 #if WITH_EDITOR
 	GenerateActionManifest();
-
-	if (VRSettings() != nullptr)
-	{
-		EVRInitError SteamVRInitError = VRInitError_Driver_NotLoaded;
-		IVRSystem* SteamVRSystem = vr::VR_Init(&SteamVRInitError, vr::VRApplication_Overlay);
-
-		if (SteamVRInitError == VRInitError_None)
-		{
-			EVRSettingsError BindingFlagError = VRSettingsError_None;
-			VRSettings()->SetBool(k_pch_SteamVR_Section, k_pch_SteamVR_DebugInputBinding, true, &BindingFlagError);
-			UE_LOG(LogSteamVRInputDevice, Display, TEXT("[STEAMVR INPUT] Enable SteamVR Input Developer Mode: %s"), *FString(UTF8_TO_TCHAR(VRSettings()->GetSettingsErrorNameFromEnum(BindingFlagError))));
-			VRSettings()->SetBool(k_pch_SteamVR_Section, k_pch_SteamVR_DebugInput, true, &BindingFlagError);
-			UE_LOG(LogSteamVRInputDevice, Display, TEXT("[STEAMVR INPUT] Enable SteamVR Debug Input: %s"), *FString(UTF8_TO_TCHAR(VRSettings()->GetSettingsErrorNameFromEnum(BindingFlagError))));
-
-			VR_Shutdown();
-		}
-	}
 #endif
 
 	IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
