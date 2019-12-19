@@ -22,6 +22,7 @@ class IClassTypeActions;
 class UFactory;
 class UAssetImportTask;
 class UAdvancedCopyCustomization;
+class FBlacklistNames;
 class FBlacklistPaths;
 
 USTRUCT(BlueprintType)
@@ -411,6 +412,9 @@ public:
 
 	/** Find all supported asset factories. */
 	virtual TArray<UFactory*> GetNewAssetFactories() const = 0;
+
+	/** Get asset class blacklist for content browser and other systems */
+	virtual TSharedRef<FBlacklistNames>& GetAssetClassBlacklist() = 0;
 
 	/** Get folder blacklist for content browser and other systems */
 	virtual TSharedRef<FBlacklistPaths>& GetFolderBlacklist() = 0;
