@@ -105,6 +105,18 @@ namespace Chaos
 		}
 
 
+		template<class T, int d>
+		TContactPoint<T> ConvexConvexContactPoint(const FImplicitObject& A, const TRigidTransform<T, d>& ATM, const FImplicitObject& B, const TRigidTransform<T, d>& BTM, const T Thickness)
+		{
+			return CastHelper(A, [&](const auto& ADowncast)
+			{
+				return CastHelper(B, [&](const auto& BDowncast)
+				{
+					return GJKContactPoint(ADowncast, ATM, BDowncast, BTM, Thickness);
+				});
+			});
+		}
+
 		template <typename T, int d>
 		void UpdateSingleShotManifold(TRigidBodyIterativeContactConstraint<T, d>&  Constraint, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T Thickness)
 		{
@@ -779,18 +791,6 @@ namespace Chaos
 		//
 		// Convex - Convex
 		//
-
-		template<class T, int d>
-		TContactPoint<T> ConvexConvexContactPoint(const FImplicitObject& A, const TRigidTransform<T, d>& ATM, const FImplicitObject& B, const TRigidTransform<T, d>& BTM, const T Thickness)
-		{
-			return CastHelper(A, [&](const auto& ADowncast)
-			{
-				return CastHelper(B, [&](const auto& BDowncast)
-				{
-					return GJKContactPoint(ADowncast, ATM, BDowncast, BTM, Thickness);
-				});
-			});
-		}
 
 		TVector<float, 3> SumSampleData(FRigidBodyIterativeContactConstraint& Constraint)
 		{
