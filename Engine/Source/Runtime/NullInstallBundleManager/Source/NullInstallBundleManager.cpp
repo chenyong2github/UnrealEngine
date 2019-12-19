@@ -33,22 +33,10 @@ class FNullInstallBundleManager : public IInstallBundleManager
 		return EInstallBundleManagerInitState::Succeeded;
 	}
 
-	virtual FInstallBundleRequestInfo RequestUpdateContent(FName BundleName, EInstallBundleRequestFlags Flags) override
-	{
-		FInstallBundleRequestInfo RetInfo;
-		return RetInfo;
-	}
 	virtual FInstallBundleRequestInfo RequestUpdateContent(TArrayView<const FName> BundleNames, EInstallBundleRequestFlags Flags) override
 	{
 		FInstallBundleRequestInfo RetInfo;
 		return RetInfo;
-	}
-
-	virtual void GetContentState(FName BundleName, EInstallBundleGetContentStateFlags Flags, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag) override
-	{
-		FInstallBundleCombinedContentState State;
-		State.State = EInstallBundleContentState::UpToDate;
-		Callback.ExecuteIfBound(State);
 	}
 
 	virtual void GetContentState(TArrayView<const FName> BundleNames, EInstallBundleGetContentStateFlags Flags, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag) override
@@ -62,42 +50,23 @@ class FNullInstallBundleManager : public IInstallBundleManager
 	{
 	}
 
-	virtual void RequestRemoveContentOnNextInit(FName RemoveName, TArrayView<const FName> KeepNames = TArrayView<const FName>()) override
-	{
-	}
 	virtual void RequestRemoveContentOnNextInit(TArrayView<const FName> RemoveNames, TArrayView<const FName> KeepNames = TArrayView<const FName>()) override
 	{
 	}
 
-	virtual void CancelRequestRemoveContentOnNextInit(FName BundleName) override
-	{
-
-	}
 	virtual void CancelRequestRemoveContentOnNextInit(TArrayView<const FName> BundleNames) override
 	{
 	}
 
-	virtual void CancelUpdateContent(FName BundleName, EInstallBundleCancelFlags Flags) override
-	{
-
-	}
 	virtual void CancelUpdateContent(TArrayView<const FName> BundleNames, EInstallBundleCancelFlags Flags) override
 	{
 	}
 
-	virtual void PauseUpdateContent(FName BundleName) override
-	{
-
-	}
 	virtual void PauseUpdateContent(TArrayView<const FName> BundleNames) override
 	{
 
 	}
 
-	virtual void ResumeUpdateContent(FName BundleName) override
-	{
-
-	}
 	virtual void ResumeUpdateContent(TArrayView<const FName> BundleNames) override
 	{
 
@@ -116,10 +85,6 @@ class FNullInstallBundleManager : public IInstallBundleManager
 	virtual EInstallBundleRequestFlags GetModifyableContentRequestFlags() const override
 	{
 		return EInstallBundleRequestFlags::None;
-	}
-	virtual void UpdateContentRequestFlags(FName BundleName, EInstallBundleRequestFlags AddFlags, EInstallBundleRequestFlags RemoveFlags) override
-	{
-
 	}
 	virtual void UpdateContentRequestFlags(TArrayView<const FName> BundleNames, EInstallBundleRequestFlags AddFlags, EInstallBundleRequestFlags RemoveFlags) override
 	{
