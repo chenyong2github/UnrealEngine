@@ -115,6 +115,8 @@ public:
 	ENGINE_API void SetChaosConvexMesh(TUniquePtr<Chaos::FConvex>&& InChaosConvex);
 
 	ENGINE_API void ResetChaosConvexMesh();
+
+	ENGINE_API void ComputeChaosConvexIndices();
 #endif
 
 	/** Get current transform applied to convex mesh vertices */
