@@ -76,32 +76,49 @@ namespace Chaos
 
 		void ApplyConstraints(
 			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
 		void ApplyDrives(
 			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
 		void ApplyProjections(
 			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
 	private:
 
+		void UpdateDerivedState(const int32 BodyIndex);
 		void UpdateDerivedState();
 
 		void ApplyPositionConstraints(
 			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
 		void ApplyRotationConstraints(
 			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
 		void ApplyRotationDrives(
 			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
+		void ApplyRotationProjection(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+
+		void ApplyPositionDelta(
+			const int32 BodyIndex,
+			const FReal Stiffness,
+			const FVec3& DP);
 
 		void ApplyPositionDelta(
 			const FReal Stiffness,
@@ -109,24 +126,20 @@ namespace Chaos
 			const FVec3& DP1);
 
 		void ApplyRotationDelta(
+			const int32 BodyIndex,
+			const FReal Stiffness,
+			const FVec3& DR);
+
+		void ApplyRotationDelta(
 			const FReal Stiffness,
 			const FVec3& DR0,
 			const FVec3& DR1);
 
-		void ApplyRotationDelta(
+		void ApplyVelocityDelta(
+			const int32 BodyIndex,
 			const FReal Stiffness,
-			const FVec3& Axis0,
-			const FVec3& Axis1,
-			const FReal Angle);
-
-		void ApplyDriveRotationDelta(
-			const FReal Dt,
-			const FReal Stiffness,
-			const FReal Damping,
-			const FVec3& Axis0,
-			const FVec3& Axis1,
-			const FReal Angle,
-			FReal& Lambda);
+			const FVec3& DV,
+			const FVec3& DW);
 
 		void ApplyVelocityDelta(
 			const FReal Stiffness,
@@ -135,45 +148,103 @@ namespace Chaos
 			const FVec3& DV1,
 			const FVec3& DW1);
 
+		void ApplyRotationCorrection(
+			const FReal Stiffness,
+			const FVec3& Axis0,
+			const FVec3& Axis1,
+			const FReal Angle);
+
+		void ApplyRotationCorrectionSoft(
+			const FReal Dt,
+			const FReal Stiffness,
+			const FReal Damping,
+			const bool bAccelerationMode,
+			const FVec3& Axis0,
+			const FVec3& Axis1,
+			const FReal Angle,
+			FReal& Lambda);
 
 		void ApplyTwistConstraint(
 			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		void ApplyTwistConstraintSoft(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
 		void ApplyTwistDrive(
 			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		void ApplyTwistProjection(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
 		void ApplyConeConstraint(
 			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		void ApplyConeConstraintSoft(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
 		void ApplyConeDrive(
 			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		void ApplyConeProjection(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
 		void ApplySwingConstraint(
 			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const EJointAngularConstraintIndex SwingConstraintIndex,
+			const EJointAngularAxisIndex SwingAxisIndex);
+
+		void ApplySwingConstraintSoft(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const EJointAngularConstraintIndex SwingConstraintIndex,
 			const EJointAngularAxisIndex SwingAxisIndex);
 
 		void ApplySwingDrive(
 			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const EJointAngularConstraintIndex SwingConstraintIndex,
+			const EJointAngularAxisIndex SwingAxisIndex);
+
+		void ApplySwingProjection(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const EJointAngularConstraintIndex SwingConstraintIndex,
 			const EJointAngularAxisIndex SwingAxisIndex);
 
 		void ApplySLerpDrive(
 			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
 		void ApplyPositionConstraint(
 			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
 		void ApplyPositionProjection(
 			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
 
@@ -195,23 +266,11 @@ namespace Chaos
 		// XPBD Previous iteration world-space body state
 		FRotation3 PrevQs[MaxConstrainedBodies];	// World-space particle CoM rotations
 
-		// XPBD joint drive constraint multipliers
-		FReal TwistLambda;
-		FReal SwingLambda;
-
-		// Settings
-		FReal LinearStiffness;
-		FReal TwistStiffness;
-		FReal SwingStiffness;
-		FReal AngularDriveStiffness;
-		FReal AngularDriveDamping;
-		FReal LinearProjection;
-		FReal AngularProjection;
-		FReal SwingTwistAngleTolerance;
-		bool bEnableTwistLimits;
-		bool bEnableSwingLimits;
-		bool bEnableDrives;
-		bool bAccelerationDriveMode;
+		// XPBD constraint multipliers
+		FReal TwistSoftLambda;
+		FReal SwingSoftLambda;
+		FReal TwistDriveLambda;
+		FReal SwingDriveLambda;
 	};
 
 }

@@ -88,13 +88,17 @@ namespace Chaos
 		, bSoftTwistLimitsEnabled(false)
 		, bSoftSwingLimitsEnabled(false)
 		, SoftLinearStiffness(0)
+		, SoftLinearDamping(0)
 		, SoftTwistStiffness(0)
+		, SoftTwistDamping(0)
 		, SoftSwingStiffness(0)
+		, SoftSwingDamping(0)
 		, AngularDriveTarget(FRotation3::FromIdentity())
 		, AngularDriveTargetAngles(FVec3(0, 0, 0))
 		, bAngularSLerpDriveEnabled(false)
 		, bAngularTwistDriveEnabled(false)
 		, bAngularSwingDriveEnabled(false)
+		, bAngularAccelerationDriveMode(true)
 		, AngularDriveStiffness(0)
 		, AngularDriveDamping(0)
 	{
@@ -113,13 +117,17 @@ namespace Chaos
 		, bSoftTwistLimitsEnabled(false)
 		, bSoftSwingLimitsEnabled(false)
 		, SoftLinearStiffness(0)
+		, SoftLinearDamping(0)
 		, SoftTwistStiffness(0)
+		, SoftTwistDamping(0)
 		, SoftSwingStiffness(0)
+		, SoftSwingDamping(0)
 		, AngularDriveTarget(FRotation3::FromIdentity())
 		, AngularDriveTargetAngles(FVec3(0, 0, 0))
 		, bAngularSLerpDriveEnabled(false)
 		, bAngularTwistDriveEnabled(false)
 		, bAngularSwingDriveEnabled(false)
+		, bAngularAccelerationDriveMode(true)
 		, AngularDriveStiffness(0)
 		, AngularDriveDamping(0)
 	{
@@ -180,7 +188,11 @@ namespace Chaos
 		, DriveStiffness((FReal)0)
 		, DriveDamping((FReal)0)
 		, SoftLinearStiffness((FReal)0)
-		, SoftAngularStiffness((FReal)0)
+		, SoftLinearDamping((FReal)0)
+		, SoftTwistStiffness(0)
+		, SoftTwistDamping(0)
+		, SoftSwingStiffness(0)
+		, SoftSwingDamping(0)
 	{
 	}
 
@@ -762,8 +774,8 @@ namespace Chaos
 
 		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 		{
-			Solver.ApplyDrives(Dt, JointSettings);
-			Solver.ApplyConstraints(Dt, JointSettings);
+			Solver.ApplyDrives(Dt, Settings, JointSettings);
+			Solver.ApplyConstraints(Dt, Settings, JointSettings);
 		}
 
 		UpdateParticleState(Particle0->CastToRigidParticle(), Dt, Solver.GetP(0), Solver.GetQ(0));
@@ -796,7 +808,7 @@ namespace Chaos
 
 		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 		{
-			Solver.ApplyProjections(Dt, JointSettings);
+			Solver.ApplyProjections(Dt, Settings, JointSettings);
 		}
 
 		UpdateParticleState(Particle0->CastToRigidParticle(), Dt, Solver.GetP(0), Solver.GetQ(0), Solver.GetV(0), Solver.GetW(0));
