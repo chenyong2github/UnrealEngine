@@ -34,7 +34,7 @@ public:
 		return OnModified;
 	}
 
-	/** posts a message to the OnModified delegate with the modified UProperty */
+	/** posts a message to the OnModified delegate with the modified FProperty */
 	void NotifySelectionSetModified()
 	{
 		OnModified.Broadcast(this);

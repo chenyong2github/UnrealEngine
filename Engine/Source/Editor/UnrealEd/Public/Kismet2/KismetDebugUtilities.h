@@ -195,10 +195,10 @@ public:
 	// Blueprint utils 
 
 	// Looks thru the debugging data for any class variables associated with the pin
-	static class UProperty* FindClassPropertyForPin(UBlueprint* Blueprint, const UEdGraphPin* Pin);
+	static class FProperty* FindClassPropertyForPin(UBlueprint* Blueprint, const UEdGraphPin* Pin);
 
 	// Looks thru the debugging data for any class variables associated with the node (e.g., temporary variables or timelines)
-	static class UProperty* FindClassPropertyForNode(UBlueprint* Blueprint, const UEdGraphNode* Node);
+	static class FProperty* FindClassPropertyForNode(UBlueprint* Blueprint, const UEdGraphNode* Node);
 
 	// Is there debugging data available for this blueprint?
 	static bool HasDebuggingData(const UBlueprint* Blueprint);
@@ -246,12 +246,12 @@ protected:
 	static void CheckBreakConditions(UEdGraphNode* NodeStoppedAt, bool bHitBreakpoint, int32 BreakpointOffset, bool& InOutBreakExecution);
 	static void AttemptToBreakExecution(UBlueprint* BlueprintObj, const UObject* ActiveObject, const FFrame& StackFrame, const FBlueprintExceptionInfo& Info, UEdGraphNode* NodeStoppedAt, int32 DebugOpcodeOffset);
 
-	static void GetDebugInfo_InContainer(int32 Index, FDebugInfo& DebugInfo, UProperty* Property, const void* Data);
-	static void GetDebugInfoInternal(FDebugInfo& DebugInfo, UProperty* Property, const void* PropertyValue);
+	static void GetDebugInfo_InContainer(int32 Index, FDebugInfo& DebugInfo, FProperty* Property, const void* Data);
+	static void GetDebugInfoInternal(FDebugInfo& DebugInfo, FProperty* Property, const void* PropertyValue);
 
 	// helper function for converting between blueprint and debuggable data
 	// output params are only valid if the return result is EWatchTextResult::EWTR_Valid
-	static EWatchTextResult FindDebuggingData(UBlueprint* Blueprint, UObject* ActiveObject, const UEdGraphPin* WatchPin, UProperty*& OutProperty, void*& OutData, void*& OutDelta, UObject*& OutParent, TArray<UObject*>& SeenObjects);
+	static EWatchTextResult FindDebuggingData(UBlueprint* Blueprint, UObject* ActiveObject, const UEdGraphPin* WatchPin, FProperty*& OutProperty, void*& OutData, void*& OutDelta, UObject*& OutParent, TArray<UObject*>& SeenObjects);
 
 private:
 	FKismetDebugUtilities() {}

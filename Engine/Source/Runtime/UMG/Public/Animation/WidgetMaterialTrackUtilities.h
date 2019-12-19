@@ -41,12 +41,12 @@ private:
 
 struct FWidgetMaterialPropertyPath
 {
-	FWidgetMaterialPropertyPath(const TArray<UProperty*>& InPropertyPath, const FString& InDisplayName)
+	FWidgetMaterialPropertyPath(const TArray<FProperty*>& InPropertyPath, const FString& InDisplayName)
 		: PropertyPath(InPropertyPath)
 		, DisplayName(InDisplayName)
 	{}
 
-	TArray<UProperty*> PropertyPath;
+	TArray<FProperty*> PropertyPath;
 	FString DisplayName;
 };
 namespace WidgetMaterialTrackUtilities

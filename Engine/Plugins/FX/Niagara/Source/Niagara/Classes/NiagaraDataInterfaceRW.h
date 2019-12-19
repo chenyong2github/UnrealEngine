@@ -80,7 +80,7 @@ public:
 		PushToRenderThread();
 	}	
 	
-	virtual void PreEditChange(UProperty* PropertyAboutToChange) override
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override
 	{
 		Super::PreEditChange(PropertyAboutToChange);
 

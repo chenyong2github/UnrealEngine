@@ -16,13 +16,14 @@
 #include "Engine/SkeletalMesh.h"
 #include "UObject/SoftObjectPtr.h"
 #include "InsightsSkeletalMeshComponent.h"
+#include "GameFramework/Actor.h"
 #endif
 
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshPoseTrack"
 
-const FName FSkeletalMeshPoseTrack::TypeName(TEXT("Animation"));
-const FName FSkeletalMeshPoseTrack::SubTypeName(TEXT("SkeletalMeshPose"));
+const FName FSkeletalMeshPoseTrack::TypeName(TEXT("Events"));
+const FName FSkeletalMeshPoseTrack::SubTypeName(TEXT("Animation.SkeletalMeshPose"));
 
 FSkeletalMeshPoseTrack::FSkeletalMeshPoseTrack(const FAnimationSharedData& InSharedData, uint64 InObjectID, const TCHAR* InName)
 	: TGameplayTrackMixin<FTimingEventsTrack>(InObjectID, FSkeletalMeshPoseTrack::TypeName, FSkeletalMeshPoseTrack::SubTypeName, FText::Format(LOCTEXT("TrackNameFormat", "Pose - {0}"), FText::FromString(FString(InName))))
@@ -30,6 +31,7 @@ FSkeletalMeshPoseTrack::FSkeletalMeshPoseTrack(const FAnimationSharedData& InSha
 	, Color(FLinearColor::MakeRandomColor())
 	, bDrawPose(false)
 	, bDrawSkeleton(false)
+	, bPotentiallyDebugged(false)
 {
 #if WITH_ENGINE
 	OnWorldDestroyedHandle = FWorldDelegates::OnWorldCleanup.AddRaw(this, &FSkeletalMeshPoseTrack::OnWorldCleanup);
@@ -40,6 +42,24 @@ FSkeletalMeshPoseTrack::~FSkeletalMeshPoseTrack()
 {
 #if WITH_ENGINE
 	FWorldDelegates::OnWorldCleanup.Remove(OnWorldDestroyedHandle);
+
+	for(auto& WorldCacheEntry : WorldCache)
+	{
+		if(WorldCacheEntry.Value.Component)
+		{
+			WorldCacheEntry.Value.Component->UnregisterComponent();
+			WorldCacheEntry.Value.Component->MarkPendingKill();
+			WorldCacheEntry.Value.Component = nullptr;
+		}
+
+		if(WorldCacheEntry.Value.Actor)
+		{
+			WorldCacheEntry.Value.Actor->Destroy();
+			WorldCacheEntry.Value.Actor = nullptr;
+		}
+	}
+
+	WorldCache.Empty();
 #endif
 }
 
@@ -66,7 +86,7 @@ void FSkeletalMeshPoseTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& 
 void FSkeletalMeshPoseTrack::Draw(const ITimingTrackDrawContext& Context) const
 {
 	DrawEvents(Context);
-	GetGameplayTrack().DrawHeaderForTimingTrack(Context, *this);
+	GetGameplayTrack().DrawHeaderForTimingTrack(Context, *this, false);
 }
 
 void FSkeletalMeshPoseTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEvent& HoveredTimingEvent) const
@@ -155,7 +175,11 @@ void FSkeletalMeshPoseTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			LOCTEXT("ToggleDrawPose_Tooltip", "Draw the poses in this track"),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([this](){ bDrawPose = !bDrawPose; }),
+				FExecuteAction::CreateLambda([this]()
+				{
+					bDrawPose = !bDrawPose;
+					UpdateComponentVisibility();
+				}),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateLambda([this](){ return bDrawPose; })),
 			NAME_None,
@@ -216,6 +240,7 @@ void FSkeletalMeshPoseTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 									if(OtherComponentObjectInfo->OuterId == ActorObjectInfo->Id)
 									{
 										InTrack->bDrawPose = !bSetDrawPose;
+										InTrack->UpdateComponentVisibility();
 									}
 								});
 							}),
@@ -265,6 +290,7 @@ void FSkeletalMeshPoseTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 									if(OtherComponentObjectInfo->OuterId == ActorObjectInfo->Id)
 									{
 										InTrack->bDrawSkeleton = !bSetDrawSkeleton;
+										InTrack->UpdateComponentVisibility();
 									}
 								});
 							}),
@@ -311,6 +337,16 @@ void FSkeletalMeshPoseTrack::OnWorldCleanup(UWorld* InWorld, bool bSessionEnded,
 	WorldCache.Remove(TWeakObjectPtr<UWorld>(InWorld));
 }
 
+USkeletalMeshComponent* FSkeletalMeshPoseTrack::GetComponent(UWorld* InWorld)
+{
+	if(InWorld)
+	{
+		return GetWorldCache(InWorld).GetComponent();
+	}
+
+	return nullptr;
+}
+
 void FSkeletalMeshPoseTrack::DrawPoses(UWorld* InWorld, double InTime)
 {
 	if(SharedData.IsAnalysisSessionValid())
@@ -339,7 +375,7 @@ void FSkeletalMeshPoseTrack::DrawPoses(UWorld* InWorld, double InTime)
 						if(SkeletalMeshInfo && SkeletalMeshObjectInfo)
 						{
 							UInsightsSkeletalMeshComponent* Component = CacheForWorld.GetComponent();
-							Component->SetVisibility(true);
+							Component->SetVisibility(bDrawPose);
 
 							if(CacheForWorld.Time != InTime)
 							{
@@ -373,11 +409,23 @@ FSkeletalMeshPoseTrack::FWorldComponentCache& FSkeletalMeshPoseTrack::GetWorldCa
 
 UInsightsSkeletalMeshComponent* FSkeletalMeshPoseTrack::FWorldComponentCache::GetComponent()
 {
+	if(Actor == nullptr)
+	{
+		Actor = World->SpawnActor<AActor>();
+		Actor->SetActorLabel(TEXT("Insights"));
+
+		Time = 0.0;
+	}
+
 	if(Component == nullptr)
 	{
-		Component = NewObject<UInsightsSkeletalMeshComponent>();
+		Component = NewObject<UInsightsSkeletalMeshComponent>(Actor);
 		Component->PrimaryComponentTick.bStartWithTickEnabled = false;
 		Component->PrimaryComponentTick.bCanEverTick = false;
+
+		Actor->AddInstanceComponent(Component);
+
+		Component->SetAnimationMode(EAnimationMode::AnimationCustomMode);
 		Component->RegisterComponentWithWorld(World);
 
 		Time = 0.0;
@@ -390,7 +438,19 @@ void FSkeletalMeshPoseTrack::AddReferencedObjects(FReferenceCollector& Collector
 {
 	for(auto& WorldCacheEntry : WorldCache)
 	{
+		Collector.AddReferencedObject(WorldCacheEntry.Value.Actor);
 		Collector.AddReferencedObject(WorldCacheEntry.Value.Component);
+	}
+}
+
+void FSkeletalMeshPoseTrack::UpdateComponentVisibility()
+{
+	for(auto& WorldCacheEntry : WorldCache)
+	{
+		if(WorldCacheEntry.Value.Component)
+		{
+			WorldCacheEntry.Value.Component->SetVisibility(bDrawPose);
+		}
 	}
 }
 

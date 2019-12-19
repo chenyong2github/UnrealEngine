@@ -131,7 +131,7 @@ void FPreviewSceneDescriptionCustomization::CustomizeDetails(IDetailLayoutBuilde
 
 	FSimpleDelegate PropertyChangedDelegate = FSimpleDelegate::CreateSP(this, &FPreviewSceneDescriptionCustomization::HandlePreviewControllerPropertyChanged);
 
-	for (const UProperty* TestProperty : TFieldRange<UProperty>(PersonaPreviewSceneDescription->PreviewControllerInstance->GetClass()))
+	for (const FProperty* TestProperty : TFieldRange<FProperty>(PersonaPreviewSceneDescription->PreviewControllerInstance->GetClass()))
 	{
 		if (TestProperty->HasAnyPropertyFlags(CPF_Edit))
 		{

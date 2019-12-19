@@ -5,11 +5,6 @@
 #include "UObject/UnrealType.h"
 
 /*-----------------------------------------------------------------------------
-	UFloatProperty.
+	FFloatProperty.
 -----------------------------------------------------------------------------*/
-
-IMPLEMENT_CORE_INTRINSIC_CLASS(UFloatProperty, UNumericProperty,
-	{
-	}
-);
 

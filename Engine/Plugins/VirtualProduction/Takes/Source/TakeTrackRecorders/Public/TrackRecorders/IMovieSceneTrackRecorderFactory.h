@@ -45,7 +45,7 @@ public:
 	* @param InPropertyToRecord - The specific property to try and record from that object.
 	* @return True if the specific object can be recorded 
 	*/
-	virtual bool CanRecordProperty(class UObject* InObjectToRecord, class UProperty* InPropertyToRecord) const = 0;
+	virtual bool CanRecordProperty(class UObject* InObjectToRecord, class FProperty* InPropertyToRecord) const = 0;
 
 
 	/**

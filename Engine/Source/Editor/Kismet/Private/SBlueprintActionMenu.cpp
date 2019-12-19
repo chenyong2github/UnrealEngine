@@ -496,7 +496,7 @@ void SBlueprintActionMenu::ConstructActionContext(FBlueprintActionContext& Conte
 			if (Nodes.Num() == 1 && Nodes[0]->GetNodeType() == FSCSEditorTreeNode::ComponentNode)
 			{
 				FName PropertyName = Nodes[0]->GetVariableName();
-				UObjectProperty* VariableProperty = FindField<UObjectProperty>(Blueprint->SkeletonGeneratedClass, PropertyName);
+				FObjectProperty* VariableProperty = FindField<FObjectProperty>(Blueprint->SkeletonGeneratedClass, PropertyName);
 				ContextDescOut.SelectedObjects.Add(VariableProperty);
 			}
 		}

@@ -1355,7 +1355,7 @@ public:
 
 	/** Property to update with the gameplay tag count. */
 	UPROPERTY(VisibleAnywhere, Category = GameplayTagBlueprintProperty)
-	UProperty* PropertyToEdit;
+	TFieldPath<FProperty> PropertyToEdit;
 
 	/** Name of property being edited. */
 	UPROPERTY(VisibleAnywhere, Category = GameplayTagBlueprintProperty)
@@ -1400,9 +1400,9 @@ protected:
 
 	void GameplayTagEventCallback(const FGameplayTag Tag, int32 NewCount);
 
-	bool IsPropertyTypeValid(const UProperty* Property) const;
+	bool IsPropertyTypeValid(const FProperty* Property) const;
 
-	EGameplayTagEventType::Type GetGameplayTagEventType(const UProperty* Property) const;
+	EGameplayTagEventType::Type GetGameplayTagEventType(const FProperty* Property) const;
 
 protected:
 

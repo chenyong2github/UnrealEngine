@@ -24,7 +24,7 @@ bool UEditorAnimBaseObj::ApplyChangesToMontage()
 	return false;
 }
 
-void UEditorAnimBaseObj::PreEditChange(UProperty* PropertyThatWillChange)
+void UEditorAnimBaseObj::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);
 

@@ -823,7 +823,7 @@ void UFoliageType::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 	}
 }
 
-void UFoliageType::PreEditChange(UProperty* PropertyAboutToChange)
+void UFoliageType::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	Super::PreEditChange(PropertyAboutToChange);
 

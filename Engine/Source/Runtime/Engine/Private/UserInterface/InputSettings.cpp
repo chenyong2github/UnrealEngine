@@ -125,7 +125,7 @@ void UInputSettings::PopulateAxisConfigs()
 }
 
 #if WITH_EDITOR
-void UInputSettings::PostReloadConfig( UProperty* PropertyThatWasLoaded )
+void UInputSettings::PostReloadConfig( FProperty* PropertyThatWasLoaded )
 {
 	Super::PostReloadConfig(PropertyThatWasLoaded);
 	PopulateAxisConfigs();

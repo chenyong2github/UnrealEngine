@@ -90,8 +90,8 @@ public:
 	void OnObjectsReplaced(const TMap<UObject*,UObject*>& ReplacementMap);
 
 	// FNotify interface
-	void NotifyPreChange( UProperty* PropertyAboutToChange );
-	void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged );
+	void NotifyPreChange( FProperty* PropertyAboutToChange );
+	void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged );
 
 	// FCurveEdNotifyInterface
 	virtual void PreEditCurve(TArray<UObject*> CurvesAboutToChange) override;

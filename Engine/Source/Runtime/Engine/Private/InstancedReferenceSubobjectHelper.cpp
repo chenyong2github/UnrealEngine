@@ -7,18 +7,18 @@ UObject* FInstancedPropertyPath::Resolve(const UObject* Container) const
 	UStruct* CurrentContainerType = Container->GetClass();
 
 	const TArray<FPropertyLink>& PropChainRef = PropertyChain;
-	auto GetProperty = [&CurrentContainerType, &PropChainRef](int32 ChainIndex)->UProperty*
+	auto GetProperty = [&CurrentContainerType, &PropChainRef](int32 ChainIndex)->FProperty*
 	{
-		const UProperty* SrcProperty = PropChainRef[ChainIndex].PropertyPtr;
-		return FindField<UProperty>(CurrentContainerType, SrcProperty->GetFName());
+		const FProperty* SrcProperty = PropChainRef[ChainIndex].PropertyPtr;
+		return FindField<FProperty>(CurrentContainerType, SrcProperty->GetFName());
 	};
 
-	const UProperty* CurrentProp = GetProperty(0);
+	const FProperty* CurrentProp = GetProperty(0);
 	const uint8* ValuePtr = (CurrentProp) ? CurrentProp->ContainerPtrToValuePtr<uint8>(Container) : nullptr;
 
 	for (int32 ChainIndex = 1; CurrentProp && ChainIndex < PropertyChain.Num(); ++ChainIndex)
 	{
-		if (const UArrayProperty* ArrayProperty = Cast<UArrayProperty>(CurrentProp))
+		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(CurrentProp))
 		{
 			check(PropertyChain[ChainIndex].PropertyPtr == ArrayProperty->Inner);
 
@@ -35,7 +35,7 @@ UObject* FInstancedPropertyPath::Resolve(const UObject* Container) const
 			CurrentProp = ArrayProperty->Inner;
 			ValuePtr    = ArrayHelper.GetRawPtr(TargetIndex);
 		}
-		else if (const USetProperty* SetProperty = Cast<USetProperty>(CurrentProp))
+		else if (const FSetProperty* SetProperty = CastField<FSetProperty>(CurrentProp))
 		{
 			check(PropertyChain[ChainIndex].PropertyPtr == SetProperty->ElementProp);
 
@@ -52,7 +52,7 @@ UObject* FInstancedPropertyPath::Resolve(const UObject* Container) const
 			CurrentProp = SetProperty->ElementProp;
 			ValuePtr    = SetHelper.GetElementPtr(TargetIndex);
 		}
-		else if (const UMapProperty* MapProperty = Cast<UMapProperty>(CurrentProp))
+		else if (const FMapProperty* MapProperty = CastField<FMapProperty>(CurrentProp))
 		{
 			int32 TargetIndex = PropertyChain[ChainIndex].ArrayIndex;
 			check(TargetIndex != INDEX_NONE);
@@ -70,7 +70,7 @@ UObject* FInstancedPropertyPath::Resolve(const UObject* Container) const
 		}
 		else if (ensure(PropertyChain[ChainIndex].ArrayIndex <= 0))
 		{
-			if (const UStructProperty* StructProperty = Cast<UStructProperty>(CurrentProp))
+			if (const FStructProperty* StructProperty = CastField<FStructProperty>(CurrentProp))
 			{
 				CurrentContainerType = StructProperty->Struct;
 			}
@@ -80,7 +80,7 @@ UObject* FInstancedPropertyPath::Resolve(const UObject* Container) const
 		}
 	}
 
-	const UObjectProperty* TargetPropety = Cast<UObjectProperty>(CurrentProp);
+	const FObjectProperty* TargetPropety = CastField<FObjectProperty>(CurrentProp);
 	if (TargetPropety && TargetPropety->HasAnyPropertyFlags(CPF_InstancedReference))
 	{ 
 		return TargetPropety->GetObjectPropertyValue(ValuePtr);
@@ -91,16 +91,16 @@ UObject* FInstancedPropertyPath::Resolve(const UObject* Container) const
 void FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects_Inner(FInstancedPropertyPath& PropertyPath, const uint8* ContainerAddress, TFunctionRef<void(const FInstancedSubObjRef& Ref)> OutObjects)
 {
 	check(ContainerAddress);
-	const UProperty* TargetProp = PropertyPath.Head();
+	const FProperty* TargetProp = PropertyPath.Head();
 
 	if (!TargetProp->HasAnyPropertyFlags(CPF_PersistentInstance | CPF_ContainsInstancedReference))
 	{
 		return;
 	}
 
-	if (const UArrayProperty* ArrayProperty = Cast<const UArrayProperty>(TargetProp))
+	if (const FArrayProperty* ArrayProperty = CastField<const FArrayProperty>(TargetProp))
 	{
-		if (const UStructProperty* InnerStructProperty = Cast<const UStructProperty>(ArrayProperty->Inner))
+		if (const FStructProperty* InnerStructProperty = CastField<const FStructProperty>(ArrayProperty->Inner))
 		{
 			if (const UStruct* Struct = InnerStructProperty->Struct)
 			{
@@ -108,7 +108,7 @@ void FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects_Inner(FInsta
 				for (int32 ElementIndex = 0; ElementIndex < ArrayHelper.Num(); ++ElementIndex)
 				{
 					const uint8* ValueAddress = ArrayHelper.GetRawPtr(ElementIndex);
-					for (UProperty* StructProp = Struct->RefLink; StructProp; StructProp = StructProp->NextRef)
+					for (FProperty* StructProp = Struct->RefLink; StructProp; StructProp = StructProp->NextRef)
 					{
 						PropertyPath.Push(InnerStructProperty, ElementIndex);
 						GetInstancedSubObjects_Inner(PropertyPath, ValueAddress, OutObjects);
@@ -117,7 +117,7 @@ void FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects_Inner(FInsta
 				}
 			}
 		}
-		else if (const UObjectProperty* InnerObjectProperty = Cast<const UObjectProperty>(ArrayProperty->Inner))
+		else if (const FObjectProperty* InnerObjectProperty = CastField<const FObjectProperty>(ArrayProperty->Inner))
 		{
 			if (InnerObjectProperty->HasAllPropertyFlags(CPF_PersistentInstance))
 			{
@@ -135,9 +135,9 @@ void FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects_Inner(FInsta
 			}
 		}
 	}
-	else if (const UMapProperty* MapProperty = Cast<const UMapProperty>(TargetProp))
+	else if (const FMapProperty* MapProperty = CastField<const FMapProperty>(TargetProp))
 	{
-		if (const UStructProperty* KeyStructProperty = Cast<const UStructProperty>(MapProperty->KeyProp))
+		if (const FStructProperty* KeyStructProperty = CastField<const FStructProperty>(MapProperty->KeyProp))
 		{
 			if (const UStruct* Struct = KeyStructProperty->Struct)
 			{
@@ -148,7 +148,7 @@ void FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects_Inner(FInsta
 					if (MapHelper.IsValidIndex(ElementIndex))
 					{
 						const uint8* KeyAddress = MapHelper.GetKeyPtr(ElementIndex);
-						for (UProperty* StructProp = Struct->RefLink; StructProp; StructProp = StructProp->NextRef)
+						for (FProperty* StructProp = Struct->RefLink; StructProp; StructProp = StructProp->NextRef)
 						{
 							PropertyPath.Push(KeyStructProperty, ElementIndex);
 							GetInstancedSubObjects_Inner(PropertyPath, KeyAddress, OutObjects);
@@ -160,7 +160,7 @@ void FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects_Inner(FInsta
 				}
 			}
 		}
-		else if (const UObjectProperty* KeyObjectProperty = Cast<const UObjectProperty>(MapProperty->KeyProp))
+		else if (const FObjectProperty* KeyObjectProperty = CastField<const FObjectProperty>(MapProperty->KeyProp))
 		{
 			if (KeyObjectProperty->HasAllPropertyFlags(CPF_PersistentInstance))
 			{
@@ -185,7 +185,7 @@ void FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects_Inner(FInsta
 			}
 		}
 
-		if (const UStructProperty* ValueStructProperty = Cast<const UStructProperty>(MapProperty->ValueProp))
+		if (const FStructProperty* ValueStructProperty = CastField<const FStructProperty>(MapProperty->ValueProp))
 		{
 			if (const UStruct* Struct = ValueStructProperty->Struct)
 			{
@@ -197,7 +197,7 @@ void FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects_Inner(FInsta
 					{
 						// use of pair pointer is intentional, next call is going to offset from the pair entry:
 						const uint8* ValueAddress = MapHelper.GetPairPtr(ElementIndex);
-						for (UProperty* StructProp = Struct->RefLink; StructProp; StructProp = StructProp->NextRef)
+						for (FProperty* StructProp = Struct->RefLink; StructProp; StructProp = StructProp->NextRef)
 						{
 							PropertyPath.Push(ValueStructProperty, ElementIndex);
 							GetInstancedSubObjects_Inner(PropertyPath, ValueAddress, OutObjects);
@@ -209,7 +209,7 @@ void FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects_Inner(FInsta
 				}
 			}
 		}
-		else if (const UObjectProperty* ValueObjectProperty = Cast<const UObjectProperty>(MapProperty->ValueProp))
+		else if (const FObjectProperty* ValueObjectProperty = CastField<const FObjectProperty>(MapProperty->ValueProp))
 		{
 			if (ValueObjectProperty->HasAllPropertyFlags(CPF_PersistentInstance))
 			{
@@ -234,9 +234,9 @@ void FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects_Inner(FInsta
 			}
 		}
 	}
-	else if (const USetProperty* SetProperty = Cast<const USetProperty>(TargetProp))
+	else if (const FSetProperty* SetProperty = CastField<const FSetProperty>(TargetProp))
 	{
-		if (const UStructProperty* ElementStructProperty = Cast<const UStructProperty>(SetProperty->ElementProp))
+		if (const FStructProperty* ElementStructProperty = CastField<const FStructProperty>(SetProperty->ElementProp))
 		{
 			if (const UStruct* Struct = ElementStructProperty->Struct)
 			{
@@ -247,7 +247,7 @@ void FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects_Inner(FInsta
 					if (SetHelper.IsValidIndex(ElementIndex))
 					{
 						const uint8* ElementAddress = SetHelper.GetElementPtr(ElementIndex);
-						for (UProperty* StructProp = Struct->RefLink; StructProp; StructProp = StructProp->NextRef)
+						for (FProperty* StructProp = Struct->RefLink; StructProp; StructProp = StructProp->NextRef)
 						{
 							PropertyPath.Push(ElementStructProperty, ElementIndex);
 							GetInstancedSubObjects_Inner(PropertyPath, ElementAddress, OutObjects);
@@ -259,7 +259,7 @@ void FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects_Inner(FInsta
 				}
 			}
 		}
-		else if (const UObjectProperty* ElementObjectProperty = Cast<const UObjectProperty>(SetProperty->ElementProp))
+		else if (const FObjectProperty* ElementObjectProperty = CastField<const FObjectProperty>(SetProperty->ElementProp))
 		{
 			if (ElementObjectProperty->HasAllPropertyFlags(CPF_PersistentInstance))
 			{
@@ -287,7 +287,7 @@ void FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects_Inner(FInsta
 	else if (TargetProp->HasAllPropertyFlags(CPF_PersistentInstance))
 	{
 		ensure(TargetProp->HasAllPropertyFlags(CPF_InstancedReference));
-		if (const UObjectProperty* ObjectProperty = Cast<const UObjectProperty>(TargetProp))
+		if (const FObjectProperty* ObjectProperty = CastField<const FObjectProperty>(TargetProp))
 		{
 			for (int32 ArrayIdx = 0; ArrayIdx < ObjectProperty->ArrayDim; ++ArrayIdx)
 			{
@@ -302,14 +302,14 @@ void FFindInstancedReferenceSubobjectHelper::GetInstancedSubObjects_Inner(FInsta
 
 		return;
 	}
-	else if (const UStructProperty* StructProperty = Cast<const UStructProperty>(TargetProp))
+	else if (const FStructProperty* StructProperty = CastField<const FStructProperty>(TargetProp))
 	{
 		if (StructProperty->Struct)
 		{
 			for (int32 ArrayIdx = 0; ArrayIdx < StructProperty->ArrayDim; ++ArrayIdx)
 			{
 				const uint8* ValueAddress = StructProperty->ContainerPtrToValuePtr<uint8>(ContainerAddress, ArrayIdx);
-				for (UProperty* StructProp = StructProperty->Struct->RefLink; StructProp; StructProp = StructProp->NextRef)
+				for (FProperty* StructProp = StructProperty->Struct->RefLink; StructProp; StructProp = StructProp->NextRef)
 				{
 					PropertyPath.Push(StructProp, ArrayIdx);
 					GetInstancedSubObjects_Inner(PropertyPath, ValueAddress, OutObjects);

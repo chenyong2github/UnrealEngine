@@ -15,9 +15,9 @@ void UControlRigBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExisting
 	ControlUnitProperties.Empty();
 	RigUnitProperties.Empty();
 
-	for (TFieldIterator<UProperty> It(this); It; ++It)
+	for (TFieldIterator<FProperty> It(this); It; ++It)
 	{
-		if (UStructProperty* StructProp = Cast<UStructProperty>(*It))
+		if (FStructProperty* StructProp = CastField<FStructProperty>(*It))
 		{
 			if (StructProp->Struct->IsChildOf(FRigUnit::StaticStruct()))
 			{

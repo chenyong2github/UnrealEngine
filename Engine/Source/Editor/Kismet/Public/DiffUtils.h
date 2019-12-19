@@ -18,7 +18,7 @@ struct FResolvedProperty
 	{
 	}
 
-	FResolvedProperty(const void* InObject, const UProperty* InProperty)
+	FResolvedProperty(const void* InObject, const FProperty* InProperty)
 		: Object(InObject)
 		, Property(InProperty)
 	{
@@ -32,7 +32,7 @@ struct FResolvedProperty
 	inline bool operator!=(const FResolvedProperty& RHS) const { return !(*this == RHS); }
 
 	const void* Object;
-	const UProperty* Property;
+	const FProperty* Property;
 };
 
 /**
@@ -62,7 +62,7 @@ struct FPropertySoftPath
 		}
 	}
 
-	FPropertySoftPath(const FPropertySoftPath& SubPropertyPath, const UProperty* LeafProperty)
+	FPropertySoftPath(const FPropertySoftPath& SubPropertyPath, const FProperty* LeafProperty)
 		: PropertyChain(SubPropertyPath.PropertyChain)
 	{
 		PropertyChain.Push(FChainElement(LeafProperty));
@@ -125,7 +125,7 @@ private:
 			}
 		}
 
-		FChainElement(const UProperty* Property)
+		FChainElement(const FProperty* Property)
 		{
 			if (Property)
 			{

@@ -1,9 +1,24 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNodes/AnimNode_RefPose.h"
+#include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////
 // FAnimRefPoseNode
+
+/** Helper for enum output... */
+#ifndef CASE_ENUM_TO_TEXT
+#define CASE_ENUM_TO_TEXT(txt) case txt: return TEXT(#txt);
+#endif
+
+const TCHAR* GetRefPostTypeText(ERefPoseType RefPose)
+{
+	switch (RefPose)
+	{
+		FOREACH_ENUM_EREFPOSETYPE(CASE_ENUM_TO_TEXT)
+	}
+	return TEXT("Unknown Ref Pose Type");
+}
 
 void FAnimNode_RefPose::Evaluate_AnyThread(FPoseContext& Output)
 {
@@ -22,26 +37,14 @@ void FAnimNode_RefPose::Evaluate_AnyThread(FPoseContext& Output)
 		Output.ResetToAdditiveIdentity();
 		break;
 	}
+
+	TRACE_ANIM_NODE_VALUE(Output, TEXT("Ref Pose Type"), GetRefPostTypeText(RefPoseType));
 }
 
 void FAnimNode_MeshSpaceRefPose::EvaluateComponentSpace_AnyThread(FComponentSpacePoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateComponentSpace_AnyThread)
 	Output.ResetToRefPose();
-}
-
-/** Helper for enum output... */
-#ifndef CASE_ENUM_TO_TEXT
-#define CASE_ENUM_TO_TEXT(txt) case txt: return TEXT(#txt);
-#endif
-
-const TCHAR* GetRefPostTypeText(ERefPoseType RefPose)
-{
-	switch (RefPose)
-	{
-		FOREACH_ENUM_EREFPOSETYPE(CASE_ENUM_TO_TEXT)
-	}
-	return TEXT("Unknown Ref Pose Type");
 }
 
 void FAnimNode_RefPose::GatherDebugData(FNodeDebugData& DebugData)

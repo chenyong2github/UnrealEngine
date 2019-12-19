@@ -16,6 +16,8 @@
 #include "AnimGraphNode_StateMachineBase.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 
+#define LOCTEXT_NAMESPACE "SGraphNodeAnimState"
+
 /////////////////////////////////////////////////////
 // SStateMachineOutputPin
 
@@ -94,26 +96,31 @@ void SGraphNodeAnimState::GetStateInfoPopup(UEdGraphNode* GraphNode, TArray<FGra
 		// Display various types of debug data
 		if ((ActiveObject != NULL) && (Class != NULL))
 		{
-			if (FStateMachineDebugData* DebugInfo = Class->GetAnimBlueprintDebugData().StateMachineDebugData.Find(GraphNode->GetGraph()))
+			if (Class->AnimNodeProperties.Num())
 			{
-				if (Class->AnimNodeProperties.Num())
+				if (FStateMachineDebugData* DebugInfo = Class->GetAnimBlueprintDebugData().StateMachineDebugData.Find(GraphNode->GetGraph()))
 				{
-					UAnimationStateMachineGraph* TypedGraph = CastChecked<UAnimationStateMachineGraph>(GraphNode->GetGraph());
-
-					if (FAnimNode_StateMachine* CurrentInstance = Class->GetPropertyInstance<FAnimNode_StateMachine>(ActiveObject, TypedGraph->OwnerAnimGraphNode))  
+					if(int32* StateIndexPtr = DebugInfo->NodeToStateIndex.Find(GraphNode))
 					{
-						if (int32* pStateIndex = DebugInfo->NodeToStateIndex.Find(GraphNode))
+						for(const FStateMachineStateDebugData& StateData : Class->GetAnimBlueprintDebugData().StateData)
 						{
-							const float Weight = CurrentInstance->GetStateWeight(*pStateIndex);
-							if (Weight > 0.0f)
+							if(StateData.StateMachineIndex == DebugInfo->MachineIndex && StateData.StateIndex == *StateIndexPtr)
 							{
-								FString StateText = FString::Printf(TEXT("%.1f%%"), Weight * 100.0f);
-								if (*pStateIndex == CurrentInstance->GetCurrentState())
+								if (StateData.Weight > 0.0f)
 								{
-									StateText += FString::Printf(TEXT("\nActive for %.2f secs"), CurrentInstance->GetCurrentStateElapsedTime());
-								}
+									FText StateText;
+									if (StateData.ElapsedTime > 0.0f)
+									{
+										StateText = FText::Format(LOCTEXT("ActiveStateWeightFormat", "{0}\nActive for {1}s"), FText::AsPercent(StateData.Weight), FText::AsNumber(StateData.ElapsedTime));
+									}
+									else
+									{
+										StateText = FText::Format(LOCTEXT("StateWeightFormat", "{0}"), FText::AsPercent(StateData.Weight));
+									}
 
-								new (Popups) FGraphInformationPopupInfo(NULL, CurrentStateColor, StateText);
+									Popups.Emplace(nullptr, CurrentStateColor, StateText.ToString());
+									break;
+								}
 							}
 						}
 					}
@@ -145,18 +152,15 @@ FSlateColor SGraphNodeAnimState::GetBorderBackgroundColor() const
 		{
 			if (FStateMachineDebugData* DebugInfo = Class->GetAnimBlueprintDebugData().StateMachineDebugData.Find(GraphNode->GetGraph()))
 			{
-				if (Class->AnimNodeProperties.Num())
+				if(int32* StateIndexPtr = DebugInfo->NodeToStateIndex.Find(GraphNode))
 				{
-					UAnimationStateMachineGraph* TypedGraph = CastChecked<UAnimationStateMachineGraph>(GraphNode->GetGraph());
-
-					if (FAnimNode_StateMachine* CurrentInstance = Class->GetPropertyInstance<FAnimNode_StateMachine>(ActiveObject, TypedGraph->OwnerAnimGraphNode))
+					for(const FStateMachineStateDebugData& StateData : Class->GetAnimBlueprintDebugData().StateData)
 					{
-						if (int32* pStateIndex = DebugInfo->NodeToStateIndex.Find(GraphNode))
+						if(StateData.StateMachineIndex == DebugInfo->MachineIndex && StateData.StateIndex == *StateIndexPtr)
 						{
-							const float Weight = CurrentInstance->GetStateWeight(*pStateIndex);
-							if (Weight > 0.0f)
+							if (StateData.Weight > 0.0f)
 							{
-								return FMath::Lerp<FLinearColor>(ActiveStateColorDim, ActiveStateColorBright, Weight);
+								return FMath::Lerp<FLinearColor>(ActiveStateColorDim, ActiveStateColorBright, StateData.Weight);
 							}
 						}
 					}
@@ -353,3 +357,5 @@ const FSlateBrush* SGraphNodeAnimConduit::GetNameIcon() const
 {
 	return FEditorStyle::GetBrush( TEXT("Graph.ConduitNode.Icon") );
 }
+
+#undef LOCTEXT_NAMESPACE

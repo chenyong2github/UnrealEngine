@@ -5,31 +5,66 @@
 #include "Templates/Casts.h"
 #include "UObject/PropertyTag.h"
 #include "UObject/UnrealType.h"
+#include "UObject/UnrealTypePrivate.h"
 #include "UObject/LinkerLoad.h"
 #include "UObject/PropertyHelper.h"
 
-/*-----------------------------------------------------------------------------
-	UArrayProperty.
------------------------------------------------------------------------------*/
+// WARNING: This should always be the last include in any file that needs it (except .generated.h)
+#include "UObject/UndefineUPropertyMacros.h"
 
-void UArrayProperty::GetPreloadDependencies(TArray<UObject*>& OutDeps)
+/*-----------------------------------------------------------------------------
+	FArrayProperty.
+-----------------------------------------------------------------------------*/
+IMPLEMENT_FIELD(FArrayProperty)
+
+#if WITH_EDITORONLY_DATA
+FArrayProperty::FArrayProperty(UField* InField)
+	: FArrayProperty_Super(InField)
 {
-	Super::GetPreloadDependencies(OutDeps);
-	OutDeps.Add(Inner);
+	UArrayProperty* SourceProperty = CastChecked<UArrayProperty>(InField);
+	Inner = CastField<FProperty>(SourceProperty->Inner->GetAssociatedFField());
+	if (!Inner)
+	{
+		Inner = CastField<FProperty>(CreateFromUField(SourceProperty->Inner));
+		SourceProperty->Inner->SetAssociatedFField(Inner);
+	}
+}
+#endif // WITH_EDITORONLY_DATA
+
+FArrayProperty::~FArrayProperty()
+{
+	delete Inner;
+	Inner = nullptr;
 }
 
-void UArrayProperty::LinkInternal(FArchive& Ar)
+void FArrayProperty::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 {
-	FLinkerLoad* MyLinker = GetLinker();
-	if( MyLinker )
+	Super::GetPreloadDependencies(OutDeps);
+	if (Inner)
 	{
-		MyLinker->Preload(this);
+		Inner->GetPreloadDependencies(OutDeps);
 	}
-	Ar.Preload(Inner);
+}
+
+void FArrayProperty::PostDuplicate(const FField& InField)
+{
+	const FArrayProperty& Source = static_cast<const FArrayProperty&>(InField);
+	Inner = CastFieldChecked<FProperty>(FField::Duplicate(Source.Inner, this));
+	Super::PostDuplicate(InField);
+}
+
+void FArrayProperty::LinkInternal(FArchive& Ar)
+{
+	//FLinkerLoad* MyLinker = GetLinker();
+	//if( MyLinker )
+	//{
+	//	MyLinker->Preload(this);
+	//}
+	//Ar.Preload(Inner);
 	Inner->Link(Ar);
 	Super::LinkInternal(Ar);
 }
-bool UArrayProperty::Identical( const void* A, const void* B, uint32 PortFlags ) const
+bool FArrayProperty::Identical( const void* A, const void* B, uint32 PortFlags ) const
 {
 	checkSlow(Inner);
 
@@ -58,14 +93,14 @@ bool UArrayProperty::Identical( const void* A, const void* B, uint32 PortFlags )
 	return true;
 }
 
-void UArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const
+void FArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const
 {
 	checkSlow(Inner);
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 	TOptional<FPropertyTag> MaybeInnerTag;
 
 	if (UnderlyingArchive.IsTextFormat() && !Slot.GetArchiveState().UseUnversionedPropertySerialization()
-		&& Inner && Inner->IsA<UStructProperty>())
+		&& Inner && Inner->IsA<FStructProperty>())
 	{
 		MaybeInnerTag.Emplace(UnderlyingArchive, Inner, 0, (uint8*)Value, (uint8*)Defaults);	
 		Slot << SA_ATTRIBUTE(TEXT("InnerStructName"), MaybeInnerTag.GetValue().StructName);
@@ -73,7 +108,7 @@ void UArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 	}
 	
 	// Ensure that the Inner itself has been loaded before calling SerializeItem() on it
-	UnderlyingArchive.Preload(Inner);
+	//UnderlyingArchive.Preload(Inner);
 
 	FScriptArrayHelper ArrayHelper(this, Value);
 	int32		n		= ArrayHelper.Num();
@@ -105,7 +140,7 @@ void UArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 	// Serialize a PropertyTag for the inner property of this array, allows us to validate the inner struct to see if it has changed
 	if (!Slot.GetArchiveState().UseUnversionedPropertySerialization() && 
 		UnderlyingArchive.UE4Ver() >= VER_UE4_INNER_ARRAY_TAG_INFO &&
-		Inner && Inner->IsA<UStructProperty>())
+		Inner && Inner->IsA<FStructProperty>())
 	{
 		if (!MaybeInnerTag)
 		{
@@ -117,7 +152,7 @@ void UArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 		
 		if (UnderlyingArchive.IsLoading())
 		{
-			auto CanSerializeFromStructWithDifferentName = [](const FPropertyTag& PropertyTag, const UStructProperty* StructProperty)
+			auto CanSerializeFromStructWithDifferentName = [](const FPropertyTag& PropertyTag, const FStructProperty* StructProperty)
 			{
 				return PropertyTag.StructGuid.IsValid()
 					&& StructProperty 
@@ -126,7 +161,7 @@ void UArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 			};
 
 			// Check if the Inner property can successfully serialize, the type may have changed
-			UStructProperty* StructProperty = CastChecked<UStructProperty>(Inner);
+			FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(Inner);
 			// if check redirector to make sure if the name has changed
 			FName NewName = FLinkerLoad::FindNewNameForStruct(InnerTag.StructName);
 			FName StructName = StructProperty->Struct->GetFName();
@@ -139,7 +174,7 @@ void UArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 				&& !CanSerializeFromStructWithDifferentName(InnerTag, StructProperty))
 			{
 				UE_LOG(LogClass, Warning, TEXT("Property %s of %s has a struct type mismatch (tag %s != prop %s) in package:  %s. If that struct got renamed, add an entry to ActiveStructRedirects."),
-					*InnerTag.Name.ToString(), *GetName(), *InnerTag.StructName.ToString(), *CastChecked<UStructProperty>(Inner)->Struct->GetName(), *UnderlyingArchive.GetArchiveName());
+					*InnerTag.Name.ToString(), *GetName(), *InnerTag.StructName.ToString(), *CastFieldChecked<FStructProperty>(Inner)->Struct->GetName(), *UnderlyingArchive.GetArchiveName());
 
 #if WITH_EDITOR
 				// Ensure the structure is initialized
@@ -151,12 +186,12 @@ void UArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 
 				if (!UnderlyingArchive.IsTextFormat())
 				{
-					// Skip the property
+				// Skip the property
 					const int64 StartOfProperty = UnderlyingArchive.Tell();
 					const int64 RemainingSize = InnerTag.Size - (UnderlyingArchive.Tell() - StartOfProperty);
-					uint8 B;
-					for (int64 i = 0; i < RemainingSize; i++)
-					{
+				uint8 B;
+				for (int64 i = 0; i < RemainingSize; i++)
+				{
 						UnderlyingArchive << B;
 					}
 				}
@@ -221,7 +256,7 @@ void UArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 		while (i < n)
 		{
 #if WITH_EDITOR
-			static const FName NAME_UArraySerialize = FName(TEXT("UArrayProperty::Serialize"));
+			static const FName NAME_UArraySerialize = FName(TEXT("FArrayProperty::Serialize"));
 			FName NAME_UArraySerializeCount = FName(NAME_UArraySerialize);
 			NAME_UArraySerializeCount.SetNumber(i);
 			FArchive::FScopeAddDebugData P(UnderlyingArchive, NAME_UArraySerializeCount);
@@ -255,26 +290,29 @@ void UArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 	}
 }
 
-bool UArrayProperty::NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8> * MetaData ) const
+bool FArrayProperty::NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8> * MetaData ) const
 {
 	UE_LOG( LogProperty, Fatal, TEXT( "Deprecated code path" ) );
 	return 1;
 }
 
-void UArrayProperty::Serialize( FArchive& Ar )
+void FArrayProperty::Serialize( FArchive& Ar )
 {
-	Super::Serialize( Ar );
-	Ar << Inner;
-	checkSlow(Inner || HasAnyFlags(RF_ClassDefaultObject) || IsPendingKill());
+	Super::Serialize(Ar);
+	
+	SerializeSingleField(Ar, Inner, this);
+	checkSlow(Inner);
 }
-void UArrayProperty::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+void FArrayProperty::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	UArrayProperty* This = CastChecked<UArrayProperty>(InThis);
-	Collector.AddReferencedObject( This->Inner, This );
-	Super::AddReferencedObjects( This, Collector );
+	Super::AddReferencedObjects(Collector);
+	if (Inner)
+	{
+		Inner->AddReferencedObjects(Collector);
+	}
 }
 
-FString UArrayProperty::GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& InnerTypeText, const FString& InInnerExtendedTypeText) const
+FString FArrayProperty::GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& InnerTypeText, const FString& InInnerExtendedTypeText) const
 {
 	if (ExtendedTypeText != NULL)
 	{
@@ -294,7 +332,7 @@ FString UArrayProperty::GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPEx
 	return TEXT("TArray");
 }
 
-FString UArrayProperty::GetCPPType( FString* ExtendedTypeText/*=NULL*/, uint32 CPPExportFlags/*=0*/ ) const
+FString FArrayProperty::GetCPPType( FString* ExtendedTypeText/*=NULL*/, uint32 CPPExportFlags/*=0*/ ) const
 {
 	checkSlow(Inner);
 	FString InnerExtendedTypeText;
@@ -306,18 +344,18 @@ FString UArrayProperty::GetCPPType( FString* ExtendedTypeText/*=NULL*/, uint32 C
 	return GetCPPTypeCustom(ExtendedTypeText, CPPExportFlags, InnerTypeText, InnerExtendedTypeText);
 }
 
-FString UArrayProperty::GetCPPTypeForwardDeclaration() const
+FString FArrayProperty::GetCPPTypeForwardDeclaration() const
 {
 	checkSlow(Inner);
 	return Inner->GetCPPTypeForwardDeclaration();
 }
-FString UArrayProperty::GetCPPMacroType( FString& ExtendedTypeText ) const
+FString FArrayProperty::GetCPPMacroType( FString& ExtendedTypeText ) const
 {
 	checkSlow(Inner);
 	ExtendedTypeText = Inner->GetCPPType();
 	return TEXT("TARRAY");
 }
-void UArrayProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
+void FArrayProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
 {
 	checkSlow(Inner);
 
@@ -342,12 +380,12 @@ void UArrayProperty::ExportTextItem( FString& ValueStr, const void* PropertyValu
 	ExportTextInnerItem(ValueStr, Inner, ArrayHelper.GetRawPtr(0), ArrayHelper.Num(), DefaultValue, DefaultSize, Parent, PortFlags, ExportRootScope);
 }
 
-void UArrayProperty::ExportTextInnerItem(FString& ValueStr, UProperty* Inner, const void* PropertyValue, int32 PropertySize, const void* DefaultValue, int32 DefaultSize, UObject* Parent, int32 PortFlags, UObject* ExportRootScope)
+void FArrayProperty::ExportTextInnerItem(FString& ValueStr, FProperty* Inner, const void* PropertyValue, int32 PropertySize, const void* DefaultValue, int32 DefaultSize, UObject* Parent, int32 PortFlags, UObject* ExportRootScope)
 {
 	checkSlow(Inner);
 
 	uint8* StructDefaults = NULL;
-	UStructProperty* StructProperty = dynamic_cast<UStructProperty*>(Inner);
+	FStructProperty* StructProperty = CastField<FStructProperty>(Inner);
 
 	const bool bReadableForm = (0 != (PPF_BlueprintDebugView & PortFlags));
 	const bool bExternalEditor = (0 != (PPF_ExternalEditor & PortFlags));
@@ -421,14 +459,14 @@ void UArrayProperty::ExportTextInnerItem(FString& ValueStr, UProperty* Inner, co
 	}
 }
 
-const TCHAR* UArrayProperty::ImportText_Internal(const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText) const
+const TCHAR* FArrayProperty::ImportText_Internal(const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText) const
 {
 	FScriptArrayHelper ArrayHelper(this, Data);
 
 	return ImportTextInnerItem(Buffer, Inner, Data, PortFlags, OwnerObject, &ArrayHelper, ErrorText);
 }
 
-const TCHAR* UArrayProperty::ImportTextInnerItem( const TCHAR* Buffer, UProperty* Inner, void* Data, int32 PortFlags, UObject* Parent, FScriptArrayHelper* ArrayHelper, FOutputDevice* ErrorText )
+const TCHAR* FArrayProperty::ImportTextInnerItem( const TCHAR* Buffer, FProperty* Inner, void* Data, int32 PortFlags, UObject* Parent, FScriptArrayHelper* ArrayHelper, FOutputDevice* ErrorText )
 {
 	checkSlow(Inner);
 
@@ -505,7 +543,7 @@ const TCHAR* UArrayProperty::ImportTextInnerItem( const TCHAR* Buffer, UProperty
 	return Buffer;
 }
 
-void UArrayProperty::AddCppProperty( UProperty* Property )
+void FArrayProperty::AddCppProperty(FProperty* Property)
 {
 	check(!Inner);
 	check(Property);
@@ -513,7 +551,7 @@ void UArrayProperty::AddCppProperty( UProperty* Property )
 	Inner = Property;
 }
 
-void UArrayProperty::CopyValuesInternal( void* Dest, void const* Src, int32 Count  ) const
+void FArrayProperty::CopyValuesInternal( void* Dest, void const* Src, int32 Count  ) const
 {
 	check(Count==1); // this was never supported, apparently
 	FScriptArrayHelper SrcArrayHelper(this, Src);
@@ -546,12 +584,12 @@ void UArrayProperty::CopyValuesInternal( void* Dest, void const* Src, int32 Coun
 		}
 	}
 }
-void UArrayProperty::ClearValueInternal( void* Data ) const
+void FArrayProperty::ClearValueInternal( void* Data ) const
 {
 	FScriptArrayHelper ArrayHelper(this, Data);
 	ArrayHelper.EmptyValues();
 }
-void UArrayProperty::DestroyValueInternal( void* Dest ) const
+void FArrayProperty::DestroyValueInternal( void* Dest ) const
 {
 	FScriptArrayHelper ArrayHelper(this, Dest);
 	ArrayHelper.EmptyValues();
@@ -559,7 +597,7 @@ void UArrayProperty::DestroyValueInternal( void* Dest ) const
 	//@todo UE4 potential double destroy later from this...would be ok for a script array, but still
 	((FScriptArray*)Dest)->~FScriptArray();
 }
-bool UArrayProperty::PassCPPArgsByRef() const
+bool FArrayProperty::PassCPPArgsByRef() const
 {
 	return true;
 }
@@ -572,7 +610,7 @@ bool UArrayProperty::PassCPPArgsByRef() const
  * @param	Owner				the object that contains this property's data
  * @param	InstanceGraph		contains the mappings of instanced objects and components to their templates
  */
-void UArrayProperty::InstanceSubobjects( void* Data, void const* DefaultData, UObject* Owner, FObjectInstancingGraph* InstanceGraph )
+void FArrayProperty::InstanceSubobjects( void* Data, void const* DefaultData, UObject* InOwner, FObjectInstancingGraph* InstanceGraph )
 {
 	if( Data && Inner->ContainsInstancedObjectProperty())
 	{
@@ -586,7 +624,7 @@ void UArrayProperty::InstanceSubobjects( void* Data, void const* DefaultData, UO
 		{
 			uint8* DefaultValue = (DefaultData && ElementIndex < DefaultArrayHelper.Num()) ? DefaultArrayHelper.GetRawPtr(ElementIndex) : nullptr;
 			FMemory::Memmove(TempElement, ArrayHelper.GetRawPtr(ElementIndex), InnerElementSize);
-			Inner->InstanceSubobjects( TempElement, DefaultValue, Owner, InstanceGraph );
+			Inner->InstanceSubobjects( TempElement, DefaultValue, InOwner, InstanceGraph );
 			if (ElementIndex < ArrayHelper.Num())
 			{
 				FMemory::Memmove(ArrayHelper.GetRawPtr(ElementIndex), TempElement, InnerElementSize);
@@ -599,12 +637,12 @@ void UArrayProperty::InstanceSubobjects( void* Data, void const* DefaultData, UO
 	}
 }
 
-bool UArrayProperty::SameType(const UProperty* Other) const
+bool FArrayProperty::SameType(const FProperty* Other) const
 {
-	return Super::SameType(Other) && Inner && Inner->SameType(((UArrayProperty*)Other)->Inner);
+	return Super::SameType(Other) && Inner && Inner->SameType(((FArrayProperty*)Other)->Inner);
 }
 
-EConvertFromTypeResult UArrayProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct)
+EConvertFromTypeResult FArrayProperty::ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct)
 {
 	// TODO: The ArrayProperty Tag really doesn't have adequate information for
 	// many types. This should probably all be moved in to ::SerializeItem
@@ -661,12 +699,13 @@ EConvertFromTypeResult UArrayProperty::ConvertFromType(const FPropertyTag& Tag, 
 	return EConvertFromTypeResult::UseSerializeItem;
 }
 
-IMPLEMENT_CORE_INTRINSIC_CLASS(UArrayProperty, UProperty,
+FField* FArrayProperty::GetInnerFieldByName(const FName& InName)
+{
+	if (Inner && Inner->GetFName() == InName)
 	{
-		Class->EmitObjectReference(STRUCT_OFFSET(UArrayProperty, Inner), TEXT("Inner"));
-
-		// Ensure that TArray and FScriptArray are interchangeable, as FScriptArray will be used to access a native array property
-		// from script that is declared as a TArray in C++.
-		static_assert(sizeof(FScriptArray) == sizeof(TArray<uint8>), "FScriptArray and TArray<uint8> must be interchangable.");
+		return Inner;
 	}
-);
+	return nullptr;
+}
+
+#include "UObject/DefineUPropertyMacros.h"

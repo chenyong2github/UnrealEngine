@@ -194,7 +194,7 @@ void SBlendSpaceEditorBase::OnPropertyChanged(UObject* ObjectBeingModified, FPro
 	}
 }
 
-void SBlendSpaceEditorBase::NotifyPreChange(UProperty* PropertyAboutToChange)
+void SBlendSpaceEditorBase::NotifyPreChange(FProperty* PropertyAboutToChange)
 {
 	if (BlendSpace)
 	{
@@ -202,7 +202,7 @@ void SBlendSpaceEditorBase::NotifyPreChange(UProperty* PropertyAboutToChange)
 	}	
 }
 
-void SBlendSpaceEditorBase::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged)
+void SBlendSpaceEditorBase::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
 	if (BlendSpace)
 	{

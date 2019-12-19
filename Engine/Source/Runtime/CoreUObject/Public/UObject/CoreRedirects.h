@@ -22,7 +22,7 @@ enum class ECoreRedirectFlags : uint32
 	Type_Struct =			0x00000004, // UStruct
 	Type_Enum =				0x00000008, // UEnum
 	Type_Function =			0x00000010, // UFunction
-	Type_Property =			0x00000020, // UProperty
+	Type_Property =			0x00000020, // FProperty
 	Type_Package =			0x00000040, // UPackage
 	Type_AllMask =			0x0000FFFF, // Bit mask of all possible types
 

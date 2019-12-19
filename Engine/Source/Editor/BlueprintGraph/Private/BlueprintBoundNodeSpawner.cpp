@@ -55,21 +55,21 @@ UEdGraphNode* UBlueprintBoundNodeSpawner::Invoke(UEdGraph* ParentGraph, FBinding
 }
 
 //------------------------------------------------------------------------------
-bool UBlueprintBoundNodeSpawner::IsBindingCompatible(UObject const* BindingCandidate) const
+bool UBlueprintBoundNodeSpawner::IsBindingCompatible(FBindingObject BindingCandidate) const
 {
 	if(CanBindObjectDelegate.IsBound())
 	{
-		return CanBindObjectDelegate.Execute(BindingCandidate);
+		return CanBindObjectDelegate.Execute(BindingCandidate.Get<UObject>());
 	}
 	return false;
 }
 
 //------------------------------------------------------------------------------
-bool UBlueprintBoundNodeSpawner::BindToNode(UEdGraphNode* Node, UObject* Binding) const
+bool UBlueprintBoundNodeSpawner::BindToNode(UEdGraphNode* Node, FBindingObject Binding) const
 {
 	if(OnBindObjectDelegate.IsBound())
 	{
-		return OnBindObjectDelegate.Execute(Node, Binding);
+		return OnBindObjectDelegate.Execute(Node, Binding.Get<UObject>());
 	}
 	return false;
 }

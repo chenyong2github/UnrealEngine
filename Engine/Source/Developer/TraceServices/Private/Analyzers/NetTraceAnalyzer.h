@@ -52,7 +52,7 @@ private:
 		uint32 ConnectionIndex;
 
 		// Current packet data
-		uint32 CurrentPacketStartIndex;
+		uint32 CurrentPacketStartIndex[Trace::ENetProfilerConnectionMode::Count];
 		Trace::ENetProfilerConnectionMode ConnectionMode;
 	};
 

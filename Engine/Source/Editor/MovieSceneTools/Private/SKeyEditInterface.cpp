@@ -146,7 +146,7 @@ void SKeyEditInterface::OnFinishedChangingProperties(const FPropertyChangedEvent
 	}
 }
 
-void SKeyEditInterface::NotifyPreChange( UProperty* PropertyAboutToChange )
+void SKeyEditInterface::NotifyPreChange( FProperty* PropertyAboutToChange )
 {
 	if (UMovieSceneSection* Section = WeakSection.Get())
 	{

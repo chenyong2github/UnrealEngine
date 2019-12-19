@@ -49,7 +49,7 @@ protected:
 
 	bool IsSynchronizedWithStruct(bool bIgnoreConditionVar, FString* Issues, bool bLogIssues = true);
 	bool SynchronizeWithStruct();
-	bool GetSupportedNiagaraTypeDef(const UProperty* Property, FNiagaraTypeDefinition& TypeDef);
+	bool GetSupportedNiagaraTypeDef(const FProperty* Property, FNiagaraTypeDefinition& TypeDef);
 
 	static const FName ConditionVarName;
 	static const FName ParamMapInVarName;

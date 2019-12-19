@@ -36,14 +36,14 @@ protected:
 	struct FStructOperationOptionalPinManager : public FOptionalPinManager
 	{
 		//~ Begin FOptionalPinsUpdater Interface
-		virtual void GetRecordDefaults(UProperty* TestProperty, FOptionalPinFromProperty& Record) const override
+		virtual void GetRecordDefaults(FProperty* TestProperty, FOptionalPinFromProperty& Record) const override
 		{
 			Record.bCanToggleVisibility = true;
 			UStruct* OwnerStruct = TestProperty ? TestProperty->GetOwnerStruct() : nullptr;
 			Record.bShowPin = OwnerStruct ? !OwnerStruct->HasMetaData(TEXT("HiddenByDefault")) : true;
 		}
 
-		virtual void CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex, UProperty* Property) const override;
+		virtual void CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex, FProperty* Property) const override;
 		// End of FOptionalPinsUpdater interfac
 	};
 

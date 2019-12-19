@@ -192,7 +192,7 @@ void AMediaBundleActorBase::BeginDestroy()
 }
 
 #if WITH_EDITOR
-void AMediaBundleActorBase::PreEditChange(UProperty* PropertyAboutToChange)
+void AMediaBundleActorBase::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	Super::PreEditChange(PropertyAboutToChange);
 

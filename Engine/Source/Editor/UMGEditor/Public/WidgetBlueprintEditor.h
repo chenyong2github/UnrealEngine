@@ -286,7 +286,7 @@ private:
 	void AddSlotTrack( UPanelSlot* Slot );
 
 	/** Add an animation track for the supplied material property path to the current animation. */
-	void AddMaterialTrack( UWidget* Widget, TArray<UProperty*> MaterialPropertyPath, FText MaterialPropertyDisplayName );
+	void AddMaterialTrack( UWidget* Widget, TArray<FProperty*> MaterialPropertyPath, FText MaterialPropertyDisplayName );
 
 	/** Handler which is called whenever sequencer movie scene data changes. */
 	void OnMovieSceneDataChanged(EMovieSceneDataChangeType DataChangeType);

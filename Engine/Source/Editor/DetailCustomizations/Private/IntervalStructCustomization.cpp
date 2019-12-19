@@ -24,7 +24,7 @@ namespace IntervalMetadata
 	template <>
 	struct FGetHelper<float>
 	{
-		static float GetMetaData(const UProperty* Property, const TCHAR* Key)
+		static float GetMetaData(const FProperty* Property, const TCHAR* Key)
 		{
 			return Property->GetFloatMetaData(Key);
 		}
@@ -33,7 +33,7 @@ namespace IntervalMetadata
 	template <>
 	struct FGetHelper<int32>
 	{
-		static int32 GetMetaData(const UProperty* Property, const TCHAR* Key)
+		static int32 GetMetaData(const FProperty* Property, const TCHAR* Key)
 		{
 			return Property->GetIntMetaData(Key);
 		}

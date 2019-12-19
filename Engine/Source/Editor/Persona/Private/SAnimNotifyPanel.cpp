@@ -286,7 +286,7 @@ struct FNotifyNodeInterface : public INodeObjectInterface
 
 		check(Index != INDEX_NONE);
 
-		UArrayProperty* ArrayProperty = NULL;
+		FArrayProperty* ArrayProperty = NULL;
 		uint8* PropertyData = Seq->FindNotifyPropertyData(Index, ArrayProperty);
 		if (PropertyData && ArrayProperty)
 		{
@@ -366,7 +366,7 @@ struct FSyncMarkerNodeInterface : public INodeObjectInterface
 
 			check(Index != INDEX_NONE);
 
-			UArrayProperty* ArrayProperty = NULL;
+			FArrayProperty* ArrayProperty = NULL;
 			uint8* PropertyData = Seq->FindSyncMarkerPropertyData(Index, ArrayProperty);
 			if (PropertyData && ArrayProperty)
 			{
@@ -745,7 +745,7 @@ public:
 	void DeselectAllNotifyNodes(bool bUpdateSelectionSet = true);
 
 	// get Property Data of one element (NotifyIndex) from Notifies property of Sequence
-	static uint8* FindNotifyPropertyData(UAnimSequenceBase* Sequence, int32 NotifyIndex, UArrayProperty*& ArrayProperty);
+	static uint8* FindNotifyPropertyData(UAnimSequenceBase* Sequence, int32 NotifyIndex, FArrayProperty*& ArrayProperty);
 
 	// Paste a single Notify into this track from an exported string
 	void PasteSingleNotify(FString& NotifyString, float PasteTime);
@@ -2566,11 +2566,11 @@ FAnimNotifyEvent& SAnimNotifyTrack::CreateNewNotify(FString NewNotifyName, UClas
 		TArray<FAssetData> SelectedAssets;
 		AssetSelectionUtils::GetSelectedAssets(SelectedAssets);
 
-		for( TFieldIterator<UObjectProperty> PropIt(NewEvent.Notify->GetClass()); PropIt; ++PropIt )
+		for( TFieldIterator<FObjectProperty> PropIt(NewEvent.Notify->GetClass()); PropIt; ++PropIt )
 		{
 			if(PropIt->GetBoolMetaData(TEXT("ExposeOnSpawn")))
 			{
-				UObjectProperty* Property = *PropIt;
+				FObjectProperty* Property = *PropIt;
 				const FAssetData* Asset = SelectedAssets.FindByPredicate([Property](const FAssetData& Other)
 				{
 					return Other.GetAsset()->IsA(Property->PropertyClass);
@@ -3598,7 +3598,7 @@ void SAnimNotifyTrack::AppendSelectionToArray(TArray<INodeObjectInterface*>& Sel
 void SAnimNotifyTrack::PasteSingleNotify(FString& NotifyString, float PasteTime)
 {
 	int32 NewIdx = Sequence->Notifies.Add(FAnimNotifyEvent());
-	UArrayProperty* ArrayProperty = NULL;
+	FArrayProperty* ArrayProperty = NULL;
 	uint8* PropertyData = Sequence->FindNotifyPropertyData(NewIdx, ArrayProperty);
 
 	if(PropertyData && ArrayProperty)
@@ -3672,7 +3672,7 @@ void SAnimNotifyTrack::PasteSingleSyncMarker(FString& MarkerString, float PasteT
 	if(UAnimSequence* AnimSeq = Cast<UAnimSequence>(Sequence))
 	{
 		int32 NewIdx = AnimSeq->AuthoredSyncMarkers.Add(FAnimSyncMarker());
-		UArrayProperty* ArrayProperty = NULL;
+		FArrayProperty* ArrayProperty = NULL;
 		uint8* PropertyData = AnimSeq->FindSyncMarkerPropertyData(NewIdx, ArrayProperty);
 
 		if (PropertyData && ArrayProperty)

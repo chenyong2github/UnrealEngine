@@ -2,6 +2,7 @@
 
 #include "Animation/AnimNode_ApplyMeshSpaceAdditive.h"
 #include "AnimationRuntime.h"
+#include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_ApplyMeshSpaceAdditive
@@ -36,6 +37,8 @@ void FAnimNode_ApplyMeshSpaceAdditive::Update_AnyThread(const FAnimationUpdateCo
 			Additive.Update(Context.FractionalWeight(ActualAlpha));
 		}
 	}
+
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Alpha"), ActualAlpha);
 }
 
 void FAnimNode_ApplyMeshSpaceAdditive::Evaluate_AnyThread(FPoseContext& Output)

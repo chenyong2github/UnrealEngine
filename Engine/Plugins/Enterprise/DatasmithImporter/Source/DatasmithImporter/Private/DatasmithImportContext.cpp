@@ -103,7 +103,7 @@ void FDatasmithImportOptionHelper::LoadOptions(const TArray<UObject*>& ImportOpt
 		const TSharedPtr<FJsonObject>& OptionDataJsonObject = ImportSettingsJson->GetObjectField(Object->GetName());
 		if (OptionDataJsonObject.IsValid())
 		{
-			for (TFieldIterator<UProperty> It(Object->GetClass()); It; ++It)
+			for (TFieldIterator<FProperty> It(Object->GetClass()); It; ++It)
 			{
 				if (OptionDataJsonObject->HasField((*It)->GetNameCPP()))
 				{
@@ -331,7 +331,7 @@ void FDatasmithImportContext::DisplayMessages()
 
 void FDatasmithImportContext::SetupBaseOptionsVisibility()
 {
-	if ( UProperty* ReimportOptionsProperty = FindField< UProperty >( Options->GetClass(), GET_MEMBER_NAME_CHECKED( UDatasmithImportOptions, ReimportOptions ) ) )
+	if ( FProperty* ReimportOptionsProperty = FindField< FProperty >( Options->GetClass(), GET_MEMBER_NAME_CHECKED( UDatasmithImportOptions, ReimportOptions ) ) )
 	{
 		if ( bIsAReimport )
 		{
@@ -348,7 +348,7 @@ void FDatasmithImportContext::SetupBaseOptionsVisibility()
 
 void FDatasmithImportContext::ResetBaseOptionsVisibility()
 {
-	UProperty* ReimportOptionsProperty = FindField< UProperty >( Options->GetClass(), GET_MEMBER_NAME_CHECKED( UDatasmithImportOptions, ReimportOptions ) );
+	FProperty* ReimportOptionsProperty = FindField< FProperty >( Options->GetClass(), GET_MEMBER_NAME_CHECKED( UDatasmithImportOptions, ReimportOptions ) );
 
 	if ( ReimportOptionsProperty )
 	{

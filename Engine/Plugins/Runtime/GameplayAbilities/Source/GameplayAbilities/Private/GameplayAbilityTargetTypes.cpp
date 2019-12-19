@@ -193,13 +193,13 @@ bool FGameplayAbilityTargetDataHandle::NetSerialize(FArchive& Ar, class UPackage
 			}
 			else
 			{
-				// This won't work since UStructProperty::NetSerializeItem is deprecrated.
-				//	1) we have to manually crawl through the topmost struct's fields since we don't have a UStructProperty for it (just the UScriptProperty)
-				//	2) if there are any UStructProperties in the topmost struct's fields, we will assert in UStructProperty::NetSerializeItem.
+				// This won't work since FStructProperty::NetSerializeItem is deprecrated.
+				//	1) we have to manually crawl through the topmost struct's fields since we don't have a FStructProperty for it (just the UScriptProperty)
+				//	2) if there are any UStructProperties in the topmost struct's fields, we will assert in FStructProperty::NetSerializeItem.
 
 				ABILITY_LOG(Fatal, TEXT("FGameplayAbilityTargetDataHandle::NetSerialize called on data struct %s without a native NetSerialize"), *ScriptStruct->GetName());
 
-				for (TFieldIterator<UProperty> It(ScriptStruct.Get()); It; ++It)
+				for (TFieldIterator<FProperty> It(ScriptStruct.Get()); It; ++It)
 				{
 					if (It->PropertyFlags & CPF_RepSkip)
 					{

@@ -3,6 +3,7 @@
 #include "AnimNodes/AnimNode_BlendBoneByChannel.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_BlendBoneByChannel
@@ -52,6 +53,8 @@ void FAnimNode_BlendBoneByChannel::Update_AnyThread(const FAnimationUpdateContex
 	{
 		B.Update(Context.FractionalWeight(InternalBlendAlpha));
 	}
+
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Alpha"), InternalBlendAlpha);
 }
 
 void FAnimNode_BlendBoneByChannel::Evaluate_AnyThread(FPoseContext& Output)

@@ -118,7 +118,7 @@ void UParameterizeMeshTool::Setup()
 	Preview->InvalidateResult();    // start compute
 }
 
-void UParameterizeMeshTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UParameterizeMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	if (PropertySet == MaterialSettings)
 	{
@@ -175,8 +175,8 @@ bool UParameterizeMeshTool::CanAccept() const
 
 void UParameterizeMeshTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	// One of the UV generation properties must have changed.  Dirty the result to force a recompute
-	Preview->InvalidateResult();
+		// One of the UV generation properties must have changed.  Dirty the result to force a recompute
+		Preview->InvalidateResult();
 }
 
 TSharedPtr<FDynamicMeshOperator> UParameterizeMeshTool::MakeNewOperator()

@@ -42,20 +42,20 @@ void FAttributePropertyDetails::CustomizeHeader( TSharedRef<IPropertyHandle> Str
 
 	const FString& FilterMetaStr = StructPropertyHandle->GetProperty()->GetMetaData(TEXT("FilterMetaTag"));
 
-	TArray<UProperty*> PropertiesToAdd;
+	TArray<FProperty*> PropertiesToAdd;
 	FGameplayAttribute::GetAllAttributeProperties(PropertiesToAdd, FilterMetaStr);
 
 	for ( auto* Property : PropertiesToAdd )
 	{
-		PropertyOptions.Add(MakeShareable(new FString(FString::Printf(TEXT("%s.%s"), *Property->GetOuter()->GetName(), *Property->GetName()))));
+		PropertyOptions.Add(MakeShareable(new FString(FString::Printf(TEXT("%s.%s"), *Property->GetOwnerVariant().GetName(), *Property->GetName()))));
 	}
 
-	UProperty* PropertyValue = nullptr;
+	FProperty* PropertyValue = nullptr;
 	if (MyProperty.IsValid())
 	{
-		UObject *ObjPtr = nullptr;
+		FProperty *ObjPtr = nullptr;
 		MyProperty->GetValue(ObjPtr);
-		PropertyValue = Cast<UProperty>(ObjPtr);
+		PropertyValue = ObjPtr;
 	}
 
 	HeaderRow.
@@ -91,13 +91,13 @@ TSharedPtr<FString> FAttributePropertyDetails::GetPropertyType() const
 {
 	if (MyProperty.IsValid())
 	{
-		UProperty *PropertyValue = NULL;
-		UObject *ObjPtr = NULL;
+		FProperty *PropertyValue = NULL;
+		FProperty *ObjPtr = NULL;
 		MyProperty->GetValue(ObjPtr);
-		PropertyValue = Cast<UProperty>(ObjPtr);
+		PropertyValue = ObjPtr;
 		if (PropertyValue)
 		{
-			FString FullString = PropertyValue->GetOuter()->GetName() + TEXT(".") + PropertyValue->GetName();
+			FString FullString = PropertyValue->GetOwnerVariant().GetName() + TEXT(".") + PropertyValue->GetName();
 			for (int32 i=0; i < PropertyOptions.Num(); ++i)
 			{
 				if (PropertyOptions[i].IsValid() && PropertyOptions[i].Get()->Equals(FullString))
@@ -124,7 +124,7 @@ void FAttributePropertyDetails::OnChangeProperty(TSharedPtr<FString> ItemSelecte
 		UClass *FoundClass = FindObject<UClass>(ANY_PACKAGE, *ClassName);
 		if (FoundClass)
 		{
-			UProperty *Property = FindField<UProperty>(FoundClass, *PropertyName);
+			FProperty *Property = FindField<FProperty>(FoundClass, *PropertyName);
 			if (Property)
 			{
 				MyProperty->SetValue(Property);
@@ -140,7 +140,7 @@ void FAttributePropertyDetails::OnChangeProperty(TSharedPtr<FString> ItemSelecte
 	
 }
 
-void FAttributePropertyDetails::OnAttributeChanged(UProperty* SelectedAttribute)
+void FAttributePropertyDetails::OnAttributeChanged(FProperty* SelectedAttribute)
 {
 	if (MyProperty.IsValid())
 	{
@@ -183,9 +183,9 @@ void FAttributeDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 	PropertyOptions.Empty();
 	PropertyOptions.Add(MakeShareable(new FString("None")));
 
-	for( TFieldIterator<UProperty> It(UAttributeSet::StaticClass(), EFieldIteratorFlags::ExcludeSuper) ; It ; ++It )
+	for( TFieldIterator<FProperty> It(UAttributeSet::StaticClass(), EFieldIteratorFlags::ExcludeSuper) ; It ; ++It )
 	{
-		UProperty *Property = *It;
+		FProperty *Property = *It;
 		PropertyOptions.Add(MakeShareable(new FString(Property->GetName())));
 	}
 
@@ -218,10 +218,10 @@ TSharedPtr<FString> FAttributeDetails::GetPropertyType() const
 	if (!MyProperty.IsValid())
 		return PropertyOptions[0];
 
-	UProperty *PropertyValue = NULL;
-	UObject *ObjPtr = NULL;
+	FProperty *PropertyValue = NULL;
+	FProperty *ObjPtr = NULL;
 	MyProperty->GetValue(ObjPtr);
-	PropertyValue = Cast<UProperty>(ObjPtr);
+	PropertyValue = ObjPtr;
 
 	if (PropertyValue != NULL)
 	{
@@ -246,9 +246,9 @@ void FAttributeDetails::OnChangeProperty(TSharedPtr<FString> ItemSelected, ESele
 
 	FString PropertyName = *ItemSelected.Get();
 
-	for( TFieldIterator<UProperty> It(UAttributeSet::StaticClass(), EFieldIteratorFlags::ExcludeSuper) ; It ; ++It )
+	for( TFieldIterator<FProperty> It(UAttributeSet::StaticClass(), EFieldIteratorFlags::ExcludeSuper) ; It ; ++It )
 	{
-		UProperty* Property = *It;
+		FProperty* Property = *It;
 		if (PropertyName == Property->GetName())
 		{
 			MyProperty->SetValue(Property);

@@ -992,7 +992,7 @@ UFbxImportUI::UFbxImportUI(const FObjectInitializer& ObjectInitializer)
 }
 
 
-bool UFbxImportUI::CanEditChange( const UProperty* InProperty ) const
+bool UFbxImportUI::CanEditChange( const FProperty* InProperty ) const
 {
 	bool bIsMutable = Super::CanEditChange( InProperty );
 	if( bIsMutable && InProperty != NULL )

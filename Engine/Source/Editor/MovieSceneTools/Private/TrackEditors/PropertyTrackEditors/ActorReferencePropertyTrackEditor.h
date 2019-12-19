@@ -35,7 +35,7 @@ public:
 	 */
 	static TArray<FAnimatedPropertyKey, TInlineAllocator<1>> GetAnimatedPropertyTypes()
 	{
-		FAnimatedPropertyKey Key = FAnimatedPropertyKey::FromPropertyType(USoftObjectProperty::StaticClass());
+		FAnimatedPropertyKey Key = FAnimatedPropertyKey::FromPropertyType(FSoftObjectProperty::StaticClass());
 		Key.ObjectTypeName = AActor::StaticClass()->GetFName();
 
 		return TArray<FAnimatedPropertyKey, TInlineAllocator<1>>({ Key, FAnimatedPropertyKey::FromObjectType(AActor::StaticClass()) });

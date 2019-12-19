@@ -283,7 +283,7 @@ void UUVProjectionTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 }
 #endif
 
-void UUVProjectionTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UUVProjectionTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	// if we don't know what changed, or we know checker density changed, update checker material
 	MaterialSettings->UpdateMaterials();

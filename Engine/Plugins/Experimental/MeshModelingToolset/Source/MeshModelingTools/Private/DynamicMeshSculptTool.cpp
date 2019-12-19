@@ -269,7 +269,7 @@ void UDynamicMeshSculptTool::OnDynamicMeshComponentChanged()
 }
 
 
-void UDynamicMeshSculptTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UDynamicMeshSculptTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	CalculateBrushRadius();
 }

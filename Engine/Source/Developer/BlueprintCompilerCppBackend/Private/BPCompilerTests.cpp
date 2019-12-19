@@ -16,7 +16,7 @@
 class FArchiveSkipTransientObjectCRC32 : public FArchiveObjectCrc32
 {
 public:
-	static bool CanPropertyBeDifferentInConvertedCDO(const UProperty* InProperty)
+	static bool CanPropertyBeDifferentInConvertedCDO(const FProperty* InProperty)
 	{
 		check(InProperty);
 		return InProperty->HasAllPropertyFlags(CPF_Transient)
@@ -28,7 +28,7 @@ public:
 			|| InProperty->GetName() == TEXT("OwnedComponents");
 	}
 	// Begin FArchive Interface
-	virtual bool ShouldSkipProperty(const UProperty* InProperty) const override
+	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
 	{
 		return FArchiveObjectCrc32::ShouldSkipProperty(InProperty)
 			|| CanPropertyBeDifferentInConvertedCDO(InProperty);
@@ -242,13 +242,13 @@ bool FBPCompilerCDOTest::RunTest(const FString& Parameters)
 		return true;
 	}
 
-	for (UProperty* NativeProperty : TFieldRange<UProperty>(NativeTestInstance->GetClass()))
+	for (FProperty* NativeProperty : TFieldRange<FProperty>(NativeTestInstance->GetClass()))
 	{
 		if ((NativeProperty->GetOwnerClass() == UObject::StaticClass()) || (FArchiveSkipTransientObjectCRC32::CanPropertyBeDifferentInConvertedCDO(NativeProperty)))
 		{
 			continue;
 		}
-		UProperty* BPProperty = FindField<UProperty>(GeneratedTestInstance->GetClass(), *NativeProperty->GetName());
+		FProperty* BPProperty = FindField<FProperty>(GeneratedTestInstance->GetClass(), *NativeProperty->GetName());
 		if (!BPProperty)
 		{
 			AddError(*FString::Printf(TEXT("Cannot find property %s in BPGC"), *NativeProperty->GetName()));

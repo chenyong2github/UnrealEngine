@@ -1310,7 +1310,7 @@ void UWidgetComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterial
 
 #if WITH_EDITOR
 
-bool UWidgetComponent::CanEditChange(const UProperty* InProperty) const
+bool UWidgetComponent::CanEditChange(const FProperty* InProperty) const
 {
 	if ( InProperty )
 	{
@@ -1348,7 +1348,7 @@ bool UWidgetComponent::CanEditChange(const UProperty* InProperty) const
 
 void UWidgetComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	UProperty* Property = PropertyChangedEvent.MemberProperty;
+	FProperty* Property = PropertyChangedEvent.MemberProperty;
 
 	if( Property && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive )
 	{

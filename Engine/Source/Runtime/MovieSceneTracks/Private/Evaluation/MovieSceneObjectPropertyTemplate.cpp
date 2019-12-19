@@ -56,7 +56,7 @@ struct FObjectPropertyExecToken : IMovieSceneExecutionToken
 				continue;
 			}
 
-			UObjectPropertyBase* ObjectProperty = Cast<UObjectPropertyBase>(PropertyBindings->GetProperty(*ObjectPtr));
+			FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(PropertyBindings->GetProperty(*ObjectPtr));
 			if (!ObjectProperty || !CanAssignValue(ObjectProperty, NewObjectValue))
 			{
 				continue;
@@ -72,7 +72,7 @@ struct FObjectPropertyExecToken : IMovieSceneExecutionToken
 		}
 	}
 
-	bool CanAssignValue(UObjectPropertyBase* TargetProperty, UObject* DesiredValue) const
+	bool CanAssignValue(FObjectPropertyBase* TargetProperty, UObject* DesiredValue) const
 	{
 		check(TargetProperty);
 		if (!TargetProperty->PropertyClass)

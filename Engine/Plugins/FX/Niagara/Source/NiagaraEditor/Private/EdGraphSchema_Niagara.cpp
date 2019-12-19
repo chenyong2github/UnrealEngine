@@ -674,9 +674,9 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 			if (FHlslNiagaraTranslator::IsHlslBuiltinVector(PinType))
 			{
 				TArray<FString> Components;
-				for (TFieldIterator<UProperty> PropertyIt(PinType.GetStruct(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+				for (TFieldIterator<FProperty> PropertyIt(PinType.GetStruct(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 				{
-					UProperty* Property = *PropertyIt;
+					FProperty* Property = *PropertyIt;
 					Components.Add(Property->GetName().ToLower());
 				}
 
@@ -1416,26 +1416,26 @@ UNiagaraParameterCollection* UEdGraphSchema_Niagara::VariableIsFromParameterColl
 	return nullptr;
 }
 
-FNiagaraTypeDefinition UEdGraphSchema_Niagara::GetTypeDefForProperty(const UProperty* Property)const
+FNiagaraTypeDefinition UEdGraphSchema_Niagara::GetTypeDefForProperty(const FProperty* Property)const
 {
-	if (Property->IsA(UFloatProperty::StaticClass()))
+	if (Property->IsA(FFloatProperty::StaticClass()))
 	{
 		return FNiagaraTypeDefinition::GetFloatDef();
 	}
-	else if (Property->IsA(UIntProperty::StaticClass()))
+	else if (Property->IsA(FIntProperty::StaticClass()))
 	{
 		return FNiagaraTypeDefinition::GetIntDef();
 	}
-	else if (Property->IsA(UBoolProperty::StaticClass()))
+	else if (Property->IsA(FBoolProperty::StaticClass()))
 	{
 		return FNiagaraTypeDefinition::GetBoolDef();
 	}	
-	else if (Property->IsA(UEnumProperty::StaticClass()))
+	else if (Property->IsA(FEnumProperty::StaticClass()))
 	{
-		const UEnumProperty* EnumProp = Cast<UEnumProperty>(Property);
+		const FEnumProperty* EnumProp = CastField<FEnumProperty>(Property);
 		return FNiagaraTypeDefinition(EnumProp->GetEnum());
 	}
-	else if (const UStructProperty* StructProp = CastChecked<UStructProperty>(Property))
+	else if (const FStructProperty* StructProp = CastFieldChecked<const FStructProperty>(Property))
 	{
 		return FNiagaraTypeDefinition(StructProp->Struct);
 	}

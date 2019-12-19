@@ -39,7 +39,7 @@ UFbxAnimSequenceImportData* UFbxAnimSequenceImportData::GetImportDataForAnimSequ
 	return ImportData;
 }
 
-bool UFbxAnimSequenceImportData::CanEditChange(const UProperty* InProperty) const
+bool UFbxAnimSequenceImportData::CanEditChange(const FProperty* InProperty) const
 {
 	bool bMutable = Super::CanEditChange(InProperty);
 	UObject* Outer = GetOuter();

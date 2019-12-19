@@ -22,12 +22,12 @@ FItemPropertyNode::~FItemPropertyNode(void)
 
 uint8* FItemPropertyNode::GetValueBaseAddress(uint8* StartAddress, bool bIsSparseData)
 {
-	UProperty* MyProperty = GetProperty();
+	FProperty* MyProperty = GetProperty();
 	if( MyProperty && ParentNodeWeakPtr.IsValid())
 	{
-		UArrayProperty* OuterArrayProp = Cast<UArrayProperty>(MyProperty->GetOuter());
-		USetProperty* OuterSetProp = Cast<USetProperty>(MyProperty->GetOuter());
-		UMapProperty* OuterMapProp = Cast<UMapProperty>(MyProperty->GetOuter());
+		FArrayProperty* OuterArrayProp = MyProperty->GetOwner<FArrayProperty>();
+		FSetProperty* OuterSetProp = MyProperty->GetOwner<FSetProperty>();
+		FMapProperty* OuterMapProp = MyProperty->GetOwner<FMapProperty>();
 
 		uint8* ValueBaseAddress = ParentNode->GetValueBaseAddress(StartAddress, bIsSparseData);
 
@@ -88,11 +88,11 @@ uint8* FItemPropertyNode::GetValueAddress(uint8* StartAddress, bool bIsSparseDat
 {
 	uint8* Result = GetValueBaseAddress(StartAddress, bIsSparseData);
 
-	UProperty* MyProperty = GetProperty();
+	FProperty* MyProperty = GetProperty();
 
-	UArrayProperty* ArrayProperty = Cast<UArrayProperty>(MyProperty);
-	USetProperty* SetProperty = Cast<USetProperty>(MyProperty);
-	UMapProperty* MapProperty = Cast<UMapProperty>(MyProperty);
+	FArrayProperty* ArrayProperty = CastField<FArrayProperty>(MyProperty);
+	FSetProperty* SetProperty = CastField<FSetProperty>(MyProperty);
+	FMapProperty* MapProperty = CastField<FMapProperty>(MyProperty);
 
 	if( Result && ArrayProperty)
 	{
@@ -119,12 +119,12 @@ uint8* FItemPropertyNode::GetValueAddress(uint8* StartAddress, bool bIsSparseDat
 void FItemPropertyNode::InitExpansionFlags (void)
 {
 	
-	UProperty* MyProperty = GetProperty();
+	FProperty* MyProperty = GetProperty();
 
 	FReadAddressList Addresses;
 
-	bool bExpandableType = Cast<UStructProperty>(MyProperty) 
-		|| ( ( Cast<UArrayProperty>(MyProperty) || Cast<USetProperty>(MyProperty) || Cast<UMapProperty>(MyProperty) ) && GetReadAddress(false,Addresses) );
+	bool bExpandableType = CastField<FStructProperty>(MyProperty) 
+		|| ( ( CastField<FArrayProperty>(MyProperty) || CastField<FSetProperty>(MyProperty) || CastField<FMapProperty>(MyProperty) ) && GetReadAddress(false,Addresses) );
 
 	if(	bExpandableType
 		|| HasNodeFlags(EPropertyNodeFlags::EditInlineNew)
@@ -140,12 +140,12 @@ void FItemPropertyNode::InitExpansionFlags (void)
 void FItemPropertyNode::InitChildNodes()
 {
 	//NOTE - this is only turned off as to not invalidate child object nodes.
-	UProperty* MyProperty = GetProperty();
-	UStructProperty* StructProperty = Cast<UStructProperty>(MyProperty);
-	UArrayProperty* ArrayProperty = Cast<UArrayProperty>(MyProperty);
-	USetProperty* SetProperty = Cast<USetProperty>(MyProperty);
-	UMapProperty* MapProperty = Cast<UMapProperty>(MyProperty);
-	UObjectPropertyBase* ObjectProperty = Cast<UObjectPropertyBase>(MyProperty);
+	FProperty* MyProperty = GetProperty();
+	FStructProperty* StructProperty = CastField<FStructProperty>(MyProperty);
+	FArrayProperty* ArrayProperty = CastField<FArrayProperty>(MyProperty);
+	FSetProperty* SetProperty = CastField<FSetProperty>(MyProperty);
+	FMapProperty* MapProperty = CastField<FMapProperty>(MyProperty);
+	FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(MyProperty);
 
 	const bool bShouldShowHiddenProperties = !!HasNodeFlags(EPropertyNodeFlags::ShouldShowHiddenProperties);
 	const bool bShouldShowDisableEditOnInstance = !!HasNodeFlags(EPropertyNodeFlags::ShouldShowDisableEditOnInstance);
@@ -294,10 +294,10 @@ void FItemPropertyNode::InitChildNodes()
 	else if( StructProperty )
 	{
 		// Expand struct.
-		TArray<UProperty*> StructMembers;
-		for (TFieldIterator<UProperty> It(StructProperty->Struct); It; ++It)
+		TArray<FProperty*> StructMembers;
+		for (TFieldIterator<FProperty> It(StructProperty->Struct); It; ++It)
 		{
-			UProperty* StructMember = *It;
+			FProperty* StructMember = *It;
 			
 			if (PropertyEditorHelpers::ShouldBeVisible(*this, StructMember))
 			{
@@ -307,7 +307,7 @@ void FItemPropertyNode::InitChildNodes()
 
 		PropertyEditorHelpers::OrderPropertiesFromMetadata(StructMembers);
 
-		for (UProperty* StructMember : StructMembers)
+		for (FProperty* StructMember : StructMembers)
 		{
 			TSharedPtr<FItemPropertyNode> NewItemNode( new FItemPropertyNode );
 		
@@ -326,7 +326,7 @@ void FItemPropertyNode::InitChildNodes()
 			if ( FPropertySettings::Get().ExpandDistributions() == false)
 			{
 				// auto-expand distribution structs
-				if ( Cast<UObjectProperty>(StructMember) || Cast<UWeakObjectProperty>(StructMember) || Cast<ULazyObjectProperty>(StructMember) || Cast<USoftObjectProperty>(StructMember) )
+				if ( CastField<FObjectProperty>(StructMember) || CastField<FWeakObjectProperty>(StructMember) || CastField<FLazyObjectProperty>(StructMember) || CastField<FSoftObjectProperty>(StructMember) )
 				{
 					const FName StructName = StructProperty->Struct->GetFName();
 					if (StructName == NAME_RawDistributionFloat || StructName == NAME_RawDistributionVector)
@@ -453,7 +453,7 @@ FText FItemPropertyNode::GetDisplayName() const
 	}
 	else 
 	{
-		const UProperty* PropertyPtr = GetProperty();
+		const FProperty* PropertyPtr = GetProperty();
 		if( GetArrayIndex()==-1 && PropertyPtr != NULL  )
 		{
 			// This item is not a member of an array, get a traditional display name
@@ -464,8 +464,8 @@ FText FItemPropertyNode::GetDisplayName() const
 				if ( FinalDisplayName.IsEmpty() )
 				{
 					FString PropertyDisplayName;
-					bool bIsBoolProperty = Cast<const UBoolProperty>(PropertyPtr) != NULL;
-					const UStructProperty* ParentStructProperty = Cast<const UStructProperty>(ParentNode->GetProperty());
+					bool bIsBoolProperty = CastField<const FBoolProperty>(PropertyPtr) != NULL;
+					const FStructProperty* ParentStructProperty = CastField<const FStructProperty>(ParentNode->GetProperty());
 					if( ParentStructProperty && ParentStructProperty->Struct->GetFName() == NAME_Rotator )
 					{
 						if( Property->GetFName() == "Roll" )
@@ -513,15 +513,15 @@ FText FItemPropertyNode::GetDisplayName() const
 			}
 			
 			// Sets and maps do not have a display index.
-			UProperty* ParentProperty = ParentNode->GetProperty();
+			FProperty* ParentProperty = ParentNode->GetProperty();
 
 			// Also handle UArray's having the ArraySizeEnum entry...
-			if (ArraySizeEnum == nullptr && Cast<UArrayProperty>(ParentProperty) != nullptr && ParentProperty->HasMetaData(NAME_ArraySizeEnum))
+			if (ArraySizeEnum == nullptr && CastField<FArrayProperty>(ParentProperty) != nullptr && ParentProperty->HasMetaData(NAME_ArraySizeEnum))
 			{
 				ArraySizeEnum = FindObject<UEnum>(NULL, *ParentProperty->GetMetaData(NAME_ArraySizeEnum));
 			}
 
-			if (Cast<USetProperty>(ParentProperty) == nullptr &&  Cast<UMapProperty>(ParentProperty) == nullptr)
+			if (CastField<FSetProperty>(ParentProperty) == nullptr &&  CastField<FMapProperty>(ParentProperty) == nullptr)
 			{
 				// This item is a member of an array, its display name is its index 
 				if (PropertyPtr == NULL || ArraySizeEnum == NULL)
@@ -534,7 +534,7 @@ FText FItemPropertyNode::GetDisplayName() const
 				}
 			}
 			// Maps should have display names that reflect the key and value types
-			else if (PropertyPtr != nullptr && Cast<UMapProperty>(ParentNode->GetProperty()) != nullptr)
+			else if (PropertyPtr != nullptr && CastField<FMapProperty>(ParentNode->GetProperty()) != nullptr)
 			{
 				FText FormatText = GetPropertyKeyNode().IsValid()
 					? LOCTEXT("MapValueDisplayFormat", "Value ({0})")
@@ -542,12 +542,12 @@ FText FItemPropertyNode::GetDisplayName() const
 
 				FString TypeName;
 
-				if (const UStructProperty* StructProp = Cast<UStructProperty>(PropertyPtr))
+				if (const FStructProperty* StructProp = CastField<FStructProperty>(PropertyPtr))
 				{
 					// For struct props, use the name of the struct itself
 					TypeName = StructProp->Struct->GetName();
 				}
-				else if (const UEnumProperty* EnumProp = Cast<UEnumProperty>(PropertyPtr))
+				else if (const FEnumProperty* EnumProp = CastField<FEnumProperty>(PropertyPtr))
 				{
 					// For enum props, use the name of the enum
 					if (EnumProp->GetEnum() != nullptr)
@@ -559,7 +559,7 @@ FText FItemPropertyNode::GetDisplayName() const
 						TypeName = TEXT("Enum");
 					}
 				}
-				else if(PropertyPtr->IsA<UStrProperty>())
+				else if(PropertyPtr->IsA<FStrProperty>())
 				{
 					// For strings, actually return "String" and not "Str"
 					TypeName = TEXT("String");

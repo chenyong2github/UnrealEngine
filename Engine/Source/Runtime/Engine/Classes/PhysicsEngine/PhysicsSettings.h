@@ -303,7 +303,7 @@ public:
 	virtual void PostInitProperties() override;
 
 #if WITH_EDITOR
-	virtual bool CanEditChange( const UProperty* Property ) const override;
+	virtual bool CanEditChange( const FProperty* Property ) const override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	/** Load Material Type data from INI file **/

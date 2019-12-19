@@ -12,11 +12,11 @@ void FStructurePropertyNode::InitChildNodes()
 
 	const UStruct* Struct = StructData.IsValid() ? StructData->GetStruct() : NULL;
 
-	TArray<UProperty*> StructMembers;
+	TArray<FProperty*> StructMembers;
 
-	for (TFieldIterator<UProperty> It(Struct); It; ++It)
+	for (TFieldIterator<FProperty> It(Struct); It; ++It)
 	{
-		UProperty* StructMember = *It;
+		FProperty* StructMember = *It;
 
 		if (StructMember)
 		{
@@ -29,7 +29,7 @@ void FStructurePropertyNode::InitChildNodes()
 
 	PropertyEditorHelpers::OrderPropertiesFromMetadata(StructMembers);
 
-	for (UProperty* StructMember : StructMembers)
+	for (FProperty* StructMember : StructMembers)
 	{
 		TSharedPtr<FItemPropertyNode> NewItemNode(new FItemPropertyNode);//;//CreatePropertyItem(StructMember,INDEX_NONE,this);
 

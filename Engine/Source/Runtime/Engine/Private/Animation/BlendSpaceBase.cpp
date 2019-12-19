@@ -69,7 +69,7 @@ void UBlendSpaceBase::Serialize(FArchive& Ar)
 }
 
 #if WITH_EDITOR
-void UBlendSpaceBase::PreEditChange(UProperty* PropertyAboutToChange)
+void UBlendSpaceBase::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	Super::PreEditChange(PropertyAboutToChange);
 

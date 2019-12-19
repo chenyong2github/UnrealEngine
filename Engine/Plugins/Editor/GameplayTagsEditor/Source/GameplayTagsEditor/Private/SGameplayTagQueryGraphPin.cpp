@@ -43,7 +43,7 @@ void SGameplayTagQueryGraphPin::ParseDefaultValueData()
 {
 	FString const TagQueryString = GraphPinObj->GetDefaultAsString();
 
-	UProperty* const TQProperty = FindField<UProperty>(UEditableGameplayTagQuery::StaticClass(), TEXT("TagQueryExportText_Helper"));
+	FProperty* const TQProperty = FindField<FProperty>(UEditableGameplayTagQuery::StaticClass(), TEXT("TagQueryExportText_Helper"));
 	if (TQProperty)
 	{
 		FGameplayTagQuery* const TQ = TagQuery.Get();

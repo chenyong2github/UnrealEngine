@@ -621,7 +621,7 @@ void UAnimSequenceBase::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags)
 	OutTags.Add(FAssetRegistryTag(USkeleton::CurveNameTag, CurveNameList, FAssetRegistryTag::TT_Hidden));
 }
 
-uint8* UAnimSequenceBase::FindNotifyPropertyData(int32 NotifyIndex, UArrayProperty*& ArrayProperty)
+uint8* UAnimSequenceBase::FindNotifyPropertyData(int32 NotifyIndex, FArrayProperty*& ArrayProperty)
 {
 	// initialize to NULL
 	ArrayProperty = NULL;
@@ -633,19 +633,19 @@ uint8* UAnimSequenceBase::FindNotifyPropertyData(int32 NotifyIndex, UArrayProper
 	return NULL;
 }
 
-uint8* UAnimSequenceBase::FindArrayProperty(const TCHAR* PropName, UArrayProperty*& ArrayProperty, int32 ArrayIndex)
+uint8* UAnimSequenceBase::FindArrayProperty(const TCHAR* PropName, FArrayProperty*& ArrayProperty, int32 ArrayIndex)
 {
 	// find Notifies property start point
-	UProperty* Property = FindField<UProperty>(GetClass(), PropName);
+	FProperty* Property = FindField<FProperty>(GetClass(), PropName);
 
 	// found it and if it is array
-	if (Property && Property->IsA(UArrayProperty::StaticClass()))
+	if (Property && Property->IsA(FArrayProperty::StaticClass()))
 	{
 		// find Property Value from UObject we got
 		uint8* PropertyValue = Property->ContainerPtrToValuePtr<uint8>(this);
 
 		// it is array, so now get ArrayHelper and find the raw ptr of the data
-		ArrayProperty = CastChecked<UArrayProperty>(Property);
+		ArrayProperty = CastFieldChecked<FArrayProperty>(Property);
 		FScriptArrayHelper ArrayHelper(ArrayProperty, PropertyValue);
 
 		if (ArrayProperty->Inner && ArrayIndex < ArrayHelper.Num())

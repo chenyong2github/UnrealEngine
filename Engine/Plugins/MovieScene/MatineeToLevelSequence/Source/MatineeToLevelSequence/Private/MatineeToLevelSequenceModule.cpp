@@ -372,7 +372,7 @@ protected:
 
 		// Find the property that matinee uses
 		void* PropContainer = NULL;
-		UProperty* Property = NULL;
+		FProperty* Property = NULL;
 		UObject* PropObject = FMatineeUtils::FindObjectAndPropOffset(PropContainer, Property, InActor, InPropertyName );
 
 		FGuid ObjectGuid = PossessableGuid;
@@ -415,12 +415,12 @@ protected:
 				}
 			}
 
-			TArray<UObject*> PropertyArray;
-			UObject* Outer = Property->GetOuter();
-			while (Outer->IsA(UProperty::StaticClass()) || Outer->IsA(UScriptStruct::StaticClass()))
+			TArray<FFieldVariant> PropertyArray;
+			FFieldVariant Outer = Property->GetOwnerVariant();
+			while (Outer.IsA(FProperty::StaticClass()) || Outer.IsA(UScriptStruct::StaticClass()))
 			{
 				PropertyArray.Insert(Outer, 0);
-				Outer = Outer->GetOuter();
+				Outer = Outer.GetOwnerVariant();
 			}
 
 			FString PropertyPath;
@@ -430,7 +430,7 @@ protected:
 				{
 					PropertyPath = PropertyPath + TEXT(".");
 				}
-				PropertyPath = PropertyPath + PropertyIt->GetName();
+				PropertyPath = PropertyPath + PropertyIt.GetName();
 			}
 			if (PropertyPath.Len())
 			{

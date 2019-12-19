@@ -20,7 +20,7 @@ class UK2Node_StructMemberGet : public UK2Node_StructOperation
 
 	// UObject interface
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PreEditChange(UProperty* PropertyAboutToChange) override;
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	// End of UObject interface
 
 	// UEdGraphNode interface

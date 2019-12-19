@@ -37,7 +37,7 @@ TSharedRef<SWidget>	SGameplayAttributeGraphPin::GetDefaultValueWidget()
 		];
 }
 
-void SGameplayAttributeGraphPin::OnAttributeChanged(UProperty* SelectedAttribute)
+void SGameplayAttributeGraphPin::OnAttributeChanged(FProperty* SelectedAttribute)
 {
 	FString FinalValue;
 	FGameplayAttribute NewAttributeStruct;

@@ -57,5 +57,5 @@ public:
 	/** End IPropertyTableCustomColumn interface */
 
 	/* The property type which can be displayed in this column */
-	UProperty* SupportedProperty;
+	FProperty* SupportedProperty;
 };

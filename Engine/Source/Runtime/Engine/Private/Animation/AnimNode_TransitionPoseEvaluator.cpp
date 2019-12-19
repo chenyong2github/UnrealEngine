@@ -2,6 +2,7 @@
 
 #include "Animation/AnimNode_TransitionPoseEvaluator.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_TransitionPoseEvaluator
@@ -40,6 +41,8 @@ void FAnimNode_TransitionPoseEvaluator::CacheBones_AnyThread(const FAnimationCac
 void FAnimNode_TransitionPoseEvaluator::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
 	// updating is all handled in state machine
+
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Cached Frames Remaining"), CacheFramesRemaining);
 }
 
 void FAnimNode_TransitionPoseEvaluator::Evaluate_AnyThread(FPoseContext& Output)

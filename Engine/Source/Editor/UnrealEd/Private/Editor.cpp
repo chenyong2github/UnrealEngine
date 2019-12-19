@@ -1122,14 +1122,14 @@ namespace EditorUtilities
 	}
 
 
-	void CopySinglePropertyRecursive(const void* const InSourcePtr, void* const InTargetPtr, UObject* const InTargetObject, UProperty* const InProperty)
+	void CopySinglePropertyRecursive(const void* const InSourcePtr, void* const InTargetPtr, UObject* const InTargetObject, FProperty* const InProperty)
 	{
 		// Properties that are *object* properties are tricky
 		// Sometimes the object will be a reference to a PIE-world object, and copying that reference back to an actor CDO asset is not a good idea
 		// If the property is referencing an actor or actor component in the PIE world, then we can try and fix that reference up to the equivalent
 		// from the editor world; otherwise we have to skip it
 		bool bNeedsGenericCopy = true;
-		if( UObjectPropertyBase* const ObjectProperty = Cast<UObjectPropertyBase>(InProperty) )
+		if( FObjectPropertyBase* const ObjectProperty = CastField<FObjectPropertyBase>(InProperty) )
 		{
 			const int32 PropertyArrayDim = InProperty->ArrayDim;
 			for (int32 ArrayIndex = 0; ArrayIndex < PropertyArrayDim; ArrayIndex++)
@@ -1169,7 +1169,7 @@ namespace EditorUtilities
 				}
 			}
 		}
-		else if (UStructProperty* const StructProperty = Cast<UStructProperty>(InProperty))
+		else if (FStructProperty* const StructProperty = CastField<FStructProperty>(InProperty))
 		{
 			// Ensure that the target struct is initialized before copying fields from the source.
 			StructProperty->InitializeValue_InContainer(InTargetPtr);
@@ -1180,25 +1180,25 @@ namespace EditorUtilities
 				const void* const SourcePtr = StructProperty->ContainerPtrToValuePtr<void>(InSourcePtr, ArrayIndex);
 				void* const TargetPtr = StructProperty->ContainerPtrToValuePtr<void>(InTargetPtr, ArrayIndex);
 
-				for (TFieldIterator<UProperty> It(StructProperty->Struct); It; ++It)
+				for (TFieldIterator<FProperty> It(StructProperty->Struct); It; ++It)
 				{
-					UProperty* const InnerProperty = *It;
+					FProperty* const InnerProperty = *It;
 					CopySinglePropertyRecursive(SourcePtr, TargetPtr, InTargetObject, InnerProperty);
 				}
 			}
 
 			bNeedsGenericCopy = false;
 		}
-		else if (UArrayProperty* const ArrayProperty = Cast<UArrayProperty>(InProperty))
+		else if (FArrayProperty* const ArrayProperty = CastField<FArrayProperty>(InProperty))
 		{
 			check(InProperty->ArrayDim == 1);
 			FScriptArrayHelper SourceArrayHelper(ArrayProperty, ArrayProperty->ContainerPtrToValuePtr<void>(InSourcePtr));
 			FScriptArrayHelper TargetArrayHelper(ArrayProperty, ArrayProperty->ContainerPtrToValuePtr<void>(InTargetPtr));
 
-			UProperty* InnerProperty = ArrayProperty->Inner;
+			FProperty* InnerProperty = ArrayProperty->Inner;
 			int32 Num = SourceArrayHelper.Num();
 
-			// here we emulate UArrayProperty::CopyValuesInternal()
+			// here we emulate FArrayProperty::CopyValuesInternal()
 			if (!(InnerProperty->PropertyFlags & CPF_IsPlainOldData))
 			{
 				TargetArrayHelper.EmptyAndAddValues(Num);
@@ -1223,7 +1223,7 @@ namespace EditorUtilities
 		}
 	}
 
-	void CopySingleProperty(const UObject* const InSourceObject, UObject* const InTargetObject, UProperty* const InProperty)
+	void CopySingleProperty(const UObject* const InSourceObject, UObject* const InTargetObject, FProperty* const InProperty)
 	{
 		CopySinglePropertyRecursive(InSourceObject, InTargetObject, InTargetObject, InProperty);
 	}
@@ -1261,7 +1261,7 @@ namespace EditorUtilities
 		// Copy non-component properties from the old actor to the new actor
 		// @todo sequencer: Most of this block of code was borrowed (pasted) from UEditorEngine::ConvertActors().  If we end up being able to share these code bodies, that would be nice!
 		TSet<UObject*> ModifiedObjects;
-		for( UProperty* Property = ActorClass->PropertyLink; Property != nullptr; Property = Property->PropertyLinkNext )
+		for( FProperty* Property = ActorClass->PropertyLink; Property != nullptr; Property = Property->PropertyLinkNext )
 		{
 			const bool bIsTransient = !!( Property->PropertyFlags & CPF_Transient );
 			const bool bIsComponentContainer = !!( Property->PropertyFlags & CPF_ContainsInstancedReference );
@@ -1378,13 +1378,13 @@ namespace EditorUtilities
 					}
 				}
 
-				TSet<const UProperty*> SourceUCSModifiedProperties;
+				TSet<const FProperty*> SourceUCSModifiedProperties;
 				SourceComponent->GetUCSModifiedProperties(SourceUCSModifiedProperties);
 
 				TArray<UActorComponent*> ComponentInstancesToReregister;
 
 				// Copy component properties
-				for( UProperty* Property = ComponentClass->PropertyLink; Property != nullptr; Property = Property->PropertyLinkNext )
+				for( FProperty* Property = ComponentClass->PropertyLink; Property != nullptr; Property = Property->PropertyLinkNext )
 				{
 					const bool bIsTransient = !!( Property->PropertyFlags & CPF_Transient );
 					const bool bIsIdentical = Property->Identical_InContainer( SourceComponent, TargetComponent );

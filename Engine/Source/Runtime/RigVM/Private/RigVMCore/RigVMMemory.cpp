@@ -64,7 +64,7 @@ FRigVMRegisterOffset::FRigVMRegisterOffset(UScriptStruct* InScriptStruct, const 
 				Left = InPath;
 			}
 
-			UProperty* Property = InStruct->FindPropertyByName(*Left);
+			FProperty* Property = InStruct->FindPropertyByName(*Left);
 			check(Property)
 
 			int32 SegmentIndex = Property->GetOffset_ReplaceWith_ContainerPtrToValuePtr();
@@ -86,11 +86,11 @@ FRigVMRegisterOffset::FRigVMRegisterOffset(UScriptStruct* InScriptStruct, const 
 
 			if (!Right.IsEmpty())
 			{
-				if (UStructProperty* StructProperty = Cast<UStructProperty>(Property))
+				if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 				{
 					WalkStruct(StructProperty->Struct, Right, Offset);
 				}
-				else if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Property))
+				else if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 				{
 					WalkArray(ArrayProperty, Right, Offset);
 				}
@@ -100,13 +100,13 @@ FRigVMRegisterOffset::FRigVMRegisterOffset(UScriptStruct* InScriptStruct, const 
 				Offset.CPPType = *Property->GetCPPType();
 				Offset.ElementSize = Property->ElementSize;
 
-				if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Property))
+				if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 				{
 					Offset.Segments.Add(-1);
 					Property = ArrayProperty->Inner;
 				}
 
-				if (UStructProperty* StructProperty = Cast<UStructProperty>(Property))
+				if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 				{
 					Offset.ScriptStruct = StructProperty->Struct;
 					Offset.Type = ERigVMRegisterType::Struct;
@@ -118,7 +118,7 @@ FRigVMRegisterOffset::FRigVMRegisterOffset(UScriptStruct* InScriptStruct, const 
 			}
 		}
 
-		static void WalkArray(UArrayProperty* InArrayProperty, const FString& InPath, FRigVMRegisterOffset& Offset)
+		static void WalkArray(FArrayProperty* InArrayProperty, const FString& InPath, FRigVMRegisterOffset& Offset)
 		{
 			FString Left, Right;
 			if (!InPath.Split(TEXT("."), &Left, &Right))
@@ -147,11 +147,11 @@ FRigVMRegisterOffset::FRigVMRegisterOffset(UScriptStruct* InScriptStruct, const 
 
 			if (!Right.IsEmpty())
 			{
-				if (UStructProperty* StructProperty = Cast<UStructProperty>(InArrayProperty->Inner))
+				if (FStructProperty* StructProperty = CastField<FStructProperty>(InArrayProperty->Inner))
 				{
 					WalkStruct(StructProperty->Struct, Right, Offset);
 				}
-				else if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(InArrayProperty->Inner))
+				else if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InArrayProperty->Inner))
 				{
 					WalkArray(ArrayProperty, Right, Offset);
 				}
@@ -161,13 +161,13 @@ FRigVMRegisterOffset::FRigVMRegisterOffset(UScriptStruct* InScriptStruct, const 
 				Offset.CPPType = *InArrayProperty->Inner->GetCPPType();
 				Offset.ElementSize = InArrayProperty->Inner->ElementSize;
 
-				if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(InArrayProperty->Inner))
+				if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InArrayProperty->Inner))
 				{
 					Offset.Segments.Add(-1);
 					InArrayProperty = ArrayProperty;
 				}
 
-				if (UStructProperty* StructProperty = Cast<UStructProperty>(InArrayProperty->Inner))
+				if (FStructProperty* StructProperty = CastField<FStructProperty>(InArrayProperty->Inner))
 				{
 					Offset.ScriptStruct = StructProperty->Struct;
 					Offset.Type = ERigVMRegisterType::Struct;

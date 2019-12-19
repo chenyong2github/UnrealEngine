@@ -47,9 +47,9 @@ bool FKCHandler_MathExpression::CanBeCalledByMathExpression(const UFunction* Fun
 		return false;
 	}
 
-	for (TFieldIterator<const UProperty> It(Function); It && (It->PropertyFlags & CPF_Parm); ++It)
+	for (TFieldIterator<const FProperty> It(Function); It && (It->PropertyFlags & CPF_Parm); ++It)
 	{
-		const UProperty* Property = *It;
+		const FProperty* Property = *It;
 		const bool bGoodProperty = Property && (!Property->HasAnyPropertyFlags(CPF_OutParm) || Property->HasAllPropertyFlags(CPF_ReturnParm));
 		if (!bGoodProperty)
 		{
@@ -78,9 +78,9 @@ FBlueprintCompiledStatement* FKCHandler_MathExpression::GenerateFunctionRPN(UEdG
 	check(CallFunctionNode);
 
 	TArray<FBPTerminal*> RHSTerms;
-	for (TFieldIterator<UProperty> It(Function); It && (It->PropertyFlags & CPF_Parm); ++It)
+	for (TFieldIterator<FProperty> It(Function); It && (It->PropertyFlags & CPF_Parm); ++It)
 	{
-		UProperty* Property = *It;
+		FProperty* Property = *It;
 		if (Property && !Property->HasAnyPropertyFlags(CPF_ReturnParm | CPF_OutParm))
 		{
 			UEdGraphPin* PinToTry = nullptr;

@@ -55,6 +55,12 @@ public:
 		return false;
 	}
 
+	virtual bool DoesMipDataExist(const int32 MipIndex) const
+	{
+		STREAMABLERENDERASSET_NODEFAULT(DoesMipDataExist);
+		return false;
+	}
+
 	virtual bool IsReadyForStreaming() const
 	{
 		STREAMABLERENDERASSET_NODEFAULT(IsReadyForStreaming);

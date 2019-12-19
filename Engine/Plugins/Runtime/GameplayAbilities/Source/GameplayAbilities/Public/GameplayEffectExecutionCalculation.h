@@ -319,11 +319,11 @@ public:
 // -------------------------------------------------------------------------
 
 #define DECLARE_ATTRIBUTE_CAPTUREDEF(P) \
-	UProperty* P##Property; \
+	FProperty* P##Property; \
 	FGameplayEffectAttributeCaptureDefinition P##Def; \
 
 #define DEFINE_ATTRIBUTE_CAPTUREDEF(S, P, T, B) \
 { \
-	P##Property = FindFieldChecked<UProperty>(S::StaticClass(), GET_MEMBER_NAME_CHECKED(S, P)); \
+	P##Property = FindFieldChecked<FProperty>(S::StaticClass(), GET_MEMBER_NAME_CHECKED(S, P)); \
 	P##Def = FGameplayEffectAttributeCaptureDefinition(P##Property, EGameplayEffectAttributeCaptureSource::T, B); \
 }

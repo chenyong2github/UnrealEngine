@@ -166,7 +166,7 @@ bool UMagicLeapSecureStorage::PutSecureSaveGame(const FString& Key, USaveGame* O
 	return PutSecureBlobImpl(Key, Bytes.GetData(), Bytes.Num());
 }
 
-bool UMagicLeapSecureStorage::GenericPutSecureArray(const FString& Key, const UArrayProperty* ArrayProperty, void* TargetArray)
+bool UMagicLeapSecureStorage::GenericPutSecureArray(const FString& Key, const FArrayProperty* ArrayProperty, void* TargetArray)
 {
 
 	FScriptArrayHelper ArrayHelper(ArrayProperty, TargetArray);
@@ -177,7 +177,7 @@ bool UMagicLeapSecureStorage::GenericPutSecureArray(const FString& Key, const UA
 	TArray<uint8> Bytes;
 	Bytes.SetNum(ByteNum);
 
-	// Generate the contiguous array from the UArrayProperty
+	// Generate the contiguous array from the FArrayProperty
 	for (int32 i = 0; i < ArrayHelper.Num(); ++i)
 	{
 		ArrayProperty->Inner->CopySingleValueFromScriptVM(Bytes.GetData() + i * ElementSize, ArrayHelper.GetRawPtr(i));
@@ -211,7 +211,7 @@ bool UMagicLeapSecureStorage::GetSecureSaveGame(const FString& Key, USaveGame*& 
 	return bSuccess;
 }
 
-bool UMagicLeapSecureStorage::GenericGetSecureArray(const FString& Key, UArrayProperty* ArrayProperty, void* TargetArray)
+bool UMagicLeapSecureStorage::GenericGetSecureArray(const FString& Key, FArrayProperty* ArrayProperty, void* TargetArray)
 {
 
 	FScriptArrayHelper ArrayHelper(ArrayProperty, TargetArray);

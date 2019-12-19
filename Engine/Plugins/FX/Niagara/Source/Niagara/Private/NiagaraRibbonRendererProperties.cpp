@@ -187,7 +187,7 @@ void UNiagaraRibbonRendererProperties::FixMaterial(UMaterial* InMaterial)
 	InMaterial->ForceRecompileForRendering();
 }
 
-bool UNiagaraRibbonRendererProperties::CanEditChange(const UProperty* InProperty) const
+bool UNiagaraRibbonRendererProperties::CanEditChange(const FProperty* InProperty) const
 {
 
 	if (InProperty->HasMetaData(TEXT("Category")) && InProperty->GetMetaData(TEXT("Category")).Contains("Tessellation"))

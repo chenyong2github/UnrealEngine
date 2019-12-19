@@ -147,8 +147,6 @@ TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::AddStatsCounterSeries(uint32 C
 	Series->SetScaleY(1.0);
 
 	Series->EnableAutoZoom();
-	Series->SetTargetAutoZoomRange(0.0, 1.0);
-	Series->SetAutoZoomRange(0.0, 1.0);
 
 	AllSeries.Add(Series);
 	return Series;
@@ -205,7 +203,7 @@ void FTimingGraphTrack::Update(const ITimingTrackUpdateContext& Context)
 		{
 			if (Series->IsVisible() && (bIsEntireGraphTrackDirty || Series->IsDirty()))
 			{
-				// Clear the flag before updating, becasue the update itself may furter need to set the series as dirty.
+				// Clear the flag before updating, becasue the update itself may further need to set the series as dirty.
 				Series->ClearDirtyFlag();
 
 				TSharedPtr<FTimingGraphSeries> TimingSeries = StaticCastSharedPtr<FTimingGraphSeries>(Series);
@@ -307,50 +305,7 @@ void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, con
 
 				const float TopY = 4.0f;
 				const float BottomY = GetHeight() - 4.0f;
-
-				const double LowValue = Series.GetValueForY(BottomY);
-				const double HighValue = Series.GetValueForY(TopY);
-
-				// If MinValue == MaxValue, we keep the previous baseline and scale, but only if the min/max value is already visible.
-				if (MinValue == MaxValue && (MinValue < LowValue || MaxValue > HighValue))
-				{
-					MinValue = FMath::Min(MinValue, LowValue);
-					MaxValue = FMath::Max(MaxValue, HighValue);
-				}
-
-				if (MinValue < MaxValue)
-				{
-					constexpr bool bIsAutoZoomAnimated = true;
-					if (bIsAutoZoomAnimated)
-					{
-						// Interpolate the min-max interval (animating the vertical position and scale of the graph series).
-						constexpr double InterpolationSpeed = 0.5;
-						const double NewMinValue = InterpolationSpeed * MinValue + (1.0 - InterpolationSpeed) * LowValue;
-						const double NewMaxValue = InterpolationSpeed * MaxValue + (1.0 - InterpolationSpeed) * HighValue;
-
-						// Check if we reach the target min-max interval.
-						const double ErrorTolerance = 0.5 / Series.GetScaleY(); // delta value for dy ~= 0.5 pixels
-						if (!FMath::IsNearlyEqual(NewMinValue, MinValue, ErrorTolerance) ||
-							!FMath::IsNearlyEqual(NewMaxValue, MaxValue, ErrorTolerance))
-						{
-							MinValue = NewMinValue;
-							MaxValue = NewMaxValue;
-
-							// Request a new update so we can further interpolate the min-max interval.
-							Series.SetDirtyFlag();
-						}
-					}
-
-					double BaselineY;
-					double ScaleY;
-					Series.ComputeBaselineAndScale(MinValue, MaxValue, TopY, BottomY, BaselineY, ScaleY);
-					Series.SetBaselineY(BaselineY);
-					Series.SetScaleY(ScaleY);
-				}
-				else
-				{
-					// If MinValue == MaxValue, we keep the previous baseline and scale.
-				}
+				Series.UpdateAutoZoom(TopY, BottomY, MinValue, MaxValue);
 			}
 
 			if (Counter.IsFloatingPoint())

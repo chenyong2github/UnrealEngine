@@ -20,20 +20,21 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UnrealType.h"
+#include "UObject/CoreObjectVersion.h"
 
 namespace DataprepParameterization
 {
-	void PopulateValueTypeValidationData(UArrayProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
-	void PopulateValueTypeValidationData(USetProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
-	void PopulateValueTypeValidationData(UMapProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
-	void PopulateValueTypeValidationData(USoftClassProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
-	void PopulateValueTypeValidationData(UClassProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
-	void PopulateValueTypeValidationData(UObjectPropertyBase* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
-	void PopulateValueTypeValidationData(UEnumProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
-	void PopulateValueTypeValidationData(UStructProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
-	void PopulateValueTypeValidationData(UProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(FArrayProperty* CurrentProperty, FValueTypeValidationData& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(FSetProperty* CurrentProperty, FValueTypeValidationData& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(FMapProperty* CurrentProperty, FValueTypeValidationData& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(FSoftClassProperty* CurrentProperty, FValueTypeValidationData& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(FClassProperty* CurrentProperty, FValueTypeValidationData& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(FObjectPropertyBase* CurrentProperty, FValueTypeValidationData& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(FEnumProperty* CurrentProperty, FValueTypeValidationData& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(FStructProperty* CurrentProperty, FValueTypeValidationData& ValueTypeValidationData);
+	void PopulateValueTypeValidationData(FProperty* CurrentProperty, FValueTypeValidationData& ValueTypeValidationData);
 
-	void PopulateValueTypeValidationData(UArrayProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	void PopulateValueTypeValidationData(FArrayProperty* CurrentProperty, FValueTypeValidationData& ValueTypeValidationData)
 	{
 		if ( CurrentProperty )
 		{
@@ -43,7 +44,7 @@ namespace DataprepParameterization
 		}
 	}
 
-	void PopulateValueTypeValidationData(USetProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	void PopulateValueTypeValidationData(FSetProperty* CurrentProperty, FValueTypeValidationData& ValueTypeValidationData)
 	{
 		if ( CurrentProperty )
 		{
@@ -53,7 +54,7 @@ namespace DataprepParameterization
 		}
 	}
 
-	void PopulateValueTypeValidationData(UMapProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	void PopulateValueTypeValidationData(FMapProperty* CurrentProperty, FValueTypeValidationData& ValueTypeValidationData)
 	{
 		if ( CurrentProperty )
 		{
@@ -64,7 +65,7 @@ namespace DataprepParameterization
 		}
 	}
 
-	void PopulateValueTypeValidationData(USoftClassProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	void PopulateValueTypeValidationData(FSoftClassProperty* CurrentProperty, FValueTypeValidationData& ValueTypeValidationData)
 	{
 		if ( CurrentProperty )
 		{
@@ -75,7 +76,7 @@ namespace DataprepParameterization
 		}
 	}
 
-	void PopulateValueTypeValidationData(UClassProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	void PopulateValueTypeValidationData(FClassProperty* CurrentProperty, FValueTypeValidationData& ValueTypeValidationData)
 	{
 		if ( CurrentProperty )
 		{
@@ -86,7 +87,7 @@ namespace DataprepParameterization
 		}
 	}
 
-	void PopulateValueTypeValidationData(UObjectPropertyBase* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	void PopulateValueTypeValidationData(FObjectPropertyBase* CurrentProperty, FValueTypeValidationData& ValueTypeValidationData)
 	{
 		if ( CurrentProperty )
 		{
@@ -96,7 +97,7 @@ namespace DataprepParameterization
 		}
 	}
 
-	void PopulateValueTypeValidationData(UEnumProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	void PopulateValueTypeValidationData(FEnumProperty* CurrentProperty, FValueTypeValidationData& ValueTypeValidationData)
 	{
 		if ( CurrentProperty )
 		{
@@ -107,7 +108,7 @@ namespace DataprepParameterization
 		}
 	}
 
-	void PopulateValueTypeValidationData(UStructProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	void PopulateValueTypeValidationData(FStructProperty* CurrentProperty, FValueTypeValidationData& ValueTypeValidationData)
 	{
 		if ( CurrentProperty )
 		{
@@ -117,45 +118,45 @@ namespace DataprepParameterization
 		}
 	}
 
-	void PopulateValueTypeValidationData(UProperty* CurrentProperty, TArray<UObject*>& ValueTypeValidationData)
+	void PopulateValueTypeValidationData(FProperty* CurrentProperty, FValueTypeValidationData& ValueTypeValidationData)
 	{
 		if ( CurrentProperty )
 		{
 			int32 NumberOfObject = ValueTypeValidationData.Num();
-			UClass* CurrentClass = CurrentProperty->GetClass();
+			FFieldClass* CurrentClass = CurrentProperty->GetClass();
 			while ( CurrentClass && NumberOfObject == ValueTypeValidationData.Num() )
 			{
-				if ( CurrentClass == UArrayProperty::StaticClass() )
+				if ( CurrentClass == FArrayProperty::StaticClass() )
 				{
-					PopulateValueTypeValidationData( static_cast<UArrayProperty*>( CurrentProperty ), ValueTypeValidationData );
+					PopulateValueTypeValidationData( static_cast<FArrayProperty*>( CurrentProperty ), ValueTypeValidationData );
 				}
-				else if ( CurrentClass == USetProperty::StaticClass() )
+				else if ( CurrentClass == FSetProperty::StaticClass() )
 				{
-					PopulateValueTypeValidationData( static_cast<USetProperty*>( CurrentProperty ), ValueTypeValidationData );
+					PopulateValueTypeValidationData( static_cast<FSetProperty*>( CurrentProperty ), ValueTypeValidationData );
 				}
-				else if ( CurrentClass == UMapProperty::StaticClass() )
+				else if ( CurrentClass == FMapProperty::StaticClass() )
 				{
-					PopulateValueTypeValidationData( static_cast<UMapProperty*>( CurrentProperty ), ValueTypeValidationData );
+					PopulateValueTypeValidationData( static_cast<FMapProperty*>( CurrentProperty ), ValueTypeValidationData );
 				}
-				else if ( CurrentClass == USoftClassProperty::StaticClass() )
+				else if ( CurrentClass == FSoftClassProperty::StaticClass() )
 				{
-					PopulateValueTypeValidationData( static_cast<USoftClassProperty*>( CurrentProperty ), ValueTypeValidationData );
+					PopulateValueTypeValidationData( static_cast<FSoftClassProperty*>( CurrentProperty ), ValueTypeValidationData );
 				}
-				else if ( CurrentClass == UClassProperty::StaticClass() )
+				else if ( CurrentClass == FClassProperty::StaticClass() )
 				{
-					PopulateValueTypeValidationData( static_cast<UClassProperty*>( CurrentProperty ), ValueTypeValidationData );
+					PopulateValueTypeValidationData( static_cast<FClassProperty*>( CurrentProperty ), ValueTypeValidationData );
 				}
-				else if ( CurrentClass == UObjectPropertyBase::StaticClass() )
+				else if ( CurrentClass == FObjectPropertyBase::StaticClass() )
 				{
-					PopulateValueTypeValidationData( static_cast<UObjectPropertyBase*>( CurrentProperty ), ValueTypeValidationData );
+					PopulateValueTypeValidationData( static_cast<FObjectPropertyBase*>( CurrentProperty ), ValueTypeValidationData );
 				}
-				else if ( CurrentClass == UEnumProperty::StaticClass() )
+				else if ( CurrentClass == FEnumProperty::StaticClass() )
 				{
-					PopulateValueTypeValidationData( static_cast<UEnumProperty*>( CurrentProperty ), ValueTypeValidationData );
+					PopulateValueTypeValidationData( static_cast<FEnumProperty*>( CurrentProperty ), ValueTypeValidationData );
 				}
-				else if ( CurrentClass == UStructProperty::StaticClass() )
+				else if ( CurrentClass == FStructProperty::StaticClass() )
 				{
-					PopulateValueTypeValidationData( static_cast<UStructProperty*>( CurrentProperty ), ValueTypeValidationData );
+					PopulateValueTypeValidationData( static_cast<FStructProperty*>( CurrentProperty ), ValueTypeValidationData );
 				}
 				else
 				{
@@ -168,7 +169,7 @@ namespace DataprepParameterization
 	}
 
 
-	void* GetAddressOf(const UArrayProperty& Property, void* BaseAddress, int32 ContainerIndex)
+	void* GetAddressOf(const FArrayProperty& Property, void* BaseAddress, int32 ContainerIndex)
 	{
 		void* AddressOfArray = Property.ContainerPtrToValuePtr<void*>( BaseAddress, 0 );
 		if ( ContainerIndex == INDEX_NONE )
@@ -186,7 +187,7 @@ namespace DataprepParameterization
 		return nullptr;
 	}
 
-	void* GetAddressOf(const USetProperty& Property, void* BaseAddress, int32 ContainerIndex)
+	void* GetAddressOf(const FSetProperty& Property, void* BaseAddress, int32 ContainerIndex)
 	{
 		void* AddressOfSet = Property.ContainerPtrToValuePtr<void*>( BaseAddress, 0 ); 
 		if ( ContainerIndex == INDEX_NONE )
@@ -205,7 +206,7 @@ namespace DataprepParameterization
 		return nullptr;
 	}
 
-	void* GetAddressOf(const UMapProperty& Property, void* BaseAddress, int32 ContainerIndex)
+	void* GetAddressOf(const FMapProperty& Property, void* BaseAddress, int32 ContainerIndex)
 	{
 		void* AddressOfMap = Property.ContainerPtrToValuePtr<void*>( BaseAddress, 0 );
 		if ( ContainerIndex == INDEX_NONE )
@@ -224,20 +225,20 @@ namespace DataprepParameterization
 		return nullptr;
 	}
 
-	void* GetAddressOf(const UProperty& Property, void* BaseAddress, int32 ContainerIndex)
+	void* GetAddressOf(const FProperty& Property, void* BaseAddress, int32 ContainerIndex)
 	{
-		UClass* Class = Property.GetClass();
-		if ( Class == UArrayProperty::StaticClass() )
+		FFieldClass* Class = Property.GetClass();
+		if ( Class == FArrayProperty::StaticClass() )
 		{
-			return GetAddressOf( static_cast<const UArrayProperty&>( Property ), BaseAddress, ContainerIndex );
+			return GetAddressOf( static_cast<const FArrayProperty&>( Property ), BaseAddress, ContainerIndex );
 		}
-		else if ( Class == USetProperty::StaticClass() )
+		else if ( Class == FSetProperty::StaticClass() )
 		{
-			return GetAddressOf( static_cast<const USetProperty&>( Property ), BaseAddress, ContainerIndex );
+			return GetAddressOf( static_cast<const FSetProperty&>( Property ), BaseAddress, ContainerIndex );
 		}
-		else if ( Class == UMapProperty::StaticClass() )
+		else if ( Class == FMapProperty::StaticClass() )
 		{
-			return GetAddressOf( static_cast<const UMapProperty&>( Property ), BaseAddress, ContainerIndex );
+			return GetAddressOf( static_cast<const FMapProperty&>( Property ), BaseAddress, ContainerIndex );
 		}
 
 		if ( Property.ArrayDim > ContainerIndex )
@@ -252,19 +253,19 @@ namespace DataprepParameterization
 	 * Get the outer on which we should look when searching for a child property
 	 * @return Return a nullptr if the current property is not supported
 	 */
-	UObject* GetOuterForPropertyFinding(UProperty* Property)
+	FFieldVariant GetOuterForPropertyFinding(FProperty* Property)
 	{
 		if ( !Property )
 		{
 			return nullptr;
 		}
 
-		UClass* PropertyClass = Property->GetClass();
+		FFieldClass* PropertyClass = Property->GetClass();
 		while ( PropertyClass )
 		{
-			if ( PropertyClass == UStructProperty::StaticClass() )
+			if ( PropertyClass == FStructProperty::StaticClass() )
 			{
-				UStructProperty* StructProperty = static_cast<UStructProperty*>(Property);
+				FStructProperty* StructProperty = static_cast<FStructProperty*>(Property);
 				UScriptStruct* ScriptStruct = StructProperty->Struct;
 				/**
 				 * We don't want to support struct that exist for the reinstancing
@@ -277,9 +278,9 @@ namespace DataprepParameterization
 				}
 				return ScriptStruct;
 			}
-			else if (PropertyClass == UObjectPropertyBase::StaticClass())
+			else if (PropertyClass == FObjectPropertyBase::StaticClass())
 			{
-				UObjectPropertyBase* ObjectProperty = static_cast<UObjectPropertyBase*>(Property);
+				FObjectPropertyBase* ObjectProperty = static_cast<FObjectPropertyBase*>(Property);
 				UClass* Class = ObjectProperty->PropertyClass;
 				// We reject properties that points to a class where there is newer version that exists
 				if ( Class
@@ -303,7 +304,7 @@ namespace DataprepParameterization
 	 */
 	int32 GetDeepestLevelOfValidCache(const FDataprepParameterizationBinding& Binding, void*& OutPropertyValueAddress)
 	{
-		UObject* CurrentOuter = nullptr;
+		FFieldVariant CurrentOuter;
 
 		if ( UObject* ObjectBinded = Binding.ObjectBinded )
 		{ 
@@ -318,27 +319,27 @@ namespace DataprepParameterization
 			{
 				bool bAbortCacheValidation = true;
 
-				UProperty* CurentProperty = PropertyChain[Level].CachedProperty.Get();
+				FProperty* CurentProperty = PropertyChain[Level].CachedProperty.Get();
 				if ( CurentProperty )
 				{
 					CurrentPropertyValueAddresss = GetAddressOf( *CurentProperty, CurrentPropertyValueAddresss, PropertyChain[Level].ContainerIndex );
 
 					// We look if the outer of the property is the right one as a heuristic for the validity of the current property
 					bool bPropertySeamsValid = false;
-					if ( UObject* CurrentPropertyOuter = CurentProperty->GetOuter() )
+					if ( FFieldVariant CurrentPropertyOuter = CurentProperty->GetOwnerVariant() )
 					{
 						if ( CurrentPropertyOuter == CurrentOuter )
 						{
 							bPropertySeamsValid = true;
 						}
-						else if ( UStruct* CurrentOuterAsStruct = Cast<UStruct>( CurrentOuter ) )
+						else if ( UStruct* CurrentOuterAsStruct = CurrentOuter.Get<UStruct>() )
 						{
 							// Walk the struct hierarchy in case we have a sub struct of the expected struct
-							UObject* PropertyOuter = CurentProperty->GetOuter();
+							FFieldVariant PropertyOuter = CurentProperty->GetOwnerVariant();
 							CurrentOuterAsStruct = CurrentOuterAsStruct->GetSuperStruct();
 							while ( !bPropertySeamsValid && CurrentOuterAsStruct )
 							{
-								bPropertySeamsValid = CurrentOuterAsStruct == PropertyOuter;
+								bPropertySeamsValid = (CurrentOuterAsStruct == PropertyOuter.ToUObject());
 								CurrentOuterAsStruct = CurrentOuterAsStruct->GetSuperStruct();
 							}
 						}
@@ -380,7 +381,7 @@ namespace DataprepParameterization
 	 * @param OutPropertyValueAddress The address of where we can find the value of the property
 	 * @return Return nullptr if the binding is invalid
 	 */
-	UProperty* GetPropertyFromBinding(FDataprepParameterizationBinding& Binding, void*& OutPropertyValueAddress)
+	FProperty* GetPropertyFromBinding(FDataprepParameterizationBinding& Binding, void*& OutPropertyValueAddress)
 	{
 		if ( !Binding.ObjectBinded || Binding.ValueTypeValidationData.Num() == 0 )
 		{
@@ -391,7 +392,7 @@ namespace DataprepParameterization
 		int32 LevelIndex = GetDeepestLevelOfValidCache( Binding, OutPropertyValueAddress );
 		
 
-		UObject* CurrentOuter = Binding.ObjectBinded->GetClass();
+		FFieldVariant CurrentOuter = Binding.ObjectBinded->GetClass();
 		if ( LevelIndex != INDEX_NONE )
 		{
 			CurrentOuter = GetOuterForPropertyFinding( Binding.PropertyChain[LevelIndex].CachedProperty.Get() );
@@ -403,20 +404,20 @@ namespace DataprepParameterization
 		// Todo (what happen if the bottom property changed its type)
 
 		// Find missing or new properties and update the cache of the property link
-		UProperty* PropetyAtCurrentLevel = nullptr;
+		FProperty* PropetyAtCurrentLevel = nullptr;
 		TArray<FDataprepPropertyLink>& PropertyChain = Binding.PropertyChain;
 		while ( LevelIndex < PropertyChain.Num() && CurrentOuter )
 		{
 			FDataprepPropertyLink& PropertyLink = Binding.PropertyChain[LevelIndex];
-			PropetyAtCurrentLevel = FindObjectFast<UProperty>(CurrentOuter, PropertyLink.PropertyName);
+			PropetyAtCurrentLevel = FindField<FProperty>(CurrentOuter.Get<UStruct>(), PropertyLink.PropertyName);
 			if (!PropetyAtCurrentLevel)
 			{
-				if ( UStruct* OuterAsStruct = Cast<UStruct>( CurrentOuter ) )
+				if ( UStruct* OuterAsStruct = CurrentOuter.Get<UStruct>() )
 				{
 					OuterAsStruct = OuterAsStruct->GetSuperStruct();
 					while ( !PropetyAtCurrentLevel && OuterAsStruct )
 					{
-						PropetyAtCurrentLevel = FindObjectFast<UProperty>(OuterAsStruct, PropertyLink.PropertyName);
+						PropetyAtCurrentLevel = FindField<FProperty>(OuterAsStruct, PropertyLink.PropertyName);
 						OuterAsStruct = OuterAsStruct->GetSuperStruct();
 					}
 				}
@@ -431,7 +432,7 @@ namespace DataprepParameterization
 		if ( LevelIndex == PropertyChain.Num() && CurrentOuter )
 		{
 			PropetyAtCurrentLevel = PropertyChain.Last().CachedProperty.Get();
-			TArray<UObject*> ValueTypeValidationData;
+			FValueTypeValidationData ValueTypeValidationData;
 			PopulateValueTypeValidationData( PropetyAtCurrentLevel, ValueTypeValidationData );
 			// Perf Note: We might be able to cache this validation and some part of this function at some point
 			if ( ValueTypeValidationData == Binding.ValueTypeValidationData )
@@ -452,27 +453,27 @@ namespace DataprepParameterization
 	 * Try to get the property from a binding
 	 * Return nullptr if the binding is invalid
 	 */
-	UProperty* GetPropertyFromBinding(FDataprepParameterizationBinding& Binding)
+	FProperty* GetPropertyFromBinding(FDataprepParameterizationBinding& Binding)
 	{
 		void* DummyPointer;
 		return GetPropertyFromBinding( Binding, DummyPointer );
 	}
 
-	void CopyValue(UProperty& DestinationProperty, void* DestinationAddress, UProperty& SourceProperty, void* SourceAddress)
+	void CopyValue(FProperty& DestinationProperty, void* DestinationAddress, FProperty& SourceProperty, void* SourceAddress)
 	{
-		UClass* ProperyClass = DestinationProperty.GetClass();
+		FFieldClass* ProperyClass = DestinationProperty.GetClass();
 		// We only support copying value of properties when they are from the same class (this is not a warranty that this is safe, it's only a validation heuristic)
 		check( ProperyClass == SourceProperty.GetClass() );
 
 		// Bool properties are special because each property can have their own mask and offset from there base address (probably to support bitfields)
-		if ( ProperyClass == UBoolProperty::StaticClass())
+		if ( ProperyClass == FBoolProperty::StaticClass())
 		{
-			const bool bSourceValue = static_cast<UBoolProperty&>( SourceProperty ).GetPropertyValue( SourceAddress );
-			static_cast<UBoolProperty&>( DestinationProperty ).SetPropertyValue( DestinationAddress, bSourceValue );
+			const bool bSourceValue = static_cast<FBoolProperty&>( SourceProperty ).GetPropertyValue( SourceAddress );
+			static_cast<FBoolProperty&>( DestinationProperty ).SetPropertyValue( DestinationAddress, bSourceValue );
 		}
 		else if ( DestinationProperty.ArrayDim != SourceProperty.ArrayDim )
 		{
-			UProperty& SmallerProperty = DestinationProperty.ArrayDim > SourceProperty.ArrayDim ? SourceProperty : DestinationProperty;
+			FProperty& SmallerProperty = DestinationProperty.ArrayDim > SourceProperty.ArrayDim ? SourceProperty : DestinationProperty;
 			SmallerProperty.CopySingleValue( DestinationAddress, SourceAddress );
 		}
 		else
@@ -482,6 +483,22 @@ namespace DataprepParameterization
 	}
 };
 
+bool FValueTypeValidationData::Serialize(FArchive& Ar)
+{
+	Ar << ObjectData;
+	Ar << PropertyData;
+	Ar << PropertyTypeData;
+	return true;
+}
+
+void FValueTypeValidationData::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObjects(ObjectData);
+	for (TFieldPath<FProperty>& Prop : PropertyData)
+	{
+		Prop->AddReferencedObjects(Collector);
+	}
+}
 
 FDataprepParameterizationBinding::FDataprepParameterizationBinding(UDataprepParameterizableObject* InObjectBinded, TArray<FDataprepPropertyLink> InPropertyChain)
 	: ObjectBinded( InObjectBinded )
@@ -490,11 +507,45 @@ FDataprepParameterizationBinding::FDataprepParameterizationBinding(UDataprepPara
 {
 	if ( PropertyChain.Num() > 0 )
 	{
-		if ( UProperty* Property = PropertyChain.Last().CachedProperty.Get() )
+		if ( FProperty* Property = PropertyChain.Last().CachedProperty.Get() )
 		{
 			DataprepParameterization::PopulateValueTypeValidationData( Property, ValueTypeValidationData );
 		}
 	}
+}
+
+bool FDataprepParameterizationBinding::Serialize(FArchive& Ar)
+{
+	check(false); // @todo FProperties: if we never hit this, we don't need this
+
+	Ar.UsingCustomVersion(FCoreObjectVersion::GUID);
+
+	UScriptStruct* Struct = FDataprepParameterizationBinding::StaticStruct();
+	if (Ar.IsLoading() || Ar.IsSaving())
+	{
+		Struct->SerializeTaggedProperties(Ar, (uint8*)this, Struct, nullptr);
+	}
+
+#if WITH_EDITORONLY_DATA
+	//Take old data and put it in new data structure
+	if (Ar.IsLoading() && Ar.CustomVer(FCoreObjectVersion::GUID) < FCoreObjectVersion::FProperties)
+	{
+		//if (ValueType_DEPRECATED)
+		//{
+		//	ValueType = FFieldClass::GetNameToFieldClassMap().FindRef(ValueType_DEPRECATED->GetFName());
+		//}
+		//else
+		//{
+		//	ValueType = nullptr;
+		//}
+	}
+	else
+#endif // WITH_EDITORONLY_DATA
+	{
+		ValueTypeValidationData.Serialize(Ar);
+	}
+
+	return true;
 }
 
 bool FDataprepParameterizationBinding::operator==(const FDataprepParameterizationBinding& Other) const
@@ -727,7 +778,7 @@ void UDataprepParameterizationBindings::AddReferencedObjects(UObject* InThis, FR
 		for ( TSharedRef<FDataprepParameterizationBinding>& Binding : BindingSet )
 		{
 			Collector.AddReferencedObject( Binding->ObjectBinded );
-			Collector.AddReferencedObjects( Binding->ValueTypeValidationData );
+			Binding->ValueTypeValidationData.AddReferencedObjects(Collector);
 		}
 	}
 
@@ -975,14 +1026,14 @@ bool UDataprepParameterization::BindObjectProperty(UDataprepParameterizableObjec
 		{
 			UDataprepParameterizationBindings::FSetOfBinding BindingsToRemove;
 
-			if ( UProperty** PropertyPtr = NameToParameterizationProperty.Find( Name ) )
+			if ( FProperty** PropertyPtr = NameToParameterizationProperty.Find( Name ) )
 			{
-				UProperty* PropertyFromParameterization = *PropertyPtr;
-				UProperty* PropertyFromBinding = PropertyChain.Last().CachedProperty.Get();
+				FProperty* PropertyFromParameterization = *PropertyPtr;
+				FProperty* PropertyFromBinding = PropertyChain.Last().CachedProperty.Get();
 				// Ensure that the properties are compatible 
 				if ( !bAddingFullProperty || PropertyFromParameterization->ArrayDim == PropertyFromBinding->ArrayDim )
 				{
-					TArray<UObject*> ValueTypeValidationData;
+					FValueTypeValidationData ValueTypeValidationData;
 					DataprepParameterization::PopulateValueTypeValidationData( PropertyFromParameterization, ValueTypeValidationData );
 					if ( ValueTypeValidationData == Binding->ValueTypeValidationData )
 					{
@@ -995,10 +1046,10 @@ bool UDataprepParameterization::BindObjectProperty(UDataprepParameterizableObjec
 			{
 				BindingsContainer->Add( Binding, Name, BindingsToRemove );
 			
-				UProperty* PropertyFromBinding = PropertyChain.Last().CachedProperty.Get();
+				FProperty* PropertyFromBinding = PropertyChain.Last().CachedProperty.Get();
 
 				// The validation we did with GetDeepestLevelOfValidCache ensure us that the property ptr is valid
-				UProperty* NewProperty = AddPropertyToClass( Name, *PropertyFromBinding, bAddingFullProperty );
+				FProperty* NewProperty = AddPropertyToClass( Name, *PropertyFromBinding, bAddingFullProperty );
 
 				bClassNeedUpdate = true;
 				bBindingWasAdded = true;
@@ -1094,11 +1145,11 @@ void UDataprepParameterization::RemoveBindingFromObjects(TArray<UDataprepParamet
 void UDataprepParameterization::UpdateParameterizationFromBinding(const TSharedRef<FDataprepParameterizationBinding>& Binding)
 {
 	FName ParameterModified = BindingsContainer->GetParameterNameForBinding( Binding );
-	UProperty* ParameterizationProperty = NameToParameterizationProperty.FindRef( ParameterModified );
+	FProperty* ParameterizationProperty = NameToParameterizationProperty.FindRef( ParameterModified );
 	if ( ParameterizationProperty )
 	{
 		void* AddressOfObjectValue = nullptr;
-		if ( UProperty * ObjectProperty = DataprepParameterization::GetPropertyFromBinding( Binding.Get(), AddressOfObjectValue ) )
+		if ( FProperty * ObjectProperty = DataprepParameterization::GetPropertyFromBinding( Binding.Get(), AddressOfObjectValue ) )
 		{
 			Modify();
 			void* AddressOfParameterizationValue = DataprepParameterization::GetAddressOf( *ParameterizationProperty, DefaultParameterisation, INDEX_NONE );
@@ -1133,28 +1184,28 @@ void UDataprepParameterization::OnObjectPostEdit(UDataprepParameterizableObject*
 
 			TSharedPtr<FDataprepParameterizationBinding> Binding = BindingsContainer->GetContainingBinding( BindingForModifiedProperty );
 			if ( Binding )
-			{
+		{
 				UpdateParameterizationFromBinding( Binding.ToSharedRef() );
-			}
+		}
 		}
 	}
 }
 
-void UDataprepParameterization::GetExistingParameterNamesForType(UProperty* Property, bool bIsDescribingFullProperty, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const
+void UDataprepParameterization::GetExistingParameterNamesForType(FProperty* Property, bool bIsDescribingFullProperty, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const
 {
 	OutValidExistingNames.Empty( NameToParameterizationProperty.Num() );
 	OutInvalidNames.Empty( NameToParameterizationProperty.Num() );
 
-	for ( const TPair<FName, UProperty*>& Pair : NameToParameterizationProperty )
+	for ( const TPair<FName, FProperty*>& Pair : NameToParameterizationProperty )
 	{
-		if ( UProperty* ParameterizationProperty = Pair.Value )
+		if ( FProperty* ParameterizationProperty = Pair.Value )
 		{
 			bool bWasAdded = false;
 			if ( ParameterizationProperty->GetClass() == Property->GetClass() && ( !bIsDescribingFullProperty || ParameterizationProperty->ArrayDim == Property->ArrayDim ) )
 			{
-				TArray<UObject*> ValidationDataForParameterizationProperty;
+				FValueTypeValidationData ValidationDataForParameterizationProperty;
 				DataprepParameterization::PopulateValueTypeValidationData( ParameterizationProperty, ValidationDataForParameterizationProperty );
-				TArray<UObject*> ValidationData;
+				FValueTypeValidationData ValidationData;
 				DataprepParameterization::PopulateValueTypeValidationData( Property, ValidationData );
 				if ( ValidationDataForParameterizationProperty == ValidationData )
 				{
@@ -1183,9 +1234,9 @@ void UDataprepParameterization::GenerateClass()
 			return !First.LexicalLess(Second);
 		});
 
-		for ( TPair<FName, UProperty*>& Pair : NameToParameterizationProperty )
+		for ( TPair<FName, FProperty*>& Pair : NameToParameterizationProperty )
 		{
-			UProperty* NewProperty = DuplicateObject<UProperty>( Pair.Value, CustomContainerClass, Pair.Key );
+			FProperty* NewProperty = CastField<FProperty>(FField::Duplicate(Pair.Value, CustomContainerClass, Pair.Key));
 			NewProperty->SetFlags( RF_Transient );
 			NewProperty->PropertyFlags = CPF_Edit;
 
@@ -1238,12 +1289,12 @@ void UDataprepParameterization::LoadParameterization()
 		{
 			const FName& BindingName = Binding.Value;
 
-			UProperty* PropertyFromChain = DataprepParameterization::GetPropertyFromBinding( Binding.Key.Get() );
-			UProperty** PropertyFromParameterizationClass = NameToParameterizationProperty.Find( BindingName );
+			FProperty* PropertyFromChain = DataprepParameterization::GetPropertyFromBinding( Binding.Key.Get() );
+			FProperty** PropertyFromParameterizationClass = NameToParameterizationProperty.Find( BindingName );
 
 			if ( PropertyFromChain && !PropertyFromParameterizationClass )
 			{
-				UProperty* NewProperty = AddPropertyToClass( BindingName, *PropertyFromChain, Binding.Key->PropertyChain.Last().ContainerIndex == INDEX_NONE );
+				FProperty* NewProperty = AddPropertyToClass( BindingName, *PropertyFromChain, Binding.Key->PropertyChain.Last().ContainerIndex == INDEX_NONE );
 			}
 			else if ( !PropertyFromChain || PropertyFromChain->GetClass() != (*PropertyFromParameterizationClass)->GetClass() )
 			{
@@ -1265,7 +1316,7 @@ void UDataprepParameterization::LoadParameterization()
 				return !First.LexicalLess( Second );
 			});
 
-		for ( const TPair<FName, UProperty*>& Pair : NameToParameterizationProperty )
+		for ( const TPair<FName, FProperty*>& Pair : NameToParameterizationProperty )
 		{
 			CustomContainerClass->AddCppProperty( Pair.Value );
 		}
@@ -1362,11 +1413,11 @@ void UDataprepParameterization::DoReinstancing(UClass* OldClass, bool bMigrateDa
 	}
 }
 
-UProperty* UDataprepParameterization::AddPropertyToClass(const FName& ParameterisationPropertyName, UProperty& Property, bool bAddFullProperty)
+FProperty* UDataprepParameterization::AddPropertyToClass(const FName& ParameterisationPropertyName, FProperty& Property, bool bAddFullProperty)
 {
 	if ( !NameToParameterizationProperty.Find( ParameterisationPropertyName ) )
 	{
-		UProperty* NewProperty = DuplicateObject<UProperty>( &Property, CustomContainerClass, ParameterisationPropertyName );
+		FProperty* NewProperty = CastFieldChecked<FProperty>(FField::Duplicate(&Property, CustomContainerClass, ParameterisationPropertyName));
 		NewProperty->SetFlags( RF_Transient );
 		NewProperty->PropertyFlags = CPF_Edit | CPF_NonTransactional;
 
@@ -1391,7 +1442,7 @@ UProperty* UDataprepParameterization::AddPropertyToClass(const FName& Parameteri
 
 void UDataprepParameterization::PushParametrizationValueToBindings(FName ParameterName)
 {
-	if ( UProperty* ParameterizationPropeterty = NameToParameterizationProperty.FindRef( ParameterName ) )
+	if ( FProperty* ParameterizationPropeterty = NameToParameterizationProperty.FindRef( ParameterName ) )
 	{
 		void* AddressOfParameterValue = DataprepParameterization::GetAddressOf( *ParameterizationPropeterty, DefaultParameterisation, INDEX_NONE );
 
@@ -1405,7 +1456,7 @@ void UDataprepParameterization::PushParametrizationValueToBindings(FName Paramet
 				for ( const TSharedRef<FDataprepParameterizationBinding>& Binding : *Bindings )
 				{
 					void* AddressOfBindingValue = nullptr;
-					if ( UProperty* BindingProperty = DataprepParameterization::GetPropertyFromBinding( Binding.Get(), AddressOfBindingValue ) )
+					if ( FProperty* BindingProperty = DataprepParameterization::GetPropertyFromBinding( Binding.Get(), AddressOfBindingValue ) )
 					{
 						ObjectsModified.Add( Binding->ObjectBinded );
 						Binding->ObjectBinded->Modify();
@@ -1484,6 +1535,20 @@ UDataprepParameterizationInstance::~UDataprepParameterizationInstance()
 	FCoreUObjectDelegates::OnObjectModified.Remove( OnObjectModifiedHandle );
 }
 
+void UDataprepParameterization::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	Super::AddReferencedObjects(InThis, Collector);
+	UDataprepParameterization* This = CastChecked<UDataprepParameterization>(InThis);
+
+	for (TPair<FName, FProperty*>& Pair : This->NameToParameterizationProperty)
+	{
+		if (Pair.Value)
+		{
+			Pair.Value->AddReferencedObjects(Collector);
+		}
+	}
+}
+
 void UDataprepParameterizationInstance::PostLoad()
 {
 	if ( !HasAnyFlags( RF_ClassDefaultObject | RF_NeedLoad ) )
@@ -1538,9 +1603,9 @@ void UDataprepParameterizationInstance::ApplyParameterization(const TMap<UObject
 			TGuardValue<UDataprepParameterizableObject*> GuardObjectBinded( Binding->ObjectBinded, Object );
 
 			void* DestinationAddress = nullptr;
-			if ( UProperty* DestinationProperty = DataprepParameterization::GetPropertyFromBinding( Binding.Get(), DestinationAddress ) )
+			if ( FProperty* DestinationProperty = DataprepParameterization::GetPropertyFromBinding( Binding.Get(), DestinationAddress ) )
 			{
-				UProperty* ParameterizationProperty = FindObjectFast<UProperty>( SourceParameterization->CustomContainerClass, BindingPair.Value );
+				FProperty* ParameterizationProperty = FindField<FProperty>( SourceParameterization->CustomContainerClass, BindingPair.Value );
 				void* ParameterizationAddress =  DataprepParameterization::GetAddressOf( *ParameterizationProperty, ParameterizationInstance, INDEX_NONE );
 				DataprepParameterization::CopyValue( *DestinationProperty, DestinationAddress, *ParameterizationProperty, ParameterizationAddress );
 			}

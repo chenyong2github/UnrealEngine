@@ -10,7 +10,7 @@
 namespace FObjectEditorUtils
 {
 
-	FText GetCategoryText( const UProperty* InProperty )
+	FText GetCategoryText( const FProperty* InProperty )
 	{
 		static const FName NAME_Category(TEXT("Category"));
 		if (InProperty && InProperty->HasMetaData(NAME_Category))
@@ -23,13 +23,13 @@ namespace FObjectEditorUtils
 		}
 	}
 
-	FString GetCategory( const UProperty* InProperty )
+	FString GetCategory( const FProperty* InProperty )
 	{
 		return GetCategoryText(InProperty).ToString();
 	}
 
 
-	FName GetCategoryFName( const UProperty* InProperty )
+	FName GetCategoryFName( const FProperty* InProperty )
 	{
 		FName OutCategoryName( NAME_None );
 
@@ -59,7 +59,7 @@ namespace FObjectEditorUtils
 		return bResult;
 	}
 
-	bool IsVariableCategoryHiddenFromClass( const UProperty* InVariable,const UClass* Class )
+	bool IsVariableCategoryHiddenFromClass( const FProperty* InVariable,const UClass* Class )
 	{
 		bool bResult = false;
 		if( InVariable && Class )
@@ -95,14 +95,14 @@ namespace FObjectEditorUtils
 		bIsEarlyAccess = DevelopmentStatus == EarlyAccessValue;
 	}
 
-	static void CopySinglePropertyRecursive(UObject* SourceObject, const void* const InSourcePtr, UProperty* InSourceProperty, void* const InTargetPtr, UObject* InDestinationObject, UProperty* InDestinationProperty)
+	static void CopySinglePropertyRecursive(UObject* SourceObject, const void* const InSourcePtr, FProperty* InSourceProperty, void* const InTargetPtr, UObject* InDestinationObject, FProperty* InDestinationProperty)
 	{
 		bool bNeedsShallowCopy = true;
 		bool bNeedsStringCopy = false;
 
-		if (UStructProperty* const DestStructProperty = Cast<UStructProperty>(InDestinationProperty))
+		if (FStructProperty* const DestStructProperty = CastField<FStructProperty>(InDestinationProperty))
 		{
-			UStructProperty* const SrcStructProperty = Cast<UStructProperty>(InSourceProperty);
+			FStructProperty* const SrcStructProperty = CastField<FStructProperty>(InSourceProperty);
 
 			// Ensure that the target struct is initialized before copying fields from the source.
 			DestStructProperty->InitializeValue_InContainer(InTargetPtr);
@@ -113,18 +113,18 @@ namespace FObjectEditorUtils
 				const void* const SourcePtr = SrcStructProperty->ContainerPtrToValuePtr<void>(InSourcePtr, ArrayIndex);
 				void* const TargetPtr = DestStructProperty->ContainerPtrToValuePtr<void>(InTargetPtr, ArrayIndex);
 
-				for (TFieldIterator<UProperty> It(SrcStructProperty->Struct); It; ++It)
+				for (TFieldIterator<FProperty> It(SrcStructProperty->Struct); It; ++It)
 				{
-					UProperty* const InnerProperty = *It;
+					FProperty* const InnerProperty = *It;
 					CopySinglePropertyRecursive(SourceObject, SourcePtr, InnerProperty, TargetPtr, InDestinationObject, InnerProperty);
 				}
 			}
 
 			bNeedsShallowCopy = false;
 		}
-		else if (UArrayProperty* const DestArrayProperty = Cast<UArrayProperty>(InDestinationProperty))
+		else if (FArrayProperty* const DestArrayProperty = CastField<FArrayProperty>(InDestinationProperty))
 		{
-			UArrayProperty* const SrcArrayProperty = Cast<UArrayProperty>(InSourceProperty);
+			FArrayProperty* const SrcArrayProperty = CastField<FArrayProperty>(InSourceProperty);
 
 			check(InDestinationProperty->ArrayDim == 1);
 			FScriptArrayHelper SourceArrayHelper(SrcArrayProperty, SrcArrayProperty->ContainerPtrToValuePtr<void>(InSourcePtr));
@@ -141,9 +141,9 @@ namespace FObjectEditorUtils
 
 			bNeedsShallowCopy = false;
 		}
-		else if ( UMapProperty* const DestMapProperty = Cast<UMapProperty>(InDestinationProperty) )
+		else if ( FMapProperty* const DestMapProperty = CastField<FMapProperty>(InDestinationProperty) )
 		{
-			UMapProperty* const SrcMapProperty = Cast<UMapProperty>(InSourceProperty);
+			FMapProperty* const SrcMapProperty = CastField<FMapProperty>(InSourceProperty);
 
 			check(InDestinationProperty->ArrayDim == 1);
 			FScriptMapHelper SourceMapHelper(SrcMapProperty, SrcMapProperty->ContainerPtrToValuePtr<void>(InSourcePtr));
@@ -175,9 +175,9 @@ namespace FObjectEditorUtils
 			bNeedsShallowCopy = false;
 			bNeedsStringCopy = false;
 		}
-		else if ( USetProperty* const DestSetProperty = Cast<USetProperty>(InDestinationProperty) )
+		else if ( FSetProperty* const DestSetProperty = CastField<FSetProperty>(InDestinationProperty) )
 		{
-			//USetProperty* const SrcSetProperty = Cast<USetProperty>(InSourceProperty);
+			//FSetProperty* const SrcSetProperty = CastField<FSetProperty>(InSourceProperty);
 
 			//check(InDestinationProperty->ArrayDim == 1);
 			//FScriptSetHelper SourceSetHelper(SrcSetProperty, SrcSetProperty->ContainerPtrToValuePtr<void>(InSourcePtr));
@@ -188,7 +188,7 @@ namespace FObjectEditorUtils
 			bNeedsShallowCopy = false;
 			bNeedsStringCopy = true;
 		}
-		else if ( UObjectPropertyBase* SourceObjectProperty = Cast<UObjectPropertyBase>(InSourceProperty) )
+		else if ( FObjectPropertyBase* SourceObjectProperty = CastField<FObjectPropertyBase>(InSourceProperty) )
 		{
 			if ( SourceObjectProperty->HasAllPropertyFlags(CPF_InstancedReference) )
 			{
@@ -209,7 +209,7 @@ namespace FObjectEditorUtils
 
 						UObject* DuplicateValue = StaticDuplicateObject(Value, InDestinationObject, Value->GetFName(), RF_AllFlags, nullptr, EDuplicateMode::Normal, EInternalObjectFlags::AllFlags);
 
-						UObjectPropertyBase* DestObjectProperty = CastChecked<UObjectPropertyBase>(InDestinationProperty);
+						FObjectPropertyBase* DestObjectProperty = CastFieldChecked<FObjectPropertyBase>(InDestinationProperty);
 						DestObjectProperty->SetObjectPropertyValue_InContainer(InTargetPtr, DuplicateValue);
 					}
 
@@ -221,7 +221,7 @@ namespace FObjectEditorUtils
 
 						UObject* DesintationValue = FindObjectFast<UObject>(InDestinationObject->GetOuter(), Value->GetFName());
 
-						UObjectPropertyBase* DestObjectProperty = CastChecked<UObjectPropertyBase>(InDestinationProperty);
+						FObjectPropertyBase* DestObjectProperty = CastFieldChecked<FObjectPropertyBase>(InDestinationProperty);
 						DestObjectProperty->SetObjectPropertyValue_InContainer(InTargetPtr, DesintationValue);
 					}
 				}
@@ -247,7 +247,7 @@ namespace FObjectEditorUtils
 		}
 	}
 
-	bool MigratePropertyValue(UObject* SourceObject, UProperty* SourceProperty, UObject* DestinationObject, UProperty* DestinationProperty)
+	bool MigratePropertyValue(UObject* SourceObject, FProperty* SourceProperty, UObject* DestinationObject, FProperty* DestinationProperty)
 	{
 		if (SourceObject == nullptr || DestinationObject == nullptr)
 		{

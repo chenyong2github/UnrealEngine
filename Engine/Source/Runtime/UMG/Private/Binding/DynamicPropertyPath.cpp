@@ -9,7 +9,7 @@ FDynamicPropertyPath::FDynamicPropertyPath()
 
 FDynamicPropertyPath::FDynamicPropertyPath(const FString& Path)
 	: FCachedPropertyPath(Path)
-{
+	{
 }
 
 FDynamicPropertyPath::FDynamicPropertyPath(const TArray<FString>& PropertyChain)

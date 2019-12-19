@@ -48,7 +48,7 @@ public:
 
 	UFunction* Function;
 	UBlueprintGeneratedClass* NewClass;
-	UField** LastFunctionPropertyStorageLocation;
+	FField** LastFunctionPropertyStorageLocation;
 
 	// Linear execution schedule
 	TArray<UEdGraphNode*> LinearExecutionList;
