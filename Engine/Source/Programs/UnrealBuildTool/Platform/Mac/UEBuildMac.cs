@@ -158,7 +158,7 @@ namespace UnrealBuildTool
 
 			Target.bCheckSystemHeadersForModification = BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac;
 
-			Target.bCompileISPC = true;
+			//Target.bCompileISPC = true;
 		}
 
 		/// <summary>
