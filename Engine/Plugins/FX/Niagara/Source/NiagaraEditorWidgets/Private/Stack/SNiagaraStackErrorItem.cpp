@@ -54,7 +54,7 @@ void SNiagaraStackErrorItem::Construct(const FArguments& InArgs, UNiagaraStackEr
 			SNew(STextBlock)
 			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
 			.Text_UObject(ErrorItem, &UNiagaraStackErrorItem::GetDisplayName)
-			.ColorAndOpacity(this, &SNiagaraStackErrorItem::GetTextColorForSearch)
+			.ColorAndOpacity(this, &SNiagaraStackErrorItem::GetTextColorForSearch, FSlateColor::UseForeground())
 			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
 		]
 	];
@@ -75,7 +75,7 @@ void SNiagaraStackErrorItemFix::Construct(const FArguments& InArgs, UNiagaraStac
 			SNew(STextBlock)
 			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
 			.Text_UObject(ErrorItem, &UNiagaraStackErrorItemFix::GetDisplayName)
-			.ColorAndOpacity(this, &SNiagaraStackErrorItemFix::GetTextColorForSearch)
+			.ColorAndOpacity(this, &SNiagaraStackErrorItemFix::GetTextColorForSearch, FSlateColor::UseForeground())
 			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
 			.AutoWrapText(true)
 		]
