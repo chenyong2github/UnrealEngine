@@ -1354,9 +1354,7 @@ void FPhysInterface_Chaos::AddGeometry(FPhysicsActorHandle& InActor, const FGeom
 }
 
 
-// todo(brice): Implicit Initialization Pipeline(WIP)
-// ... add virtual TImplicitObject::NewCopy()
-// @todo(mlentine,brice): We probably need to actually duplicate the data here, add virtual TImplicitObject::NewCopy()
+// @todo(chaos): We probably need to actually duplicate the data here, add virtual TImplicitObject::NewCopy()
 FPhysicsShapeHandle FPhysInterface_Chaos::CloneShape(const FPhysicsShapeHandle& InShape)
 {
 	FPhysicsActorHandle NewActor = nullptr; // why zero and not the default INDEX_NONE?
