@@ -36,6 +36,10 @@
 
 #define LOCTEXT_NAMESPACE "PhysicsAssetEditorShared"
 
+// Whether to use RigidBody AnimNode for simulation preview when using Chaos since we don't have constraints in the main scene yet.
+// NOTE: The SkeletalMeshComponent simulation overrides the AnimNode simulation if enabled, so PHAT_USE_RBAN_SIMULATION switches it off.
+#define PHAT_USE_RBAN_SIMULATION WITH_CHAOS
+
 FScopedBulkSelection::FScopedBulkSelection(TSharedPtr<FPhysicsAssetEditorSharedData> InSharedData)
 	: SharedData(InSharedData)
 {
@@ -1678,7 +1682,7 @@ void FPhysicsAssetEditorSharedData::EnableSimulation(bool bEnableSimulation)
 {
 	if (bEnableSimulation)
 	{
-
+#if !PHAT_USE_RBAN_SIMULATION
 		// We should not already have an instance (destroyed when stopping sim).
 		EditorSkelComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 		EditorSkelComp->SetSimulatePhysics(true);
@@ -1688,6 +1692,11 @@ void FPhysicsAssetEditorSharedData::EnableSimulation(bool bEnableSimulation)
 
 		// Make it start simulating
 		EditorSkelComp->WakeAllRigidBodies();
+#else
+		// Enable the PreviewInstance (containing the AnimNode_RigidBody)
+		EditorSkelComp->SetAnimationMode(EAnimationMode::AnimationCustomMode);
+		EditorSkelComp->InitAnim(true);
+#endif
 
 		if(EditorOptions->bResetClothWhenSimulating)
 		{
@@ -1696,9 +1705,9 @@ void FPhysicsAssetEditorSharedData::EnableSimulation(bool bEnableSimulation)
 	}
 	else
 	{
-		EditorSkelComp->AnimScriptInstance = nullptr;
-
-		if(EditorSkelComp->GetAnimationMode() != EAnimationMode::AnimationSingleNode)
+		// Disable the PreviewInstance
+		//EditorSkelComp->AnimScriptInstance = nullptr;
+		//if(EditorSkelComp->GetAnimationMode() != EAnimationMode::AnimationSingleNode)
 		{
 			EditorSkelComp->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 		}
