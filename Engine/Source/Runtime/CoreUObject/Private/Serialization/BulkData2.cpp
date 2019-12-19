@@ -388,13 +388,13 @@ private:
 		
 		FBulkDataBase::IoDispatcher->FreeBatch(NewBatch);
 
+		bIsCompleted = true;
+		FPlatformMisc::MemoryBarrier();
+
 		if (CompleteCallback)
 		{
 			CompleteCallback(bIsCanceled, this);
-		}
-
-		FPlatformMisc::MemoryBarrier();
-		bIsCompleted = true;
+		}	
 	}
 
 	class FBulkDataIoDispatcherRequestWorker : public FNonAbandonableTask
