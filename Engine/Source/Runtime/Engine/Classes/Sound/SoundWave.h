@@ -12,10 +12,10 @@
 #include "Misc/Guid.h"
 #include "Async/AsyncWork.h"
 #include "Sound/SoundBase.h"
-#include "Sound/SoundClass.h"
 #include "Serialization/BulkData.h"
 #include "Serialization/BulkDataBuffer.h"
 #include "Sound/SoundGroups.h"
+#include "Sound/SoundWaveLoadingBehavior.h"
 #include "AudioMixerTypes.h"
 #include "AudioCompressionSettings.h"
 #include "PerPlatformProperties.h"
@@ -328,7 +328,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Playback|Streaming", meta = (DisplayName = "Seekable", EditCondition = "bStreaming"))
 	uint8 bSeekableStreaming:1;
 
-	/** If stream caching is enabled, this can be used to specify how and when compressed audio data is loaded for this asset. */
+	/** Specifies how and when compressed audio data is loaded for asset if stream caching is enabled. */
 	UPROPERTY(EditAnywhere, Category = "Loading", meta = (DisplayName = "Loading Behavior Override"))
 	ESoundWaveLoadingBehavior LoadingBehavior;
 
@@ -361,7 +361,9 @@ public:
 	uint8 bVirtualizeWhenSilent_DEPRECATED:1;
 #endif // WITH_EDITORONLY_DATA
 
-	/** Whether or not this source is ambisonics file format. */
+	/** Whether or not this source is ambisonics file format. If set, sound always uses the 
+	  * 'Master Ambisonics Submix' as set in the 'Audio' category of Project Settings'
+	  * and ignores submix if provided locally or in the referenced SoundClass. */
 	UPROPERTY(EditAnywhere, Category = Format)
 	uint8 bIsAmbisonics : 1;
 

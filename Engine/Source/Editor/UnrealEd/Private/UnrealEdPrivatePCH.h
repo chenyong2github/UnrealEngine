@@ -550,7 +550,6 @@
 #include "Curves/CurveBase.h"
 #include "Curves/CurveOwnerInterface.h"
 #include "Camera/CameraTypes.h"
-#include "Sound/SoundClass.h"
 #include "Curves/CurveFloat.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Animation/Skeleton.h"

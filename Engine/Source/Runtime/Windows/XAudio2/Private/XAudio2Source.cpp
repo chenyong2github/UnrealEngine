@@ -388,7 +388,8 @@ bool FXAudio2SoundSource::CreateSource( void )
 	// EQFilter Causes some sound devices to lag and starve important game threads. Hack disable until a long term solution is put into place.
 
 	const bool bIsEQDisabled = GetDefault<UAudioSettings>()->bDisableMasterEQ;
-	if (!bIsEQDisabled && IsEQFilterApplied())
+	const bool bIsEQFilterApplied = WaveInstance->SoundClass ? WaveInstance->SoundClass->Properties.bApplyEffects : false;
+	if (!bIsEQDisabled && bIsEQFilterApplied)
 	{
 		Destinations[NumSends].pOutputVoice = Effects->EQPremasterVoice;
 	}
