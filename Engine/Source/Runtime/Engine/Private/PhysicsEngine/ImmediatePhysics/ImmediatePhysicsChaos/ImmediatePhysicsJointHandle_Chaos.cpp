@@ -22,7 +22,10 @@ namespace ImmediatePhysics_Chaos
 	bool ChaosImmediate_StiffnessUseMass = false;
 	FAutoConsoleVariableRef CVarStiffnessUseMass(TEXT("p.Chaos.ImmPhys.StiffnessUseMass"), ChaosImmediate_StiffnessUseMass, TEXT("Whether to use mass to scale stiffness in the conversion."));
 
-	float ChaosImmediate_DriveStiffnessScale = 8.0f;
+	bool ChaosImmediate_StiffnessUseDistance = true;
+	FAutoConsoleVariableRef CVarStiffnessUseDistance(TEXT("p.Chaos.ImmPhys.StiffnessUseDistance"), ChaosImmediate_StiffnessUseDistance, TEXT("Whether to use joint connector length to scale stiffness in the conversion."));
+
+	float ChaosImmediate_DriveStiffnessScale = 30.0f;
 	FAutoConsoleVariableRef CVarDriveStiffnessScale(TEXT("p.Chaos.ImmPhys.DriveStiffnessScale"), ChaosImmediate_DriveStiffnessScale, TEXT("Conversion factor for drive stiffness."));
 
 	float ChaosImmediate_JointMinProjection = 0.0f;
@@ -57,16 +60,28 @@ namespace ImmediatePhysics_Chaos
 	{
 		using namespace Chaos;
 
-		// Calculate inertia of the system about the joint connector using parallel axis theorem
-		float XI = (FReal)1.0;
+		float InvStiffnessScale = (FReal)1.0;
 		if (ChaosImmediate_StiffnessUseMass)
 		{
+			// Calculate inertia of the system about the joint connector using parallel axis theorem
 			const FVec3 XI0 = I0 + M0 * (X0 * X0);
 			const FVec3 XI1 = I1 + M1 * (X1 * X1);
-			XI = FMath::Max(KINDA_SMALL_NUMBER, XI0.Max() + XI1.Max());
+			InvStiffnessScale = FMath::Max(KINDA_SMALL_NUMBER, XI0.Max() + XI1.Max());
+		}
+		if (ChaosImmediate_StiffnessUseDistance)
+		{
+			// Scale stiffness by distance to account for the fact that our rotational drives are applied at
+			// the center of mass, not the connector...although maybe that should change
+			float Distance0 = (M0 > 0)? X0.Size() : 0;
+			float Distance1 = (M1 > 0)? X1.Size() : 0;
+			float Distance = FMath::Max(Distance0, Distance1);
+			if (Distance > 1)
+			{
+				InvStiffnessScale = InvStiffnessScale * Distance;
+			}
 		}
 
-		return ChaosImmediate_DriveStiffnessScale * InStiffness / XI;
+		return ChaosImmediate_DriveStiffnessScale * InStiffness / InvStiffnessScale;
 	}
 
 	float ConvertSoftLinearStiffness(const float InStiffness, const float InvM0, const float InvM1)
@@ -156,7 +171,7 @@ namespace ImmediatePhysics_Chaos
 			ConstraintSettings.Motion.bAngularSwingDriveEnabled = ConstraintInstance->ProfileInstance.AngularDrive.SwingDrive.bEnablePositionDrive;
 		}
 
-		ConstraintSettings.Motion.AngularDriveStiffness = ConvertDriveAngularStiffness(ConstraintInstance->ProfileInstance.AngularDrive.TwistDrive.Stiffness, ConstraintSettings.ConstraintFrames[0].GetTranslation(), Actor1->GetMass(), Actor1->GetInertia(), ConstraintSettings.ConstraintFrames[1].GetTranslation(), Actor2->GetMass(), Actor2->GetInertia());
+		ConstraintSettings.Motion.AngularDriveStiffness = ConvertDriveAngularStiffness(ConstraintInstance->ProfileInstance.AngularDrive.TwistDrive.Stiffness, ConstraintSettings.ConstraintFrames[0].GetTranslation() - Actor1->GetLocalCoMTransform().GetTranslation(), Actor1->GetMass(), Actor1->GetInertia(), ConstraintSettings.ConstraintFrames[1].GetTranslation() - Actor2->GetLocalCoMTransform().GetTranslation(), Actor2->GetMass(), Actor2->GetInertia());
 
 		ConstraintSettings.Motion.Sanitize();
 
