@@ -14,6 +14,7 @@
 
 #include "Toolkits/ToolkitManager.h"
 #include "IAssetViewport.h"
+#include "Classes/EditorStyleSettings.h"
 
 FPlacementMode::FPlacementMode()
 	: AssetsToPlace()
@@ -30,13 +31,11 @@ FPlacementMode::~FPlacementMode()
 
 void FPlacementMode::Initialize()
 {
-	//GConfig->GetFloat(TEXT("PlacementMode"), TEXT("AssetThumbnailScale"), AssetThumbnailScale, GEditorPerProjectIni);
-	//GConfig->GetBool( TEXT( "PlacementMode" ), TEXT( "ShowOtherDeveloperAssets" ), ShowOtherDeveloperAssets, GEditorPerProjectIni );
 }
 
 bool FPlacementMode::UsesToolkits() const
 {
-	return true;
+	return GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI;
 }
 
 void FPlacementMode::Enter()
@@ -44,7 +43,8 @@ void FPlacementMode::Enter()
 	// Call parent implementation
 	FEdMode::Enter();
 
-	if ( !Toolkit.IsValid() )
+	
+	if(!Toolkit.IsValid() && GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
 	{
 		Toolkit = MakeShareable( new FPlacementModeToolkit );
 		Toolkit->Init(Owner->GetToolkitHost());

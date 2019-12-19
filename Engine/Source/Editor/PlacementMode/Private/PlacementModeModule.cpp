@@ -48,6 +48,8 @@
 #include "AssetToolsModule.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "ActorFactories/ActorFactoryPlanarReflection.h"
+#include "SPlacementModeTools.h"
+#include "Classes/EditorStyleSettings.h"
 
 
 TOptional<FLinearColor> GetBasicShapeColorOverride()
@@ -81,12 +83,11 @@ void FPlacementModeModule::StartupModule()
 		RecentlyPlaced.Add(FActorPlacementInfo(RecentlyPlacedAsStrings[Index]));
 	}
 
-
 	FEditorModeRegistry::Get().RegisterMode<FPlacementMode>(
 		FBuiltinEditorModes::EM_Placement,
 		NSLOCTEXT("PlacementMode", "DisplayName", "Place"),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.PlacementMode", "LevelEditor.PlacementMode.Small"),
-		true, 0);
+		GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI, 0);
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	AssetRegistryModule.Get().OnAssetRemoved().AddRaw(this, &FPlacementModeModule::OnAssetRemoved);
@@ -320,6 +321,11 @@ void FPlacementModeModule::AddToRecentlyPlaced(UObject* Asset, UActorFactory* Fa
 	TArray< UObject* > Assets;
 	Assets.Add(Asset);
 	AddToRecentlyPlaced(Assets, FactoryUsed);
+}
+
+TSharedRef<SWidget> FPlacementModeModule::CreatePlacementModeBrowser()
+{
+	return SNew(SPlacementModeTools);
 }
 
 bool FPlacementModeModule::RegisterPlacementCategory(const FPlacementCategoryInfo& Info)

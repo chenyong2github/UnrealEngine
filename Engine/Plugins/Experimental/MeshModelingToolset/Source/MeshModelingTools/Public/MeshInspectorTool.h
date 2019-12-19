@@ -9,12 +9,12 @@
 #include "DynamicMesh3.h"
 #include "DynamicMeshAABBTree3.h"
 #include "Properties/MeshMaterialProperties.h"
+#include "PreviewMesh.h"
 #include "MeshInspectorTool.generated.h"
 
 
 // predeclarations
 struct FMeshDescription;
-class USimpleDynamicMeshComponent;
 class UMaterialInstanceDynamic;
 
 /**
@@ -127,7 +127,7 @@ protected:
 
 protected:
 	UPROPERTY()
-	USimpleDynamicMeshComponent* DynamicMeshComponent;
+	UPreviewMesh* PreviewMesh;
 
 	UPROPERTY()
 	UMaterialInterface* DefaultMaterial = nullptr;

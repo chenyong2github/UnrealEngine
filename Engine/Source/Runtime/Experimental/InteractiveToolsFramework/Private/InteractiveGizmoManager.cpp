@@ -8,6 +8,7 @@
 #include "BaseGizmos/PlanePositionGizmo.h"
 #include "BaseGizmos/AxisAngleGizmo.h"
 #include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/IntervalGizmo.h"
 
 #define LOCTEXT_NAMESPACE "UInteractiveGizmoManager"
 
@@ -289,6 +290,9 @@ void UInteractiveGizmoManager::RegisterDefaultGizmos()
 	CustomThreeAxisBuilder = NewObject<UTransformGizmoBuilder>();
 	CustomThreeAxisBuilder->GizmoActorBuilder = MakeShared<FTransformGizmoActorFactory>();
 	RegisterGizmoType(CustomThreeAxisTransformBuilderIdentifier, CustomThreeAxisBuilder);
+
+	UIntervalGizmoBuilder* IntervalGizmoBuilder = NewObject<UIntervalGizmoBuilder>();
+	RegisterGizmoType(UIntervalGizmo::GizmoName, IntervalGizmoBuilder);
 
 	bDefaultGizmosRegistered = true;
 }

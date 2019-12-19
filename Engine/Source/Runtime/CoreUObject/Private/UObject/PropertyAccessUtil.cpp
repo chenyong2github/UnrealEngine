@@ -76,12 +76,12 @@ EPropertyAccessResultFlags CanGetPropertyValue(const UProperty* InProp)
 	return EPropertyAccessResultFlags::Success;
 }
 
-EPropertyAccessResultFlags SetPropertyValue_Object(const UProperty* InProp, UObject* InObject, const void* InSrcValue, const int32 InArrayIndex, const uint64 InReadOnlyFlags)
+EPropertyAccessResultFlags SetPropertyValue_Object(const UProperty* InProp, UObject* InObject, const void* InSrcValue, const int32 InArrayIndex, const uint64 InReadOnlyFlags, const EPropertyAccessChangeNotifyMode InNotifyMode)
 {
 	check(InObject->IsA(InProp->GetOwnerClass()));
-	return SetPropertyValue_InContainer(InProp, InObject, InSrcValue, InArrayIndex, InReadOnlyFlags, IsObjectTemplate(InObject), [InProp, InObject]()
+	return SetPropertyValue_InContainer(InProp, InObject, InSrcValue, InArrayIndex, InReadOnlyFlags, IsObjectTemplate(InObject), [InProp, InObject, InNotifyMode]()
 	{
-		return BuildBasicChangeNotify(InProp, InObject);
+		return BuildBasicChangeNotify(InProp, InObject, InNotifyMode);
 	});
 }
 
@@ -110,12 +110,14 @@ EPropertyAccessResultFlags SetPropertyValue_DirectSingle(const UProperty* InProp
 
 	return SetPropertyValue([InProp, InSrcValue, InDestValue](const FPropertyAccessChangeNotify* InChangeNotify)
 	{
-		if (!InProp->Identical(InSrcValue, InDestValue))
+		const bool bIdenticalValue = InProp->Identical(InSrcValue, InDestValue);
+		EmitPreChangeNotify(InChangeNotify, bIdenticalValue);
+		if (!bIdenticalValue)
 		{
-			EmitPreChangeNotify(InChangeNotify);
 			InProp->CopySingleValue(InDestValue, InSrcValue);
-			EmitPostChangeNotify(InChangeNotify);
 		}
+		EmitPostChangeNotify(InChangeNotify, bIdenticalValue);
+
 		return true;
 	}, InBuildChangeNotifyFunc);
 }
@@ -142,12 +144,14 @@ EPropertyAccessResultFlags SetPropertyValue_DirectComplete(const UProperty* InPr
 			return bIsIdentical;
 		};
 
-		if (!IdenticalComplete())
+		const bool bIdenticalValue = IdenticalComplete();
+		EmitPreChangeNotify(InChangeNotify, bIdenticalValue);
+		if (!bIdenticalValue)
 		{
-			EmitPreChangeNotify(InChangeNotify);
 			InProp->CopyCompleteValue(InDestValue, InSrcValue);
-			EmitPostChangeNotify(InChangeNotify);
 		}
+		EmitPostChangeNotify(InChangeNotify, bIdenticalValue);
+
 		return true;
 	}, InBuildChangeNotifyFunc);
 }
@@ -191,48 +195,57 @@ EPropertyAccessResultFlags CanSetPropertyValue(const UProperty* InProp, const ui
 	return EPropertyAccessResultFlags::Success;
 }
 
-void EmitPreChangeNotify(const FPropertyAccessChangeNotify* InChangeNotify)
+void EmitPreChangeNotify(const FPropertyAccessChangeNotify* InChangeNotify, const bool InIdenticalValue)
 {
 #if WITH_EDITOR
-	if (InChangeNotify)
+	if (InChangeNotify && InChangeNotify->NotifyMode != EPropertyAccessChangeNotifyMode::Never)
 	{
 		check(InChangeNotify->ChangedObject);
 
-		// Notify that a change is about to occur
-		InChangeNotify->ChangedObject->PreEditChange(const_cast<FEditPropertyChain&>(InChangeNotify->ChangedPropertyChain));
+		if (!InIdenticalValue || InChangeNotify->NotifyMode == EPropertyAccessChangeNotifyMode::Always)
+		{
+			// Notify that a change is about to occur
+			InChangeNotify->ChangedObject->PreEditChange(const_cast<FEditPropertyChain&>(InChangeNotify->ChangedPropertyChain));
+		}
 	}
 #endif
 }
 
-void EmitPostChangeNotify(const FPropertyAccessChangeNotify* InChangeNotify)
+void EmitPostChangeNotify(const FPropertyAccessChangeNotify* InChangeNotify, const bool InIdenticalValue)
 {
 #if WITH_EDITOR
-	if (InChangeNotify)
+	if (InChangeNotify && InChangeNotify->NotifyMode != EPropertyAccessChangeNotifyMode::Never)
 	{
 		check(InChangeNotify->ChangedObject);
 
-		// Notify that the change has occurred
-		FPropertyChangedEvent PropertyEvent(InChangeNotify->ChangedPropertyChain.GetActiveNode()->GetValue(), InChangeNotify->ChangeType, MakeArrayView(&InChangeNotify->ChangedObject, 1));
-		PropertyEvent.SetActiveMemberProperty(InChangeNotify->ChangedPropertyChain.GetActiveMemberNode()->GetValue());
-		FPropertyChangedChainEvent PropertyChainEvent(const_cast<FEditPropertyChain&>(InChangeNotify->ChangedPropertyChain), PropertyEvent);
-		InChangeNotify->ChangedObject->PostEditChangeChainProperty(PropertyChainEvent);
+		if (!InIdenticalValue || InChangeNotify->NotifyMode == EPropertyAccessChangeNotifyMode::Always)
+		{
+			// Notify that the change has occurred
+			FPropertyChangedEvent PropertyEvent(InChangeNotify->ChangedPropertyChain.GetActiveNode()->GetValue(), InChangeNotify->ChangeType, MakeArrayView(&InChangeNotify->ChangedObject, 1));
+			PropertyEvent.SetActiveMemberProperty(InChangeNotify->ChangedPropertyChain.GetActiveMemberNode()->GetValue());
+			FPropertyChangedChainEvent PropertyChainEvent(const_cast<FEditPropertyChain&>(InChangeNotify->ChangedPropertyChain), PropertyEvent);
+			InChangeNotify->ChangedObject->PostEditChangeChainProperty(PropertyChainEvent);
+		}
 	}
 #endif
 }
 
-TUniquePtr<FPropertyAccessChangeNotify> BuildBasicChangeNotify(const UProperty* InProp, const UObject* InObject)
+TUniquePtr<FPropertyAccessChangeNotify> BuildBasicChangeNotify(const UProperty* InProp, const UObject* InObject, const EPropertyAccessChangeNotifyMode InNotifyMode)
 {
 	check(InObject->IsA(InProp->GetOwnerClass()));
 #if WITH_EDITOR
-	TUniquePtr<FPropertyAccessChangeNotify> ChangeNotify = MakeUnique<FPropertyAccessChangeNotify>();
-	ChangeNotify->ChangedObject = const_cast<UObject*>(InObject);
-	ChangeNotify->ChangedPropertyChain.AddHead(const_cast<UProperty*>(InProp));
-	ChangeNotify->ChangedPropertyChain.SetActivePropertyNode(const_cast<UProperty*>(InProp));
-	ChangeNotify->ChangedPropertyChain.SetActiveMemberPropertyNode(const_cast<UProperty*>(InProp));
-	return ChangeNotify;
-#else
-	return nullptr;
+	if (InNotifyMode != EPropertyAccessChangeNotifyMode::Never)
+	{
+		TUniquePtr<FPropertyAccessChangeNotify> ChangeNotify = MakeUnique<FPropertyAccessChangeNotify>();
+		ChangeNotify->ChangedObject = const_cast<UObject*>(InObject);
+		ChangeNotify->ChangedPropertyChain.AddHead(const_cast<UProperty*>(InProp));
+		ChangeNotify->ChangedPropertyChain.SetActivePropertyNode(const_cast<UProperty*>(InProp));
+		ChangeNotify->ChangedPropertyChain.SetActiveMemberPropertyNode(const_cast<UProperty*>(InProp));
+		ChangeNotify->NotifyMode = InNotifyMode;
+		return ChangeNotify;
+	}
 #endif
+	return nullptr;
 }
 
 bool IsObjectTemplate(const UObject* InObject)

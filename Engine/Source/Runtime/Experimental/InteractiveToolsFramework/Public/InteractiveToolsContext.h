@@ -40,6 +40,17 @@ public:
 	bool CanCompleteActiveTool(EToolSide WhichSide) const;
 	bool StartTool(EToolSide WhichSide, const FString& ToolTypeIdentifier);
 	void EndTool(EToolSide WhichSide, EToolShutdownType ShutdownType);
+	bool IsToolBuilderActive(EToolSide WhichSide, UInteractiveToolBuilder* Builder);
+
+public:
+	// forwards message to OnToolNotificationMessage delegate
+	virtual void PostToolNotificationMessage(const FText& Message);
+	virtual void PostToolWarningMessage(const FText& Message);
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FToolsContextToolNotification, const FText&);
+	FToolsContextToolNotification OnToolNotificationMessage;
+	FToolsContextToolNotification OnToolWarningMessage;
+
 public:
 	/** current UInputRouter for this Context */
 	UPROPERTY()
@@ -52,4 +63,8 @@ public:
 	/** current UInteractiveGizmoManager for this Context */
 	UPROPERTY()
 	UInteractiveGizmoManager* GizmoManager;
+
+protected:
+	UPROPERTY()
+	TSoftClassPtr<UInteractiveToolManager> ToolManagerClass;
 };

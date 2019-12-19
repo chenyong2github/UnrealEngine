@@ -91,7 +91,6 @@ public:
 	TSharedPtr<FUICommandInfo> PlayInDefaultPlayerStart;
 	TSharedPtr<FUICommandInfo> PlayInSettings;
 	TSharedPtr<FUICommandInfo> PlayInNetworkSettings;
-	TSharedPtr<FUICommandInfo> PlayInNetworkDedicatedServer;
 
 	TArray< TSharedPtr< FUICommandInfo > > PlayInTargetedMobilePreviewDevices;
 

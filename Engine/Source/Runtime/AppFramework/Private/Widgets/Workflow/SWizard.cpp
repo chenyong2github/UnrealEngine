@@ -49,7 +49,7 @@ void SWizard::Construct( const FArguments& InArgs )
 		]
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(0, 10, 0, 0)
+		.Padding(InArgs._ShowBreadcrumbs ? FMargin(0, 10, 0, 0) : FMargin(0))
 		[
 			SNew(STextBlock)
 			.TextStyle(InArgs._PageTitleTextStyle)

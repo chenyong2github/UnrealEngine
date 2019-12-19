@@ -688,9 +688,20 @@ void FSkeletalMeshLODModel::Serialize(FArchive& Ar, UObject* Owner, int32 Idx)
 	if (!StripFlags.IsEditorDataStripped())
 	{
 		RawPointIndices.Serialize(Ar, Owner);
-		if (Ar.IsSaving() || (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::NewSkeletalMeshImporterWorkflow))
+		if (Ar.IsLoading()
+			&& (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::NewSkeletalMeshImporterWorkflow)
+			&& (Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::SkeletalMeshMoveEditorSourceDataToPrivateAsset))
 		{
-			RawSkeletalMeshBulkData.Serialize(Ar, Owner);
+			RawSkeletalMeshBulkData_DEPRECATED.Serialize(Ar, Owner);
+			RawSkeletalMeshBulkDataID = RawSkeletalMeshBulkData_DEPRECATED.GetIdString();
+			bIsBuildDataAvailable = RawSkeletalMeshBulkData_DEPRECATED.IsBuildDataAvailable();
+			bIsRawSkeletalMeshBulkDataEmpty = RawSkeletalMeshBulkData_DEPRECATED.IsEmpty();
+		}
+		if (Ar.CustomVer(FEditorObjectVersion::GUID) >= FEditorObjectVersion::SkeletalMeshMoveEditorSourceDataToPrivateAsset)
+		{
+			Ar << RawSkeletalMeshBulkDataID;
+			Ar << bIsBuildDataAvailable;
+			Ar << bIsRawSkeletalMeshBulkDataEmpty;
 		}
 	}
 
@@ -1003,7 +1014,7 @@ FString FSkeletalMeshLODModel::GetLODModelDeriveDataKey() const
 	FMemoryWriter Ar(ByteData, true);
 
 	//Add the bulk data ID (if someone modify the original imported data, this ID will change)
-	FString BulkDatIDString = RawSkeletalMeshBulkData.GetIdString();
+	FString BulkDatIDString = RawSkeletalMeshBulkDataID; //Need to re-assign to tmp var because function is const
 	Ar << BulkDatIDString;
 	int32 UserSectionCount = UserSectionsData.Num();
 	Ar << UserSectionCount;
@@ -1026,12 +1037,6 @@ FString FSkeletalMeshLODModel::GetLODModelDeriveDataKey() const
 
 void FSkeletalMeshLODModel::UpdateChunkedSectionInfo(const FString& SkeletalMeshName, TArray<int32>& LODMaterialMap)
 {
-	//Look if the data is pre skeletalmesh build refactor
-	if (RawSkeletalMeshBulkData.IsBuildDataAvailable())
-	{
-		//If the data is up to date just return and do nothing
-		return;
-	}
 	int32 LODModelSectionNum = Sections.Num();
 	//Fill the ChunkedParentSectionIndex data, we assume that every section using the same material are chunked
 	int32 LastMaterialIndex = INDEX_NONE;
@@ -1087,16 +1092,16 @@ void FSkeletalMeshLODModel::UpdateChunkedSectionInfo(const FString& SkeletalMesh
 
 bool FSkeletalMeshLODModel::CopyStructure(FSkeletalMeshLODModel* Destination, FSkeletalMeshLODModel* Source)
 {
-	if (Source->RawPointIndices.IsLocked() || Source->LegacyRawPointIndices.IsLocked() || Source->RawSkeletalMeshBulkData.GetBulkData().IsLocked())
+	if (Source->RawPointIndices.IsLocked() || Source->LegacyRawPointIndices.IsLocked() || Source->RawSkeletalMeshBulkData_DEPRECATED.GetBulkData().IsLocked())
 	{
 		return false;
 	}
 	// Bulk data arrays need to be locked before a copy can be made.
 	Source->RawPointIndices.Lock(LOCK_READ_ONLY);
 	Source->LegacyRawPointIndices.Lock(LOCK_READ_ONLY);
-	Source->RawSkeletalMeshBulkData.GetBulkData().Lock(LOCK_READ_ONLY);
+	Source->RawSkeletalMeshBulkData_DEPRECATED.GetBulkData().Lock(LOCK_READ_ONLY);
 	*Destination = *Source;
-	Source->RawSkeletalMeshBulkData.GetBulkData().Unlock();
+	Source->RawSkeletalMeshBulkData_DEPRECATED.GetBulkData().Unlock();
 	Source->RawPointIndices.Unlock();
 	Source->LegacyRawPointIndices.Unlock();
 

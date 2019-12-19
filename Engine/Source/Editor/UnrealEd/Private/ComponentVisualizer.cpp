@@ -120,6 +120,7 @@ UActorComponent* FComponentPropertyPath::GetComponent() const
 				int32 PropertyIndex = PropertyNameAndIndex.Index;
 
 				UClass* ActorClass = Actor->GetClass();
+				check(ActorClass);
 				UProperty* Prop = FindField<UProperty>(ActorClass, PropertyName);
 
 				if (UObjectProperty* ObjectProp = Cast<UObjectProperty>(Prop))
@@ -152,6 +153,10 @@ UActorComponent* FComponentPropertyPath::GetComponent() const
 				}
 
 				Actor = ChildActorComponent->GetChildActor();
+				if (Actor == nullptr)
+				{
+					break;
+				}
 			}
 		}
 	}

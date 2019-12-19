@@ -13,8 +13,10 @@
 //#include "MeshVertexDragTool.h"
 #include "DynamicMeshSculptTool.h"
 #include "EditMeshPolygonsTool.h"
+#include "DeformMeshPolygonsTool.h"
 #include "ConvertToPolygonsTool.h"
 #include "AddPrimitiveTool.h"
+#include "AddPatchTool.h"
 #include "SmoothMeshTool.h"
 #include "RemeshMeshTool.h"
 #include "SimplifyMeshTool.h"
@@ -29,14 +31,22 @@
 #include "DisplaceMeshTool.h"
 #include "MeshSpaceDeformerTool.h"
 #include "EditNormalsTool.h"
+#include "RemoveOccludedTrianglesTool.h"
 #include "AttributeEditorTool.h"
 #include "TransformMeshesTool.h"
 #include "MeshSelectionTool.h"
 #include "UVProjectionTool.h"
+#include "UVLayoutTool.h"
+#include "EditMeshMaterialsTool.h"
+#include "EditPivotTool.h"
+#include "BakeTransformTool.h"
 
 #include "ParameterizeMeshTool.h"
 
 #include "EditorModeManager.h"
+
+// stylus support
+#include "IStylusInputModule.h"
 
 // viewport interaction support
 #include "ViewportInteractor.h"
@@ -151,9 +161,12 @@ bool FModelingToolsEditorMode::InputKey(FEditorViewportClient* ViewportClient, F
 	// try hotkeys
 	if (Event != IE_Released)
 	{
-		if (UICommandList->ProcessCommandBindings(Key, FSlateApplication::Get().GetModifierKeys(), false/*Event == IE_Repeat*/))
+		if (ToolsContext->ShouldIgnoreHotkeys() == false)		// allow the context to capture keyboard input if necessary
 		{
-			return true;
+			if (UICommandList->ProcessCommandBindings(Key, FSlateApplication::Get().GetModifierKeys(), false/*Event == IE_Repeat*/))
+			{
+				return true;
+			}
 		}
 	}
 
@@ -252,6 +265,93 @@ bool FModelingToolsEditorMode::MouseLeave(FEditorViewportClient* ViewportClient,
 
 
 
+
+//
+// FStylusStateTracker registers itself as a listener for stylus events and implements
+// the IToolStylusStateProviderAPI interface, which allows MeshSurfacePointTool implementations
+// to query for the pen pressure. 
+//
+// This is kind of a hack. Unfortunately the current Stylus module is a Plugin so it
+// cannot be used in the base ToolsFramework, and we need this in the Mode as a workaround.
+//
+class FStylusStateTracker : public IStylusMessageHandler, public IToolStylusStateProviderAPI
+{
+public:
+	const IStylusInputDevice* ActiveDevice = nullptr;
+	int32 ActiveDeviceIndex = -1;
+
+	bool bPenDown = false;
+	float ActivePressure = 1.0;
+
+	FStylusStateTracker()
+	{
+		UStylusInputSubsystem* StylusSubsystem = GEditor->GetEditorSubsystem<UStylusInputSubsystem>();
+		StylusSubsystem->AddMessageHandler(*this);
+
+		ActiveDevice = FindFirstPenDevice(StylusSubsystem, ActiveDeviceIndex);
+		bPenDown = false;
+	}
+
+	virtual ~FStylusStateTracker()
+	{
+		UStylusInputSubsystem* StylusSubsystem = GEditor->GetEditorSubsystem<UStylusInputSubsystem>();
+		StylusSubsystem->RemoveMessageHandler(*this);
+	}
+
+	virtual void OnStylusStateChanged(const FStylusState& NewState, int32 StylusIndex) override
+	{
+		if (ActiveDevice == nullptr)
+		{
+			UStylusInputSubsystem* StylusSubsystem = GEditor->GetEditorSubsystem<UStylusInputSubsystem>();
+			ActiveDevice = FindFirstPenDevice(StylusSubsystem, ActiveDeviceIndex);
+			bPenDown = false;
+		}
+		if (ActiveDevice != nullptr && ActiveDeviceIndex == StylusIndex)
+		{
+			bPenDown = NewState.IsStylusDown();
+			ActivePressure = NewState.GetPressure();
+		}
+	}
+
+
+	bool HaveActiveStylusState() const
+	{
+		return ActiveDevice != nullptr && bPenDown;
+	}
+
+	static const IStylusInputDevice* FindFirstPenDevice(const UStylusInputSubsystem* StylusSubsystem, int32& ActiveDeviceOut)
+	{
+		int32 NumDevices = StylusSubsystem->NumInputDevices();
+		for (int32 k = 0; k < NumDevices; ++k)
+		{
+			const IStylusInputDevice* Device = StylusSubsystem->GetInputDevice(k);
+			const TArray<EStylusInputType>& Inputs = Device->GetSupportedInputs();
+			for (EStylusInputType Input : Inputs)
+			{
+				if (Input == EStylusInputType::Pressure)
+				{
+					ActiveDeviceOut = k;
+					return Device;
+				}
+			}
+		}
+		return nullptr;
+	}
+
+
+
+	// IToolStylusStateProviderAPI implementation
+	virtual float GetCurrentPressure() const override
+	{
+		return (ActiveDevice != nullptr && bPenDown) ? ActivePressure : 1.0f;
+	}
+
+};
+
+
+
+
+
 void FModelingToolsEditorMode::Enter()
 {
 	FEdMode::Enter();
@@ -270,6 +370,9 @@ void FModelingToolsEditorMode::Enter()
 	{
 		this->OnToolWarningMessage.Broadcast(Message);
 	});
+
+	// register stylus event handler
+	StylusStateTracker = MakeUnique<FStylusStateTracker>();
 
 	if (!Toolkit.IsValid() && UsesToolkits())
 	{
@@ -329,6 +432,10 @@ void FModelingToolsEditorMode::Enter()
 	AddPrimitiveToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginAddPrimitiveTool, TEXT("AddPrimitiveTool"), AddPrimitiveToolBuilder);
 
+	auto AddPatchToolBuilder = NewObject<UAddPatchToolBuilder>();
+	AddPatchToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginAddPatchTool, TEXT("AddPatchTool"), AddPatchToolBuilder);
+
 	auto DrawPolygonToolBuilder = NewObject<UDrawPolygonToolBuilder>();
 	DrawPolygonToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginDrawPolygonTool, TEXT("DrawPolygonTool"), DrawPolygonToolBuilder);
@@ -344,19 +451,24 @@ void FModelingToolsEditorMode::Enter()
 
 	auto MoveVerticesToolBuilder = NewObject<UDynamicMeshSculptToolBuilder>();
 	MoveVerticesToolBuilder->bEnableRemeshing = false;
+	MoveVerticesToolBuilder->StylusAPI = StylusStateTracker.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginSculptMeshTool, TEXT("MoveVerticesTool"), MoveVerticesToolBuilder);
 
 	RegisterToolFunc(ToolManagerCommands.BeginPolyEditTool, TEXT("EditMeshPolygonsTool"), NewObject<UEditMeshPolygonsToolBuilder>());
+	RegisterToolFunc(ToolManagerCommands.BeginPolyDeformTool, TEXT("DeformMeshPolygonsTool"), NewObject<UDeformMeshPolygonsToolBuilder>());
 	RegisterToolFunc(ToolManagerCommands.BeginSmoothMeshTool, TEXT("SmoothMeshTool"), NewObject<USmoothMeshToolBuilder>());
 	RegisterToolFunc(ToolManagerCommands.BeginDisplaceMeshTool, TEXT("DisplaceMeshTool"), NewObject<UDisplaceMeshToolBuilder>());
 	RegisterToolFunc(ToolManagerCommands.BeginMeshSpaceDeformerTool, TEXT("MeshSpaceDeformerTool"), NewObject<UMeshSpaceDeformerToolBuilder>());
 	RegisterToolFunc(ToolManagerCommands.BeginTransformMeshesTool, TEXT("TransformMeshesTool"), NewObject<UTransformMeshesToolBuilder>());
+	RegisterToolFunc(ToolManagerCommands.BeginEditPivotTool, TEXT("EditPivotTool"), NewObject<UEditPivotToolBuilder>());
+	RegisterToolFunc(ToolManagerCommands.BeginBakeTransformTool, TEXT("BakeTransformTool"), NewObject<UBakeTransformToolBuilder>());
 
 	// edit tools
 
 
 	auto DynaSculptToolBuilder = NewObject<UDynamicMeshSculptToolBuilder>();
 	DynaSculptToolBuilder->bEnableRemeshing = true;
+	DynaSculptToolBuilder->StylusAPI = StylusStateTracker.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginRemeshSculptMeshTool, TEXT("DynaSculptTool"), DynaSculptToolBuilder);
 
 	RegisterToolFunc(ToolManagerCommands.BeginRemeshMeshTool, TEXT("RemeshMeshTool"), NewObject<URemeshMeshToolBuilder>());
@@ -367,9 +479,17 @@ void FModelingToolsEditorMode::Enter()
 	EditNormalsToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginEditNormalsTool, TEXT("EditNormalsTool"), EditNormalsToolBuilder);
 
+	auto RemoveOccludedTrianglesToolBuilder = NewObject<URemoveOccludedTrianglesToolBuilder>();
+	RemoveOccludedTrianglesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginRemoveOccludedTrianglesTool, TEXT("RemoveOccludedTrianglesTool"), RemoveOccludedTrianglesToolBuilder);
+
 	auto UVProjectionToolBuilder = NewObject<UUVProjectionToolBuilder>();
 	UVProjectionToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginUVProjectionTool, TEXT("UVProjectionTool"), UVProjectionToolBuilder);
+
+	auto UVLayoutToolBuilder = NewObject<UUVLayoutToolBuilder>();
+	UVLayoutToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginUVLayoutTool, TEXT("UVLayoutTool"), UVLayoutToolBuilder);
 
 	auto MergeMeshesToolBuilder = NewObject<UMergeMeshesToolBuilder>();
 	MergeMeshesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
@@ -395,6 +515,10 @@ void FModelingToolsEditorMode::Enter()
 	MeshSelectionToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginMeshSelectionTool, TEXT("MeshSelectionTool"), MeshSelectionToolBuilder);
 
+	auto EditMeshMaterialsToolBuilder = NewObject<UEditMeshMaterialsToolBuilder>();
+	EditMeshMaterialsToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginEditMeshMaterialsTool, TEXT("EditMaterialsTool"), EditMeshMaterialsToolBuilder);
+	
 
 	// analysis tools
 
@@ -458,6 +582,9 @@ void FModelingToolsEditorMode::Exit()
 {
 	OnToolNotificationMessage.Clear();
 	OnToolWarningMessage.Clear();
+
+
+	StylusStateTracker = nullptr;
 
 	ToolsContext->ShutdownContext();
 	ToolsContext = nullptr;

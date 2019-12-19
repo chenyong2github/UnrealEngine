@@ -19,11 +19,32 @@
 #include "Tools/EditorToolAssetAPI.h"
 #include "Tools/EditorComponentSourceFactory.h"
 #include "InteractiveToolObjects.h"
+#include "BaseBehaviors/ClickDragBehavior.h"
 
 //#include "PhysicsEngine/BodySetup.h"
 //#include "Interfaces/Interface_CollisionDataProvider.h"
 
 //#define ENABLE_DEBUG_PRINTING
+
+
+
+static float SnapToIncrement(float fValue, float fIncrement, float offset = 0)
+{
+	if (!FMath::IsFinite(fValue))
+	{
+		return 0;
+	}
+	fValue -= offset;
+	float sign = FMath::Sign(fValue);
+	fValue = FMath::Abs(fValue);
+	int nInc = (int)(fValue / fIncrement);
+	float fRem = (float)fmod(fValue, fIncrement);
+	if (fRem > fIncrement / 2)
+	{
+		++nInc;
+	}
+	return sign * (float)nInc * fIncrement + offset;
+}
 
 
 
@@ -44,9 +65,42 @@ public:
 	void CacheCurrentViewState(FEditorViewportClient* ViewportClient)
 	{
 		FViewportCameraTransform ViewTransform = ViewportClient->GetViewTransform();
-		CachedViewState.Position = ViewTransform.GetLocation();
-		CachedViewState.Orientation = ViewTransform.GetRotation().Quaternion();
 		CachedViewState.bIsOrthographic = ViewportClient->IsOrtho();
+		CachedViewState.Position = ViewTransform.GetLocation();
+
+		// ViewTransform rotation is only initialized for perspective!
+		if (CachedViewState.bIsOrthographic == false)
+		{
+			CachedViewState.Orientation = ViewTransform.GetRotation().Quaternion();
+		}
+		else
+		{
+			// These rotations are based on hardcoded values in EditorViewportClient.cpp, see switches in FEditorViewportClient::CalcSceneView and FEditorViewportClient::Draw
+			switch (ViewportClient->ViewportType)
+			{
+			case LVT_OrthoXY:
+				CachedViewState.Orientation = FQuat(FRotator(-90.0f, -90.0f, 0.0f));
+				break;
+			case LVT_OrthoNegativeXY:
+				CachedViewState.Orientation = FQuat(FRotator(90.0f, 90.0f, 0.0f));
+				break;
+			case LVT_OrthoXZ:
+				CachedViewState.Orientation = FQuat(FRotator(0.0f, -90.0f, 0.0f));
+				break;
+			case LVT_OrthoNegativeXZ:
+				CachedViewState.Orientation = FQuat(FRotator(0.0f, 90.0f, 0.0f));
+				break;
+			case LVT_OrthoYZ:
+				CachedViewState.Orientation = FQuat(FRotator(0.0f, 0.0f, 0.0f));
+				break;
+			case LVT_OrthoNegativeYZ:
+				CachedViewState.Orientation = FQuat(FRotator(0.0f, 180.0f, 0.0f));
+				break;
+			default:
+				CachedViewState.Orientation = FQuat::Identity;
+			}
+		}
+
 		CachedViewState.bIsVR = false;
 	}
 
@@ -81,6 +135,18 @@ public:
 		}
 
 		int FoundResultCount = 0;
+
+		if ((Request.TargetTypes & ESceneSnapQueryTargetType::Grid) != ESceneSnapQueryTargetType::None)
+		{
+			FSceneSnapQueryResult SnapResult;
+			SnapResult.TargetType = ESceneSnapQueryTargetType::Grid;
+			float SnapSize = GEditor->GetGridSize();
+			SnapResult.Position.X = SnapToIncrement(Request.Position.X, SnapSize);
+			SnapResult.Position.Y = SnapToIncrement(Request.Position.Y, SnapSize);
+			SnapResult.Position.Z = SnapToIncrement(Request.Position.Z, SnapSize);
+			Results.Add(SnapResult);
+			FoundResultCount++;
+		}
 
 		//
 		// Run a snap query by casting ray into the world.
@@ -321,7 +387,6 @@ public:
 
 
 
-
 UEdModeInteractiveToolsContext::UEdModeInteractiveToolsContext()
 {
 	EditorMode = nullptr;
@@ -359,6 +424,20 @@ void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 		RestoreEditorState();
 	});
 
+
+	// If user right-press-drags, this enables "fly mode" in the main viewport, and in that mode the QEWASD keys should
+	// be used for flying control. However the EdMode InputKey/etc system doesn't enforce any of this, we can still also
+	// get that mouse input and hotkeys. So we register a dummy behavior that captures all right-mouse dragging, and 
+	// in that mode we set bInFlyMode=true, so that Modes based on this Context will know to skip hotkey processing
+	ULocalClickDragInputBehavior* RightMouseBehavior = NewObject<ULocalClickDragInputBehavior>(this);
+	RightMouseBehavior->CanBeginClickDragFunc = [](const FInputDeviceRay& PressPos) { return  FInputRayHit(0); };
+	RightMouseBehavior->OnClickPressFunc = [this](const FInputDeviceRay&) { bInFlyMode = true; };
+	RightMouseBehavior->OnClickReleaseFunc = [this](const FInputDeviceRay&) { bInFlyMode = false; };
+	RightMouseBehavior->OnTerminateFunc = [this]() { bInFlyMode = false; };
+	RightMouseBehavior->SetDefaultPriority(FInputCapturePriority(0));
+	RightMouseBehavior->SetUseRightMouseButton();
+	RightMouseBehavior->Initialize();
+	InputRouter->RegisterBehavior(RightMouseBehavior, this);
 
 	bInvalidationPending = false;
 }
@@ -428,18 +507,6 @@ void UEdModeInteractiveToolsContext::ShutdownContext()
 }
 
 
-void UEdModeInteractiveToolsContext::PostToolNotificationMessage(const FText& Message)
-{
-	OnToolNotificationMessage.Broadcast(Message);
-}
-
-void UEdModeInteractiveToolsContext::PostToolWarningMessage(const FText& Message)
-{
-	OnToolWarningMessage.Broadcast(Message);
-}
-
-
-
 void UEdModeInteractiveToolsContext::TerminateActiveToolsOnPIEStart()
 {
 	DeactivateAllActiveTools();
@@ -452,10 +519,6 @@ void UEdModeInteractiveToolsContext::TerminateActiveToolsOnWorldTearDown()
 {
 	DeactivateAllActiveTools();
 }
-
-
-
-
 
 void UEdModeInteractiveToolsContext::PostInvalidation()
 {
@@ -499,6 +562,12 @@ public:
 
 void UEdModeInteractiveToolsContext::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
+	// tools framework cannot use HitProxy so skip these calls
+	if (PDI->IsHitTesting())
+	{
+		return;
+	}
+
 	TempRenderContext RenderContext;
 	RenderContext.PDI = PDI;
 	ToolManager->Render(&RenderContext);
@@ -568,7 +637,7 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 	{
 		if (ToolManager->HasAnyActiveTool())
 		{
-			if (ToolManager->HasActiveTool(EToolSide::Mouse))
+			if (ToolManager->HasActiveTool(EToolSide::Mouse) && ToolManager->CanCancelActiveTool(EToolSide::Mouse))
 			{
 				DeactivateActiveTool(EToolSide::Mouse, EToolShutdownType::Cancel);
 			}
@@ -599,6 +668,10 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 
 	// if alt is down we do not process mouse event
 	if (ViewportClient->IsAltPressed())
+	{
+		return false;
+	}
+	if (ViewportClient->IsMovingCamera())
 	{
 		return false;
 	}
@@ -647,7 +720,7 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 
 				InputRouter->PostInputEvent(InputState);
 
-				if (InputRouter->HasActiveMouseCapture())
+				if (InputRouter->HasActiveMouseCapture() && bInFlyMode == false)
 				{
 					// what is this about? MeshPaintMode has it...
 					ViewportClient->bLockFlightCamera = true;
@@ -751,7 +824,7 @@ bool UEdModeInteractiveToolsContext::MouseLeave(FEditorViewportClient* ViewportC
 
 bool UEdModeInteractiveToolsContext::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
-	return false;
+	return true;
 }
 
 bool UEdModeInteractiveToolsContext::CapturedMouseMove(FEditorViewportClient* InViewportClient, FViewport* InViewport, int32 InMouseX, int32 InMouseY)
@@ -791,6 +864,9 @@ bool UEdModeInteractiveToolsContext::EndTracking(FEditorViewportClient* InViewpo
 #ifdef ENABLE_DEBUG_PRINTING
 	UE_LOG(LogTemp, Warning, TEXT("END TRACKING"));
 #endif
+
+	// unlock flight camera
+	InViewportClient->bLockFlightCamera = false;
 
 	return true;
 }
@@ -872,21 +948,26 @@ void UEdModeInteractiveToolsContext::DeactivateAllActiveTools()
 
 
 
-
 void UEdModeInteractiveToolsContext::SaveEditorStateAndSetForTool()
 {
 	check(bHaveSavedEditorState == false);
-	bSavedAntiAliasingState = GCurrentLevelEditingViewportClient->EngineShowFlags.AntiAliasing;
+	SavedViewportClient = GCurrentLevelEditingViewportClient;
 	bHaveSavedEditorState = true;
 
-	GCurrentLevelEditingViewportClient->EngineShowFlags.SetAntiAliasing(false);
+	GCurrentLevelEditingViewportClient->EnableOverrideEngineShowFlags([](FEngineShowFlags& Flags)
+	{
+		Flags.SetTemporalAA(false);
+		Flags.SetMotionBlur(false);
+		Flags.SetEyeAdaptation(false);
+	});
 }
+
 
 void UEdModeInteractiveToolsContext::RestoreEditorState()
 {
-	if (bHaveSavedEditorState && !IsEngineExitRequested())
+	if (bHaveSavedEditorState)
 	{
-		GCurrentLevelEditingViewportClient->EngineShowFlags.SetAntiAliasing(bSavedAntiAliasingState);
+		SavedViewportClient->DisableOverrideEngineShowFlags();
 		bHaveSavedEditorState = false;
 	}
 }

@@ -536,7 +536,7 @@ bool InvokeFunctionCall(UObject* InObj, const UFunction* InFunc, void* InBasePar
 	{
 		if (Verbosity == ELogVerbosity::Error)
 		{
-			SetPythonError(PyExc_Exception, InErrorCtxt, ExceptionMessage);
+			SetPythonError(PyExc_RuntimeError, InErrorCtxt, ExceptionMessage);
 			bThrewException = true;
 		}
 		else if (Verbosity == ELogVerbosity::Warning)

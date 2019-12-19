@@ -727,8 +727,16 @@ void FEditorModeTools::RebuildModeToolBar()
 				{
 					TSharedRef<SWidget> PaletteWidget = Row.ToolbarWidget.ToSharedRef();
 
-					FEdMode* Mode = GetActiveMode(Row.ModeID);
-					TSharedPtr<FModeToolkit> RowToolkit = Mode->GetToolkit();
+					
+					TSharedPtr<FModeToolkit> RowToolkit;
+					if (FEdMode* Mode = GetActiveMode(Row.ModeID))
+					{
+						RowToolkit = Mode->GetToolkit();
+					}
+					else if (UEdMode* ScriptableMode = GetActiveScriptableMode(Row.ModeID))
+					{
+						RowToolkit = ScriptableMode->GetToolkit();
+					}
 
 					// Don't show Palette Tabs if there is only one
 					if (PaletteCount > 1)
@@ -778,8 +786,10 @@ void FEditorModeTools::RebuildModeToolBar()
 			ModeToolbarBoxPinned->AddSlot()
 			.Padding(1.f)
 			[
-				PaletteSwitcher	
+				PaletteSwitcher 
 			];
+
+			ModeToolbarPaletteSwitcher = PaletteSwitcher;
 		}
 		else
 		{
@@ -801,6 +811,33 @@ void FEditorModeTools::SpawnOrUpdateModeToolbar()
 			ToolkitHost.Pin()->GetTabManager()->InvokeTab(EditorModeToolbarTabName);
 		}
 	}
+}
+
+void FEditorModeTools::InvokeToolPaletteTab(FEditorModeID InModeID, FName InPaletteName)
+{
+	if (!ModeToolbarPaletteSwitcher.Pin()) 
+	{
+		return;
+	}
+
+	for (auto Row: ActiveToolBarRows)
+	{
+		if (Row.ModeID == InModeID && Row.PaletteName == InPaletteName)
+		{
+			TSharedRef<SWidget> PaletteWidget = Row.ToolbarWidget.ToSharedRef();
+
+			FEdMode* Mode = GetActiveMode(InModeID);
+			TSharedPtr<FModeToolkit> RowToolkit = Mode->GetToolkit();
+
+			TSharedPtr<SWidget> ActiveWidget = ModeToolbarPaletteSwitcher.Pin()->GetActiveWidget();
+			if (ActiveWidget.Get() != Row.ToolbarWidget.Get())
+			{
+				ModeToolbarPaletteSwitcher.Pin()->SetActiveWidget(Row.ToolbarWidget.ToSharedRef());
+				RowToolkit->OnToolPaletteChanged(Row.PaletteName);
+			}
+			break;	
+		}
+	}	
 }
 
 void FEditorModeTools::DeactivateMode( FEditorModeID InID )
@@ -905,9 +942,15 @@ TSharedRef<SDockTab> FEditorModeTools::MakeModeToolbarTab()
 
 }
 
-bool FEditorModeTools::ShouldShowModeToolbar()
+bool FEditorModeTools::ShouldShowModeToolbar() const
 {
 	return ActiveToolBarRows.Num() > 0;
+}
+
+bool FEditorModeTools::ShouldShowModeToolbox() const
+{
+	// This could ideally ask each active mode if it has any tools but when developing a new mode the toolbox not appearing by default could be hard to understand
+	return !IsModeActive(FBuiltinEditorModes::EM_Default);
 }
 
 void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
@@ -1007,9 +1050,9 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 				for(auto Palette : PaletteNames)
 				{
 					FToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(Mode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), Orient_Horizontal, false);
+					ModeToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
 					Toolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
 
-					// ActiveToolBarRows.Emplace(Mode, Toolkit->GetToolPaletteName(i), ModeToolbarBuilder.MakeWidget());
 					ActiveToolBarRows.Emplace(Mode->GetID(), Palette, Toolkit->GetToolPaletteDisplayName(Palette), ModeToolbarBuilder.MakeWidget());
 					PaletteCount++;
 				}
@@ -1081,7 +1124,6 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 					FToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(Mode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), Orient_Horizontal, false);
 					Toolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
 
-					// ActiveToolBarRows.Emplace(Mode, Toolkit->GetToolPaletteName(i), ModeToolbarBuilder.MakeWidget());
 					ActiveToolBarRows.Emplace(Mode->GetID(), Palette, Toolkit->GetToolPaletteDisplayName(Palette), ModeToolbarBuilder.MakeWidget());
 					PaletteCount++;
 				}
@@ -1118,7 +1160,7 @@ bool FEditorModeTools::EnsureNotInMode(FEditorModeID ModeID, const FText& ErrorM
 	return bInASafeMode;
 }
 
-UEdMode* FEditorModeTools::GetActiveScriptableMode(FEditorModeID InID)
+UEdMode* FEditorModeTools::GetActiveScriptableMode(FEditorModeID InID) const
 {
 	for (auto& Mode : ActiveScriptableModes)
 	{
@@ -1360,6 +1402,11 @@ bool FEditorModeTools::HandleClick(FEditorViewportClient* InViewportClient,  HHi
 	for( int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex )
 	{
 		const TSharedPtr<FEdMode>& Mode = ActiveModes[ ModeIndex ];
+		bHandled |= Mode->HandleClick(InViewportClient, HitProxy, Click);
+	}
+	for (int32 ModeIndex = 0; ModeIndex < ActiveScriptableModes.Num(); ++ModeIndex)
+	{
+		UEdMode* Mode = ActiveScriptableModes[ModeIndex];
 		bHandled |= Mode->HandleClick(InViewportClient, HitProxy, Click);
 	}
 
@@ -2017,7 +2064,15 @@ const FModeTool* FEditorModeTools::GetActiveTool( FEditorModeID InID ) const
 
 bool FEditorModeTools::IsModeActive( FEditorModeID InID ) const
 {
-	return GetActiveMode( InID ) != nullptr;
+	if (GetActiveMode(InID) != nullptr)
+	{
+		return true;
+	}
+	else if (GetActiveScriptableMode(InID) != nullptr)
+	{
+		return true;
+	}
+	return false;
 }
 
 bool FEditorModeTools::IsDefaultModeActive() const

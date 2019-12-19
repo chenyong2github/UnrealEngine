@@ -39,6 +39,7 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Misc/EngineBuildSettings.h"
+#include "Classes/EditorStyleSettings.h"
 
 #define LOCTEXT_NAMESPACE "LevelEditor"
 
@@ -47,6 +48,31 @@ IMPLEMENT_MODULE( FLevelEditorModule, LevelEditor );
 const FName LevelEditorApp = FName(TEXT("LevelEditorApp"));
 const FName MainFrame("MainFrame");
 const FName CommonMenuExtensionsName(TEXT("CommonMenuExtensions"));
+
+const FName LevelEditorTabIds::LevelEditorViewport(TEXT("LevelEditorViewport"));
+const FName LevelEditorTabIds::LevelEditorViewport_Clone1(TEXT("LevelEditorViewport_Clone1"));
+const FName LevelEditorTabIds::LevelEditorViewport_Clone2(TEXT("LevelEditorViewport_Clone2"));
+const FName LevelEditorTabIds::LevelEditorViewport_Clone3(TEXT("LevelEditorViewport_Clone3"));
+const FName LevelEditorTabIds::LevelEditorViewport_Clone4(TEXT("LevelEditorViewport_Clone4"));
+const FName LevelEditorTabIds::LevelEditorToolBar(TEXT("LevelEditorToolBar"));
+const FName LevelEditorTabIds::LevelEditorToolBox(TEXT("LevelEditorToolBox"));
+const FName LevelEditorTabIds::LevelEditorSelectionDetails(TEXT("LevelEditorSelectionDetails"));
+const FName LevelEditorTabIds::LevelEditorSelectionDetails2(TEXT("LevelEditorSelectionDetails2"));
+const FName LevelEditorTabIds::LevelEditorSelectionDetails3(TEXT("LevelEditorSelectionDetails3"));
+const FName LevelEditorTabIds::LevelEditorSelectionDetails4(TEXT("LevelEditorSelectionDetails4"));
+const FName LevelEditorTabIds::PlacementBrowser(TEXT("PlacementBrowser"));
+const FName LevelEditorTabIds::LevelEditorBuildAndSubmit(TEXT("LevelEditorBuildAndSubmit"));
+const FName LevelEditorTabIds::LevelEditorSceneOutliner(TEXT("LevelEditorSceneOutliner"));
+const FName LevelEditorTabIds::LevelEditorStatsViewer(TEXT("LevelEditorStatsViewer"));
+const FName LevelEditorTabIds::LevelEditorLayerBrowser(TEXT("LevelEditorLayerBrowser"));
+const FName LevelEditorTabIds::Sequencer(TEXT("Sequencer"));
+const FName LevelEditorTabIds::SequencerGraphEditor(TEXT("SequencerGraphEditor"));
+const FName LevelEditorTabIds::WorldSettings(TEXT("WorldSettingsTab"));
+const FName LevelEditorTabIds::WorldBrowserComposition(TEXT("WorldBrowserComposition"));
+const FName LevelEditorTabIds::WorldBrowserHierarchy(TEXT("WorldBrowserHierarchy"));
+const FName LevelEditorTabIds::WorldBrowserDetails(TEXT("WorldBrowserDetails"));
+const FName LevelEditorTabIds::LevelEditorHierarchicalLODOutliner(TEXT("LevelEditorHierarchicalLODOutliner"));
+const FName LevelEditorTabIds::OutputLog(TEXT("OutputLog"));
 
 FLevelEditorModule::FLevelEditorModule()
 	: ToggleImmersiveConsoleCommand(
@@ -173,10 +199,29 @@ TSharedRef<SDockTab> FLevelEditorModule::SpawnLevelEditor( const FSpawnTabArgs& 
 		SetLevelEditorInstance(LevelEditorTmp);
 		LevelEditorTmp->Initialize( LevelEditorTab, OwnerWindow.ToSharedRef() );
 
-		GLevelEditorModeTools().RemoveDefaultMode( FBuiltinEditorModes::EM_Default );
-		GLevelEditorModeTools().AddDefaultMode( FBuiltinEditorModes::EM_Placement );
+		if (GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
+		{
+			GLevelEditorModeTools().RemoveDefaultMode(FBuiltinEditorModes::EM_Default);
+			GLevelEditorModeTools().AddDefaultMode(FBuiltinEditorModes::EM_Placement);
+		}
+
 		GLevelEditorModeTools().DeactivateAllModes();
 		GLevelEditorModeTools().ActivateDefaultMode();
+
+		if (GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
+		{
+			// In legacy mode this toolbox should always be open
+			static const FTabId ToolboxTabId("LevelEditorToolBox");
+			LevelEditorTabManager->InvokeTab(ToolboxTabId);
+
+			// In legacy mode the standalone placement browser tab should not be opened
+			static const FTabId PlacementBrowserTabId("PlacementBrowser");
+			TSharedPtr<SDockTab> PlacementBrowserTab = LevelEditorTabManager->FindExistingLiveTab(PlacementBrowserTabId);
+			if (PlacementBrowserTab.IsValid())
+			{
+				PlacementBrowserTab->RequestCloseTab();
+			}
+		}
 
 	}
 
@@ -324,31 +369,26 @@ void FLevelEditorModule::SummonSelectionDetails()
 void FLevelEditorModule::SummonBuildAndSubmit()
 {
 	TSharedPtr<SLevelEditor> LevelEditorInstance = LevelEditorInstancePtr.Pin();
-	LevelEditorInstance->InvokeTab("LevelEditorBuildAndSubmit");
+	LevelEditorInstance->InvokeTab(LevelEditorTabIds::LevelEditorBuildAndSubmit);
 }
 
-void FLevelEditorModule::SummonLevelBrowser()
-{
-	TSharedPtr<SLevelEditor> LevelEditorInstance = LevelEditorInstancePtr.Pin();
-	LevelEditorInstance->InvokeTab("LevelEditorLevelBrowser");
-}
 
 void FLevelEditorModule::SummonWorldBrowserHierarchy()
 {
 	TSharedPtr<SLevelEditor> LevelEditorInstance = LevelEditorInstancePtr.Pin();
-	LevelEditorInstance->InvokeTab("WorldBrowserHierarchy");
+	LevelEditorInstance->InvokeTab(LevelEditorTabIds::WorldBrowserHierarchy);
 }
 
 void FLevelEditorModule::SummonWorldBrowserDetails()
 {
 	TSharedPtr<SLevelEditor> LevelEditorInstance = LevelEditorInstancePtr.Pin();
-	LevelEditorInstance->InvokeTab("WorldBrowserDetails");
+	LevelEditorInstance->InvokeTab(LevelEditorTabIds::WorldBrowserDetails);
 }
 
 void FLevelEditorModule::SummonWorldBrowserComposition()
 {
 	TSharedPtr<SLevelEditor> LevelEditorInstance = LevelEditorInstancePtr.Pin();
-	LevelEditorInstance->InvokeTab("WorldBrowserComposition");
+	LevelEditorInstance->InvokeTab(LevelEditorTabIds::WorldBrowserComposition);
 }
 
 // @todo remove when world-centric mode is added
@@ -480,38 +520,32 @@ void FLevelEditorModule::SetLevelEditorTabManager( const TSharedPtr<SDockTab>& O
 
 void FLevelEditorModule::StartPlayInEditorSession()
 {
-	TSharedPtr<SLevelViewport> ActiveLevelViewport = GetFirstActiveLevelViewport();
+	TSharedPtr<IAssetViewport> ActiveLevelViewport = GetFirstActiveViewport();
+	FRequestPlaySessionParams SessionParams;
 
 	if( ActiveLevelViewport.IsValid() )
 	{
-		const FVector* StartLocation = NULL;
-		const FRotator* StartRotation = NULL;
-
 		// We never want to play from the camera's location at startup, because the camera could have
 		// been abandoned in a strange location in the map
 		if( 0 )	// @todo immersive
 		{
 			// If this is a perspective viewport, then we'll Play From Here
-			const FLevelEditorViewportClient& LevelViewportClient = ActiveLevelViewport->GetLevelViewportClient();
+			const FEditorViewportClient& LevelViewportClient = ActiveLevelViewport->GetAssetViewportClient();
 			if( LevelViewportClient.IsPerspective() )
 			{
 				// Start PIE from the camera's location and orientation!
-				StartLocation = &LevelViewportClient.GetViewLocation();
-				StartRotation = &LevelViewportClient.GetViewRotation();
+				SessionParams.StartLocation = LevelViewportClient.GetViewLocation();
+				SessionParams.StartRotation = LevelViewportClient.GetViewRotation();
 			}
 		}
 
-		// Queue up the PIE session
-		const bool bSimulateInEditor = false;
-		const bool bUseMobilePreview = false;
-		GUnrealEd->RequestPlaySession( true, ActiveLevelViewport, bSimulateInEditor, StartLocation, StartRotation, -1, bUseMobilePreview );
+		SessionParams.DestinationSlateViewport = ActiveLevelViewport;
+
+		GUnrealEd->RequestPlaySession(SessionParams);
+
 		// Kick off the queued PIE session immediately.  This is so that at startup, we don't need to
 		// wait for the next engine tick.  We want to see PIE gameplay when the editor first appears!
-		GUnrealEd->StartQueuedPlayMapRequest();
-
-		// Special case for immersive pie startup, When in immersive pie at startup we use the player start but we want to move the camera where the player
-		// was at when pie ended.
-		GEditor->bHasPlayWorldPlacement = true;
+		GUnrealEd->StartQueuedPlaySessionRequest();
 	}
 }
 

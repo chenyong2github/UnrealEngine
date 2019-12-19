@@ -7,6 +7,9 @@
 #include "DynamicMesh3.h"
 #include "DynamicMeshAttributeSet.h"
 #include "EdgeLoop.h"
+#include "Util/SparseIndexCollectionTypes.h"
+
+struct FDynamicSubmesh3;
 
 /**
  * FMeshIndexMappings stores a set of integer IndexMaps for a mesh
@@ -28,7 +31,7 @@ public:
 	void Initialize(FDynamicMesh3* Mesh);
 
 	/** @return the value used to indicate "invalid" in the mapping */
-	int InvalidID() { return VertexMap.GetInvalidID(); }
+	constexpr int InvalidID() const { return VertexMap.UnmappedID(); }
 
 	void Reset()
 	{
@@ -45,12 +48,19 @@ public:
 		}
 	}
 
+	void ResetTriangleMap()
+	{
+		TriangleMap.Reset();
+	}
+
 	FIndexMapi& GetVertexMap() { return VertexMap; }
+	const FIndexMapi& GetVertexMap() const { return VertexMap; }
 	inline void SetVertex(int FromID, int ToID) { VertexMap.Add(FromID, ToID); }
 	inline int GetNewVertex(int FromID) const { return VertexMap.GetTo(FromID); }
 	inline bool ContainsVertex(int FromID) const { return VertexMap.ContainsFrom(FromID); }
 
 	FIndexMapi& GetTriangleMap() { return TriangleMap; }
+	const FIndexMapi& GetTriangleMap() const { return TriangleMap; }
 	void SetTriangle(int FromID, int ToID) { TriangleMap.Add(FromID, ToID); }
 	int GetNewTriangle(int FromID) const { return TriangleMap.GetTo(FromID); }
 	inline bool ContainsTriangle(int FromID) const { return TriangleMap.ContainsFrom(FromID); }
@@ -186,12 +196,64 @@ public:
 	/**
 	 * Finds boundary loops of connected components of a set of triangles, and duplicates the vertices
 	 * along the boundary, such that the triangles become disconnected.
+	 * Note: This can create a mesh with bowties if you pass in a subset of triangles that would have bowtie connectivity.
+	 *		 (it is impossible to create the paired LoopSetOut with 1:1 vertex pairs without leaving in the bowties?)
 	 * @param Triangles set of triangles
 	 * @param LoopSetOut set of boundary loops. LoopA is original loop which remains with "outer" triangles, and LoopB is new boundary loop of triangle set
 	 * @return true on success
 	 */
 	bool DisconnectTriangles(const TArray<int>& Triangles, TArray<FLoopPairSet>& LoopSetOut);
 
+	/**
+	* Disconnects triangles (without constructing boundary loops) such that the input Triangles are not connected to any other triangles in the mesh
+	* @param Triangles set of triangles
+	* @param bPreventBowties do some additional processing and vertex splitting as needed to prevent the creation of any new bowties
+	*/
+	void DisconnectTriangles(const TArray<int>& Triangles, bool bPreventBowties = true);
+
+
+	/**
+	 * Splits all bowties across the whole mesh
+	 */
+	void SplitBowties(FDynamicMeshEditResult& ResultOut);
+
+	/**
+	 * Splits any bowties specifically on the given vertex, and updates (does not reset!) ResultOut with any added vertices
+	 */
+	void SplitBowties(int VertexID, FDynamicMeshEditResult& ResultOut);
+
+	/**
+	 * In ReinsertSubmesh, a problem can arise where the mesh we are 
+	 * inserting has duplicate triangles of the base mesh.
+	 *
+	 * This can lead to problematic behavior later. We can do various things,
+	 * like delete and replace that existing triangle, or just use it instead
+	 * of adding a new one. Or fail, or ignore it.
+	 * 
+	 * This enum/argument controls the behavior. 
+	 * However, fundamentally this kind of problem should be handled upstream!!
+	 * For example by not trying to remesh areas that contain nonmanifold geometry...
+	 */
+	enum class EDuplicateTriBehavior : uint8
+	{
+		EnsureContinue,         
+		EnsureAbort, UseExisting, Replace
+	};
+
+	/**
+	 * Update a Base Mesh from a Submesh; See FMeshRegionOperator::BackPropropagate for a usage example.
+	 * 
+	 * Assumes that Submesh has been modified, but boundary loop has been preserved, and that old submesh has already been removed from this mesh.
+	 * Just appends new vertices and rewrites triangles.
+	 *
+	 * @param Submesh The mesh to insert back into its BaseMesh.  The original submesh triangles should have already been removed when this function is called
+	 * @param SubToNewV Mapping from submesh to vertices in the updated base mesh
+	 * @param NewTris If not null, will be filled with IDs of triangles added to the base mesh
+	 * @param DuplicateBehavior Choice of what to do if inserting a triangle from the submesh would duplicate a triangle in the base mesh
+	 * @return true if submesh successfully inserted, false if any triangles failed (which happens if triangle would result in non-manifold mesh)
+	 */
+	bool ReinsertSubmesh(const FDynamicSubmesh3& Submesh, FOptionallySparseIndexMap& SubToNewV, TArray<int>* NewTris = nullptr,
+						 EDuplicateTriBehavior DuplicateBehavior = EDuplicateTriBehavior::EnsureAbort);
 
 	/**
 	 * Remove a list of triangles from the mesh, and optionally any vertices that are now orphaned
@@ -403,9 +465,20 @@ public:
 	 * @param SourceTriangles the triangles to copy
 	 * @param IndexMaps returned mappings from old to new triangles/vertices/etc (you may initialize to optimize memory usage, etc)
 	 * @param ResultOut lists of newly created triangles/vertices/etc
+	 * @param bComputeTriangleMap if true, computes the triangle map section of IndexMaps (which is not needed for the append to work, so is optional)
 	 */
-	void AppendTriangles(const FDynamicMesh3* SourceMesh, const TArray<int>& SourceTriangles, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut);
+	void AppendTriangles(const FDynamicMesh3* SourceMesh, const TArrayView<const int>& SourceTriangles, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut, bool bComputeTriangleMap = true);
 
+	/**
+	 * Create multiple meshes out of the source mesh by splitting triangles out.
+	 * Static because it creates multiple output meshes, so doesn't quite fit in the FDynamicMeshEditor model of operating on a single mesh
+	 *
+	 * @param SourceMesh
+	 * @param SplitMeshes
+	 * @param TriIDToMeshID
+	 * @return true if needed split, false if there were not multiple mesh ids so no split was needed
+	 */
+	static bool SplitMesh(const FDynamicMesh3* SourceMesh, TArray<FDynamicMesh3>& SplitMeshes, TFunctionRef<int(int)> TriIDToMeshID, int DeleteMeshID = -1);
 
 };
 

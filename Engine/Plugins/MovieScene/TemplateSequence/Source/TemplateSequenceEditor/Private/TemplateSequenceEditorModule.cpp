@@ -1,5 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#include "AssetTools/CameraAnimationSequenceActions.h"
 #include "AssetTools/TemplateSequenceActions.h"
 #include "AssetToolsModule.h"
 #include "ISequencerModule.h"
@@ -89,8 +90,12 @@ private:
 	void RegisterAssetTools()
 	{
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+
 		TemplateSequenceTypeActions = MakeShared<FTemplateSequenceActions>(FTemplateSequenceEditorStyle::Get());
 		AssetTools.RegisterAssetTypeActions(TemplateSequenceTypeActions.ToSharedRef());
+
+		CameraAnimationSequenceActions = MakeShared<FCameraAnimationSequenceActions>(FTemplateSequenceEditorStyle::Get());
+		AssetTools.RegisterAssetTypeActions(CameraAnimationSequenceActions.ToSharedRef());
 	}
 
 	void UnregisterAssetTools()
@@ -101,6 +106,7 @@ private:
 		{
 			IAssetTools& AssetTools = AssetToolsModule->Get();
 			AssetTools.UnregisterAssetTypeActions(TemplateSequenceTypeActions.ToSharedRef());
+			AssetTools.UnregisterAssetTypeActions(CameraAnimationSequenceActions.ToSharedRef());
 		}
 	}
 
@@ -137,6 +143,7 @@ private:
 private:
 
 	TSharedPtr<FTemplateSequenceActions> TemplateSequenceTypeActions;
+	TSharedPtr<FCameraAnimationSequenceActions> CameraAnimationSequenceActions;
 
 	FDelegateHandle SequenceEditorHandle;
 	FDelegateHandle TemplateSequenceTrackCreateEditorHandle;

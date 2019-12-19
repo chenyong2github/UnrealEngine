@@ -3,13 +3,14 @@
 // Port of geometry3Sharp MeshNormals
 
 #include "MeshNormals.h"
+#include "Async/ParallelFor.h"
 
 
 void FMeshNormals::SetCount(int Count, bool bClearToZero)
 {
 	if (Normals.Num() < Count) 
 	{
-		Normals.SetNum(Count);
+		Normals.SetNumUninitialized(Count);
 	}
 	if (bClearToZero)
 	{
@@ -105,12 +106,15 @@ void FMeshNormals::Compute_FaceAvg(bool bWeightByArea, bool bWeightByAngle)
 
 void FMeshNormals::Compute_Triangle()
 {
-	SetCount(Mesh->MaxTriangleID(), false);
-
-	for (int TriIdx : Mesh->TriangleIndicesItr())
+	int NumTriangles = Mesh->MaxTriangleID();
+	SetCount(NumTriangles, false);
+	ParallelFor(NumTriangles, [&](int32 Index)
 	{
-		Normals[TriIdx] = Mesh->GetTriNormal(TriIdx);
-	}
+		if (Mesh->IsTriangle(Index))
+		{
+			Normals[Index] = Mesh->GetTriNormal(Index);
+		}
+	});
 }
 
 
@@ -118,7 +122,7 @@ void FMeshNormals::Compute_Triangle()
 
 void FMeshNormals::Compute_Overlay_FaceAvg(const FDynamicMeshNormalOverlay* NormalOverlay, bool bWeightByArea, bool bWeightByAngle)
 {
-	if (!bWeightByAngle && bWeightByArea)
+	if ((!bWeightByAngle) && bWeightByArea)
 	{
 		Compute_Overlay_FaceAvg_AreaWeighted(NormalOverlay); // faster case
 		return;
@@ -214,4 +218,36 @@ FVector3d FMeshNormals::ComputeOverlayNormal(const FDynamicMesh3& Mesh, FDynamic
 	}
 
 	return (Count > 0) ? SumNormal.Normalized() : FVector3d::Zero();
+}
+
+
+void FMeshNormals::InitializeOverlayToPerVertexNormals(FDynamicMeshNormalOverlay* NormalOverlay, bool bUseMeshVertexNormalsIfAvailable)
+{
+	const FDynamicMesh3* Mesh = NormalOverlay->GetParentMesh();
+	bool bUseMeshNormals = bUseMeshVertexNormalsIfAvailable && Mesh->HasVertexNormals();
+	FMeshNormals Normals(Mesh);
+	if (bUseMeshNormals == false)
+	{
+		Normals.ComputeVertexNormals();
+	}
+
+	NormalOverlay->ClearElements();
+
+	TArray<int> VertToNormalMap;
+	VertToNormalMap.SetNumUninitialized(Mesh->MaxVertexID());
+	for (int vid : Mesh->VertexIndicesItr())
+	{
+		FVector3f Normal = (bUseMeshNormals) ? Mesh->GetVertexNormal(vid) : (FVector3f)Normals[vid];
+		int nid = NormalOverlay->AppendElement(Normal, vid);
+		VertToNormalMap[vid] = nid;
+	}
+
+	for (int tid : Mesh->TriangleIndicesItr())
+	{
+		FIndex3i Tri = Mesh->GetTriangle(tid);
+		Tri.A = VertToNormalMap[Tri.A];
+		Tri.B = VertToNormalMap[Tri.B];
+		Tri.C = VertToNormalMap[Tri.C];
+		NormalOverlay->SetTriangle(tid, Tri);
+	}
 }

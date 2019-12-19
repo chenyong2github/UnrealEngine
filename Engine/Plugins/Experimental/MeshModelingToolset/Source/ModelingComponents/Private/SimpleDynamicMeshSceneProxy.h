@@ -3,6 +3,8 @@
 #pragma once
 
 #include "SimpleDynamicMeshComponent.h"
+#include "BaseDynamicMeshSceneProxy.h"
+#include "Async/ParallelFor.h"
 
 
 /**
@@ -13,69 +15,84 @@
  * Supports wireframe-on-shaded rendering.
  * 
  */
-class FSimpleDynamicMeshSceneProxy final : public FPrimitiveSceneProxy
+class FSimpleDynamicMeshSceneProxy final : public FBaseDynamicMeshSceneProxy
 {
 private:
-	UMaterialInterface* Material;
-
-	/** The buffer containing vertex data. */
-	FStaticMeshVertexBuffer StaticMeshVertexBuffer;
-	/** The buffer containing the position vertex data. */
-	FPositionVertexBuffer PositionVertexBuffer;
-	/** The buffer containing the vertex color data. */
-	FColorVertexBuffer ColorVertexBuffer;
-
-	FDynamicMeshIndexBuffer32 IndexBuffer;
-	FLocalVertexFactory VertexFactory;
-
 	FMaterialRelevance MaterialRelevance;
 
+	// note: FBaseDynamicMeshSceneProxy owns and will destroy these
+	TArray<FMeshRenderBufferSet*> RenderBufferSets;
 
+	// if true, we store entire mesh in single RenderBuffers and we can do some optimizations
+	bool bIsSingleBuffer = false;
 
 public:
 	/** Component that created this proxy (is there a way to look this up?) */
 	USimpleDynamicMeshComponent* ParentComponent;
 
 
-	FColor ConstantVertexColor = FColor::White;
-	bool bIgnoreVertexColors = false;
-	bool bIgnoreVertexNormals = false;
-
-
-	bool bUsePerTriangleColor = false;
-	TFunction<FColor(int)> PerTriangleColorFunc;
-
-
 	FSimpleDynamicMeshSceneProxy(USimpleDynamicMeshComponent* Component)
-		: FPrimitiveSceneProxy(Component)
-		, VertexFactory(GetScene().GetFeatureLevel(), "FSimpleDynamicMeshSceneProxy")
+		: FBaseDynamicMeshSceneProxy(Component)
 		, MaterialRelevance(Component->GetMaterialRelevance(GetScene().GetFeatureLevel()))
 	{
 		ParentComponent = Component;
-
-		// Grab material
-		Material = Component->GetMaterial(0);
-		if (Material == NULL)
-		{
-			Material = UMaterial::GetDefaultMaterial(MD_Surface);
-		}
 	}
 
 
-	virtual ~FSimpleDynamicMeshSceneProxy()
+	virtual void GetActiveRenderBufferSets(TArray<FMeshRenderBufferSet*>& Buffers) const override
 	{
-		PositionVertexBuffer.ReleaseResource();
-		StaticMeshVertexBuffer.ReleaseResource();
-		ColorVertexBuffer.ReleaseResource();
-		IndexBuffer.ReleaseResource();
-		VertexFactory.ReleaseResource();
+		Buffers = RenderBufferSets;
 	}
-
-
 
 
 
 	virtual void Initialize()
+	{
+		// allocate buffer sets based on materials
+		check(RenderBufferSets.Num() == 0);
+		int32 NumMaterials = GetNumMaterials();
+		if (NumMaterials == 0)
+		{
+			RenderBufferSets.SetNum(1);
+			RenderBufferSets[0] = AllocateNewRenderBufferSet();
+			RenderBufferSets[0]->Material = UMaterial::GetDefaultMaterial(MD_Surface);
+		}
+		else
+		{
+			RenderBufferSets.SetNum(NumMaterials);
+			for (int32 k = 0; k < NumMaterials; ++k)
+			{
+				RenderBufferSets[k] = AllocateNewRenderBufferSet();
+				RenderBufferSets[k]->Material = GetMaterial(k);
+			}
+		}
+
+
+		FDynamicMesh3* Mesh = ParentComponent->GetMesh();
+		if (Mesh->HasAttributes() && Mesh->Attributes()->HasMaterialID() && NumMaterials > 1)
+		{
+			bIsSingleBuffer = false;
+			InitializeByMaterial(RenderBufferSets);
+		}
+		else
+		{
+			bIsSingleBuffer = true;
+			InitializeSingleBufferSet(RenderBufferSets[0]);
+		}
+	}
+
+
+
+
+
+
+
+
+
+	/**
+	 * Initialize a single set of mesh buffers for the entire mesh
+	 */
+	virtual void InitializeSingleBufferSet(FMeshRenderBufferSet* RenderBuffers)
 	{
 		FDynamicMesh3* Mesh = ParentComponent->GetMesh();
 
@@ -88,276 +105,164 @@ public:
 			NormalOverlay = Mesh->Attributes()->PrimaryNormals();
 		}
 
-		// fill our buffers
-		if (UVOverlay != nullptr || NormalOverlay != nullptr)
+		InitializeBuffersFromOverlays(RenderBuffers, Mesh,
+			Mesh->TriangleCount(), Mesh->TriangleIndicesItr(),
+			UVOverlay, NormalOverlay);
+
+		ENQUEUE_RENDER_COMMAND(FOctreeDynamicMeshSceneProxyInitializeSingle)(
+			[RenderBuffers](FRHICommandListImmediate& RHICmdList)
 		{
-			InitializeBuffersFromOverlays(Mesh, UVOverlay, NormalOverlay);
+			RenderBuffers->Upload();
+		});
+	}
+
+
+
+	/**
+	 * Initialize the mesh buffers, one per material
+	 */
+	virtual void InitializeByMaterial(TArray<FMeshRenderBufferSet*>& BufferSets)
+	{
+		FDynamicMesh3* Mesh = ParentComponent->GetMesh();
+		check(Mesh->HasAttributes() && Mesh->Attributes()->HasMaterialID());
+
+		// find suitable overlays
+		FDynamicMeshUVOverlay* UVOverlay = Mesh->Attributes()->PrimaryUV();
+		FDynamicMeshNormalOverlay* NormalOverlay = Mesh->Attributes()->PrimaryNormals();
+		FDynamicMeshMaterialAttribute* MaterialID = Mesh->Attributes()->GetMaterialID();
+
+		TFunction<void(int, int, int, FVector3f&, FVector3f&)> TangentsFunc = nullptr;
+		FMeshTangentsf* Tangents = ParentComponent->GetTangents();
+		if (Tangents != nullptr)
+		{
+			TangentsFunc = [Tangents](int VertexID, int TriangleID, int TriVtxIdx, FVector3f& TangentX, FVector3f& TangentY)
+			{
+				return Tangents->GetPerTriangleTangent(TriangleID, TriVtxIdx, TangentX, TangentY);
+			};
+		}
+
+		// count number of triangles for each material (could do in parallel?)
+		int NumMaterials = BufferSets.Num();
+		TArray<FThreadSafeCounter> Counts;
+		Counts.SetNum(NumMaterials);
+		for (int k = 0; k < NumMaterials; ++k)
+		{
+			Counts[k].Reset();
+		}
+		ParallelFor(Mesh->MaxTriangleID(), [&](int tid)
+		{
+			int MatIdx;
+			MaterialID->GetValue(tid, &MatIdx);
+			if (MatIdx >= 0 && MatIdx < NumMaterials)
+			{
+				Counts[MatIdx].Increment();
+			}
+		});
+
+		// find max count
+		int32 MaxCount = 0;
+		for (FThreadSafeCounter& Count : Counts)
+		{
+			MaxCount = FMath::Max(Count.GetValue(), MaxCount);
+		}
+
+		// init renderbuffers for each material
+		// could do this in parallel but then we need to allocate separate triangle arrays...is it worth it?
+		TArray<int> Triangles;
+		Triangles.Reserve(MaxCount);
+		for (int k = 0; k < NumMaterials; ++k)
+		{
+			if (Counts[k].GetValue() > 0)
+			{
+				FMeshRenderBufferSet* RenderBuffers = BufferSets[k];
+
+				Triangles.Reset();
+				for (int tid : Mesh->TriangleIndicesItr())
+				{
+					int MatIdx;
+					MaterialID->GetValue(tid, &MatIdx);
+					if (MatIdx == k)
+					{
+						Triangles.Add(tid);
+					}
+				}
+
+				InitializeBuffersFromOverlays(RenderBuffers, Mesh,
+					Triangles.Num(), Triangles,
+					UVOverlay, NormalOverlay);
+
+				RenderBuffers->Triangles = Triangles;
+
+				ENQUEUE_RENDER_COMMAND(FOctreeDynamicMeshSceneProxyInitializeSingle)(
+					[RenderBuffers](FRHICommandListImmediate& RHICmdList)
+				{
+					RenderBuffers->Upload();
+				});
+			}
+		}
+	}
+
+
+
+
+
+
+	/**
+	 * Update the vertex position/normal/color buffers
+	 */
+	virtual void FastUpdateVertices(bool bPositions, bool bNormals, bool bColors)
+	{
+		// This needs to be rewritten for split-by-material buffers.
+		// Could store triangle set with each buffer, and then rebuild vtx buffer(s) as needed?
+
+		FDynamicMesh3* Mesh = ParentComponent->GetMesh();
+
+		// find suitable overlays
+		FDynamicMeshNormalOverlay* NormalOverlay = nullptr;
+		if (bNormals)
+		{
+			check(Mesh->HasAttributes());
+			NormalOverlay = Mesh->Attributes()->PrimaryNormals();
+		}
+
+		if (bIsSingleBuffer)
+		{
+			check(RenderBufferSets.Num() == 1);
+			FMeshRenderBufferSet* Buffers = RenderBufferSets[0];
+			UpdateVertexBuffersFromOverlays(Buffers, Mesh,
+				Mesh->TriangleCount(), Mesh->TriangleIndicesItr(),
+				NormalOverlay,
+				bPositions, bNormals, bColors);
+
+			ENQUEUE_RENDER_COMMAND(FSimpleDynamicMeshSceneProxyFastUpdateVertices)(
+				[Buffers, bPositions, bNormals, bColors](FRHICommandListImmediate& RHICmdList)
+			{
+				Buffers->UploadVertexUpdate(bPositions, bNormals, bColors);
+			});
 		}
 		else
 		{
-			InitializeBuffersFromMesh_SharedVertices(Mesh);
-		}
-
-		// transfer to render thread?
-		// copied from FStaticMeshVertexBuffers::InitFromDynamicVertex
-		int LightMapIndex = 0;
-		ENQUEUE_RENDER_COMMAND(DynamicMeshComponentVertexBuffersInit)(
-			[this, LightMapIndex](FRHICommandListImmediate& RHICmdList)
-		{
-			InitOrUpdateResource(&this->PositionVertexBuffer);
-			InitOrUpdateResource(&this->StaticMeshVertexBuffer);
-			InitOrUpdateResource(&this->ColorVertexBuffer);
-
-			FLocalVertexFactory::FDataType Data;
-			this->PositionVertexBuffer.BindPositionVertexBuffer(&this->VertexFactory, Data);
-			this->StaticMeshVertexBuffer.BindTangentVertexBuffer(&this->VertexFactory, Data);
-			this->StaticMeshVertexBuffer.BindPackedTexCoordVertexBuffer(&this->VertexFactory, Data);
-			this->StaticMeshVertexBuffer.BindLightMapVertexBuffer(&this->VertexFactory, Data, LightMapIndex);
-			this->ColorVertexBuffer.BindColorVertexBuffer(&this->VertexFactory, Data);
-			this->VertexFactory.SetData(Data);
-
-			InitOrUpdateResource(&this->VertexFactory);
-		});
-
-		// Enqueue initialization of render resource
-		BeginInitResource(&PositionVertexBuffer);
-		BeginInitResource(&StaticMeshVertexBuffer);
-		BeginInitResource(&ColorVertexBuffer);
-		BeginInitResource(&IndexBuffer);
-		BeginInitResource(&VertexFactory);
-	}
-
-
-
-
-
-
-	virtual void FastUpdatePositions(bool bNormals)
-	{
-		check(bNormals == false);
-
-		FDynamicMesh3* Mesh = ParentComponent->GetMesh();
-		int NumVertices = Mesh->TriangleCount() * 3;
-		check(PositionVertexBuffer.GetNumVertices() == NumVertices);
-
-		int VertIdx = 0;
-		for (int TriangleID : Mesh->TriangleIndicesItr())
-		{
-			FIndex3i Tri = Mesh->GetTriangle(TriangleID);
-			for (int j = 0; j < 3; ++j)
+			ParallelFor(RenderBufferSets.Num(), [&](int i)
 			{
-				PositionVertexBuffer.VertexPosition(VertIdx++) = Mesh->GetVertex(Tri[j]);
-			}
-		}
-
-		// @todo is it necessary to rebind everything? does this re-upload the buffers?
-		int LightMapIndex = 0;
-		ENQUEUE_RENDER_COMMAND(DynamicMeshComponentFastUpdatePositions)(
-			[this, LightMapIndex](FRHICommandListImmediate& RHICmdList)
-		{
-			InitOrUpdateResource(&this->PositionVertexBuffer);
-
-			FLocalVertexFactory::FDataType Data;
-			this->PositionVertexBuffer.BindPositionVertexBuffer(&this->VertexFactory, Data);
-			this->StaticMeshVertexBuffer.BindTangentVertexBuffer(&this->VertexFactory, Data);
-			this->StaticMeshVertexBuffer.BindPackedTexCoordVertexBuffer(&this->VertexFactory, Data);
-			this->StaticMeshVertexBuffer.BindLightMapVertexBuffer(&this->VertexFactory, Data, LightMapIndex);
-			this->ColorVertexBuffer.BindColorVertexBuffer(&this->VertexFactory, Data);
-			this->VertexFactory.SetData(Data);
-
-			InitOrUpdateResource(&this->VertexFactory);
-		});
-
-		// don't need to do this because they aren't new buffers??
-		//BeginInitResource(&PositionVertexBuffer);
-		//BeginInitResource(&VertexFactory);
-	}
-
-
-
-
-
-
-	virtual void FastUpdateColors()
-	{
-		FDynamicMesh3* Mesh = ParentComponent->GetMesh();
-		int NumVertices = Mesh->TriangleCount() * 3;
-		check(ColorVertexBuffer.GetNumVertices() == NumVertices);
-
-		bool bHaveColors = Mesh->HasVertexColors() && (bIgnoreVertexColors == false);
-
-		int VertIdx = 0;
-		for (int TriangleID : Mesh->TriangleIndicesItr())
-		{
-			FIndex3i Tri = Mesh->GetTriangle(TriangleID);
-
-			FColor TriColor = ConstantVertexColor;
-			if (bUsePerTriangleColor && PerTriangleColorFunc)
-			{
-				TriColor = PerTriangleColorFunc(TriangleID);
-				bHaveColors = false;
-			}
-
-			for (int j = 0; j < 3; ++j)
-			{
-				ColorVertexBuffer.VertexColor(VertIdx) = (bHaveColors) ?
-					(FColor)Mesh->GetVertexColor(Tri[j]) : TriColor;
-				VertIdx++;
-			}
-		}
-
-		// @todo is it necessary to rebind everything? does this re-upload the buffers?
-		int LightMapIndex = 0;
-		ENQUEUE_RENDER_COMMAND(DynamicMeshComponentFastUpdateColors)(
-			[this, LightMapIndex](FRHICommandListImmediate& RHICmdList)
-		{
-			InitOrUpdateResource(&this->ColorVertexBuffer);
-
-			FLocalVertexFactory::FDataType Data;
-			this->PositionVertexBuffer.BindPositionVertexBuffer(&this->VertexFactory, Data);
-			this->StaticMeshVertexBuffer.BindTangentVertexBuffer(&this->VertexFactory, Data);
-			this->StaticMeshVertexBuffer.BindPackedTexCoordVertexBuffer(&this->VertexFactory, Data);
-			this->StaticMeshVertexBuffer.BindLightMapVertexBuffer(&this->VertexFactory, Data, LightMapIndex);
-			this->ColorVertexBuffer.BindColorVertexBuffer(&this->VertexFactory, Data);
-			this->VertexFactory.SetData(Data);
-
-			InitOrUpdateResource(&this->VertexFactory);
-		});
-
-		BeginInitResource(&ColorVertexBuffer);		// calls ENQUEUE_RENDER_COMMAND
-		//BeginInitResource(&VertexFactory);
-	}
-
-
-
-protected:
-
-
-	/**
-	 * Initialize rendering buffers from given attribute overlays.
-	 * Creates three vertices per triangle, IE no shared vertices in buffers.
-	 */
-	void InitializeBuffersFromOverlays(FDynamicMesh3* Mesh, FDynamicMeshUVOverlay* UVOverlay, FDynamicMeshNormalOverlay* NormalOverlay)
-	{
-		// compute normals if we need to
-		FMeshNormals Normals(Mesh);
-		bool bUseComputedNormals = false;
-		if (NormalOverlay == nullptr && (Mesh->HasVertexNormals() == false || bIgnoreVertexNormals) )
-		{
-			Normals.ComputeVertexNormals();
-			bUseComputedNormals = true;
-		}
-
-		bool bHaveColors = Mesh->HasVertexColors() && (bIgnoreVertexColors == false);
-
-		// this may be null
-		FMeshTangentsf* Tangents = ParentComponent->GetTangents();
-
-
-		int NumVertices = Mesh->TriangleCount() * 3;
-		int NumTexCoords = 1;		// no! zero!
-		PositionVertexBuffer.Init(NumVertices);
-		StaticMeshVertexBuffer.Init(NumVertices, NumTexCoords);
-		ColorVertexBuffer.Init(NumVertices);
-
-		IndexBuffer.Indices.AddUninitialized(Mesh->TriangleCount() * 3);
-		int TriIdx = 0, VertIdx = 0;
-		FVector3f TangentX, TangentY;
-		for (int TriangleID : Mesh->TriangleIndicesItr())
-		{
-			FIndex3i Tri = Mesh->GetTriangle(TriangleID);
-			FIndex3i TriUV = (UVOverlay != nullptr) ? UVOverlay->GetTriangle(TriangleID) : FIndex3i::Zero();
-			FIndex3i TriNormal = (NormalOverlay != nullptr) ? NormalOverlay->GetTriangle(TriangleID) : FIndex3i::Zero();
-
-			FColor TriColor = ConstantVertexColor;
-			if (bUsePerTriangleColor && PerTriangleColorFunc)
-			{
-				TriColor = PerTriangleColorFunc(TriangleID);
-				bHaveColors = false;
-			}
-
-			for (int j = 0; j < 3; ++j)
-			{
-				PositionVertexBuffer.VertexPosition(VertIdx) = Mesh->GetVertex(Tri[j]);
-
-				FVector3f Normal = (NormalOverlay != nullptr && TriNormal[j] != FDynamicMesh3::InvalidID) ? NormalOverlay->GetElement(TriNormal[j])
-					: ((bUseComputedNormals) ? (FVector3f)Normals[Tri[j]] : Mesh->GetVertexNormal(Tri[j]));
-
-				if (Tangents == nullptr)
+				FMeshRenderBufferSet* Buffers = RenderBufferSets[i];
+				if (Buffers->TriangleCount == 0)
 				{
-					// calculate a nonsense tangent
-					VectorUtil::MakePerpVectors(Normal, TangentX, TangentY);
-					StaticMeshVertexBuffer.SetVertexTangents(VertIdx, TangentX, TangentY, Normal);
+					return;
 				}
-				else
+				check(Buffers->Triangles.IsSet());
+				UpdateVertexBuffersFromOverlays(Buffers, Mesh,
+					Buffers->Triangles->Num(), Buffers->Triangles.GetValue(),
+					NormalOverlay,
+					bPositions, bNormals, bColors);
+
+				ENQUEUE_RENDER_COMMAND(FSimpleDynamicMeshSceneProxyFastUpdateVertices)(
+					[Buffers, bPositions, bNormals, bColors](FRHICommandListImmediate& RHICmdList)
 				{
-					Tangents->GetPerTriangleTangent(TriangleID, j, TangentX, TangentY);
-				}
-
-				StaticMeshVertexBuffer.SetVertexTangents(VertIdx, TangentX, TangentY, Normal);
-
-				FVector2f UV = (UVOverlay != nullptr && TriUV[j] != FDynamicMesh3::InvalidID) ? UVOverlay->GetElement(TriUV[j]) : FVector2f::Zero();
-				StaticMeshVertexBuffer.SetVertexUV(VertIdx, 0, UV);
-
-				ColorVertexBuffer.VertexColor(VertIdx) = (bHaveColors) ?
-					(FColor)Mesh->GetVertexColor(Tri[j]) : TriColor;
-
-				IndexBuffer.Indices[TriIdx++] = VertIdx;
-				VertIdx++;
-			}
-		}
-	}
-
-
-
-
-
-	/**
-	 * Initialize rendering buffers from DMesh using shared vertices
-	 * (ie no attribute overlays)
-	 */
-	void InitializeBuffersFromMesh_SharedVertices(FDynamicMesh3* Mesh)
-	{
-		// compute normals if we need to
-		FMeshNormals Normals(Mesh);
-		bool bUseComputedNormals = false;
-		if (Mesh->HasVertexNormals() == false || bIgnoreVertexNormals)
-		{
-			Normals.ComputeVertexNormals();
-			bUseComputedNormals = true;
+					Buffers->UploadVertexUpdate(bPositions, bNormals, bColors);
+				});
+			});
 		}
 
-		bool bHaveColors = Mesh->HasVertexColors() && (bIgnoreVertexColors == false);
-
-		int NumVertices = Mesh->MaxVertexID();
-		int NumTexCoords = 1;		// no! zero!
-		PositionVertexBuffer.Init(NumVertices);
-		StaticMeshVertexBuffer.Init(NumVertices, NumTexCoords);
-		ColorVertexBuffer.Init(NumVertices);
-
-		for (int VertIdx : Mesh->VertexIndicesItr())
-		{
-			PositionVertexBuffer.VertexPosition(VertIdx) = Mesh->GetVertex(VertIdx);
-
-			FVector3d Normal = (bUseComputedNormals) ? Normals[VertIdx] : (FVector3d)Mesh->GetVertexNormal(VertIdx);
-			FVector3d TangentX, TangentY;
-			VectorUtil::MakePerpVectors(Normal, TangentX, TangentY);
-
-			StaticMeshVertexBuffer.SetVertexTangents(VertIdx, TangentX, TangentY, Normal);
-			StaticMeshVertexBuffer.SetVertexUV(VertIdx, 0, FVector2D::ZeroVector);
-
-			ColorVertexBuffer.VertexColor(VertIdx) = (bHaveColors) ?
-				(FColor)Mesh->GetVertexColor(VertIdx) : ConstantVertexColor;
-		}
-
-		IndexBuffer.Indices.AddUninitialized(Mesh->TriangleCount() * 3);
-		int TriIndex = 0;
-		for (FIndex3i Tri : Mesh->TrianglesItr())
-		{
-			IndexBuffer.Indices[TriIndex++] = Tri.A;
-			IndexBuffer.Indices[TriIndex++] = Tri.B;
-			IndexBuffer.Indices[TriIndex++] = Tri.C;
-		}
 	}
 
 
@@ -367,86 +272,9 @@ public:
 
 
 
-	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_SimpleDynamicMeshSceneProxy_GetDynamicMeshElements);
-
-		const bool bWireframe = (AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe)
-			|| ParentComponent->bExplicitShowWireframe;
-
-		FColoredMaterialRenderProxy* WireframeMaterialInstance = new FColoredMaterialRenderProxy(
-			GEngine->WireframeMaterial ? GEngine->WireframeMaterial->GetRenderProxy() : nullptr,
-			FLinearColor(0, 0.5f, 1.f)
-		);
-
-		Collector.RegisterOneFrameMaterialProxy(WireframeMaterialInstance);
-
-		FMaterialRenderProxy* MaterialProxy = Material->GetRenderProxy();
-		FMaterialRenderProxy* WireframeMaterialProxy = WireframeMaterialInstance;
-
-		ESceneDepthPriorityGroup DepthPriority = (ParentComponent->bDrawOnTop) ? SDPG_Foreground : SDPG_World;
-
-
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-		{
-			if (VisibilityMap & (1 << ViewIndex))
-			{
-				const FSceneView* View = Views[ViewIndex];
-
-				bool bHasPrecomputedVolumetricLightmap;
-				FMatrix PreviousLocalToWorld;
-				int32 SingleCaptureIndex;
-				bool bOutputVelocity;
-				GetScene().GetPrimitiveUniformShaderParameters_RenderThread(GetPrimitiveSceneInfo(), bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
-
-				FDynamicPrimitiveUniformBuffer& DynamicPrimitiveUniformBuffer = Collector.AllocateOneFrameResource<FDynamicPrimitiveUniformBuffer>();
-				DynamicPrimitiveUniformBuffer.Set(GetLocalToWorld(), PreviousLocalToWorld, GetBounds(), GetLocalBounds(), true, bHasPrecomputedVolumetricLightmap, DrawsVelocity(), bOutputVelocity);
-
-				// Draw the mesh.
-				DrawBatch(Collector, MaterialProxy, false, DepthPriority, ViewIndex, DynamicPrimitiveUniformBuffer);
-				if (bWireframe)
-				{
-					DrawBatch(Collector, WireframeMaterialProxy, true, DepthPriority, ViewIndex, DynamicPrimitiveUniformBuffer);
-				}
-			}
-		}
-	}
-
-
-
-	virtual void DrawBatch(FMeshElementCollector& Collector, 
-		FMaterialRenderProxy* UseMaterial, 
-		bool bWireframe,
-		ESceneDepthPriorityGroup DepthPriority,
-		int ViewIndex,
-		FDynamicPrimitiveUniformBuffer& DynamicPrimitiveUniformBuffer) const
-	{
-		FMeshBatch& Mesh = Collector.AllocateMesh();
-		FMeshBatchElement& BatchElement = Mesh.Elements[0];
-		BatchElement.IndexBuffer = &IndexBuffer;
-		Mesh.bWireframe = bWireframe;
-		Mesh.VertexFactory = &VertexFactory;
-		Mesh.MaterialRenderProxy = UseMaterial;
-
-		BatchElement.PrimitiveUniformBufferResource = &DynamicPrimitiveUniformBuffer.UniformBuffer;
-
-		BatchElement.FirstIndex = 0;
-		BatchElement.NumPrimitives = IndexBuffer.Indices.Num() / 3;
-		BatchElement.MinVertexIndex = 0;
-		BatchElement.MaxVertexIndex = PositionVertexBuffer.GetNumVertices() - 1;
-		Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
-		Mesh.Type = PT_TriangleList;
-		Mesh.DepthPriorityGroup = DepthPriority;
-		Mesh.bCanApplyViewModeOverrides = false;
-		Collector.AddMesh(ViewIndex, Mesh);
-	}
-
-
-
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
 	{
 		FPrimitiveViewRelevance Result;
-
 
 		if (ParentComponent->bDrawOnTop)
 		{
@@ -491,37 +319,12 @@ public:
 
 	virtual bool CanBeOccluded() const override
 	{
-		//if (ParentComponent->bDrawOnTop)
-		//{
-		//	return false;
-		//}
 		return !MaterialRelevance.bDisableDepthTest;
 	}
 
 	virtual uint32 GetMemoryFootprint(void) const override { return(sizeof(*this) + GetAllocatedSize()); }
 
 	uint32 GetAllocatedSize(void) const { return(FPrimitiveSceneProxy::GetAllocatedSize()); }
-
-
-
-	virtual void SetMaterial(UMaterialInterface* MaterialIn)
-	{
-		this->Material = MaterialIn;
-	}
-
-
-	// copied from StaticMesh.cpp
-	void InitOrUpdateResource(FRenderResource* Resource)
-	{
-		if (!Resource->IsInitialized())
-		{
-			Resource->InitResource();
-		}
-		else
-		{
-			Resource->UpdateRHI();
-		}
-	}
 
 
 	SIZE_T GetTypeHash() const override

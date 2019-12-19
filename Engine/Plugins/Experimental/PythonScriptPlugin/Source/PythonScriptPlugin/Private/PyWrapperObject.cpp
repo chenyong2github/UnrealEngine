@@ -16,6 +16,7 @@
 #include "UObject/StructOnScope.h"
 #include "UObject/PropertyPortFlags.h"
 #include "Engine/World.h"
+#include "Misc/ScopeExit.h"
 #include "Templates/Casts.h"
 #include "BlueprintActionDatabase.h"
 
@@ -125,14 +126,14 @@ PyObject* FPyWrapperObject::GetPropertyValue(FPyWrapperObject* InSelf, const PyG
 	return PyGenUtil::GetPropertyValue(InSelf->ObjectInstance->GetClass(), InSelf->ObjectInstance, InPropDef, InPythonAttrName, (PyObject*)InSelf, *PyUtil::GetErrorContext(InSelf));
 }
 
-int FPyWrapperObject::SetPropertyValue(FPyWrapperObject* InSelf, PyObject* InValue, const PyGenUtil::FGeneratedWrappedProperty& InPropDef, const char* InPythonAttrName, const bool InNotifyChange, const uint64 InReadOnlyFlags)
+int FPyWrapperObject::SetPropertyValue(FPyWrapperObject* InSelf, PyObject* InValue, const PyGenUtil::FGeneratedWrappedProperty& InPropDef, const char* InPythonAttrName, const EPropertyAccessChangeNotifyMode InNotifyMode, const uint64 InReadOnlyFlags)
 {
 	if (!ValidateInternalState(InSelf))
 	{
 		return -1;
 	}
 
-	const TUniquePtr<FPropertyAccessChangeNotify> ChangeNotify = InNotifyChange ? FPyWrapperOwnerContext((PyObject*)InSelf, InPropDef.Prop).BuildChangeNotify() : nullptr;
+	const TUniquePtr<FPropertyAccessChangeNotify> ChangeNotify = FPyWrapperOwnerContext((PyObject*)InSelf, InPropDef.Prop).BuildChangeNotify(InNotifyMode);
 	return PyGenUtil::SetPropertyValue(InSelf->ObjectInstance->GetClass(), InSelf->ObjectInstance, InValue, InPropDef, InPythonAttrName, ChangeNotify.Get(), InReadOnlyFlags, PropertyAccessUtil::IsObjectTemplate(InSelf->ObjectInstance), *PyUtil::GetErrorContext(InSelf));
 }
 
@@ -730,7 +731,7 @@ PyTypeObject InitializePyWrapperObjectType()
 			FName NewName;
 			if (PyNameObj && PyNameObj != Py_None && !PyConversion::Nativize(PyNameObj, NewName))
 			{
-				PyUtil::SetPythonError(PyExc_TypeError, InSelf, *FString::Printf(TEXT("Failed to convert 'name' (%s) to 'Name'"), *PyUtil::GetFriendlyTypename(InSelf)));
+				PyUtil::SetPythonError(PyExc_TypeError, InSelf, *FString::Printf(TEXT("Failed to convert 'name' (%s) to 'Name'"), *PyUtil::GetFriendlyTypename(PyNameObj)));
 				return nullptr;
 			}
 
@@ -744,6 +745,42 @@ PyTypeObject InitializePyWrapperObjectType()
 			const bool bResult = InSelf->ObjectInstance->Rename(NewName.IsNone() ? nullptr : *NewName.ToString(), NewOuter);
 
 			return PyConversion::Pythonize(bResult);
+		}
+
+		static PyGenUtil::FGeneratedWrappedProperty FindEditorPropertyImpl(FPyWrapperObject* InSelf, const FName InPythonPropName)
+		{
+			PyGenUtil::FGeneratedWrappedProperty WrappedPropDef;
+
+			const UClass* Class = InSelf->ObjectInstance->GetClass();
+
+			const FName ResolvedName = FPyWrapperObjectMetaData::ResolvePropertyName(InSelf, InPythonPropName);
+			const UProperty* ResolvedProp = Class->FindPropertyByName(ResolvedName);
+			if (!ResolvedProp)
+			{
+				PyUtil::SetPythonError(PyExc_Exception, InSelf, *FString::Printf(TEXT("Failed to find property '%s' for attribute '%s' on '%s'"), *ResolvedName.ToString(), *InPythonPropName.ToString(), *Class->GetName()));
+				return WrappedPropDef;
+			}
+
+			TOptional<FString> PropDeprecationMessage;
+			{
+				FString PropDeprecationMessageStr;
+				if (FPyWrapperObjectMetaData::IsPropertyDeprecated(InSelf, InPythonPropName, &PropDeprecationMessageStr))
+				{
+					PropDeprecationMessage = MoveTemp(PropDeprecationMessageStr);
+				}
+			}
+			
+			if (PropDeprecationMessage.IsSet())
+			{
+				WrappedPropDef.SetProperty(ResolvedProp, PyGenUtil::FGeneratedWrappedProperty::SPF_None);
+				WrappedPropDef.DeprecationMessage = MoveTemp(PropDeprecationMessage);
+			}
+			else
+			{
+				WrappedPropDef.SetProperty(ResolvedProp);
+			}
+
+			return WrappedPropDef;
 		}
 
 		static PyObject* GetEditorProperty(FPyWrapperObject* InSelf, PyObject* InArgs, PyObject* InKwds)
@@ -764,38 +801,14 @@ PyTypeObject InitializePyWrapperObjectType()
 			FName Name;
 			if (!PyConversion::Nativize(PyNameObj, Name))
 			{
-				PyUtil::SetPythonError(PyExc_TypeError, InSelf, *FString::Printf(TEXT("Failed to convert 'name' (%s) to 'Name'"), *PyUtil::GetFriendlyTypename(InSelf)));
+				PyUtil::SetPythonError(PyExc_TypeError, InSelf, *FString::Printf(TEXT("Failed to convert 'name' (%s) to 'Name'"), *PyUtil::GetFriendlyTypename(PyNameObj)));
 				return nullptr;
 			}
 
-			const UClass* Class = InSelf->ObjectInstance->GetClass();
-
-			const FName ResolvedName = FPyWrapperObjectMetaData::ResolvePropertyName(InSelf, Name);
-			const UProperty* ResolvedProp = Class->FindPropertyByName(ResolvedName);
-			if (!ResolvedProp)
+			const PyGenUtil::FGeneratedWrappedProperty WrappedPropDef = FindEditorPropertyImpl(InSelf, Name);
+			if (!WrappedPropDef.Prop)
 			{
-				PyUtil::SetPythonError(PyExc_Exception, InSelf, *FString::Printf(TEXT("Failed to find property '%s' for attribute '%s' on '%s'"), *ResolvedName.ToString(), *Name.ToString(), *Class->GetName()));
 				return nullptr;
-			}
-
-			TOptional<FString> PropDeprecationMessage;
-			{
-				FString PropDeprecationMessageStr;
-				if (FPyWrapperObjectMetaData::IsPropertyDeprecated(InSelf, Name, &PropDeprecationMessageStr))
-				{
-					PropDeprecationMessage = MoveTemp(PropDeprecationMessageStr);
-				}
-			}
-
-			PyGenUtil::FGeneratedWrappedProperty WrappedPropDef;
-			if (PropDeprecationMessage.IsSet())
-			{
-				WrappedPropDef.SetProperty(ResolvedProp, PyGenUtil::FGeneratedWrappedProperty::SPF_None);
-				WrappedPropDef.DeprecationMessage = MoveTemp(PropDeprecationMessage);
-			}
-			else
-			{
-				WrappedPropDef.SetProperty(ResolvedProp);
 			}
 
 			return FPyWrapperObject::GetPropertyValue(InSelf, WrappedPropDef, TCHAR_TO_UTF8(*Name.ToString()));
@@ -810,9 +823,10 @@ PyTypeObject InitializePyWrapperObjectType()
 
 			PyObject* PyNameObj = nullptr;
 			PyObject* PyValueObj = nullptr;
+			PyObject* PyNotifyModeObj = nullptr;
 
-			static const char *ArgsKwdList[] = { "name", "value", nullptr };
-			if (!PyArg_ParseTupleAndKeywords(InArgs, InKwds, "OO:set_editor_property", (char**)ArgsKwdList, &PyNameObj, &PyValueObj))
+			static const char *ArgsKwdList[] = { "name", "value", "notify_mode", nullptr };
+			if (!PyArg_ParseTupleAndKeywords(InArgs, InKwds, "OO|O:set_editor_property", (char**)ArgsKwdList, &PyNameObj, &PyValueObj, &PyNotifyModeObj))
 			{
 				return nullptr;
 			}
@@ -820,44 +834,111 @@ PyTypeObject InitializePyWrapperObjectType()
 			FName Name;
 			if (!PyConversion::Nativize(PyNameObj, Name))
 			{
-				PyUtil::SetPythonError(PyExc_TypeError, InSelf, *FString::Printf(TEXT("Failed to convert 'name' (%s) to 'Name'"), *PyUtil::GetFriendlyTypename(InSelf)));
+				PyUtil::SetPythonError(PyExc_TypeError, InSelf, *FString::Printf(TEXT("Failed to convert 'name' (%s) to 'Name'"), *PyUtil::GetFriendlyTypename(PyNameObj)));
 				return nullptr;
 			}
 
-			const UClass* Class = InSelf->ObjectInstance->GetClass();
+			static const UEnum* PropertyAccessChangeNotifyModeEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EPropertyAccessChangeNotifyMode"));
 
-			const FName ResolvedName = FPyWrapperObjectMetaData::ResolvePropertyName(InSelf, Name);
-			const UProperty* ResolvedProp = Class->FindPropertyByName(ResolvedName);
-			if (!ResolvedProp)
+			EPropertyAccessChangeNotifyMode NotifyMode = EPropertyAccessChangeNotifyMode::Default;
+			if (PyNotifyModeObj && !PyConversion::NativizeEnumEntry(PyNotifyModeObj, PropertyAccessChangeNotifyModeEnum, NotifyMode))
 			{
-				PyUtil::SetPythonError(PyExc_Exception, InSelf, *FString::Printf(TEXT("Failed to find property '%s' for attribute '%s' on '%s'"), *ResolvedName.ToString(), *Name.ToString(), *Class->GetName()));
+				PyUtil::SetPythonError(PyExc_TypeError, InSelf, *FString::Printf(TEXT("Failed to convert 'notify_mode' (%s) to 'PropertyAccessChangeNotifyMode'"), *PyUtil::GetFriendlyTypename(PyNotifyModeObj)));
 				return nullptr;
 			}
 
-			TOptional<FString> PropDeprecationMessage;
+			const PyGenUtil::FGeneratedWrappedProperty WrappedPropDef = FindEditorPropertyImpl(InSelf, Name);
+			if (!WrappedPropDef.Prop)
 			{
-				FString PropDeprecationMessageStr;
-				if (FPyWrapperObjectMetaData::IsPropertyDeprecated(InSelf, Name, &PropDeprecationMessageStr))
-				{
-					PropDeprecationMessage = MoveTemp(PropDeprecationMessageStr);
-				}
+				return nullptr;
 			}
 
-			PyGenUtil::FGeneratedWrappedProperty WrappedPropDef;
-			if (PropDeprecationMessage.IsSet())
-			{
-				WrappedPropDef.SetProperty(ResolvedProp, PyGenUtil::FGeneratedWrappedProperty::SPF_None);
-				WrappedPropDef.DeprecationMessage = MoveTemp(PropDeprecationMessage);
-			}
-			else
-			{
-				WrappedPropDef.SetProperty(ResolvedProp);
-			}
-
-			const int Result = FPyWrapperObject::SetPropertyValue(InSelf, PyValueObj, WrappedPropDef, TCHAR_TO_UTF8(*Name.ToString()), /*InNotifyChange*/true, PropertyAccessUtil::EditorReadOnlyFlags);
+			const int Result = FPyWrapperObject::SetPropertyValue(InSelf, PyValueObj, WrappedPropDef, TCHAR_TO_UTF8(*Name.ToString()), NotifyMode, PropertyAccessUtil::EditorReadOnlyFlags);
 			if (Result != 0)
 			{
 				return nullptr;
+			}
+
+			Py_RETURN_NONE;
+		}
+
+		static PyObject* SetEditorProperties(FPyWrapperObject* InSelf, PyObject* InArgs, PyObject* InKwds)
+		{
+			if (!FPyWrapperObject::ValidateInternalState(InSelf))
+			{
+				return nullptr;
+			}
+
+			PyObject* PyPropertyInfoDict = nullptr;
+			if (!PyArg_ParseTuple(InArgs, "O:set_editor_properties", &PyPropertyInfoDict))
+			{
+				return nullptr;
+			}
+
+			if (!PyUtil::IsMappingType(PyPropertyInfoDict))
+			{
+				PyUtil::SetPythonError(PyExc_TypeError, InSelf, *FString::Printf(TEXT("'property_info' (%s) is expected to be a mapping type (eg, dict)"), *PyUtil::GetFriendlyTypename(PyPropertyInfoDict)));
+				return nullptr;
+			}
+
+			// Build up the list of properties and their new values
+			typedef TTuple<FName, PyGenUtil::FGeneratedWrappedProperty, FPyObjectPtr> FPropertyInfoPair;
+			TArray<FPropertyInfoPair> PropertyInfos;
+			{
+				FPyObjectPtr PyPropertyInfoDictIter = FPyObjectPtr::StealReference(PyObject_GetIter(PyPropertyInfoDict));
+				if (PyPropertyInfoDictIter)
+				{
+					FPyObjectPtr PyKeyItem;
+					while ((PyKeyItem = FPyObjectPtr::StealReference(PyIter_Next(PyPropertyInfoDictIter))))
+					{
+						FName Name;
+						if (!PyConversion::Nativize(PyKeyItem, Name))
+						{
+							PyUtil::SetPythonError(PyExc_TypeError, InSelf, *FString::Printf(TEXT("Failed to convert dict key (%s) to 'Name'"), *PyUtil::GetFriendlyTypename(PyKeyItem)));
+							return nullptr;
+						}
+
+						PyGenUtil::FGeneratedWrappedProperty WrappedPropDef = FindEditorPropertyImpl(InSelf, Name);
+						if (!WrappedPropDef.Prop)
+						{
+							return nullptr;
+						}
+
+						FPyObjectPtr PyValueItem = FPyObjectPtr::StealReference(PyObject_GetItem(PyPropertyInfoDict, PyKeyItem));
+						if (ensure(PyValueItem))
+						{
+							PropertyInfos.Add(MakeTuple(Name, MoveTemp(WrappedPropDef), MoveTemp(PyValueItem)));
+						}
+					}
+
+					// Iteration error?
+					if (PyErr_Occurred())
+					{
+						return nullptr;
+					}
+				}
+			}
+
+			// At this point we know that every property we were asked to set was found, but not that the values are going to be compatible
+			// Checking value coercion is tricky without actually doing the conversion, so we'll assume that this point that we need to do the change notifies
+			InSelf->ObjectInstance->PreEditChange(nullptr);
+			ON_SCOPE_EXIT
+			{
+				InSelf->ObjectInstance->PostEditChange();
+			};
+
+			// Try and set the value of each property
+			for (const FPropertyInfoPair& PropertyInfo : PropertyInfos)
+			{
+				const FName Name = PropertyInfo.Get<0>();
+				const PyGenUtil::FGeneratedWrappedProperty& WrappedPropDef = PropertyInfo.Get<1>();
+				PyObject* PyValueObj = PropertyInfo.Get<2>().GetPtr();
+
+				const int Result = FPyWrapperObject::SetPropertyValue(InSelf, PyValueObj, WrappedPropDef, TCHAR_TO_UTF8(*Name.ToString()), EPropertyAccessChangeNotifyMode::Never, PropertyAccessUtil::EditorReadOnlyFlags);
+				if (Result != 0)
+				{
+					return nullptr;
+				}
 			}
 
 			Py_RETURN_NONE;
@@ -881,7 +962,8 @@ PyTypeObject InitializePyWrapperObjectType()
 		{ "modify", PyCFunctionCast(&FMethods::Modify), METH_VARARGS, "x.modify(bool) -> bool -- inform that this instance is about to be modified (tracks changes for undo/redo if transactional)" },
 		{ "rename", PyCFunctionCast(&FMethods::Rename), METH_VARARGS | METH_KEYWORDS, "x.rename(name=None, outer=None) -> bool -- rename this instance" },
 		{ "get_editor_property", PyCFunctionCast(&FMethods::GetEditorProperty), METH_VARARGS | METH_KEYWORDS, "x.get_editor_property(name) -> object -- get the value of any property visible to the editor" },
-		{ "set_editor_property", PyCFunctionCast(&FMethods::SetEditorProperty), METH_VARARGS | METH_KEYWORDS, "x.set_editor_property(name, value) -> None -- set the value of any property visible to the editor, ensuring that the pre/post change notifications are called" },
+		{ "set_editor_property", PyCFunctionCast(&FMethods::SetEditorProperty), METH_VARARGS | METH_KEYWORDS, "x.set_editor_property(name, value, notify_mode=PropertyAccessChangeNotifyMode.DEFAULT) -> None -- set the value of any property visible to the editor, ensuring that the pre/post change notifications are called" },
+		{ "set_editor_properties", PyCFunctionCast(&FMethods::SetEditorProperties), METH_VARARGS, "x.set_editor_properties(property_info) -> None -- set the value of any properties visible to the editor (from a name->value dict), ensuring that the pre/post change notifications are called" },
 		{ nullptr, nullptr, 0, nullptr }
 	};
 
@@ -911,6 +993,8 @@ PyTypeObject PyWrapperObjectType = InitializePyWrapperObjectType();
 void FPyWrapperObjectMetaData::AddReferencedObjects(FPyWrapperBase* Instance, FReferenceCollector& Collector)
 {
 	FPyWrapperObject* Self = static_cast<FPyWrapperObject*>(Instance);
+
+	Collector.AddReferencedObject(Class);
 
 	UObject* OldInstance = Self->ObjectInstance;
 	Collector.AddReferencedObject(Self->ObjectInstance);

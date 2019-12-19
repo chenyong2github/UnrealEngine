@@ -4,7 +4,7 @@
 
 #include "Windows/Accessibility/WindowsUIAPropertyGetters.h"
 
-#include "GenericPlatform/GenericAccessibleInterfaces.h"
+#include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
 #include "Misc/Variant.h"
 
 namespace WindowsUIAPropertyGetters

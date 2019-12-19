@@ -122,6 +122,7 @@ typedef TPyPtr<FPySelectedActorIterator> FPySelectedActorIteratorPtr;
 namespace PyEngine
 {
 	void InitializeModule();
+	void ShutdownModule();
 }
 
 #endif	// WITH_PYTHON

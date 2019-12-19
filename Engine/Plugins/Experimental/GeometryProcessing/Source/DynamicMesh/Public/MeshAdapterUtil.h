@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "DynamicMesh3.h"
+#include "DynamicPointSet3.h"
 #include "PointSetAdapter.h"
 #include "MeshAdapter.h"
 
@@ -24,9 +25,19 @@ namespace MeshAdapterUtil
 	FTriangleMeshAdapterd DYNAMICMESH_API MakeDynamicMeshAdapter(const FDynamicMesh3* Mesh);
 
 	/**
+	* @return Transformed adapter of a FDynamicMesh
+	*/
+	FTriangleMeshAdapterd DYNAMICMESH_API MakeTransformedDynamicMeshAdapter(const FDynamicMesh3* Mesh, FTransform Transform);
+
+	/**
 	 * @return Mesh vertices as a point set
 	 */
 	FPointSetAdapterd DYNAMICMESH_API MakeVerticesAdapter(const FDynamicMesh3* Mesh);
+
+	/**
+	 * @return PointSet points as a point set
+	 */
+	FPointSetAdapterd DYNAMICMESH_API MakePointsAdapter(const FDynamicPointSet3d* PointSet);
 
 	/**
 	 * @return Mesh triangle centroids as a point set

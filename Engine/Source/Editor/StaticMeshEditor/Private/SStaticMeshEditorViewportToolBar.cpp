@@ -56,7 +56,7 @@ TSharedRef<SWidget> SStaticMeshEditorViewportToolbar::GenerateShowMenu() const
 
 		ShowMenuBuilder.AddMenuSeparator();
 
-		ShowMenuBuilder.AddMenuEntry(Commands.SetShowNormals);
+ 		ShowMenuBuilder.AddMenuEntry(Commands.SetShowNormals);
 		ShowMenuBuilder.AddMenuEntry(Commands.SetShowTangents);
 		ShowMenuBuilder.AddMenuEntry(Commands.SetShowBinormals);
 

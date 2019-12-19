@@ -3,8 +3,7 @@
 #if WITH_ACCESSIBILITY
 
 #include "Windows/Accessibility/WindowsUIAWidgetProvider.h"
-
-#include "GenericPlatform/GenericAccessibleInterfaces.h"
+#include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
 #include "Windows/Accessibility/WindowsUIAControlProvider.h"
 #include "Windows/Accessibility/WindowsUIAManager.h"
 #include "Windows/Accessibility/WindowsUIAPropertyGetters.h"

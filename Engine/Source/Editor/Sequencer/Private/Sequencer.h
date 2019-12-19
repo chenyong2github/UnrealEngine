@@ -689,6 +689,7 @@ public:
 	virtual bool GetAutoSetTrackDefaults() const override;
 	virtual FQualifiedFrameTime GetLocalTime() const override;
 	virtual FQualifiedFrameTime GetGlobalTime() const override;
+	virtual uint32 GetLocalLoopIndex() const override;
 	virtual void SetLocalTime(FFrameTime Time, ESnapTimeMode SnapTimeMode = ESnapTimeMode::STM_None) override;
 	virtual void SetLocalTimeDirectly(FFrameTime NewTime) override;
 	virtual void SetGlobalTime(FFrameTime Time) override;
@@ -1089,7 +1090,11 @@ private:
 	 */
 	TArray<bool> ActiveTemplateStates;
 
+	/** Time transformation from the root sequence to the currently edited sequence. */
 	FMovieSceneSequenceTransform RootToLocalTransform;
+
+	/** Current loop of the current sub-sequence, if we are in a looping sub-sequence. */
+	FMovieSceneWarpCounter RootToLocalLoopCounter;
 
 	/** The time range target to be viewed */
 	TRange<double> TargetViewRange;
@@ -1132,6 +1137,12 @@ private:
 
 	/** Current play position */
 	FMovieScenePlaybackPosition PlayPosition;
+
+	/** Local loop index at the time we began scrubbing */
+	uint32 LocalLoopIndexOnBeginScrubbing;
+
+	/** Local loop index to add for the purposes of displaying it in the UI */
+	uint32 LocalLoopIndexOffsetDuringScrubbing;
 
 	/** The playback speed */
 	float PlaybackSpeed;

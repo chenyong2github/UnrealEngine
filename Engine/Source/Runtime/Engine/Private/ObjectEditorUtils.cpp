@@ -10,36 +10,41 @@
 namespace FObjectEditorUtils
 {
 
-	FText GetCategoryText( const UProperty* InProperty )
+	FText GetCategoryText( const UField* InField )
 	{
-		static const FName NAME_Category(TEXT("Category"));
-		if (InProperty && InProperty->HasMetaData(NAME_Category))
+		static const FTextKey CategoryLocalizationNamespace = TEXT("UObjectCategory");
+		static const FName CategoryMetaDataKey = TEXT("Category");
+
+		if (InField)
 		{
-			return InProperty->GetMetaDataText(NAME_Category, TEXT("UObjectCategory"), InProperty->GetFullGroupName(false));
+			const FString& NativeCategory = InField->GetMetaData(CategoryMetaDataKey);
+			if (!NativeCategory.IsEmpty())
+			{
+				FText LocalizedCategory;
+				if (!FText::FindText(CategoryLocalizationNamespace, NativeCategory, /*OUT*/LocalizedCategory, &NativeCategory))
+				{
+					LocalizedCategory = FText::AsCultureInvariant(NativeCategory);
+				}
+				return LocalizedCategory;
+			}
 		}
-		else
-		{
-			return FText::GetEmpty();
-		}
+
+		return FText::GetEmpty();
 	}
 
-	FString GetCategory( const UProperty* InProperty )
+	FString GetCategory( const UField* InField )
 	{
-		return GetCategoryText(InProperty).ToString();
+		return GetCategoryText(InField).ToString();
 	}
 
-
-	FName GetCategoryFName( const UProperty* InProperty )
+	FName GetCategoryFName( const UField* InField )
 	{
-		FName OutCategoryName( NAME_None );
-
-		static const FName CategoryKey( TEXT("Category") );
-		if( InProperty && InProperty->HasMetaData( CategoryKey ) )
+		static const FName CategoryKey(TEXT("Category"));
+		if (InField && InField->HasMetaData(CategoryKey))
 		{
-			OutCategoryName = FName( *InProperty->GetMetaData( CategoryKey ) );
+			return FName(*InField->GetMetaData(CategoryKey));
 		}
-
-		return OutCategoryName;
+		return NAME_None;
 	}
 
 	bool IsFunctionHiddenFromClass( const UFunction* InFunction,const UClass* Class )

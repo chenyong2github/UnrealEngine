@@ -99,7 +99,7 @@ public:
 	/** Returns the number of Mode specific tabs in the mode toolbar **/ 
 	const static TArray<FName> PaletteNames;
 	virtual void GetToolPaletteNames( TArray<FName>& InPaletteName ) const { InPaletteName = PaletteNames; }
-	virtual FText GetToolPaletteDisplayName(FName PaletteName); 
+	virtual FText GetToolPaletteDisplayName(FName PaletteName) const; 
 	virtual void BuildToolPalette(FName PaletteName, class FToolBarBuilder& ToolbarBuilder);
 	virtual void OnToolPaletteChanged(FName PaletteName) override;
 

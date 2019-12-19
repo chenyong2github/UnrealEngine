@@ -202,6 +202,35 @@ void UGameInstance::CreateMinimalNetRPCWorld(const FName InPackageName, UPackage
 }
 
 #if WITH_EDITOR
+static ENetMode GetNetModeFromPlayNetMode(const EPlayNetMode InPlayNetMode, const bool bInDedicatedServer)
+{
+	switch (InPlayNetMode)
+	{
+		case EPlayNetMode::PIE_Client:
+		{
+			return NM_Client;
+		}
+		case EPlayNetMode::PIE_ListenServer:
+		{
+			if (bInDedicatedServer)
+			{
+				return NM_DedicatedServer;
+			}
+
+			return NM_ListenServer;
+		}
+		case EPlayNetMode::PIE_Standalone:
+		{
+			return NM_Standalone;
+		}
+		default:
+		{
+			break;
+		}
+	}
+
+	return NM_Standalone;
+}
 
 FGameInstancePIEResult UGameInstance::InitializeForPlayInEditor(int32 PIEInstanceIndex, const FGameInstancePIEParameters& Params)
 {
@@ -229,15 +258,13 @@ FGameInstancePIEResult UGameInstance::InitializeForPlayInEditor(int32 PIEInstanc
 	WorldContext->LastURL.Map = WorldPackageName;
 	WorldContext->PIEPrefix = WorldContext->PIEInstance != INDEX_NONE ? UWorld::BuildPIEPackagePrefix(WorldContext->PIEInstance) : FString();
 
-	const ULevelEditorPlaySettings* PlayInSettings = GetDefault<ULevelEditorPlaySettings>();
-
+	
 	// We always need to create a new PIE world unless we're using the editor world for SIE
 	UWorld* NewWorld = nullptr;
 
 	bool bNeedsGarbageCollection = false;
-	const EPlayNetMode PlayNetMode = [&PlayInSettings]{ EPlayNetMode NetMode(PIE_Standalone); return (PlayInSettings->GetPlayNetMode(NetMode) ? NetMode : PIE_Standalone); }();
-	const bool CanRunUnderOneProcess = [&PlayInSettings]{ bool RunUnderOneProcess(false); return (PlayInSettings->GetRunUnderOneProcess(RunUnderOneProcess) && RunUnderOneProcess); }();
-	if (PlayNetMode == PIE_Client)
+
+	if (Params.NetMode == EPlayNetMode::PIE_Client)
 	{
 		// We are going to connect, so just load an empty world
 		NewWorld = EditorEngine->CreatePIEWorldFromEntry(*WorldContext, EditorEngine->EditorWorld, PIEMapName);
@@ -257,6 +284,7 @@ FGameInstancePIEResult UGameInstance::InitializeForPlayInEditor(int32 PIEInstanc
 		return FGameInstancePIEResult::Failure(NSLOCTEXT("UnrealEd", "Error_FailedCreateEditorPreviewWorld", "Failed to create editor preview world."));
 	}
 
+	NewWorld->SetPlayInEditorInitialNetMode(GetNetModeFromPlayNetMode(Params.NetMode, Params.bRunAsDedicated));
 	NewWorld->SetGameInstance(this);
 	WorldContext->SetCurrentWorld(NewWorld);
 	WorldContext->AddRef(EditorEngine->PlayWorld);	// Tie this context to this UEngine::PlayWorld*		// @fixme, needed still?
@@ -300,28 +328,25 @@ FGameInstancePIEResult UGameInstance::StartPlayInEditorGameInstance(ULocalPlayer
 	OnStart();
 
 	UEditorEngine* const EditorEngine = CastChecked<UEditorEngine>(GetEngine());
-	ULevelEditorPlaySettings const* PlayInSettings = GetDefault<ULevelEditorPlaySettings>();
-
-	const EPlayNetMode PlayNetMode = [&PlayInSettings]{ EPlayNetMode NetMode(PIE_Standalone); return (PlayInSettings->GetPlayNetMode(NetMode) ? NetMode : PIE_Standalone); }();
 
 	// for clients, just connect to the server
-	if (PlayNetMode == PIE_Client)
+	if (Params.NetMode == PIE_Client)
 	{
 		FString Error;
 		FURL BaseURL = WorldContext->LastURL;
 
 		FString URLString(TEXT("127.0.0.1"));
 		uint16 ServerPort = 0;
-		if (PlayInSettings->GetServerPort(ServerPort))
+		if (Params.EditorPlaySettings->GetServerPort(ServerPort))
 		{
 			URLString += FString::Printf(TEXT(":%hu"), ServerPort);
 		}
 
-		if (PlayInSettings->IsNetworkEmulationEnabled())
+		if (Params.EditorPlaySettings->IsNetworkEmulationEnabled())
 		{
-			if (PlayInSettings->NetworkEmulationSettings.IsEmulationEnabledForTarget(NetworkEmulationTarget::Client))
+			if (Params.EditorPlaySettings->NetworkEmulationSettings.IsEmulationEnabledForTarget(NetworkEmulationTarget::Client))
 			{
-				URLString += PlayInSettings->NetworkEmulationSettings.BuildPacketSettingsForURL();
+				URLString += Params.EditorPlaySettings->NetworkEmulationSettings.BuildPacketSettingsForURL();
 			}
 		}
 
@@ -340,21 +365,21 @@ FGameInstancePIEResult UGameInstance::StartPlayInEditorGameInstance(ULocalPlayer
 		UWorld* const PlayWorld = GetWorld();
 
 		FString ExtraURLOptions;
-		if (PlayInSettings->IsNetworkEmulationEnabled())
+		if (Params.EditorPlaySettings->IsNetworkEmulationEnabled())
 		{
-			NetworkEmulationTarget CurrentTarget = PlayNetMode == PIE_ListenServer ? NetworkEmulationTarget::Server : NetworkEmulationTarget::Client;
-			if (PlayInSettings->NetworkEmulationSettings.IsEmulationEnabledForTarget(CurrentTarget))
+			NetworkEmulationTarget CurrentTarget = Params.NetMode == PIE_ListenServer ? NetworkEmulationTarget::Server : NetworkEmulationTarget::Client;
+			if (Params.EditorPlaySettings->NetworkEmulationSettings.IsEmulationEnabledForTarget(CurrentTarget))
 			{
-				ExtraURLOptions += PlayInSettings->NetworkEmulationSettings.BuildPacketSettingsForURL();
+				ExtraURLOptions += Params.EditorPlaySettings->NetworkEmulationSettings.BuildPacketSettingsForURL();
 			}
 		}
 
 		// make a URL
 		FURL URL;
 		// If the user wants to start in spectator mode, do not use the custom play world for now
-		if (EditorEngine->UserEditedPlayWorldURL.Len() > 0 && !Params.bStartInSpectatorMode)
+		if (EditorEngine->UserEditedPlayWorldURL.Len() > 0 || Params.OverrideMapURL.Len() > 0)
 		{
-			FString UserURL = EditorEngine->UserEditedPlayWorldURL;
+			FString UserURL = EditorEngine->UserEditedPlayWorldURL.Len() > 0 ? EditorEngine->UserEditedPlayWorldURL : Params.OverrideMapURL;
 			UserURL += ExtraURLOptions;
 
 			// If the user edited the play world url. Verify that the map name is the same as the currently loaded map.
@@ -373,7 +398,7 @@ FGameInstancePIEResult UGameInstance::StartPlayInEditorGameInstance(ULocalPlayer
 
 		// If a start location is specified, spawn a temporary PlayerStartPIE actor at the start location and use it as the portal.
 		AActor* PlayerStart = NULL;
-		if (EditorEngine->SpawnPlayFromHereStart(PlayWorld, PlayerStart, EditorEngine->PlayWorldLocation, EditorEngine->PlayWorldRotation) == false)
+		if (!EditorEngine->SpawnPlayFromHereStart(PlayWorld, PlayerStart))
 		{
 			// failed to create "play from here" playerstart
 			return FGameInstancePIEResult::Failure(NSLOCTEXT("UnrealEd", "Error_FailedCreatePlayFromHerePlayerStart", "Failed to create PlayerStart at desired starting location."));
@@ -417,11 +442,11 @@ FGameInstancePIEResult UGameInstance::StartPlayInEditorGameInstance(ULocalPlayer
 			GEngine->BlockTillLevelStreamingCompleted(PlayWorld);
 		}
 		
-		if (PlayNetMode == PIE_ListenServer)
+		if (Params.NetMode == PIE_ListenServer)
 		{
 			// Add port
 			uint16 ServerPort = 0;
-			if (PlayInSettings->GetServerPort(ServerPort))
+			if (Params.EditorPlaySettings->GetServerPort(ServerPort))
 			{
 				URL.Port = ServerPort;
 			}

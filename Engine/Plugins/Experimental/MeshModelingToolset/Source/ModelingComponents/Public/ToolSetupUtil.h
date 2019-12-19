@@ -41,4 +41,17 @@ namespace ToolSetupUtil
 	 */
 	MODELINGCOMPONENTS_API UMaterialInterface* GetSelectionMaterial(UInteractiveToolManager* ToolManager);
 
+	/**
+	 * @return Selection Material 1 with custom color
+	 */
+	MODELINGCOMPONENTS_API UMaterialInterface* GetSelectionMaterial(const FLinearColor& UseColor, UInteractiveToolManager* ToolManager);
+
+
+
+	/**
+	 * @param bRoundPoints true for round points, false for square
+	 * @return custom material suitable for use with UPointSetComponent
+	 */
+	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultPointComponentMaterial(bool bRoundPoints, UInteractiveToolManager* ToolManager);
+
 }

@@ -27,76 +27,89 @@ void FLandscapeEditorCommands::RegisterCommands()
 	UI_COMMAND(PaintMode, "Mode - Paint", "", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("ToolMode_Paint", PaintMode);
 
-	UI_COMMAND(NewLandscape, "Tool - New Landscape", "", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(NewLandscape, "New", "Create or import a new landscape", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Tool_NewLandscape", NewLandscape);
 
-	UI_COMMAND(ResizeLandscape, "Tool - Change Component Size", "", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(ResizeLandscape, "Resize", "Change Component Size", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Tool_ResizeLandscape", ResizeLandscape);
 
-	UI_COMMAND(SculptTool, "Tool - Sculpt", "", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(SculptTool, "Sculpt", "Sculpt height data.\n\nCtrl+Click to Raise, Ctrl+Shift_Click to lower.", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Tool_Sculpt", SculptTool);
-	UI_COMMAND(EraseTool, "Tool - Erase", "", EUserInterfaceActionType::RadioButton, FInputChord());
+
+	UI_COMMAND(EraseTool, "Erase", "Erase height data.", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Tool_Erase", EraseTool);
-	UI_COMMAND(PaintTool, "Tool - Paint", "", EUserInterfaceActionType::RadioButton, FInputChord());
+
+	UI_COMMAND(PaintTool, "Paint", "Paint weight data.\n\nCtrl+Click to paint, Ctrl+Shift+Click to erase.", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Tool_Paint", PaintTool);
-	UI_COMMAND(SmoothTool, "Tool - Smooth", "", EUserInterfaceActionType::RadioButton, FInputChord());
+
+	UI_COMMAND(SmoothTool, "Smooth", "Smooths heightmaps or blend layers.", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Tool_Smooth", SmoothTool);
-	UI_COMMAND(FlattenTool, "Tool - Flatten", "", EUserInterfaceActionType::RadioButton, FInputChord());
+
+	UI_COMMAND(FlattenTool, "Flatten", "Flattens an area of heightmap or blend layer.", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Tool_Flatten", FlattenTool);
-	UI_COMMAND(RampTool, "Tool - Ramp", "", EUserInterfaceActionType::RadioButton, FInputChord());
+
+	UI_COMMAND(RampTool, "Ramp", "Creates a ramp between two points.", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Tool_Ramp", RampTool);
-	UI_COMMAND(ErosionTool, "Tool - Erosion", "", EUserInterfaceActionType::RadioButton, FInputChord());
+
+	UI_COMMAND(ErosionTool, "Erosion", "Thermal Erosion - Simulates erosion caused by the movement of soil from higher areas to lower areas", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Tool_Erosion", ErosionTool);
-	UI_COMMAND(HydroErosionTool, "Tool - Hydraulic Erosion", "", EUserInterfaceActionType::RadioButton, FInputChord());
+
+	UI_COMMAND(HydroErosionTool, "Hydro", "Hydro Erosion - Simulates erosion caused by rainfall", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Tool_HydraErosion", HydroErosionTool);
-	UI_COMMAND(NoiseTool, "Tool - Noise", "", EUserInterfaceActionType::RadioButton, FInputChord());
+
+	UI_COMMAND(NoiseTool, "Noise", "Adds noise to the heightmap or blend layer", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Tool_Noise", NoiseTool);
-	UI_COMMAND(RetopologizeTool, "Tool - Retopologize", "", EUserInterfaceActionType::RadioButton, FInputChord());
+
+	UI_COMMAND(RetopologizeTool, "Retop", "Automatically adjusts landscape vertices with an X/Y offset map to improve vertex density on cliffs, reducing texture stretching.\nNote: An X/Y offset map makes the landscape slower to render and paint on with other tools, so only use if needed", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Tool_Retopologize", RetopologizeTool);
-	UI_COMMAND(VisibilityTool, "Tool - Visibility", "", EUserInterfaceActionType::RadioButton, FInputChord());
+
+	UI_COMMAND(VisibilityTool, "Visibility", "Mask out individual quads in the landscape, leaving a hole.", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Tool_Visibility", VisibilityTool);
 
-	UI_COMMAND(BlueprintBrushTool, "Tool - Blueprint Brush", "", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(BlueprintBrushTool, "Blueprint", "Custom painting tools created using Blueprint.", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Tool_BlueprintBrush", BlueprintBrushTool);
 
-	UI_COMMAND(SelectComponentTool, "Tool - Component Selection", "", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(SelectComponentTool, "Select", "Select components to use with other tools", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Tool_Select", SelectComponentTool);
-	UI_COMMAND(AddComponentTool, "Tool - Add Components", "", EUserInterfaceActionType::RadioButton, FInputChord());
+
+	UI_COMMAND(AddComponentTool, "Add", "Add components to the landscape", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Tool_AddComponent", AddComponentTool);
-	UI_COMMAND(DeleteComponentTool, "Tool - Delete Components", "", EUserInterfaceActionType::RadioButton, FInputChord());
+
+	UI_COMMAND(DeleteComponentTool, "Delete", "Delete components from the landscape, leaving a hole", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Tool_DeleteComponent", DeleteComponentTool);
-	UI_COMMAND(MoveToLevelTool, "Tool - Move to Level", "Moves the selected landscape components to the current streaming level", EUserInterfaceActionType::RadioButton, FInputChord());
+
+	UI_COMMAND(MoveToLevelTool, "Move", "Move landscape components to a landscape proxy in the currently active streaming level, so that they can be streamed in/out independently of the rest of the landscape", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Tool_MoveToLevel", MoveToLevelTool);
 
-	UI_COMMAND(RegionSelectTool, "Tool - Region Selection", "", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(RegionSelectTool, "Select", "Select a region of landscape to use as a mask for other tools", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Tool_Mask", RegionSelectTool);
-	UI_COMMAND(RegionCopyPasteTool, "Tool - Copy/Paste", "", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(RegionCopyPasteTool, "Copy", "Copy/Paste areas of the landscape, or import/export a copied area of landscape from disk", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Tool_CopyPaste", RegionCopyPasteTool);
-	UI_COMMAND(MirrorTool, "Tool - Mirror", "", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(MirrorTool, "Mirror", "Copies one side of a landscape to the other, to easily create a mirrored landscape.", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Tool_Mirror", MirrorTool);
 
-	UI_COMMAND(SplineTool, "Tool - Edit Splines", "", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(SplineTool, "Splines", "Ctrl+click to add control points\n\nHaving a control point selected when you ctrl+click will connect to the new control point with a segment\n\nSpline mesh settings can be found on the details panel when you have segments selected", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Tool_Splines", SplineTool);
 
-	UI_COMMAND(CircleBrush, "Brush - Circle", "", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(CircleBrush, "Circle", "Simple circular brush", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("BrushSet_Circle", CircleBrush);
-	UI_COMMAND(AlphaBrush, "Brush - Alpha", "", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(AlphaBrush, "Alpha", "Alpha brush, orients a mask image with the brush stroke", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("BrushSet_Alpha", AlphaBrush);
-	UI_COMMAND(AlphaBrush_Pattern, "Brush - Pattern", "", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(AlphaBrush_Pattern, "Pattern", "Pattern brush, tiles a mask image across the landscape", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("BrushSet_Pattern", AlphaBrush_Pattern);
-	UI_COMMAND(ComponentBrush, "Brush - Component", "", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(ComponentBrush, "Component", "Work with entire landscape components", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("BrushSet_Component", ComponentBrush);
-	UI_COMMAND(GizmoBrush, "Brush - Gizmo", "", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(GizmoBrush, "Gizmo", "Work with the landscape gizmo, used for copy/pasting landscape", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("BrushSet_Gizmo", GizmoBrush);
 	NameToCommandMap.Add("BrushSet_Splines", SplineTool);
 
-	UI_COMMAND(CircleBrush_Smooth, "Circle Brush - Smooth Falloff", "", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(CircleBrush_Smooth, "Smooth", "Smooth falloff", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Circle_Smooth", CircleBrush_Smooth);
-	UI_COMMAND(CircleBrush_Linear, "Circle Brush - Linear Falloff", "", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(CircleBrush_Linear, "Linear", "Sharp, linear falloff", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Circle_Linear", CircleBrush_Linear);
-	UI_COMMAND(CircleBrush_Spherical, "Circle Brush - Spherical Falloff", "", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(CircleBrush_Spherical, "Spherical", "Spherical falloff, smooth at the center and sharp at the edge", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Circle_Spherical", CircleBrush_Spherical);
-	UI_COMMAND(CircleBrush_Tip, "Circle Brush - Tip Falloff", "", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(CircleBrush_Tip, "Tip", "Tip falloff, sharp at the center and smooth at the edge", EUserInterfaceActionType::RadioButton, FInputChord());
 	NameToCommandMap.Add("Circle_Tip", CircleBrush_Tip);
 
 	UI_COMMAND(ViewModeNormal, "Normal", "", EUserInterfaceActionType::RadioButton, FInputChord());

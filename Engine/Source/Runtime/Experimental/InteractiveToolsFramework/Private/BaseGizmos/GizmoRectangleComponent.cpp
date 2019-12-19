@@ -220,7 +220,7 @@ bool UGizmoRectangleComponent::LineTraceComponent(FHitResult& OutHit, const FVec
 	FVector UseDirectionX = (bFlippedX) ? -DirectionX : DirectionX;
 	UseDirectionX = (bWorld) ? UseDirectionX : Transform.TransformVector(UseDirectionX);
 	FVector UseDirectionY = (bFlippedY) ? -DirectionY : DirectionY;
-	UseDirectionY = (bWorld) ? DirectionY : Transform.TransformVector(UseDirectionY);
+	UseDirectionY = (bWorld) ? UseDirectionY : Transform.TransformVector(UseDirectionY);
 	FVector UseOrigin = Transform.TransformPosition(FVector::ZeroVector);
 
 	float LengthScale = DynamicPixelToWorldScale;

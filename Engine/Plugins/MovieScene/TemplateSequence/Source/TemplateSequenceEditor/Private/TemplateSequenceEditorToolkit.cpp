@@ -60,7 +60,7 @@ FTemplateSequenceEditorToolkit::~FTemplateSequenceEditorToolkit()
 	});
 }
 
-void FTemplateSequenceEditorToolkit::Initialize(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UTemplateSequence* InTemplateSequence)
+void FTemplateSequenceEditorToolkit::Initialize(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UTemplateSequence* InTemplateSequence, const FTemplateSequenceToolkitParams& ToolkitParams)
 {
 	// create tab layout
 	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_TemplateSequenceEditor")
@@ -100,18 +100,36 @@ void FTemplateSequenceEditorToolkit::Initialize(const EToolkitMode::Type Mode, c
 		SequencerInitParams.ViewParams.UniqueName = "TemplateSequenceEditor";
 		SequencerInitParams.ViewParams.ScrubberStyle = ESequencerScrubberStyle::FrameBlock;
 		SequencerInitParams.ViewParams.OnReceivedFocus.BindRaw(this, &FTemplateSequenceEditorToolkit::OnSequencerReceivedFocus);
-		SequencerInitParams.ViewParams.OnAssetsDrop.BindRaw(this, &FTemplateSequenceEditorToolkit::OnSequencerAssetsDrop);
-		SequencerInitParams.ViewParams.OnClassesDrop.BindRaw(this, &FTemplateSequenceEditorToolkit::OnSequencerClassesDrop);
-		SequencerInitParams.ViewParams.OnActorsDrop.BindRaw(this, &FTemplateSequenceEditorToolkit::OnSequencerActorsDrop);
 
-		TSharedRef<FExtender> ToolbarExtender = MakeShared<FExtender>();
-		ToolbarExtender->AddToolBarExtension("Base Commands", EExtensionHook::After, nullptr, FToolBarExtensionDelegate::CreateSP(this, &FTemplateSequenceEditorToolkit::ExtendSequencerToolbar));
-		SequencerInitParams.ViewParams.ToolbarExtender = ToolbarExtender;
+		if (ToolkitParams.bCanChangeBinding)
+		{
+			// Callbacks for changing the root binding by drag-and-dropping stuff on the Sequencer.
+			SequencerInitParams.ViewParams.OnAssetsDrop.BindRaw(this, &FTemplateSequenceEditorToolkit::OnSequencerAssetsDrop);
+			SequencerInitParams.ViewParams.OnClassesDrop.BindRaw(this, &FTemplateSequenceEditorToolkit::OnSequencerClassesDrop);
+			SequencerInitParams.ViewParams.OnActorsDrop.BindRaw(this, &FTemplateSequenceEditorToolkit::OnSequencerActorsDrop);
+
+			// Extended for showing toolbar controls to change the root binding.
+			TSharedRef<FExtender> ToolbarExtender = MakeShared<FExtender>();
+			ToolbarExtender->AddToolBarExtension("Base Commands", EExtensionHook::After, nullptr, FToolBarExtensionDelegate::CreateSP(this, &FTemplateSequenceEditorToolkit::ExtendSequencerToolbar));
+			SequencerInitParams.ViewParams.ToolbarExtender = ToolbarExtender;
+		}
+		else
+		{
+			// Bind drag-and-drop callbacks to suppress them from doing anything.
+			SequencerInitParams.ViewParams.OnAssetsDrop.BindLambda([](const TArray<UObject*>&, const FAssetDragDropOp&) -> bool { return false; });
+			SequencerInitParams.ViewParams.OnClassesDrop.BindLambda([](const TArray<TWeakObjectPtr<UClass>>&, const FClassDragDropOp&) -> bool { return false; });
+			SequencerInitParams.ViewParams.OnActorsDrop.BindLambda([](const TArray<TWeakObjectPtr<AActor>>&, const FActorDragDropGraphEdOp&) -> bool { return false; });
+		}
 	}
 
 	Sequencer = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer").CreateSequencer(SequencerInitParams);
 
 	Sequencer->OnActorAddedToSequencer().AddSP(this, &FTemplateSequenceEditorToolkit::HandleActorAddedToSequencer);
+
+	if (ToolkitParams.InitialBindingClass != nullptr)
+	{
+		ChangeActorBinding(*ToolkitParams.InitialBindingClass);
+	}
 
 	FLevelEditorSequencerIntegrationOptions Options;
 	Options.bRequiresLevelEvents = true;
@@ -382,6 +400,8 @@ bool FTemplateSequenceEditorToolkit::OnSequencerAssetsDrop(const TArray<UObject*
 		// TODO: check for dropping a sequence?
 
 		ChangeActorBinding(*CurObject, DragDropOp.GetActorFactory());
+
+		return true;
 	}
 
 	return true;
@@ -389,6 +409,15 @@ bool FTemplateSequenceEditorToolkit::OnSequencerAssetsDrop(const TArray<UObject*
 
 bool FTemplateSequenceEditorToolkit::OnSequencerClassesDrop(const TArray<TWeakObjectPtr<UClass>>& Classes, const FClassDragDropOp& DragDropOp)
 {
+	if (Classes.Num() > 0 && Classes[0].IsValid())
+	{
+		// Only drop the first class.
+		UClass* CurClass = Classes[0].Get();
+
+		ChangeActorBinding(*CurClass);
+
+		return true;
+	}
 	return false;
 }
 
@@ -399,13 +428,24 @@ bool FTemplateSequenceEditorToolkit::OnSequencerActorsDrop(const TArray<TWeakObj
 
 void FTemplateSequenceEditorToolkit::ChangeActorBinding(UObject& Object, UActorFactory* ActorFactory, bool bSetupDefaults)
 {
+	// See if we have anything to do in the first place.
+	if (UClass* ChosenClass = Cast<UClass>(&Object))
+	{
+		if (ChosenClass == TemplateSequence->BoundActorClass)
+		{
+			return;
+		}
+	}
+
 	UMovieScene* MovieScene = TemplateSequence->GetMovieScene();
 	check(MovieScene != nullptr);
 
 	// See if we previously had a main object binding.
 	FGuid PreviousSpawnableGuid;
 	if (MovieScene->GetSpawnableCount() > 0)
+	{
 		PreviousSpawnableGuid = MovieScene->GetSpawnable(0).GetGuid();
+	}
 
 	// Make the new spawnable object binding.
 	FGuid NewSpawnableGuid = Sequencer->MakeNewSpawnable(Object, ActorFactory, bSetupDefaults);

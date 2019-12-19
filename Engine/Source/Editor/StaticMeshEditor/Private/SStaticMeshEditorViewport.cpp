@@ -468,7 +468,7 @@ EVisibility SStaticMeshEditorViewport::OnGetViewportContentVisibility() const
 
 void SStaticMeshEditorViewport::BindCommands()
 {
-	SEditorViewport::BindCommands();
+	SAssetEditorViewport::BindCommands();
 
 	const FStaticMeshEditorCommands& Commands = FStaticMeshEditorCommands::Get();
 

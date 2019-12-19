@@ -67,7 +67,8 @@ void FBufferVisualizationMenuCommands::CreateOverviewCommand()
 
 	FBufferVisualizationRecord& OverviewRecord = CommandMap.Add(CommandName, FBufferVisualizationRecord());
 	OverviewRecord.Name = NAME_None;
-	OverviewRecord.Command = FUICommandInfoDecl(this->AsShared(), CommandName, LOCTEXT("BufferVisualization", "Overview"), LOCTEXT("BufferVisualization", "Overview"))
+	const FText MaterialDisplayDefaultName = FBufferVisualizationData::GetMaterialDefaultDisplayName();
+	OverviewRecord.Command = FUICommandInfoDecl(this->AsShared(), CommandName, MaterialDisplayDefaultName, MaterialDisplayDefaultName)
 		.UserInterfaceType(EUserInterfaceActionType::RadioButton)
 		.DefaultChord(FInputChord());
 }
@@ -80,8 +81,7 @@ void FBufferVisualizationMenuCommands::CreateVisualizationCommands()
 
 		FBufferVisualizationRecord& Record = CommandMap.Add(CommandName, FBufferVisualizationRecord());
 		Record.Name = *InMaterialName;
-		const FText MaterialNameText = FText::FromString(InMaterialName);
-		Record.Command = FUICommandInfoDecl(this->AsShared(), CommandName, MaterialNameText, MaterialNameText)
+		Record.Command = FUICommandInfoDecl(this->AsShared(), CommandName, InDisplayName, InDisplayName)
 			.UserInterfaceType(EUserInterfaceActionType::RadioButton)
 			.DefaultChord(FInputChord());
 	});
@@ -106,7 +106,7 @@ void FBufferVisualizationMenuCommands::AddOverviewCommandToMenu(FMenuBuilder& Me
 {
 	check(CommandMap.Num() > 0);
 
-	Menu.AddMenuEntry(OverviewCommand().Command, NAME_None, LOCTEXT("BufferVisualization", "Overview"));
+	Menu.AddMenuEntry(OverviewCommand().Command, NAME_None, FBufferVisualizationData::GetMaterialDefaultDisplayName());
 }
 
 void FBufferVisualizationMenuCommands::AddVisualizationCommandsToMenu(FMenuBuilder& Menu) const

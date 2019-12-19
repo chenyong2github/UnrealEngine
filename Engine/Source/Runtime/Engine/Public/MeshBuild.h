@@ -17,6 +17,7 @@ public:
 		: ThresholdPosition(THRESH_POINTS_ARE_SAME)
 		, ThresholdTangentNormal(THRESH_NORMALS_ARE_SAME)
 		, ThresholdUV(THRESH_UVS_ARE_SAME)
+		, MorphThresholdPosition(THRESH_POINTS_ARE_NEAR)
 	{}
 
 	/** Threshold use to decide if two vertex position are equal. */
@@ -27,6 +28,9 @@ public:
 	
 	/** Threshold use to decide if two UVs are equal. */
 	float ThresholdUV;
+
+	/** Threshold use to decide if two vertex position are equal. */
+	float MorphThresholdPosition;
 };
 
 

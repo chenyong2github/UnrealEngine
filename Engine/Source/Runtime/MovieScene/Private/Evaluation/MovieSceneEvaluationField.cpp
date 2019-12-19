@@ -356,8 +356,25 @@ bool FMovieSceneEvaluationMetaData::IsDirty(const FMovieSceneSequenceHierarchy& 
 
 			if (OutSubRangeToInvalidate)
 			{
-				TRange<FFrameNumber> DirtyRange = SubData ? TRange<FFrameNumber>::Hull(TRange<FFrameNumber>::Hull(SubData->PreRollRange.Value, SubData->PlayRange.Value), SubData->PostRollRange.Value) * SubData->RootToSequenceTransform.Inverse() : TRange<FFrameNumber>::All();
-				*OutSubRangeToInvalidate = TRange<FFrameNumber>::Hull(*OutSubRangeToInvalidate, DirtyRange);
+				if (SubData)
+				{
+					if (!SubData->RootToSequenceTransform.IsWarping())
+					{
+						TRange<FFrameNumber> FullSubPlayRange = TRange<FFrameNumber>::Hull(TRange<FFrameNumber>::Hull(SubData->PreRollRange.Value, SubData->PlayRange.Value), SubData->PostRollRange.Value);
+						TRange<FFrameNumber> DirtyRange = FullSubPlayRange * SubData->RootToSequenceTransform.InverseLinearOnly();
+						*OutSubRangeToInvalidate = TRange<FFrameNumber>::Hull(*OutSubRangeToInvalidate, DirtyRange);
+					}
+					else
+					{
+						TRange<FFrameNumber> DirtyRange = TRange<FFrameNumber>::All();
+						*OutSubRangeToInvalidate = TRange<FFrameNumber>::Hull(*OutSubRangeToInvalidate, DirtyRange);
+					}
+				}
+				else
+				{
+					TRange<FFrameNumber> DirtyRange = TRange<FFrameNumber>::All();
+					*OutSubRangeToInvalidate = TRange<FFrameNumber>::Hull(*OutSubRangeToInvalidate, DirtyRange);
+				}
 			}
 		}
 	}

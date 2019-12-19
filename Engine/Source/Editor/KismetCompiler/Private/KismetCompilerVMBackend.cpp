@@ -1286,6 +1286,19 @@ public:
 			}
 		}
 
+		const bool bIsVariadic = FunctionToCall->HasMetaData(FBlueprintMetadata::MD_Variadic);
+		if (bIsVariadic)
+		{
+			// Variadic functions may have extra terms they need to emit after the main set of function arguments
+			// These are all considered wildcards so no type checking will be performed on them
+			for (; NumParams < Statement.RHS.Num(); ++NumParams)
+			{
+				FBPTerminal* Term = Statement.RHS[NumParams];
+				check(Term);
+				EmitTerm(Term, nullptr);
+			}
+		}
+
 		// End of parameter list
 		Writer << EX_EndFunctionParms;
 	}

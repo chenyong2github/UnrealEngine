@@ -49,7 +49,6 @@
 #include "EditorLevelUtils.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "LevelEditorViewport.h"
-#include "Layers/ILayers.h"
 #include "Layers/LayersSubsystem.h"
 #include "ActorEditorUtils.h"
 #include "Particles/ParticleSystemComponent.h"

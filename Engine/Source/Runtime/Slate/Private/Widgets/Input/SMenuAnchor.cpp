@@ -353,7 +353,6 @@ void SMenuAnchor::SetIsOpen( bool InIsOpen, const bool bFocusMenu, const int32 F
 
 					const FVector2D NewPosition = MyGeometry.AbsolutePosition;
 					FVector2D NewWindowSize = DesiredContentSize;
-					const FVector2D SummonLocationSize = MyGeometry.GetLocalSize();
 
 					FPopupTransitionEffect TransitionEffect( FPopupTransitionEffect::None );
 					if ( PlacementMode == MenuPlacement_ComboBox || PlacementMode == MenuPlacement_ComboBoxRight )
@@ -368,6 +367,7 @@ void SMenuAnchor::SetIsOpen( bool InIsOpen, const bool bFocusMenu, const int32 F
 					else if ( PlacementMode == MenuPlacement_MenuRight )
 					{
 						TransitionEffect = FPopupTransitionEffect( FPopupTransitionEffect::SubMenu );
+						NewWindowSize = MyGeometry.GetAbsoluteSize();
 					}
 
 					MethodInUse = Method.IsSet()
@@ -380,7 +380,7 @@ void SMenuAnchor::SetIsOpen( bool InIsOpen, const bool bFocusMenu, const int32 F
 						if (MethodInUse.GetPopupMethod() == EPopupMethod::CreateNewWindow)
 						{
 							// Open the pop-up
-							TSharedPtr<IMenu> NewMenu = FSlateApplication::Get().PushMenu(AsShared(), MyWidgetPath, MenuContentRef, NewPosition, TransitionEffect, bFocusMenu, MyGeometry.GetAbsoluteSize(), MethodInUse.GetPopupMethod(), bIsCollapsedByParent);
+							TSharedPtr<IMenu> NewMenu = FSlateApplication::Get().PushMenu(AsShared(), MyWidgetPath, MenuContentRef, NewPosition, TransitionEffect, bFocusMenu, NewWindowSize, MethodInUse.GetPopupMethod(), bIsCollapsedByParent);
 							
 							if (ensure(NewMenu.IsValid()))
 							{
@@ -462,8 +462,7 @@ void SMenuAnchor::SetIsOpen( bool InIsOpen, const bool bFocusMenu, const int32 F
 							// Start pop-up windows out transparent, then fade them in over time
 							const EWindowTransparency Transparency(EWindowTransparency::PerWindow);
 
-							const float TargetWindowOpacity = 1.0f;
-							FSlateRect Anchor(NewPosition, NewPosition + SummonLocationSize);
+							FSlateRect Anchor(NewPosition, NewPosition + MyGeometry.GetLocalSize());
 							EOrientation Orientation = (TransitionEffect.SlideDirection == FPopupTransitionEffect::SubMenu) ? Orient_Horizontal : Orient_Vertical;
 		
 							// @todo slate: Assumes that popup is not Scaled up or down from application scale.

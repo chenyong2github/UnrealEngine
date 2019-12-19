@@ -63,15 +63,32 @@
 #include "AutoReimport/AssetSourceFilenameCache.h"
 #include "UObject/UObjectThreadContext.h"
 #include "EngineUtils.h"
-
-
+#include "EngineAnalytics.h"
 #include "CookerSettings.h"
+#include "Misc/MessageDialog.h"
+
 DEFINE_LOG_CATEGORY_STATIC(LogUnrealEdEngine, Log, All);
 
 
 void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 {
 	Super::Init(InEngineLoop);
+
+	uint64 TotalDiskSpace = 0;
+	uint64 FreeDiskSpace = 0;
+	const TCHAR* BaseDir = FPlatformProcess::BaseDir();
+	if (FPlatformMisc::GetDiskTotalAndFreeSpace(BaseDir, TotalDiskSpace, FreeDiskSpace))
+	{
+		const uint64 HardDriveFreeMB = FreeDiskSpace / (1024 * 1024);
+		if (HardDriveFreeMB < 512)
+		{
+			FEngineAnalytics::LowDriveSpaceDetected();
+			
+			const FText Title = NSLOCTEXT("DriveSpaceDialog", "LowHardDriveSpaceMsgTitle", "Low drive space warning");
+			const FText Message = NSLOCTEXT("DriveSpaceDialog", "LowHardDriveSpaceMsg", "The available space on the drive containing this project is low.\nIt is recommended that you free some space to avoid issues.");
+			FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
+		}
+	}
 
 	// Build databases used by source code navigation
 	FSourceCodeNavigation::Initialize();

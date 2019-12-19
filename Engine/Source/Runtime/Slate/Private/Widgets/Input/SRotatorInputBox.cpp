@@ -21,7 +21,10 @@ void SRotatorInputBox::Construct( const SRotatorInputBox::FArguments& InArgs )
 	const FLinearColor LabelColorY = InArgs._bColorAxisLabels ? SNumericEntryBox<float>::GreenLabelBackgroundColor : FLinearColor(0.0f, 0.0f, 0.0f, .5f);
 	const FLinearColor LabelColorZ = InArgs._bColorAxisLabels ? SNumericEntryBox<float>::BlueLabelBackgroundColor : FLinearColor(0.0f, 0.0f, 0.0f, .5f);
 
-	
+	TAttribute<TOptional<float>> RollValue = InArgs._Roll;
+	TAttribute<TOptional<float>> PitchValue = InArgs._Pitch;
+	TAttribute<TOptional<float>> YawValue = InArgs._Yaw;
+
 	this->ChildSlot
 	[
 		SNew(SHorizontalBox)
@@ -46,7 +49,10 @@ void SRotatorInputBox::Construct( const SRotatorInputBox::FArguments& InArgs )
 			.OnBeginSliderMovement( InArgs._OnBeginSliderMovement )
 			.OnEndSliderMovement( InArgs._OnEndSliderMovement )
 			.UndeterminedString( LOCTEXT("MultipleValues", "Multiple Values") )
-			.ToolTipText( LOCTEXT("Roll_ToolTip", "Roll Value") )
+			.ToolTipText(MakeAttributeLambda([RollValue]
+			{
+				return FText::Format(LOCTEXT("Roll_ToolTip", "Roll Value = {0}"), RollValue.Get().GetValue());
+			}))
 			.TypeInterface(InArgs._TypeInterface)
 		]
 		+SHorizontalBox::Slot()
@@ -70,7 +76,10 @@ void SRotatorInputBox::Construct( const SRotatorInputBox::FArguments& InArgs )
 			.OnBeginSliderMovement( InArgs._OnBeginSliderMovement )
 			.OnEndSliderMovement( InArgs._OnEndSliderMovement )
 			.UndeterminedString( LOCTEXT("MultipleValues", "Multiple Values") )
-			.ToolTipText( LOCTEXT("Pitch_ToolTip", "Pitch Value") )
+			.ToolTipText(MakeAttributeLambda([PitchValue]
+			{
+				return FText::Format(LOCTEXT("Pitch_ToolTip", "Pitch Value = {0}"), PitchValue.Get().GetValue());
+			}))
 			.TypeInterface(InArgs._TypeInterface)
 		]
 		+SHorizontalBox::Slot()
@@ -94,7 +103,10 @@ void SRotatorInputBox::Construct( const SRotatorInputBox::FArguments& InArgs )
 			.OnBeginSliderMovement( InArgs._OnBeginSliderMovement )
 			.OnEndSliderMovement( InArgs._OnEndSliderMovement )
 			.UndeterminedString( LOCTEXT("MultipleValues", "Multiple Values") )
-			.ToolTipText( LOCTEXT("Yaw_ToolTip", "Yaw Value") )
+			.ToolTipText(MakeAttributeLambda([YawValue]
+			{
+				return FText::Format(LOCTEXT("Yaw_ToolTip", "Yaw Value = {0}"), YawValue.Get().GetValue());
+			}))
 			.TypeInterface(InArgs._TypeInterface)
 		]
 	];

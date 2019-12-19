@@ -181,7 +181,7 @@ public:
 	uint32 bSCCUseGlobalSettings:1;
 
 	/** Specifies the file path to the tool to be used for diffing text files */
-	UPROPERTY(EditAnywhere, config, Category=SourceControl, meta=(DisplayName="Tool for diffing text", FilePathFilter = "exe"))
+	UPROPERTY(EditAnywhere, config, Category=SourceControl, meta=(DisplayName="Tool for diffing text"))
 	FFilePath TextDiffToolPath;
 
 public:

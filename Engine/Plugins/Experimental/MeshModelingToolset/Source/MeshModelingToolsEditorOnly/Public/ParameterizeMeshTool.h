@@ -58,6 +58,48 @@ public:
 
 
 
+UENUM()
+enum class EParameterizeMeshToolUVScaleMode
+{
+	/** No scaling is applied to UV islands */
+	NoScaling,
+	/** Scale UV islands such that they have constant relative area, relative to object bounds */
+	NormalizeToBounds,
+	/** Scale UV islands such that they have constant relative area, relative to world space */
+	NormalizeToWorld
+};
+
+
+
+
+UCLASS()
+class MESHMODELINGTOOLSEDITORONLY_API UParameterizeMeshToolProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+
+	/** Prevent UVs from crossing poly group boundaries boundaries */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Respect Group Boundaries"))
+	bool bRespectPolygroups = true;
+
+	/** Maximum amount of stretch, from none to any.  If zero stretch is specified each triangle will likey be its own chart */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (Default = "0.166", UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
+	float ChartStretch = 0.11f;
+
+	/** Scaling applied to UV islands */
+	UPROPERTY(EditAnywhere, Category = Options)
+	EParameterizeMeshToolUVScaleMode UVScaleMode = EParameterizeMeshToolUVScaleMode::NormalizeToBounds;
+
+	/** Scaling factor used for UV island normalization/scaling */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "UVScaleMode!=EParameterizeMeshToolUVScaleMode::NoScaling", UIMin = "0.001", UIMax = "10", ClampMin = "0.00001", ClampMax = "1000000.0") )
+	float UVScale = 1.0;
+
+	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
+	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
+};
+
+
+
 
 
 /**
@@ -84,22 +126,14 @@ public:
 	virtual bool HasAccept() const override;
 	virtual bool CanAccept() const override;
 
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
-
 	virtual void OnPropertyModified(UObject* PropertySet, UProperty* Property) override;
 
 	// IDynamicMeshOperatorFactory API
-	virtual TSharedPtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
 
 protected:
-	// need to update bResultValid if these are modified, so we don't publicly expose them. 
-	// @todo setters/getters for these
-
-	/** Maximum amount of stretch, from none to any.  If zero stretch is specified each triangle will likey be its own chart */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (Default = "0.166", UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax= "1"))
-	float ChartStretch = 0.11f;
+	UPROPERTY()
+	UParameterizeMeshToolProperties* Settings = nullptr;
 
 	UPROPERTY()
 	UExistingMeshMaterialProperties* MaterialSettings = nullptr;

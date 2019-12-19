@@ -24,6 +24,8 @@ int32 GTextureRenderTarget2DMaxSizeY = 999999999;
 UTextureRenderTarget2D::UTextureRenderTarget2D(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	SizeX = 1;
+	SizeY = 1;
 	bHDR_DEPRECATED = true;
 	RenderTargetFormat = RTF_RGBA16f;
 	bAutoGenerateMips = false;

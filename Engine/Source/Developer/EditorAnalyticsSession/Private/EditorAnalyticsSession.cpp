@@ -252,6 +252,7 @@ FEditorAnalyticsSession::FEditorAnalyticsSession()
 	bIsInEnterprise = false;
 	bIsInVRMode = false;
 	bAlreadySaved = false;
+	bIsLowDriveSpace = false;
 }
 
 bool FEditorAnalyticsSession::Lock(FTimespan Timeout)

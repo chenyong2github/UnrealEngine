@@ -18,6 +18,7 @@
 #include "Misc/Timespan.h"
 
 #include "UObject/SoftObjectPath.h"
+#include "UObject/PropertyAccessUtil.h"
 
 #include "Math/InterpCurvePoint.h"
 #include "Math/UnitConversion.h"
@@ -337,6 +338,21 @@ enum class EUnit : uint8
 
 	/** Symbolic entry, not specifiable on meta data. */
 	Unspecified
+};
+
+/**
+ * Enum controlling when to emit property change notifications when setting a property value.
+ * @note Mirrored from PropertyAccessUtil.h
+ */
+UENUM(BlueprintType)
+enum class EPropertyAccessChangeNotifyMode : uint8
+{
+	/** Notify only when a value change has actually occurred */
+	Default,
+	/** Never notify that a value change has occurred */
+	Never,
+	/** Always notify that a value change has occurred, even if the value is unchanged */
+	Always,
 };
 
 /** A globally unique identifier (mirrored from Guid.h) */

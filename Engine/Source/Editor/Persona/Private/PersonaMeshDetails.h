@@ -228,6 +228,9 @@ public:
 	FSkeletalMeshBuildSettingsLayout(FSkeletalMeshBuildSettings& InBuildSettings, int32 InLODIndex, FIsLODSettingsEnabledDelegate InIsBuildSettingsEnabledDelegate, FModifyMeshLODSettingsDelegate InModifyMeshLODSettingsDelegate);
 	virtual ~FSkeletalMeshBuildSettingsLayout() {};
 
+	DECLARE_DELEGATE_RetVal(float, FGetFloatDelegate);
+	DECLARE_DELEGATE_OneParam(FSetFloatDelegate, float);
+
 private:
 	/** IDetailCustomNodeBuilder Interface*/
 	virtual void SetOnRebuildChildren(FSimpleDelegate InOnRegenerateChildren) override {}
@@ -239,6 +242,22 @@ private:
 	virtual bool InitiallyCollapsed() const override { return true; }
 
 	bool IsBuildEnabled() const;
+
+		//Custom Row Add utilities
+	FDetailWidgetRow& AddFloatRow(IDetailChildrenBuilder& ChildrenBuilder, const FText RowTitleText, const FText RowNameContentText, const FText RowNameContentTootlipText, const float MinSliderValue, const float MaxSliderValue, FGetFloatDelegate GetterDelegate, FSetFloatDelegate SetterDelegate);
+
+	float GetThresholdPosition() const;
+	void SetThresholdPosition(float Value);
+	
+	float GetThresholdTangentNormal() const;
+	void SetThresholdTangentNormal(float Value);
+	
+	float GetThresholdUV() const;
+	void SetThresholdUV(float Value);
+
+	float GetMorphThresholdPosition() const;
+	void SetMorphThresholdPosition(float Value);
+
 	ECheckBoxState ShouldRecomputeNormals() const;
 	ECheckBoxState ShouldRecomputeTangents() const;
 	ECheckBoxState ShouldUseMikkTSpace() const;
@@ -256,11 +275,22 @@ private:
 	void OnUseHighPrecisionTangentBasisChanged(ECheckBoxState NewState);
 	void OnUseFullPrecisionUVsChanged(ECheckBoxState NewState);
 	void OnBuildAdjacencyBufferChanged(ECheckBoxState NewState);
+
 private:
 	FSkeletalMeshBuildSettings& BuildSettings;
 	int32 LODIndex;
 	FIsLODSettingsEnabledDelegate IsBuildSettingsEnabledDelegate;
 	FModifyMeshLODSettingsDelegate ModifyMeshLODSettingsDelegate;
+
+	//Use this data to keep a valid reference so the helper lambda can have persistent data
+	//Helper lambda are use with spinner to not do a transaction when spinning with mouse movement
+	struct FSliderStateData
+	{
+		float MovementValueFloat = 0.0f;
+		int32 MovementValueInt = 0;
+		bool bSliderActiveMode = false;
+	};
+	TArray<FSliderStateData> SliderStateDataArray;
 };
 
 class FPersonaMeshDetails : public IDetailCustomization

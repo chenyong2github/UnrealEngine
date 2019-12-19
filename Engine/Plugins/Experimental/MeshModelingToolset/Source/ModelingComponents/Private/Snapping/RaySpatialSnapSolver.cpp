@@ -6,7 +6,7 @@
 #include "LineTypes.h"
 #include "Distance/DistLine3Ray3.h"
 #include "Distance/DistLine3Circle3.h"
-#include "Drawing/ToolDataVisualizer.h"
+#include "ToolDataVisualizer.h"
 
 
 
@@ -28,10 +28,28 @@ void FRaySpatialSnapSolver::GenerateTargetPoints(const FRay3d& Ray)
 		FDistLine3Ray3d DistQuery(TargetLines[j].Line, Ray);
 		DistQuery.GetSquared();
 		Target.Position = DistQuery.LineClosestPoint;
+
 		Target.TargetID = TargetLines[j].TargetID;
 		Target.Priority = TargetLines[j].Priority;
 		Target.bIsSnapLine = true;
 		Target.SnapLine = TargetLines[j].Line;
+
+		// if we have a point constraint function, find constraint point and then project back onto line
+		if (PointConstraintFunc != nullptr)
+		{
+			FVector3d SnapPos = PointConstraintFunc(Target.Position);
+			Target.ConstrainedPosition = TargetLines[j].Line.NearestPoint(SnapPos);
+			double PosT = TargetLines[j].Line.Project(Target.Position);
+			double PosConstrainT = TargetLines[j].Line.Project(Target.ConstrainedPosition);
+			// its usually weird to snap from A to B if they are on opposite sides of the origin, so clamp to origin in that case
+			// (todo: maybe this should be optional...makes sense when using this for interactive gizmo snapping but maybe not in other cases)
+			if (PosT * PosConstrainT < 0)
+			{
+				Target.ConstrainedPosition = TargetLines[j].Line.Origin;
+			}
+			Target.bHaveConstrainedPosition = true;
+		}
+
 		GeneratedTargetPoints.Add(Target);
 	}
 
@@ -98,7 +116,11 @@ void FRaySpatialSnapSolver::UpdateSnappedPoint(const FRay3d& RayIn)
 	// if we found a best-target, update our snap details
 	if (BestSnapTarget != nullptr)
 	{
-		SetActiveSnapData(*BestSnapTarget, RayIn.NearestPoint(BestSnapTarget->Position), BestSnapTarget->Position, MinMetric);
+		// if we have a constrained position for a given snap we will use that instead. This is 
+		// used for grid+line snapping for example. We want to snap to the grid *after* we snap to the
+		// line, otherwise things snap to weird unexpected places.
+		FVector3d UseSnapPosition = (BestSnapTarget->bHaveConstrainedPosition) ? BestSnapTarget->ConstrainedPosition : BestSnapTarget->Position;
+		SetActiveSnapData(*BestSnapTarget, RayIn.NearestPoint(BestSnapTarget->Position), UseSnapPosition, MinMetric);
 	}
 	else
 	{

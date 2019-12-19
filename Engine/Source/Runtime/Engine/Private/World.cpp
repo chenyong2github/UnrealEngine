@@ -358,6 +358,7 @@ UWorld::UWorld( const FObjectInitializer& ObjectInitializer )
 {
 	TimerManager = new FTimerManager();
 #if WITH_EDITOR
+	SetPlayInEditorInitialNetMode(ENetMode::NM_Standalone);
 	bBroadcastSelectionChange = true; //Ed Only
 	EditorViews.SetNum(ELevelViewportType::LVT_MAX);
 #endif // WITH_EDITOR
@@ -5852,11 +5853,7 @@ void FSeamlessTravelHandler::StartLoadingDestination()
 				PackageFlags |= PKG_PlayInEditor;
 			}
 			PIEInstanceID = WorldContext.PIEInstance;
-			UPackage* EditorLevelPackage = (UPackage*)StaticFindObjectFast(UPackage::StaticClass(), NULL, URLMapFName, 0, 0, RF_NoFlags, EInternalObjectFlags::PendingKill);
-			if (EditorLevelPackage)
-			{
-				URLMapPackageName = UWorld::ConvertToPIEPackageName(URLMapPackageName, PIEInstanceID);
-			}
+			URLMapPackageName = UWorld::ConvertToPIEPackageName(URLMapPackageName, PIEInstanceID);
 		}
 #endif
 
@@ -6861,12 +6858,10 @@ ENetMode UWorld::InternalGetNetMode() const
 #if WITH_EDITOR
 	if (WorldType == EWorldType::PIE)
 	{
-		// PIE: NetDriver is not initialized so use PlayInSettings
-		// to determine the Net Mode
-
-		// This function only works for PIE, do not use for -game/-server standalone editor builds
-		// otherwise it will always return NM_Standalone which is wrong once we have a PendingNetGame
-		return AttemptDeriveFromPlayInSettings();
+		// Return the cached NetMode that we were started with. We can't derive this from the Play Settings,
+		// because those can be modified during PIE startup, plus it is not easy for us to tell if we are
+		// a listen server or a client.
+		return PlayInEditorNetMode;
 	}
 #endif
 	return AttemptDeriveFromURL();
@@ -6889,58 +6884,6 @@ bool UWorld::IsPlayingClientReplay() const
 {
 	return (DemoNetDriver != nullptr && DemoNetDriver->IsPlayingClientReplay());
 }
-
-#if WITH_EDITOR
-ENetMode UWorld::AttemptDeriveFromPlayInSettings() const
-{
-	if (ensure(WorldType == EWorldType::PIE))
-	{
-		const ULevelEditorPlaySettings* PlayInSettings = GetDefault<ULevelEditorPlaySettings>();
-		if (PlayInSettings)
-		{
-			EPlayNetMode PlayNetMode;
-			PlayInSettings->GetPlayNetMode(PlayNetMode);
-
-			switch (PlayNetMode)
-			{
-			case EPlayNetMode::PIE_Client:
-			{
-				int32 NumberOfClients = 0;
-				PlayInSettings->GetPlayNumberOfClients(NumberOfClients);
-
-				bool bAutoConnectToServer = false;
-				PlayInSettings->GetAutoConnectToServer(bAutoConnectToServer);
-
-				// Playing as client without listen server in single process,
-				// or as a client not going to connect to a server
-				if(NumberOfClients == 1 || bAutoConnectToServer == false)
-				{
-					return NM_Standalone;
-				}
-				return NM_Client;
-			}
-			case EPlayNetMode::PIE_ListenServer:
-			{
-				bool bDedicatedServer = false;
-				PlayInSettings->GetPlayNetDedicated(bDedicatedServer);
-
-				if(bDedicatedServer == true)
-				{
-					return NM_DedicatedServer;
-				}
-
-				return NM_ListenServer;
-			}
-			case EPlayNetMode::PIE_Standalone:
-				return NM_Standalone;
-			default:
-				break;
-			}
-		}
-	}
-	return NM_Standalone;
-}
-#endif
 
 ENetMode UWorld::AttemptDeriveFromURL() const
 {

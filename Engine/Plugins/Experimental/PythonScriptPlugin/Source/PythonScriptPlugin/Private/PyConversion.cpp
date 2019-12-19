@@ -2,6 +2,7 @@
 
 #include "PyConversion.h"
 #include "PyUtil.h"
+#include "PyGenUtil.h"
 #include "PyPtr.h"
 
 #include "PyWrapperObject.h"
@@ -628,9 +629,27 @@ PyObject* PythonizeStruct(UScriptStruct* Val, const ESetErrorState SetErrorState
 	return Obj;
 }
 
+void EnsureWrappedBlueprintEnumType(const UEnum* EnumType)
+{
+	if (PyGenUtil::IsBlueprintGeneratedEnum(EnumType))
+	{
+		FPyWrapperTypeRegistry& PyWrapperTypeRegistry = FPyWrapperTypeRegistry::Get();
+
+		FPyWrapperTypeRegistry::FGeneratedWrappedTypeReferences GeneratedWrappedTypeReferences;
+		TSet<FName> DirtyModules;
+
+		PyWrapperTypeRegistry.GenerateWrappedTypeForObject(EnumType, GeneratedWrappedTypeReferences, DirtyModules, EPyTypeGenerationFlags::IncludeBlueprintGeneratedTypes);
+
+		PyWrapperTypeRegistry.GenerateWrappedTypesForReferences(GeneratedWrappedTypeReferences, DirtyModules);
+		PyWrapperTypeRegistry.NotifyModulesDirtied(DirtyModules);
+	}
+}
+
 FPyConversionResult NativizeEnumEntry(PyObject* PyObj, const UEnum* EnumType, int64& OutVal, const ESetErrorState SetErrorState)
 {
 	FPyConversionResult Result = FPyConversionResult::Failure();
+
+	EnsureWrappedBlueprintEnumType(EnumType);
 
 	PyTypeObject* PyEnumType = FPyWrapperTypeRegistry::Get().GetWrappedEnumType(EnumType);
 	FPyWrapperEnumPtr PyEnum = FPyWrapperEnumPtr::StealReference(FPyWrapperEnum::CastPyObject(PyObj, PyEnumType, &Result));
@@ -644,6 +663,8 @@ FPyConversionResult NativizeEnumEntry(PyObject* PyObj, const UEnum* EnumType, in
 
 FPyConversionResult PythonizeEnumEntry(const int64 Val, const UEnum* EnumType, PyObject*& OutPyObj, const ESetErrorState SetErrorState)
 {
+	EnsureWrappedBlueprintEnumType(EnumType);
+
 	PyTypeObject* PyEnumType = FPyWrapperTypeRegistry::Get().GetWrappedEnumType(EnumType);
 	if (const FPyWrapperEnumMetaData* PyEnumMetaData = FPyWrapperEnumMetaData::GetMetaData(PyEnumType))
 	{
@@ -680,7 +701,7 @@ FPyConversionResult NativizeProperty(PyObject* PyObj, const UProperty* Prop, voi
 		FPyWrapperFixedArrayPtr PyFixedArray = FPyWrapperFixedArrayPtr::StealReference(FPyWrapperFixedArray::CastPyObject(PyObj, &PyWrapperFixedArrayType, Prop));
 		if (PyFixedArray)
 		{
-			EmitPropertyChangeNotifications(InChangeNotify, [&]()
+			EmitPropertyChangeNotifications(InChangeNotify, /*bIdenticalValue*/false, [&]()
 			{
 				const int32 ArrSize = FMath::Min(Prop->ArrayDim, PyFixedArray->ArrayProp->ArrayDim);
 				for (int32 ArrIndex = 0; ArrIndex < ArrSize; ++ArrIndex)
@@ -723,13 +744,11 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 		if (Result)																	\
 		{																			\
 			auto OldValue = CastProp->GetPropertyValue(ValueAddr);					\
-			if (OldValue != NewValue)												\
+			EmitPropertyChangeNotifications(InChangeNotify,							\
+				OldValue == NewValue, [&]()											\
 			{																		\
-				EmitPropertyChangeNotifications(InChangeNotify, [&]()				\
-				{																	\
-					CastProp->SetPropertyValue(ValueAddr, NewValue);				\
-				});																	\
-			}																		\
+				CastProp->SetPropertyValue(ValueAddr, NewValue);					\
+			});																		\
 		}																			\
 		PYCONVERSION_PROPERTY_RETURN(Result);										\
 	}
@@ -742,13 +761,11 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 		if (Result)																	\
 		{																			\
 			auto* ValuePtr = static_cast<PROPTYPE::TCppType*>(ValueAddr);			\
-			if (!CastProp->Identical(ValuePtr, &NewValue, PPF_None))				\
+			EmitPropertyChangeNotifications(InChangeNotify,							\
+				CastProp->Identical(ValuePtr, &NewValue, PPF_None), [&]()			\
 			{																		\
-				EmitPropertyChangeNotifications(InChangeNotify, [&]()				\
-				{																	\
-					*ValuePtr = MoveTemp(NewValue);									\
-				});																	\
-			}																		\
+				*ValuePtr = MoveTemp(NewValue);										\
+			});																		\
 		}																			\
 		PYCONVERSION_PROPERTY_RETURN(Result);										\
 	}
@@ -794,13 +811,10 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 		if (Result)
 		{
 			auto* ValuePtr = static_cast<uint8*>(ValueAddr);
-			if (*ValuePtr != NewValue)
+			EmitPropertyChangeNotifications(InChangeNotify, *ValuePtr == NewValue, [&]()
 			{
-				EmitPropertyChangeNotifications(InChangeNotify, [&]()
-				{
-					*ValuePtr = NewValue;
-				});
-			}
+				*ValuePtr = NewValue;
+			});
 		}
 		PYCONVERSION_PROPERTY_RETURN(Result);
 	}
@@ -824,13 +838,10 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 			if (Result)
 			{
 				const int64 OldValue = EnumInternalProp->GetSignedIntPropertyValue(ValueAddr);
-				if (OldValue != NewValue)
+				EmitPropertyChangeNotifications(InChangeNotify, OldValue == NewValue, [&]()
 				{
-					EmitPropertyChangeNotifications(InChangeNotify, [&]()
-					{
-						EnumInternalProp->SetIntPropertyValue(ValueAddr, NewValue);
-					});
-				}
+					EnumInternalProp->SetIntPropertyValue(ValueAddr, NewValue);
+				});
 			}
 		}
 
@@ -844,13 +855,10 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 		if (Result)
 		{
 			UObject* OldValue = CastProp->GetObjectPropertyValue(ValueAddr);
-			if (OldValue != NewValue)
+			EmitPropertyChangeNotifications(InChangeNotify, OldValue == NewValue, [&]()
 			{
-				EmitPropertyChangeNotifications(InChangeNotify, [&]()
-				{
-					CastProp->SetObjectPropertyValue(ValueAddr, NewValue);
-				});
-			}
+				CastProp->SetObjectPropertyValue(ValueAddr, NewValue);
+			});
 		}
 		PYCONVERSION_PROPERTY_RETURN(Result);
 	}
@@ -862,13 +870,10 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 		if (Result)
 		{
 			UObject* OldValue = CastProp->GetObjectPropertyValue(ValueAddr);
-			if (OldValue != NewValue)
+			EmitPropertyChangeNotifications(InChangeNotify, OldValue == NewValue, [&]()
 			{
-				EmitPropertyChangeNotifications(InChangeNotify, [&]()
-				{
-					CastProp->SetObjectPropertyValue(ValueAddr, NewValue);
-				});
-			}
+				CastProp->SetObjectPropertyValue(ValueAddr, NewValue);
+			});
 		}
 		PYCONVERSION_PROPERTY_RETURN(Result);
 	}
@@ -880,13 +885,10 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 		if (Result)
 		{
 			UObject* OldValue = CastProp->GetObjectPropertyValue(ValueAddr);
-			if (OldValue != NewValue)
+			EmitPropertyChangeNotifications(InChangeNotify, OldValue == NewValue, [&]()
 			{
-				EmitPropertyChangeNotifications(InChangeNotify, [&]()
-				{
-					CastProp->SetObjectPropertyValue(ValueAddr, NewValue);
-				});
-			}
+				CastProp->SetObjectPropertyValue(ValueAddr, NewValue);
+			});
 		}
 		PYCONVERSION_PROPERTY_RETURN(Result);
 	}
@@ -898,13 +900,10 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 		if (Result)
 		{
 			UObject* OldValue = CastProp->GetPropertyValue(ValueAddr).GetObject();
-			if (OldValue != NewValue)
+			EmitPropertyChangeNotifications(InChangeNotify, OldValue == NewValue, [&]()
 			{
-				EmitPropertyChangeNotifications(InChangeNotify, [&]()
-				{
-					CastProp->SetPropertyValue(ValueAddr, FScriptInterface(NewValue, NewValue ? NewValue->GetInterfaceAddress(CastProp->InterfaceClass) : nullptr));
-				});
-			}
+				CastProp->SetPropertyValue(ValueAddr, FScriptInterface(NewValue, NewValue ? NewValue->GetInterfaceAddress(CastProp->InterfaceClass) : nullptr));
+			});
 		}
 		PYCONVERSION_PROPERTY_RETURN(Result);
 	}
@@ -916,13 +915,10 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 		FPyWrapperStructPtr PyStruct = FPyWrapperStructPtr::StealReference(FPyWrapperStruct::CastPyObject(PyObj, PyStructType, &Result));
 		if (PyStruct && ensureAlways(PyStruct->ScriptStruct->IsChildOf(CastProp->Struct)))
 		{
-			if (!CastProp->Identical(ValueAddr, PyStruct->StructInstance, PPF_None))
+			EmitPropertyChangeNotifications(InChangeNotify, CastProp->Identical(ValueAddr, PyStruct->StructInstance, PPF_None), [&]()
 			{
-				EmitPropertyChangeNotifications(InChangeNotify, [&]()
-				{
-					CastProp->Struct->CopyScriptStruct(ValueAddr, PyStruct->StructInstance);
-				});
-			}
+				CastProp->Struct->CopyScriptStruct(ValueAddr, PyStruct->StructInstance);
+			});
 		}
 		else
 		{
@@ -942,13 +938,10 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 		FPyWrapperDelegatePtr PyDelegate = FPyWrapperDelegatePtr::StealReference(FPyWrapperDelegate::CastPyObject(PyObj, PyDelegateType, &Result));
 		if (PyDelegate)
 		{
-			if (!CastProp->Identical(ValueAddr, PyDelegate->DelegateInstance, PPF_None))
+			EmitPropertyChangeNotifications(InChangeNotify, CastProp->Identical(ValueAddr, PyDelegate->DelegateInstance, PPF_None), [&]()
 			{
-				EmitPropertyChangeNotifications(InChangeNotify, [&]()
-				{
-					CastProp->SetPropertyValue(ValueAddr, *PyDelegate->DelegateInstance);
-				});
-			}
+				CastProp->SetPropertyValue(ValueAddr, *PyDelegate->DelegateInstance);
+			});
 		}
 		PYCONVERSION_PROPERTY_RETURN(Result);
 	}
@@ -960,13 +953,10 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 		FPyWrapperMulticastDelegatePtr PyDelegate = FPyWrapperMulticastDelegatePtr::StealReference(FPyWrapperMulticastDelegate::CastPyObject(PyObj, PyDelegateType, &Result));
 		if (PyDelegate)
 		{
-			if (!CastProp->Identical(ValueAddr, PyDelegate->DelegateInstance, PPF_None))
+			EmitPropertyChangeNotifications(InChangeNotify, CastProp->Identical(ValueAddr, PyDelegate->DelegateInstance, PPF_None), [&]()
 			{
-				EmitPropertyChangeNotifications(InChangeNotify, [&]()
-				{
-					CastProp->SetMulticastDelegate(ValueAddr, *PyDelegate->DelegateInstance);
-				});
-			}
+				CastProp->SetMulticastDelegate(ValueAddr, *PyDelegate->DelegateInstance);
+			});
 		}
 		PYCONVERSION_PROPERTY_RETURN(Result);
 	}
@@ -977,13 +967,10 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 		FPyWrapperArrayPtr PyArray = FPyWrapperArrayPtr::StealReference(FPyWrapperArray::CastPyObject(PyObj, &PyWrapperArrayType, CastProp->Inner, &Result));
 		if (PyArray)
 		{
-			if (!CastProp->Identical(ValueAddr, PyArray->ArrayInstance, PPF_None))
+			EmitPropertyChangeNotifications(InChangeNotify, CastProp->Identical(ValueAddr, PyArray->ArrayInstance, PPF_None), [&]()
 			{
-				EmitPropertyChangeNotifications(InChangeNotify, [&]()
-				{
-					CastProp->CopySingleValue(ValueAddr, PyArray->ArrayInstance);
-				});
-			}
+				CastProp->CopySingleValue(ValueAddr, PyArray->ArrayInstance);
+			});
 		}
 		PYCONVERSION_PROPERTY_RETURN(Result);
 	}
@@ -994,13 +981,10 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 		FPyWrapperSetPtr PySet = FPyWrapperSetPtr::StealReference(FPyWrapperSet::CastPyObject(PyObj, &PyWrapperSetType, CastProp->ElementProp, &Result));
 		if (PySet)
 		{
-			if (!CastProp->Identical(ValueAddr, PySet->SetInstance, PPF_None))
+			EmitPropertyChangeNotifications(InChangeNotify, CastProp->Identical(ValueAddr, PySet->SetInstance, PPF_None), [&]()
 			{
-				EmitPropertyChangeNotifications(InChangeNotify, [&]()
-				{
-					CastProp->CopySingleValue(ValueAddr, PySet->SetInstance);
-				});
-			}
+				CastProp->CopySingleValue(ValueAddr, PySet->SetInstance);
+			});
 		}
 		PYCONVERSION_PROPERTY_RETURN(Result);
 	}
@@ -1011,13 +995,10 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 		FPyWrapperMapPtr PyMap = FPyWrapperMapPtr::StealReference(FPyWrapperMap::CastPyObject(PyObj, &PyWrapperMapType, CastProp->KeyProp, CastProp->ValueProp, &Result));
 		if (PyMap)
 		{
-			if (!CastProp->Identical(ValueAddr, PyMap->MapInstance, PPF_None))
+			EmitPropertyChangeNotifications(InChangeNotify, CastProp->Identical(ValueAddr, PyMap->MapInstance, PPF_None), [&]()
 			{
-				EmitPropertyChangeNotifications(InChangeNotify, [&]()
-				{
-					CastProp->CopySingleValue(ValueAddr, PyMap->MapInstance);
-				});
-			}
+				CastProp->CopySingleValue(ValueAddr, PyMap->MapInstance);
+			});
 		}
 		PYCONVERSION_PROPERTY_RETURN(Result);
 	}
@@ -1176,11 +1157,14 @@ FPyConversionResult PythonizeProperty_InContainer(const UProperty* Prop, const v
 	return PythonizeProperty(Prop, Prop->ContainerPtrToValuePtr<void>(BaseAddr, ArrayIndex), OutPyObj, ConversionMethod, OwnerPyObj, SetErrorState);
 }
 
-void EmitPropertyChangeNotifications(const FPropertyAccessChangeNotify* InChangeNotify, const TFunctionRef<void()>& InDoChangeFunc)
+void EmitPropertyChangeNotifications(const FPropertyAccessChangeNotify* InChangeNotify, const bool bIdenticalValue, const TFunctionRef<void()>& InDoChangeFunc)
 {
-	PropertyAccessUtil::EmitPreChangeNotify(InChangeNotify);
-	InDoChangeFunc();
-	PropertyAccessUtil::EmitPostChangeNotify(InChangeNotify);
+	PropertyAccessUtil::EmitPreChangeNotify(InChangeNotify, bIdenticalValue);
+	if (!bIdenticalValue)
+	{
+		InDoChangeFunc();
+	}
+	PropertyAccessUtil::EmitPostChangeNotify(InChangeNotify, bIdenticalValue);
 }
 
 }

@@ -37,7 +37,7 @@ void FEditNormalsOp::CalculateResult(FProgressCancel* Progress)
 	}
 
 	// if you split normals you must always recompute as well
-	bool bNeedsRecompute = bRecomputeNormals || bSplitNormals;
+	bool bNeedsRecompute = bRecomputeNormals || SplitNormalMethod != ESplitNormalMethod::UseExistingTopology;
 
 	if (bFixInconsistentNormals)
 	{
@@ -84,14 +84,24 @@ void FEditNormalsOp::CalculateResult(FProgressCancel* Progress)
 	float NormalDotProdThreshold = FMathf::Cos(NormalSplitThreshold * FMathf::DegToRad);
 
 	FMeshNormals FaceNormals(ResultMesh.Get());
-	if (bSplitNormals)
+	if (SplitNormalMethod != ESplitNormalMethod::UseExistingTopology)
 	{
-		FaceNormals.ComputeTriangleNormals();
-		const TArray<FVector3d>& Normals = FaceNormals.GetNormals();
-		ResultMesh->Attributes()->PrimaryNormals()->CreateFromPredicate([&Normals, &NormalDotProdThreshold](int VID, int TA, int TB)
+		if (SplitNormalMethod == ESplitNormalMethod::FaceNormalThreshold)
 		{
-			return Normals[TA].Dot(Normals[TB]) > NormalDotProdThreshold;
-		}, 0);
+			FaceNormals.ComputeTriangleNormals();
+			const TArray<FVector3d>& Normals = FaceNormals.GetNormals();
+			ResultMesh->Attributes()->PrimaryNormals()->CreateFromPredicate([&Normals, &NormalDotProdThreshold](int VID, int TA, int TB)
+			{
+				return Normals[TA].Dot(Normals[TB]) > NormalDotProdThreshold;
+			}, 0);
+		}
+		else // SplitNormalMethod == ESplitNormalMethod::FaceGroupID
+		{
+			ResultMesh->Attributes()->PrimaryNormals()->CreateFromPredicate([this](int VID, int TA, int TB)
+			{
+				return ResultMesh->GetTriangleGroup(TA) == ResultMesh->GetTriangleGroup(TB);
+			}, 0);
+		}
 	}
 
 	if (Progress->Cancelled())
@@ -114,7 +124,7 @@ void FEditNormalsOp::CalculateResult(FProgressCancel* Progress)
 		return;
 	}
 
-	if (bAllowSharpVertices)
+	if (SplitNormalMethod == ESplitNormalMethod::FaceNormalThreshold && bAllowSharpVertices)
 	{
 		ResultMesh->Attributes()->PrimaryNormals()->SplitVerticesWithPredicate([this, &FaceNormals, &NormalDotProdThreshold](int ElementID, int TriID)
 		{
