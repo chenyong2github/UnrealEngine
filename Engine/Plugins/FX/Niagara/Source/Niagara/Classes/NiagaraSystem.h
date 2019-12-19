@@ -250,6 +250,9 @@ public:
 
 	bool GetIsolateEnabled() const;
 	void SetIsolateEnabled(bool bIsolate);
+	
+	UPROPERTY(transient)
+	FNiagaraSystemUpdateContext UpdateContext;
 #endif
 
 	bool ShouldAutoDeactivate() const { return bAutoDeactivate; }
