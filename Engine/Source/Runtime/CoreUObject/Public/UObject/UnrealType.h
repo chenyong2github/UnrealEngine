@@ -3725,7 +3725,7 @@ public:
 					LocalKeyPropForCapture->InitializeValue(NewElementKey);
 				}
 
-				LocalKeyPropForCapture->CopySingleValueToScriptVM(NewElementKey, KeyPtr);
+				LocalKeyPropForCapture->CopySingleValue(NewElementKey, KeyPtr);
 
 				if (LocalValuePropForCapture->PropertyFlags & CPF_ZeroConstructor)
 				{

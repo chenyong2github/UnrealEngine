@@ -364,14 +364,6 @@ void FMapProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 			KeyProp->InitializeValue(TempKeyStorage);
 		}
 
-		if (KeyProp->IsA<FLazyObjectProperty>())
-		{
-			UE_LOG(LogProperty, Warning, 
-				TEXT("Loading map properties with lazy object pointer keys has a known bug in UE4.24.1 (UE-85796). "
-					 "Resaving this package may cause data loss. '%s' in package '%s'. "),
-				*GetFullName(), *UnderlyingArchive.GetArchiveName());
-		}
-
 		// Read remaining items into container
 		for (; NumEntries; --NumEntries)
 		{
