@@ -18,6 +18,9 @@ namespace Chaos
 	template <typename T, int d>
 	class TPlane;
 
+	template <typename T>
+	class THeightField;
+
 	class FImplicitObject;
 
 	template<typename T, int d>
@@ -41,6 +44,16 @@ namespace Chaos
 
 
 			//
+			// Box-HeightField
+			//
+
+			template <typename T, int d>
+			void UpdateBoxHeightFieldConstraint(const TAABB<T, d>& A, const TRigidTransform<T, d>& ATransform, const THeightField<T>& B, const TRigidTransform<T, d>& BTransform, const T Thickness, TRigidBodyPointContactConstraint<T, d>& Constraint);
+
+			template<typename T, int d>
+			void ConstructBoxHeightFieldConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T Thickness, FCollisionConstraintsArray& NewConstraints);
+
+			//
 			// Box-Plane
 			//
 
@@ -49,6 +62,7 @@ namespace Chaos
 
 			template<typename T, int d>
 			void CHAOS_API ConstructBoxPlaneConstraints(TGeometryParticleHandle<T, d>* Particle0, TGeometryParticleHandle<T, d>* Particle1, const FImplicitObject* Implicit0, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T Thickness, FCollisionConstraintsArray& NewConstraints);
+
 
 
 			//
