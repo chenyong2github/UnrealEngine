@@ -122,6 +122,7 @@ void FJavaWrapper::FindClassesAndMethods(JNIEnv* Env)
 	// this is optional - only inserted if GCM plugin enabled
 	AndroidThunkJava_RegisterForRemoteNotifications = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_RegisterForRemoteNotifications", "()V", true);
 	AndroidThunkJava_UnregisterForRemoteNotifications = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_UnregisterForRemoteNotifications", "()V", true);
+	AndroidThunkJava_IsAllowedRemoteNotifications = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_IsAllowedRemoteNotifications", "()Z", true);
 
 	// get field IDs for InputDeviceInfo class members
 	InputDeviceInfoClass = FindClassGlobalRef(Env, "com/epicgames/ue4/GameActivity$InputDeviceInfo", bIsOptional);
@@ -376,6 +377,7 @@ jmethodID FJavaWrapper::AndroidThunkJava_GetMetaDataString;
 jmethodID FJavaWrapper::AndroidThunkJava_IsOculusMobileApplication;
 jmethodID FJavaWrapper::AndroidThunkJava_RegisterForRemoteNotifications;
 jmethodID FJavaWrapper::AndroidThunkJava_UnregisterForRemoteNotifications;
+jmethodID FJavaWrapper::AndroidThunkJava_IsAllowedRemoteNotifications;
 jmethodID FJavaWrapper::AndroidThunkJava_ShowHiddenAlertDialog;
 jmethodID FJavaWrapper::AndroidThunkJava_LocalNotificationScheduleAtTime;
 jmethodID FJavaWrapper::AndroidThunkJava_LocalNotificationClearAll;
@@ -798,6 +800,20 @@ void AndroidThunkCpp_UnregisterForRemoteNotifications()
 			FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, FJavaWrapper::AndroidThunkJava_UnregisterForRemoteNotifications);
 		}
 	}
+}
+
+bool AndroidThunkCpp_IsAllowedRemoteNotifications()
+{
+	bool Result = false;
+	if (FJavaWrapper::AndroidThunkJava_UnregisterForRemoteNotifications)
+	{
+		if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
+		{
+			Result = FJavaWrapper::CallBooleanMethod(Env, FJavaWrapper::GameActivityThis, FJavaWrapper::AndroidThunkJava_IsAllowedRemoteNotifications);
+		}
+	}
+
+	return Result;
 }
 
 void AndroidThunkCpp_ShowConsoleWindow()
