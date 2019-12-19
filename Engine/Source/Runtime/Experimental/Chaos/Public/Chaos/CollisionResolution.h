@@ -189,6 +189,8 @@ namespace Chaos
 			//
 			// Constraint API
 			//
+			template<typename T, int d>
+			void CHAOS_API UpdateManifold(TCollisionConstraintBase<T, d>& ConstraintBase, const TRigidTransform<T, d>& ATM, const TRigidTransform<T, d>& BTM, const T Thickness);
 
 			template<ECollisionUpdateType UpdateType, typename T, int d>
 			void CHAOS_API UpdateConstraint(TCollisionConstraintBase<T, d>& ConstraintBase, const TRigidTransform<T, d>& Transform0, const TRigidTransform<T, d>& Transform1, const T Thickness);
