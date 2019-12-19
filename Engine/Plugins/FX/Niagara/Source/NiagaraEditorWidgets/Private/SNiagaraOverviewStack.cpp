@@ -18,22 +18,18 @@
 #include "SNiagaraStack.h"
 #include "Stack/SNiagaraStackItemGroupAddButton.h"
 #include "Stack/SNiagaraStackIssueIcon.h"
-#include "NiagaraEditorCommon.h"
+#include "NiagaraStackCommandContext.h"
 
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/SToolTip.h"
 #include "EditorStyleSet.h"
 #include "Styling/CoreStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Commands/GenericCommands.h"
-#include "Framework/Notifications/NotificationManager.h"
-#include "ScopedTransaction.h"
-#include "Logging/LogMacros.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewStack"
 
@@ -48,10 +44,11 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 		SLATE_DEFAULT_SLOT(FArguments, Content);
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs, UNiagaraStackViewModel* InStackViewModel, UNiagaraStackEntry* InStackEntry, const TSharedRef<STableViewBase>& InOwnerTableView)
+	void Construct(const FArguments& InArgs, UNiagaraStackViewModel* InStackViewModel, UNiagaraStackEntry* InStackEntry, TSharedRef<FNiagaraStackCommandContext> InStackCommandContext, const TSharedRef<STableViewBase>& InOwnerTableView)
 	{
 		StackViewModel = InStackViewModel;
 		StackEntry = InStackEntry;
+		StackCommandContext = InStackCommandContext;
 		IssueIconVisibility = InArgs._IssueIconVisibility;
 		FSlateColor IconColor = FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetColorNameForExecutionCategory(StackEntry->GetExecutionCategoryName()));
 
@@ -118,12 +115,33 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 		InOwnerTableView);
 	}
 
-	// Need to use the mouse down event here since the graph eats the mouse up to show its context menu.
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
 	{
 		if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
 		{
-			FMenuBuilder MenuBuilder(true, nullptr);
+			return FReply::Handled()
+				.SetUserFocus(OwnerTablePtr.Pin()->AsWidget(), EFocusCause::Mouse)
+				.CaptureMouse(SharedThis(this));
+		}
+		return STableRow<UNiagaraStackEntry*>::OnMouseButtonDown(MyGeometry, MouseEvent);
+	}
+
+	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+	{
+		if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
+		{
+			// Add the item represented by this row to the selection.
+			UNiagaraSystemSelectionViewModel* Selection = StackEntry->GetSystemViewModel()->GetSelectionViewModel();
+			if (Selection->ContainsEntry(StackEntry) == false)
+			{
+				TArray<UNiagaraStackEntry*> SelectedEntries;
+				TArray<UNiagaraStackEntry*> DeselectedEntries;
+				SelectedEntries.Add(StackEntry);
+				bool bClearSelection = true;
+				Selection->UpdateSelectedEntries(SelectedEntries, DeselectedEntries, bClearSelection);
+			}
+
+			FMenuBuilder MenuBuilder(true, StackCommandContext->GetCommands());
 			bool bMenuItemsAdded = false;
 
 			if (StackEntry->IsA<UNiagaraStackModuleItem>())
@@ -137,16 +155,17 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 			}
 
 			bMenuItemsAdded |= FNiagaraStackEditorWidgetsUtilities::AddStackEntryAssetContextMenuActions(MenuBuilder, *StackEntry);
-			bMenuItemsAdded |= FNiagaraStackEditorWidgetsUtilities::AddStackEntryContextMenuActions(MenuBuilder, *StackEntry);
+			bMenuItemsAdded |= StackCommandContext->AddEditMenuItems(MenuBuilder);
 		
 			if (bMenuItemsAdded)
 			{
 				FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
 				FSlateApplication::Get().PushMenu(AsShared(), WidgetPath, MenuBuilder.MakeWidget(), MouseEvent.GetScreenSpacePosition(), FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
-				return FReply::Handled();
+				return FReply::Handled().ReleaseMouseCapture();
 			}
+			return STableRow<UNiagaraStackEntry*>::OnMouseButtonUp(MyGeometry, MouseEvent).ReleaseMouseCapture();
 		}
-		return STableRow<UNiagaraStackEntry*>::OnMouseButtonDown(MyGeometry, MouseEvent);
+		return STableRow<UNiagaraStackEntry*>::OnMouseButtonUp(MyGeometry, MouseEvent);
 	}
 
 private:
@@ -180,6 +199,7 @@ private:
 private:
 	UNiagaraStackViewModel* StackViewModel;
 	UNiagaraStackEntry* StackEntry;
+	TSharedPtr<FNiagaraStackCommandContext> StackCommandContext;
 	FLinearColor BackgroundColor;
 	FLinearColor DisabledBackgroundColor;
 	FLinearColor IsolatedBackgroundColor;
@@ -239,9 +259,7 @@ private:
 
 void SNiagaraOverviewStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel& InStackViewModel, UNiagaraSystemSelectionViewModel& InOverviewSelectionViewModel)
 {
-	Commands = MakeShared<FUICommandList>();
-
-	SetupCommands();
+	StackCommandContext = MakeShared<FNiagaraStackCommandContext>();
 
 	bUpdatingOverviewSelectionFromStackSelection = false;
 	bUpdatingStackSelectionFromOverviewSelection = false;
@@ -287,7 +305,7 @@ bool SNiagaraOverviewStack::SupportsKeyboardFocus() const
 
 FReply SNiagaraOverviewStack::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
-	if (Commands->ProcessCommandBindings(InKeyEvent))
+	if (StackCommandContext->ProcessCommandBindings(InKeyEvent))
 	{
 		return FReply::Handled();
 	}
@@ -297,61 +315,6 @@ FReply SNiagaraOverviewStack::OnKeyDown(const FGeometry& MyGeometry, const FKeyE
 void SNiagaraOverviewStack::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	RefreshEntryList();
-}
-
-void SNiagaraOverviewStack::SetupCommands()
-{
-	Commands->MapAction(FGenericCommands::Get().Delete, FUIAction(
-		FExecuteAction::CreateSP(this, &SNiagaraOverviewStack::DeleteSelectedEntries)));
-}
-
-void SNiagaraOverviewStack::DeleteSelectedEntries()
-{
-	bool bIncompleteDelete = false;
-	TArray<UNiagaraStackItem*> ItemsToDelete;
-	TArray<UNiagaraStackEntry*> SelectedEntries;
-	OverviewSelectionViewModel->GetSelectedEntries(SelectedEntries);
-	for (UNiagaraStackEntry* SelectedEntry : SelectedEntries)
-	{
-		UNiagaraStackItem* SelectedItem = Cast<UNiagaraStackItem>(SelectedEntry);
-		if (SelectedItem != nullptr)
-		{
-			FText DeleteMessage;
-			if (SelectedItem->SupportsDelete() && SelectedItem->TestCanDeleteWithMessage(DeleteMessage))
-			{
-				ItemsToDelete.Add(SelectedItem);
-			}
-			else
-			{
-				bIncompleteDelete = true;
-			}
-		}
-		else
-		{
-			bIncompleteDelete = true;
-		}
-	}
-
-	if (ItemsToDelete.Num() > 0)
-	{
-		const FScopedTransaction Transaction(LOCTEXT("DeleteSelected", "Delete items from the system overview"));
-		for (UNiagaraStackItem* ItemToDelete : ItemsToDelete)
-		{
-			ItemToDelete->Delete();
-		}
-	}
-
-	if (bIncompleteDelete)
-	{
-		FText IncompleteDeleteMessage = LOCTEXT("DeleteIncompleteMessage", "Not all items could be deleted because they either\ndon't support being deleted or they are inherited.");
-		FNotificationInfo Warning(IncompleteDeleteMessage);
-		Warning.ExpireDuration = 5.0f;
-		Warning.bFireAndForget = true;
-		Warning.bUseLargeFont = false;
-		Warning.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Warning"));
-		FSlateNotificationManager::Get().AddNotification(Warning);
-		UE_LOG(LogNiagaraEditor, Warning, TEXT("%s"), *IncompleteDeleteMessage.ToString());
-	}
 }
 
 void SNiagaraOverviewStack::AddEntriesRecursive(UNiagaraStackEntry& EntryToAdd, TArray<UNiagaraStackEntry*>& EntryList, const TArray<UClass*>& AcceptableClasses, TArray<UNiagaraStackEntry*> ParentChain)
@@ -599,7 +562,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 	}
 
 
-	return SNew(SNiagaraSystemOverviewEntryListRow, StackViewModel, Item, OwnerTable)
+	return SNew(SNiagaraSystemOverviewEntryListRow, StackViewModel, Item, StackCommandContext.ToSharedRef(), OwnerTable)
 		.OnDragDetected(this, &SNiagaraOverviewStack::OnRowDragDetected, TWeakObjectPtr<UNiagaraStackEntry>(Item))
 		.OnDragLeave(this, &SNiagaraOverviewStack::OnRowDragLeave)
 		.OnCanAcceptDrop(this, &SNiagaraOverviewStack::OnRowCanAcceptDrop)
@@ -641,6 +604,8 @@ void SNiagaraOverviewStack::OnSelectionChanged(UNiagaraStackEntry* InNewSelectio
 		{
 			PreviousSelection.Add(SelectedEntry);
 		}
+
+		UpdateCommandContextSelection();
 	}
 }
 
@@ -683,7 +648,16 @@ void SNiagaraOverviewStack::SystemSelectionChanged()
 		{
 			EntryListView->SetItemSelection(EntryToSelect, true);
 		}
+
+		UpdateCommandContextSelection();
 	}
+}
+
+void SNiagaraOverviewStack::UpdateCommandContextSelection()
+{
+	TArray<UNiagaraStackEntry*> SelectedListViewStackEntries;
+	EntryListView->GetSelectedItems(SelectedListViewStackEntries);
+	StackCommandContext->SetSelectedEntries(SelectedListViewStackEntries);
 }
 
 FReply SNiagaraOverviewStack::OnRowDragDetected(const FGeometry& InGeometry, const FPointerEvent& InPointerEvent, TWeakObjectPtr<UNiagaraStackEntry> InStackEntryWeak)

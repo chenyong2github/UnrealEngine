@@ -23,9 +23,6 @@ public:
 	virtual EStackRowStyle GetStackRowStyle() const override;
 	virtual FText GetTooltipText() const override;
 
-	virtual bool CanDelete() const { return false; }
-	virtual bool Delete() { return false; }
-
 	virtual bool GetIsEnabled() const override;
 
 	INiagaraStackItemGroupAddUtilities* GetAddUtilities() const;

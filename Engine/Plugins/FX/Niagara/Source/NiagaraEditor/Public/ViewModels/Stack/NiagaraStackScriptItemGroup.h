@@ -31,6 +31,11 @@ public:
 	FGuid GetScriptUsageId() const { return ScriptUsageId; }
 	UNiagaraNodeOutput* GetScriptOutputNode() const;
 
+	virtual bool SupportsPaste() const override { return true; }
+	virtual bool TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const override;
+	virtual FText GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const override;
+	virtual void Paste(const UNiagaraClipboardContent* ClipboardContent) override;
+
 protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
@@ -48,6 +53,8 @@ private:
 	void ItemAdded(UNiagaraNodeFunctionCall* AddedModule);
 
 	void ChildModifiedGroupItems();
+
+	void ChildRequestPaste(const UNiagaraClipboardContent* ClipboardContent, int32 PasteIndex);
 
 	void OnScriptGraphChanged(const struct FEdGraphEditAction& InAction);
 
@@ -70,6 +77,9 @@ private:
 protected:
 	TWeakPtr<FNiagaraScriptViewModel> ScriptViewModel;
 	void RefreshIssues(TArray<FStackIssue>& NewIssues);
+
+private:
+	void PasteModules(const UNiagaraClipboardContent* ClipboardContent, int32 PasteIndex);
 
 private:
 	TSharedPtr<FScriptItemGroupAddUtilities> AddUtilities;

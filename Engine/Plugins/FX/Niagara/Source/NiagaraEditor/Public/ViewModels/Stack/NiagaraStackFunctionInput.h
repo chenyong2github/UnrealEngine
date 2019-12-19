@@ -91,13 +91,16 @@ public:
 	virtual UObject* GetExternalAsset() const override;
 	virtual bool SupportsCut() const override { return true; }
 	virtual bool TestCanCutWithMessage(FText& OutMessage) const override;
-	virtual void Cut() override;
+	virtual FText GetCutTransactionText() const override;
+	virtual void CopyForCut(UNiagaraClipboardContent* ClipboardContent) const override;
+	virtual void RemoveForCut() override;
 	virtual bool SupportsCopy() const override { return true; }
 	virtual bool TestCanCopyWithMessage(FText& OutMessage) const override;
-	virtual void Copy() const override;
+	virtual void Copy(UNiagaraClipboardContent* ClipboardContent) const override;
 	virtual bool SupportsPaste() const override { return true; }
-	virtual bool TestCanPasteWithMessage(FText& OutMessage) const override;
-	virtual void Paste() override;
+	virtual bool TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const override;
+	virtual FText GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const override;
+	virtual void Paste(const UNiagaraClipboardContent* ClipboardContent) override;
 
 	FText GetTooltipText(EValueMode InValueMode) const;
 
@@ -123,7 +126,7 @@ public:
 	void GetAvailableDynamicInputs(TArray<UNiagaraScript*>& AvailableDynamicInputs, bool bIncludeNonLibraryInputs = false);
 
 	/** Sets the dynamic input script for this input. */
-	void SetDynamicInput(UNiagaraScript* DynamicInput);
+	void SetDynamicInput(UNiagaraScript* DynamicInput, FString SuggestedName = FString());
 
 	/** Gets the expression providing the value for this input, if one is available. */
 	FText GetCustomExpressionText() const;
@@ -382,8 +385,6 @@ private:
 	bool IsRapidIterationCandidate() const;
 
 	FNiagaraVariable CreateRapidIterationVariable(const FName& InName);
-
-	void PrepareFunctionInputForNewValue();
 
 private:
 	/** The module function call which owns this input entry. NOTE: This input might not be an input to the module function
