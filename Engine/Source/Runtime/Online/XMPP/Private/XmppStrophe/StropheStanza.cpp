@@ -117,7 +117,7 @@ void FStropheStanza::AddChild(const FStropheStanza& Child)
 	}
 }
 
-TOptional<FStropheStanza> FStropheStanza::GetChild(const FString& ChildName)
+TOptional<FStropheStanza> FStropheStanza::GetChildStropheStanza(const FString& ChildName)
 {
 	TOptional<FStropheStanza> OptionalStanza;
 
@@ -130,7 +130,17 @@ TOptional<FStropheStanza> FStropheStanza::GetChild(const FString& ChildName)
 	return OptionalStanza;
 }
 
-TOptional<const FStropheStanza> FStropheStanza::GetChild(const FString& ChildName) const
+TUniquePtr<IXmppStanza> FStropheStanza::GetChild(const FString& ChildName) const
+{
+	TOptional<const FStropheStanza> Stanza = GetChildStropheStanza(ChildName);
+	if (Stanza.IsSet())
+	{
+		return MakeUnique<FStropheStanza>(Stanza.GetValue());
+	}
+	return nullptr;
+}
+
+TOptional<const FStropheStanza> FStropheStanza::GetChildStropheStanza(const FString& ChildName) const
 {
 	TOptional<const FStropheStanza> OptionalStanza;
 
