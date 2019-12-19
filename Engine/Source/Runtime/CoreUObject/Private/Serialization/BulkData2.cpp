@@ -711,6 +711,7 @@ void* FBulkDataBase::Lock(uint32 LockFlags)
 const void* FBulkDataBase::LockReadOnly() const
 {
 	check(LockStatus == LOCKSTATUS_Unlocked);
+	LockStatus = LOCKSTATUS_ReadOnlyLock;
 	return DataBuffer;
 }
 
