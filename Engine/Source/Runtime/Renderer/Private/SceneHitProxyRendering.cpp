@@ -527,6 +527,8 @@ static void DoRenderHitProxies(FRHICommandListImmediate& RHICmdList, const FScen
 
 void FMobileSceneRenderer::RenderHitProxies(FRHICommandListImmediate& RHICmdList)
 {
+	Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
+	
 	PrepareViewRectsForRendering();
 
 #if WITH_EDITOR
