@@ -106,6 +106,10 @@ Smoothing: Taking the output of the simulation and applying an additional layer 
 // Release notes
 // ----------------------------------------------------------------------------------------------------------
 
+Update (12-13-19)
+-Only small updates (if any) for the rest of the year. System is going through code reviews as we plan for writing a new general movement system on top of Network Prediction.
+-Things are still liable to change but for the most part every major feature is in.
+
 Update (11-21-19)
 -Rewindable NetSimCue support added. This just about wraps up the initial implemention of NetSimCues and the "Game API / Event System".
 -Still some cleanup and debugging/logging stuff to do but will be transitioning into porting the legacy CMC movement system over soon.
