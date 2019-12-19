@@ -20,7 +20,15 @@ void SPropertyComboBox::Construct( const FArguments& InArgs )
 	{
 		if(*ComboItemList[ItemIndex].Get() == VisibleText)
 		{
-			SetToolTip(RichToolTips[ItemIndex]);
+			if (RichToolTips.IsValidIndex(ItemIndex))
+			{
+				SetToolTip(RichToolTips[ItemIndex]);
+			}
+			else
+			{
+				SetToolTip(nullptr);
+			}
+
 			InitiallySelectedItem = ComboItemList[ItemIndex];
 			break;
 		}
