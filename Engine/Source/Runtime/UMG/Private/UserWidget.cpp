@@ -88,7 +88,7 @@ UUserWidget::UUserWidget(const FObjectInitializer& ObjectInitializer)
 	}
 }
 
-UWidgetBlueprintGeneratedClass* UUserWidget::GetWidgetTreeOwningClass()
+UWidgetBlueprintGeneratedClass* UUserWidget::GetWidgetTreeOwningClass() const
 {
 	UWidgetBlueprintGeneratedClass* WidgetClass = Cast<UWidgetBlueprintGeneratedClass>(GetClass());
 	if (WidgetClass != nullptr)
@@ -953,7 +953,7 @@ UWidget* UUserWidget::GetWidgetFromName(const FName& Name) const
 void UUserWidget::GetSlotNames(TArray<FName>& SlotNames) const
 {
 	// Only do this if this widget is of a blueprint class
-	if ( UWidgetBlueprintGeneratedClass* BGClass = Cast<UWidgetBlueprintGeneratedClass>(GetClass()) )
+	if (UWidgetBlueprintGeneratedClass* BGClass = GetWidgetTreeOwningClass())
 	{
 		SlotNames.Append(BGClass->NamedSlots);
 	}
@@ -1997,7 +1997,7 @@ void UUserWidget::PreSave(const class ITargetPlatform* TargetPlatform)
 	}
 
 	// Remove bindings that are no longer contained in the class.
-	if ( UWidgetBlueprintGeneratedClass* BGClass = Cast<UWidgetBlueprintGeneratedClass>(GetClass()) )
+	if ( UWidgetBlueprintGeneratedClass* BGClass = GetWidgetTreeOwningClass())
 	{
 		RemoveObsoleteBindings(BGClass->NamedSlots);
 	}
