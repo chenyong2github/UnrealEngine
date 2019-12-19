@@ -284,6 +284,8 @@ namespace ImmediatePhysics_Chaos
 					Dynamic->SetInvM(MassInv);
 					Dynamic->SetI({ Inertia.X, Inertia.Y, Inertia.Z });
 					Dynamic->SetInvI({ InertiaInv.X, InertiaInv.Y, InertiaInv.Z });
+					Dynamic->SetLinearEtherDrag(BodyInstance->LinearDamping);
+					Dynamic->SetAngularEtherDrag(BodyInstance->AngularDamping);
 					Dynamic->Disabled() = true;
 				}
 			}
