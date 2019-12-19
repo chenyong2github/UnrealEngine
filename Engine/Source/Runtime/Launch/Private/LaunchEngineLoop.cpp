@@ -4096,6 +4096,8 @@ void FEngineLoop::Exit()
 	FModuleManager::Get().UnloadModulesAtShutdown();
 #endif // !ANDROID
 
+	IStreamingManager::Shutdown();
+
 	// Tear down the RHI.
 	RHIExitAndStopRHIThread();
 
@@ -4107,7 +4109,6 @@ void FEngineLoop::Exit()
 #endif
 
 	FTaskGraphInterface::Shutdown();
-	IStreamingManager::Shutdown();
 
 	FPlatformMisc::ShutdownTaggedStorage();
 
