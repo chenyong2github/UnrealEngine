@@ -206,6 +206,7 @@ import android.graphics.Color;
 import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
 import android.content.BroadcastReceiver;
+import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.content.FileProvider;
 //$${gameActivityImportAdditions}$$
 
@@ -5127,6 +5128,11 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				}
 			});
 		}
+	}
+
+	public boolean AndroidThunkJava_IsAllowedRemoteNotifications()
+	{
+		return NotificationManagerCompat.from(getApplicationContext()).areNotificationsEnabled();
 	}
 
 	public void AndroidThunkJava_SetDesiredViewSize(int width, int height)

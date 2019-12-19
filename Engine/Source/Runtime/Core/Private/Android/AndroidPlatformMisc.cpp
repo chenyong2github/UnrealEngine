@@ -1319,6 +1319,7 @@ bool FAndroidMisc::IsStandaloneStereoOnlyDevice()
 
 extern void AndroidThunkCpp_RegisterForRemoteNotifications();
 extern void AndroidThunkCpp_UnregisterForRemoteNotifications();
+extern bool AndroidThunkCpp_IsAllowedRemoteNotifications();
 
 void FAndroidMisc::RegisterForRemoteNotifications()
 {
@@ -1331,6 +1332,15 @@ void FAndroidMisc::UnregisterForRemoteNotifications()
 {
 #if USE_ANDROID_JNI
 	AndroidThunkCpp_UnregisterForRemoteNotifications();
+#endif
+}
+
+bool FAndroidMisc::IsAllowedRemoteNotifications()
+{
+#if USE_ANDROID_JNI
+	return AndroidThunkCpp_IsAllowedRemoteNotifications();
+#else
+	return false;
 #endif
 }
 
