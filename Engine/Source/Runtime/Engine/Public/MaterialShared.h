@@ -1179,6 +1179,7 @@ private:
 	/** The material's user friendly name, typically the object name. */
 	FString FriendlyName;
 	FString MaterialPath;
+	float CompileTime;
 #endif
 
 	/** The static parameter set that this shader map was compiled with */
