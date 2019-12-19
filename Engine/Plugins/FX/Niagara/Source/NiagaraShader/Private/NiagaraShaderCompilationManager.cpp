@@ -78,8 +78,11 @@ public:
 	}
 };
 
-
-NIAGARASHADER_API FNiagaraShaderCompilationManager GNiagaraShaderCompilationManager;
+FNiagaraShaderCompilationManager& FNiagaraShaderCompilationManager::Get()
+{
+	static FNiagaraShaderCompilationManager Instance;
+	return Instance;
+}
 
 bool FNiagaraShaderCompilationManager::IsAsyncHackEnabled()const
 {
