@@ -52,6 +52,18 @@ public:
 	virtual bool IsWaitingForSomething() = 0;
 };
 
+/** Structure that holds the async loading thread ini settings */
+struct FAsyncLoadingThreadSettings
+{
+	bool bAsyncLoadingThreadEnabled;
+	bool bAsyncPostLoadEnabled;
+
+	FAsyncLoadingThreadSettings();
+
+	/** Gets the ALT settigns from ini (or command line). */
+	static FAsyncLoadingThreadSettings& Get();
+};
+
 /**
  * Asynchronous package loader interface.
  */

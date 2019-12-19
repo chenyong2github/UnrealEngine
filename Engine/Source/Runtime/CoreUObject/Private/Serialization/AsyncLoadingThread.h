@@ -149,15 +149,6 @@ struct FMaxPackageSummarySize
  */
 class FAsyncLoadingThread final : public FRunnable, public IAsyncPackageLoader
 {
-	/** Structure that holds the async loading thread ini settings */
-	struct FAsyncLoadingThreadSettings
-	{
-		bool bAsyncLoadingThreadEnabled;
-		bool bAsyncPostLoadEnabled;
-
-		FAsyncLoadingThreadSettings();
-	};
-
 	IEDLBootNotificationManager& EDLBootNotificationManager;
 
 	/** Thread to run the worker FRunnable on */
@@ -328,9 +319,6 @@ public:
 	void QueueEvent_ProcessPostloadWait(FAsyncPackage* Pkg, int32 EventSystemPriority = 0);
 	/** [EDL] Queues StartPostLoad event */
 	void QueueEvent_StartPostLoad(FAsyncPackage* Pkg, int32 EventSystemPriority = 0);
-
-	/** Gets the ALT settigns from ini (or command line). */
-	static FAsyncLoadingThreadSettings& GetAsyncLoadingThreadSettings();
 
 	/** True if multithreaded async loading is currently being used. */
 	FORCEINLINE bool IsMultithreaded() override

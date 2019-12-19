@@ -4632,7 +4632,7 @@ FAsyncLoadingThread::FAsyncLoadingThread(int32 InThreadIndex, IEDLBootNotificati
 	CancelLoadingEvent = FPlatformProcess::GetSynchEventFromPool();
 	ThreadSuspendedEvent = FPlatformProcess::GetSynchEventFromPool();
 	ThreadResumedEvent = FPlatformProcess::GetSynchEventFromPool();
-	if ((!GEventDrivenLoaderEnabled || !USE_EVENT_DRIVEN_ASYNC_LOAD_AT_BOOT_TIME) && FAsyncLoadingThread::GetAsyncLoadingThreadSettings().bAsyncLoadingThreadEnabled)
+	if ((!GEventDrivenLoaderEnabled || !USE_EVENT_DRIVEN_ASYNC_LOAD_AT_BOOT_TIME) && FAsyncLoadingThreadSettings::Get().bAsyncLoadingThreadEnabled)
 	{
 		StartThread();
 	}
@@ -4640,8 +4640,8 @@ FAsyncLoadingThread::FAsyncLoadingThread(int32 InThreadIndex, IEDLBootNotificati
 #if !IS_PROGRAM && !WITH_EDITORONLY_DATA
 	UE_LOG(LogStreaming, Display, TEXT("Async Loading initialized: Event Driven Loader: %s, Async Loading Thread: %s, Async Post Load: %s"),
 		GEventDrivenLoaderEnabled ? TEXT("true") : TEXT("false"),
-		FAsyncLoadingThread::GetAsyncLoadingThreadSettings().bAsyncLoadingThreadEnabled ? TEXT("true") : TEXT("false"),
-		FAsyncLoadingThread::GetAsyncLoadingThreadSettings().bAsyncPostLoadEnabled ? TEXT("true") : TEXT("false"));
+		FAsyncLoadingThreadSettings::Get().bAsyncLoadingThreadEnabled ? TEXT("true") : TEXT("false"),
+		FAsyncLoadingThreadSettings::Get().bAsyncPostLoadEnabled ? TEXT("true") : TEXT("false"));
 #endif
 }
 
@@ -4677,45 +4677,12 @@ void FAsyncLoadingThread::ShutdownLoading()
 	ThreadResumedEvent = nullptr;	
 }
 
-FAsyncLoadingThread::FAsyncLoadingThreadSettings::FAsyncLoadingThreadSettings()
-{
-#if THREADSAFE_UOBJECTS
-	if (FPlatformProperties::RequiresCookedData())
-	{
-		check(GConfig);
-
-		bool bConfigValue = true;
-		GConfig->GetBool(TEXT("/Script/Engine.StreamingSettings"), TEXT("s.AsyncLoadingThreadEnabled"), bConfigValue, GEngineIni);
-		bool bCommandLineDisable = FParse::Param(FCommandLine::Get(), TEXT("NoAsyncLoadingThread"));
-		bool bCommandLineEnable = FParse::Param(FCommandLine::Get(), TEXT("AsyncLoadingThread"));
-		bAsyncLoadingThreadEnabled = bCommandLineEnable || (bConfigValue && FApp::ShouldUseThreadingForPerformance() && !bCommandLineDisable);
-
-		bConfigValue = true;
-		GConfig->GetBool(TEXT("/Script/Engine.StreamingSettings"), TEXT("s.AsyncPostLoadEnabled"), bConfigValue, GEngineIni);
-		bCommandLineDisable = FParse::Param(FCommandLine::Get(), TEXT("NoAsyncPostLoad"));
-		bCommandLineEnable = FParse::Param(FCommandLine::Get(), TEXT("AsyncPostLoad"));
-		bAsyncPostLoadEnabled = bCommandLineEnable || (bConfigValue && FApp::ShouldUseThreadingForPerformance() && !bCommandLineDisable);
-	}
-	else
-#endif
-	{
-		bAsyncLoadingThreadEnabled = false;
-		bAsyncPostLoadEnabled = false;
-	}
-}
-
-FAsyncLoadingThread::FAsyncLoadingThreadSettings& FAsyncLoadingThread::GetAsyncLoadingThreadSettings()
-{
-	static FAsyncLoadingThreadSettings Settings;
-	return Settings;
-}
-
 void FAsyncLoadingThread::StartThread()
 {
 	// Make sure the GC sync object is created before we start the thread (apparently this can happen before we call InitUObject())
 	FGCCSyncObject::Create();
 
-	if (!Thread && FAsyncLoadingThread::GetAsyncLoadingThreadSettings().bAsyncLoadingThreadEnabled)
+	if (!Thread && FAsyncLoadingThreadSettings::Get().bAsyncLoadingThreadEnabled)
 	{
 		UE_LOG(LogStreaming, Log, TEXT("Starting Async Loading Thread."));
 		bThreadStarted = true;
@@ -6328,7 +6295,7 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadObjects()
 		PreLoadIndex = PackageObjLoaded.Num(); // we did preloading in a different way and never incremented this
 	}
 
-	const bool bAsyncPostLoadEnabled = FAsyncLoadingThread::GetAsyncLoadingThreadSettings().bAsyncPostLoadEnabled;
+	const bool bAsyncPostLoadEnabled = FAsyncLoadingThreadSettings::Get().bAsyncPostLoadEnabled;
 	const bool bIsMultithreaded = AsyncLoadingThread.IsMultithreaded();
 
 	// PostLoad objects.

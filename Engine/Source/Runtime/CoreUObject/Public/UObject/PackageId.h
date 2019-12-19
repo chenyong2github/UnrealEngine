@@ -22,6 +22,11 @@ public:
 		return FPackageId(Index);
 	}
 
+	inline bool IsValid() const
+	{
+		return Id != InvalidId;
+	}
+
 	inline uint32 ToIndex() const
 	{
 		check(Id != InvalidId);

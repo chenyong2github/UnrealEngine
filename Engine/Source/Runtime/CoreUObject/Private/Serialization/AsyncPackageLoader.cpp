@@ -391,6 +391,39 @@ static FEDLBootNotificationManager& GetGEDLBootNotificationManager()
 	return Singleton;
 }
 
+FAsyncLoadingThreadSettings::FAsyncLoadingThreadSettings()
+{
+#if THREADSAFE_UOBJECTS
+	if (FPlatformProperties::RequiresCookedData())
+	{
+		check(GConfig);
+
+		bool bConfigValue = true;
+		GConfig->GetBool(TEXT("/Script/Engine.StreamingSettings"), TEXT("s.AsyncLoadingThreadEnabled"), bConfigValue, GEngineIni);
+		bool bCommandLineDisable = FParse::Param(FCommandLine::Get(), TEXT("NoAsyncLoadingThread"));
+		bool bCommandLineEnable = FParse::Param(FCommandLine::Get(), TEXT("AsyncLoadingThread"));
+		bAsyncLoadingThreadEnabled = bCommandLineEnable || (bConfigValue && FApp::ShouldUseThreadingForPerformance() && !bCommandLineDisable);
+
+		bConfigValue = true;
+		GConfig->GetBool(TEXT("/Script/Engine.StreamingSettings"), TEXT("s.AsyncPostLoadEnabled"), bConfigValue, GEngineIni);
+		bCommandLineDisable = FParse::Param(FCommandLine::Get(), TEXT("NoAsyncPostLoad"));
+		bCommandLineEnable = FParse::Param(FCommandLine::Get(), TEXT("AsyncPostLoad"));
+		bAsyncPostLoadEnabled = bCommandLineEnable || (bConfigValue && FApp::ShouldUseThreadingForPerformance() && !bCommandLineDisable);
+	}
+	else
+#endif
+	{
+		bAsyncLoadingThreadEnabled = false;
+		bAsyncPostLoadEnabled = false;
+	}
+}
+
+FAsyncLoadingThreadSettings& FAsyncLoadingThreadSettings::Get()
+{
+	static FAsyncLoadingThreadSettings Settings;
+	return Settings;
+}
+
 bool IsEventDrivenLoaderEnabledInCookedBuilds()
 {
 	static struct FEventDrivenLoaderEnabledInCookedBuildsInit
