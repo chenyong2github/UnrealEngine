@@ -12,16 +12,15 @@
 namespace Chaos
 {
 
-template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
-class TBoundingVolumeHierarchy;
+struct FLargeImplicitObjectUnionData;
 
-class FImplicitObjectUnion : public FImplicitObject
+class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 {
   public:
 
 	using FImplicitObject::GetTypeName;
 
-	CHAOS_API FImplicitObjectUnion(TArray<TUniquePtr<FImplicitObject>>&& Objects, const TArray<int32>& OriginalParticleLookupHack = TArray<int32>());
+	FImplicitObjectUnion(TArray<TUniquePtr<FImplicitObject>>&& Objects);
 	FImplicitObjectUnion(const FImplicitObjectUnion& Other) = delete;
 	FImplicitObjectUnion(FImplicitObjectUnion&& Other);
 	virtual ~FImplicitObjectUnion();
@@ -86,8 +85,6 @@ class FImplicitObjectUnion : public FImplicitObject
 	}
 
 	virtual void FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, FRigidTransform3>>& Out, const TAABB<FReal,3>& LocalBounds) const;
-	TArray<int32> FindAllIntersectingChildren(const TAABB<FReal,3>& LocalBounds) const;
-	TArray<int32> FindAllIntersectingChildren(const TSpatialRay<FReal,3>& LocalRay) const;
 	virtual void CacheAllImplicitObjects();
 
 	virtual bool Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const override
@@ -155,7 +152,7 @@ class FImplicitObjectUnion : public FImplicitObject
 		return Result;
 	}
 
-private:
+protected:
 	virtual Pair<FVec3, bool> FindClosestIntersectionImp(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness) const override
 	{
 		check(MObjects.Num());
@@ -176,19 +173,41 @@ private:
 		return ClosestIntersection;
 	}
 
-  private:
+  protected:
 	TArray<TUniquePtr<FImplicitObject>> MObjects;
-	TGeometryParticles<FReal,3> GeomParticles;
-	TBoundingVolumeHierarchy<TGeometryParticles<FReal,3>, TArray<int32>, FReal, 3>* Hierarchy;
 	TAABB<FReal,3> MLocalBoundingBox;
-	bool bHierarchyBuilt;
-	TArray<int32> MOriginalParticleLookupHack;	//temp hack for finding original particles
-
+	TUniquePtr<FLargeImplicitObjectUnionData> LargeUnionData;	//only needed when there are many objects
 
 	//needed for serialization
 	FImplicitObjectUnion();
 	friend FImplicitObject;	//needed for serialization
 public:
-	TMap<const FImplicitObject*, int32> MCollisionParticleLookupHack;	//temp hack for finding collision particles
+};
+
+class CHAOS_API FImplicitObjectUnionClustered: public FImplicitObjectUnion
+{
+public:
+
+	FImplicitObjectUnionClustered(TArray<TUniquePtr<FImplicitObject>>&& Objects,const TArray<int32>& OriginalParticleLookupHack = TArray<int32>());
+	FImplicitObjectUnionClustered()
+		: FImplicitObjectUnion()
+	{
+		Type = ImplicitObjectType::UnionClustered;
+	}
+	FImplicitObjectUnionClustered(const FImplicitObjectUnionClustered& Other) = delete;
+	FImplicitObjectUnionClustered(FImplicitObjectUnionClustered&& Other);
+	virtual ~FImplicitObjectUnionClustered() = default;
+
+	FORCEINLINE static constexpr EImplicitObjectType StaticType()
+	{
+		return ImplicitObjectType::UnionClustered;
+	}
+
+	TArray<int32> FindAllIntersectingChildren(const TAABB<FReal,3>& LocalBounds) const;
+	TArray<int32> FindAllIntersectingChildren(const TSpatialRay<FReal,3>& LocalRay) const;
+
+private:
+	TArray<int32> MOriginalParticleLookupHack;	//temp hack for finding original particles
+	TMap<const FImplicitObject*,int32> MCollisionParticleLookupHack;	//temp hack for finding collision particles
 };
 }

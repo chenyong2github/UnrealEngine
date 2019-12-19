@@ -47,6 +47,7 @@ namespace ImplicitObjectType
 		HeightField,
 		DEPRECATED_Scaled,	//needed for serialization of existing data
 		Triangle,
+		UnionClustered,
 
 		//Add entries above this line for serialization
 		IsInstanced = 1 << 6,
