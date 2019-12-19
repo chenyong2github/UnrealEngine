@@ -670,11 +670,28 @@ void ULandscapeComponent::FixupWeightmaps()
 
 			if (bFixedLayerDeletion)
 			{
-				FLandscapeEditDataInterface LandscapeEdit(Info);
-				for (int32 Idx = 0; Idx < LayersToDelete.Num(); ++Idx)
 				{
-					DeleteLayer(LayersToDelete[Idx], LandscapeEdit);
+					FLandscapeEditDataInterface LandscapeEdit(Info);
+					for (int32 Idx = 0; Idx < LayersToDelete.Num(); ++Idx)
+					{
+						DeleteLayer(LayersToDelete[Idx], LandscapeEdit);
+					}
 				}
+
+				ForEachLayer([&](const FGuid& LayerGuid, FLandscapeLayerComponentData& LayerData)
+				{
+					SetEditingLayer(LayerGuid);
+					FLandscapeEditDataInterface LandscapeEdit(Info);
+					for (int32 Idx = 0; Idx < LayersToDelete.Num(); ++Idx)
+					{
+						DeleteLayer(LayersToDelete[Idx], LandscapeEdit);
+					}
+				});
+								
+				// Make sure to clear editing layer and cache
+				SetEditingLayer(FGuid());
+				CachedEditingLayer.Invalidate();
+				CachedEditingLayerData = nullptr;
 			}
 
 			bool bFixedWeightmapTextureIndex = false;
