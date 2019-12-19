@@ -14,6 +14,7 @@ FProjectDescriptor::FProjectDescriptor()
 	FileVersion = EProjectDescriptorVersion::Latest;
 	EpicSampleNameHash = 0;
 	bIsEnterpriseProject = false;
+	bDisableEnginePluginsByDefault = false;
 }
 
 void FProjectDescriptor::Sign(const FString& FilePath)
@@ -110,6 +111,7 @@ bool FProjectDescriptor::Read(const FJsonObject& Object, const FString& PathToPr
 	Object.TryGetStringField(TEXT("Category"), Category);
 	Object.TryGetStringField(TEXT("Description"), Description);
 	Object.TryGetBoolField(TEXT("Enterprise"), bIsEnterpriseProject);
+	Object.TryGetBoolField(TEXT("DisableEnginePluginsByDefault"), bDisableEnginePluginsByDefault);
 
 	// Read the modules
 	if(!FModuleDescriptor::ReadArray(Object, TEXT("Modules"), Modules, OutFailReason))
