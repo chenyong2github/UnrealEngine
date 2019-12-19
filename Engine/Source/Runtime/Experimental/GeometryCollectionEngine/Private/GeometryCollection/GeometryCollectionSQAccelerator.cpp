@@ -302,7 +302,7 @@ void FGeometryCollectionSQAccelerator::Raycast(const FVector& Start, const FVect
 				}
 				if (Object && !UseSlowSQ && Object->IsUnderlyingUnion())
 				{
-					const TImplicitObjectUnion<float, 3>* Union = static_cast<const TImplicitObjectUnion<float, 3>*>(Object);
+					const FImplicitObjectUnion* Union = static_cast<const TImplicitObjectUnion<float, 3>*>(Object);
 					//hack: this is terrible because we have no buffered transform so could be off, but most of the time these things are static
 
 					{
@@ -567,7 +567,7 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 				}
 				if (Object && !UseSlowSQ && Object->IsUnderlyingUnion())
 				{
-					const TImplicitObjectUnion<float, 3>* Union = static_cast<const TImplicitObjectUnion<float, 3>*>(Object);
+					const FImplicitObjectUnion* Union = static_cast<const TImplicitObjectUnion<float, 3>*>(Object);
 					//hack: this is terrible because we have no buffered transform so could be off, but most of the time these things are static
 
 					{

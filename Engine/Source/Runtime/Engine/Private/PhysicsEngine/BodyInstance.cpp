@@ -1863,7 +1863,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 		// Only follow through with update if all shapes succeeded.
 		if (CHAOS_ENSURE(NewGeometry.Num() == Shapes.Num()))
 		{
-			ActorHandle->SetGeometry(MakeUnique<Chaos::TImplicitObjectUnion<FReal, 3>>(MoveTemp(NewGeometry)));
+			ActorHandle->SetGeometry(MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(NewGeometry)));
 		}
 		else
 		{
