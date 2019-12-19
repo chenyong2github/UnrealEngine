@@ -715,7 +715,7 @@ ULocalPlayer* UGameInstance::CreateLocalPlayer(int32 ControllerId, FString& OutE
 
 int32 UGameInstance::AddLocalPlayer(ULocalPlayer* NewLocalPlayer, int32 ControllerId)
 {
-	if (NewLocalPlayer == NULL)
+	if (NewLocalPlayer == nullptr)
 	{
 		return INDEX_NONE;
 	}
@@ -729,10 +729,14 @@ int32 UGameInstance::AddLocalPlayer(ULocalPlayer* NewLocalPlayer, int32 Controll
 	NewLocalPlayer->PlayerAdded(GetGameViewportClient(), ControllerId);
 
 	// Notify the viewport that we added a player (so it can update splitscreen settings, etc)
-	if ( GetGameViewportClient() != NULL )
+	if ( GetGameViewportClient() != nullptr)
 	{
 		GetGameViewportClient()->NotifyPlayerAdded(InsertIndex, NewLocalPlayer);
 	}
+
+	UE_LOG(LogPlayerManagement, Log, TEXT("UGameInstance::AddLocalPlayer: Added player %s with ControllerId %d at index %d (%d remaining players)"), *NewLocalPlayer->GetName(), NewLocalPlayer->GetControllerId(), InsertIndex, LocalPlayers.Num());
+
+	OnLocalPlayerAddedEvent.Broadcast(NewLocalPlayer);
 
 	return InsertIndex;
 }
@@ -786,6 +790,8 @@ bool UGameInstance::RemoveLocalPlayer(ULocalPlayer* ExistingPlayer)
 	ExistingPlayer->ViewportClient = nullptr;
 
 	UE_LOG(LogPlayerManagement, Log, TEXT("UGameInstance::RemovePlayer: Removed player %s with ControllerId %i at index %i (%i remaining players)"), *ExistingPlayer->GetName(), ExistingPlayer->GetControllerId(), OldIndex, LocalPlayers.Num());
+
+	OnLocalPlayerRemovedEvent.Broadcast(ExistingPlayer);
 
 	return true;
 }
