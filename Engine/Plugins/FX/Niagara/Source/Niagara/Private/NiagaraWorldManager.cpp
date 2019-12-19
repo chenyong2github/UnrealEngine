@@ -191,7 +191,14 @@ void FNiagaraWorldManager::AddReferencedObjects(FReferenceCollector& Collector)
 
 	Collector.AddReferencedObjects(ParameterCollections);
 	Collector.AddReferencedObject(ComponentPool);
-	Collector.AddReferencedObjects(ScalabilityManagers);
+	for (auto& Pair : ScalabilityManagers)
+	{
+		UNiagaraEffectType* EffectType = Pair.Key;
+		FNiagaraScalabilityManager& ScalabilityMan = Pair.Value;
+
+		Collector.AddReferencedObject(EffectType);
+		ScalabilityMan.AddReferencedObjects(Collector);
+	}
 }
 
 FString FNiagaraWorldManager::GetReferencerName() const
