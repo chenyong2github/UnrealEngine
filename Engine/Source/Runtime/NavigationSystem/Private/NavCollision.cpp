@@ -94,7 +94,7 @@ public:
 
 	virtual const TCHAR* GetVersionString() const override
 	{
-		return TEXT("7F071F64D317460BB568645D8521B30A");
+		return TEXT("2EE6412E1E884D1AAA7F79FF760363BC");
 	}
 
 	virtual FString GetPluginSpecificCacheKeySuffix() const override
