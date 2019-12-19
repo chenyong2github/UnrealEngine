@@ -83,7 +83,7 @@ FString GetMaterialShaderMapDDCKey()
 // this is for the protocol, not the data, bump if FShaderCompilerInput or ProcessInputFromArchive changes (also search for the second one with the same name, todo: put into one header file)
 const int32 ShaderCompileWorkerInputVersion = 10;
 // this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes (also search for the second one with the same name, todo: put into one header file)
-const int32 ShaderCompileWorkerOutputVersion = 5;
+const int32 ShaderCompileWorkerOutputVersion = 6;
 // this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes (also search for the second one with the same name, todo: put into one header file)
 const int32 ShaderCompileWorkerSingleJobHeader = 'S';
 // this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes (also search for the second one with the same name, todo: put into one header file)
@@ -1571,6 +1571,7 @@ void FShaderCompilerStats::WriteStats()
 		StatWriter.AddColumn(TEXT("Compiled"));
 		StatWriter.AddColumn(TEXT("Cooked"));
 		StatWriter.AddColumn(TEXT("Permutations"));
+		StatWriter.AddColumn(TEXT("Compiletime"));
 		StatWriter.AddColumn(TEXT("CompiledDouble"));
 		StatWriter.AddColumn(TEXT("CookedDouble"));
 		StatWriter.CycleRow();
@@ -1591,6 +1592,7 @@ void FShaderCompilerStats::WriteStats()
 					StatWriter.AddColumn(TEXT("%u"), SingleStats.Compiled);
 					StatWriter.AddColumn(TEXT("%u"), SingleStats.Cooked);
 					StatWriter.AddColumn(TEXT("%u"), SingleStats.PermutationCompilations.Num());
+					StatWriter.AddColumn(TEXT("%f"), SingleStats.CompileTime);
 					StatWriter.AddColumn(TEXT("%u"), SingleStats.CompiledDouble);
 					StatWriter.AddColumn(TEXT("%u"), SingleStats.CookedDouble);
 					StatWriter.CycleRow();
@@ -1660,7 +1662,7 @@ void FShaderCompilerStats::WriteStats()
 	}
 #endif // ALLOW_DEBUG_FILES
 }
-void FShaderCompilerStats::RegisterCookedShaders(uint32 NumCooked, EShaderPlatform Platform, const FString MaterialPath, FString PermutationString)
+void FShaderCompilerStats::RegisterCookedShaders(uint32 NumCooked, float CompileTime, EShaderPlatform Platform, const FString MaterialPath, FString PermutationString)
 {
 	FScopeLock Lock(&CompileStatsLock);
 	if(!CompileStats.IsValidIndex(Platform))
@@ -1670,6 +1672,7 @@ void FShaderCompilerStats::RegisterCookedShaders(uint32 NumCooked, EShaderPlatfo
 	}
 
 	FShaderCompilerStats::FShaderStats& Stats = CompileStats[Platform].FindOrAdd(MaterialPath);
+	Stats.CompileTime += CompileTime;
 	bool bFound = false;
 	for (FShaderCompilerSinglePermutationStat& Stat : Stats.PermutationCompilations)
 	{

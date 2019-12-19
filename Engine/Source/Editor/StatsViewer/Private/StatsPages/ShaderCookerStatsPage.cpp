@@ -44,6 +44,19 @@ public:
 	FShaderCookerStats();
 	~FShaderCookerStats();
 
+
+	TPair<FString, int32> FindCategory(FString Path)
+	{
+		for(TPair<FString, int32>& Pair : StatPatterns)
+		{
+			int32 Index = Path.Find(Pair.Key, ESearchCase::IgnoreCase);
+			if(Index >= 0 && Index < 2)
+			{
+				return TPair<FString, int32>(StatCategoryNames[Pair.Value], Pair.Value);
+			}
+		}
+		return TPair<FString, int32>(FString(""), 0);
+	}
 	TArray<FString> GetStatSetNames()
 	{
 		TArray<FString> Temp;
@@ -56,7 +69,14 @@ public:
 
 	FString GetStatSetName(int32 Index)
 	{
-		return StatSets[Index].Name;
+		if(Index < StatSets.Num())
+		{
+			return StatSets[Index].Name;
+		}
+		else
+		{
+			return FString("");
+		}
 	}
 
 	const TArray<UShaderCookerStats*>& GetShaderCookerStats(uint32 Index)
@@ -73,7 +93,24 @@ public:
 		return StatSets.Num();
 	}
 
+	uint32 NumCategories()
+	{
+		return StatCategoryNames.Num();
+	}
+	FString GetCategoryName(int32 Index)
+	{
+		if(Index < StatCategoryNames.Num() && Index >= 0)
+		{
+			return StatCategoryNames[Index];
+		}
+		else
+		{
+			return FString("All");
+		}
+	}
 	TArray<FShaderCookerStatsSet> StatSets;
+	TArray<FString> StatCategoryNames;
+	TArray< TPair<FString, int32> > StatPatterns;
 
 	void Initialize(uint32 Index);
 };
@@ -105,6 +142,7 @@ void FShaderCookerStats::Initialize(uint32 Index)
 		int32 IndexCompiled = -1;
 		int32 IndexCooked = -1;
 		int32 IndexPermutations = -1;
+		int32 IndexCompileTime = -1;
 		for (const TArray<const TCHAR*>& Row : Rows)
 		{
 			if (RowIndex == 0)
@@ -139,17 +177,24 @@ void FShaderCookerStats::Initialize(uint32 Index)
 					{
 						IndexPermutations = Column;
 					}
+					else if (Key == TEXT("Compiletime"))
+					{
+						IndexCompileTime = Column;
+					}
 				}
 			}
 			else
 			{
 				FString Path = IndexPath >= 0 && IndexPath < Row.Num() ? Row[IndexPath] : TEXT("?");
 #define GET_INT(Index) (Index >= 0 && Index < Row.Num() ? FCString::Atoi(Row[Index]) : 424242)
+#define GET_FLOAT(Index) (Index >= 0 && Index < Row.Num() ? FCString::Atof(Row[Index]) : 0.f)
 				int32 Platform = GET_INT(IndexPlatform);
 				int32 Compiled = GET_INT(IndexCompiled);
 				int32 Cooked = GET_INT(IndexCooked);
 				int32 Permutations = GET_INT(IndexPermutations);
+				float CompileTime = GET_FLOAT(IndexCompileTime);
 #undef GET_INT
+#undef GET_FLOAT
 
 
 				UShaderCookerStats* Stat = NewObject<UShaderCookerStats>();
@@ -167,11 +212,14 @@ void FShaderCookerStats::Initialize(uint32 Index)
 				Stat->Compiled = Compiled;
 				Stat->Cooked = Cooked;
 				Stat->Permutations = Permutations;
+				Stat->CompileTime = CompileTime;
+				TPair<FString, int32> Category = FindCategory(Path);
+				Stat->Category = Category.Key;
+				Stat->CategoryIndex = Category.Value;
 				Set.Stats.Emplace(Stat);
 			}
 			RowIndex++;
 		}
-		//Set.Stats.Emplace(NewStats);
 	}
 	Set.bInitialized = true;
 }
@@ -212,7 +260,58 @@ FShaderCookerStats::FShaderCookerStats()
 		StatSets.Emplace(Set);
 	}
 
+	TMap<FString, int32> CategoryToIndex;
+	StatCategoryNames.Add("*All*");
+
+	auto LoadCategories =[this, &CategoryToIndex](FString Path)
+	{
+		FString CSVData;
+		if(FFileHelper::LoadFileToString(CSVData, *Path))
+		{
+			FCsvParser CsvParser(CSVData);
+			const FCsvParser::FRows& Rows = CsvParser.GetRows();
+			for (const TArray<const TCHAR*>& Row : Rows)
+			{
+				if (Row.Num() != 2)
+				{
+					continue;
+				}
+				FString Category = Row[0];
+				FString Pattern = Row[1];
+				Category = Category.TrimStart().TrimEnd().TrimQuotes();
+				Pattern = Pattern.TrimStart().TrimEnd().TrimQuotes();
+				//allow comments 
+				if (Category[0] == TCHAR('#') || Category[0] == TCHAR(';'))
+				{
+					continue;
+				}
+				if (Pattern[0] == TCHAR('\\') || Pattern[0] == TCHAR('/'))
+				{
+					Pattern = Pattern.Mid(1);
+				}
+
+				int32 Index = -1;
+				if (CategoryToIndex.Contains(Category))
+				{
+					Index = CategoryToIndex[Category];
+				}
+				else
+				{
+					Index = StatCategoryNames.Num();
+					CategoryToIndex.FindOrAdd(Category) = Index;
+					StatCategoryNames.Add(Category);
+				}
+				TPair<FString, int32> Pair(Pattern, Index);
+				StatPatterns.Add(Pair);
+			}
+		}
+	};
+
+	//load from both engine & project
+	LoadCategories(FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("ShaderCategories.csv")));
+	LoadCategories(FPaths::Combine(FPaths::EngineConfigDir(), TEXT("ShaderCategories.csv")));
 }
+
 FShaderCookerStats::~FShaderCookerStats()
 {
 
@@ -293,10 +392,16 @@ FText FShaderCookerStatsPage::OnGetPlatformMenuLabel() const
 void FShaderCookerStatsPage::Generate( TArray< TWeakObjectPtr<UObject> >& OutObjects ) const
 {
 	FShaderCookerStats& Stats = FShaderCookerStats::Get();
-	const TArray<UShaderCookerStats*>& CookStats = Stats.GetShaderCookerStats(SelectedPlatform);
-	for(UShaderCookerStats* Stat: CookStats)
+	if(Stats.NumSets())
 	{
-		OutObjects.Add(Stat);
+		const TArray<UShaderCookerStats*>& CookStats = Stats.GetShaderCookerStats(SelectedPlatform);
+		for(UShaderCookerStats* Stat: CookStats)
+		{
+			if(0 == ObjectSetIndex || ObjectSetIndex == Stat->CategoryIndex)
+			{
+				OutObjects.Add(Stat);
+			}
+		}
 	}
 }
 
@@ -312,10 +417,12 @@ void FShaderCookerStatsPage::GenerateTotals( const TArray< TWeakObjectPtr<UObjec
 			TotalEntry->Compiled += StatsEntry->Compiled;
 			TotalEntry->Cooked += StatsEntry->Cooked;
 			TotalEntry->Permutations += StatsEntry->Permutations;
+			TotalEntry->CompileTime += StatsEntry->CompileTime;
 		}
 
 		OutTotals.Add( TEXT("Compiled"), FText::AsNumber( TotalEntry->Compiled) );
 		OutTotals.Add( TEXT("Cooked"), FText::AsNumber( TotalEntry->Cooked) );
+		OutTotals.Add( TEXT("CompileTime"), FText::AsNumber( TotalEntry->CompileTime ));
 		OutTotals.Add( TEXT("Permutations"), FText::AsNumber( TotalEntry->Permutations) );
 	}
 }
@@ -326,5 +433,19 @@ void FShaderCookerStatsPage::OnShow( TWeakPtr< IStatsViewer > InParentStatsViewe
 void FShaderCookerStatsPage::OnHide()
 {
 }
+
+int32 FShaderCookerStatsPage::GetObjectSetCount() const
+{
+	return FShaderCookerStats::Get().NumCategories();
+}
+FString FShaderCookerStatsPage::GetObjectSetName(int32 InObjectSetIndex) const
+{
+	return FShaderCookerStats::Get().GetCategoryName(InObjectSetIndex);
+}
+FString FShaderCookerStatsPage::GetObjectSetToolTip(int32 InObjectSetIndex) const 
+{
+	return GetObjectSetName(InObjectSetIndex);
+}
+
 
 #undef LOCTEXT_NAMESPACE
