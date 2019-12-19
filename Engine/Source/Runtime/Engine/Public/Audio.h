@@ -10,7 +10,7 @@
 #include "AudioDefines.h"
 #include "Stats/Stats.h"
 #include "HAL/ThreadSafeBool.h"
-#include "Sound/SoundClass.h"
+#include "Sound/AudioOutputTarget.h"
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundEffectSource.h"
 #include "Sound/SoundSubmixSend.h"
@@ -261,9 +261,6 @@ public:
 
 	/** Whether or not the sound is occluded. */
 	uint32 bIsOccluded:1;
-
-	/** Whether to apply audio effects */
-	uint32 bEQFilterApplied:1;
 
 	/** Whether or not this sound plays when the game is paused in the UI */
 	uint32 bIsUISound:1;
@@ -631,9 +628,6 @@ public:
 
 	/** Returns true if reverb should be applied. */
 	bool IsReverbApplied() const { return bReverbApplied; }
-
-	/** Returns true if EQ should be applied. */
-	bool IsEQFilterApplied() const  { return WaveInstance->bEQFilterApplied; }
 
 	/** Set the bReverbApplied variable. */
 	ENGINE_API bool SetReverbApplied(bool bHardwareAvailable);

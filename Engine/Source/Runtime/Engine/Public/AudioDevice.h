@@ -40,7 +40,6 @@ class ICompressedAudioInfo;
 class UReverbEffect;
 class USoundAttenuation;
 class USoundBase;
-class USoundClass;
 class USoundConcurrency;
 class USoundEffectSourcePreset;
 class USoundEffectSubmixPreset;
@@ -1758,7 +1757,7 @@ private:
 	TMap<FWaveInstance*, FSoundSource*>	WaveInstanceSourceMap;
 
 	/** Current properties of all sound classes */
-	TMap<USoundClass*, FSoundClassProperties>	SoundClasses;
+	TMap<USoundClass*, FSoundClassProperties> SoundClasses;
 
 	/** The Base SoundMix that's currently active */
 	USoundMix* BaseSoundMix;
