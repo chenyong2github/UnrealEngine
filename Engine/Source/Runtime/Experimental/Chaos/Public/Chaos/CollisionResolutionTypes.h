@@ -206,7 +206,7 @@ namespace Chaos
 		// Samples
 		int32               NumSamples()                   { return Samples.Num(); }
 		void                AddSample(FSampleData && Data) { Samples.Add(Data); };
-		void                ResetSamples()                 { Samples.Reset(); }
+		void                ResetSamples(int32 NewSize=0)  { Samples.Reset(NewSize); }
 		FSampleData &       operator[](int32 Index) { ensure(0 <= Index && Index < NumSamples()); return Samples[Index]; }
 		const FSampleData & operator[](int32 Index) const  { ensure(0 <= Index && Index < NumSamples()); return Samples[Index]; }
 
