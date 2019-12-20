@@ -132,8 +132,9 @@ FMovieSceneEvaluationTrack::FMovieSceneEvaluationTrack(const FGuid& InObjectBind
 
 void FMovieSceneEvaluationTrack::PostSerialize(const FArchive& Ar)
 {
-	if (Ar.IsLoading())
+	if (Ar.IsLoading() && !Ar.IsObjectReferenceCollector())
 	{
+#if WITH_EDITORONLY_DATA
 		// Guard against serialization mismatches where structs have been removed
 		TArray<int32, TInlineAllocator<2>> ImplsToRemove;
 		for (int32 Index = 0; Index < ChildTemplates.Num(); ++Index)
@@ -152,8 +153,10 @@ void FMovieSceneEvaluationTrack::PostSerialize(const FArchive& Ar)
 				Segment.Impls.RemoveAll([&](const FSectionEvaluationData& In) { return ImplsToRemove.Contains(In.ImplIndex); });
 			}
 		}
+#endif
+
+		SetupOverrides();
 	}
-	SetupOverrides();
 }
 
 void FMovieSceneEvaluationTrack::DefineAsSingleTemplate(FMovieSceneEvalTemplatePtr&& InTemplate)

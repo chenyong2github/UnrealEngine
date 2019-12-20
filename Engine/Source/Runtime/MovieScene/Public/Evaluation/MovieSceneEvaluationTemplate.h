@@ -282,7 +282,9 @@ public:
 	/**
 	 * Called after this template has been serialized in some way
 	 */
+#if WITH_EDITORONLY_DATA
 	MOVIESCENE_API void PostSerialize(const FArchive& Ar);
+#endif
 
 	/**
 	 * Purge any stale tracks we may have
@@ -360,4 +362,6 @@ private:
 	FMovieSceneSubSectionFieldData SubSectionFieldData;
 
 };
+#if WITH_EDITORONLY_DATA
 template<> struct TStructOpsTypeTraits<FMovieSceneEvaluationTemplate> : public TStructOpsTypeTraitsBase2<FMovieSceneEvaluationTemplate> { enum { WithPostSerialize = true }; };
+#endif
