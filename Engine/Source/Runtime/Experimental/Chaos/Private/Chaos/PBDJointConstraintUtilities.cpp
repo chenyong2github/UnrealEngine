@@ -69,19 +69,32 @@ namespace Chaos
 		return (SolverSettings.SoftSwingDamping > 0) ? SolverSettings.SoftSwingDamping : JointSettings.Motion.SoftSwingDamping;
 	}
 
+	FReal FPBDJointUtilities::GetLinearDriveStiffness(
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings)
+	{
+		return (SolverSettings.LinearDriveStiffness > 0.0f) ? SolverSettings.LinearDriveStiffness : JointSettings.Motion.LinearDriveStiffness;
+	}
+
+	FReal FPBDJointUtilities::GetLinearDriveDamping(
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings)
+	{
+		return (SolverSettings.LinearDriveDamping > 0.0f) ? SolverSettings.LinearDriveDamping : JointSettings.Motion.LinearDriveDamping;
+	}
+
 	FReal FPBDJointUtilities::GetAngularDriveStiffness(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.DriveStiffness > 0.0f) ? SolverSettings.DriveStiffness : JointSettings.Motion.AngularDriveStiffness;
+		return (SolverSettings.AngularDriveStiffness > 0.0f) ? SolverSettings.AngularDriveStiffness : JointSettings.Motion.AngularDriveStiffness;
 	}
-
 
 	FReal FPBDJointUtilities::GetAngularDriveDamping(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.DriveDamping > 0.0f) ? SolverSettings.DriveDamping: JointSettings.Motion.AngularDriveDamping;
+		return (SolverSettings.AngularDriveDamping > 0.0f) ? SolverSettings.AngularDriveDamping : JointSettings.Motion.AngularDriveDamping;
 	}
 
 	FReal FPBDJointUtilities::GetLinearProjection(
@@ -1407,8 +1420,7 @@ namespace Chaos
 		const FVec3 TwistAxis0 = R0 * TwistAxis01;
 		const FVec3 TwistAxis1 = R1 * TwistAxis01;
 		const FReal TwistAngleTarget = JointSettings.Motion.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Twist];
-		const FReal DriveStiffnessUnclamped = (SolverSettings.DriveStiffness > 0) ? SolverSettings.DriveStiffness : JointSettings.Motion.AngularDriveStiffness;
-		const FReal DriveStiffness = FMath::Clamp(DriveStiffnessUnclamped, (FReal)0, (FReal)1);
+		const FReal DriveStiffness = GetAngularDriveStiffness(SolverSettings, JointSettings);
 		const FReal DTwistAngle = TwistAngle - TwistAngleTarget;
 		const FReal DTwistAngle0 = DTwistAngle;
 		const FReal DTwistAngle1 = -DTwistAngle;
@@ -1464,8 +1476,7 @@ namespace Chaos
 		FReal Swing2Target = JointSettings.Motion.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Swing2];
 		FReal SwingAngleTarget = FMath::Max(Swing1Target, Swing2Target);
 
-		FReal DriveStiffnessUnclamped = (SolverSettings.DriveStiffness > 0) ? SolverSettings.DriveStiffness : JointSettings.Motion.AngularDriveStiffness;
-		FReal DriveStiffness = FMath::Clamp(DriveStiffnessUnclamped, (FReal)0, (FReal)1);
+		const FReal DriveStiffness = GetAngularDriveStiffness(SolverSettings, JointSettings);
 		FReal DSwingAngle = SwingAngle - SwingAngleTarget;
 		FReal DSwingAngle0 = DSwingAngle;
 		FReal DSwingAngle1 = -DSwingAngle;
@@ -1507,8 +1518,7 @@ namespace Chaos
 		const FRotation3 TargetQ0 = DR1.Inverse() * Q0;
 		const FRotation3 TargetQ1 = DR1 * Q1;
 
-		FReal DriveStiffnessUnclamped = (SolverSettings.DriveStiffness > 0) ? SolverSettings.DriveStiffness : JointSettings.Motion.AngularDriveStiffness;
-		FReal DriveStiffness = FMath::Clamp(DriveStiffnessUnclamped, (FReal)0, (FReal)1);
+		const FReal DriveStiffness = GetAngularDriveStiffness(SolverSettings, JointSettings);
 
 		FVec3 SLerpAxis;
 		FReal SLerpAngle;
