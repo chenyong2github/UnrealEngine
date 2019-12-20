@@ -434,7 +434,7 @@ int32 FBodyInstance::GetAllShapes_AssumesLocked(TArray<FPhysicsShapeHandle>& Out
 void FBodyInstance::UpdateTriMeshVertices(const TArray<FVector> & NewPositions)
 {
 #if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-	check(false);
+	ensure(false);
 #else
 #if WITH_PHYSX
 	if (BodySetup.IsValid())
