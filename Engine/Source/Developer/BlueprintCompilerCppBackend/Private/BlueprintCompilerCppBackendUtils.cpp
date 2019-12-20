@@ -2318,7 +2318,7 @@ void FScopeBlock::TrackLocalAccessorDecl(const FProperty* Property)
 }
 
 #define MAP_BASE_STRUCTURE_ACCESS(x) \
-	BaseStructureAccessorsMap.Add(x, TEXT("#x"))
+	BaseStructureAccessorsMap.Add(x, TEXT(#x))
 
 struct FStructAccessHelper_StaticData
 {
