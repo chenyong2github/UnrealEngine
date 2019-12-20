@@ -2,6 +2,9 @@
 
 #include "OculusAudioReverb.h"
 #include "OculusAudioMixer.h"
+#include "OculusAudioSettings.h"
+
+#include "Sound/SoundSubmix.h"
 
 
 void FSubmixEffectOculusReverbPlugin::SetContext(ovrAudioContext* SharedContext)
@@ -44,11 +47,8 @@ void OculusAudioReverb::SetContext(ovrAudioContext* SharedContext)
 	{
 		Context = SharedContext;
 	}
-	
-	for (FSubmixEffectOculusReverbPlugin* Submix : Submixes)
-	{
-		Submix->SetContext(SharedContext);
-	}
+
+	Submix->SetContext(SharedContext);
 }
 
 void OculusAudioReverb::ClearContext()
@@ -60,9 +60,32 @@ void OculusAudioReverb::ClearContext()
 	}
 }
 
-FSoundEffectSubmix* OculusAudioReverb::GetEffectSubmix(class USoundSubmix* Submix)
+FSoundEffectSubmixPtr OculusAudioReverb::GetEffectSubmix()
 {
-	FSubmixEffectOculusReverbPlugin* ReverbSubmix = new FSubmixEffectOculusReverbPlugin();
-	Submixes.Add(ReverbSubmix);
+	if (!Submix.IsValid())
+	{
+		Submix = MakeShared<FSubmixEffectOculusReverbPlugin>();
+		Submix->SetEnabled(true);
+	}
+
+	return StaticCastSharedPtr<FSoundEffectSubmix, FSubmixEffectOculusReverbPlugin, ESPMode::ThreadSafe>(Submix);
+}
+
+USoundSubmix* OculusAudioReverb::GetSubmix()
+{
+	const UOculusAudioSettings* Settings = GetDefault<UOculusAudioSettings>();
+	check(Settings);
+	USoundSubmix* ReverbSubmix = Cast<USoundSubmix>(Settings->OutputSubmix.TryLoad());
+	if (!ReverbSubmix)
+	{
+		static const FString DefaultSubmixName = TEXT("Oculus Reverb Submix");
+		UE_LOG(LogAudio, Error, TEXT("Failed to load Oculus Reverb Submix from object path '%s' in OculusSettings. Creating '%s' as stub."),
+			*Settings->OutputSubmix.GetAssetPathString(),
+			*DefaultSubmixName);
+
+		ReverbSubmix = NewObject<USoundSubmix>(USoundSubmix::StaticClass(), *DefaultSubmixName);
+		ReverbSubmix->bMuteWhenBackgrounded = true;
+	}
+
 	return ReverbSubmix;
 }

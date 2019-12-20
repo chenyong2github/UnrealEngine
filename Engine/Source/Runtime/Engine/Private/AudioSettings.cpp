@@ -6,16 +6,22 @@
 
 #include "Sound/AudioSettings.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/Paths.h"
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundBase.h"
 #include "Sound/SoundNodeQualityLevel.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 
+#if WITH_EDITOR
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#endif // WITH_EDITOR
+
 #define LOCTEXT_NAMESPACE "AudioSettings"
 
 UAudioSettings::UAudioSettings(const FObjectInitializer& ObjectInitializer)
-: Super(ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 	SectionName = TEXT("Audio");
 	AddDefaultSettings();
@@ -34,7 +40,6 @@ void UAudioSettings::AddDefaultSettings()
 	QualityLevels.Add(DefaultSettings);
 	bAllowPlayWhenSilent = true;
 	DefaultReverbSendLevel_DEPRECATED = 0.0f;
-	bEnableLegacyReverb = false;
 	VoiPSampleRate = EVoiceSampleRate::Low16000Hz;
 	NumStoppingSources = 8;
 }
@@ -42,6 +47,9 @@ void UAudioSettings::AddDefaultSettings()
 #if WITH_EDITOR
 void UAudioSettings::PreEditChange(FProperty* PropertyAboutToChange)
 {
+	// Cache ambisonic submix in case user tries to set to submix that isn't set to ambisonics
+	CachedAmbisonicSubmix = AmbisonicSubmix;
+
 	// Cache at least the first entry in case someone tries to clear the array
 	CachedQualityLevels = QualityLevels;
 }
@@ -50,9 +58,37 @@ void UAudioSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 {
 	if (PropertyChangedEvent.Property)
 	{
-		bool bReconcileNodes = false;
+		bool bReconcileQualityNodes = false;
+		bool bPromptRestartRequired = false;
+		FName PropertyName = PropertyChangedEvent.Property->GetFName();
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UAudioSettings, MasterSubmix)
+			|| PropertyName == GET_MEMBER_NAME_CHECKED(UAudioSettings, EQSubmix)
+			|| PropertyName == GET_MEMBER_NAME_CHECKED(UAudioSettings, ReverbSubmix))
+		{
+			bPromptRestartRequired = true;
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UAudioSettings, AmbisonicSubmix))
+		{
+			if (USoundSubmix* NewSubmix = Cast<USoundSubmix>(AmbisonicSubmix.TryLoad()))
+			{
+				if (NewSubmix->ChannelFormat != ESubmixChannelFormat::Ambisonics)
+				{
+					FNotificationInfo Info(LOCTEXT("AudioSettings_InvalidAmbisonicSubmixFormat",
+						"Ambisonic Submix format must be set to 'Ambisonics' in order to be set as 'Master Ambisonics Submix'."));
+					Info.bFireAndForget = true;
+					Info.ExpireDuration = 2.0f;
+					Info.bUseThrobber = true;
+					FSlateNotificationManager::Get().AddNotification(Info);
 
-		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAudioSettings, QualityLevels))
+					AmbisonicSubmix = CachedAmbisonicSubmix;
+				}
+			}
+			else
+			{
+				bPromptRestartRequired = true;
+			}
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UAudioSettings, QualityLevels))
 		{
 			if (QualityLevels.Num() == 0)
 			{
@@ -86,14 +122,14 @@ void UAudioSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 				}
 			}
 
-			bReconcileNodes = true;
+			bReconcileQualityNodes = true;
 		}
-		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(FAudioQualitySettings, DisplayName))
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FAudioQualitySettings, DisplayName))
 		{
-			bReconcileNodes = true;
+			bReconcileQualityNodes = true;
 		}
 
-		if (bReconcileNodes)
+		if (bReconcileQualityNodes)
 		{
 			for (TObjectIterator<USoundNodeQualityLevel> It; It; ++It)
 			{
@@ -101,15 +137,20 @@ void UAudioSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 			}
 		}
 
+		if (bPromptRestartRequired)
+		{
+			FNotificationInfo Info(LOCTEXT("AudioSettings_ChangeRequiresEditorRestart",
+				"Change to Audio Settings requires editor restart in order for changes to take effect."));
+			Info.bFireAndForget = true;
+			Info.ExpireDuration = 2.0f;
+			Info.bUseThrobber = true;
+			FSlateNotificationManager::Get().AddNotification(Info);
+		}
+
 		AudioSettingsChanged.Broadcast();
 	}
 }
-#endif
-
-void UAudioSettings::Serialize(FArchive& Ar)
-{
-	Super::Serialize(Ar);
-}
+#endif // WITH_EDITOR
 
 const FAudioQualitySettings& UAudioSettings::GetQualityLevelSettings(int32 QualityLevel) const
 {

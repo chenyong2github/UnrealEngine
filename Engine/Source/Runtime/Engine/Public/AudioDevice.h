@@ -1210,12 +1210,6 @@ public:
 		return bReverbInterfaceEnabled;
 	}
 
-	/** Whether or not the reverb plugin is bypassing the master reverb. */
-	bool IsReverbPluginBypassingMasterReverb() const
-	{
-		return IsReverbPluginEnabled() && bReverbPluginBypassesMasterReverb;
-	}
-
 	static bool IsReverbPluginLoaded()
 	{
 		if (FAudioDevice* MainAudioDevice = GEngine->GetMainAudioDevice())
@@ -1868,7 +1862,6 @@ private:
 	uint8 bSpatializationInterfaceEnabled:1;
 	uint8 bOcclusionInterfaceEnabled:1;
 	uint8 bReverbInterfaceEnabled:1;
-	uint8 bReverbPluginBypassesMasterReverb:1;
 	uint8 bModulationInterfaceEnabled:1;
 
 	/** Whether or not we've initialized plugin listeners array. */

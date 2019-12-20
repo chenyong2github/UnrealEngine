@@ -177,7 +177,6 @@ protected:
 	TUniquePtr<Audio::FAudioRecordingData> RecordingData;
 
 public:
-
 	// Sound Submix Editor functionality
 #if WITH_EDITOR
 
