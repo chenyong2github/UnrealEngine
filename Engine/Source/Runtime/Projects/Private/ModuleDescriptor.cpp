@@ -411,6 +411,7 @@ bool FModuleDescriptor::IsCompiledInConfiguration(const FString& Platform, EBuil
     case EHostType::ServerOnly:
         return TargetType != EBuildTargetType::Program && TargetType != EBuildTargetType::Client;
     case EHostType::ClientOnly:
+	case EHostType::ClientOnlyNoCommandlet:
         return TargetType != EBuildTargetType::Program && TargetType != EBuildTargetType::Server;
     }
 
