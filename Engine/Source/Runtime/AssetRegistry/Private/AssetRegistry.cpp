@@ -2774,6 +2774,11 @@ void UAssetRegistryImpl::SetTemporaryCachingMode(bool bEnable)
 	}
 }
 
+bool UAssetRegistryImpl::GetTemporaryCachingMode() const
+{
+	return bTempCachingEnabled;
+}
+
 void UAssetRegistryImpl::ClearTemporaryCaches() const
 {
 	if (!bTempCachingEnabled)

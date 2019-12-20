@@ -22,6 +22,7 @@
 #include "Editor/ContentBrowser/Private/AssetViewSortManager.h"
 #include "AssetViewTypes.h"
 #include "HistoryManager.h"
+#include "Misc/BlacklistNames.h"
 
 class FMenuBuilder;
 class FBlacklistPaths;
@@ -846,7 +847,7 @@ private:
 	/** The current base source filter for the view */
 	FSourcesData SourcesData;
 	FARFilter BackendFilter;
-	FARFilter SupportedFilter;
+	TSharedPtr<FBlacklistNames> AssetClassBlacklist;
 	TSharedPtr<FBlacklistPaths> FolderBlacklist;
 	TSharedPtr<FAssetFilterCollectionType> FrontendFilters;
 
