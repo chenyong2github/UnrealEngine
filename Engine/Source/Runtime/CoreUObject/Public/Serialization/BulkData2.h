@@ -94,7 +94,7 @@ public:
 	void ClearBulkDataFlags(uint32 BulkDataFlagsToClear);
 	uint32 GetBulkDataFlags() const { return BulkDataFlags; }
 
-	bool CanLoadFromDisk() const { return IsUsingIODispatcher() || Fallback.Token != InvalidToken; }
+	bool CanLoadFromDisk() const;
 	
 	/**
 	 * Returns true if the data references a file that currently exists and can be referenced by the file system.

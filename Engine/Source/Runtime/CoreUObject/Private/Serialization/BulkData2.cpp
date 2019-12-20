@@ -30,6 +30,15 @@ namespace
 	static constexpr const TCHAR* OptionalExt = TEXT(".uptnl");			// Stored in a separate file that is optional
 
 	const uint16 InvalidBulkDataIndex = ~uint16(0);
+
+	FORCEINLINE bool IsIoDispatcherEnabled()
+	{
+#if ENABLE_IO_DISPATCHER
+		return FIoDispatcher::IsInitialized();
+#else
+		return false;
+#endif
+	}
 }
 
 // TODO: The code in the FileTokenSystem namespace is a temporary system so that FBulkDataBase can hold
@@ -556,11 +565,8 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 
 		Ar << BulkDataOffsetInFile;
 
-#if ENABLE_IO_DISPATCHER
-		const bool bUseIoDispatcher = FIoDispatcher::IsInitialized();
-#else
-		const bool bUseIoDispatcher = false;
-#endif
+		const bool bUseIoDispatcher = IsIoDispatcherEnabled();
+
 		if ((BulkDataFlags & BULKDATA_BadDataVersion) != 0)
 		{
 			uint16 DummyValue;
@@ -835,6 +841,35 @@ int64 FBulkDataBase::GetBulkDataSize() const
 	{
 		return Fallback.BulkDataSize;
 	}	
+}
+
+bool FBulkDataBase::CanLoadFromDisk() const 
+{ 
+	// If this BulkData is using the IoDispatcher then it can load from disk 
+	if (IsUsingIODispatcher())
+	{
+		return true;
+	}
+
+	// If the IoDispatcher is enabled then technically inlined data cannot load
+	// from disk, but it should act as thought it can up until the point that it
+	// actually tries to load. At which point it will give a log error.
+	//
+	// This is a temp hack while we work out if we want to allow additional inline
+	// loading at runtime (and pay the memory increase in the ToC) or prevent it entirely.
+	// TODO: Resolve this!
+	if (IsInlined() && IsIoDispatcherEnabled())
+	{
+		return true;
+	}
+
+	// If this BulkData has a fallback token then it can find it's filepath and load from disk
+	if (Fallback.Token != InvalidToken)
+	{
+		return true;
+	}
+
+	return false;
 }
 
 bool FBulkDataBase::DoesExist() const
