@@ -53,6 +53,11 @@ bool FPhysicsAssetEditorAnimInstanceProxy::Evaluate_WithRoot(FPoseContext& Outpu
 	}
 }
 
+void FPhysicsAssetEditorAnimInstanceProxy::AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName)
+{
+	RagdollNode.AddImpulseAtLocation(Impulse, Location, BoneName);
+}
+
 FPhysicsAssetEditorAnimInstanceProxy::~FPhysicsAssetEditorAnimInstanceProxy()
 {
 }
