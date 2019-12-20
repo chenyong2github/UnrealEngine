@@ -79,7 +79,6 @@ namespace EImplicitObject
 	{
 		IsConvex = 1,
 		HasBoundingBox = 1 << 1,
-		IgnoreAnalyticCollisions = 1 << 2,
 	};
 
 	const int32 FiniteConvex = IsConvex | HasBoundingBox;
@@ -178,8 +177,8 @@ public:
 	virtual const class TAABB<FReal, 3>& BoundingBox() const;
 	bool HasBoundingBox() const { return bHasBoundingBox; }
 	bool IsConvex() const { return bIsConvex; }
-	void IgnoreAnalyticCollisions(const bool Ignore = true) { bIgnoreAnalyticCollisions = Ignore; }
-	bool GetIgnoreAnalyticCollisions() const { return bIgnoreAnalyticCollisions; }
+	void SetDoCollide(const bool Collide ) { bDoCollide = Collide; }
+	bool GetDoCollide() const { return bDoCollide; }
 	void SetConvex(const bool Convex = true) { bIsConvex = Convex; }
 	
 #if TRACK_CHAOS_GEOMETRY
@@ -271,7 +270,7 @@ public:
 
 	virtual FString ToString() const
 	{
-		return FString::Printf(TEXT("ImplicitObject bIsConvex:%d, bIgnoreAnalyticCollision:%d, bHasBoundingBox:%d"), bIsConvex, bIgnoreAnalyticCollisions, bHasBoundingBox);
+		return FString::Printf(TEXT("ImplicitObject bIsConvex:%d, bIgnoreAnalyticCollision:%d, bHasBoundingBox:%d"), bIsConvex, bDoCollide, bHasBoundingBox);
 	}
 
 	void SerializeImp(FArchive& Ar);
@@ -301,7 +300,7 @@ public:
 protected:
 	EImplicitObjectType Type;
 	bool bIsConvex;
-	bool bIgnoreAnalyticCollisions;
+	bool bDoCollide;
 	bool bHasBoundingBox;
 
 #if TRACK_CHAOS_GEOMETRY
