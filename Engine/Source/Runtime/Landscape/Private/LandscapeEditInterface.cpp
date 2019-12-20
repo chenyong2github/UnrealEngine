@@ -1739,7 +1739,12 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 		ComponentWeightmapTextures[DeleteLayerWeightmapTextureIndex]->Modify(LandscapeEdit.GetShouldDirtyPackage());
 		ComponentWeightmapTextures[DeleteLayerWeightmapTextureIndex]->ClearFlags(RF_Standalone);
 
-		ComponentWeightmapTexturesUsage.RemoveAt(DeleteLayerWeightmapTextureIndex);
+		// possible that usages have not been built yet
+		if (ComponentWeightmapTexturesUsage.IsValidIndex(DeleteLayerWeightmapTextureIndex))
+		{
+			ComponentWeightmapTexturesUsage.RemoveAt(DeleteLayerWeightmapTextureIndex);
+		}
+
 		ComponentWeightmapTextures.RemoveAt(DeleteLayerWeightmapTextureIndex);
 
 		// Adjust WeightmapTextureIndex index for other layers
