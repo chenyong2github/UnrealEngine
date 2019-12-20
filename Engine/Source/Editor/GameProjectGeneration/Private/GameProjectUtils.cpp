@@ -224,6 +224,12 @@ namespace
 				TEXT("EditorStartupMap"),
 				DefaultMap,
 				true /* ShouldReplaceExistingValue */);
+
+			ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
+				TEXT("/Script/EngineSettings.GameMapsSettings"),
+				TEXT("GameDefaultMap"),
+				DefaultMap,
+				true /* ShouldReplaceExistingValue */);
 		}
 	}
 } // namespace <>
