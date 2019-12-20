@@ -1917,6 +1917,49 @@ class COREUOBJECT_API UObjectPropertyBase : public UProperty
 	virtual FName GetID() const override;
 	virtual void InstanceSubobjects( void* Data, void const* DefaultData, UObject* Owner, struct FObjectInstancingGraph* InstanceGraph ) override;
 	virtual bool SameType(const UProperty* Other) const override;
+	/**
+	 * Copy the value for a single element of this property. To the script VM.
+	 * 
+	 * @param	Dest				the address where the value should be copied to.  This should always correspond to the BASE + OFFSET + INDEX * SIZE, where
+	 *									BASE = (for member properties) the address of the UObject which contains this data, (for locals/parameters) the address of the space allocated for the function's locals
+	 *									OFFSET = the Offset of this UProperty
+	 *									INDEX = the index that you want to copy.  for properties which are not arrays, this should always be 0
+	 *									SIZE = the ElementSize of this UProperty
+	 * @param	Src					the address of the value to copy from. should be evaluated the same way as Dest
+	 */
+	virtual void CopySingleValueToScriptVM( void* Dest, void const* Src ) const override;
+
+	/**
+	 * Copy the value for all elements of this property. To the script VM.
+	 * 
+	 * @param	Dest				the address where the value should be copied to.  This should always correspond to the BASE + OFFSET, where
+	 *									BASE = (for member properties) the address of the UObject which contains this data, (for locals/parameters) the address of the space allocated for the function's locals
+	 *									OFFSET = the Offset of this UProperty
+	 * @param	Src					the address of the value to copy from. should be evaluated the same way as Dest
+	 */
+	virtual void CopyCompleteValueToScriptVM( void* Dest, void const* Src ) const override;
+
+	/**
+	 * Copy the value for a single element of this property. From the script VM.
+	 * 
+	 * @param	Dest				the address where the value should be copied to.  This should always correspond to the BASE + OFFSET + INDEX * SIZE, where
+	 *									BASE = (for member properties) the address of the UObject which contains this data, (for locals/parameters) the address of the space allocated for the function's locals
+	 *									OFFSET = the Offset of this UProperty
+	 *									INDEX = the index that you want to copy.  for properties which are not arrays, this should always be 0
+	 *									SIZE = the ElementSize of this UProperty
+	 * @param	Src					the address of the value to copy from. should be evaluated the same way as Dest
+	 */
+	virtual void CopySingleValueFromScriptVM( void* Dest, void const* Src ) const override;
+
+	/**
+	 * Copy the value for all elements of this property. From the script VM.
+	 * 
+	 * @param	Dest				the address where the value should be copied to.  This should always correspond to the BASE + OFFSET, where
+	 *									BASE = (for member properties) the address of the UObject which contains this data, (for locals/parameters) the address of the space allocated for the function's locals
+	 *									OFFSET = the Offset of this UProperty
+	 * @param	Src					the address of the value to copy from. should be evaluated the same way as Dest
+	 */
+	virtual void CopyCompleteValueFromScriptVM( void* Dest, void const* Src ) const override;
 	// End of UProperty interface
 
 	// UObjectPropertyBase interface
@@ -2065,12 +2108,6 @@ class COREUOBJECT_API UObjectProperty : public TUObjectPropertyBase<UObject*>
 private:
 	virtual uint32 GetValueTypeHashInternal(const void* Src) const override;
 public:
-
-	virtual void CopySingleValueToScriptVM(void* Dest, void const* Src) const override;
-	virtual void CopyCompleteValueToScriptVM(void* Dest, void const* Src) const override;
-	virtual void CopySingleValueFromScriptVM(void* Dest, void const* Src) const override;
-	virtual void CopyCompleteValueFromScriptVM(void* Dest, void const* Src) const override;
-
 	// End of UProperty interface
 
 	// UObjectPropertyBase interface
@@ -2202,7 +2239,14 @@ class COREUOBJECT_API USoftObjectProperty : public TUObjectPropertyBase<FSoftObj
 
 private:
 	virtual uint32 GetValueTypeHashInternal(const void* Src) const override;
+public:
 
+	// ScriptVM should store Asset as FSoftObjectPtr not as UObject.
+
+	virtual void CopySingleValueToScriptVM(void* Dest, void const* Src) const override;
+	virtual void CopyCompleteValueToScriptVM(void* Dest, void const* Src) const override;
+	virtual void CopySingleValueFromScriptVM(void* Dest, void const* Src) const override;
+	virtual void CopyCompleteValueFromScriptVM(void* Dest, void const* Src) const override;
 	// End of UObjectProperty interface
 };
 
