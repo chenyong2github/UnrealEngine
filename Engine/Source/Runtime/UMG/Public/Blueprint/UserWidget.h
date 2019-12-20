@@ -226,7 +226,7 @@ public:
 
 	EWidgetTickFrequency GetDesiredTickFrequency() const { return TickFrequency; }
 
-	UWidgetBlueprintGeneratedClass* GetWidgetTreeOwningClass();
+	UWidgetBlueprintGeneratedClass* GetWidgetTreeOwningClass() const;
 
 protected:
 	virtual void TemplateInitInner();
