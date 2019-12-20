@@ -8112,4 +8112,35 @@ static FAutoConsoleCommand DumpSerializeCmd(
 	);
 #endif
 
+bool IsEventDrivenLoaderEnabledInCookedBuilds()
+{
+	static struct FEventDrivenLoaderEnabledInCookedBuildsInit
+	{
+		FEventDrivenLoaderEnabledInCookedBuildsInit()
+		{
+			check(GConfig || IsEngineExitRequested());
+			if (GConfig)
+			{
+				// Ensure that the streaming settings from the config have been applied 
+				ApplyCVarSettingsFromIni(TEXT("/Script/Engine.StreamingSettings"), *GEngineIni, ECVF_SetByProjectSetting);
+			}
+		}
+	} EventDrivenLoaderEnabledInCookedBuilds;
+
+	static const bool bNoEDL = !UE_BUILD_SHIPPING && FParse::Param(FCommandLine::Get(), TEXT("NOEDL"));
+	return !bNoEDL && (GEventDrivenLoaderEnabledInCookedBuilds != 0);
+}
+
+bool IsEventDrivenLoaderEnabled()
+{
+	static struct FEventDrivenLoaderEnabledInit
+	{
+		FEventDrivenLoaderEnabledInit()
+		{
+			GEventDrivenLoaderEnabled = IsEventDrivenLoaderEnabledInCookedBuilds() && FPlatformProperties::RequiresCookedData();
+		}
+	} EventDrivenLoaderEnabledInit;
+	return GEventDrivenLoaderEnabled;
+}
+
 //#pragma clang optimize on

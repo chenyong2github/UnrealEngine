@@ -424,55 +424,6 @@ FAsyncLoadingThreadSettings& FAsyncLoadingThreadSettings::Get()
 	return Settings;
 }
 
-bool IsEventDrivenLoaderEnabledInCookedBuilds()
-{
-	static struct FEventDrivenLoaderEnabledInCookedBuildsInit
-	{
-		bool bEventDrivenLoaderEnabled;
-		FEventDrivenLoaderEnabledInCookedBuildsInit()
-			: bEventDrivenLoaderEnabled(false)
-		{
-			SetEventDrivenLoaderEnabled();
-		}
-
-		void SetEventDrivenLoaderEnabled()
-		{
-			check(GConfig || IsEngineExitRequested());
-			if (GConfig)
-			{
-				GConfig->GetBool(TEXT("/Script/Engine.StreamingSettings"), TEXT("s.EventDrivenLoaderEnabled"), bEventDrivenLoaderEnabled, GEngineIni);
-#if !UE_BUILD_SHIPPING
-				if (FParse::Param(FCommandLine::Get(), TEXT("NOEDL")))
-				{
-					bEventDrivenLoaderEnabled = false;
-				}
-#endif
-			}
-		}
-	} EventDrivenLoaderEnabledInCookedBuilds;
-
-#if WITH_EDITOR	
-	// when building from the UE4 Editor, s.EventDrivenLoaderEnabled can be changed from Project Settings, so we need to test it at every call
-	if (GIsEditor && !IsRunningCommandlet())
-	{
-		EventDrivenLoaderEnabledInCookedBuilds.SetEventDrivenLoaderEnabled();
-	}
-#endif
-	return EventDrivenLoaderEnabledInCookedBuilds.bEventDrivenLoaderEnabled;
-}
-
-bool IsEventDrivenLoaderEnabled()
-{
-	static struct FEventDrivenLoaderEnabledInit
-	{
-		FEventDrivenLoaderEnabledInit()
-		{
-			GEventDrivenLoaderEnabled = IsEventDrivenLoaderEnabledInCookedBuilds() && FPlatformProperties::RequiresCookedData();
-		}
-	} EventDrivenLoaderEnabledInit;
-	return GEventDrivenLoaderEnabled;
-}
-
 bool IsFullyLoadedObj(UObject* Obj)
 {
 	if (!Obj)
