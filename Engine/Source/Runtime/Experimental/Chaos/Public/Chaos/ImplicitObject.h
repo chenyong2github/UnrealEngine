@@ -7,6 +7,10 @@
 
 #include <functional>
 
+#ifndef TRACK_CHAOS_GEOMETRY
+#define TRACK_CHAOS_GEOMETRY !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif
+
 namespace Chaos
 {
 template<class T, int d>
@@ -176,6 +180,12 @@ public:
 	void IgnoreAnalyticCollisions(const bool Ignore = true) { bIgnoreAnalyticCollisions = Ignore; }
 	bool GetIgnoreAnalyticCollisions() const { return bIgnoreAnalyticCollisions; }
 	void SetConvex(const bool Convex = true) { bIsConvex = Convex; }
+	
+#if TRACK_CHAOS_GEOMETRY
+	//Turn on memory tracking. Must pass object itself as a serializable ptr so we can save it out
+	void Track(TSerializablePtr<FImplicitObject> This, const FString& DebugInfo);
+#endif
+
 	virtual bool IsPerformanceWarning() const { return false; }
 	virtual FString PerformanceWarningAndSimplifaction() 
 	{
@@ -292,6 +302,10 @@ protected:
 	bool bIsConvex;
 	bool bIgnoreAnalyticCollisions;
 	bool bHasBoundingBox;
+
+#if TRACK_CHAOS_GEOMETRY
+	bool bIsTracked;
+#endif
 
 private:
 	virtual Pair<FVec3, bool> FindClosestIntersectionImp(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness) const;
