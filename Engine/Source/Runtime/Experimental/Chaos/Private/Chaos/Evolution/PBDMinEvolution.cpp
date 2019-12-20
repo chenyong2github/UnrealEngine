@@ -7,6 +7,7 @@
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDConstraintRule.h"
 #include "Chaos/PBDRigidsSOAs.h"
+#include "Chaos/PerParticleAddImpulses.h"
 #include "Chaos/PerParticleEtherDrag.h"
 #include "Chaos/PerParticleEulerStepVelocity.h"
 #include "Chaos/PerParticleGravity.h"
@@ -103,6 +104,7 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_Integrate);
 
 		TPerParticleEulerStepVelocity<FReal, 3> EulerStepVelocityRule;
+		TPerParticleAddImpulses<FReal, 3> AddImpulsesRule;
 		TPerParticleEtherDrag<FReal, 3> EtherDragRule;
 		TPerParticlePBDEulerStep<FReal, 3> EulerStepPositionRule;
 
@@ -116,12 +118,15 @@ namespace Chaos
 				Particle.F() += Particle.M() * Gravity;
 
 				EulerStepVelocityRule.Apply(Particle, Dt);
+				AddImpulsesRule.Apply(Particle, Dt);
 				EtherDragRule.Apply(Particle, Dt);
 
 				EulerStepPositionRule.Apply(Particle, Dt);
 
 				Particle.F() = FVec3(0);
 				Particle.Torque() = FVec3(0);
+				Particle.LinearImpulse() = FVec3(0);
+				Particle.AngularImpulse() = FVec3(0);
 
 				if (Particle.HasBounds())
 				{
