@@ -424,7 +424,7 @@ namespace SteamAudio
 		}
 
 		bool bFoundPreset = false;
-		for (USubmixEffectReverbPluginPreset* Preset : ReverbSubmix->SubmixEffectChain)
+		for (USoundEffectSubmixPreset* Preset : ReverbSubmix->SubmixEffectChain)
 		{
 			if (USubmixEffectReverbPluginPreset* PluginPreset = Cast<USubmixEffectReverbPluginPreset>(Preset))
 			{
