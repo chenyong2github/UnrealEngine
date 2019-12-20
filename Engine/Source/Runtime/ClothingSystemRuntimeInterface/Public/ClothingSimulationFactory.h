@@ -71,8 +71,8 @@ public:
 	PURE_VIRTUAL(UClothingSimulationFactory::CreateInteractor, return nullptr;);
 
 	// Return the cloth config type for this cloth factory
-	virtual TSubclassOf<UClothConfigBase> GetClothConfigClass() const
-	PURE_VIRTUAL(UClothingSimulationFactory::GetClothConfigClass, return nullptr;);
+	virtual TArrayView<const TSubclassOf<UClothConfigBase>> GetClothConfigClasses() const
+	PURE_VIRTUAL(UClothingSimulationFactory::GetClothConfigClasses, return TArrayView<const TSubclassOf<UClothConfigBase>>(););
 
 	// Return an enum of the weight map targets that can be used with this simulation.
 	virtual const UEnum* GetWeightMapTargetEnum() const
