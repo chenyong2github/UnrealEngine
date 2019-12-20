@@ -603,6 +603,8 @@ public:
 	/** Returns dimensions of RenderTarget texture. Can be called on a game thread. */
 	virtual FIntPoint GetRenderTargetTextureSizeXY() const { return GetSizeXY(); }
 
+	inline FName GetViewportType() const { return ViewportType; }
+
 protected:
 
 	/** The viewport's client. */
@@ -713,6 +715,9 @@ protected:
 
 	/** If true this viewport is being displayed on a HDR monitor */
 	uint32 bIsHDR : 1;
+
+	/** Used internally for testing runtime instance type before casting */
+	FName ViewportType;
 
 	/** true if we should draw game viewports (has no effect on Editor viewports) */
 	ENGINE_API static bool bIsGameRenderingEnabled;
