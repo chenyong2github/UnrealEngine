@@ -634,7 +634,7 @@ void Main(
 		#if ENABLE_SKY_LIGHT
 			//@mw todo
 			// TODO: Also need to do specular.
-#if MATERIAL_TWO_SIDED && LQ_TEXTURE_LIGHTMAP
+#if MATERIAL_TWOSIDED && LQ_TEXTURE_LIGHTMAP
 			if (NoL == 0)
 			{
 #endif
@@ -644,7 +644,7 @@ void Main(
 			WaterDiffuseIndirectLuminance += SkyDiffuseLighting;
 		#endif
 			Color += SkyDiffuseLighting * half3(ResolvedView.SkyLightColor.rgb) * DiffuseColor * MaterialAO;
-#if MATERIAL_TWO_SIDED && LQ_TEXTURE_LIGHTMAP
+#if MATERIAL_TWOSIDED && LQ_TEXTURE_LIGHTMAP
 			
 			}
 #endif
