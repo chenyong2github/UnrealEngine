@@ -398,10 +398,10 @@ namespace SteamAudio
 			USubmixEffectReverbPluginPreset* ReverbPluginPreset = NewObject<USubmixEffectReverbPluginPreset>(GetSubmix(), TEXT("Master Reverb Plugin Effect Preset"));
 			FSubmixEffectReverbPlugin* ReverbSubmixEffect = static_cast<FSubmixEffectReverbPlugin*>(ReverbPluginPreset->CreateNewEffect());
 			ReverbSubmixEffect->SetPhononReverbPlugin(this);
-			USubmixEffectReverbPluginPreset
+
 			ReverbSubmixEffect->SetEnabled(true);
 
-			SubmixEffect = MakeShareable(static_cast<FSoundEffectSubmix>(ReverbSubmixEffect));
+			SubmixEffect = MakeShareable(static_cast<FSoundEffectSubmix*>(ReverbSubmixEffect));
 		}
 
 		return SubmixEffect;
