@@ -1451,7 +1451,7 @@ namespace Chaos
 
 		if (bUseParticleImplicit && MParticles.DynamicGeometry(NewIndex)) //if children are ignore analytic and this is a dynamic geom, mark it too. todo(ocohen): clean this up
 		{
-			MParticles.DynamicGeometry(NewIndex)->IgnoreAnalyticCollisions();
+			MParticles.DynamicGeometry(NewIndex)->SetDoCollide(false);
 		}
 
 		if (Parameters.CollisionParticles)
