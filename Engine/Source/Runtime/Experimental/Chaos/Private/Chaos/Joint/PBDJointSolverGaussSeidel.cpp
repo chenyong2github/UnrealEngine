@@ -6,7 +6,7 @@
 #include "ChaosLog.h"
 #include "ChaosStats.h"
 
-#pragma optimize("", off)
+//#pragma optimize("", off)
 
 namespace Chaos
 {
