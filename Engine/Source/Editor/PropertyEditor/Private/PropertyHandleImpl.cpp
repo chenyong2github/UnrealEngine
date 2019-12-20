@@ -25,8 +25,8 @@
 #include "UObject/FieldPathProperty.h"
 #include "IDetailPropertyRow.h"
 #include "ObjectEditorUtils.h"
-#include "PropertyEditorHelpers.h"
 #include "SResetToDefaultPropertyEditor.h"
+#include "PropertyPathHelpers.h"
 
 #define LOCTEXT_NAMESPACE "PropertyHandleImplementation"
 
@@ -2907,7 +2907,6 @@ FPropertyAccess::Result FPropertyHandleBase::GetPerObjectValue( const int32 Obje
 	return Result;
 }
 
-
 bool FPropertyHandleBase::GeneratePossibleValues(TArray< TSharedPtr<FString> >& OutOptionStrings, TArray< FText >& OutToolTips, TArray<bool>& OutRestrictedItems)
 {
 	FProperty* Property = GetProperty();
@@ -2981,6 +2980,34 @@ bool FPropertyHandleBase::GeneratePossibleValues(TArray< TSharedPtr<FString> >& 
 			else
 			{
 				OutToolTips.Add(FText());
+			}
+		}
+	}
+	else if ((Property->IsA(FStrProperty::StaticClass()) || Property->IsA(FNameProperty::StaticClass())) && Property->HasMetaData(TEXT("GetOptions")))
+	{
+		const FString& GetOptionsFunction = Property->GetMetaData(TEXT("GetOptions"));
+		if (!GetOptionsFunction.IsEmpty())
+		{
+			TArray<UObject*> OutObjects;
+			GetOuterObjects(OutObjects);
+
+			if (OutObjects.Num() > 0)
+			{
+				FString GetOptionsFunctionName = Property->GetMetaData(TEXT("GetOptions"));
+
+				UObject* Target = OutObjects[0];
+
+				TArray<FString> Options;
+				FCachedPropertyPath Path(GetOptionsFunctionName);
+				const bool bSuccess = PropertyPathHelpers::GetPropertyValue(Target, Path, Options);
+				if (ensure(bSuccess))
+				{
+					for (const FString& Option : Options)
+					{
+						OutOptionStrings.Add(MakeShared<FString>(Option));
+						OutToolTips.Add(FText());
+					}
+				}
 			}
 		}
 	}
