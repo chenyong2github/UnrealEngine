@@ -266,8 +266,9 @@ namespace Chaos
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		// @todo(ccaulfield): linear and velocity drives
 		ApplyRotationDrives(Dt, SolverSettings, JointSettings);
+
+		ApplyPositionDrives(Dt, SolverSettings, JointSettings);
 	}
 
 
@@ -1063,6 +1064,59 @@ namespace Chaos
 			const FVec3 DR1 = Utilities::Multiply(InvI1, FVec3::CrossProduct(Xs[1] - Ps[1], -DX));
 
 			FReal LinearStiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
+			ApplyPositionDelta(LinearStiffness, DP0, DP1);
+			ApplyRotationDelta(LinearStiffness, DR0, DR1);
+			UpdateDerivedState();
+		}
+	}
+
+
+	void FJointSolverGaussSeidel::ApplyPositionDrives(
+		const FReal Dt,
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings)
+	{
+		// @todo(ccaulfield): XPBD for linear drives
+		if (JointSettings.Motion.bLinearDriveEnabled[0] || JointSettings.Motion.bLinearDriveEnabled[1] || JointSettings.Motion.bLinearDriveEnabled[2])
+		{
+			const FVec3 TargetX = Xs[0] + Rs[0] * JointSettings.Motion.LinearDriveTarget;
+			FVec3 CX = Xs[1] - TargetX;
+
+			const FMatrix33 RM0 = Rs[0].ToMatrix();
+			for (int32 IAxis = 0; IAxis < 3; ++IAxis)
+			{
+				if (!JointSettings.Motion.bLinearDriveEnabled[IAxis])
+				{
+					const FVec3 Axis = RM0.GetAxis(IAxis);
+					CX = CX - FVec3::DotProduct(Axis, CX) * Axis;
+				}
+			}
+
+			const FMatrix33 InvI0 = Utilities::ComputeWorldSpaceInertia(Qs[0], InvILs[0]);
+			const FMatrix33 InvI1 = Utilities::ComputeWorldSpaceInertia(Qs[1], InvILs[1]);
+
+			// Calculate constraint correction
+			FMatrix33 M0 = FMatrix33(0, 0, 0);
+			FMatrix33 M1 = FMatrix33(0, 0, 0);
+			if (InvMs[0] > 0)
+			{
+				M0 = Utilities::ComputeJointFactorMatrix(Xs[0] - Ps[0], InvI0, InvMs[0]);
+			}
+			if (InvMs[1] > 0)
+			{
+				M1 = Utilities::ComputeJointFactorMatrix(Xs[1] - Ps[1], InvI1, InvMs[1]);
+			}
+			const FMatrix33 MI = (M0 + M1).Inverse();
+			const FVec3 DX = Utilities::Multiply(MI, CX);
+
+			// Apply constraint correction
+			const FVec3 DP0 = InvMs[0] * DX;
+			const FVec3 DP1 = -InvMs[1] * DX;
+			const FVec3 DR0 = Utilities::Multiply(InvI0, FVec3::CrossProduct(Xs[0] - Ps[0], DX));
+			const FVec3 DR1 = Utilities::Multiply(InvI1, FVec3::CrossProduct(Xs[1] - Ps[1], -DX));
+
+			const FReal LinearStiffness = FPBDJointUtilities::GetLinearDriveStiffness(SolverSettings, JointSettings);
+			const FReal LinearDamping = FPBDJointUtilities::GetLinearDriveDamping(SolverSettings, JointSettings);
 			ApplyPositionDelta(LinearStiffness, DP0, DP1);
 			ApplyRotationDelta(LinearStiffness, DR0, DR1);
 			UpdateDerivedState();

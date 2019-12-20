@@ -91,6 +91,11 @@ namespace Chaos
 		FReal SoftSwingStiffness;
 		FReal SoftSwingDamping;
 
+		FVec3 LinearDriveTarget;
+		TVector<bool, 3> bLinearDriveEnabled;
+		FReal LinearDriveStiffness;
+		FReal LinearDriveDamping;
+
 		// @todo(ccaulfield): remove one of these
 		FRotation3 AngularDriveTarget;
 		FVec3 AngularDriveTargetAngles;
@@ -141,8 +146,10 @@ namespace Chaos
 		FReal LinearProjection;
 		FReal AngularProjection;
 		FReal Stiffness;
-		FReal DriveStiffness;
-		FReal DriveDamping;
+		FReal LinearDriveStiffness;
+		FReal LinearDriveDamping;
+		FReal AngularDriveStiffness;
+		FReal AngularDriveDamping;
 		FReal SoftLinearStiffness;
 		FReal SoftLinearDamping;
 		FReal SoftTwistStiffness;
