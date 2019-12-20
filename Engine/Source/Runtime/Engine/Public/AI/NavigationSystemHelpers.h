@@ -11,6 +11,7 @@ class AActor;
 class UBodySetup;
 struct FCompositeNavModifier;
 struct FKAggregateGeom;
+struct FKConvexElem;
 struct FNavHeightfieldSamples;
 
 template<typename InElementType> class TNavStatArray;
