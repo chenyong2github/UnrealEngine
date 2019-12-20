@@ -254,6 +254,11 @@ namespace Chaos
 				OutPts[3] *= Scale;
 			}
 
+			FORCEINLINE T GetMinHeight() const
+			{
+				return static_cast<typename FDataType::RealType>(MinValue);
+			}
+
 			void Serialize(FChaosArchive& Ar)
 			{
 				int32 TempRealSize = RealSize;
