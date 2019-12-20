@@ -9,7 +9,11 @@ namespace UnrealBuildTool.Rules
 	{
 		public USDExporter(ReadOnlyTargetRules Target) : base(Target)
         {
-			bUseRTTI = true;
+			// We require the whole editor to be RTTI enabled on Linux for now
+			if (Target.Platform != UnrealTargetPlatform.Linux)
+			{
+				bUseRTTI = true;
+			}
 
 			PublicDependencyModuleNames.AddRange(
 				new string[]
