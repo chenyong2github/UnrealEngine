@@ -177,7 +177,7 @@ void FCollisionStructureManager::UpdateImplicitFlags(FImplicit* Implicit, EColli
 {
 	if (Implicit && (CollisionType == ECollisionTypeEnum::Chaos_Surface_Volumetric))
 	{
-		Implicit->IgnoreAnalyticCollisions();
+		Implicit->SetDoCollide(false);
 		Implicit->SetConvex(false);
 	}
 }

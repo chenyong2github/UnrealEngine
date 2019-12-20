@@ -54,7 +54,7 @@ namespace Chaos
 		{
 			this->Type = Other.Type;
 			this->bIsConvex = Other.bIsConvex;
-			this->bIgnoreAnalyticCollisions = Other.bIgnoreAnalyticCollisions;
+			this->bDoCollide = Other.bDoCollide;
 			this->bHasBoundingBox = Other.bHasBoundingBox;
 
 			AABB = Other.AABB;
@@ -65,7 +65,7 @@ namespace Chaos
 		{
 			this->Type = Other.Type;
 			this->bIsConvex = Other.bIsConvex;
-			this->bIgnoreAnalyticCollisions = Other.bIgnoreAnalyticCollisions;
+			this->bDoCollide = Other.bDoCollide;
 			this->bHasBoundingBox = Other.bHasBoundingBox;
 
 			AABB = MoveTemp(Other.AABB);
