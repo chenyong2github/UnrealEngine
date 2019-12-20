@@ -1239,7 +1239,15 @@ namespace UnrealBuildTool
 							string MaliLibDstPath = Path.Combine(UE4BuildPath, "libs", NDKArch, "libMGD.so");
 
 							Log.TraceInformation("Copying {0} to {1}", MaliLibSrcPath, MaliLibDstPath);
-							File.Copy(MaliLibSrcPath, MaliLibDstPath, true); 
+							File.Copy(MaliLibSrcPath, MaliLibDstPath, true);
+
+							string MaliVkLayerLibSrcPath = Path.Combine(MaliGraphicsDebuggerPath, "target", "android", "arm", "rooted", NDKArch, "libGLES_aga.so");
+							if (File.Exists(MaliVkLayerLibSrcPath))
+							{
+								string MaliVkLayerLibDstPath = Path.Combine(UE4BuildPath, "libs", NDKArch, "libVkLayerAGA.so");
+								Log.TraceInformation("Copying {0} to {1}", MaliVkLayerLibSrcPath, MaliVkLayerLibDstPath);
+								File.Copy(MaliVkLayerLibSrcPath, MaliVkLayerLibDstPath, true);
+							}
 						}
 					}
 					break;
