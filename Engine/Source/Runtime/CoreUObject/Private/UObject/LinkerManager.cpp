@@ -168,8 +168,6 @@ void FLinkerManager::EnsureLoadingComplete(UPackage* Package)
 	{
 		Linker->SerializeThumbnails();
 	}
-
-	Linker->LoadAndDetachAllBulkData();
 }
 
 
