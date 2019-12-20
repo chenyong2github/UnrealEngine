@@ -164,13 +164,13 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	FORCEINLINE const bool ToBeRemovedOnFracture(const int32 Index) const { return MToBeRemovedOnFracture[Index]; }
 	FORCEINLINE bool& ToBeRemovedOnFracture(const int32 Index) { return MToBeRemovedOnFracture[Index]; }
 
-	FORCEINLINE TQueue<TSleepData<T, d>, EQueueMode::Mpsc>& GetSleepData() { return MSleepData; }
-	FORCEINLINE void AddSleepData(TGeometryParticleHandle<T, d>* Particle, bool Sleeping)
+	FORCEINLINE TArray<TSleepData<T, d>>& GetSleepData() { return MSleepData; }
+	FORCEINLINE	void AddSleepData(TGeometryParticleHandle<T, d>* Particle, bool Sleeping)
 	{ 
 		TSleepData<T, d> SleepData;
 		SleepData.Particle = Particle;
 		SleepData.Sleeping = Sleeping;
-		MSleepData.Enqueue(SleepData); 
+		MSleepData.Add(SleepData); 
 	}
 
 	FORCEINLINE const EObjectStateType ObjectState(const int32 Index) const { return MObjectState[Index]; }
@@ -223,7 +223,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	TArrayCollectionArray<bool> MDisabled;
 	TArrayCollectionArray<bool> MToBeRemovedOnFracture;
 	TArrayCollectionArray<EObjectStateType> MObjectState;
-	TQueue<TSleepData<T, d>, EQueueMode::Mpsc> MSleepData;
+	TArray<TSleepData<T, d>> MSleepData;
 };
 
 
