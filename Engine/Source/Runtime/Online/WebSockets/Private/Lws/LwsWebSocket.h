@@ -153,6 +153,12 @@ public:
 		return RawMessageEvent;
 	}
 
+	DECLARE_DERIVED_EVENT(FLwsWebSocket, IWebSocket::FWebSocketMessageSentEvent, FWebSocketMessageSentEvent);
+	virtual FWebSocketMessageSentEvent& OnMessageSent() override
+	{
+		return OnMessageSentEvent;
+	}
+
 	/** Callback on events for our libwebsockets connection */
 	int LwsCallback(lws* Instance, lws_callback_reasons Reason, void* Data, size_t Length);
 
@@ -272,6 +278,7 @@ private:
 	FWebSocketClosedEvent ClosedEvent;
 	FWebSocketMessageEvent MessageEvent;
 	FWebSocketRawMessageEvent RawMessageEvent;
+	FWebSocketMessageSentEvent OnMessageSentEvent;
 
 	/** libwebsockets connection */
 	struct lws *LwsConnection;
