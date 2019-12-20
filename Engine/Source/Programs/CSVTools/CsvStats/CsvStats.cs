@@ -664,8 +664,8 @@ namespace CSVStats
             // Write the metadata
         }
 
-        // Pad the stats
-        public void ComputeAveragesAndTotal()
+		// Pad the stats
+		public void ComputeAveragesAndTotal()
         {
             foreach (StatSamples stat in Stats.Values.ToArray())
             {
@@ -1019,7 +1019,31 @@ namespace CSVStats
             }
         }
 
-        public static CsvStats ReadCSVFile(string csvFilename, string[] statNames, int numRowsToSkip = 0)
+		public static bool DoesMetadataMatchFilter(CsvMetadata metadata, string metadataFilterString)
+		{
+			string[] keyValuePairStrs = metadataFilterString.Split(',');
+			foreach (string keyValuePairStr in keyValuePairStrs)
+			{
+				string[] keyValue = keyValuePairStr.Split('=');
+				if (keyValue.Length != 2)
+				{
+					return false;
+				}
+				string key = keyValue[0].ToLower();
+				if (!metadata.Values.ContainsKey(key))
+				{
+					return false;
+				}
+				if (metadata.Values[key].ToLower() != keyValue[1].ToLower())
+				{
+					return false;
+				}
+			}
+			return true;
+		}
+
+
+		public static CsvStats ReadCSVFile(string csvFilename, string[] statNames, int numRowsToSkip = 0)
         {
             string [] lines = ReadLinesFromFile(csvFilename);
             return ReadCSVFromLines(lines, statNames, numRowsToSkip);
