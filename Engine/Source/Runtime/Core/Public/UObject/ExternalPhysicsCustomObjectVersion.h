@@ -92,6 +92,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 
 		// Serialize whether or not an AABBTree is immutable
 		ImmutableAABBTree,
+
+		// Trimeshes can now use small indices
+		TrimeshCanUseSmallIndices,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
