@@ -109,5 +109,8 @@ public:
 	virtual void SetErrorSimulationCommands(const FString& CommandLine) {}
 
 	virtual TSharedPtr<IAnalyticsProviderET> GetAnalyticsProvider() const { return TSharedPtr<IAnalyticsProviderET>(); }
+
+	virtual void StartPersistentStatTrackingSession(const FString& SessionName, const TArray<FName>& RequiredBundles = TArray<FName>(), const FString& ExpectedAnalyticsID = FString(), bool bForceResetStatData = false) {}
+	virtual void StopPersistentStatTrackingSession(const FString& SessionName) {}
 };
 
