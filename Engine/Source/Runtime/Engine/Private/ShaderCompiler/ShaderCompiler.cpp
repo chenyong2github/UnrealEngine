@@ -2441,9 +2441,12 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 			Material->NotifyCompilationFinished();
 		}
 
-		PropagateMaterialChangesToPrimitives(MaterialsToUpdate);
+		if (FApp::CanEverRender())
+		{
+			PropagateMaterialChangesToPrimitives(MaterialsToUpdate);
 
-		FEditorSupportDelegates::RedrawAllViewports.Broadcast();
+			FEditorSupportDelegates::RedrawAllViewports.Broadcast();
+		}
 	}
 #endif // WITH_EDITOR
 }
