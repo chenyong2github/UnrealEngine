@@ -20,10 +20,16 @@
 //////////////////////////////////////////////////////////////////////////
 // @todo(ccaulfield): remove when finished
 //
-float ChaosImmediate_Evolution_DeltaTime = 0.03f;
+float ChaosImmediate_Evolution_StepTime = 0.0f;
+int32 ChaosImmediate_Evolution_NumSteps = 0;
+float ChaosImmediate_Evolution_InitialStepTime = 0.033f;
+int32 ChaosImmediate_Evolution_DeltaTimeCount = 100;
 int32 ChaosImmediate_Evolution_Iterations = 4;
 int32 ChaosImmediate_Evolution_PushOutIterations = 1;
-FAutoConsoleVariableRef CVarChaosImmPhysDeltaTime(TEXT("p.Chaos.ImmPhys.DeltaTime"), ChaosImmediate_Evolution_DeltaTime, TEXT("Override chaos immediate physics delta time if non-zero"));
+FAutoConsoleVariableRef CVarChaosImmPhysStepTime(TEXT("p.Chaos.ImmPhys.StepTime"), ChaosImmediate_Evolution_StepTime, TEXT("Override step time (if not zero)"));
+FAutoConsoleVariableRef CVarChaosImmPhysNumSteps(TEXT("p.Chaos.ImmPhys.NumSteps"), ChaosImmediate_Evolution_NumSteps, TEXT("Override num steps (if not zero)"));
+FAutoConsoleVariableRef CVarChaosImmPhysInitialStepTime(TEXT("p.Chaos.ImmPhys.InitialStepTime"), ChaosImmediate_Evolution_InitialStepTime, TEXT("Initial step time (then calculated from rolling average)"));
+FAutoConsoleVariableRef CVarChaosImmPhysDeltaTimeCount(TEXT("p.Chaos.ImmPhys.DeltaTimeCount"), ChaosImmediate_Evolution_DeltaTimeCount, TEXT("The number of ticks over which the moving average is calculated"));
 FAutoConsoleVariableRef CVarChaosImmPhysIterations(TEXT("p.Chaos.ImmPhys.Iterations"), ChaosImmediate_Evolution_Iterations, TEXT("Number of constraint solver loops in immediate physics"));
 FAutoConsoleVariableRef CVarChaosImmPhysPushOutIterations(TEXT("p.Chaos.ImmPhys.PushOutIterations"), ChaosImmediate_Evolution_PushOutIterations, TEXT("Set the ApplyPushOut() (position correction) iteration count"));
 
@@ -172,6 +178,9 @@ namespace ImmediatePhysics_Chaos
 		, Evolution(Particles, CollisionDetector)
 		, NumActiveDynamicActorHandles(0)
 		, SimulationSpaceTransform(FTransform::Identity)
+		, RollingAverageStepTime(ChaosImmediate_Evolution_InitialStepTime)
+		, NumRollingAverageStepTimes(1)
+		, MaxNumRollingAverageStepTimes(ChaosImmediate_Evolution_DeltaTimeCount)
 	{
 		using namespace Chaos;
 
@@ -471,23 +480,41 @@ namespace ImmediatePhysics_Chaos
 		}
 	}
 
+	FReal FSimulation::UpdateStepTime(const FReal DeltaTime, const FReal MaxStepTime)
+	{
+		RollingAverageStepTime = RollingAverageStepTime + (DeltaTime - RollingAverageStepTime) / NumRollingAverageStepTimes;
+		RollingAverageStepTime = FMath::Min(RollingAverageStepTime, MaxStepTime);
+		NumRollingAverageStepTimes = FMath::Min(NumRollingAverageStepTimes + 1, MaxNumRollingAverageStepTimes);
+		return RollingAverageStepTime;
+	}
+
 	DECLARE_CYCLE_STAT(TEXT("FSimulation::Simulate_Chaos"), STAT_ImmediateSimulate_Chaos, STATGROUP_ImmediatePhysics);
 
-	void FSimulation::Simulate(float DeltaTime, float MaxDeltaTime, int32 MaxSubSteps, const FVector& InGravity)
+	void FSimulation::Simulate(float InDeltaTime, float MaxStepTime, int32 MaxSubSteps, const FVector& InGravity)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ImmediateSimulate_Chaos);
 		using namespace Chaos;
 
+		// Reject DeltaTime outliers
+		const FReal DeltaTime = FMath::Min(InDeltaTime, MaxStepTime * MaxSubSteps);
+
+		// Update rolling average step time - we want a smooth step time from frame-to-frame that is roughly the target frame rate.
+		// @todo(ccaulfield): decouple sim and game delta times and simulate ahead. Add extrapolation of kinematic targets, and interpolation of physics results.
+		FReal StepTime = UpdateStepTime(DeltaTime, MaxStepTime);
+
+		// Calculate number of steps to run
+		int32 NumSteps = FMath::Clamp(FMath::RoundToInt(DeltaTime / StepTime), 1, MaxSubSteps);
+
 		// TEMP: overrides
 		{
-			if (ChaosImmediate_Evolution_DeltaTime > 0)
+			if (ChaosImmediate_Evolution_StepTime > 0)
 			{
-				// Round Dt to the nearest multiple of fixed step size...
-				const float NumDts = FMath::Max((FReal)1, FMath::RoundToFloat(DeltaTime / ChaosImmediate_Evolution_DeltaTime));
-				DeltaTime = NumDts * ChaosImmediate_Evolution_DeltaTime;
-				MaxDeltaTime = ChaosImmediate_Evolution_DeltaTime;
+				StepTime = ChaosImmediate_Evolution_StepTime;
 			}
-			UE_LOG(LogChaosJoint, Verbose, TEXT("Simulate dt = %f"), DeltaTime);
+			if (ChaosImmediate_Evolution_NumSteps > 0)
+			{
+				NumSteps = ChaosImmediate_Evolution_NumSteps;
+			}
 
 			FPBDJointSolverSettings JointsSettings = Joints.GetSettings();
 			JointsSettings.ApplyPairIterations = ChaosImmediate_Joint_PairIterations;
@@ -522,6 +549,7 @@ namespace ImmediatePhysics_Chaos
 			// TEMP until we can remove constraints again, or I add broad-phase filtering. (FilterCollisionConstraints will crash since the persistent collision changes)
 			Collisions.SetCollisionsEnabled(ChaosImmediate_Collision_Enabled != 0);
 		}
+		UE_LOG(LogChaosJoint, Verbose, TEXT("Simulate Dt = %f Steps %d x %f"), DeltaTime, NumSteps, StepTime);
 
 		DebugDrawKinematicParticles(2, 2, FColor(128, 0, 0));
 		DebugDrawDynamicParticles(2, 2, FColor(192, 192, 0));
@@ -531,9 +559,7 @@ namespace ImmediatePhysics_Chaos
 
 		Evolution.SetGravity(InGravity);
 		
-		Evolution.Advance(DeltaTime, MaxDeltaTime, MaxSubSteps);
-		
-		//Evolution.EndFrame(DeltaTime);
+		Evolution.Advance(StepTime, NumSteps);
 
 		DebugDrawKinematicParticles(1, 4, FColor(128, 0, 0));
 		DebugDrawDynamicParticles(1, 4, FColor(255, 255, 0));
