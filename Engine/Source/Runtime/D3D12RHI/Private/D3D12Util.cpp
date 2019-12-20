@@ -110,6 +110,7 @@ static FString GetD3D12ErrorString(HRESULT ErrorCode, ID3D12Device* Device)
 		D3DERR(DXGI_ERROR_INVALID_CALL)
 		D3DERR(E_NOINTERFACE)
 		D3DERR(DXGI_ERROR_DEVICE_REMOVED)
+		EMBED_DXGI_ERROR_LIST(D3DERR, )
 		default:
 			ErrorCodeText = FString::Printf(TEXT("%08X"), (int32)ErrorCode);
 	}
