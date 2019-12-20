@@ -753,9 +753,6 @@ void ULandscapeComponent::InvalidateLightingCacheDetailed(bool bInvalidateBuildE
 {
 	Modify();
 
-	// Block until the RT processes the unregister before modifying variables that it may need to access
-	FlushRenderingCommands();
-
 	FComponentReregisterContext ReregisterContext(this);
 
 	Super::InvalidateLightingCacheDetailed(bInvalidateBuildEnqueuedLighting, bTranslationOnly);
