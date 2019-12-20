@@ -96,6 +96,7 @@ namespace Chaos
 		bool bAngularTwistDriveEnabled;
 		bool bAngularSwingDriveEnabled;
 		FReal AngularDriveStiffness;
+		FReal AngularDriveDamping;
 	};
 
 
@@ -137,6 +138,7 @@ namespace Chaos
 		FReal AngularProjection;
 		FReal Stiffness;
 		FReal DriveStiffness;
+		FReal DriveDamping;
 		FReal SoftLinearStiffness;
 		FReal SoftAngularStiffness;
 	};
