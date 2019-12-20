@@ -279,7 +279,7 @@ struct FNiagaraModifiedShaderStageDiffResults
 {
 	TSharedPtr<FNiagaraShaderStageMergeAdapter> BaseAdapter;
 	TSharedPtr<FNiagaraShaderStageMergeAdapter> OtherAdapter;
-	TArray<UProperty*> ChangedProperties;
+	TArray<FProperty*> ChangedProperties;
 	FNiagaraScriptStackDiffResults ScriptDiffResults;
 };
 
