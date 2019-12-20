@@ -4,6 +4,7 @@
 
 // Module dependencies
 #include "CoreMinimal.h"
+#include "Misc/CoreMisc.h"
 #include "Modules/ModuleInterface.h"
 
 // Module includes
