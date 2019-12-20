@@ -19,6 +19,8 @@ PipelineFileCache.cpp: Pipeline state cache implementation.
 #include "HAL/PlatformFilemanager.h"
 #include "Misc/FileHelper.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "String/LexFromString.h"
+#include "String/ParseTokens.h"
 
 static FString JOURNAL_FILE_EXTENSION(TEXT(".jnl"));
 
@@ -267,31 +269,33 @@ FString FPipelineFileCacheRasterizerState::ToString() const
 	);
 }
 
-void FPipelineFileCacheRasterizerState::FromString(const FString& InSrc)
+void FPipelineFileCacheRasterizerState::FromString(const FStringView& Src)
 {
-	FString Src = InSrc;
-	Src.ReplaceInline(TEXT("\r"), TEXT(" "));
-	Src.ReplaceInline(TEXT("\n"), TEXT(" "));
-	Src.ReplaceInline(TEXT("\t"), TEXT(" "));
-	Src.ReplaceInline(TEXT("<"), TEXT(" "));
-	Src.ReplaceInline(TEXT(">"), TEXT(" "));
-	TArray<FString> Parts;
-	Src.TrimStartAndEnd().ParseIntoArray(Parts, TEXT(" "));
+	constexpr int32 PartCount = 6;
 
-	check(Parts.Num() == 6 && sizeof(FillMode) == 1 && sizeof(CullMode) == 1 && sizeof(bAllowMSAA) == 1 && sizeof(bEnableLineAA) == 1); //not a very robust parser
-	LexFromString(DepthBias, *Parts[0]);
-	LexFromString(SlopeScaleDepthBias, *Parts[1]);
-	LexFromString((uint8&)FillMode, *Parts[2]);
-	LexFromString((uint8&)CullMode, *Parts[3]);
-	LexFromString((uint8&)bAllowMSAA, *Parts[4]);
-	LexFromString((uint8&)bEnableLineAA, *Parts[5]);
+	TArray<FStringView, TInlineAllocator<PartCount>> Parts;
+	UE::String::ParseTokensMultiple(Src.TrimStartAndEnd(), {TEXT('\r'), TEXT('\n'), TEXT('\t'), TEXT('<'), TEXT('>'), TEXT(' ')},
+		[&Parts](FStringView Part) { if (!Part.IsEmpty()) { Parts.Add(Part); } });
+
+	check(Parts.Num() == PartCount && sizeof(FillMode) == 1 && sizeof(CullMode) == 1 && sizeof(bAllowMSAA) == 1 && sizeof(bEnableLineAA) == 1); //not a very robust parser
+	const FStringView* PartIt = Parts.GetData();
+
+	LexFromString(DepthBias, *PartIt++);
+	LexFromString(SlopeScaleDepthBias, *PartIt++);
+	LexFromString((uint8&)FillMode, *PartIt++);
+	LexFromString((uint8&)CullMode, *PartIt++);
+	LexFromString((uint8&)bAllowMSAA, *PartIt++);
+	LexFromString((uint8&)bEnableLineAA, *PartIt++);
+
+	check(Parts.GetData() + PartCount == PartIt);
 }
 
 FString FPipelineCacheFileFormatPSO::ComputeDescriptor::ToString() const
 {
 	return ComputeShader.ToString();
 }
-void FPipelineCacheFileFormatPSO::ComputeDescriptor::FromString(const FString& Src)
+
+void FPipelineCacheFileFormatPSO::ComputeDescriptor::FromString(const FStringView& Src)
 {
 	ComputeShader.FromString(Src.TrimStartAndEnd());
 }
@@ -315,18 +319,24 @@ FString FPipelineCacheFileFormatPSO::GraphicsDescriptor::ShadersToString() const
 
 	return Result;
 }
-void FPipelineCacheFileFormatPSO::GraphicsDescriptor::ShadersFromString(const FString& Src)
-{
-	TArray<FString> Parts;
-	Src.TrimStartAndEnd().ParseIntoArray(Parts, TEXT(","));
-	int32 PartIndex = 0;
-	check(Parts.Num() == 5); //not a very robust parser
 
-	VertexShader.FromString(Parts[PartIndex++]);
-	FragmentShader.FromString(Parts[PartIndex++]);
-	GeometryShader.FromString(Parts[PartIndex++]);
-	HullShader.FromString(Parts[PartIndex++]);
-	DomainShader.FromString(Parts[PartIndex++]);
+void FPipelineCacheFileFormatPSO::GraphicsDescriptor::ShadersFromString(const FStringView& Src)
+{
+	constexpr int32 PartCount = 5;
+
+	TArray<FStringView, TInlineAllocator<PartCount>> Parts;
+	UE::String::ParseTokens(Src.TrimStartAndEnd(), TEXT(','), [&Parts](FStringView Part) { Parts.Add(Part); });
+
+	check(Parts.Num() == PartCount); //not a very robust parser
+	const FStringView* PartIt = Parts.GetData();
+
+	VertexShader.FromString(*PartIt++);
+	FragmentShader.FromString(*PartIt++);
+	GeometryShader.FromString(*PartIt++);
+	HullShader.FromString(*PartIt++);
+	DomainShader.FromString(*PartIt++);
+
+	check(Parts.GetData() + PartCount == PartIt);
 }
 
 FString FPipelineCacheFileFormatPSO::GraphicsDescriptor::ShaderHeaderLine()
@@ -397,74 +407,80 @@ FString FPipelineCacheFileFormatPSO::GraphicsDescriptor::StateToString() const
 	return Result.Left(Result.Len() - 1); // remove trailing comma
 }
 
-bool FPipelineCacheFileFormatPSO::GraphicsDescriptor::StateFromString(const FString& Src)
+bool FPipelineCacheFileFormatPSO::GraphicsDescriptor::StateFromString(const FStringView& Src)
 {
-	TArray<FString> Parts;
-	Src.TrimStartAndEnd().ParseIntoArray(Parts, TEXT(","));
-	int32 PartIndex = 0;
+	constexpr int32 PartCount = FPipelineCacheGraphicsDescPartsNum;
+
+	TArray<FStringView, TInlineAllocator<PartCount>> Parts;
+	UE::String::ParseTokens(Src.TrimStartAndEnd(), TEXT(','), [&Parts](FStringView Part) { Parts.Add(Part); });
 
 	// check if we have expected number of parts
-	if (Parts.Num() != FPipelineCacheGraphicsDescPartsNum)
+	if (Parts.Num() != PartCount)
 	{
 		// instead of crashing let caller handle this case
 		return false;
 	}
 
-	check(Parts.Num() - PartIndex >= 3); //not a very robust parser
-	BlendState.FromString(Parts[PartIndex++]);
-	RasterizerState.FromString(Parts[PartIndex++]);
-	DepthStencilState.FromString(Parts[PartIndex++]);
+	const FStringView* PartIt = Parts.GetData();
+	const FStringView* PartEnd = PartIt + PartCount;
 
-	check(Parts.Num() - PartIndex >= 3 && sizeof(EPixelFormat) == sizeof(uint32)); //not a very robust parser
-	LexFromString(MSAASamples, *Parts[PartIndex++]);
-	LexFromString((uint32&)DepthStencilFormat, *Parts[PartIndex++]);
-	LexFromString(DepthStencilFlags, *Parts[PartIndex++]);
+	check(PartEnd - PartIt >= 3); //not a very robust parser
+	BlendState.FromString(*PartIt++);
+	RasterizerState.FromString(*PartIt++);
+	DepthStencilState.FromString(*PartIt++);
 
-	check(Parts.Num() - PartIndex >= 5 && sizeof(DepthLoad) == 1 && sizeof(StencilLoad) == 1 && sizeof(DepthStore) == 1 && sizeof(StencilStore) == 1 && sizeof(PrimitiveType) == 4); //not a very robust parser
-	LexFromString((uint32&)DepthLoad, *Parts[PartIndex++]);
-	LexFromString((uint32&)StencilLoad, *Parts[PartIndex++]);
-	LexFromString((uint32&)DepthStore, *Parts[PartIndex++]);
-	LexFromString((uint32&)StencilStore, *Parts[PartIndex++]);
-	LexFromString((uint32&)PrimitiveType, *Parts[PartIndex++]);
+	check(PartEnd - PartIt >= 3 && sizeof(EPixelFormat) == sizeof(uint32)); //not a very robust parser
+	LexFromString(MSAASamples, *PartIt++);
+	LexFromString((uint32&)DepthStencilFormat, *PartIt++);
+	LexFromString(DepthStencilFlags, *PartIt++);
 
-	check(Parts.Num() - PartIndex >= 1); //not a very robust parser
-	LexFromString(RenderTargetsActive, *Parts[PartIndex++]);
+	check(PartEnd - PartIt >= 5 && sizeof(DepthLoad) == 1 && sizeof(StencilLoad) == 1 && sizeof(DepthStore) == 1 && sizeof(StencilStore) == 1 && sizeof(PrimitiveType) == 4); //not a very robust parser
+	LexFromString((uint32&)DepthLoad, *PartIt++);
+	LexFromString((uint32&)StencilLoad, *PartIt++);
+	LexFromString((uint32&)DepthStore, *PartIt++);
+	LexFromString((uint32&)StencilStore, *PartIt++);
+	LexFromString((uint32&)PrimitiveType, *PartIt++);
+
+	check(PartEnd - PartIt >= 1); //not a very robust parser
+	LexFromString(RenderTargetsActive, *PartIt++);
 
 	for (int32 Index = 0; Index < MaxSimultaneousRenderTargets; Index++)
 	{
-		check(Parts.Num() - PartIndex >= 4 && sizeof(ERenderTargetLoadAction) == 1 && sizeof(ERenderTargetStoreAction) == 1 && sizeof(EPixelFormat) == sizeof(uint32)); //not a very robust parser
-		LexFromString((uint32&)(RenderTargetFormats[Index]), *Parts[PartIndex++]);
-		LexFromString(RenderTargetFlags[Index], *Parts[PartIndex++]);
+		check(PartEnd - PartIt >= 4 && sizeof(ERenderTargetLoadAction) == 1 && sizeof(ERenderTargetStoreAction) == 1 && sizeof(EPixelFormat) == sizeof(uint32)); //not a very robust parser
+		LexFromString((uint32&)(RenderTargetFormats[Index]), *PartIt++);
+		LexFromString(RenderTargetFlags[Index], *PartIt++);
 		uint8 Load, Store;
-		LexFromString(Load, *Parts[PartIndex++]);
-		LexFromString(Store, *Parts[PartIndex++]);
+		LexFromString(Load, *PartIt++);
+		LexFromString(Store, *PartIt++);
 	}
 
 	// parse sub-pass information
 	{
 		uint32 LocalSubpassHint = 0;
 		uint32 LocalSubpassIndex = 0;
-		check(Parts.Num() - PartIndex >= 2);
-		LexFromString(LocalSubpassHint, *Parts[PartIndex++]);
-		LexFromString(LocalSubpassIndex, *Parts[PartIndex++]);
+		check(PartEnd - PartIt >= 2);
+		LexFromString(LocalSubpassHint, *PartIt++);
+		LexFromString(LocalSubpassIndex, *PartIt++);
 		SubpassHint = LocalSubpassHint;
 		SubpassIndex = LocalSubpassIndex;
 	}
-	
-	check(Parts.Num() - PartIndex >= 1); //not a very robust parser
+
+	check(PartEnd - PartIt >= 1); //not a very robust parser
 	int32 VertDescNum = 0;
-	LexFromString(VertDescNum, *Parts[PartIndex++]);
+	LexFromString(VertDescNum, *PartIt++);
 	check(VertDescNum >= 0 && VertDescNum <= MaxVertexElementCount);
 
 	VertexDescriptor.Empty(VertDescNum);
 	VertexDescriptor.AddZeroed(VertDescNum);
 
-	check(Parts.Num() - PartIndex == MaxVertexElementCount); //not a very robust parser
+	check(PartEnd - PartIt == MaxVertexElementCount); //not a very robust parser
 	for (int32 Index = 0; Index < VertDescNum; Index++)
 	{
-		VertexDescriptor[Index].FromString(Parts[PartIndex++]);
+		VertexDescriptor[Index].FromString(*PartIt++);
 	}
-	
+
+	check(PartIt + MaxVertexElementCount == PartEnd + VertDescNum);
+
 	VertexDescriptor.Sort([](FVertexElement const& A, FVertexElement const& B)
 	  {
 		  if (A.StreamIndex < B.StreamIndex)
@@ -554,17 +570,21 @@ FString FPipelineCacheFileFormatPSO::GraphicsDescriptor::ToString() const
 	return FString::Printf(TEXT("%s,%s"), *ShadersToString(), *StateToString());
 }
 
-bool FPipelineCacheFileFormatPSO::GraphicsDescriptor::FromString(const FString& Src)
+bool FPipelineCacheFileFormatPSO::GraphicsDescriptor::FromString(const FStringView& Src)
 {
-	static const int32 NumShaderParts = 5;
-	TArray<FString> Parts;
-	Src.TrimStartAndEnd().ParseIntoArray(Parts, TEXT(","));
-	check(Parts.Num() > NumShaderParts);
-	TArray<FString> StateParts(Parts);
-	StateParts.RemoveAt(0, NumShaderParts);
-	Parts.RemoveAt(NumShaderParts, Parts.Num() - 5);
-	ShadersFromString(FString::Join(Parts, TEXT(",")));
-	return StateFromString(FString::Join(StateParts, TEXT(",")));
+	constexpr int32 NumShaderParts = 5;
+
+	int32 StateOffset = 0;
+	for (int32 CommaCount = 0; CommaCount < NumShaderParts; ++CommaCount)
+	{
+		int32 CommaOffset = 0;
+		bool FoundComma = Src.RightChop(StateOffset).FindChar(TEXT(','), CommaOffset);
+		check(FoundComma);
+		StateOffset += CommaOffset + 1;
+	}
+
+	ShadersFromString(Src.Left(StateOffset - 1));
+	return StateFromString(Src.RightChop(StateOffset));
 }
 
 FString FPipelineCacheFileFormatPSO::GraphicsDescriptor::HeaderLine()
@@ -589,20 +609,20 @@ FString FPipelineCacheFileFormatPSO::CommonToString() const
 	return FString::Printf(TEXT("\"%d,%llu\""), Count, Mask);
 }
 
-void FPipelineCacheFileFormatPSO::CommonFromString(const FString& Src)
+void FPipelineCacheFileFormatPSO::CommonFromString(const FStringView& Src)
 {
 #if PSO_COOKONLY_DATA
-    TArray<FString> Parts;
-    Src.TrimStartAndEnd().ParseIntoArray(Parts, TEXT(","));
-	
+    TArray<FStringView, TInlineAllocator<2>> Parts;
+	UE::String::ParseTokens(Src.TrimStartAndEnd(), TEXT(','), [&Parts](FStringView Part) { Parts.Add(Part); });
+
 	if (Parts.Num() == 1)
 	{
-		LexFromString(UsageMask, *Parts[0]);
+		LexFromString(UsageMask, Parts[0]);
 	}
 	else if(Parts.Num() > 1)
 	{
-		LexFromString(BindCount, *Parts[0]);
-		LexFromString(UsageMask, *Parts[1]);
+		LexFromString(BindCount, Parts[0]);
+		LexFromString(UsageMask, Parts[1]);
 	}
 #endif
 }

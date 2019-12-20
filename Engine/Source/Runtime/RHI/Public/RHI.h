@@ -15,9 +15,11 @@
 #define RHI_COMMAND_LIST_DEBUG_TRACES 0
 #endif
 
+template <typename T> class TArrayView;
+
 class FResourceArrayInterface;
 class FResourceBulkDataInterface;
-
+class FStringView;
 
 /** Alignment of the shader parameters struct is required to be 16-byte boundaries. */
 #define SHADER_PARAMETER_STRUCT_ALIGNMENT 16
@@ -758,6 +760,7 @@ struct FVertexElement
 	}
 	RHI_API FString ToString() const;
 	RHI_API void FromString(const FString& Src);
+	RHI_API void FromString(const FStringView& Src);
 };
 
 typedef TArray<FVertexElement,TFixedAllocator<MaxVertexElementCount> > FVertexDeclarationElementList;
@@ -946,8 +949,7 @@ struct FDepthStencilStateInitializerRHI
 	}
 	RHI_API FString ToString() const;
 	RHI_API void FromString(const FString& Src);
-
-
+	RHI_API void FromString(const FStringView& Src);
 };
 
 class FBlendStateInitializerRHI
@@ -999,8 +1001,7 @@ public:
 		}
 		RHI_API FString ToString() const;
 		RHI_API void FromString(const TArray<FString>& Parts, int32 Index);
-
-
+		RHI_API void FromString(TArrayView<const FStringView> Parts);
 	};
 
 	FBlendStateInitializerRHI() {}
@@ -1034,8 +1035,7 @@ public:
 	}
 	RHI_API FString ToString() const;
 	RHI_API void FromString(const FString& Src);
-
-
+	RHI_API void FromString(const FStringView& Src);
 };
 
 /**

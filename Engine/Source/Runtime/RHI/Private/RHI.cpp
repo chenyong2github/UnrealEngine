@@ -10,6 +10,8 @@
 #include "Misc/MessageDialog.h"
 #include "RHIShaderFormatDefinitions.inl"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "String/LexFromString.h"
+#include "String/ParseTokens.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, RHI);
 
@@ -138,22 +140,26 @@ FString FVertexElement::ToString() const
 
 void FVertexElement::FromString(const FString& InSrc)
 {
-	FString Src = InSrc;
-	Src.ReplaceInline(TEXT("\r"), TEXT(" "));
-	Src.ReplaceInline(TEXT("\n"), TEXT(" "));
-	Src.ReplaceInline(TEXT("\t"), TEXT(" "));
-	Src.ReplaceInline(TEXT("<"), TEXT(" "));
-	Src.ReplaceInline(TEXT(">"), TEXT(" "));
-	TArray<FString> Parts;
-	Src.TrimStartAndEnd().ParseIntoArray(Parts, TEXT(" "));
+	FromString(FStringView(InSrc));
+}
 
-	check(Parts.Num() == 6 && sizeof(Type) == 1); //not a very robust parser
-	LexFromString(StreamIndex, *Parts[0]);
-	LexFromString(Offset, *Parts[1]);
-	LexFromString((uint8&)Type, *Parts[2]);
-	LexFromString(AttributeIndex, *Parts[3]);
-	LexFromString(Stride, *Parts[4]);
-	LexFromString(bUseInstanceIndex, *Parts[5]);
+void FVertexElement::FromString(const FStringView& InSrc)
+{
+	constexpr int32 PartCount = 6;
+
+	TArray<FStringView, TInlineAllocator<PartCount>> Parts;
+	UE::String::ParseTokensMultiple(InSrc.TrimStartAndEnd(), {TEXT('\r'), TEXT('\n'), TEXT('\t'), TEXT('<'), TEXT('>'), TEXT(' ')},
+		[&Parts](FStringView Part) { if (!Part.IsEmpty()) { Parts.Add(Part); } });
+
+	check(Parts.Num() == PartCount && sizeof(Type) == 1); //not a very robust parser
+	const FStringView* PartIt = Parts.GetData();
+	LexFromString(StreamIndex, *PartIt++);
+	LexFromString(Offset, *PartIt++);
+	LexFromString((uint8&)Type, *PartIt++);
+	LexFromString(AttributeIndex, *PartIt++);
+	LexFromString(Stride, *PartIt++);
+	LexFromString(bUseInstanceIndex, *PartIt++);
+	check(Parts.GetData() + PartCount == PartIt);
 }
 
 FString FDepthStencilStateInitializerRHI::ToString() const
@@ -182,36 +188,43 @@ FString FDepthStencilStateInitializerRHI::ToString() const
 			, uint32(StencilWriteMask)
 		);
 }
+
 void FDepthStencilStateInitializerRHI::FromString(const FString& InSrc)
 {
-	FString Src = InSrc;
-	Src.ReplaceInline(TEXT("\r"), TEXT(" "));
-	Src.ReplaceInline(TEXT("\n"), TEXT(" "));
-	Src.ReplaceInline(TEXT("\t"), TEXT(" "));
-	Src.ReplaceInline(TEXT("<"), TEXT(" "));
-	Src.ReplaceInline(TEXT(">"), TEXT(" "));
-	TArray<FString> Parts;
-	Src.TrimStartAndEnd().ParseIntoArray(Parts, TEXT(" "));
+	FromString(FStringView(InSrc));
+}
 
-	check(Parts.Num() == 14 && sizeof(bool) == 1 && sizeof(FrontFaceStencilFailStencilOp) == 1 && sizeof(BackFaceStencilTest) == 1 && sizeof(BackFaceDepthFailStencilOp) == 1); //not a very robust parser
+void FDepthStencilStateInitializerRHI::FromString(const FStringView& InSrc)
+{
+	constexpr int32 PartCount = 14;
 
-	LexFromString((uint8&)bEnableDepthWrite, *Parts[0]);
-	LexFromString((uint8&)DepthTest, *Parts[1]);
+	TArray<FStringView, TInlineAllocator<PartCount>> Parts;
+	UE::String::ParseTokensMultiple(InSrc.TrimStartAndEnd(), {TEXT('\r'), TEXT('\n'), TEXT('\t'), TEXT('<'), TEXT('>'), TEXT(' ')},
+		[&Parts](FStringView Part) { if (!Part.IsEmpty()) { Parts.Add(Part); } });
 
-	LexFromString((uint8&)bEnableFrontFaceStencil, *Parts[2]);
-	LexFromString((uint8&)FrontFaceStencilTest, *Parts[3]);
-	LexFromString((uint8&)FrontFaceStencilFailStencilOp, *Parts[4]);
-	LexFromString((uint8&)FrontFaceDepthFailStencilOp, *Parts[5]);
-	LexFromString((uint8&)FrontFacePassStencilOp, *Parts[6]);
+	check(Parts.Num() == PartCount && sizeof(bool) == 1 && sizeof(FrontFaceStencilFailStencilOp) == 1 && sizeof(BackFaceStencilTest) == 1 && sizeof(BackFaceDepthFailStencilOp) == 1); //not a very robust parser
 
-	LexFromString((uint8&)bEnableBackFaceStencil, *Parts[7]);
-	LexFromString((uint8&)BackFaceStencilTest, *Parts[8]);
-	LexFromString((uint8&)BackFaceStencilFailStencilOp, *Parts[9]);
-	LexFromString((uint8&)BackFaceDepthFailStencilOp, *Parts[10]);
-	LexFromString((uint8&)BackFacePassStencilOp, *Parts[11]);
+	const FStringView* PartIt = Parts.GetData();
 
-	LexFromString(StencilReadMask, *Parts[12]);
-	LexFromString(StencilWriteMask, *Parts[13]);
+	LexFromString((uint8&)bEnableDepthWrite, *PartIt++);
+	LexFromString((uint8&)DepthTest, *PartIt++);
+
+	LexFromString((uint8&)bEnableFrontFaceStencil, *PartIt++);
+	LexFromString((uint8&)FrontFaceStencilTest, *PartIt++);
+	LexFromString((uint8&)FrontFaceStencilFailStencilOp, *PartIt++);
+	LexFromString((uint8&)FrontFaceDepthFailStencilOp, *PartIt++);
+	LexFromString((uint8&)FrontFacePassStencilOp, *PartIt++);
+
+	LexFromString((uint8&)bEnableBackFaceStencil, *PartIt++);
+	LexFromString((uint8&)BackFaceStencilTest, *PartIt++);
+	LexFromString((uint8&)BackFaceStencilFailStencilOp, *PartIt++);
+	LexFromString((uint8&)BackFaceDepthFailStencilOp, *PartIt++);
+	LexFromString((uint8&)BackFacePassStencilOp, *PartIt++);
+
+	LexFromString(StencilReadMask, *PartIt++);
+	LexFromString(StencilWriteMask, *PartIt++);
+
+	check(Parts.GetData() + PartCount == PartIt);
 }
 
 FString FBlendStateInitializerRHI::ToString() const
@@ -227,22 +240,26 @@ FString FBlendStateInitializerRHI::ToString() const
 
 void FBlendStateInitializerRHI::FromString(const FString& InSrc)
 {
-	FString Src = InSrc;
-	Src.ReplaceInline(TEXT("\r"), TEXT(" "));
-	Src.ReplaceInline(TEXT("\n"), TEXT(" "));
-	Src.ReplaceInline(TEXT("\t"), TEXT(" "));
-	Src.ReplaceInline(TEXT("<"), TEXT(" "));
-	Src.ReplaceInline(TEXT(">"), TEXT(" "));
-	TArray<FString> Parts;
-	Src.TrimStartAndEnd().ParseIntoArray(Parts, TEXT(" "));
+	FromString(FStringView(InSrc));
+}
 
+void FBlendStateInitializerRHI::FromString(const FStringView& InSrc)
+{
+	constexpr int32 PartCount = MaxSimultaneousRenderTargets * FRenderTarget::NUM_STRING_FIELDS + 1;
 
-	check(Parts.Num() == MaxSimultaneousRenderTargets * FRenderTarget::NUM_STRING_FIELDS + 1 && sizeof(bool) == 1); //not a very robust parser
+	TArray<FStringView, TInlineAllocator<PartCount>> Parts;
+	UE::String::ParseTokensMultiple(InSrc.TrimStartAndEnd(), {TEXT('\r'), TEXT('\n'), TEXT('\t'), TEXT('<'), TEXT('>'), TEXT(' ')},
+		[&Parts](FStringView Part) { if (!Part.IsEmpty()) { Parts.Add(Part); } });
+
+	check(Parts.Num() == PartCount && sizeof(bool) == 1); //not a very robust parser
+	const FStringView* PartIt = Parts.GetData();
 	for (int32 Index = 0; Index < MaxSimultaneousRenderTargets; Index++)
 	{
-		RenderTargets[Index].FromString(Parts, FRenderTarget::NUM_STRING_FIELDS * Index);
+		RenderTargets[Index].FromString(MakeArrayView(PartIt, FRenderTarget::NUM_STRING_FIELDS));
+		PartIt += FRenderTarget::NUM_STRING_FIELDS;
 	}
-	LexFromString((int8&)bUseIndependentRenderTargetBlendStates, *Parts[MaxSimultaneousRenderTargets * FRenderTarget::NUM_STRING_FIELDS]);
+	LexFromString((int8&)bUseIndependentRenderTargetBlendStates, *PartIt++);
+	check(Parts.GetData() + PartCount == PartIt);
 }
 
 
@@ -269,6 +286,19 @@ void FBlendStateInitializerRHI::FRenderTarget::FromString(const TArray<FString>&
 	LexFromString((uint8&)AlphaSrcBlend, *Parts[Index++]);
 	LexFromString((uint8&)AlphaDestBlend, *Parts[Index++]);
 	LexFromString((uint8&)ColorWriteMask, *Parts[Index++]);
+}
+
+void FBlendStateInitializerRHI::FRenderTarget::FromString(TArrayView<const FStringView> Parts)
+{
+	check(Parts.Num() == NUM_STRING_FIELDS);
+	const FStringView* PartIt = Parts.GetData();
+	LexFromString((uint8&)ColorBlendOp, *PartIt++);
+	LexFromString((uint8&)ColorSrcBlend, *PartIt++);
+	LexFromString((uint8&)ColorDestBlend, *PartIt++);
+	LexFromString((uint8&)AlphaBlendOp, *PartIt++);
+	LexFromString((uint8&)AlphaSrcBlend, *PartIt++);
+	LexFromString((uint8&)AlphaDestBlend, *PartIt++);
+	LexFromString((uint8&)ColorWriteMask, *PartIt++);
 }
 
 bool FRHIResource::Bypass()

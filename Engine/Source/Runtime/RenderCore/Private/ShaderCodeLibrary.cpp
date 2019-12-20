@@ -6,6 +6,8 @@ ShaderCodeLibrary.cpp: Bound shader state cache implementation.
 
 #include "ShaderCodeLibrary.h"
 #include "Shader.h"
+#include "Algo/Replace.h"
+#include "Containers/StringView.h"
 #include "Misc/SecureHash.h"
 #include "Misc/Paths.h"
 #include "Math/UnitConversion.h"
@@ -14,6 +16,8 @@ ShaderCodeLibrary.cpp: Bound shader state cache implementation.
 #include "HAL/PlatformSplash.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/ScopeRWLock.h"
+#include "Misc/StringBuilder.h"
+#include "String/ParseTokens.h"
 #include "Async/AsyncFileHandle.h"
 #include "PipelineFileCache.h"
 #include "Interfaces/IPluginManager.h"
@@ -121,68 +125,125 @@ static void FShaderLibraryHelperCompressCode(EShaderPlatform Platform, const TAr
 }
 
 
-FORCEINLINE FName ParseFNameCached(const FString& Src, TMap<uint32,FName>& NameCache)
+FORCEINLINE FName ParseFNameCached(const FStringView& Src, TMap<uint32,FName>& NameCache)
 {
-	uint32 SrcHash = CityHash32((char*)Src.GetCharArray().GetData(), Src.GetCharArray().GetAllocatedSize());
+	uint32 SrcHash = CityHash32(reinterpret_cast<const char*>(Src.GetData()), Src.Len() * sizeof(TCHAR));
 	if (FName* Name = NameCache.Find(SrcHash))
 	{
 		return *Name;
 	}
 	else
 	{
-		return NameCache.Emplace(SrcHash, FName(*Src));
+		return NameCache.Emplace(SrcHash, FName(Src.Len(), Src.GetData()));
 	}
+}
+
+static void AppendFNameAsUTF8(FAnsiStringBuilderBase& Out, const FName& InName)
+{
+	if (!InName.TryAppendAnsiString(Out))
+	{
+		TStringBuilder<128> WideName;
+		InName.AppendString(WideName);
+		Out << TCHAR_TO_UTF8(WideName.ToString());
+	}
+}
+
+static void AppendSanitizedFNameAsUTF8(FAnsiStringBuilderBase& Out, const FName& InName, ANSICHAR Delim)
+{
+	const int32 Offset = Out.Len();
+	AppendFNameAsUTF8(Out, InName);
+	Algo::Replace(MakeArrayView(Out).Slice(Offset, Out.Len() - Offset), Delim, ' ');
+}
+
+static void AppendSanitizedFName(FStringBuilderBase& Out, const FName& InName, TCHAR Delim)
+{
+	const int32 Offset = Out.Len();
+	InName.AppendString(Out);
+	Algo::Replace(MakeArrayView(Out).Slice(Offset, Out.Len() - Offset), Delim, TEXT(' '));
 }
 
 FString FCompactFullName::ToString() const
 {
-	FString RetString;
-	RetString.Reserve(256);
-	if (!ObjectClassAndPath.Num())
+	TStringBuilder<256> RetString;
+	AppendString(RetString);
+	return FString(FStringView(RetString));
+}
+
+void FCompactFullName::AppendString(FStringBuilderBase& Out) const
+{
+	const int32 ObjectClassAndPathCount = ObjectClassAndPath.Num();
+	if (!ObjectClassAndPathCount)
 	{
-		RetString += TEXT("empty");
+		Out << TEXT("empty");
 	}
 	else
 	{
-		for (int32 NameIdx = 0; NameIdx < ObjectClassAndPath.Num(); NameIdx++)
+		for (int32 NameIdx = 0; NameIdx < ObjectClassAndPathCount; NameIdx++)
 		{
-			RetString += ObjectClassAndPath[NameIdx].ToString();
+			Out << ObjectClassAndPath[NameIdx];
 			if (NameIdx == 0)
 			{
-				RetString += TEXT(" ");
+				Out << TEXT(' ');
 			}
-			else if (NameIdx < ObjectClassAndPath.Num() - 1)
+			else if (NameIdx < ObjectClassAndPathCount - 1)
 			{
-				if (NameIdx == ObjectClassAndPath.Num() - 2)
+				if (NameIdx == ObjectClassAndPathCount - 2)
 				{
-					RetString += TEXT(".");
+					Out << TEXT('.');
 				}
 				else
 				{
-					RetString += TEXT("/");
+					Out << TEXT('/');
 				}
 			}
 		}
 	}
-	return RetString;
 }
 
-void FCompactFullName::ParseFromString(const FString& InSrc)
+void FCompactFullName::AppendString(FAnsiStringBuilderBase& Out) const
 {
-	FString Src = InSrc;
-	Src.ReplaceInline(TEXT("\t"), TEXT(" "));
-	Src.ReplaceInline(TEXT("."), TEXT(" "));
-	Src.ReplaceInline(TEXT("/"), TEXT(" "));
-	TArray<FString> Fields;
-	Src.TrimStartAndEnd().ParseIntoArray(Fields, TEXT(" "), true);
-	if (Fields.Num() == 1 && Fields[0] == TEXT("empty"))
+	const int32 ObjectClassAndPathCount = ObjectClassAndPath.Num();
+	if (!ObjectClassAndPathCount)
+	{
+		Out << "empty";
+	}
+	else
+	{
+		for (int32 NameIdx = 0; NameIdx < ObjectClassAndPathCount; NameIdx++)
+		{
+			AppendFNameAsUTF8(Out, ObjectClassAndPath[NameIdx]);
+			if (NameIdx == 0)
+			{
+				Out << ' ';
+			}
+			else if (NameIdx < ObjectClassAndPathCount - 1)
+			{
+				if (NameIdx == ObjectClassAndPathCount - 2)
+				{
+					Out << '.';
+				}
+				else
+				{
+					Out << '/';
+				}
+			}
+		}
+	}
+}
+
+void FCompactFullName::ParseFromString(const FStringView& InSrc)
+{
+	TArray<FStringView, TInlineAllocator<64>> Fields;
+	UE::String::ParseTokensMultiple(InSrc.TrimStartAndEnd(), {TEXT(' '), TEXT('.'), TEXT('/'), TEXT('\t')},
+		[&Fields](FStringView Field) { if (!Field.IsEmpty()) { Fields.Add(Field); } });
+	if (Fields.Num() == 1 && Fields[0] == TEXT("empty"_SV))
 	{
 		Fields.Empty();
 	}
 	ObjectClassAndPath.Empty(Fields.Num());
-	for (const FString& Item : Fields)
+	for (const FStringView& Item : Fields)
 	{
-		ObjectClassAndPath.Add(FName(*Item));
+		ObjectClassAndPath.Emplace(Item);
 	}
 }
 
@@ -237,10 +298,10 @@ void FStableShaderKeyAndValue::ComputeKeyHash()
 	KeyHash = HashCombine(KeyHash, GetTypeHash(PipelineHash));
 }
 
-void FStableShaderKeyAndValue::ParseFromString(const FString& Src)
+void FStableShaderKeyAndValue::ParseFromString(const FStringView& Src)
 {
-	TArray<FString> Fields;
-	Src.TrimStartAndEnd().ParseIntoArray(Fields, TEXT(","), false);
+	TArray<FStringView, TInlineAllocator<12>> Fields;
+	UE::String::ParseTokens(Src.TrimStartAndEnd(), TEXT(','), [&Fields](FStringView Field) { Fields.Add(Field); });
 
 	/* disabled, should not be happening since 1H 2018
 	if (Fields.Num() > 12)
@@ -256,17 +317,17 @@ void FStableShaderKeyAndValue::ParseFromString(const FString& Src)
 	int32 Index = 0;
 	ClassNameAndObjectPath.ParseFromString(Fields[Index++]);
 
-	ShaderType = FName(*Fields[Index++]);
-	ShaderClass = FName(*Fields[Index++]);
-	MaterialDomain = FName(*Fields[Index++]);
-	FeatureLevel = FName(*Fields[Index++]);
+	ShaderType = FName(Fields[Index++]);
+	ShaderClass = FName(Fields[Index++]);
+	MaterialDomain = FName(Fields[Index++]);
+	FeatureLevel = FName(Fields[Index++]);
 
-	QualityLevel = FName(*Fields[Index++]);
-	TargetFrequency = FName(*Fields[Index++]);
-	TargetPlatform = FName(*Fields[Index++]);
+	QualityLevel = FName(Fields[Index++]);
+	TargetFrequency = FName(Fields[Index++]);
+	TargetPlatform = FName(Fields[Index++]);
 
-	VFType = FName(*Fields[Index++]);
-	PermutationId = FName(*Fields[Index++]);
+	VFType = FName(Fields[Index++]);
+	PermutationId = FName(Fields[Index++]);
 
 	OutputHash.FromString(Fields[Index++]);
 
@@ -285,10 +346,10 @@ void FStableShaderKeyAndValue::ParseFromString(const FString& Src)
 }
 
 
-void FStableShaderKeyAndValue::ParseFromStringCached(const FString& Src, TMap<uint32, FName>& NameCache)
+void FStableShaderKeyAndValue::ParseFromStringCached(const FStringView& Src, TMap<uint32, FName>& NameCache)
 {
-	TArray<FString> Fields;
-	Src.TrimStartAndEnd().ParseIntoArray(Fields, TEXT(","), false);
+	TArray<FStringView, TInlineAllocator<12>> Fields;
+	UE::String::ParseTokens(Src.TrimStartAndEnd(), TEXT(','), [&Fields](FStringView Field) { Fields.Add(Field); });
 
 	/* disabled, should not be happening since 1H 2018
 	if (Fields.Num() > 11)
@@ -297,7 +358,7 @@ void FStableShaderKeyAndValue::ParseFromStringCached(const FString& Src, TMap<ui
 		FixupUnsanitizedNames(Src, Fields);
 	}
 	*/
-	
+
 	// for a while, accept old .scl.csv without pipelinehash
 	check(Fields.Num() == 11 || Fields.Num() == 12);
 
@@ -343,38 +404,65 @@ FString FStableShaderKeyAndValue::ToString() const
 
 void FStableShaderKeyAndValue::ToString(FString& OutResult) const
 {
-	const TCHAR* Delim = TEXT(",");
+	TStringBuilder<384> Out;
+	const TCHAR Delim = TEXT(',');
 
-	OutResult.Reset(255);
+	const int32 ClassNameAndObjectPathOffset = Out.Len();
+	ClassNameAndObjectPath.AppendString(Out);
+	Algo::Replace(MakeArrayView(Out).Slice(ClassNameAndObjectPathOffset, Out.Len() - ClassNameAndObjectPathOffset), Delim, TEXT(' '));
+	Out << Delim;
 
-	OutResult += ClassNameAndObjectPath.ToString().Replace(Delim, TEXT(" "));
-	OutResult += Delim;
+	AppendSanitizedFName(Out, ShaderType, Delim);
+	Out << Delim;
+	AppendSanitizedFName(Out, ShaderClass, Delim);
+	Out << Delim;
 
-	OutResult += ShaderType.ToString().Replace(Delim, TEXT(" "));
-	OutResult += Delim;
-	OutResult += ShaderClass.ToString().Replace(Delim, TEXT(" "));
-	OutResult += Delim;
-	OutResult += MaterialDomain.ToString();
-	OutResult += Delim;
-	OutResult += FeatureLevel.ToString();
-	OutResult += Delim;
+	Out << MaterialDomain << Delim;
+	Out << FeatureLevel << Delim;
+	Out << QualityLevel << Delim;
+	Out << TargetFrequency << Delim;
+	Out << TargetPlatform << Delim;
+	Out << VFType << Delim;
+	Out << PermutationId << Delim;
 
-	OutResult += QualityLevel.ToString();
-	OutResult += Delim;
-	OutResult += TargetFrequency.ToString();
-	OutResult += Delim;
-	OutResult += TargetPlatform.ToString();
-	OutResult += Delim;
+	Out << OutputHash << Delim;
+	Out << PipelineHash;
 
-	OutResult += VFType.ToString();
-	OutResult += Delim;
-	OutResult += PermutationId.ToString();
-	OutResult += Delim;
+	OutResult = FStringView(Out);
+}
 
-	OutResult += OutputHash.ToString();
-	OutResult += Delim;
+void FStableShaderKeyAndValue::AppendString(FAnsiStringBuilderBase& Out) const
+{
+	const ANSICHAR Delim = ',';
 
-	OutResult += PipelineHash.ToString();
+	const int32 ClassNameAndObjectPathOffset = Out.Len();
+	ClassNameAndObjectPath.AppendString(Out);
+	Algo::Replace(MakeArrayView(Out).Slice(ClassNameAndObjectPathOffset, Out.Len() - ClassNameAndObjectPathOffset), Delim, ' ');
+	Out << Delim;
+
+	AppendSanitizedFNameAsUTF8(Out, ShaderType, Delim);
+	Out << Delim;
+	AppendSanitizedFNameAsUTF8(Out, ShaderClass, Delim);
+	Out << Delim;
+
+	AppendFNameAsUTF8(Out, MaterialDomain);
+	Out << Delim;
+	AppendFNameAsUTF8(Out, FeatureLevel);
+	Out << Delim;
+	AppendFNameAsUTF8(Out, QualityLevel);
+	Out << Delim;
+	AppendFNameAsUTF8(Out, TargetFrequency);
+	Out << Delim;
+	AppendFNameAsUTF8(Out, TargetPlatform);
+	Out << Delim;
+	AppendFNameAsUTF8(Out, VFType);
+	Out << Delim;
+	AppendFNameAsUTF8(Out, PermutationId);
+	Out << Delim;
+
+	Out << OutputHash;
+	Out << Delim;
+	Out << PipelineHash;
 }
 
 FString FStableShaderKeyAndValue::HeaderLine()
@@ -1512,7 +1600,6 @@ struct FEditorShaderStableInfo
 		check(LibraryName.Len() == 0);
 		check(Name.Len() > 0);
 		LibraryName = Name;
-		Offset = 0;
 		StableMap.Empty();
 	}
 
@@ -1595,15 +1682,14 @@ struct FEditorShaderStableInfo
 
 				IntermediateFormatAr->Serialize((ANSICHAR*)HeaderSrc.Get(), HeaderSrc.Length() * sizeof(ANSICHAR));
 
-				FString LineBuffer;
-				LineBuffer.Reserve(512);
+				TAnsiStringBuilder<512> LineBuffer;
 
 				for (const FStableShaderKeyAndValue& Item : StableMap)
 				{
-					Item.ToString(LineBuffer);
-					LineBuffer += TCHAR('\n');
-					auto LineConverted = StringCast<ANSICHAR>(*LineBuffer, LineBuffer.Len());
-					IntermediateFormatAr->Serialize((ANSICHAR*)LineConverted.Get(), LineConverted.Length() * sizeof(ANSICHAR));
+					LineBuffer.Reset();
+					Item.AppendString(LineBuffer);
+					LineBuffer << '\n';
+					IntermediateFormatAr->Serialize(const_cast<ANSICHAR*>(LineBuffer.ToString()), LineBuffer.Len() * sizeof(ANSICHAR));
 				}
 			}
 
@@ -1633,7 +1719,6 @@ private:
 	FName FormatName;
 	FString LibraryName;
 	TSet<FStableShaderKeyAndValue> StableMap;
-	uint64 Offset;
 };
 
 struct FShaderCodeStats
