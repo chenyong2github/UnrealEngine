@@ -4164,6 +4164,7 @@ void FLevelEditorViewportClient::MouseMove(FViewport* InViewport, int32 x, int32
 			SelectedAtmosphericLight->SetWorldTransform(ComponentTransform);
 
 			UserControlledAtmosphericLightMatrix = ComponentTransform;
+			UserControlledAtmosphericLightMatrix.NormalizeRotation();
 		}
 	}
 
