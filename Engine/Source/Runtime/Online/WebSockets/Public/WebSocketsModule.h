@@ -25,7 +25,18 @@ public:
 #endif // #if WITH_WEBSOCKETS
 	{
 	}
-
+#if WITH_WEBSOCKETS
+	/**
+	 * Delegate fired when a web socket is created.
+	 *
+	 * @param WebSocket Reference to newly created web socket
+	 * @param Protocols Array of protocols on web socket
+	 * @param Url Url the web socket is connected to
+	 */
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnWebSocketCreated, const TSharedPtr<class IWebSocket>& /* WebSocket */, const TArray<FString>& /* Protocols */, const FString& /* Url */);
+	FOnWebSocketCreated OnWebSocketCreated;
+#endif // #if WITH_WEBSOCKETS
+	
 	/**
 	 * Singleton-like access to this module's interface.  This is just for convenience!
 	 * Beware of calling this during the shutdown phase, though.  Your module might have been unloaded already.

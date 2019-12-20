@@ -80,4 +80,10 @@ public:
 	DECLARE_EVENT_ThreeParams(IWebSocket, FWebSocketRawMessageEvent, const void* /* Data */, SIZE_T /* Size */, SIZE_T /* BytesRemaining */);
 	virtual FWebSocketRawMessageEvent& OnRawMessage() = 0;
 
+	/**
+	* Delegate called when a web socket text message has been sent.
+	* Assume UTF-8 encoding.
+	*/
+	DECLARE_EVENT_OneParam(IWebSocket, FWebSocketMessageSentEvent, const FString& /* MessageString */);
+	virtual FWebSocketMessageSentEvent& OnMessageSent() = 0;
 };
