@@ -1153,6 +1153,90 @@ namespace Chaos
 
 
 	template <typename T>
+	template <typename GeomType>
+	bool THeightField<T>::GJKContactPointImp(const GeomType& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness,
+		TVector<T, 3>& ContactLocation, TVector<T, 3>& ContactNormal, T& ContactPhi) const
+	{
+		auto OverlapTriangle = [&](const TVector<T, 3>& A, const TVector<T, 3>& B, const TVector<T, 3>& C,
+			TVector<T, 3>& LocalContactLocation, TVector<T, 3>& LocalContactNormal, T& LocalContactPhi) -> bool
+		{
+			const TVector<T, 3> AB = B - A;
+			const TVector<T, 3> AC = C - A;
+
+			const TVector<T, 3> Offset = TVector<T, 3>::CrossProduct(AB, AC);
+
+			TTriangle<T> TriangleConvex(A, B, C);
+
+			T Penetration;
+			TVec3<T> ClosestA, ClosestB, Normal;
+			if (GJKPenetration(TriangleConvex, QueryGeom, QueryTM, Penetration, ClosestA, ClosestB, Normal, (T)0))
+			{
+				TVec3<T> TestVector = QueryTM.InverseTransformVector(Normal);
+
+				LocalContactLocation = ClosestB;
+				LocalContactNormal = Normal; 
+				LocalContactPhi = -Penetration;
+				return true;
+			}
+
+			return LocalContactPhi<0.f;
+		};
+
+		bool bResult = false;
+		TAABB<T, 3> QueryBounds = QueryGeom.BoundingBox();
+		QueryBounds.Thicken(Thickness);
+		QueryBounds = QueryBounds.TransformedAABB(QueryTM);
+
+		FBounds2D FlatQueryBounds;
+		FlatQueryBounds.Min = TVector<T, 2>(QueryBounds.Min()[0], QueryBounds.Min()[1]);
+		FlatQueryBounds.Max = TVector<T, 2>(QueryBounds.Max()[0], QueryBounds.Max()[1]);
+
+		TArray<TVector<int32, 2>> Intersections;
+		TVector<T, 3> Points[4];
+
+		GetGridIntersections(FlatQueryBounds, Intersections);
+
+		T LocalContactPhi = FLT_MAX;
+		TVector<T, 3> LocalContactLocation, LocalContactNormal;
+		for (const TVector<int32, 2>& Cell : Intersections)
+		{
+			const int32 SingleIndex = Cell[1] * GeomData.NumCols + Cell[0];
+			GeomData.GetPointsScaled(SingleIndex, Points);
+
+			if (OverlapTriangle(Points[0], Points[1], Points[3], LocalContactLocation, LocalContactNormal, LocalContactPhi))
+			{
+				if (LocalContactPhi < ContactPhi)
+				{
+					ContactPhi = LocalContactPhi;
+					ContactLocation = LocalContactLocation;
+					ContactNormal = LocalContactNormal;
+				}
+			}
+
+			if (OverlapTriangle(Points[0], Points[3], Points[2], LocalContactLocation, LocalContactNormal, LocalContactPhi))
+			{
+				if (LocalContactPhi < ContactPhi)
+				{
+					ContactPhi = LocalContactPhi;
+					ContactLocation = LocalContactLocation;
+					ContactNormal = LocalContactNormal;
+				}
+			}
+		}
+
+		if (ContactPhi < 0)
+			return true;
+		return false;
+	}
+
+	template <typename T>
+	bool THeightField<T>::GJKContactPoint(const TBox<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, TVector<T, 3>& ContactLocation, TVector<T, 3>& ContactNormal, T& ContactPhi) const
+	{
+		return GJKContactPointImp(QueryGeom, QueryTM, Thickness, ContactLocation, ContactNormal, ContactPhi);
+	}
+
+
+	template <typename T>
 	template <typename QueryGeomType>
 	bool THeightField<T>::OverlapGeomImp(const QueryGeomType& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness) const
 	{
