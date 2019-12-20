@@ -18,7 +18,7 @@
 // Base Sound Cue Template class, which builds the sound node graph procedurally and hides more complex Sound Cue functionality
 // to streamline implementation defined in child classes.
 UCLASS(abstract)
-class ENGINE_API USoundCueTemplate : public USoundCue
+class SOUNDCUETEMPLATES_API USoundCueTemplate : public USoundCue
 {
 	GENERATED_UCLASS_BODY()
 
