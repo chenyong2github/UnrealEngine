@@ -7,6 +7,14 @@
 #include "Sound/SoundSubmix.h"
 
 
+namespace
+{
+	TSharedPtr<FSubmixEffectOculusReverbPlugin, ESPMode::ThreadSafe> CastEffectToPluginSharedPtr(FSoundEffectSubmixPtr InSubmixEffect)
+	{
+		return StaticCastSharedPtr<FSubmixEffectOculusReverbPlugin, FSoundEffectSubmix, ESPMode::ThreadSafe>(InSubmixEffect);
+	}
+} // namespace <>
+
 void FSubmixEffectOculusReverbPlugin::SetContext(ovrAudioContext* SharedContext)
 {
 	FScopeLock ScopeLock(&ContextLock);
@@ -48,30 +56,30 @@ void OculusAudioReverb::SetContext(ovrAudioContext* SharedContext)
 		Context = SharedContext;
 	}
 
-	if (Submix.IsValid())
+	if (SubmixEffect.IsValid())
 	{
-		Submix->SetContext(SharedContext);
+		CastEffectToPluginSharedPtr(SubmixEffect)->SetContext(SharedContext);
 	}
 }
 
 void OculusAudioReverb::ClearContext()
 {
 	Context = nullptr;
-	if (Submix.IsValid())
+	if (SubmixEffect.IsValid())
 	{
-		Submix->ClearContext();
+		CastEffectToPluginSharedPtr(SubmixEffect)->ClearContext();
 	}
 }
 
 FSoundEffectSubmixPtr OculusAudioReverb::GetEffectSubmix()
 {
-	if (!Submix.IsValid())
+	if (!SubmixEffect.IsValid())
 	{
-		Submix = MakeShared<FSubmixEffectOculusReverbPlugin>();
-		Submix->SetEnabled(true);
+		SubmixEffect = MakeShareable(static_cast<FSoundEffectSubmix*>(new FSubmixEffectOculusReverbPlugin()));
+		SubmixEffect->SetEnabled(true);
 	}
 
-	return StaticCastSharedPtr<FSoundEffectSubmix, FSubmixEffectOculusReverbPlugin, ESPMode::ThreadSafe>(Submix);
+	return SubmixEffect;
 }
 
 USoundSubmix* OculusAudioReverb::GetSubmix()
