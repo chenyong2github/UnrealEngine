@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "XmppStanza.h"
 
 #if WITH_XMPP_STROPHE
 
@@ -15,6 +15,7 @@ typedef struct _xmpp_conn_t xmpp_conn_t;
 typedef struct _xmpp_stanza_t xmpp_stanza_t;
 
 class FStropheStanza
+	: public IXmppStanza
 {
 	// For TArray<FStropheStanza> Emplace clone from xmp_stanza_t*
 	friend class TArray<FStropheStanza>;
@@ -32,18 +33,19 @@ public:
 	explicit FStropheStanza(const FXmppConnectionStrophe& Context, const FString& StanzaName = FString());
 	FStropheStanza(const FStropheStanza& Other);
 	FStropheStanza(FStropheStanza&& Other);
-	~FStropheStanza();
+	virtual ~FStropheStanza();
 	FStropheStanza& operator=(const FStropheStanza& Other);
 	FStropheStanza& operator=(FStropheStanza&& Other);
 
 	FStropheStanza Clone();
 
 	void AddChild(const FStropheStanza& Child);
-	TOptional<FStropheStanza> GetChild(const FString& ChildName);
-	TOptional<const FStropheStanza> GetChild(const FString& ChildName) const;
+	virtual TUniquePtr<IXmppStanza> GetChild(const FString& ChildName) const override;
+	TOptional<FStropheStanza> GetChildStropheStanza(const FString& ChildName);
+	TOptional<const FStropheStanza> GetChildStropheStanza(const FString& ChildName) const;
 	TOptional<FStropheStanza> GetChildByNameAndNamespace(const FString& ChildName, const FString& Namespace);
 	TOptional<const FStropheStanza> GetChildByNameAndNamespace(const FString& ChildName, const FString& Namespace) const;
-	bool HasChild(const FString& ChildName) const;
+	virtual bool HasChild(const FString& ChildName) const override;
 	bool HasChildByNameAndNamespace(const FString& ChildName, const FString& Namespace) const;
 
 	TArray<FStropheStanza> GetChildren();
@@ -53,35 +55,35 @@ public:
 	FString GetNamespace() const;
 
 	void SetAttribute(const FString& Key, const FString& Value);
-	FString GetAttribute(const FString& Key) const;
-	bool HasAttribute(const FString& Key) const;
+	virtual FString GetAttribute(const FString& Key) const override;
+	virtual bool HasAttribute(const FString& Key) const override;
 
 	void SetName(const FString& Name);
-	FString GetName() const;
+	virtual FString GetName() const override;
 
 	void SetText(const FString& Text);
-	FString GetText() const;
+	virtual FString GetText() const override;
 
 	void SetType(const FString& Type);
-	FString GetType() const;
+	virtual FString GetType() const override;
 
 	void SetId(const FString& Id);
-	FString GetId() const;
+	virtual FString GetId() const override;
 
 	void SetTo(const FXmppUserJid& To);
 	void SetTo(const FString& To);
-	FXmppUserJid GetTo() const;
+	virtual FXmppUserJid GetTo() const override;
 
 	void SetFrom(const FXmppUserJid& From);
 	void SetFrom(const FString& From);
-	FXmppUserJid GetFrom() const;
+	virtual FXmppUserJid GetFrom() const override;
 
 	// Helpers for Message stanzas */
 
 	/** Add a child stanza of name Body with the requested text.  Fails if we already have a body stanza, or if we are a text stanza. */
 	bool AddBodyWithText(const FString& Text);
 	/** Get the text from a child Body stanza, if one exists */
-	TOptional<FString> GetBodyText() const;
+	virtual TOptional<FString> GetBodyText() const override;
 
 protected:
 	/** Get the current stanza */

@@ -221,6 +221,7 @@ bool FXmppConnectionStrophe::SendStanza(FStropheStanza&& Stanza)
 		return false;
 	}
 
+	OnStanzaSent().Broadcast(Stanza);
 	bool bQueuedStanzaToBeSent = true;
 	if (StropheThread.IsValid())
 	{
@@ -243,7 +244,7 @@ bool FXmppConnectionStrophe::SendStanza(FStropheStanza&& Stanza)
 			PingStrophe->ResetPingTimer();
 		}
 	}
-
+	
 	return bQueuedStanzaToBeSent;
 }
 
@@ -297,7 +298,7 @@ void FXmppConnectionStrophe::ReceiveConnectionError(const FStropheError& Error, 
 void FXmppConnectionStrophe::ReceiveStanza(const FStropheStanza& Stanza)
 {
 	UE_LOG(LogXmpp, Verbose, TEXT("Received Strophe XMPP Stanza %s"), *Stanza.GetName());
-
+	OnStanzaReceived().Broadcast(Stanza);
 	// Reset our ping timer now that we've received traffic
 	if (PingStrophe.IsValid() && ServerConfiguration.bResetPingTimeoutOnReceiveStanza)
 	{
