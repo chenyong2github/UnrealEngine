@@ -32,9 +32,14 @@ UClothingSimulationInteractor* UChaosClothingSimulationFactory::CreateInteractor
 	return NewObject<UChaosClothingSimulationInteractor>(GetTransientPackage());
 }
 
-TSubclassOf<UClothConfigBase> UChaosClothingSimulationFactory::GetClothConfigClass() const
+TArrayView<const TSubclassOf<UClothConfigBase>> UChaosClothingSimulationFactory::GetClothConfigClasses() const
 {
-	return TSubclassOf<UClothConfigBase>(UChaosClothConfig::StaticClass());
+	static const TArray<TSubclassOf<UClothConfigBase>> ClothConfigClasses(
+		{
+			TSubclassOf<UClothConfigBase>(UChaosClothConfig::StaticClass()),
+			TSubclassOf<UClothConfigBase>(UChaosClothSharedSimConfig::StaticClass())
+		});
+	return ClothConfigClasses;
 }
 
 const UEnum* UChaosClothingSimulationFactory::GetWeightMapTargetEnum() const

@@ -6,3 +6,9 @@ UClothConfigCommon::UClothConfigCommon()
 
 UClothConfigCommon::~UClothConfigCommon()
 {}
+
+UClothSharedConfigCommon::UClothSharedConfigCommon()
+{}
+
+UClothSharedConfigCommon::~UClothSharedConfigCommon()
+{}

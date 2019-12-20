@@ -13,7 +13,11 @@ class CHAOSCLOTH_API UChaosClothConfig : public UClothConfigCommon
 {
 	GENERATED_BODY()
 public:
-	UChaosClothConfig() {}
+	UChaosClothConfig();
+	virtual ~UChaosClothConfig() override;
+
+	/** Migrate from the legacy FClothConfig structure. */
+	virtual void MigrateFrom(const FClothConfig_Legacy&) override;
 
 	/**
 	 * How cloth particle mass is determined
@@ -48,46 +52,46 @@ public:
 
 	// The Stiffness of the Edge constraints
 	UPROPERTY(EditAnywhere, Category = Stiffness, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
-	float EdgeStiffness = 1.f;
+	float EdgeStiffness = 0.5f;
 
 	// The Stiffness of the bending constraints
 	UPROPERTY(EditAnywhere, Category = Stiffness, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
-	float BendingStiffness = 1.f;
+	float BendingStiffness = 0.5f;
 
 	// The stiffness of the area preservation constraints
 	UPROPERTY(EditAnywhere, Category = Stiffness, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
-	float AreaStiffness = 1.f;
+	float AreaStiffness = 0.5f;
 
 	// The stiffness of the volume preservation constraints
-	UPROPERTY(EditAnywhere, Category = Stiffness, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
+	UPROPERTY()
 	float VolumeStiffness = 0.f;
 
-	// The stiffness of the strain limiting constraints
+	// The strain limiting stiffness of the long range attachment constraints (aka tether stiffness)
 	UPROPERTY(EditAnywhere, Category = Stiffness, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
-	float StrainLimitingStiffness = 1.f;
-	
+	float StrainLimitingStiffness = 0.5f;
+
 	// The stiffness of the shape target constraints
-	UPROPERTY(EditAnywhere, Category = Stiffness, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
-	float ShapeTargetStiffness = 0.f;	
+	UPROPERTY()
+	float ShapeTargetStiffness = 0.f;
 
 	// Friction coefficient for cloth - collider interaction
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "10"))
-	float CoefficientOfFriction = 0.0f;	
+	float CoefficientOfFriction = 0.f;
 
 	// Default spring stiffness for anim drive if an anim drive is in use
 	UPROPERTY(EditAnywhere, Category = Stiffness, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
 	float AnimDriveSpringStiffness = 0.001f;
 
-	// Enable bending elements
+	// Enable the more accurate bending element constraints instead of the faster cross-edge spring constraints used for controlling bending stiffness.
 	UPROPERTY(EditAnywhere, Category = ClothEnableFlags)
 	bool bUseBendingElements = false;
 
-	// Enable tetrahral constraints
-	UPROPERTY(EditAnywhere, Category = ClothEnableFlags)
+	// Enable tetrahedral constraints
+	UPROPERTY()
 	bool bUseTetrahedralConstraints = false;
 
 	// Enable thin shell volume constraints 
-	UPROPERTY(EditAnywhere, Category = ClothEnableFlags)
+	UPROPERTY()
 	bool bUseThinShellVolumeConstraints = false;
 
 	// Enable self collision
@@ -95,7 +99,7 @@ public:
 	bool bUseSelfCollisions = false;
 
 	// Enable continuous collision detection
-	UPROPERTY(EditAnywhere, Category = ClothEnableFlags)
+	UPROPERTY()
 	bool bUseContinuousCollisionDetection = false;
 };
 
@@ -106,12 +110,15 @@ public:
  * to a specific skeletal mesh. @seealso UChaosClothConfig.
  */
 UCLASS()
-class CHAOSCLOTH_API UChaosClothSharedSimConfig : public UClothConfigBase
+class CHAOSCLOTH_API UChaosClothSharedSimConfig : public UClothSharedConfigCommon
 {
 	GENERATED_BODY()
 public:
-	UChaosClothSharedSimConfig() : Gravity(FVector(0.0f, 0.0f, -490)) {}
-	virtual ~UChaosClothSharedSimConfig() {}
+	UChaosClothSharedSimConfig();
+	virtual ~UChaosClothSharedSimConfig() override;
+
+	/** Migrate from the legacy FClothConfig structure. */
+	virtual void MigrateFrom(const FClothConfig_Legacy&) override;
 
 	// The number of solver iterations
 	// This will increase the stiffness of all constraints but will increase the CPU cost
