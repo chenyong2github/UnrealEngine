@@ -9,6 +9,7 @@
 #include "Math/Interval.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "Sound/SoundEffectSubmix.h"
 #include "UObject/ObjectMacros.h"
 
 #if !UE_BUILD_SHIPPING
@@ -21,7 +22,6 @@
 // Forward Declarations
 class FAudioDevice;
 class USoundSubmix;
-
 
 /**
 * Enumeration of audio plugin types
@@ -774,15 +774,16 @@ public:
 	/** Called when a source is done playing and is released. */
 	virtual void OnReleaseSource(const uint32 SourceId) = 0;
 
-	virtual class FSoundEffectSubmix* GetEffectSubmix(USoundSubmix* Submix) = 0;
+	/** Returns the plugin-managed effect submix instance */
+	virtual FSoundEffectSubmixPtr GetEffectSubmix() = 0;
+
+	/** Returns the plugin-managed effect submix */
+	virtual USoundSubmix* GetSubmix() = 0;
 
 	/** Processes audio with the given input and output data structs.*/
 	virtual void ProcessSourceAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData)
 	{
 	}
-
-	/** Returns whether or not the plugin reverb overrides the master reverb. If true, then the built in reverb will be uninitialized and bypassed. */
-	virtual bool DoesReverbOverrideMasterReverb() const { return true; }
 };
 
 /************************************************************************/

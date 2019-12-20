@@ -5,6 +5,7 @@
 #include "IAudioExtensionPlugin.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "OVR_Audio.h"
+#include "Templates/UniquePtr.h"
 
 
 class FSubmixEffectOculusReverbPlugin : public FSoundEffectSubmix
@@ -61,7 +62,9 @@ public:
 		return; // PAS
 	}
 
-	virtual class FSoundEffectSubmix* GetEffectSubmix(class USoundSubmix* Submix) override;
+	virtual TSharedPtr<FSoundEffectSubmix> GetEffectSubmix() override;
+
+	virtual USoundSubmix* GetSubmix() override;
 
 	virtual void ProcessSourceAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData) override
 	{
@@ -69,5 +72,5 @@ public:
 	}
 private:
 	ovrAudioContext* Context;
-	TArray<FSubmixEffectOculusReverbPlugin*> Submixes;
+	TSharedPtr<FSubmixEffectOculusReverbPlugin> Submix;
 };
