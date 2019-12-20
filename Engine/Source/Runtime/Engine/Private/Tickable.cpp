@@ -73,9 +73,6 @@ FTickableGameObject::FTickableGameObject()
 	if (UObjectInitialized())
 	{
 		Statics.NewTickableObjects.Push(this);
-
-		FScopeLock LockTickableObjects(&Statics.TickableObjectsCritical);
-		Statics.DeletedTickableObjects.Remove(this);
 	}
 	else
 	{
