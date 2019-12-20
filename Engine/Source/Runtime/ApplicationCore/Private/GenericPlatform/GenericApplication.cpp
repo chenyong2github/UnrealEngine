@@ -3,6 +3,7 @@
 #include "GenericPlatform/GenericApplication.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/CoreDelegates.h"
+#include "Misc/CommandLine.h"
 #include "IInputDevice.h"
 
 const FGamepadKeyNames::Type FGamepadKeyNames::Invalid(NAME_None);
@@ -197,11 +198,22 @@ float FDisplayMetrics::GetDebugActionSafeZoneRatio()
 
 void FDisplayMetrics::ApplyDefaultSafeZones()
 {
-	const float SafeZoneRatio = GetDebugTitleSafeZoneRatio();
-	if (SafeZoneRatio < 1.0f)
+	// Allow safe zones to be overridden by the command line. Used by mobile PIE.
+	TitleSafePaddingSize = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+	bool bSetByCommandLine;
+	bSetByCommandLine = FParse::Value(FCommandLine::Get(), TEXT("SafeZonePaddingLeft="),   TitleSafePaddingSize.X);
+	bSetByCommandLine = FParse::Value(FCommandLine::Get(), TEXT("SafeZonePaddingRight="),  TitleSafePaddingSize.Y) || bSetByCommandLine;
+	bSetByCommandLine = FParse::Value(FCommandLine::Get(), TEXT("SafeZonePaddingTop="),    TitleSafePaddingSize.Z) || bSetByCommandLine;
+	bSetByCommandLine = FParse::Value(FCommandLine::Get(), TEXT("SafeZonePaddingBottom="), TitleSafePaddingSize.W) || bSetByCommandLine;
+
+	if (!bSetByCommandLine)
 	{
-		const float HalfUnsafeRatio = (1.0f - SafeZoneRatio) * 0.5f;
-		TitleSafePaddingSize = FVector4(PrimaryDisplayWidth * HalfUnsafeRatio, PrimaryDisplayHeight * HalfUnsafeRatio, PrimaryDisplayWidth * HalfUnsafeRatio, PrimaryDisplayHeight * HalfUnsafeRatio);
+		const float SafeZoneRatio = GetDebugTitleSafeZoneRatio();
+		if (SafeZoneRatio < 1.0f)
+		{
+			const float HalfUnsafeRatio = (1.0f - SafeZoneRatio) * 0.5f;
+			TitleSafePaddingSize = FVector4(PrimaryDisplayWidth * HalfUnsafeRatio, PrimaryDisplayHeight * HalfUnsafeRatio, PrimaryDisplayWidth * HalfUnsafeRatio, PrimaryDisplayHeight * HalfUnsafeRatio);
+		}
 	}
 
 	const float ActionSafeZoneRatio = GetDebugActionSafeZoneRatio();

@@ -1469,7 +1469,24 @@ void UEditorEngine::PlayStandaloneLocalPc(FString MapNameOverride, FIntPoint* Wi
 	{
 		AdditionalParameters += TEXT(" -ForceRes");
 	}
-	
+
+	// In order for the mobile previewer to adjust its safe zone according to the device profile specified in the editor play settings,
+	// we need to pass the PIESafeZoneOverride's values as command line variables to the new process that we are about to launch.
+	FMargin PIESafeZoneOverride = PlayInSettings->PIESafeZoneOverride;
+	FString PIESafeZonesStr = FString::Printf(TEXT(" -SafeZonePaddingLeft=%f -SafeZonePaddingRight=%f -SafeZonePaddingTop=%f -SafeZonePaddingBottom=%f"),
+		PIESafeZoneOverride.Left,
+		PIESafeZoneOverride.Right,
+		PIESafeZoneOverride.Top,
+		PIESafeZoneOverride.Bottom
+	);
+	AdditionalParameters.Append(PIESafeZonesStr);
+
+	if (!PIESafeZoneOverride.GetDesiredSize().IsZero())
+	{
+		// Send -DrawUnSafeZones so that the red "unsafe" zones show up in the mobile previewer.
+		AdditionalParameters.Append(TEXT(" -DrawUnSafeZones"));
+	}
+   	
 	// Check if centered
 	FString Params;
 	if (PlayInSettings->CenterNewWindow)
