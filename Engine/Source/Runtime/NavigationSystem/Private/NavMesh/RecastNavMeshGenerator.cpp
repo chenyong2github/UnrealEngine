@@ -652,9 +652,11 @@ void ExportChaosConvexMesh(const FKConvexElem* const Convex, const FTransform& L
 		ensure(Convex->IndexData.Num());
 	}
 
-	for (int32 i = 0; i < Convex->IndexData.Num(); ++i)
+	for (int32 i = 0; i < Convex->IndexData.Num(); i += 3)
 	{
 		IndexBuffer.Add(VertOffset + Convex->IndexData[i]);
+		IndexBuffer.Add(VertOffset + Convex->IndexData[i + 2]);
+		IndexBuffer.Add(VertOffset + Convex->IndexData[i + 1]);
 	}
 
 #if SHOW_NAV_EXPORT_PREVIEW
