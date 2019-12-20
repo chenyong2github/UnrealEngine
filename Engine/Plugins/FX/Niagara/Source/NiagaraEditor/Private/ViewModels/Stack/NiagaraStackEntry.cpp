@@ -18,6 +18,7 @@ const FName UNiagaraStackEntry::FExecutionSubcategoryNames::Settings = TEXT("Set
 const FName UNiagaraStackEntry::FExecutionSubcategoryNames::Spawn = TEXT("Spawn");
 const FName UNiagaraStackEntry::FExecutionSubcategoryNames::Update = TEXT("Update");
 const FName UNiagaraStackEntry::FExecutionSubcategoryNames::Event = TEXT("Event");
+const FName UNiagaraStackEntry::FExecutionSubcategoryNames::ShaderStage = TEXT("Shader Stage");
 const FName UNiagaraStackEntry::FExecutionSubcategoryNames::Render = TEXT("Render");
 
 UNiagaraStackEntry::FStackIssueFix::FStackIssueFix()

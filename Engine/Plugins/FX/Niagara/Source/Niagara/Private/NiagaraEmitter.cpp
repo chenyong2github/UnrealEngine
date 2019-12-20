@@ -4,7 +4,8 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraScript.h"
 #include "NiagaraScriptSourceBase.h"
-#include "NiagaraSpriteRendererProperties.h"
+#include "NiagaraRendererProperties.h"
+#include "NiagaraShaderStageBase.h"
 #include "NiagaraCustomVersion.h"
 #include "UObject/Package.h"
 #include "UObject/Linker.h"
@@ -450,6 +451,13 @@ void UNiagaraEmitter::PostLoad()
 		for (FNiagaraEventScriptProperties& EventScriptProperties : EventHandlerScriptProps)
 		{
 			EventScriptProperties.Script->RapidIterationParameters.AddOnChangedHandler(
+				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
+		}
+
+		for (UNiagaraShaderStageBase* ShaderStage : ShaderStages)
+		{
+			ShaderStage->OnChanged().AddUObject(this, &UNiagaraEmitter::ShaderStageChanged);
+			ShaderStage->Script->RapidIterationParameters.AddOnChangedHandler(
 				FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
 		}
 
@@ -1009,6 +1017,23 @@ void UNiagaraEmitter::UpdateFromMergedCopy(const INiagaraMergeManager& MergeMana
 			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
 	}
 
+	// Copy shader stages
+	for (UNiagaraShaderStageBase*& ShaderStage : ShaderStages)
+	{
+		ShaderStage->OnChanged().RemoveAll(this);
+		ShaderStage->Script->RapidIterationParameters.RemoveAllOnChangedHandlers(this);
+	}
+	ShaderStages.Empty();
+
+	for (UNiagaraShaderStageBase* MergedShaderStage : MergedEmitter->ShaderStages)
+	{
+		ReouterMergedObject(this, MergedShaderStage);
+		ShaderStages.Add(MergedShaderStage);
+		MergedShaderStage->OnChanged().AddUObject(this, &UNiagaraEmitter::ShaderStageChanged);
+		MergedShaderStage->Script->RapidIterationParameters.AddOnChangedHandler(
+			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
+	}
+
 	// Copy renderers
 	for (UNiagaraRendererProperties* Renderer : RendererProperties)
 	{
@@ -1143,6 +1168,55 @@ void UNiagaraEmitter::RemoveEventHandlerByUsageId(FGuid EventHandlerUsageId)
 #endif
 }
 
+UNiagaraShaderStageBase* UNiagaraEmitter::GetShaderStageById(FGuid ScriptUsageId) const
+{
+	UNiagaraShaderStageBase*const* FoundShaderStagePtr = ShaderStages.FindByPredicate([&ScriptUsageId](UNiagaraShaderStageBase* ShaderStage) { return ShaderStage->Script->GetUsageId() == ScriptUsageId; });
+	return FoundShaderStagePtr != nullptr ? *FoundShaderStagePtr : nullptr;
+}
+
+void UNiagaraEmitter::AddShaderStage(UNiagaraShaderStageBase* ShaderStage)
+{
+	Modify();
+	ShaderStages.Add(ShaderStage);
+#if WITH_EDITOR
+	ShaderStage->OnChanged().AddUObject(this, &UNiagaraEmitter::ShaderStageChanged);
+	ShaderStage->Script->RapidIterationParameters.AddOnChangedHandler(
+		FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
+	UpdateChangeId(TEXT("Shader stage added"));
+#endif
+}
+
+void UNiagaraEmitter::RemoveShaderStage(UNiagaraShaderStageBase* ShaderStage)
+{
+	Modify();
+	bool bRemoved = ShaderStages.Remove(ShaderStage) != 0;
+#if WITH_EDITOR
+	if (bRemoved)
+	{
+		ShaderStage->OnChanged().RemoveAll(this);
+		ShaderStage->Script->RapidIterationParameters.RemoveAllOnChangedHandlers(this);
+		UpdateChangeId(TEXT("Shader stage removed"));
+	}
+#endif
+}
+
+void UNiagaraEmitter::MoveShaderStageToIndex(UNiagaraShaderStageBase* ShaderStageToMove, int32 TargetIndex)
+{
+	int32 CurrentIndex = ShaderStages.IndexOfByKey(ShaderStageToMove);
+	checkf(CurrentIndex != INDEX_NONE, TEXT("Shader stage could not be moved because it is not owned by this emitter."));
+	if (TargetIndex != CurrentIndex)
+	{
+		int32 AdjustedTargetIndex = CurrentIndex < TargetIndex
+			? TargetIndex - 1 // If the current index is less than the target index, the target index needs to be decreased to make up for the item being removed.
+			: TargetIndex;
+
+		ShaderStages.Remove(ShaderStageToMove);
+		ShaderStages.Insert(ShaderStageToMove, AdjustedTargetIndex);
+
+		UpdateChangeId("Shader stage moved.");
+	}
+}
+
 bool UNiagaraEmitter::IsEventGeneratorShared(FName EventGeneratorId) const
 {
 	return SharedEventGeneratorIds.Contains(EventGeneratorId);
@@ -1178,6 +1252,11 @@ void UNiagaraEmitter::UpdateChangeId(const FString& Reason)
 void UNiagaraEmitter::ScriptRapidIterationParameterChanged()
 {
 	UpdateChangeId(TEXT("Script rapid iteration parameter changed."));
+}
+
+void UNiagaraEmitter::ShaderStageChanged()
+{
+	UpdateChangeId(TEXT("Shader Stage Changed"));
 }
 
 void UNiagaraEmitter::RendererChanged()
