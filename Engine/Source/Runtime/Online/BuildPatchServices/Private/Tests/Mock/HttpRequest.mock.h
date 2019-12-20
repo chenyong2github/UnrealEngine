@@ -22,6 +22,12 @@ namespace BuildPatchServices
 			return FString();
 		}
 
+		virtual FHttpRequestWillRetryDelegate& OnRequestWillRetry() override
+		{
+			MOCK_FUNC_NOT_IMPLEMENTED("FMockHttpRequest::OnRequestWillRetry");
+			return HttpRequestWillRetryDelegate;
+		}
+
 		virtual FString GetURLParameter(const FString& ParameterName) const override
 		{
 			MOCK_FUNC_NOT_IMPLEMENTED("FMockHttpRequest::GetURLParameter");
@@ -160,6 +166,7 @@ namespace BuildPatchServices
 		FHttpRequestProgressDelegate HttpRequestProgressDelegate;
 		FHttpRequestCompleteDelegate HttpRequestCompleteDelegate;
 		FHttpRequestHeaderReceivedDelegate HttpHeaderReceivedDelegate;
+		FHttpRequestWillRetryDelegate HttpRequestWillRetryDelegate;
 
 		TArray<FRxSetVerb> RxSetVerb;
 		TArray<FRxSetURL> RxSetURL;
