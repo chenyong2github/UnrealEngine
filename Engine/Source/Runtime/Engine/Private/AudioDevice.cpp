@@ -4502,7 +4502,7 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 #endif // !UE_BUILD_SHIPPING
 
 	const USoundWave* SoundWave = Cast<USoundWave>(Sound);
-	if (SoundWave && SoundWave->bProcedural && SoundWave->IsGeneratingAudio())
+	if (SoundWave && SoundWave->bProcedural && SoundWave->bPlayingProcedural)
 	{
 		FString SoundWaveName;
 		SoundWave->GetName(SoundWaveName);
