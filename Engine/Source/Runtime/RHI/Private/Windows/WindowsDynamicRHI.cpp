@@ -187,6 +187,9 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 
 		auto PSOFileCacheReportCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelineCache.ReportPSO"));
 		*PSOFileCacheReportCVar = 1;
+
+		auto PSOFileCacheUserCacheCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelineCache.SaveUserCache"));
+		*PSOFileCacheUserCacheCVar = UE_BUILD_SHIPPING;
 #endif
 
 		if (!DynamicRHIModule || !DynamicRHIModule->IsSupported())
