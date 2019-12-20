@@ -146,6 +146,7 @@ void FFoliageActor::RemoveInstance(int32 InstanceIndex)
 	AActor* Actor = ActorInstances[InstanceIndex];
 	ActorInstances.RemoveAtSwap(InstanceIndex);
 	Actor->GetWorld()->DestroyActor(Actor, true);
+	bActorsDestroyed = true;
 }
 
 void FFoliageActor::MoveInstance(int32 InstanceIndex, UObject*& OutInstanceImplementation)
@@ -153,6 +154,23 @@ void FFoliageActor::MoveInstance(int32 InstanceIndex, UObject*& OutInstanceImple
 	AActor* Actor = ActorInstances[InstanceIndex];
 	OutInstanceImplementation = Actor;
 	ActorInstances.RemoveAtSwap(InstanceIndex);
+}
+
+void FFoliageActor::BeginUpdate()
+{
+	bActorsDestroyed = false;
+}
+
+void FFoliageActor::EndUpdate()
+{
+	if (bActorsDestroyed)
+	{
+		// This is to null out refs to components that have been created through ConstructionScript (same as it is done in edactDeleteSelected).
+		// Because components that return true for IsCreatedByConstructionScript forward their Modify calls to their owning Actor so they are not part of the transaction.
+		// Undoing the DestroyActor will re-run the construction script and those components will be recreated.
+		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+	}
+	bActorsDestroyed = false;
 }
 
 void FFoliageActor::SetInstanceWorldTransform(int32 InstanceIndex, const FTransform& Transform, bool bTeleport)

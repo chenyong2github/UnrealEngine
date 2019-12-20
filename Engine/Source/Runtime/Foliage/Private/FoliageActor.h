@@ -16,6 +16,9 @@ struct FFoliageActor : public FFoliageImpl
 	FFoliageActor()
 		: ActorClass(nullptr)
 		, bShouldAttachToBaseComponent(true)
+#if WITH_EDITOR
+		, bActorsDestroyed(false)
+#endif
 	{
 	}
 
@@ -44,6 +47,9 @@ struct FFoliageActor : public FFoliageImpl
 	virtual void SelectInstances(bool bSelect, const TSet<int32>& SelectedIndices) override;
 	virtual void ApplySelection(bool bApply, const TSet<int32>& SelectedIndices) override;
 	virtual void ClearSelection(const TSet<int32>& SelectedIndices) override;
+
+	virtual void BeginUpdate() override;
+	virtual void EndUpdate() override;
 	virtual void Refresh(AInstancedFoliageActor* IFA, const TArray<FFoliageInstance>& Instances, bool Async, bool Force) override;
 	virtual void OnHiddenEditorViewMaskChanged(uint64 InHiddenEditorViews) override;
 	virtual void PostEditUndo(AInstancedFoliageActor* IFA, UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices) override;
@@ -59,5 +65,7 @@ struct FFoliageActor : public FFoliageImpl
 
 private:
 	void UpdateActorTransforms(const TArray<FFoliageInstance>& Instances);
+
+	bool bActorsDestroyed;
 #endif
 };
