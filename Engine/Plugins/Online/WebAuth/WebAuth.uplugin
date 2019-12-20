@@ -14,7 +14,13 @@
 		{
 			"Name": "WebAuth",
 			"Type": "Runtime",
-            "LoadingPhase" : "Default"
+			"LoadingPhase" : "Default",
+			"WhitelistPlatforms" :
+			[
+				"Win64",
+				"iOS",
+				"Android"
+			]
 		}
 	]
 }
