@@ -107,6 +107,8 @@ public:
 	FRWShaderParameter InstanceCountsParam;
 	FShaderParameter ReadInstanceCountOffsetParam;
 	FShaderParameter WriteInstanceCountOffsetParam;
+	FShaderResourceParameter FreeIDBufferParam;
+	FRWShaderParameter IDToIndexBufferParam;
 	FShaderUniformBufferParameter EmitterConstantBufferParam;
 	FShaderUniformBufferParameter DataInterfaceUniformBufferParam;
 	FShaderUniformBufferParameter ViewUniformBufferParam;

@@ -418,9 +418,9 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 	uint ReadInstanceCountOffset;
 	uint WriteInstanceCountOffset;
 
-	//TODO: IDs for GPU
-//	void AcquireID(int DataSetID, out int IDIndex, out int IDAcquireTag);
-// 	void UpdateID(int DataSetID, int IDIndex, int InstanceIndex);
+	Buffer<int> FreeIDList;
+	RWBuffer<int> RWIDToIndexTable;
+
 
 	/* Returns the current instance index relative to the operation (spawn/update)
 	 */
@@ -434,6 +434,30 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 		{
 			return UpdateStartInstance + GDispatchThreadId.x;
 		}
+	}
+
+	void AcquireID(int DataSetID, out int IDIndex, out int IDAcquireTag)
+	{
+		// Begin static assert : GPU particles only support DataSetID 0
+		int MustBe0[1];
+		MustBe0[DataSetID] = 0;
+		// End static assert
+
+		// This is the same as ExecIndex() right now, but that function may change in the future to accommodate multiple
+		// spawn infos. Revisit this computation if the change affects the meaning of UpdateStartInstance or GSpawnStartInstance.
+		int SpawnIndex = UpdateStartInstance + GDispatchThreadId.x - GSpawnStartInstance;
+		IDIndex = FreeIDList[SpawnIndex];
+		IDAcquireTag = EmitterTickCounter;
+	}
+
+ 	void UpdateID(int DataSetID, int IDIndex, int InstanceIndex)
+	{
+		// Begin static assert : GPU particles only support DataSetID 0
+		int MustBe0[1];
+		MustBe0[DataSetID] = 0;
+		// End static assert
+
+		RWIDToIndexTable[IDIndex] = InstanceIndex;
 	}
 
 #define USE_WAVE_INTRISICS (PS4_PROFILE || XBOXONE_PROFILE)
