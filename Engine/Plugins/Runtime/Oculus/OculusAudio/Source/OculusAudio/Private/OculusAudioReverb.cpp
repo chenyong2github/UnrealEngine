@@ -48,13 +48,16 @@ void OculusAudioReverb::SetContext(ovrAudioContext* SharedContext)
 		Context = SharedContext;
 	}
 
-	Submix->SetContext(SharedContext);
+	if (Submix.IsValid())
+	{
+		Submix->SetContext(SharedContext);
+	}
 }
 
 void OculusAudioReverb::ClearContext()
 {
 	Context = nullptr;
-	for (FSubmixEffectOculusReverbPlugin* Submix : Submixes)
+	if (Submix.IsValid())
 	{
 		Submix->ClearContext();
 	}

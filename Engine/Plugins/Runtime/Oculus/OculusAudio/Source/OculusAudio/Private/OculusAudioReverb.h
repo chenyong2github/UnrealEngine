@@ -62,7 +62,7 @@ public:
 		return; // PAS
 	}
 
-	virtual TSharedPtr<FSoundEffectSubmix> GetEffectSubmix() override;
+	virtual FSoundEffectSubmixPtr GetEffectSubmix() override;
 
 	virtual USoundSubmix* GetSubmix() override;
 
