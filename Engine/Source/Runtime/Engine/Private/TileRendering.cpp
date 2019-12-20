@@ -174,6 +174,7 @@ void FCanvasTileRendererItem::FRenderData::RenderTiles(
 	InitTileMesh(View, bNeedsToSwitchVerticalAxis);
 
 	SCOPED_DRAW_EVENTF(RHICmdList, CanvasDrawTile, *MaterialRenderProxy->GetMaterial(GMaxRHIFeatureLevel)->GetFriendlyName());
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_CanvasDrawTile)
 
 	for (int32 TileIdx = 0; TileIdx < Tiles.Num(); TileIdx++)
 	{
