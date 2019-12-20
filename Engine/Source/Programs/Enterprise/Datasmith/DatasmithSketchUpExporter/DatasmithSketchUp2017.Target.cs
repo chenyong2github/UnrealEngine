@@ -9,6 +9,7 @@ public abstract class DatasmithSketchUpBaseTarget : TargetRules
 	{
 		Type = TargetType.Program;
 		SolutionDirectory = "Programs/Datasmith";
+		bBuildInSolutionByDefault = false;
 
 		bShouldCompileAsDLL = true;
 		LinkType = TargetLinkType.Monolithic;
