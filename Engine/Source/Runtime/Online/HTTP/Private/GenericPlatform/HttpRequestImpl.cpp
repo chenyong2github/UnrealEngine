@@ -21,6 +21,12 @@ FHttpRequestHeaderReceivedDelegate& FHttpRequestImpl::OnHeaderReceived()
 	return HeaderReceivedDelegate;
 }
 
+FHttpRequestWillRetryDelegate& FHttpRequestImpl::OnRequestWillRetry()
+{
+	UE_LOG(LogHttp, VeryVerbose, TEXT("FHttpRequestImpl::OnRequestWillRetry()"));
+	return OnRequestWillRetryDelegate;
+}
+
 void FHttpRequestImpl::BroadcastResponseHeadersReceived()
 {
 	if (OnHeaderReceived().IsBound())
