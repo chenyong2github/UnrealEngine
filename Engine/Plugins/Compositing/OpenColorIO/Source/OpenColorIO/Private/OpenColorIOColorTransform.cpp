@@ -247,11 +247,6 @@ void UOpenColorIOColorTransform::CacheResourceTextures()
 		}
 #endif
 	}
-	else
-	{
-		//This is the path for cooked data where the 3dLut is serialized in the transform asset.
-		Lut3dTexture->UpdateResource();
-	}
 }
 
 void UOpenColorIOColorTransform::CacheResourceShadersForRendering(bool bRegenerateId)
