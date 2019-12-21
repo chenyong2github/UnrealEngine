@@ -16,6 +16,7 @@
 #include "UObject/UObjectHash.h"
 #include "KismetCompiler.h"
 #include "Misc/DefaultValueHelper.h"
+#include "Blueprint/BlueprintSupport.h"
 #include "BlueprintCompilerCppBackend.h"
 #include "Animation/AnimBlueprint.h"
 
@@ -175,8 +176,15 @@ FString FEmitterLocalContext::FindGloballyMappedObject(const UObject* Object, co
 					}
 				}
 
+				// Some field types may be replaced after conversion (e.g. converted user-defined enum types).
+				const UClass* FieldClass = Field->GetClass();
+				if (const UClass* ReplacedClass = IBlueprintNativeCodeGenCore::Get()->FindReplacedClassForObject(Field, NativizationOptions))
+				{
+					FieldClass = ReplacedClass;
+				}
+
 				return FString::Printf(TEXT("FindFieldChecked<%s>(%s, TEXT(\"%s\"))")
-					, *FEmitHelper::GetCppName(Field->GetClass())
+					, *FEmitHelper::GetCppName(FieldClass)
 					, *MappedOwner
 					, *FieldName);
 			}
