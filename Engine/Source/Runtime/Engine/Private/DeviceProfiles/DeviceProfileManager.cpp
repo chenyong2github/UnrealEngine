@@ -751,7 +751,7 @@ void UDeviceProfileManager::SetActiveDeviceProfile( UDeviceProfile* DeviceProfil
 	ActiveDeviceProfile = DeviceProfile;
 
 #if CSV_PROFILER
-	FCsvProfiler::Get()->SetDeviceProfileName(ActiveDeviceProfile->GetName());
+	CSV_METADATA(TEXT("DeviceProfile"), *GetActiveDeviceProfileName());
 #endif
 }
 
