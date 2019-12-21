@@ -263,24 +263,37 @@ bool UNiagaraStackRendererItem::HasBaseRenderer() const
 	return false;
 }
 
-bool UNiagaraStackRendererItem::CanResetToBase() const
+bool UNiagaraStackRendererItem::TestCanResetToBaseWithMessage(FText& OutCanResetToBaseMessage) const
 {
-	if (HasBaseRenderer())
+	if (bCanResetToBaseCache.IsSet() == false)
 	{
-		if (bCanResetToBaseCache.IsSet() == false)
+		if (HasBaseRenderer())
 		{
 			TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
 			const UNiagaraEmitter* BaseEmitter = GetEmitterViewModel()->GetEmitter()->GetParent();
 			bCanResetToBaseCache = BaseEmitter != nullptr && MergeManager->IsRendererDifferentFromBase(*GetEmitterViewModel()->GetEmitter(), *BaseEmitter, RendererProperties->GetMergeId());
 		}
-		return bCanResetToBaseCache.GetValue();
+		else
+		{
+			bCanResetToBaseCache = false;
+		}
 	}
-	return false;
+	if (bCanResetToBaseCache.GetValue())
+	{
+		OutCanResetToBaseMessage = LOCTEXT("CanResetToBase", "Reset this renderer to the state defined by the parent emitter.");
+		return true;
+	}
+	else
+	{
+		OutCanResetToBaseMessage = LOCTEXT("CanNotResetToBase", "No parent to reset to, or not different from parent.");
+		return false;
+	}
 }
 
 void UNiagaraStackRendererItem::ResetToBase()
 {
-	if (CanResetToBase())
+	FText Unused;
+	if (TestCanResetToBaseWithMessage(Unused))
 	{
 		TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
 		const UNiagaraEmitter* BaseEmitter = GetEmitterViewModel()->GetEmitter()->GetParent();

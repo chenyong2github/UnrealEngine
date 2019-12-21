@@ -23,6 +23,7 @@ class UEdGraphNode;
 class UEdGraphPin;
 class UNiagaraDataInterface;
 struct FNiagaraEventScriptProperties;
+class UNiagaraShaderStageBase;
 class UNiagaraRendererProperties;
 
 class FNiagaraStackFunctionMergeAdapter;
@@ -154,6 +155,34 @@ private:
 	TSharedPtr<FNiagaraScriptStackMergeAdapter> EventStack;
 };
 
+class FNiagaraShaderStageMergeAdapter
+{
+public:
+	FNiagaraShaderStageMergeAdapter(const UNiagaraEmitter& InEmitter, const UNiagaraShaderStageBase* InShaderStage, UNiagaraNodeOutput* InOutputNode);
+	FNiagaraShaderStageMergeAdapter(const UNiagaraEmitter& InEmitter, UNiagaraShaderStageBase* InShaderStage, UNiagaraNodeOutput* InOutputNode);
+	FNiagaraShaderStageMergeAdapter(const UNiagaraEmitter& InEmitter, UNiagaraNodeOutput* InOutputNode);
+
+	FGuid GetUsageId() const;
+	const UNiagaraEmitter* GetEmitter() const;
+	const UNiagaraShaderStageBase* GetShaderStage() const;
+	UNiagaraShaderStageBase* GetEditableShaderStage() const;
+	UNiagaraNodeOutput* GetOutputNode() const;
+	UNiagaraNodeInput* GetInputNode() const;
+	TSharedPtr<FNiagaraScriptStackMergeAdapter> GetShaderStageStack() const;
+
+private:
+	void Initialize(const UNiagaraEmitter& InEmitter, const UNiagaraShaderStageBase* InShaderStage, UNiagaraShaderStageBase* InEditableShaderStage, UNiagaraNodeOutput* InOutputNode);
+
+private:
+	TWeakObjectPtr<UNiagaraEmitter> Emitter;
+	const UNiagaraShaderStageBase* ShaderStage;
+	UNiagaraShaderStageBase* EditableShaderStage;
+	TWeakObjectPtr<UNiagaraNodeOutput> OutputNode;
+	TWeakObjectPtr<UNiagaraNodeInput> InputNode;
+
+	TSharedPtr<FNiagaraScriptStackMergeAdapter> ShaderStageStack;
+};
+
 class FNiagaraRendererMergeAdapter
 {
 public:
@@ -178,11 +207,14 @@ public:
 	TSharedPtr<FNiagaraScriptStackMergeAdapter> GetParticleSpawnStack() const;
 	TSharedPtr<FNiagaraScriptStackMergeAdapter> GetParticleUpdateStack() const;
 	const TArray<TSharedRef<FNiagaraEventHandlerMergeAdapter>> GetEventHandlers() const;
+	const TArray<TSharedRef<FNiagaraShaderStageMergeAdapter>> GetShaderStages() const;
 	const TArray<TSharedRef<FNiagaraRendererMergeAdapter>> GetRenderers() const;
 
 	TSharedPtr<FNiagaraScriptStackMergeAdapter> GetScriptStack(ENiagaraScriptUsage Usage, FGuid UsageId);
 
 	TSharedPtr<FNiagaraEventHandlerMergeAdapter> GetEventHandler(FGuid EventScriptUsageId);
+
+	TSharedPtr<FNiagaraShaderStageMergeAdapter> GetShaderStage(FGuid ShaderStageUsageId);
 
 	TSharedPtr<FNiagaraRendererMergeAdapter> GetRenderer(FGuid RendererMergeId);
 
@@ -197,6 +229,7 @@ private:
 	TSharedPtr<FNiagaraScriptStackMergeAdapter> ParticleSpawnStack;
 	TSharedPtr<FNiagaraScriptStackMergeAdapter> ParticleUpdateStack;
 	TArray<TSharedRef<FNiagaraEventHandlerMergeAdapter>> EventHandlers;
+	TArray<TSharedRef<FNiagaraShaderStageMergeAdapter>> ShaderStages;
 	TArray<TSharedRef<FNiagaraRendererMergeAdapter>> Renderers;
 };
 
@@ -242,6 +275,14 @@ struct FNiagaraModifiedEventHandlerDiffResults
 	FNiagaraScriptStackDiffResults ScriptDiffResults;
 };
 
+struct FNiagaraModifiedShaderStageDiffResults
+{
+	TSharedPtr<FNiagaraShaderStageMergeAdapter> BaseAdapter;
+	TSharedPtr<FNiagaraShaderStageMergeAdapter> OtherAdapter;
+	TArray<UProperty*> ChangedProperties;
+	FNiagaraScriptStackDiffResults ScriptDiffResults;
+};
+
 struct FNiagaraEmitterDiffResults
 {
 	FNiagaraEmitterDiffResults();
@@ -266,6 +307,10 @@ struct FNiagaraEmitterDiffResults
 	TArray<TSharedRef<FNiagaraEventHandlerMergeAdapter>> RemovedBaseEventHandlers;
 	TArray<TSharedRef<FNiagaraEventHandlerMergeAdapter>> AddedOtherEventHandlers;
 	TArray<FNiagaraModifiedEventHandlerDiffResults> ModifiedEventHandlers;
+
+	TArray<TSharedRef<FNiagaraShaderStageMergeAdapter>> RemovedBaseShaderStages;
+	TArray<TSharedRef<FNiagaraShaderStageMergeAdapter>> AddedOtherShaderStages;
+	TArray<FNiagaraModifiedShaderStageDiffResults> ModifiedShaderStages;
 
 	TArray<TSharedRef<FNiagaraRendererMergeAdapter>> RemovedBaseRenderers;
 	TArray<TSharedRef<FNiagaraRendererMergeAdapter>> AddedOtherRenderers;
@@ -314,6 +359,12 @@ public:
 
 	void ResetEventHandlerPropertySetToBase(UNiagaraEmitter& Emitter, const UNiagaraEmitter& BaseEmitter, FGuid EventScriptUsageId);
 
+	bool HasBaseShaderStage(const UNiagaraEmitter& BaseEmitter, FGuid ShaderStageScriptUsageId);
+
+	bool IsShaderStagePropertySetDifferentFromBase(UNiagaraEmitter& Emitter, const UNiagaraEmitter& BaseEmitter, FGuid ShaderStageScriptUsageId);
+
+	void ResetShaderStagePropertySetToBase(UNiagaraEmitter& Emitter, const UNiagaraEmitter& BaseEmitter, FGuid ShaderStageScriptUsageId);
+
 	bool HasBaseRenderer(const UNiagaraEmitter& BaseEmitter, FGuid RendererMergeId);
 
 	bool IsRendererDifferentFromBase(UNiagaraEmitter& Emitter, const UNiagaraEmitter& BaseEmitter, FGuid RendererMergeId);
@@ -325,6 +376,8 @@ public:
 	void ResetEmitterEditablePropertySetToBase(UNiagaraEmitter& Emitter, const UNiagaraEmitter& BaseEmitter);
 
 	void DiffEventHandlers(const TArray<TSharedRef<FNiagaraEventHandlerMergeAdapter>>& BaseEventHandlers, const TArray<TSharedRef<FNiagaraEventHandlerMergeAdapter>>& OtherEventHandlers, FNiagaraEmitterDiffResults& DiffResults) const;
+
+	void DiffShaderStages(const TArray<TSharedRef<FNiagaraShaderStageMergeAdapter>>& BaseShaderStages, const TArray<TSharedRef<FNiagaraShaderStageMergeAdapter>>& OtherShaderStages, FNiagaraEmitterDiffResults& DiffResults) const;
 
 	void DiffRenderers(const TArray<TSharedRef<FNiagaraRendererMergeAdapter>>& BaseRenderers, const TArray<TSharedRef<FNiagaraRendererMergeAdapter>>& OtherRenderers, FNiagaraEmitterDiffResults& DiffResults) const;
 
@@ -342,6 +395,8 @@ private:
 	FApplyDiffResults ApplyScriptStackDiff(TSharedRef<FNiagaraScriptStackMergeAdapter> BaseScriptStackAdapter, const FNiagaraScriptStackDiffResults& DiffResults) const;
 
 	FApplyDiffResults ApplyEventHandlerDiff(TSharedRef<FNiagaraEmitterMergeAdapter> BaseEmitterAdapter, const FNiagaraEmitterDiffResults& DiffResults) const;
+
+	FApplyDiffResults ApplyShaderStageDiff(TSharedRef<FNiagaraEmitterMergeAdapter> BaseEmitterAdapter, const FNiagaraEmitterDiffResults& DiffResults) const;
 
 	FApplyDiffResults ApplyRendererDiff(UNiagaraEmitter& BaseEmitter, const FNiagaraEmitterDiffResults& DiffResults) const;
 

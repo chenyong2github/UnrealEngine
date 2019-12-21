@@ -38,7 +38,7 @@ FText UNiagaraStackEmitterPropertiesItem::GetTooltipText() const
 	return LOCTEXT("EmitterPropertiesTooltip", "Properties that are handled per Emitter. These cannot change at runtime.");
 }
 
-bool UNiagaraStackEmitterPropertiesItem::CanResetToBase() const
+bool UNiagaraStackEmitterPropertiesItem::TestCanResetToBaseWithMessage(FText& OutCanResetToBaseMessage) const
 {
 	if (bCanResetToBaseCache.IsSet() == false)
 	{
@@ -53,12 +53,22 @@ bool UNiagaraStackEmitterPropertiesItem::CanResetToBase() const
 			bCanResetToBaseCache = false;
 		}
 	}
-	return bCanResetToBaseCache.GetValue();
+	if (bCanResetToBaseCache.GetValue())
+	{
+		OutCanResetToBaseMessage = LOCTEXT("CanResetToBase", "Reset the emitter properties to the state defined by the parent emitter.");
+		return true;
+	}
+	else
+	{
+		OutCanResetToBaseMessage = LOCTEXT("CanNotResetToBase", "No parent to reset to, or not different from parent.");
+		return false;
+	}
 }
 
 void UNiagaraStackEmitterPropertiesItem::ResetToBase()
 {
-	if (CanResetToBase())
+	FText Unused;
+	if (TestCanResetToBaseWithMessage(Unused))
 	{
 		const UNiagaraEmitter* BaseEmitter = GetEmitterViewModel()->GetEmitter()->GetParent();
 		TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
