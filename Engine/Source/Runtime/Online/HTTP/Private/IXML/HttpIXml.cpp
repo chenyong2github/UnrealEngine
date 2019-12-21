@@ -362,6 +362,11 @@ FHttpRequestHeaderReceivedDelegate& FHttpRequestIXML::OnHeaderReceived()
 	return RequestHeaderReceivedDelegate;
 }
 
+FHttpRequestWillRetryDelegate& FHttpRequestIXML::OnRequestWillRetry()
+{
+	return OnRequestWillRetryDelegate;
+}
+
 //-----------------------------------------------------------------------------
 //	
 //-----------------------------------------------------------------------------
