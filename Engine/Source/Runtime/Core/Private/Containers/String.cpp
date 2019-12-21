@@ -990,7 +990,7 @@ int32 FString::ParseIntoArrayLines(TArray<FString>& OutArray, bool InCullEmpty) 
 	return ParseIntoArray(OutArray, LineEndings, NumLineEndings, InCullEmpty);
 }
 
-int32 FString::ParseIntoArray(TArray<FString>& OutArray, const TCHAR** DelimArray, int32 NumDelims, bool InCullEmpty) const
+int32 FString::ParseIntoArray(TArray<FString>& OutArray, const TCHAR* const * DelimArray, int32 NumDelims, bool InCullEmpty) const
 {
 	// Make sure the delimit string is not null or empty
 	check(DelimArray);
