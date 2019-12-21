@@ -46,6 +46,7 @@ public:
 	virtual FHttpRequestCompleteDelegate& OnProcessRequestComplete() override;
 	virtual FHttpRequestProgressDelegate& OnRequestProgress() override;
 	virtual FHttpRequestHeaderReceivedDelegate& OnHeaderReceived() override;
+	virtual FHttpRequestWillRetryDelegate& OnRequestWillRetry() override;
 	virtual void CancelRequest() override;
 	virtual EHttpRequestStatus::Type GetStatus() const override;
 	virtual const FHttpResponsePtr GetResponse() const override;
@@ -78,6 +79,7 @@ private:
 	FHttpRequestCompleteDelegate		CompleteDelegate;
 	FHttpRequestProgressDelegate		RequestProgressDelegate;
 	FHttpRequestHeaderReceivedDelegate	RequestHeaderReceivedDelegate;
+	FHttpRequestWillRetryDelegate		OnRequestWillRetryDelegate;
 
 	EHttpRequestStatus::Type			RequestStatus;
 	float								ElapsedTime;
