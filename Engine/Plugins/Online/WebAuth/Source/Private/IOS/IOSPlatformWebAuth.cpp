@@ -1,4 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+#if  PLATFORM_IOS && !PLATFORM_TVOS
 
 #include "IOS/IOSPlatformWebAuth.h"
 
@@ -253,3 +254,4 @@ IWebAuth* FIOSPlatformWebAuth::CreatePlatformWebAuth()
 	return new FIOSWebAuth();
 }
 
+#endif // PLATFORM_IOS && !PLATFORM_TVOS
