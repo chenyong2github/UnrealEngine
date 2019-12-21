@@ -598,6 +598,8 @@ enum class ENiagaraScriptUsage : uint8
 	ParticleUpdateScript UMETA(Hidden),
 	/** The script is called to update particles in response to an event. */
 	ParticleEventScript UMETA(Hidden),
+	/** The script is called as a particle shader stage. */
+	ParticleShaderStageScript UMETA(Hidden),
 	/** The script is called to update particles on the GPU. */
 	ParticleGPUComputeScript UMETA(Hidden),
 	/** The script is called once when the emitter spawns. */

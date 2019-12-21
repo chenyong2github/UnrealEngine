@@ -50,7 +50,7 @@ FText UNiagaraStackEventHandlerPropertiesItem::GetDisplayName() const
 	return LOCTEXT("EventHandlerPropertiesDisplayName", "Event Handler Properties");
 }
 
-bool UNiagaraStackEventHandlerPropertiesItem::CanResetToBase() const
+bool UNiagaraStackEventHandlerPropertiesItem::TestCanResetToBaseWithMessage(FText& OutCanResetToBaseMessage) const
 {
 	if (bCanResetToBaseCache.IsSet() == false)
 	{
@@ -72,12 +72,22 @@ bool UNiagaraStackEventHandlerPropertiesItem::CanResetToBase() const
 			bCanResetToBaseCache = false;
 		}
 	}
-	return bCanResetToBaseCache.GetValue();
+	if (bCanResetToBaseCache.GetValue())
+	{
+		OutCanResetToBaseMessage = LOCTEXT("CanResetToBase", "Reset the event handler properties to the state defined by the parent emitter.");
+		return true;
+	}
+	else
+	{
+		OutCanResetToBaseMessage = LOCTEXT("CanNotResetToBase", "No parent to reset to, or not different from parent.");
+		return false;
+	}
 }
 
 void UNiagaraStackEventHandlerPropertiesItem::ResetToBase()
 {
-	if (CanResetToBase())
+	FText Unused;
+	if (TestCanResetToBaseWithMessage(Unused))
 	{
 		const UNiagaraEmitter* BaseEmitter = GetEmitterViewModel()->GetEmitter()->GetParent();
 		TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();

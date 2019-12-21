@@ -12,6 +12,7 @@
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
+#include "ViewModels/Stack/NiagaraStackItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackModuleItemOutputCollection.h"
 #include "ViewModels/Stack/NiagaraStackModuleItemLinkedInputCollection.h"
 #include "ViewModels/Stack/NiagaraStackModuleItemOutput.h"
@@ -21,10 +22,7 @@
 #include "ViewModels/Stack/NiagaraStackItemFooter.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInputCollection.h"
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
-#include "ViewModels/Stack/NiagaraStackRendererItem.h"
 #include "ViewModels/Stack/NiagaraStackParameterStoreEntry.h"
-#include "ViewModels/Stack/NiagaraStackEmitterSettingsGroup.h"
-#include "ViewModels/Stack/NiagaraStackEventScriptItemGroup.h"
 #include "Framework/Application/SlateApplication.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
@@ -37,14 +35,12 @@
 #include "IDetailTreeNode.h"
 #include "Stack/SNiagaraStackFunctionInputName.h"
 #include "Stack/SNiagaraStackFunctionInputValue.h"
-#include "Stack/SNiagaraStackEmitterPropertiesItem.h"
-#include "Stack/SNiagaraStackEventHandlerPropertiesItem.h"
+#include "Stack/SNiagaraStackItem.h"
 #include "Stack/SNiagaraStackItemFooter.h"
 #include "Stack/SNiagaraStackItemGroup.h"
 #include "Stack/SNiagaraStackModuleItem.h"
 #include "Stack/SNiagaraStackParameterStoreEntryName.h"
 #include "Stack/SNiagaraStackParameterStoreEntryValue.h"
-#include "Stack/SNiagaraStackRendererItem.h"
 #include "Stack/SNiagaraStackTableRow.h"
 #include "Stack/SNiagaraStackIssueIcon.h"
 #include "NiagaraEditorWidgetsUtilities.h"
@@ -895,10 +891,6 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 		Container->AddFillRowContextMenuHandler(SNiagaraStackTableRow::FOnFillRowContextMenu::CreateSP(ModuleItemWidget, &SNiagaraStackModuleItem::FillRowContextMenu));
 		return FRowWidgets(ModuleItemWidget);
 	}
-	else if (Item->IsA<UNiagaraStackRendererItem>())
-	{
-		return FRowWidgets(SNew(SNiagaraStackRendererItem, *CastChecked<UNiagaraStackRendererItem>(Item), StackViewModel));
-	}
 	else if (Item->IsA<UNiagaraStackFunctionInput>())
 	{
 		UNiagaraStackFunctionInput* FunctionInput = CastChecked<UNiagaraStackFunctionInput>(Item);
@@ -929,16 +921,6 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 	{
 		UNiagaraStackItemFooter* ItemExpander = CastChecked<UNiagaraStackItemFooter>(Item);
 		return FRowWidgets(SNew(SNiagaraStackItemFooter, *ItemExpander));
-	}
-	else if (Item->IsA<UNiagaraStackEmitterPropertiesItem>())
-	{
-		UNiagaraStackEmitterPropertiesItem* PropertiesItem = CastChecked<UNiagaraStackEmitterPropertiesItem>(Item);
-		return FRowWidgets(SNew(SNiagaraStackEmitterPropertiesItem, *PropertiesItem, StackViewModel));
-	}
-	else if (Item->IsA<UNiagaraStackEventHandlerPropertiesItem>())
-	{
-		UNiagaraStackEventHandlerPropertiesItem* PropertiesItem = CastChecked<UNiagaraStackEventHandlerPropertiesItem>(Item);
-		return FRowWidgets(SNew(SNiagaraStackEventHandlerPropertiesItem, *PropertiesItem, StackViewModel));
 	}
 	else if (Item->IsA<UNiagaraStackParameterStoreEntry>())
 	{
@@ -1016,12 +998,8 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 	}
 	else if (Item->IsA<UNiagaraStackItem>())
 	{
-		return FRowWidgets(SNew(STextBlock)
-			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.ItemText")
-			.ToolTipText_UObject(Item, &UNiagaraStackEntry::GetTooltipText)
-			.Text_UObject(Item, &UNiagaraStackEntry::GetDisplayName)
-			.ColorAndOpacity(this, &SNiagaraStack::GetTextColorForItem, Item)
-			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText));
+		UNiagaraStackItem* StackItem = CastChecked<UNiagaraStackItem>(Item);
+		return FRowWidgets(SNew(SNiagaraStackItem, *StackItem, StackViewModel));
 	}
 	else
 	{
