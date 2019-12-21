@@ -715,6 +715,16 @@ void FPBDConstraintGraph::DisableParticle(TGeometryParticleHandle<FReal, 3>* Par
 		}
 
 	}
+	else if (PBDRigid)
+	{
+		// Kinematic particles are included in IslandToParticles, however we cannot use islands to look them up.
+		// TODO find faster removal method?
+		for (TArray<TGeometryParticleHandle<FReal, 3>*>& IslandParticles : IslandToParticles)
+		{
+			IslandParticles.RemoveSingleSwap(Particle);
+		}
+	}
+
 	ParticleRemove(Particle);
 }
 
