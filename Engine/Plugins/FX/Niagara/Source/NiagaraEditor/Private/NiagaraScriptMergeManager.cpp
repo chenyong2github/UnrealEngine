@@ -1334,7 +1334,7 @@ bool FNiagaraScriptMergeManager::IsShaderStagePropertySetDifferentFromBase(UNiag
 		return true;
 	}
 
-	TArray<UProperty*> DifferentProperties;
+	TArray<FProperty*> DifferentProperties;
 	DiffEditableProperties(BaseShaderStageAdapter->GetShaderStage(), ShaderStageAdapter->GetShaderStage(), *BaseShaderStageAdapter->GetShaderStage()->GetClass(), DifferentProperties);
 	return DifferentProperties.Num() > 0;
 }
@@ -1353,7 +1353,7 @@ void FNiagaraScriptMergeManager::ResetShaderStagePropertySetToBase(UNiagaraEmitt
 		return;
 	}
 
-	TArray<UProperty*> DifferentProperties;
+	TArray<FProperty*> DifferentProperties;
 	DiffEditableProperties(BaseShaderStageAdapter->GetShaderStage(), ShaderStageAdapter->GetShaderStage(), *BaseShaderStageAdapter->GetShaderStage()->GetClass(), DifferentProperties);
 	CopyPropertiesToBase(ShaderStageAdapter->GetEditableShaderStage(), BaseShaderStageAdapter->GetShaderStage(), DifferentProperties);
 	Emitter.PostEditChange();
@@ -1614,7 +1614,7 @@ void FNiagaraScriptMergeManager::DiffShaderStages(const TArray<TSharedRef<FNiaga
 		}
 		else
 		{
-			TArray<UProperty*> DifferentProperties;
+			TArray<FProperty*> DifferentProperties;
 			DiffEditableProperties(CommonValuePair.BaseValue->GetShaderStage(), CommonValuePair.OtherValue->GetShaderStage(), *CommonValuePair.BaseValue->GetShaderStage()->GetClass(), DifferentProperties);
 
 			FNiagaraScriptStackDiffResults ShaderStageScriptStackDiffResults;
