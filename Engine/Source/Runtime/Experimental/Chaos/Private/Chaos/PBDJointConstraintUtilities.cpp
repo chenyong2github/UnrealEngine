@@ -20,9 +20,9 @@ namespace Chaos
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		const FReal SolverStiffness = (SolverSettings.Stiffness > (FReal)0) ? SolverSettings.Stiffness : JointSettings.Motion.Stiffness;
-		const FReal SoftSolverStiffness = (SolverSettings.SoftLinearStiffness > (FReal)0) ? SolverSettings.SoftLinearStiffness : JointSettings.Motion.SoftLinearStiffness;
-		const bool bIsSoft = JointSettings.Motion.bSoftLinearLimitsEnabled && ((JointSettings.Motion.LinearMotionTypes[0] == EJointMotionType::Limited) || (JointSettings.Motion.LinearMotionTypes[1] == EJointMotionType::Limited) || (JointSettings.Motion.LinearMotionTypes[2] == EJointMotionType::Limited));
+		const FReal SolverStiffness = (SolverSettings.Stiffness > (FReal)0) ? SolverSettings.Stiffness : JointSettings.Stiffness;
+		const FReal SoftSolverStiffness = (SolverSettings.SoftLinearStiffness > (FReal)0) ? SolverSettings.SoftLinearStiffness : JointSettings.SoftLinearStiffness;
+		const bool bIsSoft = JointSettings.bSoftLinearLimitsEnabled && ((JointSettings.LinearMotionTypes[0] == EJointMotionType::Limited) || (JointSettings.LinearMotionTypes[1] == EJointMotionType::Limited) || (JointSettings.LinearMotionTypes[2] == EJointMotionType::Limited));
 		const FReal Stiffness = bIsSoft ? SolverStiffness * SoftSolverStiffness : SolverStiffness;
 		return Stiffness;
 	}
@@ -31,98 +31,98 @@ namespace Chaos
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.Stiffness > (FReal)0) ? SolverSettings.Stiffness : JointSettings.Motion.Stiffness;
+		return (SolverSettings.Stiffness > (FReal)0) ? SolverSettings.Stiffness : JointSettings.Stiffness;
 	}
 
 	FReal FPBDJointUtilities::GetSoftTwistStiffness(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.SoftTwistStiffness > 0)? SolverSettings.SoftTwistStiffness : JointSettings.Motion.SoftTwistStiffness;
+		return (SolverSettings.SoftTwistStiffness > 0)? SolverSettings.SoftTwistStiffness : JointSettings.SoftTwistStiffness;
 	}
 
 	FReal FPBDJointUtilities::GetSoftTwistDamping(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.SoftTwistDamping > 0) ? SolverSettings.SoftTwistDamping : JointSettings.Motion.SoftTwistDamping;
+		return (SolverSettings.SoftTwistDamping > 0) ? SolverSettings.SoftTwistDamping : JointSettings.SoftTwistDamping;
 	}
 
 	FReal FPBDJointUtilities::GetSwingStiffness(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.Stiffness > (FReal)0) ? SolverSettings.Stiffness : JointSettings.Motion.Stiffness;
+		return (SolverSettings.Stiffness > (FReal)0) ? SolverSettings.Stiffness : JointSettings.Stiffness;
 	}
 
 	FReal FPBDJointUtilities::GetSoftSwingStiffness(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.SoftSwingStiffness > 0) ? SolverSettings.SoftSwingStiffness : JointSettings.Motion.SoftSwingStiffness;
+		return (SolverSettings.SoftSwingStiffness > 0) ? SolverSettings.SoftSwingStiffness : JointSettings.SoftSwingStiffness;
 	}
 
 	FReal FPBDJointUtilities::GetSoftSwingDamping(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.SoftSwingDamping > 0) ? SolverSettings.SoftSwingDamping : JointSettings.Motion.SoftSwingDamping;
+		return (SolverSettings.SoftSwingDamping > 0) ? SolverSettings.SoftSwingDamping : JointSettings.SoftSwingDamping;
 	}
 
 	FReal FPBDJointUtilities::GetLinearDriveStiffness(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.LinearDriveStiffness > 0.0f) ? SolverSettings.LinearDriveStiffness : JointSettings.Motion.LinearDriveStiffness;
+		return (SolverSettings.LinearDriveStiffness > 0.0f) ? SolverSettings.LinearDriveStiffness : JointSettings.LinearDriveStiffness;
 	}
 
 	FReal FPBDJointUtilities::GetLinearDriveDamping(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.LinearDriveDamping > 0.0f) ? SolverSettings.LinearDriveDamping : JointSettings.Motion.LinearDriveDamping;
+		return (SolverSettings.LinearDriveDamping > 0.0f) ? SolverSettings.LinearDriveDamping : JointSettings.LinearDriveDamping;
 	}
 
 	FReal FPBDJointUtilities::GetAngularDriveStiffness(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.AngularDriveStiffness > 0.0f) ? SolverSettings.AngularDriveStiffness : JointSettings.Motion.AngularDriveStiffness;
+		return (SolverSettings.AngularDriveStiffness > 0.0f) ? SolverSettings.AngularDriveStiffness : JointSettings.AngularDriveStiffness;
 	}
 
 	FReal FPBDJointUtilities::GetAngularDriveDamping(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.AngularDriveDamping > 0.0f) ? SolverSettings.AngularDriveDamping : JointSettings.Motion.AngularDriveDamping;
+		return (SolverSettings.AngularDriveDamping > 0.0f) ? SolverSettings.AngularDriveDamping : JointSettings.AngularDriveDamping;
 	}
 
 	FReal FPBDJointUtilities::GetLinearProjection(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.LinearProjection > 0.0f) ? SolverSettings.LinearProjection : JointSettings.Motion.LinearProjection;
+		return (SolverSettings.LinearProjection > 0.0f) ? SolverSettings.LinearProjection : JointSettings.LinearProjection;
 	}
 
 	FReal FPBDJointUtilities::GetAngularProjection(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return (SolverSettings.AngularProjection > 0.0f) ? SolverSettings.AngularProjection : JointSettings.Motion.AngularProjection;
+		return (SolverSettings.AngularProjection > 0.0f) ? SolverSettings.AngularProjection : JointSettings.AngularProjection;
 	}
 
 	bool FPBDJointUtilities::GetSoftAccelerationMode(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return true;
+		return JointSettings.SoftForceMode == EJointForceMode::Acceleration;
 	}
 
 	bool FPBDJointUtilities::GetDriveAccelerationMode(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return true;
+		return JointSettings.AngularDriveForceMode == EJointForceMode::Acceleration;
 	}
 
 
@@ -360,7 +360,7 @@ namespace Chaos
 	
 	FVec3 FPBDJointUtilities::GetLimitedPositionError(const FPBDJointSettings& JointSettings, const FRotation3& R0, const FVec3& InCX)
 	{
-		const TVector<EJointMotionType, 3>& Motion = JointSettings.Motion.LinearMotionTypes;
+		const TVector<EJointMotionType, 3>& Motion = JointSettings.LinearMotionTypes;
 		if ((Motion[0] == EJointMotionType::Locked) && (Motion[1] == EJointMotionType::Locked) && (Motion[2] == EJointMotionType::Locked))
 		{
 			return InCX;
@@ -368,25 +368,25 @@ namespace Chaos
 		else if ((Motion[0] == EJointMotionType::Limited) && (Motion[1] == EJointMotionType::Limited) && (Motion[2] == EJointMotionType::Limited))
 		{
 			// Spherical distance constraints
-			return GetSphereLimitedPositionError(InCX, JointSettings.Motion.LinearLimit);
+			return GetSphereLimitedPositionError(InCX, JointSettings.LinearLimit);
 		}
 		else if ((Motion[1] == EJointMotionType::Limited) && (Motion[2] == EJointMotionType::Limited))
 		{
 			// Circular Limit (X Axis)
 			FVec3 Axis = R0 * FVec3(1, 0, 0);
-			return GetCylinderLimitedPositionError(InCX, Axis, JointSettings.Motion.LinearLimit, Motion[0]);
+			return GetCylinderLimitedPositionError(InCX, Axis, JointSettings.LinearLimit, Motion[0]);
 		}
 		else if ((Motion[0] == EJointMotionType::Limited) && (Motion[2] == EJointMotionType::Limited))
 		{
 			// Circular Limit (Y Axis)
 			FVec3 Axis = R0 * FVec3(0, 1, 0);
-			return GetCylinderLimitedPositionError(InCX, Axis, JointSettings.Motion.LinearLimit, Motion[1]);
+			return GetCylinderLimitedPositionError(InCX, Axis, JointSettings.LinearLimit, Motion[1]);
 		}
 		else if ((Motion[0] == EJointMotionType::Limited) && (Motion[1] == EJointMotionType::Limited))
 		{
 			// Circular Limit (Z Axis)
 			FVec3 Axis = R0 * FVec3(0, 0, 1);
-			return GetCylinderLimitedPositionError(InCX, Axis, JointSettings.Motion.LinearLimit, Motion[2]);
+			return GetCylinderLimitedPositionError(InCX, Axis, JointSettings.LinearLimit, Motion[2]);
 		}
 		else
 		{
@@ -395,17 +395,17 @@ namespace Chaos
 			if (Motion[0] != EJointMotionType::Locked)
 			{
 				FVec3 Axis = R0 * FVec3(1, 0, 0);
-				CX = GetLineLimitedPositionError(CX, Axis, JointSettings.Motion.LinearLimit, Motion[0]);
+				CX = GetLineLimitedPositionError(CX, Axis, JointSettings.LinearLimit, Motion[0]);
 			}
 			if (Motion[1] != EJointMotionType::Locked)
 			{
 				FVec3 Axis = R0 * FVec3(0, 1, 0);
-				CX = GetLineLimitedPositionError(CX, Axis, JointSettings.Motion.LinearLimit, Motion[1]);
+				CX = GetLineLimitedPositionError(CX, Axis, JointSettings.LinearLimit, Motion[1]);
 			}
 			if (Motion[2] != EJointMotionType::Locked)
 			{
 				FVec3 Axis = R0 * FVec3(0, 0, 1);
-				CX = GetLineLimitedPositionError(CX, Axis, JointSettings.Motion.LinearLimit, Motion[2]);
+				CX = GetLineLimitedPositionError(CX, Axis, JointSettings.LinearLimit, Motion[2]);
 			}
 			return CX;
 		}
@@ -414,7 +414,7 @@ namespace Chaos
 	
 	FVec3 FPBDJointUtilities::GetLimitedVelocityError(const FPBDJointSettings& JointSettings, const FRotation3& R0, const FVec3& InCX, const FVec3& InCV)
 	{
-		const TVector<EJointMotionType, 3>& Motion = JointSettings.Motion.LinearMotionTypes;
+		const TVector<EJointMotionType, 3>& Motion = JointSettings.LinearMotionTypes;
 		if ((Motion[0] == EJointMotionType::Locked) && (Motion[1] == EJointMotionType::Locked) && (Motion[2] == EJointMotionType::Locked))
 		{
 			return InCV;
@@ -422,25 +422,25 @@ namespace Chaos
 		else if ((Motion[0] == EJointMotionType::Limited) && (Motion[1] == EJointMotionType::Limited) && (Motion[2] == EJointMotionType::Limited))
 		{
 			// Spherical distance constraints
-			return GetSphereLimitedVelocityError(InCX, JointSettings.Motion.LinearLimit, InCV);
+			return GetSphereLimitedVelocityError(InCX, JointSettings.LinearLimit, InCV);
 		}
 		else if ((Motion[1] == EJointMotionType::Limited) && (Motion[2] == EJointMotionType::Limited))
 		{
 			// Circular Limit (X Axis)
 			FVec3 Axis = R0 * FVec3(1, 0, 0);
-			return GetCylinderLimitedVelocityError(InCX, Axis, JointSettings.Motion.LinearLimit, Motion[0], InCV);
+			return GetCylinderLimitedVelocityError(InCX, Axis, JointSettings.LinearLimit, Motion[0], InCV);
 		}
 		else if ((Motion[0] == EJointMotionType::Limited) && (Motion[2] == EJointMotionType::Limited))
 		{
 			// Circular Limit (Y Axis)
 			FVec3 Axis = R0 * FVec3(0, 1, 0);
-			return GetCylinderLimitedVelocityError(InCX, Axis, JointSettings.Motion.LinearLimit, Motion[1], InCV);
+			return GetCylinderLimitedVelocityError(InCX, Axis, JointSettings.LinearLimit, Motion[1], InCV);
 		}
 		else if ((Motion[0] == EJointMotionType::Limited) && (Motion[1] == EJointMotionType::Limited))
 		{
 			// Circular Limit (Z Axis)
 			FVec3 Axis = R0 * FVec3(0, 0, 1);
-			return GetCylinderLimitedVelocityError(InCX, Axis, JointSettings.Motion.LinearLimit, Motion[2], InCV);
+			return GetCylinderLimitedVelocityError(InCX, Axis, JointSettings.LinearLimit, Motion[2], InCV);
 		}
 		else
 		{
@@ -449,17 +449,17 @@ namespace Chaos
 			if (Motion[0] != EJointMotionType::Locked)
 			{
 				FVec3 Axis = R0 * FVec3(1, 0, 0);
-				CV = GetLineLimitedVelocityError(InCX, Axis, JointSettings.Motion.LinearLimit, Motion[0], CV);
+				CV = GetLineLimitedVelocityError(InCX, Axis, JointSettings.LinearLimit, Motion[0], CV);
 			}
 			if (Motion[1] != EJointMotionType::Locked)
 			{
 				FVec3 Axis = R0 * FVec3(0, 1, 0);
-				CV = GetLineLimitedVelocityError(InCX, Axis, JointSettings.Motion.LinearLimit, Motion[1], CV);
+				CV = GetLineLimitedVelocityError(InCX, Axis, JointSettings.LinearLimit, Motion[1], CV);
 			}
 			if (Motion[2] != EJointMotionType::Locked)
 			{
 				FVec3 Axis = R0 * FVec3(0, 0, 1);
-				CV = GetLineLimitedVelocityError(InCX, Axis, JointSettings.Motion.LinearLimit, Motion[2], CV);
+				CV = GetLineLimitedVelocityError(InCX, Axis, JointSettings.LinearLimit, Motion[2], CV);
 			}
 			return CV;
 		}
@@ -923,11 +923,11 @@ namespace Chaos
 		const FVec3 TwistAxis0 = R0 * TwistAxis01;
 		const FVec3 TwistAxis1 = R1 * TwistAxis01;
 		FReal TwistAngleMax = FLT_MAX;
-		if (JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Limited)
+		if (JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Limited)
 		{
-			TwistAngleMax = JointSettings.Motion.AngularLimits[(int32)EJointAngularConstraintIndex::Twist];
+			TwistAngleMax = JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Twist];
 		}
-		else if (JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Locked)
+		else if (JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Locked)
 		{
 			TwistAngleMax = 0;
 		}
@@ -999,11 +999,11 @@ namespace Chaos
 		const FVec3 TwistAxis1 = R1 * TwistAxis01;
 
 		FReal TwistAngleMax = FLT_MAX;
-		if (JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Limited)
+		if (JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Limited)
 		{
-			TwistAngleMax = JointSettings.Motion.AngularLimits[(int32)EJointAngularConstraintIndex::Twist];
+			TwistAngleMax = JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Twist];
 		}
-		else if (JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Locked)
+		else if (JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] == EJointMotionType::Locked)
 		{
 			TwistAngleMax = 0;
 		}
@@ -1070,8 +1070,8 @@ namespace Chaos
 
 		// Calculate swing limit for the current swing axis
 		FReal SwingAngleMax = FLT_MAX;
-		const FReal Swing1Limit = JointSettings.Motion.AngularLimits[(int32)EJointAngularConstraintIndex::Swing1];
-		const FReal Swing2Limit = JointSettings.Motion.AngularLimits[(int32)EJointAngularConstraintIndex::Swing2];
+		const FReal Swing1Limit = JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing1];
+		const FReal Swing2Limit = JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing2];
 
 		// Circular swing limit
 		SwingAngleMax = Swing1Limit;
@@ -1148,8 +1148,8 @@ namespace Chaos
 
 		// Calculate swing limit for the current swing axis
 		FReal SwingAngleMax = FLT_MAX;
-		const FReal Swing1Limit = JointSettings.Motion.AngularLimits[(int32)EJointAngularConstraintIndex::Swing1];
-		const FReal Swing2Limit = JointSettings.Motion.AngularLimits[(int32)EJointAngularConstraintIndex::Swing2];
+		const FReal Swing1Limit = JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing1];
+		const FReal Swing2Limit = JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing2];
 
 		// Circular swing limit
 		SwingAngleMax = Swing1Limit;
@@ -1249,12 +1249,12 @@ namespace Chaos
 			}
 
 			FReal SwingAngleMax = FLT_MAX;
-			if (JointSettings.Motion.AngularMotionTypes[(int32)SwingConstraintIndex] == EJointMotionType::Limited)
+			if (JointSettings.AngularMotionTypes[(int32)SwingConstraintIndex] == EJointMotionType::Limited)
 			{
-				FReal SwingLimit = JointSettings.Motion.AngularLimits[(int32)SwingConstraintIndex];
+				FReal SwingLimit = JointSettings.AngularLimits[(int32)SwingConstraintIndex];
 				SwingAngleMax = SwingLimit;
 			}
-			else if (JointSettings.Motion.AngularMotionTypes[(int32)SwingConstraintIndex] == EJointMotionType::Locked)
+			else if (JointSettings.AngularMotionTypes[(int32)SwingConstraintIndex] == EJointMotionType::Locked)
 			{
 				SwingAngleMax = 0;
 			}
@@ -1346,12 +1346,12 @@ namespace Chaos
 			}
 
 			FReal SwingAngleMax = FLT_MAX;
-			if (JointSettings.Motion.AngularMotionTypes[(int32)SwingConstraintIndex] == EJointMotionType::Limited)
+			if (JointSettings.AngularMotionTypes[(int32)SwingConstraintIndex] == EJointMotionType::Limited)
 			{
-				FReal Swing1Limit = JointSettings.Motion.AngularLimits[(int32)SwingConstraintIndex];
+				FReal Swing1Limit = JointSettings.AngularLimits[(int32)SwingConstraintIndex];
 				SwingAngleMax = Swing1Limit;
 			}
-			else if (JointSettings.Motion.AngularMotionTypes[(int32)SwingConstraintIndex] == EJointMotionType::Locked)
+			else if (JointSettings.AngularMotionTypes[(int32)SwingConstraintIndex] == EJointMotionType::Locked)
 			{
 				SwingAngleMax = 0;
 			}
@@ -1419,7 +1419,7 @@ namespace Chaos
 
 		const FVec3 TwistAxis0 = R0 * TwistAxis01;
 		const FVec3 TwistAxis1 = R1 * TwistAxis01;
-		const FReal TwistAngleTarget = JointSettings.Motion.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Twist];
+		const FReal TwistAngleTarget = JointSettings.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Twist];
 		const FReal DriveStiffness = GetAngularDriveStiffness(SolverSettings, JointSettings);
 		const FReal DTwistAngle = TwistAngle - TwistAngleTarget;
 		const FReal DTwistAngle0 = DTwistAngle;
@@ -1472,8 +1472,8 @@ namespace Chaos
 		const FVec3 SwingAxis1 = SwingAxis0;
 
 		// Circular swing target (max of Swing1, Swing2 targets)
-		FReal Swing1Target = JointSettings.Motion.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Swing1];
-		FReal Swing2Target = JointSettings.Motion.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Swing2];
+		FReal Swing1Target = JointSettings.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Swing1];
+		FReal Swing2Target = JointSettings.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Swing2];
 		FReal SwingAngleTarget = FMath::Max(Swing1Target, Swing2Target);
 
 		const FReal DriveStiffness = GetAngularDriveStiffness(SolverSettings, JointSettings);
@@ -1513,7 +1513,7 @@ namespace Chaos
 		const FRotation3 R1 = Q1 * XL1.GetRotation();
 
 		// Calculate the rotation we need to apply to resolve the rotation delta
-		const FRotation3 TargetR1 = R0 * JointSettings.Motion.AngularDriveTarget;
+		const FRotation3 TargetR1 = R0 * JointSettings.AngularDriveTarget;
 		const FRotation3 DR1 = TargetR1 * R1.Inverse();
 		const FRotation3 TargetQ0 = DR1.Inverse() * Q0;
 		const FRotation3 TargetQ1 = DR1 * Q1;
