@@ -224,9 +224,10 @@ namespace Audio
 		// Resets the thread ID used for audio rendering
 		void ResetAudioRenderingThreadId();
 
+		void RebuildSubmixLinks(USoundSubmix& SoundSubmix, FMixerSubmixPtr& SubmixInstance);
+
 		void Get2DChannelMapInternal(const int32 NumSourceChannels, const int32 NumOutputChannels, const bool bIsCenterChannelOnly, TArray<float>& OutChannelMap) const;
 		void InitializeChannelMaps();
-		void InitMasterSoundSubmix(EMasterSubmixType::Type InType, const FString& InDefaultName, bool bInDefaultMuteWhenBackgrounded, FSoftObjectPath& InOutObjectPath);
 		static int32 GetChannelMapCacheId(const int32 NumSourceChannels, const int32 NumOutputChannels, const bool bIsCenterChannelOnly);
 		void CacheChannelMap(const int32 NumSourceChannels, const int32 NumOutputChannels, const bool bIsCenterChannelOnly);
 		void InitializeChannelAzimuthMap(const int32 NumChannels);
@@ -235,6 +236,11 @@ namespace Audio
 		void SineOscTest(AlignedFloatBuffer& Output);
 
 		bool IsMainAudioDevice() const;
+
+		void LoadMasterSoundSubmix(EMasterSubmixType::Type InType, const FString& InDefaultName, bool bInDefaultMuteWhenBackgrounded, FSoftObjectPath& InOutObjectPath);
+		void LoadPluginSoundSubmixes();
+		void LoadSoundSubmix(USoundSubmix& SoundSubmix);
+		void UnloadSoundSubmix(USoundSubmix& SoundSubmix);
 
 	private:
 

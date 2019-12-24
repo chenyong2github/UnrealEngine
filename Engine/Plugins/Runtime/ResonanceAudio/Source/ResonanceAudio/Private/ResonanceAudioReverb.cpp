@@ -108,12 +108,9 @@ namespace ResonanceAudio
 		}
 	}
 
-	FSoundEffectSubmixPtr FResonanceAudioReverb::GetEffectSubmix()
+	void FResonanceAudioReverb::InitEffectSubmix()
 	{
-		if (SubmixEffect.IsValid())
-		{
-			return SubmixEffect;
-		}
+		check(!SubmixEffect.IsValid());
 
 		// Load the global reverb preset settings:
 		const FSoftObjectPath ReverbPluginPresetName = GetDefault<UResonanceAudioSettings>()->GlobalReverbPreset;
@@ -144,6 +141,14 @@ namespace ResonanceAudio
 		{
 			ReverbPluginPreset = nullptr;
 		}
+	}
+
+	FSoundEffectSubmixPtr FResonanceAudioReverb::GetEffectSubmix()
+	{
+		if (!SubmixEffect.IsValid())
+		{
+			InitEffectSubmix();
+		}
 
 		return SubmixEffect;
 	}
@@ -163,6 +168,12 @@ namespace ResonanceAudio
 
 			ReverbSubmix = NewObject<USoundSubmix>(USoundSubmix::StaticClass(), *DefaultSubmixName);
 			ReverbSubmix->bMuteWhenBackgrounded = true;
+		}
+
+		// SubmixEffect is required to be initialized for ReverbPluginPreset to be set
+		if (!SubmixEffect.IsValid())
+		{
+			InitEffectSubmix();
 		}
 
 		if (ReverbPluginPreset)
