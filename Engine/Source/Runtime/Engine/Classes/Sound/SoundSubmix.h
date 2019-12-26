@@ -183,7 +183,7 @@ public:
 	/**
 	* @return true if the child sound class exists in the tree
 	*/
-	bool RecurseCheckChild(USoundSubmix* ChildSoundSubmix);
+	bool RecurseCheckChild(const USoundSubmix* ChildSoundSubmix) const;
 
 	/**
 	* Set the parent submix of this SoundSubmix, removing it as a child from its previous owner
