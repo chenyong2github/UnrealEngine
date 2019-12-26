@@ -359,7 +359,7 @@ void USoundSubmix::PostDuplicate(EDuplicateMode::Type DuplicateMode)
 	Super::PostDuplicate(DuplicateMode);
 }
 
-bool USoundSubmix::RecurseCheckChild(USoundSubmix* ChildSoundSubmix)
+bool USoundSubmix::RecurseCheckChild(const USoundSubmix* ChildSoundSubmix) const
 {
 	for (int32 Index = 0; Index < ChildSubmixes.Num(); Index++)
 	{

@@ -134,6 +134,9 @@ namespace ResonanceAudio
 		void SetReverbBrightness();
 
 	private:
+
+		void InitEffectSubmix();
+
 		FResonanceAudioReverbPluginSettings ReverbSettings;
 		RaRoomProperties RoomProperties;
 		RaReverbProperties ReverbProperties;

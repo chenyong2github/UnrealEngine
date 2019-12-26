@@ -214,6 +214,7 @@ private:
 #if WITH_EDITOR
 	TArray<FAudioQualitySettings> CachedQualityLevels;
 	FSoftObjectPath CachedAmbisonicSubmix;
+	FSoftObjectPath CachedMasterSubmix;
 #endif // WITH_EDITOR
 
 	void AddDefaultSettings();

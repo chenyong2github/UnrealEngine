@@ -50,6 +50,9 @@ void UAudioSettings::PreEditChange(FProperty* PropertyAboutToChange)
 	// Cache ambisonic submix in case user tries to set to submix that isn't set to ambisonics
 	CachedAmbisonicSubmix = AmbisonicSubmix;
 
+	// Cache master submix in case user tries to set to submix that isn't a top-level submix
+	CachedMasterSubmix = MasterSubmix;
+
 	// Cache at least the first entry in case someone tries to clear the array
 	CachedQualityLevels = QualityLevels;
 }
@@ -61,8 +64,28 @@ void UAudioSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 		bool bReconcileQualityNodes = false;
 		bool bPromptRestartRequired = false;
 		FName PropertyName = PropertyChangedEvent.Property->GetFName();
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(UAudioSettings, MasterSubmix)
-			|| PropertyName == GET_MEMBER_NAME_CHECKED(UAudioSettings, EQSubmix)
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UAudioSettings, MasterSubmix))
+		{
+			if (USoundSubmix* NewSubmix = Cast<USoundSubmix>(AmbisonicSubmix.TryLoad()))
+			{
+				if (NewSubmix->ParentSubmix != nullptr)
+				{
+					FNotificationInfo Info(LOCTEXT("AudioSettings_InvalidMasterSubmix",
+						"Master Submix' cannot be set to submix with parent."));
+					Info.bFireAndForget = true;
+					Info.ExpireDuration = 2.0f;
+					Info.bUseThrobber = true;
+					FSlateNotificationManager::Get().AddNotification(Info);
+
+					MasterSubmix = CachedMasterSubmix;
+				}
+			}
+			else
+			{
+				bPromptRestartRequired = true;
+			}
+		}
+		else if(PropertyName == GET_MEMBER_NAME_CHECKED(UAudioSettings, EQSubmix)
 			|| PropertyName == GET_MEMBER_NAME_CHECKED(UAudioSettings, ReverbSubmix))
 		{
 			bPromptRestartRequired = true;
