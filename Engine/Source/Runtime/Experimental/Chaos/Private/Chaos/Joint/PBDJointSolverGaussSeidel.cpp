@@ -279,11 +279,8 @@ namespace Chaos
 		const FPBDJointSettings& JointSettings)
 	{
 		// With the parent body set to infinite mass...
-
-		// Then fix the rotations
 		ApplyRotationProjection(Dt, SolverSettings, JointSettings);
 
-		// We first apply a semi-physical linear projection
 		ApplyPositionProjection(Dt, SolverSettings, JointSettings);
 	}
 
@@ -369,26 +366,27 @@ namespace Chaos
 			bool bSwing2Locked = Swing2Motion == EJointMotionType::Locked;
 
 			// No SLerp drive if we have a locked rotation (it will be grayed out in the editor in this case, but could still have been set before the rotation was locked)
-			if (JointSettings.bAngularSLerpDriveEnabled && !bTwistLocked && !bSwing1Locked && !bSwing2Locked)
+			if ((JointSettings.bAngularSLerpPositionDriveEnabled || JointSettings.bAngularSLerpVelocityDriveEnabled) && !bTwistLocked && !bSwing1Locked && !bSwing2Locked)
 			{
 				ApplySLerpDrive(Dt, SolverSettings, JointSettings);
 			}
 			else
 			{
-				if (JointSettings.bAngularTwistDriveEnabled && !bTwistLocked)
+				if ((JointSettings.bAngularTwistPositionDriveEnabled || JointSettings.bAngularTwistVelocityDriveEnabled) && !bTwistLocked)
 				{
 					ApplyTwistDrive(Dt, SolverSettings, JointSettings);
 				}
 
-				if (JointSettings.bAngularSwingDriveEnabled && !bSwing1Locked && !bSwing2Locked)
+				const bool bSwingDriveEnabled = (JointSettings.bAngularSwingPositionDriveEnabled || JointSettings.bAngularSwingVelocityDriveEnabled);
+				if (bSwingDriveEnabled && !bSwing1Locked && !bSwing2Locked)
 				{
 					ApplyConeDrive(Dt, SolverSettings, JointSettings);
 				}
-				else if (JointSettings.bAngularSwingDriveEnabled && !bSwing1Locked)
+				else if (bSwingDriveEnabled && !bSwing1Locked)
 				{
 					ApplySwingDrive(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing1, EJointAngularAxisIndex::Swing1);
 				}
-				else if (JointSettings.bAngularSwingDriveEnabled && !bSwing2Locked)
+				else if (bSwingDriveEnabled && !bSwing2Locked)
 				{
 					ApplySwingDrive(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing2, EJointAngularAxisIndex::Swing2);
 				}
@@ -578,28 +576,45 @@ namespace Chaos
 		const FReal II = (II0 + II1);
 
 		// Damping angular velocity
-		FReal AngVel = 0;
+		FReal AngVelDt = 0;
 		if (Damping > KINDA_SMALL_NUMBER)
 		{
-			const FVec3 W0 = FRotation3::CalculateAngularVelocity(PrevQs[0], Qs[0], Dt);
-			const FVec3 W1 = FRotation3::CalculateAngularVelocity(PrevQs[1], Qs[1], Dt);
-			AngVel = FVec3::DotProduct(Axis0, W0) - FVec3::DotProduct(Axis1, W1);
+			const FVec3 W0 = FRotation3::CalculateAngularVelocity(PrevQs[0], Qs[0], (FReal)1.0);
+			const FVec3 W1 = FRotation3::CalculateAngularVelocity(PrevQs[1], Qs[1], (FReal)1.0);
+			AngVelDt = FVec3::DotProduct(Axis0, W0) - FVec3::DotProduct(Axis1, W1);
 		}
 
 		FReal DLambda = 0;
 		if (Stiffness > KINDA_SMALL_NUMBER)
 		{
+			// As below, but numerically stable for large values of stiffness (same form as in XPBD paper)
 			const FReal Alpha = (FReal)1 / (Stiffness * Dt * Dt);
-			const FReal AlphaBeta = Damping / Stiffness;
+			const FReal Gamma = Damping / (Stiffness * Dt);
 			if (bAccelerationMode)
 			{
-				const FReal Multiplier = (FReal)1 / (((FReal)1 + AlphaBeta / Dt) + Alpha);
-				DLambda = Multiplier * (Angle - AlphaBeta * AngVel) / II - Multiplier * Alpha * Lambda;
+				const FReal Multiplier = (FReal)1 / (((FReal)1 + Gamma) + Alpha);
+				DLambda = Multiplier * (Angle - Gamma * AngVelDt) / II - Multiplier * Alpha * Lambda;
 			}
 			else
 			{
-				const FReal Multiplier = (FReal)1 / (((FReal)1 + AlphaBeta / Dt) * II + Alpha);
-				DLambda = Multiplier * (Angle - Alpha * Lambda - AlphaBeta * AngVel);
+				const FReal Multiplier = (FReal)1 / (((FReal)1 + Gamma) * II + Alpha);
+				DLambda = Multiplier * (Angle - Gamma * AngVelDt - Alpha * Lambda);
+			}
+		}
+		else
+		{
+			// As above, but numerically stable at low stiffness (alpha -> infinity)
+			const FReal S = Stiffness * Dt * Dt;
+			const FReal D = Damping * Dt;
+			if (bAccelerationMode)
+			{
+				const FReal Multiplier = (FReal)1 / ((S + D) + (FReal)1);
+				DLambda = Multiplier * (S * Angle - D * AngVelDt) / II - Multiplier * Lambda;
+			}
+			else
+			{
+				const FReal Multiplier = (FReal)1 / ((S + D) * II + (FReal)1);
+				DLambda = Multiplier * (S * Angle - D * AngVelDt - Lambda);
 			}
 		}
 
@@ -742,8 +757,8 @@ namespace Chaos
 		const FReal DTwistAngle = TwistAngle - TwistAngleTarget;
 
 		// Apply twist correction
-		const FReal AngularDriveStiffness = FPBDJointUtilities::GetAngularDriveStiffness(SolverSettings, JointSettings);
-		const FReal AngularDriveDamping = FPBDJointUtilities::GetAngularDriveDamping(SolverSettings, JointSettings);
+		const FReal AngularDriveStiffness = FPBDJointUtilities::GetAngularTwistDriveStiffness(SolverSettings, JointSettings);
+		const FReal AngularDriveDamping = FPBDJointUtilities::GetAngularTwistDriveDamping(SolverSettings, JointSettings);
 		const bool bAccelerationMode = FPBDJointUtilities::GetDriveAccelerationMode(SolverSettings, JointSettings);
 		ApplyRotationCorrectionSoft(Dt, AngularDriveStiffness, AngularDriveDamping, bAccelerationMode, TwistAxis0, TwistAxis1, DTwistAngle, TwistDriveLambda);
 		UpdateDerivedState();
@@ -828,8 +843,8 @@ namespace Chaos
 		const FReal DSwingAngle = SwingAngle - SwingAngleTarget;
 
 		// Apply drive forces to each body
-		const FReal AngularDriveStiffness = FPBDJointUtilities::GetAngularDriveStiffness(SolverSettings, JointSettings);
-		const FReal AngularDriveDamping = FPBDJointUtilities::GetAngularDriveDamping(SolverSettings, JointSettings);
+		const FReal AngularDriveStiffness = FPBDJointUtilities::GetAngularSwingDriveStiffness(SolverSettings, JointSettings);
+		const FReal AngularDriveDamping = FPBDJointUtilities::GetAngularSwingDriveDamping(SolverSettings, JointSettings);
 		const bool bAccelerationMode = FPBDJointUtilities::GetDriveAccelerationMode(SolverSettings, JointSettings);
 		ApplyRotationCorrectionSoft(Dt, AngularDriveStiffness, AngularDriveDamping, bAccelerationMode, SwingAxis, SwingAxis, DSwingAngle, SwingDriveLambda);
 		UpdateDerivedState();
@@ -856,14 +871,26 @@ namespace Chaos
 			const FReal AngularProjection = FPBDJointUtilities::GetAngularProjection(SolverSettings, JointSettings);
 
 			const FVec3 DR1 = -DSwingAngle * SwingAxis;
-			ApplyRotationDelta(1, AngularProjection, DR1);
+			const FVec3 DP1 = -FVec3::CrossProduct(DR1, Xs[1] - Ps[1]);
+			FVec3 DV1 = FVec3(0);
+			FVec3 DW1 = FVec3(0);
 
 			const FReal WAxis = FVec3::DotProduct(Ws[1] - Ws[0], SwingAxis);
 			if (FMath::Sign(WAxis) == FMath::Sign(DSwingAngle))
 			{
-				const FVec3 DW1 = -WAxis * SwingAxis;
-				ApplyVelocityDelta(1, AngularProjection, FVec3(0), DW1);
+				DW1 = -WAxis * SwingAxis;
 			}
+
+			FReal DP1Len = DP1.Size();
+			if (DP1Len > KINDA_SMALL_NUMBER)
+			{
+				const FVec3 DP1Dir = DP1 / DP1Len;
+				DV1 = -FVec3::DotProduct((Vs[1] - Vs[0]), DP1Dir) * DP1Dir;
+			}
+
+			ApplyRotationDelta(1, AngularProjection, DR1);
+			ApplyPositionDelta(1, AngularProjection, DP1);
+			ApplyVelocityDelta(1, AngularProjection, DV1, DW1);
 
 			UpdateDerivedState(1);
 		}
@@ -956,8 +983,8 @@ namespace Chaos
 		const FReal DSwingAngle = SwingAngle - SwingAngleTarget;
 
 		// Apply drive forces to each body
-		const FReal AngularDriveStiffness = FPBDJointUtilities::GetAngularDriveStiffness(SolverSettings, JointSettings);
-		const FReal AngularDriveDamping = FPBDJointUtilities::GetAngularDriveDamping(SolverSettings, JointSettings);
+		const FReal AngularDriveStiffness = FPBDJointUtilities::GetAngularSwingDriveStiffness(SolverSettings, JointSettings);
+		const FReal AngularDriveDamping = FPBDJointUtilities::GetAngularSwingDriveDamping(SolverSettings, JointSettings);
 		const bool bAccelerationMode = FPBDJointUtilities::GetDriveAccelerationMode(SolverSettings, JointSettings);
 		ApplyRotationCorrectionSoft(Dt, AngularDriveStiffness, AngularDriveDamping, bAccelerationMode, SwingAxis, SwingAxis, DSwingAngle, SwingDriveLambda);
 		UpdateDerivedState();
@@ -981,7 +1008,7 @@ namespace Chaos
 		const FPBDJointSettings& JointSettings)
 	{
 		// Calculate the rotation we need to apply to resolve the rotation delta
-		const FRotation3 TargetR1 = Rs[0] * JointSettings.AngularDriveTarget;
+		const FRotation3 TargetR1 = Rs[0] * JointSettings.AngularDrivePositionTarget;
 		const FRotation3 DR1 = TargetR1 * Rs[1].Inverse();
 
 		FVec3 SLerpAxis;
@@ -993,8 +1020,8 @@ namespace Chaos
 				SLerpAngle = SLerpAngle - (FReal)2 * PI;
 			}
 
-			const FReal AngularDriveStiffness = FPBDJointUtilities::GetAngularDriveStiffness(SolverSettings, JointSettings);
-			const FReal AngularDriveDamping = FPBDJointUtilities::GetAngularDriveDamping(SolverSettings, JointSettings);
+			const FReal AngularDriveStiffness = FPBDJointUtilities::GetAngularSLerpDriveStiffness(SolverSettings, JointSettings);
+			const FReal AngularDriveDamping = FPBDJointUtilities::GetAngularSLerpDriveDamping(SolverSettings, JointSettings);
 			const bool bAccelerationMode = FPBDJointUtilities::GetDriveAccelerationMode(SolverSettings, JointSettings);
 			ApplyRotationCorrectionSoft(Dt, AngularDriveStiffness, AngularDriveDamping, bAccelerationMode, SLerpAxis, SLerpAxis, -SLerpAngle, SwingDriveLambda);
 		}

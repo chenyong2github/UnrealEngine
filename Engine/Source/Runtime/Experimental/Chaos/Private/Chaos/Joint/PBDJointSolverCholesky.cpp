@@ -64,7 +64,7 @@ namespace Chaos
 		Qs[1].EnforceShortestArcWith(Qs[0]);
 
 		Stiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
-		AngularDriveStiffness = FPBDJointUtilities::GetAngularDriveStiffness(SolverSettings, JointSettings);
+		AngularDriveStiffness = 0.0f;// FPBDJointUtilities::GetAngularDriveStiffness(SolverSettings, JointSettings);
 		SwingTwistAngleTolerance = SolverSettings.SwingTwistAngleTolerance;
 		bEnableTwistLimits = SolverSettings.bEnableTwistLimits;
 		bEnableSwingLimits = SolverSettings.bEnableSwingLimits;
@@ -677,10 +677,10 @@ namespace Chaos
 		EJointMotionType Swing1Motion = JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1];
 		EJointMotionType Swing2Motion = JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2];
 
-		bool bTwistDriveEnabled = bEnableDrives && JointSettings.bAngularTwistDriveEnabled && (TwistMotion != EJointMotionType::Locked);
-		bool bSwing1DriveEnabled = bEnableDrives && JointSettings.bAngularSwingDriveEnabled && (Swing1Motion != EJointMotionType::Locked);
-		bool bSwing2DriveEnabled = bEnableDrives && JointSettings.bAngularSwingDriveEnabled && (Swing2Motion != EJointMotionType::Locked);
-		bool bSlerpDriveEnabled = bEnableDrives && JointSettings.bAngularSLerpDriveEnabled && (Swing1Motion != EJointMotionType::Locked) && (Swing2Motion != EJointMotionType::Locked);
+		bool bTwistDriveEnabled = false;// bEnableDrives&& JointSettings.bAngularTwistDriveEnabled && (TwistMotion != EJointMotionType::Locked);
+		bool bSwing1DriveEnabled = false;// bEnableDrives && JointSettings.bAngularSwingDriveEnabled && (Swing1Motion != EJointMotionType::Locked);
+		bool bSwing2DriveEnabled = false;// bEnableDrives && JointSettings.bAngularSwingDriveEnabled && (Swing2Motion != EJointMotionType::Locked);
+		bool bSlerpDriveEnabled = false;// bEnableDrives && JointSettings.bAngularSLerpDriveEnabled && (Swing1Motion != EJointMotionType::Locked) && (Swing2Motion != EJointMotionType::Locked);
 		bool bAnyDriveEnabled = (bTwistDriveEnabled || bSwing1DriveEnabled || bSwing2DriveEnabled || bSlerpDriveEnabled);
 
 		if (bAnyDriveEnabled)
