@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 // The ShaderPrint system uses a RWBuffer to capture any debug print from a shader.
 // This means that the buffer needs to be bound for the shader you wish to debug.
