@@ -120,6 +120,12 @@ public:
 	/** Migrate from the legacy FClothConfig structure. */
 	virtual void MigrateFrom(const FClothConfig_Legacy&) override;
 
+	/** Serialize override used to set the current custom version. */
+	virtual void Serialize(FArchive& Ar) override;
+
+	/** PostLoad override used to deal with updates/changes in properties. */
+	virtual void PostLoad() override;
+
 	// The number of solver iterations
 	// This will increase the stiffness of all constraints but will increase the CPU cost
 	UPROPERTY(EditAnywhere, Category = Simulation, meta = (UIMin = "0", UIMax = "20", ClampMin = "0", ClampMax = "100"))
@@ -137,8 +143,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = Simulation, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
 	float Damping = 0.01f;
 
+	// Use gravity value vs world gravity
+	UPROPERTY(EditAnywhere, Category = Simulation, meta = (InlineEditConditionToggle))
+	bool bUseGravityOverride = false;
+
+	// Scale factor applied to the world gravity when not using the gravity override
+	UPROPERTY(EditAnywhere, Category = Simulation, meta = (EditCondition = "!bUseGravityOverride"))
+	float GravityScale = 1.f;
+
 	// The gravitational acceleration vector [cm/s^2]
-	UPROPERTY(EditAnywhere, Category = Simulation)
-	FVector Gravity;
+	UPROPERTY(EditAnywhere, Category = Simulation, meta = (EditCondition = "bUseGravityOverride"))
+	FVector Gravity = { 0.f, 0.f, -980.665f };
 };
 

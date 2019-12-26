@@ -13,7 +13,7 @@
 
 namespace Chaos
 {
-	class ClothingSimulationContext : public IClothingSimulationContext  // TODO(Kriss.Gossart): Check whether this should inherit from FClothingSimulationContextBase
+	class ClothingSimulationContext : public IClothingSimulationContext  // TODO(Kriss.Gossart): Inherit from FClothingSimulationContextBase
 	{
 	public:
 		ClothingSimulationContext() {}
@@ -23,6 +23,7 @@ namespace Chaos
 		TArray<FMatrix> RefToLocals;
 		TArray<FTransform> BoneTransforms;
 		FTransform ComponentToWorld;
+		FVector WorldGravity;  // Gravity extracted from the world
 	};
 
 	class ClothingSimulation : public IClothingSimulation
@@ -147,6 +148,8 @@ namespace Chaos
 		float DeltaTime;
 		float MaxDeltaTime;
 		float ClampDeltaTime;
+
+		FVector Gravity;
 
 #if WITH_EDITOR
 		// Visualization material
