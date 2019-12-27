@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 // boilerplate.js -- This script should be loaded for every Robomerge page to provide a consistent UI and dataset for each page,
 //                   as well as provide common, shared functions to our client-side Javascript.
 
