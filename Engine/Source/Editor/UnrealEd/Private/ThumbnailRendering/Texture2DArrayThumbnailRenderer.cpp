@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/Texture2dArrayThumbnailRenderer.h"
 #include "Engine/Texture2DArray.h"
