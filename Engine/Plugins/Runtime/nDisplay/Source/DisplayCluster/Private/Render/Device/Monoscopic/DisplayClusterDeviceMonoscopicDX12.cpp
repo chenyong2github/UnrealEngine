@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Render/Device/Monoscopic/DisplayClusterDeviceMonoscopicDX12.h"
 #include "Render/Presentation/DisplayClusterPresentationDX12.h"
