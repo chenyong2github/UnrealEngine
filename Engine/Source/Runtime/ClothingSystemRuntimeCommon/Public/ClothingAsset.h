@@ -134,10 +134,10 @@ public:
 	void CalculateReferenceBoneIndex();
 
 	/** Returns \c true if \p InLodIndex is a valid LOD id (index into \c ClothLodData). */
-	virtual bool IsValidLod(int32 InLodIndex) override;
+	virtual bool IsValidLod(int32 InLodIndex) const override;
 
 	/** Returns the number of valid LOD's (length of the \c ClothLodData array). */
-	virtual int32 GetNumLods() override;
+	virtual int32 GetNumLods() const override;
 
 #if WITH_EDITOR
 	/** * Add a new LOD class instance. */

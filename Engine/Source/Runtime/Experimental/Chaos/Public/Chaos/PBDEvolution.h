@@ -56,11 +56,14 @@ class CHAOS_API TPBDEvolution
 
 	T GetTime() const { return MTime; }
 
+	void ResetConstraintRules() { MConstraintRules.Reset(); };
+	void ResetSelfCollision() { MCollisionTriangles.Reset(); MDisabledCollisionElements.Reset(); };
+
   private:
 	TPBDParticles<T, d> MParticles;
 	TKinematicGeometryClothParticles<T, d> MCollisionParticles;
-	TArray<TVector<int32, 3>> MCollisionTriangles;
-	TSet<TVector<int32, 2>> MDisabledCollisionElements;
+	TArray<TVector<int32, 3>> MCollisionTriangles;       // Used for self-collisions
+	TSet<TVector<int32, 2>> MDisabledCollisionElements;  // 
 	TArrayCollectionArray<bool> MCollided;
 	int32 MNumIterations;
 	T MCollisionThickness;

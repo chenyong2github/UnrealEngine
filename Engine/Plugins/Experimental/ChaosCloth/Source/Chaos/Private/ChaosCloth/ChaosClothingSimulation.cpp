@@ -23,9 +23,8 @@
 #include "Chaos/PBDSphericalConstraint.h"
 #include "Chaos/PBDSpringConstraints.h"
 #include "Chaos/PBDVolumeConstraint.h"
+#include "Chaos/PBDShapeConstraints.h"
 #include "Chaos/PerParticleGravity.h"
-#include "Chaos/PerParticlePBDLongRangeConstraints.h"
-#include "Chaos/PerParticlePBDShapeConstraints.h"
 #include "Chaos/Plane.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/TaperedCylinder.h"
@@ -132,7 +131,6 @@ void ClothingSimulation::Shutdown()
 {
 	Assets.Reset();
 	AnimDriveSpringStiffness.Reset();
-	ExtractedCollisions.Reset();
 	ExternalCollisions.Reset();
 	OldCollisionTransforms.Reset();
 	CollisionTransforms.Reset();
@@ -229,48 +227,62 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 		reinterpret_cast<TArray<FVector>&>(AnimationNormals),
 		Offset);
 
-	for (uint32 i = Offset; i < Particles.Size(); ++i)
-	{
-		Particles.X(i) = AnimationPositions[i];
-		Particles.V(i) = Chaos::TVector<float, 3>(0.f, 0.f, 0.f);
-		// Initialize mass to 0, to be overridden later
-		Particles.M(i) = 0.f;
-	}
+	ResetParticles(InSimDataIndex);
 
 	OldAnimationPositions = AnimationPositions;  // Also update the old positions array to avoid any interpolation issues
 
-	TUniquePtr<Chaos::TTriangleMesh<float>>& Mesh = Meshes[InSimDataIndex];
-	BuildMesh(Mesh, PhysMesh, Offset);
+	BuildMesh(PhysMesh, InSimDataIndex);
 
-	const FPointWeightMap& MaxDistances = PhysMesh.GetWeightMap(EChaosWeightMapTarget::MaxDistance);
-	SetParticleMasses(ChaosClothSimConfig, Particles, Offset, PhysMesh.Vertices.Num(), *Mesh, MaxDistances);
+	SetParticleMasses(ChaosClothSimConfig, PhysMesh, InSimDataIndex);
 
-	AddConstraints(ChaosClothSimConfig, PhysMesh, *Mesh, Offset, InSimDataIndex);
+	AddConstraints(ChaosClothSimConfig, PhysMesh, InSimDataIndex);
 
 	// Add Self Collisions
 	if (ChaosClothSimConfig->bUseSelfCollisions)
 	{
-		AddSelfCollisions(Mesh, Particles, Offset);
+		AddSelfCollisions(InSimDataIndex);
 	}
 
-	// Collision particles
-	TGeometryClothParticles<float, 3>& CollisionParticles = Evolution->CollisionParticles();
+	// Warn about legacy apex collisions
+	const FClothCollisionData& LodCollData = AssetLodData->CollisionData;
+	UE_CLOG(LodCollData.Spheres.Num() > 0 || LodCollData.SphereConnections.Num() > 0 || LodCollData.Convexes.Num() > 0,
+		LogChaosCloth, Warning, TEXT(
+			"Actor '%s' component '%s' has %d sphere, %d capsule, and %d "
+			"convex collision objects for physics authored as part of a LOD construct, "
+			"probably by the Apex cloth authoring system.  This is deprecated.  "
+			"Please update your asset!"),
+		InOwnerComponent->GetOwner() ? *InOwnerComponent->GetOwner()->GetName() : TEXT("None"),
+		*InOwnerComponent->GetName(),
+		LodCollData.Spheres.Num(),
+		LodCollData.SphereConnections.Num(),
+		LodCollData.Convexes.Num());
 
-	// Pull collisions from the specified physics asset inside the clothing asset
-	ExtractPhysicsAssetCollisions(Asset);
-
-	// Extract the legacy Apex collision from the clothing asset
-	ExtractLegacyAssetCollisions(Asset, InOwnerComponent);
-
-	// Set the external collision starting index
+	// Extract all collisions for this asset
 	checkf(ExternalCollisions.Spheres.Num() == 0 &&
 		ExternalCollisions.SphereConnections.Num() == 0 &&
 		ExternalCollisions.Convexes.Num() == 0 &&
 		ExternalCollisions.Boxes.Num() == 0, TEXT("There cannot be any external collisions added before all the cloth assets collisions are processed."));
-	ExternalCollisionsOffset = CollisionParticles.Size();
+	ExtractCollisions(Asset);
+}
+
+void ClothingSimulation::ExtractCollisions(const UClothingAssetCommon* Asset)
+{
+	// Pull collisions from the specified physics asset inside the clothing asset
+	ExtractPhysicsAssetCollisions(Asset);
+
+	// Extract the legacy Apex collision from the clothing asset
+	ExtractLegacyAssetCollisions(Asset);
+
+	// Update the external collision offset
+	ExternalCollisionsOffset = Evolution->CollisionParticles().Size();
 }
 
 void ClothingSimulation::PostActorCreationInitialize()
+{
+	UpdateSimulationFromSharedSimConfig();
+}
+
+void ClothingSimulation::UpdateSimulationFromSharedSimConfig()
 {
 	if (ClothSharedSimConfig) // ClothSharedSimConfig will be a null pointer if all cloth instances are disabled in which case we will use default Evolution parameters
 	{
@@ -283,8 +295,12 @@ void ClothingSimulation::PostActorCreationInitialize()
 	}
 }
 
-void ClothingSimulation::BuildMesh(TUniquePtr<Chaos::TTriangleMesh<float>>& OutChaosMesh, const FClothPhysicalMeshData& InPhysMesh, uint32 Offset) const
+void ClothingSimulation::BuildMesh(const FClothPhysicalMeshData& InPhysMesh, int32 InSimDataIndex)
 {
+	TUniquePtr<Chaos::TTriangleMesh<float>>& Mesh = Meshes[InSimDataIndex];
+
+	const uint32 Offset = IndexToRangeMap[InSimDataIndex][0];
+
 	const int32 NumTriangles = InPhysMesh.Indices.Num() / 3;
 	TArray<Chaos::TVector<int32, 3>> InputSurfaceElements;
 	InputSurfaceElements.Reserve(NumTriangles);
@@ -297,20 +313,29 @@ void ClothingSimulation::BuildMesh(TUniquePtr<Chaos::TTriangleMesh<float>>& OutC
 			 static_cast<int32>(Offset + InPhysMesh.Indices[Index + 2]) });
 	}
 	check(InputSurfaceElements.Num() == NumTriangles);
-	OutChaosMesh.Reset(new Chaos::TTriangleMesh<float>(MoveTemp(InputSurfaceElements)));
-	check(OutChaosMesh->GetNumElements() == NumTriangles);
-	OutChaosMesh->GetPointToTriangleMap(); // Builds map for later use by GetPointNormals()
+	Mesh.Reset(new Chaos::TTriangleMesh<float>(MoveTemp(InputSurfaceElements)));
+	check(Mesh->GetNumElements() == NumTriangles);
+	Mesh->GetPointToTriangleMap(); // Builds map for later use by GetPointNormals()
 }
 
-void ClothingSimulation::SetParticleMasses(
-	const UChaosClothConfig* ChaosClothSimConfig,
-	TPBDParticles<float, 3>& Particles,
-	uint32 Offset, // Offset into Particles array
-	uint32 ParticlesCount, // Number of particles
-	Chaos::TTriangleMesh<float>& Mesh, // Mesh with indices into Particles with offset already taken into account
-	const FPointWeightMap& MaxDistances
-	) const
+void ClothingSimulation::ResetParticles(int32 InSimDataIndex)
 {
+	const uint32 Offset = IndexToRangeMap[InSimDataIndex][0];
+	const uint32 Range = IndexToRangeMap[InSimDataIndex][1];
+
+	for (uint32 i = Offset; i < Range; ++i)
+	{
+		Evolution->Particles().X(i) = AnimationPositions[i];
+		Evolution->Particles().V(i) = Chaos::TVector<float, 3>(0.f);
+		Evolution->Particles().M(i) = 0.f;
+	}
+}
+
+void ClothingSimulation::SetParticleMasses(const UChaosClothConfig* ChaosClothConfig, const FClothPhysicalMeshData& PhysMesh, int32 InSimDataIndex)
+{
+	const Chaos::TTriangleMesh<float>& Mesh = *Meshes[InSimDataIndex];
+	TPBDParticles<float, 3>& Particles = Evolution->Particles();
+
 	// Assign per particle mass proportional to connected area.
 	const TArray<TVector<int32, 3>>& SurfaceElements = Mesh.GetSurfaceElements();
 	float TotalArea = 0.0;
@@ -326,17 +351,17 @@ void ClothingSimulation::SetParticleMasses(
 		Particles.M(Tri[2]) += ThirdTriArea;
 	}
 	const TSet<int32> Vertices = Mesh.GetVertices();
-	switch (ChaosClothSimConfig->MassMode)
+	switch (ChaosClothConfig->MassMode)
 	{
 	case EClothMassMode::UniformMass:
 		for (const int32 Vertex : Vertices)
 		{
-			Particles.M(Vertex) = ChaosClothSimConfig->UniformMass;
+			Particles.M(Vertex) = ChaosClothConfig->UniformMass;
 		}
 		break;
 	case EClothMassMode::TotalMass:
 	{
-		const float MassPerUnitArea = TotalArea > 0.0 ? ChaosClothSimConfig->TotalMass / TotalArea : 1.0;
+		const float MassPerUnitArea = TotalArea > 0.0 ? ChaosClothConfig->TotalMass / TotalArea : 1.0;
 		for (const int32 Vertex : Vertices)
 		{
 			Particles.M(Vertex) *= MassPerUnitArea;
@@ -346,28 +371,36 @@ void ClothingSimulation::SetParticleMasses(
 	case EClothMassMode::Density:
 		for (const int32 Vertex : Vertices)
 		{
-			Particles.M(Vertex) *= ChaosClothSimConfig->Density;
+			Particles.M(Vertex) *= ChaosClothConfig->Density;
 		}
 		break;
 	};
 
 	// Clamp and enslave
-	check(Particles.Size() >= Offset + ParticlesCount);
-	for (uint32 i = Offset; i < Offset + ParticlesCount; i++)
+	const FPointWeightMap& MaxDistances = PhysMesh.GetWeightMap(EChaosWeightMapTarget::MaxDistance);
+	const uint32 Offset = IndexToRangeMap[InSimDataIndex][0];
+	const uint32 Range = IndexToRangeMap[InSimDataIndex][1];
+
+	check(Particles.Size() >= Range);
+	for (uint32 i = Offset; i < Range; i++)
 	{
-		Particles.M(i) = FMath::Max(Particles.M(i), ChaosClothSimConfig->MinPerParticleMass);
+		Particles.M(i) = FMath::Max(Particles.M(i), ChaosClothConfig->MinPerParticleMass);
 		Particles.InvM(i) = MaxDistances.IsBelowThreshold(i - Offset) ? 0.f : 1.f / Particles.M(i);
 	}
 }
 
-void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimConfig, const FClothPhysicalMeshData& PhysMesh, const Chaos::TTriangleMesh<float>& Mesh, uint32 Offset, int32 InSimDataIndex)
+void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimConfig, const FClothPhysicalMeshData& PhysMesh, int32 InSimDataIndex)
 {
+	const Chaos::TTriangleMesh<float>& Mesh = *Meshes[InSimDataIndex];
 	const TArray<TVector<int32, 3>>& SurfaceElements = Mesh.GetSurfaceElements();
+
+	const uint32 Offset = IndexToRangeMap[InSimDataIndex][0];
+	const uint32 ParticleCount = IndexToRangeMap[InSimDataIndex][1] - Offset;
 
 	if (ChaosClothSimConfig->ShapeTargetStiffness)
 	{
 		check(ChaosClothSimConfig->ShapeTargetStiffness > 0.f && ChaosClothSimConfig->ShapeTargetStiffness <= 1.f);
-		Evolution->AddPBDConstraintFunction([ShapeConstraints = Chaos::TPerParticlePBDShapeConstraints<float, 3>(Evolution->Particles(), AnimationPositions, ChaosClothSimConfig->ShapeTargetStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
+		Evolution->AddPBDConstraintFunction([ShapeConstraints = Chaos::TPBDShapeConstraints<float, 3>(Evolution->Particles(), Offset, ParticleCount, AnimationPositions, ChaosClothSimConfig->ShapeTargetStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
 			ShapeConstraints.Apply(InParticles, Dt);
 		});
 	}
@@ -517,14 +550,17 @@ void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimCo
 	}
 }
 
-void ClothingSimulation::AddSelfCollisions(const TUniquePtr<Chaos::TTriangleMesh<float>>& Mesh, const TPBDParticles<float, 3>& Particles, int32 Offset)
+void ClothingSimulation::AddSelfCollisions(int32 InSimDataIndex) 
 {
 	// TODO(mlentine): Parallelize these for multiple meshes
-	const TArray<TVector<int32, 3>>& SurfaceElements = Mesh->GetSurfaceElements();
-	Evolution->CollisionTriangles().Append(SurfaceElements);
-	for (uint32 i = Offset; i < Particles.Size(); ++i)
+	const Chaos::TTriangleMesh<float>& Mesh = *Meshes[InSimDataIndex];
+	Evolution->CollisionTriangles().Append(Mesh.GetSurfaceElements());
+
+	const uint32 Offset = IndexToRangeMap[InSimDataIndex][0];
+	const uint32 Range = IndexToRangeMap[InSimDataIndex][1];
+	for (uint32 i = Offset; i < Range; ++i)
 	{
-		TSet<int32> Neighbors = Mesh->GetNRing(i, 5);
+		const TSet<int32> Neighbors = Mesh.GetNRing(i, 5);
 		for (int32 Element : Neighbors)
 		{
 			check(i != Element);
@@ -580,9 +616,9 @@ void ClothingSimulation::UpdateCollisionTransforms(const ClothingSimulationConte
 	}
 }
 
-void ClothingSimulation::ExtractPhysicsAssetCollisions(UClothingAssetCommon* Asset)
+void ClothingSimulation::ExtractPhysicsAssetCollisions(const UClothingAssetCommon* Asset)
 {
-	ExtractedCollisions.Reset();
+	FClothCollisionData ExtractedCollisions;
 
 	TGeometryClothParticles<float, 3>& CollisionParticles = Evolution->CollisionParticles();
 
@@ -760,24 +796,13 @@ void ClothingSimulation::ExtractPhysicsAssetCollisions(UClothingAssetCommon* Ass
 	}  // End if Asset->PhysicsAsset
 }
 
-void ClothingSimulation::ExtractLegacyAssetCollisions(UClothingAssetCommon* Asset, const USkeletalMeshComponent* InOwnerComponent)
+void ClothingSimulation::ExtractLegacyAssetCollisions(const UClothingAssetCommon* Asset)
 {
 	if (const UClothLODDataCommon* const AssetLodData = Asset->ClothLodData[0])
 	{
 		const FClothCollisionData& LodCollData = AssetLodData->CollisionData;
 		if (LodCollData.Spheres.Num() || LodCollData.SphereConnections.Num() || LodCollData.Convexes.Num())
 		{
-			UE_LOG(LogChaosCloth, Warning,
-				TEXT("Actor '%s' component '%s' has %d sphere, %d capsule, and %d "
-					"convex collision objects for physics authored as part of a LOD construct, "
-					"probably by the Apex cloth authoring system.  This is deprecated.  "
-					"Please update your asset!"),
-				InOwnerComponent->GetOwner() ? *InOwnerComponent->GetOwner()->GetName() : TEXT("None"),
-				*InOwnerComponent->GetName(),
-				LodCollData.Spheres.Num(),
-				LodCollData.SphereConnections.Num(),
-				LodCollData.Convexes.Num());
-
 			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Adding legacy cloth asset collisions..."));
 			AddCollisions(LodCollData, Asset->UsedBoneIndices);
 		}
@@ -1203,7 +1228,6 @@ void ClothingSimulation::ClearExternalCollisions()
 	CollisionParticles.Resize(ExternalCollisionsOffset);  // This will also resize BoneIndices and BaseTransforms
 
 	// Reset external collisions
-	ExternalCollisionsOffset = CollisionParticles.Size();
 	ExternalCollisions.Reset();
 
 	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Cleared all external collisions."));
@@ -1211,6 +1235,10 @@ void ClothingSimulation::ClearExternalCollisions()
 
 void ClothingSimulation::GetCollisions(FClothCollisionData& OutCollisions, bool bIncludeExternal) const
 {
+	// This code only gathers old apex collisions that don't appear in the physics mesh
+	// It is also never called with bIncludeExternal = true
+	// This function is bound to be deprecated at some point
+
 	OutCollisions.Reset();
 
 	// Add internal asset collisions
@@ -1222,18 +1250,63 @@ void ClothingSimulation::GetCollisions(FClothCollisionData& OutCollisions, bool 
 		}
 	}
 
-	// Add collisions extracted from the physics asset
-	// TODO(Kriss.Gossart): Including the following code seems to be the correct behaviour, but this did not appear
-	// in the NvCloth implementation, so best to leave it commented out for now.
-	//OutCollisions.Append(ExtractedCollisions);
-
 	// Add external asset collisions
 	if (bIncludeExternal)
 	{
 		OutCollisions.Append(ExternalCollisions);
 	}
 
-	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Returned collisions: %d spheres, %d capsules, %d convexes, %d boxes."), OutCollisions.Spheres.Num() - 2 * OutCollisions.SphereConnections.Num(), OutCollisions.SphereConnections.Num(), OutCollisions.Convexes.Num(), OutCollisions.Boxes.Num());
+	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("GetCollisions returned collisions: %d spheres, %d capsules, %d convexes, %d boxes."), OutCollisions.Spheres.Num() - 2 * OutCollisions.SphereConnections.Num(), OutCollisions.SphereConnections.Num(), OutCollisions.Convexes.Num(), OutCollisions.Boxes.Num());
+}
+
+void ClothingSimulation::RefreshClothConfig()
+{
+	UpdateSimulationFromSharedSimConfig();
+
+	Evolution->ResetConstraintRules();
+	Evolution->ResetSelfCollision();
+
+	for (int32 SimDataIndex = 0; SimDataIndex < Assets.Num(); ++SimDataIndex)
+	{
+		if (const UClothingAssetCommon* const Asset = Assets[SimDataIndex])
+		{
+			if (const UChaosClothConfig* const ChaosClothConfig = Asset->GetClothConfig<UChaosClothConfig>())
+			{
+				check(Asset->GetNumLods() > 0);
+				const FClothPhysicalMeshData& PhysMesh = Asset->ClothLodData[0]->ClothPhysicalMeshData;
+
+				ResetParticles(SimDataIndex);
+
+				SetParticleMasses(ChaosClothConfig, PhysMesh, SimDataIndex);
+
+				AddConstraints(ChaosClothConfig, PhysMesh, SimDataIndex);
+
+				// Add Self Collisions
+				if (ChaosClothConfig->bUseSelfCollisions)
+				{
+					AddSelfCollisions(SimDataIndex);
+				}
+			}
+		}
+	}
+	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("RefreshClothConfig, all constraints and self-collisions have been updated for all clothing assets"));
+}
+
+void ClothingSimulation::RefreshPhysicsAsset()
+{
+	// Clear all collisions
+	TGeometryClothParticles<float, 3>& CollisionParticles = Evolution->CollisionParticles();
+	CollisionParticles.Resize(0);  // This will also resize BoneIndices and BaseTransforms
+
+	ExternalCollisions.Reset();
+	ExternalCollisionsOffset = 0;
+
+	// Re-extract all collisions from every cloth asset
+	for (const UClothingAssetCommon* Asset : Assets)
+	{
+		ExtractCollisions(Asset);
+	}
+	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("RefreshPhysicsAsset, all collisions have been re-added for all clothing assets"));
 }
 
 void ClothingSimulation::SetAnimDriveSpringStiffness(float InStiffness)
