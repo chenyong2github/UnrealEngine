@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
  IPhoneObjCWrapper.mm: iPhone wrapper for making ObjC calls from C++ code
