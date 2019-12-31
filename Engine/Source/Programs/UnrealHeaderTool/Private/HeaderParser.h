@@ -433,7 +433,7 @@ public:
 	 * @param InNameToCheck - Name w/ potential prefix to check
 	 * @param OriginalClassName - Name of class w/ no prefix to check against
 	 */
-	static bool ClassNameHasValidPrefix(const FString InNameToCheck, const FString OriginalClassName);
+	static bool ClassNameHasValidPrefix(const FString& InNameToCheck, const FString& OriginalClassName);
 
 	/**
 	 * Tries to convert the header file name to a class name (with 'U' prefix)
@@ -768,7 +768,7 @@ protected:
 	/** Skip C++ (noexport) declaration. */
 	bool SkipDeclaration(FToken& Token);
 	/** Similar to MatchSymbol() but will return to the exact location as on entry if the symbol was not found. */
-	bool SafeMatchSymbol(const TCHAR* Match);
+	bool SafeMatchSymbol(const TCHAR Match);
 	void HandleOneInheritedClass(FClasses& AllClasses, UClass* Class, FString InterfaceName);
 	FClass* ParseClassNameDeclaration(FClasses& AllClasses, FString& DeclaredClassName, FString& RequiredAPIMacroIfPresent);
 
