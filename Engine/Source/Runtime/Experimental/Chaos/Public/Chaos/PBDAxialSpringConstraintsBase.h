@@ -100,8 +100,6 @@ class TPBDAxialSpringConstraintsBase
   protected:
 	TArray<TVector<int32, 3>> MConstraints;
 	TArray<T> MBarys;
-
-  private:
 	TArray<T> MDists;
 	T MStiffness;
 };

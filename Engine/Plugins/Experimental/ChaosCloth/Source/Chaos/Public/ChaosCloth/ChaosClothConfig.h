@@ -164,5 +164,9 @@ public:
 	// The gravitational acceleration vector [cm/s^2]
 	UPROPERTY(EditAnywhere, Category = Simulation, meta = (EditCondition = "bUseGravityOverride"))
 	FVector Gravity = { 0.f, 0.f, -980.665f };
-};
 
+	// Enable the XPBD constraints that resolve stiffness independently from the number of iterations
+	// Experimental, this feature might be removed without warning, not for production use
+	UPROPERTY(EditAnywhere, Category = "Experimental", meta = (DisplayName="Use XPBD Constraints (Experimental)"))
+	bool bUseXPBDConstraints = false;
+};
