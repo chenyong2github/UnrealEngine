@@ -21,6 +21,8 @@ class TXPBDAxialSpringConstraints : public TParticleRule<T, d>, public TPBDAxial
 	typedef TPBDAxialSpringConstraintsBase<T, d> Base;
 	using Base::MBarys;
 	using Base::MConstraints;
+	using Base::MDists;
+	using Base::MStiffness;
 
 public:
 	TXPBDAxialSpringConstraints(const TDynamicParticles<T, d>& InParticles, TArray<TVector<int32, 3>>&& Constraints, const T Stiffness = (T)1.)
