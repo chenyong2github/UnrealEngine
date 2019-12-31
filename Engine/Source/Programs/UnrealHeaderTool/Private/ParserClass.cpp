@@ -5,12 +5,6 @@
 #include "UObject/Package.h"
 #include "Templates/Casts.h"
 
-namespace
-{
-	static const FName NAME_HideCategories(TEXT("HideCategories"));
-	static const FName NAME_ShowCategories(TEXT("ShowCategories"));
-	static const FName NAME_SparseClassDataTypes(TEXT("SparseClassDataTypes"));
-}
 const FName FClass::NAME_ReplaceConverted(TEXT("ReplaceConverted"));
 
 FString FClass::GetNameWithPrefix(EEnforceInterfacePrefix::Type EnforceInterfacePrefix) const
@@ -77,27 +71,27 @@ TArray<FClass*> FClass::GetInterfaceTypes() const
 
 void FClass::GetHideCategories(TArray<FString>& OutHideCategories) const
 {
-	if (HasMetaData(NAME_HideCategories))
+	if (HasMetaData(FHeaderParserNames::NAME_HideCategories))
 	{
-		const FString& HideCategories = GetMetaData(NAME_HideCategories);
+		const FString& HideCategories = GetMetaData(FHeaderParserNames::NAME_HideCategories);
 		HideCategories.ParseIntoArray(OutHideCategories, TEXT(" "), true);
 	}
 }
 
 void FClass::GetShowCategories(TArray<FString>& OutShowCategories) const
 {
-	if (HasMetaData(NAME_ShowCategories))
+	if (HasMetaData(FHeaderParserNames::NAME_ShowCategories))
 	{
-		const FString& ShowCategories = GetMetaData(NAME_ShowCategories);
+		const FString& ShowCategories = GetMetaData(FHeaderParserNames::NAME_ShowCategories);
 		ShowCategories.ParseIntoArray(OutShowCategories, TEXT(" "), true);
 	}
 }
 
 void FClass::GetSparseClassDataTypes(TArray<FString>& OutSparseClassDataTypes) const
 {
-	if (HasMetaData(NAME_SparseClassDataTypes))
+	if (HasMetaData(FHeaderParserNames::NAME_SparseClassDataTypes))
 	{
-		const FString& SparseClassDataTypes = GetMetaData(NAME_SparseClassDataTypes);
+		const FString& SparseClassDataTypes = GetMetaData(FHeaderParserNames::NAME_SparseClassDataTypes);
 		SparseClassDataTypes.ParseIntoArray(OutSparseClassDataTypes, TEXT(" "), true);
 	}
 }
