@@ -67,6 +67,19 @@ public:
 	/**
 	 * Finds type by its name.
 	 *
+	 * @param Name Name to look for.
+	 *
+	 * @returns Found type or nullptr on failure.
+	 */
+	template <typename CharType>
+	UField* FindTypeByName(const CharType* Name)
+	{
+		return FindTypeByName(FName(Name, FNAME_Find));
+	}
+
+	/**
+	 * Finds type by its name.
+	 *
 	 * Const version.
 	 *
 	 * @param Name Name to look for.
@@ -75,6 +88,20 @@ public:
 	 */
 	const UField* FindTypeByName(FName Name) const;
 
+	/**
+	 * Finds type by its name.
+	 *
+	 * Const version.
+	 *
+	 * @param Name Name to look for.
+	 *
+	 * @returns Found type or nullptr on failure.
+	 */
+	template <typename CharType>
+	const UField* FindTypeByName(const CharType* Name) const
+	{
+		return FindTypeByName(FName(Name, FNAME_Find));
+	}
 	/**
 	 * Checks if scope contains this type.
 	 *
