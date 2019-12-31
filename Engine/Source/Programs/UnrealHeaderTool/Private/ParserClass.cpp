@@ -5,9 +5,12 @@
 #include "UObject/Package.h"
 #include "Templates/Casts.h"
 
-static const FName NAME_HideCategories(TEXT("HideCategories"));
-static const FName NAME_ShowCategories(TEXT("ShowCategories"));
-static const FName NAME_SparseClassDataTypes(TEXT("SparseClassDataTypes"));
+namespace
+{
+	static const FName NAME_HideCategories(TEXT("HideCategories"));
+	static const FName NAME_ShowCategories(TEXT("ShowCategories"));
+	static const FName NAME_SparseClassDataTypes(TEXT("SparseClassDataTypes"));
+}
 const FName FClass::NAME_ReplaceConverted(TEXT("ReplaceConverted"));
 
 FString FClass::GetNameWithPrefix(EEnforceInterfacePrefix::Type EnforceInterfacePrefix) const
