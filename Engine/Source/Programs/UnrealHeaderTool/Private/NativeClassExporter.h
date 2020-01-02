@@ -81,13 +81,14 @@ struct FNativeClassHeaderGenerator
 {
 private:
 	FString API;
+	FString APIStringPrivate;
 
 	/**
 	 * Gets API string for this header.
 	 */
-	FString GetAPIString()
+	const FString& GetAPIString() const
 	{
-		return FString::Printf(TEXT("%s_API "), *API);
+		return APIStringPrivate;
 	}
 
 	const UPackage* Package;
@@ -124,7 +125,7 @@ private:
 	static void ExportProperties(FOutputDevice& Out, UStruct* Struct, int32 TextIndent);
 
 	/** Return the name of the singleton function that returns the UObject for Item */
-	FString GetPackageSingletonName(const UPackage* Item);
+	const FString& GetPackageSingletonName(const UPackage* Item);
 
 	/** Return the name of the singleton function that returns the UObject for Item */
 	FString GetSingletonName(UField* Item, bool bRequiresValidObject=true);
@@ -276,7 +277,7 @@ private:
 	* 
 	* @param	PackageName	Name of the package being saved
 	*/
-	void ExportUpdatedHeaders( FString PackageName  );
+	void ExportUpdatedHeaders( const FString& PackageName  );
 
 	/**
 	 * Exports the generated cpp file for all functions/events/delegates in package.
@@ -447,7 +448,7 @@ private:
 	*
 	* @return	The generated string
 	*/
-	static FString GenerateTempHeaderName( FString CurrentFilename, bool bReverseOperation = false );
+	static FString GenerateTempHeaderName( const FString& CurrentFilename, bool bReverseOperation = false );
 
 	/**
 	 * Saves a generated header if it has changed. 
