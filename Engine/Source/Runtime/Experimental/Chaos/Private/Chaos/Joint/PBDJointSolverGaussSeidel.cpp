@@ -382,8 +382,7 @@ namespace Chaos
 	{
 		InitAccumulatedDeltas();
 
-		// With the parent body set to infinite mass...
-		ApplyRotationProjection(Dt, SolverSettings, JointSettings);
+		//ApplyRotationProjection(Dt, SolverSettings, JointSettings);
 
 		ApplyPositionProjection(Dt, SolverSettings, JointSettings);
 
@@ -1663,32 +1662,48 @@ namespace Chaos
 		const FPBDJointSettings& JointSettings)
 	{
 		// Apply a position correction with the parent body set to infinite mass, then correct the velocity.
+		// Note: Velocity correction does not set parent to infinite mass (if we do, then the velocities
+		// get amplified down the chain).
 		FVec3 CX = FPBDJointUtilities::GetLimitedPositionError(JointSettings, Rs[0], Xs[1] - Xs[0]);
 		const FReal CXLen = CX.Size();
 		if (CXLen > KINDA_SMALL_NUMBER)
 		{
+			FReal LinearProjection = FPBDJointUtilities::GetLinearProjection(SolverSettings, JointSettings);
+			const FReal ParentMassScale = FMath::Max(0.0f, 1.0f - LinearProjection);
+
 			const FVec3 CXDir = CX / CXLen;
 			const FVec3 V0 = Vs[0] + FVec3::CrossProduct(Ws[0], Xs[0] - Ps[0]);
 			const FVec3 V1 = Vs[1] + FVec3::CrossProduct(Ws[1], Xs[1] - Ps[1]);
 			FVec3 CV = FVec3::DotProduct(V1 - V0, CXDir) * CXDir;
 
-			FMatrix33 InvI1 = Utilities::ComputeWorldSpaceInertia(Qs[1], InvILs[1]);
-			FMatrix33 M1 = Utilities::ComputeJointFactorMatrix(Xs[1] - Ps[1], InvI1, InvMs[1]);
-			FMatrix33 MI = M1.Inverse();
+			const FReal IM0 = ParentMassScale * InvMs[0];
+			const FReal IM1 = InvMs[1];
+			const FMatrix33 IIL0 = ParentMassScale * InvILs[0];
+			const FMatrix33& IIL1 = InvILs[1];
+			FMatrix33 II0 = Utilities::ComputeWorldSpaceInertia(Qs[0], IIL0);
+			FMatrix33 II1 = Utilities::ComputeWorldSpaceInertia(Qs[1], IIL1);
+			FMatrix33 J0 = (IM0 > 0) ? Utilities::ComputeJointFactorMatrix(Xs[0] - Ps[0], II0, IM0) : FMatrix33(0, 0, 0);
+			FMatrix33 J1 = Utilities::ComputeJointFactorMatrix(Xs[1] - Ps[1], II1, IM1);
+			FMatrix33 IJ = (J0 + J1).Inverse();
 
-			const FVec3 DX = Utilities::Multiply(MI, CX);
-			const FVec3 DV = Utilities::Multiply(MI, CV);
+			const FVec3 DX = Utilities::Multiply(IJ, CX);
+			const FVec3 DV = Utilities::Multiply(IJ, CV);
 
-			const FVec3 DP1 = -InvMs[1] * DX;
-			const FVec3 DR1 = Utilities::Multiply(InvI1, FVec3::CrossProduct(Xs[1] - Ps[1], -DX));
-			const FVec3 DV1 = -InvMs[1] * DV;
-			const FVec3 DW1 = Utilities::Multiply(InvI1, FVec3::CrossProduct(Xs[1] - Ps[1], -DV));
+			const FVec3 DP0 = IM0 * DX;
+			const FVec3 DP1 = -IM1 * DX;
+			const FVec3 DR0 = Utilities::Multiply(II0, FVec3::CrossProduct(Xs[0] - Ps[0], DX));
+			const FVec3 DR1 = Utilities::Multiply(II1, FVec3::CrossProduct(Xs[1] - Ps[1], -DX));
 
-			FReal LinearProjection = FPBDJointUtilities::GetLinearProjection(SolverSettings, JointSettings);
-			ApplyPositionDelta(1, LinearProjection, DP1);
-			ApplyRotationDelta(1, LinearProjection, DR1);
-			ApplyVelocityDelta(1, LinearProjection, DV1, DW1);
-			UpdateDerivedState(1);
+			const FVec3 DV0 = IM0 * DV;
+			const FVec3 DV1 = -IM1 * DV;
+			const FVec3 DW0 = Utilities::Multiply(II0, FVec3::CrossProduct(Xs[0] - Ps[0], DV));
+			const FVec3 DW1 = Utilities::Multiply(II1, FVec3::CrossProduct(Xs[1] - Ps[1], -DV));
+
+			const FReal Stiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
+			ApplyPositionDelta(Stiffness, DP0, DP1);
+			ApplyRotationDelta(Stiffness, DR0, DR1);
+			ApplyVelocityDelta(Stiffness, DV0, DW0, DV1, DW1);
+			UpdateDerivedState();
 		}
 	}
 }
