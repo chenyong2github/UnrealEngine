@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 import {BotConfig} from './branchdefs'
 import {AlreadyIntegrated, Blockage, ChangeInfo, ForcedCl, PendingChange} from './branch-interfaces'
