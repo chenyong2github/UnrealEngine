@@ -9317,7 +9317,7 @@ void FHeaderPreParser::ParseClassDeclaration(const TCHAR* Filename, const TCHAR*
 		// Add class declaration meta data so that we can access class flags before the class is fully parsed
 		TSharedRef<FClassDeclarationMetaData> DeclarationData = MakeShareable(new FClassDeclarationMetaData());
 		DeclarationData->MetaData = MetaData;
-		DeclarationData->ParseClassProperties(SpecifiersFound, RequiredAPIMacroIfPresent);
+		DeclarationData->ParseClassProperties(MoveTemp(SpecifiersFound), RequiredAPIMacroIfPresent);
 		GClassDeclarations.Add(out_StrippedClassName, DeclarationData);
 	}
 
