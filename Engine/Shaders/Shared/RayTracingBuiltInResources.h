@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*================================================================================================
 	RayTracingBuiltInResources.h: used in ray tracing shaders and C++ code to define resources 
