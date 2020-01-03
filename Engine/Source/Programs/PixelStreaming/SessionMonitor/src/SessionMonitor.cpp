@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SessionMonitorPCH.h"
 
@@ -18,7 +18,7 @@
 const char* Help =
 "\
 Pixel Streaming SessionMonitor\n\
-Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.\n\
+Copyright Epic Games, Inc. All Rights Reserved.\n\
 Parameters:\n\
 \n\
 -help\n\

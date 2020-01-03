@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 // repeat with the interval of 2 seconds
 let timerId = setInterval(() => requestEvents(), 4000);
