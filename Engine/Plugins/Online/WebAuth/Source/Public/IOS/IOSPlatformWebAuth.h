@@ -2,6 +2,10 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
+#if PLATFORM_IOS && !PLATFORM_TVOS
+
 #include "GenericPlatform/GenericPlatformWebAuth.h"
 #include "WebAuth.h"
 
@@ -49,3 +53,4 @@ public:
 
 typedef FIOSPlatformWebAuth FPlatformWebAuth;
 
+#endif
