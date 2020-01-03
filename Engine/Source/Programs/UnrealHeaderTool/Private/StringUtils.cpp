@@ -5,38 +5,42 @@
 #include "Containers/UnrealString.h"
 #include "Hash/CityHash.h"
 
-FString GetClassNameWithPrefixRemoved(const FString InClassName)
+FString GetClassNameWithPrefixRemoved(const FString& InClassName)
 {
+	FString Result;
 	const FString ClassPrefix = GetClassPrefix( InClassName );
 	if( !ClassPrefix.IsEmpty() )
 	{	
-		return InClassName.Right(InClassName.Len() - ClassPrefix.Len());
+		Result = InClassName.Right(InClassName.Len() - ClassPrefix.Len());
 	}
-	return FString();
+	return Result;
 }
 
-FString GetClassNameWithoutPrefix( const FString& InClassNameOrFilename )
+FString GetClassNameWithoutPrefix(FString InClassNameOrFilename)
 {
+	FString ClassNameWithoutPrefix = MoveTemp(InClassNameOrFilename);
+
 	// Check for header names (they don't come with a full path so we only search for the first dot)
-	const int32 DotIndex = InClassNameOrFilename.Find(TEXT("."), ESearchCase::CaseSensitive);
-	if (DotIndex == INDEX_NONE)
+	int32 DotIndex;
+	if (ClassNameWithoutPrefix.FindChar(TEXT('.'), DotIndex))
 	{
-		const FString ClassPrefix = GetClassPrefix( InClassNameOrFilename );
-		return InClassNameOrFilename.Right(InClassNameOrFilename.Len() - ClassPrefix.Len());
+		ClassNameWithoutPrefix.MidInline(0, DotIndex, false);
 	}
 	else
 	{
-		return InClassNameOrFilename.Mid(0, DotIndex);
+		const FString ClassPrefix = GetClassPrefix(ClassNameWithoutPrefix);
+		ClassNameWithoutPrefix.RightInline(ClassNameWithoutPrefix.Len() - ClassPrefix.Len(), false);
 	}
+	return ClassNameWithoutPrefix;
 }
 
-FString GetClassPrefix( const FString InClassName )
+FString GetClassPrefix( const FString& InClassName )
 {
 	bool bIsLabledDeprecated;
 	return GetClassPrefix(InClassName, /*out*/ bIsLabledDeprecated);
 }
 
-FString GetClassPrefix( const FString InClassName, bool& bIsLabeledDeprecated )
+FString GetClassPrefix(const FString& InClassName, bool& bIsLabeledDeprecated )
 {
 	FString ClassPrefix = InClassName.Left(1);
 
@@ -51,7 +55,7 @@ FString GetClassPrefix( const FString InClassName, bool& bIsLabeledDeprecated )
 		case TEXT('A'):
 		case TEXT('U'):
 			// If it is a class prefix, check for deprecated class prefix also
-			if (InClassName.Mid(1, 11).Compare(TEXT("DEPRECATED_"), ESearchCase::CaseSensitive) == 0)
+			if (InClassName.Len() > 12 && FCString::Strncmp(&(InClassName[1]), TEXT("DEPRECATED_"), 11) == 0)
 			{
 				bIsLabeledDeprecated = true;
 				ClassPrefix = InClassName.Left(12);
@@ -65,7 +69,7 @@ FString GetClassPrefix( const FString InClassName, bool& bIsLabeledDeprecated )
 
 		default:
 			// If it's not a class or struct prefix, it's invalid
-			ClassPrefix.Empty();
+			ClassPrefix.Reset();
 			break;
 		}
 	}

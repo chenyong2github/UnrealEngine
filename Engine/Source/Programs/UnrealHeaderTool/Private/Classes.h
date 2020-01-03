@@ -42,15 +42,6 @@ public:
 
 	/** 
 	 * Attempts to find a script class based on the given name. Will attempt to strip
-	 * the prefix of the given name while searching. Throws script errors when appropriate.
-	 *
-	 * @param   InClassName  Name w/ Unreal prefix to use when searching for a class
-	 * @return               The found class, or NULL if the class was not found.
-	 */
-	FClass* FindScriptClass(const FString& InClassName) const;
-
-	/** 
-	 * Attempts to find a script class based on the given name. Will attempt to strip
 	 * the prefix of the given name while searching. Throws an exception with the script error
 	 * if the class could not be found.
 	 *
@@ -61,13 +52,13 @@ public:
 
 	/** 
 	 * Attempts to find a script class based on the given name. Will attempt to strip
-	 * the prefix of the given name while searching. Throws script errors when appropriate.
+	 * the prefix of the given name while searching. Optionally returns script errors when appropriate.
 	 *
 	 * @param   InClassName  Name w/ Unreal prefix to use when searching for a class
 	 * @param   OutErrorMsg  Error message (if any) giving the caller flexibility in how they present an error
 	 * @return               The found class, or NULL if the class was not found.
 	 */
-	FClass* FindScriptClass(const FString& InClassName, FString& OutErrorMsg) const;
+	FClass* FindScriptClass(const FString& InClassName, FString* OutErrorMsg = nullptr) const;
 
 	/**
 	 * Returns an array of classes for the given package.

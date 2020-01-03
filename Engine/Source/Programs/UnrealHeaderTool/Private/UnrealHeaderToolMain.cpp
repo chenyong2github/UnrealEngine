@@ -35,7 +35,7 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 	for (int32 Arg = 0; Arg < ArgC; Arg++)
 	{
 		FString LocalArg = ArgV[Arg];
-		if (LocalArg.Contains(TEXT(" ")))
+		if (LocalArg.Contains(TEXT(" "), ESearchCase::CaseSensitive))
 		{
 			CmdLine += TEXT("\"");
 			CmdLine += LocalArg;

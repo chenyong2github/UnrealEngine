@@ -52,5 +52,5 @@ const FString& FHeaderProvider::GetId() const
 
 bool operator==(const FHeaderProvider& A, const FHeaderProvider& B)
 {
-	return A.Id == B.Id && A.Type == B.Type;
+	return A.Type == B.Type && A.Id == B.Id;
 }
