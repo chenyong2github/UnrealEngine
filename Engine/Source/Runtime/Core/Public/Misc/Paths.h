@@ -393,7 +393,7 @@ public:
 	static FString GetCleanFilename(FString&& InPath);
 
 	// Returns the same thing as GetCleanFilename, but without the extension
-	static FString GetBaseFilename( const FString& InPath, bool bRemovePath=true );
+	static FString GetBaseFilename(FString InPath, bool bRemovePath=true );
 
 	// Returns the path in front of the filename
 	static FString GetPath(const FString& InPath);
