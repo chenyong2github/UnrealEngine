@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/HeightField.h"
 #include "Chaos/Convex.h"
 #include "Chaos/Box.h"

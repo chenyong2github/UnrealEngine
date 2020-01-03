@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Layout/SlateRotatedRect.h"
 #include "Math/TransformCalculus2D.h"

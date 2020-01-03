@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 Texture2DStreamIn_AsyncReallocate.cpp: Load texture 2D mips using ITextureMipDataProvider
