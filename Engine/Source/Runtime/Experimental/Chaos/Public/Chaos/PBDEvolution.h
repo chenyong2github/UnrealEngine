@@ -24,6 +24,7 @@ class CHAOS_API TPBDEvolution
 	void SetCollisionKinematicUpdateFunction(TFunction<void(TKinematicGeometryClothParticles<T, d>&, const T, const T, const int32)> KinematicUpdate) { MCollisionKinematicUpdate = KinematicUpdate; }
 	void SetParticleUpdateFunction(TFunction<void(TPBDParticles<T, d>&, const T)> ParticleUpdate) { MParticleUpdate = ParticleUpdate; }
 	void AddPBDConstraintFunction(TFunction<void(TPBDParticles<T, d>&, const T)> ConstraintFunction) { MConstraintRules.Add(ConstraintFunction); }
+	void AddXPBDConstraintFunctions(TFunction<void()> InitConstraintFunction, TFunction<void(TPBDParticles<T, d>&, const T)> ConstraintFunction) { MInitConstraintRules.Add(InitConstraintFunction); MConstraintRules.Add(ConstraintFunction); }
 	void AddForceFunction(TFunction<void(TPBDParticles<T, d>&, const T, const int32)> ForceFunction) { MForceRules.Add(ForceFunction); }
 
 	const TPBDParticles<T, d>& Particles() const { return MParticles; }
@@ -56,7 +57,7 @@ class CHAOS_API TPBDEvolution
 
 	T GetTime() const { return MTime; }
 
-	void ResetConstraintRules() { MConstraintRules.Reset(); };
+	void ResetConstraintRules() { MInitConstraintRules.Reset(); MConstraintRules.Reset(); };
 	void ResetSelfCollision() { MCollisionTriangles.Reset(); MDisabledCollisionElements.Reset(); };
 
   private:
@@ -75,6 +76,7 @@ class CHAOS_API TPBDEvolution
 	FGravityForces GravityForces;
 
 	TArray<TFunction<void(TPBDParticles<T, d>&, const T, const int32)>> MForceRules;
+	TArray<TFunction<void()>> MInitConstraintRules;
 	TArray<TFunction<void(TPBDParticles<T, d>&, const T)>> MConstraintRules;
 	TFunction<void(TPBDParticles<T, d>&, const T)> MParticleUpdate;
 	TFunction<void(TPBDParticles<T, d>&, const T, const T, const int32)> MKinematicUpdate;
