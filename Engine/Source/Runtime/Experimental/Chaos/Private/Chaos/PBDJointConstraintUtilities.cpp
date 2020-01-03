@@ -20,11 +20,21 @@ namespace Chaos
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		const FReal SolverStiffness = (SolverSettings.Stiffness > (FReal)0) ? SolverSettings.Stiffness : JointSettings.Stiffness;
-		const FReal SoftSolverStiffness = (SolverSettings.SoftLinearStiffness > (FReal)0) ? SolverSettings.SoftLinearStiffness : JointSettings.SoftLinearStiffness;
-		const bool bIsSoft = JointSettings.bSoftLinearLimitsEnabled && ((JointSettings.LinearMotionTypes[0] == EJointMotionType::Limited) || (JointSettings.LinearMotionTypes[1] == EJointMotionType::Limited) || (JointSettings.LinearMotionTypes[2] == EJointMotionType::Limited));
-		const FReal Stiffness = bIsSoft ? SolverStiffness * SoftSolverStiffness : SolverStiffness;
-		return Stiffness;
+		return (SolverSettings.Stiffness > (FReal)0) ? SolverSettings.Stiffness : JointSettings.Stiffness;
+	}
+
+	FReal FPBDJointUtilities::GetSoftLinearStiffness(
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings)
+	{
+		return (SolverSettings.SoftLinearStiffness > (FReal)0) ? SolverSettings.SoftLinearStiffness : JointSettings.SoftLinearStiffness;
+	}
+
+	FReal FPBDJointUtilities::GetSoftLinearDamping(
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings)
+	{
+		return (SolverSettings.SoftLinearDamping > (FReal)0) ? SolverSettings.SoftLinearDamping : JointSettings.SoftLinearDamping;
 	}
 
 	FReal FPBDJointUtilities::GetTwistStiffness(
@@ -163,11 +173,18 @@ namespace Chaos
 		return (SolverSettings.AngularProjection > 0.0f) ? SolverSettings.AngularProjection : JointSettings.AngularProjection;
 	}
 
-	bool FPBDJointUtilities::GetSoftAccelerationMode(
+	bool FPBDJointUtilities::GetLinearSoftAccelerationMode(
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		return JointSettings.SoftForceMode == EJointForceMode::Acceleration;
+		return JointSettings.LinearSoftForceMode == EJointForceMode::Acceleration;
+	}
+
+	bool FPBDJointUtilities::GetAngularSoftAccelerationMode(
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings)
+	{
+		return JointSettings.AngularSoftForceMode == EJointForceMode::Acceleration;
 	}
 
 	bool FPBDJointUtilities::GetDriveAccelerationMode(
@@ -346,7 +363,15 @@ namespace Chaos
 
 	FVec3 FPBDJointUtilities::GetLimitedPositionError(const FPBDJointSettings& JointSettings, const FRotation3& R0, const FVec3& InCX)
 	{
-		const TVector<EJointMotionType, 3>& Motion = JointSettings.LinearMotionTypes;
+		// This function is only used for projection and is only relevant for hard limits.
+		// Treat soft-limits as free for error calculation.
+		const TVector<EJointMotionType, 3>& Motion =
+		{
+			((JointSettings.LinearMotionTypes[0] == EJointMotionType::Limited) && JointSettings.bSoftLinearLimitsEnabled) ? EJointMotionType::Free : JointSettings.LinearMotionTypes[0],
+			((JointSettings.LinearMotionTypes[1] == EJointMotionType::Limited) && JointSettings.bSoftLinearLimitsEnabled) ? EJointMotionType::Free : JointSettings.LinearMotionTypes[1],
+			((JointSettings.LinearMotionTypes[2] == EJointMotionType::Limited) && JointSettings.bSoftLinearLimitsEnabled) ? EJointMotionType::Free : JointSettings.LinearMotionTypes[2],
+		};
+
 		if ((Motion[0] == EJointMotionType::Locked) && (Motion[1] == EJointMotionType::Locked) && (Motion[2] == EJointMotionType::Locked))
 		{
 			return InCX;
