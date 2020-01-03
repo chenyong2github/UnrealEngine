@@ -18,6 +18,8 @@ class TXPBDLongRangeConstraints : public TPBDLongRangeConstraintsBase<T, d>, pub
 {
 	typedef TPBDLongRangeConstraintsBase<T, d> Base;
 	using Base::MConstraints;
+	using Base::MDists;
+	using Base::MStiffness;
 
 public:
 	TXPBDLongRangeConstraints(const TDynamicParticles<T, d>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors, const int32 NumberOfAttachments = 1, const T Stiffness = (T)1)
