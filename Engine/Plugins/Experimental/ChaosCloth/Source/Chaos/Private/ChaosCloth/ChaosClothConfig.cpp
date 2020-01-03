@@ -3,6 +3,7 @@
 #include "ChaosCloth/ChaosClothConfig.h"
 #include "ClothConfig_Legacy.h"
 #include "ChaosClothSharedConfigCustomVersion.h"
+#include "ClothingSimulationInteractor.h"
 
 // Legacy parameters not yet migrated to Chaos parameters:
 //  WindDragCoefficient
@@ -104,3 +105,31 @@ void UChaosClothSharedSimConfig::PostLoad()
 		bUseGravityOverride = true;  // Default gravity override would otherwise disable the currently set gravity on older versions
 	}
 }
+
+#if WITH_EDITOR
+void UChaosClothSharedSimConfig::PostEditChangeChainProperty(FPropertyChangedChainEvent& ChainEvent)
+{
+	Super::PostEditChangeChainProperty(ChainEvent);
+
+	// Update the simulation if there is any interactor attached to the skeletal mesh component
+	if (ChainEvent.ChangeType != EPropertyChangeType::Interactive)
+	{
+		if (USkeletalMesh* const OwnerMesh = Cast<USkeletalMesh>(GetOuter()))
+		{
+			for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
+			{
+				if (const USkeletalMeshComponent* const Component = *It)
+				{
+					if (Component->SkeletalMesh == OwnerMesh)
+					{
+						if (UClothingSimulationInteractor* const CurInteractor = Component->GetClothingSimulationInteractor())
+						{
+							CurInteractor->ClothConfigUpdated();
+						}
+					}
+				}
+			}
+		}
+	}
+}
+#endif  // #if WITH_EDITOR

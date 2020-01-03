@@ -126,6 +126,11 @@ public:
 	/** PostLoad override used to deal with updates/changes in properties. */
 	virtual void PostLoad() override;
 
+#if WITH_EDITOR
+	/** Called after changes in any of the asset properties. */
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& ChainEvent) override;
+#endif
+
 	// The number of solver iterations
 	// This will increase the stiffness of all constraints but will increase the CPU cost
 	UPROPERTY(EditAnywhere, Category = Simulation, meta = (UIMin = "0", UIMax = "20", ClampMin = "0", ClampMax = "100"))
