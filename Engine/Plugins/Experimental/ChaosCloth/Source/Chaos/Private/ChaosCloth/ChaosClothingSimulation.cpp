@@ -40,11 +40,6 @@
 #include "PhysXIncludes.h"
 #endif
 
-#include <memory>
-#include <unordered_map>
-#include <unordered_set>
-#include "Chaos/ErrorReporter.h"
-
 using namespace Chaos;
 
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Simulate"), STAT_ChaosClothSimulate, STATGROUP_ChaosCloth);
@@ -60,6 +55,7 @@ namespace ClothingSimulationDefault
 	static const float CollisionThickness = 1.2f;
 	static const float CoefficientOfFriction = 0.f;
 	static const float Damping = 0.01f;
+	static const float SolverFrequency = 60.f;
 }
 
 ClothingSimulation::ClothingSimulation()
@@ -122,7 +118,6 @@ void ClothingSimulation::Initialize()
 			ParticlesInput.R(Index) = NewR;
 		});
 
-    MaxDeltaTime = 1.0f;
     ClampDeltaTime = 0.f;
     Time = 0.f;
 }
@@ -1033,7 +1028,7 @@ void ClothingSimulation::FillContext(USkeletalMeshComponent* InComponent, float 
 {
     ClothingSimulationContext* Context = static_cast<ClothingSimulationContext*>(InOutContext);
     Context->ComponentToWorld = InComponent->GetComponentToWorld();
-    Context->DeltaTime = ClampDeltaTime > 0 ? std::min(InDeltaTime, ClampDeltaTime) : InDeltaTime;
+    Context->DeltaTime = ClampDeltaTime > 0 ? FMath::Min(InDeltaTime, ClampDeltaTime) : InDeltaTime;
 
 	Context->WorldGravity = InComponent->GetWorld() ?
 		FVector(0.f, 0.f, InComponent->GetWorld()->GetGravityZ()) :
@@ -1148,12 +1143,20 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 
 	// Advance Sim
 	DeltaTime = Context->DeltaTime;
-	while (Context->DeltaTime > MaxDeltaTime)
+
+	const float SolverFrequency = ClothSharedSimConfig ?
+		ClothSharedSimConfig->SolverFrequency :
+		ClothingSimulationDefault::SolverFrequency;
+
+	const int32 NumSubSteps = FMath::Max(1, FMath::RoundToInt(DeltaTime * SolverFrequency));  // Start substepping once deltatime is more than 50% above the expected simulation deltatime
+	const float SubDeltaTime = DeltaTime / float(NumSubSteps);
+
+	for (int32 i = 0; i < NumSubSteps; ++i)
 	{
-		Evolution->AdvanceOneTimeStep(MaxDeltaTime);
-		Context->DeltaTime -= MaxDeltaTime;
+		Evolution->AdvanceOneTimeStep(SubDeltaTime);
 	}
-	Evolution->AdvanceOneTimeStep(Context->DeltaTime);
+	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("DeltaTime: %.6f, SubDeltaTime: %.6f, NumSubSteps = %d"), DeltaTime, SubDeltaTime, NumSubSteps);
+
 	Time += DeltaTime;
 }
 

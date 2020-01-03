@@ -150,7 +150,6 @@ namespace Chaos
 
 		float Time;
 		float DeltaTime;
-		float MaxDeltaTime;
 		float ClampDeltaTime;
 
 		FVector Gravity;
