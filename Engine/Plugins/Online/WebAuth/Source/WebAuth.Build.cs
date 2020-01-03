@@ -19,11 +19,9 @@ public class WebAuth : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
-			// Building for iOS 12+ Only
-			PublicFrameworks.Add("AuthenticationServices");
-			PublicDefinitions.Add("WEBAUTH_PLATFORM_IOS_12");
-			// << Building for iOS 12+ Only
-
+			// << Add these lines to your project's build.cs when building for iOS 12+
+			// PublicFrameworks.Add("AuthenticationServices");
+			// PublicDefinitions.Add("WEBAUTH_PLATFORM_IOS_12");
 
 			// iOS 11+ legacy support
 			PublicFrameworks.Add("SafariServices");
