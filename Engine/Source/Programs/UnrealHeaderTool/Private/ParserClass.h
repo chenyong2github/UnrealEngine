@@ -56,7 +56,6 @@ public:
 	template <typename T>
 	static bool IsDynamic(const T* Field)
 	{
-		static const FName NAME_ReplaceConverted(TEXT("ReplaceConverted"));
 		return Field->HasMetaData(NAME_ReplaceConverted);
 	}
 
@@ -65,24 +64,8 @@ public:
 	static bool IsOwnedByDynamicType(const FField* Field);
 
 	/** Helper function to get the source replaced package name */
-	template <typename T>
-	static FString GetTypePackageName(const T* Field)
-	{
-		static const FName NAME_ReplaceConverted(TEXT("ReplaceConverted"));
-		FString PackageName = Field->GetMetaData(NAME_ReplaceConverted);
-		if (PackageName.Len())
-		{
-			int32 ObjectDotIndex = INDEX_NONE;
-			// Strip the object name
-			if (PackageName.FindChar(TEXT('.'), ObjectDotIndex))
-			{
-				PackageName = PackageName.Mid(0, ObjectDotIndex);
-			}
-		}
-		else
-		{
-			PackageName = Field->GetOutermost()->GetName();
-		}
-		return PackageName;
-	}
+	static const FString& GetTypePackageName(const UField* Field);
+	static const FString& GetTypePackageName(const FField* Field);
+
+	static const FName NAME_ReplaceConverted;
 };
