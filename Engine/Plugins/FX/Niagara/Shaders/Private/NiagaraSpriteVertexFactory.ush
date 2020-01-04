@@ -609,6 +609,18 @@ float3 TransformPosition(float3 InPosition)
 	}
 }
 
+float3 TransformPrevPosition(float3 InPosition)
+{
+	if (NiagaraSpriteVF.bLocalSpace)
+	{
+		return mul(float4(InPosition,1), Primitive.PreviousLocalToWorld).xyz;
+	}
+	else
+	{
+		return InPosition;
+	}
+}
+
 float3 TransformVector(float3 InVector)
 {
 	if (NiagaraSpriteVF.bLocalSpace)
@@ -633,6 +645,15 @@ float3 GetNiagaraParticlePosition(uint InstanceID)
 		return TransformPosition(NiagaraSpriteVF.DefaultPos.xyz);
 	}
 	return TransformPosition(GetVec3(NiagaraSpriteVF.PositionDataOffset, InstanceID));
+}
+float3 GetNiagaraParticlePrevPosition(uint InstanceID)
+{
+	if(NiagaraSpriteVF.PositionDataOffset  == -1)
+	{
+		// See FNiagaraConstants for a synchronized value...
+		return TransformPrevPosition(NiagaraSpriteVF.DefaultPos.xyz);
+	}
+	return TransformPrevPosition(GetVec3(NiagaraSpriteVF.PositionDataOffset, InstanceID));
 }
 float3 GetNiagaraParticleVelocity(uint InstanceID)
 {
@@ -813,7 +834,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 #endif
 	Intermediates.Position = GetNiagaraParticlePosition(ParticleID);
-	Intermediates.OldPosition = Intermediates.Position.xyz - GetNiagaraParticleVelocity(ParticleID) * NiagaraSpriteVF.DeltaSeconds;
+	Intermediates.OldPosition = GetNiagaraParticlePrevPosition(ParticleID) - GetNiagaraParticleVelocity(ParticleID) * NiagaraSpriteVF.DeltaSeconds;
 	float2 ParticleSize = GetNiagaraParticleSize(ParticleID);
 	Intermediates.SizeRotSubImage = float4(ParticleSize.x, ParticleSize.y, GetNiagaraParticleRotation(ParticleID), GetNiagaraParticleSubimage(ParticleID));
 	Intermediates.Color	= GetNiagaraParticleColor(ParticleID);

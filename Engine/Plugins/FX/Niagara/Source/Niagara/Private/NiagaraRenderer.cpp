@@ -246,6 +246,7 @@ FNiagaraRenderer::FNiagaraRenderer(ERHIFeatureLevel::Type InFeatureLevel, const 
 	: DynamicDataRender(nullptr)
 	, bLocalSpace(Emitter->GetCachedEmitter()->bLocalSpace)
 	, bHasLights(false)
+	, bMotionBlurEnabled(InProps ? InProps->bMotionBlurEnabled : false)
 	, SimTarget(Emitter->GetCachedEmitter()->SimTarget)
 	, NumIndicesPerInstance(InProps ? InProps->GetNumIndicesPerInstance() : 0)
 	, FeatureLevel(InFeatureLevel)
