@@ -444,9 +444,9 @@ namespace Chaos
 					FParticleUtilitiesXR::GetCoMWorldRotation(Particle0),	// Prev rotation
 					FParticleUtilitiesXR::GetCoMWorldRotation(Particle1),	// Prev rotation
 					Particle0->InvM(),
-					Particle0->InvI(),
+					Particle0->InvI().GetDiagonal(),
 					Particle1->InvM(),
-					Particle1->InvI(),
+					Particle1->InvI().GetDiagonal(),
 					FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointFrames[Index0]),
 					FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointFrames[Index1]));
 			}

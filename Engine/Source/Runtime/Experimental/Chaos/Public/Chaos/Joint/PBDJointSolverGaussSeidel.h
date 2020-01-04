@@ -59,9 +59,9 @@ namespace Chaos
 			const FRotation3& PrevQ0,
 			const FRotation3& PrevQ1,
 			const FReal InvM0,
-			const FMatrix33& InvIL0,
+			const FVec3& InvIL0,
 			const FReal InvM1,
-			const FMatrix33& InvIL1,
+			const FVec3& InvIL1,
 			const FRigidTransform3& XL0,
 			const FRigidTransform3& XL1);
 
@@ -310,7 +310,7 @@ namespace Chaos
 
 		// Local-space constraint settings
 		FRigidTransform3 XLs[MaxConstrainedBodies];	// Local-space joint connector transforms
-		FMatrix33 InvILs[MaxConstrainedBodies];		// Local-space inverse inertias
+		FVec3 InvILs[MaxConstrainedBodies];			// Local-space inverse inertias
 		FReal InvMs[MaxConstrainedBodies];			// Inverse masses
 
 		// World-space constraint state

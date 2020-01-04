@@ -271,20 +271,26 @@ namespace Chaos
 		const FRotation3& PrevQ0,
 		const FRotation3& PrevQ1,
 		const FReal InvM0,
-		const FMatrix33& InvIL0,
+		const FVec3& InvIL0,
 		const FReal InvM1,
-		const FMatrix33& InvIL1,
+		const FVec3& InvIL1,
 		const FRigidTransform3& XL0,
 		const FRigidTransform3& XL1)
 	{
 		XLs[0] = XL0;
 		XLs[1] = XL1;
 
-		// @todo(ccaulfield): mass conditioning
 		InvILs[0] = JointSettings.ParentInvMassScale * InvIL0;
 		InvILs[1] = InvIL1;
 		InvMs[0] = JointSettings.ParentInvMassScale * InvM0;
 		InvMs[1] = InvM1;
+
+		// @todo(ccaulfield): mass conditioning
+		//FReal M0 = (JointSettings.ParentInvMassScale * InvM0 > KINDA_SMALL_NUMBER) ? 1.0f / (JointSettings.ParentInvMassScale * InvM0) : 0.0f;
+		//FReal M1 = (InvM1 > 0) ? 1.0f / InvM1 : 0.0f;
+		//FVec3 IL0 = (JointSettings.ParentInvMassScale * InvM0 > KINDA_SMALL_NUMBER) ? FVec3(1.0f / (JointSettings.ParentInvMassScale * InvIL0.X), 1.0f / (JointSettings.ParentInvMassScale * InvIL0.Y), 1.0f / (JointSettings.ParentInvMassScale * InvIL0.Z)) : FVec3(0);
+		//FVec3 IL1 = (InvM1 > 0) ? FVec3(1.0f / InvIL1.X, 1.0f / InvIL1.Y, 1.0f / InvIL1.Z) : FVec3(0);
+		//FPBDJointUtilities::GetConditionedInverseMass(M0, IL0, M1, IL1, InvMs[0], InvMs[1], InvILs[0], InvILs[1], SolverSettings.MinParentMassRatio, SolverSettings.MaxInertiaRatio);
 
 		PrevPs[0] = PrevP0;
 		PrevPs[1] = PrevP1;
@@ -1678,8 +1684,8 @@ namespace Chaos
 
 			const FReal IM0 = ParentMassScale * InvMs[0];
 			const FReal IM1 = InvMs[1];
-			const FMatrix33 IIL0 = ParentMassScale * InvILs[0];
-			const FMatrix33& IIL1 = InvILs[1];
+			const FVec3 IIL0 = ParentMassScale * InvILs[0];
+			const FVec3& IIL1 = InvILs[1];
 			FMatrix33 II0 = Utilities::ComputeWorldSpaceInertia(Qs[0], IIL0);
 			FMatrix33 II1 = Utilities::ComputeWorldSpaceInertia(Qs[1], IIL1);
 			FMatrix33 J0 = (IM0 > 0) ? Utilities::ComputeJointFactorMatrix(Xs[0] - Ps[0], II0, IM0) : FMatrix33(0, 0, 0);
