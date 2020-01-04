@@ -194,6 +194,20 @@ namespace Chaos
 		return JointSettings.AngularDriveForceMode == EJointForceMode::Acceleration;
 	}
 
+	FReal FPBDJointUtilities::GetAngularPositionCorrection(
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings)
+	{
+		// Disable the angular limit hardness improvement if linear limits are set up
+		// @todo(ccaulfield): fix angular constraint position correction in ApplyRotationCorrection and ApplyRotationCorrectionSoft
+		bool bPositionCorrectionEnabled = ((JointSettings.LinearMotionTypes[0] == EJointMotionType::Locked) && (JointSettings.LinearMotionTypes[1] == EJointMotionType::Locked) && (JointSettings.LinearMotionTypes[2] == EJointMotionType::Locked));
+		if (bPositionCorrectionEnabled)
+		{
+			return SolverSettings.AngularConstraintPositionCorrection;
+		}
+		return 0.0f;
+	}
+
 
 	FVec3 FPBDJointUtilities::ConditionInertia(const FVec3& InI, const FReal MaxRatio)
 	{
