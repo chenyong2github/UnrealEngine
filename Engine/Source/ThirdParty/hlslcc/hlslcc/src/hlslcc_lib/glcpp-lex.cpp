@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 // glccp-lex.cpp: Wraps the Flex generated file for the C preprocessor
 
