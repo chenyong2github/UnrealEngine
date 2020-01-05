@@ -151,6 +151,14 @@ namespace Chaos
 			bSoftSwingLimitsEnabled = false;
 		}
 
+		// Currently we do not support angular limits if linear limits are set up
+		// @todo(ccaulfield): fix angular constraint position correction in FJointSolverGaussSeidel::ApplyRotationCorrection and FJointSolverGaussSeidel::ApplyRotationCorrectionSoft
+		if ((LinearMotionTypes[0] == EJointMotionType::Limited) || (LinearMotionTypes[1] == EJointMotionType::Limited) || (LinearMotionTypes[2] == EJointMotionType::Limited))
+		{
+			AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] = EJointMotionType::Free;
+			AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1] = EJointMotionType::Free;
+			AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2] = EJointMotionType::Free;
+		}
 	}
 
 	
