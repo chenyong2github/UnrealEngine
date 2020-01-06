@@ -18,18 +18,28 @@ private:
 	UPROPERTY(EditAnywhere, Category = Timecode)
 	FFrameRate FrameRate;
 
+	/** When generating frame time, should we generate full frame without subframe value.*/
+	UPROPERTY(EditAnywhere, Category = Timecode)
+	bool bGenerateFullFrame;
+
 	ETimecodeProviderSynchronizationState State;
 
 public:
 
-	USystemTimeTimecodeProvider():
-		FrameRate(60, 1),
-		State(ETimecodeProviderSynchronizationState::Closed)
-	{
-	}
+	USystemTimeTimecodeProvider();
+
+	/** Generate a frame time value, including subframe, using the system clock. */
+	static FFrameTime GenerateFrameTimeFromSystemTime(FFrameRate Rate);
 
 	/** Generate a timecode value using the system clock. */
 	static FTimecode GenerateTimecodeFromSystemTime(FFrameRate Rate);
+
+	/**
+	 * Generate a frame time value, including subframe, using the high performance clock
+	 * Using the high performance clock is faster but will make the value drift over time.
+	 * This is an optimized version. Prefer GenerateTimecodeFromSystemTime, if the value need to be accurate.
+	 **/
+	static FFrameTime GenerateFrameTimeFromHighPerformanceClock(FFrameRate Rate);
 
 	/**
 	 * Generate a timecode value using the high performance clock

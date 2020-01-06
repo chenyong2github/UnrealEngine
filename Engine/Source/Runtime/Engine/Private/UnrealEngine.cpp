@@ -2248,10 +2248,10 @@ void UEngine::UpdateTimecode()
 	else if(bGenerateDefaultTimecode)
 	{
 #if PLATFORM_DESKTOP
-		FQualifiedFrameTime NewFrameTime = FQualifiedFrameTime(USystemTimeTimecodeProvider::GenerateTimecodeFromSystemTime(GenerateDefaultTimecodeFrameRate), GenerateDefaultTimecodeFrameRate);
+		FQualifiedFrameTime NewFrameTime = FQualifiedFrameTime(USystemTimeTimecodeProvider::GenerateFrameTimeFromSystemTime(GenerateDefaultTimecodeFrameRate), GenerateDefaultTimecodeFrameRate);
 #else //PLATFORM_DESKTOP
 		//If a user wish to have an accurate TC value on console, he should set an accurate TC provider in his project settings.
-		FQualifiedFrameTime NewFrameTime = FQualifiedFrameTime(USystemTimeTimecodeProvider::GenerateTimecodeFromHighPerformanceClock(GenerateDefaultTimecodeFrameRate), GenerateDefaultTimecodeFrameRate);
+		FQualifiedFrameTime NewFrameTime = FQualifiedFrameTime(USystemTimeTimecodeProvider::GenerateFrameTimeFromHighPerformanceClock(GenerateDefaultTimecodeFrameRate), GenerateDefaultTimecodeFrameRate);
 #endif
 		NewFrameTime.Time.FrameNumber -= GenerateDefaultTimecodeFrameDelay;
 		FApp::SetCurrentFrameTime(NewFrameTime);

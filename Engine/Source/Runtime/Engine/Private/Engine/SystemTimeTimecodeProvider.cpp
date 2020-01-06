@@ -6,6 +6,34 @@
 #include "Misc/CoreMisc.h"
 #include "Misc/DateTime.h"
 
+namespace
+{
+	static double ComputeTimeCodeOffset()
+	{
+		const FDateTime DateTime = FDateTime::Now();
+		const double HighPerformanceClock = FPlatformTime::Seconds();
+		return DateTime.GetTimeOfDay().GetTotalSeconds() - HighPerformanceClock;
+	}
+
+	static double HighPerformanceClockDelta = ComputeTimeCodeOffset();
+};
+
+
+USystemTimeTimecodeProvider::USystemTimeTimecodeProvider()
+	: FrameRate(60, 1)
+	, bGenerateFullFrame(false)
+	, State(ETimecodeProviderSynchronizationState::Closed)
+{
+}
+
+
+FFrameTime USystemTimeTimecodeProvider::GenerateFrameTimeFromSystemTime(FFrameRate FrameRate)
+{
+	const FDateTime DateTime = FDateTime::Now();
+	const FTimespan Timespan = DateTime.GetTimeOfDay();
+	return FrameRate.AsFrameTime(Timespan.GetTotalSeconds());
+}
+
 
 FTimecode USystemTimeTimecodeProvider::GenerateTimecodeFromSystemTime(FFrameRate FrameRate)
 {
@@ -15,18 +43,16 @@ FTimecode USystemTimeTimecodeProvider::GenerateTimecodeFromSystemTime(FFrameRate
 }
 
 
-static double ComputeTimeCodeOffset()
+FFrameTime USystemTimeTimecodeProvider::GenerateFrameTimeFromHighPerformanceClock(FFrameRate FrameRate)
 {
-	const FDateTime DateTime = FDateTime::Now();
-	const double HighPerformanceClock = FPlatformTime::Seconds();
-	return DateTime.GetTimeOfDay().GetTotalSeconds() - HighPerformanceClock;
+	constexpr double SecondsPerDay = 24.0 * 60.0 * 60.0;
+	return FrameRate.AsFrameTime(fmod(HighPerformanceClockDelta + FPlatformTime::Seconds(), SecondsPerDay));
 }
 
 
 FTimecode USystemTimeTimecodeProvider::GenerateTimecodeFromHighPerformanceClock(FFrameRate FrameRate)
 {
 	constexpr double SecondsPerDay = 24.0 * 60.0 * 60.0;
-	static double HighPerformanceClockDelta = ComputeTimeCodeOffset();
 	const FTimespan Timespan = FTimespan::FromSeconds(fmod(HighPerformanceClockDelta + FPlatformTime::Seconds(), SecondsPerDay));
 	return FTimecode::FromTimespan(Timespan, FrameRate, false);
 }
@@ -35,5 +61,7 @@ FTimecode USystemTimeTimecodeProvider::GenerateTimecodeFromHighPerformanceClock(
 FQualifiedFrameTime USystemTimeTimecodeProvider::GetQualifiedFrameTime() const
 {
 	// Generate a TC to prevent subframe
-	return FQualifiedFrameTime(GenerateTimecodeFromSystemTime(FrameRate), FrameRate);
+	return bGenerateFullFrame ? 
+		FQualifiedFrameTime(GenerateTimecodeFromSystemTime(FrameRate), FrameRate)
+		: FQualifiedFrameTime(GenerateFrameTimeFromSystemTime(FrameRate), FrameRate);
 }
