@@ -8145,4 +8145,10 @@ static FAutoConsoleCommand DumpSerializeCmd(
 	);
 #endif
 
+bool IsEventDrivenLoaderEnabledInCookedBuilds()
+{
+	static bool bNoEDL = FParse::Param(FCommandLine::Get(), TEXT("NOEDL"));
+	return (GEventDrivenLoaderEnabledInCookedBuilds != 0) && !bNoEDL;
+}
+
 //#pragma clang optimize on
