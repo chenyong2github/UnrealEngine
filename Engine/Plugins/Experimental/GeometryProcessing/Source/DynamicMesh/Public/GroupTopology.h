@@ -8,6 +8,99 @@
 #include "Containers/BitArray.h"
 
 
+
+
+
+/**
+ * FGroupTopologySelection represents a set of selected elements of a FGroupTopology
+ */
+struct DYNAMICMESH_API FGroupTopologySelection
+{
+	TArray<int32> SelectedGroupIDs;
+	TArray<int32> SelectedCornerIDs;
+	TArray<int32> SelectedEdgeIDs;
+
+	FGroupTopologySelection() { Clear(); }
+	
+	void Clear()
+	{
+		SelectedGroupIDs.Reset();
+		SelectedCornerIDs.Reset();
+		SelectedEdgeIDs.Reset();
+	}
+
+	bool IsEmpty() const
+	{
+		return SelectedCornerIDs.Num() == 0 && SelectedEdgeIDs.Num() == 0 && SelectedGroupIDs.Num() == 0;
+	}
+
+	void Append(const FGroupTopologySelection& Selection)
+	{
+		for (int32 i : Selection.SelectedCornerIDs)
+		{
+			SelectedCornerIDs.AddUnique(i);
+		}
+		for (int32 i : Selection.SelectedEdgeIDs)
+		{
+			SelectedEdgeIDs.AddUnique(i);
+		}
+		for (int32 i : Selection.SelectedGroupIDs)
+		{
+			SelectedGroupIDs.AddUnique(i);
+		}
+	}
+
+
+	void Remove(const FGroupTopologySelection& Selection)
+	{
+		for (int32 i : Selection.SelectedCornerIDs)
+		{
+			SelectedCornerIDs.RemoveSwap(i);
+		}
+		for (int32 i : Selection.SelectedEdgeIDs)
+		{
+			SelectedEdgeIDs.RemoveSwap(i);
+		}
+		for (int32 i : Selection.SelectedGroupIDs)
+		{
+			SelectedGroupIDs.RemoveSwap(i);
+		}
+	}
+
+
+	void Toggle(const FGroupTopologySelection& Selection)
+	{
+		for (int32 i : Selection.SelectedCornerIDs)
+		{
+			ToggleItem(SelectedCornerIDs, i);
+		}
+		for (int32 i : Selection.SelectedEdgeIDs)
+		{
+			ToggleItem(SelectedEdgeIDs, i);
+		}
+		for (int32 i : Selection.SelectedGroupIDs)
+		{
+			ToggleItem(SelectedGroupIDs, i);
+		}
+	}
+
+private:
+	void ToggleItem(TArray<int32>& List, int32 Item)
+	{
+		if (List.Contains(Item))
+		{
+			List.RemoveSwap(Item);
+		}
+		else
+		{
+			List.Add(Item);
+		}
+	}
+};
+
+
+
+
 /**
  * Given a per-triangle integer ("group"), FGroupTopology extracts a
  * group-level topological graph from an input Mesh. The graph consists
@@ -79,7 +172,7 @@ public:
 		/** GroupID for this group */
 		int GroupID;
 		/** List of triangles forming this group */
-		TArray<int> Faces;
+		TArray<int> Triangles;
 		
 		/** List of boundaries of this group (may be empty, eg on a closed component with only one group) */
 		TArray<FGroupBoundary> Boundaries;
@@ -168,6 +261,11 @@ public:
 	 * @return false if edge is degenerate or start == end 
 	 */
 	bool GetGroupEdgeTangent(int GroupEdgeID, FVector3d& TangentOut) const;
+
+	/**
+	 * @return a 3D frame for the given selection
+	 */
+	FFrame3d GetSelectionFrame(const FGroupTopologySelection& Selection);
 
 protected:
 	const FDynamicMesh3* Mesh = nullptr;

@@ -4,7 +4,7 @@
 
 #if WITH_ACCESSIBILITY
 
-#include "GenericPlatform/GenericAccessibleInterfaces.h"
+#include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
 
 @class FIOSAccessibilityContainer;
 

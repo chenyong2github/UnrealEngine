@@ -88,7 +88,6 @@ public:
 	void CopyToOverlay(FDynamicMeshNormalOverlay* NormalOverlay, bool bInvert = false) const;
 
 
-
 	/**
 	 * Compute per-vertex normals for the given Mesh
 	 * @param bInvert if true, normals are flipped
@@ -107,6 +106,11 @@ public:
 	 */
 	static FVector3d ComputeOverlayNormal(const FDynamicMesh3& Mesh, FDynamicMeshNormalOverlay* NormalOverlay, int ElemIdx);
 
+	/**
+	 * Initialize the given NormalOverlay with per-vertex normals, ie single overlay element for each mesh vertex.
+	 * @param bUseMeshVertexNormalsIfAvailable if true and the parent mesh has per-vertex normals, use them instead of calculating new ones
+	 */
+	static void InitializeOverlayToPerVertexNormals(FDynamicMeshNormalOverlay* NormalOverlay, bool bUseMeshVertexNormalsIfAvailable = true);
 
 
 protected:

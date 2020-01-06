@@ -1082,9 +1082,6 @@ public:
 	/** Frame's exposure. Always > 0. */
 	float PreExposure;
 
-	/** Mip bias to apply in material's samplers. */
-	float MaterialTextureMipBias;
-
 	/** Precomputed visibility data, the bits are indexed by VisibilityId of a primitive component. */
 	const uint8* PrecomputedVisibilityData;
 

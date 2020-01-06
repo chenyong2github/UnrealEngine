@@ -457,3 +457,14 @@ void ULevelSequencePlayer::EnableCinematicMode(bool bEnable)
 	}
 }
 
+void ULevelSequencePlayer::RewindForReplay()
+{
+	// Stop the sequence when starting to seek through a replay. This restores our state to be unmodified
+	// in case the replay is seeking to before playback. If we're in the middle of playback after rewinding,
+	// the replay will feed the correct packets to synchronize our playback time and state.
+	Stop();
+
+	NetSyncProps.LastKnownPosition = FFrameTime(0);
+	NetSyncProps.LastKnownStatus = EMovieScenePlayerStatus::Stopped;
+	NetSyncProps.LastKnownNumLoops = 0;
+}

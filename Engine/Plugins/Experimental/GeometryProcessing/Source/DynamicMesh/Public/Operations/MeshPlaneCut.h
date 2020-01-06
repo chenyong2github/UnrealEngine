@@ -10,9 +10,9 @@
 #include "MeshBoundaryLoops.h"
 #include "Curve/GeneralPolygon2.h"
 
-
 class FDynamicMesh3;
-
+template<typename RealType>
+class TDynamicMeshScalarTriangleAttribute;
 
 /**
  * Cut the Mesh with the Plane. The *positive* side, ie (p-o).n > 0, is removed.
@@ -22,12 +22,14 @@ class FDynamicMesh3;
  * 
  * Algorithm is:
  *    1) find all edge crossings
- *    2) Do edge splits at crossings
- *    3) delete all vertices on positive side
- *    4) (optionally) collapse any degenerate boundary edges 
- *    5) find loops through valid boundary edges (ie connected to splits, or on-plane edges)
- * 
- * @todo Also discard any triangles with all vertex distances < epsilon.
+ *	  2) optionally discard any triangles with all vertex distances < epsilon.
+ *    3) Do edge splits at crossings
+ *    4 option a) (optionally) delete all vertices on positive side
+ *	  4 option b) (OR optionally) disconnect all triangles w/ vertices on positive side (if keeping both sides)
+ *	  4 option c) do nothing (if keeping both sides and not disconnecting them)
+ *    5) (optionally) collapse any degenerate boundary edges 
+ *	  6) (optionally) change an attribute tag for all triangles on positive side
+ *    7) find loops through valid boundary edges (ie connected to splits, or on-plane edges) (if second half was kept, do this separately for each separate mesh ID label)
  */
 class DYNAMICMESH_API FMeshPlaneCut
 {
@@ -45,21 +47,31 @@ public:
 	/** UVs on any hole fill surfaces are scaled by this amount */
 	float UVScaleFactor = 1.0f;
 
+	/** Tolerance distance for considering a vertex to be 'on plane' */
+	double PlaneTolerance = FMathf::ZeroTolerance * 10.0;
+
+
 	// TODO support optionally restricting plane cut to a mesh selection
 	//MeshFaceSelection CutFaceSet;
 
 	//
 	// Outputs
 	//
-	TArray<FEdgeLoop> CutLoops;
-	TArray<FEdgeSpan> CutSpans;
-	bool CutLoopsFailed = false;		// set to true if we could not compute cut loops/spans
-	bool FoundOpenSpans = false;     // set to true if we found open spans in cut
+	struct FOpenBoundary
+	{
+		int Label; // optional ID, used to transfer label to new hole-fill triangles
+		float NormalSign = 1; // -1 for the open boundary on the other side of the cut (for the CutWithoutDelete path)
+		TArray<FEdgeLoop> CutLoops;
+		TArray<FEdgeSpan> CutSpans;
+		bool CutLoopsFailed = false;		// set to true if we could not compute cut loops/spans
+		bool FoundOpenSpans = false;     // set to true if we found open spans in cut
+	};
+	// note: loops and spans within a single FOpenBoundary could be part of the same hole-fill triangulation
+	//	separate open boundary structs will be considered separately and will not share hole fill triangles
+	TArray<FOpenBoundary> OpenBoundaries;
 
-	// Note: In practice this is 1:1 with CutLoops if all the hole fills succeed w/ simple hole filling, but this will not be true for other hole filling methods, or if any of the hole fills fails
-	// please do not write anything relying on a correspondence between the two
+	// Triangle IDs of hole fill triangles.  Outer array is 1:1 with the OpenBoundaries array
 	TArray<TArray<int>> HoleFillTriangles;
-
 
 public:
 
@@ -80,7 +92,13 @@ public:
 		return EOperationValidationResult::Ok;
 	}
 
+	// split plane-crossing edges and remove geometry on the positive side of the cutting plane
 	virtual bool Cut();
+
+	// alternate path for splitting the mesh without deleting the other half
+	virtual bool CutWithoutDelete(bool bSplitVerticesAtPlane, float OffsetSeparatedPortion = 0.0f,
+		TDynamicMeshScalarTriangleAttribute<int>* TriLabels = nullptr, int NewLabelStartID = 0,
+		bool bAddBoundariesFirstHalf = true, bool bAddBoundariesSecondHalf = true);
 
 	/**
 	 *  Fill cut loops with FSimpleHoleFiller
@@ -93,7 +111,11 @@ public:
 	virtual bool HoleFill(TFunction<TArray<FIndex3i>(const FGeneralPolygon2d&)> PlanarTriangulationFunc, bool bFillSpans, int ConstantGroupID = -1);
 
 	
+	virtual void TransferTriangleLabelsToHoleFillTriangles(TDynamicMeshScalarTriangleAttribute<int>* TriLabels);
+
 protected:
 
 	void CollapseDegenerateEdges(const TSet<int>& OnCutEdges, const TSet<int>& ZeroEdges);
+	void SplitCrossingEdges(TArray<double>& Signs, TSet<int>& ZeroEdges, TSet<int>& OnCutEdges, bool bDeleteTrisOnPlane = true);
+	bool ExtractBoundaryLoops(const TSet<int>& OnCutEdges, const TSet<int>& ZeroEdges, FMeshPlaneCut::FOpenBoundary& Boundary);
 };

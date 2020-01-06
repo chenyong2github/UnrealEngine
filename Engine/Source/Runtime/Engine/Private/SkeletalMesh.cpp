@@ -57,9 +57,11 @@
 #include "HAL/FileManager.h"
 
 #if WITH_EDITOR
+#include "Async/ParallelFor.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
 #include "MeshUtilities.h"
+#include "Engine/SkeletalMeshEditorData.h"
 
 #if WITH_APEX_CLOTHING
 #include "ApexClothingUtils.h"
@@ -1675,6 +1677,61 @@ void USkeletalMesh::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 	OutDeps.Add(Skeleton);
 }
 
+void USkeletalMesh::PostDuplicate(bool bDuplicateForPIE)
+{
+	Super::PostDuplicate(bDuplicateForPIE);
+#if WITH_EDITORONLY_DATA
+	//We must not use the same asset for the imported data and duplicate it in the destination skeletalmesh package
+	if (MeshEditorDataObject)
+	{
+		USkeletalMeshEditorData* SourceMeshEditorData = MeshEditorDataObject;
+		check(SourceMeshEditorData);
+		MeshEditorDataObject = nullptr;
+		FSkeletalMeshModel& ImportedModels = *GetImportedModel();
+		//allocate the necessary data before going multi thread
+		ReserveLODImportData(ImportedModels.LODModels.Num() - 1);
+		USkeletalMeshEditorData& DestMeshEditorData = GetMeshEditorData();
+		//We should have a brand new created asset
+		check(MeshEditorDataObject);
+		//Lets duplicate the data
+		ParallelFor(ImportedModels.LODModels.Num(), [&ImportedModels, &SourceMeshEditorData, &DestMeshEditorData](int32 LODIndex)
+		{
+			if (!SourceMeshEditorData->IsLODImportDataValid(LODIndex) || SourceMeshEditorData->GetLODImportedData(LODIndex).IsEmpty())
+			{
+				return;
+			}
+			FSkeletalMeshLODModel& ThisLODModel = ImportedModels.LODModels[LODIndex];
+			FRawSkeletalMeshBulkData& SourceRawSkeletalMeshBulkData = SourceMeshEditorData->GetLODImportedData(LODIndex);
+			FSkeletalMeshImportData RawMesh;
+			SourceRawSkeletalMeshBulkData.LoadRawMesh(RawMesh);
+			//This will create the asset into the correct package and assign the transient pointer
+			FRawSkeletalMeshBulkData& RawSkeletalMeshBulkData = DestMeshEditorData.GetLODImportedData(LODIndex);
+			RawSkeletalMeshBulkData.SaveRawMesh(RawMesh);
+			RawSkeletalMeshBulkData.GeoImportVersion = SourceRawSkeletalMeshBulkData.GeoImportVersion;
+			RawSkeletalMeshBulkData.SkinningImportVersion = SourceRawSkeletalMeshBulkData.SkinningImportVersion;
+			//Set all the cache data to avoid loading the asset if we do not edit the asset
+			ThisLODModel.bIsBuildDataAvailable = RawSkeletalMeshBulkData.IsBuildDataAvailable();
+			ThisLODModel.bIsRawSkeletalMeshBulkDataEmpty = RawSkeletalMeshBulkData.IsEmpty();
+			ThisLODModel.BuildStringID = RawSkeletalMeshBulkData.GetIdString();
+		});
+	}
+#endif //WITH_EDITORONLY_DATA
+}
+
+void USkeletalMesh::PostRename(UObject* OldOuter, const FName OldName)
+{
+	Super::PostRename(OldOuter, OldName);
+#if WITH_EDITORONLY_DATA
+	//We must not use the same asset for the imported data and duplicate it in the destination skeletalmesh package
+	if (MeshEditorDataObject)
+	{
+		FString MeshEditorDataString = GetName() + TEXT("_USkeletalMeshEditorData");
+		//Do a soft rename avoid: dirty, redirector, transaction and reset of the loaders
+		MeshEditorDataObject->Rename(*MeshEditorDataString, GetOutermost(), (REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional | REN_ForceNoResetLoaders));
+	}
+#endif //WITH_EDITORONLY_DATA
+}
+
 void USkeletalMesh::FlushRenderState()
 {
 	//TComponentReregisterContext<USkeletalMeshComponent> ReregisterContext;
@@ -2030,6 +2087,106 @@ void USkeletalMesh::RemoveLegacyClothingSections()
 	}
 }
 
+USkeletalMeshEditorData& USkeletalMesh::GetMeshEditorData() const
+{
+	if (MeshEditorDataObject == nullptr)
+	{
+		FString MeshEditorDataString = GetName() + TEXT("_USkeletalMeshEditorData");
+		FName MeshEditorDataName = *MeshEditorDataString;
+		//We can have only one USkeletalMeshEditorData asset per skeletalmesh. Find if there is already one existing 
+		UObject* ExistingObject = StaticFindObjectFast(USkeletalMeshEditorData::StaticClass(), GetOutermost(), MeshEditorDataName, true, false, RF_NoFlags, EInternalObjectFlags::PendingKill);
+		if (ExistingObject)
+		{
+			MeshEditorDataObject = Cast<USkeletalMeshEditorData>(ExistingObject);
+		}
+		if (MeshEditorDataObject == nullptr)
+		{
+			//The asset is created in the skeletalmesh package. We keep it private so the user cannot see it in the content browser
+			//StandAlone make sure the asset is save when we save the package(i.e. the skeletalmesh)
+			MeshEditorDataObject = NewObject<USkeletalMeshEditorData>(GetOutermost(), MeshEditorDataName, RF_Standalone);
+		}
+	}
+	//Make sure we have a valid pointer
+	check(MeshEditorDataObject != nullptr);
+	return *MeshEditorDataObject;
+}
+
+void USkeletalMesh::LoadLODImportedData(const int32 LODIndex, FSkeletalMeshImportData& OutMesh) const
+{
+	GetMeshEditorData().GetLODImportedData(LODIndex).LoadRawMesh(OutMesh);
+}
+
+void USkeletalMesh::SaveLODImportedData(const int32 LODIndex, FSkeletalMeshImportData& InMesh)
+{
+	FRawSkeletalMeshBulkData& RawSkeletalMeshBulkData = GetMeshEditorData().GetLODImportedData(LODIndex);
+	RawSkeletalMeshBulkData.SaveRawMesh(InMesh);
+	//Update the cache
+	check(ImportedModel->LODModels.IsValidIndex(LODIndex));
+	ImportedModel->LODModels[LODIndex].RawSkeletalMeshBulkDataID = RawSkeletalMeshBulkData.GetIdString();
+	ImportedModel->LODModels[LODIndex].bIsBuildDataAvailable = RawSkeletalMeshBulkData.IsBuildDataAvailable();
+	ImportedModel->LODModels[LODIndex].bIsRawSkeletalMeshBulkDataEmpty = RawSkeletalMeshBulkData.IsEmpty();
+}
+
+bool USkeletalMesh::IsLODImportedDataBuildAvailable(const int32 LODIndex) const
+{
+	if (!ImportedModel->LODModels.IsValidIndex(LODIndex))
+	{
+		return false;
+	}
+	return ImportedModel->LODModels[LODIndex].bIsBuildDataAvailable;
+}
+
+bool USkeletalMesh::IsLODImportedDataEmpty(const int32 LODIndex) const
+{
+	if (!ImportedModel->LODModels.IsValidIndex(LODIndex))
+	{
+		return false;
+	}
+	return ImportedModel->LODModels[LODIndex].bIsRawSkeletalMeshBulkDataEmpty;
+}
+
+void USkeletalMesh::GetLODImportedDataVersions(const int32 LODIndex, ESkeletalMeshGeoImportVersions& OutGeoImportVersion, ESkeletalMeshSkinningImportVersions& OutSkinningImportVersion) const
+{
+	const FRawSkeletalMeshBulkData& RawSkeletalMeshBulkData = GetMeshEditorData().GetLODImportedData(LODIndex);
+	OutGeoImportVersion = RawSkeletalMeshBulkData.GeoImportVersion;
+	OutSkinningImportVersion = RawSkeletalMeshBulkData.SkinningImportVersion;
+}
+
+void USkeletalMesh::SetLODImportedDataVersions(const int32 LODIndex, const ESkeletalMeshGeoImportVersions& InGeoImportVersion, const ESkeletalMeshSkinningImportVersions& InSkinningImportVersion)
+{
+	FRawSkeletalMeshBulkData& RawSkeletalMeshBulkData = GetMeshEditorData().GetLODImportedData(LODIndex);
+	RawSkeletalMeshBulkData.GeoImportVersion = InGeoImportVersion;
+	RawSkeletalMeshBulkData.SkinningImportVersion = InSkinningImportVersion;
+	//Update the cache
+	check(ImportedModel->LODModels.IsValidIndex(LODIndex));
+	ImportedModel->LODModels[LODIndex].RawSkeletalMeshBulkDataID = RawSkeletalMeshBulkData.GetIdString();
+	ImportedModel->LODModels[LODIndex].bIsBuildDataAvailable = RawSkeletalMeshBulkData.IsBuildDataAvailable();
+	ImportedModel->LODModels[LODIndex].bIsRawSkeletalMeshBulkDataEmpty = RawSkeletalMeshBulkData.IsEmpty();
+}
+
+void USkeletalMesh::CopyImportedData(int32 SrcLODIndex, USkeletalMesh* SrcSkeletalMesh, int32 DestLODIndex, USkeletalMesh* DestSkeletalMesh)
+{
+	check(DestSkeletalMesh->ImportedModel->LODModels.IsValidIndex(DestLODIndex));
+	FRawSkeletalMeshBulkData& SrcRawMesh = SrcSkeletalMesh->GetMeshEditorData().GetLODImportedData(SrcLODIndex);
+	FRawSkeletalMeshBulkData& DestRawMesh = DestSkeletalMesh->GetMeshEditorData().GetLODImportedData(DestLODIndex);
+	FSkeletalMeshImportData SrcImportData;
+	SrcRawMesh.LoadRawMesh(SrcImportData);
+	DestRawMesh.SaveRawMesh(SrcImportData);
+	DestRawMesh.GeoImportVersion = SrcRawMesh.GeoImportVersion;
+	DestRawMesh.SkinningImportVersion = SrcRawMesh.SkinningImportVersion;
+	
+	FSkeletalMeshLODModel& DestLODModel = DestSkeletalMesh->ImportedModel->LODModels[DestLODIndex];
+	DestLODModel.RawSkeletalMeshBulkDataID = DestRawMesh.GetIdString();
+	DestLODModel.bIsBuildDataAvailable = DestRawMesh.IsBuildDataAvailable();
+	DestLODModel.bIsRawSkeletalMeshBulkDataEmpty = DestRawMesh.IsEmpty();
+}
+
+void USkeletalMesh::ReserveLODImportData(int32 MaxLODIndex)
+{
+	//Getting the LODImportedData will allocate the data to default value.
+	GetMeshEditorData().GetLODImportedData(MaxLODIndex);
+}
+
 #endif // WITH_EDITOR
 
 void USkeletalMesh::PostLoad()
@@ -2135,6 +2292,39 @@ void USkeletalMesh::PostLoad()
 
 		UpdateGenerateUpToData();
 
+		if (GetLinkerCustomVersion(FEditorObjectVersion::GUID) < FEditorObjectVersion::SkeletalMeshMoveEditorSourceDataToPrivateAsset)
+		{
+			ReserveLODImportData(ImportedModel->LODModels.Num() - 1);
+			for (int32 LODIndex = 0; LODIndex < ImportedModel->LODModels.Num(); ++LODIndex)
+			{
+				FSkeletalMeshLODModel& ThisLODModel = ImportedModel->LODModels[LODIndex];
+				//We can have partial data if the asset was save after the split workflow implementation
+				//Use the deprecated member to retrieve this data
+				if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::NewSkeletalMeshImporterWorkflow)
+				{
+					if (!ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.IsEmpty())
+					{
+						FSkeletalMeshImportData SerializeMeshData;
+						ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.LoadRawMesh(SerializeMeshData);
+						SaveLODImportedData(LODIndex, SerializeMeshData);
+					}
+					//Get the FRawSkeletalMeshBulkData to set the geo and skinning version
+					FRawSkeletalMeshBulkData& RawSkeletalMeshBulkData = GetMeshEditorData().GetLODImportedData(LODIndex);
+					RawSkeletalMeshBulkData.GeoImportVersion = ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.GeoImportVersion;
+					RawSkeletalMeshBulkData.SkinningImportVersion = ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.SkinningImportVersion;
+					//Empty the DEPRECATED member
+					FSkeletalMeshImportData EmptyMeshData;
+					ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.SaveRawMesh(EmptyMeshData);
+					ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.EmptyBulkData();
+				}
+				//Set the cache data into the LODModel
+				FRawSkeletalMeshBulkData& RawSkeletalMeshBulkData = GetMeshEditorData().GetLODImportedData(LODIndex);
+				ThisLODModel.bIsRawSkeletalMeshBulkDataEmpty = RawSkeletalMeshBulkData.IsEmpty();
+				ThisLODModel.bIsBuildDataAvailable = RawSkeletalMeshBulkData.IsBuildDataAvailable();
+				ThisLODModel.RawSkeletalMeshBulkDataID = RawSkeletalMeshBulkData.GetIdString();
+			}
+		}
+
 		if (GetLinkerCustomVersion(FEditorObjectVersion::GUID) < FEditorObjectVersion::SkeletalMeshBuildRefactor)
 		{
 			//We want to avoid changing the ddc if we load an old asset.
@@ -2147,9 +2337,8 @@ void USkeletalMesh::PostLoad()
 				FSkeletalMeshLODModel& ThisLODModel = ImportedModel->LODModels[LodIndex];
 				FSkeletalMeshLODInfo* ThisLODInfo = GetLODInfo(LodIndex);
 				check(ThisLODInfo);
-				
 				//Reset the reduction setting to a non active state if the asset has active reduction but have no RawSkeletalMeshBulkData (we cannot reduce it)
-				if (IsReductionActive(LodIndex) && !ThisLODInfo->bHasBeenSimplified && ThisLODModel.RawSkeletalMeshBulkData.IsEmpty())
+				if (IsReductionActive(LodIndex) && !ThisLODInfo->bHasBeenSimplified && IsLODImportedDataEmpty(LodIndex))
 				{
 					if (LodIndex > ThisLODInfo->ReductionSettings.BaseLOD)
 					{
@@ -2178,7 +2367,10 @@ void USkeletalMesh::PostLoad()
 						}
 					}
 				}
-				ThisLODModel.UpdateChunkedSectionInfo(GetName(), ThisLODInfo->LODMaterialMap);
+				if (!IsLODImportedDataBuildAvailable(LodIndex))
+				{
+					ThisLODModel.UpdateChunkedSectionInfo(GetName(), ThisLODInfo->LODMaterialMap);
+				}
 			}
 		}
 
@@ -3814,6 +4006,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FSkeletalMeshBuildSetting
 	Ar << BuildSettings.ThresholdPosition;
 	Ar << BuildSettings.ThresholdTangentNormal;
 	Ar << BuildSettings.ThresholdUV;
+	Ar << BuildSettings.MorphThresholdPosition;
 }
 
 

@@ -79,6 +79,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category="Mesh", meta = (ImportType = "SkeletalMesh|GeoOnly", SubCategory = "Thresholds", NoSpinbox = "true", ClampMin = "0.0", ClampMax = "1.0"))
 	float ThresholdUV;
 
+	/** Threshold to compare vertex position equality when computing morph target deltas. */
+	UPROPERTY(EditAnywhere, config, Category = "Mesh", meta = (editcondition = "bImportMorphTargets", ImportType = "SkeletalMesh|GeoOnly", SubCategory = "Thresholds", NoSpinbox = "true", ClampMin = "0.0", ClampMax = "1.0"))
+	float MorphThresholdPosition;
+
 	/** Gets or creates fbx import data for the specified skeletal mesh */
 	static UFbxSkeletalMeshImportData* GetImportDataForSkeletalMesh(USkeletalMesh* SkeletalMesh, UFbxSkeletalMeshImportData* TemplateForCreation);
 

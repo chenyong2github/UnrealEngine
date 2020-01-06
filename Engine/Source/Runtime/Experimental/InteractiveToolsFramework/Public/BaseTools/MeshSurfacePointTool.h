@@ -14,6 +14,14 @@
 
 class UMeshSurfacePointTool;
 
+// This is a temporary interface to provide stylus pressure, currently necessary due to limitations
+// in the stylus plugin architecture. Should be removed once InputState/InputBehavior can support stylus events
+class INTERACTIVETOOLSFRAMEWORK_API IToolStylusStateProviderAPI
+{
+public:
+	virtual float GetCurrentPressure() const = 0;
+};
+
 /**
  * 
  */
@@ -23,6 +31,8 @@ class INTERACTIVETOOLSFRAMEWORK_API UMeshSurfacePointToolBuilder : public UInter
 	GENERATED_BODY()
 
 public:
+	IToolStylusStateProviderAPI* StylusAPI = nullptr;
+
 	/** @return true if a single mesh source can be found in the active selection */
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 
@@ -47,7 +57,7 @@ public:
  * to implement custom behavior.
  */
 UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UMeshSurfacePointTool : public USingleSelectionTool, public IHoverBehaviorTarget
+class INTERACTIVETOOLSFRAMEWORK_API UMeshSurfacePointTool : public USingleSelectionTool, public IClickDragBehaviorTarget, public IHoverBehaviorTarget
 {
 	GENERATED_BODY()
 
@@ -57,6 +67,8 @@ public:
 	/** Register InputBehaviors, etc */
 	virtual void Setup() override;
 
+	/** Set current stlyus API source */
+	virtual void SetStylusAPI(IToolStylusStateProviderAPI* StylusAPI);
 
 	// UMeshSurfacePointTool API
 
@@ -65,22 +77,31 @@ public:
 	 */
 	virtual bool HitTest(const FRay& Ray, FHitResult& OutHit);
 
-	
 	/**
-	 * This function is called by registered InputBehaviors when the user begins a click-drag-release interaction
+	 * This function is called when the user begins a click-drag-release interaction
 	 */
 	virtual void OnBeginDrag(const FRay& Ray);
 
 	/**
-	 * This function is called by registered InputBehaviorseach frame that the user is in a click-drag-release interaction
+	 * This function is called each frame that the user is in a click-drag-release interaction
 	 */
 	virtual void OnUpdateDrag(const FRay& Ray);
 
 	/**
-	 * This function is called by registered InputBehaviors when the user releases the button driving a click-drag-release interaction
+	 * This function is called when the user releases the button driving a click-drag-release interaction
 	 */
 	virtual void OnEndDrag(const FRay& Ray);
 
+
+
+
+	// IClickDragBehaviorTarget implementation
+	virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
+	virtual void OnClickPress(const FInputDeviceRay& PressPos) override;
+	virtual void OnClickDrag(const FInputDeviceRay& DragPos) override;
+	virtual void OnClickRelease(const FInputDeviceRay& ReleasePos) override;
+	virtual void OnTerminateDragSequence() override;
+	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
 
 
 	// IHoverBehaviorTarget implementation
@@ -105,6 +126,8 @@ public:
 	/** @return current state of the shift toggle */
 	virtual bool GetCtrlToggle() const { return bCtrlToggle; }
 
+	/** @return current input device pressure in range 0-1 */
+	virtual float GetCurrentDevicePressure() const;
 
 protected:
 	/** Current state of the shift modifier toggle */
@@ -112,36 +135,9 @@ protected:
 
 	/** Current state of the ctrl modifier toggle */
 	bool bCtrlToggle = false;
-};
 
-
-
-
-
-
-
-
-/**
- * UMeshSurfacePointToolMouseBehavior implements mouse press-drag-release interaction behavior for Mouse devices.
- * You can configure the base UAnyButtonInputBehavior to change the mouse button in use (default = left mouse)
- */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UMeshSurfacePointToolMouseBehavior : public UAnyButtonInputBehavior
-{
-	GENERATED_BODY()
-
-public:
-	virtual void Initialize(UMeshSurfacePointTool* Tool);
-
-	virtual FInputCaptureRequest WantsCapture(const FInputDeviceState& input) override;
-	virtual FInputCaptureUpdate BeginCapture(const FInputDeviceState& input, EInputCaptureSide eSide) override;
-	virtual FInputCaptureUpdate UpdateCapture(const FInputDeviceState& input, const FInputCaptureData& data) override;
-	virtual void ForceEndCapture(const FInputCaptureData& data) override;
-
-protected:
-	UMeshSurfacePointTool* Tool;
 	FRay LastWorldRay;
-	bool bInDragCapture;
-};
 
+	IToolStylusStateProviderAPI* StylusAPI = nullptr;
+};
 

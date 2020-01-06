@@ -1,6 +1,10 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Operations/MeshPlaneCut.h"
+
+#include "DynamicMesh3.h"
+#include "DynamicMeshTriangleAttribute.h"
+
 #include "Operations/SimpleHoleFiller.h"
 #include "Operations/PlanarHoleFiller.h"
 #include "MeshNormals.h"
@@ -9,8 +13,11 @@
 
 #include "Async/ParallelFor.h"
 
-bool FMeshPlaneCut::Cut()
+
+void FMeshPlaneCut::SplitCrossingEdges(TArray<double>& Signs, TSet<int>& ZeroEdges, TSet<int>& OnCutEdges, bool bDeleteTrisOnPlane)
 {
+	Signs.Reset(); ZeroEdges.Reset(); OnCutEdges.Reset();
+
 	double InvalidDist = -FMathd::MaxReal;
 
 	// TODO: handle selections
@@ -23,7 +30,7 @@ bool FMeshPlaneCut::Cut()
 
 	// compute Signs
 	int MaxVID = Mesh->MaxVertexID();
-	TArray<double> Signs;
+	
 	Signs.SetNum(MaxVID);
 
 	bool bNoParallel = false;
@@ -38,9 +45,43 @@ bool FMeshPlaneCut::Cut()
 			Signs[VID] = InvalidDist;
 		}
 	},
-	bNoParallel);
+		bNoParallel);
 
-	TSet<int> ZeroEdges, ZeroVertices, OnCutEdges;
+	if (bDeleteTrisOnPlane)
+	{
+		for (int TID = 0; TID < Mesh->MaxTriangleID(); TID++)
+		{
+			if (!Mesh->IsTriangle(TID))
+			{
+				continue;
+			}
+
+			FIndex3i Tri = Mesh->GetTriangle(TID);
+			FIndex3i TriEdges = Mesh->GetTriEdges(TID);
+			if (   FMathd::Abs(Signs[Tri.A]) < PlaneTolerance
+				&& FMathd::Abs(Signs[Tri.B]) < PlaneTolerance
+				&& FMathd::Abs(Signs[Tri.C]) < PlaneTolerance)
+			{
+				EMeshResult Res = Mesh->RemoveTriangle(TID, true, false);
+				ensure(Res == EMeshResult::Ok);
+				for (int EIdx = 0; EIdx < 3; EIdx++)
+				{
+					int EID = TriEdges[EIdx];
+					if (Mesh->IsEdge(EID))
+					{
+						// any edge that still exists after removal is a possible cut edge
+						OnCutEdges.Add(EID);
+					}
+					else
+					{
+						// in case the now-gone edge was added to cut edges earlier, make sure it's removed
+						// (note: if it's not present this function will just do nothing, which is fine)
+						OnCutEdges.Remove(EID);
+					}
+				}
+			}
+		}
+	}
 
 	// have to skip processing of new edges. If edge id
 	// is > max at start, is new. Otherwise if in NewEdges list, also new.
@@ -71,18 +112,19 @@ bool FMeshPlaneCut::Cut()
 
 		// If both Signs are 0, this edge is on-contour
 		// If one sign is 0, that vertex is on-contour
-		int n0 = (FMathd::Abs(f0) < FMathd::Epsilon) ? 1 : 0;
-		int n1 = (FMathd::Abs(f1) < FMathd::Epsilon) ? 1 : 0;
+		int n0 = (FMathd::Abs(f0) < PlaneTolerance) ? 1 : 0;
+		int n1 = (FMathd::Abs(f1) < PlaneTolerance) ? 1 : 0;
 		if (n0 + n1 > 0)
 		{
 			if (n0 + n1 == 2)
 			{
 				ZeroEdges.Add(EID);
 			}
-			else
-			{
-				ZeroVertices.Add((n0 == 1) ? ev[0] : ev[1]);
-			}
+			// TODO: if we need to track ZeroVertices, can add this code back:
+			//else
+			//{
+			//	ZeroVertices.Add((n0 == 1) ? ev[0] : ev[1]);
+			//}
 			continue;
 		}
 
@@ -107,15 +149,208 @@ bool FMeshPlaneCut::Cut()
 			NewEdges.Add(splitInfo.NewEdges.C); OnCutEdges.Add(splitInfo.NewEdges.C);
 		}
 	}
+}
 
-	// remove one-rings of all positive-side vertices. 
+bool FMeshPlaneCut::CutWithoutDelete(bool bSplitVerticesAtPlane, float OffsetVertices, TDynamicMeshScalarTriangleAttribute<int>* TriLabels, int NewLabelStartID, bool bAddBoundariesFirstHalf, bool bAddBoundariesSecondHalf)
+{
+	TArray<double> Signs;
+	TSet<int> ZeroEdges, OnCutEdges;
+	SplitCrossingEdges(Signs, ZeroEdges, OnCutEdges, bSplitVerticesAtPlane /* only delete on-plane tris if we're also splitting vertices apart */);
+
+	if (!bSplitVerticesAtPlane)
+	{
+		ensure(OffsetVertices == 0.0); // it would be weird to not split vertices and still request any offset of the 'other side' vertices; please don't do that
+	}
+
+
+	if (!TriLabels)
+	{
+		ensure(!bSplitVerticesAtPlane); // need labels to split verts currently
+		return false;
+	}
+
+	// collapse degenerate edges if we got em
+	if (bCollapseDegenerateEdgesOnCut)
+	{
+		CollapseDegenerateEdges(OnCutEdges, ZeroEdges);
+	}
+
+	TMap<int, int> OldLabelToNew;
+	int AvailableID = NewLabelStartID;
+	FVector3d VertexOffsetVec = (double)OffsetVertices * PlaneNormal;
+	for (int VID : Mesh->VertexIndicesItr())
+	{
+		if (VID < Signs.Num() && Signs[VID] > PlaneTolerance)
+		{
+			Mesh->SetVertex(VID, Mesh->GetVertex(VID) + VertexOffsetVec);
+			for (int TID : Mesh->VtxTrianglesItr(VID))
+			{
+				int LabelID = TriLabels->GetValue(TID);
+				if (LabelID >= NewLabelStartID)
+				{
+					continue;
+				}
+				if (!OldLabelToNew.Contains(LabelID))
+				{
+					OldLabelToNew.Add(LabelID, AvailableID++);
+				}
+				TriLabels->SetValue(TID, OldLabelToNew[LabelID]);
+			}
+		}
+	}
+
+	if (!bSplitVerticesAtPlane)
+	{
+		return true;
+	}
+
+	// split the mesh apart and add open boundary info
+	TMap<int, int> SplitVertices;
+	TSet<int> BoundaryVertices;
+	const TSet<int>* Sets[2] { &OnCutEdges, &ZeroEdges };
+	for (int SetIdx = 0; SetIdx < 2; SetIdx++)
+	{
+		const TSet<int>& Set = *(Sets[SetIdx]);
+		for (int EID : Set)
+		{
+			if (!Mesh->IsEdge(EID))
+			{
+				continue;
+			}
+			FIndex4i Edge = Mesh->GetEdge(EID);
+			BoundaryVertices.Add(Edge.A);
+			BoundaryVertices.Add(Edge.B);
+		}
+	}
+	TArray<int> Triangles;
+	DynamicMeshInfo::FVertexSplitInfo SplitInfo;
+	for (int VID : BoundaryVertices)
+	{
+		if (!ensure(Mesh->IsVertex(VID))) // should not have invalid vertices in BoundaryVertices
+		{
+			continue;
+		}
+		Triangles.Reset();
+		int NonSplitTriCount = 0;
+		for (int TID : Mesh->VtxTrianglesItr(VID))
+		{
+			if (TriLabels->GetValue(TID) >= NewLabelStartID)
+			{
+				Triangles.Add(TID);
+			}
+			else
+			{
+				NonSplitTriCount++;
+			}
+		}
+		if (NonSplitTriCount > 0) // connected to both old and new labels -- needs split
+		{
+			if (EMeshResult::Ok == Mesh->SplitVertex(VID, Triangles, SplitInfo))
+			{
+				SplitVertices.Add(VID, SplitInfo.NewVertex);
+				Mesh->SetVertex(SplitInfo.NewVertex, Mesh->GetVertex(SplitInfo.NewVertex) + VertexOffsetVec);
+			}
+		}
+		else if (Signs[VID] <= PlaneTolerance) // wasn't already offset and has no connections to 'old' labels -- needs offset
+		{
+			Mesh->SetVertex(VID, Mesh->GetVertex(VID) + VertexOffsetVec);
+		}
+	}
+	
+	// if boundary loops are requested for either or both sides of the cut, extract + label them
+	bool AllExtractionsOk = true;
+	if (bAddBoundariesFirstHalf || bAddBoundariesSecondHalf)
+	{
+		// organize edges by label and transfer ZeroEdges and OnCutEdges to newly split edges
+		TMap<int, TSet<int>> LabelToCutEdges;
+		for (int SetIdx = 0; SetIdx < 2; SetIdx++)
+		{
+			const TSet<int>& Set = *(Sets[SetIdx]);
+			for (int EID : Set)
+			{
+				if (!Mesh->IsEdge(EID))
+				{
+					continue;
+				}
+				FIndex4i Edge = Mesh->GetEdge(EID);
+				if (Edge.D >= 0) // only care about boundary edges
+				{
+					continue;
+				}
+				{
+					int LabelID = TriLabels->GetValue(Edge.C);
+					TSet<int>& LabelCutEdges = LabelToCutEdges.FindOrAdd(LabelID);
+					LabelCutEdges.Add(EID);
+				}
+
+				if (bAddBoundariesSecondHalf)
+				{
+					// try to find and add the corresponding edge
+					const int* SplitA = SplitVertices.Find(Edge.A);
+					const int* SplitB = SplitVertices.Find(Edge.B);
+					if (SplitA && SplitB)
+					{
+						int CorrEID = Mesh->FindEdge(*SplitA, *SplitB);
+						if (CorrEID >= 0) // corresponding edge exists
+						{
+							FIndex4i CorrEdge = Mesh->GetEdge(CorrEID);
+							if (CorrEdge.D < 0) // we only care if it's a boundary edge
+							{
+								int LabelID = TriLabels->GetValue(CorrEdge.C);
+								TSet<int>& LabelCutEdges = LabelToCutEdges.FindOrAdd(LabelID);
+								LabelCutEdges.Add(CorrEID);
+							}
+						}
+					}
+				}
+				BoundaryVertices.Add(Edge.A);
+				BoundaryVertices.Add(Edge.B);
+			}
+		}
+	
+		TSet<int> UnusedZeroEdgesSet;
+		for (TPair<int, TSet<int>>& LabelIDEdges : LabelToCutEdges)
+		{
+			int LabelID = LabelIDEdges.Key;
+			if (!bAddBoundariesFirstHalf && LabelID < NewLabelStartID)
+			{
+				continue;
+			}
+			if (!bAddBoundariesSecondHalf && LabelID >= NewLabelStartID)
+			{
+				continue;
+			}
+			TSet<int>& Edges = LabelIDEdges.Value;
+			FMeshPlaneCut::FOpenBoundary& Boundary = OpenBoundaries.Emplace_GetRef();
+			Boundary.Label = LabelID;
+			if (LabelID >= NewLabelStartID)
+			{
+				Boundary.NormalSign = -1;
+			}
+
+			check(UnusedZeroEdgesSet.Num() == 0); // for simplicity, we only put stuff in the CutEdges set
+			bool ExtractOk = ExtractBoundaryLoops(Edges, UnusedZeroEdgesSet, Boundary);
+			AllExtractionsOk = ExtractOk && AllExtractionsOk;
+		}
+	}
+
+	return AllExtractionsOk;
+}
+
+bool FMeshPlaneCut::Cut()
+{
+	TArray<double> Signs;
+	TSet<int> ZeroEdges, OnCutEdges;
+	SplitCrossingEdges(Signs, ZeroEdges, OnCutEdges);
+	
 	// @todo handle selection logic
 	//IEnumerable<int> vertexSet = Interval1i.Range(MaxVID);
 	//if (CutVertexSet != null)
 	//	vertexSet = CutVertexSet;
+	// remove one-rings of all positive-side vertices. 
 	for (int VID : Mesh->VertexIndicesItr())
-	{ 
-		if (VID < Signs.Num() && Signs[VID] > FMathd::Epsilon)
+	{
+		if (VID < Signs.Num() && Signs[VID] > PlaneTolerance)
 		{
 			Mesh->RemoveVertex(VID, true, false);
 		}
@@ -127,10 +362,16 @@ bool FMeshPlaneCut::Cut()
 		CollapseDegenerateEdges(OnCutEdges, ZeroEdges);
 	}
 
+	FMeshPlaneCut::FOpenBoundary& Boundary = OpenBoundaries.Emplace_GetRef();
+	return ExtractBoundaryLoops(OnCutEdges, ZeroEdges, Boundary);
 
+}
+
+bool FMeshPlaneCut::ExtractBoundaryLoops(const TSet<int>& OnCutEdges, const TSet<int>& ZeroEdges, FMeshPlaneCut::FOpenBoundary& Boundary)
+{
 	// ok now we extract boundary loops, but restricted
 	// to either the zero-edges we found, or the edges we created! bang!!
-	
+
 	FMeshBoundaryLoops Loops(Mesh, false);
 	Loops.EdgeFilterFunc = [&OnCutEdges, &ZeroEdges](int EID)
 	{
@@ -140,25 +381,23 @@ bool FMeshPlaneCut::Cut()
 
 	if (bFoundLoops)
 	{
-		CutLoops = Loops.Loops;
-		CutSpans = Loops.Spans;
-		CutLoopsFailed = false;
-		FoundOpenSpans = CutSpans.Num() > 0;
+		Boundary.CutLoops = Loops.Loops;
+		Boundary.CutSpans = Loops.Spans;
+		Boundary.CutLoopsFailed = false;
+		Boundary.FoundOpenSpans = Boundary.CutSpans.Num() > 0;
 	}
 	else
 	{
-		CutLoops.Empty();
-		CutLoopsFailed = true;
+		Boundary.CutLoops.Empty();
+		Boundary.CutLoopsFailed = true;
 	}
 
-	return !CutLoopsFailed;
+	return !Boundary.CutLoopsFailed;
 }
-
-
 
 void FMeshPlaneCut::CollapseDegenerateEdges(const TSet<int>& OnCutEdges, const TSet<int>& ZeroEdges)
 {
-	TSet<int> Sets[2] { OnCutEdges, ZeroEdges };
+	const TSet<int>* Sets[2] { &OnCutEdges, &ZeroEdges };
 
 	double Tol2 = DegenerateEdgeTol * DegenerateEdgeTol;
 	FVector3d A, B;
@@ -168,7 +407,8 @@ void FMeshPlaneCut::CollapseDegenerateEdges(const TSet<int>& OnCutEdges, const T
 		Collapsed = 0;
 		for (int SetIdx = 0; SetIdx < 2; SetIdx++)
 		{
-			for (int EID : Sets[SetIdx])
+			const TSet<int>& Set = *(Sets[SetIdx]);
+			for (int EID : Set)
 			{
 				if (!Mesh->IsEdge(EID))
 				{
@@ -208,22 +448,25 @@ bool FMeshPlaneCut::SimpleHoleFill(int ConstantGroupID)
 	bool bAllOk = true;
 
 	HoleFillTriangles.Empty();
-
-	FFrame3d ProjectionFrame(PlaneOrigin, PlaneNormal);
-
-	for (const FEdgeLoop& Loop : CutLoops)
+	for (FOpenBoundary& Boundary : OpenBoundaries)
 	{
-		FSimpleHoleFiller Filler(Mesh, Loop);
-		int GID = ConstantGroupID >= 0 ? ConstantGroupID : Mesh->AllocateTriangleGroup();
-		bAllOk = Filler.Fill(GID) && bAllOk;
-		
-		HoleFillTriangles.Add(Filler.NewTriangles);
+		TArray<int> BoundaryFillTriangles = HoleFillTriangles.Emplace_GetRef();
+		FFrame3d ProjectionFrame(PlaneOrigin, PlaneNormal);
 
-		if (Mesh->HasAttributes())
+		for (const FEdgeLoop& Loop : Boundary.CutLoops)
 		{
-			FDynamicMeshEditor Editor(Mesh);
-			Editor.SetTriangleNormals(Filler.NewTriangles, (FVector3f)PlaneNormal);
-			Editor.SetTriangleUVsFromProjection(Filler.NewTriangles, ProjectionFrame, UVScaleFactor);
+			FSimpleHoleFiller Filler(Mesh, Loop);
+			int GID = ConstantGroupID >= 0 ? ConstantGroupID : Mesh->AllocateTriangleGroup();
+			bAllOk = Filler.Fill(GID) && bAllOk;
+
+			BoundaryFillTriangles.Append(Filler.NewTriangles);
+
+			if (Mesh->HasAttributes())
+			{
+				FDynamicMeshEditor Editor(Mesh);
+				Editor.SetTriangleNormals(Filler.NewTriangles, (FVector3f)PlaneNormal * Boundary.NormalSign);
+				Editor.SetTriangleUVsFromProjection(Filler.NewTriangles, ProjectionFrame, UVScaleFactor);
+			}
 		}
 	}
 
@@ -233,34 +476,60 @@ bool FMeshPlaneCut::SimpleHoleFill(int ConstantGroupID)
 
 bool FMeshPlaneCut::HoleFill(TFunction<TArray<FIndex3i>(const FGeneralPolygon2d&)> PlanarTriangulationFunc, bool bFillSpans, int ConstantGroupID)
 {
-	HoleFillTriangles.Empty();
+	bool bAllOk = true;
 
-	TArray<TArray<int>> LoopVertices;
-	for (const FEdgeLoop& Loop : CutLoops)
+	HoleFillTriangles.Empty();
+	for (FMeshPlaneCut::FOpenBoundary& Boundary : OpenBoundaries)
 	{
-		LoopVertices.Add(Loop.Vertices);
-	}
-	if (bFillSpans)
-	{
-		for (const FEdgeSpan& Span : CutSpans)
+		TArray<TArray<int>> LoopVertices;
+		for (const FEdgeLoop& Loop : Boundary.CutLoops)
 		{
-			LoopVertices.Add(Span.Vertices);
+			LoopVertices.Add(Loop.Vertices);
+		}
+		if (bFillSpans)
+		{
+			for (const FEdgeSpan& Span : Boundary.CutSpans)
+			{
+				LoopVertices.Add(Span.Vertices);
+			}
+		}
+		FPlanarHoleFiller Filler(Mesh, &LoopVertices, PlanarTriangulationFunc, PlaneOrigin, PlaneNormal*Boundary.NormalSign);
+
+		int GID = ConstantGroupID >= 0 ? ConstantGroupID : Mesh->AllocateTriangleGroup();
+		bool bFullyFilledHole = Filler.Fill(GID);
+
+		HoleFillTriangles.Add(Filler.NewTriangles);
+		if (Mesh->HasAttributes())
+		{
+			FDynamicMeshEditor Editor(Mesh);
+			Editor.SetTriangleNormals(Filler.NewTriangles, (FVector3f)(PlaneNormal*Boundary.NormalSign));
+
+			FFrame3d ProjectionFrame(PlaneOrigin, PlaneNormal*Boundary.NormalSign);
+			for (int UVLayerIdx = 0, NumLayers = Mesh->Attributes()->NumUVLayers(); UVLayerIdx < NumLayers; UVLayerIdx++)
+			{
+				Editor.SetTriangleUVsFromProjection(Filler.NewTriangles, ProjectionFrame, UVScaleFactor, FVector2f::Zero(), UVLayerIdx);
+			}
+		}
+
+		bAllOk = bAllOk && bFullyFilledHole;
+	}
+
+	return bAllOk;
+}
+
+void FMeshPlaneCut::TransferTriangleLabelsToHoleFillTriangles(TDynamicMeshScalarTriangleAttribute<int>* TriLabels)
+{
+	if (!ensure(OpenBoundaries.Num() == HoleFillTriangles.Num()))
+	{
+		return;
+	}
+	for (int BoundaryIdx = 0; BoundaryIdx < OpenBoundaries.Num(); BoundaryIdx++)
+	{
+		const TArray<int>& Triangles = HoleFillTriangles[BoundaryIdx];
+		const FOpenBoundary& Boundary = OpenBoundaries[BoundaryIdx];
+		for (int TID : Triangles)
+		{
+			TriLabels->SetValue(TID, Boundary.Label);
 		}
 	}
-	FPlanarHoleFiller Filler(Mesh, &LoopVertices, PlanarTriangulationFunc, PlaneOrigin, PlaneNormal);
-
-	int GID = ConstantGroupID >= 0 ? ConstantGroupID : Mesh->AllocateTriangleGroup();
-	bool bFullyFilledHole = Filler.Fill(GID);
-	
-	HoleFillTriangles.Add(Filler.NewTriangles);
-	if (Mesh->HasAttributes())
-	{
-		FDynamicMeshEditor Editor(Mesh);
-		Editor.SetTriangleNormals(Filler.NewTriangles, (FVector3f)PlaneNormal);
-
-		FFrame3d ProjectionFrame(PlaneOrigin, PlaneNormal);
-		Editor.SetTriangleUVsFromProjection(Filler.NewTriangles, ProjectionFrame, UVScaleFactor);
-	}
-
-	return bFullyFilledHole;
 }

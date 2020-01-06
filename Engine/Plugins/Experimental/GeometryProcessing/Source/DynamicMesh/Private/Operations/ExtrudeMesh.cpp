@@ -9,7 +9,7 @@ FExtrudeMesh::FExtrudeMesh(FDynamicMesh3* mesh) : Mesh(mesh)
 {
 	ExtrudedPositionFunc = [this](const FVector3d& Position, const FVector3f& Normal, int VertexID) 
 	{
-		return Position + this->DefaultExtrudeDistance * Normal;
+		return Position + this->DefaultExtrudeDistance * (FVector3d)Normal;
 	};
 }
 
@@ -47,6 +47,10 @@ bool FExtrudeMesh::Apply()
 	// set vertices to new positions
 	for (int vid : InitialVertices)
 	{
+		if (!InitialToOffsetMapV.Contains(vid))
+		{
+			continue;
+		}
 		int newvid = InitialToOffsetMapV[vid];
 		if ( ! Mesh->IsVertex(newvid) )
 		{

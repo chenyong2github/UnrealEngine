@@ -441,7 +441,26 @@ void FInEditorCapture::Start()
 		AudioDevice->SetTransientMasterVolume(0.0f);
 	}
 
-	GEditor->RequestPlaySession(true, nullptr, false);
+	TSharedRef<SWindow> CustomWindow = SNew(SWindow)
+		.Title(LOCTEXT("MovieRenderPreviewTitle", "Movie Render - Preview"))
+		.AutoCenter(EAutoCenter::PrimaryWorkArea)
+		.UseOSWindowBorder(true)
+		.FocusWhenFirstShown(false)
+		.ActivationPolicy(EWindowActivationPolicy::Never)
+		.HasCloseButton(true)
+		.SupportsMaximize(false)
+		.SupportsMinimize(true)
+		.MaxWidth(CaptureObject->GetSettings().Resolution.ResX)
+		.MaxHeight(CaptureObject->GetSettings().Resolution.ResY)
+		.SizingRule(ESizingRule::FixedSize);
+
+	FSlateApplication::Get().AddWindow(CustomWindow);
+
+	FRequestPlaySessionParams Params;
+	Params.EditorPlaySettings = PlayInEditorSettings;
+	Params.CustomPIEWindow = CustomWindow;
+
+	GEditor->RequestPlaySession(Params);
 }
 
 void FInEditorCapture::Cancel()
@@ -461,23 +480,6 @@ void FInEditorCapture::OverridePlaySettings(ULevelEditorPlaySettings* PlayInEdit
 	PlayInEditorSettings->CenterNewWindow = true;
 	PlayInEditorSettings->LastExecutedPlayModeType = EPlayModeType::PlayMode_InEditorFloating;
 
-	TSharedRef<SWindow> CustomWindow = SNew(SWindow)
-		.Title(LOCTEXT("MovieRenderPreviewTitle", "Movie Render - Preview"))
-		.AutoCenter(EAutoCenter::PrimaryWorkArea)
-		.UseOSWindowBorder(true)
-		.FocusWhenFirstShown(false)
-		.ActivationPolicy(EWindowActivationPolicy::Never)
-		.HasCloseButton(true)
-		.SupportsMaximize(false)
-		.SupportsMinimize(true)
-		.MaxWidth( Settings.Resolution.ResX )
-		.MaxHeight( Settings.Resolution.ResY )
-		.SizingRule(ESizingRule::FixedSize);
-
-	FSlateApplication::Get().AddWindow(CustomWindow);
-
-	PlayInEditorSettings->CustomPIEWindow = CustomWindow;
-
 	// Reset everything else
 	PlayInEditorSettings->GameGetsMouseControl = false;
 	PlayInEditorSettings->ShowMouseControlLabel = false;
@@ -493,7 +495,7 @@ void FInEditorCapture::OverridePlaySettings(ULevelEditorPlaySettings* PlayInEdit
 	PlayInEditorSettings->LaunchConfiguration = EPlayOnLaunchConfiguration::LaunchConfig_Default;
 	PlayInEditorSettings->SetPlayNetMode(EPlayNetMode::PIE_Standalone);
 	PlayInEditorSettings->SetRunUnderOneProcess(true);
-	PlayInEditorSettings->SetPlayNetDedicated(false);
+	PlayInEditorSettings->bLaunchSeparateServer = false;
 	PlayInEditorSettings->SetPlayNumberOfClients(1);
 }
 

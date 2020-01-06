@@ -21,7 +21,10 @@
 namespace PySlateUtil
 {
 
-FPyDelegateHandle* RegisterSlateTickCallback(FSlateApplication::FSlateTickEvent& InSlateTickEvent, PyObject* InPyCallable)
+TArray<FDelegateHandle> PythonPreTickCallbackHandles;
+TArray<FDelegateHandle> PythonPostTickCallbackHandles;
+
+FPyDelegateHandle* RegisterSlateTickCallback(FSlateApplication::FSlateTickEvent& InSlateTickEvent, TArray<FDelegateHandle>& InOutPythonCallbackHandles, PyObject* InPyCallable)
 {
 	// We copy the PyCallable into the lambda to keep the Python object alive as long as the delegate is bound
 	FPyObjectPtr PyCallable = FPyObjectPtr::NewReference(InPyCallable);
@@ -45,10 +48,15 @@ FPyDelegateHandle* RegisterSlateTickCallback(FSlateApplication::FSlateTickEvent&
 		}
 	});
 
+	if (TickEventDelegateHandle.IsValid())
+	{
+		InOutPythonCallbackHandles.Add(TickEventDelegateHandle);
+	}
+
 	return FPyDelegateHandle::CreateInstance(TickEventDelegateHandle);
 }
 
-bool UnregisterSlateTickCallback(FSlateApplication::FSlateTickEvent& InSlateTickEvent, PyObject* InCallbackHandle)
+bool UnregisterSlateTickCallback(FSlateApplication::FSlateTickEvent& InSlateTickEvent, TArray<FDelegateHandle>& InOutPythonCallbackHandles, PyObject* InCallbackHandle)
 {
 	FPyDelegateHandlePtr PyTickEventDelegateHandle = FPyDelegateHandlePtr::StealReference(FPyDelegateHandle::CastPyObject(InCallbackHandle));
 	if (!PyTickEventDelegateHandle)
@@ -56,12 +64,23 @@ bool UnregisterSlateTickCallback(FSlateApplication::FSlateTickEvent& InSlateTick
 		return false;
 	}
 
-	if (PyTickEventDelegateHandle->Value.IsValid())
+	FDelegateHandle& TickEventDelegateHandle = PyTickEventDelegateHandle->Value;
+	if (TickEventDelegateHandle.IsValid())
 	{
-		InSlateTickEvent.Remove(PyTickEventDelegateHandle->Value);
+		InOutPythonCallbackHandles.Remove(TickEventDelegateHandle);
+		InSlateTickEvent.Remove(TickEventDelegateHandle);
 	}
 
 	return true;
+}
+
+void ClearSlateTickCallbacks(FSlateApplication::FSlateTickEvent& InSlateTickEvent, TArray<FDelegateHandle>& InOutPythonCallbackHandles)
+{
+	for (const FDelegateHandle& Handle : InOutPythonCallbackHandles)
+	{
+		InSlateTickEvent.Remove(Handle);
+	}
+	InOutPythonCallbackHandles.Empty();
 }
 
 } // namespace PySlateUtil
@@ -78,7 +97,12 @@ PyObject* RegisterSlatePreTickCallback(PyObject* InSelf, PyObject* InArgs)
 	}
 	check(PyObj);
 
-	return (PyObject*)PySlateUtil::RegisterSlateTickCallback(FSlateApplication::Get().OnPreTick(), PyObj);
+	if (FSlateApplication::IsInitialized())
+	{
+		return (PyObject*)PySlateUtil::RegisterSlateTickCallback(FSlateApplication::Get().OnPreTick(), PySlateUtil::PythonPreTickCallbackHandles, PyObj);
+	}
+
+	return (PyObject*)FPyDelegateHandle::CreateInstance(FDelegateHandle());
 }
 
 PyObject* UnregisterSlatePreTickCallback(PyObject* InSelf, PyObject* InArgs)
@@ -90,7 +114,7 @@ PyObject* UnregisterSlatePreTickCallback(PyObject* InSelf, PyObject* InArgs)
 	}
 	check(PyObj);
 
-	if (!PySlateUtil::UnregisterSlateTickCallback(FSlateApplication::Get().OnPreTick(), PyObj))
+	if (FSlateApplication::IsInitialized() && !PySlateUtil::UnregisterSlateTickCallback(FSlateApplication::Get().OnPreTick(), PySlateUtil::PythonPreTickCallbackHandles, PyObj))
 	{
 		PyUtil::SetPythonError(PyExc_TypeError, TEXT("unregister_slate_pre_tick_callback"), *FString::Printf(TEXT("Failed to convert argument '%s' to '_DelegateHandle'"), *PyUtil::GetFriendlyTypename(PyObj)));
 		return nullptr;
@@ -108,7 +132,12 @@ PyObject* RegisterSlatePostTickCallback(PyObject* InSelf, PyObject* InArgs)
 	}
 	check(PyObj);
 
-	return (PyObject*)PySlateUtil::RegisterSlateTickCallback(FSlateApplication::Get().OnPostTick(), PyObj);
+	if (FSlateApplication::IsInitialized())
+	{
+		return (PyObject*)PySlateUtil::RegisterSlateTickCallback(FSlateApplication::Get().OnPostTick(), PySlateUtil::PythonPostTickCallbackHandles, PyObj);
+	}
+
+	return (PyObject*)FPyDelegateHandle::CreateInstance(FDelegateHandle());
 }
 
 PyObject* UnregisterSlatePostTickCallback(PyObject* InSelf, PyObject* InArgs)
@@ -120,7 +149,7 @@ PyObject* UnregisterSlatePostTickCallback(PyObject* InSelf, PyObject* InArgs)
 	}
 	check(PyObj);
 
-	if (!PySlateUtil::UnregisterSlateTickCallback(FSlateApplication::Get().OnPostTick(), PyObj))
+	if (FSlateApplication::IsInitialized() && !PySlateUtil::UnregisterSlateTickCallback(FSlateApplication::Get().OnPostTick(), PySlateUtil::PythonPostTickCallbackHandles, PyObj))
 	{
 		PyUtil::SetPythonError(PyExc_TypeError, TEXT("unregister_slate_post_tick_callback"), *FString::Printf(TEXT("Failed to convert argument '%s' to '_DelegateHandle'"), *PyUtil::GetFriendlyTypename(PyObj)));
 		return nullptr;
@@ -154,12 +183,15 @@ PyObject* ParentExternalWindowToSlate(PyObject* InSelf, PyObject* InArgs)
 		return nullptr;
 	}
 
-	const void* SlateParentWindowHandle = FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr, ParentWindowSearchMethod);
-	if (SlateParentWindowHandle && ExternalWindowHandle)
+	if (FSlateApplication::IsInitialized())
 	{
+		const void* SlateParentWindowHandle = FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr, ParentWindowSearchMethod);
+		if (SlateParentWindowHandle && ExternalWindowHandle)
+		{
 #if PLATFORM_WINDOWS
-		::SetWindowLongPtr((HWND)ExternalWindowHandle, -8/*GWL_HWNDPARENT*/, (LONG_PTR)SlateParentWindowHandle);
+			::SetWindowLongPtr((HWND)ExternalWindowHandle, -8/*GWL_HWNDPARENT*/, (LONG_PTR)SlateParentWindowHandle);
 #endif
+		}
 	}
 
 	Py_RETURN_NONE;
@@ -187,6 +219,17 @@ void InitializeModule()
 #endif	// PY_MAJOR_VERSION >= 3
 
 	FPyWrapperTypeRegistry::Get().RegisterNativePythonModule(MoveTemp(NativePythonModule));
+}
+
+void ShutdownModule()
+{
+	// We need to remove any lingering Python Slate callbacks, as they will crash if called after the interpreter has shutdown
+	if (FSlateApplication::IsInitialized())
+	{
+		FSlateApplication& SlateApplication = FSlateApplication::Get();
+		PySlateUtil::ClearSlateTickCallbacks(SlateApplication.OnPreTick(), PySlateUtil::PythonPreTickCallbackHandles);
+		PySlateUtil::ClearSlateTickCallbacks(SlateApplication.OnPostTick(), PySlateUtil::PythonPostTickCallbackHandles);
+	}
 }
 
 }

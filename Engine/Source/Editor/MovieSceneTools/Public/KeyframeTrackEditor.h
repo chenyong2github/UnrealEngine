@@ -377,14 +377,6 @@ protected:
 		return KeyPropertyResult;
 	}
 
-	FORCEINLINE FKeyPropertyResult AddKeysToObjects(
-		std::initializer_list<UObject*> ObjectsToKey, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedKeys,
-		ESequencerKeyMode KeyMode, TSubclassOf<UMovieSceneTrack> TrackClass, FName PropertyName,
-		TFunction<void(TrackType*)> OnInitializeNewTrack)
-	{
-		return AddKeysToObjects(MakeArrayView(ObjectsToKey), KeyTime, GeneratedKeys, KeyMode, TrackClass, PropertyName, MoveTemp(OnInitializeNewTrack));
-	}
-
 private:
 
 	void ClearDefaults( UMovieSceneTrack* Track )

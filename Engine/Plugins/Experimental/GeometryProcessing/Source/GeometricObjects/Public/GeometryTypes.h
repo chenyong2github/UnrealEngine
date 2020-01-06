@@ -89,14 +89,12 @@ protected:
 	TMap<IntType, IntType> ReverseMap;
 	bool bWantForward;
 	bool bWantReverse;
-	IntType InvalidID;
 
 public:
 
 	TIndexMap()
 	{
 		bWantForward = bWantReverse = true;
-		InvalidID = (IntType)-9999999;
 	}
 
 	void Reset()
@@ -105,8 +103,8 @@ public:
 		ReverseMap.Reset();
 	}
 
-	/** @return the value used to indicate "invalid" in the mapping */
-	inline IntType GetInvalidID() const { return InvalidID; }
+	/** @return the value used to indicate an ID is not present in the mapping */
+	constexpr IntType UnmappedID() const { return (IntType)-1; }
 
 	TMap<IntType, IntType>& GetForwardMap() { return ForwardMap; }
 	const TMap<IntType, IntType>& GetForwardMap() const { return ForwardMap; }
@@ -117,6 +115,7 @@ public:
 	/** add mapping from one index to another */
 	inline void Add(IntType FromID, IntType ToID)
 	{
+		checkSlow(FromID >= 0 && ToID >= 0);
 		ForwardMap.Add(FromID, ToID);
 		ReverseMap.Add(ToID, FromID);
 	}
@@ -124,6 +123,7 @@ public:
 	/** @return true if we can map forward from this value */
 	inline bool ContainsFrom(IntType FromID) const
 	{
+		checkSlow(FromID >= 0);
 		check(bWantForward);
 		return ForwardMap.Contains(FromID);
 	}
@@ -131,6 +131,7 @@ public:
 	/** @return true if we can reverse-map from this value */
 	inline bool ContainsTo(IntType ToID) const
 	{
+		checkSlow(ToID >= 0);
 		check(bWantReverse);
 		return ReverseMap.Contains(ToID);
 	}
@@ -139,22 +140,25 @@ public:
 	/** @return forward-map of input value */
 	inline IntType GetTo(IntType FromID) const
 	{
+		checkSlow(FromID >= 0);
 		check(bWantForward);
 		const IntType* FoundVal = ForwardMap.Find(FromID);
-		return (FoundVal == nullptr) ? InvalidID : *FoundVal;
+		return (FoundVal == nullptr) ? UnmappedID() : *FoundVal;
 	}
 
 	/** @return reverse-map of input value */
 	inline IntType GetFrom(IntType ToID) const
 	{
+		checkSlow(ToID >= 0);
 		check(bWantReverse);
 		const IntType* FoundVal = ReverseMap.Find(ToID);
-		return (FoundVal == nullptr) ? InvalidID : *FoundVal;
+		return (FoundVal == nullptr) ? UnmappedID() : *FoundVal;
 	}
 
 	/** @return forward-map of input value or null if not found */
 	inline const IntType* FindTo(IntType FromID) const
 	{
+		checkSlow(FromID >= 0);
 		check(bWantForward);
 		return ForwardMap.Find(FromID);
 	}
@@ -162,6 +166,7 @@ public:
 	/** @return reverse-map of input value or null if not found */
 	inline const IntType* FindFrom(IntType ToID) const
 	{
+		checkSlow(ToID >= 0);
 		check(bWantReverse);
 		return ReverseMap.Find(ToID);
 	}
@@ -169,6 +174,7 @@ public:
 
 	void Reserve(int NumElements)
 	{
+		checkSlow(NumElements >= 0);
 		if (bWantForward)
 		{
 			ForwardMap.Reserve(NumElements);
@@ -179,6 +185,7 @@ public:
 		}
 	}
 };
+
 typedef TIndexMap<int> FIndexMapi;
 
 

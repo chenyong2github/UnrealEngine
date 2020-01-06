@@ -1463,7 +1463,7 @@ bool UnFbx::FFbxImporter::ReplaceSkeletalMeshGeometryImportData(const USkeletalM
 
 	//Load the original skeletal mesh import data
 	FSkeletalMeshImportData OriginalSkeletalMeshImportData;
-	SkeletalMeshLODModel.RawSkeletalMeshBulkData.LoadRawMesh(OriginalSkeletalMeshImportData);
+	SkeletalMesh->LoadLODImportedData(LodIndex, OriginalSkeletalMeshImportData);
 
 	//Backup the new geometry and skinning to be able to apply the skinning to the old geometry
 	FSkeletalMeshImportData NewGeometryAndRigData = *ImportData;
@@ -1512,7 +1512,7 @@ bool UnFbx::FFbxImporter::ReplaceSkeletalMeshSkinningImportData(const USkeletalM
 
 	//Load the original skeletal mesh import data
 	FSkeletalMeshImportData OriginalSkeletalMeshImportData;
-	SkeletalMeshLODModel.RawSkeletalMeshBulkData.LoadRawMesh(OriginalSkeletalMeshImportData);
+	SkeletalMesh->LoadLODImportedData(LodIndex, OriginalSkeletalMeshImportData);
 
 	ImportData->bDiffPose = OriginalSkeletalMeshImportData.bDiffPose;
 	ImportData->bUseT0AsRefPose = OriginalSkeletalMeshImportData.bUseT0AsRefPose;
@@ -1609,7 +1609,7 @@ bool UnFbx::FFbxImporter::GatherPointsForMorphTarget(FSkeletalMeshImportData* Ou
 	{
 		int32 OriginalPointIdx = OutData->PointToRawMap[ PointIdx ];
 
-		if ( ( NewImportData.Points[ OriginalPointIdx ] - OutData->Points[ PointIdx ] ).SizeSquared() > FMath::Square( THRESH_VECTORS_ARE_NEAR ) ) // THRESH_POINTS_ARE_NEAR is too big, we might not be recomputing some normals that can have changed significantly
+		if ( ( NewImportData.Points[ OriginalPointIdx ] - OutData->Points[ PointIdx ] ).SizeSquared() > FMath::Square(THRESH_POINTS_ARE_SAME) )
 		{
 			ModifiedPoints.Add( PointIdx );
 		}
@@ -1680,6 +1680,8 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 	{
 		return nullptr;
 	}
+
+	int32 SafeLODIndex = ImportSkeletalMeshArgs.LodIndex < 0 ? 0 : ImportSkeletalMeshArgs.LodIndex;
 
 	int32 SkelType = 0; // 0 for skeletal mesh, 1 for rigid mesh
 	
@@ -1766,12 +1768,9 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 	//Adjust the import data from the import options
 	if (ExistingSkelMesh != nullptr)
 	{
-		int32 SafeLODIndex = ImportSkeletalMeshArgs.LodIndex < 0 ? 0 : ImportSkeletalMeshArgs.LodIndex;
 		if (ExistingSkelMesh->GetImportedModel() && ExistingSkelMesh->GetImportedModel()->LODModels.IsValidIndex(SafeLODIndex))
 		{
-			const FRawSkeletalMeshBulkData& RawSkeletalMeshBulkData = ExistingSkelMesh->GetImportedModel()->LODModels[SafeLODIndex].RawSkeletalMeshBulkData;
-			GeoImportVersion = RawSkeletalMeshBulkData.GeoImportVersion;
-			SkinningImportVersion = RawSkeletalMeshBulkData.SkinningImportVersion;
+			ExistingSkelMesh->GetLODImportedDataVersions(SafeLODIndex, GeoImportVersion, SkinningImportVersion);
 		}
 
 		if ((ImportOptions->bImportAsSkeletalSkinning || ImportOptions->bImportAsSkeletalGeometry))
@@ -1812,9 +1811,32 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 		return nullptr;
 	}
 
+	FSkeletalMeshBuildSettings BuildOptions;
+	//Make sure the build option change in the re-import ui is reconduct
+	BuildOptions.bBuildAdjacencyBuffer = true;
+	BuildOptions.bRecomputeNormals = !ImportOptions->ShouldImportNormals() || !SkelMeshImportDataPtr->bHasNormals;
+	BuildOptions.bRecomputeTangents = !ImportOptions->ShouldImportTangents() || !SkelMeshImportDataPtr->bHasTangents;
+	BuildOptions.bUseMikkTSpace = (ImportOptions->NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace) && (!ImportOptions->ShouldImportNormals() || !ImportOptions->ShouldImportTangents());
+	BuildOptions.bComputeWeightedNormals = ImportOptions->bComputeWeightedNormals;
+	BuildOptions.bRemoveDegenerates = ImportOptions->bRemoveDegenerates;
+	BuildOptions.ThresholdPosition = ImportOptions->OverlappingThresholds.ThresholdPosition;
+	BuildOptions.ThresholdTangentNormal = ImportOptions->OverlappingThresholds.ThresholdTangentNormal;
+	BuildOptions.ThresholdUV = ImportOptions->OverlappingThresholds.ThresholdUV;
+	BuildOptions.MorphThresholdPosition = ImportOptions->OverlappingThresholds.MorphThresholdPosition;
+	
 	if (ExistingSkelMesh)
 	{
 		ExistingSkelMesh->PreEditChange(NULL);
+		//We update the build settings before saving the asset data we want to restore after the re-import
+		int32 SafeReimportLODIndex = ImportSkeletalMeshArgs.LodIndex < 0 ? 0 : ImportSkeletalMeshArgs.LodIndex;
+		FSkeletalMeshLODInfo* LODInfoPtr = ExistingSkelMesh->GetLODInfo(SafeReimportLODIndex);
+		if (LODInfoPtr)
+		{
+			//Adjacency buffer cannot be change in the re-import options, it must be backup before and restored after the copy.
+			bool bBuildAdjacencyBuffer = LODInfoPtr->BuildSettings.bBuildAdjacencyBuffer;
+			LODInfoPtr->BuildSettings = BuildOptions;
+			LODInfoPtr->BuildSettings.bBuildAdjacencyBuffer = bBuildAdjacencyBuffer;
+		}
 		//The backup of the skeletal mesh data empty the LOD array in the ImportedResource of the skeletal mesh
 		//If the import fail after this step the editor can crash when updating the bone later since the LODModel will not exist anymore
 		ExistSkelMeshDataPtr = SaveExistingSkelMeshData(ExistingSkelMesh, !ImportOptions->bImportMaterials, ImportSkeletalMeshArgs.LodIndex);
@@ -1839,8 +1861,8 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 	check(ImportedResource->LODModels.Num() == 0);
 	ImportedResource->LODModels.Empty();
 	ImportedResource->LODModels.Add(new FSkeletalMeshLODModel());
-
-	FSkeletalMeshLODModel& LODModel = ImportedResource->LODModels[0];
+	const int32 ImportLODModelIndex = 0;
+	FSkeletalMeshLODModel& LODModel = ImportedResource->LODModels[ImportLODModelIndex];
 
 	// process materials from import data
 	ProcessImportMeshMaterials(SkeletalMesh->Materials, *SkelMeshImportDataPtr);
@@ -1862,22 +1884,19 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 	ProcessImportMeshInfluences(*SkelMeshImportDataPtr);
 
 	//Store the original fbx import data the SkelMeshImportDataPtr should not be modified after this
-	LODModel.RawSkeletalMeshBulkData.SaveRawMesh(*SkelMeshImportDataPtr);
+	SkeletalMesh->SaveLODImportedData(ImportLODModelIndex, *SkelMeshImportDataPtr);
 	if (ImportOptions->bImportAsSkeletalSkinning)
 	{
-		LODModel.RawSkeletalMeshBulkData.SkinningImportVersion = ESkeletalMeshSkinningImportVersions::LatestVersion;
-		LODModel.RawSkeletalMeshBulkData.GeoImportVersion = GeoImportVersion;
+		SkeletalMesh->SetLODImportedDataVersions(ImportLODModelIndex, GeoImportVersion, ESkeletalMeshSkinningImportVersions::LatestVersion);
 	}
 	else if(ImportOptions->bImportAsSkeletalGeometry)
 	{
-		LODModel.RawSkeletalMeshBulkData.GeoImportVersion = ESkeletalMeshGeoImportVersions::LatestVersion;
-		LODModel.RawSkeletalMeshBulkData.SkinningImportVersion = SkinningImportVersion;
+		SkeletalMesh->SetLODImportedDataVersions(ImportLODModelIndex, ESkeletalMeshGeoImportVersions::LatestVersion, SkinningImportVersion);
 	}
 	else
 	{
 		//We reimport both
-		LODModel.RawSkeletalMeshBulkData.SkinningImportVersion = ESkeletalMeshSkinningImportVersions::LatestVersion;
-		LODModel.RawSkeletalMeshBulkData.GeoImportVersion = ESkeletalMeshGeoImportVersions::LatestVersion;
+		SkeletalMesh->SetLODImportedDataVersions(ImportLODModelIndex, ESkeletalMeshGeoImportVersions::LatestVersion, ESkeletalMeshSkinningImportVersions::LatestVersion);
 	}
 	SkeletalMesh->ResetLODInfo();
 	FSkeletalMeshLODInfo& NewLODInfo = SkeletalMesh->AddLODInfo();
@@ -1904,17 +1923,6 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 		TArray<int32> LODPointToRawMap;
 		SkelMeshImportDataPtr->CopyLODImportData(LODPoints,LODWedges,LODFaces,LODInfluences,LODPointToRawMap);
 
-		FSkeletalMeshBuildSettings BuildOptions;
-		BuildOptions.bBuildAdjacencyBuffer = true;
-		BuildOptions.bRecomputeNormals = !ImportOptions->ShouldImportNormals() || !SkelMeshImportDataPtr->bHasNormals;
-		BuildOptions.bRecomputeTangents = !ImportOptions->ShouldImportTangents() || !SkelMeshImportDataPtr->bHasTangents;
-		BuildOptions.bUseMikkTSpace = (ImportOptions->NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace) && (!ImportOptions->ShouldImportNormals() || !ImportOptions->ShouldImportTangents());
-		BuildOptions.bComputeWeightedNormals = ImportOptions->bComputeWeightedNormals;
-		BuildOptions.bRemoveDegenerates = ImportOptions->bRemoveDegenerates;
-		BuildOptions.ThresholdPosition = ImportOptions->OverlappingThresholds.ThresholdPosition;
-		BuildOptions.ThresholdTangentNormal = ImportOptions->OverlappingThresholds.ThresholdTangentNormal;
-		BuildOptions.ThresholdUV = ImportOptions->OverlappingThresholds.ThresholdUV;
-
 		bool bUseLegacyMeshUtilities = false;
 		bool bBuildSuccess = false;
 		if (bUseLegacyMeshUtilities)
@@ -1927,7 +1935,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 			TArray<FText> WarningMessages;
 			TArray<FName> WarningNames;
 			// Create actual rendering data.
-			bBuildSuccess = MeshUtilities.BuildSkeletalMesh(ImportedResource->LODModels[0], SkeletalMesh->RefSkeleton, LODInfluences, LODWedges, LODFaces, LODPoints, LODPointToRawMap, LegacyBuildOptions, &WarningMessages, &WarningNames);
+			bBuildSuccess = MeshUtilities.BuildSkeletalMesh(ImportedResource->LODModels[ImportLODModelIndex], SkeletalMesh->RefSkeleton, LODInfluences, LODWedges, LODFaces, LODPoints, LODPointToRawMap, LegacyBuildOptions, &WarningMessages, &WarningNames);
 
 			// temporary hack of message/names, should be one token or a struct
 			if (WarningMessages.Num() > 0 && WarningNames.Num() == WarningMessages.Num())
@@ -1943,14 +1951,13 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 		else
 		{
 			//The imported LOD is always 0 here, the LOD custom import will import the LOD alone(in a temporary skeletalmesh) and add it to the base skeletal mesh later
-			const int32 LODIndex = 0;
-			check(SkeletalMesh->GetLODInfo(LODIndex) != nullptr);
+			check(SkeletalMesh->GetLODInfo(ImportLODModelIndex) != nullptr);
 			//Set the build options
-			SkeletalMesh->GetLODInfo(LODIndex)->BuildSettings = BuildOptions;
+			SkeletalMesh->GetLODInfo(ImportLODModelIndex)->BuildSettings = BuildOptions;
 			//New MeshDescription build process
 			IMeshBuilderModule& MeshBuilderModule = FModuleManager::Get().LoadModuleChecked<IMeshBuilderModule>("MeshBuilder");
 			//We must build the LODModel so we can restore properly the mesh, but we do not have to regenerate LODs
-			bBuildSuccess = MeshBuilderModule.BuildSkeletalMesh(SkeletalMesh, LODIndex, false);
+			bBuildSuccess = MeshBuilderModule.BuildSkeletalMesh(SkeletalMesh, ImportLODModelIndex, false);
 		}
 
 		if( !bBuildSuccess )
@@ -1972,9 +1979,9 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 		}
 		if (ImportSkeletalMeshArgs.ImportMeshSectionsData)
 		{
-			for (int32 SectionIndex = 0; SectionIndex < ImportedResource->LODModels[0].Sections.Num(); ++SectionIndex)
+			for (int32 SectionIndex = 0; SectionIndex < ImportedResource->LODModels[ImportLODModelIndex].Sections.Num(); ++SectionIndex)
 			{
-				const FSkelMeshSection &SkelMeshSection = ImportedResource->LODModels[0].Sections[SectionIndex];
+				const FSkelMeshSection &SkelMeshSection = ImportedResource->LODModels[ImportLODModelIndex].Sections[SectionIndex];
 				int32 MaterialIndex = SkelMeshSection.MaterialIndex;
 				if (SkeletalMesh->GetLODInfo(0)->LODMaterialMap.IsValidIndex(SectionIndex) && SkeletalMesh->GetLODInfo(0)->LODMaterialMap[SectionIndex] != INDEX_NONE)
 				{
@@ -2401,8 +2408,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ReimportSkeletalMesh(USkeletalMesh* Mesh, UF
 		FSkeletalMeshLODInfo* LODInfo = Mesh->GetLODInfo(0);
 		if(LODInfo && Mesh->GetImportedModel() && Mesh->GetImportedModel()->LODModels.IsValidIndex(0))
 		{
-			const FSkeletalMeshLODModel& LODModel = Mesh->GetImportedModel()->LODModels[0];
-			if (!LODModel.RawSkeletalMeshBulkData.IsBuildDataAvailable())
+			if (!Mesh->IsLODImportedDataBuildAvailable(0))
 			{
 				//Set the build settings
 				LODInfo->BuildSettings.bBuildAdjacencyBuffer = true;
@@ -2411,6 +2417,10 @@ USkeletalMesh* UnFbx::FFbxImporter::ReimportSkeletalMesh(USkeletalMesh* Mesh, UF
 				LODInfo->BuildSettings.bRecomputeTangents = SKImportData->NormalImportMethod != EFBXNormalImportMethod::FBXNIM_ImportNormalsAndTangents;
 				LODInfo->BuildSettings.bRemoveDegenerates = true;
 				LODInfo->BuildSettings.bUseMikkTSpace = SKImportData->NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace;
+				LODInfo->BuildSettings.ThresholdPosition = SKImportData->ThresholdPosition;
+				LODInfo->BuildSettings.ThresholdTangentNormal = SKImportData->ThresholdTangentNormal;
+				LODInfo->BuildSettings.ThresholdUV = SKImportData->ThresholdUV;
+				LODInfo->BuildSettings.MorphThresholdPosition = SKImportData->MorphThresholdPosition;
 			}
 		}
 	}
@@ -3911,6 +3921,9 @@ void UnFbx::FFbxImporter::InsertNewLODToBaseSkeletalMesh(USkeletalMesh* InSkelet
 
 	// Assign new FSkeletalMeshLODModel to desired slot in selected skeletal mesh.
 	DestImportedResource->LODModels[DesiredLOD] = NewLODModel;
+	//Copy the import data into the base skeletalmesh for the imported LOD
+	USkeletalMesh::CopyImportedData(0, InSkeletalMesh, DesiredLOD, BaseSkeletalMesh);
+	
 
 	// If this LOD had been generated previously by automatic mesh reduction, clear that flag.
 	LODInfo.bHasBeenSimplified = false;
@@ -4315,6 +4328,8 @@ void UnFbx::FFbxImporter::ImportMorphTargetsInternal( TArray<FbxNode*>& SkelMesh
 		BaseImportData.MorphTargetNames.Add(ShapeName);
 		TSet<uint32>& ModifiedPoints = BaseImportData.MorphTargetModifiedPoints.AddDefaulted_GetRef();
 		GatherPointsForMorphTarget(&ShapeImportData, SkelMeshNodeArray, &ShapeArray, ModifiedPoints);
+		//We do not need this data anymore empty it so we reduce the size of what we save into memory
+		ShapeImportData.PointToRawMap.Empty();
 		BaseImportData.MorphTargets.Add(ShapeImportData);
 		check(BaseImportData.MorphTargetNames.Num() == BaseImportData.MorphTargets.Num() && BaseImportData.MorphTargetNames.Num() == BaseImportData.MorphTargetModifiedPoints.Num());
 	}
@@ -4322,7 +4337,7 @@ void UnFbx::FFbxImporter::ImportMorphTargetsInternal( TArray<FbxNode*>& SkelMesh
 	if (BaseSkelMesh->GetImportedModel() && BaseSkelMesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex))
 	{
 		//If we can build the skeletal mesh there is no need to build the morph target now, all the necessary build morph target data was copied before.
-		if (!BaseSkelMesh->GetImportedModel()->LODModels[LODIndex].RawSkeletalMeshBulkData.IsBuildDataAvailable())
+		if (!BaseSkelMesh->IsLODImportedDataBuildAvailable(LODIndex))
 		{
 			//Build MorphTargets
 			FLODUtilities::BuildMorphTargets(
@@ -4331,7 +4346,9 @@ void UnFbx::FFbxImporter::ImportMorphTargetsInternal( TArray<FbxNode*>& SkelMesh
 				LODIndex,
 				ImportOptions->ShouldImportNormals(),
 				ImportOptions->ShouldImportTangents(),
-				(ImportOptions->NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace));
+				(ImportOptions->NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace),
+				ImportOptions->OverlappingThresholds
+				);
 		}
 	}
 
@@ -4364,10 +4381,7 @@ void UnFbx::FFbxImporter::ImportFbxMorphTarget(TArray<FbxNode*> &SkelMeshNodeArr
 	{
 		ImportMorphTargetsInternal( SkelMeshNodeArray, BaseSkelMesh, LODIndex, BaseSkeletalMeshImportData);
 		//Save the rawMesh
-		if (BaseSkelMesh->GetImportedModel() && BaseSkelMesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex))
-		{
-			BaseSkelMesh->GetImportedModel()->LODModels[LODIndex].RawSkeletalMeshBulkData.SaveRawMesh(BaseSkeletalMeshImportData);
-		}
+		BaseSkelMesh->SaveLODImportedData(LODIndex, BaseSkeletalMeshImportData);
 	}
 }
 

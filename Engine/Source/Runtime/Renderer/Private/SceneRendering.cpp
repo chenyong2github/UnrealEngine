@@ -889,7 +889,6 @@ void FViewInfo::Init()
 	TemporalJitterPixels = FVector2D::ZeroVector;
 
 	PreExposure = 1.0f;
-	MaterialTextureMipBias = 0.0f;
 
 	// Cache TEXTUREGROUP_World's for the render thread to create the material textures' shared sampler.
 	if (IsInGameThread())
@@ -1377,7 +1376,7 @@ void FViewInfo::SetupUniformBufferParameters(
 
 		float FinalMaterialTextureMipBias = GlobalMipBias;
 
-		if (bIsValidWorldTextureGroupSamplerFilter && PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale)
+		if (bIsValidWorldTextureGroupSamplerFilter && !FMath::IsNearlyZero(MaterialTextureMipBias))
 		{
 			ViewUniformShaderParameters.MaterialTextureMipBias = MaterialTextureMipBias;
 			ViewUniformShaderParameters.MaterialTextureDerivativeMultiply = FMath::Pow(2.0f, MaterialTextureMipBias);

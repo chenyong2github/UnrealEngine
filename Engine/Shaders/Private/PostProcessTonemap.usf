@@ -68,10 +68,28 @@ float4 BloomDirtMaskTint;
 Texture2D BloomDirtMaskTexture;
 SamplerState BloomDirtMaskSampler;
 
+float4 LensPrincipalPointOffsetScale;
+float4 LensPrincipalPointOffsetScaleInverse;
+
 half GrainFromUV(float2 GrainUV) 
 {
 	half Grain = frac(sin(GrainUV.x + GrainUV.y * 543.31) *  493013.0);
 	return Grain;
+}
+
+// converts from screen [-1,1] space to the lens [-1,1] viewport space
+float2 ConvertScreenViewportSpaceToLensViewportSpace(float2 UV)
+{
+	return LensPrincipalPointOffsetScale.xy + UV * LensPrincipalPointOffsetScale.zw;
+}
+
+float2 ConvertLensViewportSpaceToScreenViewportSpace(float2 UV)
+{
+	// reference version
+	//return (UV - LensPrincipalPointOffsetScale.xy)/LensPrincipalPointOffsetScale.zw;
+
+	// optimized version
+	return LensPrincipalPointOffsetScaleInverse.xy + UV * LensPrincipalPointOffsetScaleInverse.zw;
 }
 
 // LUT for color grading
@@ -175,7 +193,8 @@ void TonemapCommonVS(
 	float2 ColorViewportPos = UVToScreenPos(TexCoord, Color_Extent);
 
 	// Scale vignette to always be a circle with consistent corner intensity.
-	OutExposureScaleVignette.yz = VignetteSpace(ColorViewportPos, AspectRatio);
+	float2 LensViewportPos = ConvertScreenViewportSpaceToLensViewportSpace(ColorViewportPos);
+	OutExposureScaleVignette.yz = VignetteSpace(LensViewportPos, AspectRatio);
 
 	// Grain
 	OutGrainUV.xy = TexCoord + Color_ExtentInverse * float2(-0.5,0.5);
@@ -377,9 +396,15 @@ float4 TonemapCommonPS(
 	        float2 CAScale = ChromaticAberrationParams.rg;
 	        float StartOffset = ChromaticAberrationParams.z;
 
+			float2 LensUV = ConvertScreenViewportSpaceToLensViewportSpace(ScreenPos);
+
 	        float4 CAUV;
-	        CAUV = ScreenPos.xyxy - sign(ScreenPos).xyxy * saturate(abs(ScreenPos) - StartOffset).xyxy * CAScale.rrgg;
-	        CAUV.xy = ScreenPosToUV(CAUV.xy, Color_ExtentInverse);
+	        CAUV = LensUV.xyxy - sign(LensUV).xyxy * saturate(abs(LensUV) - StartOffset).xyxy * CAScale.rrgg;
+
+	        CAUV.xy = ConvertLensViewportSpaceToScreenViewportSpace(CAUV.xy);
+	        CAUV.zw = ConvertLensViewportSpaceToScreenViewportSpace(CAUV.zw);
+
+			CAUV.xy = ScreenPosToUV(CAUV.xy, Color_ExtentInverse);
 	        CAUV.zw = ScreenPosToUV(CAUV.zw, Color_ExtentInverse);
 
 		half4 SceneColor = SampleSceneColor(CAUV.xy + SceneUVJitter.xy);
@@ -497,8 +522,11 @@ float4 TonemapCommonPS(
 			float4 CombinedBloom = Texture2DSample(BloomTexture, BloomSampler, BloomUV);
 			CombinedBloom.rgb *= OneOverPreExposure; // Standard bloom path, convolution path has bloom already in scene color.
 
-			float2 DirtViewportUV = (SvPosition.xy - float2(Output_ViewportMin)) * Output_ViewportSizeInverse;
-			float3 BloomDirtMaskColor = Texture2DSample(BloomDirtMaskTexture, BloomDirtMaskSampler, DirtViewportUV).rgb * BloomDirtMaskTint.rgb;
+			//float2 DirtViewportUV = (SvPosition.xy - float2(Output_ViewportMin)) * Output_ViewportSizeInverse; 
+
+			float2 DirtLensUV = ConvertScreenViewportSpaceToLensViewportSpace(ScreenPos) * float2(1.0f, -1.0f);
+
+			float3 BloomDirtMaskColor = Texture2DSample(BloomDirtMaskTexture, BloomDirtMaskSampler, DirtLensUV * .5f + .5f).rgb * BloomDirtMaskTint.rgb;
 
 #if DEBUG_TONEMAPPER
 			if (all(DebugTile == int2(-1, -1)))

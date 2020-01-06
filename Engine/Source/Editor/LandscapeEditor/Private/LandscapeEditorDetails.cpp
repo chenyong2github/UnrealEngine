@@ -7,6 +7,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "Widgets/Input/SSpinBox.h"
 #include "LandscapeEdMode.h"
 #include "LandscapeEditorDetailCustomization_NewLandscape.h"
 #include "LandscapeEditorDetailCustomization_ResizeLandscape.h"
@@ -17,14 +18,19 @@
 #include "LandscapeEditorDetailCustomization_TargetLayers.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
+#include "Classes/EditorStyleSettings.h"
+#include "Editor/PropertyEditor/Public/VariablePrecisionNumericInterface.h"
 
+#include "Templates/SharedPointer.h"
+
+#include "SLandscapeEditor.h"
 #include "LandscapeEditorCommands.h"
 #include "LandscapeEditorDetailWidgets.h"
 #include "LandscapeEditorDetailCustomization_LayersBrushStack.h"
+#include "LandscapeEditorObject.h"
 #include "Landscape.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor"
-
 
 TSharedRef<IDetailCustomization> FLandscapeEditorDetails::MakeInstance()
 {
@@ -149,6 +155,151 @@ void FLandscapeEditorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 	Customization_TargetLayers->CustomizeDetails(DetailBuilder);
 }
 
+void FLandscapeEditorDetails::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder, const TSharedRef<FLandscapeToolKit> LandscapeToolkit)
+{
+
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	CommandList = LandscapeEdMode->GetUICommandList();
+
+	TSharedPtr<INumericTypeInterface<float>> NumericInterface = MakeShareable(new FVariablePrecisionNumericInterface());
+
+	// Tool Strength
+	{
+		UProperty* ToolStrengthProperty = LandscapeEdMode->UISettings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, ToolStrength));
+		const FString& UIMinString = ToolStrengthProperty->GetMetaData("UIMin");
+		const FString& UIMaxString = ToolStrengthProperty->GetMetaData("UIMax");
+		const FString& SliderExponentString = ToolStrengthProperty->GetMetaData("SliderExponent");
+		float UIMin = TNumericLimits<float>::Lowest();
+		float UIMax = TNumericLimits<float>::Max();
+		TTypeFromString<float>::FromString(UIMin, *UIMinString);
+		TTypeFromString<float>::FromString(UIMax, *UIMaxString);
+		float SliderExponent = 1.0f;
+		if (SliderExponentString.Len())
+		{
+			TTypeFromString<float>::FromString(SliderExponent, *SliderExponentString);
+		}
+
+		TSharedRef<SWidget> StrengthControl = SNew(SSpinBox<float>)
+			.Style(&FEditorStyle::Get().GetWidgetStyle<FSpinBoxStyle>("LandscapeEditor.SpinBox"))
+			.PreventThrottling(true)
+			.MinValue(UIMin)
+			.MaxValue(UIMax)
+			.SliderExponent(SliderExponent)
+			.Font(FCoreStyle::GetDefaultFontStyle("Regular", 11))
+			.MinDesiredWidth(40.f)
+			.TypeInterface(NumericInterface)
+			.Justification(ETextJustify::Center)
+			.ContentPadding( FMargin(0.f, 2.f, 0.f, 0.f) )
+
+			.Visibility_Lambda( [ToolStrengthProperty, LandscapeToolkit]() -> EVisibility { return LandscapeToolkit->GetIsPropertyVisibleFromProperty(*ToolStrengthProperty) ? EVisibility::Visible : EVisibility::Collapsed;} )
+			.IsEnabled(this, &FLandscapeEditorDetails::IsBrushSetEnabled) 
+			.Value_Lambda([LandscapeEdMode]() -> float { return LandscapeEdMode->UISettings->ToolStrength; })
+			.OnValueChanged_Lambda([LandscapeEdMode](float NewValue) { LandscapeEdMode->UISettings->ToolStrength = NewValue; });
+
+		ToolBarBuilder.AddToolBarWidget( StrengthControl, LOCTEXT("BrushStrength", "Strength") );
+	}
+
+	//  Brush
+	FUIAction BrushSelectorUIAction;
+	BrushSelectorUIAction.IsActionVisibleDelegate.BindSP(this, &FLandscapeEditorDetails::GetBrushSelectorIsVisible);
+	BrushSelectorUIAction.CanExecuteAction.BindSP(this, &FLandscapeEditorDetails::IsBrushSetEnabled);
+
+	ToolBarBuilder.AddComboButton(
+		BrushSelectorUIAction,
+		FOnGetContent::CreateSP(this, &FLandscapeEditorDetails::GetBrushSelector),
+		TAttribute<FText>(this, &FLandscapeEditorDetails::GetCurrentBrushName),
+		LOCTEXT("BrushSelector.Tooltip", "Select Brush"),
+		TAttribute<FSlateIcon>(this, &FLandscapeEditorDetails::GetCurrentBrushIcon)
+		);
+
+	//  Brush Size 
+	{
+
+		UProperty* BrushRadiusProperty = LandscapeEdMode->UISettings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, BrushRadius));
+		const FString& UIMinString = BrushRadiusProperty->GetMetaData("UIMin");
+		const FString& UIMaxString = BrushRadiusProperty->GetMetaData("UIMax");
+		const FString& SliderExponentString = BrushRadiusProperty->GetMetaData("SliderExponent");
+		float UIMin = TNumericLimits<float>::Lowest();
+		float UIMax = TNumericLimits<float>::Max();
+		TTypeFromString<float>::FromString(UIMin, *UIMinString);
+		TTypeFromString<float>::FromString(UIMax, *UIMaxString);
+		float SliderExponent = 1.0f;
+		if (SliderExponentString.Len())
+		{
+			TTypeFromString<float>::FromString(SliderExponent, *SliderExponentString);
+		}
+
+		TSharedRef<SWidget> SizeControl = 
+			SNew(SSpinBox<float>)
+			.Style(&FEditorStyle::Get().GetWidgetStyle<FSpinBoxStyle>("LandscapeEditor.SpinBox"))
+			.Visibility_Lambda( [BrushRadiusProperty, LandscapeToolkit]() -> EVisibility { return LandscapeToolkit->GetIsPropertyVisibleFromProperty(*BrushRadiusProperty) ? EVisibility::Visible : EVisibility::Collapsed;} )
+			.IsEnabled(this, &FLandscapeEditorDetails::IsBrushSetEnabled) 
+			.PreventThrottling(true)
+			.Value_Lambda([LandscapeEdMode]() -> float { return LandscapeEdMode->UISettings->BrushRadius; })
+			.OnValueChanged_Lambda([LandscapeEdMode](float NewValue) { LandscapeEdMode->UISettings->BrushRadius = NewValue; })
+
+			.MinValue(UIMin)
+			.MaxValue(UIMax)
+			.SliderExponent(SliderExponent)
+			.Font(FCoreStyle::GetDefaultFontStyle("Regular", 11))
+			.MinDesiredWidth(40.f)
+			.TypeInterface(NumericInterface)
+			.Justification(ETextJustify::Center);
+		ToolBarBuilder.AddToolBarWidget( SizeControl, LOCTEXT("BrushRadius", "Radius") );
+	}
+
+	//  Brush Falloff Curve
+	FUIAction BrushFalloffSelectorUIAction;
+	BrushFalloffSelectorUIAction.IsActionVisibleDelegate.BindSP(this, &FLandscapeEditorDetails::GetBrushFalloffSelectorIsVisible);
+	BrushFalloffSelectorUIAction.CanExecuteAction.BindSP(this, &FLandscapeEditorDetails::IsBrushSetEnabled);
+	ToolBarBuilder.AddComboButton(
+		BrushFalloffSelectorUIAction,
+		FOnGetContent::CreateSP(this, &FLandscapeEditorDetails::GetBrushFalloffSelector),
+		TAttribute<FText>(this, &FLandscapeEditorDetails::GetCurrentBrushFalloffName),
+		LOCTEXT("BrushFalloffSelector.Tooltip", "Select Brush Falloff Type"),
+		TAttribute<FSlateIcon>(this, &FLandscapeEditorDetails::GetCurrentBrushFalloffIcon)
+		);
+
+	//  Brush Falloff Percentage 
+	{
+		UProperty* BrushFalloffProperty = LandscapeEdMode->UISettings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, BrushFalloff));
+
+		const FString& UIMinString = BrushFalloffProperty->GetMetaData("UIMin");
+		const FString& UIMaxString = BrushFalloffProperty->GetMetaData("UIMax");
+		const FString& SliderExponentString = BrushFalloffProperty->GetMetaData("SliderExponent");
+		float UIMin = TNumericLimits<float>::Lowest();
+		float UIMax = TNumericLimits<float>::Max();
+		TTypeFromString<float>::FromString(UIMin, *UIMinString);
+		TTypeFromString<float>::FromString(UIMax, *UIMaxString);
+		float SliderExponent = 1.0f;
+		if (SliderExponentString.Len())
+		{
+			TTypeFromString<float>::FromString(SliderExponent, *SliderExponentString);
+		}
+
+		TSharedRef<SWidget> FalloffControl = 
+			SNew(SSpinBox<float>)
+			.Style(&FEditorStyle::Get().GetWidgetStyle<FSpinBoxStyle>("LandscapeEditor.SpinBox"))
+			.Visibility_Lambda( [BrushFalloffProperty, LandscapeToolkit, this]() -> EVisibility { return GetBrushFalloffSelectorIsVisible() && LandscapeToolkit->GetIsPropertyVisibleFromProperty(*BrushFalloffProperty) ? EVisibility::Visible : EVisibility::Collapsed;} )
+			.IsEnabled(this, &FLandscapeEditorDetails::IsBrushSetEnabled) 
+			.PreventThrottling(true)
+			.Value_Lambda([LandscapeEdMode]() -> float { return LandscapeEdMode->UISettings->BrushFalloff; })
+			.OnValueChanged_Lambda([LandscapeEdMode](float NewValue) { LandscapeEdMode->UISettings->BrushFalloff = NewValue; })
+
+			.MinValue(UIMin)
+			.MaxValue(UIMax)
+			.SliderExponent(SliderExponent)
+			.Font(FCoreStyle::GetDefaultFontStyle("Regular", 11))
+			.MinDesiredWidth(40.f)
+			.TypeInterface(NumericInterface)
+			.Justification(ETextJustify::Center);
+
+		ToolBarBuilder.AddToolBarWidget( FalloffControl, LOCTEXT("BrushFalloff", "Falloff") );
+	}
+
+}
+
+
 FText FLandscapeEditorDetails::GetLocalizedName(FString Name)
 {
 	static bool bInitialized = false;
@@ -188,11 +339,13 @@ FText FLandscapeEditorDetails::GetLocalizedName(FString Name)
 		LOCTEXT("BrushSet_Pattern", "Pattern");
 		LOCTEXT("BrushSet_Component", "Component");
 		LOCTEXT("BrushSet_Gizmo", "Gizmo");
+		LOCTEXT("BrushSet_Dummy", "NoBrush");
 
 		LOCTEXT("Circle_Smooth", "Smooth");
 		LOCTEXT("Circle_Linear", "Linear");
 		LOCTEXT("Circle_Spherical", "Spherical");
 		LOCTEXT("Circle_Tip", "Tip");
+		LOCTEXT("Circle_Dummy", "NoBrush");
 	}
 
 	FText Result;
@@ -368,6 +521,11 @@ TSharedRef<SWidget> FLandscapeEditorDetails::GetToolSelector()
 
 bool FLandscapeEditorDetails::GetToolSelectorIsVisible() const
 {
+	if (!GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
+	{
+		return false;
+	}
+
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode && LandscapeEdMode->CurrentTool)
 	{
@@ -541,6 +699,12 @@ bool FLandscapeEditorDetails::GetBrushFalloffSelectorIsVisible() const
 	}
 
 	return false;
+}
+
+bool FLandscapeEditorDetails::IsBrushSetEnabled() const
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	return (LandscapeEdMode != nullptr && LandscapeEdMode->GetLandscapeList().Num() > 0);
 }
 
 #undef LOCTEXT_NAMESPACE

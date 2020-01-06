@@ -55,7 +55,7 @@ namespace DatasmithRevitExporter
 			ExtraTexturePaths = InExtraTexturePaths;
 
 			// Create a new Datasmith master material.
-			MasterMaterial = new FDatasmithFacadeMaterial(GetMaterialName(InMaterialNode, CurrentMaterial), MaterialLabel);
+			MasterMaterial = new FDatasmithFacadeMaterial(GetMaterialName(InMaterialNode, CurrentMaterial), GetMaterialLabel(InMaterialNode, CurrentMaterial));
 
 			// Hash the Datasmith master material name to shorten it.
 			MasterMaterial.HashName();

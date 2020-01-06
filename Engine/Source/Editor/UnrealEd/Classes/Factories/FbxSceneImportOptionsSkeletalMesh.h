@@ -54,6 +54,10 @@ class UFbxSceneImportOptionsSkeletalMesh : public UObject
 	UPROPERTY(EditAnywhere, config, Category = "SkeletalMesh|Thresholds", meta = (NoSpinbox = "true", ClampMin = "0.0", ClampMax = "1.0"))
 	float ThresholdUV;
 
+	/** Threshold to compare vertex position equality when computing morph target deltas. */
+	UPROPERTY(EditAnywhere, config, Category = "SkeletalMesh|Thresholds", meta = (NoSpinbox = "true", ClampMin = "0.0"))
+	float MorphThresholdPosition;
+
 	//////////////////////////////////////////////////////////////////////////
 	// Animation section
 

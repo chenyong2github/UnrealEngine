@@ -9,6 +9,7 @@
 class UGizmoArrowComponent;
 class UGizmoRectangleComponent;
 class UGizmoCircleComponent;
+class UGizmoLineHandleComponent;
 
 
 /**
@@ -26,7 +27,7 @@ public:
 	/** Add standard arrow component to Actor, generally used for axis-translation */
 	static UGizmoArrowComponent* AddDefaultArrowComponent(
 		UWorld* World, AActor* Actor,
-		const FLinearColor& Color, const FVector& LocalDirection
+		const FLinearColor& Color, const FVector& LocalDirection, const float Length = 80.0f
 	);
 	/** Add standard rectangle component to Actor, generally used for plane-translation */
 	static UGizmoRectangleComponent* AddDefaultRectangleComponent(
@@ -37,5 +38,12 @@ public:
 	static UGizmoCircleComponent* AddDefaultCircleComponent(
 		UWorld* World, AActor* Actor,
 		const FLinearColor& Color, const FVector& PlaneNormal
+	);
+
+	/** Add standard disk component to Actor, generally used for handles */
+	static UGizmoLineHandleComponent* AddDefaultLineHandleComponent(
+		UWorld* World, AActor* Actor,
+		const FLinearColor& Color, const FVector& PlaneNormal, const FVector& LocalDirection,
+		const float Length = 60.f, const bool bImageScale = false
 	);
 };

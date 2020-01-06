@@ -10,7 +10,7 @@
 /**
  * Implements a factory for ULevelSequence objects.
  */
-UCLASS(hidecategories=Object)
+UCLASS(BlueprintType, hidecategories=Object)
 class ULevelSequenceFactoryNew
 	: public UFactory
 {

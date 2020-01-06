@@ -44,7 +44,7 @@ void FIterativeSmoothingOp::Smooth()
 	for (int k = 0; k < SmoothIterations; ++k)
 	{
 		ParallelFor(NV, [=](int vid) {
-			if (ResultMesh->IsVertex(vid) == false)
+			if (ResultMesh->IsReferencedVertex(vid) == false)
 			{
 				return;
 			}

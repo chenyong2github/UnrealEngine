@@ -55,7 +55,8 @@ bool ProxyLOD::GenerateUVs(const FTextureAtlasDesc& TextureAtlasDesc,
 
 	// Verify the mesh is valid
 	{
-		HRESULT ValidateHR = DirectX::Validate(Indices.GetData(), NumFaces, NumVerts, AdjacencyArray.GetData(), DirectX::VALIDATE_BOWTIES, NULL);
+	
+		HRESULT ValidateHR = DirectX::Validate(Indices.GetData(), NumFaces, NumVerts, AdjacencyArray.GetData(), DirectX::VALIDATE_DEFAULT, NULL);
 		if (FAILED(ValidateHR))
 		{
 			return false;
@@ -265,6 +266,8 @@ bool ProxyLOD::GenerateUVs(FVertexDataMesh& InOutMesh, const FTextureAtlasDesc& 
 		DirectX::UVATLAS_DEFAULT, vb, ib,
 		&facePartitioning, &vertexRemapArray, &maxStretchUsed, &numChartsUsed);
 
+	delete[] pIMTArray;
+
 	if (MaxStretchOut)
 	{
 		*MaxStretchOut = maxStretchUsed;
@@ -275,7 +278,7 @@ bool ProxyLOD::GenerateUVs(FVertexDataMesh& InOutMesh, const FTextureAtlasDesc& 
 	}
 	if (FAILED(hr)) return false;
 
-	if (pIMTArray) delete[] pIMTArray;
+	
 	
 
 	// testing

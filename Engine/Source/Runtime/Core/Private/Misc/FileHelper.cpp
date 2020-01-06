@@ -782,8 +782,8 @@ bool FFileHelper::IsFilenameValidForSaving(const FString& Filename, FText& OutEr
 		}
 		else
 		{
-			OutError = FText::Format(NSLOCTEXT("UnrealEd", "Error_FilenameIsTooLongForCooking", "Filename '{0}' is too long; this may interfere with cooking for consoles.  Unreal filenames should be no longer than {1} characters."),
-				FText::FromString(BaseFilename), FText::AsNumber(FPlatformMisc::GetMaxPathLength()));
+			OutError = FText::Format(NSLOCTEXT("UnrealEd", "Error_FilenameIsTooLongForCooking", "Filename is too long ({0} characters); this may interfere with cooking for consoles. Unreal filenames should be no longer than {1} characters. Filename value: {2}"),
+				FText::AsNumber(BaseFilename.Len()), FText::AsNumber(FPlatformMisc::GetMaxPathLength()), FText::FromString(BaseFilename));
 		}
 	}
 	else

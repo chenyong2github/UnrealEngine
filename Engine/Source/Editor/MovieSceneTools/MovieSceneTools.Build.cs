@@ -26,9 +26,10 @@ public class MovieSceneTools : ModuleRules
                 "InputCore",
                 "MovieSceneCapture",
 				"UnrealEd",
-				"Sequencer"
-			}
-		);
+				"Sequencer",
+                "EditorWidgets",
+            }
+        );
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
@@ -50,7 +51,6 @@ public class MovieSceneTools : ModuleRules
 				"Slate",
 				"SlateCore",
                 "EditorStyle",
-				"EditorWidgets",
 				"PropertyEditor",
                 "MaterialEditor",
 				"RenderCore",

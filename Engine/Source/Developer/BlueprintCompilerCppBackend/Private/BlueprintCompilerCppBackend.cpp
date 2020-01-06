@@ -682,6 +682,26 @@ FString FBlueprintCompilerCppBackend::EmitMethodInputParameterList(FEmitterLocal
 		}
 	}
 
+	const bool bIsVariadic = Statement.FunctionToCall->HasMetaData(FBlueprintMetadata::MD_Variadic);
+	if (bIsVariadic)
+	{
+		// Variadic functions may have extra terms they need to emit after the main set of function arguments
+		// These are all considered wildcards so no type checking will be performed on them
+		// It is the responsibility of the thunk function to interpret their types correctly based on other function input
+		for (; NumParams < Statement.RHS.Num(); ++NumParams)
+		{
+			FBPTerminal* Term = Statement.RHS[NumParams];
+			check(Term);
+
+			if (NumParams > 0)
+			{
+				Result += TEXT(", ");
+			}
+
+			Result += TermToText(EmitterContext, Term, ENativizedTermUsage::UnspecifiedOrReference);
+		}
+	}
+
 	return Result;
 }
 

@@ -49,6 +49,7 @@ class UToolMenu;
 struct FToolMenuContext;
 class UK2Node_FunctionEntry;
 class UK2Node_Event;
+class UToolMenu;
 
 /* Enums to use when grouping the blueprint members in the list panel. The order here will determine the order in the list */
 namespace NodeSectionID

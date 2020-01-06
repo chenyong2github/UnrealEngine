@@ -7,6 +7,7 @@
 #include "Toolkits/IToolkitHost.h"
 #include "AssetTypeActions_Base.h"
 
+struct FTemplateSequenceToolkitParams;
 
 /**
  * Implements actions for UTemplateSequence assets.
@@ -33,6 +34,10 @@ public:
 	virtual bool ShouldForceWorldCentric() override;
 	virtual bool CanLocalize() const override { return false; }
 	virtual bool HasActions(const TArray<UObject*>& InObjects) const override { return false; }
+
+protected:
+
+	virtual void InitializeToolkitParams(FTemplateSequenceToolkitParams& ToolkitParams) const;
 
 private:
 

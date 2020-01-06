@@ -6,6 +6,7 @@
 #include "CurveEditorCommands.h"
 #include "CurveEditorSettings.h"
 #include "CurveDrawInfo.h"
+#include "CurveEditorCopyBuffer.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Editor.h"
@@ -22,6 +23,10 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Runtime/Core/Public/Algo/Transform.h"
+#include "UnrealExporter.h"
+#include "Exporters/Exporter.h"
+#include "Factories.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "SCurveEditor.h" // for access to LogCurveEditor
 
 #define LOCTEXT_NAMESPACE "CurveEditor"
@@ -239,6 +244,10 @@ void FCurveEditor::BindCommands()
 	CommandList->MapAction(FGenericCommands::Get().Undo,   FExecuteAction::CreateLambda([]{ GEditor->UndoTransaction(); }));
 	CommandList->MapAction(FGenericCommands::Get().Redo,   FExecuteAction::CreateLambda([]{ GEditor->RedoTransaction(); }));
 	CommandList->MapAction(FGenericCommands::Get().Delete, FExecuteAction::CreateSP(this, &FCurveEditor::DeleteSelection));
+
+	CommandList->MapAction(FGenericCommands::Get().Cut, FExecuteAction::CreateSP(this, &FCurveEditor::CutSelection));
+	CommandList->MapAction(FGenericCommands::Get().Copy, FExecuteAction::CreateSP(this, &FCurveEditor::CopySelection));
+	CommandList->MapAction(FGenericCommands::Get().Paste, FExecuteAction::CreateSP(this, &FCurveEditor::PasteKeys));
 
 	CommandList->MapAction(FCurveEditorCommands::Get().ZoomToFit, FExecuteAction::CreateSP(this, &FCurveEditor::ZoomToFit, EAxisList::All));
 
@@ -706,6 +715,324 @@ void FCurveEditor::ConstructXGridLines(TArray<float>& MajorGridLines, TArray<flo
 			{
 				float MinorLine = CurrentMajorLine + Step*MajorGridStep/MinorDivisions;
 				MinorGridLines.Add( (MinorLine - InputSpace.GetInputMin()) * InputSpace.PixelsPerInput() );
+			}
+		}
+	}
+}
+
+void FCurveEditor::CutSelection()
+{
+	FScopedTransaction Transaction(LOCTEXT("CutKeys", "Cut Keys"));
+
+	CopySelection();
+	DeleteSelection();
+}
+
+void FCurveEditor::GetChildCurveModelIDs(const FCurveEditorTreeItemID TreeItemID, TSet<FCurveModelID>& OutCurveModelIDs) const
+{
+	const FCurveEditorTreeItem& TreeItem = GetTreeItem(TreeItemID);
+	for (const FCurveModelID CurveModelID : TreeItem.GetCurves())
+	{
+		OutCurveModelIDs.Add(CurveModelID);
+	}
+
+	for (const FCurveEditorTreeItemID& ChildTreeItem : TreeItem.GetChildren())
+	{
+		GetChildCurveModelIDs(ChildTreeItem, OutCurveModelIDs);
+	}
+}
+
+void FCurveEditor::CopySelection() const
+{
+	FStringOutputDevice Archive;
+	const FExportObjectInnerContext Context;
+
+	TOptional<double> KeyOffset;
+
+	UCurveEditorCopyBuffer* CopyableBuffer = NewObject<UCurveEditorCopyBuffer>(GetTransientPackage(), UCurveEditorCopyBuffer::StaticClass(), NAME_None, RF_Transient);
+
+	if (Selection.Count() > 0)
+	{
+		for (const TTuple<FCurveModelID, FKeyHandleSet>& Pair : Selection.GetAll())
+		{
+			if (FCurveModel* Curve = FindCurve(Pair.Key))
+			{
+				int32 NumKeys = Pair.Value.Num();
+
+				if (NumKeys > 0)
+				{
+					UCurveEditorCopyableCurveKeys *CopyableCurveKeys = NewObject<UCurveEditorCopyableCurveKeys>(CopyableBuffer, UCurveEditorCopyableCurveKeys::StaticClass(), NAME_None, RF_Transient);
+
+					CopyableCurveKeys->ShortDisplayName = Curve->GetShortDisplayName().ToString();
+					CopyableCurveKeys->LongDisplayName = Curve->GetLongDisplayName().ToString();
+					CopyableCurveKeys->IntentionName = Curve->GetIntentionName();
+					CopyableCurveKeys->KeyPositions.SetNum(NumKeys, false);
+					CopyableCurveKeys->KeyAttributes.SetNum(NumKeys, false);
+
+					TArrayView<const FKeyHandle> KeyHandles = Pair.Value.AsArray();
+
+					Curve->GetKeyPositions(KeyHandles, CopyableCurveKeys->KeyPositions);
+					Curve->GetKeyAttributes(KeyHandles, CopyableCurveKeys->KeyAttributes);
+
+					for (int KeyIndex = 0; KeyIndex < CopyableCurveKeys->KeyPositions.Num(); ++KeyIndex)
+					{
+						if (!KeyOffset.IsSet() || CopyableCurveKeys->KeyPositions[KeyIndex].InputValue < KeyOffset.GetValue())
+						{
+							KeyOffset = CopyableCurveKeys->KeyPositions[KeyIndex].InputValue;
+						}
+					}
+
+					CopyableBuffer->Curves.Add(CopyableCurveKeys);
+				}
+			}
+		}
+	}
+	else
+	{
+		TSet<FCurveModelID> CurveModelIDs;
+
+		for (const TTuple<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState> Pair : GetTreeSelection())
+		{
+			if (Pair.Value == ECurveEditorTreeSelectionState::Explicit)
+			{
+				GetChildCurveModelIDs(Pair.Key, CurveModelIDs);
+			}
+		}
+
+		for(const FCurveModelID CurveModelID : CurveModelIDs)
+		{
+			if (FCurveModel* Curve = FindCurve(CurveModelID))
+			{
+				TUniquePtr<IBufferedCurveModel> CurveModelCopy = Curve->CreateBufferedCurveCopy();
+				if (CurveModelCopy)
+				{
+					TArray<FKeyPosition> KeyPositions;
+					CurveModelCopy->GetKeyPositions(KeyPositions);
+					if (KeyPositions.Num() > 0)
+					{
+						UCurveEditorCopyableCurveKeys *CopyableCurveKeys = NewObject<UCurveEditorCopyableCurveKeys>(CopyableBuffer, UCurveEditorCopyableCurveKeys::StaticClass(), NAME_None, RF_Transient);
+
+						CopyableCurveKeys->ShortDisplayName = Curve->GetShortDisplayName().ToString();
+						CopyableCurveKeys->LongDisplayName = Curve->GetLongDisplayName().ToString();
+						CopyableCurveKeys->IntentionName = Curve->GetIntentionName();
+
+						CopyableCurveKeys->KeyPositions = KeyPositions;
+						CurveModelCopy->GetKeyAttributes(CopyableCurveKeys->KeyAttributes);
+
+						CopyableBuffer->Curves.Add(CopyableCurveKeys);
+					}
+				}
+			}
+		}
+
+		// When copying entire curve objects we want absolute positions, so reset the detected offset
+		KeyOffset.Reset();
+	}
+
+	if (KeyOffset.IsSet())
+	{
+		for (UCurveEditorCopyableCurveKeys* Curve : CopyableBuffer->Curves)
+		{
+			for (int Index = 0; Index < Curve->KeyPositions.Num(); ++Index)
+			{
+				Curve->KeyPositions[Index].InputValue -= KeyOffset.GetValue();
+			}
+		}
+
+		CopyableBuffer->TimeOffset = KeyOffset.GetValue();
+	}
+	else
+	{
+		CopyableBuffer->bAbsolutePosition = true;
+	}
+
+
+	UExporter::ExportToOutputDevice(&Context, CopyableBuffer, nullptr, Archive, TEXT("copy"), 0, PPF_ExportsNotFullyQualified | PPF_Copy | PPF_Delimited, false, CopyableBuffer);
+	FPlatformApplicationMisc::ClipboardCopy(*Archive);
+}
+
+class FCurveEditorCopyableCurveKeysObjectTextFactory : public FCustomizableTextObjectFactory
+{
+public:
+	FCurveEditorCopyableCurveKeysObjectTextFactory()
+		: FCustomizableTextObjectFactory(GWarn)
+	{
+	}
+
+	// FCustomizableTextObjectFactory implementation
+	virtual bool CanCreateClass(UClass* InObjectClass, bool& bOmitSubObjs) const override
+	{
+		if (InObjectClass->IsChildOf(UCurveEditorCopyBuffer::StaticClass()))
+		{
+			return true;
+		}
+		return false;
+	}
+
+
+	virtual void ProcessConstructedObject(UObject* NewObject) override
+	{
+		check(NewObject);
+
+		NewCopyBuffers.Add(Cast<UCurveEditorCopyBuffer>(NewObject));
+	}
+
+public:
+	TArray<UCurveEditorCopyBuffer*> NewCopyBuffers;
+};
+
+
+bool FCurveEditor::CanPaste(const FString& TextToImport) const
+{
+	FCurveEditorCopyableCurveKeysObjectTextFactory CopyableCurveKeysFactory;
+	if (CopyableCurveKeysFactory.CanCreateObjectsFromText(TextToImport))
+	{
+		return true;
+	}
+	return false;
+}
+
+void FCurveEditor::ImportCopyBufferFromText(const FString& TextToImport, /*out*/ TArray<UCurveEditorCopyBuffer*>& ImportedCopyBuffers) const
+{
+	UPackage* TempPackage = NewObject<UPackage>(nullptr, TEXT("/Engine/Editor/CurveEditor/Transient"), RF_Transient);
+	TempPackage->AddToRoot();
+
+	// Turn the text buffer into objects
+	FCurveEditorCopyableCurveKeysObjectTextFactory Factory;
+	Factory.ProcessBuffer(TempPackage, RF_Transactional, TextToImport);
+
+	ImportedCopyBuffers = Factory.NewCopyBuffers;
+
+	// Remove the temp package from the root now that it has served its purpose
+	TempPackage->RemoveFromRoot();
+}
+
+void FCurveEditor::PasteKeys()
+{
+	// Grab the text to paste from the clipboard
+	FString TextToImport;
+	FPlatformApplicationMisc::ClipboardPaste(TextToImport);
+
+	TArray<UCurveEditorCopyBuffer*> ImportedCopyBuffers;
+	ImportCopyBufferFromText(TextToImport, ImportedCopyBuffers);
+
+	if (ImportedCopyBuffers.Num() == 0)
+	{
+		return;
+	}
+
+	bool bSelectionNeedsLongNames = false;
+	FCurveEditorTreeItemID LastRootItem;
+
+	for (const TTuple<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState> Pair : GetTreeSelection())
+	{
+		FCurveEditorTreeItem* TreeItem = &GetTreeItem(Pair.Key);
+
+		FCurveEditorTreeItemID ParentId = TreeItem->GetParentID();
+		while (ParentId.IsValid())
+		{
+			TreeItem = &GetTreeItem(ParentId);
+			ParentId = TreeItem->GetParentID();
+		}
+
+		if (!LastRootItem.IsValid())
+		{
+			LastRootItem = TreeItem->GetID();
+		}
+		else if (TreeItem->GetID() != LastRootItem)
+		{
+			bSelectionNeedsLongNames = true;
+			break;
+		}
+	}
+
+	TArray<FCurveEditorTreeItemID> NodesToSearch;
+	if (GetTreeSelection().GetKeys(NodesToSearch) == 0)
+	{
+		// If no curves are selected, paste to the entire tree using fully qualifed long names
+		bSelectionNeedsLongNames = true;
+		if (Tree.GetAllItems().GetKeys(NodesToSearch) == 0)
+		{
+			// If we don't have any curves to paste in to, exit now
+			return;
+		}
+	}
+
+	FScopedTransaction Transaction(LOCTEXT("PasteKeys", "Paste Keys"));
+
+	Selection.Clear();
+
+	// We don't expect/want multiple copy buffers, but the way serialization works it's a possibile edge case,
+	// so we'll try to handle it sanely and treat each one as an individual block to paste.
+	for (UCurveEditorCopyBuffer* CopyBuffer : ImportedCopyBuffers)
+	{
+		bool bUseLongDisplayName = bSelectionNeedsLongNames;
+		if (!bUseLongDisplayName)
+		{
+			TOptional<FString> LastRootName;
+			for (UCurveEditorCopyableCurveKeys* CopyableCurveKeys : CopyBuffer->Curves)
+			{
+				FString RootName;
+				CopyableCurveKeys->LongDisplayName.Split(".", &RootName, nullptr);
+				if (!LastRootName.IsSet())
+				{
+					LastRootName = RootName;
+				}
+				else if (!LastRootName.GetValue().Equals(RootName))
+				{
+					bUseLongDisplayName = true;
+					break;
+				}
+			}
+		}
+
+		double TimeOffset = 0.0f;
+		bool bApplyOffset = !CopyBuffer->bAbsolutePosition;
+
+		if (bApplyOffset)
+		{
+			if (WeakTimeSliderController.IsValid())
+			{
+				FFrameRate TickResolution = WeakTimeSliderController.Pin()->GetTickResolution();
+
+				TimeOffset = WeakTimeSliderController.Pin()->GetScrubPosition() / TickResolution;
+			}
+			else
+			{
+				TimeOffset = CopyBuffer->TimeOffset;
+			}
+		}
+
+		for (const FCurveEditorTreeItemID TreeItemID: NodesToSearch)
+		{
+			FCurveEditorTreeItem& TreeItem = GetTreeItem(TreeItemID);
+			for (const FCurveModelID CurveModelID : TreeItem.GetCurves())
+			{
+				FCurveModel* Curve = FindCurve(CurveModelID);
+				const FString CurveLongDisplayName = Curve->GetLongDisplayName().ToString();
+				const FString CurveIntentionName = Curve->GetIntentionName();
+
+				for (UCurveEditorCopyableCurveKeys* CopyableCurveKeys : CopyBuffer->Curves)
+				{
+					if ((!bUseLongDisplayName && CurveIntentionName.Equals(CopyableCurveKeys->IntentionName))
+						|| (bUseLongDisplayName && CurveLongDisplayName.Equals(CopyableCurveKeys->LongDisplayName)))
+					{
+						for (int32 Index = 0; Index < CopyableCurveKeys->KeyPositions.Num(); ++Index)
+						{
+							FKeyPosition KeyPosition = CopyableCurveKeys->KeyPositions[Index];
+							if (bApplyOffset)
+							{
+								KeyPosition.InputValue += TimeOffset;
+							}
+
+							TOptional<FKeyHandle> KeyHandle = Curve->AddKey(KeyPosition, CopyableCurveKeys->KeyAttributes[Index]);
+							if (KeyHandle.IsSet())
+							{
+								Selection.Add(FCurvePointHandle(CurveModelID, ECurvePointType::Key, KeyHandle.GetValue()));
+							}
+						}
+					}
+				}
 			}
 		}
 	}

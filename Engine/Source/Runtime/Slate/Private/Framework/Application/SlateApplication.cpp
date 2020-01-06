@@ -1345,9 +1345,20 @@ void FSlateApplication::Tick(ESlateTickType TickType)
 
 		if (TickType == ESlateTickType::All)
 		{
+#if WITH_ACCESSIBILITY
+			// We ensure to only call this in TickType::All to avoid the movie thread also calling this unnecessarily 
+			GetAccessibleMessageHandler()->ProcessAccessibleTasks();
+#endif
 			TickPlatform(DeltaTime);
 		}
 		TickApplication(TickType, DeltaTime);
+#if WITH_ACCESSIBILITY
+		if (TickType == ESlateTickType::All)
+		{
+			// we call this again to improve the responsiveness of accessibility navigation and announcements 
+			GetAccessibleMessageHandler()->ProcessAccessibleTasks();
+		}
+#endif
 	}
 }
 
@@ -1371,7 +1382,6 @@ void FSlateApplication::TickPlatform(float DeltaTime)
 		}
 
 		PlatformApplication->Tick(DeltaTime);
-
 		PlatformApplication->ProcessDeferredEvents(DeltaTime);
 	}
 }
@@ -1470,7 +1480,7 @@ void FSlateApplication::TickApplication(ESlateTickType TickType, float DeltaTime
 		// This relies on Widgets properly registering for Active timer when they need something to happen even
 		// when the user is not providing any input (ie, animations, viewport rendering, async polling, etc).
 		bIsSlateAsleep = true;
-		if (!AllowSlateToSleep.GetValueOnGameThread() || bAnyActiveTimersPending || !bIsUserIdle || bSynthesizedCursorMove || FApp::UseVRFocus())
+		if	(!AllowSlateToSleep.GetValueOnGameThread() || bAnyActiveTimersPending || !bIsUserIdle || bSynthesizedCursorMove || FApp::UseVRFocus())
 		{
 			bIsSlateAsleep = false; // if we get here, then Slate is not sleeping
 

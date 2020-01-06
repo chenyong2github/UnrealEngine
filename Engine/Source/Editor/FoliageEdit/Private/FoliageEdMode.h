@@ -529,16 +529,6 @@ public:
 	typedef TMap<FName, TMap<ULandscapeComponent*, TArray<uint8> > > LandscapeLayerCacheData;
 
 	FSimpleMulticastDelegate OnToolChanged;
-private:
-
-	void BindCommands();
-	bool CurrentToolUsesBrush() const;
-
-	/** Called when the user changes the current tool in the UI */
-	void HandleToolChanged();
-
-	/** Deselects all tools */
-	void ClearAllToolSelection();
 
 	/** Sets the tool mode to Paint. */
 	void OnSetPaint();
@@ -554,6 +544,20 @@ private:
 
 	/** Sets the tool mode to Paint Bucket. */
 	void OnSetPaintFill();
+
+	/** Remove currently selected instances*/
+	void RemoveSelectedInstances(UWorld* InWorld);
+			
+private:
+
+	void BindCommands();
+	bool CurrentToolUsesBrush() const;
+
+	/** Called when the user changes the current tool in the UI */
+	void HandleToolChanged();
+
+	/** Deselects all tools */
+	void ClearAllToolSelection();
 
 	/** Add instances inside the brush to match DesiredInstanceCount */
 	void AddInstancesForBrush(UWorld* InWorld, const UFoliageType* Settings, const FSphere& BrushSphere, int32 DesiredInstanceCount, float Pressure);
@@ -605,9 +609,6 @@ private:
 	/**  Updates ed mode widget location to currently selected instance */
 	void UpdateWidgetLocationToInstanceSelection();
 
-	/** Remove currently selected instances*/
-	void RemoveSelectedInstances(UWorld* InWorld);
-			
 	/** Snap instance to the ground   */
 	bool SnapInstanceToGround(AInstancedFoliageActor* InIFA, float AlignMaxAngle, FFoliageInfo& Mesh, int32 InstanceIdx);
 	void SnapSelectedInstancesToGround(UWorld* InWorld);

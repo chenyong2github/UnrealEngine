@@ -8,6 +8,7 @@
 #include "Misc/ScopeLock.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Misc/DefaultValueHelper.h"
 #include "Modules/ModuleManager.h"
 #include "Async/Future.h"
 #include "Async/Async.h"
@@ -122,7 +123,7 @@ void UImageSequenceProtocol::ProcessFrame(FCapturedFrameData Frame)
 	TUniquePtr<FImageWriteTask> ImageTask = MakeUnique<FImageWriteTask>();
 
 	// Move the color buffer into a raw image data container that we can pass to the write queue
-	ImageTask->PixelData = MakeUnique<TImagePixelData<FColor>>(Frame.BufferSize, MoveTemp(Frame.ColorBuffer));
+	ImageTask->PixelData = MakeUnique<TImagePixelData<FColor>>(Frame.BufferSize, TArray64<FColor>(MoveTemp(Frame.ColorBuffer)));
 	if (Format == EImageFormat::PNG)
 	{
 		// Always write full alpha for PNGs
@@ -179,8 +180,24 @@ bool UImageSequenceProtocol_EXR::SetupImpl()
 {
 	{
 		int32 OverrideCaptureGamut = (int32)CaptureGamut;
-		FParse::Value(FCommandLine::Get(), TEXT("-CaptureGamut="), OverrideCaptureGamut);
-		CaptureGamut = (EHDRCaptureGamut)OverrideCaptureGamut;
+		FString CaptureGamutString;
+
+		if (FParse::Value(FCommandLine::Get(), TEXT("-CaptureGamut="), CaptureGamutString))
+		{
+			if (!FDefaultValueHelper::ParseInt(CaptureGamutString, OverrideCaptureGamut))
+			{
+				OverrideCaptureGamut = StaticEnum<EHDRCaptureGamut>()->GetValueByName(FName(*CaptureGamutString));
+			}
+			// Invalid CaptureGamut will crash (see UImageSequenceProtocol_EXR::AddFormatMappingsImpl), so only set if valid.
+			if (OverrideCaptureGamut > INDEX_NONE && OverrideCaptureGamut < EHDRCaptureGamut::HCGM_MAX)
+			{
+				CaptureGamut = (EHDRCaptureGamut)OverrideCaptureGamut;
+			}
+			else
+			{
+				UE_LOG(LogMovieSceneCapture, Warning, TEXT("The value for the command -CaptureGamut is invalid, using default value instead!"))
+			}
+		}
 	}
 
 	int32 HDRCompressionQuality = 0;

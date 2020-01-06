@@ -16,7 +16,7 @@
 
 /**
  * FMeshChange represents an undoable change to a FDynamicMesh3.
- * Currently only valid to call Apply/Revert when the Object is a USimpleDynamicMeshComponent
+ * Currently only valid to call Apply/Revert when the Object is a one of several components backed by FDynamicMesh: USimpleDynamicMeshComponent, UOctreeDynamicMeshComponent, UPreviewMesh
  */
 class MODELINGCOMPONENTS_API FMeshChange : public FToolCommandChange
 {

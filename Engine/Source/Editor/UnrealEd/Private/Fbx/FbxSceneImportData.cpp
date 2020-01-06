@@ -124,7 +124,7 @@ UnFbx::FBXImportOptions *JSONToFbxOption(TSharedPtr<FJsonValue> OptionJsonValue,
 	
 	if (OptionObj->TryGetObjectField("OverlappingThresholds", DataObj))
 	{
-		double Pos, NTB, UV;
+		double Pos, NTB, UV, MorphPos;
 		if ((*DataObj)->TryGetNumberField("ThresholdPosition", Pos))
 		{
 			Option->OverlappingThresholds.ThresholdPosition = (float)Pos;
@@ -136,6 +136,10 @@ UnFbx::FBXImportOptions *JSONToFbxOption(TSharedPtr<FJsonValue> OptionJsonValue,
 		if ((*DataObj)->TryGetNumberField("ThresholdUV", UV))
 		{
 			Option->OverlappingThresholds.ThresholdUV = (float)UV;
+		}
+		if ((*DataObj)->TryGetNumberField("MorphThresholdPosition", MorphPos))
+		{
+			Option->OverlappingThresholds.MorphThresholdPosition = (float)MorphPos;
 		}
 	}
 
@@ -201,7 +205,7 @@ FString FbxOptionToJSON(FString OptionName, UnFbx::FBXImportOptions *Option)
 		);
 
 	//Skeletal mesh options
-	JsonString += FString::Printf(TEXT("\"bUpdateSkeletonReferencePose\" : \"%d\", \"bUseT0AsRefPose\" : \"%d\", \"bPreserveSmoothingGroups\" : \"%d\", \"bImportMeshesInBoneHierarchy\" : \"%d\", \"bImportMorphTargets\" : \"%d\", \"OverlappingThresholds\" : {\"ThresholdPosition\" : \"%f\", \"ThresholdTangentNormal\" : \"%f\", \"ThresholdUV\" : \"%f\"},"),
+	JsonString += FString::Printf(TEXT("\"bUpdateSkeletonReferencePose\" : \"%d\", \"bUseT0AsRefPose\" : \"%d\", \"bPreserveSmoothingGroups\" : \"%d\", \"bImportMeshesInBoneHierarchy\" : \"%d\", \"bImportMorphTargets\" : \"%d\", \"OverlappingThresholds\" : {\"ThresholdPosition\" : \"%f\", \"ThresholdTangentNormal\" : \"%f\", \"ThresholdUV\" : \"%f\", \"MorphThresholdPosition\" : \"%f\"},"),
 		Option->bUpdateSkeletonReferencePose ? 1 : 0,
 		Option->bUseT0AsRefPose ? 1 : 0,
 		Option->bPreserveSmoothingGroups ? 1 : 0,
@@ -209,7 +213,8 @@ FString FbxOptionToJSON(FString OptionName, UnFbx::FBXImportOptions *Option)
 		Option->bImportMorph ? 1 : 0,
 		Option->OverlappingThresholds.ThresholdPosition,
 		Option->OverlappingThresholds.ThresholdTangentNormal,
-		Option->OverlappingThresholds.ThresholdUV
+		Option->OverlappingThresholds.ThresholdUV,
+		Option->OverlappingThresholds.MorphThresholdPosition
 		);
 
 	JsonString += FString::Printf(TEXT("\"MaterialBasePath\" : \"%s\"}"), *(Option->MaterialBasePath.ToString()));

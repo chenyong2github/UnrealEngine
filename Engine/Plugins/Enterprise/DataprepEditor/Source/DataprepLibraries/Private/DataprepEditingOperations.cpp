@@ -20,7 +20,6 @@
 #include "GenericPlatform/GenericPlatformTime.h"
 #include "IMeshBuilderModule.h"
 #include "IMeshMergeUtilities.h"
-#include "Layers/ILayers.h"
 #include "LevelSequence.h"
 #include "Materials/MaterialInstance.h"
 #include "MeshMergeModule.h"

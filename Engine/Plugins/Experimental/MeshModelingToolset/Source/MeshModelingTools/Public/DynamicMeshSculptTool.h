@@ -9,13 +9,16 @@
 #include "DynamicMeshAABBTree3.h"
 #include "DynamicMeshOctree3.h"
 #include "MeshNormals.h"
-#include "BaseBrushTool.h"
-#include "Drawing/ToolDataVisualizer.h"
+#include "BaseTools/BaseBrushTool.h"
+#include "ToolDataVisualizer.h"
 #include "Changes/ValueWatcher.h"
-#include "Gizmos/BrushStampIndicator.h"
+#include "BaseGizmos/BrushStampIndicator.h"
 #include "Properties/MeshMaterialProperties.h"
 #include "TransformTypes.h"
 #include "DynamicMeshSculptTool.generated.h"
+
+class UTransformGizmo;
+class UTransformProxy;
 
 
 DECLARE_STATS_GROUP(TEXT("SculptTool"), STATGROUP_SculptTool, STATCAT_Advanced);
@@ -70,6 +73,8 @@ enum class EDynamicMeshSculptBrushType : uint8
 	/** Plane Brush pulls vertices to a plane defined by the initial brush position  */
 	Plane UMETA(DisplayName = "Plane"),
 
+	/** FixedPlane Brush pulls vertices to a fixed plane defined by the gizmo */
+	FixedPlane UMETA(DisplayName = "FixedPlane"),
 
 	LastValue UMETA(Hidden)
 
@@ -138,9 +143,40 @@ public:
 	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (EditCondition = "PrimaryBrushType == EDynamicMeshSculptBrushType::Sculpt || PrimaryBrushType == EDynamicMeshSculptBrushType::SculptMax || PrimaryBrushType == EDynamicMeshSculptBrushType::Pinch" ))
 	bool bFreezeTarget;
 
+	/** Hit back sides of triangles */
+	UPROPERTY(EditAnywhere, Category = Sculpting)
+	bool bHitBackFaces;
+
 	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
 	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
+};
 
+
+
+UCLASS()
+class MESHMODELINGTOOLS_API UFixedPlaneBrushProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+	UFixedPlaneBrushProperties();
+
+	UPROPERTY()
+	bool bPropertySetEnabled = true;
+
+	/** Toggle whether interactive plane gizmo is visible */
+	UPROPERTY(EditAnywhere, Category = TargetPlane, meta = (EditCondition = "bPropertySetEnabled == true"))
+	bool bShowGizmo;
+
+	/** Toggle whether fixed plane snaps to grid */
+	UPROPERTY(EditAnywhere, Category = TargetPlane, meta = (EditCondition = "bPropertySetEnabled == true"))
+	bool bSnapToGrid;
+
+	UPROPERTY(EditAnywhere, Category = TargetPlane, AdvancedDisplay, meta = (EditCondition = "bPropertySetEnabled == true"))
+	FVector Position;
+
+	virtual void SaveProperties(UInteractiveTool* SaveFromTool) override;
+	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
 };
 
 
@@ -241,6 +277,8 @@ public:
 	UPROPERTY()
 	UMeshEditingViewProperties* ViewProperties;
 
+	UPROPERTY()
+	UFixedPlaneBrushProperties* GizmoProperties;
 
 public:
 
@@ -307,7 +345,7 @@ protected:
 	TArray<int> VertexROI;
 	TSet<int> VertexSetBuffer;
 	TSet<int> TriangleROI;
-	void UpdateROI(const FVector& BrushPos);
+	void UpdateROI(const FVector3d& BrushPos);
 
 	bool bRemeshPending;
 	bool bNormalUpdatePending;
@@ -315,6 +353,7 @@ protected:
 
 	bool bSmoothing;
 	bool bInvert;
+	float ActivePressure = 1.0f;
 
 	bool bHaveRemeshed;
 
@@ -332,6 +371,9 @@ protected:
 	void UpdateTarget();
 	bool GetTargetMeshNearest(const FVector3d& Position, double SearchRadius, FVector3d& TargetPosOut, FVector3d& TargetNormalOut);
 
+	int FindHitSculptMeshTriangle(const FRay3d& LocalRay);
+	int FindHitTargetMeshTriangle(const FRay3d& LocalRay);
+
 	bool UpdateBrushPositionOnActivePlane(const FRay& WorldRay);
 	bool UpdateBrushPositionOnTargetMesh(const FRay& WorldRay);
 	bool UpdateBrushPositionOnSculptMesh(const FRay& WorldRay);
@@ -343,6 +385,7 @@ protected:
 	void ApplyPinchBrush(const FRay& WorldRay);
 	void ApplyInflateBrush(const FRay& WorldRay);
 	void ApplyPlaneBrush(const FRay& WorldRay);
+	void ApplyFixedPlaneBrush(const FRay& WorldRay);
 	void ApplyFlattenBrush(const FRay& WorldRay);
 
 	double CalculateBrushFalloff(double Distance);
@@ -377,6 +420,32 @@ protected:
 	TArray<EDynamicMeshSculptBrushType> BrushTypeHistory;
 	int BrushTypeHistoryIndex = 0;
 
+	UPreviewMesh* MakeDefaultSphereMesh(UObject* Parent, UWorld* World, int Resolution = 32);
+
+
+	//
+	// support for gizmo in FixedPlane mode
+	//
+
+	// plane gizmo
+	UPROPERTY()
+	UTransformGizmo* PlaneTransformGizmo;
+
+	UPROPERTY()
+	UTransformProxy* PlaneTransformProxy;
+
+	/** Orientation of plane we will draw polygon on */
+	UPROPERTY()
+	FQuat DrawPlaneOrientation;
+
+	void PlaneTransformChanged(UTransformProxy* Proxy, FTransform Transform);
+
+	bool bPendingSetFixedPlanePosition = false;
+	void SetFixedSculptPlaneFromWorldPos(const FVector& Position);
+
+	void UpdateFixedSculptPlanePosition(const FVector& Position);
+
+	void UpdateFixedPlaneGizmoVisibility(bool bVisible);
 };
 
 

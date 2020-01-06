@@ -54,7 +54,7 @@ bool UMorphTarget::HasValidData() const
 
 #if WITH_EDITOR
 
-void UMorphTarget::PopulateDeltas(const TArray<FMorphTargetDelta>& Deltas, const int32 LODIndex, const TArray<FSkelMeshSection>& Sections, const bool bCompareNormal, const bool bGeneratedByReductionSetting)
+void UMorphTarget::PopulateDeltas(const TArray<FMorphTargetDelta>& Deltas, const int32 LODIndex, const TArray<FSkelMeshSection>& Sections, const bool bCompareNormal, const bool bGeneratedByReductionSetting, const float PositionThreshold)
 {
 	// create the LOD entry if it doesn't already exist
 	if (LODIndex >= MorphLODModels.Num())
@@ -80,7 +80,7 @@ void UMorphTarget::PopulateDeltas(const TArray<FMorphTargetDelta>& Deltas, const
 	// Still keep this (could remove in long term due to incoming data)
 	for (const FMorphTargetDelta& Delta : Deltas)
 	{
-		if (Delta.PositionDelta.SizeSquared() > FMath::Square(THRESH_POINTS_ARE_NEAR) || 
+		if (Delta.PositionDelta.SizeSquared() > FMath::Square(PositionThreshold) ||
 			( bCompareNormal && Delta.TangentZDelta.SizeSquared() > 0.01f))
 		{
 			MorphModel.Vertices.Add(Delta);

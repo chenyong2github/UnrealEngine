@@ -41,7 +41,8 @@ SGenerateUV::~SGenerateUV()
 	SetPreviewModeActivated(false);
 	SettingObjectUIHolder->OnUVSettingsRefreshNeeded().RemoveAll(this);
 	SettingObjectUIHolder->RemoveFromRoot();
-
+	SetPreviewModeActivated(false);
+	
 	if (StaticMeshEditorPtr.IsValid())
 	{
 		StaticMeshEditorPtr.Pin()->UnRegisterOnSelectedLODChanged(this);

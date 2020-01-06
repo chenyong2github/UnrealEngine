@@ -41,4 +41,13 @@ class UEditConditionTestObject : public UObject
 
 	UPROPERTY(EditAnywhere, Category=Test)
 	uint8 UintBitfieldProperty : 1;
+
+	UPROPERTY(EditAnywhere, Category=Test)
+	UObject* UObjectPtr;
+
+	UPROPERTY(EditAnywhere, Category=Test)
+	TSoftClassPtr<UObject> SoftClassPtr;
+
+	UPROPERTY(EditAnywhere, Category=Test)
+	TWeakObjectPtr<UObject> WeakObjectPtr;
 };

@@ -23,6 +23,8 @@
 #include "LevelEditorViewport.h"
 #include "InteractiveToolManager.h"
 #include "InteractiveToolObjects.h"
+#include "Editor/EditorEngine.h"
+#include "GameFramework/Actor.h"
 
 
 class FEdModeQueriesImpl : public IToolsContextQueriesAPI
@@ -41,9 +43,42 @@ public:
 	void CacheCurrentViewState(FEditorViewportClient* ViewportClient)
 	{
 		FViewportCameraTransform ViewTransform = ViewportClient->GetViewTransform();
-		CachedViewState.Position = ViewTransform.GetLocation();
-		CachedViewState.Orientation = ViewTransform.GetRotation().Quaternion();
 		CachedViewState.bIsOrthographic = ViewportClient->IsOrtho();
+		CachedViewState.Position = ViewTransform.GetLocation();
+
+		// ViewTransform rotation is only initialized for perspective!
+		if (CachedViewState.bIsOrthographic == false)
+		{
+			CachedViewState.Orientation = ViewTransform.GetRotation().Quaternion();
+		}
+		else
+		{
+			// These rotations are based on hardcoded values in EditorViewportClient.cpp, see switches in FEditorViewportClient::CalcSceneView and FEditorViewportClient::Draw
+			switch (ViewportClient->ViewportType)
+			{
+			case LVT_OrthoXY:
+				CachedViewState.Orientation = FQuat(FRotator(-90.0f, -90.0f, 0.0f));
+				break;
+			case LVT_OrthoNegativeXY:
+				CachedViewState.Orientation = FQuat(FRotator(90.0f, 90.0f, 0.0f));
+				break;
+			case LVT_OrthoXZ:
+				CachedViewState.Orientation = FQuat(FRotator(0.0f, -90.0f, 0.0f));
+				break;
+			case LVT_OrthoNegativeXZ:
+				CachedViewState.Orientation = FQuat(FRotator(0.0f, 90.0f, 0.0f));
+				break;
+			case LVT_OrthoYZ:
+				CachedViewState.Orientation = FQuat(FRotator(0.0f, 0.0f, 0.0f));
+				break;
+			case LVT_OrthoNegativeYZ:
+				CachedViewState.Orientation = FQuat(FRotator(0.0f, 180.0f, 0.0f));
+				break;
+			default:
+				CachedViewState.Orientation = FQuat::Identity;
+			}
+		}
+
 		CachedViewState.bIsVR = false;
 	}
 
@@ -52,8 +87,11 @@ public:
 		StateOut.ToolManager = ToolsContext->ToolManager;
 		StateOut.GizmoManager = ToolsContext->GizmoManager;
 		StateOut.World = GEditor->GetWorld();
-		GEditor->GetSelectedActors()->GetSelectedObjects(StateOut.SelectedActors);
-		GEditor->GetSelectedComponents()->GetSelectedObjects(StateOut.SelectedComponents);
+		USelection* SelectionActorSet = GEditor->GetSelectedActors();
+		SelectionActorSet->GetSelectedObjects(StateOut.SelectedActors);
+		USelection* SelectionComponentSet = GEditor->GetSelectedComponents();
+		SelectionComponentSet->GetSelectedObjects(StateOut.SelectedComponents);
+
 	}
 
 
@@ -345,6 +383,9 @@ UEdMode::UEdMode()
 {
 	bDrawKillZ = true;
 	ToolsContext = nullptr;
+	ToolsContextClass = UInteractiveToolsContext::StaticClass();
+	ToolCommandList = MakeShareable(new FUICommandList);
+	bCheckIfDefaultToolNeeded = true;
 }
 
 
@@ -378,8 +419,6 @@ FRay UEdMode::GetRayFromMousePos(FEditorViewportClient* ViewportClient, FViewpor
 
 	return FRay(MouseViewportRay.GetOrigin(), MouseViewportRay.GetDirection(), true);
 }
-
-
 
 bool UEdMode::MouseEnter(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y)
 {
@@ -592,6 +631,14 @@ bool UEdMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewpor
 
 	if(!bHandled)
 	{
+
+		if (Event != IE_Released)
+		{
+			if (ToolCommandList->ProcessCommandBindings(Key, FSlateApplication::Get().GetModifierKeys(), false/*Event == IE_Repeat*/))
+			{
+				return true;
+			}
+		}
 		// Next pass input to the mode toolkit
 		if (Toolkit.IsValid() && ((Event == IE_Pressed) || (Event == IE_Repeat)))
 		{
@@ -612,7 +659,7 @@ bool UEdMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewpor
 		}
 	}
 
-	return false;
+	return bHandled;
 }
 
 bool UEdMode::InputAxis(FEditorViewportClient* InViewportClient, FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime)
@@ -663,6 +710,11 @@ void UEdMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 		ToolsContext->ToolManager->Tick(DeltaTime);
 		ToolsContext->GizmoManager->Tick(DeltaTime);
 
+		if(bCheckIfDefaultToolNeeded && ToolsContext->ToolManager->GetActiveTool(EToolSide::Left) == nullptr)
+		{
+			ActivateDefaultTool();
+		}
+
 		if (bInvalidationPending)
 		{
 			ViewportClient->Invalidate();
@@ -679,13 +731,10 @@ void UEdMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 	}
 }
 
-void UEdMode::ActorSelectionChangeNotify()
-{
-}
 
 bool UEdMode::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy *HitProxy, const FViewportClick &Click)
 {
-	return false;
+	return true;
 }
 
 void UEdMode::Enter()
@@ -700,23 +749,32 @@ void UEdMode::Enter()
 
 	bPendingDeletion = false;
 
-	if (!Toolkit.IsValid())
-	{
-		Toolkit = MakeShareable(new FModeToolkit);
-		Toolkit->Init(Owner->GetToolkitHost());
-	}
-
 	// initialize the adapter that attaches the ToolsContext to this FEdMode
-	ToolsContext = NewObject<UInteractiveToolsContext>(GetTransientPackage(), TEXT("ToolsContext"), RF_Transient);
+	ToolsContext = NewObject<UInteractiveToolsContext>(GetTransientPackage(), ToolsContextClass.Get(), TEXT("ToolsContext"), RF_Transient);
 	TransactionAPI = new FEdModeTransactionImpl(ToolsContext, this);
 	QueriesAPI = new FEdModeQueriesImpl(ToolsContext, this);
 	AssetAPI = new FEditorToolAssetAPI();
 	ToolsContext->Initialize(QueriesAPI, TransactionAPI);
 
+	ToolsContext->OnToolNotificationMessage.AddLambda([this](const FText& Message)
+	{
+		OnToolNotificationMessage.Broadcast(Message);
+	});
+	ToolsContext->OnToolWarningMessage.AddLambda([this](const FText& Message)
+	{
+		OnToolWarningMessage.Broadcast(Message);
+	});
+
+
+	GetToolManager()->OnToolStarted.AddUObject(this, &UEdMode::OnToolStarted);
+	GetToolManager()->OnToolEnded.AddUObject(this, &UEdMode::OnToolEnded);
+
 	// enable auto invalidation in Editor, because invalidating for all hover and capture events is unpleasant
 	ToolsContext->InputRouter->bAutoInvalidateOnHover = true;
 	ToolsContext->InputRouter->bAutoInvalidateOnCapture = true;
 
+	// Now that the context is ready, make the toolkit
+	CreateToolkit();
 
 	// set up standard materials
 	StandardVertexColorMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Game/Materials/VertexColor"));
@@ -734,13 +792,25 @@ void UEdMode::Enter()
 	FEditorDelegates::EditorModeIDEnter.Broadcast(GetID());
 	const bool bIsEnteringMode = true;
 	Owner->BroadcastEditorModeIDChanged(GetID(), bIsEnteringMode);
+
+}
+
+void UEdMode::RegisterTool(TSharedPtr<FUICommandInfo> UICommand, FString ToolIdentifier, UInteractiveToolBuilder* Builder)
+{
+	const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
+	ToolsContext->ToolManager->RegisterToolType(ToolIdentifier, Builder);
+	CommandList->MapAction(UICommand,
+		FExecuteAction::CreateLambda([this, ToolIdentifier]() { ToolsContext->StartTool(EToolSide::Mouse, ToolIdentifier); }),
+		FCanExecuteAction::CreateLambda([this, ToolIdentifier]() { return GetToolManager()->CanActivateTool(EToolSide::Mouse, ToolIdentifier); }),
+		FIsActionChecked::CreateLambda([this, Builder]() { return ToolsContext->IsToolBuilderActive(EToolSide::Mouse, Builder); }));
 }
 
 void UEdMode::Exit()
 {
 	FEditorDelegates::BeginPIE.Remove(BeginPIEDelegateHandle);
 	FEditorDelegates::PreSaveWorld.Remove(PreSaveWorldDelegateHandle);
-
+	GetToolManager()->OnToolStarted.RemoveAll(this);
+	GetToolManager()->OnToolEnded.RemoveAll(this);
 	// auto-accept any in-progress tools
 	DeactivateAllActiveTools();
 
@@ -767,6 +837,9 @@ void UEdMode::Exit()
 		FToolkitManager::Get().CloseToolkit(Toolkit.ToSharedRef());
 		Toolkit.Reset();
 	}
+
+	OnToolNotificationMessage.Clear();
+	OnToolWarningMessage.Clear();
 
 	const bool bIsEnteringMode = false;
 	Owner->BroadcastEditorModeIDChanged(GetID(), bIsEnteringMode);
@@ -955,13 +1028,32 @@ AActor* UEdMode::GetFirstSelectedActorInstance() const
 
 void UEdMode::DeactivateAllActiveTools()
 {
-	ToolsContext->DeactivateAllActiveTools();
+	if (ToolsContext)
+	{
+		ToolsContext->DeactivateAllActiveTools();
+	}
 	RestoreEditorState();
 }
 
 UInteractiveToolManager* UEdMode::GetToolManager() const
 {
 	return ToolsContext->ToolManager;
+}
+
+void UEdMode::CreateToolkit()
+{
+	if (!Toolkit.IsValid())
+	{
+		Toolkit = MakeShareable(new FModeToolkit);
+		Toolkit->Init(Owner->GetToolkitHost());
+	}
+
+	UClass* LoadedSettingsObject = SettingsClass.LoadSynchronous();
+	SettingsObject = NewObject<UObject>(this, LoadedSettingsObject);
+	if (SettingsObject)
+	{
+		Toolkit->SetModeSettingsObject(SettingsObject);
+	}
 }
 
 bool UEdMode::IsSnapRotationEnabled()

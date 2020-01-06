@@ -25,15 +25,5 @@
 		"TP_BlankBP_Preview.png"
 	],
 	"SortKey": "_1",
-	"AdditionalFeaturePacks":
-	[
-		{
-			"MountName": "Geometry",
-			"DetailLevels":
-			[
-				"Standard",
-				"High"
-			]
-		}
-	]
+	"AdditionalFeaturePacks": []
 }

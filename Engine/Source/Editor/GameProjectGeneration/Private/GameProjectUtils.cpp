@@ -225,6 +225,12 @@ namespace
 				TEXT("EditorStartupMap"),
 				DefaultMap,
 				true /* ShouldReplaceExistingValue */);
+
+			ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
+				TEXT("/Script/EngineSettings.GameMapsSettings"),
+				TEXT("GameDefaultMap"),
+				DefaultMap,
+				true /* ShouldReplaceExistingValue */);
 		}
 	}
 } // namespace <>
@@ -825,6 +831,30 @@ bool GameProjectUtils::IsStarterContentAvailableForNewProjects()
 	TArray<FString> OutFilenames;
 	IFileManager::Get().FindFilesRecursive(OutFilenames, *FPaths::FeaturePackDir(), TEXT("*StarterContent.upack"), /*Files=*/true, /*Directories=*/false);
 	return OutFilenames.Num() > 0;
+}
+
+
+FString GameProjectUtils::GetStarterContentName(const FProjectInformation& InProjectInfo)
+{
+	if (!InProjectInfo.StarterContent.IsEmpty())
+	{
+		return InProjectInfo.StarterContent;
+	}
+
+	if (InProjectInfo.TargetedHardware == EHardwareClass::Mobile)
+	{
+		return TEXT("MobileStarterContent");
+	}
+
+	return TEXT("StarterContent");
+}
+
+bool GameProjectUtils::IsStarterContentAvailableForProject(const FProjectInformation& InProjectInfo)
+{
+	const FString StarterContentName = GameProjectUtils::GetStarterContentName(InProjectInfo);
+	const FString StarterContentPackFilename = FPaths::FeaturePackDir() / FString::Printf(TEXT("%s.upack"), *StarterContentName);
+
+	return IFileManager::Get().FileExists(*StarterContentPackFilename);
 }
 
 bool GameProjectUtils::CreateProject(const FProjectInformation& InProjectInfo, FText& OutFailReason, FText& OutFailLog, TArray<FString>* OutCreatedFiles)
@@ -2048,9 +2078,6 @@ bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectI
 
 		if (InProjectInfo.bCopyStarterContent)
 		{
-			FileContents += LINE_TERMINATOR;
-			FileContents += TEXT("[/Script/EngineSettings.GameMapsSettings]") LINE_TERMINATOR;
-
 			if (GameProjectUtils::IsStarterContentAvailableForNewProjects())
 			{
 				if (InProjectInfo.TargetedHardware == EHardwareClass::Mobile)
@@ -2726,7 +2753,7 @@ bool GameProjectUtils::GetClassLocation(const FString& InPath, const FModuleCont
 
 GameProjectUtils::EProjectDuplicateResult GameProjectUtils::DuplicateProjectForUpgrade( const FString& InProjectFile, FString& OutNewProjectFile )
 {
-	IPlatformFile &PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
 	// Get the directory part of the project name
 	FString OldDirectoryName = FPaths::GetPath(InProjectFile);
@@ -2879,17 +2906,17 @@ GameProjectUtils::EProjectDuplicateResult GameProjectUtils::DuplicateProjectForU
 void GameProjectUtils::UpdateSupportedTargetPlatforms(const FName& InPlatformName, const bool bIsSupported)
 {
 	const FString& ProjectFilename = FPaths::GetProjectFilePath();
-	if(!ProjectFilename.IsEmpty())
+	if (!ProjectFilename.IsEmpty())
 	{
 		// First attempt to check out the file if SCC is enabled
-		if(ISourceControlModule::Get().IsEnabled())
+		if (ISourceControlModule::Get().IsEnabled())
 		{
 			FText UnusedFailReason;
 			CheckoutGameProjectFile(ProjectFilename, UnusedFailReason);
 		}
 
 		// Second make sure the file is writable
-		if(FPlatformFileManager::Get().GetPlatformFile().IsReadOnly(*ProjectFilename))
+		if (FPlatformFileManager::Get().GetPlatformFile().IsReadOnly(*ProjectFilename))
 		{
 			FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*ProjectFilename, false);
 		}
@@ -2901,17 +2928,17 @@ void GameProjectUtils::UpdateSupportedTargetPlatforms(const FName& InPlatformNam
 void GameProjectUtils::ClearSupportedTargetPlatforms()
 {
 	const FString& ProjectFilename = FPaths::GetProjectFilePath();
-	if(!ProjectFilename.IsEmpty())
+	if (!ProjectFilename.IsEmpty())
 	{
 		// First attempt to check out the file if SCC is enabled
-		if(ISourceControlModule::Get().IsEnabled())
+		if (ISourceControlModule::Get().IsEnabled())
 		{
 			FText UnusedFailReason;
 			CheckoutGameProjectFile(ProjectFilename, UnusedFailReason);
 		}
 
 		// Second make sure the file is writable
-		if(FPlatformFileManager::Get().GetPlatformFile().IsReadOnly(*ProjectFilename))
+		if (FPlatformFileManager::Get().GetPlatformFile().IsReadOnly(*ProjectFilename))
 		{
 			FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*ProjectFilename, false);
 		}
@@ -4116,15 +4143,8 @@ bool GameProjectUtils::InsertFeaturePacksIntoINIFile(const FProjectInformation& 
 	// First the starter content
 	if (InProjectInfo.bCopyStarterContent)
 	{
-		FString StarterPack;
-		if (InProjectInfo.TargetedHardware == EHardwareClass::Mobile)
-		{
-			StarterPack = TEXT("InsertPack=(PackSource=\"MobileStarterContent.upack\",PackName=\"StarterContent\")");
-		}
-		else
-		{
-			StarterPack = TEXT("InsertPack=(PackSource=\"StarterContent.upack\",PackName=\"StarterContent\")");
-		}
+		FString StarterContentName = GameProjectUtils::GetStarterContentName(InProjectInfo);
+		FString StarterPack = FString::Printf(TEXT("InsertPack=(PackSource=\"%s.upack\",PackName=\"StarterContent\")"), *StarterContentName);
 		PackList.Add(StarterPack);
 	}
 

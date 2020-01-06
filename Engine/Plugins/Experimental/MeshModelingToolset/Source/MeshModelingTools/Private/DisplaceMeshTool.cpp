@@ -196,9 +196,9 @@ namespace {
 		void SetSubdivisionsCount(int SubdivisionsCountIn);
 		int  GetSubdivisionsCount();
 
-		TSharedPtr<FDynamicMeshOperator> MakeNewOperator() final
+		TUniquePtr<FDynamicMeshOperator> MakeNewOperator() final
 		{
-			return MakeShared<FSubdivideMeshOp>(SourceMesh, SubdivisionsCount);
+			return MakeUnique<FSubdivideMeshOp>(SourceMesh, SubdivisionsCount);
 		}
 	private:
 		const FDynamicMesh3& SourceMesh;
@@ -324,9 +324,9 @@ namespace {
 		void SetDisplacementMap(UTexture2D* DisplacementMapIn);
 		void SetDisplacementType(EDisplaceMeshToolDisplaceType TypeIn);
 
-		TSharedPtr<FDynamicMeshOperator> MakeNewOperator() final
+		TUniquePtr<FDynamicMeshOperator> MakeNewOperator() final
 		{
-			return MakeShared<FDisplaceMeshOp>(SourceMesh, DisplaceField, DisplaceIntensity, RandomSeed, DisplacementType);
+			return MakeUnique<FDisplaceMeshOp>(SourceMesh, DisplaceField, DisplaceIntensity, RandomSeed, DisplacementType);
 		}
 	private:
 		void UpdateMap();
@@ -442,11 +442,12 @@ void UDisplaceMeshTool::Setup()
 	DynamicMeshComponent->RegisterComponent();
 	DynamicMeshComponent->SetWorldTransform(ComponentTarget->GetWorldTransform());
 
-	// copy material if there is one
-	auto Material = ComponentTarget->GetMaterial(0);
-	if (Material != nullptr)
+	// transfer materials
+	FComponentMaterialSet MaterialSet;
+	ComponentTarget->GetMaterialSet(MaterialSet);
+	for (int k = 0; k < MaterialSet.Materials.Num(); ++k)
 	{
-		DynamicMeshComponent->SetMaterial(0, Material);
+		DynamicMeshComponent->SetMaterial(k, MaterialSet.Materials[k]);
 	}
 
 	DynamicMeshComponent->InitializeMesh(ComponentTarget->GetMesh());
@@ -475,9 +476,9 @@ void UDisplaceMeshTool::Shutdown(EToolShutdownType ShutdownType)
 		{
 			// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("DisplaceMeshToolTransactionName", "Displace Mesh"));
-			ComponentTarget->CommitMesh([=](FMeshDescription* MeshDescription)
+			ComponentTarget->CommitMesh([=](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 			{
-				DynamicMeshComponent->Bake(MeshDescription, Subdivisions > 0);
+				DynamicMeshComponent->Bake(CommitParams.MeshDescription, Subdivisions > 0);
 			});
 			GetToolManager()->EndUndoTransaction();
 		}
@@ -573,13 +574,13 @@ void UDisplaceMeshTool::StartComputation()
 		SubdivideTask = new FAsyncTaskExecuterWithAbort<TModelingOpTask<FDynamicMeshOperator>>(Subdivider->MakeNewOperator());
 		SubdivideTask->StartBackgroundTask();
 		bNeedsSubdivided = false;
-		DynamicMeshComponent->SetMaterial(0, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
+		DynamicMeshComponent->SetOverrideRenderMaterial(ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 	}
 	if (bNeedsDisplaced && DisplaceTask)
 	{
 		DisplaceTask->CancelAndDelete();
 		DisplaceTask = nullptr;
-		DynamicMeshComponent->SetMaterial(0, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
+		DynamicMeshComponent->SetOverrideRenderMaterial(ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 	}
 	AdvanceComputation();
 }
@@ -603,7 +604,7 @@ void UDisplaceMeshTool::AdvanceComputation()
 		TUniquePtr<FDynamicMesh3> DisplacedMesh = DisplaceTask->GetTask().ExtractOperator()->ExtractResult();
 		delete DisplaceTask;
 		DisplaceTask = nullptr;
-		DynamicMeshComponent->SetMaterial(0,ToolSetupUtil::GetDefaultMaterial(GetToolManager(), ComponentTarget->GetMaterial(0)));
+		DynamicMeshComponent->ClearOverrideRenderMaterial();
 		DynamicMeshComponent->GetMesh()->Copy(*DisplacedMesh);
 		DynamicMeshComponent->NotifyMeshUpdated();
 		GetToolManager()->PostInvalidation();

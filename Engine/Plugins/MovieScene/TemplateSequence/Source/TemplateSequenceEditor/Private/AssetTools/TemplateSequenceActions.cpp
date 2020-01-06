@@ -60,11 +60,16 @@ void FTemplateSequenceActions::OpenAssetEditor(const TArray<UObject*>& InObjects
 		if (TemplateSequence != nullptr)
 		{
 			TSharedRef<FTemplateSequenceEditorToolkit> Toolkit = MakeShareable(new FTemplateSequenceEditorToolkit(Style));
-			Toolkit->Initialize(Mode, EditWithinLevelEditor, TemplateSequence);
+			FTemplateSequenceToolkitParams ToolkitParams;
+			InitializeToolkitParams(ToolkitParams);
+			Toolkit->Initialize(Mode, EditWithinLevelEditor, TemplateSequence, ToolkitParams);
 		}
 	}
 }
 
+void FTemplateSequenceActions::InitializeToolkitParams(FTemplateSequenceToolkitParams& ToolkitParams) const
+{
+}
 
 bool FTemplateSequenceActions::ShouldForceWorldCentric()
 {

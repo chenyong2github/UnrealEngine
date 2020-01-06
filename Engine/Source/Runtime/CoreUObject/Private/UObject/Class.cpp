@@ -442,7 +442,7 @@ const FString& UField::GetMetaData(const FName& Key) const
 	return MetaDataString;
 }
 
-const FText UField::GetMetaDataText(const TCHAR* MetaDataKey, const FString LocalizationNamespace, const FString LocalizationKey) const
+FText UField::GetMetaDataText(const TCHAR* MetaDataKey, const FString LocalizationNamespace, const FString LocalizationKey) const
 {
 	FString DefaultMetaData;
 
@@ -452,11 +452,10 @@ const FText UField::GetMetaDataText(const TCHAR* MetaDataKey, const FString Loca
 	}
 
 	// If attempting to grab the DisplayName metadata, we must correct the source string and output it as a DisplayString for lookup
-	if( DefaultMetaData.IsEmpty() && FString(MetaDataKey) == TEXT("DisplayName") )
+	if( DefaultMetaData.IsEmpty() && FCString::Stricmp(MetaDataKey, TEXT("DisplayName")) == 0 )
 	{
 		DefaultMetaData = FName::NameToDisplayString( GetName(), IsA( UBoolProperty::StaticClass() ) );
 	}
-
 
 	FText LocalizedMetaData;
 	if ( !( FText::FindText( LocalizationNamespace, LocalizationKey, /*OUT*/LocalizedMetaData, &DefaultMetaData ) ) )
@@ -470,7 +469,7 @@ const FText UField::GetMetaDataText(const TCHAR* MetaDataKey, const FString Loca
 	return LocalizedMetaData;
 }
 
-const FText UField::GetMetaDataText(const FName& MetaDataKey, const FString LocalizationNamespace, const FString LocalizationKey) const
+FText UField::GetMetaDataText(const FName& MetaDataKey, const FString LocalizationNamespace, const FString LocalizationKey) const
 {
 	FString DefaultMetaData;
 

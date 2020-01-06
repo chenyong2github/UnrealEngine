@@ -70,10 +70,13 @@ void UConvertToPolygonsTool::Setup()
 	PreviewMesh->SetVisible(false);
 	PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
 
-	if (ComponentTarget->GetMaterial(0) != nullptr)
-	{
-		PreviewMesh->SetMaterial(ComponentTarget->GetMaterial(0));
-	}
+	FComponentMaterialSet MaterialSet;
+	ComponentTarget->GetMaterialSet(MaterialSet);
+	PreviewMesh->SetMaterials(MaterialSet.Materials);
+
+	ConvertModeWatcher.Initialize(
+		[this]() { return Settings->ConversionMode; },
+		[this](EConvertToPolygonsMode NewMode) { bPolygonsValid = false; }, Settings->ConversionMode);
 
 	UpdatePolygons();
 }
@@ -89,10 +92,10 @@ void UConvertToPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
-		GetToolManager()->BeginUndoTransaction(LOCTEXT("DeformMeshToolTransactionName", "Convert to Polygons"));
-		ComponentTarget->CommitMesh([=](FMeshDescription* MeshDescription)
+		GetToolManager()->BeginUndoTransaction(LOCTEXT("ConvertToPolygonsToolTransactionName", "Convert to Polygons"));
+		ComponentTarget->CommitMesh([=](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 		{
-			ConvertToPolygons(MeshDescription);
+			ConvertToPolygons(CommitParams.MeshDescription);
 		});
 		GetToolManager()->EndUndoTransaction();
 	}
@@ -106,14 +109,19 @@ void UConvertToPolygonsTool::OnPropertyModified(UObject* PropertySet, UProperty*
 }
 
 
-void UConvertToPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
+void UConvertToPolygonsTool::Tick(float DeltaTime)
 {
-	FColor LineColor(255, 0, 0);
+	ConvertModeWatcher.CheckAndUpdate();
 
 	if (bPolygonsValid == false)
 	{
 		UpdatePolygons();
 	}
+}
+
+void UConvertToPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
+{
+	FColor LineColor(255, 0, 0);
 
 	if (true)
 	{
@@ -125,7 +133,7 @@ void UConvertToPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 		{
 			FVector3d A, B;
 			Polygons.Mesh->GetEdgeV(eid, A, B);
-			PDI->DrawLine(Transform.TransformPosition(A), Transform.TransformPosition(B),
+			PDI->DrawLine(Transform.TransformPosition((FVector)A), Transform.TransformPosition((FVector)B),
 				LineColor, 0, 2.0, 1.0f, true);
 		}
 	}
@@ -146,13 +154,25 @@ bool UConvertToPolygonsTool::CanAccept() const
 void UConvertToPolygonsTool::UpdatePolygons()
 {
 	Polygons = FFindPolygonsAlgorithm(&SearchMesh);
-	double DotTolerance = 1.0 - FMathd::Cos(Settings->AngleTolerance * FMathd::DegToRad);
-	Polygons.FindPolygons(DotTolerance);
+	if (Settings->ConversionMode == EConvertToPolygonsMode::FromUVISlands)
+	{
+		Polygons.FindPolygonsFromUVIslands();
+	}
+	else if (Settings->ConversionMode == EConvertToPolygonsMode::FaceNormalDeviation)
+	{
+		double DotTolerance = 1.0 - FMathd::Cos(Settings->AngleTolerance * FMathd::DegToRad);
+		Polygons.FindPolygonsFromFaceNormals(DotTolerance);
+	}
+	else
+	{
+		check(false);
+	}
+	
 	Polygons.FindPolygonEdges();
 
 	GetToolManager()->DisplayMessage(
-		FText::Format(LOCTEXT("UpdatePolygonsMessage", "ConvertToPolygons - found {0} polys in {1} triangles"), 
-			FText::AsNumber(Polygons.FoundPolygons.Num()), FText::AsNumber(SearchMesh.TriangleCount()) ), EToolMessageLevel::Internal);
+		FText::Format(LOCTEXT("UpdatePolygonsMessage", "ConvertToPolygons - found {0} polys in {1} triangles"),
+			FText::AsNumber(Polygons.FoundPolygons.Num()), FText::AsNumber(SearchMesh.TriangleCount())), EToolMessageLevel::Internal);
 
 	if (Settings->bCalculateNormals)
 	{

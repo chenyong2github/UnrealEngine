@@ -372,11 +372,11 @@ void UTransformMeshesTool::OnClickDrag(const FInputDeviceRay& DragPos)
 		FVector3d AlignTranslate = ToFrameWorld.Origin - FromFrameWorld.Origin;
 
 		FTransform NewTransform = StartDragTransform;
-		NewTransform.Accumulate( FTransform(CenterShift) );
-		NewTransform.Accumulate( FTransform(AlignRotation) );
-		NewTransform.Accumulate( FTransform(AlignTranslate) );
+		NewTransform.Accumulate( FTransform((FVector)CenterShift) );
+		NewTransform.Accumulate( FTransform((FQuat)AlignRotation) );
+		NewTransform.Accumulate( FTransform((FVector)AlignTranslate) );
 		CenterShift = AlignRotation * CenterShift;
-		NewTransform.Accumulate( FTransform(-CenterShift) );
+		NewTransform.Accumulate( FTransform((FVector)-CenterShift) );
 
 		FTransformMeshesTarget& ActiveTarget =
 			(TransformProps->TransformMode == ETransformMeshesTransformMode::PerObjectGizmo) ?

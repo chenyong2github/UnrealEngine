@@ -17,9 +17,17 @@ public:
 class UNREALED_API FStaticMeshComponentTarget : public FPrimitiveComponentTarget
 {
 public:
+
 	FStaticMeshComponentTarget( UPrimitiveComponent* Component )
 		: FPrimitiveComponentTarget( Cast<UStaticMeshComponent>(Component) ){}
+
+	virtual void GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bAssetMaterials) const override;
+
 	FMeshDescription* GetMesh() override;
+
 	void CommitMesh( const FCommitter& ) override;
+
+	virtual void CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet, bool bApplyToAsset) override;
+
 	static const int LODIndex{0};
 };

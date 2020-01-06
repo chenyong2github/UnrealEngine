@@ -1765,6 +1765,10 @@ void InitializeModule()
 	FPyWrapperTypeRegistry::Get().RegisterNativePythonModule(MoveTemp(NativePythonModule));
 }
 
+void ShutdownModule()
+{
+}
+
 FPythonLogCapture& GetPythonLogCapture()
 {
 	static FPythonLogCapture PythonLogCapture;

@@ -11,6 +11,7 @@
 namespace PySlate
 {
 	void InitializeModule();
+	void ShutdownModule();
 }
 
 #endif	// WITH_PYTHON

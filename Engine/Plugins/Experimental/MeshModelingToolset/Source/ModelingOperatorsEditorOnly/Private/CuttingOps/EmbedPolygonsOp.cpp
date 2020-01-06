@@ -43,10 +43,25 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 	
 	TArray<TPair<float, int>> SortedHitTriangles;
 	TMeshQueries<FDynamicMesh3>::FindHitTriangles_LinearSearch(*ResultMesh, FRay3d(Frame.FromPlaneUV(Polygon[0]), Frame.Z()), SortedHitTriangles);
-	if (SortedHitTriangles.Num() < 1 || (SortedHitTriangles.Num() < 2 && Operation == EEmbeddedPolygonOpMethod::CutThrough))
+
+	if (SortedHitTriangles.Num() < 1)
 	{
 		// didn't hit the mesh 
 		return;
+	}
+
+	int SecondHit = 1;
+	if (Operation == EEmbeddedPolygonOpMethod::CutThrough)
+	{
+		while (SecondHit < SortedHitTriangles.Num() && FMath::IsNearlyEqual(SortedHitTriangles[SecondHit].Key, SortedHitTriangles[0].Key))
+		{
+			SecondHit++;
+		}
+		if (SecondHit >= SortedHitTriangles.Num())
+		{
+			// failed to find a second surface to connect to
+			return;
+		}
 	}
 
 	auto CutHole = [](FDynamicMesh3& Mesh, const FFrame3d& F, int TriStart, const FPolygon2d& PolygonArg, TArray<int>& PathVertIDs, TArray<int>& PathVertCorrespond)
@@ -90,7 +105,7 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 	if (Operation == EEmbeddedPolygonOpMethod::CutThrough)
 	{
 		TArray<int> PathVertIDs2, PathVertCorrespond2;
-		bool bCutSide2 = CutHole(*ResultMesh, Frame, SortedHitTriangles[1].Value, Polygon, PathVertIDs2, PathVertCorrespond2);
+		bool bCutSide2 = CutHole(*ResultMesh, Frame, SortedHitTriangles[SecondHit].Value, Polygon, PathVertIDs2, PathVertCorrespond2);
 		if (!bCutSide2 || PathVertIDs2.Num() < 2)
 		{
 			return;

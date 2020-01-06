@@ -90,21 +90,18 @@ void UMeshInspectorTool::Setup()
 {
 	UInteractiveTool::Setup();
 
-	// create dynamic mesh component to use for live preview
-	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(ComponentTarget->GetOwnerActor(), "DynamicMesh");
-	DynamicMeshComponent->SetupAttachment(ComponentTarget->GetOwnerActor()->GetRootComponent());
-	DynamicMeshComponent->RegisterComponent();
-	DynamicMeshComponent->SetWorldTransform(ComponentTarget->GetWorldTransform());
+	PreviewMesh = NewObject<UPreviewMesh>(this);
+	PreviewMesh->bBuildSpatialDataStructure = false;
+	PreviewMesh->CreateInWorld(ComponentTarget->GetOwnerActor()->GetWorld(), FTransform::Identity);
+	PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
 
-	// copy material if there is one
-	DefaultMaterial = ComponentTarget->GetMaterial(0);
-	if (DefaultMaterial != nullptr)
-	{
-		DynamicMeshComponent->SetMaterial(0, DefaultMaterial);
-	}
+	FComponentMaterialSet MaterialSet;
+	ComponentTarget->GetMaterialSet(MaterialSet);
+	PreviewMesh->SetMaterials(MaterialSet.Materials);
+	DefaultMaterial = PreviewMesh->GetMaterial(0);
 
-	DynamicMeshComponent->TangentsType = EDynamicMeshTangentCalcType::ExternallyCalculated;
-	DynamicMeshComponent->InitializeMesh(ComponentTarget->GetMesh());
+	PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::ExternallyCalculated);
+	PreviewMesh->InitializeMesh(ComponentTarget->GetMesh());
 
 	Precompute();
 
@@ -120,28 +117,27 @@ void UMeshInspectorTool::Setup()
 	MaterialSettings->Setup();
 	AddToolPropertySource(MaterialSettings);
 
-
-	DynamicMeshComponent->bExplicitShowWireframe = Settings->bWireframe;
+	PreviewMesh->EnableWireframe(Settings->bWireframe);
 
 	UMeshStatisticsProperties* Statistics = NewObject<UMeshStatisticsProperties>(this);
-	Statistics->Update(*DynamicMeshComponent->GetMesh());
+	Statistics->Update(*PreviewMesh->GetPreviewDynamicMesh());
 	AddToolPropertySource(Statistics);
 
 	UMeshAnalysisProperties* MeshAnalysis = NewObject<UMeshAnalysisProperties>(this);
-	MeshAnalysis->Update(*DynamicMeshComponent->GetMesh(), ComponentTarget->GetWorldTransform());
+	MeshAnalysis->Update(*PreviewMesh->GetPreviewDynamicMesh(), ComponentTarget->GetWorldTransform());
 	AddToolPropertySource(MeshAnalysis);
 }
 
 
 void UMeshInspectorTool::Shutdown(EToolShutdownType ShutdownType)
 {
-	if (DynamicMeshComponent != nullptr)
-	{
-		ComponentTarget->SetOwnerVisibility(true);
+	ComponentTarget->SetOwnerVisibility(true);
 
-		DynamicMeshComponent->UnregisterComponent();
-		DynamicMeshComponent->DestroyComponent();
-		DynamicMeshComponent = nullptr;
+	if (PreviewMesh != nullptr)
+	{
+		PreviewMesh->SetVisible(false);
+		PreviewMesh->Disconnect();
+		PreviewMesh = nullptr;
 	}
 
 	Settings->SaveProperties(this);
@@ -154,10 +150,10 @@ void UMeshInspectorTool::Precompute()
 	UVSeamEdges.Reset();
 	NormalSeamEdges.Reset();
 
-	FDynamicMesh3* TargetMesh = DynamicMeshComponent->GetMesh();
-	FDynamicMeshUVOverlay* UVOverlay =
+	const FDynamicMesh3* TargetMesh = PreviewMesh->GetPreviewDynamicMesh();
+	const FDynamicMeshUVOverlay* UVOverlay =
 		TargetMesh->HasAttributes() ? TargetMesh->Attributes()->PrimaryUV() : nullptr;
-	FDynamicMeshNormalOverlay* NormalOverlay =
+	const FDynamicMeshNormalOverlay* NormalOverlay =
 		TargetMesh->HasAttributes() ? TargetMesh->Attributes()->PrimaryNormals() : nullptr;
 
 	for (int eid : TargetMesh->EdgeIndicesItr())
@@ -185,7 +181,7 @@ void UMeshInspectorTool::Precompute()
 void UMeshInspectorTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
-	FTransform Transform = ComponentTarget->GetWorldTransform();
+	FTransform3d Transform(ComponentTarget->GetWorldTransform());
 
 	FColor BoundaryEdgeColor(240, 15, 15);
 	float BoundaryEdgeThickness = LineWidthMultiplier * 4.0;
@@ -201,7 +197,7 @@ void UMeshInspectorTool::Render(IToolsContextRenderAPI* RenderAPI)
 	FColor BinormalColor(15, 240, 15);
 	float TangentThickness = LineWidthMultiplier * 2.0f;
 
-	FDynamicMesh3* TargetMesh = DynamicMeshComponent->GetMesh();
+	const FDynamicMesh3* TargetMesh = PreviewMesh->GetPreviewDynamicMesh();
 	FVector3d A, B;
 
 	if (Settings->bBoundaryEdges)
@@ -209,7 +205,7 @@ void UMeshInspectorTool::Render(IToolsContextRenderAPI* RenderAPI)
 		for (int eid : BoundaryEdges)
 		{
 			TargetMesh->GetEdgeV(eid, A, B);
-			PDI->DrawLine(Transform.TransformPosition(A), Transform.TransformPosition(B),
+			PDI->DrawLine((FVector)Transform.TransformPosition(A), (FVector)Transform.TransformPosition(B),
 				BoundaryEdgeColor, 0, BoundaryEdgeThickness, 2.0f, true);
 		}
 	}
@@ -219,7 +215,7 @@ void UMeshInspectorTool::Render(IToolsContextRenderAPI* RenderAPI)
 		for (int eid : UVSeamEdges)
 		{
 			TargetMesh->GetEdgeV(eid, A, B);
-			PDI->DrawLine(Transform.TransformPosition(A), Transform.TransformPosition(B),
+			PDI->DrawLine((FVector)Transform.TransformPosition(A), (FVector)Transform.TransformPosition(B),
 				UVSeamColor, 0, UVSeamThickness, 3.0f, true);
 		}
 	}
@@ -229,7 +225,7 @@ void UMeshInspectorTool::Render(IToolsContextRenderAPI* RenderAPI)
 		for (int eid : NormalSeamEdges)
 		{
 			TargetMesh->GetEdgeV(eid, A, B);
-			PDI->DrawLine(Transform.TransformPosition(A), Transform.TransformPosition(B),
+			PDI->DrawLine((FVector)Transform.TransformPosition(A), (FVector)Transform.TransformPosition(B),
 				NormalSeamColor, 0, NormalSeamThickness, 3.0f, true);
 		}
 	}
@@ -239,7 +235,7 @@ void UMeshInspectorTool::Render(IToolsContextRenderAPI* RenderAPI)
 		for (int eid : GroupBoundaryEdges)
 		{
 			TargetMesh->GetEdgeV(eid, A, B);
-			PDI->DrawLine(Transform.TransformPosition(A), Transform.TransformPosition(B),
+			PDI->DrawLine((FVector)Transform.TransformPosition(A), (FVector)Transform.TransformPosition(B),
 				PolygonBorderColor, 0, PolygonBorderThickness, 2.0f, true);
 		}
 	}
@@ -256,27 +252,27 @@ void UMeshInspectorTool::Render(IToolsContextRenderAPI* RenderAPI)
 			for (int j = 0; j < 3; ++j)
 			{
 				TriV[j] = Transform.TransformPosition(TriV[j]);
-				PDI->DrawLine(TriV[j], TriV[j] + Settings->NormalLength * Transform.TransformVectorNoScale(TriN[j]),
+				PDI->DrawLine((FVector)TriV[j], (FVector)((FVector3f)TriV[j] + Settings->NormalLength * Transform.TransformVectorNoScale(TriN[j])),
 					NormalColor, SDPG_World, NormalThickness, 0.0f, true);
 			}
 		}
 	}
 
-	if (Settings->bTangentVectors)
+	if (Settings->bTangentVectors && PreviewMesh->GetTangents() != nullptr)
 	{
-		const FMeshTangentsf* Tangents = DynamicMeshComponent->GetTangents();
+		const FMeshTangentsf* Tangents = PreviewMesh->GetTangents();
 		for (int TID : TargetMesh->TriangleIndicesItr())
 		{
 			FVector3d TriV[3];
 			TargetMesh->GetTriVertices(TID, TriV[0], TriV[1], TriV[2]);
 			for (int SubIdx = 0; SubIdx < 3; SubIdx++)
 			{
-				FVector Vert = Transform.TransformPosition(TriV[SubIdx]);
+				FVector3f Vert(Transform.TransformPosition(TriV[SubIdx]));
 				FVector3f Tangent, Bitangent;
 				Tangents->GetPerTriangleTangent(TID, SubIdx, Tangent, Bitangent);
-				PDI->DrawLine(Vert, Vert + Settings->TangentLength * Transform.TransformVectorNoScale(Tangent),
+				PDI->DrawLine((FVector)Vert, (FVector)(Vert + Settings->TangentLength * Transform.TransformVectorNoScale(Tangent)),
 					TangentColor, SDPG_World, TangentThickness, 3.5f, true);
-				PDI->DrawLine(Vert, Vert + Settings->TangentLength * Transform.TransformVectorNoScale(Bitangent),
+				PDI->DrawLine((FVector)Vert, (FVector)(Vert + Settings->TangentLength * Transform.TransformVectorNoScale(Bitangent)),
 					BinormalColor, SDPG_World, TangentThickness, 3.5f, true);
 			}
 		}
@@ -289,13 +285,18 @@ void UMeshInspectorTool::Render(IToolsContextRenderAPI* RenderAPI)
 void UMeshInspectorTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
 {
 	GetToolManager()->PostInvalidation();
-	DynamicMeshComponent->bExplicitShowWireframe = Settings->bWireframe;
+	PreviewMesh->EnableWireframe(Settings->bWireframe);
+	
 	MaterialSettings->UpdateMaterials();
-	MaterialSettings->SetMaterialIfChanged(DefaultMaterial, DynamicMeshComponent->GetMaterial(0),
-		[this](UMaterialInterface* Material)
+	UMaterialInterface* OverrideMaterial = MaterialSettings->GetActiveOverrideMaterial();
+	if (OverrideMaterial == nullptr)
 	{
-		DynamicMeshComponent->SetMaterial(0, Material);
-	});
+		PreviewMesh->ClearOverrideRenderMaterial();
+	}
+	else
+	{
+		PreviewMesh->SetOverrideRenderMaterial(OverrideMaterial);
+	}
 }
 
 

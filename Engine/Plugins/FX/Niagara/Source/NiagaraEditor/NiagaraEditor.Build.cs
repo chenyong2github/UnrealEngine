@@ -48,6 +48,7 @@ public class NiagaraEditor : ModuleRules
 				"Projects",
                 "MainFrame",
 				"ToolMenus",
+				"EditorWidgets",
 			}
         );
 

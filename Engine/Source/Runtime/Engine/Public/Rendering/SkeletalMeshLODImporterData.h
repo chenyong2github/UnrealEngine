@@ -427,7 +427,9 @@ public:
 	/** Default constructor. */
 	ENGINE_API FReductionBaseSkeletalMeshBulkData();
 
+	/*Static function helper to serialize an array of reduction data. */
 	ENGINE_API static void Serialize(FArchive& Ar, TArray<FReductionBaseSkeletalMeshBulkData*>& ReductionBaseSkeletalMeshDatas, UObject* Owner);
+
 	/** Serialization. */
 	ENGINE_API void Serialize(class FArchive& Ar, class UObject* Owner);
 
@@ -480,6 +482,9 @@ public:
 	/** Default constructor. */
 	ENGINE_API FRawSkeletalMeshBulkData();
 
+	/*Static function helper to serialize an array of Raw source data. */
+	ENGINE_API static void Serialize(FArchive& Ar, TArray<FRawSkeletalMeshBulkData>& RawSkeltalMeshBulkDatas, UObject* Owner);
+	
 	/** Serialization. */
 	ENGINE_API void Serialize(class FArchive& Ar, class UObject* Owner);
 
@@ -498,7 +503,17 @@ public:
 	ENGINE_API FByteBulkData& GetBulkData();
 	
 	/** Empty the bulk data. */
-	ENGINE_API void EmptyBulkData() { BulkData.RemoveBulkData(); }
+	ENGINE_API void EmptyBulkData()
+	{
+		//Clear all the data
+		BulkData.RemoveBulkData();
+		Guid.Invalidate();
+		bGuidIsHash = false;
+		SerializeLoadingCustomVersionContainer.Empty();
+		bUseSerializeLoadingCustomVersion = false;
+		GeoImportVersion = ESkeletalMeshGeoImportVersions::Before_Versionning;
+		SkinningImportVersion = ESkeletalMeshSkinningImportVersions::Before_Versionning;
+	}
 
 	/** Returns true if no bulk data is available for this mesh. */
 	FORCEINLINE bool IsEmpty() const { return BulkData.GetBulkDataSize() == 0; }

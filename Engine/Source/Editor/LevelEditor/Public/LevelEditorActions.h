@@ -266,6 +266,7 @@ public:
 	TSharedPtr< FUICommandInfo > CreateNewOutlinerFolder;
 
 	TSharedPtr< FUICommandInfo > HoldToEnableVertexSnapping;
+	TSharedPtr< FUICommandInfo > HoldToEnablePivotVertexSnapping;
 
 	/**
 	 * Brush Commands                   
@@ -950,7 +951,7 @@ public:
 	 * @param bUsePlacement		Whether to use the placement editor. If not, the actor will be placed at the last click.
 	 * @param ActorLocation		[opt] If NULL, positions the actor at the mouse location, otherwise the location specified. Default is true.
 	 */
-	static void AddActor_Clicked( UActorFactory* ActorFactory, FAssetData AssetData, bool bUsePlacement );
+	static void AddActor_Clicked( UActorFactory* ActorFactory, FAssetData AssetData);
 	static AActor* AddActor( UActorFactory* ActorFactory, const FAssetData& AssetData, const FTransform* ActorLocation );
 
 	/**
