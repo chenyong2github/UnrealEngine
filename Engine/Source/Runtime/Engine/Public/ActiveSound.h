@@ -47,6 +47,9 @@ struct FAttenuationFocusData
 	/** The amount priority is scaled due to focus */
 	float PriorityScale;
 
+	/** Cached highest priority of the parent active sound's wave instances. */
+	float PriorityHighest;
+
 	/** The amount volume is scaled due to focus */
 	float VolumeScale;
 
@@ -56,6 +59,7 @@ struct FAttenuationFocusData
 		, FocusFactor(1.0f)
 		, DistanceScale(1.0f)
 		, PriorityScale(1.0f)
+		, PriorityHighest(1.0f)
 		, VolumeScale(1.0f)
 	{
 	}
@@ -657,8 +661,8 @@ public:
 	/** Applies the active sound's attenuation settings to the input parse params using the given listener */
 	void ParseAttenuation(FSoundParseParameters& OutParseParams, int32 ListenerIndex, const FSoundAttenuationSettings& InAttenuationSettings);
 
-	/** Returns the effective priority of the active sound */
-	float GetPriority() const { return Priority * FocusData.PriorityScale; }
+	/** Returns the highest effective priority of the child wave instances */
+	float GetHighestPriority() const { return Priority * FocusData.PriorityHighest * FocusData.PriorityScale; }
 
 	/** Sets the amount of audio from this active sound to send to the submix. */
 	void SetSubmixSend(const FSoundSubmixSendInfo& SubmixSendInfo);
