@@ -27,4 +27,5 @@ public:
 	virtual FString GetRegion() const = 0;
 	virtual FString GetScript() const = 0;
 	virtual FString GetVariant() const = 0;
+	virtual bool IsRightToLeft() const = 0;
 };

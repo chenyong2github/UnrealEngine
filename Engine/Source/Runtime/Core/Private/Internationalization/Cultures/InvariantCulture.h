@@ -60,8 +60,9 @@ public:
 			FString(TEXT("iv")),																//const FString TwoLetterISOLanguageName
 			DecimalNumberFormattingRules,														//const FDecimalNumberFormattingRules InDecimalNumberFormattingRules
 			PercentFormattingRules,																//const FDecimalNumberFormattingRules InPercentFormattingRules
-			BaseCurrencyFormattingRules															//const FDecimalNumberFormattingRules InBaseCurrencyFormattingRules
-			));
+			BaseCurrencyFormattingRules,														//const FDecimalNumberFormattingRules InBaseCurrencyFormattingRules
+			false																				//const bool IsRightToLeft
+		));
 
 		return Culture;
 	}
