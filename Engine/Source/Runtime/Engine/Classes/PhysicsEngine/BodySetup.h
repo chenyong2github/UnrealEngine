@@ -44,8 +44,7 @@ namespace Chaos
 {
 	class FImplicitObject;
 
-	template <typename T>
-	class TTriangleMeshImplicitObject;
+	class FTriangleMeshImplicitObject;
 }
 
 template<typename T, int d>
@@ -266,7 +265,7 @@ public:
 
 #if WITH_CHAOS
 	//FBodySetupTriMeshes* TriMeshWrapper;
-	TArray<TSharedPtr<Chaos::TTriangleMeshImplicitObject<float>, ESPMode::ThreadSafe>> ChaosTriMeshes;
+	TArray<TSharedPtr<Chaos::FTriangleMeshImplicitObject, ESPMode::ThreadSafe>> ChaosTriMeshes;
 #endif
 
 	/** Additional UV info, if available. Used for determining UV for a line trace impact. */
