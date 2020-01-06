@@ -316,11 +316,26 @@ bool USocialParty::TryInviteUser(const USocialUser& UserToInvite)
 		{
 			// Platform invites are sent as session invites on platform OSS' - this way we get the OS popups one would expect on XBox, PS4, etc.
 			bool bSentPlatformInvite = false;
-			const IOnlineSessionPtr PlatformSessionInterface = Online::GetSessionInterface(GetWorld(), USocialManager::GetSocialOssName(ESocialSubsystem::Platform));
-			if (PlatformSessionInterface.IsValid())
+			const FName SocialOssName = USocialManager::GetSocialOssName(ESocialSubsystem::Platform);
+			const IOnlineSessionPtr PlatformSessionInterface = Online::GetSessionInterface(GetWorld(), SocialOssName);
+			if (PlatformSessionInterface)
 			{
-				//@todo DanH Party: Any way to know if the session invite was a success? If we don't know we can't show it :/ #future
-				bSentPlatformInvite = PlatformSessionInterface->SendSessionInviteToFriend(*GetOwningLocalMember().GetRepData().GetPlatformUniqueId(), NAME_PartySession, *UserPlatformId);
+				FUniqueNetIdRepl LocalUserPlatformId = GetOwningLocalMember().GetRepData().GetPlatformUniqueId();
+
+				//@todo FORT-244991 Temporarily fall back on grabbing the LocalUserPlatformId from the Platform identity interface
+				if (!LocalUserPlatformId.IsValid())
+				{
+					if (const IOnlineIdentityPtr PlatformIdentityInterface = Online::GetIdentityInterface(GetWorld(), SocialOssName))
+					{
+						LocalUserPlatformId = PlatformIdentityInterface->GetUniquePlayerId(GetOwningLocalPlayer().GetControllerId());
+					}
+				}
+
+				if (LocalUserPlatformId.IsValid())
+				{
+					//@todo DanH Party: Any way to know if the session invite was a success? If we don't know we can't show it :/ #future
+					bSentPlatformInvite = PlatformSessionInterface->SendSessionInviteToFriend(*LocalUserPlatformId, NAME_PartySession, *UserPlatformId);
+				}
 			}
 			OnInviteSentInternal(ESocialSubsystem::Platform, UserToInvite, bSentPlatformInvite);
 			bSentInvite |= bSentPlatformInvite;
