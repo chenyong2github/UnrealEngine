@@ -939,6 +939,9 @@ void FConcertClient::DisconnectSession()
 	// We don't want the client to get automatically reconnected to it's default session
 	AutoConnection.Reset();
 	InternalDisconnectSession();
+
+	// If async connection tasks were in-flight, cancel them.
+	PendingConnection.Reset();
 }
 
 void FConcertClient::ResumeSession()
