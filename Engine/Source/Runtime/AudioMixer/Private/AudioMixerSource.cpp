@@ -1091,7 +1091,7 @@ namespace Audio
 
 	bool FMixerSource::ComputeMonoChannelMap(const ESubmixChannelFormat SubmixChannelType, Audio::AlignedFloatBuffer& OutChannelMap)
 	{
-		if (UseObjectBasedSpatialization())
+		if (IsUsingObjectBasedSpatialization())
 		{
 			if (WaveInstance->SpatializationMethod != ESoundSpatializationAlgorithm::SPATIALIZATION_HRTF && !bEditorWarnedChangedSpatialization)
 			{
@@ -1132,7 +1132,8 @@ namespace Audio
 				UpdateStereoEmitterPositions();
 			}
 
-			if (!UseObjectBasedSpatialization())
+			// Check whether voice is currently using 
+			if (!IsUsingObjectBasedSpatialization())
 			{
 				float AzimuthOffset = 0.0f;
 
@@ -1201,6 +1202,22 @@ namespace Audio
 		return (Buffer->NumChannels <= MixerDevice->MaxChannelsSupportedBySpatializationPlugin &&
 				AudioDevice->IsSpatializationPluginEnabled() &&
 				WaveInstance->SpatializationMethod == ESoundSpatializationAlgorithm::SPATIALIZATION_HRTF);
+	}
+
+	bool FMixerSource::IsUsingObjectBasedSpatialization() const
+	{
+		bool bIsUsingObjectBaseSpatialization = UseObjectBasedSpatialization();
+
+		if (MixerSourceVoice)
+		{
+			// If it is currently playing, check whether it actively uses HRTF spatializer.
+			// HRTF spatialization cannot be altered on currently playing source. So this handles
+			// the case where the source was initialized without HRTF spatialization before HRTF
+			// spatialization is enabled. 
+			bool bDefaultIfNoSourceId = true;
+			bIsUsingObjectBaseSpatialization &= MixerSourceVoice->IsUsingHRTFSpatializer(bDefaultIfNoSourceId);
+		}
+		return bIsUsingObjectBaseSpatialization;
 	}
 
 	bool FMixerSource::UseSpatializationPlugin() const

@@ -236,6 +236,7 @@ namespace Audio
 
 		int64 GetNumFramesPlayed(const int32 SourceId) const;
 		float GetEnvelopeValue(const int32 SourceId) const;
+		bool IsUsingHRTFSpatializer(const int32 SourceId) const;
 		bool NeedsSpeakerMap(const int32 SourceId) const;
 		void ComputeNextBlockOfSamples();
 		void ClearStoppingSounds();
@@ -559,6 +560,7 @@ namespace Audio
 			TArray<bool> bIsBusy;
 			TArray<bool> bNeedsSpeakerMap;
 			TArray<bool> bIsDebugMode;
+			TArray<bool> bIsUsingHRTFSpatializer;
 		} GameThreadInfo;
 
 		int32 NumActiveSources;
