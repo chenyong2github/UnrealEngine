@@ -6,6 +6,7 @@
 #include "ActiveSound.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/SoundCue.h"
+#include "Sound/SoundNode.h"
 #include "GameFramework/GameUserSettings.h"
 #include "Engine/Engine.h"
 
