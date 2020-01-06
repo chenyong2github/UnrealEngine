@@ -330,7 +330,7 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		int32 UpdateEventGeneratorIndex = 0;
 		for (const FNiagaraEventGeneratorProperties &GeneratorProps : CachedEmitter->UpdateScriptProps.EventGenerators)
 		{
-			FNiagaraDataSet *Set = FNiagaraEventDataSetMgr::CreateEventDataSet(ParentSystemInstance->GetId(), EmitterHandle.GetIdName(), GeneratorProps.ID);
+			FNiagaraDataSet *Set = ParentSystemInstance->CreateEventDataSet(EmitterHandle.GetIdName(), GeneratorProps.ID);
 			Set->Init(&GeneratorProps.DataSetCompiledData);
 
 			UpdateScriptEventDataSets.Add(Set);
@@ -344,7 +344,7 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		int32 SpawnEventGeneratorIndex = 0;
 		for (const FNiagaraEventGeneratorProperties &GeneratorProps : CachedEmitter->SpawnScriptProps.EventGenerators)
 		{
-			FNiagaraDataSet *Set = FNiagaraEventDataSetMgr::CreateEventDataSet(ParentSystemInstance->GetId(), EmitterHandle.GetIdName(), GeneratorProps.ID);
+			FNiagaraDataSet *Set = ParentSystemInstance->CreateEventDataSet(EmitterHandle.GetIdName(), GeneratorProps.ID);
 
 			Set->Init(&GeneratorProps.DataSetCompiledData);
 
@@ -754,28 +754,6 @@ void FNiagaraEmitterInstance::BindParameters(bool bExternalOnly)
 	}
 }
 
-void FNiagaraEmitterInstance::PostInitSimulation()
-{
-	if (!IsDisabled())
-	{
-		check(ParentSystemInstance);
-
-		//Go through all our receivers and grab their generator sets so that the source emitters can do any init work they need to do.
-		for (const FNiagaraEventReceiverProperties& Receiver : CachedEmitter->SpawnScriptProps.EventReceivers)
-		{
-			//FNiagaraDataSet* ReceiverSet = ParentSystemInstance->GetDataSet(FNiagaraDataSetID(Receiver.SourceEventGenerator, ENiagaraDataSetType::Event), Receiver.SourceEmitter);
-			const FNiagaraDataSet* ReceiverSet = FNiagaraEventDataSetMgr::GetEventDataSet(ParentSystemInstance->GetId(), Receiver.SourceEmitter, Receiver.SourceEventGenerator);
-
-		}
-
-		for (const FNiagaraEventReceiverProperties& Receiver : CachedEmitter->UpdateScriptProps.EventReceivers)
-		{
-			//FNiagaraDataSet* ReceiverSet = ParentSystemInstance->GetDataSet(FNiagaraDataSetID(Receiver.SourceEventGenerator, ENiagaraDataSetType::Event), Receiver.SourceEmitter);
-			const FNiagaraDataSet* ReceiverSet = FNiagaraEventDataSetMgr::GetEventDataSet(ParentSystemInstance->GetId(), Receiver.SourceEmitter, Receiver.SourceEventGenerator);
-		}
-	}
-}
-
 FNiagaraDataSet* FNiagaraEmitterInstance::GetDataSet(FNiagaraDataSetID SetID)
 {
 	FNiagaraDataSet** SetPtr = DataSetMap.Find(SetID);
@@ -1059,9 +1037,9 @@ void FNiagaraEmitterInstance::PreTick()
 	if (NumEventHandlers > 0)
 	{
 		EventHandlingInfo.Reset();
-		EventHandlingInfo.SetNum(CachedEmitter->GetEventHandlers().Num());
+		EventHandlingInfo.SetNum(NumEventHandlers);
 		EventSpawnTotal = 0;
-		for (int32 i = 0; i < CachedEmitter->GetEventHandlers().Num(); i++)
+		for (int32 i = 0; i < NumEventHandlers; i++)
 		{
 			const FNiagaraEventScriptProperties &EventHandlerProps = CachedEmitter->GetEventHandlers()[i];
 			FNiagaraEventHandlingInfo& Info = EventHandlingInfo[i];
@@ -1070,7 +1048,7 @@ void FNiagaraEmitterInstance::PreTick()
 			Info.SpawnCounts.Reset();
 			Info.TotalSpawnCount = 0;
 			Info.EventData = nullptr;
-			if (FNiagaraDataSet* EventSet = FNiagaraEventDataSetMgr::GetEventDataSet(ParentSystemInstance->GetId(), Info.SourceEmitterName, EventHandlerProps.SourceEventName))
+			if (FNiagaraDataSet* EventSet = ParentSystemInstance->GetEventDataSet(Info.SourceEmitterName, EventHandlerProps.SourceEventName))
 			{
 				Info.SetEventData(&EventSet->GetCurrentDataChecked());
 				uint32 EventSpawnNum = CalculateEventSpawnCount(EventHandlerProps, Info.SpawnCounts, EventSet);

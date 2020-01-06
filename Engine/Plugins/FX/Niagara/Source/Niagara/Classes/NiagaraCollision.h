@@ -5,6 +5,8 @@
 #include "NiagaraEvents.h"
 #include "WorldCollision.h"
 
+class FNiagaraDataSet;
+
 UENUM()
 enum class ENiagaraCollisionMode : uint8
 {
