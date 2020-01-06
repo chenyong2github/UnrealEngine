@@ -17,7 +17,18 @@ public class VPUtilities : ModuleRules
 				"Engine",
 				"GameplayTags",
 				"TimeManagement",
+				"UMG",
 				"VPBookmark",
+			}
+		);
+
+		PrivateDependencyModuleNames.AddRange(
+			new string[]
+			{
+				"RenderCore",
+				"RHI",
+				"Slate",
+				"SlateCore",
 			}
 		);
 
@@ -26,13 +37,14 @@ public class VPUtilities : ModuleRules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"VPBookmarkEditor",
+					"Blutility",
+					"LevelEditor",
 					"UnrealEd",
 					"ViewportInteraction",
+					"VPBookmarkEditor",
 					"VREditor",
-					"Blutility",
-                }
-            );
+				}
+			);
 		}
 	}
 }
