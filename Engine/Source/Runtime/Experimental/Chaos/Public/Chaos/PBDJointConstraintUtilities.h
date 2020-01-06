@@ -51,8 +51,8 @@ namespace Chaos
 			const FVec3 IChild,
 			FReal& OutInvMParent,
 			FReal& OutInvMChild,
-			FMatrix33& OutInvIParent,
-			FMatrix33& OutInvIChild,
+			FVec3& OutInvIParent,
+			FVec3& OutInvIChild,
 			const FReal MinParentMassRatio,
 			const FReal MaxInertiaRatio);
 
@@ -60,7 +60,7 @@ namespace Chaos
 			const float M,
 			const FVec3 I,
 			FReal& OutInvM0,
-			FMatrix33& OutInvI0, 
+			FVec3& OutInvI0,
 			const FReal MaxInertiaRatio);
 
 
