@@ -469,7 +469,7 @@ int IUsdPrim::GetNumLODs(const UsdPrim& Prim)
 {
 	FScopedUsdAllocs UsdAllocs;
 
-	// 0 indicates no variant or no lods in variant. 
+	// 0 indicates no variant or no lods in variant.
 	int NumLODs = 0;
 	if (Prim.HasVariantSets())
 	{
@@ -487,7 +487,7 @@ int IUsdPrim::GetNumLODs(const UsdPrim& Prim)
 bool IUsdPrim::IsKindChildOf(const UsdPrim& Prim, const std::string& InBaseKind)
 {
 	TfToken BaseKind(InBaseKind);
-	
+
 	KindRegistry& Registry = KindRegistry::GetInstance();
 
 	TfToken PrimKind( GetKind(Prim) );
@@ -511,7 +511,7 @@ TfToken IUsdPrim::GetKind(const pxr::UsdPrim& Prim)
 		static TfToken KindMetaDataToken("kind");
 		Prim.GetMetadata(KindMetaDataToken, &KindType);
 	}
-	
+
 	return KindType;
 }
 
@@ -632,9 +632,9 @@ namespace Internal
 	{
 		TArray< FString > MaterialNames;
 
-		// load each material at the material path; 
+		// load each material at the material path;
 		UsdPrim MaterialPrim = Stage->Load(Path);
-		
+
 		if(MaterialPrim)
 		{
 			// Default to using the prim path name as the path for this material in Unreal
@@ -690,7 +690,7 @@ TTuple< TArray< FString >, TArray< int32 > > IUsdPrim::GetGeometryMaterials(doub
 		return MakeTuple( MaterialNames, FaceMaterialIndices );
 	}
 
-	// If the gprim does not have a material faceSet which represents per-face 
+	// If the gprim does not have a material faceSet which represents per-face
 	// shader assignments, assign the shading engine to the entire gprim.
 	std::vector<UsdGeomSubset> FaceSubsets = UsdShadeMaterialBindingAPI(Prim).GetMaterialBindSubsets();
 	std::vector<UsdGeomFaceSetAPI> FaceSets = UsdGeomFaceSetAPI::GetFaceSets(Prim);
@@ -737,7 +737,7 @@ TTuple< TArray< FString >, TArray< int32 > > IUsdPrim::GetGeometryMaterials(doub
 			UsdShadeMaterialBindingAPI SubsetBindingAPI(Subset.GetPrim());
 			UsdShadeMaterial BoundMaterial = SubsetBindingAPI.ComputeBoundMaterial();
 
-			// Only transfer the first timeSample or default Indices, if 
+			// Only transfer the first timeSample or default Indices, if
 			// there are no time-samples.
 			VtIntArray Indices;
 			Subset.GetIndicesAttr().Get(&Indices, UsdTimeCode::EarliestTime());
@@ -842,7 +842,7 @@ TTuple< TArray< FString >, TArray< int32 > > IUsdPrim::GetGeometryMaterials(doub
 	}
 	else
 	{
-		// No face sets, find a relationship that defines the material 
+		// No face sets, find a relationship that defines the material
 		UsdRelationship Relationship = Prim.GetRelationship(UnrealIdentifiers::MaterialRelationship);
 		if (Relationship)
 		{
@@ -887,7 +887,7 @@ bool IUsdPrim::SetActiveLODIndex(const pxr::UsdPrim& Prim, int LODIndex)
 			}
 		}
 	}
-		
+
 	return false;
 }
 
@@ -904,7 +904,7 @@ EUsdGeomOrientation IUsdPrim::GetGeometryOrientation(const pxr::UsdGeomMesh& Mes
 	{
 		UsdAttribute Orientation = Mesh.GetOrientationAttr();
 		if(Orientation)
-		{ 
+		{
 			static TfToken RightHanded("rightHanded");
 			static TfToken LeftHanded("leftHanded");
 
@@ -919,7 +919,6 @@ EUsdGeomOrientation IUsdPrim::GetGeometryOrientation(const pxr::UsdGeomMesh& Mes
 }
 
 bool UnrealUSDWrapper::bInitialized = false;
-std::string UnrealUSDWrapper::Errors;
 
 
 void UnrealUSDWrapper::Initialize( const TArray< FString >& InPluginDirectories )
@@ -951,8 +950,6 @@ void UnrealUSDWrapper::Initialize( const TArray< FString >& InPluginDirectories 
 
 TUsdStore< pxr::UsdStageRefPtr > UnrealUSDWrapper::OpenUsdStage(const char* Path, const char* Filename)
 {
-	Errors.clear();
-
 	if (!bInitialized)
 	{
 		return {};
@@ -960,28 +957,14 @@ TUsdStore< pxr::UsdStageRefPtr > UnrealUSDWrapper::OpenUsdStage(const char* Path
 
 	bool bImportedSuccessfully = false;
 
-	TfErrorMark ErrorMark;
-
 	string PathAndFilename = string(Path) + string(Filename);
 
 	bool bIsSupported = UsdStage::IsSupportedFile(PathAndFilename);
-	
+
 	FScopedUsdAllocs UsdAllocs;
 
 	pxr::UsdStageCacheContext UsdStageCacheContext( GetUsdStageCache() );
 	UsdStageRefPtr Stage = UsdStage::Open(PathAndFilename);
-
-	if (!ErrorMark.IsClean())
-	{
-		TfErrorMark::Iterator i;
-		for (i = ErrorMark.GetBegin(); i != ErrorMark.GetEnd(); ++i)
-		{
-			Errors += i->GetErrorCodeAsString();
-			Errors += " ";
-			Errors += i->GetCommentary();
-			Errors += "\n";
-		}
-	}
 
 	return Stage;
 }
@@ -989,11 +972,6 @@ TUsdStore< pxr::UsdStageRefPtr > UnrealUSDWrapper::OpenUsdStage(const char* Path
 double UnrealUSDWrapper::GetDefaultTimeCode()
 {
 	return UsdTimeCode::Default().GetValue();
-}
-
-const char* UnrealUSDWrapper::GetErrors()
-{
-	return Errors.length() > 0 ? Errors.c_str() : nullptr;
 }
 
 pxr::UsdStageCache& UnrealUSDWrapper::GetUsdStageCache()

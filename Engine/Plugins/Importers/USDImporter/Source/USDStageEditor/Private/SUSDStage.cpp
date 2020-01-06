@@ -7,12 +7,13 @@
 #include "SUSDPrimInfo.h"
 #include "SUSDStageInfo.h"
 #include "SUSDStageTreeView.h"
-#include "UnrealUSDWrapper.h"
+#include "USDErrorUtils.h"
 #include "USDImporter.h"
 #include "USDLayerUtils.h"
 #include "USDStageActor.h"
 #include "USDStageModule.h"
 #include "USDTypesConversion.h"
+#include "UnrealUSDWrapper.h"
 
 #include "Dialogs/DlgPickPath.h"
 #include "EditorStyleSet.h"
@@ -87,7 +88,7 @@ void SUsdStage::Construct( const FArguments& InArgs )
 			+SVerticalBox::Slot()
 			.AutoHeight()
 			.Padding( SUSDStageConstants::SectionPadding )
-			[				
+			[
 				SNew(SBorder)
 				.BorderImage( FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")) )
 				[
@@ -95,14 +96,14 @@ void SUsdStage::Construct( const FArguments& InArgs )
 					.OnInitialLoadSetChanged( this, &SUsdStage::OnInitialLoadSetChanged )
 				]
 			]
-			
+
 			+SVerticalBox::Slot()
 			.FillHeight(1.f)
 			.Padding( SUSDStageConstants::SectionPadding )
 			[
 				SNew( SSplitter )
 				.Orientation( Orient_Vertical )
-			
+
 				+SSplitter::Slot()
 				.Value( 0.7f )
 				[
@@ -134,7 +135,7 @@ void SUsdStage::Construct( const FArguments& InArgs )
 				// Layers tree
 				+SSplitter::Slot()
 				.Value( 0.3f )
-				[				
+				[
 					SNew(SBorder)
 					.BorderImage( FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")) )
 					[
@@ -230,13 +231,13 @@ TSharedRef< SWidget > SUsdStage::MakeMainMenu()
 	FMenuBarBuilder MenuBuilder( nullptr );
 	{
 		// File
-		MenuBuilder.AddPullDownMenu( 
+		MenuBuilder.AddPullDownMenu(
 			LOCTEXT( "FileMenu", "File" ),
 			LOCTEXT( "FileMenu_ToolTip", "Opens the file menu" ),
 			FNewMenuDelegate::CreateSP( this, &SUsdStage::FillFileMenu ) );
 
 		// Actions
-		MenuBuilder.AddPullDownMenu( 
+		MenuBuilder.AddPullDownMenu(
 			LOCTEXT( "ActionsMenu", "Actions" ),
 			LOCTEXT( "ActionsMenu_ToolTip", "Opens the actions menu" ),
 			FNewMenuDelegate::CreateSP( this, &SUsdStage::FillActionsMenu ) );
@@ -342,7 +343,7 @@ void SUsdStage::OnNew()
 			// Create default prim
 			pxr::UsdGeomXform RootPrim = pxr::UsdGeomXform::Define( UsdStage, UnrealToUsd::ConvertPath( TEXT("/Root") ).Get() );
 			pxr::UsdModelAPI( RootPrim ).SetKind( pxr::TfToken("component") );
-		
+
 			// Set default prim
 			UsdStage->SetDefaultPrim( RootPrim.GetPrim() );
 
@@ -360,7 +361,11 @@ void SUsdStage::OnOpen()
 
 	if ( UsdFilePath )
 	{
+		UsdUtils::StartMonitoringErrors();
+
 		OpenStage( *UsdFilePath.GetValue() );
+
+		UsdUtils::ShowErrorsAndStopMonitoring(FText::Format(LOCTEXT("USDOpenError", "Encountered some errors opening USD file at path '{0}!\nCheck the Output Log for details."), FText::FromString(UsdFilePath.GetValue())));
 	}
 }
 
@@ -374,7 +379,11 @@ void SUsdStage::OnSave()
 		{
 			FScopedUsdAllocs UsdAllocs;
 
+			UsdUtils::StartMonitoringErrors();
+
 			UsdStage->Save();
+
+			UsdUtils::ShowErrorsAndStopMonitoring(LOCTEXT("USDSaveError", "Failed to save current USD Stage!\nCheck the Output Log for details."));
 		}
 	}
 }
@@ -438,10 +447,10 @@ void SUsdStage::OnImport()
 
 		FString PathPart;
 		FString ExtensionPart;
-		
+
 		FPaths::Split( UsdToUnreal::ConvertString( UsdStage->GetRootLayer()->GetDisplayName() ), PathPart, StageName, ExtensionPart );
 	}
-	
+
 	// Import directly from stage
 	bool bCanceled = false;
 	{
@@ -453,7 +462,7 @@ void SUsdStage::OnImport()
 		ImportContextContainer->ImportContext.bApplyWorldTransformToGeometry = false;
 
 		UUSDImporter* UsdImporter = IUSDImporterModule::Get().GetImporter();
-		
+
 		bCanceled = !UsdImporter->ShowImportOptions( ImportContextContainer->ImportContext );
 
 		if ( !bCanceled )

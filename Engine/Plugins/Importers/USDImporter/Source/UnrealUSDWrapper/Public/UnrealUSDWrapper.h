@@ -152,14 +152,12 @@ class UnrealUSDWrapper
 public:
 #if USE_USD_SDK
 	UNREALUSDWRAPPER_API static void Initialize( const TArray< FString > & InPluginDirectories );
-	UNREALUSDWRAPPER_API static const char* GetErrors();
 	UNREALUSDWRAPPER_API static double GetDefaultTimeCode();
 
 	UNREALUSDWRAPPER_API static TUsdStore< pxr::TfRefPtr< pxr::UsdStage > > OpenUsdStage(const char* Path, const char* Filename);
 	UNREALUSDWRAPPER_API static pxr::UsdStageCache& GetUsdStageCache();
 #endif  // #if USE_USD_SDK
 private:
-	static std::string Errors;
 	static bool bInitialized;
 };
 
@@ -184,7 +182,7 @@ public:
 
 	UNREALUSDWRAPPER_API static bool IsUnsigned(const pxr::UsdAttribute& Attribute);
 #endif // #if USE_USD_SDK
-	
+
 };
 
 
