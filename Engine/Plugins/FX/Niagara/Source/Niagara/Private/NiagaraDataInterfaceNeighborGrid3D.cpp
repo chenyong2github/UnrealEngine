@@ -85,13 +85,13 @@ struct FNiagaraDataInterfaceParametersCS_NeighborGrid3D : public FNiagaraDataInt
 			if (ParticleNeighborsGridParam.IsBound())
 			{
 				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, ProxyData->NeighborhoodBuffer.UAV);
-				RHICmdList.SetShaderResourceViewParameter(Context.Shader->GetComputeShader(), ParticleNeighborsGridParam.GetBaseIndex(), ProxyData->NeighborhoodBuffer.SRV);
+				SetSRVParameter(RHICmdList, Context.Shader->GetComputeShader(), ParticleNeighborsGridParam, ProxyData->NeighborhoodBuffer.SRV);
 			}
 
 			if (ParticleNeighborCountGridParam.IsBound())
 			{
 				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, ProxyData->NeighborhoodCountBuffer.UAV);
-				RHICmdList.SetShaderResourceViewParameter(Context.Shader->GetComputeShader(), ParticleNeighborCountGridParam.GetBaseIndex(), ProxyData->NeighborhoodCountBuffer.SRV);
+				SetSRVParameter(RHICmdList, Context.Shader->GetComputeShader(), ParticleNeighborCountGridParam, ProxyData->NeighborhoodCountBuffer.SRV);
 			}
 		}
 		else
@@ -99,13 +99,13 @@ struct FNiagaraDataInterfaceParametersCS_NeighborGrid3D : public FNiagaraDataInt
 			if (OutputParticleNeighborsGridParam.IsBound())
 			{
 				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, ProxyData->NeighborhoodBuffer.UAV);
-				RHICmdList.SetUAVParameter(Context.Shader->GetComputeShader(), OutputParticleNeighborsGridParam.GetUAVIndex(), ProxyData->NeighborhoodBuffer.UAV);
+				OutputParticleNeighborsGridParam.SetBuffer(RHICmdList, Context.Shader->GetComputeShader(), ProxyData->NeighborhoodBuffer);
 			}
 
 			if (OutputParticleNeighborCountGridParam.IsBound())
 			{
 				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, ProxyData->NeighborhoodCountBuffer.UAV);
-				RHICmdList.SetUAVParameter(Context.Shader->GetComputeShader(), OutputParticleNeighborCountGridParam.GetUAVIndex(), ProxyData->NeighborhoodCountBuffer.UAV);
+				OutputParticleNeighborCountGridParam.SetBuffer(RHICmdList, Context.Shader->GetComputeShader(), ProxyData->NeighborhoodCountBuffer);
 			}
 		}
 		// Note: There is a flush in PreEditChange to make sure everything is synced up at this point 
