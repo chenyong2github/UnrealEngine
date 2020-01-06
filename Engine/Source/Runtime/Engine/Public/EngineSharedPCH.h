@@ -560,7 +560,6 @@
 #include "Math/GenericOctreePublic.h"
 #include "GameFramework/OnlineReplStructs.h"
 #include "Audio.h"
-#include "Sound/SoundClass.h"
 #include "Sound/SoundAttenuation.h"
 #include "IAudioExtensionPlugin.h"
 #include "Tickable.h"

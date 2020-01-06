@@ -445,7 +445,6 @@
 #include "BatchedElements.h"
 #include "GameFramework/Volume.h"
 #include "EngineGlobals.h"
-#include "Sound/SoundClass.h"
 #include "Audio.h"
 #include "Sound/SoundAttenuation.h"
 #include "IAudioExtensionPlugin.h"
