@@ -3236,7 +3236,7 @@ static bool InternalSavePackages(const TArray<UPackage*>& PackagesToSave, bool b
 
 void FEditorFileUtils::SaveMapDataPackages(UWorld* WorldToSave, bool bCheckDirty)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(SaveMapDataPackages);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorFileUtils_SaveMapDataPackages);
 
 	TArray<UPackage*> PackagesToSave;
 	ULevel* Level = WorldToSave->PersistentLevel;
@@ -3445,6 +3445,8 @@ bool FEditorFileUtils::SaveDirtyContentPackages(TArray<UClass*>& SaveContentClas
 bool FEditorFileUtils::SaveCurrentLevel()
 {
 	bool bReturnCode = false;
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorFileUtils_SaveCurrentLevel);
 
 	ULevel* Level = GWorld->GetCurrentLevel();
 	if ( Level && FEditorFileUtils::PromptToCheckoutLevels( false, Level ) )
