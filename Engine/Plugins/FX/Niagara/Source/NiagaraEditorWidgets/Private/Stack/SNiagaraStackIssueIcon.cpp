@@ -5,9 +5,11 @@
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
 #include "EditorStyleSet.h"
 #include "Internationalization/Text.h"
+#include "NiagaraEditorWidgetsStyle.h"
 
 #define LOCTEXT_NAMESPACE "SNiagaraStackIssueIcon"
 
@@ -20,8 +22,7 @@ void SNiagaraStackIssueIcon::Construct(const FArguments& InArgs, UNiagaraStackVi
 		StackEntry->OnStructureChanged().AddSP(this, &SNiagaraStackIssueIcon::UpdateFromEntry);
 	}
 
-	ChildSlot
-	[
+	TSharedRef<SWidget> IconWidget =
 		SNew(SBox)
 		.IsEnabled(this, &SNiagaraStackIssueIcon::GetIconIsEnabled)
 		.ToolTipText(this, &SNiagaraStackIssueIcon::GetIconToolTip)
@@ -32,7 +33,27 @@ void SNiagaraStackIssueIcon::Construct(const FArguments& InArgs, UNiagaraStackVi
 		[
 			SNew(SImage)
 			.Image(this, &SNiagaraStackIssueIcon::GetIconBrush)
-		]
+		];
+
+	if (InArgs._OnClicked.IsBound())
+	{
+		TSharedRef<SButton> IconButton =
+			SNew(SButton)
+			.ButtonStyle(FEditorStyle::Get(), "RoundButton")
+			.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
+			.ContentPadding(FMargin(1,0,0,0))
+			.OnClicked(InArgs._OnClicked)
+			.Content()
+			[
+				IconWidget
+			];
+
+		IconWidget = IconButton;
+	}
+
+	ChildSlot
+	[
+		IconWidget
 	];
 	UpdateFromEntry();
 }
