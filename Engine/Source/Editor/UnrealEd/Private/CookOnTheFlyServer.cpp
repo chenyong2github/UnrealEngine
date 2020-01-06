@@ -7754,6 +7754,11 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 					continue;
 				}
 
+				if (Package->GetOuter() != nullptr)
+				{
+					continue;
+				}
+
 				PackagesToSave.Add(Package);
 
 				{
