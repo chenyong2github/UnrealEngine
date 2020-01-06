@@ -36,6 +36,10 @@
 #include "ChaosCloth/ChaosWeightMapTarget.h"
 #include "ChaosCloth/ChaosClothPrivate.h"
 
+#include "Chaos/XPBDLongRangeConstraints.h"
+#include "Chaos/XPBDSpringConstraints.h"
+#include "Chaos/XPBDAxialSpringConstraints.h"
+
 #if WITH_PHYSX && !PLATFORM_LUMIN && !PLATFORM_ANDROID
 #include "PhysXIncludes.h"
 #endif
@@ -392,19 +396,40 @@ void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimCo
 	const uint32 Offset = IndexToRangeMap[InSimDataIndex][0];
 	const uint32 ParticleCount = IndexToRangeMap[InSimDataIndex][1] - Offset;
 
+	const bool bUseXPBDConstraints = ClothSharedSimConfig && ClothSharedSimConfig->bUseXPBDConstraints;
+
 	if (ChaosClothSimConfig->ShapeTargetStiffness)
 	{
 		check(ChaosClothSimConfig->ShapeTargetStiffness > 0.f && ChaosClothSimConfig->ShapeTargetStiffness <= 1.f);
-		Evolution->AddPBDConstraintFunction([ShapeConstraints = Chaos::TPBDShapeConstraints<float, 3>(Evolution->Particles(), Offset, ParticleCount, AnimationPositions, ChaosClothSimConfig->ShapeTargetStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
+		Evolution->AddPBDConstraintFunction([ShapeConstraints = Chaos::TPBDShapeConstraints<float, 3>(Evolution->Particles(), Offset, ParticleCount, AnimationPositions, ChaosClothSimConfig->ShapeTargetStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt)
+		{
 			ShapeConstraints.Apply(InParticles, Dt);
 		});
 	}
 	if (ChaosClothSimConfig->EdgeStiffness)
 	{
 		check(ChaosClothSimConfig->EdgeStiffness > 0.f && ChaosClothSimConfig->EdgeStiffness <= 1.f);
-		Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::TPBDSpringConstraints<float, 3>(Evolution->Particles(), SurfaceElements, ChaosClothSimConfig->EdgeStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
-			SpringConstraints.Apply(InParticles, Dt);
-		});
+		if (bUseXPBDConstraints)
+		{
+			const TSharedPtr<Chaos::TXPBDSpringConstraints<float, 3>> SpringConstraints =
+				MakeShared<Chaos::TXPBDSpringConstraints<float, 3>>(Evolution->Particles(), SurfaceElements, ChaosClothSimConfig->EdgeStiffness);
+			Evolution->AddXPBDConstraintFunctions(
+				[SpringConstraints]()
+				{
+					SpringConstraints->Init();
+				},
+				[SpringConstraints](TPBDParticles<float, 3>& InParticles, const float Dt)
+				{
+					SpringConstraints->Apply(InParticles, Dt);
+				});
+		}
+		else
+		{
+			Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::TPBDSpringConstraints<float, 3>(Evolution->Particles(), SurfaceElements, ChaosClothSimConfig->EdgeStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt)
+			{
+				SpringConstraints.Apply(InParticles, Dt);
+			});
+		}
 	}
 	if (ChaosClothSimConfig->BendingStiffness)
 	{
@@ -412,24 +437,61 @@ void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimCo
 		if (ChaosClothSimConfig->bUseBendingElements)
 		{
 			TArray<Chaos::TVector<int32, 4>> BendingConstraints = Mesh.GetUniqueAdjacentElements();
-			Evolution->AddPBDConstraintFunction([BendConstraints = Chaos::TPBDBendingConstraints<float>(Evolution->Particles(), MoveTemp(BendingConstraints), ChaosClothSimConfig->BendingStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
+			Evolution->AddPBDConstraintFunction([BendConstraints = Chaos::TPBDBendingConstraints<float>(Evolution->Particles(), MoveTemp(BendingConstraints), ChaosClothSimConfig->BendingStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt)
+			{
 				BendConstraints.Apply(InParticles, Dt);
 			});
 		}
 		else
 		{
 			TArray<Chaos::TVector<int32, 2>> BendingConstraints = Mesh.GetUniqueAdjacentPoints();
-			Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::TPBDSpringConstraints<float, 3>(Evolution->Particles(), MoveTemp(BendingConstraints), ChaosClothSimConfig->BendingStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
-				SpringConstraints.Apply(InParticles, Dt);
-			});
+			if (bUseXPBDConstraints)
+			{
+				const TSharedPtr<Chaos::TXPBDSpringConstraints<float, 3>> SpringConstraints =
+					MakeShared<Chaos::TXPBDSpringConstraints<float, 3>>(Evolution->Particles(), MoveTemp(BendingConstraints), ChaosClothSimConfig->BendingStiffness);
+				Evolution->AddXPBDConstraintFunctions(
+					[SpringConstraints]()
+					{
+						SpringConstraints->Init();
+					},
+					[SpringConstraints](TPBDParticles<float, 3>& InParticles, const float Dt)
+					{
+						SpringConstraints->Apply(InParticles, Dt);
+					});
+			}
+			else
+			{
+				Evolution->AddPBDConstraintFunction([SpringConstraints = Chaos::TPBDSpringConstraints<float, 3>(Evolution->Particles(), MoveTemp(BendingConstraints), ChaosClothSimConfig->BendingStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt)
+				{
+					SpringConstraints.Apply(InParticles, Dt);
+				});
+			}
 		}
 	}
 	if (ChaosClothSimConfig->AreaStiffness)
 	{
 		TArray<Chaos::TVector<int32, 3>> SurfaceConstraints = SurfaceElements;
-		Evolution->AddPBDConstraintFunction([SurfConstraints = Chaos::TPBDAxialSpringConstraints<float, 3>(Evolution->Particles(), MoveTemp(SurfaceConstraints), ChaosClothSimConfig->AreaStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
-			SurfConstraints.Apply(InParticles, Dt);
-		});
+		if (bUseXPBDConstraints)
+		{
+			const TSharedPtr<Chaos::TXPBDAxialSpringConstraints<float, 3>> AxialSpringConstraints =
+				MakeShared<Chaos::TXPBDAxialSpringConstraints<float, 3>>(Evolution->Particles(), MoveTemp(SurfaceConstraints), ChaosClothSimConfig->AreaStiffness);
+			Evolution->AddXPBDConstraintFunctions(
+				[AxialSpringConstraints]()
+				{
+					AxialSpringConstraints->Init();
+				},
+				[AxialSpringConstraints](TPBDParticles<float, 3>& InParticles, const float Dt)
+				{
+					AxialSpringConstraints->Apply(InParticles, Dt);
+				});
+		}
+		else
+		{
+			Evolution->AddPBDConstraintFunction([AxialSpringConstraints = Chaos::TPBDAxialSpringConstraints<float, 3>(Evolution->Particles(), MoveTemp(SurfaceConstraints), ChaosClothSimConfig->AreaStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt)
+			{
+				AxialSpringConstraints.Apply(InParticles, Dt);
+			});
+		}
 	}
 	if (ChaosClothSimConfig->VolumeStiffness)
 	{
@@ -489,16 +551,37 @@ void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimCo
 		check(Mesh.GetNumElements() > 0);
 		// PerFormance note: The Per constraint version of this function is quite a bit faster for smaller assets
 		// There might be a cross-over point where the PerParticle version is faster: To be determined
-		Chaos::TPBDLongRangeConstraints<float, 3> PBDLongRangeConstraints(
-			Evolution->Particles(),
-			Mesh.GetPointToNeighborsMap(),
-			10, // The max number of connected neighbors per particle.  ryan - What should this be?  Was k...
-			ChaosClothSimConfig->StrainLimitingStiffness);
-
-		Evolution->AddPBDConstraintFunction([PBDLongRangeConstraints = MoveTemp(PBDLongRangeConstraints)](TPBDParticles<float, 3>& InParticles, const float Dt)
+		if (bUseXPBDConstraints)
 		{
-			PBDLongRangeConstraints.Apply(InParticles, Dt);
-		});
+			const TSharedPtr<Chaos::TXPBDLongRangeConstraints<float, 3>> LongRangeConstraints = MakeShared<Chaos::TXPBDLongRangeConstraints<float, 3>>(
+				Evolution->Particles(),
+				Mesh.GetPointToNeighborsMap(),
+				10, // The max number of connected neighbors per particle.  ryan - What should this be?  Was k...
+				ChaosClothSimConfig->StrainLimitingStiffness);
+
+			Evolution->AddXPBDConstraintFunctions(
+				[LongRangeConstraints]()
+				{
+					LongRangeConstraints->Init();
+				},
+				[LongRangeConstraints](TPBDParticles<float, 3>& InParticles, const float Dt)
+				{
+					LongRangeConstraints->Apply(InParticles, Dt);
+				});
+		}
+		else
+		{
+			Chaos::TPBDLongRangeConstraints<float, 3> LongRangeConstraints(
+				Evolution->Particles(),
+				Mesh.GetPointToNeighborsMap(),
+				10, // The max number of connected neighbors per particle.  ryan - What should this be?  Was k...
+				ChaosClothSimConfig->StrainLimitingStiffness);
+
+			Evolution->AddPBDConstraintFunction([LongRangeConstraints = MoveTemp(LongRangeConstraints)](TPBDParticles<float, 3>& InParticles, const float Dt)
+			{
+				LongRangeConstraints.Apply(InParticles, Dt);
+			});
+		}
 	}
 
 	// Maximum Distance Constraints

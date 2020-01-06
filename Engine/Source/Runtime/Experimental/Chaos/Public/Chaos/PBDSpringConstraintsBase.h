@@ -160,8 +160,6 @@ namespace Chaos
 
 	protected:
 		TArray<TVector<int32, 2>> MConstraints;
-
-	private:
 		TArray<T> MDists;
 		T MStiffness;
 	};
