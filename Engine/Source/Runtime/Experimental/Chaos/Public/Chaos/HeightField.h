@@ -109,7 +109,7 @@ namespace Chaos
 			return 0;
 		}
 
-		virtual const TAABB<T, 3>& BoundingBox() const
+		virtual const TAABB<T, 3> BoundingBox() const
 		{
 			CachedBounds = TAABB<T, 3>(LocalBounds.Min() * GeomData.Scale, LocalBounds.Max() * GeomData.Scale);
 			return CachedBounds;

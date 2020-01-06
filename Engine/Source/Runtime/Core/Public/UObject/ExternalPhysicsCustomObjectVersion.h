@@ -98,6 +98,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 
 		// Union objects can avoid allocating a full hierarchy
 		UnionObjectsCanAvoidHierarchy,
+
+		// Capsules no longer have a union inside them or stored aabbs
+		CapsulesNoUnionOrAABBs,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
