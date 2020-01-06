@@ -350,7 +350,7 @@ FImplicitObject* FImplicitObject::SerializationFactory(FChaosArchive& Ar, FImpli
 			switch (InnerType)
 			{
 			case ImplicitObjectType::Convex: if (Ar.IsLoading()) { return new TImplicitObjectScaled<FConvex>(); } break;
-			case ImplicitObjectType::TriangleMesh: if (Ar.IsLoading()) { return new TImplicitObjectScaled<TTriangleMeshImplicitObject<FReal>>(); } break;
+			case ImplicitObjectType::TriangleMesh: if (Ar.IsLoading()) { return new TImplicitObjectScaled<FTriangleMeshImplicitObject>(); } break;
 			default: check(false);
 			}
 
@@ -369,7 +369,7 @@ FImplicitObject* FImplicitObject::SerializationFactory(FChaosArchive& Ar, FImpli
 	case ImplicitObjectType::LevelSet: if (Ar.IsLoading()) { return new TLevelSet<FReal, 3>(); } break;
 	case ImplicitObjectType::Convex: if (Ar.IsLoading()) { return new FConvex(); } break;
 	case ImplicitObjectType::TaperedCylinder: if (Ar.IsLoading()) { return new TTaperedCylinder<FReal>(); } break;
-	case ImplicitObjectType::TriangleMesh: if (Ar.IsLoading()) { return new TTriangleMeshImplicitObject<FReal>(); } break;
+	case ImplicitObjectType::TriangleMesh: if (Ar.IsLoading()) { return new FTriangleMeshImplicitObject(); } break;
 	case ImplicitObjectType::DEPRECATED_Scaled:
 	{
 		ensure(Ar.IsLoading() && (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::ScaledGeometryIsConcrete));
