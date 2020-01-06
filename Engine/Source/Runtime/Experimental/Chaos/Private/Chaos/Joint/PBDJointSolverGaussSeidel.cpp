@@ -306,9 +306,7 @@ namespace Chaos
 		TwistDriveLambda = (FReal)0;
 		SwingDriveLambda = (FReal)0;
 
-		// Disable the angular limit hardness improvement if linear limits are set up
-		// @todo(ccaulfield): fix angular constraint position correction in ApplyRotationCorrection and ApplyRotationCorrectionSoft
-		bEnableAngularConstraintPositionCorrection = ((JointSettings.LinearMotionTypes[0] == EJointMotionType::Locked) && (JointSettings.LinearMotionTypes[1] == EJointMotionType::Locked) && (JointSettings.LinearMotionTypes[2] == EJointMotionType::Locked));
+		AngularPositionCorrection = FPBDJointUtilities::GetAngularPositionCorrection(SolverSettings, JointSettings);
 	}
 
 
@@ -947,14 +945,14 @@ namespace Chaos
 		//const FVec3 DR1 = Axis1 * -(Angle * II1 / (II0 + II1));
 
 		// @todo(ccaulfield): this position correction needs to have components in direction of inactive position constraints removed
-		if (bEnableAngularConstraintPositionCorrection)
+		if (AngularPositionCorrection > 0)
 		{
 			const FReal IM0 = InvMs[0];
 			const FReal IM1 = InvMs[1];
 			const FVec3 DX = FVec3::CrossProduct(DR0, Xs[0] - Ps[0]) + FVec3::CrossProduct(DR1, Xs[1] - Ps[1]);
 			const FVec3 DP0 = DX * (IM0 / (IM0 + IM1));
 			const FVec3 DP1 = DX * (-IM1 / (IM0 + IM1));
-			ApplyPositionDelta(Stiffness, DP0, DP1);
+			ApplyPositionDelta(Stiffness * AngularPositionCorrection, DP0, DP1);
 		}
 
 		ApplyRotationDelta(Stiffness, DR0, DR1);
@@ -1033,14 +1031,14 @@ namespace Chaos
 		const FVec3 DR1 = Axis1 * -(DLambda * II1);
 
 		// @todo(ccaulfield): this position correction needs to have components in direction of inactive position constraints removed
-		if (bEnableAngularConstraintPositionCorrection)
+		if (AngularPositionCorrection > 0)
 		{
 			const FReal IM0 = InvMs[0];
 			const FReal IM1 = InvMs[1];
 			const FVec3 DX = FVec3::CrossProduct(DR0, Xs[0] - Ps[0]) + FVec3::CrossProduct(DR1, Xs[1] - Ps[1]);
 			const FVec3 DP0 = DX * (IM0 / (IM0 + IM1));
 			const FVec3 DP1 = DX * (-IM1 / (IM0 + IM1));
-			ApplyPositionDelta(1.0f, DP0, DP1);
+			ApplyPositionDelta(AngularPositionCorrection, DP0, DP1);
 		}
 
 		Lambda += DLambda;

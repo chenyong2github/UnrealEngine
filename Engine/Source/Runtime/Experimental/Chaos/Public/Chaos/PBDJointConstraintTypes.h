@@ -131,6 +131,9 @@ namespace Chaos
 		FReal MinParentMassRatio;
 		FReal MaxInertiaRatio;
 
+		// Angular stiffness
+		FReal AngularConstraintPositionCorrection;
+
 		// @todo(ccaulfield): remove these TEMP overrides for testing
 		bool bEnableTwistLimits;
 		bool bEnableSwingLimits;
