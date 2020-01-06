@@ -8,7 +8,7 @@
 #include "OnlineSubsystemSteamPackage.h"
 
 /** Defines the data involved in a Steam voice packet */
-class FVoicePacketSteam : public FVoicePacket
+class UE_DEPRECATED(4.25, "Steam Voice is now handled by the default voice implementation, FOnlineVoiceImpl. This code is no longer used.") FVoicePacketSteam : public FVoicePacket
 {
 
 PACKAGE_SCOPE:
@@ -51,10 +51,13 @@ public:
 };
 
 /** Holds the current voice packet data state */
-struct FVoiceDataSteam
+struct UE_DEPRECATED(4.25, "Voice functionality on Steam no longer requires platform specific code.") FVoiceDataSteam
 {
 	/** Data used by the local talkers before sent */
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FVoicePacketSteam LocalPackets[MAX_SPLITSCREEN_TALKERS];
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	/** Holds the set of received packets that need to be processed */
 	FVoicePacketList RemotePackets;
 
