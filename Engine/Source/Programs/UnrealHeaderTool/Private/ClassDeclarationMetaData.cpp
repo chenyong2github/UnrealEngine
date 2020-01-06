@@ -15,7 +15,6 @@
 namespace
 {
 	static const FName NAME_IgnoreCategoryKeywordsInSubclasses(TEXT("IgnoreCategoryKeywordsInSubclasses"));
-	static const FName NAME_IsConversionRoot(TEXT("IsConversionRoot"));
 	bool IsActorClass(UClass *Class)
 	{
 		while (Class)
@@ -293,7 +292,7 @@ void FClassDeclarationMetaData::ParseClassProperties(TArray<FPropertySpecifier>&
 
 			case EClassMetadataSpecifier::ConversionRoot:
 
-				MetaData.Add(NAME_IsConversionRoot, TEXT("true"));
+				MetaData.Add(FHeaderParserNames::NAME_IsConversionRoot, TEXT("true"));
 				break;
 
 			default:
