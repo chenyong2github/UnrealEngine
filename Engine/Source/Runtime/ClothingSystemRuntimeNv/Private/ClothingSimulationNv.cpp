@@ -26,7 +26,6 @@
 #endif
 
 #include "PhysicsEngine/PhysicsAsset.h"
-#include "PhysicsEngine/PhysicsSettings.h"
 #include "SkeletalRenderPublic.h"
 
 DECLARE_CYCLE_STAT(TEXT("Compute Clothing Normals"), STAT_NvClothComputeNormals, STATGROUP_Physics);
@@ -35,142 +34,63 @@ DECLARE_CYCLE_STAT(TEXT("Update Collisions"), STAT_NvClothUpdateCollisions, STAT
 DECLARE_CYCLE_STAT(TEXT("Fill Context"), STAT_NvClothFillContext, STATGROUP_Physics);
 DECLARE_CYCLE_STAT(TEXT("Update Anim Drive"), STAT_NvClothUpdateAnimDrive, STATGROUP_Physics);
 
-//=============================================================================
-// FClothingSimulationBase
-//=============================================================================
-
 static TAutoConsoleVariable<float> GClothMaxDeltaTimeTeleportMultiplier(
 	TEXT("p.Cloth.MaxDeltaTimeTeleportMultiplier"),
 	1.5f,
 	TEXT("A multiplier of the MaxPhysicsDelta time at which we will automatically just teleport cloth to its new location\n")
 	TEXT(" default: 1.5"));
 
-FClothingSimulationBase::FClothingSimulationBase()
+//=============================================================================
+// FClothingSimulationContextNv
+//=============================================================================
+
+FClothingSimulationContextNv::FClothingSimulationContextNv()
+	: PredictedLod(0)
+	, WindAdaption(0.0f)
+	, TeleportMode(EClothingTeleportMode::None)
+	, MaxDistanceScale(1.f)
 {
-	MaxPhysicsDelta = UPhysicsSettings::Get()->MaxPhysicsDeltaTime;
 }
 
-FClothingSimulationBase::~FClothingSimulationBase()
-{}
-
-void FClothingSimulationBase::FillContext(
-	USkeletalMeshComponent* InComponent, 
-	float InDeltaTime, 
-	IClothingSimulationContext* InOutContext)
+FClothingSimulationContextNv::~FClothingSimulationContextNv()
 {
+}
+
+void FClothingSimulationContextNv::Fill(const USkeletalMeshComponent* InComponent, float InDeltaSeconds, float InMaxPhysicsDelta)
+{
+	SCOPE_CYCLE_COUNTER(STAT_NvClothFillContext);
 	LLM_SCOPE(ELLMTag::SkeletalMesh);
 
-	FClothingSimulationContextBase* BaseContext = static_cast<FClothingSimulationContextBase*>(InOutContext);
-	BaseContext->ComponentToWorld = InComponent->GetComponentTransform();
-	BaseContext->PredictedLod = InComponent->PredictedLODLevel;
-	InComponent->GetWindForCloth_GameThread(BaseContext->WindVelocity, BaseContext->WindAdaption);
-	USkeletalMesh* SkelMesh = InComponent->SkeletalMesh;
+	FClothingSimulationContextCommon::Fill(InComponent, InDeltaSeconds, InMaxPhysicsDelta);
 
-	if(USkinnedMeshComponent* MasterComponent = InComponent->MasterPoseComponent.Get())
+	PredictedLod = InComponent->PredictedLODLevel;
+
+	TeleportMode = (InDeltaSeconds > InMaxPhysicsDelta * GClothMaxDeltaTimeTeleportMultiplier.GetValueOnGameThread()) ?
+		EClothingTeleportMode::Teleport :
+		InComponent->ClothTeleportMode;
+
+	MaxDistanceScale = const_cast<USkeletalMeshComponent*>(InComponent)->GetClothMaxDistanceScale();  // TODO(Kriss.Gossart): Test in BP whether GetClothMaxDistanceScale can be made const without breaking any functionalities
+}
+
+void FClothingSimulationContextNv::FillRefToLocals(const USkeletalMeshComponent* InComponent)
+{
+	FClothingSimulationContextCommon::RefToLocals.Reset();
+	InComponent->GetCurrentRefToLocalMatrices(FClothingSimulationContextCommon::RefToLocals, InComponent->PredictedLODLevel);
+}
+
+void FClothingSimulationContextNv::FillWorldGravity(const USkeletalMeshComponent* InComponent)
+{
+	float GravityStrength = 981.f;  // This seems to be pointing the wrong way around, but since this is legacy code it is probably safer not to change it
+	if (const UWorld* const ComponentWorld = InComponent->GetWorld())
 	{
-		int32 NumBones = InComponent->MasterBoneMap.Num();
-
-		if(NumBones == 0)
-		{
-			if(InComponent->SkeletalMesh)
-			{
-				// This case indicates an invalid master pose component (e.g. no skeletal mesh)
-				NumBones = InComponent->SkeletalMesh->RefSkeleton.GetNum();
-
-				BaseContext->BoneTransforms.Empty(NumBones);
-				BaseContext->BoneTransforms.AddDefaulted(NumBones);
-			}
-		}
-		else
-		{
-		    BaseContext->BoneTransforms.Reset(NumBones);
-		    BaseContext->BoneTransforms.AddDefaulted(NumBones);
-    
-		    for(int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
-		    {
-			    bool bFoundMaster = false;
-			    if(InComponent->MasterBoneMap.IsValidIndex(BoneIndex))
-			    {
-				    const int32 MasterIndex = InComponent->MasterBoneMap[BoneIndex];
-    
-				    if(MasterIndex != INDEX_NONE && MasterIndex < MasterComponent->GetComponentSpaceTransforms().Num())
-				    {
-					    BaseContext->BoneTransforms[BoneIndex] = MasterComponent->GetComponentSpaceTransforms()[MasterIndex];
-					    bFoundMaster = true;
-				    }
-			    }
-    
-			    if(!bFoundMaster)
-			    {
-				    if(SkelMesh)
-				    {
-					    const int32 ParentIndex = SkelMesh->RefSkeleton.GetParentIndex(BoneIndex);
-    
-					    if(ParentIndex != INDEX_NONE)
-					    {
-						    BaseContext->BoneTransforms[BoneIndex] = BaseContext->BoneTransforms[ParentIndex] * SkelMesh->RefSkeleton.GetRefBonePose()[BoneIndex];
-					    }
-					    else
-					    {
-						    BaseContext->BoneTransforms[BoneIndex] = SkelMesh->RefSkeleton.GetRefBonePose()[BoneIndex];
-					    }
-				    }
-			    }
-		    }
-		}
+		GravityStrength = ComponentWorld->GetGravityZ();
 	}
-	else
-	{
-		BaseContext->BoneTransforms = InComponent->GetComponentSpaceTransforms();
-	}
+	FClothingSimulationContextCommon::WorldGravity = FVector(0.f, 0.f, GravityStrength);
+}
 
-	UWorld* ComponentWorld = InComponent->GetWorld();
-	check(ComponentWorld);
-
-	BaseContext->DeltaSeconds = FMath::Min(InDeltaTime, MaxPhysicsDelta);
-
-	if(InDeltaTime > (MaxPhysicsDelta * GClothMaxDeltaTimeTeleportMultiplier.GetValueOnGameThread()))
-	{
-		BaseContext->TeleportMode = EClothingTeleportMode::Teleport;
-	}
-	else
-	{
-		BaseContext->TeleportMode = InComponent->ClothTeleportMode;
-	}	
-
-	BaseContext->MaxDistanceScale = InComponent->GetClothMaxDistanceScale();
-
-	float GravityStrength = 981.0f;
-
-	if(UWorld* CurrWorld = InComponent->GetWorld())
-	{
-		GravityStrength = CurrWorld->GetGravityZ();
-	}
-
-	BaseContext->WorldGravity = FVector(0.0f, 0.0f, GravityStrength);
-
-	// Checking the component here to track rare issue leading to invalid contexts
-	if(InComponent->IsPendingKill())
-	{
-		AActor* CompOwner = InComponent->GetOwner();
-		UE_LOG(LogSkeletalMesh, Warning, 
-			TEXT("Attempting to fill a clothing simulation context for a PendingKill skeletal mesh component (Comp: %s, Actor: %s). "
-				"Pending kill skeletal mesh components should be unregistered before marked pending kill."), 
-			*InComponent->GetName(), CompOwner ? *CompOwner->GetName() : TEXT("None"));
-
-		// Make sure we clear this out to skip any attempted simulations
-		BaseContext->BoneTransforms.Reset();
-	}
-
-	if(BaseContext->BoneTransforms.Num() == 0)
-	{
-		AActor* CompOwner = InComponent->GetOwner();
-		USkinnedMeshComponent* Master = InComponent->MasterPoseComponent.Get();
-		UE_LOG(LogSkeletalMesh, Warning, TEXT("Attempting to fill a clothing simulation context for a skeletal mesh component that has zero bones (Comp: %s, Master: %s, Actor: %s)."), *InComponent->GetName(), Master ? *Master->GetName() : TEXT("None"), CompOwner ? *CompOwner->GetName() : TEXT("None"));
-
-		// Make sure we clear this out to skip any attempted simulations
-		BaseContext->BoneTransforms.Reset();
-	}
+void FClothingSimulationContextNv::FillWindVelocity(const USkeletalMeshComponent* InComponent)
+{
+	WindAdaption = FClothingSimulationContextCommon::SetWindFromComponent(InComponent);  // Also update wind adaptation
 }
 
 //=============================================================================
@@ -597,22 +517,6 @@ void FClothingSimulationNv::ApplyClothConfig(const UClothConfigNv* Config, FClot
 IClothingSimulationContext* FClothingSimulationNv::CreateContext()
 {
 	return new FClothingSimulationContextNv();
-}
-
-void FClothingSimulationNv::FillContext(USkeletalMeshComponent* InComponent, float InDeltaTime, IClothingSimulationContext* InOutContext)
-{
-	SCOPE_CYCLE_COUNTER(STAT_NvClothFillContext);
-
-	check(InOutContext);
-
-	FClothingSimulationBase::FillContext(InComponent, InDeltaTime, InOutContext);
-
-	// Assume calling code guarantees the safety of this conversion, we should be given the pointer we allocated in CreateContext
-	FClothingSimulationContextNv* NvContext = (FClothingSimulationContextNv*)InOutContext;
-
-	// Get the current ref to locals to skin fixed vertices
-	NvContext->RefToLocals.Reset();
-	InComponent->GetCurrentRefToLocalMatrices(NvContext->RefToLocals, InComponent->PredictedLODLevel);
 }
 
 void FClothingSimulationNv::Initialize()

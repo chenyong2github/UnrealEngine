@@ -23,6 +23,7 @@
 #include "ClothingSystemRuntimeTypes.h"
 #include "ClothingSimulationInterface.h"
 #include "ClothingSimulationFactory.h"
+#include "ClothCollisionPrim.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 
 #include "SkeletalMeshComponent.generated.h"
@@ -1693,7 +1694,7 @@ public:
 
 	FOnBoneTransformsFinalized OnBoneTransformsFinalized;
 
-	void GetCurrentRefToLocalMatrices(TArray<FMatrix>& OutRefToLocals, int32 InLodIdx);
+	void GetCurrentRefToLocalMatrices(TArray<FMatrix>& OutRefToLocals, int32 InLodIdx) const;
 
 	// Conditions used to gate when post process events happen
 	bool ShouldUpdatePostProcessInstance() const;
@@ -2143,7 +2144,7 @@ private:
 	/** See UpdateClothTransform for documentation. */
 	void UpdateClothTransformImp();
 
-	friend class FClothingSimulationBase;
+	friend class FClothingSimulationContextCommon;
 
 	friend class FTickClothingTask;
 

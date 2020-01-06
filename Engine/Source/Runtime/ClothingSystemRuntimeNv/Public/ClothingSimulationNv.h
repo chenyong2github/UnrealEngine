@@ -5,9 +5,9 @@
 #if WITH_NVCLOTH
 
 #include "ClothingSimulation.h"
-#include "ClothingSimulationContext.h"
 #include "ClothingActor.h"
 #include "ClothConfigNv.h"
+#include "ClothCollisionData.h"
 
 class UClothingAssetBase;
 class UClothingAssetCommon;
@@ -29,13 +29,36 @@ namespace physx
 	class PxVec4;
 }
 
-class FClothingSimulationContextNv final : public FClothingSimulationContextBase
+class FClothingSimulationContextNv final : public FClothingSimulationContextCommon
 {
 public:
+	FClothingSimulationContextNv();
+	virtual ~FClothingSimulationContextNv() override;
 
-	// Ref to local matrices from the owning component (for skinning fixed verts)
-	TArray<FMatrix> RefToLocals;
+	// Override the fill context function to also set the Nv specific simulation context members
+	virtual void Fill(const USkeletalMeshComponent* InComponent, float InDeltaSeconds, float InMaxPhysicsDelta) override;
 
+	// Set the RefToLocals array in the parent class using Nv specific predicted LOD information
+	virtual void FillRefToLocals(const USkeletalMeshComponent* InComponent) override;
+
+	// Set the world gravity in the parent class while preserving the Nv legacy code behavior
+	void virtual FillWorldGravity(const USkeletalMeshComponent* InComponent) override;
+
+	// Set WindVelocity in the parent class and Nv specific WindAdaption
+	virtual void FillWindVelocity(const USkeletalMeshComponent* InComponent) override;
+
+	// The predicted LOD of the skeletal mesh component running the simulation
+	int32 PredictedLod;
+
+	// Wind adaption, a measure of how quickly to adapt to the wind speed
+	// when using the legacy wind calculation mode
+	float WindAdaption;
+
+	// Whether and how we should teleport the simulation this tick
+	EClothingTeleportMode TeleportMode;
+
+	// Scale for the max distance constraints of the simulation mesh
+	float MaxDistanceScale;
 };
 
 // Scratch data for simulation to avoid allocations while processing, per actor data
@@ -162,26 +185,7 @@ private:
 	friend class FClothingSimulationNv;
 };
 
-// Base simulation to fill in common data for the base context
-class FClothingSimulationBase : public IClothingSimulation
-{
-public:
-	FClothingSimulationBase();
-	virtual ~FClothingSimulationBase();
-
-protected:
-	/** Fills in the base data for a clothing simulation */
-	virtual void 
-	FillContext(
-		USkeletalMeshComponent* InComponent, 
-		float InDeltaTime, 
-		IClothingSimulationContext* InOutContext) override;
-
-	/** Maximum physics time, incoming deltas will be clamped down to this value on long frames */
-	float MaxPhysicsDelta;
-};
-
-class FClothingSimulationNv final : public FClothingSimulationBase
+class FClothingSimulationNv final : public FClothingSimulationCommon
 {
 	// Cached from the module for speed, DO NOT DELETE, only for creating cloth objects
 	nv::cloth::Factory* CachedFactory;
@@ -201,7 +205,6 @@ public:
 	virtual void CreateActor(USkeletalMeshComponent* InOwnerComponent, UClothingAssetBase* InAsset, int32 InSimDataIndex) override;
 	virtual void PostActorCreationInitialize() override {};
 	virtual IClothingSimulationContext* CreateContext() override;
-	virtual void FillContext(USkeletalMeshComponent* InComponent, float InDeltaTime, IClothingSimulationContext* InOutContext) override;
 	virtual void Initialize() override;
 	virtual void Shutdown() override;
 	virtual bool ShouldSimulate() const override;
