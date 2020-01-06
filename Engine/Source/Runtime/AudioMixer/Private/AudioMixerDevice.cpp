@@ -727,6 +727,11 @@ namespace Audio
 
 		for (int32 i = 0; i < static_cast<int32>(EMasterSubmixType::Count); ++i)
 		{
+			if (DisableSubmixEffectEQCvar && i == static_cast<int32>(EMasterSubmixType::EQ))
+			{
+				continue;
+			}
+
 			USoundSubmix* SoundSubmix = MasterSubmixes[i];
 			check(SoundSubmix);
 			FMixerSubmixPtr& MasterSubmixInstance = MasterSubmixInstances[i];
