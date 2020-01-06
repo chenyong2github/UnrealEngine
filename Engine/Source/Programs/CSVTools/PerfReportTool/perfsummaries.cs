@@ -883,11 +883,6 @@ namespace PerfSummaries
             }
             htmlFile.WriteLine("  </table>");
 			htmlFile.WriteLine("<p style='font-size:8'>Note: Simplified hitch metric. All frames over threshold are counted" + "</p>");
-
-			if (csvStats.Events.Count == 0)
-            {
-                return;
-            }
         }
         public double[] HitchThresholds;
     };
