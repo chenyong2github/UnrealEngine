@@ -1693,9 +1693,6 @@ void UMaterialEditorInstanceConstant::PostEditUndo()
 		UpdateSourceInstanceParent();
 
 		Context.AddMaterialInstance(SourceInstance);
-
-		// Fully update static parameters before recreating render state for all components
-		SetSourceInstance(SourceInstance);
 	}
 }
 #endif
