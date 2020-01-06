@@ -124,13 +124,16 @@ bool FClass::IsOwnedByDynamicType(const FField* Field)
 	return false;
 }
 
-static TMap<const UField*, FString> UFieldTypePackageNames;
-static TMap<const FField*, FString> FFieldTypePackageNames;
+static TMap<const UField*, TUniquePtr<FString>> UFieldTypePackageNames;
+static TMap<const FField*, TUniquePtr<FString>> FFieldTypePackageNames;
 
 template <typename T>
-const FString& GetTypePackageName_Inner(const T* Field, TMap<const T*, FString>& TypePackageNames)
+const FString& GetTypePackageName_Inner(const T* Field, TMap<const T*, TUniquePtr<FString>>& TypePackageNames)
 {
-	FString* TypePackageName = TypePackageNames.Find(Field);
+	static FRWLock Lock;
+	FRWScopeLock TypeNameLock(Lock, SLT_ReadOnly);
+
+	TUniquePtr<FString>* TypePackageName = TypePackageNames.Find(Field);
 	if (TypePackageName == nullptr)
 	{
 		FString PackageName = Field->GetMetaData(FClass::NAME_ReplaceConverted);
@@ -147,9 +150,17 @@ const FString& GetTypePackageName_Inner(const T* Field, TMap<const T*, FString>&
 		{
 			PackageName = Field->GetOutermost()->GetName();
 		}
-		TypePackageName = &TypePackageNames.Add(Field, MoveTemp(PackageName));
+
+		TypeNameLock.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
+
+		// Check the map again in case another thread had also been waiting on writing this data and got the write lock first
+		TypePackageName = TypePackageNames.Find(Field);
+		if (TypePackageName == nullptr)
+		{
+			TypePackageName = &TypePackageNames.Add(Field, MakeUnique<FString>(MoveTemp(PackageName)));
+		}
 	}
-	return *TypePackageName;
+	return **TypePackageName;
 }
 
 const FString& FClass::GetTypePackageName(const UField* Field)

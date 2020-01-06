@@ -8409,8 +8409,7 @@ TSet<FUnrealSourceFile*> GetSourceFilesWithInheritanceOrdering(UPackage* Current
 
 		FUnrealSourceFile& SourceFile = (*DefinitionInfoPtr)->GetUnrealSourceFile();
 
-		if (!SourceFiles.Contains(&SourceFile)
-			&& SourceFile.GetScope()->ContainsTypes())
+		if (SourceFile.GetScope()->ContainsTypes())
 		{
 			SourceFiles.Add(&SourceFile);
 		}
@@ -8422,7 +8421,6 @@ TSet<FUnrealSourceFile*> GetSourceFilesWithInheritanceOrdering(UPackage* Current
 		auto& SourceFile = Pair.Value.Get();
 
 		if (SourceFile.GetPackage() == CurrentPackage
-			&& !SourceFiles.Contains(&SourceFile)
 			&& SourceFile.GetScope()->ContainsTypes())
 		{
 			SourceFiles.Add(&SourceFile);
@@ -9129,7 +9127,7 @@ void FHeaderParser::SimplifiedClassParse(const TCHAR* Filename, const TCHAR* InB
 		else if ( bProcess && FParse::Command(&Str,TEXT("#include")) )
 		{
 			// Handle #include directives as if they were 'dependson' keywords.
-			FString DependsOnHeaderName = Str;
+			const FString& DependsOnHeaderName = Str;
 
 			if (DependsOnHeaderName != TEXT("\"UObject/DefineUPropertyMacros.h\"") && DependsOnHeaderName != TEXT("\"UObject/UndefineUPropertyMacros.h\""))
 			{
@@ -9147,7 +9145,7 @@ void FHeaderParser::SimplifiedClassParse(const TCHAR* Filename, const TCHAR* InB
 					if (HeaderFilenameEnd != INDEX_NONE)
 					{
 						// Include the extension in the name so that we later know where this entry came from.
-						DependentOn.Add(FHeaderProvider(EHeaderProviderSourceType::FileName, *FPaths::GetCleanFilename(DependsOnHeaderName.Mid(1, HeaderFilenameEnd - 1))));
+						DependentOn.Add(FHeaderProvider(EHeaderProviderSourceType::FileName, FPaths::GetCleanFilename(DependsOnHeaderName.Mid(1, HeaderFilenameEnd - 1))));
 					}
 				}
 			}
