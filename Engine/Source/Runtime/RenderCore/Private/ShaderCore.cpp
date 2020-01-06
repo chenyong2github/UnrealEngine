@@ -22,6 +22,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/StringBuilder.h"
 #endif
 
 static TAutoConsoleVariable<int32> CVarShaderDevelopmentMode(
@@ -260,7 +261,9 @@ bool AllowDebugViewmodes(EShaderPlatform Platform)
 	const int32 ForceDebugViewValue = CVarForceDebugViewModes.GetValueOnAnyThread();
 	bool bForceEnable = ForceDebugViewValue == 1;
 	bool bForceDisable = ForceDebugViewValue == 2;
-	ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatform(ShaderPlatformToPlatformName(Platform).ToString());
+	TStringBuilder<64> PlatformName;
+	ShaderPlatformToPlatformName(Platform).ToString(PlatformName);
+	ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatform(PlatformName);
 	return (!bForceDisable) && (bForceEnable || !TargetPlatform || !TargetPlatform->RequiresCookedData());
 #else
 	return AllowDebugViewmodes();
