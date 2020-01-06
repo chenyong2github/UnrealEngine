@@ -522,7 +522,7 @@ void FNiagaraRendererSprites::CreateMeshBatchForView(
 	MeshElement.NumInstances = FMath::Max(0, NumInstances);	//->VertexData.Num();
 	MeshElement.MinVertexIndex = 0;
 	MeshElement.MaxVertexIndex = 0;// MeshElement.NumInstances * 4 - 1;
-	MeshElement.PrimitiveUniformBuffer = SceneProxy->GetUniformBuffer();
+	MeshElement.PrimitiveUniformBuffer = IsMotionBlurEnabled() ? SceneProxy->GetUniformBuffer() : SceneProxy->GetUniformBufferNoVelocity();
 	if (IndirectArgsOffset != INDEX_NONE)
 	{
 		NiagaraEmitterInstanceBatcher* Batcher = SceneProxy->GetBatcher();
