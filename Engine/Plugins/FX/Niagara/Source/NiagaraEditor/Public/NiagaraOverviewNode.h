@@ -29,10 +29,16 @@ public:
 	/** Whether or not this node can be safely duplicated (via copy/paste, etc...) in the graph */
 	virtual bool CanDuplicateNode() const override;
 
+	virtual void OnRenameNode(const FString& NewName) override;
+
 	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	//~ End UEdGraphNode Interface
 
 	UNiagaraSystem* GetOwningSystem();
+
+	void RequestRename() { bRenamePending = true; }
+	void RenameStarted() { bRenamePending = false; }
+	bool IsRenamePending() const { return bRenamePending; }
 
 private:
 	UPROPERTY()
@@ -40,6 +46,8 @@ private:
 
 	UPROPERTY()
 	FGuid EmitterHandleGuid;
+
+	bool bRenamePending;
 
 	static bool bColorsAreInitialized;
 	static FLinearColor SystemColor;

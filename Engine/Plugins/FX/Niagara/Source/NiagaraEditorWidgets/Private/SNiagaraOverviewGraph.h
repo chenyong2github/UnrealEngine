@@ -32,13 +32,13 @@ private:
 	FActionMenuContent OnCreateGraphActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed);
 
 	void OnCreateComment();
+	void OnClearIsolated();
 
 	void OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged);
 
 	void CreateAddEmitterMenuContent(FMenuBuilder& MenuBuilder, UEdGraph* InGraph);
 
 	void ZoomToFit();
-
 	void ZoomToFitAll();
 
 	void OnAlignTop();
@@ -47,7 +47,6 @@ private:
 
 	void OnDistributeNodesH();
 	void OnDistributeNodesV();
-
 
 private:
 	TSharedPtr<FNiagaraOverviewGraphViewModel> ViewModel;
