@@ -39,7 +39,7 @@ struct FSoundCueTemplateQualitySettings
 };
 
 UCLASS(config=Game, defaultconfig, meta=(DisplayName="Sound Cue Templates"))
-class USoundCueTemplateSettings : public UDeveloperSettings
+class SOUNDCUETEMPLATES_API USoundCueTemplateSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
