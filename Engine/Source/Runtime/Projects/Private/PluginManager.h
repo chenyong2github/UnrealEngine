@@ -59,7 +59,7 @@ public:
 		return bEnabled;
 	}
 
-	virtual bool IsEnabledByDefault() const override;
+	virtual bool IsEnabledByDefault(bool bAllowEnginePluginsEnabledByDefault) const override;
 
 	virtual bool IsHidden() const override
 	{
