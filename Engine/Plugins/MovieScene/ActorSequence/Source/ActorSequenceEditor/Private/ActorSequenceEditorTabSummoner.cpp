@@ -201,7 +201,7 @@ public:
 			Sequencer = nullptr;
 		}
 
-		if (WeakBlueprintEditor.IsValid())
+		if (WeakBlueprintEditor.IsValid() && WeakBlueprintEditor.Pin()->IsHosted())
 		{
 			const FName CurveEditorTabName = FName(TEXT("SequencerGraphEditor"));
 			TSharedPtr<SDockTab> ExistingTab = WeakBlueprintEditor.Pin()->GetToolkitHost()->GetTabManager()->FindExistingLiveTab(CurveEditorTabName);
