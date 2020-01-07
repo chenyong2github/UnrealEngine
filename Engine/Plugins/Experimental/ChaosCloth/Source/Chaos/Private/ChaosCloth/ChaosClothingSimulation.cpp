@@ -122,7 +122,6 @@ void ClothingSimulation::Initialize()
 			ParticlesInput.R(Index) = NewR;
 		});
 
-    ClampDeltaTime = 0.f;
     Time = 0.f;
 }
 
