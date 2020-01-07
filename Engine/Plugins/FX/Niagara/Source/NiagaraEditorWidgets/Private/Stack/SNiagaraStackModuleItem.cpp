@@ -53,7 +53,6 @@ void SNiagaraStackModuleItem::Construct(const FArguments& InArgs, UNiagaraStackM
 			.Padding(2, 0, 0, 0)
 			[
 				SNew(SNiagaraStackDisplayName, InModuleItem, *InStackViewModel, "NiagaraEditor.Stack.ItemText")
-				.ColorAndOpacity(this, &SNiagaraStackModuleItem::GetTextColorForSearch)
 			]
 			// Raise Action Menu button
 			+ SHorizontalBox::Slot()
