@@ -244,7 +244,7 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 				AssetReferenceFilterContext.ReferencingAssets.Add(FAssetData(ReferencingObject));
 			}
 		}
-		TSharedPtr<IAssetReferenceFilter> AssetReferenceFilter = GUnrealEd ? GUnrealEd->MakeAssetReferenceFilter(AssetReferenceFilterContext) : nullptr;
+		TSharedPtr<IAssetReferenceFilter> AssetReferenceFilter = GEditor ? GEditor->MakeAssetReferenceFilter(AssetReferenceFilterContext) : nullptr;
 		if (AssetReferenceFilter.IsValid())
 		{
 			FOnShouldFilterAsset ConfigFilter = InArgs._AssetPickerConfig.OnShouldFilterAsset;
