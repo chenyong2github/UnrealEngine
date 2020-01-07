@@ -381,7 +381,7 @@ bool FTriangleMeshImplicitObject::OverlapImp(const TArray<TVec3<IdxType>>& Eleme
 		const FVec3 AC = C - A;
 		FVec3 Normal = FVec3::CrossProduct(AB, AC);
 		const FReal NormalLength = Normal.SafeNormalize();
-		if (!ensure(NormalLength > Epsilon))
+		if (!CHAOS_ENSURE(NormalLength > Epsilon))
 		{
 			//hitting degenerate triangle - should be fixed before we get to this stage
 			continue;
@@ -792,7 +792,7 @@ int32 FTriangleMeshImplicitObject::FindMostOpposingFace(const TArray<TVec3<IdxTy
 		const FVec3 AC = C - A;
 		FVec3 Normal = FVec3::CrossProduct(AB, AC);
 		const FReal NormalLength = Normal.SafeNormalize();
-		if (!ensure(NormalLength > Epsilon))
+		if (!CHAOS_ENSURE(NormalLength > Epsilon))
 		{
 			//hitting degenerate triangle - should be fixed before we get to this stage
 			continue;
@@ -866,7 +866,7 @@ uint32 FTriangleMeshImplicitObject::GetTypeHash() const
 
 FVec3 FTriangleMeshImplicitObject::GetFaceNormal(const int32 FaceIdx) const
 {
-	if (ensure(FaceIdx != INDEX_NONE))
+	if (CHAOS_ENSURE(FaceIdx != INDEX_NONE))
 	{
 		auto LambdaHelper = [&](const auto& Elements)
 		{
