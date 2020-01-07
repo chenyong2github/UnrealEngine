@@ -2759,7 +2759,7 @@ public partial class Project : CommandUtils
 		//Create the directory if it doesn't exist
 		InternalUtils.SafeCreateDirectory(Dir);
 
-		string FileName = CombinePaths(Dir, PlatformStr.ToLower() + ".manifest");
+		string FileName = CombinePaths(Dir, PlatformStr.ToLower() + ".manifestlist");
 		using (JsonWriter Writer = new JsonWriter(FileName))
 		{
 			Writer.WriteObjectStart();
