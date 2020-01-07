@@ -51,7 +51,8 @@ IMPLEMENT_HIT_PROXY(HInstancedStaticMeshInstance, HHitProxy);
 TAutoConsoleVariable<int32> CVarMinLOD(
 	TEXT("foliage.MinLOD"),
 	-1,
-	TEXT("Used to discard the top LODs for performance evaluation. -1: Disable all effects of this cvar."));
+	TEXT("Used to discard the top LODs for performance evaluation. -1: Disable all effects of this cvar."),
+	ECVF_Scalability | ECVF_Default);
 
 static TAutoConsoleVariable<int32> CVarRayTracingRenderInstances(
 	TEXT("r.RayTracing.InstancedStaticMeshes"),
