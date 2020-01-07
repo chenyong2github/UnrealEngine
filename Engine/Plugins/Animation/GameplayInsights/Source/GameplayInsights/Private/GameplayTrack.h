@@ -4,6 +4,11 @@
 
 #include "Insights/ViewModels/TimingEventsTrack.h"
 
+namespace GameplayTrackConstants
+{
+	constexpr float IndentSize = 12.0f;
+}
+
 // Provides parent/child hierarchy structure and the owning object Id
 // Designed as a compositional member of outer timing tracks
 class FGameplayTrack

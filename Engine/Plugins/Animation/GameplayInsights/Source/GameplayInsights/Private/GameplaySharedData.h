@@ -36,8 +36,14 @@ public:
 	// Enumerate object tracks
 	void EnumerateObjectTracks(TFunctionRef<void(const TSharedRef<FObjectEventsTrack>&)> InCallback) const;
 
+	// Get the root tracks
+	const TArray<TSharedRef<FBaseTimingTrack>>& GetRootTracks() const { return RootTracks; }
+
+	// Delegate fired when tracks change
+	FSimpleMulticastDelegate& OnTracksChanged() { return OnTracksChangedDelegate; }
+
 private:
-	// Re-sort tracks if trrack ordering has changed
+	// Re-sort tracks if track ordering has changed
 	void SortTracks();
 
 	// UI handlers
@@ -47,8 +53,14 @@ private:
 	// Track for each tracked object, mapped from Object ID -> track
 	TMap<uint64, TSharedPtr<FObjectEventsTrack>> ObjectTracks;
 
+	// The root tracks
+	TArray<TSharedRef<FBaseTimingTrack>> RootTracks;
+
 	// Cached analysis session, set in Tick()
 	const Trace::IAnalysisSession* AnalysisSession;
+
+	// Delegate fired when tracks change
+	FSimpleMulticastDelegate OnTracksChangedDelegate;
 
 	// Dirty flag for adding object tracks, used to trigger re-sorting
 	bool bObjectTracksDirty;

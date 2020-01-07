@@ -4,6 +4,8 @@
 #include "GameplayProvider.h"
 #include "Insights/ViewModels/TimingEventsTrack.h"
 
+#define LOCTEXT_NAMESPACE "AnimationProvider"
+
 FName FAnimationProvider::ProviderName("AnimationProvider");
 
 FAnimationProvider::FAnimationProvider(Trace::IAnalysisSession& InSession, FGameplayProvider& InGameplayProvider)
@@ -16,16 +18,17 @@ FAnimationProvider::FAnimationProvider(Trace::IAnalysisSession& InSession, FGame
 	GameplayProvider.OnObjectEndPlay().AddRaw(this, &FAnimationProvider::HandleObjectEndPlay);
 }
 
-bool FAnimationProvider::ReadSkeletalMeshPoseTimeline(uint64 InObjectId, TFunctionRef<void(const SkeletalMeshPoseTimeline&)> Callback) const
+bool FAnimationProvider::ReadSkeletalMeshPoseTimeline(uint64 InObjectId, TFunctionRef<void(const SkeletalMeshPoseTimeline&, bool)> Callback) const
 {
 	Session.ReadAccessCheck();
 
 	const uint32* IndexPtr = ObjectIdToSkeletalMeshPoseTimelines.Find(InObjectId);
 	if(IndexPtr != nullptr)
 	{
-		if (*IndexPtr < uint32(SkeletalMeshPoseTimelines.Num()))
+		if (*IndexPtr < uint32(SkeletalMeshPoseTimelineStorage.Num()))
 		{
-			Callback(*SkeletalMeshPoseTimelines[*IndexPtr]);
+			const TSharedRef<FSkeletalMeshTimelineStorage>& SkeletalMeshTimelineStorage = SkeletalMeshPoseTimelineStorage[*IndexPtr];
+			Callback(*SkeletalMeshTimelineStorage->Timeline, SkeletalMeshTimelineStorage->AllCurveIds.Num() > 0);
 			return true;
 		}
 	}
@@ -55,6 +58,37 @@ void FAnimationProvider::GetSkeletalMeshComponentSpacePose(const FSkeletalMeshPo
 	}
 }
 
+void FAnimationProvider::EnumerateSkeletalMeshCurveIds(uint64 InObjectId, TFunctionRef<void(uint32)> Callback) const
+{
+	Session.ReadAccessCheck();
+
+	const uint32* IndexPtr = ObjectIdToSkeletalMeshPoseTimelines.Find(InObjectId);
+	if(IndexPtr != nullptr)
+	{
+		if (*IndexPtr < uint32(SkeletalMeshPoseTimelineStorage.Num()))
+		{
+			const TSharedRef<FSkeletalMeshTimelineStorage>& TimelineStorage = SkeletalMeshPoseTimelineStorage[*IndexPtr];
+			for(uint32 Id : TimelineStorage->AllCurveIds)
+			{
+				Callback(Id);
+			}
+		}
+	}
+}
+
+void FAnimationProvider::EnumerateSkeletalMeshCurves(const FSkeletalMeshPoseMessage& InMessage, TFunctionRef<void(const FSkeletalMeshNamedCurve&)> Callback) const
+{
+	Session.ReadAccessCheck();
+
+	uint64 StartCurveIndex = InMessage.CurveStartIndex;
+	uint64 EndCurveIndex = InMessage.CurveStartIndex + InMessage.NumCurves;
+
+	for(uint64 CurveIndex = StartCurveIndex; CurveIndex < EndCurveIndex; ++CurveIndex)
+	{
+		Callback(SkeletalMeshCurves[CurveIndex]);
+	}
+}
+
 void FAnimationProvider::EnumerateTickRecordTimelines(uint64 InObjectId, TFunctionRef<void(uint64, int32, const TickRecordTimeline&)> Callback) const
 {
 	Session.ReadAccessCheck();
@@ -62,9 +96,9 @@ void FAnimationProvider::EnumerateTickRecordTimelines(uint64 InObjectId, TFuncti
 	const uint32* IndexPtr = ObjectIdToTickRecordTimelineStorage.Find(InObjectId);
 	if(IndexPtr != nullptr)
 	{
-		if (*IndexPtr < uint32(PerObjectTimelineStorage.Num()))
+		if (*IndexPtr < uint32(TickRecordTimelineStorage.Num()))
 		{
-			const TSharedRef<FPerObjectTimelineStorage>& TimelineStorage = PerObjectTimelineStorage[*IndexPtr];
+			const TSharedRef<FTickRecordTimelineStorage>& TimelineStorage = TickRecordTimelineStorage[*IndexPtr];
 			for(auto AssetIdPair : TimelineStorage->AssetIdAndPlayerToTickRecordTimeline)
 			{
 				Callback(AssetIdPair.Key.Key, AssetIdPair.Key.Value, TimelineStorage->Timelines[AssetIdPair.Value].Get());
@@ -80,9 +114,9 @@ bool FAnimationProvider::ReadTickRecordTimeline(uint64 InObjectId, uint64 InAsse
 	const uint32* IndexPtr = ObjectIdToTickRecordTimelineStorage.Find(InObjectId);
 	if(IndexPtr != nullptr)
 	{
-		if (*IndexPtr < uint32(PerObjectTimelineStorage.Num()))
+		if (*IndexPtr < uint32(TickRecordTimelineStorage.Num()))
 		{
-			const TSharedRef<FPerObjectTimelineStorage>& TimelineStorage = PerObjectTimelineStorage[*IndexPtr];
+			const TSharedRef<FTickRecordTimelineStorage>& TimelineStorage = TickRecordTimelineStorage[*IndexPtr];
 			const uint32* TimelineIndexPtr = TimelineStorage->AssetIdAndPlayerToTickRecordTimeline.Find(TTuple<uint64, int32>(InAssetId, InNodeId));
 			if(TimelineIndexPtr != nullptr)
 			{
@@ -215,7 +249,14 @@ const FSkeletalMeshInfo* FAnimationProvider::FindSkeletalMeshInfo(uint64 InObjec
 
 const TCHAR* FAnimationProvider::GetName(uint32 InId) const
 {
-	return NameMap.FindRef(InId);
+	const TCHAR* const* FoundName = NameMap.Find(InId);
+	if(FoundName != nullptr)
+	{
+		return *FoundName;
+	}
+
+	static FText UnknownText(LOCTEXT("UnknownCurve", "Unknown"));
+	return *UnknownText.ToString();
 }
 
 void FAnimationProvider::AppendTickRecord(uint64 InAnimInstanceId, double InTime, uint64 InAssetId, int32 InNodeId, float InBlendWeight, float InPlaybackTime, float InRootMotionWeight, float InPlayRate, float InBlendSpacePositionX, float InBlendSpacePositionY, uint16 InFrameCounter, bool bInLooping, bool bInIsBlendSpace)
@@ -223,16 +264,16 @@ void FAnimationProvider::AppendTickRecord(uint64 InAnimInstanceId, double InTime
 	Session.WriteAccessCheck();
 
 	TSharedPtr<Trace::TPointTimeline<FTickRecordMessage>> Timeline;
-	TSharedPtr<FPerObjectTimelineStorage> TimelineStorage;
+	TSharedPtr<FTickRecordTimelineStorage> TimelineStorage;
 	uint32* TimelineStorageIndexPtr = ObjectIdToTickRecordTimelineStorage.Find(InAnimInstanceId);
 	if(TimelineStorageIndexPtr != nullptr)
 	{
-		TimelineStorage = PerObjectTimelineStorage[*TimelineStorageIndexPtr];
+		TimelineStorage = TickRecordTimelineStorage[*TimelineStorageIndexPtr];
 	}
 	else
 	{
-		ObjectIdToTickRecordTimelineStorage.Add(InAnimInstanceId, PerObjectTimelineStorage.Num());
-		TimelineStorage = PerObjectTimelineStorage.Add_GetRef(MakeShared<FPerObjectTimelineStorage>());
+		ObjectIdToTickRecordTimelineStorage.Add(InAnimInstanceId, TickRecordTimelineStorage.Num());
+		TimelineStorage = TickRecordTimelineStorage.Add_GetRef(MakeShared<FTickRecordTimelineStorage>());
 	}
 
 	check(TimelineStorage.IsValid());
@@ -314,25 +355,26 @@ void FAnimationProvider::AppendSkeletalMeshComponent(uint64 InObjectId, uint64 I
 {
 	Session.WriteAccessCheck();
 
-	TSharedPtr<Trace::TIntervalTimeline<FSkeletalMeshPoseMessage>> Timeline;
+	TSharedPtr<FSkeletalMeshTimelineStorage> TimelineStorage;
 	uint32* IndexPtr = ObjectIdToSkeletalMeshPoseTimelines.Find(InObjectId);
 	if(IndexPtr != nullptr)
 	{
-		Timeline = SkeletalMeshPoseTimelines[*IndexPtr];
+		TimelineStorage = SkeletalMeshPoseTimelineStorage[*IndexPtr];
 	}
 	else
 	{
-		Timeline = MakeShared<Trace::TIntervalTimeline<FSkeletalMeshPoseMessage>>(Session.GetLinearAllocator());
-		ObjectIdToSkeletalMeshPoseTimelines.Add(InObjectId, SkeletalMeshPoseTimelines.Num());
-		SkeletalMeshPoseTimelines.Add(Timeline.ToSharedRef());
+		TimelineStorage = MakeShared<FSkeletalMeshTimelineStorage>();
+		TimelineStorage->Timeline = MakeShared<Trace::TIntervalTimeline<FSkeletalMeshPoseMessage>>(Session.GetLinearAllocator());
+		ObjectIdToSkeletalMeshPoseTimelines.Add(InObjectId, SkeletalMeshPoseTimelineStorage.Num());
+		SkeletalMeshPoseTimelineStorage.Add(TimelineStorage.ToSharedRef());
 	}
 
 	// terminate existing scopes
-	uint64 NumEvents = Timeline->GetEventCount();
+	uint64 NumEvents = TimelineStorage->Timeline->GetEventCount();
 	if(NumEvents > 0)
 	{
 		// Add end event at current time
-		Timeline->EndEvent(NumEvents - 1, InTime);
+		TimelineStorage->Timeline->EndEvent(NumEvents - 1, InTime);
 	}
 
 	FSkeletalMeshPoseMessage Message;
@@ -346,7 +388,7 @@ void FAnimationProvider::AppendSkeletalMeshComponent(uint64 InObjectId, uint64 I
 	Message.LodIndex = InLodIndex;
 	Message.FrameCounter = InFrameCounter;
 
-	Timeline->AppendBeginEvent(InTime, Message);
+	TimelineStorage->Timeline->AppendBeginEvent(InTime, Message);
 
 	for(int32 TransformIndex = 1; TransformIndex < InPose.Num(); ++TransformIndex)
 	{
@@ -356,6 +398,7 @@ void FAnimationProvider::AppendSkeletalMeshComponent(uint64 InObjectId, uint64 I
 	for(const FSkeletalMeshNamedCurve& Curve : InCurves)
 	{
 		SkeletalMeshCurves.PushBack() = Curve;
+		TimelineStorage->AllCurveIds.Add(Curve.Id);
 	}
 
 	Session.UpdateDurationSeconds(InTime);
@@ -374,7 +417,7 @@ void FAnimationProvider::HandleObjectEndPlay(uint64 InObjectId, double InTime, c
 	uint32* SkelMeshPoseIndexPtr = ObjectIdToSkeletalMeshPoseTimelines.Find(InObjectId);
 	if(SkelMeshPoseIndexPtr != nullptr)
 	{
-		TSharedPtr<Trace::TIntervalTimeline<FSkeletalMeshPoseMessage>> Timeline = SkeletalMeshPoseTimelines[*SkelMeshPoseIndexPtr];
+		TSharedPtr<Trace::TIntervalTimeline<FSkeletalMeshPoseMessage>> Timeline = SkeletalMeshPoseTimelineStorage[*SkelMeshPoseIndexPtr]->Timeline;
 		uint64 NumEvents = Timeline->GetEventCount();
 		if(NumEvents > 0)
 		{
@@ -662,3 +705,4 @@ void FAnimationProvider::AppendStateMachineState(uint64 InAnimInstanceId, double
 	Session.UpdateDurationSeconds(InTime);
 }
 
+#undef LOCTEXT_NAMESPACE

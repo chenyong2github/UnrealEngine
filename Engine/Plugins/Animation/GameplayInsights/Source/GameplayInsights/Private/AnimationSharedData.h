@@ -9,6 +9,7 @@ namespace Trace { class IAnalysisSession; }
 namespace Insights { class ITimingViewSession; }
 namespace Insights { enum class ETimeChangedFlags : int32; }
 class FSkeletalMeshPoseTrack;
+class FSkeletalMeshCurvesTrack;
 class FAnimationTickRecordsTrack;
 class FAnimNodesTrack;
 class FMenuBuilder;
@@ -66,8 +67,10 @@ private:
 	// UI handlers
 	void ToggleAnimationTracks();
 	void OnTimeMarkerChanged(Insights::ETimeChangedFlags InFlags, double InTimeMarker);
-	void ToggleAnimationParentTracks();
-	bool AreAnimationParentTracksEnabled() const;
+	void ToggleSkeletalMeshPoseTracks();
+	void ToggleSkeletalMeshCurveTracks();
+	void ToggleTickRecordTracks();
+	void ToggleAnimNodeTracks();
 
 private:
 	// The gameplay shared data we are linked to
@@ -78,6 +81,7 @@ private:
 
 	// All the tracks we manage
 	TArray<TSharedRef<FSkeletalMeshPoseTrack>> SkeletalMeshPoseTracks;
+	TArray<TSharedRef<FSkeletalMeshCurvesTrack>> SkeletalMeshCurvesTracks;
 	TArray<TSharedRef<FAnimationTickRecordsTrack>> AnimationTickRecordsTracks;
 	TArray<TSharedRef<FAnimNodesTrack>> AnimNodesTracks;
 
@@ -90,6 +94,9 @@ private:
 	/** Validity flags for pose times/ranges */
 	bool bTimeMarkerValid;
 
-	// Whether all of our animation tracks are enabled
-	bool bAnimationTracksEnabled;
+	// Flags controlling whether check type of our animation tracks are enabled
+	bool bSkeletalMeshPoseTracksEnabled;
+	bool bSkeletalMeshCurveTracksEnabled;
+	bool bTickRecordTracksEnabled;
+	bool bAnimNodeTracksEnabled;
 };

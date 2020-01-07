@@ -11,6 +11,8 @@
 #include "Editor/EditorEngine.h"
 #endif
 
+#define LOCTEXT_NAMESPACE "GameplayTimingViewExtender"
+
 void FGameplayTimingViewExtender::OnBeginSession(Insights::ITimingViewSession& InSession)
 {
 	FPerSessionData* PerSessionData = PerSessionDataMap.Find(&InSession);
@@ -57,8 +59,12 @@ void FGameplayTimingViewExtender::ExtendFilterMenu(Insights::ITimingViewSession&
 	FPerSessionData* PerSessionData = PerSessionDataMap.Find(&InSession);
 	if(PerSessionData != nullptr)
 	{
-		PerSessionData->GameplaySharedData->ExtendFilterMenu(InMenuBuilder);
-		PerSessionData->AnimationSharedData->ExtendFilterMenu(InMenuBuilder);
+		InMenuBuilder.BeginSection("GameplayTracks", LOCTEXT("GameplayTracksSection", "Gameplay Tracks"));
+		{
+			PerSessionData->GameplaySharedData->ExtendFilterMenu(InMenuBuilder);
+			PerSessionData->AnimationSharedData->ExtendFilterMenu(InMenuBuilder);
+		}
+		InMenuBuilder.EndSection();
 	}
 }
 
@@ -112,3 +118,5 @@ void FGameplayTimingViewExtender::GetCustomDebugObjects(const IAnimationBlueprin
 }
 
 #endif
+
+#undef LOCTEXT_NAMESPACE

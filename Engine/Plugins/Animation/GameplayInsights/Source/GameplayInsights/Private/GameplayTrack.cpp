@@ -9,11 +9,6 @@
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/ViewModels/ITimingViewDrawHelper.h"
 
-namespace GameplayTrackConstants
-{
-	constexpr float IndentSize = 12.0f;
-}
-
 void FGameplayTrack::AddChildTrack(FGameplayTrack& InChildTrack)
 {
 	check(InChildTrack.Parent == nullptr);
