@@ -214,20 +214,25 @@ void UGeometryCollectionComponent::BeginPlay()
 	// ---------- });
 	//////////////////////////////////////////////////////////////////////////
 
-	FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
-	if (ChaosModule != nullptr)
+	if (PhysicsProxy != nullptr)
 	{
-		Chaos::FPhysicsSolver* Solver = GetSolver(*this);
-		if (Solver != nullptr)
+		FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
+		if (ChaosModule != nullptr)
 		{
-			if (PhysicsProxy != nullptr)
+			Chaos::FPhysicsSolver* Solver = nullptr;
+			if (ChaosSolverActor != nullptr)
+			{
+				Solver = ChaosSolverActor->GetSolver();
+			}
+			else if (FPhysScene_Chaos* Scene = GetPhysicsScene())
+			{
+				Solver = Scene->GetSolver();
+			}
+			if (Solver != nullptr)
 			{
 				ChaosModule->GetDispatcher()->EnqueueCommandImmediate(Solver, [&InPhysicsProxy = PhysicsProxy](Chaos::FPhysicsSolver* InSolver)
 				{
-					if (InPhysicsProxy)
-					{
-						InPhysicsProxy->ActivateBodies();
-					}
+					InPhysicsProxy->ActivateBodies();
 				});
 			}
 		}
