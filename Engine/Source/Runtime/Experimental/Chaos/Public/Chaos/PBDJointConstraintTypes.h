@@ -85,8 +85,11 @@ namespace Chaos
 		bool bSoftTwistLimitsEnabled;
 		bool bSoftSwingLimitsEnabled;
 		FReal SoftLinearStiffness;
+		FReal SoftLinearDamping;
 		FReal SoftTwistStiffness;
+		FReal SoftTwistDamping;
 		FReal SoftSwingStiffness;
+		FReal SoftSwingDamping;
 
 		// @todo(ccaulfield): remove one of these
 		FRotation3 AngularDriveTarget;
@@ -95,6 +98,7 @@ namespace Chaos
 		bool bAngularSLerpDriveEnabled;
 		bool bAngularTwistDriveEnabled;
 		bool bAngularSwingDriveEnabled;
+		bool bAngularAccelerationDriveMode;
 		FReal AngularDriveStiffness;
 		FReal AngularDriveDamping;
 	};
@@ -140,6 +144,10 @@ namespace Chaos
 		FReal DriveStiffness;
 		FReal DriveDamping;
 		FReal SoftLinearStiffness;
-		FReal SoftAngularStiffness;
+		FReal SoftLinearDamping;
+		FReal SoftTwistStiffness;
+		FReal SoftTwistDamping;
+		FReal SoftSwingStiffness;
+		FReal SoftSwingDamping;
 	};
 }
