@@ -24,6 +24,8 @@ namespace ImmediatePhysics_Chaos
 	FAutoConsoleVariableRef CVarDriveStiffnessScale(TEXT("p.Chaos.ImmPhys.DriveStiffnessScale"), ChaosImmediate_DriveStiffnessScale, TEXT("Conversion factor for drive stiffness."));
 	FAutoConsoleVariableRef CVarDriveDampingScale(TEXT("p.Chaos.ImmPhys.DriveDampingScale"), ChaosImmediate_DriveDampingScale, TEXT("Conversion factor for drive damping."));
 
+	// This value is from PhysX UE - in Chaos we don't really need Soft constraints with stiffness greater than about 1000
+	// (In PhysX, Soft constraints were implicitly integrated, and essentially equivalent to XPBD, which for large stiffness is just PBD).
 	float ChaosImmediate_SoftStiffnessScale = 100000.0f;
 	float ChaosImmediate_SoftDampingScale = 100000.0f;
 	FAutoConsoleVariableRef CVarSoftStiffnessScale(TEXT("p.Chaos.ImmPhys.SoftStiffnessScale"), ChaosImmediate_SoftStiffnessScale, TEXT("Conversion factor for soft-joint stiffness."));
@@ -35,7 +37,7 @@ namespace ImmediatePhysics_Chaos
 	FAutoConsoleVariableRef CVarJointMaxLinearProjection(TEXT("p.Chaos.ImmPhys.JointMaxLinearProjection"), ChaosImmediate_JointMaxLinearProjection, TEXT("Joint max projection (for joints with projection enabled)."));
 
 	float ChaosImmediate_JointMinAngularProjection = 0.0f;
-	float ChaosImmediate_JointMaxAngularProjection = 0.5f;
+	float ChaosImmediate_JointMaxAngularProjection = 0.1f;
 	FAutoConsoleVariableRef CVarJointMinAngularProjection(TEXT("p.Chaos.ImmPhys.JointMinAngularProjection"), ChaosImmediate_JointMinAngularProjection, TEXT("Joint min projection (for joints with projection disabled)."));
 	FAutoConsoleVariableRef CVarJointMaxAngularProjection(TEXT("p.Chaos.ImmPhys.JointMaxAngularProjection"), ChaosImmediate_JointMaxAngularProjection, TEXT("Joint max projection (for joints with projection enabled)."));
 
@@ -44,6 +46,8 @@ namespace ImmediatePhysics_Chaos
 		, Constraints(InConstraints)
 	{
 		using namespace Chaos;
+
+		const FConstraintProfileProperties& Profile = ConstraintInstance->ProfileInstance;
 
 		FPBDJointSettings ConstraintSettings;
 		TVector<FRigidTransform3, 2> ConstraintFrames;
@@ -71,7 +75,7 @@ namespace ImmediatePhysics_Chaos
 
 		ConstraintSettings.LinearProjection = ConstraintInstance->IsProjectionEnabled() ? ChaosImmediate_JointMaxLinearProjection : ChaosImmediate_JointMinLinearProjection;
 		ConstraintSettings.AngularProjection = ConstraintInstance->IsProjectionEnabled() ? ChaosImmediate_JointMaxAngularProjection : ChaosImmediate_JointMinAngularProjection;
-		ConstraintSettings.ParentInvMassScale = ConstraintInstance->ProfileInstance.bParentDominates ? (FReal)0 : (FReal)1;
+		ConstraintSettings.ParentInvMassScale = Profile.bParentDominates ? (FReal)0 : (FReal)1;
 
 		ConstraintSettings.bSoftLinearLimitsEnabled = ConstraintInstance->GetIsSoftLinearLimit();
 		ConstraintSettings.bSoftTwistLimitsEnabled = ConstraintInstance->GetIsSoftTwistLimit();
@@ -82,36 +86,41 @@ namespace ImmediatePhysics_Chaos
 		ConstraintSettings.SoftTwistDamping = ChaosImmediate_SoftDampingScale * ConstraintInstance->GetSoftTwistLimitDamping();
 		ConstraintSettings.SoftSwingStiffness = ChaosImmediate_SoftStiffnessScale * ConstraintInstance->GetSoftSwingLimitStiffness();
 		ConstraintSettings.SoftSwingDamping = ChaosImmediate_SoftDampingScale * ConstraintInstance->GetSoftSwingLimitDamping();
+		ConstraintSettings.SoftForceMode = EJointForceMode::Force;
 
-		ConstraintSettings.LinearDriveTarget = ConstraintInstance->ProfileInstance.LinearDrive.PositionTarget;
-		ConstraintSettings.bLinearDriveEnabled[0] = ConstraintInstance->ProfileInstance.LinearDrive.XDrive.bEnablePositionDrive;
-		ConstraintSettings.bLinearDriveEnabled[1] = ConstraintInstance->ProfileInstance.LinearDrive.YDrive.bEnablePositionDrive;
-		ConstraintSettings.bLinearDriveEnabled[2] = ConstraintInstance->ProfileInstance.LinearDrive.ZDrive.bEnablePositionDrive;
-		ConstraintSettings.LinearDriveStiffness = 0.3f;// ConstraintInstance->ProfileInstance.LinearDrive.XDrive.bEnablePositionDrive;
-		ConstraintSettings.LinearDriveDamping = 0.0f;// ConstraintInstance->ProfileInstance.LinearDrive.XDrive.bEnablePositionDrive;
+		ConstraintSettings.LinearDriveTarget = Profile.LinearDrive.PositionTarget;
+		ConstraintSettings.bLinearDriveEnabled[0] = Profile.LinearDrive.XDrive.bEnablePositionDrive;
+		ConstraintSettings.bLinearDriveEnabled[1] = Profile.LinearDrive.YDrive.bEnablePositionDrive;
+		ConstraintSettings.bLinearDriveEnabled[2] = Profile.LinearDrive.ZDrive.bEnablePositionDrive;
+		ConstraintSettings.LinearDriveStiffness = 0.3f;// Profile.LinearDrive.XDrive.bEnablePositionDrive;
+		ConstraintSettings.LinearDriveDamping = 0.0f;// Profile.LinearDrive.XDrive.bEnablePositionDrive;
+		ConstraintSettings.LinearDriveForceMode = EJointForceMode::Acceleration;
 
-		ConstraintSettings.AngularDriveTarget = FQuat(ConstraintInstance->ProfileInstance.AngularDrive.OrientationTarget);
-		// NOTE: Hard dependence on EJointAngularConstraintIndex - the following will break if we change the order
-		ConstraintSettings.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Twist] = FMath::DegreesToRadians(ConstraintInstance->ProfileInstance.AngularDrive.OrientationTarget.Roll);
-		ConstraintSettings.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Swing1] = FMath::DegreesToRadians(ConstraintInstance->ProfileInstance.AngularDrive.OrientationTarget.Yaw);
-		ConstraintSettings.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Swing2] = FMath::DegreesToRadians(ConstraintInstance->ProfileInstance.AngularDrive.OrientationTarget.Pitch);
+		ConstraintSettings.AngularDrivePositionTarget = FQuat(Profile.AngularDrive.OrientationTarget);
+		ConstraintSettings.AngularDriveVelocityTarget = Profile.AngularDrive.AngularVelocityTarget;
+		// NOTE: Hard dependence on EJointAngularConstraintIndex - the following will break if we change the order (but can be easily fixed)
+		static_assert((int32)EJointAngularConstraintIndex::Twist == 0, "Angular drive targets have hard dependency on constraint order");
+		static_assert((int32)EJointAngularConstraintIndex::Swing1 == 2, "Angular drive targets have hard dependency on constraint order");
+		ConstraintSettings.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Twist] = FMath::DegreesToRadians(Profile.AngularDrive.OrientationTarget.Roll);
+		ConstraintSettings.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Swing1] = FMath::DegreesToRadians(Profile.AngularDrive.OrientationTarget.Yaw);
+		ConstraintSettings.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Swing2] = FMath::DegreesToRadians(Profile.AngularDrive.OrientationTarget.Pitch);
 
-		if (ConstraintInstance->ProfileInstance.AngularDrive.AngularDriveMode == EAngularDriveMode::SLERP)
+		if (Profile.AngularDrive.AngularDriveMode == EAngularDriveMode::SLERP)
 		{
-			ConstraintSettings.bAngularSLerpDriveEnabled = ConstraintInstance->ProfileInstance.AngularDrive.SlerpDrive.bEnablePositionDrive;
-			ConstraintSettings.bAngularTwistDriveEnabled = false;
-			ConstraintSettings.bAngularSwingDriveEnabled = false;
-			
+			ConstraintSettings.bAngularSLerpPositionDriveEnabled = Profile.AngularDrive.SlerpDrive.bEnablePositionDrive;
+			ConstraintSettings.bAngularSLerpVelocityDriveEnabled = Profile.AngularDrive.SlerpDrive.bEnableVelocityDrive;
 		}
 		else
 		{
-			ConstraintSettings.bAngularSLerpDriveEnabled = false;
-			ConstraintSettings.bAngularTwistDriveEnabled = ConstraintInstance->ProfileInstance.AngularDrive.TwistDrive.bEnablePositionDrive;
-			ConstraintSettings.bAngularSwingDriveEnabled = ConstraintInstance->ProfileInstance.AngularDrive.SwingDrive.bEnablePositionDrive;
+			ConstraintSettings.bAngularTwistPositionDriveEnabled = Profile.AngularDrive.TwistDrive.bEnablePositionDrive;
+			ConstraintSettings.bAngularTwistVelocityDriveEnabled = Profile.AngularDrive.TwistDrive.bEnableVelocityDrive;
+			ConstraintSettings.bAngularSwingPositionDriveEnabled = Profile.AngularDrive.SwingDrive.bEnablePositionDrive;
+			ConstraintSettings.bAngularSwingVelocityDriveEnabled = Profile.AngularDrive.SwingDrive.bEnableVelocityDrive;
 		}
-
-		ConstraintSettings.AngularDriveStiffness = ChaosImmediate_DriveStiffnessScale * ConstraintInstance->ProfileInstance.AngularDrive.TwistDrive.Stiffness;
-		ConstraintSettings.AngularDriveDamping = ChaosImmediate_DriveDampingScale * ConstraintInstance->ProfileInstance.AngularDrive.TwistDrive.Damping;
+		// All angular drives in UE have same stiffness and damping settings
+		ConstraintSettings.AngularDriveStiffness = ChaosImmediate_DriveStiffnessScale * Profile.AngularDrive.TwistDrive.Stiffness;
+		ConstraintSettings.AngularDriveDamping = ChaosImmediate_DriveDampingScale * Profile.AngularDrive.TwistDrive.Damping;
+		ConstraintSettings.AngularDriveForceMode = EJointForceMode::Acceleration;
 
 		ConstraintSettings.Sanitize();
 

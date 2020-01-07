@@ -66,7 +66,6 @@ namespace Chaos
 	{
 	public:
 		FPBDJointSettings();
-		FPBDJointSettings(const TVector<EJointMotionType, 3>& InLinearMotionTypes, const TVector<EJointMotionType, 3>& InAngularMotionTypes);
 
 		void Sanitize();
 
@@ -99,12 +98,16 @@ namespace Chaos
 		FReal LinearDriveDamping;
 
 		// @todo(ccaulfield): remove one of these
-		FRotation3 AngularDriveTarget;
+		FRotation3 AngularDrivePositionTarget;
 		FVec3 AngularDriveTargetAngles;
+		FVec3 AngularDriveVelocityTarget;
 
-		bool bAngularSLerpDriveEnabled;
-		bool bAngularTwistDriveEnabled;
-		bool bAngularSwingDriveEnabled;
+		bool bAngularSLerpPositionDriveEnabled;
+		bool bAngularSLerpVelocityDriveEnabled;
+		bool bAngularTwistPositionDriveEnabled;
+		bool bAngularTwistVelocityDriveEnabled;
+		bool bAngularSwingPositionDriveEnabled;
+		bool bAngularSwingVelocityDriveEnabled;
 		EJointForceMode AngularDriveForceMode;
 		FReal AngularDriveStiffness;
 		FReal AngularDriveDamping;

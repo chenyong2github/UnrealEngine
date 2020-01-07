@@ -100,47 +100,15 @@ namespace Chaos
 		, LinearDriveForceMode(EJointForceMode::Acceleration)
 		, LinearDriveStiffness(0)
 		, LinearDriveDamping(0)
-		, AngularDriveTarget(FRotation3::FromIdentity())
+		, AngularDrivePositionTarget(FRotation3::FromIdentity())
 		, AngularDriveTargetAngles(FVec3(0, 0, 0))
-		, bAngularSLerpDriveEnabled(false)
-		, bAngularTwistDriveEnabled(false)
-		, bAngularSwingDriveEnabled(false)
-		, AngularDriveForceMode(EJointForceMode::Acceleration)
-		, AngularDriveStiffness(0)
-		, AngularDriveDamping(0)
-	{
-	}
-
-	
-	FPBDJointSettings::FPBDJointSettings(const TVector<EJointMotionType, 3>& InLinearMotionTypes, const TVector<EJointMotionType, 3>& InAngularMotionTypes)
-		: Stiffness(1)
-		, LinearProjection(0)
-		, AngularProjection(0)
-		, ParentInvMassScale(1)
-		, LinearMotionTypes(InLinearMotionTypes)
-		, LinearLimit(FLT_MAX)
-		, AngularMotionTypes({ EJointMotionType::Free, EJointMotionType::Free, EJointMotionType::Free })
-		, AngularLimits(FVec3(FLT_MAX, FLT_MAX, FLT_MAX))
-		, bSoftLinearLimitsEnabled(false)
-		, bSoftTwistLimitsEnabled(false)
-		, bSoftSwingLimitsEnabled(false)
-		, SoftForceMode(EJointForceMode::Acceleration)
-		, SoftLinearStiffness(0)
-		, SoftLinearDamping(0)
-		, SoftTwistStiffness(0)
-		, SoftTwistDamping(0)
-		, SoftSwingStiffness(0)
-		, SoftSwingDamping(0)
-		, LinearDriveTarget(FVec3(0))
-		, bLinearDriveEnabled(TVector<bool, 3>(false, false, false))
-		, LinearDriveForceMode(EJointForceMode::Acceleration)
-		, LinearDriveStiffness(0)
-		, LinearDriveDamping(0)
-		, AngularDriveTarget(FRotation3::FromIdentity())
-		, AngularDriveTargetAngles(FVec3(0, 0, 0))
-		, bAngularSLerpDriveEnabled(false)
-		, bAngularTwistDriveEnabled(false)
-		, bAngularSwingDriveEnabled(false)
+		, AngularDriveVelocityTarget(FVec3(0, 0, 0))
+		, bAngularSLerpPositionDriveEnabled(false)
+		, bAngularSLerpVelocityDriveEnabled(false)
+		, bAngularTwistPositionDriveEnabled(false)
+		, bAngularTwistVelocityDriveEnabled(false)
+		, bAngularSwingPositionDriveEnabled(false)
+		, bAngularSwingVelocityDriveEnabled(false)
 		, AngularDriveForceMode(EJointForceMode::Acceleration)
 		, AngularDriveStiffness(0)
 		, AngularDriveDamping(0)
@@ -168,6 +136,21 @@ namespace Chaos
 		{
 			AngularLimits[(int32)EJointAngularConstraintIndex::Swing2] = 0;
 		}
+
+		// Don't use soft constraints if the stiffness is very high
+		if (bSoftLinearLimitsEnabled && SoftLinearStiffness > 1000)
+		{
+			bSoftLinearLimitsEnabled = false;
+		}
+		if (bSoftTwistLimitsEnabled && SoftTwistStiffness > 1000)
+		{
+			bSoftTwistLimitsEnabled = false;
+		}
+		if (bSoftSwingLimitsEnabled && SoftSwingStiffness > 1000)
+		{
+			bSoftSwingLimitsEnabled = false;
+		}
+
 	}
 
 	
