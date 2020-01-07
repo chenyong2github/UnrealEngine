@@ -1107,76 +1107,14 @@ void ClothingSimulation::AddCollisions(const FClothCollisionData& ClothCollision
 	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Added collisions: %d spheres, %d capsules, %d convexes, %d boxes."), NumSpheres, NumCapsules, NumConvexes, NumBoxes);
 }
 
-void ClothingSimulation::FillContext(USkeletalMeshComponent* InComponent, float InDeltaTime, IClothingSimulationContext* InOutContext)
-{
-    ClothingSimulationContext* Context = static_cast<ClothingSimulationContext*>(InOutContext);
-    Context->ComponentToWorld = InComponent->GetComponentToWorld();
-    Context->DeltaTime = ClampDeltaTime > 0 ? FMath::Min(InDeltaTime, ClampDeltaTime) : InDeltaTime;
-
-	Context->WorldGravity = InComponent->GetWorld() ?
-		FVector(0.f, 0.f, InComponent->GetWorld()->GetGravityZ()) :
-		ClothingSimulationDefault::Gravity;
-
-	Context->RefToLocals.Reset();
-    InComponent->GetCurrentRefToLocalMatrices(Context->RefToLocals, 0);
-
-	const USkeletalMesh* SkelMesh = InComponent->SkeletalMesh;
-    if (USkinnedMeshComponent* MasterComponent = InComponent->MasterPoseComponent.Get())
-    {
-		const TArray<int32>& MasterBoneMap = InComponent->GetMasterBoneMap();
-        int32 NumBones = MasterBoneMap.Num();
-        if (NumBones == 0)
-        {
-            if (InComponent->SkeletalMesh)
-            {
-                // This case indicates an invalid master pose component (e.g. no skeletal mesh)
-                NumBones = InComponent->SkeletalMesh->RefSkeleton.GetNum();
-            }
-			Context->BoneTransforms.Reset(NumBones);
-			Context->BoneTransforms.AddDefaulted(NumBones);
-        }
-        else
-        {
-            Context->BoneTransforms.Reset(NumBones);
-            Context->BoneTransforms.AddDefaulted(NumBones);
-			const TArray<FTransform>& MasterTransforms = MasterComponent->GetComponentSpaceTransforms();
-            for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
-            {
-                bool bFoundMaster = false;
-                if (MasterBoneMap.IsValidIndex(BoneIndex))
-                {
-                    const int32 MasterIndex = MasterBoneMap[BoneIndex];
-                    if (MasterTransforms.IsValidIndex(MasterIndex))
-                    {
-                        Context->BoneTransforms[BoneIndex] = MasterTransforms[MasterIndex];
-                        bFoundMaster = true;
-                    }
-                }
-
-                if (!bFoundMaster && SkelMesh)
-                {
-                    const int32 ParentIndex = SkelMesh->RefSkeleton.GetParentIndex(BoneIndex);
-					check(ParentIndex < BoneIndex);
-					Context->BoneTransforms[BoneIndex] =
-						Context->BoneTransforms.IsValidIndex(ParentIndex) && ParentIndex < BoneIndex ?
-						Context->BoneTransforms[ParentIndex] * SkelMesh->RefSkeleton.GetRefBonePose()[BoneIndex] :
-                        SkelMesh->RefSkeleton.GetRefBonePose()[BoneIndex];
-                }
-            }
-        }
-    }
-    else
-    {
-        Context->BoneTransforms = InComponent->GetComponentSpaceTransforms();
-    }
-}
-
 void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothSimulate);
-	ClothingSimulationContext* Context = static_cast<ClothingSimulationContext*>(InContext);
-	if (Context->DeltaTime == 0)
+	const ClothingSimulationContext* const Context = static_cast<ClothingSimulationContext*>(InContext);
+	if (Context->DeltaSeconds == 0.f)
+	{
 		return;
+	}
 
 	// Set gravity
 	Evolution->GetGravityForces().SetAcceleration(Chaos::TVector<float, 3>(
@@ -1225,7 +1163,7 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 	UpdateCollisionTransforms(*Context);
 
 	// Advance Sim
-	DeltaTime = Context->DeltaTime;
+	DeltaTime = Context->DeltaSeconds;
 
 	const float SolverFrequency = ClothSharedSimConfig ?
 		ClothSharedSimConfig->SolverFrequency :
