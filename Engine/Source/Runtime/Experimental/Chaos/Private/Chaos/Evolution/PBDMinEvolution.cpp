@@ -127,8 +127,7 @@ namespace Chaos
 				Particle.PreV() = Particle.V();
 				Particle.PreW() = Particle.W();
 
-				Particle.F() = Particle.ExternalForce() + Particle.M() * Gravity;
-				Particle.Torque() = Particle.ExternalTorque();
+				Particle.F() += Particle.M() * Gravity;
 
 				EulerStepVelocityRule.Apply(Particle, Dt);
 				EtherDragRule.Apply(Particle, Dt);
@@ -137,8 +136,6 @@ namespace Chaos
 
 				Particle.F() = FVec3(0);
 				Particle.Torque() = FVec3(0);
-				Particle.ExternalForce() = FVec3(0);
-				Particle.ExternalTorque() = FVec3(0);
 
 				if (Particle.HasBounds())
 				{
