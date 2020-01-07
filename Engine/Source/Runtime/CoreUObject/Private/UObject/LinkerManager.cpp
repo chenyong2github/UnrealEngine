@@ -163,13 +163,11 @@ void FLinkerManager::EnsureLoadingComplete(UPackage* Package)
 	{
 		return;
 	}
-
 	if (!Package->HasAnyPackageFlags(PKG_FilterEditorOnly))
 	{
 		Linker->SerializeThumbnails();
 	}
 }
-
 
 void FLinkerManager::DissociateImportsAndForcedExports()
 {
