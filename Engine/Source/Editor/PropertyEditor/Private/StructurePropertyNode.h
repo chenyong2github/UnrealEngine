@@ -50,7 +50,7 @@ public:
 		}
 
 		UStruct* OwnerStruct = InItemProperty->GetOwnerStruct();
-		if (!OwnerStruct || OwnerStruct->Children == nullptr)
+		if (!OwnerStruct || (OwnerStruct->Children == nullptr && OwnerStruct->ChildProperties == nullptr))
 		{
 			// Verify that the property is not part of an invalid trash class
 			return false;
