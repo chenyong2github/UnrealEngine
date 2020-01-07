@@ -610,7 +610,7 @@ public:
 		int64 TotalNumWritten = 0;
 		do
 		{
-			uint32 BytesToWrite32 = FMath::Min(BytesToWrite - TotalNumWritten, int64(UINT32_MAX));
+			uint32 BytesToWrite32 = FMath::Min(BytesToWrite, int64(UINT32_MAX));
 			uint32 NumWritten = 0;
 			// Now kick off an async write
 			if (!WriteFile(FileHandle, Source, BytesToWrite32, (::DWORD*)&NumWritten, &OverlappedIO))
