@@ -21,7 +21,7 @@ struct FPyWrapperFixedArray : public FPyWrapperBase
 	FPyWrapperOwnerContext OwnerContext;
 
 	/** Property describing the fixed-array */
-	const FProperty* ArrayProp;
+	PyUtil::FConstPropOnScope ArrayProp;
 
 	/** Wrapped fixed-array instance */
 	void* ArrayInstance;

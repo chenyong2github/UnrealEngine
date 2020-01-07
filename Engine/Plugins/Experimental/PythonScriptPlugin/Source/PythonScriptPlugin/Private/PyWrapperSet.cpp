@@ -2,8 +2,6 @@
 
 #include "PyWrapperSet.h"
 #include "PyWrapperTypeRegistry.h"
-#include "PyCore.h"
-#include "PyUtil.h"
 #include "PyConversion.h"
 #include "PyReferenceCollector.h"
 #include "UObject/UnrealType.h"
@@ -157,7 +155,7 @@ FPyWrapperSet* FPyWrapperSet::New(PyTypeObject* InType)
 	if (Self)
 	{
 		new(&Self->OwnerContext) FPyWrapperOwnerContext();
-		Self->SetProp = nullptr;
+		new(&Self->SetProp) PyUtil::FConstSetPropOnScope();
 		Self->SetInstance = nullptr;
 	}
 	return Self;
@@ -168,6 +166,7 @@ void FPyWrapperSet::Free(FPyWrapperSet* InSelf)
 	Deinit(InSelf);
 
 	InSelf->OwnerContext.~FPyWrapperOwnerContext();
+	InSelf->SetProp.~TPropOnScope();
 	FPyWrapperBase::Free(InSelf);
 }
 
@@ -181,15 +180,15 @@ int FPyWrapperSet::Init(FPyWrapperSet* InSelf, const PyUtil::FPropertyDef& InEle
 		return BaseInit;
 	}
 
-	FProperty* SetElementProp = PyUtil::CreateProperty(InElementDef, 1);
+	PyUtil::FPropOnScope SetElementProp = PyUtil::FPropOnScope::OwnedReference(PyUtil::CreateProperty(InElementDef, 1));
 	if (!SetElementProp)
 	{
 		PyUtil::SetPythonError(PyExc_Exception, InSelf, TEXT("Set element property was null during init"));
 		return -1;
 	}
 
-	FSetProperty* SetProp = new FSetProperty(GetPythonPropertyContainer(), FField::GenerateFFieldName(GetPythonPropertyContainer(), FSetProperty::StaticClass()), RF_NoFlags);
-	SetProp->ElementProp = SetElementProp;
+	PyUtil::FSetPropOnScope SetProp = PyUtil::FSetPropOnScope::OwnedReference(new FSetProperty(FFieldVariant(), PyUtil::DefaultPythonPropertyName, RF_NoFlags));
+	SetProp->ElementProp = SetElementProp.Release();
 
 	// Need to manually call Link to fix-up some data (such as the C++ property flags and the set layout) that are only set during Link
 	{
@@ -200,7 +199,7 @@ int FPyWrapperSet::Init(FPyWrapperSet* InSelf, const PyUtil::FPropertyDef& InEle
 	void* SetValue = FMemory::Malloc(SetProp->GetSize(), SetProp->GetMinAlignment());
 	SetProp->InitializeValue(SetValue);
 
-	InSelf->SetProp = SetProp;
+	InSelf->SetProp = MoveTemp(SetProp);
 	InSelf->SetInstance = SetValue;
 
 	if (!InSelf->SetProp->ElementProp->HasAnyPropertyFlags(CPF_HasGetValueTypeHash))
@@ -227,29 +226,30 @@ int FPyWrapperSet::Init(FPyWrapperSet* InSelf, const FPyWrapperOwnerContext& InO
 
 	check(InProp && InValue);
 
-	const FSetProperty* PropToUse = nullptr;
+	PyUtil::FConstSetPropOnScope PropToUse;
 	void* SetInstanceToUse = nullptr;
 	switch (InConversionMethod)
 	{
 	case EPyConversionMethod::Copy:
 	case EPyConversionMethod::Steal:
 		{
-			FProperty* SetElementProp = PyUtil::CreateProperty(InProp->ElementProp);
+			PyUtil::FPropOnScope SetElementProp = PyUtil::FPropOnScope::OwnedReference(PyUtil::CreateProperty(InProp->ElementProp));
 			if (!SetElementProp)
 			{
 				PyUtil::SetPythonError(PyExc_TypeError, InSelf, *FString::Printf(TEXT("Failed to create element property from '%s' (%s)"), *InProp->ElementProp->GetName(), *InProp->ElementProp->GetClass()->GetName()));
 				return -1;
 			}
 
-			FSetProperty* SetProp = new FSetProperty(GetPythonPropertyContainer(), FField::GenerateFFieldName(GetPythonPropertyContainer(), FSetProperty::StaticClass()), RF_NoFlags);
-			SetProp->ElementProp = SetElementProp;
-			PropToUse = SetProp;
+			PyUtil::FSetPropOnScope SetProp = PyUtil::FSetPropOnScope::OwnedReference(new FSetProperty(FFieldVariant(), PyUtil::DefaultPythonPropertyName, RF_NoFlags));
+			SetProp->ElementProp = SetElementProp.Release();
 			
 			// Need to manually call Link to fix-up some data (such as the C++ property flags and the set layout) that are only set during Link
 			{
 				FArchive Ar;
 				SetProp->LinkWithoutChangingOffset(Ar);
 			}
+
+			PropToUse = MoveTemp(SetProp);
 
 			SetInstanceToUse = FMemory::Malloc(PropToUse->GetSize(), PropToUse->GetMinAlignment());
 			PropToUse->InitializeValue(SetInstanceToUse);
@@ -267,7 +267,7 @@ int FPyWrapperSet::Init(FPyWrapperSet* InSelf, const FPyWrapperOwnerContext& InO
 
 	case EPyConversionMethod::Reference:
 		{
-			PropToUse = InProp;
+			PropToUse = PyUtil::FConstSetPropOnScope::ExternalReference(InProp);
 			SetInstanceToUse = InValue;
 		}
 		break;
@@ -280,7 +280,7 @@ int FPyWrapperSet::Init(FPyWrapperSet* InSelf, const FPyWrapperOwnerContext& InO
 	check(PropToUse && SetInstanceToUse);
 
 	InSelf->OwnerContext = InOwnerContext;
-	InSelf->SetProp = PropToUse;
+	InSelf->SetProp = MoveTemp(PropToUse);
 	InSelf->SetInstance = SetInstanceToUse;
 
 	if (!InSelf->SetProp->ElementProp->HasAnyPropertyFlags(CPF_HasGetValueTypeHash))
@@ -312,7 +312,7 @@ void FPyWrapperSet::Deinit(FPyWrapperSet* InSelf)
 		}
 		FMemory::Free(InSelf->SetInstance);
 	}
-	InSelf->SetProp = nullptr;
+	InSelf->SetProp.Reset();
 	InSelf->SetInstance = nullptr;
 }
 
@@ -1608,7 +1608,7 @@ void FPyWrapperSetMetaData::AddReferencedObjects(FPyWrapperBase* Instance, FRefe
 	FPyWrapperSet* Self = static_cast<FPyWrapperSet*>(Instance);
 	if (Self->SetProp && Self->SetInstance && !Self->OwnerContext.HasOwner())
 	{
-		Collector.AddReferencedObject(Self->SetProp);
+		Self->SetProp.AddReferencedObjects(Collector);
 		FPyReferenceCollector::AddReferencedObjectsFromProperty(Collector, Self->SetProp, Self->SetInstance);
 	}
 }
