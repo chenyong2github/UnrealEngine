@@ -156,6 +156,7 @@ void FLwsWebSocket::Send(const FString& Data)
 {
 	FTCHARToUTF8 Converted(*Data);
 	Send((uint8*)Converted.Get(), Converted.Length(), false);
+	OnMessageSent().Broadcast(Data);
 }
 
 void FLwsWebSocket::SendFromQueue()

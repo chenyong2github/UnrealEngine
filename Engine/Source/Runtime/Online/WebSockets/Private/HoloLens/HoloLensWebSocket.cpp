@@ -129,6 +129,7 @@ void FHoloLensWebSocket::Send(const FString& Data)
 		{
 			Writer->WriteString(ref new Platform::String(*Data));
 			SendOperations.Add(Writer->StoreAsync());
+			OnMessageSent().Broadcast(Data);
 		}
 		catch (Platform::Exception^ Ex)
 		{
