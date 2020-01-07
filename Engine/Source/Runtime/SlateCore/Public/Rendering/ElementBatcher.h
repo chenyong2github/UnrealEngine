@@ -206,7 +206,7 @@ public:
 		ESlateBatchDrawFlag InDrawFlags,
 		int8 SceneIndex);
 
-	void AddCachedBatches(const TArray<FSlateRenderBatch>& InCachedBatches);
+	void AddCachedBatches(const TSparseArray<FSlateRenderBatch>& InCachedBatches);
 private:
 	void FillBuffersFromNewBatch(FSlateRenderBatch& Batch, FSlateVertexArray& FinalVertices, FSlateIndexArray& FinalIndices);
 	void CombineBatches(FSlateRenderBatch& FirstBatch, FSlateRenderBatch& SecondBatch, FSlateVertexArray& FinalVertices, FSlateIndexArray& FinalIndices);
@@ -355,7 +355,7 @@ private:
 	FSlateBatchData* BatchData;
 
 	/** Cached batches currently being filled in */
-	FSlateCachedElementList* CachedElementList;
+	FSlateCachedElementList* CurrentCachedElementList;
 
 	/** Clipping states currently being used */
 	const TArray<FSlateClippingState>* PrecachedClippingStates;
