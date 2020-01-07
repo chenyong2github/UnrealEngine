@@ -56,14 +56,6 @@ namespace FHttpRetrySystem
 	TOptional<double> HTTP_API ReadThrottledTimeFromResponseInSeconds(FHttpResponsePtr Response);
 };
 
-/**
-* Delegate called when an Http request will be retried in the future
-*
-* @param first parameter - original Http request that started things
-* @param second parameter - response received from the server if a successful connection was established
-* @param third parameter - seconds in the future when the response will be retried
-*/
-DECLARE_DELEGATE_ThreeParams(FHttpRequestWillRetryDelegate, FHttpRequestPtr, FHttpResponsePtr, float);
 
 namespace FHttpRetrySystem
 {
@@ -92,7 +84,6 @@ namespace FHttpRetrySystem
 		// IHttpRequest interface
 		HTTP_API virtual bool ProcessRequest() override;
 		HTTP_API virtual void CancelRequest() override;
-		virtual FHttpRequestWillRetryDelegate& OnRequestWillRetry() { return OnRequestWillRetryDelegate; }
 		
 		// FRequest
 		EStatus::Type GetRetryStatus() const { return Status; }
@@ -128,8 +119,6 @@ namespace FHttpRetrySystem
 		int32								 RetryDomainsIndex = 0;
 		/** The original URL before replacing anything from RetryDomains */
 		FString								 OriginalUrl;
-
-		FHttpRequestWillRetryDelegate OnRequestWillRetryDelegate;
 
 		FManager& RetryManager;
     };

@@ -99,6 +99,15 @@ DECLARE_DELEGATE_ThreeParams(FHttpRequestHeaderReceivedDelegate, FHttpRequestPtr
 DECLARE_DELEGATE_ThreeParams(FHttpRequestProgressDelegate, FHttpRequestPtr /*Request*/, int32 /*BytesSent*/, int32 /*BytesReceived*/);
 
 /**
+ * Delegate called when an Http request will be retried in the future
+ *
+ * @param Request - original Http request that started things
+ * @param Response - response received from the server if a successful connection was established
+ * @param SecondsToRetry - seconds in the future when the response will be retried
+ */
+DECLARE_DELEGATE_ThreeParams(FHttpRequestWillRetryDelegate, FHttpRequestPtr /*Request*/, FHttpResponsePtr /*Response*/, float /*SecondsToRetry*/);
+
+/**
  * Interface for Http requests (created using FHttpFactory)
  */
 class IHttpRequest : 
@@ -207,6 +216,11 @@ public:
 	 * Delegate called to update the request/response progress. See FHttpRequestProgressDelegate
 	 */
 	virtual FHttpRequestProgressDelegate& OnRequestProgress() = 0;
+	
+	/**
+	* Delegate called when the request will be retried
+	*/
+	virtual FHttpRequestWillRetryDelegate& OnRequestWillRetry() = 0;
 
 	/** 
 	 * Delegate called to signal the receipt of a header.  See FHttpRequestHeaderReceivedDelegate
