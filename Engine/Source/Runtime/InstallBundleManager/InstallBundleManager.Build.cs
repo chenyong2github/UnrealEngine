@@ -16,6 +16,7 @@ public class InstallBundleManager : ModuleRules
 				"InputCore",
 				"Projects",
 				"ApplicationCore",
+				"Json"
 			}
 		);
 	}
