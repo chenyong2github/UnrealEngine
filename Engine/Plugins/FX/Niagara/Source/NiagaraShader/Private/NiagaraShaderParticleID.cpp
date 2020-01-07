@@ -2,6 +2,7 @@
 
 #include "NiagaraShaderParticleID.h"
 #include "GlobalShader.h"
+#include "ShaderParameterUtils.h"
 
 class FNiagaraInitFreeIDBufferCS : public FGlobalShader
 {
