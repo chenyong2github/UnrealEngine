@@ -39,6 +39,10 @@ struct CORE_API FDestructionObjectVersion
 		// bulk serialize arrays
 		GroupAndAttributeNameRemapping,
 
+		// bulk serialize arrays
+		ImplicitObjectDoCollideAttribute,
+
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

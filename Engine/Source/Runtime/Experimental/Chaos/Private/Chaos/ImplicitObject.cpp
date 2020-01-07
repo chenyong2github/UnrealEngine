@@ -22,7 +22,7 @@ using namespace Chaos;
 FImplicitObject::FImplicitObject(int32 Flags, EImplicitObjectType InType)
     : Type(InType)
     , bIsConvex(!!(Flags & EImplicitObject::IsConvex))
-    , bDoCollide(true)
+    , bDoCollide(!(Flags & EImplicitObject::DisableCollisions))
     , bHasBoundingBox(!!(Flags & EImplicitObject::HasBoundingBox))
 #if TRACK_CHAOS_GEOMETRY
     , bIsTracked(false)
@@ -315,6 +315,11 @@ void FImplicitObject::SerializeImp(FArchive& Ar)
 	if (Ar.CustomVer(FDestructionObjectVersion::GUID) >= FDestructionObjectVersion::ChaosArchiveAdded)
 	{
 		Ar << bIsConvex << bDoCollide;
+	}
+
+	if (Ar.CustomVer(FDestructionObjectVersion::GUID) <= FDestructionObjectVersion::ImplicitObjectDoCollideAttribute)
+	{
+		bDoCollide = true;
 	}
 }
 
