@@ -686,12 +686,12 @@ void UClothingAssetCommon::CalculateReferenceBoneIndex()
 	}
 }
 
-bool UClothingAssetCommon::IsValidLod(int32 InLodIndex)
+bool UClothingAssetCommon::IsValidLod(int32 InLodIndex) const
 {
 	return ClothLodData.IsValidIndex(InLodIndex);
 }
 
-int32 UClothingAssetCommon::GetNumLods()
+int32 UClothingAssetCommon::GetNumLods() const
 {
 	return ClothLodData.Num();
 }

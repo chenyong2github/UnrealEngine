@@ -4,12 +4,22 @@
 
 void UChaosClothingSimulationInteractor::PhysicsAssetUpdated()
 {
-	//TODO
+	Commands.Add(ChaosClothInteractorCommand::CreateLambda([](Chaos::ClothingSimulation* InSimulation, Chaos::ClothingSimulationContext* InContext)
+	{
+		InSimulation->RefreshPhysicsAsset();
+	}));
+
+	MarkDirty();
 }
 
 void UChaosClothingSimulationInteractor::ClothConfigUpdated()
 {
-	//TODO
+	Commands.Add(ChaosClothInteractorCommand::CreateLambda([](Chaos::ClothingSimulation* InSimulation, Chaos::ClothingSimulationContext* InContext)
+	{
+		InSimulation->RefreshClothConfig();
+	}));
+
+	MarkDirty();
 }
 
 void UChaosClothingSimulationInteractor::Sync(IClothingSimulation* InSimulation, IClothingSimulationContext* InContext)
