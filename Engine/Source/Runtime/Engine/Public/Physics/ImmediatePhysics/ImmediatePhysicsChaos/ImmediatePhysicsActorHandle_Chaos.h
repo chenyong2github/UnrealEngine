@@ -14,6 +14,9 @@ namespace ImmediatePhysics_Chaos
 	public:
 		~FActorHandle();
 
+		void SetName(const FName& InName) { Name = InName; }
+		const FName& GetName() const { return Name; }
+
 		void SetEnabled(bool bEnabled);
 
 		/** Sets the world transform.*/
@@ -55,6 +58,8 @@ namespace ImmediatePhysics_Chaos
 		void AddForce(const FVector& Force);
 
 		void AddRadialForce(const FVector& Origin, float Strength, float Radius, ERadialImpulseFalloff Falloff, EForceType ForceType);
+
+		void AddImpulseAtLocation(FVector Impulse, FVector Location);
 
 		/** Set the linear damping*/
 		void SetLinearDamping(float NewLinearDamping);
@@ -125,6 +130,7 @@ namespace ImmediatePhysics_Chaos
 
 		Chaos::TGenericParticleHandle<FReal, Dimensions> Handle() const;
 
+		FName Name;
 		Chaos::TPBDRigidsSOAs<FReal, 3>& Particles;
 		Chaos::TGeometryParticleHandle<FReal, Dimensions>* ParticleHandle;
 		TUniquePtr<Chaos::FImplicitObject> Geometry;

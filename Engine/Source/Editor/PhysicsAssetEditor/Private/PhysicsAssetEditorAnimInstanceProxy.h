@@ -36,6 +36,8 @@ public:
 	virtual void UpdateAnimationNode(const FAnimationUpdateContext& InContext) override;
 	virtual bool Evaluate_WithRoot(FPoseContext& Output, FAnimNode_Base* InRootNode) override;
 
+	virtual void AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName = NAME_None) override;
+
 private:
 	void ConstructNodes();
 

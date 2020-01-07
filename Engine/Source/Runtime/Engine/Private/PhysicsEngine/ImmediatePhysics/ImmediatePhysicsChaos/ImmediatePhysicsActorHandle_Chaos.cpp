@@ -473,6 +473,18 @@ namespace ImmediatePhysics_Chaos
 		}
 	}
 
+	void FActorHandle::AddImpulseAtLocation(FVector Impulse, FVector Location)
+	{
+		using namespace Chaos;
+
+		if (TPBDRigidParticleHandle<FReal, 3>* Rigid = Handle()->CastToRigidParticle())
+		{
+			FVector CoM = FParticleUtilities::GetCoMWorldPosition(Rigid);
+			Rigid->LinearImpulse() += Impulse;
+			Rigid->AngularImpulse() += FVector::CrossProduct(Location - CoM, Impulse);
+		}
+	}
+
 	void FActorHandle::SetLinearDamping(float NewLinearDamping)
 	{
 		using namespace Chaos;
