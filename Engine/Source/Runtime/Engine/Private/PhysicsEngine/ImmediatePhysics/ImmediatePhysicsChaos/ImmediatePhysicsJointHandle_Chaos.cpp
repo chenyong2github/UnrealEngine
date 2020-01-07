@@ -150,6 +150,13 @@ namespace ImmediatePhysics_Chaos
 		ConstraintSettings.Motion.SoftSwingStiffness = DriveAngularStiffnessScale * ConstraintInstance->GetSoftSwingLimitStiffness();
 		ConstraintSettings.Motion.SoftSwingDamping = DriveAngularDampingScale * ConstraintInstance->GetSoftSwingLimitDamping();
 
+		ConstraintSettings.Motion.LinearDriveTarget = ConstraintInstance->ProfileInstance.LinearDrive.PositionTarget;
+		ConstraintSettings.Motion.bLinearDriveEnabled[0] = ConstraintInstance->ProfileInstance.LinearDrive.XDrive.bEnablePositionDrive;
+		ConstraintSettings.Motion.bLinearDriveEnabled[1] = ConstraintInstance->ProfileInstance.LinearDrive.YDrive.bEnablePositionDrive;
+		ConstraintSettings.Motion.bLinearDriveEnabled[2] = ConstraintInstance->ProfileInstance.LinearDrive.ZDrive.bEnablePositionDrive;
+		ConstraintSettings.Motion.LinearDriveStiffness = 0.3f;// ConstraintInstance->ProfileInstance.LinearDrive.XDrive.bEnablePositionDrive;
+		ConstraintSettings.Motion.LinearDriveDamping = 0.0f;// ConstraintInstance->ProfileInstance.LinearDrive.XDrive.bEnablePositionDrive;
+
 		ConstraintSettings.Motion.AngularDriveTarget = FQuat(ConstraintInstance->ProfileInstance.AngularDrive.OrientationTarget);
 		// NOTE: Hard dependence on EJointAngularConstraintIndex - the following will break if we change the order
 		ConstraintSettings.Motion.AngularDriveTargetAngles[(int32)EJointAngularConstraintIndex::Twist] = FMath::DegreesToRadians(ConstraintInstance->ProfileInstance.AngularDrive.OrientationTarget.Roll);

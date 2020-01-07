@@ -59,8 +59,10 @@ float ChaosImmediate_Joint_SoftTwistStiffness = 0.0f;
 float ChaosImmediate_Joint_SoftTwistDamping = 0.0f;
 float ChaosImmediate_Joint_SoftSwingStiffness = 0.0f;
 float ChaosImmediate_Joint_SoftSwingDamping = 0.0f;
-float ChaosImmediate_Joint_DriveStiffness = 0.0f;
-float ChaosImmediate_Joint_DriveDamping = 0.0f;
+float ChaosImmediate_Joint_LinearDriveStiffness = 0.0f;
+float ChaosImmediate_Joint_LinearDriveDamping = 0.0f;
+float ChaosImmediate_Joint_AngularDriveStiffness = 0.0f;
+float ChaosImmediate_Joint_AngularDriveDamping = 0.0f;
 float ChaosImmediate_Joint_MinParentMassRatio = 0.5f;
 float ChaosImmediate_Joint_MaxInertiaRatio = 5.0f;
 FAutoConsoleVariableRef CVarChaosImmPhysPairIterations(TEXT("p.Chaos.ImmPhys.Joint.PairIterations"), ChaosImmediate_Joint_PairIterations, TEXT("PairIterations."));
@@ -77,8 +79,10 @@ FAutoConsoleVariableRef CVarChaosImmPhysSoftTwistStiffness(TEXT("p.Chaos.ImmPhys
 FAutoConsoleVariableRef CVarChaosImmPhysSoftTwistDamping(TEXT("p.Chaos.ImmPhys.Joint.SoftTwistDamping"), ChaosImmediate_Joint_SoftTwistDamping, TEXT("6Dof joint SoftTwist damping override (if > 0)."));
 FAutoConsoleVariableRef CVarChaosImmPhysSoftSwingStiffness(TEXT("p.Chaos.ImmPhys.Joint.SoftSwingStiffness"), ChaosImmediate_Joint_SoftSwingStiffness, TEXT("6Dof joint SoftSwing stiffness override (if > 0)."));
 FAutoConsoleVariableRef CVarChaosImmPhysSoftSwingDamping(TEXT("p.Chaos.ImmPhys.Joint.SoftSwingDamping"), ChaosImmediate_Joint_SoftSwingDamping, TEXT("6Dof joint SoftSwing damping override (if > 0)."));
-FAutoConsoleVariableRef CVarChaosImmPhysDriveStiffness(TEXT("p.Chaos.ImmPhys.Joint.DriveStiffness"), ChaosImmediate_Joint_DriveStiffness, TEXT("6Dof joint drive stiffness override (if > 0)."));
-FAutoConsoleVariableRef CVarChaosImmPhysDriveDamping(TEXT("p.Chaos.ImmPhys.Joint.DriveDamping"), ChaosImmediate_Joint_DriveDamping, TEXT("6Dof joint drive damping override (if > 0)."));
+FAutoConsoleVariableRef CVarChaosImmPhysLinearDriveStiffness(TEXT("p.Chaos.ImmPhys.Joint.LinearDriveStiffness"), ChaosImmediate_Joint_LinearDriveStiffness, TEXT("6Dof joint drive stiffness override (if > 0)."));
+FAutoConsoleVariableRef CVarChaosImmPhysLinearDriveDamping(TEXT("p.Chaos.ImmPhys.Joint.LinearDriveDamping"), ChaosImmediate_Joint_LinearDriveDamping, TEXT("6Dof joint drive damping override (if > 0)."));
+FAutoConsoleVariableRef CVarChaosImmPhysAngularDriveStiffness(TEXT("p.Chaos.ImmPhys.Joint.AngularDriveStiffness"), ChaosImmediate_Joint_AngularDriveStiffness, TEXT("6Dof joint drive stiffness override (if > 0)."));
+FAutoConsoleVariableRef CVarChaosImmPhysAngularDriveDamping(TEXT("p.Chaos.ImmPhys.Joint.AngularDriveDamping"), ChaosImmediate_Joint_AngularDriveDamping, TEXT("6Dof joint drive damping override (if > 0)."));
 FAutoConsoleVariableRef CVarChaosImmPhysMinParentMassRatio(TEXT("p.Chaos.ImmPhys.Joint.MinParentMassRatio"), ChaosImmediate_Joint_MinParentMassRatio, TEXT("6Dof joint MinParentMassRatio (if > 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysMaxInertiaRatio(TEXT("p.Chaos.ImmPhys.Joint.MaxInertiaRatio"), ChaosImmediate_Joint_MaxInertiaRatio, TEXT("6Dof joint MaxInertiaRatio (if > 0)"));
 
@@ -533,8 +537,10 @@ namespace ImmediatePhysics_Chaos
 			JointsSettings.SoftTwistDamping = ChaosImmediate_Joint_SoftTwistDamping;
 			JointsSettings.SoftSwingStiffness = ChaosImmediate_Joint_SoftSwingStiffness;
 			JointsSettings.SoftSwingDamping = ChaosImmediate_Joint_SoftSwingDamping;
-			JointsSettings.DriveStiffness = ChaosImmediate_Joint_DriveStiffness;
-			JointsSettings.DriveDamping = ChaosImmediate_Joint_DriveDamping;
+			JointsSettings.LinearDriveStiffness = ChaosImmediate_Joint_LinearDriveStiffness;
+			JointsSettings.LinearDriveDamping = ChaosImmediate_Joint_LinearDriveDamping;
+			JointsSettings.AngularDriveStiffness = ChaosImmediate_Joint_AngularDriveStiffness;
+			JointsSettings.AngularDriveDamping = ChaosImmediate_Joint_AngularDriveDamping;
 
 			Joints.SetSettings(JointsSettings);
 
