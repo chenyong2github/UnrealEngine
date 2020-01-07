@@ -24,6 +24,12 @@ namespace Chaos
 		Locked,
 	};
 
+	enum class EJointForceMode : int32
+	{
+		Acceleration,
+		Force,
+	};
+
 	/**
 	 * The order of the angular constraints (for settings held in vectors etc)
 	 */
@@ -44,13 +50,6 @@ namespace Chaos
 		Swing1 = 2,		// Swing1 Axis = Z
 	};
 
-	enum class EJointSolverPhase
-	{
-		None,
-		Apply,
-		ApplyPushOut,
-	};
-
 	struct FJointConstants
 	{
 		/** The constraint-space twist axis (X Axis) */
@@ -63,17 +62,18 @@ namespace Chaos
 		static const FVec3 Swing2Axis() { return FVec3(0, 1, 0); }
 	};
 
-	class CHAOS_API FPBDJointMotionSettings
+	class CHAOS_API FPBDJointSettings
 	{
 	public:
-		FPBDJointMotionSettings();
-		FPBDJointMotionSettings(const TVector<EJointMotionType, 3>& InLinearMotionTypes, const TVector<EJointMotionType, 3>& InAngularMotionTypes);
+		FPBDJointSettings();
+		FPBDJointSettings(const TVector<EJointMotionType, 3>& InLinearMotionTypes, const TVector<EJointMotionType, 3>& InAngularMotionTypes);
 
 		void Sanitize();
 
 		FReal Stiffness;
 		FReal LinearProjection;
 		FReal AngularProjection;
+		FReal ParentInvMassScale;
 
 		TVector<EJointMotionType, 3> LinearMotionTypes;
 		FReal LinearLimit;
@@ -84,6 +84,7 @@ namespace Chaos
 		bool bSoftLinearLimitsEnabled;
 		bool bSoftTwistLimitsEnabled;
 		bool bSoftSwingLimitsEnabled;
+		EJointForceMode SoftForceMode;
 		FReal SoftLinearStiffness;
 		FReal SoftLinearDamping;
 		FReal SoftTwistStiffness;
@@ -93,6 +94,7 @@ namespace Chaos
 
 		FVec3 LinearDriveTarget;
 		TVector<bool, 3> bLinearDriveEnabled;
+		EJointForceMode LinearDriveForceMode;
 		FReal LinearDriveStiffness;
 		FReal LinearDriveDamping;
 
@@ -103,24 +105,9 @@ namespace Chaos
 		bool bAngularSLerpDriveEnabled;
 		bool bAngularTwistDriveEnabled;
 		bool bAngularSwingDriveEnabled;
-		bool bAngularAccelerationDriveMode;
+		EJointForceMode AngularDriveForceMode;
 		FReal AngularDriveStiffness;
 		FReal AngularDriveDamping;
-	};
-
-
-	class CHAOS_API FPBDJointSettings
-	{
-	public:
-		using FTransformPair = TVector<FRigidTransform3, 2>;
-
-		FPBDJointSettings();
-
-		// Particle-relative joint axes and positions
-		FTransformPair ConstraintFrames;
-
-		// How the constraint is allowed to move
-		FPBDJointMotionSettings Motion;
 	};
 
 	class CHAOS_API FPBDJointSolverSettings
