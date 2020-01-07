@@ -58,11 +58,26 @@ void SComboButton::Construct( const FArguments& InArgs )
 				.VAlign( VAlign_Center )
 				.Padding( InArgs._HasDownArrow ? 2 : 0 )
 				[
-					SNew( SImage )
-					.Visibility( InArgs._HasDownArrow ? EVisibility::Visible : EVisibility::Collapsed )
-					.Image( &InArgs._ComboButtonStyle->DownArrowImage )
-					// Inherit tinting from parent
-					. ColorAndOpacity( FSlateColor::UseForeground() )
+					SNew(SOverlay)
+					// drop shadow
+					+ SOverlay::Slot()
+					.VAlign(VAlign_Top)
+					.Padding(0, 1, 0, 0)
+					[
+						SNew(SImage)
+						.Visibility( InArgs._HasDownArrow && InArgs._HasDownArrowDropShadow ? EVisibility::Visible : EVisibility::Collapsed )
+						.Image( &InArgs._ComboButtonStyle->DownArrowImage )
+						.ColorAndOpacity( FLinearColor::Black )
+					]
+					+ SOverlay::Slot()
+					.VAlign(VAlign_Top)
+					[
+						SNew(SImage)
+						.Visibility( InArgs._HasDownArrow ? EVisibility::Visible : EVisibility::Collapsed )
+						.Image( &InArgs._ComboButtonStyle->DownArrowImage )
+						// Inherit tinting from parent
+						.ColorAndOpacity( FSlateColor::UseForeground() )
+					]
 				]
 			]
 		]
