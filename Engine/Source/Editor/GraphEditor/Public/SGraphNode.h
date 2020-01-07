@@ -333,6 +333,9 @@ protected:
 	virtual void SetDefaultTitleAreaWidget(TSharedRef<SOverlay> DefaultTitleAreaWidget) {}
 	virtual TSharedRef<SWidget> CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle);
 	
+	/** Optionally create a widget to dock to the right in the title bar of the node. */
+	virtual TSharedRef<SWidget> CreateTitleRightWidget();
+	
 	/** Create the inner node content area, including the left/right pin boxes */
 	virtual TSharedRef<SWidget> CreateNodeContentArea();
 
