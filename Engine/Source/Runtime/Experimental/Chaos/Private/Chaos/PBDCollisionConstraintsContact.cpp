@@ -29,13 +29,7 @@ namespace Chaos
 				const TRigidTransform<T, d> Transform0 = GetTransform(Constraint.Particle[0]);
 				const TRigidTransform<T, d> Transform1 = GetTransform(Constraint.Particle[1]);
 
-				const FImplicitObject& Implicit0 = *Constraint.Manifold.Implicit[0];
-				const FImplicitObject& Implicit1 = *Constraint.Manifold.Implicit[1];
-
-				if (Implicit0.IsConvex() && Implicit1.IsConvex())
-				{
-					UpdateConvexConvexManifold( *Constraint.template As<TRigidBodyIterativeContactConstraint<T, d>>(), Transform0, Transform1, Thickness);
-				}
+				UpdateManifold(Constraint, Transform0, Transform1, Thickness);
 			}
 		}
 
