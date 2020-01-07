@@ -135,7 +135,7 @@ struct FSubsurfaceProfileStruct
 		SurfaceAlbedo = FLinearColor(0, 0, 0);
 		MeanFreePathColor = FLinearColor(0, 0, 0);
 		MeanFreePathDistance = 0.0f;
-		WorldUnitScale = 0.0f;
+		WorldUnitScale = 0.1f;
 		TransmissionTintColor = FLinearColor(0, 0, 0);
 	}
 };
