@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 
+class FStringBuilderBase;
 class FStringView;
 
 class CORE_API FPathViews
@@ -116,4 +117,22 @@ public:
 	 * @param OutExt  [out] Receives the extension portion of the input string, excluding the dot.
 	 */
 	static void Split(const FStringView& InPath, FStringView& OutPath, FStringView& OutName, FStringView& OutExt);
+
+	/**
+	 * Appends the suffix to the path in the builder and ensures that there is a separator between them.
+	 *
+	 * Examples:
+	 * ("",    "")    -> ""
+	 * ("A",   "")    -> "A/"
+	 * ("",    "B")   -> "B"
+	 * ("/",   "B")   -> "/B"
+	 * ("A",   "B")   -> "A/B"
+	 * ("A/",  "B")   -> "A/B"
+	 * ("A\\", "B")   -> "A\\B"
+	 * ("A/B", "C/D") -> "A/B/C/D"
+	 *
+	 * @param Builder A possibly-empty path that may end in a separator.
+	 * @param Suffix A possibly-empty suffix that does not start with a separator.
+	 */
+	static void Append(FStringBuilderBase& Builder, const FStringView& Suffix);
 };

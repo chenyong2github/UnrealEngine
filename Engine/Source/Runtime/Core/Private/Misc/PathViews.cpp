@@ -3,7 +3,8 @@
 #include "Misc/PathViews.h"
 
 #include "Algo/FindLast.h"
-#include "Misc/StringView.h"
+#include "Containers/StringView.h"
+#include "Misc/StringBuilder.h"
 
 namespace UE4PathViews_Private
 {
@@ -73,4 +74,13 @@ void FPathViews::Split(const FStringView& InPath, FStringView& OutPath, FStringV
 	OutPath = InPath.LeftChop(CleanName.Len() + 1);
 	OutName = CleanName.Left(NameLen);
 	OutExt = CleanName.RightChop(NameLen + 1);
+}
+
+void FPathViews::Append(FStringBuilderBase& Builder, const FStringView& Suffix)
+{
+	if (Builder.Len() > 0 && !UE4PathViews_Private::IsSlashOrBackslash(Builder.LastChar()))
+	{
+		Builder.Append(TEXT('/'));
+	}
+	Builder.Append(Suffix);
 }
