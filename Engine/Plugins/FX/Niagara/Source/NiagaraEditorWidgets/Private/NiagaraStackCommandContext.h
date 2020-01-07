@@ -7,6 +7,7 @@
 class UNiagaraStackEntry;
 class FUICommandList;
 class FMenuBuilder;
+struct FKeyEvent;
 
 class FNiagaraStackCommandContext : public TSharedFromThis<FNiagaraStackCommandContext>
 {
