@@ -457,6 +457,9 @@ void UPathFollowingComponent::AbortMove(const UObject& Instigator, FPathFollowin
 
 FAIRequestID UPathFollowingComponent::RequestMoveWithImmediateFinish(EPathFollowingResult::Type Result, EPathFollowingVelocityMode VelocityMode)
 {
+	// make sure we stop (or not) depending on VelocityMode's value
+	bStopMovementOnFinish = (VelocityMode == EPathFollowingVelocityMode::Reset);
+
 	if (Status != EPathFollowingStatus::Idle)
 	{
 		OnPathFinished(EPathFollowingResult::Aborted, FPathFollowingResultFlags::NewRequest);
