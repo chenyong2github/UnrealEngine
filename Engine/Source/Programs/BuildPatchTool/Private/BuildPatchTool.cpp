@@ -127,7 +127,9 @@ EReturnCode BuildPatchToolMain(const TCHAR* CommandLine)
 
 	// Shutdown
 	RequestEngineExit(TEXT("BuildPatchToolMain Exiting"));
-	FCoreDelegates::OnExit.Broadcast();
+
+	FEngineLoop::AppPreExit();
+	FEngineLoop::AppExit();
 
 	return ReturnCode;
 }
