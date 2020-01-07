@@ -6233,10 +6233,10 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 
 		if (bSuccess)
 		{
-			if (FCoreDelegates::PakFileMountedCallback.IsBound())
-			{
-				FCoreDelegates::PakFileMountedCallback.Broadcast(InPakFilename);
-			}
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			FCoreDelegates::PakFileMountedCallback.Broadcast(InPakFilename);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			FCoreDelegates::OnPakFileMounted.Broadcast(InPakFilename, Pak->ChunkID);
 			if (FCoreDelegates::NewFileAddedDelegate.IsBound())
 			{
 				TArray<FString> Filenames;
