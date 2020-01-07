@@ -3,23 +3,11 @@
 
 #include "CoreMinimal.h"
 
-#if PLATFORM_WINDOWS
-#include "NullPlatformWebAuth.h"
-#elif PLATFORM_PS4
-#include "NullPlatformWebAuth.h"
-#elif PLATFORM_XBOXONE
-#include "NullPlatformWebAuth.h"
-#elif PLATFORM_MAC
-#include "NullPlatformWebAuth.h"
-#elif PLATFORM_IOS
+#if  PLATFORM_IOS && !PLATFORM_TVOS
 #include "IOS/IOSPlatformWebAuth.h"
 #elif PLATFORM_ANDROID
 #include "Android/AndroidPlatformWebAuth.h"
-#elif PLATFORM_UNIX
-#include "NullPlatformWebAuth.h"
-#elif PLATFORM_SWITCH
-#include "NullPlatformWebAuth.h"
 #else
-#error Unknown platform
+#include "NullPlatformWebAuth.h"
 #endif
 
