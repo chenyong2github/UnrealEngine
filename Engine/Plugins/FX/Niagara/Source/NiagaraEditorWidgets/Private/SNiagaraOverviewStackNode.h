@@ -55,6 +55,8 @@ private:
 	}
 
 	FReply OnCycleThroughIssues();
+	FReply OpenParentEmitter();
+	EVisibility GetOpenParentEmitterVisibility() const;
 
 private:
 	UNiagaraOverviewNode* OverviewStackNode;
