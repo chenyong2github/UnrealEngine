@@ -233,6 +233,133 @@ bool FTriangleMeshImplicitObject::Raycast(const FVec3& StartPoint, const FVec3& 
 	}
 }
 
+
+template <typename QueryGeomType>
+bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+{
+	bool bResult = false;
+
+	auto OverlapTriangle = [&](const FVec3& A, const FVec3& B, const FVec3& C,
+		FVec3& LocalContactLocation, FVec3& LocalContactNormal, FReal& LocalContactPhi) -> bool
+	{
+		const FVec3 AB = B - A;
+		const FVec3 AC = C - A;
+		TTriangle<FReal> TriangleConvex(A, B, C);
+
+		FReal LambdaPenetration;
+		FVec3 ClosestA, ClosestB, LambdaNormal;
+		if (GJKPenetration(TriangleConvex, QueryGeom, QueryTM, LambdaPenetration, ClosestA, ClosestB, LambdaNormal, (FReal)0))
+		{
+			FVec3 TestVector = QueryTM.InverseTransformVector(LambdaNormal);
+
+			LocalContactLocation = ClosestB;
+			LocalContactNormal = LambdaNormal;
+			LocalContactPhi = -LambdaPenetration;
+			return true;
+		}
+
+		return LocalContactPhi < 0.f;
+	};
+
+
+	auto LambdaHelper = [&](const auto& Elements)
+	{
+		FReal LocalContactPhi = FLT_MAX;
+		FVec3 LocalContactLocation, LocalContactNormal;
+
+		TAABB<FReal, 3> QueryBounds = QueryGeom.BoundingBox();
+		QueryBounds.Thicken(Thickness);
+		QueryBounds = QueryBounds.TransformedAABB(QueryTM);
+		const TArray<int32> PotentialIntersections = BVH.FindAllIntersections(QueryBounds);
+
+		for (int32 TriIdx : PotentialIntersections)
+		{
+			//It's most likely that the query object is in front of the triangle since queries tend to be on the outside.
+			//However, maybe we should check if it's behind the triangle plane. Also, we should enforce this winding in some way
+			TVec3<FReal> A, B, C;
+			TransformVertsHelper(QueryGeom, TriIdx, MParticles, Elements, A, B, C);
+
+			if (OverlapTriangle(A, B, C, LocalContactLocation, LocalContactNormal, LocalContactPhi))
+			{
+				if (LocalContactPhi < Penetration)
+				{
+					Penetration = LocalContactPhi;
+					Location = LocalContactLocation;
+					Normal = LocalContactNormal;
+				}
+			}
+
+			if (OverlapTriangle(A, C, B, LocalContactLocation, LocalContactNormal, LocalContactPhi))
+			{
+				if (LocalContactPhi < Penetration)
+				{
+					Penetration = LocalContactPhi;
+					Location = LocalContactLocation;
+					Normal = LocalContactNormal;
+				}
+			}
+
+		}
+
+		return Penetration < Thickness;
+	};
+
+	if (MElements.RequiresLargeIndices())
+	{
+		return LambdaHelper(MElements.GetLargeIndexBuffer());
+	}
+	else
+	{
+		return LambdaHelper(MElements.GetSmallIndexBuffer());
+	}
+
+	if (Penetration < 0)
+		return true;
+	return false;
+}
+
+bool FTriangleMeshImplicitObject::GJKContactPoint(const TSphere<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+{
+	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration);
+}
+
+bool FTriangleMeshImplicitObject::GJKContactPoint(const TBox<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+{
+	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration);
+}
+
+bool FTriangleMeshImplicitObject::GJKContactPoint(const TCapsule<FReal>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+{
+	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration);
+}
+
+bool FTriangleMeshImplicitObject::GJKContactPoint(const FConvex& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+{
+	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration);
+}
+
+bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< TSphere<FReal, 3> >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+{
+	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration);
+}
+
+bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< TBox<FReal, 3> >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+{
+	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration);
+}
+
+bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< TCapsule<FReal> >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+{
+	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration);
+}
+
+bool FTriangleMeshImplicitObject::GJKContactPoint(const TImplicitObjectScaled< FConvex >& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+{
+	return GJKContactPointImp(QueryGeom, QueryTM, Thickness, Location, Normal, Penetration);
+}
+
+
+
 template <typename IdxType>
 bool FTriangleMeshImplicitObject::OverlapImp(const TArray<TVec3<IdxType>>& Elements, const FVec3& Point, const FReal Thickness) const
 {
