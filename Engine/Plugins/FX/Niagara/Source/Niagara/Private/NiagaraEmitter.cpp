@@ -1212,8 +1212,9 @@ void UNiagaraEmitter::MoveShaderStageToIndex(UNiagaraShaderStageBase* ShaderStag
 
 		ShaderStages.Remove(ShaderStageToMove);
 		ShaderStages.Insert(ShaderStageToMove, AdjustedTargetIndex);
-
+#if WITH_EDITOR
 		UpdateChangeId("Shader stage moved.");
+#endif
 	}
 }
 
