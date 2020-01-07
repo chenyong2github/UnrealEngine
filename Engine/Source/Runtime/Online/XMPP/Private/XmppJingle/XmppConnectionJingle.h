@@ -37,6 +37,8 @@ public:
 	virtual FOnXmppLoginComplete& OnLoginComplete() override { return OnXmppLoginCompleteDelegate; }
 	virtual FOnXmppLoginChanged& OnLoginChanged() override { return OnXmppLoginChangedDelegate; }
 	virtual FOnXmppLogoutComplete& OnLogoutComplete() override { return OnXmppLogoutCompleteDelegate; }
+	virtual FOnXmppStanzaSent& OnStanzaSent() override { return OnXmppStanzaSentDelegate; }
+	virtual FOnXmppStanzaReceived& OnStanzaReceived() override { return OnXmppStanzaReceivedDelegate; }
 
 	virtual IXmppPresencePtr Presence() override;
 	virtual IXmppPubSubPtr PubSub() override;
@@ -100,6 +102,8 @@ private:
 	FOnXmppLoginComplete OnXmppLoginCompleteDelegate;
 	FOnXmppLoginChanged OnXmppLoginChangedDelegate;
 	FOnXmppLogoutComplete OnXmppLogoutCompleteDelegate;
+	FOnXmppStanzaReceived OnXmppStanzaReceivedDelegate;
+	FOnXmppStanzaSent OnXmppStanzaSentDelegate;
 
 	/** access to presence implementation */
 	TSharedPtr<class FXmppPresenceJingle, ESPMode::ThreadSafe> PresenceJingle;

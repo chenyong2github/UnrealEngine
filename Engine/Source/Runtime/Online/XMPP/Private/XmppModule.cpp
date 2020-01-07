@@ -734,7 +734,11 @@ TSharedRef<IXmppConnection> FXmppModule::CreateConnection(const FString& UserId)
 			Connection = FXmppNull::CreateConnection();
 		}
 
-		return ActiveConnections.Add(UserId, Connection.ToSharedRef());
+		TSharedRef<IXmppConnection> ConnectionRef = Connection.ToSharedRef();
+		ActiveConnections.Add(UserId, ConnectionRef);
+		OnXmppConnectionCreated.Broadcast(ConnectionRef);
+		
+		return ConnectionRef;
 	}
 }
 
