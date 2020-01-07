@@ -121,12 +121,12 @@ namespace Chaos
 
 			delete PointConstraint;
 		}
-		else if (ConstraintBase->GetType() == TRigidBodyIterativeContactConstraint<T, 3>::StaticType())
+		else if (ConstraintBase->GetType() == TRigidBodyMultiPointContactConstraint<T, 3>::StaticType())
 		{
-			TRigidBodyIterativeContactConstraint<T, d>* IterativeConstraint = ConstraintBase->template As< TRigidBodyIterativeContactConstraint<T, d> >();
+			TRigidBodyMultiPointContactConstraint<T, d>* IterativeConstraint = ConstraintBase->template As< TRigidBodyMultiPointContactConstraint<T, d> >();
 
 			int32 Idx = IterativeConstraints.Add(*IterativeConstraint);
-			Handle = HandleAllocator.template AllocHandle< TRigidBodyIterativeContactConstraint<T, d> >(this, Idx);
+			Handle = HandleAllocator.template AllocHandle< TRigidBodyMultiPointContactConstraint<T, d> >(this, Idx);
 			Handle->GetContact().Timestamp = LifespanCounter;
 
 			delete IterativeConstraint;
@@ -294,7 +294,7 @@ namespace Chaos
 				Collisions::Apply(Contact, IterationParameters, ParticleParameters);
 			}
 
-			for (FIterativeContactConstraint& Contact : IterativeConstraints)
+			for (FMultiPointContactConstraint& Contact : IterativeConstraints)
 			{
 				Collisions::TContactParticleParameters<T> ParticleParameters = { MThickness, &MCollided, &MPhysicsMaterials, CollisionFrictionOverride, MAngularFriction };
 				Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, nullptr };
@@ -324,7 +324,7 @@ namespace Chaos
 				Collisions::ApplyPushOut(Contact, TempStatic, IterationParameters, ParticleParameters);
 			}
 
-			for (FIterativeContactConstraint& Contact : IterativeConstraints)
+			for (FMultiPointContactConstraint& Contact : IterativeConstraints)
 			{
 				Collisions::TContactParticleParameters<T> ParticleParameters = { MThickness, &MCollided, &MPhysicsMaterials, CollisionFrictionOverride, MAngularFriction };
 				Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPushOutPairIterations, &bNeedsAnotherIteration };
