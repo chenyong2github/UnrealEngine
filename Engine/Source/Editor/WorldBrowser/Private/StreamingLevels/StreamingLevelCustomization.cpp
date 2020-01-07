@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "StreamingLevels/StreamingLevelCustomization.h"
 #include "Misc/MessageDialog.h"
 #include "Widgets/Input/SButton.h"
