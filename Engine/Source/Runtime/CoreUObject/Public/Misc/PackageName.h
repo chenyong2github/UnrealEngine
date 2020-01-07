@@ -8,6 +8,8 @@
 
 #include "CoreMinimal.h"
 
+class FStringBuilderBase;
+class FStringView;
 struct FFileStatData;
 
 class COREUOBJECT_API FPackageName
@@ -453,7 +455,7 @@ public:
 	 * @param Extension The extension for this package
 	 * @return True if the long package name was fixed up, false otherwise
 	 */
-	static bool FixPackageNameCase(FString& LongPackageName, const FString& Extension);
+	static bool FixPackageNameCase(FString& LongPackageName, const FStringView& Extension);
 
 	UE_DEPRECATED(4.17, "Deprecated. Call TryConvertLongPackageNameToFilename instead, which also works on nested paths")
 	static bool ConvertRootPathToContentPath(const FString& RootPath, FString& OutContentPath);
@@ -472,9 +474,9 @@ private:
 	 * Internal function used to rename filename to long package name.
 	 *
 	 * @param InFilename
-	 * @return Long package name.
+	 * @param OutPackageName Long package name.
 	 */
-	static FString InternalFilenameToLongPackageName(const FString& InFilename);
+	static void InternalFilenameToLongPackageName(const FStringView& InFilename, FStringBuilderBase& OutPackageName);
 
 	/** Event that is triggered when a new content path is mounted */
 	static FOnContentPathMountedEvent OnContentPathMountedEvent;
