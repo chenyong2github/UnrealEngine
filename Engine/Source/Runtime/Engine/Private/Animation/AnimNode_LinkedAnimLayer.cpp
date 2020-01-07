@@ -47,6 +47,7 @@ void FAnimNode_LinkedAnimLayer::InitializeSelfLayer(const UAnimInstance* SelfAni
 	// Switch from dynamic external to internal, kill old instance
 	if (CurrentTarget && CurrentTarget != SelfAnimInstance)
 	{
+		CurrentTarget->UninitializeAnimation();
 		MeshComp->GetLinkedAnimInstances().Remove(CurrentTarget);
 		CurrentTarget->MarkPendingKill();
 		CurrentTarget = nullptr;
