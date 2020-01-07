@@ -885,13 +885,9 @@ void UAutomatedLevelSequenceCapture::SequenceUpdated(const UMovieSceneSequencePl
 
 				bool bOnLastFrame = (CurrentTime.FrameNumber >= Actor->SequencePlayer->GetStartTime().Time.FrameNumber + Actor->SequencePlayer->GetFrameDuration() - 1);
 				bool bLastShot = NumShots == 0 ? true : ShotIndex == NumShots - 1;
-				
-				// Prevent the same frame from being rendered twice
-				if (CurrentTime.FrameNumber.Value != CachedMetrics.PreviousFrame)
-				{
-					CaptureThisFrame((CurrentTime - PreviousTime) / Settings.GetFrameRate());
-					CachedMetrics.PreviousFrame = CurrentTime.FrameNumber.Value;
-				}
+
+				CaptureThisFrame((CurrentTime - PreviousTime) / Settings.GetFrameRate());
+				CachedMetrics.PreviousFrame = CurrentTime.FrameNumber.Value;
 
 				// Our callback can be called multiple times for a given frame due to how Level Sequences evaluate.
 				// For example, frame 161 is evaluated and an image is written. This isn't considered the end of the sequence
