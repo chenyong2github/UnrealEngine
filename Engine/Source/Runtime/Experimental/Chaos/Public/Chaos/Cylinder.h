@@ -169,7 +169,7 @@ namespace Chaos
 			return SideDistance;
 		}
 
-		virtual const TAABB<T, 3>& BoundingBox() const override { return MLocalBoundingBox; }
+		virtual const TAABB<T, 3> BoundingBox() const override { return MLocalBoundingBox; }
 
 		T GetRadius() const { return MRadius; }
 		T GetHeight() const { return MHeight; }

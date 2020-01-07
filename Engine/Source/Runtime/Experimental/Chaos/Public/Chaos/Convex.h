@@ -72,7 +72,7 @@ namespace Chaos
 			return ImplicitObjectType::Convex;
 		}
 
-		virtual const TAABB<FReal, 3>& BoundingBox() const override
+		virtual const TAABB<FReal, 3> BoundingBox() const override
 		{
 			return LocalBoundingBox;
 		}

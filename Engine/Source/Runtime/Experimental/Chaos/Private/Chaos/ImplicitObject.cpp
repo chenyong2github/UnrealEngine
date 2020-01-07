@@ -90,7 +90,7 @@ FVec3 FImplicitObject::Normal(const FVec3& x) const
 	return Normal;
 }
 
-const TAABB<FReal, 3>& FImplicitObject::BoundingBox() const
+const TAABB<FReal, 3> FImplicitObject::BoundingBox() const
 {
 	check(false);
 	static const TAABB<FReal, 3> Unbounded(FVec3(-FLT_MAX), FVec3(FLT_MAX));
