@@ -147,7 +147,7 @@ struct MOVIESCENE_API TMovieSceneSavedTokens
 	 */
 	void Reset();
 
-	void SetPayload(PayloadType&& InPayload) { Payload = MoveTemp(InPayload); }
+	void CopyFrom(TMovieSceneSavedTokens& Other);
 
 private:
 
