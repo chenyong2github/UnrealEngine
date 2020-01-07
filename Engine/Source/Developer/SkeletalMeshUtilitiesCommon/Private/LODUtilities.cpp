@@ -2025,6 +2025,7 @@ void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 L
 				});
 			}
 
+			//Reduce all dependent LOD in same time
 			// Load the BulkData for all dependent LODs; this has to be done on the main thread since it requires access to the Linker and FLinkerLoad::Serialize is not threadsafe
 			{
 				FSkeletalMeshModel* SkeletalMeshResource = SkeletalMesh->GetImportedModel();
