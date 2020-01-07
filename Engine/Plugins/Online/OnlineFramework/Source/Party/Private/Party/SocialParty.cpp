@@ -575,7 +575,7 @@ UPartyMember* USocialParty::GetOrCreatePartyMember(const FUniqueNetId& MemberId)
 		}
 		else
 		{
-			const bool bIsLocalUser = GetSocialManager().IsLocalUser(MemberId, ESocialSubsystem::Primary);
+			const bool bIsLocalUser = GetSocialManager().IsLocalUser(MemberId.AsShared(), ESocialSubsystem::Primary);
 			TSubclassOf<UPartyMember> PartyMemberClass = GetDesiredMemberClass(bIsLocalUser);
 			if (ensure(PartyMemberClass))
 			{
@@ -1011,7 +1011,7 @@ void USocialParty::HandlePartyMemberExited(const FUniqueNetId& LocalUserId, cons
 {
 	if (PartyId == GetPartyId())
 	{
-		if (UPartyMember** FoundPartyMember = PartyMembersById.Find(MemberId))
+		if (UPartyMember** FoundPartyMember = PartyMembersById.Find(MemberId.AsShared()))
 		{
 			if (LocalUserId == MemberId)
 			{
