@@ -605,6 +605,11 @@ void FCurveEditor::StepForward()
 
 void FCurveEditor::StepBackward()
 {
+	if (!WeakTimeSliderController.IsValid())
+	{
+		return;
+	}
+
 	FFrameRate TickResolution = WeakTimeSliderController.Pin()->GetTickResolution();
 	FFrameRate DisplayRate = WeakTimeSliderController.Pin()->GetDisplayRate();
 
