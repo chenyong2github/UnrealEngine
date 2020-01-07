@@ -174,12 +174,28 @@ namespace Audio
 
 	void FMixerSubmix::SetParentSubmix(TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> SubmixWeakPtr)
 	{
+		if (ParentSubmix == SubmixWeakPtr)
+		{
+			return;
+		}
+
+		TSharedPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe> ParentPtr = ParentSubmix.Pin();
+		if (ParentPtr.IsValid())
+		{
+			const uint32 InChildId = GetId();
+			ParentPtr->SubmixCommand([this, InChildId, SubmixWeakPtr]()
+			{
+				AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
+
+				ChildSubmixes.Remove(InChildId);
+			});
+		}
+
 		SubmixCommand([this, SubmixWeakPtr]()
 		{
 			AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
 			ParentSubmix = SubmixWeakPtr;
-
 			if (ChannelFormat == ESubmixChannelFormat::Ambisonics && AmbisonicsMixer.IsValid())
 			{
 				UpdateAmbisonicsDecoderForParent();
@@ -654,6 +670,7 @@ namespace Audio
 			CSV_SCOPED_TIMING_STAT(Audio, SubmixChildren);
 
 			// First loop this submix's child submixes mixing in their output into this submix's dry/wet buffers.
+			TArray<uint32> ToRemove;
 			for (auto& ChildSubmixEntry : ChildSubmixes)
 			{
 				TSharedPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe> ChildSubmix = ChildSubmixEntry.Value.SubmixPtr.Pin();
@@ -676,6 +693,15 @@ namespace Audio
 						Audio::MixInBufferFast(ScratchBufferPtr, BufferPtr, NumSamples);
 					}
 				}
+				else
+				{
+					ToRemove.Add(ChildSubmixEntry.Key);
+				}
+			}
+
+			for (uint32 Key : ToRemove)
+			{
+				ChildSubmixes.Remove(Key);
 			}
 		}
 

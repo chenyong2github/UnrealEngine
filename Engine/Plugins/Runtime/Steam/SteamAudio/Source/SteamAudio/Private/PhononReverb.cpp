@@ -395,7 +395,7 @@ namespace SteamAudio
 	{
 		if (!SubmixEffect.IsValid())
 		{
-			USubmixEffectReverbPluginPreset* ReverbPluginPreset = NewObject<USubmixEffectReverbPluginPreset>(GetSubmix(), TEXT("Master Reverb Plugin Effect Preset"));
+			USubmixEffectReverbPluginPreset* ReverbPluginPreset = NewObject<USubmixEffectReverbPluginPreset>(GetSubmix(), TEXT("Reverb Plugin Effect Preset"));
 			FSubmixEffectReverbPlugin* ReverbSubmixEffect = static_cast<FSubmixEffectReverbPlugin*>(ReverbPluginPreset->CreateNewEffect());
 			ReverbSubmixEffect->SetPhononReverbPlugin(this);
 
