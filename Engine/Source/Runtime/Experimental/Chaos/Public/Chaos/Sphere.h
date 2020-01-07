@@ -51,7 +51,7 @@ namespace Chaos
 		{
 			this->Type = InSteal.Type;
 			this->bIsConvex = InSteal.bIsConvex;
-			this->bIgnoreAnalyticCollisions = InSteal.bIgnoreAnalyticCollisions;
+			this->bDoCollide = InSteal.bDoCollide;
 			this->bHasBoundingBox = InSteal.bHasBoundingBox;
 			Center = MoveTemp(InSteal.Center);
 			Radius = InSteal.Radius;
