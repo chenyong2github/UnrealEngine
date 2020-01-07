@@ -25,6 +25,10 @@ public:
 	virtual TSharedPtr<SWidget> GetCustomWidget(TWeakPtr< class IStatsViewer > InParentStatsViewer) override;
 	virtual void OnShow( TWeakPtr< class IStatsViewer > InParentStatsViewer ) override;
 	virtual void OnHide() override;
+	virtual int32 GetObjectSetCount() const override;;
+	virtual FString GetObjectSetName(int32 InObjectSetIndex) const override;
+	virtual FString GetObjectSetToolTip(int32 InObjectSetIndex) const override;
+
 	/** End IStatsPage interface */
 
 	virtual ~FShaderCookerStatsPage() {}

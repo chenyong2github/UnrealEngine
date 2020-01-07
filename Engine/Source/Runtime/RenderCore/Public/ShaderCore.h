@@ -1109,6 +1109,7 @@ struct FShaderCompilerOutput
 	FShaderCompilerOutput()
 	:	NumInstructions(0)
 	,	NumTextureSamplers(0)
+	,	CompileTime(0.0)
 	,	bSucceeded(false)
 	,	bFailedRemovingUnused(false)
 	,	bSupportsQueryingUsedAttributes(false)
@@ -1123,6 +1124,7 @@ struct FShaderCompilerOutput
 	FSHAHash OutputHash;
 	uint32 NumInstructions;
 	uint32 NumTextureSamplers;
+	double CompileTime;
 	bool bSucceeded;
 	bool bFailedRemovingUnused;
 	bool bSupportsQueryingUsedAttributes;
@@ -1140,6 +1142,7 @@ struct FShaderCompilerOutput
 		// Note: this serialize is used to pass between UE4 and the shader compile worker, recompile both when modifying
 		Ar << Output.ParameterMap << Output.Errors << Output.Target << Output.ShaderCode << Output.NumInstructions << Output.NumTextureSamplers << Output.bSucceeded;
 		Ar << Output.bFailedRemovingUnused << Output.bSupportsQueryingUsedAttributes << Output.UsedAttributes;
+		Ar << Output.CompileTime;
 		Ar << Output.OptionalFinalShaderSource;
 		Ar << Output.PlatformDebugData;
 
