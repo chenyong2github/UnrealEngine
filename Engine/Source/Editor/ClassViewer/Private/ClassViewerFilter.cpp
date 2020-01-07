@@ -9,8 +9,7 @@
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Misc/TextFilterExpressionEvaluator.h"
-#include "Editor/UnrealEdEngine.h"
-#include "UnrealEdGlobals.h"
+#include "Editor.h"
 #include "AssetRegistryModule.h"
 #include "PropertyHandle.h"
 
