@@ -110,9 +110,29 @@ FLinearColor UNiagaraOverviewNode::GetNodeTitleColor() const
 	return EmitterHandleGuid.IsValid() ? EmitterColor : SystemColor;
 }
 
+static bool IsSystemAsset(UNiagaraSystem* System)
+{
+	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::Get().LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+	TSharedPtr<FNiagaraSystemViewModel> OwningSystemViewModel = NiagaraEditorModule.GetExistingViewModelForSystem(System);
+	if (OwningSystemViewModel.IsValid())
+	{
+		if (OwningSystemViewModel->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UNiagaraOverviewNode::GetCanRenameNode() const
+{
+	return IsSystemAsset(OwningSystem) && EmitterHandleGuid.IsValid();
+}
+
 bool UNiagaraOverviewNode::CanUserDeleteNode() const
 {
-	return EmitterHandleGuid.IsValid();
+	return IsSystemAsset(OwningSystem) && EmitterHandleGuid.IsValid();
 }
 
 bool UNiagaraOverviewNode::CanDuplicateNode() const
