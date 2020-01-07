@@ -25,6 +25,11 @@ namespace UnrealBuildTool
 		public bool bStripSymbols = false;
 
 		/// <summary>
+		///
+		/// </summary>
+		public bool bShipForBitcode = false;
+
+		/// <summary>
 		/// If true, then a stub IPA will be generated when compiling is done (minimal files needed for a valid IPA).
 		/// </summary>
 		[CommandLine("-CreateStub", Value = "true")]
@@ -108,6 +113,11 @@ namespace UnrealBuildTool
 			get { return Inner.bStripSymbols; }
 		}
 			
+		public bool bShipForBitcode
+		{
+			get { return Inner.ProjectSettings.bShipForBitcode; }
+		}
+
 		public bool bGenerateFrameworkWrapperProject
 		{
 			get { return Inner.bGenerateFrameworkWrapperProject; }
