@@ -1129,12 +1129,12 @@ void AActor::PostActorCreated()
 	// nothing at the moment
 }
 
-void AActor::GetComponentsBoundingCylinder(float& OutCollisionRadius, float& OutCollisionHalfHeight, bool bNonColliding) const
+void AActor::GetComponentsBoundingCylinder(float& OutCollisionRadius, float& OutCollisionHalfHeight, bool bNonColliding, bool bIncludeFromChildActors) const
 {
 	bool bIgnoreRegistration = false;
 
 #if WITH_EDITOR
-	if(IsTemplate())
+	if (IsTemplate())
 	{
 		// Editor code calls this function on default objects when placing them in the viewport, so no components will be registered in those cases.
 		UWorld* MyWorld = GetWorld();
@@ -1154,29 +1154,21 @@ void AActor::GetComponentsBoundingCylinder(float& OutCollisionRadius, float& Out
 	}
 #endif
 
-	float Radius = 0.f;
-	float HalfHeight = 0.f;
+	OutCollisionRadius = 0.f;
+	OutCollisionHalfHeight = 0.f;
 
-	for (const UActorComponent* ActorComponent : GetComponents())
+	ForEachComponent<UPrimitiveComponent>(bIncludeFromChildActors, [&](const UPrimitiveComponent* InPrimComp)
 	{
-		const UPrimitiveComponent* PrimComp = Cast<const UPrimitiveComponent>(ActorComponent);
-		if (PrimComp)
+		// Only use collidable components to find collision bounding cylinder
+		if ((bIgnoreRegistration || InPrimComp->IsRegistered()) && (bNonColliding || InPrimComp->IsCollisionEnabled()))
 		{
-			// Only use collidable components to find collision bounding box.
-			if ((bIgnoreRegistration || PrimComp->IsRegistered()) && (bNonColliding || PrimComp->IsCollisionEnabled()))
-			{
-				float TestRadius, TestHalfHeight;
-				PrimComp->CalcBoundingCylinder(TestRadius, TestHalfHeight);
-				Radius = FMath::Max(Radius, TestRadius);
-				HalfHeight = FMath::Max(HalfHeight, TestHalfHeight);
-			}
+			float TestRadius, TestHalfHeight;
+			InPrimComp->CalcBoundingCylinder(TestRadius, TestHalfHeight);
+			OutCollisionRadius = FMath::Max(OutCollisionRadius, TestRadius);
+			OutCollisionHalfHeight = FMath::Max(OutCollisionHalfHeight, TestHalfHeight);
 		}
-	}
-
-	OutCollisionRadius = Radius;
-	OutCollisionHalfHeight = HalfHeight;
+	});
 }
-
 
 void AActor::GetSimpleCollisionCylinder(float& CollisionRadius, float& CollisionHalfHeight) const
 {
@@ -1250,48 +1242,37 @@ bool AActor::Modify( bool bAlwaysMarkDirty/*=true*/ )
 }
 #endif
 
-FBox AActor::GetComponentsBoundingBox(bool bNonColliding) const
+FBox AActor::GetComponentsBoundingBox(bool bNonColliding, bool bIncludeFromChildActors) const
 {
 	FBox Box(ForceInit);
 
-	for (const UActorComponent* ActorComponent : GetComponents())
+	ForEachComponent<UPrimitiveComponent>(bIncludeFromChildActors, [&](const UPrimitiveComponent* InPrimComp)
 	{
-		const UPrimitiveComponent* PrimComp = Cast<const UPrimitiveComponent>(ActorComponent);
-		if (PrimComp)
+		// Only use collidable components to find collision bounding box.
+		if (InPrimComp->IsRegistered() && (bNonColliding || InPrimComp->IsCollisionEnabled()))
 		{
-			// Only use collidable components to find collision bounding box.
-			if (PrimComp->IsRegistered() && (bNonColliding || PrimComp->IsCollisionEnabled()))
-			{
-				Box += PrimComp->Bounds.GetBox();
-			}
+			Box += InPrimComp->Bounds.GetBox();
 		}
-	}
+	});
 
 	return Box;
 }
 
-FBox AActor::CalculateComponentsBoundingBoxInLocalSpace( bool bNonColliding ) const
+FBox AActor::CalculateComponentsBoundingBoxInLocalSpace(bool bNonColliding, bool bIncludeFromChildActors) const
 {
 	FBox Box(ForceInit);
-
 	const FTransform& ActorToWorld = GetTransform();
 	const FTransform WorldToActor = ActorToWorld.Inverse();
 
-	for( const UActorComponent* ActorComponent : GetComponents() )
+	ForEachComponent<UPrimitiveComponent>(bIncludeFromChildActors, [&](const UPrimitiveComponent* InPrimComp)
 	{
-		const UPrimitiveComponent* PrimComp = Cast<const UPrimitiveComponent>( ActorComponent );
-		if( PrimComp )
+		// Only use collidable components to find collision bounding box.
+		if (InPrimComp->IsRegistered() && (bNonColliding || InPrimComp->IsCollisionEnabled()))
 		{
-			// Only use collidable components to find collision bounding box.
-			if( PrimComp->IsRegistered() && ( bNonColliding || PrimComp->IsCollisionEnabled() ) )
-			{
-				const FTransform ComponentToActor = PrimComp->GetComponentTransform() * WorldToActor;
-				FBoxSphereBounds ActorSpaceComponentBounds = PrimComp->CalcBounds( ComponentToActor );
-
-				Box += ActorSpaceComponentBounds.GetBox();
-			}
+			const FTransform ComponentToActor = InPrimComp->GetComponentTransform() * WorldToActor;
+			Box += InPrimComp->CalcBounds(ComponentToActor).GetBox();
 		}
-	}
+	});
 
 	return Box;
 }
@@ -3952,9 +3933,9 @@ bool AActor::SetRootComponent(class USceneComponent* NewRootComponent)
 	return false;
 }
 
-void AActor::GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent) const
+void AActor::GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const
 {
-	const FBox Bounds = GetComponentsBoundingBox(!bOnlyCollidingComponents);
+	const FBox Bounds = GetComponentsBoundingBox(!bOnlyCollidingComponents, bIncludeFromChildActors);
 
 	// To keep consistency with the other GetBounds functions, transform our result into an origin / extent formatting
 	Bounds.GetCenterAndExtents(Origin, BoxExtent);
