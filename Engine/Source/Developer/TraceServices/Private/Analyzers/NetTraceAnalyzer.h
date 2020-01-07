@@ -36,15 +36,35 @@ private:
 		RouteId_ObjectDestroyedEvent,
 	};
 
+	// This must be kept in sync with Event types in NetTrace.h
+	enum class EContentEventType : uint8
+	{
+		Object = 0,
+		NameId = 1,
+		BunchEvent = 2,
+		BunchHeaderEvent = 3,
+	};
+
 	Trace::IAnalysisSession& Session;
 	Trace::FNetProfilerProvider& NetProfilerProvider;
 	uint32 NetTraceVersion;
 	uint32 NetTraceReporterVersion;
+	uint32 BunchHeaderNameIndex;
 
 	// Shared for trace
 	TMap<uint16, uint32> TracedNameIdToNetProfilerNameIdMap;
 
 	TMap<uint32, uint32> TraceEventTypeToNetProfilerEventTypeIndexMap;
+
+	struct FBunchInfo
+	{
+		int32 ChannelIndex;
+		uint32 BunchBits;
+		uint32 HeaderBits;
+		int32 FirstBunchEventIndex;
+		uint32 EventCount;
+		uint16 NameIndex;
+	};
 
 	struct FNetTraceConnectionState
 	{
@@ -53,7 +73,12 @@ private:
 
 		// Current packet data
 		uint32 CurrentPacketStartIndex[Trace::ENetProfilerConnectionMode::Count];
-		Trace::ENetProfilerConnectionMode ConnectionMode;
+		uint32 CurrentPacketBitOffset[Trace::ENetProfilerConnectionMode::Count];
+
+		// Current bunch data
+		TArray<Trace::FNetProfilerContentEvent> BunchEvents[Trace::ENetProfilerConnectionMode::Count];
+
+		TArray<FBunchInfo> BunchInfos[Trace::ENetProfilerConnectionMode::Count];
 	};
 
 	struct FNetTraceActiveObjectState
@@ -66,10 +91,12 @@ private:
 	struct FNetTraceGameInstanceState
 	{
 		TMap<uint32, TSharedRef<FNetTraceConnectionState>> ActiveConnections;
-		TMap<uint32, FNetTraceActiveObjectState> ActiveObjects;
+		TMap<uint64, FNetTraceActiveObjectState> ActiveObjects;
 
 		uint32 GameInstanceIndex;
 	};
+
+private:
 
 	uint32 GetTracedEventTypeIndex(uint16 NameIndex, uint8 Level);
 
@@ -78,6 +105,21 @@ private:
 
 	TSharedRef<FNetTraceConnectionState> GetActiveConnectionState(uint32 GameInstanceId, uint32 ConnectionId);
 	Trace::FNetProfilerTimeStamp GetLastTimestamp() const { return LastTimeStamp; }
+
+	void FlushPacketEvents(FNetTraceConnectionState& ConnectionState, Trace::FNetProfilerConnectionData& ConnectionData, const Trace::ENetProfilerConnectionMode ConnectionMode);
+
+	void HandlePacketEvent(const FOnEventContext& Context, const FEventData& EventData);	
+	void HandlePacketContentEvent(const FOnEventContext& Context, const FEventData& EventData);
+	void HandlePacketDroppedEvent(const FOnEventContext& Context, const FEventData& EventData);
+	void HandleConnectionCretedEvent(const FOnEventContext& Context, const FEventData& EventData);
+	void HandleConnectionClosedEvent(const FOnEventContext& Context, const FEventData& EventData);
+	void HandleObjectCreatedEvent(const FOnEventContext& Context, const FEventData& EventData);
+	void HandleObjectDestroyedEvent(const FOnEventContext& Context, const FEventData& EventData);
+
+	void AddEvent(TPagedArray<Trace::FNetProfilerContentEvent>& Events, const Trace::FNetProfilerContentEvent& Event, uint32 Offset, uint32 LevelOffset);
+	void AddEvent(TPagedArray<Trace::FNetProfilerContentEvent>& Events, uint32 StartPos, uint32 EndPos, uint32 Level, uint32 NameIndex);
+
+private:
 
 	TMap<uint32, TSharedRef<FNetTraceGameInstanceState>> ActiveGameInstances;
 	Trace::FNetProfilerTimeStamp LastTimeStamp;
