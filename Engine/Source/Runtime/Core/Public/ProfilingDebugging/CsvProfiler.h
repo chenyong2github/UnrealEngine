@@ -323,10 +323,12 @@ private:
 	FCsvProfilerProcessingThread* ProcessingThread;
 
 	FEvent* FileWriteBlockingEvent;
+
+	FString DeviceProfileName;
+
 	FThreadSafeCounter IsShuttingDown;
 
 	TMap<FString, FString> MetadataMap;
-	TQueue<TMap<FString, FString>> MetadataQueue;
 	FCriticalSection MetadataCS;
 
 	class FCsvStreamWriter* CsvWriter;
