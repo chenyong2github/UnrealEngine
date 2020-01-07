@@ -725,9 +725,6 @@ void FPythonScriptPlugin::InitializePython()
 			return true;
 		}));
 	}
-
-	// Notify any external listeners
-	OnPythonInitializedDelegate.Broadcast();
 }
 
 void FPythonScriptPlugin::ShutdownPython()
@@ -844,6 +841,9 @@ void FPythonScriptPlugin::Tick(const float InDeltaTime)
 		{
 			ExecPythonCommand(*StartupScript);
 		}
+
+		// Notify any external listeners
+		OnPythonInitializedDelegate.Broadcast();
 
 #if WITH_EDITOR
 		// Register to generate stub code after a short delay
