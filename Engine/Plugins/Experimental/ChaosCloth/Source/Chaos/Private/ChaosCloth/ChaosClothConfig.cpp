@@ -2,6 +2,7 @@
 
 #include "ChaosCloth/ChaosClothConfig.h"
 #include "ClothConfig_Legacy.h"
+#include "ChaosClothSharedConfigCustomVersion.h"
 
 // Legacy parameters not yet migrated to Chaos parameters:
 //  WindDragCoefficient
@@ -64,7 +65,6 @@ void UChaosClothConfig::MigrateFrom(const FClothConfig_Legacy& ClothConfig)
 }
 
 UChaosClothSharedSimConfig::UChaosClothSharedSimConfig()
-	: Gravity(FVector(0.f, 0.f, -490.f))
 {}
 
 UChaosClothSharedSimConfig::~UChaosClothSharedSimConfig()
@@ -81,13 +81,26 @@ void UChaosClothSharedSimConfig::MigrateFrom(const FClothConfig_Legacy& ClothCon
 	const float InDamping = (ClothConfig.Damping.X + ClothConfig.Damping.Y + ClothConfig.Damping.Z) / 3.f;
 	Damping = FMath::Clamp(InDamping * InDamping * 0.95f, 0.f, 1.f);  // Nv Cloth seems to have a different damping formulation.
 
-	if (ClothConfig.bUseGravityOverride)
+	bUseGravityOverride = ClothConfig.bUseGravityOverride;
+
+	GravityScale = ClothConfig.GravityScale;
+
+	Gravity = ClothConfig.GravityOverride;
+}
+
+void UChaosClothSharedSimConfig::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+	Ar.UsingCustomVersion(FChaosClothSharedConfigCustomVersion::GUID);
+}
+
+void UChaosClothSharedSimConfig::PostLoad()
+{
+	Super::PostLoad();
+	const int32 ChaosClothSharedConfigCustomVersion = GetLinkerCustomVersion(FChaosClothSharedConfigCustomVersion::GUID);
+
+	if (ChaosClothSharedConfigCustomVersion < FChaosClothSharedConfigCustomVersion::AddGravityOverride)
 	{
-		Gravity = ClothConfig.GravityOverride;
-	}
-	else
-	{
-		static const FVector WorldGravity(0.f, 0.f, -2880.f);  // TODO(Kriss.Gossart): Temporary Fortnite value. Use context gravity in Chaos Cloth Simulation instead.
-		Gravity = WorldGravity * ClothConfig.GravityScale;
+		bUseGravityOverride = true;  // Default gravity override would otherwise disable the currently set gravity on older versions
 	}
 }

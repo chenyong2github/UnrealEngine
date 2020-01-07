@@ -52,9 +52,21 @@ DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Simulate"), STAT_ChaosClothSimulate, STATGR
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Get Animation Data"), STAT_ChaosClothGetAnimationData, STATGROUP_ChaosCloth);
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Update Collision Transforms"), STAT_ChaosClothUpdateCollisionTransforms, STATGROUP_ChaosCloth);
 
+// Default parameters, will be overwritten when cloth assets are loaded
+namespace ClothingSimulationDefault
+{
+	static const FVector Gravity(0.f, 0.f, -980.665f);
+	static const int32 NumIterations = 1;
+	static const float SelfCollisionThickness = 2.f;
+	static const float CollisionThickness = 1.2f;
+	static const float CoefficientOfFriction = 0.f;
+	static const float Damping = 0.01f;
+}
+
 ClothingSimulation::ClothingSimulation()
 	: ClothSharedSimConfig(nullptr)
 	, ExternalCollisionsOffset(0)
+	, Gravity(ClothingSimulationDefault::Gravity)
 {
 #if WITH_EDITOR
 	DebugClothMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"), nullptr, LOAD_None, nullptr);  // LOAD_EditorOnly
@@ -67,15 +79,6 @@ ClothingSimulation::~ClothingSimulation()
 
 void ClothingSimulation::Initialize()
 {
-
-	// Default parameters. Will be overwritten when cloth assets are loaded
-	int32 NumIterations = 1;
-	float SelfCollisionThickness = 2.0f;
-	float CollisionThickness = 1.2f;
-	float CoefficientOfFriction = 0.0f;
-	float Damping = 0.01f;
-	float GravityMagnitude = 490.0f;
-
     Chaos::TPBDParticles<float, 3> LocalParticles;
     Chaos::TKinematicGeometryClothParticles<float, 3> TRigidParticles;
     Evolution.Reset(
@@ -83,14 +86,14 @@ void ClothingSimulation::Initialize()
 			MoveTemp(LocalParticles),
 			MoveTemp(TRigidParticles),
 			{}, // CollisionTriangles
-			NumIterations,
-			CollisionThickness,
-			SelfCollisionThickness,
-			CoefficientOfFriction,
-			Damping));
+			ClothingSimulationDefault::NumIterations,
+			ClothingSimulationDefault::CollisionThickness,
+			ClothingSimulationDefault::SelfCollisionThickness,
+			ClothingSimulationDefault::CoefficientOfFriction,
+			ClothingSimulationDefault::Damping));
     Evolution->CollisionParticles().AddArray(&BoneIndices);
 	Evolution->CollisionParticles().AddArray(&BaseTransforms);
-    Evolution->GetGravityForces().SetAcceleration(Chaos::TVector<float, 3>(0.f, 0.f, -1.f)*GravityMagnitude);
+    Evolution->GetGravityForces().SetAcceleration(Gravity);
 
     Evolution->SetKinematicUpdateFunction(
 		[this](Chaos::TPBDParticles<float, 3>& ParticlesInput, const float Dt, const float LocalTime, const int32 Index)
@@ -276,7 +279,7 @@ void ClothingSimulation::PostActorCreationInitialize()
 		Evolution->SetSelfCollisionThickness(ClothSharedSimConfig->SelfCollisionThickness);
 		Evolution->SetCollisionThickness(ClothSharedSimConfig->CollisionThickness);
 		Evolution->SetDamping(ClothSharedSimConfig->Damping);
-		Evolution->GetGravityForces().SetAcceleration(Chaos::TVector<float, 3>(ClothSharedSimConfig->Gravity));
+		Gravity = ClothSharedSimConfig->Gravity;
 	}
 }
 
@@ -1007,6 +1010,10 @@ void ClothingSimulation::FillContext(USkeletalMeshComponent* InComponent, float 
     Context->ComponentToWorld = InComponent->GetComponentToWorld();
     Context->DeltaTime = ClampDeltaTime > 0 ? std::min(InDeltaTime, ClampDeltaTime) : InDeltaTime;
 
+	Context->WorldGravity = InComponent->GetWorld() ?
+		FVector(0.f, 0.f, InComponent->GetWorld()->GetGravityZ()) :
+		ClothingSimulationDefault::Gravity;
+
 	Context->RefToLocals.Reset();
     InComponent->GetCurrentRefToLocalMatrices(Context->RefToLocals, 0);
 
@@ -1067,6 +1074,12 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 	ClothingSimulationContext* Context = static_cast<ClothingSimulationContext*>(InContext);
 	if (Context->DeltaTime == 0)
 		return;
+
+	// Set gravity
+	Evolution->GetGravityForces().SetAcceleration(Chaos::TVector<float, 3>(
+		(ClothSharedSimConfig && !ClothSharedSimConfig->bUseGravityOverride) ?
+			Context->WorldGravity * ClothSharedSimConfig->GravityScale:
+			Gravity));
 
 	// Get New Animation Positions and Normals
 	{
@@ -1233,13 +1246,12 @@ void ClothingSimulation::SetAnimDriveSpringStiffness(float InStiffness)
 
 void ClothingSimulation::SetGravityOverride(const FVector& InGravityOverride)
 {
-	Evolution->GetGravityForces().SetAcceleration(InGravityOverride);
+	Gravity = InGravityOverride;
 }
 
 void ClothingSimulation::DisableGravityOverride()
 {
-	static const FVector DefaultGravity(0.f, 0.f, -980.665f);
-	Evolution->GetGravityForces().SetAcceleration(!ClothSharedSimConfig ? DefaultGravity : ClothSharedSimConfig->Gravity);
+	Gravity = !ClothSharedSimConfig ? ClothingSimulationDefault::Gravity : ClothSharedSimConfig->Gravity;
 }
 
 #if WITH_EDITOR
