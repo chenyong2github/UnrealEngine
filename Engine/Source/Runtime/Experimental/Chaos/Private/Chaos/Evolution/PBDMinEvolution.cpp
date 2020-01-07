@@ -41,31 +41,17 @@ namespace Chaos
 		ConstraintRules.Add(Rule);
 	}
 
-	// @todo(ccaulfield): dedupe (PBDRigidsEvolutionGBF)
-	void FPBDMinEvolution::Advance(const FReal Dt, const FReal MaxStepDt, const int32 MaxSteps)
+	void FPBDMinEvolution::Advance(const FReal StepDt, const int32 NumSteps)
 	{
-		// Determine how many steps we would like to take
-		int32 NumSteps = FMath::CeilToInt(Dt / MaxStepDt);
-		if (NumSteps > 0)
+		for (int32 Step = 0; Step < NumSteps; ++Step)
 		{
-			// Determine the step time
-			const FReal StepDt = Dt / (FReal)NumSteps;
+			// StepFraction: how much of the remaining time this step represents, used to interpolate kinematic targets
+			// E.g., for 4 steps this will be: 1/4, 1/3, 1/2, 1
+			const float StepFraction = (FReal)1 / (FReal)(NumSteps - Step);
 
-			// Limit the number of steps
-			// NOTE: This is after step time calculation so sim will appear to slow down for large Dt
-			// but that is preferable to blowing up from a large timestep.
-			NumSteps = FMath::Clamp(NumSteps, 1, MaxSteps);
+			UE_LOG(LogChaos, Verbose, TEXT("Advance dt = %f [%d/%d]"), StepDt, Step + 1, NumSteps);
 
-			for (int32 Step = 0; Step < NumSteps; ++Step)
-			{
-				// StepFraction: how much of the remaining time this step represents, used to interpolate kinematic targets
-				// E.g., for 4 steps this will be: 1/4, 1/3, 1/2, 1
-				const float StepFraction = (FReal)1 / (FReal)(NumSteps - Step);
-
-				UE_LOG(LogChaos, Verbose, TEXT("Advance dt = %f [%d/%d]"), StepDt, Step + 1, NumSteps);
-
-				AdvanceOneTimeStep(StepDt, StepFraction);
-			}
+			AdvanceOneTimeStep(StepDt, StepFraction);
 		}
 	}
 
