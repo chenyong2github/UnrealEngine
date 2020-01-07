@@ -50,7 +50,6 @@ public:
 		FInstallBundlePausedDelegate PausedCallback;
 		FInstallBundleCompleteDelegate CompleteCallback;
 		TSharedPtr<InstallBundleUtil::FContentRequestSharedContext> RequestSharedContext;
-		TSharedPtr<InstallBundleUtil::PersistentStats::FPersistentStatContainerBase> PersistentStats;
 	};
 
 	// Updates content on disk if necessary
