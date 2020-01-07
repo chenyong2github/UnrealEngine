@@ -81,6 +81,10 @@ public:
 	virtual void BuildLodTransitionData()
 	PURE_VIRTUAL(UClothingAssetBase::BuildLodTransitionData(), );
 
+	/** Called after all cloth assets sharing the same simulation are added or loaded */
+	virtual void PostUpdateAllAssets()
+	PURE_VIRTUAL(UClothingAssetBase::PostUpdateAllAssets(), );
+
 	/** Get the guid identifying this asset */
 	const FGuid& GetAssetGuid() const
 	{

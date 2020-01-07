@@ -204,20 +204,13 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 	IndexToRangeMap[InSimDataIndex] = Chaos::TVector<uint32, 2>(Offset, Particles.Size());
 
 	// ClothSharedSimConfig should either be a nullptr, or point to an object common to the whole skeletal mesh
-	UChaosClothSharedSimConfig* const AssetClothConfigShared = Asset->GetClothConfig<UChaosClothSharedSimConfig>();
 	if (ClothSharedSimConfig == nullptr)
 	{
-		ClothSharedSimConfig = AssetClothConfigShared;
+		ClothSharedSimConfig = Asset->GetClothConfig<UChaosClothSharedSimConfig>();
 	}
-	else if (!AssetClothConfigShared || AssetClothConfigShared != ClothSharedSimConfig)
+	else
 	{
-		UE_CLOG(AssetClothConfigShared,
-			LogChaosCloth, Warning,
-			TEXT("Found a different Chaos Cloth shared config in the Cloth LOD asset being added to %s in sim slot %d. ")
-			TEXT("The asset's shared config will have to be replaced."),
-			InOwnerComponent->GetOwner() ? *InOwnerComponent->GetOwner()->GetName() : TEXT("None"), InSimDataIndex);
-
-		Asset->SetClothConfig(ClothSharedSimConfig);
+		check(ClothSharedSimConfig == Asset->GetClothConfig<UChaosClothSharedSimConfig>());
 	}
 
 	AnimationPositions.SetNum(Particles.Size());
@@ -276,36 +269,6 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
 
 void ClothingSimulation::PostActorCreationInitialize()
 {
-	if (Assets.Num() > 0)
-	{
-		// Let all assets point to the same shared configuration
-		for (int32 AssetIndex = 0; AssetIndex < Assets.Num(); ++AssetIndex)
-		{
-			if (UClothingAssetCommon* const Asset = Assets[AssetIndex])
-			{
-				// If we don't have a shared sim config, create one. This is only possible if none of the cloth Assets had a configuration during Actor creation
-				if (ClothSharedSimConfig == nullptr)
-				{
-					// None of the cloth assets had a clothSharedSimConfig, so we will create it and assign it to the first available asset
-					ClothSharedSimConfig = NewObject<UChaosClothSharedSimConfig>(Assets[AssetIndex], UChaosClothSharedSimConfig::StaticClass()->GetFName());
-					check(ClothSharedSimConfig);
-				}
-
-				const UChaosClothSharedSimConfig* const AssetClothConfigShared = Asset->GetClothConfig<UChaosClothSharedSimConfig>();
-				if (!AssetClothConfigShared || AssetClothConfigShared != ClothSharedSimConfig)
-				{
-					UE_CLOG(AssetClothConfigShared,
-						LogChaosCloth, Warning,
-						TEXT("Found a different Chaos Cloth shared config in Cloth LOD asset %d. ")
-						TEXT("The asset's shared config will have to be replaced."),
-						AssetIndex);
-
-					Asset->SetClothConfig(ClothSharedSimConfig);
-				}
-			}
-		}
-	}
-
 	if (ClothSharedSimConfig) // ClothSharedSimConfig will be a null pointer if all cloth instances are disabled in which case we will use default Evolution parameters
 	{
 		// Now set all the common parameters on the simulation
@@ -418,7 +381,7 @@ void ClothingSimulation::AddConstraints(const UChaosClothConfig* ChaosClothSimCo
 		if (ChaosClothSimConfig->bUseBendingElements)
 		{
 			TArray<Chaos::TVector<int32, 4>> BendingConstraints = Mesh.GetUniqueAdjacentElements();
-			Evolution->AddPBDConstraintFunction([BendConstraints = Chaos::TPBDBendingConstraints<float>(Evolution->Particles(), MoveTemp(BendingConstraints))](TPBDParticles<float, 3>& InParticles, const float Dt) {
+			Evolution->AddPBDConstraintFunction([BendConstraints = Chaos::TPBDBendingConstraints<float>(Evolution->Particles(), MoveTemp(BendingConstraints), ChaosClothSimConfig->BendingStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
 				BendConstraints.Apply(InParticles, Dt);
 			});
 		}
