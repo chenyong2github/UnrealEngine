@@ -17,7 +17,15 @@ namespace NetworkSimulationModelCVars
 	NETSIM_DEVCVAR_SHIPCONST_INT(EnableSimulatedExtrapolation, 1, "ns.EnableSimulatedExtrapolation", "Toggle simulated proxy extrapolation.");
 	NETSIM_DEVCVAR_SHIPCONST_INT(ForceReconcile, 0, "ns.ForceReconcile", "Forces reconcile even if state does not differ. E.g, force resimulation after every netupdate.");
 	NETSIM_DEVCVAR_SHIPCONST_INT(ForceReconcileSingle, 0, "ns.ForceReconcileSingle", "Forces a since reconcile to happen on the next frame");
+	NETSIM_DEVCVAR_SHIPCONST_INT(EnableDebugBufferReplication, 1, "ns.DebugBufferReplication", "Replicate debug buffer (takes lots of bandwidth. Always compiled out of ship/test)");
 }
+
+#define NETSIM_ENABLE_CHECKSUMS !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if NETSIM_ENABLE_CHECKSUMS 
+#define NETSIM_CHECKSUM(Ser) SerializeChecksum(Ser,0xA186A384, false);
+#else
+#define NETSIM_CHECKSUM
+#endif
 
 #ifndef NETSIM_NETCONSTANT_NUM_BITS_FRAME
 	#define NETSIM_NETCONSTANT_NUM_BITS_FRAME 8	// Allows you to override this setting via UBT, but access via cleaner FActorMotionNetworkingConstants::NUM_BITS_FRAME
@@ -175,6 +183,8 @@ struct TRepController_SimTime : public TBase
 		TBase::NetSerialize(P, Buffers, Ticker);
 		SerializedTime = Ticker.GetTotalProcessedSimulationTime();
 		SerializedTime.NetSerialize(P.Ar);
+
+		NETSIM_CHECKSUM(P.Ar);
 	}
 
 	FNetworkSimTime SerializedTime;
@@ -208,6 +218,8 @@ struct TRepController_Sequence : public TBase
 
 	void NetSerialize(const FNetSerializeParams& P, TNetworkSimBufferContainer<Model>& Buffers, TSimulationTicker<TTickSettings>& Ticker)
 	{
+		NETSIM_CHECKSUM(P.Ar);
+
 		TBase::NetSerialize(P, Buffers, Ticker);
 
 		auto& Buffer = Buffers.template Get<BufferId>();
@@ -237,6 +249,8 @@ struct TRepController_Sequence : public TBase
 		}
 
 		LastSerializedFrame = HeadFrame;
+
+		NETSIM_CHECKSUM(P.Ar);
 	}
 
 	int32 GetLastSerializedFrame() const { return LastSerializedFrame; }
@@ -333,6 +347,7 @@ struct TRepController_Simulated : public TBase
 	void NetSerialize(const FNetSerializeParams& P, TNetworkSimBufferContainer<Model>& Buffers, TSimulationTicker<TTickSettings>& Ticker)
 	{
 		FArchive& Ar = P.Ar;
+		NETSIM_CHECKSUM(P.Ar);
 
 		FNetworkSimTime PrevLastSerializedSimulationTime = LastSerializedSimulationTime;
 
@@ -442,6 +457,8 @@ struct TRepController_Simulated : public TBase
 			LastSerializedSyncState = *SyncState;
 			LastSerializedAuxState = *AuxState;
 		}
+
+		NETSIM_CHECKSUM(P.Ar);
 	}
 
 	void Reconcile(TSimulation* Simulation, TDriver* Driver, TNetworkSimBufferContainer<Model>& Buffers, TSimulationTicker<TTickSettings>& Ticker)
@@ -639,6 +656,7 @@ struct TRepController_Autonomous: public TBase
 	// --------------------------------------------------------------------
 	void NetSerialize(const FNetSerializeParams& P, TNetworkSimBufferContainer<Model>& Buffers, TSimulationTicker<TTickSettings>& Ticker)
 	{
+		NETSIM_CHECKSUM(P.Ar);
 		FArchive& Ar = P.Ar;
 		
 		SerializedFrame = FNetworkSimulationSerialization::SerializeFrame(Ar, Buffers.Sync.HeadFrame());
@@ -695,6 +713,7 @@ struct TRepController_Autonomous: public TBase
 				}
 			}
 		}
+		NETSIM_CHECKSUM(P.Ar);
 	}
 
 	// --------------------------------------------------------------------
@@ -880,11 +899,17 @@ struct TRepController_Debug : public TBase
 
 	int32 GetProxyDirtyCount(TNetworkSimBufferContainer<Model>& Buffers) const 
 	{
+		if (NetworkSimulationModelCVars::EnableDebugBufferReplication() == 0)
+		{
+			return 0;
+		}
+
 		return Buffers.Debug.GetDirtyCount() ^ (TBase::GetProxyDirtyCount(Buffers) << 2); 
 	}
 
 	void NetSerialize(const FNetSerializeParams& P, TNetworkSimBufferContainer<Model>& Buffers, TSimulationTicker<TTickSettings>& Ticker)
 	{
+		NETSIM_CHECKSUM(P.Ar);
 		TBase::NetSerialize(P, Buffers, Ticker);
 		FArchive& Ar = P.Ar;
 
@@ -913,6 +938,7 @@ struct TRepController_Debug : public TBase
 			auto* Cmd = Ar.IsLoading() ? Buffer.WriteFrame(Frame) : Buffer[Frame];
 			Cmd->NetSerialize(P);
 		}
+		NETSIM_CHECKSUM(P.Ar);
 	}
 
 	TDebugBuffer ReceivedBuffer;
