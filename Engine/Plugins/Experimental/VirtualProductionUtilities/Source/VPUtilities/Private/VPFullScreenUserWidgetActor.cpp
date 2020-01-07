@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2020 Epic Games, Inc. All Rights Reserved.
 
 #include "VPFullScreenUserWidgetActor.h"
 #include "VPFullScreenUserWidget.h"
@@ -118,3 +118,5 @@ void AFullScreenUserWidgetActor::RequestGameDisplay()
 		ScreenUserWidget->Display(ActorWorld);
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

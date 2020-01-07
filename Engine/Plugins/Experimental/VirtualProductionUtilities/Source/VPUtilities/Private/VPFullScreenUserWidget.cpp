@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2020 Epic Games, Inc. All Rights Reserved.
 
 #include "VPFullScreenUserWidget.h"
 
@@ -715,3 +715,5 @@ void UVPFullScreenUserWidget::PostEditChangeProperty(FPropertyChangedEvent& Prop
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
+
+#undef LOCTEXT_NAMESPACE
