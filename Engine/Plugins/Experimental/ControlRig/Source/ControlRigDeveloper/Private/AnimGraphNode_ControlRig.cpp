@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_ControlRig.h"
 #include "Kismet2/CompilerResultsLog.h"
@@ -32,7 +32,7 @@ FText UAnimGraphNode_ControlRig::GetTooltipText() const
 	return LOCTEXT("AnimGraphNode_ControlRig_Tooltip", "Evaluates a control rig");
 }
 
-void UAnimGraphNode_ControlRig::GetExposableProperties(TArray<UProperty*>& OutExposableProperties) const
+void UAnimGraphNode_ControlRig::GetExposableProperties(TArray<FProperty*>& OutExposableProperties) const
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -54,7 +54,7 @@ void UAnimGraphNode_ControlRig::GetExposableProperties(TArray<UProperty*>& OutEx
 				ControlRig->GetInOutPropertyPath(true, Iter.Key(), CachePath);
 				if (CachePath.IsResolved())
 				{
-					OutExposableProperties.Add(CachePath.GetUProperty());
+					OutExposableProperties.Add(CachePath.GetFProperty());
 				}
 			}
 		}
@@ -420,7 +420,7 @@ void UAnimGraphNode_ControlRig::PostEditChangeProperty(FPropertyChangedEvent& Pr
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	bool bRequiresNodeReconstruct = false;
-	UProperty* ChangedProperty = PropertyChangedEvent.Property;
+	FProperty* ChangedProperty = PropertyChangedEvent.Property;
 
 	if (ChangedProperty)
 	{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 // ShaderCompileWorker.cpp : Defines the entry point for the console application.
@@ -139,7 +139,9 @@ static void ProcessCompilationJob(const FShaderCompilerInput& Input,FShaderCompi
 	}
 
 	// Compile the shader directly through the platform dll (directly from the shader dir as the working directory)
+	double TimeStart = FPlatformTime::Seconds();
 	Compiler->CompileShader(Input.ShaderFormat, Input, Output, WorkingDirectory);
+	Output.CompileTime = FPlatformTime::Seconds() - TimeStart;
 	++GNumProcessedJobs;
 }
 

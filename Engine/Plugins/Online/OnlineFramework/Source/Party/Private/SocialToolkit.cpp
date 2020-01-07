@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SocialToolkit.h"
 #include "SocialManager.h"
@@ -540,9 +540,12 @@ void USocialToolkit::OnOwnerLoggedOut()
 				FriendsInterface->ClearOnInviteReceivedDelegates(this);
 				FriendsInterface->ClearOnInviteAcceptedDelegates(this);
 				FriendsInterface->ClearOnInviteRejectedDelegates(this);
+				FriendsInterface->ClearOnInviteAbortedDelegates(this);
 
 				FriendsInterface->ClearOnBlockedPlayerCompleteDelegates(LocalUserNum, this);
 				FriendsInterface->ClearOnUnblockedPlayerCompleteDelegates(LocalUserNum, this);
+
+				FriendsInterface->ClearOnRecentPlayersAddedDelegates(this);
 
 				FriendsInterface->ClearOnQueryBlockedPlayersCompleteDelegates(this);
 				FriendsInterface->ClearOnQueryRecentPlayersCompleteDelegates(this);
@@ -691,6 +694,8 @@ void USocialToolkit::HandleReadFriendsListComplete(int32 LocalUserNum, bool bWas
 	}
 
 	HandleExistingPartyInvites(SubsystemType);
+
+	OnReadFriendsListComplete(LocalUserNum, bWasSuccessful, ListName, ErrorStr, SubsystemType);
 }
 
 void USocialToolkit::HandleQueryBlockedPlayersComplete(const FUniqueNetId& UserId, bool bWasSuccessful, const FString& ErrorStr, ESocialSubsystem SubsystemType)
@@ -714,6 +719,8 @@ void USocialToolkit::HandleQueryBlockedPlayersComplete(const FUniqueNetId& UserI
 			//@todo DanH: Only bother retrying on primary
 		}
 	}
+
+	OnQueryBlockedPlayersComplete(UserId, bWasSuccessful, ErrorStr, SubsystemType);
 }
 
 void USocialToolkit::HandleQueryRecentPlayersComplete(const FUniqueNetId& UserId, const FString& Namespace, bool bWasSuccessful, const FString& ErrorStr, ESocialSubsystem SubsystemType)
@@ -737,6 +744,8 @@ void USocialToolkit::HandleQueryRecentPlayersComplete(const FUniqueNetId& UserId
 			//@todo DanH: Only bother retrying on primary
 		}
 	}
+
+	OnQueryRecentPlayersComplete(UserId, Namespace, bWasSuccessful, ErrorStr, SubsystemType);
 }
 
 void USocialToolkit::HandleRecentPlayersAdded(const FUniqueNetId& LocalUserId, const TArray<TSharedRef<FOnlineRecentPlayer>>& NewRecentPlayers, ESocialSubsystem SubsystemType)
@@ -782,7 +791,7 @@ void USocialToolkit::HandlePresenceReceived(const FUniqueNetId& UserId, const TS
 	}
 	else if (SubsystemType == ESocialSubsystem::Platform)
 	{
-		UE_LOG(LogParty, Error, TEXT("Platform presence received for UserId [%s], but existing SocialUser could not be found.\n"), *UserId.ToDebugString());
+		UE_LOG(LogParty, Error, TEXT("Platform presence received for UserId [%s], but existing SocialUser could not be found."), *UserId.ToDebugString());
 	}
 }
 
@@ -913,6 +922,8 @@ void USocialToolkit::HandleDeleteFriendComplete(int32 InLocalUserNum, bool bWasS
 			FormerFriend->NotifyUserUnfriended(SubsystemType);
 		}
 	}
+
+	OnDeleteFriendComplete(InLocalUserNum, bWasSuccessful, DeletedFriendId, ListName, ErrorStr, SubsystemType);
 }
 
 void USocialToolkit::HandleAcceptFriendInviteComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& InviterUserId, const FString& ListName, const FString& ErrorStr)
@@ -964,6 +975,8 @@ void USocialToolkit::HandleBlockPlayerComplete(int32 LocalUserNum, bool bWasSucc
 				}
 			});
 	}
+
+	OnBlockPlayerComplete(LocalUserNum, bWasSuccessful, BlockedPlayerId, ListName, ErrorStr, SubsystemType);
 }
 
 void USocialToolkit::HandleUnblockPlayerComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UnblockedPlayerId, const FString& ListName, const FString& ErrorStr, ESocialSubsystem SubsystemType)
@@ -976,6 +989,8 @@ void USocialToolkit::HandleUnblockPlayerComplete(int32 LocalUserNum, bool bWasSu
 			UnblockedUser->NotifyUserUnblocked(SubsystemType);
 		}
 	}
+
+	OnUnblockPlayerComplete(LocalUserNum, bWasSuccessful, UnblockedPlayerId, ListName, ErrorStr, SubsystemType);
 }
 
 //@todo DanH recent players: Where is the line for this between backend and game to update this stuff? #required

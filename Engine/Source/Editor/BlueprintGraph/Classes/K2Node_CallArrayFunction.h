@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -53,7 +53,7 @@ class UK2Node_CallArrayFunction : public UK2Node_CallFunction
 	 *
 	 * @return						TRUE if the property is a wildcard.
 	 */
-	BLUEPRINTGRAPH_API static bool IsWildcardProperty(UFunction* InArrayFunction, const UProperty* InProperty);
+	BLUEPRINTGRAPH_API static bool IsWildcardProperty(UFunction* InArrayFunction, const FProperty* InProperty);
 
 	void GetArrayTypeDependentPins(TArray<UEdGraphPin*>& OutPins) const;
 	void PropagateArrayTypeInfo(const UEdGraphPin* SourcePin);

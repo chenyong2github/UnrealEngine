@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDCollisionConstraintsContact.h"
 #include "Chaos/CollisionResolution.h"
@@ -18,49 +18,16 @@ namespace Chaos
 			const TRigidTransform<T, d> ParticleTM = GetTransform(Constraint.Particle[0]);
 			const TRigidTransform<T, d> LevelsetTM = GetTransform(Constraint.Particle[1]);
 
-			if (Constraint.GetType() == TCollisionConstraintBase<T, d>::FType::SinglePoint)
-			{
-				if (!Constraint.Particle[0]->Geometry())
-				{
-					if (Constraint.Particle[1]->Geometry())
-					{
-						if (!Constraint.Particle[1]->Geometry()->IsUnderlyingUnion())
-						{
-							UpdateLevelsetLevelsetConstraint<UpdateType>(Thickness, *Constraint.template As<TRigidBodyPointContactConstraint<T, d>>());
-						}
-						else
-						{
-							UpdateUnionLevelsetConstraint<UpdateType>(Thickness, *Constraint.template As<TRigidBodyPointContactConstraint<T, d>>());
-						}
-					}
-				}
-				else
-				{
-					UpdateConstraintImp<UpdateType>(*Constraint.Particle[0]->Geometry(), ParticleTM, *Constraint.Particle[1]->Geometry(), LevelsetTM, Thickness, Constraint);
-				}
-			}
-			else if(Constraint.GetType() == TCollisionConstraintBase<T, d>::FType::MultiPoint)
-			{
-				UpdateConstraintImp<UpdateType>(*Constraint.Particle[0]->Geometry(), ParticleTM, *Constraint.Particle[1]->Geometry(), LevelsetTM, Thickness, Constraint);
-			}
+			UpdateConstraint<UpdateType>(Constraint, ParticleTM, LevelsetTM, Thickness);
 		}
 
 		template<typename T, int d>
 		void UpdateManifold(const T Thickness, TCollisionConstraintBase<T, d>& Constraint)
 		{
-			if (Constraint.GetType() == TCollisionConstraintBase<T, d>::FType::MultiPoint)
-			{
-				const TRigidTransform<T, d> Transform0 = GetTransform(Constraint.Particle[0]);
-				const TRigidTransform<T, d> Transform1 = GetTransform(Constraint.Particle[1]);
+			const TRigidTransform<T, d> Transform0 = GetTransform(Constraint.Particle[0]);
+			const TRigidTransform<T, d> Transform1 = GetTransform(Constraint.Particle[1]);
 
-				const FImplicitObject& Implicit0 = *Constraint.Manifold.Implicit[0];
-				const FImplicitObject& Implicit1 = *Constraint.Manifold.Implicit[1];
-
-				if (Implicit0.IsConvex() && Implicit1.IsConvex())
-				{
-					UpdateConvexConvexManifold( *Constraint.template As<TRigidBodyIterativeContactConstraint<T, d>>(), Transform0, Transform1, Thickness);
-				}
-			}
+			UpdateManifold(Constraint, Transform0, Transform1, Thickness);
 		}
 
 
@@ -293,6 +260,13 @@ namespace Chaos
 					Particle0->AuxilaryValue(*ParticleParameters.Collided) = true;
 					Particle1->AuxilaryValue(*ParticleParameters.Collided) = true;
 				}
+
+				//
+				// @todo(chaos) : Collision Constraints
+				//   Consider applying all constraints in ::Apply at each iteration, right now it just takes the deepest.
+				//   For example, and iterative constraint might have 4 penetrating points that need to be resolved. 
+				//
+
 
 				Constraint.AccumulatedImpulse +=
 					ApplyContact(Constraint.Manifold, Particle0, Particle1, IterationParameters, ParticleParameters);

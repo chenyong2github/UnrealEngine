@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RawDistributionVectorStructCustomization.h"
 #include "Misc/Attribute.h"
@@ -238,9 +238,9 @@ FReplaceVectorWithLinearColorBuilder::FReplaceVectorWithLinearColorBuilder(TShar
 	, bIsUsingSlider(false)
 {
 	// Determine if this is an FVector - if so it will be specialized
-	UProperty* Property = InPropertyHandle->GetProperty();
+	FProperty* Property = InPropertyHandle->GetProperty();
 
-	if (UStructProperty* StructProperty = Cast<UStructProperty>(Property))
+	if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 	{
 		FName StructType = StructProperty->Struct->GetFName();
 		bIsVectorProperty = (StructType == NAME_Vector);
@@ -250,7 +250,7 @@ FReplaceVectorWithLinearColorBuilder::FReplaceVectorWithLinearColorBuilder(TShar
 
 void FReplaceVectorWithLinearColorBuilder::GenerateHeaderRowContent(FDetailWidgetRow& NodeRow)
 {
-	// Only generate a header row if the handle has a valid UProperty.
+	// Only generate a header row if the handle has a valid FProperty.
 	// Note that it's possible for the Property to be NULL if the property node is an FObjectPropertyNode - however we still want to create children in this case.
 	if (PropertyHandle->GetProperty() != nullptr)
 	{

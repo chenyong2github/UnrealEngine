@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_ComponentBoundEvent.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -48,14 +48,14 @@ FText UK2Node_ComponentBoundEvent::GetNodeTitle(ENodeTitleType::Type TitleType) 
 	return CachedNodeTitle;
 }
 
-void UK2Node_ComponentBoundEvent::InitializeComponentBoundEventParams(UObjectProperty const* InComponentProperty, const UMulticastDelegateProperty* InDelegateProperty)
+void UK2Node_ComponentBoundEvent::InitializeComponentBoundEventParams(FObjectProperty const* InComponentProperty, const FMulticastDelegateProperty* InDelegateProperty)
 {
 	if (InComponentProperty && InDelegateProperty)
 	{
 		ComponentPropertyName = InComponentProperty->GetFName();
 		DelegatePropertyName = InDelegateProperty->GetFName();
 		DelegatePropertyDisplayName = InDelegateProperty->GetDisplayNameText();
-		DelegateOwnerClass = CastChecked<UClass>(InDelegateProperty->GetOuter())->GetAuthoritativeClass();
+		DelegateOwnerClass = CastChecked<UClass>(InDelegateProperty->GetOwner<UObject>())->GetAuthoritativeClass();
 
 		EventReference.SetFromField<UFunction>(InDelegateProperty->SignatureFunction, /*bIsConsideredSelfContext =*/false);
 
@@ -95,19 +95,19 @@ void UK2Node_ComponentBoundEvent::HandleVariableRenamed(UBlueprint* InBlueprint,
 
 bool UK2Node_ComponentBoundEvent::IsUsedByAuthorityOnlyDelegate() const
 {
-	UMulticastDelegateProperty* TargetDelegateProp = GetTargetDelegateProperty();
+	FMulticastDelegateProperty* TargetDelegateProp = GetTargetDelegateProperty();
 	return (TargetDelegateProp && TargetDelegateProp->HasAnyPropertyFlags(CPF_BlueprintAuthorityOnly));
 }
 
-UMulticastDelegateProperty* UK2Node_ComponentBoundEvent::GetTargetDelegateProperty() const
+FMulticastDelegateProperty* UK2Node_ComponentBoundEvent::GetTargetDelegateProperty() const
 {
-	return FindField<UMulticastDelegateProperty>(DelegateOwnerClass, DelegatePropertyName);
+	return FindField<FMulticastDelegateProperty>(DelegateOwnerClass, DelegatePropertyName);
 }
 
 
 FText UK2Node_ComponentBoundEvent::GetTooltipText() const
 {
-	UMulticastDelegateProperty* TargetDelegateProp = GetTargetDelegateProperty();
+	FMulticastDelegateProperty* TargetDelegateProp = GetTargetDelegateProperty();
 	if (TargetDelegateProp)
 	{
 		return TargetDelegateProp->GetToolTipText();
@@ -136,12 +136,12 @@ FString UK2Node_ComponentBoundEvent::GetDocumentationExcerptName() const
 void UK2Node_ComponentBoundEvent::ReconstructNode()
 {
 	// We need to fixup our event reference as it may have changed or been redirected
-	UMulticastDelegateProperty* TargetDelegateProp = GetTargetDelegateProperty();
+	FMulticastDelegateProperty* TargetDelegateProp = GetTargetDelegateProperty();
 
 	// If we couldn't find the target delegate, then try to find it in the property remap table
 	if (!TargetDelegateProp)
 	{
-		UMulticastDelegateProperty* NewProperty = FMemberReference::FindRemappedField<UMulticastDelegateProperty>(DelegateOwnerClass, DelegatePropertyName);
+		FMulticastDelegateProperty* NewProperty = FMemberReference::FindRemappedField<FMulticastDelegateProperty>(DelegateOwnerClass, DelegatePropertyName);
 		if (NewProperty)
 		{
 			// Found a remapped property, update the node
@@ -184,7 +184,7 @@ void UK2Node_ComponentBoundEvent::Serialize(FArchive& Ar)
 				ParentClass = ParentBlueprint->SkeletonGeneratedClass;
 			}
 
-			UObjectProperty* ComponentProperty = ParentClass ? Cast<UObjectProperty>(ParentClass->FindPropertyByName(ComponentPropertyName)) : NULL;
+			FObjectProperty* ComponentProperty = ParentClass ? CastField<FObjectProperty>(ParentClass->FindPropertyByName(ComponentPropertyName)) : NULL;
 
 			if (ParentClass && ComponentProperty)
 			{

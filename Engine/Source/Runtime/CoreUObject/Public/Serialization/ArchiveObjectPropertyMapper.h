@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -30,7 +30,7 @@ public:
 	 *									serializes each object encountered looking for subobjects of referenced
 	 *									objects that have LimitOuter for their Outer (i.e. nested subobjects/components)
 	 */
-	FArchiveObjectPropertyMapper( TMap<UProperty*,UObject*>* InObjectGraph, UObject* InOuter=NULL, UClass* InLimitClass=NULL, bool bInRequireDirectOuter=true, bool bInSerializeRecursively=true )
+	FArchiveObjectPropertyMapper( TMap<FProperty*,UObject*>* InObjectGraph, UObject* InOuter=NULL, UClass* InLimitClass=NULL, bool bInRequireDirectOuter=true, bool bInSerializeRecursively=true )
 	:	ObjectGraph( InObjectGraph ), LimitOuter(InOuter), LimitClass(InLimitClass), bRequireDirectOuter(bInRequireDirectOuter), bSerializeRecursively(bInSerializeRecursively)
 	{
 		ArIsObjectReferenceCollector = true;
@@ -69,7 +69,7 @@ private:
 	TArray<UObject*>			ObjectArray;
 
 	/** Stored pointer to array of objects we add object references to */
-	TMap<UProperty*,UObject*>*	ObjectGraph;
+	TMap<FProperty*,UObject*>*	ObjectGraph;
 
 	/** only objects with this outer will be considered, NULL value indicates that outers are disregarded */
 	UObject*			LimitOuter;

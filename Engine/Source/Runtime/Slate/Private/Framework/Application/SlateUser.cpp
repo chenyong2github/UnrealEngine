@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Framework/Application/SlateUser.h"
 #include "Framework/Application/SlateApplication.h"
@@ -532,6 +532,11 @@ void FSlateUser::CloseTooltip()
 	}
 }
 
+bool FSlateUser::IsTouchPointerActive(int32 TouchPointerIndex) const
+{
+	return TouchPointerIndex < (int32)ETouchIndex::CursorPointerIndex && PointerPositionsByIndex.Contains(TouchPointerIndex);
+}
+
 void FSlateUser::DrawWindowlessDragDropContent(const TSharedRef<SWindow>& WindowToDraw, FSlateWindowElementList& WindowElementList, int32& MaxLayerId)
 {
 	if (DragDropContent && DragDropContent->IsWindowlessOperation())
@@ -902,6 +907,14 @@ TSharedRef<SWindow> FSlateUser::GetOrCreateTooltipWindow()
 	return NewTooltipWindow;
 }
 
+void FSlateUser::NotifyTouchStarted(const FPointerEvent& TouchEvent)
+{
+	UE_CLOG(PointerPositionsByIndex.Contains(TouchEvent.GetUserIndex()), LogSlate, Error, TEXT("SlateUser [%d] notified of a touch starting for pointer [%d] without finding out it ever ended."));
+	
+	GestureDetector.OnTouchStarted(TouchEvent.GetPointerIndex(), TouchEvent.GetScreenSpacePosition());
+	PointerPositionsByIndex.FindOrAdd(TouchEvent.GetPointerIndex()) = TouchEvent.GetScreenSpacePosition();
+}
+
 void FSlateUser::NotifyPointerMoveBegin(const FPointerEvent& PointerEvent)
 {
 	if (PointerEvent.IsTouchEvent())
@@ -1025,7 +1038,7 @@ void FSlateUser::NotifyPointerReleased(const FPointerEvent& PointerEvent, const 
 				WidgetsUnderCursor.Widgets[WidgetIndex].Widget->OnMouseLeave(PointerEvent);
 			}
 		}
-#if !UE_BUILD_SHIPPING
+#if WITH_SLATE_DEBUGGING
 		const bool bIsFingerCapturedPostRelease = PointerEvent.IsTouchEvent() && HasCapture(PointerEvent.GetPointerIndex());
 		ensureMsgf(!bIsFingerCapturedPostRelease, TEXT("Touch pointer was captured while in the process of being released. Since touch pointers cease to exist when the touch ends, this makes no sense."));
 #endif
@@ -1051,9 +1064,10 @@ void FSlateUser::NotifyPointerReleased(const FPointerEvent& PointerEvent, const 
 		// fingers no longer in contact with the screen.
 		ReleaseCapture(PointerIdx);
 
-		// When touch pointers are released, they also effectively cease to exist
+		// When touch pointers are released, they also effectively cease to exist until a touch begins again
 		PointerPositionsByIndex.Remove(PointerIdx);
 		PreviousPointerPositionsByIndex.Remove(PointerIdx);
+		WidgetsUnderPointerLastEventByIndex.Remove(PointerIdx);
 	}
 }
 

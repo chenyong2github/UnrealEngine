@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	AsyncLoading.h: Unreal async loading definitions.
@@ -10,12 +10,13 @@
 #include "Serialization/AsyncPackageLoader.h"
 
 class FAsyncLoadingThread2Impl;
+class FIoDispatcher;
 
 class FAsyncLoadingThread2
 	: public IAsyncPackageLoader
 {
 public:
-	FAsyncLoadingThread2(IEDLBootNotificationManager& InEDLBootNotificationManager);
+	FAsyncLoadingThread2(FIoDispatcher& InIoDispatcher, IEDLBootNotificationManager& InEDLBootNotificationManager);
 	virtual ~FAsyncLoadingThread2();
 
 	void InitializeLoading() override;

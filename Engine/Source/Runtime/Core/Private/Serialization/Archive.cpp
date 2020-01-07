@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UnArchive.cpp: Core archive classes.
@@ -219,7 +219,7 @@ void FArchiveState::CopyTrivialFArchiveStatusMembers(const FArchiveState& Archiv
 	ArCustomPropertyList                 = ArchiveToCopy.ArCustomPropertyList;
 	ArUseCustomPropertyList              = ArchiveToCopy.ArUseCustomPropertyList;
 	CookingTargetPlatform                = ArchiveToCopy.CookingTargetPlatform;
-	SerializedProperty                   = ArchiveToCopy.SerializedProperty;
+	SerializedProperty					 = ArchiveToCopy.SerializedProperty;
 #if USE_STABLE_LOCALIZATION_KEYS
 	SetBaseLocalizationNamespace(ArchiveToCopy.GetBaseLocalizationNamespace());
 #endif // USE_STABLE_LOCALIZATION_KEYS
@@ -236,7 +236,7 @@ FString FArchiveState::GetArchiveName() const
 	return TEXT("FArchive");
 }
 
-void FArchiveState::GetSerializedPropertyChain(TArray<class UProperty*>& OutProperties) const
+void FArchiveState::GetSerializedPropertyChain(TArray<class FProperty*>& OutProperties) const
 {
 	if (SerializedPropertyChain)
 	{
@@ -250,7 +250,7 @@ void FArchiveState::GetSerializedPropertyChain(TArray<class UProperty*>& OutProp
 	}
 }
 
-void FArchiveState::SetSerializedPropertyChain(const FArchiveSerializedPropertyChain* InSerializedPropertyChain, class UProperty* InSerializedPropertyOverride)
+void FArchiveState::SetSerializedPropertyChain(const FArchiveSerializedPropertyChain* InSerializedPropertyChain, class FProperty* InSerializedPropertyOverride)
 {
 	if (InSerializedPropertyChain && InSerializedPropertyChain->GetNumProperties() > 0)
 	{
@@ -280,7 +280,7 @@ void FArchiveState::SetSerializedPropertyChain(const FArchiveSerializedPropertyC
 	}
 }
 
-void FArchive::PushSerializedProperty(class UProperty* InProperty, const bool bIsEditorOnlyProperty)
+void FArchive::PushSerializedProperty(class FProperty* InProperty, const bool bIsEditorOnlyProperty)
 {
 	if (InProperty)
 	{
@@ -296,7 +296,7 @@ void FArchive::PushSerializedProperty(class UProperty* InProperty, const bool bI
 	}
 }
 
-void FArchive::PopSerializedProperty(class UProperty* InProperty, const bool bIsEditorOnlyProperty)
+void FArchive::PopSerializedProperty(class FProperty* InProperty, const bool bIsEditorOnlyProperty)
 {
 	if (InProperty)
 	{

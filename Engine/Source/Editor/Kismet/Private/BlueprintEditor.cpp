@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintEditor.h"
 #include "Widgets/Text/STextBlock.h"
@@ -576,7 +576,7 @@ FSlateBrush const* FBlueprintEditor::GetVarIconAndColor(const UStruct* VarScope,
 {
 	if (VarScope != NULL)
 	{
-		UProperty* Property = FindField<UProperty>(VarScope, VarName);
+		FProperty* Property = FindField<FProperty>(VarScope, VarName);
 		if (Property != NULL)
 		{
 			const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
@@ -3507,11 +3507,11 @@ void FBlueprintEditor::DeleteUnusedVariables_OnClicked()
 	bool bHasAtLeastOneVariableToCheck = false;
 	FString PropertyList;
 	TArray<FName> VariableNames;
-	for (TFieldIterator<UProperty> PropertyIt(BlueprintObj->SkeletonGeneratedClass, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<FProperty> PropertyIt(BlueprintObj->SkeletonGeneratedClass, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
 	{
-		UProperty* Property = *PropertyIt;
+		FProperty* Property = *PropertyIt;
 		// Don't show delegate properties, there is special handling for these
-		const bool bDelegateProp = Property->IsA(UDelegateProperty::StaticClass()) || Property->IsA(UMulticastDelegateProperty::StaticClass());
+		const bool bDelegateProp = Property->IsA(FDelegateProperty::StaticClass()) || Property->IsA(FMulticastDelegateProperty::StaticClass());
 		const bool bShouldShowProp = (!Property->HasAnyPropertyFlags(CPF_Parm) && Property->HasAllPropertyFlags(CPF_BlueprintVisible) && !bDelegateProp);
 
 		if (bShouldShowProp)
@@ -3522,7 +3522,7 @@ void FBlueprintEditor::DeleteUnusedVariables_OnClicked()
 			const int32 VarInfoIndex = FBlueprintEditorUtils::FindNewVariableIndex(BlueprintObj, VarName);
 			const bool bHasVarInfo = (VarInfoIndex != INDEX_NONE);
 			
-			const UObjectPropertyBase* ObjectProperty = Cast<const UObjectPropertyBase>(Property);
+			const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(Property);
 			bool bIsTimeline = ObjectProperty &&
 				ObjectProperty->PropertyClass &&
 				ObjectProperty->PropertyClass->IsChildOf(UTimelineComponent::StaticClass());
@@ -6422,10 +6422,10 @@ private:
 
 		UK2Node_VariableGet* NewTarget = NULL;
 		
-		const UProperty* Property = OldCall->MemberVariableToCallOn.ResolveMember<UProperty>();
+		const FProperty* Property = OldCall->MemberVariableToCallOn.ResolveMember<FProperty>();
 		for (UK2Node_VariableGet* AddedTarget : AddedTargets)
 		{
-			if (AddedTarget && (Property == AddedTarget->VariableReference.ResolveMember<UProperty>(CurrentClass)))
+			if (AddedTarget && (Property == AddedTarget->VariableReference.ResolveMember<FProperty>(CurrentClass)))
 			{
 				NewTarget = AddedTarget;
 				break;
@@ -8371,7 +8371,7 @@ bool FBlueprintEditor::AddNewDelegateIsVisible() const
 		&& (Blueprint->BlueprintType != BPTYPE_FunctionLibrary);
 }
 
-void FBlueprintEditor::NotifyPreChange(UProperty* PropertyAboutToChange)
+void FBlueprintEditor::NotifyPreChange(FProperty* PropertyAboutToChange)
 {
 	// this only delivers message to the "FOCUSED" one, not every one
 	// internally it will only deliver the message to the selected node, not all nodes
@@ -8382,7 +8382,7 @@ void FBlueprintEditor::NotifyPreChange(UProperty* PropertyAboutToChange)
 	}
 }
 
-void FBlueprintEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged)
+void FBlueprintEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
 	FString PropertyName = PropertyThatChanged->GetName();
 	if (FocusedGraphEdPtr.IsValid())
@@ -9288,10 +9288,10 @@ void FBlueprintEditor::SelectGraphActionItemByName(const FName& ItemName, ESelec
 		// Find associated variable
 		if (FEdGraphSchemaAction_K2Var* SelectedVar = MyBlueprintWidget->SelectionAsVar())
 		{
-			if (UProperty* SelectedProperty = SelectedVar->GetProperty())
+			if (FProperty* SelectedProperty = SelectedVar->GetProperty())
 			{
 				// Update Details Panel
-				Inspector->ShowDetailsForSingleObject(SelectedProperty);
+				Inspector->ShowDetailsForSingleObject(SelectedProperty->GetUPropertyWrapper());
 			}
 		}
 	}

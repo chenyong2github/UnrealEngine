@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ParticleHelper.h: Particle helper definitions/ macros.
@@ -21,6 +21,7 @@
 #include "MeshBatch.h"
 #include "MeshParticleVertexFactory.h"
 #include "PrimitiveSceneProxy.h"
+#include "Particles/ParticlePerfStats.h"
 
 #define _ENABLE_PARTICLE_LOD_INGAME_
 
@@ -2759,6 +2760,11 @@ protected:
 	mutable TArray<FDynamicEmitterDataBase*> DynamicDataForThisFrame;
 
 	friend struct FDynamicSpriteEmitterDataBase;
+
+#if WITH_PARTICLE_PERF_STATS
+public:
+	UParticleSystem* PerfAsset;
+#endif
 };
 
 #if STATS

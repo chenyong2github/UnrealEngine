@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UserInterface/PropertyEditor/SPropertyComboBox.h"
 #include "Widgets/SToolTip.h"
@@ -20,7 +20,15 @@ void SPropertyComboBox::Construct( const FArguments& InArgs )
 	{
 		if(*ComboItemList[ItemIndex].Get() == VisibleText)
 		{
-			SetToolTip(RichToolTips[ItemIndex]);
+			if (RichToolTips.IsValidIndex(ItemIndex))
+			{
+				SetToolTip(RichToolTips[ItemIndex]);
+			}
+			else
+			{
+				SetToolTip(nullptr);
+			}
+
 			InitiallySelectedItem = ComboItemList[ItemIndex];
 			break;
 		}

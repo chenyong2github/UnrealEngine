@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /**
  * Abstract base class of animation composite base
@@ -32,7 +32,7 @@ public:
 	FOnAnimObjectChange OnChange;
 
 	using Super::PreEditChange;
-	virtual void PreEditChange(UProperty* PropertyThatWillChange) override;
+	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 

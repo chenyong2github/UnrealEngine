@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UserInterface/PropertyEditor/SPropertyEditorColor.h"
 #include "EngineGlobals.h"
@@ -37,8 +37,8 @@ void SPropertyEditorColor::Construct( const FArguments& InArgs, const TSharedRef
 
 bool SPropertyEditorColor::Supports( const TSharedRef<FPropertyEditor>& InPropertyEditor )
 {
-	const UProperty* NodeProperty = InPropertyEditor->GetProperty();
-	return ( Cast<const UStructProperty>(NodeProperty) && (Cast<const UStructProperty>(NodeProperty)->Struct->GetFName()==NAME_Color || Cast<const UStructProperty>(NodeProperty)->Struct->GetFName()==NAME_LinearColor) );
+	const FProperty* NodeProperty = InPropertyEditor->GetProperty();
+	return ( CastField<const FStructProperty>(NodeProperty) && (CastField<const FStructProperty>(NodeProperty)->Struct->GetFName()==NAME_Color || CastField<const FStructProperty>(NodeProperty)->Struct->GetFName()==NAME_LinearColor) );
 }
 
 TSharedRef< SColorBlock > SPropertyEditorColor::ConstructColorBlock()
@@ -68,7 +68,7 @@ bool SPropertyEditorColor::ShouldDisplayIgnoreAlpha() const
 	// Determines whether we should ignore the alpha value and just display the color fully opaque (such as
 	// when associated with lights, for example).
 
-	const UStructProperty* NodeStructProperty = Cast<const UStructProperty>( PropertyEditor->GetProperty() );
+	const FStructProperty* NodeStructProperty = CastField<const FStructProperty>( PropertyEditor->GetProperty() );
 	check(NodeStructProperty);
 
 	return NodeStructProperty->GetOwnerClass() && 
@@ -105,7 +105,7 @@ FReply SPropertyEditorColor::ColorBlock_OnMouseButtonDown(const FGeometry& MyGeo
 		return FReply::Unhandled();
 	}
 
-	const UProperty* Property = PropertyEditor->GetProperty();
+	const FProperty* Property = PropertyEditor->GetProperty();
 	check(Property);
 
 	bool bRefreshOnlyOnOk = Property->GetOwnerClass() && Property->GetOwnerClass()->IsChildOf(UMaterialExpressionConstant3Vector::StaticClass());
@@ -120,7 +120,7 @@ FReply SPropertyEditorColor::ColorBlock_OnMouseButtonDown(const FGeometry& MyGeo
 FLinearColor SPropertyEditorColor::OnGetColor() const
 {
 	const TSharedRef< FPropertyNode > PropertyNode = PropertyEditor->GetPropertyNode();
-	const UProperty* Property = PropertyEditor->GetProperty();
+	const FProperty* Property = PropertyEditor->GetProperty();
 	check(Property);
 
 	FLinearColor Color;
@@ -133,13 +133,13 @@ FLinearColor SPropertyEditorColor::OnGetColor() const
 		const uint8* Addr = ReadAddresses.GetAddress(0);
 		if( Addr )
 		{
-			if( Cast<const UStructProperty>(Property)->Struct->GetFName() == NAME_Color )
+			if( CastField<const FStructProperty>(Property)->Struct->GetFName() == NAME_Color )
 			{
 				Color = (*(FColor*)Addr).ReinterpretAsLinear();
 			}
 			else
 			{
-				check( Cast<const UStructProperty>(Property)->Struct->GetFName() == NAME_LinearColor );
+				check( CastField<const FStructProperty>(Property)->Struct->GetFName() == NAME_LinearColor );
 				Color = *(FLinearColor*)Addr;
 			}
 		}
@@ -152,7 +152,7 @@ void SPropertyEditorColor::CreateColorPickerWindow(const TSharedRef< class FProp
 {
 	const TSharedRef< FPropertyNode > PropertyNode = InPropertyEditor->GetPropertyNode();
 
-	UProperty* Property = PropertyNode->GetProperty();
+	FProperty* Property = PropertyNode->GetProperty();
 	check(Property);
 
 	FReadAddressList ReadAddresses;
@@ -171,13 +171,13 @@ void SPropertyEditorColor::CreateColorPickerWindow(const TSharedRef< class FProp
 			const uint8* Addr = ReadAddresses.GetAddress(AddrIndex);
 			if( Addr )
 			{
-				if( Cast<UStructProperty>(Property)->Struct->GetFName() == NAME_Color )
+				if( CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_Color )
 				{
 					OriginalColors[AddrIndex] = ((FColor*)Addr)->ReinterpretAsLinear();
 				}
 				else
 				{
-					check( Cast<UStructProperty>(Property)->Struct->GetFName() == NAME_LinearColor );
+					check( CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_LinearColor );
 					OriginalColors[AddrIndex] = *(FLinearColor*)Addr;
 				}
 			}
@@ -206,7 +206,7 @@ void SPropertyEditorColor::SetColor(FLinearColor NewColor)
 {
 	const TSharedRef< FPropertyNode > PropertyNode = PropertyEditor->GetPropertyNode();
 
-	UProperty* Property = PropertyNode->GetProperty();
+	FProperty* Property = PropertyNode->GetProperty();
 	check(Property);
 	
 	FReadAddressList ReadAddresses;
@@ -222,13 +222,13 @@ void SPropertyEditorColor::SetColor(FLinearColor NewColor)
 			const uint8* Addr = ReadAddresses.GetAddress(AddrIndex);
 			if( Addr )
 			{
-				if( Cast<UStructProperty>(Property)->Struct->GetFName() == NAME_Color )
+				if( CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_Color )
 				{
 					*(FColor*)Addr = NewColor.ToFColor(false);
 				}
 				else
 				{
-					check( Cast<UStructProperty>(Property)->Struct->GetFName() == NAME_LinearColor );
+					check( CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_LinearColor );
 					*(FLinearColor*)Addr = NewColor;
 				}
 			}
@@ -245,7 +245,7 @@ void SPropertyEditorColor::OnColorPickerCancelled( FLinearColor OriginalColor )
 {
 	const TSharedRef< FPropertyNode > PropertyNode = PropertyEditor->GetPropertyNode();
 
-	UProperty* Property = PropertyNode->GetProperty();
+	FProperty* Property = PropertyNode->GetProperty();
 	check(Property);
 
 	FReadAddressList ReadAddresses;
@@ -261,13 +261,13 @@ void SPropertyEditorColor::OnColorPickerCancelled( FLinearColor OriginalColor )
 			const uint8* Addr = ReadAddresses.GetAddress(AddrIndex);
 			if( Addr )
 			{
-				if( Cast<UStructProperty>(Property)->Struct->GetFName() == NAME_Color )
+				if( CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_Color )
 				{
 					*(FColor*)Addr = OriginalColors[AddrIndex].ToFColor(false);
 				}
 				else
 				{
-					check( Cast<UStructProperty>(Property)->Struct->GetFName() == NAME_LinearColor );
+					check( CastField<FStructProperty>(Property)->Struct->GetFName() == NAME_LinearColor );
 					*(FLinearColor*)Addr = OriginalColors[AddrIndex];
 				}
 			}

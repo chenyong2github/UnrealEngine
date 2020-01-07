@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /**
  * Fbx Importer UI options.
@@ -217,7 +217,7 @@ public:
 	void ResetToDefault();
 
 	/** UObject Interface */
-	virtual bool CanEditChange( const UProperty* InProperty ) const override;
+	virtual bool CanEditChange( const FProperty* InProperty ) const override;
 
 	/** IImportSettings Interface */
 	virtual void ParseFromJson(TSharedRef<class FJsonObject> ImportSettingsJson) override;

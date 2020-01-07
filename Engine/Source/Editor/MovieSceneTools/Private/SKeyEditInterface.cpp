@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SKeyEditInterface.h"
 #include "MovieSceneObjectBindingIDCustomization.h"
@@ -146,7 +146,7 @@ void SKeyEditInterface::OnFinishedChangingProperties(const FPropertyChangedEvent
 	}
 }
 
-void SKeyEditInterface::NotifyPreChange( UProperty* PropertyAboutToChange )
+void SKeyEditInterface::NotifyPreChange( FProperty* PropertyAboutToChange )
 {
 	if (UMovieSceneSection* Section = WeakSection.Get())
 	{

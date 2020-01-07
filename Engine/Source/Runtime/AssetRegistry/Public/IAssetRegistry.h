@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -298,6 +298,9 @@ public:
 
 	/** Enables or disable temporary search caching, when this is enabled scanning/searching is faster because we assume no objects are loaded between scans. Disabling frees any caches created */
 	virtual void SetTemporaryCachingMode(bool bEnable) = 0;
+
+	/** Returns true if temporary caching mode enabled */
+	virtual bool GetTemporaryCachingMode() const = 0;
 
 	/**
 	 * Gets the current availability of an asset, primarily for streaming install purposes.

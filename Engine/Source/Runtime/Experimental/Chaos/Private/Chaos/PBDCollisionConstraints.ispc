@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#pragma ignore warning
-#include "Chaos/Vector.isph"
+#include "Math/Vector.isph"
 
 #define SMALL_NUMBER		(1.e-8f)
 #define KINDA_SMALL_NUMBER	(1.e-4f)

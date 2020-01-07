@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ParticleBeamModules.cpp: Particle module implementations for beams.
@@ -655,7 +655,7 @@ void UParticleModuleTypeDataBeam2::PostEditChangeProperty(FPropertyChangedEvent&
 {
 	InitializeDefaults();
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if (PropertyThatChanged)
 	{
 		// Make sure that 0 <= beam count <= FDynamicBeam2EmitterData::MaxBeams.
@@ -1577,7 +1577,7 @@ void UParticleModuleBeamNoise::PostEditChangeProperty(FPropertyChangedEvent& Pro
 	}
 
 	UParticleSystem* PartSys = CastChecked<UParticleSystem>(GetOuter());
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if (PartSys && PropertyThatChanged)
 	{
 		// Make sure that the interpolation count is > 0.
@@ -1775,7 +1775,7 @@ void UParticleModuleBeamSource::PostEditChangeProperty(FPropertyChangedEvent& Pr
 	InitializeDefaults();
 
 	UParticleSystem* PartSys = CastChecked<UParticleSystem>(GetOuter());
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if (PartSys && PropertyThatChanged)
 	{
 		PartSys->PostEditChangeProperty(PropertyChangedEvent);
@@ -2236,7 +2236,7 @@ void UParticleModuleBeamTarget::PostEditChangeProperty(FPropertyChangedEvent& Pr
 	InitializeDefaults();
 
 	UParticleSystem* PartSys = CastChecked<UParticleSystem>(GetOuter());
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if (PartSys && PropertyThatChanged)
 	{
 		PartSys->PostEditChangeProperty(PropertyChangedEvent);

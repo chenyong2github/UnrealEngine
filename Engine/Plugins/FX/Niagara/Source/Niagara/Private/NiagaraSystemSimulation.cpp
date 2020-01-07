@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraSystemSimulation.h"
 #include "NiagaraModule.h"
@@ -160,9 +160,12 @@ public:
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		Context.MyCompletionGraphEvent = MyCompletionGraphEvent;
-		Context.Owner->Tick_Concurrent(Context);
-		Context.FinalizeEvents = nullptr;
+		{
+			PARTICLE_PERF_STAT_CYCLES(Context.System, TickConcurrent);
+			Context.MyCompletionGraphEvent = MyCompletionGraphEvent;
+			Context.Owner->Tick_Concurrent(Context);
+			Context.FinalizeEvents = nullptr;
+		}
 		WaitAllFinalizeTask->Unlock();
 	}
 };
@@ -194,6 +197,7 @@ public:
 		check(CurrentThread == ENamedThreads::GameThread);
 		FNiagaraScopedRuntimeCycleCounter RuntimeScope(SystemSim->GetSystem(), true, false);
 
+		PARTICLE_PERF_STAT_CYCLES(SystemSim->GetSystem(), Finalize);
 		for (FNiagaraSystemInstance* Inst : Batch)
 		{
 			Inst->FinalizeTick_GameThread();
@@ -231,7 +235,7 @@ public:
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		FNiagaraScopedRuntimeCycleCounter RuntimeScope(SystemSim->GetSystem(), true, true);
+		PARTICLE_PERF_STAT_CYCLES(Batch[0]->GetSystem(), TickConcurrent);
 		for (FNiagaraSystemInstance* Inst : Batch)
 		{
 			Inst->Tick_Concurrent();
@@ -626,16 +630,18 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 	LLM_SCOPE(ELLMTag::Niagara);
 	FScopeCycleCounterUObject AdditionalScope(GetSystem(), GET_STATID(STAT_NiagaraOverview_GT_CNC));
 
+	UNiagaraSystem* System = WeakSystem.Get();
+	FScopeCycleCounter SystemStatCounter(System->GetStatID(true, false));
+	PARTICLE_PERF_STAT_INSTANCE_COUNT(System, SystemInstances.Num());
+	PARTICLE_PERF_STAT_CYCLES(System, TickGameThread);
+
 	bHasEverTicked = true;
 
 	SystemTickGraphEvent = nullptr;
 
 	check(SystemInstances.Num() == MainDataSet.GetCurrentDataChecked().GetNumInstances());
 	check(PausedSystemInstances.Num() == PausedInstanceData.GetCurrentDataChecked().GetNumInstances());
-
-	UNiagaraSystem* System = WeakSystem.Get();
 	FNiagaraScopedRuntimeCycleCounter RuntimeScope(System, true, false);
-	FScopeCycleCounter SystemStatCounter(System->GetStatID(true, false));
 
 	if (MaxDeltaTime.IsSet())
 	{

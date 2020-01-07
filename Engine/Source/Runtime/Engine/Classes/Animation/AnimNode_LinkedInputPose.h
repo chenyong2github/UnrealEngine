@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -20,6 +20,7 @@ struct ENGINE_API FAnimNode_LinkedInputPose : public FAnimNode_Base
 	FAnimNode_LinkedInputPose()
 		: Name(DefaultInputPoseName)
 		, Graph(NAME_None)
+		, OuterGraphNodeIndex(INDEX_NONE)
 		, InputProxy(nullptr)
 	{
 	}
@@ -43,6 +44,9 @@ struct ENGINE_API FAnimNode_LinkedInputPose : public FAnimNode_Base
 	FCompactHeapPose CachedInputPose;
 	FBlendedHeapCurve CachedInputCurve;
 
+	// The node index of the currently-linked outer node
+	int32 OuterGraphNodeIndex;
+
 	// FAnimNode_Base interface
 #if ENABLE_ANIMGRAPH_TRAVERSAL_DEBUG
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
@@ -54,7 +58,7 @@ struct ENGINE_API FAnimNode_LinkedInputPose : public FAnimNode_Base
 	// End of FAnimNode_Base interface
 
 	/** Called by linked instance nodes to dynamically link this to an outer graph */
-	void DynamicLink(FAnimInstanceProxy* InInputProxy, FPoseLinkBase* InPoseLink);
+	void DynamicLink(FAnimInstanceProxy* InInputProxy, FPoseLinkBase* InPoseLink, int32 InOuterGraphNodeIndex);
 
 	/** Called by linked instance nodes to dynamically unlink this to an outer graph */
 	void DynamicUnlink();

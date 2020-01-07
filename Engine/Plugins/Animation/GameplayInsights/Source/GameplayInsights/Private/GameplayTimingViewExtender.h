@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -8,6 +8,8 @@ namespace Insights { class ITimingViewSession; }
 class UWorld;
 class FGameplaySharedData;
 class FAnimationSharedData;
+class IAnimationBlueprintEditor;
+struct FCustomDebugObject;
 
 class FGameplayTimingViewExtender : public Insights::ITimingViewExtender
 {
@@ -17,6 +19,14 @@ public:
 	virtual void OnEndSession(Insights::ITimingViewSession& InSession) override;
 	virtual void Tick(Insights::ITimingViewSession& InSession, const Trace::IAnalysisSession& InAnalysisSession) override;
 	virtual void ExtendFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) override;
+
+#if WITH_EDITOR
+	// Gets a world to perform visualizations within, depending on context
+	static UWorld* GetWorldToVisualize();
+
+	// Get custom debug objects for integration with anim blueprint debugging
+	void GetCustomDebugObjects(const IAnimationBlueprintEditor& InAnimationBlueprintEditor, TArray<FCustomDebugObject>& OutDebugList);
+#endif
 
 	// Tick the visualizers
 	void TickVisualizers(float DeltaTime);

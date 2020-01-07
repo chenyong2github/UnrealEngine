@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 // ActorComponent.cpp: Actor component implementation.
 
 #include "Components/ActorComponent.h"
@@ -631,7 +631,7 @@ bool UActorComponent::Modify( bool bAlwaysMarkDirty/*=true*/ )
 	return Super::Modify(bAlwaysMarkDirty);
 }
 
-void UActorComponent::PreEditChange(UProperty* PropertyThatWillChange)
+void UActorComponent::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);
 
@@ -1814,7 +1814,7 @@ void UActorComponent::OnRep_IsActive()
 }
 
 #if WITH_EDITOR
-bool UActorComponent::CanEditChange(const UProperty* InProperty) const
+bool UActorComponent::CanEditChange(const FProperty* InProperty) const
 {
 	if (Super::CanEditChange(InProperty))
 	{
@@ -1866,7 +1866,7 @@ void UActorComponent::DetermineUCSModifiedProperties()
 				ArPortFlags |= PPF_ForceTaggedSerialization;
 			}
 
-			virtual bool ShouldSkipProperty(const UProperty* InProperty) const override
+			virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
 			{
 				static const FName MD_SkipUCSModifiedProperties(TEXT("SkipUCSModifiedProperties"));
 				return (InProperty->HasAnyPropertyFlags(CPF_Transient)
@@ -1881,9 +1881,9 @@ void UActorComponent::DetermineUCSModifiedProperties()
 		UClass* ComponentClass = GetClass();
 		UObject* ComponentArchetype = GetArchetype();
 
-		for (TFieldIterator<UProperty> It(ComponentClass); It; ++It)
+		for (TFieldIterator<FProperty> It(ComponentClass); It; ++It)
 		{
-			UProperty* Property = *It;
+			FProperty* Property = *It;
 			if( Property->ShouldSerializeValue(PropertySkipper) )
 			{
 				for( int32 Idx=0; Idx<Property->ArrayDim; Idx++ )
@@ -1893,7 +1893,7 @@ void UActorComponent::DetermineUCSModifiedProperties()
 					if (!Property->Identical( DataPtr, DefaultValue))
 					{
 						UCSModifiedProperties.Add(FSimpleMemberReference());
-						FMemberReference::FillSimpleMemberReference<UProperty>(Property, UCSModifiedProperties.Last());
+						FMemberReference::FillSimpleMemberReference<FProperty>(Property, UCSModifiedProperties.Last());
 						break;
 					}
 				}
@@ -1902,20 +1902,20 @@ void UActorComponent::DetermineUCSModifiedProperties()
 	}
 }
 
-void UActorComponent::GetUCSModifiedProperties(TSet<const UProperty*>& ModifiedProperties) const
+void UActorComponent::GetUCSModifiedProperties(TSet<const FProperty*>& ModifiedProperties) const
 {
 	for (const FSimpleMemberReference& MemberReference : UCSModifiedProperties)
 	{
-		ModifiedProperties.Add(FMemberReference::ResolveSimpleMemberReference<UProperty>(MemberReference));
+		ModifiedProperties.Add(FMemberReference::ResolveSimpleMemberReference<FProperty>(MemberReference));
 	}
 }
 
-void UActorComponent::RemoveUCSModifiedProperties(const TArray<UProperty*>& Properties)
+void UActorComponent::RemoveUCSModifiedProperties(const TArray<FProperty*>& Properties)
 {
-	for (UProperty* Property : Properties)
+	for (FProperty* Property : Properties)
 	{
 		FSimpleMemberReference MemberReference;
-		FMemberReference::FillSimpleMemberReference<UProperty>(Property, MemberReference);
+		FMemberReference::FillSimpleMemberReference<FProperty>(Property, MemberReference);
 		UCSModifiedProperties.RemoveSwap(MemberReference);
 	}
 }

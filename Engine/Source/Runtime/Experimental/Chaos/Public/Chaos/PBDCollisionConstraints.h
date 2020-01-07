@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/ConstraintHandle.h"
@@ -26,7 +26,7 @@ template <typename T, int d>
 class TBVHParticles;
 
 template <typename T, int d>
-class TBox;
+class TAABB;
 
 template<class T>
 class TChaosPhysicsMaterial;
@@ -57,7 +57,7 @@ public:
 	using FConstraintContainerHandle = TPBDCollisionConstraintHandle<T, d>;
 	using FConstraintBase = TCollisionConstraintBase<T, d>;
  	using FPointContactConstraint = TRigidBodyPointContactConstraint<T, d>;
-	using FIterativeContactConstraint = TRigidBodyIterativeContactConstraint<T, d>;
+	using FMultiPointContactConstraint = TRigidBodyMultiPointContactConstraint<T, d>;
 	using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDCollisionConstraints<T, d>>;
 	using FConstraintContainerHandleKey = typename TPBDCollisionConstraintHandle<T, d>::FHandleKey;
 
@@ -71,7 +71,8 @@ public:
 	/**
 	*  Add the constraint to the container. 
 	*
-	*  @todo(chaos) : Update to use a custom allocator. 
+	*  @todo(chaos) : Collision Constraints 
+	*  Update to use a custom allocator. 
 	*  The InConstraint should be a point to unmanaged, raw memory. 
 	*  This function will make a deep copy of the constraint and 
 	*  then delete the InConstraint. 
@@ -221,7 +222,7 @@ private:
 	const TPBDRigidsSOAs<T,d>& Particles;
 
 	TArray<FPointContactConstraint> PointConstraints;
-	TArray<FIterativeContactConstraint> IterativeConstraints;
+	TArray<FMultiPointContactConstraint> IterativeConstraints;
 
 	TMap< FConstraintContainerHandleKey, FConstraintContainerHandle* > Manifolds;
 	TArray<FConstraintContainerHandle*> Handles;

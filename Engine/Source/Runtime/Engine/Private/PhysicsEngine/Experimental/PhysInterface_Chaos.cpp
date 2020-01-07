@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #if WITH_CHAOS
 
@@ -467,6 +467,7 @@ void FPhysInterface_Chaos::SetGlobalPose_AssumesLocked(const FPhysicsActorHandle
 {
 	InActorReference->SetX(InNewPose.GetLocation());
 	InActorReference->SetR(InNewPose.GetRotation());
+	InActorReference->UpdateShapeBounds();
 
 	FPhysScene* Scene = GetCurrentScene(InActorReference);
 	Scene->GetScene().UpdateActorInAccelerationStructure(InActorReference);
@@ -647,14 +648,14 @@ FBox FPhysInterface_Chaos::GetBounds_AssumesLocked(const FPhysicsActorHandle& In
     return FBox(FVector(-0.5), FVector(0.5));
 }
 
-void FPhysInterface_Chaos::SetLinearDamping_AssumesLocked(const FPhysicsActorHandle& InActorReference, float InDamping)
+void FPhysInterface_Chaos::SetLinearDamping_AssumesLocked(const FPhysicsActorHandle& InActorReference, float InDrag)
 {
 	if (ensure(FPhysicsInterface::IsValid(InActorReference)))
 	{
 		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
 		if (ensure(Rigid))
 		{
-			Rigid->SetLinearDamping(InDamping);
+			Rigid->SetLinearEtherDrag(InDrag);
 		}
 	}
 }
@@ -666,7 +667,7 @@ void FPhysInterface_Chaos::SetAngularDamping_AssumesLocked(const FPhysicsActorHa
 		Chaos::TPBDRigidParticle<float, 3>* Rigid = InActorReference->CastToRigidParticle();
 		if (ensure(Rigid))
 		{
-			Rigid->SetAngularDamping(InDamping);
+			Rigid->SetAngularEtherDrag(InDamping);
 		}
 	}
 }
@@ -1347,16 +1348,14 @@ void FPhysInterface_Chaos::AddGeometry(FPhysicsActorHandle& InActor, const FGeom
 		}
 
 		//todo: we should not be creating unique geometry per actor
-		InActor->SetGeometry(MakeUnique<Chaos::TImplicitObjectUnion<float, 3>>(MoveTemp(Geoms)));
+		InActor->SetGeometry(MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(Geoms)));
 		InActor->SetShapesArray(MoveTemp(Shapes));
 	}
 #endif
 }
 
 
-// todo(brice): Implicit Initialization Pipeline(WIP)
-// ... add virtual TImplicitObject::NewCopy()
-// @todo(mlentine,brice): We probably need to actually duplicate the data here, add virtual TImplicitObject::NewCopy()
+// @todo(chaos): We probably need to actually duplicate the data here, add virtual TImplicitObject::NewCopy()
 FPhysicsShapeHandle FPhysInterface_Chaos::CloneShape(const FPhysicsShapeHandle& InShape)
 {
 	FPhysicsActorHandle NewActor = nullptr; // why zero and not the default INDEX_NONE?
@@ -1401,9 +1400,9 @@ const Chaos::FConvex& FPhysicsGeometryCollection_Chaos::GetConvexGeometry() cons
 	return Geom.GetObjectChecked<Chaos::FConvex>();
 }
 
-const Chaos::TTriangleMeshImplicitObject<float>& FPhysicsGeometryCollection_Chaos::GetTriMeshGeometry() const
+const Chaos::FTriangleMeshImplicitObject& FPhysicsGeometryCollection_Chaos::GetTriMeshGeometry() const
 {
-	return Geom.GetObjectChecked<Chaos::TTriangleMeshImplicitObject<float>>();
+	return Geom.GetObjectChecked<Chaos::FTriangleMeshImplicitObject>();
 }
 
 FPhysicsGeometryCollection_Chaos::FPhysicsGeometryCollection_Chaos(const FPhysicsShapeReference_Chaos& InShape)
@@ -1523,8 +1522,28 @@ bool CalculateMassPropertiesOfImplicitType(
 
 	if (ImplicitObject)
 	{
-		// Hack to handle Transformed until CastHelper can properly support transformed
+		// Hack to handle Transformed and Scaled<ImplicitObjectTriangleMesh> until CastHelper can properly support transformed
 		Chaos::FRigidTransform3 Transform(FMatrix::Identity);
+		// Commenting this out temporarily as it breaks vehicles
+		/*	if (Chaos::IsScaled(ImplicitObject->GetType(true)) && Chaos::GetInnerType(ImplicitObject->GetType(true)) & Chaos::ImplicitObjectType::TriangleMesh)
+			{
+				OutMassProperties.Volume = 0.f;
+				OutMassProperties.Mass = FLT_MAX;
+				OutMassProperties.InertiaTensor = FMatrix33(0, 0, 0);
+				OutMassProperties.CenterOfMass = FVector(0);
+				OutMassProperties.RotationOfMass = Chaos::TRotation<float, 3>::FromIdentity();
+				return false;
+			}
+			else if (ImplicitObject->GetType(true) & Chaos::ImplicitObjectType::TriangleMesh)
+			{
+				OutMassProperties.Volume = 0.f;
+				OutMassProperties.Mass = FLT_MAX;
+				OutMassProperties.InertiaTensor = FMatrix33(0, 0, 0);
+				OutMassProperties.CenterOfMass = FVector(0);
+				OutMassProperties.RotationOfMass = Chaos::TRotation<float, 3>::FromIdentity();
+				return false;
+			}
+		else*/ 
 		if (ImplicitObject->GetType(true) & Chaos::ImplicitObjectType::Transformed)
 		{
 			// TODO:  This all very wrong, but is wrong in the same way as scaled. Rotation/Translation are ignored though. The three methods on Transformed no implemented.

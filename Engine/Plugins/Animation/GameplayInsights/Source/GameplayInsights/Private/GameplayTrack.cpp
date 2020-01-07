@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayTrack.h"
 #include "Insights/ViewModels/TimingEventsTrack.h"
@@ -47,30 +47,32 @@ static FORCEINLINE bool IntervalsIntersect(float Min1, float Max1, float Min2, f
 	return !(Max2 < Min1 || Max1 < Min2);
 }
 
-void FGameplayTrack::DrawHeaderForTimingTrack(const ITimingTrackDrawContext& InContext, const FTimingEventsTrack& InTrack) const
+void FGameplayTrack::DrawHeaderForTimingTrack(const ITimingTrackDrawContext& InContext, const FBaseTimingTrack& InTrack, bool bUsePreallocatedLayers) const
 {
 	const float X = (float)Indent * GameplayTrackConstants::IndentSize;
 	const float Y = InTrack.GetPosY();
 	const float H = InTrack.GetHeight();
 	const float TrackNameH = H > 7.0f ? 12.0f : H;
+	const int32 HeaderBackgroundLayerId = bUsePreallocatedLayers ? InContext.GetHelper().GetHeaderBackgroundLayerId() : InContext.GetDrawContext().LayerId++;
+	const int32 HeaderTextLayerId = bUsePreallocatedLayers ? InContext.GetHelper().GetHeaderTextLayerId() : InContext.GetDrawContext().LayerId++;
 
 	if (H > 0.0f &&
 		Y + H > InContext.GetViewport().GetTopOffset() &&
 		Y < InContext.GetViewport().GetHeight() - InContext.GetViewport().GetBottomOffset())
 	{
 		// Draw a horizontal line between timelines.
-		InContext.GetDrawContext().DrawBox(InContext.GetHelper().GetHeaderBackgroundLayerId(), X, Y, InContext.GetViewport().GetWidth(), 1.0f, InContext.GetHelper().GetWhiteBrush(), InContext.GetHelper().GetEdgeColor());
+		InContext.GetDrawContext().DrawBox(HeaderBackgroundLayerId, X, Y, InContext.GetViewport().GetWidth(), 1.0f, InContext.GetHelper().GetWhiteBrush(), InContext.GetHelper().GetEdgeColor());
 
 		if(H > 7.0f)
 		{
 			const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 			const float NameWidth = FontMeasureService->Measure(InTrack.GetName(), InContext.GetHelper().GetEventFont()).X;
-			InContext.GetDrawContext().DrawBox(InContext.GetHelper().GetHeaderBackgroundLayerId(), X, Y + 1.0f, NameWidth + 4.0f, TrackNameH, InContext.GetHelper().GetWhiteBrush(), InContext.GetHelper().GetEdgeColor());
-			InContext.GetDrawContext().DrawText(InContext.GetHelper().GetHeaderTextLayerId(), X + 2.0f, Y, InTrack.GetName(), InContext.GetHelper().GetEventFont(), InContext.GetHelper().GetTrackNameTextColor(InTrack));
+			InContext.GetDrawContext().DrawBox(HeaderBackgroundLayerId, X, Y + 1.0f, NameWidth + 4.0f, TrackNameH, InContext.GetHelper().GetWhiteBrush(), InContext.GetHelper().GetEdgeColor());
+			InContext.GetDrawContext().DrawText(HeaderTextLayerId, X + 2.0f, Y, InTrack.GetName(), InContext.GetHelper().GetEventFont(), InContext.GetHelper().GetTrackNameTextColor(InTrack));
 		}
 		else
 		{
-			InContext.GetDrawContext().DrawBox(InContext.GetHelper().GetHeaderBackgroundLayerId(), X, Y + 1.0f, H, H, InContext.GetHelper().GetWhiteBrush(), InContext.GetHelper().GetEdgeColor());
+			InContext.GetDrawContext().DrawBox(HeaderBackgroundLayerId, X, Y + 1.0f, H, H, InContext.GetHelper().GetWhiteBrush(), InContext.GetHelper().GetEdgeColor());
 		}
 	}
 
@@ -82,8 +84,8 @@ void FGameplayTrack::DrawHeaderForTimingTrack(const ITimingTrackDrawContext& InC
 
 		if (IntervalsIntersect(ParentY, Y, InContext.GetViewport().GetTopOffset(), InContext.GetViewport().GetHeight() - InContext.GetViewport().GetBottomOffset()))
 		{
-			InContext.GetDrawContext().DrawBox(InContext.GetHelper().GetHeaderBackgroundLayerId(), ParentX, Y + (TrackNameH * 0.5f), X - ParentX, 1.0f, InContext.GetHelper().GetWhiteBrush(), InContext.GetHelper().GetEdgeColor());
-			InContext.GetDrawContext().DrawBox(InContext.GetHelper().GetHeaderBackgroundLayerId(), ParentX, ParentY, 1.0f, (Y - ParentY) + (TrackNameH * 0.5f), InContext.GetHelper().GetWhiteBrush(), InContext.GetHelper().GetEdgeColor());
+			InContext.GetDrawContext().DrawBox(HeaderBackgroundLayerId, ParentX, Y + (TrackNameH * 0.5f), X - ParentX, 1.0f, InContext.GetHelper().GetWhiteBrush(), InContext.GetHelper().GetEdgeColor());
+			InContext.GetDrawContext().DrawBox(HeaderBackgroundLayerId, ParentX, ParentY, 1.0f, (Y - ParentY) + (TrackNameH * 0.5f), InContext.GetHelper().GetWhiteBrush(), InContext.GetHelper().GetEdgeColor());
 		}
 	}
 }

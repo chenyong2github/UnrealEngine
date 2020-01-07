@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Templates/ChooseClass.h"
@@ -74,12 +74,14 @@ void PBDRigidParticleHandleImpDefaultConstruct(TPBDRigidParticleHandleImp<T, d, 
 	Concrete.SetQ(Concrete.R());
 	Concrete.SetF(TVector<T, d>(0));
 	Concrete.SetTorque(TVector<T, d>(0));
-	Concrete.SetExternalForce(TVector<T, d>(0));
-	Concrete.SetExternalTorque(TVector<T, d>(0));
+	Concrete.SetLinearImpulse(TVector<T, d>(0));
+	Concrete.SetAngularImpulse(TVector<T, d>(0));
 	Concrete.SetM(1);
 	Concrete.SetInvM(1);
 	Concrete.SetI(PMatrix<T, d, d>(1, 1, 1));
 	Concrete.SetInvI(PMatrix<T, d, d>(1, 1, 1));
+	Concrete.SetLinearEtherDrag(0.f);
+	Concrete.SetAngularEtherDrag(0.f);
 	Concrete.SetObjectStateLowLevel(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
 }
 
@@ -95,12 +97,14 @@ void PBDRigidParticleDefaultConstruct(TPBDRigidParticle<T,d>& Concrete, const TP
 	Concrete.SetQ(Concrete.R());
 	Concrete.SetF(TVector<T, d>(0));
 	Concrete.SetTorque(TVector<T, d>(0));
-	Concrete.SetExternalForce(TVector<T, d>(0));
-	Concrete.SetExternalTorque(TVector<T, d>(0));
+	Concrete.SetLinearImpulse(TVector<T, d>(0));
+	Concrete.SetAngularImpulse(TVector<T, d>(0));
 	Concrete.SetM(1);
 	Concrete.SetInvM(1);
 	Concrete.SetI(PMatrix<T, d, d>(1, 1, 1));
 	Concrete.SetInvI(PMatrix<T, d, d>(1, 1, 1));
+	Concrete.SetLinearEtherDrag(0.f);
+	Concrete.SetAngularEtherDrag(0.f);
 	Concrete.SetObjectState(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
 	Concrete.SetGravityEnabled(Params.bGravityEnabled);
 }
@@ -379,11 +383,11 @@ public:
 
 	const TShapesArray<T,d>& ShapesArray() const { return GeometryParticles->ShapesArray(ParticleIdx); }
 
-	const TBox<T, d>& LocalBounds() const { return GeometryParticles->LocalBounds(ParticleIdx); }
-	void SetLocalBounds(const TBox<T, d>& NewBounds) { GeometryParticles->LocalBounds(ParticleIdx) = NewBounds; }
+	const TAABB<T, d>& LocalBounds() const { return GeometryParticles->LocalBounds(ParticleIdx); }
+	void SetLocalBounds(const TAABB<T, d>& NewBounds) { GeometryParticles->LocalBounds(ParticleIdx) = NewBounds; }
 
-	const TBox<T, d>& WorldSpaceInflatedBounds() const { return GeometryParticles->WorldSpaceInflatedBounds(ParticleIdx); }
-	void SetWorldSpaceInflatedBounds(const TBox<T, d>& WorldSpaceInflatedBounds)
+	const TAABB<T, d>& WorldSpaceInflatedBounds() const { return GeometryParticles->WorldSpaceInflatedBounds(ParticleIdx); }
+	void SetWorldSpaceInflatedBounds(const TAABB<T, d>& WorldSpaceInflatedBounds)
 	{
 		GeometryParticles->SetWorldSpaceInflatedBounds(ParticleIdx, WorldSpaceInflatedBounds);
 	}
@@ -647,13 +651,13 @@ public:
 	TVector<T, d>& Torque() { return PBDRigidParticles->Torque(ParticleIdx); }
 	void SetTorque(const TVector<T, d>& InTorque) { PBDRigidParticles->Torque(ParticleIdx) = InTorque; }
 
-	const TVector<T, d>& ExternalForce() const { return PBDRigidParticles->ExternalForce(ParticleIdx); }
-	TVector<T, d>& ExternalForce() { return PBDRigidParticles->ExternalForce(ParticleIdx); }
-	void SetExternalForce(const TVector<T, d>& InF) { PBDRigidParticles->ExternalForce(ParticleIdx) = InF; }
+	const TVector<T, d>& LinearImpulse() const { return PBDRigidParticles->LinearImpulse(ParticleIdx); }
+	TVector<T, d>& LinearImpulse() { return PBDRigidParticles->LinearImpulse(ParticleIdx); }
+	void SetLinearImpulse(const TVector<T, d>& InLinearImpulse) { PBDRigidParticles->LinearImpulse(ParticleIdx) = InLinearImpulse; }
 
-	const TVector<T, d>& ExternalTorque() const { return PBDRigidParticles->ExternalTorque(ParticleIdx); }
-	TVector<T, d>& ExternalTorque() { return PBDRigidParticles->ExternalTorque(ParticleIdx); }
-	void SetExternalTorque(const TVector<T, d>& InTorque) { PBDRigidParticles->ExternalTorque(ParticleIdx) = InTorque; }
+	const TVector<T, d>& AngularImpulse() const { return PBDRigidParticles->AngularImpulse(ParticleIdx); }
+	TVector<T, d>& AngularImpulse() { return PBDRigidParticles->AngularImpulse(ParticleIdx); }
+	void SetAngularImpulse(const TVector<T, d>& InAngularImpulse) { PBDRigidParticles->AngularImpulse(ParticleIdx) = InAngularImpulse; }
 
 	const PMatrix<T, d, d>& I() const { return PBDRigidParticles->I(ParticleIdx); }
 	PMatrix<T, d, d>& I() { return PBDRigidParticles->I(ParticleIdx); }
@@ -671,13 +675,13 @@ public:
 	T& InvM() { return PBDRigidParticles->InvM(ParticleIdx); }
 	void SetInvM(const T& InInvM) { PBDRigidParticles->InvM(ParticleIdx) = InInvM; }
 
-	T LinearDamping() const { return PBDRigidParticles->LinearDamping(ParticleIdx); }
-	T& LinearDamping() { return PBDRigidParticles->LinearDamping(ParticleIdx); }
-	void SetLinearDamping(const T& InLinearDamping) { PBDRigidParticles->LinearDamping(ParticleIdx) = InLinearDamping; }
+	T LinearEtherDrag() const { return PBDRigidParticles->LinearEtherDrag(ParticleIdx); }
+	T& LinearEtherDrag() { return PBDRigidParticles->LinearEtherDrag(ParticleIdx); }
+	void SetLinearEtherDrag(const T& InLinearEtherDrag) { PBDRigidParticles->LinearEtherDrag(ParticleIdx) = InLinearEtherDrag; }
 
-	T AngularDamping() const { return PBDRigidParticles->AngularDamping(ParticleIdx); }
-	T& AngularDamping() { return PBDRigidParticles->AngularDamping(ParticleIdx); }
-	void SetAngularDamping(const T& InAngularDamping) { PBDRigidParticles->AngularDamping(ParticleIdx) = InAngularDamping; }
+	T AngularEtherDrag() const { return PBDRigidParticles->AngularEtherDrag(ParticleIdx); }
+	T& AngularEtherDrag() { return PBDRigidParticles->AngularEtherDrag(ParticleIdx); }
+	void SetAngularEtherDrag(const T& InAngularEtherDrag) { PBDRigidParticles->AngularEtherDrag(ParticleIdx) = InAngularEtherDrag; }
 
 	int32 Island() const { return PBDRigidParticles->Island(ParticleIdx); }
 	int32& Island() { return PBDRigidParticles->Island(ParticleIdx); }
@@ -1297,13 +1301,7 @@ public:
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::SerializeShapeWorldSpaceBounds)
 		{
-			if (MGeometry->HasBoundingBox())
-			{
-				for (auto& Shape : MShapesArray)
-				{
-					Shape->UpdateShapeBounds(FRigidTransform3(MX, MR));
-				}
-			}
+			UpdateShapeBounds();
 		}
 
 		if(Ar.IsLoading())
@@ -1364,6 +1362,17 @@ public:
 	void SetUserData(void* InUserData)
 	{
 		this->MUserData = InUserData;
+	}
+
+	void UpdateShapeBounds()
+	{
+		if (MGeometry->HasBoundingBox())
+		{
+			for (auto& Shape : MShapesArray)
+			{
+				Shape->UpdateShapeBounds(FRigidTransform3(MX, MR));
+			}
+		}
 	}
 
 #if CHAOS_CHECKED
@@ -1566,7 +1575,7 @@ public:
 		FParticleData::Reset();  
 		X = TVector<T, d>(0); 
 		R = TRotation<T, d>(); 
-		Geometry = TSharedPtr<TImplicitObjectUnion<T, d>, ESPMode::ThreadSafe>();
+		Geometry = TSharedPtr<FImplicitObjectUnion, ESPMode::ThreadSafe>();
 		SpatialIdx = FSpatialAccelerationIdx{ 0,0 };
 		HashResult = 0;
 		DirtyFlags.Clear();
@@ -1737,8 +1746,8 @@ public:
 		Ar << MP;
 		Ar << MF;
 		Ar << MTorque;
-		Ar << MExternalForce;
-		Ar << MExternalTorque;
+		Ar << MLinearImpulse;
+		Ar << MAngularImpulse;
 		Ar << MI;
 		Ar << MInvI;
 		Ar << MCollisionParticles;
@@ -1748,8 +1757,8 @@ public:
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddDampingToRigids)
 		{
-			Ar << MLinearDamping;
-			Ar << MAngularDamping;
+			Ar << MLinearEtherDrag;
+			Ar << MAngularEtherDrag;
 		}
 
 		Ar << MIsland;
@@ -1829,18 +1838,18 @@ public:
 		this->MTorque = InTorque;
 	}
 
-	const TVector<T, d>& ExternalForce() const { return MExternalForce; }
-	void SetExternalForce(const TVector<T, d>& InExternalForce, bool bInvalidate = true)
+	const TVector<T, d>& LinearImpulse() const { return MLinearImpulse; }
+	void SetLinearImpulse(const TVector<T, d>& InLinearImpulse, bool bInvalidate = true)
 	{
-		this->MarkDirty(EParticleFlags::ExternalForce, bInvalidate);
-		this->MExternalForce = InExternalForce;
+		this->MarkDirty(EParticleFlags::LinearImpulse, bInvalidate);
+		this->MLinearImpulse = InLinearImpulse;
 	}
 
-	const TVector<T, d>& ExternalTorque() const { return MExternalTorque; }
-	void SetExternalTorque(const TVector<T, d>& InExternalTorque, bool bInvalidate = true)
+	const TVector<T, d>& AngularImpulse() const { return MAngularImpulse; }
+	void SetAngularImpulse(const TVector<T, d>& InAngularImpulse, bool bInvalidate = true)
 	{
-		this->MarkDirty(EParticleFlags::ExternalTorque, bInvalidate);
-		this->MExternalTorque = InExternalTorque;
+		this->MarkDirty(EParticleFlags::AngularImpulse, bInvalidate);
+		this->MAngularImpulse = InAngularImpulse;
 	}
 
 	const PMatrix<T, d, d>& I() const { return MI; }
@@ -1871,18 +1880,18 @@ public:
 		this->MInvM = InInvM;
 	}
 
-	T LinearDamping() const { return MLinearDamping; }
-	void SetLinearDamping(const T& InLinearDamping)
+	T LinearEtherDrag() const { return MLinearEtherDrag; }
+	void SetLinearEtherDrag(const T& InLinearEtherDrag)
 	{
-		this->MarkDirty(EParticleFlags::LinearDamping);
-		this->MLinearDamping = InLinearDamping;
+		this->MarkDirty(EParticleFlags::LinearEtherDrag);
+		this->MLinearEtherDrag = InLinearEtherDrag;
 	}
 
-	T AngularDamping() const { return MAngularDamping; }
-	void SetAngularDamping(const T& InAngularDamping)
+	T AngularEtherDrag() const { return MAngularEtherDrag; }
+	void SetAngularEtherDrag(const T& InAngularEtherDrag)
 	{
-		this->MarkDirty(EParticleFlags::AngularDamping);
-		this->MAngularDamping = InAngularDamping;
+		this->MarkDirty(EParticleFlags::AngularEtherDrag);
+		this->MAngularEtherDrag = InAngularEtherDrag;
 	}
 
 	int32 Island() const { return MIsland; }
@@ -1920,15 +1929,15 @@ private:
 	TVector<T, d> MP;
 	TVector<T, d> MF;
 	TVector<T, d> MTorque;
-	TVector<T, d> MExternalForce;
-	TVector<T, d> MExternalTorque;
+	TVector<T, d> MLinearImpulse;
+	TVector<T, d> MAngularImpulse;
 	PMatrix<T, d, d> MI;
 	PMatrix<T, d, d> MInvI;
 	TUniquePtr<TBVHParticles<T, d>> MCollisionParticles;
 	T MM;
 	T MInvM;
-	T MLinearDamping;
-	T MAngularDamping;
+	T MLinearEtherDrag;
+	T MAngularEtherDrag;
 	int32 MIsland;
 	int32 MCollisionGroup;
 	EObjectStateType MObjectState;
@@ -1972,15 +1981,17 @@ public:
 		, MPreV(TVector<T, d>(0))
 		, MPreW(TVector<T, d>(0))
 		, MP(TVector<T, d>(0))
-		, MExternalForce(TVector<T, d>(0))
-		, MExternalTorque(TVector<T, d>(0))
+		, MF(TVector<T, d>(0))
+		, MTorque(TVector<T, d>(0))
+		, MLinearImpulse(TVector<T, d>(0))
+		, MAngularImpulse(TVector<T, d>(0))
 		, MI(PMatrix<T, d, d>(0))
 		, MInvI(PMatrix<T, d, d>(0))
 		, MCollisionParticles(nullptr)
 		, MM(T(0))
 		, MInvM(T(0))
-		, MLinearDamping(T(0))
-		, MAngularDamping(T(0))
+		, MLinearEtherDrag(T(0))
+		, MAngularEtherDrag(T(0))
 		, MIsland(INDEX_NONE)
 		, MCollisionGroup(0)
 		, MObjectState(EObjectStateType::Uninitialized)
@@ -1995,15 +2006,17 @@ public:
 		, MPreV(InParticle.PreV())
 		, MPreW(InParticle.PreW())
 		, MP(InParticle.P())
-		, MExternalForce(InParticle.ExternalForce())
-		, MExternalTorque(InParticle.ExternalTorque())
+		, MF(InParticle.F())
+		, MTorque(InParticle.Torque())
+		, MLinearImpulse(TVector<T, d>(0))
+		, MAngularImpulse(TVector<T, d>(0))
 		, MI(InParticle.I())
 		, MInvI(InParticle.InvI())
 		, MCollisionParticles(nullptr)
 		, MM(InParticle.M())
 		, MInvM(InParticle.InvM())
-		, MLinearDamping(InParticle.LinearDamping())
-		, MAngularDamping(InParticle.AngularDamping())
+		, MLinearEtherDrag(InParticle.LinearEtherDrag())
+		, MAngularEtherDrag(InParticle.AngularEtherDrag())
 		, MIsland(InParticle.Island())
 		, MCollisionGroup(InParticle.CollisionGroup())
 		, MObjectState(InParticle.ObjectState())
@@ -2026,15 +2039,17 @@ public:
 	TVector<T, d> MPreV;
 	TVector<T, d> MPreW;
 	TVector<T, d> MP;
-	TVector<T, d> MExternalForce;
-	TVector<T, d> MExternalTorque;
+	TVector<T, d> MF;
+	TVector<T, d> MTorque;
+	TVector<T, d> MLinearImpulse;
+	TVector<T, d> MAngularImpulse;
 	PMatrix<T, d, d> MI;
 	PMatrix<T, d, d> MInvI;
 	const TBVHParticles<T, d> * MCollisionParticles;
 	T MM;
 	T MInvM;
-	T MLinearDamping;
-	T MAngularDamping;
+	T MLinearEtherDrag;
+	T MAngularEtherDrag;
 	int32 MIsland;
 	int32 MCollisionGroup;
 	EObjectStateType MObjectState;
@@ -2050,15 +2065,17 @@ public:
 		MPreV = TVector<T, d>(0);
 		MPreW = TVector<T, d>(0);
 		MP = TVector<T, d>(0);
-		MExternalForce = TVector<T, d>(0);
-		MExternalTorque = TVector<T, d>(0);
+		MF = TVector<T, d>(0);
+		MTorque = TVector<T, d>(0);
+		MLinearImpulse = TVector<T, d>(0);
+		MAngularImpulse = TVector<T, d>(0);
 		MI = PMatrix<T, d, d>(0);
 		MInvI = PMatrix<T, d, d>(0);
 		MCollisionParticles = nullptr;
 		MM = T(0);
 		MInvM = T(0);
-		MLinearDamping = T(0);
-		MAngularDamping = T(0);
+		MLinearEtherDrag = T(0);
+		MAngularEtherDrag = T(0);
 		MIsland = INDEX_NONE;
 		MCollisionGroup = 0;
 		MObjectState = EObjectStateType::Uninitialized;

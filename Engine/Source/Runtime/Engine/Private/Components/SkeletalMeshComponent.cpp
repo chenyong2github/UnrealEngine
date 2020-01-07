@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UnSkeletalComponent.cpp: Actor component implementation.
@@ -843,7 +843,7 @@ void USkeletalMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& Prope
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 
 	if ( PropertyThatChanged != nullptr )
 	{
@@ -2722,8 +2722,9 @@ void USkeletalMeshComponent::ResetLinkedAnimInstances()
 {
 	for(UAnimInstance* LinkedInstance : LinkedInstances)
 	{
-		if(LinkedInstance)
+		if(LinkedInstance && LinkedInstance->bCreatedByLinkedAnimGraph)
 		{
+			LinkedInstance->EndNotifyStates();
 			LinkedInstance->MarkPendingKill();
 			LinkedInstance = nullptr;
 		}

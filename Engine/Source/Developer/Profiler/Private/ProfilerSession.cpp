@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProfilerSession.h"
 #include "ProfilerFPSAnalyzer.h"
@@ -527,6 +527,10 @@ bool FProfilerSession::HandleTicker( float DeltaTime )
 			CompletionSyncAggregatedEventGraphData();
 
 			// Advance event graphs.
+			if (DataProvider->GetNumFrames() == 0)
+			{
+				EventGraphDataTotal = MakeShareable(new FEventGraphData());
+			}
 			UpdateAllEventGraphs( DataProvider->GetNumFrames() );
 
 			// Broadcast that a capture file has been fully processed.

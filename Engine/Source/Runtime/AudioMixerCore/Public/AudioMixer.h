@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -67,7 +67,13 @@ namespace EAudioMixerChannel
 		TopBackCenter,
 		TopBackRight,
 		Unknown,
-		ChannelTypeCount
+		ChannelTypeCount,
+
+		// Alias Values
+		Ambisonics_W = FrontLeft,
+		Ambisonics_X = FrontRight,
+		Ambisonics_Y = FrontCenter,
+		Ambisonics_Z = LowFrequency,
 	};
 
 	static const int32 MaxSupportedChannel = EAudioMixerChannel::TopCenter;

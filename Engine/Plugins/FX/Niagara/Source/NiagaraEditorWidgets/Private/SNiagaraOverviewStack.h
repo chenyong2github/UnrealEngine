@@ -1,8 +1,9 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "ViewModels/Stack/NiagaraStackEntry.h"
+
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
 #include "UObject/ObjectKey.h"
@@ -12,6 +13,7 @@ class UNiagaraStackEntry;
 class UNiagaraStackItem;
 class UNiagaraStackViewModel;
 class UNiagaraSystemSelectionViewModel;
+class FNiagaraStackCommandContext;
 
 class SNiagaraOverviewStack : public SCompoundWidget
 {
@@ -31,10 +33,6 @@ public:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
-	void SetupCommands();
-
-	void DeleteSelectedEntries();
-
 	void AddEntriesRecursive(UNiagaraStackEntry& EntryToAdd, TArray<UNiagaraStackEntry*>& EntryList, const TArray<UClass*>& AcceptableClasses, TArray<UNiagaraStackEntry*> ParentChain);
 
 	void RefreshEntryList();
@@ -48,6 +46,8 @@ private:
 	void OnSelectionChanged(UNiagaraStackEntry* InNewSelection, ESelectInfo::Type SelectInfo);
 
 	void SystemSelectionChanged();
+
+	void UpdateCommandContextSelection();
 
 	FReply OnRowDragDetected(const FGeometry& InGeometry, const FPointerEvent& InPointerEvent, TWeakObjectPtr<UNiagaraStackEntry> InStackEntryWeak);
 
@@ -69,7 +69,7 @@ private:
 
 	TArray<TWeakObjectPtr<UNiagaraStackEntry>> PreviousSelection;
 
-	TSharedPtr<FUICommandList> Commands;
+	TSharedPtr<FNiagaraStackCommandContext> StackCommandContext;
 
 	bool bRefreshEntryListPending;
 	bool bUpdatingOverviewSelectionFromStackSelection;

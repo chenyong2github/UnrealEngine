@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	StatsFile.cpp: Implements stats file related functionality.
@@ -632,8 +632,15 @@ bool FStatsReadFile::PrepareLoading()
 	Stream.ReadFramesOffsets( *Reader );
 
 	// Move file pointer to the first frame or first stat packet.
-	const int64 FrameOffset0 = Stream.FramesInfo[0].FrameFileOffset;
-	Reader->Seek( FrameOffset0 );
+	if (Stream.FramesInfo.Num() > 0)
+	{
+		const int64 FrameOffset0 = Stream.FramesInfo[0].FrameFileOffset;
+		Reader->Seek( FrameOffset0 );
+	}
+	else
+	{
+		Reader->Seek(Reader->TotalSize());
+	}
 
 	const double TotalTime = FPlatformTime::Seconds() - StartTime;
 	UE_LOG( LogStats, Log, TEXT( "Prepare loading took %.2f sec(s)" ), TotalTime );

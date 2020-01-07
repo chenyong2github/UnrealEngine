@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceCurlNoise.h"
 #include "NiagaraShader.h"
@@ -332,7 +332,7 @@ void UNiagaraDataInterfaceCurlNoise::PostLoad()
 
 #if WITH_EDITOR
 
-void UNiagaraDataInterfaceCurlNoise::PreEditChange(UProperty* PropertyAboutToChange)
+void UNiagaraDataInterfaceCurlNoise::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	Super::PreEditChange(PropertyAboutToChange);
 	

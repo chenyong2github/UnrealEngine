@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/FindReferencersArchive.h"
 #include "UObject/UObjectGlobals.h"
@@ -66,11 +66,11 @@ void FFindReferencersArchive::ResetPotentialReferencer(UObject* InPotentialRefer
 				: Archive(InArchive)
 			{
 			}
-			virtual void HandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const UProperty* ReferencingProperty) override
+			virtual void HandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const FProperty* ReferencingProperty) override
 			{
 				Archive << Object;
 			}
-			virtual void HandleObjectReferences(UObject** InObjects, const int32 ObjectNum, const UObject* InReferencingObject, const UProperty* InReferencingProperty) override
+			virtual void HandleObjectReferences(UObject** InObjects, const int32 ObjectNum, const UObject* InReferencingObject, const FProperty* InReferencingProperty) override
 			{
 				for (int32 ObjectIndex = 0; ObjectIndex < ObjectNum; ++ObjectIndex)
 				{
@@ -101,7 +101,7 @@ void FFindReferencersArchive::ResetPotentialReferencer(UObject* InPotentialRefer
  * @return	the number of references to TargetObject which were encountered when PotentialReferencer
  *			was serialized.
  */
-int32 FFindReferencersArchive::GetReferenceCount( UObject* TargetObject, TArray<UProperty*>* out_ReferencingProperties/*=nullptr*/ ) const
+int32 FFindReferencersArchive::GetReferenceCount( UObject* TargetObject, TArray<FProperty*>* out_ReferencingProperties/*=nullptr*/ ) const
 {
 	int32 Result = 0;
 	if ( TargetObject != nullptr && PotentialReferencer != TargetObject )
@@ -112,7 +112,7 @@ int32 FFindReferencersArchive::GetReferenceCount( UObject* TargetObject, TArray<
 			Result = *pCount;
 			if ( out_ReferencingProperties != nullptr )
 			{
-				TArray<UProperty*> PropertiesReferencingObj;
+				TArray<FProperty*> PropertiesReferencingObj;
 				ReferenceMap.MultiFind(TargetObject, PropertiesReferencingObj);
 
 				out_ReferencingProperties->Empty(PropertiesReferencingObj.Num());
@@ -156,7 +156,7 @@ int32 FFindReferencersArchive::GetReferenceCounts( TMap<class UObject*, int32>& 
  *
  * @return	the number of objects which were referenced by PotentialReferencer.
  */
-int32 FFindReferencersArchive::GetReferenceCounts( TMap<class UObject*, int32>& out_ReferenceCounts, TMultiMap<class UObject*, class UProperty*>& out_ReferencingProperties ) const
+int32 FFindReferencersArchive::GetReferenceCounts( TMap<class UObject*, int32>& out_ReferenceCounts, TMultiMap<class UObject*, class FProperty*>& out_ReferencingProperties ) const
 {
 	GetReferenceCounts(out_ReferenceCounts);
 	if ( out_ReferenceCounts.Num() > 0 )
@@ -166,7 +166,7 @@ int32 FFindReferencersArchive::GetReferenceCounts( TMap<class UObject*, int32>& 
 		{
 			UObject* Object = It.Key();
 
-			TArray<UProperty*> PropertiesReferencingObj;
+			TArray<FProperty*> PropertiesReferencingObj;
 			ReferenceMap.MultiFind(Object, PropertiesReferencingObj);
 
 			for ( int32 PropIndex = PropertiesReferencingObj.Num() - 1; PropIndex >= 0; PropIndex-- )
@@ -189,7 +189,7 @@ FArchive& FFindReferencersArchive::operator<<( UObject*& Obj )
 		int32* pReferenceCount = TargetObjects.GetRefCountPtr(Obj);
 		if ( pReferenceCount != nullptr )
 		{
-			// if this object was serialized via a UProperty, add it to the list
+			// if this object was serialized via a FProperty, add it to the list
 			if (GetSerializedProperty() != nullptr)
 			{
 				ReferenceMap.AddUnique(Obj, GetSerializedProperty());

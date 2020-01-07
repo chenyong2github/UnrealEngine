@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	DistanceFieldShadowing.cpp
@@ -788,8 +788,16 @@ void CullDistanceFieldObjectsForLight(
 	if (LightSceneProxy->GetLightType() == LightType_Directional && GShadowScatterTileCulling)
 	{
 		const bool b16BitObjectIndices = Scene->DistanceFieldSceneData.CanUse16BitObjectIndices();
+		bool bLightDimensionsDirty = false;
 
-		if (!TileIntersectionResources || TileIntersectionResources->TileDimensions != LightTileDimensions || TileIntersectionResources->b16BitIndices != b16BitObjectIndices)
+		if (TileIntersectionResources)
+		{
+			FIntPoint AlignedLightDimensions = FLightTileIntersectionResources::GetAlignedDimensions(LightTileDimensions);
+			FIntPoint CurrentAlignedLightDimensions = FLightTileIntersectionResources::GetAlignedDimensions(TileIntersectionResources->TileDimensions);
+			bLightDimensionsDirty = AlignedLightDimensions.X > CurrentAlignedLightDimensions.X || AlignedLightDimensions.Y > CurrentAlignedLightDimensions.Y;
+		}
+		
+		if (!TileIntersectionResources || bLightDimensionsDirty || TileIntersectionResources->b16BitIndices != b16BitObjectIndices)
 		{
 			if (TileIntersectionResources)
 			{

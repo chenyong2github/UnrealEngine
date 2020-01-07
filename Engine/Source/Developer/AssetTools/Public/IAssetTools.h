@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -22,6 +22,8 @@ class IClassTypeActions;
 class UFactory;
 class UAssetImportTask;
 class UAdvancedCopyCustomization;
+class FBlacklistNames;
+class FBlacklistPaths;
 
 USTRUCT(BlueprintType)
 struct FAssetRenameData
@@ -220,6 +222,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
 	virtual UObject* DuplicateAssetWithDialog(const FString& AssetName, const FString& PackagePath, UObject* OriginalObject) = 0;
 
+	/** Opens an asset picker dialog and creates an asset with the specified name and path. 
+	 * Uses OriginalObject as the duplication source.
+	 * Uses DialogTitle as the dialog's title.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
+	virtual UObject* DuplicateAssetWithDialogAndTitle(const FString& AssetName, const FString& PackagePath, UObject* OriginalObject, FText DialogTitle) = 0;
+
 	/** Creates an asset with the specified name and path. Uses OriginalObject as the duplication source. */
 	UFUNCTION(BlueprintCallable, Category="Editor Scripting | Asset Tools")
 	virtual UObject* DuplicateAsset(const FString& AssetName, const FString& PackagePath, UObject* OriginalObject) = 0;
@@ -410,6 +419,12 @@ public:
 
 	/** Find all supported asset factories. */
 	virtual TArray<UFactory*> GetNewAssetFactories() const = 0;
+
+	/** Get asset class blacklist for content browser and other systems */
+	virtual TSharedRef<FBlacklistNames>& GetAssetClassBlacklist() = 0;
+
+	/** Get folder blacklist for content browser and other systems */
+	virtual TSharedRef<FBlacklistPaths>& GetFolderBlacklist() = 0;
 };
 
 UCLASS(transient)

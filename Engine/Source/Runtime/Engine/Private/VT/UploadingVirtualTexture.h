@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -86,4 +86,6 @@ private:
 	TArray< TUniquePtr<FVirtualTextureCodec> > CodecPerChunk;
 	TBitArray<> InvalidChunks; // marks chunks that failed to load
 	int32 FirstMipOffset;
+
+	struct FVirtualTextureChunkStreamingManager* StreamingManager;
 };

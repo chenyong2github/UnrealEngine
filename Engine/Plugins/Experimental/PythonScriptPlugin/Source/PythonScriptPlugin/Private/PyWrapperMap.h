@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -21,7 +21,7 @@ struct FPyWrapperMap : public FPyWrapperBase
 	FPyWrapperOwnerContext OwnerContext;
 
 	/** Property describing the map */
-	const UMapProperty* MapProp;
+	PyUtil::FConstMapPropOnScope MapProp;
 
 	/** Wrapped map instance */
 	void* MapInstance;
@@ -36,7 +36,7 @@ struct FPyWrapperMap : public FPyWrapperBase
 	static int Init(FPyWrapperMap* InSelf, const PyUtil::FPropertyDef& InKeyDef, const PyUtil::FPropertyDef& InValueDef);
 
 	/** Initialize this wrapper instance to the given value (called via tp_init for Python, or directly in C++) */
-	static int Init(FPyWrapperMap* InSelf, const FPyWrapperOwnerContext& InOwnerContext, const UMapProperty* InProp, void* InValue, const EPyConversionMethod InConversionMethod);
+	static int Init(FPyWrapperMap* InSelf, const FPyWrapperOwnerContext& InOwnerContext, const FMapProperty* InProp, void* InValue, const EPyConversionMethod InConversionMethod);
 
 	/** Deinitialize this wrapper instance (called via Init and Free to restore the instance to its New state) */
 	static void Deinit(FPyWrapperMap* InSelf);

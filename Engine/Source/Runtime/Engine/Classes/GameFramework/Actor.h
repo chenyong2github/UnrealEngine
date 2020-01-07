@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -377,7 +377,7 @@ private:
 	UPROPERTY()
 	uint8 bActorEnableCollision:1;
 
-	/** Set when actor is about to be deleted. Needs to be a UProperty so it is included in transactions. */
+	/** Set when actor is about to be deleted. Needs to be a FProperty so it is included in transactions. */
 	UPROPERTY(Transient, DuplicateTransient)
 	uint8 bActorIsBeingDestroyed:1;
 
@@ -1619,7 +1619,7 @@ public:
 #if WITH_EDITOR
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 	virtual bool NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const;
-	virtual void PreEditChange(UProperty* PropertyThatWillChange) override;
+	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PreEditUndo() override;
 	virtual void PostEditUndo() override;
@@ -3016,7 +3016,7 @@ private:
 
 #if WITH_EDITOR
 	/** Maps natively-constructed components to properties that reference them. */
-	TMultiMap<FName, UObjectProperty*> NativeConstructedComponentToPropertyMap;
+	TMultiMap<FName, FObjectProperty*> NativeConstructedComponentToPropertyMap;
 #endif
 
 	/** Array of ActorComponents that have been added by the user on a per-instance basis. */

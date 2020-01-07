@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	LandscapeBlueprintSupport.cpp: Landscape blueprint functions
@@ -86,7 +86,7 @@ void ALandscapeProxy::EditorSetLandscapeMaterial(UMaterialInterface* NewLandscap
 	if (!GetWorld()->IsGameWorld())
 	{
 		LandscapeMaterial = NewLandscapeMaterial;
-		FPropertyChangedEvent PropertyChangedEvent(FindFieldChecked<UProperty>(GetClass(), FName("LandscapeMaterial")));
+		FPropertyChangedEvent PropertyChangedEvent(FindFieldChecked<FProperty>(GetClass(), FName("LandscapeMaterial")));
 		PostEditChangeProperty(PropertyChangedEvent);
 	}
 #endif

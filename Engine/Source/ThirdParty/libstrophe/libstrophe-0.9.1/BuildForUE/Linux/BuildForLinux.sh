@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+# Copyright Epic Games, Inc. All Rights Reserved.
 
 ARCH=x86_64-unknown-linux-gnu
 #ARCH=aarch64-unknown-linux-gnueabi

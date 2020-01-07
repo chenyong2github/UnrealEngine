@@ -1,9 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Misc/EnumClassFlags.h"
+#include "UObject/Field.h"
 
 /**
  * Flags controlling the behavior of struct serializer backends.
@@ -46,16 +47,19 @@ struct FStructSerializerState
 	const void* KeyData = nullptr;
 
 	/** Holds the key property's meta data (only used for TMap). */
-	UProperty* KeyProperty = nullptr;
+	FProperty* KeyProperty = nullptr;
 
 	/** Holds a pointer to the property value's data. */
 	const void* ValueData = nullptr;
 
 	/** Holds the property value's meta data. */
-	UProperty* ValueProperty = nullptr;
+	FProperty* ValueProperty = nullptr;
 
 	/** Holds a pointer to the UStruct describing the data. */
 	UStruct* ValueType = nullptr;
+
+	/** Holds a pointer to the field type describing the data. */
+	FFieldClass* FieldType = nullptr;
 };
 
 

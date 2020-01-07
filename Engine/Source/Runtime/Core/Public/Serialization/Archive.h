@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -24,12 +24,13 @@ class FString;
 class FText;
 class ITargetPlatform;
 class UObject;
-class UProperty;
+class FProperty;
 struct FUntypedBulkData;
 struct FArchiveSerializedPropertyChain;
 template<class TEnum> class TEnumAsByte;
 typedef TFunction<bool (double RemainingTime)> FExternalReadCallback;
 struct FUObjectSerializeContext;
+class FField;
 
 // Temporary while we shake out the EDL at boot
 #define USE_EVENT_DRIVEN_ASYNC_LOAD_AT_BOOT_TIME (1)
@@ -492,7 +493,7 @@ public:
 	/**
 	 * Checks whether the archive wants to skip the property independent of the other flags
 	 */
-	virtual bool ShouldSkipProperty(const UProperty* InProperty) const
+	virtual bool ShouldSkipProperty(const FProperty* InProperty) const
 	{
 		return false;
 	}
@@ -503,7 +504,7 @@ public:
 	 *
 	 * @param InProperty Pointer to the property that is currently being serialized
 	 */
-	virtual void SetSerializedProperty(UProperty* InProperty)
+	virtual void SetSerializedProperty(FProperty* InProperty)
 	{
 		SerializedProperty = InProperty;
 	}
@@ -513,7 +514,7 @@ public:
 	 *
 	 * @return Pointer to the property that is currently being serialized
 	 */
-	FORCEINLINE class UProperty* GetSerializedProperty() const
+	FORCEINLINE class FProperty* GetSerializedProperty() const
 	{
 		return SerializedProperty;
 	}
@@ -522,7 +523,7 @@ public:
 	 * Gets the chain of properties that are currently being serialized
 	 * @note This populates the array in stack order, so the 0th entry in the array is the top of the stack of properties
 	 */
-	void GetSerializedPropertyChain(TArray<class UProperty*>& OutProperties) const;
+	void GetSerializedPropertyChain(TArray<class FProperty*>& OutProperties) const;
 
 	/**
 	 * Get the raw serialized property chain for this archive
@@ -536,7 +537,7 @@ public:
 	/**
 	 * Set the raw serialized property chain for this archive, optionally overriding the serialized property too (or null to use the head of the property chain)
 	 */
-	virtual void SetSerializedPropertyChain(const FArchiveSerializedPropertyChain* InSerializedPropertyChain, class UProperty* InSerializedPropertyOverride = nullptr);
+	virtual void SetSerializedPropertyChain(const FArchiveSerializedPropertyChain* InSerializedPropertyChain, class FProperty* InSerializedPropertyOverride = nullptr);
 
 #if WITH_EDITORONLY_DATA
 	/** Returns true if the stack of currently serialized properties contains an editor-only property */
@@ -818,7 +819,7 @@ protected:
 	const ITargetPlatform* CookingTargetPlatform;
 
 	/** Holds the pointer to the property that is currently being serialized */
-	UProperty* SerializedProperty;
+	FProperty* SerializedProperty;
 
 	/** Holds the chain of properties that are currently being serialized */
 	FArchiveSerializedPropertyChain* SerializedPropertyChain;
@@ -975,6 +976,19 @@ public:
 	 * @return This instance.
 	 */
 	virtual FArchive& operator<<(UObject*& Value)
+	{
+		return *this;
+	}
+
+	/**
+	 * Serializes a Field value from or into this archive.
+	 *
+	 * This operator can be implemented by sub-classes that wish to serialize UObject instances.
+	 *
+	 * @param Value The value to serialize.
+	 * @return This instance.
+	 */
+	virtual FArchive& operator<<(FField*& Value)
 	{
 		return *this;
 	}
@@ -1649,17 +1663,17 @@ public:
 	 * Push a property that is currently being serialized onto the property stack
 	 * 
 	 * @param InProperty			Pointer to the property that is currently being serialized
-	 * @param bIsEditorOnlyProperty True if the property is editor only (call UProperty::IsEditorOnlyProperty to work this out, as the archive can't since it can't access CoreUObject types)
+	 * @param bIsEditorOnlyProperty True if the property is editor only (call FProperty::IsEditorOnlyProperty to work this out, as the archive can't since it can't access CoreUObject types)
 	 */
-	virtual void PushSerializedProperty(class UProperty* InProperty, const bool bIsEditorOnlyProperty);
+	virtual void PushSerializedProperty(class FProperty* InProperty, const bool bIsEditorOnlyProperty);
 
 	/**
 	 * Pop a property that was previously being serialized off the property stack
 	 * 
 	 * @param InProperty			Pointer to the property that was previously being serialized
-	 * @param bIsEditorOnlyProperty True if the property is editor only (call UProperty::IsEditorOnlyProperty to work this out, as the archive can't since it can't access CoreUObject types)
+	 * @param bIsEditorOnlyProperty True if the property is editor only (call FProperty::IsEditorOnlyProperty to work this out, as the archive can't since it can't access CoreUObject types)
 	 */
-	virtual void PopSerializedProperty(class UProperty* InProperty, const bool bIsEditorOnlyProperty);
+	virtual void PopSerializedProperty(class FProperty* InProperty, const bool bIsEditorOnlyProperty);
 
 #if WITH_EDITORONLY_DATA
 	using FArchiveState::IsEditorOnlyPropertyOnTheStack;
@@ -1668,7 +1682,7 @@ public:
 	using FArchiveState::SetSerializeContext;
 	using FArchiveState::GetSerializeContext;
 
-	/** 
+	/**
 	 * Adds external read dependency 
 	 *
 	 * @return true if dependency has been added, false if Archive does not support them

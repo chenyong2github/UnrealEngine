@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MinimalClient.h"
 
@@ -666,8 +666,8 @@ bool UMinimalClient::ConnectMinimalClient()
 		{
 			// Replace the package map class
 			TSubclassOf<UPackageMap> OldClass = DefConn->PackageMapClass;
-			UProperty* OldPostConstructLink = NetConnClass->PostConstructLink;
-			UProperty* PackageMapProp = FindFieldChecked<UProperty>(NetConnClass, TEXT("PackageMapClass"));
+			FProperty* OldPostConstructLink = NetConnClass->PostConstructLink;
+			FProperty* PackageMapProp = FindFieldChecked<FProperty>(NetConnClass, TEXT("PackageMapClass"));
 
 			// Hack - force property initialization for the PackageMapClass property, so changing its default value works.
 			check(PackageMapProp != nullptr && PackageMapProp->PostConstructLinkNext == nullptr);

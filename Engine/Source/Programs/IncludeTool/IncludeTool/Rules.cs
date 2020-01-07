@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using IncludeTool.Support;
 using System;
@@ -442,7 +442,11 @@ namespace IncludeTool
 			}
 			if(NormalizedPath.IndexOf("/intermediate/") != -1)
 			{
-				if(NormalizedPath.EndsWith(".generated.h"))
+				if (NormalizedPath.EndsWith("ispc.generated.h"))
+				{
+					Flags |= SourceFileFlags.GeneratedHeader | SourceFileFlags.Public;
+				}
+				else if (NormalizedPath.EndsWith(".generated.h"))
 				{
 					Flags |= SourceFileFlags.GeneratedHeader | SourceFileFlags.Inline | SourceFileFlags.Public;
 				}
@@ -461,7 +465,12 @@ namespace IncludeTool
 				Flags |= SourceFileFlags.FwdHeader;
 			}
 
-			if(PinnedFileNames.Contains(NormalizedPath))
+			if(NormalizedPath.EndsWith("defineupropertymacros.h"))
+			{
+				Flags |= SourceFileFlags.Inline;
+			}
+
+			if (PinnedFileNames.Contains(NormalizedPath))
 			{
 				Flags = (Flags | SourceFileFlags.Pinned) & ~SourceFileFlags.Standalone;
 			}

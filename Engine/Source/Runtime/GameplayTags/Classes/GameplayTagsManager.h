@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -493,16 +493,16 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 	void GetOwnersForTagSource(const FString& SourceName, TArray<FString>& OutOwners) const;
 
 	/** Notification that a tag container has been loaded via serialize */
-	void GameplayTagContainerLoaded(FGameplayTagContainer& Container, UProperty* SerializingProperty) const;
+	void GameplayTagContainerLoaded(FGameplayTagContainer& Container, FProperty* SerializingProperty) const;
 
 	/** Notification that a gameplay tag has been loaded via serialize */
-	void SingleGameplayTagLoaded(FGameplayTag& Tag, UProperty* SerializingProperty) const;
+	void SingleGameplayTagLoaded(FGameplayTag& Tag, FProperty* SerializingProperty) const;
 
 	/** Handles redirectors for an entire container, will also error on invalid tags */
-	void RedirectTagsForContainer(FGameplayTagContainer& Container, UProperty* SerializingProperty) const;
+	void RedirectTagsForContainer(FGameplayTagContainer& Container, FProperty* SerializingProperty) const;
 
 	/** Handles redirectors for a single tag, will also error on invalid tag. This is only called for when individual tags are serialized on their own */
-	void RedirectSingleGameplayTag(FGameplayTag& Tag, UProperty* SerializingProperty) const;
+	void RedirectSingleGameplayTag(FGameplayTag& Tag, FProperty* SerializingProperty) const;
 
 	/** Handles establishing a single tag from an imported tag name (accounts for redirects too). Called when tags are imported via text. */
 	bool ImportSingleGameplayTag(FGameplayTag& Tag, FName ImportedTagName) const;
@@ -541,7 +541,16 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 	static FString StaticGetCategoriesMetaFromPropertyHandle(TSharedPtr<class IPropertyHandle> PropertyHandle);
 
 	/** Returns "Categories" meta property from given field, used for filtering by tag widget */
-	FString GetCategoriesMetaFromField(UField* Field) const;
+	template <typename TFieldType>
+	FString GetCategoriesMetaFromField(TFieldType* Field) const
+	{
+		check(Field);
+		if (Field->HasMetaData(NAME_Categories))
+		{
+			return Field->GetMetaData(NAME_Categories);
+		}
+		return FString();
+	}
 
 	/** Returns "Categories" meta property from given struct, used for filtering by tag widget */
 	UE_DEPRECATED(4.22, "Please call GetCategoriesMetaFromField instead.")
@@ -741,4 +750,7 @@ private:
 
 	/** The map of ini-configured tag redirectors */
 	TMap<FName, FGameplayTag> TagRedirects;
+
+	const static FName NAME_Categories;
+	const static FName NAME_GameplayTagFilter;
 };

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ModuleDescriptor.h"
 #include "Misc/App.h"
@@ -411,6 +411,7 @@ bool FModuleDescriptor::IsCompiledInConfiguration(const FString& Platform, EBuil
     case EHostType::ServerOnly:
         return TargetType != EBuildTargetType::Program && TargetType != EBuildTargetType::Client;
     case EHostType::ClientOnly:
+	case EHostType::ClientOnlyNoCommandlet:
         return TargetType != EBuildTargetType::Program && TargetType != EBuildTargetType::Server;
     }
 

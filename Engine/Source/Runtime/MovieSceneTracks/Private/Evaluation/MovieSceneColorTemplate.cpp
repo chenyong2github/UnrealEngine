@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Evaluation/MovieSceneColorTemplate.h"
 #include "Sections/MovieSceneColorSection.h"
@@ -114,7 +114,7 @@ private:
 			return true;
 		}
 
-		const UStructProperty* StructProp = Cast<const UStructProperty>(Bindings.GetProperty(InObject));
+		const FStructProperty* StructProp = CastField<const FStructProperty>(Bindings.GetProperty(InObject));
 		if (!StructProp || !StructProp->Struct)
 		{
 			return false;

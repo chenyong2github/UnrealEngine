@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 /*=============================================================================
@@ -910,6 +910,8 @@ public:
 	void UpdateActorChannelCloseFrameNum(AActor* Actor, FConnectionReplicationActorInfo& ConnectionData, const FGlobalActorReplicationInfo& GlobalData, const uint32 FrameNum, UNetConnection* NetConnection) const;
 
 	void NotifyConnectionSaturated(class UNetReplicationGraphConnection& Connection);
+
+	void SetActorDestructionInfoToIgnoreDistanceCulling(AActor* DestroyedActor);
 
 	uint16 GetReplicationPeriodFrameForFrequency(float NetUpdateFrequency) const
 	{

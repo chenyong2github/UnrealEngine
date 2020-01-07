@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -499,7 +499,7 @@ public:
 
 	static bool IsBuiltInHlslType(FNiagaraTypeDefinition Type);
 	static FString GetStructHlslTypeName(FNiagaraTypeDefinition Type);
-	static FString GetPropertyHlslTypeName(const UProperty* Property);
+	static FString GetPropertyHlslTypeName(const FProperty* Property);
 	static FString BuildHLSLStructDecl(FNiagaraTypeDefinition Type, FText& OutErrorMessage);
 	static FString GetHlslDefaultForType(FNiagaraTypeDefinition Type);
 	static bool IsHlslBuiltinVector(FNiagaraTypeDefinition Type);

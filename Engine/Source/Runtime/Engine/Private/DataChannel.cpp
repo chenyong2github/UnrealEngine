@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	DataChannel.cpp: Unreal datachannel implementation.
@@ -184,10 +184,10 @@ void UChannel::ConditionalCleanUp( const bool bForDestroy, EChannelCloseReason C
 
 			// If we were not added to a pool, mark pending kill and allow the channel to GC
 			if (!bPooled)
-			{
-				MarkPendingKill();
-			}
+		{
+			MarkPendingKill();
 		}
+	}
 	}
 }
 
@@ -949,10 +949,10 @@ FPacketIdRange UChannel::SendBunch( FOutBunch* Bunch, bool Merge )
 		}
 		
 		if (bOpenBunch)
-		{
-			Bunch->bOpen = 1;
-			OpenTemporary = !Bunch->bReliable;
-		}
+	{
+		Bunch->bOpen = 1;
+		OpenTemporary = !Bunch->bReliable;
+	}
 	}
 
 	// If channel was opened temporarily, we are never allowed to send reliable packets on it.
@@ -1360,7 +1360,7 @@ void UControlChannel::Init( UNetConnection* InConnection, int32 InChannelIndex, 
 
 	// If we are opened as a server connection, do the endian checking
 	// The client assumes that the data will always have the correct byte order
-	// Mark this channel as needing endianess determination
+		// Mark this channel as needing endianess determination
 	bNeedsEndianInspection = !EnumHasAnyFlags(CreateFlags, EChannelCreateFlags::OpenedLocally);
 }
 
@@ -1773,21 +1773,21 @@ int64 UActorChannel::Close(EChannelCloseReason Reason)
 			if ((Reason == EChannelCloseReason::Dormancy) && !Connection->InternalAck) // Replay connections always keep dormant channels open and handle this logic elsewhere
 			{
 				if (Connection->Driver)
+			{
+				if (!Connection->Driver->IsServer())
 				{
-					if (!Connection->Driver->IsServer())
-					{
-						Actor->NetDormancy = DORM_DormantAll;
-					}
-
-					check( Actor->NetDormancy > DORM_Awake ); // Dormancy should have been canceled if game code changed NetDormancy
-					Connection->Driver->NotifyActorFullyDormantForConnection(Actor, Connection);
+					Actor->NetDormancy = DORM_DormantAll;
 				}
 
-				// Validation checking
-				bKeepReplicators = (GNetDormancyValidate > 0);		// We need to keep the replicators around so we can use
+				check( Actor->NetDormancy > DORM_Awake ); // Dormancy should have been canceled if game code changed NetDormancy
+				Connection->Driver->NotifyActorFullyDormantForConnection(Actor, Connection);
 			}
 
-			// SetClosingFlag() might have already done this, but we need to make sure as that won't get called if the connection itself has already been closed
+			// Validation checking
+				bKeepReplicators = (GNetDormancyValidate > 0);		// We need to keep the replicators around so we can use
+		}
+
+		// SetClosingFlag() might have already done this, but we need to make sure as that won't get called if the connection itself has already been closed
 			Connection->RemoveActorChannel( Actor );
 		}
 
@@ -2188,7 +2188,7 @@ void UActorChannel::NotifyActorChannelOpen(AActor* InActor, FInBunch& InBunch)
 		for (FNamedNetDriver& Driver : Context->ActiveNetDrivers)
 		{
 			if (Driver.NetDriver != nullptr)
-			{
+	{
 				Driver.NetDriver->NotifyActorChannelOpen(this, InActor);
 			}
 		}
@@ -2237,26 +2237,26 @@ int64 UActorChannel::SetChannelActorForDestroy( FActorDestructionInfo *DestructI
 		if (UObject* ObjOuter = DestructInfo->ObjOuter.Get())
 		{
 
-			// Send a close notify, and wait for ack.
-			FOutBunch CloseBunch( this, 1 );
-			check(!CloseBunch.IsError());
-			check(CloseBunch.bClose);
-			CloseBunch.bReliable = 1;
+		// Send a close notify, and wait for ack.
+		FOutBunch CloseBunch( this, 1 );
+		check(!CloseBunch.IsError());
+		check(CloseBunch.bClose);
+		CloseBunch.bReliable = 1;
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			CloseBunch.bDormant = 0;
+		CloseBunch.bDormant = 0;
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			CloseBunch.CloseReason = DestructInfo->Reason;
 
-			// Serialize DestructInfo
-			NET_CHECKSUM(CloseBunch); // This is to mirror the Checksum in UPackageMapClient::SerializeNewActor
+		// Serialize DestructInfo
+		NET_CHECKSUM(CloseBunch); // This is to mirror the Checksum in UPackageMapClient::SerializeNewActor
 			Connection->PackageMap->WriteObject( CloseBunch, ObjOuter, DestructInfo->NetGUID, DestructInfo->PathName );
 
-			UE_LOG(LogNetTraffic, Log, TEXT("SetChannelActorForDestroy: Channel %d. NetGUID <%s> Path: %s. Bits: %d"), ChIndex, *DestructInfo->NetGUID.ToString(), *DestructInfo->PathName, CloseBunch.GetNumBits() );
-			UE_LOG(LogNetDormancy, Verbose, TEXT("SetChannelActorForDestroy: Channel %d. NetGUID <%s> Path: %s. Bits: %d"), ChIndex, *DestructInfo->NetGUID.ToString(), *DestructInfo->PathName, CloseBunch.GetNumBits() );
+		UE_LOG(LogNetTraffic, Log, TEXT("SetChannelActorForDestroy: Channel %d. NetGUID <%s> Path: %s. Bits: %d"), ChIndex, *DestructInfo->NetGUID.ToString(), *DestructInfo->PathName, CloseBunch.GetNumBits() );
+		UE_LOG(LogNetDormancy, Verbose, TEXT("SetChannelActorForDestroy: Channel %d. NetGUID <%s> Path: %s. Bits: %d"), ChIndex, *DestructInfo->NetGUID.ToString(), *DestructInfo->PathName, CloseBunch.GetNumBits() );
 
-			SendBunch( &CloseBunch, 0 );
-			NumBits = CloseBunch.GetNumBits();
-		}
+		SendBunch( &CloseBunch, 0 );
+		NumBits = CloseBunch.GetNumBits();
+	}
 	}
 
 	return NumBits;
@@ -2443,8 +2443,8 @@ void UActorChannel::ReceivedBunch( FInBunch & Bunch )
 					{
 						PendingGuidResolves.Add(NetGUID);
 
-						// Start ticking this channel so that we try to resolve the pending GUID
-						Connection->StartTickingChannel(this);
+					// Start ticking this channel so that we try to resolve the pending GUID
+					Connection->StartTickingChannel(this);
 
 						// We know we're going to be queuing bunches and will need to track this object,
 						// so don't bother throwing it in the array, and just track it immediately.
@@ -2915,7 +2915,7 @@ int64 UActorChannel::ReplicateActor()
 		}
 		else
 		{
-			RepFlags.bNetInitial = true;
+		RepFlags.bNetInitial = true;
 		}
 
 		Bunch.bClose = Actor->bNetTemporary;
@@ -2955,7 +2955,7 @@ int64 UActorChannel::ReplicateActor()
 
 	UE_LOG(LogNetTraffic, Log, TEXT("Replicate %s, bNetInitial: %d, bNetOwner: %d"), *Actor->GetName(), RepFlags.bNetInitial, RepFlags.bNetOwner);
 
-	FMemMark MemMark(FMemStack::Get()); // The calls to ReplicateProperties will allocate memory on FMemStack::Get(), and use it in ::PostSendBunch. we free it below
+	FMemMark	MemMark(FMemStack::Get());	// The calls to ReplicateProperties will allocate memory on FMemStack::Get(), and use it in ::PostSendBunch. we free it below
 
 	// ----------------------------------------------------------
 	// Replicate Actor and Component properties and RPCs
@@ -2996,12 +2996,12 @@ int64 UActorChannel::ReplicateActor()
 			if (!LocalReplicator->GetWeakObjectPtr().IsValid())
 			{
 				if (LocalReplicator->ObjectNetGUID.IsValid())
-				{
-					// Write a deletion content header:
+			{
+				// Write a deletion content header:
 					WriteContentBlockForSubObjectDelete(Bunch, LocalReplicator->ObjectNetGUID);
 
-					WroteSomethingImportant = true;
-					Bunch.bReliable = true;
+				WroteSomethingImportant = true;
+				Bunch.bReliable = true;
 				}
 				else
 				{
@@ -3058,15 +3058,15 @@ int64 UActorChannel::ReplicateActor()
 
 					if (UE_LOG_ACTIVE(LogNetTraffic, Verbose))
 					{
-						FString VerboseString;
-						for (auto KeyIt = PendingObjKeys.CreateIterator(); KeyIt; ++KeyIt)
-						{
-							VerboseString += FString::Printf(TEXT(" %d"), *KeyIt);
-						}
-
-						UE_LOG(LogNetTraffic, Verbose, TEXT("ActorChannel[%d]: Sending ObjKeys: %s"), ChIndex, *VerboseString);
+					FString VerboseString;
+					for (auto KeyIt = PendingObjKeys.CreateIterator(); KeyIt; ++KeyIt)
+					{
+						VerboseString += FString::Printf(TEXT(" %d"), *KeyIt);
 					}
+
+					UE_LOG(LogNetTraffic, Verbose, TEXT("ActorChannel[%d]: Sending ObjKeys: %s"), ChIndex, *VerboseString);
 				}
+			}
 			}
 
 			if (Actor->bNetTemporary)
@@ -3126,7 +3126,7 @@ void UActorChannel::Serialize(FArchive& Ar)
 
 			// ObjectReplicators are going to be counted by UNetDriver::Serialize AllOwnedReplicators.
 		);
-		
+	
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("QueudBunches",	
 			QueuedBunches.CountBytes(Ar);
 			for (const FInBunch* Bunch : QueuedBunches)
@@ -3146,7 +3146,7 @@ void UActorChannel::Serialize(FArchive& Ar)
 			for (const FOutBunch* Bunch : QueuedExportBunches)
 			{
 				if (Bunch)
-				{
+	{
 					Bunch->CountMemory(Ar);
 				}
 			}
@@ -3157,9 +3157,9 @@ void UActorChannel::Serialize(FArchive& Ar)
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("SubobjectNakMap",
 			SubobjectNakMap.CountBytes(Ar);
 			for (const auto& NakMapPair : SubobjectNakMap)
-			{
+		{
 				NakMapPair.Value.ObjKeys.CountBytes(Ar);
-			}
+		}
 		);
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PendingObjKeys", PendingObjKeys.CountBytes(Ar));
@@ -3537,8 +3537,8 @@ UObject* UActorChannel::ReadContentBlockHeader( FInBunch & Bunch, bool& bObjectD
 		// Add this sub-object to the ImportedNetGuids list so we can possibly map this object if needed
 		if (ensureMsgf(NetGUID.IsValid(), TEXT("Channel tried to add an invalid GUID to the import list: %s"), *Describe()))
 		{
-			Connection->Driver->GuidCache->ImportedNetGuids.Add( NetGUID );
-		}
+		Connection->Driver->GuidCache->ImportedNetGuids.Add( NetGUID );
+	}
 	}
 
 	return SubObj;
@@ -3699,7 +3699,7 @@ bool UActorChannel::ReadFieldHeaderAndPayload( UObject* Object, const FClassNetC
 
 	if ( Bunch.IsError() )
 	{
-		UE_LOG( LogNet, Error, TEXT( "ReadFieldHeaderAndPayload: Error reading numbits. Object: %s, OutField: %s" ), *Object->GetFullName(), ( *OutField && (*OutField)->Field ) ? *(*OutField)->Field->GetName() : TEXT( "NULL" ) );
+		UE_LOG( LogNet, Error, TEXT( "ReadFieldHeaderAndPayload: Error reading numbits. Object: %s, OutField: %s" ), *Object->GetFullName(), ( *OutField && (*OutField)->Field ) ? *(*OutField)->Field.GetName() : TEXT( "NULL" ) );
 		return false;
 	}
 
@@ -3707,7 +3707,7 @@ bool UActorChannel::ReadFieldHeaderAndPayload( UObject* Object, const FClassNetC
 
 	if ( Bunch.IsError() )
 	{
-		UE_LOG( LogNet, Error, TEXT( "ReadFieldHeaderAndPayload: Error reading payload. Object: %s, OutField: %s" ), *Object->GetFullName(), ( *OutField && (*OutField)->Field ) ? *(*OutField)->Field->GetName() : TEXT( "NULL" ) );
+		UE_LOG( LogNet, Error, TEXT( "ReadFieldHeaderAndPayload: Error reading payload. Object: %s, OutField: %s" ), *Object->GetFullName(), ( *OutField && (*OutField)->Field ) ? *(*OutField)->Field.GetName() : TEXT( "NULL" ) );
 		return false;
 	}
 
@@ -3755,18 +3755,18 @@ FNetFieldExportGroup* UActorChannel::GetOrCreateNetFieldExportGroupForClassNetCa
 
 			for ( int32 i = 0; i < Fields.Num(); i++ )
 			{
-				UField* Field = Fields[i].Field;
-				UProperty* Property = Cast< UProperty >( Field );
+				FFieldVariant Field = Fields[i].Field;
+				FProperty* Property = CastField< FProperty >( Field.ToField() );
 
 				const bool bIsCustomDeltaProperty	= Property && IsCustomDeltaProperty( Property );
-				const bool bIsFunction				= Cast< UFunction >( Field ) != nullptr;
+				const bool bIsFunction				= Cast< UFunction >( Field.ToUObject() ) != nullptr;
 
 				if ( !bIsCustomDeltaProperty && !bIsFunction )
 				{
 					continue;	// We only care about net fields that aren't in a rep layout
 				}
 
-				NetFieldExportGroup->NetFieldExports.Emplace( CurrentHandle++, Fields[i].FieldChecksum, Field ? Field->GetFName() : NAME_None );
+				NetFieldExportGroup->NetFieldExports.Emplace( CurrentHandle++, Fields[i].FieldChecksum, Field.GetFName() );
 			}
 		}
 

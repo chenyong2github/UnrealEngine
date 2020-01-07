@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraShader.h"
 #include "NiagaraShared.h"
@@ -907,14 +907,14 @@ void FNiagaraShaderMap::Compile(
 			// Mark as not having been compiled
 			bCompiledSuccessfully = false;
   
-			GNiagaraShaderCompilationManager.AddJobs(NewJobs);
+			FNiagaraShaderCompilationManager::Get().AddJobs(NewJobs);
   
 			// Compile the shaders for this shader map now if not deferring and deferred compiles are not enabled globally
 			if (bSynchronousCompile)
 			{
 				TArray<int32> CurrentShaderMapId;
 				CurrentShaderMapId.Add(CompilingId);
-				GNiagaraShaderCompilationManager.FinishCompilation(*FriendlyName, CurrentShaderMapId);
+				FNiagaraShaderCompilationManager::Get().FinishCompilation(*FriendlyName, CurrentShaderMapId);
 			}
 		}
 	}
@@ -1308,6 +1308,9 @@ void FNiagaraShader::BindParams(const FShaderParameterMap &ParameterMap)
 	InstanceCountsParam.Bind(ParameterMap, TEXT("InstanceCounts"));
 	ReadInstanceCountOffsetParam.Bind(ParameterMap, TEXT("ReadInstanceCountOffset"));
 	WriteInstanceCountOffsetParam.Bind(ParameterMap, TEXT("WriteInstanceCountOffset"));
+
+	FreeIDBufferParam.Bind(ParameterMap, TEXT("FreeIDList"));
+	IDToIndexBufferParam.Bind(ParameterMap, TEXT("IDToIndexTable"));
 	
 	SimStartParam.Bind(ParameterMap, TEXT("SimStart"));
 	EmitterTickCounterParam.Bind(ParameterMap, TEXT("EmitterTickCounter"));
@@ -1380,6 +1383,9 @@ bool FNiagaraShader::Serialize(FArchive& Ar)
 	Ar << InstanceCountsParam;
 	Ar << ReadInstanceCountOffsetParam;
 	Ar << WriteInstanceCountOffsetParam;
+
+	Ar << FreeIDBufferParam;
+	Ar << IDToIndexBufferParam;
 
 	Ar << SimStartParam;
 	Ar << EmitterTickCounterParam;

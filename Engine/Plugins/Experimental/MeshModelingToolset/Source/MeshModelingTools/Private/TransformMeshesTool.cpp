@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TransformMeshesTool.h"
 #include "InteractiveToolManager.h"
@@ -126,7 +126,7 @@ void UTransformMeshesTool::Render(IToolsContextRenderAPI* RenderAPI)
 	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 }
 
-void UTransformMeshesTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UTransformMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 }
 

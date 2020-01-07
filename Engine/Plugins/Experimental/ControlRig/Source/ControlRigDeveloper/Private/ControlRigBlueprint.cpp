@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRigBlueprint.h"
 #include "ControlRigBlueprintGeneratedClass.h"
@@ -412,7 +412,7 @@ void UControlRigBlueprint::HandleModelModified(const UControlRigModel* InModel, 
 
 					if (Node->IsParameter())
 					{
-						UProperty* Property = GeneratedClass->FindPropertyByName(Node->Name);
+						FProperty* Property = GeneratedClass->FindPropertyByName(Node->Name);
 						if (Property != nullptr)
 						{
 							EControlRigModelParameterType WasParameterType = EControlRigModelParameterType::Hidden;

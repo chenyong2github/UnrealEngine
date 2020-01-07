@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once 
 
@@ -157,5 +157,10 @@ CORE_API TArray<FString> GetLocalizedCultureNames(const TArray<FString>& InLocal
  * Get the array of localization targets that have been disabled for the current configuration.
  */
 CORE_API const TArray<FString>& GetDisabledLocalizationTargets();
+
+/**
+ * Get the name that the given localization target should have for the given chunk ID.
+ */
+CORE_API FString GetLocalizationTargetNameForChunkId(const FString& InLocalizationTargetName, const int32 InChunkId);
 
 }

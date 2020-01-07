@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	DistanceFieldLightingShared.h
@@ -501,12 +501,14 @@ public:
 
 	void Initialize()
 	{
-		TileNumCulledObjects.Initialize(sizeof(uint32), TileDimensions.X * TileDimensions.Y, PF_R32_UINT, BUF_Static, TEXT("FLightTileIntersectionResources::TileNumCulledObjects"));
+		FIntPoint AlignedDimensions = FIntPoint(Align(TileDimensions.X, 64), Align(TileDimensions.Y, 64));
+	
+		TileNumCulledObjects.Initialize(sizeof(uint32), AlignedDimensions.X * AlignedDimensions.Y, PF_R32_UINT, BUF_Static, TEXT("FLightTileIntersectionResources::TileNumCulledObjects"));
+		TileStartOffsets.Initialize(sizeof(uint32), AlignedDimensions.X * AlignedDimensions.Y, PF_R32_UINT, BUF_Static, TEXT("FLightTileIntersectionResources::TileStartOffsets"));
 		NextStartOffset.Initialize(sizeof(uint32), 1, PF_R32_UINT, BUF_Static, TEXT("FLightTileIntersectionResources::NextStartOffset"));
-		TileStartOffsets.Initialize(sizeof(uint32), TileDimensions.X * TileDimensions.Y, PF_R32_UINT, BUF_Static, TEXT("FLightTileIntersectionResources::TileStartOffsets"));
 
 		//@todo - handle max exceeded
-		TileArrayData.Initialize(b16BitIndices ? sizeof(uint16) : sizeof(uint32), GAverageObjectsPerShadowCullTile * TileDimensions.X * TileDimensions.Y * LightTileDataStride, b16BitIndices ? PF_R16_UINT : PF_R32_UINT, BUF_Static, TEXT("FLightTileIntersectionResources::TileArrayData"));
+		TileArrayData.Initialize(b16BitIndices ? sizeof(uint16) : sizeof(uint32), GAverageObjectsPerShadowCullTile * AlignedDimensions.X * AlignedDimensions.Y * LightTileDataStride, b16BitIndices ? PF_R16_UINT : PF_R32_UINT, BUF_Static, TEXT("FLightTileIntersectionResources::TileArrayData"));
 	}
 
 	void Release()
@@ -520,6 +522,11 @@ public:
 	size_t GetSizeBytes() const
 	{
 		return TileNumCulledObjects.NumBytes + NextStartOffset.NumBytes + TileStartOffsets.NumBytes + TileArrayData.NumBytes;
+	}
+
+	static FIntPoint GetAlignedDimensions(FIntPoint InTileDimensions)
+	{
+		return FIntPoint(Align(InTileDimensions.X, 64), Align(InTileDimensions.Y, 64));
 	}
 
 	FIntPoint TileDimensions;

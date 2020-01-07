@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -7,35 +7,42 @@
 #include "UObject/UnrealType.h"
 
 // need to break this out a different type so that the DECLARE_CASTED_CLASS_INTRINSIC macro can digest the comma
-typedef TProperty<FText, UProperty> UTextProperty_Super;
+typedef TProperty<FText, FProperty> FTextProperty_Super;
 
-class COREUOBJECT_API UTextProperty : public UTextProperty_Super
+class COREUOBJECT_API FTextProperty : public FTextProperty_Super
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UTextProperty, UTextProperty_Super, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UTextProperty)
+	DECLARE_FIELD(FTextProperty, FTextProperty_Super, CASTCLASS_FTextProperty)
 
 public:
 
-	typedef UTextProperty_Super::TTypeFundamentals TTypeFundamentals;
+	typedef FTextProperty_Super::TTypeFundamentals TTypeFundamentals;
 	typedef TTypeFundamentals::TCppType TCppType;
 
-	UTextProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags)
-		: TProperty(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
+	FTextProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
+		: FTextProperty_Super(InOwner, InName, InObjectFlags)
 	{
 	}
 
-	UTextProperty( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags )
-		:	TProperty( ObjectInitializer, EC_CppProperty, InOffset, InFlags)
+	FTextProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+		: FTextProperty_Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
 	{
 	}
 
-	// UProperty interface
+#if WITH_EDITORONLY_DATA
+	explicit FTextProperty(UField* InField)
+		: FTextProperty_Super(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
+
+	// FProperty interface
 	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
 	virtual bool Identical( const void* A, const void* B, uint32 PortFlags ) const override;
 	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
 	virtual void ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const override;
 	virtual const TCHAR* ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText ) const override;
 	virtual FString GetCPPTypeForwardDeclaration() const override;
-	// End of UProperty interface
+	// End of FProperty interface
 
 	/** Generate the correct C++ code for the given text value */
 	static FString GenerateCppCodeForTextValue(const FText& InValue, const FString& Indent);

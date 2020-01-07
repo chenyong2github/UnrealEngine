@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DynamicMeshSculptTool.h"
 #include "InteractiveToolManager.h"
@@ -269,7 +269,7 @@ void UDynamicMeshSculptTool::OnDynamicMeshComponentChanged()
 }
 
 
-void UDynamicMeshSculptTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UDynamicMeshSculptTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	CalculateBrushRadius();
 }

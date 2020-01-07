@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InputCoreTypes.h"
 #include "UObject/UnrealType.h"
@@ -1514,7 +1514,7 @@ bool FKey::ExportTextItem(FString& ValueStr, FKey const& DefaultValue, UObject* 
 bool FKey::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText)
 {
 	FString Temp;
-	const TCHAR* NewBuffer = UPropertyHelpers::ReadToken(Buffer, Temp);
+	const TCHAR* NewBuffer = FPropertyHelpers::ReadToken(Buffer, Temp);
 	if (!NewBuffer)
 	{
 		return false;

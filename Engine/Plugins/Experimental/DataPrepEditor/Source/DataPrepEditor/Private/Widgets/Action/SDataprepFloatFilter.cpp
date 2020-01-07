@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/Action/SDataprepFloatFilter.h"
 
@@ -29,7 +29,7 @@ namespace SDataprepFloatFilterUtils
 	{
 		if ( Filter )
 		{
-			UProperty* Property = Filter->GetClass()->FindPropertyByName( PropertyName );
+			FProperty* Property = Filter->GetClass()->FindPropertyByName( PropertyName );
 			check( Property );
 
 			FEditPropertyChain EditChain;
@@ -56,7 +56,7 @@ void SDataprepFloatFilter::Construct(const FArguments& InArgs, UDataprepFloatFil
 
 		{
 			FName PropertyName = FName( TEXT("FloatMatchingCriteria") );
-			UProperty* Property = FilterClass->FindPropertyByName( PropertyName );
+			FProperty* Property = FilterClass->FindPropertyByName( PropertyName );
 			check( Property );
 			TArray<FDataprepPropertyLink> PropertyChain;
 			PropertyChain.Emplace( Property, PropertyName, INDEX_NONE );
@@ -66,7 +66,7 @@ void SDataprepFloatFilter::Construct(const FArguments& InArgs, UDataprepFloatFil
 
 		{
 			FName PropertyName = FName( TEXT("EqualValue") );
-			UProperty* Property = FilterClass->FindPropertyByName( PropertyName );
+			FProperty* Property = FilterClass->FindPropertyByName( PropertyName );
 			check( Property );
 			TArray<FDataprepPropertyLink> PropertyChain;
 			PropertyChain.Emplace( Property, PropertyName, INDEX_NONE );
@@ -76,7 +76,7 @@ void SDataprepFloatFilter::Construct(const FArguments& InArgs, UDataprepFloatFil
 
 		{
 			FName PropertyName = FName( TEXT("Tolerance") );
-			UProperty* Property = FilterClass->FindPropertyByName( PropertyName );
+			FProperty* Property = FilterClass->FindPropertyByName( PropertyName );
 			check( Property );
 			TArray<FDataprepPropertyLink> PropertyChain;
 			PropertyChain.Emplace( Property, PropertyName, INDEX_NONE );

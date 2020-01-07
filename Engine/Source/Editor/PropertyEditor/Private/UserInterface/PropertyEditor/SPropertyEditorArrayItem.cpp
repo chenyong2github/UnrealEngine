@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UserInterface/PropertyEditor/SPropertyEditorArrayItem.h"
 #include "UObject/UnrealType.h"
@@ -23,10 +23,10 @@ void SPropertyEditorArrayItem::Construct( const FArguments& InArgs, const TShare
 	SetEnabled( TAttribute<bool>( this, &SPropertyEditorArrayItem::CanEdit ) );
 
 	// if this is a struct property, try to find a representative element to use as our stand in
-	if (PropertyEditor->PropertyIsA( UStructProperty::StaticClass() ))
+	if (PropertyEditor->PropertyIsA( FStructProperty::StaticClass() ))
 	{
-		const UProperty* MainProperty = PropertyEditor->GetProperty();
-		const UProperty* ArrayProperty = MainProperty ? Cast<const UProperty>( MainProperty->GetOuter() ) : nullptr;
+		const FProperty* MainProperty = PropertyEditor->GetProperty();
+		const FProperty* ArrayProperty = MainProperty ? MainProperty->GetOwner<const FProperty>() : nullptr;
 		if (ArrayProperty) // should always be true
 		{
 			// see if this structure has a TitleProperty we can use to summarize
@@ -48,18 +48,18 @@ void SPropertyEditorArrayItem::GetDesiredWidth( float& OutMinDesiredWidth, float
 bool SPropertyEditorArrayItem::Supports( const TSharedRef< class FPropertyEditor >& PropertyEditor )
 {
 	const TSharedRef< FPropertyNode > PropertyNode = PropertyEditor->GetPropertyNode();
-	const UProperty* Property = PropertyEditor->GetProperty();
+	const FProperty* Property = PropertyEditor->GetProperty();
 
-	if (!Cast<const UClassProperty>(Property) && PropertyNode->HasNodeFlags(EPropertyNodeFlags::SingleSelectOnly))
+	if (!CastField<const FClassProperty>(Property) && PropertyNode->HasNodeFlags(EPropertyNodeFlags::SingleSelectOnly))
 	{
-		if (Cast<const UArrayProperty>(Property->GetOuter()) &&
-			!(Cast<const UArrayProperty>(Property->GetOuter())->PropertyFlags & CPF_EditConst))
+		if (Property->GetOwner<FArrayProperty>() &&
+			!(Property->GetOwner<FArrayProperty>()->PropertyFlags & CPF_EditConst))
 		{
 			return true;
 		}
 
-		if (Cast<const UMapProperty>(Property->GetOuter()) &&
-			!(Cast<const UMapProperty>(Property->GetOuter())->PropertyFlags & CPF_EditConst))
+		if (Property->GetOwner<FMapProperty>() &&
+			!(Property->GetOwner<FMapProperty>()->PropertyFlags & CPF_EditConst))
 		{
 			return true;
 		}
@@ -78,7 +78,7 @@ FText SPropertyEditorArrayItem::GetValueAsString() const
 		}
 	}
 	
-	if( PropertyEditor->GetProperty() && PropertyEditor->PropertyIsA( UStructProperty::StaticClass() ) )
+	if( PropertyEditor->GetProperty() && PropertyEditor->PropertyIsA( FStructProperty::StaticClass() ) )
 	{
 		return FText::Format( NSLOCTEXT("PropertyEditor", "NumStructItems", "{0} members"), FText::AsNumber( PropertyEditor->GetPropertyNode()->GetNumChildNodes() ) );
 	}

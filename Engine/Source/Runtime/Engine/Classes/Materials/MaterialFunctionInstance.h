@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -83,6 +83,7 @@ class UMaterialFunctionInstance : public UMaterialFunctionInterface
 #endif
 
 	virtual bool IsDependent(UMaterialFunctionInterface* OtherFunction) override;
+	ENGINE_API virtual bool IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const override;
 	ENGINE_API virtual void GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const override;
 	virtual void AppendReferencedTextures(TArray<UObject*>& InOutTextures) const override;
 

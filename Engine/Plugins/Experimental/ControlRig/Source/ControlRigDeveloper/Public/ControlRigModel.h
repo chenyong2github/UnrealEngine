@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -372,12 +372,12 @@ private:
 	bool ResendAllPinDefaultNotifications();
 
 	static bool ShouldStructBeUnfolded(const UStruct* Struct);
-	static FEdGraphPinType GetPinTypeFromField(UProperty* Property);
+	static FEdGraphPinType GetPinTypeFromField(FProperty* Property);
 	static void AddNodePinsForFunction(FControlRigModelNode& Node);
 	static void SetNodePinDefaultsForFunction(FControlRigModelNode& Node);
 	static void AddNodePinsForParameter(FControlRigModelNode& Node, const FEdGraphPinType& InDataType);
 	static void SetNodePinDefaultsForParameter(FControlRigModelNode& Node, const FEdGraphPinType& InDataType);
-	static void ConfigurePinFromField(FControlRigModelPin& Pin, UProperty* Property, FControlRigModelNode& Node);
+	static void ConfigurePinFromField(FControlRigModelPin& Pin, FProperty* Property, FControlRigModelNode& Node);
 	static int32 AddPinsRecursive(FControlRigModelNode& Node, int32 ParentIndex, const UStruct* Struct, EEdGraphPinDirection PinDirection, int32& LastAddedIndex);
 	int32 RemovePinsRecursive(FControlRigModelNode& Node, int32 ParentIndex, bool bUndo = true);
 	static void ConfigurePinIndices(FControlRigModelNode& Node);

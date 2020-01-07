@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UObject/SparseDelegate.h"
 #include "UObject/Class.h"
@@ -93,6 +93,21 @@ FMulticastScriptDelegate* FSparseDelegateStorage::GetMulticastDelegate(const UOb
 		}
 	}
 	return nullptr;
+}
+
+TSharedPtr<FMulticastScriptDelegate> FSparseDelegateStorage::GetSharedMulticastDelegate(const UObject* DelegateOwner, const FName DelegateName)
+{
+	FScopeLock SparseDelegateMapLock(&SparseDelegateMapCritical);
+
+	TSharedPtr<FMulticastScriptDelegate> Result;
+	if (FSparseDelegateMap* DelegateMap = SparseDelegates.Find(DelegateOwner))
+	{
+		if (TSharedPtr<FMulticastScriptDelegate>* MulticastDelegatePtr = DelegateMap->Find(DelegateName))
+		{
+			Result = *MulticastDelegatePtr;
+		}
+	}
+	return Result;
 }
 
 void FSparseDelegateStorage::SetMulticastDelegate(const UObject* DelegateOwner, const FName DelegateName, FMulticastScriptDelegate Delegate)

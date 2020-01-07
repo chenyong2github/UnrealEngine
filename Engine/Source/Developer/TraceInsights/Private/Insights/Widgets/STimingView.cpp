@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "STimingView.h"
 
@@ -253,6 +253,11 @@ void STimingView::Reset()
 	bIsPanning = false;
 	PanningMode = EPanningMode::None;
 
+	OverscrollLeft = 0.0f;
+	OverscrollRight = 0.0f;
+	OverscrollTop = 0.0f;
+	OverscrollBottom = 0.0f;
+
 	bIsSelecting = false;
 	SelectionStartTime = 0.0;
 	SelectionEndTime = 0.0;
@@ -267,6 +272,7 @@ void STimingView::Reset()
 		HoveredEvent.Reset();
 		OnHoveredEventChangedDelegate.Broadcast(HoveredEvent);
 	}
+
 	if (SelectedTrack.IsValid())
 	{
 		SelectedTrack.Reset();
@@ -278,6 +284,11 @@ void STimingView::Reset()
 		OnSelectedEventChangedDelegate.Broadcast(SelectedEvent);
 	}
 
+	if (TimingEventFilter.IsValid())
+	{
+		TimingEventFilter.Reset();
+	}
+
 	bPreventThrottling = false;
 
 	Tooltip.Reset();
@@ -286,8 +297,6 @@ void STimingView::Reset()
 
 	TimeMarker = std::numeric_limits<double>::infinity();
 	bIsScrubbing = false;
-
-	HighlightedEventTypeId = uint64(-1);
 
 	//ThisGeometry
 
@@ -346,6 +355,24 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	ThisGeometry = AllottedGeometry;
 
 	bPreventThrottling = false;
+
+	constexpr float OverscrollFadeSpeed = 2.0f;
+	if (OverscrollLeft > 0.0f)
+	{
+		OverscrollLeft = FMath::Max(0.0f, OverscrollLeft - InDeltaTime * OverscrollFadeSpeed);
+	}
+	if (OverscrollRight > 0.0f)
+	{
+		OverscrollRight = FMath::Max(0.0f, OverscrollRight - InDeltaTime * OverscrollFadeSpeed);
+	}
+	if (OverscrollTop > 0.0f)
+	{
+		OverscrollTop = FMath::Max(0.0f, OverscrollTop - InDeltaTime * OverscrollFadeSpeed);
+	}
+	if (OverscrollBottom > 0.0f)
+	{
+		OverscrollBottom = FMath::Max(0.0f, OverscrollBottom - InDeltaTime * OverscrollFadeSpeed);
+	}
 
 	const float ViewWidth = AllottedGeometry.GetLocalSize().X;
 	const float ViewHeight = AllottedGeometry.GetLocalSize().Y;
@@ -428,6 +455,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		virtual const FVector2D& GetMousePosition() const override { return TimingView->GetMousePosition(); }
 		virtual const TSharedPtr<const ITimingEvent> GetHoveredEvent() const override { return TimingView->GetHoveredEvent(); }
 		virtual const TSharedPtr<const ITimingEvent> GetSelectedEvent() const override { return TimingView->GetSelectedEvent(); }
+		virtual const TSharedPtr<ITimingEventFilter> GetEventFilter() const override { return TimingView->GetEventFilter(); }
 		virtual double GetCurrentTime() const override { return CurrentTime; }
 		virtual float GetDeltaTime() const override { return DeltaTime; }
 
@@ -544,16 +572,26 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	const float InitialScrollPosY = Viewport.GetScrollPosY();
-	const float InitialPinnedTrackPosY = SelectedTrack.IsValid() ? SelectedTrack->GetPosY() : 0.0f;
+
+	TSharedPtr<FBaseTimingTrack> SelectedScrollableTrack;
+	if (SelectedTrack.IsValid() && SelectedTrack->IsVisible())
+	{
+		if (ScrollableTracks.Contains(SelectedTrack))
+		{
+			SelectedScrollableTrack = SelectedTrack;
+		}
+	}
+
+	const float InitialPinnedTrackPosY = SelectedScrollableTrack.IsValid() ? SelectedScrollableTrack->GetPosY() : 0.0f;
 
 	// Update the Y position for visible scrollable tracks.
 	UpdatePositionForScrollableTracks();
 
 	// The selected track will be pinned (keeps Y pos fixed unless user scrolls vertically).
-	if (SelectedTrack.IsValid())
+	if (SelectedScrollableTrack.IsValid())
 	{
 		const float ScrollingDY = LastScrollPosY - InitialScrollPosY;
-		const float PinnedTrackPosY = SelectedTrack->GetPosY();
+		const float PinnedTrackPosY = SelectedScrollableTrack->GetPosY();
 		const float AdjustmentDY = InitialPinnedTrackPosY - PinnedTrackPosY + ScrollingDY;
 
 		if (!FMath::IsNearlyZero(AdjustmentDY, 0.5f))
@@ -848,6 +886,7 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		virtual const FVector2D& GetMousePosition() const override { return TimingView->GetMousePosition(); }
 		virtual const TSharedPtr<const ITimingEvent> GetHoveredEvent() const override { return TimingView->GetHoveredEvent(); }
 		virtual const TSharedPtr<const ITimingEvent> GetSelectedEvent() const override { return TimingView->GetSelectedEvent(); }
+		virtual const TSharedPtr<ITimingEventFilter> GetEventFilter() const override { return TimingView->GetEventFilter(); }
 		virtual FDrawContext& GetDrawContext() const override { return DrawContext; }
 		virtual const ITimingViewDrawHelper& GetHelper() const override { return Helper; }
 
@@ -861,8 +900,6 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	FTimingTrackDrawContext TimingDrawContext(this, DrawContext, Helper);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	Helper.SetHighlightedEventTypeId(HighlightedEventTypeId);
 
 	// Draw background.
 	Helper.DrawBackground();
@@ -917,28 +954,64 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 		Helper.BeginDrawTracks();
 
-		for (const TSharedPtr<FBaseTimingTrack>& TrackPtr : ScrollableTracks)
+		const FVector2D Position = AllottedGeometry.GetAbsolutePosition();
+		const float Scale = AllottedGeometry.GetAccumulatedLayoutTransform().GetScale();
+
 		{
-			if (TrackPtr->IsVisible())
+			const float L = Position.X;
+			const float R = Position.X + (Viewport.GetWidth() * Scale);
+			const float T = Position.Y + (Viewport.GetTopOffset() * Scale);
+			const float B = Position.Y + ((Viewport.GetHeight() - Viewport.GetBottomOffset()) * Scale);
+			const FSlateClippingZone ClipZone(FVector2D(L, T), FVector2D(R, T), FVector2D(L, B), FVector2D(R, B));
+			DrawContext.ElementList.PushClip(ClipZone);
+
+			for (const TSharedPtr<FBaseTimingTrack>& TrackPtr : ScrollableTracks)
 			{
-				TrackPtr->Draw(TimingDrawContext);
+				if (TrackPtr->IsVisible())
+				{
+					TrackPtr->Draw(TimingDrawContext);
+				}
 			}
+
+			DrawContext.ElementList.PopClip();
 		}
 
-		for (const TSharedPtr<FBaseTimingTrack>& TrackPtr : TopDockedTracks)
 		{
-			if (TrackPtr->IsVisible())
+			const float L = Position.X;
+			const float R = Position.X + (Viewport.GetWidth() * Scale);
+			const float T = Position.Y;
+			const float B = Position.Y + (Viewport.GetTopOffset() * Scale);
+			const FSlateClippingZone ClipZone(FVector2D(L, T), FVector2D(R, T), FVector2D(L, B), FVector2D(R, B));
+			DrawContext.ElementList.PushClip(ClipZone);
+
+			for (const TSharedPtr<FBaseTimingTrack>& TrackPtr : TopDockedTracks)
 			{
-				TrackPtr->Draw(TimingDrawContext);
+				if (TrackPtr->IsVisible())
+				{
+					TrackPtr->Draw(TimingDrawContext);
+				}
 			}
+
+			DrawContext.ElementList.PopClip();
 		}
 
-		for (const TSharedPtr<FBaseTimingTrack>& TrackPtr : BottomDockedTracks)
 		{
-			if (TrackPtr->IsVisible())
+			const float L = Position.X;
+			const float R = Position.X + (Viewport.GetWidth() * Scale);
+			const float T = Position.Y + ((Viewport.GetHeight() - Viewport.GetBottomOffset()) * Scale);
+			const float B = Position.Y + (Viewport.GetHeight() * Scale);
+			const FSlateClippingZone ClipZone(FVector2D(L, T), FVector2D(R, T), FVector2D(L, B), FVector2D(R, B));
+			DrawContext.ElementList.PushClip(ClipZone);
+
+			for (const TSharedPtr<FBaseTimingTrack>& TrackPtr : BottomDockedTracks)
 			{
-				TrackPtr->Draw(TimingDrawContext);
+				if (TrackPtr->IsVisible())
+				{
+					TrackPtr->Draw(TimingDrawContext);
+				}
 			}
+
+			DrawContext.ElementList.PopClip();
 		}
 
 		for (const TSharedPtr<FBaseTimingTrack>& TrackPtr : ForegroundTracks)
@@ -1043,6 +1116,51 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 	// Fill background for the "Tracks" filter combobox.
 	DrawContext.DrawBox(0.0f, 0.0f, 66.0f, 24.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
+
+	//////////////////////////////////////////////////
+
+	constexpr float OverscrollLineSize = 1.0f;
+	constexpr int32 OverscrollLineCount = 8;
+
+	if (OverscrollLeft > 0.0f)
+	{
+		// TODO: single box with gradient opacity
+		const float OverscrollLineY = Viewport.GetTopOffset();
+		const float OverscrollLineH = Viewport.GetScrollableAreaHeight();
+		for (int32 LineIndex = 0; LineIndex < OverscrollLineCount; ++LineIndex)
+		{
+			const float Opacity = OverscrollLeft * static_cast<float>(OverscrollLineCount - LineIndex) / static_cast<float>(OverscrollLineCount);
+			DrawContext.DrawBox(LineIndex * OverscrollLineSize, OverscrollLineY, OverscrollLineSize, OverscrollLineH, WhiteBrush, FLinearColor(1.0f, 0.1f, 0.1f, Opacity));
+		}
+	}
+	if (OverscrollRight > 0.0f)
+	{
+		const float OverscrollLineY = Viewport.GetTopOffset();
+		const float OverscrollLineH = Viewport.GetScrollableAreaHeight();
+		for (int32 LineIndex = 0; LineIndex < OverscrollLineCount; ++LineIndex)
+		{
+			const float Opacity = OverscrollRight * static_cast<float>(OverscrollLineCount - LineIndex) / static_cast<float>(OverscrollLineCount);
+			DrawContext.DrawBox(ViewWidth - (1 + LineIndex) * OverscrollLineSize, OverscrollLineY, OverscrollLineSize, OverscrollLineH, WhiteBrush, FLinearColor(1.0f, 0.1f, 0.1f, Opacity));
+		}
+	}
+	if (OverscrollTop > 0.0f)
+	{
+		const float OverscrollLineY = Viewport.GetTopOffset();
+		for (int32 LineIndex = 0; LineIndex < OverscrollLineCount; ++LineIndex)
+		{
+			const float Opacity = OverscrollTop * static_cast<float>(OverscrollLineCount - LineIndex) / static_cast<float>(OverscrollLineCount);
+			DrawContext.DrawBox(0.0f, OverscrollLineY + LineIndex * OverscrollLineSize, ViewWidth, OverscrollLineSize, WhiteBrush, FLinearColor(1.0f, 0.1f, 0.1f, Opacity));
+		}
+	}
+	if (OverscrollBottom > 0.0f)
+	{
+		const float OverscrollLineY = ViewHeight - Viewport.GetBottomOffset();
+		for (int32 LineIndex = 0; LineIndex < OverscrollLineCount; ++LineIndex)
+		{
+			const float Opacity = OverscrollBottom * static_cast<float>(OverscrollLineCount - LineIndex) / static_cast<float>(OverscrollLineCount);
+			DrawContext.DrawBox(0.0f, OverscrollLineY - (1 + LineIndex) * OverscrollLineSize, ViewWidth, OverscrollLineSize, WhiteBrush, FLinearColor(1.0f, 0.1f, 0.1f, Opacity));
+		}
+	}
 
 	//////////////////////////////////////////////////
 
@@ -1375,12 +1493,12 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 		Reply = FReply::Handled().CaptureMouse(SharedThis(this));
 	}
 
-	if(bPreventThrottling)
+	if (bPreventThrottling)
 	{
 		Reply.PreventThrottling();
 	}
 
-	if(bStartScrubbing)
+	if (bStartScrubbing)
 	{
 		bIsPanning = false;
 		bIsDragging = false;
@@ -1541,7 +1659,15 @@ FReply STimingView::OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const 
 			}
 			else
 			{
-				//TODO: HighlightedEventTypeId = HoveredTimingEvent.TypeId;
+				SetEventFilter(HoveredEvent->GetTrack()->GetFilterByEvent(HoveredEvent));
+			}
+		}
+		else
+		{
+			if (TimingEventFilter.IsValid())
+			{
+				TimingEventFilter.Reset();
+				Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
 			}
 		}
 
@@ -1693,15 +1819,16 @@ FReply STimingView::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 		{
 			// Scroll vertically.
 			constexpr float ScrollSpeedY = 16.0f * 3;
-			const float ScrollPosY = Viewport.GetScrollPosY() - ScrollSpeedY * MouseEvent.GetWheelDelta();
-			ScrollAtPosY(ScrollPosY);
+			const float NewScrollPosY = Viewport.GetScrollPosY() - ScrollSpeedY * MouseEvent.GetWheelDelta();
+			ScrollAtPosY(EnforceVerticalScrollLimits(NewScrollPosY));
 		}
 	}
 	else if (MouseEvent.GetModifierKeys().IsControlDown())
 	{
 		// Scroll horizontally.
 		const double ScrollSpeedX = Viewport.GetDurationForViewportDX(16.0 * 3);
-		ScrollAtTime(Viewport.GetStartTime() - ScrollSpeedX * MouseEvent.GetWheelDelta());
+		const double NewStartTime = Viewport.GetStartTime() - ScrollSpeedX * MouseEvent.GetWheelDelta();
+		ScrollAtTime(EnforceHorizontalScrollLimits(NewStartTime));
 	}
 	else
 	{
@@ -1710,7 +1837,6 @@ FReply STimingView::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 		//MousePosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 		if (Viewport.RelativeZoomWithFixedX(Delta, MousePosition.X))
 		{
-			//Viewport.EnforceHorizontalScrollLimits(1.0);
 			UpdateHorizontalScrollBar();
 		}
 	}
@@ -1870,7 +1996,6 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		const double ScaleX = Viewport.GetScaleX() * 1.25;
 		if (Viewport.ZoomWithFixedX(ScaleX, Viewport.GetWidth() / 2))
 		{
-			//Viewport.EnforceHorizontalScrollLimits(1.0);
 			UpdateHorizontalScrollBar();
 		}
 		return FReply::Handled();
@@ -1882,7 +2007,6 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		const double ScaleX = Viewport.GetScaleX() / 1.25;
 		if (Viewport.ZoomWithFixedX(ScaleX, Viewport.GetWidth() / 2))
 		{
-			//Viewport.EnforceHorizontalScrollLimits(1.0);
 			UpdateHorizontalScrollBar();
 		}
 		return FReply::Handled();
@@ -1892,13 +2016,8 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		if (InKeyEvent.GetModifierKeys().IsControlDown())
 		{
 			// Scroll Left
-			const double DT = Viewport.GetDuration();
-			//ScrollAtTime(Viewport.GetStartTime() - DT * 0.05);
-			if (Viewport.ScrollAtTime(Viewport.GetStartTime() - DT * 0.05))
-			{
-				//Viewport.EnforceHorizontalScrollLimits(1.0);
-				UpdateHorizontalScrollBar();
-			}
+			const double NewStartTime = Viewport.GetStartTime() - Viewport.GetDuration() * 0.05;
+			ScrollAtTime(EnforceHorizontalScrollLimits(NewStartTime));
 		}
 		else
 		{
@@ -1911,13 +2030,8 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		if (InKeyEvent.GetModifierKeys().IsControlDown())
 		{
 			// Scroll Right
-			const double DT = Viewport.GetDuration();
-			//ScrollAtTime(Viewport.GetStartTime() + DT * 0.05);
-			if (Viewport.ScrollAtTime(Viewport.GetStartTime() + DT * 0.05))
-			{
-				//Viewport.EnforceHorizontalScrollLimits(1.0);
-				UpdateHorizontalScrollBar();
-			}
+			const double NewStartTime = Viewport.GetStartTime() + Viewport.GetDuration() * 0.05;
+			ScrollAtTime(EnforceHorizontalScrollLimits(NewStartTime));
 		}
 		else
 		{
@@ -1930,7 +2044,8 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		if (InKeyEvent.GetModifierKeys().IsControlDown())
 		{
 			// Scroll Up
-			ScrollAtPosY(Viewport.GetScrollPosY() - 16.0f * 3);
+			const float NewScrollPosY = Viewport.GetScrollPosY() - 16.0f * 3;
+			ScrollAtPosY(EnforceVerticalScrollLimits(NewScrollPosY));
 		}
 		else
 		{
@@ -1943,7 +2058,8 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		if (InKeyEvent.GetModifierKeys().IsControlDown())
 		{
 			// Scroll Down
-			ScrollAtPosY(Viewport.GetScrollPosY() + 16.0f * 3);
+			const float NewScrollPosY = Viewport.GetScrollPosY() + 16.0f * 3;
+			ScrollAtPosY(EnforceVerticalScrollLimits(NewScrollPosY));
 		}
 		else
 		{
@@ -2128,6 +2244,55 @@ void STimingView::BindCommands()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+double STimingView::EnforceHorizontalScrollLimits(const double InStartTime)
+{
+	double NewStartTime = InStartTime;
+
+	double MinT, MaxT;
+	Viewport.GetHorizontalScrollLimits(MinT, MaxT);
+
+	if (NewStartTime > MaxT)
+	{
+		NewStartTime = MaxT;
+		OverscrollRight = 1.0f;
+	}
+
+	if (NewStartTime < MinT)
+	{
+		NewStartTime = MinT;
+		OverscrollLeft = 1.0f;
+	}
+
+	return NewStartTime;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+float STimingView::EnforceVerticalScrollLimits(const float InScrollPosY)
+{
+	float NewScrollPosY = InScrollPosY;
+
+	const float DY = Viewport.GetScrollHeight() - Viewport.GetScrollableAreaHeight() + 7.0f; // +7 is to allow some space for the horizontal scrollbar
+	const float MinY = FMath::Min(DY, 0.0f);
+	const float MaxY = DY - MinY;
+
+	if (NewScrollPosY > MaxY)
+	{
+		NewScrollPosY = MaxY;
+		OverscrollBottom = 1.0f;
+	}
+
+	if (NewScrollPosY < MinY)
+	{
+		NewScrollPosY = MinY;
+		OverscrollTop = 1.0f;
+	}
+
+	return NewScrollPosY;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void STimingView::HorizontalScrollBar_OnUserScrolled(float ScrollOffset)
 {
 	Viewport.OnUserScrolled(HorizontalScrollBar, ScrollOffset);
@@ -2181,7 +2346,7 @@ void STimingView::CenterOnTimeInterval(double IntervalStartTime, double Interval
 {
 	if (Viewport.CenterOnTimeInterval(IntervalStartTime, IntervalDuration))
 	{
-		Viewport.EnforceHorizontalScrollLimits(1.0);
+		Viewport.EnforceHorizontalScrollLimits(1.0); // 1.0 is to disable interpolation
 		UpdateHorizontalScrollBar();
 	}
 }
@@ -2316,6 +2481,7 @@ void STimingView::SetTimeMarkersVisible(bool bIsMarkersTrackVisible)
 		{
 			if (Viewport.GetScrollPosY() != 0.0f)
 			{
+				UE_LOG(TimingProfiler, Log, TEXT("SetTimeMarkersVisible!!!"));
 				Viewport.SetScrollPosY(Viewport.GetScrollPosY() + MarkersTrack->GetHeight());
 			}
 
@@ -2323,6 +2489,7 @@ void STimingView::SetTimeMarkersVisible(bool bIsMarkersTrackVisible)
 		}
 		else
 		{
+			UE_LOG(TimingProfiler, Log, TEXT("SetTimeMarkersVisible!!!"));
 			Viewport.SetScrollPosY(Viewport.GetScrollPosY() - MarkersTrack->GetHeight());
 		}
 	}
@@ -2341,6 +2508,7 @@ void STimingView::SetDrawOnlyBookmarks(bool bIsBookmarksTrack)
 		{
 			if (Viewport.GetScrollPosY() != 0.0f)
 			{
+				UE_LOG(TimingProfiler, Log, TEXT("SetDrawOnlyBookmarks!!!"));
 				Viewport.SetScrollPosY(Viewport.GetScrollPosY() + MarkersTrack->GetHeight() - PrevHeight);
 			}
 
@@ -2466,11 +2634,6 @@ void STimingView::OnSelectedTimingEventChanged()
 			SelectedEvent->GetTrack()->UpdateEventStats(const_cast<ITimingEvent&>(*SelectedEvent));
 			SelectedEvent->GetTrack()->OnEventSelected(*SelectedEvent);
 		}
-	}
-
-	if (!SelectedEvent.IsValid())
-	{
-		HighlightedEventTypeId = uint64(-1);
 	}
 
 	OnSelectedEventChangedDelegate.Broadcast(SelectedEvent);
@@ -2699,6 +2862,14 @@ void STimingView::FrameSelection()
 			UpdateHorizontalScrollBar();
 		}
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::SetEventFilter(const TSharedPtr<ITimingEventFilter> InEventFilter)
+{
+	TimingEventFilter = InEventFilter;
+	Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/PostProcessVolume.h"
 #include "Engine/CollisionProfile.h"
@@ -76,7 +76,7 @@ void APostProcessVolume::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 	}
 }
 
-bool APostProcessVolume::CanEditChange(const UProperty* InProperty) const
+bool APostProcessVolume::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{

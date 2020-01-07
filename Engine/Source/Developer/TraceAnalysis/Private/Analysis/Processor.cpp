@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Processor.h"
 #include "DataStream.h"
@@ -45,17 +45,12 @@ uint32 FAnalysisProcessor::FImpl::Run()
 			return DataStream.Read(Out, Size);
 		});
 
-		if (BytesRead < 0)
+		if (BytesRead <= 0)
 		{
 			break;
 		}
 
 		if (!AnalysisEngine.OnData(Buffer))
-		{
-			break;
-		}
-
-		if (Buffer.IsEof())
 		{
 			break;
 		}

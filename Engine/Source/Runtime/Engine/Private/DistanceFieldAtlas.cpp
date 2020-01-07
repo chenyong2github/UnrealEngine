@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	DistanceFieldAtlas.cpp
@@ -1068,7 +1068,7 @@ void FDistanceFieldAsyncQueue::Build(FAsyncDistanceFieldTask* Task, FQueuedThrea
 {
 #if WITH_EDITOR
 
-	// Editor 'force delete' can null any UObject pointers which are seen by reference collecting (eg UProperty or serialized)
+	// Editor 'force delete' can null any UObject pointers which are seen by reference collecting (eg FProperty or serialized)
 	if (Task->StaticMesh && Task->GenerateSource)
 	{
 		const FStaticMeshLODResources& LODModel = Task->GenerateSource->RenderData->LODResources[0];
@@ -1118,7 +1118,7 @@ void FDistanceFieldAsyncQueue::ProcessAsyncTasks()
 
 		ReferencedTasks.Remove(Task);
 
-		// Editor 'force delete' can null any UObject pointers which are seen by reference collecting (eg UProperty or serialized)
+		// Editor 'force delete' can null any UObject pointers which are seen by reference collecting (eg FProperty or serialized)
 		if (Task->StaticMesh)
 		{
 			Task->GeneratedVolumeData->VolumeTexture.Initialize(Task->StaticMesh);

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/ImplicitObject.h"
@@ -254,4 +254,16 @@ TVector<T, d> FindClosestPointOnTriangle(const TPlane<T, d>& TrianglePlane, cons
 	const TVector<T, d> PointOnPlane = TrianglePlane.FindClosestPoint(P);
 	return FindClosestPointOnTriangle(PointOnPlane, P0, P1, P2, P);
 }
+
+
+template<typename T, int d>
+bool IntersectPlanes2(TVector<T,d>& I, TVector<T,d>& D, const TPlane<T,d>& P1, const TPlane<T,d>& P2)
+{
+	FVector LI = I, LD = D;
+	FPlane LP1(P1.X(), P1.Normal()), LP2(P2.X(), P2.Normal());
+	bool RetVal = FMath::IntersectPlanes2(LI,LD,LP1,LP2);
+	I = LI; D = LD;
+	return RetVal;
+}
+
 }

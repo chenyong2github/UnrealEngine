@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "EngineDefines.h"
@@ -813,7 +813,7 @@ void FKConvexElem::AddCachedSolidConvexGeom(TArray<FDynamicMeshVertex>& VertexBu
 		};
 
 		TArray<LocalTangents> VertTangents;
-		VertTangents.Init({ FVector::ZeroVector, FVector::ZeroVector, FVector::ZeroVector }, VertexData.Num());
+		VertTangents.Init({ { FVector::ZeroVector, FVector::ZeroVector, FVector::ZeroVector } }, VertexData.Num());
 		for(int32 TriIndex = 0; TriIndex < NumTriangles; ++TriIndex)
 		{
 			const int32 Base = TriIndex * 3;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -23,7 +23,7 @@ class UInterpTrackInstFloatAnimBPParam : public UInterpTrackInst
 	UPROPERTY(transient)
 	float ResetFloat;
 
-	UProperty* ParamProperty;
+	FProperty* ParamProperty;
 
 	// Begin UInterpTrackInst Instance
 	virtual void InitTrackInst(UInterpTrack* Track) override;

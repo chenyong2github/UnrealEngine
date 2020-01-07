@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraGraph.h"
 #include "Modules/ModuleManager.h"
@@ -823,7 +823,7 @@ void UNiagaraGraph::AddParameter(const FNiagaraVariable& Parameter, bool bIsStat
 	UNiagaraScriptVariable** FoundScriptVariable = VariableToScriptVariable.Find(Parameter);
 	if (!FoundScriptVariable)
 	{
-		UNiagaraScriptVariable* NewScriptVariable = NewObject<UNiagaraScriptVariable>(this, Parameter.GetName(), RF_Transactional);
+		UNiagaraScriptVariable* NewScriptVariable = NewObject<UNiagaraScriptVariable>(this, FName(), RF_Transactional);
 		NewScriptVariable->Variable = Parameter;
 		NewScriptVariable->Metadata.bIsStaticSwitch = bIsStaticSwitch;
 		VariableToScriptVariable.Add(Parameter, NewScriptVariable);
@@ -1140,7 +1140,7 @@ void UNiagaraGraph::RebuildCachedCompileIds(bool bForce)
 		}
 		HashState.Final();
 
-		// We can't store in a FShaHash struct directly because you can't UProperty it. Using a standin of the same size.
+		// We can't store in a FShaHash struct directly because you can't FProperty it. Using a standin of the same size.
 		TArray<uint8> DataHash;
 		DataHash.AddUninitialized(20);
 		HashState.GetHash(DataHash.GetData());
@@ -1412,7 +1412,7 @@ void UNiagaraGraph::SetMetaData(const FNiagaraVariable& InVar, const FNiagaraVar
 	}
 	else 
 	{
-		UNiagaraScriptVariable*& NewScriptVariable = VariableToScriptVariable.Add(InVar, NewObject<UNiagaraScriptVariable>(this, InVar.GetName(), RF_Transactional));
+		UNiagaraScriptVariable*& NewScriptVariable = VariableToScriptVariable.Add(InVar, NewObject<UNiagaraScriptVariable>(this, FName(), RF_Transactional));
 		NewScriptVariable->Variable = InVar;
 		NewScriptVariable->Metadata = InMetaData;
 	}

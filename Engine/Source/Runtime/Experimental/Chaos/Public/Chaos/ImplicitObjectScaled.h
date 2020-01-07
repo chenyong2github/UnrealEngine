@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Box.h"
@@ -8,6 +8,7 @@
 #include "Templates/ChooseClass.h"
 #include "Templates/EnableIf.h"
 #include "Math/NumericLimits.h"
+#include "ChaosCheck.h"
 
 namespace Chaos
 {
@@ -94,7 +95,7 @@ public:
 	FORCEINLINE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const { return MObject->Support(Direction, Thickness); }
 	FORCEINLINE TVector<T, d> Support2(const TVector<T, d>& Direction, const T Thickness) const { return MObject->Support2(Direction); }
 
-	virtual const TBox<T, d>& BoundingBox() const override { return MObject->BoundingBox(); }
+	virtual const TAABB<T, d>& BoundingBox() const override { return MObject->BoundingBox(); }
 
 	const ObjectType Object() const { return MObject; }
 
@@ -138,6 +139,7 @@ public:
 	TImplicitObjectScaled(ObjectType Object, const TVector<T, d>& Scale, T Thickness = 0)
 	    : FImplicitObject(EImplicitObject::HasBoundingBox, Object->GetType() | ImplicitObjectType::IsScaled)
 	    , MObject(MoveTemp(Object))
+		, MSharedPtrForRefCount(nullptr)
 		, MInternalThickness(Thickness)
 	{
 		ensureMsgf((IsScaled(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain each other."));
@@ -153,9 +155,31 @@ public:
 		this->bIsConvex = MObject->IsConvex();
 		SetScale(Scale);
 	}
+
+	TImplicitObjectScaled(TSharedPtr<TConcrete, ESPMode::ThreadSafe> Object, const TVector<T, d>& Scale, T Thickness = 0)
+	    : FImplicitObject(EImplicitObject::HasBoundingBox, Object->GetType() | ImplicitObjectType::IsScaled)
+	    , MObject(MakeSerializable<TConcrete, ESPMode::ThreadSafe>(Object))
+		, MSharedPtrForRefCount(Object)
+		, MInternalThickness(Thickness)
+	{
+		ensureMsgf((IsScaled(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain each other."));
+		ensureMsgf((IsInstanced(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain instances."));
+		switch (MObject->GetType(true))
+		{
+		case ImplicitObjectType::Transformed:
+		case ImplicitObjectType::Union:
+			check(false);	//scale is only supported for concrete types like sphere, capsule, convex, levelset, etc... Nothing that contains other objects
+		default:
+			break;
+		}
+		this->bIsConvex = MObject->IsConvex();
+		SetScale(Scale);
+	}
+
 	TImplicitObjectScaled(ObjectType Object, TUniquePtr<Chaos::FImplicitObject> &&ObjectOwner, const TVector<T, d>& Scale, T Thickness = 0)
 	    : FImplicitObject(EImplicitObject::HasBoundingBox, Object->GetType() | ImplicitObjectType::IsScaled)
 	    , MObject(Object)
+		, MSharedPtrForRefCount(nullptr)
 		, MInternalThickness(Thickness)
 	{
 		ensureMsgf((IsScaled(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain each other."));
@@ -168,6 +192,7 @@ public:
 	TImplicitObjectScaled(TImplicitObjectScaled<TConcrete, bInstanced>&& Other)
 	    : FImplicitObject(EImplicitObject::HasBoundingBox, Other.MObject->GetType() | ImplicitObjectType::IsScaled)
 	    , MObject(MoveTemp(Other.MObject))
+		, MSharedPtrForRefCount(MoveTemp(Other.MSharedPtrForRefCount))
 	    , MScale(Other.MScale)
 		, MInvScale(Other.MInvScale)
 		, MInternalThickness(Other.MInternalThickness)
@@ -281,7 +306,7 @@ public:
 					OutPosition = MScale * UnscaledPosition;
 					OutNormal = (MInvScale * UnscaledNormal).GetSafeNormal();
 				}
-				ensure(OutTime <= Length);
+				CHAOS_ENSURE(OutTime <= Length);
 				return true;
 			}
 		}
@@ -370,7 +395,7 @@ public:
 		// Compute final normal
 		const TVector<T, d> LocalNormal = MObject->FindGeometryOpposingNormal(LocalDenormDir, HintFaceIndex, LocalOriginalNormal);
 		TVector<T, d> Normal = LocalNormal * MInvScale;
-		if (ensure(Normal.SafeNormalize()) == 0)
+		if (CHAOS_ENSURE(Normal.SafeNormalize()) == 0)
 		{
 			Normal = TVector<T,3>(0,0,1);
 		}
@@ -396,6 +421,22 @@ public:
 		}
 		return ClosestIntersection;
 	}
+
+	virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01) const override
+	{
+		const FVec3 UnscaledPoint = MInvScale * Position;
+		const FReal UnscaledSearchDist = SearchDist * MInvScale.Max();	//this is not quite right since it's no longer a sphere, but the whole thing is fuzzy anyway
+		int32 FaceIndex =  MObject->FindClosestFaceAndVertices(UnscaledPoint, FaceVertices, UnscaledSearchDist);
+		if (FaceIndex != INDEX_NONE)
+		{
+			for (FVec3& Vec : FaceVertices)
+			{
+				Vec = Vec * MScale;
+			}
+		}
+		return FaceIndex;
+	}
+
 
 	FORCEINLINE_DEBUGGABLE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const
 	{
@@ -446,7 +487,7 @@ public:
 		UpdateBounds();
 	}
 
-	virtual const TBox<T, d>& BoundingBox() const override { return MLocalBoundingBox; }
+	virtual const TAABB<T, d>& BoundingBox() const override { return MLocalBoundingBox; }
 
 	const FReal GetVolume() const
 	{
@@ -472,7 +513,8 @@ public:
 	{
 		FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName(), false);
 		FImplicitObject::SerializeImp(Ar);
-		Ar << MObject << MScale << MInvScale << MLocalBoundingBox;
+		Ar << MObject << MScale << MInvScale;
+		TBox<T,d>::SerializeAsAABB(Ar, MLocalBoundingBox);
 		ensure(MInternalThickness == 0);	//not supported: do we care?
 
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
@@ -500,10 +542,11 @@ public:
 #endif
 private:
 	ObjectType MObject;
+	TSharedPtr<TConcrete, ESPMode::ThreadSafe> MSharedPtrForRefCount; // Temporary solution to force ref counting on trianglemesh from body setup.
 	TVector<T, d> MScale;
 	TVector<T, d> MInvScale;
 	T MInternalThickness;	//Allows us to inflate the instance before the scale is applied. This is useful when sweeps need to apply a non scale on a geometry with uniform thickness
-	TBox<T, d> MLocalBoundingBox;
+	TAABB<T, d> MLocalBoundingBox;
 
 	//needed for serialization
 	TImplicitObjectScaled()
@@ -526,9 +569,9 @@ private:
 
 	void UpdateBounds()
 	{
-		const TBox<T, d> UnscaledBounds = MObject->BoundingBox();
+		const TAABB<T, d> UnscaledBounds = MObject->BoundingBox();
 		const TVector<T, d> Vector1 = UnscaledBounds.Min() * MScale;
-		MLocalBoundingBox = TBox<T, d>(Vector1, Vector1);	//need to grow it out one vector at a time in case scale is negative
+		MLocalBoundingBox = TAABB<T, d>(Vector1, Vector1);	//need to grow it out one vector at a time in case scale is negative
 		const TVector<T, d> Vector2 = UnscaledBounds.Max() *MScale;
 		MLocalBoundingBox.GrowToInclude(Vector2);
 	}

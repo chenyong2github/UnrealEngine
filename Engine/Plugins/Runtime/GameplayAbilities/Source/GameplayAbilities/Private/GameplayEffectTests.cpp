@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
@@ -61,7 +61,7 @@ static UDataTable* CreateGameplayDataTable()
 	return DataTable;
 }
 
-#define GET_FIELD_CHECKED(Class, Field) FindFieldChecked<UProperty>(Class::StaticClass(), GET_MEMBER_NAME_CHECKED(Class, Field))
+#define GET_FIELD_CHECKED(Class, Field) FindFieldChecked<FProperty>(Class::StaticClass(), GET_MEMBER_NAME_CHECKED(Class, Field))
 #define CONSTRUCT_CLASS(Class, Name) Class* Name = NewObject<Class>(GetTransientPackage(), FName(TEXT(#Name)))
 
 class GameplayEffectsTestSuite
@@ -230,7 +230,7 @@ public: // the tests
 private: // test helpers
 
 	template<typename MODIFIER_T>
-	FGameplayModifierInfo& AddModifier(UGameplayEffect* Effect, UProperty* Property, EGameplayModOp::Type Op, const MODIFIER_T& Magnitude)
+	FGameplayModifierInfo& AddModifier(UGameplayEffect* Effect, FProperty* Property, EGameplayModOp::Type Op, const MODIFIER_T& Magnitude)
 	{
 		int32 Idx = Effect->Modifiers.Num();
 		Effect->Modifiers.SetNum(Idx+1);

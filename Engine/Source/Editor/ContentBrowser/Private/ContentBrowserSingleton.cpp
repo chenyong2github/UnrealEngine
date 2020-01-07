@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "ContentBrowserSingleton.h"
@@ -719,20 +719,6 @@ void FContentBrowserSingleton::ForceShowPluginContent(bool bEnginePlugin)
 	{
 		PrimaryContentBrowser.Pin()->ForceShowPluginContent(bEnginePlugin);
 	}
-}
-
-bool FContentBrowserSingleton::PathViewPathPassesFilter(const FString& InPath) const
-{
-	static FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-	for (const auto& It : ContentBrowserModule.GetDirectoryPathFilteredDelegates())
-	{
-		if (It.IsBound() && It.Execute(InPath))
-		{
-			return false;
-		}
-	}
-
-	return true;
 }
 
 void FContentBrowserSingleton::PopulateConfigValues()

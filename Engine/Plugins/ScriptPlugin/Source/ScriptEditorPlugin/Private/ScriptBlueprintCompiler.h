@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -57,6 +57,6 @@ protected:
 	/** Script-defined properties and functions */
 	TArray<FScriptField> ScriptDefinedFields;
 	/** Script context property generated for the compiled class */
-	UObjectProperty* ContextProperty;
+	FObjectProperty* ContextProperty;
 };
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SPacketView.h"
 
@@ -215,10 +215,64 @@ void SPacketView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool SPacketView::IsConnectionValid(const Trace::INetProfilerProvider& NetProfilerProvider, const uint32 InGameInstanceIndex, const uint32 InConnectionIndex, const Trace::ENetProfilerConnectionMode InConnectionMode)
+{
+	//TODO: return NetProfilerProvider.IsConnectionValid(GameInstanceIndex, ConnectionIndex, ConnectionMode);
+
+	const uint32 GameInstanceCount = NetProfilerProvider.GetGameInstanceCount();
+	if (InGameInstanceIndex >= GameInstanceCount)
+	{
+		return false;
+	}
+
+	bool bIsValidConnection = false;
+	NetProfilerProvider.ReadConnections(InGameInstanceIndex, [InConnectionIndex, InConnectionMode, &bIsValidConnection](const Trace::FNetProfilerConnection& Connection)
+	{
+		if (InConnectionIndex == Connection.ConnectionIndex)
+		{
+			if ((InConnectionMode == Trace::ENetProfilerConnectionMode::Outgoing && Connection.bHasOutgoingData) ||
+				(InConnectionMode == Trace::ENetProfilerConnectionMode::Incoming && Connection.bHasIncomingData))
+			{
+				bIsValidConnection = true;
+			}
+		}
+	});
+	return bIsValidConnection;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void SPacketView::UpdateState()
 {
 	FStopwatch Stopwatch;
 	Stopwatch.Start();
+
+	//////////////////////////////////////////////////
+
+	struct FPacketFilter
+	{
+		bool bByNetId = false;
+		uint32 NetId = 0;
+		bool bByEventType = false;
+		uint32 EventTypeIndex = 0;
+	};
+
+	FPacketFilter Filter;
+
+	if (ProfilerWindow)
+	{
+		TSharedPtr<SPacketContentView> PacketContentView = ProfilerWindow->GetPacketContentView();
+		if (PacketContentView)
+		{
+			Filter.bByNetId = PacketContentView->IsFilterByNetIdEnabled();
+			Filter.NetId = PacketContentView->GetFilterNetId();
+
+			Filter.bByEventType = PacketContentView->IsFilterByEventTypeEnabled();
+			Filter.EventTypeIndex = PacketContentView->GetFilterEventTypeIndex();
+		}
+	}
+
+	//////////////////////////////////////////////////
 
 	// Reset stats.
 	PacketSeries->NumAggregatedPackets = 0;
@@ -235,45 +289,78 @@ void SPacketView::UpdateState()
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 		const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
 
-		// TODO: if (NetProfilerProvider.IsConnectionValid(GameInstanceIndex, ConnectionIndex, ConnectionMode))
-		const uint32 GameInstanceCount = NetProfilerProvider.GetGameInstanceCount();
-		if (GameInstanceIndex < GameInstanceCount)
+		if (IsConnectionValid(NetProfilerProvider, GameInstanceIndex, ConnectionIndex, ConnectionMode))
 		{
-			bool bIsValidConnection = false;
-			NetProfilerProvider.ReadConnections(GameInstanceIndex, [this, &bIsValidConnection](const Trace::FNetProfilerConnection& Connection)
+			const uint32 NumPackets = NetProfilerProvider.GetPacketCount(ConnectionIndex, ConnectionMode);
+
+			ViewportX.SetMinMaxInterval(0, NumPackets);
+
+			if (NumPackets > 0)
 			{
-				if (ConnectionIndex == Connection.ConnectionIndex)
+				const int32 MinIndex = ViewportX.GetValueAtOffset(0.0f);
+				const int32 MaxIndex = ViewportX.GetValueAtOffset(ViewportX.GetSize());
+
+				const uint32 PacketStartIndex = static_cast<uint32>(FMath::Max(0, MinIndex));
+				const uint32 PacketEndIndex = FMath::Min(NumPackets - 1, static_cast<uint32>(FMath::Max(0, MaxIndex)));
+
+				if (PacketStartIndex <= PacketEndIndex)
 				{
-					if ((ConnectionMode == Trace::ENetProfilerConnectionMode::Outgoing && Connection.bHasOutgoingData) ||
-						(ConnectionMode == Trace::ENetProfilerConnectionMode::Incoming && Connection.bHasIncomingData))
+					int32 PacketIndex = PacketStartIndex;
+					NetProfilerProvider.EnumeratePackets(ConnectionIndex, ConnectionMode, PacketStartIndex, PacketEndIndex, [this, &Builder, &PacketIndex, &Filter, &NetProfilerProvider](const Trace::FNetProfilerPacket& Packet)
 					{
-						bIsValidConnection = true;
-					}
-				}
-			});
+						FNetworkPacketAggregatedSample* SamplePtr = Builder.AddPacket(PacketIndex++, Packet);
 
-			if (bIsValidConnection)
-			{
-				const uint32 NumPackets = NetProfilerProvider.GetPacketCount(ConnectionIndex, ConnectionMode);
-
-				ViewportX.SetMinMaxInterval(0, NumPackets);
-
-				if (NumPackets > 0)
-				{
-					const int32 MinIndex = ViewportX.GetValueAtOffset(0.0f);
-					const int32 MaxIndex = ViewportX.GetValueAtOffset(ViewportX.GetSize());
-
-					const uint32 PacketStartIndex = static_cast<uint32>(FMath::Max(0, MinIndex));
-					const uint32 PacketEndIndex = FMath::Min(NumPackets - 1, static_cast<uint32>(FMath::Max(0, MaxIndex)));
-
-					if (PacketStartIndex <= PacketEndIndex)
-					{
-						int32 PacketIndex = PacketStartIndex;
-						NetProfilerProvider.EnumeratePackets(ConnectionIndex, ConnectionMode, PacketStartIndex, PacketEndIndex, [&Builder, &PacketIndex](const Trace::FNetProfilerPacket& Packet)
+						if (SamplePtr)
 						{
-							Builder.AddPacket(PacketIndex++, Packet);
-						});
-					}
+							if (SamplePtr->NumPackets == 1)
+							{
+								SamplePtr->bAtLeastOnePacketMatchesFilter = !Filter.bByNetId && !Filter.bByEventType;
+							}
+
+							if (!SamplePtr->bAtLeastOnePacketMatchesFilter && (Filter.bByNetId || Filter.bByEventType))
+							{
+								bool bFilterMatch = false;
+
+								const uint32 StartPos = 0;
+								const uint32 EndPos = Packet.ContentSizeInBits;
+								NetProfilerProvider.EnumeratePacketContentEventsByPosition(ConnectionIndex, ConnectionMode, PacketIndex - 1, StartPos, EndPos, [this, &bFilterMatch, &Filter, &NetProfilerProvider](const Trace::FNetProfilerContentEvent& Event)
+								{
+									if (!bFilterMatch)
+									{
+										bool bEventMatchesFilter = true;
+										if (Filter.bByEventType && Filter.EventTypeIndex != Event.EventTypeIndex)
+										{
+											bEventMatchesFilter = false;
+										}
+										if (bEventMatchesFilter && Filter.bByNetId)
+										{
+											uint32 NetId = uint32(-1);
+											if (Event.ObjectInstanceIndex != 0)
+											{
+												NetProfilerProvider.ReadObject(GameInstanceIndex, Event.ObjectInstanceIndex, [&NetId](const Trace::FNetProfilerObjectInstance& ObjectInstance)
+												{
+													NetId = ObjectInstance.NetId;
+												});
+											}
+											if (Filter.NetId != NetId)
+											{
+												bEventMatchesFilter = false;
+											}
+										}
+										if (bEventMatchesFilter)
+										{
+											bFilterMatch = true;
+										}
+									}
+								});
+
+								if (bFilterMatch)
+								{
+									SamplePtr->bAtLeastOnePacketMatchesFilter = true;
+								}
+							}
+						}
+					});
 				}
 			}
 		}
@@ -321,6 +408,36 @@ void SPacketView::UpdateState()
 
 	Stopwatch.Stop();
 	UpdateDurationHistory.AddValue(Stopwatch.AccumulatedTime);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FNetworkPacketSampleRef SPacketView::GetSample(const int32 InPacketIndex)
+{
+	FNetworkPacketSampleRef SampleRef;
+	SampleRef.Series = PacketSeries;
+
+	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid())
+	{
+		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const Trace::INetProfilerProvider& NetProfilerProvider = Trace::ReadNetProfilerProvider(*Session.Get());
+
+		if (IsConnectionValid(NetProfilerProvider, GameInstanceIndex, ConnectionIndex, ConnectionMode))
+		{
+			const uint32 NumPackets = NetProfilerProvider.GetPacketCount(ConnectionIndex, ConnectionMode);
+			if (InPacketIndex >= 0 && InPacketIndex < static_cast<int32>(NumPackets))
+			{
+				NetProfilerProvider.EnumeratePackets(ConnectionIndex, ConnectionMode, InPacketIndex, InPacketIndex, [InPacketIndex, &SampleRef](const Trace::FNetProfilerPacket& Packet)
+				{
+					SampleRef.Sample = MakeShared<FNetworkPacketAggregatedSample>();
+					SampleRef.Sample->AddPacket(InPacketIndex, Packet);
+				});
+			}
+		}
+	}
+
+	return SampleRef;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -488,8 +605,8 @@ const TCHAR* AggregatedStatusToString(Trace::ENetProfilerDeliveryStatus Status)
 {
 	switch (Status)
 	{
-		case Trace::ENetProfilerDeliveryStatus::Delivered:  return TEXT("all packages are Delivered");
-		case Trace::ENetProfilerDeliveryStatus::Dropped:    return TEXT("at least one Dropped package");
+		case Trace::ENetProfilerDeliveryStatus::Delivered:  return TEXT("all packets are Delivered");
+		case Trace::ENetProfilerDeliveryStatus::Dropped:    return TEXT("at least one Dropped packet");
 		case Trace::ENetProfilerDeliveryStatus::Unknown:
 		default:                                            return TEXT("Unknown");
 	}
@@ -1101,18 +1218,296 @@ FReply SPacketView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 	{
 		if (InKeyEvent.GetModifierKeys().IsControlDown())
 		{
-			// Select all.
-			SelectedSample.Reset();
-			SelectionStartPacketIndex = 0;
 			const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
-			SelectionEndPacketIndex = ViewportX.GetMaxValue();
+			const int32 LastPacketIndex = ViewportX.GetMaxValue();
+
+			// Select all packets.
+			SelectionStartPacketIndex = 0;
+			SelectionEndPacketIndex = LastPacketIndex;
+
 			LastSelectedPacketIndex = 0;
+
+			SelectedSample.Reset();
+			if (SelectionEndPacketIndex == SelectionStartPacketIndex + 1)
+			{
+				SelectedSample = GetSample(SelectionStartPacketIndex);
+			}
 			OnSelectionChanged();
+
 			return FReply::Handled();
 		}
 	}
+	else if (InKeyEvent.GetKey() == EKeys::Left)
+	{
+		if (InKeyEvent.GetModifierKeys().IsShiftDown())
+		{
+			if (InKeyEvent.GetModifierKeys().IsControlDown())
+			{
+				ShrinkRightSideOfSelectedInterval();
+			}
+			else
+			{
+				ExtendLeftSideOfSelectedInterval();
+			}
+		}
+		else
+		{
+			SelectPreviousPacket();
+		}
+		return FReply::Handled();
+	}
+	else if (InKeyEvent.GetKey() == EKeys::Right)
+	{
+		if (InKeyEvent.GetModifierKeys().IsShiftDown())
+		{
+			if (InKeyEvent.GetModifierKeys().IsControlDown())
+			{
+				ShrinkLeftSideOfSelectedInterval();
+			}
+			else
+			{
+				ExtendRightSideOfSelectedInterval();
+			}
+		}
+		else
+		{
+			SelectNextPacket();
+		}
+		return FReply::Handled();
+	}
 
 	return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::EnsurePacketIsVisible(const int InPacketIndex)
+{
+	FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+	const float LeftX = ViewportX.GetPosForValue(InPacketIndex);
+	const float RightX = LeftX + ViewportX.GetSampleSize();
+
+	if (RightX > ViewportX.GetPos() + ViewportX.GetSize())
+	{
+		const int32 VisibleSampleCount = FMath::FloorToInt(ViewportX.GetSize() / ViewportX.GetSampleSize());
+		ViewportX.ScrollAtValue(InPacketIndex - VisibleSampleCount + 1);
+		UpdateHorizontalScrollBar();
+		bIsStateDirty = true;
+	}
+
+	if (LeftX < ViewportX.GetPos())
+	{
+		ViewportX.ScrollAtValue(InPacketIndex);
+		UpdateHorizontalScrollBar();
+		bIsStateDirty = true;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::SetSelectedPacket(const int32 InPacketIndex)
+{
+	const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+	const int32 PacketCount = ViewportX.GetMaxValue();
+	if (PacketCount > 0)
+	{
+		const int32 PacketIndex = FMath::Min(FMath::Max(0, InPacketIndex), PacketCount - 1);
+		SelectionStartPacketIndex = PacketIndex;
+		SelectionEndPacketIndex = PacketIndex + 1;
+		LastSelectedPacketIndex = PacketIndex;
+		EnsurePacketIsVisible(LastSelectedPacketIndex);
+		UpdateSelectedSample();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::SelectPreviousPacket()
+{
+	const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+	const int32 PacketCount = ViewportX.GetMaxValue();
+
+	if (PacketCount > 0)
+	{
+		if (SelectionStartPacketIndex >= SelectionEndPacketIndex) // no selection?
+		{
+			// Select the first packet.
+			SelectionStartPacketIndex = 0;
+			SelectionEndPacketIndex = 1;
+		}
+		else
+		{
+			if (SelectionStartPacketIndex > 0)
+			{
+				// Select the previous packet.
+				SelectionStartPacketIndex--;
+			}
+			SelectionEndPacketIndex = SelectionStartPacketIndex + 1;
+		}
+
+		LastSelectedPacketIndex = SelectionStartPacketIndex;
+		EnsurePacketIsVisible(LastSelectedPacketIndex);
+		UpdateSelectedSample();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::SelectNextPacket()
+{
+	const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+	const int32 PacketCount = ViewportX.GetMaxValue();
+
+	if (PacketCount > 0)
+	{
+		if (SelectionStartPacketIndex >= SelectionEndPacketIndex) // no selection?
+		{
+			// Select the last packet.
+			SelectionStartPacketIndex = PacketCount - 1;
+			SelectionEndPacketIndex = PacketCount;
+		}
+		else
+		{
+			if (SelectionEndPacketIndex < PacketCount)
+			{
+				// Select the next packet.
+				SelectionEndPacketIndex++;
+			}
+			SelectionStartPacketIndex = SelectionEndPacketIndex - 1;
+		}
+
+		LastSelectedPacketIndex = SelectionStartPacketIndex;
+		EnsurePacketIsVisible(LastSelectedPacketIndex);
+		UpdateSelectedSample();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::ExtendLeftSideOfSelectedInterval()
+{
+	const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+	const int32 PacketCount = ViewportX.GetMaxValue();
+
+	if (PacketCount > 0)
+	{
+		bool bSelectionChanged = false;
+
+		if (SelectionStartPacketIndex >= SelectionEndPacketIndex) // no selection?
+		{
+			// Select the first packet.
+			SelectionStartPacketIndex = 0;
+			SelectionEndPacketIndex = 1;
+			bSelectionChanged = true;
+		}
+		else
+		{
+			if (SelectionStartPacketIndex > 0)
+			{
+				// Extend left side of selected interval.
+				SelectionStartPacketIndex--;
+				bSelectionChanged = true;
+			}
+		}
+
+		if (bSelectionChanged)
+		{
+			LastSelectedPacketIndex = SelectionStartPacketIndex;
+			EnsurePacketIsVisible(LastSelectedPacketIndex);
+			UpdateSelectedSample();
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::ShrinkLeftSideOfSelectedInterval()
+{
+	const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+	const int32 PacketCount = ViewportX.GetMaxValue();
+
+	if (PacketCount > 0)
+	{
+		if (SelectionStartPacketIndex + 1 < SelectionEndPacketIndex)
+		{
+			// Shrink left side of selected interval.
+			SelectionStartPacketIndex++;
+
+			LastSelectedPacketIndex = SelectionStartPacketIndex;
+			EnsurePacketIsVisible(LastSelectedPacketIndex);
+			UpdateSelectedSample();
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::ExtendRightSideOfSelectedInterval()
+{
+	const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+	const int32 PacketCount = ViewportX.GetMaxValue();
+
+	if (PacketCount > 0)
+	{
+		bool bSelectionChanged = false;
+
+		if (SelectionStartPacketIndex >= SelectionEndPacketIndex) // no selection?
+		{
+			// Select the last packet.
+			SelectionStartPacketIndex = PacketCount - 1;
+			SelectionEndPacketIndex = PacketCount;
+			bSelectionChanged = true;
+		}
+		else
+		{
+			if (SelectionEndPacketIndex < PacketCount)
+			{
+				// Extend right side of selected interval.
+				SelectionEndPacketIndex++;
+				bSelectionChanged = true;
+			}
+		}
+
+		if (bSelectionChanged)
+		{
+			LastSelectedPacketIndex = SelectionEndPacketIndex - 1;
+			EnsurePacketIsVisible(LastSelectedPacketIndex);
+			UpdateSelectedSample();
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::ShrinkRightSideOfSelectedInterval()
+{
+	const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
+	const int32 PacketCount = ViewportX.GetMaxValue();
+
+	if (PacketCount > 0)
+	{
+		if (SelectionEndPacketIndex - 1 > SelectionStartPacketIndex)
+		{
+			// Shrink right side of selected interval.
+			SelectionEndPacketIndex--;
+
+			LastSelectedPacketIndex = SelectionEndPacketIndex - 1;
+			EnsurePacketIsVisible(LastSelectedPacketIndex);
+			UpdateSelectedSample();
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketView::UpdateSelectedSample()
+{
+	SelectedSample.Reset();
+	if (SelectionEndPacketIndex == SelectionStartPacketIndex + 1)
+	{
+		SelectedSample = GetSample(SelectionStartPacketIndex);
+	}
+	OnSelectionChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

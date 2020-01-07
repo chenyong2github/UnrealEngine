@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplaySharedData.h"
 #include "TraceServices/Model/AnalysisSession.h"
@@ -75,19 +75,19 @@ TSharedRef<FObjectEventsTrack> FGameplaySharedData::GetObjectEventsTrackForId(In
 	return LeafObjectEventsTrack.ToSharedRef();
 }
 
-static void UpdateTrackOrderRecursive(TSharedRef<FObjectEventsTrack> InTrack, int32& InOutOrder, uint32 InDepth)
+static void UpdateTrackOrderRecursive(TSharedRef<FObjectEventsTrack> InTrack, int32& InOutOrder)
 {
 	// recurse down object-track children, then non-object track leaf tracks to set 
 	// overall ordering based on depth-first traversal of the hierarchy
 
 	InTrack->SetOrder(InOutOrder++);
-	InTrack->GetGameplayTrack().SetIndent(InDepth);
 
 	for(FGameplayTrack* ChildTrack : InTrack->GetGameplayTrack().GetChildTracks())
 	{
 		if(ChildTrack->GetTimingTrack()->GetType() == FObjectEventsTrack::TypeName)
 		{
-			UpdateTrackOrderRecursive(StaticCastSharedRef<FObjectEventsTrack>(ChildTrack->GetTimingTrack()), InOutOrder, InDepth + 1);
+			ChildTrack->SetIndent(InTrack->GetGameplayTrack().GetIndent() + 1);
+			UpdateTrackOrderRecursive(StaticCastSharedRef<FObjectEventsTrack>(ChildTrack->GetTimingTrack()), InOutOrder);
 		}
 	}
 
@@ -95,8 +95,8 @@ static void UpdateTrackOrderRecursive(TSharedRef<FObjectEventsTrack> InTrack, in
 	{
 		if(ChildTrack->GetTimingTrack()->GetType() != FObjectEventsTrack::TypeName)
 		{
+			ChildTrack->SetIndent(InTrack->GetGameplayTrack().GetIndent() + 1);
 			ChildTrack->GetTimingTrack()->SetOrder(InOutOrder++);
-			ChildTrack->SetIndent(InDepth + 1);
 		}
 	}
 }
@@ -169,10 +169,10 @@ void FGameplaySharedData::SortTracks()
 		return InTrack0->GetName() < InTrack1->GetName();
 	});
 
-	// update ordering
+	// update ordering/indent
 	for(TSharedRef<FObjectEventsTrack> RootTrack : Roots)
 	{
-		UpdateTrackOrderRecursive(RootTrack, Order, 0);
+		UpdateTrackOrderRecursive(RootTrack, Order);
 	}
 
 	Roots.Reset();

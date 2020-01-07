@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -126,7 +126,7 @@ public:
 	 *
 	 * @return True if the plugin is currently enabled by default.
 	 */
-	virtual bool IsEnabledByDefault() const = 0;
+	virtual bool IsEnabledByDefault(bool bAllowEnginePluginsEnabledByDefault) const = 0;
 
 	/**
 	 * Determines if the plugin is should be displayed in-editor for the user to enable/disable freely.

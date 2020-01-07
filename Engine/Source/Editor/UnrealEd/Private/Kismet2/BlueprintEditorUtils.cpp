@@ -1,6 +1,8 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Algo/Copy.h"
+#include "Algo/Transform.h"
 #include "BlueprintCompilationManager.h"
 #include "UObject/Interface.h"
 #include "Engine/BlueprintGeneratedClass.h"
@@ -1185,19 +1187,6 @@ struct FRegenerationHelper
 									MacroSources.Add(MacroSource);
 								}
 							}
-
-							// If a variable node has an external dependency, then its BP class will differ from ours. For array properties,
-							// the external BP class (and thus the array property itself) will have been loaded/processed via the above
-							// ProcessHierarchy() call. However, the array's 'Inner' property may not have been preloaded as part of that path.
-							// Thus, we handle that here in order to ensure that all 'Inner' fields are also valid before class regeneration.
-							if (UK2Node_Variable* VariableNode = Cast<UK2Node_Variable>(Node))
-							{
-								UArrayProperty* ArrayProperty = Cast<UArrayProperty>(VariableNode->VariableReference.ResolveMember<UProperty>(Node->GetBlueprintClassFromNode()));
-								if (ArrayProperty != nullptr && ArrayProperty->Inner != nullptr && ArrayProperty->Inner->HasAnyFlags(RF_NeedLoad|RF_WasLoaded))
-								{
-									UBlueprint::ForceLoad(ArrayProperty->Inner);
-								}
-							}
 						}
 
 						UK2Node_FunctionEntry* FunctionEntry = Cast<UK2Node_FunctionEntry>(Node);
@@ -1901,7 +1890,7 @@ void FBlueprintEditorUtils::PostDuplicateBlueprint(UBlueprint* Blueprint, bool b
 						{
 							UClass* TargetClass = nullptr;
 
-							if(UProperty* Property = VariableNode->VariableReference.ResolveMember<UProperty>(VariableNode->GetBlueprintClassFromNode()))
+							if(FProperty* Property = VariableNode->VariableReference.ResolveMember<FProperty>(VariableNode->GetBlueprintClassFromNode()))
 							{
 								TargetClass = Property->GetOwnerClass()->GetAuthoritativeClass();
 							}
@@ -2155,14 +2144,14 @@ const UClass* FBlueprintEditorUtils::GetMostUpToDateClass(const UClass* FromClas
 	return GetMostUpToDateClass(const_cast<UClass*>(FromClass));
 }
 
-bool FBlueprintEditorUtils::PropertyStillExists(UProperty* Property)
+bool FBlueprintEditorUtils::PropertyStillExists(FProperty* Property)
 {
 	return GetMostUpToDateProperty(Property) != nullptr;
 }
 
-UProperty* FBlueprintEditorUtils::GetMostUpToDateProperty(UProperty* Property)
+FProperty* FBlueprintEditorUtils::GetMostUpToDateProperty(FProperty* Property)
 {
-	if(const UClass* OwningClass = Property->GetTypedOuter<UClass>())
+	if(const UClass* OwningClass = Property->GetTypedOwner<UClass>())
 	{
 		const UClass* UpToDateClass = GetMostUpToDateClass(OwningClass);
 		if (UpToDateClass && UpToDateClass != OwningClass)
@@ -2174,9 +2163,9 @@ UProperty* FBlueprintEditorUtils::GetMostUpToDateProperty(UProperty* Property)
 	return Property;
 }
 
-const UProperty* FBlueprintEditorUtils::GetMostUpToDateProperty(const UProperty* Property)
+const FProperty* FBlueprintEditorUtils::GetMostUpToDateProperty(const FProperty* Property)
 {
-	return GetMostUpToDateProperty(const_cast<UProperty*>(Property));
+	return GetMostUpToDateProperty(const_cast<FProperty*>(Property));
 }
 
 UFunction* FBlueprintEditorUtils::GetMostUpToDateFunction(UFunction* Function)
@@ -2944,43 +2933,79 @@ void FBlueprintEditorUtils::EnsureCachedDependenciesUpToDate(UBlueprint* Bluepri
 	}
 }
 
-void FBlueprintEditorUtils::GetDependentBlueprints(UBlueprint* Blueprint, TArray<UBlueprint*>& DependentBlueprints, bool bRemoveSelf)
+void FBlueprintEditorUtils::GetDependentBlueprints(UBlueprint* Blueprint, TArray<UBlueprint*>& DependentBlueprints)
 {
+	for( TWeakObjectPtr<UBlueprint> DependentBPWeak : Blueprint->CachedDependents )
+	{
+		if(UBlueprint* DependentBP = DependentBPWeak.Get())
+		{
+			DependentBlueprints.Add(DependentBP);
+		}
+	}
+}
+
+void FBlueprintEditorUtils::FindDependentBlueprints(UBlueprint* Blueprint, TArray<UBlueprint*>& DependentBlueprints)
+{	
+	if(Blueprint == nullptr)
+	{
+		return;
+	}
+
 	TArray<UObject*> AllBlueprints;
 	bool const bIncludeDerivedClasses = true;
 	GetObjectsOfClass(UBlueprint::StaticClass(), AllBlueprints, bIncludeDerivedClasses );
 
-	for (UObject* Obj : AllBlueprints)
+	// Sanitize, add correct type.. can't find a UObject* helper to do this, and 
+	// the previous version of htis code checked IsPendingKill():
+	TArray<UBlueprint*> AllBlueprintSafe;
+	Algo::TransformIf(AllBlueprints, AllBlueprintSafe, 
+		[](UObject* Obj)->bool { return Obj && !Obj->IsPendingKill(); }, 
+		[](UObject* Obj)->UBlueprint* { return static_cast<UBlueprint*>(Obj); } 
+	);
+
+	// Update *all* dependencies:
+	for (UBlueprint* TestBP : AllBlueprintSafe)
 	{
-		// we know the class is correct so a fast cast is ok here
-		UBlueprint* TestBP = static_cast<UBlueprint*>(Obj);
-		if (TestBP && !TestBP->IsPendingKill())
-		{
-			EnsureCachedDependenciesUpToDate(TestBP);
+		EnsureCachedDependenciesUpToDate(TestBP);
+	}
 
-			if (TestBP->CachedDependencies.Contains(Blueprint))
+	// Gather macro blueprints that we're dependent on:
+	TSet<UBlueprint*> DepSet;
+	Algo::CopyIf(AllBlueprintSafe, DepSet,
+		[Blueprint](UBlueprint* TestBP) -> bool 
+		{ 
+			if(TestBP->CachedDependencies.Contains(Blueprint))
 			{
-				if (!DependentBlueprints.Contains(TestBP))
+				if (TestBP->BlueprintType == BPTYPE_MacroLibrary)
 				{
-					DependentBlueprints.Add(TestBP);
-
-					// When a Macro Library depends on this Blueprint, then any Blueprint that 
-					// depends on it must also depend on this Blueprint for re-compiling (bytecode, skeleton, full) purposes
-					if (TestBP->BlueprintType == BPTYPE_MacroLibrary)
-					{
-						GetDependentBlueprints(TestBP, DependentBlueprints, false);
-					}
+					return true;
 				}
 			}
+			return false;
 		}
-	}
+	);
+	DepSet.Add(Blueprint);
+	
+	// Find all blueprints that have a cached dep on Blueprint *or* one of the 
+	// macros that is dependent on Blueprint:
+	Algo::CopyIf(AllBlueprintSafe, DependentBlueprints,
+		[DepSet](UBlueprint* TestBP) -> bool
+		{
+			// check for interesection between CachedDependencies and DepSet:
+			for(TWeakObjectPtr<UBlueprint> ObjWeak : TestBP->CachedDependencies)
+			{
+				if(DepSet.Contains(ObjWeak.Get()))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+	);
 
-	if (bRemoveSelf)
-	{
-		DependentBlueprints.RemoveSwap(Blueprint);
-	}
+	// Remove ourself from the list of dependents:
+	DependentBlueprints.RemoveSwap(Blueprint);
 }
-
 
 bool FBlueprintEditorUtils::IsGraphIntermediate(const UEdGraph* Graph)
 {
@@ -3185,9 +3210,9 @@ bool FBlueprintEditorUtils::CanClassGenerateEvents(const UClass* InClass)
 {
 	if( InClass )
 	{
-		for( TFieldIterator<UMulticastDelegateProperty> PropertyIt( InClass, EFieldIteratorFlags::IncludeSuper ); PropertyIt; ++PropertyIt )
+		for( TFieldIterator<FMulticastDelegateProperty> PropertyIt( InClass, EFieldIteratorFlags::IncludeSuper ); PropertyIt; ++PropertyIt )
 		{
-			UProperty* Property = *PropertyIt;
+			FProperty* Property = *PropertyIt;
 			if( !Property->HasAnyPropertyFlags( CPF_Parm ) && Property->HasAllPropertyFlags( CPF_BlueprintAssignable ))
 			{
 				return true;
@@ -3351,7 +3376,7 @@ FString FBlueprintEditorUtils::GetBlueprintTypeDescription(const UBlueprint* Blu
 //////////////////////////////////////////////////////////////////////////
 // Variables
 
-bool FBlueprintEditorUtils::IsVariableCreatedByBlueprint(UBlueprint* InBlueprint, UProperty* InVariableProperty)
+bool FBlueprintEditorUtils::IsVariableCreatedByBlueprint(UBlueprint* InBlueprint, FProperty* InVariableProperty)
 {
 	bool bIsVariableCreatedByBlueprint = false;
 	if (UBlueprintGeneratedClass* GeneratedClass = Cast<UBlueprintGeneratedClass>(InVariableProperty->GetOwnerClass()))
@@ -3743,12 +3768,12 @@ void FBlueprintEditorUtils::SetBlueprintVariableMetaData(UBlueprint* Blueprint, 
 		else
 		{
 			Blueprint->NewVariables[VarIndex].SetMetaData(MetaDataKey, MetaDataValue);
-			UProperty* Property = FindField<UProperty>(Blueprint->SkeletonGeneratedClass, VarName);
+			FProperty* Property = FindField<FProperty>(Blueprint->SkeletonGeneratedClass, VarName);
 			if (Property)
 			{
 				Property->SetMetaData(MetaDataKey, *MetaDataValue);
 			}
-			Property = FindField<UProperty>(Blueprint->GeneratedClass, VarName);
+			Property = FindField<FProperty>(Blueprint->GeneratedClass, VarName);
 			if (Property)
 			{
 				Property->SetMetaData(MetaDataKey, *MetaDataValue);
@@ -3867,12 +3892,12 @@ void FBlueprintEditorUtils::RemoveBlueprintVariableMetaData(UBlueprint* Blueprin
 		else
 		{
 			Blueprint->NewVariables[VarIndex].RemoveMetaData(MetaDataKey);
-			UProperty* Property = FindField<UProperty>(Blueprint->SkeletonGeneratedClass, VarName);
+			FProperty* Property = FindField<FProperty>(Blueprint->SkeletonGeneratedClass, VarName);
 			if (Property)
 			{
 				Property->RemoveMetaData(MetaDataKey);
 			}
-			Property = FindField<UProperty>(Blueprint->GeneratedClass, VarName);
+			Property = FindField<FProperty>(Blueprint->GeneratedClass, VarName);
 			if (Property)
 			{
 				Property->RemoveMetaData(MetaDataKey);
@@ -3909,9 +3934,9 @@ void FBlueprintEditorUtils::SetBlueprintVariableCategory(UBlueprint* Blueprint, 
 	Blueprint->Modify();
 
 	UClass* SkeletonGeneratedClass = Blueprint->SkeletonGeneratedClass;
-	if (UProperty* TargetProperty = FindField<UProperty>(SkeletonGeneratedClass, VarName))
+	if (FProperty* TargetProperty = FindField<FProperty>(SkeletonGeneratedClass, VarName))
 	{
-		UClass* OuterClass = CastChecked<UClass>(TargetProperty->GetOuter());
+		UClass* OuterClass = TargetProperty->GetOwnerChecked<UClass>();
 		const bool bIsNativeVar = (OuterClass->ClassGeneratedBy == nullptr);
 
 		if (!bIsNativeVar)
@@ -4125,7 +4150,7 @@ FText FBlueprintEditorUtils::GetBlueprintVariableCategory(UBlueprint* Blueprint,
 {
 	FText CategoryName;
 	UClass* SkeletonGeneratedClass = Blueprint->SkeletonGeneratedClass;
-	UProperty* TargetProperty = FindField<UProperty>(SkeletonGeneratedClass, VarName);
+	FProperty* TargetProperty = FindField<FProperty>(SkeletonGeneratedClass, VarName);
 	if(TargetProperty != nullptr)
 	{
 		CategoryName = FObjectEditorUtils::GetCategoryText(TargetProperty);
@@ -4333,9 +4358,9 @@ void FBlueprintEditorUtils::GetClassVariableList(const UBlueprint* Blueprint, TS
 	// compilation manager is on full time:
 	if (Blueprint->SkeletonGeneratedClass != nullptr)
 	{
-		for (TFieldIterator<UProperty> PropertyIt(Blueprint->SkeletonGeneratedClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<FProperty> PropertyIt(Blueprint->SkeletonGeneratedClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
-			UProperty* Property = *PropertyIt;
+			FProperty* Property = *PropertyIt;
 
 			if ((!Property->HasAnyPropertyFlags(CPF_Parm) && (bIncludePrivateVars || Property->HasAllPropertyFlags(CPF_BlueprintVisible))))
 			{
@@ -4588,7 +4613,7 @@ void FBlueprintEditorUtils::RenameComponentMemberVariable(UBlueprint* Blueprint,
 		{
 			const FComponentKey Key(Node);
 			TArray<UBlueprint*> Dependents;
-			GetDependentBlueprints(Blueprint, Dependents);
+			FindDependentBlueprints(Blueprint, Dependents);
 			for (UBlueprint* DepBP : Dependents)
 			{
 				UInheritableComponentHandler* InheritableComponentHandler = DepBP ? DepBP->GetInheritableComponentHandler(false) : nullptr;
@@ -4638,7 +4663,7 @@ void FBlueprintEditorUtils::RenameMemberVariable(UBlueprint* Blueprint, const FN
 				UObject* GeneratedCDO = GeneratedClass ? GeneratedClass->GetDefaultObject(false) : nullptr;
 				if (GeneratedCDO)
 				{
-					UProperty* TargetProperty = FindField<UProperty>(GeneratedCDO->GetClass(), OldName); // GeneratedCDO->GetClass() is used instead of GeneratedClass, because CDO could use REINST class.
+					FProperty* TargetProperty = FindField<FProperty>(GeneratedCDO->GetClass(), OldName); // GeneratedCDO->GetClass() is used instead of GeneratedClass, because CDO could use REINST class.
 					// Grab the address of where the property is actually stored (UObject* base, plus the offset defined in the property)
 					void* OldPropertyAddr = TargetProperty ? TargetProperty->ContainerPtrToValuePtr<void>(GeneratedCDO) : nullptr;
 					if (OldPropertyAddr)
@@ -4951,13 +4976,13 @@ FName FBlueprintEditorUtils::DuplicateVariable(UBlueprint* InBlueprint, const US
 
 			NewVar = DuplicateVariableDescription(InBlueprint, Variable);
 
-			// We need to manually pull the DefaultValue from the UProperty to set it
+			// We need to manually pull the DefaultValue from the FProperty to set it
 			void* OldPropertyAddr = nullptr;
 
 			//Grab property of blueprint's current CDO
 			UClass* GeneratedClass = InBlueprint->GeneratedClass;
 			UObject* GeneratedCDO = GeneratedClass->GetDefaultObject();
-			UProperty* TargetProperty = FindField<UProperty>(GeneratedClass, Variable.VarName);
+			FProperty* TargetProperty = FindField<FProperty>(GeneratedClass, Variable.VarName);
 
 			if( TargetProperty )
 			{
@@ -5183,8 +5208,8 @@ void FBlueprintEditorUtils::RenameLocalVariable(UBlueprint* InBlueprint, const U
 	{
 		UK2Node_FunctionEntry* FunctionEntry = nullptr;
 		FBPVariableDescription* LocalVariable = FindLocalVariable(InBlueprint, InScope, InOldName, &FunctionEntry);
-		const UProperty* OldProperty = FindField<const UProperty>(InScope, InOldName);
-		const UProperty* ExistingProperty = FindField<const UProperty>(InScope, InNewName);
+		const FProperty* OldProperty = FindField<const FProperty>(InScope, InOldName);
+		const FProperty* ExistingProperty = FindField<const FProperty>(InScope, InNewName);
 		const bool bHasExistingProperty = ExistingProperty && ExistingProperty != OldProperty;
 		if (bHasExistingProperty)
 		{
@@ -5417,7 +5442,7 @@ void FBlueprintEditorUtils::ReplaceVariableReferences(UBlueprint* Blueprint, con
 	FBlueprintEditorUtils::RenameVariableReferences(Blueprint, Blueprint->GeneratedClass, OldName, NewName);
 
 	TArray<UBlueprint*> Dependents;
-	GetDependentBlueprints(Blueprint, Dependents);
+	FindDependentBlueprints(Blueprint, Dependents);
 
 	for (UBlueprint* DependentBp : Dependents)
 	{
@@ -5425,7 +5450,7 @@ void FBlueprintEditorUtils::ReplaceVariableReferences(UBlueprint* Blueprint, con
 	}
 }
 
-void FBlueprintEditorUtils::ReplaceVariableReferences(UBlueprint* Blueprint, const UProperty* OldVariable, const UProperty* NewVariable)
+void FBlueprintEditorUtils::ReplaceVariableReferences(UBlueprint* Blueprint, const FProperty* OldVariable, const FProperty* NewVariable)
 {
 	check((OldVariable != nullptr) && (NewVariable != nullptr));
 	ReplaceVariableReferences(Blueprint, OldVariable->GetFName(), NewVariable->GetFName());
@@ -6815,7 +6840,7 @@ void FBlueprintEditorUtils::ConformImplementedInterfaces(UBlueprint* Blueprint)
 
 	// Collect all variables names in current blueprint 
 	TArray<FName> VariableNamesUsedInBlueprint;
-	for (TFieldIterator<UProperty> VariablesIter(Blueprint->GeneratedClass); VariablesIter; ++VariablesIter)
+	for (TFieldIterator<FProperty> VariablesIter(Blueprint->GeneratedClass); VariablesIter; ++VariablesIter)
 	{
 		VariableNamesUsedInBlueprint.Add(VariablesIter->GetFName());
 	}
@@ -7071,7 +7096,7 @@ void FBlueprintEditorUtils::UpdateRootComponentReference(UBlueprint* Blueprint)
 	}
 }
 
-bool FBlueprintEditorUtils::IsSCSComponentProperty(UObjectProperty* MemberProperty)
+bool FBlueprintEditorUtils::IsSCSComponentProperty(FObjectProperty* MemberProperty)
 {
 	if (!MemberProperty->PropertyClass->IsChildOf<UActorComponent>())
 	{
@@ -7112,7 +7137,7 @@ bool FBlueprintEditorUtils::IsSCSComponentProperty(UObjectProperty* MemberProper
 	}
 
 	FMemberReference MemberRef;
-	MemberRef.SetFromField<UProperty>(MemberProperty, /*bIsConsideredSelfContext =*/false);
+	MemberRef.SetFromField<FProperty>(MemberProperty, /*bIsConsideredSelfContext =*/false);
 	bool const bIsGuidValid = MemberRef.GetMemberGuid().IsValid();
 
 	if (BpClassOwner->SimpleConstructionScript != nullptr)
@@ -7654,7 +7679,7 @@ void FBlueprintEditorUtils::FixLevelScriptActorBindings(ALevelScriptActor* Level
 				if( LevelScriptActor->FindFunction(TargetFunction) )
 				{
 					// Grab the MC delegate we need to add to
-					UMulticastDelegateProperty* TargetDelegate = EventNode->GetTargetDelegateProperty();
+					FMulticastDelegateProperty* TargetDelegate = EventNode->GetTargetDelegateProperty();
 					if( TargetDelegate != nullptr )
 					{
 						// Create the delegate, and add it if it doesn't already exist
@@ -8228,7 +8253,7 @@ void FBlueprintEditorUtils::PostEditChangeBlueprintActors(UBlueprint* Blueprint,
 	}
 }
 
-FBlueprintEditorUtils::EPropertyWritableState FBlueprintEditorUtils::IsPropertyWritableInBlueprint(const UBlueprint* Blueprint, const UProperty* Property)
+FBlueprintEditorUtils::EPropertyWritableState FBlueprintEditorUtils::IsPropertyWritableInBlueprint(const UBlueprint* Blueprint, const FProperty* Property)
 {
 	if (Property)
 	{
@@ -8242,7 +8267,7 @@ FBlueprintEditorUtils::EPropertyWritableState FBlueprintEditorUtils::IsPropertyW
 		}
 		if (Property->GetBoolMetaData(FBlueprintMetadata::MD_Private))
 		{
-			const UClass* OwningClass = CastChecked<UClass>(Property->GetOuter());
+			const UClass* OwningClass = Property->GetOwnerChecked<UClass>();
 			if (OwningClass->ClassGeneratedBy != Blueprint)
 			{
 				return EPropertyWritableState::Private;
@@ -8252,7 +8277,7 @@ FBlueprintEditorUtils::EPropertyWritableState FBlueprintEditorUtils::IsPropertyW
 	return EPropertyWritableState::Writable;
 }
 
-FBlueprintEditorUtils::EPropertyReadableState FBlueprintEditorUtils::IsPropertyReadableInBlueprint(const UBlueprint* Blueprint, const UProperty* Property)
+FBlueprintEditorUtils::EPropertyReadableState FBlueprintEditorUtils::IsPropertyReadableInBlueprint(const UBlueprint* Blueprint, const FProperty* Property)
 {
 	if (Property)
 	{
@@ -8262,7 +8287,7 @@ FBlueprintEditorUtils::EPropertyReadableState FBlueprintEditorUtils::IsPropertyR
 		}
 		if (Property->GetBoolMetaData(FBlueprintMetadata::MD_Private))
 		{
-			const UClass* OwningClass = CastChecked<UClass>(Property->GetOuter());
+			const UClass* OwningClass = Property->GetOwnerChecked<UClass>();
 			if (OwningClass->ClassGeneratedBy != Blueprint)
 			{
 				return EPropertyReadableState::Private;
@@ -8272,7 +8297,7 @@ FBlueprintEditorUtils::EPropertyReadableState FBlueprintEditorUtils::IsPropertyR
 	return EPropertyReadableState::Readable;
 }
 
-bool FBlueprintEditorUtils::IsPropertyReadOnlyInCurrentBlueprint(const UBlueprint* Blueprint, const UProperty* Property)
+bool FBlueprintEditorUtils::IsPropertyReadOnlyInCurrentBlueprint(const UBlueprint* Blueprint, const FProperty* Property)
 {
 	return (IsPropertyWritableInBlueprint(Blueprint, Property) != EPropertyWritableState::Writable);
 }
@@ -8421,29 +8446,29 @@ bool FBlueprintEditorUtils::IsObjectADebugCandidate( AActor* InActorObject, UBlu
 	return bPassesFlags && bCanDebugThisObject;
 }
 
-bool FBlueprintEditorUtils::PropertyValueFromString(const UProperty* Property, const FString& StrValue, uint8* Container, UObject* OwningObject)
+bool FBlueprintEditorUtils::PropertyValueFromString(const FProperty* Property, const FString& StrValue, uint8* Container, UObject* OwningObject)
 {
 	return PropertyValueFromString_Direct(Property, StrValue, Property->ContainerPtrToValuePtr<uint8>(Container), OwningObject);
 }
 
-bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const UProperty* Property, const FString& StrValue, uint8* DirectValue, UObject* OwningObject)
+bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const FProperty* Property, const FString& StrValue, uint8* DirectValue, UObject* OwningObject)
 {
 	bool bParseSucceeded = true;
-	if (!Property->IsA(UStructProperty::StaticClass()))
+	if (!Property->IsA(FStructProperty::StaticClass()))
 	{
-		if (Property->IsA(UIntProperty::StaticClass()))
+		if (Property->IsA(FIntProperty::StaticClass()))
 		{
 			int32 IntValue = 0;
 			bParseSucceeded = FDefaultValueHelper::ParseInt(StrValue, IntValue);
-			CastChecked<UIntProperty>(Property)->SetPropertyValue(DirectValue, IntValue);
+			CastFieldChecked<const FIntProperty>(Property)->SetPropertyValue(DirectValue, IntValue);
 		}
-		else if (Property->IsA(UFloatProperty::StaticClass()))
+		else if (Property->IsA(FFloatProperty::StaticClass()))
 		{
 			float FloatValue = 0.0f;
 			bParseSucceeded = FDefaultValueHelper::ParseFloat(StrValue, FloatValue);
-			CastChecked<UFloatProperty>(Property)->SetPropertyValue(DirectValue, FloatValue);
+			CastFieldChecked<const FFloatProperty>(Property)->SetPropertyValue(DirectValue, FloatValue);
 		}
-		else if (const UByteProperty* ByteProperty = Cast<const UByteProperty>(Property))
+		else if (const FByteProperty* ByteProperty = CastField<const FByteProperty>(Property))
 		{
 			int32 IntValue = 0;
 			if (const UEnum* Enum = ByteProperty->Enum)
@@ -8464,7 +8489,7 @@ bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const UProperty* Prop
 			bParseSucceeded = bParseSucceeded && (IntValue <= 255) && (IntValue >= 0);
 			ByteProperty->SetPropertyValue(DirectValue, IntValue);
 		}
-		else if (const UEnumProperty* EnumProperty = Cast<const UEnumProperty>(Property))
+		else if (const FEnumProperty* EnumProperty = CastField<const FEnumProperty>(Property))
 		{
 			int64 IntValue = EnumProperty->GetEnum()->GetValueByName(FName(*StrValue));
 			bParseSucceeded = (INDEX_NONE != IntValue);
@@ -8477,19 +8502,19 @@ bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const UProperty* Prop
 			bParseSucceeded = bParseSucceeded && (IntValue <= 255) && (IntValue >= 0);
 			EnumProperty->GetUnderlyingProperty()->SetIntPropertyValue(DirectValue, IntValue);
 		}
-		else if (Property->IsA(UStrProperty::StaticClass()))
+		else if (Property->IsA(FStrProperty::StaticClass()))
 		{
-			CastChecked<UStrProperty>(Property)->SetPropertyValue(DirectValue, StrValue);
+			CastFieldChecked<const FStrProperty>(Property)->SetPropertyValue(DirectValue, StrValue);
 		}
-		else if (Property->IsA(UBoolProperty::StaticClass()))
+		else if (Property->IsA(FBoolProperty::StaticClass()))
 		{
-			CastChecked<UBoolProperty>(Property)->SetPropertyValue(DirectValue, StrValue.ToBool());
+			CastFieldChecked<const FBoolProperty>(Property)->SetPropertyValue(DirectValue, StrValue.ToBool());
 		}
-		else if (Property->IsA(UNameProperty::StaticClass()))
+		else if (Property->IsA(FNameProperty::StaticClass()))
 		{
-			CastChecked<UNameProperty>(Property)->SetPropertyValue(DirectValue, FName(*StrValue));
+			CastFieldChecked<const FNameProperty>(Property)->SetPropertyValue(DirectValue, FName(*StrValue));
 		}
-		else if (Property->IsA(UTextProperty::StaticClass()))
+		else if (Property->IsA(FTextProperty::StaticClass()))
 		{
 			FStringOutputDevice ImportError;
 			const TCHAR* EndOfParsedBuff = Property->ImportText(*StrValue, DirectValue, PPF_SerializedAsImportText, OwningObject, &ImportError);
@@ -8498,7 +8523,7 @@ bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const UProperty* Prop
 		else
 		{
 			// Empty array-like properties need to use "()" in order to import correctly (as array properties export comma separated within a set of brackets)
-			const TCHAR* const ValueToImport = (StrValue.IsEmpty() && (Property->IsA(UArrayProperty::StaticClass()) || Property->IsA(UMulticastDelegateProperty::StaticClass())))
+			const TCHAR* const ValueToImport = (StrValue.IsEmpty() && (Property->IsA(FArrayProperty::StaticClass()) || Property->IsA(FMulticastDelegateProperty::StaticClass())))
 				? TEXT("()")
 				: *StrValue;
 
@@ -8514,7 +8539,7 @@ bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const UProperty* Prop
 		static UScriptStruct* TransformStruct = TBaseStructure<FTransform>::Get();
 		static UScriptStruct* LinearColorStruct = TBaseStructure<FLinearColor>::Get();
 
-		const UStructProperty* StructProperty = CastChecked<UStructProperty>(Property);
+		const FStructProperty* StructProperty = CastFieldChecked<const FStructProperty>(Property);
 
 		// Struct properties must be handled differently, unfortunately.  We only support FVector, FRotator, and FTransform
 		if (StructProperty->Struct == VectorStruct)
@@ -8558,17 +8583,17 @@ bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const UProperty* Prop
 	return bParseSucceeded;
 }
 
-bool FBlueprintEditorUtils::PropertyValueToString(const UProperty* Property, const uint8* Container, FString& OutForm, UObject* OwningObject)
+bool FBlueprintEditorUtils::PropertyValueToString(const FProperty* Property, const uint8* Container, FString& OutForm, UObject* OwningObject)
 {
 	return PropertyValueToString_Direct(Property, Property->ContainerPtrToValuePtr<const uint8>(Container), OutForm, OwningObject);
 }
 
-bool FBlueprintEditorUtils::PropertyValueToString_Direct(const UProperty* Property, const uint8* DirectValue, FString& OutForm, UObject* OwningObject)
+bool FBlueprintEditorUtils::PropertyValueToString_Direct(const FProperty* Property, const uint8* DirectValue, FString& OutForm, UObject* OwningObject)
 {
 	check(Property && DirectValue);
 	OutForm.Reset();
 
-	const UStructProperty* StructProperty = Cast<UStructProperty>(Property);
+	const FStructProperty* StructProperty = CastField<FStructProperty>(Property);
 	if (StructProperty)
 	{
 		static UScriptStruct* VectorStruct = TBaseStructure<FVector>::Get();
@@ -9246,7 +9271,7 @@ bool FBlueprintEditorUtils::HasGetTypeHash(const FEdGraphPinType& PinType)
 	return false;
 }
 
-bool FBlueprintEditorUtils::PropertyHasGetTypeHash(const UProperty* PropertyType)
+bool FBlueprintEditorUtils::PropertyHasGetTypeHash(const FProperty* PropertyType)
 {
 	return PropertyType->HasAllPropertyFlags(CPF_HasGetValueTypeHash);
 } 
@@ -9259,11 +9284,11 @@ bool FBlueprintEditorUtils::StructHasGetTypeHash(const UScriptStruct* StructType
 	}
 	else
 	{
-		// if every member can be hashed (or is a UBoolProperty, which is specially 
+		// if every member can be hashed (or is a FBoolProperty, which is specially 
 		// handled by UScriptStruct::GetStructTypeHash) then we can hash the struct:
-		for (TFieldIterator<UProperty> It(StructType); It; ++It)
+		for (TFieldIterator<FProperty> It(StructType); It; ++It)
 		{
-			if (Cast<UBoolProperty>(*It))
+			if (CastField<FBoolProperty>(*It))
 			{
 				continue;
 			}
@@ -9419,7 +9444,7 @@ struct FComponentInstancingDataUtils
 	// Recursively gathers properties that differ from class/struct defaults, and fills out the cooked property list structure.
 	static void RecursivePropertyGather(UStruct* InStruct, const uint8* DataPtr, const uint8* DefaultDataPtr, FBlueprintCookedComponentInstancingData& OutData)
 	{
-		for (UProperty* Property = InStruct->PropertyLink; Property; Property = Property->PropertyLinkNext)
+		for (FProperty* Property = InStruct->PropertyLink; Property; Property = Property->PropertyLinkNext)
 		{
 			// Skip editor-only properties since they won't be compiled in a non-editor configuration. Also skip transient and deprecated properties since they won't be serialized on save/duplicate. 
 			if (!Property->IsEditorOnlyProperty()
@@ -9435,7 +9460,7 @@ struct FComponentInstancingDataUtils
 					ChangedPropertyInfo.ArrayIndex = Idx;
 					ChangedPropertyInfo.PropertyScope = InStruct;
 
-					if (UStructProperty* StructProperty = Cast<UStructProperty>(Property))
+					if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 					{
 						int32 NumChangedProperties = OutData.ChangedPropertyList.Num();
 
@@ -9447,7 +9472,7 @@ struct FComponentInstancingDataUtils
 							OutData.ChangedPropertyList.Insert(ChangedPropertyInfo, NumChangedProperties);
 						}
 					}
-					else if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Property))
+					else if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 					{
 						FScriptArrayHelper ArrayValueHelper(ArrayProperty, PropertyValue);
 						FScriptArrayHelper DefaultArrayValueHelper(ArrayProperty, DefaultPropertyValue);
@@ -9464,7 +9489,7 @@ struct FComponentInstancingDataUtils
 							{
 								const uint8* DefaultArrayPropertyValue = DefaultArrayValueHelper.GetRawPtr(ArrayValueIndex);
 
-								if (UStructProperty* InnerStructProperty = Cast<UStructProperty>(ArrayProperty->Inner))
+								if (FStructProperty* InnerStructProperty = CastField<FStructProperty>(ArrayProperty->Inner))
 								{
 									int32 NumChangedArrayProperties = OutData.ChangedPropertyList.Num();
 

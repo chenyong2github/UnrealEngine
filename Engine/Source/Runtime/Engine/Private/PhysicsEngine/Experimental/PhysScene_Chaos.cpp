@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Physics/Experimental/PhysScene_Chaos.h"
 
@@ -35,7 +35,7 @@
 #include "PBDRigidActiveParticlesBuffer.h"
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/Box.h"
-
+#include "PhysicsReplication.h"
 
 #if !UE_BUILD_SHIPPING
 #include "Engine/World.h"
@@ -85,7 +85,7 @@ public:
 
 	}
 
-	virtual void Box(const Chaos::TBox<float, 3>& InBox, const Chaos::TVector<float, 3>& InLinearColor, float InThickness) override
+	virtual void Box(const Chaos::TAABB<float, 3>& InBox, const Chaos::TVector<float, 3>& InLinearColor, float InThickness) override
 	{
 		DrawDebugBox(World, InBox.Center(), InBox.Extents(), FQuat::Identity, FLinearColor(InLinearColor).ToFColor(true), false, -1.0f, SDPG_Foreground, InThickness);
 	}
@@ -222,8 +222,8 @@ private:
 
 					if (bDrawObjectBounds)
 					{
-						const TArray<TBox<float, 3>>& Boxes = BV->GetWorldSpaceBoxes();
-						for (const TBox<float, 3>& Box : Boxes)
+						const TArray<TAABB<float, 3>>& Boxes = BV->GetWorldSpaceBoxes();
+						for (const TAABB<float, 3>& Box : Boxes)
 						{
 							DrawDebugBox(WorldPtr, Box.Center(), Box.Extents() / 2.0f, FQuat::Identity, FColor::Cyan, false, -1.0f, SDPG_Foreground, 1.0f);
 						}
@@ -342,7 +342,8 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 	, const FName& DebugName
 #endif
 )
-	: ChaosModule(nullptr)
+	: PhysicsReplication(nullptr)
+	, ChaosModule(nullptr)
 	, SceneSolver(nullptr)
 	, SolverActor(InSolverActor)
 #if WITH_EDITOR
@@ -363,8 +364,6 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 #endif
 );
 	check(SceneSolver);
-
-	SceneSolver->SetEnabled(true);
 
 	// If we're running the physics thread, hand over the solver to it - we are no longer
 	// able to access the solver on the game thread and should only use commands
@@ -403,6 +402,17 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 
 FPhysScene_Chaos::~FPhysScene_Chaos()
 {
+#if WITH_CHAOS
+	if (IPhysicsReplicationFactory* RawReplicationFactory = FPhysScene_ChaosInterface::PhysicsReplicationFactory.Get())
+	{
+		RawReplicationFactory->Destroy(PhysicsReplication);
+	}
+	else if(PhysicsReplication)
+	{
+		delete PhysicsReplication;
+	}
+#endif
+
 	Shutdown();
 	
 	FCoreDelegates::OnPreExit.RemoveAll(this);
@@ -418,6 +428,29 @@ FPhysScene_Chaos::~FPhysScene_Chaos()
 	}
 #endif
 }
+
+#if WITH_EDITOR && WITH_CHAOS
+bool FPhysScene_ChaosInterface::IsOwningWorldEditor() const
+{
+	const UWorld* WorldPtr = GetOwningWorld();
+	const TIndirectArray<FWorldContext>& WorldContexts = GEngine->GetWorldContexts();
+	for (const FWorldContext& Context : WorldContexts)
+	{
+		if (WorldPtr)
+		{
+			if (WorldPtr == Context.World())
+			{
+				if (Context.WorldType == EWorldType::Editor)
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+#endif
 
 bool FPhysScene_Chaos::IsTickable() const
 {
@@ -601,11 +634,11 @@ void FPhysScene_Chaos::UpdateActorInAccelerationStructure(const FPhysicsActorHan
 		if (SpatialAcceleration)
 		{
 
-			TBox<FReal, 3> WorldBounds;
+			TAABB<FReal, 3> WorldBounds;
 			const bool bHasBounds = Actor->Geometry()->HasBoundingBox();
 			if (bHasBounds)
 			{
-				WorldBounds = Actor->Geometry()->BoundingBox().GetAABB().TransformedAABB(TRigidTransform<FReal, 3>(Actor->X(), Actor->R()));
+				WorldBounds = Actor->Geometry()->BoundingBox().TransformedAABB(TRigidTransform<FReal, 3>(Actor->X(), Actor->R()));
 			}
 
 
@@ -792,6 +825,16 @@ void FPhysScene_Chaos::Shutdown()
 	ComponentToPhysicsProxyMap.Reset();
 }
 
+FPhysicsReplication* FPhysScene_Chaos::GetPhysicsReplication()
+{
+	return PhysicsReplication;
+}
+
+void FPhysScene_Chaos::SetPhysicsReplication(FPhysicsReplication* InPhysicsReplication)
+{
+	PhysicsReplication = InPhysicsReplication;
+}
+
 void FPhysScene_Chaos::AddReferencedObjects(FReferenceCollector& Collector)
 {
 #if WITH_EDITOR
@@ -937,7 +980,12 @@ FPhysScene_ChaosInterface::FPhysScene_ChaosInterface(const AWorldSettings* InSet
 	Scene.GetSolver()->GetEvolution()->GetParticles().AddArray(&BodyInstances);
 #endif
 
+	// Create replication manager
+	FPhysicsReplication* PhysicsReplication = PhysicsReplicationFactory.IsValid() ? PhysicsReplicationFactory->Create(this) : new FPhysicsReplication(this);
+	Scene.SetPhysicsReplication(PhysicsReplication);
+
 	Scene.GetSolver()->PhysSceneHack = this;
+	
 
 }
 
@@ -948,6 +996,31 @@ void FPhysScene_ChaosInterface::OnWorldBeginPlay()
 	{
 		Solver->SetEnabled(true);
 	}
+
+#if WITH_EDITOR
+	const UWorld* WorldPtr = GetOwningWorld();
+	const TIndirectArray<FWorldContext>& WorldContexts = GEngine->GetWorldContexts();
+	for (const FWorldContext& Context : WorldContexts)
+	{
+		if (Context.WorldType == EWorldType::Editor)
+		{
+			UWorld* World = Context.World();
+			if (World)
+			{
+				auto PhysScene = World->GetPhysicsScene();
+				if (PhysScene)
+				{
+					auto InnerSolver = PhysScene->GetSolver();
+					if (InnerSolver)
+					{
+						InnerSolver->SetEnabled(false);
+					}
+				}
+			}
+		}
+	}
+#endif
+
 }
 
 void FPhysScene_ChaosInterface::OnWorldEndPlay()
@@ -956,7 +1029,33 @@ void FPhysScene_ChaosInterface::OnWorldEndPlay()
 	if (Solver)
 	{
 		Solver->SetEnabled(false);
+
 	}
+
+#if WITH_EDITOR
+	const UWorld* WorldPtr = GetOwningWorld();
+	const TIndirectArray<FWorldContext>& WorldContexts = GEngine->GetWorldContexts();
+	for (const FWorldContext& Context : WorldContexts)
+	{
+		if (Context.WorldType == EWorldType::Editor)
+		{
+			UWorld* World = Context.World();
+			if (World)
+			{
+				auto PhysScene = World->GetPhysicsScene();
+				if (PhysScene)
+				{
+					auto InnerSolver = PhysScene->GetSolver();
+					if (InnerSolver)
+					{
+						InnerSolver->SetEnabled(true);
+					}
+				}
+			}
+		}
+	}
+#endif
+
 }
 
 void FPhysScene_ChaosInterface::AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& InHandles, const bool bImmediate)
@@ -973,11 +1072,11 @@ void FPhysScene_ChaosInterface::AddActorsToScene_AssumesLocked(TArray<FPhysicsAc
 		{
 			// Get the bounding box for the particle if it has one
 			bool bHasBounds = Handle->Geometry()->HasBoundingBox();
-			Chaos::TBox<float, 3> WorldBounds;
+			Chaos::TAABB<float, 3> WorldBounds;
 			if (bHasBounds)
 			{
-				const Chaos::TBox<float, 3> LocalBounds = Handle->Geometry()->BoundingBox();
-				WorldBounds = LocalBounds.TransformedBox(Chaos::TRigidTransform<float, 3>(Handle->X(), Handle->R()));
+				const Chaos::TAABB<float, 3> LocalBounds = Handle->Geometry()->BoundingBox();
+				WorldBounds = LocalBounds.TransformedAABB(Chaos::TRigidTransform<float, 3>(Handle->X(), Handle->R()));
 			}
 
 			// Insert the particle
@@ -995,6 +1094,14 @@ void FPhysScene_ChaosInterface::AddAggregateToScene(const FPhysicsAggregateHandl
 void FPhysScene_ChaosInterface::SetOwningWorld(UWorld* InOwningWorld)
 {
 	MOwningWorld = InOwningWorld;
+
+#if WITH_EDITOR
+	if (IsOwningWorldEditor())
+	{
+		GetScene().GetSolver()->SetEnabled(true);
+	}
+#endif
+
 }
 
 UWorld* FPhysScene_ChaosInterface::GetOwningWorld()
@@ -1054,7 +1161,7 @@ void FPhysScene_ChaosInterface::Flush_AssumesLocked()
 
 FPhysicsReplication* FPhysScene_ChaosInterface::GetPhysicsReplication()
 {
-	return nullptr;
+	return Scene.GetPhysicsReplication();
 }
 
 void FPhysScene_ChaosInterface::RemoveBodyInstanceFromPendingLists_AssumesLocked(FBodyInstance* BodyInstance, int32 SceneType)
@@ -1082,16 +1189,16 @@ void FPhysScene_ChaosInterface::AddForce_AssumesLocked(FBodyInstance* BodyInstan
 			{
 				Rigid->SetObjectState(EObjectStateType::Dynamic);
 
-				const Chaos::TVector<float, 3> CurrentForce = Rigid->ExternalForce();
+				const Chaos::TVector<float, 3> CurrentForce = Rigid->F();
 				if (bAccelChange)
 				{
 					const float Mass = Rigid->M();
 					const Chaos::TVector<float, 3> TotalAcceleration = CurrentForce + (Force * Mass);
-					Rigid->SetExternalForce(TotalAcceleration);
+					Rigid->SetF(TotalAcceleration);
 				}
 				else
 				{
-					Rigid->SetExternalForce(CurrentForce + Force);
+					Rigid->SetF(CurrentForce + Force);
 				}
 
 			}
@@ -1113,8 +1220,8 @@ void FPhysScene_ChaosInterface::AddForceAtPosition_AssumesLocked(FBodyInstance* 
 			EObjectStateType ObjectState = Rigid->ObjectState();
 			if (CHAOS_ENSURE(ObjectState == EObjectStateType::Dynamic || ObjectState == EObjectStateType::Sleeping))
 			{
-				const Chaos::FVec3& CurrentForce = Rigid->ExternalForce();
-				const Chaos::FVec3& CurrentTorque = Rigid->ExternalTorque();
+				const Chaos::FVec3& CurrentForce = Rigid->F();
+				const Chaos::FVec3& CurrentTorque = Rigid->Torque();
 				const Chaos::FVec3 WorldCOM = FParticleUtilitiesGT::GetCoMWorldPosition(Rigid);
 
 				Rigid->SetObjectState(EObjectStateType::Dynamic);
@@ -1125,14 +1232,14 @@ void FPhysScene_ChaosInterface::AddForceAtPosition_AssumesLocked(FBodyInstance* 
 					const Chaos::FVec3 WorldPosition = CurrentTransform.TransformPosition(Position);
 					const Chaos::FVec3 WorldForce = CurrentTransform.TransformVector(Force);
 					const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(WorldPosition - WorldCOM, WorldForce);
-					Rigid->SetExternalForce(CurrentForce + WorldForce);
-					Rigid->SetExternalTorque(CurrentTorque + WorldTorque);
+					Rigid->SetF(CurrentForce + WorldForce);
+					Rigid->SetTorque(CurrentTorque + WorldTorque);
 				}
 				else
 				{
 					const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(Position - WorldCOM, Force);
-					Rigid->SetExternalForce(CurrentForce + Force);
-					Rigid->SetExternalTorque(CurrentTorque + WorldTorque);
+					Rigid->SetF(CurrentForce + Force);
+					Rigid->SetTorque(CurrentTorque + WorldTorque);
 				}
 
 			}
@@ -1189,14 +1296,14 @@ void FPhysScene_ChaosInterface::AddTorque_AssumesLocked(FBodyInstance* BodyInsta
 			EObjectStateType ObjectState = Rigid->ObjectState();
 			if (CHAOS_ENSURE(ObjectState == EObjectStateType::Dynamic || ObjectState == EObjectStateType::Sleeping))
 			{
-				const Chaos::TVector<float, 3> CurrentTorque = Rigid->ExternalTorque();
+				const Chaos::TVector<float, 3> CurrentTorque = Rigid->Torque();
 				if (bAccelChange)
 				{
-					Rigid->SetExternalTorque(CurrentTorque + (Rigid->I() * Torque));
+					Rigid->SetTorque(CurrentTorque + (Utilities::ComputeWorldSpaceInertia(Rigid->R(), Rigid->I()) * Torque));
 				}
 				else
 				{
-					Rigid->SetExternalTorque(CurrentTorque + Torque);
+					Rigid->SetTorque(CurrentTorque + Torque);
 				}
 			}
 		}
@@ -1282,9 +1389,16 @@ void FPhysScene_ChaosInterface::StartFrame()
 	checkSlow(SolverModule);
 
 	float Dt = MDeltaTime;
+
 #if WITH_EDITOR
-	if (GIsPlayInEditorWorld == false)
+	if (IsOwningWorldEditor())
 	{
+		// Ensure editor solver is enabled
+		if (GetSolver()->Enabled() == false)
+		{
+			GetSolver()->SetEnabled(true);
+		}
+
 		Dt = 0.0f;
 	}
 #endif
@@ -1343,6 +1457,11 @@ void FPhysScene_ChaosInterface::StartFrame()
 			break;
 		}
 	}
+
+	if (FPhysicsReplication* PhysicsReplication = Scene.GetPhysicsReplication())
+	{
+		PhysicsReplication->Tick(Dt);
+	}
 }
 
 void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
@@ -1376,6 +1495,18 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 		//flush queue so we can merge the two threads
 		Dispatcher->Execute();
 
+		// flush solver queues
+		const TArray<FPhysicsSolver*>& SolverList = SolverModule->GetSolvers();
+		for (FPhysicsSolver* Solver : SolverList)
+		{
+			TQueue<TFunction<void(Chaos::FPhysicsSolver*)>, EQueueMode::Mpsc>& Queue = Solver->GetCommandQueue();
+			TFunction<void(Chaos::FPhysicsSolver*)> Command;
+			while (Queue.Dequeue(Command))
+			{
+				Command(Solver);
+			}
+		}
+
 		// Flip the buffers over to the game thread and sync
 		{
 			SCOPE_CYCLE_COUNTER(STAT_FlipResults);
@@ -1384,7 +1515,6 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 			//for now just copy the whole thing, stomping any changes that came from GT
 			Scene.CopySolverAccelerationStructure();
 
-			const TArray<FPhysicsSolver*>& SolverList = SolverModule->GetSolvers();
 			TArray<FPhysicsSolver*> ActiveSolvers;
 			ActiveSolvers.Reserve(SolverList.Num());
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -111,12 +111,18 @@ namespace UnrealBuildTool
 		public bool IsEnterpriseProject;
 
 		/// <summary>
+		/// Indicates that enabled by default engine plugins should not be enabled unless explicitly enabled by the project or target files.
+		/// </summary>
+		public bool DisableEnginePluginsByDefault;
+
+		/// <summary>
 		/// Constructor.
 		/// </summary>
 		public ProjectDescriptor()
 		{
 			FileVersion = (int)ProjectDescriptorVersion.Latest;
 			IsEnterpriseProject = false;
+			DisableEnginePluginsByDefault = false;
 		}
 
 		/// <summary>
@@ -145,6 +151,7 @@ namespace UnrealBuildTool
 			RawObject.TryGetStringField("Category", out Category);
 			RawObject.TryGetStringField("Description", out Description);
 			RawObject.TryGetBoolField("Enterprise", out IsEnterpriseProject);
+			RawObject.TryGetBoolField("DisableEnginePluginsByDefault", out DisableEnginePluginsByDefault);
 
 			// Read the modules
 			JsonObject[] ModulesArray;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PropertyCustomizationHelpers.h"
 #include "IDetailChildrenBuilder.h"
@@ -386,9 +386,9 @@ namespace PropertyCustomizationHelpers
 		return IDocumentation::Get()->CreateAnchor(DocLink, FString(), DocExcerptName);
 	}
 
-	UBoolProperty* GetEditConditionProperty(const UProperty* InProperty, bool& bNegate)
+	FBoolProperty* GetEditConditionProperty(const FProperty* InProperty, bool& bNegate)
 	{
-		UBoolProperty* EditConditionProperty = NULL;
+		FBoolProperty* EditConditionProperty = NULL;
 		bNegate = false;
 
 		if ( InProperty != NULL )
@@ -408,7 +408,7 @@ namespace PropertyCustomizationHelpers
 			if ( ConditionPropertyName.Len() > 0 && !ConditionPropertyName.Contains(TEXT(".")) )
 			{
 				UStruct* Scope = InProperty->GetOwnerStruct();
-				EditConditionProperty = FindField<UBoolProperty>(Scope, *ConditionPropertyName);
+				EditConditionProperty = FindField<FBoolProperty>(Scope, *ConditionPropertyName);
 			}
 		}
 
@@ -488,7 +488,7 @@ void SObjectPropertyEntryBox::Construct( const FArguments& InArgs )
 		}
 
 		// if being used with an object property, check the allowed class is valid for the property
-		UObjectPropertyBase* ObjectProperty = Cast<UObjectPropertyBase>(PropertyHandle->GetProperty());
+		FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(PropertyHandle->GetProperty());
 		if (ObjectProperty != NULL)
 		{
 			checkSlow(InArgs._AllowedClass->IsChildOf(ObjectProperty->PropertyClass));

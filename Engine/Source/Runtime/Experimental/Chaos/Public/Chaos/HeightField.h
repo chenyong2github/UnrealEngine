@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Array.h"
@@ -38,6 +38,11 @@ namespace Chaos
 		/** Support for editing a subsection of the heightfield */
 		void EditHeights(TArrayView<T> InHeights, int32 InBeginRow, int32 InBeginCol, int32 InNumRows, int32 InNumCols);
 		void EditHeights(TArrayView<const uint16> InHeights, int32 InBeginRow, int32 InBeginCol, int32 InNumRows, int32 InNumCols);
+		T GetHeight(int32 InIndex) const;
+		T GetHeight(int32 InX, int32 InY) const;
+		T GetHeightAt(const TVector<T, 2>& InGridLocation) const;
+		int32 GetNumRows() const { return GeomData.NumRows; }
+		int32 GetNumCols() const { return GeomData.NumCols; }
 
 		virtual T PhiWithNormal(const TVector<T, 3>& x, TVector<T, 3>& Normal) const
 		{
@@ -66,8 +71,21 @@ namespace Chaos
 		bool SweepGeom(const TImplicitObjectScaled<TCapsule<T>>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0, bool bComputeMTD = false) const;
 		bool SweepGeom(const TImplicitObjectScaled<FConvex>& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness = 0, bool bComputeMTD = false) const;
 
+		bool GJKContactPoint(const TBox<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, TVector<T, 3>& ContactLocation, TVector<T, 3>& ContactNormal, T& ContactPhi) const;
+		bool GJKContactPoint(const TSphere<T, 3>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, TVector<T, 3>& ContactLocation, TVector<T, 3>& ContactNormal, T& ContactPhi) const;
+		bool GJKContactPoint(const TCapsule<T>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, TVector<T, 3>& ContactLocation, TVector<T, 3>& ContactNormal, T& ContactPhi) const;
+		bool GJKContactPoint(const FConvex& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, TVector<T, 3>& ContactLocation, TVector<T, 3>& ContactNormal, T& ContactPhi) const;
+		bool GJKContactPoint(const TImplicitObjectScaled<TBox<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, TVector<T, 3>& ContactLocation, TVector<T, 3>& ContactNormal, T& ContactPhi) const;
+		bool GJKContactPoint(const TImplicitObjectScaled<TSphere<T, 3>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, TVector<T, 3>& ContactLocation, TVector<T, 3>& ContactNormal, T& ContactPhi) const;
+		bool GJKContactPoint(const TImplicitObjectScaled<TCapsule<T>>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, TVector<T, 3>& ContactLocation, TVector<T, 3>& ContactNormal, T& ContactPhi) const;
+		bool GJKContactPoint(const TImplicitObjectScaled<FConvex>& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, TVector<T, 3>& ContactLocation, TVector<T, 3>& ContactNormal, T& ContactPhi) const;
+
+
 		virtual int32 FindMostOpposingFace(const TVector<T, 3>& Position, const TVector<T, 3>& UnitDir, int32 HintFaceIndex, T SearchDist) const override;
 		virtual TVector<T, 3> FindGeometryOpposingNormal(const TVector<T, 3>& DenormDir, int32 FaceIndex, const TVector<T, 3>& OriginalNormal) const override;
+
+
+
 
 		virtual uint16 GetMaterialIndex(uint32 HintIndex) const override
 		{
@@ -91,9 +109,9 @@ namespace Chaos
 			return 0;
 		}
 
-		virtual const TBox<T, 3>& BoundingBox() const
+		virtual const TAABB<T, 3>& BoundingBox() const
 		{
-			CachedBounds = TBox<T, 3>(LocalBounds.Min() * GeomData.Scale, LocalBounds.Max() * GeomData.Scale);
+			CachedBounds = TAABB<T, 3>(LocalBounds.Min() * GeomData.Scale, LocalBounds.Max() * GeomData.Scale);
 			return CachedBounds;
 		}
 
@@ -128,7 +146,7 @@ namespace Chaos
 				Ar << FlatGrid;
 				Ar << FlattenedBounds.Min;
 				Ar << FlattenedBounds.Max;
-				Ar << LocalBounds;
+				TBox<FReal, 3>::SerializeAsAABB(Ar, LocalBounds);
 			}
 			else
 			{
@@ -195,6 +213,21 @@ namespace Chaos
 				return Scale[1];
 			}
 
+			FORCEINLINE TVector<T, 3> GetPoint(int32 Index) const
+			{
+				const typename FDataType::RealType Height = MinValue + Heights[Index] * HeightPerUnit;
+
+				const int32 X = Index % (NumCols);
+				const int32 Y = Index / (NumCols);
+
+				return {(typename FDataType::RealType)X, (typename FDataType::RealType)Y, Height};
+			}
+
+			FORCEINLINE TVector<T, 3> GetPointScaled(int32 Index) const
+			{
+				return GetPoint(Index) * Scale;
+			}
+
 			FORCEINLINE void GetPoints(int32 Index, TVector<T, 3> OutPts[4]) const
 			{
 				const typename FDataType::RealType H0 = MinValue + Heights[Index] * HeightPerUnit;
@@ -219,6 +252,11 @@ namespace Chaos
 				OutPts[1] *= Scale;
 				OutPts[2] *= Scale;
 				OutPts[3] *= Scale;
+			}
+
+			FORCEINLINE T GetMinHeight() const
+			{
+				return static_cast<typename FDataType::RealType>(MinValue);
 			}
 
 			void Serialize(FChaosArchive& Ar)
@@ -286,12 +324,12 @@ namespace Chaos
 				, Max(0)
 			{}
 
-			explicit FBounds2D(const TBox<T, 3>& In3DBounds)
+			explicit FBounds2D(const TAABB<T, 3>& In3DBounds)
 			{
 				Set(In3DBounds);
 			}
 
-			void Set(const TBox<T, 3>& In3DBounds)
+			void Set(const TAABB<T, 3>& In3DBounds)
 			{
 				Min = {In3DBounds.Min()[0], In3DBounds.Min()[1]};
 				Max = {In3DBounds.Max()[0], In3DBounds.Max()[1]};
@@ -445,9 +483,9 @@ namespace Chaos
 		// Bounds in 2D of the whole heightfield, to clip queries against
 		FBounds2D FlattenedBounds;
 		// 3D bounds for the heightfield, for insertion to the scene structure
-		TBox<T, 3> LocalBounds;
+		TAABB<T, 3> LocalBounds;
 		// Cached when bounds are requested. Mutable to allow GetBounds to be logical const
-		mutable TBox<T, 3> CachedBounds;
+		mutable TAABB<T, 3> CachedBounds;
 
 		void CalcBounds();
 		void BuildQueryData();
@@ -461,6 +499,9 @@ namespace Chaos
 
 		template <typename QueryGeomType>
 		bool SweepGeomImp(const QueryGeomType& QueryGeom, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& Dir, const T Length, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex, const T Thickness, bool bComputeMTD) const;
+
+		template <typename GeomType>
+		bool GJKContactPointImp(const GeomType& QueryGeom, const TRigidTransform<T, 3>& QueryTM, const T Thickness, TVector<T, 3>& ContactLocation, TVector<T, 3>& ContactNormal, T& ContactPhi) const;
 
 	};
 }

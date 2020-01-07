@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialEditingLibrary.h"
 #include "Editor.h"
@@ -717,7 +717,13 @@ TSet<UObject*> UMaterialEditingLibrary::GetMaterialSelectedNodes(UMaterial* Mate
 	auto* MaterialEditor = (IMaterialEditor*)GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(Material, false);
 	if (MaterialEditor)
 	{
-		return MaterialEditor->GetSelectedNodes();
+		TSet<UObject*> SelectedMaterialObjects;
+		for (const FFieldVariant& SelectedNode : MaterialEditor->GetSelectedNodes())
+		{
+			check(SelectedNode.IsUObject());
+			SelectedMaterialObjects.Add(SelectedNode.ToUObject());
+		}
+		return SelectedMaterialObjects;
 	}
 
 	return TSet<UObject*>();

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -21,6 +21,7 @@ enum : uint8
 	Field_CategoryMask	= 0300,
 	Field_Integer		= 0000, 
 	Field_Float			= 0100,
+	Field_Array			= 0200,
 
 	/* Size */
 	Field_Pow2SizeMask	= 0003,
@@ -46,15 +47,15 @@ enum class EFieldType : uint8
 	Pointer	= Field_Integer | Field_Ptr,
 	Float32	= Field_Float   | Field_32,
 	Float64	= Field_Float   | Field_64,
+	Array	= Field_Array,
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 struct FNewEventEvent
 {
-	enum : uint16 { Uid = 0 };
-
 	uint16		EventUid;
-	uint16		FieldCount;
+	uint8		FieldCount;
+	uint8		Flags;
 	uint8		LoggerNameSize;
 	uint8		EventNameSize;
 	struct
@@ -65,6 +66,18 @@ struct FNewEventEvent
 		uint8	NameSize;
 	}			Fields[];
 	/*uint8		NameData[]*/
+};
+
+////////////////////////////////////////////////////////////////////////////////
+enum class EKnownEventUids : uint16
+{
+	NewEvent,
+	User,
+	Max				= (1 << 14) - 1, // ...leaves two MSB bits for other uses.
+	UidMask			= Max,
+	Invalid			= Max,
+	Flag_Important	= 1 << 14,
+	Flag_Unused		= 1 << 15,
 };
 
 ////////////////////////////////////////////////////////////////////////////////

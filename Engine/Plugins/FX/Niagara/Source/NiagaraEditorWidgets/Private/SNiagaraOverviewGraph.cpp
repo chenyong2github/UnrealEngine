@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraOverviewGraph.h"
 #include "NiagaraOverviewGraphNodeFactory.h"
@@ -24,6 +24,7 @@
 #include "Templates/SharedPointer.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
+#include "Framework/Commands/GenericCommands.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewGraph"
 
@@ -206,6 +207,12 @@ FActionMenuContent SNiagaraOverviewGraph::OnCreateGraphActionMenu(UEdGraph* InGr
 				LOCTEXT("CommentsToolTip", "Add a comment box"),
 				FSlateIcon(),
 				FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::OnCreateComment));
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("ClearIsolatedLabel", "Clear Isolated"),
+				LOCTEXT("ClearIsolatedToolTip", "Clear the current set of isolated emitters."),
+				FSlateIcon(),
+				FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::OnClearIsolated));
 		}
 		MenuBuilder.EndSection();
 
@@ -213,6 +220,12 @@ FActionMenuContent SNiagaraOverviewGraph::OnCreateGraphActionMenu(UEdGraph* InGr
 		{
 			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ZoomToFit);
 			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ZoomToFitAll);
+		}
+		MenuBuilder.EndSection();
+
+		MenuBuilder.BeginSection(TEXT("NiagaraOverview_Edit"), LOCTEXT("Edit", "Edit"));
+		{
+			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Paste);
 		}
 		MenuBuilder.EndSection();
 
@@ -227,6 +240,11 @@ void SNiagaraOverviewGraph::OnCreateComment()
 {
 	FNiagaraSchemaAction_NewComment CommentAction = FNiagaraSchemaAction_NewComment(GraphEditor);
 	CommentAction.PerformAction(ViewModel->GetGraph(), nullptr, GraphEditor->GetPasteLocation(), false);
+}
+
+void SNiagaraOverviewGraph::OnClearIsolated()
+{
+	ViewModel->GetSystemViewModel()->IsolateEmitters(TArray<FGuid>());
 }
 
 void SNiagaraOverviewGraph::OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged)

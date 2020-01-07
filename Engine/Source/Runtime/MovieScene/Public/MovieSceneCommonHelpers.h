@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -8,6 +8,7 @@
 #include "UObject/ObjectKey.h"
 #include "Curves/KeyHandle.h"
 #include "Misc/FrameNumber.h"
+#include "UObject/WeakFieldPtr.h"
 
 class AActor;
 class UCameraComponent;
@@ -178,12 +179,12 @@ public:
 	void CacheBinding( const UObject& InRuntimeObject );
 
 	/**
-	 * Gets the UProperty that is bound to the track instance
+	 * Gets the FProperty that is bound to the track instance
 	 *
 	 * @param Object	The Object that owns the property
 	 * @return			The property on the object if it exists
 	 */
-	UProperty* GetProperty(const UObject& Object) const;
+	FProperty* GetProperty(const UObject& Object) const;
 
 	/**
 	 * Gets the current value of a property on an object
@@ -269,12 +270,12 @@ private:
 
 	struct FPropertyAddress
 	{
-		TWeakObjectPtr<UProperty> Property;
+		TWeakFieldPtr<FProperty> Property;
 		void* Address;
 
-		UProperty* GetProperty() const
+		FProperty* GetProperty() const
 		{
-			UProperty* PropertyPtr = Property.Get();
+			FProperty* PropertyPtr = Property.Get();
 			if (PropertyPtr && Address && !PropertyPtr->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
 			{
 				return PropertyPtr;
@@ -297,7 +298,7 @@ private:
 		template<typename ValueType>
 		ValueType* GetPropertyAddress() const
 		{
-			UProperty* PropertyPtr = PropertyAddress.GetProperty();
+			FProperty* PropertyPtr = PropertyAddress.GetProperty();
 			return PropertyPtr ? PropertyPtr->ContainerPtrToValuePtr<ValueType>(PropertyAddress.Address) : nullptr;
 		}
 
@@ -317,7 +318,7 @@ private:
 		FObjectKey ObjectKey(&InObject);
 
 		const FPropertyAndFunction* PropAndFunction = RuntimeObjectToFunctionMap.Find(ObjectKey);
-		if (PropAndFunction && (PropAndFunction->SetterFunction.IsValid() || PropAndFunction->PropertyAddress.Property.IsValid()))
+		if (PropAndFunction && (PropAndFunction->SetterFunction.IsValid() || PropAndFunction->PropertyAddress.Property.Get()))
 		{
 			return *PropAndFunction;
 		}
@@ -374,7 +375,7 @@ void FTrackInstancePropertyBindings::InvokeSetterFunction(UObject* InRuntimeObje
 		Params = reinterpret_cast<uint8*>(FMemory_Alloca(ParmsSize));
 
 		bool bFirstProperty = true;
-		for (UProperty* Property = Setter->PropertyLink; Property; Property = Property->PropertyLinkNext)
+		for (FProperty* Property = Setter->PropertyLink; Property; Property = Property->PropertyLinkNext)
 		{
 			// Initialize the parameter pack with any param properties that reside in the container
 			if (Property->IsInContainer(ParmsSize))

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/UnversionedPropertySerializationTest.h"
 #include "ProfilingDebugging/CookStats.h"
@@ -75,7 +75,7 @@ struct FUnversionedPropertyTest : public FUnversionedPropertyTestInput
 	struct FSaveResult
 	{
 		TArray<uint8> Data;
-		TArray<UProperty*> Properties;
+		TArray<FProperty*> Properties;
 		EPath Path;
 	};
 
@@ -152,26 +152,26 @@ struct FUnversionedPropertyTest : public FUnversionedPropertyTestInput
 
 	static constexpr uint32 EqualsPortFlags = 0;
 
-	// UProperty::Identical() flavor suited to comparing loaded instances
-	static bool Equals(const UProperty* Property, const void* A, const void* B)
+	// FProperty::Identical() flavor suited to comparing loaded instances
+	static bool Equals(const FProperty* Property, const void* A, const void* B)
 	{
 		if (Property->GetPropertyFlags() & (CPF_EditorOnly | CPF_Transient))
 		{
 			return true;
 		}
-		else if (const UStructProperty* StructProperty = Cast<UStructProperty>(Property))
+		else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 		{
 			return Equals(StructProperty, A, B);
 		}
-		else if (const UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Property))
+		else if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 		{
 			return Equals(ArrayProperty, A, B);
 		}
-		else if (const USetProperty* SetProperty = Cast<USetProperty>(Property))
+		else if (const FSetProperty* SetProperty = CastField<FSetProperty>(Property))
 		{
 			return Equals(SetProperty, A, B);
 		}
-		else if (const UMapProperty* MapProperty = Cast<UMapProperty>(Property))
+		else if (const FMapProperty* MapProperty = CastField<FMapProperty>(Property))
 		{
 			return Equals(MapProperty, A, B);
 		}
@@ -179,7 +179,7 @@ struct FUnversionedPropertyTest : public FUnversionedPropertyTestInput
 		return Property->Identical(A, B, EqualsPortFlags);
 	}
 
-	static bool Equals(const UArrayProperty* Property, const void* A, const void* B)
+	static bool Equals(const FArrayProperty* Property, const void* A, const void* B)
 	{
 		FScriptArrayHelper HelperA(Property, A);
 		FScriptArrayHelper HelperB(Property, B);
@@ -202,14 +202,14 @@ struct FUnversionedPropertyTest : public FUnversionedPropertyTestInput
 
 	static const uint8* FindElementPtr(const FScriptSetHelper& Helper, const uint8* Element)
 	{
-		const UProperty* ElemProp = Helper.GetElementProperty();
+		const FProperty* ElemProp = Helper.GetElementProperty();
 		int32 Index = Helper.Set->FindIndex(Element, Helper.SetLayout,
 											[ElemProp](const void* Element) { return ElemProp->GetValueTypeHash(Element); },
 											[ElemProp](const void* A, const void* B) { return Equals(ElemProp, A, B); });
 		return Index >= 0 ? Helper.GetElementPtr(Index) : nullptr;
 	}
 	
-	static bool Equals(const USetProperty* Property, const void* A, const void* B)
+	static bool Equals(const FSetProperty* Property, const void* A, const void* B)
 	{
 		FScriptSetHelper HelperA(Property, A);
 		FScriptSetHelper HelperB(Property, B);
@@ -238,18 +238,18 @@ struct FUnversionedPropertyTest : public FUnversionedPropertyTestInput
 
 	static const uint8* FindPairPtr(const FScriptMapHelper& Helper, const uint8* Key)
 	{
-		const UProperty* KeyProp = Helper.GetKeyProperty();
+		const FProperty* KeyProp = Helper.GetKeyProperty();
 		int32 Index = Helper.Map->FindPairIndex(Key, Helper.MapLayout,
 												[KeyProp](const void* Key) { return KeyProp->GetValueTypeHash(Key); },
 												[KeyProp](const void* A, const void* B) { return Equals(KeyProp, A, B); });
 		return Index >= 0 ? Helper.GetPairPtr(Index) : nullptr;
 	}
 	
-	static bool Equals(const UMapProperty* Property, const void* A, const void* B)
+	static bool Equals(const FMapProperty* Property, const void* A, const void* B)
 	{
 		FScriptMapHelper HelperA(Property, A);
 		FScriptMapHelper HelperB(Property, B);
-		const UProperty* ValueProp = HelperA.GetValueProperty();
+		const FProperty* ValueProp = HelperA.GetValueProperty();
 		int32 ValueOffset = HelperA.MapLayout.ValueOffset;
 
 		if (HelperA.Num() != HelperB.Num())
@@ -279,7 +279,7 @@ struct FUnversionedPropertyTest : public FUnversionedPropertyTestInput
 		return true;
 	}
 
-	static bool Equals(const UStructProperty* Property, const void* A, const void* B)
+	static bool Equals(const FStructProperty* Property, const void* A, const void* B)
 	{
 		UScriptStruct* Struct = Property->Struct;
 		if (Struct->StructFlags & STRUCT_IdenticalNative)
@@ -292,7 +292,7 @@ struct FUnversionedPropertyTest : public FUnversionedPropertyTestInput
 		}
 
 		// Skip deprecated fields
-		for (TFieldIterator<UProperty> It(Struct, EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated); It; ++It)
+		for (TFieldIterator<FProperty> It(Struct, EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated); It; ++It)
 		{
 			for (int32 Idx = 0, MaxIdx = It->ArrayDim; Idx < MaxIdx; ++Idx)
 			{
@@ -305,12 +305,12 @@ struct FUnversionedPropertyTest : public FUnversionedPropertyTestInput
 		return true;
 	}
 
-	static bool Equals_InContainer(const UProperty* Property, const void* A, const void* B, uint32 Idx)
+	static bool Equals_InContainer(const FProperty* Property, const void* A, const void* B, uint32 Idx)
 	{
 		return Equals(Property, Property->ContainerPtrToValuePtr<void>(A, Idx), Property->ContainerPtrToValuePtr<void>(B, Idx));
 	}
 
-	static FString GetValueAsText(UProperty* Property, uint32 ArrayIdx, void* StructInstance)
+	static FString GetValueAsText(FProperty* Property, uint32 ArrayIdx, void* StructInstance)
 	{
 		FString Value;
 		Property->ExportText_InContainer(ArrayIdx, Value, StructInstance, nullptr, nullptr, 0);
@@ -318,7 +318,7 @@ struct FUnversionedPropertyTest : public FUnversionedPropertyTestInput
 	}
 
 
-	void CheckEqual(UProperty* Property, void* VersionedInstance, void* UnversionedInstance)
+	void CheckEqual(FProperty* Property, void* VersionedInstance, void* UnversionedInstance)
 	{
 		for (int32 Idx = 0, Num = Property->ArrayDim; Idx < Num; ++Idx)
 		{
@@ -352,12 +352,12 @@ struct FUnversionedPropertyTest : public FUnversionedPropertyTestInput
 		}		
 	}
 
-	static TArray<UProperty*> ExcludeEditorOnlyProperties(const TArray<UProperty*>& Properties)
+	static TArray<FProperty*> ExcludeEditorOnlyProperties(const TArray<FProperty*>& Properties)
 	{
-		TArray<UProperty*> Out;
+		TArray<FProperty*> Out;
 		Out.Reserve(Properties.Num());
 
-		for (UProperty* Property : Properties)
+		for (FProperty* Property : Properties)
 		{
 			if (!Property->IsEditorOnlyProperty())
 			{
@@ -378,10 +378,10 @@ struct FUnversionedPropertyTest : public FUnversionedPropertyTestInput
 		FTestInstance VersionedLoaded = Load(VersionedSaved);
 		FTestInstance UnversionedLoaded = Load(UnversionedSaved);
 
-		for (UProperty* Property : UnversionedSaved.Properties)
+		for (FProperty* Property : UnversionedSaved.Properties)
 		{
 			CheckEqual(Property, VersionedLoaded.Instance, UnversionedLoaded.Instance);
-			PropertySerializationStats::UselessBytes += Property->IsA<UBoolProperty>() && !Cast<UBoolProperty>(Property)->IsNativeBool();
+			PropertySerializationStats::UselessBytes += Property->IsA<FBoolProperty>() && !CastField<FBoolProperty>(Property)->IsNativeBool();
 		}
 		
 		++PropertySerializationStats::Structs;

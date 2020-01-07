@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sound/SoundCue.h"
 #include "Misc/App.h"
@@ -9,6 +9,7 @@
 #include "Components/AudioComponent.h"
 #include "UObject/UObjectIterator.h"
 #include "EngineUtils.h"
+#include "Sound/SoundClass.h"
 #include "Sound/SoundNode.h"
 #include "Sound/SoundNodeAssetReferencer.h"
 #include "Sound/SoundNodeMixer.h"

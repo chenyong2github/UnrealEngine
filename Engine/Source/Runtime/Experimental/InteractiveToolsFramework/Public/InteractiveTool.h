@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -24,7 +24,7 @@ enum class EToolShutdownType
 
 
 /** This delegate is used by UInteractiveToolPropertySet */
-DECLARE_MULTICAST_DELEGATE_TwoParams(FInteractiveToolPropertySetModifiedSignature, UObject*, UProperty*);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FInteractiveToolPropertySetModifiedSignature, UObject*, FProperty*);
 
 
 /**
@@ -54,7 +54,7 @@ public:
 	}
 
 	/** 
-	  * Posts a message to the OnModified delegate with the modified UProperty 
+	  * Posts a message to the OnModified delegate with the modified FProperty 
 	  * @warning this function is currently only called in Editor (not at runtime)
 	  */
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -211,9 +211,9 @@ public:
 	/**
 	 * Automatically called by UInteractiveToolPropertySet.OnModified delegate to notify Tool of child property set changes
 	 * @param PropertySet which UInteractiveToolPropertySet was modified
-	 * @param Property which UProperty in the set was modified
+	 * @param Property which FProperty in the set was modified
 	 */
-	virtual void OnPropertyModified(UObject* PropertySet, UProperty* Property)
+	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property)
 	{
 	}
 

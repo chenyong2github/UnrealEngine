@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -17,6 +17,7 @@ class FAnalysisEngine
 {
 public:
 	struct				FDispatch;
+	struct				FAuxDataCollector;
 	struct				FEventDataInfo;
 						FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers);
 						~FAnalysisEngine();
@@ -44,8 +45,9 @@ private:
 
 	bool				EstablishTransport(FStreamReader& Reader);
 	bool				OnDataProtocol0();
-	bool				OnDataProtocol1();
-	int32				OnDataProtocol1(FStreamReader& Reader);
+	bool				OnDataProtocol2();
+	int32				OnDataProtocol2(uint32 ThreadId, FStreamReader& Reader);
+	int32				OnDataProtocol2Aux(FStreamReader& Reader, FAuxDataCollector& Collector);
 	bool				AddDispatch(FDispatch* Dispatch);
 	template <typename ImplType>
 	void				ForEachRoute(const FDispatch* Dispatch, ImplType&& Impl);
@@ -58,7 +60,7 @@ private:
 	TArray<FDispatch*>	Dispatches;
 	class FTransport*	Transport = nullptr;
 	ProtocolHandlerType	ProtocolHandler = nullptr;
-	uint16				NextLogSerial = 0;
+	uint32				NextLogSerial = 0;
 	uint8				ProtocolVersion = 0;
 };
 

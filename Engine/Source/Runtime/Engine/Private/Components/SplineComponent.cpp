@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Spline.cpp
@@ -465,7 +465,7 @@ T GetPropertyValueAtSplineInputKey(const USplineMetadata* Metadata, float InKey,
 {
 	if (Metadata)
 	{
-		if (UProperty* Property = Metadata->GetClass()->FindPropertyByName(PropertyName))
+		if (FProperty* Property = Metadata->GetClass()->FindPropertyByName(PropertyName))
 		{
 			const FInterpCurve<T>* Curve = Property->ContainerPtrToValuePtr<FInterpCurve<T>>(Metadata);
 			return Curve->Eval(InKey, T(0));
@@ -1444,7 +1444,7 @@ T GetPropertyValueAtSplinePoint(const USplineMetadata* Metadata, int32 Index, FN
 {
 	if (Metadata)
 	{
-		if (UProperty* Property = Metadata->GetClass()->FindPropertyByName(PropertyName))
+		if (FProperty* Property = Metadata->GetClass()->FindPropertyByName(PropertyName))
 		{
 			const FInterpCurve<T>* Curve = Property->ContainerPtrToValuePtr<FInterpCurve<T>>(Metadata);
 			const TArray<FInterpCurvePoint<T>>& Points = Curve->Points;
@@ -1681,8 +1681,8 @@ void USplineComponent::ApplyComponentInstanceData(FSplineInstanceData* SplineIns
 
 			// If we are restoring the saved state, unmark the SplineCurves property as 'modified'.
 			// We don't want to consider that these changes have been made through the UCS.
-			TArray<UProperty*> Properties;
-			Properties.Emplace(FindField<UProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, SplineCurves)));
+			TArray<FProperty*> Properties;
+			Properties.Emplace(FindField<FProperty>(USplineComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USplineComponent, SplineCurves)));
 			RemoveUCSModifiedProperties(Properties);
 		}
 	}

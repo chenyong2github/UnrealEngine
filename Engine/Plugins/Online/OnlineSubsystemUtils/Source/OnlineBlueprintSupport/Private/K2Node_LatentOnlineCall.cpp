@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_LatentOnlineCall.h"
 #include "UObject/UnrealType.h"
@@ -25,7 +25,7 @@ void UK2Node_LatentOnlineCall::GetMenuActions(FBlueprintActionDatabaseRegistrar&
 			if (FunctionPtr.IsValid())
 			{
 				UFunction* Func = FunctionPtr.Get();
-				UObjectProperty* ReturnProp = CastChecked<UObjectProperty>(Func->GetReturnProperty());
+				FObjectProperty* ReturnProp = CastFieldChecked<FObjectProperty>(Func->GetReturnProperty());
 						
 				AsyncTaskNode->ProxyFactoryFunctionName = Func->GetFName();
 				AsyncTaskNode->ProxyFactoryClass        = Func->GetOuterUClass();

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Trace/Config.h"
 
@@ -116,7 +116,8 @@ FWriteTlsContext::~FWriteTlsContext()
 {
 	if (HasValidBuffer())
 	{
-		AtomicStoreRelease<uint8* __restrict>(&(Buffer->Committed), nullptr);
+		UPTRINT EtxOffset = ~UPTRINT((uint8*)Buffer - Buffer->Cursor);
+		AtomicStoreRelaxed(&(Buffer->EtxOffset), EtxOffset);
 	}
 }
 
@@ -148,16 +149,9 @@ static const uint32						GPoolPageGrowth		= GPoolBlockSize << 5;
 static const uint32						GPoolInitPageSize	= GPoolBlockSize << 5;
 static uint8*							GPoolBase;			// = nullptr;
 T_ALIGN static uint8* volatile			GPoolPageCursor;	// = nullptr;
-T_ALIGN static void* volatile			GPoolFreeList;		// = nullptr;
+T_ALIGN static FWriteBuffer* volatile	GPoolFreeList;		// = nullptr;
 T_ALIGN static FWriteBuffer* volatile	GNextBufferList;	// = nullptr;
 #undef T_ALIGN
-
-////////////////////////////////////////////////////////////////////////////////
-uint32 Writer_GetMaxEventSize()
-{
-	// The bais is to allow for some overhead. Its value was chosen arbitrarily.
-	return GPoolBlockSize - 512;
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 #if !IS_MONOLITHIC
@@ -177,10 +171,10 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 	while (true)
 	{
 		// First we'll try one from the free list
-		void* Owned = AtomicLoadRelaxed(&GPoolFreeList);
+		FWriteBuffer* Owned = AtomicLoadRelaxed(&GPoolFreeList);
 		if (Owned != nullptr)
 		{
-			if (!AtomicCompareExchangeRelaxed(&GPoolFreeList, *(void**)Owned, Owned))
+			if (!AtomicCompareExchangeRelaxed(&GPoolFreeList, Owned->Next, Owned))
 			{
 				Writer_Yield();
 				continue;
@@ -223,12 +217,11 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 			Block += GPoolBlockSize;
 		}
 
-		// And insert the block list into the freelist
-		uint8* LastBlock = Block;
-		for (void** ListNode = (void**)LastBlock;; Writer_Yield())
+		// And insert the block list into the freelist. 'Block' is now the last block
+		for (auto* ListNode = (FWriteBuffer*)Block;; Writer_Yield())
 		{
-			*ListNode = AtomicLoadRelaxed(&GPoolFreeList);
-			if (AtomicCompareExchangeRelease(&GPoolFreeList, (void*)FirstBlock, *ListNode))
+			ListNode->Next = AtomicLoadRelaxed(&GPoolFreeList);
+			if (AtomicCompareExchangeRelease(&GPoolFreeList, (FWriteBuffer*)FirstBlock, ListNode->Next))
 			{
 				break;
 			}
@@ -241,6 +234,7 @@ static FWriteBuffer* Writer_NextBufferInternal(uint32 PageGrowth)
 	NextBuffer->Cursor += sizeof(uint32); // this is so we can preceed event data with a small header when sending.
 	NextBuffer->Committed = NextBuffer->Cursor;
 	NextBuffer->Reaped = NextBuffer->Cursor;
+	NextBuffer->EtxOffset = 0;
 
 	// Add this next buffer to the active list.
 	for (;; Writer_Yield())
@@ -270,8 +264,8 @@ TRACELOG_API FWriteBuffer* Writer_NextBuffer(uint16 Size)
 	// Retire current buffer unless its the initial boot one.
 	if (TlsContext.HasValidBuffer())
 	{
-		Current->Cursor -= Size;
-		AtomicStoreRelease<uint8* __restrict>(&Current->Committed, nullptr);
+		UPTRINT EtxOffset = ~UPTRINT((uint8*)(Current) - Current->Cursor + Size);
+		AtomicStoreRelease(&(Current->EtxOffset), EtxOffset);
 	}
 
 	FWriteBuffer* NextBuffer = Writer_NextBufferInternal(GPoolPageGrowth);
@@ -518,7 +512,9 @@ static void Writer_ConsumeEvents()
 	{
 		NextBuffer = Buffer->Next;
 
-		if (AtomicLoadAcquire(&Buffer->Committed) != nullptr)
+		uint8* Committed = AtomicLoadAcquire(&Buffer->Committed);
+		int32 EtxOffset = int32(~AtomicLoadRelaxed(&Buffer->EtxOffset));
+		if ((uint8*)Buffer - EtxOffset > Committed)
 		{
 			Buffer->Next = NextActiveList;
 			NextActiveList = Buffer;
@@ -541,9 +537,16 @@ static void Writer_ConsumeEvents()
 		NextBuffer = Buffer->Next;
 
 		uint8* __restrict Committed = AtomicLoadAcquire(&Buffer->Committed);
-		if (Committed == nullptr)
+
+		if (uint32 SizeToReap = uint32(Committed - Buffer->Reaped))
 		{
-			Committed = Buffer->Cursor;
+			Send(Buffer, Buffer->Reaped, SizeToReap);
+			Buffer->Reaped = Committed;
+		}
+
+		int32 EtxOffset = int32(~AtomicLoadRelaxed(&Buffer->EtxOffset));
+		if ((uint8*)Buffer - EtxOffset == Committed)
+		{
 			RetireList.Insert(Buffer);
 		}
 		else
@@ -560,12 +563,6 @@ static void Writer_ConsumeEvents()
 			ActiveListTail = Buffer;
 			Buffer->Next = nullptr;
 		}
-
-		if (uint32 SizeToReap = uint32(Committed - Buffer->Reaped))
-		{
-			Send(Buffer, Buffer->Reaped, SizeToReap);
-			Buffer->Reaped = Committed;
-		}
 	}
 
 	// Retire buffers from the next list
@@ -577,7 +574,7 @@ static void Writer_ConsumeEvents()
 
 		RetireList.Insert(Buffer);
 
-		if (uint32 SizeToReap = uint32(Buffer->Cursor - Buffer->Reaped))
+		if (uint32 SizeToReap = uint32(Buffer->Committed - Buffer->Reaped))
 		{
 			Send(Buffer, Buffer->Reaped, SizeToReap);
 		}
@@ -606,10 +603,10 @@ static void Writer_ConsumeEvents()
 	// Put the retirees we found back into the system again.
 	if (RetireList.Head != nullptr)
 	{
-		for (void** ListNode = (void**)RetireList.Tail;; Writer_Yield())
+		for (FWriteBuffer* ListNode = RetireList.Tail;; Writer_Yield())
 		{
-			*ListNode = AtomicLoadRelaxed(&GPoolFreeList);
-			if (AtomicCompareExchangeRelease(&GPoolFreeList, (void*)RetireList.Head, *ListNode))
+			ListNode->Next = AtomicLoadRelaxed(&GPoolFreeList);
+			if (AtomicCompareExchangeRelease(&GPoolFreeList, RetireList.Head, ListNode->Next))
 			{
 				break;
 			}
@@ -1094,18 +1091,6 @@ static UPTRINT volatile		GEventUidCounter;	// = 0;
 static FEventDef* volatile	GHeadEvent;			// = nullptr;
 
 ////////////////////////////////////////////////////////////////////////////////
-enum class EKnownEventUids : uint16
-{
-	NewEvent		= FNewEventEvent::Uid,
-	User,
-	Max				= (1 << 14) - 1, // ...leaves two MSB bits for other uses.
-	UidMask			= Max,
-	Invalid			= Max,
-	Flag_Unused		= 1 << 14,
-	Flag_Important	= 1 << 15,
-};
-
-////////////////////////////////////////////////////////////////////////////////
 template <typename ElementType>
 static uint32 Writer_EventGetHash(const ElementType* Input, int32 Length=-1)
 {
@@ -1158,11 +1143,6 @@ void Writer_EventCreate(
 		return;
 	}
 
-	if (Flags & FEventDef::Flag_Important)
-	{
-		Uid |= uint16(EKnownEventUids::Flag_Important);
-	}
-
 	uint32 LoggerHash = Writer_EventGetHash(LoggerName.Ptr);
 	uint32 NameHash = Writer_EventGetHash(EventName.Ptr);
 
@@ -1182,21 +1162,32 @@ void Writer_EventCreate(
 	}
 
 	// Allocate the new event event in the log stream.
-	uint16 EventUid = uint16(EKnownEventUids::NewEvent)|uint16(EKnownEventUids::Flag_Important);
+	uint16 EventUid = uint16(EKnownEventUids::NewEvent);
 	uint16 EventSize = sizeof(FNewEventEvent);
 	EventSize += sizeof(FNewEventEvent::Fields[0]) * FieldCount;
 	EventSize += NamesSize;
 
-	FLogInstance LogInstance = Writer_BeginLog(EventUid, EventSize);
+	FLogInstance LogInstance = Writer_BeginLog(EventUid, EventSize, false);
 	auto& Event = *(FNewEventEvent*)(LogInstance.Ptr);
 
 	// Write event's main properties.
-	Event.EventUid = uint16(Uid) & uint16(EKnownEventUids::UidMask);
+	Event.EventUid = uint16(Uid);
 	Event.LoggerNameSize = LoggerName.Length;
 	Event.EventNameSize = EventName.Length;
+	Event.Flags = 0;
+
+	if (Flags & FEventDef::Flag_Important)
+	{
+		Event.Flags |= uint8(EEventFlags::Important);
+	}
+
+	if (Flags & FEventDef::Flag_MaybeHasAux)
+	{
+		Event.Flags |= uint8(EEventFlags::MaybeHasAux);
+	}
 
 	// Write details about event's fields
-	Event.FieldCount = FieldCount;
+	Event.FieldCount = uint8(FieldCount);
 	for (uint32 i = 0; i < FieldCount; ++i)
 	{
 		const FFieldDesc& FieldDesc = FieldDescs[i];

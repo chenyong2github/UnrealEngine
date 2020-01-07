@@ -1,11 +1,14 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-
+#include "UObject/Field.h"
 #include "PropertyValue.generated.h"
+
+// WARNING: This should always be the last include in any file that needs it
+#include "UObject/UndefineUPropertyMacros.h"
 
 #define PATH_DELIMITER TEXT(" / ")
 #define ATTACH_CHILDREN_NAME TEXT("Children")
@@ -17,6 +20,7 @@ DECLARE_MULTICAST_DELEGATE(FOnPropertyApplied);
 
 class UVariantObjectBinding;
 class USCS_Node;
+class UProperty;
 
 UENUM()
 enum class EPropertyValueCategory : uint8
@@ -61,7 +65,7 @@ class VARIANTMANAGERCONTENT_API UPropertyValue : public UObject
 
 public:
 
-	void Init(const TArray<FCapturedPropSegment>& InCapturedPropSegments, UClass* InLeafPropertyClass, const FString& InFullDisplayString, const FName& InPropertySetterName, EPropertyValueCategory InCategory = EPropertyValueCategory::Generic);
+	void Init(const TArray<FCapturedPropSegment>& InCapturedPropSegments, FFieldClass* InLeafPropertyClass, const FString& InFullDisplayString, const FName& InPropertySetterName, EPropertyValueCategory InCategory = EPropertyValueCategory::Generic);
 
 	class UVariantObjectBinding* GetParent() const;
 
@@ -92,15 +96,15 @@ public:
 	// Applies our recorded data to the PropertyValuePtr for the resolved object
 	virtual void ApplyDataToResolvedObject();
 
-	// Returns the type of UProperty (UObjectProperty, UFloatProperty, etc)
+	// Returns the type of FProperty (FObjectProperty, FFloatProperty, etc)
 	// If checking for Enums, prefer checking if GetEnumPropertyEnum() != nullptr, as it may be that
-	// we received a UNumericProperty that actually represents an enum, which wouldn't be reflected here
-	virtual UClass* GetPropertyClass() const;
+	// we received a FNumericProperty that actually represents an enum, which wouldn't be reflected here
+	virtual FFieldClass* GetPropertyClass() const;
 	EPropertyValueCategory GetPropCategory() const;
 	virtual UScriptStruct* GetStructPropertyStruct() const;
 	virtual UClass* GetObjectPropertyObjectClass() const;
 	UEnum* GetEnumPropertyEnum() const;
-	virtual bool ContainsProperty(const UProperty* Prop) const;
+	virtual bool ContainsProperty(const FProperty* Prop) const;
 
 	// Utility functions for UEnumProperties
 	TArray<FName> GetValidEnumsFromPropertyOverride();
@@ -148,7 +152,7 @@ private:
 
 protected:
 
-	UProperty* GetProperty() const;
+	FProperty* GetProperty() const;
 
 	// Applies the recorded data to the TargetObject via the PropertySetter function
 	// (e.g. SetIntensity instead of setting the Intensity UPROPERTY directly)
@@ -162,7 +166,7 @@ protected:
 	FOnPropertyRecorded OnPropertyRecorded;
 
 	// Temp data cached from last resolve
-	UProperty* LeafProperty;
+	FProperty* LeafProperty;
 	UStruct* ParentContainerClass;
 	void* ParentContainerAddress;
 	uint8* PropertyValuePtr;
@@ -194,7 +198,8 @@ protected:
 	// We use these mainly to know how to serialize/deserialize the values of properties that need special care
 	// (e.g. UObjectProperties, name properties, text properties, etc)
 	UPROPERTY()
-	UClass* LeafPropertyClass;
+	UClass* LeafPropertyClass_DEPRECATED;
+	FFieldClass* LeafPropertyClass;
 
 	UPROPERTY()
 	TArray<uint8> ValueBytes;
@@ -231,3 +236,5 @@ class VARIANTMANAGERCONTENT_API UPropertyValueVisibility : public UPropertyValue
 	virtual void Serialize(FArchive& Ar) override;
 	//~ End UObject Interface
 };
+
+#include "UObject/DefineUPropertyMacros.h"

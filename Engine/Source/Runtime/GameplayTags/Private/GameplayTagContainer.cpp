@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayTagContainer.h"
 #include "HAL/IConsoleManager.h"
@@ -1326,7 +1326,7 @@ void FGameplayTag::PostSerialize(const FArchive& Ar)
 bool FGameplayTag::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText)
 {
 	FString ImportedTag = TEXT("");
-	const TCHAR* NewBuffer = UPropertyHelpers::ReadToken(Buffer, ImportedTag, true);
+	const TCHAR* NewBuffer = FPropertyHelpers::ReadToken(Buffer, ImportedTag, true);
 	if (!NewBuffer)
 	{
 		// Failed to read buffer. Maybe normal ImportText will work.
@@ -1675,7 +1675,7 @@ void FGameplayTagQuery::BuildFromEditableQuery(UEditableGameplayTagQuery& Editab
 FString UEditableGameplayTagQuery::GetTagQueryExportText(FGameplayTagQuery const& TagQuery)
 {
 	TagQueryExportText_Helper = TagQuery;
-	UProperty* const TQProperty = FindField<UProperty>(GetClass(), TEXT("TagQueryExportText_Helper"));
+	FProperty* const TQProperty = FindField<FProperty>(GetClass(), TEXT("TagQueryExportText_Helper"));
 
 	FString OutString;
 	TQProperty->ExportTextItem(OutString, (void*)&TagQueryExportText_Helper, (void*)&TagQueryExportText_Helper, this, 0);

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FindInBlueprintManager.h"
 #include "Misc/CoreMisc.h"
@@ -429,7 +429,7 @@ namespace BlueprintSearchMetaDataHelpers
 	/** Cache structure of searchable metadata and sub-properties relating to a Property */
 	struct FSearchableProperty
 	{
-		UProperty* TargetProperty;
+		FProperty* TargetProperty;
 		bool bIsSearchableMD;
 		bool bIsShallowSearchableMD;
 		bool bIsMarkedNotSearchableMD;
@@ -508,7 +508,7 @@ namespace BlueprintSearchMetaDataHelpers
 
 			WriteTextValue( Identifier );
 			PrintPolicy::WriteChar(this->Stream, TCHAR(':'));
-		}
+			}
 
 	public:
 		/** Cached mapping of all searchable properties that have been discovered while gathering searchable data for the current Blueprint */
@@ -517,16 +517,16 @@ namespace BlueprintSearchMetaDataHelpers
 
 	/** Json Writer used for serializing FText's in the correct format for Find-in-Blueprints */
 	class FFindInBlueprintJsonWriter : public TFindInBlueprintJsonStringWriter<TCondensedJsonPrintPolicy<TCHAR>>
-	{
+			{
 	public:
 		FFindInBlueprintJsonWriter(FString* const InOutString)
 			:TFindInBlueprintJsonStringWriter<TCondensedJsonPrintPolicy<TCHAR>>(InOutString)
 			, JsonOutput(InOutString)
-		{
+				{
 		}
 
 		virtual bool Close() override
-		{
+					{
 			// This will copy the JSON output to the string given as input (must do this first)
 			bool bResult = TFindInBlueprintJsonStringWriter<TCondensedJsonPrintPolicy<TCHAR>>::Close();
 
@@ -536,7 +536,7 @@ namespace BlueprintSearchMetaDataHelpers
 				+ MoveTemp(*JsonOutput);
 
 			return bResult;
-		}
+			}
 
 	protected:
 		virtual void WriteStringValue(const FString& String) override
@@ -574,31 +574,31 @@ namespace BlueprintSearchMetaDataHelpers
 				: Text(InText)
 			{
 
-			}
+		}
 
 			bool operator==(const FLookupTableItem& InObject) const
 			{
 				if (!Text.CompareTo(InObject.Text))
 				{
 					if (FTextInspector::GetNamespace(Text).Get(TEXT("DefaultNamespace")) == FTextInspector::GetNamespace(InObject.Text).Get(TEXT("DefaultNamespace")))
-					{
+	{
 						if (FTextInspector::GetKey(Text).Get(TEXT("DefaultKey")) == FTextInspector::GetKey(InObject.Text).Get(TEXT("DefaultKey")))
-						{
+		{
 							return true;
 						}
 					}
-				}
+		}
 
 				return false;
-			}
+		}
 
 			friend uint32 GetTypeHash(const FLookupTableItem& InObject)
-			{
+		{
 				FString Namespace = FTextInspector::GetNamespace(InObject.Text).Get(TEXT("DefaultNamespace"));
 				FString Key = FTextInspector::GetKey(InObject.Text).Get(TEXT("DefaultKey"));
 				uint32 Hash = HashCombine(GetTypeHash(InObject.Text.ToString()), HashCombine(GetTypeHash(Namespace), GetTypeHash(Key)));
 				return Hash;
-			}
+		}
 		};
 
 		// Output stream
@@ -745,8 +745,8 @@ namespace BlueprintSearchMetaDataHelpers
 		// Save the variable's pin type
 		SavePinTypeToJson(InWriter, VariableType);
 
-		// Find the UProperty and convert it into a Json value.
-		UProperty* VariableProperty = FindField<UProperty>(InBlueprint->GeneratedClass, InVariableDescription.VarName);
+		// Find the FProperty and convert it into a Json value.
+		FProperty* VariableProperty = FindField<FProperty>(InBlueprint->GeneratedClass, InVariableDescription.VarName);
 		if(VariableProperty)
 		{
 			const uint8* PropData = VariableProperty->ContainerPtrToValuePtr<uint8>(InBlueprint->GeneratedClass->GetDefaultObject());
@@ -791,9 +791,9 @@ namespace BlueprintSearchMetaDataHelpers
 	 * @param InStruct				Struct or class that represent the UObject's layout
 	 */
 	template<class PrintPolicy>
-	void GatherSearchablesFromProperty(const TSharedRef<TFindInBlueprintJsonStringWriter<PrintPolicy>>& InWriter, UProperty* InProperty, const void* InValue, UStruct* InStruct)
+	void GatherSearchablesFromProperty(const TSharedRef<TFindInBlueprintJsonStringWriter<PrintPolicy>>& InWriter, FProperty* InProperty, const void* InValue, UStruct* InStruct)
 	{
-		if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(InProperty))
+		if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InProperty))
 		{
 			FScriptArrayHelper Helper(ArrayProperty, InValue);
 			InWriter->WriteArrayStart(FText::FromString(InProperty->GetName()));
@@ -803,14 +803,14 @@ namespace BlueprintSearchMetaDataHelpers
 			}
 			InWriter->WriteArrayEnd();
 		}
-		else if (UStructProperty* StructProperty = Cast<UStructProperty>(InProperty))
+		else if (FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
 		{
 			if (!InProperty->HasMetaData(*FFiBMD::FiBSearchableMD) || InProperty->GetBoolMetaData(*FFiBMD::FiBSearchableMD))
 			{
 				GatherSearchableProperties(InWriter, InValue, StructProperty->Struct, SEARCHABLE_FULL);
 			}
 		}
-		else if (UObjectProperty* ObjectProperty = Cast<UObjectProperty>(InProperty))
+		else if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InProperty))
 		{
 			UObject* SubObject = ObjectProperty->GetObjectPropertyValue(InValue);
 			if (SubObject)
@@ -855,7 +855,7 @@ namespace BlueprintSearchMetaDataHelpers
 
 			for (FSearchableProperty& SearchableProperty : *SearchablePropertyData)
 			{
-				UProperty* Property = SearchableProperty.TargetProperty;
+				FProperty* Property = SearchableProperty.TargetProperty;
 				bool bIsSearchableMD = SearchableProperty.bIsSearchableMD;
 				bool bIsShallowSearchableMD = SearchableProperty.bIsShallowSearchableMD;
 				// It only is truly marked as not searchable if it has the metadata set to false, if the metadata is missing then we assume the searchable type that is passed in unless SEARCHABLE_AS_DESIRED
@@ -919,9 +919,9 @@ namespace BlueprintSearchMetaDataHelpers
 	 * @param InValue						Value of the Object to serialize
 	 * @param InStruct						Struct or class that represent the UObject's layout
 	 */
-	void CacheSubPropertySearchables(TMap<UStruct*, TArray<FSearchableProperty>>& InOutCachePropertyMapping, UProperty* InProperty, const void* InValue, UStruct* InStruct)
+	void CacheSubPropertySearchables(TMap<UStruct*, TArray<FSearchableProperty>>& InOutCachePropertyMapping, FProperty* InProperty, const void* InValue, UStruct* InStruct)
 	{
-		if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(InProperty))
+		if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InProperty))
 		{
 			FScriptArrayHelper Helper(ArrayProperty, InValue);
 			for (int32 i = 0, n = Helper.Num(); i < n; ++i)
@@ -929,7 +929,7 @@ namespace BlueprintSearchMetaDataHelpers
 				CacheSubPropertySearchables(InOutCachePropertyMapping, ArrayProperty->Inner, Helper.GetRawPtr(i), InStruct);
 			}
 		}
-		else if (UStructProperty* StructProperty = Cast<UStructProperty>(InProperty))
+		else if (FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
 		{
 			if (!InOutCachePropertyMapping.Find(StructProperty->Struct))
 			{
@@ -939,7 +939,7 @@ namespace BlueprintSearchMetaDataHelpers
 				}
 			}
 		}
-		else if (UObjectProperty* ObjectProperty = Cast<UObjectProperty>(InProperty))
+		else if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InProperty))
 		{
 			UObject* SubObject = ObjectProperty->GetObjectPropertyValue(InValue);
 			if (SubObject)
@@ -970,9 +970,9 @@ namespace BlueprintSearchMetaDataHelpers
 		{
 			TArray<FSearchableProperty> SearchableProperties;
 
-			for (TFieldIterator<UProperty> PropIt(InStruct); PropIt; ++PropIt)
+			for (TFieldIterator<FProperty> PropIt(InStruct); PropIt; ++PropIt)
 			{
-				UProperty* Property = *PropIt;
+				FProperty* Property = *PropIt;
 				bool bIsSearchableMD = Property->GetBoolMetaData(*FFiBMD::FiBSearchableMD);
 				bool bIsShallowSearchableMD = Property->GetBoolMetaData(*FFiBMD::FiBSearchableShallowMD);
 				// It only is truly marked as not searchable if it has the metadata set to false, if the metadata is missing then we assume the searchable type that is passed in unless SEARCHABLE_AS_DESIRED
@@ -1207,10 +1207,10 @@ namespace BlueprintSearchMetaDataHelpers
 			// Remove any SCS variable nodes
 			const TArray<USCS_Node*>& AllSCSNodes = Blueprint->SimpleConstructionScript->GetAllNodes();
 			InWriter->WriteArrayStart(FFindInBlueprintSearchTags::FiB_Components);
-			for (TFieldIterator<UProperty> PropertyIt(Blueprint->SkeletonGeneratedClass, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
+			for (TFieldIterator<FProperty> PropertyIt(Blueprint->SkeletonGeneratedClass, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
 			{
-				UProperty* Property = *PropertyIt;
-				UObjectPropertyBase* Obj = Cast<UObjectPropertyBase>(Property);
+				FProperty* Property = *PropertyIt;
+				FObjectPropertyBase* Obj = CastField<FObjectPropertyBase>(Property);
 				const bool bComponentProperty = Obj && Obj->PropertyClass ? Obj->PropertyClass->IsChildOf<UActorComponent>() : false;
 				FName PropName = Property->GetFName();
 				if (bComponentProperty && FBlueprintEditorUtils::FindSCS_Node(Blueprint, PropName) != INDEX_NONE)
@@ -1586,6 +1586,7 @@ FFindInBlueprintSearchManager::FFindInBlueprintSearchManager()
 	, bDisableDeferredIndexing(false)
 	, bEnableCSVStatsProfiling(false)
 	, bEnableDeveloperMenuTools(false)
+	, bDisableSearchResultTemplates(false)
 	, bIsPausing(false)
 {
 	for (int32 TabIdx = 0; TabIdx < UE_ARRAY_COUNT(GlobalFindResultsTabIDs); TabIdx++)
@@ -1625,6 +1626,7 @@ void FFindInBlueprintSearchManager::Initialize()
 	GConfig->GetBool(TEXT("BlueprintSearchSettings"), TEXT("bDisableDeferredIndexing"), bDisableDeferredIndexing, GEditorIni);
 	GConfig->GetBool(TEXT("BlueprintSearchSettings"), TEXT("bEnableCsvStatsProfiling"), bEnableCSVStatsProfiling, GEditorIni);
 	GConfig->GetBool(TEXT("BlueprintSearchSettings"), TEXT("bEnableDeveloperMenuTools"), bEnableDeveloperMenuTools, GEditorIni);
+	GConfig->GetBool(TEXT("BlueprintSearchSettings"), TEXT("bDisableSearchResultTemplates"), bDisableSearchResultTemplates, GEditorIni);
 
 	// If profiling has been enabled, turn on the stat category and begin a capture.
 	if (bEnableCSVStatsProfiling)
@@ -1636,7 +1638,6 @@ void FFindInBlueprintSearchManager::Initialize()
 			FCsvProfiler::Get()->BeginCapture(-1, CaptureFolder);
 		}
 	}
-
 
 	// Must ensure we do not attempt to load the AssetRegistry Module while saving a package, however, if it is loaded already we can safely obtain it
 	if (!GIsSavingPackage || (GIsSavingPackage && FModuleManager::Get().IsModuleLoaded(TEXT("AssetRegistry"))))
@@ -1963,7 +1964,7 @@ void FFindInBlueprintSearchManager::AddOrUpdateBlueprintSearchMetadata(UBlueprin
 	}
 
 	// Build the search data
-	if (UProperty* ParentClassProp = InBlueprint->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UBlueprint, ParentClass)))
+	if (FProperty* ParentClassProp = InBlueprint->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UBlueprint, ParentClass)))
 	{
 		ParentClassProp->ExportTextItem(SearchArray[Index].ParentClass, ParentClassProp->ContainerPtrToValuePtr<uint8>(InBlueprint), nullptr, InBlueprint, 0);
 	}

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "PropertyEditorModule.h"
@@ -122,11 +122,11 @@ void FPropertyEditorModule::NotifyCustomizationModuleChanged()
 
 static bool ShouldShowProperty(const FPropertyAndParent& PropertyAndParent, bool bHaveTemplate)
 {
-	const UProperty& Property = PropertyAndParent.Property;
+	const FProperty& Property = PropertyAndParent.Property;
 
 	if ( bHaveTemplate )
 	{
-		const UClass* PropertyOwnerClass = Cast<const UClass>(Property.GetOuter());
+		const UClass* PropertyOwnerClass = Property.GetOwner<const UClass>();
 		const bool bDisableEditOnTemplate = PropertyOwnerClass 
 			&& PropertyOwnerClass->IsNative()
 			&& Property.HasAnyPropertyFlags(CPF_DisableEditOnTemplate);
@@ -370,20 +370,19 @@ TSharedRef< IPropertyTableCellPresenter > FPropertyEditorModule::CreateTextPrope
 	return MakeShareable( new FTextPropertyTableCellPresenter( PropertyEditor, InPropertyUtilities, InFont) );
 }
 
-UStructProperty* FPropertyEditorModule::RegisterStructOnScopeProperty(TSharedRef<FStructOnScope> StructOnScope)
+FStructProperty* FPropertyEditorModule::RegisterStructOnScopeProperty(TSharedRef<FStructOnScope> StructOnScope)
 {
 	const FName StructName = StructOnScope->GetStruct()->GetFName();
-	UStructProperty* StructProperty = RegisteredStructToProxyMap.FindRef(StructName);
+	FStructProperty* StructProperty = RegisteredStructToProxyMap.FindRef(StructName);
 
 	if(!StructProperty)
 	{
 		UScriptStruct* InnerStruct = Cast<UScriptStruct>(const_cast<UStruct*>(StructOnScope->GetStruct()));
-		StructProperty = NewObject<UStructProperty>(InnerStruct, MakeUniqueObjectName(InnerStruct, UStructProperty::StaticClass(), InnerStruct->GetFName()));
+		StructProperty = new FStructProperty(InnerStruct, *MakeUniqueObjectName(InnerStruct, UField::StaticClass(), InnerStruct->GetFName()).ToString(), RF_NoFlags);
 		StructProperty->Struct = InnerStruct;
 		StructProperty->ElementSize = StructOnScope->GetStruct()->GetStructureSize();
 
 		RegisteredStructToProxyMap.Add(StructName, StructProperty);
-		StructProperty->AddToRoot();
 	}
 
 	return StructProperty;
@@ -620,22 +619,22 @@ bool FPropertyEditorModule::IsCustomizedStruct(const UStruct* Struct, const FCus
 	return bFound;
 }
 
-FPropertyTypeLayoutCallback FPropertyEditorModule::GetPropertyTypeCustomization(const UProperty* Property, const IPropertyHandle& PropertyHandle, const FCustomPropertyTypeLayoutMap& InstancedPropertyTypeLayoutMap)
+FPropertyTypeLayoutCallback FPropertyEditorModule::GetPropertyTypeCustomization(const FProperty* Property, const IPropertyHandle& PropertyHandle, const FCustomPropertyTypeLayoutMap& InstancedPropertyTypeLayoutMap)
 {
 	if( Property )
 	{
-		const UStructProperty* StructProperty = Cast<UStructProperty>(Property);
+		const FStructProperty* StructProperty = CastField<FStructProperty>(Property);
 		bool bStructProperty = StructProperty && StructProperty->Struct;
 		const bool bUserDefinedStruct = bStructProperty && StructProperty->Struct->IsA<UUserDefinedStruct>();
 		bStructProperty &= !bUserDefinedStruct;
 
 		const UEnum* Enum = nullptr;
 
-		if (const UByteProperty* ByteProperty = Cast<UByteProperty>(Property))
+		if (const FByteProperty* ByteProperty = CastField<FByteProperty>(Property))
 		{
 			Enum = ByteProperty->Enum;
 		}
-		else if (const UEnumProperty* EnumProperty = Cast<UEnumProperty>(Property))
+		else if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
 		{
 			Enum = EnumProperty->GetEnum();
 		}
@@ -645,7 +644,7 @@ FPropertyTypeLayoutCallback FPropertyEditorModule::GetPropertyTypeCustomization(
 			Enum = nullptr;
 		}
 
-		const UObjectProperty* ObjectProperty = Cast<UObjectProperty>(Property);
+		const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property);
 		const bool bObjectProperty = ObjectProperty != NULL && ObjectProperty->PropertyClass != NULL;
 
 		FName PropertyTypeName;
@@ -723,32 +722,32 @@ TSharedRef<class IStructureDetailsView> FPropertyEditorModule::CreateStructureDe
 
 		static bool PassesFilter( const FPropertyAndParent& PropertyAndParent, const FStructureDetailsViewArgs InStructureDetailsViewArgs )
 		{
-			const auto ArrayProperty = Cast<UArrayProperty>(&PropertyAndParent.Property);
-			const auto SetProperty = Cast<USetProperty>(&PropertyAndParent.Property);
-			const auto MapProperty = Cast<UMapProperty>(&PropertyAndParent.Property);
+			const auto ArrayProperty = CastField<FArrayProperty>(&PropertyAndParent.Property);
+			const auto SetProperty = CastField<FSetProperty>(&PropertyAndParent.Property);
+			const auto MapProperty = CastField<FMapProperty>(&PropertyAndParent.Property);
 
 			// If the property is a container type, the filter should test against the type of the container's contents
-			const UProperty* PropertyToTest = ArrayProperty ? ArrayProperty->Inner : &PropertyAndParent.Property;
+			const FProperty* PropertyToTest = ArrayProperty ? ArrayProperty->Inner : &PropertyAndParent.Property;
 			PropertyToTest = SetProperty ? SetProperty->ElementProp : PropertyToTest;
 			PropertyToTest = MapProperty ? MapProperty->ValueProp : PropertyToTest;
 
-			if( InStructureDetailsViewArgs.bShowClasses && (PropertyToTest->IsA<UClassProperty>() || PropertyToTest->IsA<USoftClassProperty>()) )
+			if( InStructureDetailsViewArgs.bShowClasses && (PropertyToTest->IsA<FClassProperty>() || PropertyToTest->IsA<FSoftClassProperty>()) )
 			{
 				return true;
 			}
 
-			if( InStructureDetailsViewArgs.bShowInterfaces && PropertyToTest->IsA<UInterfaceProperty>() )
+			if( InStructureDetailsViewArgs.bShowInterfaces && PropertyToTest->IsA<FInterfaceProperty>() )
 			{
 				return true;
 			}
 
-			const auto ObjectProperty = Cast<UObjectPropertyBase>(PropertyToTest);
+			const auto ObjectProperty = CastField<FObjectPropertyBase>(PropertyToTest);
 			if( ObjectProperty )
 			{
 				if( InStructureDetailsViewArgs.bShowAssets )
 				{
 					// Is this an "asset" property?
-					if( PropertyToTest->IsA<USoftObjectProperty>())
+					if( PropertyToTest->IsA<FSoftObjectProperty>())
 					{
 						return true;
 					}

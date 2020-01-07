@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRigDetails.h"
 #include "UObject/Class.h"
@@ -74,7 +74,7 @@ void FControlRigDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder )
 			IDetailCategoryBuilder& EventCategory = DetailBuilder.EditCategory("Event");
 
 			UControlRigBlueprintGeneratedClass* GeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(ControlRig->GetClass());
-			for (UStructProperty* RigUnitProperty : GeneratedClass->RigUnitProperties)
+			for (FStructProperty* RigUnitProperty : GeneratedClass->RigUnitProperties)
 			{
 				FRigUnit* RigUnit = RigUnitProperty->ContainerPtrToValuePtr<FRigUnit>(ControlRig);
 				URigUnitEditor_Base* EditorClass = UControlRigEditorLibrary::GetEditorObject(ControlRig, RigUnit->RigUnitName);

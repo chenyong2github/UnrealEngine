@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CallFunctionHandler.h"
 #include "UObject/MetaData.h"
@@ -17,7 +17,7 @@
 //////////////////////////////////////////////////////////////////////////
 // FImportTextErrorContext
 
-// Support class to pipe logs from UProperty->ImportText (for struct literals) to the message log as warnings
+// Support class to pipe logs from FProperty->ImportText (for struct literals) to the message log as warnings
 class FImportTextErrorContext : public FOutputDevice
 {
 protected:
@@ -140,9 +140,9 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 
 		// Check each property
 		bool bMatchedAllParams = true;
-		for (TFieldIterator<UProperty> It(Function); It && (It->PropertyFlags & CPF_Parm); ++It)
+		for (TFieldIterator<FProperty> It(Function); It && (It->PropertyFlags & CPF_Parm); ++It)
 		{
-			UProperty* Property = *It;
+			FProperty* Property = *It;
 
 			bool bFoundParam = false;
 			for (int32 i = 0; !bFoundParam && (i < RemainingPins.Num()); ++i)
@@ -151,7 +151,8 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 				if (Property->GetFName() == PinMatch->PinName)
 				{
 					// Found a corresponding pin, does it match in type and direction?
-					if (FKismetCompilerUtilities::IsTypeCompatibleWithProperty(PinMatch, Property, CompilerContext.MessageLog, CompilerContext.GetSchema(), Context.NewClass))
+					if (UK2Node_CallFunction::IsStructureWildcardProperty(Function, Property->GetFName()) ||
+						FKismetCompilerUtilities::IsTypeCompatibleWithProperty(PinMatch, Property, CompilerContext.MessageLog, CompilerContext.GetSchema(), Context.NewClass))
 					{
 						UEdGraphPin* PinToTry = FEdGraphUtilities::GetNetFromPin(PinMatch);
 
@@ -160,7 +161,7 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 							// For literal structs, we have to verify the default here to make sure that it has valid formatting
 							if( (*Term)->bIsLiteral && (PinMatch != LatentInfoPin))
 							{
-								UStructProperty* StructProperty = Cast<UStructProperty>(Property);
+								FStructProperty* StructProperty = CastField<FStructProperty>(Property);
 								if( StructProperty )
 								{
 									UScriptStruct* Struct = StructProperty->Struct;

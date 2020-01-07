@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "NiagaraDataInterface.h"
@@ -80,7 +80,7 @@ public:
 		PushToRenderThread();
 	}	
 	
-	virtual void PreEditChange(UProperty* PropertyAboutToChange) override
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override
 	{
 		Super::PreEditChange(PropertyAboutToChange);
 

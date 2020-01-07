@@ -1,10 +1,11 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNodes/AnimNode_BlendListBase.h"
 #include "AnimationRuntime.h"
 #include "Animation/BlendProfile.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNode_Inertialization.h"
+#include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_BlendListBase
@@ -226,6 +227,13 @@ void FAnimNode_BlendListBase::Update_AnyThread(const FAnimationUpdateContext& Co
 			FBlendSampleData::NormalizeDataWeight(PerBoneSampleData);
 		}
 	}
+
+#if ANIM_TRACE_ENABLED
+	const int32 ChildIndex = GetActiveChildIndex();
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Active Index"), ChildIndex);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Active Weight"), BlendWeights[ChildIndex]);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Active Blend Time"), BlendTime[ChildIndex]);
+#endif
 }
 
 void FAnimNode_BlendListBase::Evaluate_AnyThread(FPoseContext& Output)

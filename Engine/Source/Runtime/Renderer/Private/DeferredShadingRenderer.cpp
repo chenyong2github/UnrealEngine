@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	DeferredShadingRenderer.cpp: Top level rendering loop for deferred shading
@@ -1829,14 +1829,16 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		}
 		else
 		{
-		bIsGBufferCurrent = true;
+			bIsGBufferCurrent = true;
 		}
 		ServiceLocalQueue();
-	}
 
-	if (bRenderSkyAtmosphereEditorNotifications)
-	{
-		RenderSkyAtmosphereEditorNotifications(RHICmdList);
+		if (bRenderSkyAtmosphereEditorNotifications)
+		{
+			// We only render this warning text when bRequiresRHIClear==true to make sure the scene color buffer is allocated at this stage.
+			// When false, the option specifies that all pixels must be written to by a sky dome anyway.
+			RenderSkyAtmosphereEditorNotifications(RHICmdList);
+		}
 	}
 
 	// Wireframe mode requires bRequiresRHIClear to be true. 
@@ -2250,10 +2252,37 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());
 
-	
 	const bool bShouldRenderSingleLayerWater = ShouldRenderSingleLayerWater(Views, ViewFamily.EngineShowFlags);
+	// All views are considered above water if we don't render any water materials
+	bool bHasAnyViewsAbovewater = !bShouldRenderSingleLayerWater;
+
 	if(bShouldRenderSingleLayerWater)
 	{
+		bool bHasAnyViewsUnderwater = false;
+		bool bAnyViewWithRaytracingTranslucency = false;
+		for (const FViewInfo& View : Views)
+		{
+			bHasAnyViewsUnderwater = bHasAnyViewsUnderwater || View.IsUnderwater();
+			bHasAnyViewsAbovewater = bHasAnyViewsAbovewater || !View.IsUnderwater();
+#if RHI_RAYTRACING
+			bAnyViewWithRaytracingTranslucency = bAnyViewWithRaytracingTranslucency || ShouldRenderRayTracingTranslucency(View);
+#endif
+		}
+
+		// Run a translucency pass here if there are any views underwater. The views that run their translucency here will not run it later in the regular translucency pass
+		// The translucency pass run here will force all objects to be rendered in fullscreen pass. No partial resolution pass supported here, so that might differ from the behavior if it was rendered in the regular pass instead.
+		if (bHasAnyViewsUnderwater && !bAnyViewWithRaytracingTranslucency && ViewFamily.EngineShowFlags.Translucency && !ViewFamily.EngineShowFlags.VisualizeLightCulling && !ViewFamily.UseDebugViewPS())
+		{
+			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderTranslucency);
+			SCOPE_CYCLE_COUNTER(STAT_TranslucencyDrawTime);
+
+			RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_Translucency));
+
+			const bool bDrawUnderwaterViews = true;
+			RenderTranslucency(RHICmdList, bDrawUnderwaterViews);
+			ServiceLocalQueue();
+		}
+
 		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_WaterPass));
 		SCOPED_DRAW_EVENTF(RHICmdList, WaterRendering, TEXT("WaterRendering"));
 		SCOPED_GPU_STAT(RHICmdList, WaterRendering);
@@ -2418,7 +2447,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	GRenderTargetPool.AddPhaseEvent(TEXT("Translucency"));
 
 	// Draw translucency.
-	if (bCanOverlayRayTracingOutput && ViewFamily.EngineShowFlags.Translucency && !ViewFamily.EngineShowFlags.VisualizeLightCulling && !ViewFamily.UseDebugViewPS())
+	if (bHasAnyViewsAbovewater && bCanOverlayRayTracingOutput && ViewFamily.EngineShowFlags.Translucency && !ViewFamily.EngineShowFlags.VisualizeLightCulling && !ViewFamily.UseDebugViewPS())
 	{
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderTranslucency);
 		SCOPE_CYCLE_COUNTER(STAT_TranslucencyDrawTime);
@@ -2441,27 +2470,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		else
 #endif
 		{
-			// For now there is only one resolve for all translucency passes. This can be changed by enabling the resolve in RenderTranslucency()
-			TRefCountPtr<IPooledRenderTarget> SceneColorCopy;
-			ConditionalResolveSceneColorForTranslucentMaterials(RHICmdList, SceneColorCopy);
-
-			// Disable UAV cache flushing so we have optimal VT feedback performance.
-			RHICmdList.AutomaticCacheFlushAfterComputeShader(false);
-
-			if (ViewFamily.AllowTranslucencyAfterDOF())
-			{
-				RenderTranslucency(RHICmdList, ETranslucencyPass::TPT_StandardTranslucency, SceneColorCopy);
-				// Translucency after DOF is rendered now, but stored in the separate translucency RT for later use.
-				RenderTranslucency(RHICmdList, ETranslucencyPass::TPT_TranslucencyAfterDOF, SceneColorCopy);
-			}
-			else // Otherwise render translucent primitives in a single bucket.
-			{
-				RenderTranslucency(RHICmdList, ETranslucencyPass::TPT_AllTranslucency, SceneColorCopy);
-			}
-
-			RHICmdList.AutomaticCacheFlushAfterComputeShader(true);
-			RHICmdList.FlushComputeShaderCache();
-
+			RenderTranslucency(RHICmdList);
 			ServiceLocalQueue();
 
 			static const auto DisableDistortionCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DisableDistortion"));

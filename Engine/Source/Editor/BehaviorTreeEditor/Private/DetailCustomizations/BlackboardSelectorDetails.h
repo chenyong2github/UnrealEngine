@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -23,7 +23,7 @@ public:
 private:
 
 	void CacheBlackboardData();
-	const class UBlackboardData* FindBlackboardAsset(UObject* InObj);
+	void FindBlackboardAsset(const UObject* InObj, const UObject*& OutBlackboardOwner, UBlackboardData*& OutBlackboardAsset) const;
 
 	void OnBlackboardDataChanged(UBlackboardData* Asset);
 	void OnBlackboardOwnerChanged(UObject* Owner, UBlackboardData* Asset);
@@ -49,7 +49,7 @@ private:
 
 	/** cached blackboard asset */
 	TWeakObjectPtr<class UBlackboardData> CachedBlackboardAsset;
-	TWeakObjectPtr<class UObject> CachedBlackboardAssetOwner;
+	TWeakObjectPtr<const class UObject> CachedBlackboardAssetOwner;
 
 	/** property utils */
 	class IPropertyUtilities* PropUtils;

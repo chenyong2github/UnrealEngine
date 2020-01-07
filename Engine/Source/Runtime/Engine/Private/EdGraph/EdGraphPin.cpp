@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EdGraph/EdGraphPin.h"
 #include "UObject/BlueprintsObjectVersion.h"
@@ -848,10 +848,10 @@ UEdGraphPin* UEdGraphPin::FindPinCreatedFromDeprecatedPin(UEdGraphPin_Deprecated
 
 bool UEdGraphPin::ExportTextItem(FString& ValueStr, int32 PortFlags) const
 {
-	const UNameProperty* NamePropCDO = GetDefault<UNameProperty>();
-	const UStrProperty* StrPropCDO = GetDefault<UStrProperty>();
-	const UTextProperty* TextPropCDO = GetDefault<UTextProperty>();
-	const UBoolProperty* BoolPropCDO = GetDefault<UBoolProperty>();
+	const FNameProperty* NamePropCDO = GetDefault<FNameProperty>();
+	const FStrProperty* StrPropCDO = GetDefault<FStrProperty>();
+	const FTextProperty* TextPropCDO = GetDefault<FTextProperty>();
+	const FBoolProperty* BoolPropCDO = GetDefault<FBoolProperty>();
 	static UEdGraphPin DefaultPin(nullptr, FGuid());
 
 	ValueStr += "(";
@@ -891,9 +891,9 @@ bool UEdGraphPin::ExportTextItem(FString& ValueStr, int32 PortFlags) const
 		ValueStr += PinHelpers::ExportTextPropDelimiter;
 	}
 
-	for (TFieldIterator<UProperty> FieldIt(FEdGraphPinType::StaticStruct()); FieldIt; ++FieldIt)
+	for (TFieldIterator<FProperty> FieldIt(FEdGraphPinType::StaticStruct()); FieldIt; ++FieldIt)
 	{
-		UProperty* Prop = *FieldIt;
+		FProperty* Prop = *FieldIt;
 		if (Prop->ShouldPort())
 		{
 			FString PropertyStr;
@@ -1023,10 +1023,10 @@ bool UEdGraphPin::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, class UO
 {
 	PinId = FGuid();
 
-	const UNameProperty* NamePropCDO = GetDefault<UNameProperty>();
-	const UStrProperty* StrPropCDO = GetDefault<UStrProperty>();
-	const UTextProperty* TextPropCDO = GetDefault<UTextProperty>();
-	const UBoolProperty* BoolPropCDO = GetDefault<UBoolProperty>();
+	const FNameProperty* NamePropCDO = GetDefault<FNameProperty>();
+	const FStrProperty* StrPropCDO = GetDefault<FStrProperty>();
+	const FTextProperty* TextPropCDO = GetDefault<FTextProperty>();
+	const FBoolProperty* BoolPropCDO = GetDefault<FBoolProperty>();
 	UEnum* PinDirectionEnum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/Engine.EEdGraphPinDirection"));
 
 	SkipWhitespace(Buffer);
@@ -1128,7 +1128,7 @@ bool UEdGraphPin::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, class UO
 			if (ensure(PropertyToken.Split(".", nullptr, &Right, ESearchCase::CaseSensitive)))
 			{
 				const FName PropertyName(*Right);
-				UProperty* FoundProp = FEdGraphPinType::StaticStruct()->FindPropertyByName(PropertyName);
+				FProperty* FoundProp = FEdGraphPinType::StaticStruct()->FindPropertyByName(PropertyName);
 				if (FoundProp)
 				{
 					uint8* PropertyAddr = FoundProp->ContainerPtrToValuePtr<uint8>(&PinType);

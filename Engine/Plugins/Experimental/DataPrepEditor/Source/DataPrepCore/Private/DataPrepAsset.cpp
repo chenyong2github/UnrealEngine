@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataPrepAsset.h"
 
@@ -251,7 +251,7 @@ void UDataprepAsset::RemoveObjectPropertyFromParameterization(UDataprepParameter
 	Parameterization->RemoveBindedObjectProperty( Object, InPropertyChain );
 }
 
-void UDataprepAsset::GetExistingParameterNamesForType(UProperty* Property, bool bIsDescribingFullProperty, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const
+void UDataprepAsset::GetExistingParameterNamesForType(FProperty* Property, bool bIsDescribingFullProperty, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const
 {
 	Parameterization->GetExistingParameterNamesForType( Property, bIsDescribingFullProperty, OutValidExistingNames, OutInvalidNames );
 }
@@ -285,9 +285,9 @@ void UDataprepAsset::UpdateActions()
 				break;
 			}
 			else
-			{
+				{
 				ActionNodesVisited.AddByHash( NodeHash, NextNode );
-			}
+				}
 
 			if(UK2Node_DataprepActionCore* ActionNode = Cast<UK2Node_DataprepActionCore>(NextNode))
 			{

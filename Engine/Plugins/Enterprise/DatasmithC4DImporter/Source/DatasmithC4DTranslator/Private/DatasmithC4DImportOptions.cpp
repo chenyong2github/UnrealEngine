@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithC4DImportOptions.h"
 
@@ -20,9 +20,9 @@ UDatasmithC4DImportOptions::UDatasmithC4DImportOptions(const FObjectInitializer&
 	// In debug show all properties including the ones for debug
 	if (IDatasmithC4DTranslatorModule::Get().InDebugMode())
 	{
-		for (TFieldIterator<UProperty> It(GetClass()); It; ++It)
+		for (TFieldIterator<FProperty> It(GetClass()); It; ++It)
 		{
-			UProperty* Property = *It;
+			FProperty* Property = *It;
 			if (Property && Property->HasMetaData(TEXT("Category")) && Property->GetMetaData(TEXT("Category")) == TEXT("DebugProperty"))
 			{
 				Property->SetMetaData(TEXT("Category"), TEXT("PrivateSettings"));

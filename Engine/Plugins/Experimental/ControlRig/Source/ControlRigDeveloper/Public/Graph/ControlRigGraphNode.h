@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -34,7 +34,7 @@ public:
 	virtual ~FControlRigField() {}
 
 	/** Get the field we refer to */
-	virtual UField* GetField() const { return nullptr; }
+	virtual FField* GetField() const { return nullptr; }
 
 	/** Get the input pin for this item */
 	virtual const FControlRigModelPin* GetPin() const { return nullptr; }
@@ -283,13 +283,13 @@ protected:
 	void GetFields(TFunction<bool(const FControlRigModelPin*, const FControlRigModelNode*)> InPinCheckFunction, TArray<TSharedRef<FControlRigField>>& OutFields) const;
 
 	/** Get the struct property for the unit we represent, if any (we could just be a property accessor) */
-	UStructProperty* GetUnitProperty() const;
+	FStructProperty* GetUnitProperty() const;
 
 	/** Get the script struct for the unit we represent, if any (we could just be a property accessor) */
 	UScriptStruct* GetUnitScriptStruct() const;
 
 	/** Get the property for the unit we represent */
-	UProperty* GetProperty() const;
+	FProperty* GetProperty() const;
 
 	/** Copies default values from underlying properties into pin defaults, for editing */
 	void SetupPinDefaultsFromCDO(UEdGraphPin* Pin);

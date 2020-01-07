@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MetalDerivedData.h"
 #include "MetalShaderFormat.h"
@@ -2085,19 +2085,20 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			// Tessellation vertex & hull shaders must always use FMA
 			if (Options.enableFMAPass)
 			{
-				std::string FMADefine = std::string("#include <metal_stdlib>\n\n"
+				std::string FMADefine = std::string("\n"
 										"template<typename T>\n"
 										"static inline __attribute__((always_inline))\n"
 										"T ue4_cross(T x, T y)\n"
 										"{\n"
-										"    float3 fx = float3(x);\n"
-										"    float3 fy = float3(y);\n"
+                                        "    metal::float3 fx = metal::float3(x);\n"
+                                        "    metal::float3 fy = metal::float3(y);\n"
 										"    return T(metal::fma(fx[1], fy[2], -metal::fma(fy[1], fx[2], 0.0)), metal::fma(fx[2], fy[0], -metal::fma(fy[2], fx[0], 0.0)), metal::fma(fx[0], fy[1], -metal::fma(fy[0], fx[1], 0.0)));\n"
 										"}\n"
-										"#define cross ue4_cross\n"
+										"#define cross ue4_cross\n\n"
+										"using namespace metal;"
 										);
 				
-				std::string IncludeString = "#include <metal_stdlib>";
+				std::string IncludeString = "using namespace metal;";
 				size_t IncludePos = MetalSource.find(IncludeString);
 				if (IncludePos != std::string::npos)
 					MetalSource.replace(IncludePos, IncludeString.length(), FMADefine);

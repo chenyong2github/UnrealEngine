@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UserInterface/PropertyEditor/SPropertyEditorEditInline.h"
 #include "Modules/ModuleManager.h"
@@ -16,10 +16,10 @@ class FPropertyEditorInlineClassFilter : public IClassViewerFilter
 {
 public:
 	/** The Object Property, classes are examined for a child-of relationship of the property's class. */
-	UObjectPropertyBase* ObjProperty;
+	FObjectPropertyBase* ObjProperty;
 
 	/** The Interface Property, classes are examined for implementing the property's class. */
-	UInterfaceProperty* IntProperty;
+	FInterfaceProperty* IntProperty;
 
 	/** Whether or not abstract classes are allowed. */
 	bool bAllowAbstract;
@@ -176,9 +176,9 @@ TSharedRef<SWidget> SPropertyEditorEditInline::GenerateClassPicker()
 	ClassFilter->bAllowAbstract = false;
 
 	const TSharedRef< FPropertyNode > PropertyNode = PropertyEditor->GetPropertyNode();
-	UProperty* Property = PropertyNode->GetProperty();
-	ClassFilter->ObjProperty = Cast<UObjectPropertyBase>( Property );
-	ClassFilter->IntProperty = Cast<UInterfaceProperty>( Property );
+	FProperty* Property = PropertyNode->GetProperty();
+	ClassFilter->ObjProperty = CastField<FObjectPropertyBase>( Property );
+	ClassFilter->IntProperty = CastField<FInterfaceProperty>( Property );
 	Options.bShowNoneOption = !(Property->PropertyFlags & CPF_NoClear);
 
 	FObjectPropertyNode* ObjectPropertyNode = PropertyNode->FindObjectItemParent();
@@ -208,7 +208,7 @@ void SPropertyEditorEditInline::OnClassPicked(UClass* InClass)
 
 	if( ObjectNode )
 	{
-		GEditor->BeginTransaction(TEXT("PropertyEditor"), NSLOCTEXT("PropertyEditor", "OnClassPicked", "Set Class"), PropertyNode->GetProperty());
+		GEditor->BeginTransaction(TEXT("PropertyEditor"), NSLOCTEXT("PropertyEditor", "OnClassPicked", "Set Class"), nullptr /* PropertyNode->GetProperty()) */ );
 
 		for ( TPropObjectIterator Itor( ObjectNode->ObjectIterator() ) ; Itor ; ++Itor )
 		{
@@ -237,7 +237,7 @@ void SPropertyEditorEditInline::OnClassPicked(UClass* InClass)
 
 		// If this is an instanced component property collect current component names so we can clean them properly if necessary
 		TArray<FString> PrevPerObjectValues;
-		UObjectProperty* ObjectProperty = CastChecked<UObjectProperty>(PropertyHandle->GetProperty());
+		FObjectProperty* ObjectProperty = CastFieldChecked<FObjectProperty>(PropertyHandle->GetProperty());
 		if (ObjectProperty && ObjectProperty->HasAnyPropertyFlags(CPF_InstancedReference) && ObjectProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass()))
 		{
 			PropertyHandle->GetPerObjectValues(PrevPerObjectValues);

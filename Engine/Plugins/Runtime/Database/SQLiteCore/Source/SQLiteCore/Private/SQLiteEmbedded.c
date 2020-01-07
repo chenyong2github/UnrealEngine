@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /** Needed to define USING_CODE_ANALYSIS */
 #if PLATFORM_WINDOWS

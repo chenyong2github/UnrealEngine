@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	SkyLightComponent.cpp: SkyLightComponent implementation.
@@ -438,7 +438,7 @@ void USkyLightComponent::UpdateOcclusionRenderingStateFast()
 *
 * @param PropertyThatChanged	Property that changed
 */
-void USkyLightComponent::PostInterpChange(UProperty* PropertyThatChanged)
+void USkyLightComponent::PostInterpChange(FProperty* PropertyThatChanged)
 {
 	static FName LightColorName(TEXT("LightColor"));
 	static FName IntensityName(TEXT("Intensity"));
@@ -502,7 +502,7 @@ void USkyLightComponent::UpdateImportanceSamplingData()
 }
 
 #if WITH_EDITOR
-void USkyLightComponent::PreEditChange(UProperty* PropertyAboutToChange)
+void USkyLightComponent::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	Super::PreEditChange(PropertyAboutToChange);
 	PreEditCubemapResolution = CubemapResolution;
@@ -519,7 +519,7 @@ void USkyLightComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 	SetCaptureIsDirty();
 }
 
-bool USkyLightComponent::CanEditChange(const UProperty* InProperty) const
+bool USkyLightComponent::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{

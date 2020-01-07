@@ -1,9 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNodes/AnimNode_BlendSpacePlayer.h"
 #include "Animation/BlendSpaceBase.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "AnimGraphRuntimeTrace.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_BlendSpacePlayer
@@ -101,8 +102,22 @@ void FAnimNode_BlendSpacePlayer::UpdateInternal(const FAnimationUpdateContext& C
 			SyncGroup->TestTickRecordForLeadership(GroupRole);
 		}
 
+
+		TRACE_ANIM_TICK_RECORD(Context, TickRecord);
+
+#if ANIM_NODE_IDS_AVAILABLE && WITH_EDITORONLY_DATA
+		if (FAnimBlueprintDebugData* DebugData = Context.AnimInstanceProxy->GetAnimBlueprintDebugData())
+		{
+			DebugData->RecordBlendSpacePlayer(Context.GetCurrentNodeId(), BlendSpace, BlendInput.X, BlendInput.Y, BlendInput.Z);
+		}
+#endif
+
 		PreviousBlendSpace = BlendSpace;
 	}
+
+	TRACE_BLENDSPACE_PLAYER(Context, *this);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Blend Space Name"), BlendSpace ? *BlendSpace->GetName() : TEXT("None"));
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Play Time"), InternalTimeAccumulator);
 }
 
 void FAnimNode_BlendSpacePlayer::Evaluate_AnyThread(FPoseContext& Output)

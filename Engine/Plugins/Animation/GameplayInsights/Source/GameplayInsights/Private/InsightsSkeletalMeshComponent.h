@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -6,7 +6,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "InsightsSkeletalMeshComponent.generated.h"
 
-class FAnimationProvider;
+class IAnimationProvider;
 struct FSkeletalMeshPoseMessage;
 struct FSkeletalMeshInfo;
 
@@ -17,7 +17,7 @@ class UInsightsSkeletalMeshComponent : public USkeletalMeshComponent
 
 public:
 	// Set this component up from a provider & message
-	void SetPoseFromProvider(const FAnimationProvider& InProvider, const FSkeletalMeshPoseMessage& InMessage, const FSkeletalMeshInfo& SkeletalMeshInfo);
+	void SetPoseFromProvider(const IAnimationProvider& InProvider, const FSkeletalMeshPoseMessage& InMessage, const FSkeletalMeshInfo& SkeletalMeshInfo);
 
 	// USkeletalMeshComponent interface
 	virtual void InitAnim(bool bForceReInit) override;

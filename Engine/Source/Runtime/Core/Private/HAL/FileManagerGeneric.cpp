@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	FileManagerGeneric.cpp: Unreal generic file manager support code.
@@ -327,10 +327,11 @@ bool FFileManagerGeneric::Move( const TCHAR* Dest, const TCHAR* Src, bool Replac
 
 		int32 RetryCount = 10;
 		bool bSuccess = false;
+		uint32 ErrorCode = FPlatformMisc::GetLastError();
 		while (RetryCount--)
 		{
 			// If the move failed, throw a warning but retry before we throw an error
-			UE_LOG(LogFileManager, Warning, TEXT("MoveFile was unable to move '%s' to '%s', retrying in .5s..."), Src, Dest);
+			UE_LOG(LogFileManager, Warning, TEXT("MoveFile was unable to move '%s' to '%s' (Error Code %i), retrying in .5s..."), Src, Dest, ErrorCode);
 
 			// Wait just a little bit( i.e. a totally arbitrary amount )...
 			FPlatformProcess::Sleep(0.5f);
@@ -342,6 +343,7 @@ bool FFileManagerGeneric::Move( const TCHAR* Dest, const TCHAR* Src, bool Replac
 				UE_LOG(LogFileManager, Warning, TEXT("MoveFile recovered during retry!"));
 				break;
 			}
+			ErrorCode = FPlatformMisc::GetLastError();
 		}
 		if (!bSuccess)
 		{
@@ -376,11 +378,26 @@ bool FFileManagerGeneric::MakeDirectory( const TCHAR* Path, bool Tree )
 
 bool FFileManagerGeneric::DeleteDirectory( const TCHAR* Path, bool RequireExists, bool Tree )
 {
-	if( Tree )
+	bool bSucceeded;
+	if (Tree)
 	{
-		return GetLowLevel().DeleteDirectoryRecursively( Path ) || ( !RequireExists && !GetLowLevel().DirectoryExists( Path ) );
+		bSucceeded = GetLowLevel().DeleteDirectoryRecursively(Path);
 	}
-	return GetLowLevel().DeleteDirectory( Path ) || ( !RequireExists && !GetLowLevel().DirectoryExists( Path ) );
+	else
+	{
+		bSucceeded = GetLowLevel().DeleteDirectory(Path);
+	}
+
+	if (!bSucceeded && !RequireExists)
+	{
+		uint32 ErrorFromDelete = FPlatformMisc::GetLastError();
+		bSucceeded = !GetLowLevel().DirectoryExists(Path);
+		if (!bSucceeded)
+		{
+			FPlatformMisc::SetLastError(ErrorFromDelete);
+		}
+	}
+	return bSucceeded;
 }
 
 FFileStatData FFileManagerGeneric::GetStatData(const TCHAR* FilenameOrDirectory)

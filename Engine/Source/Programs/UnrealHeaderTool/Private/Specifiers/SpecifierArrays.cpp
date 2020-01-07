@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UnrealHeaderTool.h"
 #include "CoreMinimal.h"
@@ -6,6 +6,7 @@
 #include "Misc/CString.h"
 
 #include "CheckedMetadataSpecifiers.h"
+#include "ClassMetadataSpecifiers.h"
 #include "FunctionSpecifiers.h"
 #include "InterfaceSpecifiers.h"
 #include "StructSpecifiers.h"
@@ -47,6 +48,13 @@ const TCHAR* GCheckedMetadataSpecifierStrings[(int32)ECheckedMetadataSpecifier::
 	#undef CHECKED_METADATA_SPECIFIER
 };
 
+const TCHAR* GClassMetadataSpecifierStrings[(int32)EClassMetadataSpecifier::Max] =
+{
+	#define CLASS_METADATA_SPECIFIER(SpecifierName) TEXT(#SpecifierName),
+		#include "ClassMetadataSpecifiers.def"
+	#undef CLASS_METADATA_SPECIFIER
+};
+
 struct FCStringsLessThanCaseInsensitive
 {
 	FORCEINLINE bool operator()(const TCHAR* Lhs, const TCHAR* Rhs)
@@ -60,3 +68,4 @@ const bool GIsGStructSpecifierStringsSorted          = ensure(Algo::IsSorted(GSt
 const bool GIsGInterfaceSpecifierStringsSorted       = ensure(Algo::IsSorted(GInterfaceSpecifierStrings,       FCStringsLessThanCaseInsensitive()));
 const bool GIsGVariableSpecifierStringsSorted        = ensure(Algo::IsSorted(GVariableSpecifierStrings,        FCStringsLessThanCaseInsensitive()));
 const bool GIsGCheckedMetadataSpecifierStringsSorted = ensure(Algo::IsSorted(GCheckedMetadataSpecifierStrings, FCStringsLessThanCaseInsensitive()));
+const bool GIsGClassMetadataSpecifierStringsSorted   = ensure(Algo::IsSorted(GClassMetadataSpecifierStrings,   FCStringsLessThanCaseInsensitive()));

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PlaneCutTool.h"
 #include "InteractiveToolManager.h"
@@ -260,7 +260,7 @@ void UPlaneCutTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 }
 #endif
 
-void UPlaneCutTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UPlaneCutTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPlaneCutToolProperties, bShowPreview)))
 	{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_StructMemberGet.h"
 #include "StructMemberNodeHandlers.h"
@@ -13,7 +13,7 @@ UK2Node_StructMemberGet::UK2Node_StructMemberGet(const FObjectInitializer& Objec
 {
 }
 
-void UK2Node_StructMemberGet::PreEditChange(UProperty* PropertyThatWillChange)
+void UK2Node_StructMemberGet::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);
 
@@ -63,7 +63,7 @@ void UK2Node_StructMemberGet::AllocatePinsForSingleMemberGet(FName MemberName)
 		}
 
 		// FOptionalPinsUpdater interface
-		virtual void GetRecordDefaults(UProperty* TestProperty, FOptionalPinFromProperty& Record) const override
+		virtual void GetRecordDefaults(FProperty* TestProperty, FOptionalPinFromProperty& Record) const override
 		{
 			Record.bCanToggleVisibility = false;
 			Record.bShowPin = TestProperty->GetFName() == MatchName;

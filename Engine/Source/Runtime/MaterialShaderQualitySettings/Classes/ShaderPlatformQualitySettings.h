@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "SceneTypes.h"
+#include "RHIDefinitions.h"
 #include "ShaderPlatformQualitySettings.generated.h"
 
 /**
@@ -69,6 +70,7 @@ public:
 	UPROPERTY(EditAnywhere, Config, Meta = (DisplayName = "Cascade shadow mapping quality"), Category = "Quality")
 	EMobileCSMQuality MobileCSMQuality;
 
+	MATERIALSHADERQUALITYSETTINGS_API bool CanOverride(EShaderPlatform ShaderPlatform) const;
 	bool HasAnyOverridesSet() const;
 };
 

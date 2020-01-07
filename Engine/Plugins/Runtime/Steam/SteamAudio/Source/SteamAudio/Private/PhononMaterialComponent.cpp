@@ -51,7 +51,7 @@ void UPhononMaterialComponent::PostEditChangeProperty(struct FPropertyChangedEve
 	}
 }
 
-bool UPhononMaterialComponent::CanEditChange(const UProperty* InProperty) const
+bool UPhononMaterialComponent::CanEditChange(const FProperty* InProperty) const
 {
 	const bool ParentVal = Super::CanEditChange(InProperty);
 	FName PropertyName = InProperty->GetFName();

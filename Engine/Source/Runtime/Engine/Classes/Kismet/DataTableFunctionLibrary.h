@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -56,15 +56,15 @@ class ENGINE_API UDataTableFunctionLibrary : public UBlueprintFunctionLibrary
     DECLARE_FUNCTION(execGetDataTableRowFromName)
     {
         P_GET_OBJECT(UDataTable, Table);
-        P_GET_PROPERTY(UNameProperty, RowName);
+        P_GET_PROPERTY(FNameProperty, RowName);
         
-        Stack.StepCompiledIn<UStructProperty>(NULL);
+        Stack.StepCompiledIn<FStructProperty>(NULL);
         void* OutRowPtr = Stack.MostRecentPropertyAddress;
 
 		P_FINISH;
 		bool bSuccess = false;
 		
-		UStructProperty* StructProp = Cast<UStructProperty>(Stack.MostRecentProperty);
+		FStructProperty* StructProp = CastField<FStructProperty>(Stack.MostRecentProperty);
 		if (!Table)
 		{
 			FBlueprintExceptionInfo ExceptionInfo(
@@ -138,6 +138,6 @@ class ENGINE_API UDataTableFunctionLibrary : public UBlueprintFunctionLibrary
 	 * @return	True if the operation succeeds, check the log for errors if it didn't succeed.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | DataTable", DisplayName = "Fill Data Table from JSON File")
-	static bool FillDataTableFromJSONFile(UDataTable* DataTable, const FString& JSONFilePath);
+	static bool FillDataTableFromJSONFile(UDataTable* DataTable, const FString& JSONFilePath, UScriptStruct* ImportRowStruct = nullptr);
 #endif //WITH_EDITOR
 };

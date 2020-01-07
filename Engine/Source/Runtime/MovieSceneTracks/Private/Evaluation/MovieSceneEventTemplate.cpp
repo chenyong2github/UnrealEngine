@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Evaluation/MovieSceneEventTemplate.h"
 #include "Tracks/MovieSceneEventTrack.h"
@@ -128,8 +128,8 @@ struct FEventTrackExecutionToken
 			}
 			else
 			{
-				TFieldIterator<UProperty> ParamIt(EventFunction);
-				TFieldIterator<UProperty> ParamInstanceIt(Struct);
+				TFieldIterator<FProperty> ParamIt(EventFunction);
+				TFieldIterator<FProperty> ParamInstanceIt(Struct);
 				for (int32 NumParams = 0; ParamIt || ParamInstanceIt; ++NumParams, ++ParamIt, ++ParamInstanceIt)
 				{
 					if (!ParamInstanceIt)
@@ -257,11 +257,11 @@ struct FEventTriggerExecutionToken
 				TriggerEventWithParameters(DirectorInstance, Event, EventContexts, Player, Operand.SequenceID);
 			}
 		}
-	}
+			}
 
 	void TriggerEventWithParameters(UObject* DirectorInstance, const FMovieSceneEventPtrs& Event, TArrayView<UObject* const> EventContexts, IMovieScenePlayer& Player, FMovieSceneSequenceID SequenceID)
 	{
-		if (!ensureMsgf(!Event.BoundObjectProperty || (Event.BoundObjectProperty->GetOuter() == Event.Function && Event.BoundObjectProperty->GetOffset_ForUFunction() < Event.Function->ParmsSize), TEXT("Bound object property belongs to the wrong function or has an offset greater than the parameter size! This should never happen and indicates a BP compilation or nativization error.")))
+		if (!ensureMsgf(!Event.BoundObjectProperty.Get() || (Event.BoundObjectProperty->GetOwner<UObject>() == Event.Function && Event.BoundObjectProperty->GetOffset_ForUFunction() < Event.Function->ParmsSize), TEXT("Bound object property belongs to the wrong function or has an offset greater than the parameter size! This should never happen and indicates a BP compilation or nativization error.")))
 		{
 			return;
 		}
@@ -274,9 +274,9 @@ struct FEventTriggerExecutionToken
 		FMemory::Memzero(Parameters, Event.Function->ParmsSize);
 
 		// Initialize all CPF_Param properties - these are aways at the head of the list
-		for (TFieldIterator<UProperty> It(Event.Function); It && It->HasAnyPropertyFlags(CPF_Parm); ++It)
+		for (TFieldIterator<FProperty> It(Event.Function); It && It->HasAnyPropertyFlags(CPF_Parm); ++It)
 		{
-			UProperty* LocalProp = *It;
+			FProperty* LocalProp = *It;
 			checkSlow(LocalProp);
 			if (!LocalProp->HasAnyPropertyFlags(CPF_ZeroConstructor))
 			{
@@ -289,7 +289,7 @@ struct FEventTriggerExecutionToken
 			int32 NumParmsPatched = 0;
 
 			// Attempt to bind the object to the function parameters
-			if (!PatchBoundObject(Parameters, BoundObject, Event.BoundObjectProperty, Player, SequenceID))
+			if (!PatchBoundObject(Parameters, BoundObject, Event.BoundObjectProperty.Get(), Player, SequenceID))
 			{
 				continue;
 			}
@@ -305,43 +305,43 @@ struct FEventTriggerExecutionToken
 		}
 
 		// Destroy all parameter properties one by one
-		for (TFieldIterator<UProperty> It(Event.Function); It && It->HasAnyPropertyFlags(CPF_Parm); ++It)
+		for (TFieldIterator<FProperty> It(Event.Function); It && It->HasAnyPropertyFlags(CPF_Parm); ++It)
 		{
 			It->DestroyValue_InContainer(Parameters);
 		}
 	}
 
-	bool PatchBoundObject(uint8* Parameters, UObject* BoundObject, UProperty* BoundObjectProperty, IMovieScenePlayer& Player, FMovieSceneSequenceID SequenceID)
+	bool PatchBoundObject(uint8* Parameters, UObject* BoundObject, FProperty* BoundObjectProperty, IMovieScenePlayer& Player, FMovieSceneSequenceID SequenceID)
 	{
 		if (!BoundObjectProperty)
 		{
 			return true;
 		}
 
-		if (UInterfaceProperty* InterfaceParameter = Cast<UInterfaceProperty>(BoundObjectProperty))
-		{
+		if (FInterfaceProperty* InterfaceParameter = CastField<FInterfaceProperty>(BoundObjectProperty))
+			{
 			if (BoundObject->GetClass()->ImplementsInterface(InterfaceParameter->InterfaceClass))
 			{
 				FScriptInterface Interface;
 				Interface.SetObject(BoundObject);
 				Interface.SetInterface(BoundObject->GetInterfaceAddress(InterfaceParameter->InterfaceClass));
-				InterfaceParameter->SetPropertyValue_InContainer(Parameters, BoundObject);
+				InterfaceParameter->SetPropertyValue_InContainer(Parameters, Interface);
 				return true;
 			}
 
 			FMessageLog("PIE").Warning()
-				->AddToken(FUObjectToken::Create(BoundObjectProperty->GetOuter()))
+				->AddToken(FUObjectToken::Create(BoundObjectProperty->GetOwnerUObject()))
 				->AddToken(FUObjectToken::Create(Player.GetEvaluationTemplate().GetSequence(SequenceID)))
 				->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LevelBP_InterfaceNotImplemented_Error", "Failed to trigger event because it does not implement the necessary interface. Function expects a '{0}'."), FText::FromName(InterfaceParameter->InterfaceClass->GetFName()))));
 			return false;
 		}
 
-		if (UObjectProperty* ObjectParameter = Cast<UObjectProperty>(BoundObjectProperty))
+		if (FObjectProperty* ObjectParameter = CastField<FObjectProperty>(BoundObjectProperty))
 		{
 			if (BoundObject->IsA<ALevelScriptActor>())
 			{
 				FMessageLog("PIE").Warning()
-					->AddToken(FUObjectToken::Create(BoundObjectProperty->GetOuter()))
+					->AddToken(FUObjectToken::Create(BoundObjectProperty->GetOwnerUObject()))
 					->AddToken(FUObjectToken::Create(Player.GetEvaluationTemplate().GetSequence(SequenceID)))
 					->AddToken(FTextToken::Create(LOCTEXT("LevelBP_LevelScriptActor_Error", "Failed to trigger event: only Interface pins are supported for master tracks within Level Sequences. Please remove the pin, or change it to an interface that is implemented on the desired level blueprint.")));
 
@@ -351,7 +351,7 @@ struct FEventTriggerExecutionToken
 			{
 				FMessageLog("PIE").Warning()
 					->AddToken(FUObjectToken::Create(Player.GetEvaluationTemplate().GetSequence(SequenceID)))
-					->AddToken(FUObjectToken::Create(BoundObjectProperty->GetOuter()))
+					->AddToken(FUObjectToken::Create(BoundObjectProperty->GetOwnerUObject()))
 					->AddToken(FUObjectToken::Create(BoundObject))
 					->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LevelBP_InvalidCast_Error", "Failed to trigger event: Cast to {0} failed."), FText::FromName(ObjectParameter->PropertyClass->GetFName()))));
 
@@ -364,7 +364,7 @@ struct FEventTriggerExecutionToken
 
 		FMessageLog("PIE").Warning()
 			->AddToken(FUObjectToken::Create(Player.GetEvaluationTemplate().GetSequence(SequenceID)))
-			->AddToken(FUObjectToken::Create(BoundObjectProperty->GetOuter()))
+			->AddToken(FUObjectToken::Create(BoundObjectProperty->GetOwnerUObject()))
 			->AddToken(FUObjectToken::Create(BoundObject))
 			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LevelBP_UnsupportedProperty_Error", "Failed to trigger event: Unsupported property type for bound object: {0}."), FText::FromName(BoundObjectProperty->GetClass()->GetFName()))));
 		return false;
@@ -464,8 +464,8 @@ void FMovieSceneEventSectionTemplate::EvaluateSwept(const FMovieSceneEvaluationO
 FMovieSceneEventTriggerTemplate::FMovieSceneEventTriggerTemplate(const UMovieSceneEventTriggerSection& Section, const UMovieSceneEventTrack& Track)
 	: FMovieSceneEventTemplateBase(Track)
 {
-	TMovieSceneChannelData<const FMovieSceneEvent> EventData   = Section.EventChannel.GetData();
-	TArrayView<const FFrameNumber>                 Times       = EventData.GetTimes();
+	TMovieSceneChannelData<const FMovieSceneEvent> EventData = Section.EventChannel.GetData();
+	TArrayView<const FFrameNumber>     Times  = EventData.GetTimes();
 	TArrayView<const FMovieSceneEvent>             EntryPoints = EventData.GetValues();
 
 	EventTimes.Reserve(Times.Num());

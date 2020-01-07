@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneImagePlateTemplate.h"
 
@@ -98,7 +98,7 @@ struct FImagePlateExecutionToken : IMovieSceneExecutionToken
 			}
 
 			UTexture* RenderTexture = SectionData.PropertyBindings->GetCurrentValue<UTexture*>(*Object);
-			UObjectProperty* Property = Cast<UObjectProperty>(SectionData.PropertyBindings->GetProperty(*Object));
+			FObjectProperty* Property = CastField<FObjectProperty>(SectionData.PropertyBindings->GetProperty(*Object));
 
 			bool bCreateNewTexture = ( Property && UTexture2DDynamic::StaticClass()->IsChildOf(Property->PropertyClass) ) && ( !RenderTexture || !bReuseExistingTexture);
 			if (bCreateNewTexture)

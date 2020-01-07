@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -20,17 +20,19 @@ class FEventDef
 public:
 	enum
 	{
-		Flag_Always		= 1 << 0,
-		Flag_Important	= 1 << 1,
+		Flag_Always			= 1 << 0,
+		Flag_Important		= 1 << 1,
+		Flag_MaybeHasAux	= 1 << 2,
 	};
 
 	class FLogScope
 	{
 	public:
-								FLogScope(uint16 EventUid, uint16 Size);
-								FLogScope(uint16 EventUid, uint16 Size, uint16 ExtraBytes);
+								FLogScope(uint16 EventUid, uint16 Size, bool bMaybeHasAux);
+								FLogScope(uint16 EventUid, uint16 Size, bool bMaybeHasAux, uint16 ExtraBytes);
 								~FLogScope();
 		FLogInstance			Instance;
+		constexpr explicit		operator bool () const { return true; }
 	};
 
 	void*						Handle;

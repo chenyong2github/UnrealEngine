@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayTagSearchFilter.h"
 #include "Framework/Commands/UIAction.h"
@@ -54,7 +54,7 @@ protected:
 protected:
 	bool ProcessStruct(void* Data, UStruct* Struct) const;
 
-	bool ProcessProperty(void* Data, UProperty* Prop) const;
+	bool ProcessProperty(void* Data, FProperty* Prop) const;
 
 	void OnTagWidgetChanged();
 };
@@ -154,9 +154,9 @@ void FFrontendFilter_GameplayTags::OnTagWidgetChanged()
 
 bool FFrontendFilter_GameplayTags::ProcessStruct(void* Data, UStruct* Struct) const
 {
-	for (TFieldIterator<UProperty> PropIt(Struct, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
+	for (TFieldIterator<FProperty> PropIt(Struct, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
 	{
-		UProperty* Prop = *PropIt;
+		FProperty* Prop = *PropIt;
 
 		if (ProcessProperty(Data, Prop))
 		{
@@ -167,11 +167,11 @@ bool FFrontendFilter_GameplayTags::ProcessStruct(void* Data, UStruct* Struct) co
 	return false;
 }
 
-bool FFrontendFilter_GameplayTags::ProcessProperty(void* Data, UProperty* Prop) const
+bool FFrontendFilter_GameplayTags::ProcessProperty(void* Data, FProperty* Prop) const
 {
 	void* InnerData = Prop->ContainerPtrToValuePtr<void>(Data);
 
-	if (UStructProperty* StructProperty = Cast<UStructProperty>(Prop))
+	if (FStructProperty* StructProperty = CastField<FStructProperty>(Prop))
 	{
 		if (StructProperty->Struct == FGameplayTag::StaticStruct())
 		{
@@ -187,7 +187,7 @@ bool FFrontendFilter_GameplayTags::ProcessProperty(void* Data, UProperty* Prop) 
 			return ProcessStruct(InnerData, StructProperty->Struct);
 		}
 	}
-	else if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Prop))
+	else if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Prop))
 	{
 		FScriptArrayHelper ArrayHelper(ArrayProperty, InnerData);
 		for (int32 ArrayIndex = 0; ArrayIndex < ArrayHelper.Num(); ++ArrayIndex)

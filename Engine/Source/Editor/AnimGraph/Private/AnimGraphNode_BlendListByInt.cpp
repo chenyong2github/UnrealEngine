@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "AnimGraphNode_BlendListByInt.h"
@@ -52,7 +52,7 @@ void UAnimGraphNode_BlendListByInt::RemovePinFromBlendList(UEdGraphPin* Pin)
 	FScopedTransaction Transaction( NSLOCTEXT("A3Nodes", "RemoveBlendListPin", "RemoveBlendListPin") );
 	Modify();
 
-	UProperty* AssociatedProperty;
+	FProperty* AssociatedProperty;
 	int32 ArrayIndex;
 	GetPinAssociatedProperty(GetFNodeType(), Pin, /*out*/ AssociatedProperty, /*out*/ ArrayIndex);
 

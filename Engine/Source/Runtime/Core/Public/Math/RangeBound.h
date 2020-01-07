@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -335,7 +335,7 @@ private:
 };
 
 
-/* Default range bounds for built-in types (for UProperty support)
+/* Default range bounds for built-in types (for FProperty support)
  *****************************************************************************/
 
 #define DEFINE_RANGEBOUND_WRAPPER_STRUCT(Name, ElementType) \

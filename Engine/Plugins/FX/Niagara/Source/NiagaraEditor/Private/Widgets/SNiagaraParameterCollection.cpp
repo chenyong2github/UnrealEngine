@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraParameterCollection.h"
 #include "NiagaraEditorModule.h"
@@ -831,7 +831,7 @@ void SNiagaraParameterCollection::ParameterContentColumnWidthChanged(float Width
 	OnContentColumnWidthChanged.ExecuteIfBound(Width);
 }
 
-void SNiagaraParameterCollection::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged)
+void SNiagaraParameterCollection::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
 	for (TSharedRef<INiagaraParameterViewModel> Parameter : Collection->GetParameters())
 	{

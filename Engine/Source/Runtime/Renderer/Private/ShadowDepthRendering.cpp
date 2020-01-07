@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ShadowDepthRendering.cpp: Shadow depth rendering implementation
@@ -44,6 +44,13 @@ DECLARE_GPU_STAT_NAMED(ShadowDepths, TEXT("Shadow Depths"));
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FShadowDepthPassUniformParameters, "ShadowDepthPass");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileShadowDepthPassUniformParameters, "MobileShadowDepthPass");
+
+
+static TAutoConsoleVariable<int32> CVarShadowForceSerialSingleRenderPass(
+	TEXT("r.Shadow.ForceSerialSingleRenderPass"),
+	0,
+	TEXT("Force Serial shadow passes to render in 1 pass."),
+	ECVF_RenderThreadSafe);
 
 void SetupShadowDepthPassUniformBuffer(
 	const FProjectedShadowInfo* ShadowInfo,
@@ -1524,6 +1531,13 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 
 		if (SerialShadowPasses.Num() > 0)
 		{
+			bool bForceSingleRenderPass = CVarShadowForceSerialSingleRenderPass.GetValueOnAnyThread() != 0;
+			if(bForceSingleRenderPass)
+			{
+				BeginShadowRenderPass(RHICmdList, true);
+			}
+
+
 			for (int32 ShadowIndex = 0; ShadowIndex < SerialShadowPasses.Num(); ShadowIndex++)
 			{
 				FProjectedShadowInfo* ProjectedShadowInfo = SerialShadowPasses[ShadowIndex];
@@ -1549,8 +1563,18 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 
 				ProjectedShadowInfo->SetupShadowUniformBuffers(RHICmdList, Scene);
 				ProjectedShadowInfo->TransitionCachedShadowmap(RHICmdList, Scene);
-				BeginShadowRenderPass(RHICmdList, ShadowIndex == 0);
+				if (!bForceSingleRenderPass)
+				{
+					BeginShadowRenderPass(RHICmdList, ShadowIndex == 0);
+				}
 				ProjectedShadowInfo->RenderDepth(RHICmdList, this, BeginShadowRenderPass, false);
+				if(!bForceSingleRenderPass)
+				{
+					RHICmdList.EndRenderPass();
+				}
+			}
+			if(bForceSingleRenderPass)
+			{
 				RHICmdList.EndRenderPass();
 			}
 		}

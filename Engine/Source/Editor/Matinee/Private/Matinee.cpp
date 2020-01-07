@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Matinee.h"
 #include "Engine/Texture2D.h"
@@ -2630,12 +2630,12 @@ void FMatinee::DrawModeHUD(FEditorViewportClient* ViewportClient,FViewport* View
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Properties window NotifyHook stuff
-void FMatinee::NotifyPreChange( UProperty* PropertyAboutToChange )
+void FMatinee::NotifyPreChange( FProperty* PropertyAboutToChange )
 {
 
 }
 
-void FMatinee::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged )
+void FMatinee::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged )
 {
 	CurveEd->CurveChanged();
 

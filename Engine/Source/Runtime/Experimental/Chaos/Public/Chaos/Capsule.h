@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Cylinder.h"
@@ -31,7 +31,7 @@ namespace Chaos
 		    , MUnionedObjects(nullptr)
 		{
 			MLocalBoundingBox.GrowToInclude(x2);
-			MLocalBoundingBox = TBox<T, 3>(MLocalBoundingBox.Min() - TVector<T, 3>(MRadius), MLocalBoundingBox.Max() + TVector<T, 3>(MRadius));
+			MLocalBoundingBox = TAABB<T, 3>(MLocalBoundingBox.Min() - TVector<T, 3>(MRadius), MLocalBoundingBox.Max() + TVector<T, 3>(MRadius));
 			InitUnionedObjects();
 		}
 
@@ -59,7 +59,7 @@ namespace Chaos
 		{
 			this->Type = InSteal.Type;
 			this->bIsConvex = InSteal.bIsConvex;
-			this->bIgnoreAnalyticCollisions = InSteal.bIgnoreAnalyticCollisions;
+			this->bDoCollide = InSteal.bDoCollide;
 			this->bHasBoundingBox = InSteal.bHasBoundingBox;
 
 			MSegment = MoveTemp(InSteal.MSegment);
@@ -131,7 +131,7 @@ namespace Chaos
 			return Normal.SafeNormalize() - MRadius;
 		}
 
-		virtual const TBox<T, 3>& BoundingBox() const override { return MLocalBoundingBox; }
+		virtual const TAABB<T, 3>& BoundingBox() const override { return MLocalBoundingBox; }
 
 		static bool RaycastFast(T MRadius, T MHeight, const TVector<T,3>& MVector, const TVector<T,3>& X1, const TVector<T,3>& X2, const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex)
 		{
@@ -303,7 +303,8 @@ namespace Chaos
 		{
 			FImplicitObject::SerializeImp(Ar);
 			MSegment.Serialize(Ar);
-			Ar << MRadius << MLocalBoundingBox;
+			Ar << MRadius;
+			TBox<FReal, 3>::SerializeAsAABB(Ar, MLocalBoundingBox);
 		}
 
 		virtual void Serialize(FChaosArchive& Ar) override
@@ -376,7 +377,7 @@ namespace Chaos
 			Objects.Add(MakeUnique<Chaos::TSphere<float, 3>>(X1, MRadius));
 			Objects.Add(MakeUnique<Chaos::TSphere<float, 3>>(X2, MRadius));
 
-			MUnionedObjects.Reset(new Chaos::TImplicitObjectUnion<float, 3>(std::move(Objects)));
+			MUnionedObjects.Reset(new Chaos::FImplicitObjectUnion(std::move(Objects)));
 		}
 
 		virtual Pair<TVector<T, 3>, bool> FindClosestIntersectionImp(const TVector<T, 3>& StartPoint, const TVector<T, 3>& EndPoint, const T Thickness) const override
@@ -386,8 +387,8 @@ namespace Chaos
 
 		TSegment<T> MSegment;
 		T MRadius;
-		TBox<T, 3> MLocalBoundingBox;
-		TUniquePtr<TImplicitObjectUnion<T, 3>> MUnionedObjects;
+		TAABB<T, 3> MLocalBoundingBox;
+		TUniquePtr<FImplicitObjectUnion> MUnionedObjects;
 	};
 
 	template<typename T>

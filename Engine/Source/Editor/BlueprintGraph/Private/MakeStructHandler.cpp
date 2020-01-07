@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MakeStructHandler.h"
 #include "UObject/UnrealType.h"
@@ -111,7 +111,7 @@ void FKCHandler_MakeStruct::Compile(FKismetFunctionContext& Context, UEdGraphNod
 	{
 		if (Pin && !Pin->bOrphanedPin && (Pin != StructPin) && (Pin->Direction == EGPD_Input) && !CompilerContext.GetSchema()->IsMetaPin(*Pin))
 		{
-			UProperty* BoundProperty = FindField<UProperty>(Node->StructType, Pin->PinName);
+			FProperty* BoundProperty = FindField<FProperty>(Node->StructType, Pin->PinName);
 			check(BoundProperty);
 
 			// If the pin is not connectible, do not forward the net
@@ -133,7 +133,7 @@ void FKCHandler_MakeStruct::Compile(FKismetFunctionContext& Context, UEdGraphNod
 
 			// Handle injecting the override property values into the node if the property has any
 			bool bNegate = false;
-			UProperty* OverrideProperty = PropertyCustomizationHelpers::GetEditConditionProperty(BoundProperty, bNegate);
+			FProperty* OverrideProperty = PropertyCustomizationHelpers::GetEditConditionProperty(BoundProperty, bNegate);
 
 			if (OverrideProperty && OverrideProperty->HasAllPropertyFlags(CPF_BlueprintVisible) && !OverrideProperty->HasAllPropertyFlags(CPF_BlueprintReadOnly))
 			{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Audio.cpp: Unreal base audio.
@@ -813,7 +813,6 @@ FWaveInstance::FWaveInstance(const UPTRINT InWaveInstanceHash, FActiveSound& InA
 	, bUseSpatialization(false)
 	, bEnableLowPassFilter(false)
 	, bIsOccluded(false)
-	, bEQFilterApplied(false)
 	, bIsUISound(false)
 	, bIsMusic(false)
 	, bReverb(true)

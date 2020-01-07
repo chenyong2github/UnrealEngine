@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StreamReader.h"
 #include "HAL/UnrealMemory.h"
@@ -35,12 +35,6 @@ void FStreamReader::Advance(uint32 Size)
 bool FStreamReader::IsEmpty() const
 {
 	return Cursor >= End;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-bool FStreamReader::IsEof() const
-{
-	return bEof;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -106,12 +100,6 @@ void FStreamBuffer::Consolidate()
 	}
 
 	DemandHint = 0;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void FStreamBuffer::SetEof()
-{
-	bEof = true;
 }
 
 } // namespace Trace

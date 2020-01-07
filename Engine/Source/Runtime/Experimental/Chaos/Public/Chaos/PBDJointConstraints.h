@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -9,6 +9,7 @@
 #include "Chaos/Vector.h"
 
 #include "Chaos/ConstraintHandle.h"
+#include "Chaos/Joint/PBDJointSolverGaussSeidel.h"
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/PBDConstraintContainer.h"
 #include "Chaos/PBDJointConstraintTypes.h"
@@ -25,7 +26,7 @@ namespace Chaos
 		CHAOS_API FPBDJointConstraintHandle();
 		CHAOS_API FPBDJointConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex);
 
-		CHAOS_API void CalculateConstraintSpace(FVec3& OutXa, FMatrix33& OutRa, FVec3& OutXb, FMatrix33& OutRb, FVec3& OutCR) const;
+		CHAOS_API void CalculateConstraintSpace(FVec3& OutXa, FMatrix33& OutRa, FVec3& OutXb, FMatrix33& OutRb) const;
 		CHAOS_API void SetParticleLevels(const TVector<int32, 2>& ParticleLevels);
 		CHAOS_API int32 GetConstraintLevel() const;
 		CHAOS_API const FPBDJointSettings& GetSettings() const;
@@ -82,7 +83,7 @@ namespace Chaos
 		 */
 		FConstraintContainerHandle* AddConstraint(const FParticlePair& InConstrainedParticles, const FRigidTransform3& WorldConstraintFrame);
 		FConstraintContainerHandle* AddConstraint(const FParticlePair& InConstrainedParticles, const FTransformPair& ConstraintFrames);
-		FConstraintContainerHandle* AddConstraint(const FParticlePair& InConstrainedParticles, const FPBDJointSettings& InConstraintSettings);
+		FConstraintContainerHandle* AddConstraint(const FParticlePair& InConstrainedParticles, const FTransformPair& ConstraintFrames, const FPBDJointSettings& InConstraintSettings);
 
 		/**
 		 * Remove the specified constraint.
@@ -97,6 +98,9 @@ namespace Chaos
 
 		void SetPostApplyCallback(const FJointPostApplyCallback& Callback);
 		void ClearPostApplyCallback();
+
+		void SetPostProjectCallback(const FJointPostApplyCallback& Callback);
+		void ClearPostProjectCallback();
 
 		//
 		// Constraint API
@@ -135,7 +139,6 @@ namespace Chaos
 
 		void Apply(const FReal Dt, const int32 It, const int32 NumIts);
 		bool ApplyPushOut(const FReal Dt, const int32 It, const int32 NumIts);
-		void ApplyProjection(const FReal Dt);
 
 		//
 		// Island Rule API
@@ -143,7 +146,6 @@ namespace Chaos
 
 		void Apply(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
 		bool ApplyPushOut(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const int32 It, const int32 NumIts);
-		void ApplyProjection(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles);
 
 
 	protected:
@@ -153,22 +155,22 @@ namespace Chaos
 	private:
 		friend class FPBDJointConstraintHandle;
 
-		void CalculateConstraintSpace(int32 ConstraintIndex, FVec3& OutX0, FMatrix33& OutR0, FVec3& OutX1, FMatrix33& OutR1, FVec3& OutAngles) const;
+		void PrepareConstraints(FReal Dt);
+
+		void GetConstrainedParticleIndices(const int32 ConstraintIndex, int32& Index0, int32& Index1) const;
+		void CalculateConstraintSpace(int32 ConstraintIndex, FVec3& OutX0, FMatrix33& OutR0, FVec3& OutX1, FMatrix33& OutR1) const;
 		void UpdateParticleState(TPBDRigidParticleHandle<FReal, 3>* Rigid, const FReal Dt, const FVec3& P, const FRotation3& Q, const bool bUpdateVelocity = true);
+		void UpdateParticleState(TPBDRigidParticleHandle<FReal, 3>* Rigid, const FReal Dt, const FVec3& P, const FRotation3& Q, const FVec3& V, const FVec3& W);
+		void SortConstraints();
 
-		void ApplyDrives(const FReal Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts);
-		void SolvePosition(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
-		void SolvePosition_GaussSiedel(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
 		void SolvePosition_Cholesky(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
-		void ProjectPosition(const FReal Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts);
-
-		// All-constraints API
-		void ApplyDrives(const FReal Dt, const int32 It, const int32 NumIts);
-		void SolvePosition(const FReal Dt, const int32 NumPairIts, const int32 It, const int32 NumIts);
+		void SolvePosition_GaussSiedel(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
+		void ProjectPosition_GaussSiedel(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
 
 		FPBDJointSolverSettings Settings;
 
 		TArray<FPBDJointSettings> ConstraintSettings;
+		TArray<FTransformPair> ConstraintFrames;
 		TArray<FParticlePair> ConstraintParticles;
 		TArray<FPBDJointState> ConstraintStates;
 
@@ -177,6 +179,12 @@ namespace Chaos
 
 		FJointPreApplyCallback PreApplyCallback;
 		FJointPostApplyCallback PostApplyCallback;
+		FJointPostApplyCallback PostProjectCallback;
+
+		// @todo(ccaulfield): optimize storage for joint solver
+		TArray<FJointSolverGaussSeidel> ConstraintSolvers;
+
+		bool bRequiresSort;
 	};
 
 }

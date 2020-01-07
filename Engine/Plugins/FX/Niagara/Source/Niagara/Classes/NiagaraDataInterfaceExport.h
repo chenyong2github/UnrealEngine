@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "NiagaraCommon.h"
@@ -35,7 +35,7 @@ class INiagaraParticleCallbackHandler
 public:
 	/** This function is called once per tick with the gathered particle data. It will not be called if there is no particle data to call it with. */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Niagara")
-	void ReceiveParticleData(const TArray<FBasicParticleData>& Data, UNiagaraSystem* NiagaraSystem) const;
+	void ReceiveParticleData(const TArray<FBasicParticleData>& Data, UNiagaraSystem* NiagaraSystem);
 };
 
 struct ExportInterface_InstanceData

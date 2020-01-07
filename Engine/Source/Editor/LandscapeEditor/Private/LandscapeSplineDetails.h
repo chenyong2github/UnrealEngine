@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -27,4 +27,7 @@ private:
 
 	FReply OnUpdateSplineMeshLevelsButtonClicked();
 	bool IsUpdateSplineMeshLevelsButtonEnabled() const;
+	
+	FReply OnFlipSegmentButtonClicked();
+	bool IsFlipSegmentButtonEnabled() const;
 };

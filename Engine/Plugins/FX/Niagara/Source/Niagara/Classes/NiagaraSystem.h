@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Particles/ParticleSystem.h"
+#include "Particles/ParticlePerfStats.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDataSet.h"
 #include "NiagaraEmitterInstance.h"
@@ -137,7 +138,7 @@ public:
 	virtual void BeginDestroy() override;
 	virtual void PreSave(const class ITargetPlatform * TargetPlatform) override;
 #if WITH_EDITOR
-	virtual void PreEditChange(UProperty* PropertyThatWillChange)override;
+	virtual void PreEditChange(FProperty* PropertyThatWillChange)override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override; 
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatform) override;
 #endif
@@ -249,6 +250,9 @@ public:
 
 	bool GetIsolateEnabled() const;
 	void SetIsolateEnabled(bool bIsolate);
+	
+	UPROPERTY(transient)
+	FNiagaraSystemUpdateContext UpdateContext;
 #endif
 
 	bool ShouldAutoDeactivate() const { return bAutoDeactivate; }
@@ -346,7 +350,6 @@ private:
 	void UpdatePostCompileDIInfo();
 
 protected:
-
 	UPROPERTY(EditAnywhere, Category = "System")
 	UNiagaraEffectType* EffectType;
 

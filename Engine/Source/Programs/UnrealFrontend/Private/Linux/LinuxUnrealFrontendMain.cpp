@@ -1,10 +1,11 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "UnrealFrontendMain.h"
+#include "LaunchEngineLoop.h"
 #include "UnixCommonStartup.h"
 
 int main(int argc, char *argv[])
 {
-	return CommonUnixMain(argc, argv, &UnrealFrontendMain);
+	return CommonUnixMain(argc, argv, &UnrealFrontendMain, [] { FEngineLoop::AppExit(); } );
 }

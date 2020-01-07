@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/BVHParticles.h"
 #include "Chaos/BoundingVolumeHierarchy.h"
@@ -66,7 +66,7 @@ void TBVHParticles<T,d>::UpdateAccelerationStructures()
 }
 
 template<class T, int d>
-const TArray<int32> TBVHParticles<T,d>::FindAllIntersections(const TBox<T, d>& Object) const
+const TArray<int32> TBVHParticles<T,d>::FindAllIntersections(const TAABB<T, d>& Object) const
 {
 	return MBVH->FindAllIntersections(Object);
 }

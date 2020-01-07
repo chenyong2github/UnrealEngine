@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -59,7 +59,7 @@ private:
 	TSharedPtr<FString>	GetPropertyType() const;
 
 	void OnChangeProperty(TSharedPtr<FString> ItemSelected, ESelectInfo::Type SelectInfo);
-	void OnAttributeChanged(UProperty* SelectedAttribute);
+	void OnAttributeChanged(FProperty* SelectedAttribute);
 };
 
 class GAMEPLAYABILITIESEDITOR_API FScalableFloatDetails : public IPropertyTypeCustomization

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Binding/BoolBinding.h"
 
@@ -8,12 +8,12 @@ UBoolBinding::UBoolBinding()
 {
 }
 
-bool UBoolBinding::IsSupportedSource(UProperty* Property) const
+bool UBoolBinding::IsSupportedSource(FProperty* Property) const
 {
 	return IsConcreteTypeCompatibleWithReflectedType<bool>(Property);
 }
 
-bool UBoolBinding::IsSupportedDestination(UProperty* Property) const
+bool UBoolBinding::IsSupportedDestination(FProperty* Property) const
 {
 	return IsConcreteTypeCompatibleWithReflectedType<bool>(Property);
 }

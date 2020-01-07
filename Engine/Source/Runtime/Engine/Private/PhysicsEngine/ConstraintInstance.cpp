@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsEngine/ConstraintInstance.h"
 #include "Physics/PhysicsInterfaceCore.h"
@@ -66,13 +66,13 @@ void FConstraintProfileProperties::SyncChangedConstraintProperties(FPropertyChan
 	static const FName MaxForceName = GET_MEMBER_NAME_CHECKED(FConstraintDrive, MaxForce);
 	static const FName DampingName = GET_MEMBER_NAME_CHECKED(FConstraintDrive, Damping);
 
-	if (TDoubleLinkedList<UProperty*>::TDoubleLinkedListNode* PropertyNode = PropertyChangedEvent.PropertyChain.GetTail())
+	if (TDoubleLinkedList<FProperty*>::TDoubleLinkedListNode* PropertyNode = PropertyChangedEvent.PropertyChain.GetTail())
 	{
-		if (TDoubleLinkedList<UProperty*>::TDoubleLinkedListNode* ParentProeprtyNode = PropertyNode->GetPrevNode())
+		if (TDoubleLinkedList<FProperty*>::TDoubleLinkedListNode* ParentProeprtyNode = PropertyNode->GetPrevNode())
 		{
-			if (UProperty* Property = PropertyNode->GetValue())
+			if (FProperty* Property = PropertyNode->GetValue())
 			{
-				if (UProperty* ParentProperty = ParentProeprtyNode->GetValue())
+				if (FProperty* ParentProperty = ParentProeprtyNode->GetValue())
 				{
 					const FName PropertyName = Property->GetFName();
 					const FName ParentPropertyName = ParentProperty->GetFName();

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -235,8 +235,13 @@ namespace Chaos
 		static FMatrix33 ComputeWorldSpaceInertia(const FRotation3& Q, const FMatrix33& I)
 		{
 			FMatrix33 QM = Q.ToMatrix();
-			//return QM * I * QM.GetTransposed();
 			return MultiplyAB(QM, MultiplyABt(I, QM));
+		}
+
+		static FMatrix33 ComputeWorldSpaceInertia(const FRotation3& Q, const FVec3& I)
+		{
+			// @todo(ccaulfield): optimize ComputeWorldSpaceInertia
+			return ComputeWorldSpaceInertia(Q, FMatrix33(I.X, I.Y, I.Z));
 		}
 
 		/**

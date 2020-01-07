@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 LandscapeEdit.cpp: Landscape editing
@@ -670,11 +670,28 @@ void ULandscapeComponent::FixupWeightmaps()
 
 			if (bFixedLayerDeletion)
 			{
-				FLandscapeEditDataInterface LandscapeEdit(Info);
-				for (int32 Idx = 0; Idx < LayersToDelete.Num(); ++Idx)
 				{
-					DeleteLayer(LayersToDelete[Idx], LandscapeEdit);
+					FLandscapeEditDataInterface LandscapeEdit(Info);
+					for (int32 Idx = 0; Idx < LayersToDelete.Num(); ++Idx)
+					{
+						DeleteLayer(LayersToDelete[Idx], LandscapeEdit);
+					}
 				}
+
+				ForEachLayer([&](const FGuid& LayerGuid, FLandscapeLayerComponentData& LayerData)
+				{
+					SetEditingLayer(LayerGuid);
+					FLandscapeEditDataInterface LandscapeEdit(Info);
+					for (int32 Idx = 0; Idx < LayersToDelete.Num(); ++Idx)
+					{
+						DeleteLayer(LayersToDelete[Idx], LandscapeEdit);
+					}
+				});
+								
+				// Make sure to clear editing layer and cache
+				SetEditingLayer(FGuid());
+				CachedEditingLayer.Invalidate();
+				CachedEditingLayerData = nullptr;
 			}
 
 			bool bFixedWeightmapTextureIndex = false;
@@ -4696,7 +4713,7 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
-void ALandscape::PreEditChange(UProperty* PropertyThatWillChange)
+void ALandscape::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	PreEditLandscapeMaterial = LandscapeMaterial;
 	PreEditLandscapeHoleMaterial = LandscapeHoleMaterial;
@@ -5036,7 +5053,7 @@ void ULandscapeComponent::SetLOD(bool bForcedLODChanged, int32 InLODValue)
 	}
 }
 
-void ULandscapeComponent::PreEditChange(UProperty* PropertyThatWillChange)
+void ULandscapeComponent::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);
 	if (GIsEditor && PropertyThatWillChange && (PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(ULandscapeComponent, ForcedLOD) || PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(ULandscapeComponent, LODBias)))
@@ -5229,7 +5246,7 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 	{
 		for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
 		{
-			if (ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureIndex == 255)
+			if (!ComponentWeightmapLayerAllocations[LayerIdx].IsAllocated())
 			{
 				NeededNewChannels++;
 			}
@@ -5288,14 +5305,14 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 						{
 							FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[CurrentAlloc];
 
-							if (AllocInfo.WeightmapTextureIndex == 255)
+							if (!AllocInfo.IsAllocated())
 							{
 								break;
 							}
 						}
 
 						FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[CurrentAlloc];
-						check(AllocInfo.WeightmapTextureIndex == 255);
+						check(!AllocInfo.IsAllocated());
 
 						// Zero out the data for this texture channel
 						if (DataInterface)
@@ -5433,7 +5450,7 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 				// Use this allocation
 				FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[CurrentLayer];
 
-				if (AllocInfo.WeightmapTextureIndex == 255)
+				if (!AllocInfo.IsAllocated())
 				{
 					// New layer - zero out the data for this texture channel
 					if (DataInterface)
@@ -6474,6 +6491,27 @@ UTexture2D* ALandscapeProxy::CreateLandscapeTexture(int32 InSizeX, int32 InSizeY
 	NewTexture->SRGB = false;
 	NewTexture->CompressionNone = !bCompress;
 	NewTexture->MipGenSettings = TMGS_LeaveExistingMips;
+	NewTexture->AddressX = TA_Clamp;
+	NewTexture->AddressY = TA_Clamp;
+	NewTexture->LODGroup = InLODGroup;
+
+	if (bCompress && InLODGroup == TEXTUREGROUP_Terrain_Weightmap)
+	{
+		// Compress weightmaps with a best quality to reduce blocky artifacts on a landscape 
+		NewTexture->CompressionQuality = TCQ_Highest;
+	}
+
+	return NewTexture;
+}
+
+UTexture2D* ALandscapeProxy::CreateLandscapeToolTexture(int32 InSizeX, int32 InSizeY, TextureGroup InLODGroup, ETextureSourceFormat InFormat) const
+{
+	UObject* TexOuter = const_cast<ALandscapeProxy*>(this);
+	UTexture2D* NewTexture = NewObject<UTexture2D>(TexOuter);
+	NewTexture->Source.Init(InSizeX, InSizeY, 1, 1, InFormat);
+	NewTexture->SRGB = false;
+	NewTexture->CompressionNone = true;
+	NewTexture->MipGenSettings = TMGS_NoMipmaps;
 	NewTexture->AddressX = TA_Clamp;
 	NewTexture->AddressY = TA_Clamp;
 	NewTexture->LODGroup = InLODGroup;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraHlslTranslator.h"
 #include "NiagaraComponent.h"
@@ -809,10 +809,6 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 	}
 
 	bool bNeedsPersistentIDs = CompileOptions.AdditionalDefines.Contains(TEXT("RequiresPersistentIDs"));
-	if (bNeedsPersistentIDs && CompilationTarget == ENiagaraSimTarget::GPUComputeSim) {
-		Error(LOCTEXT("GPUPersistentIDFail", "GPU particles do not support persistent IDs. Change to a CPU simulation or disable persistent IDs."), nullptr, nullptr);
-		return TranslateResults;
-	}
 
 	TranslationStages.Empty();
 	ActiveStageIdx = 0;
@@ -1451,11 +1447,11 @@ void FHlslNiagaraTranslator::GatherComponentsForDataSetAccess(UScriptStruct* Str
 		return;
 	}
 
-	for (TFieldIterator<const UProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<const FProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 	{
-		const UProperty* Property = *PropertyIt;
+		const FProperty* Property = *PropertyIt;
 
-		if (const UStructProperty* StructProp = Cast<const UStructProperty>(Property))
+		if (const FStructProperty* StructProp = CastField<const FStructProperty>(Property))
 		{
 			if (bMatrixRoot && FNiagaraTypeDefinition(StructProp->Struct) == FNiagaraTypeDefinition::GetFloatDef())
 			{
@@ -1475,7 +1471,7 @@ void FHlslNiagaraTranslator::GatherComponentsForDataSetAccess(UScriptStruct* Str
 			FString VarName = VariableSymbol;
 			if (bMatrixRoot)
 			{
-				if (bIsVector && Property->IsA(UFloatProperty::StaticClass())) // Parent is a vector type, we are a float type
+				if (bIsVector && Property->IsA(FFloatProperty::StaticClass())) // Parent is a vector type, we are a float type
 				{
 					VarName += ComputeMatrixColumnAccess(Property->GetName());
 				}
@@ -1486,17 +1482,17 @@ void FHlslNiagaraTranslator::GatherComponentsForDataSetAccess(UScriptStruct* Str
 				VarName += bIsVector ? Property->GetName().ToLower() : Property->GetName();
 			}
 
-			if (Property->IsA(UFloatProperty::StaticClass()))
+			if (Property->IsA(FFloatProperty::StaticClass()))
 			{
 				Types.Add(ENiagaraBaseTypes::NBT_Float);
 				Components.Add(VarName);
 			}
-			else if (Property->IsA(UIntProperty::StaticClass()))
+			else if (Property->IsA(FIntProperty::StaticClass()))
 			{
 				Types.Add(ENiagaraBaseTypes::NBT_Int32);
 				Components.Add(VarName);
 			}
-			else if (Property->IsA(UBoolProperty::StaticClass()))
+			else if (Property->IsA(FBoolProperty::StaticClass()))
 			{
 				Types.Add(ENiagaraBaseTypes::NBT_Bool);
 				Components.Add(VarName);
@@ -1839,6 +1835,8 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 		return false;
 	}();
 
+	const bool bNeedsPersistentIDs = CompileOptions.AdditionalDefines.Contains(TEXT("RequiresPersistentIDs"));
+
 	// A list of constant to reset after Emitter_SpawnGroup gets modified by GetEmitterSpawnInfoForParticle()
 	TArray<FString> EmitterSpawnGroupReinit;
 
@@ -1894,6 +1892,13 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 		if (bUsesAlive)
 		{
 			HlslOutput += TEXT("\n") + ContextName + TEXT("DataInstance.Alive=true;\n");
+		}
+
+		if (bNeedsPersistentIDs)
+		{
+			HlslOutput += TEXT("\n\tint IDIndex, IDAcquireTag;\n\tAcquireID(0, IDIndex, IDAcquireTag);\n");
+			HlslOutput += ContextName + TEXT("Particles.ID.Index = IDIndex;\n");
+			HlslOutput += ContextName + TEXT("Particles.ID.AcquireTag = IDAcquireTag;\n");
 		}
 	}
 	HlslOutput += TEXT("}\n\n");
@@ -1992,11 +1997,17 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			HlslOutput += TEXT("\tconst int WriteIndex = OutputIndex(0, true, bValid);\n");
 		}
 
-		HlslOutput += TEXT("\tif (bValid)\n\t{\n");
 		FString ContextName = TEXT("Context.Map.");
 		if (TranslationStages.Num() > 1) // Last context is "MapUpdate"
 		{
 			ContextName = FString::Printf(TEXT("Context.%s."), *TranslationStages.Last().PassNamespace);
+		}
+
+		HlslOutput += TEXT("\tif (bValid)\n\t{\n");
+
+		if (bNeedsPersistentIDs)
+		{
+			HlslOutput += FString::Printf(TEXT("\t\tUpdateID(0, %sParticles.ID.Index, WriteIndex);\n"), *ContextName);
 		}
 
 		for (int32 DataSetIndex = 0, IntCounter = 0, FloatCounter = 0; DataSetIndex < DataSetWrites.Num(); ++DataSetIndex)
@@ -2428,11 +2439,11 @@ void FHlslNiagaraTranslator::DecomposeVariableAccess(UStruct* Struct, bool bRead
 {
 	FString AccessStr;
 
-	for (TFieldIterator<UProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<FProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 	{
-		UProperty* Property = *PropertyIt;
+		FProperty* Property = *PropertyIt;
 
-		if (UStructProperty* StructProp = CastChecked<UStructProperty>(Property))
+		if (FStructProperty* StructProp = CastFieldChecked<FStructProperty>(Property))
 		{
 			FNiagaraTypeDefinition PropDef(StructProp->Struct);
 			if (!IsHlslBuiltinVector(PropDef))
@@ -3467,8 +3478,8 @@ void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNod
 			{
 				Error(LOCTEXT("NoParamMapIdxForInput", "Cannot find parameter map for input!"), SetNode, nullptr);
 				Outputs[0] = INDEX_NONE;
-				return;
-			}
+					return;
+				}
 			continue;
 		}
 		else // These are the pins that we are setting on the parameter map.
@@ -4175,27 +4186,27 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 
 			if (TranslationOptions.bParameterRapidIteration)
 			{
-				// Now try to look up with the new name.. we may have already made this an external variable before..
-				if (bVarChanged)
+			// Now try to look up with the new name.. we may have already made this an external variable before..
+			if (bVarChanged)
+			{
+				VarIdx = ParamMapHistories[ParamMapHistoryIdx].FindVariableByName(Var.GetName());
+				if (VarIdx != INDEX_NONE && VarIdx < ParamMapSetVariablesToChunks[ParamMapHistoryIdx].Num())
 				{
-					VarIdx = ParamMapHistories[ParamMapHistoryIdx].FindVariableByName(Var.GetName());
-					if (VarIdx != INDEX_NONE && VarIdx < ParamMapSetVariablesToChunks[ParamMapHistoryIdx].Num())
-					{
-						LastSetChunkIdx = ParamMapSetVariablesToChunks[ParamMapHistoryIdx][VarIdx];
-					}
+					LastSetChunkIdx = ParamMapSetVariablesToChunks[ParamMapHistoryIdx][VarIdx];
 				}
+			}
 
-				// If it isn't found yet.. go ahead and make it into a constant variable..
-				if (LastSetChunkIdx == INDEX_NONE && ParameterMapRegisterExternalConstantNamespaceVariable(Var, ErrorNode, ParamMapHistoryIdx, OutputChunkId, InputPin))
+			// If it isn't found yet.. go ahead and make it into a constant variable..
+			if (LastSetChunkIdx == INDEX_NONE && ParameterMapRegisterExternalConstantNamespaceVariable(Var, ErrorNode, ParamMapHistoryIdx, OutputChunkId, InputPin))
+			{
+				LastSetChunkIdx = OutputChunkId;
+				if (VarIdx != INDEX_NONE && VarIdx < ParamMapSetVariablesToChunks[ParamMapHistoryIdx].Num())
 				{
-					LastSetChunkIdx = OutputChunkId;
-					if (VarIdx != INDEX_NONE && VarIdx < ParamMapSetVariablesToChunks[ParamMapHistoryIdx].Num())
-					{
-						// Record that we wrote to it.
-						ParamMapSetVariablesToChunks[ParamMapHistoryIdx][VarIdx] = LastSetChunkIdx;
-						ParamMapDefinedAttributesToNamespaceVars.FindOrAdd(Var.GetName()) = Var;
-					}
-					return;
+					// Record that we wrote to it.
+					ParamMapSetVariablesToChunks[ParamMapHistoryIdx][VarIdx] = LastSetChunkIdx;
+					ParamMapDefinedAttributesToNamespaceVars.FindOrAdd(Var.GetName()) = Var;
+				}
+				return;
 				}				
 			}
 			else
@@ -5723,34 +5734,34 @@ FNiagaraTypeDefinition FHlslNiagaraTranslator::GetChildType(const FNiagaraTypeDe
 	if (Struct != nullptr)
 	{
 		// Dig through properties to find the matching property native type (if it exists)
-		for (TFieldIterator<UProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<FProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
-			const UProperty* Property = *PropertyIt;
+			const FProperty* Property = *PropertyIt;
 			if (Property->GetName() == PropertyName.ToString())
 			{
-				if (Property->IsA(UFloatProperty::StaticClass()))
+				if (Property->IsA(FFloatProperty::StaticClass()))
 				{
 					return FNiagaraTypeDefinition::GetFloatDef();
 				}
-				else if (Property->IsA(UIntProperty::StaticClass()))
+				else if (Property->IsA(FIntProperty::StaticClass()))
 				{
 					return FNiagaraTypeDefinition::GetIntDef();
 				}
-				else if (Property->IsA(UBoolProperty::StaticClass()))
+				else if (Property->IsA(FBoolProperty::StaticClass()))
 				{
 					return FNiagaraTypeDefinition::GetBoolDef();
 				}
-				else if (Property->IsA(UEnumProperty::StaticClass()))
+				else if (Property->IsA(FEnumProperty::StaticClass()))
 				{
-					const UEnumProperty* EnumProp = Cast<UEnumProperty>(Property);
+					const FEnumProperty* EnumProp = CastField<FEnumProperty>(Property);
 					return FNiagaraTypeDefinition(EnumProp->GetEnum());
 				}
-				else if (Property->IsA(UByteProperty::StaticClass()))
+				else if (Property->IsA(FByteProperty::StaticClass()))
 				{
-					const UByteProperty* ByteProp = Cast<UByteProperty>(Property);
+					const FByteProperty* ByteProp = CastField<FByteProperty>(Property);
 					return FNiagaraTypeDefinition(ByteProp->GetIntPropertyEnum());
 				}
-				else if (const UStructProperty* StructProp = CastChecked<UStructProperty>(Property))
+				else if (const FStructProperty* StructProp = CastFieldChecked<const FStructProperty>(Property))
 				{
 					return FNiagaraTypeDefinition(StructProp->Struct);
 				}
@@ -6339,34 +6350,34 @@ FString FHlslNiagaraTranslator::GetStructHlslTypeName(FNiagaraTypeDefinition Typ
 	}
 }
 
-FString FHlslNiagaraTranslator::GetPropertyHlslTypeName(const UProperty* Property)
+FString FHlslNiagaraTranslator::GetPropertyHlslTypeName(const FProperty* Property)
 {
-	if (Property->IsA(UFloatProperty::StaticClass()))
+	if (Property->IsA(FFloatProperty::StaticClass()))
 	{
 		return "float";
 	}
-	else if (Property->IsA(UIntProperty::StaticClass()))
+	else if (Property->IsA(FIntProperty::StaticClass()))
 	{
 		return "int";
 	}
-	else if (Property->IsA(UUInt32Property::StaticClass()))
+	else if (Property->IsA(FUInt32Property::StaticClass()))
 	{
 		return "int";
 	}
-	else if (Property->IsA(UStructProperty::StaticClass()))
+	else if (Property->IsA(FStructProperty::StaticClass()))
 	{
-		const UStructProperty* StructProp = Cast<const UStructProperty>(Property);
+		const FStructProperty* StructProp = CastField<const FStructProperty>(Property);
 		return GetStructHlslTypeName(StructProp->Struct);
 	}
-	else if (Property->IsA(UEnumProperty::StaticClass()))
+	else if (Property->IsA(FEnumProperty::StaticClass()))
 	{
 		return "int";
 	}
-	else if (Property->IsA(UByteProperty::StaticClass()))
+	else if (Property->IsA(FByteProperty::StaticClass()))
 	{
 		return "int";
 	}
-	else if (Property->IsA(UBoolProperty::StaticClass()))
+	else if (Property->IsA(FBoolProperty::StaticClass()))
 	{
 		return "bool";
 	}
@@ -6383,9 +6394,9 @@ FString FHlslNiagaraTranslator::BuildHLSLStructDecl(FNiagaraTypeDefinition Type,
 		FString StructName = GetStructHlslTypeName(Type);
 
 		FString Decl = "struct " + StructName + "\n{\n";
-		for (TFieldIterator<UProperty> PropertyIt(Type.GetStruct(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<FProperty> PropertyIt(Type.GetStruct(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
-			UProperty* Property = *PropertyIt;
+			FProperty* Property = *PropertyIt;
 			FString PropertyTypeName = GetPropertyHlslTypeName(Property);
 			if (PropertyTypeName.IsEmpty())
 			{
@@ -6442,10 +6453,10 @@ bool FHlslNiagaraTranslator::AddStructToDefinitionSet(const FNiagaraTypeDefiniti
 	{
 		// We need to recursively dig through the struct to get at the lowest level of the input struct, which
 		// could be a native type.
-		for (TFieldIterator<UProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<FProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
-			const UProperty* Property = *PropertyIt;
-			const UStructProperty* StructProp = Cast<const UStructProperty>(Property);
+			const FProperty* Property = *PropertyIt;
+			const FStructProperty* StructProp = CastField<const FStructProperty>(Property);
 			if (StructProp)
 			{
 				if (!AddStructToDefinitionSet(StructProp->Struct))
@@ -6485,10 +6496,10 @@ TArray<FName> FHlslNiagaraTranslator::ConditionPropertyPath(const FNiagaraTypeDe
 	{
 		// We need to recursively dig through the struct to get at the lowest level of the input path specified, which
 		// could be a native type.
-		for (TFieldIterator<UProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<FProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
-			const UProperty* Property = *PropertyIt;
-			const UStructProperty* StructProp = Cast<const UStructProperty>(Property);
+			const FProperty* Property = *PropertyIt;
+			const FStructProperty* StructProp = CastField<const FStructProperty>(Property);
 			// The names match, but even then things might not match up properly..
 			if (InPath[0].ToString() == Property->GetName())
 			{

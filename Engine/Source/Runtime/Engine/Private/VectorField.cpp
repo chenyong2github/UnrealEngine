@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*==============================================================================
 	VectorField.cpp: Implementation of vector fields.
@@ -694,7 +694,7 @@ void UVectorFieldComponent::SetIntensity(float NewIntensity)
 }
 
 
-void UVectorFieldComponent::PostInterpChange(UProperty* PropertyThatChanged)
+void UVectorFieldComponent::PostInterpChange(FProperty* PropertyThatChanged)
 {
 	static const FName IntensityPropertyName(TEXT("Intensity"));
 

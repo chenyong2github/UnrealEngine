@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/GeometryParticles.h"
 #include "Chaos/ImplicitObject.h"
@@ -12,7 +12,7 @@ namespace Chaos
 	{
 		if(Geometry)
 		{
-			if(const auto* Union = Geometry->template GetObject<TImplicitObjectUnion<T, d>>())
+			if(const auto* Union = Geometry->template GetObject<FImplicitObjectUnion>())
 			{
 				const int32 OldShapeNum = ShapesArray.Num();
 
@@ -79,7 +79,7 @@ namespace Chaos
 	{
 		if (Geometry && Geometry->HasBoundingBox())
 		{
-			WorldSpaceInflatedShapeBounds = Geometry->BoundingBox().GetAABB().TransformedAABB(WorldTM);
+			WorldSpaceInflatedShapeBounds = Geometry->BoundingBox().TransformedAABB(WorldTM);
 		}
 	}
 
@@ -100,7 +100,7 @@ namespace Chaos
 
 		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializeShapeWorldSpaceBounds)
 		{
-			Ar << WorldSpaceInflatedShapeBounds;
+			TBox<T, d>::SerializeAsAABB(Ar, WorldSpaceInflatedShapeBounds);
 		}
 		else
 		{
@@ -116,6 +116,11 @@ namespace Chaos
 		if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddShapeCollisionDisable)
 		{
 			Ar << bDisable;
+		}
+
+		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializePerShapeDataSimulateFlag)
+		{
+			Ar << bSimulate;
 		}
 	}
 

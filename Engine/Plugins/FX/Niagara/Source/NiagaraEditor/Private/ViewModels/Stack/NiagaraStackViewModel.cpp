@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "ViewModels/Stack/NiagaraStackRoot.h"
@@ -165,6 +165,7 @@ void UNiagaraStackViewModel::Reset()
 	
 	GEditor->UnregisterForUndo(this);
 
+	CurrentIssueCycleIndex = -1;
 	CurrentFocusedSearchMatchIndex = -1;
 	bRestartSearch = false;
 	bRefreshPending = false;
@@ -514,6 +515,11 @@ UNiagaraStackViewModel::FOnSearchCompleted& UNiagaraStackViewModel::OnSearchComp
 	return SearchCompletedDelegate;
 }
 
+UNiagaraStackViewModel::FOnDataObjectChanged& UNiagaraStackViewModel::OnDataObjectChanged()
+{
+	return DataObjectChangedDelegate;
+}
+
 bool UNiagaraStackViewModel::GetShowAllAdvanced() const
 {
 	for (TSharedRef<FTopLevelViewModel> TopLevelViewModel : TopLevelViewModels)
@@ -594,6 +600,32 @@ void UNiagaraStackViewModel::SetShowLinkedInputs(bool bInShowLinkedInputs)
 	RootEntry->RefreshChildren();
 }
 
+bool UNiagaraStackViewModel::GetShowOnlyIssues() const
+{
+	for (TSharedRef<FTopLevelViewModel> TopLevelViewModel : TopLevelViewModels)
+	{
+		if (TopLevelViewModel->IsValid() && TopLevelViewModel->GetStackEditorData()->GetShowOnlyIssues())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void UNiagaraStackViewModel::SetShowOnlyIssues(bool bInShowOnlyIssues)
+{
+	for (TSharedRef<FTopLevelViewModel> TopLevelViewModel : TopLevelViewModels)
+	{
+		if (TopLevelViewModel->IsValid())
+		{
+			TopLevelViewModel->GetStackEditorData()->SetShowOnlyIssues(bInShowOnlyIssues);
+		}
+	}
+
+	OnSearchTextChanged(CurrentSearchText);
+	RootEntry->RefreshChildren();
+}
+
 double UNiagaraStackViewModel::GetLastScrollPosition() const
 {
 	// TODO: Fix this with the new overview paradigm.
@@ -642,6 +674,7 @@ void UNiagaraStackViewModel::EntryDataObjectModified(UObject* ChangedObject)
 		SystemViewModel.Pin()->NotifyDataObjectChanged(ChangedObject);
 	}
 	OnSearchTextChanged(CurrentSearchText);
+	DataObjectChangedDelegate.Broadcast(ChangedObject);
 }
 
 void UNiagaraStackViewModel::EntryRequestFullRefresh()
@@ -740,6 +773,36 @@ void UNiagaraStackViewModel::RefreshHasIssues()
 	else
 	{
 		bHasIssues = RootEntry->HasIssuesOrAnyChildHasIssues();
+	}
+}
+
+UNiagaraStackEntry* UNiagaraStackViewModel::GetCurrentFocusedIssue() const
+{
+	if (CurrentIssueCycleIndex >= 0)
+	{
+		const TArray<UNiagaraStackEntry*>& Issues = RootEntry->GetAllChildrenWithIssues();
+		return Issues[CurrentIssueCycleIndex];
+	}
+	
+	return nullptr;
+}
+
+void UNiagaraStackViewModel::OnCycleThroughIssues()
+{
+	if (RootEntry == nullptr)
+	{
+		CurrentIssueCycleIndex = -1;
+		return;
+	}
+
+	const TArray<UNiagaraStackEntry*>& Issues = RootEntry->GetAllChildrenWithIssues();
+	if (Issues.Num() > 0)
+	{
+		++CurrentIssueCycleIndex;
+		if (CurrentIssueCycleIndex >= Issues.Num())
+		{
+			CurrentIssueCycleIndex = 0;
+		}
 	}
 }
 

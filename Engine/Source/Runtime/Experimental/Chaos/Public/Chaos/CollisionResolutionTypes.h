@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "Box.h"
 #include "Chaos/ExternalCollisionData.h"
@@ -60,7 +60,7 @@ namespace Chaos
 
 		FString ToString() const
 		{
-			return FString::Printf(TEXT("Location:%s, Normal:%s, Phi:%s"), *Location.ToString(), *Normal.ToString(), Phi);
+			return FString::Printf(TEXT("Location:%s, Normal:%s, Phi:%f"), *Location.ToString(), *Normal.ToString(), Phi);
 		}
 
 		const FImplicitObject* Implicit[2]; // {Of Particle[0], Of Particle[1]}
@@ -81,20 +81,31 @@ namespace Chaos
 		{
 			None = 0,     // default value also indicates a invalid constraint
 			SinglePoint,  //   TRigidBodyPointContactConstraint
-			MultiPoint    //   TRigidBodyIterativeContactConstraint
+			MultiPoint    //   TRigidBodyMultiPointContactConstraint
 		};
 
-		TCollisionConstraintBase(int32 InTimestamp = -INT_MAX) 
+		TCollisionConstraintBase(FType InType = FType::None)
 			: AccumulatedImpulse(0)
-			, Timestamp(InTimestamp)
-			, Type(FType::None)
-		{ Particle[0] = nullptr; Particle[1] = nullptr; }
+			, Timestamp(-INT_MAX)
+			, Type(InType)
+		{ 
+			ImplicitTransform[0] = TRigidTransform<T, d>::Identity; ImplicitTransform[1] = TRigidTransform<T,d>::Identity;
+			Manifold.Implicit[0] = nullptr; Manifold.Implicit[1] = nullptr;
+			Particle[0] = nullptr; Particle[1] = nullptr; 
+		}
 		
-		TCollisionConstraintBase(FType InType, int32 InTimestamp = -INT_MAX) 
+		TCollisionConstraintBase(
+			FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const TRigidTransform<T, d>& Transform0,
+			FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform1,
+			FType InType, int32 InTimestamp = -INT_MAX)
 			: AccumulatedImpulse(0)
 			, Timestamp(InTimestamp)
 			, Type(InType)
-		{ Particle[0] = nullptr; Particle[1] = nullptr; }
+		{
+			ImplicitTransform[0] = Transform0; ImplicitTransform[1] = Transform1;
+			Manifold.Implicit[0] = Implicit0; Manifold.Implicit[1] = Implicit1;
+			Particle[0] = Particle0; Particle[1] = Particle1; 
+		}
 
 		FType GetType() const { return Type; }
 
@@ -129,6 +140,7 @@ namespace Chaos
 		}
 
 
+		TRigidTransform<T, d> ImplicitTransform[2]; // { Point, Volume }
 		FGeometryParticleHandle* Particle[2]; // { Point, Volume }
 		TVector<T, d> AccumulatedImpulse;
 		FManifold Manifold;
@@ -154,6 +166,11 @@ namespace Chaos
 		using Base::Particle;
 
 		TRigidBodyPointContactConstraint() : Base(Base::FType::SinglePoint) {}
+		TRigidBodyPointContactConstraint(
+			FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const TRigidTransform<T, d>& Transform0,
+			FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform1)
+			: Base(Particle0, Implicit0, Transform0, Particle1, Implicit1, Transform1, Base::FType::SinglePoint) {}
+
 		static typename Base::FType StaticType() { return Base::FType::SinglePoint; };
 	};
 	typedef TRigidBodyPointContactConstraint<float, 3> FRigidBodyPointContactConstraint;
@@ -163,7 +180,7 @@ namespace Chaos
 	*
 	*/
 	template<class T, int d>
-	class CHAOS_API TRigidBodyIterativeContactConstraint : public TCollisionConstraintBase<T, d>
+	class CHAOS_API TRigidBodyMultiPointContactConstraint : public TCollisionConstraintBase<T, d>
 	{
 	public:
 		using Base = TCollisionConstraintBase<T, d>;
@@ -172,16 +189,31 @@ namespace Chaos
 		using Base::Particle;
 		struct FSampleData { TVector<T,d> X; float Delta; FManifold Manifold; };
 
-		TRigidBodyIterativeContactConstraint() : Base(Base::FType::MultiPoint), PlaneNormal(0), PlanePosition(0), LocalPosition(0) {}
+		TRigidBodyMultiPointContactConstraint() : Base(Base::FType::MultiPoint), SourceNormalIndex(INDEX_NONE), PlaneNormal(0), PlanePosition(0) {}
+		TRigidBodyMultiPointContactConstraint(
+			FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const TRigidTransform<T, d>& Transform0,
+			FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const TRigidTransform<T, d>& Transform1)
+			: Base(Particle0, Implicit0, Transform0, Particle1, Implicit1, Transform1, Base::FType::MultiPoint)
+			, SourceNormalIndex(INDEX_NONE), PlaneNormal(0), PlanePosition(0) 
+		{}
+
 		static typename Base::FType StaticType() { return Base::FType::MultiPoint; };
 
+		int SourceNormalIndex; // index of normal on particle[0] body;
 		TVector<T, d> PlaneNormal; // local space contact normal on Particle1
 		TVector<T, d> PlanePosition; // local space surface position on Particle1
 
-		TVector<T, d> LocalPosition; // averaged position
-		TArray< FSampleData > LocalSamples; // iterative samples
+		// Samples
+		int32               NumSamples()                   { return Samples.Num(); }
+		void                AddSample(FSampleData && Data) { Samples.Add(Data); };
+		void                ResetSamples(int32 NewSize=0)  { Samples.Reset(NewSize); }
+		FSampleData &       operator[](int32 Index) { ensure(0 <= Index && Index < NumSamples()); return Samples[Index]; }
+		const FSampleData & operator[](int32 Index) const  { ensure(0 <= Index && Index < NumSamples()); return Samples[Index]; }
+
+	private:
+		TArray<FSampleData> Samples; // iterative samples
 	};
-	typedef TRigidBodyIterativeContactConstraint<float, 3> FRigidBodyIterativeContactConstraint;
+	typedef TRigidBodyMultiPointContactConstraint<float, 3> FRigidBodyMultiPointContactConstraint;
 
 
 	//
@@ -269,8 +301,8 @@ namespace Chaos
 		const TRigidBodyPointContactConstraint<T, d>& GetPointContact() const { check(GetType() == FConstraintBase::FType::SinglePoint); return ConstraintContainer->PointConstraints[ConstraintIndex]; }
 		TRigidBodyPointContactConstraint<T, d>& GetPointContact() { check(GetType() == FConstraintBase::FType::SinglePoint); return ConstraintContainer->PointConstraints[ConstraintIndex]; }
 
-		const TRigidBodyIterativeContactConstraint<T, d>& GetIterativeContact() const { check(GetType() == FConstraintBase::FType::MultiPoint); return ConstraintContainer->IterativeConstraints[ConstraintIndex]; }
-		TRigidBodyIterativeContactConstraint<T, d>& GetIterativeContact() { check(GetType() == FConstraintBase::FType::MultiPoint); return ConstraintContainer->IterativeConstraints[ConstraintIndex]; }
+		const TRigidBodyMultiPointContactConstraint<T, d>& GetMultiPointContact() const { check(GetType() == FConstraintBase::FType::MultiPoint); return ConstraintContainer->IterativeConstraints[ConstraintIndex]; }
+		TRigidBodyMultiPointContactConstraint<T, d>& GetMultiPointContact() { check(GetType() == FConstraintBase::FType::MultiPoint); return ConstraintContainer->IterativeConstraints[ConstraintIndex]; }
 
 		typename FConstraintBase::FType GetType() const { return ConstraintType; }
 

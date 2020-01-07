@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -37,7 +37,7 @@ public:
 	FGraphSeries& GetSeries() const { return Series; }
 	const FTimingTrackViewport& GetViewport() const { return Viewport; }
 
-	void AddEvent(double Time, double Duration, double Value);
+	void AddEvent(double Time, double Duration, double Value, bool bConnected = true);
 
 private:
 	void BeginPoints();
@@ -46,7 +46,7 @@ private:
 	void EndPoints();
 
 	void BeginConnectedLines();
-	void AddConnectedLine(double Time, double Value);
+	void AddConnectedLine(double Time, double Value, bool bNewBatch);
 	void FlushConnectedLine();
 	void EndConnectedLines();
 

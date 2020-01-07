@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Sound/SoundSubmix.h"
 
 #include "AudioDevice.h"
@@ -239,7 +239,7 @@ void USoundSubmix::PostLoad()
 }
 
 #if WITH_EDITOR
-void USoundSubmix::PreEditChange(UProperty* PropertyAboutToChange)
+void USoundSubmix::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	static FName NAME_ChildSubmixes(TEXT("ChildSubmixes"));
 
@@ -359,7 +359,7 @@ void USoundSubmix::PostDuplicate(EDuplicateMode::Type DuplicateMode)
 	Super::PostDuplicate(DuplicateMode);
 }
 
-bool USoundSubmix::RecurseCheckChild(USoundSubmix* ChildSoundSubmix)
+bool USoundSubmix::RecurseCheckChild(const USoundSubmix* ChildSoundSubmix) const
 {
 	for (int32 Index = 0; Index < ChildSubmixes.Num(); Index++)
 	{

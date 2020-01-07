@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosDerivedData.h"
 
@@ -21,7 +21,7 @@ const TCHAR* FChaosDerivedDataCooker::GetPluginName() const
 
 const TCHAR* FChaosDerivedDataCooker::GetVersionString() const
 {
-	return TEXT("8AEC8C7BFB0A4906A6EB99E602E9594B");
+	return TEXT("53786FE2178C49A98EC62DD50313FE52");
 }
 
 FString FChaosDerivedDataCooker::GetPluginSpecificCacheKeySuffix() const
@@ -61,7 +61,7 @@ bool FChaosDerivedDataCooker::Build(TArray<uint8>& OutData)
 		int32 PrecisionSize = (int32)sizeof(BuildPrecision);
 
 		Ar << PrecisionSize;
-		BuildInternal<BuildPrecision>(Ar, CookInfo);
+		BuildInternal(Ar, CookInfo);
 
 		bSucceeded = true;
 	}
@@ -84,8 +84,7 @@ FChaosDerivedDataCooker::FChaosDerivedDataCooker(UBodySetup* InSetup, FName InFo
 
 }
 
-template<typename Precision>
-void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TTriangleMeshImplicitObject<Precision>>>& OutTriangleMeshes, TArray<int32>& OutFaceRemap, const FCookBodySetupInfo& InParams)
+void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::FTriangleMeshImplicitObject>>& OutTriangleMeshes, TArray<int32>& OutFaceRemap, const FCookBodySetupInfo& InParams)
 {
 	if(!InParams.bCookTriMesh)
 	{
@@ -108,7 +107,7 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TTria
 	Chaos::CleanTrimesh(FinalVerts, FinalIndices, &OutFaceRemap);
 
 	// Build particle list #BG Maybe allow TParticles to copy vectors?
-	Chaos::TParticles<Precision, 3> TriMeshParticles;
+	Chaos::TParticles<Chaos::FReal, 3> TriMeshParticles;
 	TriMeshParticles.AddParticles(FinalVerts.Num());
 
 	const int32 NumVerts = FinalVerts.Num();
@@ -120,15 +119,16 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TTria
 	// Build chaos triangle list. #BGTODO Just make the clean function take these types instead of double copying
 	const int32 NumTriangles = FinalIndices.Num() / 3;
 	bool bHasMaterials = InParams.TriangleMeshDesc.MaterialIndices.Num() > 0;
-	TArray<Chaos::TVector<int32, 3>> Triangles;
 	TArray<uint16> MaterialIndices;
-	Triangles.Reserve(NumTriangles);
 
+	auto LambdaHelper = [&](auto& Triangles)
+	{
 	if(bHasMaterials)
 	{
 		MaterialIndices.Reserve(NumTriangles);
 	}
 
+		Triangles.Reserve(NumTriangles);
 	for(int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
 	{
 		// Only add this triangle if it is valid
@@ -169,12 +169,20 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TTria
 		}
 	}
 
-	OutTriangleMeshes.Emplace(new Chaos::TTriangleMeshImplicitObject<Precision>(MoveTemp(TriMeshParticles), MoveTemp(Triangles), MoveTemp(MaterialIndices)));
-}
+	OutTriangleMeshes.Emplace(new Chaos::FTriangleMeshImplicitObject(MoveTemp(TriMeshParticles), MoveTemp(Triangles), MoveTemp(MaterialIndices)));
+	};
 
-template void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::TTriangleMeshImplicitObject<float>>>& OutTriangleMeshes, TArray<int32>& OutFaceRemap, const FCookBodySetupInfo& InParams);
-//#BGTODO When it's possible to build with doubles, re-enable this. (Currently at least TRigidTransform cannot build with double precision because we don't have a base transform implementation using them)
-//template void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::FImplicitObject>>& OutTriangleMeshes, const FCookBodySetupInfo& InParams);
+	if(FinalVerts.Num() < TNumericLimits<uint16>::Max())
+	{
+		TArray<Chaos::TVector<uint16, 3>> TrianglesSmallIdx;
+		LambdaHelper(TrianglesSmallIdx);
+	}
+	else
+	{
+		TArray<Chaos::TVector<int32, 3>> TrianglesLargeIdx;
+		LambdaHelper(TrianglesLargeIdx);
+	}	
+}
 
 void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<TUniquePtr<Chaos::FImplicitObject>>& OutConvexMeshes, const FCookBodySetupInfo& InParams)
 {
@@ -244,11 +252,10 @@ void BuildSimpleShapes(TArray<TUniquePtr<Chaos::FImplicitObject>>& OutImplicits,
 	UE_CLOG(NumTaperedCapsules > 0, LogChaos, Warning, TEXT("Ignoring %d tapered spheres when building collision data for body setup %s"), NumTaperedCapsules, *InSetup->GetName());
 }
 
-template<typename Precision>
 void FChaosDerivedDataCooker::BuildInternal(Chaos::FChaosArchive& Ar, FCookBodySetupInfo& InInfo)
 {
 	TArray<TUniquePtr<Chaos::FImplicitObject>> SimpleImplicits;
-	TArray<TUniquePtr<Chaos::TTriangleMeshImplicitObject<Precision>>> ComplexImplicits;
+	TArray<TUniquePtr<Chaos::FTriangleMeshImplicitObject>> ComplexImplicits;
 
 	TArray<int32> FaceRemap;
 	//BuildSimpleShapes(SimpleImplicits, Setup);
@@ -270,10 +277,6 @@ void FChaosDerivedDataCooker::BuildInternal(Chaos::FChaosArchive& Ar, FCookBodyS
 
 	Ar << SimpleImplicits << ComplexImplicits << UVInfo << FaceRemap;
 }
-
-template void FChaosDerivedDataCooker::BuildInternal<float>(Chaos::FChaosArchive& Ar, FCookBodySetupInfo& InInfo);
-//#BGTODO When it's possible to build with doubles, re-enable this. (Currently at least TRigidTransform cannot build with double precision because we don't have a base transform implementation using them)
-//template void FChaosDerivedDataCooker::BuildInternal<float>(FArchive& Ar, FCookBodySetupInfo& InInfo);
 
 #endif
  

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -40,7 +40,7 @@ public:
 /**
  * UGizmoWorldAxisSource is an IGizmoAxisSource that provides one of the World axes
  * (ie X/Y/Z axes) based on an integer AxisIndex in range [0,2]. The Orgin is
- * internally stored as a UProperty.
+ * internally stored as a FProperty.
  */
 UCLASS()
 class INTERACTIVETOOLSFRAMEWORK_API UGizmoWorldAxisSource : public UObject, public IGizmoAxisSource

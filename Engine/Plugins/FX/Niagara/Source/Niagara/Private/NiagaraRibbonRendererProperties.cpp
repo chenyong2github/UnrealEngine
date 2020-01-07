@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraRibbonRendererProperties.h"
 #include "NiagaraRendererRibbons.h"
@@ -59,7 +59,7 @@ void UNiagaraRibbonRendererProperties::GetUsedMaterials(const FNiagaraEmitterIns
 {
 
 	bool bSet = false;
-	if (MaterialUserParamBinding.Parameter.IsValid() && InEmitter->FindBinding(MaterialUserParamBinding, OutMaterials))
+	if (InEmitter != nullptr && MaterialUserParamBinding.Parameter.IsValid() && InEmitter->FindBinding(MaterialUserParamBinding, OutMaterials))
 	{
 		bSet = true;
 	}
@@ -187,7 +187,7 @@ void UNiagaraRibbonRendererProperties::FixMaterial(UMaterial* InMaterial)
 	InMaterial->ForceRecompileForRendering();
 }
 
-bool UNiagaraRibbonRendererProperties::CanEditChange(const UProperty* InProperty) const
+bool UNiagaraRibbonRendererProperties::CanEditChange(const FProperty* InProperty) const
 {
 
 	if (InProperty->HasMetaData(TEXT("Category")) && InProperty->GetMetaData(TEXT("Category")).Contains("Tessellation"))

@@ -1,10 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#pragma ignore warning
-#include "Chaos/Vector.isph"
-
-#pragma ignore warning
-#include "Chaos/Matrix.isph"
+#include "Math/Vector.isph"
+#include "Math/Matrix.isph"
 
 #define INDEX_NONE -1
 

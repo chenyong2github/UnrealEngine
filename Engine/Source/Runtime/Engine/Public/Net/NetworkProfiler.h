@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	NetworkProfiler.h: network profiling support.
@@ -322,7 +322,7 @@ public:
 	 * @param	Property	Property being replicated
 	 * @param	NumBits		Number of bits used to replicate this property
 	 */
-	void TrackReplicateProperty( const UProperty* Property, uint16 NumBits, UNetConnection* Connection );
+	void TrackReplicateProperty( const FProperty* Property, uint16 NumBits, UNetConnection* Connection );
 
 	/**
 	 * Track property header being written.
@@ -330,7 +330,7 @@ public:
 	 * @param	Property	Property being replicated
 	 * @param	NumBits		Number of bits used in the header
 	 */
-	void TrackWritePropertyHeader( const UProperty* Property, uint16 NumBits, UNetConnection* Connection );
+	void TrackWritePropertyHeader( const FProperty* Property, uint16 NumBits, UNetConnection* Connection );
 
 	/**
 	 * Track event occuring, like e.g. client join/ leave

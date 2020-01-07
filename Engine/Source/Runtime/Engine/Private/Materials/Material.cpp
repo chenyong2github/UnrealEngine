@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UnMaterial.cpp: Shader implementation.
@@ -241,6 +241,24 @@ void FMaterialResource::GatherExpressionsForCustomInterpolators(TArray<UMaterial
 {
 	Material->GetAllExpressionsForCustomInterpolators(OutExpressions);
 }
+
+#if WITH_EDITOR
+void FMaterialResource::BeginAllowCachingStaticParameterValues()
+{
+	if (MaterialInstance)
+	{
+		MaterialInstance->BeginAllowCachingStaticParameterValues();
+	}
+}
+
+void FMaterialResource::EndAllowCachingStaticParameterValues()
+{
+	if (MaterialInstance)
+	{
+		MaterialInstance->EndAllowCachingStaticParameterValues();
+	}
+}
+#endif // WITH_EDITOR
 
 void FMaterialResource::GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& OutId) const
 {
@@ -1796,19 +1814,35 @@ void UMaterial::GetAllStaticComponentMaskParameterInfo(TArray<FMaterialParameter
 	GetAllParameterInfo<UMaterialExpressionStaticComponentMaskParameter>(OutParameterInfo, OutParameterIds);
 }
 
-void UMaterial::GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const
+bool UMaterial::IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const
 {
 	for (UMaterialExpression* Expression : Expressions)
 	{
 		if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
 		{
-			FunctionCall->GetDependentFunctions(DependentFunctions);
+			if (!FunctionCall->IterateDependentFunctions(Predicate))
+			{
+				return false;
+			}
 		}
 		else if (UMaterialExpressionMaterialAttributeLayers* Layers = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression))
 		{
-			Layers->GetDependentFunctions(DependentFunctions);
+			if (!Layers->IterateDependentFunctions(Predicate))
+			{
+				return false;
+			}
 		}
 	}
+	return true;
+}
+
+void UMaterial::GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const
+{
+	IterateDependentFunctions([&DependentFunctions](UMaterialFunctionInterface* MaterialFunction) -> bool
+	{
+		DependentFunctions.AddUnique(MaterialFunction);
+		return true;
+	});
 }
 
 bool UMaterial::GetScalarParameterDefaultValue(const FMaterialParameterInfo& ParameterInfo, float& OutValue, bool bOveriddenOnly, bool bCheckOwnedGlobalOverrides) const
@@ -3244,23 +3278,18 @@ void UMaterial::FlushResourceShaderMaps()
 
 void UMaterial::RebuildMaterialFunctionInfo()
 {	
-	MaterialFunctionInfos.Empty();
+	MaterialFunctionInfos.Reset();
 
 	for (int32 ExpressionIndex = 0; ExpressionIndex < Expressions.Num(); ExpressionIndex++)
 	{
 		UMaterialExpression* Expression = Expressions[ExpressionIndex];
-		UMaterialExpressionMaterialFunctionCall* MaterialFunctionNode = Cast<UMaterialExpressionMaterialFunctionCall>(Expression);
-		UMaterialExpressionMaterialAttributeLayers* MaterialLayersNode = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression);
 
-		if (MaterialFunctionNode)
+		if (UMaterialExpressionMaterialFunctionCall* MaterialFunctionNode = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
 		{
 			if (MaterialFunctionNode->MaterialFunction)
 			{
-				TArray<UMaterialFunctionInterface*> DependentFunctions;
-				MaterialFunctionNode->GetDependentFunctions(DependentFunctions);
-
-				// Handle nested functions
-				for (UMaterialFunctionInterface* Function : DependentFunctions)
+				MaterialFunctionNode->IterateDependentFunctions(
+					[this](UMaterialFunctionInterface* Function)
 				{
 					FMaterialFunctionInfo NewFunctionInfo;
 					if (Function)
@@ -3269,19 +3298,18 @@ void UMaterial::RebuildMaterialFunctionInfo()
 						NewFunctionInfo.StateId = Function->StateId;
 					}
 					MaterialFunctionInfos.Add(NewFunctionInfo);
-				}	
+					return true;
+				});
 			}
 
 			// Update the function call node, so it can relink inputs and outputs as needed
 			// Update even if MaterialFunctionNode->MaterialFunction is NULL, because we need to remove the invalid inputs in that case
 			MaterialFunctionNode->UpdateFromFunctionResource();
 		}
-		else if (MaterialLayersNode)
+		else if (UMaterialExpressionMaterialAttributeLayers* MaterialLayersNode = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression))
 		{
-			TArray<UMaterialFunctionInterface*> DependentFunctions;
-			MaterialLayersNode->GetDependentFunctions(DependentFunctions);
-
-			for (UMaterialFunctionInterface* Function : DependentFunctions)
+			MaterialLayersNode->IterateDependentFunctions(
+				[this](UMaterialFunctionInterface* Function)
 			{
 				FMaterialFunctionInfo NewFunctionInfo;
 				if (Function)
@@ -3293,7 +3321,8 @@ void UMaterial::RebuildMaterialFunctionInfo()
 					Function->UpdateFromFunctionResource();
 				}
 				MaterialFunctionInfos.Add(NewFunctionInfo);
-			}
+				return true;
+			});
 
 			MaterialLayersNode->RebuildLayerGraph(false);
 		}
@@ -3453,6 +3482,11 @@ void UMaterial::Serialize(FArchive& Ar)
 		{
 			Expressions.Remove(nullptr);
 		}
+		else if (IsRunningCommandlet())
+		{
+			// invalidate the cache of quality level to make sure they are rebuilt. GetQualityLevelNodeUsage() is not going to recalculate it otherwise
+			CachedQualityLevelsUsed.Empty();
+		}
 	}
 
 	if (Ar.UE4Ver() >= VER_UE4_PURGED_FMATERIAL_COMPILE_OUTPUTS)
@@ -3590,8 +3624,17 @@ void UMaterial::BackwardsCompatibilityInputConversion()
 void UMaterial::GetQualityLevelUsage(TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> >& OutQualityLevelsUsed, EShaderPlatform ShaderPlatform)
 {
 #if WITH_EDITOR
-	GetQualityLevelNodeUsage(OutQualityLevelsUsed);
-	CachedQualityLevelsUsed = OutQualityLevelsUsed;
+	// Assume that a commandlet cannot change nodes once Cached levels are set
+	// FIXME: assumption may not work for a commandlet that edits the material graph?
+	if (IsRunningCommandlet() && CachedQualityLevelsUsed.Num() == EMaterialQualityLevel::Num)
+	{
+		OutQualityLevelsUsed = CachedQualityLevelsUsed;
+	}
+	else
+	{
+		GetQualityLevelNodeUsage(OutQualityLevelsUsed);
+		CachedQualityLevelsUsed = OutQualityLevelsUsed;
+	}
 #else
 	if (CachedQualityLevelsUsed.Num() != EMaterialQualityLevel::Num)
 	{
@@ -3607,15 +3650,19 @@ void UMaterial::GetQualityLevelUsage(TArray<bool, TInlineAllocator<EMaterialQual
 
 	if (ShaderPlatform != SP_NumPlatforms)
 	{
-		// OR in the quality overrides if we're a valid shader platform
 		const UShaderPlatformQualitySettings* MaterialQualitySettings = UMaterialShaderQualitySettings::Get()->GetShaderPlatformQualitySettings(ShaderPlatform);
-		OutQualityLevelsUsed[EMaterialQualityLevel::Low] |= MaterialQualitySettings->GetQualityOverrides(EMaterialQualityLevel::Low).bEnableOverride;
-		OutQualityLevelsUsed[EMaterialQualityLevel::Medium] |= MaterialQualitySettings->GetQualityOverrides(EMaterialQualityLevel::Medium).bEnableOverride;
 
+		// OR in the quality overrides if possible on this shader platform, then
 		// AND in the quality allowances
 		bool bAnyQualityEnabled = false;
 		for (int32 Quality = 0; Quality < EMaterialQualityLevel::Num; ++Quality)
 		{
+			const FMaterialQualityOverrides& QualityOverrides = MaterialQualitySettings->GetQualityOverrides((EMaterialQualityLevel::Type)Quality);			
+			if (Quality != EMaterialQualityLevel::High && QualityOverrides.CanOverride(ShaderPlatform))
+			{
+				OutQualityLevelsUsed[Quality] |= QualityOverrides.bEnableOverride;
+			}
+
 			OutQualityLevelsUsed[Quality] &= !MaterialQualitySettings->GetQualityOverrides((EMaterialQualityLevel::Type)Quality).bDiscardQualityDuringCook;
 			bAnyQualityEnabled |= OutQualityLevelsUsed[Quality];
 		}
@@ -3632,7 +3679,7 @@ void UMaterial::GetQualityLevelNodeUsage(TArray<bool, TInlineAllocator<EMaterial
 {
 	OutQualityLevelsUsed.AddZeroed(EMaterialQualityLevel::Num);
 
-	for (int32 ExpressionIndex = 0; ExpressionIndex < Expressions.Num(); ExpressionIndex++)
+	for (int32 ExpressionIndex = 0, NumExpressions = Expressions.Num(); ExpressionIndex < NumExpressions; ExpressionIndex++)
 	{
 		UMaterialExpression* Expression = Expressions[ExpressionIndex];
 		UMaterialExpressionQualitySwitch* QualitySwitchNode = Cast<UMaterialExpressionQualitySwitch>(Expression);
@@ -4183,7 +4230,7 @@ void UMaterial::ClearAllCachedCookedPlatformData()
 }
 #endif
 #if WITH_EDITOR
-bool UMaterial::CanEditChange(const UProperty* InProperty) const
+bool UMaterial::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{
@@ -4340,7 +4387,7 @@ bool UMaterial::CanEditChange(const UProperty* InProperty) const
 	return true;
 }
 
-void UMaterial::PreEditChange(UProperty* PropertyThatChanged)
+void UMaterial::PreEditChange(FProperty* PropertyThatChanged)
 {
 	Super::PreEditChange(PropertyThatChanged);
 }
@@ -4358,7 +4405,7 @@ void UMaterial::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEve
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 
 	//Cancel any current compilation jobs that are in flight for this material.
 	CancelOutstandingCompilation();
@@ -5781,7 +5828,8 @@ bool UMaterial::ShouldForcePlanePreview()
 		MaterialThumbnailInfo = USceneThumbnailInfoWithPrimitive::StaticClass()->GetDefaultObject<USceneThumbnailInfoWithPrimitive>();
 	}
 	// UI and particle sprite material thumbnails always get a 2D plane centered at the camera which is a better representation of the what the material will look like
-	return Super::ShouldForcePlanePreview() || IsUIMaterial() || (bUsedWithParticleSprites && !MaterialThumbnailInfo->bUserModifiedShape);
+	const bool bUsedWithNiagara = bUsedWithNiagaraSprites || bUsedWithNiagaraRibbons || bUsedWithNiagaraMeshParticles; 
+	return Super::ShouldForcePlanePreview() || IsUIMaterial() || (bUsedWithParticleSprites && !MaterialThumbnailInfo->bUserModifiedShape) || (bUsedWithNiagara && !MaterialThumbnailInfo->bUserModifiedShape);
 }
 
 void UMaterial::NotifyCompilationFinished(UMaterialInterface* Material)

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 UnrealEngine.cpp: Implements the UEngine class and helpers.
@@ -3341,11 +3341,11 @@ void UEngine::SwapControllerId(ULocalPlayer *NewPlayer, const int32 CurrentContr
 	}
 }
 
-APlayerController* UEngine::GetFirstLocalPlayerController(UWorld *InWorld)
+APlayerController* UEngine::GetFirstLocalPlayerController(const UWorld* InWorld)
 {
-	const FWorldContext &Context = GetWorldContextFromWorldChecked(InWorld);
+	const FWorldContext& Context = GetWorldContextFromWorldChecked(InWorld);
 
-	return ( Context.OwningGameInstance != NULL ) ? Context.OwningGameInstance->GetFirstLocalPlayerController(InWorld) : NULL;
+	return (Context.OwningGameInstance ? Context.OwningGameInstance->GetFirstLocalPlayerController(InWorld) : nullptr);
 }
 
 void UEngine::GetAllLocalPlayerControllers(TArray<APlayerController*> & PlayerList)
@@ -4924,9 +4924,9 @@ bool UEngine::HandleDumpLevelScriptActorsCommand( UWorld* InWorld, const TCHAR* 
 			if( LSActor )
 			{
 				UE_LOG(LogEngine, Log, TEXT("--- %s (%s) ---"), *LSActor->GetName(), *LSActor->GetOutermost()->GetName())
-					for( TFieldIterator<UProperty> PropertyIt(LSActor->GetClass(), EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt )
+					for( TFieldIterator<FProperty> PropertyIt(LSActor->GetClass(), EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt )
 					{
-						UObjectPropertyBase* MyProperty = Cast<UObjectPropertyBase>(*PropertyIt);
+						FObjectPropertyBase* MyProperty = CastField<FObjectPropertyBase>(*PropertyIt);
 						if( MyProperty )
 						{
 							UObject* PointedObject = NULL;
@@ -6680,10 +6680,10 @@ static int32 FindAmountSavedWithCutoff(UClass* AnalyzedClass, int32 PercentageAl
 		bool bIsOnChoppingBlock;
 	};
 
-	TMap<UProperty*, FPerPropInfo> PropertyDiffCount;
+	TMap<FProperty*, FPerPropInfo> PropertyDiffCount;
 
 	// work on each property of the class
-	for (TFieldIterator<UProperty> It(AnalyzedClass); It; ++It)
+	for (TFieldIterator<FProperty> It(AnalyzedClass); It; ++It)
 	{
 		PropertyDiffCount.Add(*It, FPerPropInfo(It->GetSize()));
 	}
@@ -7716,7 +7716,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 				}
 #endif
 				UClass* LastOwnerClass = NULL;
-				for ( TFieldIterator<UProperty> It(Obj->GetClass()); It; ++It )
+				for ( TFieldIterator<FProperty> It(Obj->GetClass()); It; ++It )
 				{
 					UClass* Owner = It->GetOwnerClass();
 
@@ -7784,7 +7784,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 					}
 					else
 					{
-						UArrayProperty* ArrayProp = Cast<UArrayProperty>(*It);
+						FArrayProperty* ArrayProp = CastField<FArrayProperty>(*It);
 						if ( ArrayProp != NULL )
 						{
 							FScriptArrayHelper_InContainer ArrayHelper(ArrayProp, Obj);
@@ -9511,7 +9511,7 @@ struct FCompareFSoundInfoByWaveInstNum
 };
 
 /** draws a property of the given object on the screen similarly to stats */
-static void DrawProperty(UCanvas* CanvasObject, UObject* Obj, const FDebugDisplayProperty& PropData, UProperty* Prop, int32 X, int32& Y)
+static void DrawProperty(UCanvas* CanvasObject, UObject* Obj, const FDebugDisplayProperty& PropData, FProperty* Prop, int32 X, int32& Y)
 {
 #if !UE_BUILD_SHIPPING
 	checkSlow(PropData.bSpecialProperty || Prop != NULL);
@@ -10318,7 +10318,7 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 			UClass* Cls = Cast<UClass>(DebugProperties[i].Obj);
 			if (Cls != NULL)
 			{
-				UProperty* Prop = FindField<UProperty>(Cls, DebugProperties[i].PropertyName);
+				FProperty* Prop = FindField<FProperty>(Cls, DebugProperties[i].PropertyName);
 				if (Prop != NULL || DebugProperties[i].bSpecialProperty)
 				{
 					// getall
@@ -10339,7 +10339,7 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 			}
 			else
 			{
-				UProperty* Prop = FindField<UProperty>(DebugProperties[i].Obj->GetClass(), DebugProperties[i].PropertyName);
+				FProperty* Prop = FindField<FProperty>(DebugProperties[i].Obj->GetClass(), DebugProperties[i].PropertyName);
 				if (Prop != NULL || DebugProperties[i].bSpecialProperty)
 				{
 					DrawProperty(CanvasObject, DebugProperties[i].Obj, DebugProperties[i], Prop, X, Y);
@@ -11586,7 +11586,7 @@ void UEngine::SpawnServerActors(UWorld *World)
 				if( Value )
 				{
 					*Value++ = 0;
-					for( TFieldIterator<UProperty> It(Actor->GetClass()); It; ++It )
+					for( TFieldIterator<FProperty> It(Actor->GetClass()); It; ++It )
 					{
 						if(	FCString::Stricmp(*It->GetName(),Str)==0
 							&&	(It->PropertyFlags & CPF_Config) )
@@ -14025,7 +14025,7 @@ public:
 	virtual void MarkScriptSerializationEnd(const UObject* Object) override   { CloseTaggedDataScope(); }
 
 #if WITH_EDITOR
-	virtual bool ShouldSkipProperty(const class UProperty* InProperty) const override
+	virtual bool ShouldSkipProperty(const class FProperty* InProperty) const override
 	{
 		static FName BlueprintCompilerGeneratedDefaultsName(TEXT("BlueprintCompilerGeneratedDefaults"));
 		return bSkipCompilerGeneratedDefaults && InProperty->HasMetaData(BlueprintCompilerGeneratedDefaultsName);
@@ -14121,10 +14121,10 @@ void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* New
 
 	// If the new object is an Actor, save the root component reference, to be restored later
 	USceneComponent* SavedRootComponent = nullptr;
-	UObjectProperty* RootComponentProperty = nullptr;
+	FObjectProperty* RootComponentProperty = nullptr;
 	if (NewActor != nullptr && Params.bPreserveRootComponent)
 	{
-		RootComponentProperty = FindField<UObjectProperty>(NewActor->GetClass(), "RootComponent");
+		RootComponentProperty = FindField<FObjectProperty>(NewActor->GetClass(), "RootComponent");
 		if (RootComponentProperty != nullptr)
 		{
 			SavedRootComponent = Cast<USceneComponent>(RootComponentProperty->GetObjectPropertyValue_InContainer(NewActor));

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -59,12 +59,10 @@ protected:
 	UObject* TargetInstance;
 
 	/** List of properties on the calling Source Instances instance to push from  */
-	UPROPERTY(Transient)
-	TArray<UProperty*> SourceProperties;
+	TArray<FProperty*> SourceProperties;
 
 	/** List of properties on the TargetInstance to push to, built from name list when initialised */
-	UPROPERTY(Transient)
-	TArray<UProperty*> DestProperties;
+	TArray<FProperty*> DestProperties;
 
 #if WITH_EDITOR
 	bool bReinitializeProperties;

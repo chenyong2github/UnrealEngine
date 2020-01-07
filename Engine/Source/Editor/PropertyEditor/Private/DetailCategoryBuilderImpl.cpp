@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DetailCategoryBuilderImpl.h"
 #include "ObjectPropertyNode.h"
@@ -435,7 +435,7 @@ TArray<TSharedPtr<IPropertyHandle>> FDetailCategoryImpl::AddAllExternalStructure
 		for (int32 ChildIdx = 0; ChildIdx < RootPropertyNode->GetNumChildNodes(); ++ChildIdx)
 		{
 			TSharedPtr< FPropertyNode > PropertyNode = RootPropertyNode->GetChildNode(ChildIdx);
-			if (UProperty* Property = PropertyNode->GetProperty())
+			if (FProperty* Property = PropertyNode->GetProperty())
 			{
 				FDetailLayoutCustomization NewCustomization;
 				NewCustomization.PropertyRow = MakeShared<FDetailPropertyRow>(PropertyNode, AsShared(), RootPropertyNode);
@@ -741,12 +741,12 @@ static bool ShouldBeInlineNode(const TSharedRef<FDetailItemNode>& Node)
 	TSharedPtr<FPropertyNode> PropertyNode = Node->GetPropertyNode();
 	if (PropertyNode.IsValid())
 	{
-		const UProperty* Property = PropertyNode->GetProperty();
+		const FProperty* Property = PropertyNode->GetProperty();
 		if (Property != nullptr)
 		{
-			const UBoolProperty* BoolProperty = Cast<UBoolProperty>(Property);
-			const UEnumProperty* EnumProperty = Cast<UEnumProperty>(Property);
-			const UByteProperty* ByteProperty = Cast<UByteProperty>(Property);
+			const FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property);
+			const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property);
+			const FByteProperty* ByteProperty = CastField<FByteProperty>(Property);
 
 			// Only allow bools and enums as inline nodes.
 			if (BoolProperty != nullptr || EnumProperty != nullptr ||

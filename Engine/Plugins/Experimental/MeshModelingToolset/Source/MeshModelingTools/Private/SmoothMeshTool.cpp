@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SmoothMeshTool.h"
 #include "InteractiveToolManager.h"
@@ -149,7 +149,7 @@ void USmoothMeshTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 }
 #endif
 
-void USmoothMeshTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void USmoothMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	Preview->InvalidateResult();
 	bResultValid = false;
@@ -165,8 +165,8 @@ void USmoothMeshTool::UpdateResult()
 {
 	if (bResultValid) 
 	{
-		return;
-	}
+				return;
+			}
 
 	bResultValid = Preview->HaveValidResult();
 }

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -47,8 +47,8 @@ public:
 
 		if( PropertyEditor.IsValid() )
 		{
-			const UProperty* Property = PropertyEditor->GetProperty();
-			if( Property && Property->IsA<UStructProperty>() )
+			const FProperty* Property = PropertyEditor->GetProperty();
+			if( Property && Property->IsA<FStructProperty>() )
 			{
 				// Struct headers with nothing in them have no min width
 				OutMinDesiredWidth = 0;
@@ -60,7 +60,7 @@ public:
 private:
 	bool ShouldShowValue( const TSharedRef< class FPropertyEditor >& InPropertyEditor ) const 
 	{
-		return PropertyEditor->GetProperty() && !PropertyEditor->GetProperty()->IsA<UStructProperty>();
+		return PropertyEditor->GetProperty() && !PropertyEditor->GetProperty()->IsA<FStructProperty>();
 	}
 private:
 	TSharedPtr< class FPropertyEditor > PropertyEditor;

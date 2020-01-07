@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BaseBrushTool.h"
 #include "InteractiveToolManager.h"
@@ -62,7 +62,7 @@ void UBaseBrushTool::Shutdown(EToolShutdownType ShutdownType)
 }
 
 
-void UBaseBrushTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UBaseBrushTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	if (PropertySet == BrushProperties)
 	{

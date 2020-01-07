@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceChaosDestruction.h"
 #include "NiagaraTypes.h"
@@ -3858,17 +3858,6 @@ void LoadGPUBufferFromArray(FDynamicReadBuffer& Buffer,
 	Buffer.Unlock();
 }
 
-static void SetBuffer(FRHICommandList& CmdList,
-	const FShaderResourceParameter& Param,
-	FRHIComputeShader* Shader,
-	FDynamicReadBuffer& Buffer)
-{
-	// Skip unbound parameters, since we won't be reading any of them
-	if (!Param.IsBound()) return;
-
-	CmdList.SetShaderResourceViewParameter(Shader, Param.GetBaseIndex(), Buffer.SRV);
-}
-
 template <typename T>
 static void SetBuffer(FRHICommandList& CmdList,
 	const FShaderResourceParameter& Param,
@@ -3928,7 +3917,7 @@ static void SetBuffer(FRHICommandList& CmdList,
 
 	Buffer.Unlock();
 
-	CmdList.SetShaderResourceViewParameter(Shader, Param.GetBaseIndex(), Buffer.SRV);
+	SetSRVParameter(CmdList, Shader, Param, Buffer.SRV);
 }
 
 void UNiagaraDataInterfaceChaosDestruction::PushToRenderThread()

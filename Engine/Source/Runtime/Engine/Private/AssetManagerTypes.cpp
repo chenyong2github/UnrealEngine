@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/AssetManagerTypes.h"
 #include "Engine/AssetManager.h"
@@ -138,7 +138,7 @@ void FPrimaryAssetRules::PropagateCookRules(const FPrimaryAssetRules& ParentRule
 	}
 }
 
-void UAssetManagerSettings::PostReloadConfig(UProperty* PropertyThatWasLoaded)
+void UAssetManagerSettings::PostReloadConfig(FProperty* PropertyThatWasLoaded)
 {
 	Super::PostReloadConfig(PropertyThatWasLoaded);
 
@@ -185,7 +185,7 @@ void UAssetManagerSettings::ClearMetaDataTagsSettings()
 	}
 }
 
-void UAssetManagerSettings::PreEditChange(UProperty* PropertyAboutToChange)
+void UAssetManagerSettings::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	Super::PreEditChange(PropertyAboutToChange);
 

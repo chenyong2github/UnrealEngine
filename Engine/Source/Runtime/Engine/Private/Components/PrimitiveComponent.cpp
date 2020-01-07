@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	PrimitiveComponent.cpp: Primitive component implementation.
@@ -928,7 +928,7 @@ void UPrimitiveComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 	float NewCachedMaxDrawDistance = CachedMaxDrawDistance;
 	bool bCullDistanceInvalidated = false;
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if(PropertyThatChanged)
 	{
 		const FName PropertyName = PropertyThatChanged->GetFName();
@@ -959,13 +959,14 @@ void UPrimitiveComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 		}
 	}
 
-	if (UProperty* MemberPropertyThatChanged = PropertyChangedEvent.MemberProperty)
+	if (FProperty* MemberPropertyThatChanged = PropertyChangedEvent.MemberProperty)
 	{
 		const FName MemberPropertyName = MemberPropertyThatChanged->GetFName();
 
 		// Reregister to get the custom primitive data to the proxy
 		if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UPrimitiveComponent, CustomPrimitiveData))
 		{
+			ResetCustomPrimitiveData();
 			MarkRenderStateDirty();
 		}
 	}
@@ -1019,7 +1020,7 @@ void UPrimitiveComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 	IStreamingManager::Get().NotifyPrimitiveUpdated(this);
 }
 
-bool UPrimitiveComponent::CanEditChange(const UProperty* InProperty) const
+bool UPrimitiveComponent::CanEditChange(const FProperty* InProperty) const
 {
 	bool bIsEditable = Super::CanEditChange( InProperty );
 	if (bIsEditable && InProperty)
@@ -1198,6 +1199,9 @@ void UPrimitiveComponent::PostLoad()
 	{
 		LightmapType = ELightmapType::Default;
 	}
+
+	// Setup the default here
+	ResetCustomPrimitiveData();
 }
 
 void UPrimitiveComponent::PostDuplicate(bool bDuplicateForPIE)
@@ -1663,6 +1667,11 @@ UMaterialInstanceDynamic* UPrimitiveComponent::CreateDynamicMaterialInstance(int
 	return MID;
 }
 
+void UPrimitiveComponent::ResetCustomPrimitiveData()
+{
+	CustomPrimitiveDataInternal.Data = CustomPrimitiveData.Data;
+}
+
 void UPrimitiveComponent::SetCustomPrimitiveDataInternal(int32 DataIndex, const TArray<float>& Values)
 {
 	// Can only set data on valid indices and only if there's actually any data to set
@@ -1675,15 +1684,15 @@ void UPrimitiveComponent::SetCustomPrimitiveDataInternal(int32 DataIndex, const 
 		const int32 NumValuesToSet = FMath::Min(Values.Num(), FCustomPrimitiveData::NumCustomPrimitiveDataFloats - DataIndex);
 
 		// If trying to set data on an index which doesn't exist yet, allocate up to it
-		if (NeededFloats > CustomPrimitiveData.Data.Num())
+		if (NeededFloats > CustomPrimitiveDataInternal.Data.Num())
 		{
-			CustomPrimitiveData.Data.SetNumZeroed(NeededFloats);
+			CustomPrimitiveDataInternal.Data.SetNumZeroed(NeededFloats);
 		}
 
 		// Only update data if it has changed
-		if (FMemory::Memcmp(&CustomPrimitiveData.Data[DataIndex], Values.GetData(), NumValuesToSet * sizeof(float)) != 0)
+		if (FMemory::Memcmp(&CustomPrimitiveDataInternal.Data[DataIndex], Values.GetData(), NumValuesToSet * sizeof(float)) != 0)
 		{
-			FMemory::Memcpy(&CustomPrimitiveData.Data[DataIndex], Values.GetData(), NumValuesToSet * sizeof(float));
+			FMemory::Memcpy(&CustomPrimitiveDataInternal.Data[DataIndex], Values.GetData(), NumValuesToSet * sizeof(float));
 
 			UWorld* World = GetWorld();
 			if (World && World->Scene)
@@ -3107,6 +3116,7 @@ bool UPrimitiveComponent::UpdateOverlapsImpl(const TOverlapArrayView* NewPending
 				}
 				else
 				{
+					SCOPE_CYCLE_COUNTER(STAT_PerformOverlapQuery);
 					UE_LOG(LogPrimitiveComponent, VeryVerbose, TEXT("%s->%s Performing overlaps!"), *GetNameSafe(GetOwner()), *GetName());
 					UWorld* const MyWorld = GetWorld();
 					TArray<FOverlapResult> Overlaps;

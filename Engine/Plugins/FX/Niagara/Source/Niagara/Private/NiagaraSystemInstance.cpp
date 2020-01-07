@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraSystemInstance.h"
 #include "NiagaraConstants.h"
@@ -727,7 +727,7 @@ void FNiagaraSystemInstance::ResetInternal(bool bResetSimulations)
 	if (!System->IsValid())
 	{
 		SetRequestedExecutionState(ENiagaraExecutionState::Disabled);
-		UE_LOG(LogNiagara, Warning, TEXT("Failed to activate Niagara System due to invalid asset!"));
+		UE_LOG(LogNiagara, Warning, TEXT("Failed to activate Niagara System due to invalid asset! System(%s) Component(%s)"), *System->GetName(), *Component->GetFullName());
 		return;
 	}
 
@@ -861,7 +861,7 @@ void FNiagaraSystemInstance::ReInitInternal()
 	if (!System->IsValid())
 	{
 		SetRequestedExecutionState(ENiagaraExecutionState::Disabled);
-		UE_LOG(LogNiagara, Warning, TEXT("Failed to activate Niagara System due to invalid asset!"));
+		UE_LOG(LogNiagara, Warning, TEXT("Failed to activate Niagara System due to invalid asset! System(%s) Component(%s)"), *System->GetName(), *Component->GetFullName());
 		return;
 	}
 
@@ -989,6 +989,9 @@ void FNiagaraSystemInstance::Cleanup()
 
 	// Clear out the emitters.
 	Emitters.Empty(0);
+
+	// clean up any event datasets that we're holding onto for our child emitters
+	ClearEventDataSets();
 }
 
 //Unsure on usage of this atm. Possibly useful in future.
@@ -1083,6 +1086,56 @@ bool FNiagaraSystemInstance::RequiresDistanceFieldData() const
 			for (UNiagaraDataInterface* DataInterface : GPUContext->CombinedParamStore.GetDataInterfaces())
 			{
 				if (DataInterface && DataInterface->RequiresDistanceFieldData())
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+bool FNiagaraSystemInstance::RequiresDepthBuffer() const
+{
+	if (!bHasGPUEmitters)
+	{
+		return false;
+	}
+
+	for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Emitter : Emitters)
+	{
+		FNiagaraComputeExecutionContext* GPUContext = Emitter->GetGPUContext();
+		if (GPUContext)
+		{
+			for (UNiagaraDataInterface* DataInterface : GPUContext->CombinedParamStore.GetDataInterfaces())
+			{
+				if (DataInterface && DataInterface->RequiresDepthBuffer())
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+bool FNiagaraSystemInstance::RequiresEarlyViewData() const
+{
+	if (!bHasGPUEmitters)
+	{
+		return false;
+	}
+
+	for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Emitter : Emitters)
+	{
+		FNiagaraComputeExecutionContext* GPUContext = Emitter->GetGPUContext();
+		if (GPUContext)
+		{
+			for (UNiagaraDataInterface* DataInterface : GPUContext->CombinedParamStore.GetDataInterfaces())
+			{
+				if (DataInterface && DataInterface->RequiresEarlyViewData())
 				{
 					return true;
 				}
@@ -1568,6 +1621,40 @@ void FNiagaraSystemInstance::ResetFastPathBindings()
 	FastPathFloatUpdateRangedInputBindings.Empty();
 }
 
+void
+FNiagaraSystemInstance::ClearEventDataSets()
+{
+	for (auto& EventDataSetIt : EmitterEventDataSetMap)
+	{
+		delete EventDataSetIt.Value;
+	}
+
+	EmitterEventDataSetMap.Empty();
+}
+
+FNiagaraDataSet*
+FNiagaraSystemInstance::CreateEventDataSet(FName EmitterName, FName EventName)
+{
+	// TODO: find a better way of multiple events trying to write to the same data set; 
+	// for example, if two analytical collision primitives want to send collision events, they need to push to the same data set
+	FNiagaraDataSet*& OutSet = EmitterEventDataSetMap.FindOrAdd(EmitterEventKey(EmitterName, EventName));
+
+	if (!OutSet)
+	{
+		OutSet = new FNiagaraDataSet();
+	}
+
+	return OutSet;
+}
+
+FNiagaraDataSet*
+FNiagaraSystemInstance::GetEventDataSet(FName EmitterName, FName EventName) const
+{
+	FNiagaraDataSet* const* OutDataSet = EmitterEventDataSetMap.Find(EmitterEventKey(EmitterName, EventName));
+
+	return OutDataSet ? *OutDataSet : nullptr;
+}
+
 #if WITH_EDITORONLY_DATA
 
 bool FNiagaraSystemInstance::UsesEmitter(const UNiagaraEmitter* Emitter)const
@@ -1644,11 +1731,9 @@ void FNiagaraSystemInstance::InitEmitters()
 
 		for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Simulation : Emitters)
 		{
-			FNiagaraEmitterInstance& Inst = Simulation.Get();
-			if (Inst.GetCachedEmitter() != nullptr)
+			if (const UNiagaraEmitter* Emitter = Simulation->GetCachedEmitter())
 			{
-				bHasGPUEmitters |= Inst.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim;
-				Inst.PostInitSimulation();
+				bHasGPUEmitters |= Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim;
 			}
 		}
 

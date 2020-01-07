@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*==============================================================================
 NiagaraDrawIndirect.cpp : Niagara shader to generate the draw indirect args for Niagara renderers.
@@ -6,7 +6,7 @@ NiagaraDrawIndirect.cpp : Niagara shader to generate the draw indirect args for 
 
 #include "NiagaraDrawIndirect.h"
 #include "NiagaraGPUSortInfo.h"
-
+#include "ShaderParameterUtils.h"
 
 IMPLEMENT_GLOBAL_SHADER(FNiagaraDrawIndirectArgsGenCS, "/Plugin/FX/Niagara/Private/NiagaraDrawIndirectArgsGen.usf", "MainCS", SF_Compute);
 
@@ -53,19 +53,17 @@ void FNiagaraDrawIndirectArgsGenCS::SetParameters(FRHICommandList& RHICmdList, F
 {
 	FRHIComputeShader* ComputeShaderRHI = GetComputeShader();
 
-	RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, TaskInfosParam.GetBaseIndex(), TaskInfosBuffer);
+	SetSRVParameter(RHICmdList, ComputeShaderRHI, TaskInfosParam, TaskInfosBuffer);
 
 	const FUintVector4 TaskCountValue((int32)NumArgGenTasks, (int32)NumInstanceCountClearTasks, (int32)(NumArgGenTasks + NumInstanceCountClearTasks), 0);
-	RHICmdList.SetShaderParameter(ComputeShaderRHI, TaskCountParam.GetBufferIndex(), TaskCountParam.GetBaseIndex(), TaskCountParam.GetNumBytes(), &TaskCountValue);
+	SetShaderValue(RHICmdList, ComputeShaderRHI, TaskCountParam, TaskCountValue);
 }
 
 void FNiagaraDrawIndirectArgsGenCS::UnbindBuffers(FRHICommandList& RHICmdList)
 {
 	FRHIComputeShader* ComputeShaderRHI = GetComputeShader();
-	if (TaskInfosParam.IsBound())
-	{
-		RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, TaskInfosParam.GetBaseIndex(), nullptr);
-	}
+
+	SetSRVParameter(RHICmdList, ComputeShaderRHI, TaskInfosParam, nullptr);
 	if (DrawIndirectArgsParam.IsBound())
 	{
 		RHICmdList.SetUAVParameter(ComputeShaderRHI, DrawIndirectArgsParam.GetUAVIndex(), nullptr);

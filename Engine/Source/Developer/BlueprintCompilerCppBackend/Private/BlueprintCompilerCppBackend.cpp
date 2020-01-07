@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintCompilerCppBackend.h"
 #include "UObject/UnrealType.h"
@@ -578,7 +578,7 @@ struct FCastWildCard
 		int32 LocNumParams = 0;
 		if (ArrayPinComboNames.Num() == 1)
 		{
-			for (TFieldIterator<UProperty> PropIt(Statement.FunctionToCall); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+			for (TFieldIterator<FProperty> PropIt(Statement.FunctionToCall); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
 			{
 				if (!PropIt->HasAnyPropertyFlags(CPF_ReturnParm))
 				{
@@ -593,7 +593,7 @@ struct FCastWildCard
 		}
 	}
 
-	bool FillWildcardType(const UProperty* FuncParamProperty, FEdGraphPinType& LType)
+	bool FillWildcardType(const FProperty* FuncParamProperty, FEdGraphPinType& LType)
 	{
 		if ((FuncParamProperty->HasAnyPropertyFlags(CPF_ConstParm) || !FuncParamProperty->HasAnyPropertyFlags(CPF_OutParm)) // it's pointless(?) and unsafe(?) to cast Output parameter
 			&& (ArrayParamIndex >= 0)
@@ -619,9 +619,9 @@ FString FBlueprintCompilerCppBackend::EmitMethodInputParameterList(FEmitterLocal
 	FString Result;
 	int32 NumParams = 0;
 
-	for (TFieldIterator<UProperty> PropIt(Statement.FunctionToCall); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+	for (TFieldIterator<FProperty> PropIt(Statement.FunctionToCall); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
 	{
-		UProperty* FuncParamProperty = *PropIt;
+		FProperty* FuncParamProperty = *PropIt;
 
 		if (!FuncParamProperty->HasAnyPropertyFlags(CPF_ReturnParm))
 		{
@@ -639,7 +639,7 @@ FString FBlueprintCompilerCppBackend::EmitMethodInputParameterList(FEmitterLocal
 			{
 				// The target label will only ever be set on a call function when calling into the Ubergraph or
 				// on a latent function that will later call into the ubergraph, either of which requires a patchup
-				UStructProperty* StructProp = Cast<UStructProperty>(FuncParamProperty);
+				FStructProperty* StructProp = CastField<FStructProperty>(FuncParamProperty);
 				if (StructProp && (StructProp->Struct == FLatentActionInfo::StaticStruct()))
 				{
 					// Latent function info case
@@ -693,12 +693,12 @@ static FString CustomThunkFunctionPostfix(FBlueprintCompiledStatement& Statement
 
 	int32 NumParams = 0;
 	FBPTerminal* ArrayTerm = nullptr;
-	for (TFieldIterator<UProperty> PropIt(Statement.FunctionToCall); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+	for (TFieldIterator<FProperty> PropIt(Statement.FunctionToCall); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
 	{
-		UProperty* FuncParamProperty = *PropIt;
+		FProperty* FuncParamProperty = *PropIt;
 		if (!FuncParamProperty->HasAnyPropertyFlags(CPF_ReturnParm))
 		{
-			if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(*PropIt))
+			if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(*PropIt))
 			{
 				ArrayTerm = Statement.RHS[NumParams];
 				ensure(ArrayTerm && ArrayTerm->Type.IsArray());
@@ -770,12 +770,12 @@ FString FBlueprintCompilerCppBackend::EmitCallStatmentInner(FEmitterLocalContext
 		// Cloned logic from: FScriptBytecodeWriter::EmitFunctionCall
 		// Array output parameters are cleared, in case the native function doesn't clear them before filling.
 		int32 NumParams = 0;
-		for (TFieldIterator<UProperty> PropIt(Statement.FunctionToCall); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+		for (TFieldIterator<FProperty> PropIt(Statement.FunctionToCall); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
 		{
-			UProperty* Param = *PropIt;
+			FProperty* Param = *PropIt;
 			if (ensure(Param) && !Param->HasAnyPropertyFlags(CPF_ReturnParm))
 			{
-				const bool bShouldParameterBeCleared = Param->IsA<UArrayProperty>()
+				const bool bShouldParameterBeCleared = Param->IsA<FArrayProperty>()
 					&& Param->HasAllPropertyFlags(CPF_Parm | CPF_OutParm)
 					&& !Param->HasAnyPropertyFlags(CPF_ReferenceParm | CPF_ConstParm | CPF_ReturnParm);
 				if (bShouldParameterBeCleared)
@@ -795,7 +795,7 @@ FString FBlueprintCompilerCppBackend::EmitCallStatmentInner(FEmitterLocalContext
 	if (!bInline)
 	{
 		// Handle the return value of the function being called
-		UProperty* FuncToCallReturnProperty = Statement.FunctionToCall->GetReturnProperty();
+		FProperty* FuncToCallReturnProperty = Statement.FunctionToCall->GetReturnProperty();
 		if (FuncToCallReturnProperty && ensure(Statement.LHS))
 		{
 			SetterExpression = MakeUnique<FSetterExpressionBuilder>(*this, EmitterContext, Statement.LHS);
@@ -1069,7 +1069,7 @@ FString FBlueprintCompilerCppBackend::TermToText(FEmitterLocalContext& EmitterCo
 				ResultPath += FEmitHelper::GetCppName(Term->AssociatedVarProperty);
 
 				// convert bitfield to bool...
-				UBoolProperty* BoolProperty = Cast<UBoolProperty>(Term->AssociatedVarProperty);
+				FBoolProperty* BoolProperty = CastField<FBoolProperty>(Term->AssociatedVarProperty);
 				if (bGetter && BoolProperty && !BoolProperty->IsNativeBool())
 				{
 					//TODO: the result still cannot be used as reference
@@ -1122,7 +1122,7 @@ FString FBlueprintCompilerCppBackend::LatentFunctionInfoTermToText(FEmitterLocal
 
 	// Find the term name we need to fixup
 	FString FixupTermName;
-	for (UProperty* Prop = LatentInfoStruct->PropertyLink; Prop; Prop = Prop->PropertyLinkNext)
+	for (FProperty* Prop = LatentInfoStruct->PropertyLink; Prop; Prop = Prop->PropertyLinkNext)
 	{
 		static const FName NeedsLatentFixup(TEXT("NeedsLatentFixup"));
 		if (Prop->GetBoolMetaData(NeedsLatentFixup))

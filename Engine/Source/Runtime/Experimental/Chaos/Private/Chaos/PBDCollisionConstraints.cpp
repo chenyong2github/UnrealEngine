@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDCollisionConstraints.h"
 
@@ -121,12 +121,12 @@ namespace Chaos
 
 			delete PointConstraint;
 		}
-		else if (ConstraintBase->GetType() == TRigidBodyIterativeContactConstraint<T, 3>::StaticType())
+		else if (ConstraintBase->GetType() == TRigidBodyMultiPointContactConstraint<T, 3>::StaticType())
 		{
-			TRigidBodyIterativeContactConstraint<T, d>* IterativeConstraint = ConstraintBase->template As< TRigidBodyIterativeContactConstraint<T, d> >();
+			TRigidBodyMultiPointContactConstraint<T, d>* IterativeConstraint = ConstraintBase->template As< TRigidBodyMultiPointContactConstraint<T, d> >();
 
 			int32 Idx = IterativeConstraints.Add(*IterativeConstraint);
-			Handle = HandleAllocator.template AllocHandle< TRigidBodyIterativeContactConstraint<T, d> >(this, Idx);
+			Handle = HandleAllocator.template AllocHandle< TRigidBodyMultiPointContactConstraint<T, d> >(this, Idx);
 			Handle->GetContact().Timestamp = LifespanCounter;
 
 			delete IterativeConstraint;
@@ -233,7 +233,10 @@ namespace Chaos
 			check(false);
 		}
 
-		Manifolds.Remove(KeyToRemove); // todo(brice): Add index to the handle to prevent the search. 
+		// @todo(chaos): Collision Manifold
+		//   Add an index to the handle in the Manifold.Value 
+		//   to prevent the search in Handles when removed.
+		Manifolds.Remove(KeyToRemove);  
 		Handles.Remove(Handle);
 
 		ensure(Handles.Num() == PointConstraints.Num() + IterativeConstraints.Num());
@@ -267,13 +270,11 @@ namespace Chaos
 	template<typename T, int d>
 	void TPBDCollisionConstraints<T, d>::UpdateManifolds(T Dt)
 	{
-		PhysicsParallelFor(IterativeConstraints.Num(), [&](int32 ConstraintIndex)
+		PhysicsParallelFor(Handles.Num(), [&](int32 ConstraintHandleIndex)
 		{
-			FConstraintBase& ConstraintBase = IterativeConstraints[ConstraintIndex];
-			if (ConstraintBase.GetType() == FCollisionConstraintBase::FType::MultiPoint)
-			{
-				Collisions::UpdateManifold<float, 3>(MThickness, ConstraintBase);
-			}
+			FConstraintContainerHandle* ConstraintHandle = Handles[ConstraintHandleIndex];
+			check(ConstraintHandle != nullptr);
+			Collisions::UpdateManifold<float, 3>(MThickness, ConstraintHandle->GetContact());
 		}, bDisableCollisionParallelFor);
 	}
 
@@ -291,7 +292,7 @@ namespace Chaos
 				Collisions::Apply(Contact, IterationParameters, ParticleParameters);
 			}
 
-			for (FIterativeContactConstraint& Contact : IterativeConstraints)
+			for (FMultiPointContactConstraint& Contact : IterativeConstraints)
 			{
 				Collisions::TContactParticleParameters<T> ParticleParameters = { MThickness, &MCollided, &MPhysicsMaterials, CollisionFrictionOverride, MAngularFriction };
 				Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPairIterations, nullptr };
@@ -321,7 +322,7 @@ namespace Chaos
 				Collisions::ApplyPushOut(Contact, TempStatic, IterationParameters, ParticleParameters);
 			}
 
-			for (FIterativeContactConstraint& Contact : IterativeConstraints)
+			for (FMultiPointContactConstraint& Contact : IterativeConstraints)
 			{
 				Collisions::TContactParticleParameters<T> ParticleParameters = { MThickness, &MCollided, &MPhysicsMaterials, CollisionFrictionOverride, MAngularFriction };
 				Collisions::TContactIterationParameters<T> IterationParameters = { Dt, Iterations, NumIterations, MApplyPushOutPairIterations, &bNeedsAnotherIteration };

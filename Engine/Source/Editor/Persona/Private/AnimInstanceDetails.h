@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -24,7 +24,7 @@ public:
 protected:
 
 	// Creates a filtered object widget if the supplied property is an object property
-	TSharedRef<SWidget> CreateFilteredObjectPropertyWidget(UProperty* TargetProperty, TSharedRef<IPropertyHandle> TargetPropertyHandle);
+	TSharedRef<SWidget> CreateFilteredObjectPropertyWidget(FProperty* TargetProperty, TSharedRef<IPropertyHandle> TargetPropertyHandle);
 
 	/** Delegate to handle filtering of asset pickers */
 	bool OnShouldFilterAnimAsset( const FAssetData& AssetData ) const;

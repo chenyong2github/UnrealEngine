@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -17,6 +17,10 @@ class FGpuTimingTrack;
 class FCpuTimingTrack;
 class STimingView;
 struct FSlateBrush;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -108,6 +112,7 @@ public:
 	//void SetThreadId(uint32 InThreadId) { ThreadId = InThreadId; }
 
 	virtual void BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
+	virtual void BuildFilteredDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
 
 	virtual void PostDraw(const ITimingTrackDrawContext& Context) const override;
 

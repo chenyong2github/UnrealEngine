@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Presentation/PropertyTable/PropertyTableCell.h"
 #include "IPropertyTable.h"
 #include "Presentation/PropertyEditor/PropertyEditor.h"
@@ -49,7 +49,7 @@ void FPropertyTableCell::Refresh()
 
 	if ( !Item.IsValid() )
 	{
-		// Must have a valid non-UProperty UObject bound to the column or row
+		// Must have a valid non-FProperty UObject bound to the column or row
 		return;
 	}
 

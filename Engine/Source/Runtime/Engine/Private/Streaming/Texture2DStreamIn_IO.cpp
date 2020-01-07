@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 Texture2DStreamIn.cpp: Stream in helper for 2D textures using texture streaming files.
@@ -113,7 +113,7 @@ void FTexture2DStreamIn_IO::ClearIORequests(const FContext& Context)
 
 void FTexture2DStreamIn_IO::SetAsyncFileCallback()
 {
-	AsyncFileCallBack = [this](bool bWasCancelled, IAsyncReadRequest* Req)
+	AsyncFileCallBack = [this](bool bWasCancelled, IBulkDataIORequest*)
 	{
 		// At this point task synchronization would hold the number of pending requests.
 		TaskSynchronization.Decrement();

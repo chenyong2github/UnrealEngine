@@ -1,10 +1,9 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "NiagaraCommon.h"
 #include "NiagaraShared.h"
 #include "NiagaraDataInterface.h"
-#include "NiagaraParameterStore.h"
 #include "Camera/PlayerCameraManager.h"
 #include "NiagaraDataInterfaceCamera.generated.h"
 
@@ -37,13 +36,11 @@ public:
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual bool GetFunctionHLSL(const FName&  DefinitionFunctionName, FString InstanceFunctionName, FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return true; }
-	virtual FNiagaraDataInterfaceParametersCS* ConstructComputeParameters() const override;
 	virtual bool HasTickGroupPrereqs() const override { return true; }
 	virtual ETickingGroup CalculateTickGroup(void* PerInstanceData) const override;
+	virtual bool RequiresEarlyViewData() const override { return true; }
 	//UNiagaraDataInterface Interface
 
-	void QueryOcclusionFactorGPU(FVectorVMContext& Context);
-	void QueryOcclusionFactorCircleGPU(FVectorVMContext& Context);
 	void GetCameraFOV(FVectorVMContext& Context);
 	void GetCameraProperties(FVectorVMContext& Context);
 	void GetViewPropertiesGPU(FVectorVMContext& Context);
@@ -51,8 +48,6 @@ public:
 	void GetViewSpaceTransformsGPU(FVectorVMContext& Context);
 	
 private:
-	static const FName GetCameraOcclusionRectangleName;
-	static const FName GetCameraOcclusionCircleName;
 	static const FName GetViewPropertiesName;
 	static const FName GetClipSpaceTransformsName;
 	static const FName GetViewSpaceTransformsName;
@@ -62,8 +57,7 @@ private:
 
 struct FNiagaraDataIntefaceProxyCameraQuery : public FNiagaraDataInterfaceProxy
 {
-	// There's nothing in this proxy. It just reads from scene textures.
-
+	// There's nothing in this proxy.
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
 	{
 		return 0;

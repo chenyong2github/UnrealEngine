@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PyWrapperEnum.h"
 #include "PyWrapperTypeRegistry.h"
@@ -872,7 +872,7 @@ UPythonGeneratedEnum* UPythonGeneratedEnum::GenerateEnum(PyTypeObject* InPyType)
 				}
 			}
 
-			if (PyObject_IsInstance(FieldValue, (PyObject*)&PyUPropertyDefType) == 1)
+			if (PyObject_IsInstance(FieldValue, (PyObject*)&PyFPropertyDefType) == 1)
 			{
 				// Properties are not supported on enums
 				PyUtil::SetPythonError(PyExc_Exception, InPyType, TEXT("Enums do not support properties"));

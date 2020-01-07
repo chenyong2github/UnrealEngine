@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Materials/MaterialInstance.h"
 #include "Stats/StatsMisc.h"
@@ -1959,6 +1959,12 @@ void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticP
 {
 	check(IsInGameThread());
 
+	if ((AllowCachingStaticParameterValuesCounter > 0) && CachedStaticParameterValues.IsSet())
+	{
+		OutStaticParameters = CachedStaticParameterValues.GetValue();
+		return;
+	}
+
 	if (Parent)
 	{
 		UMaterial* ParentMaterial = Parent->GetMaterial();
@@ -2063,6 +2069,11 @@ void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticP
 
 	// Custom parameters.
 	CustomStaticParametersGetters.Broadcast(OutStaticParameters, this);
+
+	if (AllowCachingStaticParameterValuesCounter > 0)
+	{
+		CachedStaticParameterValues = OutStaticParameters;
+	}
 }
 
 void UMaterialInstance::GetAllScalarParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
@@ -2145,7 +2156,7 @@ void UMaterialInstance::GetAllStaticComponentMaskParameterInfo(TArray<FMaterialP
 	}
 }
 
-void UMaterialInstance::GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const
+bool UMaterialInstance::IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const
 {
 	// Important that local function references are listed first so that traversing for a parameter
 	// value we always hit the highest material in the hierarchy that can give us a valid value
@@ -2157,7 +2168,10 @@ void UMaterialInstance::GetDependentFunctions(TArray<UMaterialFunctionInterface*
 			{
 				if (Layer)
 				{
-					DependentFunctions.AddUnique(Layer);
+					if (!Predicate(Layer))
+					{
+						return false;
+					}
 				}
 			}
 
@@ -2165,16 +2179,25 @@ void UMaterialInstance::GetDependentFunctions(TArray<UMaterialFunctionInterface*
 			{
 				if (Blend)
 				{
-					DependentFunctions.AddUnique(Blend);
+					if (!Predicate(Blend))
+					{
+						return false;
+					}
 				}
 			}
 		}
 	}
 
-	if (Parent)
-	{
-		Parent->GetDependentFunctions(DependentFunctions);
-	}
+	return Parent ? Parent->IterateDependentFunctions(Predicate) : true;
+}
+
+void UMaterialInstance::GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const
+{
+	IterateDependentFunctions([&DependentFunctions](UMaterialFunctionInterface* MaterialFunction) -> bool
+		{
+			DependentFunctions.AddUnique(MaterialFunction);
+			return true;
+		});
 }
 
 bool UMaterialInstance::GetScalarParameterDefaultValue(const FMaterialParameterInfo& ParameterInfo, float& OutValue, bool bOveriddenOnly, bool bCheckOwnedGlobalOverrides) const
@@ -4715,6 +4738,23 @@ void UMaterialInstance::SaveShaderStableKeysInner(const class ITargetPlatform* T
 	}
 #endif
 }
+
+#if WITH_EDITOR
+void UMaterialInstance::BeginAllowCachingStaticParameterValues()
+{
+	++AllowCachingStaticParameterValuesCounter;
+}
+
+void UMaterialInstance::EndAllowCachingStaticParameterValues()
+{
+	check(AllowCachingStaticParameterValuesCounter > 0);
+	--AllowCachingStaticParameterValuesCounter;
+	if (AllowCachingStaticParameterValuesCounter == 0)
+	{
+		CachedStaticParameterValues.Reset();
+	}
+}
+#endif // WITH_EDITOR
 
 void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface* Source)
 {

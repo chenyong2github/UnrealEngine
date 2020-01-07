@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TrackEditors/PropertyTrackEditors/BytePropertyTrackEditor.h"
 #include "UObject/EnumProperty.h"
@@ -22,16 +22,16 @@ UEnum* GetEnumForByteTrack(TSharedPtr<ISequencer> Sequencer, const FGuid& OwnerO
 			continue;
 		}
 
-		UProperty* Property = RuntimeObject->GetClass()->FindPropertyByName(PropertyName);
+		FProperty* Property = RuntimeObject->GetClass()->FindPropertyByName(PropertyName);
 		if (Property != nullptr)
 		{
 			UEnum* Enum = nullptr;
 
-			if (UEnumProperty* EnumProperty = Cast<UEnumProperty>(Property))
+			if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
 			{
 				Enum = EnumProperty->GetEnum();
 			}
-			else if (UByteProperty* ByteProperty = Cast<UByteProperty>(Property))
+			else if (FByteProperty* ByteProperty = CastField<FByteProperty>(Property))
 			{
 				Enum = ByteProperty->Enum;
 			}

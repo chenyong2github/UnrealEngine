@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialEditor/PreviewMaterial.h"
 #include "Modules/ModuleManager.h"
@@ -275,7 +275,7 @@ void UMaterialEditorPreviewParameters::PostEditChangeProperty(FPropertyChangedEv
 {
 	if (PreviewMaterial && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
-		UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+		FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 		if (OriginalFunction == nullptr)
 		{
 			CopyToSourceInstance();
@@ -851,7 +851,7 @@ void UMaterialEditorInstanceConstant::PostEditChangeProperty(FPropertyChangedEve
 {
 	if (SourceInstance)
 	{
-		UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+		FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 		bool bLayersParameterChanged = false;
 
 		FNavigationLockContext NavUpdateLock(ENavigationLockReason::MaterialUpdate);
@@ -1679,6 +1679,8 @@ void UMaterialEditorInstanceConstant::CopyBasePropertiesFromParent()
 #if WITH_EDITOR
 void UMaterialEditorInstanceConstant::PostEditUndo()
 {
+	Super::PostEditUndo();
+
 	if (bIsFunctionPreviewMaterial)
 	{
 		bIsFunctionInstanceDirty = true;
@@ -1695,8 +1697,6 @@ void UMaterialEditorInstanceConstant::PostEditUndo()
 		// Fully update static parameters before recreating render state for all components
 		SetSourceInstance(SourceInstance);
 	}
-
-	Super::PostEditUndo();
 }
 #endif
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDRigidClustering.h"
 
@@ -641,7 +641,7 @@ namespace Chaos
 			auto ComputeStrainLambda = [&](const TPBDRigidClusteredParticleHandle<T, d>* Cluster, const TArray<uint32>& ParentToChildren) {
 				const TRigidTransform<T, d> WorldToClusterTM = TRigidTransform<T, d>(Cluster->P(), Cluster->Q());
 				const TVector<T, d> ContactLocationClusterLocal = WorldToClusterTM.InverseTransformPosition(ContactHandle->GetContactLocation());
-				TBox<T, d> ContactBox(ContactLocationClusterLocal, ContactLocationClusterLocal);
+				TAABB<T, d> ContactBox(ContactLocationClusterLocal, ContactLocationClusterLocal);
 				ContactBox.Thicken(ClusterDistanceThreshold);
 				if (Cluster->ChildrenSpatial())
 				{
@@ -654,7 +654,7 @@ namespace Chaos
 							const int32 KeyChild = ProxyData->KeyChild;
 							const TRigidTransform<T, d> ProxyToCluster = ProxyData->RelativeToKeyChild * MParticles.ChildToParent(KeyChild);
 							const TVector<T, d> ContactLocationProxyLocal = ProxyToCluster.InverseTransformPosition(ContactLocationClusterLocal);
-							TBox<T, d> ContactBoxProxy(ContactLocationProxyLocal, ContactLocationProxyLocal);
+							TAABB<T, d> ContactBoxProxy(ContactLocationProxyLocal, ContactLocationProxyLocal);
 							ContactBoxProxy.Thicken(ClusterDistanceThreshold);
 							if (MParticles.ChildrenSpatial(Child))
 							{
@@ -1360,7 +1360,7 @@ namespace Chaos
 
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(SpatialBVH);
-			MParticles.ChildrenSpatial(NewIndex) = Objects2.Num() ? MakeUnique<TImplicitObjectUnion<T, d>>(MoveTemp(Objects2), GeomToOriginalParticlesHack) : nullptr;
+			MParticles.ChildrenSpatial(NewIndex) = Objects2.Num() ? MakeUnique<FImplicitObjectUnionClustered>(MoveTemp(Objects2), GeomToOriginalParticlesHack) : nullptr;
 		}
 
 		TArray<TVector<T, d>> CleanedPoints;
@@ -1394,8 +1394,8 @@ namespace Chaos
 			{
 				ensureMsgf(false, TEXT("Checking usage with no proxy and multiple ojects with levelsets"));
 
-				TImplicitObjectUnion<T, d> UnionObject(MoveTemp(Objects));
-				TBox<T, d> Bounds = UnionObject.BoundingBox();
+				FImplicitObjectUnion UnionObject(MoveTemp(Objects));
+				TAABB<T, d> Bounds = UnionObject.BoundingBox();
 				const TVector<T, d> BoundsExtents = Bounds.Extents();
 				if (BoundsExtents.Min() >= MinLevelsetSize) //make sure the object is not too small
 				{
@@ -1444,14 +1444,14 @@ namespace Chaos
 					QUICK_SCOPE_CYCLE_COUNTER(UnionBVH);
 					// @coverage : { confidence tests}
 					//ensureMsgf(false, TEXT("Checking no proxy, not levelset, and multiple objects"));
-					MParticles.SetDynamicGeometry(NewIndex, MakeUnique<TImplicitObjectUnion<T, d>>(MoveTemp(Objects), GeomToOriginalParticlesHack));
+					MParticles.SetDynamicGeometry(NewIndex, MakeUnique<FImplicitObjectUnionClustered>(MoveTemp(Objects), GeomToOriginalParticlesHack));
 				}
 			}
 		}
 
 		if (bUseParticleImplicit && MParticles.DynamicGeometry(NewIndex)) //if children are ignore analytic and this is a dynamic geom, mark it too. todo(ocohen): clean this up
 		{
-			MParticles.DynamicGeometry(NewIndex)->IgnoreAnalyticCollisions();
+			MParticles.DynamicGeometry(NewIndex)->SetDoCollide(false);
 		}
 
 		if (Parameters.CollisionParticles)
@@ -1711,7 +1711,7 @@ namespace Chaos
 					continue;
 				}
 				TRigidTransform<T, d> TM1 = TRigidTransform<T, d>(MParticles.X(Child1), MParticles.R(Child1));
-				TBox<T, d> Box1 = MParticles.Geometry(Child1)->BoundingBox();
+				TAABB<T, d> Box1 = MParticles.Geometry(Child1)->BoundingBox();
 
 				TArray<TArray<TPair<uint32, uint32>>> Connections;
 				Connections.Init(TArray<TPair<uint32, uint32>>(), Children.Num() - (i + 1));

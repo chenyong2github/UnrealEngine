@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConcertLogger.h"
 #include "ConcertMessages.h"
@@ -560,7 +560,7 @@ void FConcertLogger::InternalFlushLog()
 void FConcertLogger::LogHeader()
 {
 	FString CSVHeader;
-	for (TFieldIterator<const UProperty> PropertyIt(FConcertLog::StaticStruct(), EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::IncludeInterfaces); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<const FProperty> PropertyIt(FConcertLog::StaticStruct(), EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::IncludeInterfaces); PropertyIt; ++PropertyIt)
 	{
 		if (PropertyIt->HasAnyPropertyFlags(CPF_Transient))
 		{
@@ -600,7 +600,7 @@ void FConcertLogger::LogEntry(FConcertLog& Log)
 	}
 
 	FString CSVRow;
-	for (TFieldIterator<const UProperty> PropertyIt(FConcertLog::StaticStruct(), EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::IncludeInterfaces); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<const FProperty> PropertyIt(FConcertLog::StaticStruct(), EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::IncludeInterfaces); PropertyIt; ++PropertyIt)
 	{
 		if (PropertyIt->HasAnyPropertyFlags(CPF_Transient))
 		{

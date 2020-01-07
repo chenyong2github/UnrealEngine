@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -29,11 +29,11 @@ struct FResidentChunk
 */
 struct FCompletedChunk
 {
-	IAsyncReadRequest* ReadRequest;
+	IBulkDataIORequest* ReadRequest;
 	int32 LoadedChunkIndex;
 
 	FCompletedChunk() : ReadRequest(nullptr), LoadedChunkIndex(0) {}
-	FCompletedChunk(int32 SetLoadedChunkIndex, IAsyncReadRequest* SetReadRequest) : ReadRequest(SetReadRequest), LoadedChunkIndex(SetLoadedChunkIndex) {}
+	FCompletedChunk(int32 SetLoadedChunkIndex, IBulkDataIORequest* SetReadRequest) : ReadRequest(SetReadRequest), LoadedChunkIndex(SetLoadedChunkIndex) {}
 };
 
 /**
@@ -63,7 +63,7 @@ private:
 
 	FResidentChunk &AddResidentChunk(int32 ChunkId, const FStreamedGeometryCacheChunk &ChunkInfo);
 	void RemoveResidentChunk(FResidentChunk& LoadedChunk);
-	void OnAsyncReadComplete(int32 LoadedChunkIndex, IAsyncReadRequest* ReadRequest);
+	void OnAsyncReadComplete(int32 LoadedChunkIndex, IBulkDataIORequest* ReadRequest);
 	void ProcessCompletedChunks();
 
 	// The track we are associated with

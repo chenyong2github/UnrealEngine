@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -107,6 +107,8 @@ struct FGameInstancePIEParameters
 };
 
 #endif
+
+DECLARE_EVENT_OneParam(UGameInstance, FOnLocalPlayerEvent, ULocalPlayer*);
 
 /**
  * GameInstance: high-level manager object for an instance of the running game.
@@ -232,6 +234,9 @@ public:
 
 	/** Local player access */
 
+	FOnLocalPlayerEvent OnLocalPlayerAddedEvent;
+	FOnLocalPlayerEvent OnLocalPlayerRemovedEvent;
+
 	/**
 	 * Debug console command to create a player.
 	 * @param ControllerId - The controller ID the player should accept input from.
@@ -265,7 +270,6 @@ public:
 	 */
 	virtual int32			AddLocalPlayer(ULocalPlayer* NewPlayer, int32 ControllerId);
 
-
 	/**
 	 * Removes a player.
 	 * @param Player - The player to remove.
@@ -275,7 +279,7 @@ public:
 
 	int32					GetNumLocalPlayers() const;
 	ULocalPlayer*			GetLocalPlayerByIndex(const int32 Index) const;
-	APlayerController*		GetFirstLocalPlayerController(UWorld* World = nullptr) const;
+	APlayerController*		GetFirstLocalPlayerController(const UWorld* World = nullptr) const;
 	ULocalPlayer*			FindLocalPlayerFromControllerId(const int32 ControllerId) const;
 	ULocalPlayer*			FindLocalPlayerFromUniqueNetId(TSharedPtr<const FUniqueNetId> UniqueNetId) const;
 	ULocalPlayer*			FindLocalPlayerFromUniqueNetId(const FUniqueNetId& UniqueNetId) const;

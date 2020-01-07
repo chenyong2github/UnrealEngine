@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDRigidDynamicSpringConstraints.h"
 #include "Chaos/Utilities.h"
@@ -64,9 +64,9 @@ void TPBDRigidDynamicSpringConstraints<T, d>::UpdatePositionBasedState(const T D
 		if (Static0->Geometry()->HasBoundingBox() && Static1->Geometry()->HasBoundingBox())
 		{
 			// Matrix multiplication is reversed intentionally to be compatible with unreal
-			TBox<T, d> Box1 = Static0->Geometry()->BoundingBox().TransformedBox(Transform1 * Transform2.Inverse());
+			TAABB<T, d> Box1 = Static0->Geometry()->BoundingBox().TransformedAABB(Transform1 * Transform2.Inverse());
 			Box1.Thicken(CreationThreshold);
-			TBox<T, d> Box2 = Static1->Geometry()->BoundingBox();
+			TAABB<T, d> Box2 = Static1->Geometry()->BoundingBox();
 			Box2.Thicken(CreationThreshold);
 			if (!Box1.Intersects(Box2))
 			{

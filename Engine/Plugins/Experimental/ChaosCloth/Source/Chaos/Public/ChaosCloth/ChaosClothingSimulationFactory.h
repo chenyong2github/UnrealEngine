@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -7,14 +7,17 @@
 #include "ChaosClothingSimulationFactory.generated.h"
 
 UCLASS()
-class CHAOSCLOTH_API UChaosClothingSimulationFactory : public UClothingSimulationFactory
+class CHAOSCLOTH_API UChaosClothingSimulationFactory final : public UClothingSimulationFactory
 {
-    GENERATED_BODY()
-  public:
-    virtual IClothingSimulation* CreateSimulation() override;
-    virtual void DestroySimulation(IClothingSimulation* InSimulation) override;
-    virtual bool SupportsAsset(UClothingAssetBase* InAsset) override;
-    virtual bool SupportsRuntimeInteraction() override;
+	GENERATED_BODY()
+public:
+	virtual IClothingSimulation* CreateSimulation() override;
+	virtual void DestroySimulation(IClothingSimulation* InSimulation) override;
+	virtual bool SupportsAsset(UClothingAssetBase* InAsset) override;
+
+	virtual bool SupportsRuntimeInteraction() override;
 	virtual UClothingSimulationInteractor* CreateInteractor() override;
-	virtual UClothConfigBase* CreateDefaultClothConfig(const FObjectInitializer& ObjectInitializer, UObject* Outer) override;
+
+	virtual TArrayView<const TSubclassOf<UClothConfigBase>> GetClothConfigClasses() const override;
+	const UEnum* GetWeightMapTargetEnum() const override;
 };

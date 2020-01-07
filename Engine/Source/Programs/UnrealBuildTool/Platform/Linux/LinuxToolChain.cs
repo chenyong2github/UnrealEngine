@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -43,7 +43,7 @@ namespace UnrealBuildTool
 		EnableThinLTO = 0x8,
 	}
 
-	class LinuxToolChain : UEToolChain
+	class LinuxToolChain : ISPCToolChain
 	{
 		/** Flavor of the current build (target triplet)*/
 		string Architecture;
@@ -936,7 +936,6 @@ namespace UnrealBuildTool
 			// RPATH for third party libs
 			Result += " -Wl,-rpath=${ORIGIN}";
 			Result += " -Wl,-rpath-link=${ORIGIN}";
-			Result += " -Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/Linux";
 			Result += " -Wl,-rpath=${ORIGIN}/..";	// for modules that are in sub-folders of the main Engine/Binary/Linux folder
 			if (LinkEnvironment.Architecture.StartsWith("x86_64"))
 			{
@@ -947,10 +946,6 @@ namespace UnrealBuildTool
 				// x86_64 is now using updated ICU that doesn't need extra .so
 				Result += " -Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/ThirdParty/ICU/icu4c-53_1/Linux/" + LinkEnvironment.Architecture;
 			}
-			Result += " -Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/ThirdParty/OpenVR/OpenVRv1_5_17/linux64";
-
-			// @FIXME: Workaround for generating RPATHs for launching on devices UE-54136
-			Result += " -Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/ThirdParty/PhysX3/Linux/x86_64-unknown-linux-gnu";
 
 			// Some OS ship ld with new ELF dynamic tags, which use DT_RUNPATH vs DT_RPATH. Since DT_RUNPATH do not propagate to dlopen()ed DSOs,
 			// this breaks the editor on such systems. See https://kenai.com/projects/maxine/lists/users/archive/2011-01/message/12 for details
@@ -1275,6 +1270,7 @@ namespace UnrealBuildTool
 			{
 				Action CompileAction = new Action(ActionType.Compile);
 				CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.ForceIncludeFiles);
+				CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
 
 				string FileArguments = "";
 				string Extension = Path.GetExtension(SourceFile.AbsolutePath).ToUpperInvariant();
@@ -1627,7 +1623,15 @@ namespace UnrealBuildTool
 
 				if ((AdditionalLibrary.Contains("Plugins") || AdditionalLibrary.Contains("Binaries/ThirdParty") || AdditionalLibrary.Contains("Binaries\\ThirdParty")) && Path.GetDirectoryName(AdditionalLibrary) != Path.GetDirectoryName(OutputFile.AbsolutePath))
 				{
-					string RelativePath = new FileReference(AdditionalLibrary).Directory.MakeRelativeTo(OutputFile.Location.Directory);
+					// Remove the root UnrealBuildTool.RootDirectory from the RuntimeLibaryPath
+					string AdditionalLibraryRootPath = new FileReference(AdditionalLibrary).Directory.MakeRelativeTo(UnrealBuildTool.RootDirectory);
+
+					// Figure out how many dirs we need to go back
+					string RelativeRootPath = UnrealBuildTool.RootDirectory.MakeRelativeTo(OutputFile.Location.Directory);
+
+					// Combine the two together ie. number of ../ + the path after the root
+					string RelativePath = Path.Combine(RelativeRootPath, AdditionalLibraryRootPath);
+
 					// On Windows, MakeRelativeTo can silently fail if the engine and the project are located on different drives
 					if (CrossCompiling() && RelativePath.StartsWith(UnrealBuildTool.RootDirectory.FullName))
 					{
@@ -1648,12 +1652,28 @@ namespace UnrealBuildTool
 			foreach(string RuntimeLibaryPath in LinkEnvironment.RuntimeLibraryPaths)
 			{
 				string RelativePath = RuntimeLibaryPath;
+
 				if(!RelativePath.StartsWith("$"))
 				{
-					string RelativeRootPath = new DirectoryReference(RuntimeLibaryPath).MakeRelativeTo(UnrealBuildTool.RootDirectory);
-					// We're assuming that the binary will be placed according to our ProjectName/Binaries/Platform scheme
-					RelativePath = Path.Combine("..", "..", "..", RelativeRootPath);
+					// Remove the root UnrealBuildTool.RootDirectory from the RuntimeLibaryPath
+					string RuntimeLibraryRootPath = new DirectoryReference(RuntimeLibaryPath).MakeRelativeTo(UnrealBuildTool.RootDirectory);
+
+					// Figure out how many dirs we need to go back
+					string RelativeRootPath = UnrealBuildTool.RootDirectory.MakeRelativeTo(OutputFile.Location.Directory);
+
+					// Combine the two together ie. number of ../ + the path after the root
+					RelativePath = Path.Combine(RelativeRootPath, RuntimeLibraryRootPath);
 				}
+
+				// On Windows, MakeRelativeTo can silently fail if the engine and the project are located on different drives
+				if (CrossCompiling() && RelativePath.StartsWith(UnrealBuildTool.RootDirectory.FullName))
+				{
+					// do not replace directly, but take care to avoid potential double slashes or missed slashes
+					string PathFromRootDir = RelativePath.Replace(UnrealBuildTool.RootDirectory.FullName, "");
+					// Path.Combine doesn't combine these properly
+					RelativePath = ((PathFromRootDir.StartsWith("\\") || PathFromRootDir.StartsWith("/")) ? "..\\..\\.." : "..\\..\\..\\") + PathFromRootDir;
+				}
+
 				if (!RPaths.Contains(RelativePath))
 				{
 					RPaths.Add(RelativePath);

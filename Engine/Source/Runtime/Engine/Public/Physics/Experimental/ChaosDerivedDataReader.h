@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -8,8 +8,7 @@ namespace Chaos
 {
 	class FImplicitObject;
 
-	template <typename T>
-	class TTriangleMeshImplicitObject;
+	class FTriangleMeshImplicitObject;
 
 	class FConvex;
 }
@@ -22,10 +21,10 @@ class FChaosDerivedDataReader
 public:
 
 	// Only valid use is to explicitly read chaos bulk data
-	explicit FChaosDerivedDataReader(FUntypedBulkData* InBulkData);
+	explicit FChaosDerivedDataReader(FBulkDataInterface* InBulkData);
 
 	TArray<TUniquePtr<Chaos::FConvex>> ConvexImplicitObjects;
-	TArray<TUniquePtr<Chaos::TTriangleMeshImplicitObject<T>>> TrimeshImplicitObjects;
+	TArray<TSharedPtr<Chaos::FTriangleMeshImplicitObject, ESPMode::ThreadSafe>> TrimeshImplicitObjects;
 	FBodySetupUVInfo UVInfo;
 	TArray<int32> FaceRemap;
 

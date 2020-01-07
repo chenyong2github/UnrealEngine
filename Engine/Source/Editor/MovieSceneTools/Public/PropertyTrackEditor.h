@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -96,7 +96,7 @@ protected:
 	 */
 	virtual void InitializeNewTrack( TrackType* NewTrack, FPropertyChangedParams PropertyChangedParams )
 	{
-		const UProperty* ChangedProperty = PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get();
+		const FProperty* ChangedProperty = PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get();
 		if (ChangedProperty)
 		{
 			NewTrack->SetPropertyNameAndPath( ChangedProperty->GetFName(), PropertyChangedParams.GetPropertyPathString() );
@@ -108,9 +108,9 @@ protected:
 			for (int32 PropertyIndex = PropertyChangedParams.PropertyPath.GetNumProperties() - 1; PropertyIndex >= 0; --PropertyIndex)
 			{
 				const FPropertyInfo& Info = PropertyChangedParams.PropertyPath.GetPropertyInfo(PropertyIndex);
-				const UArrayProperty* ParentArrayProperty = PropertyIndex > 0 ? Cast<UArrayProperty>(PropertyChangedParams.PropertyPath.GetPropertyInfo(PropertyIndex - 1).Property.Get()) : nullptr;
+				const FArrayProperty* ParentArrayProperty = PropertyIndex > 0 ? CastField<FArrayProperty>(PropertyChangedParams.PropertyPath.GetPropertyInfo(PropertyIndex - 1).Property.Get()) : nullptr;
 
-				UProperty* ArrayInnerProperty = Info.Property.Get();
+				FProperty* ArrayInnerProperty = Info.Property.Get();
 				if (ArrayInnerProperty && Info.ArrayIndex != INDEX_NONE)
 				{
 					DisplayText = FText::Format(NSLOCTEXT("PropertyTrackEditor", "DisplayTextArrayFormat", "{0} ({1}[{2}])"),
@@ -126,7 +126,7 @@ protected:
 			{
 				for (int32 PropertyIndex = PropertyChangedParams.PropertyPath.GetNumProperties() - 1; PropertyIndex >= 0; --PropertyIndex)
 				{
-					const UStructProperty* ParentStructProperty = PropertyIndex > 0 ? Cast<UStructProperty>(PropertyChangedParams.PropertyPath.GetPropertyInfo(PropertyIndex - 1).Property.Get()) : nullptr;
+					const FStructProperty* ParentStructProperty = PropertyIndex > 0 ? CastField<FStructProperty>(PropertyChangedParams.PropertyPath.GetPropertyInfo(PropertyIndex - 1).Property.Get()) : nullptr;
 					if (ParentStructProperty)
 					{
 						DisplayText = FText::Format(NSLOCTEXT("PropertyTrackEditor", "DisplayTextStructFormat", "{0} ({1})"),
@@ -176,7 +176,7 @@ private:
 	}
 
 	/** Get a customized track class from the property if there is one, otherwise return nullptr. */
-	TSubclassOf<UMovieSceneTrack> GetCustomizedTrackClass( const UProperty* Property )
+	TSubclassOf<UMovieSceneTrack> GetCustomizedTrackClass( const FProperty* Property )
 	{
 		// Look for a customized track class for this property on the meta data
 		const FString& MetaSequencerTrackClass = Property->GetMetaData( TEXT( "SequencerTrackClass" ) );
@@ -211,7 +211,7 @@ private:
 		FGeneratedTrackKeys GeneratedKeys;
 		GenerateKeysFromPropertyChanged( PropertyChangedParams, GeneratedKeys );
 
-		UProperty* Property = PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get();
+		FProperty* Property = PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get();
 		if (!Property)
 		{
 			return KeyPropertyResult;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /**
  * Base class for tracking transactions for undo/redo.
@@ -258,7 +258,7 @@ protected:
 		void Save( FTransaction* Owner );
 		void Load( FTransaction* Owner );
 		void Finalize( FTransaction* Owner, TSharedPtr<ITransactionObjectAnnotation>& OutFinalizedObjectAnnotation );
-		void Snapshot( FTransaction* Owner, TArrayView<const UProperty*> Properties );
+		void Snapshot( FTransaction* Owner, TArrayView<const FProperty*> Properties );
 		static void Diff( const FTransaction* Owner, const FSerializedObject& OldSerializedObect, const FSerializedObject& NewSerializedObject, FTransactionObjectDeltaChange& OutDeltaChange, const bool bFullDiff = true );
 
 		/** Used by GC to collect referenced objects. */
@@ -355,7 +355,7 @@ protected:
 			FWriter(
 				FSerializedObject& InSerializedObject,
 				bool bWantBinarySerialization,
-				TArrayView<const UProperty*> InPropertiesToSerialize = TArrayView<const UProperty*>()
+				TArrayView<const FProperty*> InPropertiesToSerialize = TArrayView<const FProperty*>()
 				)
 				: SerializedObject(InSerializedObject)
 				, PropertiesToSerialize(InPropertiesToSerialize)
@@ -383,7 +383,7 @@ protected:
 				Offset = InPos; 
 			}
 
-			virtual bool ShouldSkipProperty(const UProperty* InProperty) const override
+			virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
 			{
 				return (PropertiesToSerialize.Num() > 0 && !PropertiesToSerialize.Contains(InProperty))
 					|| FArchiveUObject::ShouldSkipProperty(InProperty);
@@ -491,7 +491,7 @@ protected:
 				return (FArchive&)*this << ObjectIndex;
 			}
 			FSerializedObject& SerializedObject;
-			TArrayView<const UProperty*> PropertiesToSerialize;
+			TArrayView<const FProperty*> PropertiesToSerialize;
 			TMap<UObject*, int32> ObjectMap;
 			TMap<FName, int32> NameMap;
 			FCachedPropertyKey CachedSerializedTaggedPropertyKey;
@@ -578,7 +578,7 @@ public:
 	virtual void SaveArray( UObject* Object, FScriptArray* Array, int32 Index, int32 Count, int32 Oper, int32 ElementSize, STRUCT_DC DefaultConstructor, STRUCT_AR Serializer, STRUCT_DTOR Destructor ) override;
 	virtual void StoreUndo( UObject* Object, TUniquePtr<FChange> UndoChange ) override;
 	virtual void SetPrimaryObject(UObject* InObject) override;
-	virtual void SnapshotObject( UObject* InObject, TArrayView<const UProperty*> Properties ) override;
+	virtual void SnapshotObject( UObject* InObject, TArrayView<const FProperty*> Properties ) override;
 
 	/** BeginOperation should be called when a transaction or undo/redo starts */
 	virtual void BeginOperation() override;

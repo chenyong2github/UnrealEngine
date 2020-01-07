@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsProxy/FieldSystemPhysicsProxy.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
@@ -117,7 +117,7 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 					TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
 
 					FFieldContext Context(
-						SampleIndicesView, // @todo(brice) important: an empty index array should evaluate everything
+						SampleIndicesView, // @todo(chaos) important: an empty index array should evaluate everything
 						SamplePointsView,
 						Command.MetaData);
 
@@ -251,7 +251,7 @@ void FFieldSystemPhysicsProxy::FieldParameterUpdateCallback(
 					TArrayView<FVector> SamplesView(tptr, int32(Particles.Size()));
 
 					FFieldContext Context{
-						IndexView, // @todo(brice) important: an empty index array should evaluate everything
+						IndexView, // @todo(chaos) important: an empty index array should evaluate everything
 						SamplesView,
 						Command.MetaData
 					};
@@ -1000,7 +1000,7 @@ void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(
 							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handle->CastToRigidParticle();
 							if(RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic)
 							{
-								RigidHandle->ExternalForce() += ForceView[i];
+								RigidHandle->F() += ForceView[i];
 							}
 							++i;
 						}
@@ -1060,7 +1060,7 @@ void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(
 							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handle->CastToRigidParticle();
 							if(RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic)
 							{
-								RigidHandle->ExternalTorque() += TorqueView[i];
+								RigidHandle->Torque() += TorqueView[i];
 							}
 							++i;
 						}

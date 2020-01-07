@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_CustomProperty.h"
 #include "EdGraphSchema_K2.h"
@@ -57,14 +57,14 @@ void UAnimGraphNode_CustomProperty::ReallocatePinsDuringReconstruction(TArray<UE
 	const UAnimationGraphSchema* AnimGraphDefaultSchema = GetDefault<UAnimationGraphSchema>();
 
 	// Grab the list of properties we can expose
-	TArray<UProperty*> ExposablePropeties;
+	TArray<FProperty*> ExposablePropeties;
 	GetExposableProperties(ExposablePropeties);
 
 	// We'll track the names we encounter by removing from this list, if anything remains the properties
 	// have been removed from the target class and we should remove them too
 	TArray<FName> BeginExposableNames = KnownExposableProperties;
 
-	for(UProperty* Property : ExposablePropeties)
+	for(FProperty* Property : ExposablePropeties)
 	{
 		FName PropertyName = Property->GetFName();
 		BeginExposableNames.Remove(PropertyName);
@@ -99,12 +99,12 @@ void UAnimGraphNode_CustomProperty::ReallocatePinsDuringReconstruction(TArray<UE
 	}
 }
 
-void UAnimGraphNode_CustomProperty::GetInstancePinProperty(const UClass* InOwnerInstanceClass, UEdGraphPin* InInputPin, UProperty*& OutProperty)
+void UAnimGraphNode_CustomProperty::GetInstancePinProperty(const UClass* InOwnerInstanceClass, UEdGraphPin* InInputPin, FProperty*& OutProperty)
 {
 	// The actual name of the instance property
 	FString FullName = GetPinTargetVariableName(InInputPin);
 
-	if(UProperty* Property = FindField<UProperty>(InOwnerInstanceClass, *FullName))
+	if(FProperty* Property = FindField<FProperty>(InOwnerInstanceClass, *FullName))
 	{
 		OutProperty = Property;
 	}
@@ -119,19 +119,19 @@ FString UAnimGraphNode_CustomProperty::GetPinTargetVariableName(const UEdGraphPi
 	return TEXT("__CustomProperty_") + InPin->PinName.ToString() + TEXT("_") + NodeGuid.ToString();
 }
 
-FText UAnimGraphNode_CustomProperty::GetPropertyTypeText(UProperty* Property)
+FText UAnimGraphNode_CustomProperty::GetPropertyTypeText(FProperty* Property)
 {
 	FText PropertyTypeText;
 
-	if(UStructProperty* StructProperty = Cast<UStructProperty>(Property))
+	if(FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 	{
 		PropertyTypeText = StructProperty->Struct->GetDisplayNameText();
 	}
-	else if(UObjectProperty* ObjectProperty = Cast<UObjectProperty>(Property))
+	else if(FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
 	{
 		PropertyTypeText = ObjectProperty->PropertyClass->GetDisplayNameText();
 	}
-	else if(UClass* PropClass = Property->GetClass())
+	else if(FFieldClass* PropClass = Property->GetClass())
 	{
 		PropertyTypeText = PropClass->GetDisplayNameText();
 	}
@@ -147,9 +147,9 @@ void UAnimGraphNode_CustomProperty::RebuildExposedProperties()
 {
 	ExposedPropertyNames.Empty();
 	KnownExposableProperties.Empty();
-	TArray<UProperty*> ExposableProperties;
+	TArray<FProperty*> ExposableProperties;
 	GetExposableProperties(ExposableProperties);
-	for(UProperty* Property : ExposableProperties)
+	for(FProperty* Property : ExposableProperties)
 	{
 		KnownExposableProperties.Add(Property->GetFName());
 	}
@@ -258,7 +258,7 @@ void UAnimGraphNode_CustomProperty::CustomizeDetails(IDetailLayoutBuilder& Detai
 	}
 }
 
-void UAnimGraphNode_CustomProperty::GetExposableProperties( TArray<UProperty*>& OutExposableProperties) const
+void UAnimGraphNode_CustomProperty::GetExposableProperties( TArray<FProperty*>& OutExposableProperties) const
 {
 	OutExposableProperties.Empty();
 
@@ -268,9 +268,9 @@ void UAnimGraphNode_CustomProperty::GetExposableProperties( TArray<UProperty*>& 
 	{
 		const UEdGraphSchema_K2* Schema = CastChecked<UEdGraphSchema_K2>(GetSchema());
 
-		for(TFieldIterator<UProperty> It(TargetClass, EFieldIteratorFlags::IncludeSuper); It; ++It)
+		for(TFieldIterator<FProperty> It(TargetClass, EFieldIteratorFlags::IncludeSuper); It; ++It)
 		{
-			UProperty* CurProperty = *It;
+			FProperty* CurProperty = *It;
 			FEdGraphPinType PinType;
 
 			if(CurProperty->HasAllPropertyFlags(CPF_Edit | CPF_BlueprintVisible) && CurProperty->HasAllFlags(RF_Public) && Schema->ConvertPropertyToPinType(CurProperty, PinType))

@@ -1,7 +1,8 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimNode_SaveCachedPose.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_SaveCachedPose
@@ -52,6 +53,8 @@ void FAnimNode_SaveCachedPose::Update_AnyThread(const FAnimationUpdateContext& C
 
 	// Store this context for the post update
 	CachedUpdate.Context = Context.WithOtherSharedContext(CachedUpdate.SharedContext.Get());
+
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Cached Pose Name"), CachePoseName);
 }
 
 void FAnimNode_SaveCachedPose::Evaluate_AnyThread(FPoseContext& Output)
@@ -117,7 +120,7 @@ void FAnimNode_SaveCachedPose::PostGraphUpdate()
 			{
 				for (auto Iter : AncestorTracker->Map)
 				{
-					FAnimNode_Base* AncestorNode = Iter.Value.Top();
+					FAnimNode_Base* AncestorNode = Iter.Value.Num() ? Iter.Value.Top() : nullptr;
 					if (AncestorNode && AncestorNode->WantsSkippedUpdates())
 					{
 						AncestorsWithSkippedUpdateHandlers.Add(AncestorNode);

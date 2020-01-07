@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -155,7 +155,7 @@ namespace Chaos
 			: FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Triangle)
 			, Tri(InA, InB, InC)
 		{
-			Bounds = TBox<T, 3>(Tri[0], Tri[0]);
+			Bounds = TAABB<T, 3>(Tri[0], Tri[0]);
 			Bounds.GrowToInclude(Tri[1]);
 			Bounds.GrowToInclude(Tri[2]);
 		}
@@ -190,7 +190,7 @@ namespace Chaos
 			return Tri.PhiWithNormal(InSamplePoint, OutNormal);
 		}
 
-		virtual const class TBox<T, 3>& BoundingBox() const override
+		virtual const class TAABB<T, 3>& BoundingBox() const override
 		{
 			return Bounds;
 		}
@@ -238,6 +238,6 @@ namespace Chaos
 	private:
 
 		TTriangle<T> Tri;
-		TBox<T, 3> Bounds;
+		TAABB<T, 3> Bounds;
 	};
 }

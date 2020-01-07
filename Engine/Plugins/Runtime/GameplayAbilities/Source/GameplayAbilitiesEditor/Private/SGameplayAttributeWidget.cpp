@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SGameplayAttributeWidget.h"
 #include "UObject/UnrealType.h"
@@ -19,13 +19,13 @@
 
 #define LOCTEXT_NAMESPACE "K2Node"
 
-DECLARE_DELEGATE_OneParam(FOnAttributePicked, UProperty*);
+DECLARE_DELEGATE_OneParam(FOnAttributePicked, FProperty*);
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 struct FAttributeViewerNode
 {
 public:
-	FAttributeViewerNode(UProperty* InAttribute, FString InAttributeName)
+	FAttributeViewerNode(FProperty* InAttribute, FString InAttributeName)
 	{
 		Attribute = InAttribute;
 		AttributeName = MakeShareable(new FString(InAttributeName));
@@ -34,7 +34,7 @@ public:
 	/** The displayed name for this node. */
 	TSharedPtr<FString> AttributeName;
 
-	UProperty* Attribute;
+	FProperty* Attribute;
 };
 
 /** The item used for visualizing the attribute in the list. */
@@ -137,7 +137,7 @@ public:
 	virtual ~SAttributeListWidget();
 
 private:
-	typedef TTextFilter< const UProperty& > FAttributeTextFilter;
+	typedef TTextFilter< const FProperty& > FAttributeTextFilter;
 
 	/** Called by Slate when the filter box changes text. */
 	void OnFilterTextChanged(const FText& InFilterText);
@@ -182,7 +182,7 @@ void SAttributeListWidget::Construct(const FArguments& InArgs)
 {
 	struct Local
 	{
-		static void AttributeToStringArray(const UProperty& Property, OUT TArray< FString >& StringArray)
+		static void AttributeToStringArray(const FProperty& Property, OUT TArray< FString >& StringArray)
 		{
 			UClass* Class = Property.GetOwnerClass();
 			if ((Class->IsChildOf(UAttributeSet::StaticClass()) && !Class->ClassGeneratedBy) ||
@@ -271,9 +271,9 @@ TSharedPtr<FAttributeViewerNode> SAttributeListWidget::UpdatePropertyOptions()
 				continue;
 			}
 
-			for (TFieldIterator<UProperty> PropertyIt(Class, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
+			for (TFieldIterator<FProperty> PropertyIt(Class, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
 			{
-				UProperty *Property = *PropertyIt;
+				FProperty *Property = *PropertyIt;
 
 				// if we have a search string and this doesn't match, don't show it
 				if (AttributeTextFilter.IsValid() && !AttributeTextFilter->PassesFilter(*Property))
@@ -301,9 +301,9 @@ TSharedPtr<FAttributeViewerNode> SAttributeListWidget::UpdatePropertyOptions()
 		// UAbilitySystemComponent can add 'system' attributes
 		if (Class->IsChildOf(UAbilitySystemComponent::StaticClass()) && !Class->ClassGeneratedBy)
 		{
-			for (TFieldIterator<UProperty> PropertyIt(Class, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
+			for (TFieldIterator<FProperty> PropertyIt(Class, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
 			{
-				UProperty* Property = *PropertyIt;
+				FProperty* Property = *PropertyIt;
 
 				// SystemAttributes have to be explicitly tagged
 				if (Property->HasMetaData(TEXT("SystemGameplayAttribute")) == false)
@@ -362,7 +362,7 @@ void SGameplayAttributeWidget::Construct(const FArguments& InArgs)
 	];
 }
 
-void SGameplayAttributeWidget::OnAttributePicked(UProperty* InProperty)
+void SGameplayAttributeWidget::OnAttributePicked(FProperty* InProperty)
 {
 	if (OnAttributeChanged.IsBound())
 	{

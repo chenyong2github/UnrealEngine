@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "AnimGraphNode_Base.h"
@@ -28,7 +28,7 @@ UAnimGraphNode_Base::UAnimGraphNode_Base(const FObjectInitializer& ObjectInitial
 {
 }
 
-void UAnimGraphNode_Base::PreEditChange(UProperty* PropertyThatWillChange)
+void UAnimGraphNode_Base::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);
 
@@ -64,7 +64,7 @@ void UAnimGraphNode_Base::CreateOutputPins()
 void UAnimGraphNode_Base::ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog)
 {
 	// Validate any bone references we have
-	for(const TPair<UStructProperty*, const void*> PropertyValuePair : TPropertyValueRange<UStructProperty>(GetClass(), this))
+	for(const TPair<FStructProperty*, const void*> PropertyValuePair : TPropertyValueRange<FStructProperty>(GetClass(), this))
 	{
 		if(PropertyValuePair.Key->Struct == FBoneReference::StaticStruct())
 		{
@@ -94,7 +94,7 @@ void UAnimGraphNode_Base::InternalPinCreation(TArray<UEdGraphPin*>* OldPins)
 	PreloadRequiredAssets();
 
 	const UAnimationGraphSchema* Schema = GetDefault<UAnimationGraphSchema>();
-	if (const UStructProperty* NodeStruct = GetFNodeProperty())
+	if (const FStructProperty* NodeStruct = GetFNodeProperty())
 	{
 		// Display any currently visible optional pins
 		{
@@ -142,9 +142,9 @@ UScriptStruct* UAnimGraphNode_Base::GetFNodeType() const
 {
 	UScriptStruct* BaseFStruct = FAnimNode_Base::StaticStruct();
 
-	for (TFieldIterator<UProperty> PropIt(GetClass(), EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
+	for (TFieldIterator<FProperty> PropIt(GetClass(), EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
 	{
-		if (UStructProperty* StructProp = Cast<UStructProperty>(*PropIt))
+		if (FStructProperty* StructProp = CastField<FStructProperty>(*PropIt))
 		{
 			if (StructProp->Struct->IsChildOf(BaseFStruct))
 			{
@@ -156,13 +156,13 @@ UScriptStruct* UAnimGraphNode_Base::GetFNodeType() const
 	return NULL;
 }
 
-UStructProperty* UAnimGraphNode_Base::GetFNodeProperty() const
+FStructProperty* UAnimGraphNode_Base::GetFNodeProperty() const
 {
 	UScriptStruct* BaseFStruct = FAnimNode_Base::StaticStruct();
 
-	for (TFieldIterator<UProperty> PropIt(GetClass(), EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
+	for (TFieldIterator<FProperty> PropIt(GetClass(), EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
 	{
-		if (UStructProperty* StructProp = Cast<UStructProperty>(*PropIt))
+		if (FStructProperty* StructProp = CastField<FStructProperty>(*PropIt))
 		{
 			if (StructProp->Struct->IsChildOf(BaseFStruct))
 			{
@@ -210,7 +210,7 @@ FText UAnimGraphNode_Base::GetMenuCategory() const
 	return FText::FromString(GetNodeCategory());
 }
 
-void UAnimGraphNode_Base::GetPinAssociatedProperty(const UScriptStruct* NodeType, const UEdGraphPin* InputPin, UProperty*& OutProperty, int32& OutIndex) const
+void UAnimGraphNode_Base::GetPinAssociatedProperty(const UScriptStruct* NodeType, const UEdGraphPin* InputPin, FProperty*& OutProperty, int32& OutIndex) const
 {
 	OutProperty = nullptr;
 	OutIndex = INDEX_NONE;
@@ -222,7 +222,7 @@ void UAnimGraphNode_Base::GetPinAssociatedProperty(const UScriptStruct* NodeType
 	{
 		const FString ArrayName = PinNameStr.Left(UnderscoreIndex);
 
-		if (UArrayProperty* ArrayProperty = FindField<UArrayProperty>(NodeType, *ArrayName))
+		if (FArrayProperty* ArrayProperty = FindField<FArrayProperty>(NodeType, *ArrayName))
 		{
 			const int32 ArrayIndex = FCString::Atoi(*(PinNameStr.Mid(UnderscoreIndex + 1)));
 
@@ -234,7 +234,7 @@ void UAnimGraphNode_Base::GetPinAssociatedProperty(const UScriptStruct* NodeType
 	// If the array check failed or we have no underscores
 	if(OutProperty == nullptr)
 	{
-		if (UProperty* Property = FindField<UProperty>(NodeType, InputPin->PinName))
+		if (FProperty* Property = FindField<FProperty>(NodeType, InputPin->PinName))
 		{
 			OutProperty = Property;
 			OutIndex = INDEX_NONE;
@@ -255,9 +255,9 @@ FPoseLinkMappingRecord UAnimGraphNode_Base::GetLinkIDLocation(const UScriptStruc
 			{
 				const FString ArrayName = SourcePinName.Left(UnderscoreIndex);
 
-				if (UArrayProperty* ArrayProperty = FindField<UArrayProperty>(NodeType, *ArrayName))
+				if (FArrayProperty* ArrayProperty = FindField<FArrayProperty>(NodeType, *ArrayName))
 				{
-					if (UStructProperty* Property = Cast<UStructProperty>(ArrayProperty->Inner))
+					if (FStructProperty* Property = CastField<FStructProperty>(ArrayProperty->Inner))
 					{
 						if (Property->Struct->IsChildOf(FPoseLinkBase::StaticStruct()))
 						{
@@ -269,7 +269,7 @@ FPoseLinkMappingRecord UAnimGraphNode_Base::GetLinkIDLocation(const UScriptStruc
 			}
 			else
 			{
-				if (UStructProperty* Property = FindField<UStructProperty>(NodeType, SourcePin->PinName))
+				if (FStructProperty* Property = FindField<FStructProperty>(NodeType, SourcePin->PinName))
 				{
 					if (Property->Struct->IsChildOf(FPoseLinkBase::StaticStruct()))
 					{
@@ -283,7 +283,7 @@ FPoseLinkMappingRecord UAnimGraphNode_Base::GetLinkIDLocation(const UScriptStruc
 	return FPoseLinkMappingRecord::MakeInvalid();
 }
 
-void UAnimGraphNode_Base::CreatePinsForPoseLink(UProperty* PoseProperty, int32 ArrayIndex)
+void UAnimGraphNode_Base::CreatePinsForPoseLink(FProperty* PoseProperty, int32 ArrayIndex)
 {
 	UScriptStruct* A2PoseStruct = FA2Pose::StaticStruct();
 
@@ -417,11 +417,11 @@ FString UAnimGraphNode_Base::GetPinMetaData(FName InPinName, FName InKey)
 	if(MetaData.IsEmpty())
 	{
 		// Check properties of our anim node
-		if(UStructProperty* NodeStructProperty = GetFNodeProperty())
+		if(FStructProperty* NodeStructProperty = GetFNodeProperty())
 		{
-			for (TFieldIterator<UProperty> It(NodeStructProperty->Struct); It; ++It)
+			for (TFieldIterator<FProperty> It(NodeStructProperty->Struct); It; ++It)
 			{
-				const UProperty* Property = *It;
+				const FProperty* Property = *It;
 				if (Property && Property->GetFName() == InPinName)
 				{
 					return Property->GetMetaData(InKey);

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -38,11 +38,11 @@ public:
 		return Operation;
 	}
 
-	UProperty* GetVariableProperty()
+	FProperty* GetVariableProperty()
 	{
 		if (VariableSource.IsValid() && VariableName != NAME_None)
 		{
-			return FindField<UProperty>(VariableSource.Get(), VariableName);
+			return FindField<FProperty>(VariableSource.Get(), VariableName);
 		}
 		return nullptr;
 	}
@@ -73,7 +73,7 @@ protected:
 	/** Called when user selects to create a Setter for the variable */
 	static void MakeSetter(FNodeConstructionParams InParams);
 	/** Called too check if we can execute a setter on a given property */
-	static bool CanExecuteMakeSetter(FNodeConstructionParams InParams, UProperty* InVariableProperty);
+	static bool CanExecuteMakeSetter(FNodeConstructionParams InParams, FProperty* InVariableProperty);
 
 	/**
 	 * Test new variable type against existing links for node and get any links that will break
@@ -82,10 +82,10 @@ protected:
 	 * @param	NewVariableProperty			the property for the new variable type 
 	 * @param	OutBroken						All of the links which are NOT compatible with the new type
 	 */
-	void GetLinksThatWillBreak(UEdGraphNode* Node, UProperty* NewVariableProperty, TArray<class UEdGraphPin*>& OutBroken);
+	void GetLinksThatWillBreak(UEdGraphNode* Node, FProperty* NewVariableProperty, TArray<class UEdGraphPin*>& OutBroken);
 
 	/** Indicates if replacing the variable node, with the new property will require any links to be broken*/
-	bool WillBreakLinks( UEdGraphNode* Node, UProperty* NewVariableProperty ) 
+	bool WillBreakLinks( UEdGraphNode* Node, FProperty* NewVariableProperty ) 
 	{
 		TArray<class UEdGraphPin*> BadLinks;
 		GetLinksThatWillBreak(Node,NewVariableProperty,BadLinks);
@@ -98,7 +98,7 @@ protected:
 	 * @param InVariableProperty		The variable property to check with
 	 * @param InGraph					The graph to check against placing the variable
 	 */
-	bool CanVariableBeDropped(const UProperty* InVariableProperty, const UEdGraph& InGraph) const;
+	bool CanVariableBeDropped(const FProperty* InVariableProperty, const UEdGraph& InGraph) const;
 
 
 	/** Returns the local variable's scope, if any */

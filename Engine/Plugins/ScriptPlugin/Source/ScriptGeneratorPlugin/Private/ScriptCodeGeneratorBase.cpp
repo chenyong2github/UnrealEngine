@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ScriptCodeGeneratorBase.h"
 #include "Misc/FileHelper.h"
@@ -70,7 +70,7 @@ FString FScriptCodeGeneratorBase::GetClassNameCPP(UClass* Class)
 	return FString::Printf(TEXT("%s%s"), Class->GetPrefixCPP(), *Class->GetName());
 }
 
-FString FScriptCodeGeneratorBase::GetPropertyTypeCPP(UProperty* Property, uint32 PortFlags /*= 0*/)
+FString FScriptCodeGeneratorBase::GetPropertyTypeCPP(FProperty* Property, uint32 PortFlags /*= 0*/)
 {
 	static const FString EnumDecl(TEXT("enum "));
 	static const FString StructDecl(TEXT("struct "));
@@ -107,16 +107,16 @@ FString FScriptCodeGeneratorBase::GenerateFunctionDispatch(UFunction* Function)
 	{
 		Params += TEXT("\tstruct FDispatchParams\r\n\t{\r\n");
 
-		for (TFieldIterator<UProperty> ParamIt(Function); ParamIt; ++ParamIt)
+		for (TFieldIterator<FProperty> ParamIt(Function); ParamIt; ++ParamIt)
 		{
-			UProperty* Param = *ParamIt;
+			FProperty* Param = *ParamIt;
 			Params += FString::Printf(TEXT("\t\t%s %s;\r\n"), *GetPropertyTypeCPP(Param, CPPF_ArgumentOrReturnValue), *Param->GetName());
 		}
 		Params += TEXT("\t} Params;\r\n");
 		int32 ParamIndex = 0;
-		for (TFieldIterator<UProperty> ParamIt(Function); ParamIt; ++ParamIt, ++ParamIndex)
+		for (TFieldIterator<FProperty> ParamIt(Function); ParamIt; ++ParamIt, ++ParamIndex)
 		{
-			UProperty* Param = *ParamIt;
+			FProperty* Param = *ParamIt;
 			Params += FString::Printf(TEXT("\tParams.%s = %s;\r\n"), *Param->GetName(), *InitializeFunctionDispatchParam(Function, Param, ParamIndex));
 		}
 	}
@@ -134,9 +134,9 @@ FString FScriptCodeGeneratorBase::GenerateFunctionDispatch(UFunction* Function)
 	return Params;
 }
 
-FString FScriptCodeGeneratorBase::InitializeFunctionDispatchParam(UFunction* Function, UProperty* Param, int32 ParamIndex)
+FString FScriptCodeGeneratorBase::InitializeFunctionDispatchParam(UFunction* Function, FProperty* Param, int32 ParamIndex)
 {
-	if (Param->IsA(UObjectPropertyBase::StaticClass()) || Param->IsA(UClassProperty::StaticClass()))
+	if (Param->IsA(FObjectPropertyBase::StaticClass()) || Param->IsA(FClassProperty::StaticClass()))
 	{
 		return TEXT("NULL");
 	}
@@ -168,15 +168,15 @@ bool FScriptCodeGeneratorBase::CanExportFunction(const FString& ClassNameCPP, UC
 	}
 
 	// Reject if any of the parameter types is unsupported yet
-	for (TFieldIterator<UProperty> ParamIt(Function); ParamIt; ++ParamIt)
+	for (TFieldIterator<FProperty> ParamIt(Function); ParamIt; ++ParamIt)
 	{
-		UProperty* Param = *ParamIt;
-		if (Param->IsA(UArrayProperty::StaticClass()) ||
+		FProperty* Param = *ParamIt;
+		if (Param->IsA(FArrayProperty::StaticClass()) ||
 			  Param->ArrayDim > 1 ||
-			  Param->IsA(UDelegateProperty::StaticClass()) ||
-				Param->IsA(UMulticastDelegateProperty::StaticClass()) ||
-			  Param->IsA(UWeakObjectProperty::StaticClass()) ||
-			  Param->IsA(UInterfaceProperty::StaticClass()))
+			  Param->IsA(FDelegateProperty::StaticClass()) ||
+				Param->IsA(FMulticastDelegateProperty::StaticClass()) ||
+			  Param->IsA(FWeakObjectProperty::StaticClass()) ||
+			  Param->IsA(FInterfaceProperty::StaticClass()))
 		{
 			return false;
 		}
@@ -185,7 +185,7 @@ bool FScriptCodeGeneratorBase::CanExportFunction(const FString& ClassNameCPP, UC
 	return true;
 }
 
-bool FScriptCodeGeneratorBase::CanExportProperty(const FString& ClassNameCPP, UClass* Class, UProperty* Property)
+bool FScriptCodeGeneratorBase::CanExportProperty(const FString& ClassNameCPP, UClass* Class, FProperty* Property)
 {
 	// Property must be DLL exported
 	if (!(Class->ClassFlags & CLASS_RequiredAPI))
@@ -203,13 +203,13 @@ bool FScriptCodeGeneratorBase::CanExportProperty(const FString& ClassNameCPP, UC
 
 
 	// Reject if it's one of the unsupported types (yet)
-	if (Property->IsA(UArrayProperty::StaticClass()) ||
+	if (Property->IsA(FArrayProperty::StaticClass()) ||
 		Property->ArrayDim > 1 ||
-		Property->IsA(UDelegateProperty::StaticClass()) ||
-		Property->IsA(UMulticastDelegateProperty::StaticClass()) ||
-		Property->IsA(UWeakObjectProperty::StaticClass()) ||
-		Property->IsA(UInterfaceProperty::StaticClass()) ||
-		Property->IsA(UStructProperty::StaticClass()))
+		Property->IsA(FDelegateProperty::StaticClass()) ||
+		Property->IsA(FMulticastDelegateProperty::StaticClass()) ||
+		Property->IsA(FWeakObjectProperty::StaticClass()) ||
+		Property->IsA(FInterfaceProperty::StaticClass()) ||
+		Property->IsA(FStructProperty::StaticClass()))
 	{
 		return false;
 	}

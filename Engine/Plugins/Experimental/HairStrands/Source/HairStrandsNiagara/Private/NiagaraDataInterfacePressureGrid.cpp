@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfacePressureGrid.h"
 #include "NiagaraShader.h"
@@ -148,7 +148,6 @@ struct FNDIPressureGridParametersCS : public FNiagaraDataInterfaceParametersCS
 			static_cast<FNDIPressureGridProxy*>(Context.DataInterface);
 		FNDIPressureGridData* ProxyData =
 			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstance);
-		ensure(ProxyData);
 
 		if (ProxyData != nullptr)
 		{
@@ -216,18 +215,10 @@ void FNDIPressureGridProxy::DeferredDestroy()
 void FNDIPressureGridProxy::ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance)
 {
 	FNDIPressureGridData* SourceData = static_cast<FNDIPressureGridData*>(PerInstanceData);
-	FNDIPressureGridData* TargetData = SystemInstancesToProxyData.Find(Instance);
+	FNDIPressureGridData& TargetData = SystemInstancesToProxyData.FindOrAdd(Instance);
 
-	ensure(TargetData);
-	if (TargetData)
-	{
-		TargetData->WorldTransform = SourceData->WorldTransform;
-		TargetData->GridOrigin = SourceData->GridOrigin;
-	}
-	else
-	{
-		UE_LOG(LogPressureGrid, Log, TEXT("ConsumePerInstanceDataFromGameThread() ... could not find %s"), *FNiagaraUtilities::SystemInstanceIDToString(Instance));
-	}
+	TargetData.WorldTransform = SourceData->WorldTransform;
+	TargetData.GridOrigin = SourceData->GridOrigin;
 }
 
 void FNDIPressureGridProxy::InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance, FNDIPressureGridBuffer* CurrentGridBuffer,
@@ -235,19 +226,12 @@ FNDIPressureGridBuffer* DestinationGridBuffer, const FVector4& GridOrigin, const
 {
 	check(IsInRenderingThread());
 
-	FNDIPressureGridData* TargetData = SystemInstancesToProxyData.Find(SystemInstance);
-	if (TargetData != nullptr)
-	{
-		DeferredDestroyList.Remove(SystemInstance);
-	}
-	else
-	{
-		TargetData = &SystemInstancesToProxyData.Add(SystemInstance);
-	}
-	TargetData->CurrentGridBuffer = CurrentGridBuffer;
-	TargetData->DestinationGridBuffer = DestinationGridBuffer;
-	TargetData->GridOrigin = GridOrigin;
-	TargetData->GridSize = GridSize;
+	FNDIPressureGridData& TargetData = SystemInstancesToProxyData.FindOrAdd(SystemInstance);
+	
+	TargetData.CurrentGridBuffer = CurrentGridBuffer;
+	TargetData.DestinationGridBuffer = DestinationGridBuffer;
+	TargetData.GridOrigin = GridOrigin;
+	TargetData.GridSize = GridSize;
 }
 
 void FNDIPressureGridProxy::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
@@ -329,7 +313,7 @@ void UNiagaraDataInterfacePressureGrid::DestroyPerInstanceData(void* PerInstance
 		{
 			CurrentGridBuffer->ReleaseResource();
 			DestinationGridBuffer->ReleaseResource();
-			ThisProxy->DestroyPerInstanceData(Batcher, InstanceID);
+			ThisProxy->SystemInstancesToProxyData.Remove(InstanceID);
 			delete CurrentGridBuffer;
 			delete DestinationGridBuffer;
 		}

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Box.h"
@@ -51,7 +51,7 @@ namespace Chaos
 		{
 			this->Type = InSteal.Type;
 			this->bIsConvex = InSteal.bIsConvex;
-			this->bIgnoreAnalyticCollisions = InSteal.bIgnoreAnalyticCollisions;
+			this->bDoCollide = InSteal.bDoCollide;
 			this->bHasBoundingBox = InSteal.bHasBoundingBox;
 			Center = MoveTemp(InSteal.Center);
 			Radius = InSteal.Radius;
@@ -198,7 +198,7 @@ namespace Chaos
 			return Radius;
 		}
 
-		virtual const TBox<T, d>& BoundingBox() const 
+		virtual const TAABB<T, d>& BoundingBox() const 
 		{
 			return LocalBoundingBox; 
 		}
@@ -253,7 +253,7 @@ namespace Chaos
 			Ar << Center << Radius;
 			if (Ar.IsLoading())
 			{
-				LocalBoundingBox = TBox<T, d>(Center - Radius, Center + Radius);
+				LocalBoundingBox = TAABB<T, d>(Center - Radius, Center + Radius);
 			}
 		}
 
@@ -333,7 +333,7 @@ namespace Chaos
 	private:
 		TVector<T, d> Center;
 		T Radius;
-		TBox<T, d> LocalBoundingBox;
+		TAABB<T, d> LocalBoundingBox;
 
 	private:
 

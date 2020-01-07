@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -34,7 +34,7 @@ protected:
 	/** Exports a wrapper function */
 	FString ExportFunction(const FString& ClassNameCPP, UClass* Class, UFunction* Function);
 	/** Exports a wrapper functions for properties */
-	FString ExportProperty(const FString& ClassNameCPP, UClass* Class, UProperty* Property, int32 PropertyIndex);
+	FString ExportProperty(const FString& ClassNameCPP, UClass* Class, FProperty* Property, int32 PropertyIndex);
 	/** Exports additional class glue code (like ctor/dtot) */
 	FString ExportAdditionalClassGlue(const FString& ClassNameCPP, UClass* Class);
 	/** Generates wrapper function declaration */
@@ -44,15 +44,15 @@ protected:
 	/** Generates code responsible for getting the object pointer from script context */
 	FString GenerateObjectDeclarationFromContext(const FString& ClassNameCPP, UClass* Class);
 	/** Handles the wrapped function's return value */
-	FString GenerateReturnValueHandler(const FString& ClassNameCPP, UClass* Class, UFunction* Function, UProperty* ReturnValue, const FString& ReturnValueName);
+	FString GenerateReturnValueHandler(const FString& ClassNameCPP, UClass* Class, UFunction* Function, FProperty* ReturnValue, const FString& ReturnValueName);
 	/** Check if a property type is supported */
-	bool IsPropertyTypeSupported(UProperty* Property) const;
+	bool IsPropertyTypeSupported(FProperty* Property) const;
 
 	// FScriptCodeGeneratorBase interface
 	virtual bool CanExportClass(UClass* Class) override;
 	virtual bool CanExportFunction(const FString& ClassNameCPP, UClass* Class, UFunction* Function) override;
-	virtual bool CanExportProperty(const FString& ClassNameCPP, UClass* Class, UProperty* Property) override;
-	virtual FString InitializeFunctionDispatchParam(UFunction* Function, UProperty* Param, int32 ParamIndex) override;
+	virtual bool CanExportProperty(const FString& ClassNameCPP, UClass* Class, FProperty* Property) override;
+	virtual FString InitializeFunctionDispatchParam(UFunction* Function, FProperty* Param, int32 ParamIndex) override;
 
 public:
 

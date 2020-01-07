@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -33,7 +33,7 @@ public:
 	TSharedPtr<FBaseTimingTrack> FindChildTrack(uint64 InObjectId, TFunctionRef<bool(const FBaseTimingTrack& InTrack)> Callback) const;
 
 	/** Helper to draw the name for a timing track (uses indentation etc.) */
-	void DrawHeaderForTimingTrack(const ITimingTrackDrawContext& InContext, const FTimingEventsTrack& InTrack) const;
+	void DrawHeaderForTimingTrack(const ITimingTrackDrawContext& InContext, const FBaseTimingTrack& InTrack, bool bUsePreallocatedLayers) const;
 
 	/** Access the outer timing track */
 	TSharedRef<FBaseTimingTrack> GetTimingTrack() const { return TimingTrack.AsShared(); }
@@ -65,6 +65,12 @@ template <class Base>
 class TGameplayTrackMixin : public Base
 {
 public:
+	TGameplayTrackMixin(uint64 InObjectId, const FName& InSubType, const FText& InName)
+		: Base(InSubType, InName.ToString())
+		, GameplayTrack(*this, InObjectId)
+	{
+	}
+
 	TGameplayTrackMixin(uint64 InObjectId, const FName& InType, const FName& InSubType, const FText& InName)
 		: Base(InType, InSubType, InName.ToString())
 		, GameplayTrack(*this, InObjectId)

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "ParserHelper.h"
@@ -18,12 +18,13 @@
  *			is declared in a package that is already compiled and has had its
  *			source stripped)
  */
-FTokenData* FClassMetaData::FindTokenData( UProperty* Prop )
+FTokenData* FClassMetaData::FindTokenData( FProperty* Prop )
 {
 	check(Prop);
 
 	FTokenData* Result = nullptr;
-	UObject* Outer = Prop->GetOuter();
+	UObject* Outer = Prop->GetOwner<UObject>();
+	check(Outer);
 	UClass* OuterClass = nullptr;
 	if (Outer->IsA<UStruct>())
 	{
@@ -127,6 +128,7 @@ const TCHAR* FPropertyBase::GetPropertyTypeText( EPropertyType Type )
 		CASE_TEXT(CPT_LazyObjectReference);
 		CASE_TEXT(CPT_Map);
 		CASE_TEXT(CPT_Set);
+		CASE_TEXT(CPT_FieldPath);
 		CASE_TEXT(CPT_MAX);
 	}
 
@@ -158,12 +160,14 @@ void FToken::Clone( const FToken& Other )
 
 /////////////////////////////////////////////////////
 // FAdvancedDisplayParameterHandler
+static const FName NAME_AdvancedDisplay(TEXT("AdvancedDisplay"));
+
 FAdvancedDisplayParameterHandler::FAdvancedDisplayParameterHandler(const TMap<FName, FString>* MetaData)
 	: NumberLeaveUnmarked(-1), AlreadyLeft(0), bUseNumber(false)
 {
 	if(MetaData)
 	{
-		const FString* FoundString = MetaData->Find(FName(TEXT("AdvancedDisplay")));
+		const FString* FoundString = MetaData->Find(NAME_AdvancedDisplay);
 		if(FoundString)
 		{
 			FoundString->ParseIntoArray(ParametersNames, TEXT(","), true);
@@ -260,7 +264,7 @@ FClassMetaData* FCompilerMetadataManager::AddClassData(UStruct* Struct, FUnrealS
 	return pClassData->Get();
 }
 
-FTokenData* FPropertyData::Set(UProperty* InKey, const FTokenData& InValue, FUnrealSourceFile* UnrealSourceFile)
+FTokenData* FPropertyData::Set(FProperty* InKey, const FTokenData& InValue, FUnrealSourceFile* UnrealSourceFile)
 {
 	FTokenData* Result = NULL;
 
@@ -282,21 +286,31 @@ FTokenData* FPropertyData::Set(UProperty* InKey, const FTokenData& InValue, FUnr
 const TCHAR* FNameLookupCPP::GetNameCPP(UStruct* Struct, bool bForceInterface /*= false */)
 {
 	TMap<UStruct*, TCHAR*>& NameMap = (bForceInterface ? InterfaceNameMap : StructNameMap);
+	FRWScopeLock Lock(bForceInterface ? InterfaceNameLock : StructNameLock, SLT_ReadOnly);
 
 	TCHAR* NameCPP = NameMap.FindRef(Struct);
-	if (NameCPP)
+	if (NameCPP == nullptr)
 	{
-		return NameCPP;
+		const FString TempName = FString::Printf(TEXT("%s%s"), (bForceInterface ? TEXT("I") : Struct->GetPrefixCPP()), *Struct->GetName());
+		const int32 StringLength = TempName.Len();
+
+		NameCPP = new TCHAR[StringLength + 1];
+		FCString::Strcpy(NameCPP, StringLength + 1, *TempName);
+		NameCPP[StringLength] = 0;
+
+		Lock.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
+
+		// Check the map again in case another thread had also been waiting on writing this data and got the write lock first
+		if (TCHAR* NameInMap = NameMap.FindRef(Struct))
+		{
+			delete NameCPP;
+			NameCPP = NameInMap;
+		}
+		else
+		{
+			NameMap.Add(Struct, NameCPP);
+		}
 	}
-
-	const FString TempName = FString::Printf(TEXT("%s%s"), (bForceInterface ? TEXT("I") : Struct->GetPrefixCPP()), *Struct->GetName());
-	const int32 StringLength = TempName.Len();
-
-	NameCPP = new TCHAR[StringLength + 1];
-	FCString::Strcpy(NameCPP, StringLength + 1, *TempName);
-	NameCPP[StringLength] = 0;
-
-	NameMap.Add(Struct, NameCPP);
 
 	return NameCPP;
 }

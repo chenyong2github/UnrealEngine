@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	BlendSpaceBase.cpp: Base class for blend space objects
@@ -69,7 +69,7 @@ void UBlendSpaceBase::Serialize(FArchive& Ar)
 }
 
 #if WITH_EDITOR
-void UBlendSpaceBase::PreEditChange(UProperty* PropertyAboutToChange)
+void UBlendSpaceBase::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	Super::PreEditChange(PropertyAboutToChange);
 

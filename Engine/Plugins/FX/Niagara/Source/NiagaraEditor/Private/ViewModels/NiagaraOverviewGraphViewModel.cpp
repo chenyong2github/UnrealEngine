@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "Framework/Commands/GenericCommands.h"
@@ -134,6 +134,11 @@ void FNiagaraOverviewGraphViewModel::SetupCommands()
 		FGenericCommands::Get().Duplicate,
 		FExecuteAction::CreateRaw(this, &FNiagaraOverviewGraphViewModel::DuplicateNodes),
 		FCanExecuteAction::CreateRaw(this, &FNiagaraOverviewGraphViewModel::CanDuplicateNodes));
+
+	Commands->MapAction(
+		FGenericCommands::Get().Rename,
+		FExecuteAction::CreateRaw(this, &FNiagaraOverviewGraphViewModel::RenameNode),
+		FCanExecuteAction::CreateRaw(this, &FNiagaraOverviewGraphViewModel::CanRenameNode));
 }
 
 void FNiagaraOverviewGraphViewModel::SelectAllNodes()
@@ -339,6 +344,49 @@ void FNiagaraOverviewGraphViewModel::DuplicateNodes()
 bool FNiagaraOverviewGraphViewModel::CanDuplicateNodes() const
 {
 	return CanCopyNodes();
+}
+
+void FNiagaraOverviewGraphViewModel::RenameNode()
+{
+	UEdGraph* Graph = GetGraph();
+	if (Graph != nullptr)
+	{
+		const TSet<UObject*>& SelectedNodes = NodeSelection->GetSelectedObjects();
+		if (SelectedNodes.Num() > 0)
+		{
+			for (UObject* SelectedNode : SelectedNodes)
+			{
+				UNiagaraOverviewNode* SelectedOverviewNode = Cast<UNiagaraOverviewNode>(SelectedNode);
+				if (SelectedOverviewNode != nullptr)
+				{
+					SelectedOverviewNode->RequestRename();
+					return;
+				}
+			}
+		}
+	}
+}
+
+bool FNiagaraOverviewGraphViewModel::CanRenameNode() const
+{
+	UEdGraph* Graph = GetGraph();
+	if (Graph != nullptr)
+	{
+		const TSet<UObject*>& SelectedNodes = NodeSelection->GetSelectedObjects();
+		if (SelectedNodes.Num() == 1)
+		{
+			for (UObject* SelectedNode : SelectedNodes)
+			{
+				UNiagaraOverviewNode* SelectedOverviewNode = Cast<UNiagaraOverviewNode>(SelectedNode);
+				if (SelectedOverviewNode != nullptr && SelectedOverviewNode->GetCanRenameNode())
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
 }
 
 FText FNiagaraOverviewGraphViewModel::GetDisplayNameInternal() const

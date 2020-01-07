@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/ParticleHandle.h"
@@ -50,7 +50,7 @@ namespace Chaos
 		template<typename T_PARTICLEHANDLE>
 		static inline FRigidTransform3 GetActorWorldTransform(T_PARTICLEHANDLE Particle)
 		{
-			return FRigidTransform3(Particle->P(), Particle->Q());
+			return FRigidTransform3(Particle->X(), Particle->R());
 		}
 
 		template<typename T_PARTICLEHANDLE>

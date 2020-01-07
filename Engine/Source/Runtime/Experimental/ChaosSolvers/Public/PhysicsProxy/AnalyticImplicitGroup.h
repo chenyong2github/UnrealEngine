@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Box.h"
@@ -123,7 +123,7 @@ public:
 
 		const int32 Num = NumStructures();
 		TArray<Chaos::TMassProperties<float, 3>> MPArray;
-		TArray<Chaos::TBox<float, 3>> BBoxes;
+		TArray<Chaos::TAABB<float, 3>> BBoxes;
 		MPArray.SetNum(Num);
 		BBoxes.SetNum(Num);
 
@@ -131,7 +131,7 @@ public:
 		for (Chaos::TSphere<float, 3>* Sphere : Spheres)
 		{
 			const FTransform& Xf = Transforms[TransformIndex];
-			BBoxes[TransformIndex] = Sphere->BoundingBox().TransformedBox(Xf);
+			BBoxes[TransformIndex] = Sphere->BoundingBox().TransformedAABB(Xf);
 			Chaos::TMassProperties<float, 3> &MP = MPArray[TransformIndex++];
 			MP.Volume = Sphere->GetVolume();
 			MP.CenterOfMass = Xf.TransformPositionNoScale(Sphere->GetCenterOfMass());
@@ -140,7 +140,7 @@ public:
 		for (Chaos::TBox<float, 3>* Box : Boxes)
 		{
 			const FTransform& Xf = Transforms[TransformIndex];
-			BBoxes[TransformIndex] = Box->BoundingBox().TransformedBox(Xf);
+			BBoxes[TransformIndex] = Box->BoundingBox().TransformedAABB(Xf);
 			Chaos::TMassProperties<float, 3> &MP = MPArray[TransformIndex++];
 			MP.Volume = Box->GetVolume();
 			MP.CenterOfMass = Xf.TransformPositionNoScale(Box->GetCenterOfMass());
@@ -149,7 +149,7 @@ public:
 		for (Chaos::TCapsule<float>* Capsule : Capsules)
 		{
 			const FTransform& Xf = Transforms[TransformIndex];
-			BBoxes[TransformIndex] = Capsule->BoundingBox().TransformedBox(Xf);
+			BBoxes[TransformIndex] = Capsule->BoundingBox().TransformedAABB(Xf);
 			Chaos::TMassProperties<float, 3> &MP = MPArray[TransformIndex++];
 			MP.Volume = Capsule->GetVolume();
 			MP.CenterOfMass = Xf.TransformPositionNoScale(Capsule->GetCenterOfMass());
@@ -158,7 +158,7 @@ public:
 		for (Chaos::TTaperedCylinder<float>* TaperedCylinder : TaperedCylinders)
 		{
 			const FTransform& Xf = Transforms[TransformIndex];
-			BBoxes[TransformIndex] = TaperedCylinder->BoundingBox().TransformedBox(Xf);
+			BBoxes[TransformIndex] = TaperedCylinder->BoundingBox().TransformedAABB(Xf);
 			Chaos::TMassProperties<float, 3> &MP = MPArray[TransformIndex++];
 			MP.Volume = TaperedCylinder->GetVolume();
 			MP.CenterOfMass = Xf.TransformPositionNoScale(TaperedCylinder->GetCenterOfMass());
@@ -167,7 +167,7 @@ public:
 		for (Chaos::FConvex* Convex : ConvexHulls)
 		{
 			const FTransform& Xf = Transforms[TransformIndex];
-			BBoxes[TransformIndex] = Convex->BoundingBox().TransformedBox(Xf);
+			BBoxes[TransformIndex] = Convex->BoundingBox().TransformedAABB(Xf);
 			Chaos::TMassProperties<float, 3> &MP = MPArray[TransformIndex++];
 			MP.Volume = Convex->BoundingBox().GetVolume();
 			MP.CenterOfMass = Xf.TransformPositionNoScale(Convex->BoundingBox().Center());
@@ -176,7 +176,7 @@ public:
 		for (Chaos::TLevelSet<float, 3>* LevelSet : LevelSets)
 		{
 			const FTransform& Xf = Transforms[TransformIndex];
-			BBoxes[TransformIndex] = LevelSet->BoundingBox().TransformedBox(Xf);
+			BBoxes[TransformIndex] = LevelSet->BoundingBox().TransformedAABB(Xf);
 			Chaos::TMassProperties<float, 3> &MP = MPArray[TransformIndex++];
 			MP.Volume = LevelSet->BoundingBox().GetVolume();
 			MP.CenterOfMass = Xf.TransformPositionNoScale(LevelSet->BoundingBox().Center());
@@ -188,13 +188,13 @@ public:
 		// we'd do something more accurate...
 		for (int32 i=0; i < Num-1; i++)
 		{
-			const Chaos::TBox<float, 3>& BoxI = BBoxes[i];
+			const Chaos::TAABB<float, 3>& BoxI = BBoxes[i];
 			for (int32 j = i+1; j < Num; j++)
 			{
-				const Chaos::TBox<float, 3>& BoxJ = BBoxes[j];
+				const Chaos::TAABB<float, 3>& BoxJ = BBoxes[j];
 				if (BoxI.Intersects(BoxJ))
 				{
-					Chaos::TBox<float, 3> BoxIJ = BoxI.GetIntersection(BoxJ);
+					Chaos::TAABB<float, 3> BoxIJ = BoxI.GetIntersection(BoxJ);
 					const float VolIJ = BoxIJ.GetVolume();
 					if (VolIJ > KINDA_SMALL_NUMBER)
 					{
@@ -313,7 +313,7 @@ public:
 			TArray<Chaos::TVector<float, 3>>& Points = CollisionPoints[TransformIndex];
 			if (!Points.Num())
 			{
-				const Chaos::TBox<float, 3>& BBox = Convex->BoundingBox();
+				const Chaos::TAABB<float, 3>& BBox = Convex->BoundingBox();
 				Chaos::TSphere<float, 3> Sphere(BBox.Center(), BBox.Extents().Size() / 2);
 				Points = Sphere.ComputeSamplePoints(ParticlesPerUnitArea, MinParticles, MaxParticles);
 				Chaos::TVector<float, 3> Normal;
@@ -332,7 +332,7 @@ public:
 			TArray<Chaos::TVector<float, 3>>& Points = CollisionPoints[TransformIndex];
 			if (!Points.Num())
 			{
-				const Chaos::TBox<float, 3>& BBox = LevelSet->BoundingBox();
+				const Chaos::TAABB<float, 3>& BBox = LevelSet->BoundingBox();
 				Chaos::TSphere<float, 3> Sphere(BBox.Center(), BBox.Extents().Size() / 2);
 				Points = Sphere.ComputeSamplePoints(ParticlesPerUnitArea, MinParticles, MaxParticles);
 				Chaos::TVector<float, 3> Normal;
@@ -457,7 +457,7 @@ public:
 								Chaos::TRigidTransform<float, 3>(Xf))));
 				}
 			}
-			return new Chaos::TImplicitObjectUnion<float, 3>(MoveTemp(ImplicitObjects));
+			return new Chaos::FImplicitObjectUnion(MoveTemp(ImplicitObjects));
 		}
 	}
 
@@ -480,7 +480,7 @@ protected:
 	template<class TImplicitShape>
 	void CullDeepPoints(TArray<Chaos::TVector<float,3>>& Points, const TImplicitShape& Shape, const FTransform& Xf)
 	{
-		const Chaos::TBox<float, 3>& BBox = Shape.BoundingBox();
+		const Chaos::TAABB<float, 3>& BBox = Shape.BoundingBox();
 		const float Tolerance = -BBox.Extents().Max() / 100.f; // -1/100th the largest dimension
 		if (Xf.Equals(FTransform::Identity))
 		{

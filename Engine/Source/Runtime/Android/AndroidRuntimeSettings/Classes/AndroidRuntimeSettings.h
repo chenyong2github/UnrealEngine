@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -602,7 +602,7 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Project SDK Override", Meta = (DisplayName = "NDK API Level (specific version or 'latest' - see tooltip)"))
 	FString NDKAPILevelOverride;
 
-	virtual void PostReloadConfig(class UProperty* PropertyThatWasLoaded) override;
+	virtual void PostReloadConfig(class FProperty* PropertyThatWasLoaded) override;
 
 
 #if WITH_EDITOR

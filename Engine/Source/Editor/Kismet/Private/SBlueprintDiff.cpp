@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SBlueprintDiff.h"
 #include "Widgets/Layout/SSplitter.h"
@@ -40,7 +40,7 @@ public:
 
 FText RightRevision = LOCTEXT("OlderRevisionIdentifier", "Right Revision");
 
-typedef TMap< FName, const UProperty* > FNamePropertyMap;
+typedef TMap< FName, const FProperty* > FNamePropertyMap;
 
 const FName BlueprintTypeMode = FName(TEXT("BlueprintTypeMode"));
 const FName MyBlueprintMode = FName(TEXT("MyBlueprintMode"));
@@ -96,10 +96,10 @@ public:
 
 		if (OldBlueprint && NewBlueprint)
 		{
-			for (TFieldIterator<UProperty> PropertyIt(OldBlueprint->SkeletonGeneratedClass); PropertyIt; ++PropertyIt)
+			for (TFieldIterator<FProperty> PropertyIt(OldBlueprint->SkeletonGeneratedClass); PropertyIt; ++PropertyIt)
 			{
-				UProperty* OldProperty = *PropertyIt;
-				UProperty* NewProperty = NewBlueprint->SkeletonGeneratedClass->FindPropertyByName(OldProperty->GetFName());
+				FProperty* OldProperty = *PropertyIt;
+				FProperty* NewProperty = NewBlueprint->SkeletonGeneratedClass->FindPropertyByName(OldProperty->GetFName());
 
 				FText PropertyText = FText::FromString(OldProperty->GetAuthoredName());
 
@@ -135,10 +135,10 @@ public:
 				}
 			}
 
-			for (TFieldIterator<UProperty> PropertyIt(NewBlueprint->SkeletonGeneratedClass); PropertyIt; ++PropertyIt)
+			for (TFieldIterator<FProperty> PropertyIt(NewBlueprint->SkeletonGeneratedClass); PropertyIt; ++PropertyIt)
 			{
-				UProperty* NewProperty = *PropertyIt;
-				UProperty* OldProperty = OldBlueprint->SkeletonGeneratedClass->FindPropertyByName(NewProperty->GetFName());
+				FProperty* NewProperty = *PropertyIt;
+				FProperty* OldProperty = OldBlueprint->SkeletonGeneratedClass->FindPropertyByName(NewProperty->GetFName());
 
 				if (!OldProperty)
 				{

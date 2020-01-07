@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 SkeletalMeshUpdate.h: Helpers to stream in and out skeletal mesh LODs.
@@ -8,7 +8,7 @@ SkeletalMeshUpdate.h: Helpers to stream in and out skeletal mesh LODs.
 
 #include "CoreMinimal.h"
 #include "Engine/SkeletalMesh.h"
-#include "Async/AsyncFileHandle.h"
+#include "Serialization/BulkData.h"
 
 /**
 * A context used to update or proceed with the next update step.
@@ -193,7 +193,7 @@ protected:
 	void CancelIORequest();
 
 	class IBulkDataIORequest* IORequest;
-	FAsyncFileCallBack AsyncFileCallback;
+	FBulkDataIORequestCallBack AsyncFileCallback;
 	bool bHighPrioIORequest;
 };
 

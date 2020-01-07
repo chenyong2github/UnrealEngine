@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetDataGatherer.h"
 #include "HAL/PlatformProcess.h"
@@ -510,12 +510,24 @@ uint32 FAssetDataGatherer::Run()
 		NumFilesProcessedSinceLastCacheSave = 0;
 	};
 
-	while ( StopTaskCounter.GetValue() == 0 )
+	while ( true )
 	{
 		bool LocalIsDiscoveringFiles = false;
 
 		{
 			FScopeLock CritSectionLock(&WorkerThreadCriticalSection);
+
+			AssetResults.Append(MoveTemp(LocalAssetResults));
+			DependencyResults.Append(MoveTemp(LocalDependencyResults));
+			CookedPackageNamesWithoutAssetDataResults.Append(MoveTemp(LocalCookedPackageNamesWithoutAssetDataResults));
+			LocalAssetResults.Reset();
+			LocalDependencyResults.Reset();
+			LocalCookedPackageNamesWithoutAssetDataResults.Reset();
+
+			if (StopTaskCounter.GetValue() != 0)
+			{
+				break;
+			}
 
 			// Grab any new package files from the background directory scan
 			if (BackgroundPackageFileDiscovery.IsValid())
@@ -524,9 +536,6 @@ uint32 FAssetDataGatherer::Run()
 				LocalIsDiscoveringFiles = bIsDiscoveringFiles;
 			}
 
-			AssetResults.Append(MoveTemp(LocalAssetResults));
-			DependencyResults.Append(MoveTemp(LocalDependencyResults));
-			CookedPackageNamesWithoutAssetDataResults.Append(MoveTemp(LocalCookedPackageNamesWithoutAssetDataResults));
 
 			if (FilesToSearch.Num() > 0)
 			{
@@ -545,10 +554,6 @@ uint32 FAssetDataGatherer::Run()
 				SearchStartTime = 0;
 			}
 		}
-
-		LocalAssetResults.Reset();
-		LocalDependencyResults.Reset();
-		LocalCookedPackageNamesWithoutAssetDataResults.Reset();
 
 		TArray<FDiscoveredPackageFile> LocalFilesToRetry;
 
@@ -628,7 +633,6 @@ uint32 FAssetDataGatherer::Run()
 						bool bCachePackage = bLoadAndSaveCache && LocalCookedPackageNamesWithoutAssetDataResults.Num() == 0;
 						if (bCachePackage)
 						{
-							// Don't store info on cooked packages
 							for (const auto& AssetData : AssetDataFromFile)
 							{
 								if (!!(AssetData->PackageFlags & PKG_FilterEditorOnly))
@@ -703,6 +707,8 @@ uint32 FAssetDataGatherer::Run()
 			}
 		}
 	}
+
+	check(LocalAssetResults.Num() == 0); // All LocalAssetResults needed to be copied to AssetResults to avoid leaking memory
 
 	if ( bLoadAndSaveCache )
 	{
@@ -913,29 +919,38 @@ void FAssetDataGatherer::SerializeCache(FArchive& Ar)
 	else
 	{
 		// allocate one single block for all asset data structs (to reduce tens of thousands of heap allocations)
-		DiskCachedAssetDataMap.Empty(LocalNumAssets);
-
-		for (int32 AssetIndex = 0; AssetIndex < LocalNumAssets; ++AssetIndex)
+		if (Ar.IsError() || LocalNumAssets < 0)
 		{
-			// Load the name first to add the entry to the tmap below
-			FName PackageName;
-			Ar << PackageName;
-			if (Ar.IsError())
+			Ar.SetError();
+		}
+		else
+		{
+			const int32 MinAssetEntrySize = sizeof(int32);
+			int32 MaxReservation = (Ar.TotalSize() - Ar.Tell()) / MinAssetEntrySize;
+			DiskCachedAssetDataMap.Empty(FMath::Min(LocalNumAssets, MaxReservation));
+
+			for (int32 AssetIndex = 0; AssetIndex < LocalNumAssets; ++AssetIndex)
 			{
-				// There was an error reading the cache. Bail out.
-				break;
-			}
+				// Load the name first to add the entry to the tmap below
+				FName PackageName;
+				Ar << PackageName;
+				if (Ar.IsError())
+				{
+					// There was an error reading the cache. Bail out.
+					break;
+				}
 
-			// Add to the cached map
-			FDiskCachedAssetData& CachedAssetData = DiskCachedAssetDataMap.Add(PackageName);
+				// Add to the cached map
+				FDiskCachedAssetData& CachedAssetData = DiskCachedAssetDataMap.Add(PackageName);
 
-			// Now load the data
-			CachedAssetData.SerializeForCache(Ar);
+				// Now load the data
+				CachedAssetData.SerializeForCache(Ar);
 
-			if (Ar.IsError())
-			{
-				// There was an error reading the cache. Bail out.
-				break;
+				if (Ar.IsError())
+				{
+					// There was an error reading the cache. Bail out.
+					break;
+				}
 			}
 		}
 

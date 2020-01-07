@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieScene/MovieSceneLiveLinkStructPropertyBindings.h"
 
@@ -22,10 +22,10 @@ void FLiveLinkStructPropertyBindings::CacheBinding(const UScriptStruct& InStruct
 	PropertyCache.Add(FPropertyNameKey(InStruct.GetFName(), PropertyName), Property);
 }
 
-UProperty* FLiveLinkStructPropertyBindings::GetProperty(const UScriptStruct& InStruct) const
+FProperty* FLiveLinkStructPropertyBindings::GetProperty(const UScriptStruct& InStruct) const
 {
 	FPropertyWrapper FoundProperty = PropertyCache.FindRef(FPropertyNameKey(InStruct.GetFName(), PropertyName));
-	if (UProperty* Property = FoundProperty.GetProperty())
+	if (FProperty* Property = FoundProperty.GetProperty())
 	{
 		return Property;
 	}
@@ -37,37 +37,37 @@ int64 FLiveLinkStructPropertyBindings::GetCurrentValueForEnumAt(int32 InIndex, c
 {
 	FPropertyWrapper FoundProperty = FindOrAdd(InStruct);
 
-	if (UProperty* Property = FoundProperty.GetProperty())
+	if (FProperty* Property = FoundProperty.GetProperty())
 	{
-		if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Property))
+		if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 		{
-			if (UEnumProperty* EnumProperty = Cast<UEnumProperty>(ArrayProperty->Inner))
+			if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(ArrayProperty->Inner))
 			{
 				const void* BaseAddr = FoundProperty.GetPropertyAddress<void>(InSourceAddress, 0);
 				FScriptArrayHelper ArrayHelper(ArrayProperty, BaseAddr);
 				ArrayHelper.ExpandForIndex(InIndex);
 				const void* ValueAddr = ArrayHelper.GetRawPtr(InIndex);
 
-				UNumericProperty* UnderlyingProperty = EnumProperty->GetUnderlyingProperty();
+				FNumericProperty* UnderlyingProperty = EnumProperty->GetUnderlyingProperty();
 				return UnderlyingProperty->GetSignedIntPropertyValue(ValueAddr);
 			}
 			else
 			{
-				UE_LOG(LogLiveLinkMovieScene, Error, TEXT("Mismatch in property binding evaluation. %s is not of type: %s"), *Property->GetName(), *UEnumProperty::StaticClass()->GetName());
+				UE_LOG(LogLiveLinkMovieScene, Error, TEXT("Mismatch in property binding evaluation. %s is not of type: %s"), *Property->GetName(), *FEnumProperty::StaticClass()->GetName());
 			}
+			}
+		else
+		{
+			if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
+			{
+				FNumericProperty* UnderlyingProperty = EnumProperty->GetUnderlyingProperty();
+				const void* ValueAddr = FoundProperty.GetPropertyAddress<void>(InSourceAddress, InIndex);
+				return UnderlyingProperty->GetSignedIntPropertyValue(ValueAddr);
 		}
 		else
 		{
-			if (UEnumProperty* EnumProperty = Cast<UEnumProperty>(Property))
-			{
-				UNumericProperty* UnderlyingProperty = EnumProperty->GetUnderlyingProperty();
-				const void* ValueAddr = FoundProperty.GetPropertyAddress<void>(InSourceAddress, InIndex);
-				return UnderlyingProperty->GetSignedIntPropertyValue(ValueAddr);
-			}
-			else
-			{
-				UE_LOG(LogLiveLinkMovieScene, Error, TEXT("Mismatch in property binding evaluation. %s is not of type: %s"), *Property->GetName(), *UEnumProperty::StaticClass()->GetName());
-			}
+			UE_LOG(LogLiveLinkMovieScene, Error, TEXT("Mismatch in property binding evaluation. %s is not of type: %s"), *Property->GetName(), *FEnumProperty::StaticClass()->GetName());
+		}
 
 		
 		}
@@ -80,39 +80,38 @@ void FLiveLinkStructPropertyBindings::SetCurrentValueForEnumAt(int32 InIndex, co
 {
 	FPropertyWrapper FoundProperty = FindOrAdd(InStruct);
 
-	if (UProperty* Property = FoundProperty.GetProperty())
+	if (FProperty* Property = FoundProperty.GetProperty())
 	{
-		if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Property))
+		if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 		{
-			if (UEnumProperty* EnumProperty = Cast<UEnumProperty>(ArrayProperty->Inner))
+			if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(ArrayProperty->Inner))
 			{
 				const void* BaseAddr = FoundProperty.GetPropertyAddress<void>(InSourceAddress, 0);
 				FScriptArrayHelper ArrayHelper(ArrayProperty, BaseAddr);
 				ArrayHelper.ExpandForIndex(InIndex);
 				void* ValueAddr = ArrayHelper.GetRawPtr(InIndex);
 
-				UNumericProperty* UnderlyingProperty = EnumProperty->GetUnderlyingProperty();
+				FNumericProperty* UnderlyingProperty = EnumProperty->GetUnderlyingProperty();
 				UnderlyingProperty->SetIntPropertyValue(ValueAddr, InValue);
 			}
 			else
 			{
-				UE_LOG(LogLiveLinkMovieScene, Error, TEXT("Mismatch in property binding evaluation. %s is not of type: %s"), *Property->GetName(), *UEnumProperty::StaticClass()->GetName());
+				UE_LOG(LogLiveLinkMovieScene, Error, TEXT("Mismatch in property binding evaluation. %s is not of type: %s"), *Property->GetName(), *FEnumProperty::StaticClass()->GetName());
 			}
 		}
 		else
 		{
-			if (UEnumProperty* EnumProperty = Cast<UEnumProperty>(Property))
+			if (FEnumProperty* EnumProperty = CastFieldChecked<FEnumProperty>(Property))
 			{
-				UNumericProperty* UnderlyingProperty = EnumProperty->GetUnderlyingProperty();
-				void* ValueAddr = FoundProperty.GetPropertyAddress<void>(InSourceAddress, InIndex);
+				FNumericProperty* UnderlyingProperty = EnumProperty->GetUnderlyingProperty();
+				void* ValueAddr = EnumProperty->ContainerPtrToValuePtr<void>(InSourceAddress);
 				UnderlyingProperty->SetIntPropertyValue(ValueAddr, InValue);
 			}
 			else
 			{
-				UE_LOG(LogLiveLinkMovieScene, Error, TEXT("Mismatch in property binding evaluation. %s is not of type: %s"), *Property->GetName(), *UEnumProperty::StaticClass()->GetName());
+				UE_LOG(LogLiveLinkMovieScene, Error, TEXT("Mismatch in property binding evaluation. %s is not of type: %s"), *Property->GetName(), *FEnumProperty::StaticClass()->GetName());
 			}
 		}
-		
 	}
 }
 
@@ -124,11 +123,11 @@ template<> bool FLiveLinkStructPropertyBindings::GetCurrentValue<bool>(const USc
 template<> bool FLiveLinkStructPropertyBindings::GetCurrentValueAt<bool>(int32 InIndex, const UScriptStruct& InStruct, const void* InSourceAddress)
 {
 	FPropertyWrapper FoundProperty = FindOrAdd(InStruct);
-	if (UProperty* Property = FoundProperty.GetProperty())
+	if (FProperty* Property = FoundProperty.GetProperty())
 	{
-		if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Property))
+		if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 		{
-			if (UBoolProperty* BoolProperty = Cast<UBoolProperty>(ArrayProperty->Inner))
+			if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(ArrayProperty->Inner))
 			{
 				const void* BaseAddr = FoundProperty.GetPropertyAddress<void>(InSourceAddress, 0);
 				FScriptArrayHelper ArrayHelper(ArrayProperty, BaseAddr);
@@ -138,21 +137,21 @@ template<> bool FLiveLinkStructPropertyBindings::GetCurrentValueAt<bool>(int32 I
 			}
 			else
 			{
-				UE_LOG(LogLiveLinkMovieScene, Error, TEXT("Mismatch in property binding evaluation. %s is not of type: %s"), *Property->GetName(), *UBoolProperty::StaticClass()->GetName());
+				UE_LOG(LogLiveLinkMovieScene, Error, TEXT("Mismatch in property binding evaluation. %s is not of type: %s"), *Property->GetName(), *FBoolProperty::StaticClass()->GetName());
 			}
 		}
 		else
 		{
-			if (UBoolProperty* BoolProperty = Cast<UBoolProperty>(Property))
+			if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
 			{
 				const uint8* ValuePtr = FoundProperty.GetPropertyAddress<uint8>(InSourceAddress, InIndex);
 				return BoolProperty->GetPropertyValue(ValuePtr);
-			}
-			else
-			{
-				UE_LOG(LogLiveLinkMovieScene, Error, TEXT("Mismatch in property binding evaluation. %s is not of type: %s"), *Property->GetName(), *UBoolProperty::StaticClass()->GetName());
-			}
 		}
+		else
+		{
+			UE_LOG(LogLiveLinkMovieScene, Error, TEXT("Mismatch in property binding evaluation. %s is not of type: %s"), *Property->GetName(), *FBoolProperty::StaticClass()->GetName());
+		}
+	}
 	}
 
 	return false;
@@ -166,11 +165,11 @@ template<> void FLiveLinkStructPropertyBindings::SetCurrentValue<bool>(const USc
 template<> void FLiveLinkStructPropertyBindings::SetCurrentValueAt<bool>(int32 InIndex, const UScriptStruct& InStruct, void* InSourceAddress, TCallTraits<bool>::ParamType InValue)
 {
 	FPropertyWrapper FoundProperty = FindOrAdd(InStruct);
-	if (UProperty* Property = FoundProperty.GetProperty())
+	if (FProperty* Property = FoundProperty.GetProperty())
 	{
-		if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Property))
+		if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 		{
-			if (UBoolProperty* BoolProperty = Cast<UBoolProperty>(ArrayProperty->Inner))
+			if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(ArrayProperty->Inner))
 			{
 				const void* BaseAddr = FoundProperty.GetPropertyAddress<void>(InSourceAddress, 0);
 				FScriptArrayHelper ArrayHelper(ArrayProperty, BaseAddr);
@@ -184,7 +183,7 @@ template<> void FLiveLinkStructPropertyBindings::SetCurrentValueAt<bool>(int32 I
 		}
 		else
 		{
-			if (UBoolProperty* BoolProperty = Cast<UBoolProperty>(Property))
+			if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
 			{
 				uint8* ValuePtr = FoundProperty.GetPropertyAddress<uint8>(InSourceAddress, InIndex);
 				BoolProperty->SetPropertyValue(ValuePtr, InValue);
@@ -196,10 +195,10 @@ template<> void FLiveLinkStructPropertyBindings::SetCurrentValueAt<bool>(int32 I
 FLiveLinkStructPropertyBindings::FPropertyWrapper FLiveLinkStructPropertyBindings::FindPropertyRecursive(const UScriptStruct* InStruct, TArray<FString>& InPropertyNames, uint32 Index, void* ContainerAddress, int32 PreviousDelta)
 {
 	FPropertyWrapper FoundProperty;
-	FoundProperty.Property = FindField<UProperty>(InStruct, *InPropertyNames[Index]);
+	FoundProperty.Property = FindField<FProperty>(InStruct, *InPropertyNames[Index]);
 	FoundProperty.DeltaAddress = PreviousDelta;
 
-	if (UStructProperty* StructProp = Cast<UStructProperty>(FoundProperty.Property))
+	if (FStructProperty* StructProp = CastField<FStructProperty>(FoundProperty.Property.Get()))
 	{
 		if (InPropertyNames.IsValidIndex(Index + 1))
 		{

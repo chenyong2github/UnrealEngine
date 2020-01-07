@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRigEditorModule.h"
 #include "BlueprintActionDatabaseRegistrar.h"
@@ -101,7 +101,7 @@ void FControlRigEditorModule::StartupModule()
 
 	// Register Blueprint editor variable customization
 	FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>("Kismet");
-	BlueprintEditorModule.RegisterVariableCustomization(UProperty::StaticClass(), FOnGetVariableCustomizationInstance::CreateStatic(&FControlRigVariableDetailsCustomization::MakeInstance));
+	BlueprintEditorModule.RegisterVariableCustomization(FProperty::StaticClass(), FOnGetVariableCustomizationInstance::CreateStatic(&FControlRigVariableDetailsCustomization::MakeInstance));
 
 	// Register to fixup newly created BPs
 	FKismetEditorUtilities::RegisterOnBlueprintCreatedCallback(this, UControlRig::StaticClass(), FKismetEditorUtilities::FOnBlueprintCreated::CreateRaw(this, &FControlRigEditorModule::HandleNewBlueprintCreated));
@@ -224,7 +224,7 @@ void FControlRigEditorModule::ShutdownModule()
 	FBlueprintEditorModule* BlueprintEditorModule = FModuleManager::GetModulePtr<FBlueprintEditorModule>("Kismet");
 	if (BlueprintEditorModule)
 	{
-		BlueprintEditorModule->UnregisterVariableCustomization(UProperty::StaticClass());
+		BlueprintEditorModule->UnregisterVariableCustomization(FProperty::StaticClass());
 	}
 
 	FPropertyEditorModule* PropertyEditorModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
@@ -370,7 +370,7 @@ void FControlRigEditorModule::GetInstanceActions(const UControlRigBlueprint* CRB
 		return;
 	}
 
-	for (TFieldIterator<UProperty> PropertyIt(ActionKey, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<FProperty> PropertyIt(ActionKey, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
 	{
 		UBlueprintNodeSpawner* NodeSpawner = UControlRigPropertyNodeSpawner::CreateFromProperty(UControlRigGraphNode::StaticClass(), *PropertyIt);
 		ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);

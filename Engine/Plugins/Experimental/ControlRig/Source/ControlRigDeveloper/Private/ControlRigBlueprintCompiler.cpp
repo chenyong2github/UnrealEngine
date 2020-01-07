@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRigBlueprintCompiler.h"
 #include "ControlRig.h"
@@ -166,7 +166,7 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 			for (const FControlRigOperator& Operator : Operators)
 			{
 				FName UnitName = *Operator.CachedPropertyPath1.ToString();
-				UStructProperty* StructProperty = Cast<UStructProperty>(ControlRigBlueprint->GeneratedClass->FindPropertyByName(UnitName));
+				FStructProperty* StructProperty = CastField<FStructProperty>(ControlRigBlueprint->GeneratedClass->FindPropertyByName(UnitName));
 				if (StructProperty)
 				{
 					if (StructProperty->Struct->IsChildOf(FRigUnit_BeginExecution::StaticStruct()))
@@ -191,7 +191,7 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 			{
 				bool IsMutableUnit = false;
 				bool IsOutputParameter = false;
-				UStructProperty* StructProperty = Cast<UStructProperty>(ControlRigBlueprint->GeneratedClass->FindPropertyByName(UnitNames[UnitIndex]));
+				FStructProperty* StructProperty = CastField<FStructProperty>(ControlRigBlueprint->GeneratedClass->FindPropertyByName(UnitNames[UnitIndex]));
 				if (StructProperty)
 				{
 					if (StructProperty->Struct->IsChildOf(FRigUnitMutable::StaticStruct()))
@@ -243,7 +243,7 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 						{
 							if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
 							{
-								if (UStructProperty* Property = RigNode->GetUnitProperty())
+								if (FStructProperty* Property = RigNode->GetUnitProperty())
 								{
 									if (UnitNamesInCycle.Contains(Property->GetFName()))
 									{
@@ -299,7 +299,7 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 						const int32 PropertyLinkIndex = Pin.Link;
 						const FControlRigBlueprintPropertyLink& Link = PropertyLinks[PropertyLinkIndex];
 						FString SourceUnitName = Link.GetSourceUnitName();
-						UStructProperty* StructProperty = Cast<UStructProperty>(ControlRigBlueprint->GeneratedClass->FindPropertyByName(Node.Name));
+						FStructProperty* StructProperty = CastField<FStructProperty>(ControlRigBlueprint->GeneratedClass->FindPropertyByName(Node.Name));
 						if (StructProperty)
 						{
 							if (StructProperty->Struct->IsChildOf(FRigUnit::StaticStruct()))
@@ -311,7 +311,7 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 						Operators.Add(FControlRigOperator(EControlRigOpCode::Copy, Link.GetSourcePropertyPath(), Link.GetDestPropertyPath()));
 					}
 
-					UStructProperty* StructProperty = Cast<UStructProperty>(ControlRigBlueprint->GeneratedClass->FindPropertyByName(Node.Name));
+					FStructProperty* StructProperty = CastField<FStructProperty>(ControlRigBlueprint->GeneratedClass->FindPropertyByName(Node.Name));
 					if (StructProperty)
 					{
 						if (StructProperty->Struct->IsChildOf(FRigUnit::StaticStruct()))
@@ -378,11 +378,11 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 
 			TArray<FName> PropertyList;
 			UClass* MyClass = ControlRigBlueprint->GeneratedClass;
-			for (TFieldIterator<UProperty> It(MyClass); It; ++It)
+			for (TFieldIterator<FProperty> It(MyClass); It; ++It)
 			{
-				if (UStructProperty* StructProperty = Cast<UStructProperty>(*It))
+				if (FStructProperty* StructProperty = CastField<FStructProperty>(*It))
 				{
-					for (TFieldIterator<UProperty> It2(StructProperty->Struct); It2; ++It2)
+					for (TFieldIterator<FProperty> It2(StructProperty->Struct); It2; ++It2)
 					{
 						if ((*It2)->HasMetaData(TEXT("AllowSourceAccess")))
 						{

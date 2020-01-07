@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataTableCSV.h"
 #include "UObject/UnrealType.h"
@@ -35,13 +35,13 @@ bool FDataTableExporterCSV::WriteTable(const UDataTable& InDataTable)
 	}
 	else
 	{
-		ExportedText += TEXT("---");
+	ExportedText += TEXT("---");
 	}
 
-	UProperty* SkipProperty = nullptr;
-	for (TFieldIterator<UProperty> It(InDataTable.RowStruct); It; ++It)
+	FProperty* SkipProperty = nullptr;
+	for (TFieldIterator<FProperty> It(InDataTable.RowStruct); It; ++It)
 	{
-		UProperty* BaseProp = *It;
+		FProperty* BaseProp = *It;
 		check(BaseProp);
 
 		FString ColumnHeader = DataTableUtils::GetPropertyExportName(BaseProp, DTExportFlags);
@@ -73,16 +73,16 @@ bool FDataTableExporterCSV::WriteTable(const UDataTable& InDataTable)
 	return true;
 }
 
-bool FDataTableExporterCSV::WriteRow(const UScriptStruct* InRowStruct, const void* InRowData, const UProperty* SkipProperty)
+bool FDataTableExporterCSV::WriteRow(const UScriptStruct* InRowStruct, const void* InRowData, const FProperty* SkipProperty)
 {
 	if (!InRowStruct)
 	{
 		return false;
 	}
 
-	for (TFieldIterator<UProperty> It(InRowStruct); It; ++It)
+	for (TFieldIterator<FProperty> It(InRowStruct); It; ++It)
 	{
-		UProperty* BaseProp = *It;
+		FProperty* BaseProp = *It;
 		check(BaseProp);
 
 		if (BaseProp == SkipProperty)
@@ -97,7 +97,7 @@ bool FDataTableExporterCSV::WriteRow(const UScriptStruct* InRowStruct, const voi
 	return true;
 }
 
-bool FDataTableExporterCSV::WriteStructEntry(const void* InRowData, UProperty* InProperty, const void* InPropertyData)
+bool FDataTableExporterCSV::WriteStructEntry(const void* InRowData, FProperty* InProperty, const void* InPropertyData)
 {
 	ExportedText += TEXT(",");
 
@@ -165,7 +165,7 @@ bool FDataTableImporterCSV::ReadTable()
 		}
 	}
 	
-	TArray<UProperty*> ColumnProps = DataTable->GetTablePropertyArray(Rows[0], DataTable->RowStruct, ImportProblems, KeyColumn);
+	TArray<FProperty*> ColumnProps = DataTable->GetTablePropertyArray(Rows[0], DataTable->RowStruct, ImportProblems, KeyColumn);
 
 	// Empty existing data
 	DataTable->EmptyTable();
@@ -201,7 +201,7 @@ bool FDataTableImporterCSV::ReadTable()
 			}
 			else
 			{
-				ImportProblems.Add(FString::Printf(TEXT("Row '%d' missing a name."), RowIdx));
+			ImportProblems.Add(FString::Printf(TEXT("Row '%d' missing a name."), RowIdx));
 			}
 
 			continue;
@@ -226,12 +226,12 @@ bool FDataTableImporterCSV::ReadTable()
 		for(int32 CellIdx = 0; CellIdx < Cells.Num(); CellIdx++)
 		{
 			if (CellIdx == KeyColumn)
-			{
+		{
 				continue;
 			}
 
 			// Try and assign string to data using the column property
-			UProperty* ColumnProp = ColumnProps[CellIdx];
+			FProperty* ColumnProp = ColumnProps[CellIdx];
 			const FString CellValue = Cells[CellIdx];
 			FString Error = DataTableUtils::AssignStringToProperty(CellValue, ColumnProp, RowData);
 

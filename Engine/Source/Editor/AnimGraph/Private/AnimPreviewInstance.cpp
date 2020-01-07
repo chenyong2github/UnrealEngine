@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "AnimPreviewInstance.h"
@@ -1200,6 +1200,12 @@ bool UAnimPreviewInstance::GetForceRetargetBasePose() const
 FAnimInstanceProxy* UAnimPreviewInstance::CreateAnimInstanceProxy()
 {
 	return new FAnimPreviewInstanceProxy(this);
+}
+
+void UAnimPreviewInstance::AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName)
+{
+	FAnimPreviewInstanceProxy& Proxy = GetProxyOnGameThread<FAnimPreviewInstanceProxy>();
+	Proxy.AddImpulseAtLocation(Impulse, Location, BoneName);
 }
 
 void UAnimPreviewInstance::SetDebugSkeletalMeshComponent(USkeletalMeshComponent* InSkeletalMeshComponent)

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
@@ -74,7 +74,7 @@ void FBackendHelperUMG::EmitWidgetInitializationFunctions(FEmitterLocalContext& 
 
 		const FString CppClassName = FEmitHelper::GetCppName(WidgetClass);
 
-		auto GenerateLocalProperty = [](FEmitterLocalContext& InContext, UProperty* InProperty, const uint8* DataPtr) -> FString
+		auto GenerateLocalProperty = [](FEmitterLocalContext& InContext, FProperty* InProperty, const uint8* DataPtr) -> FString
 		{
 			check(InProperty && DataPtr);
 			const FString NativeName = InContext.GenerateUniqueLocalName();
@@ -92,7 +92,7 @@ void FBackendHelperUMG::EmitWidgetInitializationFunctions(FEmitterLocalContext& 
 			Context.AddLine(TEXT("{"));
 			Context.IncreaseIndent();
 
-			const FString LocalNativeName = GenerateLocalProperty(Context, FindFieldChecked<UArrayProperty>(UWidgetBlueprintGeneratedClass::StaticClass(), TEXT("NamedSlots")), reinterpret_cast<const uint8*>(&WidgetClass->NamedSlots));
+			const FString LocalNativeName = GenerateLocalProperty(Context, FindFieldChecked<FArrayProperty>(UWidgetBlueprintGeneratedClass::StaticClass(), TEXT("NamedSlots")), reinterpret_cast<const uint8*>(&WidgetClass->NamedSlots));
 			Context.AddLine(FString::Printf(TEXT("SlotNames.Append(%s);"), *LocalNativeName));
 
 			Context.DecreaseIndent();
@@ -142,8 +142,8 @@ void FBackendHelperUMG::EmitWidgetInitializationFunctions(FEmitterLocalContext& 
 				ensure(!WidgetTreeStr.IsEmpty());
 				ensure(!WidgetClassStr.IsEmpty());
 
-				const FString AnimationsArrayNativeName = GenerateLocalProperty(Context, FindFieldChecked<UArrayProperty>(UWidgetBlueprintGeneratedClass::StaticClass(), TEXT("Animations")), reinterpret_cast<const uint8*>(&WidgetTreeOwningClass->Animations));
-				const FString BindingsArrayNativeName = GenerateLocalProperty(Context, FindFieldChecked<UArrayProperty>(UWidgetBlueprintGeneratedClass::StaticClass(), TEXT("Bindings")), reinterpret_cast<const uint8*>(&WidgetTreeOwningClass->Bindings));
+				const FString AnimationsArrayNativeName = GenerateLocalProperty(Context, FindFieldChecked<FArrayProperty>(UWidgetBlueprintGeneratedClass::StaticClass(), TEXT("Animations")), reinterpret_cast<const uint8*>(&WidgetTreeOwningClass->Animations));
+				const FString BindingsArrayNativeName = GenerateLocalProperty(Context, FindFieldChecked<FArrayProperty>(UWidgetBlueprintGeneratedClass::StaticClass(), TEXT("Bindings")), reinterpret_cast<const uint8*>(&WidgetTreeOwningClass->Bindings));
 
 				Context.AddLine(FString::Printf(TEXT("UWidgetBlueprintGeneratedClass::%s(this, %s, %s, %s, %s, %s, %s);")
 					, GET_FUNCTION_NAME_STRING_CHECKED(UWidgetBlueprintGeneratedClass, InitializeWidgetStatic)

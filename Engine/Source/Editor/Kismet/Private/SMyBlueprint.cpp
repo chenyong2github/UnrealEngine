@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "SMyBlueprint.h"
@@ -556,9 +556,9 @@ void SMyBlueprint::OnCategoryNameCommitted(const FText& InNewText, ETextCommit::
 			{
 				FEdGraphSchemaAction_K2Var* VarAction = (FEdGraphSchemaAction_K2Var*)Actions[i].Get();
 
-				if(UProperty* TargetProperty = VarAction->GetProperty())
+				if(FProperty* TargetProperty = VarAction->GetProperty())
 				{
-					UClass* OuterClass = CastChecked<UClass>(VarAction->GetProperty()->GetOuter());
+					UClass* OuterClass = VarAction->GetProperty()->GetOwnerChecked<UClass>();
 					const bool bIsNativeVar = (OuterClass->ClassGeneratedBy == NULL);
 
 					// If the variable is not native and it's outer is the skeleton generated class, we can rename the category
@@ -1136,9 +1136,9 @@ void SMyBlueprint::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 	TArray<FName> OverridableFunctionNames;
 
 	// Grab Variables
-	for (TFieldIterator<UProperty> PropertyIt(BlueprintObj->SkeletonGeneratedClass, FieldIteratorSuperFlag); PropertyIt; ++PropertyIt)
+	for (TFieldIterator<FProperty> PropertyIt(BlueprintObj->SkeletonGeneratedClass, FieldIteratorSuperFlag); PropertyIt; ++PropertyIt)
 	{
-		UProperty* Property = *PropertyIt;
+		FProperty* Property = *PropertyIt;
 		FName PropName = Property->GetFName();
 
 		// If we're showing only replicated, ignore the rest
@@ -1148,12 +1148,12 @@ void SMyBlueprint::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 		}
 		
 		// Don't show delegate properties, there is special handling for these
-		const bool bMulticastDelegateProp = Property->IsA(UMulticastDelegateProperty::StaticClass());
-		const bool bDelegateProp = (Property->IsA(UDelegateProperty::StaticClass()) || bMulticastDelegateProp);
+		const bool bMulticastDelegateProp = Property->IsA(FMulticastDelegateProperty::StaticClass());
+		const bool bDelegateProp = (Property->IsA(FDelegateProperty::StaticClass()) || bMulticastDelegateProp);
 		const bool bShouldShowAsVar = (!Property->HasAnyPropertyFlags(CPF_Parm) && Property->HasAllPropertyFlags(CPF_BlueprintVisible)) && !bDelegateProp;
 		const bool bShouldShowAsDelegate = !Property->HasAnyPropertyFlags(CPF_Parm) && bMulticastDelegateProp 
 			&& Property->HasAnyPropertyFlags(CPF_BlueprintAssignable | CPF_BlueprintCallable);
-		UObjectPropertyBase* Obj = Cast<UObjectPropertyBase>(Property);
+		FObjectPropertyBase* Obj = CastField<FObjectPropertyBase>(Property);
 		if(!bShouldShowAsVar && !bShouldShowAsDelegate)
 		{
 			continue;
@@ -1184,9 +1184,9 @@ void SMyBlueprint::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 			}
 
 			TSharedPtr<FEdGraphSchemaAction_K2Var> NewVarAction = MakeShareable(new FEdGraphSchemaAction_K2Var(PropertyCategory, PropertyDesc, PropertyTooltip, 0, NodeSectionID::VARIABLE));
-			const UArrayProperty* ArrayProperty = Cast<const UArrayProperty>(Property);
-			const UProperty* TestProperty = ArrayProperty ? ArrayProperty->Inner : Property;
-			NewVarAction->SetVariableInfo(PropertyName, BlueprintObj->SkeletonGeneratedClass, Cast<UBoolProperty>(TestProperty) != nullptr);
+			const FArrayProperty* ArrayProperty = CastField<const FArrayProperty>(Property);
+			const FProperty* TestProperty = ArrayProperty ? ArrayProperty->Inner : Property;
+			NewVarAction->SetVariableInfo(PropertyName, BlueprintObj->SkeletonGeneratedClass, CastField<FBoolProperty>(TestProperty) != nullptr);
 			SortList.AddAction( UserCategoryName, NewVarAction );
 		}
 		else if (bShouldShowAsDelegate)
@@ -1200,7 +1200,7 @@ void SMyBlueprint::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 				SortList.AddAction( UserCategoryName, NewDelegateAction );
 			}
 
-			UClass* OwnerClass = CastChecked<UClass>(Property->GetOuter());
+			UClass* OwnerClass = Property->GetOwnerChecked<UClass>();
 			UEdGraph* Graph = FBlueprintEditorUtils::GetDelegateSignatureGraphByName(BlueprintObj, PropertyName);
 			if (Graph && OwnerClass && (BlueprintObj == OwnerClass->ClassGeneratedBy))
 			{
@@ -1717,7 +1717,7 @@ FReply SMyBlueprint::OnActionDragged( const TArray< TSharedPtr<FEdGraphSchemaAct
 
 				TSharedRef< FKismetFunctionDragDropAction> DragOperation =
 					FKismetFunctionDragDropAction::New(
-						InAction, Function->GetFName(),
+						InAction, (Function ? Function->GetFName() : Event->GetFName()),
 						GetBlueprintObj()->SkeletonGeneratedClass,
 						FMemberReference(),
 						AnalyticsDelegate,
@@ -1781,9 +1781,9 @@ void SMyBlueprint::OnActionSelectedHelper(TSharedPtr<FEdGraphSchemaAction> InAct
 		else if (InAction->GetTypeId() == FEdGraphSchemaAction_K2Delegate::StaticGetTypeId())
 		{
 			FEdGraphSchemaAction_K2Delegate* DelegateAction = (FEdGraphSchemaAction_K2Delegate*)InAction.Get();
-			if (UMulticastDelegateProperty* Property = DelegateAction->GetDelegateProperty())
+			if (FMulticastDelegateProperty* Property = DelegateAction->GetDelegateProperty())
 			{
-				Inspector->ShowDetailsForSingleObject(Property, SKismetInspector::FShowDetailsOptions(FText::FromString(Property->GetName())));
+				Inspector->ShowDetailsForSingleObject(Property->GetUPropertyWrapper(), SKismetInspector::FShowDetailsOptions(FText::FromString(Property->GetName())));
 			}
 		}
 		else if (InAction->GetTypeId() == FEdGraphSchemaAction_K2Var::StaticGetTypeId())
@@ -1793,7 +1793,7 @@ void SMyBlueprint::OnActionSelectedHelper(TSharedPtr<FEdGraphSchemaAction> InAct
 			SKismetInspector::FShowDetailsOptions Options(FText::FromName(VarAction->GetVariableName()));
 			Options.bForceRefresh = true;
 
-			Inspector->ShowDetailsForSingleObject(VarAction->GetProperty(), Options);
+			Inspector->ShowDetailsForSingleObject(VarAction->GetProperty()->GetUPropertyWrapper(), Options);
 			if (InBlueprintEditor.IsValid())
 			{
 				InBlueprintEditor.Pin()->GetReplaceReferencesWidget()->SetSourceVariable(VarAction->GetProperty());
@@ -1805,7 +1805,7 @@ void SMyBlueprint::OnActionSelectedHelper(TSharedPtr<FEdGraphSchemaAction> InAct
 
 			SKismetInspector::FShowDetailsOptions Options(FText::FromName(VarAction->GetVariableName()));
 
-			Inspector->ShowDetailsForSingleObject(VarAction->GetProperty(), Options);
+			Inspector->ShowDetailsForSingleObject(VarAction->GetProperty()->GetUPropertyWrapper(), Options);
 		}
 		else if (InAction->GetTypeId() == FEdGraphSchemaAction_K2Enum::StaticGetTypeId())
 		{
@@ -1887,7 +1887,7 @@ void SMyBlueprint::ExecuteAction(TSharedPtr<FEdGraphSchemaAction> InAction)
 			FEdGraphSchemaAction_K2Var* VarAction = (FEdGraphSchemaAction_K2Var*)InAction.Get();
 			
 			// timeline variables
-			const UObjectPropertyBase* ObjectProperty = Cast<const UObjectPropertyBase>(VarAction->GetProperty());
+			const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(VarAction->GetProperty());
 			if (ObjectProperty &&
 				ObjectProperty->PropertyClass &&
 				ObjectProperty->PropertyClass->IsChildOf(UTimelineComponent::StaticClass()))
@@ -2017,7 +2017,7 @@ void SMyBlueprint::GetSelectedItemsForContextMenu(TArray<FComponentEventConstruc
 	FEdGraphSchemaAction_K2Var* Var = SelectionAsVar();
 	if ( Var != NULL )
 	{
-		UObjectProperty* ComponentProperty = Cast<UObjectProperty>(Var->GetProperty());
+		FObjectProperty* ComponentProperty = CastField<FObjectProperty>(Var->GetProperty());
 
 		if ( ComponentProperty != NULL &&
 			 ComponentProperty->PropertyClass != NULL &&
@@ -2065,7 +2065,7 @@ TSharedPtr<SWidget> SMyBlueprint::OnContextMenuOpening()
 
 		if ( Var && BlueprintEditorPtr.IsValid() && FBlueprintEditorUtils::DoesSupportEventGraphs(GetBlueprintObj()) )
 		{
-			UObjectProperty* ComponentProperty = Cast<UObjectProperty>(Var->GetProperty());
+			FObjectProperty* ComponentProperty = CastField<FObjectProperty>(Var->GetProperty());
 
 			if ( ComponentProperty && ComponentProperty->PropertyClass &&
 				 ComponentProperty->PropertyClass->IsChildOf( UActorComponent::StaticClass() ) )
@@ -2673,8 +2673,8 @@ struct FDeleteEntryHelper
 	{
 		check(NULL != Blueprint);
 
-		const UProperty* VariableProperty = FindField<UProperty>(Blueprint->SkeletonGeneratedClass, VarName);
-		const UClass* VarSourceClass = CastChecked<const UClass>(VariableProperty->GetOuter());
+		const FProperty* VariableProperty = FindField<FProperty>(Blueprint->SkeletonGeneratedClass, VarName);
+		const UClass* VarSourceClass = VariableProperty->GetOwnerChecked<const UClass>();
 		const bool bIsBlueprintVariable = (VarSourceClass == Blueprint->SkeletonGeneratedClass);
 		const int32 VarInfoIndex = FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, VariableProperty->GetFName());
 		const bool bHasVarInfo = (VarInfoIndex != INDEX_NONE);
@@ -2775,7 +2775,7 @@ bool SMyBlueprint::CanDuplicateAction() const
 	{
 		// if the property is not an allowable Blueprint variable type, do not allow the variable to be duplicated.
 		// Some actions (timelines) exist as variables but cannot be used in a user-defined variable.
-		const UObjectPropertyBase* ObjectProperty = Cast<const UObjectPropertyBase>(VarAction->GetProperty());
+		const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(VarAction->GetProperty());
 		if (ObjectProperty &&
 			ObjectProperty->PropertyClass &&
 			!UEdGraphSchema_K2::IsAllowableBlueprintVariableType(ObjectProperty->PropertyClass))
@@ -2872,7 +2872,7 @@ void SMyBlueprint::GotoNativeCodeVarDefinition()
 {
 	if( FEdGraphSchemaAction_K2Var* VarAction = SelectionAsVar() )
 	{
-		if( UProperty* VarProperty = VarAction->GetProperty() )
+		if( FProperty* VarProperty = VarAction->GetProperty() )
 		{
 			FSourceCodeNavigation::NavigateToProperty( VarProperty );
 		}
@@ -2883,7 +2883,7 @@ bool SMyBlueprint::IsNativeVariable() const
 {
 	if( FEdGraphSchemaAction_K2Var* VarAction = SelectionAsVar() )
 	{
-		UProperty* VarProperty = VarAction->GetProperty();
+		FProperty* VarProperty = VarAction->GetProperty();
 
 		if( VarProperty && VarProperty->IsNative())
 		{

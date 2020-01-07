@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ShapeSprayTool.h"
 #include "InteractiveToolManager.h"
@@ -109,7 +109,7 @@ void UShapeSprayTool::Shutdown(EToolShutdownType ShutdownType)
 }
 
 
-void UShapeSprayTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UShapeSprayTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	UDynamicMeshBrushTool::OnPropertyModified(PropertySet, Property);
 	if (PropertySet == Settings)

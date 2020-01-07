@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 using System;
@@ -11,6 +11,7 @@ public class DatasmithFacadeCSharpTarget : TargetRules
 	{
 		Type = TargetType.Program;
 		SolutionDirectory = "Programs/Datasmith";
+		bBuildInSolutionByDefault = false;
 
 		LaunchModuleName = "DatasmithFacadeCSharp";
 		ExeBinariesSubFolder = "DatasmithFacadeCSharp";

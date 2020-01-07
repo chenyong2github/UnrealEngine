@@ -1,18 +1,36 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Class.h"
 #include "UObject/UnrealType.h"
+#include "UObject/UnrealTypePrivate.h"
 #include "UObject/PropertyHelper.h"
 #include "UObject/LinkerPlaceholderFunction.h"
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
 
 /*-----------------------------------------------------------------------------
-	UDelegateProperty.
+	FDelegateProperty.
 -----------------------------------------------------------------------------*/
+IMPLEMENT_FIELD(FDelegateProperty)
 
-void UDelegateProperty::InstanceSubobjects(void* Data, void const* DefaultData, UObject* Owner, FObjectInstancingGraph* InstanceGraph )
+#if WITH_EDITORONLY_DATA
+FDelegateProperty::FDelegateProperty(UField* InField)
+	: FDelegateProperty_Super(InField)
+{
+	UDelegateProperty* SourceProperty = CastChecked<UDelegateProperty>(InField);
+	SignatureFunction = SourceProperty->SignatureFunction;
+}
+#endif // WITH_EDITORONLY_DATA
+
+void FDelegateProperty::PostDuplicate(const FField& InField)
+{
+	const FDelegateProperty& Source = static_cast<const FDelegateProperty&>(InField);
+	SignatureFunction = Source.SignatureFunction;
+	Super::PostDuplicate(InField);
+}
+
+void FDelegateProperty::InstanceSubobjects(void* Data, void const* DefaultData, UObject* InOwner, FObjectInstancingGraph* InstanceGraph )
 {
 	for( int32 i=0; i<ArrayDim; i++ )
 	{
@@ -29,13 +47,13 @@ void UDelegateProperty::InstanceSubobjects(void* Data, void const* DefaultData, 
 				Template = DefaultDelegate.GetUObject();
 			}
 
-			UObject* NewUObject = InstanceGraph->InstancePropertyValue(Template, CurrentUObject, Owner, HasAnyPropertyFlags(CPF_Transient), false, true);
+			UObject* NewUObject = InstanceGraph->InstancePropertyValue(Template, CurrentUObject, InOwner, HasAnyPropertyFlags(CPF_Transient), false, true);
 			DestDelegate.BindUFunction(NewUObject, DestDelegate.GetFunctionName());
 		}
 	}
 }
 
-bool UDelegateProperty::Identical( const void* A, const void* B, uint32 PortFlags ) const
+bool FDelegateProperty::Identical( const void* A, const void* B, uint32 PortFlags ) const
 {
 	const FScriptDelegate* DA = (const FScriptDelegate*)A;
 	const FScriptDelegate* DB = (const FScriptDelegate*)B;
@@ -59,20 +77,20 @@ bool UDelegateProperty::Identical( const void* A, const void* B, uint32 PortFlag
 }
 
 
-void UDelegateProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const
+void FDelegateProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const
 {
 	Slot << *GetPropertyValuePtr(Value);
 }
 
 
-bool UDelegateProperty::NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8> * MetaData ) const
+bool FDelegateProperty::NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8> * MetaData ) const
 {
 	// Do not allow replication of delegates, as there is no way to make this secure (it allows the execution of any function in any object, on the remote client/server)
 	return 1;
 }
 
 
-FString UDelegateProperty::GetCPPType( FString* ExtendedTypeText/*=NULL*/, uint32 CPPExportFlags/*=0*/ ) const
+FString FDelegateProperty::GetCPPType( FString* ExtendedTypeText/*=NULL*/, uint32 CPPExportFlags/*=0*/ ) const
 {
 	check(SignatureFunction);
 
@@ -110,12 +128,12 @@ FString UDelegateProperty::GetCPPType( FString* ExtendedTypeText/*=NULL*/, uint3
 	return FString(TEXT("F")) + UnmangledFunctionName;
 }
 
-FString UDelegateProperty::GetCPPTypeForwardDeclaration() const
+FString FDelegateProperty::GetCPPTypeForwardDeclaration() const
 {
 	return FString();
 }
 
-void UDelegateProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
+void FDelegateProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
 {
 	if (0 != (PortFlags & PPF_ExportCpp))
 	{
@@ -132,12 +150,12 @@ void UDelegateProperty::ExportTextItem( FString& ValueStr, const void* PropertyV
 }
 
 
-const TCHAR* UDelegateProperty::ImportText_Internal( const TCHAR* Buffer, void* PropertyValue, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const
+const TCHAR* FDelegateProperty::ImportText_Internal( const TCHAR* Buffer, void* PropertyValue, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const
 {
 	return DelegatePropertyTools::ImportDelegateFromText( *(FScriptDelegate*)PropertyValue, SignatureFunction, Buffer, Parent, ErrorText );
 }
 
-void UDelegateProperty::Serialize( FArchive& Ar )
+void FDelegateProperty::Serialize( FArchive& Ar )
 {
 	Super::Serialize( Ar );
 	Ar << SignatureFunction;
@@ -153,12 +171,12 @@ void UDelegateProperty::Serialize( FArchive& Ar )
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 }
 
-bool UDelegateProperty::SameType(const UProperty* Other) const
+bool FDelegateProperty::SameType(const FProperty* Other) const
 {
-	return Super::SameType(Other) && (SignatureFunction == ((UDelegateProperty*)Other)->SignatureFunction);
+	return Super::SameType(Other) && (SignatureFunction == ((FDelegateProperty*)Other)->SignatureFunction);
 }
 
-void UDelegateProperty::BeginDestroy()
+void FDelegateProperty::BeginDestroy()
 {
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 	if (auto PlaceholderFunc = Cast<ULinkerPlaceholderFunction>(SignatureFunction))
@@ -169,10 +187,3 @@ void UDelegateProperty::BeginDestroy()
 
 	Super::BeginDestroy();
 }
-
-
-IMPLEMENT_CORE_INTRINSIC_CLASS(UDelegateProperty, UProperty,
-	{
-		Class->EmitObjectReference(STRUCT_OFFSET(UDelegateProperty, SignatureFunction), TEXT("SignatureFunction"));
-	}
-);

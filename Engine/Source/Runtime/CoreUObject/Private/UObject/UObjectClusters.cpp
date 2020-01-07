@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UObjectClusters.cpp: Unreal UObject Cluster helper functions
@@ -189,8 +189,8 @@ void FUObjectClusterContainer::DissolveClusterAndMarkObjectsAsUnreachable(FUObje
 	{
 		FUObjectItem* ClusterObjectItem = GUObjectArray.IndexToObjectUnsafeForGC(ClusterObjectIndex);
 		ClusterObjectItem->SetOwnerIndex(0);
-		ClusterObjectItem->SetFlags(EInternalObjectFlags::Unreachable);
-	}
+			ClusterObjectItem->SetFlags(EInternalObjectFlags::Unreachable);
+		}
 
 #if !UE_GCCLUSTER_VERBOSE_LOGGING
 	UObject* ClusterRootObject = static_cast<UObject*>(RootObjectItem->Object);
@@ -205,7 +205,7 @@ void FUObjectClusterContainer::DissolveClusterAndMarkObjectsAsUnreachable(FUObje
 		FUObjectItem* ReferencedByClusterRootItem = GUObjectArray.IndexToObjectUnsafeForGC(ReferencedByClusterRootIndex);
 		if (ReferencedByClusterRootItem->HasAnyFlags(EInternalObjectFlags::ClusterRoot))
 		{
-			ReferencedByClusterRootItem->SetFlags(EInternalObjectFlags::Unreachable);
+				ReferencedByClusterRootItem->SetFlags(EInternalObjectFlags::Unreachable);
 			DissolveClusterAndMarkObjectsAsUnreachable(ReferencedByClusterRootItem);
 		}
 	}
@@ -474,12 +474,12 @@ void FindStaleClusters(const TArray<FString>& Args)
 			if (SearchRefs.GetReferenceChains().Num() > 0)
 			{
 				for (const FReferenceChainSearch::FReferenceChain* ReferenceChain : SearchRefs.GetReferenceChains())
-				{
+					{
 					UObject* ReferencingObj = ReferenceChain->GetRootNode()->Object;
-					bReferenced = true;
-					break;
+						bReferenced = true;
+						break;
+					}
 				}
-			}
 			if (!bReferenced)
 			{
 				NumStaleClusters++;

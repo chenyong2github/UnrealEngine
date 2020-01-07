@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceCurveBase.h"
 #include "Curves/CurveVector.h"
@@ -83,6 +83,7 @@ bool UNiagaraDataInterfaceCurveBase::CopyToInternal(UNiagaraDataInterface* Desti
 	UNiagaraDataInterfaceCurveBase* DestinationTyped = CastChecked<UNiagaraDataInterfaceCurveBase>(Destination);
 	DestinationTyped->bUseLUT = bUseLUT;
 	DestinationTyped->ShaderLUT = ShaderLUT;
+	DestinationTyped->LUTNumSamplesMinusOne = LUTNumSamplesMinusOne;
 #if WITH_EDITORONLY_DATA
 	DestinationTyped->bOptimizeLUT = bOptimizeLUT;
 	DestinationTyped->bOverrideOptimizeThreshold = bOverrideOptimizeThreshold;
@@ -340,7 +341,7 @@ struct FNiagaraDataInterfaceParametersCS_Curve : public FNiagaraDataInterfacePar
 		SetShaderValue(RHICmdList, ComputeShaderRHI, MaxTime, CurveDI->LUTMaxTime);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, InvTimeRange, CurveDI->LUTInvTimeRange);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, CurveLUTNumMinusOne, CurveDI->CurveLUTNumMinusOne);
-		RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, CurveLUT.GetBaseIndex(), CurveLUTBuffer.SRV);
+		SetSRVParameter(RHICmdList, ComputeShaderRHI, CurveLUT, CurveLUTBuffer.SRV);
 	}
 
 	FShaderParameter MinTime;

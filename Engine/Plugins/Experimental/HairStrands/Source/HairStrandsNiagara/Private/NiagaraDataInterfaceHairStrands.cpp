@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceHairStrands.h"
 #include "NiagaraShader.h"
@@ -590,7 +590,6 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 			static_cast<FNDIHairStrandsProxy*>(Context.DataInterface);
 		FNDIHairStrandsData* ProxyData =
 			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstance);
-		ensure(ProxyData);
 
 		if (ProxyData != nullptr)
 		{
@@ -770,25 +769,17 @@ void FNDIHairStrandsProxy::DeferredDestroy()
 void FNDIHairStrandsProxy::ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance)
 {
 	FNDIHairStrandsData* SourceData = static_cast<FNDIHairStrandsData*>(PerInstanceData);
-	FNDIHairStrandsData* TargetData = SystemInstancesToProxyData.Find(Instance);
+	FNDIHairStrandsData& TargetData = SystemInstancesToProxyData.FindOrAdd(Instance);
 
-	ensure(TargetData);
-	if (TargetData)
-	{
-		TargetData->WorldTransform = SourceData->WorldTransform;
-		TargetData->NumStrands = SourceData->NumStrands;
-		TargetData->StrandSize = SourceData->StrandSize;
-		TargetData->BoxCenter = SourceData->BoxCenter;
-		TargetData->BoxExtent = SourceData->BoxExtent;
-		TargetData->TickCount = SourceData->TickCount;
-		TargetData->ResetTick = SourceData->ResetTick;
-		TargetData->ForceReset = SourceData->ForceReset;
-		TargetData->HairStrandsBuffer = SourceData->HairStrandsBuffer;
-	}
-	else
-	{
-		UE_LOG(LogHairStrands, Log, TEXT("ConsumePerInstanceDataFromGameThread() ... could not find %s"), *FNiagaraUtilities::SystemInstanceIDToString(Instance));
-	}
+	TargetData.WorldTransform = SourceData->WorldTransform;
+	TargetData.NumStrands = SourceData->NumStrands;
+	TargetData.StrandSize = SourceData->StrandSize;
+	TargetData.BoxCenter = SourceData->BoxCenter;
+	TargetData.BoxExtent = SourceData->BoxExtent;
+	TargetData.TickCount = SourceData->TickCount;
+	TargetData.ResetTick = SourceData->ResetTick;
+	TargetData.ForceReset = SourceData->ForceReset;
+	TargetData.HairStrandsBuffer = SourceData->HairStrandsBuffer;
 }
 
 void FNDIHairStrandsProxy::InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance, FNDIHairStrandsBuffer* HairStrandsBuffer, 
@@ -796,24 +787,16 @@ void FNDIHairStrandsProxy::InitializePerInstanceData(const FNiagaraSystemInstanc
 {
 	check(IsInRenderingThread());
 
-	FNDIHairStrandsData* TargetData = SystemInstancesToProxyData.Find(SystemInstance);
-	if (TargetData != nullptr)
-	{
-		DeferredDestroyList.Remove(SystemInstance);
-	}
-	else
-	{
-		TargetData = &SystemInstancesToProxyData.Add(SystemInstance);
-	}
-	TargetData->HairStrandsBuffer = HairStrandsBuffer;
-	TargetData->NumStrands = NumStrands;
-	TargetData->StrandSize = StrandSize;
-	TargetData->BoxCenter = BoxCenter;
-	TargetData->BoxExtent = BoxExtent;
-	TargetData->TickCount = 0;
-	TargetData->ResetTick = MaxDelay;
-	TargetData->ForceReset = true;
-	TargetData->WorldTransform = WorldTransform;
+	FNDIHairStrandsData& TargetData = SystemInstancesToProxyData.FindOrAdd(SystemInstance);
+	TargetData.HairStrandsBuffer = HairStrandsBuffer;
+	TargetData.NumStrands = NumStrands;
+	TargetData.StrandSize = StrandSize;
+	TargetData.BoxCenter = BoxCenter;
+	TargetData.BoxExtent = BoxExtent;
+	TargetData.TickCount = 0;
+	TargetData.ResetTick = MaxDelay;
+	TargetData.ForceReset = true;
+	TargetData.WorldTransform = WorldTransform;
 }
 
 void FNDIHairStrandsProxy::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
@@ -984,7 +967,7 @@ void UNiagaraDataInterfaceHairStrands::DestroyPerInstanceData(void* PerInstanceD
 			[ThisProxy, HairStrandsBuffer, InstanceID = SystemInstance->GetId(), Batcher = SystemInstance->GetBatcher()](FRHICommandListImmediate& CmdList)
 		{
 			HairStrandsBuffer->ReleaseResource();
-			ThisProxy->DestroyPerInstanceData(Batcher, InstanceID);
+			ThisProxy->SystemInstancesToProxyData.Remove(InstanceID);
 			delete HairStrandsBuffer;
 		}
 		);

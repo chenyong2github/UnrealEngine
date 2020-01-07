@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -9,6 +9,7 @@
 class FNiagaraWorldManager;
 class UNiagaraSystem;
 class UNiagaraComponent;
+class FReferenceCollector;
 
 //Disabled for now until we can spend more time on a good method of applying the data that is gathered.
 #define ENABLE_NIAGARA_RUNTIME_CYCLE_COUNTERS (0)
@@ -124,11 +125,17 @@ struct FNiagaraScalabilityManager
 	float LastUpdateTime;
 
 	FNiagaraScalabilityManager();
+	~FNiagaraScalabilityManager();
 	void Update(FNiagaraWorldManager* Owner);
 	void Register(UNiagaraComponent* Component);
 	void Unregister(UNiagaraComponent* Component);
 
+	void AddReferencedObjects(FReferenceCollector& Collector);
+
 #if DEBUG_SCALABILITY_STATE
 	void Dump();
 #endif
+
+private: 
+	void UnregisterAt(int32 IndexToRemove);
 };

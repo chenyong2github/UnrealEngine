@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 //
 // Base class of a network driver attached to an active or pending level.
@@ -570,6 +570,9 @@ public:
 	FName			StreamingLevelName;
 	EChannelCloseReason Reason;
 
+	/** When true the destruction info data will be sent even if the viewers are not close to the actor */
+	bool bIgnoreDistanceCulling = false;
+
 	void CountBytes(FArchive& Ar)
 	{
 		PathName.CountBytes(Ar);
@@ -787,12 +790,10 @@ public:
 	UClass* ReplicationDriverClass;
 
 	/** @todo document */
-	UPROPERTY()
-	UProperty* RoleProperty;
+	FProperty* RoleProperty;
 	
 	/** @todo document */
-	UPROPERTY()
-	UProperty* RemoteRoleProperty;
+	FProperty* RemoteRoleProperty;
 
 	/** Used to specify the net driver to filter actors with (NAME_None || NAME_GameNetDriver is the default net driver) */
 	UPROPERTY(Config)
@@ -1094,7 +1095,7 @@ public:
 
 	//~ Begin UObject Interface.
 	ENGINE_API virtual void PostInitProperties() override;
-	ENGINE_API virtual void PostReloadConfig(UProperty* PropertyToLoad) override;
+	ENGINE_API virtual void PostReloadConfig(FProperty* PropertyToLoad) override;
 	ENGINE_API virtual void FinishDestroy() override;
 	ENGINE_API virtual void Serialize( FArchive& Ar ) override;
 	ENGINE_API static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);

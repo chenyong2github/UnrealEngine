@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/GenerateBlueprintAPICommandlet.h"
 #include "HAL/FileManager.h"
@@ -189,7 +189,7 @@ GenerateBlueprintAPI commandlet params: \n\
 	* out the ones that are associated with an UActorComponent (and are visbile
 	* to the blueprint).
 	*/
-	static void GetComponentProperties(UBlueprint* Blueprint, TArray<UObjectProperty*>& PropertiesOut);
+	static void GetComponentProperties(UBlueprint* Blueprint, TArray<FObjectProperty*>& PropertiesOut);
 	
 	/**
 	 * Constructs a temporary blueprint (of the class type specified) and kicks 
@@ -599,12 +599,12 @@ static FString GenerateBlueprintAPIUtils::GetActionKey(FGraphActionListBuilderBa
 }
 
 //------------------------------------------------------------------------------
-static void GenerateBlueprintAPIUtils::GetComponentProperties(UBlueprint* Blueprint, TArray<UObjectProperty*>& PropertiesOut)
+static void GenerateBlueprintAPIUtils::GetComponentProperties(UBlueprint* Blueprint, TArray<FObjectProperty*>& PropertiesOut)
 {
 	UClass* BpClass = Blueprint->GeneratedClass;
 	if (BpClass->IsChildOf<AActor>())
 	{
-		for (TFieldIterator<UObjectProperty> PropertyIt(BpClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<FObjectProperty> PropertyIt(BpClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
 			// SMyBlueprint filters out component variables in SMyBlueprint::CollectAllActions() using CPF_BlueprintVisible/CPF_Parm flags
 			if (PropertyIt->PropertyClass->IsChildOf(UActorComponent::StaticClass()) &&

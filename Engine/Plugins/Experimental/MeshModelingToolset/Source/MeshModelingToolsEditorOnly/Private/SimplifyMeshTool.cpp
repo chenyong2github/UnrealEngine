@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SimplifyMeshTool.h"
 #include "InteractiveToolManager.h"
@@ -116,7 +116,7 @@ void USimplifyMeshTool::Setup()
 
 		// Declare progress shortcut lambdas
 		auto EnterProgressFrame = [&SlowTask](int Progress)
-		{
+	{
 			SlowTask.EnterProgressFrame((float)Progress);
 		};
 #else
@@ -153,12 +153,12 @@ void USimplifyMeshTool::Setup()
 
 void USimplifyMeshTool::Shutdown(EToolShutdownType ShutdownType)
 {
-	ComponentTarget->SetOwnerVisibility(true);
+		ComponentTarget->SetOwnerVisibility(true);
 	TUniquePtr<FDynamicMeshOpResult> Result = Preview->Shutdown();
-	if (ShutdownType == EToolShutdownType::Accept)
-	{
+		if (ShutdownType == EToolShutdownType::Accept)
+		{
 		GenerateAsset(*Result);
-	}
+		}
 }
 
 
@@ -220,7 +220,7 @@ void USimplifyMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
 }
 
 
-void USimplifyMeshTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void USimplifyMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	Preview->InvalidateResult();
 }

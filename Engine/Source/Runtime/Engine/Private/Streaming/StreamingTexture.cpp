@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 StreamingTexture.cpp: Definitions of classes used for texture.
@@ -43,8 +43,12 @@ FStreamingRenderAsset::FStreamingRenderAsset(
 
 void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings& Settings)
 {
-
+#if STORE_OPTIONAL_DATA_FILENAME
 	OptionalBulkDataFilename = TEXT("");
+#else
+	OptionalMipIndex = INDEX_NONE;
+#endif
+
 	if (RenderAsset)
 	{
 		LODGroup = RenderAsset->GetLODGroupForStreaming();
@@ -101,11 +105,16 @@ void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings
 		}
 
 		const int32 OptionalMipCount = MipCount - NumNonOptionalMips;
-		const int32 OptionalMipIndex = OptionalMipCount - 1; // just here so it's clear why this -1 is here
-		if (!RenderAsset->GetMipDataFilename(OptionalMipIndex, OptionalBulkDataFilename))
+		const int32 FirstOptionalMipIndex = OptionalMipCount - 1; // just here so it's clear why this -1 is here
+
+#if STORE_OPTIONAL_DATA_FILENAME
+		if (!RenderAsset->GetMipDataFilename(FirstOptionalMipIndex, OptionalBulkDataFilename))
 		{
 			OptionalBulkDataFilename.Empty();
-		}
+		}		
+#else
+		OptionalMipIndex = FirstOptionalMipIndex;
+#endif
 	}
 	else
 	{
@@ -130,13 +139,26 @@ void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings
 
 void FStreamingRenderAsset::UpdateOptionalMipsState_Async()
 {
+#if STORE_OPTIONAL_DATA_FILENAME
 	// Here we do a lazy update where we check if the highres mip file exists only if it could be useful to do so.
 	// This requires texture to be at max resolution before the optional mips .
 	if (OptionalMipsState == EOptionalMipsState::OMS_NotCached && !OptionalBulkDataFilename.IsEmpty())
 	{
 		OptionalMipsState = IFileManager::Get().FileExists(*OptionalBulkDataFilename) ? EOptionalMipsState::OMS_HasOptionalMips : EOptionalMipsState::OMS_NoOptionalMips;
 	}
-
+#else
+	if (OptionalMipsState == EOptionalMipsState::OMS_NotCached && OptionalMipIndex != INDEX_NONE)
+	{
+		if (RenderAsset->DoesMipDataExist(OptionalMipIndex))
+		{
+			OptionalMipsState = EOptionalMipsState::OMS_HasOptionalMips;
+		}
+		else
+		{
+			OptionalMipsState = EOptionalMipsState::OMS_NoOptionalMips;
+		}
+	}	
+#endif
 }
 
 void FStreamingRenderAsset::UpdateDynamicData(const int32* NumStreamedMips, int32 NumLODGroups, const FRenderAssetStreamingSettings& Settings, bool bWaitForMipFading)

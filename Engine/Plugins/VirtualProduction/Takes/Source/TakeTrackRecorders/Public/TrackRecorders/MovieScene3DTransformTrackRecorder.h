@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -30,7 +30,7 @@ public:
 	virtual UMovieSceneTrackRecorder* CreateTrackRecorderForObject() const override;
 
 	// takerecorder-todo: This should also record "Transform" variable properties, because they can be marked as interp
-	virtual bool CanRecordProperty(class UObject* InObjectToRecord, class UProperty* InPropertyToRecord) const override { return false; }
+	virtual bool CanRecordProperty(class UObject* InObjectToRecord, class FProperty* InPropertyToRecord) const override { return false; }
 	virtual UMovieSceneTrackRecorder* CreateTrackRecorderForProperty(UObject* InObjectToRecord, const FName& InPropertyToRecord) const override { return nullptr; }
 
 	virtual FText GetDisplayName() const override { return NSLOCTEXT("MovieScene3DTransformTrackRecorderFactory", "DisplayName", "Transform Track"); }

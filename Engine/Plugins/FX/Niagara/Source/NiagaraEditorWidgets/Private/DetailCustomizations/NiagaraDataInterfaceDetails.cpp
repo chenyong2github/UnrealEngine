@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceDetails.h"
 #include "IDetailCustomization.h"
@@ -179,7 +179,7 @@ private:
 
 	void OnErrorFixTriggered()
 	{
-		UProperty* PropertyPlaceholder = nullptr;  // we don't need to specify the property, all we need is to trigger the restart of the emitter
+		FProperty* PropertyPlaceholder = nullptr;  // we don't need to specify the property, all we need is to trigger the restart of the emitter
 		FPropertyChangedEvent ChangeEvent(PropertyPlaceholder, EPropertyChangeType::Unspecified);
 		if (DetailBuilder->GetPropertyUtilities()->GetNotifyHook() != nullptr)
 		{

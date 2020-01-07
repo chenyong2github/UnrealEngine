@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rendering/ElementBatcher.h"
 #include "Fonts/SlateFontInfo.h"
@@ -8,6 +8,10 @@
 #include "Widgets/SWindow.h"
 #include "HAL/IConsoleManager.h"
 #include "ProfilingDebugging/ScopedTimers.h"
+#include "Debugging/SlateDebugging.h"
+#include "Widgets/SWidgetUtils.h"
+
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(SLATECORE_API, Slate);
 
 DECLARE_CYCLE_STAT(TEXT("Slate RT: Create Batches"), STAT_SlateRTCreateBatches, STATGROUP_Slate);
 
@@ -549,11 +553,23 @@ void FSlateElementBatcher::AddElementsInternal(const FSlateDrawElementArray& Dra
 
 void FSlateElementBatcher::AddCachedElements(FSlateCachedElementData& CachedElementData, const FVector2D& ViewportSize)
 {
+	CSV_SCOPED_TIMING_STAT(Slate, AddCachedElements);
+
+#if SLATE_CSV_TRACKER
+	FCsvProfiler::RecordCustomStat("Paint/CachedElementLists", CSV_CATEGORY_INDEX(Slate), CachedElementData.CachedElementLists.Num(), ECsvCustomStatOp::Set);
+	int32 CachedDrawElements = 0;
+#endif
+
 #define ALLOW_CACHED_RENDER_BATCHES 1
 	SCOPED_NAMED_EVENT_TEXT("Slate::AddCachedBatches", FColor::Magenta);
 	for ( FSlateCachedElementList& LocalCachedElementList : CachedElementData.CachedElementLists)
 	{
 		STAT(ElementStat_CachedElements += LocalCachedElementList.DrawElements.Num());
+
+#if SLATE_CSV_TRACKER
+		CachedDrawElements += LocalCachedElementList.DrawElements.Num();
+#endif
+
 		LocalCachedElementList.bNewData = false;
 #if ALLOW_CACHED_RENDER_BATCHES
 		if (LocalCachedElementList.CachedBatches.Num())
@@ -564,7 +580,7 @@ void FSlateElementBatcher::AddCachedElements(FSlateCachedElementData& CachedElem
 		{
 			CachedElementList = &LocalCachedElementList;
 			{
-				SCOPED_NAMED_EVENT_TEXT("Slate::RecacheElements", FColor::Magenta);
+				SCOPE_CYCLE_SWIDGET(WidgetScope, LocalCachedElementList.Widget);
 				AddElementsInternal(LocalCachedElementList.DrawElements, ViewportSize);
 			}
 
@@ -578,6 +594,10 @@ void FSlateElementBatcher::AddCachedElements(FSlateCachedElementData& CachedElem
 #endif
 	}
 	CachedElementData.CleanupUnusedClipStates();
+
+#if SLATE_CSV_TRACKER
+	FCsvProfiler::RecordCustomStat("Paint/CachedElements", CSV_CATEGORY_INDEX(Slate), CachedDrawElements, ECsvCustomStatOp::Accumulate);
+#endif
 }
 
 template<ESlateVertexRounding Rounding>

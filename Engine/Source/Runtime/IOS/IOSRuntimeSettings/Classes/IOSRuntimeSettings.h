@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -559,7 +559,7 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides", meta = (DisplayName = "Stream All Soundwaves Longer Than: "))
 	float AutoStreamingThreshold;
 
-	virtual void PostReloadConfig(class UProperty* PropertyThatWasLoaded) override;
+	virtual void PostReloadConfig(class FProperty* PropertyThatWasLoaded) override;
 
 #if WITH_EDITOR
 	// UObject interface

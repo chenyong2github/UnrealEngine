@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -54,7 +54,7 @@ class SPropertyNameColumnHeader : public SColumnHeader
 			
 		if( PropertyTableRow->GetDataSource()->AsPropertyPath().IsValid() )
 		{	
-			const TWeakObjectPtr< UProperty > Property = PropertyTableRow->GetDataSource()->AsPropertyPath()->GetLeafMostProperty().Property;
+			const TWeakFieldPtr< FProperty > Property = PropertyTableRow->GetDataSource()->AsPropertyPath()->GetLeafMostProperty().Property;
 			PropertyName = UEditorEngine::GetFriendlyName( Property.Get() );
 		}
 

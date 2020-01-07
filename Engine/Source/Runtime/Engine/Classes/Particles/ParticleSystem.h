@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -7,6 +7,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/ScriptMacros.h"
+#include "Particles/ParticlePerfStats.h"
 
 #include "ParticleSystem.generated.h"
 
@@ -118,6 +119,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Performance)
 	uint32 MaxPoolSize;
 	//TODO: Allow pool size overriding per world and possibly implement some preallocation too.
+
+#if WITH_PARTICLE_PERF_STATS
+	FParticlePerfStats ParticlePerfStats;
+#endif
 };
 
 /**

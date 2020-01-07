@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -28,6 +28,7 @@ public:
 	virtual FString GetRegion() const override { return FString(); }
 	virtual FString GetScript() const override { return FString(); }
 	virtual FString GetVariant() const override { return FString(); }
+	virtual bool IsRightToLeft() const override { return false; }
 
 private:
 	FCultureRef InvariantCulture;

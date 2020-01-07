@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RHI.h"
 #include "Modules/ModuleManager.h"
@@ -46,6 +46,13 @@ static bool ShouldPreferD3D12()
 
 static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFeatureLevel, const TCHAR*& LoadedRHIModuleName)
 {
+	bool bUseGPUCrashDebugging = false;
+	if (!GIsEditor && GConfig->GetBool(TEXT("D3DRHIPreference"), TEXT("bUseGPUCrashDebugging"), bUseGPUCrashDebugging, GGameUserSettingsIni))
+	{
+		auto GPUCrashDebuggingCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GPUCrashDebugging"));
+		*GPUCrashDebuggingCVar = bUseGPUCrashDebugging;
+	}
+
 	bool bPreferD3D12 = ShouldPreferD3D12();
 	
 	// command line overrides
@@ -187,6 +194,9 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 
 		auto PSOFileCacheReportCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelineCache.ReportPSO"));
 		*PSOFileCacheReportCVar = 1;
+
+		auto PSOFileCacheUserCacheCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelineCache.SaveUserCache"));
+		*PSOFileCacheUserCacheCVar = UE_BUILD_SHIPPING;
 #endif
 
 		if (!DynamicRHIModule || !DynamicRHIModule->IsSupported())

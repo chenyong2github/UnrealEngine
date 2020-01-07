@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/PBDCollisionConstraints.h"
@@ -132,8 +132,8 @@ public:
 	bool HasBounds(const int32 Idx) const { return MHasBoundingBoxes[Idx]; }
 	bool& HasBounds(const int32 Idx) { return MHasBoundingBoxes[Idx]; }
 
-	const TBox<T,d>& Bounds(const int32 Idx) const { return MBounds[Idx]; }
-	TBox<T, d>& Bounds(const int32 Idx) { return MBounds[Idx]; }
+	const TAABB<T,d>& Bounds(const int32 Idx) const { return MBounds[Idx]; }
+	TAABB<T, d>& Bounds(const int32 Idx) { return MBounds[Idx]; }
 
 	const TAccelerationStructureHandle<T, d>& Payload(const int32 Idx) const { return MPayloads[Idx]; }
 	TAccelerationStructureHandle<T, d>& Payload(const int32 Idx) { return MPayloads[Idx]; }
@@ -147,7 +147,7 @@ private:
 	}
 
 	TArrayCollectionArray<bool> MHasBoundingBoxes;
-	TArrayCollectionArray<TBox<T, d>> MBounds;
+	TArrayCollectionArray<TAABB<T, d>> MBounds;
 	TArrayCollectionArray<TAccelerationStructureHandle<T, d>> MPayloads;
 
 #if PARTICLE_ITERATOR_RANGED_FOR_CHECK
@@ -178,7 +178,7 @@ struct TSpatialAccelerationCacheHandle
 		return Cache->HasBounds(EntryIdx);
 	}
 
-	const TBox<T, d>& BoundingBox() const
+	const TAABB<T, d>& BoundingBox() const
 	{
 		return Cache->Bounds(EntryIdx);
 	}
@@ -269,6 +269,7 @@ class TPBDRigidsEvolutionBase
 	}
 
 	CHAOS_API void AddForceFunction(FForceRule ForceFunction) { ForceRules.Add(ForceFunction); }
+	CHAOS_API void AddImpulseFunction(FForceRule ImpulseFunction) { ImpulseRules.Add(ImpulseFunction); }
 	CHAOS_API void SetParticleUpdateVelocityFunction(FUpdateVelocityRule ParticleUpdate) { ParticleUpdateVelocity = ParticleUpdate; }
 	CHAOS_API void SetParticleUpdatePositionFunction(FUpdatePositionRule ParticleUpdate) { ParticleUpdatePosition = ParticleUpdate; }
 
@@ -623,6 +624,7 @@ protected:
 	void WaitOnAccelerationStructure();
 
 	TArray<FForceRule> ForceRules;
+	TArray<FForceRule> ImpulseRules;
 	FUpdateVelocityRule ParticleUpdateVelocity;
 	FUpdatePositionRule ParticleUpdatePosition;
 	FKinematicUpdateRule KinematicUpdate;

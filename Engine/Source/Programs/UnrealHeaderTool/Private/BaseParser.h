@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -139,20 +139,21 @@ public:
 	bool GetConstInt64(int64& Result, const TCHAR* Tag = NULL);
 
 	// Matching predefined text.
-	bool MatchIdentifier( FName Match );
-	bool MatchIdentifier( const TCHAR* Match );
+	bool MatchIdentifierByName( FName Match );
+	bool MatchIdentifier( const TCHAR* Match, ESearchCase::Type SearchCase);
 	bool MatchConstInt( const TCHAR* Match );
 	bool MatchAnyConstInt();
-	bool PeekIdentifier( FName Match );
-	bool PeekIdentifier( const TCHAR* Match );
-	bool MatchSymbol( const TCHAR* Match, ESymbolParseOption bParseTemplateClosingBracket = ESymbolParseOption::Normal );
+	bool PeekIdentifierByName( FName Match );
+	bool PeekIdentifier( const TCHAR* Match, ESearchCase::Type SearchCase);
+	bool MatchSymbol( const TCHAR Match, ESymbolParseOption bParseTemplateClosingBracket = ESymbolParseOption::Normal );
+	bool MatchSymbol(const TCHAR* Match, ESymbolParseOption bParseTemplateClosingBracket = ESymbolParseOption::Normal);
 	void MatchSemi();
-	bool PeekSymbol( const TCHAR* Match );
+	bool PeekSymbol( const TCHAR Match );
 
 	// Requiring predefined text.
-	void RequireIdentifier( FName Match, const TCHAR* Tag );
-	void RequireIdentifier( const TCHAR* Match, const TCHAR* Tag );
-	void RequireSymbol( const TCHAR* Match, const TCHAR* Tag, ESymbolParseOption bParseTemplateClosingBracket = ESymbolParseOption::Normal );
+	void RequireIdentifier( const TCHAR* Match, ESearchCase::Type SearchCase, const TCHAR* Tag );
+	void RequireSymbol( const TCHAR Match, const TCHAR* Tag, ESymbolParseOption bParseTemplateClosingBracket = ESymbolParseOption::Normal );
+	void RequireSymbol(const TCHAR Match, TFunctionRef<FString()> TagGetter, ESymbolParseOption bParseTemplateClosingBracket = ESymbolParseOption::Normal);
 	void RequireConstInt( const TCHAR* Match, const TCHAR* Tag );
 	void RequireAnyConstInt( const TCHAR* Tag );
 
@@ -161,10 +162,10 @@ public:
 
 	// Reads a new-style value
 	//@TODO: UCREMOVAL: Needs a better name
-	FString ReadNewStyleValue(const FString& TypeOfSpecifier);
+	FString ReadNewStyleValue(const TCHAR* TypeOfSpecifier);
 
 	// Reads ['(' Value [',' Value]* ')'] and places each value into the Items array
-	bool ReadOptionalCommaSeparatedListInParens(TArray<FString>& Items, const FString& TypeOfSpecifier);
+	bool ReadOptionalCommaSeparatedListInParens(TArray<FString>& Items, const TCHAR* TypeOfSpecifier);
 
 	//////////////
 	// Complicated* parsing code that needs to be shared between the preparser and the parser
@@ -177,10 +178,13 @@ public:
 	void ParseNameWithPotentialAPIMacroPrefix(FString& DeclaredName, FString& RequiredAPIMacroIfPresent, const TCHAR* FailureMessage);
 
 	// Reads a set of specifiers (with optional values) inside the () of a new-style metadata macro like UPROPERTY or UFUNCTION
-	void ReadSpecifierSetInsideMacro(TArray<FPropertySpecifier>& SpecifiersFound, const FString& TypeOfSpecifier, TMap<FName, FString>& MetaData);
+	void ReadSpecifierSetInsideMacro(TArray<FPropertySpecifier>& SpecifiersFound, const TCHAR* TypeOfSpecifier, TMap<FName, FString>& MetaData);
 
 	// Validates and inserts one key-value pair into the meta data map
-	static void InsertMetaDataPair(TMap<FName, FString>& MetaData, const FString& InKey, const FString& InValue);
+	static void InsertMetaDataPair(TMap<FName, FString>& MetaData, FString InKey, FString InValue);
+
+	// Validates and inserts one key-value pair into the meta data map
+	static void InsertMetaDataPair(TMap<FName, FString>& MetaData, FName InKey, FString InValue);
 
 	//////////////
 };

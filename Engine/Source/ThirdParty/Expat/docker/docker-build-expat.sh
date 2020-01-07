@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ## Unreal Engine 4 Build script for Expat
-## Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+## Copyright Epic Games, Inc. All Rights Reserved.
 
 # Should be run in docker image, launched something like this (see RunMe.sh script):
 #   docker run --name ${ImageName} -v ${SCRIPT_DIR}:/src ${Image} /src/docker-build-expat.sh

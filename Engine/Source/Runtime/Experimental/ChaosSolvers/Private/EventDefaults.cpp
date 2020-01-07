@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EventDefaults.h"
 #include "EventsData.h"
@@ -365,8 +365,7 @@ namespace Chaos
 
 			Chaos::FPBDRigidsSolver* NonConstSolver = (Chaos::FPBDRigidsSolver*)(Solver);
 			auto& SolverSleepingData = NonConstSolver->Particles.GetDynamicParticles().GetSleepData();
-			TSleepData<float, 3> SleepData;
-			while(SolverSleepingData.Dequeue(SleepData))
+			for(const TSleepData<float, 3>& SleepData : SolverSleepingData)
 			{
 				if(SleepData.Particle)
 				{
@@ -383,6 +382,8 @@ namespace Chaos
 					}
 				}
 			}
+
+			SolverSleepingData.Empty();
 
 		});
 	}

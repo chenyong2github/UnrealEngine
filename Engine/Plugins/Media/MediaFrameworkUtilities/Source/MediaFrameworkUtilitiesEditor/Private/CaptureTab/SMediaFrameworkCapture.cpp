@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CaptureTab/SMediaFrameworkCapture.h"
 
@@ -555,7 +555,7 @@ UMediaFrameworkWorldSettingsAssetUserData* SMediaFrameworkCapture::FindOrAddMedi
 	return Result;
 }
 
-void SMediaFrameworkCapture::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged)
+void SMediaFrameworkCapture::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
 	if (GetDefault<UMediaFrameworkEditorCaptureSettings>()->bSaveCaptureSetingsInWorld)
 	{

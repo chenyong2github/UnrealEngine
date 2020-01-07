@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_StructMemberSet.h"
 #include "EdGraphSchema_K2.h"
@@ -14,7 +14,7 @@ UK2Node_StructMemberSet::UK2Node_StructMemberSet(const FObjectInitializer& Objec
 {
 }
 
-void UK2Node_StructMemberSet::PreEditChange(UProperty* PropertyThatWillChange)
+void UK2Node_StructMemberSet::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);
 

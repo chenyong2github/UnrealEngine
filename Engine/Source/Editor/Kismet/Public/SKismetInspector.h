@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -12,6 +12,7 @@
 #include "Framework/Text/SlateHyperlinkRun.h"
 #include "Editor/PropertyEditor/Public/PropertyEditorDelegates.h"
 #include "IStructureDetailsView.h"
+#include "UObject/WeakFieldPtr.h"
 
 class FBlueprintEditor;
 class IDetailsView;
@@ -102,7 +103,7 @@ protected:
 	void UpdateFromObjects(const TArray<UObject*>& PropertyObjects, struct FKismetSelectionInfo& SelectionInfo, const FShowDetailsOptions& Options);
 
 	/** Add this property and all its child properties to SelectedObjectProperties */
-	void AddPropertiesRecursive(UProperty* Property);
+	void AddPropertiesRecursive(FProperty* Property);
 
 	/** Pointer back to the kismet 2 tool that owns us */
 	TWeakPtr<FBlueprintEditor> BlueprintEditorPtr;
@@ -144,7 +145,7 @@ protected:
 	bool bComponenetDetailsCustomizationEnabled;
 
 	/** Set of object properties that should be visible */
-	TSet<TWeakObjectPtr<UProperty> > SelectedObjectProperties;
+	TSet< TWeakFieldPtr<FProperty> > SelectedObjectProperties;
 	
 	/** User defined delegate for IsPropertyEditingEnabled: */
 	FIsPropertyEditingEnabled IsPropertyEditingEnabledDelegate;

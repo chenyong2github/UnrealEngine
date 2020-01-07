@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConcertSyncClientUtil.h"
 #include "ConcertSyncArchives.h"
@@ -202,7 +202,7 @@ FGetObjectResult GetObject(const FConcertObjectId& InObjectId, const FName InNew
 
 bool ImportPropertyData(const FConcertLocalIdentifierTable* InLocalIdentifierTable, const FConcertSyncWorldRemapper& InWorldRemapper, const FConcertSessionVersionInfo* InVersionInfo, UObject* InObj, const FName InPropertyName, const TArray<uint8>& InSerializedData)
 {
-	UProperty* Prop = InObj->GetClass()->FindPropertyByName(InPropertyName);
+	FProperty* Prop = InObj->GetClass()->FindPropertyByName(InPropertyName);
 	if (Prop)
 	{
 		FConcertSyncObjectReader ObjectReader(InLocalIdentifierTable, InWorldRemapper, InVersionInfo, InObj, InSerializedData);
@@ -229,9 +229,9 @@ TArray<FName> GetRootProperties(const TArray<FName>& InChangedProperties)
 	return RootProperties;
 }
 
-UProperty* GetExportedProperty(const UStruct* InStruct, const FName InPropertyName, const bool InIncludeEditorOnlyData)
+FProperty* GetExportedProperty(const UStruct* InStruct, const FName InPropertyName, const bool InIncludeEditorOnlyData)
 {
-	UProperty* Property = FindField<UProperty>(InStruct, InPropertyName);
+	FProperty* Property = FindField<FProperty>(InStruct, InPropertyName);
 
 	// Filter the property
 	if (Property 
@@ -249,7 +249,7 @@ void SerializeProperties(FConcertLocalIdentifierTable* InLocalIdentifierTable, c
 	const TArray<FName> RootPropertyNames = GetRootProperties(InChangedProperties);
 	for (const FName& RootPropertyName : RootPropertyNames)
 	{
-		UProperty* RootProperty = GetExportedProperty(InObject->GetClass(), RootPropertyName, InIncludeEditorOnlyData);
+		FProperty* RootProperty = GetExportedProperty(InObject->GetClass(), RootPropertyName, InIncludeEditorOnlyData);
 		if (RootProperty)
 		{
 			FConcertSerializedPropertyData& PropertyData = OutPropertyDatas.AddDefaulted_GetRef();
@@ -259,12 +259,12 @@ void SerializeProperties(FConcertLocalIdentifierTable* InLocalIdentifierTable, c
 	}
 }
 
-void SerializeProperty(FConcertLocalIdentifierTable* InLocalIdentifierTable, const UObject* InObject, const UProperty* InProperty, const bool InIncludeEditorOnlyData, TArray<uint8>& OutSerializedData)
+void SerializeProperty(FConcertLocalIdentifierTable* InLocalIdentifierTable, const UObject* InObject, const FProperty* InProperty, const bool InIncludeEditorOnlyData, TArray<uint8>& OutSerializedData)
 {
 	bool bSkipAssets = false; // TODO: Handle asset updates
 
 	FConcertSyncObjectWriter ObjectWriter(InLocalIdentifierTable, (UObject*)InObject, OutSerializedData, InIncludeEditorOnlyData, bSkipAssets);
-	ObjectWriter.SerializeProperty((UProperty*)InProperty, (UObject*)InObject);
+	ObjectWriter.SerializeProperty((FProperty*)InProperty, (UObject*)InObject);
 }
 
 void SerializeObject(FConcertLocalIdentifierTable* InLocalIdentifierTable, const UObject* InObject, const TArray<FName>* InChangedProperties, const bool InIncludeEditorOnlyData, TArray<uint8>& OutSerializedData)

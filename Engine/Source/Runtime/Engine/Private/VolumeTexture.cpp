@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	VolumeTexture.cpp: UvolumeTexture implementation.
@@ -575,7 +575,7 @@ void UVolumeTexture::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 
 void UVolumeTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
- 	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+ 	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if (PropertyChangedEvent.Property)
 	{
 		static const FName SourceTextureName("Source2DTexture");

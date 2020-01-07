@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved. 
+// Copyright Epic Games, Inc. All Rights Reserved. 
 
 #include "GroomComponent.h"
 #include "Materials/Material.h"
@@ -1348,7 +1348,7 @@ void UGroomComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials
 }
 
 #if WITH_EDITOR
-void UGroomComponent::PreEditChange(UProperty* PropertyAboutToChange)
+void UGroomComponent::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	Super::PreEditChange(PropertyAboutToChange);
 
@@ -1367,7 +1367,7 @@ void UGroomComponent::PreEditChange(UProperty* PropertyAboutToChange)
 
 void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) 
 {
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	const FName PropertyName = PropertyThatChanged ? PropertyThatChanged->GetFName() : NAME_None;
 
 	//  Init/release resources when setting the GroomAsset (or undoing)
@@ -1440,7 +1440,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 #endif
 }
 
-bool UGroomComponent::CanEditChange(const UProperty* InProperty) const
+bool UGroomComponent::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{

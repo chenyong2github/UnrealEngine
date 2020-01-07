@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -152,7 +152,7 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
 #endif
 
-	virtual void OnPropertyModified(UObject* PropertySet, UProperty* Property) override;
+	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
 protected:
 

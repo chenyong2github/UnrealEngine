@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Timeline.cpp
@@ -232,7 +232,7 @@ void FTimeline::SetPlaybackPosition(float NewPosition, bool bFireEvents, bool bF
 			{
 				if (VecEntry.VectorProperty == NULL)
 				{
-					VecEntry.VectorProperty = FindField<UStructProperty>(PropSetObject->GetClass(), VecEntry.VectorPropertyName);
+					VecEntry.VectorProperty = FindField<FStructProperty>(PropSetObject->GetClass(), VecEntry.VectorPropertyName);
 					if(VecEntry.VectorProperty == NULL)
 					{
 						UE_LOG(LogTimeline, Log, TEXT("SetPlaybackPosition: No vector property '%s' in '%s'"), *VecEntry.VectorPropertyName.ToString(), *PropSetObject->GetName());
@@ -266,7 +266,7 @@ void FTimeline::SetPlaybackPosition(float NewPosition, bool bFireEvents, bool bF
 			{
 				if (FloatEntry.FloatProperty == NULL)
 				{
-					FloatEntry.FloatProperty = FindField<UFloatProperty>(PropSetObject->GetClass(), FloatEntry.FloatPropertyName);
+					FloatEntry.FloatProperty = FindField<FFloatProperty>(PropSetObject->GetClass(), FloatEntry.FloatPropertyName);
 					if(FloatEntry.FloatProperty == NULL)
 					{
 						UE_LOG(LogTimeline, Log, TEXT("SetPlaybackPosition: No float property '%s' in '%s'"), *FloatEntry.FloatPropertyName.ToString(), *PropSetObject->GetName());
@@ -300,7 +300,7 @@ void FTimeline::SetPlaybackPosition(float NewPosition, bool bFireEvents, bool bF
 			{
 				if (ColorEntry.LinearColorProperty == NULL)
 				{
-					ColorEntry.LinearColorProperty = FindField<UStructProperty>(PropSetObject->GetClass(), ColorEntry.LinearColorPropertyName);
+					ColorEntry.LinearColorProperty = FindField<FStructProperty>(PropSetObject->GetClass(), ColorEntry.LinearColorPropertyName);
 					if(ColorEntry.LinearColorProperty == NULL)
 					{
 						UE_LOG(LogTimeline, Log, TEXT("SetPlaybackPosition: No linear color property '%s' in '%s'"), *ColorEntry.LinearColorPropertyName.ToString(), *PropSetObject->GetName());
@@ -323,10 +323,10 @@ void FTimeline::SetPlaybackPosition(float NewPosition, bool bFireEvents, bool bF
 		{
 			if (DirectionProperty == nullptr)
 			{
-				DirectionProperty = FindField<UByteProperty>(PropSetObject->GetClass(), DirectionPropertyName);
+				DirectionProperty = FindField<FByteProperty>(PropSetObject->GetClass(), DirectionPropertyName);
 				if (DirectionProperty == nullptr)
 				{
-					DirectionProperty = FindField<UEnumProperty>(PropSetObject->GetClass(), DirectionPropertyName);
+					DirectionProperty = FindField<FEnumProperty>(PropSetObject->GetClass(), DirectionPropertyName);
 				}
 
 				if (DirectionProperty == nullptr)
@@ -338,15 +338,15 @@ void FTimeline::SetPlaybackPosition(float NewPosition, bool bFireEvents, bool bF
 			{
 				const ETimelineDirection::Type CurrentDirection = bReversePlayback ? ETimelineDirection::Backward : ETimelineDirection::Forward;
 				TEnumAsByte<ETimelineDirection::Type> ValueAsByte(CurrentDirection);
-				if (UByteProperty* ByteDirection = Cast<UByteProperty>(DirectionProperty))
+				if (FByteProperty* ByteDirection = CastField<FByteProperty>(DirectionProperty))
 				{
 					ByteDirection->SetPropertyValue_InContainer(PropSetObject, ValueAsByte);
 				}
 				else
 				{
-					UEnumProperty* EnumProp = CastChecked<UEnumProperty>(DirectionProperty);
+					FEnumProperty* EnumProp = CastFieldChecked<FEnumProperty>(DirectionProperty);
 					void* PropAddr = EnumProp->ContainerPtrToValuePtr<void>(PropSetObject);
-					UNumericProperty* UnderlyingProp = EnumProp->GetUnderlyingProperty();
+					FNumericProperty* UnderlyingProp = EnumProp->GetUnderlyingProperty();
 					UnderlyingProp->SetIntPropertyValue(PropAddr, (int64)ValueAsByte);
 				}
 			}

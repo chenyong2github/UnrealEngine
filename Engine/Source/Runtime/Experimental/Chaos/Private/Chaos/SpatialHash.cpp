@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/SpatialHash.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 
@@ -15,7 +15,7 @@ namespace Chaos
 
 		MCellSize = 2.0 * Radius;
 
-		MBoundingBox = TBox<T, 3>(TVector<T, 3>(0.0), Chaos::TVector<T, 3>(0.0));
+		MBoundingBox = TAABB<T, 3>(TVector<T, 3>(0.0), Chaos::TVector<T, 3>(0.0));
 		for (int32 Idx = 0; Idx < MParticles.Num(); ++Idx)
 		{
 			MBoundingBox.GrowToInclude(MParticles[Idx]);
@@ -63,7 +63,7 @@ namespace Chaos
 		double Time = 0.0;
 		FDurationTimer Timer(Time);
 
-		MBoundingBox = TBox<T, 3>(TVector<T, 3>(0.0), Chaos::TVector<T, 3>(0.0));
+		MBoundingBox = TAABB<T, 3>(TVector<T, 3>(0.0), Chaos::TVector<T, 3>(0.0));
 		for (int32 Idx = 0; Idx < MParticles.Num(); ++Idx)
 		{
 			MBoundingBox.GrowToInclude(MParticles[Idx]);

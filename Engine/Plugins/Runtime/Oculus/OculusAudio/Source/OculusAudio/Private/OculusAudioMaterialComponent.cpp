@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "OculusAudioMaterialComponent.h"
 #include "OculusAudioDllManager.h"
 
@@ -288,7 +288,7 @@ void UOculusAudioMaterialComponent::ResetAcousticMaterialPreset()
 		}
 	}
 
-	bool UOculusAudioMaterialComponent::CanEditChange(const UProperty* InProperty) const
+	bool UOculusAudioMaterialComponent::CanEditChange(const FProperty* InProperty) const
 	{
 		const bool ParentVal = Super::CanEditChange(InProperty);
 		FName PropertyName = InProperty->GetFName();

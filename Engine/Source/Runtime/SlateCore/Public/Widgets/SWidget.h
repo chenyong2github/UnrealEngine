@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -42,9 +42,6 @@ class SWidget;
 struct FSlateBrush;
 struct FSlatePaintElementLists;
 
-
-
-DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("STAT_SlateVeryVerboseStatGroupTester"), STAT_SlateVeryVerboseStatGroupTester, STATGROUP_SlateVeryVerbose, SLATECORE_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Widgets Created (Per Frame)"), STAT_SlateTotalWidgetsPerFrame, STATGROUP_Slate, SLATECORE_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("SWidget::Paint (Count)"), STAT_SlateNumPaintedWidgets, STATGROUP_Slate, SLATECORE_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("SWidget::Tick (Count)"), STAT_SlateNumTickedWidgets, STATGROUP_Slate, SLATECORE_API);
@@ -54,7 +51,6 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("SlatePrepass"), STAT_SlatePrepass, STATGROUP_Sla
 
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Total Widgets"), STAT_SlateTotalWidgets, STATGROUP_SlateMemory, SLATECORE_API);
 DECLARE_MEMORY_STAT_EXTERN(TEXT("SWidget Total Allocated Size"), STAT_SlateSWidgetAllocSize, STATGROUP_SlateMemory, SLATECORE_API);
-
 
 /** Delegate type for handling mouse events */
 DECLARE_DELEGATE_RetVal_TwoParams(
@@ -730,7 +726,9 @@ private:
 		DesiredSize = InDesiredSize;
 	}
 
+#if STATS || ENABLE_STATNAMEDEVENTS
 	void CreateStatID() const;
+#endif
 
 	void AddUpdateFlags(EWidgetUpdateFlags FlagsToAdd)
 	{
@@ -770,7 +768,7 @@ public:
 	{
 #if STATS
 		// this is done to avoid even registering stats for a disabled group (unless we plan on using it later)
-		if (FThreadStats::IsCollectingData(GET_STATID(STAT_SlateVeryVerboseStatGroupTester)))
+		if (FThreadStats::IsCollectingData())
 		{
 			if (!StatID.IsValidStat())
 			{
@@ -778,6 +776,12 @@ public:
 			}
 			return StatID;
 		}
+#elif ENABLE_STATNAMEDEVENTS
+		if (!StatID.IsValidStat() && GCycleStatsShouldEmitNamedEvents)
+		{
+			CreateStatID();
+		}
+		return StatID;
 #endif
 		return TStatId(); // not doing stats at the moment, or ever
 	}
@@ -1673,8 +1677,16 @@ private:
 	FNoReplyPointerEventHandler MouseEnterHandler;
 	FSimpleNoReplyPointerEventHandler MouseLeaveHandler;
 
-	STAT(mutable TStatId StatID;)
 	STAT(size_t AllocSize;)
+
+#if STATS || ENABLE_STATNAMEDEVENTS
+	/** Stat id of this object, 0 if nobody asked for it yet */
+	mutable TStatId				StatID;
+#endif
+
+#if ENABLE_STATNAMEDEVENTS
+	mutable PROFILER_CHAR* StatIDStringStorage;
+#endif
 };
 
 //=================================================================

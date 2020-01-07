@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 StaticMeshUpdate.cpp: Helpers to stream in and out static mesh LODs.
@@ -341,7 +341,7 @@ FString FStaticMeshStreamIn_IO::GetIOFilename(const FContext& Context)
 
 void FStaticMeshStreamIn_IO::SetAsyncFileCallback(const FContext& Context)
 {
-	AsyncFileCallback = [this, Context](bool bWasCancelled, IAsyncReadRequest* Req)
+	AsyncFileCallback = [this, Context](bool bWasCancelled, IBulkDataIORequest*)
 	{
 		// At this point task synchronization would hold the number of pending requests.
 		TaskSynchronization.Decrement();
@@ -425,6 +425,13 @@ void FStaticMeshStreamIn_IO::SerializeLODData(const FContext& Context)
 	FStaticMeshRenderData* RenderData = Context.RenderData;
 	if (!IsCancelled() && Mesh && RenderData)
 	{
+		// Temporary workaround for FORT-245343
+		// TODO: find a more elegant solution
+		while (!IORequest->PollCompletion())
+		{
+			FPlatformProcess::Sleep(0.000001f);
+		}
+		
 		check(PendingFirstMip < CurrentFirstLODIdx && CurrentFirstLODIdx == RenderData->CurrentFirstLODIdx);
 		check(IORequest->GetSize() >= 0 && IORequest->GetSize() <= TNumericLimits<uint32>::Max());
 

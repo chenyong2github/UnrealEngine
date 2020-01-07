@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/ArchiveLoadCompressedProxy.h"
 #include "Math/UnrealMathUtility.h"
@@ -8,11 +8,6 @@
 /*----------------------------------------------------------------------------
 	FArchiveLoadCompressedProxy
 ----------------------------------------------------------------------------*/
-
-FArchiveLoadCompressedProxy::FArchiveLoadCompressedProxy(FArchiveLoadCompressedProxy::EVS2015Redirector, const TArray<uint8>& InCompressedData, ECompressionFlags InCompressionFlags)
-	: FArchiveLoadCompressedProxy(InCompressedData, FCompression::GetCompressionFormatFromDeprecatedFlags(InCompressionFlags))
-{
-}
 
 FArchiveLoadCompressedProxy::FArchiveLoadCompressedProxy(const TArray<uint8>& InCompressedData, FName InCompressionFormat, ECompressionFlags InCompressionFlags)
 	:	CompressedData(InCompressedData)

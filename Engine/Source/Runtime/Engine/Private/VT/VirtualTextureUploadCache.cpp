@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VirtualTextureUploadCache.h"
 #include "VirtualTextureChunkManager.h"
@@ -214,6 +214,7 @@ FVTUploadTileHandle FVirtualTextureUploadCache::PrepareTileForUpload(FVTUploadTi
 		// Otherwise, CPU writes texture data to temp buffer, then this is copied to GPU via a batched staging texture...this involves more copying, but is best method under default D3D11
 		// Can potentially write each tile to a separate staging texture, but this has too much lock/unlock overhead
 		NewEntry.Stride = Stride;
+		NewEntry.MemorySize = MemorySize;
 		if (ALLOW_COPY_FROM_BUFFER)
 		{
 			FRHIResourceCreateInfo CreateInfo;
@@ -241,6 +242,7 @@ FVTUploadTileHandle FVirtualTextureUploadCache::PrepareTileForUpload(FVTUploadTi
 	++NumPendingTiles;
 	
 	OutBuffer.Memory = Entry.Memory;
+	OutBuffer.MemorySize = Entry.MemorySize;
 	OutBuffer.Stride = Entry.Stride;
 	return FVTUploadTileHandle(Index);
 }

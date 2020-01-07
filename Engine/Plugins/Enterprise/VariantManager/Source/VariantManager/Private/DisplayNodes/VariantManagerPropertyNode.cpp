@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayNodes/VariantManagerPropertyNode.h"
 
@@ -245,16 +245,16 @@ TSharedPtr<SWidget> FVariantManagerPropertyNode::GetPropertyValueWidget()
 
 	// Find the property responsible for Template's UObject*
 	// Assumes it has only one
-	UObjectProperty* TemplateObjectProp = nullptr;
-	if (FirstPropertyValue->GetPropertyClass() == UObjectProperty::StaticClass())
+	FObjectProperty* TemplateObjectProp = nullptr;
+	if (FirstPropertyValue->GetPropertyClass() == FObjectProperty::StaticClass())
 	{
-		for (TFieldIterator<UObjectProperty> PropertyIterator(Template->GetClass()); PropertyIterator; ++PropertyIterator)
+		for (TFieldIterator<FObjectProperty> PropertyIterator(Template->GetClass()); PropertyIterator; ++PropertyIterator)
 		{
 			TemplateObjectProp = *PropertyIterator;
 		}
 	}
 
-	// HACK to cause the widget to display an UObjectProperty editor restricted to objects of our desired class
+	// HACK to cause the widget to display an FObjectProperty editor restricted to objects of our desired class
 	// Note that we undo this right aftewards, so that other property value widgets can do the same to different
 	// classes. The template's property itself will then be free to be set with whatever object, but the created
 	// widget is already locked in place

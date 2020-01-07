@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -7,9 +7,10 @@
 #include "ClothingSimulation.h"
 #include "ClothingSimulationContext.h"
 #include "ClothingActor.h"
+#include "ClothConfigNv.h"
 
-#include "Assets/ClothingAssetNv.h"
-
+class UClothingAssetBase;
+class UClothingAssetCommon;
 
 namespace nv
 {
@@ -132,7 +133,7 @@ private:
 	TArray<FActorLodData> LodData;
 
 	// How we're going to calculate our wind data (see EClothingWindMethod for method descriptions)
-	EClothingWindMethod WindMethod;
+	EClothingWindMethodNv WindMethod;
 
 	// Thickness to add to collisions to fake cloth thickness
 	float CollisionThickness;
@@ -157,7 +158,7 @@ private:
 	// Scratch arrays for processing during simulate, grow-only to avoid repeated allocations.
 	FClothingActorScratchData Scratch;
 
-	// Simuation given access to our data
+	// Simulation given access to our data
 	friend class FClothingSimulationNv;
 };
 
@@ -250,15 +251,15 @@ private:
 
 	// The core simulation is only solving unoriented particles, so we need to compute normals after the
 	// simulation runs
-	void ComputePhysicalMeshNormals(FClothingActorNv &Actor);
+	void ComputePhysicalMeshNormals(FClothingActorNv& Actor);
 
 	// Given a clothing config from an asset, apply it to the provided actor. Currently
 	// this is only used from CreateActor, but could be exposed for runtime changes
-	void ApplyClothConfig(UClothConfigBase *BaseConfig, FClothingActorNv &InActor);
+	void ApplyClothConfig(const UClothConfigNv* Config, FClothingActorNv& InActor);
 
 	// Extract collisions from the physics asset inside Asset and apply them to InActor
 	// Not safe to call from workers (i.e. inside the simulation).
-	void ExtractActorCollisions(UClothingAssetCommon* Asset, FClothingActorNv &InActor);
+	void ExtractActorCollisions(UClothingAssetCommon* Asset, FClothingActorNv& InActor);
 
 	// The current LOD index for the owning skeletal mesh component
 	int32 CurrentMeshLodIndex;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -422,6 +422,9 @@ class ENGINE_API UAnimInstance : public UObject
 
 	/** Flag to check back on the game thread that indicates we need to run PostUpdateAnimation() in the post-eval call */
 	uint8 bNeedsUpdate : 1;
+
+	/** Flag to check if created by LinkedAnimGraph in ReinitializeLinkedAnimInstance */
+	uint8 bCreatedByLinkedAnimGraph : 1;
 
 private:
 	/** True when Montages are being ticked, and Montage Events should be queued. 
@@ -1254,7 +1257,7 @@ public:
 	void AddCurveValue(const FName& CurveName, float Value);
 
 	/** Given a machine and state index, record a state weight for this frame */
-	void RecordStateWeight(const int32 InMachineClassIndex, const int32 InStateIndex, const float InStateWeight);
+	void RecordStateWeight(const int32 InMachineClassIndex, const int32 InStateIndex, const float InStateWeight, const float InElapsedTime);
 
 protected:
 #if WITH_EDITORONLY_DATA

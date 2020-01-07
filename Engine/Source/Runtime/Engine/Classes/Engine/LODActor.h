@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -105,6 +105,21 @@ public:
 	 */
 	void SetLODParent(UPrimitiveComponent* InLODParent, float InParentDrawDistance, bool bInApplyToImposters);
 
+#if WITH_EDITORONLY_DATA
+	/** 
+	 * Set the named tag which describes the source of the LOD actor (HLOD Volume, single cluster / level, etc)
+	 * Helps uniquely identifying auto generated LOD actors & naming of the proxy static mesh assets.
+	 * @param	InLODActorTag		Named tag to assign to this LODActor.
+	 */
+	void SetLODActorTag(const FString& InLODActorTag) { LODActorTag = InLODActorTag; }
+
+	/**
+	 * Get the named tag which describes the source of the LOD actor (HLOD Volume, single cluster / level, etc)
+	 * Helps uniquely identifying auto generated LOD actors & naming of the proxy static mesh assets.
+	 * @returns the named tag assigned to this LODActor.
+	 */
+	const FString& GetLODActorTag() const { return LODActorTag; }
+#endif // WITH_EDITORONLY_DATA
 
 	/** Get the key that we use to check if we need to (re)build */
 	const FName& GetKey() const { return Key; }
@@ -184,7 +199,7 @@ public:
 	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
-	virtual void PreEditChange(UProperty* PropertyThatWillChange) override;
+	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
@@ -304,4 +319,9 @@ private:
 
 	// Sink for when CVars are changed to check to see if the maximum HLOD level value has changed
 	static FAutoConsoleVariableSink CVarSink;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	FString LODActorTag;
+#endif // WITH_EDITORONLY_DATA
 }; 

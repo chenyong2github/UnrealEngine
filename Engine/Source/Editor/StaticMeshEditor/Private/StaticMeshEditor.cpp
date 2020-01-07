@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StaticMeshEditor.h"
 #include "AssetData.h"
@@ -2157,7 +2157,7 @@ void FStaticMeshEditor::UnregisterOnPostUndo( SWidget* Widget )
 	OnPostUndo.RemoveAll( Widget );
 }
 
-void FStaticMeshEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged )
+void FStaticMeshEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged )
 {
 	if(StaticMesh && StaticMesh->BodySetup)
 	{

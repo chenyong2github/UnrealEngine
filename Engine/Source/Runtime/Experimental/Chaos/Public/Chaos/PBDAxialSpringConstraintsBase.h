@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Array.h"
@@ -100,8 +100,6 @@ class TPBDAxialSpringConstraintsBase
   protected:
 	TArray<TVector<int32, 3>> MConstraints;
 	TArray<T> MBarys;
-
-  private:
 	TArray<T> MDists;
 	T MStiffness;
 };

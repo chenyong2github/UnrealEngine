@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineHotfixManager.h"
 #include "OnlineSubsystemUtils.h"
@@ -1515,14 +1515,14 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 	{
 		// Edit the row with the new value.
 		bool bWasDataTableChanged = false;
-		UProperty* DataTableRowProperty = DataTable->GetRowStruct()->FindPropertyByName(FName(*ColumnName));
+		FProperty* DataTableRowProperty = DataTable->GetRowStruct()->FindPropertyByName(FName(*ColumnName));
 		if (DataTableRowProperty)
 		{
 			// See what type of property this is.
-			UNumericProperty* NumProp = Cast<UNumericProperty>(DataTableRowProperty);
-			UStrProperty* StrProp = Cast<UStrProperty>(DataTableRowProperty);
-			UNameProperty* NameProp = Cast<UNameProperty>(DataTableRowProperty);
-			USoftObjectProperty* SoftObjProp = Cast<USoftObjectProperty>(DataTableRowProperty);
+			FNumericProperty* NumProp = CastField<FNumericProperty>(DataTableRowProperty);
+			FStrProperty* StrProp = CastField<FStrProperty>(DataTableRowProperty);
+			FNameProperty* NameProp = CastField<FNameProperty>(DataTableRowProperty);
+			FSoftObjectProperty* SoftObjProp = CastField<FSoftObjectProperty>(DataTableRowProperty);
 
 			// Get the row data by name.
 			static const FString Context = FString(TEXT("UOnlineHotfixManager::PatchAssetsFromIniFiles"));
@@ -1598,7 +1598,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 
 						if (Error.Len() > 0)
 						{
-							const FString Problem(FString::Printf(TEXT("The data table row property named %s is not a UNumericProperty, UStrProperty, UNameProperty, or USoftObjectProperty and it should be."), *ColumnName));
+							const FString Problem(FString::Printf(TEXT("The data table row property named %s is not a FNumericProperty, FStrProperty, FNameProperty, or FSoftObjectProperty and it should be."), *ColumnName));
 							ProblemStrings.Add(Problem);
 							ProblemStrings.Add(FString::Printf(TEXT("%s"), *Error));
 						}

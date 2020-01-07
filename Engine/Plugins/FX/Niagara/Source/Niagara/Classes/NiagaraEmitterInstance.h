@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*==============================================================================
 NiagaraEmitterInstance.h: Niagara emitter simulation class
@@ -37,9 +37,6 @@ public:
 	void Init(int32 InEmitterIdx, FNiagaraSystemInstanceID SystemInstanceID);
 
 	void ResetSimulation(bool bKillExisting = true);
-
-	/** Called after all emitters in an System have been initialized, allows emitters to access information from one another. */
-	void PostInitSimulation();
 
 	void DirtyDataInterfaces();
 
@@ -187,18 +184,18 @@ private:
 	FNiagaraParameterDirectBinding<float> UpdateEmitterAgeBinding;
 	TArray<FNiagaraParameterDirectBinding<float>> EventEmitterAgeBindings;
 
-	FNiagaraParameterDirectBinding<int32> SpawnExecCountBinding;
-	FNiagaraParameterDirectBinding<int32> UpdateExecCountBinding;
-	TArray<FNiagaraParameterDirectBinding<int32>> EventExecCountBindings;
+	FNiagaraParameterDirectBinding<int32> SpawnRandomSeedBinding;
+	FNiagaraParameterDirectBinding<int32> UpdateRandomSeedBinding;
+	FNiagaraParameterDirectBinding<int32> GPURandomSeedBinding;
+	TArray<FNiagaraParameterDirectBinding<int>> EventRandomSeedBindings;
 
 	FNiagaraParameterDirectBinding<int32> SpawnTotalSpawnedParticlesBinding;
 	FNiagaraParameterDirectBinding<int32> UpdateTotalSpawnedParticlesBinding;
 	TArray<FNiagaraParameterDirectBinding<int32>> EventTotalSpawnedParticlesBindings;
 
-	FNiagaraParameterDirectBinding<int32> SpawnRandomSeedBinding;
-	FNiagaraParameterDirectBinding<int32> UpdateRandomSeedBinding;
-	FNiagaraParameterDirectBinding<int32> GPURandomSeedBinding;
-	TArray<FNiagaraParameterDirectBinding<int>> EventRandomSeedBindings;
+	FNiagaraParameterDirectBinding<int32> SpawnExecCountBinding;
+	FNiagaraParameterDirectBinding<int32> UpdateExecCountBinding;
+	TArray<FNiagaraParameterDirectBinding<int32>> EventExecCountBindings;
 
 	/*
 	FNiagaraParameterDirectBinding<int32> SpawnDeterminismBinding;

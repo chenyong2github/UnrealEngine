@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNetStatsView.h"
 
@@ -24,13 +24,16 @@
 #include "Insights/NetworkingProfiler/ViewModels/NetStatsViewColumnFactory.h"
 #include "Insights/NetworkingProfiler/Widgets/SNetStatsViewTooltip.h"
 #include "Insights/NetworkingProfiler/Widgets/SNetStatsTableRow.h"
+#include "Insights/NetworkingProfiler/Widgets/SNetworkingProfilerWindow.h"
+#include "Insights/NetworkingProfiler/Widgets/SPacketContentView.h"
 
 #define LOCTEXT_NAMESPACE "SNetStatsView"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 SNetStatsView::SNetStatsView()
-	: Table(MakeShared<Insights::FTable>())
+	: ProfilerWindow()
+	, Table(MakeShared<Insights::FTable>())
 	, bExpansionSaved(false)
 	, bFilterOutZeroCountEvents(false)
 	, GroupingMode(ENetEventGroupingMode::Flat)
@@ -65,8 +68,10 @@ SNetStatsView::~SNetStatsView()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-void SNetStatsView::Construct(const FArguments& InArgs)
+void SNetStatsView::Construct(const FArguments& InArgs, TSharedPtr<SNetworkingProfilerWindow> InProfilerWindow)
 {
+	ProfilerWindow = InProfilerWindow;
+
 	SAssignNew(ExternalScrollbar, SScrollBar)
 	.AlwaysShowScrollbar(true);
 
@@ -838,6 +843,25 @@ void SNetStatsView::TreeView_OnMouseButtonDoubleClick(FNetEventNodePtr NetEventN
 	{
 		const bool bIsGroupExpanded = TreeView->IsItemExpanded(NetEventNodePtr);
 		TreeView->SetItemExpansion(NetEventNodePtr, !bIsGroupExpanded);
+	}
+	else
+	{
+		TSharedPtr<SPacketContentView> PacketContentView = ProfilerWindow.IsValid() ? ProfilerWindow->GetPacketContentView() : nullptr;
+		if (PacketContentView.IsValid())
+		{
+			const uint32 EventTypeIndex = NetEventNodePtr->GetId();
+			const uint32 FilterEventTypeIndex = PacketContentView->GetFilterEventTypeIndex();
+
+			if (EventTypeIndex == FilterEventTypeIndex && PacketContentView->IsFilterByEventTypeEnabled())
+			{
+				PacketContentView->DisableFilterEventType();
+			}
+			else
+			{
+				PacketContentView->EnableFilterEventType(EventTypeIndex);
+				//PacketContentView->FindFirstEvent();
+			}
+		}
 	}
 }
 

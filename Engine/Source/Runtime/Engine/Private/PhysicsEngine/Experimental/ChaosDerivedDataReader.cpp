@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Physics/Experimental/ChaosDerivedDataReader.h"
 #include "Chaos/ChaosArchive.h"
@@ -6,7 +6,7 @@
 #include "Chaos/Convex.h"
 
 template<typename T, int d>
-FChaosDerivedDataReader<T, d>::FChaosDerivedDataReader(FUntypedBulkData* InBulkData)
+FChaosDerivedDataReader<T, d>::FChaosDerivedDataReader(FBulkDataInterface* InBulkData)
 	: bReadSuccessful(false)
 {
 	const int32 DataTypeSize = sizeof(T);

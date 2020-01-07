@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 // Can't be #pragma once because we want this to be interpreted differently depending on the module that is referencing the including file
 

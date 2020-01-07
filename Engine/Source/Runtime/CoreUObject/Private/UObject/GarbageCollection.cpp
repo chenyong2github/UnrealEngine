@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UnObjGC.cpp: Unreal object garbage collection code.
@@ -29,6 +29,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
+#include "UObject/FieldPathProperty.h"
 
 /*-----------------------------------------------------------------------------
    Garbage collection.
@@ -885,7 +886,7 @@ public:
 				FString TokenDebugInfo;
 				if (UClass *Class = (ReferencingObject ? ReferencingObject->GetClass() : nullptr))
 				{
-					auto& TokenInfo = Class->DebugTokenMap.GetTokenInfo(TokenIndex);
+					FTokenInfo TokenInfo = Class->ReferenceTokenStream.GetTokenInfo(TokenIndex);
 					TokenDebugInfo = FString::Printf(TEXT("ReferencingObjectClass: %s, Property Name: %s, Offset: %d"),
 						*Class->GetFullName(), *TokenInfo.Name.GetPlainNameString(), TokenInfo.Offset);
 				}
@@ -916,7 +917,7 @@ FGCCollector<bParallel, bWithClusters>::FGCCollector(FGCReferenceProcessor<bPara
 }
 
 template <bool bParallel, bool bWithClusters>
-FORCEINLINE void FGCCollector<bParallel, bWithClusters>::InternalHandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const UProperty* ReferencingProperty)
+FORCEINLINE void FGCCollector<bParallel, bWithClusters>::InternalHandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const FProperty* ReferencingProperty)
 {
 #if ENABLE_GC_OBJECT_CHECKS
 		if (Object && !Object->IsValidLowLevelFast())
@@ -931,13 +932,13 @@ FORCEINLINE void FGCCollector<bParallel, bWithClusters>::InternalHandleObjectRef
 }
 
 template <bool bParallel, bool bWithClusters>
-void FGCCollector<bParallel, bWithClusters>::HandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const UProperty* ReferencingProperty)
+void FGCCollector<bParallel, bWithClusters>::HandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const FProperty* ReferencingProperty)
 {
 		InternalHandleObjectReference(Object, ReferencingObject, ReferencingProperty);
 }
 
 template <bool bParallel, bool bWithClusters>
-void FGCCollector<bParallel, bWithClusters>::HandleObjectReferences(UObject** InObjects, const int32 ObjectNum, const UObject* InReferencingObject, const UProperty* InReferencingProperty)
+void FGCCollector<bParallel, bWithClusters>::HandleObjectReferences(UObject** InObjects, const int32 ObjectNum, const UObject* InReferencingObject, const FProperty* InReferencingProperty)
 {
 		for (int32 ObjectIndex = 0; ObjectIndex < ObjectNum; ++ObjectIndex)
 		{
@@ -970,7 +971,7 @@ FReferenceFinder::FReferenceFinder(TArray<UObject*>& InObjectArray, UObject* InO
 	}
 }
 
-void FReferenceFinder::FindReferences(UObject* Object, UObject* InReferencingObject, UProperty* InReferencingProperty)
+void FReferenceFinder::FindReferences(UObject* Object, UObject* InReferencingObject, FProperty* InReferencingProperty)
 {
 	check(Object != NULL);
 
@@ -982,7 +983,7 @@ void FReferenceFinder::FindReferences(UObject* Object, UObject* InReferencingObj
 	Object->CallAddReferencedObjects(*this);
 }
 
-void FReferenceFinder::HandleObjectReference( UObject*& InObject, const UObject* InReferencingObject /*= NULL*/, const UProperty* InReferencingProperty /*= NULL*/ )
+void FReferenceFinder::HandleObjectReference( UObject*& InObject, const UObject* InReferencingObject /*= NULL*/, const FProperty* InReferencingProperty /*= NULL*/ )
 {
 	// Avoid duplicate entries.
 	if ( InObject != NULL )
@@ -1002,7 +1003,7 @@ void FReferenceFinder::HandleObjectReference( UObject*& InObject, const UObject*
 			if ( bSerializeRecursively == true && !SerializedObjects.Find(Object) )
 			{
 				SerializedObjects.Add(Object);
-				FindReferences(Object, const_cast<UObject*>(InReferencingObject), const_cast<UProperty*>(InReferencingProperty));
+				FindReferences(Object, const_cast<UObject*>(InReferencingObject), const_cast<FProperty*>(InReferencingProperty));
 			}
 		}
 	}
@@ -1032,7 +1033,14 @@ class FRealtimeGC : public FGarbageCollectionTracer
 	void PerformReachabilityAnalysisOnObjectsInternal(FGCArrayStruct* ArrayStruct)
 	{
 		FGCReferenceProcessor<bParallel, bWithClusters> ReferenceProcessor;
-		TFastReferenceCollector<bParallel, FGCReferenceProcessor<bParallel, bWithClusters>, FGCCollector<bParallel, bWithClusters>, FGCArrayPool> ReferenceCollector(ReferenceProcessor, FGCArrayPool::Get());
+		// NOTE: we want to run with automatic token stream generation off as it should be already generated at this point,
+		// BUT we want to be ignoring Noop tokens as they're only pointing either at null references or at objects that never get GC'd (native classes)
+		TFastReferenceCollector<bParallel, 
+			FGCReferenceProcessor<bParallel, bWithClusters>, 
+			FGCCollector<bParallel, bWithClusters>, 
+			FGCArrayPool, 
+			/* bAutoGenerateTokenStream = */ false, 
+			/* bIgnoreNoopTokens = */ true> ReferenceCollector(ReferenceProcessor, FGCArrayPool::Get());
 		ReferenceCollector.CollectReferences(*ArrayStruct);
 	}
 
@@ -1829,6 +1837,12 @@ void GatherUnreachableObjects(bool bForceSingleThreaded)
  */
 void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 {
+	if (GIsInitialLoad)
+	{
+		// During initial load classes may not yet have their GC token streams assembled
+		UE_LOG(LogGarbage, Log, TEXT("Skipping CollectGarbage() call during initial load. It's not safe."));
+		return;
+	}
 	SCOPE_TIME_GUARD(TEXT("Collect Garbage"));
 	SCOPED_NAMED_EVENT(CollectGarbageInternal, FColor::Red);
 	CSV_EVENT_GLOBAL(TEXT("GC"));
@@ -1929,7 +1943,7 @@ void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 		// Fire post-reachability analysis hooks
 		FCoreUObjectDelegates::PostReachabilityAnalysis.Broadcast();
 
-		{
+		{			
 			FGCArrayPool::Get().ClearWeakReferences(bPerformFullPurge);
 
 			GatherUnreachableObjects(bForceSingleThreadedGC);
@@ -2014,10 +2028,10 @@ bool UnhashUnreachableObjects(bool bUseTimeLimit, float TimeLimit)
 	if (!bUseTimeLimit)
 	{
 		UE_LOG(LogGarbage, Log, TEXT("%f ms for %sunhashing unreachable objects (%d objects unhashed)"),
-			(FPlatformTime::Seconds() - StartTime) * 1000,
-			bUseTimeLimit ? TEXT("incrementally ") : TEXT(""),
+		(FPlatformTime::Seconds() - StartTime) * 1000,
+		bUseTimeLimit ? TEXT("incrementally ") : TEXT(""),
 			Items,
-			GUnrechableObjectIndex, GUnreachableObjects.Num());
+		GUnrechableObjectIndex, GUnreachableObjects.Num());
 	}
 	else if (!bTimeLimitReached)
 	{
@@ -2113,7 +2127,7 @@ bool UObject::IsDestructionThreadSafe() const
 
 /*-----------------------------------------------------------------------------
 	Implementation of realtime garbage collection helper functions in 
-	UProperty, UClass, ...
+	FProperty, UClass, ...
 -----------------------------------------------------------------------------*/
 
 /**
@@ -2122,7 +2136,7 @@ bool UObject::IsDestructionThreadSafe() const
  *
  * @return true if property (or sub- properties) contain a UObject reference, false otherwise
  */
-bool UProperty::ContainsObjectReference(TArray<const UStructProperty*>& EncounteredStructProps) const
+bool FProperty::ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps) const
 {
 	return false;
 }
@@ -2133,7 +2147,7 @@ bool UProperty::ContainsObjectReference(TArray<const UStructProperty*>& Encounte
  *
  * @return true if property (or sub- properties) contain a UObject reference, false otherwise
  */
-bool UArrayProperty::ContainsObjectReference(TArray<const UStructProperty*>& EncounteredStructProps) const
+bool FArrayProperty::ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps) const
 {
 	check(Inner);
 	return Inner->ContainsObjectReference(EncounteredStructProps);
@@ -2145,7 +2159,7 @@ bool UArrayProperty::ContainsObjectReference(TArray<const UStructProperty*>& Enc
  *
  * @return true if property (or sub- properties) contain a UObject reference, false otherwise
  */
-bool UMapProperty::ContainsObjectReference(TArray<const UStructProperty*>& EncounteredStructProps) const
+bool FMapProperty::ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps) const
 {
 	check(KeyProp);
 	check(ValueProp);
@@ -2158,7 +2172,7 @@ bool UMapProperty::ContainsObjectReference(TArray<const UStructProperty*>& Encou
 *
 * @return true if property (or sub- properties) contain a UObject reference, false otherwise
 */
-bool USetProperty::ContainsObjectReference(TArray<const UStructProperty*>& EncounteredStructProps) const
+bool FSetProperty::ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps) const
 {
 	check(ElementProp);
 	return ElementProp->ContainsObjectReference(EncounteredStructProps);
@@ -2170,7 +2184,7 @@ bool USetProperty::ContainsObjectReference(TArray<const UStructProperty*>& Encou
  *
  * @return true if property (or sub- properties) contain a UObject reference, false otherwise
  */
-bool UStructProperty::ContainsObjectReference(TArray<const UStructProperty*>& EncounteredStructProps) const
+bool FStructProperty::ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps) const
 {
 	if (EncounteredStructProps.Contains(this))
 	{
@@ -2180,12 +2194,12 @@ bool UStructProperty::ContainsObjectReference(TArray<const UStructProperty*>& En
 	{
 		if (!Struct)
 		{
-			UE_LOG(LogGarbage, Warning, TEXT("Broken UStructProperty does not have a UStruct: %s"), *GetFullName() );
+			UE_LOG(LogGarbage, Warning, TEXT("Broken FStructProperty does not have a UStruct: %s"), *GetFullName() );
 		}
 		else
 		{
 			EncounteredStructProps.Add(this);
-			UProperty* Property = Struct->PropertyLink;
+			FProperty* Property = Struct->PropertyLink;
 			while( Property )
 			{
 				if (Property->ContainsObjectReference(EncounteredStructProps))
@@ -2201,21 +2215,27 @@ bool UStructProperty::ContainsObjectReference(TArray<const UStructProperty*>& En
 	}
 }
 
+bool FFieldPathProperty::ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps) const
+{
+	return true;
+}
+
+
 // Returns true if this property contains a weak UObject reference.
-bool UProperty::ContainsWeakObjectReference() const
+bool FProperty::ContainsWeakObjectReference() const
 {
 	return false;
 }
 
 // Returns true if this property contains a weak UObject reference.
-bool UArrayProperty::ContainsWeakObjectReference() const
+bool FArrayProperty::ContainsWeakObjectReference() const
 {
 	check(Inner);
 	return Inner->ContainsWeakObjectReference();
 }
 
 // Returns true if this property contains a weak UObject reference.
-bool UMapProperty::ContainsWeakObjectReference() const
+bool FMapProperty::ContainsWeakObjectReference() const
 {
 	check(KeyProp);
 	check(ValueProp);
@@ -2223,29 +2243,29 @@ bool UMapProperty::ContainsWeakObjectReference() const
 }
 
 // Returns true if this property contains a weak UObject reference.
-bool USetProperty::ContainsWeakObjectReference() const
+bool FSetProperty::ContainsWeakObjectReference() const
 {
 	check(ElementProp);
 	return ElementProp->ContainsWeakObjectReference();
 }
 
 // Returns true if this property contains a weak UObject reference.
-bool UStructProperty::ContainsWeakObjectReference() const
+bool FStructProperty::ContainsWeakObjectReference() const
 {
 	// prevent recursion in the case of structs containing dynamic arrays of themselves
-	static TArray<const UStructProperty*> EncounteredStructProps;
+	static TArray<const FStructProperty*> EncounteredStructProps;
 
 	if (!EncounteredStructProps.Contains(this))
 	{
 		if (!Struct)
 		{
-			UE_LOG(LogGarbage, Warning, TEXT("Broken UStructProperty does not have a UStruct: %s"), *GetFullName() );
+			UE_LOG(LogGarbage, Warning, TEXT("Broken FStructProperty does not have a UStruct: %s"), *GetFullName() );
 		}
 		else
 		{
 			EncounteredStructProps.Add(this);
 
-			for (UProperty* Property = Struct->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext)
+			for (FProperty* Property = Struct->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext)
 			{
 				if (Property->ContainsWeakObjectReference())
 				{
@@ -2262,13 +2282,13 @@ bool UStructProperty::ContainsWeakObjectReference() const
 }
 
 // Returns true if this property contains a weak UObject reference.
-bool UDelegateProperty::ContainsWeakObjectReference() const
+bool FDelegateProperty::ContainsWeakObjectReference() const
 {
 	return true;
 }
 
 // Returns true if this property contains a weak UObject reference.
-bool UMulticastDelegateProperty::ContainsWeakObjectReference() const
+bool FMulticastDelegateProperty::ContainsWeakObjectReference() const
 {
 	return true;
 }
@@ -2288,7 +2308,7 @@ struct FGCReferenceFixedArrayTokenHelper
 	 * @param InStride					array type stride (e.g. sizeof(struct) or sizeof(UObject*))
 	 * @param InProperty                the property this array represents
 	 */
-	FGCReferenceFixedArrayTokenHelper(UClass& OwnerClass, int32 InOffset, int32 InCount, int32 InStride, const UProperty& InProperty)
+	FGCReferenceFixedArrayTokenHelper(UClass& OwnerClass, int32 InOffset, int32 InCount, int32 InStride, const FProperty& InProperty)
 		: ReferenceTokenStream(&OwnerClass.ReferenceTokenStream)
 	,	Count(InCount)
 	{
@@ -2322,7 +2342,7 @@ private:
  * Emits tokens used by realtime garbage collection code to passed in ReferenceTokenStream. The offset emitted is relative
  * to the passed in BaseOffset which is used by e.g. arrays of structs.
  */
-void UProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const UStructProperty*>& EncounteredStructProps)
+void FProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
 {
 }
 
@@ -2330,7 +2350,7 @@ void UProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<c
  * Emits tokens used by realtime garbage collection code to passed in OwnerClass' ReferenceTokenStream. The offset emitted is relative
  * to the passed in BaseOffset which is used by e.g. arrays of structs.
  */
-void UObjectProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const UStructProperty*>& EncounteredStructProps)
+void FObjectProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
 {
 	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(UObject*), *this);
 	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_Object);
@@ -2340,11 +2360,11 @@ void UObjectProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TA
  * Emits tokens used by realtime garbage collection code to passed in OwnerClass' ReferenceTokenStream. The offset emitted is relative
  * to the passed in BaseOffset which is used by e.g. arrays of structs.
  */
-void UArrayProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const UStructProperty*>& EncounteredStructProps)
+void FArrayProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
 {
 	if (Inner->ContainsObjectReference(EncounteredStructProps))
 	{
-		if( Inner->IsA(UStructProperty::StaticClass()) )
+		if( Inner->IsA(FStructProperty::StaticClass()) )
 		{
 			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_ArrayStruct);
 
@@ -2354,11 +2374,11 @@ void UArrayProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TAr
 			const uint32 SkipIndex = OwnerClass.ReferenceTokenStream.EmitReturn();
 			OwnerClass.ReferenceTokenStream.UpdateSkipIndexPlaceholder(SkipIndexIndex, SkipIndex);
 		}
-		else if( Inner->IsA(UObjectProperty::StaticClass()) )
+		else if( Inner->IsA(FObjectProperty::StaticClass()) )
 		{
 			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_ArrayObject);
 		}
-		else if( Inner->IsA(UInterfaceProperty::StaticClass()) )
+		else if( Inner->IsA(FInterfaceProperty::StaticClass()) )
 		{
 			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_ArrayStruct);
 
@@ -2369,6 +2389,10 @@ void UArrayProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TAr
 
 			const uint32 SkipIndex = OwnerClass.ReferenceTokenStream.EmitReturn();
 			OwnerClass.ReferenceTokenStream.UpdateSkipIndexPlaceholder(SkipIndexIndex, SkipIndex);
+		}
+		else if (Inner->IsA(FFieldPathProperty::StaticClass()))
+		{
+			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_ArrayAddFieldPathReferencedObject);
 		}
 		else
 		{
@@ -2382,7 +2406,7 @@ void UArrayProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TAr
  * Emits tokens used by realtime garbage collection code to passed in OwnerClass' ReferenceTokenStream. The offset emitted is relative
  * to the passed in BaseOffset which is used by e.g. arrays of structs.
  */
-void UMapProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const UStructProperty*>& EncounteredStructProps)
+void FMapProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
 {
 	if (ContainsObjectReference(EncounteredStructProps))
 	{
@@ -2395,7 +2419,7 @@ void UMapProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArra
 * Emits tokens used by realtime garbage collection code to passed in OwnerClass' ReferenceTokenStream. The offset emitted is relative
 * to the passed in BaseOffset which is used by e.g. arrays of structs.
 */
-void USetProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const UStructProperty*>& EncounteredStructProps)
+void FSetProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
 {
 	if (ContainsObjectReference(EncounteredStructProps))
 	{
@@ -2409,7 +2433,7 @@ void USetProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArra
  * Emits tokens used by realtime garbage collection code to passed in ReferenceTokenStream. The offset emitted is relative
  * to the passed in BaseOffset which is used by e.g. arrays of structs.
  */
-void UStructProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const UStructProperty*>& EncounteredStructProps)
+void FStructProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
 {
 	if (Struct->StructFlags & STRUCT_AddStructReferencedObjects)
 	{
@@ -2428,7 +2452,7 @@ void UStructProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TA
 	{
 		FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, ElementSize, *this);
 
-		UProperty* Property = Struct->PropertyLink;
+		FProperty* Property = Struct->PropertyLink;
 		while( Property )
 		{
 			Property->EmitReferenceInfo(OwnerClass, BaseOffset + GetOffset_ForGC(), EncounteredStructProps);
@@ -2441,21 +2465,24 @@ void UStructProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TA
  * Emits tokens used by realtime garbage collection code to passed in ReferenceTokenStream. The offset emitted is relative
  * to the passed in BaseOffset which is used by e.g. arrays of structs.
  */
-void UInterfaceProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const UStructProperty*>& EncounteredStructProps)
+void FInterfaceProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
 {
 	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FScriptInterface), *this);
 
 	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_Object);
 }
 
+void FFieldPathProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
+{
+	static_assert(sizeof(FFieldPath) == sizeof(TFieldPath<FProperty>), "TFieldPath should have the same size as the underlying FFieldPath");
+	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FFieldPath), *this);
+	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_AddFieldPathReferencedObject);
+}
+
 void UClass::EmitObjectReference(int32 Offset, const FName& DebugName, EGCReferenceType Kind)
 {
 	FGCReferenceInfo ObjectReference(Kind, Offset);
-	int32 TokenIndex = ReferenceTokenStream.EmitReferenceInfo(ObjectReference);
-
-#if ENABLE_GC_OBJECT_CHECKS
-	DebugTokenMap.MapToken(DebugName, Offset, TokenIndex);
-#endif
+	ReferenceTokenStream.EmitReferenceInfo(ObjectReference, DebugName);
 }
 
 void UClass::EmitObjectArrayReference(int32 Offset, const FName& DebugName)
@@ -2538,17 +2565,14 @@ void UClass::AssembleReferenceTokenStream(bool bForce)
 		if (bForce)
 		{
 			ReferenceTokenStream.Empty();
-#if ENABLE_GC_OBJECT_CHECKS
-			DebugTokenMap.Empty();
-#endif
 			ClassFlags &= ~CLASS_TokenStreamAssembled;
 		}
-		TArray<const UStructProperty*> EncounteredStructProps;
+		TArray<const FStructProperty*> EncounteredStructProps;
 
 		// Iterate over properties defined in this class
-		for( TFieldIterator<UProperty> It(this,EFieldIteratorFlags::ExcludeSuper); It; ++It)
+		for( TFieldIterator<FProperty> It(this,EFieldIteratorFlags::ExcludeSuper); It; ++It)
 		{
-			UProperty* Property = *It;
+			FProperty* Property = *It;
 			Property->EmitReferenceInfo(*this, 0, EncounteredStructProps);
 		}
 
@@ -2562,7 +2586,7 @@ void UClass::AssembleReferenceTokenStream(bool bForce)
 			if (!SuperClass->ReferenceTokenStream.IsEmpty())
 			{
 				// Prepend super's stream. This automatically handles removing the EOS token.
-				PrependStreamWithSuperClass(*SuperClass);
+				ReferenceTokenStream.PrependStream(SuperClass->ReferenceTokenStream);
 			}
 		}
 		else
@@ -2570,22 +2594,32 @@ void UClass::AssembleReferenceTokenStream(bool bForce)
 			UObjectBase::EmitBaseReferences(this);
 		}
 
-#if !WITH_EDITOR
-		// In no-editor builds UObject::ARO is empty, thus only classes
-		// which implement their own ARO function need to have the ARO token generated.
-		if (ClassAddReferencedObjects != &UObject::AddReferencedObjects)
-#endif
 		{
 			check(ClassAddReferencedObjects != NULL);
-			ReferenceTokenStream.ReplaceOrAddAddReferencedObjectsCall(ClassAddReferencedObjects);
+			const bool bKeepOuter = GetFName() != NAME_Package;
+			const bool bKeepClass = !(GetClassFlags() & CLASS_Native) || IsA(UDynamicClass::StaticClass());
+
+			ClassAddReferencedObjectsType AddReferencedObjectsFn = nullptr;
+#if !WITH_EDITOR
+			// In no-editor builds UObject::ARO is empty, thus only classes
+			// which implement their own ARO function need to have the ARO token generated.
+			if (ClassAddReferencedObjects != &UObject::AddReferencedObjects)
+			{
+				AddReferencedObjectsFn = ClassAddReferencedObjects;
+			}
+#else
+			AddReferencedObjectsFn = ClassAddReferencedObjects;
+#endif
+			ReferenceTokenStream.Fixup(AddReferencedObjectsFn, bKeepOuter, bKeepClass);
 		}
+
 		if (ReferenceTokenStream.IsEmpty())
 		{
 			return;
 		}
 
 		// Emit end of stream token.
-		static const FName EOSDebugName("EOS");
+		static const FName EOSDebugName("EndOfStreamToken");
 		EmitObjectReference(0, EOSDebugName, GCRT_EndOfStream);
 
 		// Shrink reference token stream to proper size.
@@ -2605,26 +2639,47 @@ void UClass::AssembleReferenceTokenStream(bool bForce)
 void FGCReferenceTokenStream::PrependStream( const FGCReferenceTokenStream& Other )
 {
 	// Remove embedded EOS token if needed.
-	TArray<uint32> TempTokens = Other.Tokens;
-	FGCReferenceInfo EndOfStream( GCRT_EndOfStream, 0 );
-	if( TempTokens.Last() == EndOfStream )
+	FGCReferenceInfo EndOfStream(GCRT_EndOfStream, 0);
+	int32 NumTokensToPrepend = (Other.Tokens.Num() && Other.Tokens.Last() == EndOfStream) ? (Other.Tokens.Num() - 1) : Other.Tokens.Num();
+
+	TArray<uint32> TempTokens;
+	TempTokens.Reserve(NumTokensToPrepend + Tokens.Num());
+
+#if ENABLE_GC_OBJECT_CHECKS
+	check(TokenDebugInfo.Num() == Tokens.Num());
+	check(Other.TokenDebugInfo.Num() == Other.Tokens.Num());
+	TArray<FName> TempTokenDebugInfo;
+	TempTokenDebugInfo.Reserve(NumTokensToPrepend + TokenDebugInfo.Num());
+#endif // ENABLE_GC_OBJECT_CHECKS
+
+	for (int32 TokenIndex = 0; TokenIndex < NumTokensToPrepend; ++TokenIndex)
 	{
-		TempTokens.RemoveAt( TempTokens.Num() - 1 );
+		TempTokens.Add(Other.Tokens[TokenIndex]);
+#if ENABLE_GC_OBJECT_CHECKS
+		TempTokenDebugInfo.Add(Other.TokenDebugInfo[TokenIndex]);
+#endif // ENABLE_GC_OBJECT_CHECKS
 	}
-	// TArray doesn't have a general '+' operator.
-	TempTokens += Tokens;
+
+	TempTokens.Append(Tokens);
 	Tokens = MoveTemp(TempTokens);
+
+#if ENABLE_GC_OBJECT_CHECKS
+	TempTokenDebugInfo.Append(TokenDebugInfo);
+	TokenDebugInfo = MoveTemp(TempTokenDebugInfo);
+#endif // ENABLE_GC_OBJECT_CHECKS
 }
 
-void FGCReferenceTokenStream::ReplaceOrAddAddReferencedObjectsCall(void (*AddReferencedObjectsPtr)(UObject*, class FReferenceCollector&))
+void FGCReferenceTokenStream::Fixup(void (*AddReferencedObjectsPtr)(UObject*, class FReferenceCollector&), bool bKeepOuterToken, bool bKeepClassToken)
 {
+	bool bReplacedARO = false;
+
 	// Try to find exiting ARO pointer and replace it (to avoid removing and readding tokens).
 	for (int32 TokenStreamIndex = 0; TokenStreamIndex < Tokens.Num(); ++TokenStreamIndex)
 	{
 		uint32 TokenIndex = (uint32)TokenStreamIndex;
-		const EGCReferenceType TokenType = (EGCReferenceType)AccessReferenceInfo(TokenIndex).Type;
+		FGCReferenceInfo Token = Tokens[TokenIndex];
 		// Read token type and skip additional data if present.
-		switch (TokenType)
+		switch (Token.Type)
 		{
 		case GCRT_ArrayStruct:
 			{
@@ -2653,9 +2708,14 @@ void FGCReferenceTokenStream::ReplaceOrAddAddReferencedObjectsCall(void (*AddRef
 		case GCRT_AddReferencedObjects:
 			{
 				// Store the pointer after the ARO token.
-				StorePointer(&Tokens[++TokenIndex], (const void*)AddReferencedObjectsPtr);
-				return;
+				if (AddReferencedObjectsPtr)
+				{
+					StorePointer(&Tokens[TokenIndex + 1], (const void*)AddReferencedObjectsPtr);					
+				}
+				bReplacedARO = true;
+				TokenIndex += GNumTokensPerPointer;
 			}
+			break;
 		case GCRT_AddTMapReferencedObjects:
 		case GCRT_AddTSetReferencedObjects:
 			{
@@ -2663,27 +2723,65 @@ void FGCReferenceTokenStream::ReplaceOrAddAddReferencedObjectsCall(void (*AddRef
 				TokenIndex += GNumTokensPerPointer;
 			}
 			break;
-		case GCRT_None:
-		case GCRT_Object:
+		case GCRT_Class:
+		case GCRT_NoopClass:
+			{
+				if (bKeepClassToken)
+				{
+					Token.Type = GCRT_Class;
+				}
+				else
+				{
+					Token.Type = GCRT_NoopClass;
+				}
+				Tokens[TokenIndex] = Token;
+			}
+			break;
 		case GCRT_PersistentObject:
+		case GCRT_NoopPersistentObject:
+			{
+				if (bKeepOuterToken)
+				{
+					Token.Type = GCRT_PersistentObject;
+				}
+				else
+				{
+					Token.Type = GCRT_NoopPersistentObject;
+				}
+				Tokens[TokenIndex] = Token;
+			}
+			break;
+		case GCRT_None:
+		case GCRT_Object:		
 		case GCRT_ArrayObject:
+		case GCRT_AddFieldPathReferencedObject:
+		case GCRT_ArrayAddFieldPathReferencedObject:
 		case GCRT_EndOfPointer:
-		case GCRT_EndOfStream:		
+		case GCRT_EndOfStream:			
 			break;
 		default:
-			UE_LOG(LogGarbage, Fatal, TEXT("Unknown token type (%u) when trying to add ARO token."), (uint32)TokenType);
+			UE_LOG(LogGarbage, Fatal, TEXT("Unknown token type (%u) when trying to add ARO token."), (uint32)Token.Type);
 			break;
 		};
 		TokenStreamIndex = (int32)TokenIndex;
 	}
 	// ARO is not in the token stream yet.
-	EmitReferenceInfo(FGCReferenceInfo(GCRT_AddReferencedObjects, 0));
-	EmitPointer((const void*)AddReferencedObjectsPtr);
+	if (!bReplacedARO && AddReferencedObjectsPtr)
+	{
+		static const FName TokenName("AROToken");
+		EmitReferenceInfo(FGCReferenceInfo(GCRT_AddReferencedObjects, 0), TokenName);
+		EmitPointer((const void*)AddReferencedObjectsPtr);
+	}
 }
 
-int32 FGCReferenceTokenStream::EmitReferenceInfo(FGCReferenceInfo ReferenceInfo)
+int32 FGCReferenceTokenStream::EmitReferenceInfo(FGCReferenceInfo ReferenceInfo, const FName& DebugName)
 {
-	return Tokens.Add(ReferenceInfo);
+	int32 TokenIndex = Tokens.Add(ReferenceInfo);
+#if ENABLE_GC_OBJECT_CHECKS
+	check(TokenDebugInfo.Num() == TokenIndex);
+	TokenDebugInfo.Add(DebugName);
+#endif
+	return TokenIndex;
 }
 
 /**
@@ -2693,7 +2791,13 @@ int32 FGCReferenceTokenStream::EmitReferenceInfo(FGCReferenceInfo ReferenceInfo)
  */
 uint32 FGCReferenceTokenStream::EmitSkipIndexPlaceholder()
 {
-	return Tokens.Add( E_GCSkipIndexPlaceholder );
+	uint32 TokenIndex = Tokens.Add(E_GCSkipIndexPlaceholder);
+#if ENABLE_GC_OBJECT_CHECKS
+	static const FName TokenName("SkipIndexPlaceholder");
+	check(TokenDebugInfo.Num() == TokenIndex);
+	TokenDebugInfo.Add(TokenName);
+#endif
+	return TokenIndex;
 }
 
 /**
@@ -2724,19 +2828,38 @@ void FGCReferenceTokenStream::UpdateSkipIndexPlaceholder( uint32 SkipIndexIndex,
  *
  * @param Count count to emit
  */
-void FGCReferenceTokenStream::EmitCount( uint32 Count )
+int32 FGCReferenceTokenStream::EmitCount( uint32 Count )
 {
-	Tokens.Add( Count );
+	int32 TokenIndex = Tokens.Add( Count );
+#if ENABLE_GC_OBJECT_CHECKS
+	static const FName TokenName("CountToken");
+	check(TokenDebugInfo.Num() == TokenIndex);
+	TokenDebugInfo.Add(TokenName);
+#endif
+	return TokenIndex;
 }
 
-void FGCReferenceTokenStream::EmitPointer( void const* Ptr )
+int32 FGCReferenceTokenStream::EmitPointer( void const* Ptr )
 {
 	const int32 StoreIndex = Tokens.Num();
 	Tokens.AddUninitialized(GNumTokensPerPointer);
 	StorePointer(&Tokens[StoreIndex], Ptr);
+
+#if ENABLE_GC_OBJECT_CHECKS
+	static const FName TokenName("PointerToken");
+	check(TokenDebugInfo.Num() == StoreIndex);
+	for (int32 PointerTokenIndex = 0; PointerTokenIndex < GNumTokensPerPointer; ++PointerTokenIndex)
+	{
+		TokenDebugInfo.Add(TokenName);
+	}
+#endif
+
 	// Now inser the end of pointer marker, this will mostly be used for storing ReturnCount value
 	// if the pointer was stored at the end of struct array stream.
-	EmitReferenceInfo(FGCReferenceInfo(GCRT_EndOfPointer, 0));
+	static const FName EndOfPointerTokenName("EndOfPointerToken");
+	EmitReferenceInfo(FGCReferenceInfo(GCRT_EndOfPointer, 0), EndOfPointerTokenName);
+
+	return StoreIndex;
 }
 
 /**
@@ -2744,9 +2867,17 @@ void FGCReferenceTokenStream::EmitPointer( void const* Ptr )
  *
  * @param Stride stride to emit
  */
-void FGCReferenceTokenStream::EmitStride( uint32 Stride )
+int32 FGCReferenceTokenStream::EmitStride( uint32 Stride )
 {
-	Tokens.Add( Stride );
+	int32 TokenIndex = Tokens.Add( Stride );
+
+#if ENABLE_GC_OBJECT_CHECKS
+	static const FName TokenName("StrideToken");
+	check(TokenDebugInfo.Num() == TokenIndex);
+	TokenDebugInfo.Add(TokenName);
+#endif
+
+	return TokenIndex;
 }
 
 /**
@@ -2765,54 +2896,15 @@ uint32 FGCReferenceTokenStream::EmitReturn()
 
 #if ENABLE_GC_OBJECT_CHECKS
 
-void FGCDebugReferenceTokenMap::MapToken(const FName& DebugName, int32 Offset, int32 TokenIndex)
+FTokenInfo FGCReferenceTokenStream::GetTokenInfo(int32 TokenIndex) const
 {
-	if(TokenMap.Num() <= TokenIndex)
-	{
-		TokenMap.AddZeroed(TokenIndex - TokenMap.Num() + 1);
-
-		auto& TokenInfo = TokenMap[TokenIndex];
-
-		TokenInfo.Offset = Offset;
-		TokenInfo.Name = DebugName;
-	}
-	else
-	{
-		// Token already mapped.
-		checkNoEntry();
-	}
+	FTokenInfo DebugInfo;
+	DebugInfo.Offset = FGCReferenceInfo(Tokens[TokenIndex]).Offset;
+	DebugInfo.Name = TokenDebugInfo[TokenIndex];
+	return DebugInfo;
 }
 
-void FGCDebugReferenceTokenMap::PrependWithSuperClass(const UClass& SuperClass)
-{
-	if (SuperClass.ReferenceTokenStream.Size() == 0)
-	{
-		return;
-	}
-
-	// Check if token stream is already ended with end-of-stream token. If so then something's wrong.
-	checkSlow(TokenMap.Num() == 0 || TokenMap.Last().Name != "EOS");
-
-	int32 OldTokenNumber = TokenMap.Num();
-	int32 NewTokenOffset = SuperClass.ReferenceTokenStream.Size() - 1;
-	TokenMap.AddZeroed(NewTokenOffset);
-
-	for(int32 OldTokenIndex = OldTokenNumber - 1; OldTokenIndex >= 0; --OldTokenIndex)
-	{
-		TokenMap[OldTokenIndex + NewTokenOffset] = TokenMap[OldTokenIndex];
-	}
-
-	for(int32 NewTokenIndex = 0; NewTokenIndex < NewTokenOffset; ++NewTokenIndex)
-	{
-		TokenMap[NewTokenIndex] = SuperClass.DebugTokenMap.GetTokenInfo(NewTokenIndex);
-	}
-}
-
-const FTokenInfo& FGCDebugReferenceTokenMap::GetTokenInfo(int32 TokenIndex) const
-{
-	return TokenMap[TokenIndex];
-}
-#endif // ENABLE_GC_OBJECT_CHECKS
+#endif
 
 
 FGCArrayPool* FGCArrayPool::GetGlobalSingleton()

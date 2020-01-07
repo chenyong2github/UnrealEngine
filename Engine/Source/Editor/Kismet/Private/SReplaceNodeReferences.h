@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -77,7 +77,7 @@ public:
 	void Refresh();
 
 	/** Sets a source variable reference to replace */
-	void SetSourceVariable(UProperty* InProperty);
+	void SetSourceVariable(FProperty* InProperty);
 
 protected:
 
@@ -162,7 +162,7 @@ protected:
 	FEdGraphPinType SourcePinType;
 
 	/** Cached SourceProperty that the user wants to replace */
-	UProperty* SourceProperty;
+	FProperty* SourceProperty;
 
 	/** Find-in-Blueprints window used for making search queries and presenting results to the user */
 	TSharedPtr< SFindInBlueprints > FindInBlueprints;

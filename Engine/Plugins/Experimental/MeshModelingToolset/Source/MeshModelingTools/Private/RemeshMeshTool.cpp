@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RemeshMeshTool.h"
 #include "InteractiveToolManager.h"
@@ -214,7 +214,7 @@ void URemeshMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
 }
 
 
-void URemeshMeshTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void URemeshMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	Preview->InvalidateResult();
 }

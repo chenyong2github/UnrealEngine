@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/FbxFactory.h"
 #include "Misc/Paths.h"
@@ -992,7 +992,7 @@ UFbxImportUI::UFbxImportUI(const FObjectInitializer& ObjectInitializer)
 }
 
 
-bool UFbxImportUI::CanEditChange( const UProperty* InProperty ) const
+bool UFbxImportUI::CanEditChange( const FProperty* InProperty ) const
 {
 	bool bIsMutable = Super::CanEditChange( InProperty );
 	if( bIsMutable && InProperty != NULL )

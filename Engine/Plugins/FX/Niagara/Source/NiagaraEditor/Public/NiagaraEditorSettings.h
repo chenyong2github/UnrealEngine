@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -48,6 +48,10 @@ public:
 	/** Niagara script to duplicate as the base of all new script assets created. */
 	UPROPERTY(config, EditAnywhere, Category = Niagara)
 	FSoftObjectPath DefaultModuleScript;
+
+	/** Niagara script which is required in the system update script to control system state. */
+	UPROPERTY(config, EditAnywhere, Category = Niagara)
+	FSoftObjectPath RequiredSystemUpdateScript;
 
 	/** Shortcut key bindings that if held down while doing a mouse click, will spawn the specified type of Niagara node.*/
 	UPROPERTY(config, EditAnywhere, Category = Niagara)

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -31,7 +31,7 @@ public:
 	// UAnimGraphNode_Base interface
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 	// Gets the property on InOwnerInstanceClass that corresponds to InInputPin
-	void GetInstancePinProperty(const UClass* InOwnerInstanceClass, UEdGraphPin* InInputPin, UProperty*& OutProperty);
+	void GetInstancePinProperty(const UClass* InOwnerInstanceClass, UEdGraphPin* InInputPin, FProperty*& OutProperty);
 	// Gets the unique name for the property linked to a given pin
 	FString GetPinTargetVariableName(const UEdGraphPin* InPin) const;
 	// Gets Target Class this properties to link
@@ -67,9 +67,9 @@ protected:
 	TArray<FName> ExposedPropertyNames;
 
 	// Searches the instance class for properties that we can expose (public and BP visible)
-	virtual void GetExposableProperties(TArray<UProperty*>& OutExposableProperties) const;
+	virtual void GetExposableProperties(TArray<FProperty*>& OutExposableProperties) const;
 	// Gets a property's type as FText (for UI)
-	FText GetPropertyTypeText(UProperty* Property);
+	FText GetPropertyTypeText(FProperty* Property);
 	// Given a new class, rebuild the known property list (for tracking class changes and moving pins)
 	virtual void RebuildExposedProperties();
 
@@ -78,7 +78,7 @@ protected:
 	virtual const FAnimNode_CustomProperty* GetCustomPropertyNode() const PURE_VIRTUAL(UAnimGraphNode_CustomProperty::GetCustomPropertyNode, return nullptr;);
 
 	// Check whether the specified property is structural (i.e. should we rebuild the UI if it changes)
-	virtual bool IsStructuralProperty(UProperty* InProperty) const { return false; }
+	virtual bool IsStructuralProperty(FProperty* InProperty) const { return false; }
 
 	// Whether this node needs a valid target class up-front
 	virtual bool NeedsToSpecifyValidTargetClass() const { return true; }

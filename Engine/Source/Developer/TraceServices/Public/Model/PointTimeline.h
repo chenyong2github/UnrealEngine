@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -47,8 +47,10 @@ public:
 	
 	virtual void EnumerateEvents(double IntervalStart, double IntervalEnd, typename ITimeline<EventType>::EventRangeCallback Callback) const override
 	{
+		bool bIntersected = false;
 		auto EventIterator = Events.GetIteratorFromPage(0);
 		const FEventInternal* Event = EventIterator.GetCurrentItem();
+		const FEventInternal* PreviousEvent = Event;
 		while (Event)
 		{
 			const FEventPage* Page = EventIterator.GetCurrentPage();
@@ -58,14 +60,28 @@ public:
 				{
 					return;
 				}
+
+				PreviousEvent = Event;
 				Event = EventIterator.GetCurrentItem();
 			}
 			else
 			{
 				if (!(Event->Time < IntervalStart || IntervalEnd < Event->Time))
 				{
+					if(bEnumerateOutsideRange && PreviousEvent != Event)
+					{
+						Callback(PreviousEvent->Time, PreviousEvent->Time, 0, PreviousEvent->Event);
+					}
+
+					Callback(Event->Time, Event->Time, 0, Event->Event);
+					bIntersected = true;
+				}
+				else if(bEnumerateOutsideRange && bIntersected)
+				{
 					Callback(Event->Time, Event->Time, 0, Event->Event);
 				}
+
+				PreviousEvent = Event;
 				Event = EventIterator.NextItem();
 			}
 		}
@@ -99,6 +115,14 @@ public:
 		return Index;
 	}
 
+	// Set whether we enumerate one event each side of the passed-in time range.
+	// This is useful for cases such as drawing where connected events need to be drawn outside of
+	// the viewport.
+	void SetEnumerateOutsideRange(bool bInEnumerateOutsideRange)
+	{
+		bEnumerateOutsideRange = bInEnumerateOutsideRange;
+	}
+
 private:
 	struct FEventInternal
 	{
@@ -120,6 +144,7 @@ private:
 	FEventPage* CurrentPage = nullptr;
 	double LastTime = 0.0;
 	uint64 ModCount = 0;
+	bool bEnumerateOutsideRange = false;
 };
 
 }

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -173,6 +173,8 @@ public:
 	 */
 	void Construct(const typename SListView<ItemType>::FArguments& InArgs)
 	{
+		this->Clipping = InArgs._Clipping;
+
 		this->OnGenerateRow = InArgs._OnGenerateRow;
 		this->OnEntryInitialized = InArgs._OnEntryInitialized;
 		this->OnRowReleased = InArgs._OnRowReleased;

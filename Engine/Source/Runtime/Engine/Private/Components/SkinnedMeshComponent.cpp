@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UnSkeletalComponent.cpp: Actor component implementation.
@@ -698,7 +698,7 @@ void USkinnedMeshComponent::ForceMotionVector()
 
 #if WITH_EDITOR
 
-bool USkinnedMeshComponent::CanEditChange(const UProperty* InProperty) const
+bool USkinnedMeshComponent::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{

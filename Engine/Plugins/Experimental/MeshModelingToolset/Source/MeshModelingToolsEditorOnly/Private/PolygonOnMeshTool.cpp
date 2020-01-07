@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PolygonOnMeshTool.h"
 #include "InteractiveToolManager.h"
@@ -250,7 +250,7 @@ void UPolygonOnMeshTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 	}
 }
 
-void UPolygonOnMeshTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UPolygonOnMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	UpdateNumPreviews();
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)

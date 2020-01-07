@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 #include "NetworkedSimulationModelBuffer.h"
@@ -8,7 +8,7 @@
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 // The main Simulation time type. All sims use this to talk about time.
-struct FNetworkSimTime
+struct NETWORKPREDICTION_API FNetworkSimTime
 {
 	using FSimTime = int32; // Underlying type used to store simulation time
 	using FRealTime = float; // Underlying type used when dealing with realtime (usually coming in from the engine tick).

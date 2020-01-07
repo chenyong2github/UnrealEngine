@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PythonScriptPlugin.h"
 #include "PythonScriptPluginSettings.h"
@@ -725,9 +725,6 @@ void FPythonScriptPlugin::InitializePython()
 			return true;
 		}));
 	}
-
-	// Notify any external listeners
-	OnPythonInitializedDelegate.Broadcast();
 }
 
 void FPythonScriptPlugin::ShutdownPython()
@@ -844,6 +841,9 @@ void FPythonScriptPlugin::Tick(const float InDeltaTime)
 		{
 			ExecPythonCommand(*StartupScript);
 		}
+
+		// Notify any external listeners
+		OnPythonInitializedDelegate.Broadcast();
 
 #if WITH_EDITOR
 		// Register to generate stub code after a short delay

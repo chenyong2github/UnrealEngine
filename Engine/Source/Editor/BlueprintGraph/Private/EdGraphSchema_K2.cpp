@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EdGraphSchema_K2.h"
 #include "BlueprintCompilationManager.h"
@@ -11,6 +11,7 @@
 #include "Engine/Blueprint.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
+#include "UObject/FieldPathProperty.h"
 #include "Engine/MemberReference.h"
 #include "Components/ActorComponent.h"
 #include "Misc/Attribute.h"
@@ -622,6 +623,7 @@ const FName UEdGraphSchema_K2::PC_String(TEXT("string"));
 const FName UEdGraphSchema_K2::PC_Text(TEXT("text"));
 const FName UEdGraphSchema_K2::PC_Struct(TEXT("struct"));
 const FName UEdGraphSchema_K2::PC_Wildcard(TEXT("wildcard"));
+const FName UEdGraphSchema_K2::PC_FieldPath(TEXT("fieldpath"));
 const FName UEdGraphSchema_K2::PC_Enum(TEXT("enum"));
 const FName UEdGraphSchema_K2::PC_SoftObject(TEXT("softobject"));
 const FName UEdGraphSchema_K2::PC_SoftClass(TEXT("softclass"));
@@ -686,7 +688,7 @@ bool UEdGraphSchema_K2::DoesFunctionHaveOutParameters( const UFunction* Function
 {
 	if ( Function != NULL )
 	{
-		for ( TFieldIterator<UProperty> PropertyIt(Function); PropertyIt; ++PropertyIt )
+		for ( TFieldIterator<FProperty> PropertyIt(Function); PropertyIt; ++PropertyIt )
 		{
 			if ( PropertyIt->PropertyFlags & CPF_OutParm )
 			{
@@ -932,9 +934,9 @@ bool UEdGraphSchema_K2::CanKismetOverrideFunction(const UFunction* Function)
 bool UEdGraphSchema_K2::HasFunctionAnyOutputParameter(const UFunction* InFunction)
 {
 	check(InFunction);
-	for (TFieldIterator<UProperty> PropIt(InFunction); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+	for (TFieldIterator<FProperty> PropIt(InFunction); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
 	{
-		UProperty* FuncParam = *PropIt;
+		FProperty* FuncParam = *PropIt;
 		if (FuncParam->HasAnyPropertyFlags(CPF_ReturnParm) || (FuncParam->HasAnyPropertyFlags(CPF_OutParm) && !FuncParam->HasAnyPropertyFlags(CPF_ReferenceParm) && !FuncParam->HasAnyPropertyFlags(CPF_ConstParm)))
 		{
 			return true;
@@ -1005,9 +1007,9 @@ bool UEdGraphSchema_K2::FunctionHasParamOfType(const UFunction* InFunction, UEdG
 	FBlueprintEditorUtils::GetHiddenPinsForFunction(InGraph, InFunction, HiddenPins);
 
 	// Iterate over all params of function
-	for (TFieldIterator<UProperty> PropIt(InFunction); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+	for (TFieldIterator<FProperty> PropIt(InFunction); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
 	{
-		UProperty* FuncParam = *PropIt;
+		FProperty* FuncParam = *PropIt;
 
 		// Ensure that this isn't a hidden parameter
 		if (!HiddenPins.Contains(FuncParam->GetFName()))
@@ -1121,9 +1123,9 @@ void UEdGraphSchema_K2::AddSelectedReplaceableNodes(FToolMenuSection& Section, U
 
 
 
-bool UEdGraphSchema_K2::CanUserKismetAccessVariable(const UProperty* Property, const UClass* InClass, EDelegateFilterMode FilterMode)
+bool UEdGraphSchema_K2::CanUserKismetAccessVariable(const FProperty* Property, const UClass* InClass, EDelegateFilterMode FilterMode)
 {
-	const bool bIsDelegate = Property->IsA(UMulticastDelegateProperty::StaticClass());
+	const bool bIsDelegate = Property->IsA(FMulticastDelegateProperty::StaticClass());
 	const bool bIsAccessible = Property->HasAllPropertyFlags(CPF_BlueprintVisible);
 	const bool bIsAssignableOrCallable = Property->HasAnyPropertyFlags(CPF_BlueprintAssignable | CPF_BlueprintCallable);
 	
@@ -1154,9 +1156,9 @@ bool UEdGraphSchema_K2::ClassHasBlueprintAccessibleMembers(const UClass* InClass
 		}
 
 		// Find vars
-		for (TFieldIterator<UProperty> PropertyIt(InClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<FProperty> PropertyIt(InClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
-			UProperty* Property = *PropertyIt;
+			FProperty* Property = *PropertyIt;
 			if (CanUserKismetAccessVariable(Property, InClass, CannotBeDelegate))
 			{
 				return true;
@@ -1241,7 +1243,7 @@ bool UEdGraphSchema_K2::DoesGraphSupportImpureFunctions(const UEdGraph* InGraph)
 	return bAllowImpureFuncs;
 }
 
-bool UEdGraphSchema_K2::IsPropertyExposedOnSpawn(const UProperty* Property)
+bool UEdGraphSchema_K2::IsPropertyExposedOnSpawn(const FProperty* Property)
 {
 	Property = FBlueprintEditorUtils::GetMostUpToDateProperty(Property);
 	if (Property)
@@ -2474,9 +2476,9 @@ private:
 			&& ((0 == IsConstOut) || (ConstOutParamFlag == IsConstOut));
 	}
 
-	static const UProperty* GetFirstInputProperty(const UFunction* Function)
+	static const FProperty* GetFirstInputProperty(const UFunction* Function)
 	{
-		for (const UProperty* Property : TFieldRange<const UProperty>(Function))
+		for (const FProperty* Property : TFieldRange<const FProperty>(Function))
 		{
 			if (Property && IsInputParam(Property->PropertyFlags))
 			{
@@ -2732,9 +2734,9 @@ bool UEdGraphSchema_K2::FindSpecializedConversionNode(const UEdGraphPin* OutputP
 		if(FunctionClass != NULL && OutputPinClass != NULL)
 		{
 			// Iterate over object properties..
-			for (TFieldIterator<UObjectProperty> PropIt(OutputPinClass, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
+			for (TFieldIterator<FObjectProperty> PropIt(OutputPinClass, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
 			{
-				UObjectProperty* ObjProp = *PropIt;
+				FObjectProperty* ObjProp = *PropIt;
 				// .. if we have a blueprint visible var, and is of the type which contains this function..
 				if(ObjProp->HasAllPropertyFlags(CPF_BlueprintVisible) && ObjProp->PropertyClass->IsChildOf(FunctionClass))
 				{
@@ -2744,7 +2746,7 @@ bool UEdGraphSchema_K2::FindSpecializedConversionNode(const UEdGraphPin* OutputP
 					if(bCreateNode)
 					{
 						UK2Node_VariableGet* GetNode = NewObject<UK2Node_VariableGet>();
-						GetNode->VariableReference.SetFromField<UProperty>(ObjProp, false);
+						GetNode->VariableReference.SetFromField<FProperty>(ObjProp, false);
 						TargetNode = GetNode;
 					}
 				}
@@ -3024,7 +3026,7 @@ FLinearColor UEdGraphSchema_K2::GetPinTypeColor(const FEdGraphPinType& PinType) 
 	{
 		return Settings->ExecutionPinTypeColor;
 	}
-	else if (TypeName == PC_Object)
+	else if (TypeName == PC_Object || TypeName == PC_FieldPath)
 	{
 		return Settings->ObjectPinTypeColor;
 	}
@@ -3351,7 +3353,7 @@ void UEdGraphSchema_K2::CreateFunctionGraphTerminators(UEdGraph& Graph, UClass* 
 
 		// See if any function params are marked as out
 		bool bHasOutParam =  false;
-		for( TFieldIterator<UProperty> It(InterfaceToImplement); It && (It->PropertyFlags & CPF_Parm); ++It )
+		for( TFieldIterator<FProperty> It(InterfaceToImplement); It && (It->PropertyFlags & CPF_Parm); ++It )
 		{
 			if( It->PropertyFlags & CPF_OutParm )
 			{
@@ -3406,7 +3408,7 @@ void UEdGraphSchema_K2::CreateFunctionGraphTerminators(UEdGraph& Graph, UFunctio
 
 	// See if any function params are marked as out
 	bool bHasOutParam =  false;
-	for ( TFieldIterator<UProperty> It(FunctionSignature); It && ( It->PropertyFlags & CPF_Parm ); ++It )
+	for ( TFieldIterator<FProperty> It(FunctionSignature); It && ( It->PropertyFlags & CPF_Parm ); ++It )
 	{
 		if ( It->PropertyFlags & CPF_OutParm )
 		{
@@ -3434,35 +3436,35 @@ void UEdGraphSchema_K2::CreateFunctionGraphTerminators(UEdGraph& Graph, UFunctio
 	}
 }
 
-bool UEdGraphSchema_K2::GetPropertyCategoryInfo(const UProperty* TestProperty, FName& OutCategory, FName& OutSubCategory, UObject*& OutSubCategoryObject, bool& bOutIsWeakPointer)
+bool UEdGraphSchema_K2::GetPropertyCategoryInfo(const FProperty* TestProperty, FName& OutCategory, FName& OutSubCategory, UObject*& OutSubCategoryObject, bool& bOutIsWeakPointer)
 {
-	if (const UInterfaceProperty* InterfaceProperty = Cast<const UInterfaceProperty>(TestProperty))
+	if (const FInterfaceProperty* InterfaceProperty = CastField<const FInterfaceProperty>(TestProperty))
 	{
 		OutCategory = PC_Interface;
 		OutSubCategoryObject = InterfaceProperty->InterfaceClass;
 	}
-	else if (const UClassProperty* ClassProperty = Cast<const UClassProperty>(TestProperty))
+	else if (const FClassProperty* ClassProperty = CastField<const FClassProperty>(TestProperty))
 	{
 		OutCategory = PC_Class;
 		OutSubCategoryObject = ClassProperty->MetaClass;
 	}
-	else if (const USoftClassProperty* SoftClassProperty = Cast<const USoftClassProperty>(TestProperty))
+	else if (const FSoftClassProperty* SoftClassProperty = CastField<const FSoftClassProperty>(TestProperty))
 	{
 		OutCategory = PC_SoftClass;
 		OutSubCategoryObject = SoftClassProperty->MetaClass;
 	}
-	else if (const USoftObjectProperty* SoftObjectProperty = Cast<const USoftObjectProperty>(TestProperty))
+	else if (const FSoftObjectProperty* SoftObjectProperty = CastField<const FSoftObjectProperty>(TestProperty))
 	{
 		OutCategory = PC_SoftObject;
 		OutSubCategoryObject = SoftObjectProperty->PropertyClass;
 	}
-	else if (const UObjectPropertyBase* ObjectProperty = Cast<const UObjectPropertyBase>(TestProperty))
+	else if (const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(TestProperty))
 	{
 		OutCategory = PC_Object;
 		OutSubCategoryObject = ObjectProperty->PropertyClass;
-		bOutIsWeakPointer = TestProperty->IsA(UWeakObjectProperty::StaticClass());
+		bOutIsWeakPointer = TestProperty->IsA(FWeakObjectProperty::StaticClass());
 	}
-	else if (const UStructProperty* StructProperty = Cast<const UStructProperty>(TestProperty))
+	else if (const FStructProperty* StructProperty = CastField<const FStructProperty>(TestProperty))
 	{
 		OutCategory = PC_Struct;
 		OutSubCategoryObject = StructProperty->Struct;
@@ -3476,15 +3478,15 @@ bool UEdGraphSchema_K2::GetPropertyCategoryInfo(const UProperty* TestProperty, F
 			}
 		}
 	}
-	else if (TestProperty->IsA<UFloatProperty>())
+	else if (TestProperty->IsA<FFloatProperty>())
 	{
 		OutCategory = PC_Float;
 	}
-	else if (TestProperty->IsA<UInt64Property>())
+	else if (TestProperty->IsA<FInt64Property>())
 	{
 		OutCategory = PC_Int64;
 	}
-	else if (TestProperty->IsA<UIntProperty>())
+	else if (TestProperty->IsA<FIntProperty>())
 	{
 		OutCategory = PC_Int;
 
@@ -3493,7 +3495,7 @@ bool UEdGraphSchema_K2::GetPropertyCategoryInfo(const UProperty* TestProperty, F
 			OutSubCategory = PSC_Bitmask;
 		}
 	}
-	else if (const UByteProperty* ByteProperty = Cast<const UByteProperty>(TestProperty))
+	else if (const FByteProperty* ByteProperty = CastField<const FByteProperty>(TestProperty))
 	{
 		OutCategory = PC_Byte;
 
@@ -3506,10 +3508,10 @@ bool UEdGraphSchema_K2::GetPropertyCategoryInfo(const UProperty* TestProperty, F
 			OutSubCategoryObject = ByteProperty->Enum;
 		}
 	}
-	else if (const UEnumProperty* EnumProperty = Cast<const UEnumProperty>(TestProperty))
+	else if (const FEnumProperty* EnumProperty = CastField<const FEnumProperty>(TestProperty))
 	{
 		// K2 only supports byte enums right now - any violations should have been caught by UHT or the editor
-		if (!EnumProperty->GetUnderlyingProperty()->IsA<UByteProperty>())
+		if (!EnumProperty->GetUnderlyingProperty()->IsA<FByteProperty>())
 		{
 			OutCategory = TEXT("unsupported_enum_type");
 			return false;
@@ -3526,21 +3528,26 @@ bool UEdGraphSchema_K2::GetPropertyCategoryInfo(const UProperty* TestProperty, F
 			OutSubCategoryObject = EnumProperty->GetEnum();
 		}
 	}
-	else if (TestProperty->IsA<UNameProperty>())
+	else if (TestProperty->IsA<FNameProperty>())
 	{
 		OutCategory = PC_Name;
 	}
-	else if (TestProperty->IsA<UBoolProperty>())
+	else if (TestProperty->IsA<FBoolProperty>())
 	{
 		OutCategory = PC_Boolean;
 	}
-	else if (TestProperty->IsA<UStrProperty>())
+	else if (TestProperty->IsA<FStrProperty>())
 	{
 		OutCategory = PC_String;
 	}
-	else if (TestProperty->IsA<UTextProperty>())
+	else if (TestProperty->IsA<FTextProperty>())
 	{
 		OutCategory = PC_Text;
+	}
+	else if (const FFieldPathProperty* FieldPathProperty = CastField<const FFieldPathProperty>(TestProperty))
+	{
+		OutCategory = PC_FieldPath;
+		//OutSubCategoryObject = SoftObjectProperty->PropertyClass; @todo: FProp
 	}
 	else
 	{
@@ -3551,7 +3558,7 @@ bool UEdGraphSchema_K2::GetPropertyCategoryInfo(const UProperty* TestProperty, F
 	return true;
 }
 
-bool UEdGraphSchema_K2::ConvertPropertyToPinType(const UProperty* Property, /*out*/ FEdGraphPinType& TypeOut) const
+bool UEdGraphSchema_K2::ConvertPropertyToPinType(const FProperty* Property, /*out*/ FEdGraphPinType& TypeOut) const
 {
 	if (Property == nullptr)
 	{
@@ -3562,10 +3569,10 @@ bool UEdGraphSchema_K2::ConvertPropertyToPinType(const UProperty* Property, /*ou
 	TypeOut.PinSubCategory = NAME_None;
 	
 	// Handle whether or not this is an array property
-	const UMapProperty* MapProperty = Cast<const UMapProperty>(Property);
-	const USetProperty* SetProperty = Cast<const USetProperty>(Property);
-	const UArrayProperty* ArrayProperty = Cast<const UArrayProperty>(Property);
-	const UProperty* TestProperty = Property;
+	const FMapProperty* MapProperty = CastField<const FMapProperty>(Property);
+	const FSetProperty* SetProperty = CastField<const FSetProperty>(Property);
+	const FArrayProperty* ArrayProperty = CastField<const FArrayProperty>(Property);
+	const FProperty* TestProperty = Property;
 	if (MapProperty)
 	{
 		TestProperty = MapProperty->KeyProp;
@@ -3607,12 +3614,12 @@ bool UEdGraphSchema_K2::ConvertPropertyToPinType(const UProperty* Property, /*ou
 			TypeOut.PinValueType.TerminalCategory = PC_Wildcard;
 		}
 	}
-	else if (const UMulticastDelegateProperty* MulticastDelegateProperty = Cast<const UMulticastDelegateProperty>(TestProperty))
+	else if (const FMulticastDelegateProperty* MulticastDelegateProperty = CastField<const FMulticastDelegateProperty>(TestProperty))
 	{
 		TypeOut.PinCategory = PC_MCDelegate;
 		FMemberReference::FillSimpleMemberReference<UFunction>(MulticastDelegateProperty->SignatureFunction, TypeOut.PinSubCategoryMemberReference);
 	}
-	else if (const UDelegateProperty* DelegateProperty = Cast<const UDelegateProperty>(TestProperty))
+	else if (const FDelegateProperty* DelegateProperty = CastField<const FDelegateProperty>(TestProperty))
 	{
 		TypeOut.PinCategory = PC_Delegate;
 		FMemberReference::FillSimpleMemberReference<UFunction>(DelegateProperty->SignatureFunction, TypeOut.PinSubCategoryMemberReference);
@@ -3635,7 +3642,7 @@ bool UEdGraphSchema_K2::ConvertPropertyToPinType(const UProperty* Property, /*ou
 		const FString& BitmaskEnumName = TestProperty->GetMetaData(TEXT("BitmaskEnum"));
 		if(!BitmaskEnumName.IsEmpty())
 		{
-			// @TODO: Potentially replace this with a serialized UEnum reference on the UProperty (e.g. UByteProperty::Enum)
+			// @TODO: Potentially replace this with a serialized UEnum reference on the FProperty (e.g. FByteProperty::Enum)
 			TypeOut.PinSubCategoryObject = FindObject<UEnum>(ANY_PACKAGE, *BitmaskEnumName);
 		}
 	}
@@ -3646,9 +3653,9 @@ bool UEdGraphSchema_K2::ConvertPropertyToPinType(const UProperty* Property, /*ou
 bool UEdGraphSchema_K2::HasWildcardParams(const UFunction* Function)
 {
 	bool bResult = false;
-	for (TFieldIterator<const UProperty> PropIt(Function); PropIt && (PropIt->PropertyFlags & CPF_Parm) && !bResult; ++PropIt)
+	for (TFieldIterator<const FProperty> PropIt(Function); PropIt && (PropIt->PropertyFlags & CPF_Parm) && !bResult; ++PropIt)
 	{
-		const UProperty* FuncParamProperty = *PropIt;
+		const FProperty* FuncParamProperty = *PropIt;
 
 		if (IsWildcardProperty(FuncParamProperty))
 		{
@@ -3658,9 +3665,9 @@ bool UEdGraphSchema_K2::HasWildcardParams(const UFunction* Function)
 	return bResult;
 }
 
-bool UEdGraphSchema_K2::IsWildcardProperty(const UProperty* Property)
+bool UEdGraphSchema_K2::IsWildcardProperty(const FProperty* Property)
 {
-	UFunction* Function = Cast<UFunction>(Property->GetOuter());
+	UFunction* Function = Property->GetOwner<UFunction>();
 
 	return Function && ( UK2Node_CallArrayFunction::IsWildcardProperty(Function, Property)
 		|| UK2Node_CallFunction::IsStructureWildcardProperty(Function, Property->GetFName())
@@ -3668,9 +3675,9 @@ bool UEdGraphSchema_K2::IsWildcardProperty(const UProperty* Property)
 		|| FEdGraphUtilities::IsArrayDependentParam(Function, Property->GetFName()) );
 }
 
-FText UEdGraphSchema_K2::TypeToText(UProperty* const Property)
+FText UEdGraphSchema_K2::TypeToText(FProperty* const Property)
 {
-	if (UStructProperty* Struct = Cast<UStructProperty>(Property))
+	if (FStructProperty* Struct = CastField<FStructProperty>(Property))
 	{
 		if (Struct->Struct)
 		{
@@ -3680,7 +3687,7 @@ FText UEdGraphSchema_K2::TypeToText(UProperty* const Property)
 			return TypeToText(PinType);
 		}
 	}
-	else if (UClassProperty* Class = Cast<UClassProperty>(Property))
+	else if (FClassProperty* Class = CastField<FClassProperty>(Property))
 	{
 		if (Class->MetaClass)
 		{
@@ -3690,7 +3697,7 @@ FText UEdGraphSchema_K2::TypeToText(UProperty* const Property)
 			return TypeToText(PinType);
 		}
 	}
-	else if (UInterfaceProperty* Interface = Cast<UInterfaceProperty>(Property))
+	else if (FInterfaceProperty* Interface = CastField<FInterfaceProperty>(Property))
 	{
 		if (Interface->InterfaceClass != nullptr)
 		{
@@ -3700,20 +3707,20 @@ FText UEdGraphSchema_K2::TypeToText(UProperty* const Property)
 			return TypeToText(PinType);
 		}
 	}
-	else if (UObjectPropertyBase* Obj = Cast<UObjectPropertyBase>(Property))
+	else if (FObjectPropertyBase* Obj = CastField<FObjectPropertyBase>(Property))
 	{
 		if( Obj->PropertyClass )
 		{
 			FEdGraphPinType PinType;
 			PinType.PinCategory = PC_Object;
 			PinType.PinSubCategoryObject = Obj->PropertyClass;
-			PinType.bIsWeakPointer = Property->IsA(UWeakObjectProperty::StaticClass());
+			PinType.bIsWeakPointer = Property->IsA(FWeakObjectProperty::StaticClass());
 			return TypeToText(PinType);
 		}
 
 		return FText::GetEmpty();
 	}
-	else if (UArrayProperty* Array = Cast<UArrayProperty>(Property))
+	else if (FArrayProperty* Array = CastField<FArrayProperty>(Property))
 	{
 		if (Array->Inner)
 		{
@@ -3722,7 +3729,7 @@ FText UEdGraphSchema_K2::TypeToText(UProperty* const Property)
 			return FText::Format(LOCTEXT("ArrayPropertyText", "Array of {ArrayType}"), Args); 
 		}
 	}
-	else if (USetProperty* Set = Cast<USetProperty>(Property))
+	else if (FSetProperty* Set = CastField<FSetProperty>(Property))
 	{
 		if (Set->ElementProp)
 		{
@@ -3731,7 +3738,7 @@ FText UEdGraphSchema_K2::TypeToText(UProperty* const Property)
 			return FText::Format(LOCTEXT("SetPropertyText", "Set of {SetType}"), Args);
 		}
 	}
-	else if (UMapProperty* Map = Cast<UMapProperty>(Property))
+	else if (FMapProperty* Map = CastField<FMapProperty>(Property))
 	{
 		if (Map->KeyProp && Map->ValueProp)
 		{
@@ -3774,7 +3781,9 @@ FText UEdGraphSchema_K2::GetCategoryText(const FName Category, const bool bForMe
 		CategoryDescriptions.Add(PC_Enum, LOCTEXT("EnumCategory","Enum"));
 		CategoryDescriptions.Add(PC_SoftObject, LOCTEXT("SoftObjectReferenceCategory", "Soft Object Reference"));
 		CategoryDescriptions.Add(PC_SoftClass, LOCTEXT("SoftClassReferenceCategory", "Soft Class Reference"));
+		CategoryDescriptions.Add(PC_FieldPath, LOCTEXT("FieldPathReferenceCategory", "Property Reference"));
 		CategoryDescriptions.Add(AllObjectTypes, LOCTEXT("AllObjectTypes", "Object Types"));
+
 	}
 
 	if (FText const* TypeDesc = CategoryDescriptions.Find(Category))
@@ -3943,6 +3952,9 @@ void UEdGraphSchema_K2::GetVariableTypeTree(TArray< TSharedPtr<FPinTypeTreeInfo>
 	TypeTree.Add( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Byte, true), PC_Byte, this, LOCTEXT("ByteType", "8 bit number")) ) );
 	TypeTree.Add( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Int, true), PC_Int, this, LOCTEXT("IntegerType", "Integer number")) ) );
 	TypeTree.Add( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Int64, true), PC_Int64, this, LOCTEXT("Integer64Type", "64 bit Integer number")) ) );
+
+	TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_FieldPath, true), PC_FieldPath, this, LOCTEXT("FieldPathType", "Reference to a property"))));
+
 	if (!bIndexTypesOnly)
 	{
 		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Float, true), PC_Float, this, LOCTEXT("FloatType", "Floating point number"))));
@@ -4296,7 +4308,7 @@ bool UEdGraphSchema_K2::DefaultValueSimpleValidation(const FEdGraphPinType& PinT
 			// Class and IsAsset validation is not foolproof for soft references, skip
 		}
 	}
-	else if (PinCategory == PC_String)
+	else if (PinCategory == PC_String || PinCategory == PC_FieldPath)
 	{
 		// All strings are valid
 	}
@@ -4358,7 +4370,7 @@ bool UEdGraphSchema_K2::DefaultValueSimpleValidation(const FEdGraphPinType& PinT
 			}
 			else
 			{
-				// Structs must pass validation at this point, because we need a UStructProperty to run ImportText
+				// Structs must pass validation at this point, because we need a FStructProperty to run ImportText
 				// They'll be verified in FKCHandler_CallFunction::CreateFunctionCallStatement()
 			}
 		}
@@ -4526,13 +4538,6 @@ bool UEdGraphSchema_K2::ArePinTypesCompatible(const FEdGraphPinType& Output, con
 		else if (Input.PinSubCategory == PSC_Index)
 		{
 			return IsIndexWildcardCompatible(Output);
-		}
-		else if(Output.IsMap())
-		{
-			return 
-				Input.PinValueType.TerminalCategory == PC_Wildcard ||
-				Output.PinValueType.TerminalCategory == PC_Wildcard ||
-				Input.PinValueType == Output.PinValueType;
 		}
 
 		return true;
@@ -4981,7 +4986,7 @@ bool UEdGraphSchema_K2::ShouldShowAssetPickerForPin(UEdGraphPin* Pin) const
 	return bShow;
 }
 
-bool UEdGraphSchema_K2::FindFunctionParameterDefaultValue(const UFunction* Function, const UProperty* Param, FString& OutString)
+bool UEdGraphSchema_K2::FindFunctionParameterDefaultValue(const UFunction* Function, const FProperty* Param, FString& OutString)
 {
 	bool bHasAutomaticValue = false;
 
@@ -4993,7 +4998,7 @@ bool UEdGraphSchema_K2::FindFunctionParameterDefaultValue(const UFunction* Funct
 		bHasAutomaticValue = true;
 
 		// If the parameter is a class then try and get the full name as the metadata might just be the short name
-		if (Param->IsA<UClassProperty>() && !FPackageName::IsValidObjectPath(OutString))
+		if (Param->IsA<FClassProperty>() && !FPackageName::IsValidObjectPath(OutString))
 		{
 			if (UClass* DefaultClass = FindObject<UClass>(ANY_PACKAGE, *OutString, true))
 			{
@@ -5106,7 +5111,7 @@ void UEdGraphSchema_K2::SetPinDefaultValueAtConstruction(UEdGraphPin* Pin, const
 	GetPinDefaultValuesFromString(Pin->PinType, Pin->GetOwningNodeUnchecked(), DefaultValueString, Pin->DefaultValue, Pin->DefaultObject, Pin->DefaultTextValue);
 }
 
-void UEdGraphSchema_K2::SetPinDefaultValue(UEdGraphPin* Pin, const UFunction* Function, const UProperty* Param) const
+void UEdGraphSchema_K2::SetPinDefaultValue(UEdGraphPin* Pin, const UFunction* Function, const FProperty* Param) const
 {
 	if (Function != nullptr && Param != nullptr)
 	{
@@ -5184,6 +5189,7 @@ namespace FSetVariableByNameFunctionNames
 	static const FName SetArrayName(GET_FUNCTION_NAME_CHECKED(UKismetArrayLibrary, SetArrayPropertyByName));
 	static const FName SetSetName(GET_FUNCTION_NAME_CHECKED(UBlueprintSetLibrary, SetSetPropertyByName));
 	static const FName SetMapName(GET_FUNCTION_NAME_CHECKED(UBlueprintMapLibrary, SetMapPropertyByName));
+	static const FName SetFieldPathName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetFieldPathPropertyByName));
 };
 
 UFunction* UEdGraphSchema_K2::FindSetVariableByNameFunction(const FEdGraphPinType& PinType)
@@ -5291,6 +5297,10 @@ UFunction* UEdGraphSchema_K2::FindSetVariableByNameFunction(const FEdGraphPinTyp
 	else if (PinType.PinCategory == UEdGraphSchema_K2::PC_Struct && FIsCustomStructureParamHelper::Is(PinType.PinSubCategoryObject.Get()))
 	{
 		SetFunctionName = FSetVariableByNameFunctionNames::SetStructureName;
+	}
+	else if (PinType.PinCategory == UEdGraphSchema_K2::PC_FieldPath)
+	{
+		SetFunctionName = FSetVariableByNameFunctionNames::SetFieldPathName;
 	}
 
 	UFunction* Function = nullptr;

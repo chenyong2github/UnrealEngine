@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAnimationBlendSpaceBase.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -194,7 +194,7 @@ void SBlendSpaceEditorBase::OnPropertyChanged(UObject* ObjectBeingModified, FPro
 	}
 }
 
-void SBlendSpaceEditorBase::NotifyPreChange(UProperty* PropertyAboutToChange)
+void SBlendSpaceEditorBase::NotifyPreChange(FProperty* PropertyAboutToChange)
 {
 	if (BlendSpace)
 	{
@@ -202,7 +202,7 @@ void SBlendSpaceEditorBase::NotifyPreChange(UProperty* PropertyAboutToChange)
 	}	
 }
 
-void SBlendSpaceEditorBase::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged)
+void SBlendSpaceEditorBase::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
 	if (BlendSpace)
 	{

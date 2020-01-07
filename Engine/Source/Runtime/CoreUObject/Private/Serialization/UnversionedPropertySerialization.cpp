@@ -1,10 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/UnversionedPropertySerialization.h"
 #include "Serialization/UnversionedPropertySerializationTest.h"
 #include "UObject/UnrealType.h"
 
-// Caches a property array per UStruct to avoid link-walking and touching UProperty data.
+// Caches a property array per UStruct to avoid link-walking and touching FProperty data.
 //
 // As a reference point, this uses ~6MB of memory in an internal project and makes all
 // unversioned property loading except non-numeric SerializeItem() calls about 2x faster.
@@ -28,15 +28,15 @@ struct FDefaultStruct
 #endif
 };
 
-// Serializes a UProperty at a specific static array index
+// Serializes a FProperty at a specific static array index
 //
-// Extracts and caches relevant UProperty state when using
+// Extracts and caches relevant FProperty state when using
 // CACHE_UNVERSIONED_PROPERTY_SCHEMA to improve data locality.
 // Otherwise, extracts only the needed state on demand.
 class FUnversionedPropertySerializer
 {
 public:
-	FUnversionedPropertySerializer(UProperty* InProperty, int32 InArrayIndex)
+	FUnversionedPropertySerializer(FProperty* InProperty, int32 InArrayIndex)
 		: Property(InProperty)
 #if CACHE_UNVERSIONED_PROPERTY_SCHEMA
 		, Offset(Property->GetOffset_ForInternal() + Property->ElementSize * InArrayIndex)
@@ -48,7 +48,7 @@ public:
 #endif
 	{}
 
-	UProperty* GetProperty() const
+	FProperty* GetProperty() const
 	{
 		return Property;
 	}
@@ -142,44 +142,44 @@ public:
 private:
 	enum class EIntegerType : uint8 { Uint8, Uint16, Uint32, Uint64 };
 
-	static uint32 GetIntNum(const UProperty* Property, EIntegerType IntType)
+	static uint32 GetIntNum(const FProperty* Property, EIntegerType IntType)
 	{
 		return Property->ElementSize / GetSizeOf(IntType);
 	}
 
-	static bool CanSerializeAsZero(const UProperty* Property, EIntegerType IntType)
+	static bool CanSerializeAsZero(const FProperty* Property, EIntegerType IntType)
 	{
 		static constexpr uint32 MaxZeroComparisons = 16;
 
-		EClassCastFlags CastFlags = Property->GetClass()->ClassCastFlags;
+		uint64 CastFlags = Property->GetClass()->GetCastFlags();
 
-		if ((CastFlags & (CASTCLASS_UStructProperty | CASTCLASS_UBoolProperty)) == 0)
+		if ((CastFlags & (CASTCLASS_FStructProperty | CASTCLASS_FBoolProperty)) == 0)
 		{
 			checkf(GetIntNum(Property, IntType) < MaxZeroComparisons, TEXT("Unexpectedly large property type encountered %s"), *Property->GetName());
 
 			return true;
 		}
-		else if ((CastFlags & CASTCLASS_UBoolProperty) != 0)
+		else if ((CastFlags & CASTCLASS_FBoolProperty) != 0)
 		{
-			return static_cast<const UBoolProperty*>(Property)->IsNativeBool();
+			return static_cast<const FBoolProperty*>(Property)->IsNativeBool();
 		}
 		else
 		{
-			bool bIsAtomic = !!(static_cast<const UStructProperty*>(Property)->Struct->StructFlags & STRUCT_Atomic);
+			bool bIsAtomic = !!(static_cast<const FStructProperty*>(Property)->Struct->StructFlags & STRUCT_Atomic);
 			return bIsAtomic && GetIntNum(Property, IntType) < MaxZeroComparisons;
 		}
 	}
 
-	static bool CanSerializeAsInteger(UProperty* Property)
+	static bool CanSerializeAsInteger(FProperty* Property)
 	{
-		EClassCastFlags CastFlags = Property->GetClass()->ClassCastFlags;
+		uint64 CastFlags = Property->GetClass()->GetCastFlags();
 
-		if ((CastFlags & CASTCLASS_UBoolProperty) != 0)
+		if ((CastFlags & CASTCLASS_FBoolProperty) != 0)
 		{
-			return static_cast<const UBoolProperty*>(Property)->IsNativeBool();
+			return static_cast<const FBoolProperty*>(Property)->IsNativeBool();
 		}
 		
-		return (CastFlags & (CASTCLASS_UNumericProperty | CASTCLASS_UEnumProperty)) != 0;
+		return (CastFlags & (CASTCLASS_FNumericProperty | CASTCLASS_FEnumProperty)) != 0;
 	}
 
 	template<typename T>
@@ -260,7 +260,7 @@ private:
 		return static_cast<EIntegerType>(Log2For1248(Alignment));
 	}
 
-	UProperty* Property;
+	FProperty* Property;
 #if CACHE_UNVERSIONED_PROPERTY_SCHEMA
 	uint32 Offset;
 	bool bSerializeAsInteger;
@@ -282,7 +282,7 @@ struct FUnversionedStructSchema
 	static FUnversionedStructSchema* Create(const UStruct* Struct)
 	{
 		TArray<FUnversionedPropertySerializer, TInlineAllocator<256>> Serializers;
-		for (UProperty* Property = Struct->PropertyLink; Property; Property = Property->PropertyLinkNext)
+		for (FProperty* Property = Struct->PropertyLink; Property; Property = Property->PropertyLinkNext)
 		{
 			if (!Property->IsEditorOnlyProperty())
 			{
@@ -327,12 +327,12 @@ using FUnversionedSchemaIterator = const FUnversionedPropertySerializer*;
 
 struct FLinkWalkingSchemaIterator
 {
-	UProperty* Property = nullptr;
+	FProperty* Property = nullptr;
 	uint32 ArrayIndex = 0;
 
 	FLinkWalkingSchemaIterator() {}
 
-	explicit FLinkWalkingSchemaIterator(UProperty* FirstProperty)
+	explicit FLinkWalkingSchemaIterator(FProperty* FirstProperty)
 		: Property(SkipEditorOnlyProperties(FirstProperty))
 	{}
 
@@ -369,7 +369,7 @@ struct FLinkWalkingSchemaIterator
 		return (Property != Rhs.Property) | (ArrayIndex != Rhs.ArrayIndex);
 	}
 
-	static UProperty* SkipEditorOnlyProperties(UProperty* Property)
+	static FProperty* SkipEditorOnlyProperties(FProperty* Property)
 	{
 #if WITH_EDITORONLY_DATA
 		while (Property && Property->IsEditorOnlyProperty())

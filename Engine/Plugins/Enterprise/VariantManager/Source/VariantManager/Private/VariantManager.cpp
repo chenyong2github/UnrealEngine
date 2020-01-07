@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VariantManager.h"
 
@@ -485,32 +485,32 @@ TArray<UPropertyValue*> FVariantManager::CreatePropertyCaptures(const TArray<TSh
 			}
 
 			UPropertyValue* NewPropVal = nullptr;
-			UClass* PropClass = nullptr;
+			FFieldClass* PropClass = nullptr;
 
 			switch (PropAndDisplay->CaptureType)
 			{
 			case EPropertyValueCategory::Material:
 			{
 				NewPropVal = NewObject<UPropertyValueMaterial>(GetTransientPackage(), UPropertyValueMaterial::StaticClass(), NAME_None, RF_Public|RF_Transactional);
-				PropClass = UObjectProperty::StaticClass();
+				PropClass = FObjectProperty::StaticClass();
 				break;
 			}
 			case EPropertyValueCategory::Color:
 			{
 				NewPropVal = NewObject<UPropertyValueColor>(GetTransientPackage(), UPropertyValueColor::StaticClass(), NAME_None, RF_Public|RF_Transactional);
-				PropClass = UStructProperty::StaticClass();
+				PropClass = FStructProperty::StaticClass();
 				break;
 			}
 			case EPropertyValueCategory::Option:
 			{
 				NewPropVal = NewObject<UPropertyValueOption>(GetTransientPackage(), UPropertyValueOption::StaticClass(), NAME_None, RF_Public|RF_Transactional);
-				PropClass = UIntProperty::StaticClass();
+				PropClass = FIntProperty::StaticClass();
 				break;
 			}
 			default: // Generic
 			{
 				NewPropVal = NewObject<UPropertyValue>(GetTransientPackage(), UPropertyValue::StaticClass(), NAME_None, RF_Public|RF_Transactional);
-				UProperty* LeafProp = PropAndDisplay->Prop.GetLeafMostProperty().Property.Get();
+				FProperty* LeafProp = PropAndDisplay->Prop.GetLeafMostProperty().Property.Get();
 				if (LeafProp)
 				{
 					PropClass = LeafProp->GetClass();

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "FileHelpers.h"
@@ -3230,6 +3230,8 @@ static bool InternalSavePackages(const TArray<UPackage*>& PackagesToSave, bool b
 
 void FEditorFileUtils::SaveMapDataPackages(UWorld* WorldToSave, bool bCheckDirty)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorFileUtils_SaveMapDataPackages);
+
 	TArray<UPackage*> PackagesToSave;
 	ULevel* Level = WorldToSave->PersistentLevel;
 	UPackage* WorldPackage = WorldToSave->GetOutermost();
@@ -3435,6 +3437,8 @@ bool FEditorFileUtils::SaveDirtyContentPackages(TArray<UClass*>& SaveContentClas
 bool FEditorFileUtils::SaveCurrentLevel()
 {
 	bool bReturnCode = false;
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorFileUtils_SaveCurrentLevel);
 
 	ULevel* Level = GWorld->GetCurrentLevel();
 	if ( Level && FEditorFileUtils::PromptToCheckoutLevels( false, Level ) )

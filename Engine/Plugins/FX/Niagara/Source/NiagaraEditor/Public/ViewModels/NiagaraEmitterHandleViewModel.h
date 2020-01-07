@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -14,7 +14,22 @@ struct FNiagaraEmitterHandle;
 class FNiagaraEmitterInstance;
 class FNiagaraEmitterViewModel;
 class UNiagaraStackViewModel;
+class UNiagaraStackEntry;
 enum class ENiagaraSystemViewModelEditMode;
+
+struct FRendererPreviewData
+{
+	UNiagaraStackEntry* RenderingEntry;
+	UObject* RenderingObject;
+
+
+	FRendererPreviewData(UNiagaraStackEntry* InRenderingEntry, UObject* InRenderingObject)
+		: RenderingEntry(InRenderingEntry)
+		, RenderingObject(InRenderingObject)
+	{
+
+	};
+};
 
 /** The view model for the FNiagaraEmitterEditorWidget. */
 class FNiagaraEmitterHandleViewModel : public TSharedFromThis<FNiagaraEmitterHandleViewModel>, public FGCObject
@@ -117,8 +132,9 @@ public:
 
 	void Cleanup();
 
-private:
-	TSharedRef<FNiagaraSystemViewModel> GetOwningSystemViewModel() const;
+	NIAGARAEDITOR_API void GetRendererPreviewData(TArray<FRendererPreviewData*>& InRendererPreviewData);
+
+	NIAGARAEDITOR_API TSharedRef<FNiagaraSystemViewModel> GetOwningSystemViewModel() const;
 
 private:
 	/** The system view model which owns this emitter handle view model. */

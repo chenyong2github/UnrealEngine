@@ -303,21 +303,21 @@
     </When>
   </Choose>
   <Choose>
-    <When Condition="Exists('System\NotForLicensees\FASTBuild.cs')">
+    <When Condition="Exists('Executors\NotForLicensees\FASTBuild.cs')">
       <ItemGroup>
-          <Compile Include="System\NotForLicensees\FASTBuild.cs" />
+          <Compile Include="Executors\NotForLicensees\FASTBuild.cs" />
       </ItemGroup>
       <PropertyGroup>
-        <DefineConstants>__FASTBUILD_AVAILABLE__</DefineConstants>
+        <DefineConstants>$(DefineConstants);__FASTBUILD_AVAILABLE__</DefineConstants>
       </PropertyGroup>
     </When>
   </Choose>
   <Choose>
     <When Condition="'$(OS)' != 'Windows_NT'">
-      <PropertyGroup>
-        <DefineConstants>__MonoCS__</DefineConstants>
-      </PropertyGroup>
-    </When>
+	  <PropertyGroup>
+		<DefineConstants>$(DefineConstants);__MonoCS__</DefineConstants>
+	  </PropertyGroup>
+	</When>
   </Choose>
   <Choose>
     <When Condition="'$(OS)' == 'Windows_NT'">

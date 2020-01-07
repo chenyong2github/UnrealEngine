@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -30,7 +30,7 @@ class CORE_API FEngineVersionBase
 public:
 
 	/** Empty constructor. Initializes the version to 0.0.0-0. */
-	FEngineVersionBase();
+	FEngineVersionBase() = default;
 
 	/** Constructs a version from the given components. */
 	FEngineVersionBase(uint16 InMajor, uint16 InMinor, uint16 InPatch = 0, uint32 InChangelist = 0);
@@ -74,14 +74,14 @@ public:
 protected:
 
 	/** Major version number. */
-	uint16 Major;
+	uint16 Major = 0;
 
 	/** Minor version number. */
-	uint16 Minor;
+	uint16 Minor = 0;
 
 	/** Patch version number. */
-	uint16 Patch;
+	uint16 Patch = 0;
 
 	/** Changelist number. This is used to arbitrate when Major/Minor/Patch version numbers match. Use GetChangelist() instead of using this member directly. */
-	uint32 Changelist;
+	uint32 Changelist = 0;
 };

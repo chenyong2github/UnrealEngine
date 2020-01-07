@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRigEditor.h"
 #include "Modules/ModuleManager.h"
@@ -268,7 +268,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 					}
 				}
 			}
-		}
+			}
 
 		InControlRigBlueprint->HierarchyContainer.OnElementAdded.AddSP(this, &FControlRigEditor::OnRigElementAdded);
 		InControlRigBlueprint->HierarchyContainer.OnElementRemoved.AddSP(this, &FControlRigEditor::OnRigElementRemoved);
@@ -996,7 +996,7 @@ FGraphAppearanceInfo FControlRigEditor::GetGraphAppearance(UEdGraph* InGraph) co
 	return AppearanceInfo;
 }
 
-void FControlRigEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged)
+void FControlRigEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
 	FBlueprintEditor::NotifyPostChange(PropertyChangedEvent, PropertyThatChanged);
 }
@@ -1019,11 +1019,11 @@ void FControlRigEditor::HandleModelModified(const UControlRigModel* InModel, ECo
 			const FControlRigModelNode* Node = (const FControlRigModelNode*)InPayload;
 			if (Node != nullptr)
 			{
-				if (FocusedGraphEdPtr.IsValid())
-				{
-					TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
-					if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(FocusedGraphEd->GetCurrentGraph()))
+					if (FocusedGraphEdPtr.IsValid())
 					{
+						TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+						if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(FocusedGraphEd->GetCurrentGraph()))
+						{
 						TArray<FControlRigModelNode> Selection;
 						bool bSelect = InType == EControlRigModelNotifType::NodeSelected;
 						if (bSelect)
@@ -1094,10 +1094,10 @@ void FControlRigEditor::HandleModelModified(const UControlRigModel* InModel, ECo
 					UClass* Class = RigBlueprint->GeneratedClass.Get();
 					if (Class)
 					{
-						if (UProperty* Property = Class->FindPropertyByName(Node->Name))
+						if (FProperty* Property = Class->FindPropertyByName(Node->Name))
 						{
 							TSet<class UObject*> SelectedObjects;
-							SelectedObjects.Add(Property);
+							SelectedObjects.Add(Property->GetUPropertyWrapper());
 							FBlueprintEditor::OnSelectedNodesChangedImpl(SelectedObjects);
 						}
 						else
@@ -1240,10 +1240,10 @@ void FControlRigEditor::OnBlueprintChangedImpl(UBlueprint* InBlueprint, bool bIs
 			{
 				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(SelectedNode))
 				{
-					UProperty* Property = Class->FindPropertyByName(RigNode->GetPropertyName());
+					FProperty* Property = Class->FindPropertyByName(RigNode->GetPropertyName());
 					if (Property)
 					{
-						SelectedObjects.Add(Property);
+						SelectedObjects.Add(Property->GetUPropertyWrapper());
 					}
 				}
 				else
@@ -1507,7 +1507,7 @@ void FControlRigEditor::UpdateControlRig()
 			if (UControlRig* CDO = Cast<UControlRig>(Class->GetDefaultObject()))
 			{
 				CDO->GizmoLibrary = GetControlRigBlueprint()->GizmoLibrary;
-			}
+ 			}
 
 			CacheNameLists();
 
@@ -1721,7 +1721,7 @@ void FControlRigEditor::OnFinishedChangingProperties(const FPropertyChangedEvent
 			return;
 		}
 
-		UScriptStruct* ScriptStruct = Cast< UScriptStruct>(PropertyChangedEvent.Property->GetOuter());
+		UScriptStruct* ScriptStruct = PropertyChangedEvent.Property->GetOwner<UScriptStruct>();
 		if (ScriptStruct)
 		{
 			if (ScriptStruct == FRigBone::StaticStruct() && RigElementInDetailPanel.Type == ERigElementType::Bone)
@@ -1733,7 +1733,7 @@ void FControlRigEditor::OnFinishedChangingProperties(const FPropertyChangedEvent
 				}
 			}
 			else if (ScriptStruct == FRigSpace::StaticStruct() && RigElementInDetailPanel.Type == ERigElementType::Space)
-			{
+	{
 				ControlRig->Hierarchy.SpaceHierarchy[RigElementInDetailPanel.Name] = ControlRigBP->HierarchyContainer.SpaceHierarchy[RigElementInDetailPanel.Name];
 				if (DebuggedControlRig && DebuggedControlRig != ControlRig)
 				{
@@ -1744,7 +1744,7 @@ void FControlRigEditor::OnFinishedChangingProperties(const FPropertyChangedEvent
 			{
 				ControlRig->Hierarchy.ControlHierarchy[RigElementInDetailPanel.Name] = ControlRigBP->HierarchyContainer.ControlHierarchy[RigElementInDetailPanel.Name];
 				if (DebuggedControlRig && DebuggedControlRig != ControlRig)
-				{
+		{
 					DebuggedControlRig->Hierarchy.ControlHierarchy[RigElementInDetailPanel.Name] = ControlRigBP->HierarchyContainer.ControlHierarchy[RigElementInDetailPanel.Name];
 				}
 			}
@@ -1832,11 +1832,11 @@ void FControlRigEditor::OnRigElementRenamed(FRigHierarchyContainer* Container, E
 				continue;
 			}
 
-			UStructProperty* UnitProperty = RigNode->GetUnitProperty();
+			FStructProperty* UnitProperty = RigNode->GetUnitProperty();
 			UStruct* UnitStruct = RigNode->GetUnitScriptStruct();
 			if (UnitProperty && UnitStruct)
 			{
-				for (TFieldIterator<UNameProperty> It(UnitStruct); It; ++It)
+				for (TFieldIterator<FNameProperty> It(UnitStruct); It; ++It)
 				{
 					if (It->HasMetaData(UControlRig::BoneNameMetaName) && ElementType == ERigElementType::Bone)
 					{
@@ -1917,13 +1917,13 @@ void FControlRigEditor::OnRigElementSelected(FRigHierarchyContainer* Container, 
 		{
 			FRigBoneHierarchy& BoneHierarchy = RigBlueprint->HierarchyContainer.BoneHierarchy;
 			if (bSelected)
-			{
+							{
 				SetDetailStruct(InKey, MakeShareable(new FStructOnScope(FRigBone::StaticStruct(), (uint8*)&(BoneHierarchy[InKey.Name]))));
-			}
+							}
 			else
 			{
 				ClearDetailObject();
-			}
+						}
 
 			UControlRigSkeletalMeshComponent* EditorSkelComp = Cast<UControlRigSkeletalMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent());
 			if (EditorSkelComp)
@@ -1938,9 +1938,9 @@ void FControlRigEditor::OnRigElementSelected(FRigHierarchyContainer* Container, 
 					else
 					{
 						EditorSkelComp->BonesOfInterest.Remove(Index);
-					}
 				}
 			}
+		}
 
 			break;
 		}
@@ -2071,68 +2071,68 @@ void FControlRigEditor::OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp
 					)
 				);
 
-				MenuBuilder.AddMenuSeparator();
+			MenuBuilder.AddMenuSeparator();
 
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("CreateSetBoneRotation", "Set Bone Rotation"),
-					LOCTEXT("CreateSetBoneRotationTooltip", "Setter for bone Rotation\n"),
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Rotation, false, DraggedKeys, Graph, NodePosition),
-						FCanExecuteAction()
-					)
-				);
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("CreateSetBoneRotation", "Set Bone Rotation"),
+				LOCTEXT("CreateSetBoneRotationTooltip", "Setter for bone Rotation\n"),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Rotation, false, DraggedKeys, Graph, NodePosition),
+					FCanExecuteAction()
+				)
+			);
 
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("CreateSetBoneTranslation", "Set Bone Translation"),
-					LOCTEXT("CreateSetBoneTranslationTooltip", "Setter for bone translation\n"),
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Translation, false, DraggedKeys, Graph, NodePosition),
-						FCanExecuteAction()
-					)
-				);
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("CreateSetBoneTranslation", "Set Bone Translation"),
+				LOCTEXT("CreateSetBoneTranslationTooltip", "Setter for bone translation\n"),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Translation, false, DraggedKeys, Graph, NodePosition),
+					FCanExecuteAction()
+				)
+			);
 
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("CreateSetBoneOffset", "Set Bone Offset"),
-					LOCTEXT("CreateSetBoneOffsetTooltip", "Setter for bone offset\n"),
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Offset, false, DraggedKeys, Graph, NodePosition),
-						FCanExecuteAction()
-					)
-				);
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("CreateSetBoneOffset", "Set Bone Offset"),
+				LOCTEXT("CreateSetBoneOffsetTooltip", "Setter for bone offset\n"),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Offset, false, DraggedKeys, Graph, NodePosition),
+					FCanExecuteAction()
+				)
+			);
 
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("CreateGetInitialBoneTransform", "Get Initial Bone Transform"),
-					LOCTEXT("CreateGetInitialBoneTransformTooltip", "Getter for initial bone transform\n"),
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Initial, true, DraggedKeys, Graph, NodePosition),
-						FCanExecuteAction()
-					)
-				);
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("CreateGetInitialBoneTransform", "Get Initial Bone Transform"),
+				LOCTEXT("CreateGetInitialBoneTransformTooltip", "Getter for initial bone transform\n"),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Initial, true, DraggedKeys, Graph, NodePosition),
+					FCanExecuteAction()
+				)
+			);
 
-				MenuBuilder.AddMenuSeparator();
+			MenuBuilder.AddMenuSeparator();
 
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("CreateGetBoneRelativeTransform", "Get Bone Relative Transform"),
-					LOCTEXT("CreateGetBoneRelativeTransformTooltip", "Getter for bone relative transform\n"),
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Relative, true, DraggedKeys, Graph, NodePosition),
-						FCanExecuteAction()
-					)
-				);
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("CreateSetBoneRelativeTransform", "Set Bone Relative Transform"),
-					LOCTEXT("CreateSetBoneRelativeTransformTooltip", "Setter for bone relative transform\n"),
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Relative, false, DraggedKeys, Graph, NodePosition),
-						FCanExecuteAction()
-					)
-				);
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("CreateGetBoneRelativeTransform", "Get Bone Relative Transform"),
+				LOCTEXT("CreateGetBoneRelativeTransformTooltip", "Getter for bone relative transform\n"),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Relative, true, DraggedKeys, Graph, NodePosition),
+					FCanExecuteAction()
+				)
+			);
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("CreateSetBoneRelativeTransform", "Set Bone Relative Transform"),
+				LOCTEXT("CreateSetBoneRelativeTransformTooltip", "Setter for bone relative transform\n"),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Relative, false, DraggedKeys, Graph, NodePosition),
+					FCanExecuteAction()
+				)
+			);
 
 			}
 
@@ -2203,7 +2203,7 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 
 	for (const FRigElementKey& Key : Keys)
 	{
-		UStruct* StructTemplate = nullptr;
+	UStruct* StructTemplate = nullptr;
 
 		FName PinName;
 		switch (Key.Type)
@@ -2212,89 +2212,28 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 			{
 				PinName = TEXT("Bone");
 
-				if (bIsGetter)
-				{
-					switch (Type)
-					{
+	if (bIsGetter)
+	{
+		switch (Type)
+		{
 						case ERigElementGetterSetterType_Transform:
-						{
-							StructTemplate = FRigUnit_GetBoneTransform::StaticStruct();
-							break;
-						}
+			{
+				StructTemplate = FRigUnit_GetBoneTransform::StaticStruct();
+				break;
+			}
 						case ERigElementGetterSetterType_Initial:
-						{
-							StructTemplate = FRigUnit_GetInitialBoneTransform::StaticStruct();
-							break;
-						}
+			{
+				StructTemplate = FRigUnit_GetInitialBoneTransform::StaticStruct();
+				break;
+			}
 						case ERigElementGetterSetterType_Relative:
-						{
-							StructTemplate = FRigUnit_GetRelativeBoneTransform::StaticStruct();
-							break;
-						}
+			{
+				StructTemplate = FRigUnit_GetRelativeBoneTransform::StaticStruct();
+				break;
+			}
 						case ERigElementGetterSetterType_Name:
-						{
-							StructTemplate = FRigUnit_BoneName::StaticStruct();
-							break;
-						}
-						default:
-						{
-							break;
-						}
-					}
-				}
-				else
-				{
-					switch (Type)
-					{
-						case ERigElementGetterSetterType_Transform:
-						{
-							StructTemplate = FRigUnit_SetBoneTransform::StaticStruct();
-							break;
-						}
-						case ERigElementGetterSetterType_Relative:
-						{
-							StructTemplate = FRigUnit_SetRelativeBoneTransform::StaticStruct();
-							break;
-						}
-						case ERigElementGetterSetterType_Rotation:
-						{
-							StructTemplate = FRigUnit_SetBoneRotation::StaticStruct();
-							break;
-						}
-						case ERigElementGetterSetterType_Translation:
-						{
-							StructTemplate = FRigUnit_SetBoneTranslation::StaticStruct();
-							break;
-						}
-						case ERigElementGetterSetterType_Offset:
-						{
-							StructTemplate = FRigUnit_AddBoneTransform::StaticStruct();
-							break;
-						}
-						default:
-						{
-							break;
-						}
-					}
-				}
-				break;
-			}
-			case ERigElementType::Control:
 			{
-				PinName = TEXT("Control");
-				if (bIsGetter)
-				{
-					StructTemplate = FRigUnit_GetControlTransform::StaticStruct();
-				}
-				break;
-			}
-			case ERigElementType::Space:
-			{
-				PinName = TEXT("Space");
-				if (bIsGetter)
-				{
-					StructTemplate = FRigUnit_GetSpaceTransform::StaticStruct();
-				}
+				StructTemplate = FRigUnit_BoneName::StaticStruct();
 				break;
 			}
 			default:
@@ -2302,6 +2241,67 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 				break;
 			}
 		}
+	}
+	else
+	{
+		switch (Type)
+		{
+						case ERigElementGetterSetterType_Transform:
+			{
+				StructTemplate = FRigUnit_SetBoneTransform::StaticStruct();
+				break;
+			}
+						case ERigElementGetterSetterType_Relative:
+			{
+				StructTemplate = FRigUnit_SetRelativeBoneTransform::StaticStruct();
+				break;
+			}
+						case ERigElementGetterSetterType_Rotation:
+			{
+				StructTemplate = FRigUnit_SetBoneRotation::StaticStruct();
+				break;
+			}
+						case ERigElementGetterSetterType_Translation:
+			{
+				StructTemplate = FRigUnit_SetBoneTranslation::StaticStruct();
+				break;
+			}
+						case ERigElementGetterSetterType_Offset:
+			{
+				StructTemplate = FRigUnit_AddBoneTransform::StaticStruct();
+				break;
+			}
+			default:
+			{
+				break;
+			}
+		}
+	}
+				break;
+			}
+			case ERigElementType::Control:
+			{
+				PinName = TEXT("Control");
+				if (bIsGetter)
+	{
+					StructTemplate = FRigUnit_GetControlTransform::StaticStruct();
+				}
+				break;
+	}
+			case ERigElementType::Space:
+			{
+				PinName = TEXT("Space");
+				if (bIsGetter)
+	{
+					StructTemplate = FRigUnit_GetSpaceTransform::StaticStruct();
+				}
+				break;
+	}
+			default:
+	{
+				break;
+			}
+	}
 
 		if (StructTemplate == nullptr)
 		{
@@ -2492,7 +2492,7 @@ void FControlRigEditor::DumpUnitTestCode()
 		{
 			if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(GraphNode))
 			{
-				UStructProperty* Property = RigNode->GetUnitProperty();
+				FStructProperty* Property = RigNode->GetUnitProperty();
 				if (Property == nullptr)
 				{
 					return;

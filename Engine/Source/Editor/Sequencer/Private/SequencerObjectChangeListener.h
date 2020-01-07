@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -72,7 +72,7 @@ private:
 	bool IsObjectValidForListening( UObject* Object ) const;
 
 	/** @return A valid delegate if property a setter could be found for a property on a class */
-	const FOnAnimatablePropertyChanged* FindPropertySetter(const UStruct& PropertyStructure, FAnimatedPropertyKey PropertyKey, const UProperty& Property) const;
+	const FOnAnimatablePropertyChanged* FindPropertySetter(const UStruct& PropertyStructure, FAnimatedPropertyKey PropertyKey, const FProperty& Property) const;
 
 	/** 
 	 * Internal implementation of CanKeyProperty that allows us to also retrieve a delegate that can be used to broadcast keyable properties.
@@ -83,7 +83,7 @@ private:
 	 * @param	InOutPropertyPath	The property path of the proepty we will actually key
 	 * @return true if we can key the property
 	 */
-	bool CanKeyProperty_Internal(FCanKeyPropertyParams KeyPropertyParams, FOnAnimatablePropertyChanged& InOutDelegate, UProperty*& InOutProperty, FPropertyPath& InOutPropertyPath) const;
+	bool CanKeyProperty_Internal(FCanKeyPropertyParams KeyPropertyParams, FOnAnimatablePropertyChanged& InOutDelegate, FProperty*& InOutProperty, FPropertyPath& InOutPropertyPath) const;
 
 private:
 	/** Mapping of object to a listener used to check for property changes */

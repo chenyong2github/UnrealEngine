@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "Animation/DebugSkelMeshComponent.h"
@@ -742,10 +742,11 @@ void UDebugSkelMeshComponent::RebuildClothingSectionsFixedVerts()
 				{
 					UClothingAssetCommon* ConcreteAsset = Cast<UClothingAssetCommon>(BaseAsset);
 					UClothLODDataCommon* LodData = ConcreteAsset->ClothLodData[Section.ClothingData.AssetLodIndex];
+					const FPointWeightMap& MaxDistances = LodData->ClothPhysicalMeshData.GetWeightMap(EWeightMapTargetCommon::MaxDistance);
 
 					for(FMeshToMeshVertData& VertData : Section.ClothMappingData)
 					{
-						if(LodData->PhysicalMeshData->IsFixed(
+						if(MaxDistances.AreAnyBelowThreshold(
 							VertData.SourceMeshVertIndices[0],
 							VertData.SourceMeshVertIndices[1],
 							VertData.SourceMeshVertIndices[2]))
@@ -830,7 +831,7 @@ void UDebugSkelMeshComponent::RefreshSelectedClothingSkinnedPositions()
 
 				UClothLODDataCommon* LodData = ConcreteAsset->ClothLodData[SelectedClothingLodForPainting];
 
-				ClothingMeshUtils::SkinPhysicsMesh(ConcreteAsset->UsedBoneIndices, *LodData->PhysicalMeshData, FTransform::Identity, RefToLocals.GetData(), RefToLocals.Num(), SkinnedSelectedClothingPositions, SkinnedSelectedClothingNormals);
+				ClothingMeshUtils::SkinPhysicsMesh(ConcreteAsset->UsedBoneIndices, LodData->ClothPhysicalMeshData, FTransform::Identity, RefToLocals.GetData(), RefToLocals.Num(), SkinnedSelectedClothingPositions, SkinnedSelectedClothingNormals);
 				RebuildCachedClothBounds();
 			}
 		}
@@ -1037,13 +1038,13 @@ FDebugSkelMeshDynamicData::FDebugSkelMeshDynamicData(UDebugSkelMeshComponent* In
 						{
 							UClothLODDataCommon* LodData = ConcreteAsset->ClothLodData[InComponent->SelectedClothingLodForPainting];
 
-							ClothingSimIndices = LodData->PhysicalMeshData->Indices;
+							ClothingSimIndices = LodData->ClothPhysicalMeshData.Indices;
 
 							if(LodData->ParameterMasks.IsValidIndex(InComponent->SelectedClothingLodMaskForPainting))
 							{
 								FPointWeightMap& Mask = LodData->ParameterMasks[InComponent->SelectedClothingLodMaskForPainting];
 
-								ClothingVisiblePropertyValues = Mask.GetValueArray();
+								ClothingVisiblePropertyValues = Mask.Values;
 							}
 						}
 					}

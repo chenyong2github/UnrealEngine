@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFramework/Actor.h"
 #include "EngineDefines.h"
@@ -268,11 +268,11 @@ void AActor::ResetOwnedComponents()
 			if (Component && Component->CreationMethod == EComponentCreationMethod::Native)
 			{
 				// Find the property or properties that previously referenced the natively-constructed component.
-				TArray<UObjectProperty*> Properties;
+				TArray<FObjectProperty*> Properties;
 				NativeConstructedComponentToPropertyMap.MultiFind(Component->GetFName(), Properties);
 
 				// Determine if the property or properties are no longer valid references (either it got serialized out that way or something failed during load)
-				for (UObjectProperty* ObjProp : Properties)
+				for (FObjectProperty* ObjProp : Properties)
 				{
 					check(ObjProp != nullptr);
 					UActorComponent* ActorComponent = Cast<UActorComponent>(ObjProp->GetObjectPropertyValue_InContainer(this));
@@ -621,9 +621,9 @@ void AActor::Serialize(FArchive& Ar)
 		{
 			NativeConstructedComponentToPropertyMap.Reset();
 			NativeConstructedComponentToPropertyMap.Reserve(OwnedComponents.Num());
-			for(TFieldIterator<UObjectProperty> PropertyIt(BPGC, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+			for(TFieldIterator<FObjectProperty> PropertyIt(BPGC, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 			{
-				UObjectProperty* ObjProp = *PropertyIt;
+				FObjectProperty* ObjProp = *PropertyIt;
 
 				// Ignore transient properties since they won't be serialized
 				if(!ObjProp->HasAnyPropertyFlags(CPF_Transient))
@@ -1215,12 +1215,12 @@ bool AActor::Modify( bool bAlwaysMarkDirty/*=true*/ )
 
 	// Any properties that reference a blueprint constructed component needs to avoid creating a reference to the component from the transaction
 	// buffer, so we temporarily switch the property to non-transactional while the modify occurs
-	TArray<UObjectProperty*> TemporarilyNonTransactionalProperties;
+	TArray<FObjectProperty*> TemporarilyNonTransactionalProperties;
 	if (GUndo)
 	{
-		for (TFieldIterator<UObjectProperty> PropertyIt(GetClass(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<FObjectProperty> PropertyIt(GetClass(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
-			UObjectProperty* ObjProp = *PropertyIt;
+			FObjectProperty* ObjProp = *PropertyIt;
 			if (!ObjProp->HasAllPropertyFlags(CPF_NonTransactional))
 			{
 				UActorComponent* ActorComponent = Cast<UActorComponent>(ObjProp->GetObjectPropertyValue(ObjProp->ContainerPtrToValuePtr<void>(this)));
@@ -1235,7 +1235,7 @@ bool AActor::Modify( bool bAlwaysMarkDirty/*=true*/ )
 
 	bool bSavedToTransactionBuffer = UObject::Modify( bAlwaysMarkDirty );
 
-	for (UObjectProperty* ObjProp : TemporarilyNonTransactionalProperties)
+	for (FObjectProperty* ObjProp : TemporarilyNonTransactionalProperties)
 	{
 		ObjProp->ClearPropertyFlags(CPF_NonTransactional);
 	}

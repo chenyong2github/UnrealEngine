@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -50,6 +50,8 @@ namespace EMaxConcurrentResolutionRule
 
 		/** Stop the lowest priority sound in the group. If all sounds are the same priority, then it won't play a new sound. */
 		StopLowestPriorityThenPreventNew,
+
+		Count UMETA(Hidden)
 	};
 }
 
@@ -122,6 +124,12 @@ public:
 	 * Retrieves the volume scale
 	 */
 	float GetVolumeScale() const;
+
+	/** Whether or not ResolutionRule supports eviction, wherein eviction is the ability to keep a sound
+	  * from playing prior to start and culling is the requirement of a sound to initialize and actively parse
+	  * prior to being removed from a concurrency group.
+	  */
+	bool IsEvictionSupported() const;
 };
 
 UCLASS(BlueprintType, hidecategories=Object, editinlinenew, MinimalAPI)
@@ -233,8 +241,8 @@ public:
 	/** Removes an active sound from the active sound array. */
 	void RemoveActiveSound(FActiveSound& ActiveSound);
 
-	/** Sorts the active sound array by volume */
-	void StopQuietSoundsDueToMaxConcurrency();
+	/** Sorts the active sound if concurrency settings require culling post playback */
+	void CullSoundsDueToMaxConcurrency();
 };
 
 typedef TMap<FConcurrencyGroupID, FConcurrencyGroup*> FConcurrencyGroups;
@@ -287,8 +295,8 @@ public:
 	/** Stops sound, applying concurrency rules for how to stop. */
 	void StopDueToVoiceStealing(FActiveSound& ActiveSound);
 
-	/** Stops any active sounds due to max concurrency quietest sound resolution rule */
-	void UpdateQuietSoundsToStop();
+	/** Culls any active sounds due to max concurrency sound resolution rule constraints being met */
+	void UpdateSoundsToCull();
 
 private: // Methods
 	/** Evaluates whether or not the sound can play given the concurrency group's rules. Appends permissible
@@ -313,7 +321,6 @@ private: // Methods
 
 	/** Helper functions for finding evictable sounds for the given concurrency rule */
 	FActiveSound* GetEvictableSoundStopFarthest(const FActiveSound& NewActiveSound, const FConcurrencyGroup& ConcurrencyGroup, bool bIsRetriggering) const;
-	FActiveSound* GetEvictableSoundStopLowestPriority(const FActiveSound& NewActiveSound, const FConcurrencyGroup& ConcurrencyGroup, bool bIsRetriggering) const;
 	FActiveSound* GetEvictableSoundStopOldest(const FActiveSound& NewActiveSound, const FConcurrencyGroup& ConcurrencyGroup, bool bIsRetriggering) const;
 
 	/** Handles concurrency evaluation that happens per USoundConcurrencyObject */

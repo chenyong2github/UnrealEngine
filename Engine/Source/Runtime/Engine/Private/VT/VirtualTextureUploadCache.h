@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -14,6 +14,7 @@ class FRHIStructuredBuffer;
 struct FVTUploadTileBuffer
 {
 	void* Memory = nullptr;
+	uint32 MemorySize = 0u;
 	uint32 Stride = 0u;
 };
 
@@ -84,6 +85,7 @@ private:
 		TRefCountPtr<FRHIStructuredBuffer> RHIStagingBuffer;
 		FRHITexture2D* RHISubmitTexture = nullptr;
 		void* Memory = nullptr;
+		uint32 MemorySize = 0u;
 		uint32 Stride = 0u;
 		uint32 FrameSubmitted = 0u;
 		uint32 SubmitBatchIndex = 0u;

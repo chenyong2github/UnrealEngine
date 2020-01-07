@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
  
 #pragma once
@@ -111,7 +111,7 @@ private:
 	/*
 	 * Determines the amount of branches to use on this random node, so that we can cull the rest.
 	 * Based on the au.MaxRandomBranches CVar, the MaxNumRandomBranches project setting
-	 * available for some platforms, and this node's PreselectAtLevelLoad UProperty.
+	 * available for some platforms, and this node's PreselectAtLevelLoad FProperty.
 	 * @return 0 if we do not want cull any branches.
 	 */
 	int32 DetermineAmountOfBranchesToPreselect();

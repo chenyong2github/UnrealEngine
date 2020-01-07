@@ -1,8 +1,9 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNodes/AnimNode_RotationOffsetBlendSpace.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "AnimationRuntime.h"
+#include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////
 // FAnimNode_RotationOffsetBlendSpace
@@ -67,6 +68,9 @@ void FAnimNode_RotationOffsetBlendSpace::UpdateAssetPlayer(const FAnimationUpdat
 	}
 
 	BasePose.Update(Context);
+
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Alpha"), ActualAlpha);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("PlayTime"), InternalTimeAccumulator);
 }
 
 void FAnimNode_RotationOffsetBlendSpace::Evaluate_AnyThread(FPoseContext& Context)

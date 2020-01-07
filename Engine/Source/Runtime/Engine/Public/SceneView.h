@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -1020,6 +1020,9 @@ public:
 	/** True if we need to bind the instanced view uniform buffer parameters. */
 	bool bShouldBindInstancedViewUB;
 
+	/** How far below the water surface this view is. -1 means the view is out of water. */
+	float UnderwaterDepth;
+
 	/** Global clipping plane being applied to the scene, or all 0's if disabled.  This is used when rendering the planar reflection pass. */
 	FPlane GlobalClippingPlane;
 
@@ -1176,6 +1179,8 @@ public:
 
 	/** @return true:perspective, false:orthographic */
 	inline bool IsPerspectiveProjection() const { return ViewMatrices.IsPerspectiveProjection(); }
+
+	bool IsUnderwater() const { return UnderwaterDepth > 0.0f; }
 
 	/** Returns the location used as the origin for LOD computations
 	 * @param Index, 0 or 1, which LOD origin to return

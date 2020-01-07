@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 /*=============================================================================================
@@ -23,19 +23,5 @@ struct CORE_API FAndroidPlatformStackWalk : public FGenericPlatformStackWalk
 
 	static void HandleBackTraceSignal(siginfo* Info, void* Context);
 };
-
-#define ANDROID_HAS_THREADBACKTRACE !PLATFORM_LUMIN && PLATFORM_USED_NDK_VERSION_INTEGER >= 21
-
-#if ANDROID_HAS_THREADBACKTRACE
-
-/** Passed in through sigqueue for gathering of a callstack from a signal */
-struct ThreadStackUserData
-{
-	uint64* BackTrace;
-	int32 BackTraceCount;
-	SIZE_T CallStackSize;
-};
-#define THREAD_CALLSTACK_GENERATOR SIGRTMIN + 5
-#endif // ANDROID_HAS_THREADBACKTRACE
 
 typedef FAndroidPlatformStackWalk FPlatformStackWalk;

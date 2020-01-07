@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BoneControllers/AnimNode_RigidBody_Chaos.h"
 
@@ -28,6 +28,7 @@ TAutoConsoleVariable<int32> CVarChaosRigidBodyLODThreshold(TEXT("p.ChaosRigidBod
 FAnimNode_RigidBody_Chaos::FAnimNode_RigidBody_Chaos()
 	: QueryParams(NAME_None, FCollisionQueryParams::GetUnknownStatId())
 {
+	AccumulatedDeltaTime = 0.0f;
 	ResetSimulatedTeleportType = ETeleportType::None;
 	PhysicsSimulation = nullptr;
 	OverridePhysicsAsset = nullptr;
@@ -41,6 +42,7 @@ FAnimNode_RigidBody_Chaos::FAnimNode_RigidBody_Chaos()
 	OverrideWorldGravity = FVector::ZeroVector;
 	TotalMass = 0.f;
 	CachedBounds.W = 0;
+	PhysScene = nullptr;
 	UnsafeWorld = nullptr;
 	bSimulationStarted = false;
 	bCheckForBodyTransformInit = false;

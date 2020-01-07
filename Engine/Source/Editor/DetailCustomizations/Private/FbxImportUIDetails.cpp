@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FbxImportUIDetails.h"
 #include "Misc/Attribute.h"
@@ -237,7 +237,7 @@ void FFbxImportUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder 
 	{
 		if (bShowCompareResult && Handle->GetProperty() != nullptr)
 		{
-			UProperty* Property = Handle->GetProperty();
+			FProperty* Property = Handle->GetProperty();
 			if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UFbxImportUI, Skeleton) ||
 				Property->GetFName() == GET_MEMBER_NAME_CHECKED(UFbxImportUI, bImportRigidMesh) ||
 				Property->GetFName() == GET_MEMBER_NAME_CHECKED(UFbxSkeletalMeshImportData, bImportMeshesInBoneHierarchy) ||
@@ -333,7 +333,7 @@ void FFbxImportUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder 
 			Args.Add(FString::FromInt(LodIndex));
 			FString LodDistancePropertyName = FString::Format(TEXT("{0}{1}"), Args);
 			TSharedRef<IPropertyHandle> Handle = DetailBuilder.GetProperty(FName(*LodDistancePropertyName));
-			UProperty* Property = Handle->GetProperty();
+			FProperty* Property = Handle->GetProperty();
 			if (Property != nullptr && Property->GetName().Compare(LodDistancePropertyName) == 0)
 			{
 				DetailBuilder.HideProperty(Handle);
@@ -391,7 +391,7 @@ void FFbxImportUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder 
 
 	for(TSharedPtr<IPropertyHandle> Handle : ExtraProperties)
 	{
-		UProperty* Property = Handle->GetProperty();
+		FProperty* Property = Handle->GetProperty();
 		FString ImportTypeMetaData = Handle->GetMetaData(TEXT("ImportType"));
 		const FString& CategoryMetaData = Handle->GetMetaData(TEXT("ImportCategory"));
 		const FString& SubCategoryData = Handle->GetMetaData(TEXT("SubCategory"));
@@ -512,7 +512,7 @@ void FFbxImportUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder 
 		for(TSharedPtr<IPropertyHandle> Handle : ExtraProperties)
 		{
 			const FString& CategoryMetaData = Handle->GetMetaData(TEXT("ImportCategory"));
-			if(Handle->GetProperty()->GetOuter() == UFbxAnimSequenceImportData::StaticClass()
+			if(Handle->GetProperty()->GetOwner<UObject>() == UFbxAnimSequenceImportData::StaticClass()
 			   && CategoryMetaData.IsEmpty())
 			{
 				// Add to default anim category if no override specified
@@ -560,7 +560,7 @@ void FFbxImportUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder 
 		for (TSharedPtr<IPropertyHandle> Handle : ExtraProperties)
 		{
 			// We ignore base import data for this window.
-			if (Handle->GetProperty()->GetOuter() == UFbxTextureImportData::StaticClass())
+			if (Handle->GetProperty()->GetOwner<UObject>() == UFbxTextureImportData::StaticClass())
 			{
 				if (Handle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(UFbxTextureImportData, MaterialSearchLocation))
 				{
@@ -583,7 +583,7 @@ void FFbxImportUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder 
 		for(TSharedPtr<IPropertyHandle> Handle : ExtraProperties)
 		{
 			// We ignore base import data for this window.
-			if(Handle->GetProperty()->GetOuter() == UFbxTextureImportData::StaticClass())
+			if(Handle->GetProperty()->GetOwner<UObject>() == UFbxTextureImportData::StaticClass())
 			{
 				if (Handle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(UFbxTextureImportData, BaseMaterialName))
 				{

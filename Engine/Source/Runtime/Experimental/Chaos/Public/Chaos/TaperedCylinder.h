@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/ImplicitObject.h"
@@ -32,7 +32,7 @@ namespace Chaos
 			T MaxRadius = MRadius1;
 			if (MaxRadius < MRadius2)
 				MaxRadius = MRadius2;
-			MLocalBoundingBox = TBox<T, 3>(MLocalBoundingBox.Min() - TVector<T, 3>(MaxRadius), MLocalBoundingBox.Max() + TVector<T, 3>(MaxRadius));
+			MLocalBoundingBox = TAABB<T, 3>(MLocalBoundingBox.Min() - TVector<T, 3>(MaxRadius), MLocalBoundingBox.Max() + TVector<T, 3>(MaxRadius));
 		}
 		TTaperedCylinder(const TTaperedCylinder<T>& Other)
 		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::TaperedCylinder)
@@ -112,7 +112,7 @@ namespace Chaos
 		TArray<TVector<T, 3>> ComputeSamplePoints(const T PointsPerUnitArea, const bool IncludeEndCaps = true, const int32 MinPoints = 0, const int32 MaxPoints = 1000) const
 		{ return ComputeSamplePoints(FMath::Clamp(static_cast<int32>(ceil(PointsPerUnitArea * GetArea(IncludeEndCaps))), MinPoints, MaxPoints), IncludeEndCaps); }
 
-		virtual const TBox<T, 3>& BoundingBox() const override { return MLocalBoundingBox; }
+		virtual const TAABB<T, 3>& BoundingBox() const override { return MLocalBoundingBox; }
 
 		T PhiWithNormal(const TVector<T, 3>& x, TVector<T, 3>& Normal) const
 		{
@@ -120,7 +120,7 @@ namespace Chaos
 			const T Distance1 = MPlane1.PhiWithNormal(x, Normal1);
 			if (Distance1 < SMALL_NUMBER)
 			{
-				check(MPlane2.PhiWithNormal(x, Normal2) > 0.);
+				ensure(MPlane2.PhiWithNormal(x, Normal2) > 0.);
 				const TVector<T, 3> v = x - TVector<T, 3>(Normal1 * Distance1 + MPlane1.X());
 				if (v.Size() > MRadius1)
 				{
@@ -138,7 +138,7 @@ namespace Chaos
 			const T Distance2 = MPlane2.PhiWithNormal(x, Normal2);
 			if (Distance2 < SMALL_NUMBER)
 			{
-				check(MPlane1.PhiWithNormal(x, Normal1) > 0.);
+				ensure(MPlane1.PhiWithNormal(x, Normal1) > 0.);
 				const TVector<T, 3> v = x - TVector<T, 3>(Normal2 * Distance2 + MPlane2.X());
 				if (v.Size() > MRadius2)
 				{
@@ -153,7 +153,7 @@ namespace Chaos
 					return -Distance2;
 				}
 			}
-			check(Distance1 <= MHeight && Distance2 <= MHeight);
+			ensure(Distance1 <= MHeight && Distance2 <= MHeight);
 			const TVector<T, 3> SideVector = (x - TVector<T, 3>(Normal1 * Distance1 + MPlane1.X()));
 			const T SideDistance = SideVector.Size() - GetRadius(Distance1);
 			if (SideDistance < 0.)
@@ -348,7 +348,7 @@ namespace Chaos
 
 		TPlane<T, 3> MPlane1, MPlane2;
 		T MHeight, MRadius1, MRadius2;
-		TBox<T, 3> MLocalBoundingBox;
+		TAABB<T, 3> MLocalBoundingBox;
 	};
 
 	template<typename T>

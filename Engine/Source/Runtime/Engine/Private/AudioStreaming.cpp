@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 AudioStreaming.cpp: Implementation of audio streaming classes.
@@ -355,8 +355,8 @@ void FStreamingWaveData::BeginPendingRequests(const TArray<uint32>& IndicesToLoa
 				check(!ChunkStorage->Data); // Make sure we do not already have data
 				check(Chunk.BulkData.GetBulkDataSize() == ChunkStorage->DataSize); // Make sure that the bulkdata size matches
 				
-				FAsyncFileCallBack AsyncFileCallBack =
-					[this, LoadedChunkStorageIndex](bool bWasCancelled, IAsyncReadRequest* Req)
+				FBulkDataIORequestCallBack AsyncFileCallBack =
+					[this, LoadedChunkStorageIndex](bool bWasCancelled, IBulkDataIORequest* Req)
 				{
 					AudioStreamingManager->OnAsyncFileCallback(this, LoadedChunkStorageIndex, Req);
 
@@ -491,7 +491,7 @@ FLegacyAudioStreamingManager::~FLegacyAudioStreamingManager()
 {
 }
 
-void FLegacyAudioStreamingManager::OnAsyncFileCallback(FStreamingWaveData* StreamingWaveData, int32 LoadedAudioChunkIndex, IAsyncReadRequest* ReadRequest)
+void FLegacyAudioStreamingManager::OnAsyncFileCallback(FStreamingWaveData* StreamingWaveData, int32 LoadedAudioChunkIndex, IBulkDataIORequest* ReadRequest)
 {
 	// Check to see if we successfully managed to load anything
 	uint8* Mem = ReadRequest->GetReadResults();

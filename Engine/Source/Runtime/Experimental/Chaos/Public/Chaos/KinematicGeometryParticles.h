@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/ArrayCollectionArray.h"
@@ -115,6 +115,7 @@ class TKinematicGeometryParticlesImp : public TGeometryParticlesImp<T, d, SimTyp
 
 	CHAOS_API virtual void Serialize(FChaosArchive& Ar) override
 	{
+		LLM_SCOPE(ELLMTag::ChaosParticles);
 		TGeometryParticlesImp<T, d, SimType>::Serialize(Ar);
 		Ar << MV << MW;
 		

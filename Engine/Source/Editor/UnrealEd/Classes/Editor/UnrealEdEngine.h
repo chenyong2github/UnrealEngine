@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -218,8 +218,8 @@ public:
 	//~ End UObject Interface.
 
 	//~ Begin FNotify Interface.
-	virtual void NotifyPreChange( UProperty* PropertyAboutToChange ) override;
-	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged ) override;
+	virtual void NotifyPreChange( FProperty* PropertyAboutToChange ) override;
+	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged ) override;
 	//~ End FNotify Interface.
 
 	//~ Begin UEditorEngine Interface

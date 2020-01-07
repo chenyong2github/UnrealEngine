@@ -1,10 +1,11 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "Containers/ContainerAllocationPolicies.h"
 #include "CoreTypes.h"
 #include "CoreFwd.h"
+#include "Delegates/Delegate.h"
 
 struct ssl_ctx_st;
 typedef struct ssl_ctx_st SSL_CTX;
@@ -73,4 +74,21 @@ public:
 	 * @return false if validation fails
 	 */
 	virtual bool VerifySslCertificates(TArray<TArray<uint8, TFixedAllocator<PUBLIC_KEY_DIGEST_SIZE>>>& Digests, const FString& Domain) const = 0;
+};
+
+class SSL_API FSslCertificateDelegates
+{
+public:
+	struct FCertInfo
+	{
+		static constexpr int CERT_DIGEST_SIZE = 20;
+
+		TArray<uint8, TInlineAllocator<ISslCertificateManager::PUBLIC_KEY_DIGEST_SIZE>> KeyDigest;
+		TArray<uint8, TInlineAllocator<CERT_DIGEST_SIZE>> Thumbprint;
+		FString Issuer;
+		FString Subject;
+	};
+
+	DECLARE_DELEGATE_RetVal_TwoParams(bool, FVerifySslCertificates, const FString&, const TArray<FCertInfo>&);
+	static FVerifySslCertificates VerifySslCertificates;
 };

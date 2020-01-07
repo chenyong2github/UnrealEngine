@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	AnimSequence.cpp: Skeletal mesh animation functions.
@@ -1172,7 +1172,7 @@ void UAnimSequence::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 		PostProcessSequence();
 	}
 
-	UProperty* Property = PropertyChangedEvent.Property;
+	FProperty* Property = PropertyChangedEvent.Property;
 	if (Property != nullptr && Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAnimSequence, CurveCompressionSettings))
 	{
 		RequestSyncAnimRecompression(false);
@@ -4372,7 +4372,7 @@ void UAnimSequence::RefreshTrackMapFromAnimTrackNames()
 	}
 }
 
-uint8* UAnimSequence::FindSyncMarkerPropertyData(int32 SyncMarkerIndex, UArrayProperty*& ArrayProperty)
+uint8* UAnimSequence::FindSyncMarkerPropertyData(int32 SyncMarkerIndex, FArrayProperty*& ArrayProperty)
 {
 	ArrayProperty = NULL;
 

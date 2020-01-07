@@ -1,9 +1,9 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InsightsSkeletalMeshComponent.h"
-#include "AnimationProvider.h"
+#include "IAnimationProvider.h"
 
-void UInsightsSkeletalMeshComponent::SetPoseFromProvider(const FAnimationProvider& InProvider, const FSkeletalMeshPoseMessage& InMessage, const FSkeletalMeshInfo& SkeletalMeshInfo)
+void UInsightsSkeletalMeshComponent::SetPoseFromProvider(const IAnimationProvider& InProvider, const FSkeletalMeshPoseMessage& InMessage, const FSkeletalMeshInfo& SkeletalMeshInfo)
 {
 	// Grab transform and bone transforms from provider
 	FTransform ComponentToWorldTransform;

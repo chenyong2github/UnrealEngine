@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -24,6 +24,12 @@ namespace Chaos
 		Locked,
 	};
 
+	enum class EJointForceMode : int32
+	{
+		Acceleration,
+		Force,
+	};
+
 	/**
 	 * The order of the angular constraints (for settings held in vectors etc)
 	 */
@@ -44,13 +50,6 @@ namespace Chaos
 		Swing1 = 2,		// Swing1 Axis = Z
 	};
 
-	enum class EJointSolverPhase
-	{
-		None,
-		Apply,
-		ApplyPushOut,
-	};
-
 	struct FJointConstants
 	{
 		/** The constraint-space twist axis (X Axis) */
@@ -63,17 +62,17 @@ namespace Chaos
 		static const FVec3 Swing2Axis() { return FVec3(0, 1, 0); }
 	};
 
-	class CHAOS_API FPBDJointMotionSettings
+	class CHAOS_API FPBDJointSettings
 	{
 	public:
-		FPBDJointMotionSettings();
-		FPBDJointMotionSettings(const TVector<EJointMotionType, 3>& InLinearMotionTypes, const TVector<EJointMotionType, 3>& InAngularMotionTypes);
+		FPBDJointSettings();
 
 		void Sanitize();
 
 		FReal Stiffness;
 		FReal LinearProjection;
 		FReal AngularProjection;
+		FReal ParentInvMassScale;
 
 		TVector<EJointMotionType, 3> LinearMotionTypes;
 		FReal LinearLimit;
@@ -84,33 +83,36 @@ namespace Chaos
 		bool bSoftLinearLimitsEnabled;
 		bool bSoftTwistLimitsEnabled;
 		bool bSoftSwingLimitsEnabled;
+		EJointForceMode LinearSoftForceMode;
+		EJointForceMode AngularSoftForceMode;
 		FReal SoftLinearStiffness;
+		FReal SoftLinearDamping;
 		FReal SoftTwistStiffness;
+		FReal SoftTwistDamping;
 		FReal SoftSwingStiffness;
+		FReal SoftSwingDamping;
+
+		FVec3 LinearDriveTarget;
+		TVector<bool, 3> bLinearPositionDriveEnabled;
+		TVector<bool, 3> bLinearVelocityDriveEnabled;
+		EJointForceMode LinearDriveForceMode;
+		FReal LinearDriveStiffness;
+		FReal LinearDriveDamping;
 
 		// @todo(ccaulfield): remove one of these
-		FRotation3 AngularDriveTarget;
+		FRotation3 AngularDrivePositionTarget;
 		FVec3 AngularDriveTargetAngles;
+		FVec3 AngularDriveVelocityTarget;
 
-		bool bAngularSLerpDriveEnabled;
-		bool bAngularTwistDriveEnabled;
-		bool bAngularSwingDriveEnabled;
+		bool bAngularSLerpPositionDriveEnabled;
+		bool bAngularSLerpVelocityDriveEnabled;
+		bool bAngularTwistPositionDriveEnabled;
+		bool bAngularTwistVelocityDriveEnabled;
+		bool bAngularSwingPositionDriveEnabled;
+		bool bAngularSwingVelocityDriveEnabled;
+		EJointForceMode AngularDriveForceMode;
 		FReal AngularDriveStiffness;
-	};
-
-
-	class CHAOS_API FPBDJointSettings
-	{
-	public:
-		using FTransformPair = TVector<FRigidTransform3, 2>;
-
-		FPBDJointSettings();
-
-		// Particle-relative joint axes and positions
-		FTransformPair ConstraintFrames;
-
-		// How the constraint is allowed to move
-		FPBDJointMotionSettings Motion;
+		FReal AngularDriveDamping;
 	};
 
 	class CHAOS_API FPBDJointSolverSettings
@@ -129,17 +131,25 @@ namespace Chaos
 		FReal MinParentMassRatio;
 		FReal MaxInertiaRatio;
 
+		// Angular stiffness
+		FReal AngularConstraintPositionCorrection;
+
 		// @todo(ccaulfield): remove these TEMP overrides for testing
 		bool bEnableTwistLimits;
 		bool bEnableSwingLimits;
 		bool bEnableDrives;
-		EJointSolverPhase DrivesPhase;
-		EJointSolverPhase ProjectionPhase;
 		FReal LinearProjection;
 		FReal AngularProjection;
 		FReal Stiffness;
-		FReal DriveStiffness;
+		FReal LinearDriveStiffness;
+		FReal LinearDriveDamping;
+		FReal AngularDriveStiffness;
+		FReal AngularDriveDamping;
 		FReal SoftLinearStiffness;
-		FReal SoftAngularStiffness;
+		FReal SoftLinearDamping;
+		FReal SoftTwistStiffness;
+		FReal SoftTwistDamping;
+		FReal SoftSwingStiffness;
+		FReal SoftSwingDamping;
 	};
 }

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/ArrayCollectionArray.h"
@@ -162,6 +162,7 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 
 	CHAOS_API virtual void Serialize(FChaosArchive& Ar) override
 	{
+		LLM_SCOPE(ELLMTag::ChaosParticles);
 		TRigidParticles<T, d>::Serialize(Ar);
 		Ar << MP << MQ << MPreV << MPreW;
 	}
@@ -187,6 +188,6 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TPBDRigidParticles<T, d>& Particles
 }
 }
 
-#if defined(MSC_VER)
+#if defined(_MSC_VER)
 #pragma warning(pop)
 #endif

@@ -1,8 +1,10 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayProvider.h"
 
 FName FGameplayProvider::ProviderName("GameplayProvider");
+
+#define LOCTEXT_NAMESPACE "GameplayProvider"
 
 FGameplayProvider::FGameplayProvider(Trace::IAnalysisSession& InSession)
 	: Session(InSession)
@@ -74,6 +76,49 @@ const FObjectInfo* FGameplayProvider::FindObjectInfo(uint64 InObjectId) const
 	}
 
 	return nullptr;
+}
+
+const FClassInfo& FGameplayProvider::GetClassInfo(uint64 InClassId) const
+{
+	const FClassInfo* ClassInfo = FindClassInfo(InClassId);
+	if(ClassInfo)
+	{
+		return *ClassInfo;
+	}
+
+	static FText UnknownText(LOCTEXT("Unknown", "Unknown"));
+	static FClassInfo DefaultClassInfo = { 0, 0, *UnknownText.ToString(), *UnknownText.ToString() };
+	return DefaultClassInfo;
+}
+
+const FClassInfo& FGameplayProvider::GetClassInfoFromObject(uint64 InObjectId) const
+{
+	const FObjectInfo* ObjectInfo = FindObjectInfo(InObjectId);
+	if(ObjectInfo)
+	{
+		const FClassInfo* ClassInfo = FindClassInfo(ObjectInfo->ClassId);
+		if(ClassInfo)
+		{
+			return *ClassInfo;
+		}
+	}
+
+	static FText UnknownText(LOCTEXT("Unknown", "Unknown"));
+	static FClassInfo DefaultClassInfo = { 0, 0, *UnknownText.ToString(), *UnknownText.ToString() };
+	return DefaultClassInfo;
+}
+
+const FObjectInfo& FGameplayProvider::GetObjectInfo(uint64 InObjectId) const
+{
+	const FObjectInfo* ObjectInfo = FindObjectInfo(InObjectId);
+	if(ObjectInfo)
+	{
+		return *ObjectInfo;
+	}
+
+	static FText UnknownText(LOCTEXT("Unknown", "Unknown"));
+	static FObjectInfo DefaultObjectInfo = { 0, 0, 0, *UnknownText.ToString(), *UnknownText.ToString() };
+	return DefaultObjectInfo;
 }
 
 void FGameplayProvider::AppendClass(uint64 InClassId, uint64 InSuperId, const TCHAR* InClassName, const TCHAR* InClassPathName)
@@ -156,3 +201,5 @@ void FGameplayProvider::AppendObjectEvent(uint64 InObjectId, double InTime, cons
 
 	Session.UpdateDurationSeconds(InTime);
 }
+
+#undef LOCTEXT_NAMESPACE

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTree/Decorators/BTDecorator_Blackboard.h"
 #include "UObject/Package.h"
@@ -132,7 +132,7 @@ void UBTDecorator_Blackboard::BuildDescription()
 	{
 		// safety feature to not crash when changing couple of properties on a bunch
 		// while "post edit property" triggers for every each of them
-		if (EntryInfo->KeyType->GetClass() == BlackboardKey.SelectedKeyType)
+		if (EntryInfo->KeyType && EntryInfo->KeyType->GetClass() == BlackboardKey.SelectedKeyType)
 		{
 			const FString KeyName = EntryInfo->EntryName.ToString();
 			CacheOperationEnums();		

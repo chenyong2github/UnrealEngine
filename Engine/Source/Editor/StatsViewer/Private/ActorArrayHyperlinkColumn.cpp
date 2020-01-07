@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ActorArrayHyperlinkColumn.h"
 #include "UObject/UnrealType.h"
@@ -125,11 +125,11 @@ bool FActorArrayHyperlinkColumn::Supports( const TSharedRef< IPropertyTableColum
 		if( PropertyPath.IsValid() && PropertyPath->GetNumProperties() > 0 )
 		{
 			const FPropertyInfo& PropertyInfo = PropertyPath->GetRootProperty();
-			UProperty* Property = PropertyInfo.Property.Get();
-			if( Property->IsA( UArrayProperty::StaticClass() ) )
+			FProperty* Property = PropertyInfo.Property.Get();
+			if( Property->IsA( FArrayProperty::StaticClass() ) )
 			{
-				UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Property);
-				if( ArrayProperty->Inner->IsA(UWeakObjectProperty::StaticClass()) )
+				FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property);
+				if( ArrayProperty->Inner->IsA(FWeakObjectProperty::StaticClass()) )
 				{
 					return true;
 				}

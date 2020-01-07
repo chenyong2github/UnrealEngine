@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/Action/SDataprepStringFilter.h"
 
@@ -41,7 +41,7 @@ void SDataprepStringFilter<FilterType>::Construct(const FArguments& InArgs, Filt
 
 		{
 			FName PropertyName = FName( TEXT("StringMatchingCriteria") );
-			UProperty* Property = FilterClass->FindPropertyByName( PropertyName );
+			FProperty* Property = FilterClass->FindPropertyByName( PropertyName );
 			check( Property );
 			TArray<FDataprepPropertyLink> PropertyChain;
 			PropertyChain.Emplace( Property, PropertyName, INDEX_NONE );
@@ -51,7 +51,7 @@ void SDataprepStringFilter<FilterType>::Construct(const FArguments& InArgs, Filt
 
 		{
 			FName PropertyName = FName( TEXT("UserString") );
-			UProperty* Property = FilterClass->FindPropertyByName( PropertyName );
+			FProperty* Property = FilterClass->FindPropertyByName( PropertyName );
 			check( Property );
 			TArray<FDataprepPropertyLink> PropertyChain;
 			PropertyChain.Emplace( Property, PropertyName, INDEX_NONE );
@@ -226,7 +226,7 @@ void SDataprepStringFilter<FilterType>::OnSelectedCriteriaChanged(TSharedPtr<FLi
 		FScopedTransaction Transaction( LOCTEXT("SelectionCriteriaChangedTransaction","Changed the String Selection Criteria") );
 		Filter->SetStringMatchingCriteria( StringMatchType );
 
-		UProperty* Property = Filter->GetClass()->FindPropertyByName( TEXT("StringMatchingCriteria") );
+		FProperty* Property = Filter->GetClass()->FindPropertyByName( TEXT("StringMatchingCriteria") );
 		check( Property );
 
 		FEditPropertyChain EditChain;
@@ -272,7 +272,7 @@ void SDataprepStringFilter<FilterType>::OnUserStringComitted(const FText& NewTex
 		FScopedTransaction Transaction( LOCTEXT("SelectionStringChangedTransaction","Changed the Selection String") );
 		Filter->SetUserString( NewUserString );
 
-		UProperty* Property = Filter->GetClass()->FindPropertyByName( TEXT("UserString") );
+		FProperty* Property = Filter->GetClass()->FindPropertyByName( TEXT("UserString") );
 		check( Property );
 
 		FEditPropertyChain EditChain;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -199,7 +199,7 @@ protected:
 private:
 	/** Internal variable name. This is used for:
 			a) Generating the component template (archetype) object name.
-			b) A UObjectProperty in the generated Blueprint class. This holds a reference to the component instance created at Actor construction time.
+			b) A FObjectProperty in the generated Blueprint class. This holds a reference to the component instance created at Actor construction time.
 			c) Archetype lookup through the generated Blueprint class. All instances route back to the archetype through the variable name (i.e. not the template name).
 	 */
 	UPROPERTY()

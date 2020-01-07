@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Audio/AudioDebug.h"
 
 #include "ActiveSound.h"
@@ -95,7 +95,7 @@ FAutoConsoleVariableRef CVarAudioDebugSoundSortCVar(
 	TEXT("au.Debug.Sounds.Sort"),
 	AudioDebugSoundSortCVarCVar,
 	TEXT("Value to sort by and display when sound stats are active. \n")
-	TEXT("Class, Distance, Name (Default), Priority, Time, Waves, Volume"),
+	TEXT("Class, Distance, Name (Default), Priority (Highest of wave instances per sound), Time, Waves, Volume"),
 	ECVF_Default);
 
 static FString AudioDebugStatSoundTextColorCVar = TEXT("White");
@@ -591,7 +591,7 @@ void FAudioDebugger::DrawDebugInfo(const FActiveSound& ActiveSound, const TArray
 	const float PlaybackTime = ActiveSound.PlaybackTime;
 	const float PlaybackTimeNonVirtualized = ActiveSound.PlaybackTimeNonVirtualized;
 
-	// StopQuietest sounds can start and immediately stop repeatedly when subscribed
+	// Sounds requiring culling can start and immediately stop repeatedly when subscribed
 	// concurrency is flooded, so don't show the initial frame.
 	if (FMath::IsNearlyZero(PlaybackTimeNonVirtualized))
 	{
@@ -1766,7 +1766,7 @@ void FAudioDebugger::SendUpdateResultsToGameThread(const FAudioDevice& AudioDevi
 					StatSoundInfo.SoundPath = SoundBase->GetPathName();
 					StatSoundInfo.Distance = AudioDevice.GetDistanceToNearestListener(ActiveSound->Transform.GetTranslation());
 					StatSoundInfo.PlaybackTime = ActiveSound->PlaybackTime;
-					StatSoundInfo.Priority = ActiveSound->GetPriority();
+					StatSoundInfo.Priority = ActiveSound->GetHighestPriority();
 					StatSoundInfo.PlaybackTimeNonVirtualized = ActiveSound->PlaybackTimeNonVirtualized;
 					
 					StatSoundInfo.Volume = 0.0f;

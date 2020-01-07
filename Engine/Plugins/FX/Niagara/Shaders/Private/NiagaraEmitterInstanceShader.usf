@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 NiagaraSimulationShader.usf: 
@@ -257,6 +257,9 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 	}
 #else
 	// Old unseeded, passthrough to FRandomStream
+
+	float rand(float x); // Invokes EVectorVMOp::random
+
 	float2 rand(float2 x)
 	{
 		return float2(rand(x.x), rand(x.y));
@@ -272,10 +275,65 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 		return float4(rand(x.x), rand(x.y), rand(x.z), rand(x.w));
 	}
 	
-	// NOTE(mv): Where's rand(float)? Seems to work regardless..
-	int rand(int x);
+	int rand(int x); // Invokes EVectorVMOp::randomi and is semi-open. This is inconsistent with the rest of the functions above. As a result this function and the ones above should be deprecated in favor of the functions below
 #endif
 
+// Explicit non-deterministic random overrides used by Random Float/Integer and Seeded Random Float/Integer op nodes
+float rand_float(float x)
+{
+	return rand(x.x);
+}
+
+float2 rand_float(float2 x)
+{
+	return float2(rand_float(x.x), rand_float(x.y));
+}
+
+float3 rand_float(float3 x)
+{
+	return float3(rand_float(x.x), rand_float(x.y), rand_float(x.z));
+}
+
+float4 rand_float(float4 x) 
+{
+	return float4(rand_float(x.x), rand_float(x.y), rand_float(x.z), rand_float(x.w));
+}
+
+int rand_int(int x)
+{
+	// Going through the float function also give us a better distribution than using modulo 
+	// to get an integer range.
+	// This will not include the upper range as rand_float returns [0, max), not [0, max].
+	return rand_float(x.x);
+}
+
+// Explicit deterministic random overrides used by Random Float/Integer and Seeded Random Float/Integer op nodes
+float rand_float(float x, int Seed1, int Seed2, int Seed3)
+{
+	return rand(x.x, Seed1, Seed2, Seed3);
+}
+
+float2 rand_float(float2 x, int Seed1, int Seed2, int Seed3)
+{
+	return rand(x, Seed1, Seed2, Seed3);
+}
+
+float3 rand_float(float3 x, int Seed1, int Seed2, int Seed3)
+{
+	return rand(x, Seed1, Seed2, Seed3);
+}
+
+float4 rand_float(float4 x, int Seed1, int Seed2, int Seed3) 
+{
+	return rand(x, Seed1, Seed2, Seed3);
+}
+
+int rand_int(int x, int Seed1, int Seed2, int Seed3)
+{
+	// This will not include the upper range as rand_float returns [0, max), not [0, max]
+	// The deterministic rand call will include the upper range, so we subtract a one to compensate
+	return rand(x.x-1, Seed1, Seed2, Seed3);
+}
 
 /* -----------------------------------------------------------------
  * VM simulation function declarations
@@ -360,9 +418,9 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 	uint ReadInstanceCountOffset;
 	uint WriteInstanceCountOffset;
 
-	//TODO: IDs for GPU
-//	void AcquireID(int DataSetID, out int IDIndex, out int IDAcquireTag);
-// 	void UpdateID(int DataSetID, int IDIndex, int InstanceIndex);
+	Buffer<int> FreeIDList;
+	RWBuffer<int> RWIDToIndexTable;
+
 
 	/* Returns the current instance index relative to the operation (spawn/update)
 	 */
@@ -376,6 +434,30 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 		{
 			return UpdateStartInstance + GDispatchThreadId.x;
 		}
+	}
+
+	void AcquireID(int DataSetID, out int IDIndex, out int IDAcquireTag)
+	{
+		// Begin static assert : GPU particles only support DataSetID 0
+		int MustBe0[1];
+		MustBe0[DataSetID] = 0;
+		// End static assert
+
+		// This is the same as ExecIndex() right now, but that function may change in the future to accommodate multiple
+		// spawn infos. Revisit this computation if the change affects the meaning of UpdateStartInstance or GSpawnStartInstance.
+		int SpawnIndex = UpdateStartInstance + GDispatchThreadId.x - GSpawnStartInstance;
+		IDIndex = FreeIDList[SpawnIndex];
+		IDAcquireTag = EmitterTickCounter;
+	}
+
+ 	void UpdateID(int DataSetID, int IDIndex, int InstanceIndex)
+	{
+		// Begin static assert : GPU particles only support DataSetID 0
+		int MustBe0[1];
+		MustBe0[DataSetID] = 0;
+		// End static assert
+
+		RWIDToIndexTable[IDIndex] = InstanceIndex;
 	}
 
 #define USE_WAVE_INTRISICS (PS4_PROFILE || XBOXONE_PROFILE)

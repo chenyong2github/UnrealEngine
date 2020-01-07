@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -22,11 +22,11 @@ protected:
 	template<class T>
 	T* GetPropertyValueFromPropertyHandle()
 	{
-			UProperty* Property = MediaProperty->GetProperty();
+			FProperty* Property = MediaProperty->GetProperty();
 			check(Property);
-			check(Cast<UStructProperty>(Property));
-			check(Cast<UStructProperty>(Property)->Struct);
-			check(Cast<UStructProperty>(Property)->Struct->IsChildOf(T::StaticStruct()));
+			check(CastField<FStructProperty>(Property));
+			check(CastField<FStructProperty>(Property)->Struct);
+			check(CastField<FStructProperty>(Property)->Struct->IsChildOf(T::StaticStruct()));
 
 			TArray<void*> RawData;
 			MediaProperty->AccessRawData(RawData);

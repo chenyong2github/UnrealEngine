@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "GameplayEffectAggregator.h"
@@ -581,10 +581,10 @@ bool UAbilitySystemBlueprintLibrary::HasHitResult(FGameplayCueParameters Paramet
 
 void UAbilitySystemBlueprintLibrary::ForwardGameplayCueToTarget(TScriptInterface<IGameplayCueInterface> TargetCueInterface, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters)
 {
-	AActor* ActorTarget = Cast<AActor>(TargetCueInterface.GetObject());
-	if (TargetCueInterface && ActorTarget)
+	UObject* TargetObject = TargetCueInterface.GetObject();
+	if (TargetCueInterface && TargetObject)
 	{
-		TargetCueInterface->HandleGameplayCue(ActorTarget, Parameters.OriginalTag, EventType, Parameters);
+		TargetCueInterface->HandleGameplayCue(TargetObject, Parameters.OriginalTag, EventType, Parameters);
 	}
 }
 

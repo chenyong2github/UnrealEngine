@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -22,7 +22,7 @@ UCLASS(Transient)
 class BLUEPRINTGRAPH_API UBlueprintFieldNodeSpawner : public UBlueprintNodeSpawner
 {
 	GENERATED_UCLASS_BODY()
-	DECLARE_DELEGATE_TwoParams(FSetNodeFieldDelegate, UEdGraphNode*, UField const*);
+	DECLARE_DELEGATE_TwoParams(FSetNodeFieldDelegate, UEdGraphNode*, FFieldVariant);
 
 public:
 	/**
@@ -36,7 +36,7 @@ public:
 	 * @param  OwnerClass	The class that the variable is a member of or the class it is associated with if it is in a sidecar data structure.
 	 * @return A newly allocated instance of this class.
 	 */
-	static UBlueprintFieldNodeSpawner* Create(TSubclassOf<UK2Node> NodeClass, UField const* const Field, UObject* Outer = nullptr, UClass const* OwnerClass = nullptr);
+	static UBlueprintFieldNodeSpawner* Create(TSubclassOf<UK2Node> NodeClass, FFieldVariant Field, UObject* Outer = nullptr, UClass const* OwnerClass = nullptr);
 
 	// UBlueprintNodeSpawner interface
 	virtual FBlueprintNodeSignature GetSpawnerSignature() const override;
@@ -52,14 +52,24 @@ public:
 	 *
 	 * @return The field that this class was initialized with.
 	 */
-	UField const* GetField() const;
+	FFieldVariant GetField() const;
 
 protected:
-	/** The field to configure new nodes with. */
-	UPROPERTY()
-	UField const* Field;
+
+	/**
+	 * Sets the field for this spawner 
+	 */
+	void SetField(FFieldVariant InField);
 
 	/** The owning class to configure new nodes with. */
 	UPROPERTY()
 	UClass const* OwnerClass;
+
+private:
+	/** The field to configure new nodes with. */
+	UPROPERTY()
+	UField* Field;
+
+	UPROPERTY()
+	TFieldPath<FProperty> Property;
 };

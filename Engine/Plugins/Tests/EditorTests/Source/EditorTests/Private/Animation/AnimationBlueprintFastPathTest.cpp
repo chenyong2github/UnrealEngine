@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/AutomationTest.h"
 #include "Kismet2/KismetEditorUtilities.h"
@@ -55,7 +55,7 @@ bool FCheckFastPathLatentCommand::Update()
 			IAnimClassInterface* AnimClassInterface = Cast<IAnimClassInterface>(AnimBlueprint->GeneratedClass);
 			if (AnimClassInterface && DefaultAnimInstance)
 			{
-				for (UStructProperty* Property : AnimClassInterface->GetAnimNodeProperties())
+				for (const FStructPropertyPath& Property : AnimClassInterface->GetAnimNodeProperties())
 				{
 					if (Property->Struct->IsChildOf(FAnimNode_Base::StaticStruct()) && !Property->Struct->IsChildOf(FAnimNode_Root::StaticStruct()))
 					{

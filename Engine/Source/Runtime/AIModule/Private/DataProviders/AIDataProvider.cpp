@@ -1,11 +1,12 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataProviders/AIDataProvider.h"
+#include "UObject/CoreObjectVersion.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FAIDataProviderValue
 
-bool FAIDataProviderValue::IsMatchingType(UProperty* PropType) const
+bool FAIDataProviderValue::IsMatchingType(FProperty* PropType) const
 {
 	return true;
 }
@@ -14,7 +15,7 @@ void FAIDataProviderValue::GetMatchingProperties(TArray<FName>& MatchingProperti
 {
 	if (DataBinding)
 	{
-		for (UProperty* Prop = DataBinding->GetClass()->PropertyLink; Prop; Prop = Prop->PropertyLinkNext)
+		for (FProperty* Prop = DataBinding->GetClass()->PropertyLink; Prop; Prop = Prop->PropertyLinkNext)
 		{
 			if (Prop->HasAnyPropertyFlags(CPF_Edit))
 			{
@@ -51,17 +52,47 @@ FString FAIDataProviderValue::ValueToString() const
 //////////////////////////////////////////////////////////////////////////
 // FAIDataProviderTypedValue
 
-bool FAIDataProviderTypedValue::IsMatchingType(UProperty* PropType) const
+bool FAIDataProviderTypedValue::IsMatchingType(FProperty* PropType) const
 {
 	return PropType->GetClass() == PropertyType;
+}
+
+bool FAIDataProviderTypedValue::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FCoreObjectVersion::GUID);
+	
+	UScriptStruct* Struct = FAIDataProviderTypedValue::StaticStruct();
+	
+	if (Ar.IsLoading() || Ar.IsSaving())
+	{
+		Struct->SerializeTaggedProperties(Ar, (uint8*)this, Struct, nullptr);
+	}
+
+	if (Ar.CustomVer(FCoreObjectVersion::GUID) >= FCoreObjectVersion::FProperties)
+	{
+		Ar << PropertyType;
+	}
+	else if (Ar.IsLoading())
+	{		
+		if (PropertyType_DEPRECATED)
+		{
+			PropertyType = FFieldClass::GetNameToFieldClassMap().FindRef(PropertyType_DEPRECATED->GetFName());
+		}
+		else
+		{
+			PropertyType = nullptr;
+		}
+	}
+
+	return true;
 }
 
 //////////////////////////////////////////////////////////////////////////
 // FAIDataProviderStructValue
 
-bool FAIDataProviderStructValue::IsMatchingType(UProperty* PropType) const
+bool FAIDataProviderStructValue::IsMatchingType(FProperty* PropType) const
 {
-	UStructProperty* StructProp = Cast<UStructProperty>(PropType);
+	FStructProperty* StructProp = CastField<FStructProperty>(PropType);
 	if (StructProp)
 	{
 		// skip inital "struct " 
@@ -78,7 +109,7 @@ bool FAIDataProviderStructValue::IsMatchingType(UProperty* PropType) const
 FAIDataProviderIntValue::FAIDataProviderIntValue()
 	: DefaultValue(0)
 {
-	PropertyType = UIntProperty::StaticClass();
+	PropertyType = FIntProperty::StaticClass();
 }
 
 int32 FAIDataProviderIntValue::GetValue() const
@@ -98,7 +129,7 @@ FString FAIDataProviderIntValue::ValueToString() const
 FAIDataProviderFloatValue::FAIDataProviderFloatValue()
 	: DefaultValue(0.0f)
 {
-	PropertyType = UFloatProperty::StaticClass();
+	PropertyType = FFloatProperty::StaticClass();
 }
 
 float FAIDataProviderFloatValue::GetValue() const
@@ -118,7 +149,7 @@ FString FAIDataProviderFloatValue::ValueToString() const
 FAIDataProviderBoolValue::FAIDataProviderBoolValue()
 	: DefaultValue(false)
 {
-	PropertyType = UBoolProperty::StaticClass();
+	PropertyType = FBoolProperty::StaticClass();
 }
 
 bool FAIDataProviderBoolValue::GetValue() const

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -482,8 +482,8 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	/** Custom thunk to allow script stack trace in case of divide by zero */
 	DECLARE_FUNCTION(execDivide_FloatFloat)
 	{
-		P_GET_PROPERTY(UFloatProperty, A);
-		P_GET_PROPERTY(UFloatProperty, B);
+		P_GET_PROPERTY(FFloatProperty, A);
+		P_GET_PROPERTY(FFloatProperty, B);
 
 		P_FINISH;
 
@@ -506,8 +506,8 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	/** Custom thunk to allow script stack trace in case of modulo by zero */
 	DECLARE_FUNCTION(execPercent_FloatFloat)
 	{
-		P_GET_PROPERTY(UFloatProperty, A);
-		P_GET_PROPERTY(UFloatProperty, B);
+		P_GET_PROPERTY(FFloatProperty, A);
+		P_GET_PROPERTY(FFloatProperty, B);
 
 		P_FINISH;
 

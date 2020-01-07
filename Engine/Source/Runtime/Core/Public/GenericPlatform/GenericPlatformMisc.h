@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -599,6 +599,8 @@ struct CORE_API FGenericPlatformMisc
 	{
 		return 0;
 	}
+
+	static void SetLastError(uint32 ErrorCode) {}
 
 	static void RaiseException( uint32 ExceptionCode );
 

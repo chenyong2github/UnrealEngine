@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Binding/CheckedStateBinding.h"
 #include "Styling/SlateTypes.h"
@@ -9,20 +9,20 @@ UCheckedStateBinding::UCheckedStateBinding()
 {
 }
 
-bool UCheckedStateBinding::IsSupportedSource(UProperty* Property) const
+bool UCheckedStateBinding::IsSupportedSource(FProperty* Property) const
 {
 	return IsSupportedDestination(Property) || IsConcreteTypeCompatibleWithReflectedType<bool>(Property);
 }
 
-bool UCheckedStateBinding::IsSupportedDestination(UProperty* Property) const
+bool UCheckedStateBinding::IsSupportedDestination(FProperty* Property) const
 {
 	static const FName CheckBoxStateEnum(TEXT("ECheckBoxState"));
 
-	if ( UEnumProperty* EnumProperty = Cast<UEnumProperty>(Property) )
+	if ( FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property) )
 	{
 		return EnumProperty->GetEnum()->GetFName() == CheckBoxStateEnum;
 	}
-	else if ( UByteProperty* ByteProperty = Cast<UByteProperty>(Property) )
+	else if ( FByteProperty* ByteProperty = CastField<FByteProperty>(Property) )
 	{
 		if ( ByteProperty->IsEnum() )
 		{

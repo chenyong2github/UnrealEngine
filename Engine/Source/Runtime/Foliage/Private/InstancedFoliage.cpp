@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 InstancedFoliage.cpp: Instanced foliage implementation.
@@ -823,7 +823,7 @@ void UFoliageType::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 	}
 }
 
-void UFoliageType::PreEditChange(UProperty* PropertyAboutToChange)
+void UFoliageType::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	Super::PreEditChange(PropertyAboutToChange);
 
