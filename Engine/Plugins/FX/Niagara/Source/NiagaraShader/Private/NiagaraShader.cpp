@@ -1314,6 +1314,9 @@ void FNiagaraShader::BindParams(const FShaderParameterMap &ParameterMap)
 	InstanceCountsParam.Bind(ParameterMap, TEXT("InstanceCounts"));
 	ReadInstanceCountOffsetParam.Bind(ParameterMap, TEXT("ReadInstanceCountOffset"));
 	WriteInstanceCountOffsetParam.Bind(ParameterMap, TEXT("WriteInstanceCountOffset"));
+
+	FreeIDBufferParam.Bind(ParameterMap, TEXT("FreeIDList"));
+	IDToIndexBufferParam.Bind(ParameterMap, TEXT("IDToIndexTable"));
 	
 	SimStartParam.Bind(ParameterMap, TEXT("SimStart"));
 	EmitterTickCounterParam.Bind(ParameterMap, TEXT("EmitterTickCounter"));
@@ -1386,6 +1389,9 @@ bool FNiagaraShader::Serialize(FArchive& Ar)
 	Ar << InstanceCountsParam;
 	Ar << ReadInstanceCountOffsetParam;
 	Ar << WriteInstanceCountOffsetParam;
+
+	Ar << FreeIDBufferParam;
+	Ar << IDToIndexBufferParam;
 
 	Ar << SimStartParam;
 	Ar << EmitterTickCounterParam;
