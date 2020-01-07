@@ -715,18 +715,18 @@ void UMaterialGraphNode::OnRenameNode(const FString& NewName)
 	SetParameterName(NewName);
 	MaterialExpression->MarkPackageDirty();
 	MaterialExpression->ValidateParameterName();
-	UProperty* NameProperty = nullptr;
+	FProperty* NameProperty = nullptr;
 	if (Cast<UMaterialExpressionParameter>(MaterialExpression))
 	{
-		NameProperty = FindFieldChecked<UProperty>(UMaterialExpressionParameter::StaticClass(), GET_MEMBER_NAME_CHECKED(UMaterialExpressionParameter, ParameterName));
+		NameProperty = FindFieldChecked<FProperty>(UMaterialExpressionParameter::StaticClass(), GET_MEMBER_NAME_CHECKED(UMaterialExpressionParameter, ParameterName));
 	}
 	else if (Cast<UMaterialExpressionFontSampleParameter>(MaterialExpression))
 	{
-		NameProperty = FindFieldChecked<UProperty>(UMaterialExpressionFontSampleParameter::StaticClass(), GET_MEMBER_NAME_CHECKED(UMaterialExpressionFontSampleParameter, ParameterName));
+		NameProperty = FindFieldChecked<FProperty>(UMaterialExpressionFontSampleParameter::StaticClass(), GET_MEMBER_NAME_CHECKED(UMaterialExpressionFontSampleParameter, ParameterName));
 	}
 	else if (Cast<UMaterialExpressionTextureSampleParameter>(MaterialExpression))
 	{
-		NameProperty = FindFieldChecked<UProperty>(UMaterialExpressionTextureSampleParameter::StaticClass(), GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureSampleParameter, ParameterName));
+		NameProperty = FindFieldChecked<FProperty>(UMaterialExpressionTextureSampleParameter::StaticClass(), GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureSampleParameter, ParameterName));
 	}
 	if(NameProperty)
 	{

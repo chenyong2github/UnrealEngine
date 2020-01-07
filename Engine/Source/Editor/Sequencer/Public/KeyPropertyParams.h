@@ -28,7 +28,7 @@ struct SEQUENCER_API FCanKeyPropertyParams
 	*/
 	FCanKeyPropertyParams(UClass* InObjectClass, const IPropertyHandle& InPropertyHandle);
 
-	const UStruct* FindPropertyContainer(const UProperty* ForProperty) const;
+	const UStruct* FindPropertyContainer(const FProperty* ForProperty) const;
 
 	/** The class of the object which has the property to be keyed. */
 	const UClass* ObjectClass;
@@ -84,10 +84,10 @@ public:
 		for (int32 i = 0; i < PropertyPath.GetNumProperties(); i++)
 		{
 			const FPropertyInfo& PropertyInfo = PropertyPath.GetPropertyInfo(i);
-			if (UProperty* Property = PropertyInfo.Property.Get())
+			if (FProperty* Property = PropertyInfo.Property.Get())
 			{
 				int32 ArrayIndex = FMath::Max(0, PropertyInfo.ArrayIndex);
-				if (UArrayProperty* ArrayProp = Cast<UArrayProperty>(Property))
+				if (FArrayProperty* ArrayProp = CastField<FArrayProperty>(Property))
 				{
 					FScriptArrayHelper ParentArrayHelper(ArrayProp, ArrayProp->ContainerPtrToValuePtr<void>(ContainerPtr));
 					if (!ParentArrayHelper.IsValidIndex(ArrayIndex))

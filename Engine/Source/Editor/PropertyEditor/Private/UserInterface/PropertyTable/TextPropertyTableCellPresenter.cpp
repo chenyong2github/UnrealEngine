@@ -103,7 +103,7 @@ TSharedRef< class SWidget > FTextPropertyTableCellPresenter::ConstructEditModeDr
 TSharedRef<SWidget> FTextPropertyTableCellPresenter::ConstructEditModeCellWidget()
 {
 	HasReadOnlyEditingWidget = false;
-	const UProperty* const Property = PropertyEditor->GetProperty();
+	const FProperty* const Property = PropertyEditor->GetProperty();
 
 	if( Property )
 	{
@@ -197,7 +197,7 @@ TSharedRef<SWidget> FTextPropertyTableCellPresenter::ConstructEditModeCellWidget
 
 bool FTextPropertyTableCellPresenter::CalculateIfUsingReadOnlyEditingWidget() const
 {
-	const UProperty* const Property = PropertyEditor->GetProperty();
+	const FProperty* const Property = PropertyEditor->GetProperty();
 
 	if( Property )
 	{

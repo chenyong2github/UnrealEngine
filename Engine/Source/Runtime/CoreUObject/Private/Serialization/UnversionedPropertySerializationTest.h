@@ -50,11 +50,11 @@ struct FUnversionedPropertyTestRunner
 // Intrusive test helper that records which properties were saved
 struct FUnversionedPropertyTestCollector
 {
-	TArray<UProperty*>* Out;
+	TArray<FProperty*>* Out;
 
 	FUnversionedPropertyTestCollector();
 	
-	void RecordSavedProperty(UProperty* Property)
+	void RecordSavedProperty(FProperty* Property)
 	{
 		if (Out)
 		{
@@ -72,7 +72,7 @@ struct FUnversionedPropertyTestRunner
 
 struct FUnversionedPropertyTestCollector
 {
-	void RecordSavedProperty(UProperty* Property) {}
+	void RecordSavedProperty(FProperty* Property) {}
 };
 
 #endif

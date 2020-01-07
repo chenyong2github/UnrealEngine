@@ -46,7 +46,7 @@ struct FColorSectionEditorData
 	{
 		const FName SlateColorName("SlateColor");
 
-		UStructProperty* ColorStructProperty = Cast<UStructProperty>(Bindings.GetProperty(InObject));
+		FStructProperty* ColorStructProperty = CastField<FStructProperty>(Bindings.GetProperty(InObject));
 		if (ColorStructProperty != nullptr)
 		{
 			if (ColorStructProperty->Struct->GetFName() == SlateColorName)

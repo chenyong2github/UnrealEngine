@@ -110,7 +110,7 @@ void UDatasmithImportOptions::UpdateNotDisplayedConfig( bool bIsAReimport )
 }
 
 #if WITH_EDITOR
-bool UDatasmithImportOptions::CanEditChange(const UProperty* InProperty) const
+bool UDatasmithImportOptions::CanEditChange(const FProperty* InProperty) const
 {
 	if (!Super::CanEditChange(InProperty))
 	{
@@ -196,7 +196,7 @@ int32 FDatasmithStaticMeshImportOptions::ConvertLightmapEnumToValue( EDatasmithI
 	default:
 		MaxLightmapSize = 512;
 		break;
-	}
+}
 
 	return MaxLightmapSize;
-}
+	}

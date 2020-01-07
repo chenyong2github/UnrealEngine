@@ -8,14 +8,6 @@
 #include "UObject/ReleaseObjectVersion.h"
 #include "BuildSettings.h"
 
-FEngineVersionBase::FEngineVersionBase()
-: Major(0)
-, Minor(0)
-, Patch(0)
-, Changelist(0)
-{
-}
-
 FEngineVersionBase::FEngineVersionBase(uint16 InMajor, uint16 InMinor, uint16 InPatch, uint32 InChangelist)
 : Major(InMajor)
 , Minor(InMinor)
@@ -88,11 +80,6 @@ uint32 FEngineVersionBase::EncodeLicenseeChangelist(uint32 Changelist)
 	return Changelist | 0x80000000;
 }
 
-
-FEngineVersion::FEngineVersion()
-{
-	Empty();
-}
 
 FEngineVersion::FEngineVersion(uint16 InMajor, uint16 InMinor, uint16 InPatch, uint32 InChangelist, const FString &InBranch)
 {

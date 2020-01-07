@@ -6,6 +6,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Rendering/DrawElements.h"
 #include "Styling/CoreStyle.h"
+#include "Widgets/Layout/SBox.h"
 
 // Insights
 #include "Insights/Common/PaintUtils.h"
@@ -18,6 +19,7 @@
 #include "Insights/ViewModels/TimingEvent.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
+#include "Insights/Widgets/SGraphSeriesList.h"
 
 #define LOCTEXT_NAMESPACE "GraphTrack"
 
@@ -32,12 +34,38 @@ FGraphTrack::FGraphTrack(const FName& InSubType)
 	, PointBrush(FEditorStyle::GetBrush("Graph.ExecutionBubble"))
 	, BorderBrush(FInsightsStyle::Get().GetBrush("SingleBorder"))
 	, Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+	, bDrawDebugInfo(false)
 	, bDrawPoints(true)
 	, bDrawPointsWithBorder(true)
 	, bDrawLines(true)
 	, bDrawPolygon(true)
 	, bUseEventDuration(true)
 	, bDrawBoxes(true)
+	, bDrawBaseline(true)
+	, NumAddedEvents(0)
+	, NumDrawPoints(0)
+	, NumDrawLines(0)
+	, NumDrawBoxes(0)
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FGraphTrack::FGraphTrack(const FName& InSubType, const FString& InName)
+	: FBaseTimingTrack(FName(TEXT("Graph")), InSubType, InName)
+	//, AllSeries()
+	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
+	, PointBrush(FEditorStyle::GetBrush("Graph.ExecutionBubble"))
+	, BorderBrush(FInsightsStyle::Get().GetBrush("SingleBorder"))
+	, Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+	, bDrawDebugInfo(false)
+	, bDrawPoints(true)
+	, bDrawPointsWithBorder(true)
+	, bDrawLines(true)
+	, bDrawPolygon(true)
+	, bUseEventDuration(true)
+	, bDrawBoxes(true)
+	, bDrawBaseline(true)
 	, NumAddedEvents(0)
 	, NumDrawPoints(0)
 	, NumDrawLines(0)
@@ -92,10 +120,23 @@ void FGraphTrack::UpdateStats()
 		if (Series->IsVisible())
 		{
 			NumDrawPoints += Series->Points.Num();
-			NumDrawLines += Series->LinePoints.Num() / 2;
+			for (int32 BatchIndex = 0; BatchIndex < Series->LinePoints.Num(); ++BatchIndex)
+			{
+				NumDrawLines += Series->LinePoints[BatchIndex].Num() / 2;
+			}
 			NumDrawBoxes += Series->Boxes.Num();
 		}
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FGraphTrack::PreDraw(const ITimingTrackDrawContext& Context) const
+{
+	FDrawContext& DrawContext = Context.GetDrawContext();
+	const FTimingTrackViewport& Viewport = Context.GetViewport();
+
+	FDrawHelpers::DrawBackground(DrawContext, WhiteBrush, Viewport, GetPosY(), GetHeight());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -105,15 +146,14 @@ void FGraphTrack::Draw(const ITimingTrackDrawContext& Context) const
 	FDrawContext& DrawContext = Context.GetDrawContext();
 	const FTimingTrackViewport& Viewport = Context.GetViewport();
 
-	FDrawHelpers::DrawBackground(DrawContext, WhiteBrush, Viewport, GetPosY(), GetHeight());
-
 	// Set clipping area.
 	{
 		const FVector2D AbsPos = DrawContext.Geometry.GetAbsolutePosition();
+		const float Scale = DrawContext.Geometry.GetAccumulatedLayoutTransform().GetScale();
 		const float L = AbsPos.X;
-		const float R = AbsPos.X + Viewport.GetWidth();
-		const float T = AbsPos.Y + GetPosY();
-		const float B = AbsPos.Y + GetPosY() + GetHeight();
+		const float R = AbsPos.X + (Viewport.GetWidth() * Scale);
+		const float T = AbsPos.Y + (GetPosY() * Scale);
+		const float B = AbsPos.Y + ((GetPosY() + GetHeight()) * Scale);
 		const FSlateClippingZone ClipZone(FVector2D(L, T), FVector2D(R, T), FVector2D(L, B), FVector2D(R, B));
 		DrawContext.ElementList.PushClip(ClipZone);
 	}
@@ -121,22 +161,24 @@ void FGraphTrack::Draw(const ITimingTrackDrawContext& Context) const
 	// Draw top line.
 	//DrawContext.DrawBox(0.0f, GetPosY(), Viewport.Width, 1.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
 
-	// Draw baseline (Value == 0), for the first series only.
-	if (AllSeries.Num() > 0)
-	{
-		const TSharedPtr<FGraphSeries>& Series = AllSeries[0];
-		const float BaselineY = FMath::RoundToFloat(static_cast<float>(Series->GetBaselineY()));
-		if (BaselineY >= 0.0f && BaselineY < GetHeight())
-		{
-			DrawContext.DrawBox(0.0f, GetPosY() + BaselineY, Viewport.GetWidth(), 1.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
-			DrawContext.LayerId++;
-		}
-	}
-
+	bool bDrawnBaseline = false;
 	for (const TSharedPtr<FGraphSeries>& Series : AllSeries)
 	{
 		if (Series->IsVisible())
 		{
+			// Draw baseline (Value == 0), for the first visible series only.
+			if (bDrawBaseline && !bDrawnBaseline)
+			{
+				const float BaselineY = FMath::RoundToFloat(static_cast<float>(Series->GetBaselineY()));
+				if (BaselineY >= 0.0f && BaselineY < GetHeight())
+				{
+					DrawContext.DrawBox(0.0f, GetPosY() + BaselineY, Viewport.GetWidth(), 1.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
+					DrawContext.LayerId++;
+				}
+
+				bDrawnBaseline = true;
+			}
+
 			DrawSeries(*Series, DrawContext, Viewport);
 		}
 	}
@@ -149,6 +191,22 @@ void FGraphTrack::Draw(const ITimingTrackDrawContext& Context) const
 
 void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const
 {
+	// Set clipping area. This area tries to take into account the optional border area that allows
+	// graph tracks to optionally act like 'event' tracks if required (with respect to layout, anyway).
+	// The GetBorderY() - 1.0f calculation is desgiend to avoid clipping the line rasterization, as the custom verts
+	// of the fill and the outer lines appear to get rasterized differently, the latter missing one pixel
+	// on its upper side.
+	{
+		const FVector2D AbsPos = DrawContext.Geometry.GetAbsolutePosition();
+		const float Scale = DrawContext.Geometry.GetAccumulatedLayoutTransform().GetScale();
+		const float L = AbsPos.X;
+		const float R = AbsPos.X + (Viewport.GetWidth() * Scale);
+		const float T = AbsPos.Y + ((GetPosY() + (GetBorderY() - 1.0f)) * Scale);
+		const float B = AbsPos.Y + ((GetPosY() + (GetHeight() - (GetBorderY() - 1.0f))) * Scale);
+		const FSlateClippingZone ClipZone(FVector2D(L, T), FVector2D(R, T), FVector2D(L, B), FVector2D(R, B));
+		DrawContext.ElementList.PushClip(ClipZone);
+	}
+
 	if (bDrawBoxes)
 	{
 		int32 NumBoxes = Series.Boxes.Num();
@@ -169,6 +227,11 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 		DrawContext.LayerId++;
 	}
 
+	const float LocalPosY = FMath::RoundToFloat(GetPosY());
+
+	FPaintGeometry Geo = DrawContext.Geometry.ToPaintGeometry();
+	Geo.AppendTransform(FSlateLayoutTransform(FVector2D(0.0f, LocalPosY * DrawContext.Geometry.GetAccumulatedLayoutTransform().GetScale())));
+
 	if (bDrawPolygon)
 	{
 		FSlateResourceHandle ResourceHandle = FSlateApplication::Get().GetRenderer()->GetResourceHandle(*WhiteBrush);
@@ -177,122 +240,140 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 		FVector2D AtlasOffset = ResourceProxy ? ResourceProxy->StartUV : FVector2D(0.f, 0.f);
 		FVector2D AtlasUVSize = ResourceProxy ? ResourceProxy->SizeUV : FVector2D(1.f, 1.f);
 
-		const FVector2D Pos = DrawContext.Geometry.GetAbsolutePosition();
 		const FVector2D Size = DrawContext.Geometry.GetLocalSize();
-		const float Scale = DrawContext.Geometry.Scale;
 
-		FSlateRenderTransform RenderTransform;
-		FColor FillColor(Series.Color.R * 255, Series.Color.G * 255, Series.Color.B * 255, 42);
+		const FSlateRenderTransform& RenderTransform = Geo.GetAccumulatedRenderTransform();
 
-		TArray<SlateIndex> Indices;
-		TArray<FSlateVertex> Verts;
+		FColor FillColor(Series.FillColor.R * 255, Series.FillColor.G * 255, Series.FillColor.B * 255, 42);
 
-		Indices.Reserve(Series.LinePoints.Num() * 6);
-		Verts.Reserve(Series.LinePoints.Num() * 2);
-
-		const float TopV = GetPosY() / Size.Y;
-		const float BottomV = (GetPosY() + GetHeight()) / Size.Y;
-		const float BaselineY = static_cast<float>(Series.GetBaselineY());
-		const float BaselineV = FMath::Clamp<float>((GetPosY() + BaselineY) / Size.Y, TopV, BottomV);
-
-		int32 PrevSide = 0;
-
-		for (int32 PointIndex = 0; PointIndex < Series.LinePoints.Num(); ++PointIndex)
+		for (int32 BatchIndex = 0; BatchIndex < Series.LinePoints.Num(); ++BatchIndex)
 		{
-			const FVector2D& LinePoint = Series.LinePoints[PointIndex];
+			const TArray<FVector2D>& LinePoints = Series.LinePoints[BatchIndex];
 
-			// When crossing baseline the polygon needs to be intersected.
-			int32 CrtSide = (LinePoint.Y > BaselineY) ? 1 : (LinePoint.Y < BaselineY) ? -1 : 0;
-			if (PrevSide != 0 && CrtSide + PrevSide == 0) // alternating sides?
+			TArray<SlateIndex> Indices;
+			TArray<FSlateVertex> Verts;
+
+			Indices.Reserve(LinePoints.Num() * 6);
+			Verts.Reserve(LinePoints.Num() * 2);
+
+			const float TopV = 0.0f;
+			const float BottomV = GetHeight() / Size.Y;
+			const float BaselineY = static_cast<float>(Series.GetBaselineY());
+			const float BaselineV = FMath::Clamp<float>(BaselineY / Size.Y, TopV, BottomV);
+
+			int32 PrevSide = 0;
+
+			for (int32 PointIndex = 0; PointIndex < LinePoints.Num(); ++PointIndex)
 			{
-				// Compute intersection point.
-				const FVector2D& PrevLinePoint = Series.LinePoints[PointIndex - 1];
-				float X = PrevLinePoint.X + (LinePoint.X - PrevLinePoint.X) / ((BaselineY - LinePoint.Y) / (PrevLinePoint.Y - BaselineY) + 1.0f);
+				const FVector2D& LinePoint = LinePoints[PointIndex];
 
-				// Add an interesection point vertex.
-				FVector2D UV(X / Size.X, BaselineV);
-				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, Pos + UV * Size * Scale, AtlasOffset + UV * AtlasUVSize, FillColor));
-
-				// Add a value point vertex.
-				UV.X = LinePoint.X / Size.X;
-				UV.Y = TopV + LinePoint.Y / Size.Y;
-				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, Pos + UV * Size * Scale, AtlasOffset + UV * AtlasUVSize, FillColor));
-
-				// Add a baseline vertex.
-				UV.Y = BaselineV;
-				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, Pos + UV * Size * Scale, AtlasOffset + FVector2D(UV.X, 0.5f) * AtlasUVSize, FillColor));
-
-				int32 Index0 = Verts.Num() - 5;
-				int32 Index1 = Verts.Num() - 4;
-				int32 Index2 = Verts.Num() - 3;
-				int32 Index3 = Verts.Num() - 2;
-				int32 Index4 = Verts.Num() - 1;
-
-				Indices.Add(Index0);
-				Indices.Add(Index1);
-				Indices.Add(Index2);
-
-				Indices.Add(Index2);
-				Indices.Add(Index3);
-				Indices.Add(Index4);
-			}
-			else
-			{
-				// Add a value point vertex.
-				FVector2D UV(LinePoint.X / Size.X, TopV + LinePoint.Y / Size.Y);
-				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, Pos + UV * Size * Scale, AtlasOffset + UV * AtlasUVSize, FillColor));
-
-				// Add a baseline vertex.
-				UV.Y = BaselineV;
-				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, Pos + UV * Size * Scale, AtlasOffset + FVector2D(UV.X, 0.5f) * AtlasUVSize, FillColor));
-
-				if (Verts.Num() >= 4)
+				// When crossing baseline the polygon needs to be intersected.
+				int32 CrtSide = (LinePoint.Y > BaselineY) ? 1 : (LinePoint.Y < BaselineY) ? -1 : 0;
+				if (PrevSide != 0 && CrtSide + PrevSide == 0) // alternating sides?
 				{
-					int32 Index0 = Verts.Num() - 4;
-					int32 Index1 = Verts.Num() - 3;
-					int32 Index2 = Verts.Num() - 2;
-					int32 Index3 = Verts.Num() - 1;
+					// Compute intersection point.
+					const FVector2D& PrevLinePoint = LinePoints[PointIndex - 1];
+					const float X = PrevLinePoint.X + (LinePoint.X - PrevLinePoint.X) / ((BaselineY - LinePoint.Y) / (PrevLinePoint.Y - BaselineY) + 1.0f);
+
+					// Add an intersection point vertex.
+					FVector2D UV(X / Size.X, BaselineV);
+					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, UV * Size, AtlasOffset + UV * AtlasUVSize, FillColor));
+
+					// Add a value point vertex.
+					UV.X = LinePoint.X / Size.X;
+					UV.Y = TopV + LinePoint.Y / Size.Y;
+					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, UV * Size, AtlasOffset + UV * AtlasUVSize, FillColor));
+
+					// Add a baseline vertex.
+					UV.Y = BaselineV;
+					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, UV * Size, AtlasOffset + FVector2D(UV.X, 0.5f) * AtlasUVSize, FillColor));
+
+					int32 Index0 = Verts.Num() - 5;
+					int32 Index1 = Verts.Num() - 4;
+					int32 Index2 = Verts.Num() - 3;
+					int32 Index3 = Verts.Num() - 2;
+					int32 Index4 = Verts.Num() - 1;
 
 					Indices.Add(Index0);
 					Indices.Add(Index1);
 					Indices.Add(Index2);
 
 					Indices.Add(Index2);
-					Indices.Add(Index1);
 					Indices.Add(Index3);
+					Indices.Add(Index4);
 				}
-			}
-			PrevSide = CrtSide;
-		}
+				else
+				{
+					// Add a value point vertex.
+					FVector2D UV(LinePoint.X / Size.X, TopV + LinePoint.Y / Size.Y);
+					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, UV * Size, AtlasOffset + UV * AtlasUVSize, FillColor));
 
-		if (Indices.Num() > 0)
-		{
-			FSlateDrawElement::MakeCustomVerts(
-				DrawContext.ElementList,
-				DrawContext.LayerId,
-				ResourceHandle,
-				Verts,
-				Indices,
-				nullptr,
-				0,
-				0, ESlateDrawEffect::PreMultipliedAlpha);
-			DrawContext.LayerId++;
+					// Add a baseline vertex.
+					UV.Y = BaselineV;
+					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, UV * Size, AtlasOffset + FVector2D(UV.X, 0.5f) * AtlasUVSize, FillColor));
+
+					if (Verts.Num() >= 4)
+					{
+						int32 Index0 = Verts.Num() - 4;
+						int32 Index1 = Verts.Num() - 3;
+						int32 Index2 = Verts.Num() - 2;
+						int32 Index3 = Verts.Num() - 1;
+
+						Indices.Add(Index0);
+						Indices.Add(Index1);
+						Indices.Add(Index2);
+
+						Indices.Add(Index2);
+						Indices.Add(Index1);
+						Indices.Add(Index3);
+					}
+				}
+				PrevSide = CrtSide;
+			}
+
+			if (Indices.Num() > 0)
+			{
+				FSlateDrawElement::MakeCustomVerts(
+					DrawContext.ElementList,
+					DrawContext.LayerId,
+					ResourceHandle,
+					Verts,
+					Indices,
+					nullptr,
+					0,
+					0, ESlateDrawEffect::PreMultipliedAlpha);
+				DrawContext.LayerId++;
+			}
 		}
 	}
-
-	const float LocalPosY = FMath::RoundToFloat(GetPosY());
 
 	if (bDrawLines)
 	{
-		FPaintGeometry Geo = DrawContext.Geometry.ToPaintGeometry();
-		Geo.AppendTransform(FSlateLayoutTransform(FVector2D(1.0f, LocalPosY + 1.0f)));
-		FSlateDrawElement::MakeLines(DrawContext.ElementList, DrawContext.LayerId, Geo, Series.LinePoints, DrawContext.DrawEffects, Series.Color, false, 1.0f);
+		// Find scale to get the size of a pixel
+		const float InvScale = 1.0f / DrawContext.Geometry.GetAccumulatedLayoutTransform().GetScale();
+		FPaintGeometry LineGeo = Geo;
+		LineGeo.AppendTransform(FSlateLayoutTransform(FVector2D(0.5f * InvScale, 0.5f * InvScale)));
+
+		// Disable pixel snapping here so lines line up with boxes/polys correctly.
+		const ESlateDrawEffect LineDrawEffects = DrawContext.DrawEffects | ESlateDrawEffect::NoPixelSnapping;
+
+		for (int32 BatchIndex = 0; BatchIndex < Series.LinePoints.Num(); ++BatchIndex)
+		{
+			const TArray<FVector2D>& LinePoints = Series.LinePoints[BatchIndex];
+			if (LinePoints.Num() > 0)
+			{
+				FSlateDrawElement::MakeLines(DrawContext.ElementList, DrawContext.LayerId, LineGeo, LinePoints, LineDrawEffects, Series.Color, false, 1.0f);
+			}
+		}
 		DrawContext.LayerId++;
 	}
 
+	// Restore clipping.
+	DrawContext.ElementList.PopClip();
+
 	if (bDrawPoints)
 	{
-		int32 NumPoints = Series.Points.Num();
+		const int32 NumPoints = Series.Points.Num();
 
 #define INSIGHTS_GRAPH_TRACK_DRAW_POINTS_AS_RECTANGLES 0
 #if !INSIGHTS_GRAPH_TRACK_DRAW_POINTS_AS_RECTANGLES
@@ -354,20 +435,68 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 		DrawContext.LayerId++;
 
 #endif
+	}
 
-		if (false) // for debugging only
+	if (bDrawDebugInfo) // for debugging only
+	{
+		// Find scale to get the size of a pixel
+		const float PixelUnit = 1.0f / DrawContext.Geometry.GetAccumulatedLayoutTransform().GetScale();
+		FPaintGeometry LineGeo = Geo;
+		LineGeo.AppendTransform(FSlateLayoutTransform(FVector2D(0.5f * PixelUnit, 0.5f * PixelUnit)));
+
+		// Disable pixel snapping here so lines line up with boxes/polys correctly.
+		const ESlateDrawEffect LineDrawEffects = DrawContext.DrawEffects | ESlateDrawEffect::NoPixelSnapping;
+
+		// Draw white corner at (0, 0) using MakeLines.
 		{
-			// Draw points (cross).
-			for (int32 Index = 0; Index < NumPoints; ++Index)
-			{
-				const FVector2D& Pt = Series.Points[Index];
-				const float PtX = Pt.X;
-				const float PtY = LocalPosY + Pt.Y;
-				DrawContext.DrawBox(PtX - 5.0f, PtY, 11.0f, 1.0f, WhiteBrush, Series.Color);
-				DrawContext.DrawBox(PtX, PtY - 5.0f, 1.0f, 11.0f, WhiteBrush, Series.Color);
-			}
-			DrawContext.LayerId++;
+			TArray<FVector2D> HLine;
+			HLine.Add(FVector2D(0.0f, 0.0f));
+			HLine.Add(FVector2D(10.0f, 0.0f));
+			FSlateDrawElement::MakeLines(DrawContext.ElementList, DrawContext.LayerId, LineGeo, HLine, LineDrawEffects, FLinearColor::White, false, 1.0f);
+
+			TArray<FVector2D> VLine;
+			VLine.Add(FVector2D(0.0f, 0.0f));
+			VLine.Add(FVector2D(0.0f, 10.0f));
+			FSlateDrawElement::MakeLines(DrawContext.ElementList, DrawContext.LayerId, LineGeo, VLine, LineDrawEffects, FLinearColor::White, false, 1.0f);
 		}
+		DrawContext.LayerId++;
+
+		// Draw corner at (0, 0) using DrawBox.
+		DrawContext.DrawBox(2.0f, LocalPosY, 6.0f, PixelUnit, WhiteBrush, Series.Color);
+		DrawContext.DrawBox(0.0f, LocalPosY + 2.0f, PixelUnit, 6.0f, WhiteBrush, Series.Color);
+		DrawContext.LayerId++;
+
+		const int32 NumDbgPoints = Series.Points.Num();
+
+		// Draw white cross lines (15x15) at each point.
+		for (int32 Index = 0; Index < NumDbgPoints; ++Index)
+		{
+			const FVector2D& Pt = Series.Points[Index];
+			const float PtX = Pt.X;
+			const float PtY = Pt.Y;
+
+			TArray<FVector2D> HLine;
+			HLine.Add(FVector2D(PtX - 7.0f, PtY));
+			HLine.Add(FVector2D(PtX + 8.0f, PtY));
+			FSlateDrawElement::MakeLines(DrawContext.ElementList, DrawContext.LayerId, LineGeo, HLine, LineDrawEffects, FLinearColor::White, false, 1.0f);
+
+			TArray<FVector2D> VLine;
+			VLine.Add(FVector2D(PtX, PtY - 7.0f));
+			VLine.Add(FVector2D(PtX, PtY + 8.0f));
+			FSlateDrawElement::MakeLines(DrawContext.ElementList, DrawContext.LayerId, LineGeo, VLine, LineDrawEffects, FLinearColor::White, false, 1.0f);
+		}
+		DrawContext.LayerId++;
+
+		// Draw cross lines (11x11) at each point.
+		for (int32 Index = 0; Index < NumDbgPoints; ++Index)
+		{
+			const FVector2D& Pt = Series.Points[Index];
+			const float PtX = Pt.X;
+			const float PtY = LocalPosY + Pt.Y;
+			DrawContext.DrawBox(PtX - 5.0f, PtY, 11.0f, PixelUnit, WhiteBrush, Series.Color);
+			DrawContext.DrawBox(PtX, PtY - 5.0f, PixelUnit, 11.0f, WhiteBrush, Series.Color);
+		}
+		DrawContext.LayerId++;
 	}
 }
 
@@ -489,6 +618,25 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.BeginSection("Misc");
 	{
+		if (false) // debug functionality
+		{
+			FUIAction Action_ShowDebugInfo
+			(
+				FExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ShowDebugInfo_Execute),
+				FCanExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ShowDebugInfo_CanExecute),
+				FIsActionChecked::CreateSP(this, &FGraphTrack::ContextMenu_ShowDebugInfo_IsChecked)
+			);
+			MenuBuilder.AddMenuEntry
+			(
+				LOCTEXT("ContextMenu_ShowDebugInfo", "Show Debug Info"),
+				LOCTEXT("ContextMenu_ShowDebugInfo_Desc", "Show Debug Info."),
+				FSlateIcon(),
+				Action_ShowDebugInfo,
+				NAME_None,
+				EUserInterfaceActionType::ToggleButton
+			);
+		}
+
 		FUIAction Action_ShowPoints
 		(
 			FExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ShowPoints_Execute),
@@ -589,26 +737,37 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 
 	MenuBuilder.BeginSection("Series", LOCTEXT("ContextMenu_Header_Series", "Series"));
 	{
-		for (const TSharedPtr<FGraphSeries>& Series : AllSeries)
-		{
-			FUIAction Action_ShowSeries
-			(
-				FExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ShowSeries_Execute, Series.Get()),
-				FCanExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ShowSeries_CanExecute, Series.Get()),
-				FIsActionChecked::CreateSP(this, &FGraphTrack::ContextMenu_ShowSeries_IsChecked, Series.Get())
-			);
-			MenuBuilder.AddMenuEntry
-			(
-				Series->GetName(),
-				Series->GetDescription(),
-				FSlateIcon(),
-				Action_ShowSeries,
-				NAME_None,
-				EUserInterfaceActionType::ToggleButton
-			);
-		}
+		MenuBuilder.AddWidget(
+			SNew(SBox)
+			.MaxDesiredHeight(150.0f)
+			[
+				SNew(SGraphSeriesList, SharedThis(this))
+			], 
+			FText::GetEmpty(), true);
 	}
 	MenuBuilder.EndSection();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FGraphTrack::ContextMenu_ShowDebugInfo_Execute()
+{
+	bDrawDebugInfo = !bDrawDebugInfo;
+	SetDirtyFlag();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FGraphTrack::ContextMenu_ShowDebugInfo_CanExecute()
+{
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FGraphTrack::ContextMenu_ShowDebugInfo_IsChecked()
+{
+	return bDrawDebugInfo;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

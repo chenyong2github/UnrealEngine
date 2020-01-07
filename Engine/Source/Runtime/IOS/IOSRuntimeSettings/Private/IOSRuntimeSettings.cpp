@@ -51,7 +51,7 @@ UIOSRuntimeSettings::UIOSRuntimeSettings(const FObjectInitializer& ObjectInitial
 	bDisableHTTPS = false;
 }
 
-void UIOSRuntimeSettings::PostReloadConfig(class UProperty* PropertyThatWasLoaded)
+void UIOSRuntimeSettings::PostReloadConfig(class FProperty* PropertyThatWasLoaded)
 {
 	Super::PostReloadConfig(PropertyThatWasLoaded);
 

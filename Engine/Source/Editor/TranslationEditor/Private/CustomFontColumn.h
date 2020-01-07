@@ -37,7 +37,7 @@ private:
 	FSlateFontInfo Font;
 
 	/** List of properties that this Custom Font Column should be used to display */
-	TArray<UProperty*> SupportedProperties;
+	TArray<FProperty*> SupportedProperties;
 
 	/** Function to call when Change Font button clicked */
 	FOnClicked OnChangeFontButtonClicked;
@@ -51,7 +51,7 @@ public:
 		Font = InFont;
 	}
 
-	void AddSupportedProperty(UProperty* Property)
+	void AddSupportedProperty(FProperty* Property)
 	{
 		SupportedProperties.Add(Property);
 	}

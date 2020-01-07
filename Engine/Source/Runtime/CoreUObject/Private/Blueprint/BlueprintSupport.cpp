@@ -145,9 +145,9 @@ void FBlueprintSupport::RegisterDeferredDependenciesInStruct(const UStruct* Stru
 		return;
 	}
 
-	for (TPropertyValueIterator<const UObjectProperty> It(Struct, StructData); It; ++It)
+	for (TPropertyValueIterator<const FObjectProperty> It(Struct, StructData); It; ++It)
 	{
-		const UObjectProperty* Property = It.Key();
+		const FObjectProperty* Property = It.Key();
 		void* PropertyValue = (void*)It.Value();
 		UObject* ObjectValue = *((UObject**)PropertyValue);
 		
@@ -160,14 +160,14 @@ void FBlueprintSupport::RegisterDeferredDependenciesInStruct(const UStruct* Stru
 		}
 
 		// Create a stack of property trackers to deal with any outer Struct Properties
-		TArray<const UProperty*> PropertyChain;
+		TArray<const FProperty*> PropertyChain;
 		It.GetPropertyChain(PropertyChain);
 		TIndirectArray<FScopedPlaceholderPropertyTracker> PlaceholderStack;
 
 		// Iterate property chain in reverse order as we need to start with parent
 		for (int32 PropertyIndex = PropertyChain.Num() - 1; PropertyIndex >= 0; PropertyIndex--)
 		{
-			if (const UStructProperty* StructProperty = Cast<UStructProperty>(PropertyChain[PropertyIndex]))
+			if (const FStructProperty* StructProperty = CastField<FStructProperty>(PropertyChain[PropertyIndex]))
 			{
 				PlaceholderStack.Add(new FScopedPlaceholderPropertyTracker(StructProperty));
 			}
@@ -1502,7 +1502,7 @@ int32 FLinkerLoad::ResolveDependencyPlaceholder(FLinkerPlaceholderBase* Placehol
 		}
 		DEFERRED_DEPENDENCY_CHECK(ObjectPathName.IsValid() && !ObjectPathName.IsNone());
 
-		// emulating the StaticLoadObject() call in UObjectPropertyBase::FindImportedObject(),
+		// emulating the StaticLoadObject() call in FObjectPropertyBase::FindImportedObject(),
 		// since this was most likely a placeholder 
 		RealImportObj = StaticLoadObject(UObject::StaticClass(), /*Outer =*/nullptr, *ObjectPathName.ToString(), /*Filename =*/nullptr, (LOAD_NoWarn | LOAD_FindIfFail));
 	}
@@ -2533,7 +2533,7 @@ void UObject::DestroyNonNativeProperties()
 	GetClass()->DestroyPersistentUberGraphFrame(this);
 #endif
 	{
-		for (UProperty* P = GetClass()->DestructorLink; P; P = P->DestructorLinkNext)
+		for (FProperty* P = GetClass()->DestructorLink; P; P = P->DestructorLinkNext)
 		{
 			P->DestroyValue_InContainer(this);
 		}
@@ -2551,7 +2551,7 @@ void UObject::DestroyNonNativeProperties()
  * @param	Data				Default data
  * @return	Returns true if that property was a non-native one, otherwise false
  */
-bool FObjectInitializer::InitNonNativeProperty(UProperty* Property, UObject* Data)
+bool FObjectInitializer::InitNonNativeProperty(FProperty* Property, UObject* Data)
 {
 	if (!Property->GetOwnerClass()->HasAnyClassFlags(CLASS_Native | CLASS_Intrinsic)) // if this property belongs to a native class, it was already initialized by the class constructor
 	{

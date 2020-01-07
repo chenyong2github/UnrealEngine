@@ -335,7 +335,7 @@ private:
 };
 
 
-/* Default range bounds for built-in types (for UProperty support)
+/* Default range bounds for built-in types (for FProperty support)
  *****************************************************************************/
 
 #define DEFINE_RANGEBOUND_WRAPPER_STRUCT(Name, ElementType) \

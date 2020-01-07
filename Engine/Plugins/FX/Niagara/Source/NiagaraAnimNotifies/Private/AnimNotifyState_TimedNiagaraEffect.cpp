@@ -113,7 +113,7 @@ FString UAnimNotifyState_TimedNiagaraEffect::GetNotifyName_Implementation() cons
 }
 
 #if WITH_EDITOR
-void UAnimNotifyState_TimedNiagaraEffect::PreEditChange(UProperty* PropertyAboutToChange)
+void UAnimNotifyState_TimedNiagaraEffect::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	if (PropertyAboutToChange)
 	{

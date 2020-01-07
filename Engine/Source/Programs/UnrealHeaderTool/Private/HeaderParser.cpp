@@ -642,7 +642,7 @@ namespace
 		return bDefaultToInstanced;
 	}
 
-	UProperty* CreateVariableProperty(FPropertyBase& VarProperty, UObject* Scope, FName Name, EObjectFlags ObjectFlags, EVariableCategory::Type VariableCategory, FUnrealSourceFile* UnrealSourceFile)
+	FProperty* CreateVariableProperty(FPropertyBase& VarProperty, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags, EVariableCategory::Type VariableCategory, FUnrealSourceFile* UnrealSourceFile)
 	{
 		// Check if it's an enum class property
 		if (const EUnderlyingEnumType* EnumPropType = GEnumUnderlyingTypes.Find(VarProperty.Enum))
@@ -670,8 +670,8 @@ namespace
 				UnderlyingProperty.IntType = EIntType::Unsized;
 			}
 
-			UEnumProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UEnumProperty(FObjectInitializer());
-			UNumericProperty* UnderlyingProp = CastChecked<UNumericProperty>(CreateVariableProperty(UnderlyingProperty, Result, TEXT("UnderlyingType"), ObjectFlags, VariableCategory, UnrealSourceFile));
+			FEnumProperty* Result = new FEnumProperty(Scope, Name, ObjectFlags);
+			FNumericProperty* UnderlyingProp = CastFieldChecked<FNumericProperty>(CreateVariableProperty(UnderlyingProperty, Result, TEXT("UnderlyingType"), ObjectFlags, VariableCategory, UnrealSourceFile));
 			Result->UnderlyingProp = UnderlyingProp;
 			Result->Enum = VarProperty.Enum;
 
@@ -682,7 +682,7 @@ namespace
 		{
 			case CPT_Byte:
 			{
-				UByteProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UByteProperty(FObjectInitializer());
+				FByteProperty* Result = new FByteProperty(Scope, Name, ObjectFlags);
 				Result->Enum = VarProperty.Enum;
 				check(VarProperty.IntType == EIntType::Sized);
 				return Result;
@@ -690,21 +690,21 @@ namespace
 
 			case CPT_Int8:
 			{
-				UInt8Property* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UInt8Property(FObjectInitializer());
+				FInt8Property* Result = new FInt8Property(Scope, Name, ObjectFlags);
 				check(VarProperty.IntType == EIntType::Sized);
 				return Result;
 			}
 
 			case CPT_Int16:
 			{
-				UInt16Property* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UInt16Property(FObjectInitializer());
+				FInt16Property* Result = new FInt16Property(Scope, Name, ObjectFlags);
 				check(VarProperty.IntType == EIntType::Sized);
 				return Result;
 			}
 
 			case CPT_Int:
 			{
-				UIntProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UIntProperty(FObjectInitializer());
+				FIntProperty* Result = new FIntProperty(Scope, Name, ObjectFlags);
 				if (VarProperty.IntType == EIntType::Unsized)
 				{
 					GUnsizedProperties.Add(Result);
@@ -714,21 +714,21 @@ namespace
 
 			case CPT_Int64:
 			{
-				UInt64Property* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UInt64Property(FObjectInitializer());
+				FInt64Property* Result = new FInt64Property(Scope, Name, ObjectFlags);
 				check(VarProperty.IntType == EIntType::Sized);
 				return Result;
 			}
 
 			case CPT_UInt16:
 			{
-				UUInt16Property* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UUInt16Property(FObjectInitializer());
+				FUInt16Property* Result = new FUInt16Property(Scope, Name, ObjectFlags);
 				check(VarProperty.IntType == EIntType::Sized);
 				return Result;
 			}
 
 			case CPT_UInt32:
 			{
-				UUInt32Property* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UUInt32Property(FObjectInitializer());
+				FUInt32Property* Result = new FUInt32Property(Scope, Name, ObjectFlags);
 				if (VarProperty.IntType == EIntType::Unsized)
 				{
 					GUnsizedProperties.Add(Result);
@@ -738,55 +738,55 @@ namespace
 
 			case CPT_UInt64:
 			{
-				UUInt64Property* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UUInt64Property(FObjectInitializer());
+				FUInt64Property* Result = new FUInt64Property(Scope, Name, ObjectFlags);
 				check(VarProperty.IntType == EIntType::Sized);
 				return Result;
 			}
 
 			case CPT_Bool:
 			{
-				UBoolProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UBoolProperty(FObjectInitializer());
+				FBoolProperty* Result = new FBoolProperty(Scope, Name, ObjectFlags);
 				Result->SetBoolSize(sizeof(bool), true);
 				return Result;
 			}
 
 			case CPT_Bool8:
 			{
-				UBoolProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UBoolProperty(FObjectInitializer());
+				FBoolProperty* Result = new FBoolProperty(Scope, Name, ObjectFlags);
 				Result->SetBoolSize((VariableCategory == EVariableCategory::Return) ? sizeof(bool) : sizeof(uint8), VariableCategory == EVariableCategory::Return);
 				return Result;
 			}
 
 			case CPT_Bool16:
 			{
-				UBoolProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UBoolProperty(FObjectInitializer());
+				FBoolProperty* Result = new FBoolProperty(Scope, Name, ObjectFlags);
 				Result->SetBoolSize((VariableCategory == EVariableCategory::Return) ? sizeof(bool) : sizeof(uint16), VariableCategory == EVariableCategory::Return);
 				return Result;
 			}
 
 			case CPT_Bool32:
 			{
-				UBoolProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UBoolProperty(FObjectInitializer());
+				FBoolProperty* Result = new FBoolProperty(Scope, Name, ObjectFlags);
 				Result->SetBoolSize((VariableCategory == EVariableCategory::Return) ? sizeof(bool) : sizeof(uint32), VariableCategory == EVariableCategory::Return);
 				return Result;
 			}
 
 			case CPT_Bool64:
 			{
-				UBoolProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UBoolProperty(FObjectInitializer());
+				FBoolProperty* Result = new FBoolProperty(Scope, Name, ObjectFlags);
 				Result->SetBoolSize((VariableCategory == EVariableCategory::Return) ? sizeof(bool) : sizeof(uint64), VariableCategory == EVariableCategory::Return);
 				return Result;
 			}
 
 			case CPT_Float:
 			{
-				UFloatProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UFloatProperty(FObjectInitializer());
+				FFloatProperty* Result = new FFloatProperty(Scope, Name, ObjectFlags);
 				return Result;
 			}
 
 			case CPT_Double:
 			{
-				UDoubleProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UDoubleProperty(FObjectInitializer());
+				FDoubleProperty* Result = new FDoubleProperty(Scope, Name, ObjectFlags);
 				return Result;
 			}
 
@@ -795,7 +795,7 @@ namespace
 
 				if (VarProperty.PropertyClass->IsChildOf(UClass::StaticClass()))
 				{
-					UClassProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UClassProperty(FObjectInitializer());
+					FClassProperty* Result = new FClassProperty(Scope, Name, ObjectFlags);
 					Result->MetaClass     = VarProperty.MetaClass;
 					Result->PropertyClass = VarProperty.PropertyClass;
 					return Result;
@@ -808,7 +808,7 @@ namespace
 						AddEditInlineMetaData(VarProperty.MetaData);
 					}
 
-					UObjectProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UObjectProperty(FObjectInitializer());
+					FObjectProperty* Result = new FObjectProperty(Scope, Name, ObjectFlags);
 					Result->PropertyClass = VarProperty.PropertyClass;
 					return Result;
 				}
@@ -817,7 +817,7 @@ namespace
 			{
 				check(VarProperty.PropertyClass);
 
-				UWeakObjectProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UWeakObjectProperty(FObjectInitializer());
+				FWeakObjectProperty* Result = new FWeakObjectProperty(Scope, Name, ObjectFlags);
 				Result->PropertyClass = VarProperty.PropertyClass;
 				return Result;
 			}
@@ -826,7 +826,7 @@ namespace
 			{
 				check(VarProperty.PropertyClass);
 
-				ULazyObjectProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) ULazyObjectProperty(FObjectInitializer());
+				FLazyObjectProperty* Result = new FLazyObjectProperty(Scope, Name, ObjectFlags);
 				Result->PropertyClass = VarProperty.PropertyClass;
 				return Result;
 			}
@@ -836,14 +836,14 @@ namespace
 
 				if (VarProperty.PropertyClass->IsChildOf(UClass::StaticClass()))
 				{
-					USoftClassProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) USoftClassProperty(FObjectInitializer());
+					FSoftClassProperty* Result = new FSoftClassProperty(Scope, Name, ObjectFlags);
 					Result->MetaClass     = VarProperty.MetaClass;
 					Result->PropertyClass = VarProperty.PropertyClass;
 					return Result;
 				}
 				else
 				{
-					USoftObjectProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) USoftObjectProperty(FObjectInitializer());
+					FSoftObjectProperty* Result = new FSoftObjectProperty(Scope, Name, ObjectFlags);
 					Result->PropertyClass = VarProperty.PropertyClass;
 					return Result;
 				}
@@ -853,26 +853,26 @@ namespace
 				check(VarProperty.PropertyClass);
 				check(VarProperty.PropertyClass->HasAnyClassFlags(CLASS_Interface));
 
-				UInterfaceProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags)  UInterfaceProperty(FObjectInitializer());
+				FInterfaceProperty* Result = new  FInterfaceProperty(Scope, Name, ObjectFlags);
 				Result->InterfaceClass = VarProperty.PropertyClass;
 				return Result;
 			}
 
 			case CPT_Name:
 			{
-				UNameProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UNameProperty(FObjectInitializer());
+				FNameProperty* Result = new FNameProperty(Scope, Name, ObjectFlags);
 				return Result;
 			}
 
 			case CPT_String:
 			{
-				UStrProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UStrProperty(FObjectInitializer());
+				FStrProperty* Result = new FStrProperty(Scope, Name, ObjectFlags);
 				return Result;
 			}
 
 			case CPT_Text:
 			{
-				UTextProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UTextProperty(FObjectInitializer());
+				FTextProperty* Result = new FTextProperty(Scope, Name, ObjectFlags);
 				return Result;
 			}
 
@@ -883,28 +883,36 @@ namespace
 					VarProperty.PropertyFlags |= CPF_ContainsInstancedReference;
 				}
 
-				UStructProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UStructProperty(FObjectInitializer());
+				FStructProperty* Result = new FStructProperty(Scope, Name, ObjectFlags);
 				Result->Struct = VarProperty.Struct;
 				return Result;
 			}
 
 			case CPT_Delegate:
 			{
-				UDelegateProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UDelegateProperty(FObjectInitializer());
+				FDelegateProperty* Result = new FDelegateProperty(Scope, Name, ObjectFlags);
 				return Result;
 			}
 
 			case CPT_MulticastDelegate:
 			{
-				UMulticastDelegateProperty* Result;
+				FMulticastDelegateProperty* Result;
 				if (VarProperty.Function->IsA<USparseDelegateFunction>())
 				{
-					Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UMulticastSparseDelegateProperty(FObjectInitializer());
+					Result = new FMulticastSparseDelegateProperty(Scope, Name, ObjectFlags);
 				}
 				else
 				{
-					Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UMulticastInlineDelegateProperty(FObjectInitializer());
+					Result = new FMulticastInlineDelegateProperty(Scope, Name, ObjectFlags);
 				}
+				return Result;
+			}
+
+			case CPT_FieldPath:
+			{
+				FFieldPathProperty* Result = new FFieldPathProperty(Scope, Name, ObjectFlags);
+				Result->PropertyClass = VarProperty.PropertyPathClass;
+
 				return Result;
 			}
 
@@ -922,7 +930,7 @@ namespace
 	 * @param	InKey			the metadata key being added
 	 * @param	InValue			the value string that will be associated with the InKey
 	 */
-	void ValidateMetaDataFormat(UField* Field, const FString& InKey, const FString& InValue)
+	void ValidateMetaDataFormat(FFieldVariant Field, const FString& InKey, const FString& InValue)
 	{
 		switch ((ECheckedMetadataSpecifier)Algo::FindSortedStringCaseInsensitive(*InKey, GCheckedMetadataSpecifierStrings))
 		{
@@ -946,8 +954,9 @@ namespace
 
 			case ECheckedMetadataSpecifier::BlueprintProtected:
 			{
-				if (UFunction* Function = Cast<UFunction>(Field))
+				if (Field.IsUObject())
 				{
+					UFunction* Function = Field.Get<UFunction>();
 					if (Function->HasAnyFunctionFlags(FUNC_Static))
 					{
 						// Determine if it's a function library
@@ -968,16 +977,16 @@ namespace
 
 			case ECheckedMetadataSpecifier::CommutativeAssociativeBinaryOperator:
 			{
-				if (UFunction* Function = Cast<UFunction>(Field))
+				if (UFunction* Function = Field.Get<UFunction>())
 				{
 					bool bGoodParams = (Function->NumParms == 3);
 					if (bGoodParams)
 					{
-						UProperty* FirstParam = nullptr;
-						UProperty* SecondParam = nullptr;
-						UProperty* ReturnValue = nullptr;
+						FProperty* FirstParam = nullptr;
+						FProperty* SecondParam = nullptr;
+						FProperty* ReturnValue = nullptr;
 
-						TFieldIterator<UProperty> It(Function);
+						TFieldIterator<FProperty> It(Function);
 
 						auto GetNextParam = [&]()
 						{
@@ -1023,13 +1032,13 @@ namespace
 
 			case ECheckedMetadataSpecifier::ExpandEnumAsExecs:
 			{
-				if (UFunction* Function = Cast<UFunction>(Field))
+				if (UFunction* Function = Field.Get<UFunction>())
 				{
 					// multiple entry parsing in the same format as eg SetParam.
 					TArray<FString> RawGroupings;
 					InValue.ParseIntoArray(RawGroupings, TEXT(","), false);
 
-					UProperty* FirstInput = nullptr;
+					FProperty* FirstInput = nullptr;
 					for (const FString& RawGroup : RawGroupings)
 					{
 						TArray<FString> IndividualEntries;
@@ -1042,12 +1051,12 @@ namespace
 								continue;
 							}
 							
-							UField* FoundField = FHeaderParser::FindField(Function, *Entry, false);
+							FField* FoundField = FHeaderParser::FindProperty(Function, *Entry, false);
 							if (!FoundField)
 							{
 								UE_LOG_ERROR_UHT(TEXT("Function does not have a parameter named '%s'"), *Entry);
 							}
-							else if (UProperty* Prop = Cast<UProperty>(FoundField))
+							else if (FProperty* Prop = CastField<FProperty>(FoundField))
 							{
 								if (!Prop->HasAnyPropertyFlags(CPF_ReturnParm) &&
 
@@ -1084,14 +1093,15 @@ namespace
 			case ECheckedMetadataSpecifier::Units:
 			{
 				// Check for numeric property
-				if (!Field->IsA<UNumericProperty>() && !Field->IsA<UStructProperty>())
+				FField* MaybeProperty = Field.ToField();
+				if (!MaybeProperty->IsA<FNumericProperty>() && !MaybeProperty->IsA<FStructProperty>())
 				{
 					FError::Throwf(TEXT("'Units' meta data can only be applied to numeric and struct properties"));
 				}
 
 				if (!FUnitConversion::UnitFromString(*InValue))
 				{
-					FError::Throwf(TEXT("Unrecognized units (%s) specified for property '%s'"), *InValue, *Field->GetDisplayNameText().ToString());
+					FError::Throwf(TEXT("Unrecognized units (%s) specified for property '%s'"), *InValue, *Field.GetFullName());
 				}
 			}
 			break;
@@ -1109,7 +1119,7 @@ namespace
 	}
 
 	// Ensures at script compile time that the metadata formatting is correct
-	void ValidateMetaDataFormat(UField* Field, const TMap<FName, FString>& MetaData)
+	void ValidateMetaDataFormat(FFieldVariant Field, const TMap<FName, FString>& MetaData)
 	{
 		for (const auto& Pair : MetaData)
 		{
@@ -1118,7 +1128,7 @@ namespace
 	}
 
 	// Validates the metadata, then adds it to the class data
-	void AddMetaDataToClassData(UField* Field, const TMap<FName, FString>& InMetaData)
+	void AddMetaDataToClassData(FFieldVariant Field, const TMap<FName, FString>& InMetaData)
 	{
 		// Evaluate any key redirects on the passed in pairs
 		TMap<FName, FString> RemappedPairs;
@@ -1140,50 +1150,58 @@ namespace
 
 		// Finish validating and associate the metadata with the field
 		ValidateMetaDataFormat(Field, RemappedPairs);
-		FClassMetaData::AddMetaData(Field, RemappedPairs);
+		if (Field.IsUObject())
+		{
+			FClassMetaData::AddMetaData(CastChecked<UField>(Field.ToUObject()), RemappedPairs);
+		}
+		else
+		{
+			FClassMetaData::AddMetaData(Field.ToField(), RemappedPairs);
+		}
 	}
 
-	bool IsPropertySupportedByBlueprint(const UProperty* Property, bool bMemberVariable)
+	bool IsPropertySupportedByBlueprint(const FProperty* Property, bool bMemberVariable)
 	{
 		if (Property == NULL)
 		{
 			return false;
 		}
-		if (const UArrayProperty* ArrayProperty = Cast<const UArrayProperty>(Property))
+		if (const FArrayProperty* ArrayProperty = CastField<const FArrayProperty>(Property))
 		{
 			// Script VM doesn't support array of weak ptrs.
 			return IsPropertySupportedByBlueprint(ArrayProperty->Inner, false);
 		}
-		else if (const USetProperty* SetProperty = Cast<const USetProperty>(Property))
+		else if (const FSetProperty* SetProperty = CastField<const FSetProperty>(Property))
 		{
 			return IsPropertySupportedByBlueprint(SetProperty->ElementProp, false);
 		}
-		else if (const UMapProperty* MapProperty = Cast<const UMapProperty>(Property))
+		else if (const FMapProperty* MapProperty = CastField<const FMapProperty>(Property))
 		{
 			return IsPropertySupportedByBlueprint(MapProperty->KeyProp, false) &&
 				IsPropertySupportedByBlueprint(MapProperty->ValueProp, false);
 		}
-		else if (const UStructProperty* StructProperty = Cast<const UStructProperty>(Property))
+		else if (const FStructProperty* StructProperty = CastField<const FStructProperty>(Property))
 		{
 			return (StructProperty->Struct->GetBoolMetaDataHierarchical(TEXT("BlueprintType")));
 		}
 
-		const bool bSupportedType = Property->IsA<UInterfaceProperty>()
-			|| Property->IsA<UClassProperty>()
-			|| Property->IsA<USoftObjectProperty>()
-			|| Property->IsA<UObjectProperty>()
-			|| Property->IsA<UFloatProperty>()
-			|| Property->IsA<UIntProperty>()
-			|| Property->IsA<UInt64Property>()
-			|| Property->IsA<UByteProperty>()
-			|| Property->IsA<UNameProperty>()
-			|| Property->IsA<UBoolProperty>()
-			|| Property->IsA<UStrProperty>()
-			|| Property->IsA<UTextProperty>()
-			|| Property->IsA<UDelegateProperty>()
-			|| Property->IsA<UEnumProperty>();
+		const bool bSupportedType = Property->IsA<FInterfaceProperty>()
+			|| Property->IsA<FClassProperty>()
+			|| Property->IsA<FSoftObjectProperty>()
+			|| Property->IsA<FObjectProperty>()
+			|| Property->IsA<FFloatProperty>()
+			|| Property->IsA<FIntProperty>()
+			|| Property->IsA<FInt64Property>()
+			|| Property->IsA<FByteProperty>()
+			|| Property->IsA<FNameProperty>()
+			|| Property->IsA<FBoolProperty>()
+			|| Property->IsA<FStrProperty>()
+			|| Property->IsA<FTextProperty>()
+			|| Property->IsA<FDelegateProperty>()
+			|| Property->IsA<FEnumProperty>()
+			|| Property->IsA<FFieldPathProperty>();
 
-		const bool bIsSupportedMemberVariable = Property->IsA<UWeakObjectProperty>() || Property->IsA<UMulticastDelegateProperty>();
+		const bool bIsSupportedMemberVariable = Property->IsA<FWeakObjectProperty>() || Property->IsA<FMulticastDelegateProperty>();
 
 		return bSupportedType || (bIsSupportedMemberVariable && bMemberVariable);
 	}
@@ -1318,6 +1336,17 @@ UField* FHeaderParser::FindField
 	{
 		for( ; Scope; Scope = Cast<UStruct>(Scope->GetOuter()) )
 		{
+			for (TFieldIterator<FField> It(Scope); It; ++It)
+			{
+				if (It->GetFName() == InName)
+				{
+					if (Thing)
+					{
+						FError::Throwf(TEXT("%s: expecting @todo: FProp, got %s"), Thing, /**FieldClass->GetName(),*/ *It->GetClass()->GetName());
+					}
+					return nullptr;
+				}
+			}
 			for( TFieldIterator<UField> It(Scope); It; ++It )
 			{
 				if (It->GetFName() == InName)
@@ -1328,7 +1357,52 @@ UField* FHeaderParser::FindField
 						{
 							FError::Throwf(TEXT("%s: expecting %s, got %s"), Thing, *FieldClass->GetName(), *It->GetClass()->GetName() );
 						}
+						return nullptr;
+					}
+					return *It;
+				}
+			}
+
+			if (!bIncludeParents)
+			{
+				break;
+			}
+		}
+	}
+
 						return NULL;
+}
+
+FField* FHeaderParser::FindProperty(UStruct* Scope, const TCHAR* InIdentifier, bool bIncludeParents, FFieldClass* FieldClass, const TCHAR* Thing)
+{
+	check(InIdentifier);
+	FName InName(InIdentifier, FNAME_Find);
+	if (InName != NAME_None)
+	{
+		for (; Scope; Scope = Cast<UStruct>(Scope->GetOuter()))
+		{
+			for (TFieldIterator<UField> It(Scope); It; ++It)
+			{
+				if (It->GetFName() == InName)
+				{
+					if (Thing)
+					{
+						FError::Throwf(TEXT("%s: expecting a property, got %s"), Thing, *It->GetClass()->GetName());
+					}
+					return nullptr;
+				}
+			}
+			for (TFieldIterator<FField> It(Scope); It; ++It)
+			{
+				if (It->GetFName() == InName)
+				{
+					if (!It->IsA(FieldClass))
+					{
+						if (Thing)
+						{
+							FError::Throwf(TEXT("%s: expecting %s: FProp, got %s"), Thing, *FieldClass->GetName(), *It->GetClass()->GetName());
+						}
+						return nullptr;
 					}
 					return *It;
 				}
@@ -1343,15 +1417,14 @@ UField* FHeaderParser::FindField
 
 	return NULL;
 }
-
 /**
- * @return	true if Scope has UProperty objects in its list of fields
+ * @return	true if Scope has FProperty objects in its list of fields
  */
 bool FHeaderParser::HasMemberProperties( const UStruct* Scope )
 {
 	// it's safe to pass a NULL Scope to TFieldIterator, but this function shouldn't be called with a NULL Scope
 	checkSlow(Scope);
-	TFieldIterator<UProperty> It(Scope,EFieldIteratorFlags::ExcludeSuper);
+	TFieldIterator<FProperty> It(Scope,EFieldIteratorFlags::ExcludeSuper);
 	return It ? true : false;
 }
 
@@ -2852,26 +2925,26 @@ void FHeaderParser::FixupDelegateProperties( FClasses& AllClasses, UStruct* Stru
 {
 	check(Struct);
 
-	for ( UField* Field = Struct->Children; Field; Field = Field->Next )
+	for ( FField* Field = Struct->ChildProperties; Field; Field = Field->Next )
 	{
-		UProperty* Property = Cast<UProperty>(Field);
+		FProperty* Property = CastField<FProperty>(Field);
 		if ( Property != NULL )
 		{
-			UDelegateProperty* DelegateProperty = Cast<UDelegateProperty>(Property);
-			UMulticastDelegateProperty* MulticastDelegateProperty = Cast<UMulticastDelegateProperty>(Property);
+			FDelegateProperty* DelegateProperty = CastField<FDelegateProperty>(Property);
+			FMulticastDelegateProperty* MulticastDelegateProperty = CastField<FMulticastDelegateProperty>(Property);
 			if ( DelegateProperty == NULL && MulticastDelegateProperty == NULL )
 			{
 				// if this is an array property, see if the array's type is a delegate
-				UArrayProperty* ArrayProp = Cast<UArrayProperty>(Property);
+				FArrayProperty* ArrayProp = CastField<FArrayProperty>(Property);
 				if ( ArrayProp != NULL )
 				{
-					DelegateProperty = Cast<UDelegateProperty>(ArrayProp->Inner);
-					MulticastDelegateProperty = Cast<UMulticastDelegateProperty>(ArrayProp->Inner);
+					DelegateProperty = CastField<FDelegateProperty>(ArrayProp->Inner);
+					MulticastDelegateProperty = CastField<FMulticastDelegateProperty>(ArrayProp->Inner);
 				}
 			}
 			if (DelegateProperty != nullptr || MulticastDelegateProperty != nullptr)
 			{
-				// this UDelegateProperty corresponds to an actual delegate variable (i.e. delegate<SomeDelegate> Foo); we need to lookup the token data for
+				// this FDelegateProperty corresponds to an actual delegate variable (i.e. delegate<SomeDelegate> Foo); we need to lookup the token data for
 				// this property and verify that the delegate property's "type" is an actual delegate function
 				FClassMetaData* StructData = GScriptHelper.FindClassData(Struct);
 				check(StructData);
@@ -2967,9 +3040,9 @@ void FHeaderParser::FixupDelegateProperties( FClasses& AllClasses, UStruct* Stru
 
 						if(MulticastDelegateProperty->HasAnyPropertyFlags(CPF_BlueprintAssignable | CPF_BlueprintCallable))
 						{
-							for (TFieldIterator<UProperty> PropIt(SourceDelegateFunction); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+							for (TFieldIterator<FProperty> PropIt(SourceDelegateFunction); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
 							{
-								UProperty* FuncParam = *PropIt;
+								FProperty* FuncParam = *PropIt;
 
 								if (!IsPropertySupportedByBlueprint(FuncParam, false))
 								{
@@ -2981,7 +3054,7 @@ void FHeaderParser::FixupDelegateProperties( FClasses& AllClasses, UStruct* Stru
 								if(FuncParam->HasAllPropertyFlags(CPF_OutParm) && !FuncParam->HasAllPropertyFlags(CPF_ConstParm)  )
 								{
 									const bool bClassGeneratedFromBP = FClass::IsDynamic(Struct);
-									const bool bAllowedArrayRefFromBP = bClassGeneratedFromBP && FuncParam->IsA<UArrayProperty>();
+									const bool bAllowedArrayRefFromBP = bClassGeneratedFromBP && FuncParam->IsA<FArrayProperty>();
 									if (!bAllowedArrayRefFromBP)
 									{
 										UE_LOG_ERROR_UHT(TEXT("BlueprintAssignable delegates do not support non-const references at the moment. Function: %s Parameter: '%s'"), *SourceDelegateFunction->GetName(), *FuncParam->GetName());
@@ -2998,14 +3071,15 @@ void FHeaderParser::FixupDelegateProperties( FClasses& AllClasses, UStruct* Stru
 				}
 			}
 		}
-		else
+	}
+
+	for (UField* Field = Struct->Children; Field; Field = Field->Next)
+	{
+		// if this is a state, function, or script struct, it might have its own delegate properties which need to be validated
+		UStruct* InternalStruct = Cast<UStruct>(Field);
+		if ( InternalStruct != NULL )
 		{
-			// if this is a state, function, or script struct, it might have its own delegate properties which need to be validated
-			UStruct* InternalStruct = Cast<UStruct>(Field);
-			if ( InternalStruct != NULL )
-			{
-				FixupDelegateProperties(AllClasses, InternalStruct, Scope, DelegateCache);
-			}
+			FixupDelegateProperties(AllClasses, InternalStruct, Scope, DelegateCache);
 		}
 	}
 
@@ -3062,7 +3136,7 @@ void FHeaderParser::CheckSparseClassData(const UStruct* StructToCheck)
 		}
 
 		// check the data struct for invalid properties
-		for (TFieldIterator<UProperty> Property(SparseClassDataStruct); Property; ++Property)
+		for (TFieldIterator<FProperty> Property(SparseClassDataStruct); Property; ++Property)
 		{
 			if (Property->HasAnyPropertyFlags(CPF_BlueprintAssignable))
 			{
@@ -3097,11 +3171,11 @@ void FHeaderParser::CheckSparseClassData(const UStruct* StructToCheck)
 	}
 }
 
-void FHeaderParser::VerifyBlueprintPropertyGetter(UProperty* Prop, UFunction* TargetFunc)
+void FHeaderParser::VerifyBlueprintPropertyGetter(FProperty* Prop, UFunction* TargetFunc)
 {
 	check(TargetFunc);
 
-	UProperty* ReturnProp = TargetFunc->GetReturnProperty();
+	FProperty* ReturnProp = TargetFunc->GetReturnProperty();
 	if (TargetFunc->NumParms > 1 || (TargetFunc->NumParms == 1 && ReturnProp == nullptr))
 	{
 		UE_LOG_ERROR_UHT(TEXT("Blueprint Property getter function %s must not have parameters."), *TargetFunc->GetName());
@@ -3124,10 +3198,10 @@ void FHeaderParser::VerifyBlueprintPropertyGetter(UProperty* Prop, UFunction* Ta
 	}
 }
 
-void FHeaderParser::VerifyBlueprintPropertySetter(UProperty* Prop, UFunction* TargetFunc)
+void FHeaderParser::VerifyBlueprintPropertySetter(FProperty* Prop, UFunction* TargetFunc)
 {
 	check(TargetFunc);
-	UProperty* ReturnProp = TargetFunc->GetReturnProperty();
+	FProperty* ReturnProp = TargetFunc->GetReturnProperty();
 
 	if (ReturnProp)
 	{
@@ -3135,7 +3209,7 @@ void FHeaderParser::VerifyBlueprintPropertySetter(UProperty* Prop, UFunction* Ta
 	}
 	else
 	{
-		TFieldIterator<UProperty> Parm(TargetFunc);
+		TFieldIterator<FProperty> Parm(TargetFunc);
 		if (TargetFunc->NumParms != 1 || !Prop->SameType(*Parm))
 		{
 			FString ExtendedCPPType;
@@ -3158,7 +3232,7 @@ void FHeaderParser::VerifyBlueprintPropertySetter(UProperty* Prop, UFunction* Ta
 	}
 }
 
-void FHeaderParser::VerifyRepNotifyCallback(UProperty* Prop, UFunction* TargetFunc)
+void FHeaderParser::VerifyRepNotifyCallback(FProperty* Prop, UFunction* TargetFunc)
 {
 	if( TargetFunc )
 	{
@@ -3167,7 +3241,7 @@ void FHeaderParser::VerifyRepNotifyCallback(UProperty* Prop, UFunction* TargetFu
 			UE_LOG_ERROR_UHT(TEXT("Replication notification function %s must not have return value."), *TargetFunc->GetName());
 		}
 
-		const bool bIsArrayProperty = ( Prop->ArrayDim > 1 || Cast<UArrayProperty>(Prop) );
+		const bool bIsArrayProperty = ( Prop->ArrayDim > 1 || CastField<FArrayProperty>(Prop) );
 		const int32 MaxParms = bIsArrayProperty ? 2 : 1;
 
 		if ( TargetFunc->NumParms > MaxParms)
@@ -3175,7 +3249,7 @@ void FHeaderParser::VerifyRepNotifyCallback(UProperty* Prop, UFunction* TargetFu
 			UE_LOG_ERROR_UHT(TEXT("Replication notification function %s has too many parameters."), *TargetFunc->GetName());
 		}
 
-		TFieldIterator<UProperty> Parm(TargetFunc);
+		TFieldIterator<FProperty> Parm(TargetFunc);
 		if ( TargetFunc->NumParms >= 1 && Parm)
 		{
 			// First parameter is always the old value:
@@ -3192,8 +3266,8 @@ void FHeaderParser::VerifyRepNotifyCallback(UProperty* Prop, UFunction* TargetFu
 		if ( TargetFunc->NumParms >= 2 && Parm)
 		{
 			// A 2nd parameter for arrays can be specified as a const TArray<uint8>&. This is a list of element indices that have changed
-			UArrayProperty *ArrayProp = Cast<UArrayProperty>(*Parm);
-			if (!(ArrayProp && Cast<UByteProperty>(ArrayProp->Inner)) || !(Parm->GetPropertyFlags() & CPF_ConstParm) || !(Parm->GetPropertyFlags() & CPF_ReferenceParm))
+			FArrayProperty *ArrayProp = CastField<FArrayProperty>(*Parm);
+			if (!(ArrayProp && CastField<FByteProperty>(ArrayProp->Inner)) || !(Parm->GetPropertyFlags() & CPF_ConstParm) || !(Parm->GetPropertyFlags() & CPF_ReferenceParm))
 			{
 				UE_LOG_ERROR_UHT(TEXT("Replication notification function %s (optional) second parameter must be of type 'const TArray<uint8>&'"), *TargetFunc->GetName());
 			}
@@ -3208,9 +3282,9 @@ void FHeaderParser::VerifyRepNotifyCallback(UProperty* Prop, UFunction* TargetFu
 void FHeaderParser::VerifyPropertyMarkups( UClass* TargetClass )
 {
 	// Iterate over all properties, looking for those flagged as CPF_RepNotify
-	for ( UField* Field = TargetClass->Children; Field; Field = Field->Next )
+	for ( FField* Field = TargetClass->ChildProperties; Field; Field = Field->Next )
 	{
-		if (UProperty* Prop = Cast<UProperty>(Field))
+		if (FProperty* Prop = CastField<FProperty>(Field))
 		{
 			auto FindTargetFunction = [&](const FName FuncName)
 			{
@@ -4335,6 +4409,33 @@ void FHeaderParser::GetVarType(
 
 		RequireSymbol(TEXT(">"), VarType.Identifier, ESymbolParseOption::CloseTemplateBracket);
 	}
+	else if ( VarType.Matches(TEXT("TFieldPath")) )
+	{
+		RequireSymbol( TEXT("<"), TEXT("'TFieldPath'") );
+
+		FFieldClass* PropertyClass = nullptr;
+		FToken PropertyTypeToken;
+		if (!GetToken(PropertyTypeToken, /* bNoConsts = */ true))
+		{
+			FError::Throwf(TEXT("Expected the property type"));
+		}
+		else
+		{
+			FFieldClass** PropertyClassPtr = FFieldClass::GetNameToFieldClassMap().Find(PropertyTypeToken.Identifier + 1);
+			if (PropertyClassPtr)
+			{
+				PropertyClass = *PropertyClassPtr;
+			}
+			else
+			{
+				FError::Throwf(TEXT("Undefined property type: %s"), PropertyTypeToken.Identifier);
+			}
+		}
+
+		RequireSymbol(TEXT(">"), VarType.Identifier, ESymbolParseOption::CloseTemplateBracket);
+
+		VarProperty = FPropertyBase(PropertyClass, CPT_FieldPath);
+	}
 	else if (UEnum* Enum = FindObject<UEnum>(ANY_PACKAGE, VarType.Identifier))
 	{
 		EPropertyType UnderlyingType = CPT_Byte;
@@ -4859,7 +4960,7 @@ EFindName FHeaderParser::GetFindFlagForPropertyName(const TCHAR* PropertyName)
 	return FNAME_Replace_Not_Safe_For_Threading;
 }
 
-UProperty* FHeaderParser::GetVarNameAndDim
+FProperty* FHeaderParser::GetVarNameAndDim
 (
 	UStruct*                Scope,
 	FToken&                 VarProperty,
@@ -4944,13 +5045,14 @@ UProperty* FHeaderParser::GetVarNameAndDim
 
 	// Make sure it doesn't conflict.
 	int32 OuterContextCount = 0;
-	UField* Existing = FindField(Scope, VarProperty.Identifier, true, UField::StaticClass(), NULL);
+	UField* ExistingField = FindField(Scope, VarProperty.Identifier, true, UField::StaticClass(), NULL);
+	FField* ExistingProperty = FindProperty(Scope, VarProperty.Identifier, true, FField::StaticClass(), NULL);
 
-	if (Existing != nullptr)
+	if (ExistingField != nullptr || ExistingProperty != nullptr)
 	{
 		bool bErrorDueToShadowing = true;
 
-		if (Existing->IsA(UFunction::StaticClass()) && (VariableCategory != EVariableCategory::Member))
+		if (ExistingField && ExistingField->IsA(UFunction::StaticClass()) && (VariableCategory != EVariableCategory::Member))
 		{
 			// A function parameter with the same name as a method is allowed
 			bErrorDueToShadowing = false;
@@ -4958,8 +5060,9 @@ UProperty* FHeaderParser::GetVarNameAndDim
 
 		//@TODO: This exception does not seem sound either, but there is enough existing code that it will need to be
 		// fixed up first before the exception it is removed.
+		if (ExistingProperty)
  		{
- 			UProperty* ExistingProp = Cast<UProperty>(Existing);
+ 			FProperty* ExistingProp = CastField<FProperty>(ExistingProperty);
  			const bool bExistingPropDeprecated = (ExistingProp != nullptr) && ExistingProp->HasAnyPropertyFlags(CPF_Deprecated);
  			const bool bNewPropDeprecated = (VariableCategory == EVariableCategory::Member) && ((VarProperty.PropertyFlags & CPF_Deprecated) != 0);
  			if (bNewPropDeprecated || bExistingPropDeprecated)
@@ -4971,7 +5074,11 @@ UProperty* FHeaderParser::GetVarNameAndDim
 
 		if (bErrorDueToShadowing)
 		{
-			FError::Throwf(TEXT("%s: '%s' cannot be defined in '%s' as it is already defined in scope '%s' (shadowing is not allowed)"), HintText, VarProperty.Identifier, *Scope->GetName(), *Existing->GetOuter()->GetName());
+			FError::Throwf(TEXT("%s: '%s' cannot be defined in '%s' as it is already defined in scope '%s' (shadowing is not allowed)"),
+				HintText,
+				VarProperty.Identifier,
+				*Scope->GetName(),
+				ExistingField ? *ExistingField->GetOuter()->GetName() : *ExistingProperty->GetOwnerVariant().GetFullName());
 		}
 	}
 
@@ -5102,13 +5209,13 @@ UProperty* FHeaderParser::GetVarNameAndDim
 	// create the FName for the property, splitting (ie Unnamed_3 -> Unnamed,3)
 	FName PropertyName(VarProperty.Identifier, FindFlag);
 
-	UProperty* Prev = nullptr;
-	for (TFieldIterator<UProperty> It(Scope, EFieldIteratorFlags::ExcludeSuper); It; ++It)
+	FProperty* Prev = nullptr;
+	for (TFieldIterator<FProperty> It(Scope, EFieldIteratorFlags::ExcludeSuper); It; ++It)
 	{
 		Prev = *It;
 	}
 
-	auto PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata = [](EPropertyFlags& DestFlags, const TMap<FName, FString>& InMetaData, UProperty* Inner) {
+	auto PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata = [](EPropertyFlags& DestFlags, const TMap<FName, FString>& InMetaData, FProperty* Inner) {
 		// Copy some of the property flags to the container property.
 		if (Inner->PropertyFlags & (CPF_ContainsInstancedReference | CPF_InstancedReference))
 		{
@@ -5124,11 +5231,11 @@ UProperty* FHeaderParser::GetVarNameAndDim
 		}
 	};
 
-	UProperty* Result = nullptr;
+	FProperty* Result = nullptr;
 	if (VarProperty.ArrayType == EArrayType::Dynamic)
 	{
-		UArrayProperty* Array     = new (EC_InternalUseOnlyConstructor, Scope, PropertyName, ObjectFlags) UArrayProperty(FObjectInitializer());
-		UProperty*      InnerProp = CreateVariableProperty(VarProperty, Array, PropertyName, RF_Public, VariableCategory, CurrentSrcFile);
+		FArrayProperty* Array     = new FArrayProperty(Scope, PropertyName, ObjectFlags);
+		FProperty*      InnerProp = CreateVariableProperty(VarProperty, Array, PropertyName, RF_Public, VariableCategory, CurrentSrcFile);
 
 		Array->Inner         = InnerProp;
 		Array->PropertyFlags = VarProperty.PropertyFlags;
@@ -5142,8 +5249,8 @@ UProperty* FHeaderParser::GetVarNameAndDim
 	}
 	else if (VarProperty.ArrayType == EArrayType::Set)
 	{
-		USetProperty* Set       = new (EC_InternalUseOnlyConstructor, Scope, PropertyName, ObjectFlags) USetProperty(FObjectInitializer());
-		UProperty*    InnerProp = CreateVariableProperty(VarProperty, Set, PropertyName, RF_Public, VariableCategory, CurrentSrcFile);
+		FSetProperty* Set       = new FSetProperty(Scope, PropertyName, ObjectFlags);
+		FProperty*    InnerProp = CreateVariableProperty(VarProperty, Set, PropertyName, RF_Public, VariableCategory, CurrentSrcFile);
 
 		Set->ElementProp   = InnerProp;
 		Set->PropertyFlags = VarProperty.PropertyFlags;
@@ -5157,9 +5264,9 @@ UProperty* FHeaderParser::GetVarNameAndDim
 	}
 	else if (VarProperty.MapKeyProp.IsValid())
 	{
-		UMapProperty* Map       = new (EC_InternalUseOnlyConstructor, Scope, PropertyName, ObjectFlags) UMapProperty(FObjectInitializer());
-		UProperty*    KeyProp   = CreateVariableProperty(*VarProperty.MapKeyProp, Map, *(PropertyName.ToString() + TEXT("_Key")), RF_Public, VariableCategory, CurrentSrcFile);
-		UProperty*    ValueProp = CreateVariableProperty(VarProperty,             Map, PropertyName,                              RF_Public, VariableCategory, CurrentSrcFile);
+		FMapProperty* Map       = new FMapProperty(Scope, PropertyName, ObjectFlags);
+		FProperty*    KeyProp   = CreateVariableProperty(*VarProperty.MapKeyProp, Map, *(PropertyName.ToString() + TEXT("_Key")), RF_Public, VariableCategory, CurrentSrcFile);
+		FProperty*    ValueProp = CreateVariableProperty(VarProperty,             Map, PropertyName,                              RF_Public, VariableCategory, CurrentSrcFile);
 
 		Map->KeyProp       = KeyProp;
 		Map->ValueProp     = ValueProp;
@@ -5194,8 +5301,8 @@ UProperty* FHeaderParser::GetVarNameAndDim
 	}
 	else
 	{
-		Result->Next = Scope->Children;
-		Scope->Children = Result;
+		Result->Next = Scope->ChildProperties;
+		Scope->ChildProperties = Result;
 	}
 
 	VarProperty.TokenProperty = Result;
@@ -5675,6 +5782,12 @@ bool FHeaderParser::SkipDeclaration(FToken& Token)
 			break;
 		}
 
+		if (!bMacroDeclaration && Token.Matches(TEXT("PURE_VIRTUAL")) && NestedScopes == 0)
+		{
+			OpeningBracket = TEXT("(");
+			ClosingBracket = TEXT(")");
+		}
+
 		if (Token.Matches(OpeningBracket))
 		{
 			// This is a function definition or class declaration.
@@ -5915,7 +6028,7 @@ void PostParsingClassSetup(UClass* Class)
 	FHeaderParser::ComputeFunctionParametersSize(Class);
 
 	// Set all optimization ClassFlags based on property types
-	for (TFieldIterator<UProperty> It(Class, EFieldIteratorFlags::ExcludeSuper); It; ++It)
+	for (TFieldIterator<FProperty> It(Class, EFieldIteratorFlags::ExcludeSuper); It; ++It)
 	{
 		if ((It->PropertyFlags & CPF_Config) != 0)
 		{
@@ -5994,6 +6107,7 @@ UClass* FHeaderParser::CompileClassDeclaration(FClasses& AllClasses)
 	check(Class->Children == NULL);
 	check(Class->Next == NULL);
 	check(Class->NetFields.Num() == 0);
+	check(Class->NetProperties.Num() == 0);
 
 	// Make sure our parent classes is parsed.
 	for (UClass* Temp = Class->GetSuperClass(); Temp; Temp = Temp->GetSuperClass())
@@ -6054,7 +6168,7 @@ UClass* FHeaderParser::CompileClassDeclaration(FClasses& AllClasses)
 	// for all base class types, make a VfTable property
 	for (int32 ParentIndex = InheritanceParents.Num() - 1; ParentIndex >= 0; ParentIndex--)
 	{
-		// if this base class corresponds to an interface class, assign the vtable UProperty in the class's Interfaces map now...
+		// if this base class corresponds to an interface class, assign the vtable FProperty in the class's Interfaces map now...
 		if (UClass* InheritedInterface = InheritanceParents[ParentIndex]->InterfaceClass)
 		{
 			FImplementedInterface* Found = Class->Interfaces.FindByPredicate([=](const FImplementedInterface& Impl) { return Impl.Class == InheritedInterface; });
@@ -6404,9 +6518,9 @@ void FHeaderParser::ParseRigVMMethodParameters(UStruct* Struct)
 	const TCHAR* GetArrayText = TEXT("GetArray");
 
 	// validate the property types for this struct
-	for (TFieldIterator<UProperty> It(Struct); It; ++It)
+	for (TFieldIterator<FProperty> It(Struct); It; ++It)
 	{
-		UProperty const* const Prop = *It;
+		FProperty const* const Prop = *It;
 		FString PropName = Prop->GetName();
 		FString MemberCPPType;
 		FString ExtendedCPPType;
@@ -6504,7 +6618,7 @@ void FHeaderParser::ParseParameterList(FClasses& AllClasses, UFunction* Function
 			RequireSymbol(TEXT(","), TEXT("Delegate definitions require a , between the parameter type and parameter name"));
 		}
 
-		UProperty* Prop = GetVarNameAndDim(Function, Property, VariableCategory);
+		FProperty* Prop = GetVarNameAndDim(Function, Property, VariableCategory);
 
 		Function->NumParms++;
 
@@ -6528,7 +6642,7 @@ void FHeaderParser::ParseParameterList(FClasses& AllClasses, UFunction* Function
 					UE_LOG_ERROR_UHT(TEXT("Only service request functions cannot contain NoReplication parameters"));
 				}
 
-				if ((Prop->GetClass()->ClassCastFlags & CASTCLASS_UDelegateProperty) != 0)
+				if ((Prop->GetCastFlags() & CASTCLASS_FDelegateProperty) != 0)
 				{
 					UE_LOG_ERROR_UHT(TEXT("Replicated functions cannot contain delegate parameters (this would be insecure)"));
 				}
@@ -6550,7 +6664,7 @@ void FHeaderParser::ParseParameterList(FClasses& AllClasses, UFunction* Function
 					UE_LOG_ERROR_UHT(TEXT("Service request functions cannot contain out parameters, unless marked NotReplicated"));
 				}
 
-				if (!(Property.PropertyFlags & CPF_RepSkip) && (Prop->GetClass()->ClassCastFlags & CASTCLASS_UDelegateProperty) != 0)
+				if (!(Property.PropertyFlags & CPF_RepSkip) && (Prop->GetCastFlags() & CASTCLASS_FDelegateProperty) != 0)
 				{
 					UE_LOG_ERROR_UHT(TEXT("Service request functions cannot contain delegate parameters, unless marked NotReplicated"));
 				}
@@ -6560,10 +6674,10 @@ void FHeaderParser::ParseParameterList(FClasses& AllClasses, UFunction* Function
 		{
 			if (Property.Type == CPT_Byte)
 			{
-				if (UEnumProperty* EnumProperty = Cast<UEnumProperty>(Prop))
+				if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(Prop))
 				{
-					UProperty* InnerType = EnumProperty->GetUnderlyingProperty();
-					if (InnerType && !InnerType->IsA<UByteProperty>())
+					FProperty* InnerType = EnumProperty->GetUnderlyingProperty();
+					if (InnerType && !InnerType->IsA<FByteProperty>())
 					{
 						FError::Throwf(TEXT("Invalid enum param for Blueprints - currently only uint8 supported"));
 					}
@@ -6622,7 +6736,7 @@ void FHeaderParser::ParseParameterList(FClasses& AllClasses, UFunction* Function
 					}
 
 					MetaData->Add(KeyName, InnerDefaultValue);
-					UE_LOG(LogCompile, Verbose, TEXT("C++ Default parameter parsed: %s \"%s\" -> \"%s\" "), *Prop->GetName(), *DefaultArgText, *InnerDefaultValue);
+						UE_LOG(LogCompile, Verbose, TEXT("C++ Default parameter parsed: %s \"%s\" -> \"%s\" "), *Prop->GetName(), *DefaultArgText, *InnerDefaultValue );
 				}
 			}
 		}
@@ -6821,7 +6935,7 @@ UDelegateFunction* FHeaderParser::CompileDelegateDeclaration(FClasses& AllClasse
 	if (bHasReturnValue)
 	{
 		ReturnType.PropertyFlags |= CPF_Parm | CPF_OutParm | CPF_ReturnParm;
-		UProperty* ReturnProp = GetVarNameAndDim(DelegateSignatureFunction, ReturnType, EVariableCategory::Return);
+		FProperty* ReturnProp = GetVarNameAndDim(DelegateSignatureFunction, ReturnType, EVariableCategory::Return);
 
 		DelegateSignatureFunction->NumParms++;
 	}
@@ -6859,8 +6973,8 @@ UDelegateFunction* FHeaderParser::CompileDelegateDeclaration(FClasses& AllClasse
 // Compares the properties of two functions to see if they have the same signature.
 bool AreFunctionSignaturesEqual(const UFunction* Lhs, const UFunction* Rhs)
 {
-	auto LhsPropIter = TFieldIterator<UProperty>(Lhs);
-	auto RhsPropIter = TFieldIterator<UProperty>(Rhs);
+	auto LhsPropIter = TFieldIterator<FProperty>(Lhs);
+	auto RhsPropIter = TFieldIterator<FProperty>(Rhs);
 
 	for (;;)
 	{
@@ -6879,11 +6993,11 @@ bool AreFunctionSignaturesEqual(const UFunction* Lhs, const UFunction* Rhs)
 			return true;
 		}
 
-		const UProperty* LhsProp = *LhsPropIter;
-		const UProperty* RhsProp = *RhsPropIter;
+		const FProperty* LhsProp = *LhsPropIter;
+		const FProperty* RhsProp = *RhsPropIter;
 
-		const UClass* LhsClass = LhsProp->GetClass();
-		const UClass* RhsClass = RhsProp->GetClass();
+		FFieldClass* LhsClass = LhsProp->GetClass();
+		FFieldClass* RhsClass = RhsProp->GetClass();
 
 		if (LhsClass != RhsClass)
 		{
@@ -6891,10 +7005,10 @@ bool AreFunctionSignaturesEqual(const UFunction* Lhs, const UFunction* Rhs)
 			return false;
 		}
 
-		if (LhsClass == UArrayProperty::StaticClass())
+		if (LhsClass == FArrayProperty::StaticClass())
 		{
-			const UArrayProperty* LhsArrayProp = (const UArrayProperty*)LhsProp;
-			const UArrayProperty* RhsArrayProp = (const UArrayProperty*)RhsProp;
+			const FArrayProperty* LhsArrayProp = (const FArrayProperty*)LhsProp;
+			const FArrayProperty* RhsArrayProp = (const FArrayProperty*)RhsProp;
 
 			if (LhsArrayProp->Inner->GetClass() != RhsArrayProp->Inner->GetClass())
 			{
@@ -6902,10 +7016,10 @@ bool AreFunctionSignaturesEqual(const UFunction* Lhs, const UFunction* Rhs)
 				return false;
 			}
 		}
-		else if (LhsClass == UMapProperty::StaticClass())
+		else if (LhsClass == FMapProperty::StaticClass())
 		{
-			const UMapProperty* LhsMapProp = (const UMapProperty*)LhsProp;
-			const UMapProperty* RhsMapProp = (const UMapProperty*)RhsProp;
+			const FMapProperty* LhsMapProp = (const FMapProperty*)LhsProp;
+			const FMapProperty* RhsMapProp = (const FMapProperty*)RhsProp;
 
 			if (LhsMapProp->KeyProp->GetClass() != RhsMapProp->KeyProp->GetClass() || LhsMapProp->ValueProp->GetClass() != RhsMapProp->ValueProp->GetClass())
 			{
@@ -6913,10 +7027,10 @@ bool AreFunctionSignaturesEqual(const UFunction* Lhs, const UFunction* Rhs)
 				return false;
 			}
 		}
-		else if (LhsClass == USetProperty::StaticClass())
+		else if (LhsClass == FSetProperty::StaticClass())
 		{
-			const USetProperty* LhsSetProp = (const USetProperty*)LhsProp;
-			const USetProperty* RhsSetProp = (const USetProperty*)RhsProp;
+			const FSetProperty* LhsSetProp = (const FSetProperty*)LhsProp;
+			const FSetProperty* RhsSetProp = (const FSetProperty*)RhsProp;
 
 			if (LhsSetProp->ElementProp->GetClass() != RhsSetProp->ElementProp->GetClass())
 			{
@@ -7266,7 +7380,7 @@ void FHeaderParser::CompileFunctionDeclaration(FClasses& AllClasses)
 	if (bHasReturnValue)
 	{
 		ReturnType.PropertyFlags |= CPF_Parm | CPF_OutParm | CPF_ReturnParm;
-		UProperty* ReturnProp = GetVarNameAndDim(TopFunction, ReturnType, EVariableCategory::Return);
+		FProperty* ReturnProp = GetVarNameAndDim(TopFunction, ReturnType, EVariableCategory::Return);
 
 		TopFunction->NumParms++;
 	}
@@ -7275,9 +7389,9 @@ void FHeaderParser::CompileFunctionDeclaration(FClasses& AllClasses)
 	bool bHasAnyOutputs = bHasReturnValue;
 	if (!bHasAnyOutputs)
 	{
-		for (TFieldIterator<UProperty> It(TopFunction); It; ++It)
+		for (TFieldIterator<FProperty> It(TopFunction); It; ++It)
 		{
-			UProperty const* const Param = *It;
+			FProperty const* const Param = *It;
 			if (!(Param->PropertyFlags & CPF_ReturnParm) && (Param->PropertyFlags & CPF_OutParm))
 			{
 				bHasAnyOutputs = true;
@@ -7405,9 +7519,9 @@ void FHeaderParser::CompileFunctionDeclaration(FClasses& AllClasses)
 
 	if (TopFunction->FunctionFlags & (FUNC_BlueprintCallable | FUNC_BlueprintEvent))
 	{
-		for (TFieldIterator<UProperty> It(TopFunction); It; ++It)
+		for (TFieldIterator<FProperty> It(TopFunction); It; ++It)
 		{
-			UProperty const* const Param = *It;
+			FProperty const* const Param = *It;
 			if (Param->ArrayDim > 1)
 			{
 				FError::Throwf(TEXT("Static array cannot be exposed to blueprint. Function: %s Parameter %s\n"), *TopFunction->GetName(), *Param->GetName());
@@ -7553,14 +7667,14 @@ bool FHeaderParser::IsBitfieldProperty()
 
 void FHeaderParser::ValidatePropertyIsDeprecatedIfNecessary(FPropertyBase& VarProperty, const FToken* OuterPropertyType)
 {
-	// check to see if we have a UClassProperty using a deprecated class
+	// check to see if we have a FClassProperty using a deprecated class
 	if ( VarProperty.MetaClass != NULL && VarProperty.MetaClass->HasAnyClassFlags(CLASS_Deprecated) && !(VarProperty.PropertyFlags & CPF_Deprecated) &&
 		(OuterPropertyType == NULL || !(OuterPropertyType->PropertyFlags & CPF_Deprecated)) )
 	{
 		UE_LOG_ERROR_UHT(TEXT("Property is using a deprecated class: %s.  Property should be marked deprecated as well."), *VarProperty.MetaClass->GetPathName());
 	}
 
-	// check to see if we have a UObjectProperty using a deprecated class.
+	// check to see if we have a FObjectProperty using a deprecated class.
 	// PropertyClass is part of a union, so only check PropertyClass if this token represents an object property
 	if ( (VarProperty.Type == CPT_ObjectReference || VarProperty.Type == CPT_WeakObjectReference || VarProperty.Type == CPT_LazyObjectReference || VarProperty.Type == CPT_SoftObjectReference) && VarProperty.PropertyClass != NULL
 		&&	VarProperty.PropertyClass->HasAnyClassFlags(CLASS_Deprecated)	// and the object class being used has been deprecated
@@ -7673,11 +7787,11 @@ void FHeaderParser::CompileVariableDeclaration(FClasses& AllClasses, UStruct* St
 	}
 
 	// Process all variables of this type.
-	TArray<UProperty*> NewProperties;
+	TArray<FProperty*> NewProperties;
 	do
 	{
 		FToken     Property    = OriginalProperty;
-		UProperty* NewProperty = GetVarNameAndDim(Struct, Property, EVariableCategory::Member);
+		FProperty* NewProperty = GetVarNameAndDim(Struct, Property, EVariableCategory::Member);
 
 		// Optionally consume the :1 at the end of a bitfield boolean declaration
 		if (Property.IsBool() && MatchSymbol(TEXT(":")))
@@ -7834,10 +7948,10 @@ void FHeaderParser::ComputeFunctionParametersSize( UClass* Class )
 		// Fix up any structs that were used as a parameter in a delegate before being defined
 		if (ThisFunction->HasAnyFunctionFlags(FUNC_Delegate))
 		{
-			for (TFieldIterator<UProperty> It(ThisFunction); It; ++It)
+			for (TFieldIterator<FProperty> It(ThisFunction); It; ++It)
 			{
-				UProperty* Param = *It;
-				if (UStructProperty* StructProp = Cast<UStructProperty>(Param))
+				FProperty* Param = *It;
+				if (FStructProperty* StructProp = CastField<FStructProperty>(Param))
 				{
 					if (StructProp->Struct->StructFlags & STRUCT_HasInstancedReference)
 					{
@@ -7851,16 +7965,16 @@ void FHeaderParser::ComputeFunctionParametersSize( UClass* Class )
 		// Compute the function parameter size, propagate some flags to the outer function, and save the return offset
 		// Must be done in a second phase, as StaticLink resets various fields again!
 		ThisFunction->ParmsSize = 0;
-		for (TFieldIterator<UProperty> It(ThisFunction); It; ++It)
+		for (TFieldIterator<FProperty> It(ThisFunction); It; ++It)
 		{
-			UProperty* Param = *It;
+			FProperty* Param = *It;
 
 			if (!(Param->PropertyFlags & CPF_ReturnParm) && (Param->PropertyFlags & CPF_OutParm))
 			{
 				ThisFunction->FunctionFlags |= FUNC_HasOutParms;
 			}
 				
-			if (UStructProperty* StructProp = Cast<UStructProperty>(Param))
+			if (FStructProperty* StructProp = CastField<FStructProperty>(Param))
 			{
 				if (StructProp->Struct->HasDefaults())
 				{
@@ -8976,24 +9090,27 @@ void FHeaderParser::SimplifiedClassParse(const TCHAR* Filename, const TCHAR* InB
 		}
 		else if ( bProcess && FParse::Command(&Str,TEXT("#include")) )
 		{
-			if (bFoundGeneratedInclude)
-			{
-				FFileLineException::Throwf(Filename, CurrentLine, TEXT("#include found after .generated.h file - the .generated.h file should always be the last #include in a header"));
-			}
-
 			// Handle #include directives as if they were 'dependson' keywords.
 			FString DependsOnHeaderName = Str;
 
-			bFoundGeneratedInclude = DependsOnHeaderName.Contains(TEXT(".generated.h"));
-			if (!bFoundGeneratedInclude && DependsOnHeaderName.Len())
+			if (DependsOnHeaderName != TEXT("\"UObject/DefineUPropertyMacros.h\""))
 			{
-				bool  bIsQuotedInclude  = DependsOnHeaderName[0] == '\"';
-				int32 HeaderFilenameEnd = DependsOnHeaderName.Find(bIsQuotedInclude ? TEXT("\"") : TEXT(">"), ESearchCase::CaseSensitive, ESearchDir::FromStart, 1);
-
-				if (HeaderFilenameEnd != INDEX_NONE)
+				if (bFoundGeneratedInclude)
 				{
-					// Include the extension in the name so that we later know where this entry came from.
-					DependentOn.Add(FHeaderProvider(EHeaderProviderSourceType::FileName, *FPaths::GetCleanFilename(DependsOnHeaderName.Mid(1, HeaderFilenameEnd - 1))));
+					FFileLineException::Throwf(Filename, CurrentLine, TEXT("#include found after .generated.h file - the .generated.h file should always be the last #include in a header"));
+				}
+
+				bFoundGeneratedInclude = DependsOnHeaderName.Contains(TEXT(".generated.h"));
+				if (!bFoundGeneratedInclude && DependsOnHeaderName.Len())
+				{
+					bool  bIsQuotedInclude = DependsOnHeaderName[0] == '\"';
+					int32 HeaderFilenameEnd = DependsOnHeaderName.Find(bIsQuotedInclude ? TEXT("\"") : TEXT(">"), ESearchCase::CaseSensitive, ESearchDir::FromStart, 1);
+
+					if (HeaderFilenameEnd != INDEX_NONE)
+					{
+						// Include the extension in the name so that we later know where this entry came from.
+						DependentOn.Add(FHeaderProvider(EHeaderProviderSourceType::FileName, *FPaths::GetCleanFilename(DependsOnHeaderName.Mid(1, HeaderFilenameEnd - 1))));
+					}
 				}
 			}
 		}
@@ -9267,7 +9384,7 @@ void FHeaderPreParser::ParseClassDeclaration(const TCHAR* Filename, const TCHAR*
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FHeaderParser::DefaultValueStringCppFormatToInnerFormat(const UProperty* Property, const FString& CppForm, FString &OutForm)
+bool FHeaderParser::DefaultValueStringCppFormatToInnerFormat(const FProperty* Property, const FString& CppForm, FString &OutForm)
 {
 	OutForm = FString();
 	if (!Property || CppForm.IsEmpty())
@@ -9275,7 +9392,7 @@ bool FHeaderParser::DefaultValueStringCppFormatToInnerFormat(const UProperty* Pr
 		return false;
 	}
 
-	if (Property->IsA(UClassProperty::StaticClass()) || Property->IsA(UObjectPropertyBase::StaticClass()))
+	if (Property->IsA(FClassProperty::StaticClass()) || Property->IsA(FObjectPropertyBase::StaticClass()))
 	{
 		const bool bIsNull = FDefaultValueHelper::Is(CppForm, TEXT("NULL")) || FDefaultValueHelper::Is(CppForm, TEXT("nullptr")) || FDefaultValueHelper::Is(CppForm, TEXT("0"));
 		if (bIsNull)
@@ -9299,9 +9416,9 @@ bool FHeaderParser::DefaultValueStringCppFormatToInnerFormat(const UProperty* Pr
 		return true;
 	};
 
-	if( !Property->IsA(UStructProperty::StaticClass()) )
+	if( !Property->IsA(FStructProperty::StaticClass()) )
 	{
-		if( Property->IsA(UIntProperty::StaticClass()) )
+		if( Property->IsA(FIntProperty::StaticClass()) )
 		{
 			int32 Value;
 			if( FDefaultValueHelper::ParseInt( CppForm, Value) )
@@ -9309,7 +9426,7 @@ bool FHeaderParser::DefaultValueStringCppFormatToInnerFormat(const UProperty* Pr
 				OutForm = FString::FromInt(Value);
 			}
 		}
-		else if (Property->IsA(UInt64Property::StaticClass()))
+		else if (Property->IsA(FInt64Property::StaticClass()))
 		{
 			int64 Value;
 			if (FDefaultValueHelper::ParseInt64(CppForm, Value))
@@ -9317,9 +9434,9 @@ bool FHeaderParser::DefaultValueStringCppFormatToInnerFormat(const UProperty* Pr
 				OutForm = FString::Printf(TEXT("%lld"), Value);
 			}
 		}
-		else if( Property->IsA(UByteProperty::StaticClass()) )
+		else if( Property->IsA(FByteProperty::StaticClass()) )
 		{
-			const UEnum* Enum = CastChecked<UByteProperty>(Property)->Enum;
+			const UEnum* Enum = CastFieldChecked<const FByteProperty>(const_cast<FProperty*>(Property))->Enum;
 			if( NULL != Enum )
 			{
 				OutForm = FDefaultValueHelper::GetUnqualifiedEnumValue(FDefaultValueHelper::RemoveWhitespaces(CppForm));
@@ -9332,10 +9449,10 @@ bool FHeaderParser::DefaultValueStringCppFormatToInnerFormat(const UProperty* Pr
 				return ( 0 <= Value ) && ( 255 >= Value );
 			}
 		}
-		else if( Property->IsA(UEnumProperty::StaticClass()) )
+		else if( Property->IsA(FEnumProperty::StaticClass()) )
 		{
-			const UEnumProperty* EnumProp = CastChecked<UEnumProperty>(Property);
-			if (const UEnum* Enum = CastChecked<UEnumProperty>(Property)->GetEnum())
+			const FEnumProperty* EnumProp = CastFieldChecked<FEnumProperty>(const_cast<FProperty*>(Property));
+			if (const UEnum* Enum = CastFieldChecked<FEnumProperty>(const_cast<FProperty*>(Property))->GetEnum())
 			{
 				OutForm = FDefaultValueHelper::GetUnqualifiedEnumValue(FDefaultValueHelper::RemoveWhitespaces(CppForm));
 				return ValidateEnumEntry(Enum, OutForm);
@@ -9348,7 +9465,7 @@ bool FHeaderParser::DefaultValueStringCppFormatToInnerFormat(const UProperty* Pr
 				return EnumProp->GetUnderlyingProperty()->CanHoldValue(Value);
 			}
 		}
-		else if( Property->IsA(UFloatProperty::StaticClass()) )
+		else if( Property->IsA(FFloatProperty::StaticClass()) )
 		{
 			float Value;
 			if( FDefaultValueHelper::ParseFloat( CppForm, Value) )
@@ -9356,7 +9473,7 @@ bool FHeaderParser::DefaultValueStringCppFormatToInnerFormat(const UProperty* Pr
 				OutForm = FString::Printf( TEXT("%f"), Value) ;
 			}
 		}
-		else if( Property->IsA(UDoubleProperty::StaticClass()) )
+		else if( Property->IsA(FDoubleProperty::StaticClass()) )
 		{
 			double Value;
 			if( FDefaultValueHelper::ParseDouble( CppForm, Value) )
@@ -9364,7 +9481,7 @@ bool FHeaderParser::DefaultValueStringCppFormatToInnerFormat(const UProperty* Pr
 				OutForm = FString::Printf( TEXT("%f"), Value) ;
 			}
 		}
-		else if( Property->IsA(UBoolProperty::StaticClass()) )
+		else if( Property->IsA(FBoolProperty::StaticClass()) )
 		{
 			if( FDefaultValueHelper::Is(CppForm, TEXT("true")) || 
 				FDefaultValueHelper::Is(CppForm, TEXT("false")) )
@@ -9372,7 +9489,7 @@ bool FHeaderParser::DefaultValueStringCppFormatToInnerFormat(const UProperty* Pr
 				OutForm = FDefaultValueHelper::RemoveWhitespaces( CppForm );
 			}
 		}
-		else if( Property->IsA(UNameProperty::StaticClass()) )
+		else if( Property->IsA(FNameProperty::StaticClass()) )
 		{
 			if(FDefaultValueHelper::Is( CppForm, TEXT("NAME_None") ))
 			{
@@ -9381,7 +9498,7 @@ bool FHeaderParser::DefaultValueStringCppFormatToInnerFormat(const UProperty* Pr
 			}
 			return FDefaultValueHelper::StringFromCppString(CppForm, TEXT("FName"), OutForm);
 		}
-		else if( Property->IsA(UTextProperty::StaticClass()) )
+		else if( Property->IsA(FTextProperty::StaticClass()) )
 		{
 			// Handle legacy cases of FText::FromString being used as default values
 			// These should be replaced with INVTEXT as FText::FromString can produce inconsistent keys
@@ -9422,7 +9539,7 @@ bool FHeaderParser::DefaultValueStringCppFormatToInnerFormat(const UProperty* Pr
 			FTextStringHelper::WriteToBuffer(OutForm, ParsedText, /*bRequiresQuotes*/false);
 			return true;
 		}
-		else if( Property->IsA(UStrProperty::StaticClass()) )
+		else if( Property->IsA(FStrProperty::StaticClass()) )
 		{
 			return FDefaultValueHelper::StringFromCppString(CppForm, TEXT("FString"), OutForm);
 		}
@@ -9437,7 +9554,7 @@ bool FHeaderParser::DefaultValueStringCppFormatToInnerFormat(const UProperty* Pr
 		static const UScriptStruct* LinearColorStruct = FindObjectChecked<UScriptStruct>(CoreUObjectPackage, TEXT("LinearColor"));
 		static const UScriptStruct* ColorStruct = FindObjectChecked<UScriptStruct>(CoreUObjectPackage, TEXT("Color"));
 
-		const UStructProperty* StructProperty = CastChecked<UStructProperty>(Property);
+		const FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(const_cast<FProperty*>(Property));
 		if( StructProperty->Struct == VectorStruct )
 		{
 			FString Parameters;
@@ -9881,7 +9998,7 @@ void FHeaderParser::PostPopNestClass(UClass* CurrentClass)
 					}
 
 					int32 Count = 0;
-					for (TFieldIterator<UProperty> It1(InterfaceFunction), It2(ClassFunction); Count < ClassFunction->NumParms; ++It1, ++It2, Count++)
+					for (TFieldIterator<FProperty> It1(InterfaceFunction), It2(ClassFunction); Count < ClassFunction->NumParms; ++It1, ++It2, Count++)
 					{
 						if (!FPropertyBase(*It1).MatchesType(FPropertyBase(*It2), 1))
 						{
@@ -10046,7 +10163,7 @@ void FHeaderParser::CheckDocumentationPolicyForStruct(UStruct* Struct, const TMa
 	if (DocumentationPolicy.bMemberToolTipsRequired)
 	{
 		TMap<FString, FName> ToolTipToPropertyName;
-		for (UProperty* Property : TFieldRange<UProperty>(Struct, EFieldIteratorFlags::ExcludeSuper))
+		for (FProperty* Property : TFieldRange<FProperty>(Struct, EFieldIteratorFlags::ExcludeSuper))
 		{
 			FString ToolTip = Property->GetToolTipText().ToString();
 			if (ToolTip.IsEmpty() || ToolTip.Equals(Property->GetDisplayNameText().ToString()))
@@ -10065,7 +10182,7 @@ void FHeaderParser::CheckDocumentationPolicyForStruct(UStruct* Struct, const TMa
 
 	if (DocumentationPolicy.bFloatRangesRequired)
 	{
-		for (UProperty* Property : TFieldRange<UProperty>(Struct, EFieldIteratorFlags::ExcludeSuper))
+		for (FProperty* Property : TFieldRange<FProperty>(Struct, EFieldIteratorFlags::ExcludeSuper))
 		{
 			if(DoesCPPTypeRequireDocumentation(Property->GetCPPType()))
 			{
@@ -10154,7 +10271,7 @@ void FHeaderParser::CheckDocumentationPolicyForFunc(UClass* Class, UFunction* Fu
 		{
 			// ensure each parameter has a tooltip
 			TSet<FName> ExistingFields;
-			for (UProperty* Property : TFieldRange<UProperty>(Func))
+			for (FProperty* Property : TFieldRange<FProperty>(Func))
 			{
 				FName ParamName = Property->GetFName();
 				if (ParamName.IsEqual(TEXT("ReturnValue")))

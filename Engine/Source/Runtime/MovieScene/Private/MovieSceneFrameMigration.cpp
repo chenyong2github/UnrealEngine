@@ -107,7 +107,7 @@ bool FMovieSceneFrameRange::ExportTextItem(FString& ValueStr, FMovieSceneFrameRa
 bool FMovieSceneFrameRange::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText)
 {
 	FString Text = TEXT("");
-	const TCHAR* NewBuffer = UPropertyHelpers::ReadToken(Buffer, Text, 1);
+	const TCHAR* NewBuffer = FPropertyHelpers::ReadToken(Buffer, Text, 1);
 	if (NewBuffer)
 	{
 		TArray<FString> Array;

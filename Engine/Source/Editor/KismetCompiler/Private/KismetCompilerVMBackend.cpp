@@ -14,6 +14,7 @@
 #include "UObject/Interface.h"
 #include "UObject/UnrealType.h"
 #include "UObject/TextProperty.h"
+#include "UObject/FieldPathProperty.h"
 #include "UObject/PropertyPortFlags.h"
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
@@ -86,6 +87,14 @@ public:
 		ScriptPointerType D = (ScriptPointerType)Res; 
 		FArchive& Ar = *this;
 
+		Ar << D;
+		return Ar;
+	}
+
+	FArchive& operator<<(FField*& Res) override
+	{
+		ScriptPointerType D = (ScriptPointerType)Res;
+		FArchive& Ar = *this;
 		Ar << D;
 		return Ar;
 	}
@@ -313,7 +322,7 @@ protected:
 		}
 
 		/** Starts a context if the Term isn't NULL */
-		void TryStartContext(FBPTerminal* Term, bool bUnsafeToSkip = false, bool bIsInterfaceContext = false, UProperty* RValueProperty = nullptr)
+		void TryStartContext(FBPTerminal* Term, bool bUnsafeToSkip = false, bool bIsInterfaceContext = false, FProperty* RValueProperty = nullptr)
 		{
 			if (Term != NULL)
 			{
@@ -321,7 +330,7 @@ protected:
 			}
 		}
 
-		void StartContext(FBPTerminal* Term, bool bUnsafeToSkip = false, bool bIsInterfaceContext = false, UProperty* RValueProperty = nullptr)
+		void StartContext(FBPTerminal* Term, bool bUnsafeToSkip = false, bool bIsInterfaceContext = false, FProperty* RValueProperty = nullptr)
 		{
 			bInContext = true;
 
@@ -440,144 +449,153 @@ public:
 
 	struct FLiteralTypeHelper
 	{
-		static bool IsBoolean(const FEdGraphPinType* Type, const UProperty* Property)
+		static bool IsBoolean(const FEdGraphPinType* Type, const FProperty* Property)
 		{
 			if (Property)
 			{
-				return Property->IsA<UBoolProperty>();
+				return Property->IsA<FBoolProperty>();
 			}
 			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_Boolean);
 		}
 
-		static bool IsString(const FEdGraphPinType* Type, const UProperty* Property)
+		static bool IsString(const FEdGraphPinType* Type, const FProperty* Property)
 		{
 			if (Property)
 			{
-				return Property->IsA<UStrProperty>();
+				return Property->IsA<FStrProperty>();
 			}
 			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_String);
 		}
 
-		static bool IsText(const FEdGraphPinType* Type, const UProperty* Property)
+		static bool IsText(const FEdGraphPinType* Type, const FProperty* Property)
 		{
 			if (Property)
 			{
-				return Property->IsA<UTextProperty>();
+				return Property->IsA<FTextProperty>();
 			}
 			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_Text);
 		}
 
-		static bool IsFloat(const FEdGraphPinType* Type, const UProperty* Property)
+		static bool IsFloat(const FEdGraphPinType* Type, const FProperty* Property)
 		{
 			if (Property)
 			{
-				return Property->IsA<UFloatProperty>();
+				return Property->IsA<FFloatProperty>();
 			}
 			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_Float);
 		}
 
-		static bool IsInt(const FEdGraphPinType* Type, const UProperty* Property)
+		static bool IsInt(const FEdGraphPinType* Type, const FProperty* Property)
 		{
 			if (Property)
 			{
-				return Property->IsA<UIntProperty>();
+				return Property->IsA<FIntProperty>();
 			}
 			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_Int);
 		}
 
-		static bool IsInt64(const FEdGraphPinType* Type, const UProperty* Property)
+		static bool IsInt64(const FEdGraphPinType* Type, const FProperty* Property)
 		{
 			if (Property)
 			{
-				return Property->IsA<UInt64Property>();
+				return Property->IsA<FInt64Property>();
 			}
 			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_Int64);
 		}
 
-		static bool IsUInt64(const FEdGraphPinType* Type, const UProperty* Property)
+		static bool IsUInt64(const FEdGraphPinType* Type, const FProperty* Property)
 		{
 			if (Property)
 			{
-				return Property->IsA<UUInt64Property>();
+				return Property->IsA<FUInt64Property>();
 			}
 			return false;
 		}
 
-		static bool IsByte(const FEdGraphPinType* Type, const UProperty* Property)
+		static bool IsByte(const FEdGraphPinType* Type, const FProperty* Property)
 		{
 			if (Property)
 			{
-				return Property->IsA<UByteProperty>() || (Property->IsA<UEnumProperty>() && static_cast<const UEnumProperty*>(Property)->GetUnderlyingProperty()->IsA<UByteProperty>());
+				return Property->IsA<FByteProperty>() || (Property->IsA<FEnumProperty>() && static_cast<const FEnumProperty*>(Property)->GetUnderlyingProperty()->IsA<FByteProperty>());
 			}
 			return Type && ((Type->PinCategory == UEdGraphSchema_K2::PC_Byte) || (Type->PinCategory == UEdGraphSchema_K2::PC_Enum));
 		}
 
-		static bool IsName(const FEdGraphPinType* Type, const UProperty* Property)
+		static bool IsName(const FEdGraphPinType* Type, const FProperty* Property)
 		{
 			if (Property)
 			{
-				return Property->IsA<UNameProperty>();
+				return Property->IsA<FNameProperty>();
 			}
 			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_Name);
 		}
 
-		static bool IsStruct(const FEdGraphPinType* Type, const UProperty* Property)
+		static bool IsStruct(const FEdGraphPinType* Type, const FProperty* Property)
 		{
 			if (Property)
 			{
-				return Property->IsA<UStructProperty>();
+				return Property->IsA<FStructProperty>();
 			}
 			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_Struct);
 		}
 
-		static bool IsDelegate(const FEdGraphPinType* Type, const UProperty* Property)
+		static bool IsDelegate(const FEdGraphPinType* Type, const FProperty* Property)
 		{
 			if (Property)
 			{
-				return Property->IsA<UDelegateProperty>();
+				return Property->IsA<FDelegateProperty>();
 			}
 			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_Delegate);
 		}
 
-		static bool IsSoftObject(const FEdGraphPinType* Type, const UProperty* Property)
+		static bool IsSoftObject(const FEdGraphPinType* Type, const FProperty* Property)
 		{
 			if (Property)
 			{
-				return Property->IsA<USoftObjectProperty>();
+				return Property->IsA<FSoftObjectProperty>();
 			}
 			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_SoftObject);
 		}
 
 		// Will handle Class properties as well
-		static bool IsObject(const FEdGraphPinType* Type, const UProperty* Property)
+		static bool IsObject(const FEdGraphPinType* Type, const FProperty* Property)
 		{
 			if (Property)
 			{
-				return Property->IsA<UObjectPropertyBase>();
+				return Property->IsA<FObjectPropertyBase>();
 			}
 			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_Object);
 		}
 
-		static bool IsClass(const FEdGraphPinType* Type, const UProperty* Property)
+		static bool IsClass(const FEdGraphPinType* Type, const FProperty* Property)
 		{
 			if (Property)
 			{
-				return Property->IsA<UClassProperty>();
+				return Property->IsA<FClassProperty>();
 			}
 			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_Class);
 		}
 
-		static bool IsInterface(const FEdGraphPinType* Type, const UProperty* Property)
+		static bool IsInterface(const FEdGraphPinType* Type, const FProperty* Property)
 		{
 			if (Property)
 			{
-				return Property->IsA<UInterfaceProperty>();
+				return Property->IsA<FInterfaceProperty>();
 			}
 			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_Interface);
 		}
+
+		static bool IsFieldPath(const FEdGraphPinType* Type, const FProperty* Property)
+		{
+			if (Property)
+			{
+				return Property->IsA<FFieldPathProperty>();
+			}
+			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_FieldPath);
+		}
 	};
 
-	virtual void EmitTermExpr(FBPTerminal* Term, UProperty* CoerceProperty = NULL, bool bAllowStaticArray = false)
+	virtual void EmitTermExpr(FBPTerminal* Term, FProperty* CoerceProperty = NULL, bool bAllowStaticArray = false)
 	{
 		if (Term->bIsLiteral)
 		{
@@ -698,7 +716,7 @@ public:
 				// template, where the parameter types can be changed out for 
 				// other types (much like c++ template functions, the "custom 
 				// thunk" is generic). Traditionally, we use integer refs as the 
-				// place holder type (that's why this is nested in a UIntProperty 
+				// place holder type (that's why this is nested in a FIntProperty 
 				// check)... Complications arise here, when we try to emit 
 				// literal values fed into the function when they don't match 
 				// the template's (int) type. For most types, this here is 
@@ -737,11 +755,11 @@ public:
 
 				UEnum* EnumPtr = nullptr;
 
-				if (UByteProperty* ByteProp = Cast< UByteProperty >(CoerceProperty))
+				if (FByteProperty* ByteProp = CastField< FByteProperty >(CoerceProperty))
 				{
 					EnumPtr = ByteProp->Enum;
 				}
-				else if (UEnumProperty* EnumProp = Cast< UEnumProperty >(CoerceProperty))
+				else if (FEnumProperty* EnumProp = CastField< FEnumProperty >(CoerceProperty))
 				{
 					EnumPtr = EnumProp->GetEnum();
 				}
@@ -779,7 +797,7 @@ public:
 			}
 			else if (FLiteralTypeHelper::IsStruct(&Term->Type, CoerceProperty))
 			{
-				UStructProperty* StructProperty = Cast<UStructProperty>(CoerceProperty);
+				FStructProperty* StructProperty = CastField<FStructProperty>(CoerceProperty);
 				UScriptStruct* Struct = StructProperty ? StructProperty->Struct : Cast<UScriptStruct>(Term->Type.PinSubCategoryObject.Get());
 				check(Struct);
 
@@ -847,7 +865,7 @@ public:
 					bool bIsEditorOnlyStruct = false; 
 
 					checkSlow(Schema);
-					for( UProperty* Prop = Struct->PropertyLink; Prop; Prop = Prop->PropertyLinkNext )
+					for( FProperty* Prop = Struct->PropertyLink; Prop; Prop = Prop->PropertyLinkNext )
 					{
 						// Skip transient and editor only properties, this needs to be synched with ScriptCore
 						if (Prop->PropertyFlags & CPF_Transient || (!bIsEditorOnlyStruct && Prop->PropertyFlags & CPF_EditorOnly))
@@ -864,14 +882,14 @@ public:
 							NewTerm.Source = Term->Source;
 							NewTerm.SourcePin = Term->SourcePin;
 							Prop->ExportText_InContainer(ArrayIter, NewTerm.Name, StructData, StructData, NULL, PPF_None);
-							if (Prop->IsA(UTextProperty::StaticClass()))
+							if (Prop->IsA(FTextProperty::StaticClass()))
 							{
-								NewTerm.TextLiteral = Cast<UTextProperty>(Prop)->GetPropertyValue_InContainer(StructData, ArrayIter);
+								NewTerm.TextLiteral = CastField<FTextProperty>(Prop)->GetPropertyValue_InContainer(StructData, ArrayIter);
 								NewTerm.Name = NewTerm.TextLiteral.ToString();
 							}
-							else if (Prop->IsA(UObjectProperty::StaticClass()))
+							else if (Prop->IsA(FObjectProperty::StaticClass()))
 							{
-								NewTerm.ObjectLiteral = Cast<UObjectProperty>(Prop)->GetObjectPropertyValue(Prop->ContainerPtrToValuePtr<void>(StructData));
+								NewTerm.ObjectLiteral = CastField<FObjectProperty>(Prop)->GetObjectPropertyValue(Prop->ContainerPtrToValuePtr<void>(StructData));
 							}
 
 							EmitTermExpr(&NewTerm, Prop, true);
@@ -881,9 +899,9 @@ public:
 					Writer << EX_EndStructConst;
 				}
 			}
-			else if (UArrayProperty* ArrayPropr = Cast<UArrayProperty>(CoerceProperty))
+			else if (FArrayProperty* ArrayPropr = CastField<FArrayProperty>(CoerceProperty))
 			{
-				UProperty* InnerProp = ArrayPropr->Inner;
+				FProperty* InnerProp = ArrayPropr->Inner;
 				ensure(InnerProp);
 				FScriptArray ScriptArray;
 				ArrayPropr->ImportText(*Term->Name, &ScriptArray, 0, NULL, GLog);
@@ -901,9 +919,9 @@ public:
 				}
 				Writer << EX_EndArrayConst;
 			}
-			else if (USetProperty* SetPropr = Cast<USetProperty>(CoerceProperty))
+			else if (FSetProperty* SetPropr = CastField<FSetProperty>(CoerceProperty))
 			{
-				UProperty* InnerProp = SetPropr->ElementProp;
+				FProperty* InnerProp = SetPropr->ElementProp;
 				ensure(InnerProp);
 
 				FScriptSet ScriptSet;
@@ -928,10 +946,10 @@ public:
 				}
 				Writer << EX_EndSetConst;
 			}
-			else if (UMapProperty* MapPropr = Cast<UMapProperty>(CoerceProperty))
+			else if (FMapProperty* MapPropr = CastField<FMapProperty>(CoerceProperty))
 			{
-				UProperty* KeyProp = MapPropr->KeyProp;
-				UProperty* ValProp = MapPropr->ValueProp;
+				FProperty* KeyProp = MapPropr->KeyProp;
+				FProperty* ValProp = MapPropr->ValueProp;
 				ensure(KeyProp && ValProp);
 
 				FScriptMap ScriptMap;
@@ -976,9 +994,14 @@ public:
 				Writer << EX_SoftObjectConst;
 				EmitStringLiteral(Term->Name);
 			}
+			else if (FLiteralTypeHelper::IsFieldPath(&Term->Type, CoerceProperty))
+			{
+				Writer << EX_FieldPathConst;
+				EmitStringLiteral(Term->Name);
+			}
 			else if (FLiteralTypeHelper::IsObject(&Term->Type, CoerceProperty) || FLiteralTypeHelper::IsClass(&Term->Type, CoerceProperty))
 			{
-				// Note: This case handles both UObjectProperty and UClassProperty
+				// Note: This case handles both FObjectProperty and FClassProperty
 				if (Term->Type.PinSubCategory == UEdGraphSchema_K2::PN_Self)
 				{
 					Writer << EX_Self;
@@ -1012,7 +1035,7 @@ public:
 			{
 				Writer << EX_Self;
 			}
-			// else if (CoerceProperty->IsA(UMulticastDelegateProperty::StaticClass()))
+			// else if (CoerceProperty->IsA(FMulticastDelegateProperty::StaticClass()))
 			// Cannot assign a literal to a multicast delegate; it should be added instead of assigned
 			else
 			{
@@ -1048,7 +1071,7 @@ public:
 		}
 	}
 
-	void EmitInnerElementExpr(FBPTerminal* OuterTerm, UProperty* InnerProp, uint8* RawElemPtr)
+	void EmitInnerElementExpr(FBPTerminal* OuterTerm, FProperty* InnerProp, uint8* RawElemPtr)
 	{
 		FBPTerminal NewTerm;
 		Schema->ConvertPropertyToPinType(InnerProp, NewTerm.Type);
@@ -1057,23 +1080,23 @@ public:
 		NewTerm.SourcePin = OuterTerm->SourcePin;
 
 		InnerProp->ExportText_Direct(NewTerm.Name, RawElemPtr, RawElemPtr, NULL, PPF_None);
-		if (InnerProp->IsA(UTextProperty::StaticClass()))
+		if (InnerProp->IsA(FTextProperty::StaticClass()))
 		{
-			NewTerm.TextLiteral = Cast<UTextProperty>(InnerProp)->GetPropertyValue(RawElemPtr);
+			NewTerm.TextLiteral = CastField<FTextProperty>(InnerProp)->GetPropertyValue(RawElemPtr);
 			NewTerm.Name = NewTerm.TextLiteral.ToString();
 		}
-		else if (InnerProp->IsA(UObjectPropertyBase::StaticClass()))
+		else if (InnerProp->IsA(FObjectPropertyBase::StaticClass()))
 		{
-			NewTerm.ObjectLiteral = Cast<UObjectPropertyBase>(InnerProp)->GetObjectPropertyValue(RawElemPtr);
+			NewTerm.ObjectLiteral = CastField<FObjectPropertyBase>(InnerProp)->GetObjectPropertyValue(RawElemPtr);
 		}
 
 		EmitTermExpr(&NewTerm, InnerProp);
 	}
 
-	void EmitLatentInfoTerm(FBPTerminal* Term, UProperty* LatentInfoProperty, FBlueprintCompiledStatement* TargetLabel)
+	void EmitLatentInfoTerm(FBPTerminal* Term, FProperty* LatentInfoProperty, FBlueprintCompiledStatement* TargetLabel)
 	{
 		// Special case of the struct property emitter.  Needs to emit a linkage property for fixup
-		UStructProperty* StructProperty = CastChecked<UStructProperty>(LatentInfoProperty);
+		FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(LatentInfoProperty);
 		check(StructProperty->Struct == LatentInfoStruct);
 
 		int32 StructSize = LatentInfoStruct->GetStructureSize();
@@ -1088,7 +1111,7 @@ public:
 		Writer << StructSize;
 
 		checkSlow(Schema);
-		for (UProperty* Prop = LatentInfoStruct->PropertyLink; Prop; Prop = Prop->PropertyLinkNext)
+		for (FProperty* Prop = LatentInfoStruct->PropertyLink; Prop; Prop = Prop->PropertyLinkNext)
 		{
 			if (TargetLabel && Prop->GetBoolMetaData(FBlueprintMetadata::MD_NeedsLatentFixup))
 			{
@@ -1130,11 +1153,11 @@ public:
 		{
 			// Array output parameters are cleared, in case the native function doesn't clear them before filling.
 			int32 NumParams = 0;
-			for (TFieldIterator<UProperty> PropIt(FunctionToCall); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+			for (TFieldIterator<FProperty> PropIt(FunctionToCall); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
 			{
-				UProperty* Param = *PropIt;
+				FProperty* Param = *PropIt;
 				check(Param);
-				const bool bShouldParameterBeCleared = Param->IsA<UArrayProperty>()
+				const bool bShouldParameterBeCleared = Param->IsA<FArrayProperty>()
 					&& Param->HasAllPropertyFlags(CPF_Parm | CPF_OutParm)
 					&& !Param->HasAnyPropertyFlags(CPF_ReferenceParm | CPF_ConstParm | CPF_ReturnParm);
 				if (bShouldParameterBeCleared)
@@ -1178,9 +1201,9 @@ public:
 
 		// Handle the return value assignment if present
 		bool bHasOutputValue = false;
-		for (TFieldIterator<UProperty> PropIt(FunctionToCall); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+		for (TFieldIterator<FProperty> PropIt(FunctionToCall); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
 		{
-			UProperty* FuncParamProperty = *PropIt;
+			FProperty* FuncParamProperty = *PropIt;
 			if (FuncParamProperty->HasAnyPropertyFlags(CPF_ReturnParm))
 			{
 				if (Statement.LHS)
@@ -1217,7 +1240,7 @@ public:
 		{
 			// RValue property is used to clear value after Access Violation. See UObject::ProcessContextOpcod
 			// If the property from LHS is used, then the retured property (with CPF_ReturnParm) is cleared. But properties returned by ref are not cleared. 
-			UProperty* RValueProperty = Statement.LHS ? Statement.LHS->AssociatedVarProperty : nullptr;
+			FProperty* RValueProperty = Statement.LHS ? Statement.LHS->AssociatedVarProperty : nullptr;
 			CallContextWriter.TryStartContext(Statement.FunctionContext, /*bUnsafeToSkip=*/ bHasOutputValue, Statement.bIsInterfaceContext, RValueProperty);
 		}
 
@@ -1261,9 +1284,9 @@ public:
 		const bool bIsCustomThunk = FunctionToCall->HasMetaData(TEXT("CustomThunk"));
 		// Emit function parameters
 		int32 NumParams = 0;
-		for (TFieldIterator<UProperty> PropIt(FunctionToCall); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+		for (TFieldIterator<FProperty> PropIt(FunctionToCall); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
 		{
-			UProperty* FuncParamProperty = *PropIt;
+			FProperty* FuncParamProperty = *PropIt;
 
 			if (!FuncParamProperty->HasAnyPropertyFlags(CPF_ReturnParm))
 			{
@@ -1319,9 +1342,9 @@ public:
 
 		// Emit function parameters
 		int32 NumParams = 0;
-		for (TFieldIterator<UProperty> PropIt(FunctionToCall); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+		for (TFieldIterator<FProperty> PropIt(FunctionToCall); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
 		{
-			UProperty* FuncParamProperty = *PropIt;
+			FProperty* FuncParamProperty = *PropIt;
 
 			FBPTerminal* Term = Statement.RHS[NumParams];
 			check(Term != NULL);
@@ -1336,7 +1359,7 @@ public:
 		Writer << EX_EndFunctionParms;
 	}
 
-	void EmitTerm(FBPTerminal* Term, UProperty* CoerceProperty = NULL, FBPTerminal* RValueTerm = NULL)
+	void EmitTerm(FBPTerminal* Term, FProperty* CoerceProperty = NULL, FBPTerminal* RValueTerm = NULL)
 	{
 		if (Term->InlineGeneratedParameter)
 		{
@@ -1375,7 +1398,7 @@ public:
 				}
 
  				FContextEmitter CallContextWriter(*this);
-				UProperty* RValueProperty = RValueTerm->AssociatedVarProperty;
+				FProperty* RValueProperty = RValueTerm->AssociatedVarProperty;
 				CallContextWriter.TryStartContext(Term->Context, /*@TODO: bUnsafeToSkip*/ true, /*bIsInterfaceContext*/ false, RValueProperty);
 
 				EmitTermExpr(Term, CoerceProperty);
@@ -1461,7 +1484,7 @@ public:
 		FBPTerminal* TargetExpression = Statement.RHS[1];
 
 		Writer << EX_Let;
-		UProperty* PropertyToHandleComplexStruct = nullptr;
+		FProperty* PropertyToHandleComplexStruct = nullptr;
 		Writer << PropertyToHandleComplexStruct;
 		EmitTerm(DestinationExpression);
 
@@ -1469,7 +1492,7 @@ public:
 		UClass* ClassPtr = CastChecked<UClass>(InterfaceExpression->ObjectLiteral);
 		check(ClassPtr);
 		Writer << ClassPtr;
-		EmitTerm(TargetExpression, (UProperty*)(GetDefault<UObjectProperty>()));
+		EmitTerm(TargetExpression, (FProperty*)(GetDefault<FObjectProperty>()));
 	}
 
 	void EmitCastBetweenInterfacesStatement(FBlueprintCompiledStatement& Statement) 
@@ -1479,7 +1502,7 @@ public:
 		FBPTerminal* TargetExpression      = Statement.RHS[1];
 
 		Writer << EX_Let;
-		UProperty* PropertyToHandleComplexStruct = nullptr;
+		FProperty* PropertyToHandleComplexStruct = nullptr;
 		Writer << PropertyToHandleComplexStruct;
 		EmitTerm(DestinationExpression);
 
@@ -1487,7 +1510,7 @@ public:
 		UClass* ClassPtr = CastChecked<UClass>(InterfaceExpression->ObjectLiteral);
 		check(ClassPtr);
 		Writer << ClassPtr;
-		EmitTerm(TargetExpression, (UProperty*)(GetDefault<UInterfaceProperty>()));
+		EmitTerm(TargetExpression, (FProperty*)(GetDefault<FInterfaceProperty>()));
 	}
 
 	void EmitCastInterfaceToObjStatement(FBlueprintCompiledStatement& Statement)
@@ -1497,7 +1520,7 @@ public:
 		FBPTerminal* TargetInterfaceExpression = Statement.RHS[1];
 
 		Writer << EX_Let;
-		UProperty* PropertyToHandleComplexStruct = nullptr;
+		FProperty* PropertyToHandleComplexStruct = nullptr;
 		Writer << PropertyToHandleComplexStruct;
 		EmitTerm(DestinationExpression);
 
@@ -1505,7 +1528,7 @@ public:
 		UClass* ClassPtr = CastChecked<UClass>(ResultObjClassExpression->ObjectLiteral);
 		check(ClassPtr != nullptr);
 		Writer << ClassPtr;
-		EmitTerm(TargetInterfaceExpression, (UProperty*)(GetDefault<UObjectProperty>()));
+		EmitTerm(TargetInterfaceExpression, (FProperty*)(GetDefault<FObjectProperty>()));
 	}
 
 	void EmitDynamicCastStatement(FBlueprintCompiledStatement& Statement)
@@ -1515,14 +1538,14 @@ public:
 		FBPTerminal* TargetExpression = Statement.RHS[1];
 
 		Writer << EX_Let;
-		UProperty* PropertyToHandleComplexStruct = nullptr;
+		FProperty* PropertyToHandleComplexStruct = nullptr;
 		Writer << PropertyToHandleComplexStruct;
 		EmitTerm(DestinationExpression);
 
 		Writer << EX_DynamicCast;
 		UClass* ClassPtr = CastChecked<UClass>(ResultClassExpression->ObjectLiteral);
 		Writer << ClassPtr;
-		EmitTerm(TargetExpression, (UProperty*)(GetDefault<UObjectProperty>()));
+		EmitTerm(TargetExpression, (FProperty*)(GetDefault<FObjectProperty>()));
 	}
 
 	void EmitMetaCastStatement(FBlueprintCompiledStatement& Statement)
@@ -1532,14 +1555,14 @@ public:
 		FBPTerminal* TargetExpression = Statement.RHS[1];
 
 		Writer << EX_Let;
-		UProperty* PropertyToHandleComplexStruct = nullptr;
+		FProperty* PropertyToHandleComplexStruct = nullptr;
 		Writer << PropertyToHandleComplexStruct;
 		EmitTerm(DestinationExpression);
 
 		Writer << EX_MetaCast;
 		UClass* ClassPtr = CastChecked<UClass>(InterfaceExpression->ObjectLiteral);
 		Writer << ClassPtr;
-		EmitTerm(TargetExpression, (UProperty*)(GetDefault<UClassProperty>()));
+		EmitTerm(TargetExpression, (FProperty*)(GetDefault<FClassProperty>()));
 	}
 
 	void EmitObjectToBoolStatement(FBlueprintCompiledStatement& Statement)
@@ -1551,7 +1574,7 @@ public:
 		const bool bIsInterfaceCast = (PSCObjClass && PSCObjClass->HasAnyClassFlags(CLASS_Interface));
 
 		Writer << EX_Let;
-		UProperty* PropertyToHandleComplexStruct = nullptr;
+		FProperty* PropertyToHandleComplexStruct = nullptr;
 		Writer << PropertyToHandleComplexStruct;
 		EmitTerm(DestinationExpression);
 
@@ -1559,7 +1582,7 @@ public:
 		uint8 CastType = !bIsInterfaceCast ? CST_ObjectToBool : CST_InterfaceToBool;
 		Writer << CastType;
 		
-		UProperty* TargetProperty = !bIsInterfaceCast ? ((UProperty*)(GetDefault<UObjectProperty>())) : ((UProperty*)(GetDefault<UInterfaceProperty>()));
+		FProperty* TargetProperty = !bIsInterfaceCast ? ((FProperty*)(GetDefault<FObjectProperty>())) : ((FProperty*)(GetDefault<FInterfaceProperty>()));
 		EmitTerm(TargetExpression, TargetProperty);
 	}
 
@@ -1598,7 +1621,7 @@ public:
 		Writer << FunctionName;
 		
 		EmitTerm(Delegate);
-		EmitTerm(ObjectTerm, (UProperty*)(GetDefault<UObjectProperty>()));
+		EmitTerm(ObjectTerm, (FProperty*)(GetDefault<FObjectProperty>()));
 	}
 
 	void EmitClearMulticastDelegateStatement(FBlueprintCompiledStatement& Statement)
@@ -1616,8 +1639,8 @@ public:
 		FBPTerminal* ArrayTerm = Statement.LHS;
 		EmitTerm(ArrayTerm);
 		
-		UArrayProperty* ArrayProperty = CastChecked<UArrayProperty>(ArrayTerm->AssociatedVarProperty);
-		UProperty* InnerProperty = ArrayProperty->Inner;
+		FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(ArrayTerm->AssociatedVarProperty);
+		FProperty* InnerProperty = ArrayProperty->Inner;
 
 		for(auto ArrayItemIt = Statement.RHS.CreateIterator(); ArrayItemIt; ++ArrayItemIt)
 		{
@@ -1638,8 +1661,8 @@ public:
 
 		Writer << ElementNum; // number of elements in the set, used for reserve call
 		
-		USetProperty* SetProperty = CastChecked<USetProperty>(SetTerm->AssociatedVarProperty);
-		UProperty* InnerProperty = SetProperty->ElementProp;
+		FSetProperty* SetProperty = CastFieldChecked<FSetProperty>(SetTerm->AssociatedVarProperty);
+		FProperty* InnerProperty = SetProperty->ElementProp;
 
 		for(FBPTerminal* Item : Statement.RHS)
 		{
@@ -1661,7 +1684,7 @@ public:
 
 		Writer << ElementNum;
 
-		UMapProperty* MapProperty = CastChecked<UMapProperty>(MapTerm->AssociatedVarProperty);
+		FMapProperty* MapProperty = CastFieldChecked<FMapProperty>(MapTerm->AssociatedVarProperty);
 		
 		for(auto MapItemIt = Statement.RHS.CreateIterator(); MapItemIt; ++MapItemIt)
 		{
@@ -1683,7 +1706,7 @@ public:
 			Writer << EX_ComputedJump;
 
 			// Now include the integer offset expression
-			EmitTerm(Statement.LHS, (UProperty*)(GetDefault<UIntProperty>()));
+			EmitTerm(Statement.LHS, (FProperty*)(GetDefault<FIntProperty>()));
 		}
 		else if (Statement.Type == KCST_GotoIfNot)
 		{
@@ -1695,7 +1718,7 @@ public:
 			JumpTargetFixupMap.Add(PatchUpNeededAtOffset, FCodeSkipInfo(FCodeSkipInfo::Fixup, Statement.TargetLabel));
 
 			// Now include the boolean expression
-			EmitTerm(Statement.LHS, (UProperty*)(GetDefault<UBoolProperty>()));
+			EmitTerm(Statement.LHS, (FProperty*)(GetDefault<FBoolProperty>()));
 		}
 		else if (Statement.Type == KCST_EndOfThreadIfNot)
 		{
@@ -1703,7 +1726,7 @@ public:
 			Writer << EX_PopExecutionFlowIfNot;
 
 			// Now include the boolean expression
-			EmitTerm(Statement.LHS, (UProperty*)(GetDefault<UBoolProperty>()));
+			EmitTerm(Statement.LHS, (FProperty*)(GetDefault<FBoolProperty>()));
 		}
 		else if (Statement.Type == KCST_UnconditionalGoto)
 		{
@@ -1733,7 +1756,7 @@ public:
 			JumpTargetFixupMap.Add(PatchUpNeededAtOffset, FCodeSkipInfo(FCodeSkipInfo::Fixup, &ReturnStatement));
 
 			// Now include the boolean expression
-			EmitTerm(Statement.LHS, (UProperty*)(GetDefault<UBoolProperty>()));
+			EmitTerm(Statement.LHS, (FProperty*)(GetDefault<FBoolProperty>()));
 		}
 		else
 		{
@@ -1759,7 +1782,7 @@ public:
 
 	void EmitReturn(FKismetFunctionContext& Context)
 	{
-		UObject* ReturnProperty = Context.Function->GetReturnProperty();
+		FProperty* ReturnProperty = Context.Function->GetReturnProperty();
 
 		Writer << EX_Return;
 		
@@ -1768,7 +1791,7 @@ public:
 			Writer << EX_Nothing;
 		}
 		else
-		{
+		{			
 			Writer << EX_LocalOutVariable;
 			Writer << ReturnProperty;
 		}
@@ -1796,12 +1819,12 @@ public:
 		auto IndexTerm = Statement.RHS[0];
 		check(IndexTerm);
 		EmitTerm(IndexTerm);
-		UProperty* VirtualIndexProperty = IndexTerm->AssociatedVarProperty;
+		FProperty* VirtualIndexProperty = IndexTerm->AssociatedVarProperty;
 		check(VirtualIndexProperty);
 
 		auto DefaultTerm = Statement.RHS[TermsBeforeCases + NumCases*TermsPerCase];
 		check(DefaultTerm);
-		UProperty* VirtualValueProperty = DefaultTerm->AssociatedVarProperty;
+		FProperty* VirtualValueProperty = DefaultTerm->AssociatedVarProperty;
 		check(VirtualValueProperty);
 
 		for (uint16 TermIndex = TermsBeforeCases; TermIndex < (NumCases * TermsPerCase); ++TermIndex)
@@ -1974,7 +1997,7 @@ public:
 		// The array variable
 		EmitTerm(Statement.RHS[0]);
 		// The index to access in the array
-		EmitTerm(Statement.RHS[1], (UProperty*)(GetDefault<UIntProperty>()));
+		EmitTerm(Statement.RHS[1], (FProperty*)(GetDefault<FIntProperty>()));
 	}
 
 	void PushReturnAddress(FBlueprintCompiledStatement& ReturnTarget)

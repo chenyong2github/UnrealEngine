@@ -32,9 +32,22 @@
     - LZ4 homepage : http://www.lz4.org
     - LZ4 source repository : https://github.com/lz4/lz4
 */
+
+#pragma once // EPIC MOD: Placate IncludeTool warning
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
+
+// BEGIN EPIC MOD : Wrap library in an optional namespace
+#if defined(LZ4_NAMESPACE) && defined(__cplusplus)
+#  define LZ4_BEGIN_NAMESPACE   extern "C++" { namespace LZ4_NAMESPACE {
+#  define LZ4_END_NAMESPACE     } /* extern */ } /* namespace */
+#else
+#  define LZ4_BEGIN_NAMESPACE
+#  define LZ4_END_NAMESPACE
+#endif // LZ4_NAMESPACE
+// END EPIC MOD
 
 #ifndef LZ4_H_2983827168210
 #define LZ4_H_2983827168210
@@ -108,6 +121,8 @@ extern "C" {
 #define LZ4_QUOTE(str) #str
 #define LZ4_EXPAND_AND_QUOTE(str) LZ4_QUOTE(str)
 #define LZ4_VERSION_STRING LZ4_EXPAND_AND_QUOTE(LZ4_LIB_VERSION)
+
+LZ4_BEGIN_NAMESPACE // EPIC MOD : Wrap library in an optional namespace
 
 LZ4LIB_API int LZ4_versionNumber (void);  /**< library version number; useful to check dll version */
 LZ4LIB_API const char* LZ4_versionString (void);   /**< library version string; useful to check dll version */
@@ -397,6 +412,8 @@ LZ4LIB_API int LZ4_decompress_safe_continue (LZ4_streamDecode_t* LZ4_streamDecod
  */
 LZ4LIB_API int LZ4_decompress_safe_usingDict (const char* src, char* dst, int srcSize, int dstCapcity, const char* dictStart, int dictSize);
 
+LZ4_END_NAMESPACE // EPIC MOD : Wrap library in an optional namespace
+
 #endif /* LZ4_H_2983827168210 */
 
 
@@ -434,6 +451,8 @@ LZ4LIB_API int LZ4_decompress_safe_usingDict (const char* src, char* dst, int sr
 #else
 #define LZ4LIB_STATIC_API
 #endif
+
+LZ4_BEGIN_NAMESPACE // EPIC MOD : Wrap library in an optional namespace
 
 
 /*! LZ4_compress_fast_extState_fastReset() :
@@ -538,6 +557,8 @@ LZ4LIB_STATIC_API void LZ4_attach_dictionary(LZ4_stream_t* workingStream, const 
 #define LZ4_COMPRESS_INPLACE_MARGIN                           (LZ4_DISTANCE_MAX + 32)   /* LZ4_DISTANCE_MAX can be safely replaced by srcSize when it's smaller */
 #define LZ4_COMPRESS_INPLACE_BUFFER_SIZE(maxCompressedSize)   ((maxCompressedSize) + LZ4_COMPRESS_INPLACE_MARGIN)  /**< maxCompressedSize is generally LZ4_COMPRESSBOUND(inputSize), but can be set to any lower value, with the risk that compression can fail (return code 0(zero)) */
 
+LZ4_END_NAMESPACE // EPIC MOD : Wrap library in an optional namespace
+
 #endif   /* LZ4_STATIC_3504398509 */
 #endif   /* LZ4_STATIC_LINKING_ONLY */
 
@@ -559,6 +580,8 @@ LZ4LIB_STATIC_API void LZ4_attach_dictionary(LZ4_stream_t* workingStream, const 
 
 #if defined(__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
 #include <stdint.h>
+
+LZ4_BEGIN_NAMESPACE // EPIC MOD : Wrap library in an optional namespace
 
 typedef struct LZ4_stream_t_internal LZ4_stream_t_internal;
 struct LZ4_stream_t_internal {
@@ -754,6 +777,8 @@ LZ4LIB_API int LZ4_decompress_fast_usingDict (const char* src, char* dst, int or
  *  invoking LZ4_resetStream() will trigger deprecation warnings in the future.
  */
 LZ4LIB_API void LZ4_resetStream (LZ4_stream_t* streamPtr);
+
+LZ4_END_NAMESPACE // EPIC MOD : Wrap library in an optional namespace
 
 
 #endif /* LZ4_H_98237428734687 */

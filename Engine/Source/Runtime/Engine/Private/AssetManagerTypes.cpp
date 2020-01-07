@@ -138,7 +138,7 @@ void FPrimaryAssetRules::PropagateCookRules(const FPrimaryAssetRules& ParentRule
 	}
 }
 
-void UAssetManagerSettings::PostReloadConfig(UProperty* PropertyThatWasLoaded)
+void UAssetManagerSettings::PostReloadConfig(FProperty* PropertyThatWasLoaded)
 {
 	Super::PostReloadConfig(PropertyThatWasLoaded);
 
@@ -185,7 +185,7 @@ void UAssetManagerSettings::ClearMetaDataTagsSettings()
 	}
 }
 
-void UAssetManagerSettings::PreEditChange(UProperty* PropertyAboutToChange)
+void UAssetManagerSettings::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	Super::PreEditChange(PropertyAboutToChange);
 

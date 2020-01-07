@@ -49,7 +49,7 @@ void FPropertyTableCell::Refresh()
 
 	if ( !Item.IsValid() )
 	{
-		// Must have a valid non-UProperty UObject bound to the column or row
+		// Must have a valid non-FProperty UObject bound to the column or row
 		return;
 	}
 

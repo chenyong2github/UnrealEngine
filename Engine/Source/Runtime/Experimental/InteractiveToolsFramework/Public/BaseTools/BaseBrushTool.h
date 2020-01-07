@@ -79,8 +79,8 @@ struct INTERACTIVETOOLSFRAMEWORK_API FBrushStampData
  * This includes:
  *   1) brush radius property set with dimension-relative brush sizing and default brush radius hotkeys
  *   2) brush indicator visualization
- *   3) tracking of last brush stamp location via .LastBrushStamp UProperty
- *   4) status of brush stroke via .bInBrushStroke UProperty
+ *   3) tracking of last brush stamp location via .LastBrushStamp FProperty
+ *   4) status of brush stroke via .bInBrushStroke FProperty
  */
 UCLASS()
 class INTERACTIVETOOLSFRAMEWORK_API UBaseBrushTool : public UMeshSurfacePointTool
@@ -98,7 +98,7 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
-	virtual void OnPropertyModified(UObject* PropertySet, UProperty* Property) override;
+	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
 
 	//

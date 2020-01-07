@@ -23,7 +23,7 @@ class UInterpTrackInstFloatAnimBPParam : public UInterpTrackInst
 	UPROPERTY(transient)
 	float ResetFloat;
 
-	UProperty* ParamProperty;
+	FProperty* ParamProperty;
 
 	// Begin UInterpTrackInst Instance
 	virtual void InitTrackInst(UInterpTrack* Track) override;

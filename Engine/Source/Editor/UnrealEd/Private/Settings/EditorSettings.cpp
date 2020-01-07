@@ -19,7 +19,7 @@ UEditorSettings::UEditorSettings(const FObjectInitializer& ObjectInitializer)
 
 void UEditorSettings::PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent)
 {
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 
 	const FName Name = PropertyThatChanged ? PropertyThatChanged->GetFName() : NAME_None;
 	if (Name == FName(TEXT("bLoadTheMostRecentlyLoadedProjectAtStartup")))

@@ -88,11 +88,11 @@ const FPropertyLocalizationDataGatherer::FGatherableFieldsForType& FPropertyLoca
 {
 	TUniquePtr<FGatherableFieldsForType> GatherableFieldsForType = MakeUnique<FGatherableFieldsForType>();
 
-	for (TFieldIterator<const UField> FieldIt(InType, EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::IncludeInterfaces); FieldIt; ++FieldIt)
+	for (TFieldIterator<FProperty> FieldIt(InType, EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::IncludeInterfaces); FieldIt; ++FieldIt)
 	{
 		// Look for potential properties
 		{
-			auto ProcessInnerProperty = [this, &GatherableFieldsForType](const UProperty* InProp, const UProperty* InTypeProp)
+			auto ProcessInnerProperty = [this, &GatherableFieldsForType](const FProperty* InProp, const FProperty* InTypeProp)
 			{
 				if (CanGatherFromInnerProperty(InProp))
 				{
@@ -100,26 +100,28 @@ const FPropertyLocalizationDataGatherer::FGatherableFieldsForType& FPropertyLoca
 				}
 			};
 
-			const UProperty* PropertyField = Cast<UProperty>(*FieldIt);
+			const FProperty* PropertyField = *FieldIt;
 			if (PropertyField)
 			{
 				ProcessInnerProperty(PropertyField, PropertyField);
-				if (const UArrayProperty* ArrayProp = Cast<const UArrayProperty>(PropertyField))
+				if (const FArrayProperty* ArrayProp = CastField<const FArrayProperty>(PropertyField))
 				{
 					ProcessInnerProperty(ArrayProp->Inner, PropertyField);
 				}
-				if (const UMapProperty* MapProp = Cast<const UMapProperty>(PropertyField))
+				if (const FMapProperty* MapProp = CastField<const FMapProperty>(PropertyField))
 				{
 					ProcessInnerProperty(MapProp->KeyProp, PropertyField);
 					ProcessInnerProperty(MapProp->ValueProp, PropertyField);
 				}
-				if (const USetProperty* SetProp = Cast<const USetProperty>(PropertyField))
+				if (const FSetProperty* SetProp = CastField<const FSetProperty>(PropertyField))
 				{
 					ProcessInnerProperty(SetProp->ElementProp, PropertyField);
 				}
 			}
 		}
-
+	}
+	for (TFieldIterator<const UField> FieldIt(InType, EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::IncludeInterfaces); FieldIt; ++FieldIt)
+	{
 		// Look for potential functions
 		{
 			const UFunction* FunctionField = Cast<UFunction>(*FieldIt);
@@ -134,14 +136,14 @@ const FPropertyLocalizationDataGatherer::FGatherableFieldsForType& FPropertyLoca
 	return *GatherableFieldsForTypes.Add(InType, MoveTemp(GatherableFieldsForType)).Get();
 }
 
-bool FPropertyLocalizationDataGatherer::CanGatherFromInnerProperty(const UProperty* InInnerProperty)
+bool FPropertyLocalizationDataGatherer::CanGatherFromInnerProperty(const FProperty* InInnerProperty)
 {
-	if (InInnerProperty->IsA<UTextProperty>() || InInnerProperty->IsA<UObjectPropertyBase>())
+	if (InInnerProperty->IsA<FTextProperty>() || InInnerProperty->IsA<FObjectPropertyBase>())
 	{
 		return true;
 	}
 
-	if (const UStructProperty* StructInnerProp = Cast<const UStructProperty>(InInnerProperty))
+	if (const FStructProperty* StructInnerProp = CastField<const FStructProperty>(InInnerProperty))
 	{
 		// Call the "Get" version as we may have already cached a result for this type
 		return GetGatherableFieldsForType(StructInnerProp->Struct).HasFields();
@@ -221,14 +223,14 @@ void FPropertyLocalizationDataGatherer::GatherLocalizationDataFromObjectFields(c
 	const FGatherableFieldsForType& GatherableFieldsForType = GetGatherableFieldsForType(Object->GetClass());
 
 	// Gather text from the property data
-	for (const UProperty* PropertyField : GatherableFieldsForType.Properties)
+	for (const FProperty* PropertyField : GatherableFieldsForType.Properties)
 	{
 		const void* ValueAddress = PropertyField->ContainerPtrToValuePtr<void>(Object);
 		const void* DefaultValueAddress = nullptr;
 
 		if (ArchetypeObject)
 		{
-			const UProperty* ArchetypePropertyField = FindField<UProperty>(ArchetypeObject->GetClass(), *PropertyField->GetName());
+			const FProperty* ArchetypePropertyField = FindField<FProperty>(ArchetypeObject->GetClass(), *PropertyField->GetName());
 			if (ArchetypePropertyField && ArchetypePropertyField->IsA(PropertyField->GetClass()))
 			{
 				DefaultValueAddress = ArchetypePropertyField->ContainerPtrToValuePtr<void>(ArchetypeObject);
@@ -254,7 +256,7 @@ void FPropertyLocalizationDataGatherer::GatherLocalizationDataFromStructFields(c
 	const FGatherableFieldsForType& GatherableFieldsForType = GetGatherableFieldsForType(Struct);
 
 	// Gather text from the property data
-	for (const UProperty* PropertyField : GatherableFieldsForType.Properties)
+	for (const FProperty* PropertyField : GatherableFieldsForType.Properties)
 	{
 		const void* ValueAddress = PropertyField->ContainerPtrToValuePtr<void>(StructData);
 		const void* DefaultValueAddress = DefaultStructData ? PropertyField->ContainerPtrToValuePtr<void>(DefaultStructData) : nullptr;
@@ -272,7 +274,7 @@ void FPropertyLocalizationDataGatherer::GatherLocalizationDataFromStructFields(c
 	}
 }
 
-void FPropertyLocalizationDataGatherer::GatherLocalizationDataFromChildTextProperties(const FString& PathToParent, const UProperty* const Property, const void* const ValueAddress, const void* const DefaultValueAddress, const EPropertyLocalizationGathererTextFlags GatherTextFlags)
+void FPropertyLocalizationDataGatherer::GatherLocalizationDataFromChildTextProperties(const FString& PathToParent, const FProperty* const Property, const void* const ValueAddress, const void* const DefaultValueAddress, const EPropertyLocalizationGathererTextFlags GatherTextFlags)
 {
 	if (Property->HasAnyPropertyFlags(CPF_Transient))
 	{
@@ -281,12 +283,12 @@ void FPropertyLocalizationDataGatherer::GatherLocalizationDataFromChildTextPrope
 	}
 
 	// If adding more type support here, also update CacheGatherableFieldsForType
-	const UTextProperty* const TextProperty = Cast<const UTextProperty>(Property);
-	const UArrayProperty* const ArrayProperty = Cast<const UArrayProperty>(Property);
-	const UMapProperty* const MapProperty = Cast<const UMapProperty>(Property);
-	const USetProperty* const SetProperty = Cast<const USetProperty>(Property);
-	const UStructProperty* const StructProperty = Cast<const UStructProperty>(Property);
-	const UObjectPropertyBase* const ObjectProperty = Cast<const UObjectPropertyBase>(Property);
+	const FTextProperty* const TextProperty = CastField<const FTextProperty>(Property);
+	const FArrayProperty* const ArrayProperty = CastField<const FArrayProperty>(Property);
+	const FMapProperty* const MapProperty = CastField<const FMapProperty>(Property);
+	const FSetProperty* const SetProperty = CastField<const FSetProperty>(Property);
+	const FStructProperty* const StructProperty = CastField<const FStructProperty>(Property);
+	const FObjectPropertyBase* const ObjectProperty = CastField<const FObjectPropertyBase>(Property);
 
 	const EPropertyLocalizationGathererTextFlags FixedChildPropertyGatherTextFlags = GatherTextFlags | (Property->HasAnyPropertyFlags(CPF_EditorOnly) ? EPropertyLocalizationGathererTextFlags::ForceEditorOnly : EPropertyLocalizationGathererTextFlags::None);
 

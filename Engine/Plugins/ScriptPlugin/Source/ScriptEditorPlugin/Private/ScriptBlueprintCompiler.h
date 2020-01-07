@@ -57,6 +57,6 @@ protected:
 	/** Script-defined properties and functions */
 	TArray<FScriptField> ScriptDefinedFields;
 	/** Script context property generated for the compiled class */
-	UObjectProperty* ContextProperty;
+	FObjectProperty* ContextProperty;
 };
 

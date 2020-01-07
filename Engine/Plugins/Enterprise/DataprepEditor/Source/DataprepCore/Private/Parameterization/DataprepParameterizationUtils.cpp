@@ -15,15 +15,15 @@
 
 namespace DataprepParameterizationUtils
 {
-	bool IsAContainerProperty(UObject* Property)
+	bool IsAContainerProperty(FProperty* Property)
 	{
 		if ( Property )
 		{
-			if ( UClass* PropertyClass = Property->GetClass() )
+			if ( FFieldClass* PropertyClass = Property->GetClass() )
 			{
-				if ( PropertyClass == UArrayProperty::StaticClass()
-					|| PropertyClass == USetProperty::StaticClass()
-					|| PropertyClass == UMapProperty::StaticClass() )
+				if ( PropertyClass == FArrayProperty::StaticClass()
+					|| PropertyClass == FSetProperty::StaticClass()
+					|| PropertyClass == FMapProperty::StaticClass() )
 				{
 					return true;
 				}
@@ -57,7 +57,7 @@ TArray<FDataprepPropertyLink> FDataprepParameterizationUtils::MakePropertyChain(
 	if ( PropertyHandle.IsValid() )
 	{ 
 		TSharedPtr<IPropertyHandle> CurrentHandle = PropertyHandle;
-		UProperty* Property = CurrentHandle->GetProperty();
+		FProperty* Property = CurrentHandle->GetProperty();
 
 		TSharedPtr<IPropertyHandle> ParentHandle;
 
@@ -68,7 +68,7 @@ TArray<FDataprepPropertyLink> FDataprepParameterizationUtils::MakePropertyChain(
 				
 			if ( ParentHandle.IsValid() )
 			{ 
-				UProperty* ParentProperty = ParentHandle->GetProperty();
+				FProperty* ParentProperty = ParentHandle->GetProperty();
 
 				// We manipulate a bit the chain to store the property inside a container in a special way. So that we can 
 				if ( DataprepParameterizationUtils::IsAContainerProperty( ParentProperty ) )
@@ -88,7 +88,7 @@ TArray<FDataprepPropertyLink> FDataprepParameterizationUtils::MakePropertyChain(
 
 			if ( CurrentHandle )
 			{
-				UProperty* NextProperty = CurrentHandle->GetProperty();
+				FProperty* NextProperty = CurrentHandle->GetProperty();
 
 				// Deal with the case of a property of a raw c++ array
 				while ( CurrentHandle && NextProperty == Property )
@@ -132,9 +132,9 @@ TArray<FDataprepPropertyLink> FDataprepParameterizationUtils::MakePropertyChain(
 	TArray<FDataprepPropertyLink> DataprepPropertyChain;
 	DataprepPropertyChain.Reserve( EditPropertyChain.Num() + 1 );
 
-	const TDoubleLinkedList<UProperty*>::TDoubleLinkedListNode* CurrentNode = EditPropertyChain.GetHead();
+	const TDoubleLinkedList<FProperty*>::TDoubleLinkedListNode* CurrentNode = EditPropertyChain.GetHead();
 
-	UProperty* Property = nullptr;
+	FProperty* Property = nullptr;
 	while( CurrentNode )
 	{
 		Property = CurrentNode->GetValue();
@@ -144,19 +144,19 @@ TArray<FDataprepPropertyLink> FDataprepParameterizationUtils::MakePropertyChain(
 			DataprepPropertyChain.Emplace( Property, Property->GetFName(), ContainerIndex);
 
 			// Used to validate if we should skip the next property
-			UProperty* PossibleNextProperty = nullptr;
+			FProperty* PossibleNextProperty = nullptr;
 
-			if ( Property->GetClass() == UArrayProperty::StaticClass() )
+			if ( Property->GetClass() == FArrayProperty::StaticClass() )
 			{
-				UArrayProperty* ArrayProperty  = static_cast<UArrayProperty*>( Property );
-				UProperty* ArrayTypeProperty = ArrayProperty->Inner;
+				FArrayProperty* ArrayProperty  = static_cast<FArrayProperty*>( Property );
+				FProperty* ArrayTypeProperty = ArrayProperty->Inner;
 				DataprepPropertyChain.Emplace( ArrayTypeProperty, ArrayTypeProperty->GetFName(), INDEX_NONE );
 				PossibleNextProperty = ArrayTypeProperty;
 			}
-			else if ( Property->GetClass() == USetProperty::StaticClass() )
+			else if ( Property->GetClass() == FSetProperty::StaticClass() )
 			{
-				USetProperty* SetProperty = static_cast<USetProperty*>(Property);
-				UProperty* SetTypeProperty = SetProperty->ElementProp;
+				FSetProperty* SetProperty = static_cast<FSetProperty*>(Property);
+				FProperty* SetTypeProperty = SetProperty->ElementProp;
 				DataprepPropertyChain.Emplace(SetTypeProperty, SetTypeProperty->GetFName(), INDEX_NONE);
 				PossibleNextProperty = SetTypeProperty;
 			}
@@ -166,7 +166,7 @@ TArray<FDataprepPropertyLink> FDataprepParameterizationUtils::MakePropertyChain(
 			
 			if ( PossibleNextProperty )
 			{ 
-				const TDoubleLinkedList<UProperty*>::TDoubleLinkedListNode* NextNode = CurrentNode->GetNextNode();
+				const TDoubleLinkedList<FProperty*>::TDoubleLinkedListNode* NextNode = CurrentNode->GetNextNode();
 				if ( NextNode && PossibleNextProperty == NextNode->GetValue() )
 				{
 					//skip the next property
@@ -256,7 +256,7 @@ bool FDataprepParameterizationUtils::IsPropertyChainValid(const TArray<FDataprep
 	bool bParentWasAContainer = false;
 	for ( const FDataprepPropertyLink& PropertyLink : PropertyChain )
 	{
-		UProperty* Property = PropertyLink.CachedProperty.Get();
+		FProperty* Property = PropertyLink.CachedProperty.Get();
 		if ( !Property )
 		{
 			return false;
@@ -282,7 +282,7 @@ bool FDataprepParameterizationUtils::IsPropertyChainValid(const TArray<FDataprep
 			}
 
 			// We are not able to serialize the text properties yet
-			if ( Property->GetClass() == UTextProperty::StaticClass() )
+			if ( Property->GetClass() == FTextProperty::StaticClass() )
 			{
 				return false;
 			}

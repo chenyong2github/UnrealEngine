@@ -2,7 +2,7 @@
 
 #include "Kismet/BlueprintMapLibrary.h"
 
-void UBlueprintMapLibrary::GenericMap_Add(const void* TargetMap, const UMapProperty* MapProperty, const void* KeyPtr, const void* ValuePtr)
+void UBlueprintMapLibrary::GenericMap_Add(const void* TargetMap, const FMapProperty* MapProperty, const void* KeyPtr, const void* ValuePtr)
 {
 	if (TargetMap)
 	{
@@ -11,7 +11,7 @@ void UBlueprintMapLibrary::GenericMap_Add(const void* TargetMap, const UMapPrope
 	}
 }
 
-bool UBlueprintMapLibrary::GenericMap_Remove(const void* TargetMap, const UMapProperty* MapProperty, const void* KeyPtr)
+bool UBlueprintMapLibrary::GenericMap_Remove(const void* TargetMap, const FMapProperty* MapProperty, const void* KeyPtr)
 {
 	if(TargetMap)
 	{
@@ -21,7 +21,7 @@ bool UBlueprintMapLibrary::GenericMap_Remove(const void* TargetMap, const UMapPr
 	return false;
 }
 
-bool UBlueprintMapLibrary::GenericMap_Find(const void* TargetMap, const UMapProperty* MapProperty, const void* KeyPtr, void* OutValuePtr)
+bool UBlueprintMapLibrary::GenericMap_Find(const void* TargetMap, const FMapProperty* MapProperty, const void* KeyPtr, void* OutValuePtr)
 {
 	if(TargetMap)
 	{
@@ -43,7 +43,7 @@ bool UBlueprintMapLibrary::GenericMap_Find(const void* TargetMap, const UMapProp
 	return false;
 }
 
-void UBlueprintMapLibrary::GenericMap_Keys(const void* TargetMap, const UMapProperty* MapProperty, const void* TargetArray, const UArrayProperty* ArrayProperty)
+void UBlueprintMapLibrary::GenericMap_Keys(const void* TargetMap, const FMapProperty* MapProperty, const void* TargetArray, const FArrayProperty* ArrayProperty)
 {
 	if(TargetMap && TargetArray && ensure(MapProperty->KeyProp->GetID() == ArrayProperty->Inner->GetID()) )
 	{
@@ -51,7 +51,7 @@ void UBlueprintMapLibrary::GenericMap_Keys(const void* TargetMap, const UMapProp
 		FScriptArrayHelper ArrayHelper(ArrayProperty, TargetArray);
 		ArrayHelper.EmptyValues();
 
-		UProperty* InnerProp = ArrayProperty->Inner;
+		FProperty* InnerProp = ArrayProperty->Inner;
 
 		int32 Size = MapHelper.Num();
 		for( int32 I = 0; Size; ++I )
@@ -66,7 +66,7 @@ void UBlueprintMapLibrary::GenericMap_Keys(const void* TargetMap, const UMapProp
 	}
 }
 
-void UBlueprintMapLibrary::GenericMap_Values(const void* TargetMap, const UMapProperty* MapProperty, const void* TargetArray, const UArrayProperty* ArrayProperty)
+void UBlueprintMapLibrary::GenericMap_Values(const void* TargetMap, const FMapProperty* MapProperty, const void* TargetArray, const FArrayProperty* ArrayProperty)
 {	
 	if(TargetMap && TargetArray && ensure(MapProperty->ValueProp->GetID() == ArrayProperty->Inner->GetID()))
 	{
@@ -74,7 +74,7 @@ void UBlueprintMapLibrary::GenericMap_Values(const void* TargetMap, const UMapPr
 		FScriptArrayHelper ArrayHelper(ArrayProperty, TargetArray);
 		ArrayHelper.EmptyValues();
 
-		UProperty* InnerProp = ArrayProperty->Inner;
+		FProperty* InnerProp = ArrayProperty->Inner;
 		
 		int32 Size = MapHelper.Num();
 		for( int32 I = 0; Size; ++I )
@@ -89,7 +89,7 @@ void UBlueprintMapLibrary::GenericMap_Values(const void* TargetMap, const UMapPr
 	}
 }
 
-int32 UBlueprintMapLibrary::GenericMap_Length(const void* TargetMap, const UMapProperty* MapProperty)
+int32 UBlueprintMapLibrary::GenericMap_Length(const void* TargetMap, const FMapProperty* MapProperty)
 {
 	if(TargetMap)
 	{
@@ -99,7 +99,7 @@ int32 UBlueprintMapLibrary::GenericMap_Length(const void* TargetMap, const UMapP
 	return 0;
 }
 
-void UBlueprintMapLibrary::GenericMap_Clear(const void* TargetMap, const UMapProperty* MapProperty)
+void UBlueprintMapLibrary::GenericMap_Clear(const void* TargetMap, const FMapProperty* MapProperty)
 {
 	if(TargetMap)
 	{
@@ -112,7 +112,7 @@ void UBlueprintMapLibrary::GenericMap_SetMapPropertyByName(UObject* OwnerObject,
 {
 	if (OwnerObject)
 	{
-		if (UMapProperty* MapProp = FindField<UMapProperty>(OwnerObject->GetClass(), MapPropertyName))
+		if (FMapProperty* MapProp = FindField<FMapProperty>(OwnerObject->GetClass(), MapPropertyName))
 		{
 			void* Dest = MapProp->ContainerPtrToValuePtr<void>(OwnerObject);
 			MapProp->CopyValuesInternal(Dest, SrcMapAddr, 1);

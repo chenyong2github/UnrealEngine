@@ -103,7 +103,7 @@ class UTestObject_StructuredArchiveInPreprocessorBlock : public UObject
 #define SOME_RANDOM_DEFINE 1
 // Should fail - no uproperties inside arbitrary preprocessor blocks
 UCLASS()
-class UTestObject_UPropertyInPreprocessorBlock : public UObject
+class UTestObject_FPropertyInPreprocessorBlock : public UObject
 {
 	GENERATED_UCLASS_BODY()
 

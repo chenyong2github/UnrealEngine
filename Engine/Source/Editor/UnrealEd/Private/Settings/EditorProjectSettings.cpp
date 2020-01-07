@@ -78,7 +78,7 @@ void UEditorProjectAppearanceSettings::PostEditChangeProperty( struct FPropertyC
 
 void SetupEnumMetaData(UClass* Class, const FName& MemberName, const TCHAR* Values)
 {
-	UArrayProperty* Array = Cast<UArrayProperty>(Class->FindPropertyByName(MemberName));
+	FArrayProperty* Array = CastField<FArrayProperty>(Class->FindPropertyByName(MemberName));
 	if (Array && Array->Inner)
 	{
 		Array->Inner->SetMetaData(TEXT("ValidEnumValues"), Values);

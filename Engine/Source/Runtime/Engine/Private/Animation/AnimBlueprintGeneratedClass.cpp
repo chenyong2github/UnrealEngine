@@ -136,16 +136,40 @@ void FAnimBlueprintDebugData::SetSnapshotIndexByTime(UAnimInstance* Instance, do
 void FAnimBlueprintDebugData::ResetNodeVisitSites()
 {
 	UpdatedNodesThisFrame.Empty(UpdatedNodesThisFrame.Num());
+	StateData.Empty(StateData.Num());
+	NodeValuesThisFrame.Empty(NodeValuesThisFrame.Num());
+	SequencePlayerRecordsThisFrame.Empty(SequencePlayerRecordsThisFrame.Num());
+	BlendSpacePlayerRecordsThisFrame.Empty(BlendSpacePlayerRecordsThisFrame.Num());
 }
 
 void FAnimBlueprintDebugData::RecordNodeVisit(int32 TargetNodeIndex, int32 SourceNodeIndex, float BlendWeight)
 {
-	new (UpdatedNodesThisFrame) FNodeVisit(SourceNodeIndex, TargetNodeIndex, BlendWeight);
+	UpdatedNodesThisFrame.Emplace(SourceNodeIndex, TargetNodeIndex, BlendWeight);
 }
 
 void FAnimBlueprintDebugData::RecordNodeVisitArray(const TArray<FNodeVisit>& Nodes)
 {
 	UpdatedNodesThisFrame.Append(Nodes);
+}
+
+void FAnimBlueprintDebugData::RecordStateData(int32 StateMachineIndex, int32 StateIndex, float Weight, float ElapsedTime)
+{
+	StateData.Emplace(StateMachineIndex, StateIndex, Weight, ElapsedTime);
+}
+
+void FAnimBlueprintDebugData::RecordNodeValue(int32 InNodeID, const FString& InText)
+{
+	NodeValuesThisFrame.Emplace(InText, InNodeID);
+}
+
+void FAnimBlueprintDebugData::RecordSequencePlayer(int32 InNodeID, float InPosition, float InLength, int32 InFrameCount)
+{
+	SequencePlayerRecordsThisFrame.Emplace(InNodeID, InPosition, InLength, InFrameCount);
+}
+
+void FAnimBlueprintDebugData::RecordBlendSpacePlayer(int32 InNodeID, UBlendSpaceBase* InBlendSpace, float InPositionX, float InPositionY, float InPositionZ)
+{
+	BlendSpacePlayerRecordsThisFrame.Emplace(InNodeID, InBlendSpace, InPositionX, InPositionY, InPositionZ);
 }
 
 void FAnimBlueprintDebugData::AddPoseWatch(int32 NodeID, FColor Color)
@@ -270,9 +294,9 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 #endif // WITH_EDITOR
 
 	// Initialize the various tracked node arrays & fix up function internals
-	for (TFieldIterator<UProperty> It(this); It; ++It)
+	for (TFieldIterator<FProperty> It(this); It; ++It)
 	{
-		if (UStructProperty* StructProp = Cast<UStructProperty>(*It))
+		if (FStructProperty* StructProp = CastField<FStructProperty>(*It))
 		{
 			if (StructProp->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
 			{
@@ -376,19 +400,19 @@ void UAnimBlueprintGeneratedClass::GenerateAnimationBlueprintFunctions()
 		bool bFoundOutput = false;
 #if WITH_EDITOR
 		// In editor we can grab the group from metadata, otherwise we need to wait until CDO post load (LinkFunctionsToDefaultObjectNodes)
-		FText CategoryText = FObjectEditorUtils::GetCategoryText(*It);
+		FText CategoryText = FObjectEditorUtils::GetCategoryText((*It)->GetAssociatedFField());
 		FName Group = CategoryText.IsEmpty() ? NAME_None : FName(*CategoryText.ToString());
 #endif
-		UStructProperty* OutputPoseNodeProperty = nullptr;
+		FStructProperty* OutputPoseNodeProperty = nullptr;
 		TArray<FName> InputPoseNames;
 		TArray<int32> InputPoseNodeIndices;
-		TArray<UStructProperty*> InputPoseNodeProperties;
-		TArray<UProperty*> InputProperties;
+		TArray<FStructProperty*> InputPoseNodeProperties;
+		TArray<FProperty*> InputProperties;
 
 		// grab the input/output poses, their indices will be patched up later once the CDO is loaded in PostLoadDefaultObject
-		for (TFieldIterator<UProperty> ItParam(*It); ItParam; ++ItParam)
+		for (TFieldIterator<FProperty> ItParam(*It); ItParam; ++ItParam)
 		{
-			if (UStructProperty* StructProperty = Cast<UStructProperty>(*ItParam))
+			if (FStructProperty* StructProperty = CastField<FStructProperty>(*ItParam))
 			{
 				if (StructProperty->Struct->IsChildOf(FPoseLink::StaticStruct()))
 				{
@@ -460,7 +484,7 @@ void UAnimBlueprintGeneratedClass::LinkFunctionsToDefaultObjectNodes(UObject* De
 	// Link functions to their nodes
 	for(int32 AnimNodeIndex = 0; AnimNodeIndex < AnimNodeProperties.Num(); ++AnimNodeIndex)
 	{
-		UStructProperty* StructProperty = AnimNodeProperties[AnimNodeIndex];
+		FStructProperty* StructProperty = AnimNodeProperties[AnimNodeIndex].Get();
 		if (StructProperty->Struct->IsChildOf(FAnimNode_Root::StaticStruct()))
 		{
 			FAnimNode_Root* RootNode = StructProperty->ContainerPtrToValuePtr<FAnimNode_Root>(DefaultObject);
@@ -509,7 +533,7 @@ void UAnimBlueprintGeneratedClass::LinkFunctionsToDefaultObjectNodes(UObject* De
 	// Determine whether functions are 'implemented'
 	for(FAnimBlueprintFunction& AnimBlueprintFunction : AnimBlueprintFunctions)
 	{
-		if(AnimBlueprintFunction.OutputPoseNodeProperty)
+		if(AnimBlueprintFunction.OutputPoseNodeProperty.Get())
 		{
 			FAnimNode_Root* RootNode = AnimBlueprintFunction.OutputPoseNodeProperty->ContainerPtrToValuePtr<FAnimNode_Root>(DefaultObject);
 			if(RootNode->Result.LinkID != INDEX_NONE)

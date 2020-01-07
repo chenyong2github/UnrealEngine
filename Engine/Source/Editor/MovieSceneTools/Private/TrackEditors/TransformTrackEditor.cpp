@@ -362,7 +362,7 @@ void F3DTransformTrackEditor::OnTransformChanged( UObject& InObject )
 
 void F3DTransformTrackEditor::OnPrePropertyChanged(UObject* InObject, const FEditPropertyChain& InPropertyChain)
 {
-	UProperty* PropertyAboutToChange = InPropertyChain.GetActiveMemberNode()->GetValue();
+	FProperty* PropertyAboutToChange = InPropertyChain.GetActiveMemberNode()->GetValue();
 	const FName MemberPropertyName = PropertyAboutToChange != nullptr ? PropertyAboutToChange->GetFName() : NAME_None;
 	const bool bTransformationToChange =
 		(MemberPropertyName == USceneComponent::GetRelativeLocationPropertyName() ||

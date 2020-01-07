@@ -28,13 +28,13 @@ public:
 	template<typename T>
 	bool GetValue(UObject* InContainer, T& OutValue) const
 	{
-		UProperty* OutProperty;
+		FProperty* OutProperty;
 		return GetValue<T>(InContainer, OutValue, OutProperty);
 	}
 
 	/** Get the value and the leaf property represented by this property path */
 	template<typename T>
-	bool GetValue(UObject* InContainer, T& OutValue, UProperty*& OutProperty) const
+	bool GetValue(UObject* InContainer, T& OutValue, FProperty*& OutProperty) const
 	{
 		return PropertyPathHelpers::GetPropertyValue(InContainer, *this, OutValue, OutProperty);
 	}

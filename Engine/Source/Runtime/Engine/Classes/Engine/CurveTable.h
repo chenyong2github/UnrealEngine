@@ -162,7 +162,8 @@ public:
 	ENGINE_API FString GetTableAsJSON() const;
 
 	/** Output entire contents of table as JSON. bAsArray true will write is as a JSON array, false will write it as a series of named objects*/
-	ENGINE_API bool WriteTableAsJSON(const TSharedRef< TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR> > >& JsonWriter,bool bAsArray = true) const;
+	template <typename CharType = TCHAR>
+	ENGINE_API bool WriteTableAsJSON(const TSharedRef< TJsonWriter<CharType, TPrettyJsonPrintPolicy<CharType> > >& JsonWriter,bool bAsArray = true) const;
 
 	/** 
 	 *	Create table from CSV style comma-separated string. 

@@ -562,11 +562,11 @@ namespace DatasmithImporterImpl
 			Object->Serialize(*this); // virtual call in ctr -> final class
 		}
 
-		virtual bool ShouldSkipProperty(const UProperty* InProperty) const override
+		virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
 		{
 			bool bSkip = false;
 
-			if ( InProperty->IsA< UObjectPropertyBase >() )
+			if ( InProperty->IsA< FObjectPropertyBase >() )
 			{
 				bSkip = true;
 			}
@@ -592,7 +592,7 @@ namespace DatasmithImporterImpl
 			Object->Serialize(*this); // virtual call in ctr -> final class
 		}
 
-		virtual bool ShouldSkipProperty(const UProperty* InProperty) const override
+		virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
 		{
 			bool bSkip = false;
 
@@ -1901,7 +1901,7 @@ AActor* FDatasmithImporter::FinalizeActor( FDatasmithImportContext& ImportContex
 
 	if ( ALandscape* Landscape = Cast< ALandscape >( DestinationActor ) )
 	{
-		FPropertyChangedEvent MaterialPropertyChangedEvent( FindFieldChecked< UProperty >( Landscape->GetClass(), FName("LandscapeMaterial") ) );
+		FPropertyChangedEvent MaterialPropertyChangedEvent( FindFieldChecked< FProperty >( Landscape->GetClass(), FName("LandscapeMaterial") ) );
 		Landscape->PostEditChangeProperty( MaterialPropertyChangedEvent );
 	}
 

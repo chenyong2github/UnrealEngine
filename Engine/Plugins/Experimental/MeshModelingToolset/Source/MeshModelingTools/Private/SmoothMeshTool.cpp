@@ -148,7 +148,7 @@ void USmoothMeshTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 }
 #endif
 
-void USmoothMeshTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void USmoothMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	Preview->InvalidateResult();
 	bResultValid = false;
@@ -164,8 +164,8 @@ void USmoothMeshTool::UpdateResult()
 {
 	if (bResultValid) 
 	{
-		return;
-	}
+				return;
+			}
 
 	bResultValid = Preview->HaveValidResult();
 }

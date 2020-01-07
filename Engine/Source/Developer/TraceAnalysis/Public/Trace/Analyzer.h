@@ -74,6 +74,9 @@ public:
 
 		/** What type of field is this? */
 		EType GetType() const;
+
+		/** Is this field an array-type field? */
+		bool IsArray() const;
 	};
 
 	struct TRACEANALYSIS_API FEventTypeInfo
@@ -98,13 +101,40 @@ public:
 		const FEventFieldInfo* GetFieldInfo(uint32 Index) const;
 	};
 
+	struct TRACEANALYSIS_API FArrayReader
+	{
+		/* Returns the number of elements in the array */
+		uint32 Num() const;
+
+	protected:
+		const void* GetImpl(uint32 Index, int16& SizeAndType) const;
+	};
+
+	template <typename ValueType>
+	struct TArrayReader
+		: public FArrayReader
+	{
+		/* Returns a element from the array an the given index or zero if Index
+		 * is out of bounds. */
+		ValueType operator [] (uint32 Index) const;
+	};
+
 	struct TRACEANALYSIS_API FEventData
 	{
 		/** Returns an object describing the underlying event's type. */
 		const FEventTypeInfo& GetTypeInfo() const;
 
-		/** Queries the value of a field of the event. */
+		/** Queries the value of a field of the event. It is not necessary to match
+		 * ValueType to the type in the event.
+		 * @param FieldName The name of the event's field to get the value for.
+		 * @return Value of the field (coerced to ValueType) if found, otherwise 0. */
 		template <typename ValueType> ValueType GetValue(const ANSICHAR* FieldName) const;
+
+		/** Returns an object for reading data from an array-type field. A valid
+		 * array reader object will always be return even if no field matching the
+		 * given name was found.
+		 * @param FieldName The name of the event's field to get the value for. */
+		template <typename ValueType> const TArrayReader<ValueType>& GetArray(const ANSICHAR* FieldName) const;
 
 		/** Returns the event's attachment. Not that this will always return an
 		 * address but if the event has no attachment then reading from that
@@ -119,12 +149,14 @@ public:
 
 	private:
 		const void* GetValueImpl(const ANSICHAR* FieldName, int16& SizeAndType) const;
+		const FArrayReader* GetArrayImpl(const ANSICHAR* FieldName) const;
 	};
 
 	struct FOnEventContext
 	{
 		const FSessionContext&	SessionContext;
 		const FEventData&		EventData;
+		uint32					ThreadId;
 	};
 
 	virtual ~IAnalyzer() = default;
@@ -161,20 +193,21 @@ public:
 	{
 		return true;
 	}
+
+private:
+	template <typename ValueType> static ValueType CoerceValue(const void* Addr, int16 SizeAndType);
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename ValueType>
-ValueType IAnalyzer::FEventData::GetValue(const ANSICHAR* FieldName) const
+ValueType IAnalyzer::CoerceValue(const void* Addr, int16 SizeAndType)
 {
-	int16 FieldSizeAndType;
-	const void* Addr = GetValueImpl(FieldName, FieldSizeAndType);
 	if (Addr == nullptr)
 	{
 		return ValueType(0);
 	}
 
-	switch (FieldSizeAndType)
+	switch (SizeAndType)
 	{
 	case -4: return ValueType(*(const float*)(Addr));
 	case -8: return ValueType(*(const double*)(Addr));
@@ -185,6 +218,32 @@ ValueType IAnalyzer::FEventData::GetValue(const ANSICHAR* FieldName) const
 	}
 
 	return ValueType(0);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename ValueType>
+ValueType IAnalyzer::FEventData::GetValue(const ANSICHAR* FieldName) const
+{
+	int16 FieldSizeAndType;
+	const void* Addr = GetValueImpl(FieldName, FieldSizeAndType);
+	return CoerceValue<ValueType>(Addr, FieldSizeAndType);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename ValueType>
+const IAnalyzer::TArrayReader<ValueType>& IAnalyzer::FEventData::GetArray(const ANSICHAR* FieldName) const
+{
+	const FArrayReader* Base = GetArrayImpl(FieldName);
+	return *(TArrayReader<ValueType>*)(Base);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename ValueType>
+ValueType IAnalyzer::TArrayReader<ValueType>::operator [] (uint32 Index) const
+{
+	int16 ElementSizeAndType;
+	const void* Addr = GetImpl(Index, ElementSizeAndType);
+	return CoerceValue<ValueType>(Addr, ElementSizeAndType);
 }
 
 } // namespace Trace

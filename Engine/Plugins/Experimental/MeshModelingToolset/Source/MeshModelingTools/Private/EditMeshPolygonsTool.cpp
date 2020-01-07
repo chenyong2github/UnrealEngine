@@ -938,7 +938,7 @@ void UEditMeshPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 
 
-void UEditMeshPolygonsTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UEditMeshPolygonsTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	// if anything has changed the polygon settings, recompute polygons
 	if (Property && 

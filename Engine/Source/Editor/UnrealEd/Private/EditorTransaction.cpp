@@ -317,7 +317,7 @@ void FTransaction::FObjectRecord::Finalize( FTransaction* Owner, TSharedPtr<ITra
 	}
 }
 
-void FTransaction::FObjectRecord::Snapshot( FTransaction* Owner, TArrayView<const UProperty*> Properties )
+void FTransaction::FObjectRecord::Snapshot( FTransaction* Owner, TArrayView<const FProperty*> Properties )
 {
 	if (Array)
 	{
@@ -840,7 +840,7 @@ void FTransaction::SetPrimaryObject(UObject* InObject)
 	}
 }
 
-void FTransaction::SnapshotObject( UObject* InObject, TArrayView<const UProperty*> Properties )
+void FTransaction::SnapshotObject( UObject* InObject, TArrayView<const FProperty*> Properties )
 {
 	if (InObject && ObjectMap.Contains(InObject))
 	{

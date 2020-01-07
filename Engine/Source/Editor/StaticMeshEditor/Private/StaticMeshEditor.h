@@ -157,7 +157,7 @@ public:
 	virtual void UnregisterOnPostUndo(SWidget* Widget) override;
 
 	/** From FNotifyHook */
-	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged) override;
+	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 
 	/** Get the active view mode */
 	virtual EViewModeIndex GetViewMode() const override;

@@ -15,7 +15,7 @@ class UPackage;
 struct FManifestModule;
 class IScriptGeneratorPluginInterface;
 class FStringOutputDevice;
-class UProperty;
+class FProperty;
 class FUnrealSourceFile;
 class UFunction;
 class UEnum;
@@ -453,7 +453,7 @@ public:
 	 * @param out InnerForm Inner formated string
 	 * @return true on success, false otherwise.
 	 */
-	static bool DefaultValueStringCppFormatToInnerFormat(const UProperty* Property, const FString& CppForm, FString &InnerForm);
+	static bool DefaultValueStringCppFormatToInnerFormat(const FProperty* Property, const FString& CppForm, FString &InnerForm);
 
 	/**
 	 * Parse Class's annotated headers and optionally its child classes.  Marks the class as CLASS_Parsed.
@@ -697,6 +697,7 @@ public:
 	* @return	a pointer to a UField with a name matching InIdentifier, or NULL if it wasn't found
 	*/
 	static UField* FindField( UStruct* InScope, const TCHAR* InIdentifier, bool bIncludeParents=true, UClass* FieldClass=UField::StaticClass(), const TCHAR* Thing=nullptr );
+	static FField* FindProperty(UStruct* InScope, const TCHAR* InIdentifier, bool bIncludeParents = true, FFieldClass* FieldClass = FField::StaticClass(), const TCHAR* Thing = nullptr);
 
 	// Checks ToValidate to make sure that its associated sparse class data struct, if one exists, is a valid structure to use for storing sparse class data.
 	static void CheckSparseClassData(const UStruct* ToValidate);
@@ -818,7 +819,7 @@ protected:
 	// nesting level.
 	void CheckAllow(const TCHAR* Thing, ENestAllowFlags AllowFlags);
 
-	UStruct* GetSuperScope( UStruct* CurrentScope, const FName& SearchName );
+	UStruct* GetSuperScope( UStruct* CurrentScope, const FName& SearchName );	
 
 	void SkipStatements( int32 SubCount, const TCHAR* ErrorTag );
 
@@ -845,15 +846,15 @@ protected:
 		FIndexRange*                    ParsedVarIndexRange = nullptr);
 
 	/**
-	 * Parses a variable name declaration and creates a new UProperty object.
+	 * Parses a variable name declaration and creates a new FProperty object.
 	 *
 	 * @param	Scope				struct to create the property in
 	 * @param	VarProperty			type and propertyflag info for the new property (inout)
 	 * @param   VariableCategory	what kind of variable is being created
 	 *
-	 * @return	a pointer to the new UProperty if successful, or NULL if there was no property to parse
+	 * @return	a pointer to the new FProperty if successful, or NULL if there was no property to parse
 	 */
-	UProperty* GetVarNameAndDim(
+	FProperty* GetVarNameAndDim(
 		UStruct* Struct,
 		FToken& VarProperty,
 		EVariableCategory::Type VariableCategory);
@@ -869,7 +870,7 @@ protected:
 	bool AllowReferenceToClass(UStruct* Scope, UClass* CheckClass) const;
 
 	/**
-	 * @return	true if Scope has UProperty objects in its list of fields
+	 * @return	true if Scope has FProperty objects in its list of fields
 	 */
 	static bool HasMemberProperties( const UStruct* Scope );
 
@@ -996,13 +997,13 @@ private:
 	void VerifyPropertyMarkups( UClass* TargetClass );
 
 	// Verifies the target function meets the criteria for a blueprint property getter
-	void VerifyBlueprintPropertyGetter(UProperty* Property, UFunction* TargetFunction);
+	void VerifyBlueprintPropertyGetter(FProperty* Property, UFunction* TargetFunction);
 
 	// Verifies the target function meets the criteria for a blueprint property setter
-	void VerifyBlueprintPropertySetter(UProperty* Property, UFunction* TargetFunction);
+	void VerifyBlueprintPropertySetter(FProperty* Property, UFunction* TargetFunction);
 
 	// Verifies the target function meets the criteria for a replication notify callback
-	void VerifyRepNotifyCallback(UProperty* Property, UFunction* TargetFunction);
+	void VerifyRepNotifyCallback(FProperty* Property, UFunction* TargetFunction);
 
 	// Constructs the policy from a string
 	static FDocumentationPolicy GetDocumentationPolicyFromName(const FString& PolicyName);

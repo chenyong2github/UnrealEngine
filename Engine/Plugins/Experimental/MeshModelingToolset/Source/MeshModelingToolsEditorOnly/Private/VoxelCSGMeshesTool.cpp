@@ -181,7 +181,7 @@ bool UVoxelCSGMeshesTool::CanAccept() const
 	return Preview->HaveValidResult();
 }
 
-void UVoxelCSGMeshesTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UVoxelCSGMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	Preview->InvalidateResult();
 }

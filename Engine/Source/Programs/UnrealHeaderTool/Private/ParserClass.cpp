@@ -97,12 +97,6 @@ void FClass::GetSparseClassDataTypes(TArray<FString>& OutSparseClassDataTypes) c
 	}
 }
 
-bool FClass::IsDynamic(const UField* Field)
-{
-	static const FName NAME_ReplaceConverted(TEXT("ReplaceConverted"));
-	return Field->HasMetaData(NAME_ReplaceConverted);
-}
-
 bool FClass::IsOwnedByDynamicType(const UField* Field)
 {
 	for (const UField* OuterField = Cast<const UField>(Field->GetOuter()); OuterField; OuterField = Cast<const UField>(OuterField->GetOuter()))
@@ -115,22 +109,18 @@ bool FClass::IsOwnedByDynamicType(const UField* Field)
 	return false;
 }
 
-FString FClass::GetTypePackageName(const UField* Field)
+bool FClass::IsOwnedByDynamicType(const FField* Field)
 {
-	static const FName NAME_ReplaceConverted(TEXT("ReplaceConverted"));
-	FString PackageName = Field->GetMetaData(NAME_ReplaceConverted);
-	if (PackageName.Len())
+	for (FFieldVariant Owner = Field->GetOwnerVariant(); Owner.IsValid(); Owner = Owner.GetOwnerVariant())
 	{
-		int32 ObjectDotIndex = INDEX_NONE;
-		// Strip the object name
-		if (PackageName.FindChar(TEXT('.'), ObjectDotIndex))
+		if (Owner.IsUObject())
 		{
-			PackageName = PackageName.Mid(0, ObjectDotIndex);
+			return IsOwnedByDynamicType(Cast<const UField>(Owner.ToUObject()));
 		}
+		else if (IsDynamic(Owner.ToField()))
+		{
+			return true;
 	}
-	else
-	{
-		PackageName = Field->GetOutermost()->GetName();
 	}
-	return PackageName;
+	return false;
 }

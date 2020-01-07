@@ -336,9 +336,9 @@ bool FGameplayEffectContextHandle::NetSerialize(FArchive& Ar, class UPackageMap*
 		}
 		else
 		{
-			// This won't work since UStructProperty::NetSerializeItem is deprecrated.
-			//	1) we have to manually crawl through the topmost struct's fields since we don't have a UStructProperty for it (just the UScriptProperty)
-			//	2) if there are any UStructProperties in the topmost struct's fields, we will assert in UStructProperty::NetSerializeItem.
+			// This won't work since FStructProperty::NetSerializeItem is deprecrated.
+			//	1) we have to manually crawl through the topmost struct's fields since we don't have a FStructProperty for it (just the UScriptProperty)
+			//	2) if there are any UStructProperties in the topmost struct's fields, we will assert in FStructProperty::NetSerializeItem.
 
 			ABILITY_LOG(Fatal, TEXT("FGameplayEffectContextHandle::NetSerialize called on data struct %s without a native NetSerialize"), *ScriptStruct->GetName());
 		}
@@ -525,7 +525,7 @@ EDataValidationResult FGameplayTagBlueprintPropertyMap::IsDataValid(UObject* Own
 				FText::FromName(Mapping.PropertyName)));
 		}
 
-		if (UProperty* Property = OwnerClass->FindPropertyByName(Mapping.PropertyName))
+		if (FProperty* Property = OwnerClass->FindPropertyByName(Mapping.PropertyName))
 		{
 			if (!IsPropertyTypeValid(Property))
 			{
@@ -578,7 +578,7 @@ void FGameplayTagBlueprintPropertyMap::Initialize(UObject* Owner, UAbilitySystem
 
 		if (Mapping.TagToMap.IsValid())
 		{
-			UProperty* Property = OwnerClass->FindPropertyByName(Mapping.PropertyName);
+			FProperty* Property = OwnerClass->FindPropertyByName(Mapping.PropertyName);
 			if (Property && IsPropertyTypeValid(Property))
 			{
 				Mapping.PropertyToEdit = Property;
@@ -601,9 +601,9 @@ void FGameplayTagBlueprintPropertyMap::Unregister()
 	{
 		for (FGameplayTagBlueprintPropertyMapping& Mapping : PropertyMappings)
 		{
-			if (Mapping.PropertyToEdit && Mapping.TagToMap.IsValid())
+			if (Mapping.PropertyToEdit.Get() && Mapping.TagToMap.IsValid())
 			{
-				ASC->UnregisterGameplayTagEvent(Mapping.DelegateHandle, Mapping.TagToMap, GetGameplayTagEventType(Mapping.PropertyToEdit));
+				ASC->UnregisterGameplayTagEvent(Mapping.DelegateHandle, Mapping.TagToMap, GetGameplayTagEventType(Mapping.PropertyToEdit.Get()));
 			}
 
 			Mapping.PropertyToEdit = nullptr;
@@ -629,33 +629,33 @@ void FGameplayTagBlueprintPropertyMap::GameplayTagEventCallback(const FGameplayT
 		return (Tag == Test.TagToMap);
 	});
 
-	if (Mapping && Mapping->PropertyToEdit)
+	if (Mapping && Mapping->PropertyToEdit.Get())
 	{
-		if (const UBoolProperty* BoolProperty = Cast<const UBoolProperty>(Mapping->PropertyToEdit))
+		if (const FBoolProperty* BoolProperty = CastField<const FBoolProperty>(Mapping->PropertyToEdit.Get()))
 		{
 			BoolProperty->SetPropertyValue_InContainer(Owner, NewCount > 0);
 		}
-		else if (const UIntProperty* IntProperty = Cast<const UIntProperty>(Mapping->PropertyToEdit))
+		else if (const FIntProperty* IntProperty = CastField<const FIntProperty>(Mapping->PropertyToEdit.Get()))
 		{
 			IntProperty->SetPropertyValue_InContainer(Owner, NewCount);
 		}
-		else if (const UFloatProperty* FloatProperty = Cast<const UFloatProperty>(Mapping->PropertyToEdit))
+		else if (const FFloatProperty* FloatProperty = CastField<const FFloatProperty>(Mapping->PropertyToEdit.Get()))
 		{
 			FloatProperty->SetPropertyValue_InContainer(Owner, (float)NewCount);
 		}
 	}
 }
 
-bool FGameplayTagBlueprintPropertyMap::IsPropertyTypeValid(const UProperty* Property) const
+bool FGameplayTagBlueprintPropertyMap::IsPropertyTypeValid(const FProperty* Property) const
 {
 	check(Property);
-	return (Property->IsA<UBoolProperty>() || Property->IsA<UIntProperty>() || Property->IsA<UFloatProperty>());
+	return (Property->IsA<FBoolProperty>() || Property->IsA<FIntProperty>() || Property->IsA<FFloatProperty>());
 }
 
-EGameplayTagEventType::Type FGameplayTagBlueprintPropertyMap::GetGameplayTagEventType(const UProperty* Property) const
+EGameplayTagEventType::Type FGameplayTagBlueprintPropertyMap::GetGameplayTagEventType(const FProperty* Property) const
 {
 	check(Property);
-	return (Property->IsA(UBoolProperty::StaticClass()) ? EGameplayTagEventType::NewOrRemoved : EGameplayTagEventType::AnyCountChange);
+	return (Property->IsA(FBoolProperty::StaticClass()) ? EGameplayTagEventType::NewOrRemoved : EGameplayTagEventType::AnyCountChange);
 }
 
 bool FGameplayTagRequirements::RequirementsMet(const FGameplayTagContainer& Container) const

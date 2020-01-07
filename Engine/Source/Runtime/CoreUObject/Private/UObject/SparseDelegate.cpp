@@ -95,6 +95,21 @@ FMulticastScriptDelegate* FSparseDelegateStorage::GetMulticastDelegate(const UOb
 	return nullptr;
 }
 
+TSharedPtr<FMulticastScriptDelegate> FSparseDelegateStorage::GetSharedMulticastDelegate(const UObject* DelegateOwner, const FName DelegateName)
+{
+	FScopeLock SparseDelegateMapLock(&SparseDelegateMapCritical);
+
+	TSharedPtr<FMulticastScriptDelegate> Result;
+	if (FSparseDelegateMap* DelegateMap = SparseDelegates.Find(DelegateOwner))
+	{
+		if (TSharedPtr<FMulticastScriptDelegate>* MulticastDelegatePtr = DelegateMap->Find(DelegateName))
+		{
+			Result = *MulticastDelegatePtr;
+		}
+	}
+	return Result;
+}
+
 void FSparseDelegateStorage::SetMulticastDelegate(const UObject* DelegateOwner, const FName DelegateName, FMulticastScriptDelegate Delegate)
 {
 	FScopeLock SparseDelegateMapLock(&SparseDelegateMapCritical);

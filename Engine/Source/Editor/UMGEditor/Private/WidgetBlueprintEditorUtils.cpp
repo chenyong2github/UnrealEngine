@@ -149,7 +149,7 @@ bool FWidgetBlueprintEditorUtils::VerifyWidgetRename(TSharedRef<class FWidgetBlu
 		}
 	}
 
-	UProperty* Property = Blueprint->ParentClass->FindPropertyByName( NewNameSlug );
+	FProperty* Property = Blueprint->ParentClass->FindPropertyByName( NewNameSlug );
 	if ( Property && FWidgetBlueprintEditorUtils::IsBindWidgetProperty(Property))
 	{
 		return true;
@@ -194,7 +194,7 @@ bool FWidgetBlueprintEditorUtils::RenameWidget(TSharedRef<FWidgetBlueprintEditor
 	// Get the new FName slug from the given display name
 	const FName NewFName = MakeObjectNameFromDisplayLabel(NewDisplayName, Widget->GetFName());
 
-	UObjectPropertyBase* ExistingProperty = Cast<UObjectPropertyBase>(ParentClass->FindPropertyByName(NewFName));
+	FObjectPropertyBase* ExistingProperty = CastField<FObjectPropertyBase>(ParentClass->FindPropertyByName(NewFName));
 	const bool bBindWidget = ExistingProperty && FWidgetBlueprintEditorUtils::IsBindWidgetProperty(ExistingProperty) && Widget->IsA(ExistingProperty->PropertyClass);
 
 	// NewName should be already validated. But one must make sure that NewTemplateName is also unique.
@@ -1492,12 +1492,12 @@ void FWidgetBlueprintEditorUtils::ExportPropertiesToText(UObject* Object, TMap<F
 {
 	if ( Object )
 	{
-		for ( TFieldIterator<UProperty> PropertyIt(Object->GetClass(), EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt )
+		for ( TFieldIterator<FProperty> PropertyIt(Object->GetClass(), EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt )
 		{
-			UProperty* Property = *PropertyIt;
+			FProperty* Property = *PropertyIt;
 
 			// Don't serialize out object properties, we just want value data.
-			if ( !Property->IsA<UObjectProperty>() )
+			if ( !Property->IsA<FObjectProperty>() )
 			{
 				FString ValueText;
 				if ( Property->ExportText_InContainer(0, ValueText, Object, Object, Object, PPF_IncludeTransient) )
@@ -1515,7 +1515,7 @@ void FWidgetBlueprintEditorUtils::ImportPropertiesFromText(UObject* Object, cons
 	{
 		for ( const auto& Entry : ExportedProperties )
 		{
-			if ( UProperty* Property = FindField<UProperty>(Object->GetClass(), Entry.Key) )
+			if ( FProperty* Property = FindField<FProperty>(Object->GetClass(), Entry.Key) )
 			{
 				FEditPropertyChain PropertyChain;
 				PropertyChain.AddHead(Property);
@@ -1530,13 +1530,13 @@ void FWidgetBlueprintEditorUtils::ImportPropertiesFromText(UObject* Object, cons
 	}
 }
 
-bool FWidgetBlueprintEditorUtils::IsBindWidgetProperty(UProperty* InProperty)
+bool FWidgetBlueprintEditorUtils::IsBindWidgetProperty(FProperty* InProperty)
 {
 	bool bIsOptional;
 	return IsBindWidgetProperty(InProperty, bIsOptional);
 }
 
-bool FWidgetBlueprintEditorUtils::IsBindWidgetProperty(UProperty* InProperty, bool& bIsOptional)
+bool FWidgetBlueprintEditorUtils::IsBindWidgetProperty(FProperty* InProperty, bool& bIsOptional)
 {
 	if ( InProperty )
 	{
@@ -1549,13 +1549,13 @@ bool FWidgetBlueprintEditorUtils::IsBindWidgetProperty(UProperty* InProperty, bo
 	return false;
 }
 
-bool FWidgetBlueprintEditorUtils::IsBindWidgetAnimProperty(UProperty* InProperty)
+bool FWidgetBlueprintEditorUtils::IsBindWidgetAnimProperty(FProperty* InProperty)
 {
 	bool bIsOptional;
 	return IsBindWidgetAnimProperty(InProperty, bIsOptional);
 }
 
-bool FWidgetBlueprintEditorUtils::IsBindWidgetAnimProperty(UProperty* InProperty, bool& bIsOptional)
+bool FWidgetBlueprintEditorUtils::IsBindWidgetAnimProperty(FProperty* InProperty, bool& bIsOptional)
 {
 	if (InProperty)
 	{

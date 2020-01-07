@@ -17,8 +17,8 @@ public:
 
 	UBoolBinding();
 
-	virtual bool IsSupportedSource(UProperty* Property) const override;
-	virtual bool IsSupportedDestination(UProperty* Property) const override;
+	virtual bool IsSupportedSource(FProperty* Property) const override;
+	virtual bool IsSupportedDestination(FProperty* Property) const override;
 
 	UFUNCTION()
 	bool GetValue() const;

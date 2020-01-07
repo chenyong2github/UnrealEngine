@@ -2549,7 +2549,7 @@ void SAssetView::SetMajorityAssetType(FName NewMajorityAssetType)
 								else
 								{
 									// If the tag name corresponds to a property name, use the property tooltip
-									UProperty* Property = FindField<UProperty>(TypeClass, TagName);
+									FProperty* Property = FindField<FProperty>(TypeClass, TagName);
 									TooltipText = (Property != nullptr) ? Property->GetToolTipText() : FText::FromString(FName::NameToDisplayString(TagName.ToString(), false));
 								}
 

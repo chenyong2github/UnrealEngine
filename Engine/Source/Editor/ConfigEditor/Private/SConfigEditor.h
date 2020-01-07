@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakFieldPtr.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
@@ -24,7 +25,7 @@ public:
 	SLATE_END_ARGS()
 
 	//~ Begin SCompoundWidget|SWidget Interface
-	virtual void Construct(const FArguments& InArgs, TWeakObjectPtr<UProperty> InEditProperty);
+	virtual void Construct(const FArguments& InArgs, TWeakFieldPtr<FProperty> InEditProperty);
 	//~ End SCompoundWidget|SWidget Interface
 
 private:
@@ -55,7 +56,7 @@ private:
 	TSharedPtr<IDetailsView> DetailsView;
 
 	// Keep track of the property we are viewing.
-	TWeakObjectPtr<UProperty> EditProperty;
+	TWeakFieldPtr<FProperty> EditProperty;
 };
 
 #undef LOCTEXT_NAMESPACE

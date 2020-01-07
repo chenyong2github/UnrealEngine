@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
 #include "Styling/SlateTypes.h"
+#include "UObject/WeakFieldPtr.h"
 
 class IDetailLayoutBuilder;
 class IBlueprintEditor;
@@ -25,15 +26,15 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 
 private:
-	bool IsAnimationFlagEnabled(TWeakObjectPtr<UProperty> PropertyBeingCustomized) const;
+	bool IsAnimationFlagEnabled(TWeakFieldPtr<FProperty> PropertyBeingCustomized) const;
 
-	ECheckBoxState IsAnimationOutputChecked(TWeakObjectPtr<UProperty> PropertyBeingCustomized) const;
+	ECheckBoxState IsAnimationOutputChecked(TWeakFieldPtr<FProperty> PropertyBeingCustomized) const;
 
-	void HandleAnimationOutputCheckStateChanged(ECheckBoxState CheckBoxState, TWeakObjectPtr<UProperty> PropertyBeingCustomized);
+	void HandleAnimationOutputCheckStateChanged(ECheckBoxState CheckBoxState, TWeakFieldPtr<FProperty> PropertyBeingCustomized);
 
-	ECheckBoxState IsAnimationInputChecked(TWeakObjectPtr<UProperty> PropertyBeingCustomized) const;
+	ECheckBoxState IsAnimationInputChecked(TWeakFieldPtr<FProperty> PropertyBeingCustomized) const;
 
-	void HandleAnimationInputCheckStateChanged(ECheckBoxState CheckBoxState, TWeakObjectPtr<UProperty> PropertyBeingCustomized);
+	void HandleAnimationInputCheckStateChanged(ECheckBoxState CheckBoxState, TWeakFieldPtr<FProperty> PropertyBeingCustomized);
 
 private:
 	/** The Blueprint editor we are embedded in */

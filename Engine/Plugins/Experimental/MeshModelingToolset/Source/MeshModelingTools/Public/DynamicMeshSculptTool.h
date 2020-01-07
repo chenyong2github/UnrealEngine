@@ -258,7 +258,7 @@ public:
 	virtual bool GetEnableRemeshing() const { return bEnableRemeshing; }
 
 
-	virtual void OnPropertyModified(UObject* PropertySet, UProperty* Property) override;
+	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
 public:
 

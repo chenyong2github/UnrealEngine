@@ -802,12 +802,16 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintCallable, CustomThunk, meta = (BlueprintInternalUseOnly = "true", AutoCreateRefTerm = "Value"))
 	static void SetCollisionProfileNameProperty(UObject* Object, FName PropertyName, const FCollisionProfileName& Value);
 
+	/** Set a SOFTOBJECT property by name */
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", AutoCreateRefTerm = "Value"))
+	static void SetFieldPathPropertyByName(UObject* Object, FName PropertyName, const TFieldPath<FField>& Value);
+
 	DECLARE_FUNCTION(execSetCollisionProfileNameProperty)
 	{
 		P_GET_OBJECT(UObject, OwnerObject);
-		P_GET_PROPERTY(UNameProperty, StructPropertyName);
+		P_GET_PROPERTY(FNameProperty, StructPropertyName);
 
-		Stack.StepCompiledIn<UStructProperty>(NULL);
+		Stack.StepCompiledIn<FStructProperty>(NULL);
 		void* SrcStructAddr = Stack.MostRecentPropertyAddress;
 
 		P_FINISH;
@@ -826,9 +830,9 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	DECLARE_FUNCTION(execSetStructurePropertyByName)
 	{
 		P_GET_OBJECT(UObject, OwnerObject);
-		P_GET_PROPERTY(UNameProperty, StructPropertyName);
+		P_GET_PROPERTY(FNameProperty, StructPropertyName);
 
-		Stack.StepCompiledIn<UStructProperty>(NULL);
+		Stack.StepCompiledIn<FStructProperty>(NULL);
 		void* SrcStructAddr = Stack.MostRecentPropertyAddress;
 
 		P_FINISH;
@@ -1748,7 +1752,7 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	 */
     UFUNCTION(BlueprintCallable, CustomThunk, Category = "Utilities", meta=(CustomStructureParam="PropertyValue", BlueprintInternalUseOnly="true"))
     static bool GetEditorProperty(UObject* Object, const FName PropertyName, int32& PropertyValue);
-	static bool Generic_GetEditorProperty(const UObject* Object, const UProperty* Property, void* ValuePtr);
+	static bool Generic_GetEditorProperty(const UObject* Object, const FProperty* Property, void* ValuePtr);
 	DECLARE_FUNCTION(execGetEditorProperty);
 
 	/**
@@ -1763,7 +1767,7 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	 */
     UFUNCTION(BlueprintCallable, CustomThunk, Category = "Utilities", meta=(CustomStructureParam="PropertyValue", AdvancedDisplay="ChangeNotifyMode", BlueprintInternalUseOnly="true"))
     static bool SetEditorProperty(UObject* Object, const FName PropertyName, const int32& PropertyValue, const EPropertyAccessChangeNotifyMode ChangeNotifyMode);
-	static bool Generic_SetEditorProperty(UObject* Object, const UProperty* Property, const void* ValuePtr, const EPropertyAccessChangeNotifyMode ChangeNotifyMode);
+	static bool Generic_SetEditorProperty(UObject* Object, const FProperty* Property, const void* ValuePtr, const EPropertyAccessChangeNotifyMode ChangeNotifyMode);
 	DECLARE_FUNCTION(execSetEditorProperty);
 #endif
 

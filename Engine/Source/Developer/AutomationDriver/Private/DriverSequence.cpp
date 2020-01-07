@@ -178,7 +178,7 @@ public:
 
 class FAsyncActionSequence
 	: public IAsyncActionSequence
-	, public TSharedFromThis<FAsyncActionSequence>
+	, public TSharedFromThis<FAsyncActionSequence, ESPMode::ThreadSafe>
 {
 public:
 

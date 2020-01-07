@@ -805,7 +805,7 @@ namespace InternalEditorLevelLibrary
 	int32 ReplaceMaterials(ArrayType& Array, UMaterialInterface* MaterialToBeReplaced, UMaterialInterface* NewMaterial)
 	{
 		//Would use FObjectEditorUtils::SetPropertyValue, but Material are a special case. They need a lock and we need to use the SetMaterial function
-		UProperty* MaterialProperty = FindFieldChecked<UProperty>(UMeshComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(UMeshComponent, OverrideMaterials));
+		FProperty* MaterialProperty = FindFieldChecked<FProperty>(UMeshComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(UMeshComponent, OverrideMaterials));
 		TArray<UObject*, TInlineAllocator<16>> ObjectsThatChanged;
 		int32 NumberOfChanges = 0;
 
@@ -905,7 +905,7 @@ namespace InternalEditorLevelLibrary
 	int32 ReplaceMeshes(const ArrayType& Array, UStaticMesh* MeshToBeReplaced, UStaticMesh* NewMesh)
 	{
 		//Would use FObjectEditorUtils::SetPropertyValue, but meshes are a special case. They need a lock and we need to use the SetMesh function
-		UProperty* StaticMeshProperty = FindFieldChecked<UProperty>(UStaticMeshComponent::StaticClass(), "StaticMesh");
+		FProperty* StaticMeshProperty = FindFieldChecked<FProperty>(UStaticMeshComponent::StaticClass(), "StaticMesh");
 		TArray<UObject*, TInlineAllocator<16>> ObjectsThatChanged;
 		int32 NumberOfChanges = 0;
 

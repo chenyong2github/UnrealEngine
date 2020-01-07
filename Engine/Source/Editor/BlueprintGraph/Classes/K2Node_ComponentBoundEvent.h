@@ -54,9 +54,9 @@ class UK2Node_ComponentBoundEvent : public UK2Node_Event
 	virtual bool IsUsedByAuthorityOnlyDelegate() const override;
 
 	/** Return the delegate property that this event is bound to */
-	BLUEPRINTGRAPH_API UMulticastDelegateProperty* GetTargetDelegateProperty() const;
+	BLUEPRINTGRAPH_API FMulticastDelegateProperty* GetTargetDelegateProperty() const;
 
-	BLUEPRINTGRAPH_API void InitializeComponentBoundEventParams(UObjectProperty const* InComponentProperty, const UMulticastDelegateProperty* InDelegateProperty);
+	BLUEPRINTGRAPH_API void InitializeComponentBoundEventParams(FObjectProperty const* InComponentProperty, const FMulticastDelegateProperty* InDelegateProperty);
 
 private:
 	/** Cached display name for the delegate property */

@@ -12,6 +12,10 @@ StreamingTexture.h: Definitions of classes used for texture streaming.
 struct FRenderAssetStreamingManager;
 struct FRenderAssetStreamingSettings;
 
+// When enabled we store the filename of optional data as a FString in FStreamingRenderAsset and 
+// use that to check for the existence of the optional data. When disabled we poll the BulkData instead.
+#define STORE_OPTIONAL_DATA_FILENAME !USE_NEW_BULKDATA
+
 /*-----------------------------------------------------------------------------
 	FStreamingRenderAsset, the streaming system's version of UTexture2D.
 -----------------------------------------------------------------------------*/
@@ -208,10 +212,14 @@ struct FStreamingRenderAsset
 	/** (1) Texture/mesh to manage. Note that this becomes null when the texture/mesh is removed. */
 	UStreamableRenderAsset*		RenderAsset;
 	/** (2) */
+#if STORE_OPTIONAL_DATA_FILENAME
 	FString			OptionalBulkDataFilename;
+#else
+	int32			OptionalMipIndex;
+#endif
 	
 	/** (1) Cached texture/mesh LOD group. */
-	int32	LODGroup;
+	int32			LODGroup;
 	/** (1) Cached number of mipmaps that are not allowed to stream. */
 	int32			NumNonStreamingMips;
 	/** (1) Cached number of mip-maps in the asset's mip array (including the base mip) */

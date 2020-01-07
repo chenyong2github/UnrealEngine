@@ -30,14 +30,14 @@ UK2Node_MakeStruct::FMakeStructPinManager::FMakeStructPinManager(const uint8* In
 {
 }
 
-void UK2Node_MakeStruct::FMakeStructPinManager::GetRecordDefaults(UProperty* TestProperty, FOptionalPinFromProperty& Record) const
+void UK2Node_MakeStruct::FMakeStructPinManager::GetRecordDefaults(FProperty* TestProperty, FOptionalPinFromProperty& Record) const
 {
 	UK2Node_StructOperation::FStructOperationOptionalPinManager::GetRecordDefaults(TestProperty, Record);
 	Record.bIsMarkedForAdvancedDisplay = TestProperty ? TestProperty->HasAnyPropertyFlags(CPF_AdvancedDisplay) : false;
 	bHasAdvancedPins |= Record.bIsMarkedForAdvancedDisplay;
 }
 
-void UK2Node_MakeStruct::FMakeStructPinManager::CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex, UProperty* Property) const
+void UK2Node_MakeStruct::FMakeStructPinManager::CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex, FProperty* Property) const
 {
 	UK2Node_StructOperation::FStructOperationOptionalPinManager::CustomizePinData(Pin, SourcePropertyName, ArrayIndex, Property);
 	if (Pin && Property)
@@ -46,10 +46,10 @@ void UK2Node_MakeStruct::FMakeStructPinManager::CustomizePinData(UEdGraphPin* Pi
 		check(Schema);
 
 		// Should pin default value be filled as FText?
-		const bool bIsText = Property->IsA<UTextProperty>();
+		const bool bIsText = Property->IsA<FTextProperty>();
 		checkSlow(bIsText == ((UEdGraphSchema_K2::PC_Text == Pin->PinType.PinCategory) && !Pin->PinType.IsContainer()));
 
-		const bool bIsObject = Property->IsA<UObjectPropertyBase>();
+		const bool bIsObject = Property->IsA<FObjectPropertyBase>();
 		checkSlow(bIsObject == ((UEdGraphSchema_K2::PC_Object == Pin->PinType.PinCategory || UEdGraphSchema_K2::PC_Class == Pin->PinType.PinCategory || 
 			UEdGraphSchema_K2::PC_SoftObject == Pin->PinType.PinCategory || UEdGraphSchema_K2::PC_SoftClass == Pin->PinType.PinCategory) && !Pin->PinType.IsContainer()));
 
@@ -83,7 +83,7 @@ void UK2Node_MakeStruct::FMakeStructPinManager::CustomizePinData(UEdGraphPin* Pi
 	}
 }
 
-static bool CanBeExposed(const UProperty* Property)
+static bool CanBeExposed(const FProperty* Property)
 {
 	if (Property)
 	{
@@ -105,7 +105,7 @@ static bool CanBeExposed(const UProperty* Property)
 	return false;
 }
 
-bool UK2Node_MakeStruct::FMakeStructPinManager::CanTreatPropertyAsOptional(UProperty* TestProperty) const
+bool UK2Node_MakeStruct::FMakeStructPinManager::CanTreatPropertyAsOptional(FProperty* TestProperty) const
 {
 	return CanBeExposed(TestProperty);
 }
@@ -169,9 +169,9 @@ void UK2Node_MakeStruct::ValidateNodeDuringCompilation(class FCompilerResultsLog
 	}
 	else
 	{
-		for (TFieldIterator<UProperty> It(StructType); It; ++It)
+		for (TFieldIterator<FProperty> It(StructType); It; ++It)
 		{
-			const UProperty* Property = *It;
+			const FProperty* Property = *It;
 			if (CanBeExposed(Property))
 			{
 				if (Property->ArrayDim > 1)
@@ -250,7 +250,7 @@ bool UK2Node_MakeStruct::CanBeSplit(const UScriptStruct* Struct)
 {
 	if (CanBeMade(Struct))
 	{
-		for (TFieldIterator<UProperty> It(Struct); It; ++It)
+		for (TFieldIterator<FProperty> It(Struct); It; ++It)
 		{
 			if (CanBeExposed(*It))
 			{
@@ -280,7 +280,7 @@ void UK2Node_MakeStruct::GetMenuActions(FBlueprintActionDatabaseRegistrar& Actio
 {
 	struct GetMenuActions_Utils
 	{
-		static void SetNodeStruct(UEdGraphNode* NewNode, UField const* /*StructField*/, TWeakObjectPtr<UScriptStruct> NonConstStructPtr)
+		static void SetNodeStruct(UEdGraphNode* NewNode, FFieldVariant /*StructField*/, TWeakObjectPtr<UScriptStruct> NonConstStructPtr)
 		{
 			UK2Node_MakeStruct* MakeNode = CastChecked<UK2Node_MakeStruct>(NewNode);
 			MakeNode->StructType = NonConstStructPtr.Get();
@@ -307,7 +307,7 @@ void UK2Node_MakeStruct::GetMenuActions(FBlueprintActionDatabaseRegistrar& Actio
 		
 		if (UK2Node_MakeStruct::CanBeMade(Struct))
 		{
-			NodeSpawner = UBlueprintFieldNodeSpawner::Create(NodeClass, Struct);
+			NodeSpawner = UBlueprintFieldNodeSpawner::Create(NodeClass, const_cast<UScriptStruct*>(Struct));
 			check(NodeSpawner != nullptr);
 			TWeakObjectPtr<UScriptStruct> NonConstStructPtr = MakeWeakObjectPtr(const_cast<UScriptStruct*>(Struct));
 			NodeSpawner->SetNodeFieldDelegate     = UBlueprintFieldNodeSpawner::FSetNodeFieldDelegate::CreateStatic(GetMenuActions_Utils::SetNodeStruct, NonConstStructPtr);
@@ -349,9 +349,9 @@ void UK2Node_MakeStruct::Serialize(FArchive& Ar)
 				// Have to check if this node is even in danger.
 				for (FOptionalPinFromProperty& PropertyEntry : ShowPinForProperties)
 				{
-					UProperty* Property = StructType->FindPropertyByName(PropertyEntry.PropertyName);
+					FProperty* Property = StructType->FindPropertyByName(PropertyEntry.PropertyName);
 					bool bNegate = false;
-					if (UProperty* OverrideProperty = PropertyCustomizationHelpers::GetEditConditionProperty(Property, bNegate))
+					if (FProperty* OverrideProperty = PropertyCustomizationHelpers::GetEditConditionProperty(Property, bNegate))
 					{
 						bool bHadOverridePropertySeparation = false;
 						for (FOptionalPinFromProperty& OverridePropertyEntry : ShowPinForProperties)

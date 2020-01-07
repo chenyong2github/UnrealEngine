@@ -32,7 +32,7 @@ namespace TimeUtils
 	static constexpr double Day = 86400.0;
 	static constexpr double Week = 604800.0;
 
-	struct FTimeSplit
+	struct TRACEINSIGHTS_API FTimeSplit
 	{
 		union
 		{
@@ -54,14 +54,14 @@ namespace TimeUtils
 		bool bIsInfinite;
 	};
 
-	FString FormatTimeValue(const double Duration, const int32 NumDigits = 1);
-	FString FormatTimeAuto(const double Duration, const int32 NumDigits = 1);
-	FString FormatTimeMs(const double Duration, const int32 NumDigits = 2, bool bAddTimeUnit = false);
-	FString FormatTime(const double Time, const double Precision = 0.0);
-	FString FormatTimeHMS(const double Time, const double Precision = 0.0);
-	void SplitTime(const double Time, FTimeSplit& OutTimeSplit);
-	FString FormatTimeSplit(const FTimeSplit& TimeSplit, const double Precision = 0.0);
-	FString FormatTimeSplit(const double Time, const double Precision = 0.0);
+	TRACEINSIGHTS_API FString FormatTimeValue(const double Duration, const int32 NumDigits = 1);
+	TRACEINSIGHTS_API FString FormatTimeAuto(const double Duration, const int32 NumDigits = 1);
+	TRACEINSIGHTS_API FString FormatTimeMs(const double Duration, const int32 NumDigits = 2, bool bAddTimeUnit = false);
+	TRACEINSIGHTS_API FString FormatTime(const double Time, const double Precision = 0.0);
+	TRACEINSIGHTS_API FString FormatTimeHMS(const double Time, const double Precision = 0.0);
+	TRACEINSIGHTS_API void SplitTime(const double Time, FTimeSplit& OutTimeSplit);
+	TRACEINSIGHTS_API FString FormatTimeSplit(const FTimeSplit& TimeSplit, const double Precision = 0.0);
+	TRACEINSIGHTS_API FString FormatTimeSplit(const double Time, const double Precision = 0.0);
 
 	void TestTimeFormatting();
 	void TestTimeAutoFormatting();

@@ -207,7 +207,7 @@ void FPyReferenceCollector::AddReferencedObjectsFromStruct(FReferenceCollector& 
 	AddReferencedObjectsFromStructInternal(InCollector, InStruct, InStructAddr, InFlags, bUnused);
 }
 
-void FPyReferenceCollector::AddReferencedObjectsFromProperty(FReferenceCollector& InCollector, const UProperty* InProp, void* InBaseAddr, const EPyReferenceCollectorFlags InFlags)
+void FPyReferenceCollector::AddReferencedObjectsFromProperty(FReferenceCollector& InCollector, const FProperty* InProp, void* InBaseAddr, const EPyReferenceCollectorFlags InFlags)
 {
 	bool bUnused = false;
 	AddReferencedObjectsFromPropertyInternal(InCollector, InProp, InBaseAddr, InFlags, bUnused);
@@ -215,15 +215,15 @@ void FPyReferenceCollector::AddReferencedObjectsFromProperty(FReferenceCollector
 
 void FPyReferenceCollector::AddReferencedObjectsFromStructInternal(FReferenceCollector& InCollector, const UStruct* InStruct, void* InStructAddr, const EPyReferenceCollectorFlags InFlags, bool& OutValueChanged)
 {
-	for (TFieldIterator<const UProperty> PropIt(InStruct); PropIt; ++PropIt)
+	for (TFieldIterator<const FProperty> PropIt(InStruct); PropIt; ++PropIt)
 	{
 		AddReferencedObjectsFromPropertyInternal(InCollector, *PropIt, InStructAddr, InFlags, OutValueChanged);
 	}
 }
 
-void FPyReferenceCollector::AddReferencedObjectsFromPropertyInternal(FReferenceCollector& InCollector, const UProperty* InProp, void* InBaseAddr, const EPyReferenceCollectorFlags InFlags, bool& OutValueChanged)
+void FPyReferenceCollector::AddReferencedObjectsFromPropertyInternal(FReferenceCollector& InCollector, const FProperty* InProp, void* InBaseAddr, const EPyReferenceCollectorFlags InFlags, bool& OutValueChanged)
 {
-	if (const UObjectProperty* CastProp = Cast<UObjectProperty>(InProp))
+	if (const FObjectProperty* CastProp = CastField<FObjectProperty>(InProp))
 	{
 		if (EnumHasAnyFlags(InFlags, EPyReferenceCollectorFlags::IncludeObjects))
 		{
@@ -247,31 +247,31 @@ void FPyReferenceCollector::AddReferencedObjectsFromPropertyInternal(FReferenceC
 		return;
 	}
 
-	if (const UInterfaceProperty* CastProp = Cast<UInterfaceProperty>(InProp))
+	if (const FInterfaceProperty* CastProp = CastField<FInterfaceProperty>(InProp))
 	{
 		if (EnumHasAnyFlags(InFlags, EPyReferenceCollectorFlags::IncludeInterfaces))
 		{
-			for (int32 ArrIndex = 0; ArrIndex < InProp->ArrayDim; ++ArrIndex)
-			{
-				void* ValuePtr = CastProp->ContainerPtrToValuePtr<void>(InBaseAddr, ArrIndex);
-				UObject* CurObjVal = CastProp->GetPropertyValue(ValuePtr).GetObject();
-				if (CurObjVal)
-				{
-					UObject* NewObjVal = CurObjVal;
-					InCollector.AddReferencedObject(NewObjVal);
-
-					if (NewObjVal != CurObjVal)
-					{
-						OutValueChanged = true;
-						CastProp->SetPropertyValue(ValuePtr, FScriptInterface(NewObjVal, NewObjVal ? NewObjVal->GetInterfaceAddress(CastProp->InterfaceClass) : nullptr));
-					}
-				}
-			}
+		  for (int32 ArrIndex = 0; ArrIndex < InProp->ArrayDim; ++ArrIndex)
+		  {
+			  void* ValuePtr = CastProp->ContainerPtrToValuePtr<void>(InBaseAddr, ArrIndex);
+			  UObject* CurObjVal = CastProp->GetPropertyValue(ValuePtr).GetObject();
+			  if (CurObjVal)
+			  {
+				  UObject* NewObjVal = CurObjVal;
+				  InCollector.AddReferencedObject(NewObjVal);
+  
+				  if (NewObjVal != CurObjVal)
+				  {
+					  OutValueChanged = true;
+					  CastProp->SetPropertyValue(ValuePtr, FScriptInterface(NewObjVal, NewObjVal ? NewObjVal->GetInterfaceAddress(CastProp->InterfaceClass) : nullptr));
+				  }
+			  }
+		  }
 		}
 		return;
 	}
 
-	if (const UStructProperty* CastProp = Cast<UStructProperty>(InProp))
+	if (const FStructProperty* CastProp = CastField<FStructProperty>(InProp))
 	{
 		if (EnumHasAnyFlags(InFlags, EPyReferenceCollectorFlags::IncludeStructs))
 		{
@@ -283,12 +283,12 @@ void FPyReferenceCollector::AddReferencedObjectsFromPropertyInternal(FReferenceC
 		return;
 	}
 
-	if (const UDelegateProperty* CastProp = Cast<UDelegateProperty>(InProp))
+	if (const FDelegateProperty* CastProp = CastField<FDelegateProperty>(InProp))
 	{
 		if (EnumHasAnyFlags(InFlags, EPyReferenceCollectorFlags::IncludeDelegates))
 		{
-			for (int32 ArrIndex = 0; ArrIndex < InProp->ArrayDim; ++ArrIndex)
-			{
+		for (int32 ArrIndex = 0; ArrIndex < InProp->ArrayDim; ++ArrIndex)
+		{
 				FScriptDelegate* Value = CastProp->GetPropertyValuePtr(CastProp->ContainerPtrToValuePtr<void>(InBaseAddr, ArrIndex));
 				AddReferencedObjectsFromDelegate(InCollector, *Value);
 			}
@@ -296,7 +296,7 @@ void FPyReferenceCollector::AddReferencedObjectsFromPropertyInternal(FReferenceC
 		return;
 	}
 
-	if (const UMulticastDelegateProperty* CastProp = Cast<UMulticastDelegateProperty>(InProp))
+	if (const FMulticastDelegateProperty* CastProp = CastField<FMulticastDelegateProperty>(InProp))
 	{
 		if (EnumHasAnyFlags(InFlags, EPyReferenceCollectorFlags::IncludeDelegates))
 		{
@@ -311,17 +311,17 @@ void FPyReferenceCollector::AddReferencedObjectsFromPropertyInternal(FReferenceC
 		return;
 	}
 
-	if (const UArrayProperty* CastProp = Cast<UArrayProperty>(InProp))
+	if (const FArrayProperty* CastProp = CastField<FArrayProperty>(InProp))
 	{
 		if (EnumHasAnyFlags(InFlags, EPyReferenceCollectorFlags::IncludeArrays))
 		{
-			for (int32 ArrIndex = 0; ArrIndex < InProp->ArrayDim; ++ArrIndex)
-			{
-				FScriptArrayHelper_InContainer ScriptArrayHelper(CastProp, InBaseAddr, ArrIndex);
+		for (int32 ArrIndex = 0; ArrIndex < InProp->ArrayDim; ++ArrIndex)
+		{
+			FScriptArrayHelper_InContainer ScriptArrayHelper(CastProp, InBaseAddr, ArrIndex);
 
-				const int32 ElementCount = ScriptArrayHelper.Num();
-				for (int32 ElementIndex = 0; ElementIndex < ElementCount; ++ElementIndex)
-				{
+			const int32 ElementCount = ScriptArrayHelper.Num();
+			for (int32 ElementIndex = 0; ElementIndex < ElementCount; ++ElementIndex)
+			{
 					AddReferencedObjectsFromPropertyInternal(InCollector, CastProp->Inner, ScriptArrayHelper.GetRawPtr(ElementIndex), InFlags, OutValueChanged);
 				}
 			}
@@ -329,62 +329,62 @@ void FPyReferenceCollector::AddReferencedObjectsFromPropertyInternal(FReferenceC
 		return;
 	}
 
-	if (const USetProperty* CastProp = Cast<USetProperty>(InProp))
+	if (const FSetProperty* CastProp = CastField<FSetProperty>(InProp))
 	{
 		if (EnumHasAnyFlags(InFlags, EPyReferenceCollectorFlags::IncludeSets))
 		{
-			for (int32 ArrIndex = 0; ArrIndex < InProp->ArrayDim; ++ArrIndex)
+		for (int32 ArrIndex = 0; ArrIndex < InProp->ArrayDim; ++ArrIndex)
+		{
+			bool bSetValuesChanged = false;
+			FScriptSetHelper_InContainer ScriptSetHelper(CastProp, InBaseAddr, ArrIndex);
+
+			for (int32 SparseElementIndex = 0; SparseElementIndex < ScriptSetHelper.GetMaxIndex(); ++SparseElementIndex)
 			{
-				bool bSetValuesChanged = false;
-				FScriptSetHelper_InContainer ScriptSetHelper(CastProp, InBaseAddr, ArrIndex);
-
-				for (int32 SparseElementIndex = 0; SparseElementIndex < ScriptSetHelper.GetMaxIndex(); ++SparseElementIndex)
+				if (ScriptSetHelper.IsValidIndex(SparseElementIndex))
 				{
-					if (ScriptSetHelper.IsValidIndex(SparseElementIndex))
-					{
 						AddReferencedObjectsFromPropertyInternal(InCollector, ScriptSetHelper.GetElementProperty(), ScriptSetHelper.GetElementPtr(SparseElementIndex), InFlags, bSetValuesChanged);
-					}
-				}
-
-				if (bSetValuesChanged)
-				{
-					OutValueChanged = true;
-					ScriptSetHelper.Rehash();
 				}
 			}
+
+			if (bSetValuesChanged)
+			{
+				OutValueChanged = true;
+				ScriptSetHelper.Rehash();
+			}
+		}
 		}
 		return;
 	}
 
-	if (const UMapProperty* CastProp = Cast<UMapProperty>(InProp))
+	if (const FMapProperty* CastProp = CastField<FMapProperty>(InProp))
 	{
 		if (EnumHasAnyFlags(InFlags, EPyReferenceCollectorFlags::IncludeMaps))
 		{
-			for (int32 ArrIndex = 0; ArrIndex < InProp->ArrayDim; ++ArrIndex)
+		for (int32 ArrIndex = 0; ArrIndex < InProp->ArrayDim; ++ArrIndex)
+		{
+			bool bMapKeysChanged = false;
+			bool bMapValuesChanged = false;
+			FScriptMapHelper_InContainer ScriptMapHelper(CastProp, InBaseAddr, ArrIndex);
+
+			for (int32 SparseElementIndex = 0; SparseElementIndex < ScriptMapHelper.GetMaxIndex(); ++SparseElementIndex)
 			{
-				bool bMapKeysChanged = false;
-				bool bMapValuesChanged = false;
-				FScriptMapHelper_InContainer ScriptMapHelper(CastProp, InBaseAddr, ArrIndex);
-
-				for (int32 SparseElementIndex = 0; SparseElementIndex < ScriptMapHelper.GetMaxIndex(); ++SparseElementIndex)
+				if (ScriptMapHelper.IsValidIndex(SparseElementIndex))
 				{
-					if (ScriptMapHelper.IsValidIndex(SparseElementIndex))
-					{
-						// Note: We use the pair pointer below as AddReferencedObjectsFromPropertyInternal expects a base address and the key/value property will apply the correct offset from the base
-						AddReferencedObjectsFromPropertyInternal(InCollector, ScriptMapHelper.GetKeyProperty(), ScriptMapHelper.GetPairPtr(SparseElementIndex), InFlags, bMapKeysChanged);
-						AddReferencedObjectsFromPropertyInternal(InCollector, ScriptMapHelper.GetValueProperty(), ScriptMapHelper.GetPairPtr(SparseElementIndex), InFlags, bMapValuesChanged);
-					}
-				}
-
-				if (bMapKeysChanged || bMapValuesChanged)
-				{
-					OutValueChanged = true;
-					if (bMapKeysChanged)
-					{
-						ScriptMapHelper.Rehash();
-					}
+					// Note: We use the pair pointer below as AddReferencedObjectsFromPropertyInternal expects a base address and the key/value property will apply the correct offset from the base
+					AddReferencedObjectsFromPropertyInternal(InCollector, ScriptMapHelper.GetKeyProperty(), ScriptMapHelper.GetPairPtr(SparseElementIndex), InFlags, bMapKeysChanged);
+					AddReferencedObjectsFromPropertyInternal(InCollector, ScriptMapHelper.GetValueProperty(), ScriptMapHelper.GetPairPtr(SparseElementIndex), InFlags, bMapValuesChanged);
 				}
 			}
+
+			if (bMapKeysChanged || bMapValuesChanged)
+			{
+				OutValueChanged = true;
+				if (bMapKeysChanged)
+				{
+					ScriptMapHelper.Rehash();
+				}
+			}
+		}
 		}
 		return;
 	}

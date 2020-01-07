@@ -11,7 +11,7 @@ void SPropertyEditorText::Construct( const FArguments& InArgs, const TSharedRef<
 {
 	PropertyEditor = InPropertyEditor;
 
-	bIsFNameProperty = InPropertyEditor->PropertyIsA(UNameProperty::StaticClass());
+	bIsFNameProperty = InPropertyEditor->PropertyIsA(FNameProperty::StaticClass());
 	bIsMultiLine = InPropertyEditor->GetPropertyHandle()->GetMetaDataProperty()->GetBoolMetaData("MultiLine");
 
 	const bool bIsPassword = InPropertyEditor->GetPropertyHandle()->GetMetaDataProperty()->GetBoolMetaData("PasswordField");
@@ -66,7 +66,7 @@ void SPropertyEditorText::Construct( const FArguments& InArgs, const TSharedRef<
 		PrimaryWidget = SingleLineWidget;
 	}
 
-	if( InPropertyEditor->PropertyIsA( UObjectPropertyBase::StaticClass() ) )
+	if( InPropertyEditor->PropertyIsA( FObjectPropertyBase::StaticClass() ) )
 	{
 		// Object properties should display their entire text in a tooltip
 		PrimaryWidget->SetToolTipText( TAttribute<FText>( InPropertyEditor, &FPropertyEditor::GetValueAsText ) );
@@ -90,13 +90,13 @@ void SPropertyEditorText::GetDesiredWidth( float& OutMinDesiredWidth, float& Out
 bool SPropertyEditorText::Supports( const TSharedRef< FPropertyEditor >& InPropertyEditor )
 {
 	const TSharedRef< FPropertyNode > PropertyNode = InPropertyEditor->GetPropertyNode();
-	const UProperty* Property = InPropertyEditor->GetProperty();
+	const FProperty* Property = InPropertyEditor->GetProperty();
 
 	if(	!PropertyNode->HasNodeFlags(EPropertyNodeFlags::EditInlineNew)
-		&&	( (Property->IsA(UNameProperty::StaticClass()) && Property->GetFName() != NAME_InitialState)
-		||	Property->IsA(UStrProperty::StaticClass())
-		||	Property->IsA(UTextProperty::StaticClass())
-		||	(Property->IsA(UObjectPropertyBase::StaticClass()) && !Property->HasAnyPropertyFlags(CPF_InstancedReference))
+		&&	( (Property->IsA(FNameProperty::StaticClass()) && Property->GetFName() != NAME_InitialState)
+		||	Property->IsA(FStrProperty::StaticClass())
+		||	Property->IsA(FTextProperty::StaticClass())
+		||	(Property->IsA(FObjectPropertyBase::StaticClass()) && !Property->HasAnyPropertyFlags(CPF_InstancedReference))
 		) )
 	{
 		return true;

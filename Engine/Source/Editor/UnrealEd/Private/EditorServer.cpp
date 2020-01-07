@@ -3614,7 +3614,7 @@ namespace
 	static FString				GPropertyColorationValue;
 
 	/** Property used for property-based coloration. */
-	static UProperty*			GPropertyColorationProperty = NULL;
+	static FProperty*			GPropertyColorationProperty = NULL;
 
 	/** Class of object to which property-based coloration is applied. */
 	static UClass*				GPropertyColorationClass = NULL;
@@ -3633,7 +3633,7 @@ namespace
 }
 
 
-void UEditorEngine::SetPropertyColorationTarget(UWorld* InWorld, const FString& PropertyValue, UProperty* Property, UClass* CommonBaseClass, FEditPropertyChain* PropertyChain)
+void UEditorEngine::SetPropertyColorationTarget(UWorld* InWorld, const FString& PropertyValue, FProperty* Property, UClass* CommonBaseClass, FEditPropertyChain* PropertyChain)
 {
 	if ( GPropertyColorationProperty != Property || 
 		GPropertyColorationClass != CommonBaseClass ||
@@ -3649,7 +3649,7 @@ void UEditorEngine::SetPropertyColorationTarget(UWorld* InWorld, const FString& 
 		GPropertyColorationChain = PropertyChain;
 
 		GbColorationClassIsActor = GPropertyColorationClass->IsChildOf( AActor::StaticClass() );
-		GbColorationPropertyIsObjectProperty = Cast<UObjectPropertyBase>(GPropertyColorationProperty) != NULL;
+		GbColorationPropertyIsObjectProperty = CastField<FObjectPropertyBase>(GPropertyColorationProperty) != NULL;
 
 		InWorld->UpdateWorldComponents( false, false );
 		RedrawLevelEditingViewports();
@@ -3657,7 +3657,7 @@ void UEditorEngine::SetPropertyColorationTarget(UWorld* InWorld, const FString& 
 }
 
 
-void UEditorEngine::GetPropertyColorationTarget(FString& OutPropertyValue, UProperty*& OutProperty, UClass*& OutCommonBaseClass, FEditPropertyChain*& OutPropertyChain)
+void UEditorEngine::GetPropertyColorationTarget(FString& OutPropertyValue, FProperty*& OutProperty, UClass*& OutCommonBaseClass, FEditPropertyChain*& OutPropertyChain)
 {
 	OutPropertyValue	= GPropertyColorationValue;
 	OutProperty			= GPropertyColorationProperty;
@@ -3706,9 +3706,9 @@ bool UEditorEngine::GetPropertyColorationColor(UObject* Object, FColor& OutColor
 			int32 ChainIndex = 0;
 			for ( FEditPropertyChain::TIterator It(GPropertyColorationChain->GetHead()); It; ++It )
 			{
-				UProperty* Prop = *It;
-				UObjectPropertyBase* ObjectPropertyBase = Cast<UObjectPropertyBase>(Prop);
-				if( Cast<UArrayProperty>(Prop) )
+				FProperty* Prop = *It;
+				FObjectPropertyBase* ObjectPropertyBase = CastField<FObjectPropertyBase>(Prop);
+				if( CastField<FArrayProperty>(Prop) )
 				{
 					// @todo DB: property coloration -- add support for array properties.
 					bDontCompareProps = true;
@@ -5975,9 +5975,9 @@ bool UEditorEngine::HandleTestPropsCommand( const TCHAR* Str, FOutputDevice& Ar 
 
 		Table->SetObjects( Objects );
 
-		for (TFieldIterator<UProperty> PropertyIter( UPropertyEditorTestObject::StaticClass(), EFieldIteratorFlags::IncludeSuper); PropertyIter; ++PropertyIter)
+		for (TFieldIterator<FProperty> PropertyIter( UPropertyEditorTestObject::StaticClass(), EFieldIteratorFlags::IncludeSuper); PropertyIter; ++PropertyIter)
 		{
-			const TWeakObjectPtr< UProperty >& Property = *PropertyIter;
+			const TWeakFieldPtr< FProperty >& Property = *PropertyIter;
 			Table->AddColumn( Property );
 		}
 

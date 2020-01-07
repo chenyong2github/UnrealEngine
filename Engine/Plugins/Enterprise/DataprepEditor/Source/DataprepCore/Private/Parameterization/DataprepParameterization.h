@@ -16,7 +16,57 @@
 #include "DataprepParameterization.generated.h"
 
 class UDataprepParameterizableObject;
-class UProperty;
+class FProperty;
+class FFieldClass;
+
+struct FValueTypeValidationData
+{
+	TArray<UObject*> ObjectData;
+	TArray<TFieldPath<FProperty>> PropertyData;
+	TArray<FFieldClass*> PropertyTypeData;
+	
+	bool Serialize(FArchive& Ar);
+	void AddReferencedObjects(FReferenceCollector& Collector);
+
+	void Add(UObject* InObj)
+	{
+		ObjectData.Add(InObj);
+	}
+	void Add(FProperty* InProp)
+	{
+		PropertyData.Add(TFieldPath<FProperty>(InProp));
+	}
+	void Add(FFieldClass* InClass)
+	{
+		PropertyTypeData.Add(InClass);
+	}
+	void Reserve(int32 Count)
+	{
+		// Do nothing or TBD
+	}
+	int32 Num() const
+	{
+		return ObjectData.Num() + PropertyData.Num() + PropertyTypeData.Num();
+	}
+	void Empty()
+	{
+		ObjectData.Empty();
+		PropertyData.Empty();
+		PropertyTypeData.Empty();
+	}
+	bool operator == (const FValueTypeValidationData& Other) const
+	{
+		return ObjectData == Other.ObjectData && PropertyData == Other.PropertyData && PropertyTypeData == Other.PropertyTypeData;
+	}
+};
+
+//template<> struct TStructOpsTypeTraits<FValueTypeValidationData> : public TStructOpsTypeTraitsBase2<FValueTypeValidationData>
+//{
+//	enum
+//	{
+//		WithSerializer = true
+//	};
+//};
 
 /**
  * The parameterization binding is a struct that hold an object and the property path to the parameterized property
@@ -49,8 +99,18 @@ struct FDataprepParameterizationBinding
 	TArray<FDataprepPropertyLink> PropertyChain;
 
 	// Value Type Validation Array. This is the result of a depth first search on the parametrized property
-	UPROPERTY()
-	TArray<UObject*> ValueTypeValidationData;
+	//UPROPERTY() // @todo FProp: do we need this to be an FProp? (is this struct being serialized)
+	FValueTypeValidationData ValueTypeValidationData;
+
+	bool Serialize(FArchive& Ar);
+};
+
+template<> struct TStructOpsTypeTraits<FDataprepParameterizationBinding> : public TStructOpsTypeTraitsBase2<FDataprepParameterizationBinding>
+{
+	enum
+	{
+		WithSerializer = true
+	};
 };
 
 uint32 GetTypeHash(const FDataprepParameterizationBinding& Binding);
@@ -198,6 +258,7 @@ public:
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Ar) override;
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	virtual void PostEditUndo() override;
 	// End of UObject interface
 
@@ -217,7 +278,7 @@ public:
 
 	void OnObjectPostEdit(UDataprepParameterizableObject* Object, const TArray<FDataprepPropertyLink>& PropertyChain, EPropertyChangeType::Type ChangeType);
 
-	void GetExistingParameterNamesForType(UProperty* Property, bool bIsDescribingFullProperty, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const;
+	void GetExistingParameterNamesForType(FProperty* Property, bool bIsDescribingFullProperty, TSet<FString>& OutValidExistingNames, TSet<FString>& OutInvalidNames) const;
 
 private:
 
@@ -256,7 +317,7 @@ private:
 	/**
 	 * Try adding a binded property to the parameterization class
 	 */
-	UProperty* AddPropertyToClass(const FName& ParameterisationPropertyName, UProperty& Property, bool bAddFullProperty);
+	FProperty* AddPropertyToClass(const FName& ParameterisationPropertyName, FProperty& Property, bool bAddFullProperty);
 
 	/**
 	 * Get a new value for the parameterization from it's associated binding
@@ -291,8 +352,7 @@ private:
 	UPROPERTY()
 	UDataprepParameterizationBindings* BindingsContainer;
 
-	UPROPERTY(Transient, NonTransactional)
-	TMap<FName, UProperty*> NameToParameterizationProperty;
+	TMap<FName, FProperty*> NameToParameterizationProperty;
 
 	UPROPERTY(Transient, NonTransactional)
 	UClass* CustomContainerClass;

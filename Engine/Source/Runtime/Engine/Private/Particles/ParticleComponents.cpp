@@ -3080,7 +3080,7 @@ bool UParticleSystem::RemoveAllDuplicateModules(bool bInMarkForCooker, TMap<UObj
 							bool bIsDifferent = false;
 							static const FName CascadeCategory(TEXT("Cascade"));
 							// Copy non component properties from the old actor to the new actor
-							for (UProperty* Property = ModuleClass->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext)
+							for (FProperty* Property = ModuleClass->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext)
 							{
 								bool bIsTransient = (Property->PropertyFlags & CPF_Transient) != 0;
 								bool bIsEditorOnly = (Property->PropertyFlags & CPF_EditorOnly) != 0;
@@ -4581,7 +4581,7 @@ void UParticleSystemComponent::OrientZAxisTowardCamera()
 }
 
 #if WITH_EDITOR
-void UParticleSystemComponent::PreEditChange(UProperty* PropertyThatWillChange)
+void UParticleSystemComponent::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	ForceAsyncWorkCompletion(ENSURE_AND_STALL);
 	bool bShouldResetParticles = true;
@@ -4614,7 +4614,7 @@ void UParticleSystemComponent::PostEditChangeChainProperty(FPropertyChangedChain
 	ForceAsyncWorkCompletion(ENSURE_AND_STALL);
 	if (PropertyChangedEvent.PropertyChain.Num() > 0)
 	{
-		UProperty* MemberProperty = PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue();
+		FProperty* MemberProperty = PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue();
 		if ( MemberProperty != NULL )
 		{
 			FName PropertyName = PropertyChangedEvent.Property->GetFName();
@@ -6355,7 +6355,7 @@ void UParticleSystemComponent::ResetToDefaults()
 		UParticleSystemComponent* Default = (UParticleSystemComponent*)(GetArchetype());
 
 		// copy all non-native, non-duplicatetransient, non-Component properties we have from all classes up to and including UActorComponent
-		for (UProperty* Property = GetClass()->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext)
+		for (FProperty* Property = GetClass()->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext)
 		{
 			if ( !(Property->PropertyFlags & CPF_DuplicateTransient) && !(Property->PropertyFlags & (CPF_InstancedReference | CPF_ContainsInstancedReference)) &&
 				Property->GetOwnerClass()->IsChildOf(UActorComponent::StaticClass()) )

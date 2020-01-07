@@ -146,7 +146,7 @@ void UParameterizeMeshTool::Setup()
 	Preview->InvalidateResult();    // start compute
 }
 
-void UParameterizeMeshTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UParameterizeMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	if (PropertySet == MaterialSettings)
 	{

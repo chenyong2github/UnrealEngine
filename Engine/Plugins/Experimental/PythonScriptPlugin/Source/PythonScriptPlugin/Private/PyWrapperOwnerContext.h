@@ -17,10 +17,10 @@ public:
 	FPyWrapperOwnerContext();
 
 	/** Construct this context from the given Python object and optional property (will create a new reference to the given object) */
-	explicit FPyWrapperOwnerContext(PyObject* InOwner, const UProperty* InProp = nullptr);
+	explicit FPyWrapperOwnerContext(PyObject* InOwner, const FProperty* InProp = nullptr);
 
 	/** Construct this context from the given Python object and optional property */
-	explicit FPyWrapperOwnerContext(const FPyObjectPtr& InOwner, const UProperty* InProp = nullptr);
+	explicit FPyWrapperOwnerContext(const FPyObjectPtr& InOwner, const FProperty* InProp = nullptr);
 
 	/** Reset this context back to its default state */
 	void Reset();
@@ -32,7 +32,7 @@ public:
 	PyObject* GetOwnerObject() const;
 
 	/** Get the property on the owner object that owns the instance being wrapped (if known) */
-	const UProperty* GetOwnerProperty() const;
+	const FProperty* GetOwnerProperty() const;
 
 	/** Assert that the given conversion method is valid for this owner context */
 	void AssertValidConversionMethod(const EPyConversionMethod InMethod) const;
@@ -48,7 +48,7 @@ private:
 	FPyObjectPtr OwnerObject;
 
 	/** The property on the owner object that owns the instance being wrapped (if known) */
-	const UProperty* OwnerProperty;
+	const FProperty* OwnerProperty;
 };
 
 #endif	// WITH_PYTHON

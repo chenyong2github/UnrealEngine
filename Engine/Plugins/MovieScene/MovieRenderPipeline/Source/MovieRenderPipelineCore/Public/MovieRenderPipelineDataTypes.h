@@ -840,7 +840,7 @@ namespace MoviePipeline
 	};
 }
 
-struct FImagePixelDataPayload : IImagePixelDataPayload, public TSharedFromThis<FImagePixelDataPayload>
+struct FImagePixelDataPayload : IImagePixelDataPayload, public TSharedFromThis<FImagePixelDataPayload, ESPMode::ThreadSafe>
 {
 	FMoviePipelineFrameOutputState OutputState;
 	FMoviePipelineRenderPassMetrics SampleState;

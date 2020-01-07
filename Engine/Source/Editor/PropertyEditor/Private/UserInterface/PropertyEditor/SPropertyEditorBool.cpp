@@ -31,7 +31,7 @@ void SPropertyEditorBool::GetDesiredWidth( float& OutMinDesiredWidth, float& Out
 
 bool SPropertyEditorBool::Supports( const TSharedRef< class FPropertyEditor >& PropertyEditor )
 {
-	return PropertyEditor->PropertyIsA( UBoolProperty::StaticClass() );
+	return PropertyEditor->PropertyIsA( FBoolProperty::StaticClass() );
 }
 
 bool SPropertyEditorBool::SupportsKeyboardFocus() const

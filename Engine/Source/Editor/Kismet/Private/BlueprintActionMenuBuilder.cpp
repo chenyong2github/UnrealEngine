@@ -118,7 +118,7 @@ TSharedPtr<FBlueprintActionMenuItem> FBlueprintActionMenuItemFactory::MakeAction
 TSharedPtr<FBlueprintDragDropMenuItem> FBlueprintActionMenuItemFactory::MakeDragDropMenuItem(UBlueprintNodeSpawner const* SampleAction)
 {
 	// FBlueprintDragDropMenuItem takes care of its own menu MenuDescription, etc.
-	UProperty const* SampleProperty = nullptr;
+	FProperty const* SampleProperty = nullptr;
 	if (UBlueprintDelegateNodeSpawner const* DelegateSpawner = Cast<UBlueprintDelegateNodeSpawner const>(SampleAction))
 	{
 		SampleProperty = DelegateSpawner->GetDelegateProperty();
@@ -139,7 +139,7 @@ TSharedPtr<FBlueprintDragDropMenuItem> FBlueprintActionMenuItemFactory::MakeDrag
 		TooltipDescription = SampleProperty->GetToolTipText();
 		Category = FObjectEditorUtils::GetCategoryText(SampleProperty);
 
-		bool const bIsDelegateProperty = SampleProperty->IsA<UMulticastDelegateProperty>();
+		bool const bIsDelegateProperty = SampleProperty->IsA<FMulticastDelegateProperty>();
 		if (bIsDelegateProperty && Category.IsEmpty())
 		{
 			Category = FEditorCategoryUtils::GetCommonCategory(FCommonEditorCategory::Delegates);
@@ -287,7 +287,7 @@ namespace FBlueprintActionMenuBuilderImpl
 		 * @param  Bindings	
 		 * @return 
 		 */
-		void AddBoundMenuItems(TWeakPtr<FBlueprintEditor> EditorContext, FBlueprintActionInfo& DatabaseAction, TArray<UObject*> const& Bindings, MenuItemList& MenuItemsOut);
+		void AddBoundMenuItems(TWeakPtr<FBlueprintEditor> EditorContext, FBlueprintActionInfo& DatabaseAction, TArray<FFieldVariant> const& Bindings, MenuItemList& MenuItemsOut);
 		
 		/**
 		 * Clears out any consolidated properties that this may have been 
@@ -299,7 +299,7 @@ namespace FBlueprintActionMenuBuilderImpl
 		/** In charge of spawning menu items for this section (holds category/ordering information)*/
 		FBlueprintActionMenuItemFactory ItemFactory;
 		/** Tracks the properties that we've already consolidated and passed (when using the ConsolidatePropertyActions flag)*/
-		TMap<UProperty const*, TSharedPtr<FBlueprintDragDropMenuItem>> ConsolidatedProperties;
+		TMap<FProperty const*, TSharedPtr<FBlueprintDragDropMenuItem>> ConsolidatedProperties;
 	};
 	
 	/**
@@ -308,7 +308,7 @@ namespace FBlueprintActionMenuBuilderImpl
 	 * @param  Context	
 	 * @return 
 	 */
-	static TArray<UObject*> GetBindingCandidates(FBlueprintActionContext const& Context);
+	static TArray<FFieldVariant> GetBindingCandidates(FBlueprintActionContext const& Context);
 }
 
 //------------------------------------------------------------------------------
@@ -338,7 +338,7 @@ void FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition::SetSectionSortOrde
 }
 // 
 //------------------------------------------------------------------------------
-void FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition::AddBoundMenuItems(TWeakPtr<FBlueprintEditor> EditorContext, FBlueprintActionInfo& DatabaseActionInfo, TArray<UObject*> const& PerspectiveBindings, MenuItemList& MenuItemsOut)
+void FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition::AddBoundMenuItems(TWeakPtr<FBlueprintEditor> EditorContext, FBlueprintActionInfo& DatabaseActionInfo, TArray<FFieldVariant> const& PerspectiveBindings, MenuItemList& MenuItemsOut)
 {
 	UBlueprintNodeSpawner const* DatabaseAction = DatabaseActionInfo.NodeSpawner;
 
@@ -351,7 +351,7 @@ void FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition::AddBoundMenuItems(
 	// UBlueprintNodeSpawner comes with an interface to test/bind through... 
 	for (auto BindingIt = PerspectiveBindings.CreateConstIterator(); BindingIt;)
 	{
-		UObject const* BindingObj = *BindingIt;
+		FFieldVariant BindingObj = *BindingIt;
 		++BindingIt;
 		bool const bIsLastBinding = !BindingIt;
 
@@ -359,7 +359,7 @@ void FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition::AddBoundMenuItems(
 		if (DatabaseAction->IsBindingCompatible(BindingObj))
 		{
 			// add bindings before filtering (in case tests accept/reject based off of this)
-			CompatibleBindings.Add(MakeWeakObjectPtr(const_cast<UObject*>(BindingObj)));
+			CompatibleBindings.Add(BindingObj);
 		}
 
 		// if BoundAction is now "full" (meaning it can take any more 
@@ -415,7 +415,7 @@ FBlueprintActionMenuBuilderImpl::MenuItemList FBlueprintActionMenuBuilderImpl::F
 	// a FBlueprintDragDropMenuItem instead of a FBlueprintActionMenuItem)
 	if (bPassedFilter && (Flags & FBlueprintActionMenuBuilder::ConsolidatePropertyActions))
 	{
-		UProperty const* ActionProperty = nullptr;
+		FProperty const* ActionProperty = nullptr;
 		if (UBlueprintVariableNodeSpawner const* VariableSpawner = Cast<UBlueprintVariableNodeSpawner>(DatabaseAction.NodeSpawner))
 		{
 			ActionProperty = VariableSpawner->GetVarProperty();
@@ -471,7 +471,7 @@ void FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition::Empty()
 }
 
 //------------------------------------------------------------------------------
-static TArray<UObject*> FBlueprintActionMenuBuilderImpl::GetBindingCandidates(FBlueprintActionContext const& Context)
+static TArray<FFieldVariant> FBlueprintActionMenuBuilderImpl::GetBindingCandidates(FBlueprintActionContext const& Context)
 {
 	return Context.SelectedObjects;
 }

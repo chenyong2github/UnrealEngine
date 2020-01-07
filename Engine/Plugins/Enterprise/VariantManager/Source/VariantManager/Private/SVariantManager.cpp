@@ -2359,7 +2359,7 @@ FReply SVariantManager::OnAddVariantSetClicked()
 
 // Tries capturing and recording new data for the property at PropertyPath for TargetActor, into whatever Variants we have selected.
 // Will return true if it created or updated a UPropertyValue
-bool AutoCaptureProperty(FVariantManager* VarMan, AActor* TargetActor, const FString& PropertyPath, const UProperty* Property)
+bool AutoCaptureProperty(FVariantManager* VarMan, AActor* TargetActor, const FString& PropertyPath, const FProperty* Property)
 {
 	// Transient actors are generated temporarily while dragging actors into the level. Once the
 	// mouse is released, another non-transient actor is instantiated
@@ -2392,8 +2392,8 @@ bool AutoCaptureProperty(FVariantManager* VarMan, AActor* TargetActor, const FSt
 
 	// UPropertyValue always contains the Inner for array properties, but the event that
 	// calls this function only provides the outer
-	UProperty* FilterProperty = const_cast<UProperty*>(Property);
-	if (const UArrayProperty* ArrayProp = Cast<UArrayProperty>(Property))
+	FProperty* FilterProperty = const_cast<FProperty*>(Property);
+	if (const FArrayProperty* ArrayProp = CastField<FArrayProperty>(Property))
 	{
 		FilterProperty = ArrayProp->Inner;
 	}
@@ -2610,12 +2610,12 @@ void SVariantManager::OnObjectPropertyChanged(UObject* Object, struct FPropertyC
 	AActor* TargetActor = nullptr;
 	FString PropertyPath;
 
-	bool bIsStructProperty = Event.MemberProperty && Event.MemberProperty->IsA(UStructProperty::StaticClass());
+	bool bIsStructProperty = Event.MemberProperty && Event.MemberProperty->IsA(FStructProperty::StaticClass());
 	bool bIsBuiltIn = bIsStructProperty && FVariantManagerUtils::IsBuiltInStructProperty(Event.MemberProperty);
 
 	// We don't want to capture just the X component of a RelativeLocation property, but we want to capture
 	// the ISO property of a FPostProcessSettings StructProperty
-	UProperty* Prop = bIsBuiltIn? Event.MemberProperty : Event.Property;
+	FProperty* Prop = bIsBuiltIn? Event.MemberProperty : Event.Property;
 
 	// Fetch TargetActor
 	USceneComponent* ObjAsSceneComp = Cast<USceneComponent>(Object);
@@ -2697,7 +2697,7 @@ void SVariantManager::OnObjectPropertyChanged(UObject* Object, struct FPropertyC
 	static const TSet<FString> ProxyPropertyPaths{ TEXT("Relative Location"), TEXT("Relative Rotation"), TEXT("Relative Scale 3D") };
 
 	// We capture as just 'Materials' in the Variant Manager UI, instead of 'Override Materials'
-	// Override Materials doesn't work like a regular UArrayProperty, we need to use GetNumMaterials
+	// Override Materials doesn't work like a regular FArrayProperty, we need to use GetNumMaterials
 	if (Prop == FVariantManagerUtils::GetOverrideMaterialsProperty())
 	{
 		if (UStaticMeshComponent* ObjAsComp = Cast<UStaticMeshComponent>(Object))
@@ -2711,7 +2711,7 @@ void SVariantManager::OnObjectPropertyChanged(UObject* Object, struct FPropertyC
 	}
 	// Generate one path for each array position. Because the event doesn't tell us which array
 	// element that fired it, we must capture all positions of the array
-	else if (UArrayProperty* ArrayProp = Cast<UArrayProperty>(Prop))
+	else if (FArrayProperty* ArrayProp = CastField<FArrayProperty>(Prop))
 	{
 		FScriptArrayHelper ArrayHelper(ArrayProp, ArrayProp->ContainerPtrToValuePtr<void>(Object));
 		for (int32 Index = 0; Index < ArrayHelper.Num(); ++Index)

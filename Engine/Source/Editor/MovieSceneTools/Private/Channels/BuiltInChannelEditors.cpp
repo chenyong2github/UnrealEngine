@@ -265,7 +265,7 @@ UMovieSceneKeyStructType* InstanceGeneratedStruct(FMovieSceneByteChannel* Channe
 		return nullptr;
 	}
 
-	UByteProperty* NewValueProperty = NewObject<UByteProperty>(NewStruct, "Value");
+	FByteProperty* NewValueProperty = new FByteProperty(NewStruct, "Value", RF_NoFlags);
 	NewValueProperty->SetPropertyFlags(CPF_Edit);
 	NewValueProperty->SetMetaData("Category", TEXT("Key"));
 	NewValueProperty->ArrayDim = 1;
@@ -303,7 +303,7 @@ UMovieSceneKeyStructType* InstanceGeneratedStruct(FMovieSceneObjectPathChannel* 
 		return nullptr;
 	}
 
-	USoftObjectProperty* NewValueProperty = NewObject<USoftObjectProperty>(NewStruct, "Value");
+	FSoftObjectProperty* NewValueProperty = new FSoftObjectProperty(NewStruct, "Value", RF_NoFlags);
 	NewValueProperty->SetPropertyFlags(CPF_Edit);
 	NewValueProperty->SetMetaData("Category", TEXT("Key"));
 	NewValueProperty->PropertyClass = PropertyClass;
@@ -322,7 +322,7 @@ void PostConstructKeyInstance(const TMovieSceneChannelHandle<FMovieSceneObjectPa
 {	
 	const UMovieSceneKeyStructType* GeneratedStructType = CastChecked<const UMovieSceneKeyStructType>(Struct->GetStruct());
 
-	USoftObjectProperty* EditProperty = CastChecked<USoftObjectProperty>(GeneratedStructType->DestValueProperty);
+	FSoftObjectProperty* EditProperty = CastFieldChecked<FSoftObjectProperty>(GeneratedStructType->DestValueProperty.Get());
 	const uint8* PropertyAddress = EditProperty->ContainerPtrToValuePtr<uint8>(Struct->GetStructMemory());
 
 	// It is safe to capture the property and address in this lambda because the lambda is owned by the struct itself, so cannot be invoked if the struct has been destroyed

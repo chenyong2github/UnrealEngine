@@ -104,7 +104,7 @@ public:
 	TArray<UObject*> ObjectsForPropertyEditing;
 };
 
-void SGraphNodeDetailsWidget::AddPropertiesRecursive(UProperty* Property)
+void SGraphNodeDetailsWidget::AddPropertiesRecursive(FProperty* Property)
 {
 	if (Property != NULL)
 	{
@@ -112,18 +112,18 @@ void SGraphNodeDetailsWidget::AddPropertiesRecursive(UProperty* Property)
 		SelectedObjectProperties.Add(Property);
 
 		// If this is a struct or an array of structs, recursively add the child properties
-		UArrayProperty* ArrayProperty = Cast<UArrayProperty>(Property);
-		UStructProperty* StructProperty = Cast<UStructProperty>(Property);
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property);
+		FStructProperty* StructProperty = CastField<FStructProperty>(Property);
 		if (StructProperty != NULL &&
 			StructProperty->Struct != NULL)
 		{
-			for (TFieldIterator<UProperty> StructPropIt(StructProperty->Struct); StructPropIt; ++StructPropIt)
+			for (TFieldIterator<FProperty> StructPropIt(StructProperty->Struct); StructPropIt; ++StructPropIt)
 			{
-				UProperty* InsideStructProperty = *StructPropIt;
+				FProperty* InsideStructProperty = *StructPropIt;
 				AddPropertiesRecursive(InsideStructProperty);
 			}
 		}
-		else if (ArrayProperty && ArrayProperty->Inner->IsA<UStructProperty>())
+		else if (ArrayProperty && ArrayProperty->Inner->IsA<FStructProperty>())
 		{
 			AddPropertiesRecursive(ArrayProperty->Inner);
 		}
@@ -214,9 +214,9 @@ void SGraphNodeDetailsWidget::UpdateFromObjects(const TArray<UObject*>& Property
 			check(EditableComponentTemplate != NULL);
 
 			// Add all properties belonging to the component template class
-			for (TFieldIterator<UProperty> PropIt(EditableComponentTemplate->GetClass()); PropIt; ++PropIt)
+			for (TFieldIterator<FProperty> PropIt(EditableComponentTemplate->GetClass()); PropIt; ++PropIt)
 			{
-				UProperty* Property = *PropIt;
+				FProperty* Property = *PropIt;
 				check(Property != NULL);
 
 				AddPropertiesRecursive(Property);
@@ -230,7 +230,7 @@ void SGraphNodeDetailsWidget::UpdateFromObjects(const TArray<UObject*>& Property
 
 				if (Object != EditableComponentTemplate)
 				{
-					UObjectProperty* ObjectProperty = FindField<UObjectProperty>(Object->GetClass(), EditableComponentTemplate->GetFName());
+					FObjectProperty* ObjectProperty = FindField<FObjectProperty>(Object->GetClass(), EditableComponentTemplate->GetFName());
 					if (ObjectProperty != nullptr)
 					{
 						SelectedObjectProperties.Add(ObjectProperty);
@@ -242,7 +242,7 @@ void SGraphNodeDetailsWidget::UpdateFromObjects(const TArray<UObject*>& Property
 							if (UClass* OwnerClass = Owner->GetClass())
 							{
 								AActor* OwnerCDO = CastChecked<AActor>(OwnerClass->GetDefaultObject());
-								for (TFieldIterator<UObjectProperty> ObjPropIt(OwnerClass, EFieldIteratorFlags::IncludeSuper); ObjPropIt; ++ObjPropIt)
+								for (TFieldIterator<FObjectProperty> ObjPropIt(OwnerClass, EFieldIteratorFlags::IncludeSuper); ObjPropIt; ++ObjPropIt)
 								{
 									ObjectProperty = *ObjPropIt;
 									check(ObjectProperty != nullptr);
@@ -251,7 +251,7 @@ void SGraphNodeDetailsWidget::UpdateFromObjects(const TArray<UObject*>& Property
 									if (Archetype->GetClass()->IsChildOf(ObjectProperty->PropertyClass)
 										&& Archetype == ObjectProperty->GetObjectPropertyValue_InContainer(OwnerCDO))
 									{
-										ObjectProperty = FindField<UObjectProperty>(Object->GetClass(), ObjectProperty->GetFName());
+										ObjectProperty = FindField<FObjectProperty>(Object->GetClass(), ObjectProperty->GetFName());
 										if (ObjectProperty != nullptr)
 										{
 											SelectedObjectProperties.Add(ObjectProperty);

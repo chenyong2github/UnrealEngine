@@ -254,7 +254,7 @@ public:
 	FPyWrapperArray* FindInstance(void* InUnrealInstance) const;
 
 	/** Find the wrapped Python instance associated with the given Unreal instance, or create one if needed (returns new reference) */
-	FPyWrapperArray* CreateInstance(void* InUnrealInstance, const UArrayProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod);
+	FPyWrapperArray* CreateInstance(void* InUnrealInstance, const FArrayProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod);
 };
 
 /** Factory for wrapped fixed-array instances */
@@ -268,7 +268,7 @@ public:
 	FPyWrapperFixedArray* FindInstance(void* InUnrealInstance) const;
 
 	/** Find the wrapped Python instance associated with the given Unreal instance, or create one if needed (returns new reference) */
-	FPyWrapperFixedArray* CreateInstance(void* InUnrealInstance, const UProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod);
+	FPyWrapperFixedArray* CreateInstance(void* InUnrealInstance, const FProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod);
 };
 
 /** Factory for wrapped set instances */
@@ -282,7 +282,7 @@ public:
 	FPyWrapperSet* FindInstance(void* InUnrealInstance) const;
 
 	/** Find the wrapped Python instance associated with the given Unreal instance, or create one if needed (returns new reference) */
-	FPyWrapperSet* CreateInstance(void* InUnrealInstance, const USetProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod);
+	FPyWrapperSet* CreateInstance(void* InUnrealInstance, const FSetProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod);
 };
 
 /** Factory for wrapped map instances */
@@ -296,7 +296,7 @@ public:
 	FPyWrapperMap* FindInstance(void* InUnrealInstance) const;
 
 	/** Find the wrapped Python instance associated with the given Unreal instance, or create one if needed (returns new reference) */
-	FPyWrapperMap* CreateInstance(void* InUnrealInstance, const UMapProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod);
+	FPyWrapperMap* CreateInstance(void* InUnrealInstance, const FMapProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod);
 };
 
 /** Singleton instance that handles re-instancing Python types */
@@ -465,7 +465,7 @@ public:
 
 private:
 	/** Gather any types referenced by the given property are still need to be wrapped for use in Python */
-	void GatherWrappedTypesForPropertyReferences(const UProperty* InProp, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences) const;
+	void GatherWrappedTypesForPropertyReferences(const FProperty* InProp, FGeneratedWrappedTypeReferences& OutGeneratedWrappedTypeReferences) const;
 
 	/** Generate stub Python code for the given type */
 	static void GenerateStubCodeForWrappedType(PyTypeObject* PyType, const PyGenUtil::FGeneratedWrappedType* GeneratedTypeData, FPyFileWriter& OutPythonScript, FPyOnlineDocsSection* OutOnlineDocsSection = nullptr);

@@ -82,6 +82,7 @@
 #include "Engine/DemoNetDriver.h"
 #include "Modules/ModuleManager.h"
 #include "VT/VirtualTexture.h" 
+#include "Interfaces/Interface_PostProcessVolume.h"
 
 #include "Materials/MaterialParameterCollectionInstance.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
@@ -123,7 +124,6 @@
 #include "Engine/AssetManager.h"
 #include "Engine/HLODProxy.h"
 #include "ProfilingDebugging/CsvProfiler.h"
-#include "Interfaces/Interface_PostProcessVolume.h"
 #include "ObjectTrace.h"
 
 #if INCLUDE_CHAOS
@@ -4266,7 +4266,7 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 		{
 			if (Level)
 			{
-				UWorld* const LevelWorld = CastChecked<UWorld>(Level->GetOuter());
+			UWorld* const LevelWorld = CastChecked<UWorld>(Level->GetOuter());
 				LevelWorld->CleanupWorldInternal(bSessionEnded, bCleanupResources, NewWorld);
 			}
 		}

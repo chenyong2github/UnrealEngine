@@ -12,11 +12,11 @@
 class COREUOBJECT_API FSerializedPropertyScope
 {
 	FArchive& Ar;
-	UProperty* Property;
+	FProperty* Property;
 	void PushProperty();
 	void PopProperty();
 public:
-	FSerializedPropertyScope(FArchive& InAr, UProperty* InProperty, const UProperty* OnlyIfOldProperty = nullptr)
+	FSerializedPropertyScope(FArchive& InAr, FProperty* InProperty, const FProperty* OnlyIfOldProperty = nullptr)
 		: Ar(InAr)
 		, Property(InProperty)
 	{

@@ -594,7 +594,7 @@ void UCharacterMovementComponent::PostEditChangeProperty(FPropertyChangedEvent& 
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	const UProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
+	const FProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
 	if (PropertyThatChanged && PropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED(UCharacterMovementComponent, WalkableFloorAngle))
 	{
 		// Compute WalkableFloorZ from the Angle.

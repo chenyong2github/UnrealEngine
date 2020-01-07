@@ -29,6 +29,9 @@ void FAnimNode_LinkedInputPose::Update_AnyThread(const FAnimationUpdateContext& 
 	if(InputProxy)
 	{
 		FAnimationUpdateContext InputContext = Context.WithOtherProxy(InputProxy);
+#if ANIM_NODE_IDS_AVAILABLE
+		InputContext = InputContext.WithNodeId(OuterGraphNodeIndex);
+#endif
 		InputPose.Update(InputContext);
 	}
 }
@@ -67,12 +70,13 @@ void FAnimNode_LinkedInputPose::GatherDebugData(FNodeDebugData& DebugData)
 	}
 }
 
-void FAnimNode_LinkedInputPose::DynamicLink(FAnimInstanceProxy* InInputProxy, FPoseLinkBase* InPoseLink)
+void FAnimNode_LinkedInputPose::DynamicLink(FAnimInstanceProxy* InInputProxy, FPoseLinkBase* InPoseLink, int32 InOuterGraphNodeIndex)
 {
 	check(InputProxy == nullptr);			// Must be unlinked before re-linking
 
 	InputProxy = InInputProxy;
 	InputPose.SetDynamicLinkNode(InPoseLink);
+	OuterGraphNodeIndex = InOuterGraphNodeIndex;
 }
 
 void FAnimNode_LinkedInputPose::DynamicUnlink()
@@ -81,4 +85,5 @@ void FAnimNode_LinkedInputPose::DynamicUnlink()
 
 	InputProxy = nullptr;
 	InputPose.SetDynamicLinkNode(nullptr);
+	OuterGraphNodeIndex = INDEX_NONE;
 }

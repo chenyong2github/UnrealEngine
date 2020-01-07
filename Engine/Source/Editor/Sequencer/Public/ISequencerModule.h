@@ -267,7 +267,7 @@ public:
 	/**
 	 * Check whether the specified property type can be animated by sequeuncer
 	 */
-	virtual bool CanAnimateProperty(UProperty* Property) = 0;
+	virtual bool CanAnimateProperty(FProperty* Property) = 0;
 
 	/**
 	* Get the extensibility manager for menus.

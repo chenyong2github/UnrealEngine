@@ -196,9 +196,9 @@ void UUserDefinedStructEditorData::ReinitializeDefaultInstance(FString* OutLog)
 
 		ScriptStruct->DefaultStructInstance.SetPackage(ScriptStruct->GetOutermost());
 
-		for (TFieldIterator<UProperty> It(ScriptStruct); It; ++It)
+		for (TFieldIterator<FProperty> It(ScriptStruct); It; ++It)
 		{
-			UProperty* Property = *It;
+			FProperty* Property = *It;
 			if (Property)
 			{
 				FGuid VarGuid = FStructureEditorUtils::GetGuidFromPropertyName(Property->GetFName());

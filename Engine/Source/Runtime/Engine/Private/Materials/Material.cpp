@@ -242,6 +242,24 @@ void FMaterialResource::GatherExpressionsForCustomInterpolators(TArray<UMaterial
 	Material->GetAllExpressionsForCustomInterpolators(OutExpressions);
 }
 
+#if WITH_EDITOR
+void FMaterialResource::BeginAllowCachingStaticParameterValues()
+{
+	if (MaterialInstance)
+	{
+		MaterialInstance->BeginAllowCachingStaticParameterValues();
+	}
+}
+
+void FMaterialResource::EndAllowCachingStaticParameterValues()
+{
+	if (MaterialInstance)
+	{
+		MaterialInstance->EndAllowCachingStaticParameterValues();
+	}
+}
+#endif // WITH_EDITOR
+
 void FMaterialResource::GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& OutId) const
 {
 	FMaterial::GetShaderMapId(Platform, OutId);
@@ -1797,19 +1815,35 @@ void UMaterial::GetAllStaticComponentMaskParameterInfo(TArray<FMaterialParameter
 	GetAllParameterInfo<UMaterialExpressionStaticComponentMaskParameter>(OutParameterInfo, OutParameterIds);
 }
 
-void UMaterial::GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const
+bool UMaterial::IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const
 {
 	for (UMaterialExpression* Expression : Expressions)
 	{
 		if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
 		{
-			FunctionCall->GetDependentFunctions(DependentFunctions);
+			if (!FunctionCall->IterateDependentFunctions(Predicate))
+			{
+				return false;
+			}
 		}
 		else if (UMaterialExpressionMaterialAttributeLayers* Layers = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression))
 		{
-			Layers->GetDependentFunctions(DependentFunctions);
+			if (!Layers->IterateDependentFunctions(Predicate))
+			{
+				return false;
+			}
 		}
 	}
+	return true;
+}
+
+void UMaterial::GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const
+{
+	IterateDependentFunctions([&DependentFunctions](UMaterialFunctionInterface* MaterialFunction) -> bool
+	{
+		DependentFunctions.AddUnique(MaterialFunction);
+		return true;
+	});
 }
 
 bool UMaterial::GetScalarParameterDefaultValue(const FMaterialParameterInfo& ParameterInfo, float& OutValue, bool bOveriddenOnly, bool bCheckOwnedGlobalOverrides) const
@@ -3245,23 +3279,18 @@ void UMaterial::FlushResourceShaderMaps()
 
 void UMaterial::RebuildMaterialFunctionInfo()
 {	
-	MaterialFunctionInfos.Empty();
+	MaterialFunctionInfos.Reset();
 
 	for (int32 ExpressionIndex = 0; ExpressionIndex < Expressions.Num(); ExpressionIndex++)
 	{
 		UMaterialExpression* Expression = Expressions[ExpressionIndex];
-		UMaterialExpressionMaterialFunctionCall* MaterialFunctionNode = Cast<UMaterialExpressionMaterialFunctionCall>(Expression);
-		UMaterialExpressionMaterialAttributeLayers* MaterialLayersNode = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression);
 
-		if (MaterialFunctionNode)
+		if (UMaterialExpressionMaterialFunctionCall* MaterialFunctionNode = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
 		{
 			if (MaterialFunctionNode->MaterialFunction)
 			{
-				TArray<UMaterialFunctionInterface*> DependentFunctions;
-				MaterialFunctionNode->GetDependentFunctions(DependentFunctions);
-
-				// Handle nested functions
-				for (UMaterialFunctionInterface* Function : DependentFunctions)
+				MaterialFunctionNode->IterateDependentFunctions(
+					[this](UMaterialFunctionInterface* Function)
 				{
 					FMaterialFunctionInfo NewFunctionInfo;
 					if (Function)
@@ -3270,19 +3299,18 @@ void UMaterial::RebuildMaterialFunctionInfo()
 						NewFunctionInfo.StateId = Function->StateId;
 					}
 					MaterialFunctionInfos.Add(NewFunctionInfo);
-				}	
+					return true;
+				});
 			}
 
 			// Update the function call node, so it can relink inputs and outputs as needed
 			// Update even if MaterialFunctionNode->MaterialFunction is NULL, because we need to remove the invalid inputs in that case
 			MaterialFunctionNode->UpdateFromFunctionResource();
 		}
-		else if (MaterialLayersNode)
+		else if (UMaterialExpressionMaterialAttributeLayers* MaterialLayersNode = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression))
 		{
-			TArray<UMaterialFunctionInterface*> DependentFunctions;
-			MaterialLayersNode->GetDependentFunctions(DependentFunctions);
-
-			for (UMaterialFunctionInterface* Function : DependentFunctions)
+			MaterialLayersNode->IterateDependentFunctions(
+				[this](UMaterialFunctionInterface* Function)
 			{
 				FMaterialFunctionInfo NewFunctionInfo;
 				if (Function)
@@ -3294,7 +3322,8 @@ void UMaterial::RebuildMaterialFunctionInfo()
 					Function->UpdateFromFunctionResource();
 				}
 				MaterialFunctionInfos.Add(NewFunctionInfo);
-			}
+				return true;
+			});
 
 			MaterialLayersNode->RebuildLayerGraph(false);
 		}
@@ -4188,7 +4217,7 @@ void UMaterial::ClearAllCachedCookedPlatformData()
 }
 #endif
 #if WITH_EDITOR
-bool UMaterial::CanEditChange(const UProperty* InProperty) const
+bool UMaterial::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{
@@ -4345,7 +4374,7 @@ bool UMaterial::CanEditChange(const UProperty* InProperty) const
 	return true;
 }
 
-void UMaterial::PreEditChange(UProperty* PropertyThatChanged)
+void UMaterial::PreEditChange(FProperty* PropertyThatChanged)
 {
 	Super::PreEditChange(PropertyThatChanged);
 }
@@ -4363,7 +4392,7 @@ void UMaterial::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEve
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 
 	//Cancel any current compilation jobs that are in flight for this material.
 	CancelOutstandingCompilation();

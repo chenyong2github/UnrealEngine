@@ -1392,7 +1392,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			Trace::WriteTo(*Parameter);
 		}
 
-#if PLATFORM_WINDOWS && !UE_BUILD_SHIPPING
+#if PLATFORM_WINDOWS && !UE_BUILD_SHIPPING && !IS_PROGRAM
 		else
 		{
 			// If we can detect a named event then we can try and auto-connect to UnrealInsights.
@@ -1580,14 +1580,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		SCOPED_BOOT_TIMING("IFileManager::Get().ProcessCommandLineOptions");
 		IFileManager::Get().ProcessCommandLineOptions();
 	}
-
-#if !(IS_PROGRAM || WITH_EDITOR)
-	// Initialize I/O dispatcher when using the new package loader
-	if (FParse::Param(FCommandLine::Get(), TEXT("zenloader")))
-	{
-		FIoDispatcher::Initialize(FPaths::ProjectDir());
-	}
-#endif
 
 	if (GIsGameAgnosticExe)
 	{
@@ -5491,6 +5483,22 @@ bool FEngineLoop::AppInit( )
 
 	FEmbeddedCommunication::ForceTick(18);
 
+#if !(IS_PROGRAM || WITH_EDITOR)
+	// Initialize I/O dispatcher if available
+	if (!FParse::Param(FCommandLine::Get(), TEXT("noiodispatcher")))
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(InitIoDispatcher);
+
+		FIoStoreEnvironment IoStoreEnvironment;
+		IoStoreEnvironment.InitializeFileEnvironment(FPaths::ProjectDir() / TEXT("Content") / TEXT("Containers"));
+		if (FIoDispatcher::IsValidEnvironment(IoStoreEnvironment))
+		{
+			FIoStatus IoDispatcherInitStatus = FIoDispatcher::Initialize(IoStoreEnvironment);
+			UE_CLOG(!IoDispatcherInitStatus.IsOk(), LogInit, Fatal, TEXT("Failed to initialize I/O dispatcher: '%s'"), *IoDispatcherInitStatus.ToString());
+		}
+	}
+#endif
+
 	// Init other systems.
 	{
 		SCOPED_BOOT_TIMING("FCoreDelegates::OnInit.Broadcast");
@@ -5568,6 +5576,10 @@ void FEngineLoop::AppPreExit( )
 
 void FEngineLoop::AppExit( )
 {
+#if !(IS_PROGRAM || WITH_EDITOR)
+	FIoDispatcher::Shutdown();
+#endif
+
 #if !WITH_ENGINE
 	// when compiled WITH_ENGINE, this will happen in FEngineLoop::Exit()
 	FTaskGraphInterface::Shutdown();

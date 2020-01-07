@@ -181,7 +181,7 @@ private:
 //		Parameters,
 // 		[](const TTimingEventSearch<FMyStruct>::FContext& InContext)
 // 		{
-// 			for(FMyStruct& Payload : Payloads)
+// 			for (FMyStruct& Payload : Payloads)
 //			{
 // 				InContext.Check(InEventStartTime, InEventEndTime, 0, Payload);
 // 			}

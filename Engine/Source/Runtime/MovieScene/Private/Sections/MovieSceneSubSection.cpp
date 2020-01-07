@@ -247,7 +247,7 @@ AActor* UMovieSceneSubSection::GetActorToRecord()
 }
 
 #if WITH_EDITOR
-void UMovieSceneSubSection::PreEditChange(UProperty* PropertyAboutToChange)
+void UMovieSceneSubSection::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	if (PropertyAboutToChange && PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UMovieSceneSubSection, SubSequence))
 	{

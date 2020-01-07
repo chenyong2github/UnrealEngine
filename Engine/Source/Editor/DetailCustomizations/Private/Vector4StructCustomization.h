@@ -26,7 +26,7 @@ public:
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;	
 
 private:
-	// We specialize the detail display of color grading vector property. The color grading mode is specified inside the metadata of the UProperty
+	// We specialize the detail display of color grading vector property. The color grading mode is specified inside the metadata of the FProperty
 	TSharedPtr<FColorGradingVectorCustomization> GetOrCreateColorGradingVectorCustomization(TSharedRef<IPropertyHandle>& StructPropertyHandle);
 
 	TSharedPtr<FColorGradingVectorCustomization> ColorGradingVectorCustomization;

@@ -104,5 +104,5 @@ bool FFunctionCaller::IsValidFunction(UFunction* Function)
 	}
 
 	// Parameter must be an object or interface property
-	return Function->PropertyLink->IsA<UObjectProperty>() || Function->PropertyLink->IsA<UInterfaceProperty>();
+	return Function->PropertyLink->IsA<FObjectProperty>() || Function->PropertyLink->IsA<FInterfaceProperty>();
 }

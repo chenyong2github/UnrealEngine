@@ -689,7 +689,7 @@ private:
 
 	FText( FString&& InSourceString, const FTextKey& InNamespace, const FTextKey& InKey, uint32 InFlags=0 );
 
-	static void SerializeText(FArchive& Ar, FText& Value);
+	static void SerializeText( FArchive& Ar, FText& Value );
 	static void SerializeText(FStructuredArchive::FSlot Slot, FText& Value);
 
 	/** Returns the source string of the FText */
@@ -738,7 +738,7 @@ public:
 	friend class FArchiveFromStructuredArchiveImpl;
 	friend class FJsonArchiveInputFormatter;
 	friend class FJsonArchiveOutputFormatter;
-	friend class UTextProperty;
+	friend class FTextProperty;
 	friend class FFormatArgumentValue;
 	friend class FTextHistory_NamedFormat;
 	friend class FTextHistory_ArgumentDataFormat;

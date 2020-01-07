@@ -2034,7 +2034,7 @@ void FPersonaMeshDetails::OnCopyMaterialList()
 
 	if (Mesh != nullptr)
 	{
-		UProperty* Property = USkeletalMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(USkeletalMesh, Materials));
+		FProperty* Property = USkeletalMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(USkeletalMesh, Materials));
 		auto JsonValue = FJsonObjectConverter::UPropertyToJsonValue(Property, &Mesh->Materials, 0, 0);
 
 		typedef TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>> FStringWriter;
@@ -2078,7 +2078,7 @@ void FPersonaMeshDetails::OnPasteMaterialList()
 
 		if (RootJsonValue.IsValid())
 		{
-			UProperty* Property = USkeletalMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(USkeletalMesh, Materials));
+			FProperty* Property = USkeletalMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(USkeletalMesh, Materials));
 
 			Mesh->PreEditChange(Property);
 			FScopedTransaction Transaction(LOCTEXT("PersonaChangedPasteMaterialList", "Persona editor: Pasted material list"));
@@ -3764,7 +3764,7 @@ void FPersonaMeshDetails::OnMaterialArrayChanged(UMaterialInterface* NewMaterial
 		// Whether or not we made a transaction and need to end it
 		bool bMadeTransaction = false;
 
-		UProperty* MaterialProperty = FindField<UProperty>(USkeletalMesh::StaticClass(), "Materials");
+		FProperty* MaterialProperty = FindField<FProperty>(USkeletalMesh::StaticClass(), "Materials");
 		check(MaterialProperty);
 		Mesh->PreEditChange(MaterialProperty);
 		check(Mesh->Materials.Num() > SlotIndex)
@@ -3942,7 +3942,7 @@ void FPersonaMeshDetails::OnMaterialNameCommitted(const FText& InValue, ETextCom
 	{
 		FScopedTransaction ScopeTransaction(LOCTEXT("PersonaMaterialSlotNameChanged", "Persona editor: Material slot name change"));
 
-		UProperty* ChangedProperty = FindField<UProperty>(USkeletalMesh::StaticClass(), "Materials");
+		FProperty* ChangedProperty = FindField<FProperty>(USkeletalMesh::StaticClass(), "Materials");
 		check(ChangedProperty);
 		SkeletalMeshPtr->PreEditChange(ChangedProperty);
 
@@ -4072,8 +4072,8 @@ void FPersonaMeshDetails::OnDeleteMaterialSlot(int32 MaterialIndex)
 	{
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMeshPtr.Get());
 		//When we delete a material slot we must invalidate the DDC because material index is not part of the DDC key by design
-		SkeletalMeshPtr->Materials.RemoveAt(MaterialIndex);
-		FSkeletalMeshModel* Model = SkeletalMeshPtr->GetImportedModel();
+	SkeletalMeshPtr->Materials.RemoveAt(MaterialIndex);
+	FSkeletalMeshModel* Model = SkeletalMeshPtr->GetImportedModel();
 
 		int32 NumLODInfos = SkeletalMeshPtr->GetLODNum();
 
@@ -4089,13 +4089,13 @@ void FPersonaMeshDetails::OnDeleteMaterialSlot(int32 MaterialIndex)
 					SectionMaterialIndex = LODMaterialMap[SectionIndex];
 				}
 				if (SectionMaterialIndex > MaterialIndex)
-				{
+	{
 					SectionMaterialIndex--;
 				}
 				if (SectionMaterialIndex != Model->LODModels[LODInfoIdx].Sections[SectionIndex].MaterialIndex)
-				{
+		{
 					while(!LODMaterialMap.IsValidIndex(SectionIndex))
-					{
+			{
 						LODMaterialMap.Add(INDEX_NONE);
 					}
 					LODMaterialMap[SectionIndex] = SectionMaterialIndex;
@@ -5076,7 +5076,7 @@ int32 FPersonaMeshDetails::GetMaterialIndex(int32 LODIndex, int32 SectionIndex) 
 		return Info.LODMaterialMap[SectionIndex];
 		
 	}
-	return MaterialIndex;
+		return MaterialIndex;
 }
 
 void FPersonaMeshDetails::OnSectionChanged(int32 LODIndex, int32 SectionIndex, int32 NewMaterialSlotIndex, FName NewMaterialSlotName)
@@ -5114,35 +5114,35 @@ void FPersonaMeshDetails::OnSectionChanged(int32 LODIndex, int32 SectionIndex, i
 		Mesh->Modify();
 		{
 			FScopedSkeletalMeshPostEditChange ScopedPostEditChange(Mesh);
-			int32 NumSections = ImportedResource->LODModels[LODIndex].Sections.Num();
-			FSkeletalMeshLODInfo& Info = *(Mesh->GetLODInfo(LODIndex));
+		int32 NumSections = ImportedResource->LODModels[LODIndex].Sections.Num();
+		FSkeletalMeshLODInfo& Info = *(Mesh->GetLODInfo(LODIndex));
 
 			auto SetLODMaterialMapValue = [&LODIndex, &Info, &ImportedResource](int32 InSectionIndex, int32 OverrideMaterialIndex)
-			{
+		{
 				if (ImportedResource->LODModels[LODIndex].Sections[InSectionIndex].MaterialIndex == OverrideMaterialIndex)
-				{
+			{
 					if (Info.LODMaterialMap.IsValidIndex(InSectionIndex))
-					{
-						Info.LODMaterialMap[InSectionIndex] = INDEX_NONE;
-					}
-				}
-				else
 				{
+						Info.LODMaterialMap[InSectionIndex] = INDEX_NONE;
+				}
+			}
+			else
+			{
 					while (Info.LODMaterialMap.Num() <= InSectionIndex)
-					{
-						Info.LODMaterialMap.Add(INDEX_NONE);
-					}
+				{
+					Info.LODMaterialMap.Add(INDEX_NONE);
+				}
 					check(InSectionIndex < Info.LODMaterialMap.Num());
 					Info.LODMaterialMap[InSectionIndex] = OverrideMaterialIndex;
-				}
-			};
+			}
+		};
 
 			SetLODMaterialMapValue(SectionIndex, NewSkeletalMaterialIndex);
-			//Set the chunked section 
+		//Set the chunked section 
 			for (int32 SectionIdx = SectionIndex+1; SectionIdx < NumSections; SectionIdx++)
+		{
+			if (ImportedResource->LODModels[LODIndex].Sections[SectionIdx].ChunkedParentSectionIndex == SectionIndex)
 			{
-				if (ImportedResource->LODModels[LODIndex].Sections[SectionIdx].ChunkedParentSectionIndex == SectionIndex)
-				{
 					SetLODMaterialMapValue(SectionIdx, NewSkeletalMaterialIndex);
 				}
 				else

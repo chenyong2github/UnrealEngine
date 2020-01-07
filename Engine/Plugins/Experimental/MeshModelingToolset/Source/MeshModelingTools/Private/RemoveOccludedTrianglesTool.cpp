@@ -269,7 +269,7 @@ void URemoveOccludedTrianglesTool::PostEditChangeProperty(FPropertyChangedEvent&
 }
 #endif
 
-void URemoveOccludedTrianglesTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void URemoveOccludedTrianglesTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{

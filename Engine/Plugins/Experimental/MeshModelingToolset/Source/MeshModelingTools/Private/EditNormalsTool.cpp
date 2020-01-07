@@ -227,7 +227,7 @@ void UEditNormalsTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 }
 #endif
 
-void UEditNormalsTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UEditNormalsTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	UpdateNumPreviews();
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)

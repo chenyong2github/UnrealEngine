@@ -74,7 +74,7 @@ public:
 		ENativizedTermUsage TermUsage;
 		bool bUseSafeContext;
 		FString* EndCustomSetExpression;
-		const UProperty* CoerceProperty;
+		const FProperty* CoerceProperty;
 
 		FTermToTextParams()
 			:Term(nullptr)

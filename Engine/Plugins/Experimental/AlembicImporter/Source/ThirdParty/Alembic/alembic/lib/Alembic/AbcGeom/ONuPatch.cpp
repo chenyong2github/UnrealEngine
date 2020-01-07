@@ -165,7 +165,7 @@ void ONuPatchSchema::set( const ONuPatchSchema::Sample &iSamp  )
 
         // set required properties
         m_positionsProperty.set( iSamp.getPositions() );
-        m_numUProperty.set( iSamp.getNu() );
+        m_numFProperty.set( iSamp.getNu() );
         m_numVProperty.set( iSamp.getNv() );
         m_uOrderProperty.set( iSamp.getUOrder() );
         m_vOrderProperty.set( iSamp.getVOrder() );
@@ -182,7 +182,7 @@ void ONuPatchSchema::set( const ONuPatchSchema::Sample &iSamp  )
             m_trimKnotProperty.set( iSamp.getTrimKnot() );
             m_trimMinProperty.set( iSamp.getTrimMin() );
             m_trimMaxProperty.set( iSamp.getTrimMax() );
-            m_trimUProperty.set( iSamp.getTrimU() );
+            m_trimFProperty.set( iSamp.getTrimU() );
             m_trimVProperty.set( iSamp.getTrimV() );
             m_trimWProperty.set( iSamp.getTrimW() );
         }
@@ -227,7 +227,7 @@ void ONuPatchSchema::set( const ONuPatchSchema::Sample &iSamp  )
     {
         // TODO this would all go away, remove the lightweight constructor
         SetPropUsePrevIfNull( m_positionsProperty, iSamp.getPositions() );
-        SetPropUsePrevIfNull( m_numUProperty, iSamp.getNu() );
+        SetPropUsePrevIfNull( m_numFProperty, iSamp.getNu() );
         SetPropUsePrevIfNull( m_numVProperty, iSamp.getNv() );
         SetPropUsePrevIfNull( m_uOrderProperty, iSamp.getUOrder() );
         SetPropUsePrevIfNull( m_vOrderProperty, iSamp.getVOrder() );
@@ -267,7 +267,7 @@ void ONuPatchSchema::set( const ONuPatchSchema::Sample &iSamp  )
             SetPropUsePrevIfNull( m_trimKnotProperty, iSamp.getTrimKnot() );
             SetPropUsePrevIfNull( m_trimMinProperty, iSamp.getTrimMin() );
             SetPropUsePrevIfNull( m_trimMaxProperty, iSamp.getTrimMax() );
-            SetPropUsePrevIfNull( m_trimUProperty, iSamp.getTrimU() );
+            SetPropUsePrevIfNull( m_trimFProperty, iSamp.getTrimU() );
             SetPropUsePrevIfNull( m_trimVProperty, iSamp.getTrimV() );
             SetPropUsePrevIfNull( m_trimWProperty, iSamp.getTrimW() );
         }
@@ -306,7 +306,7 @@ void ONuPatchSchema::selectiveSet( const Sample &iSamp )
     }
 
     // Assuming all knot properties get created in ::createKnotProperties()
-    if( iSamp.hasKnotSampleData() && !m_numUProperty )
+    if( iSamp.hasKnotSampleData() && !m_numFProperty )
     {
         createKnotProperties();
     }
@@ -328,9 +328,9 @@ void ONuPatchSchema::selectiveSet( const Sample &iSamp )
     }
 
     // Assuming all knot properties get created in ::createKnotProperties()
-    if( m_numUProperty )
+    if( m_numFProperty )
     {
-        SetPropUsePrevIfNull( m_numUProperty, iSamp.getNu() );
+        SetPropUsePrevIfNull( m_numFProperty, iSamp.getNu() );
         SetPropUsePrevIfNull( m_numVProperty, iSamp.getNv() );
         SetPropUsePrevIfNull( m_uOrderProperty, iSamp.getUOrder() );
         SetPropUsePrevIfNull( m_vOrderProperty, iSamp.getVOrder() );
@@ -404,7 +404,7 @@ void ONuPatchSchema::selectiveSet( const Sample &iSamp )
         SetPropUsePrevIfNull( m_trimKnotProperty, iSamp.getTrimKnot() );
         SetPropUsePrevIfNull( m_trimMinProperty, iSamp.getTrimMin() );
         SetPropUsePrevIfNull( m_trimMaxProperty, iSamp.getTrimMax() );
-        SetPropUsePrevIfNull( m_trimUProperty, iSamp.getTrimU() );
+        SetPropUsePrevIfNull( m_trimFProperty, iSamp.getTrimU() );
         SetPropUsePrevIfNull( m_trimVProperty, iSamp.getTrimV() );
         SetPropUsePrevIfNull( m_trimWProperty, iSamp.getTrimW() );
     }
@@ -444,7 +444,7 @@ void ONuPatchSchema::createKnotProperties()
     AbcA::CompoundPropertyWriterPtr _this = this->getPtr();
 
     // initialize any required properties
-    m_numUProperty = Abc::OInt32Property( _this, "nu", m_timeSamplingIndex );
+    m_numFProperty = Abc::OInt32Property( _this, "nu", m_timeSamplingIndex );
     m_numVProperty = Abc::OInt32Property( _this, "nv", m_timeSamplingIndex );
     m_uOrderProperty = Abc::OInt32Property( _this, "uOrder", m_timeSamplingIndex );
     m_vOrderProperty = Abc::OInt32Property( _this, "vOrder", m_timeSamplingIndex );
@@ -455,7 +455,7 @@ void ONuPatchSchema::createKnotProperties()
     const float floatSample = 0.0f;
     for ( size_t i = 0 ; i < m_numSamples ; ++i )
     {
-        m_numUProperty.set( floatSample );
+        m_numFProperty.set( floatSample );
         m_numVProperty.set( floatSample );
         m_uOrderProperty.set( floatSample );
         m_vOrderProperty.set( floatSample );
@@ -588,7 +588,7 @@ void ONuPatchSchema::createTrimPropreties()
     m_trimKnotProperty = Abc::OFloatArrayProperty( _this, "trim_knot", tsPtr );
     m_trimMinProperty = Abc::OFloatArrayProperty( _this, "trim_min", tsPtr );
     m_trimMaxProperty = Abc::OFloatArrayProperty( _this, "trim_max", tsPtr );
-    m_trimUProperty = Abc::OFloatArrayProperty( _this, "trim_u", tsPtr );
+    m_trimFProperty = Abc::OFloatArrayProperty( _this, "trim_u", tsPtr );
     m_trimVProperty = Abc::OFloatArrayProperty( _this, "trim_v", tsPtr );
     m_trimWProperty = Abc::OFloatArrayProperty( _this, "trim_w", tsPtr );
 
@@ -603,7 +603,7 @@ void ONuPatchSchema::createTrimPropreties()
         m_trimKnotProperty.set( emptyFloatSamp );
         m_trimMinProperty.set( emptyFloatSamp );
         m_trimMaxProperty.set( emptyFloatSamp );
-        m_trimUProperty.set( emptyFloatSamp );
+        m_trimFProperty.set( emptyFloatSamp );
         m_trimVProperty.set( emptyFloatSamp );
         m_trimWProperty.set( emptyFloatSamp );
     }
@@ -616,7 +616,7 @@ void ONuPatchSchema::setFromPrevious( )
 
     // handle required properites
     if( m_positionsProperty ) { m_positionsProperty.setFromPrevious(); }
-    if( m_numUProperty ) { m_numUProperty.setFromPrevious(); }
+    if( m_numFProperty ) { m_numFProperty.setFromPrevious(); }
     if( m_numVProperty ) { m_numVProperty.setFromPrevious(); }
     if( m_uOrderProperty ) { m_uOrderProperty.setFromPrevious(); }
     if( m_vOrderProperty ) { m_vOrderProperty.setFromPrevious(); }
@@ -644,7 +644,7 @@ void ONuPatchSchema::setFromPrevious( )
         m_trimKnotProperty.setFromPrevious();
         m_trimMinProperty.setFromPrevious();
         m_trimMaxProperty.setFromPrevious();
-        m_trimUProperty.setFromPrevious();
+        m_trimFProperty.setFromPrevious();
         m_trimVProperty.setFromPrevious();
         m_trimWProperty.setFromPrevious();
     }
@@ -663,7 +663,7 @@ void ONuPatchSchema::setTimeSampling( uint32_t iIndex )
     if( m_positionsProperty )
     {
         m_positionsProperty.setTimeSampling( iIndex );
-        m_numUProperty.setTimeSampling( iIndex );
+        m_numFProperty.setTimeSampling( iIndex );
         m_numVProperty.setTimeSampling( iIndex );
         m_uOrderProperty.setTimeSampling( iIndex );
         m_vOrderProperty.setTimeSampling( iIndex );
@@ -697,7 +697,7 @@ void ONuPatchSchema::setTimeSampling( uint32_t iIndex )
         m_trimKnotProperty.setTimeSampling( iIndex );
         m_trimMinProperty.setTimeSampling( iIndex );
         m_trimMaxProperty.setTimeSampling( iIndex );
-        m_trimUProperty.setTimeSampling( iIndex );
+        m_trimFProperty.setTimeSampling( iIndex );
         m_trimVProperty.setTimeSampling( iIndex );
         m_trimWProperty.setTimeSampling( iIndex );
     }

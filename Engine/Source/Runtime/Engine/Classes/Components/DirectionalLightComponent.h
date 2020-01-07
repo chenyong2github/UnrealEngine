@@ -222,7 +222,7 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	//~ Begin UObject Interface
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual bool CanEditChange(const UProperty* InProperty) const override;
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif // WITH_EDITOR
 	virtual void Serialize(FArchive& Ar) override;
 	//~ Begin UObject Interface

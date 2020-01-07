@@ -822,7 +822,27 @@ void STimersView::TreeView_OnMouseButtonDoubleClick(FTimerNodePtr TimerNodePtr)
 		TSharedPtr<STimingView> TimingView = Wnd.IsValid() ? Wnd->GetTimingView() : nullptr;
 		if (TimingView.IsValid())
 		{
-			TimingView->SetHighlightedEventTypeId(TimerNodePtr->GetId());
+			bool bSameFilter = false;
+
+			const TSharedPtr<ITimingEventFilter> EventFilterPtr = TimingView->GetEventFilter();
+			if (EventFilterPtr.IsValid())
+			{
+				const FTimingEventFilter& EventFilter = static_cast<const FTimingEventFilter&>(*EventFilterPtr);
+				if (EventFilter.IsFilteringByEventType() &&
+					EventFilter.GetEventType() == TimerNodePtr->GetId())
+				{
+					bSameFilter = true;
+					TimingView->SetEventFilter(nullptr); // reset filter
+				}
+			}
+
+			if (!bSameFilter)
+			{
+				TSharedRef<FTimingEventFilter> EventFilterRef = MakeShared<FTimingEventFilter>();
+				EventFilterRef->SetFilterByEventType(true);
+				EventFilterRef->SetEventType(TimerNodePtr->GetId());
+				TimingView->SetEventFilter(EventFilterRef); // set new filter
+			}
 		}
 	}
 }

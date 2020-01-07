@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Class.h"
 #include "UObject/UnrealType.h"
+#include "UObject/Field.h"
 #include "UObject/StructOnScope.h"
 #include "Templates/ValueOrError.h"
 
@@ -76,26 +77,26 @@ class FFuncReflection;
  *
  * Old code (manual reflection):
  *	// Reflection for AFortPlayerController->QuickBars
- *	UObjectProperty* QuickBarsProp = FindField<UObjectProperty>(UnitPC->GetClass(), TEXT("QuickBars"));
+ *	FObjectProperty* QuickBarsProp = FindField<FObjectProperty>(UnitPC->GetClass(), TEXT("QuickBars"));
  *	UObject** QuickBarsRef = (QuickBarsProp != NULL ? QuickBarsProp->ContainerPtrToValuePtr<UObject*>(UnitPC.Get()) : NULL);
  *	AActor* QuickBars = (QuickBarsRef != NULL ? Cast<AActor>(*QuickBarsRef) : NULL);
  *
  *
  *	// Reflection for AFortPlayerController->WorldInventory->Inventory->Items->ItemGuid
- *	UObjectProperty* WorldInvProp = FindField<UObjectProperty>(UnitPC->GetClass(), TEXT("WorldInventory"));
+ *	FObjectProperty* WorldInvProp = FindField<FObjectProperty>(UnitPC->GetClass(), TEXT("WorldInventory"));
  *	UObject** WorldInvRef = (WorldInvProp != NULL ? WorldInvProp->ContainerPtrToValuePtr<UObject*>(UnitPC.Get()) : NULL);
  *	AActor* WorldInv = (WorldInvRef != NULL ? Cast<AActor>(*WorldInvRef) : NULL);
- *	UStructProperty* WIInventoryProp = (WorldInv != NULL ? FindField<UStructProperty>(WorldInv->GetClass(), TEXT("Inventory")) : NULL);
+ *	FStructProperty* WIInventoryProp = (WorldInv != NULL ? FindField<FStructProperty>(WorldInv->GetClass(), TEXT("Inventory")) : NULL);
  *	void* WIInventoryRef = (WIInventoryProp != NULL ? WIInventoryProp->ContainerPtrToValuePtr<void>(WorldInv) : NULL);
- *	UArrayProperty* InvItemsProp = (WIInventoryProp != NULL ? FindField<UArrayProperty>(WIInventoryProp->Struct, TEXT("Items")) : NULL);
+ *	FArrayProperty* InvItemsProp = (WIInventoryProp != NULL ? FindField<FArrayProperty>(WIInventoryProp->Struct, TEXT("Items")) : NULL);
  *	FScriptArrayHelper* InvItemsArray = ((InvItemsProp != NULL && WIInventoryRef != NULL) ?
  *							new FScriptArrayHelper(InvItemsProp, InvItemsProp->ContainerPtrToValuePtr<void>(WIInventoryRef)) : NULL);
  *
  *	void* InvItemsEntryRef = ((InvItemsArray != NULL && InvItemsArray->Num() > 0) ?
  *								InvItemsArray->GetRawPtr(0) : NULL);
- *	UStructProperty* InvItemsEntryProp = Cast<UStructProperty>(InvItemsProp != NULL ? InvItemsProp->Inner : NULL);
- *	UStructProperty* EntryItemGuidProp = (InvItemsEntryProp != NULL ?
- *											FindField<UStructProperty>(InvItemsEntryProp->Struct, TEXT("ItemGuid")) : NULL);
+ *	FStructProperty* InvItemsEntryProp = CastField<FStructProperty>(InvItemsProp != NULL ? InvItemsProp->Inner : NULL);
+ *	FStructProperty* EntryItemGuidProp = (InvItemsEntryProp != NULL ?
+ *											FindField<FStructProperty>(InvItemsEntryProp->Struct, TEXT("ItemGuid")) : NULL);
  *	FGuid* EntryItemGuidRef = (EntryItemGuidProp != NULL ? InvItemsEntryProp->ContainerPtrToValuePtr<FGuid>(InvItemsEntryRef) : NULL);
  *
  *	...
@@ -128,9 +129,9 @@ class FFuncReflection;
  *	readwriteupcast		- Int64Property									arraycheck	assign
  *	readwrite			- Int8Property									arraycheck	assign
  *	readwriteupcast		- IntProperty									arraycheck	assign
- *	readwriteupcast		- UInt16Property								arraycheck	assign
- *	readwriteupcast		- UIntProperty									arraycheck	assign
- *	readwriteupcast		- UInt64Property								arraycheck	assign
+ *	readwriteupcast		- FInt16Property								arraycheck	assign
+ *	readwriteupcast		- FIntProperty									arraycheck	assign
+ *	readwriteupcast		- FInt64Property								arraycheck	assign
  *					- ObjectPropertyBase
  *	readwrite			- SoftObjectProperty										assign
  *	inherited				- SoftClassProperty									inherited
@@ -346,7 +347,7 @@ private:
 	 * @param SupportedUpCasts		Types which support upcasting to InType
 	 */
 	template<typename InType, class InTypeClass>
-	FORCEINLINE InType GetNumericTypeCast(const TCHAR* InTypeStr, const TArray<UClass*>& SupportedUpCasts);
+	FORCEINLINE InType GetNumericTypeCast(const TCHAR* InTypeStr, const TArray<FFieldClass*>& SupportedUpCasts);
 
 	/**
 	 * Base version of above, for types with no upcasts
@@ -451,7 +452,7 @@ public:
 
 	/**
 	 * Cast to writable FSoftObjectPtr* (where write actions should be performed through FSoftObjectPrr methods, not by pointer assignment).
-	 * For USoftObjectProperty
+	 * For FSoftObjectProperty
 	 */
 	explicit operator FSoftObjectPtr*();
 
@@ -618,9 +619,9 @@ private:
 	 */
 	FORCEINLINE bool IsPropertyArray() const
 	{
-		const UProperty* CurProp = Cast<UProperty>(FieldInstance);
+		const FProperty* CurProp = FieldInstance.Get<FProperty>();
 
-		return CurProp != nullptr && (CurProp->ArrayDim > 1 || Cast<UArrayProperty>(CurProp) != nullptr);
+		return CurProp != nullptr && (CurProp->ArrayDim > 1 || CastField<FArrayProperty>(CurProp) != nullptr);
 	}
 
 	/**
@@ -630,8 +631,8 @@ private:
 	 */
 	FORCEINLINE bool IsPropertyObject() const
 	{
-		return FieldInstance != nullptr && (FieldInstance->IsA(UObjectProperty::StaticClass()) ||
-				FieldInstance->IsA(UWeakObjectProperty::StaticClass()) || FieldInstance->IsA(USoftObjectProperty::StaticClass()));
+		return FieldInstance.IsValid() && (FieldInstance.IsA(FObjectProperty::StaticClass()) ||
+				FieldInstance.IsA(FWeakObjectProperty::StaticClass()) || FieldInstance.IsA(FSoftObjectProperty::StaticClass()));
 	}
 
 	/**
@@ -641,8 +642,8 @@ private:
 	 */
 	FORCEINLINE bool CanCastProperty() const
 	{
-		return !bIsError && BaseAddress != nullptr && FieldInstance != nullptr && FieldAddress != nullptr &&
-				FieldInstance->IsA(UProperty::StaticClass()) && (!IsPropertyArray() || (bVerifiedFieldType && bSetArrayElement));
+		return !bIsError && BaseAddress != nullptr && FieldInstance.IsValid() && FieldAddress != nullptr &&
+				FieldInstance.IsA(FProperty::StaticClass()) && (!IsPropertyArray() || (bVerifiedFieldType && bSetArrayElement));
 	}
 
 	/**
@@ -654,19 +655,19 @@ private:
 	template<typename PropertyClass>
 	FORCEINLINE bool CanCastObject() const
 	{
-		static_assert(TPointerIsConvertibleFromTo<PropertyClass, UObjectPropertyBase>::Value,
-						"PropertyClass must derive from UObjectPropertyBase");
+		static_assert(TPointerIsConvertibleFromTo<PropertyClass, FObjectPropertyBase>::Value,
+						"PropertyClass must derive from FObjectPropertyBase");
 
 		bool bReturnVal = false;
 
-		if (!bIsError && FieldInstance != nullptr && (!IsPropertyArray() || (bVerifiedFieldType && bSetArrayElement)))
+		if (!bIsError && FieldInstance.IsValid() && (!IsPropertyArray() || (bVerifiedFieldType && bSetArrayElement)))
 		{
-			bool bBaseAddressIsObject = BaseAddress != nullptr && FieldInstance->IsA(UClass::StaticClass());
+			bool bBaseAddressIsObject = BaseAddress != nullptr && FieldInstance.IsA(UClass::StaticClass());
 			
 			// This can only happen when the attempt to step-in to an object property (i.e. to assign it to BaseAddress) failed,
 			// due to the object property being nullptr. However, nullptr is still a valid cast return
 			bool bFieldAddressIsObject = !bBaseAddressIsObject && bNextActionMustBeCast && FieldAddress != nullptr &&
-											FieldInstance->IsA(PropertyClass::StaticClass());
+											FieldInstance.IsA(PropertyClass::StaticClass());
 
 			bReturnVal = bBaseAddressIsObject || bFieldAddressIsObject;
 		}
@@ -681,7 +682,7 @@ private:
 	 */
 	FORCEINLINE bool CanCastArray() const
 	{
-		return !bIsError && BaseAddress != NULL && FieldInstance != NULL && FieldInstance->IsA(UArrayProperty::StaticClass()) &&
+		return !bIsError && BaseAddress != NULL && FieldInstance.IsValid() && FieldInstance.IsA(FArrayProperty::StaticClass()) &&
 				FieldAddress != NULL && bVerifiedFieldType && !bSetArrayElement;
 	}
 
@@ -692,7 +693,7 @@ private:
 	 */
 	FORCEINLINE bool CanCastStruct() const
 	{
-		return !bIsError && BaseAddress != NULL && FieldInstance != NULL && FieldInstance->IsA(UStruct::StaticClass()) &&
+		return !bIsError && BaseAddress != NULL && FieldInstance.IsValid() && FieldInstance.IsA(UStruct::StaticClass()) &&
 				FieldAddress != NULL && bVerifiedFieldType;
 	}
 
@@ -796,7 +797,7 @@ private:
 
 
 	/** The current field instance (e.g. a UPROPERTY within AActor or such) */
-	const UField* FieldInstance;
+	FFieldVariant FieldInstance;
 
 	/** The address of the current field - OR, if bSetArrayElement - the address of the current array element */
 	void* FieldAddress;

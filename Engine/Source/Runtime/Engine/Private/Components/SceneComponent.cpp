@@ -2376,7 +2376,7 @@ void USceneComponent::UpdateChildTransforms(EUpdateTransformFlags UpdateTransfor
 	}
 }
 
-void USceneComponent::PostInterpChange(UProperty* PropertyThatChanged)
+void USceneComponent::PostInterpChange(FProperty* PropertyThatChanged)
 {
 	Super::PostInterpChange(PropertyThatChanged);
 
@@ -3318,7 +3318,7 @@ void USceneComponent::PostEditComponentMove(bool bFinished)
 	}
 }
 
-bool USceneComponent::CanEditChange( const UProperty* Property ) const
+bool USceneComponent::CanEditChange( const FProperty* Property ) const
 {
 	bool bIsEditable = Super::CanEditChange( Property );
 	if( bIsEditable && Property != nullptr )

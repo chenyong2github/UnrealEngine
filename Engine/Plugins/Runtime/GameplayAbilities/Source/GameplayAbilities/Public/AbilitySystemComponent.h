@@ -650,8 +650,8 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	UPROPERTY(meta = (SystemGameplayAttribute = "true"))
 	float IncomingDuration;
 
-	static UProperty* GetOutgoingDurationProperty();
-	static UProperty* GetIncomingDurationProperty();
+	static FProperty* GetOutgoingDurationProperty();
+	static FProperty* GetIncomingDurationProperty();
 
 	static const FGameplayEffectAttributeCaptureDefinition& GetOutgoingDurationCapture();
 	static const FGameplayEffectAttributeCaptureDefinition& GetIncomingDurationCapture();

@@ -105,8 +105,8 @@ void FPostProcessSettingsCustomization::CustomizeChildren( TSharedRef<IPropertyH
 	uint32 NumChildren = 0;
 	FPropertyAccess::Result Result = StructPropertyHandle->GetNumChildren(NumChildren);
 
-	UProperty* Prop = StructPropertyHandle->GetProperty();
-	UStructProperty* StructProp = Cast<UStructProperty>(Prop);
+	FProperty* Prop = StructPropertyHandle->GetProperty();
+	FStructProperty* StructProp = CastField<FStructProperty>(Prop);
 
 	// a category with this name should be one level higher, should be "PostProcessSettings"
 	FName ClassName = StructProp->Struct->GetFName();
@@ -143,7 +143,7 @@ void FPostProcessSettingsCustomization::CustomizeChildren( TSharedRef<IPropertyH
 
 			if( ChildHandle.IsValid() && ChildHandle->GetProperty() )
 			{
-				UProperty* Property = ChildHandle->GetProperty();
+				FProperty* Property = ChildHandle->GetProperty();
 
 				FName CategoryFName = FObjectEditorUtils::GetCategoryFName(Property);
 					

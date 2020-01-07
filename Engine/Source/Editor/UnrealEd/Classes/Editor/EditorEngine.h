@@ -1997,7 +1997,7 @@ public:
 	 * @param	CommonBaseClass		The class of object to color.
 	 * @param	PropertyChain		The chain of properties from member to lowest property.
 	 */
-	virtual void SetPropertyColorationTarget(UWorld* InWorld, const FString& PropertyValue, class UProperty* Property, class UClass* CommonBaseClass, class FEditPropertyChain* PropertyChain);
+	virtual void SetPropertyColorationTarget(UWorld* InWorld, const FString& PropertyValue, class FProperty* Property, class UClass* CommonBaseClass, class FEditPropertyChain* PropertyChain);
 
 	/**
 	 * Accessor for current property-based coloration settings.
@@ -2007,7 +2007,7 @@ public:
 	 * @param	OutCommonBaseClass	[out] The class of object to color.
 	 * @param	OutPropertyChain	[out] The chain of properties from member to lowest property.
 	 */
-	virtual void GetPropertyColorationTarget(FString& OutPropertyValue, UProperty*& OutProperty, UClass*& OutCommonBaseClass, FEditPropertyChain*& OutPropertyChain);
+	virtual void GetPropertyColorationTarget(FString& OutPropertyValue, FProperty*& OutProperty, UClass*& OutCommonBaseClass, FEditPropertyChain*& OutPropertyChain);
 
 	/**
 	 * Selects actors that match the property coloration settings.
@@ -2478,7 +2478,7 @@ public:
 	 *
 	 * @return	the friendly name for the property.  localized first, then metadata, then the property's name.
 	 */
-	static FString GetFriendlyName( const UProperty* Property, UStruct* OwnerStruct = NULL );
+	static FString GetFriendlyName( const FProperty* Property, UStruct* OwnerStruct = NULL );
 
 	/**
 	 * Register a client tool to receive undo events 

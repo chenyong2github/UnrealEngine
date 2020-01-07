@@ -31,7 +31,7 @@ namespace
 			bExcludeObjectContainerProperties = bExcludeObjectContainers;
 		}
 
-		virtual void GetRecordDefaults(UProperty* TestProperty, FOptionalPinFromProperty& Record) const override
+		virtual void GetRecordDefaults(FProperty* TestProperty, FOptionalPinFromProperty& Record) const override
 		{
 			FOptionalPinManager::GetRecordDefaults(TestProperty, Record);
 
@@ -39,7 +39,7 @@ namespace
 			Record.bShowPin = TestProperty->GetOwnerClass() == SrcClass;
 		}
 
-		virtual bool CanTreatPropertyAsOptional(UProperty* TestProperty) const override
+		virtual bool CanTreatPropertyAsOptional(FProperty* TestProperty) const override
 		{
 			// Don't expose anything not marked BlueprintReadOnly/BlueprintReadWrite.
 			if(!TestProperty || !TestProperty->HasAllPropertyFlags(CPF_BlueprintVisible))
@@ -47,7 +47,7 @@ namespace
 				return false;
 			}
 			
-			if(UArrayProperty* TestArrayProperty = Cast<UArrayProperty>(TestProperty))
+			if(FArrayProperty* TestArrayProperty = CastField<FArrayProperty>(TestProperty))
 			{
 				// We only use the Inner type if the flag is set. This is done for backwards-compatibility (some BPs may already rely on the previous behavior when the property value was allowed to be exposed).
 				if(bExcludeObjectArrayProperties && TestArrayProperty->Inner)
@@ -55,27 +55,27 @@ namespace
 					TestProperty = TestArrayProperty->Inner;
 				}
 			}
-			else if (USetProperty* TestSetProperty = Cast<USetProperty>(TestProperty))
+			else if (FSetProperty* TestSetProperty = CastField<FSetProperty>(TestProperty))
 			{
 				if (bExcludeObjectContainerProperties && TestSetProperty->ElementProp)
 				{
 					TestProperty = TestSetProperty->ElementProp;
 				}
 			}
-			else if (UMapProperty* TestMapProperty = Cast<UMapProperty>(TestProperty))
+			else if (FMapProperty* TestMapProperty = CastField<FMapProperty>(TestProperty))
 			{
 				// Since we can't treat the key or value as read-only right now, we exclude any TMap that has a non-class UObject reference as its key or value type.
 				return !(bExcludeObjectContainerProperties
-					&& ((TestMapProperty->KeyProp && TestMapProperty->KeyProp->IsA<UObjectProperty>() && !TestMapProperty->KeyProp->IsA<UClassProperty>())
-						|| (TestMapProperty->ValueProp && TestMapProperty->ValueProp->IsA<UObjectProperty>() && !TestMapProperty->ValueProp->IsA<UClassProperty>())));
+					&& ((TestMapProperty->KeyProp && TestMapProperty->KeyProp->IsA<FObjectProperty>() && !TestMapProperty->KeyProp->IsA<FClassProperty>())
+						|| (TestMapProperty->ValueProp && TestMapProperty->ValueProp->IsA<FObjectProperty>() && !TestMapProperty->ValueProp->IsA<FClassProperty>())));
 			}
 			
 			// Don't expose object properties (except for those containing class objects).
 			// @TODO - Could potentially expose object reference values if/when we have support for 'const' input pins.
-			return !TestProperty->ContainsInstancedObjectProperty() || !TestProperty->IsA<UObjectProperty>() || TestProperty->IsA<UClassProperty>();
+			return !TestProperty->ContainsInstancedObjectProperty() || !TestProperty->IsA<FObjectProperty>() || TestProperty->IsA<FClassProperty>();
 		}
 
-		virtual void CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex, UProperty* Property = nullptr) const override
+		virtual void CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex, FProperty* Property = nullptr) const override
 		{
 			check(Pin);
 
@@ -148,7 +148,7 @@ namespace
 								UEdGraphPin* Pin = Node->Pins[PinIndex];
 								if(Pin != nullptr && Pin->Direction == EGPD_Output)
 								{
-									UProperty* BoundProperty = FindField<UProperty>(ClassType, Pin->PinName);
+									FProperty* BoundProperty = FindField<FProperty>(ClassType, Pin->PinName);
 									if(BoundProperty != nullptr)
 									{
 										FBPTerminal* OutputTerm = Context.CreateLocalTerminalFromPinAutoChooseScope(Pin, Pin->PinName.ToString());
@@ -188,7 +188,7 @@ UK2Node_GetClassDefaults::UK2Node_GetClassDefaults(const FObjectInitializer& Obj
 {
 }
 
-void UK2Node_GetClassDefaults::PreEditChange(UProperty* PropertyThatWillChange)
+void UK2Node_GetClassDefaults::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);
 
@@ -278,19 +278,19 @@ void UK2Node_GetClassDefaults::ValidateNodeDuringCompilation(class FCompilerResu
 			{
 				// Even though container property defaults are copied, the copy could still contain a reference to a non-class object that belongs to the CDO, which would potentially be unsafe to modify.
 				bool bEmitWarning = false;
-				const UProperty* TestProperty = SourceClass->FindPropertyByName(Pin->PinName);
-				if (const UArrayProperty* ArrayProperty = Cast<UArrayProperty>(TestProperty))
+				const FProperty* TestProperty = SourceClass->FindPropertyByName(Pin->PinName);
+				if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(TestProperty))
 				{
-					bEmitWarning = ArrayProperty->Inner && ArrayProperty->Inner->IsA<UObjectProperty>() && !ArrayProperty->Inner->IsA<UClassProperty>();
+					bEmitWarning = ArrayProperty->Inner && ArrayProperty->Inner->IsA<FObjectProperty>() && !ArrayProperty->Inner->IsA<FClassProperty>();
 				}
-				else if (const USetProperty* SetProperty = Cast<USetProperty>(TestProperty))
+				else if (const FSetProperty* SetProperty = CastField<FSetProperty>(TestProperty))
 				{
-					bEmitWarning = SetProperty->ElementProp && SetProperty->ElementProp->IsA<UObjectProperty>() && !SetProperty->ElementProp->IsA<UClassProperty>();
+					bEmitWarning = SetProperty->ElementProp && SetProperty->ElementProp->IsA<FObjectProperty>() && !SetProperty->ElementProp->IsA<FClassProperty>();
 				}
-				else if (const UMapProperty* MapProperty = Cast<UMapProperty>(TestProperty))
+				else if (const FMapProperty* MapProperty = CastField<FMapProperty>(TestProperty))
 				{
-					bEmitWarning = (MapProperty->KeyProp && MapProperty->KeyProp->IsA<UObjectProperty>() && !MapProperty->KeyProp->IsA<UClassProperty>())
-						|| (MapProperty->ValueProp && MapProperty->ValueProp->IsA<UObjectProperty>() && !MapProperty->ValueProp->IsA<UClassProperty>());
+					bEmitWarning = (MapProperty->KeyProp && MapProperty->KeyProp->IsA<FObjectProperty>() && !MapProperty->KeyProp->IsA<FClassProperty>())
+						|| (MapProperty->ValueProp && MapProperty->ValueProp->IsA<FObjectProperty>() && !MapProperty->ValueProp->IsA<FClassProperty>());
 				}
 
 				if (bEmitWarning)
@@ -347,8 +347,8 @@ void UK2Node_GetClassDefaults::ExpandNode(class FKismetCompilerContext& Compiler
 	{
 		if(OutputPin != nullptr && OutputPin->Direction == EGPD_Output && OutputPin->LinkedTo.Num() > 0)
 		{
-			UProperty* BoundProperty = FindField<UProperty>(ClassType, OutputPin->PinName);
-			if(BoundProperty != nullptr && (BoundProperty->IsA<UArrayProperty>() || BoundProperty->IsA<USetProperty>() || BoundProperty->IsA<UMapProperty>()))
+			FProperty* BoundProperty = FindField<FProperty>(ClassType, OutputPin->PinName);
+			if(BoundProperty != nullptr && (BoundProperty->IsA<FArrayProperty>() || BoundProperty->IsA<FSetProperty>() || BoundProperty->IsA<FMapProperty>()))
 			{
 				UK2Node_TemporaryVariable* LocalVariable = CompilerContext.SpawnIntermediateNode<UK2Node_TemporaryVariable>(this, SourceGraph);
 				LocalVariable->VariableType = OutputPin->PinType;

@@ -114,7 +114,7 @@ public:
 
 #if WITH_EDITOR
 	/** Access the property relating to this component's image plate */
-	static UStructProperty* GetImagePlateProperty();
+	static FStructProperty* GetImagePlateProperty();
 #endif
 
 	/**

@@ -39,7 +39,7 @@ UFbxStaticMeshImportData* UFbxStaticMeshImportData::GetImportDataForStaticMesh(U
 	return ImportData;
 }
 
-bool UFbxStaticMeshImportData::CanEditChange(const UProperty* InProperty) const
+bool UFbxStaticMeshImportData::CanEditChange(const FProperty* InProperty) const
 {
 	bool bMutable = Super::CanEditChange(InProperty);
 	UObject* Outer = GetOuter();

@@ -39,9 +39,9 @@ FText SGraphNodeK2CreateDelegate::FunctionDescription(const UFunction* Function,
 	// Describe input parameters.
 	{
 		bool bFirst = true;
-		for (TFieldIterator<UProperty> PropIt(Function); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+		for (TFieldIterator<FProperty> PropIt(Function); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
 		{
-			UProperty* const Param = *PropIt;
+			FProperty* const Param = *PropIt;
 			const bool bIsFunctionInput = Param && (!Param->HasAnyPropertyFlags(CPF_OutParm) || Param->HasAnyPropertyFlags(CPF_ReferenceParm));
 			if (bIsFunctionInput)
 			{
@@ -66,15 +66,15 @@ FText SGraphNodeK2CreateDelegate::FunctionDescription(const UFunction* Function,
 	{
 		TArray<FString> Outputs;
 
-		UProperty* const FunctionReturnProperty = Function->GetReturnProperty();
+		FProperty* const FunctionReturnProperty = Function->GetReturnProperty();
 		if (FunctionReturnProperty)
 		{
 			Outputs.Add(UEdGraphSchema_K2::TypeToText(FunctionReturnProperty).ToString());
 		}
 
-		for (TFieldIterator<UProperty> PropIt(Function); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+		for (TFieldIterator<FProperty> PropIt(Function); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
 		{
-			UProperty* const Param = *PropIt;
+			FProperty* const Param = *PropIt;
 			const bool bIsFunctionOutput = Param && Param->HasAnyPropertyFlags(CPF_OutParm);
 			if (bIsFunctionOutput)
 			{

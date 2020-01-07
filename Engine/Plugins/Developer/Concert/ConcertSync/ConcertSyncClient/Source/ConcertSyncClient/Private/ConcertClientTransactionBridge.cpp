@@ -259,7 +259,7 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 		// For snapshot events this also triggers PreEditChange directly since we can skip the call to PreEditUndo
 		for (const FConcertSerializedPropertyData& PropertyData : ObjectUpdate.PropertyDatas)
 		{
-			UProperty* TransactionProp = FindField<UProperty>(TransactionObject->GetClass(), PropertyData.PropertyName);
+			FProperty* TransactionProp = FindField<FProperty>(TransactionObject->GetClass(), PropertyData.PropertyName);
 			if (TransactionProp)
 			{
 				if (bIsSnapshot)
@@ -302,7 +302,7 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 		{
 			for (const FConcertSerializedPropertyData& PropertyData : ObjectUpdate.PropertyDatas)
 			{
-				UProperty* TransactionProp = FindField<UProperty>(TransactionObject->GetClass(), PropertyData.PropertyName);
+				FProperty* TransactionProp = FindField<FProperty>(TransactionObject->GetClass(), PropertyData.PropertyName);
 				if (TransactionProp)
 				{
 					FConcertSyncObjectReader ObjectReader(InLocalIdentifierTablePtr, FConcertSyncWorldRemapper(), InVersionInfo, TransactionObject, PropertyData.SerializedData);
@@ -338,7 +338,7 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 		// For snapshot events this also triggers PostEditChange directly since we can skip the call to PostEditUndo
 		for (const FConcertSerializedPropertyData& PropertyData : ObjectUpdate.PropertyDatas)
 		{
-			UProperty* TransactionProp = FindField<UProperty>(TransactionObject->GetClass(), PropertyData.PropertyName);
+			FProperty* TransactionProp = FindField<FProperty>(TransactionObject->GetClass(), PropertyData.PropertyName);
 			if (TransactionProp)
 			{
 				if (bIsSnapshot)
@@ -611,7 +611,7 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 			// Find or add an update for each property
 			for (const FName& RootPropertyName : RootPropertyNames)
 			{
-				UProperty* RootProperty = ConcertSyncClientUtil::GetExportedProperty(InObject->GetClass(), RootPropertyName, bIncludeEditorOnlyProperties);
+				FProperty* RootProperty = ConcertSyncClientUtil::GetExportedProperty(InObject->GetClass(), RootPropertyName, bIncludeEditorOnlyProperties);
 				if (!RootProperty)
 				{
 					continue;
@@ -665,7 +665,7 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 			// to be able to display, in the transaction detail view, which 'properties' changed in the transaction as transaction data is otherwise opaque to UI.
 			for (const FName& RootPropertyName : RootPropertyNames)
 			{
-				if (UProperty* RootProperty = ConcertSyncClientUtil::GetExportedProperty(InObject->GetClass(), RootPropertyName, bIncludeEditorOnlyProperties))
+				if (FProperty* RootProperty = ConcertSyncClientUtil::GetExportedProperty(InObject->GetClass(), RootPropertyName, bIncludeEditorOnlyProperties))
 				{
 					FConcertSerializedPropertyData& PropertyData = ObjectUpdate.PropertyDatas.AddDefaulted_GetRef();
 					PropertyData.PropertyName = RootPropertyName;
@@ -677,7 +677,7 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 			// Only send properties that changed. The receiving side will 'patch' the object using the reflection system. The specific object serialization function will NOT be called.
 			for (const FName& RootPropertyName : RootPropertyNames)
 			{
-				if (UProperty* RootProperty = ConcertSyncClientUtil::GetExportedProperty(InObject->GetClass(), RootPropertyName, bIncludeEditorOnlyProperties))
+				if (FProperty* RootProperty = ConcertSyncClientUtil::GetExportedProperty(InObject->GetClass(), RootPropertyName, bIncludeEditorOnlyProperties))
 				{
 					FConcertSerializedPropertyData& PropertyData = ObjectUpdate.PropertyDatas.AddDefaulted_GetRef();
 					PropertyData.PropertyName = RootPropertyName;

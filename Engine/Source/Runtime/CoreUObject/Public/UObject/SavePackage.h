@@ -21,7 +21,7 @@ public:
 	COREUOBJECT_API bool Load();
 	COREUOBJECT_API void Save() ;
 
-	void AddFileAccess(const FString& PackageFilename, uint64 InChunkId, uint64 InOffset, uint64 InSize);
+	void AddFileAccess(const FString& PackageFilename, EIoChunkType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize);
 	
 	const FString& GetFilename() const { return Filename; }
 
@@ -34,9 +34,12 @@ public:
 							// applied, to make it easier to compute at runtime.
 			uint64 Offset;
 			uint64 Size;
+			EIoChunkType Type;
 		};
 
-		void AddData(uint64 InChunkId, uint64 InOffset, uint64 InSize);
+		void AddData(EIoChunkType InType, uint64 InChunkId, uint64 InOffset, uint64 InSize, const FString& DebugFilename);
+		void AddZeroByteData(EIoChunkType InType);
+
 		const TArray<BulkDataDesc>& GetDataArray() const { return Data; }
 	private:
 		friend FArchive& operator<<(FArchive& Ar, PackageDesc& Entry);
@@ -122,6 +125,12 @@ public:
 	: PackageStoreWriter(InPackageStoreWriter) 
 	, BulkDataManifest(InBulkDataManifest)
 	{
+	}
+
+	~FSavePackageContext()
+	{
+		delete PackageStoreWriter;
+		delete BulkDataManifest;
 	}
 
 	FPackageStoreWriter* PackageStoreWriter;

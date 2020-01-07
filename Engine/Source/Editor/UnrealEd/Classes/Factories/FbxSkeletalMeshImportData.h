@@ -86,7 +86,7 @@ public:
 	/** Gets or creates fbx import data for the specified skeletal mesh */
 	static UFbxSkeletalMeshImportData* GetImportDataForSkeletalMesh(USkeletalMesh* SkeletalMesh, UFbxSkeletalMeshImportData* TemplateForCreation);
 
-	bool CanEditChange( const UProperty* InProperty ) const override;
+	bool CanEditChange( const FProperty* InProperty ) const override;
 
 	bool GetImportContentFilename(FString& OutFilename, FString& OutFilenameLabel) const;
 
@@ -113,8 +113,7 @@ extern UNREALED_API ExistingSkelMeshData* SaveExistingSkelMeshData(USkeletalMesh
 extern UNREALED_API void RestoreExistingSkelMeshData(ExistingSkelMeshData* MeshData, USkeletalMesh* SkeletalMesh, int32 ReimportLODIndex, bool bCanShowDialog, bool bImportSkinningOnly);
 extern UNREALED_API void ProcessImportMeshInfluences(FSkeletalMeshImportData& ImportData);
 extern UNREALED_API void ProcessImportMeshMaterials(TArray<FSkeletalMaterial>& Materials, FSkeletalMeshImportData& ImportData);
-extern UNREALED_API bool ProcessImportMeshSkeleton(const USkeleton* SkeletonAsset, FReferenceSkeleton& RefSkeleton, int32& SkeletalDepth, FSkeletalMeshImportData& ImportData);
-namespace SkeletalMeshHelper
+extern UNREALED_API bool ProcessImportMeshSkeleton(const USkeleton* SkeletonAsset, FReferenceSkeleton& RefSkeleton, int32& SkeletalDepth, FSkeletalMeshImportData& ImportData);namespace SkeletalMeshHelper
 {
 	extern UNREALED_API void ApplySkinning(USkeletalMesh* SkeletalMesh, FSkeletalMeshLODModel& SrcLODModel, FSkeletalMeshLODModel& DestLODModel);
 }

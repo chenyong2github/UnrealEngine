@@ -17,7 +17,7 @@ UPaintBrushSettings::UPaintBrushSettings(const FObjectInitializer& ObjectInitial
 	const FName ClampMax("ClampMax");
 
 	{
-		const UProperty* BrushRadiusProperty = UPaintBrushSettings::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UPaintBrushSettings, BrushRadius));
+		const FProperty* BrushRadiusProperty = UPaintBrushSettings::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UPaintBrushSettings, BrushRadius));
 		BrushRadiusMin = BrushRadiusProperty->GetFloatMetaData(ClampMin);
 		BrushRadiusMax = BrushRadiusProperty->GetFloatMetaData(ClampMax);
 
@@ -26,7 +26,7 @@ UPaintBrushSettings::UPaintBrushSettings(const FObjectInitializer& ObjectInitial
 	}
 
 	{
-		const UProperty* BrushStrengthProperty = UPaintBrushSettings::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UPaintBrushSettings, BrushStrength));
+		const FProperty* BrushStrengthProperty = UPaintBrushSettings::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UPaintBrushSettings, BrushStrength));
 		float BrushStrengthMin = BrushStrengthProperty->GetFloatMetaData(ClampMin);
 		float BrushStrengthMax = BrushStrengthProperty->GetFloatMetaData(ClampMax);
 
@@ -35,7 +35,7 @@ UPaintBrushSettings::UPaintBrushSettings(const FObjectInitializer& ObjectInitial
 	}
 
 	{
-		const UProperty* BrushFalloffProperty = UPaintBrushSettings::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UPaintBrushSettings, BrushFalloffAmount));
+		const FProperty* BrushFalloffProperty = UPaintBrushSettings::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UPaintBrushSettings, BrushFalloffAmount));
 		float BrushFalloffMin = BrushFalloffProperty->GetFloatMetaData(ClampMin);
 		float BrushFalloffMax = BrushFalloffProperty->GetFloatMetaData(ClampMax);
 

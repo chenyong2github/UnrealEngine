@@ -698,7 +698,7 @@ void USkinnedMeshComponent::ForceMotionVector()
 
 #if WITH_EDITOR
 
-bool USkinnedMeshComponent::CanEditChange(const UProperty* InProperty) const
+bool USkinnedMeshComponent::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty)
 	{

@@ -8,7 +8,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
-void UControlRigEditModeSettings::PreEditChange(UProperty* PropertyAboutToChange)
+void UControlRigEditModeSettings::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	
 }

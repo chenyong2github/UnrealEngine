@@ -253,7 +253,7 @@ void UPolygonOnMeshTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 	}
 }
 
-void UPolygonOnMeshTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UPolygonOnMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	UpdateNumPreviews();
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)

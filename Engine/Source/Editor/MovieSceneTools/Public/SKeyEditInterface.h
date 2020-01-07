@@ -58,7 +58,7 @@ private:
 
 	virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override;
 
-	virtual void NotifyPreChange(UProperty* PropertyAboutToChange) override;
+	virtual void NotifyPreChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
 

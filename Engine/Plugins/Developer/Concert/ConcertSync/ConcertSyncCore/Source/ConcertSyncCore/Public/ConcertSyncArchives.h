@@ -9,7 +9,7 @@ struct FConcertSessionVersionInfo;
 
 namespace ConcertSyncUtil
 {
-	 bool CONCERTSYNCCORE_API ShouldSkipTransientProperty(const UProperty* Property);
+	 bool CONCERTSYNCCORE_API ShouldSkipTransientProperty(const FProperty* Property);
 }
 
 /** Util to handle remapping objects within the source world to be the equivalent objects in the destination world */
@@ -42,7 +42,7 @@ public:
 	FConcertSyncObjectWriter(FConcertLocalIdentifierTable* InLocalIdentifierTable, UObject* InObj, TArray<uint8>& OutBytes, const bool InIncludeEditorOnlyData, const bool InSkipAssets);
 
 	void SerializeObject(UObject* InObject, const TArray<FName>* InPropertyNamesToWrite = nullptr);
-	void SerializeProperty(UProperty* InProp, UObject* InObject);
+	void SerializeProperty(FProperty* InProp, UObject* InObject);
 
 	using FConcertIdentifierWriter::operator<<; // For visibility of the overloads we don't override
 
@@ -53,11 +53,11 @@ public:
 	virtual FArchive& operator<<(FSoftObjectPath& AssetPtr) override;
 	virtual FArchive& operator<<(FWeakObjectPtr& Value) override;
 	virtual FString GetArchiveName() const override;
-	virtual bool ShouldSkipProperty(const UProperty* InProperty) const override;
+	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override;
 	//~ End FArchive Interface
 
 private:
-	typedef TFunction<bool(const UProperty*)> FShouldSkipPropertyFunc;
+	typedef TFunction<bool(const FProperty*)> FShouldSkipPropertyFunc;
 	bool bSkipAssets;
 	FShouldSkipPropertyFunc ShouldSkipPropertyFunc;
 };
@@ -69,7 +69,7 @@ public:
 	FConcertSyncObjectReader(const FConcertLocalIdentifierTable* InLocalIdentifierTable, FConcertSyncWorldRemapper InWorldRemapper, const FConcertSessionVersionInfo* InVersionInfo, UObject* InObj, const TArray<uint8>& InBytes);
 
 	void SerializeObject(UObject* InObject);
-	void SerializeProperty(UProperty* InProp, UObject* InObject);
+	void SerializeProperty(FProperty* InProp, UObject* InObject);
 
 	using FConcertIdentifierReader::operator<<; // For visibility of the overloads we don't override
 

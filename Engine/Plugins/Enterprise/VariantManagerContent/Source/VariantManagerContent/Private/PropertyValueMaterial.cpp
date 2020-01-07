@@ -9,7 +9,7 @@
 
 #define LOCTEXT_NAMESPACE "PropertyValueMaterial"
 
-UProperty* UPropertyValueMaterial::OverrideMaterialsProperty = nullptr;
+FProperty* UPropertyValueMaterial::OverrideMaterialsProperty = nullptr;
 
 UPropertyValueMaterial::UPropertyValueMaterial(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -95,11 +95,11 @@ bool UPropertyValueMaterial::Resolve(UObject* Object)
 	return true;
 }
 
-bool UPropertyValueMaterial::ContainsProperty(const UProperty* Prop) const
+bool UPropertyValueMaterial::ContainsProperty(const FProperty* Prop) const
 {
 	if (OverrideMaterialsProperty == nullptr)
 	{
-		if (UArrayProperty* ArrayProp = FindField<UArrayProperty>(UMeshComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(UMeshComponent, OverrideMaterials)))
+		if (FArrayProperty* ArrayProp = FindField<FArrayProperty>(UMeshComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(UMeshComponent, OverrideMaterials)))
 		{
 			OverrideMaterialsProperty = ArrayProp->Inner;
 		}
@@ -209,9 +209,9 @@ void UPropertyValueMaterial::ApplyDataToResolvedObject()
 	OnPropertyApplied.Broadcast();
 }
 
-UClass* UPropertyValueMaterial::GetPropertyClass() const
+FFieldClass* UPropertyValueMaterial::GetPropertyClass() const
 {
-	return UObjectProperty::StaticClass();
+	return FObjectProperty::StaticClass();
 }
 
 UClass* UPropertyValueMaterial::GetObjectPropertyObjectClass() const
