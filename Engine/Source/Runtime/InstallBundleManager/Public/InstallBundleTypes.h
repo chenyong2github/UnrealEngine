@@ -9,6 +9,7 @@ enum class EInstallBundleSourceType : int
 {
 	Bulk,
 	BuildPatchServices,
+	PlayGo,
 	Count
 };
 ENUM_RANGE_BY_COUNT(EInstallBundleSourceType, EInstallBundleSourceType::Count);

@@ -8,7 +8,7 @@
 
 namespace InstallBundleUtil
 {
-	INSTALLBUNDLEMANAGER_API FString GetAppVersion()
+	FString GetAppVersion()
 	{
 		return FString::Printf(TEXT("%s-%s"), FApp::GetBuildVersion(), ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
 	}
