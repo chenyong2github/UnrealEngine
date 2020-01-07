@@ -102,6 +102,7 @@ public:
 	// Optionally added if GCM plugin (or other remote notification system) enabled
 	static jmethodID AndroidThunkJava_RegisterForRemoteNotifications;
 	static jmethodID AndroidThunkJava_UnregisterForRemoteNotifications;
+	static jmethodID AndroidThunkJava_IsAllowedRemoteNotifications;
 
 	// In app purchase functionality
 	static jclass JavaStringClass;
