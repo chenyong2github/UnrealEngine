@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 SkeletalMeshUpdate.cpp: Helpers to stream in and out skeletal mesh LODs.

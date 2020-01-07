@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 // Pattern-Matching based on OSC 1.0 Protocol
 #include "Audio/AudioAddressPattern.h"
 
