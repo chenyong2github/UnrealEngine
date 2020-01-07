@@ -19,6 +19,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "AssetRegistryModule.h"
 #include "GameDelegates.h"
+#include "Commandlets/IChunkDataGenerator.h"
 #include "Commandlets/ChunkDependencyInfo.h"
 #include "IPlatformFileSandboxWrapper.h"
 #include "Misc/ConfigCacheIni.h"
@@ -370,23 +371,25 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 	bool bSucceeded = true;
 	for (int32 PakchunkIndex = 0; PakchunkIndex < FinalChunkManifests.Num(); ++PakchunkIndex)
 	{
+		const FChunkPackageSet* Manifest = FinalChunkManifests[PakchunkIndex];
+
 		// Serialize chunk layers whether chunk is empty or not
 		int32 TargetLayer = 0;
-		FGameDelegates::Get().GetAssignLayerChunkDelegate().ExecuteIfBound(FinalChunkManifests[PakchunkIndex], Platform, PakchunkIndex, TargetLayer);
+		FGameDelegates::Get().GetAssignLayerChunkDelegate().ExecuteIfBound(Manifest, Platform, PakchunkIndex, TargetLayer);
 
 		FString LayerString = FString::Printf(TEXT("%d\r\n"), TargetLayer);
 		ChunkLayerFile->Serialize(TCHAR_TO_ANSI(*LayerString), LayerString.Len());
 
 		// Is this index a null placeholder that we added in the loop over EncryptedNonUFSFileGroups and then never filled in?  If so, 
 		// fill it in with an empty FChunkPackageSet
-		if (!FinalChunkManifests[PakchunkIndex])
+		if (!Manifest)
 		{
 			FinalChunkManifests[PakchunkIndex] = new FChunkPackageSet;
 		}
 
 		int32 FilenameIndex = 0;
 		TArray<FString> ChunkFilenames;
-		FinalChunkManifests[PakchunkIndex]->GenerateValueArray(ChunkFilenames);
+		Manifest->GenerateValueArray(ChunkFilenames);
 		bool bFinishedAllFiles = false;
 		for (int32 SubChunkIndex = 0; !bFinishedAllFiles; ++SubChunkIndex)
 		{
@@ -433,6 +436,22 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 							ChunkFilenames.Add(AssetRegistryFilename);
 						}
 					}
+				}
+			}
+
+			// Allow the extra data generation steps to run and add their output to the manifest
+			if (ChunkDataGenerators.Num() > 0)
+			{
+				TSet<FName> PackagesInChunk;
+				PackagesInChunk.Reserve(Manifest->Num());
+				for (const auto& ChunkManifestPair : *Manifest)
+				{
+					PackagesInChunk.Add(ChunkManifestPair.Key);
+				}
+
+				for (const TSharedRef<IChunkDataGenerator>& ChunkDataGenerator : ChunkDataGenerators)
+				{
+					ChunkDataGenerator->GenerateChunkDataFiles(PakchunkIndex, PackagesInChunk, Platform, InSandboxFile, ChunkFilenames);
 				}
 			}
 
@@ -1064,6 +1083,11 @@ void FAssetRegistryGenerator::BuildChunkManifest(const TSet<FName>& InCookedPack
 
 	// anything that remains in the UnAssignedPackageSet will be put in chunk0 when we save the asset registry
 
+}
+
+void FAssetRegistryGenerator::RegisterChunkDataGenerator(TSharedRef<IChunkDataGenerator> InChunkDataGenerator)
+{
+	ChunkDataGenerators.Add(MoveTemp(InChunkDataGenerator));
 }
 
 void FAssetRegistryGenerator::PreSave(const TSet<FName>& InCookedPackages)

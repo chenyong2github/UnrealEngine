@@ -17,6 +17,19 @@ enum class ELocalizedTextSourceCategory : uint8
 };
 
 /**
+ * Result codes from calling QueryLocalizedResourceResult.
+ */
+enum class EQueryLocalizedResourceResult : uint8
+{
+	/** Indicates the query found a matching entry and added its result */
+	Found,
+	/** Indicates that the query failed to find a matching entry */
+	NotFound,
+	/** Indicates that the query failed as this text source doesn't support queries */
+	NotImplemented,
+};
+
+/**
  * Load flags used in localization initialization.
  */
 enum class ELocalizationLoadFlags : uint8
