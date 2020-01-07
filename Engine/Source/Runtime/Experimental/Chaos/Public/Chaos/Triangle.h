@@ -155,9 +155,6 @@ namespace Chaos
 			: FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Triangle)
 			, Tri(InA, InB, InC)
 		{
-			Bounds = TAABB<T, 3>(Tri[0], Tri[0]);
-			Bounds.GrowToInclude(Tri[1]);
-			Bounds.GrowToInclude(Tri[2]);
 		}
 
 		TVector<T, 3>& operator[](uint32 InIndex)
@@ -190,8 +187,12 @@ namespace Chaos
 			return Tri.PhiWithNormal(InSamplePoint, OutNormal);
 		}
 
-		virtual const class TAABB<T, 3>& BoundingBox() const override
+		virtual const class TAABB<T, 3> BoundingBox() const override
 		{
+			TAABB<T,3> Bounds(Tri[0],Tri[0]);
+			Bounds.GrowToInclude(Tri[1]);
+			Bounds.GrowToInclude(Tri[2]);
+
 			return Bounds;
 		}
 
@@ -227,7 +228,7 @@ namespace Chaos
 
 		virtual uint32 GetTypeHash() const override
 		{
-			return HashCombine(Bounds.GetTypeHash(), HashCombine(::GetTypeHash(Tri[0]), HashCombine(::GetTypeHash(Tri[1]), ::GetTypeHash(Tri[2]))));
+			return HashCombine(::GetTypeHash(Tri[0]), HashCombine(::GetTypeHash(Tri[1]), ::GetTypeHash(Tri[2])));
 		}
 
 		virtual FName GetTypeName() const override
@@ -238,6 +239,5 @@ namespace Chaos
 	private:
 
 		TTriangle<T> Tri;
-		TAABB<T, 3> Bounds;
 	};
 }

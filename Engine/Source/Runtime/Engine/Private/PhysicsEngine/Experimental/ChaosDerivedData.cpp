@@ -21,7 +21,7 @@ const TCHAR* FChaosDerivedDataCooker::GetPluginName() const
 
 const TCHAR* FChaosDerivedDataCooker::GetVersionString() const
 {
-	return TEXT("53786FE2178C49A98EC62DD50313FE52");
+	return TEXT("385FFCA8CED24783AD05635A6835CF95");
 }
 
 FString FChaosDerivedDataCooker::GetPluginSpecificCacheKeySuffix() const
@@ -123,53 +123,53 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::FTria
 
 	auto LambdaHelper = [&](auto& Triangles)
 	{
-	if(bHasMaterials)
-	{
-		MaterialIndices.Reserve(NumTriangles);
-	}
+		if(bHasMaterials)
+		{
+			MaterialIndices.Reserve(NumTriangles);
+		}
 
 		Triangles.Reserve(NumTriangles);
-	for(int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
-	{
-		// Only add this triangle if it is valid
-		const int32 BaseIndex = TriangleIndex * 3;
-		const bool bIsValidTriangle = Chaos::FConvexBuilder::IsValidTriangle(
-			FinalVerts[FinalIndices[BaseIndex]],
-			FinalVerts[FinalIndices[BaseIndex + 1]],
-			FinalVerts[FinalIndices[BaseIndex + 2]]);
-
-		// TODO: Figure out a proper way to handle this. Could these edges get sewn together? Is this important?
-		//if (ensureMsgf(bIsValidTriangle, TEXT("FChaosDerivedDataCooker::BuildTriangleMeshes(): Trimesh attempted cooked with invalid triangle!")));
-		if (bIsValidTriangle)
+		for(int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
 		{
-			Triangles.Add(Chaos::TVector<int32, 3>(FinalIndices[BaseIndex], FinalIndices[BaseIndex + 1], FinalIndices[BaseIndex + 2]));
+			// Only add this triangle if it is valid
+			const int32 BaseIndex = TriangleIndex * 3;
+			const bool bIsValidTriangle = Chaos::FConvexBuilder::IsValidTriangle(
+				FinalVerts[FinalIndices[BaseIndex]],
+				FinalVerts[FinalIndices[BaseIndex + 1]],
+				FinalVerts[FinalIndices[BaseIndex + 2]]);
 
-			if(bHasMaterials)
+			// TODO: Figure out a proper way to handle this. Could these edges get sewn together? Is this important?
+			//if (ensureMsgf(bIsValidTriangle, TEXT("FChaosDerivedDataCooker::BuildTriangleMeshes(): Trimesh attempted cooked with invalid triangle!")));
+			if (bIsValidTriangle)
 			{
-				if(!ensure(OutFaceRemap.IsValidIndex(TriangleIndex)))
-				{
-					MaterialIndices.Empty();
-					bHasMaterials = false;
-				}
-				else
-				{
-					const int32 OriginalIndex = OutFaceRemap[TriangleIndex];
+				Triangles.Add(Chaos::TVector<int32, 3>(FinalIndices[BaseIndex], FinalIndices[BaseIndex + 1], FinalIndices[BaseIndex + 2]));
 
-					if(ensure(InParams.TriangleMeshDesc.MaterialIndices.IsValidIndex(OriginalIndex)))
-					{
-						MaterialIndices.Add(InParams.TriangleMeshDesc.MaterialIndices[OriginalIndex]);
-					}
-					else
+				if(bHasMaterials)
+				{
+				if(!ensure(OutFaceRemap.IsValidIndex(TriangleIndex)))
 					{
 						MaterialIndices.Empty();
 						bHasMaterials = false;
 					}
+					else
+					{
+					const int32 OriginalIndex = OutFaceRemap[TriangleIndex];
+
+						if(ensure(InParams.TriangleMeshDesc.MaterialIndices.IsValidIndex(OriginalIndex)))
+						{
+							MaterialIndices.Add(InParams.TriangleMeshDesc.MaterialIndices[OriginalIndex]);
+						}
+						else
+						{
+							MaterialIndices.Empty();
+							bHasMaterials = false;
+						}
+					}
 				}
 			}
 		}
-	}
 
-	OutTriangleMeshes.Emplace(new Chaos::FTriangleMeshImplicitObject(MoveTemp(TriMeshParticles), MoveTemp(Triangles), MoveTemp(MaterialIndices)));
+		OutTriangleMeshes.Emplace(new Chaos::FTriangleMeshImplicitObject(MoveTemp(TriMeshParticles), MoveTemp(Triangles), MoveTemp(MaterialIndices)));
 	};
 
 	if(FinalVerts.Num() < TNumericLimits<uint16>::Max())

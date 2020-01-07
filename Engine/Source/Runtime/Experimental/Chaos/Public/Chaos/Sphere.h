@@ -27,7 +27,6 @@ namespace Chaos
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Sphere)
 		    , Center(InCenter)
 		    , Radius(InRadius)
-		    , LocalBoundingBox(Center - Radius, Center + Radius)
 		{
 		}
 
@@ -35,7 +34,6 @@ namespace Chaos
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Sphere)
 		    , Center(Other.Center)
 		    , Radius(Other.Radius)
-		    , LocalBoundingBox(Other.LocalBoundingBox)
 		{
 		}
 
@@ -43,7 +41,6 @@ namespace Chaos
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Sphere)
 		    , Center(MoveTemp(Other.Center))
 		    , Radius(Other.Radius)
-		    , LocalBoundingBox(MoveTemp(Other.LocalBoundingBox))
 		{
 		}
 
@@ -55,7 +52,6 @@ namespace Chaos
 			this->bHasBoundingBox = InSteal.bHasBoundingBox;
 			Center = MoveTemp(InSteal.Center);
 			Radius = InSteal.Radius;
-			LocalBoundingBox = MoveTemp(InSteal.LocalBoundingBox);
 
 			return *this;
 		}
@@ -198,9 +194,9 @@ namespace Chaos
 			return Radius;
 		}
 
-		virtual const TAABB<T, d>& BoundingBox() const 
+		virtual const TAABB<T, d> BoundingBox() const 
 		{
-			return LocalBoundingBox; 
+			return TAABB<T,d>(Center - TVector<T,d>(Radius),Center + TVector<T,d>(Radius));
 		}
 
 		T GetArea() const 
@@ -251,10 +247,6 @@ namespace Chaos
 		{
 			FImplicitObject::SerializeImp(Ar);
 			Ar << Center << Radius;
-			if (Ar.IsLoading())
-			{
-				LocalBoundingBox = TAABB<T, d>(Center - Radius, Center + Radius);
-			}
 		}
 
 		virtual void Serialize(FChaosArchive& Ar) override 
@@ -321,8 +313,7 @@ namespace Chaos
 		{
 			const uint32 CenterHash = ::GetTypeHash(Center);
 			const uint32 RadiusHash = ::GetTypeHash(Radius);
-			const uint32 BoundsHash = LocalBoundingBox.GetTypeHash();
-			return HashCombine(CenterHash, HashCombine(RadiusHash, BoundsHash));
+			return HashCombine(CenterHash, RadiusHash);
 		}
 
 		virtual TUniquePtr<FImplicitObject> Copy() const override
@@ -333,7 +324,6 @@ namespace Chaos
 	private:
 		TVector<T, d> Center;
 		T Radius;
-		TAABB<T, d> LocalBoundingBox;
 
 	private:
 

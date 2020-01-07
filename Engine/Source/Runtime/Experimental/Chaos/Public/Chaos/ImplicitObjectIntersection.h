@@ -55,7 +55,7 @@ class TImplicitObjectIntersection : public FImplicitObject
 		return Phi;
 	}
 
-	virtual const TAABB<T,d>& BoundingBox() const { return MLocalBoundingBox; }
+	virtual const TAABB<T,d> BoundingBox() const { return MLocalBoundingBox; }
 
 
 	virtual uint32 GetTypeHash() const override
