@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UnrealHeaderTool.h"
 #include "CoreMinimal.h"
@@ -91,7 +91,7 @@ namespace
 	}
 
 	const TCHAR HeaderCopyright[] =
-		TEXT("// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.\r\n")
+		TEXT("// Copyright Epic Games, Inc. All Rights Reserved.\r\n")
 		TEXT("/*===========================================================================\r\n")
 		TEXT("\tGenerated code exported from UnrealHeaderTool.\r\n")
 		TEXT("\tDO NOT modify this manually! Edit the corresponding .h files instead!\r\n")
