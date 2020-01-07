@@ -225,6 +225,13 @@ enum EEventLoadNode2 : uint8
 	ExportBundle_NumPhases,
 };
 
+enum class EExportFilterFlags : uint8
+{
+	None,
+	NotForClient,
+	NotForServer
+};
+
 struct FArc
 {
 	uint32 FromNodeIndex;
@@ -1148,6 +1155,18 @@ void SerializePackageData(
 			ZenExportMapArchive << GlobalImportIndex;
 			uint32 ObjectFlags = ObjectExport.ObjectFlags;
 			ZenExportMapArchive << ObjectFlags;
+			uint8 FilterFlags = uint8(EExportFilterFlags::None);
+			if (ObjectExport.bNotForClient)
+			{
+				FilterFlags = uint8(EExportFilterFlags::NotForClient);
+			}
+			else if (ObjectExport.bNotForServer)
+			{
+				FilterFlags = uint8(EExportFilterFlags::NotForServer);
+			}
+			ZenExportMapArchive << FilterFlags;
+			uint8 Pad = 0;
+			ZenExportMapArchive.Serialize(&Pad, 7);
 		}
 		Package->ExportMapSize = ZenExportMapArchive.Tell();
 
