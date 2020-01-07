@@ -47,6 +47,7 @@
 #include "VolumetricFogShared.h"
 #include "DebugViewModeRendering.h"
 #include "PrecomputedVolumetricLightmap.h"
+#include "RayTracing/RaytracingOptions.h"
 #if RHI_RAYTRACING
 #include "RayTracing/RayTracingIESLightProfiles.h"
 #include "Halton.h"
@@ -2859,7 +2860,7 @@ public:
 
 	bool ShouldRenderSkylightInBasePass(EBlendMode BlendMode) const
 	{
-		bool bRenderSkyLight = SkyLight && !SkyLight->bHasStaticLighting && !SkyLight->bCastRayTracedShadow;
+		bool bRenderSkyLight = SkyLight && !SkyLight->bHasStaticLighting && !(ShouldRenderRayTracingSkyLight(SkyLight) && !IsForwardShadingEnabled(GetShaderPlatform()));
 
 		if (IsTranslucentBlendMode(BlendMode))
 		{
