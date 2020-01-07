@@ -828,8 +828,7 @@ enum class EAsyncPackageLoadingState2 : uint8
 enum EEventLoadNode2 : uint8
 {
 	Package_ExportsSerialized,
-	Package_StartPostLoad,
-	Package_Tick,
+	Package_PostLoad,
 	Package_Delete,
 	Package_NumPhases,
 
@@ -1339,8 +1338,7 @@ public:
 
 	static EAsyncPackageState::Type Event_ProcessExportBundle(FAsyncPackage2* Package, int32 ExportBundleIndex);
 	static EAsyncPackageState::Type Event_ExportsDone(FAsyncPackage2* Package, int32);
-	static EAsyncPackageState::Type Event_StartPostLoad(FAsyncPackage2* Package, int32);
-	static EAsyncPackageState::Type Event_Tick(FAsyncPackage2* Package, int32);
+	static EAsyncPackageState::Type Event_PostLoad(FAsyncPackage2* Package, int32);
 	static EAsyncPackageState::Type Event_Delete(FAsyncPackage2* Package, int32);
 
 	void EventDrivenCreateExport(int32 LocalExportIndex);
@@ -2988,20 +2986,13 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ExportsDone(FAsyncPackage2* Packa
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Event_ExportsDone);
 
-	Package->GetNode(EEventLoadNode2::Package_StartPostLoad)->ReleaseBarrier();
+	Package->GetNode(EEventLoadNode2::Package_PostLoad)->ReleaseBarrier();
 	return EAsyncPackageState::Complete;
 }
 
-EAsyncPackageState::Type FAsyncPackage2::Event_StartPostLoad(FAsyncPackage2* Package, int32)
+EAsyncPackageState::Type FAsyncPackage2::Event_PostLoad(FAsyncPackage2* Package, int32)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(Event_StartPostLoad);
-	Package->GetNode(EEventLoadNode2::Package_Tick)->ReleaseBarrier();
-	return EAsyncPackageState::Complete;
-}
-
-EAsyncPackageState::Type FAsyncPackage2::Event_Tick(FAsyncPackage2* Package, int32)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(Event_Tick);
+	TRACE_CPUPROFILER_EVENT_SCOPE(Event_PostLoad);
 
 	check(!Package->HasFinishedLoading());
 	check(Package->ExternalReadDependencies.Num() == 0);
@@ -3475,8 +3466,7 @@ FAsyncLoadingThread2Impl::FAsyncLoadingThread2Impl(FIoDispatcher& InIoDispatcher
 
 	EventSpecs.AddDefaulted(EEventLoadNode2::Package_NumPhases + EEventLoadNode2::ExportBundle_NumPhases);
 	EventSpecs[EEventLoadNode2::Package_ExportsSerialized] = { &FAsyncPackage2::Event_ExportsDone, &AsyncEventQueue, true };
-	EventSpecs[EEventLoadNode2::Package_StartPostLoad] = { &FAsyncPackage2::Event_StartPostLoad, &AsyncEventQueue, true };
-	EventSpecs[EEventLoadNode2::Package_Tick] = { &FAsyncPackage2::Event_Tick, &EventQueue, false };
+	EventSpecs[EEventLoadNode2::Package_PostLoad] = { &FAsyncPackage2::Event_PostLoad, &AsyncEventQueue, true };
 	EventSpecs[EEventLoadNode2::Package_Delete] = { &FAsyncPackage2::Event_Delete, &AsyncEventQueue, false };
 
 	EventSpecs[EEventLoadNode2::Package_NumPhases + EEventLoadNode2::ExportBundle_Process] = { &FAsyncPackage2::Event_ProcessExportBundle, &ProcessExportBundlesEventQueue, false };
@@ -3657,32 +3647,7 @@ uint32 FAsyncLoadingThread2Impl::Run()
 				TRACE_CPUPROFILER_EVENT_SCOPE(AsyncLoadingTime);
 				do
 				{
-					const bool bPreviousDidSomething = bDidSomething;
 					bDidSomething = false;
-
-					bool bDidExternalRead = false;
-					do
-					{
-						bDidExternalRead = false;
-						FAsyncPackage2* Package = nullptr;
-						if (ExternalReadQueue.Peek(Package))
-						{
-							TRACE_CPUPROFILER_EVENT_SCOPE(ProcessExternalReads);
-
-							FAsyncPackage2::EExternalReadAction Action =
-								bPreviousDidSomething ?
-								FAsyncPackage2::ExternalReadAction_Poll :
-								FAsyncPackage2::ExternalReadAction_Wait;
-
-							EAsyncPackageState::Type Result = Package->ProcessExternalReads(Action);
-							if (Result == EAsyncPackageState::Complete)
-							{
-								ExternalReadQueue.Pop();
-								bDidExternalRead = true;
-								bDidSomething = true;
-							}
-						}
-					} while (bDidExternalRead);
 
 					if (QueuedPackagesCounter)
 					{
@@ -3722,6 +3687,33 @@ uint32 FAsyncLoadingThread2Impl::Run()
 						bDidSomething = true;
 						break;
 					}
+
+					{
+						bool bDidExternalRead = false;
+						do
+						{
+							bDidExternalRead = false;
+							FAsyncPackage2* Package = nullptr;
+							if (ExternalReadQueue.Peek(Package))
+							{
+								TRACE_CPUPROFILER_EVENT_SCOPE(ProcessExternalReads);
+
+								FAsyncPackage2::EExternalReadAction Action =
+									bDidSomething ?
+									FAsyncPackage2::ExternalReadAction_Poll :
+									FAsyncPackage2::ExternalReadAction_Wait;
+
+								EAsyncPackageState::Type Result = Package->ProcessExternalReads(Action);
+								if (Result == EAsyncPackageState::Complete)
+								{
+									ExternalReadQueue.Pop();
+									bDidExternalRead = true;
+									bDidSomething = true;
+								}
+							}
+						} while (bDidExternalRead);
+					}
+
 				} while (bDidSomething);
 			}
 
@@ -4048,11 +4040,9 @@ void FAsyncPackage2::CreateNodes(const FAsyncLoadEventSpec* EventSpecs)
 		}
 
 		FEventLoadNode2* ExportsSerializedNode = PackageNodes + EEventLoadNode2::Package_ExportsSerialized;
-		FEventLoadNode2* StartPostLoadNode = PackageNodes + EEventLoadNode2::Package_StartPostLoad;
-		FEventLoadNode2* TickNode = PackageNodes + EEventLoadNode2::Package_Tick;
+		FEventLoadNode2* StartPostLoadNode = PackageNodes + EEventLoadNode2::Package_PostLoad;
 
 		StartPostLoadNode->AddBarrier();
-		TickNode->AddBarrier();
 
 		FEventLoadNode2* DeleteNode = PackageNodes + EEventLoadNode2::Package_Delete;
 		DeleteNode->AddBarrier();

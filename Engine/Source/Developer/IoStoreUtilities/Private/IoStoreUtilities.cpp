@@ -217,8 +217,7 @@ enum EPreloadDependencyType
 enum EEventLoadNode2 : uint8
 {
 	Package_ExportsSerialized,
-	Package_StartPostLoad,
-	Package_Tick,
+	Package_PostLoad,
 	Package_Delete,
 	Package_NumPhases,
 
@@ -388,7 +387,6 @@ struct FPackage
 	int64 ExportBundlesSize = 0;
 
 	bool bHasCircularImportDependencies = false;
-	bool bHasCircularPostLoadDependencies = false;
 
 	TArray<FString> ImportedFullNames;
 
@@ -616,24 +614,18 @@ static void AddScriptArc(FPackage& Package, uint32 GlobalImportIndex, uint32 Exp
 
 static void AddPostLoadArc(FPackage& FromPackage, FPackage& ToPackage)
 {
-	// TArray<FArc>& ExternalArcs = ToPackage.ExternalArcs.FindOrAdd(FromPackage.Name);
-	// ExternalArcs.Add({ EEventLoadNode2::Package_ExportsSerialized, EEventLoadNode2::Package_Tick });
-}
-
-static void AddStartPostLoadArc(FPackage& FromPackage, FPackage& ToPackage)
-{
 	TArray<FArc>& ExternalArcs = ToPackage.ExternalArcs.FindOrAdd(&FromPackage);
-	check(!ExternalArcs.Contains(FArc({EEventLoadNode2::Package_ExportsSerialized, EEventLoadNode2::Package_StartPostLoad})));
-	check(!ExternalArcs.Contains(FArc({EEventLoadNode2::Package_StartPostLoad, EEventLoadNode2::Package_StartPostLoad})));
-	ExternalArcs.Add({ EEventLoadNode2::Package_StartPostLoad, EEventLoadNode2::Package_StartPostLoad });
+	check(!ExternalArcs.Contains(FArc({EEventLoadNode2::Package_ExportsSerialized, EEventLoadNode2::Package_PostLoad})));
+	check(!ExternalArcs.Contains(FArc({EEventLoadNode2::Package_PostLoad, EEventLoadNode2::Package_PostLoad})));
+	ExternalArcs.Add({ EEventLoadNode2::Package_PostLoad, EEventLoadNode2::Package_PostLoad });
 }
 
 static void AddExportsDoneArc(FPackage& FromPackage, FPackage& ToPackage)
 {
 	TArray<FArc>& ExternalArcs = ToPackage.ExternalArcs.FindOrAdd(&FromPackage);
-	check(!ExternalArcs.Contains(FArc({EEventLoadNode2::Package_ExportsSerialized, EEventLoadNode2::Package_StartPostLoad})));
-	check(!ExternalArcs.Contains(FArc({EEventLoadNode2::Package_StartPostLoad, EEventLoadNode2::Package_StartPostLoad})));
-	ExternalArcs.Add({ EEventLoadNode2::Package_ExportsSerialized, EEventLoadNode2::Package_StartPostLoad });
+	check(!ExternalArcs.Contains(FArc({EEventLoadNode2::Package_ExportsSerialized, EEventLoadNode2::Package_PostLoad})));
+	check(!ExternalArcs.Contains(FArc({EEventLoadNode2::Package_PostLoad, EEventLoadNode2::Package_PostLoad})));
+	ExternalArcs.Add({ EEventLoadNode2::Package_ExportsSerialized, EEventLoadNode2::Package_PostLoad });
 }
 
 static void AddUniqueExternalBundleArc(FPackage& FromPackage, uint32 FromBundleIndex, FPackage& ToPackage, uint32 ToBundleIndex)
@@ -648,29 +640,6 @@ static void AddUniqueScriptBundleArc(FPackage& Package, uint32 GlobalImportIndex
 {
 	uint32 NodeIndex = EEventLoadNode2::Package_NumPhases + BundleIndex * EEventLoadNode2::ExportBundle_NumPhases + EEventLoadNode2::ExportBundle_Process;
 	Package.ScriptArcs.AddUnique({ GlobalImportIndex, NodeIndex });
-}
-
-static void AddPostLoadDependenciesRecursive(FPackage& Package, FPackage& ImportedPackage, TSet<FPackage*>& Visited)
-{
-	if (&ImportedPackage == &Package)
-	{
-		Package.bHasCircularPostLoadDependencies = true;
-		return;
-	}
-
-	bool bIsVisited = false;
-	Visited.Add(&ImportedPackage, &bIsVisited);
-	if (bIsVisited)
-	{
-		return;
-	}
-
-	AddPostLoadArc(ImportedPackage, Package);
-	
-	for (FPackage* DependentPackage : ImportedPackage.ImportedPackages)
-	{
-		AddPostLoadDependenciesRecursive(Package, *DependentPackage, Visited);
-	}
 }
 
 static void AddReachablePackagesRecursive(FPackage& Package, FPackage& PackageWithImports, TSet<FPackage*>& Visited, bool bFirst)
@@ -713,6 +682,7 @@ static bool FindNewCircularImportChains(
 {
 	if (&ImportedPackage == &Package)
 	{
+		Package.bHasCircularImportDependencies = true;
 		CurrentChain.SortAndGenerateHash();
 		bool bAlreadyFound = true;
 		CircularChains.AddByHash(CurrentChain.Hash, CurrentChain, &bAlreadyFound);
@@ -765,18 +735,21 @@ static void AddPostLoadDependencies(
 		}
 	}
 
-	for (FPackage* ImportedPackage : Package.ImportedPackages)
+	if (Package.bHasCircularImportDependencies)
 	{
-		if (!DependentPackages.Contains(ImportedPackage))
+		for (FPackage* ImportedPackage : Package.ImportedPackages)
 		{
-			AddStartPostLoadArc(*ImportedPackage, Package);
+			if (!DependentPackages.Contains(ImportedPackage))
+			{
+				AddPostLoadArc(*ImportedPackage, Package);
+			}
 		}
-	}
 
-	DependentPackages.Remove(&Package);
-	for (FPackage* DependentPackage : DependentPackages)
-	{
-		AddExportsDoneArc(*DependentPackage, Package);
+		DependentPackages.Remove(&Package);
+		for (FPackage* DependentPackage : DependentPackages)
+		{
+			AddExportsDoneArc(*DependentPackage, Package);
+		}
 	}
 
 	/*
@@ -1840,34 +1813,6 @@ int32 CreateTarget(const FContainerTarget& Target)
 		}
 	}
 
-#if 0
-	UE_LOG(LogIoStore, Display, TEXT("Simulating postload dependencies for stats..."));
-	for (auto& PackageKV : PackageMap)
-	{
-		FPackage& Package = *PackageKV.Value;
-
-		Visited.Reset();
-		for (FPackage* DependentPackage : Package.ImportedPackages)
-		{
-			AddPostLoadDependenciesRecursive(Package, *DependentPackage, Visited);
-		}
-	}
-
-	UE_LOG(LogIoStore, Display, TEXT("Adding reachable packages for stats..."));
-	for (auto& PackageKV : PackageMap)
-	{
-		FPackage& Package = *PackageKV.Value;
-
-		AddReachablePackagesRecursive(Package, Package, Package.AllReachablePackages, /*bFirst*/ true);
-		Package.bHasCircularImportDependencies = Package.AllReachablePackages.Contains(&Package);
-		// if (Package.bHasCircularImportDependencies)
-		// {
-		// 	UE_LOG(LogIoStore, Display, TEXT("Circular %s: %d reachable packages"), *Package.Name.ToString(),
-		// 		Package.AllReachablePackages.Num());
-		// }
-	}
-#endif
-
 	UE_LOG(LogIoStore, Display, TEXT("Adding optimized postload dependencies..."));
 	for (FPackage* Package : Packages)
 	{
@@ -2163,7 +2108,6 @@ int32 CreateTarget(const FContainerTarget& Target)
 	uint64 TotalExternalArcCount = 0;
 	uint64 NameCount = 0;
 
-	uint64 PackagesWithCircularDependenciesCount = 0;
 	uint64 PackagesWithoutImportDependenciesCount = 0;
 	uint64 PackagesWithoutPreloadDependenciesCount = 0;
 	uint64 BundleCount = 0;
@@ -2194,7 +2138,6 @@ int32 CreateTarget(const FContainerTarget& Target)
 		TotalInternalArcCount += Package.InternalArcs.Num();
 		ImportedPackagesCount += Package.ImportedPackages.Num();
 		NameCount += Package.NameMap.Num();
-		PackagesWithCircularDependenciesCount += Package.bHasCircularPostLoadDependencies;
 		PackagesWithoutPreloadDependenciesCount += Package.ImportedPreloadPackages.Num() == 0;
 		PackagesWithoutImportDependenciesCount += Package.ImportedPackages.Num() == 0;
 
@@ -2215,7 +2158,7 @@ int32 CreateTarget(const FContainerTarget& Target)
 
 	UE_LOG(LogIoStore, Display, TEXT("-------------------- IoStore Summary: %s --------------------"), *Target.TargetPlatform->PlatformName());
 	UE_LOG(LogIoStore, Display, TEXT("Packages: %8d total, %d circular dependencies, %d no preload dependencies, %d no import dependencies"),
-		PackageMap.Num(), PackagesWithCircularDependenciesCount, PackagesWithoutPreloadDependenciesCount, PackagesWithoutImportDependenciesCount);
+		PackageMap.Num(), CircularPackagesCount, PackagesWithoutPreloadDependenciesCount, PackagesWithoutImportDependenciesCount);
 	UE_LOG(LogIoStore, Display, TEXT("Bundles:  %8d total, %d entries, %d export objects"), BundleCount, BundleEntryCount, GlobalExports.Num());
 
 	UE_LOG(LogIoStore, Display, TEXT("IoStore: %8.2f MB GlobalNames, %d unique names"), (double)GlobalNamesMB, NameMapBuilder.GetNameMap().Num());
