@@ -86,9 +86,19 @@ void FSteamVRInputDeviceModule::StartupModule()
 			VRSettings()->SetBool(k_pch_SteamVR_Section, k_pch_SteamVR_DebugInput, true, &BindingFlagError);
 			UE_LOG(LogTemp, Display, TEXT("[STEAMVR INPUT] Enable SteamVR Debug Input: %s"), *FString(UTF8_TO_TCHAR(VRSettings()->GetSettingsErrorNameFromEnum(BindingFlagError))));
 		}
-		vr::VR_Shutdown();
+		VR_Shutdown();
 	}
 #endif
+
+	// Unload engine integrated controller modules if Valve's Input Plugin is present
+	FModuleManager& ModuleManager = FModuleManager::Get();
+	IModuleInterface* ValveInputOverride = ModuleManager.GetModule(FName("SteamVR_Input"));
+
+	if (ValveInputOverride != nullptr)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[SteamVR Input] Found Valve Input Plugin. Integrated version of SteamVR Input will not be loaded."));
+		IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
+	}
 }
 
 void FSteamVRInputDeviceModule::ShutdownModule()
