@@ -907,14 +907,14 @@ void FNiagaraShaderMap::Compile(
 			// Mark as not having been compiled
 			bCompiledSuccessfully = false;
   
-			FNiagaraShaderCompilationManager::Get().AddJobs(NewJobs);
+			GNiagaraShaderCompilationManager.AddJobs(NewJobs);
   
 			// Compile the shaders for this shader map now if not deferring and deferred compiles are not enabled globally
 			if (bSynchronousCompile)
 			{
 				TArray<int32> CurrentShaderMapId;
 				CurrentShaderMapId.Add(CompilingId);
-				FNiagaraShaderCompilationManager::Get().FinishCompilation(*FriendlyName, CurrentShaderMapId);
+				GNiagaraShaderCompilationManager.FinishCompilation(*FriendlyName, CurrentShaderMapId);
 			}
 		}
 	}

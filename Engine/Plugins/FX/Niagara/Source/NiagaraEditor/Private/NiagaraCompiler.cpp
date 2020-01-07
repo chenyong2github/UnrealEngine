@@ -1065,7 +1065,8 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 				int32 NewBindingIdx = Results.Data->CalledVMExternalFunctions.AddDefaulted();
 				Results.Data->CalledVMExternalFunctions[NewBindingIdx].Name = *Sig->GetName();
 				Results.Data->CalledVMExternalFunctions[NewBindingIdx].OwnerName = Sig->OwnerName;
-				Results.Data->CalledVMExternalFunctions[NewBindingIdx].Specifiers = Sig->FunctionSpecifiers;
+				//#todo: fix me
+				//Results.Data->CalledVMExternalFunctions[NewBindingIdx].Specifiers = Sig->FunctionSpecifiers;
 
 				Results.Data->CalledVMExternalFunctions[NewBindingIdx].InputParamLocations = FuncInfo.InputParamLocations;
 				Results.Data->CalledVMExternalFunctions[NewBindingIdx].NumOutputs = FuncInfo.NumOutputs;

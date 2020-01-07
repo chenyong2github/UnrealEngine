@@ -693,7 +693,7 @@ static inline void FastHashName(wchar_t Name[17], uint64 Hash)
 	Name[16] = 0;
 }
 
-static void CreatePipelineStateWrapper(ID3D12PipelineState** PSO, FD3D12Adapter* Adapter, const GraphicsPipelineCreationArgs_POD* CreationArgs)
+static void CreatePipelineStateWrapper(ID3D12PipelineState** PSO, FD3D12Adapter* Adapter, const GraphicsPipelineCreationArgs_POD* CreationArgs, bool bUseStream)
 {
 	// Get the pipeline state name, currently based on the hash.
 	wchar_t Name[17];
@@ -706,7 +706,7 @@ static void CreatePipelineStateWrapper(ID3D12PipelineState** PSO, FD3D12Adapter*
 
 	// Use pipeline streams if the system supports it.
 	ID3D12Device2* const pDevice2 = Adapter->GetD3DDevice2();
-	if (pDevice2)
+	if (pDevice2 && bUseStream)
 	{
 		FD3D12_GRAPHICS_PIPELINE_STATE_STREAM Stream = CreationArgs->Desc.Desc.PipelineStateStream();
 		const D3D12_PIPELINE_STATE_STREAM_DESC StreamDesc = { sizeof(Stream), &Stream };
@@ -739,7 +739,7 @@ static void CreatePipelineStateWrapper(ID3D12PipelineState** PSO, FD3D12Adapter*
 	}
 }
 
-static void CreatePipelineStateWrapper(ID3D12PipelineState** PSO, FD3D12Adapter* Adapter, const ComputePipelineCreationArgs_POD* CreationArgs)
+static void CreatePipelineStateWrapper(ID3D12PipelineState** PSO, FD3D12Adapter* Adapter, const ComputePipelineCreationArgs_POD* CreationArgs, bool bUseStream)
 {
 	// Get the pipeline state name, currently based on the hash.
 	wchar_t Name[17];

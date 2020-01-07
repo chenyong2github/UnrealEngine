@@ -378,7 +378,7 @@ void FNiagaraShaderScript::FinishCompilation()
 		}
 		// Block until the shader maps that we will save have finished being compiled
 		// NIAGARATODO: implement when async compile works
-		FNiagaraShaderCompilationManager::Get().FinishCompilation(*GetFriendlyName(), ShaderMapIdsToFinish);
+		GNiagaraShaderCompilationManager.FinishCompilation(*GetFriendlyName(), ShaderMapIdsToFinish);
 
 		// Shouldn't have anything left to do...
 		TArray<int32> ShaderMapIdsToFinish2;
