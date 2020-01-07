@@ -32,6 +32,7 @@
 #include "Sound/SoundCue.h"
 #include "Sound/SoundNode.h"
 #include "Sound/SoundNodeWavePlayer.h"
+#include "Sound/SoundSubmix.h"
 #include "UnrealEngine.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
@@ -281,7 +282,6 @@ FAudioDevice::FAudioDevice()
 	, bSpatializationInterfaceEnabled(false)
 	, bOcclusionInterfaceEnabled(false)
 	, bReverbInterfaceEnabled(false)
-	, bReverbPluginBypassesMasterReverb(false)
 	, bModulationInterfaceEnabled(false)
 	, bPluginListenersInitialized(false)
 	, bHRTFEnabledForAll(false)
@@ -441,7 +441,6 @@ bool FAudioDevice::Init(int32 InMaxSources)
 	{
 		ReverbPluginInterface = ReverbPluginFactory->CreateNewReverbPlugin(this);
 		bReverbInterfaceEnabled = true;
-		bReverbPluginBypassesMasterReverb = ReverbPluginInterface->DoesReverbOverrideMasterReverb();
 		bReverbIsExternalSend = ReverbPluginFactory->IsExternalSend();
 		UE_LOG(LogAudio, Log, TEXT("Audio Reverb Plugin: %s"), *(ReverbPluginFactory->GetDisplayName()));
 	}
@@ -4016,6 +4015,7 @@ void FAudioDevice::StartSources(TArray<FWaveInstance*>& WaveInstances, int32 Fir
 					WaveInstance->StopWithoutNotification();
 					Source->WaveInstance = nullptr;
 					FreeSources.Add(Source);
+					WaveInstanceSourceMap.Remove(WaveInstance);
 				}
 			}
 			else if (Source)

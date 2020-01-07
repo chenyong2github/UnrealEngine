@@ -11,6 +11,11 @@
 #include "phonon.h"
 #include "PhononReverb.generated.h"
 
+
+// Forward Declaration
+class FSubmixEffectReverbPlugin;
+
+
 namespace SteamAudio
 {
 	class FEnvironment;
@@ -39,7 +44,8 @@ namespace SteamAudio
 		virtual void Initialize(const FAudioPluginInitializationParams InitializationParams) override;
 		virtual void OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, const uint32 NumChannels, UReverbPluginSourceSettingsBase* InSettings) override;
 		virtual void OnReleaseSource(const uint32 SourceId) override;
-		virtual class FSoundEffectSubmix* GetEffectSubmix(class USoundSubmix* Submix) override;
+		virtual FSoundEffectSubmixPtr GetEffectSubmix() override;
+		virtual USoundSubmix* GetSubmix() override;
 		virtual void ProcessSourceAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData) override;
 		
 		void ProcessMixedAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData);
@@ -48,6 +54,8 @@ namespace SteamAudio
 		void UpdateListener(const FVector& Position, const FVector& Forward, const FVector& Up, const FVector& Right);
 
 	private:
+		FSoundEffectSubmixPtr SubmixEffect;
+
 		IPLhandle BinauralRenderer;
 		IPLhandle IndirectBinauralEffect;
 		IPLhandle IndirectPanningEffect;

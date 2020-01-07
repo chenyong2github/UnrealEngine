@@ -1663,6 +1663,8 @@ void USoundWave::FinishDestroy()
 
 void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances)
 {
+	check(AudioDevice);
+
 	FWaveInstance* WaveInstance = ActiveSound.FindWaveInstance(NodeWaveInstanceHash);
 
 	const bool bIsNewWave = WaveInstance == nullptr;
@@ -1753,7 +1755,12 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 		WaveInstance->bReverb = ActiveSound.bReverb || SoundClassProperties->bReverb;
 		WaveInstance->OutputTarget = SoundClassProperties->OutputTarget;
 
-		if (SoundClassProperties->DefaultSubmix)
+		if (SoundClassProperties->bApplyEffects)
+		{
+			const UAudioSettings* Settings = GetDefault<UAudioSettings>();
+			WaveInstance->SoundSubmix = Cast<USoundSubmix>(Settings->EQSubmix.TryLoad());
+		}
+		else if (SoundClassProperties->DefaultSubmix)
 		{
 			WaveInstance->SoundSubmix = SoundClassProperties->DefaultSubmix;
 		}
@@ -1775,7 +1782,6 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 		WaveInstance->RadioFilterVolumeThreshold = 0.f;
 		WaveInstance->StereoBleed = 0.f;
 		WaveInstance->LFEBleed = 0.f;
-		WaveInstance->SoundSubmix = ActiveSound.GetSoundSubmix();
 		WaveInstance->bIsUISound = ActiveSound.bIsUISound;
 		WaveInstance->bIsMusic = ActiveSound.bIsMusic;
 		WaveInstance->bReverb = ActiveSound.bReverb;
@@ -1785,9 +1791,18 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 	}
 
 	WaveInstance->bIsAmbisonics = bIsAmbisonics;
-	if (ParseParams.SoundSubmix)
+	if (bIsAmbisonics)
+	{
+		const UAudioSettings* Settings = GetDefault<UAudioSettings>();
+		WaveInstance->SoundSubmix = Cast<USoundSubmix>(Settings->AmbisonicSubmix.TryLoad());
+	}
+	else if (ParseParams.SoundSubmix)
 	{
 		WaveInstance->SoundSubmix = ParseParams.SoundSubmix;
+	}
+	else if (USoundSubmix* WaveSubmix = GetSoundSubmix())
+	{
+		WaveInstance->SoundSubmix = WaveSubmix;
 	}
 
 	// If set to bAlwaysPlay, increase the current sound's priority scale by 10x. This will still result in a possible 0-priority output if the sound has 0 actual volume

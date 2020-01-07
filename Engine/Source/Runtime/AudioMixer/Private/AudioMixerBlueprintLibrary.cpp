@@ -52,10 +52,7 @@ void UAudioMixerBlueprintLibrary::AddMasterSubmixEffect(const UObject* WorldCont
 	if (Audio::FMixerDevice* MixerDevice = GetAudioMixerDeviceFromWorldContext(WorldContextObject))
 	{
 		// Immediately create a new sound effect base here before the object becomes potentially invalidated
-		FSoundEffectBase* SoundEffectBase = SubmixEffectPreset->CreateNewEffect();
-
-		// Cast it to a sound effect submix type
-		FSoundEffectSubmix* SoundEffectSubmix = static_cast<FSoundEffectSubmix*>(SoundEffectBase);
+		FSoundEffectSubmixPtr SoundEffectSubmix = MakeShareable(static_cast<FSoundEffectSubmix*>(SubmixEffectPreset->CreateNewEffect()));
 
 		FSoundEffectSubmixInitData InitData;
 		InitData.SampleRate = MixerDevice->GetSampleRate();

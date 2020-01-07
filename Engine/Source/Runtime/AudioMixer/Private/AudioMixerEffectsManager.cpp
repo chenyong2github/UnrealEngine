@@ -93,12 +93,9 @@ namespace Audio
 #endif
 	}
 
-
-
 	FAudioMixerEffectsManager::FAudioMixerEffectsManager(FAudioDevice* InDevice)
 		: FAudioEffectsManager(InDevice)
 	{
-		bUseLegacyReverb = GetDefault<UAudioSettings>()->bEnableLegacyReverb;
 	}
 
 	FAudioMixerEffectsManager::~FAudioMixerEffectsManager()
@@ -113,20 +110,12 @@ namespace Audio
 		
 		if (MasterReverbSubmixPtr.IsValid())
 		{
-			FSoundEffectSubmix* SoundEffectSubmix = MasterReverbSubmixPtr->GetSubmixEffect(0);
-			if (SoundEffectSubmix)
+			FSoundEffectSubmixPtr SoundEffectSubmix = MasterReverbSubmixPtr->GetSubmixEffect(0);
+			if (SoundEffectSubmix.IsValid())
 			{
-				// Choose correct reverb based upon ini settings.
-				if (bUseLegacyReverb)
-				{
-					FSubmixEffectReverb* SoundEffectReverb = static_cast<FSubmixEffectReverb*>(SoundEffectSubmix);
-					SoundEffectReverb->SetEffectParameters(ReverbEffectParameters);
-				}
-				else
-				{
-					FSubmixEffectReverbFast* SoundEffectReverb = static_cast<FSubmixEffectReverbFast*>(SoundEffectSubmix);
-					SoundEffectReverb->SetEffectParameters(ReverbEffectParameters);
-				}
+				TSharedPtr<FSubmixEffectReverbFast, ESPMode::ThreadSafe> SoundEffectReverb = StaticCastSharedPtr<FSubmixEffectReverbFast, FSoundEffectSubmix, ESPMode::ThreadSafe>(SoundEffectSubmix);
+				SoundEffectReverb->SetEffectParameters(ReverbEffectParameters);
+
 				PrintReverbSettings(ReverbEffectParameters);
 			}
 		}
@@ -141,10 +130,10 @@ namespace Audio
 
 		if (MasterEQSubmixPtr.IsValid())
 		{
-			FSoundEffectSubmix* SoundEffectSubmix = MasterEQSubmixPtr->GetSubmixEffect(0);
-			if (SoundEffectSubmix)
+			FSoundEffectSubmixPtr SoundEffectSubmix = MasterEQSubmixPtr->GetSubmixEffect(0);
+			if (SoundEffectSubmix.IsValid())
 			{
-				FSubmixEffectSubmixEQ* SoundEffectEQ = static_cast<FSubmixEffectSubmixEQ*>(SoundEffectSubmix);
+				TSharedPtr<FSubmixEffectSubmixEQ, ESPMode::ThreadSafe> SoundEffectEQ = StaticCastSharedPtr<FSubmixEffectSubmixEQ, FSoundEffectSubmix, ESPMode::ThreadSafe>(SoundEffectSubmix);
 				SoundEffectEQ->SetEffectParameters(InEQEffectParameters);
 				PrintEQSettings(InEQEffectParameters);
 			}

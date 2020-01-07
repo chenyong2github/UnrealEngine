@@ -17,7 +17,7 @@ UOculusAudioSettings::UOculusAudioSettings() :
 	, ReflectionCoefBack(0.25f)
 	, ReflectionCoefFront(0.25f)
 {
-
+	OutputSubmix = FString(TEXT("/OculusAudio/OculusSubmixDefault.OculusSubmixDefault"));
 }
 
 #if WITH_EDITOR
