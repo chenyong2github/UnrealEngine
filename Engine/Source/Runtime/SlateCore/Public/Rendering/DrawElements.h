@@ -343,10 +343,11 @@ struct FSlateCachedElementData;
 
 struct FSlateCachedElementList
 {
-	FSlateCachedElementList(FSlateCachedElementData* InParentData, const SWidget* InWidget)
-		: OwningWidget(InWidget)
-		, ParentData(InParentData)
+	FSlateCachedElementList(FSlateCachedElementData* InOwningData, const SWidget* InWidget)
+		: OwningData(InOwningData)
+		, Widget(InWidget)
 		, CachedRenderingData(nullptr)
+		, bNewData(false)
 	{}
 
 	void Initialize()
@@ -356,9 +357,9 @@ struct FSlateCachedElementList
 
 	SLATECORE_API ~FSlateCachedElementList();
 
-	void ClearCachedElements();
+	void Reset();
 
-	FSlateCachedElementData* GetOwningData() { return ParentData; }
+	FSlateCachedElementData* GetOwningData() { return OwningData; }
 
 	FSlateRenderBatch& AddRenderBatch(int32 InLayer, const FShaderParams& InShaderParams, const FSlateShaderResource* InResource, ESlateDrawPrimitive InPrimitiveType, ESlateShader InShaderType, ESlateDrawEffect InDrawEffects, ESlateBatchDrawFlag InDrawFlags, int8 SceneIndex);
 
@@ -367,81 +368,53 @@ struct FSlateCachedElementList
 	void AddReferencedObjects(FReferenceCollector& Collector);
 
 private:
-	SLATECORE_API void DestroyCachedData();
+	SLATECORE_API void DestroyCachedVertexData();
 public:
+	FSlateCachedElementData* OwningData;
+	const SWidget* Widget;
+
 	/** List of source draw elements to create batches from */
 	FSlateDrawElementArray DrawElements;
-
-	TArray<int32> CachedRenderBatchIndices;
-
-	/** The widget whose draw elements are in this list */
-	const SWidget* OwningWidget;
-
-	FSlateCachedElementData* ParentData;
-
+	/** List of cached batches to submit for drawing */
+	TArray<FSlateRenderBatch> CachedBatches;
 	FSlateCachedFastPathRenderingData* CachedRenderingData;
+	bool bNewData;
 private:
 };
 
-struct FSlateCachedElementsHandle
-{
-	friend struct FSlateCachedElementData;
+typedef TDoubleLinkedList<FSlateCachedElementList>::TDoubleLinkedListNode FSlateCachedElementListNode;
 
-	static FSlateCachedElementsHandle Invalid;
-	void ClearCachedElements();
-	void RemoveFromCache();
-
-	bool IsOwnedByWidget(const SWidget* Widget) const;
-
-	bool IsValid() const { return Ptr.IsValid(); }
-
-	bool operator!=(FSlateCachedElementsHandle& Other) const { return Ptr != Other.Ptr; }
-
-	FSlateCachedElementsHandle() {}
-private:
-	FSlateCachedElementsHandle(TSharedRef<FSlateCachedElementList>& DataPtr)
-		: Ptr(DataPtr)
-	{}
-private:
-	TWeakPtr<FSlateCachedElementList> Ptr;
-};
 
 struct FSlateCachedElementData
 {
-	friend class FSlateElementBatcher;
-
-	void Empty();
-
-	/** Removes a cache node completely from the cache */
-	void RemoveList(FSlateCachedElementsHandle& CacheHandle)
+	void Empty()
 	{
-		TSharedPtr<FSlateCachedElementList> Data = CacheHandle.Ptr.Pin();
-		CachedElementLists.RemoveSingleSwap(Data);
-		Data->ClearCachedElements();
+		CachedElementLists.Empty();
 	}
 
-	FSlateCachedElementsHandle AddCache(const SWidget* Widget);
+	void ResetCache(FSlateCachedElementListNode* ElementListNode)
+	{
+		ElementListNode->GetValue().Reset();
+	}
 
-	FSlateDrawElement& AddCachedElement(FSlateCachedElementsHandle& CacheHandle, const FSlateClippingManager& ParentClipManager, const SWidget* Widget);
+	void RemoveCache(FSlateCachedElementListNode*& ElementListNode)
+	{
+		CachedElementLists.RemoveNode(ElementListNode);
+		ElementListNode = nullptr;
+	}
 
-	FSlateRenderBatch& AddCachedRenderBatch(FSlateRenderBatch&& NewBatch, int32& OutIndex);
-	void RemoveCachedRenderBatches(const TArray<int32>& CachedRenderBatchIndices);
+	FSlateCachedElementListNode* AddCache(const SWidget* Widget);
+
+	FSlateDrawElement& AddCachedElement(FSlateCachedElementListNode* CacheNode, const FSlateClippingManager& ParentClipManager, const SWidget* Widget);
+
+	void AddReferencedObjects(FReferenceCollector& Collector);
 
 	FSlateCachedClipState& FindOrAddCachedClipState(const FSlateClippingState* RefClipState);
 	void CleanupUnusedClipStates();
 
-	const TSparseArray<FSlateRenderBatch>& GetCachedBatches() const { return CachedBatches; }
-
-	void AddReferencedObjects(FReferenceCollector& Collector);
-
+public:
+	TDoubleLinkedList<FSlateCachedElementList> CachedElementLists;
 private:
-
-	/** List of cached batches to submit for drawing */
-	TSparseArray<FSlateRenderBatch> CachedBatches;
-
-	TArray<TSharedPtr<FSlateCachedElementList>> CachedElementLists;
-
-	TArray<FSlateCachedElementList*, TMemStackAllocator<>> ListsWithNewData;
 
 	TArray<FSlateCachedClipState> CachedClipStates;
 };
@@ -599,13 +572,13 @@ public:
 	 * This information is used for caching later.
 	 *
 	 */
-	SLATECORE_API void PushPaintingWidget(const SWidget& CurrentWidget, int32 StartingLayerId, FSlateCachedElementsHandle& CurrentCacheHandle);
+	SLATECORE_API void PushPaintingWidget(const SWidget& CurrentWidget, int32 StartingLayerId, FSlateCachedElementListNode* CurrentCacheNode);
 
 	/**
 	 * Pops the current painted widget off the stack
 	 * @return true if an element was added while the widget was pushed
 	 */
-	SLATECORE_API FSlateCachedElementsHandle PopPaintingWidget();
+	SLATECORE_API FSlateCachedElementListNode* PopPaintingWidget();
 
 	/** Pushes cached element data onto the stack.  Any draw elements cached after will use this cached element data until popped */
 	void PushCachedElementData(FSlateCachedElementData& CachedElementData);
@@ -670,14 +643,14 @@ private:
 	/** State of the current widget that is adding draw elements */
 	struct FWidgetDrawElementState
 	{
-		FWidgetDrawElementState(FSlateCachedElementsHandle& InCurrentHandle, bool bInIsVolatile, const SWidget* InWidget)
-			: CacheHandle(InCurrentHandle)
+		FWidgetDrawElementState(FSlateCachedElementListNode* InCurrentCacheNode,  bool bInIsVolatile, const SWidget* InWidget)
+			: CacheNode(InCurrentCacheNode)
 			, Widget(InWidget)
 			, bIsVolatile(bInIsVolatile)
 		{
 		}
 
-		FSlateCachedElementsHandle CacheHandle;
+		FSlateCachedElementListNode* CacheNode;
 		const SWidget* Widget;
 		bool bIsVolatile;
 	
