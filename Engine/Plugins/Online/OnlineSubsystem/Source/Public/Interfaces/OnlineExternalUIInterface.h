@@ -232,11 +232,15 @@ struct FShowStoreParams
 	/** Product to show directly instead of the whole store */
 	FUniqueOfferId ProductId;
 
+	/** If the specific product id should be added to the user's cart automatically */
+	bool bAddToCart;
+
 	/**
 	 * Constructor
 	 */
 	FShowStoreParams(const FString& InCategory = FString())
 		: Category(InCategory)
+		, bAddToCart(false)
 	{}
 };
 
@@ -408,6 +412,23 @@ public:
 	 * @return true if it was able to show the UI, false if it failed
 	 */
 	virtual bool ShowSendMessageUI(int32 LocalUserNum, const FShowSendMessageParams& ShowParams, const FOnShowSendMessageUIClosedDelegate& Delegate = FOnShowSendMessageUIClosedDelegate()) = 0;
+
+	/**
+	 * Display the platform UI for sending a mailbox message to the specified user.
+	 * Will attempt to automatically send the message if the platform allows for it.
+	 *
+	 * @param LocalUserNum the controller number of the associated user
+	 * @param Recipient the user that should receive this message
+	 * @param ShowParams configuration for the UI display
+	 *
+	 * @return true if it was able to send the message and show the UI, false if it failed
+	 */
+	virtual bool ShowSendMessageToUserUI(int32 LocalUserNum, const FUniqueNetId& Recipient, const FShowSendMessageParams& ShowParams, const FOnShowSendMessageUIClosedDelegate& Delegate = FOnShowSendMessageUIClosedDelegate())
+	{
+		UE_LOG(LogOnlineExternalUI, Warning, TEXT("ShowSendMessageToUserUI is not implemented on this platform!"));
+		Delegate.ExecuteIfBound(false);
+		return false;
+	}
 
 	/**
 	 * Displays an informational system dialog.

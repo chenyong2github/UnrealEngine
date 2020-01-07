@@ -704,6 +704,8 @@ static bool OnlineExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 					{
 						// Full command usage:    EXTERNALUI ACHIEVEMENTS FRIENDS INVITE LOGIN PROFILE WEBURL
 						// Example for one test:  EXTERNALUI WEBURL
+						// Example for store: EXTERNALUI STORE productid true
+						// Example for send message: EXTERNALUI MESSAGE user "message"
 						// Note that tests are enabled in alphabetical order
 						bool bTestAchievementsUI = FParse::Command(&Cmd, TEXT("ACHIEVEMENTS")) ? true : false;
 						bool bTestFriendsUI = FParse::Command(&Cmd, TEXT("FRIENDS")) ? true : false;
@@ -713,7 +715,26 @@ static bool OnlineExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 						bool bTestWebURL = FParse::Command(&Cmd, TEXT("WEBURL")) ? true : false;
 
 						// This class also deletes itself once done
-						(new FTestExternalUIInterface(SubName, bTestLoginUI, bTestFriendsUI, bTestInviteUI, bTestAchievementsUI, bTestWebURL, bTestProfileUI))->Test();
+						FTestExternalUIInterface* TestHarness = (new FTestExternalUIInterface(SubName, bTestLoginUI, bTestFriendsUI, 
+							bTestInviteUI, bTestAchievementsUI, bTestWebURL, bTestProfileUI));
+
+						if (FParse::Command(&Cmd, TEXT("STORE")))
+						{
+							FString AppID = FParse::Token(Cmd, false);
+							bool bAddCart = FCString::ToBool(*FParse::Token(Cmd, false));
+							TestHarness->TestStorePage(AppID, bAddCart);
+						}
+						else if (FParse::Command(&Cmd, TEXT("MESSAGE")))
+						{
+							FString UserID = FParse::Token(Cmd, false);
+							FString Message = FParse::Token(Cmd, false);
+							TestHarness->TestSendMessage(UserID, Message);
+						}
+						else
+						{
+							TestHarness->Test();
+						}
+
 						bWasHandled = true;
 					}
 #endif //WITH_DEV_AUTOMATION_TESTS
