@@ -1263,6 +1263,8 @@ FBoxSphereBounds UNiagaraComponent::CalcBounds(const FTransform& LocalToWorld) c
 	if (SystemInstance.IsValid())
 	{
 		SystemBounds = SystemInstance->GetLocalBounds();
+		SystemBounds.BoxExtent *= BoundsScale;
+		SystemBounds.SphereRadius *= BoundsScale;
 	}
 	else
 	{
