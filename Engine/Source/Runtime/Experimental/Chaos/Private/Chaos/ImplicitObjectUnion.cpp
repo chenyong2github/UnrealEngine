@@ -4,11 +4,10 @@
 
 using namespace Chaos;
 
-template<class T, int d>
-TImplicitObjectUnion<T,d>::TImplicitObjectUnion(TArray<TUniquePtr<FImplicitObject>>&& Objects, const TArray<int32>& OriginalParticleLookupHack)
+FImplicitObjectUnion::FImplicitObjectUnion(TArray<TUniquePtr<FImplicitObject>>&& Objects, const TArray<int32>& OriginalParticleLookupHack)
 	: FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::Union)
 	, MObjects(MoveTemp(Objects))
-	, Hierarchy(new TBoundingVolumeHierarchy<TGeometryParticles<T, d>, TArray<int32>, T, d>(GeomParticles))
+	, Hierarchy(new TBoundingVolumeHierarchy<TGeometryParticles<FReal,3>, TArray<int32>, FReal, 3>(GeomParticles))
 	, MLocalBoundingBox()
 	, bHierarchyBuilt(false)
 	, MOriginalParticleLookupHack(OriginalParticleLookupHack)
@@ -28,7 +27,7 @@ TImplicitObjectUnion<T,d>::TImplicitObjectUnion(TArray<TUniquePtr<FImplicitObjec
 		if (MOriginalParticleLookupHack.Num() > 0)
 		{
 			//this whole part sucks, only needed because of how we get union children. Need to refactor and enforce no unions of unions
-			if (const TImplicitObjectTransformed<T, d>* Transformed = MObjects[i]->template GetObject<const TImplicitObjectTransformed<T, d>>())
+			if (const TImplicitObjectTransformed<FReal,3>* Transformed = MObjects[i]->template GetObject<const TImplicitObjectTransformed<FReal,3>>())
 			{
 				MCollisionParticleLookupHack.Add(Transformed->GetTransformedObject(), MOriginalParticleLookupHack[i]);
 			}
@@ -42,12 +41,11 @@ TImplicitObjectUnion<T,d>::TImplicitObjectUnion(TArray<TUniquePtr<FImplicitObjec
 	CacheAllImplicitObjects();
 }
 
-template<class T, int d>
-TImplicitObjectUnion<T,d>::TImplicitObjectUnion(TImplicitObjectUnion<T, d>&& Other)
+FImplicitObjectUnion::FImplicitObjectUnion(FImplicitObjectUnion&& Other)
 	: FImplicitObject(EImplicitObject::HasBoundingBox)
 	, MObjects(MoveTemp(Other.MObjects))
 	, GeomParticles(MoveTemp(Other.GeomParticles))
-	, Hierarchy(new TBoundingVolumeHierarchy<TGeometryParticles<T, d>, TArray<int32>, T, d>(MoveTemp(*Other.Hierarchy)))
+	, Hierarchy(new TBoundingVolumeHierarchy<TGeometryParticles<FReal,3>, TArray<int32>, FReal, 3>(MoveTemp(*Other.Hierarchy)))
 	, MLocalBoundingBox(MoveTemp(Other.MLocalBoundingBox))
 	, bHierarchyBuilt(Other.bHierarchyBuilt)
 	, MOriginalParticleLookupHack(MoveTemp(Other.MOriginalParticleLookupHack))
@@ -55,14 +53,12 @@ TImplicitObjectUnion<T,d>::TImplicitObjectUnion(TImplicitObjectUnion<T, d>&& Oth
 {
 }
 
-template<class T, int d>
-TImplicitObjectUnion<T, d>::~TImplicitObjectUnion()
+FImplicitObjectUnion::~FImplicitObjectUnion()
 {
 	delete Hierarchy;
 }
 
-template<class T, int d>
-void TImplicitObjectUnion<T,d>::FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, TRigidTransform<T, d>>>& Out, const TAABB<T, d>& LocalBounds) const
+void FImplicitObjectUnion::FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*,FRigidTransform3>>& Out, const TAABB<FReal,3>& LocalBounds) const
 {
 	if (bHierarchyBuilt)
 	{
@@ -71,7 +67,7 @@ void TImplicitObjectUnion<T,d>::FindAllIntersectingObjects(TArray < Pair<const F
 		for (int32 Idx : Overlaps)
 		{
 			const FImplicitObject* Obj = GeomParticles.Geometry(Idx).Get();
-			Out.Add(MakePair(Obj, TRigidTransform<T, d>(GeomParticles.X(Idx), GeomParticles.R(Idx))));
+			Out.Add(MakePair(Obj,FRigidTransform3(GeomParticles.X(Idx), GeomParticles.R(Idx))));
 		}
 	}
 	else
@@ -83,8 +79,7 @@ void TImplicitObjectUnion<T,d>::FindAllIntersectingObjects(TArray < Pair<const F
 	}
 }
 
-template<class T, int d>
-TArray<int32> TImplicitObjectUnion<T,d>::FindAllIntersectingChildren(const TAABB<T, d>& LocalBounds) const
+TArray<int32> FImplicitObjectUnion::FindAllIntersectingChildren(const TAABB<FReal,3>& LocalBounds) const
 {
 	TArray<int32> IntersectingChildren;
 	if (bHierarchyBuilt) //todo: make this work when hierarchy is not built
@@ -115,8 +110,7 @@ TArray<int32> TImplicitObjectUnion<T,d>::FindAllIntersectingChildren(const TAABB
 	return IntersectingChildren;
 }
 
-template<class T, int d>
-TArray<int32> TImplicitObjectUnion<T,d>::FindAllIntersectingChildren(const TSpatialRay<T, d>& LocalRay) const
+TArray<int32> FImplicitObjectUnion::FindAllIntersectingChildren(const TSpatialRay<FReal,3>& LocalRay) const
 {
 	TArray<int32> IntersectingChildren;
 	if (bHierarchyBuilt) //todo: make this work when hierarchy is not built
@@ -147,11 +141,10 @@ TArray<int32> TImplicitObjectUnion<T,d>::FindAllIntersectingChildren(const TSpat
 	return IntersectingChildren;
 }
 
-template<class T, int d>
-void TImplicitObjectUnion<T,d>::CacheAllImplicitObjects()
+void FImplicitObjectUnion::CacheAllImplicitObjects()
 {
-	TArray < Pair<TSerializablePtr<FImplicitObject>, TRigidTransform<T, d>>> SubObjects;
-	AccumulateAllSerializableImplicitObjectsHelper(SubObjects, TRigidTransform<T, d>::Identity);
+	TArray < Pair<TSerializablePtr<FImplicitObject>,FRigidTransform3>> SubObjects;
+	AccumulateAllSerializableImplicitObjectsHelper(SubObjects,FRigidTransform3::Identity);
 	//build hierarchy
 	{
 		const int32 NumObjects = SubObjects.Num();
@@ -167,24 +160,20 @@ void TImplicitObjectUnion<T,d>::CacheAllImplicitObjects()
 				//check(!SubObjects[i].First->IsUnderlyingUnion());	//we don't support union of unions
 			}
 
-			TBoundingVolumeHierarchy<TGeometryParticles<T, d>, TArray<int32>, T, d> NewHierarchy(GeomParticles, 1);
+			TBoundingVolumeHierarchy<TGeometryParticles<FReal,3>, TArray<int32>, FReal, 3> NewHierarchy(GeomParticles, 1);
 			*Hierarchy = MoveTemp(NewHierarchy);
 			bHierarchyBuilt = true;
 		}
 	}
 }
 
-template<class T, int d>
-void TImplicitObjectUnion<T,d>::Serialize(FChaosArchive& Ar)
+void FImplicitObjectUnion::Serialize(FChaosArchive& Ar)
 {
 	FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName(), false);
 	FImplicitObject::SerializeImp(Ar);
 	Ar << MObjects;
-	TBox<T, d>::SerializeAsAABB(Ar, MLocalBoundingBox);
+	TBox<FReal,3>::SerializeAsAABB(Ar, MLocalBoundingBox);
 	Ar << GeomParticles << *Hierarchy << bHierarchyBuilt;
 }
 
-template<class T, int d>
-TImplicitObjectUnion<T, d>::TImplicitObjectUnion() : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::Union), Hierarchy(new TBoundingVolumeHierarchy<TGeometryParticles<T, d>, TArray<int32>, T, d>(GeomParticles, 1)){}
-
-template class Chaos::TImplicitObjectUnion<float, 3>;
+FImplicitObjectUnion::FImplicitObjectUnion() : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::Union), Hierarchy(new TBoundingVolumeHierarchy<TGeometryParticles<FReal,3>, TArray<int32>, FReal, 3>(GeomParticles, 1)){}

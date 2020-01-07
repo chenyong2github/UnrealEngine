@@ -13,8 +13,7 @@
 
 namespace Chaos
 {
-	template<typename T, int d>
-	class TImplicitObjectUnion;
+	class FImplicitObjectUnion;
 
 	class FImplicitObject;
 
