@@ -64,6 +64,10 @@ FName FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(FN
 		{
 			return "NiagaraEditor.Stack.EventIconHighlighted";
 		}
+		else if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::ShaderStage)
+		{
+			return "NiagaraEditor.Stack.ShaderStageIconHighlighted";
+		}
 		else if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Render)
 		{
 			return "NiagaraEditor.Stack.RenderIconHighlighted";
@@ -86,6 +90,10 @@ FName FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(FN
 		else if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Event)
 		{
 			return "NiagaraEditor.Stack.EventIcon";
+		}
+		else if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::ShaderStage)
+		{
+			return "NiagaraEditor.Stack.ShaderStageIcon";
 		}
 		else if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Render)
 		{

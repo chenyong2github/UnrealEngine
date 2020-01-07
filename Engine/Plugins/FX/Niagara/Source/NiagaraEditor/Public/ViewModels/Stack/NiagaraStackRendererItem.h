@@ -46,15 +46,15 @@ public:
 
 	bool HasBaseRenderer() const;
 
-	bool CanResetToBase() const;
-
-	void ResetToBase();
-
 	virtual bool SupportsChangeEnabled() const override { return true; }
 	virtual bool GetIsEnabled() const override;
 
 	virtual bool SupportsIcon() const override { return true; }
 	virtual const FSlateBrush* GetIconBrush() const override;
+
+	virtual bool SupportsResetToBase() const override { return true; }
+	virtual bool TestCanResetToBaseWithMessage(FText& OutCanResetToBaseMessage) const override;
+	virtual void ResetToBase() override;
 
 	static TArray<FNiagaraVariable> GetMissingVariables(UNiagaraRendererProperties* RendererProperties, UNiagaraEmitter* Emitter);
 	static bool AddMissingVariable(UNiagaraEmitter* Emitter, const FNiagaraVariable& Variable);

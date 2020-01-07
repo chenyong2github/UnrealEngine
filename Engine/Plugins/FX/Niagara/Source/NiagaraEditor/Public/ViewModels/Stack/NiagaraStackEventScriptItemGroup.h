@@ -23,9 +23,9 @@ public:
 
 	virtual FText GetDisplayName() const override;
 
-	bool CanResetToBase() const;
-
-	void ResetToBase();
+	virtual bool SupportsResetToBase() const override { return true; }
+	virtual bool TestCanResetToBaseWithMessage(FText& OutCanResetToBaseMessage) const override;
+	virtual void ResetToBase() override;
 
 protected:
 	virtual void FinalizeInternal() override;

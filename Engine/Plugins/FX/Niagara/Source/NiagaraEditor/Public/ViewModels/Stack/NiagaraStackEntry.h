@@ -110,6 +110,7 @@ public:
 		static const FName Spawn;
 		static const FName Update;
 		static const FName Event;
+		static const FName ShaderStage;
 		static const FName Render;
 	};
 

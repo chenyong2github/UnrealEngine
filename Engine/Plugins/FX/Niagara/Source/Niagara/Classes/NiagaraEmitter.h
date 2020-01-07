@@ -16,6 +16,7 @@ class UMaterial;
 class UNiagaraEmitter;
 class UNiagaraEventReceiverEmitterAction;
 class UNiagaraRendererProperties;
+class UNiagaraShaderStageBase;
 
 //TODO: Event action that spawns other whole Systems?
 //One that calls a BP exposed delegate?
@@ -448,6 +449,16 @@ public:
 
 	void NIAGARA_API RemoveEventHandlerByUsageId(FGuid EventHandlerUsageId);
 
+	NIAGARA_API const TArray<UNiagaraShaderStageBase*>& GetShaderStages() const { return ShaderStages; }
+
+	NIAGARA_API UNiagaraShaderStageBase* GetShaderStageById(FGuid ScriptUsageId) const;
+
+	void NIAGARA_API AddShaderStage(UNiagaraShaderStageBase* ShaderStage);
+
+	void NIAGARA_API RemoveShaderStage(UNiagaraShaderStageBase* ShaderStage);
+
+	void NIAGARA_API MoveShaderStageToIndex(UNiagaraShaderStageBase* ShaderStage, int32 TargetIndex);
+
 	/* Gets whether or not the supplied event generator id matches an event generator which is shared between the particle spawn and update scrips. */
 	bool IsEventGeneratorShared(FName EventGeneratorId) const;
 
@@ -501,6 +512,8 @@ private:
 
 	void ScriptRapidIterationParameterChanged();
 
+	void ShaderStageChanged();
+
 	void RendererChanged();
 
 	void GraphSourceChanged();
@@ -522,6 +535,9 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "Events", meta=(NiagaraNoMerge))
 	TArray<FNiagaraEventScriptProperties> EventHandlerScriptProps;
+
+	UPROPERTY(meta = (NiagaraNoMerge))
+	TArray<UNiagaraShaderStageBase*> ShaderStages;
 
 	UPROPERTY()
 	UNiagaraScript* GPUComputeScript;

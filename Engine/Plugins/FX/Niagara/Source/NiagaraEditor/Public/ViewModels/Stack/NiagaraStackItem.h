@@ -36,6 +36,10 @@ public:
 
 	virtual bool SupportsIcon() const { return false; }
 	virtual const FSlateBrush* GetIconBrush() const;
+
+	virtual bool SupportsResetToBase() const { return false; }
+	virtual bool TestCanResetToBaseWithMessage(FText& OutCanResetToBaseMessage) const { return false; }
+	virtual void ResetToBase() { }
 	
 protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
