@@ -60,6 +60,7 @@ namespace ClothingSimulationDefault
 	static const float CoefficientOfFriction = 0.f;
 	static const float Damping = 0.01f;
 	static const float SolverFrequency = 60.f;
+	static const float WindDrag = 0.f;
 }
 
 ClothingSimulation::ClothingSimulation()
@@ -92,6 +93,7 @@ void ClothingSimulation::Initialize()
 			ClothingSimulationDefault::Damping));
     Evolution->CollisionParticles().AddArray(&BoneIndices);
 	Evolution->CollisionParticles().AddArray(&BaseTransforms);
+	Evolution->GetVelocityField().SetDrag(ClothingSimulationDefault::WindDrag);  // TODO: Per particle drag
     Evolution->GetGravityForces().SetAcceleration(Gravity);
 
     Evolution->SetKinematicUpdateFunction(
@@ -289,6 +291,7 @@ void ClothingSimulation::UpdateSimulationFromSharedSimConfig()
 		Evolution->SetSelfCollisionThickness(ClothSharedSimConfig->SelfCollisionThickness);
 		Evolution->SetCollisionThickness(ClothSharedSimConfig->CollisionThickness);
 		Evolution->SetDamping(ClothSharedSimConfig->Damping);
+		Evolution->GetVelocityField().SetDrag(ClothSharedSimConfig->WindDrag);  // TODO: Per particle drag
 		Gravity = ClothSharedSimConfig->Gravity;
 	}
 }
@@ -1120,6 +1123,10 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 		(ClothSharedSimConfig && !ClothSharedSimConfig->bUseGravityOverride) ?
 			Context->WorldGravity * ClothSharedSimConfig->GravityScale:
 			Gravity));
+
+	// Set wind velocity
+	static const float UnitConversionScale = 100.f;  // It would seem that in game wind velocity is in m/s and not cm/s as seen in NvClothSupport::Constants::UnitConversionScale
+	Evolution->GetVelocityField().SetVelocity(Context->WindVelocity * UnitConversionScale);
 
 	// Get New Animation Positions and Normals
 	{
