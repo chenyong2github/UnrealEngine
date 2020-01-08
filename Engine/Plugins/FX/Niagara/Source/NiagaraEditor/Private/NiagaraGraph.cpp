@@ -830,7 +830,7 @@ void UNiagaraGraph::AddParameter(const FNiagaraVariable& Parameter, bool bIsStat
 	}
 }
 
-void UNiagaraGraph::RemoveParameter(const FNiagaraVariable& Parameter, bool bFromStaticSwitch)
+void UNiagaraGraph::RemoveParameter(const FNiagaraVariable& Parameter)
 {
 	FNiagaraGraphParameterReferenceCollection* ReferenceCollection = ParameterToReferencesMap.Find(Parameter);
 	if (ReferenceCollection)
@@ -841,6 +841,12 @@ void UNiagaraGraph::RemoveParameter(const FNiagaraVariable& Parameter, bool bFro
 			UNiagaraNode* Node = Reference.Value.Get();
 			if (Node && Node->GetGraph() == this)
 			{
+				if (Node->IsA(UNiagaraNodeStaticSwitch::StaticClass()))
+				{
+					// Static switch parameters are automatically populated from the graph nodes and cannot be manually deleted
+					NotifyGraphChanged();
+					return;
+				}
 				UEdGraphPin* Pin = Node->GetPinByPersistentGuid(Reference.Key);
 				if (Pin)
 				{
@@ -858,21 +864,10 @@ void UNiagaraGraph::RemoveParameter(const FNiagaraVariable& Parameter, bool bFro
 	TArray<FNiagaraVariable> VarsToRemove;
 	for (auto It : VariableToScriptVariable)
 	{
-		if (bFromStaticSwitch)
+		if (It.Key.GetName() == Parameter.GetName())
 		{
-			if (It.Key.GetName() == Parameter.GetName() && It.Key.GetType() == Parameter.GetType())
-			{
-				VarsToRemove.Add(It.Key);
-			}
+			VarsToRemove.Add(It.Key);
 		}
-		else
-		{
-			if (It.Key.GetName() == Parameter.GetName())
-			{
-				VarsToRemove.Add(It.Key);
-			}
-		}
-		
 	}
 	for (FNiagaraVariable& Var : VarsToRemove)
 	{
