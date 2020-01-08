@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	LightPropagationVolumeModule.cpp: Module encapsulates the asset type for blending LightPropagationVolume settings
