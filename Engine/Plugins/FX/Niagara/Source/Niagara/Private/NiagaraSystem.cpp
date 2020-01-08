@@ -48,7 +48,6 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 , bFixedBounds(false)
 , FastPathMode(ENiagaraFastPathMode::ScriptVMOnly)
-, ExposedParameters(this)
 #if WITH_EDITORONLY_DATA
 , bIsolateEnabled(false)
 #endif
@@ -59,6 +58,7 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 , WarmupTickDelta(1.0f / 15.0f)
 , bHasSystemScriptDIsWithPerInstanceData(false)
 {
+	ExposedParameters.SetOwner(this);
 	MaxPoolSize = 32;
 }
 

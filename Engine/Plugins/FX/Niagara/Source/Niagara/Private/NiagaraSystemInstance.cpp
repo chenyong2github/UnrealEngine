@@ -71,7 +71,6 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 	, TickBehavior(InComponent ? InComponent->GetTickBehavior() : ENiagaraTickBehavior::UsePrereqs)
 	, Age(0.0f)
 	, TickCount(0)
-	, InstanceParameters(Component)
 	, bSolo(false)
 	, bForceSolo(false)
 	, bPendingSpawn(false)
@@ -92,6 +91,7 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 	ID = IDCounter.IncrementExchange();
 
 	LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
+	InstanceParameters.SetOwner(Component);
 
 	LODDistance = 0.0f;
 
