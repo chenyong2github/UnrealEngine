@@ -174,7 +174,7 @@ public:
 	// Explicitly non-virtual.  Must cast to derived types to target their implementation.
 	FVec3 Normal(const FVec3& x) const;
 	virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const = 0;
-	virtual const class TAABB<FReal, 3>& BoundingBox() const;
+	virtual const class TAABB<FReal, 3> BoundingBox() const;
 	bool HasBoundingBox() const { return bHasBoundingBox; }
 	bool IsConvex() const { return bIsConvex; }
 	void SetDoCollide(const bool Collide ) { bDoCollide = Collide; }

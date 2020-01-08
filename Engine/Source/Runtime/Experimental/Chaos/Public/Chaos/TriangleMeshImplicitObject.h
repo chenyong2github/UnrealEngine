@@ -156,7 +156,7 @@ namespace Chaos
 		virtual int32 FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDistance) const override;
 		virtual FVec3 FindGeometryOpposingNormal(const FVec3& DenormDir, int32 FaceIndex, const FVec3& OriginalNormal) const override;
 
-		virtual const TAABB<FReal, 3>& BoundingBox() const
+		virtual const TAABB<FReal, 3> BoundingBox() const
 		{
 			return MLocalBoundingBox;
 		}
