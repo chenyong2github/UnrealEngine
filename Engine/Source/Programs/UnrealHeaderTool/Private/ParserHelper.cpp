@@ -160,12 +160,14 @@ void FToken::Clone( const FToken& Other )
 
 /////////////////////////////////////////////////////
 // FAdvancedDisplayParameterHandler
+static const FName NAME_AdvancedDisplay(TEXT("AdvancedDisplay"));
+
 FAdvancedDisplayParameterHandler::FAdvancedDisplayParameterHandler(const TMap<FName, FString>* MetaData)
 	: NumberLeaveUnmarked(-1), AlreadyLeft(0), bUseNumber(false)
 {
 	if(MetaData)
 	{
-		const FString* FoundString = MetaData->Find(FName(TEXT("AdvancedDisplay")));
+		const FString* FoundString = MetaData->Find(NAME_AdvancedDisplay);
 		if(FoundString)
 		{
 			FoundString->ParseIntoArray(ParametersNames, TEXT(","), true);
