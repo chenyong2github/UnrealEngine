@@ -757,8 +757,8 @@ namespace Chaos
 
 		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 		{
-			Solver.ApplyDrives(Dt, Settings, JointSettings);
 			Solver.ApplyConstraints(Dt, Settings, JointSettings);
+			Solver.ApplyDrives(Dt, Settings, JointSettings);
 		}
 
 		UpdateParticleState(Particle0->CastToRigidParticle(), Dt, Solver.GetP(0), Solver.GetQ(0));
