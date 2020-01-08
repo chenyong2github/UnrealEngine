@@ -88,7 +88,8 @@ namespace Chaos
 		, bSoftLinearLimitsEnabled(false)
 		, bSoftTwistLimitsEnabled(false)
 		, bSoftSwingLimitsEnabled(false)
-		, SoftForceMode(EJointForceMode::Acceleration)
+		, LinearSoftForceMode(EJointForceMode::Acceleration)
+		, AngularSoftForceMode(EJointForceMode::Acceleration)
 		, SoftLinearStiffness(0)
 		, SoftLinearDamping(0)
 		, SoftTwistStiffness(0)
@@ -96,7 +97,8 @@ namespace Chaos
 		, SoftSwingStiffness(0)
 		, SoftSwingDamping(0)
 		, LinearDriveTarget(FVec3(0, 0, 0))
-		, bLinearDriveEnabled(TVector<bool, 3>( false, false, false ))
+		, bLinearPositionDriveEnabled(TVector<bool, 3>(false, false, false))
+		, bLinearVelocityDriveEnabled(TVector<bool, 3>(false, false, false))
 		, LinearDriveForceMode(EJointForceMode::Acceleration)
 		, LinearDriveStiffness(0)
 		, LinearDriveDamping(0)
@@ -118,7 +120,7 @@ namespace Chaos
 
 	void FPBDJointSettings::Sanitize()
 	{
-		// Reset limits if they won;t be used (means we don't have to check if limited/locked in a few cases).
+		// Reset limits if they won't be used (means we don't have to check if limited/locked in a few cases).
 		// A side effect: if we enable a constraint, we need to reset the value of the limit.
 		if ((LinearMotionTypes[0] != EJointMotionType::Limited) && (LinearMotionTypes[1] != EJointMotionType::Limited) && (LinearMotionTypes[2] != EJointMotionType::Limited))
 		{
@@ -138,6 +140,7 @@ namespace Chaos
 		}
 
 		// Don't use soft constraints if the stiffness is very high
+		// (Should really use mass if Force Mode is enabled - which is isn't for anything atm).
 		if (bSoftLinearLimitsEnabled && SoftLinearStiffness > 1000)
 		{
 			bSoftLinearLimitsEnabled = false;
@@ -149,15 +152,6 @@ namespace Chaos
 		if (bSoftSwingLimitsEnabled && SoftSwingStiffness > 1000)
 		{
 			bSoftSwingLimitsEnabled = false;
-		}
-
-		// Currently we do not support angular limits if linear limits are set up
-		// @todo(ccaulfield): fix angular constraint position correction in FJointSolverGaussSeidel::ApplyRotationCorrection and FJointSolverGaussSeidel::ApplyRotationCorrectionSoft
-		if ((LinearMotionTypes[0] == EJointMotionType::Limited) || (LinearMotionTypes[1] == EJointMotionType::Limited) || (LinearMotionTypes[2] == EJointMotionType::Limited))
-		{
-			AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist] = EJointMotionType::Free;
-			AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1] = EJointMotionType::Free;
-			AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2] = EJointMotionType::Free;
 		}
 	}
 
@@ -460,6 +454,8 @@ namespace Chaos
 					Dt,
 					Settings,
 					JointSettings,
+					FParticleUtilitiesXR::GetCoMWorldPosition(Particle0),	// Prev position
+					FParticleUtilitiesXR::GetCoMWorldPosition(Particle1),	// Prev position
 					FParticleUtilitiesXR::GetCoMWorldRotation(Particle0),	// Prev rotation
 					FParticleUtilitiesXR::GetCoMWorldRotation(Particle1),	// Prev rotation
 					Particle0->InvM(),

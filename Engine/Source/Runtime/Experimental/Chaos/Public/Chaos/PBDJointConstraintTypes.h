@@ -83,7 +83,8 @@ namespace Chaos
 		bool bSoftLinearLimitsEnabled;
 		bool bSoftTwistLimitsEnabled;
 		bool bSoftSwingLimitsEnabled;
-		EJointForceMode SoftForceMode;
+		EJointForceMode LinearSoftForceMode;
+		EJointForceMode AngularSoftForceMode;
 		FReal SoftLinearStiffness;
 		FReal SoftLinearDamping;
 		FReal SoftTwistStiffness;
@@ -92,7 +93,8 @@ namespace Chaos
 		FReal SoftSwingDamping;
 
 		FVec3 LinearDriveTarget;
-		TVector<bool, 3> bLinearDriveEnabled;
+		TVector<bool, 3> bLinearPositionDriveEnabled;
+		TVector<bool, 3> bLinearVelocityDriveEnabled;
 		EJointForceMode LinearDriveForceMode;
 		FReal LinearDriveStiffness;
 		FReal LinearDriveDamping;
