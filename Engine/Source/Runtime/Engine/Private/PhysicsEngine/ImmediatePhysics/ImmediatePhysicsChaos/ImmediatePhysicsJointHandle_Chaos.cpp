@@ -33,6 +33,11 @@ namespace ImmediatePhysics_Chaos
 	FAutoConsoleVariableRef CVarSoftLinearStiffnessScale(TEXT("p.Chaos.ImmPhys.SoftLinearStiffnessScale"), ChaosImmediate_SoftLinearStiffnessScale, TEXT("Conversion factor for soft-joint stiffness."));
 	FAutoConsoleVariableRef CVarSoftLinearDampingScale(TEXT("p.Chaos.ImmPhys.SoftLinearDampingScale"), ChaosImmediate_SoftLinearDampingScale, TEXT("Conversion factor for soft-joint damping."));
 
+	int ChaosImmediate_SoftLinearForceMode = 0;
+	int ChaosImmediate_SoftAngularForceMode = 0;
+	FAutoConsoleVariableRef CVarSoftLinearForceMode(TEXT("p.Chaos.ImmPhys.SoftLinearForceMode"), ChaosImmediate_SoftLinearForceMode, TEXT("Soft Linear constraint force mode (0: Acceleration; 1: Force"));
+	FAutoConsoleVariableRef CVarSoftAngularForceMode(TEXT("p.Chaos.ImmPhys.SoftAngularForceMode"), ChaosImmediate_SoftAngularForceMode, TEXT("Soft Angular constraint force mode (0: Acceleration; 1: Force"));
+
 	// This value is from PhysX UE - in Chaos we don't really need Soft constraints with stiffness greater than about 1000
 	// (In PhysX, Soft constraints were implicitly integrated, and essentially equivalent to XPBD, which for large stiffness is just PBD).
 	float ChaosImmediate_SoftAngularStiffnessScale = 100000.0f;
@@ -41,7 +46,7 @@ namespace ImmediatePhysics_Chaos
 	FAutoConsoleVariableRef CVarSoftAngularDampingScale(TEXT("p.Chaos.ImmPhys.SoftAngularDampingScale"), ChaosImmediate_SoftAngularDampingScale, TEXT("Conversion factor for soft-joint damping."));
 
 	float ChaosImmediate_JointMinLinearProjection = 0.0f;
-	float ChaosImmediate_JointMaxLinearProjection = 0.5f;
+	float ChaosImmediate_JointMaxLinearProjection = 0.8f;
 	FAutoConsoleVariableRef CVarJointMinLinearProjection(TEXT("p.Chaos.ImmPhys.JointMinLinearProjection"), ChaosImmediate_JointMinLinearProjection, TEXT("Joint min projection (for joints with projection disabled)."));
 	FAutoConsoleVariableRef CVarJointMaxLinearProjection(TEXT("p.Chaos.ImmPhys.JointMaxLinearProjection"), ChaosImmediate_JointMaxLinearProjection, TEXT("Joint max projection (for joints with projection enabled)."));
 
@@ -95,8 +100,8 @@ namespace ImmediatePhysics_Chaos
 		ConstraintSettings.SoftTwistDamping = ChaosImmediate_SoftAngularDampingScale * ConstraintInstance->GetSoftTwistLimitDamping();
 		ConstraintSettings.SoftSwingStiffness = ChaosImmediate_SoftAngularStiffnessScale * ConstraintInstance->GetSoftSwingLimitStiffness();
 		ConstraintSettings.SoftSwingDamping = ChaosImmediate_SoftAngularDampingScale * ConstraintInstance->GetSoftSwingLimitDamping();
-		ConstraintSettings.LinearSoftForceMode = EJointForceMode::Acceleration;
-		ConstraintSettings.AngularSoftForceMode = EJointForceMode::Acceleration;
+		ConstraintSettings.LinearSoftForceMode = (ChaosImmediate_SoftLinearForceMode == 0)? EJointForceMode::Acceleration : EJointForceMode::Force;
+		ConstraintSettings.AngularSoftForceMode = (ChaosImmediate_SoftAngularForceMode == 0)? EJointForceMode::Acceleration : EJointForceMode::Force;
 
 		ConstraintSettings.LinearDriveTarget = Profile.LinearDrive.PositionTarget;
 		ConstraintSettings.bLinearPositionDriveEnabled[0] = Profile.LinearDrive.XDrive.bEnablePositionDrive;
@@ -130,6 +135,18 @@ namespace ImmediatePhysics_Chaos
 		ConstraintSettings.AngularDriveStiffness = ChaosImmediate_DriveStiffnessScale * Profile.AngularDrive.TwistDrive.Stiffness;
 		ConstraintSettings.AngularDriveDamping = ChaosImmediate_DriveDampingScale * Profile.AngularDrive.TwistDrive.Damping;
 		ConstraintSettings.AngularDriveForceMode = EJointForceMode::Acceleration;
+
+		// UE Disables Soft Limits when the Limit is less than some threshold. This is not necessary in Chaos but for now we also do it for parity's sake (See FLinearConstraint::UpdateLinearLimit_AssumesLocked).
+		if (ConstraintSettings.LinearLimit < RB_MinSizeToLockDOF)
+		{
+			for (int32 AxisIndex = 0; AxisIndex < 3; ++AxisIndex)
+			{
+				if (ConstraintSettings.LinearMotionTypes[AxisIndex] == EJointMotionType::Limited)
+				{
+					ConstraintSettings.LinearMotionTypes[AxisIndex] = EJointMotionType::Locked;
+				}
+			}
+		}
 
 		ConstraintSettings.Sanitize();
 

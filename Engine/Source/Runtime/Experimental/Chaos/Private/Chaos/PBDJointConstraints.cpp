@@ -138,21 +138,6 @@ namespace Chaos
 		{
 			AngularLimits[(int32)EJointAngularConstraintIndex::Swing2] = 0;
 		}
-
-		// Don't use soft constraints if the stiffness is very high
-		// (Should really use mass if Force Mode is enabled - which is isn't for anything atm).
-		if (bSoftLinearLimitsEnabled && SoftLinearStiffness > 1000)
-		{
-			bSoftLinearLimitsEnabled = false;
-		}
-		if (bSoftTwistLimitsEnabled && SoftTwistStiffness > 1000)
-		{
-			bSoftTwistLimitsEnabled = false;
-		}
-		if (bSoftSwingLimitsEnabled && SoftSwingStiffness > 1000)
-		{
-			bSoftSwingLimitsEnabled = false;
-		}
 	}
 
 	
