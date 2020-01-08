@@ -16,7 +16,6 @@ struct FSlateDataPayload;
 class FSlateRenderBatch
 {
 public:
-	//FSlateRenderBatch(uint32 InLayer, const FSlateElementBatch& InBatch, TSharedPtr<FSlateRenderDataHandle, ESPMode::ThreadSafe> InRenderHandle, int32 InNumVertices, int32 InNumIndices, int32 InVertexOffset, int32 InIndexOffset);
 	FSlateRenderBatch(
 		int32 InLayer,
 		const FShaderParams& InShaderParams,
@@ -185,3 +184,6 @@ public:
 	uint8 bIsMerged : 1;
 
 };
+
+static_assert(TIsTriviallyCopyConstructible<FSlateRenderBatch>::Value == true, "FSlateRenderBatch must be mem copyable");
+static_assert(TIsTriviallyDestructible<FSlateRenderBatch>::Value == true, "FSlateRenderBatch must be trivially destructible");
