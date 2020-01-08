@@ -257,8 +257,8 @@ namespace Chaos
 		const FVec3 InIChild, 
 		FReal& OutInvMParent, 
 		FReal& OutInvMChild, 
-		FMatrix33& OutInvIParent, 
-		FMatrix33& OutInvIChild, 
+		FVec3& OutInvIParent,
+		FVec3& OutInvIChild,
 		const FReal MinParentMassRatio, 
 		const FReal MaxInertiaRatio)
 	{
@@ -270,19 +270,19 @@ namespace Chaos
 		IParent = ConditionParentInertia(IParent, IChild, MinParentMassRatio);
 
 		OutInvMParent = 0;
-		OutInvIParent = FMatrix33(0, 0, 0);
+		OutInvIParent = FVec3(0, 0, 0);
 		if (MParent > 0)
 		{
 			OutInvMParent = (FReal)1 / MParent;
-			OutInvIParent = FMatrix33((FReal)1 / IParent.X, (FReal)1 / IParent.Y, (FReal)1 / IParent.Z);
+			OutInvIParent = FVec3((FReal)1 / IParent.X, (FReal)1 / IParent.Y, (FReal)1 / IParent.Z);
 		}
 
 		OutInvMChild = 0;
-		OutInvIChild = FMatrix33(0, 0, 0);
+		OutInvIChild = FVec3(0, 0, 0);
 		if (MChild > 0)
 		{
 			OutInvMChild = (FReal)1 / MChild;
-			OutInvIChild = FMatrix33((FReal)1 / IChild.X, (FReal)1 / IChild.Y, (FReal)1 / IChild.Z);
+			OutInvIChild = FVec3((FReal)1 / IChild.X, (FReal)1 / IChild.Y, (FReal)1 / IChild.Z);
 		}
 	}
 
@@ -291,16 +291,16 @@ namespace Chaos
 		const FReal InM0,
 		const FVec3 InI0,
 		FReal& OutInvM0, 
-		FMatrix33& OutInvI0, 
+		FVec3& OutInvI0,
 		const FReal MaxInertiaRatio)
 	{
 		OutInvM0 = 0;
-		OutInvI0 = FMatrix33(0, 0, 0);
+		OutInvI0 = FVec3(0, 0, 0);
 		if (InM0 > 0)
 		{
 			FVec3 I0 = ConditionInertia(InI0, MaxInertiaRatio);
 			OutInvM0 = (FReal)1 / InM0;
-			OutInvI0 = FMatrix33((FReal)1 / I0.X, (FReal)1 / I0.Y, (FReal)1 / I0.Z);
+			OutInvI0 = FVec3((FReal)1 / I0.X, (FReal)1 / I0.Y, (FReal)1 / I0.Z);
 		}
 	}
 

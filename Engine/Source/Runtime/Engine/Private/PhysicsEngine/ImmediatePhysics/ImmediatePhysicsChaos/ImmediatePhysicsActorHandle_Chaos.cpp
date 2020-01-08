@@ -25,6 +25,9 @@ namespace ImmediatePhysics_Chaos
 	// Utils
 	//
 
+	// @todo(ccaulfield): Max mass conditioning an option (or push it into the constraint which is where it is really needed)
+	const FReal Chaos_MaxDimensionRatio = 5.0f;
+
 	Chaos::FMatrix33 CalculateInertia_Solid(const FReal Mass, const FKSphereElem& SphereElem)
 	{
 		return Chaos::TSphere<FReal, 3>::GetInertiaTensor(Mass, SphereElem.Radius);
@@ -32,12 +35,27 @@ namespace ImmediatePhysics_Chaos
 
 	Chaos::FMatrix33 CalculateInertia_Solid(const FReal Mass, const FKSphylElem& SphylElem)
 	{
-		return Chaos::TCapsule<FReal>::GetInertiaTensor(Mass, SphylElem.Length, SphylElem.Radius);
+		float Len = SphylElem.Length;
+		float Rad = SphylElem.Radius;
+		if (Len > Chaos_MaxDimensionRatio * Rad)
+		{
+			Rad = Len / Chaos_MaxDimensionRatio;
+		}
+		return Chaos::TCapsule<FReal>::GetInertiaTensor(Mass, Len, Rad);
 	}
 
 	Chaos::FMatrix33 CalculateInertia_Solid(const FReal Mass, const FKBoxElem& BoxElem)
 	{
-		return Chaos::TBox<FReal, 3>::GetInertiaTensor(Mass, FVector(BoxElem.X, BoxElem.Y, BoxElem.Z));
+		FVector Dim = FVector(BoxElem.X, BoxElem.Y, BoxElem.Z);
+		float MaxDim = Dim.GetAbsMax();
+		float MinDim = Dim.GetAbsMin();
+		if (MaxDim > Chaos_MaxDimensionRatio* MinDim)
+		{
+			Dim.X = FMath::Lerp(MinDim, MaxDim, (Dim.X - MinDim) / (MaxDim - MinDim));
+			Dim.Y = FMath::Lerp(MinDim, MaxDim, (Dim.Y - MinDim) / (MaxDim - MinDim));
+			Dim.Z = FMath::Lerp(MinDim, MaxDim, (Dim.Z - MinDim) / (MaxDim - MinDim));
+		}
+		return Chaos::TBox<FReal, 3>::GetInertiaTensor(Mass, Dim);
 	}
 
 	void CalculateMassProperties(const FVector& Scale, const FTransform& LocalTransform, const FKAggregateGeom& AggGeom, Chaos::TMassProperties<FReal, 3>& OutMassProperties)

@@ -148,6 +148,22 @@ namespace ImmediatePhysics_Chaos
 			}
 		}
 
+		// Disable Soft Limits when stiffness is extremely high
+		//const FReal MaxLinearStiffness = 10000;
+		//const FReal MaxAngularStiffness = 10000;
+		//if (ConstraintSettings.bSoftLinearLimitsEnabled && ConstraintSettings.SoftLinearStiffness > MaxLinearStiffness)
+		//{
+		//	ConstraintSettings.bSoftLinearLimitsEnabled = false;
+		//}
+		//if (ConstraintSettings.bSoftTwistLimitsEnabled && ConstraintSettings.SoftTwistStiffness > MaxAngularStiffness)
+		//{
+		//	ConstraintSettings.bSoftTwistLimitsEnabled = false;
+		//}
+		//if (ConstraintSettings.bSoftSwingLimitsEnabled && ConstraintSettings.SoftSwingStiffness > MaxAngularStiffness)
+		//{
+		//	ConstraintSettings.bSoftSwingLimitsEnabled = false;
+		//}
+
 		ConstraintSettings.Sanitize();
 
 		ConstraintHandle = Constraints->AddConstraint({ Actor1->ParticleHandle, Actor2->ParticleHandle }, ConstraintFrames, ConstraintSettings);
