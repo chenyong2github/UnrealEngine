@@ -791,7 +791,7 @@ void USocialToolkit::HandlePresenceReceived(const FUniqueNetId& UserId, const TS
 	}
 	else if (SubsystemType == ESocialSubsystem::Platform)
 	{
-		UE_LOG(LogParty, Error, TEXT("Platform presence received for UserId [%s], but existing SocialUser could not be found.\n"), *UserId.ToDebugString());
+		UE_LOG(LogParty, Error, TEXT("Platform presence received for UserId [%s], but existing SocialUser could not be found."), *UserId.ToDebugString());
 	}
 }
 
