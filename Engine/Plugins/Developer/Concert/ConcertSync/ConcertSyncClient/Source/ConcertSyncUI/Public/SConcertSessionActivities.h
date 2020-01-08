@@ -130,6 +130,9 @@ public:
 
 		/** True to scroll the list down automatically (unless the user manually scrolled the list). */
 		SLATE_ARGUMENT(bool, IsAutoScrollEnabled)
+
+		/** Show/hide a message overlay above the activities list explaining why no activities are displayed. */
+		SLATE_ATTRIBUTE(FText, NoActivitiesReasonText)
 	SLATE_END_ARGS();
 
 	/**

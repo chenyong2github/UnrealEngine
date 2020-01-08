@@ -399,7 +399,7 @@ void SConcertSessionActivities::Construct(const FArguments& InArgs)
 	{
 		HeaderRow->AddColumn(SHeaderRow::Column(ConcertSessionActivityUtils::PackageColumnId)
 			.DefaultLabel(LOCTEXT("Package", "Package"))
-			.ManualWidth(160));
+			.ManualWidth(200));
 	}
 
 	HeaderRow->AddColumn(SHeaderRow::Column(ConcertSessionActivityUtils::SummaryColumnId)
@@ -414,19 +414,34 @@ void SConcertSessionActivities::Construct(const FArguments& InArgs)
 		+SSplitter::Slot()
 		.Value(0.75)
 		[
-			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-			.BorderBackgroundColor(FSlateColor(FLinearColor(0.6, 0.6, 0.6)))
-			.Padding(0)
+			SNew(SOverlay)
+
+			+SOverlay::Slot() // Activity list itself.
 			[
-				SAssignNew(ActivityView, SListView<TSharedPtr<FConcertClientSessionActivity>>)
-				.ListItemsSource(&Activities)
-				.OnGenerateRow(this, &SConcertSessionActivities::OnGenerateActivityRowWidget)
-				.SelectionMode(ESelectionMode::Single)
-				.AllowOverscroll(EAllowOverscroll::No)
-				.OnListViewScrolled(this, &SConcertSessionActivities::OnListViewScrolled)
-				.OnSelectionChanged(this, &SConcertSessionActivities::OnListViewSelectionChanged)
-				.HeaderRow(HeaderRow)
+				SNew(SBorder)
+				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderBackgroundColor(FSlateColor(FLinearColor(0.6, 0.6, 0.6)))
+				.Padding(0)
+				[
+					SAssignNew(ActivityView, SListView<TSharedPtr<FConcertClientSessionActivity>>)
+					.ListItemsSource(&Activities)
+					.OnGenerateRow(this, &SConcertSessionActivities::OnGenerateActivityRowWidget)
+					.SelectionMode(ESelectionMode::Single)
+					.AllowOverscroll(EAllowOverscroll::No)
+					.OnListViewScrolled(this, &SConcertSessionActivities::OnListViewScrolled)
+					.OnSelectionChanged(this, &SConcertSessionActivities::OnListViewSelectionChanged)
+					.HeaderRow(HeaderRow)
+				]
+			]
+
+			+SOverlay::Slot() // Display a reason why no activities are shown.
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Visibility_Lambda([TextAttr = InArgs._NoActivitiesReasonText](){ return TextAttr.Get().IsEmptyOrWhitespace() ? EVisibility::Collapsed : EVisibility::Visible; })
+				.Text(InArgs._NoActivitiesReasonText)
+				.Justification(ETextJustify::Center)
 			]
 		]
 
