@@ -21,6 +21,8 @@ class TXPBDSpringConstraints : public TPBDSpringConstraintsBase<T, d>, public FP
 {
 	typedef TPBDSpringConstraintsBase<T, d> Base;
 	using Base::MConstraints;
+	using Base::MDists;
+	using Base::MStiffness;
 
 public:
 	TXPBDSpringConstraints(const T Stiffness = (T)1)
