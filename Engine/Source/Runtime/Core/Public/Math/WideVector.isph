@@ -1,0 +1,145 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#ifndef __WIDEVECTOR_ISPH__
+#define __WIDEVECTOR_ISPH__
+
+struct WideFVector4
+{
+	float V[programCount];
+};
+
+#if TARGET_WIDTH == 4
+static const uniform struct WideFVector4 WFloat0001 = { {0.0f, 0.0f, 0.0f, 1.0f} };
+static const uniform struct WideFVector4 WSmallLengthThreshold = { {1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f} };
+#elif TARGET_WIDTH == 8
+static const uniform struct WideFVector4 WFloat0001 = { {0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f} };
+static const uniform struct WideFVector4 WSmallLengthThreshold = { {1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f} };
+#elif TARGET_WIDTH == 16
+static const uniform struct WideFVector4 WFloat0001 = { {0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f} };
+static const uniform struct WideFVector4 WSmallLengthThreshold = { {1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f} };
+#endif
+
+unmasked inline uniform WideFVector4 operator+(const uniform WideFVector4 &A, const uniform WideFVector4 &B)
+{
+	uniform WideFVector4 Result;
+
+	Result.V[programIndex] = A.V[programIndex] + B.V[programIndex];
+
+	return Result;
+}
+
+unmasked inline uniform WideFVector4 operator*(const uniform WideFVector4 &A, const uniform WideFVector4 &B)
+{
+	uniform WideFVector4 Result;
+
+	Result.V[programIndex] = A.V[programIndex] * B.V[programIndex];
+
+	return Result;
+}
+
+unmasked inline uniform WideFVector4 VectorSwizzle(const uniform WideFVector4 &Vec, const uniform int X, const uniform int Y, const uniform int Z, const uniform int W)
+{
+#if TARGET_WIDTH == 4
+	const varying int vPerm = { X, Y, Z, W };
+#elif TARGET_WIDTH == 8
+	const varying int vPerm = { X, Y, Z, W, X+4, Y+4, Z+4, W+4 };
+#elif TARGET_WIDTH == 16
+	const varying int vPerm = { X, Y, Z, W, X+4, Y+4, Z+4, W+4, X+8, Y+8, Z+8, W+8, X+12, Y+12, Z+12, W+12 };
+#endif
+
+	const float V = Vec.V[programIndex];
+	const float R = shuffle(V, vPerm);
+	uniform WideFVector4 Result;
+	Result.V[programIndex] = R;
+
+	return Result;
+}
+
+unmasked inline uniform WideFVector4 VectorCompareGE(const uniform WideFVector4 &A, const uniform WideFVector4 &B)
+{
+	uniform WideFVector4 Result;
+
+	Result.V[programIndex] = select(A.V[programIndex] >= B.V[programIndex], floatbits(0xFFFFFFFF), floatbits(0));
+
+	return Result;
+}
+
+unmasked inline uniform WideFVector4 VectorReciprocalSqrtAccurate(const uniform WideFVector4& V)
+{
+	uniform WideFVector4 Result;
+
+	Result.V[programIndex] = rsqrt(V.V[programIndex]);
+
+	return Result;
+}
+
+unmasked inline uniform WideFVector4 VectorDot4( const uniform WideFVector4& Vec1, const uniform WideFVector4& Vec2 )
+{
+	uniform WideFVector4 Temp1, Temp2;
+	Temp1 = Vec1 * Vec2;
+	Temp2 = VectorSwizzle(Temp1, 2,3,0,1);	// (Z,W,X,Y).
+	Temp1 = Temp1 + Temp2; // (X*X + Z*Z, Y*Y + W*W, Z*Z + X*X, W*W + Y*Y)
+	Temp2 = VectorSwizzle(Temp1, 1,2,3,0); // Rotate left 4 bytes (Y,Z,W,X).
+	return Temp1 + Temp2; // (X*X + Z*Z + Y*Y + W*W, Y*Y + W*W + Z*Z + X*X, Z*Z + X*X + W*W + Y*Y, W*W + Y*Y + X*X + Z*Z)
+}
+
+unmasked inline uniform WideFVector4 VectorSelect(const uniform WideFVector4& Mask, const uniform WideFVector4& Vec1, const uniform WideFVector4& Vec2 )
+{
+	uniform WideFVector4 Result;
+
+	Result.V[programIndex] = floatbits(intbits(Vec2.V[programIndex]) ^ (intbits(Mask.V[programIndex]) & (intbits(Vec1.V[programIndex]) ^ intbits(Vec2.V[programIndex]))));
+
+	return Result;
+}
+
+unmasked inline uniform WideFVector4 VectorNormalizeSafe( const uniform WideFVector4& Vector, const uniform WideFVector4& DefaultValue)
+{
+	const uniform WideFVector4 SquareSum = VectorDot4(Vector, Vector);
+	const uniform WideFVector4 NonZeroMask = VectorCompareGE(SquareSum, WSmallLengthThreshold);
+	const uniform WideFVector4 InvLength = VectorReciprocalSqrtAccurate(SquareSum);
+	const uniform WideFVector4 NormalizedVector = InvLength * Vector;
+	return VectorSelect(NonZeroMask, NormalizedVector, DefaultValue);
+}
+
+unmasked inline uniform WideFVector4 VectorNormalizeQuaternion(const uniform WideFVector4& UnnormalizedQuat)
+{
+	return VectorNormalizeSafe(UnnormalizedQuat, WFloat0001);
+}
+
+unmasked inline void LoadStridedWideFVector4(uniform FVector4 * uniform DstPtr, const uniform FVector4* uniform SrcPtr, const uniform int SrcStride)
+{
+	*DstPtr = *SrcPtr;
+#if TARGET_WIDTH == 8 || TARGET_WIDTH == 16
+	*(DstPtr + 1) = *(SrcPtr + SrcStride);
+#endif
+#if TARGET_WIDTH == 16
+	*(DstPtr + 2) = *(SrcPtr + 2*SrcStride);
+	*(DstPtr + 3) = *(SrcPtr + 3*SrcStride);
+#endif
+	/* Uses stack; use other method until fixed
+	for(uniform int i = 0; i < (programCount / 4); i++)
+	{
+		*(DstPtr + i) = *(SrcPtr + i*SrcStride);
+	}
+	*/
+}
+
+unmasked inline void StoreStridedWideFVector4(uniform FVector4* uniform DstPtr, const uniform FVector4 * uniform SrcPtr, const uniform int DstStride)
+{
+	*DstPtr = *SrcPtr;
+#if TARGET_WIDTH == 8 || TARGET_WIDTH == 16
+	*(DstPtr + DstStride) = *(SrcPtr + 1);
+#endif
+#if TARGET_WIDTH == 16
+	*(DstPtr + 2*DstStride) = *(SrcPtr + 2);
+	*(DstPtr + 3*DstStride) = *(SrcPtr + 3);
+#endif
+	/* Uses stack; use other method until fixed
+	for(uniform int i = 0; i < (programCount / 4); i++)
+	{
+		*(DstPtr + i*DstStride) = *(SrcPtr + i);
+	}
+	*/
+}
+
+#endif
