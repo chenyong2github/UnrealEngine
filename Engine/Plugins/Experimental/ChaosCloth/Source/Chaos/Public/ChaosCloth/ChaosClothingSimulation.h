@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "ClothingSimulationInterface.h"
-
+#include "ClothingSimulation.h"
 #include "ClothingAsset.h"
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/PBDEvolution.h"
@@ -13,20 +12,9 @@
 
 namespace Chaos
 {
-	class ClothingSimulationContext : public IClothingSimulationContext  // TODO(Kriss.Gossart): Inherit from FClothingSimulationContextBase
-	{
-	public:
-		ClothingSimulationContext() {}
-		~ClothingSimulationContext() {}
+	typedef FClothingSimulationContextCommon ClothingSimulationContext;
 
-		float DeltaTime;
-		TArray<FMatrix> RefToLocals;
-		TArray<FTransform> BoneTransforms;
-		FTransform ComponentToWorld;
-		FVector WorldGravity;  // Gravity extracted from the world
-	};
-
-	class ClothingSimulation : public IClothingSimulation
+	class ClothingSimulation : public FClothingSimulationCommon
 #if WITH_EDITOR
 		, public FGCObject  // Add garbage collection for debug cloth material
 #endif  // #if WITH_EDITOR
@@ -70,7 +58,6 @@ namespace Chaos
 		virtual void CreateActor(USkeletalMeshComponent* InOwnerComponent, UClothingAssetBase* InAsset, int32 SimDataIndex) override;
 		virtual void PostActorCreationInitialize() override;
 		virtual IClothingSimulationContext* CreateContext() override { return new ClothingSimulationContext(); }
-		virtual void FillContext(USkeletalMeshComponent* InComponent, float InDeltaTime, IClothingSimulationContext* InOutContext) override;
 		virtual void Shutdown() override;
 		virtual bool ShouldSimulate() const override { return true; }
 		virtual void Simulate(IClothingSimulationContext* InContext) override;

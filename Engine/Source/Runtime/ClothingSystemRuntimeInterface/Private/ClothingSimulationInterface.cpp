@@ -1,6 +1,6 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "ClothingSimulationContext.h"
+#include "ClothingSimulationInterface.h"
 
 //==============================================================================
 // IClotingSimulationContext
@@ -13,16 +13,11 @@ IClothingSimulationContext::~IClothingSimulationContext()
 {}
 
 //==============================================================================
-// IClotingSimulationContextBase
+// IClothingSimulation
 //==============================================================================
 
-FClothingSimulationContextBase::FClothingSimulationContextBase()
-	: DeltaSeconds(0.0f)
-	, PredictedLod(0)
-	, WindVelocity(FVector::ZeroVector)
-	, WindAdaption(0.0f)
-	, TeleportMode(EClothingTeleportMode::None)
+IClothingSimulation::IClothingSimulation()
 {}
 
-FClothingSimulationContextBase::~FClothingSimulationContextBase()
+IClothingSimulation::~IClothingSimulation()
 {}
