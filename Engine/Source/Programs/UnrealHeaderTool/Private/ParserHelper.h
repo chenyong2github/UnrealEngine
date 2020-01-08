@@ -1923,6 +1923,9 @@ private:
 	TMap<UStruct*,TCHAR*> StructNameMap;
 	TMap<UStruct*, TCHAR*> InterfaceNameMap;
 
+	FRWLock InterfaceNameLock;
+	FRWLock StructNameLock;
+
 	FUnrealSourceFile* UnrealSourceFile;
 };
 
