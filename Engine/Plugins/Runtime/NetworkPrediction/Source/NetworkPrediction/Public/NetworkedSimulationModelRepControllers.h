@@ -324,6 +324,8 @@ struct TRepController_Simulated : public TBase
 	// Last Serialized time and state
 	FNetworkSimTime GetLastSerializedSimulationTime() const { return LastSerializedSimulationTime; }
 	const TSyncState& GetLastSerializedSyncState() const { return LastSerializedSyncState; }
+	const TAuxState& GetLastSerializedAuxState() const { return LastSerializedAuxState; }
+	const TInputCmd& GetLastSerializedInputCmd() const { return LastSerializedInputCmd; }
 	
 	ESimulatedUpdateMode GetSimulatedUpdateMode() const
 	{
