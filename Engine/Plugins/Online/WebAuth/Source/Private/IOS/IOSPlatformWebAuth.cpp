@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "PlatformWebAuth.h"
+#include "IOS/IOSPlatformWebAuth.h"
 #if PLATFORM_IOS && !PLATFORM_TVOS
 
 #import <Foundation/Foundation.h>
