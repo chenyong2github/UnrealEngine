@@ -821,7 +821,11 @@ bool UGameViewportClient::GetMousePosition(FVector2D& MousePosition) const
 {
 	bool bGotMousePosition = false;
 
+#ifdef USE_CONSOLE_CONTROLLER
 	if (Viewport && FSlateApplication::Get().IsMouseAttached())
+#else
+	if (Viewport)
+#endif
 	{
 		FIntPoint MousePos;
 		Viewport->GetMousePos(MousePos);
