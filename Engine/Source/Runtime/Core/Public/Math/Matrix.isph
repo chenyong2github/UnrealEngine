@@ -1,0 +1,204 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#ifndef __MATRIX_ISPH__
+#define __MATRIX_ISPH__
+
+#include "Math/Vector.isph"
+
+#ifndef EXPLICIT_MATRIX
+#define EXPLICIT_MATRIX 0
+#endif
+
+struct FMatrix
+{
+#if EXPLICIT_MATRIX == 0
+	float M[16];
+#else
+	float<16> M;
+#endif
+};
+
+#ifndef EXPLICIT_MATRIX3x4
+#define EXPLICIT_MATRIX3x4 0
+#endif
+
+struct FMatrix3x4
+{
+#if EXPLICIT_MATRIX3x4 == 0
+	float M[12];
+#else
+	float<12> M;
+#endif
+};
+
+inline uniform FMatrix SetMatrix(const uniform FVector4 &R0, const uniform FVector4 &R1, const uniform FVector4 &R2, const uniform FVector4 &R3)
+{
+	const uniform FMatrix Result = {{ R0.V[0], R0.V[1], R0.V[2], R0.V[3],
+									R1.V[0], R1.V[1], R1.V[2], R1.V[3],
+									R2.V[0], R2.V[1], R2.V[2], R2.V[3],
+									R3.V[0], R3.V[1], R3.V[2], R3.V[3] }};
+	return Result;
+}
+
+inline uniform FMatrix operator*(const uniform FMatrix &Matrix1, const uniform FMatrix &Matrix2)
+{
+	uniform FVector4 R[4];
+
+	const uniform FVector4 *uniform A	= (const uniform FVector4 *uniform) &Matrix1;
+	const uniform FVector4 *uniform B	= (const uniform FVector4 *uniform) &Matrix2;
+
+	for (uniform unsigned int i = 0; i < 4; i++)
+	{
+		R[i] = VectorReplicate( A[i], 0 ) * B[0] +
+				VectorReplicate( A[i], 2 ) * B[2] +
+				VectorReplicate( A[i], 1 ) * B[1] +
+				VectorReplicate( A[i], 3 ) * B[3];
+	}
+
+	return SetMatrix(R[0], R[1], R[2], R[3]);
+}
+
+inline FMatrix operator*(const FMatrix &A, const FMatrix &B)
+{
+	FMatrix Result;
+
+	for (uniform unsigned int m = 0; m < 4; m++) 
+	{
+		varying float Sum;
+		for (uniform unsigned int k = 0; k < 4; k++) 
+		{
+			Sum = 0.0f;
+			for (uniform unsigned int n = 0; n < 4; n++) 
+			{
+				Sum += A.M[m * 4 + n] * B.M[n * 4 + k];
+			}
+			
+			Result.M[m * 4 + k] = Sum;
+		}
+	}
+
+	return Result;
+}
+
+inline FMatrix operator*(const FMatrix &A, const uniform FMatrix &B)
+{
+	FMatrix Result;
+
+	for (uniform unsigned int m = 0; m < 4; m++) 
+	{
+		varying float Sum;
+		for (uniform unsigned int k = 0; k < 4; k++) 
+		{
+			Sum = 0.0f;
+			for (uniform unsigned int n = 0; n < 4; n++) 
+			{
+				Sum += A.M[m * 4 + n] * B.M[n * 4 + k];
+			}
+			
+			Result.M[m * 4 + k] = Sum;
+		}
+	}
+
+	return Result;
+}
+
+// Remove any scaling from this matrix (ie magnitude of each row is 1)
+inline void MatrixRemoveScaling(uniform FMatrix &M)
+{
+	// For each row, find magnitude, and if its non-zero re-scale so its unit length.
+	varying float S0, S1, S2, SquareSum = 0.0f;
+	*((uniform FVector *uniform)&S0) = *((uniform FVector *uniform)&M.M[0]);
+	*((uniform FVector *uniform)&S1) = *((uniform FVector *uniform)&M.M[4]);
+	*((uniform FVector *uniform)&S2) = *((uniform FVector *uniform)&M.M[8]);
+
+#if EXPLICIT_VECTOR == 1
+	// Using explicit vector aligns to 16 bytes. Save the 4th components when pulling from Matrix type
+	const uniform float SavedS0 = extract(S0, 3);
+	S0 = insert(S0, 3, 0.0f);
+	const uniform float SavedS1 = extract(S1, 3);
+	S1 = insert(S1, 3, 0.0f);
+	const uniform float SavedS2 = extract(S2, 3);
+	S2 = insert(S2, 3, 0.0f);
+#endif
+
+	const uniform FVector VSquareSum = SetVector(reduce_add(S0 * S0), reduce_add(S1 * S1), reduce_add(S2 * S2));
+	*((uniform FVector *uniform)&SquareSum) = *((uniform FVector *uniform)&VSquareSum);
+
+	const varying float Scale = select( SquareSum - SMALL_NUMBER >= 0.f, InvSqrt(SquareSum), 1.0f );
+	const uniform FVector VScale = *((uniform FVector *uniform)&Scale);
+
+	S0 = S0 * VScale.V[0];
+	S1 = S1 * VScale.V[1];
+	S2 = S2 * VScale.V[2];
+
+#if EXPLICIT_VECTOR == 1
+	// Reintroduce 4th components here
+	S0 = insert(S0, 3, SavedS0);
+	S1 = insert(S1, 3, SavedS1);
+	S2 = insert(S2, 3, SavedS2);
+#endif
+
+	*((uniform FVector *uniform)&M.M[0]) = *((uniform FVector *uniform)&S0);
+	*((uniform FVector *uniform)&M.M[4]) = *((uniform FVector *uniform)&S1);
+	*((uniform FVector *uniform)&M.M[8]) = *((uniform FVector *uniform)&S2);
+}
+
+inline uniform FVector MatrixGetOrigin(const uniform FMatrix &M)
+{
+	return SetVector(M.M[12], M.M[13], M.M[14]);
+}
+
+inline void MatrixGetScaledAxes(const uniform FMatrix &M, uniform FVector &X, uniform FVector &Y, uniform FVector &Z)
+{
+	varying float S0, S1, S2;
+	*((uniform FVector *uniform)&S0) = *((uniform FVector *uniform)&M.M[0]);
+	*((uniform FVector *uniform)&S1) = *((uniform FVector *uniform)&M.M[4]);
+	*((uniform FVector *uniform)&S2) = *((uniform FVector *uniform)&M.M[8]);
+
+#if EXPLICIT_VECTOR == 1
+	// Using explicit vector aligns to 16 bytes. Zero the 4th components when pulling from Matrix type
+	S0 = insert(S0, 3, 0.0f);
+	S1 = insert(S1, 3, 0.0f);
+	S2 = insert(S2, 3, 0.0f);
+#endif
+
+	*((uniform FVector *uniform)&X) = *((uniform FVector *uniform)&S0);
+	*((uniform FVector *uniform)&Y) = *((uniform FVector *uniform)&S1);
+	*((uniform FVector *uniform)&Z) = *((uniform FVector *uniform)&S2);
+}
+
+inline void MatrixScaleAxis(uniform FMatrix &M, const uniform int Axis, const uniform float ScalingFactor)
+{
+	varying float S0;
+	*((uniform FVector *uniform)&S0) = *((uniform FVector *uniform)&M.M[(4*Axis)]);
+
+#if EXPLICIT_VECTOR == 1
+	// Using explicit vector aligns to 16 bytes. Save the 4th component when pulling from Matrix type
+	const uniform float Saved = extract(S0, 3);
+	S0 = insert(S0, 3, 0.0f);
+#endif
+
+	S0 = S0 * ScalingFactor;
+
+#if EXPLICIT_VECTOR == 1
+	// Reintroduce 4th component here
+	S0 = insert(S0, 3, Saved);
+#endif
+
+	*((uniform FVector *uniform)&M.M[(4*Axis)]) = *((uniform FVector *uniform)&S0);
+}
+
+inline uniform bool IsMatrixScaledAxesNearlyZero(const uniform FMatrix &M)
+{
+	uniform FVector X, Y, Z;
+	MatrixGetScaledAxes(M, X, Y, Z);
+
+	if(VectorIsNearlyZero(X) || VectorIsNearlyZero(Y) || VectorIsNearlyZero(Z))
+	{
+		return true;
+	}
+
+	return false;
+}
+
+#endif
