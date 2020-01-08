@@ -2699,8 +2699,14 @@ namespace UnrealBuildTool
 			List<PluginInfo> Plugins = RulesAssembly.EnumeratePlugins().ToList();
 			foreach(PluginInfo Plugin in Plugins)
 			{
+				// Ignore plugins which are specifically disabled by this target
+				if (Rules.DisablePlugins.Contains(Plugin.Name))
+				{
+					continue;
+				}
+
 				// Ignore plugins without any modules
-				if(Plugin.Descriptor.Modules == null)
+				if (Plugin.Descriptor.Modules == null)
 				{
 					continue;
 				}
