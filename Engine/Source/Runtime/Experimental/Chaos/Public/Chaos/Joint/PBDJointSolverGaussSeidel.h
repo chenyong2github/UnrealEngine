@@ -342,7 +342,8 @@ namespace Chaos
 		FReal TwistDriveLambda;
 		FReal SwingDriveLambda;
 
-		bool bEnableAngularConstraintPositionCorrection;
+		// Post-angular constraint position fixup (to reduce iterations required for stiff angular constraints)
+		FReal AngularPositionCorrection;
 	};
 
 }
