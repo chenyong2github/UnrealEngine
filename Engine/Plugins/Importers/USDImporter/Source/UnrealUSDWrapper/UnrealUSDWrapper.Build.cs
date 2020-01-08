@@ -20,6 +20,7 @@ namespace UnrealBuildTool.Rules
 			var PythonSourceTPSDir = Path.Combine(EngineDir, "Source", "ThirdParty", "Python");
 
 			if (Target.WindowsPlatform.Compiler != WindowsCompiler.Clang && Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.None &&
+				Target.CppStandard < CppStandardVersion.Cpp17 && // Not currently compatible with C++17 due to old version of Boost
 				Target.LinkType != TargetLinkType.Monolithic) // If you want to use USD in a monolithic target, you'll have to use the ANSI allocator and remove this condition
 			{
 				PublicDefinitions.Add("USE_USD_SDK=1");
@@ -70,6 +71,6 @@ namespace UnrealBuildTool.Rules
 			{
 				PublicDefinitions.Add("USE_USD_SDK=0");
 			}
-        }
+		}
 	}
 }
