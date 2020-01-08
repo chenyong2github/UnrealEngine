@@ -2,18 +2,14 @@
 
 #include "Manipulatable/IControlRigManipulatable.h"
 
+UControlRigManipulatable::UControlRigManipulatable(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
 IControlRigManipulatable::IControlRigManipulatable()
 {
 	bManipulationEnabled = false;
-}
-
-IControlRigManipulatable::~IControlRigManipulatable()
-{
-	OnFilterControl.Clear();
-	OnControlModified.Clear();
-#if WITH_EDITOR
-	OnControlSelected.Clear();
-#endif
 }
 
 bool IControlRigManipulatable::SetControlGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform)
