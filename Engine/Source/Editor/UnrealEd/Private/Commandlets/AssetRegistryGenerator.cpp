@@ -385,6 +385,7 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 		if (!Manifest)
 		{
 			FinalChunkManifests[PakchunkIndex] = new FChunkPackageSet;
+			Manifest = FinalChunkManifests[PakchunkIndex];
 		}
 
 		int32 FilenameIndex = 0;
