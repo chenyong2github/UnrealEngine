@@ -49,7 +49,7 @@ class CHAOS_API TPBDLongRangeConstraintsBase
 		return Delta;
 	};
 
-  private:
+  protected:
 	static TArray<TArray<uint32>> ComputeIslands(const TDynamicParticles<T, d>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors,/*const TTriangleMesh<T>& Mesh,*/ const TArray<uint32>& KinematicParticles);
 	void ComputeEuclidianConstraints(const TDynamicParticles<T, d>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors,/*const TTriangleMesh<T>& Mesh,*/ const int32 NumberOfAttachments);
 	void ComputeGeodesicConstraints(const TDynamicParticles<T, d>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors,/*const TTriangleMesh<T>& Mesh,*/ const int32 NumberOfAttachments);
@@ -77,8 +77,6 @@ class CHAOS_API TPBDLongRangeConstraintsBase
 
   protected:
 	TArray<TArray<uint32>> MConstraints;
-
-  private:
 	TArray<T> MDists;
 	T MStiffness;
 };

@@ -107,6 +107,12 @@ void TPBDEvolution<T, d>::AdvanceOneTimeStep(const T Dt)
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
 	TPBDCollisionSpringConstraints<T, d> SelfCollisionRule(MParticles, MCollisionTriangles, MDisabledCollisionElements, Dt, MSelfCollisionThickness, 1.5f);
 #endif
+
+	for (TFunction<void()>& InitConstraintRule : MInitConstraintRules)
+	{
+		InitConstraintRule();  // Clear XPBD's Lambdas
+	}
+
 	for (int i = 0; i < MNumIterations; ++i)
 	{
 		for (TFunction<void(TPBDParticles<T, d>&, const T)>& ConstraintRule : MConstraintRules)
