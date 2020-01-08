@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "CoreMinimal.h"
 #include "OnlineSubsystemOculusPrivate.h"
 #if PLATFORM_WINDOWS

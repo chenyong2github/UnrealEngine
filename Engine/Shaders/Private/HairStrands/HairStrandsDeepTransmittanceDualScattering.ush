@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #ifndef HAIR_COMPONENT_LS
 	#error HAIR_COMPONENT_LS is not defined, please include ShadingCommon.ush
