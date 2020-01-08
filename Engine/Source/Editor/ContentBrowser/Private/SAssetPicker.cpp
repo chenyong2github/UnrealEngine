@@ -20,8 +20,7 @@
 #include "SAssetView.h"
 #include "SContentBrowser.h"
 #include "Framework/Commands/GenericCommands.h"
-#include "UnrealEdGlobals.h"
-#include "Editor/UnrealEdEngine.h"
+#include "Editor.h"
 #include "PropertyHandle.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
