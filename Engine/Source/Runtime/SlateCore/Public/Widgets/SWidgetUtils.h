@@ -34,8 +34,8 @@ struct FScopeCycleCounterSWidget : public FCycleCounter
 	}
 };
 
-#define SCOPE_CYCLE_SWIDGET(Object) \
-	FScopeCycleCounterSWidget ANONYMOUS_VARIABLE(SlateWidgetCycleCount_) (Object);
+#define SCOPE_CYCLE_SWIDGET(Name, Object) \
+	FScopeCycleCounterSWidget ObjCycleCount_##Name(Object);
 
 #elif ENABLE_STATNAMEDEVENTS
 
@@ -48,11 +48,11 @@ struct FScopeCycleCounterSWidget
 	}
 };
 
-#define SCOPE_CYCLE_SWIDGET(Object) \
-	FScopeCycleCounterSWidget ANONYMOUS_VARIABLE(SlateWidgetCycleCount_) (Object);
+#define SCOPE_CYCLE_SWIDGET(Name, Object) \
+	FScopeCycleCounterSWidget ObjCycleCount_##Name(Object);
 
 #else
 
-#define SCOPE_CYCLE_SWIDGET(Object)
+#define SCOPE_CYCLE_SWIDGET(Name, Object)
 
 #endif

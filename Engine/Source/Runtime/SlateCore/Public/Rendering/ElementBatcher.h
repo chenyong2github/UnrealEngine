@@ -28,7 +28,7 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Elements (ShapedText)"), STAT_SlateEleme
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Elements (Line)"), STAT_SlateElements_Line, STATGROUP_Slate, SLATECORE_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Elements (Other)"), STAT_SlateElements_Other, STATGROUP_Slate, SLATECORE_API);
 
-DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Invalidation: Recached Elements"), STAT_SlateInvalidation_RecachedElements, STATGROUP_Slate, SLATECORE_API);
+DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Cached Elements"), STAT_SlateCachedElements, STATGROUP_Slate, SLATECORE_API);
 
 extern int32 GSlateFeathering;
 
@@ -206,7 +206,7 @@ public:
 		ESlateBatchDrawFlag InDrawFlags,
 		int8 SceneIndex);
 
-	void AddCachedBatches(const TSparseArray<FSlateRenderBatch>& InCachedBatches);
+	void AddCachedBatches(const TArray<FSlateRenderBatch>& InCachedBatches);
 private:
 	void FillBuffersFromNewBatch(FSlateRenderBatch& Batch, FSlateVertexArray& FinalVertices, FSlateIndexArray& FinalIndices);
 	void CombineBatches(FSlateRenderBatch& FirstBatch, FSlateRenderBatch& SecondBatch, FSlateVertexArray& FinalVertices, FSlateIndexArray& FinalIndices);
@@ -355,7 +355,7 @@ private:
 	FSlateBatchData* BatchData;
 
 	/** Cached batches currently being filled in */
-	FSlateCachedElementList* CurrentCachedElementList;
+	FSlateCachedElementList* CachedElementList;
 
 	/** Clipping states currently being used */
 	const TArray<FSlateClippingState>* PrecachedClippingStates;
@@ -382,7 +382,7 @@ private:
 	/** Track the number of drawn batches from the previous frame to report to stats. */
 	int32 ElementStat_Other;
 
-	int32 ElementStat_RecachedElements;
+	int32 ElementStat_CachedElements;
 #endif
 
 	/** How many post process passes are needed */
