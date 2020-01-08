@@ -1005,7 +1005,7 @@ FReply SGraphPanel::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& D
 
 bool SGraphPanel::PassesAssetReferenceFilter(const TArray<FAssetData>& ReferencedAssets, FText* OutFailureReason) const
 {
-	if (GUnrealEd)
+	if (GEditor)
 	{
 		FAssetReferenceFilterContext AssetReferenceFilterContext;
 		UObject* GraphOuter = GraphObj ? GraphObj->GetOuter() : nullptr;
@@ -1013,7 +1013,7 @@ bool SGraphPanel::PassesAssetReferenceFilter(const TArray<FAssetData>& Reference
 		{
 			AssetReferenceFilterContext.ReferencingAssets.Add(FAssetData(GraphOuter));
 		}
-		TSharedPtr<IAssetReferenceFilter> AssetReferenceFilter = GUnrealEd->MakeAssetReferenceFilter(AssetReferenceFilterContext);
+		TSharedPtr<IAssetReferenceFilter> AssetReferenceFilter = GEditor->MakeAssetReferenceFilter(AssetReferenceFilterContext);
 		if (AssetReferenceFilter.IsValid())
 		{
 			for (const FAssetData& Asset : ReferencedAssets)

@@ -398,7 +398,7 @@ FClassViewerFilter::FClassViewerFilter(const FClassViewerInitializationOptions& 
 	AssetRegistry(FModuleManager::GetModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get())
 {
 	// Create a game-specific filter, if the referencing property/assets were supplied
-	if (GUnrealEd)
+	if (GEditor)
 	{
 		FAssetReferenceFilterContext AssetReferenceFilterContext;
 		AssetReferenceFilterContext.ReferencingAssets = InInitOptions.AdditionalReferencingAssets;
@@ -411,7 +411,7 @@ FClassViewerFilter::FClassViewerFilter(const FClassViewerInitializationOptions& 
 				AssetReferenceFilterContext.ReferencingAssets.Add(FAssetData(ReferencingObject));
 			}
 		}
-		AssetReferenceFilter = GUnrealEd->MakeAssetReferenceFilter(AssetReferenceFilterContext);
+		AssetReferenceFilter = GEditor->MakeAssetReferenceFilter(AssetReferenceFilterContext);
 	}
 }
 
