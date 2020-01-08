@@ -1,0 +1,728 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#ifndef __VECTOR_ISPH__
+#define __VECTOR_ISPH__
+
+struct FVector
+{
+	float V[3];
+};
+
+struct FIntVector
+{
+	int V[3];
+};
+
+struct FVector4
+{
+	float V[4]; 
+};
+
+inline FVector4 operator+(const FVector4 &A, const FVector4 &B)
+{
+	FVector4 Result;
+
+	Result.V[0] = A.V[0] + B.V[0];
+	Result.V[1] = A.V[1] + B.V[1];
+	Result.V[2] = A.V[2] + B.V[2];
+	Result.V[3] = A.V[3] + B.V[3];
+
+	return Result;
+}
+
+inline uniform FVector4 operator+(const uniform FVector4 &A, const uniform FVector4 &B)
+{
+	uniform FVector4 Result;
+
+	Result.V[0] = A.V[0] + B.V[0];
+	Result.V[1] = A.V[1] + B.V[1];
+	Result.V[2] = A.V[2] + B.V[2];
+	Result.V[3] = A.V[3] + B.V[3];
+
+	return Result;
+}
+
+inline FVector4 operator+(const FVector4 &A, const uniform FVector4 &B)
+{
+	FVector4 Result;
+
+	Result.V[0] = A.V[0] + B.V[0];
+	Result.V[1] = A.V[1] + B.V[1];
+	Result.V[2] = A.V[2] + B.V[2];
+	Result.V[3] = A.V[3] + B.V[3];
+
+	return Result;
+}
+
+inline FVector4 operator+(const FVector4 &A, const float F)
+{
+	FVector4 Result;
+
+	Result.V[0] = A.V[0] + F;
+	Result.V[1] = A.V[1] + F;
+	Result.V[2] = A.V[2] + F;
+	Result.V[3] = A.V[3] + F;
+
+	return Result;
+}
+
+inline FVector4 operator*(const FVector4 &A, const FVector4 &B)
+{
+	FVector4 Result;
+
+	Result.V[0] = A.V[0] * B.V[0];
+	Result.V[1] = A.V[1] * B.V[1];
+	Result.V[2] = A.V[2] * B.V[2];
+	Result.V[3] = A.V[3] * B.V[3];
+
+	return Result;
+}
+
+inline FVector4 operator*(const FVector4 &A, const uniform FVector4 &B)
+{
+	FVector4 Result;
+
+	Result.V[0] = A.V[0] * B.V[0];
+	Result.V[1] = A.V[1] * B.V[1];
+	Result.V[2] = A.V[2] * B.V[2];
+	Result.V[3] = A.V[3] * B.V[3];
+
+	return Result;
+}
+
+inline uniform FVector4 operator*(const uniform FVector4 &A, const uniform FVector4 &B)
+{
+	uniform FVector4 Result;
+
+	Result.V[0] = A.V[0] * B.V[0];
+	Result.V[1] = A.V[1] * B.V[1];
+	Result.V[2] = A.V[2] * B.V[2];
+	Result.V[3] = A.V[3] * B.V[3];
+
+	return Result;
+}
+
+inline FVector4 operator*(const FVector4 &A, const float F)
+{
+	FVector4 Result;
+
+	Result.V[0] = A.V[0] * F;
+	Result.V[1] = A.V[1] * F;
+	Result.V[2] = A.V[2] * F;
+	Result.V[3] = A.V[3] * F;
+
+	return Result;
+}
+
+inline FVector4 operator-(const FVector4 &A, const FVector4 &B)
+{
+	FVector4 Result;
+
+	Result.V[0] = A.V[0] - B.V[0];
+	Result.V[1] = A.V[1] - B.V[1];
+	Result.V[2] = A.V[2] - B.V[2];
+	Result.V[3] = A.V[3] - B.V[3];
+
+	return Result;
+}
+
+inline uniform FVector4 operator-(const uniform FVector4 &A, const uniform FVector4 &B)
+{
+	uniform FVector4 Result;
+
+	Result.V[0] = A.V[0] - B.V[0];
+	Result.V[1] = A.V[1] - B.V[1];
+	Result.V[2] = A.V[2] - B.V[2];
+	Result.V[3] = A.V[3] - B.V[3];
+
+	return Result;
+}
+
+inline FVector4 operator-(const FVector4 &A, const float F)
+{
+	FVector4 Result;
+
+	Result.V[0] = A.V[0] - F;
+	Result.V[1] = A.V[1] - F;
+	Result.V[2] = A.V[2] - F;
+	Result.V[3] = A.V[3] - F;
+
+	return Result;
+}
+
+inline FVector4 SetVector4(const float X, const float Y, const float Z, const float W)
+{
+	FVector4 Result;
+
+	Result.V[0] = X;
+	Result.V[1] = Y;
+	Result.V[2] = Z;
+	Result.V[3] = W;
+
+	return Result;
+}
+
+inline uniform FVector4 SetVector4(const uniform float X, const uniform float Y, const uniform float Z, const uniform float W)
+{
+	uniform FVector4 Result;
+
+	Result.V[0] = X;
+	Result.V[1] = Y;
+	Result.V[2] = Z;
+	Result.V[3] = W;
+
+	return Result;
+}
+
+inline FVector operator+(const FVector &A, const FVector &B)
+{
+	FVector Result;
+
+	Result.V[0] = A.V[0] + B.V[0];
+	Result.V[1] = A.V[1] + B.V[1];
+	Result.V[2] = A.V[2] + B.V[2];
+
+	return Result;
+}
+
+inline uniform FVector operator+(const uniform FVector &A, const uniform FVector &B)
+{
+	uniform FVector Result;
+
+	Result.V[0] = A.V[0] + B.V[0];
+	Result.V[1] = A.V[1] + B.V[1];
+	Result.V[2] = A.V[2] + B.V[2];
+
+	return Result;
+}
+
+inline FVector operator+(const FVector &A, const uniform FVector &B)
+{
+	FVector Result;
+
+	Result.V[0] = A.V[0] + B.V[0];
+	Result.V[1] = A.V[1] + B.V[1];
+	Result.V[2] = A.V[2] + B.V[2];
+
+	return Result;
+}
+
+inline FVector operator+(const FVector &A, const float F)
+{
+	FVector Result;
+
+	Result.V[0] = A.V[0] + F;
+	Result.V[1] = A.V[1] + F;
+	Result.V[2] = A.V[2] + F;
+
+	return Result;
+}
+
+inline uniform FVector operator+(const uniform FVector &A, const uniform float F)
+{
+	uniform FVector Result;
+
+	Result.V[0] = A.V[0] + F;
+	Result.V[1] = A.V[1] + F;
+	Result.V[2] = A.V[2] + F;
+
+	return Result;
+}
+
+inline FVector operator*(const FVector &A, const FVector &B)
+{
+	FVector Result;
+
+	Result.V[0] = A.V[0] * B.V[0];
+	Result.V[1] = A.V[1] * B.V[1];
+	Result.V[2] = A.V[2] * B.V[2];
+
+	return Result;
+}
+
+inline uniform FVector operator*(const uniform FVector &A, const uniform FVector &B)
+{
+	uniform FVector Result;
+
+	Result.V[0] = A.V[0] * B.V[0];
+	Result.V[1] = A.V[1] * B.V[1];
+	Result.V[2] = A.V[2] * B.V[2];
+
+	return Result;
+}
+
+inline FVector operator*(const FVector &A, const uniform FVector &B)
+{
+	FVector Result;
+
+	Result.V[0] = A.V[0] * B.V[0];
+	Result.V[1] = A.V[1] * B.V[1];
+	Result.V[2] = A.V[2] * B.V[2];
+
+	return Result;
+}
+
+inline FVector operator*(const uniform FVector &A, const FIntVector &B)
+{
+	FVector Result;
+
+	Result.V[0] = A.V[0] * B.V[0];
+	Result.V[1] = A.V[1] * B.V[1];
+	Result.V[2] = A.V[2] * B.V[2];
+
+	return Result;
+}
+
+inline FVector operator*(const FVector &A, const float F)
+{
+	FVector Result;
+
+	Result.V[0] = A.V[0] * F;
+	Result.V[1] = A.V[1] * F;
+	Result.V[2] = A.V[2] * F;
+
+	return Result;
+}
+
+inline uniform FVector operator*(const uniform FVector &A, const uniform float F)
+{
+	uniform FVector Result;
+
+	Result.V[0] = A.V[0] * F;
+	Result.V[1] = A.V[1] * F;
+	Result.V[2] = A.V[2] * F;
+
+	return Result;
+}
+
+inline FVector operator-(const FVector &A, const FVector &B)
+{
+	FVector Result;
+
+	Result.V[0] = A.V[0] - B.V[0];
+	Result.V[1] = A.V[1] - B.V[1];
+	Result.V[2] = A.V[2] - B.V[2];
+
+	return Result;
+}
+
+inline uniform FVector operator-(const uniform FVector &A, const uniform FVector &B)
+{
+	uniform FVector Result;
+
+	Result.V[0] = A.V[0] - B.V[0];
+	Result.V[1] = A.V[1] - B.V[1];
+	Result.V[2] = A.V[2] - B.V[2];
+
+	return Result;
+}
+
+inline FVector operator-(const FVector &A, const uniform FVector &B)
+{
+	FVector Result;
+
+	Result.V[0] = A.V[0] - B.V[0];
+	Result.V[1] = A.V[1] - B.V[1];
+	Result.V[2] = A.V[2] - B.V[2];
+
+	return Result;
+}
+
+inline FVector operator-(const uniform FVector &A, const FVector &B)
+{
+	FVector Result;
+
+	Result.V[0] = A.V[0] - B.V[0];
+	Result.V[1] = A.V[1] - B.V[1];
+	Result.V[2] = A.V[2] - B.V[2];
+
+	return Result;
+}
+
+inline FVector operator-(const FVector &A, const float F)
+{
+	FVector Result;
+
+	Result.V[0] = A.V[0] - F;
+	Result.V[1] = A.V[1] - F;
+	Result.V[2] = A.V[2] - F;
+
+	return Result;
+}
+
+inline FVector operator-(const float F, const FVector &A)
+{
+	FVector Result;
+
+	Result.V[0] = F - A.V[0];
+	Result.V[1] = F - A.V[1];
+	Result.V[2] = F - A.V[2];
+
+	return Result;
+}
+
+inline FVector operator/(const FVector &A, const FVector &B)
+{
+	FVector Result;
+
+	Result.V[0] = A.V[0] / B.V[0];
+	Result.V[1] = A.V[1] / B.V[1];
+	Result.V[2] = A.V[2] / B.V[2];
+
+	return Result;
+}
+
+inline uniform FVector operator/(const uniform FVector &A, const uniform FVector &B)
+{
+	uniform FVector Result;
+
+	Result.V[0] = A.V[0] / B.V[0];
+	Result.V[1] = A.V[1] / B.V[1];
+	Result.V[2] = A.V[2] / B.V[2];
+
+	return Result;
+}
+
+inline FVector operator/(const FVector &A, const uniform FVector &B)
+{
+	FVector Result;
+
+	Result.V[0] = A.V[0] / B.V[0];
+	Result.V[1] = A.V[1] / B.V[1];
+	Result.V[2] = A.V[2] / B.V[2];
+
+	return Result;
+}
+
+inline FVector operator/(const FVector &A, const float F)
+{
+	FVector Result;
+
+	Result.V[0] = A.V[0] / F;
+	Result.V[1] = A.V[1] / F;
+	Result.V[2] = A.V[2] / F;
+
+	return Result;
+}
+
+inline uniform FVector operator/(const uniform FVector &A, const uniform float F)
+{
+	uniform FVector Result;
+
+	Result.V[0] = A.V[0] / F;
+	Result.V[1] = A.V[1] / F;
+	Result.V[2] = A.V[2] / F;
+
+	return Result;
+}
+
+inline FVector SetVector(const float X, const float Y, const float Z)
+{
+	FVector Result;
+
+	Result.V[0] = X;
+	Result.V[1] = Y;
+	Result.V[2] = Z;
+
+	return Result;
+}
+
+inline uniform FVector SetVector(const uniform float X, const uniform float Y, const uniform float Z)
+{
+	uniform FVector Result;
+
+	Result.V[0] = X;
+	Result.V[1] = Y;
+	Result.V[2] = Z;
+
+	return Result;
+}
+
+inline FIntVector operator+(const FIntVector &A, const FIntVector &B)
+{
+	FIntVector Result;
+
+	Result.V[0] = A.V[0] + B.V[0];
+	Result.V[1] = A.V[1] + B.V[1];
+	Result.V[2] = A.V[2] + B.V[2];
+
+	return Result;
+}
+
+inline uniform FIntVector operator+(const uniform FIntVector &A, const uniform FIntVector &B)
+{
+	uniform FIntVector Result;
+
+	Result.V[0] = A.V[0] + B.V[0];
+	Result.V[1] = A.V[1] + B.V[1];
+	Result.V[2] = A.V[2] + B.V[2];
+
+	return Result;
+}
+
+inline FIntVector operator+(const FIntVector &A, const uniform FIntVector &B)
+{
+	FIntVector Result;
+
+	Result.V[0] = A.V[0] + B.V[0];
+	Result.V[1] = A.V[1] + B.V[1];
+	Result.V[2] = A.V[2] + B.V[2];
+
+	return Result;
+}
+
+inline FIntVector operator+(const FIntVector &A, const int F)
+{
+	FIntVector Result;
+
+	Result.V[0] = A.V[0] + F;
+	Result.V[1] = A.V[1] + F;
+	Result.V[2] = A.V[2] + F;
+
+	return Result;
+}
+
+inline uniform FIntVector operator+(const uniform FIntVector &A, const uniform float F)
+{
+	uniform FIntVector Result;
+
+	Result.V[0] = A.V[0] + F;
+	Result.V[1] = A.V[1] + F;
+	Result.V[2] = A.V[2] + F;
+
+	return Result;
+}
+
+inline FIntVector operator*(const FIntVector &A, const FIntVector &B)
+{
+	FIntVector Result;
+
+	Result.V[0] = A.V[0] * B.V[0];
+	Result.V[1] = A.V[1] * B.V[1];
+	Result.V[2] = A.V[2] * B.V[2];
+
+	return Result;
+}
+
+inline uniform FIntVector operator*(const uniform FIntVector &A, const uniform FIntVector &B)
+{
+	uniform FIntVector Result;
+
+	Result.V[0] = A.V[0] * B.V[0];
+	Result.V[1] = A.V[1] * B.V[1];
+	Result.V[2] = A.V[2] * B.V[2];
+
+	return Result;
+}
+
+inline FIntVector operator*(const FIntVector &A, const uniform FIntVector &B)
+{
+	FIntVector Result;
+
+	Result.V[0] = A.V[0] * B.V[0];
+	Result.V[1] = A.V[1] * B.V[1];
+	Result.V[2] = A.V[2] * B.V[2];
+
+	return Result;
+}
+
+inline FIntVector operator*(const FIntVector &A, const int F)
+{
+	FIntVector Result;
+
+	Result.V[0] = A.V[0] * F;
+	Result.V[1] = A.V[1] * F;
+	Result.V[2] = A.V[2] * F;
+
+	return Result;
+}
+
+inline uniform FIntVector operator*(const uniform FIntVector &A, const uniform int F)
+{
+	uniform FIntVector Result;
+
+	Result.V[0] = A.V[0] * F;
+	Result.V[1] = A.V[1] * F;
+	Result.V[2] = A.V[2] * F;
+
+	return Result;
+}
+
+inline FIntVector operator-(const FIntVector &A, const FIntVector &B)
+{
+	FIntVector Result;
+
+	Result.V[0] = A.V[0] - B.V[0];
+	Result.V[1] = A.V[1] - B.V[1];
+	Result.V[2] = A.V[2] - B.V[2];
+
+	return Result;
+}
+
+inline uniform FIntVector operator-(const uniform FIntVector &A, const uniform FIntVector &B)
+{
+	uniform FIntVector Result;
+
+	Result.V[0] = A.V[0] - B.V[0];
+	Result.V[1] = A.V[1] - B.V[1];
+	Result.V[2] = A.V[2] - B.V[2];
+
+	return Result;
+}
+
+inline FIntVector operator-(const FIntVector &A, const uniform FIntVector &B)
+{
+	FIntVector Result;
+
+	Result.V[0] = A.V[0] - B.V[0];
+	Result.V[1] = A.V[1] - B.V[1];
+	Result.V[2] = A.V[2] - B.V[2];
+
+	return Result;
+}
+
+inline FIntVector operator-(const uniform FIntVector &A, const FIntVector &B)
+{
+	FIntVector Result;
+
+	Result.V[0] = A.V[0] - B.V[0];
+	Result.V[1] = A.V[1] - B.V[1];
+	Result.V[2] = A.V[2] - B.V[2];
+
+	return Result;
+}
+
+inline FIntVector operator-(const FIntVector &A, const int F)
+{
+	FIntVector Result;
+
+	Result.V[0] = A.V[0] - F;
+	Result.V[1] = A.V[1] - F;
+	Result.V[2] = A.V[2] - F;
+
+	return Result;
+}
+
+inline FIntVector operator-(const int F, const FIntVector &A)
+{
+	FIntVector Result;
+
+	Result.V[0] = F - A.V[0];
+	Result.V[1] = F - A.V[1];
+	Result.V[2] = F - A.V[2];
+
+	return Result;
+}
+
+inline FIntVector SetIntVector(const int X, const int Y, const int Z)
+{
+	FIntVector Result;
+
+	Result.V[0] = X;
+	Result.V[1] = Y;
+	Result.V[2] = Z;
+
+	return Result;
+}
+
+inline uniform FIntVector SetIntVector(const uniform int X, const uniform int Y, const uniform int Z)
+{
+	uniform FIntVector Result;
+
+	Result.V[0] = X;
+	Result.V[1] = Y;
+	Result.V[2] = Z;
+
+	return Result;
+}
+
+inline FIntVector SetIntVector(const FVector &A)
+{
+	FIntVector Result;
+
+	Result.V[0] = (int)A.V[0];
+	Result.V[1] = (int)A.V[1];
+	Result.V[2] = (int)A.V[2];
+
+	return Result;
+}
+
+inline bool IsVectorLessEqual(const FVector &A, const uniform FVector &B)
+{
+	return A.V[0] <= B.V[0] && A.V[1] <= B.V[1] && A.V[2] <= B.V[2];
+}
+
+inline bool IsVectorGreaterEqual(const FVector &A, const uniform FVector &B)
+{
+	return A.V[0] >= B.V[0] && A.V[1] >= B.V[1] && A.V[2] >= B.V[2];
+}
+
+inline FVector VectorMax(const FVector& V1, const FVector& V2)
+{
+	FVector Result;
+
+	Result.V[0] = max(V1.V[0], V2.V[0]);
+	Result.V[1] = max(V1.V[1], V2.V[1]);
+	Result.V[2] = max(V1.V[2], V2.V[2]);
+
+	return Result;
+}
+
+inline uniform FVector VectorMax(const uniform FVector& V1, const uniform FVector& V2)
+{
+	uniform FVector Result;
+
+	Result.V[0] = max(V1.V[0], V2.V[0]);
+	Result.V[1] = max(V1.V[1], V2.V[1]);
+	Result.V[2] = max(V1.V[2], V2.V[2]);
+
+	return Result;
+}
+
+inline FVector VectorMin(const FVector& V1, const FVector& V2)
+{
+	FVector Result;
+
+	Result.V[0] = min(V1.V[0], V2.V[0]);
+	Result.V[1] = min(V1.V[1], V2.V[1]);
+	Result.V[2] = min(V1.V[2], V2.V[2]);
+
+	return Result;
+}
+
+inline uniform FVector VectorMin(const uniform FVector& V1, const uniform FVector& V2)
+{
+	uniform FVector Result;
+
+	Result.V[0] = min(V1.V[0], V2.V[0]);
+	Result.V[1] = min(V1.V[1], V2.V[1]);
+	Result.V[2] = min(V1.V[2], V2.V[2]);
+
+	return Result;
+}
+
+inline FVector4 VectorMultiplyAdd(const FVector4& A, const FVector4 &B, const FVector4 &C)
+{
+	FVector4 Result;
+
+	Result.V[0] = A.V[0] * B.V[0] + C.V[0];
+	Result.V[1] = A.V[1] * B.V[1] + C.V[1];
+	Result.V[2] = A.V[2] * B.V[2] + C.V[2];
+	Result.V[3] = A.V[3] * B.V[3] + C.V[3];
+
+	return Result;
+}
+
+inline FVector4 VectorAbs(const FVector4& A)
+{
+	FVector4 Result;
+
+	Result.V[0] = abs(A.V[0]);
+	Result.V[1] = abs(A.V[1]);
+	Result.V[2] = abs(A.V[2]);
+	Result.V[3] = abs(A.V[3]);
+
+	return Result;
+}
+
+#endif
