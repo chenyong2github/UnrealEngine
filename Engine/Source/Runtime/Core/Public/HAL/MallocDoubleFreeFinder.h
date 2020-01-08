@@ -7,6 +7,7 @@
 #include "HAL/PlatformTLS.h"
 #include "HAL/MemoryBase.h"
 #include "Containers/Array.h"
+#include "Containers/Map.h"
 
 class CORE_API FMallocDoubleFreeFinder final : public FMalloc
 {
