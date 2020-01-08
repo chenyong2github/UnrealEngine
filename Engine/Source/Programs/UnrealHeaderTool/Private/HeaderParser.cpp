@@ -963,9 +963,9 @@ namespace
 	 * @param	InKey			the metadata key being added
 	 * @param	InValue			the value string that will be associated with the InKey
 	 */
-	void ValidateMetaDataFormat(FFieldVariant Field, const FString& InKey, const FString& InValue)
+	void ValidateMetaDataFormat(FFieldVariant Field, const FName InKey, const FString& InValue)
 	{
-		switch ((ECheckedMetadataSpecifier)Algo::FindSortedStringCaseInsensitive(*InKey, GCheckedMetadataSpecifierStrings))
+		switch (GetCheckedMetadataSpecifier(InKey))
 		{
 			default:
 			{
@@ -980,7 +980,7 @@ namespace
 			{
 				if (!InValue.IsNumeric())
 				{
-					FError::Throwf(TEXT("Metadata value for '%s' is non-numeric : '%s'"), *InKey, *InValue);
+					FError::Throwf(TEXT("Metadata value for '%s' is non-numeric : '%s'"), *InKey.ToString(), *InValue);
 				}
 			}
 			break;
@@ -1001,7 +1001,7 @@ namespace
 
 						if (Class != nullptr && Class->GetName() == TEXT("BlueprintFunctionLibrary"))
 						{
-							FError::Throwf(TEXT("%s doesn't make sense on static method '%s' in a blueprint function library"), *InKey, *Function->GetName());
+							FError::Throwf(TEXT("%s doesn't make sense on static method '%s' in a blueprint function library"), *InKey.ToString(), *Function->GetName());
 						}
 					}
 				}
@@ -1118,7 +1118,7 @@ namespace
 				const FString ExperimentalValue(TEXT("Experimental"));
 				if ((InValue != EarlyAccessValue) && (InValue != ExperimentalValue))
 				{
-					FError::Throwf(TEXT("'%s' metadata was '%s' but it must be %s or %s"), *InKey, *InValue, *ExperimentalValue, *EarlyAccessValue);
+					FError::Throwf(TEXT("'%s' metadata was '%s' but it must be %s or %s"), *InKey.ToString(), *InValue, *ExperimentalValue, *EarlyAccessValue);
 				}
 			}
 			break;
@@ -1144,7 +1144,7 @@ namespace
 				const TCHAR* StrictValue = TEXT("Strict");
 				if (InValue != StrictValue)
 				{
-					FError::Throwf(TEXT("'%s' metadata was '%s' but it must be %s"), *InKey, *InValue, *StrictValue);
+					FError::Throwf(TEXT("'%s' metadata was '%s' but it must be %s"), *InKey.ToString(), *InValue, *StrictValue);
 				}
 			}
 			break;
@@ -1154,9 +1154,9 @@ namespace
 	// Ensures at script compile time that the metadata formatting is correct
 	void ValidateMetaDataFormat(FFieldVariant Field, const TMap<FName, FString>& MetaData)
 	{
-		for (const auto& Pair : MetaData)
+		for (const TPair<FName, FString>& Pair : MetaData)
 		{
-			ValidateMetaDataFormat(Field, Pair.Key.ToString(), Pair.Value);
+			ValidateMetaDataFormat(Field, Pair.Key, Pair.Value);
 		}
 	}
 
@@ -5662,7 +5662,7 @@ bool FHeaderParser::CompileDeclaration(FClasses& AllClasses, TArray<UDelegateFun
 				bSkippedAPIToken = true;
 			}
 
-			if (ConstructorToken.Matches(NameLookupCPP.GetNameCPP(Class), ESearchCase::IgnoreCase))
+			if (ConstructorToken.Matches(*FNameLookupCPP::GetNameCPP(Class), ESearchCase::IgnoreCase))
 			{
 				if (TryToMatchConstructorParameterList(ConstructorToken))
 				{
@@ -8109,7 +8109,6 @@ void FHeaderParser::FinalizeScriptExposedFunctions(UClass* Class)
 ECompilationResult::Type FHeaderParser::ParseHeader(FClasses& AllClasses, FUnrealSourceFile* SourceFile)
 {
 	SetCurrentSourceFile(SourceFile);
-	NameLookupCPP.SetCurrentSourceFile(SourceFile);
 	FUnrealSourceFile* CurrentSrcFile = SourceFile;
 	if (CurrentSrcFile->IsParsed())
 	{
