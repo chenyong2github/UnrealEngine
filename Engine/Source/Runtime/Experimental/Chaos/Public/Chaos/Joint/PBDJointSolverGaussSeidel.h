@@ -270,11 +270,6 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplySphericalPositionConstraintSoft(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
 		void ApplySphericalPositionDrive(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
@@ -283,16 +278,12 @@ namespace Chaos
 		void ApplyCylindricalPositionConstraint(
 			const FReal Dt,
 			const int32 AxisIndex,
+			const EJointMotionType AxialMotion,
+			const EJointMotionType RadialMotion,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplyCylindricalPositionConstraintSoft(
-			const FReal Dt,
-			const int32 AxisIndex,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		void ApplyCylindricalPositionDrive(
+		void ApplyCircularPositionDrive(
 			const FReal Dt,
 			const int32 AxisIndex,
 			const FPBDJointSolverSettings& SolverSettings,
@@ -301,16 +292,11 @@ namespace Chaos
 		void ApplyPlanarPositionConstraint(
 			const FReal Dt,
 			const int32 AxisIndex,
+			const EJointMotionType AxialMotion,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplyPlanarPositionConstraintSoft(
-			const FReal Dt,
-			const int32 AxisIndex,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		void ApplyPlanarPositionDrive(
+		void ApplyAxialPositionDrive(
 			const FReal Dt,
 			const int32 AxisIndex,
 			const FPBDJointSolverSettings& SolverSettings,
