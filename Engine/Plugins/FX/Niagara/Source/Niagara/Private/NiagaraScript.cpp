@@ -746,6 +746,27 @@ void UNiagaraScript::PostLoad()
 	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
 
 #if WITH_EDITORONLY_DATA
+	if (NiagaraVer < FNiagaraCustomVersion::AddShaderStageUsageEnum)
+	{
+		uint8 ShaderStageIndex = (uint8)ENiagaraScriptUsage::ParticleShaderStageScript;
+		uint8 MaxIndex = (uint8)ENiagaraScriptUsage::SystemUpdateScript;
+		// Start at the end and shift the bits down to account for the new shader stage bit.
+		for (uint8 CurrentIndex = MaxIndex; CurrentIndex > ShaderStageIndex; CurrentIndex--)
+		{
+			uint8 OldIndex = CurrentIndex - 1;
+			if ((ModuleUsageBitmask & (1 << OldIndex)) != 0)
+			{
+				ModuleUsageBitmask |= 1 << CurrentIndex;
+			}
+			else
+			{
+				ModuleUsageBitmask &= ~(1 << CurrentIndex);
+			}
+		}
+		// Clear the shader stage bit.
+		ModuleUsageBitmask &= ~(1 << ShaderStageIndex);
+	}
+
 	if (Source != nullptr)
 	{
 		Source->ConditionalPostLoad();
