@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/PlatformTLS.h"
 #include "HAL/MemoryBase.h"
 #include "Containers/Array.h"
 
