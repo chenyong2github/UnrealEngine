@@ -38,7 +38,7 @@ namespace
 		{
 		}
 
-		FString                    Mapping;
+		FName                      Mapping;
 		FString                    DefaultValue;
 		EMetadataValueAction::Type ValueAction;
 	};
@@ -60,17 +60,17 @@ namespace
 			ValueActions.Add(FMetadataValueAction(InMapping, TEXT(""), EMetadataValueAction::Remove));
 		}
 
-		void ApplyToMetadata(TMap<FName, FString>& Metadata, const FString* Value = NULL)
+		void ApplyToMetadata(TMap<FName, FString>& Metadata, const FString* Value = nullptr)
 		{
-			for (auto It = ValueActions.CreateConstIterator(); It; ++It)
+			for (const FMetadataValueAction& ValueAction : ValueActions)
 			{
-				if (It->ValueAction == EMetadataValueAction::Add)
+				if (ValueAction.ValueAction == EMetadataValueAction::Add)
 				{
-					FBaseParser::InsertMetaDataPair(Metadata, It->Mapping, Value ? *Value : It->DefaultValue);
+					FBaseParser::InsertMetaDataPair(Metadata, ValueAction.Mapping, Value ? *Value : ValueAction.DefaultValue);
 				}
 				else
 				{
-					Metadata.Remove(*It->Mapping);
+					Metadata.Remove(ValueAction.Mapping);
 				}
 			}
 		}
@@ -370,14 +370,14 @@ bool FBaseParser::IsWhitespace( TCHAR c )
 // Gets the next token from the input stream, advancing the variables which keep track of the current input position and line.
 bool FBaseParser::GetToken( FToken& Token, bool bNoConsts/*=false*/, ESymbolParseOption bParseTemplateClosingBracket/*=ESymbolParseOption::Normal*/ )
 {
-	Token.TokenName	= NAME_None;
+	Token.ClearTokenName();
 	TCHAR c = GetLeadingChar();
-	TCHAR p = PeekChar();
 	if( c == 0 )
 	{
 		UngetChar();
 		return 0;
 	}
+	TCHAR p = PeekChar();
 	Token.StartPos		= PrevPos;
 	Token.StartLine		= PrevLine;
 	if( (c>='A' && c<='Z') || (c>='a' && c<='z') || (c=='_') )
@@ -401,20 +401,17 @@ bool FBaseParser::GetToken( FToken& Token, bool bNoConsts/*=false*/, ESymbolPars
 		// Assume this is an identifier unless we find otherwise.
 		Token.TokenType = TOKEN_Identifier;
 
-		// Lookup the token's global name.
-		Token.TokenName = FName(Token.Identifier, FNAME_Find);
-
 		// If const values are allowed, determine whether the identifier represents a constant
 		if ( !bNoConsts )
 		{
 			// See if the identifier is part of a vector, rotation or other struct constant.
 			// boolean true/false
-			if( Token.Matches(TEXT("true")) )
+			if( Token.Matches(TEXT("true"), ESearchCase::IgnoreCase) )
 			{
 				Token.SetConstBool(true);
 				return true;
 			}
-			else if( Token.Matches(TEXT("false")) )
+			else if( Token.Matches(TEXT("false"), ESearchCase::IgnoreCase) )
 			{
 				Token.SetConstBool(false);
 				return true;
@@ -578,20 +575,24 @@ bool FBaseParser::GetToken( FToken& Token, bool bNoConsts/*=false*/, ESymbolPars
 			Token.Identifier[Length++] = d;
 			if( c=='>' && d=='>' )
 			{
-				if( GetChar()=='>' )
+				if (GetChar()=='>')
+				{
 					Token.Identifier[Length++] = '>';
+				}
 				else
+				{
 					UngetChar();
+				}
 			}
 		}
-		else UngetChar();
+		else
+		{
+			UngetChar();
+		}
 		#undef PAIR
 
 		Token.Identifier[Length] = 0;
 		Token.TokenType = TOKEN_Symbol;
-
-		// Lookup the token's global name.
-		Token.TokenName = FName(Token.Identifier, FNAME_Find);
 
 		return true;
 	}
@@ -773,13 +774,32 @@ bool FBaseParser::GetConstInt64(int64& Result, const TCHAR* Tag)
 	return false;
 }
 
-bool FBaseParser::MatchSymbol( const TCHAR* Match, ESymbolParseOption bParseTemplateClosingBracket/*=ESymbolParseOption::Normal*/ )
+bool FBaseParser::MatchSymbol( const TCHAR Match, ESymbolParseOption bParseTemplateClosingBracket/*=ESymbolParseOption::Normal*/ )
 {
 	FToken Token;
 
 	if (GetToken(Token, /*bNoConsts=*/ true, bParseTemplateClosingBracket))
 	{
-		if (Token.TokenType==TOKEN_Symbol && !FCString::Stricmp(Token.Identifier, Match))
+		if (Token.TokenType==TOKEN_Symbol && Token.Identifier[0] == Match && Token.Identifier[1] == 0)
+		{
+			return true;
+		}
+		else
+		{
+			UngetToken(Token);
+		}
+	}
+
+	return false;
+}
+
+bool FBaseParser::MatchSymbol(const TCHAR* Match, ESymbolParseOption bParseTemplateClosingBracket/*=ESymbolParseOption::Normal*/)
+{
+	FToken Token;
+
+	if (GetToken(Token, /*bNoConsts=*/ true, bParseTemplateClosingBracket))
+	{
+		if (Token.TokenType==TOKEN_Symbol && !FCString::Strcmp(Token.Identifier, Match))
 		{
 			return true;
 		}
@@ -796,7 +816,7 @@ bool FBaseParser::MatchSymbol( const TCHAR* Match, ESymbolParseOption bParseTemp
 // Get a specific identifier and return 1 if gotten, 0 if not.
 // This is used primarily for checking for required symbols during compilation.
 //
-bool FBaseParser::MatchIdentifier( FName Match )
+bool FBaseParser::MatchIdentifierByName( FName Match )
 {
 	FToken Token;
 	if (!GetToken(Token))
@@ -804,7 +824,7 @@ bool FBaseParser::MatchIdentifier( FName Match )
 		return false;
 	}
 
-	if ((Token.TokenType == TOKEN_Identifier) && (Token.TokenName == Match))
+	if ((Token.TokenType == TOKEN_Identifier) && (Token.GetTokenName() == Match))
 	{
 		return true;
 	}
@@ -813,12 +833,12 @@ bool FBaseParser::MatchIdentifier( FName Match )
 	return false;
 }
 
-bool FBaseParser::MatchIdentifier( const TCHAR* Match )
+bool FBaseParser::MatchIdentifier( const TCHAR* Match, ESearchCase::Type SearchCase)
 {
 	FToken Token;
 	if (GetToken(Token))
 	{
-		if( Token.TokenType==TOKEN_Identifier && FCString::Stricmp(Token.Identifier,Match)==0 )
+		if (Token.TokenType==TOKEN_Identifier && ((SearchCase == ESearchCase::CaseSensitive) ? !FCString::Strcmp(Token.Identifier, Match) : !FCString::Stricmp(Token.Identifier, Match)))
 		{
 			return true;
 		}
@@ -836,7 +856,7 @@ bool FBaseParser::MatchConstInt( const TCHAR* Match )
 	FToken Token;
 	if (GetToken(Token))
 	{
-		if( Token.TokenType==TOKEN_Const && (Token.Type == CPT_Int || Token.Type == CPT_Int64) && FCString::Stricmp(Token.Identifier,Match)==0 )
+		if( Token.TokenType==TOKEN_Const && (Token.Type == CPT_Int || Token.Type == CPT_Int64) && FCString::Strcmp(Token.Identifier,Match)==0 )
 		{
 			return true;
 		}
@@ -869,7 +889,7 @@ bool FBaseParser::MatchAnyConstInt()
 
 void FBaseParser::MatchSemi()
 {
-	if( !MatchSymbol(TEXT(";")) )
+	if( !MatchSymbol(TEXT(';')) )
 	{
 		FToken Token;
 		if( GetToken(Token) )
@@ -887,7 +907,7 @@ void FBaseParser::MatchSemi()
 //
 // Peek ahead and see if a symbol follows in the stream.
 //
-bool FBaseParser::PeekSymbol( const TCHAR* Match )
+bool FBaseParser::PeekSymbol( const TCHAR Match )
 {
 	FToken Token;
 	if (!GetToken(Token, true))
@@ -896,13 +916,13 @@ bool FBaseParser::PeekSymbol( const TCHAR* Match )
 	}
 	UngetToken(Token);
 
-	return Token.TokenType==TOKEN_Symbol && FCString::Stricmp(Token.Identifier,Match)==0;
+	return Token.TokenType==TOKEN_Symbol && Token.Identifier[0] == Match && Token.Identifier[1] == 0;
 }
 
 //
 // Peek ahead and see if an identifier follows in the stream.
 //
-bool FBaseParser::PeekIdentifier( FName Match )
+bool FBaseParser::PeekIdentifierByName( FName Match )
 {
 	FToken Token;
 	if (!GetToken(Token, true))
@@ -910,10 +930,10 @@ bool FBaseParser::PeekIdentifier( FName Match )
 		return false;
 	}
 	UngetToken(Token);
-	return Token.TokenType==TOKEN_Identifier && Token.TokenName==Match;
+	return Token.TokenType==TOKEN_Identifier && Token.GetTokenName()==Match;
 }
 
-bool FBaseParser::PeekIdentifier( const TCHAR* Match )
+bool FBaseParser::PeekIdentifier( const TCHAR* Match, ESearchCase::Type SearchCase)
 {
 	FToken Token;
 	if (!GetToken(Token, true))
@@ -921,7 +941,7 @@ bool FBaseParser::PeekIdentifier( const TCHAR* Match )
 		return false;
 	}
 	UngetToken(Token);
-	return Token.TokenType==TOKEN_Identifier && FCString::Stricmp(Token.Identifier,Match)==0;
+	return Token.TokenType==TOKEN_Identifier && ((SearchCase == ESearchCase::CaseSensitive) ? !FCString::Strcmp(Token.Identifier, Match) : !FCString::Stricmp(Token.Identifier, Match));
 }
 
 //
@@ -936,11 +956,19 @@ void FBaseParser::UngetToken( const FToken& Token )
 //
 // Require a symbol.
 //
-void FBaseParser::RequireSymbol( const TCHAR* Match, const TCHAR* Tag, ESymbolParseOption bParseTemplateClosingBracket/*=ESymbolParseOption::Normal*/ )
+void FBaseParser::RequireSymbol( const TCHAR Match, const TCHAR* Tag, ESymbolParseOption bParseTemplateClosingBracket/*=ESymbolParseOption::Normal*/ )
 {
 	if (!MatchSymbol(Match, bParseTemplateClosingBracket))
 	{
 		FError::Throwf(TEXT("Missing '%s' in %s"), Match, Tag );
+	}
+}
+
+void FBaseParser::RequireSymbol(const TCHAR Match, TFunctionRef<FString()> ErrorGetter, ESymbolParseOption bParseTemplateClosingBracket/*=ESymbolParseOption::Normal*/)
+{
+	if (!MatchSymbol(Match, bParseTemplateClosingBracket))
+	{
+		FError::Throwf(TEXT("Missing '%s' in %s"), Match, *ErrorGetter());
 	}
 }
 
@@ -966,17 +994,9 @@ void FBaseParser::RequireAnyConstInt( const TCHAR* Tag )
 //
 // Require an identifier.
 //
-void FBaseParser::RequireIdentifier( FName Match, const TCHAR* Tag )
+void FBaseParser::RequireIdentifier( const TCHAR* Match, const ESearchCase::Type SearchCase, const TCHAR* Tag )
 {
-	if (!MatchIdentifier(Match))
-	{
-		FError::Throwf(TEXT("Missing '%s' in %s"), *Match.ToString(), Tag );
-	}
-}
-
-void FBaseParser::RequireIdentifier( const TCHAR* Match, const TCHAR* Tag )
-{
-	if (!MatchIdentifier(Match))
+	if (!MatchIdentifier(Match, SearchCase))
 	{
 		FError::Throwf(TEXT("Missing '%s' in %s"), Match, Tag );
 	}
@@ -985,54 +1005,56 @@ void FBaseParser::RequireIdentifier( const TCHAR* Match, const TCHAR* Tag )
 // Clears out the stored comment.
 void FBaseParser::ClearComment()
 {
-	// Can't call Reset as FString uses protected inheritance
-	PrevComment.Empty( PrevComment.Len() );
+	PrevComment.Reset();
 }
 
 // Reads a new-style value
 //@TODO: UCREMOVAL: Needs a better name
-FString FBaseParser::ReadNewStyleValue(const FString& TypeOfSpecifier)
+FString FBaseParser::ReadNewStyleValue(const TCHAR* TypeOfSpecifier)
 {
 	FToken ValueToken;
-	if (!GetToken( ValueToken, false ))
-		FError::Throwf(TEXT("Expected a value when handling a "), *TypeOfSpecifier);
+	if (!GetToken(ValueToken, false))
+	{
+		FError::Throwf(TEXT("Expected a value when handling a %s"), TypeOfSpecifier);
+	}
+
+	FString Result;
 
 	switch (ValueToken.TokenType)
 	{
 		case TOKEN_Identifier:
 		case TOKEN_Symbol:
-		{
-			FString Result = ValueToken.Identifier;
 
-			if (MatchSymbol(TEXT("=")))
+			Result = ValueToken.Identifier;
+
+			if (MatchSymbol(TEXT('=')))
 			{
 				Result += TEXT("=");
 				Result += ReadNewStyleValue(TypeOfSpecifier);
 			}
-
-			return Result;
-		}
+			break;
 
 		case TOKEN_Const:
-			return ValueToken.GetConstantValue();
 
-		default:
-			return TEXT("");
+			Result = ValueToken.GetConstantValue();
+			break;
 	}
+
+	return Result;
 }
 
 // Reads [ Value | ['(' Value [',' Value]* ')'] ] and places each value into the Items array
-bool FBaseParser::ReadOptionalCommaSeparatedListInParens(TArray<FString>& Items, const FString& TypeOfSpecifier)
+bool FBaseParser::ReadOptionalCommaSeparatedListInParens(TArray<FString>& Items, const TCHAR* TypeOfSpecifier)
 {
-	if (MatchSymbol(TEXT("(")))
+	if (MatchSymbol(TEXT('(')))
 	{
 		do 
 		{
 			FString Value = ReadNewStyleValue(TypeOfSpecifier);
 			Items.Add(Value);
-		} while ( MatchSymbol(TEXT(",")) );
+		} while ( MatchSymbol(TEXT(',')) );
 
-		RequireSymbol(TEXT(")"), *TypeOfSpecifier);
+		RequireSymbol(TEXT(')'), TypeOfSpecifier);
 
 		return true;
 	}
@@ -1055,7 +1077,7 @@ void FBaseParser::ParseNameWithPotentialAPIMacroPrefix(FString& DeclaredName, FS
 	FString NameTokenStr = NameToken.Identifier;
 	if (NameTokenStr.EndsWith(TEXT("_API"), ESearchCase::CaseSensitive))
 	{
-		RequiredAPIMacroIfPresent = NameTokenStr;
+		RequiredAPIMacroIfPresent = MoveTemp(NameTokenStr);
 
 		// Read the real name
 		if (!GetIdentifier(NameToken))
@@ -1075,28 +1097,29 @@ void FBaseParser::ParseNameWithPotentialAPIMacroPrefix(FString& DeclaredName, FS
 		DeclaredName = NameToken.Identifier;
 
 		// Not required for things such a Minimal. Only used for Linux/Mac which just exposes the vtable for link-age
-		RequiredAPIMacroIfPresent.Empty();
+		RequiredAPIMacroIfPresent.Reset();
 	}
 	else
 	{
-		DeclaredName = NameTokenStr;
-		RequiredAPIMacroIfPresent.Empty();
+		DeclaredName = MoveTemp(NameTokenStr);
+		RequiredAPIMacroIfPresent.Reset();
 	}
 }
 
 // Reads a set of specifiers (with optional values) inside the () of a new-style metadata macro like UPROPERTY or UFUNCTION
-void FBaseParser::ReadSpecifierSetInsideMacro(TArray<FPropertySpecifier>& SpecifiersFound, const FString& TypeOfSpecifier, TMap<FName, FString>& MetaData)
+void FBaseParser::ReadSpecifierSetInsideMacro(TArray<FPropertySpecifier>& SpecifiersFound, const TCHAR* TypeOfSpecifier, TMap<FName, FString>& MetaData)
 {
 	int32 FoundSpecifierCount = 0;
-	FString ErrorMessage = FString::Printf(TEXT("%s declaration specifier"), *TypeOfSpecifier);
 
-	RequireSymbol(TEXT("("), *ErrorMessage);
+	auto ErrorMessageGetter = [TypeOfSpecifier]() { return FString::Printf(TEXT("%s declaration specifier"), TypeOfSpecifier); };
 
-	while (!MatchSymbol(TEXT(")")))
+	RequireSymbol(TEXT('('), ErrorMessageGetter);
+
+	while (!MatchSymbol(TEXT(')')))
 	{
 		if (FoundSpecifierCount > 0)
 		{
-			RequireSymbol(TEXT(","), *ErrorMessage);
+			RequireSymbol(TEXT(','), ErrorMessageGetter);
 		}
 		++FoundSpecifierCount;
 
@@ -1104,13 +1127,13 @@ void FBaseParser::ReadSpecifierSetInsideMacro(TArray<FPropertySpecifier>& Specif
 		FToken Specifier;
 		if (!GetToken(Specifier))
 		{
-			FError::Throwf(TEXT("Expected %s"), *ErrorMessage);
+			FError::Throwf(TEXT("Expected %s"), *ErrorMessageGetter());
 		}
 
-		if (Specifier.Matches(TEXT("meta")))
+		if (Specifier.Matches(TEXT("meta"), ESearchCase::IgnoreCase))
 		{
-			RequireSymbol(TEXT("="), *ErrorMessage);
-			RequireSymbol(TEXT("("), *ErrorMessage);
+			RequireSymbol(TEXT('='), ErrorMessageGetter);
+			RequireSymbol(TEXT('('), ErrorMessageGetter);
 
 			// Keep reading comma-separated metadata pairs
 			do 
@@ -1126,21 +1149,21 @@ void FBaseParser::ReadSpecifierSetInsideMacro(TArray<FPropertySpecifier>& Specif
 
 				// Potentially read a value
 				FString Value;
-				if (MatchSymbol(TEXT("=")))
+				if (MatchSymbol(TEXT('=')))
 				{
 					Value = ReadNewStyleValue(TypeOfSpecifier);
 				}
 
 				// Validate the value is a valid type for the key and insert it into the map
-				InsertMetaDataPair(MetaData, Key, Value);
-			} while ( MatchSymbol(TEXT(",")) );
+				InsertMetaDataPair(MetaData, MoveTemp(Key), MoveTemp(Value));
+			} while ( MatchSymbol(TEXT(',')) );
 
-			RequireSymbol(TEXT(")"), *ErrorMessage);
+			RequireSymbol(TEXT(')'), ErrorMessageGetter);
 		}
 		// Look up specifier in metadata dictionary
 		else if (FMetadataKeyword* MetadataKeyword = GetMetadataKeyword(Specifier.Identifier))
 		{
-			if (MatchSymbol(TEXT("=")))
+			if (MatchSymbol(TEXT('=')))
 			{
 				if (MetadataKeyword->ValueArgument == EMetadataValueArgument::None)
 				{
@@ -1166,45 +1189,45 @@ void FBaseParser::ReadSpecifierSetInsideMacro(TArray<FPropertySpecifier>& Specif
 			SpecifiersFound.Emplace(Specifier.Identifier);
 
 			// Look for a value for this specifier
-			if (MatchSymbol(TEXT("=")) || PeekSymbol(TEXT("(")))
+			if (MatchSymbol(TEXT('=')) || PeekSymbol(TEXT('(')))
 			{
 				TArray<FString>& NewPairValues = SpecifiersFound.Last().Values;
 				if (!ReadOptionalCommaSeparatedListInParens(NewPairValues, TypeOfSpecifier))
 				{
-					FString Value = ReadNewStyleValue(TypeOfSpecifier);
-					NewPairValues.Add(Value);
+					NewPairValues.Add(ReadNewStyleValue(TypeOfSpecifier));
 				}
 			}
 		}
 	}
 }
 
-void FBaseParser::InsertMetaDataPair(TMap<FName, FString>& MetaData, const FString& InKey, const FString& InValue)
+void FBaseParser::InsertMetaDataPair(TMap<FName, FString>& MetaData, FString Key, FString Value)
 {
-	FString Key = InKey;
-	FString Value = InValue;
-
-	// trim extra white space and quotes
-	Key.TrimStartAndEndInline();
-	Value.TrimStartAndEndInline();
-	Value = Value.TrimQuotes();
-
 	// make sure the key is valid
-	if (InKey.Len() == 0)
+	if (Key.Len() == 0)
 	{
 		FError::Throwf(TEXT("Invalid metadata"));
 	}
 
-	FName KeyName(*Key);
+	// trim extra white space and quotes
+	Key.TrimStartAndEndInline();
+
+	InsertMetaDataPair(MetaData, FName(*Key), MoveTemp(Value));
+}
+
+void FBaseParser::InsertMetaDataPair(TMap<FName, FString>& MetaData, FName KeyName, FString Value)
+{
+	Value.TrimStartAndEndInline();
+	Value.TrimQuotesInline();
 
 	FString* ExistingValue = MetaData.Find(KeyName);
 	if (ExistingValue && Value != *ExistingValue)
 	{
-		FError::Throwf(TEXT("Metadata key '%s' first seen with value '%s' then '%s'"), *Key, **ExistingValue, *Value);
+		FError::Throwf(TEXT("Metadata key '%s' first seen with value '%s' then '%s'"), *KeyName.ToString(), **ExistingValue, *Value);
 	}
 
 	// finally we have enough to put it into our metadata
-	MetaData.Add(FName(*Key), *Value);
+	MetaData.Add(KeyName, MoveTemp(Value));
 }
 
 
