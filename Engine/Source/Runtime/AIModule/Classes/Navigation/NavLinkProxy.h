@@ -81,7 +81,7 @@ protected:
 public:
 #endif // ENABLE_VISUAL_LOG
 
-	virtual FBox GetComponentsBoundingBox(bool bNonColliding = false) const override;
+	virtual FBox GetComponentsBoundingBox(bool bNonColliding = false, bool bIncludeFromChildActors = false) const override;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Blueprint interface for smart links
