@@ -5,6 +5,7 @@
 #include "GameplaySharedData.h"
 #include "AnimationSharedData.h"
 #include "UObject/WeakObjectPtr.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #if WITH_ENGINE
 #include "Engine/World.h"
