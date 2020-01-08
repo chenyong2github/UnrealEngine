@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LandscapeEditorDetails.h"
 #include "Framework/Commands/UIAction.h"
@@ -165,7 +165,7 @@ void FLandscapeEditorDetails::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBu
 
 	// Tool Strength
 	{
-		UProperty* ToolStrengthProperty = LandscapeEdMode->UISettings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, ToolStrength));
+		FProperty* ToolStrengthProperty = LandscapeEdMode->UISettings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, ToolStrength));
 		const FString& UIMinString = ToolStrengthProperty->GetMetaData("UIMin");
 		const FString& UIMaxString = ToolStrengthProperty->GetMetaData("UIMax");
 		const FString& SliderExponentString = ToolStrengthProperty->GetMetaData("SliderExponent");
@@ -215,7 +215,7 @@ void FLandscapeEditorDetails::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBu
 	//  Brush Size 
 	{
 
-		UProperty* BrushRadiusProperty = LandscapeEdMode->UISettings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, BrushRadius));
+		FProperty* BrushRadiusProperty = LandscapeEdMode->UISettings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, BrushRadius));
 		const FString& UIMinString = BrushRadiusProperty->GetMetaData("UIMin");
 		const FString& UIMaxString = BrushRadiusProperty->GetMetaData("UIMax");
 		const FString& SliderExponentString = BrushRadiusProperty->GetMetaData("SliderExponent");
@@ -262,7 +262,7 @@ void FLandscapeEditorDetails::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBu
 
 	//  Brush Falloff Percentage 
 	{
-		UProperty* BrushFalloffProperty = LandscapeEdMode->UISettings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, BrushFalloff));
+		FProperty* BrushFalloffProperty = LandscapeEdMode->UISettings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, BrushFalloff));
 
 		const FString& UIMinString = BrushFalloffProperty->GetMetaData("UIMin");
 		const FString& UIMaxString = BrushFalloffProperty->GetMetaData("UIMax");

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDCollisionConstraintsContact.h"
 #include "Chaos/CollisionResolution.h"
@@ -24,19 +24,10 @@ namespace Chaos
 		template<typename T, int d>
 		void UpdateManifold(const T Thickness, TCollisionConstraintBase<T, d>& Constraint)
 		{
-			if (Constraint.GetType() == TCollisionConstraintBase<T, d>::FType::MultiPoint)
-			{
-				const TRigidTransform<T, d> Transform0 = GetTransform(Constraint.Particle[0]);
-				const TRigidTransform<T, d> Transform1 = GetTransform(Constraint.Particle[1]);
+			const TRigidTransform<T, d> Transform0 = GetTransform(Constraint.Particle[0]);
+			const TRigidTransform<T, d> Transform1 = GetTransform(Constraint.Particle[1]);
 
-				const FImplicitObject& Implicit0 = *Constraint.Manifold.Implicit[0];
-				const FImplicitObject& Implicit1 = *Constraint.Manifold.Implicit[1];
-
-				if (Implicit0.IsConvex() && Implicit1.IsConvex())
-				{
-					UpdateConvexConvexManifold( *Constraint.template As<TRigidBodyIterativeContactConstraint<T, d>>(), Transform0, Transform1, Thickness);
-				}
-			}
+			UpdateManifold(Constraint, Transform0, Transform1, Thickness);
 		}
 
 

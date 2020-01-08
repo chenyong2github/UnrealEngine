@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Stack/SNiagaraStackParameterStoreEntryName.h"
 #include "NiagaraEditorStyle.h"
@@ -31,7 +31,7 @@ void SNiagaraStackParameterStoreEntryName::Construct(const FArguments& InArgs, U
 			.OnTextCommitted(this, &SNiagaraStackParameterStoreEntryName::OnNameTextCommitted)
 			.OnVerifyTextChanged(this, &SNiagaraStackParameterStoreEntryName::VerifyNameTextChanged)
 			.HighlightText_UObject(InStackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
-			.ColorAndOpacity(this, &SNiagaraStackParameterStoreEntryName::GetTextColorForSearch)
+			.ColorAndOpacity(this, &SNiagaraStackParameterStoreEntryName::GetTextColorForSearch, FSlateColor::UseForeground())
 		]
 	];
 }

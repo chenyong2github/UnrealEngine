@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Misc/ConfigCacheIni.h"
@@ -58,7 +58,7 @@ UDeviceProfileManager& UDeviceProfileManager::Get(bool bFromPostCDOContruct)
 		}
 
 		// always start with an active profile, even if we create it on the spot
-		UDeviceProfile* ActiveProfile = DeviceProfileManagerSingleton->FindProfile(GetActiveProfileName());
+		UDeviceProfile* ActiveProfile = DeviceProfileManagerSingleton->FindProfile(GetPlatformDeviceProfileName());
 		DeviceProfileManagerSingleton->SetActiveDeviceProfile(ActiveProfile);
 
 		// now we allow the cvar changes to be acknowledged
@@ -85,7 +85,7 @@ UDeviceProfileManager& UDeviceProfileManager::Get(bool bFromPostCDOContruct)
 
 void UDeviceProfileManager::InitializeCVarsForActiveDeviceProfile(bool bPushSettings)
 {
-	FString ActiveProfileName = DeviceProfileManagerSingleton ? DeviceProfileManagerSingleton->ActiveDeviceProfile->GetName() : GetActiveProfileName();
+	FString ActiveProfileName = DeviceProfileManagerSingleton ? DeviceProfileManagerSingleton->ActiveDeviceProfile->GetName() : GetPlatformDeviceProfileName();
 
 	UE_LOG(LogInit, Log, TEXT("Applying CVar settings loaded from the selected device profile: [%s]"), *ActiveProfileName);
 
@@ -661,7 +661,7 @@ void UDeviceProfileManager::HandleDeviceProfileOverridePop()
 	RestoreDefaultDeviceProfile();
 }
 
-const FString UDeviceProfileManager::GetActiveProfileName()
+const FString UDeviceProfileManager::GetPlatformDeviceProfileName()
 {
 	FString ActiveProfileName = FPlatformProperties::PlatformName();
 
@@ -706,6 +706,24 @@ const FString UDeviceProfileManager::GetActiveProfileName()
 	return ActiveProfileName;
 }
 
+
+const FString UDeviceProfileManager::GetActiveDeviceProfileName()
+{
+	if(ActiveDeviceProfile != nullptr)
+	{
+		return ActiveDeviceProfile->GetName();
+	}
+	else
+	{
+		return GetPlatformDeviceProfileName();
+	}
+}
+
+const FString UDeviceProfileManager::GetActiveProfileName()
+{
+	return GetPlatformDeviceProfileName();
+}
+
 bool UDeviceProfileManager::GetScalabilityCVar(const FString& CVarName, int32& OutValue)
 {
 	if (const FString* CVarValue = DeviceProfileScalabilityCVars.Find(CVarName))
@@ -733,7 +751,7 @@ void UDeviceProfileManager::SetActiveDeviceProfile( UDeviceProfile* DeviceProfil
 	ActiveDeviceProfile = DeviceProfile;
 
 #if CSV_PROFILER
-	FCsvProfiler::Get()->SetDeviceProfileName(ActiveDeviceProfile->GetName());
+	CSV_METADATA(TEXT("DeviceProfile"), *GetActiveDeviceProfileName());
 #endif
 }
 

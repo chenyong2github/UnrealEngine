@@ -215,7 +215,7 @@ void UUVLayoutTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 }
 #endif
 
-void UUVLayoutTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UUVLayoutTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	// if we don't know what changed, or we know checker density changed, update checker material
 	MaterialSettings->UpdateMaterials();

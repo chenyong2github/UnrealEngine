@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAssetPicker.h"
 #include "Styling/SlateTypes.h"
@@ -20,8 +20,7 @@
 #include "SAssetView.h"
 #include "SContentBrowser.h"
 #include "Framework/Commands/GenericCommands.h"
-#include "UnrealEdGlobals.h"
-#include "Editor/UnrealEdEngine.h"
+#include "Editor.h"
 #include "PropertyHandle.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
@@ -244,7 +243,7 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 				AssetReferenceFilterContext.ReferencingAssets.Add(FAssetData(ReferencingObject));
 			}
 		}
-		TSharedPtr<IAssetReferenceFilter> AssetReferenceFilter = GUnrealEd ? GUnrealEd->MakeAssetReferenceFilter(AssetReferenceFilterContext) : nullptr;
+		TSharedPtr<IAssetReferenceFilter> AssetReferenceFilter = GEditor ? GEditor->MakeAssetReferenceFilter(AssetReferenceFilterContext) : nullptr;
 		if (AssetReferenceFilter.IsValid())
 		{
 			FOnShouldFilterAsset ConfigFilter = InArgs._AssetPickerConfig.OnShouldFilterAsset;

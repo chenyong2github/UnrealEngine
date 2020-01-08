@@ -35,6 +35,10 @@
 !*.exp
 !*.manifest
 
+# ISPC files
+!*.ispc
+!*.isph
+
 # Re-ignore vs host manifest
 *.vshost.exe.manifest
 

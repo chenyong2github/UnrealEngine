@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Containers/Queue.h"
@@ -72,8 +72,8 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	{
 		TArrayCollection::AddArray(&MF);
 		TArrayCollection::AddArray(&MT);
-		TArrayCollection::AddArray(&MExternalForce);
-		TArrayCollection::AddArray(&MExternalTorque);
+		TArrayCollection::AddArray(&MLinearImpulse);
+		TArrayCollection::AddArray(&MAngularImpulse);
 		TArrayCollection::AddArray(&MI);
 		TArrayCollection::AddArray(&MInvI);
 		TArrayCollection::AddArray(&MM);
@@ -89,12 +89,12 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	}
 	TRigidParticles(const TRigidParticles<T, d>& Other) = delete;
 	CHAOS_API TRigidParticles(TRigidParticles<T, d>&& Other)
-	    : TKinematicGeometryParticles<T, d>(MoveTemp(Other)), MF(MoveTemp(Other.MF)), MT(MoveTemp(Other.MT)), MExternalForce(MoveTemp(Other.MExternalForce)), MExternalTorque(MoveTemp(Other.MExternalTorque)), MI(MoveTemp(Other.MI)), MInvI(MoveTemp(Other.MInvI)), MM(MoveTemp(Other.MM)), MInvM(MoveTemp(Other.MInvM)), MCollisionParticles(MoveTemp(Other.MCollisionParticles)), MCollisionGroup(MoveTemp(Other.MCollisionGroup)), MObjectState(MoveTemp(Other.MObjectState))
+	    : TKinematicGeometryParticles<T, d>(MoveTemp(Other)), MF(MoveTemp(Other.MF)), MT(MoveTemp(Other.MT)), MLinearImpulse(MoveTemp(Other.MLinearImpulse)), MAngularImpulse(MoveTemp(Other.MAngularImpulse)), MI(MoveTemp(Other.MI)), MInvI(MoveTemp(Other.MInvI)), MM(MoveTemp(Other.MM)), MInvM(MoveTemp(Other.MInvM)), MCollisionParticles(MoveTemp(Other.MCollisionParticles)), MCollisionGroup(MoveTemp(Other.MCollisionGroup)), MObjectState(MoveTemp(Other.MObjectState))
 	{
 		TArrayCollection::AddArray(&MF);
 		TArrayCollection::AddArray(&MT);
-		TArrayCollection::AddArray(&MExternalForce);
-		TArrayCollection::AddArray(&MExternalTorque);
+		TArrayCollection::AddArray(&MLinearImpulse);
+		TArrayCollection::AddArray(&MAngularImpulse);
 		TArrayCollection::AddArray(&MI);
 		TArrayCollection::AddArray(&MInvI);
 		TArrayCollection::AddArray(&MM);
@@ -118,11 +118,11 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	FORCEINLINE const TVector<T, d>& F(const int32 Index) const { return MF[Index]; }
 	FORCEINLINE TVector<T, d>& F(const int32 Index) { return MF[Index]; }
 
-	FORCEINLINE const TVector<T, d>& ExternalTorque(const int32 Index) const { return MExternalTorque[Index]; }
-	FORCEINLINE TVector<T, d>& ExternalTorque(const int32 Index) { return MExternalTorque[Index]; }
+	FORCEINLINE const TVector<T, d>& LinearImpulse(const int32 Index) const { return MLinearImpulse[Index]; }
+	FORCEINLINE TVector<T, d>& LinearImpulse(const int32 Index) { return MLinearImpulse[Index]; }
 
-	FORCEINLINE const TVector<T, d>& ExternalForce(const int32 Index) const { return MExternalForce[Index]; }
-	FORCEINLINE TVector<T, d>& ExternalForce(const int32 Index) { return MExternalForce[Index]; }
+	FORCEINLINE const TVector<T, d>& AngularImpulse(const int32 Index) const { return MAngularImpulse[Index]; }
+	FORCEINLINE TVector<T, d>& AngularImpulse(const int32 Index) { return MAngularImpulse[Index]; }
 
 	FORCEINLINE const PMatrix<T, d, d>& I(const int32 Index) const { return MI[Index]; }
 	FORCEINLINE PMatrix<T, d, d>& I(const int32 Index) { return MI[Index]; }
@@ -164,13 +164,13 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	FORCEINLINE const bool ToBeRemovedOnFracture(const int32 Index) const { return MToBeRemovedOnFracture[Index]; }
 	FORCEINLINE bool& ToBeRemovedOnFracture(const int32 Index) { return MToBeRemovedOnFracture[Index]; }
 
-	FORCEINLINE TQueue<TSleepData<T, d>, EQueueMode::Mpsc>& GetSleepData() { return MSleepData; }
-	FORCEINLINE void AddSleepData(TGeometryParticleHandle<T, d>* Particle, bool Sleeping)
+	FORCEINLINE TArray<TSleepData<T, d>>& GetSleepData() { return MSleepData; }
+	FORCEINLINE	void AddSleepData(TGeometryParticleHandle<T, d>* Particle, bool Sleeping)
 	{ 
 		TSleepData<T, d> SleepData;
 		SleepData.Particle = Particle;
 		SleepData.Sleeping = Sleeping;
-		MSleepData.Enqueue(SleepData); 
+		MSleepData.Add(SleepData); 
 	}
 
 	FORCEINLINE const EObjectStateType ObjectState(const int32 Index) const { return MObjectState[Index]; }
@@ -188,14 +188,14 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	FORCEINLINE FString ToString(int32 index) const
 	{
 		FString BaseString = TKinematicGeometryParticles<T, d>::ToString(index);
-		return FString::Printf(TEXT("%s, MF:%s, MT:%s, MExternalForce:%s, MExternalTorque:%s, MI:%s, MInvI:%s, MM:%f, MInvM:%f, MCollisionParticles(num):%d, MCollisionGroup:%d, MDisabled:%d, MSleepring:%d, MIsland:%d"), *BaseString, *F(index).ToString(), *Torque(index).ToString(), *ExternalForce(index).ToString(), *ExternalTorque(index).ToString(), *I(index).ToString(), *InvI(index).ToString(), M(index), InvM(index), CollisionParticlesSize(index), CollisionGroup(index), Disabled(index), Sleeping(index), Island(index));
+		return FString::Printf(TEXT("%s, MF:%s, MT:%s, MLinearImpulse:%s, MAngularImpulse:%s, MI:%s, MInvI:%s, MM:%f, MInvM:%f, MCollisionParticles(num):%d, MCollisionGroup:%d, MDisabled:%d, MSleepring:%d, MIsland:%d"), *BaseString, *F(index).ToString(), *Torque(index).ToString(), *LinearImpulse(index).ToString(), *AngularImpulse(index).ToString(), *I(index).ToString(), *InvI(index).ToString(), M(index), InvM(index), CollisionParticlesSize(index), CollisionGroup(index), Disabled(index), Sleeping(index), Island(index));
 	}
 
 	CHAOS_API virtual void Serialize(FChaosArchive& Ar) override
 	{
 		LLM_SCOPE(ELLMTag::ChaosParticles);
 		TKinematicGeometryParticles<T,d>::Serialize(Ar);
-		Ar << MF << MT << MExternalForce << MExternalTorque << MI << MInvI << MM << MInvM;
+		Ar << MF << MT << MLinearImpulse << MAngularImpulse << MI << MInvI << MM << MInvM;
 
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddDampingToRigids)
@@ -209,8 +209,8 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
   private:
 	TArrayCollectionArray<TVector<T, d>> MF;
 	TArrayCollectionArray<TVector<T, d>> MT;
-	TArrayCollectionArray<TVector<T, d>> MExternalForce;
-	TArrayCollectionArray<TVector<T, d>> MExternalTorque;
+	TArrayCollectionArray<TVector<T, d>> MLinearImpulse;
+	TArrayCollectionArray<TVector<T, d>> MAngularImpulse;
 	TArrayCollectionArray<PMatrix<T, d, d>> MI;
 	TArrayCollectionArray<PMatrix<T, d, d>> MInvI;
 	TArrayCollectionArray<T> MM;
@@ -223,7 +223,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	TArrayCollectionArray<bool> MDisabled;
 	TArrayCollectionArray<bool> MToBeRemovedOnFracture;
 	TArrayCollectionArray<EObjectStateType> MObjectState;
-	TQueue<TSleepData<T, d>, EQueueMode::Mpsc> MSleepData;
+	TArray<TSleepData<T, d>> MSleepData;
 };
 
 

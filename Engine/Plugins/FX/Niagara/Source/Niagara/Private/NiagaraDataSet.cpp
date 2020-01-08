@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataSet.h"
 #include "NiagaraCommon.h"
@@ -10,6 +10,7 @@
 #include "NiagaraRenderer.h"
 #include "NiagaraGPUInstanceCountManager.h"
 #include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraShaderParticleID.h"
 
 DECLARE_CYCLE_STAT(TEXT("InitRenderData"), STAT_InitRenderData, STATGROUP_Niagara);
 
@@ -430,6 +431,7 @@ FNiagaraDataBuffer::FNiagaraDataBuffer(FNiagaraDataSet* InOwner)
 	: Owner(InOwner)
 	, GPUInstanceCountBufferOffset(INDEX_NONE)
 	, NumChunksAllocatedForGPU(0)
+	, NumIDsAllocatedForGPU(0)
 	, NumInstances(0)
 	, NumInstancesAllocated(0)
 	, FloatStride(0)
@@ -598,7 +600,7 @@ void FNiagaraDataBuffer::Allocate(uint32 InNumInstances, bool bMaintainExisting)
 	}
 }
 
-void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceCountManager& GPUInstanceCountManager, FRHICommandList &RHICmdList)
+void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceCountManager& GPUInstanceCountManager, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel)
 {
 	CheckUsage(false);
 
@@ -633,6 +635,17 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 		{
 			GPUBufferInt.Release();
 		}
+		if (GPUFreeIDs.Buffer)
+		{
+			GPUFreeIDs.Release();
+		}
+		if (GPUIDToIndexTable.Buffer)
+		{
+			GPUIDToIndexTable.Release();
+		}
+
+		NumChunksAllocatedForGPU = 0;
+		NumIDsAllocatedForGPU = 0;
 	}
 	else // Otherwise check for growing and possibly shrinking (if GNiagaraGPUDataBufferBufferSlack > 1) .
 	{
@@ -658,6 +671,33 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 				}
 				GPUBufferInt.Initialize(sizeof(int32), NumElementsToAlloc * Owner->GetNumInt32Components(), EPixelFormat::PF_R32_SINT, BUF_Static);
 			}
+		}
+
+		// The ID buffers cannot be shrinked, because the maximum ID could be currently in use even if we have a single alive particle.
+		if (Owner->GetNeedsPersistentIDs() && PaddedNumInstances > NumIDsAllocatedForGPU)
+		{
+			// Smaller chunk size for ID allocations, because clearing and compacting the ID table must run over all the allocated
+			// elements, so too much slack memory hurts performance.
+			constexpr uint32 ID_ALLOC_CHUNKSIZE = 1024;
+			const uint32 NumIDsToAlloc = FMath::DivideAndRoundUp(PaddedNumInstances, ID_ALLOC_CHUNKSIZE) * ID_ALLOC_CHUNKSIZE;
+
+			// We must maintain the existing list of free IDs.
+			FRWBuffer NewFreeIDsBuffer;
+			NewFreeIDsBuffer.Initialize(sizeof(int32), NumIDsToAlloc, EPixelFormat::PF_R32_SINT, BUF_Static, TEXT("NiagaraFreeIDList"));
+
+			FRHIShaderResourceView* ExistingBuffer = NumIDsAllocatedForGPU > 0 ? GPUFreeIDs.SRV : FNiagaraRenderer::GetDummyIntBuffer().SRV;
+			NiagaraInitGPUFreeIDList(RHICmdList, FeatureLevel, NumIDsToAlloc, NewFreeIDsBuffer, NumIDsAllocatedForGPU, ExistingBuffer);
+
+			GPUFreeIDs = MoveTemp(NewFreeIDsBuffer);
+
+			// The ID to index table is filled in each time the emitter runs, so we don't need to keep its contents.
+			if (GPUIDToIndexTable.Buffer)
+			{
+				GPUIDToIndexTable.Release();
+			}
+			GPUIDToIndexTable.Initialize(sizeof(int32), NumIDsToAlloc, EPixelFormat::PF_R32_SINT, BUF_Static, TEXT("NiagaraIDToIndexTable"));
+
+			NumIDsAllocatedForGPU = NumIDsToAlloc;
 		}
 	}
 }
@@ -904,12 +944,18 @@ void FNiagaraDataBuffer::SetShaderParams(FNiagaraShader *Shader, FRHICommandList
 		SetSRVParameter(CommandList, ComputeShader, Shader->FloatInputBufferParam, InstancesAllocated ? GetGPUBufferFloat().SRV : FNiagaraRenderer::GetDummyFloatBuffer().SRV);
 		SetSRVParameter(CommandList, ComputeShader, Shader->IntInputBufferParam, InstancesAllocated ? GetGPUBufferInt().SRV : FNiagaraRenderer::GetDummyIntBuffer().SRV);
 		SetShaderValue(CommandList, ComputeShader, Shader->ComponentBufferSizeReadParam, SafeBufferSize);
+		SetSRVParameter(CommandList, ComputeShader, Shader->FreeIDBufferParam, GPUFreeIDs.SRV ? GPUFreeIDs.SRV : FNiagaraRenderer::GetDummyIntBuffer().SRV);
 	}
 	else
 	{
 		Shader->FloatOutputBufferParam.SetBuffer(CommandList, ComputeShader, GetGPUBufferFloat());
 		Shader->IntOutputBufferParam.SetBuffer(CommandList, ComputeShader, GetGPUBufferInt());
 		SetShaderValue(CommandList, ComputeShader, Shader->ComponentBufferSizeWriteParam, SafeBufferSize);
+		if (Shader->IDToIndexBufferParam.IsUAVBound())
+		{
+			check(GPUIDToIndexTable.Buffer);
+			Shader->IDToIndexBufferParam.SetBuffer(CommandList, ComputeShader, GPUIDToIndexTable);
+		}
 	}
 }
 
@@ -931,6 +977,13 @@ void FNiagaraDataBuffer::UnsetShaderParams(FNiagaraShader *Shader, FRHICommandLi
 		Shader->IntOutputBufferParam.UnsetUAV(RHICmdList, Shader->GetComputeShader());
 #endif
 		//RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EGfxToGfx, CurrDataRender().GetGPUBufferInt()->UAV);
+	}
+
+	if (Shader->IDToIndexBufferParam.IsUAVBound())
+	{
+#if !PLATFORM_PS4
+		Shader->IDToIndexBufferParam.UnsetUAV(RHICmdList, Shader->GetComputeShader());
+#endif
 	}
 }
 

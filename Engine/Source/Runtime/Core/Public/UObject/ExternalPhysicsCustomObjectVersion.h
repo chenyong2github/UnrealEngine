@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreTypes.h"
@@ -89,6 +89,21 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 
 		// Serialize bSimulate on PerShapeData
 		SerializePerShapeDataSimulateFlag,
+
+		// Serialize whether or not an AABBTree is immutable
+		ImmutableAABBTree,
+
+		// Trimeshes can now use small indices
+		TrimeshCanUseSmallIndices,
+
+		// Union objects can avoid allocating a full hierarchy
+		UnionObjectsCanAvoidHierarchy,
+
+		// Capsules no longer have a union inside them or stored aabbs
+		CapsulesNoUnionOrAABBs,
+
+		// Convexes use concrete planes
+		ConvexUsesTPlaneConcrete,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

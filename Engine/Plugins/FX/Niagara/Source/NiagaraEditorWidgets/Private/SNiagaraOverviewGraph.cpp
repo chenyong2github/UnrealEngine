@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraOverviewGraph.h"
 #include "NiagaraOverviewGraphNodeFactory.h"
@@ -24,6 +24,7 @@
 #include "Templates/SharedPointer.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
+#include "Framework/Commands/GenericCommands.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewGraph"
 
@@ -219,6 +220,12 @@ FActionMenuContent SNiagaraOverviewGraph::OnCreateGraphActionMenu(UEdGraph* InGr
 		{
 			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ZoomToFit);
 			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ZoomToFitAll);
+		}
+		MenuBuilder.EndSection();
+
+		MenuBuilder.BeginSection(TEXT("NiagaraOverview_Edit"), LOCTEXT("Edit", "Edit"));
+		{
+			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Paste);
 		}
 		MenuBuilder.EndSection();
 

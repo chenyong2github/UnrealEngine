@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	SkeletalMesh.cpp: Unreal skeletal mesh and animation implementation.
@@ -472,41 +472,45 @@ void USkeletalMesh::ValidateBoundsExtension()
 /* Return true if the reduction settings are setup to reduce a LOD*/
 bool USkeletalMesh::IsReductionActive(int32 LODIndex) const
 {
-	FSkeletalMeshOptimizationSettings ReductionSettings = GetReductionSettings(LODIndex);
-	IMeshReduction* ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionManagerModule>("MeshReductionInterface").GetSkeletalMeshReductionInterface();
-	uint32 LODVertexNumber = MAX_uint32;
-	uint32 LODTriNumber = MAX_uint32;
-	const FSkeletalMeshLODInfo* LODInfoPtr = GetLODInfo(LODIndex);
-	bool bLODHasBeenSimplified = LODInfoPtr && LODInfoPtr->bHasBeenSimplified;
-	if (GetImportedModel() && GetImportedModel()->LODModels.IsValidIndex(LODIndex))
+	bool bReductionActive = false;
+	if (IMeshReduction* ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionManagerModule>("MeshReductionInterface").GetSkeletalMeshReductionInterface())
 	{
-		if (!bLODHasBeenSimplified)
+		FSkeletalMeshOptimizationSettings ReductionSettings = GetReductionSettings(LODIndex);
+		uint32 LODVertexNumber = MAX_uint32;
+		uint32 LODTriNumber = MAX_uint32;
+		const FSkeletalMeshLODInfo* LODInfoPtr = GetLODInfo(LODIndex);
+		bool bLODHasBeenSimplified = LODInfoPtr && LODInfoPtr->bHasBeenSimplified;
+		if (GetImportedModel() && GetImportedModel()->LODModels.IsValidIndex(LODIndex))
 		{
-			LODVertexNumber = 0;
-			LODTriNumber = 0;
-			const FSkeletalMeshLODModel& LODModel = GetImportedModel()->LODModels[LODIndex];
-			//We can take the vertices and triangles count from the source model
-			for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); ++SectionIndex)
+			if (!bLODHasBeenSimplified)
 			{
-				const FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
-
-				if (!Section.bDisabled)
+				LODVertexNumber = 0;
+				LODTriNumber = 0;
+				const FSkeletalMeshLODModel& LODModel = GetImportedModel()->LODModels[LODIndex];
+				//We can take the vertices and triangles count from the source model
+				for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); ++SectionIndex)
 				{
-					//Make sure the count fit in a uint32
-					LODVertexNumber += Section.NumVertices < 0 ? 0 : Section.NumVertices;
-					LODTriNumber += Section.NumTriangles;
+					const FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
+
+					if (!Section.bDisabled)
+					{
+						//Make sure the count fit in a uint32
+						LODVertexNumber += Section.NumVertices < 0 ? 0 : Section.NumVertices;
+						LODTriNumber += Section.NumTriangles;
+					}
 				}
 			}
+			else if (GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(LODIndex)
+				&& !GetImportedModel()->OriginalReductionSourceMeshData[LODIndex]->IsEmpty())
+			{
+				//In this case we have to use the stored reduction source data to know how many vertices/triangles we have before the reduction
+				USkeletalMesh* MutableSkeletalMesh = const_cast<USkeletalMesh*>(this);
+				GetImportedModel()->OriginalReductionSourceMeshData[LODIndex]->GetGeometryInfo(LODVertexNumber, LODTriNumber, MutableSkeletalMesh);
+			}
 		}
-		else if (GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(LODIndex)
-			&& !GetImportedModel()->OriginalReductionSourceMeshData[LODIndex]->IsEmpty())
-		{
-			//In this case we have to use the stored reduction source data to know how many vertices/triangles we have before the reduction
-			USkeletalMesh* MutableSkeletalMesh = const_cast<USkeletalMesh*>(this);
-			GetImportedModel()->OriginalReductionSourceMeshData[LODIndex]->GetGeometryInfo(LODVertexNumber, LODTriNumber, MutableSkeletalMesh);
-		}
+		bReductionActive = ReductionModule->IsReductionActive(ReductionSettings, LODVertexNumber, LODTriNumber);
 	}
-	return ReductionModule->IsReductionActive(ReductionSettings, LODVertexNumber, LODTriNumber);
+	return bReductionActive;
 }
 
 /* Get a copy of the reduction settings for a specified LOD index. */
@@ -526,6 +530,9 @@ void USkeletalMesh::AddClothingAsset(UClothingAssetBase* InNewAsset)
 	{
 		// Ok this should be a correctly created asset, we can add it
 		MeshClothingAssets.AddUnique(InNewAsset);
+
+		// Consolidate the shared cloth configs
+		InNewAsset->PostUpdateAllAssets();
 
 #if WITH_EDITOR
 		OnClothingChange.Broadcast();
@@ -2199,12 +2206,22 @@ void USkeletalMesh::ReserveLODImportData(int32 MaxLODIndex)
 	GetMeshEditorData().GetLODImportedData(MaxLODIndex);
 }
 
+void USkeletalMesh::ForceBulkDataResident(const int32 LODIndex)
+{
+	GetMeshEditorData().GetLODImportedData(LODIndex).GetBulkData().ForceBulkDataResident();
+}
 #endif // WITH_EDITOR
 
 void USkeletalMesh::PostLoad()
 {
 	LLM_SCOPE(ELLMTag::SkeletalMesh);
 	Super::PostLoad();
+
+	// Consolidate the shared cloth configs once all cloth assets are loaded
+	for (UClothingAssetBase* MeshClothingAsset : MeshClothingAssets)
+	{
+		MeshClothingAsset->PostUpdateAllAssets();
+	}
 
 #if WITH_EDITOR
 	if (!GetOutermost()->bIsCookedForEditor)

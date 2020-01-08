@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 UnrealEngine.cpp: Implements the UEngine class and helpers.
@@ -3310,11 +3310,11 @@ void UEngine::SwapControllerId(ULocalPlayer *NewPlayer, const int32 CurrentContr
 	}
 }
 
-APlayerController* UEngine::GetFirstLocalPlayerController(UWorld *InWorld)
+APlayerController* UEngine::GetFirstLocalPlayerController(const UWorld* InWorld)
 {
-	const FWorldContext &Context = GetWorldContextFromWorldChecked(InWorld);
+	const FWorldContext& Context = GetWorldContextFromWorldChecked(InWorld);
 
-	return ( Context.OwningGameInstance != NULL ) ? Context.OwningGameInstance->GetFirstLocalPlayerController(InWorld) : NULL;
+	return (Context.OwningGameInstance ? Context.OwningGameInstance->GetFirstLocalPlayerController(InWorld) : nullptr);
 }
 
 void UEngine::GetAllLocalPlayerControllers(TArray<APlayerController*> & PlayerList)

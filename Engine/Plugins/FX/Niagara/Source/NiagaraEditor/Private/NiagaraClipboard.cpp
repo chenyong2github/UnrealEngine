@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraClipboard.h"
 #include "NiagaraDataInterface.h"
@@ -38,82 +38,83 @@ protected:
 	}
 };
 
-UNiagaraClipboardFunctionInput* MakeNewInput(UObject* InOuter, FName InInputName, FNiagaraTypeDefinition InInputType, ENiagaraClipboardFunctionInputValueMode InValueMode)
+UNiagaraClipboardFunctionInput* MakeNewInput(UObject* InOuter, FName InInputName, FNiagaraTypeDefinition InInputType, TOptional<bool> bInEditConditionValue, ENiagaraClipboardFunctionInputValueMode InValueMode)
 {
 	UNiagaraClipboardFunctionInput* NewInput = Cast<UNiagaraClipboardFunctionInput>(NewObject<UNiagaraClipboardFunctionInput>(InOuter));
 	NewInput->InputName = InInputName;
 	NewInput->InputType = InInputType;
+	NewInput->bHasEditCondition = bInEditConditionValue.IsSet();
+	NewInput->bEditConditionValue = bInEditConditionValue.Get(false);
 	NewInput->ValueMode = InValueMode;
 	return NewInput;
 }
 
-const UNiagaraClipboardFunctionInput* UNiagaraClipboardFunctionInput::CreateLocalValue(UObject* InOuter, FName InInputName, FNiagaraTypeDefinition InInputType, TArray<uint8>& InLocalValueData)
+const UNiagaraClipboardFunctionInput* UNiagaraClipboardFunctionInput::CreateLocalValue(UObject* InOuter, FName InInputName, FNiagaraTypeDefinition InInputType, TOptional<bool> bInEditConditionValue, TArray<uint8>& InLocalValueData)
 {
 	checkf(InLocalValueData.Num() == InInputType.GetSize(), TEXT("Input data size didn't match type size."))
-	UNiagaraClipboardFunctionInput* NewInput = MakeNewInput(InOuter, InInputName, InInputType, ENiagaraClipboardFunctionInputValueMode::Local);
+	UNiagaraClipboardFunctionInput* NewInput = MakeNewInput(InOuter, InInputName, InInputType, bInEditConditionValue, ENiagaraClipboardFunctionInputValueMode::Local);
 	NewInput->Local = InLocalValueData;
 	return NewInput;
 }
 
-const UNiagaraClipboardFunctionInput* UNiagaraClipboardFunctionInput::CreateLinkedValue(UObject* InOuter, FName InInputName, FNiagaraTypeDefinition InInputType, FName InLinkedValue)
+const UNiagaraClipboardFunctionInput* UNiagaraClipboardFunctionInput::CreateLinkedValue(UObject* InOuter, FName InInputName, FNiagaraTypeDefinition InInputType, TOptional<bool> bInEditConditionValue, FName InLinkedValue)
 {
-	UNiagaraClipboardFunctionInput* NewInput = MakeNewInput(InOuter, InInputName, InInputType, ENiagaraClipboardFunctionInputValueMode::Linked);
+	UNiagaraClipboardFunctionInput* NewInput = MakeNewInput(InOuter, InInputName, InInputType, bInEditConditionValue, ENiagaraClipboardFunctionInputValueMode::Linked);
 	NewInput->Linked = InLinkedValue;
 	return NewInput;
 }
 
-const UNiagaraClipboardFunctionInput* UNiagaraClipboardFunctionInput::CreateDataValue(UObject* InOuter, FName InInputName, FNiagaraTypeDefinition InInputType, UNiagaraDataInterface* InDataValue)
+const UNiagaraClipboardFunctionInput* UNiagaraClipboardFunctionInput::CreateDataValue(UObject* InOuter, FName InInputName, FNiagaraTypeDefinition InInputType, TOptional<bool> bInEditConditionValue, UNiagaraDataInterface* InDataValue)
 {
-	UNiagaraClipboardFunctionInput* NewInput = MakeNewInput(InOuter, InInputName, InInputType, ENiagaraClipboardFunctionInputValueMode::Data);
+	UNiagaraClipboardFunctionInput* NewInput = MakeNewInput(InOuter, InInputName, InInputType, bInEditConditionValue, ENiagaraClipboardFunctionInputValueMode::Data);
 	NewInput->Data = NewObject<UNiagaraDataInterface>(NewInput, InDataValue->GetClass());
 	InDataValue->CopyTo(NewInput->Data);
 	return NewInput;
 }
 
-const UNiagaraClipboardFunctionInput* UNiagaraClipboardFunctionInput::CreateExpressionValue(UObject* InOuter, FName InInputName, FNiagaraTypeDefinition InInputType, const FString& InExpressionValue)
+const UNiagaraClipboardFunctionInput* UNiagaraClipboardFunctionInput::CreateExpressionValue(UObject* InOuter, FName InInputName, FNiagaraTypeDefinition InInputType, TOptional<bool> bInEditConditionValue, const FString& InExpressionValue)
 {
-	UNiagaraClipboardFunctionInput* NewInput = MakeNewInput(InOuter, InInputName, InInputType, ENiagaraClipboardFunctionInputValueMode::Expression);
+	UNiagaraClipboardFunctionInput* NewInput = MakeNewInput(InOuter, InInputName, InInputType, bInEditConditionValue, ENiagaraClipboardFunctionInputValueMode::Expression);
 	NewInput->Expression = InExpressionValue;
 	return NewInput;
 }
 
-const UNiagaraClipboardFunctionInput* UNiagaraClipboardFunctionInput::CreateDynamicValue(UObject* InOuter, FName InInputName, FNiagaraTypeDefinition InInputType, UNiagaraScript* InDynamicValue)
+const UNiagaraClipboardFunctionInput* UNiagaraClipboardFunctionInput::CreateDynamicValue(UObject* InOuter, FName InInputName, FNiagaraTypeDefinition InInputType, TOptional<bool> bInEditConditionValue, FString InDynamicValueName, UNiagaraScript* InDynamicValue)
 {
-	UNiagaraClipboardFunctionInput* NewInput = MakeNewInput(InOuter, InInputName, InInputType, ENiagaraClipboardFunctionInputValueMode::Dynamic);
-	NewInput->Dynamic = UNiagaraClipboardFunction::CreateScriptFunction(NewInput, InDynamicValue);
+	UNiagaraClipboardFunctionInput* NewInput = MakeNewInput(InOuter, InInputName, InInputType, bInEditConditionValue, ENiagaraClipboardFunctionInputValueMode::Dynamic);
+	NewInput->Dynamic = UNiagaraClipboardFunction::CreateScriptFunction(NewInput, InDynamicValueName, InDynamicValue);
 	return NewInput;
 }
 
-UNiagaraClipboardFunction* UNiagaraClipboardFunction::CreateScriptFunction(UObject* InOuter, UNiagaraScript* InScript)
+UNiagaraClipboardFunction* UNiagaraClipboardFunction::CreateScriptFunction(UObject* InOuter, FString InFunctionName, UNiagaraScript* InScript)
 {
 	UNiagaraClipboardFunction* NewFunction = Cast<UNiagaraClipboardFunction>(NewObject<UNiagaraClipboardFunction>(InOuter));
 	NewFunction->ScriptMode = ENiagaraClipboardFunctionScriptMode::ScriptAsset;
+	NewFunction->FunctionName = InFunctionName;
 	NewFunction->Script = InScript;
 	return NewFunction;
+}
+
+UNiagaraClipboardFunction* UNiagaraClipboardFunction::CreateAssignmentFunction(UObject* InOuter, FString InFunctionName, const TArray<FNiagaraVariable>& InAssignmentTargets, const TArray<FString>& InAssignmentDefaults)
+{
+	UNiagaraClipboardFunction* NewFunction = Cast<UNiagaraClipboardFunction>(NewObject<UNiagaraClipboardFunction>(InOuter));
+	NewFunction->ScriptMode = ENiagaraClipboardFunctionScriptMode::Assignment;
+	NewFunction->FunctionName = InFunctionName;
+	NewFunction->AssignmentTargets = InAssignmentTargets;
+	NewFunction->AssignmentDefaults = InAssignmentDefaults;
+	return NewFunction;
+}
+
+UNiagaraClipboardContent* UNiagaraClipboardContent::Create()
+{
+	return NewObject<UNiagaraClipboardContent>(GetTransientPackage());
 }
 
 FNiagaraClipboard::FNiagaraClipboard()
 {
 }
 
-void FNiagaraClipboard::Copy(const UNiagaraClipboardFunctionInput* Input)
-{
-	UNiagaraClipboardContent* ClipboardContent = NewObject<UNiagaraClipboardContent>(GetTransientPackage());
-	ClipboardContent->FunctionInputs.Add(CastChecked<UNiagaraClipboardFunctionInput>(StaticDuplicateObject(Input, ClipboardContent)));
-	SetClipboardContentInternal(ClipboardContent);
-}
-
-const UNiagaraClipboardFunctionInput* FNiagaraClipboard::GetCopiedInput() const
-{
-	const UNiagaraClipboardContent* ClipboardContent = GetClipboardContentInternal();
-	if (ClipboardContent != nullptr &&ClipboardContent->FunctionInputs.Num() == 1)
-	{
-		return ClipboardContent->FunctionInputs[0];
-	}
-	return nullptr;
-}
-
-void FNiagaraClipboard::SetClipboardContentInternal(UNiagaraClipboardContent* ClipboardContent)
+void FNiagaraClipboard::SetClipboardContent(UNiagaraClipboardContent* ClipboardContent)
 {
 	// Clear the mark state for saving.
 	UnMarkAllObjects(EObjectMark(OBJECTMARK_TagExp | OBJECTMARK_TagImp));
@@ -125,7 +126,7 @@ void FNiagaraClipboard::SetClipboardContentInternal(UNiagaraClipboardContent* Cl
 	FPlatformApplicationMisc::ClipboardCopy(*Archive);
 }
 
-const UNiagaraClipboardContent* FNiagaraClipboard::GetClipboardContentInternal() const
+const UNiagaraClipboardContent* FNiagaraClipboard::GetClipboardContent() const
 {
 	// Get the text from the clipboard.
 	FString ClipboardText;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PyGenUtil.h"
 #include "PyUtil.h"
@@ -2378,7 +2378,7 @@ FString PythonizeValue(const FProperty* InProp, const void* InPropValue, const u
 
 FString PythonizeDefaultValue(const FProperty* InProp, const FString& InDefaultValue, const uint32 InFlags)
 {
-	PyUtil::FPropValueOnScope PropValue(InProp);
+	PyUtil::FPropValueOnScope PropValue(PyUtil::FConstPropOnScope::ExternalReference(InProp));
 	PyUtil::ImportDefaultValue(InProp, PropValue.GetValue(), InDefaultValue);
 	return PythonizeValue(InProp, PropValue.GetValue(), InFlags);
 }

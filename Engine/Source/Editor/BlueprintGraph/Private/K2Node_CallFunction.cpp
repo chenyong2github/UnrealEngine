@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_CallFunction.h"
 #include "BlueprintCompilationManager.h"
@@ -2702,7 +2702,10 @@ void UK2Node_CallFunction::ConformContainerPins()
 		{
 			if(bTypeIsAvailable)
 			{
-				if(Pin->GetPrimaryTerminalType() != TerminalType)
+				const FEdGraphTerminalType PrimaryType = Pin->GetPrimaryTerminalType();
+				if( PrimaryType.TerminalCategory != TerminalType.TerminalCategory ||
+					PrimaryType.TerminalSubCategory != TerminalType.TerminalSubCategory ||
+					PrimaryType.TerminalSubCategoryObject != TerminalType.TerminalSubCategoryObject)
 				{
 					// terminal type changed:
 					if (Pin->SubPins.Num() > 0 && Pin->PinType.PinCategory != UEdGraphSchema_K2::PC_Wildcard)

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	World.cpp: UWorld implementation
@@ -7459,7 +7459,7 @@ static void DoPostProcessVolume(IInterface_PostProcessVolume* Volume, FVector Vi
 
 void UWorld::AddPostProcessingSettings(FVector ViewLocation, FSceneView* SceneView)
 {
-	OnBeginPostProcessSettings.Broadcast(ViewLocation);
+	OnBeginPostProcessSettings.Broadcast(ViewLocation, SceneView);
 
 	for (IInterface_PostProcessVolume* PPVolume : PostProcessVolumes)
 	{

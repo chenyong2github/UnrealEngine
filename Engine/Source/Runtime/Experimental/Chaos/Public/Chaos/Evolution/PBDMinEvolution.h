@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Core.h"
@@ -41,8 +41,8 @@ namespace Chaos
 
 		void AddConstraintRule(FSimpleConstraintRule* Rule);
 
-		void Advance(const FReal Dt, const FReal MaxStepDt, const int32 MaxSteps);
-		void AdvanceOneTimeStep(const FReal dt, const FReal StepFraction);
+		void Advance(const FReal StepDt, const int32 NumSteps);
+		void AdvanceOneTimeStep(const FReal Dt, const FReal StepFraction);
 
 		void SetNumIterations(const int32 NumIts)
 		{

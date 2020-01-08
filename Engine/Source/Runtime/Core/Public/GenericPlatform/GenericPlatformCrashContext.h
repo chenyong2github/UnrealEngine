@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -173,6 +173,7 @@ struct FUserSettingsContext
 	bool					bNoDialog = false;
 	bool					bSendUnattendedBugReports = false;
 	bool					bSendUsageData = false;
+	bool					bImplicitSend = false;
 	TCHAR					LogFilePath[CR_MAX_DIRECTORY_CHARS];
 };
 

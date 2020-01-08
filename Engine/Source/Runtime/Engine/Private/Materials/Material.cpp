@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UnMaterial.cpp: Shader implementation.
@@ -3483,6 +3483,11 @@ void UMaterial::Serialize(FArchive& Ar)
 		{
 			Expressions.Remove(nullptr);
 		}
+		else if (IsRunningCommandlet())
+		{
+			// invalidate the cache of quality level to make sure they are rebuilt. GetQualityLevelNodeUsage() is not going to recalculate it otherwise
+			CachedQualityLevelsUsed.Empty();
+		}
 	}
 
 	if (Ar.UE4Ver() >= VER_UE4_PURGED_FMATERIAL_COMPILE_OUTPUTS)
@@ -3620,8 +3625,17 @@ void UMaterial::BackwardsCompatibilityInputConversion()
 void UMaterial::GetQualityLevelUsage(TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> >& OutQualityLevelsUsed, EShaderPlatform ShaderPlatform)
 {
 #if WITH_EDITOR
-	GetQualityLevelNodeUsage(OutQualityLevelsUsed);
-	CachedQualityLevelsUsed = OutQualityLevelsUsed;
+	// Assume that a commandlet cannot change nodes once Cached levels are set
+	// FIXME: assumption may not work for a commandlet that edits the material graph?
+	if (IsRunningCommandlet() && CachedQualityLevelsUsed.Num() == EMaterialQualityLevel::Num)
+	{
+		OutQualityLevelsUsed = CachedQualityLevelsUsed;
+	}
+	else
+	{
+		GetQualityLevelNodeUsage(OutQualityLevelsUsed);
+		CachedQualityLevelsUsed = OutQualityLevelsUsed;
+	}
 #else
 	if (CachedQualityLevelsUsed.Num() != EMaterialQualityLevel::Num)
 	{
@@ -3666,7 +3680,7 @@ void UMaterial::GetQualityLevelNodeUsage(TArray<bool, TInlineAllocator<EMaterial
 {
 	OutQualityLevelsUsed.AddZeroed(EMaterialQualityLevel::Num);
 
-	for (int32 ExpressionIndex = 0; ExpressionIndex < Expressions.Num(); ExpressionIndex++)
+	for (int32 ExpressionIndex = 0, NumExpressions = Expressions.Num(); ExpressionIndex < NumExpressions; ExpressionIndex++)
 	{
 		UMaterialExpression* Expression = Expressions[ExpressionIndex];
 		UMaterialExpressionQualitySwitch* QualitySwitchNode = Cast<UMaterialExpressionQualitySwitch>(Expression);

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 // ..
 
 #include "CoreMinimal.h"
@@ -2758,7 +2758,7 @@ bool FinalizeLibrary_Metal(FName const& Format, FString const& WorkingDir, FStri
 				
 				// Build source file name path
 				UE_LOG(LogShaders, Verbose, TEXT("[%d/%d] %s Main_%0.8x_%0.8x.o"), ++Index, Shaders.Num(), *Format.GetPlainNameString(), Len, CRC);
-				FString SourceFileNameParam = FString::Printf(TEXT("%s/Main_%0.8x_%0.8x.o"), *FPaths::ConvertRelativePathToFull(WorkingDir), Len, CRC);
+				FString SourceFileNameParam = FString::Printf(TEXT("\"%s/Main_%0.8x_%0.8x.o\""), *FPaths::ConvertRelativePathToFull(WorkingDir), Len, CRC);
 				
 				// Remote builds copy file and swizzle Source File Name param
 				if(bBuildingRemotely)

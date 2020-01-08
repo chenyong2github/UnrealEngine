@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PyWrapperStruct.h"
 #include "PyWrapperTypeRegistry.h"
@@ -995,7 +995,7 @@ PyTypeObject InitializePyWrapperStructType()
 			PyGenUtil::FGeneratedWrappedProperty WrappedPropDef;
 
 			const FName ResolvedName = FPyWrapperStructMetaData::ResolvePropertyName(InSelf, InPythonPropName);
-			const UProperty* ResolvedProp = InSelf->ScriptStruct->FindPropertyByName(ResolvedName);
+			const FProperty* ResolvedProp = InSelf->ScriptStruct->FindPropertyByName(ResolvedName);
 			if (!ResolvedProp)
 			{
 				PyUtil::SetPythonError(PyExc_Exception, InSelf, *FString::Printf(TEXT("Failed to find property '%s' for attribute '%s' on '%s'"), *ResolvedName.ToString(), *InPythonPropName.ToString(), *InSelf->ScriptStruct->GetName()));

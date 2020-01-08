@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/Stack/NiagaraStackRoot.h"
 #include "ViewModels/Stack/NiagaraStackScriptItemGroup.h"
@@ -6,6 +6,8 @@
 #include "ViewModels/Stack/NiagaraStackRenderItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackEventHandlerGroup.h"
 #include "ViewModels/Stack/NiagaraStackEventScriptItemGroup.h"
+#include "ViewModels/Stack/NiagaraStackShaderStagesGroup.h"
+#include "ViewModels/Stack/NiagaraStackShaderStageGroup.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "NiagaraSystemScriptViewModel.h"
@@ -17,6 +19,14 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraStackViewModel"
 
+int32 GbShowNewShaderStageStackUIOptions = 0;
+static FAutoConsoleVariableRef CVarShowNewShaderStageStackUIOptions(
+	TEXT("fx.Niagara.ShowNewShaderStageStackUIOptions"),
+	GbShowNewShaderStageStackUIOptions,
+	TEXT("If > 0 the new shader state UI will be shown in the stack view.  This UI will generate data, but that data is currently unused.\n"),
+	ECVF_Default
+);
+
 UNiagaraStackRoot::UNiagaraStackRoot()
 	: SystemSettingsGroup(nullptr)
 	, EmitterSettingsGroup(nullptr)
@@ -25,6 +35,7 @@ UNiagaraStackRoot::UNiagaraStackRoot()
 	, ParticleSpawnGroup(nullptr)
 	, ParticleUpdateGroup(nullptr)
 	, AddEventHandlerGroup(nullptr)
+	, AddShaderStageGroup(nullptr)
 	, RenderGroup(nullptr)
 {
 }
@@ -41,6 +52,7 @@ void UNiagaraStackRoot::Initialize(FRequiredEntryData InRequiredEntryData, bool 
 	ParticleSpawnGroup = nullptr;
 	ParticleUpdateGroup = nullptr;
 	AddEventHandlerGroup = nullptr;
+	AddShaderStageGroup = nullptr;
 	RenderGroup = nullptr;
 }
 
@@ -150,7 +162,17 @@ void UNiagaraStackRoot::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*
 			FExecutionCategoryNames::Particle, FExecutionSubcategoryNames::Event,
 			GetEmitterViewModel()->GetOrCreateEditorData().GetStackEditorData());
 		AddEventHandlerGroup->Initialize(RequiredEntryData);
-		AddEventHandlerGroup->SetOnItemAdded(UNiagaraStackEventHandlerGroup::FOnItemAdded::CreateUObject(this, &UNiagaraStackRoot::EmitterEventArraysChanged));
+		AddEventHandlerGroup->SetOnItemAdded(UNiagaraStackEventHandlerGroup::FOnItemAdded::CreateUObject(this, &UNiagaraStackRoot::EmitterArraysChanged));
+	}
+
+	if (bIncludeEmitterInformation && AddShaderStageGroup == nullptr && GbShowNewShaderStageStackUIOptions > 0)
+	{
+		AddShaderStageGroup = NewObject<UNiagaraStackShaderStagesGroup>(this);
+		FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(),
+			FExecutionCategoryNames::Particle, FExecutionSubcategoryNames::ShaderStage,
+			GetEmitterViewModel()->GetOrCreateEditorData().GetStackEditorData());
+		AddShaderStageGroup->Initialize(RequiredEntryData);
+		AddShaderStageGroup->SetOnItemAdded(UNiagaraStackShaderStagesGroup::FOnItemAdded::CreateUObject(this, &UNiagaraStackRoot::EmitterArraysChanged));
 	}
 
 	if (bIncludeEmitterInformation && RenderGroup == nullptr)
@@ -186,12 +208,12 @@ void UNiagaraStackRoot::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*
 
 			if (EventHandlerGroup == nullptr)
 			{
-				EventHandlerGroup = NewObject<UNiagaraStackEventScriptItemGroup>(this, NAME_None, RF_Transactional);
+				EventHandlerGroup = NewObject<UNiagaraStackEventScriptItemGroup>(this);
 				FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(),
 					FExecutionCategoryNames::Particle, FExecutionSubcategoryNames::Event,
 					GetEmitterViewModel()->GetEditorData().GetStackEditorData());
 				EventHandlerGroup->Initialize(RequiredEntryData, GetEmitterViewModel()->GetSharedScriptViewModel(), ENiagaraScriptUsage::ParticleEventScript, EventScriptProperties.Script->GetUsageId());
-				EventHandlerGroup->SetOnModifiedEventHandlers(UNiagaraStackEventScriptItemGroup::FOnModifiedEventHandlers::CreateUObject(this, &UNiagaraStackRoot::EmitterEventArraysChanged));
+				EventHandlerGroup->SetOnModifiedEventHandlers(UNiagaraStackEventScriptItemGroup::FOnModifiedEventHandlers::CreateUObject(this, &UNiagaraStackRoot::EmitterArraysChanged));
 			}
 
 			NewChildren.Add(EventHandlerGroup);
@@ -199,11 +221,34 @@ void UNiagaraStackRoot::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*
 
 		NewChildren.Add(AddEventHandlerGroup);
 
+		if (GbShowNewShaderStageStackUIOptions > 0)
+		{
+			for (UNiagaraShaderStageBase* ShaderStage : GetEmitterViewModel()->GetEmitter()->GetShaderStages())
+			{
+				UNiagaraStackShaderStageGroup* ShaderStageGroup = FindCurrentChildOfTypeByPredicate<UNiagaraStackShaderStageGroup>(CurrentChildren,
+					[ShaderStage](UNiagaraStackShaderStageGroup* CurrentShaderStageGroup) { return CurrentShaderStageGroup->GetShaderStage() == ShaderStage; });
+
+				if (ShaderStageGroup == nullptr)
+				{
+					ShaderStageGroup = NewObject<UNiagaraStackShaderStageGroup>(this);
+					FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(),
+						FExecutionCategoryNames::Particle, FExecutionSubcategoryNames::ShaderStage,
+						GetEmitterViewModel()->GetEditorData().GetStackEditorData());
+					ShaderStageGroup->Initialize(RequiredEntryData, GetEmitterViewModel()->GetSharedScriptViewModel(), ShaderStage);
+					ShaderStageGroup->SetOnModifiedShaderStages(UNiagaraStackShaderStageGroup::FOnModifiedShaderStages::CreateUObject(this, &UNiagaraStackRoot::EmitterArraysChanged));
+				}
+
+				NewChildren.Add(ShaderStageGroup);
+			}
+
+			NewChildren.Add(AddShaderStageGroup);
+		}
+
 		NewChildren.Add(RenderGroup);
 	}
 }
 
-void UNiagaraStackRoot::EmitterEventArraysChanged()
+void UNiagaraStackRoot::EmitterArraysChanged()
 {
 	RefreshChildren();
 }

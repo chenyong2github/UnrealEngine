@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -730,13 +730,7 @@ namespace UnrealGameSync
 							bool bIsEpicInternal;
 							Perforce.FileExists(ClientRootPath + "/Engine/Build/NotForLicensees/EpicInternal.txt", out bIsEpicInternal, Log);
 
-							Dictionary<string, string> BuildVersionStrings = new Dictionary<string,string>();
-							BuildVersionStrings["\"Changelist\":"] = String.Format(" {0},", PendingChangeNumber);
-							BuildVersionStrings["\"CompatibleChangelist\":"] = String.Format(" {0},", VersionChangeNumber);
-							BuildVersionStrings["\"BranchName\":"] = String.Format(" \"{0}\"", BranchOrStreamName.Replace('/', '+'));
-							BuildVersionStrings["\"IsPromotedBuild\":"] = " 0,";
-							BuildVersionStrings["\"IsLicenseeVersion\":"] = bIsEpicInternal? "0," : "1,";
-							if(!UpdateVersionFile(ClientRootPath + BuildVersionFileName, BuildVersionStrings, PendingChangeNumber))
+							if (!UpdateVersionFile(ClientRootPath + BuildVersionFileName, PendingChangeNumber, Text => UpdateBuildVersion(Text, PendingChangeNumber, VersionChangeNumber, BranchOrStreamName, !bIsEpicInternal)))
 							{
 								StatusMessage = String.Format("Failed to update {0}.", BuildVersionFileName);
 								return WorkspaceUpdateResult.FailedToSync;
@@ -747,13 +741,7 @@ namespace UnrealGameSync
 							bool bIsEpicInternal;
 							Perforce.FileExists(ClientRootPath + "/Engine/Build/NotForLicensees/EpicInternal.txt", out bIsEpicInternal, Log);
 
-							Dictionary<string, string> BuildVersionStrings = new Dictionary<string,string>();
-							BuildVersionStrings["\"Changelist\":"] = String.Format(" {0},", PendingChangeNumber);
-							BuildVersionStrings["\"CompatibleChangelist\":"] = String.Format(" {0},", VersionChangeNumber);
-							BuildVersionStrings["\"BranchName\":"] = String.Format(" \"{0}\"", BranchOrStreamName.Replace('/', '+'));
-							BuildVersionStrings["\"IsPromotedBuild\":"] = " 0,";
-							BuildVersionStrings["\"IsLicenseeVersion\":"] = bIsEpicInternal? "0," : "1,";
-							if(!UpdateVersionFile(ClientRootPath + BuildVersionFileName, BuildVersionStrings, PendingChangeNumber))
+							if (!UpdateVersionFile(ClientRootPath + BuildVersionFileName, PendingChangeNumber, Text => UpdateBuildVersion(Text, PendingChangeNumber, VersionChangeNumber, BranchOrStreamName, !bIsEpicInternal)))
 							{
 								StatusMessage = String.Format("Failed to update {0}.", BuildVersionFileName);
 								return WorkspaceUpdateResult.FailedToSync;
@@ -1400,6 +1388,11 @@ namespace UnrealGameSync
 
 		bool UpdateVersionFile(string ClientPath, Dictionary<string, string> VersionStrings, int ChangeNumber)
 		{
+			return UpdateVersionFile(ClientPath, ChangeNumber, Text => UpdateVersionStrings(Text, VersionStrings));
+		}
+
+		bool UpdateVersionFile(string ClientPath, int ChangeNumber, Func<string, string> Update)
+		{
 			List<PerforceFileRecord> Records;
 			if(!Perforce.Stat(ClientPath, out Records, Log))
 			{
@@ -1434,21 +1427,50 @@ namespace UnrealGameSync
 				return false;
 			}
 
+			string Text = String.Join("\n", Lines);
+			Text = Update(Text);
+			return WriteVersionFile(LocalPath, DepotPath, Text);
+		}
+
+		string UpdateVersionStrings(string Text, Dictionary<string, string> VersionStrings)
+		{
 			StringWriter Writer = new StringWriter();
-			foreach(string Line in Lines)
+			foreach (string Line in Text.Split('\n'))
 			{
 				string NewLine = Line;
-				foreach(KeyValuePair<string, string> VersionString in VersionStrings)
+				foreach (KeyValuePair<string, string> VersionString in VersionStrings)
 				{
-					if(UpdateVersionLine(ref NewLine, VersionString.Key, VersionString.Value))
+					if (UpdateVersionLine(ref NewLine, VersionString.Key, VersionString.Value))
 					{
 						break;
 					}
 				}
 				Writer.WriteLine(NewLine);
 			}
+			return Writer.ToString();
+		}
 
-			return WriteVersionFile(LocalPath, DepotPath, Writer.ToString());
+		string UpdateBuildVersion(string Text, int Changelist, int CodeChangelist, string BranchOrStreamName, bool bIsLicenseeVersion)
+		{
+			Dictionary<string, object> Object = Json.Deserialize(Text);
+
+			object PrevCompatibleChangelistObj;
+			int PrevCompatibleChangelist = Object.TryGetValue("CompatibleChangelist", out PrevCompatibleChangelistObj) ? (int)Convert.ChangeType(PrevCompatibleChangelistObj, typeof(int)) : 0;
+
+			object PrevIsLicenseeVersionObj;
+			bool PrevIsLicenseeVersion = Object.TryGetValue("IsLicenseeVersion", out PrevIsLicenseeVersionObj)? ((int)Convert.ChangeType(PrevIsLicenseeVersionObj, typeof(int)) != 0) : false;
+
+			Object["Changelist"] = Changelist;
+			if(PrevCompatibleChangelist == 0 || PrevIsLicenseeVersion != bIsLicenseeVersion)
+			{
+				// Don't overwrite the compatible changelist if we're in a hotfix release
+				Object["CompatibleChangelist"] = CodeChangelist;
+			}
+			Object["BranchName"] = BranchOrStreamName.Replace('/', '+');
+			Object["IsPromotedBuild"] = 0;
+			Object["IsLicenseeVersion"] = bIsLicenseeVersion ? 1 : 0;
+
+			return Json.Serialize(Object, JsonSerializeOptions.PrettyPrint);
 		}
 
 		bool WriteVersionFile(string LocalPath, string DepotPath, string NewText)

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /**
  * Shader Pipeline Precompilation Cache
@@ -267,4 +267,6 @@ private:
 	int32 LastAutoSaveNum;
 	
 	TSet<uint64> CompletedMasks;
+	float TotalPrecompileWallTime;
+	int64 TotalPrecompileTasks;
 };

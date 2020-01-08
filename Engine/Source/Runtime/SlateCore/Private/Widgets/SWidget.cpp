@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SWidget.h"
 #include "Types/PaintArgs.h"
@@ -17,15 +17,17 @@
 #include "Debugging/SlateDebugging.h"
 #include "Widgets/SWindow.h"
 #include "Types/ReflectionMetadata.h"
+#include "Stats/Stats.h"
+#include "Containers/StringConv.h"
 #include "Misc/ScopeRWLock.h"
 #include "HAL/CriticalSection.h"
+#include "Widgets/SWidgetUtils.h"
 
 #if WITH_ACCESSIBILITY
 #include "Widgets/Accessibility/SlateCoreAccessibleWidgets.h"
 #include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
 #endif
 
-DEFINE_STAT(STAT_SlateVeryVerboseStatGroupTester);
 DEFINE_STAT(STAT_SlateTotalWidgetsPerFrame);
 DEFINE_STAT(STAT_SlateNumPaintedWidgets);
 DEFINE_STAT(STAT_SlateNumTickedWidgets);
@@ -34,6 +36,8 @@ DEFINE_STAT(STAT_SlateTickWidgets);
 DEFINE_STAT(STAT_SlatePrepass);
 DEFINE_STAT(STAT_SlateTotalWidgets);
 DEFINE_STAT(STAT_SlateSWidgetAllocSize);
+
+DECLARE_CYCLE_STAT(TEXT("SWidget::CreateStatID"), STAT_Slate_CreateStatID, STATGROUP_Slate);
 
 template <typename AnnotationType>
 class TWidgetSparseAnnotation
@@ -100,69 +104,47 @@ static FAutoConsoleVariableRef CVarSlateEnsureAllVisibleWidgetsPaint(TEXT("Slate
 
 #endif
 
-#if STATS
-
-struct FScopeCycleCounterSWidget : public FCycleCounter
-{
-	/**
-	 * Constructor, starts timing
-	 */
-	FORCEINLINE_STATS FScopeCycleCounterSWidget(const SWidget* Widget)
-	{
-		if (Widget)
-		{
-			TStatId WidgetStatId = Widget->GetStatID();
-			if (FThreadStats::IsCollectingData(WidgetStatId))
-			{
-				Start(WidgetStatId);
-			}
-		}
-	}
-
-	/**
-	 * Updates the stat with the time spent
-	 */
-	FORCEINLINE_STATS ~FScopeCycleCounterSWidget()
-	{
-		Stop();
-	}
-};
-
-#else
-
-struct FScopeCycleCounterSWidget
-{
-	FScopeCycleCounterSWidget(const SWidget* Widget)
-	{
-	}
-	~FScopeCycleCounterSWidget()
-	{
-	}
-};
-
-#endif
-
+#if STATS || ENABLE_STATNAMEDEVENTS
 
 void SWidget::CreateStatID() const
 {
+	SCOPE_CYCLE_COUNTER(STAT_Slate_CreateStatID);
+
+	const FString LongName = FReflectionMetaData::GetWidgetDebugInfo(this);
+
 #if STATS
-	StatID = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_SlateVeryVerbose>( ToString() );
+	StatID = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_Slate>(LongName);
+#else // ENABLE_STATNAMEDEVENTS
+	const auto& ConversionData = StringCast<PROFILER_CHAR>(*LongName);
+	const int32 NumStorageChars = (ConversionData.Length() + 1);	//length doesn't include null terminator
+
+	PROFILER_CHAR* StoragePtr = new PROFILER_CHAR[NumStorageChars];
+	FMemory::Memcpy(StoragePtr, ConversionData.Get(), NumStorageChars * sizeof(PROFILER_CHAR));
+
+	if (FPlatformAtomics::InterlockedCompareExchangePointer((void**)&StatIDStringStorage, StoragePtr, nullptr) != nullptr)
+	{
+		delete[] StoragePtr;
+	}
+	
+	StatID = TStatId(StatIDStringStorage);
 #endif
 }
 
-void SWidget::UpdateWidgetProxy(int32 NewLayerId, FSlateCachedElementListNode* CacheNode)
-{
-#if WITH_SLATE_DEBUGGING
-	check(!CacheNode || CacheNode->GetValue().Widget == this);
 #endif
 
-	if (PersistentState.CachedElementListNode != nullptr && PersistentState.CachedElementListNode != CacheNode)
-	{
-	//	ensure(false);
-		PersistentState.CachedElementListNode->GetValue().GetOwningData()->RemoveCache(PersistentState.CachedElementListNode);
-	}
+void SWidget::UpdateWidgetProxy(int32 NewLayerId, FSlateCachedElementsHandle& CacheHandle)
+{
+#if WITH_SLATE_DEBUGGING
+	check(!CacheHandle.IsValid() || CacheHandle.IsOwnedByWidget(this));
+#endif
 
-	PersistentState.CachedElementListNode = CacheNode;
+	// Account for the case when the widget gets a new handle for some reason.  This should really never happen
+	if (PersistentState.CachedElementHandle.IsValid() && PersistentState.CachedElementHandle != CacheHandle)
+	{
+		ensure(false);
+		PersistentState.CachedElementHandle.RemoveFromCache();
+	}
+	PersistentState.CachedElementHandle = CacheHandle;
 
 	if (FastPathProxyHandle.IsValid())
 	{
@@ -222,6 +204,9 @@ SWidget::SWidget()
 	, RenderTransformPivot(FVector2D::ZeroVector)
 	, Cursor( TOptional<EMouseCursor::Type>() )
 	, ToolTip()
+#if ENABLE_STATNAMEDEVENTS
+	, StatIDStringStorage(nullptr)
+#endif
 {
 	if (GIsRunning)
 	{
@@ -250,10 +235,7 @@ SWidget::~SWidget()
 
 		// Note: this would still be valid if a widget was painted and then destroyed in the same frame.  
 		// In that case invalidation hasn't taken place for added widgets so the invalidation panel doesn't know about their cached element data to clean it up
-		if (PersistentState.CachedElementListNode)
-		{
-			PersistentState.CachedElementListNode->GetValue().GetOwningData()->RemoveCache(PersistentState.CachedElementListNode);
-		}
+		PersistentState.CachedElementHandle.RemoveFromCache();
 
 #if WITH_ACCESSIBILITY
 		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->OnWidgetRemoved(this);
@@ -261,6 +243,11 @@ SWidget::~SWidget()
 		// Only clear if initialized because SNullWidget's destructor may be called after annotations are deleted
 		ClearSparseAnnotationsForWidget(this);
 	}
+
+#if ENABLE_STATNAMEDEVENTS
+	delete[] StatIDStringStorage;
+	StatIDStringStorage = nullptr;
+#endif
 
 	DEC_DWORD_STAT(STAT_SlateTotalWidgets);
 	DEC_MEMORY_STAT_BY(STAT_SlateSWidgetAllocSize, AllocSize);
@@ -727,12 +714,12 @@ bool SWidget::AssignIndicesToChildren(FSlateInvalidationRoot& Root, int32 Parent
 
 	FastPathProxyHandle = FWidgetProxyHandle(Root, MyProxy.Index);
 
-	if (bInvisibleDueToParentOrSelfVisibility&& PersistentState.CachedElementListNode != nullptr)
+	if (bInvisibleDueToParentOrSelfVisibility&& PersistentState.CachedElementHandle.IsValid())
 	{
 #if WITH_SLATE_DEBUGGING
-		check(PersistentState.CachedElementListNode->GetValue().Widget == this);
+		check(PersistentState.CachedElementHandle.IsOwnedByWidget(this));
 #endif
-		Root.GetCachedElements().ResetCache(PersistentState.CachedElementListNode);
+		PersistentState.CachedElementHandle.RemoveFromCache();
 	}
 
 	FastPathList.Add(MyProxy);
@@ -797,10 +784,8 @@ void SWidget::UpdateFastPathVisibility(bool bParentVisible, bool bWidgetRemoved,
 		HittestGridToRemoveFrom->RemoveWidget(SharedThis(this));
 	}
 
-	if (PersistentState.CachedElementListNode)
-	{
-		PersistentState.CachedElementListNode->GetValue().Reset();
-	}
+
+	PersistentState.CachedElementHandle.ClearCachedElements();
 
 	FChildren* MyChildren = GetAllChildren();
 	const int32 NumChildren = MyChildren->Num();
@@ -1231,6 +1216,7 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 		INC_DWORD_STAT(STAT_SlateNumTickedWidgets);
 
 		SCOPE_CYCLE_COUNTER(STAT_SlateTickWidgets);
+		SCOPE_CYCLE_SWIDGET(this);
 		MutableThis->Tick(DesktopSpaceGeometry, Args.GetCurrentTime(), Args.GetDeltaTime());
 	}
 
@@ -1279,13 +1265,14 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	ensure(!MutableThis.IsUnique());
 #endif
 
-
-	if (!FastPathProxyHandle.IsValid() && PersistentState.CachedElementListNode != nullptr)
+#if WITH_SLATE_DEBUGGING
+	if (!FastPathProxyHandle.IsValid() && PersistentState.CachedElementHandle.IsValid())
 	{
 		ensure(!bInvisibleDueToParentOrSelfVisibility);
 	}
+#endif
 
-	OutDrawElements.PushPaintingWidget(*this, LayerId, PersistentState.CachedElementListNode);
+	OutDrawElements.PushPaintingWidget(*this, LayerId, PersistentState.CachedElementHandle);
 
 	if (bOutgoingHittestability)
 	{
@@ -1416,13 +1403,13 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	}
 #endif
 
-	FSlateCachedElementListNode* NewCacheNode = OutDrawElements.PopPaintingWidget();
+	FSlateCachedElementsHandle NewCacheHandle = OutDrawElements.PopPaintingWidget();
 	if (OutDrawElements.ShouldResolveDeferred())
 	{
 		NewLayerId = OutDrawElements.PaintDeferred(NewLayerId, MyCullingRect);
 	}
 
-	MutableThis->UpdateWidgetProxy(NewLayerId, NewCacheNode);
+	MutableThis->UpdateWidgetProxy(NewLayerId, NewCacheHandle);
 
 	return NewLayerId;
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/MassProperties.h"
 #include "Chaos/Rotation.h"
 #include "Chaos/Matrix.h"
@@ -64,7 +64,8 @@ namespace Chaos
 		// Return results
 		Inertia = PMatrix<T, d, d>(m00, 0, 0, m11, 0, m22);
 		PMatrix<T, d, d> RotationMatrix = DoSwap ? PMatrix<T, d, d>(Eigenvector2, Eigenvector1, -Eigenvector0) : PMatrix<T, d, d>(Eigenvector0, Eigenvector1, Eigenvector2);
-		FinalRotation = TRotation<T,d>(RotationMatrix);
+		// NOTE: UE Matrix are column-major, so the PMatrix constructor is not setting eigenvectors - we need to transpose it to get a UE rotation matrix.
+		FinalRotation = TRotation<T,d>(RotationMatrix.GetTransposed());
 		check(FMath::IsNearlyEqual(FinalRotation.Size(), 1.0f, KINDA_SMALL_NUMBER));
 		
 		return FinalRotation;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "Framework/Application/SlateApplication.h"
@@ -52,6 +52,8 @@
 #include "Debugging/SlateDebugging.h"
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
+
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(SLATECORE_API, Slate);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -1117,6 +1119,7 @@ static void PrepassWindowAndChildren( TSharedRef<SWindow> WindowToPrepass )
 void FSlateApplication::DrawPrepass( TSharedPtr<SWindow> DrawOnlyThisWindow )
 {
 	SCOPED_NAMED_EVENT_TEXT("Slate::Prepass", FColor::Magenta);
+	CSV_SCOPED_TIMING_STAT(Slate, Prepass);
 
 	TSharedPtr<SWindow> ActiveModalWindow = GetActiveModalWindow();
 
@@ -1337,6 +1340,7 @@ void FSlateApplication::Tick(ESlateTickType TickType)
 	FScopeLock SlateTickAccess(&SlateTickCriticalSection);
 
 	SCOPED_NAMED_EVENT_TEXT("Slate::Tick", FColor::Magenta);
+	CSV_SCOPED_TIMING_STAT(Slate, Tick);
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_SlateTickTime);
@@ -5663,28 +5667,28 @@ bool FSlateApplication::OnTouchStarted( const TSharedPtr< FGenericWindow >& Plat
 
 void FSlateApplication::ProcessTouchStartedEvent( const TSharedPtr< FGenericWindow >& PlatformWindow, const FPointerEvent& InTouchEvent )
 {
-	GetOrCreateUser(InTouchEvent)->GetGestureDetector().OnTouchStarted(InTouchEvent.GetPointerIndex(), InTouchEvent.GetScreenSpacePosition());
+	GetOrCreateUser(InTouchEvent)->NotifyTouchStarted(InTouchEvent);
 	ProcessMouseButtonDownEvent(PlatformWindow, InTouchEvent);
 }
 
 bool FSlateApplication::OnTouchMoved( const FVector2D& Location, float Force, int32 TouchIndex, int32 ControllerId )
 {
-	// Don't process touches that overlap or surpass with the cursor pointer index.
-	if (TouchIndex >= (int32)ETouchIndex::CursorPointerIndex)
+	TSharedRef<FSlateUser> User = GetOrCreateUser(ControllerId);
+	if (User->IsTouchPointerActive(TouchIndex))
 	{
-		return false;
+		FPointerEvent PointerEvent(
+			ControllerId,
+			TouchIndex,
+			Location,
+			User->GetPreviousPointerPosition(TouchIndex),
+			Force,
+			true);
+		ProcessTouchMovedEvent(PointerEvent);
+
+		return true;
 	}
 
-	FPointerEvent PointerEvent(
-		ControllerId,
-		TouchIndex,
-		Location,
-		GetOrCreateUser(ControllerId)->GetPreviousPointerPosition(TouchIndex),
-		Force,
-		true);
-	ProcessTouchMovedEvent(PointerEvent);
-
-	return true;
+	return false;
 }
 
 void FSlateApplication::ProcessTouchMovedEvent( const FPointerEvent& PointerEvent )
@@ -5694,22 +5698,26 @@ void FSlateApplication::ProcessTouchMovedEvent( const FPointerEvent& PointerEven
 
 bool FSlateApplication::OnTouchEnded( const FVector2D& Location, int32 TouchIndex, int32 ControllerId )
 {
-	// Don't process touches that overlap or surpass with the cursor pointer index.
-	if (TouchIndex >= ((int32)ETouchIndex::CursorPointerIndex))
+	TSharedRef<FSlateUser> User = GetOrCreateUser(ControllerId);
+	if (User->IsTouchPointerActive(TouchIndex))
 	{
-		return false;
+		FPointerEvent PointerEvent(
+			ControllerId,
+			TouchIndex,
+			Location,
+			Location,
+			0.0f,
+			true);
+		ProcessTouchEndedEvent(PointerEvent);
+
+#if WITH_SLATE_DEBUGGING
+		ensure(!User->IsTouchPointerActive(TouchIndex));
+#endif
+
+		return true;
 	}
 
-	FPointerEvent PointerEvent(
-		ControllerId,
-		TouchIndex,
-		Location,
-		Location,
-		0.0f,
-		true);
-	ProcessTouchEndedEvent(PointerEvent);
-
-	return true;
+	return false;
 }
 
 void FSlateApplication::ProcessTouchEndedEvent(const FPointerEvent& PointerEvent)
@@ -5719,48 +5727,46 @@ void FSlateApplication::ProcessTouchEndedEvent(const FPointerEvent& PointerEvent
 
 bool FSlateApplication::OnTouchForceChanged(const FVector2D& Location, float Force, int32 TouchIndex, int32 ControllerId)
 {
-	// Don't process touches that overlap or surpass with the cursor pointer index.
-	if (TouchIndex >= ((int32)ETouchIndex::CursorPointerIndex))
+	TSharedRef<FSlateUser> User = GetOrCreateUser(ControllerId);
+	if (User->IsTouchPointerActive(TouchIndex))
 	{
-		return false;
+		FPointerEvent PointerEvent(
+			ControllerId,
+			TouchIndex,
+			Location,
+			Location,
+			Force,
+			true,
+			true,
+			false);
+		ProcessTouchMovedEvent(PointerEvent);
+
+		return true;
 	}
 
-	FPointerEvent PointerEvent(
-		ControllerId,
-		TouchIndex,
-		Location,
-		Location,
-		Force,
-		true,
-		true,
-		false);
-	ProcessTouchMovedEvent(PointerEvent);
-
-	return true;
-
+	return false;
 }
 
 bool FSlateApplication::OnTouchFirstMove(const FVector2D& Location, float Force, int32 TouchIndex, int32 ControllerId)
 {
-	// Don't process touches that overlap or surpass with the cursor pointer index.
-	if (TouchIndex >= ((int32)ETouchIndex::CursorPointerIndex))
+	TSharedRef<FSlateUser> User = GetOrCreateUser(ControllerId);
+	if (User->IsTouchPointerActive(TouchIndex))
 	{
-		return false;
+		FPointerEvent PointerEvent(
+			ControllerId,
+			TouchIndex,
+			Location,
+			User->GetPreviousPointerPosition(TouchIndex),
+			Force,
+			true,
+			false,
+			true);
+		ProcessTouchMovedEvent(PointerEvent);
+
+		return true;
 	}
 
-	FPointerEvent PointerEvent(
-		ControllerId,
-		TouchIndex,
-		Location,
-		GetOrCreateUser(ControllerId)->GetPreviousPointerPosition(TouchIndex),
-		Force,
-		true,
-		false,
-		true);
-	ProcessTouchMovedEvent(PointerEvent);
-
-	return true;
-
+	return false;
 }
 
 void FSlateApplication::ShouldSimulateGesture(EGestureEvent Gesture, bool bEnable)

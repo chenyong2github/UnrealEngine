@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Fonts/SlateFontRenderer.h"
 #include "Fonts/FontCacheCompositeFont.h"
@@ -378,7 +378,10 @@ FFreeTypeFaceGlyphData FSlateFontRenderer::GetFontFaceForCodepoint(const FFontDa
 bool FSlateFontRenderer::GetRenderData(const FShapedGlyphEntry& InShapedGlyph, const FFontOutlineSettings& InOutlineSettings, FCharacterRenderData& OutRenderData) const
 {
 #if WITH_FREETYPE
+
+#if	WITH_VERY_VERBOSE_SLATE_STATS
 	SCOPE_CYCLE_COUNTER(STAT_FreetypeRenderGlyph);
+#endif
 
 	FFreeTypeFaceGlyphData FaceGlyphData;
 	FaceGlyphData.FaceAndMemory = InShapedGlyph.FontFaceData->FontFace.Pin();
@@ -390,9 +393,10 @@ bool FSlateFontRenderer::GetRenderData(const FShapedGlyphEntry& InShapedGlyph, c
 		check(FaceGlyphData.FaceAndMemory->IsValid());
 
 		FT_Error Error = FreeTypeUtils::LoadGlyph(FaceGlyphData.FaceAndMemory->GetFace(), FaceGlyphData.GlyphIndex, FaceGlyphData.GlyphFlags, InShapedGlyph.FontFaceData->FontSize, InShapedGlyph.FontFaceData->FontScale);
-		check(Error == 0);
-
-		return GetRenderDataInternal(FaceGlyphData, InShapedGlyph.FontFaceData->FontScale, InOutlineSettings, OutRenderData);
+		if (Error == 0)
+		{
+			return GetRenderDataInternal(FaceGlyphData, InShapedGlyph.FontFaceData->FontScale, InOutlineSettings, OutRenderData);
+		}
 	}
 #endif // WITH_FREETYPE
 	return false;

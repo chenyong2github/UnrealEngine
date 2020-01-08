@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Array.h"
@@ -81,12 +81,12 @@ namespace Chaos
 		int32 GetNumElements() const { return MElements.Num(); }
 
 		const TMap<int32, TSet<uint32>>& GetPointToNeighborsMap() const;
-		const TSet<uint32>& GetNeighbors(const int32 Element) { return GetPointToNeighborsMap()[Element]; }
+		const TSet<uint32>& GetNeighbors(const int32 Element) const { return GetPointToNeighborsMap()[Element]; }
 
 		const TMap<int32, TArray<int32>>& GetPointToTriangleMap() const;
-		const TArray<int32>& GetCoincidentTriangles(const int32 Element) { return GetPointToTriangleMap()[Element]; }
+		const TArray<int32>& GetCoincidentTriangles(const int32 Element) const { return GetPointToTriangleMap()[Element]; }
 
-		TSet<int32> GetNRing(const int32 Element, const int32 N)
+		TSet<int32> GetNRing(const int32 Element, const int32 N) const
 		{
 			TSet<int32> Neighbors;
 			TSet<uint32> LevelNeighbors, PrevLevelNeighbors;

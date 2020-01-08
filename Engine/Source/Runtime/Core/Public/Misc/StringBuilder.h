@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -360,8 +360,6 @@ constexpr inline SIZE_T GetNum(const TStringBuilderImpl<CharType>& Builder)
 
 //////////////////////////////////////////////////////////////////////////
 
-extern template class TStringBuilderImpl<ANSICHAR>;
-
 class FAnsiStringBuilderBase : public TStringBuilderImpl<ANSICHAR>
 {
 protected:
@@ -414,8 +412,6 @@ template <int32 N>
 struct TIsContiguousContainer<TAnsiStringBuilder<N>> { enum { Value = true }; };
 
 //////////////////////////////////////////////////////////////////////////
-
-extern template class TStringBuilderImpl<TCHAR>;
 
 class FStringBuilderBase : public TStringBuilderImpl<TCHAR>
 {

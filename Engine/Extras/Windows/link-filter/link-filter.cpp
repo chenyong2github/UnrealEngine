@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /**
  * This program is designed to execute the Visual C++ linker (link.exe) and restart if it sees a spurious "Unexpected PDB error; OK (0)"

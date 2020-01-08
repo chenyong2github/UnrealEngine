@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -180,13 +180,13 @@ public:
 	NIAGARAEDITOR_API ENiagaraSystemViewModelEditMode GetEditMode() const;
 
 	/** Adds a new emitter to the System from an emitter asset data. */
-	NIAGARAEDITOR_API void AddEmitterFromAssetData(const FAssetData& AssetData);
+	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> AddEmitterFromAssetData(const FAssetData& AssetData);
 
 	/** Adds a new emitter to the System. */
-	void AddEmitter(UNiagaraEmitter& Emitter);
+	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> AddEmitter(UNiagaraEmitter& Emitter);
 
 	/** Deletes the emitters with the supplied ids from the system */
-	void DeleteEmitters(TSet<FGuid> EmitterHandleIdsToDelete);
+	NIAGARAEDITOR_API void DeleteEmitters(TSet<FGuid> EmitterHandleIdsToDelete);
 
 	/** Gets a multicast delegate which is called any time the array of emitter handle view models changes. */
 	NIAGARAEDITOR_API FOnEmitterHandleViewModelsChanged& OnEmitterHandleViewModelsChanged();

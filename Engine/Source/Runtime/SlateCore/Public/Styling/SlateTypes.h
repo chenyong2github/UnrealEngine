@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -436,28 +436,44 @@ struct SLATECORE_API FComboButtonStyle : public FSlateWidgetStyle
 	static const FComboButtonStyle& GetDefault();
 
 	/**
-	 * The style to use for our SButton
+	 * The style to use for our SButton.
 	 */	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	FButtonStyle ButtonStyle;
 	FComboButtonStyle& SetButtonStyle( const FButtonStyle& InButtonStyle ){ ButtonStyle = InButtonStyle; return *this; }
 
 	/**
-	 * Image to use for the down arrow
+	 * Image to use for the down arrow.
 	 */	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	FSlateBrush DownArrowImage;
 	FComboButtonStyle& SetDownArrowImage( const FSlateBrush& InDownArrowImage ){ DownArrowImage = InDownArrowImage; return *this; }
 
 	/**
-	 * Brush to use to add a "menu border" around the drop-down content
+	  * How much should the shadow be offset for the down arrow? 
+	  * An offset of 0 implies no shadow. 
+	  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
+	FVector2D ShadowOffset;
+	FComboButtonStyle& SetShadowOffset(const FVector2D& InShadowOffset) { ShadowOffset = InShadowOffset; return *this; }
+
+	/** 
+	  * The color and opacity of the shadow for the down arrow.
+	  * Only active if ShadowOffset is not (0,0).
+	  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
+	FLinearColor ShadowColorAndOpacity;
+	FComboButtonStyle& SetShadowColorAndOpacity(const FLinearColor& InShadowColorAndOpacity) { ShadowColorAndOpacity = InShadowColorAndOpacity; return *this; }
+
+	/**
+	 * Brush to use to add a "menu border" around the drop-down content.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	FSlateBrush MenuBorderBrush;
 	FComboButtonStyle& SetMenuBorderBrush( const FSlateBrush& InMenuBorderBrush ){ MenuBorderBrush = InMenuBorderBrush; return *this; }
 
 	/**
-	 * Padding to use to add a "menu border" around the drop-down content
+	 * Padding to use to add a "menu border" around the drop-down content.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	FMargin MenuBorderPadding;

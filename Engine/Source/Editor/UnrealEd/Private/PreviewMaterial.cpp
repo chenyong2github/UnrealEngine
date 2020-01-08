@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialEditor/PreviewMaterial.h"
 #include "Modules/ModuleManager.h"
@@ -1679,6 +1679,8 @@ void UMaterialEditorInstanceConstant::CopyBasePropertiesFromParent()
 #if WITH_EDITOR
 void UMaterialEditorInstanceConstant::PostEditUndo()
 {
+	Super::PostEditUndo();
+
 	if (bIsFunctionPreviewMaterial)
 	{
 		bIsFunctionInstanceDirty = true;
@@ -1691,12 +1693,7 @@ void UMaterialEditorInstanceConstant::PostEditUndo()
 		UpdateSourceInstanceParent();
 
 		Context.AddMaterialInstance(SourceInstance);
-
-		// Fully update static parameters before recreating render state for all components
-		SetSourceInstance(SourceInstance);
 	}
-
-	Super::PostEditUndo();
 }
 #endif
 

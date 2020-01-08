@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CallFunctionHandler.h"
 #include "UObject/MetaData.h"
@@ -152,7 +152,8 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 				if (Property->GetFName() == PinMatch->PinName)
 				{
 					// Found a corresponding pin, does it match in type and direction?
-					if (FKismetCompilerUtilities::IsTypeCompatibleWithProperty(PinMatch, Property, CompilerContext.MessageLog, CompilerContext.GetSchema(), Context.NewClass))
+					if (UK2Node_CallFunction::IsStructureWildcardProperty(Function, Property->GetFName()) ||
+						FKismetCompilerUtilities::IsTypeCompatibleWithProperty(PinMatch, Property, CompilerContext.MessageLog, CompilerContext.GetSchema(), Context.NewClass))
 					{
 						UEdGraphPin* PinToTry = FEdGraphUtilities::GetNetFromPin(PinMatch);
 

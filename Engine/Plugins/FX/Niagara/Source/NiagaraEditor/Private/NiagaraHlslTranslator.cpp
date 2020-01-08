@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraHlslTranslator.h"
 #include "NiagaraComponent.h"
@@ -809,10 +809,6 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 	}
 
 	bool bNeedsPersistentIDs = CompileOptions.AdditionalDefines.Contains(TEXT("RequiresPersistentIDs"));
-	if (bNeedsPersistentIDs && CompilationTarget == ENiagaraSimTarget::GPUComputeSim) {
-		Error(LOCTEXT("GPUPersistentIDFail", "GPU particles do not support persistent IDs. Change to a CPU simulation or disable persistent IDs."), nullptr, nullptr);
-		return TranslateResults;
-	}
 
 	TranslationStages.Empty();
 	ActiveStageIdx = 0;
@@ -1839,6 +1835,8 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 		return false;
 	}();
 
+	const bool bNeedsPersistentIDs = CompileOptions.AdditionalDefines.Contains(TEXT("RequiresPersistentIDs"));
+
 	// A list of constant to reset after Emitter_SpawnGroup gets modified by GetEmitterSpawnInfoForParticle()
 	TArray<FString> EmitterSpawnGroupReinit;
 
@@ -1894,6 +1892,13 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 		if (bUsesAlive)
 		{
 			HlslOutput += TEXT("\n") + ContextName + TEXT("DataInstance.Alive=true;\n");
+		}
+
+		if (bNeedsPersistentIDs)
+		{
+			HlslOutput += TEXT("\n\tint IDIndex, IDAcquireTag;\n\tAcquireID(0, IDIndex, IDAcquireTag);\n");
+			HlslOutput += ContextName + TEXT("Particles.ID.Index = IDIndex;\n");
+			HlslOutput += ContextName + TEXT("Particles.ID.AcquireTag = IDAcquireTag;\n");
 		}
 	}
 	HlslOutput += TEXT("}\n\n");
@@ -1992,11 +1997,17 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			HlslOutput += TEXT("\tconst int WriteIndex = OutputIndex(0, true, bValid);\n");
 		}
 
-		HlslOutput += TEXT("\tif (bValid)\n\t{\n");
 		FString ContextName = TEXT("Context.Map.");
 		if (TranslationStages.Num() > 1) // Last context is "MapUpdate"
 		{
 			ContextName = FString::Printf(TEXT("Context.%s."), *TranslationStages.Last().PassNamespace);
+		}
+
+		HlslOutput += TEXT("\tif (bValid)\n\t{\n");
+
+		if (bNeedsPersistentIDs)
+		{
+			HlslOutput += FString::Printf(TEXT("\t\tUpdateID(0, %sParticles.ID.Index, WriteIndex);\n"), *ContextName);
 		}
 
 		for (int32 DataSetIndex = 0, IntCounter = 0, FloatCounter = 0; DataSetIndex < DataSetWrites.Num(); ++DataSetIndex)

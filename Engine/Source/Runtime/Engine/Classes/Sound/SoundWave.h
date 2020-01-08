@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -334,6 +334,9 @@ public:
 
 	/** Set to true for programmatically generated audio. */
 	uint8 bProcedural:1;
+	
+	/** Set to true if the source is procedural and currently playing */
+	uint8 bPlayingProcedural : 1;
 
 	/** Set to true of this is a bus sound source. This will result in the sound wave not generating audio for itself, but generate audio through instances. Used only in audio mixer. */
 	uint8 bIsBus:1;

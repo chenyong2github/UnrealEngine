@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -603,6 +603,8 @@ public:
 
 	FORCEINLINE const FMatrix& GetLocalToWorldInverse() const { return LocalToWorldInverse; }
 
+	FRHIUniformBuffer* GetUniformBufferNoVelocity() const;
+
 private:
 	void ReleaseRenderThreadResources();
 
@@ -626,12 +628,14 @@ private:
 	/** Callback from the renderer to gather simple lights that this proxy wants renderered. */
 	virtual void GatherSimpleLights(const FSceneViewFamily& ViewFamily, FSimpleLightArray& OutParticleLights) const override;
 
-
 	virtual uint32 GetMemoryFootprint() const override;
 
 	uint32 GetAllocatedSize() const;
 
 private:
+	/** Uniform Buffer with Velocity writes disabled.  Mutable as it is updated during GetDynamicMeshElements is required. */
+	mutable TUniformBuffer<FPrimitiveUniformShaderParameters> UniformBufferNoVelocity;
+
 	/** Emitter Renderers in the order they appear in the emitters. */
 	TArray<FNiagaraRenderer*> EmitterRenderers;
 	

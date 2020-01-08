@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CurveEditor.h"
 #include "Layout/Geometry.h"
@@ -614,6 +614,11 @@ void FCurveEditor::StepForward()
 
 void FCurveEditor::StepBackward()
 {
+	if (!WeakTimeSliderController.IsValid())
+	{
+		return;
+	}
+
 	FFrameRate TickResolution = WeakTimeSliderController.Pin()->GetTickResolution();
 	FFrameRate DisplayRate = WeakTimeSliderController.Pin()->GetDisplayRate();
 

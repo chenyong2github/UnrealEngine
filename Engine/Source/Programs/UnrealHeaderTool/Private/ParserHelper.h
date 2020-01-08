@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -731,8 +731,14 @@ public:
 	//@{
 	/** Type of token. */
 	ETokenType TokenType;
-	/** Name of token. */
-	FName TokenName;
+
+private:
+	/** Whether TokenName has been looked up */
+	bool bTokenNameInitialized;
+	/** Name of token, lazily initialized */
+	mutable FName TokenName;
+
+public:
 	/** Starting position in script where this token came from. */
 	int32 StartPos;
 	/** Starting line in script. */
@@ -741,6 +747,9 @@ public:
 	TCHAR Identifier[NAME_SIZE];
 	/** property that corresponds to this FToken - null if this Token doesn't correspond to a FProperty */
 	FProperty* TokenProperty;
+
+
+public:
 
 	union
 	{
@@ -834,22 +843,30 @@ public:
 		*Identifier		= 0;
 		FMemory::Memzero(String);
 	}
-	bool Matches( const TCHAR* Str, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase ) const
+	bool Matches(const TCHAR Ch) const
+	{
+		return TokenType==TOKEN_Symbol && Identifier[0] == Ch && Identifier[1] == 0;
+	}
+	bool Matches( const TCHAR* Str, ESearchCase::Type SearchCase ) const
 	{
 		return (TokenType==TOKEN_Identifier || TokenType==TOKEN_Symbol) && ((SearchCase == ESearchCase::CaseSensitive) ? !FCString::Strcmp(Identifier, Str) : !FCString::Stricmp(Identifier, Str));
-	}
-	bool Matches( const FName& Name ) const
-	{
-		return TokenType==TOKEN_Identifier && TokenName==Name;
-	}
-	bool StartsWith( const TCHAR* Str, bool bCaseSensitive = false ) const
-	{
-		const int32 StrLength = FCString::Strlen(Str);
-		return (TokenType==TOKEN_Identifier || TokenType==TOKEN_Symbol) && (bCaseSensitive ? (!FCString::Strncmp(Identifier, Str, StrLength)) : (!FCString::Strnicmp(Identifier, Str, StrLength)));
 	}
 	bool IsBool() const
 	{
 		return Type == CPT_Bool || Type == CPT_Bool8 || Type == CPT_Bool16 || Type == CPT_Bool32 || Type == CPT_Bool64;
+	}
+	FName GetTokenName() const
+	{
+		if (!bTokenNameInitialized)
+		{
+			TokenName = FName(Identifier, FNAME_Find);
+		}
+		return TokenName;
+	}
+	void ClearTokenName()
+	{
+		bTokenNameInitialized = false;
+		TokenName = NAME_None;
 	}
 
 	// Setters.
@@ -859,7 +876,7 @@ public:
 		InitToken(CPT_None);
 		TokenType = TOKEN_Identifier;
 		FCString::Strncpy(Identifier, InString, NAME_SIZE);
-		TokenName = FName(Identifier, FNAME_Find);
+		bTokenNameInitialized = false;
 	}
 
 	void SetConstInt64( int64 InInt64 )
@@ -984,7 +1001,7 @@ public:
 		return FString::Printf(
 			TEXT("Property:%s  Type:%s  TokenName:%s  ConstValue:%s  Struct:%s  Flags:%lli  Implied:%lli"),
 			TokenProperty!=NULL?*TokenProperty->GetName():TEXT("NULL"),
-			GetPropertyTypeText(Type), *TokenName.ToString(), *GetConstantValue(),
+			GetPropertyTypeText(Type), *GetTokenName().ToString(), *GetConstantValue(),
 			Struct!=NULL?*Struct->GetName():TEXT("NULL"),
 			PropertyFlags,
 			ImpliedPropertyFlags
@@ -1093,7 +1110,7 @@ struct FFuncInfo
 		FString FunctionName = FunctionReference->GetName();
 		if( FunctionReference->HasAnyFunctionFlags( FUNC_Delegate ) )
 		{
-			FunctionName = FunctionName.LeftChop( FString(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX).Len() );
+			FunctionName.LeftChopInline( FString(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX).Len(), false );
 		}
 		UnMarshallAndCallName = FString(TEXT("exec")) + FunctionName;
 		
@@ -1871,46 +1888,16 @@ struct FScriptLocation
 struct FNameLookupCPP
 {
 	/**
-	 * Destructor, cleaning up allocated memory.
-	 */
-	~FNameLookupCPP()
-	{
-		for (TMap<UStruct*,TCHAR*>::TIterator It(StructNameMap); It; ++It)
-		{
-			TCHAR* Name = It.Value();
-			delete [] Name;
-		}
-	
-		for (TMap<UStruct*, TCHAR*>::TIterator It(InterfaceNameMap); It; ++It)
-		{
-			TCHAR* Name = It.Value();
-			delete [] Name;
-		}
-	}
-
-	/**
 	 * Returns the name used for declaring the passed in struct in C++
 	 *
 	 * @param	Struct	UStruct to obtain C++ name for
 	 * @return	Name used for C++ declaration
 	 */
-	const TCHAR* GetNameCPP( UStruct* Struct, bool bForceInterface = false );
-
-	void SetCurrentSourceFile(FUnrealSourceFile* InUnrealSourceFile)
+	static FString GetNameCPP(UStruct* Struct, bool bForceInterface = false)
 	{
-		UnrealSourceFile = InUnrealSourceFile;
+		return FString::Printf(TEXT("%s%s"), (bForceInterface ? TEXT("I") : Struct->GetPrefixCPP()), *Struct->GetName());
 	}
-
-private:
-	/** Map of UStruct pointers to C++ names */
-	TMap<UStruct*,TCHAR*> StructNameMap;
-	TMap<UStruct*, TCHAR*> InterfaceNameMap;
-
-	FUnrealSourceFile* UnrealSourceFile;
 };
-
-extern FNameLookupCPP NameLookupCPP;
-
 
 /////////////////////////////////////////////////////
 // FAdvancedDisplayParameterHandler - used by FHeaderParser::ParseParameterList, to check if a property if a function parameter has 'AdvancedDisplay' flag

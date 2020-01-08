@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -179,9 +179,9 @@ FDISkelMeshSkinnedVertex DISkelMesh_GetSkinnedPointOnTriangleWS(in FDISkelMeshCo
 	return FinalVertex;
 }
 
-void DISKelMesh_RandomTriCoord(in FDISkelMeshContext DIContext, out uint OutTriangle, out float3 OutBaryCoord)
+void DISKelMesh_RandomTriCoord(in FDISkelMeshContext DIContext, NiagaraRandInfo InRandomInfo, out uint OutTriangle, out float3 OutBaryCoord)
 {
-	float RandT0 = NiagaraInternalNoise(1, 2, 3);
+	float RandT0 = NiagaraInternalNoise(InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3);
 
 	[branch]
 	if ( !DIContext.UniformTriangleSamplingEnable )
@@ -196,7 +196,7 @@ void DISKelMesh_RandomTriCoord(in FDISkelMeshContext DIContext, out uint OutTria
 		float TriangleProbability = DIContext.MeshTriangleSamplerProbaBuffer[TriangleIndex];
 
 		// Alias check
-		float RandT1 = NiagaraInternalNoise(1, 2, 3);
+		float RandT1 = NiagaraInternalNoise(InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3);
 		if( RandT1 > TriangleProbability )
 		{
 			TriangleIndex = DIContext.MeshTriangleSamplerAliasBuffer[TriangleIndex];
@@ -204,8 +204,8 @@ void DISKelMesh_RandomTriCoord(in FDISkelMeshContext DIContext, out uint OutTria
 		OutTriangle = TriangleIndex;
 	}
 
-	float r0 = NiagaraInternalNoise(1, 2, 3);
-	float r1 = NiagaraInternalNoise(1, 2, 3);
+	float r0 = NiagaraInternalNoise(InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3);
+	float r1 = NiagaraInternalNoise(InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3);
 	float sqrt0 = sqrt(r0);
 	float sqrt1 = sqrt(r1);
 	OutBaryCoord = float3(1.0f - sqrt0, sqrt0 * (1.0 - r1), r1 * sqrt0);

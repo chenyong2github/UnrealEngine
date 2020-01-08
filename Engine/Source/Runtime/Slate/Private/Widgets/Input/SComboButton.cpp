@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SBorder.h"
@@ -20,6 +20,8 @@ void SComboButton::Construct( const FArguments& InArgs )
 	OnComboBoxOpened = InArgs._OnComboBoxOpened;
 	ContentWidgetPtr = InArgs._MenuContent.Widget;
 	bIsFocusable = InArgs._IsFocusable;
+
+	const bool bHasDownArrowShadow = !InArgs._ComboButtonStyle->ShadowOffset.IsZero();
 
 	TSharedPtr<SHorizontalBox> HBox;
 
@@ -58,11 +60,26 @@ void SComboButton::Construct( const FArguments& InArgs )
 				.VAlign( VAlign_Center )
 				.Padding( InArgs._HasDownArrow ? 2 : 0 )
 				[
-					SNew( SImage )
-					.Visibility( InArgs._HasDownArrow ? EVisibility::Visible : EVisibility::Collapsed )
-					.Image( &InArgs._ComboButtonStyle->DownArrowImage )
-					// Inherit tinting from parent
-					. ColorAndOpacity( FSlateColor::UseForeground() )
+					SNew(SOverlay)
+					// drop shadow
+					+ SOverlay::Slot()
+					.VAlign(VAlign_Top)
+					.Padding(FMargin(InArgs._ComboButtonStyle->ShadowOffset.X, InArgs._ComboButtonStyle->ShadowOffset.Y, 0, 0))
+					[
+						SNew(SImage)
+						.Visibility( InArgs._HasDownArrow && bHasDownArrowShadow ? EVisibility::Visible : EVisibility::Collapsed )
+						.Image( &InArgs._ComboButtonStyle->DownArrowImage )
+						.ColorAndOpacity( InArgs._ComboButtonStyle->ShadowColorAndOpacity )
+					]
+					+ SOverlay::Slot()
+					.VAlign(VAlign_Top)
+					[
+						SNew(SImage)
+						.Visibility( InArgs._HasDownArrow ? EVisibility::Visible : EVisibility::Collapsed )
+						.Image( &InArgs._ComboButtonStyle->DownArrowImage )
+						// Inherit tinting from parent
+						.ColorAndOpacity( FSlateColor::UseForeground() )
+					]
 				]
 			]
 		]

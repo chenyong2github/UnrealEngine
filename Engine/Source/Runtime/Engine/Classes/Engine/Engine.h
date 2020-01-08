@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -2515,13 +2515,13 @@ public:
 	 * Find a Local Player Controller, which may not exist at all if this is a server.
 	 * @return first found LocalPlayerController. Fine for single player, in split screen, one will be picked. 
 	 */
-	class APlayerController* GetFirstLocalPlayerController(UWorld *InWorld);
+	class APlayerController* GetFirstLocalPlayerController(const UWorld* InWorld);
 
 	/** Gets all local players associated with the engine. 
 	 *	This function should only be used in rare cases where no UWorld* is available to get a player list associated with the world.
 	 *  E.g, - use GetFirstLocalPlayerController(UWorld *InWorld) when possible!
 	 */
-	void GetAllLocalPlayerControllers(TArray<APlayerController*>	& PlayerList);
+	void GetAllLocalPlayerControllers(TArray<APlayerController*>& PlayerList);
 
 	/** Returns the GameViewport widget */
 	virtual TSharedPtr<class SViewport> GetGameViewportWidget() const

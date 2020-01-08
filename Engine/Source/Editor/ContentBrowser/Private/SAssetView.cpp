@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAssetView.h"
 #include "HAL/FileManager.h"
@@ -48,6 +48,7 @@
 #include "DesktopPlatformModule.h"
 #include "Misc/FileHelper.h"
 #include "Misc/TextFilterUtils.h"
+#include "Misc/BlacklistNames.h"
 #include "AssetRegistryState.h"
 #include "Materials/Material.h"
 
@@ -115,24 +116,48 @@ namespace AssetViewUtils
 		return false;
 	}
 
+	/** Expands blacklist of class names to include subclasses */
+	void ExpandClassesBlacklist(const FBlacklistNames& InBlacklist, FBlacklistNames& ExpandedBlacklist)
+	{
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+		if (InBlacklist.GetBlacklist().Num() > 0)
+		{
+			TArray<FName> BlacklistKeys;
+			InBlacklist.GetBlacklist().GetKeys(BlacklistKeys);
+			const TSet<FName> EmptySet;
+			TSet<FName> BlacklistSubClassNames;
+			AssetRegistryModule.Get().GetDerivedClassNames(BlacklistKeys, EmptySet, BlacklistSubClassNames);
+			for (const FName ClassName : BlacklistSubClassNames)
+			{
+				ExpandedBlacklist.AddBlacklistItem(NAME_None, ClassName);
+			}
+		}
+
+		if (InBlacklist.GetWhitelist().Num() > 0)
+		{
+			TArray<FName> WhitelistKeys;
+			InBlacklist.GetWhitelist().GetKeys(WhitelistKeys);
+			const TSet<FName> EmptySet;
+			TSet<FName> WhitelistSubClassNames;
+			AssetRegistryModule.Get().GetDerivedClassNames(WhitelistKeys, EmptySet, WhitelistSubClassNames);
+			for (const FName ClassName : WhitelistSubClassNames)
+			{
+				ExpandedBlacklist.AddWhitelistItem(NAME_None, ClassName);
+			}
+		}
+	}
+
 	class FInitialAssetFilter
 	{
 	public:
-		FInitialAssetFilter(bool InDisplayL10N, bool InDisplayEngine, bool InDisplayPlugins) :
+		FInitialAssetFilter(bool InDisplayL10N, bool InDisplayEngine, bool InDisplayPlugins, const FBlacklistPaths* InFolderBlacklist, const FBlacklistNames* InClassBlacklist) :
 			bDisplayL10N(InDisplayL10N),
 			bDisplayEngine(InDisplayEngine),
-			bDisplayPlugins(InDisplayPlugins)
-		{
-			Init(InDisplayL10N, InDisplayEngine, InDisplayPlugins);
-		}
-
-		void Init(bool InDisplayL10N, bool InDisplayEngine, bool InDisplayPlugins)
+			bDisplayPlugins(InDisplayPlugins),
+			FolderBlacklist(InFolderBlacklist),
+			AssetClassBlacklist(nullptr)
 		{
 			ObjectRedirectorClassName = UObjectRedirector::StaticClass()->GetFName();
-
-			bDisplayL10N = InDisplayL10N;
-			bDisplayEngine = InDisplayEngine;
-			bDisplayPlugins = InDisplayPlugins;
 
 			Plugins = IPluginManager::Get().GetEnabledPluginsWithContent();
 			PluginNamesUpperWide.Reset(Plugins.Num());
@@ -144,11 +169,22 @@ namespace AssetViewUtils
 				TextFilterUtils::TryConvertWideToAnsi(PluginNameUpperWide, PluginNamesUpperAnsi.AddDefaulted_GetRef());
 				PluginLoadedFromEngine.Add(PluginRef->GetLoadedFrom() == EPluginLoadedFrom::Engine);
 			}
+
+			if (InClassBlacklist && InClassBlacklist->HasFiltering())
+			{
+				ExpandClassesBlacklist(*InClassBlacklist, ExpandedClassesBlacklist);
+				AssetClassBlacklist = &ExpandedClassesBlacklist;
+			}
 		}
 
 		FORCEINLINE bool PassesFilter(const FAssetData& Item) const
 		{
 			if (!PassesRedirectorMainAssetFilter(Item))
+			{
+				return false;
+			}
+
+			if (AssetClassBlacklist && !AssetClassBlacklist->PassesFilter(Item.AssetClass))
 			{
 				return false;
 			}
@@ -172,12 +208,25 @@ namespace AssetViewUtils
 			TextFilterUtils::FNameBufferWithNumber ObjectPathBuffer(PackagePath);
 			if (ObjectPathBuffer.IsWide())
 			{
-				return PassesPackagePathFilter(ObjectPathBuffer.GetWideNamePtr());
+				if (!PassesPackagePathFilter(ObjectPathBuffer.GetWideNamePtr()))
+				{
+					return false;
+				}
 			}
 			else
 			{
-				return PassesPackagePathFilter(ObjectPathBuffer.GetAnsiNamePtr());
+				if (!PassesPackagePathFilter(ObjectPathBuffer.GetAnsiNamePtr()))
+				{
+					return false;
+				}
 			}
+			
+			if (FolderBlacklist && !FolderBlacklist->PassesStartsWithFilter(PackagePath))
+			{
+				return false;
+			}
+
+			return true;
 		}
 
 		template <typename CharType>
@@ -242,6 +291,8 @@ namespace AssetViewUtils
 			return true;
 		}
 
+		
+
 	private:
 		FName ObjectRedirectorClassName;
 		bool bDisplayL10N;
@@ -251,6 +302,9 @@ namespace AssetViewUtils
 		TArray<FString> PluginNamesUpperWide;
 		TArray<bool> PluginLoadedFromEngine;
 		TArray<TSharedRef<IPlugin>> Plugins;
+		const FBlacklistPaths* FolderBlacklist;
+		const FBlacklistNames* AssetClassBlacklist;
+		FBlacklistNames ExpandedClassesBlacklist;
 
 		FORCEINLINE int32 FindPluginNameUpper(const WIDECHAR* PluginNameUpper, int32 Length) const
 		{
@@ -283,44 +337,6 @@ namespace AssetViewUtils
 			return INDEX_NONE;
 		}
 	};
-
-	static FARFilter CreateSupportedFilter()
-	{
-		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-		TArray<TWeakPtr<IAssetTypeActions>> AssetTypeActionsList;
-		AssetToolsModule.Get().GetAssetTypeActionsList(AssetTypeActionsList);
-
-		bool bAnyUnsupported = false;
-		FARFilter SupportedFilter;
-
-		for (const TWeakPtr<IAssetTypeActions>& WeakTypeActions : AssetTypeActionsList)
-		{
-			if (const TSharedPtr<IAssetTypeActions> TypeActions = WeakTypeActions.Pin())
-			{
-				if (!TypeActions->IsSupported())
-				{
-					bAnyUnsupported = true;
-				}
-				else
-				{
-					SupportedFilter.bRecursiveClasses = true;
-					const UClass* SupportedClass = TypeActions->GetSupportedClass();
-					if (SupportedClass != nullptr)
-					{
-						const FName ClassName = SupportedClass->GetFName();
-						SupportedFilter.ClassNames.AddUnique(ClassName);
-					}
-				}
-			}
-		}
-
-		if (!bAnyUnsupported)
-		{
-			return FARFilter();
-		}
-
-		return SupportedFilter;
-	}
 } // namespace AssetViewUtils
 
 SAssetView::~SAssetView()
@@ -532,7 +548,9 @@ void SAssetView::Construct( const FArguments& InArgs )
 
 	NumVisibleColumns = 0;
 
-	SupportedFilter = AssetViewUtils::CreateSupportedFilter();
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	AssetClassBlacklist = AssetToolsModule.Get().GetAssetClassBlacklist();
+	FolderBlacklist = AssetToolsModule.Get().GetFolderBlacklist();
 
 	FEditorWidgetsModule& EditorWidgetsModule = FModuleManager::LoadModuleChecked<FEditorWidgetsModule>("EditorWidgets");
 	TSharedRef<SWidget> AssetDiscoveryIndicator = EditorWidgetsModule.CreateAssetDiscoveryIndicator(EAssetDiscoveryIndicatorScaleMode::Scale_Vertical);
@@ -764,20 +782,8 @@ void SAssetView::SetBackendFilter(const FARFilter& InBackendFilter)
 
 void SAssetView::AppendBackendFilter(FARFilter& FilterToAppendTo) const
 {
-	FilterToAppendTo.Append(SupportedFilter);
 	FilterToAppendTo.Append(BackendFilter);
 
-	if (SupportedFilter.bRecursiveClasses && BackendFilter.bRecursiveClasses)
-	{
-		FilterToAppendTo.ClassNames.RemoveAll(
-			[this](const FName& Class)
-			{
-				return !SupportedFilter.ClassNames.Contains(Class) ||
-					!BackendFilter.ClassNames.Contains(Class);
-			});
-
-		FilterToAppendTo.bRecursiveClasses = FilterToAppendTo.ClassNames.Num() > 0;
-	}
 }
 
 void SAssetView::OnCreateNewFolder(const FString& FolderName, const FString& FolderPath)
@@ -1984,11 +1990,20 @@ void SAssetView::RefreshSourceItems()
 
 	TArray<FAssetData>& Items = OnShouldFilterAsset.IsBound() ? QueriedAssetItems : AssetItems;
 
-	const bool bShowAll = SourcesData.IsEmpty() && SupportedFilter.IsEmpty() && BackendFilter.IsEmpty();
+	const FBlacklistPaths* FolderBlacklistToUse = (FolderBlacklist.IsValid() && FolderBlacklist->HasFiltering()) ? FolderBlacklist.Get() : nullptr;
+	const FBlacklistNames* AssetClassBlacklistToUse = (AssetClassBlacklist.IsValid() && AssetClassBlacklist->HasFiltering()) ? AssetClassBlacklist.Get() : nullptr;
+	const bool bShowAll = SourcesData.IsEmpty() && BackendFilter.IsEmpty() && !FolderBlacklistToUse && !AssetClassBlacklistToUse;
+
+	bool bOriginalRegistryTemporaryCachingMode = AssetRegistryModule.Get().GetTemporaryCachingMode();
+	if (AssetClassBlacklistToUse && !bOriginalRegistryTemporaryCachingMode)
+	{
+		// Optimization to reduce number of times class tree is generated
+		AssetRegistryModule.Get().SetTemporaryCachingMode(true);
+	}
 
 	bool bShowClasses = false;
 	TArray<FName> ClassPathsToShow;
-	AssetViewUtils::FInitialAssetFilter InitialAssetFilter(IsShowingLocalizedContent(), IsShowingEngineContent(), IsShowingPluginContent());
+	AssetViewUtils::FInitialAssetFilter InitialAssetFilter(IsShowingLocalizedContent(), IsShowingEngineContent(), IsShowingPluginContent(), FolderBlacklistToUse, AssetClassBlacklistToUse);
 
 	if ( bShowAll )
 	{
@@ -2141,6 +2156,8 @@ void SAssetView::RefreshSourceItems()
 			Items.Add(FAssetData(CurrentClass));
 		}
 	}
+
+	AssetRegistryModule.Get().SetTemporaryCachingMode(bOriginalRegistryTemporaryCachingMode);
 }
 
 bool SAssetView::IsFilteringRecursively() const
@@ -2343,6 +2360,11 @@ void SAssetView::RefreshFolders()
 				}
 
 				if (!bDisplayL10N && ContentBrowserUtils::IsLocalizationFolder(SubPath))
+				{
+					continue;
+				}
+
+				if (FolderBlacklist.IsValid() && !FolderBlacklist->PassesStartsWithFilter(SubPath))
 				{
 					continue;
 				}
@@ -2743,7 +2765,8 @@ void SAssetView::OnAssetRegistryPathAdded(const FString& Path)
 		const bool bDisplayL10N = IsShowingLocalizedContent();
 		if ((bDisplayEmpty || EmptyFolderVisibilityManager->ShouldShowPath(Path)) &&  
 			(bDisplayDev || !ContentBrowserUtils::IsDevelopersFolder(Path)) && 
-			(bDisplayL10N || !ContentBrowserUtils::IsLocalizationFolder(Path))
+			(bDisplayL10N || !ContentBrowserUtils::IsLocalizationFolder(Path)) &&
+			(!FolderBlacklist.IsValid() || FolderBlacklist->PassesStartsWithFilter(Path))
 			)
 		{
 			for (const FName& SourcePathName : SourcesData.PackagePaths)
@@ -2973,6 +2996,44 @@ bool SAssetView::PassesCurrentFrontendFilter(const FAssetData& Item) const
 	return true;
 }
 
+void SAssetView::RunAssetsThroughBlacklists(TArray<FAssetData>& InOutAssetDataList) const
+{
+	if (InOutAssetDataList.Num() == 0)
+	{
+		return;
+	}
+
+	const bool bClassFiltering = AssetClassBlacklist.IsValid() && AssetClassBlacklist->HasFiltering();
+	if ((FolderBlacklist.IsValid() && FolderBlacklist->HasFiltering()) || bClassFiltering)
+	{
+		if ((FolderBlacklist.IsValid() && FolderBlacklist->IsBlacklistAll()) || (bClassFiltering && AssetClassBlacklist->IsBlacklistAll()))
+		{
+			InOutAssetDataList.Reset();
+			return;
+		}
+
+		// Expand filter to include subclasses so an exact FName comparison can occur
+		FBlacklistNames ExpandedClassesBlacklist;
+		if (bClassFiltering)
+		{
+			AssetViewUtils::ExpandClassesBlacklist(*AssetClassBlacklist.Get(), ExpandedClassesBlacklist);
+		}
+
+		InOutAssetDataList.RemoveAll([this, &ExpandedClassesBlacklist](const FAssetData& AssetData)
+		{
+			if (!ExpandedClassesBlacklist.PassesFilter(AssetData.AssetClass))
+			{
+				return true;
+			}
+			else if (FolderBlacklist.IsValid() && !FolderBlacklist->PassesStartsWithFilter(AssetData.PackagePath))
+			{
+				return true;
+			}
+			return false;
+		});
+	}
+}
+
 void SAssetView::RunAssetsThroughBackendFilter(TArray<FAssetData>& InOutAssetDataList) const
 {
 	const bool bRecurse = ShouldFilterRecursively();
@@ -2991,6 +3052,8 @@ void SAssetView::RunAssetsThroughBackendFilter(TArray<FAssetData>& InOutAssetDat
 
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 		AssetRegistryModule.Get().RunAssetsThroughFilter(InOutAssetDataList, Filter);
+
+		RunAssetsThroughBlacklists(InOutAssetDataList);
 
 		if (SourcesData.HasCollections() && !bIsDynamicCollection)
 		{

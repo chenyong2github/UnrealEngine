@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshSpaceDeformerTool.h"
 #include "InteractiveToolManager.h"
@@ -361,7 +361,7 @@ void UMeshSpaceDeformerTool::PostEditChangeProperty(FPropertyChangedEvent & Prop
 
 #endif
 
-void  UMeshSpaceDeformerTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void  UMeshSpaceDeformerTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	// Update the property sources to reflect any changes.
 	// NB: due to callback, the SetParameter will trigger a recompute of the result via  Preview->InvalidateResult();

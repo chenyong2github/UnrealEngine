@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 // Core includes.
 #include "Misc/Paths.h"
@@ -709,26 +709,40 @@ FString FPaths::GetCleanFilename(FString&& InPath)
 	return MoveTemp(InPath);
 }
 
-FString FPaths::GetBaseFilename( const FString& InPath, bool bRemovePath )
+template<typename T>
+FString GetBaseFilenameImpl(T&& InPath, bool bRemovePath)
 {
-	FString Wk = bRemovePath ? GetCleanFilename(InPath) : InPath;
+	FString Wk = bRemovePath ? FPaths::GetCleanFilename(Forward<T>(InPath)) : Forward<T>(InPath);
 
 	// remove the extension
-	int32 ExtPos = Wk.Find(TEXT("."), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
-	
-	// determine the position of the path/leaf separator
-	int32 LeafPos = INDEX_NONE;
-	if (!bRemovePath)
-	{
-		LeafPos = Wk.FindLastCharByPredicate(UE4Paths_Private::IsSlashOrBackslash);
-	}
+	const int32 ExtPos = Wk.Find(TEXT("."), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 
-	if (ExtPos != INDEX_NONE && (LeafPos == INDEX_NONE || ExtPos > LeafPos))
+	if (ExtPos != INDEX_NONE)
 	{
-		Wk.LeftInline(ExtPos);
+		// determine the position of the path/leaf separator
+		int32 LeafPos = INDEX_NONE;
+		if (!bRemovePath)
+		{
+			LeafPos = Wk.FindLastCharByPredicate(UE4Paths_Private::IsSlashOrBackslash);
+		}
+
+		if (LeafPos == INDEX_NONE || ExtPos > LeafPos)
+		{
+			Wk.LeftInline(ExtPos);
+		}
 	}
 
 	return Wk;
+}
+
+FString FPaths::GetBaseFilename(const FString& InPath, bool bRemovePath)
+{
+	return GetBaseFilenameImpl(InPath, bRemovePath);
+}
+
+FString FPaths::GetBaseFilename(FString&& InPath, bool bRemovePath)
+{
+	return GetBaseFilenameImpl(MoveTemp(InPath), bRemovePath);
 }
 
 FString FPaths::GetPath(const FString& InPath)

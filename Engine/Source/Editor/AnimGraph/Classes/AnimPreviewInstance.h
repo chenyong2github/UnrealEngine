@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -116,6 +116,8 @@ public:
 	{
 		return CurveBoneControllers;
 	}
+
+	virtual void AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName = NAME_None) {}
 
 	/** Sets an external debug skeletal mesh component to use to debug */
 	void SetDebugSkeletalMeshComponent(USkeletalMeshComponent* InSkeletalMeshComponent);
@@ -299,6 +301,9 @@ public:
 	 * This is used by when editing, when controller has to be disabled
 	 */
 	void EnableControllers(bool bEnable);
+
+	/** Preview physics interaction */
+	void AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName = NAME_None);
 
 	/** Sets an external debug skeletal mesh component to use to debug */
 	void SetDebugSkeletalMeshComponent(USkeletalMeshComponent* InSkeletalMeshComponent);

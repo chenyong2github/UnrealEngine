@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InstallBundleTypes.h"
 #include "InstallBundleManagerPrivatePCH.h"
@@ -11,6 +11,7 @@ const TCHAR* LexToString(EInstallBundleSourceType Type)
 	{
 		TEXT("Bulk"),
 		TEXT("BuildPatchServices"),
+		TEXT("PlayGo"),
 	};
 
 	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleSourceType::Count) == UE_ARRAY_COUNT(Strings), "");
@@ -43,7 +44,6 @@ const TCHAR* LexToString(EInstallBundleContentState State)
 {
 	static const TCHAR* Strings[] =
 	{
-		TEXT("InitializationError"),
 		TEXT("NotInstalled"),
 		TEXT("NeedsUpdate"),
 		TEXT("UpToDate"),
@@ -83,3 +83,32 @@ const TCHAR* LexToString(EInstallBundleStatus Status)
 	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleStatus::Count) == UE_ARRAY_COUNT(Strings), "");
 	return Strings[InstallBundleUtil::CastToUnderlying(Status)];
 }
+
+bool FInstallBundleCombinedContentState::GetAllBundlesHaveState(EInstallBundleContentState State, TArrayView<const FName> ExcludedBundles /*= TArrayView<const FName>()*/) const
+{
+	for (const TPair<FName, FInstallBundleContentState>& Pair : IndividualBundleStates)
+	{
+		if (ExcludedBundles.Contains(Pair.Key))
+			continue;
+
+		if (Pair.Value.State != State)
+			return false;
+	}
+
+	return true;
+}
+
+bool FInstallBundleCombinedContentState::GetAnyBundleHasState(EInstallBundleContentState State, TArrayView<const FName> ExcludedBundles /*= TArrayView<const FName>()*/) const
+{
+	for (const TPair<FName, FInstallBundleContentState>& Pair : IndividualBundleStates)
+	{
+		if (ExcludedBundles.Contains(Pair.Key))
+			continue;
+
+		if (Pair.Value.State == State)
+			return true;
+	}
+
+	return false;
+}
+

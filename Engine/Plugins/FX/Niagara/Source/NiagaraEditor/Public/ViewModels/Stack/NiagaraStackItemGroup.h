@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -22,9 +22,6 @@ public:
 	virtual FText GetDisplayName() const override;
 	virtual EStackRowStyle GetStackRowStyle() const override;
 	virtual FText GetTooltipText() const override;
-
-	virtual bool CanDelete() const { return false; }
-	virtual bool Delete() { return false; }
 
 	virtual bool GetIsEnabled() const override;
 

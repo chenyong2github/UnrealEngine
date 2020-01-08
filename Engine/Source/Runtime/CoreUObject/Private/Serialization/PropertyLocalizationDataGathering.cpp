@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/PropertyLocalizationDataGathering.h"
 #include "UObject/Script.h"
@@ -23,25 +23,16 @@ FPropertyLocalizationDataGatherer::FPropertyLocalizationDataGatherer(TArray<FGat
 	, AllObjectsInPackage()
 {
 	// Build up the list of objects that are within our package - we won't follow object references to things outside of our package
+	ForEachObjectWithOuter(Package, [this](UObject* Object)
 	{
-		TArray<UObject*> AllObjectsInPackageArray;
-		GetObjectsWithOuter(Package, AllObjectsInPackageArray, true, RF_Transient, EInternalObjectFlags::PendingKill);
-
-		AllObjectsInPackage.Reserve(AllObjectsInPackageArray.Num());
-		for (UObject* Object : AllObjectsInPackageArray)
-		{
-			AllObjectsInPackage.Add(Object);
-		}
-	}
-
-	TArray<UObject*> RootObjectsInPackage;
-	GetObjectsWithOuter(Package, RootObjectsInPackage, false, RF_Transient, EInternalObjectFlags::PendingKill);
+		AllObjectsInPackage.Add(Object);
+	}, true, RF_Transient, EInternalObjectFlags::PendingKill);
 
 	// Iterate over each root object in the package
-	for (const UObject* Object : RootObjectsInPackage)
+	ForEachObjectWithOuter(Package, [this](UObject* Object)
 	{
 		GatherLocalizationDataFromObjectWithCallbacks(Object, EPropertyLocalizationGathererTextFlags::None);
-	}
+	}, false, RF_Transient, EInternalObjectFlags::PendingKill);
 
 	// Iterate any bytecode containing objects
 	for (const FObjectAndGatherFlags& BytecodeToGather : BytecodePendingGather)
@@ -88,30 +79,52 @@ const FPropertyLocalizationDataGatherer::FGatherableFieldsForType& FPropertyLoca
 {
 	TUniquePtr<FGatherableFieldsForType> GatherableFieldsForType = MakeUnique<FGatherableFieldsForType>();
 
-	for (TFieldIterator<FProperty> FieldIt(InType, EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::IncludeInterfaces); FieldIt; ++FieldIt)
+	// Include the parent fields (this will recursively cache any parent types)
+	if (const UStruct* SuperType = InType->GetSuperStruct())
 	{
-		// Look for potential properties
-		{
-			auto ProcessInnerProperty = [this, &GatherableFieldsForType](const FProperty* InProp, const FProperty* InTypeProp)
-			{
-				if (CanGatherFromInnerProperty(InProp))
-				{
-					GatherableFieldsForType->Properties.AddUnique(InTypeProp);
-				}
-			};
+		const FGatherableFieldsForType& GatherableFieldsForSuperType = GetGatherableFieldsForType(SuperType);
+		*GatherableFieldsForType = GatherableFieldsForSuperType;
+	}
 
-			const FProperty* PropertyField = *FieldIt;
-			if (PropertyField)
+	// See if we have a custom handler for this type
+	if (const UClass* Class = Cast<UClass>(InType))
+	{
+		const FLocalizationDataGatheringCallback* CustomCallback = GetTypeSpecificLocalizationDataGatheringCallbacks().Find(Class);
+		if (CustomCallback)
+		{
+			GatherableFieldsForType->CustomCallback = CustomCallback;
+		}
+	}
+
+	// Look for potential properties
+	for (TFieldIterator<const FProperty> FieldIt(InType, EFieldIteratorFlags::ExcludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::IncludeInterfaces); FieldIt; ++FieldIt)
+	{
+		auto ProcessInnerProperty = [this, &GatherableFieldsForType](const FProperty* InProp, const FProperty* InTypeProp)
+		{
+			if (CanGatherFromInnerProperty(InProp))
 			{
-				ProcessInnerProperty(PropertyField, PropertyField);
+				checkSlow(!GatherableFieldsForType->Properties.Contains(InTypeProp));
+				GatherableFieldsForType->Properties.Add(InTypeProp);
+				return true;
+			}
+			return false;
+		};
+
+		const FProperty* PropertyField = *FieldIt;
+		if (PropertyField)
+		{
+			if (!ProcessInnerProperty(PropertyField, PropertyField))
+			{
 				if (const FArrayProperty* ArrayProp = CastField<const FArrayProperty>(PropertyField))
 				{
 					ProcessInnerProperty(ArrayProp->Inner, PropertyField);
 				}
 				if (const FMapProperty* MapProp = CastField<const FMapProperty>(PropertyField))
 				{
-					ProcessInnerProperty(MapProp->KeyProp, PropertyField);
-					ProcessInnerProperty(MapProp->ValueProp, PropertyField);
+					if (!ProcessInnerProperty(MapProp->KeyProp, PropertyField))
+					{
+						ProcessInnerProperty(MapProp->ValueProp, PropertyField);
+					}
 				}
 				if (const FSetProperty* SetProp = CastField<const FSetProperty>(PropertyField))
 				{
@@ -120,15 +133,14 @@ const FPropertyLocalizationDataGatherer::FGatherableFieldsForType& FPropertyLoca
 			}
 		}
 	}
+
+	// Look for potential functions
 	for (TFieldIterator<const UField> FieldIt(InType, EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::IncludeInterfaces); FieldIt; ++FieldIt)
 	{
-		// Look for potential functions
+		const UFunction* FunctionField = Cast<UFunction>(*FieldIt);
+		if (FunctionField && FunctionField->Script.Num() > 0 && IsObjectValidForGather(FunctionField))
 		{
-			const UFunction* FunctionField = Cast<UFunction>(*FieldIt);
-			if (FunctionField && IsObjectValidForGather(FunctionField))
-			{
-				GatherableFieldsForType->Functions.Add(FunctionField);
-			}
+			GatherableFieldsForType->Functions.Add(FunctionField);
 		}
 	}
 
@@ -154,25 +166,15 @@ bool FPropertyLocalizationDataGatherer::CanGatherFromInnerProperty(const FProper
 
 void FPropertyLocalizationDataGatherer::GatherLocalizationDataFromObjectWithCallbacks(const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags)
 {
-	// See if we have a custom handler for this type
-	FLocalizationDataGatheringCallback* CustomCallback = nullptr;
-	for (const UClass* Class = Object->GetClass(); Class != nullptr; Class = Class->GetSuperClass())
-	{
-		CustomCallback = GetTypeSpecificLocalizationDataGatheringCallbacks().Find(Class);
-		if (CustomCallback)
-		{
-			break;
-		}
-	}
-
-	if (CustomCallback)
+	const FGatherableFieldsForType& GatherableFieldsForType = GetGatherableFieldsForType(Object->GetClass());
+	if (GatherableFieldsForType.CustomCallback)
 	{
 		checkf(IsObjectValidForGather(Object), TEXT("Cannot gather for objects outside of the current package! Package: '%s'. Object: '%s'."), *Package->GetFullName(), *Object->GetFullName());
 
 		if (ShouldProcessObject(Object, GatherTextFlags))
 		{
 			MarkObjectProcessed(Object, GatherTextFlags);
-			(*CustomCallback)(Object, *this, GatherTextFlags);
+			(*GatherableFieldsForType.CustomCallback)(Object, *this, GatherTextFlags);
 		}
 	}
 	else if (ShouldProcessObject(Object, GatherTextFlags))
@@ -198,22 +200,22 @@ void FPropertyLocalizationDataGatherer::GatherLocalizationDataFromObject(const U
 			ResultFlags |= EPropertyLocalizationGathererResultFlags::HasScript;
 		}
 
-		if (Object->IsA<UStruct>())
+		if (const UStruct* Struct = Cast<UStruct>(Object))
 		{
-			BytecodePendingGather.Add(FObjectAndGatherFlags(Object, GatherTextFlags));
+			if (Struct->Script.Num() > 0)
+			{
+				BytecodePendingGather.Add(FObjectAndGatherFlags(Struct, GatherTextFlags));
+			}
 		}
 	}
 
 	// Gather from anything that has us as their outer, as not all objects are reachable via a property pointer.
 	if (!(GatherTextFlags & EPropertyLocalizationGathererTextFlags::SkipSubObjects))
 	{
-		TArray<UObject*> ChildObjects;
-		GetObjectsWithOuter(Object, ChildObjects, false, RF_Transient, EInternalObjectFlags::PendingKill);
-
-		for (const UObject* ChildObject : ChildObjects)
+		ForEachObjectWithOuter(Object, [this, GatherTextFlags](UObject* ChildObject)
 		{
 			GatherLocalizationDataFromObjectWithCallbacks(ChildObject, GatherTextFlags);
-		}
+		}, false, RF_Transient, EInternalObjectFlags::PendingKill);
 	}
 }
 
@@ -226,17 +228,7 @@ void FPropertyLocalizationDataGatherer::GatherLocalizationDataFromObjectFields(c
 	for (const FProperty* PropertyField : GatherableFieldsForType.Properties)
 	{
 		const void* ValueAddress = PropertyField->ContainerPtrToValuePtr<void>(Object);
-		const void* DefaultValueAddress = nullptr;
-
-		if (ArchetypeObject)
-		{
-			const FProperty* ArchetypePropertyField = FindField<FProperty>(ArchetypeObject->GetClass(), *PropertyField->GetName());
-			if (ArchetypePropertyField && ArchetypePropertyField->IsA(PropertyField->GetClass()))
-			{
-				DefaultValueAddress = ArchetypePropertyField->ContainerPtrToValuePtr<void>(ArchetypeObject);
-			}
-		}
-
+		const void* DefaultValueAddress = (ArchetypeObject && ArchetypeObject->IsA(PropertyField->GetOwnerClass())) ? PropertyField->ContainerPtrToValuePtr<void>(ArchetypeObject) : nullptr;
 		GatherLocalizationDataFromChildTextProperties(PathToParent, PropertyField, ValueAddress, DefaultValueAddress, GatherTextFlags | (PropertyField->HasAnyPropertyFlags(CPF_EditorOnly) ? EPropertyLocalizationGathererTextFlags::ForceEditorOnly : EPropertyLocalizationGathererTextFlags::None));
 	}
 
@@ -705,9 +697,8 @@ void FPropertyLocalizationDataGatherer::GatherScriptBytecode(const FString& Path
 	if (ScriptData.Num() > 0)
 	{
 		ResultFlags |= EPropertyLocalizationGathererResultFlags::HasScript;
+		FGatherTextFromScriptBytecode(*PathToScript, ScriptData, *this, bIsEditorOnly);
 	}
-
-	FGatherTextFromScriptBytecode(*PathToScript, ScriptData, *this, bIsEditorOnly);
 }
 
 bool FPropertyLocalizationDataGatherer::IsDefaultTextInstance(const FText& Text) const

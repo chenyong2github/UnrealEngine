@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ContentStreaming.h: Definitions of classes used for content streaming.
@@ -751,11 +751,6 @@ struct ENGINE_VTABLE FStreamingManagerCollection : public IStreamingManager
 	virtual void OnAudioStreamingParamsChanged() override;
 #endif
 
-	void SetVirtualTextureChunkStreamingManager(IStreamingManager* InVirtualTextureChunkStreamingManager)
-	{
-		VirtualTextureChunkStreamingManager = InVirtualTextureChunkStreamingManager;
-	}
-
 protected:
 
 	virtual void AddOrRemoveTextureStreamingManagerIfNeeded(bool bIsInit=false);
@@ -779,8 +774,6 @@ protected:
 
 	/** The animation streaming manager, should always exist */
 	IAnimationStreamingManager* AnimationStreamingManager;
-
-	IStreamingManager* VirtualTextureChunkStreamingManager;
 
 #if WITH_EDITOR
 	// Locks out any audio streaming manager call when we are re-initializing the audio streaming manager.

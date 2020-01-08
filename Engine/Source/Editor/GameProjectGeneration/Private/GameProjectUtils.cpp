@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "GameProjectUtils.h"
@@ -70,7 +70,6 @@
 #include "IAudioExtensionPlugin.h"
 #include "AudioPluginUtilities.h"
 #include "Sound/AudioSettings.h"
-#include "Sound/SoundCueTemplate.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "Sound/SoundEffectSource.h"
 #include "Components/SynthComponent.h"
@@ -530,10 +529,6 @@ FString FNewClassInfo::GetHeaderTemplateFilename() const
 				{
 					return TEXT("SynthComponentClass.h.template");
 				}
-				else if (BaseClass == USoundCueTemplate::StaticClass())
-				{
-					return TEXT("SoundCueTemplateClass.h.template");
-				}
 			}
 			// Some other non-actor, non-component UObject class
 			return TEXT( "UObjectClass.h.template" );
@@ -591,10 +586,6 @@ FString FNewClassInfo::GetSourceTemplateFilename() const
 				else if (BaseClass == USynthComponent::StaticClass())
 				{
 					return TEXT("SynthComponentClass.cpp.template");
-				}
-				else if (BaseClass == USoundCueTemplate::StaticClass())
-				{
-					return TEXT("SoundCueTemplateClass.cpp.template");
 				}
 			}
 			// Some other non-actor, non-component UObject class

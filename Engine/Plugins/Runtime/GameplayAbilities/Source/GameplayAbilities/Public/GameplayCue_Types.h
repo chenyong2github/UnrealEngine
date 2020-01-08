@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -20,8 +20,6 @@ class UGameplayCueSet;
 UENUM()
 enum class EGameplayCuePayloadType : uint8
 {
-	/** Uses FGameplayEffectContextHandle inside GameplayCueParameters */
-	EffectContext,
 	/** Uses FGameplayCueParameters */
 	CueParameters,
 	/** Uses FGameplayEffectSpecForRPC */
@@ -35,11 +33,7 @@ struct FGameplayCuePendingExecute
 {
 	GENERATED_USTRUCT_BODY()
 
-	FGameplayCuePendingExecute()
-		: PayloadType(EGameplayCuePayloadType::EffectContext)
-		, OwningComponent(nullptr)
-	{
-	}
+	FGameplayCuePendingExecute() {}
 
 	/** List of tags, we allocate one as there is almost always exactly one tag */
 	TArray<FGameplayTag, TInlineAllocator<1> > GameplayCueTags;
@@ -50,11 +44,11 @@ struct FGameplayCuePendingExecute
 
 	/** What type of payload is attached to this cue */
 	UPROPERTY()
-	EGameplayCuePayloadType PayloadType;
+	EGameplayCuePayloadType PayloadType = EGameplayCuePayloadType::CueParameters;
 
 	/** What component to send the cue on */
 	UPROPERTY()
-	UAbilitySystemComponent* OwningComponent;
+	UAbilitySystemComponent* OwningComponent = nullptr;
 
 	/** If this cue is from a spec, here's the copy of that spec */
 	UPROPERTY()

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/PolyglotTextSource.h"
 #include "Internationalization/TextLocalizationResource.h"
@@ -48,9 +48,9 @@ void FPolyglotTextSource::GetLocalizedCultureNames(const ELocalizationLoadFlags 
 	}
 }
 
-void FPolyglotTextSource::LoadLocalizedResources(const ELocalizationLoadFlags InLoadFlags, TArrayView<const FString> InPrioritizedCultures, FTextLocalizationResource& InOutNativeResource, FTextLocalizationResource& InOutLocalizedResource)
+void FPolyglotTextSource::AddPolyglotDataToResource(const FPolyglotTextData& InPolyglotTextData, const ELocalizationLoadFlags InLoadFlags, TArrayView<const FString> InPrioritizedCultures, FTextLocalizationResource& InOutNativeResource, FTextLocalizationResource& InOutLocalizedResource) const
 {
-	auto ShouldLoadLocalizedText = [InLoadFlags](const FPolyglotTextData& InPolyglotTextData) -> bool
+	auto ShouldLoadLocalizedText = [InLoadFlags, &InPolyglotTextData]() -> bool
 	{
 		switch (InPolyglotTextData.GetCategory())
 		{
@@ -67,7 +67,7 @@ void FPolyglotTextSource::LoadLocalizedResources(const ELocalizationLoadFlags In
 		return false;
 	};
 
-	auto GetLocalizedStringForPolyglotData = [](const FPolyglotTextData& InPolyglotTextData, TArrayView<const FString> InCulturesToCheck, FString& OutLocalizedString, int32* OutLocalizedPriority = nullptr) -> bool
+	auto GetLocalizedStringForPolyglotData = [&InPolyglotTextData](TArrayView<const FString> InCulturesToCheck, FString& OutLocalizedString, int32* OutLocalizedPriority = nullptr) -> bool
 	{
 		for (int32 CultureIndex = 0; CultureIndex < InCulturesToCheck.Num(); ++CultureIndex)
 		{
@@ -97,63 +97,78 @@ void FPolyglotTextSource::LoadLocalizedResources(const ELocalizationLoadFlags In
 	};
 
 	const int32 BaseResourcePriority = GetPriority() * -1; // Flip the priority as larger text source priorities are more important, but smaller text resource priorities are more important
+	const FString NativeCulture = InPolyglotTextData.ResolveNativeCulture();
 
-	for (const auto& PolyglotTextDataPair : PolyglotTextDataMap)
+	// We skip loading the native text if we're transitioning to the native culture as there's no extra work that needs to be done
+	if (ShouldLoadNative(InLoadFlags) && !InPrioritizedCultures.Contains(NativeCulture))
 	{
-		const FPolyglotTextData& PolyglotTextData = PolyglotTextDataPair.Value;
-		const FString NativeCulture = PolyglotTextData.ResolveNativeCulture();
-
-		// We skip loading the native text if we're transitioning to the native culture as there's no extra work that needs to be done
-		if (ShouldLoadNative(InLoadFlags) && !InPrioritizedCultures.Contains(NativeCulture))
+		FString LocalizedString;
+		if (GetLocalizedStringForPolyglotData(TArrayView<const FString>(&NativeCulture, 1), LocalizedString))
 		{
+			InOutNativeResource.AddEntry(
+				InPolyglotTextData.GetNamespace(),
+				InPolyglotTextData.GetKey(),
+				InPolyglotTextData.GetNativeString(),
+				LocalizedString,
+				BaseResourcePriority
+				);
+		}
+	}
+
+	if (ShouldLoadLocalizedText())
+	{
+		if (InPolyglotTextData.GetCategory() == ELocalizedTextSourceCategory::Game && ShouldLoadNativeGameData(InLoadFlags))
+		{
+			// The editor cheats and loads the native language's localizations for game data.
 			FString LocalizedString;
-			if (GetLocalizedStringForPolyglotData(PolyglotTextData, TArrayView<const FString>(&NativeCulture, 1), LocalizedString))
+			if (GetLocalizedStringForPolyglotData(TArrayView<const FString>(&NativeCulture, 1), LocalizedString))
 			{
-				InOutNativeResource.AddEntry(
-					PolyglotTextData.GetNamespace(),
-					PolyglotTextData.GetKey(),
-					PolyglotTextData.GetNativeString(),
+				InOutLocalizedResource.AddEntry(
+					InPolyglotTextData.GetNamespace(),
+					InPolyglotTextData.GetKey(),
+					InPolyglotTextData.GetNativeString(),
 					LocalizedString,
 					BaseResourcePriority
 					);
 			}
 		}
-
-		if (ShouldLoadLocalizedText(PolyglotTextData))
+		else
 		{
-			if (PolyglotTextData.GetCategory() == ELocalizedTextSourceCategory::Game && ShouldLoadNativeGameData(InLoadFlags))
+			// Find culture localization resource.
+			int32 LocalizedPriority = 0;
+			FString LocalizedString;
+			if (GetLocalizedStringForPolyglotData(InPrioritizedCultures, LocalizedString, &LocalizedPriority))
 			{
-				// The editor cheats and loads the native language's localizations for game data.
-				FString LocalizedString;
-				if (GetLocalizedStringForPolyglotData(PolyglotTextData, TArrayView<const FString>(&NativeCulture, 1), LocalizedString))
-				{
-					InOutLocalizedResource.AddEntry(
-						PolyglotTextData.GetNamespace(),
-						PolyglotTextData.GetKey(),
-						PolyglotTextData.GetNativeString(),
-						LocalizedString,
-						BaseResourcePriority
-						);
-				}
-			}
-			else
-			{
-				// Find culture localization resource.
-				int32 LocalizedPriority = 0;
-				FString LocalizedString;
-				if (GetLocalizedStringForPolyglotData(PolyglotTextData, InPrioritizedCultures, LocalizedString, &LocalizedPriority))
-				{
-					InOutLocalizedResource.AddEntry(
-						PolyglotTextData.GetNamespace(),
-						PolyglotTextData.GetKey(),
-						PolyglotTextData.GetNativeString(),
-						LocalizedString,
-						BaseResourcePriority + LocalizedPriority
-						);
-				}
+				InOutLocalizedResource.AddEntry(
+					InPolyglotTextData.GetNamespace(),
+					InPolyglotTextData.GetKey(),
+					InPolyglotTextData.GetNativeString(),
+					LocalizedString,
+					BaseResourcePriority + LocalizedPriority
+					);
 			}
 		}
 	}
+}
+
+void FPolyglotTextSource::LoadLocalizedResources(const ELocalizationLoadFlags InLoadFlags, TArrayView<const FString> InPrioritizedCultures, FTextLocalizationResource& InOutNativeResource, FTextLocalizationResource& InOutLocalizedResource)
+{
+	for (const auto& PolyglotTextDataPair : PolyglotTextDataMap)
+	{
+		const FPolyglotTextData& PolyglotTextData = PolyglotTextDataPair.Value;
+		AddPolyglotDataToResource(PolyglotTextData, InLoadFlags, InPrioritizedCultures, InOutNativeResource, InOutLocalizedResource);
+	}
+}
+
+EQueryLocalizedResourceResult FPolyglotTextSource::QueryLocalizedResource(const ELocalizationLoadFlags InLoadFlags, TArrayView<const FString> InPrioritizedCultures, const FTextId InTextId, FTextLocalizationResource& InOutNativeResource, FTextLocalizationResource& InOutLocalizedResource)
+{
+	const FLocKey Identity = FString::Printf(TEXT("%s::%s"), InTextId.GetNamespace().GetChars(), InTextId.GetKey().GetChars());
+	if (const FPolyglotTextData* PolyglotTextData = PolyglotTextDataMap.Find(Identity))
+	{
+		AddPolyglotDataToResource(*PolyglotTextData, InLoadFlags, InPrioritizedCultures, InOutNativeResource, InOutLocalizedResource);
+		return EQueryLocalizedResourceResult::Found;
+	}
+	return EQueryLocalizedResourceResult::NotFound;
 }
 
 void FPolyglotTextSource::RegisterPolyglotTextData(const FPolyglotTextData& InPolyglotTextData)

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 import {BotConfig, BranchBase, BranchOptions} from './branchdefs'
 import {RoboWorkspace} from '../common/perforce'

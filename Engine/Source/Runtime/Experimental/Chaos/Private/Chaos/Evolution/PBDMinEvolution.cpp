@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/Evolution/PBDMinEvolution.h"
 #include "Chaos/Collision/CollisionDetector.h"
@@ -7,6 +7,7 @@
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDConstraintRule.h"
 #include "Chaos/PBDRigidsSOAs.h"
+#include "Chaos/PerParticleAddImpulses.h"
 #include "Chaos/PerParticleEtherDrag.h"
 #include "Chaos/PerParticleEulerStepVelocity.h"
 #include "Chaos/PerParticleGravity.h"
@@ -41,31 +42,17 @@ namespace Chaos
 		ConstraintRules.Add(Rule);
 	}
 
-	// @todo(ccaulfield): dedupe (PBDRigidsEvolutionGBF)
-	void FPBDMinEvolution::Advance(const FReal Dt, const FReal MaxStepDt, const int32 MaxSteps)
+	void FPBDMinEvolution::Advance(const FReal StepDt, const int32 NumSteps)
 	{
-		// Determine how many steps we would like to take
-		int32 NumSteps = FMath::CeilToInt(Dt / MaxStepDt);
-		if (NumSteps > 0)
+		for (int32 Step = 0; Step < NumSteps; ++Step)
 		{
-			// Determine the step time
-			const FReal StepDt = Dt / (FReal)NumSteps;
+			// StepFraction: how much of the remaining time this step represents, used to interpolate kinematic targets
+			// E.g., for 4 steps this will be: 1/4, 1/3, 1/2, 1
+			const float StepFraction = (FReal)1 / (FReal)(NumSteps - Step);
 
-			// Limit the number of steps
-			// NOTE: This is after step time calculation so sim will appear to slow down for large Dt
-			// but that is preferable to blowing up from a large timestep.
-			NumSteps = FMath::Clamp(NumSteps, 1, MaxSteps);
+			UE_LOG(LogChaos, Verbose, TEXT("Advance dt = %f [%d/%d]"), StepDt, Step + 1, NumSteps);
 
-			for (int32 Step = 0; Step < NumSteps; ++Step)
-			{
-				// StepFraction: how much of the remaining time this step represents, used to interpolate kinematic targets
-				// E.g., for 4 steps this will be: 1/4, 1/3, 1/2, 1
-				const float StepFraction = (FReal)1 / (FReal)(NumSteps - Step);
-
-				UE_LOG(LogChaos, Verbose, TEXT("Advance dt = %f [%d/%d]"), StepDt, Step + 1, NumSteps);
-
-				AdvanceOneTimeStep(StepDt, StepFraction);
-			}
+			AdvanceOneTimeStep(StepDt, StepFraction);
 		}
 	}
 
@@ -117,7 +104,8 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_Integrate);
 
 		TPerParticleEulerStepVelocity<FReal, 3> EulerStepVelocityRule;
-		//TPerParticleEtherDrag<FReal, 3> EtherDragRule(HackLinearDrag, HackAngularDrag);
+		TPerParticleAddImpulses<FReal, 3> AddImpulsesRule;
+		TPerParticleEtherDrag<FReal, 3> EtherDragRule;
 		TPerParticlePBDEulerStep<FReal, 3> EulerStepPositionRule;
 
 		for (TTransientPBDRigidParticleHandle<FReal, 3>& Particle : Particles.GetActiveParticlesView())
@@ -127,13 +115,18 @@ namespace Chaos
 				Particle.PreV() = Particle.V();
 				Particle.PreW() = Particle.W();
 
-				Particle.F() = Particle.ExternalForce() + Particle.M() * Gravity;
-				Particle.Torque() = Particle.ExternalTorque();
+				Particle.F() += Particle.M() * Gravity;
 
 				EulerStepVelocityRule.Apply(Particle, Dt);
-				//EtherDragRule.Apply(Particle, Dt);
+				AddImpulsesRule.Apply(Particle, Dt);
+				EtherDragRule.Apply(Particle, Dt);
 
 				EulerStepPositionRule.Apply(Particle, Dt);
+
+				Particle.F() = FVec3(0);
+				Particle.Torque() = FVec3(0);
+				Particle.LinearImpulse() = FVec3(0);
+				Particle.AngularImpulse() = FVec3(0);
 
 				if (Particle.HasBounds())
 				{
@@ -233,6 +226,10 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_DetectCollisions);
 
+		// @todo(ccaulfield): doesn't need to be every frame
+		PrioritizedConstraintRules = ConstraintRules;
+		PrioritizedConstraintRules.StableSort();
+
 		for (FSimpleConstraintRule* ConstraintRule : PrioritizedConstraintRules)
 		{
 			ConstraintRule->UpdatePositionBasedState(Dt);
@@ -244,10 +241,6 @@ namespace Chaos
 	void FPBDMinEvolution::ApplyConstraints(FReal Dt)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyConstraints);
-
-		// @todo(ccaulfield): doesn't need to be every frame
-		PrioritizedConstraintRules = ConstraintRules;
-		PrioritizedConstraintRules.StableSort();
 
 		// @todo(ccaulfield): track whether we are sufficiently solved and can early-out
 		for (int32 i = 0; i < NumApplyIterations; ++i)

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 //
 // Base class of a network driver attached to an active or pending level.
@@ -569,6 +569,9 @@ public:
 	FString			PathName;
 	FName			StreamingLevelName;
 	EChannelCloseReason Reason;
+
+	/** When true the destruction info data will be sent even if the viewers are not close to the actor */
+	bool bIgnoreDistanceCulling = false;
 
 	void CountBytes(FArchive& Ar)
 	{

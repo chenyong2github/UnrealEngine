@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -7,6 +7,7 @@
 #include "Sound/SoundSubmix.h"
 #include "DSP/EnvelopeFollower.h"
 #include "DSP/SpectrumAnalyzer.h"
+#include "Templates/SharedPointer.h"
 
 
 // Forward Declarations
@@ -54,7 +55,7 @@ namespace Audio
 		virtual ~FMixerSubmix();
 
 		// Initialize the submix object with the USoundSubmix ptr. Sets up child and parent connects.
-		void Init(USoundSubmix* InSoundSubmix);
+		void Init(USoundSubmix* InSoundSubmix, bool bAllowReInit = true);
 
 		// Returns the mixer submix Id
 		uint32 GetId() const { return Id; }
@@ -64,6 +65,9 @@ namespace Audio
 
 		// Adds the given submix to this submix's children
 		void AddChildSubmix(TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> Submix);
+
+		// Removes the given submix from this submix's children
+		void RemoveChildSubmix(TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> SubmixWeakPtr);
 
 		// Sets the static output volume of the submix
 		void SetOutputVolume(float InVolume);
@@ -90,7 +94,7 @@ namespace Audio
 		void RemoveSourceVoice(FMixerSourceVoice* InSourceVoice);
 
 		/** Appends the effect submix to the effect submix chain. */
-		void AddSoundEffectSubmix(uint32 SubmixPresetId, FSoundEffectSubmix* InSoundEffectSubmix);
+		void AddSoundEffectSubmix(uint32 SubmixPresetId, FSoundEffectSubmixPtr InSoundEffectSubmix);
 
 		/** Removes the submix effect from the effect submix chain. */
 		void RemoveSoundEffectSubmix(uint32 SubmixPresetId);
@@ -114,7 +118,7 @@ namespace Audio
 		int32 GetNumChainEffects() const;
 
 		// Returns the submix effect at the given effect chain index
-		FSoundEffectSubmix* GetSubmixEffect(const int32 InIndex);
+		FSoundEffectSubmixPtr GetSubmixEffect(const int32 InIndex);
 
 		// updates settings, potentially creating or removing ambisonics streams based on
 		void OnAmbisonicsSettingsChanged(UAmbisonicsSubmixSettingsBase* AmbisonicsSettings);
@@ -227,11 +231,10 @@ namespace Audio
 			uint32 PresetId;
 
 			// The effect instance ptr
-			FSoundEffectSubmix* EffectInstance;
+			FSoundEffectSubmixPtr EffectInstance;
 
 			FSubmixEffectInfo()
 				: PresetId(INDEX_NONE)
-				, EffectInstance(nullptr)
 			{
 			}
 		};

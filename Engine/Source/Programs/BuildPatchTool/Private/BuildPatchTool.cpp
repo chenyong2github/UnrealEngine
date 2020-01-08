@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BuildPatchTool.h"
 #include "UObject/Object.h"
@@ -127,7 +127,9 @@ EReturnCode BuildPatchToolMain(const TCHAR* CommandLine)
 
 	// Shutdown
 	RequestEngineExit(TEXT("BuildPatchToolMain Exiting"));
-	FCoreDelegates::OnExit.Broadcast();
+
+	FEngineLoop::AppPreExit();
+	FEngineLoop::AppExit();
 
 	return ReturnCode;
 }

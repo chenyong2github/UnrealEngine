@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsProxy/FieldSystemPhysicsProxy.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
@@ -1000,7 +1000,7 @@ void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(
 							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handle->CastToRigidParticle();
 							if(RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic)
 							{
-								RigidHandle->ExternalForce() += ForceView[i];
+								RigidHandle->F() += ForceView[i];
 							}
 							++i;
 						}
@@ -1060,7 +1060,7 @@ void FFieldSystemPhysicsProxy::FieldForcesUpdateCallback(
 							Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handle->CastToRigidParticle();
 							if(RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic)
 							{
-								RigidHandle->ExternalTorque() += TorqueView[i];
+								RigidHandle->Torque() += TorqueView[i];
 							}
 							++i;
 						}

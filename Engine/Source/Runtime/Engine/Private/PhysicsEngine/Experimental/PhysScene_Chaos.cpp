@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Physics/Experimental/PhysScene_Chaos.h"
 
@@ -1189,16 +1189,16 @@ void FPhysScene_ChaosInterface::AddForce_AssumesLocked(FBodyInstance* BodyInstan
 			{
 				Rigid->SetObjectState(EObjectStateType::Dynamic);
 
-				const Chaos::TVector<float, 3> CurrentForce = Rigid->ExternalForce();
+				const Chaos::TVector<float, 3> CurrentForce = Rigid->F();
 				if (bAccelChange)
 				{
 					const float Mass = Rigid->M();
 					const Chaos::TVector<float, 3> TotalAcceleration = CurrentForce + (Force * Mass);
-					Rigid->SetExternalForce(TotalAcceleration);
+					Rigid->SetF(TotalAcceleration);
 				}
 				else
 				{
-					Rigid->SetExternalForce(CurrentForce + Force);
+					Rigid->SetF(CurrentForce + Force);
 				}
 
 			}
@@ -1220,8 +1220,8 @@ void FPhysScene_ChaosInterface::AddForceAtPosition_AssumesLocked(FBodyInstance* 
 			EObjectStateType ObjectState = Rigid->ObjectState();
 			if (CHAOS_ENSURE(ObjectState == EObjectStateType::Dynamic || ObjectState == EObjectStateType::Sleeping))
 			{
-				const Chaos::FVec3& CurrentForce = Rigid->ExternalForce();
-				const Chaos::FVec3& CurrentTorque = Rigid->ExternalTorque();
+				const Chaos::FVec3& CurrentForce = Rigid->F();
+				const Chaos::FVec3& CurrentTorque = Rigid->Torque();
 				const Chaos::FVec3 WorldCOM = FParticleUtilitiesGT::GetCoMWorldPosition(Rigid);
 
 				Rigid->SetObjectState(EObjectStateType::Dynamic);
@@ -1232,14 +1232,14 @@ void FPhysScene_ChaosInterface::AddForceAtPosition_AssumesLocked(FBodyInstance* 
 					const Chaos::FVec3 WorldPosition = CurrentTransform.TransformPosition(Position);
 					const Chaos::FVec3 WorldForce = CurrentTransform.TransformVector(Force);
 					const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(WorldPosition - WorldCOM, WorldForce);
-					Rigid->SetExternalForce(CurrentForce + WorldForce);
-					Rigid->SetExternalTorque(CurrentTorque + WorldTorque);
+					Rigid->SetF(CurrentForce + WorldForce);
+					Rigid->SetTorque(CurrentTorque + WorldTorque);
 				}
 				else
 				{
 					const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(Position - WorldCOM, Force);
-					Rigid->SetExternalForce(CurrentForce + Force);
-					Rigid->SetExternalTorque(CurrentTorque + WorldTorque);
+					Rigid->SetF(CurrentForce + Force);
+					Rigid->SetTorque(CurrentTorque + WorldTorque);
 				}
 
 			}
@@ -1296,14 +1296,14 @@ void FPhysScene_ChaosInterface::AddTorque_AssumesLocked(FBodyInstance* BodyInsta
 			EObjectStateType ObjectState = Rigid->ObjectState();
 			if (CHAOS_ENSURE(ObjectState == EObjectStateType::Dynamic || ObjectState == EObjectStateType::Sleeping))
 			{
-				const Chaos::TVector<float, 3> CurrentTorque = Rigid->ExternalTorque();
+				const Chaos::TVector<float, 3> CurrentTorque = Rigid->Torque();
 				if (bAccelChange)
 				{
-					Rigid->SetExternalTorque(CurrentTorque + (Rigid->I() * Torque));
+					Rigid->SetTorque(CurrentTorque + (Utilities::ComputeWorldSpaceInertia(Rigid->R(), Rigid->I()) * Torque));
 				}
 				else
 				{
-					Rigid->SetExternalTorque(CurrentTorque + Torque);
+					Rigid->SetTorque(CurrentTorque + Torque);
 				}
 			}
 		}
@@ -1495,6 +1495,18 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 		//flush queue so we can merge the two threads
 		Dispatcher->Execute();
 
+		// flush solver queues
+		const TArray<FPhysicsSolver*>& SolverList = SolverModule->GetSolvers();
+		for (FPhysicsSolver* Solver : SolverList)
+		{
+			TQueue<TFunction<void(Chaos::FPhysicsSolver*)>, EQueueMode::Mpsc>& Queue = Solver->GetCommandQueue();
+			TFunction<void(Chaos::FPhysicsSolver*)> Command;
+			while (Queue.Dequeue(Command))
+			{
+				Command(Solver);
+			}
+		}
+
 		// Flip the buffers over to the game thread and sync
 		{
 			SCOPE_CYCLE_COUNTER(STAT_FlipResults);
@@ -1503,7 +1515,6 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 			//for now just copy the whole thing, stomping any changes that came from GT
 			Scene.CopySolverAccelerationStructure();
 
-			const TArray<FPhysicsSolver*>& SolverList = SolverModule->GetSolvers();
 			TArray<FPhysicsSolver*> ActiveSolvers;
 			ActiveSolvers.Reserve(SolverList.Num());
 

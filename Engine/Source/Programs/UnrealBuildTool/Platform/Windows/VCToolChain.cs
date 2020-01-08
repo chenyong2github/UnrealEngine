@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -12,7 +12,7 @@ using Tools.DotNETCommon;
 
 namespace UnrealBuildTool
 {
-	class VCToolChain : UEToolChain
+	class VCToolChain : ISPCToolChain
 	{
 		/// <summary>
 		/// The target being built
@@ -103,11 +103,11 @@ namespace UnrealBuildTool
 		}
 
 
-		public static void AddIncludePath(List<string> Arguments, DirectoryReference IncludePath, WindowsCompiler Compiler)
+		public static void AddIncludePath(List<string> Arguments, DirectoryReference IncludePath, WindowsCompiler Compiler, bool bPreprocessOnly)
 		{
-			// If the value has a space in it and isn't wrapped in quotes, do that now. Make sure it doesn't include a trailing slash, because that will escape the closing quote.
+			// Try to use a relative path to shorten command line length. Always need the full path when preprocessing because the output file will be in a different place, where include paths cannot be relative.
 			string IncludePathString;
-			if(IncludePath.IsUnderDirectory(UnrealBuildTool.RootDirectory) && Compiler != WindowsCompiler.Clang)
+			if(IncludePath.IsUnderDirectory(UnrealBuildTool.RootDirectory) && Compiler != WindowsCompiler.Clang && !bPreprocessOnly)
 			{
 				IncludePathString = IncludePath.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory);
 			}
@@ -116,7 +116,8 @@ namespace UnrealBuildTool
 				IncludePathString = IncludePath.FullName;
 			}
 
-			if(IncludePathString.Contains(" "))
+			// If the value has a space in it and isn't wrapped in quotes, do that now. Make sure it doesn't include a trailing slash, because that will escape the closing quote.
+			if (IncludePathString.Contains(" "))
 			{
 				IncludePathString = "\"" + IncludePathString + "\"";
 			}
@@ -124,7 +125,7 @@ namespace UnrealBuildTool
 			Arguments.Add("/I " + IncludePathString);
 		}
 
-		public static void AddSystemIncludePath(List<string> Arguments, DirectoryReference IncludePath, WindowsCompiler Compiler)
+		public static void AddSystemIncludePath(List<string> Arguments, DirectoryReference IncludePath, WindowsCompiler Compiler, bool bPreprocessOnly)
 		{
 			if (Compiler == WindowsCompiler.Clang)
 			{
@@ -134,7 +135,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				AddIncludePath(Arguments, IncludePath, Compiler);
+				AddIncludePath(Arguments, IncludePath, Compiler, bPreprocessOnly);
 			}
 		}
 
@@ -904,17 +905,17 @@ namespace UnrealBuildTool
 			// Add include paths to the argument list.
 			foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
 			{
-				AddIncludePath(SharedArguments, IncludePath, Target.WindowsPlatform.Compiler);
+				AddIncludePath(SharedArguments, IncludePath, Target.WindowsPlatform.Compiler, CompileEnvironment.bPreprocessOnly);
 			}
 
 			foreach (DirectoryReference IncludePath in CompileEnvironment.SystemIncludePaths)
 			{
-				AddSystemIncludePath(SharedArguments, IncludePath, Target.WindowsPlatform.Compiler);
+				AddSystemIncludePath(SharedArguments, IncludePath, Target.WindowsPlatform.Compiler, CompileEnvironment.bPreprocessOnly);
 			}
 
 			foreach (DirectoryReference IncludePath in EnvVars.IncludePaths)
 			{
-				AddSystemIncludePath(SharedArguments, IncludePath, Target.WindowsPlatform.Compiler);
+				AddSystemIncludePath(SharedArguments, IncludePath, Target.WindowsPlatform.Compiler, CompileEnvironment.bPreprocessOnly);
 			}
 
 			if (CompileEnvironment.bPrintTimingInfo || Target.WindowsPlatform.bCompilerTrace)
@@ -974,7 +975,7 @@ namespace UnrealBuildTool
 
 					// Make sure the original source directory the PCH header file existed in is added as an include
 					// path -- it might be a private PCH header and we need to make sure that its found!
-					AddIncludePath(FileArguments, SourceFile.Location.Directory, Target.WindowsPlatform.Compiler);
+					AddIncludePath(FileArguments, SourceFile.Location.Directory, Target.WindowsPlatform.Compiler, CompileEnvironment.bPreprocessOnly);
 
 					// Add the precompiled header file to the produced items list.
 					FileItem PrecompiledHeaderFile = FileItem.GetItemByFileReference(
@@ -1414,194 +1415,6 @@ namespace UnrealBuildTool
 				}
 			}
 			return Result.ToString();
-		}
-
-		public override CPPOutput GenerateISPCHeaders(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, List<Action> Actions)
-		{
-			CPPOutput Result = new CPPOutput();
-
-			foreach (FileItem ISPCFile in InputFiles)
-			{
-				Action CompileAction = new Action(ActionType.Compile);
-				CompileAction.CommandDescription = "Compile";
-				CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
-				CompileAction.CommandPath = EnvVars.ISPCCompilerPath;
-				CompileAction.StatusDescription = Path.GetFileName(ISPCFile.AbsolutePath);
-
-				// Disable remote execution to workaround mismatched case on XGE
-				CompileAction.bCanExecuteRemotely = false;
-
-				List<string> Arguments = new List<string>();
-
-				// Add the ISPC obj file as a prerequisite of the action.
-				Arguments.Add(String.Format(" \"{0}\"", ISPCFile.AbsolutePath));
-
-				// Add the ISPC h file to the produced item list.
-				FileItem ISPCIncludeHeaderFile = FileItem.GetItemByFileReference(
-					FileReference.Combine(
-						OutputDir,
-						Path.GetFileName(ISPCFile.AbsolutePath) + ".generated.h"
-						)
-					);
-
-				// Add the ISPC file to be compiled.
-				Arguments.Add(String.Format("-h \"{0}\"", ISPCIncludeHeaderFile));
-
-				// Also add the x86/x86_64 definition to the ISPC compiler
-				if (CompileEnvironment.Platform == UnrealTargetPlatform.Win32)
-				{
-					Arguments.Add("--arch=x86");
-				}
-				else if (CompileEnvironment.Platform == UnrealTargetPlatform.Win64)
-				{
-					Arguments.Add("--arch=x86_64");
-				}
-
-				// Add the target architectures
-				Arguments.Add("--target=avx512skx-i32x8,avx2,avx,sse4,sse2");
-
-				// Include paths. Don't use AddIncludePath() here, since it uses the full path and exceeds the max command line length.
-				foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
-				{
-					Arguments.Add(String.Format("-I\"{0}\"", IncludePath));
-				}
-
-				// System include paths.
-				foreach (DirectoryReference SystemIncludePath in CompileEnvironment.SystemIncludePaths)
-				{
-					Arguments.Add(String.Format("-I\"{0}\"", SystemIncludePath));
-				}
-				foreach (DirectoryReference SystemIncludePath in EnvVars.IncludePaths)
-				{
-					Arguments.Add(String.Format("-I\"{0}\"", SystemIncludePath));
-				}
-
-				CompileAction.ProducedItems.Add(ISPCIncludeHeaderFile);
-				Result.GeneratedHeaderFiles.Add(ISPCIncludeHeaderFile);
-
-				CompileAction.CommandArguments = String.Join(" ", Arguments);
-
-				// Add the source file and its included files to the prerequisite item list.
-				CompileAction.PrerequisiteItems.Add(ISPCFile);
-
-				Actions.Add(CompileAction);
-
-				Log.TraceVerbose("   ISPC Generating Header " + CompileAction.StatusDescription + ": \"" + CompileAction.CommandPath + "\"" + CompileAction.CommandArguments);
-			}
-
-			return Result;
-		}
-
-		public override CPPOutput CompileISPCFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, List<Action> Actions)
-		{
-			CPPOutput Result = new CPPOutput();
-
-			string[] ISATargets = { "avx512skx-i32x8", "avx2", "avx", "sse4", "sse2" };
-			List<string> CompileTargets = new List<string>(ISATargets);
-
-			foreach (FileItem ISPCFile in InputFiles)
-			{
-				Action CompileAction = new Action(ActionType.Compile);
-				CompileAction.CommandDescription = "Compile";
-				CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
-				CompileAction.CommandPath = EnvVars.ISPCCompilerPath;
-				CompileAction.StatusDescription = Path.GetFileName(ISPCFile.AbsolutePath);
-
-				// Disable remote execution to workaround mismatched case on XGE
-				CompileAction.bCanExecuteRemotely = false;
-
-				List<string> Arguments = new List<string>();
-
-				// Add the ISPC file to be compiled.
-				Arguments.Add(String.Format(" \"{0}\"", ISPCFile.AbsolutePath));
-
-				List<FileItem> CompiledISPCObjFiles = new List<FileItem>();
-
-				foreach(string Target in CompileTargets)
-				{
-					// Add the ISA specific ISPC obj files to the produced item list.
-					FileItem CompiledISPCObjFile = FileItem.GetItemByFileReference(
-						FileReference.Combine(
-							OutputDir,
-							Path.GetFileName(ISPCFile.AbsolutePath) + "_" + Target + ".obj"
-							)
-						);
-
-					if (Target == "avx512skx-i32x8")
-					{
-						CompiledISPCObjFile = FileItem.GetItemByFileReference(
-						FileReference.Combine(
-							OutputDir,
-							Path.GetFileName(ISPCFile.AbsolutePath) + "_" + "avx512skx" + ".obj"
-							)
-						);
-					}
-
-					CompiledISPCObjFiles.Add(CompiledISPCObjFile);
-				}
-
-				// Add the common ISPC obj file to the produced item list.
-				FileItem CompiledISPCObjFileNoISA = FileItem.GetItemByFileReference(
-					FileReference.Combine(
-						OutputDir,
-						Path.GetFileName(ISPCFile.AbsolutePath) + ".obj"
-						)
-					);
-
-				CompiledISPCObjFiles.Add(CompiledISPCObjFileNoISA);
-
-				// Add the output ISPC obj file
-				Arguments.Add(String.Format("-o \"{0}\"", CompiledISPCObjFileNoISA));
-
-				// Also add the x86/x86_64 definition to the ISPC compiler
-				if (CompileEnvironment.Platform == UnrealTargetPlatform.Win32)
-				{
-					Arguments.Add("--arch=x86");
-				}
-				else if (CompileEnvironment.Platform == UnrealTargetPlatform.Win64)
-				{
-					Arguments.Add("--arch=x86_64");
-				}
-
-				// Add the target architectures
-				Arguments.Add("--target=avx512skx-i32x8,avx2,avx,sse4,sse2 -O2");
-
-				// Include paths. Don't use AddIncludePath() here, since it uses the full path and exceeds the max command line length.
-				foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
-				{
-					Arguments.Add(String.Format("-I\"{0}\"", IncludePath));
-				}
-
-				// System include paths.
-				foreach (DirectoryReference SystemIncludePath in CompileEnvironment.SystemIncludePaths)
-				{
-					Arguments.Add(String.Format("-I\"{0}\"", SystemIncludePath));
-				}
-				foreach (DirectoryReference SystemIncludePath in EnvVars.IncludePaths)
-				{
-					Arguments.Add(String.Format("-I\"{0}\"", SystemIncludePath));
-				}
-
-				// Preprocessor definitions.
-				foreach (string Definition in CompileEnvironment.Definitions)
-				{
-					Arguments.Add(String.Format("-D\"{0}\"", Definition));
-				}
-
-				CompileAction.ProducedItems.AddRange(CompiledISPCObjFiles);
-				Result.ObjectFiles.AddRange(CompiledISPCObjFiles);
-
-				CompileAction.CommandArguments = String.Join(" ", Arguments);
-
-				// Add the source file and its included files to the prerequisite item list.
-				CompileAction.PrerequisiteItems.Add(ISPCFile);
-
-				Actions.Add(CompileAction);
-
-				Log.TraceVerbose("   ISPC Compiling " + CompileAction.StatusDescription + ": \"" + CompileAction.CommandPath + "\"" + CompileAction.CommandArguments);
-			}
-
-			return Result;
 		}
 
 		public override FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, List<Action> Actions)

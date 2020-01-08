@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Templates/UnrealTemplate.h"
@@ -54,7 +54,7 @@ namespace Chaos
 		{
 			this->Type = Other.Type;
 			this->bIsConvex = Other.bIsConvex;
-			this->bIgnoreAnalyticCollisions = Other.bIgnoreAnalyticCollisions;
+			this->bDoCollide = Other.bDoCollide;
 			this->bHasBoundingBox = Other.bHasBoundingBox;
 
 			AABB = Other.AABB;
@@ -65,7 +65,7 @@ namespace Chaos
 		{
 			this->Type = Other.Type;
 			this->bIsConvex = Other.bIsConvex;
-			this->bIgnoreAnalyticCollisions = Other.bIgnoreAnalyticCollisions;
+			this->bDoCollide = Other.bDoCollide;
 			this->bHasBoundingBox = Other.bHasBoundingBox;
 
 			AABB = MoveTemp(Other.AABB);
@@ -138,7 +138,7 @@ namespace Chaos
 
 		FORCEINLINE static constexpr EImplicitObjectType StaticType() { return ImplicitObjectType::Box; }
 
-		const TAABB<T, d>& BoundingBox() const { return AABB; }
+		const TAABB<T, d> BoundingBox() const { return AABB; }
 
 		virtual T PhiWithNormal(const TVector<T, d>& x, TVector<T, d>& Normal) const override
 		{

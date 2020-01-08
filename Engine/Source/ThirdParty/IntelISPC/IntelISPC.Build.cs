@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 
@@ -8,9 +8,15 @@ public class IntelISPC : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		if ( ( Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 ) && Target.WindowsPlatform.StaticAnalyzer != WindowsStaticAnalyzer.PVSStudio )
-		{
-            PublicDefinitions.Add("INTEL_ISPC=1");
+		if (Target.bCompileISPC == true &&
+            (Target.WindowsPlatform.StaticAnalyzer != WindowsStaticAnalyzer.PVSStudio ||
+            Target.WindowsPlatform.StaticAnalyzer != WindowsStaticAnalyzer.VisualCpp))
+        {
+            // For Android, ISPC is on for some archs, off for others. Decide which in the tool chain.
+            if (Target.Platform != UnrealTargetPlatform.Android && Target.Platform != UnrealTargetPlatform.Lumin)
+            {
+                PublicDefinitions.Add("INTEL_ISPC=1");
+            }
         }
 		else
         {

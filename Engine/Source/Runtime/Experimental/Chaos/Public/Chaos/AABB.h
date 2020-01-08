@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Vector.h"
@@ -85,23 +85,10 @@ namespace Chaos
 			return TAABBSpecializeSamplingHelper<T, d>::ComputeSamplePoints(*this);
 		}
 
-		template<class TTRANSFORM>
-		FORCEINLINE TAABB<T, d> TransformedAABB(const TTRANSFORM& SpaceTransform) const
-		{
-			TVector<T, d> CurrentExtents = Extents();
-			int32 Idx = 0;
-			const TVector<T, d> MinToNewSpace = SpaceTransform.TransformPosition(MMin);
-			TAABB<T, d> NewAABB(MinToNewSpace, MinToNewSpace);
-			NewAABB.GrowToInclude(SpaceTransform.TransformPosition(MMax));
-
-			for (int32 j = 0; j < d; ++j)
-			{
-				NewAABB.GrowToInclude(SpaceTransform.TransformPosition(MMin + TVector<T, d>::AxisVector(j) * CurrentExtents));
-				NewAABB.GrowToInclude(SpaceTransform.TransformPosition(MMax - TVector<T, d>::AxisVector(j) * CurrentExtents));
-			}
-
-			return NewAABB;
-		}
+		CHAOS_API TAABB<T, d> TransformedAABB(const FTransform&) const;
+		CHAOS_API TAABB<T, d> TransformedAABB(const Chaos::TRigidTransform<FReal, 3>&) const;
+		CHAOS_API TAABB<T, d> TransformedAABB(const FMatrix&) const;
+		CHAOS_API TAABB<T, d> TransformedAABB(const Chaos::PMatrix<FReal, 4, 4>&) const;
 
 		FORCEINLINE bool Intersects(const TAABB<T, d>& Other) const
 		{
@@ -612,6 +599,4 @@ namespace Chaos
 			return SamplePoints;
 		}
 	};
-
-
 }

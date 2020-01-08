@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/Stack/NiagaraStackEventScriptItemGroup.h"
 #include "NiagaraEmitter.h"
@@ -50,7 +50,7 @@ FText UNiagaraStackEventHandlerPropertiesItem::GetDisplayName() const
 	return LOCTEXT("EventHandlerPropertiesDisplayName", "Event Handler Properties");
 }
 
-bool UNiagaraStackEventHandlerPropertiesItem::CanResetToBase() const
+bool UNiagaraStackEventHandlerPropertiesItem::TestCanResetToBaseWithMessage(FText& OutCanResetToBaseMessage) const
 {
 	if (bCanResetToBaseCache.IsSet() == false)
 	{
@@ -72,12 +72,22 @@ bool UNiagaraStackEventHandlerPropertiesItem::CanResetToBase() const
 			bCanResetToBaseCache = false;
 		}
 	}
-	return bCanResetToBaseCache.GetValue();
+	if (bCanResetToBaseCache.GetValue())
+	{
+		OutCanResetToBaseMessage = LOCTEXT("CanResetToBase", "Reset the event handler properties to the state defined by the parent emitter.");
+		return true;
+	}
+	else
+	{
+		OutCanResetToBaseMessage = LOCTEXT("CanNotResetToBase", "No parent to reset to, or not different from parent.");
+		return false;
+	}
 }
 
 void UNiagaraStackEventHandlerPropertiesItem::ResetToBase()
 {
-	if (CanResetToBase())
+	FText Unused;
+	if (TestCanResetToBaseWithMessage(Unused))
 	{
 		const UNiagaraEmitter* BaseEmitter = GetEmitterViewModel()->GetEmitter()->GetParent();
 		TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
@@ -225,12 +235,21 @@ void UNiagaraStackEventScriptItemGroup::RefreshChildrenInternal(const TArray<UNi
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
 }
 
-bool UNiagaraStackEventScriptItemGroup::CanDelete() const
+bool UNiagaraStackEventScriptItemGroup::TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const
 {
-	return HasBaseEventHandler() == false;
+	if (HasBaseEventHandler())
+	{
+		OutCanDeleteMessage = LOCTEXT("CantDeleteInherited", "Can not delete this event handler because it's inherited.");
+		return false;
+	}
+	else
+	{
+		OutCanDeleteMessage = LOCTEXT("CanDelete", "Delete this event handler.");
+		return true;
+	}
 }
 
-bool UNiagaraStackEventScriptItemGroup::Delete()
+void UNiagaraStackEventScriptItemGroup::Delete()
 {
 	TSharedPtr<FNiagaraScriptViewModel> ScriptViewModelPinned = ScriptViewModel.Pin();
 	checkf(ScriptViewModelPinned.IsValid(), TEXT("Can not delete when the script view model has been deleted."));
@@ -240,7 +259,7 @@ bool UNiagaraStackEventScriptItemGroup::Delete()
 
 	if (!Source || !Source->NodeGraph)
 	{
-		return false;
+		return;
 	}
 
 	FScopedTransaction Transaction(FText::Format(LOCTEXT("DeleteEventHandler", "Deleted {0}"), GetDisplayName()));
@@ -267,8 +286,6 @@ bool UNiagaraStackEventScriptItemGroup::Delete()
 	ScriptViewModelPinned->SetScripts(Emitter);
 	
 	OnModifiedEventHandlersDelegate.ExecuteIfBound();
-
-	return true;
 }
 
 bool UNiagaraStackEventScriptItemGroup::HasBaseEventHandler() const

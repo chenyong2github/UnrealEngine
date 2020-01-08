@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -21,9 +21,9 @@ class FChaosDerivedDataReader
 public:
 
 	// Only valid use is to explicitly read chaos bulk data
-	explicit FChaosDerivedDataReader(FUntypedBulkData* InBulkData);
+	explicit FChaosDerivedDataReader(FBulkDataInterface* InBulkData);
 
-	TArray<TUniquePtr<Chaos::FConvex>> ConvexImplicitObjects;
+	TArray<TSharedPtr<Chaos::FConvex, ESPMode::ThreadSafe>> ConvexImplicitObjects;
 	TArray<TSharedPtr<Chaos::FTriangleMeshImplicitObject, ESPMode::ThreadSafe>> TrimeshImplicitObjects;
 	FBodySetupUVInfo UVInfo;
 	TArray<int32> FaceRemap;

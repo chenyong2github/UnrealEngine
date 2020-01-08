@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDConstraintGraph.h"
 
@@ -544,7 +544,7 @@ bool FPBDConstraintGraph::SleepInactive(const int32 Island, const TArrayCollecti
 	FReal LinearSleepingThreshold = FLT_MAX;
 	FReal AngularSleepingThreshold = FLT_MAX;
 	FReal DefaultLinearSleepingThreshold = (FReal)1;
-	FReal DefaultAngularSleepingThreshold = (FReal)1;
+	FReal DefaultAngularSleepingThreshold = (FReal)0.1f;
 
 	int32 NumDynamicParticles = 0;
 
@@ -715,6 +715,16 @@ void FPBDConstraintGraph::DisableParticle(TGeometryParticleHandle<FReal, 3>* Par
 		}
 
 	}
+	else if (PBDRigid)
+	{
+		// Kinematic particles are included in IslandToParticles, however we cannot use islands to look them up.
+		// TODO find faster removal method?
+		for (TArray<TGeometryParticleHandle<FReal, 3>*>& IslandParticles : IslandToParticles)
+		{
+			IslandParticles.RemoveSingleSwap(Particle);
+		}
+	}
+
 	ParticleRemove(Particle);
 }
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "GenericPlatform/GenericPlatformStackWalk.h"
@@ -483,7 +483,7 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 				}
 				else
 				{
-					PhysHandle->SetGeometry(MakeUnique<Chaos::TImplicitObjectUnion<float, 3>>(MoveTemp(Geoms)));
+					PhysHandle->SetGeometry(MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(Geoms)));
 				}
 
 				// Construct Shape Bounds
@@ -509,16 +509,10 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 
 				TArray<FPhysicsActorHandle> Actors;
 				Actors.Add(PhysHandle);
-				PhysScene->AddActorsToScene_AssumesLocked(Actors);
 
-#if WITH_EDITOR
-				// If we're in an editor world we will never simulate but we require up to date SQ for the tools
-				// #BGTODO consider a more automatic way to have scenes update when they aren't simulating to avoid this explicit flush
-				if(!GetWorld()->IsGameWorld())
-				{
-					PhysScene->Flush_AssumesLocked();
-				}
-#endif
+				bool bImmediateAccelStructureInsertion = true;
+				PhysScene->AddActorsToScene_AssumesLocked(Actors, bImmediateAccelStructureInsertion);
+
 			}
 #endif // WITH_CHAOS
 		}
@@ -555,7 +549,7 @@ void ULandscapeHeightfieldCollisionComponent::ApplyWorldOffset(const FVector& In
 void ULandscapeHeightfieldCollisionComponent::CreateCollisionObject()
 {
 #if WITH_CHAOS
-	LLM_SCOPE(ELLMTag::ChaosGeometry);
+	LLM_SCOPE(ELLMTag::ChaosLandscape);
 #endif
 	// If we have not created a heightfield yet - do it now.
 	if (!IsValidRef(HeightfieldRef))

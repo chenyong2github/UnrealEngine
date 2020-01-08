@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceSkeletalMesh.h"
 #include "NiagaraEmitterInstance.h"
@@ -1745,17 +1745,23 @@ bool UNiagaraDataInterfaceSkeletalMesh::PerInstanceTick(void* PerInstanceData, F
 TArray<FNiagaraDataInterfaceError> UNiagaraDataInterfaceSkeletalMesh::GetErrors()
 {
 	TArray<FNiagaraDataInterfaceError> Errors;
-	bool bHasCPUAccessError= false;
+	bool bHasCPUAccessError = false;
 	bool bHasNoMeshAssignedError = false;
 	
 	// Collect Errors
 #if WITH_EDITORONLY_DATA
-	if (DefaultMesh != nullptr && bRequiresCPUAccess)
+	if (DefaultMesh != nullptr)
 	{
-		for (auto info : DefaultMesh->GetLODInfoArray())
+		if (bRequiresCPUAccess)
 		{
-			if (!info.bAllowCPUAccess)
-				bHasCPUAccessError = true;
+			for (const FSkeletalMeshLODInfo& LODInfo : DefaultMesh->GetLODInfoArray())
+			{
+				if (!LODInfo.bAllowCPUAccess)
+				{
+					bHasCPUAccessError = true;
+					break;
+				}
+			}
 		}
 	}
 	else
@@ -1771,11 +1777,9 @@ TArray<FNiagaraDataInterfaceError> UNiagaraDataInterfaceSkeletalMesh::GetErrors(
 			FNiagaraDataInterfaceFix::CreateLambda([=]()
 		{
 			DefaultMesh->Modify();
-			for (int i = 0; i < DefaultMesh->GetLODInfoArray().Num(); i++)
+			for (FSkeletalMeshLODInfo& LODInfo : DefaultMesh->GetLODInfoArray())
 			{
-				FSkeletalMeshLODInfo* info = &DefaultMesh->GetLODInfoArray()[i];
-				DefaultMesh->Modify();
-				info->bAllowCPUAccess = true;
+				LODInfo.bAllowCPUAccess = true;
 			}
 			return true;
 		}));
@@ -1957,7 +1961,7 @@ bool UNiagaraDataInterfaceSkeletalMesh::GetFunctionHLSL(const FName& DefinitionF
 	// Triangle Sampling
 	if (DefinitionFunctionName == FSkeletalMeshInterfaceHelper::RandomTriCoordName)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (out {MeshTriCoordinateStructName} OutCoord) { {GetDISkelMeshContextName} DISKelMesh_RandomTriCoord(DIContext, OutCoord.Tri, OutCoord.BaryCoord); }");
+		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (NiagaraRandInfo InRandomInfo, out {MeshTriCoordinateStructName} OutCoord) { {GetDISkelMeshContextName} DISKelMesh_RandomTriCoord(DIContext, InRandomInfo, OutCoord.Tri, OutCoord.BaryCoord); }");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
 	else if (DefinitionFunctionName == FSkeletalMeshInterfaceHelper::GetSkinnedTriangleDataWSName)

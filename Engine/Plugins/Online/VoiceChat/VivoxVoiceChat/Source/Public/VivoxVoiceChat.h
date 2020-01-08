@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -37,7 +37,7 @@ class FVivoxVoiceChatUser : public IVoiceChatUser
 {
 public:
 	FVivoxVoiceChatUser(FVivoxVoiceChat& InVivoxVoiceChat);
-	~FVivoxVoiceChatUser();
+	virtual ~FVivoxVoiceChatUser();
 
 	// ~Begin IVoiceChatUser Interface
 	virtual void SetSetting(const FString& Name, const FString& Value) override;

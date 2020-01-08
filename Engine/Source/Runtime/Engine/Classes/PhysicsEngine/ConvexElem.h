@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -58,7 +58,7 @@ private:
 	physx::PxConvexMesh*   ConvexMeshNegX;
 
 #if WITH_CHAOS
-	TUniquePtr<Chaos::FConvex> ChaosConvex;
+	TSharedPtr<Chaos::FConvex, ESPMode::ThreadSafe> ChaosConvex;
 #endif
 
 public:
@@ -110,11 +110,16 @@ public:
 	ENGINE_API void SetMirroredConvexMesh(physx::PxConvexMesh* InMesh);
 
 #if WITH_CHAOS
-	ENGINE_API const TUniquePtr<Chaos::FConvex>& GetChaosConvexMesh() const;
+	ENGINE_API const auto& GetChaosConvexMesh() const
+	{
+		return ChaosConvex;
+	}
 
-	ENGINE_API void SetChaosConvexMesh(TUniquePtr<Chaos::FConvex>&& InChaosConvex);
+	ENGINE_API void SetChaosConvexMesh(TSharedPtr<Chaos::FConvex, ESPMode::ThreadSafe>&& InChaosConvex);
 
 	ENGINE_API void ResetChaosConvexMesh();
+
+	ENGINE_API void ComputeChaosConvexIndices();
 #endif
 
 	/** Get current transform applied to convex mesh vertices */

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GenericPlatform/HttpRequestImpl.h"
 #include "Http.h"
@@ -19,6 +19,12 @@ FHttpRequestHeaderReceivedDelegate& FHttpRequestImpl::OnHeaderReceived()
 {
 	UE_LOG(LogHttp, VeryVerbose, TEXT("FHttpRequestImpl::OnHeaderReceived()"));
 	return HeaderReceivedDelegate;
+}
+
+FHttpRequestWillRetryDelegate& FHttpRequestImpl::OnRequestWillRetry()
+{
+	UE_LOG(LogHttp, VeryVerbose, TEXT("FHttpRequestImpl::OnRequestWillRetry()"));
+	return OnRequestWillRetryDelegate;
 }
 
 void FHttpRequestImpl::BroadcastResponseHeadersReceived()

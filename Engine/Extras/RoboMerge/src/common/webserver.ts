@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 import * as util from 'util'
 import * as http from 'http'
 import * as https from 'https'
@@ -145,7 +145,7 @@ export class WebServer {
 	async close() {
 		if (this.server) {
 			// close the server to new connections
-			await new Promise<void>((done, _fail) => this.server!.close(done))
+			await new Promise((done, _fail) => this.server!.close(done))
 			this.server = null
 		}
 	}

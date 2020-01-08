@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	LODActorBase.cpp: Static mesh actor base class implementation.
@@ -1205,7 +1205,7 @@ UStaticMeshComponent* ALODActor::GetOrCreateLODComponentForActor(const AActor* I
 
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-FBox ALODActor::GetComponentsBoundingBox(bool bNonColliding) const 
+FBox ALODActor::GetComponentsBoundingBox(bool bNonColliding, bool bIncludeFromChildActors) const
 {
 	FBox BoundBox = Super::GetComponentsBoundingBox(bNonColliding);
 
@@ -1240,7 +1240,7 @@ FBox ALODActor::GetComponentsBoundingBox(bool bNonColliding) const
 			{
 				if (Actor)
 				{
-					BoundBox += Actor->GetComponentsBoundingBox(bNonColliding);
+					BoundBox += Actor->GetComponentsBoundingBox(bNonColliding, bIncludeFromChildActors);
 				}
 			}
 		}

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Windows/WindowsPlatformCrashContext.h"
 #include "HAL/PlatformMallocCrash.h"
@@ -487,6 +487,9 @@ int32 ReportCrashForMonitor(
 	bool bSendUnattendedBugReports = true;
 	bool bSendUsageData = true;
 	bool bCanSendCrashReport = true;
+	// Some projects set this value in non editor builds to automatically send error reports unattended, but display
+	// a plain message box in the crash report client. See CRC app code for details.
+	bool bImplicitSend = false;
 
 	if (FCommandLine::IsInitialized())
 	{
@@ -497,6 +500,14 @@ int32 ReportCrashForMonitor(
 	{
 		GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
 		GConfig->GetBool(TEXT("/Script/UnrealEd.AnalyticsPrivacySettings"), TEXT("bSendUsageData"), bSendUsageData, GEditorSettingsIni);
+		
+#if !UE_EDITOR
+		if (ReportUI != EErrorReportUI::ReportInUnattendedMode)
+		{
+			// Only check if we are in a non-editor build
+			GConfig->GetBool(TEXT("CrashReportClient"), TEXT("bImplicitSend"), bImplicitSend, GEngineIni);
+		}
+#endif
 	}
 
 #if !UE_EDITOR
@@ -523,6 +534,7 @@ int32 ReportCrashForMonitor(
 	SharedContext->UserSettings.bNoDialog = bNoDialog;
 	SharedContext->UserSettings.bSendUnattendedBugReports = bSendUnattendedBugReports;
 	SharedContext->UserSettings.bSendUsageData = bSendUsageData;
+	SharedContext->UserSettings.bImplicitSend = bImplicitSend;
 
 	SharedContext->SessionContext.bIsExitRequested = IsEngineExitRequested();
 	FCString::Strcpy(SharedContext->ErrorMessage, CR_MAX_ERROR_MESSAGE_CHARS-1, ErrorMessage);

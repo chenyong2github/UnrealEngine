@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Fonts/FontCacheFreeType.h"
 #include "SlateGlobals.h"
@@ -170,7 +170,9 @@ void ApplySizeAndScale(FT_Face InFace, const int32 InFontSize, const float InFon
 
 FT_Error LoadGlyph(FT_Face InFace, const uint32 InGlyphIndex, const int32 InLoadFlags, const int32 InFontSize, const float InFontScale)
 {
+#if WITH_VERY_VERBOSE_SLATE_STATS
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FreetypeLoadGlyph);
+#endif
 	ApplySizeAndScale(InFace, InFontSize, InFontScale);
 	return FT_Load_Glyph(InFace, InGlyphIndex, InLoadFlags);
 }

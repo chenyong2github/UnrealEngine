@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraOverviewNode.h"
 #include "NiagaraSystem.h"
@@ -14,6 +14,7 @@
 #include "ToolMenuSection.h"
 #include "ToolMenu.h"
 #include "GraphEditorActions.h"
+#include "Framework/Commands/GenericCommands.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewNodeStackItem"
 
@@ -109,9 +110,29 @@ FLinearColor UNiagaraOverviewNode::GetNodeTitleColor() const
 	return EmitterHandleGuid.IsValid() ? EmitterColor : SystemColor;
 }
 
+static bool IsSystemAsset(UNiagaraSystem* System)
+{
+	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::Get().LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+	TSharedPtr<FNiagaraSystemViewModel> OwningSystemViewModel = NiagaraEditorModule.GetExistingViewModelForSystem(System);
+	if (OwningSystemViewModel.IsValid())
+	{
+		if (OwningSystemViewModel->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UNiagaraOverviewNode::GetCanRenameNode() const
+{
+	return IsSystemAsset(OwningSystem) && EmitterHandleGuid.IsValid();
+}
+
 bool UNiagaraOverviewNode::CanUserDeleteNode() const
 {
-	return EmitterHandleGuid.IsValid();
+	return IsSystemAsset(OwningSystem) && EmitterHandleGuid.IsValid();
 }
 
 bool UNiagaraOverviewNode::CanDuplicateNode() const
@@ -142,7 +163,7 @@ void UNiagaraOverviewNode::GetNodeContextMenuActions(class UToolMenu* Menu, clas
 	TSharedPtr<FNiagaraSystemViewModel> OwningSystemViewModel = NiagaraEditorModule.GetExistingViewModelForSystem(OwningSystem);
 	if (OwningSystemViewModel.IsValid())
 	{
-		FToolMenuSection& Section = Menu->AddSection("Emitter Actions");
+		FToolMenuSection& Section = Menu->AddSection("Emitter Actions", LOCTEXT("EmitterActions", "Emitter Actions"));
 
 		bool bSingleSelection = OwningSystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds().Num() == 1;
 
@@ -178,20 +199,6 @@ void UNiagaraOverviewNode::GetNodeContextMenuActions(class UToolMenu* Menu, clas
 							FGetActionCheckState::CreateStatic(&FNiagaraEditorUtilities::GetSelectedEmittersIsolatedCheckState, OwningSystemViewModel.ToSharedRef())
 						),
 						EUserInterfaceActionType::ToggleButton
-					);
-
-					Section.AddMenuEntry(
-						"RenameEmitter",
-						LOCTEXT("RenameEmitter", "Rename Emitter"),
-						LOCTEXT("RenameEmitterToolTip", "Rename this local emitter copy."),
-						FSlateIcon(),
-						FUIAction(
-							FExecuteAction::CreateLambda([this]()
-							{
-								const_cast<UNiagaraOverviewNode*>(this)->RequestRename();
-							}),
-							FCanExecuteAction::CreateLambda([bSingleSelection]() { return bSingleSelection; })
-						)
 					);
 				}
 
@@ -229,9 +236,18 @@ void UNiagaraOverviewNode::GetNodeContextMenuActions(class UToolMenu* Menu, clas
 			}
 		}
 	}
+	
+	{
+		FToolMenuSection& EditSection = Menu->AddSection("EmitterEdit", LOCTEXT("Edit", "Edit"));
+
+		EditSection.AddMenuEntry(FGenericCommands::Get().Cut);
+		EditSection.AddMenuEntry(FGenericCommands::Get().Copy);
+		EditSection.AddMenuEntry(FGenericCommands::Get().Delete);
+		EditSection.AddMenuEntry(FGenericCommands::Get().Rename);
+	}
 
 	{
-		FToolMenuSection& Section = Menu->AddSection("Alignment");
+		FToolMenuSection& Section = Menu->AddSection("Alignment", LOCTEXT("Alignment", "Alignment"));
 		Section.AddSubMenu(
 			"Alignment",
 			LOCTEXT("AlignmentHeader", "Alignment"),

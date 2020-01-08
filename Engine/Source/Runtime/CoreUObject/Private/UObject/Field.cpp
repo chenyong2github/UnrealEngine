@@ -551,8 +551,7 @@ bool FField::IsIn(const FField* InOwner) const
 FLinkerLoad* FField::GetLinker() const
 {
 	UObject* OwnerObject = GetOwnerUObject();
-	check(OwnerObject);
-	return OwnerObject->GetLinker();
+	return OwnerObject ? OwnerObject->GetLinker() : nullptr;
 }
 
 void FField::AddCppProperty(FProperty* Property)

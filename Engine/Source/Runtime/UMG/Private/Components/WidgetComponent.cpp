@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/WidgetComponent.h"
 #include "PrimitiveViewRelevance.h"
@@ -1415,13 +1415,15 @@ void UWidgetComponent::InitWidget()
 	// Don't do any work if Slate is not initialized
 	if ( FSlateApplication::IsInitialized() )
 	{
-		if ( WidgetClass && Widget == nullptr && GetWorld() )
+		UWorld* World = GetWorld();
+
+		if ( WidgetClass && Widget == nullptr && World && !World->bIsTearingDown)
 		{
 			Widget = CreateWidget(GetWorld(), WidgetClass);
 		}
 		
 #if WITH_EDITOR
-		if ( Widget && !GetWorld()->IsGameWorld() && !bEditTimeUsable )
+		if ( Widget && !World->IsGameWorld() && !bEditTimeUsable )
 		{
 			if( !GEnableVREditorHacks )
 			{
@@ -1997,16 +1999,19 @@ void UWidgetComponent::SetWidgetClass(TSubclassOf<UUserWidget> InWidgetClass)
 	{
 		WidgetClass = InWidgetClass;
 
-		if(HasBegunPlay())
+		if (FSlateApplication::IsInitialized())
 		{
-			if (WidgetClass)
+			if (HasBegunPlay() && !GetWorld()->bIsTearingDown)
 			{
-				UUserWidget* NewWidget = CreateWidget(GetWorld(), WidgetClass);
-				SetWidget(NewWidget);
-			}
-			else
-			{
-				SetWidget(nullptr);
+				if (WidgetClass)
+				{
+					UUserWidget* NewWidget = CreateWidget(GetWorld(), WidgetClass);
+					SetWidget(NewWidget);
+				}
+				else
+				{
+					SetWidget(nullptr);
+				}
 			}
 		}
 	}

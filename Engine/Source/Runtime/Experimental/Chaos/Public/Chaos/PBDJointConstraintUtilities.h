@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -51,8 +51,8 @@ namespace Chaos
 			const FVec3 IChild,
 			FReal& OutInvMParent,
 			FReal& OutInvMChild,
-			FMatrix33& OutInvIParent,
-			FMatrix33& OutInvIChild,
+			FVec3& OutInvIParent,
+			FVec3& OutInvIChild,
 			const FReal MinParentMassRatio,
 			const FReal MaxInertiaRatio);
 
@@ -60,15 +60,31 @@ namespace Chaos
 			const float M,
 			const FVec3 I,
 			FReal& OutInvM0,
-			FMatrix33& OutInvI0, 
+			FVec3& OutInvI0,
 			const FReal MaxInertiaRatio);
 
 
 		static FReal GetLinearStiffness(
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
-		
+
+		static FReal GetSoftLinearStiffness(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		static FReal GetSoftLinearDamping(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
 		static FReal GetTwistStiffness(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		static FReal GetSoftTwistStiffness(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		static FReal GetSoftTwistDamping(
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
@@ -76,7 +92,43 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		static FReal GetAngularDriveStiffness(
+		static FReal GetSoftSwingStiffness(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		static FReal GetSoftSwingDamping(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		static FReal GetLinearDriveStiffness(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		static FReal GetLinearDriveDamping(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		static FReal GetAngularTwistDriveStiffness(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		static FReal GetAngularTwistDriveDamping(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		static FReal GetAngularSwingDriveStiffness(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		static FReal GetAngularSwingDriveDamping(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		static FReal GetAngularSLerpDriveStiffness(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		static FReal GetAngularSLerpDriveDamping(
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
@@ -88,331 +140,25 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
+		static bool GetLinearSoftAccelerationMode(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		static bool GetAngularSoftAccelerationMode(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		static bool GetDriveAccelerationMode(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		static FReal GetAngularPositionCorrection(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
 		static FVec3 GetSphereLimitedPositionError(const FVec3& CX, const FReal Radius);
-		static FVec3 GetSphereLimitedVelocityError(const FVec3& CX, const FReal Radius, const FVec3& CV);
-		static FVec3 GetCylinderLimitedPositionError(const FVec3& InCX, const FVec3& Axis, const FReal Limit, const EJointMotionType AxisMotion);
-		static FVec3 GetCylinderLimitedVelocityError(const FVec3& InCX, const FVec3& Axis, const FReal Limit, const EJointMotionType AxisMotion, const FVec3& CV);
+		static FVec3 GetCylinderLimitedPositionError(const FVec3& CX, const FVec3& Axis, const FReal Limit, const EJointMotionType AxisMotion);
 		static FVec3 GetLineLimitedPositionError(const FVec3& CX, const FVec3& Axis, const FReal Limit, const EJointMotionType AxisMotion);
-		static FVec3 GetLineLimitedVelocityError(const FVec3& CX, const FVec3& Axis, const FReal Limit, const EJointMotionType AxisMotion, const FVec3& CV);
-		static FVec3 GetLimitedPositionError(const FPBDJointSettings& JointSettings, const FRotation3& R0, const FVec3& InCX);
-		static FVec3 GetLimitedVelocityError(const FPBDJointSettings& JointSettings, const FRotation3& R0, const FVec3& InCX, const FVec3& InCV);
-
-		static CHAOS_API void CalculateSwingConstraintSpace(
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FRigidTransform3& XL0,
-			const FRigidTransform3& XL1,
-			const FVec3& P0,
-			const FRotation3& Q0,
-			const FVec3& P1,
-			const FRotation3& Q1,
-			FVec3& OutX0,
-			FMatrix33& OutR0,
-			FVec3& OutX1,
-			FMatrix33& OutR1,
-			FVec3& OutCR);
-
-		static CHAOS_API void CalculateConeConstraintSpace(
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FRigidTransform3& XL0,
-			const FRigidTransform3& XL1,
-			const FVec3& P0,
-			const FRotation3& Q0,
-			const FVec3& P1,
-			const FRotation3& Q1,
-			FVec3& OutX0,
-			FMatrix33& OutR0,
-			FVec3& OutX1,
-			FMatrix33& OutR1,
-			FVec3& OutCR);
-
-		static CHAOS_API void ApplyJointPositionConstraint(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FReal Stiffness,
-			const FRigidTransform3& XL0,
-			const FRigidTransform3& XL1,
-			FVec3& P0,
-			FRotation3& Q0,
-			FVec3& V0,
-			FVec3& W0,
-			FVec3& P1,
-			FRotation3& Q1,
-			FVec3& V1,
-			FVec3& W1,
-			float InvM0,
-			const FMatrix33& InvIL0,
-			float InvM1,
-			const FMatrix33& InvIL1);
-
-		static CHAOS_API void ApplyJointVelocityConstraint(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FReal Stiffness,
-			const FRigidTransform3& XL0,
-			const FRigidTransform3& XL1,
-			FVec3& P0,
-			FRotation3& Q0,
-			FVec3& V0,
-			FVec3& W0,
-			FVec3& P1,
-			FRotation3& Q1,
-			FVec3& V1,
-			FVec3& W1,
-			float InvM0,
-			const FMatrix33& InvIL0,
-			float InvM1,
-			const FMatrix33& InvIL1);
-
-		static CHAOS_API void ApplyJointTwistConstraint(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FReal Stiffness,
-			const FRigidTransform3& XL0,
-			const FRigidTransform3& XL1,
-			FVec3& P0,
-			FRotation3& Q0,
-			FVec3& V0,
-			FVec3& W0,
-			FVec3& P1,
-			FRotation3& Q1,
-			FVec3& V1,
-			FVec3& W1,
-			float InvM0,
-			const FMatrix33& InvIL0,
-			float InvM1,
-			const FMatrix33& InvIL1);
-
-		static CHAOS_API void ApplyJointTwistVelocityConstraint(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FReal Stiffness,
-			const FRigidTransform3& XL0,
-			const FRigidTransform3& XL1,
-			FVec3& P0,
-			FRotation3& Q0,
-			FVec3& V0,
-			FVec3& W0,
-			FVec3& P1,
-			FRotation3& Q1,
-			FVec3& V1,
-			FVec3& W1,
-			float InvM0,
-			const FMatrix33& InvIL0,
-			float InvM1,
-			const FMatrix33& InvIL1);
-
-		static CHAOS_API void ApplyJointConeConstraint(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FReal Stiffness,
-			const FRigidTransform3& XL0,
-			const FRigidTransform3& XL1,
-			FVec3& P0,
-			FRotation3& Q0,
-			FVec3& V0,
-			FVec3& W0,
-			FVec3& P1,
-			FRotation3& Q1,
-			FVec3& V1,
-			FVec3& W1,
-			float InvM0,
-			const FMatrix33& InvIL0,
-			float InvM1,
-			const FMatrix33& InvIL1);
-
-		static CHAOS_API void ApplyJointConeVelocityConstraint(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FReal Stiffness,
-			const FRigidTransform3& XL0,
-			const FRigidTransform3& XL1,
-			FVec3& P0,
-			FRotation3& Q0,
-			FVec3& V0,
-			FVec3& W0,
-			FVec3& P1,
-			FRotation3& Q1,
-			FVec3& V1,
-			FVec3& W1,
-			float InvM0,
-			const FMatrix33& InvIL0,
-			float InvM1,
-			const FMatrix33& InvIL1);
-
-		static CHAOS_API void ApplyJointSwingConstraint(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FReal Stiffness,
-			const FRigidTransform3& XL0,
-			const FRigidTransform3& XL1,
-			const EJointAngularConstraintIndex SwingConstraintIndex,
-			const EJointAngularAxisIndex SwingAxisIndex,
-			FVec3& P0,
-			FRotation3& Q0,
-			FVec3& V0,
-			FVec3& W0,
-			FVec3& P1,
-			FRotation3& Q1,
-			FVec3& V1,
-			FVec3& W1,
-			float InvM0,
-			const FMatrix33& InvIL0,
-			float InvM1,
-			const FMatrix33& InvIL1);
-
-		static CHAOS_API void ApplyJointSwingVelocityConstraint(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FReal Stiffness,
-			const FRigidTransform3& XL0,
-			const FRigidTransform3& XL1,
-			const EJointAngularConstraintIndex SwingConstraintIndex,
-			const EJointAngularAxisIndex SwingAxisIndex,
-			FVec3& P0,
-			FRotation3& Q0,
-			FVec3& V0,
-			FVec3& W0,
-			FVec3& P1,
-			FRotation3& Q1,
-			FVec3& V1,
-			FVec3& W1,
-			float InvM0,
-			const FMatrix33& InvIL0,
-			float InvM1,
-			const FMatrix33& InvIL1);
-
-		static CHAOS_API void ApplyJointTwistDrive(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FRigidTransform3& XL0,
-			const FRigidTransform3& XL1,
-			FVec3& P0,
-			FRotation3& Q0,
-			FVec3& V0,
-			FVec3& W0,
-			FVec3& P1,
-			FRotation3& Q1,
-			FVec3& V1,
-			FVec3& W1,
-			float InvM0,
-			const FMatrix33& InvIL0,
-			float InvM1,
-			const FMatrix33& InvIL1);
-
-		static CHAOS_API void ApplyJointConeDrive(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FRigidTransform3& XL0,
-			const FRigidTransform3& XL1,
-			FVec3& P0,
-			FRotation3& Q0,
-			FVec3& V0,
-			FVec3& W0,
-			FVec3& P1,
-			FRotation3& Q1,
-			FVec3& V1,
-			FVec3& W1,
-			float InvM0,
-			const FMatrix33& InvIL0,
-			float InvM1,
-			const FMatrix33& InvIL1);
-
-		static CHAOS_API void ApplyJointSLerpDrive(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FRigidTransform3& XL0,
-			const FRigidTransform3& XL1,
-			FVec3& P0,
-			FRotation3& Q0,
-			FVec3& V0,
-			FVec3& W0,
-			FVec3& P1,
-			FRotation3& Q1,
-			FVec3& V1,
-			FVec3& W1,
-			float InvM0,
-			const FMatrix33& InvIL0,
-			float InvM1,
-			const FMatrix33& InvIL1);
-
-		static CHAOS_API void ApplyJointPositionProjection(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FReal Stiffness,
-			const FRigidTransform3& XL0,
-			const FRigidTransform3& XL1,
-			FVec3& P0,
-			FRotation3& Q0,
-			FVec3& P1,
-			FRotation3& Q1,
-			float InvM0,
-			const FMatrix33& InvIL0,
-			float InvM1,
-			const FMatrix33& InvIL1);
-
-		static CHAOS_API void ApplyJointTwistProjection(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FReal Stiffness,
-			const FRigidTransform3& XL0,
-			const FRigidTransform3& XL1,
-			FVec3& P0,
-			FRotation3& Q0,
-			FVec3& P1,
-			FRotation3& Q1,
-			float InvM0,
-			const FMatrix33& InvIL0,
-			float InvM1,
-			const FMatrix33& InvIL1);
-
-		static CHAOS_API void ApplyJointConeProjection(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FReal Stiffness,
-			const FRigidTransform3& XL0,
-			const FRigidTransform3& XL1,
-			FVec3& P0,
-			FRotation3& Q0,
-			FVec3& P1,
-			FRotation3& Q1,
-			float InvM0,
-			const FMatrix33& InvIL0,
-			float InvM1,
-			const FMatrix33& InvIL1);
-
-		static CHAOS_API void ApplyJointSwingProjection(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FReal Stiffness,
-			const FRigidTransform3& XL0,
-			const FRigidTransform3& XL1,
-			const EJointAngularConstraintIndex SwingConstraintIndex,
-			const EJointAngularAxisIndex SwingAxisIndex,
-			FVec3& P0,
-			FRotation3& Q0,
-			FVec3& P1,
-			FRotation3& Q1,
-			float InvM0,
-			const FMatrix33& InvIL0,
-			float InvM1,
-			const FMatrix33& InvIL1);
-
+		static FVec3 GetLimitedPositionError(const FPBDJointSettings& JointSettings, const FRotation3& R0, const FVec3& CX);
 	};
 }

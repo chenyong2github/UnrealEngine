@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/PBDJointConstraints.h"
 #include "Chaos/ChaosDebugDraw.h"
 #include "Chaos/DebugDrawQueue.h"
@@ -43,9 +43,9 @@ namespace Chaos
 	}
 
 	
-	void FPBDJointConstraintHandle::CalculateConstraintSpace(FVec3& OutXa, FMatrix33& OutRa, FVec3& OutXb, FMatrix33& OutRb, FVec3& OutCR) const
+	void FPBDJointConstraintHandle::CalculateConstraintSpace(FVec3& OutXa, FMatrix33& OutRa, FVec3& OutXb, FMatrix33& OutRb) const
 	{
-		ConstraintContainer->CalculateConstraintSpace(ConstraintIndex, OutXa, OutRa, OutXb, OutRb, OutCR);
+		ConstraintContainer->CalculateConstraintSpace(ConstraintIndex, OutXa, OutRa, OutXb, OutRb);
 	}
 
 	
@@ -76,10 +76,11 @@ namespace Chaos
 	//
 
 	
-	FPBDJointMotionSettings::FPBDJointMotionSettings()
-		: Stiffness((FReal)1)
-		, LinearProjection((FReal)0)
-		, AngularProjection((FReal)0)
+	FPBDJointSettings::FPBDJointSettings()
+		: Stiffness(1)
+		, LinearProjection(0)
+		, AngularProjection(0)
+		, ParentInvMassScale(1)
 		, LinearMotionTypes({ EJointMotionType::Locked, EJointMotionType::Locked, EJointMotionType::Locked })
 		, LinearLimit(FLT_MAX)
 		, AngularMotionTypes({ EJointMotionType::Free, EJointMotionType::Free, EJointMotionType::Free })
@@ -87,45 +88,39 @@ namespace Chaos
 		, bSoftLinearLimitsEnabled(false)
 		, bSoftTwistLimitsEnabled(false)
 		, bSoftSwingLimitsEnabled(false)
+		, LinearSoftForceMode(EJointForceMode::Acceleration)
+		, AngularSoftForceMode(EJointForceMode::Acceleration)
 		, SoftLinearStiffness(0)
+		, SoftLinearDamping(0)
 		, SoftTwistStiffness(0)
+		, SoftTwistDamping(0)
 		, SoftSwingStiffness(0)
-		, AngularDriveTarget(FRotation3::FromIdentity())
+		, SoftSwingDamping(0)
+		, LinearDriveTarget(FVec3(0, 0, 0))
+		, bLinearPositionDriveEnabled(TVector<bool, 3>(false, false, false))
+		, bLinearVelocityDriveEnabled(TVector<bool, 3>(false, false, false))
+		, LinearDriveForceMode(EJointForceMode::Acceleration)
+		, LinearDriveStiffness(0)
+		, LinearDriveDamping(0)
+		, AngularDrivePositionTarget(FRotation3::FromIdentity())
 		, AngularDriveTargetAngles(FVec3(0, 0, 0))
-		, bAngularSLerpDriveEnabled(false)
-		, bAngularTwistDriveEnabled(false)
-		, bAngularSwingDriveEnabled(false)
+		, AngularDriveVelocityTarget(FVec3(0, 0, 0))
+		, bAngularSLerpPositionDriveEnabled(false)
+		, bAngularSLerpVelocityDriveEnabled(false)
+		, bAngularTwistPositionDriveEnabled(false)
+		, bAngularTwistVelocityDriveEnabled(false)
+		, bAngularSwingPositionDriveEnabled(false)
+		, bAngularSwingVelocityDriveEnabled(false)
+		, AngularDriveForceMode(EJointForceMode::Acceleration)
 		, AngularDriveStiffness(0)
+		, AngularDriveDamping(0)
 	{
 	}
 
-	
-	FPBDJointMotionSettings::FPBDJointMotionSettings(const TVector<EJointMotionType, 3>& InLinearMotionTypes, const TVector<EJointMotionType, 3>& InAngularMotionTypes)
-		: Stiffness((FReal)1)
-		, LinearProjection((FReal)0)
-		, AngularProjection((FReal)0)
-		, LinearMotionTypes(InLinearMotionTypes)
-		, LinearLimit(FLT_MAX)
-		, AngularMotionTypes({ EJointMotionType::Free, EJointMotionType::Free, EJointMotionType::Free })
-		, AngularLimits(FVec3(FLT_MAX, FLT_MAX, FLT_MAX))
-		, bSoftLinearLimitsEnabled(false)
-		, bSoftTwistLimitsEnabled(false)
-		, bSoftSwingLimitsEnabled(false)
-		, SoftLinearStiffness(0)
-		, SoftTwistStiffness(0)
-		, SoftSwingStiffness(0)
-		, AngularDriveTarget(FRotation3::FromIdentity())
-		, AngularDriveTargetAngles(FVec3(0, 0, 0))
-		, bAngularSLerpDriveEnabled(false)
-		, bAngularTwistDriveEnabled(false)
-		, bAngularSwingDriveEnabled(false)
-		, AngularDriveStiffness(0)
-	{
-	}
 
-	void FPBDJointMotionSettings::Sanitize()
+	void FPBDJointSettings::Sanitize()
 	{
-		// Reset limits if they won;t be used (means we don't have to check if limited/locked in a few cases).
+		// Reset limits if they won't be used (means we don't have to check if limited/locked in a few cases).
 		// A side effect: if we enable a constraint, we need to reset the value of the limit.
 		if ((LinearMotionTypes[0] != EJointMotionType::Limited) && (LinearMotionTypes[1] != EJointMotionType::Limited) && (LinearMotionTypes[2] != EJointMotionType::Limited))
 		{
@@ -146,12 +141,6 @@ namespace Chaos
 	}
 
 	
-	FPBDJointSettings::FPBDJointSettings()
-		: ConstraintFrames({ FTransform::Identity, FTransform::Identity })
-	{
-	}
-
-	
 	FPBDJointState::FPBDJointState()
 		: Level(INDEX_NONE)
 		, ParticleLevels({ INDEX_NONE, INDEX_NONE })
@@ -166,18 +155,26 @@ namespace Chaos
 	FPBDJointSolverSettings::FPBDJointSolverSettings()
 		: ApplyPairIterations(1)
 		, ApplyPushOutPairIterations(1)
-		, SwingTwistAngleTolerance((FReal)1.0e-6)
+		, SwingTwistAngleTolerance(1.0e-6f)
 		, MinParentMassRatio(0)
 		, MaxInertiaRatio(0)
+		, AngularConstraintPositionCorrection(1.0f)
 		, bEnableTwistLimits(true)
 		, bEnableSwingLimits(true)
 		, bEnableDrives(true)
-		, LinearProjection((FReal)0)
-		, AngularProjection((FReal)0)
-		, Stiffness((FReal)0)
-		, DriveStiffness((FReal)0)
-		, SoftLinearStiffness((FReal)0)
-		, SoftAngularStiffness((FReal)0)
+		, LinearProjection(0)
+		, AngularProjection(0)
+		, Stiffness(0)
+		, LinearDriveStiffness(0)
+		, LinearDriveDamping(0)
+		, AngularDriveStiffness(0)
+		, AngularDriveDamping(0)
+		, SoftLinearStiffness(0)
+		, SoftLinearDamping(0)
+		, SoftTwistStiffness(0)
+		, SoftTwistDamping(0)
+		, SoftSwingStiffness(0)
+		, SoftSwingDamping(0)
 	{
 	}
 
@@ -237,37 +234,32 @@ namespace Chaos
 
 	typename FPBDJointConstraints::FConstraintContainerHandle* FPBDJointConstraints::AddConstraint(const FParticlePair& InConstrainedParticles, const FRigidTransform3& WorldConstraintFrame)
 	{
-		FTransformPair ConstraintFrames;
-		ConstraintFrames[0] = FRigidTransform3(
+		FTransformPair JointFrames;
+		JointFrames[0] = FRigidTransform3(
 			WorldConstraintFrame.GetTranslation() - InConstrainedParticles[0]->X(),
 			WorldConstraintFrame.GetRotation() * InConstrainedParticles[0]->R().Inverse()
 			);
-		ConstraintFrames[1] = FRigidTransform3(
+		JointFrames[1] = FRigidTransform3(
 			WorldConstraintFrame.GetTranslation() - InConstrainedParticles[1]->X(),
 			WorldConstraintFrame.GetRotation() * InConstrainedParticles[1]->R().Inverse()
 			);
-		return AddConstraint(InConstrainedParticles, ConstraintFrames);
+		return AddConstraint(InConstrainedParticles, JointFrames, FPBDJointSettings());
 	}
 
 	
-	typename FPBDJointConstraints::FConstraintContainerHandle* FPBDJointConstraints::AddConstraint(const FParticlePair& InConstrainedParticles, const FTransformPair& ConstraintFrames)
+	typename FPBDJointConstraints::FConstraintContainerHandle* FPBDJointConstraints::AddConstraint(const FParticlePair& InConstrainedParticles, const FTransformPair& InConstraintFrames)
 	{
-		int ConstraintIndex = Handles.Num();
-		Handles.Add(HandleAllocator.AllocHandle(this, ConstraintIndex));
-		ConstraintParticles.Add(InConstrainedParticles);
-		ConstraintSettings.Add(FPBDJointSettings());
-		ConstraintSettings[ConstraintIndex].ConstraintFrames = ConstraintFrames;
-		ConstraintStates.Add(FPBDJointState());
-		return Handles.Last();
+		return AddConstraint(InConstrainedParticles, InConstraintFrames, FPBDJointSettings());
 	}
 
 	
-	typename FPBDJointConstraints::FConstraintContainerHandle* FPBDJointConstraints::AddConstraint(const FParticlePair& InConstrainedParticles, const FPBDJointSettings& InConstraintSettings)
+	typename FPBDJointConstraints::FConstraintContainerHandle* FPBDJointConstraints::AddConstraint(const FParticlePair& InConstrainedParticles, const FTransformPair& InConstraintFrames, const FPBDJointSettings& InConstraintSettings)
 	{
 		int ConstraintIndex = Handles.Num();
 		Handles.Add(HandleAllocator.AllocHandle(this, ConstraintIndex));
 		ConstraintParticles.Add(InConstrainedParticles);
 		ConstraintSettings.Add(InConstraintSettings);
+		ConstraintFrames.Add(InConstraintFrames);
 		ConstraintStates.Add(FPBDJointState());
 		return Handles.Last();
 	}
@@ -286,6 +278,7 @@ namespace Chaos
 		// Swap the last constraint into the gap to keep the array packed
 		ConstraintParticles.RemoveAtSwap(ConstraintIndex);
 		ConstraintSettings.RemoveAtSwap(ConstraintIndex);
+		ConstraintFrames.RemoveAtSwap(ConstraintIndex);
 		ConstraintStates.RemoveAtSwap(ConstraintIndex);
 		Handles.RemoveAtSwap(ConstraintIndex);
 
@@ -299,6 +292,42 @@ namespace Chaos
 	
 	void FPBDJointConstraints::RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles)
 	{
+	}
+
+
+	void FPBDJointConstraints::SortConstraints()
+	{
+		// Sort constraints so that constraints with lower level (closer to a kinematic joint) are first
+		// @todo(ccaulfield): should probably also take islands/particle order into account
+		// @todo(ccaulfield): optimize (though isn't called very often)
+		SCOPE_CYCLE_COUNTER(STAT_Joints_Sort);
+
+		FHandles SortedHandles = Handles;
+		SortedHandles.StableSort([](const FConstraintContainerHandle& L, const FConstraintContainerHandle& R)
+			{
+				return L.GetConstraintLevel() < R.GetConstraintLevel();
+			});
+
+		TArray<FPBDJointSettings> SortedConstraintSettings;
+		TArray<FTransformPair> SortedConstraintFrames;
+		TArray<FParticlePair> SortedConstraintParticles;
+		TArray<FPBDJointState> SortedConstraintStates;
+		int32 SortedConstraintIndex = 0;
+		for (FConstraintContainerHandle* Handle : SortedHandles)
+		{
+			int32 UnsortedIndex = Handle->GetConstraintIndex();
+			SortedConstraintSettings.Add(ConstraintSettings[UnsortedIndex]);
+			SortedConstraintFrames.Add(ConstraintFrames[UnsortedIndex]);
+			SortedConstraintParticles.Add(ConstraintParticles[UnsortedIndex]);
+			SortedConstraintStates.Add(ConstraintStates[UnsortedIndex]);
+			SetConstraintIndex(Handle, SortedConstraintIndex++);
+		}
+
+		Swap(ConstraintSettings, SortedConstraintSettings);
+		Swap(ConstraintFrames, SortedConstraintFrames);
+		Swap(ConstraintParticles, SortedConstraintParticles);
+		Swap(ConstraintStates, SortedConstraintStates);
+		Swap(Handles, SortedHandles);
 	}
 
 
@@ -379,39 +408,6 @@ namespace Chaos
 	}
 
 
-	void FPBDJointConstraints::SortConstraints()
-	{
-		// Sort constraints so that constraints with lower level (closer to a kinematic joint) are first
-		// @todo(ccaulfield): should probably also take islands/particle order into account
-		// @todo(ccaulfield): optimize (though isn't called very often)
-		SCOPE_CYCLE_COUNTER(STAT_Joints_Sort);
-
-		FHandles SortedHandles = Handles;
-		SortedHandles.StableSort([](const FConstraintContainerHandle& L, const FConstraintContainerHandle& R)
-			{
-				return L.GetConstraintLevel() < R.GetConstraintLevel();
-			});
-
-		TArray<FPBDJointSettings> SortedConstraintSettings;
-		TArray<FParticlePair> SortedConstraintParticles;
-		TArray<FPBDJointState> SortedConstraintStates;
-		int32 SortedConstraintIndex = 0;
-		for (FConstraintContainerHandle* Handle : SortedHandles)
-		{
-			int32 UnsortedIndex = Handle->GetConstraintIndex();
-			SortedConstraintSettings.Add(ConstraintSettings[UnsortedIndex]);
-			SortedConstraintParticles.Add(ConstraintParticles[UnsortedIndex]);
-			SortedConstraintStates.Add(ConstraintStates[UnsortedIndex]);
-			SetConstraintIndex(Handle, SortedConstraintIndex++);
-		}
-
-		Swap(ConstraintSettings, SortedConstraintSettings);
-		Swap(ConstraintParticles, SortedConstraintParticles);
-		Swap(ConstraintStates, SortedConstraintStates);
-		Swap(Handles, SortedHandles);
-	}
-
-	
 	void FPBDJointConstraints::UpdatePositionBasedState(const FReal Dt)
 	{
 		if (bRequiresSort)
@@ -419,10 +415,47 @@ namespace Chaos
 			SortConstraints();
 			bRequiresSort = false;
 		}
+
+		PrepareConstraints(Dt);
+	}
+
+
+	void FPBDJointConstraints::PrepareConstraints(FReal Dt)
+	{
+		if (!ChaosJoint_UseCholeskySolver)
+		{
+			ConstraintSolvers.SetNum(NumConstraints());
+			for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+			{
+				const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
+				const FTransformPair& JointFrames = ConstraintFrames[ConstraintIndex];
+				FJointSolverGaussSeidel& Solver = ConstraintSolvers[ConstraintIndex];
+
+				int32 Index0, Index1;
+				GetConstrainedParticleIndices(ConstraintIndex, Index0, Index1);
+				TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
+				TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
+
+				Solver.Init(
+					Dt,
+					Settings,
+					JointSettings,
+					FParticleUtilitiesXR::GetCoMWorldPosition(Particle0),	// Prev position
+					FParticleUtilitiesXR::GetCoMWorldPosition(Particle1),	// Prev position
+					FParticleUtilitiesXR::GetCoMWorldRotation(Particle0),	// Prev rotation
+					FParticleUtilitiesXR::GetCoMWorldRotation(Particle1),	// Prev rotation
+					Particle0->InvM(),
+					Particle0->InvI().GetDiagonal(),
+					Particle1->InvM(),
+					Particle1->InvI().GetDiagonal(),
+					FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointFrames[Index0]),
+					FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointFrames[Index1]));
+			}
+		}
 	}
 
 	
-	void FPBDJointConstraints::CalculateConstraintSpace(int32 ConstraintIndex, FVec3& OutX0, FMatrix33& OutR0, FVec3& OutX1, FMatrix33& OutR1, FVec3& OutCR) const
+	void FPBDJointConstraints::CalculateConstraintSpace(int32 ConstraintIndex, FVec3& OutX0, FMatrix33& OutR0, FVec3& OutX1, FMatrix33& OutR1) const
 	{
 		int32 Index0, Index1;
 		GetConstrainedParticleIndices(ConstraintIndex, Index0, Index1);
@@ -432,20 +465,13 @@ namespace Chaos
 		const FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
 		const FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
 		const FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
+		const FRigidTransform3& XL0 = FParticleUtilities::ParticleLocalToCoMLocal(Particle0, ConstraintFrames[ConstraintIndex][Index0]);
+		const FRigidTransform3& XL1 = FParticleUtilities::ParticleLocalToCoMLocal(Particle1, ConstraintFrames[ConstraintIndex][Index1]);
 
-		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
-		const FRigidTransform3 XL0 = FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointSettings.ConstraintFrames[Index0]);
-		const FRigidTransform3 XL1 = FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointSettings.ConstraintFrames[Index1]);
-		EJointMotionType Swing1Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1];
-		EJointMotionType Swing2Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2];
-		if ((Swing1Motion == EJointMotionType::Limited) && (Swing2Motion == EJointMotionType::Limited))
-		{
-			FPBDJointUtilities::CalculateConeConstraintSpace(Settings, ConstraintSettings[ConstraintIndex], XL0, XL1, P0, Q0, P1, Q1, OutX0, OutR0, OutX1, OutR1, OutCR);
-		}
-		else
-		{
-			FPBDJointUtilities::CalculateSwingConstraintSpace(Settings, ConstraintSettings[ConstraintIndex], XL0, XL1, P0, Q0, P1, Q1, OutX0, OutR0, OutX1, OutR1, OutCR);
-		}
+		OutX0 = P0 + Q0 * XL0.GetTranslation();
+		OutX1 = P1 + Q1 * XL1.GetTranslation();
+		OutR0 = FRotation3(Q0 * XL0.GetRotation()).ToMatrix();
+		OutR1 = FRotation3(Q1 * XL1.GetRotation()).ToMatrix();
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -669,6 +695,7 @@ namespace Chaos
 		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Solve Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
 
 		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
+		const FTransformPair& JointFrames = ConstraintFrames[ConstraintIndex];
 
 		int32 Index0, Index1;
 		GetConstrainedParticleIndices(ConstraintIndex, Index0, Index1);
@@ -688,8 +715,8 @@ namespace Chaos
 			Particle0->InvI(), 
 			Particle1->InvM(), 
 			Particle1->InvI(), 
-			FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointSettings.ConstraintFrames[Index0]),
-			FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointSettings.ConstraintFrames[Index1]));
+			FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointFrames[Index0]),
+			FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointFrames[Index1]));
 		
 		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 		{
@@ -710,32 +737,28 @@ namespace Chaos
 		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Solve Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
 
 		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
+		FJointSolverGaussSeidel& Solver = ConstraintSolvers[ConstraintIndex];
 
 		int32 Index0, Index1;
 		GetConstrainedParticleIndices(ConstraintIndex, Index0, Index1);
 		TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
 		TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
 
-		FJointSolverGaussSeidel Solver;
-		Solver.InitConstraints(
+		Solver.Update(
 			Dt,
-			Settings,
-			JointSettings,
 			FParticleUtilities::GetCoMWorldPosition(Particle0),
 			FParticleUtilities::GetCoMWorldRotation(Particle0),
+			Particle0->V(),
+			Particle0->W(),
 			FParticleUtilities::GetCoMWorldPosition(Particle1),
 			FParticleUtilities::GetCoMWorldRotation(Particle1),
-			Particle0->InvM(),
-			Particle0->InvI(),
-			Particle1->InvM(),
-			Particle1->InvI(),
-			FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointSettings.ConstraintFrames[Index0]),
-			FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointSettings.ConstraintFrames[Index1]));
+			Particle1->V(),
+			Particle1->W());
 
 		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 		{
-			Solver.ApplyDrives(Dt, JointSettings);
-			Solver.ApplyConstraints(Dt, JointSettings);
+			Solver.ApplyConstraints(Dt, Settings, JointSettings);
+			Solver.ApplyDrives(Dt, Settings, JointSettings);
 		}
 
 		UpdateParticleState(Particle0->CastToRigidParticle(), Dt, Solver.GetP(0), Solver.GetQ(0));
@@ -748,17 +771,15 @@ namespace Chaos
 		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Solve Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
 
 		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
+		FJointSolverGaussSeidel& Solver = ConstraintSolvers[ConstraintIndex];
 
 		int32 Index0, Index1;
 		GetConstrainedParticleIndices(ConstraintIndex, Index0, Index1);
 		TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index0]);
 		TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(ConstraintParticles[ConstraintIndex][Index1]);
 
-		FJointSolverGaussSeidel Solver;
-		Solver.InitProjection(
+		Solver.Update(
 			Dt,
-			Settings,
-			JointSettings,
 			FParticleUtilities::GetCoMWorldPosition(Particle0),
 			FParticleUtilities::GetCoMWorldRotation(Particle0),
 			Particle0->V(),
@@ -766,17 +787,11 @@ namespace Chaos
 			FParticleUtilities::GetCoMWorldPosition(Particle1),
 			FParticleUtilities::GetCoMWorldRotation(Particle1),
 			Particle1->V(),
-			Particle1->W(),
-			Particle0->InvM(),
-			Particle0->InvI(),
-			Particle1->InvM(),
-			Particle1->InvI(),
-			FParticleUtilities::ParticleLocalToCoMLocal(Particle0, JointSettings.ConstraintFrames[Index0]),
-			FParticleUtilities::ParticleLocalToCoMLocal(Particle1, JointSettings.ConstraintFrames[Index1]));
+			Particle1->W());
 
 		for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 		{
-			Solver.ApplyProjections(Dt, JointSettings);
+			Solver.ApplyProjections(Dt, Settings, JointSettings);
 		}
 
 		UpdateParticleState(Particle0->CastToRigidParticle(), Dt, Solver.GetP(0), Solver.GetQ(0), Solver.GetV(0), Solver.GetW(0));

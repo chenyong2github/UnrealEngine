@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetRegistry.h"
 #include "Misc/CommandLine.h"
@@ -2772,6 +2772,11 @@ void UAssetRegistryImpl::SetTemporaryCachingMode(bool bEnable)
 		bTempCachingEnabled = false;
 		ClearTemporaryCaches();
 	}
+}
+
+bool UAssetRegistryImpl::GetTemporaryCachingMode() const
+{
+	return bTempCachingEnabled;
 }
 
 void UAssetRegistryImpl::ClearTemporaryCaches() const

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Box.h"
@@ -54,6 +54,7 @@ public:
 	    , MLocalBoundingBox(Object->BoundingBox().TransformedAABB(InTransform))
 	{
 		this->bIsConvex = Object->IsConvex();
+		this->bDoCollide = MObject->GetDoCollide();
 	}
 
 	/**
@@ -68,6 +69,7 @@ public:
 		this->MObject = FStorage::Convert(MObjectOwner);
 		this->MLocalBoundingBox = MObject->BoundingBox().TransformedAABB(InTransform);
 		this->bIsConvex = MObject->IsConvex();
+		this->bDoCollide = MObject->GetDoCollide();
 	}
 
 	TImplicitObjectTransformed(const TImplicitObjectTransformed<T, d, bSerializable>& Other) = delete;
@@ -79,6 +81,7 @@ public:
 	    , MLocalBoundingBox(MoveTemp(Other.MLocalBoundingBox))
 	{
 		this->bIsConvex = Other.MObject->IsConvex();
+		this->bDoCollide = Other.MObject->GetDoCollide();
 	}
 	~TImplicitObjectTransformed() {}
 
@@ -90,6 +93,11 @@ public:
 	const FImplicitObject* GetTransformedObject() const
 	{
 		return MObject.Get();
+	}
+
+	bool GetDoCollide() const
+	{
+		return MObject->GetDoCollide();
 	}
 
 	virtual T PhiWithNormal(const TVector<T, d>& x, TVector<T, d>& Normal) const override
@@ -198,7 +206,7 @@ public:
 		}
 	}
 
-	virtual const TAABB<T, d>& BoundingBox() const override { return MLocalBoundingBox; }
+	virtual const TAABB<T, d> BoundingBox() const override { return MLocalBoundingBox; }
 
 	const FReal GetVolume() const
 	{

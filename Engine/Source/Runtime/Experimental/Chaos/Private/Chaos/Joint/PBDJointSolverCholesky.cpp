@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/Joint/PBDJointSolverCholesky.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDJointConstraintUtilities.h"
@@ -64,7 +64,7 @@ namespace Chaos
 		Qs[1].EnforceShortestArcWith(Qs[0]);
 
 		Stiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
-		AngularDriveStiffness = FPBDJointUtilities::GetAngularDriveStiffness(SolverSettings, JointSettings);
+		AngularDriveStiffness = 0.0f;// FPBDJointUtilities::GetAngularDriveStiffness(SolverSettings, JointSettings);
 		SwingTwistAngleTolerance = SolverSettings.SwingTwistAngleTolerance;
 		bEnableTwistLimits = SolverSettings.bEnableTwistLimits;
 		bEnableSwingLimits = SolverSettings.bEnableSwingLimits;
@@ -290,7 +290,7 @@ namespace Chaos
 		FDenseMatrix66& J1,
 		FDenseMatrix61& C)
 	{
-		const FReal Limit = JointSettings.Motion.LinearLimit;
+		const FReal Limit = JointSettings.LinearLimit;
 		const FVec3 ConstraintSeparation = Xs[1] - Xs[0];
 		const FReal ConstraintSeparationLen = ConstraintSeparation.Size();
 
@@ -332,7 +332,7 @@ namespace Chaos
 		// Radial Constraint
 		const FVec3 ConstraintSeparationRadial = ConstraintSeparation - ConstraintDistanceAxial * Axis;
 		const FReal ConstraintDistanceRadial = ConstraintSeparationRadial.Size();
-		const FReal RadialLimit = JointSettings.Motion.LinearLimit;
+		const FReal RadialLimit = JointSettings.LinearLimit;
 		bool bRadialConstraintActive = (ConstraintDistanceRadial >= RadialLimit);
 		if (bRadialConstraintActive)
 		{
@@ -352,7 +352,7 @@ namespace Chaos
 		FDenseMatrix66& J1,
 		FDenseMatrix61& C)
 	{
-		const FReal Limit = (AxisMotion == EJointMotionType::Limited) ? JointSettings.Motion.LinearLimit : (FReal)0;
+		const FReal Limit = (AxisMotion == EJointMotionType::Limited) ? JointSettings.LinearLimit : (FReal)0;
 		const FVec3 ConstraintSeparation = Xs[1] - Xs[0];
 
 		// Planar Constraint
@@ -388,7 +388,7 @@ namespace Chaos
 			TwistAngle = -TwistAngle;
 		}
 
-		const FReal TwistAngleMax = JointSettings.Motion.AngularLimits[(int32)EJointAngularConstraintIndex::Twist];
+		const FReal TwistAngleMax = JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Twist];
 		bool bConstraintActive = (TwistAngle <= -TwistAngleMax) || (TwistAngle >= TwistAngleMax);
 		if (bConstraintActive)
 		{
@@ -419,8 +419,8 @@ namespace Chaos
 
 		// Calculate swing limit for the current swing axis
 		FReal SwingAngleMax = FLT_MAX;
-		const FReal Swing1Limit = JointSettings.Motion.AngularLimits[(int32)EJointAngularConstraintIndex::Swing1];
-		const FReal Swing2Limit = JointSettings.Motion.AngularLimits[(int32)EJointAngularConstraintIndex::Swing2];
+		const FReal Swing1Limit = JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing1];
+		const FReal Swing2Limit = JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing2];
 
 		// Circular swing limit
 		SwingAngleMax = Swing1Limit;
@@ -495,7 +495,7 @@ namespace Chaos
 			const FReal SwingAngle2 = GetSwingAngle(R01SwingYorZ, R01Swing.W);
 
 
-			FReal SwingAngleMax = JointSettings.Motion.AngularLimits[(int32)SwingConstraintIndex];
+			FReal SwingAngleMax = JointSettings.AngularLimits[(int32)SwingConstraintIndex];
 			bool bConstraintActive = (SwingAngle <= -SwingAngleMax) || (SwingAngle >= SwingAngleMax);
 			if (bConstraintActive)
 			{
@@ -521,7 +521,7 @@ namespace Chaos
 	//	const FReal R01SwingYorZ = ((int32)SwingAxisIndex == 2) ? R01Swing.Z : R01Swing.Y;	// Can't index a quat :(
 	//	FReal SwingAngle = GetSwingAngle(R01SwingYorZ, R01Swing.W);
 
-	//	FReal SwingAngleMax = JointSettings.Motion.AngularLimits[(int32)SwingConstraintIndex];
+	//	FReal SwingAngleMax = JointSettings.AngularLimits[(int32)SwingConstraintIndex];
 	//	bool bConstraintActive = (SwingAngle <= -SwingAngleMax) || (SwingAngle >= SwingAngleMax);
 	//	if (bConstraintActive)
 	//	{
@@ -576,7 +576,7 @@ namespace Chaos
 		FDenseMatrix66& J1,
 		FDenseMatrix61& C)
 	{
-		const TVector<EJointMotionType, 3>& Motion = JointSettings.Motion.LinearMotionTypes;
+		const TVector<EJointMotionType, 3>& Motion = JointSettings.LinearMotionTypes;
 		if ((Motion[0] == EJointMotionType::Locked) && (Motion[1] == EJointMotionType::Locked) && (Motion[2] == EJointMotionType::Locked))
 		{
 			AddLinearConstraints_Point(JointSettings, J0, J1, C);
@@ -625,9 +625,9 @@ namespace Chaos
 		FDenseMatrix66& J1,
 		FDenseMatrix61& C)
 	{
-		EJointMotionType TwistMotion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist];
-		EJointMotionType Swing1Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1];
-		EJointMotionType Swing2Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2];
+		EJointMotionType TwistMotion = JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist];
+		EJointMotionType Swing1Motion = JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1];
+		EJointMotionType Swing2Motion = JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2];
 
 		bool bAddTwist = bEnableTwistLimits && (TwistMotion != EJointMotionType::Free);
 		bool bAddConeOrSwing = bEnableSwingLimits && ((Swing1Motion != EJointMotionType::Free) || (Swing2Motion != EJointMotionType::Free));
@@ -673,14 +673,14 @@ namespace Chaos
 		FDenseMatrix66& J1,
 		FDenseMatrix61& C)
 	{
-		EJointMotionType TwistMotion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist];
-		EJointMotionType Swing1Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1];
-		EJointMotionType Swing2Motion = JointSettings.Motion.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2];
+		EJointMotionType TwistMotion = JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Twist];
+		EJointMotionType Swing1Motion = JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing1];
+		EJointMotionType Swing2Motion = JointSettings.AngularMotionTypes[(int32)EJointAngularConstraintIndex::Swing2];
 
-		bool bTwistDriveEnabled = bEnableDrives && JointSettings.Motion.bAngularTwistDriveEnabled && (TwistMotion != EJointMotionType::Locked);
-		bool bSwing1DriveEnabled = bEnableDrives && JointSettings.Motion.bAngularSwingDriveEnabled && (Swing1Motion != EJointMotionType::Locked);
-		bool bSwing2DriveEnabled = bEnableDrives && JointSettings.Motion.bAngularSwingDriveEnabled && (Swing2Motion != EJointMotionType::Locked);
-		bool bSlerpDriveEnabled = bEnableDrives && JointSettings.Motion.bAngularSLerpDriveEnabled && (Swing1Motion != EJointMotionType::Locked) && (Swing2Motion != EJointMotionType::Locked);
+		bool bTwistDriveEnabled = false;// bEnableDrives&& JointSettings.bAngularTwistDriveEnabled && (TwistMotion != EJointMotionType::Locked);
+		bool bSwing1DriveEnabled = false;// bEnableDrives && JointSettings.bAngularSwingDriveEnabled && (Swing1Motion != EJointMotionType::Locked);
+		bool bSwing2DriveEnabled = false;// bEnableDrives && JointSettings.bAngularSwingDriveEnabled && (Swing2Motion != EJointMotionType::Locked);
+		bool bSlerpDriveEnabled = false;// bEnableDrives && JointSettings.bAngularSLerpDriveEnabled && (Swing1Motion != EJointMotionType::Locked) && (Swing2Motion != EJointMotionType::Locked);
 		bool bAnyDriveEnabled = (bTwistDriveEnabled || bSwing1DriveEnabled || bSwing2DriveEnabled || bSlerpDriveEnabled);
 
 		if (bAnyDriveEnabled)

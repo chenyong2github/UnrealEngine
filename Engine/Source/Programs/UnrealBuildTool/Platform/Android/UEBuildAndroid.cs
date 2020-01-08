@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -105,6 +105,7 @@ namespace UnrealBuildTool
 			Target.bCompileNvCloth = false;
 
 			Target.bCompileRecast = true;
+			Target.bCompileISPC = true;
 		}
 
 		public override bool CanUseXGE()

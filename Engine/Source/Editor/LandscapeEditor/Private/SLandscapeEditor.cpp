@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SLandscapeEditor.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
@@ -589,7 +589,7 @@ bool SLandscapeEditor::GetIsPropertyVisible(const FPropertyAndParent& PropertyAn
 	return ParentToolkit.Pin()->GetIsPropertyVisibleFromProperty(PropertyAndParent.Property);
 }
 
-bool FLandscapeToolKit::GetIsPropertyVisibleFromProperty(const UProperty& Property) const
+bool FLandscapeToolKit::GetIsPropertyVisibleFromProperty(const FProperty& Property) const
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	

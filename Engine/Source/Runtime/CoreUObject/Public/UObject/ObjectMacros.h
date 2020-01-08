@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ObjectMacros.h: Helper macros and defines for UObject system
@@ -1237,6 +1237,12 @@ namespace UM
 
 		/// [PropertyMetadata] Used for SoftObjectPtr/SoftObjectPath properties to specify a reference should not be tracked. This reference will not be automatically cooked or saved into the asset registry for redirector/delete fixup.
 		Untracked,
+
+		/// [PropertyMetadata] Causes FString and FName properties to have a limited set of options generated dynamically, e.g. meta=(GetOptions="FuncName")
+		///
+		/// UFUNCTION()
+		/// TArray<FString> FuncName() const; // Always return string array even if FName property.
+		GetOptions,
 	};
 
 	// Metadata usable in UPROPERTY for customizing the behavior of Persona and UMG

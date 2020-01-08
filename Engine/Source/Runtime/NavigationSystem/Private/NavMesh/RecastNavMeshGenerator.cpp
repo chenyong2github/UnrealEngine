@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NavMesh/RecastNavMeshGenerator.h"
 #include "AI/Navigation/NavRelevantInterface.h"
@@ -550,51 +550,65 @@ void ExportChaosTriMesh(const Chaos::FTriangleMeshImplicitObject* const TriMesh,
 	using namespace Chaos;
 
 	int32 VertOffset = VertexBuffer.Num() / 3;
-	int32 NumTris = TriMesh->Elements().Num();
-	const TParticles<FReal, 3>& Vertices = TriMesh->Particles();
-	const TArray<TVector<int32, 3>>& Triangles = TriMesh->Elements();
 
-	VertexBuffer.Reserve(VertexBuffer.Num() + NumTris * 9);
-	IndexBuffer.Reserve(IndexBuffer.Num() + NumTris * 3);
-
-	const bool bFlipCullMode = (LocalToWorld.GetDeterminant() < 0.f);
-
-	const int32 IndexOrder[3] = { bFlipCullMode ? 0 : 2, 1, bFlipCullMode ? 2 : 0 };
-
-#if SHOW_NAV_EXPORT_PREVIEW
-	UWorld* DebugWorld = FindEditorWorld();
-#endif // SHOW_NAV_EXPORT_PREVIEW
-
-	for (int32 TriIdx = 0; TriIdx < NumTris; ++TriIdx)
+	auto LambdaHelper = [&](const auto& Triangles)
 	{
-		for (int32 i = 0; i < 3; i++)
+		int32 NumTris = Triangles.Num();
+		const TParticles<FReal, 3>& Vertices = TriMesh->Particles();
+	
+		VertexBuffer.Reserve(VertexBuffer.Num() + NumTris * 9);
+		IndexBuffer.Reserve(IndexBuffer.Num() + NumTris * 3);
+
+		const bool bFlipCullMode = (LocalToWorld.GetDeterminant() < 0.f);
+
+		const int32 IndexOrder[3] = { bFlipCullMode ? 0 : 2, 1, bFlipCullMode ? 2 : 0 };
+
+	#if SHOW_NAV_EXPORT_PREVIEW
+		UWorld* DebugWorld = FindEditorWorld();
+	#endif // SHOW_NAV_EXPORT_PREVIEW
+
+		for (int32 TriIdx = 0; TriIdx < NumTris; ++TriIdx)
 		{
-			const FVector UnrealCoords = LocalToWorld.TransformPosition(Vertices.X(Triangles[TriIdx][i]));
-			UnrealBounds += UnrealCoords;
+			for (int32 i = 0; i < 3; i++)
+			{
+				const FVector UnrealCoords = LocalToWorld.TransformPosition(Vertices.X(Triangles[TriIdx][i]));
+				UnrealBounds += UnrealCoords;
 
-			VertexBuffer.Add(UnrealCoords.X);
-			VertexBuffer.Add(UnrealCoords.Y);
-			VertexBuffer.Add(UnrealCoords.Z);
+				VertexBuffer.Add(UnrealCoords.X);
+				VertexBuffer.Add(UnrealCoords.Y);
+				VertexBuffer.Add(UnrealCoords.Z);
+			}
+
+			IndexBuffer.Add(VertOffset + IndexOrder[0]);
+			IndexBuffer.Add(VertOffset + IndexOrder[1]);
+			IndexBuffer.Add(VertOffset + IndexOrder[2]);
+
+	#if SHOW_NAV_EXPORT_PREVIEW
+			if (DebugWorld)
+			{
+				FVector V0(VertexBuffer[(VertOffset + IndexOrder[0]) * 3 + 0], VertexBuffer[(VertOffset + IndexOrder[0]) * 3 + 1], VertexBuffer[(VertOffset + IndexOrder[0]) * 3 + 2]);
+				FVector V1(VertexBuffer[(VertOffset + IndexOrder[1]) * 3 + 0], VertexBuffer[(VertOffset + IndexOrder[1]) * 3 + 1], VertexBuffer[(VertOffset + IndexOrder[1]) * 3 + 2]);
+				FVector V2(VertexBuffer[(VertOffset + IndexOrder[2]) * 3 + 0], VertexBuffer[(VertOffset + IndexOrder[2]) * 3 + 1], VertexBuffer[(VertOffset + IndexOrder[2]) * 3 + 2]);
+
+				DrawDebugLine(DebugWorld, V0, V1, bFlipCullMode ? FColor::Red : FColor::Blue, true);
+				DrawDebugLine(DebugWorld, V1, V2, bFlipCullMode ? FColor::Red : FColor::Blue, true);
+				DrawDebugLine(DebugWorld, V2, V0, bFlipCullMode ? FColor::Red : FColor::Blue, true);
+			}
+	#endif // SHOW_NAV_EXPORT_PREVIEW
+
+			VertOffset += 3;
 		}
+	};
 
-		IndexBuffer.Add(VertOffset + IndexOrder[0]);
-		IndexBuffer.Add(VertOffset + IndexOrder[1]);
-		IndexBuffer.Add(VertOffset + IndexOrder[2]);
 
-#if SHOW_NAV_EXPORT_PREVIEW
-		if (DebugWorld)
-		{
-			FVector V0(VertexBuffer[(VertOffset + IndexOrder[0]) * 3 + 0], VertexBuffer[(VertOffset + IndexOrder[0]) * 3 + 1], VertexBuffer[(VertOffset + IndexOrder[0]) * 3 + 2]);
-			FVector V1(VertexBuffer[(VertOffset + IndexOrder[1]) * 3 + 0], VertexBuffer[(VertOffset + IndexOrder[1]) * 3 + 1], VertexBuffer[(VertOffset + IndexOrder[1]) * 3 + 2]);
-			FVector V2(VertexBuffer[(VertOffset + IndexOrder[2]) * 3 + 0], VertexBuffer[(VertOffset + IndexOrder[2]) * 3 + 1], VertexBuffer[(VertOffset + IndexOrder[2]) * 3 + 2]);
-
-			DrawDebugLine(DebugWorld, V0, V1, bFlipCullMode ? FColor::Red : FColor::Blue, true);
-			DrawDebugLine(DebugWorld, V1, V2, bFlipCullMode ? FColor::Red : FColor::Blue, true);
-			DrawDebugLine(DebugWorld, V2, V0, bFlipCullMode ? FColor::Red : FColor::Blue, true);
-		}
-#endif // SHOW_NAV_EXPORT_PREVIEW
-
-		VertOffset += 3;
+	const FTrimeshIndexBuffer& IdxBuffer = TriMesh->Elements();
+	if(IdxBuffer.RequiresLargeIndices())
+	{
+		LambdaHelper(IdxBuffer.GetLargeIndexBuffer());
+	}
+	else
+	{
+		LambdaHelper(IdxBuffer.GetSmallIndexBuffer());
 	}
 }
 
@@ -633,9 +647,19 @@ void ExportChaosConvexMesh(const FKConvexElem* const Convex, const FTransform& L
 		VertexBuffer.Add(UnrealCoord.Z);
 	}
 
-	for (int32 i = 0; i < Convex->IndexData.Num(); ++i)
+	if (Convex->VertexData.Num())
 	{
-		IndexBuffer.Add(VertOffset + Convex->IndexData[i]);
+		ensure(Convex->IndexData.Num());
+	}
+
+	if (ensureMsgf(Convex->IndexData.Num() % 3 == 0, TEXT("Invalid index data in '%s'."), *Convex->GetName().ToString()))
+	{
+		for (int32 i = 0; i < Convex->IndexData.Num(); i += 3)
+		{
+			IndexBuffer.Add(VertOffset + Convex->IndexData[i]);
+			IndexBuffer.Add(VertOffset + Convex->IndexData[i + 2]);
+			IndexBuffer.Add(VertOffset + Convex->IndexData[i + 1]);
+		}
 	}
 
 #if SHOW_NAV_EXPORT_PREVIEW

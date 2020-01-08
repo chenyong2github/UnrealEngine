@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -122,6 +122,7 @@ public:
 	NIAGARASHADER_API void Tick(float DeltaSeconds = 0.0f, bool bBlock=false);
 	NIAGARASHADER_API void AddJobs(TArray<class FShaderCommonCompileJob*> InNewJobs);
 	NIAGARASHADER_API void ProcessAsyncResults();
+	NIAGARASHADER_API static FNiagaraShaderCompilationManager& Get();
 
 	void FinishCompilation(const TCHAR* ScriptName, const TArray<int32>& ShaderMapIdsToFinishCompiling);
 
@@ -156,6 +157,3 @@ private:
 	//We can only have one compilation task going at a time as (apparently) the compilation is very non thread-safe
 	FGraphEventRef AsyncWork;
 };
-
-
-extern NIAGARASHADER_API FNiagaraShaderCompilationManager GNiagaraShaderCompilationManager;

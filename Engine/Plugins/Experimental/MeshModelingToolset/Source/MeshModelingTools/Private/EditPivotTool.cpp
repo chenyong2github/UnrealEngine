@@ -123,7 +123,7 @@ void UEditPivotTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 }
 
-void UEditPivotTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UEditPivotTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 }
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -31,8 +31,8 @@ namespace Chaos
 		AngularEtherDrag			= 1 << 19,
 		ObjectState				= 1 << 20,
 		Geometry				= 1 << 21,
-		ExternalForce			= 1 << 22,
-		ExternalTorque			= 1 << 23,
+		LinearImpulse			= 1 << 22,
+		AngularImpulse			= 1 << 23,
 		GravityEnabled			= 1 << 24,
 		SpatialIdx				= 1 << 25,
 		HashResult				= 1 << 26,

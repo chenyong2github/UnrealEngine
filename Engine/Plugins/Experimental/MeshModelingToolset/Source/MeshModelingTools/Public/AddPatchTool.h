@@ -91,7 +91,7 @@ public:
 	virtual bool HasAccept() const override { return false; }
 	virtual bool CanAccept() const override { return false; }
 
-	virtual void OnPropertyModified(UObject* PropertySet, UProperty* Property) override;
+	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
 	virtual void OnClicked(const FInputDeviceRay& ClickPos) override;
 

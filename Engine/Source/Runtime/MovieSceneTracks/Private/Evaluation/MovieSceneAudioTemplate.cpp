@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Evaluation/MovieSceneAudioTemplate.h"
 
@@ -12,6 +12,7 @@
 #include "ActiveSound.h"
 #include "Sections/MovieSceneAudioSection.h"
 #include "Tracks/MovieSceneAudioTrack.h"
+#include "Sound/SoundWave.h"
 #include "MovieScene.h"
 #include "Evaluation/MovieSceneEvaluation.h"
 #include "IMovieScenePlayer.h"
@@ -189,13 +190,34 @@ struct FCachedAudioTrackData : IPersistentEvaluationData
 	}
 
 	/** Only to be called on the game thread */
-	UAudioComponent* AddMasterAudioComponentForRow(int32 RowIndex, FObjectKey SectionKey, UWorld* World, IMovieScenePlayer& Player)
+	UAudioComponent* AddMasterAudioComponentForRow(int32 RowIndex, FObjectKey SectionKey, UObject* PrincipalObject, UWorld* World, IMovieScenePlayer& Player)
 	{
 		UAudioComponent* ExistingComponent = GetAudioComponent(FObjectKey(), SectionKey);
 		if (!ExistingComponent)
 		{
 			USoundCue* TempPlaybackAudioCue = NewObject<USoundCue>();
-			ExistingComponent = FAudioDevice::CreateComponent(TempPlaybackAudioCue, FAudioDevice::FCreateComponentParams(World));
+
+			AActor* Actor = nullptr;
+			USceneComponent* SceneComponent = nullptr;
+
+			if (PrincipalObject)
+			{
+				if (PrincipalObject->IsA<AActor>())
+				{
+					Actor = Cast<AActor>(PrincipalObject);
+					SceneComponent = Actor->GetRootComponent();
+				}
+				else if (PrincipalObject->IsA<UActorComponent>())
+				{
+					UActorComponent* ActorComponent = Cast<UActorComponent>(PrincipalObject);
+					Actor = ActorComponent->GetOwner();
+					SceneComponent = Cast<USceneComponent>(ActorComponent);
+				}
+			}
+
+			FAudioDevice::FCreateComponentParams Params(Actor ? Actor->GetWorld() : World, Actor);
+
+			ExistingComponent = FAudioDevice::CreateComponent(TempPlaybackAudioCue, Params);
 
 			if (!ExistingComponent)
 			{
@@ -206,6 +228,11 @@ struct FCachedAudioTrackData : IPersistentEvaluationData
 			Player.SavePreAnimatedState(*ExistingComponent, FMovieSceneAnimTypeID::Unique(), FDestroyAudioPreAnimatedToken::FProducer());
 			
 			ExistingComponent->SetFlags(RF_Transient);
+			if (SceneComponent)
+			{
+				ExistingComponent->AttachToComponent(SceneComponent, FAttachmentTransformRules::KeepRelativeTransform);
+			}
+			
 			AudioComponentsByActorKey[FObjectKey()].Add(SectionKey, ExistingComponent);
 		}
 
@@ -263,8 +290,33 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 			UAudioComponent* AudioComponent = TrackData.GetAudioComponent(FObjectKey(), SectionKey);
 			if (!AudioComponent)
 			{
+				FMovieSceneObjectBindingID AttachBindingID = AudioSection->GetAttachBindingID();
+
+				UObject* AttachObject = nullptr;
+
+				if (AttachBindingID.IsValid())
+				{
+					FMovieSceneSequenceID SequenceID = Operand.SequenceID;
+					if (AttachBindingID.GetSequenceID().IsValid())
+					{
+						// Ensure that this ID is resolvable from the root, based on the current local sequence ID
+						FMovieSceneObjectBindingID RootBindingID = AttachBindingID.ResolveLocalToRoot(SequenceID, Player.GetEvaluationTemplate().GetHierarchy());
+						SequenceID = RootBindingID.GetSequenceID();
+					}
+
+					// If the transform is set, otherwise use the bound actor's transform
+					FMovieSceneEvaluationOperand ObjectOperand(SequenceID, AttachBindingID.GetGuid());
+
+					TArrayView<TWeakObjectPtr<>> Objects = Player.FindBoundObjects(ObjectOperand);
+					// Only ever deal with one object
+					if (Objects.Num() > 0)
+					{
+						AttachObject = Objects[0].Get();
+					}
+				}
+
 				// Initialize the sound
-				AudioComponent = TrackData.AddMasterAudioComponentForRow(AudioSection->GetRowIndex(), SectionKey, PlaybackContext ? PlaybackContext->GetWorld() : nullptr, Player);
+				AudioComponent = TrackData.AddMasterAudioComponentForRow(AudioSection->GetRowIndex(), SectionKey, AttachObject, PlaybackContext ? PlaybackContext->GetWorld() : nullptr, Player);
 
 				if (AudioComponent)
 				{
@@ -285,7 +337,7 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 
 			if (AudioComponent)
 			{
-				EnsureAudioIsPlaying(*AudioComponent, PersistentData, Context, false, Player);
+				EnsureAudioIsPlaying(*AudioComponent, PersistentData, Context, AudioComponent->GetAttachParent() != nullptr, Player);
 			}
 		}
 

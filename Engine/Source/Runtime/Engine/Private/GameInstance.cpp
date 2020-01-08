@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/GameInstance.h"
 #include "Misc/MessageDialog.h"
@@ -860,7 +860,7 @@ ULocalPlayer* UGameInstance::GetLocalPlayerByIndex(const int32 Index) const
 	return nullptr;
 }
 
-APlayerController* UGameInstance::GetFirstLocalPlayerController(UWorld* World) const
+APlayerController* UGameInstance::GetFirstLocalPlayerController(const UWorld* World) const
 {
 	if (World == nullptr)
 	{

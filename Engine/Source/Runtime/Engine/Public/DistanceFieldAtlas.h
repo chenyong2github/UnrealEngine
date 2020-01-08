@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	DistanceFieldAtlas.h
@@ -94,6 +94,7 @@ public:
 
 	virtual void ReleaseRHI() override
 	{
+		VolumeTextureUAVRHI.SafeRelease();
 		VolumeTextureRHI.SafeRelease();
 	}
 

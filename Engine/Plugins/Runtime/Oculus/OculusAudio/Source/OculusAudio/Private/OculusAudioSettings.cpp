@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OculusAudioSettings.h"
 
@@ -17,7 +17,7 @@ UOculusAudioSettings::UOculusAudioSettings() :
 	, ReflectionCoefBack(0.25f)
 	, ReflectionCoefFront(0.25f)
 {
-
+	OutputSubmix = FString(TEXT("/OculusAudio/OculusSubmixDefault.OculusSubmixDefault"));
 }
 
 #if WITH_EDITOR

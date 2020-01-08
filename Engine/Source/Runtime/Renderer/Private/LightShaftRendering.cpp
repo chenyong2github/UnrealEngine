@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	FogRendering.cpp: Fog rendering implementation.
@@ -944,7 +944,8 @@ void ApplyLightShaftBloom(FRHICommandListImmediate& RHICmdList, const FViewInfo&
 	bool bUseSeparateTranslucency = false;
 	if (View.Family->AllowTranslucencyAfterDOF() && GLightShaftRenderAfterDOF)
 	{
-		SceneContext.BeginRenderingSeparateTranslucency(RHICmdList, View, Renderer, false);
+		// If the separate translucency RT hasn't been allocated yet this frame, make sure to mark the call to BeginRenderingSeparateTranslucency as being the first in this frame
+		SceneContext.BeginRenderingSeparateTranslucency(RHICmdList, View, Renderer, !SceneContext.SeparateTranslucencyRT.IsValid());
 		bUseSeparateTranslucency = true;
 	}
 	else

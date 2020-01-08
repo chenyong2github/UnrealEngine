@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/Box.h"
@@ -31,6 +31,7 @@ public:
 	{
 		ensure(IsInstanced(MObject->GetType(true)) == false);	//cannot have an instance of an instance
 		this->bIsConvex = MObject->IsConvex();
+		this->bDoCollide = MObject->GetDoCollide();
 	}
 
 	static constexpr EImplicitObjectType StaticType()
@@ -41,6 +42,11 @@ public:
 	const TConcrete* GetInstancedObject() const
 	{
 		return MObject.Get();
+	}
+
+	bool GetDoCollide() const
+	{
+		return MObject->GetDoCollide();
 	}
 
 	virtual T PhiWithNormal(const TVector<T, d>& X, TVector<T, d>& Normal) const override
@@ -95,7 +101,7 @@ public:
 	FORCEINLINE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const { return MObject->Support(Direction, Thickness); }
 	FORCEINLINE TVector<T, d> Support2(const TVector<T, d>& Direction, const T Thickness) const { return MObject->Support2(Direction); }
 
-	virtual const TAABB<T, d>& BoundingBox() const override { return MObject->BoundingBox(); }
+	virtual const TAABB<T, d> BoundingBox() const override { return MObject->BoundingBox(); }
 
 	const ObjectType Object() const { return MObject; }
 
@@ -153,6 +159,7 @@ public:
 			break;
 		}
 		this->bIsConvex = MObject->IsConvex();
+		this->bDoCollide = MObject->GetDoCollide();
 		SetScale(Scale);
 	}
 
@@ -173,6 +180,7 @@ public:
 			break;
 		}
 		this->bIsConvex = MObject->IsConvex();
+		this->bDoCollide = MObject->GetDoCollide();
 		SetScale(Scale);
 	}
 
@@ -185,6 +193,7 @@ public:
 		ensureMsgf((IsScaled(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain each other."));
 		ensureMsgf((IsInstanced(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain instances."));
 		this->bIsConvex = Object->IsConvex();
+		this->bDoCollide = MObject->GetDoCollide();
 		SetScale(Scale);
 	}
 
@@ -201,6 +210,7 @@ public:
 		ensureMsgf((IsScaled(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain each other."));
 		ensureMsgf((IsInstanced(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain instances."));
 		this->bIsConvex = Other.MObject->IsConvex();
+		this->bDoCollide = Other.MObject->GetDoCollide();
 	}
 	~TImplicitObjectScaled() {}
 
@@ -395,7 +405,7 @@ public:
 		// Compute final normal
 		const TVector<T, d> LocalNormal = MObject->FindGeometryOpposingNormal(LocalDenormDir, HintFaceIndex, LocalOriginalNormal);
 		TVector<T, d> Normal = LocalNormal * MInvScale;
-		if (ensure(Normal.SafeNormalize()) == 0)
+		if (CHAOS_ENSURE(Normal.SafeNormalize()) == 0)
 		{
 			Normal = TVector<T,3>(0,0,1);
 		}
@@ -487,7 +497,7 @@ public:
 		UpdateBounds();
 	}
 
-	virtual const TAABB<T, d>& BoundingBox() const override { return MLocalBoundingBox; }
+	virtual const TAABB<T, d> BoundingBox() const override { return MLocalBoundingBox; }
 
 	const FReal GetVolume() const
 	{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Chaos/ConstraintHandle.h"
@@ -57,7 +57,7 @@ public:
 	using FConstraintContainerHandle = TPBDCollisionConstraintHandle<T, d>;
 	using FConstraintBase = TCollisionConstraintBase<T, d>;
  	using FPointContactConstraint = TRigidBodyPointContactConstraint<T, d>;
-	using FIterativeContactConstraint = TRigidBodyIterativeContactConstraint<T, d>;
+	using FMultiPointContactConstraint = TRigidBodyMultiPointContactConstraint<T, d>;
 	using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDCollisionConstraints<T, d>>;
 	using FConstraintContainerHandleKey = typename TPBDCollisionConstraintHandle<T, d>::FHandleKey;
 
@@ -222,7 +222,7 @@ private:
 	const TPBDRigidsSOAs<T,d>& Particles;
 
 	TArray<FPointContactConstraint> PointConstraints;
-	TArray<FIterativeContactConstraint> IterativeConstraints;
+	TArray<FMultiPointContactConstraint> IterativeConstraints;
 
 	TMap< FConstraintContainerHandleKey, FConstraintContainerHandle* > Manifolds;
 	TArray<FConstraintContainerHandle*> Handles;

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 // In order to support resonance cross platform, we need to be able to compile Resonance on platforms we may not support Embree on.
 // For those, we noop on all RTC calls:

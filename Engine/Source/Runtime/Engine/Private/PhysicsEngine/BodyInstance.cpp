@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsEngine/BodyInstance.h"
 #include "EngineGlobals.h"
@@ -434,7 +434,7 @@ int32 FBodyInstance::GetAllShapes_AssumesLocked(TArray<FPhysicsShapeHandle>& Out
 void FBodyInstance::UpdateTriMeshVertices(const TArray<FVector> & NewPositions)
 {
 #if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-	check(false);
+	ensure(false);
 #else
 #if WITH_PHYSX
 	if (BodySetup.IsValid())
@@ -1815,7 +1815,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 					const TImplicitObjectScaled<FConvex>* ConvexGeometry = static_cast<const TImplicitObjectScaled<FConvex>*>(&ImplicitObject);
 
 					FKConvexElem* ConvexElem = ShapeElem->GetShapeCheck<FKConvexElem>();
-					const TUniquePtr<FConvex>& ConvexImplicit = ConvexElem->GetChaosConvexMesh();
+					const auto& ConvexImplicit = ConvexElem->GetChaosConvexMesh();
 
 					// Ensure no rotation/translation in relative transform. PhysX supports this, we currently do not.
 					CHAOS_ENSURE(RelativeTM.GetRotation() == FQuat::Identity);
@@ -1863,7 +1863,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 		// Only follow through with update if all shapes succeeded.
 		if (CHAOS_ENSURE(NewGeometry.Num() == Shapes.Num()))
 		{
-			ActorHandle->SetGeometry(MakeUnique<Chaos::TImplicitObjectUnion<FReal, 3>>(MoveTemp(NewGeometry)));
+			ActorHandle->SetGeometry(MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(NewGeometry)));
 		}
 		else
 		{

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -36,8 +36,8 @@ class FNiagaraShaderProcessorTickable : FTickableEditorObject
 
 	virtual void Tick(float DeltaSeconds) override
 	{
-		GNiagaraShaderCompilationManager.Tick(DeltaSeconds);
-		GNiagaraShaderCompilationManager.ProcessAsyncResults();
+		FNiagaraShaderCompilationManager::Get().Tick(DeltaSeconds);
+		FNiagaraShaderCompilationManager::Get().ProcessAsyncResults();
 	}
 
 	virtual TStatId GetStatId() const

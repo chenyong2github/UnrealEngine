@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -22,9 +22,9 @@ public:
 
 	virtual FText GetTooltipText() const override;
 
-	bool CanResetToBase() const;
-
-	void ResetToBase();
+	virtual bool SupportsResetToBase() const override { return true; }
+	virtual bool TestCanResetToBaseWithMessage(FText& OutCanResetToBaseMessage) const override;
+	virtual void ResetToBase() override;
 
 	virtual bool IsExpandedByDefault() const override;
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================================
 	UnixPlatformString.h: Unix platform string classes, mostly implemented with ANSI C++

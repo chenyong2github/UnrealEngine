@@ -145,7 +145,7 @@ void UAddPatchTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 
 
-void UAddPatchTool::OnPropertyModified(UObject* PropertySet, UProperty* Property)
+void UAddPatchTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
 	PreviewMesh->SetMaterial(MaterialProperties->Material);

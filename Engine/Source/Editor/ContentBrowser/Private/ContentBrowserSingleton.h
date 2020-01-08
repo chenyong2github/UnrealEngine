@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #pragma once
@@ -85,9 +85,6 @@ public:
 
 	/** Gets the settings for the plugin with the specified name */
 	const FContentBrowserPluginSettings& GetPluginSettings(FName PluginName) const;
-
-	/** Returns true if should show directory path */
-	bool PathViewPathPassesFilter(const FString& InPath) const;
 
 	/** Single storage location for content browser favorites */
 	TArray<FString> FavoriteFolderPaths;

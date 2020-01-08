@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	MaterialShared.h: Shared material definitions.
@@ -1179,6 +1179,7 @@ private:
 	/** The material's user friendly name, typically the object name. */
 	FString FriendlyName;
 	FString MaterialPath;
+	float CompileTime;
 #endif
 
 	/** The static parameter set that this shader map was compiled with */
