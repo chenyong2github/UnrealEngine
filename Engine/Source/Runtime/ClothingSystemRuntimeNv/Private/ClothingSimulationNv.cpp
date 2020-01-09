@@ -69,7 +69,7 @@ void FClothingSimulationContextNv::Fill(const USkeletalMeshComponent* InComponen
 		EClothingTeleportMode::Teleport :
 		InComponent->ClothTeleportMode;
 
-	MaxDistanceScale = const_cast<USkeletalMeshComponent*>(InComponent)->GetClothMaxDistanceScale();  // TODO(Kriss.Gossart): Test in BP whether GetClothMaxDistanceScale can be made const without breaking any functionalities
+	MaxDistanceScale = InComponent->GetClothMaxDistanceScale();
 }
 
 void FClothingSimulationContextNv::FillRefToLocals(const USkeletalMeshComponent* InComponent)
