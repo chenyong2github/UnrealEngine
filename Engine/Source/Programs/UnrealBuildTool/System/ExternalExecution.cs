@@ -1146,8 +1146,8 @@ namespace UnrealBuildTool
 
 					if (Log.OutputFile != null)
 					{
-						string LogFileName = Log.OutputFile.GetFileName();
-						LogFileName = (LogFileName.StartsWith("UBT") ? "UHT" + LogFileName.Substring(3) : LogFileName + "_UHT");
+						string LogFileName = Log.OutputFile.GetFileNameWithoutExtension();
+						LogFileName = (LogFileName.StartsWith("UBT") ? "UHT" + LogFileName.Substring(3) : LogFileName + "_UHT") + ".txt";
 						LogFileName = FileReference.Combine(Log.OutputFile.Directory, LogFileName).ToString();
 
 						CmdLine += " -abslog =\"" + LogFileName + "\"";
