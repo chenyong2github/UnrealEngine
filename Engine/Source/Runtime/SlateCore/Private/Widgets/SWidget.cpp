@@ -132,19 +132,19 @@ void SWidget::CreateStatID() const
 
 #endif
 
-void SWidget::UpdateWidgetProxy(int32 NewLayerId, FSlateCachedElementsHandle& CacheHandle)
+void SWidget::UpdateWidgetProxy(int32 NewLayerId, FSlateCachedElementListNode* CacheNode)
 {
 #if WITH_SLATE_DEBUGGING
-	check(!CacheHandle.IsValid() || CacheHandle.IsOwnedByWidget(this));
+	check(!CacheNode || CacheNode->GetValue().Widget == this);
 #endif
 
-	// Account for the case when the widget gets a new handle for some reason.  This should really never happen
-	if (PersistentState.CachedElementHandle.IsValid() && PersistentState.CachedElementHandle != CacheHandle)
+	if (PersistentState.CachedElementListNode != nullptr && PersistentState.CachedElementListNode != CacheNode)
 	{
-		ensure(false);
-		PersistentState.CachedElementHandle.RemoveFromCache();
+	//	ensure(false);
+		PersistentState.CachedElementListNode->GetValue().GetOwningData()->RemoveCache(PersistentState.CachedElementListNode);
 	}
-	PersistentState.CachedElementHandle = CacheHandle;
+
+	PersistentState.CachedElementListNode = CacheNode;
 
 	if (FastPathProxyHandle.IsValid())
 	{
@@ -235,7 +235,10 @@ SWidget::~SWidget()
 
 		// Note: this would still be valid if a widget was painted and then destroyed in the same frame.  
 		// In that case invalidation hasn't taken place for added widgets so the invalidation panel doesn't know about their cached element data to clean it up
-		PersistentState.CachedElementHandle.RemoveFromCache();
+		if (PersistentState.CachedElementListNode)
+		{
+			PersistentState.CachedElementListNode->GetValue().GetOwningData()->RemoveCache(PersistentState.CachedElementListNode);
+		}
 
 #if WITH_ACCESSIBILITY
 		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->OnWidgetRemoved(this);
@@ -714,12 +717,12 @@ bool SWidget::AssignIndicesToChildren(FSlateInvalidationRoot& Root, int32 Parent
 
 	FastPathProxyHandle = FWidgetProxyHandle(Root, MyProxy.Index);
 
-	if (bInvisibleDueToParentOrSelfVisibility&& PersistentState.CachedElementHandle.IsValid())
+	if (bInvisibleDueToParentOrSelfVisibility&& PersistentState.CachedElementListNode != nullptr)
 	{
 #if WITH_SLATE_DEBUGGING
-		check(PersistentState.CachedElementHandle.IsOwnedByWidget(this));
+		check(PersistentState.CachedElementListNode->GetValue().Widget == this);
 #endif
-		PersistentState.CachedElementHandle.RemoveFromCache();
+		Root.GetCachedElements().ResetCache(PersistentState.CachedElementListNode);
 	}
 
 	FastPathList.Add(MyProxy);
@@ -784,8 +787,10 @@ void SWidget::UpdateFastPathVisibility(bool bParentVisible, bool bWidgetRemoved,
 		HittestGridToRemoveFrom->RemoveWidget(SharedThis(this));
 	}
 
-
-	PersistentState.CachedElementHandle.ClearCachedElements();
+	if (PersistentState.CachedElementListNode)
+	{
+		PersistentState.CachedElementListNode->GetValue().Reset();
+	}
 
 	FChildren* MyChildren = GetAllChildren();
 	const int32 NumChildren = MyChildren->Num();
@@ -1265,14 +1270,13 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	ensure(!MutableThis.IsUnique());
 #endif
 
-#if WITH_SLATE_DEBUGGING
-	if (!FastPathProxyHandle.IsValid() && PersistentState.CachedElementHandle.IsValid())
+
+	if (!FastPathProxyHandle.IsValid() && PersistentState.CachedElementListNode != nullptr)
 	{
 		ensure(!bInvisibleDueToParentOrSelfVisibility);
 	}
-#endif
 
-	OutDrawElements.PushPaintingWidget(*this, LayerId, PersistentState.CachedElementHandle);
+	OutDrawElements.PushPaintingWidget(*this, LayerId, PersistentState.CachedElementListNode);
 
 	if (bOutgoingHittestability)
 	{
@@ -1403,13 +1407,13 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	}
 #endif
 
-	FSlateCachedElementsHandle NewCacheHandle = OutDrawElements.PopPaintingWidget();
+	FSlateCachedElementListNode* NewCacheNode = OutDrawElements.PopPaintingWidget();
 	if (OutDrawElements.ShouldResolveDeferred())
 	{
 		NewLayerId = OutDrawElements.PaintDeferred(NewLayerId, MyCullingRect);
 	}
 
-	MutableThis->UpdateWidgetProxy(NewLayerId, NewCacheHandle);
+	MutableThis->UpdateWidgetProxy(NewLayerId, NewCacheNode);
 
 	return NewLayerId;
 
