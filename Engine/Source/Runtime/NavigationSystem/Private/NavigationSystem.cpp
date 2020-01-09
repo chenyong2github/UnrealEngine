@@ -772,6 +772,8 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 
 			if (GetDefaultNavDataInstance(FNavigationSystem::DontCreate) != NULL)
 			{
+				const bool bIsInGame = World->IsGameWorld();
+
 				// trigger navmesh update
 				for (TActorIterator<ANavigationData> It(World); It; ++It)
 				{
@@ -782,7 +784,7 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 
 						if (Result == RegistrationSuccessful)
 						{
-							if (bAllowRebuild)
+							if (bAllowRebuild && (!bIsInGame || NavData->SupportsRuntimeGeneration()))
 							{
 								NavData->RebuildAll();
 							}
