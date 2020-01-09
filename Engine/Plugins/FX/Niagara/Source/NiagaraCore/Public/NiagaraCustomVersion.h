@@ -136,6 +136,8 @@ struct FNiagaraCustomVersion
 
 		MemorySaving, // Convert TMap into TArray to save memory, TMap contains an inline allocator which pushes the size to 80 bytes
 
+		AddShaderStageUsageEnum, // Added a new value to the script usage enum, and we need a custom version to fix the existing bitfields.
+
 		// DO NOT ADD A NEW VERSION UNLESS YOU HAVE TALKED TO THE NIAGARA LEAD. Mismanagement of these versions can lead to data loss if it is adjusted in multiple streams simultaneously.
 		// -----<new versions can be added above this line>  -------------------------------------------------
 		VersionPlusOne,
