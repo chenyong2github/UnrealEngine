@@ -1244,6 +1244,8 @@ public:
 
 	void Reset() { Type = EParticleType::Static; }
 
+	virtual ~FParticleData() = default;
+
 	EParticleType Type;
 };
 
