@@ -2374,7 +2374,7 @@ public:
 	{
 		if (Bypass())
 		{
-			extern FRHIComputePipelineState* ExecuteSetComputePipelineState(FComputePipelineState* ComputePipelineState);
+			extern RHI_API FRHIComputePipelineState* ExecuteSetComputePipelineState(FComputePipelineState* ComputePipelineState);
 			FRHIComputePipelineState* RHIComputePipelineState = ExecuteSetComputePipelineState(ComputePipelineState);
 			GetComputeContext().RHISetComputePipelineState(RHIComputePipelineState);
 			return;
