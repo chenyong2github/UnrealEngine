@@ -1434,7 +1434,7 @@ void FPhysScene_ChaosInterface::StartFrame()
 			// Need to fire off a parallel task to handle running physics commands and
 			// ticking the scene while the engine continues on until TG_EndPhysics
 			// (this should happen in TG_StartPhysics)
-			PhysicsTickTask = TGraphTask<FPhysicsTickTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(SimulationCompleteEvent, Dt);
+			PhysicsTickTask = TGraphTask<FPhysicsTickTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(SimulationCompleteEvent, GetSolver(), Dt);
 
 			// Setup post simulate tasks
 			if (PhysicsTickTask.GetReference())
@@ -1495,8 +1495,14 @@ void FPhysScene_ChaosInterface::EndFrame(ULineBatchComponent* InLineBatcher)
 		//flush queue so we can merge the two threads
 		Dispatcher->Execute();
 
+		// Make a list of solvers to process. This is just our solver if we have one,
+		// and if not then it's all solvers in the solvers module.
+		const TArray<FPhysicsSolver*>& SolverList
+			= (GetSolver() == nullptr)
+			? SolverModule->GetSolvers()
+			: [&]() { TArray<FPhysicsSolver*> Solvers; Solvers.Init(GetSolver(), 1); return Solvers; }();
+
 		// flush solver queues
-		const TArray<FPhysicsSolver*>& SolverList = SolverModule->GetSolvers();
 		for (FPhysicsSolver* Solver : SolverList)
 		{
 			TQueue<TFunction<void(Chaos::FPhysicsSolver*)>, EQueueMode::Mpsc>& Queue = Solver->GetCommandQueue();
