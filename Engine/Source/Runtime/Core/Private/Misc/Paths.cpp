@@ -709,13 +709,14 @@ FString FPaths::GetCleanFilename(FString&& InPath)
 	return MoveTemp(InPath);
 }
 
-FString FPaths::GetBaseFilename(FString InPath, bool bRemovePath )
+template<typename T>
+FString GetBaseFilenameImpl(T&& InPath, bool bRemovePath)
 {
-	FString Wk = bRemovePath ? GetCleanFilename(MoveTemp(InPath)) : MoveTemp(InPath);
+	FString Wk = bRemovePath ? FPaths::GetCleanFilename(Forward<T>(InPath)) : Forward<T>(InPath);
 
 	// remove the extension
 	const int32 ExtPos = Wk.Find(TEXT("."), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
-	
+
 	if (ExtPos != INDEX_NONE)
 	{
 		// determine the position of the path/leaf separator
@@ -732,6 +733,16 @@ FString FPaths::GetBaseFilename(FString InPath, bool bRemovePath )
 	}
 
 	return Wk;
+}
+
+FString FPaths::GetBaseFilename(const FString& InPath, bool bRemovePath)
+{
+	return GetBaseFilenameImpl(InPath, bRemovePath);
+}
+
+FString FPaths::GetBaseFilename(FString&& InPath, bool bRemovePath)
+{
+	return GetBaseFilenameImpl(MoveTemp(InPath), bRemovePath);
 }
 
 FString FPaths::GetPath(const FString& InPath)
