@@ -14,7 +14,7 @@ UNiagaraNodeStaticSwitch::UNiagaraNodeStaticSwitch(const FObjectInitializer& Obj
 
 void UNiagaraNodeStaticSwitch::DestroyNode()
 {
-	GetNiagaraGraph()->RemoveParameter(FNiagaraVariable(GetInputType(), InputParameterName), true);
+	GetNiagaraGraph()->RemoveParameter(FNiagaraVariable(GetInputType(), InputParameterName));
 	Super::DestroyNode();
 }
 
@@ -102,7 +102,7 @@ void UNiagaraNodeStaticSwitch::RemoveUnusedGraphParameter(const FNiagaraVariable
 	int Index = GraphVariables.Find(OldParameter);
 	if (Index == INDEX_NONE)
 	{
-		GetNiagaraGraph()->RemoveParameter(OldParameter, true);
+		GetNiagaraGraph()->RemoveParameter(OldParameter);
 	}
 	else
 	{

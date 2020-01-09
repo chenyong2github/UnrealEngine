@@ -233,7 +233,7 @@ class UNiagaraGraph : public UEdGraph
 	void AddParameterReference(const FNiagaraVariable& Parameter, const UEdGraphPin* Pin);
 
 	/** Remove parameter from map and all the pins associated. */
-	void RemoveParameter(const FNiagaraVariable& Parameter, bool bFromStaticSwitch = false);
+	void RemoveParameter(const FNiagaraVariable& Parameter);
 
 	/** Rename parameter from map and all the pins associated. */
 	bool RenameParameter(const FNiagaraVariable& Parameter, FName NewName, bool bFromStaticSwitch = false);
