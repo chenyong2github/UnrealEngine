@@ -257,8 +257,7 @@ namespace
 		FClass* Class,
 		FClass* SuperClass,
 		FOutputDevice& Writer,
-		const FUnrealSourceFile& SourceFile,
-		FNativeClassHeaderGenerator::EExportClassOutFlags& OutFlags)
+		const FUnrealSourceFile& SourceFile)
 	{
 		const bool bHasGetLifetimeReplicatedProps = HasIdentifierExactMatch(ClassRange.Start, ClassRange.End, GetLifetimeReplicatedPropsStr);
 
@@ -279,18 +278,6 @@ namespace
 		Class->SetUpUhtReplicationData(&ParentRepClass);
 
 		ExportNetData(Writer, Class, ParentRepClass, API);
-		
-		// If we don't have any Super Classes that have replicated properties,
-		// then we're the base most replicated class, and we should add in our interface stuff.
-		if (!ParentRepClass)
-		{
-			OutFlags |= FNativeClassHeaderGenerator::EExportClassOutFlags::NeedsPushModelHeaders;
-			Writer.Logf(TEXT(
-				"private:\r\n"
-				"\tREPLICATED_BASE_CLASS(%s)\r\n"
-				"public:\r\n"
-			), *Class->GetName());
-		}
 	}
 }
 
@@ -2962,8 +2949,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 	FOutputDevice&           OutDeclarations,
 	FReferenceGatherers&     OutReferenceGatherers,
 	FClass*                  Class,
-	const FUnrealSourceFile& SourceFile,
-	EExportClassOutFlags&    OutFlags
+	const FUnrealSourceFile& SourceFile
 ) const
 {
 	FUHTStringBuilder StandardUObjectConstructorsMacroCall;
@@ -3044,6 +3030,8 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 	}
 
 	FString PPOMacroName;
+
+	// Replication, add in the declaration for GetLifetimeReplicatedProps() automatically if there are any net flagged properties
 
 	ClassDefinitionRange ClassRange;
 	if (ClassDefinitionRange* FoundRange = ClassDefinitionRanges.Find(Class))
@@ -3202,7 +3190,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 
 			if (ClassHasReplicatedProperties(Class))
 			{
-				WriteReplicatedMacroData(ClassRange, *ClassCPPName, *APIArg, Class, SuperClass, InterfaceBoilerplate, SourceFile, OutFlags);
+				WriteReplicatedMacroData(ClassRange, *ClassCPPName, *APIArg, Class, SuperClass, InterfaceBoilerplate, SourceFile);
 			}
 
 			FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(ClassData, TEXT("_INCLASS_IINTERFACE_NO_PURE_DECLS"));
@@ -3229,7 +3217,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 
 			if (ClassHasReplicatedProperties(Class))
 			{
-				WriteReplicatedMacroData(ClassRange, *ClassCPPName, *APIArg, Class, SuperClass, Boilerplate, SourceFile, OutFlags);
+				WriteReplicatedMacroData(ClassRange, *ClassCPPName, *APIArg, Class, SuperClass, Boilerplate, SourceFile);
 			}
 
 			{
@@ -3487,18 +3475,12 @@ void FNativeClassHeaderGenerator::ExportConstructorsMacros(FOutputDevice& OutGen
 	EnhancedUObjectConstructorsMacroCall.Logf(TEXT("\t%s\r\n"), *EnhMacroName);
 }
 
-bool FNativeClassHeaderGenerator::WriteHeader(const TCHAR* Path, const FString& InBodyText, const TSet<FString>& InAdditionalHeaders, FReferenceGatherers& InOutReferenceGatherers) const
+bool FNativeClassHeaderGenerator::WriteHeader(const TCHAR* Path, const FString& InBodyText, FReferenceGatherers& InOutReferenceGatherers) const
 {
 	FUHTStringBuilder GeneratedHeaderTextWithCopyright;
 	GeneratedHeaderTextWithCopyright.Logf(TEXT("%s"), HeaderCopyright);
 	GeneratedHeaderTextWithCopyright.Log(TEXT("#include \"UObject/ObjectMacros.h\"\r\n"));
 	GeneratedHeaderTextWithCopyright.Log(TEXT("#include \"UObject/ScriptMacros.h\"\r\n"));
-
-	for (const FString& AdditionalHeader : InAdditionalHeaders)
-	{
-		GeneratedHeaderTextWithCopyright.Logf(TEXT("#include \"%s\"\r\n"), *AdditionalHeader);
-	}
-
 	GeneratedHeaderTextWithCopyright.Log(LINE_TERMINATOR);
 	GeneratedHeaderTextWithCopyright.Log(TEXT("PRAGMA_DISABLE_DEPRECATION_WARNINGS") LINE_TERMINATOR);
 
@@ -5762,21 +5744,14 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 			ConstThis->ExportDelegateDefinition(GeneratedHeaderText, ReferenceGatherers, *SourceFile, Func);
 		}
 
-		EExportClassOutFlags ExportFlags = EExportClassOutFlags::None;
-		TSet<FString> AdditionalHeaders;
 		TArray<UClass*>	DefinedClasses;
 		SourceFile->AppendDefinedClasses(DefinedClasses);
 		for (UClass* Class : DefinedClasses)
 		{
 			if (!(Class->ClassFlags & CLASS_Intrinsic))
 			{
-				ConstThis->ExportClassFromSourceFileInner(GeneratedHeaderText, OutText, GeneratedFunctionDeclarations, ReferenceGatherers, (FClass*)Class, *SourceFile, ExportFlags);
+				ConstThis->ExportClassFromSourceFileInner(GeneratedHeaderText, OutText, GeneratedFunctionDeclarations, ReferenceGatherers, (FClass*)Class, *SourceFile);
 			}
-		}
-
-		if (EnumHasAnyFlags(ExportFlags, EExportClassOutFlags::NeedsPushModelHeaders))
-		{
-			AdditionalHeaders.Add(FString(TEXT("Net/Core/PushModel/PushModelMacros.h")));
 		}
 
 		GeneratedHeaderText.Log(TEXT("#undef CURRENT_FILE_ID\r\n"));
@@ -5788,7 +5763,7 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 		}
 
 		FString HeaderPath = BaseSourceFilename + TEXT(".generated.h");
-		bool bHasChanged = ConstThis->WriteHeader(*HeaderPath, GeneratedHeaderText, AdditionalHeaders, ReferenceGatherers);
+		bool bHasChanged = ConstThis->WriteHeader(*HeaderPath, GeneratedHeaderText, ReferenceGatherers);
 
 		SourceFile->SetGeneratedFilename(MoveTemp(HeaderPath));
 		SourceFile->SetHasChanged(bHasChanged);

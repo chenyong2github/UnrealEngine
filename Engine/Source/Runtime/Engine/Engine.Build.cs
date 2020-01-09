@@ -20,7 +20,6 @@ public class Engine : ModuleRules
 				"Developer/DerivedDataCache/Public",
 				"Runtime/SynthBenchmark/Public",
 				"Runtime/Engine/Private",
-				"Runtime/Net/Core/Private/Net/Core/PushModel/Types"
 			}
 		);
 

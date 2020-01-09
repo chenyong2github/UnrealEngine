@@ -5,9 +5,7 @@
 #include "K2Node_CallFunction.h"
 #include "K2Node_Variable.h"
 #include "K2Node_VariableSet.h"
-#include "K2Node_Self.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Net/NetPushModelHelpers.h"
 
 #include "EdGraphUtilities.h"
 #include "KismetCompiler.h"
@@ -196,108 +194,6 @@ void FKCHandler_VariableSet::Transform(FKismetFunctionContext& Context, UEdGraph
 				NewThenPin->CopyPersistentDataFromOldPin(*OldThenPin);
 				OldThenPin->BreakAllPinLinks();
 				OldThenPin->MakeLinkTo(CallFuncNode->GetExecPin());
-			}
-		}
-
-		if (SetNotify->IsNetProperty())
-		{
-			/**
-			 * Warning!! Similar code exists in CallFunctionHandler.cpp
-			 *
-			 * This code is for property dirty tracking.
-			 * It works by injecting in extra nodes while compiling that will call UNetPushModelHelpers::MarkPropertyDirtyFromRepIndex.
-			 *
-			 * That function will be called with the Owner of the property (either Self or whatever is connected to the Target pin
-			 * of the BP Node), and the RepIndex of the property.
-			 *
-			 * Note, this assumes that there's no way that a native class can add or remove replicated properties without also
-			 * recompiling the blueprint. The only scenario that seems possible is cooked games with custom built binaries,
-			 * but that still seems unsafe.
-			 *
-			 * If that can happen, we can instead switch to using the property name and resorting to a FindField call at runtime,
-			 * but that will be more expensive.
-			 */
-
-			static const FName MarkPropertyDirtyFuncName(TEXT("MarkPropertyDirtyFromRepIndex"));
-			static const FName ObjectPinName(TEXT("Object"));
-			static const FName RepIndexPinName(TEXT("RepIndex"));
-			static const FName PropertyNamePinName(TEXT("PropertyName"));
-
-			UProperty* Property = SetNotify->GetPropertyForVariable();
-			UClass* Class = Property->GetTypedOuter<UClass>();
-
-			if (Property && Class)
-			{
-				// We need to make sure this class already has its property offsets setup, otherwise
-				// the order of our replicated properties won't match, meaning the RepIndex will be
-				// invalid.
-				if (Property->GetOffset_ForGC() == 0)
-				{
-					// Make sure that we're using the correct class and that it has replication data set up.
-					if (Class->ClassGeneratedBy == Context.Blueprint && Context.NewClass && Context.NewClass != Class)
-					{
-						Class = Context.NewClass;
-						Property = FindFieldChecked<UProperty>(Class, Property->GetFName());
-					}
-					if (Property->GetOffset_ForGC() == 0)
-					{
-						if (UBlueprint * Blueprint = Cast<UBlueprint>(Class->ClassGeneratedBy))
-						{
-							if (UClass * UseClass = Blueprint->GeneratedClass)
-							{
-								Class = UseClass;
-								Property = FindFieldChecked<UProperty>(Class, Property->GetFName());
-							}
-						}
-					}
-				}
-
-				ensureAlwaysMsgf(Property->GetOffset_ForGC() != 0,
-					TEXT("Class does not have Property Offsets setup. This will cause issues with Push Model. Blueprint=%s, Class=%s, Property=%s"),
-					*Context.Blueprint->GetPathName(), *Class->GetPathName(), *Property->GetName());
-
-				if (!Class->HasAnyClassFlags(CLASS_ReplicationDataIsSetUp))
-				{
-					Class->SetUpRuntimeReplicationData();
-				}
-
-				UK2Node_CallFunction* CallFuncNode = Node->GetGraph()->CreateIntermediateNode<UK2Node_CallFunction>();
-				CallFuncNode->FunctionReference.SetExternalMember(MarkPropertyDirtyFuncName, UNetPushModelHelpers::StaticClass());
-				CallFuncNode->AllocateDefaultPins();
-
-				// Take our old Self (Target) pin and hook it up to the Object pin for UNetPushModelHelpers::MarkPropertyDirty.
-				// If our Self pin isn't hooked up to anything, then create an intermediate Self node and use that.
-				UEdGraphPin* SelfPin = Node->FindPinChecked(UEdGraphSchema_K2::PN_Self);
-				UEdGraphPin* ObjectPin = CallFuncNode->FindPinChecked(ObjectPinName);
-
-				if (SelfPin->LinkedTo.Num() > 0)
-				{
-					SelfPin = SelfPin->LinkedTo[0];
-				}
-				else
-				{
-					UK2Node_Self* SelfNode = Node->GetGraph()->CreateIntermediateNode<UK2Node_Self>();
-					SelfNode->AllocateDefaultPins();
-					SelfPin = SelfNode->FindPinChecked(UEdGraphSchema_K2::PN_Self);
-				}
-
-				ObjectPin->MakeLinkTo(SelfPin);
-
-				UEdGraphPin* RepIndexPin = CallFuncNode->FindPinChecked(RepIndexPinName);
-				RepIndexPin->DefaultValue = FString::FromInt(Property->RepIndex);
-
-				UEdGraphPin* PropertyNamePin = CallFuncNode->FindPinChecked(PropertyNamePinName);
-				PropertyNamePin->DefaultValue = Property->GetFName().ToString();
-
-				// Hook up our exec pins.
-				UEdGraphPin* OldThenPin = Node->FindPinChecked(UEdGraphSchema_K2::PN_Then);
-				UEdGraphPin* NewThenPin = CallFuncNode->GetThenPin();
-				if (ensure(NewThenPin))
-				{
-					NewThenPin->CopyPersistentDataFromOldPin(*OldThenPin);
-					OldThenPin->BreakAllPinLinks();
-					OldThenPin->MakeLinkTo(CallFuncNode->GetExecPin());
-				}
 			}
 		}
 	}
