@@ -865,7 +865,7 @@ float FNiagaraWorldManager::DistanceSignificance(UNiagaraEffectType* EffectType,
 
 float FNiagaraWorldManager::DistanceSignificance(UNiagaraEffectType* EffectType, const FNiagaraScalabilitySettings& ScalabilitySettings, FVector Location)
 {
-	if (ScalabilitySettings.bCullByDistance)
+	if (ScalabilitySettings.bCullByDistance && bCachedPlayerViewLocationsValid)
 	{
 		float ClosestDistSq = FLT_MAX;
 		for (FVector ViewLocation : CachedPlayerViewLocations)
