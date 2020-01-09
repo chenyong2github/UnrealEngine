@@ -337,7 +337,7 @@ public:
 	bool IsExclusiveFullscreenViewport() const;
 
 	/** @return mouse position in game viewport coordinates (does not account for splitscreen) */
-	bool GetMousePosition(FVector2D& MousePosition) const;
+	virtual bool GetMousePosition(FVector2D& MousePosition) const;
 
 	/**
 	 * Determine whether a fullscreen viewport should be used in cases where there are multiple players.
