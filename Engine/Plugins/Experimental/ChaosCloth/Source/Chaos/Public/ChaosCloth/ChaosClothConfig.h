@@ -136,11 +136,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = Simulation, meta = (UIMin = "0", UIMax = "20", ClampMin = "0", ClampMax = "100"))
 	int32 IterationCount = 1;
 
-	// The expected simulation frequency in Hz that, if not closely matching the game tick frequency, will trigger substepping to help keep a more consistent time step.
-	// Use higher values to avoid jitter, and smaller value to avoid the extra cost of substepping.
-	UPROPERTY(EditAnywhere, Category = Simulation, meta = (UIMin = "30", UIMax = "240", ClampMin = "1", ClampMax = "1080"))
-	float SolverFrequency = 60.f;
-
 	// The radius of the spheres used in self collision 
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
 	float SelfCollisionThickness = 2.0f;

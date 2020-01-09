@@ -59,7 +59,6 @@ namespace ClothingSimulationDefault
 	static const float CollisionThickness = 1.2f;
 	static const float CoefficientOfFriction = 0.f;
 	static const float Damping = 0.01f;
-	static const float SolverFrequency = 60.f;
 	static const float WindDrag = 0.f;
 }
 
@@ -1170,21 +1169,9 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 
 	// Advance Sim
 	DeltaTime = Context->DeltaSeconds;
-
-	const float SolverFrequency = ClothSharedSimConfig ?
-		ClothSharedSimConfig->SolverFrequency :
-		ClothingSimulationDefault::SolverFrequency;
-
-	const int32 NumSubSteps = FMath::Max(1, FMath::RoundToInt(DeltaTime * SolverFrequency));  // Start substepping once deltatime is more than 50% above the expected simulation deltatime
-	const float SubDeltaTime = DeltaTime / float(NumSubSteps);
-
-	for (int32 i = 0; i < NumSubSteps; ++i)
-	{
-		Evolution->AdvanceOneTimeStep(SubDeltaTime);
-	}
-	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("DeltaTime: %.6f, SubDeltaTime: %.6f, NumSubSteps = %d"), DeltaTime, SubDeltaTime, NumSubSteps);
-
+	Evolution->AdvanceOneTimeStep(DeltaTime);
 	Time += DeltaTime;
+	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("DeltaTime: %.6f, Time = %.6f,  MaxPhysicsDelta = %.6f"), DeltaTime, Time, FClothingSimulationCommon::MaxPhysicsDelta);
 }
 
 void ClothingSimulation::GetSimulationData(
