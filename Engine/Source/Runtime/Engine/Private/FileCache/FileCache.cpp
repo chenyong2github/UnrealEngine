@@ -641,6 +641,20 @@ IFileCacheHandle* IFileCacheHandle::CreateFileCacheHandle(const TCHAR* InFileNam
 	return new FFileCacheHandle(FileHandle);
 }
 
+IFileCacheHandle* IFileCacheHandle::CreateFileCacheHandle(IAsyncReadFileHandle* FileHandle)
+{
+	SCOPE_CYCLE_COUNTER(STAT_SFC_CreateHandle);
+
+	if (FileHandle != nullptr)
+	{
+		return new FFileCacheHandle(FileHandle);	
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
 uint32 IFileCacheHandle::GetFileCacheSize()
 {
 	return GetCache().SizeInBytes;

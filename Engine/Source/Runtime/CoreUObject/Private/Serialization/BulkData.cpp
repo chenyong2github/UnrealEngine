@@ -1594,6 +1594,11 @@ void FUntypedBulkData::SerializeBulkData( FArchive& Ar, void* Data )
 	}
 }
 
+IAsyncReadFileHandle* FUntypedBulkData::OpenAsyncReadHandle() const
+{
+	return FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*GetFilename());
+}
+
 IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
 {
 	const int64 DataSize = GetBulkDataSize();

@@ -1925,7 +1925,7 @@ struct FAsyncLoadingTickScope2
 void FAsyncLoadingThread2Impl::InitializeLoading()
 {
 #if USE_NEW_BULKDATA
-	FBulkDataBase::SetIODispatcher(&IoDispatcher);
+	FBulkDataBase::SetIoDispatcher(&IoDispatcher);
 #endif
 
 	{
@@ -3552,7 +3552,7 @@ FAsyncLoadingThread2Impl::~FAsyncLoadingThread2Impl()
 	}
 
 #if USE_NEW_BULKDATA
-	FBulkDataBase::SetIODispatcher(nullptr);
+	FBulkDataBase::SetIoDispatcher(nullptr);
 #endif
 }
 

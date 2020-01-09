@@ -313,6 +313,7 @@ FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutComplet
 	FVirtualTextureDataChunk& Chunk = Data->Chunks[ChunkIndex];
 	FByteBulkData& BulkData = Chunk.BulkData;
 	FString ChunkFileName;
+	FIoChunkId ChunkId = FIoChunkId::InvalidChunkId;
 	int64 ChunkOffsetInFile = 0;
 
 #if WITH_EDITOR
@@ -355,8 +356,8 @@ FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutComplet
 		ChunkFileName = ChunkFileNameDCC;
 	}
 #else // WITH_EDITOR
-	ChunkFileName = BulkData.GetFilename();
 	ChunkOffsetInFile = BulkData.GetBulkDataOffsetInFile();
+	
 	if (BulkData.GetBulkDataSize() == 0)
 	{
 		if (!InvalidChunks[ChunkIndex])
@@ -371,7 +372,18 @@ FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutComplet
 	TUniquePtr<IFileCacheHandle>& Handle = HandlePerChunk[ChunkIndex];
 	if (!Handle)
 	{
-		Handle.Reset(IFileCacheHandle::CreateFileCacheHandle(*ChunkFileName));
+		// If we have a valid file name then we can create a file handle directly to it.
+		// If we do not then pass in the BulkData object which will create the IAsyncReadFileHandle for us.
+		//
+		if (!ChunkFileName.IsEmpty())
+		{
+			Handle.Reset(IFileCacheHandle::CreateFileCacheHandle(*ChunkFileName));
+		}
+		else
+		{
+			Handle.Reset(IFileCacheHandle::CreateFileCacheHandle(BulkData.OpenAsyncReadHandle()));
+		}
+
 		// Don't expect CreateFileCacheHandle() to fail, async files should never fail to open
 		if (!ensure(Handle.IsValid()))
 		{

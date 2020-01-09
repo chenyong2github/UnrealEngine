@@ -222,6 +222,143 @@ namespace FileTokenSystem
 
 FIoDispatcher* FBulkDataBase::IoDispatcher = nullptr;
 
+class FSizeChunkIdRequest : public IAsyncReadRequest
+{
+public:
+	FSizeChunkIdRequest(const FIoChunkId& ChunkId, FAsyncFileCallBack* Callback)
+		: IAsyncReadRequest(Callback, true, nullptr)
+	{
+		TIoStatusOr<uint64> Result = FBulkDataBase::GetIoDispatcher()->GetSizeForChunk(ChunkId);
+		if (Result.IsOk())
+		{
+			Size = Result.ValueOrDie();
+		}
+
+		SetComplete();
+	}
+
+	virtual ~FSizeChunkIdRequest() = default;
+
+private:
+
+	virtual void WaitCompletionImpl(float TimeLimitSeconds) override
+	{
+		// No need to wait as the work is done in the constructor
+	}
+
+	virtual void CancelImpl() override
+	{
+		// No point canceling as the work is done in the constructor
+	}
+};
+
+class FReadChunkIdRequest : public IAsyncReadRequest
+{
+public:
+	FReadChunkIdRequest(const FIoChunkId& InChunkId, FAsyncFileCallBack* InCallback, uint8* InUserSuppliedMemory, int64 InOffset, int64 InBytesToRead)
+		: IAsyncReadRequest(InCallback, false, InUserSuppliedMemory)
+	{
+		// Because IAsyncReadRequest can return ownership of the target memory buffer in the form
+		// of a raw pointer we must pass our own memory buffer to the FIoDispatcher otherwise the 
+		// buffer that will be returned cannot have it's lifetime managed correctly.
+		if (InUserSuppliedMemory == nullptr)
+		{
+			Memory = (uint8*)FMemory::Malloc(InBytesToRead);
+		}
+
+		DoneEvent = FPlatformProcess::GetSynchEventFromPool(true);
+		DoneEvent->Reset();
+		
+		FIoReadOptions Options(InOffset, InBytesToRead);
+		Options.SetTargetVa(Memory);
+
+		auto OnRequestLoaded = [this](TIoStatusOr<FIoBuffer> Result)
+		{
+			SetComplete();
+			ReleaseEvent(true);
+		};
+
+		FBulkDataBase::GetIoDispatcher()->ReadWithCallback(InChunkId, Options, OnRequestLoaded);
+	}
+
+	virtual ~FReadChunkIdRequest()
+	{
+		ReleaseEvent(false);
+
+		// Free memory if the request allocated it (although if the user accessed the memory after
+		// reading then they will have taken ownership of it anyway, and if they didn't access the
+		// memory then why did we read it in the first place?)
+		if (Memory != nullptr && !bUserSuppliedMemory)
+		{
+			FMemory::Free(Memory);
+		}
+
+		// ~IAsyncReadRequest expects Memory to be nullptr, even if the memory was user supplied
+		Memory = nullptr;
+	}
+
+protected:
+
+	virtual void WaitCompletionImpl(float TimeLimitSeconds) override
+	{
+		if (!PollCompletion())
+		{
+			uint32 TimeLimitMilliseconds = TimeLimitSeconds <= 0.0f ? (uint32)(TimeLimitSeconds * 1000.0f) : MAX_uint32;
+			DoneEvent->Wait(TimeLimitMilliseconds);
+		}
+	}
+
+	virtual void CancelImpl() override
+	{
+		bCanceled = true;
+		SetComplete();
+
+		DoneEvent->Trigger();
+		ReleaseEvent(true);
+	}
+
+	void ReleaseEvent(bool bShouldTrigger)
+	{
+		if (DoneEvent != nullptr)
+		{
+			if (bShouldTrigger)
+			{
+				DoneEvent->Trigger();
+			}
+
+			FPlatformProcess::ReturnSynchEventToPool(DoneEvent);
+			DoneEvent = nullptr;
+		}
+	}
+
+	FIoChunkId ChunkId;
+	FEvent* DoneEvent;
+};
+
+class FAsyncReadChunkIdHandle : public IAsyncReadFileHandle
+{
+public:
+	FAsyncReadChunkIdHandle(const FIoChunkId& InChunkID) 
+		: ChunkID(InChunkID)
+	{
+
+	}
+
+	virtual ~FAsyncReadChunkIdHandle() = default;
+
+	virtual IAsyncReadRequest* SizeRequest(FAsyncFileCallBack* CompleteCallback = nullptr) override
+	{
+		return new FSizeChunkIdRequest(ChunkID, CompleteCallback);
+	}
+
+	virtual IAsyncReadRequest* ReadRequest(int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags PriorityAndFlags = AIOP_Normal, FAsyncFileCallBack* CompleteCallback = nullptr, uint8* UserSuppliedMemory = nullptr) override
+	{
+		return new FReadChunkIdRequest(ChunkID, CompleteCallback, UserSuppliedMemory, Offset, BytesToRead);
+	}
+private:
+	FIoChunkId ChunkID;
+};
+
 class FBulkDataIoDispatcherRequest : public IBulkDataIORequest
 {
 public:
@@ -365,7 +502,7 @@ private:
 		//IoOptions.SetRange(OffsetInBulkData, BytesToRead);
 		//IoOptions.SetTargetVa((uint64)UserSuppliedMemory);
 
-		FIoBatch NewBatch = FBulkDataBase::IoDispatcher->NewBatch();
+		FIoBatch NewBatch = FBulkDataBase::GetIoDispatcher()->NewBatch();
 		for (Request& Request : RequestArray)
 		{
 			Request.IoRequest = NewBatch.Read(Request.ChunkId, IoOptions);
@@ -395,7 +532,7 @@ private:
 			DstBuffer += BytesToRead;
 		}
 		
-		FBulkDataBase::IoDispatcher->FreeBatch(NewBatch);
+		FBulkDataBase::GetIoDispatcher()->FreeBatch(NewBatch);
 
 		bIsCompleted = true;
 		FPlatformMisc::MemoryBarrier();
@@ -941,6 +1078,18 @@ bool FBulkDataBase::IsUsingIODispatcher() const
 	return (BulkDataFlags & BULKDATA_UsesIoDispatcher) != 0;
 }
 
+IAsyncReadFileHandle* FBulkDataBase::OpenAsyncReadHandle() const
+{
+	if (IsUsingIODispatcher())
+	{
+		return new FAsyncReadChunkIdHandle(ChunkID);
+	}
+	else
+	{
+		return FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*GetFilename());
+	}
+}
+
 IBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
 {
 	const int64 DataSize = GetBulkDataSize();
@@ -1072,7 +1221,8 @@ int64 FBulkDataBase::GetBulkDataOffsetInFile() const
 	}
 	else
 	{
-		BULKDATA_NOT_IMPLEMENTED_FOR_RUNTIME;
+		// When using the IODispatcher the BulkData object will point directly to the correct data
+		// so we don't need to consider the offset at all.
 		return 0;
 	}
 }

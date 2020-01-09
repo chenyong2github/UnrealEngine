@@ -49,8 +49,8 @@ class COREUOBJECT_API FBulkDataBase
 public:
 	using BulkDataRangeArray = TArray<FBulkDataBase*, TInlineAllocator<8>>;
 
-	static void SetIODispatcher(FIoDispatcher* InIoDispatcher) { IoDispatcher = InIoDispatcher; }
-
+	static void				SetIoDispatcher(FIoDispatcher* InIoDispatcher) { IoDispatcher = InIoDispatcher; }
+	static FIoDispatcher*	GetIoDispatcher() { return IoDispatcher; }
 public:
 	using FileToken = int32;
 	static constexpr FileToken InvalidToken = INDEX_NONE;
@@ -118,6 +118,8 @@ public:
 	bool IsMemoryMapped() const;
 	bool IsUsingIODispatcher() const;
 
+	IAsyncReadFileHandle* OpenAsyncReadHandle() const;
+
 	IBulkDataIORequest* CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
 	IBulkDataIORequest* CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
 	
@@ -148,7 +150,7 @@ private:
 	FString ConvertFilenameFromFlags(const FString& Filename) const;
 
 private:
-	friend class FBulkDataIoDispatcherRequest;
+
 	static FIoDispatcher* IoDispatcher;
 
 	union
