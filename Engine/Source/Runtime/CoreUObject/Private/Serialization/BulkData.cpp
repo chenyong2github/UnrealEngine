@@ -1698,6 +1698,13 @@ IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequestForRange(const FStri
 
 #endif
 
+FBulkDataIORequest::FBulkDataIORequest(IAsyncReadFileHandle* InFileHandle)
+	: FileHandle(InFileHandle)
+	, ReadRequest(nullptr)
+	, Size(INDEX_NONE)
+{
+}
+
 FBulkDataIORequest::~FBulkDataIORequest()
 {
 	delete ReadRequest;
@@ -1707,11 +1714,11 @@ FBulkDataIORequest::~FBulkDataIORequest()
 bool FBulkDataIORequest::MakeReadRequest(int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags PriorityAndFlags, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory)
 {
 	check(ReadRequest == nullptr);
-	check(Size == 0);
 
 	FBulkDataIORequestCallBack LocalCallback = *CompleteCallback;
-	FAsyncFileCallBack AsyncFileCallBack = [LocalCallback, this](bool bWasCancelled, IAsyncReadRequest*)
+	FAsyncFileCallBack AsyncFileCallBack = [LocalCallback, BytesToRead, this](bool bWasCancelled, IAsyncReadRequest*)
 	{
+		Size = BytesToRead;
 		LocalCallback(bWasCancelled, this);
 	};
 
@@ -1719,7 +1726,6 @@ bool FBulkDataIORequest::MakeReadRequest(int64 Offset, int64 BytesToRead, EAsync
 	
 	if (ReadRequest != nullptr)
 	{
-		Size = BytesToRead;
 		return true;
 	}
 	else
@@ -1745,14 +1751,7 @@ uint8* FBulkDataIORequest::GetReadResults()
 
 int64 FBulkDataIORequest::GetSize() const
 {
-	if (ReadRequest->PollCompletion())
-	{
-		return Size;
-	}
-	else
-	{
-		return -1;
-	}
+	return Size;
 }
 
 void FBulkDataIORequest::Cancel()
