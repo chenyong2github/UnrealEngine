@@ -47,7 +47,7 @@ bool Audio::FAudioCaptureAndroidStream::OpenCaptureStream(const FAudioCaptureDev
 
 bool Audio::FAudioCaptureAndroidStream::CloseStream()
 {
-	if (InputOboeStream != nullptr)
+	if (!InputOboeStream)
 	{
 		InputOboeStream->close();
 		InputOboeStream.Reset();
