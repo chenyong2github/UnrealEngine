@@ -31,14 +31,13 @@ struct FMobileShadingModelContext
 	half ClearCoat;
 	half ClearCoatRoughness;
 	float NoV;
+	half SpecPreEnvBrdf;
 #elif MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	half BaseMaterialCoverageOverWater;
 	half WaterVisibility;
 	float3 WaterDiffuseIndirectLuminance;
 #endif
 };
-
-
 
 #if NONMETAL
 half GetEnvBRDF(half SpecularColor, half Roughness, float NoV)
@@ -91,6 +90,7 @@ void InitShadingModelContext( inout FMobileShadingModelContext ShadingModelConte
 		ShadingModelContext.Specular *= lerp(1, RefractionScale, ShadingModelContext.ClearCoat);
 		half DielectricSpecular = 0.08 * ShadingModelContext.Specular;
 		ShadingModelContext.SpecularColor = (DielectricSpecular - DielectricSpecular * ShadingModelContext.Metallic) + ShadingModelContext.BaseColor * ShadingModelContext.Metallic;	// 2 mad
+		ShadingModelContext.SpecPreEnvBrdf = ShadingModelContext.SpecularColor;
 		ShadingModelContext.DiffuseColor = ShadingModelContext.BaseColor - ShadingModelContext.BaseColor * ShadingModelContext.Metallic;
 
 		// Adjust BaseColor according to ClearCoat layer attenuation
@@ -173,6 +173,7 @@ FMobileDirectLighting MobileIntegrateBxDF(FMobileShadingModelContext ShadingMode
 	Lighting.Specular = F * Vis * GGX_Mobile(ShadingModelContext.ClearCoatRoughness, NoH, H, N);
 	Lighting.Specular += LayerAttenuation * ShadingModelContext.SpecularColor * CalcSpecular(ShadingModelContext.Roughness, ShadingModelContext.RoughnessWithClamp, RoL, NoH, H, N);
 	Lighting.Diffuse = LayerAttenuation * ShadingModelContext.DiffuseColor;
+
 #else // MATERIAL_SHADINGMODEL_DEFAULT_LIT
 	Lighting.Specular = ShadingModelContext.SpecularColor * CalcSpecular(ShadingModelContext.Roughness, ShadingModelContext.RoughnessWithClamp, RoL, NoH, H, N);
 	Lighting.Diffuse = ShadingModelContext.DiffuseColor;

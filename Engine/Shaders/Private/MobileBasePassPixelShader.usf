@@ -592,21 +592,19 @@ void Main(
 		}
 	#endif
 	#if MATERIAL_SHADINGMODEL_CLEARCOAT
-		half SpecularOcclusion = 1; // GetSpecularOcclusion(ShadingModelContext.NoV, ShadingModelContext.Roughness*ShadingModelContext.Roughness, MaterialAO);
-		//Color += SpecularIBL * ShadingModelContext.SpecularColor * ShadingModelContext.ClearCoat * SpecularOcclusion;
 		float2 AB = PreIntegratedGF.SampleLevel(PreIntegratedGFSampler, float2(ShadingModelContext.NoV, ShadingModelContext.Roughness), 0).rg;
 
 		// F_Schlick
-		float F = EnvBRDF(0.04, ShadingModelContext.ClearCoatRoughness, ShadingModelContext.NoV).x;
-
+		half F = GetEnvBRDF(0.04, ShadingModelContext.ClearCoatRoughness, ShadingModelContext.NoV).x;
 		F *= ShadingModelContext.ClearCoat;
+		half LayerAttenuation = (1 - F);
 
-		float LayerAttenuation = (1 - F);
-
-		Color += SpecularIBL * ShadingModelContext.SpecularColor * LayerAttenuation * (ShadingModelContext.SpecularColor * AB.x + AB.y * saturate(50 * ShadingModelContext.SpecularColor.g) * (1 - ShadingModelContext.ClearCoat));
+		half DielectricSpecular = 0.08 * ShadingModelContext.Specular;
+		half SpecularColor = (DielectricSpecular - DielectricSpecular * ShadingModelContext.Metallic) + ShadingModelContext.BaseColor * ShadingModelContext.Metallic;	// 2 mad
+		Color += SpecularIBL * ShadingModelContext.SpecularColor * LayerAttenuation * (ShadingModelContext.SpecPreEnvBrdf * AB.x + AB.y * saturate(50 * ShadingModelContext.SpecPreEnvBrdf.g) * (1 - ShadingModelContext.ClearCoat));
 
 		SpecularIBL = GetImageBasedReflectionLighting(MaterialParameters, ShadingModelContext.ClearCoatRoughness, IndirectIrradiance);
-		Color += SpecularIBL * ShadingModelContext.SpecularColor * F * SpecularOcclusion;
+		Color += F * SpecularIBL * ShadingModelContext.SpecularColor;
 	#else
 		Color += SpecularIBL * ShadingModelContext.SpecularColor;
 	#endif
