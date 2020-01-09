@@ -66,12 +66,12 @@ void UAudioSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 		FName PropertyName = PropertyChangedEvent.Property->GetFName();
 		if (PropertyName == GET_MEMBER_NAME_CHECKED(UAudioSettings, MasterSubmix))
 		{
-			if (USoundSubmix* NewSubmix = Cast<USoundSubmix>(AmbisonicSubmix.TryLoad()))
+			if (USoundSubmix* NewSubmix = Cast<USoundSubmix>(MasterSubmix.TryLoad()))
 			{
-				if (NewSubmix->ParentSubmix != nullptr)
+				if (NewSubmix->ParentSubmix)
 				{
 					FNotificationInfo Info(LOCTEXT("AudioSettings_InvalidMasterSubmix",
-						"Master Submix' cannot be set to submix with parent."));
+						"'Master Submix' cannot be set to submix with parent."));
 					Info.bFireAndForget = true;
 					Info.ExpireDuration = 2.0f;
 					Info.bUseThrobber = true;
