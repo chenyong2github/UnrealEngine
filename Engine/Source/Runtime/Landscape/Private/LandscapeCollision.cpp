@@ -549,7 +549,7 @@ void ULandscapeHeightfieldCollisionComponent::ApplyWorldOffset(const FVector& In
 void ULandscapeHeightfieldCollisionComponent::CreateCollisionObject()
 {
 #if WITH_CHAOS
-	LLM_SCOPE(ELLMTag::ChaosGeometry);
+	LLM_SCOPE(ELLMTag::ChaosLandscape);
 #endif
 	// If we have not created a heightfield yet - do it now.
 	if (!IsValidRef(HeightfieldRef))

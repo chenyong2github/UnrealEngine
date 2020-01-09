@@ -26,8 +26,16 @@ FChaosDerivedDataReader<T, d>::FChaosDerivedDataReader(FBulkDataInterface* InBul
 	}
 	else
 	{
-		LLM_SCOPE(ELLMTag::ChaosGeometry);
-		ChaosAr << ConvexImplicitObjects << TrimeshImplicitObjects << UVInfo << FaceRemap;
+		{
+			LLM_SCOPE(ELLMTag::ChaosConvex);
+			ChaosAr << ConvexImplicitObjects;
+		}
+
+		{
+			LLM_SCOPE(ELLMTag::ChaosTrimesh);
+			ChaosAr << TrimeshImplicitObjects << UVInfo << FaceRemap;
+		}
+		
 
 		bReadSuccessful = true;
 	}
