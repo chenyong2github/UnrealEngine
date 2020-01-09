@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2020 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -47,7 +47,7 @@ public:
 	 * @see GetDelayedQualifiedFrameTime, GetDelayedTimecode
 	 */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Settings")
-	int32 FrameDelay = 0;
+	float FrameDelay = 0.f;
 	
 	/**
 	 * Return the frame number and the frame rate of the frame number at that moment. It may not be in sync with the current frame.

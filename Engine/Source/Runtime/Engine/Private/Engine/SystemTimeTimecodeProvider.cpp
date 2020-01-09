@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2020 Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/SystemTimeTimecodeProvider.h"
 
@@ -21,7 +21,7 @@ namespace
 
 USystemTimeTimecodeProvider::USystemTimeTimecodeProvider()
 	: FrameRate(60, 1)
-	, bGenerateFullFrame(false)
+	, bGenerateFullFrame(true)
 	, State(ETimecodeProviderSynchronizationState::Closed)
 {
 }
@@ -60,7 +60,6 @@ FTimecode USystemTimeTimecodeProvider::GenerateTimecodeFromHighPerformanceClock(
 
 FQualifiedFrameTime USystemTimeTimecodeProvider::GetQualifiedFrameTime() const
 {
-	// Generate a TC to prevent subframe
 	return bGenerateFullFrame ? 
 		FQualifiedFrameTime(GenerateTimecodeFromSystemTime(FrameRate), FrameRate)
 		: FQualifiedFrameTime(GenerateFrameTimeFromSystemTime(FrameRate), FrameRate);

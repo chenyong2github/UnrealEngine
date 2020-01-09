@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2020 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -69,7 +69,7 @@ struct FLiveLinkSourceBufferManagementSettings
 
 	/** When evaluating with timecode: how far back from current timecode should we read the buffer (in TimecodeFrameRate). */
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	int32 TimecodeFrameOffset = 0;
+	float TimecodeFrameOffset = 0.f;
 
 	/** When evaluating with latest: how far back from latest frame should we read the buffer */
 	UPROPERTY(EditAnywhere, Category = "Settings")

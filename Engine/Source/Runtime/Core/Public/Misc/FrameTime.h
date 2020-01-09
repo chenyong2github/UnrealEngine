@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2020 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -100,6 +100,7 @@ private:
 	friend bool operator<=(FFrameTime A, FFrameTime B);
 
 	friend FFrameTime& operator+=(FFrameTime& LHS, FFrameTime RHS);
+	friend FFrameTime& operator-=(FFrameTime& LHS, FFrameTime RHS);
 	friend FFrameTime  operator+(FFrameTime A, FFrameTime B);
 	friend FFrameTime  operator-(FFrameTime A, FFrameTime B);
 	friend FFrameTime  operator%(FFrameTime A, FFrameTime B);
@@ -206,6 +207,19 @@ FORCEINLINE_DEBUGGABLE FFrameTime operator+(FFrameTime A, FFrameTime B)
 	const FFrameNumber NewFrameNumber = A.FrameNumber + B.FrameNumber + FFrameNumber(FMath::FloorToInt(NewSubFrame));
 
 	return FFrameTime(NewFrameNumber, FMath::Frac(NewSubFrame));
+}
+
+
+FORCEINLINE_DEBUGGABLE FFrameTime& operator-=(FFrameTime& LHS, FFrameTime RHS)
+{
+	// Ensure SubFrame is always between 0 and 1
+	// Note that the difference between frame -1.5 and 1.5 is 2, not 3, since sub frame positions are always positive
+	const float        NewSubFrame     = LHS.SubFrame - RHS.SubFrame;
+	const int          FlooredSubFrame = FMath::FloorToInt(NewSubFrame);
+	LHS.FrameNumber  = LHS.FrameNumber - RHS.FrameNumber + FFrameNumber(FlooredSubFrame);
+	LHS.SubFrame = NewSubFrame - FlooredSubFrame;
+
+	return LHS;
 }
 
 
