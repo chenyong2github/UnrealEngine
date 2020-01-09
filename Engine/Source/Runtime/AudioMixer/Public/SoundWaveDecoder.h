@@ -210,6 +210,9 @@ namespace Audio
 		// Removes the decoding source from the decoder
 		void RemoveDecodingSource(const FDecodingSoundSourceHandle& Handle);
 
+		// Resets internal state of decoder
+		void Reset();
+
 		// Sets the source pitch scale
 		void SetSourcePitchScale(const FDecodingSoundSourceHandle& Handle, float InPitchScale);
 
