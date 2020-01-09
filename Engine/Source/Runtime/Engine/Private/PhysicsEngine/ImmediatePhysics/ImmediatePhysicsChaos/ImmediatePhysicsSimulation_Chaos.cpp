@@ -348,9 +348,15 @@ namespace ImmediatePhysics_Chaos
 				continue;
 			}
 
-			bool bShouldBeActive = NumActiveDynamicActorHandles < InNumActiveActorHandles;
-			Handle->SetEnabled(bShouldBeActive);
-			++NumActiveDynamicActorHandles;
+			if (NumActiveDynamicActorHandles < InNumActiveActorHandles)
+			{
+				Handle->SetEnabled(true);
+				++NumActiveDynamicActorHandles;
+			}
+			else
+			{
+				Handle->SetEnabled(false);
+			}
 		}
 	}
 
