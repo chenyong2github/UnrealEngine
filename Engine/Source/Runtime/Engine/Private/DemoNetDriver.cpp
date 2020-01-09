@@ -4333,9 +4333,13 @@ void UDemoNetDriver::ReplayStreamingReady(const FStartStreamingResult& Result)
 		if (SkipToLevelIndexOption)
 		{
 			int32 Index = FCString::Atoi(SkipToLevelIndexOption);
-			if (Index < LevelNamesAndTimes.Num())
+			if (LevelNamesAndTimes.IsValidIndex(Index))
 			{
 				AddReplayTask(new FGotoTimeInSecondsTask(this, (float)LevelNamesAndTimes[Index].LevelChangeTimeInMS / 1000.0f));
+			}
+			else
+			{
+				UE_LOG(LogDemo, Warning, TEXT("ReplayStreamingReady: SkipToLevelIndex was invalid: %d"), Index);
 			}
 		}
 
