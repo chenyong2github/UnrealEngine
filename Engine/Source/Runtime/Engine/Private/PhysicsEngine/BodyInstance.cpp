@@ -1815,7 +1815,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 					const TImplicitObjectScaled<FConvex>* ConvexGeometry = static_cast<const TImplicitObjectScaled<FConvex>*>(&ImplicitObject);
 
 					FKConvexElem* ConvexElem = ShapeElem->GetShapeCheck<FKConvexElem>();
-					const TUniquePtr<FConvex>& ConvexImplicit = ConvexElem->GetChaosConvexMesh();
+					const auto& ConvexImplicit = ConvexElem->GetChaosConvexMesh();
 
 					// Ensure no rotation/translation in relative transform. PhysX supports this, we currently do not.
 					CHAOS_ENSURE(RelativeTM.GetRotation() == FQuat::Identity);

@@ -206,6 +206,11 @@ namespace Chaos
 
 		virtual void Serialize(FChaosArchive& Ar) override;
 
+		virtual FString ToString() const
+		{
+			return FString::Printf(TEXT("TriangleMesh"));
+		}
+
 		virtual uint32 GetTypeHash() const override;
 
 		FVec3 GetFaceNormal(const int32 FaceIdx) const;
