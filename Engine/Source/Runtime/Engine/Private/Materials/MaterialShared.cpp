@@ -1138,9 +1138,9 @@ FString FMaterialResource::GetDebugName() const
 {
 	if (MaterialInstance)
 	{
-		return FString::Printf(TEXT("%s (MI:%s)"), *GetBaseMaterialPathName(), *MaterialInstance->GetName());
+		return FString::Printf(TEXT("%s (MI:%s)"), *GetBaseMaterialPathName(), *MaterialInstance->GetPathName());
 	}
-	
+
 	return GetBaseMaterialPathName();
 }
 
