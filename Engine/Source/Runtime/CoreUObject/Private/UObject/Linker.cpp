@@ -5,9 +5,11 @@
 =============================================================================*/
 
 #include "UObject/Linker.h"
+#include "Containers/StringView.h"
 #include "Misc/PackageName.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
+#include "Misc/PathViews.h"
 #include "UObject/Package.h"
 #include "Templates/Casts.h"
 #include "UObject/UnrealType.h"
@@ -615,7 +617,7 @@ FLinkerLoad* GetPackageLinker
 		// Process any package redirects
 		{
 			const FCoreRedirectObjectName NewPackageName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(NAME_None, NAME_None, *PackageNameToCreate));
-			PackageNameToCreate = NewPackageName.PackageName.ToString();
+			NewPackageName.PackageName.ToString(PackageNameToCreate);
 		}
 
 		// The editor must not redirect packages for localization. We also shouldn't redirect script or in-memory packages.
@@ -652,7 +654,7 @@ FLinkerLoad* GetPackageLinker
 		// Process any package redirects
 		{
 			const FCoreRedirectObjectName NewPackageName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(NAME_None, NAME_None, *PackageNameToCreate));
-			PackageNameToCreate = NewPackageName.PackageName.ToString();
+			NewPackageName.PackageName.ToString(PackageNameToCreate);
 		}
 
 		// The editor must not redirect packages for localization. We also shouldn't redirect script packages.
@@ -691,7 +693,7 @@ FLinkerLoad* GetPackageLinker
 
 #if WITH_EDITORONLY_DATA
 		// Make sure the package name matches the name on disk
-		FPackageName::FixPackageNameCase(PackageNameToCreate, FPaths::GetExtension(NewFilename));
+		FPackageName::FixPackageNameCase(PackageNameToCreate, FPathViews::GetExtension(NewFilename));
 #endif
 
 		// Create the package with the provided long package name.

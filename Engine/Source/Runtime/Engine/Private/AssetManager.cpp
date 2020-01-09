@@ -5,6 +5,7 @@
 #include "Engine/PrimaryAssetLabel.h"
 #include "AssetData.h"
 #include "ARFilter.h"
+#include "Containers/StringView.h"
 #include "Engine/Engine.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "UObject/ConstructorHelpers.h"
@@ -12,6 +13,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/Paths.h"
+#include "Misc/StringBuilder.h"
 #include "Serialization/MemoryReader.h"
 #include "AssetRegistryState.h"
 #include "HAL/PlatformFilemanager.h"
@@ -2824,10 +2826,11 @@ EAssetSetManagerResult::Type UAssetManager::ShouldSetManager(const FAssetIdentif
 		return EAssetSetManagerResult::SetButDoNotRecurse;
 	}
 
-	const FString TargetPackageString = Target.PackageName.ToString();
+	TStringBuilder<256> TargetPackageString;
+	Target.PackageName.ToString(TargetPackageString);
 
 	// Ignore script references
-	if (TargetPackageString.StartsWith(TEXT("/Script/"), ESearchCase::CaseSensitive))
+	if (FStringView(TargetPackageString).StartsWith(TEXT("/Script/"), ESearchCase::CaseSensitive))
 	{
 		return EAssetSetManagerResult::DoNotSet;
 	}

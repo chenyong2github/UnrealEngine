@@ -15,6 +15,7 @@
 #include "Misc/OutputDeviceConsole.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/EnumClassFlags.h"
+#include "Misc/StringBuilder.h"
 #include "UObject/ErrorException.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectAllocator.h"
@@ -1497,7 +1498,9 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 							Tag.SetPropertyGuid(PropertyGuid);
 						}
 
-						FStructuredArchive::FSlot PropertySlot = StaticArrayContainer.IsSet() ? StaticArrayContainer->EnterElement() : PropertiesRecord.EnterField(SA_FIELD_NAME(*Tag.Name.ToString()));
+						TStringBuilder<256> TagName;
+						Tag.Name.ToString(TagName);
+						FStructuredArchive::FSlot PropertySlot = StaticArrayContainer.IsSet() ? StaticArrayContainer->EnterElement() : PropertiesRecord.EnterField(SA_FIELD_NAME(TagName.ToString()));
 
 						PropertySlot << Tag;
 
