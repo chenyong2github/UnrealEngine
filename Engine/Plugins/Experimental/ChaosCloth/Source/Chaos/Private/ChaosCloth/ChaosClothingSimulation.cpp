@@ -843,9 +843,9 @@ void ClothingSimulation::ExtractPhysicsAssetCollisions(const UClothingAssetCommo
 				const Chaos::FConvex& ChaosConvex = ChaosConvexMesh.GetObjectChecked<Chaos::FConvex>();
 
 				// Copy planes
-				const TArray<TPlane<float, 3>>& Planes = ChaosConvex.GetFaces();
+				const TArray<TPlaneConcrete<float, 3>>& Planes = ChaosConvex.GetFaces();
 				Convex.Planes.Reserve(Planes.Num());
-				for (const TPlane<float, 3>& Plane : Planes)
+				for (const TPlaneConcrete<float, 3>& Plane : Planes)
 				{
 					Convex.Planes.Add(FPlane(Plane.X(), Plane.Normal()));
 				}
@@ -1040,7 +1040,7 @@ void ClothingSimulation::AddCollisions(const FClothCollisionData& ClothCollision
 			else
 			{
 				// Retrieve convex planes
-				TArray<TPlane<float, 3>> Planes;
+				TArray<TPlaneConcrete<float, 3>> Planes;
 				Planes.Reserve(Convex.Planes.Num());
 				for (const FPlane& Plane : Convex.Planes)
 				{
@@ -1050,7 +1050,7 @@ void ClothingSimulation::AddCollisions(const FClothCollisionData& ClothCollision
 						const Chaos::TVector<float, 3> Normal(static_cast<FVector>(NormalizedPlane));
 						const Chaos::TVector<float, 3> Base = Normal * NormalizedPlane.W;
 
-						Planes.Add(Chaos::TPlane<float, 3>(Base, Normal));
+						Planes.Add(Chaos::TPlaneConcrete<float, 3>(Base, Normal));
 					}
 					else
 					{
@@ -1585,14 +1585,14 @@ void ClothingSimulation::DebugDrawCollision(USkeletalMeshComponent* OwnerCompone
 
 	auto DrawConvex = [&PDI](const Chaos::FConvex& Convex, const TRotation<float, 3>& Rotation, const Chaos::TVector<float, 3>& Position, const FLinearColor& Color)
 	{
-		const TArray<Chaos::TPlane<float, 3>>& Planes = Convex.GetFaces();
+		const TArray<Chaos::TPlaneConcrete<float, 3>>& Planes = Convex.GetFaces();
 		for (int32 PlaneIndex1 = 0; PlaneIndex1 < Planes.Num(); ++PlaneIndex1)
 		{
-			const Chaos::TPlane<float, 3>& Plane1 = Planes[PlaneIndex1];
+			const Chaos::TPlaneConcrete<float, 3>& Plane1 = Planes[PlaneIndex1];
 
 			for (int32 PlaneIndex2 = PlaneIndex1 + 1; PlaneIndex2 < Planes.Num(); ++PlaneIndex2)
 			{
-				const Chaos::TPlane<float, 3>& Plane2 = Planes[PlaneIndex2];
+				const Chaos::TPlaneConcrete<float, 3>& Plane2 = Planes[PlaneIndex2];
 
 				// Find the two surface points that belong to both Plane1 and Plane2
 				uint32 ParticleIndex1 = INDEX_NONE;

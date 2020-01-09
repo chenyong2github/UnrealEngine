@@ -101,6 +101,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 
 		// Capsules no longer have a union inside them or stored aabbs
 		CapsulesNoUnionOrAABBs,
+
+		// Convexes use concrete planes
+		ConvexUsesTPlaneConcrete,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
