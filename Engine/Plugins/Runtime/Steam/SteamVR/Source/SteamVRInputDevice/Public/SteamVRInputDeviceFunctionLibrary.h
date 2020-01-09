@@ -30,8 +30,10 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
+#include "openvr.h"
+#include "GameFramework/InputSettings.h"
+#include "InputCoreTypes.h"
 #include "CoreMinimal.h"
-#include "SteamVRInputDevice.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Features/IModularFeatures.h"
 #include "Runtime/Core/Public/GenericPlatform/GenericPlatformProcess.h"
@@ -39,6 +41,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "SteamVRInputDeviceFunctionLibrary.generated.h"
+
+using namespace vr;
 
 #define ACTION_PATH_VIBRATE_LEFT		"/actions/main/out/vibrateleft"
 #define ACTION_PATH_VIBRATE_RIGHT		"/actions/main/out/vibrateright"
@@ -385,9 +389,6 @@ class STEAMVRINPUTDEVICE_API USteamVRInputDeviceFunctionLibrary : public UBluepr
 	GENERATED_BODY()
 
 public:
-	/** Retrieve the first available SteamVR Input device currently active in a game */
-	static FSteamVRInputDevice* GetSteamVRInputDevice();
-
 	/**
 	* Get the finger curl and splay for a give hand in the current frame
 	* @param Hand - Which hand to get the finger curls and splay values for
@@ -636,4 +637,8 @@ public:
 	
 	/** Open the SteamVR Controller Input Dashboard in the user#s default browser */
 	static void LaunchBindingsURL();
+
+private:
+	/** Retrieve the first available SteamVR Input device currently active in a game */
+	static class FSteamVRInputDevice* GetSteamVRInputDevice();
 };

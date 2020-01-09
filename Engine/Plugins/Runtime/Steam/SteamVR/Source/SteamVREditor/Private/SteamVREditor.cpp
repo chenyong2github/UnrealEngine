@@ -35,7 +35,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "Features/IModularFeatures.h"
 #include "SteamVREditorStyle.h"
 #include "SteamVREditorCommands.h"
-#include "SteamVRControllerKeys.h"
 #include "LevelEditor.h"
 #include "Engine/Engine.h"
 #include "IXRTrackingSystem.h"

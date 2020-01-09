@@ -31,8 +31,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "Modules/ModuleManager.h"
-#include "../../SteamVRInputDevice/Public/SteamVRInputDevice.h"
-#include "../../SteamVRInputDevice/Public/SteamVRInputDeviceFunctionLibrary.h"
+#include "SteamVRInputDeviceFunctionLibrary.h"
 
 class FToolBarBuilder;
 class FMenuBuilder;
