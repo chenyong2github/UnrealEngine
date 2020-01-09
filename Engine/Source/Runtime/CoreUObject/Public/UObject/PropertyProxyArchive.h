@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*==================================================================================================
 	PropertyProxyArchive.h: Simple proxy archive for serializing references to FFields from Bytecode
