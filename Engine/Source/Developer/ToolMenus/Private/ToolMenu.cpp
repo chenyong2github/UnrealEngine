@@ -328,10 +328,14 @@ TArray<FName> UToolMenu::GetMenuHierarchyNames(bool bIncludeSubMenuRoot) const
 {
 	TArray<FName> HierarchyNames;
 
-	TArray<UToolMenu*> Hierarchy = UToolMenus::Get()->CollectHierarchy(GetMenuName());
-	for (int32 i = Hierarchy.Num() - 1; i >= 0; --i)
+	TArray<UToolMenu*> Hierarchy;
+	if (UToolMenus::Get()->FindMenu(GetMenuName()) != nullptr)
 	{
-		HierarchyNames.AddUnique(Hierarchy[i]->GetMenuName());
+		Hierarchy = UToolMenus::Get()->CollectHierarchy(GetMenuName());
+		for (int32 i = Hierarchy.Num() - 1; i >= 0; --i)
+		{
+			HierarchyNames.AddUnique(Hierarchy[i]->GetMenuName());
+		}
 	}
 
 	if (bIncludeSubMenuRoot && SubMenuParent)
