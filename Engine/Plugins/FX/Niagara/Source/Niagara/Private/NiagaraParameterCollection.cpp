@@ -11,8 +11,8 @@
 
 UNiagaraParameterCollectionInstance::UNiagaraParameterCollectionInstance(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, ParameterStorage(this)
 {
+	ParameterStorage.SetOwner(this);
 	//Bind(ParameterStorage);
 }
 

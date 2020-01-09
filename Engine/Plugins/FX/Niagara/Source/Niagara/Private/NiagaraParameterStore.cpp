@@ -110,13 +110,9 @@ FNiagaraParameterStore::FNiagaraParameterStore()
 {
 }
 
-FNiagaraParameterStore::FNiagaraParameterStore(UObject* InOwner)
-	: Owner(InOwner)
-	, bParametersDirty(true)
-	, bInterfacesDirty(true)
-	, bUObjectsDirty(true)
-	, LayoutVersion(0)
+void FNiagaraParameterStore::SetOwner(UObject* InOwner)
 {
+	Owner = InOwner;
 #if WITH_EDITORONLY_DATA
 	if (InOwner != nullptr)
 	{
@@ -134,7 +130,6 @@ FNiagaraParameterStore::FNiagaraParameterStore(const FNiagaraParameterStore& Oth
 
 FNiagaraParameterStore& FNiagaraParameterStore::operator=(const FNiagaraParameterStore& Other)
 {
-	Owner = Other.Owner;
 #if WITH_EDITORONLY_DATA
 	ParameterOffsets = Other.ParameterOffsets;
 #endif // WITH_EDITORONLY_DATA
@@ -649,6 +644,8 @@ void FNiagaraParameterStore::SanityCheckData(bool bInitInterfaces)
 {
 	// This function exists to patch up the issue seen in FORT-208391, where we had entries for DataInterfaces in the offset array but not in the actual DataInterface array entries.
 	// Additional protections were added for safety.
+	bool OwnerDirtied = false;
+
 	TArray<FNiagaraVariableWithOffset>::TConstIterator It = SortedParameterOffsets.CreateConstIterator();
 	while (It)
 	{
@@ -666,11 +663,15 @@ void FNiagaraParameterStore::SanityCheckData(bool bInitInterfaces)
 					int32 NewNum = SrcIndex - DataInterfaces.Num() + 1;
 					DataInterfaces.AddZeroed(NewNum);
 					UE_LOG(LogNiagara, Warning, TEXT("Missing data interfaces! Had to add %d data interface entries to ParameterStore on %s"), NewNum , Owner != nullptr ? *Owner->GetPathName() : TEXT("Unknown owner"));
+
+					OwnerDirtied = true;
 				}
 				if (DataInterfaces[SrcIndex] == nullptr && bInitInterfaces && Owner)
 				{
 					DataInterfaces[SrcIndex] = NewObject<UNiagaraDataInterface>(Owner, const_cast<UClass*>(Parameter.GetType().GetClass()), NAME_None, RF_Transactional | RF_Public);
 					UE_LOG(LogNiagara, Warning, TEXT("Had to initialize data interface! %s on %s"), *Parameter.GetName().ToString(), Owner != nullptr ? *Owner->GetPathName() : TEXT("Unknown owner"));
+
+					OwnerDirtied = true;
 				}
 			}
 			else if (Parameter.IsUObject())
@@ -681,6 +682,8 @@ void FNiagaraParameterStore::SanityCheckData(bool bInitInterfaces)
 					int32 NewNum = SrcIndex - UObjects.Num() + 1;
 					UObjects.AddZeroed(NewNum);
 					UE_LOG(LogNiagara, Warning, TEXT("Missing UObject interfaces! Had to add %d UObject entries for %s on %s"), NewNum , *Parameter.GetName().ToString(), Owner != nullptr ? *Owner->GetPathName() : TEXT("Unknown owner"));
+
+					OwnerDirtied = true;
 				}
 			}
 			else
@@ -689,9 +692,16 @@ void FNiagaraParameterStore::SanityCheckData(bool bInitInterfaces)
 				if (ParameterData.Num() < (SrcIndex + Size))
 				{
 					UE_LOG(LogNiagara, Warning, TEXT("Missing parameter data! %s on %s"), *Parameter.GetName().ToString(), Owner != nullptr ? *Owner->GetPathName() : TEXT("Unknown owner"));
+
+					OwnerDirtied = true;
 				}
 			}
 		}
+	}
+
+	if (Owner && OwnerDirtied)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("%s needs to be resaved to prevent above warnings due to the parameter state being stale."), *Owner->GetFullName());
 	}
 }
 
