@@ -31,6 +31,7 @@ public:
 	{
 		ensure(IsInstanced(MObject->GetType(true)) == false);	//cannot have an instance of an instance
 		this->bIsConvex = MObject->IsConvex();
+		this->bDoCollide = MObject->GetDoCollide();
 	}
 
 	static constexpr EImplicitObjectType StaticType()
@@ -41,6 +42,11 @@ public:
 	const TConcrete* GetInstancedObject() const
 	{
 		return MObject.Get();
+	}
+
+	bool GetDoCollide() const
+	{
+		return MObject->GetDoCollide();
 	}
 
 	virtual T PhiWithNormal(const TVector<T, d>& X, TVector<T, d>& Normal) const override
@@ -153,6 +159,7 @@ public:
 			break;
 		}
 		this->bIsConvex = MObject->IsConvex();
+		this->bDoCollide = MObject->GetDoCollide();
 		SetScale(Scale);
 	}
 
@@ -173,6 +180,7 @@ public:
 			break;
 		}
 		this->bIsConvex = MObject->IsConvex();
+		this->bDoCollide = MObject->GetDoCollide();
 		SetScale(Scale);
 	}
 
@@ -185,6 +193,7 @@ public:
 		ensureMsgf((IsScaled(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain each other."));
 		ensureMsgf((IsInstanced(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain instances."));
 		this->bIsConvex = Object->IsConvex();
+		this->bDoCollide = MObject->GetDoCollide();
 		SetScale(Scale);
 	}
 
@@ -201,6 +210,7 @@ public:
 		ensureMsgf((IsScaled(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain each other."));
 		ensureMsgf((IsInstanced(MObject->GetType(true)) == false), TEXT("Scaled objects should not contain instances."));
 		this->bIsConvex = Other.MObject->IsConvex();
+		this->bDoCollide = Other.MObject->GetDoCollide();
 	}
 	~TImplicitObjectScaled() {}
 
