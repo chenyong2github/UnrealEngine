@@ -10,8 +10,7 @@ namespace DisplayClusterConstants
 {
 	namespace net
 	{
-		static constexpr int32  SocketBufferSize            = INT16_MAX; // bytes
-		static constexpr int32  MessageBufferSize           = INT16_MAX; // bytes
+		static constexpr int32  MessageBufferSize           = 4 * 1024 * 1024; // bytes
 	};
 
 	namespace misc
