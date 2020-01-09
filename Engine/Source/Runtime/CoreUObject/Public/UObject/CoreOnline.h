@@ -213,6 +213,12 @@ public:
 	{
 	}
 
+	// temporarily restored implicit conversion from FUniqueNetId
+	FUniqueNetIdWrapper(const FUniqueNetId& InUniqueNetId)
+		: UniqueNetId(InUniqueNetId.AsShared())
+	{
+	}
+
 	FName GetType() const
 	{
 		return IsValid() ? UniqueNetId->GetType() : NAME_None;
