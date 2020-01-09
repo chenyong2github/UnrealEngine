@@ -671,7 +671,7 @@ private:
 	int32 CachedNumItems;
 	int32 CachedNumItemsToConsiderForWriting;
 
-	UPROPERTY(NotReplicated)
+	UPROPERTY(NotReplicated, Transient)
 	EFastArraySerializerDeltaFlags DeltaFlags;
 };
 
