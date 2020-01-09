@@ -192,18 +192,22 @@ static TAutoConsoleVariable<float> CVarSkyAtmosphereDistantSkyLightLUTAltitude(
 	TEXT("The altitude at which the sky samples are taken to integrate the sky lighting. Default to 6km, typicaly cirrus clouds altitude.\n"),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-////////////////////////////////////////////////////////////////////////// Debug / Visualisation
+////////////////////////////////////////////////////////////////////////// Debug / Visualization
 
 static TAutoConsoleVariable<int32> CVarSkyAtmosphereLUT32(
 	TEXT("r.SkyAtmosphere.LUT32"), 0,
 	TEXT("Use full 32bit per-channel precision for all sky LUTs.\n"),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-TAutoConsoleVariable<int32> CVarSkyAtmosphereVisualize(
+static TAutoConsoleVariable<int32> CVarSkyAtmosphereVisualize(
 	TEXT("r.SkyAtmosphere.Visualize"),
 	0,
 	TEXT("DRAW DEBUG"),
 	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarSkyAtmosphereDebugText(
+	TEXT("r.SkyAtmosphere.DebugText"), 1,
+	TEXT("Renders debug text when a sky dome with a sky material is used, to warn the user when it does not cover some area of the screen.\n"));
 
 DECLARE_GPU_STAT(SkyAtmosphereLUTs);
 DECLARE_GPU_STAT(SkyAtmosphere);
@@ -1432,7 +1436,7 @@ bool FSceneRenderer::ShouldRenderSkyAtmosphereEditorNotifications()
 	{
 		bAnyViewHasSkyMaterial |= Views[ViewIndex].bSceneHasSkyMaterial;
 	}
-	return bAnyViewHasSkyMaterial;
+	return bAnyViewHasSkyMaterial && CVarSkyAtmosphereDebugText.GetValueOnAnyThread()>0;
 #endif
 	return false;
 }
