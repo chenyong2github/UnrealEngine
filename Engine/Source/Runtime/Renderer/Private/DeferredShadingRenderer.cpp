@@ -1844,7 +1844,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	TRefCountPtr<IPooledRenderTarget> SkyLightHitDistanceRT;
 
 	const bool bRayTracingEnabled = IsRayTracingEnabled();
-	if (bRayTracingEnabled && bCanOverlayRayTracingOutput)
+	if (bRayTracingEnabled && bCanOverlayRayTracingOutput && !IsForwardShadingEnabled(ShaderPlatform))
 	{		
 		RenderRayTracingSkyLight(RHICmdList, SkyLightRT, SkyLightHitDistanceRT);
 	}
