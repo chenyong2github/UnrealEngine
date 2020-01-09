@@ -1,11 +1,11 @@
-// Copyright 1998-2020 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	FMallocDoubleFreeFinder.cpp: Memoory tracking allocator
 =============================================================================*/
 #include "HAL/MallocDoubleFreeFinder.h"
 #include "Logging/LogMacros.h"
-#include "Misc/Parse.h"""
+#include "Misc/Parse.h"
 #include "Misc/ScopeLock.h"
 //#include "Templates/Function.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
